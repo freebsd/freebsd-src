@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -60,12 +62,10 @@
 #define BCOPY(p1, p2, n) bcopy((void *)(p1), (void *)(p2), (int)(n))
 
 void
-sl_compress_init(comp, max_state)
-	struct slcompress *comp;
-	int max_state;
+sl_compress_init(struct slcompress *comp, int max_state)
 {
-	register u_int i;
-	register struct cstate *tstate = comp->tstate;
+	u_int i;
+	struct cstate *tstate = comp->tstate;
 
 	if (max_state == -1) {
 		max_state = MAX_STATES - 1;
@@ -152,20 +152,17 @@ sl_compress_init(comp, max_state)
  * if m is an M_PKTHDR mbuf.
  */
 u_int
-sl_compress_tcp(m, ip, comp, compress_cid)
-	struct mbuf *m;
-	register struct ip *ip;
-	struct slcompress *comp;
-	int compress_cid;
+sl_compress_tcp(struct mbuf *m, struct ip *ip, struct slcompress *comp,
+    int compress_cid)
 {
-	register struct cstate *cs = comp->last_cs->cs_next;
-	register u_int hlen = ip->ip_hl;
-	register struct tcphdr *oth;
-	register struct tcphdr *th;
-	register u_int deltaS, deltaA;
-	register u_int changes = 0;
+	struct cstate *cs = comp->last_cs->cs_next;
+	u_int hlen = ip->ip_hl;
+	struct tcphdr *oth;
+	struct tcphdr *th;
+	u_int deltaS, deltaA;
+	u_int changes = 0;
 	u_char new_seq[16];
-	register u_char *cp = new_seq;
+	u_char *cp = new_seq;
 
 	/*
 	 * Bail if this is an IP fragment or if the TCP packet isn't
@@ -202,8 +199,8 @@ sl_compress_tcp(m, ip, comp, compress_cid)
 		 * states via linear search.  If we don't find a state
 		 * for the datagram, the oldest state is (re-)used.
 		 */
-		register struct cstate *lcs;
-		register struct cstate *lastcs = comp->last_cs;
+		struct cstate *lcs;
+		struct cstate *lastcs = comp->last_cs;
 
 		do {
 			lcs = cs; cs = cs->cs_next;
@@ -412,11 +409,7 @@ uncompressed:
 
 
 int
-sl_uncompress_tcp(bufp, len, type, comp)
-	u_char **bufp;
-	int len;
-	u_int type;
-	struct slcompress *comp;
+sl_uncompress_tcp(u_char **bufp, int len, u_int type, struct slcompress *comp)
 {
 	u_char *hdr, *cp;
 	int hlen, vjlen;
@@ -460,21 +453,16 @@ sl_uncompress_tcp(bufp, len, type, comp)
  * in *hdrp and its length in *hlenp.
  */
 int
-sl_uncompress_tcp_core(buf, buflen, total_len, type, comp, hdrp, hlenp)
-	u_char *buf;
-	int buflen, total_len;
-	u_int type;
-	struct slcompress *comp;
-	u_char **hdrp;
-	u_int *hlenp;
+sl_uncompress_tcp_core(u_char *buf, int buflen, int total_len, u_int type,
+    struct slcompress *comp, u_char **hdrp, u_int *hlenp)
 {
-	register u_char *cp;
-	register u_int hlen, changes;
-	register struct tcphdr *th;
-	register struct cstate *cs;
-	register struct ip *ip;
-	register u_int16_t *bp;
-	register u_int vjlen;
+	u_char *cp;
+	u_int hlen, changes;
+	struct tcphdr *th;
+	struct cstate *cs;
+	struct ip *ip;
+	u_int16_t *bp;
+	u_int vjlen;
 
 	switch (type) {
 
@@ -542,7 +530,7 @@ sl_uncompress_tcp_core(buf, buflen, total_len, type, comp, hdrp, hlenp)
 	switch (changes & SPECIALS_MASK) {
 	case SPECIAL_I:
 		{
-		register u_int i = ntohs(cs->cs_ip.ip_len) - cs->cs_hlen;
+		u_int i = ntohs(cs->cs_ip.ip_len) - cs->cs_hlen;
 		th->th_ack = htonl(ntohl(th->th_ack) + i);
 		th->th_seq = htonl(ntohl(th->th_seq) + i);
 		}

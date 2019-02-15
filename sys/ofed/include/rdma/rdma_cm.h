@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * Copyright (c) 2005 Voltaire Inc.  All rights reserved.
  * Copyright (c) 2005 Intel Corporation.  All rights reserved.
  *
@@ -29,6 +31,8 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * $FreeBSD$
  */
 
 #if !defined(RDMA_CM_H)
@@ -62,13 +66,20 @@ enum rdma_cm_event_type {
 	RDMA_CM_EVENT_TIMEWAIT_EXIT
 };
 
+const char *__attribute_const__ rdma_event_msg(enum rdma_cm_event_type event);
+
 enum rdma_port_space {
 	RDMA_PS_SDP   = 0x0001,
 	RDMA_PS_IPOIB = 0x0002,
+	RDMA_PS_IB    = 0x013F,
 	RDMA_PS_TCP   = 0x0106,
 	RDMA_PS_UDP   = 0x0111,
-	RDMA_PS_SCTP  = 0x0183
 };
+
+#define RDMA_IB_IP_PS_MASK   0xFFFFFFFFFFFF0000ULL
+#define RDMA_IB_IP_PS_TCP    0x0000000001060000ULL
+#define RDMA_IB_IP_PS_UDP    0x0000000001110000ULL
+#define RDMA_IB_IP_PS_IB     0x00000000013F0000ULL
 
 struct rdma_addr {
 	struct sockaddr_storage src_addr;
@@ -93,6 +104,7 @@ struct rdma_conn_param {
 	/* Fields below ignored if a QP is created on the rdma_cm_id. */
 	u8 srq;
 	u32 qp_num;
+	u32 qkey;
 };
 
 struct rdma_ud_param {
@@ -110,6 +122,20 @@ struct rdma_cm_event {
 		struct rdma_conn_param	conn;
 		struct rdma_ud_param	ud;
 	} param;
+};
+
+enum rdma_cm_state {
+	RDMA_CM_IDLE,
+	RDMA_CM_ADDR_QUERY,
+	RDMA_CM_ADDR_RESOLVED,
+	RDMA_CM_ROUTE_QUERY,
+	RDMA_CM_ROUTE_RESOLVED,
+	RDMA_CM_CONNECT,
+	RDMA_CM_DISCONNECT,
+	RDMA_CM_ADDR_BOUND,
+	RDMA_CM_LISTEN,
+	RDMA_CM_DEVICE_REMOVAL,
+	RDMA_CM_DESTROYING
 };
 
 struct rdma_cm_id;
@@ -131,19 +157,26 @@ struct rdma_cm_id {
 	rdma_cm_event_handler	 event_handler;
 	struct rdma_route	 route;
 	enum rdma_port_space	 ps;
+	enum ib_qp_type		 qp_type;
 	u8			 port_num;
 };
 
 /**
  * rdma_create_id - Create an RDMA identifier.
  *
+ * @net: The network namespace in which to create the new id.
  * @event_handler: User callback invoked to report events associated with the
  *   returned rdma_id.
  * @context: User specified context associated with the id.
  * @ps: RDMA port space.
+ * @qp_type: type of queue pair associated with the id.
+ *
+ * The id holds a reference on the network namespace until it is destroyed.
  */
-struct rdma_cm_id *rdma_create_id(rdma_cm_event_handler event_handler,
-				  void *context, enum rdma_port_space ps);
+struct rdma_cm_id *rdma_create_id(struct vnet *net,
+				  rdma_cm_event_handler event_handler,
+				  void *context, enum rdma_port_space ps,
+				  enum ib_qp_type qp_type);
 
 /**
   * rdma_destroy_id - Destroys an RDMA identifier.
@@ -304,11 +337,13 @@ int rdma_disconnect(struct rdma_cm_id *id);
  *   address.
  * @id: Communication identifier associated with the request.
  * @addr: Multicast address identifying the group to join.
+ * @join_state: Multicast JoinState bitmap requested by port.
+ *		Bitmap is based on IB_SA_MCMEMBER_REC_JOIN_STATE bits.
  * @context: User-defined context associated with the join request, returned
  * to the user through the private_data pointer in multicast events.
  */
 int rdma_join_multicast(struct rdma_cm_id *id, struct sockaddr *addr,
-			void *context);
+			u8 join_state, void *context);
 
 /**
  * rdma_leave_multicast - Leave the multicast group specified by the given
@@ -329,5 +364,32 @@ void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr);
  * requested may not be supported by the network to all destinations.
  */
 void rdma_set_service_type(struct rdma_cm_id *id, int tos);
+
+/**
+ * rdma_set_reuseaddr - Allow the reuse of local addresses when binding
+ *    the rdma_cm_id.
+ * @id: Communication identifier to configure.
+ * @reuse: Value indicating if the bound address is reusable.
+ *
+ * Reuse must be set before an address is bound to the id.
+ */
+int rdma_set_reuseaddr(struct rdma_cm_id *id, int reuse);
+
+/**
+ * rdma_set_afonly - Specify that listens are restricted to the
+ *    bound address family only.
+ * @id: Communication identifer to configure.
+ * @afonly: Value indicating if listens are restricted.
+ *
+ * Must be set before identifier is in the listening state.
+ */
+int rdma_set_afonly(struct rdma_cm_id *id, int afonly);
+
+ /**
+ * rdma_get_service_id - Return the IB service ID for a specified address.
+ * @id: Communication identifier associated with the address.
+ * @addr: Address for the service ID.
+ */
+__be64 rdma_get_service_id(struct rdma_cm_id *id, struct sockaddr *addr);
 
 #endif /* RDMA_CM_H */

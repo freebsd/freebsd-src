@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Adrian Chadd, Xenion Pty Ltd.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -328,7 +330,7 @@ ar9280SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
 		 * uses this to calculate the PDADC delta during
 		 * calibration ; 0 here effectively stops the
 		 * temperature compensation calibration from
-		 * occuring.
+		 * occurring.
 		 */
 		AH5416(ah)->initPDADC = 0;
 	}

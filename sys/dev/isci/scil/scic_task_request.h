@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -73,7 +75,7 @@ extern "C" {
 
 /**
  * @brief This method simply returns the size required to build an SCI
- *        based task managment request object.
+ *        based task management request object.
  *
  * @return Return the size of the SCIC task request object.
  */

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 The FreeBSD Foundation
+ * Copyright (c) 2010,2018 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Shteryana Sotirova Shopova under
@@ -43,6 +43,7 @@
 #include "snmp.h"
 #include "snmpmod.h"
 
+#define SNMPTREE_TYPES
 #include "target_tree.h"
 #include "target_oid.h"
 
@@ -299,8 +300,9 @@ op_snmp_target_addrs(struct snmp_context *ctx __unused, struct snmp_value *val,
 				return (target_delete_address(addrs));
 			break;
 		default:
-			break;	
+			break;
 		}
+		return (SNMP_ERR_NOERROR);
 
 	default:
 		abort();
@@ -625,6 +627,7 @@ op_snmp_notify(struct snmp_context *ctx __unused, struct snmp_value *val,
 		default:
 			break;
 		}
+		return (SNMP_ERR_NOERROR);
 
 	default:
 		abort();
@@ -663,13 +666,14 @@ target_append_index(struct asn_oid *oid, uint sub, const char *name)
 static int
 target_decode_index(const struct asn_oid *oid, uint sub, char *name)
 {
-	uint32_t i, len;
+	uint32_t i;
 
-	if ((len = oid->len - sub) >= SNMP_ADM_STR32_SIZ)
+	if (oid->len - sub != oid->subs[sub] + 1 || oid->subs[sub] >=
+	    SNMP_ADM_STR32_SIZ)
 		return (-1);
 
-	for (i = 0; i < len; i++)
-		name[i] = oid->subs[sub + i];
+	for (i = 0; i < oid->subs[sub]; i++)
+		name[i] = oid->subs[sub + i + 1];
 	name[i] = '\0';
 
 	return (0);
@@ -823,9 +827,10 @@ target_dump(void)
 	/* XXX: dump the module stats & list of mgmt targets */
 }
 
-const char target_comment[] = \
+static const char target_comment[] = \
 "This module implements SNMP Management Target MIB Module defined in RFC 3413.";
 
+extern const struct snmp_module config;
 const struct snmp_module config = {
 	.comment =	target_comment,
 	.init =		target_init,

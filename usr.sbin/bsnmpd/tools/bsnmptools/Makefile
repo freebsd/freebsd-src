@@ -7,15 +7,10 @@
 
 PROG=	bsnmpget
 
-DPADD+=	${LIBBSNMP} ${LIBBSNMPTOOLS}
-LDADD+=	-lbsnmp -lbsnmptools
-CFLAGS+=	-I${.CURDIR}/../libbsnmptools
-LDFLAGS+=	-L${LIBBSNMPTOOLSDIR}
+LIBADD=	bsnmp bsnmptools
 
-.if ${MK_OPENSSL} != "no"
-DPADD+= ${LIBCRYPTO}
-LDADD+= -lcrypto
-.endif
+CFLAGS+=	-I${.CURDIR:H}/libbsnmptools
+LDFLAGS+=	-L${.OBJDIR:H}/libbsnmptools
 
 LINKS=  ${BINDIR}/bsnmpget ${BINDIR}/bsnmpwalk
 LINKS+=  ${BINDIR}/bsnmpget ${BINDIR}/bsnmpset

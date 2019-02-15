@@ -18,173 +18,193 @@
 #ifndef LLVM_ANALYSIS_DOMINANCEFRONTIER_H
 #define LLVM_ANALYSIS_DOMINANCEFRONTIER_H
 
-#include "llvm/Analysis/Dominators.h"
+#include "llvm/ADT/GraphTraits.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/Pass.h"
+#include "llvm/Support/GenericDomTree.h"
+#include <cassert>
 #include <map>
 #include <set>
+#include <utility>
+#include <vector>
 
 namespace llvm {
-  
+
+class Function;
+class raw_ostream;
+
 //===----------------------------------------------------------------------===//
 /// DominanceFrontierBase - Common base class for computing forward and inverse
 /// dominance frontiers for a function.
 ///
-class DominanceFrontierBase : public FunctionPass {
+template <class BlockT, bool IsPostDom>
+class DominanceFrontierBase {
 public:
-  typedef std::set<BasicBlock*>             DomSetType;    // Dom set for a bb
-  typedef std::map<BasicBlock*, DomSetType> DomSetMapType; // Dom set map
+  using DomSetType = std::set<BlockT *>;                // Dom set for a bb
+  using DomSetMapType = std::map<BlockT *, DomSetType>; // Dom set map
+
 protected:
+  using BlockTraits = GraphTraits<BlockT *>;
+
   DomSetMapType Frontiers;
-  std::vector<BasicBlock*> Roots;
-  const bool IsPostDominators;
+  // Postdominators can have multiple roots.
+  SmallVector<BlockT *, IsPostDom ? 4 : 1> Roots;
+  static constexpr bool IsPostDominators = IsPostDom;
 
 public:
-  DominanceFrontierBase(char &ID, bool isPostDom)
-    : FunctionPass(ID), IsPostDominators(isPostDom) {}
+  DominanceFrontierBase() = default;
 
   /// getRoots - Return the root blocks of the current CFG.  This may include
   /// multiple blocks if we are computing post dominators.  For forward
   /// dominators, this will always be a single block (the entry node).
-  ///
-  inline const std::vector<BasicBlock*> &getRoots() const { return Roots; }
+  const SmallVectorImpl<BlockT *> &getRoots() const { return Roots; }
+
+  BlockT *getRoot() const {
+    assert(Roots.size() == 1 && "Should always have entry node!");
+    return Roots[0];
+  }
 
   /// isPostDominator - Returns true if analysis based of postdoms
-  ///
-  bool isPostDominator() const { return IsPostDominators; }
+  bool isPostDominator() const {
+    return IsPostDominators;
+  }
 
-  virtual void releaseMemory() { Frontiers.clear(); }
+  void releaseMemory() {
+    Frontiers.clear();
+  }
 
   // Accessor interface:
-  typedef DomSetMapType::iterator iterator;
-  typedef DomSetMapType::const_iterator const_iterator;
-  iterator       begin()       { return Frontiers.begin(); }
-  const_iterator begin() const { return Frontiers.begin(); }
-  iterator       end()         { return Frontiers.end(); }
-  const_iterator end()   const { return Frontiers.end(); }
-  iterator       find(BasicBlock *B)       { return Frontiers.find(B); }
-  const_iterator find(BasicBlock *B) const { return Frontiers.find(B); }
+  using iterator = typename DomSetMapType::iterator;
+  using const_iterator = typename DomSetMapType::const_iterator;
 
-  iterator addBasicBlock(BasicBlock *BB, const DomSetType &frontier) {
+  iterator begin() { return Frontiers.begin(); }
+  const_iterator begin() const { return Frontiers.begin(); }
+  iterator end() { return Frontiers.end(); }
+  const_iterator end() const { return Frontiers.end(); }
+  iterator find(BlockT *B) { return Frontiers.find(B); }
+  const_iterator find(BlockT *B) const { return Frontiers.find(B); }
+
+  iterator addBasicBlock(BlockT *BB, const DomSetType &frontier) {
     assert(find(BB) == end() && "Block already in DominanceFrontier!");
     return Frontiers.insert(std::make_pair(BB, frontier)).first;
   }
 
   /// removeBlock - Remove basic block BB's frontier.
-  void removeBlock(BasicBlock *BB) {
-    assert(find(BB) != end() && "Block is not in DominanceFrontier!");
-    for (iterator I = begin(), E = end(); I != E; ++I)
-      I->second.erase(BB);
-    Frontiers.erase(BB);
-  }
+  void removeBlock(BlockT *BB);
 
-  void addToFrontier(iterator I, BasicBlock *Node) {
-    assert(I != end() && "BB is not in DominanceFrontier!");
-    I->second.insert(Node);
-  }
+  void addToFrontier(iterator I, BlockT *Node);
 
-  void removeFromFrontier(iterator I, BasicBlock *Node) {
-    assert(I != end() && "BB is not in DominanceFrontier!");
-    assert(I->second.count(Node) && "Node is not in DominanceFrontier of BB");
-    I->second.erase(Node);
-  }
+  void removeFromFrontier(iterator I, BlockT *Node);
 
   /// compareDomSet - Return false if two domsets match. Otherwise
   /// return true;
-  bool compareDomSet(DomSetType &DS1, const DomSetType &DS2) const {
-    std::set<BasicBlock *> tmpSet;
-    for (DomSetType::const_iterator I = DS2.begin(),
-           E = DS2.end(); I != E; ++I)
-      tmpSet.insert(*I);
-
-    for (DomSetType::const_iterator I = DS1.begin(),
-           E = DS1.end(); I != E; ) {
-      BasicBlock *Node = *I++;
-
-      if (tmpSet.erase(Node) == 0)
-        // Node is in DS1 but not in DS2.
-        return true;
-    }
-
-    if (!tmpSet.empty())
-      // There are nodes that are in DS2 but not in DS1.
-      return true;
-
-    // DS1 and DS2 matches.
-    return false;
-  }
+  bool compareDomSet(DomSetType &DS1, const DomSetType &DS2) const;
 
   /// compare - Return true if the other dominance frontier base matches
   /// this dominance frontier base. Otherwise return false.
-  bool compare(DominanceFrontierBase &Other) const {
-    DomSetMapType tmpFrontiers;
-    for (DomSetMapType::const_iterator I = Other.begin(),
-           E = Other.end(); I != E; ++I)
-      tmpFrontiers.insert(std::make_pair(I->first, I->second));
-
-    for (DomSetMapType::iterator I = tmpFrontiers.begin(),
-           E = tmpFrontiers.end(); I != E; ) {
-      BasicBlock *Node = I->first;
-      const_iterator DFI = find(Node);
-      if (DFI == end())
-        return true;
-
-      if (compareDomSet(I->second, DFI->second))
-        return true;
-
-      ++I;
-      tmpFrontiers.erase(Node);
-    }
-
-    if (!tmpFrontiers.empty())
-      return true;
-
-    return false;
-  }
+  bool compare(DominanceFrontierBase &Other) const;
 
   /// print - Convert to human readable form
   ///
-  virtual void print(raw_ostream &OS, const Module* = 0) const;
+  void print(raw_ostream &OS) const;
 
   /// dump - Dump the dominance frontier to dbgs().
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   void dump() const;
+#endif
 };
-
 
 //===-------------------------------------
 /// DominanceFrontier Class - Concrete subclass of DominanceFrontierBase that is
 /// used to compute a forward dominator frontiers.
 ///
-class DominanceFrontier : public DominanceFrontierBase {
-  virtual void anchor();
+template <class BlockT>
+class ForwardDominanceFrontierBase
+    : public DominanceFrontierBase<BlockT, false> {
+private:
+  using BlockTraits = GraphTraits<BlockT *>;
+
 public:
-  static char ID; // Pass ID, replacement for typeid
-  DominanceFrontier() :
-    DominanceFrontierBase(ID, false) {
-      initializeDominanceFrontierPass(*PassRegistry::getPassRegistry());
-    }
+  using DomTreeT = DomTreeBase<BlockT>;
+  using DomTreeNodeT = DomTreeNodeBase<BlockT>;
+  using DomSetType = typename DominanceFrontierBase<BlockT, false>::DomSetType;
 
-  BasicBlock *getRoot() const {
-    assert(Roots.size() == 1 && "Should always have entry node!");
-    return Roots[0];
+  void analyze(DomTreeT &DT) {
+    assert(DT.getRoots().size() == 1 &&
+           "Only one entry block for forward domfronts!");
+    this->Roots = {DT.getRoot()};
+    calculate(DT, DT[this->Roots[0]]);
   }
 
-  virtual bool runOnFunction(Function &) {
-    Frontiers.clear();
-    DominatorTree &DT = getAnalysis<DominatorTree>();
-    Roots = DT.getRoots();
-    assert(Roots.size() == 1 && "Only one entry block for forward domfronts!");
-    calculate(DT, DT[Roots[0]]);
-    return false;
-  }
-
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-    AU.setPreservesAll();
-    AU.addRequired<DominatorTree>();
-  }
-
-  const DomSetType &calculate(const DominatorTree &DT,
-                              const DomTreeNode *Node);
+  const DomSetType &calculate(const DomTreeT &DT, const DomTreeNodeT *Node);
 };
 
-} // End llvm namespace
+class DominanceFrontier : public ForwardDominanceFrontierBase<BasicBlock> {
+public:
+  using DomTreeT = DomTreeBase<BasicBlock>;
+  using DomTreeNodeT = DomTreeNodeBase<BasicBlock>;
+  using DomSetType = DominanceFrontierBase<BasicBlock, false>::DomSetType;
+  using iterator = DominanceFrontierBase<BasicBlock, false>::iterator;
+  using const_iterator =
+      DominanceFrontierBase<BasicBlock, false>::const_iterator;
 
-#endif
+  /// Handle invalidation explicitly.
+  bool invalidate(Function &F, const PreservedAnalyses &PA,
+                  FunctionAnalysisManager::Invalidator &);
+};
+
+class DominanceFrontierWrapperPass : public FunctionPass {
+  DominanceFrontier DF;
+
+public:
+  static char ID; // Pass ID, replacement for typeid
+
+  DominanceFrontierWrapperPass();
+
+  DominanceFrontier &getDominanceFrontier() { return DF; }
+  const DominanceFrontier &getDominanceFrontier() const { return DF;  }
+
+  void releaseMemory() override;
+
+  bool runOnFunction(Function &) override;
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override;
+
+  void print(raw_ostream &OS, const Module * = nullptr) const override;
+
+  void dump() const;
+};
+
+extern template class DominanceFrontierBase<BasicBlock, false>;
+extern template class DominanceFrontierBase<BasicBlock, true>;
+extern template class ForwardDominanceFrontierBase<BasicBlock>;
+
+/// \brief Analysis pass which computes a \c DominanceFrontier.
+class DominanceFrontierAnalysis
+    : public AnalysisInfoMixin<DominanceFrontierAnalysis> {
+  friend AnalysisInfoMixin<DominanceFrontierAnalysis>;
+
+  static AnalysisKey Key;
+
+public:
+  /// \brief Provide the result type for this analysis pass.
+  using Result = DominanceFrontier;
+
+  /// \brief Run the analysis pass over a function and produce a dominator tree.
+  DominanceFrontier run(Function &F, FunctionAnalysisManager &AM);
+};
+
+/// \brief Printer pass for the \c DominanceFrontier.
+class DominanceFrontierPrinterPass
+    : public PassInfoMixin<DominanceFrontierPrinterPass> {
+  raw_ostream &OS;
+
+public:
+  explicit DominanceFrontierPrinterPass(raw_ostream &OS);
+
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+};
+
+} // end namespace llvm
+
+#endif // LLVM_ANALYSIS_DOMINANCEFRONTIER_H

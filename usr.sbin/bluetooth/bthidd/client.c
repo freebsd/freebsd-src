@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -33,6 +35,7 @@
 
 #include <sys/queue.h>
 #include <assert.h>
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -185,14 +188,11 @@ client_connect(bthid_server_p srv, int32_t fd)
 		s->state = OPEN;
 		connect_in_progress = 0;
 
-		/* Register session's vkbd descriptor (if any) for read */
-		if (s->state == OPEN && d->keyboard) {
-			assert(s->vkbd != -1);
-
-			FD_SET(s->vkbd, &srv->rfdset);
-			if (s->vkbd > srv->maxfd)
-				srv->maxfd = s->vkbd;
-	        }
+		/* Create kbd/mouse after both channels are established */
+		if (session_run(s) < 0) {
+			session_close(s);
+			return (-1);
+		}
 		break;
 
 	default:
@@ -236,7 +236,9 @@ client_socket(bdaddr_p bdaddr, uint16_t psm)
 	l2addr.l2cap_family = AF_BLUETOOTH;
 	memset(&l2addr.l2cap_bdaddr, 0, sizeof(l2addr.l2cap_bdaddr));
 	l2addr.l2cap_psm = 0;
-
+	l2addr.l2cap_bdaddr_type = BDADDR_BREDR;
+	l2addr.l2cap_cid = 0;
+	
 	if (bind(s, (struct sockaddr *) &l2addr, sizeof(l2addr)) < 0) {
 		close(s);
 		return (-1);

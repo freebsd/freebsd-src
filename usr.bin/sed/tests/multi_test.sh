@@ -12,7 +12,7 @@
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
-# 4. Neither the name of the University nor the names of its contributors
+# 3. Neither the name of the University nor the names of its contributors
 #    may be used to endorse or promote products derived from this software
 #    without specific prior written permission.
 #
@@ -51,7 +51,7 @@ main()
 	awk 'END { for (i = 1; i < 15; i++) print "l1_" i}' </dev/null >lines1
 	awk 'END { for (i = 1; i < 10; i++) print "l2_" i}' </dev/null >lines2
 
-	echo "1..129"
+	echo "1..130"
 
 	exec 4>&1 5>&2
 	tests
@@ -181,6 +181,8 @@ hello' /dev/null
 	mark '2.20' ; $SED -n '/l1_7/,3p' lines1 lines2
 	mark '2.21' ; $SED -n '13,+4p' lines1 lines2
 	mark '2.22' ; $SED -n '/l1_6/,+2p' lines1 lines2
+	# For PR bin/192108
+	mark '2.23'; $SED -n '12,+1p' lines1
 }
 
 test_group()
@@ -381,7 +383,6 @@ test_print()
 	mark '7.8'
 	echo line1 > lines3
 	echo "" >> lines3
-	TODO=1
 	$SED -n -e '$p' lines3 /dev/null
 		
 }

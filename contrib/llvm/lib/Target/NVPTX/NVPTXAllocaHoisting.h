@@ -11,39 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef NVPTX_ALLOCA_HOISTING_H_
-#define NVPTX_ALLOCA_HOISTING_H_
-
-#include "llvm/CodeGen/MachineFunctionAnalysis.h"
-#include "llvm/IR/DataLayout.h"
-#include "llvm/Pass.h"
+#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXALLOCAHOISTING_H
+#define LLVM_LIB_TARGET_NVPTX_NVPTXALLOCAHOISTING_H
 
 namespace llvm {
-
 class FunctionPass;
-class Function;
-
-// Hoisting the alloca instructions in the non-entry blocks to the entry
-// block.
-class NVPTXAllocaHoisting : public FunctionPass {
-public:
-  static char ID; // Pass ID
-  NVPTXAllocaHoisting() : FunctionPass(ID) {}
-
-  void getAnalysisUsage(AnalysisUsage &AU) const {
-    AU.addRequired<DataLayout>();
-    AU.addPreserved<MachineFunctionAnalysis>();
-  }
-
-  virtual const char *getPassName() const {
-    return "NVPTX specific alloca hoisting";
-  }
-
-  virtual bool runOnFunction(Function &function);
-};
 
 extern FunctionPass *createAllocaHoisting();
-
 } // end namespace llvm
 
-#endif // NVPTX_ALLOCA_HOISTING_H_
+#endif

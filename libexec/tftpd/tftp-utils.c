@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2008 Edwin Groothuis. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -235,14 +237,15 @@ const char *
 debug_show(int d)
 {
 	static char s[100];
+	size_t space = sizeof(s);
 	int i = 0;
 
 	s[0] = '\0';
 	while (debugs[i].name != NULL) {
 		if (d&debugs[i].value) {
-			if (s[0] != '\0') 
-				strcat(s, " ");
-			strcat(s, debugs[i].name);
+			if (s[0] != '\0')
+				strlcat(s, " ", space);
+			strlcat(s, debugs[i].name, space);
 		}
 		i++;
 	}
@@ -268,11 +271,13 @@ char *
 rp_strerror(int error)
 {
 	static char s[100];
+	size_t space = sizeof(s);
 	int i = 0;
 
 	while (rp_errors[i].desc != NULL) {
 		if (rp_errors[i].error == error) {
-			strcpy(s, rp_errors[i].desc);
+			strlcpy(s, rp_errors[i].desc, space);
+			space -= strlen(rp_errors[i].desc);
 		}
 		i++;
 	}

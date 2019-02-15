@@ -2,6 +2,8 @@
 /* $NetBSD: citrus_stdenc_local.h,v 1.4 2008/02/09 14:56:20 junyoung Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2003 Citrus Project,
  * All rights reserved.
  *
@@ -55,7 +57,7 @@ static int	 _citrus_##_e_##_stdenc_mbtocs				\
 		    (struct _citrus_stdenc * __restrict,		\
 		    _citrus_csid_t * __restrict,			\
 		    _citrus_index_t * __restrict,			\
-		    const char ** __restrict, size_t,			\
+		    char ** __restrict, size_t,				\
 		    void * __restrict, size_t * __restrict,		\
 		    struct iconv_hooks *);				\
 static int	 _citrus_##_e_##_stdenc_cstomb				\
@@ -66,7 +68,7 @@ static int	 _citrus_##_e_##_stdenc_cstomb				\
 static int	 _citrus_##_e_##_stdenc_mbtowc				\
 		    (struct _citrus_stdenc * __restrict,		\
 		    _citrus_wc_t * __restrict,				\
-		    const char ** __restrict, size_t,				\
+		    char ** __restrict, size_t,				\
 		    void * __restrict, size_t * __restrict,		\
 		    struct iconv_hooks *);				\
 static int	 _citrus_##_e_##_stdenc_wctomb				\
@@ -106,7 +108,7 @@ typedef int (*_citrus_stdenc_init_state_t)
 typedef int (*_citrus_stdenc_mbtocs_t)
     (struct _citrus_stdenc * __restrict,
     _citrus_csid_t * __restrict, _citrus_index_t * __restrict,
-    const char ** __restrict, size_t,
+    char ** __restrict, size_t,
     void * __restrict, size_t * __restrict,
     struct iconv_hooks *);
 typedef int (*_citrus_stdenc_cstomb_t)
@@ -116,7 +118,7 @@ typedef int (*_citrus_stdenc_cstomb_t)
 typedef int (*_citrus_stdenc_mbtowc_t)
     (struct _citrus_stdenc * __restrict,
     _citrus_wc_t * __restrict,
-    const char ** __restrict, size_t,
+    char ** __restrict, size_t,
     void * __restrict, size_t * __restrict,
     struct iconv_hooks *);
 typedef int (*_citrus_stdenc_wctomb_t)

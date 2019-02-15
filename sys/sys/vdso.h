@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 2012 Konstantin Belousov <kib@FreeBSD.ORG>.
  * All rights reserved.
  *
@@ -53,6 +55,9 @@ struct vdso_timekeep {
 #define	VDSO_TK_VER_1		0x1
 #define	VDSO_TK_VER_CURR	VDSO_TK_VER_1
 #define	VDSO_TH_ALGO_1		0x1
+#define	VDSO_TH_ALGO_2		0x2
+#define	VDSO_TH_ALGO_3		0x3
+#define	VDSO_TH_ALGO_4		0x4
 
 #ifndef _KERNEL
 
@@ -62,12 +67,20 @@ struct timezone;
 
 int __vdso_clock_gettime(clockid_t clock_id, struct timespec *ts);
 int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz);
-u_int __vdso_gettc(const struct vdso_timehands *vdso_th);
+int __vdso_gettc(const struct vdso_timehands *vdso_th, u_int *tc);
 int __vdso_gettimekeep(struct vdso_timekeep **tk);
 
 #endif
 
 #ifdef _KERNEL
+
+struct timecounter;
+
+struct vdso_sv_tk {
+	int		sv_timekeep_off;
+	int		sv_timekeep_curr;
+	uint32_t	sv_timekeep_gen;
+};
 
 void timekeep_push_vdso(void);
 
@@ -81,7 +94,10 @@ uint32_t tc_fill_vdso_timehands(struct vdso_timehands *vdso_th);
  * global sysctl enable override is handled by machine-independed code
  * after cpu_fill_vdso_timehands() call is made.
  */
-uint32_t cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th);
+uint32_t cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th,
+    struct timecounter *tc);
+
+struct vdso_sv_tk *alloc_sv_tk(void);
 
 #define	VDSO_TH_NUM	4
 
@@ -110,7 +126,9 @@ struct vdso_timekeep32 {
 };
 
 uint32_t tc_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32);
-uint32_t cpu_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32);
+uint32_t cpu_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
+    struct timecounter *tc);
+struct vdso_sv_tk *alloc_sv_tk_compat32(void);
 
 #endif
 #endif

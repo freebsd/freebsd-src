@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 Nicolas Souchu
  * All rights reserved.
  *
@@ -25,14 +27,18 @@
  *
  * $FreeBSD$
  */
-#ifndef __SMBONF_H
-#define __SMBONF_H
+#ifndef __DEV_SMBUS_SMBCONF_H
+#define	__DEV_SMBUS_SMBCONF_H
 
 #include <sys/queue.h>
 
 #define SMBPRI (PZERO+8)		/* XXX sleep/wakeup queue priority */
 
 #define n(flags) (~(flags) & (flags))
+
+/* Order constants for smbus children. */
+#define SMBUS_ORDER_HINTED	20
+#define SMBUS_ORDER_PNP		40
 
 /*
  * How tsleep() is called in smb_request_bus().
@@ -70,7 +76,9 @@
 /*
  * ivars codes
  */
-#define SMBUS_IVAR_ADDR	0x1	/* slave address of the device */
+enum smbus_ivars {
+    SMBUS_IVAR_ADDR,	/* slave address of the device */
+};
 
 int	smbus_request_bus(device_t, device_t, int);
 int	smbus_release_bus(device_t, device_t);
@@ -79,7 +87,12 @@ int	smbus_error(int error);
 
 void	smbus_intr(device_t, u_char, char low, char high, int error);
 
-u_char	smbus_get_addr(device_t);
+#define SMBUS_ACCESSOR(var, ivar, type)					\
+	__BUS_ACCESSOR(smbus, var, SMBUS, ivar, type)
+
+SMBUS_ACCESSOR(addr,		ADDR,		int)
+
+#undef SMBUS_ACCESSOR
 
 extern driver_t smbus_driver;
 extern devclass_t smbus_devclass;
@@ -104,10 +117,13 @@ extern devclass_t smbus_devclass;
 	(SMBUS_BWRITE(device_get_parent(bus), slave, cmd, count, buf))
 #define smbus_bread(bus,slave,cmd,count,buf) \
 	(SMBUS_BREAD(device_get_parent(bus), slave, cmd, count, buf))
+#define smbus_trans(bus,slave,cmd,op,wbuf,wcount,rbuf,rcount,actualp) \
+	(SMBUS_TRANS(device_get_parent(bus), slave, cmd, op, \
+	wbuf, wcount, rbuf, rcount, actualp))
 
 #define SMBUS_MODVER	1
 #define SMBUS_MINVER	1
 #define SMBUS_MAXVER	1
 #define SMBUS_PREFVER	SMBUS_MODVER
 
-#endif
+#endif	/* __DEV_SMBUS_SMBCONF_H */

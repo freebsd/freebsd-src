@@ -40,17 +40,6 @@
 #define yylloc  ub_c_lloc
 #define yyreds  ub_c_reds
 #define yytoks  ub_c_toks
-#define yylhs   ub_c_yylhs
-#define yylen   ub_c_yylen
-#define yydefred ub_c_yydefred
-#define yydgoto ub_c_yydgoto
-#define yysindex ub_c_yysindex
-#define yyrindex ub_c_yyrindex
-#define yygindex ub_c_yygindex
-#define yytable  ub_c_yytable
-#define yycheck  ub_c_yycheck
-#define yyname   ub_c_yyname
-#define yyrule   ub_c_yyrule
 #define yyin    ub_c_in
 #define yyout   ub_c_out
 #define yywrap  ub_c_wrap

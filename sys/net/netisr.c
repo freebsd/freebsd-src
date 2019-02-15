@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2009 Robert N. M. Watson
  * Copyright (c) 2010-2011 Juniper Networks, Inc.
  * All rights reserved.
@@ -70,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/malloc.h>
 #include <sys/interrupt.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
@@ -156,10 +159,13 @@ SYSCTL_PROC(_net_isr, OID_AUTO, dispatch, CTLTYPE_STRING | CTLFLAG_RWTUN,
 /*
  * Allow the administrator to limit the number of threads (CPUs) to use for
  * netisr.  We don't check netisr_maxthreads before creating the thread for
- * CPU 0, so in practice we ignore values <= 1.  This must be set at boot.
- * We will create at most one thread per CPU.
+ * CPU 0. This must be set at boot. We will create at most one thread per CPU.
+ * By default we initialize this to 1 which would assign just 1 cpu (cpu0) and
+ * therefore only 1 workstream. If set to -1, netisr would use all cpus
+ * (mp_ncpus) and therefore would have those many workstreams. One workstream
+ * per thread (CPU).
  */
-static int	netisr_maxthreads = -1;		/* Max number of threads. */
+static int	netisr_maxthreads = 1;		/* Max number of threads. */
 SYSCTL_INT(_net_isr, OID_AUTO, maxthreads, CTLFLAG_RDTUN,
     &netisr_maxthreads, 0,
     "Use at most this many CPUs for netisr processing");
@@ -206,6 +212,23 @@ SYSCTL_UINT(_net_isr, OID_AUTO, maxprot, CTLFLAG_RD,
  */
 static struct netisr_proto	netisr_proto[NETISR_MAXPROT];
 
+#ifdef VIMAGE
+/*
+ * The netisr_enable array describes a per-VNET flag for registered
+ * protocols on whether this netisr is active in this VNET or not.
+ * netisr_register() will automatically enable the netisr for the
+ * default VNET and all currently active instances.
+ * netisr_unregister() will disable all active VNETs, including vnet0.
+ * Individual network stack instances can be enabled/disabled by the
+ * netisr_(un)register _vnet() functions.
+ * With this we keep the one netisr_proto per protocol but add a
+ * mechanism to stop netisr processing for vnet teardown.
+ * Apart from that we expect a VNET to always be enabled.
+ */
+VNET_DEFINE_STATIC(u_int,	netisr_enable[NETISR_MAXPROT]);
+#define	V_netisr_enable		VNET(netisr_enable)
+#endif
+
 /*
  * Per-CPU workstream data.  See netisr_internal.h for more details.
  */
@@ -251,10 +274,7 @@ u_int
 netisr_get_cpuid(u_int cpunumber)
 {
 
-	KASSERT(cpunumber < nws_count, ("%s: %u > %u", __func__, cpunumber,
-	    nws_count));
-
-	return (nws_array[cpunumber]);
+	return (nws_array[cpunumber % nws_count]);
 }
 
 /*
@@ -283,8 +303,6 @@ static const struct netisr_dispatch_table_entry netisr_dispatch_table[] = {
 	{ NETISR_DISPATCH_HYBRID, "hybrid" },
 	{ NETISR_DISPATCH_DIRECT, "direct" },
 };
-static const u_int netisr_dispatch_table_len =
-    (sizeof(netisr_dispatch_table) / sizeof(netisr_dispatch_table[0]));
 
 static void
 netisr_dispatch_policy_to_str(u_int dispatch_policy, char *buffer,
@@ -295,7 +313,7 @@ netisr_dispatch_policy_to_str(u_int dispatch_policy, char *buffer,
 	u_int i;
 
 	str = "unknown";
-	for (i = 0; i < netisr_dispatch_table_len; i++) {
+	for (i = 0; i < nitems(netisr_dispatch_table); i++) {
 		ndtep = &netisr_dispatch_table[i];
 		if (ndtep->ndte_policy == dispatch_policy) {
 			str = ndtep->ndte_policy_str;
@@ -311,7 +329,7 @@ netisr_dispatch_policy_from_str(const char *str, u_int *dispatch_policyp)
 	const struct netisr_dispatch_table_entry *ndtep;
 	u_int i;
 
-	for (i = 0; i < netisr_dispatch_table_len; i++) {
+	for (i = 0; i < nitems(netisr_dispatch_table); i++) {
 		ndtep = &netisr_dispatch_table[i];
 		if (strcmp(ndtep->ndte_policy_str, str) == 0) {
 			*dispatch_policyp = ndtep->ndte_policy;
@@ -350,6 +368,7 @@ sysctl_netisr_dispatch_policy(SYSCTL_HANDLER_ARGS)
 void
 netisr_register(const struct netisr_handler *nhp)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 	struct netisr_work *npwp;
 	const char *name;
 	u_int i, proto;
@@ -418,6 +437,22 @@ netisr_register(const struct netisr_handler *nhp)
 		bzero(npwp, sizeof(*npwp));
 		npwp->nw_qlimit = netisr_proto[proto].np_qlimit;
 	}
+
+#ifdef VIMAGE
+	/*
+	 * Test that we are in vnet0 and have a curvnet set.
+	 */
+	KASSERT(curvnet != NULL, ("%s: curvnet is NULL", __func__));
+	KASSERT(IS_DEFAULT_VNET(curvnet), ("%s: curvnet %p is not vnet0 %p",
+	    __func__, curvnet, vnet0));
+	VNET_LIST_RLOCK_NOSLEEP();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		V_netisr_enable[proto] = 1;
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK_NOSLEEP();
+#endif
 	NETISR_WUNLOCK();
 }
 
@@ -582,6 +617,7 @@ netisr_drain_proto(struct netisr_work *npwp)
 void
 netisr_unregister(const struct netisr_handler *nhp)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 	struct netisr_work *npwp;
 #ifdef INVARIANTS
 	const char *name;
@@ -600,6 +636,16 @@ netisr_unregister(const struct netisr_handler *nhp)
 	    ("%s(%u): protocol not registered for %s", __func__, proto,
 	    name));
 
+#ifdef VIMAGE
+	VNET_LIST_RLOCK_NOSLEEP();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		V_netisr_enable[proto] = 0;
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK_NOSLEEP();
+#endif
+
 	netisr_proto[proto].np_name = NULL;
 	netisr_proto[proto].np_handler = NULL;
 	netisr_proto[proto].np_m2flow = NULL;
@@ -613,6 +659,97 @@ netisr_unregister(const struct netisr_handler *nhp)
 	}
 	NETISR_WUNLOCK();
 }
+
+#ifdef VIMAGE
+void
+netisr_register_vnet(const struct netisr_handler *nhp)
+{
+	u_int proto;
+
+	proto = nhp->nh_proto;
+
+	KASSERT(curvnet != NULL, ("%s: curvnet is NULL", __func__));
+	KASSERT(proto < NETISR_MAXPROT,
+	    ("%s(%u): protocol too big for %s", __func__, proto, nhp->nh_name));
+	NETISR_WLOCK();
+	KASSERT(netisr_proto[proto].np_handler != NULL,
+	    ("%s(%u): protocol not registered for %s", __func__, proto,
+	    nhp->nh_name));
+	
+	V_netisr_enable[proto] = 1;
+	NETISR_WUNLOCK();
+}
+
+static void
+netisr_drain_proto_vnet(struct vnet *vnet, u_int proto)
+{
+	struct netisr_workstream *nwsp;
+	struct netisr_work *npwp;
+	struct mbuf *m, *mp, *n, *ne;
+	u_int i;
+
+	KASSERT(vnet != NULL, ("%s: vnet is NULL", __func__));
+	NETISR_LOCK_ASSERT();
+
+	CPU_FOREACH(i) {
+		nwsp = DPCPU_ID_PTR(i, nws);
+		if (nwsp->nws_intr_event == NULL)
+			continue;
+		npwp = &nwsp->nws_work[proto];
+		NWS_LOCK(nwsp);
+
+		/*
+		 * Rather than dissecting and removing mbufs from the middle
+		 * of the chain, we build a new chain if the packet stays and
+		 * update the head and tail pointers at the end.  All packets
+		 * matching the given vnet are freed.
+		 */
+		m = npwp->nw_head;
+		n = ne = NULL;
+		while (m != NULL) {
+			mp = m;
+			m = m->m_nextpkt;
+			mp->m_nextpkt = NULL;
+			if (mp->m_pkthdr.rcvif->if_vnet != vnet) {
+				if (n == NULL) {
+					n = ne = mp;
+				} else {
+					ne->m_nextpkt = mp;
+					ne = mp;
+				}
+				continue;
+			}
+			/* This is a packet in the selected vnet. Free it. */
+			npwp->nw_len--;
+			m_freem(mp);
+		}
+		npwp->nw_head = n;
+		npwp->nw_tail = ne;
+		NWS_UNLOCK(nwsp);
+	}
+}
+
+void
+netisr_unregister_vnet(const struct netisr_handler *nhp)
+{
+	u_int proto;
+
+	proto = nhp->nh_proto;
+
+	KASSERT(curvnet != NULL, ("%s: curvnet is NULL", __func__));
+	KASSERT(proto < NETISR_MAXPROT,
+	    ("%s(%u): protocol too big for %s", __func__, proto, nhp->nh_name));
+	NETISR_WLOCK();
+	KASSERT(netisr_proto[proto].np_handler != NULL,
+	    ("%s(%u): protocol not registered for %s", __func__, proto,
+	    nhp->nh_name));
+	
+	V_netisr_enable[proto] = 0;
+
+	netisr_drain_proto_vnet(curvnet, proto);
+	NETISR_WUNLOCK();
+}
+#endif
 
 /*
  * Compose the global and per-protocol policies on dispatch, and return the
@@ -672,22 +809,25 @@ netisr_select_cpuid(struct netisr_proto *npp, u_int dispatch_policy,
 		 * dispatch.  In the queued case, fall back on the SOURCE
 		 * policy.
 		 */
-		if (*cpuidp != NETISR_CPUID_NONE)
+		if (*cpuidp != NETISR_CPUID_NONE) {
+			*cpuidp = netisr_get_cpuid(*cpuidp);
 			return (m);
+		}
 		if (dispatch_policy == NETISR_DISPATCH_HYBRID) {
-			*cpuidp = curcpu;
+			*cpuidp = netisr_get_cpuid(curcpu);
 			return (m);
 		}
 		policy = NETISR_POLICY_SOURCE;
 	}
 
 	if (policy == NETISR_POLICY_FLOW) {
-		if (!(m->m_flags & M_FLOWID) && npp->np_m2flow != NULL) {
+		if (M_HASHTYPE_GET(m) == M_HASHTYPE_NONE &&
+		    npp->np_m2flow != NULL) {
 			m = npp->np_m2flow(m, source);
 			if (m == NULL)
 				return (NULL);
 		}
-		if (m->m_flags & M_FLOWID) {
+		if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
 			*cpuidp =
 			    netisr_default_flow2cpu(m->m_pkthdr.flowid);
 			return (m);
@@ -903,6 +1043,13 @@ netisr_queue_src(u_int proto, uintptr_t source, struct mbuf *m)
 	KASSERT(netisr_proto[proto].np_handler != NULL,
 	    ("%s: invalid proto %u", __func__, proto));
 
+#ifdef VIMAGE
+	if (V_netisr_enable[proto] == 0) {
+		m_freem(m);
+		return (ENOPROTOOPT);
+	}
+#endif
+
 	m = netisr_select_cpuid(&netisr_proto[proto], NETISR_DISPATCH_DEFERRED,
 	    source, m, &cpuid);
 	if (m != NULL) {
@@ -948,6 +1095,13 @@ netisr_dispatch_src(u_int proto, uintptr_t source, struct mbuf *m)
 	npp = &netisr_proto[proto];
 	KASSERT(npp->np_handler != NULL, ("%s: invalid proto %u", __func__,
 	    proto));
+
+#ifdef VIMAGE
+	if (V_netisr_enable[proto] == 0) {
+		m_freem(m);
+		return (ENOPROTOOPT);
+	}
+#endif
 
 	dispatch_policy = netisr_get_dispatch(npp);
 	if (dispatch_policy == NETISR_DISPATCH_DEFERRED)
@@ -1116,11 +1270,13 @@ netisr_start_swi(u_int cpuid, struct pcpu *pc)
 static void
 netisr_init(void *arg)
 {
-	KASSERT(curcpu == 0, ("%s: not on CPU 0", __func__));
+	struct pcpu *pc;
 
 	NETISR_LOCK_INIT();
-	if (netisr_maxthreads < 1)
-		netisr_maxthreads = 1;
+	if (netisr_maxthreads == 0 || netisr_maxthreads < -1 )
+		netisr_maxthreads = 1;		/* default behavior */
+	else if (netisr_maxthreads == -1)
+		netisr_maxthreads = mp_ncpus;	/* use max cpus */
 	if (netisr_maxthreads > mp_ncpus) {
 		printf("netisr_init: forcing maxthreads from %d to %d\n",
 		    netisr_maxthreads, mp_ncpus);
@@ -1144,10 +1300,21 @@ netisr_init(void *arg)
 		netisr_bindthreads = 0;
 	}
 #endif
-	netisr_start_swi(curcpu, pcpu_find(curcpu));
+
+#ifdef EARLY_AP_STARTUP
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
+		if (nws_count >= netisr_maxthreads)
+			break;
+		netisr_start_swi(pc->pc_cpuid, pc);
+	}
+#else
+	pc = get_pcpu();
+	netisr_start_swi(pc->pc_cpuid, pc);
+#endif
 }
 SYSINIT(netisr_init, SI_SUB_SOFTINTR, SI_ORDER_FIRST, netisr_init, NULL);
 
+#ifndef EARLY_AP_STARTUP
 /*
  * Start worker threads for additional CPUs.  No attempt to gracefully handle
  * work reassignment, we don't yet support dynamic reconfiguration.
@@ -1160,9 +1327,6 @@ netisr_start(void *arg)
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if (nws_count >= netisr_maxthreads)
 			break;
-		/* XXXRW: Is skipping absent CPUs still required here? */
-		if (CPU_ABSENT(pc->pc_cpuid))
-			continue;
 		/* Worker will already be present for boot CPU. */
 		if (pc->pc_netisr != NULL)
 			continue;
@@ -1170,6 +1334,7 @@ netisr_start(void *arg)
 	}
 }
 SYSINIT(netisr_start, SI_SUB_SMP, SI_ORDER_MIDDLE, netisr_start, NULL);
+#endif
 
 /*
  * Sysctl monitoring for netisr: query a list of registered protocols.

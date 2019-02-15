@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
@@ -62,7 +64,7 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 	struct cryptoini cri;
 	struct cryptop *crp;
 	struct cryptodesc *crd;
-	uint64_t sid;
+	crypto_session_t sid;
 	u_char *p;
 	int error;
 
@@ -95,13 +97,13 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 	bzero(crd->crd_iv, sizeof(crd->crd_iv));
 	crd->crd_next = NULL;
 
-	crp->crp_sid = sid;
+	crp->crp_session = sid;
 	crp->crp_ilen = datasize;
 	crp->crp_olen = datasize;
 	crp->crp_opaque = NULL;
 	crp->crp_callback = g_eli_crypto_done;
 	crp->crp_buf = (void *)data;
-	crp->crp_flags = CRYPTO_F_CBIFSYNC | CRYPTO_F_REL;
+	crp->crp_flags = CRYPTO_F_CBIFSYNC;
 	crp->crp_desc = crd;
 
 	error = crypto_dispatch(crp);
@@ -120,7 +122,7 @@ static int
 g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
     const u_char *key, size_t keysize)
 {
-	EVP_CIPHER_CTX ctx;
+	EVP_CIPHER_CTX *ctx;
 	const EVP_CIPHER *type;
 	u_char iv[keysize];
 	int outsize;
@@ -173,27 +175,29 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 		return (EINVAL);
 	}
 
-	EVP_CIPHER_CTX_init(&ctx);
+	ctx = EVP_CIPHER_CTX_new();
+	if (ctx == NULL)
+		return (ENOMEM);
 
-	EVP_CipherInit_ex(&ctx, type, NULL, NULL, NULL, enc);
-	EVP_CIPHER_CTX_set_key_length(&ctx, keysize / 8);
-	EVP_CIPHER_CTX_set_padding(&ctx, 0);
+	EVP_CipherInit_ex(ctx, type, NULL, NULL, NULL, enc);
+	EVP_CIPHER_CTX_set_key_length(ctx, keysize / 8);
+	EVP_CIPHER_CTX_set_padding(ctx, 0);
 	bzero(iv, sizeof(iv));
-	EVP_CipherInit_ex(&ctx, NULL, NULL, key, iv, enc);
+	EVP_CipherInit_ex(ctx, NULL, NULL, key, iv, enc);
 
-	if (EVP_CipherUpdate(&ctx, data, &outsize, data, datasize) == 0) {
-		EVP_CIPHER_CTX_cleanup(&ctx);
+	if (EVP_CipherUpdate(ctx, data, &outsize, data, datasize) == 0) {
+		EVP_CIPHER_CTX_free(ctx);
 		return (EINVAL);
 	}
 	assert(outsize == (int)datasize);
 
-	if (EVP_CipherFinal_ex(&ctx, data + outsize, &outsize) == 0) {
-		EVP_CIPHER_CTX_cleanup(&ctx);
+	if (EVP_CipherFinal_ex(ctx, data + outsize, &outsize) == 0) {
+		EVP_CIPHER_CTX_free(ctx);
 		return (EINVAL);
 	}
 	assert(outsize == 0);
 
-	EVP_CIPHER_CTX_cleanup(&ctx);
+	EVP_CIPHER_CTX_free(ctx);
 	return (0);
 }
 #endif	/* !_KERNEL */
@@ -220,76 +224,4 @@ g_eli_crypto_decrypt(u_int algo, u_char *data, size_t datasize,
 		algo = CRYPTO_AES_CBC;
 
 	return (g_eli_crypto_cipher(algo, 0, data, datasize, key, keysize));
-}
-
-void
-g_eli_crypto_hmac_init(struct hmac_ctx *ctx, const uint8_t *hkey,
-    size_t hkeylen)
-{
-	u_char k_ipad[128], key[128];
-	SHA512_CTX lctx;
-	u_int i;
-
-	bzero(key, sizeof(key));
-	if (hkeylen == 0)
-		; /* do nothing */
-	else if (hkeylen <= 128)
-		bcopy(hkey, key, hkeylen);
-	else {
-		/* If key is longer than 128 bytes reset it to key = SHA512(key). */
-		SHA512_Init(&lctx);
-		SHA512_Update(&lctx, hkey, hkeylen);
-		SHA512_Final(key, &lctx);
-	}
-
-	/* XOR key with ipad and opad values. */
-	for (i = 0; i < sizeof(key); i++) {
-		k_ipad[i] = key[i] ^ 0x36;
-		ctx->k_opad[i] = key[i] ^ 0x5c;
-	}
-	bzero(key, sizeof(key));
-	/* Perform inner SHA512. */
-	SHA512_Init(&ctx->shactx);
-	SHA512_Update(&ctx->shactx, k_ipad, sizeof(k_ipad));
-	bzero(k_ipad, sizeof(k_ipad));
-}
-
-void
-g_eli_crypto_hmac_update(struct hmac_ctx *ctx, const uint8_t *data,
-    size_t datasize)
-{
-
-	SHA512_Update(&ctx->shactx, data, datasize);
-}
-
-void
-g_eli_crypto_hmac_final(struct hmac_ctx *ctx, uint8_t *md, size_t mdsize)
-{
-	u_char digest[SHA512_MDLEN];
-	SHA512_CTX lctx;
-
-	SHA512_Final(digest, &ctx->shactx);
-	/* Perform outer SHA512. */
-	SHA512_Init(&lctx);
-	SHA512_Update(&lctx, ctx->k_opad, sizeof(ctx->k_opad));
-	bzero(ctx, sizeof(*ctx));
-	SHA512_Update(&lctx, digest, sizeof(digest));
-	SHA512_Final(digest, &lctx);
-	bzero(&lctx, sizeof(lctx));
-	/* mdsize == 0 means "Give me the whole hash!" */
-	if (mdsize == 0)
-		mdsize = SHA512_MDLEN;
-	bcopy(digest, md, mdsize);
-	bzero(digest, sizeof(digest));
-}
-
-void
-g_eli_crypto_hmac(const uint8_t *hkey, size_t hkeysize, const uint8_t *data,
-    size_t datasize, uint8_t *md, size_t mdsize)
-{
-	struct hmac_ctx ctx;
-
-	g_eli_crypto_hmac_init(&ctx, hkey, hkeysize);
-	g_eli_crypto_hmac_update(&ctx, data, datasize);
-	g_eli_crypto_hmac_final(&ctx, md, mdsize);
 }

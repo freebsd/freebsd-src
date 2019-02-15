@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -54,6 +56,7 @@
 #define	ISO_SUSP_STOP		0x1000
 #define	ISO_SUSP_UNKNOWN	0x8000
 
+#ifdef _KERNEL
 typedef struct {
 	struct iso_node	*inop;
 	int		fields;		/* interesting fields in this analysis */
@@ -61,7 +64,7 @@ typedef struct {
 	off_t		iso_ce_off;	/* offset of continuation area */
 	int		iso_ce_len;	/* length of continuation area */
 	struct iso_mnt	*imp;		/* mount structure */
-	ino_t		*inump;		/* inode number pointer */
+	cd_ino_t	*inump;		/* inode number pointer */
 	char		*outbuf;	/* name/symbolic link output area */
 	u_short		*outlen;	/* length of above */
 	u_short		maxlen;		/* maximum length of above */
@@ -74,9 +77,10 @@ int cd9660_rrip_analyze(struct iso_directory_record *isodir,
 			    struct iso_node *inop, struct iso_mnt *imp);
 int cd9660_rrip_getname(struct iso_directory_record *isodir,
 			    char *outbuf, u_short *outlen,
-			    ino_t *inump, struct iso_mnt *imp);
+			    cd_ino_t *inump, struct iso_mnt *imp);
 int cd9660_rrip_getsymname(struct iso_directory_record *isodir,
 			       char *outbuf, u_short *outlen,
 			       struct iso_mnt *imp);
 int cd9660_rrip_offset(struct iso_directory_record *isodir,
 			   struct iso_mnt *imp);
+#endif /* _KERNEL */

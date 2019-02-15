@@ -24,13 +24,13 @@ static const char sccsid[] = "$Id: v_put.c,v 10.6 2001/06/25 15:19:34 skimo Exp 
 #include "../common/common.h"
 #include "vi.h"
 
-static void	inc_buf __P((SCR *, VICMD *));
+static void	inc_buf(SCR *, VICMD *);
 
 /*
  * v_Put -- [buffer]P
  *	Insert the contents of the buffer before the cursor.
  *
- * PUBLIC: int v_Put __P((SCR *, VICMD *));
+ * PUBLIC: int v_Put(SCR *, VICMD *);
  */
 int
 v_Put(SCR *sp, VICMD *vp)
@@ -61,7 +61,7 @@ v_Put(SCR *sp, VICMD *vp)
  * v_put -- [buffer]p
  *	Insert the contents of the buffer after the cursor.
  *
- * PUBLIC: int v_put __P((SCR *, VICMD *));
+ * PUBLIC: int v_put(SCR *, VICMD *);
  */
 int
 v_put(SCR *sp, VICMD *vp)

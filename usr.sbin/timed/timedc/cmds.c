@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1985, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -277,7 +279,7 @@ msite(int argc, char *argv[])
 	}
 
 	srvp = getservbyname("timed", "udp");
-	if (srvp == 0) {
+	if (srvp == NULL) {
 		warnx("timed/udp: unknown service");
 		return;
 	}
@@ -290,7 +292,7 @@ msite(int argc, char *argv[])
 	do {
 		tgtname = (i >= argc) ? myname : argv[i];
 		hp = gethostbyname(tgtname);
-		if (hp == 0) {
+		if (hp == NULL) {
 			warnx("%s: %s", tgtname, hstrerror(h_errno));
 			continue;
 		}
@@ -378,7 +380,7 @@ testing(int argc, char *argv[])
 	}
 
 	srvp = getservbyname("timed", "udp");
-	if (srvp == 0) {
+	if (srvp == NULL) {
 		warnx("timed/udp: unknown service");
 		return;
 	}
@@ -432,7 +434,7 @@ tracing(int argc, char *argv[])
 	}
 
 	srvp = getservbyname("timed", "udp");
-	if (srvp == 0) {
+	if (srvp == NULL) {
 		warnx("timed/udp: unknown service");
 		return;
 	}

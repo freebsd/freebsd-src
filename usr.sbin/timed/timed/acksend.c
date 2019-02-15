@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1985, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -90,7 +92,7 @@ acksend(struct tsp *message, struct sockaddr_in *addr, char *name,
 
 	msec = 200;
 	count = bad ? 1 : 5;	/* 5 packets in 6.4 seconds */
-	answer = 0;
+	answer = NULL;
 	do {
 		if (!answer) {
 			/* do not go crazy transmitting just because the
@@ -107,7 +109,7 @@ acksend(struct tsp *message, struct sockaddr_in *addr, char *name,
 
 		mstotvround(&twait, msec);
 		answer  = readmsg(ack, name, &twait, net);
-		if (answer != 0) {
+		if (answer != NULL) {
 			if (answer->tsp_seq != sequence) {
 				if (trace)
 					fprintf(fd,"acksend: seq # %u!=%u\n",

@@ -56,13 +56,13 @@
 #include "iterator/iter_utils.h"
 #include "iterator/iter_fwd.h"
 #include "iterator/iter_hints.h"
-#include "ldns/sbuffer.h"
-#include "ldns/wire2str.h"
-#include "ldns/str2wire.h"
+#include "sldns/sbuffer.h"
+#include "sldns/wire2str.h"
+#include "sldns/str2wire.h"
 
 /** dump one rrset zonefile line */
 static int
-dump_rrset_line(SSL* ssl, struct ub_packed_rrset_key* k, time_t now, size_t i)
+dump_rrset_line(RES* ssl, struct ub_packed_rrset_key* k, time_t now, size_t i)
 {
 	char s[65535];
 	if(!packed_rr_to_string(k, i, now, s, sizeof(s))) {
@@ -73,12 +73,13 @@ dump_rrset_line(SSL* ssl, struct ub_packed_rrset_key* k, time_t now, size_t i)
 
 /** dump rrset key and data info */
 static int
-dump_rrset(SSL* ssl, struct ub_packed_rrset_key* k, 
+dump_rrset(RES* ssl, struct ub_packed_rrset_key* k, 
 	struct packed_rrset_data* d, time_t now)
 {
 	size_t i;
 	/* rd lock held by caller */
 	if(!k || !d) return 1;
+	if(k->id == 0) return 1; /* deleted */
 	if(d->ttl < now) return 1; /* expired */
 
 	/* meta line */
@@ -98,7 +99,7 @@ dump_rrset(SSL* ssl, struct ub_packed_rrset_key* k,
 
 /** dump lruhash rrset cache */
 static int
-dump_rrset_lruhash(SSL* ssl, struct lruhash* h, time_t now)
+dump_rrset_lruhash(RES* ssl, struct lruhash* h, time_t now)
 {
 	struct lruhash_entry* e;
 	/* lruhash already locked by caller */
@@ -117,7 +118,7 @@ dump_rrset_lruhash(SSL* ssl, struct lruhash* h, time_t now)
 
 /** dump rrset cache */
 static int
-dump_rrset_cache(SSL* ssl, struct worker* worker)
+dump_rrset_cache(RES* ssl, struct worker* worker)
 {
 	struct rrset_cache* r = worker->env.rrset_cache;
 	size_t slab;
@@ -136,7 +137,7 @@ dump_rrset_cache(SSL* ssl, struct worker* worker)
 
 /** dump message to rrset reference */
 static int
-dump_msg_ref(SSL* ssl, struct ub_packed_rrset_key* k)
+dump_msg_ref(RES* ssl, struct ub_packed_rrset_key* k)
 {
 	char* nm, *tp, *cl;
 	nm = sldns_wire2str_dname(k->rk.dname, k->rk.dname_len);
@@ -163,7 +164,7 @@ dump_msg_ref(SSL* ssl, struct ub_packed_rrset_key* k)
 
 /** dump message entry */
 static int
-dump_msg(SSL* ssl, struct query_info* k, struct reply_info* d, 
+dump_msg(RES* ssl, struct query_info* k, struct reply_info* d, 
 	time_t now)
 {
 	size_t i;
@@ -223,6 +224,8 @@ copy_msg(struct regional* region, struct lruhash_entry* e,
 	struct query_info** k, struct reply_info** d)
 {
 	struct reply_info* rep = (struct reply_info*)e->data;
+	if(rep->rrset_count > RR_COUNT_MAX)
+		return 0; /* to protect against integer overflow */
 	*d = (struct reply_info*)regional_alloc_init(region, e->data,
 		sizeof(struct reply_info) + 
 		sizeof(struct rrset_ref) * (rep->rrset_count-1) +
@@ -243,7 +246,7 @@ copy_msg(struct regional* region, struct lruhash_entry* e,
 
 /** dump lruhash msg cache */
 static int
-dump_msg_lruhash(SSL* ssl, struct worker* worker, struct lruhash* h)
+dump_msg_lruhash(RES* ssl, struct worker* worker, struct lruhash* h)
 {
 	struct lruhash_entry* e;
 	struct query_info* k;
@@ -271,7 +274,7 @@ dump_msg_lruhash(SSL* ssl, struct worker* worker, struct lruhash* h)
 
 /** dump msg cache */
 static int
-dump_msg_cache(SSL* ssl, struct worker* worker)
+dump_msg_cache(RES* ssl, struct worker* worker)
 {
 	struct slabhash* sh = worker->env.msg_cache;
 	size_t slab;
@@ -288,7 +291,7 @@ dump_msg_cache(SSL* ssl, struct worker* worker)
 }
 
 int
-dump_cache(SSL* ssl, struct worker* worker)
+dump_cache(RES* ssl, struct worker* worker)
 {
 	if(!dump_rrset_cache(ssl, worker))
 		return 0;
@@ -299,7 +302,7 @@ dump_cache(SSL* ssl, struct worker* worker)
 
 /** read a line from ssl into buffer */
 static int
-ssl_read_buf(SSL* ssl, sldns_buffer* buf)
+ssl_read_buf(RES* ssl, sldns_buffer* buf)
 {
 	return ssl_read_line(ssl, (char*)sldns_buffer_begin(buf), 
 		sldns_buffer_capacity(buf));
@@ -307,7 +310,7 @@ ssl_read_buf(SSL* ssl, sldns_buffer* buf)
 
 /** check fixed text on line */
 static int
-read_fixed(SSL* ssl, sldns_buffer* buf, const char* str)
+read_fixed(RES* ssl, sldns_buffer* buf, const char* str)
 {
 	if(!ssl_read_buf(ssl, buf)) return 0;
 	return (strcmp((char*)sldns_buffer_begin(buf), str) == 0);
@@ -315,7 +318,7 @@ read_fixed(SSL* ssl, sldns_buffer* buf, const char* str)
 
 /** load an RR into rrset */
 static int
-load_rr(SSL* ssl, sldns_buffer* buf, struct regional* region,
+load_rr(RES* ssl, sldns_buffer* buf, struct regional* region,
 	struct ub_packed_rrset_key* rk, struct packed_rrset_data* d,
 	unsigned int i, int is_rrsig, int* go_on, time_t now)
 {
@@ -432,7 +435,7 @@ move_into_cache(struct ub_packed_rrset_key* k,
 
 /** load an rrset entry */
 static int
-load_rrset(SSL* ssl, sldns_buffer* buf, struct worker* worker)
+load_rrset(RES* ssl, sldns_buffer* buf, struct worker* worker)
 {
 	char* s = (char*)sldns_buffer_begin(buf);
 	struct regional* region = worker->scratchpad;
@@ -468,6 +471,10 @@ load_rrset(SSL* ssl, sldns_buffer* buf, struct worker* worker)
 	}
 	if(rr_count == 0 && rrsig_count == 0) {
 		log_warn("bad rrset without contents");
+		return 0;
+	}
+	if(rr_count > RR_COUNT_MAX || rrsig_count > RR_COUNT_MAX) {
+		log_warn("bad rrset with too many rrs");
 		return 0;
 	}
 	d->count = (size_t)rr_count;
@@ -512,7 +519,7 @@ load_rrset(SSL* ssl, sldns_buffer* buf, struct worker* worker)
 
 /** load rrset cache */
 static int
-load_rrset_cache(SSL* ssl, struct worker* worker)
+load_rrset_cache(RES* ssl, struct worker* worker)
 {
 	sldns_buffer* buf = worker->env.scratch_buffer;
 	if(!read_fixed(ssl, buf, "START_RRSET_CACHE")) return 0;
@@ -557,6 +564,7 @@ load_qinfo(char* str, struct query_info* qinfo, struct regional* region)
 	qinfo->qclass = sldns_wirerr_get_class(rr, rr_len, dname_len);
 	qinfo->qname_len = dname_len;
 	qinfo->qname = (uint8_t*)regional_alloc_init(region, rr, dname_len);
+	qinfo->local_alias = NULL;
 	if(!qinfo->qname) {
 		log_warn("error out of memory");
 		return NULL;
@@ -567,7 +575,7 @@ load_qinfo(char* str, struct query_info* qinfo, struct regional* region)
 
 /** load a msg rrset reference */
 static int
-load_ref(SSL* ssl, sldns_buffer* buf, struct worker* worker, 
+load_ref(RES* ssl, sldns_buffer* buf, struct worker* worker, 
 	struct regional *region, struct ub_packed_rrset_key** rrset, 
 	int* go_on)
 {
@@ -612,7 +620,7 @@ load_ref(SSL* ssl, sldns_buffer* buf, struct worker* worker,
 
 /** load a msg entry */
 static int
-load_msg(SSL* ssl, sldns_buffer* buf, struct worker* worker)
+load_msg(RES* ssl, sldns_buffer* buf, struct worker* worker)
 {
 	struct regional* region = worker->scratchpad;
 	struct query_info qinf;
@@ -645,7 +653,12 @@ load_msg(SSL* ssl, sldns_buffer* buf, struct worker* worker)
 	rep.qdcount = (uint16_t)qdcount;
 	rep.ttl = (time_t)ttl;
 	rep.prefetch_ttl = PREFETCH_TTL_CALC(rep.ttl);
+	rep.serve_expired_ttl = rep.ttl + SERVE_EXPIRED_TTL;
 	rep.security = (enum sec_status)security;
+	if(an > RR_COUNT_MAX || ns > RR_COUNT_MAX || ar > RR_COUNT_MAX) {
+		log_warn("error too many rrsets");
+		return 0; /* protect against integer overflow in alloc */
+	}
 	rep.an_numrrsets = (size_t)an;
 	rep.ns_numrrsets = (size_t)ns;
 	rep.ar_numrrsets = (size_t)ar;
@@ -664,7 +677,7 @@ load_msg(SSL* ssl, sldns_buffer* buf, struct worker* worker)
 	if(!go_on) 
 		return 1; /* skip this one, not all references satisfied */
 
-	if(!dns_cache_store(&worker->env, &qinf, &rep, 0, 0, 0, NULL)) {
+	if(!dns_cache_store(&worker->env, &qinf, &rep, 0, 0, 0, NULL, flags)) {
 		log_warn("error out of memory");
 		return 0;
 	}
@@ -673,7 +686,7 @@ load_msg(SSL* ssl, sldns_buffer* buf, struct worker* worker)
 
 /** load msg cache */
 static int
-load_msg_cache(SSL* ssl, struct worker* worker)
+load_msg_cache(RES* ssl, struct worker* worker)
 {
 	sldns_buffer* buf = worker->env.scratch_buffer;
 	if(!read_fixed(ssl, buf, "START_MSG_CACHE")) return 0;
@@ -686,7 +699,7 @@ load_msg_cache(SSL* ssl, struct worker* worker)
 }
 
 int
-load_cache(SSL* ssl, struct worker* worker)
+load_cache(RES* ssl, struct worker* worker)
 {
 	if(!load_rrset_cache(ssl, worker))
 		return 0;
@@ -697,7 +710,7 @@ load_cache(SSL* ssl, struct worker* worker)
 
 /** print details on a delegation point */
 static void
-print_dp_details(SSL* ssl, struct worker* worker, struct delegpt* dp)
+print_dp_details(RES* ssl, struct worker* worker, struct delegpt* dp)
 {
 	char buf[257];
 	struct delegpt_addr* a;
@@ -773,7 +786,7 @@ print_dp_details(SSL* ssl, struct worker* worker, struct delegpt* dp)
 
 /** print main dp info */
 static void
-print_dp_main(SSL* ssl, struct delegpt* dp, struct dns_msg* msg)
+print_dp_main(RES* ssl, struct delegpt* dp, struct dns_msg* msg)
 {
 	size_t i, n_ns, n_miss, n_addr, n_res, n_avail;
 
@@ -801,7 +814,7 @@ print_dp_main(SSL* ssl, struct delegpt* dp, struct dns_msg* msg)
 		return;
 }
 
-int print_deleg_lookup(SSL* ssl, struct worker* worker, uint8_t* nm,
+int print_deleg_lookup(RES* ssl, struct worker* worker, uint8_t* nm,
 	size_t nmlen, int ATTR_UNUSED(nmlabs))
 {
 	/* deep links into the iterator module */
@@ -816,6 +829,7 @@ int print_deleg_lookup(SSL* ssl, struct worker* worker, uint8_t* nm,
 	qinfo.qname_len = nmlen;
 	qinfo.qtype = LDNS_RR_TYPE_A;
 	qinfo.qclass = LDNS_RR_CLASS_IN;
+	qinfo.local_alias = NULL;
 
 	dname_str(nm, b);
 	if(!ssl_printf(ssl, "The following name servers are used for lookup "

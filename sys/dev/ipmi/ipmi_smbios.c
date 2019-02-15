@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 IronPort Systems Inc. <ambrisko@ironport.com>
  * All rights reserved.
  *
@@ -45,11 +47,6 @@ __FBSDID("$FreeBSD$");
 #else
 #include <sys/ipmi.h>
 #include <dev/ipmi/ipmivars.h>
-#endif
-
-#if __FreeBSD_version < 602110
-#define	pmap_mapbios		pmap_mapdev
-#define	pmap_unmapbios		pmap_unmapdev
 #endif
 
 struct ipmi_entry {

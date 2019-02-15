@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2008
  *	Swinburne University of Technology, Melbourne, Australia.
  * Copyright (c) 2009-2010 Lawrence Stewart <lstewart@freebsd.org>
@@ -63,13 +65,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
+#include <net/vnet.h>
 
-#include <netinet/cc.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
+#include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
+#include <netinet/cc/cc.h>
 
 #include <netinet/cc/cc_module.h>
 
@@ -92,33 +94,33 @@ cc_default_algo(SYSCTL_HANDLER_ARGS)
 {
 	char default_cc[TCP_CA_NAME_MAX];
 	struct cc_algo *funcs;
-	int err, found;
+	int error;
 
-	err = found = 0;
+	/* Get the current default: */
+	CC_LIST_RLOCK();
+	strlcpy(default_cc, CC_DEFAULT()->name, sizeof(default_cc));
+	CC_LIST_RUNLOCK();
 
-	if (req->newptr == NULL) {
-		/* Just print the current default. */
-		CC_LIST_RLOCK();
-		strlcpy(default_cc, CC_DEFAULT()->name, TCP_CA_NAME_MAX);
-		CC_LIST_RUNLOCK();
-		err = sysctl_handle_string(oidp, default_cc, 0, req);
-	} else {
-		/* Find algo with specified name and set it to default. */
-		CC_LIST_RLOCK();
-		STAILQ_FOREACH(funcs, &cc_list, entries) {
-			if (strncmp((char *)req->newptr, funcs->name,
-			    TCP_CA_NAME_MAX) == 0) {
-				found = 1;
-				V_default_cc_ptr = funcs;
-			}
-		}
-		CC_LIST_RUNLOCK();
+	error = sysctl_handle_string(oidp, default_cc, sizeof(default_cc), req);
 
-		if (!found)
-			err = ESRCH;
+	/* Check for error or no change */
+	if (error != 0 || req->newptr == NULL)
+		goto done;
+
+	error = ESRCH;
+
+	/* Find algo with specified name and set it to default. */
+	CC_LIST_RLOCK();
+	STAILQ_FOREACH(funcs, &cc_list, entries) {
+		if (strncmp(default_cc, funcs->name, sizeof(default_cc)))
+			continue;
+		V_default_cc_ptr = funcs;
+		error = 0;
+		break;
 	}
-
-	return (err);
+	CC_LIST_RUNLOCK();
+done:
+	return (error);
 }
 
 /*
@@ -316,11 +318,23 @@ SYSINIT(cc, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST, cc_init, NULL);
 
 /* Declare sysctl tree and populate it. */
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, cc, CTLFLAG_RW, NULL,
-    "congestion control related settings");
+    "Congestion control related settings");
 
-SYSCTL_VNET_PROC(_net_inet_tcp_cc, OID_AUTO, algorithm, CTLTYPE_STRING|CTLFLAG_RW,
-    NULL, 0, cc_default_algo, "A", "default congestion control algorithm");
+SYSCTL_PROC(_net_inet_tcp_cc, OID_AUTO, algorithm,
+    CTLFLAG_VNET | CTLTYPE_STRING | CTLFLAG_RW,
+    NULL, 0, cc_default_algo, "A", "Default congestion control algorithm");
 
 SYSCTL_PROC(_net_inet_tcp_cc, OID_AUTO, available, CTLTYPE_STRING|CTLFLAG_RD,
     NULL, 0, cc_list_available, "A",
-    "list available congestion control algorithms");
+    "List available congestion control algorithms");
+
+VNET_DEFINE(int, cc_do_abe) = 0;
+SYSCTL_INT(_net_inet_tcp_cc, OID_AUTO, abe, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(cc_do_abe), 0,
+    "Enable draft-ietf-tcpm-alternativebackoff-ecn (TCP Alternative Backoff with ECN)");
+
+VNET_DEFINE(int, cc_abe_frlossreduce) = 0;
+SYSCTL_INT(_net_inet_tcp_cc, OID_AUTO, abe_frlossreduce, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(cc_abe_frlossreduce), 0,
+    "Apply standard beta instead of ABE-beta during ECN-signalled congestion "
+    "recovery episodes if loss also needs to be repaired");

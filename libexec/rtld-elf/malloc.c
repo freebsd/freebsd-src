@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983 Regents of the University of California.
  * All rights reserved.
  *
@@ -45,7 +47,7 @@ static char *rcsid = "$FreeBSD$";
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
-#include <paths.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -54,17 +56,15 @@ static char *rcsid = "$FreeBSD$";
 #include <unistd.h>
 #include <sys/param.h>
 #include <sys/mman.h>
+#include "rtld.h"
 #include "rtld_printf.h"
-
-static void morecore();
-static int findbucket();
+#include "paths.h"
 
 /*
  * Pre-allocate mmap'ed pages
  */
-#define	NPOOLPAGES	(32*1024/pagesz)
+#define	NPOOLPAGES	(128*1024/pagesz)
 static caddr_t		pagepool_start, pagepool_end;
-static int		morepages();
 
 /*
  * The overhead on a block is at least 4 bytes.  When free, this space
@@ -91,6 +91,11 @@ union	overhead {
 #define	ov_rmagic	ovu.ovu_rmagic
 #define	ov_size		ovu.ovu_size
 };
+
+static void morecore(int bucket);
+static int morepages(int n);
+static int findbucket(union overhead *freep, int srchlen);
+
 
 #define	MAGIC		0xef		/* magic # on accounting info */
 #define RMAGIC		0x5555		/* magic # on range info */
@@ -146,16 +151,14 @@ botch(s)
  * must contain at least one page size.  The page sizes must be stored in
  * increasing order.
  */
-extern size_t *pagesizes;
 
 void *
-malloc(nbytes)
-	size_t nbytes;
+malloc(size_t nbytes)
 {
-  	register union overhead *op;
-  	register int bucket;
-	register long n;
-	register unsigned amt;
+	union overhead *op;
+	int bucket;
+	ssize_t n;
+	size_t amt;
 
 	/*
 	 * First time malloc is called, setup page size and
@@ -225,7 +228,7 @@ malloc(nbytes)
 	 * Record allocated size of block and
 	 * bound space with magic numbers.
 	 */
-	op->ov_size = (nbytes + RSLOP - 1) & ~(RSLOP - 1);
+	op->ov_size = roundup2(nbytes, RSLOP);
 	op->ov_rmagic = RMAGIC;
   	*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
 #endif
@@ -252,11 +255,10 @@ calloc(size_t num, size_t size)
  * Allocate more memory to the indicated bucket.
  */
 static void
-morecore(bucket)
-	int bucket;
+morecore(int bucket)
 {
-  	register union overhead *op;
-	register int sz;		/* size of desired block */
+	union overhead *op;
+	int sz;		/* size of desired block */
   	int amt;			/* amount to allocate */
   	int nblks;			/* how many blocks we get */
 
@@ -296,11 +298,10 @@ morecore(bucket)
 }
 
 void
-free(cp)
-	void *cp;
+free(void * cp)
 {
-  	register int size;
-	register union overhead *op;
+	int size;
+	union overhead *op;
 
   	if (cp == NULL)
   		return;
@@ -329,21 +330,19 @@ free(cp)
  * old malloc man page, it realloc's an already freed block.  Usually
  * this is the last block it freed; occasionally it might be farther
  * back.  We have to search all the free lists for the block in order
- * to determine its bucket: 1st we make one pass thru the lists
+ * to determine its bucket: 1st we make one pass through the lists
  * checking only the first block in each; if that fails we search
  * ``realloc_srchlen'' blocks in each list for a match (the variable
  * is extern so the caller can modify it).  If that fails we just copy
  * however many bytes was given to realloc() and hope it's not huge.
  */
-int realloc_srchlen = 4;	/* 4 should be plenty, -1 =>'s whole list */
+static int realloc_srchlen = 4;	/* 4 should be plenty, -1 =>'s whole list */
 
 void *
-realloc(cp, nbytes)
-	void *cp;
-	size_t nbytes;
+realloc(void *cp, size_t nbytes)
 {
-  	register u_int onb;
-	register int i;
+	u_int onb;
+	int i;
 	union overhead *op;
   	char *res;
 	int was_alloced = 0;
@@ -389,7 +388,7 @@ realloc(cp, nbytes)
 		}
 		if (nbytes <= onb && nbytes > (size_t)i) {
 #ifdef RCHECK
-			op->ov_size = (nbytes + RSLOP - 1) & ~(RSLOP - 1);
+			op->ov_size = roundup2(nbytes, RSLOP);
 			*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
 #endif
 			return(cp);
@@ -409,12 +408,10 @@ realloc(cp, nbytes)
  * Return bucket number, or -1 if not found.
  */
 static int
-findbucket(freep, srchlen)
-	union overhead *freep;
-	int srchlen;
+findbucket(union overhead *freep, int srchlen)
 {
-	register union overhead *p;
-	register int i, j;
+	union overhead *p;
+	int i, j;
 
 	for (i = 0; i < NBUCKETS; i++) {
 		j = 0;
@@ -435,11 +432,10 @@ findbucket(freep, srchlen)
  * for each size category, the second showing the number of mallocs -
  * frees for each size category.
  */
-mstats(s)
-	char *s;
+mstats(char * s)
 {
-  	register int i, j;
-  	register union overhead *p;
+	int i, j;
+	union overhead *p;
   	int totfree = 0,
   	totused = 0;
 
@@ -462,8 +458,7 @@ mstats(s)
 
 
 static int
-morepages(n)
-int	n;
+morepages(int n)
 {
 	int	fd = -1;
 	int	offset;
@@ -471,17 +466,21 @@ int	n;
 	if (pagepool_end - pagepool_start > pagesz) {
 		caddr_t	addr = (caddr_t)
 			(((long)pagepool_start + pagesz - 1) & ~(pagesz - 1));
-		if (munmap(addr, pagepool_end - addr) != 0)
-			rtld_fdprintf(STDERR_FILENO, "morepages: munmap %p",
-			    addr);
+		if (munmap(addr, pagepool_end - addr) != 0) {
+			rtld_fdprintf(STDERR_FILENO, _BASENAME_RTLD ": "
+			    "morepages: cannot munmap %p: %s\n",
+			    addr, rtld_strerror(errno));
+		}
 	}
 
 	offset = (long)pagepool_start - ((long)pagepool_start & ~(pagesz - 1));
 
 	if ((pagepool_start = mmap(0, n * pagesz,
 			PROT_READ|PROT_WRITE,
-			MAP_ANON|MAP_COPY, fd, 0)) == (caddr_t)-1) {
-		rtld_printf("Cannot map anonymous memory\n");
+			MAP_ANON|MAP_PRIVATE, fd, 0)) == (caddr_t)-1) {
+		rtld_fdprintf(STDERR_FILENO, _BASENAME_RTLD ": morepages: "
+		    "cannot mmap anonymous memory: %s\n",
+		    rtld_strerror(errno));
 		return 0;
 	}
 	pagepool_end = pagepool_start + n * pagesz;

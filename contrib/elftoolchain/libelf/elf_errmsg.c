@@ -24,15 +24,13 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <libelf.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: elf_errmsg.c 2225 2011-11-26 18:55:54Z jkoshy $");
+ELFTC_VCSID("$Id: elf_errmsg.c 3174 2015-03-27 17:13:41Z emaste $");
 
 /*
  * Retrieve a human readable translation for an error message.
@@ -76,7 +74,7 @@ elf_errmsg(int error)
 	if (error < ELF_E_NONE || error >= ELF_E_NUM)
 		return _libelf_errors[ELF_E_NUM];
 	if (oserr) {
-		(void) snprintf(LIBELF_PRIVATE(msg),
+		(void) snprintf((char *) LIBELF_PRIVATE(msg),
 		    sizeof(LIBELF_PRIVATE(msg)), "%s: %s",
 		    _libelf_errors[error], strerror(oserr));
 		return (const char *)&LIBELF_PRIVATE(msg);

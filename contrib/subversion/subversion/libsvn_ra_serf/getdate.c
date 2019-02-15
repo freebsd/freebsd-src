@@ -44,7 +44,7 @@
  * This enum represents the current state of our XML parsing for a REPORT.
  */
 enum date_state_e {
-  INITIAL = 0,
+  INITIAL = XML_STATE_INITIAL,
   REPORT,
   VERSION_NAME
 };
@@ -82,11 +82,14 @@ date_closed(svn_ra_serf__xml_estate_t *xes,
             apr_pool_t *scratch_pool)
 {
   date_context_t *date_ctx = baton;
+  apr_int64_t rev;
 
   SVN_ERR_ASSERT(leaving_state == VERSION_NAME);
   SVN_ERR_ASSERT(cdata != NULL);
 
-  *date_ctx->revision = SVN_STR_TO_REV(cdata->data);
+  SVN_ERR(svn_cstring_atoi64(&rev, cdata->data));
+
+  *date_ctx->revision = (svn_revnum_t)rev;
 
   return SVN_NO_ERROR;
 }
@@ -97,7 +100,8 @@ static svn_error_t *
 create_getdate_body(serf_bucket_t **body_bkt,
                     void *baton,
                     serf_bucket_alloc_t *alloc,
-                    apr_pool_t *pool)
+                    apr_pool_t *pool /* request pool */,
+                    apr_pool_t *scratch_pool)
 {
   serf_bucket_t *buckets;
   date_context_t *date_ctx = baton;
@@ -107,7 +111,7 @@ create_getdate_body(serf_bucket_t **body_bkt,
   svn_ra_serf__add_open_tag_buckets(buckets, alloc, "S:dated-rev-report",
                                     "xmlns:S", SVN_XML_NAMESPACE,
                                     "xmlns:D", "DAV:",
-                                    NULL);
+                                    SVN_VA_NULL);
 
   svn_ra_serf__add_tag_buckets(buckets,
                                "D:" SVN_DAV__CREATIONDATE,
@@ -131,40 +135,37 @@ svn_ra_serf__get_dated_revision(svn_ra_session_t *ra_session,
   svn_ra_serf__handler_t *handler;
   svn_ra_serf__xml_context_t *xmlctx;
   const char *report_target;
-  svn_error_t *err;
 
   date_ctx = apr_palloc(pool, sizeof(*date_ctx));
   date_ctx->time = tm;
   date_ctx->revision = revision;
 
-  SVN_ERR(svn_ra_serf__report_resource(&report_target, session, NULL, pool));
+  SVN_ERR(svn_ra_serf__report_resource(&report_target, session, pool));
 
   xmlctx = svn_ra_serf__xml_context_create(date_ttable,
                                            NULL, date_closed, NULL,
                                            date_ctx,
                                            pool);
-  handler = svn_ra_serf__create_expat_handler(xmlctx, pool);
+  handler = svn_ra_serf__create_expat_handler(session, xmlctx, NULL, pool);
 
   handler->method = "REPORT";
   handler->path = report_target;
   handler->body_type = "text/xml";
-  handler->conn = session->conns[0];
-  handler->session = session;
 
   handler->body_delegate = create_getdate_body;
   handler->body_delegate_baton = date_ctx;
 
   *date_ctx->revision = SVN_INVALID_REVNUM;
 
-  err = svn_ra_serf__context_run_one(handler, pool);
+  SVN_ERR(svn_ra_serf__context_run_one(handler, pool));
 
-  SVN_ERR(svn_error_compose_create(
-              svn_ra_serf__error_on_status(handler->sline,
-                                           report_target,
-                                           handler->location),
-              err));
+  if (handler->sline.code != 200)
+    return svn_error_trace(svn_ra_serf__unexpected_status(handler));
 
-  SVN_ERR_ASSERT(SVN_IS_VALID_REVNUM(*revision));
+  if (!SVN_IS_VALID_REVNUM(*revision))
+    return svn_error_create(SVN_ERR_RA_DAV_PROPS_NOT_FOUND, NULL,
+                            _("The REPORT response did not include "
+                              "the requested properties"));
 
   return SVN_NO_ERROR;
 }

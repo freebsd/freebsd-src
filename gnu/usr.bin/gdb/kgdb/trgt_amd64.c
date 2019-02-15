@@ -72,7 +72,6 @@ kgdb_trgt_fetch_registers(int regno __unused)
 	supply_register(AMD64_R8_REGNUM + 6, (char *)&pcb.pcb_r14);
 	supply_register(AMD64_R15_REGNUM, (char *)&pcb.pcb_r15);
 	supply_register(AMD64_RIP_REGNUM, (char *)&pcb.pcb_rip);
-	amd64_supply_fxsave(current_regcache, -1, (struct fpusave *)(&pcb + 1));
 }
 
 void
@@ -190,9 +189,24 @@ kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame)
 	if (pname == NULL)
 		return (NULL);
 	if (strcmp(pname, "calltrap") == 0 ||
+	    strcmp(pname, "fast_syscall_common") == 0 ||
+	    strcmp(pname, "mchk_calltrap") == 0 ||
 	    strcmp(pname, "nmi_calltrap") == 0 ||
 	    (pname[0] == 'X' && pname[1] != '_'))
 		return (&kgdb_trgt_trapframe_unwind);
 	/* printf("%s: %lx =%s\n", __func__, pc, pname); */
 	return (NULL);
+}
+
+/*
+ * This function ensures, that the PC is inside the
+ * function section which is understood by GDB.
+ *
+ * Return 0 when fixup is necessary, -1 otherwise.
+ */
+int
+kgdb_trgt_pc_fixup(CORE_ADDR *pc __unused)
+{
+
+	return (-1);
 }

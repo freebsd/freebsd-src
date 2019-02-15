@@ -3,9 +3,9 @@
 # Author: Harti Brandt <harti@freebsd.org>
 #
 
-LIBBASE= ${.CURDIR}/../../../../contrib/ngatm
+LIBBASE= ${SRCTOP}/sys/contrib/ngatm
 
-.PATH: ${.CURDIR}/../../../../netgraph/atm/ccatm
+.PATH: ${SRCTOP}/sys/netgraph/atm/ccatm
 .PATH: ${LIBBASE}/netnatm/api
 
 KMOD=	ng_ccatm

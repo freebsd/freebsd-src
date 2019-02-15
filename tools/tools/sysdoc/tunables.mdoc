@@ -1035,6 +1035,20 @@ is attempting to comply with.
 This is a read-only variable.
 
 ---
+kern.powercycle_on_panic
+bool
+
+In the event of a panic, this variable controls whether or not the
+system should try to power cycle instead of rebooting.
+
+---
+kern.poweroff_on_panic
+bool
+
+In the event of a panic, this variable controls whether or not the
+system should try to power off instead of rebooting.
+
+---
 kern.proc.all
 
 ---
@@ -1106,21 +1120,6 @@ kern.random.sys.harvest.swi
 
 ---
 kern.random.sys.seeded
-
----
-kern.random.yarrow.bins
-
----
-kern.random.yarrow.fastthresh
-
----
-kern.random.yarrow.gengateinterval
-
----
-kern.random.yarrow.slowoverthresh
-
----
-kern.random.yarrow.slowthresh
 
 ---
 kern.randompid
@@ -1312,14 +1311,6 @@ net.inet.ip.intr_queue_drops
 net.inet.ip.intr_queue_maxlen
 
 ---
-net.inet.ip.keepfaith
-bool
-
-This is used in conjunction with 
-.Xr faithd 8
-to control the FAITH IPv6/v4 translator daemon.
-
----
 net.inet.ip.maxfragpackets
 
 ---
@@ -1331,37 +1322,6 @@ bool
 
 Controls the sending of ICMP redirects in response to unforwardable IP
 packets.
-
----
-net.inet.ip.rtexpire
-int
-
-Lifetime in seconds of protocol-cloned IP routes after the last
-reference drops (default one hour).  
-
----
-net.inet.ip.rtmaxcache
-int
-
-Trigger level of cached, unreferenced, protocol-cloned 
-routes which initiates dynamic adaptation.
-
----
-net.inet.ip.rtminexpire
-int
-
-See 
-.Xr inet 4
-for more information.
-
----
-net.inet.ip.sendsourcequench
-bool
-
-This 
-.Nm
-enables or disables the transmission of
-source quench packets.
 
 ---
 net.inet.ip.sourceroute
@@ -2222,9 +2182,6 @@ occurs when writing large sequential files.
 This is turned on by default, but under certain
 circumstances may stall processes and can therefore
 be turned off.
-
----
-vm.defer_swapspace_pageouts
 
 ---
 vm.disable_swapspace_pageouts

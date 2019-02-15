@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994 Herb Peyerl <hpeyerl@novatel.ca>
  * All rights reserved.
  *
@@ -235,3 +237,4 @@ static driver_t ep_pccard_driver = {
 extern devclass_t ep_devclass;
 
 DRIVER_MODULE(ep, pccard, ep_pccard_driver, ep_devclass, 0, 0);
+PCCARD_PNP_INFO(ep_pccard_products);

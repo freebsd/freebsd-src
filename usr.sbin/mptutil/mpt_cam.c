@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2008 Yahoo!, Inc.
  * All rights reserved.
  * Written by: John Baldwin <jhb@FreeBSD.org>
@@ -241,8 +243,7 @@ fetch_scsi_capacity(struct cam_device *dev, struct mpt_standalone_disk *disk)
 		return (ENOMEM);
 
 	/* Zero the rest of the ccb. */
-	bzero(&(&ccb->ccb_h)[1], sizeof(struct ccb_scsiio) -
-	    sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	scsi_read_capacity(&ccb->csio, 1, NULL, MSG_SIMPLE_Q_TAG, &rcap,
 	    SSD_FULL_SIZE, 5000);
@@ -260,7 +261,6 @@ fetch_scsi_capacity(struct cam_device *dev, struct mpt_standalone_disk *disk)
 		cam_freeccb(ccb);
 		return (EIO);
 	}
-	cam_freeccb(ccb);
 
 	/*
 	 * A last block of 2^32-1 means that the true capacity is over 2TB,
@@ -269,12 +269,12 @@ fetch_scsi_capacity(struct cam_device *dev, struct mpt_standalone_disk *disk)
 	 */
 	if (scsi_4btoul(rcap.addr) != 0xffffffff) {
 		disk->maxlba = scsi_4btoul(rcap.addr);
+		cam_freeccb(ccb);
 		return (0);
 	}
 
 	/* Zero the rest of the ccb. */
-	bzero(&(&ccb->ccb_h)[1], sizeof(struct ccb_scsiio) -
-	    sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	scsi_read_capacity_16(&ccb->csio, 1, NULL, MSG_SIMPLE_Q_TAG, 0, 0, 0,
 	    (uint8_t *)&rcaplong, sizeof(rcaplong), SSD_FULL_SIZE, 5000);
@@ -355,8 +355,7 @@ fetch_scsi_inquiry(struct cam_device *dev, struct mpt_standalone_disk *disk)
 		return (ENOMEM);
 
 	/* Zero the rest of the ccb. */
-	bzero(&(&ccb->ccb_h)[1], sizeof(struct ccb_scsiio) -
-	    sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	inq_buf = calloc(1, sizeof(*inq_buf));
 	if (inq_buf == NULL) {
@@ -513,11 +512,11 @@ mpt_fetch_disks(int fd, int *ndisks, struct mpt_standalone_disk **disksp)
 }
 
 /*
- * Instruct the mpt(4) device to rescan its busses to find new devices
+ * Instruct the mpt(4) device to rescan its buses to find new devices
  * such as disks whose RAID physdisk page was removed or volumes that
  * were created.  If id is -1, the entire bus is rescanned.
  * Otherwise, only devices at the specified ID are rescanned.  If bus
- * is -1, then all busses are scanned instead of the specified bus.
+ * is -1, then all buses are scanned instead of the specified bus.
  * Note that currently, only bus 0 is supported.
  */
 int

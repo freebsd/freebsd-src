@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -138,7 +140,19 @@ typedef enum
 #define	WAIT_MYPGRP	0	/* any process in my process group */
 #endif /* __BSD_VISIBLE */
 
+#if defined(_KERNEL) || defined(_WANT_KW_EXITCODE)
+
+/*
+ * Clamp the return code to the low 8 bits from full 32 bit value.
+ * Should be used in kernel to construct the wait(2)-compatible process
+ * status to usermode.
+ */
+#define	KW_EXITCODE(ret, sig)	W_EXITCODE((ret) & 0xff, (sig))
+
+#endif	/* _KERNEL || _WANT_KW_EXITCODE */
+
 #ifndef _KERNEL
+
 #include <sys/types.h>
 
 __BEGIN_DECLS

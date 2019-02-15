@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-3-Clause
+ *
  * Copyright (c) 1998, 1999, 2003  Scott Mitchell
  * All rights reserved.
  *
@@ -96,6 +98,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cdefs.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -313,6 +316,8 @@ xe_attach(device_t dev)
 		mtx_destroy(&scp->lock);
 		return (err);
 	}
+
+	gone_by_fcp101_dev(dev);
 
 	/* Done */
 	return (0);
@@ -765,8 +770,7 @@ xe_rxintr(struct xe_softc *scp, uint8_t rst0)
 			}
 
 			if (len + 3 > MHLEN) {
-				MCLGET(mbp, M_NOWAIT);
-				if ((mbp->m_flags & M_EXT) == 0) {
+				if (!(MCLGET(mbp, M_NOWAIT))) {
 					m_freem(mbp);
 					if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 					continue;
@@ -1392,7 +1396,7 @@ xe_set_multicast(struct xe_softc *scp)
 	/* Iterate over multicast address list */
 	count = 0;
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(maddr, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(maddr, &ifp->if_multiaddrs, ifma_link) {
 		if (maddr->ifma_addr->sa_family != AF_LINK)
 			continue;
 
@@ -1964,8 +1968,8 @@ xe_activate(device_t dev)
 
 	if (!sc->modem) {
 		sc->port_rid = 0;	/* 0 is managed by pccard */
-		sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-		    &sc->port_rid, 0ul, ~0ul, 16, RF_ACTIVE);
+		sc->port_res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+		    &sc->port_rid, 16, RF_ACTIVE);
 	} else if (sc->dingo) {
 		/*
 		 * Find a 16 byte aligned ioport for the card.
@@ -1984,7 +1988,7 @@ xe_activate(device_t dev)
 			    sc->port_res);
 			start = (rman_get_start(sc->port_res) + 15) & ~0xf;
 		} while (1);
-		DEVPRINTF(1, (dev, "RealPort port 0x%0lx, size 0x%0lx\n",
+		DEVPRINTF(1, (dev, "RealPort port 0x%0jx, size 0x%0jx\n",
 		    bus_get_resource_start(dev, SYS_RES_IOPORT, sc->port_rid),
 		    bus_get_resource_count(dev, SYS_RES_IOPORT, sc->port_rid)));
 	} else if (sc->ce2) {
@@ -1998,8 +2002,8 @@ xe_activate(device_t dev)
 		 */
 		DEVPRINTF(1, (dev, "Finding I/O port for CEM2/CEM3\n"));
 		sc->ce2_port_rid = 0;	/* 0 is managed by pccard */
-		sc->ce2_port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-		    &sc->ce2_port_rid, 0ul, ~0ul, 8, RF_ACTIVE);
+		sc->ce2_port_res = bus_alloc_resource_anywhere(dev,
+		    SYS_RES_IOPORT, &sc->ce2_port_rid, 8, RF_ACTIVE);
 		if (sc->ce2_port_res == NULL) {
 			DEVPRINTF(1, (dev,
 			    "Cannot allocate I/O port for modem\n"));
@@ -2024,7 +2028,7 @@ xe_activate(device_t dev)
 			    sc->port_res);
 			sc->port_res = NULL;
 		}
-		DEVPRINTF(1, (dev, "CEM2/CEM3 port 0x%0lx, size 0x%0lx\n",
+		DEVPRINTF(1, (dev, "CEM2/CEM3 port 0x%0jx, size 0x%0jx\n",
 		    bus_get_resource_start(dev, SYS_RES_IOPORT, sc->port_rid),
 		    bus_get_resource_count(dev, SYS_RES_IOPORT, sc->port_rid)));
 	}

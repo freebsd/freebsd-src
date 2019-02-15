@@ -12,7 +12,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -31,7 +31,7 @@
 .\"	@(#)mklocale.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2004
+.Dd April 18, 2016
 .Dt MKLOCALE 1
 .Os
 .Sh NAME
@@ -282,8 +282,15 @@ Defines runes with display width 3.
 .Pp
 If no display width explicitly defined, width 1 assumed
 for printable runes by default.
+.Sh NOTES
+.Nm
+has been replaced by
+.Xr localedef 1
+in
+.Fx 11.0 .
 .Sh SEE ALSO
 .Xr colldef 1 ,
+.Xr localedef 1 ,
 .Xr setlocale 3 ,
 .Xr wcwidth 3 ,
 .Xr big5 5 ,

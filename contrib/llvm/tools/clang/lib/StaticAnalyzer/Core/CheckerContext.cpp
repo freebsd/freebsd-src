@@ -35,6 +35,13 @@ StringRef CheckerContext::getCalleeName(const FunctionDecl *FunDecl) const {
   return funI->getName();
 }
 
+StringRef CheckerContext::getDeclDescription(const Decl *D) {
+  if (isa<ObjCMethodDecl>(D) || isa<CXXMethodDecl>(D))
+    return "method";
+  if (isa<BlockDecl>(D))
+    return "anonymous block";
+  return "function";
+}
 
 bool CheckerContext::isCLibraryFunction(const FunctionDecl *FD,
                                         StringRef Name) {
@@ -45,7 +52,7 @@ bool CheckerContext::isCLibraryFunction(const FunctionDecl *FD,
   if (BId != 0) {
     if (Name.empty())
       return true;
-    StringRef BName = FD->getASTContext().BuiltinInfo.GetName(BId);
+    StringRef BName = FD->getASTContext().BuiltinInfo.getName(BId);
     if (BName.find(Name) != StringRef::npos)
       return true;
   }
@@ -57,12 +64,8 @@ bool CheckerContext::isCLibraryFunction(const FunctionDecl *FD,
     return false;
 
   // Look through 'extern "C"' and anything similar invented in the future.
-  const DeclContext *DC = FD->getDeclContext();
-  while (DC->isTransparentContext())
-    DC = DC->getParent();
-
-  // If this function is in a namespace, it is not a C library function.
-  if (!DC->isTranslationUnit())
+  // If this function is not in TU directly, it is not a C library function.
+  if (!FD->getDeclContext()->getRedeclContext()->isTranslationUnit())
     return false;
 
   // If this function is not externally visible, it is not a C library function.
@@ -96,3 +99,35 @@ StringRef CheckerContext::getMacroNameOrSpelling(SourceLocation &Loc) {
   return Lexer::getSpelling(Loc, buf, getSourceManager(), getLangOpts());
 }
 
+/// Evaluate comparison and return true if it's known that condition is true
+static bool evalComparison(SVal LHSVal, BinaryOperatorKind ComparisonOp,
+                           SVal RHSVal, ProgramStateRef State) {
+  if (LHSVal.isUnknownOrUndef())
+    return false;
+  ProgramStateManager &Mgr = State->getStateManager();
+  if (!LHSVal.getAs<NonLoc>()) {
+    LHSVal = Mgr.getStoreManager().getBinding(State->getStore(),
+                                              LHSVal.castAs<Loc>());
+    if (LHSVal.isUnknownOrUndef() || !LHSVal.getAs<NonLoc>())
+      return false;
+  }
+
+  SValBuilder &Bldr = Mgr.getSValBuilder();
+  SVal Eval = Bldr.evalBinOp(State, ComparisonOp, LHSVal, RHSVal,
+                             Bldr.getConditionType());
+  if (Eval.isUnknownOrUndef())
+    return false;
+  ProgramStateRef StTrue, StFalse;
+  std::tie(StTrue, StFalse) = State->assume(Eval.castAs<DefinedSVal>());
+  return StTrue && !StFalse;
+}
+
+bool CheckerContext::isGreaterOrEqual(const Expr *E, unsigned long long Val) {
+  DefinedSVal V = getSValBuilder().makeIntVal(Val, getASTContext().LongLongTy);
+  return evalComparison(getSVal(E), BO_GE, V, getState());
+}
+
+bool CheckerContext::isNegative(const Expr *E) {
+  DefinedSVal V = getSValBuilder().makeIntVal(0, false);
+  return evalComparison(getSVal(E), BO_LT, V, getState());
+}

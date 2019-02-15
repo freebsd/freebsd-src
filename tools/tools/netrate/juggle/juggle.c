@@ -93,19 +93,6 @@
  */
 #define	PIPELINE_MAX	4
 
-/*
- * As in all programs, steal timespecsub() from time.h.
- */
-#define timespecsub(vvp, uvp)                                           \
-        do {                                                            \
-                (vvp)->tv_sec -= (uvp)->tv_sec;                         \
-                (vvp)->tv_nsec -= (uvp)->tv_nsec;                       \
-                if ((vvp)->tv_nsec < 0) {                               \
-                        (vvp)->tv_sec--;                                \
-                        (vvp)->tv_nsec += 1000000000;                   \
-                }                                                       \
-        } while (0)
-
 static int
 udp_create(int *fd1p, int *fd2p)
 {
@@ -277,7 +264,7 @@ juggle(int fd1, int fd2, int pipeline)
 	if (clock_gettime(CLOCK_REALTIME, &tfinish) < 0)
 		err(-1, "juggle: clock_gettime");
 
-	timespecsub(&tfinish, &tstart);
+	timespecsub(&tfinish, &tstart, &tfinish);
 
 	return (tfinish);
 }
@@ -373,7 +360,7 @@ thread_juggle(int fd1, int fd2, int pipeline)
 	if (pthread_join(thread, NULL) != 0)
 		err(-1, "thread_juggle: pthread_join");
 
-	timespecsub(&tfinish, &tstart);
+	timespecsub(&tfinish, &tstart, &tfinish);
 
 	return (tfinish);
 }
@@ -458,7 +445,7 @@ process_juggle(int fd1, int fd2, int pipeline)
 	if (wpid != pid)
 		errx(-1, "process_juggle: waitpid: pid != wpid");
 
-	timespecsub(&tfinish, &tstart);
+	timespecsub(&tfinish, &tstart, &tfinish);
 
 	return (tfinish);
 }

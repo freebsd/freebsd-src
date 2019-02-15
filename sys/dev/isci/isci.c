@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * BSD LICENSE
  *
  * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
@@ -138,8 +140,8 @@ isci_allocate_pci_memory(struct isci_softc *isci)
 		struct ISCI_PCI_BAR *pci_bar = &isci->pci_bar[i];
 
 		pci_bar->resource_id = PCIR_BAR(i*2);
-		pci_bar->resource = bus_alloc_resource(isci->device,
-		    SYS_RES_MEMORY, &pci_bar->resource_id, 0, ~0, 1,
+		pci_bar->resource = bus_alloc_resource_any(isci->device,
+		    SYS_RES_MEMORY, &pci_bar->resource_id,
 		    RF_ACTIVE);
 
 		if(pci_bar->resource == NULL)
@@ -163,6 +165,7 @@ isci_attach(device_t device)
 
 	g_isci = isci;
 	isci->device = device;
+	pci_enable_busmaster(device);
 
 	isci_allocate_pci_memory(isci);
 
@@ -272,6 +275,7 @@ isci_detach(device_t device)
 
 		pci_release_msi(device);
 	}
+	pci_disable_busmaster(device);
 
 	return (0);
 }

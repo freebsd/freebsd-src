@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008, Pyun YongHyeon <yongari@FreeBSD.org>
  * All rights reserved.
  *
@@ -337,8 +339,7 @@ jme_probe(device_t dev)
 	vendor = pci_get_vendor(dev);
 	devid = pci_get_device(dev);
 	sp = jme_devs;
-	for (i = 0; i < sizeof(jme_devs) / sizeof(jme_devs[0]);
-	    i++, sp++) {
+	for (i = 0; i < nitems(jme_devs); i++, sp++) {
 		if (vendor == sp->jme_vendorid &&
 		    devid == sp->jme_deviceid) {
 			device_set_desc(dev, sp->jme_name);
@@ -558,7 +559,7 @@ jme_map_intr_vector(struct jme_softc *sc)
 	bzero(map, sizeof(map));
 
 	/* Map Tx interrupts source to MSI/MSIX vector 2. */
-	map[MSINUM_REG_INDEX(N_INTR_TXQ0_COMP)] =
+	map[MSINUM_REG_INDEX(N_INTR_TXQ0_COMP)] |=
 	    MSINUM_INTR_SOURCE(2, N_INTR_TXQ0_COMP);
 	map[MSINUM_REG_INDEX(N_INTR_TXQ1_COMP)] |=
 	    MSINUM_INTR_SOURCE(2, N_INTR_TXQ1_COMP);
@@ -580,37 +581,37 @@ jme_map_intr_vector(struct jme_softc *sc)
 	    MSINUM_INTR_SOURCE(2, N_INTR_TXQ_COAL_TO);
 
 	/* Map Rx interrupts source to MSI/MSIX vector 1. */
-	map[MSINUM_REG_INDEX(N_INTR_RXQ0_COMP)] =
+	map[MSINUM_REG_INDEX(N_INTR_RXQ0_COMP)] |=
 	    MSINUM_INTR_SOURCE(1, N_INTR_RXQ0_COMP);
-	map[MSINUM_REG_INDEX(N_INTR_RXQ1_COMP)] =
+	map[MSINUM_REG_INDEX(N_INTR_RXQ1_COMP)] |=
 	    MSINUM_INTR_SOURCE(1, N_INTR_RXQ1_COMP);
-	map[MSINUM_REG_INDEX(N_INTR_RXQ2_COMP)] =
+	map[MSINUM_REG_INDEX(N_INTR_RXQ2_COMP)] |=
 	    MSINUM_INTR_SOURCE(1, N_INTR_RXQ2_COMP);
-	map[MSINUM_REG_INDEX(N_INTR_RXQ3_COMP)] =
+	map[MSINUM_REG_INDEX(N_INTR_RXQ3_COMP)] |=
 	    MSINUM_INTR_SOURCE(1, N_INTR_RXQ3_COMP);
-	map[MSINUM_REG_INDEX(N_INTR_RXQ0_DESC_EMPTY)] =
+	map[MSINUM_REG_INDEX(N_INTR_RXQ0_DESC_EMPTY)] |=
 	    MSINUM_INTR_SOURCE(1, N_INTR_RXQ0_DESC_EMPTY);
-	map[MSINUM_REG_INDEX(N_INTR_RXQ1_DESC_EMPTY)] =
+	map[MSINUM_REG_INDEX(N_INTR_RXQ1_DESC_EMPTY)] |=
 	    MSINUM_INTR_SOURCE(1, N_INTR_RXQ1_DESC_EMPTY);
-	map[MSINUM_REG_INDEX(N_INTR_RXQ2_DESC_EMPTY)] =
+	map[MSINUM_REG_INDEX(N_INTR_RXQ2_DESC_EMPTY)] |=
 	    MSINUM_INTR_SOURCE(1, N_INTR_RXQ2_DESC_EMPTY);
-	map[MSINUM_REG_INDEX(N_INTR_RXQ3_DESC_EMPTY)] =
+	map[MSINUM_REG_INDEX(N_INTR_RXQ3_DESC_EMPTY)] |=
 	    MSINUM_INTR_SOURCE(1, N_INTR_RXQ3_DESC_EMPTY);
-	map[MSINUM_REG_INDEX(N_INTR_RXQ0_COAL)] =
+	map[MSINUM_REG_INDEX(N_INTR_RXQ0_COAL)] |=
 	    MSINUM_INTR_SOURCE(1, N_INTR_RXQ0_COAL);
-	map[MSINUM_REG_INDEX(N_INTR_RXQ1_COAL)] =
+	map[MSINUM_REG_INDEX(N_INTR_RXQ1_COAL)] |=
 	    MSINUM_INTR_SOURCE(1, N_INTR_RXQ1_COAL);
-	map[MSINUM_REG_INDEX(N_INTR_RXQ2_COAL)] =
+	map[MSINUM_REG_INDEX(N_INTR_RXQ2_COAL)] |=
 	    MSINUM_INTR_SOURCE(1, N_INTR_RXQ2_COAL);
-	map[MSINUM_REG_INDEX(N_INTR_RXQ3_COAL)] =
+	map[MSINUM_REG_INDEX(N_INTR_RXQ3_COAL)] |=
 	    MSINUM_INTR_SOURCE(1, N_INTR_RXQ3_COAL);
-	map[MSINUM_REG_INDEX(N_INTR_RXQ0_COAL_TO)] =
+	map[MSINUM_REG_INDEX(N_INTR_RXQ0_COAL_TO)] |=
 	    MSINUM_INTR_SOURCE(1, N_INTR_RXQ0_COAL_TO);
-	map[MSINUM_REG_INDEX(N_INTR_RXQ1_COAL_TO)] =
+	map[MSINUM_REG_INDEX(N_INTR_RXQ1_COAL_TO)] |=
 	    MSINUM_INTR_SOURCE(1, N_INTR_RXQ1_COAL_TO);
-	map[MSINUM_REG_INDEX(N_INTR_RXQ2_COAL_TO)] =
+	map[MSINUM_REG_INDEX(N_INTR_RXQ2_COAL_TO)] |=
 	    MSINUM_INTR_SOURCE(1, N_INTR_RXQ2_COAL_TO);
-	map[MSINUM_REG_INDEX(N_INTR_RXQ3_COAL_TO)] =
+	map[MSINUM_REG_INDEX(N_INTR_RXQ3_COAL_TO)] |=
 	    MSINUM_INTR_SOURCE(1, N_INTR_RXQ3_COAL_TO);
 
 	/* Map all other interrupts source to MSI/MSIX vector 0. */
@@ -804,7 +805,7 @@ jme_attach(device_t dev)
 	}
 	/* Create coalescing sysctl node. */
 	jme_sysctl_node(sc);
-	if ((error = jme_dma_alloc(sc) != 0))
+	if ((error = jme_dma_alloc(sc)) != 0)
 		goto fail;
 
 	ifp = sc->jme_ifp = if_alloc(IFT_ETHER);
@@ -2665,7 +2666,7 @@ jme_rxintr(struct jme_softc *sc, int count)
 		 * sure whether this check is needed.
 		 */
 		pktlen = JME_RX_BYTES(le32toh(desc->buflen));
-		if (nsegs != ((pktlen + (MCLBYTES - 1)) / MCLBYTES))
+		if (nsegs != howmany(pktlen, MCLBYTES))
 			break;
 		prog++;
 		/* Received a frame. */
@@ -3277,7 +3278,7 @@ jme_set_filter(struct jme_softc *sc)
 	bzero(mchash, sizeof(mchash));
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &sc->jme_ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &sc->jme_ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)

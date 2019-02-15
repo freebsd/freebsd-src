@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Sam Leffler
  * All rights reserved.
  *
@@ -76,7 +78,7 @@ gdb_cninit(struct consdev *cp)
 	/* setup tx buffer and callout */
 	if (c->npending == -1) {
 		c->npending = 0;
-		callout_init(&c->flush, CALLOUT_MPSAFE);
+		callout_init(&c->flush, 1);
 		cp->cn_arg = c;
 	}
 }

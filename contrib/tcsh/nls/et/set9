@@ -1,4 +1,4 @@
-$ $tcsh: set9,v 1.3 2011/02/04 18:19:34 christos Exp $
+$ $tcsh: set9,v 1.4 2015/05/26 17:38:25 christos Exp $
 $ ed.xmap.c
 $set 9
 1 AddXkey: Null pikkusega laiend-klahv ei ole lubatud.\n
@@ -8,5 +8,5 @@ $set 9
 5 Mõned laiendatud klahvid on sisemise trükipuhvri jaoks liiga pikad
 6 Enumerate: BUG!! Null viit anti\n!
 7 sisendit pole
-8 Midagi peab järgnema: %c\n
+8 Midagi peab järgnema: '%c'\n
 9 kaheksand-konstant ei mahu sümbolisse.\n

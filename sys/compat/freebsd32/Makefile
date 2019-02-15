@@ -2,18 +2,16 @@
 #
 # $FreeBSD$
 
+# Don't use an OBJDIR
+.OBJDIR: ${.CURDIR}
+
 all:
 	@echo "make sysent only"
 
 sysent:  freebsd32_sysent.c freebsd32_syscall.h freebsd32_proto.h freebsd32_systrace_args.c
 
 freebsd32_sysent.c freebsd32_syscalls.c freebsd32_syscall.h freebsd32_proto.h freebsd32_systrace_args.c : \
-	    ../../kern/makesyscalls.sh syscalls.master syscalls.conf
-	-mv -f freebsd32_sysent.c freebsd32_sysent.c.bak
-	-mv -f freebsd32_syscalls.c freebsd32_syscalls.c.bak
-	-mv -f freebsd32_syscall.h freebsd32_syscall.h.bak
-	-mv -f freebsd32_proto.h freebsd32_proto.h.bak
-	-mv -f freebsd32_systrace_args.c  freebsd32_systrace_args.c.bak
+	    ../../kern/makesyscalls.sh syscalls.master syscalls.conf capabilities.conf
 	sh ../../kern/makesyscalls.sh syscalls.master syscalls.conf
 
 clean:

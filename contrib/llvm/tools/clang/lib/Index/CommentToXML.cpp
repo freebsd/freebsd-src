@@ -8,14 +8,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Index/CommentToXML.h"
-#include "SimpleFormatContext.h"
-#include "clang/AST/Attr.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/Comment.h"
 #include "clang/AST/CommentVisitor.h"
 #include "clang/Format/Format.h"
 #include "clang/Index/USRGeneration.h"
-#include "clang/Lex/Lexer.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/Support/raw_ostream.h"
@@ -97,7 +95,7 @@ struct FullCommentParts {
 
 FullCommentParts::FullCommentParts(const FullComment *C,
                                    const CommandTraits &Traits) :
-    Brief(NULL), Headerfile(NULL), FirstParagraph(NULL) {
+    Brief(nullptr), Headerfile(nullptr), FirstParagraph(nullptr) {
   for (Comment::child_iterator I = C->child_begin(), E = C->child_end();
        I != E; ++I) {
     const Comment *Child = *I;
@@ -482,7 +480,6 @@ void CommentASTToHTMLConverter::visitFullComment(const FullComment *C) {
     Result << "</div>";
   }
 
-  Result.flush();
 }
 
 void CommentASTToHTMLConverter::visitNonStandaloneParagraphComment(
@@ -533,12 +530,8 @@ public:
   CommentASTToXMLConverter(const FullComment *FC,
                            SmallVectorImpl<char> &Str,
                            const CommandTraits &Traits,
-                           const SourceManager &SM,
-                           SimpleFormatContext &SFC,
-                           unsigned FUID) :
-      FC(FC), Result(Str), Traits(Traits), SM(SM),
-      FormatRewriterContext(SFC),
-      FormatInMemoryUniqueId(FUID) { }
+                           const SourceManager &SM) :
+      FC(FC), Result(Str), Traits(Traits), SM(SM) { }
 
   // Inline content.
   void visitTextComment(const TextComment *C);
@@ -563,6 +556,7 @@ public:
 
   // Helpers.
   void appendToResultWithXMLEscaping(StringRef S);
+  void appendToResultWithCDATAEscaping(StringRef S);
 
   void formatTextOfDeclaration(const DeclInfo *DI,
                                SmallString<128> &Declaration);
@@ -575,8 +569,6 @@ private:
 
   const CommandTraits &Traits;
   const SourceManager &SM;
-  SimpleFormatContext &FormatRewriterContext;
-  unsigned FormatInMemoryUniqueId;
 };
 
 void getSourceTextOfDeclaration(const DeclInfo *ThisDecl,
@@ -587,37 +579,28 @@ void getSourceTextOfDeclaration(const DeclInfo *ThisDecl,
   PrintingPolicy PPolicy(LangOpts);
   PPolicy.PolishForDeclaration = true;
   PPolicy.TerseOutput = true;
+  PPolicy.ConstantsAsWritten = true;
   ThisDecl->CurrentDecl->print(OS, PPolicy,
                                /*Indentation*/0, /*PrintInstantiation*/false);
 }
 
 void CommentASTToXMLConverter::formatTextOfDeclaration(
     const DeclInfo *DI, SmallString<128> &Declaration) {
-  // FIXME. formatting API expects null terminated input string.
-  // There might be more efficient way of doing this.
-  std::string StringDecl = Declaration.str();
+  // Formatting API expects null terminated input string.
+  StringRef StringDecl(Declaration.c_str(), Declaration.size());
 
   // Formatter specific code.
-  // Form a unique in memory buffer name.
-  SmallString<128> filename;
-  filename += "xmldecl";
-  filename += llvm::utostr(FormatInMemoryUniqueId);
-  filename += ".xd";
-  FileID ID = FormatRewriterContext.createInMemoryFile(filename, StringDecl);
-  SourceLocation Start = FormatRewriterContext.Sources.getLocForStartOfFile(ID)
-      .getLocWithOffset(0);
+  unsigned Offset = 0;
   unsigned Length = Declaration.size();
 
-  std::vector<CharSourceRange> Ranges(
-      1, CharSourceRange::getCharRange(Start, Start.getLocWithOffset(Length)));
-  ASTContext &Context = DI->CurrentDecl->getASTContext();
-  const LangOptions &LangOpts = Context.getLangOpts();
-  Lexer Lex(ID, FormatRewriterContext.Sources.getBuffer(ID),
-            FormatRewriterContext.Sources, LangOpts);
-  tooling::Replacements Replace = reformat(
-      format::getLLVMStyle(), Lex, FormatRewriterContext.Sources, Ranges);
-  applyAllReplacements(Replace, FormatRewriterContext.Rewrite);
-  Declaration = FormatRewriterContext.getRewrittenText(ID);
+  format::FormatStyle Style = format::getLLVMStyle();
+  Style.FixNamespaceComments = false;
+  tooling::Replacements Replaces =
+      reformat(Style, StringDecl, tooling::Range(Offset, Length), "xmldecl.xd");
+  auto FormattedStringDecl = applyAllReplacements(StringDecl, Replaces);
+  if (static_cast<bool>(FormattedStringDecl)) {
+    Declaration = *FormattedStringDecl;
+  }
 }
 
 } // end unnamed namespace
@@ -667,14 +650,27 @@ void CommentASTToXMLConverter::visitInlineCommandComment(
 
 void CommentASTToXMLConverter::visitHTMLStartTagComment(
     const HTMLStartTagComment *C) {
-  Result << "<rawHTML><![CDATA[";
-  printHTMLStartTagComment(C, Result);
-  Result << "]]></rawHTML>";
+  Result << "<rawHTML";
+  if (C->isMalformed())
+    Result << " isMalformed=\"1\"";
+  Result << ">";
+  {
+    SmallString<32> Tag;
+    {
+      llvm::raw_svector_ostream TagOS(Tag);
+      printHTMLStartTagComment(C, TagOS);
+    }
+    appendToResultWithCDATAEscaping(Tag);
+  }
+  Result << "</rawHTML>";
 }
 
 void
 CommentASTToXMLConverter::visitHTMLEndTagComment(const HTMLEndTagComment *C) {
-  Result << "<rawHTML>&lt;/" << C->getTagName() << "&gt;</rawHTML>";
+  Result << "<rawHTML";
+  if (C->isMalformed())
+    Result << " isMalformed=\"1\"";
+  Result << ">&lt;/" << C->getTagName() << "&gt;</rawHTML>";
 }
 
 void
@@ -887,7 +883,7 @@ void CommentASTToXMLConverter::visitFullComment(const FullComment *C) {
       FileID FID = LocInfo.first;
       unsigned FileOffset = LocInfo.second;
 
-      if (!FID.isInvalid()) {
+      if (FID.isValid()) {
         if (const FileEntry *FE = SM.getFileEntryForID(FID)) {
           Result << " file=\"";
           appendToResultWithXMLEscaping(FE->getName());
@@ -1070,8 +1066,6 @@ void CommentASTToXMLConverter::visitFullComment(const FullComment *C) {
   }
 
   Result << RootEndTag;
-
-  Result.flush();
 }
 
 void CommentASTToXMLConverter::appendToResultWithXMLEscaping(StringRef S) {
@@ -1100,6 +1094,31 @@ void CommentASTToXMLConverter::appendToResultWithXMLEscaping(StringRef S) {
   }
 }
 
+void CommentASTToXMLConverter::appendToResultWithCDATAEscaping(StringRef S) {
+  if (S.empty())
+    return;
+
+  Result << "<![CDATA[";
+  while (!S.empty()) {
+    size_t Pos = S.find("]]>");
+    if (Pos == 0) {
+      Result << "]]]]><![CDATA[>";
+      S = S.drop_front(3);
+      continue;
+    }
+    if (Pos == StringRef::npos)
+      Pos = S.size();
+
+    Result << S.substr(0, Pos);
+
+    S = S.drop_front(Pos);
+  }
+  Result << "]]>";
+}
+
+CommentToXMLConverter::CommentToXMLConverter() {}
+CommentToXMLConverter::~CommentToXMLConverter() {}
+
 void CommentToXMLConverter::convertCommentToHTML(const FullComment *FC,
                                                  SmallVectorImpl<char> &HTML,
                                                  const ASTContext &Context) {
@@ -1111,7 +1130,7 @@ void CommentToXMLConverter::convertCommentToHTML(const FullComment *FC,
 void CommentToXMLConverter::convertHTMLTagNodeToText(
     const comments::HTMLTagComment *HTC, SmallVectorImpl<char> &Text,
     const ASTContext &Context) {
-  CommentASTToHTMLConverter Converter(0, Text,
+  CommentASTToHTMLConverter Converter(nullptr, Text,
                                       Context.getCommentCommandTraits());
   Converter.visit(HTC);
 }
@@ -1119,18 +1138,7 @@ void CommentToXMLConverter::convertHTMLTagNodeToText(
 void CommentToXMLConverter::convertCommentToXML(const FullComment *FC,
                                                 SmallVectorImpl<char> &XML,
                                                 const ASTContext &Context) {
-  if (!FormatContext) {
-    FormatContext = new SimpleFormatContext(Context.getLangOpts());
-  } else if ((FormatInMemoryUniqueId % 1000) == 0) {
-    // Delete after some number of iterations, so the buffers don't grow
-    // too large.
-    delete FormatContext;
-    FormatContext = new SimpleFormatContext(Context.getLangOpts());
-  }
-
   CommentASTToXMLConverter Converter(FC, XML, Context.getCommentCommandTraits(),
-                                     Context.getSourceManager(), *FormatContext,
-                                     FormatInMemoryUniqueId++);
+                                     Context.getSourceManager());
   Converter.visit(FC);
 }
-

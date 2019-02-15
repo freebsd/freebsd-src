@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2008 MARVELL INTERNATIONAL LTD.
  * All rights reserved.
  *
@@ -73,7 +75,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ehci.h>
 #include <dev/usb/controller/ehcireg.h>
 
+#if !defined(__aarch64__)
 #include <arm/mv/mvreg.h>
+#endif
 #include <arm/mv/mvvar.h>
 
 #define	EHCI_VENDORID_MRVL	0x1286
@@ -99,6 +103,31 @@ static void *ih_err;
 #define	MV_USB_HOST_OVERFLOW   (1 << 2)
 #define	MV_USB_DEVICE_UNDERFLOW (1 << 3)
 
+enum mv_ehci_hwtype {
+	HWTYPE_NONE = 0,
+	HWTYPE_MV_EHCI_V1,
+	HWTYPE_MV_EHCI_V2,
+};
+
+static struct ofw_compat_data compat_data[] = {
+	{"mrvl,usb-ehci",		HWTYPE_MV_EHCI_V1},
+	{"marvell,orion-ehci",		HWTYPE_MV_EHCI_V2},
+	{"marvell,armada-3700-ehci",	HWTYPE_MV_EHCI_V2},
+	{NULL,				HWTYPE_NONE}
+};
+
+static void
+mv_ehci_post_reset(struct ehci_softc *ehci_softc)
+{
+	uint32_t usbmode;
+
+	/* Force HOST mode */
+	usbmode = EOREAD4(ehci_softc, EHCI_USBMODE_NOLPM);
+	usbmode &= ~EHCI_UM_CM;
+	usbmode |= EHCI_UM_CM_HOST;
+	EOWRITE4(ehci_softc, EHCI_USBMODE_NOLPM, usbmode);
+}
+
 static int
 mv_ehci_probe(device_t self)
 {
@@ -106,7 +135,7 @@ mv_ehci_probe(device_t self)
 	if (!ofw_bus_status_okay(self))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(self, "mrvl,usb-ehci"))
+	if (!ofw_bus_search_compatible(self, compat_data)->ocd_data)
 		return (ENXIO);
 
 	device_set_desc(self, EHCI_HC_DEVSTR);
@@ -118,6 +147,7 @@ static int
 mv_ehci_attach(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
+	enum mv_ehci_hwtype hwtype;
 	bus_space_handle_t bsh;
 	int err;
 	int rid;
@@ -126,6 +156,13 @@ mv_ehci_attach(device_t self)
 	sc->sc_bus.parent = self;
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = EHCI_MAX_DEVICES;
+	sc->sc_bus.dma_bits = 32;
+
+	hwtype = ofw_bus_search_compatible(self, compat_data)->ocd_data;
+	if (hwtype == HWTYPE_NONE) {
+		device_printf(self, "Wrong HW type flag detected\n");
+		return (ENXIO);
+	}
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_bus,
@@ -155,12 +192,15 @@ mv_ehci_attach(device_t self)
 		    device_get_name(self));
 
 	rid = 0;
-	irq_err = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
-	    RF_SHAREABLE | RF_ACTIVE);
-	if (irq_err == NULL) {
-		device_printf(self, "Could not allocate error irq\n");
-		mv_ehci_detach(self);
-		return (ENXIO);
+	if (hwtype == HWTYPE_MV_EHCI_V1) {
+		irq_err = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
+		    RF_SHAREABLE | RF_ACTIVE);
+		if (irq_err == NULL) {
+			device_printf(self, "Could not allocate error irq\n");
+			mv_ehci_detach(self);
+			return (ENXIO);
+		}
+		rid = 1;
 	}
 
 	/*
@@ -168,7 +208,6 @@ mv_ehci_attach(device_t self)
 	 * sure to use the correct rid for the main one (controller interrupt)
 	 * -- refer to DTS for the right resource number to use here.
 	 */
-	rid = 1;
 	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->sc_irq_res == NULL) {
@@ -186,12 +225,14 @@ mv_ehci_attach(device_t self)
 
 	sprintf(sc->sc_vendor, "Marvell");
 
-	err = bus_setup_intr(self, irq_err, INTR_TYPE_BIO,
-	    err_intr, NULL, sc, &ih_err);
-	if (err) {
-		device_printf(self, "Could not setup error irq, %d\n", err);
-		ih_err = NULL;
-		goto error;
+	if (hwtype == HWTYPE_MV_EHCI_V1) {
+		err = bus_setup_intr(self, irq_err, INTR_TYPE_BIO,
+		    err_intr, NULL, sc, &ih_err);
+		if (err) {
+			device_printf(self, "Could not setup error irq, %d\n", err);
+			ih_err = NULL;
+			goto error;
+		}
 	}
 
 	EWRITE4(sc, USB_BRIDGE_INTR_MASK, MV_USB_ADDR_DECODE_ERR |
@@ -215,13 +256,13 @@ mv_ehci_attach(device_t self)
 	 * Refer to errata document MV-S500832-00D.pdf (p. 5.24 GL USB-2) for
 	 * details.
 	 */
-	sc->sc_flags |= EHCI_SCFLG_SETMODE;
+	sc->sc_vendor_post_reset = mv_ehci_post_reset;
 	if (bootverbose)
 		device_printf(self, "5.24 GL USB-2 workaround enabled\n");
 
 	/* XXX all MV chips need it? */
-	sc->sc_flags |= EHCI_SCFLG_FORCESPEED | EHCI_SCFLG_NORESTERM;
-
+	sc->sc_flags |= EHCI_SCFLG_TT | EHCI_SCFLG_NORESTERM;
+	sc->sc_vendor_get_port_speed = ehci_get_port_speed_portsc;
 	err = ehci_init(sc);
 	if (!err) {
 		err = device_probe_and_attach(sc->sc_bus.bdev);
@@ -241,14 +282,8 @@ static int
 mv_ehci_detach(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
-	device_t bdev;
 	int err;
 
-	if (sc->sc_bus.bdev) {
-		bdev = sc->sc_bus.bdev;
-		device_detach(bdev);
-		device_delete_child(self, bdev);
-	}
 	/* during module unload there are lots of children leftover */
 	device_delete_children(self);
 
@@ -348,5 +383,5 @@ static driver_t ehci_driver = {
 
 static devclass_t ehci_devclass;
 
-DRIVER_MODULE(ehci, simplebus, ehci_driver, ehci_devclass, 0, 0);
-MODULE_DEPEND(ehci, usb, 1, 1, 1);
+DRIVER_MODULE(ehci_mv, simplebus, ehci_driver, ehci_devclass, 0, 0);
+MODULE_DEPEND(ehci_mv, usb, 1, 1, 1);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994, Henrik Vestergaard Draboel
  * All rights reserved.
  *
@@ -126,7 +128,7 @@
 struct priority {
 	u_char	pri_class;	/* Scheduling class. */
 	u_char	pri_level;	/* Normal priority level. */
-	u_char	pri_native;	/* Priority before propogation. */
+	u_char	pri_native;	/* Priority before propagation. */
 	u_char	pri_user;	/* User priority based on p_cpu and p_nice. */
 };
 

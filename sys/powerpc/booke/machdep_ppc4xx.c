@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011-2012 Semihalf.
  * All rights reserved.
  *
@@ -111,11 +113,6 @@ booke_enable_l1_cache(void)
 
 void
 booke_enable_l2_cache(void)
-{
-}
-
-void
-booke_enable_l3_cache(void)
 {
 }
 

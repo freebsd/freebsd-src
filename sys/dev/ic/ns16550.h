@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991 The Regents of the University of California.
  * All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -45,8 +47,13 @@
 #define	IER_ETXRDY	0x2
 #define	IER_ERLS	0x4
 #define	IER_EMSC	0x8
+/*
+ * Receive timeout interrupt enable.
+ * Implemented in Intel XScale, Ingenic XBurst.
+ */
+#define	IER_RXTMOUT	0x10
 
-#define	IER_BITS	"\20\1ERXRDY\2ETXRDY\3ERLS\4EMSC"
+#define	IER_BITS	"\20\1ERXRDY\2ETXRDY\3ERLS\4EMSC\5RXTMOUT"
 
 #define	com_iir		2	/* interrupt identification register (R) */
 #define	REG_IIR		com_iir
@@ -156,6 +163,9 @@
 #define	FIFO_XMT_RST	FCR_XMT_RST
 #define	FCR_DMA		0x08
 #define	FIFO_DMA_MODE	FCR_DMA
+#ifdef CPU_XBURST
+#define	FCR_UART_ON	0x10
+#endif
 #define	FCR_RX_LOW	0x00
 #define	FIFO_RX_LOW	FCR_RX_LOW
 #define	FCR_RX_MEDL	0x40
@@ -205,6 +215,7 @@
  * requires ACR[6].
  */
 #define	com_icr		5	/* index control register (R/W) */
+#define	REG_ICR		com_icr
 
 /*
  * 16950 register #7.  It is the same as com_scr except it has a different
@@ -220,6 +231,7 @@
  */
 
 #define	com_acr		0	/* additional control register (R/W) */
+#define	REG_ACR		com_acr
 #define	ACR_ASE		0x80	/* ASR/RFL/TFL enable */
 #define	ACR_ICRE	0x40	/* ICR enable */
 #define	ACR_TLE		0x20	/* TTL/RTL enable */

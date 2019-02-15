@@ -16,7 +16,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2013
+.Dd May 15, 2018
 .Dt BOOT 8 i386
 .Os
 .Sh NAME
@@ -55,6 +55,11 @@ known as drive C:, or as drive 0x80 to the BIOS).
 Some BIOSes allow
 you to change this default sequence, and may also include a CD-ROM
 drive as a boot device.
+.Pp
+Some newer PCs boot using UEFI firmware, not BIOS.
+That process is described
+in
+.Xr uefi 8 .
 .Pp
 By default, a three-stage bootstrap is employed, and control is
 automatically passed from the boot blocks (bootstrap stages one and
@@ -228,7 +233,7 @@ regardless of the
 .Fl h
 option described here.
 .It Fl m
-mute the console to suppress all console input and output during the
+mute the console to suppress all kernel console input and output during the
 boot.
 .It Fl n
 ignore key press to interrupt boot before
@@ -345,17 +350,19 @@ requirement has not been adhered to.
 .Xr ddb 4 ,
 .Xr boot.config 5 ,
 .Xr make.conf 5 ,
+.Xr mount.conf 5 ,
 .Xr ttys 5 ,
 .Xr boot0cfg 8 ,
-.Xr bsdlabel 8 ,
 .Xr btxld 8 ,
 .Xr config 8 ,
+.Xr gpart 8 ,
 .Xr gptboot 8 ,
 .Xr halt 8 ,
 .Xr loader 8 ,
 .Xr nextboot 8 ,
 .Xr reboot 8 ,
-.Xr shutdown 8
+.Xr shutdown 8 ,
+.Xr uefi 8
 .Sh BUGS
 The bsdlabel format used by this version of
 .Bx

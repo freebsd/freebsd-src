@@ -1,6 +1,8 @@
 /*	$NetBSD: descr.c,v 1.9 2000/09/24 02:13:24 augustss Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1999 Lennart Augustsson <augustss@netbsd.org>
  * All rights reserved.
  *
@@ -159,7 +161,7 @@ hid_use_report_desc(unsigned char *data, unsigned int size)
 	report_desc_t r;
 
 	r = malloc(sizeof(*r) + size);
-	if (r == 0) {
+	if (r == NULL) {
 		errno = ENOMEM;
 		return (NULL);
 	}

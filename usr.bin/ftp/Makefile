@@ -8,7 +8,7 @@
 #
 #CFLAGS+=-DGATE_SERVER=\"ftp-gw.host\" # -DGATE_PORT=21
 
-TNFTP=	${.CURDIR}/../../contrib/tnftp
+TNFTP=	${SRCTOP}/contrib/tnftp
 .PATH: ${TNFTP}/src
 
 PROG=	ftp
@@ -20,8 +20,7 @@ CFLAGS+= -DINET6
 .endif
 
 CFLAGS+= -I${.CURDIR} -I${TNFTP}
-LDADD=	-ledit -ltermcapw -lutil
-DPADD=	${LIBEDIT} ${LIBTERMCAPW} ${LIBUTIL}
+LIBADD=	edit
 
 WARNS?=	2
 

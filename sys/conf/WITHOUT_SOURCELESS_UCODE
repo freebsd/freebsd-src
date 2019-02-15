@@ -4,16 +4,14 @@
 #
 # $FreeBSD$
 
-nodevice	adw
 nodevice	bce
-nodevice	fatm
 nodevice	fxp
 nodevice	ispfw
 nodevice	mwlfw
 nodevice	ralfw
+nodevice	rtwnfw
 nodevice	runfw
 nodevice	sf
-nodevice	sn
 nodevice	ti
 nodevice	txp
 nodevice	ce
@@ -21,6 +19,7 @@ nodevice	cp
 nodevice	ctau
 nodevice	ipwfw
 nodevice	iwifw
+nodevice	iwmfw
 nodevice	iwnfw
 nodevice	wpifw
 
@@ -41,5 +40,3 @@ nodevice	rum
 nodevice	uath
 nodevice	zyd
 nodevice	kue
-nodevice	urtwn
-nodevice	urtwnfw

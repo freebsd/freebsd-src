@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2013 Steven G. Kargl
  * All rights reserved.
  *
@@ -223,15 +225,8 @@ expm1l(long double x)
 	}
 
 	/* Reduce x to (k*ln2 + endpoint[n2] + r1 + r2). */
-	/* Use a specialized rint() to get fn.  Assume round-to-nearest. */
-	fn = x * INV_L + 0x1.8p63 - 0x1.8p63;
-#if defined(HAVE_EFFICIENT_IRINTL)
-	n = irintl(fn);
-#elif defined(HAVE_EFFICIENT_IRINT)
+	fn = rnintl(x * INV_L);
 	n = irint(fn);
-#else
-	n = (int)fn;
-#endif
 	n2 = (unsigned)n % INTERVALS;
 	k = n >> LOG2_INTERVALS;
 	r1 = x - fn * L1;

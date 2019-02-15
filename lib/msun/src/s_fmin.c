@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
@@ -27,6 +29,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <float.h>
 #include <math.h>
 
 #include "fpmath.h"
@@ -51,3 +54,7 @@ fmin(double x, double y)
 
 	return (x < y ? x : y);
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(fmin, fminl);
+#endif

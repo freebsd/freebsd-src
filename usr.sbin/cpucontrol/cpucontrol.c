@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008-2011 Stanislav Sedov <stas@FreeBSD.org>.
  * All rights reserved.
  *
@@ -60,6 +62,8 @@ int	verbosity_level = 0;
 #define	FLAG_I	0x01
 #define	FLAG_M	0x02
 #define	FLAG_U	0x04
+#define	FLAG_N	0x08
+#define	FLAG_E	0x10
 
 #define	OP_INVAL	0x00
 #define	OP_READ		0x01
@@ -91,6 +95,7 @@ static struct ucode_handler {
 	ucode_update_t *update;
 } handlers[] = {
 	{ intel_probe, intel_update },
+	{ amd10h_probe, amd10h_update },
 	{ amd_probe, amd_update },
 	{ via_probe, via_update },
 };
@@ -113,7 +118,7 @@ usage(void)
 	if (name == NULL)
 		name = "cpuctl";
 	fprintf(stderr, "Usage: %s [-vh] [-d datadir] [-m msr[=value] | "
-	    "-i level | -i level,level_type | -u] device\n", name);
+	    "-i level | -i level,level_type | -e | -u] device\n", name);
 	exit(EX_USAGE);
 }
 
@@ -337,6 +342,25 @@ do_msr(const char *cmdarg, const char *dev)
 }
 
 static int
+do_eval_cpu_features(const char *dev)
+{
+	int fd, error;
+
+	assert(dev != NULL);
+
+	fd = open(dev, O_RDWR);
+	if (fd < 0) {
+		WARN(0, "error opening %s for writing", dev);
+		return (1);
+	}
+	error = ioctl(fd, CPUCTL_EVAL_CPU_FEATURES, NULL);
+	if (error < 0)
+		WARN(0, "ioctl(%s, CPUCTL_EVAL_CPU_FEATURES)", dev);
+	close(fd);
+	return (error);
+}
+
+static int
 do_update(const char *dev)
 {
 	int fd;
@@ -426,14 +450,13 @@ main(int argc, char *argv[])
 	error = 0;
 	cmdarg = "";	/* To keep gcc3 happy. */
 
-	/*
-	 * Add all default data dirs to the list first.
-	 */
-	datadir_add(DEFAULT_DATADIR);
-	while ((c = getopt(argc, argv, "d:hi:m:uv")) != -1) {
+	while ((c = getopt(argc, argv, "d:ehi:m:nuv")) != -1) {
 		switch (c) {
 		case 'd':
 			datadir_add(optarg);
+			break;
+		case 'e':
+			flags |= FLAG_E;
 			break;
 		case 'i':
 			flags |= FLAG_I;
@@ -442,6 +465,9 @@ main(int argc, char *argv[])
 		case 'm':
 			flags |= FLAG_M;
 			cmdarg = optarg;
+			break;
+		case 'n':
+			flags |= FLAG_N;
 			break;
 		case 'u':
 			flags |= FLAG_U;
@@ -462,24 +488,29 @@ main(int argc, char *argv[])
 		usage();
 		/* NOTREACHED */
 	}
+	if ((flags & FLAG_N) == 0)
+		datadir_add(DEFAULT_DATADIR);
 	dev = argv[0];
-	c = flags & (FLAG_I | FLAG_M | FLAG_U);
+	c = flags & (FLAG_E | FLAG_I | FLAG_M | FLAG_U);
 	switch (c) {
-		case FLAG_I:
-			if (strstr(cmdarg, ",") != NULL)
-				error = do_cpuid_count(cmdarg, dev);
-			else
-				error = do_cpuid(cmdarg, dev);
-			break;
-		case FLAG_M:
-			error = do_msr(cmdarg, dev);
-			break;
-		case FLAG_U:
-			error = do_update(dev);
-			break;
-		default:
-			usage();	/* Only one command can be selected. */
+	case FLAG_I:
+		if (strstr(cmdarg, ",") != NULL)
+			error = do_cpuid_count(cmdarg, dev);
+		else
+			error = do_cpuid(cmdarg, dev);
+		break;
+	case FLAG_M:
+		error = do_msr(cmdarg, dev);
+		break;
+	case FLAG_U:
+		error = do_update(dev);
+		break;
+	case FLAG_E:
+		error = do_eval_cpu_features(dev);
+		break;
+	default:
+		usage();	/* Only one command can be selected. */
 	}
 	SLIST_FREE(&datadirs, next, free);
-	return (error);
+	return (error == 0 ? 0 : 1);
 }

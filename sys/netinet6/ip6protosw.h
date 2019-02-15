@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -41,7 +43,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -92,7 +94,7 @@ struct pr_usrreqs;
  *
  * ip6c_finaldst usually points to ip6c_ip6->ip6_dst.  if the original
  * (internal) packet carries a routing header, it may point the final
- * dstination address in the routing header.
+ * destination address in the routing header.
  *
  * ip6c_src: ip6c_ip6->ip6_src + scope info + flowlabel in ip6c_ip6
  *	(beware of flowlabel, if you try to compare it against others)

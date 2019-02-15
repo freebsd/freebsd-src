@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Katsurajima Naoto <raven@katsurajima.seya.yokohama.jp>
  * Copyright (c) 2001 Cameron Grant <cg@freebsd.org>
  * All rights reserved.
@@ -687,7 +689,7 @@ ich_setstatus(struct sc_info *sc)
 	char status[SND_STATUSLEN];
 
 	snprintf(status, SND_STATUSLEN,
-	    "at io 0x%lx, 0x%lx irq %ld bufsz %u %s",
+	    "at io 0x%jx, 0x%jx irq %jd bufsz %u %s",
 	    rman_get_start(sc->nambar), rman_get_start(sc->nabmbar),
 	    rman_get_start(sc->irq), sc->bufsz,PCM_KLDSTRING(snd_ich));
 

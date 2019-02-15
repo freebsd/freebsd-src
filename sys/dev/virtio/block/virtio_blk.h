@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * This header is BSD licensed so anyone can use the definitions to implement
  * compatible drivers/servers.
  *
@@ -67,7 +69,7 @@ struct virtio_blk_config {
 		uint8_t physical_block_exp;
 		uint8_t alignment_offset;
 		uint16_t min_io_size;
-		uint16_t opt_io_size;
+		uint32_t opt_io_size;
 	} topology;
 
 	/* Writeback mode (if VIRTIO_BLK_F_CONFIG_WCE) */

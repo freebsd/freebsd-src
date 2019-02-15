@@ -40,21 +40,67 @@
 #define __ASSEMBLY__
 #endif
 
-#include <machine/xen/xen-os.h>
-
 #include <xen/interface/xen.h>
+
+#ifndef __ASSEMBLY__
+#include <xen/interface/event_channel.h>
+
+struct hypervisor_info {
+	vm_paddr_t (*get_xenstore_mfn)(void);
+	evtchn_port_t (*get_xenstore_evtchn)(void);
+	vm_paddr_t (*get_console_mfn)(void);
+	evtchn_port_t (*get_console_evtchn)(void);
+	uint32_t (*get_start_flags)(void);
+};
+extern struct hypervisor_info hypervisor_info;
+
+static inline vm_paddr_t
+xen_get_xenstore_mfn(void)
+{
+
+	return (hypervisor_info.get_xenstore_mfn());
+}
+
+static inline evtchn_port_t
+xen_get_xenstore_evtchn(void)
+{
+
+	return (hypervisor_info.get_xenstore_evtchn());
+}
+
+static inline vm_paddr_t
+xen_get_console_mfn(void)
+{
+
+	return (hypervisor_info.get_console_mfn());
+}
+
+static inline evtchn_port_t
+xen_get_console_evtchn(void)
+{
+
+	return (hypervisor_info.get_console_evtchn());
+}
+
+static inline uint32_t
+xen_get_start_flags(void)
+{
+
+	return (hypervisor_info.get_start_flags());
+}
+#endif
+
+#include <machine/xen/xen-os.h>
 
 /* Everything below this point is not included by assembler (.S) files. */
 #ifndef __ASSEMBLY__
 
-/* Force a proper event-channel callback from Xen. */
-void force_evtchn_callback(void);
-
 extern shared_info_t *HYPERVISOR_shared_info;
-extern start_info_t *HYPERVISOR_start_info;
 
-/* XXX: we need to get rid of this and use HYPERVISOR_start_info directly */
-extern char *console_page;
+extern int xen_disable_pv_disks;
+extern int xen_disable_pv_nics;
+
+extern bool xen_suspend_cancelled;
 
 enum xen_domain_type {
 	XEN_NATIVE,             /* running on bare hardware    */
@@ -85,9 +131,47 @@ xen_hvm_domain(void)
 static inline bool
 xen_initial_domain(void)
 {
-	return (xen_domain() && HYPERVISOR_start_info != NULL &&
-	    (HYPERVISOR_start_info->flags & SIF_INITDOMAIN) != 0);
+
+	return (xen_domain() && (xen_get_start_flags() & SIF_INITDOMAIN) != 0);
 }
+
+/*
+ * Based on ofed/include/linux/bitops.h
+ *
+ * Those helpers are prefixed by xen_ because xen-os.h is widely included
+ * and we don't want the other drivers using them.
+ *
+ */
+#define NBPL (NBBY * sizeof(long))
+
+static inline bool
+xen_test_bit(int bit, volatile long *addr)
+{
+	unsigned long mask = 1UL << (bit % NBPL);
+
+	return !!(atomic_load_acq_long(&addr[bit / NBPL]) & mask);
+}
+
+static inline void
+xen_set_bit(int bit, volatile long *addr)
+{
+	atomic_set_long(&addr[bit / NBPL], 1UL << (bit % NBPL));
+}
+
+static inline void
+xen_clear_bit(int bit, volatile long *addr)
+{
+	atomic_clear_long(&addr[bit / NBPL], 1UL << (bit % NBPL));
+}
+
+#undef NBPL
+
+/*
+ * Functions to allocate/free unused memory in order
+ * to map memory from other domains.
+ */
+struct resource *xenmem_alloc(device_t dev, int *res_id, size_t size);
+int xenmem_free(device_t dev, int res_id, struct resource *res);
 
 /* Debug/emergency function, prints directly to hypervisor console */
 void xc_printf(const char *, ...) __printflike(1, 2);

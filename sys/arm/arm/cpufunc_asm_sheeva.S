@@ -29,12 +29,13 @@
  * SUCH DAMAGE.
  */
 
-#include <machine/armreg.h>
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+#include <machine/armreg.h>
 #include <machine/param.h>
 
+#ifndef ELF_TRAMPOLINE
 .Lsheeva_cache_line_size:
 	.word	_C_LABEL(arm_pdcache_line_size)
 .Lsheeva_asm_page_mask:
@@ -48,7 +49,7 @@ ENTRY(sheeva_setttb)
 
 	mov	r1, #0
 	mcr	p15, 0, r1, c7, c5, 0	/* Invalidate ICache */
-1:	mrc	p15, 0, r15, c7, c14, 3	/* Test, clean and invalidate DCache */
+1:	mrc	p15, 0, APSR_nzcv, c7, c14, 3	/* Test, clean and invalidate DCache */
 	bne	1b			/* More to do? */
 
 	mcr	p15, 1, r1, c15, c9, 0	/* Clean L2 */
@@ -376,6 +377,7 @@ ENTRY(sheeva_l2cache_wb_range)
 	ldr	lr, [sp], #4
 	RET
 END(sheeva_l2cache_wb_range)
+#endif /* !ELF_TRAMPOLINE */
 
 ENTRY(sheeva_l2cache_wbinv_all)
 	/* Disable irqs */
@@ -393,6 +395,7 @@ ENTRY(sheeva_l2cache_wbinv_all)
 	RET
 END(sheeva_l2cache_wbinv_all)
 
+#ifndef ELF_TRAMPOLINE
 /* This function modifies register value as follows:
  *
  * arg1  arg		EFFECT (bit value saved into register)
@@ -418,4 +421,4 @@ ENTRY(sheeva_cpu_sleep)
 	mcr	p15, 0, r0, c7, c0, 4	/* Wait for interrupt */
 	mov	pc, lr
 END(sheeva_cpu_sleep)
-
+#endif /* !ELF_TRAMPOLINE */

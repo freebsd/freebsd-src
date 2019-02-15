@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Kai Wang
  * Copyright (c) 2007 Tim Kientzle
  * All rights reserved.
@@ -7,22 +9,22 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
@@ -94,7 +96,8 @@ read_archive(struct bsdar *bsdar, char mode)
 		r = archive_read_next_header(a, &entry);
 		if (r == ARCHIVE_WARN || r == ARCHIVE_RETRY ||
 		    r == ARCHIVE_FATAL)
-			bsdar_warnc(bsdar, 0, "%s", archive_error_string(a));
+			bsdar_warnc(bsdar, archive_errno(a), "%s",
+			    archive_error_string(a));
 		if (r == ARCHIVE_EOF || r == ARCHIVE_FATAL)
 			break;
 		if (r == ARCHIVE_RETRY) {
@@ -102,7 +105,8 @@ read_archive(struct bsdar *bsdar, char mode)
 			continue;
 		}
 
-		name = archive_entry_pathname(entry);
+		if ((name = archive_entry_pathname(entry)) == NULL)
+			break;
 
 		/* Skip pseudo members. */
 		if (strcmp(name, "/") == 0 || strcmp(name, "//") == 0)
@@ -148,7 +152,7 @@ read_archive(struct bsdar *bsdar, char mode)
 			if (r == ARCHIVE_WARN || r == ARCHIVE_RETRY ||
 			    r == ARCHIVE_FATAL) {
 				(void)fprintf(stdout, "\n");
-				bsdar_warnc(bsdar, 0, "%s",
+				bsdar_warnc(bsdar, archive_errno(a), "%s",
 				    archive_error_string(a));
 			}
 
@@ -186,7 +190,15 @@ read_archive(struct bsdar *bsdar, char mode)
 
 				if (bsdar->options & AR_V)
 					(void)fprintf(stdout, "x - %s\n", name);
-				flags = 0;
+				/* Disallow absolute paths. */
+				if (name[0] == '/') {
+					bsdar_warnc(bsdar, 0,
+					    "Absolute path '%s'", name);
+					continue;
+				}
+				/* Basic path security flags. */
+				flags = ARCHIVE_EXTRACT_SECURE_SYMLINKS |
+				    ARCHIVE_EXTRACT_SECURE_NODOTDOT;
 				if (bsdar->options & AR_O)
 					flags |= ARCHIVE_EXTRACT_TIME;
 
@@ -194,7 +206,7 @@ read_archive(struct bsdar *bsdar, char mode)
 			}
 
 			if (r)
-				bsdar_warnc(bsdar, 0, "%s",
+				bsdar_warnc(bsdar, archive_errno(a), "%s",
 				    archive_error_string(a));
 		}
 	}

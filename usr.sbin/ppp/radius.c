@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 1999 Internet Business Solutions Ltd., Switzerland
  * All rights reserved.
  *
@@ -1150,7 +1152,7 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
     snprintf(ac->multi_session_id, sizeof ac->multi_session_id, "%s",
              dl->bundle->ncp.mp.active ?
              dl->bundle->ncp.mp.server.socket.sun_path : "");
-  };
+  }
 
   if (rad_put_string(r->cx.rad, RAD_USER_NAME, ac->user_name) != 0 ||
       rad_put_int(r->cx.rad, RAD_SERVICE_TYPE, RAD_FRAMED) != 0 ||
@@ -1345,7 +1347,7 @@ radius_alive(void *v)
 void
 radius_StartTimer(struct bundle *bundle)
 {
-  if (bundle->radius.cfg.file && bundle->radius.alive.interval) {
+  if (*bundle->radius.cfg.file && bundle->radius.alive.interval) {
     bundle->radius.alive.timer.func = radius_alive;
     bundle->radius.alive.timer.name = "radius alive";
     bundle->radius.alive.timer.load = bundle->radius.alive.interval * SECTICKS;

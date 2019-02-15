@@ -58,7 +58,7 @@ ${.OBJDIR}/${target}/${target}.tag:
 		    DOXYGEN_DEST_PATH=${DOXYGEN_DEST_PATH} \
 		    DOXYGEN_SRC_INCLUDE_PATH="${S}/sys ${S}/../include ${S}/${TARGET_ARCH}/include ${.OBJDIR}/include" \
 		    DOXYGEN_TARGET_ARCH=${TARGET_ARCH} \
-		    DOXYGEN_LINUX_PATH=${DOXYGEN_LINUX_PATH} \
+		    DOXYGEN_LINUX_PATH="${DOXYGEN_LINUX_PATH}" \
 		    NOTREVIEWED=${.CURDIR}/notreviewed.dox \
 		    PATH=${LOCALBASE}/bin:${PATH} \
 			doxygen ${.CURDIR}/Doxyfile-${target}

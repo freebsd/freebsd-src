@@ -348,7 +348,7 @@ ng_vjc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			sl = (struct slcompress *)resp->data;
 			*sl = *sl0;
 
-			/* Replace pointers with integer indicies */
+			/* Replace pointers with integer indices */
 			if (sl->last_cs != NULL) {
 				index = sl0->last_cs - sl0->tstate;
 				bzero(&sl->last_cs, sizeof(sl->last_cs));
@@ -484,8 +484,7 @@ ng_vjc_rcvdata(hook_p hook, item_p item)
 		hm->m_len = 0;
 		hm->m_pkthdr.rcvif = NULL;
 		if (hlen > MHLEN) {		/* unlikely, but can happen */
-			MCLGET(hm, M_NOWAIT);
-			if ((hm->m_flags & M_EXT) == 0) {
+			if (!(MCLGET(hm, M_NOWAIT))) {
 				m_freem(hm);
 				priv->slc.sls_errorin++;
 				NG_FREE_M(m);

@@ -1,6 +1,8 @@
 /*	$OpenBSD: pfctl_radix.c,v 1.27 2005/05/21 21:03:58 henning Exp $ */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2002 Cedric Berger
  * All rights reserved.
  *
@@ -401,7 +403,7 @@ pfi_get_ifaces(const char *filter, struct pfi_kif *buf, int *size)
 
 /* buffer management code */
 
-size_t buf_esize[PFRB_MAX] = { 0,
+const size_t buf_esize[PFRB_MAX] = { 0,
 	sizeof(struct pfr_table), sizeof(struct pfr_tstats),
 	sizeof(struct pfr_addr), sizeof(struct pfr_astats),
 	sizeof(struct pfi_kif), sizeof(struct pfioc_trans_e)

@@ -80,16 +80,4 @@ typedef enum { INP_OK=0, INP_EOF, INP_ERR, INP_INTR, INP_TIMEOUT } input_t;
 #define	RCNO(sp, cno)	(cno)
 #define	RLNO(sp, lno)	(lno)
 
-/*
- * XXX
- * Some implementations of curses.h don't define these for us.  Used for
- * compatibility only.
- */
-#ifndef TRUE
-#define	TRUE	1
-#endif
-#ifndef FALSE
-#define	FALSE	0
-#endif
-
 #include "extern.h"

@@ -64,6 +64,9 @@ ATF_TC_HEAD(mktime_negyear, tc)
 
 ATF_TC_BODY(mktime_negyear, tc)
 {
+#ifdef __FreeBSD__
+	atf_tc_expect_fail("needs work");
+#endif
 	struct tm tms;
 	time_t t;
 

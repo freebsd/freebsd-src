@@ -72,11 +72,10 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <paths.h>
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/eui64.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sys/param.h>
 #ifdef YP
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
@@ -132,6 +131,7 @@ eui64_line(const char *l, struct eui64 *e, char *hostname, size_t len)
 			goto bad;
 	}
 
+	free(linehead);
 	return (0);
 
 bad:

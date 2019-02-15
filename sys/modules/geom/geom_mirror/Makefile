@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../geom/mirror
+.PATH: ${SRCTOP}/sys/geom/mirror
 
 KMOD=	geom_mirror
 SRCS=	g_mirror.c

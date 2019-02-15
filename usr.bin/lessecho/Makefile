@@ -4,5 +4,5 @@ PROG=	lessecho
 SRCS=	lessecho.c version.c
 CLEANFILES= lessecho.1
 
-.include "${.CURDIR}/../less/Makefile.common"
+.include "${SRCTOP}/usr.bin/less/Makefile.common"
 .include <bsd.prog.mk>

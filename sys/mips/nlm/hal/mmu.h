@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 2003-2011 Netlogic Microsystems (Netlogic). All rights
  * reserved.
  *
@@ -43,7 +45,7 @@ nlm_read_c0_config6(void)
 		".set	push\n"
 		".set	mips64\n"
 		"mfc0	%0, $16, 6\n"
-		".set	pop\n" 
+		".set	pop\n"
 		: "=r" (rv));
 
         return rv;
@@ -56,7 +58,7 @@ nlm_write_c0_config6(uint32_t value)
 		".set	push\n"
 		".set	mips64\n"
 		"mtc0	%0, $16, 6\n"
-		".set	pop\n" 
+		".set	pop\n"
 		: : "r" (value));
 }
 
@@ -69,7 +71,7 @@ nlm_read_c0_config7(void)
 		".set	push\n"
 		".set	mips64\n"
 		"mfc0	%0, $16, 7\n"
-		".set	pop\n" 
+		".set	pop\n"
 		: "=r" (rv));
 
         return rv;
@@ -82,7 +84,7 @@ nlm_write_c0_config7(uint32_t value)
 		".set	push\n"
 		".set	mips64\n"
 		"mtc0	%0, $16, 7\n"
-		".set	pop\n" 
+		".set	pop\n"
 		: : "r" (value));
 }
 /**

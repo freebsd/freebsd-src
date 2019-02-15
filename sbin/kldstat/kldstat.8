@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2014
+.Dd January 19, 2016
 .Dt KLDSTAT 8
 .Os
 .Sh NAME
@@ -33,12 +33,15 @@
 .Nd display status of dynamic kernel linker
 .Sh SYNOPSIS
 .Nm
+.Op Fl h
 .Op Fl q
 .Op Fl v
+.Op Fl d
 .Op Fl i Ar id
 .Op Fl n Ar filename
 .Nm
 .Op Fl q
+.Op Fl d
 .Op Fl m Ar modname
 .Sh DESCRIPTION
 The
@@ -48,8 +51,13 @@ kernel.
 .Pp
 The following options are available:
 .Bl -tag -width indentXX
+.It Fl h
+Display the size field in a human-readable form, using unit suffixes
+instead of hex values.
 .It Fl v
 Be more verbose.
+.It Fl d
+Show the module specific data (as int, unsigned int and unsigned long)
 .It Fl i Ar id
 Display the status of only the file with this ID.
 .It Fl n Ar filename

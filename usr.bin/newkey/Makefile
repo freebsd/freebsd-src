@@ -8,7 +8,6 @@ SRCS=	newkey.c generic.c update.c
 CFLAGS+= -DYP
 .endif
 MAN=	newkey.8
-DPADD=	${LIBRPCSVC} ${LIBMP} ${LIBCRYPTO}
-LDADD=	-lrpcsvc -lmp -lcrypto
+LIBADD=	rpcsvc mp
 
 .include <bsd.prog.mk>

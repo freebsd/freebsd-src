@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 2002-2004
  * 	Hidetoshi Shimokawa. All rights reserved.
  * 
@@ -33,7 +35,6 @@
  * 
  * $FreeBSD$
  */
-
 
 typedef void (*dcons_poll_fn)(void *, int);
 EVENTHANDLER_DECLARE(dcons_poll, dcons_poll_fn);

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007-2009 Google Inc. and Amit Singh
  * All rights reserved.
  *
@@ -355,7 +357,7 @@ fuse_internal_readdir_processdata(struct uio *uio,
 		memcpy((char *)cookediov->base + sizeof(struct dirent) - 
 		       MAXNAMLEN - 1,
 		       (char *)buf + FUSE_NAME_OFFSET, fudge->namelen);
-		((char *)cookediov->base)[bytesavail] = '\0';
+		((char *)cookediov->base)[bytesavail - 1] = '\0';
 
 		err = uiomove(cookediov->base, cookediov->len, uio);
 		if (err) {

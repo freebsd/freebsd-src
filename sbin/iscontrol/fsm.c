@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2010 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
@@ -372,7 +374,7 @@ doCAM(isess_t *sess)
 	  debug(2, "pathstr=%s", pathstr);
 
 	  ccb = cam_getccb(sess->camdev);
-	  bzero(&(&ccb->ccb_h)[1], sizeof(struct ccb_relsim) - sizeof(struct ccb_hdr));
+	  CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->crs);
 	  ccb->ccb_h.func_code = XPT_REL_SIMQ;
 	  ccb->crs.release_flags = RELSIM_ADJUST_OPENINGS;
 	  ccb->crs.openings = sess->op->tags;

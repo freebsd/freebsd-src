@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010-2011 Alexander V. Chernikov <melifaro@ipfw.ru>
  * Copyright (c) 2004-2005 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 2001-2003 Roman V. Palagin <romanp@unshadow.net>
@@ -166,7 +168,7 @@ struct ng_netflow_setmtu {
 	uint16_t mtu;		/* MTU for packet */
 };
 
-/* This structure is used in NGM_NETFLOW_SHOW request/responce */
+/* This structure is used in NGM_NETFLOW_SHOW request/response */
 struct ngnf_show_header {
 	u_char		version;	/* IPv4 or IPv6 */
 	uint32_t	hash_id;	/* current hash index */

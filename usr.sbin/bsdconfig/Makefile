@@ -1,10 +1,11 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 SUBDIR=	console \
 	diskmgmt \
 	docsinstall \
 	dot \
-	examples \
 	include \
 	includes \
 	mouse \
@@ -18,16 +19,15 @@ SUBDIR=	console \
 	ttys \
 	usermgmt
 
+.if ${MK_EXAMPLES} != "no"
+SUBDIR+= examples
+.endif
+
 FILESDIR=	${LIBEXECDIR}/bsdconfig
 FILES=		USAGE
 
 SCRIPTS= bsdconfig
 
 MAN= bsdconfig.8
-
-beforeinstall:
-	mkdir -p ${DESTDIR}${FILESDIR}
-	mkdir -p ${DESTDIR}${SCRIPTSDIR}
-	mkdir -p ${DESTDIR}${MANDIR}8
 
 .include <bsd.prog.mk>

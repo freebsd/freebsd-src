@@ -1,13 +1,20 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Alfred Perlstein <alfred@FreeBSD.org>
  * Copyright (c) 2003-2005 SPARTA, Inc.
- * Copyright (c) 2005 Robert N. M. Watson
+ * Copyright (c) 2005, 2016-2017 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by Network
  * Associates Laboratories, the Security Research Division of Network
  * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
  * as part of the DARPA CHATS research program.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,7 +41,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_posix.h"
 
 #include <sys/param.h>
@@ -44,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/fnv_hash.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/ksem.h>
 #include <sys/lock.h>
@@ -65,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 #include <sys/vnode.h>
 
+#include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
 FEATURE(p1003_1b_semaphores, "POSIX P1003.1B semaphores support");
@@ -258,7 +266,9 @@ ksem_closef(struct file *fp, struct thread *td)
 static int
 ksem_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 {
+	const char *path, *pr_path;
 	struct ksem *ks;
+	size_t pr_pathlen;
 
 	kif->kf_type = KF_TYPE_SEM;
 	ks = fp->f_data;
@@ -268,8 +278,18 @@ ksem_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	mtx_unlock(&sem_lock);
 	if (ks->ks_path != NULL) {
 		sx_slock(&ksem_dict_lock);
-		if (ks->ks_path != NULL)
-			strlcpy(kif->kf_path, ks->ks_path, sizeof(kif->kf_path));
+		if (ks->ks_path != NULL) {
+			path = ks->ks_path;
+			pr_path = curthread->td_ucred->cr_prison->pr_path;
+			if (strcmp(pr_path, "/") != 0) {
+				/* Return the jail-rooted pathname. */
+				pr_pathlen = strlen(pr_path);
+				if (strncmp(path, pr_path, pr_pathlen) == 0 &&
+				    path[pr_pathlen] == '/')
+					path += pr_pathlen;
+			}
+			strlcpy(kif->kf_path, path, sizeof(kif->kf_path));
+		}
 		sx_sunlock(&ksem_dict_lock);
 	}
 	return (0);
@@ -449,8 +469,14 @@ ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
 	struct ksem *ks;
 	struct file *fp;
 	char *path;
+	const char *pr_path;
+	size_t pr_pathlen;
 	Fnv32_t fnv;
 	int error, fd;
+
+	AUDIT_ARG_FFLAGS(flags);
+	AUDIT_ARG_MODE(mode);
+	AUDIT_ARG_VALUE(value);
 
 	if (value > SEM_VALUE_MAX)
 		return (EINVAL);
@@ -471,7 +497,7 @@ ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
 	 */
 	error = ksem_create_copyout_semid(td, semidp, fd, compat32);
 	if (error) {
-		fdclose(fdp, fp, fd, td);
+		fdclose(td, fp, fd);
 		fdrop(fp, td);
 		return (error);
 	}
@@ -485,18 +511,25 @@ ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
 			ks->ks_flags |= KS_ANONYMOUS;
 	} else {
 		path = malloc(MAXPATHLEN, M_KSEM, M_WAITOK);
-		error = copyinstr(name, path, MAXPATHLEN, NULL);
+		pr_path = td->td_ucred->cr_prison->pr_path;
+
+		/* Construct a full pathname for jailed callers. */
+		pr_pathlen = strcmp(pr_path, "/") == 0 ? 0
+		    : strlcpy(path, pr_path, MAXPATHLEN);
+		error = copyinstr(name, path + pr_pathlen,
+		    MAXPATHLEN - pr_pathlen, NULL);
 
 		/* Require paths to start with a '/' character. */
-		if (error == 0 && path[0] != '/')
+		if (error == 0 && path[pr_pathlen] != '/')
 			error = EINVAL;
 		if (error) {
-			fdclose(fdp, fp, fd, td);
+			fdclose(td, fp, fd);
 			fdrop(fp, td);
 			free(path, M_KSEM);
 			return (error);
 		}
 
+		AUDIT_ARG_UPATH1_CANON(path);
 		fnv = fnv_32_str(path, FNV1_32_INIT);
 		sx_xlock(&ksem_dict_lock);
 		ks = ksem_lookup(path, fnv);
@@ -542,7 +575,7 @@ ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
 
 	if (error) {
 		KASSERT(ks == NULL, ("ksem_create error with a ksem"));
-		fdclose(fdp, fp, fd, td);
+		fdclose(td, fp, fd);
 		fdrop(fp, td);
 		return (error);
 	}
@@ -624,16 +657,23 @@ int
 sys_ksem_unlink(struct thread *td, struct ksem_unlink_args *uap)
 {
 	char *path;
+	const char *pr_path;
+	size_t pr_pathlen;
 	Fnv32_t fnv;
 	int error;
 
 	path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	error = copyinstr(uap->name, path, MAXPATHLEN, NULL);
+	pr_path = td->td_ucred->cr_prison->pr_path;
+	pr_pathlen = strcmp(pr_path, "/") == 0 ? 0
+	    : strlcpy(path, pr_path, MAXPATHLEN);
+	error = copyinstr(uap->name, path + pr_pathlen, MAXPATHLEN - pr_pathlen,
+	    NULL);
 	if (error) {
 		free(path, M_TEMP);
 		return (error);
 	}
 
+	AUDIT_ARG_UPATH1_CANON(path);
 	fnv = fnv_32_str(path, FNV1_32_INIT);
 	sx_xlock(&ksem_dict_lock);
 	error = ksem_remove(path, fnv, td->td_ucred);
@@ -656,7 +696,8 @@ sys_ksem_close(struct thread *td, struct ksem_close_args *uap)
 	int error;
 
 	/* No capability rights required to close a semaphore. */
-	error = ksem_get(td, uap->id, 0, &fp);
+	AUDIT_ARG_FD(uap->id);
+	error = ksem_get(td, uap->id, &cap_no_rights, &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
@@ -682,6 +723,7 @@ sys_ksem_post(struct thread *td, struct ksem_post_args *uap)
 	struct ksem *ks;
 	int error;
 
+	AUDIT_ARG_FD(uap->id);
 	error = ksem_get(td, uap->id,
 	    cap_rights_init(&rights, CAP_SEM_POST), &fp);
 	if (error)
@@ -774,6 +816,7 @@ kern_sem_wait(struct thread *td, semid_t id, int tryflag,
 	int error;
 
 	DP((">>> kern_sem_wait entered! pid=%d\n", (int)td->td_proc->p_pid));
+	AUDIT_ARG_FD(id);
 	error = ksem_get(td, id, cap_rights_init(&rights, CAP_SEM_WAIT), &fp);
 	if (error)
 		return (error);
@@ -800,7 +843,7 @@ kern_sem_wait(struct thread *td, semid_t id, int tryflag,
 			for (;;) {
 				ts1 = *abstime;
 				getnanotime(&ts2);
-				timespecsub(&ts1, &ts2);
+				timespecsub(&ts1, &ts2, &ts1);
 				TIMESPEC_TO_TIMEVAL(&tv, &ts1);
 				if (tv.tv_sec < 0) {
 					error = ETIMEDOUT;
@@ -841,6 +884,7 @@ sys_ksem_getvalue(struct thread *td, struct ksem_getvalue_args *uap)
 	struct ksem *ks;
 	int error, val;
 
+	AUDIT_ARG_FD(uap->id);
 	error = ksem_get(td, uap->id,
 	    cap_rights_init(&rights, CAP_SEM_GETVALUE), &fp);
 	if (error)
@@ -877,7 +921,8 @@ sys_ksem_destroy(struct thread *td, struct ksem_destroy_args *uap)
 	int error;
 
 	/* No capability rights required to close a semaphore. */
-	error = ksem_get(td, uap->id, 0, &fp);
+	AUDIT_ARG_FD(uap->id);
+	error = ksem_get(td, uap->id, &cap_no_rights, &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
@@ -993,11 +1038,11 @@ ksem_module_init(void)
 	p31b_setcfg(CTL_P1003_1B_SEM_NSEMS_MAX, SEM_MAX);
 	p31b_setcfg(CTL_P1003_1B_SEM_VALUE_MAX, SEM_VALUE_MAX);
 
-	error = syscall_helper_register(ksem_syscalls);
+	error = syscall_helper_register(ksem_syscalls, SY_THR_STATIC_KLD);
 	if (error)
 		return (error);
 #ifdef COMPAT_FREEBSD32
-	error = syscall32_helper_register(ksem32_syscalls);
+	error = syscall32_helper_register(ksem32_syscalls, SY_THR_STATIC_KLD);
 	if (error)
 		return (error);
 #endif

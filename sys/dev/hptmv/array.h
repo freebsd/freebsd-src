@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2005 HighPoint Technologies, Inc.
  * All rights reserved.
  *
@@ -99,7 +101,7 @@ typedef struct _RaidArray
 } RaidArray;
 
 /***************************************************************************
- *            Array Descripton on disk
+ *            Array Description on disk
  ***************************************************************************/
 #pragma pack(1)	
 typedef struct _ArrayDescript

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
@@ -194,7 +196,7 @@ upa_attach(device_t dev)
 	int i, imr, j, rid;
 #if 1
 	device_t *children, schizo;
-	u_long scount, sstart, ucount, ustart;
+	rman_res_t scount, sstart, ucount, ustart;
 	int nchildren;
 #endif
 
@@ -283,7 +285,7 @@ upa_attach(device_t dev)
 		goto fail;
 	}
 
-	sc->sc_nrange = OF_getprop_alloc(node, "ranges", sizeof(*sc->sc_ranges),
+	sc->sc_nrange = OF_getprop_alloc_multi(node, "ranges", sizeof(*sc->sc_ranges),
 	    (void **)&sc->sc_ranges);
 	if (sc->sc_nrange == -1) {
 		device_printf(dev, "could not determine ranges\n");
@@ -403,7 +405,7 @@ upa_probe_nomatch(device_t dev, device_t child)
 
 static struct resource *
 upa_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource_list *rl;
 	struct resource_list_entry *rle;
@@ -412,7 +414,7 @@ upa_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	bus_addr_t cend, cstart;
 	int i, isdefault, passthrough;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != dev);
 	sc = device_get_softc(dev);
 	rl = BUS_GET_RESOURCE_LIST(dev, child);
@@ -510,8 +512,8 @@ upa_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 
 static int
 upa_adjust_resource(device_t bus __unused, device_t child __unused,
-    int type __unused, struct resource *r __unused, u_long start __unused,
-    u_long end __unused)
+    int type __unused, struct resource *r __unused, rman_res_t start __unused,
+    rman_res_t end __unused)
 {
 
 	return (ENXIO);
@@ -551,7 +553,7 @@ upa_setup_dinfo(device_t dev, struct upa_softc *sc, phandle_t node,
 	}
 	resource_list_init(&udi->udi_rl);
 
-	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
+	nreg = OF_getprop_alloc_multi(node, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg == -1) {
 		device_printf(dev, "<%s>: incomplete\n",
 		    udi->udi_obdinfo.obd_name);
@@ -560,7 +562,7 @@ upa_setup_dinfo(device_t dev, struct upa_softc *sc, phandle_t node,
 	for (i = 0; i < nreg; i++)
 		resource_list_add(&udi->udi_rl, SYS_RES_MEMORY, i, reg[i].phys,
 		    reg[i].phys + reg[i].size - 1, reg[i].size);
-	free(reg, M_OFWPROP);
+	OF_prop_free(reg);
 
 	intr = INTMAP_VEC(sc->sc_ign, (UPA_INO_BASE + portid));
 	resource_list_add(&udi->udi_rl, SYS_RES_IRQ, 0, intr, intr, 1);
@@ -588,8 +590,8 @@ upa_print_res(struct upa_devinfo *udi)
 
 	rv = 0;
 	rv += resource_list_print_type(&udi->udi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx");
+	    "%#jx");
 	rv += resource_list_print_type(&udi->udi_rl, "irq", SYS_RES_IRQ,
-	    "%ld");
+	    "%jd");
 	return (rv);
 }

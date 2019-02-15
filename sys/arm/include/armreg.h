@@ -1,6 +1,8 @@
 /*	$NetBSD: armreg.h,v 1.37 2007/01/06 00:50:54 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1998, 2001 Ben Harris
  * Copyright (c) 1994-1996 Mark Brinicombe.
  * Copyright (c) 1994 Brini.
@@ -41,6 +43,10 @@
 #ifndef MACHINE_ARMREG_H
 #define MACHINE_ARMREG_H
 
+#ifndef _SYS_CDEFS_H_
+#error Please include sys/cdefs.h before including machine/armreg.h
+#endif
+
 #define INSN_SIZE	4
 #define INSN_COND_MASK	0xf0000000	/* Condition mask */
 #define PSR_MODE        0x0000001f      /* mode mask */
@@ -72,9 +78,15 @@
 #define CPU_ID_IMPLEMENTOR_MASK	0xff000000
 #define CPU_ID_ARM_LTD		0x41000000 /* 'A' */
 #define CPU_ID_DEC		0x44000000 /* 'D' */
-#define CPU_ID_INTEL		0x69000000 /* 'i' */
+#define	CPU_ID_MOTOROLA		0x4D000000 /* 'M' */
+#define	CPU_ID_QUALCOM		0x51000000 /* 'Q' */
 #define	CPU_ID_TI		0x54000000 /* 'T' */
+#define	CPU_ID_MARVELL		0x56000000 /* 'V' */
+#define	CPU_ID_INTEL		0x69000000 /* 'i' */
 #define	CPU_ID_FARADAY		0x66000000 /* 'f' */
+
+#define	CPU_ID_VARIANT_SHIFT	20
+#define	CPU_ID_VARIANT_MASK	0x00f00000
 
 /* How to decide what format the CPUID is in. */
 #define CPU_ID_ISOLD(x)		(((x) & 0x0000f000) == 0x00000000)
@@ -92,7 +104,6 @@
 #define CPU_ID_ARCH_V5TEJ	0x00060000
 #define CPU_ID_ARCH_V6		0x00070000
 #define CPU_ID_CPUID_SCHEME	0x000f0000
-#define CPU_ID_VARIANT_MASK	0x00f00000
 
 /* Next three nybbles are part number */
 #define CPU_ID_PARTNO_MASK	0x0000fff0
@@ -123,19 +134,39 @@
 #define CPU_ID_ARM1136JS	0x4107b360
 #define CPU_ID_ARM1136JSR1	0x4117b360
 #define CPU_ID_ARM1176JZS	0x410fb760
-#define CPU_ID_CORTEXA5 	0x410fc050
-#define CPU_ID_CORTEXA7 	0x410fc070
-#define CPU_ID_CORTEXA8R1	0x411fc080
-#define CPU_ID_CORTEXA8R2	0x412fc080
-#define CPU_ID_CORTEXA8R3	0x413fc080
-#define CPU_ID_CORTEXA9R1	0x411fc090
-#define CPU_ID_CORTEXA9R2	0x412fc090
-#define CPU_ID_CORTEXA9R3	0x413fc090
-#define CPU_ID_CORTEXA15R0	0x410fc0f0
-#define CPU_ID_CORTEXA15R1	0x411fc0f0
-#define CPU_ID_CORTEXA15R2	0x412fc0f0
-#define CPU_ID_CORTEXA15R3	0x413fc0f0
-#define	CPU_ID_KRAIT		0x510f06f0 /* Snapdragon S4 Pro/APQ8064 */
+
+/* CPUs that follow the CPUID scheme */
+#define	CPU_ID_SCHEME_MASK	\
+    (CPU_ID_IMPLEMENTOR_MASK | CPU_ID_ARCH_MASK | CPU_ID_PARTNO_MASK)
+
+#define	CPU_ID_CORTEXA5		(CPU_ID_ARM_LTD | CPU_ID_CPUID_SCHEME | 0xc050)
+#define	CPU_ID_CORTEXA7		(CPU_ID_ARM_LTD | CPU_ID_CPUID_SCHEME | 0xc070)
+#define	CPU_ID_CORTEXA8		(CPU_ID_ARM_LTD | CPU_ID_CPUID_SCHEME | 0xc080)
+#define	 CPU_ID_CORTEXA8R1	(CPU_ID_CORTEXA8 | (1 << CPU_ID_VARIANT_SHIFT))
+#define	 CPU_ID_CORTEXA8R2	(CPU_ID_CORTEXA8 | (2 << CPU_ID_VARIANT_SHIFT))
+#define	 CPU_ID_CORTEXA8R3	(CPU_ID_CORTEXA8 | (3 << CPU_ID_VARIANT_SHIFT))
+#define	CPU_ID_CORTEXA9		(CPU_ID_ARM_LTD | CPU_ID_CPUID_SCHEME | 0xc090)
+#define	 CPU_ID_CORTEXA9R1	(CPU_ID_CORTEXA9 | (1 << CPU_ID_VARIANT_SHIFT))
+#define	 CPU_ID_CORTEXA9R2	(CPU_ID_CORTEXA9 | (2 << CPU_ID_VARIANT_SHIFT))
+#define	 CPU_ID_CORTEXA9R3	(CPU_ID_CORTEXA9 | (3 << CPU_ID_VARIANT_SHIFT))
+#define	 CPU_ID_CORTEXA9R4	(CPU_ID_CORTEXA9 | (4 << CPU_ID_VARIANT_SHIFT))
+/* XXX: Cortex-A12 is the old name for this part, it has been renamed the A17 */
+#define	CPU_ID_CORTEXA12	(CPU_ID_ARM_LTD | CPU_ID_CPUID_SCHEME | 0xc0d0)
+#define	 CPU_ID_CORTEXA12R0	(CPU_ID_CORTEXA12 | (0 << CPU_ID_VARIANT_SHIFT))
+#define	CPU_ID_CORTEXA15	(CPU_ID_ARM_LTD | CPU_ID_CPUID_SCHEME | 0xc0f0)
+#define	 CPU_ID_CORTEXA15R0	(CPU_ID_CORTEXA15 | (0 << CPU_ID_VARIANT_SHIFT))
+#define	 CPU_ID_CORTEXA15R1	(CPU_ID_CORTEXA15 | (1 << CPU_ID_VARIANT_SHIFT))
+#define	 CPU_ID_CORTEXA15R2	(CPU_ID_CORTEXA15 | (2 << CPU_ID_VARIANT_SHIFT))
+#define	 CPU_ID_CORTEXA15R3	(CPU_ID_CORTEXA15 | (3 << CPU_ID_VARIANT_SHIFT))
+#define	CPU_ID_CORTEXA53	(CPU_ID_ARM_LTD | CPU_ID_CPUID_SCHEME | 0xd030)
+#define	CPU_ID_CORTEXA57	(CPU_ID_ARM_LTD | CPU_ID_CPUID_SCHEME | 0xd070)
+#define	CPU_ID_CORTEXA72	(CPU_ID_ARM_LTD | CPU_ID_CPUID_SCHEME | 0xd080)
+
+#define	CPU_ID_KRAIT300		(CPU_ID_QUALCOM | CPU_ID_CPUID_SCHEME | 0x06f0)
+/* Snapdragon S4 Pro/APQ8064 */
+#define	 CPU_ID_KRAIT300R0	(CPU_ID_KRAIT300 | (0 << CPU_ID_VARIANT_SHIFT))
+#define	 CPU_ID_KRAIT300R1	(CPU_ID_KRAIT300 | (1 << CPU_ID_VARIANT_SHIFT))
+
 #define	CPU_ID_TI925T		0x54029250
 #define CPU_ID_MV88FR131	0x56251310 /* Marvell Feroceon 88FR131 Core */
 #define CPU_ID_MV88FR331	0x56153310 /* Marvell Feroceon 88FR331 Core */
@@ -281,7 +312,7 @@
 					    * in r0 steppings. See errata
 					    * 364296.
 					    */
-/* ARM1176 Auxiliary Control Register (CP15 register 1, opcode2 1) */   
+/* ARM1176 Auxiliary Control Register (CP15 register 1, opcode2 1) */
 #define	ARM1176_AUXCTL_PHD	0x10000000 /* inst. prefetch halting disable */
 #define	ARM1176_AUXCTL_BFD	0x20000000 /* branch folding disable */
 #define	ARM1176_AUXCTL_FSD	0x40000000 /* force speculative ops disable */
@@ -317,6 +348,9 @@
 #define	CPU_CT_S		(1U << 24)		/* split cache */
 #define	CPU_CT_CTYPE(x)		(((x) >> 25) & 0xf)	/* cache type */
 #define	CPU_CT_FORMAT(x)	((x) >> 29)
+/* Cache type register definitions for ARM v7 */
+#define	CPU_CT_IMINLINE(x)	((x) & 0xf)		/* I$ min line size */
+#define	CPU_CT_DMINLINE(x)	(((x) >> 16) & 0xf)	/* D$ min line size */
 
 #define	CPU_CT_CTYPE_WT		0	/* write-through */
 #define	CPU_CT_CTYPE_WB1	1	/* write-back, clean w/ read */
@@ -340,6 +374,9 @@
 #define	CPUV7_CT_xSIZE_ASSOC(x)	(((x) >> 3) & 0x3ff)	/* associativity */
 #define	CPUV7_CT_xSIZE_SET(x)	(((x) >> 13) & 0x7fff)	/* num sets */
 
+#define	CPUV7_L2CTLR_NPROC_SHIFT	24
+#define	CPUV7_L2CTLR_NPROC(r)	((((r) >> CPUV7_L2CTLR_NPROC_SHIFT) & 3) + 1)
+
 #define	CPU_CLIDR_CTYPE(reg,x)	(((reg) >> ((x) * 3)) & 0x7)
 #define	CPU_CLIDR_LOUIS(reg)	(((reg) >> 21) & 0x7)
 #define	CPU_CLIDR_LOC(reg)	(((reg) >> 24) & 0x7)
@@ -351,10 +388,10 @@
 #define	CACHE_UNI_CACHE		4
 
 /* Fault status register definitions */
-
-#define FAULT_TYPE_MASK 0x0f
 #define FAULT_USER      0x10
 
+#if __ARM_ARCH < 6
+#define FAULT_TYPE_MASK 0x0f
 #define FAULT_WRTBUF_0  0x00 /* Vector Exception */
 #define FAULT_WRTBUF_1  0x02 /* Terminal Exception */
 #define FAULT_BUSERR_0  0x04 /* External Abort on Linefetch -- Section */
@@ -377,14 +414,36 @@
 #define	FAULT_EXTERNAL	0x400	/* External abort (armv6+) */
 #define	FAULT_WNR	0x800	/* Write-not-Read access (armv6+) */
 
-/* Fault status register definitions - v6+ */
-#define	FSR_STATUS_TO_IDX(fsr)	(((fsr) & 0xF) | 			\
-				 (((fsr) & (1 << 10)>> (10 - 4))))
-#define	FSR_LPAE		(1 <<  9) /* LPAE indicator */
-#define	FSR_WNR			(1 << 11) /* Write-not-Read access */
-#define	FSR_EXT			(1 << 12) /* DECERR/SLVERR for external*/
-#define	FSR_CM			(1 << 13) /* Cache maintenance fault */
+#else /* __ARM_ARCH < 6 */
 
+#define FAULT_ALIGN		0x001	/* Alignment Fault */
+#define FAULT_DEBUG		0x002	/* Debug Event */
+#define FAULT_ACCESS_L1		0x003	/* Access Bit (L1) */
+#define FAULT_ICACHE		0x004	/* Instruction cache maintenance */
+#define FAULT_TRAN_L1		0x005	/* Translation Fault (L1) */
+#define FAULT_ACCESS_L2		0x006	/* Access Bit (L2) */
+#define FAULT_TRAN_L2		0x007	/* Translation Fault (L2) */
+#define FAULT_EA_PREC		0x008	/* External Abort */
+#define FAULT_DOMAIN_L1		0x009	/* Domain Fault (L1) */
+#define FAULT_DOMAIN_L2		0x00B	/* Domain Fault (L2) */
+#define FAULT_EA_TRAN_L1	0x00C	/* External Translation Abort (L1) */
+#define FAULT_PERM_L1		0x00D	/* Permission Fault (L1) */
+#define FAULT_EA_TRAN_L2	0x00E	/* External Translation Abort (L2) */
+#define FAULT_PERM_L2		0x00F	/* Permission Fault (L2) */
+#define FAULT_TLB_CONFLICT	0x010	/* TLB Conflict Abort */
+#define FAULT_EA_IMPREC		0x016	/* Asynchronous External Abort */
+#define FAULT_PE_IMPREC		0x018	/* Asynchronous Parity Error */
+#define FAULT_PARITY		0x019	/* Parity Error */
+#define FAULT_PE_TRAN_L1	0x01C	/* Parity Error on Translation (L1) */
+#define FAULT_PE_TRAN_L2	0x01E	/* Parity Error on Translation (L2) */
+
+#define FSR_TO_FAULT(fsr)	(((fsr) & 0xF) | 			\
+				 ((((fsr) & (1 << 10)) >> (10 - 4))))
+#define FSR_LPAE		(1 <<  9) /* LPAE indicator */
+#define FSR_WNR			(1 << 11) /* Write-not-Read access */
+#define FSR_EXT			(1 << 12) /* DECERR/SLVERR for external*/
+#define FSR_CM			(1 << 13) /* Cache maintenance fault */
+#endif /* !__ARM_ARCH < 6 */
 
 /*
  * Address of the vector page, low and high versions.
@@ -412,6 +471,15 @@
 #define INSN_COND_MASK		0xf0000000	/* Condition mask */
 #define INSN_COND_AL		0xe0000000	/* Always condition */
 
+/* ARM register defines */
+#define	ARM_REG_SIZE		4
+#define	ARM_REG_NUM_PC		15
+#define	ARM_REG_NUM_LR		14
+#define	ARM_REG_NUM_SP		13
+
 #define THUMB_INSN_SIZE		2		/* Some are 4 bytes.  */
+
+/* ARM Hypervisor Related Defines */
+#define	ARM_CP15_HDCR_HPMN	0x0000001f
 
 #endif /* !MACHINE_ARMREG_H */

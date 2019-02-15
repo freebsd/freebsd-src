@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 1996, 1997, 1998, 1999, 2000 John D. Polstra.
  * All rights reserved.
  *
@@ -41,22 +43,6 @@
 #include "rtld_lock.h"
 #include "rtld_machdep.h"
 
-#ifdef COMPAT_32BIT
-#undef STANDARD_LIBRARY_PATH
-#undef _PATH_ELF_HINTS
-#define	_PATH_ELF_HINTS		"/var/run/ld-elf32.so.hints"
-/* For running 32 bit binaries  */
-#define	STANDARD_LIBRARY_PATH	"/lib32:/usr/lib32"
-#define LD_ "LD_32_"
-#endif
-
-#ifndef STANDARD_LIBRARY_PATH
-#define STANDARD_LIBRARY_PATH	"/lib:/usr/lib"
-#endif
-#ifndef LD_
-#define LD_ "LD_"
-#endif
-
 #define NEW(type)	((type *) xmalloc(sizeof(type)))
 #define CNEW(type)	((type *) xcalloc(1, sizeof(type)))
 
@@ -68,7 +54,7 @@ typedef unsigned char bool;
 extern size_t tls_last_offset;
 extern size_t tls_last_size;
 extern size_t tls_static_space;
-extern int tls_dtv_generation;
+extern Elf_Addr tls_dtv_generation;
 extern int tls_max_index;
 
 extern int npagesizes;
@@ -155,16 +141,16 @@ typedef struct Struct_Obj_Entry {
     Elf_Size magic;		/* Magic number (sanity check) */
     Elf_Size version;		/* Version number of struct format */
 
-    struct Struct_Obj_Entry *next;
+    TAILQ_ENTRY(Struct_Obj_Entry) next;
     char *path;			/* Pathname of underlying file (%) */
     char *origin_path;		/* Directory path of origin file */
-    int refcount;
+    int refcount;		/* DAG references */
+    int holdcount;		/* Count of transient references */
     int dl_refcount;		/* Number of times loaded by dlopen */
 
     /* These items are computed by map_object() or by digest_phdr(). */
     caddr_t mapbase;		/* Base address of mapped region */
     size_t mapsize;		/* Size of mapped region in bytes */
-    size_t textsize;		/* Size of text segment in bytes */
     Elf_Addr vaddrbase;		/* Base address in shared object file */
     caddr_t relocbase;		/* Relocation constant = mapbase - vaddrbase */
     const Elf_Dyn *dynamic;	/* Dynamic section */
@@ -202,6 +188,10 @@ typedef struct Struct_Obj_Entry {
     Elf_Word local_gotno;	/* Number of local GOT entries */
     Elf_Word symtabno;		/* Number of dynamic symbols */
     Elf_Word gotsym;		/* First dynamic symbol in GOT */
+    Elf_Addr *mips_pltgot;	/* Second PLT GOT */
+#endif
+#ifdef __powerpc64__
+    Elf_Addr glink;		/* GLINK PLT call stub section */
 #endif
 
     const Elf_Verneed *verneed; /* Required versions. */
@@ -220,12 +210,12 @@ typedef struct Struct_Obj_Entry {
     Elf32_Word maskwords_bm_gnu;  	/* Bloom filter words - 1 (bitmask) */
     Elf32_Word shift2_gnu;		/* Bloom filter shift count */
     Elf32_Word dynsymcount;		/* Total entries in dynsym table */
-    Elf_Addr *bloom_gnu;		/* Bloom filter used by GNU hash func */
+    const Elf_Addr *bloom_gnu;		/* Bloom filter used by GNU hash func */
     const Elf_Hashelt *buckets_gnu;	/* GNU hash table bucket array */
     const Elf_Hashelt *chain_zero_gnu;	/* GNU hash table value array (Zeroed) */
 
-    char *rpath;		/* Search path specified in object */
-    char *runpath;		/* Search path with different priority */
+    const char *rpath;		/* Search path specified in object */
+    const char *runpath;	/* Search path with different priority */
     Needed_Entry *needed;	/* Shared objects needed by this one (%) */
     Needed_Entry *needed_filtees;
     Needed_Entry *needed_aux_filtees;
@@ -264,6 +254,7 @@ typedef struct Struct_Obj_Entry {
     bool z_loadfltr : 1;	/* Immediately load filtees */
     bool z_interpose : 1;	/* Interpose all objects but main */
     bool z_nodeflib : 1;	/* Don't search default library path */
+    bool z_global : 1;		/* Make the object global */
     bool ref_nodel : 1;		/* Refcount increased to prevent dlclose */
     bool init_scanned: 1;	/* Object is already on init list. */
     bool on_fini_list: 1;	/* Object is already on fini list. */
@@ -275,6 +266,10 @@ typedef struct Struct_Obj_Entry {
     bool crt_no_init : 1;	/* Object' crt does not call _init/_fini */
     bool valid_hash_sysv : 1;	/* A valid System V hash hash tag is available */
     bool valid_hash_gnu : 1;	/* A valid GNU hash tag is available */
+    bool dlopened : 1;		/* dlopen()-ed (vs. load statically) */
+    bool marker : 1;		/* marker on the global obj list */
+    bool unholdfree : 1;	/* unmap upon last unhold */
+    bool doomed : 1;		/* Object cannot be referenced */
 
     struct link_map linkmap;	/* For GDB and dlinfo() */
     Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
@@ -286,6 +281,8 @@ typedef struct Struct_Obj_Entry {
 
 #define RTLD_MAGIC	0xd550b87a
 #define RTLD_VERSION	1
+
+TAILQ_HEAD(obj_entry_q, Struct_Obj_Entry);
 
 #define RTLD_STATIC_TLS_EXTRA	128
 
@@ -352,7 +349,8 @@ typedef struct Struct_SymLook {
     struct Struct_RtldLockState *lockstate;
 } SymLook;
 
-void _rtld_error(const char *, ...) __printflike(1, 2);
+void _rtld_error(const char *, ...) __printflike(1, 2) __exported;
+void rtld_die(void) __dead2;
 const char *rtld_strerror(int);
 Obj_Entry *map_object(int, const char *, const struct stat *);
 void *xcalloc(size_t, size_t);
@@ -362,6 +360,7 @@ void *malloc_aligned(size_t size, size_t align);
 void free_aligned(void *ptr);
 extern Elf_Addr _GLOBAL_OFFSET_TABLE_[];
 extern Elf_Sym sym_zero;	/* For resolving undefined weak refs. */
+extern bool ld_bind_not;
 
 void dump_relocations(Obj_Entry *);
 void dump_obj_relocations(Obj_Entry *);
@@ -374,9 +373,10 @@ void dump_Elf_Rela(Obj_Entry *, const Elf_Rela *, u_long);
 unsigned long elf_hash(const char *);
 const Elf_Sym *find_symdef(unsigned long, const Obj_Entry *,
   const Obj_Entry **, int, SymCache *, struct Struct_RtldLockState *);
-void init_pltgot(Obj_Entry *);
 void lockdflt_init(void);
 void digest_notes(Obj_Entry *, Elf_Addr, Elf_Addr);
+Obj_Entry *globallist_curr(const Obj_Entry *obj);
+Obj_Entry *globallist_next(const Obj_Entry *obj);
 void obj_free(Obj_Entry *);
 Obj_Entry *obj_new(void);
 void _rtld_bind_start(void);
@@ -390,6 +390,7 @@ void *allocate_module_tls(int index);
 bool allocate_tls_offset(Obj_Entry *obj);
 void free_tls_offset(Obj_Entry *obj);
 const Ver_Entry *fetch_ventry(const Obj_Entry *obj, unsigned long);
+int convert_prot(int elfflags);
 
 /*
  * MD function declarations.
@@ -401,6 +402,9 @@ int reloc_plt(Obj_Entry *);
 int reloc_jmpslots(Obj_Entry *, int flags, struct Struct_RtldLockState *);
 int reloc_iresolve(Obj_Entry *, struct Struct_RtldLockState *);
 int reloc_gnu_ifunc(Obj_Entry *, int flags, struct Struct_RtldLockState *);
+void ifunc_init(Elf_Auxinfo[__min_size(AT_COUNT)]);
+void pre_init(void);
+void init_pltgot(Obj_Entry *);
 void allocate_initial_tls(Obj_Entry *);
 
 #endif /* } */

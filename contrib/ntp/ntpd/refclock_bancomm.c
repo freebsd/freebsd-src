@@ -20,26 +20,29 @@
  *		vme_control() and vme_buginfo() have been deleted because
  *		they are no longer being used.
  *
- *		The time on the bc635 TFP must be set to GMT due to the 
- *		fact that NTP makes use of GMT for all its calculations.
- *
- *		Installation of the Datum/Bancomm driver creates the 
- *		device file /dev/btfp0 
- *
  *	04/28/2005 Rob Neal 
  *		Modified to add support for Symmetricom bc637PCI-U Time & 
  *		Frequency Processor. 
+ *	2/21/2007 Ali Ghorashi
+ *	        Modified to add support for Symmetricom bc637PCI-U Time & 
+ *		Frequency Processor on Solaris.
+ *		Tested on Solaris 10 with a bc635 card.
+ *
  *		Card bus type (VME/VXI or PCI) and environment are specified via the
  *		"mode" keyword on the server command in ntp.conf.
- *		server 127.127.16.u prefer mode m (...) 
- *		Modes currently supported are 
+ *		server 127.127.16.u prefer mode M
+ *		where u is the id (usually 0) of the entry in /dev (/dev/stfp0)
+ *	
+ *		and M is one of the following modes: 
  *		1		: FreeBSD PCI 635/637.
  *		2		: Linux or Windows PCI 635/637.
+ *		3		: Solaris PCI 635/637
  *		not specified, or other number: 
  *				: Assumed to be VME/VXI legacy Bancomm card on Solaris.
  *		Linux and Windows platforms require Symmetricoms' proprietary driver
- *		for the TFP card. 
- *		Tested on FreeBSD 5.3 with a 637 card. 
+ *		for the TFP card.
+ *		Solaris requires Symmetricom's driver and its header file (freely distributed) to 
+ *		be installed and running.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -58,7 +61,6 @@
 #include <syslog.h>
 #include <ctype.h>
 
-/*  STUFF BY RES */
 struct btfp_time                /* Structure for reading 5 time words   */
                                 /* in one ioctl(2) operation.           */
 {
@@ -85,9 +87,37 @@ struct btfp_time                /* Structure for reading 5 time words   */
 #define READTIME	_IOR('u', 5, struct btfp_time )
 #endif 
 
-#define VMEFD "/dev/btfp0"
+/* Solaris specific section */
+struct	stfp_tm {
+	int32_t tm_sec; 
+	int32_t tm_min;
+	int32_t tm_hour;
+	int32_t tm_mday;
+	int32_t tm_mon;
+	int32_t tm_year;
+	int32_t tm_wday;
+	int32_t tm_yday;
+	int32_t tm_isdst;
+};
 
-struct vmedate {               /* structure returned by get_vmetime.c */
+struct stfp_time {
+	struct stfp_tm	tm;
+	int32_t 	usec;			/* usec 0 - 999999 */
+	int32_t 	hnsec;			/* hnsec 0 - 9 (hundreds of nsecs) */
+	int32_t 	status;
+};
+
+#define SELTIMEFORMAT	2	
+#	define TIME_DECIMAL 0
+#	define TIME_BINARY	1
+
+#if defined(__sun__)
+#undef	READTIME
+#define READTIME		9
+#endif /** __sun___ **/
+/* end solaris specific section */
+
+struct vmedate {			   /* structure returned by get_vmetime.c */
 	unsigned short year;
 	unsigned short day;
 	unsigned short hr;
@@ -97,7 +127,6 @@ struct vmedate {               /* structure returned by get_vmetime.c */
 	unsigned short status;
 };
 
-/* END OF STUFF FROM RES */
 typedef void *SYMMT_PCI_HANDLE;
 
 /*
@@ -117,11 +146,6 @@ typedef void *SYMMT_PCI_HANDLE;
 extern u_long current_time;     /* current time(s) */
 
 /*
- * Imported from ntpd module
- */
-extern volatile int debug;               /* global debug flag */
-
-/*
  * VME unit control structure.
  * Changes made to vmeunit structure. Most members are now available in the 
  * new refclockproc structure in ntp_refclock.h - 07/99 - Ganesh Ramasivan
@@ -139,7 +163,11 @@ static  void    vme_shutdown    (int, struct peer *);
 static  void    vme_receive     (struct recvbuf *);
 static  void    vme_poll        (int unit, struct peer *);
 struct vmedate *get_datumtime(struct vmedate *);	
-void 	tvme_fill(struct vmedate *, uint32_t btm[2]);
+void	tvme_fill(struct vmedate *, uint32_t btm[2]);
+void	stfp_time2tvme(struct vmedate *time_vme, struct stfp_time *stfp);
+inline const char *DEVICE_NAME(int n);
+
+
 /*
  * Define the bc*() functions as weak so we can compile/link without them.
  * Only clients with the card will have the proprietary vendor device driver
@@ -167,6 +195,15 @@ int regvalue;
 int tfp_type;	/* mode selector, indicate platform and driver interface */
 SYMMT_PCI_HANDLE stfp_handle;
 
+/** 
+ * this macro returns the device name based on
+ * the platform we are running on and the device number
+ */
+#if defined(__sun__)
+inline const char *DEVICE_NAME(int n) {static char s[20]={0}; snprintf(s,19,"/dev/stfp%d",n);return s;}
+#else
+inline const char* DEVICE_NAME(int n) {static char s[20]={0}; snprintf(s,19,"/dev/btfp%d",n);return s;}
+#endif /**__sun__**/
 
 /*
  * vme_start - open the VME device and initialize data for processing
@@ -185,6 +222,7 @@ vme_start(
 	tfp_type = (int)(peer->ttl);
 	switch (tfp_type) {		
 		case 1:
+		case 3:
 			break;
 		case 2:
 			stfp_handle = bcStartPci(); 	/* init the card in lin/win */
@@ -197,9 +235,9 @@ vme_start(
 	 */
 #ifdef DEBUG
 
-	printf("Opening DATUM VME DEVICE \n");
+	printf("Opening DATUM DEVICE %s\n",DEVICE_NAME(peer->refclkunit));
 #endif
-	if ( (fd_vme = open(VMEFD, O_RDWR)) < 0) {
+	if ( (fd_vme = open(DEVICE_NAME(peer->refclkunit), O_RDWR)) < 0) {
 		msyslog(LOG_ERR, "vme_start: failed open of %s: %m", vmedev);
 		return (0);
 	}
@@ -207,6 +245,7 @@ vme_start(
 		switch (tfp_type) {
 		  	case 1:	break;
 			case 2: break;
+			case 3:break;
 			default: 
 				/* Release capture lockout in case it was set before. */
 				if( ioctl( fd_vme, RUNLOCK, &dummy ) )
@@ -222,21 +261,21 @@ vme_start(
 	/*
 	 * Allocate unit structure
 	 */
-	vme = (struct vmeunit *)emalloc(sizeof(struct vmeunit));
-	bzero((char *)vme, sizeof(struct vmeunit));
+	vme = emalloc_zero(sizeof(struct vmeunit));
 
 
 	/*
 	 * Set up the structures
 	 */
 	pp = peer->procptr;
-	pp->unitptr = (caddr_t) vme;
+	pp->unitptr = vme;
 	pp->timestarted = current_time;
 
 	pp->io.clock_recv = vme_receive;
-	pp->io.srcclock = (caddr_t)peer;
+	pp->io.srcclock = peer;
 	pp->io.datalen = 0;
 	pp->io.fd = fd_vme;
+	/* shouldn't there be an io_addclock() call? */
 
 	/*
 	 * All done.  Initialize a few random peer variables, then
@@ -265,11 +304,13 @@ vme_shutdown(
 	 * Tell the I/O module to turn us off.  We're history.
 	 */
 	pp = peer->procptr;
-	vme = (struct vmeunit *)pp->unitptr;
+	vme = pp->unitptr;
 	io_closeclock(&pp->io);
 	pp->unitptr = NULL;
-	free(vme);
-	if (tfp_type == 2) bcStopPci(stfp_handle); 
+	if (NULL != vme)
+		free(vme);
+	if (tfp_type == 2)
+		bcStopPci(stfp_handle); 
 }
 
 
@@ -303,7 +344,7 @@ vme_poll(
 	struct tm *tadr;
         
 	pp = peer->procptr;	 
-	vme = (struct vmeunit *)pp->unitptr;        /* Here is the structure */
+	vme = pp->unitptr;        /* Here is the structure */
 
 	tptr = &vme->vmedata; 
 	if ((tptr = get_datumtime(tptr)) == NULL ) {
@@ -324,14 +365,15 @@ vme_poll(
 	  tadr = gmtime(&tloc);
 	  tptr->year = (unsigned short)(tadr->tm_year + 1900);
 
-	sprintf(pp->a_lastcode, 
-		"%3.3d %2.2d:%2.2d:%2.2d.%.6ld %1d",
-		tptr->day, 
-		tptr->hr, 
-		tptr->mn,
-		tptr->sec, 
-		tptr->frac, 
-		tptr->status);
+	snprintf(pp->a_lastcode,
+		 sizeof(pp->a_lastcode),
+		 "%3.3d %2.2d:%2.2d:%2.2d.%.6ld %1d",
+		 tptr->day, 
+		 tptr->hr, 
+		 tptr->mn,
+		 tptr->sec, 
+		 tptr->frac, 
+		 tptr->status);
 
 	pp->lencode = (u_short) strlen(pp->a_lastcode);
 
@@ -376,10 +418,10 @@ get_datumtime(struct vmedate *time_vme)
 	struct btfp_time vts;
 	uint32_t btm[2];
 	uint8_t dmy;
+	struct stfp_time stfpm;
 	
-	if ( time_vme == (struct vmedate *)NULL) {
-  	  time_vme = (struct vmedate *)malloc(sizeof(struct vmedate ));
-	}
+	if (time_vme == NULL)
+  		time_vme = emalloc(sizeof(*time_vme));
 
 	switch (tfp_type) {
 		case 1:				/* BSD, PCI, 2 32bit time words */
@@ -397,41 +439,65 @@ get_datumtime(struct vmedate *time_vme)
 			}
 			tvme_fill(time_vme, btm);
 			break;
+			
+		case 3: /** solaris **/
+			memset(&stfpm,0,sizeof(stfpm));
+			
+			/* we need the time in decimal format */
+			/* Here we rudely assume that we are the only user of the driver.
+			 * Other programs will have to set their own time format before reading 
+			 * the time.
+			 */
+			if(ioctl (fd_vme, SELTIMEFORMAT, TIME_DECIMAL)){	
+					msyslog(LOG_ERR, "Could not set time format");
+					return (NULL);	
+			}
+			/* read the time */
+			if (ioctl(fd_vme, READTIME, &stfpm)) {
+				msyslog(LOG_ERR, "ioctl error: %m");
+				return(NULL);
+			}
+			stfp_time2tvme(time_vme,  &stfpm);
+			break;			
 
 		default:			/* legacy bancomm card */
 
 			if (ioctl(fd_vme, READTIME, &vts)) {
-	    		msyslog(LOG_ERR, "get_datumtime error: %m");
+				msyslog(LOG_ERR,
+					"get_datumtime error: %m");
 				return(NULL);
 			}
 			/* Get day */
-			sprintf(cbuf,"%3.3x", ((vts.btfp_time[ 0 ] & 0x000f) <<8) +
-				((vts.btfp_time[ 1 ] & 0xff00) >> 8));  
+			snprintf(cbuf, sizeof(cbuf), "%3.3x",
+				 ((vts.btfp_time[ 0 ] & 0x000f) << 8) +
+				  ((vts.btfp_time[ 1 ] & 0xff00) >> 8));  
 			time_vme->day = (unsigned short)atoi(cbuf);
 
 			/* Get hour */
-			sprintf(cbuf,"%2.2x", vts.btfp_time[ 1 ] & 0x00ff);
-
+			snprintf(cbuf, sizeof(cbuf), "%2.2x",
+				 vts.btfp_time[ 1 ] & 0x00ff);
 			time_vme->hr = (unsigned short)atoi(cbuf);
 
 			/* Get minutes */
-			sprintf(cbuf,"%2.2x", (vts.btfp_time[ 2 ] & 0xff00) >>8);
+			snprintf(cbuf, sizeof(cbuf), "%2.2x",
+				 (vts.btfp_time[ 2 ] & 0xff00) >> 8);
 			time_vme->mn = (unsigned short)atoi(cbuf);
 
 			/* Get seconds */
-			sprintf(cbuf,"%2.2x", vts.btfp_time[ 2 ] & 0x00ff);
+			snprintf(cbuf, sizeof(cbuf), "%2.2x",
+				 vts.btfp_time[ 2 ] & 0x00ff);
 			time_vme->sec = (unsigned short)atoi(cbuf);
 
 			/* Get microseconds.  Yes, we ignore the 0.1 microsecond digit so
 				 we can use the TVTOTSF function  later on...*/
 
-			sprintf(cbuf,"%4.4x%2.2x", vts.btfp_time[ 3 ],
-			vts.btfp_time[ 4 ]>>8);
-
+			snprintf(cbuf, sizeof(cbuf), "%4.4x%2.2x",
+				 vts.btfp_time[ 3 ],
+				 vts.btfp_time[ 4 ] >> 8);
 			time_vme->frac = (u_long) atoi(cbuf);
 
 			/* Get status bit */
-			time_vme->status = (vts.btfp_time[0] & 0x0010) >>4;
+			time_vme->status = (vts.btfp_time[0] & 0x0010) >> 4;
 
 			break;
 	}
@@ -462,6 +528,21 @@ tvme_fill(struct vmedate *time_vme, uint32_t btm[2])
 	return;
 }
 
+
+/* Assign values to time_vme struct. Mostly for readability */
+void
+stfp_time2tvme(struct vmedate *time_vme, struct stfp_time *stfp)
+{
+
+	time_vme->day  = stfp->tm.tm_yday+1;
+	time_vme->hr   = stfp->tm.tm_hour;
+	time_vme->mn   = stfp->tm.tm_min;
+	time_vme->sec  = stfp->tm.tm_sec;
+	time_vme->frac = stfp->usec*1000;  
+	time_vme->frac += stfp->hnsec * 100;
+	time_vme->status = stfp->status;
+	return;
+}
 #else
 int refclock_bancomm_bs;
 #endif /* REFCLOCK */

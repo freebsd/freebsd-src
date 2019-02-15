@@ -1,6 +1,8 @@
 /*	$NetBSD: pcmcia.c,v 1.23 2000/07/28 19:17:02 drochner Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997 Marc Horowitz.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/queue.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 
@@ -97,9 +100,9 @@ static void	pccard_print_resources(struct resource_list *rl,
 		    const char *name, int type, int count, const char *format);
 static int	pccard_print_child(device_t dev, device_t child);
 static int	pccard_set_resource(device_t dev, device_t child, int type,
-		    int rid, u_long start, u_long count);
+		    int rid, rman_res_t start, rman_res_t count);
 static int	pccard_get_resource(device_t dev, device_t child, int type,
-		    int rid, u_long *startp, u_long *countp);
+		    int rid, rman_res_t *startp, rman_res_t *countp);
 static void	pccard_delete_resource(device_t dev, device_t child, int type,
 		    int rid);
 static int	pccard_set_res_flags(device_t dev, device_t child, int type,
@@ -113,8 +116,8 @@ static int	pccard_read_ivar(device_t bus, device_t child, int which,
 		    uintptr_t *result);
 static void	pccard_driver_added(device_t dev, driver_t *driver);
 static struct resource *pccard_alloc_resource(device_t dev,
-		    device_t child, int type, int *rid, u_long start,
-		    u_long end, u_long count, u_int flags);
+		    device_t child, int type, int *rid, rman_res_t start,
+		    rman_res_t end, rman_res_t count, u_int flags);
 static int	pccard_release_resource(device_t dev, device_t child, int type,
 		    int rid, struct resource *r);
 static void	pccard_child_detached(device_t parent, device_t dev);
@@ -234,6 +237,7 @@ pccard_attach_card(device_t dev)
 	DEVPRINTF((dev, "Card has %d functions. pccard_mfc is %d\n", i + 1,
 	    pccard_mfc(sc)));
 
+	mtx_lock(&Giant);
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
 		if (STAILQ_EMPTY(&pf->cfe_head))
 			continue;
@@ -246,6 +250,7 @@ pccard_attach_card(device_t dev)
 		pf->dev = child;
 		pccard_probe_and_attach_child(dev, child, pf);
 	}
+	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -470,11 +475,11 @@ pccard_function_init(struct pccard_function *pf, int entry)
 	struct pccard_ivar *devi = PCCARD_IVAR(pf->dev);
 	struct resource_list *rl = &devi->resources;
 	struct resource_list_entry *rle;
-	struct resource *r = 0;
+	struct resource *r = NULL;
 	struct pccard_ce_iospace *ios;
 	struct pccard_ce_memspace *mems;
 	device_t bus;
-	u_long start, end, len;
+	rman_res_t start, end, len;
 	int i, rid, spaces;
 
 	if (pf->pf_flags & PFF_ENABLED) {
@@ -506,8 +511,8 @@ pccard_function_init(struct pccard_function *pf, int entry)
 			if (start)
 				end = start + ios->length - 1;
 			else
-				end = ~0UL;
-			DEVPRINTF((bus, "I/O rid %d start %#lx end %#lx\n",
+				end = ~0;
+			DEVPRINTF((bus, "I/O rid %d start %#jx end %#jx\n",
 			    i, start, end));
 			rid = i;
 			len = ios->length;
@@ -530,8 +535,8 @@ pccard_function_init(struct pccard_function *pf, int entry)
 			if (start)
 				end = start + mems->length - 1;
 			else
-				end = ~0UL;
-			DEVPRINTF((bus, "Memory rid %d start %#lx end %#lx\ncardaddr %#lx hostaddr %#lx length %#lx\n",
+				end = ~0;
+			DEVPRINTF((bus, "Memory rid %d start %#jx end %#jx\ncardaddr %#jx hostaddr %#jx length %#jx\n",
 			    i, start, end, mems->cardaddr, mems->hostaddr,
 			    mems->length));
 			rid = i;
@@ -602,7 +607,7 @@ pccard_function_free(struct pccard_function *pf)
 				device_printf(pf->sc->dev,
 				    "function_free: Resource still owned by "
 				    "child, oops. "
-				    "(type=%d, rid=%d, addr=%#lx)\n",
+				    "(type=%d, rid=%d, addr=%#jx)\n",
 				    rle->type, rle->rid,
 				    rman_get_start(rle->res));
 			BUS_RELEASE_RESOURCE(device_get_parent(pf->sc->dev),
@@ -614,8 +619,8 @@ pccard_function_free(struct pccard_function *pf)
 }
 
 static void
-pccard_mfc_adjust_iobase(struct pccard_function *pf, bus_addr_t addr,
-    bus_addr_t offset, bus_size_t size)
+pccard_mfc_adjust_iobase(struct pccard_function *pf, rman_res_t addr,
+    rman_res_t offset, rman_res_t size)
 {
 	bus_size_t iosize, tmp;
 
@@ -693,11 +698,11 @@ pccard_function_enable(struct pccard_function *pf)
 	}
 	if (tmp == NULL) {
 		pf->ccr_rid = 0;
-		pf->ccr_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-		    &pf->ccr_rid, 0, ~0, PCCARD_MEM_PAGE_SIZE, RF_ACTIVE);
+		pf->ccr_res = bus_alloc_resource_anywhere(dev, SYS_RES_MEMORY,
+		    &pf->ccr_rid, PCCARD_MEM_PAGE_SIZE, RF_ACTIVE);
 		if (!pf->ccr_res)
 			goto bad;
-		DEVPRINTF((dev, "ccr_res == %#lx-%#lx, base=%#x\n",
+		DEVPRINTF((dev, "ccr_res == %#jx-%#jx, base=%#x\n",
 		    rman_get_start(pf->ccr_res), rman_get_end(pf->ccr_res),
 		    pf->ccr_base));
 		CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY,
@@ -923,7 +928,7 @@ pccard_print_child(device_t dev, device_t child)
 
 static int
 pccard_set_resource(device_t dev, device_t child, int type, int rid,
-    u_long start, u_long count)
+    rman_res_t start, rman_res_t count)
 {
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct resource_list *rl = &devi->resources;
@@ -952,7 +957,7 @@ pccard_set_resource(device_t dev, device_t child, int type, int rid,
 
 static int
 pccard_get_resource(device_t dev, device_t child, int type, int rid,
-    u_long *startp, u_long *countp)
+    rman_res_t *startp, rman_res_t *countp)
 {
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct resource_list *rl = &devi->resources;
@@ -1025,26 +1030,6 @@ pccard_child_location_str(device_t bus, device_t child, char *buf,
 	return (0);
 }
 
-/* XXX Maybe this should be in subr_bus? */
-static void
-pccard_safe_quote(char *dst, const char *src, size_t len)
-{
-	char *walker = dst, *ep = dst + len - 1;
-
-	if (len == 0)
-		return;
-	while (src != NULL && walker < ep)
-	{
-		if (*src == '"') {
-			if (ep - walker < 2)
-				break;
-			*walker++ = '\\';
-		}
-		*walker++ = *src++;
-	}
-	*walker = '\0';
-}
-
 static int
 pccard_child_pnpinfo_str(device_t bus, device_t child, char *buf,
     size_t buflen)
@@ -1052,13 +1037,18 @@ pccard_child_pnpinfo_str(device_t bus, device_t child, char *buf,
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct pccard_function *pf = devi->pf;
 	struct pccard_softc *sc = PCCARD_SOFTC(bus);
-	char cis0[128], cis1[128];
+	struct sbuf sb;
 
-	pccard_safe_quote(cis0, sc->card.cis1_info[0], sizeof(cis0));
-	pccard_safe_quote(cis1, sc->card.cis1_info[1], sizeof(cis1));
-	snprintf(buf, buflen, "manufacturer=0x%04x product=0x%04x "
-	    "cisvendor=\"%s\" cisproduct=\"%s\" function_type=%d",
-	    sc->card.manufacturer, sc->card.product, cis0, cis1, pf->function);
+	sbuf_new(&sb, buf, buflen, SBUF_FIXEDLEN | SBUF_INCLUDENUL);
+	sbuf_printf(&sb, "manufacturer=0x%04x product=0x%04x "
+	    "cisvendor=\"", sc->card.manufacturer, sc->card.product);
+	devctl_safe_quote_sb(&sb, sc->card.cis1_info[0]);
+	sbuf_printf(&sb, "\" cisproduct=\"");
+	devctl_safe_quote_sb(&sb, sc->card.cis1_info[1]);
+	sbuf_printf(&sb, "\" function_type=%d", pf->function);
+	sbuf_finish(&sb);
+	sbuf_delete(&sb);
+
 	return (0);
 }
 
@@ -1132,12 +1122,12 @@ pccard_driver_added(device_t dev, driver_t *driver)
 
 static struct resource *
 pccard_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct pccard_ivar *dinfo;
-	struct resource_list_entry *rle = 0;
+	struct resource_list_entry *rle = NULL;
 	int passthrough = (device_get_parent(child) != dev);
-	int isdefault = (start == 0 && end == ~0UL && count == 1);
+	int isdefault = (RMAN_IS_DEFAULT_RANGE(start, end) && count == 1);
 	struct resource *r = NULL;
 
 	/* XXX I'm no longer sure this is right */
@@ -1185,7 +1175,7 @@ pccard_release_resource(device_t dev, device_t child, int type, int rid,
 {
 	struct pccard_ivar *dinfo;
 	int passthrough = (device_get_parent(child) != dev);
-	struct resource_list_entry *rle = 0;
+	struct resource_list_entry *rle = NULL;
 
 	if (passthrough)
 		return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
@@ -1197,7 +1187,7 @@ pccard_release_resource(device_t dev, device_t child, int type, int rid,
 
 	if (!rle) {
 		device_printf(dev, "Allocated resource not found, "
-		    "%d %#x %#lx %#lx\n",
+		    "%d %#x %#jx %#jx\n",
 		    type, rid, rman_get_start(r), rman_get_size(r));
 		return ENOENT;
 	}

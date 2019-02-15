@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)chown.8	8.3 (Berkeley) 3/31/94
 .\" $FreeBSD$
 .\"
-.Dd February 21, 2010
+.Dd January 7, 2017
 .Dt CHOWN 8
 .Os
 .Sh NAME
@@ -64,8 +64,9 @@ The options are as follows:
 .It Fl H
 If the
 .Fl R
-option is specified, symbolic links on the command line are followed.
-(Symbolic links encountered in the tree traversal are not followed.)
+option is specified, symbolic links on the command line are followed
+and hence unaffected by the command.
+(Symbolic links encountered during traversal are not followed.)
 .It Fl L
 If the
 .Fl R
@@ -76,8 +77,8 @@ If the
 option is specified, no symbolic links are followed.
 This is the default.
 .It Fl R
-Change the user ID and/or the group ID of the specified directory trees
-(recursively, including their contents) and files.
+Change the user ID and/or the group ID of the file hierarchies rooted
+in the files, instead of just the files themselves.
 Beware of unintentionally matching the
 .Dq Pa ".."
 hard link to the parent directory when using wildcards like
@@ -134,6 +135,17 @@ group name.
 .Pp
 The ownership of a file may only be altered by a super-user for
 obvious security reasons.
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+signal (see the
+.Cm status
+argument for
+.Xr stty 1 ) ,
+then the current filename as well as the old and new file owner and group
+are displayed.
 .Sh EXIT STATUS
 .Ex -std
 .Sh COMPATIBILITY

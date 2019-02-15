@@ -33,15 +33,7 @@ __FBSDID("$FreeBSD$");
  * filesystems support ACLs or not.
  */
 
-struct acl_t {
-	int type;  /* Type of entry: "allow" or "deny" */
-	int permset; /* Permissions for this class of users. */
-	int tag; /* Owner, User, Owning group, group, everyone, etc. */
-	int qual; /* GID or UID of user/group, depending on tag. */
-	const char *name; /* Name of user/group, depending on tag. */
-};
-
-static struct acl_t acls1[] = {
+static struct archive_test_acl_t acls1[] = {
 	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW, ARCHIVE_ENTRY_ACL_EXECUTE,
 	  ARCHIVE_ENTRY_ACL_USER_OBJ, -1, "" },
 	{ ARCHIVE_ENTRY_ACL_TYPE_DENY, ARCHIVE_ENTRY_ACL_READ_DATA,
@@ -52,7 +44,7 @@ static struct acl_t acls1[] = {
 	  ARCHIVE_ENTRY_ACL_EVERYONE, -1, "" },
 };
 
-static struct acl_t acls2[] = {
+static struct archive_test_acl_t acls2[] = {
 	/* An entry for each type. */
 	{ ARCHIVE_ENTRY_ACL_TYPE_ALLOW, 0,
 	  ARCHIVE_ENTRY_ACL_USER, 108, "user108" },
@@ -136,7 +128,7 @@ static struct acl_t acls2[] = {
  * Entries that should be rejected when we attempt to set them
  * on an ACL that already has NFS4 entries.
  */
-static struct acl_t acls_bad[] = {
+static struct archive_test_acl_t acls_bad[] = {
 	/* POSIX.1e ACL types */
 	{ ARCHIVE_ENTRY_ACL_TYPE_ACCESS, ARCHIVE_ENTRY_ACL_EXECUTE,
 	  ARCHIVE_ENTRY_ACL_USER, 78, "" },
@@ -156,95 +148,6 @@ static struct acl_t acls_bad[] = {
 	  ARCHIVE_ENTRY_ACL_EVERYONE, -1, "" },
 };
 
-static void
-set_acls(struct archive_entry *ae, struct acl_t *acls, int n)
-{
-	int i;
-
-	archive_entry_acl_clear(ae);
-	for (i = 0; i < n; i++) {
-		failure("type=%d, permset=%d, tag=%d, qual=%d name=%s",
-		    acls[i].type, acls[i].permset, acls[i].tag,
-		    acls[i].qual, acls[i].name);
-		assertEqualInt(ARCHIVE_OK,
-		    archive_entry_acl_add_entry(ae,
-			acls[i].type, acls[i].permset, acls[i].tag,
-			acls[i].qual, acls[i].name));
-	}
-}
-
-static int
-acl_match(struct acl_t *acl, int type, int permset, int tag, int qual,
-    const char *name)
-{
-	if (acl == NULL)
-		return (0);
-	if (type != acl->type)
-		return (0);
-	if (permset != acl->permset)
-		return (0);
-	if (tag != acl->tag)
-		return (0);
-	if (tag == ARCHIVE_ENTRY_ACL_USER_OBJ)
-		return (1);
-	if (tag == ARCHIVE_ENTRY_ACL_GROUP_OBJ)
-		return (1);
-	if (tag == ARCHIVE_ENTRY_ACL_EVERYONE)
-		return (1);
-	if (qual != acl->qual)
-		return (0);
-	if (name == NULL) {
-		if (acl->name == NULL || acl->name[0] == '\0')
-			return (1);
-		return (0);
-	}
-	if (acl->name == NULL) {
-		if (name[0] == '\0')
-			return (1);
-		return (0);
-	}
-	return (0 == strcmp(name, acl->name));
-}
-
-static void
-compare_acls(struct archive_entry *ae, struct acl_t *acls, int n)
-{
-	int *marker = malloc(sizeof(marker[0]) * n);
-	int i;
-	int r;
-	int type, permset, tag, qual;
-	int matched;
-	const char *name;
-
-	for (i = 0; i < n; i++)
-		marker[i] = i;
-
-	while (0 == (r = archive_entry_acl_next(ae,
-			 ARCHIVE_ENTRY_ACL_TYPE_NFS4,
-			 &type, &permset, &tag, &qual, &name))) {
-		for (i = 0, matched = 0; i < n && !matched; i++) {
-			if (acl_match(&acls[marker[i]], type, permset,
-				tag, qual, name)) {
-				/* We found a match; remove it. */
-				marker[i] = marker[n - 1];
-				n--;
-				matched = 1;
-			}
-		}
-		failure("Could not find match for ACL "
-		    "(type=%d,permset=%d,tag=%d,qual=%d,name=``%s'')",
-		    type, permset, tag, qual, name);
-		assertEqualInt(1, matched);
-	}
-	assertEqualInt(ARCHIVE_EOF, r);
-	failure("Could not find match for ACL "
-	    "(type=%d,permset=%d,tag=%d,qual=%d,name=``%s'')",
-	    acls[marker[0]].type, acls[marker[0]].permset,
-	    acls[marker[0]].tag, acls[marker[0]].qual, acls[marker[0]].name);
-	assertEqualInt(0, n); /* Number of ACLs not matched should == 0 */
-	free(marker);
-}
-
 DEFINE_TEST(test_acl_nfs4)
 {
 	struct archive_entry *ae;
@@ -256,22 +159,31 @@ DEFINE_TEST(test_acl_nfs4)
         archive_entry_set_mode(ae, S_IFREG | 0777);
 
 	/* Store and read back some basic ACL entries. */
-	set_acls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]));
+	assertEntrySetAcls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]));
+
+	/* Check that entry contains only NFSv4 types */
+	assert((archive_entry_acl_types(ae) &
+	    ARCHIVE_ENTRY_ACL_TYPE_POSIX1E) == 0);
+	assert((archive_entry_acl_types(ae) &
+	    ARCHIVE_ENTRY_ACL_TYPE_NFS4) != 0);
+
 	assertEqualInt(4,
 	    archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_NFS4));
-	compare_acls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]));
+	assertEntryCompareAcls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]),
+	    ARCHIVE_ENTRY_ACL_TYPE_NFS4, 0);
 
 	/* A more extensive set of ACLs. */
-	set_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
+	assertEntrySetAcls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
 	assertEqualInt(32,
 	    archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_NFS4));
-	compare_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
+	assertEntryCompareAcls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]),
+	    ARCHIVE_ENTRY_ACL_TYPE_NFS4, 0);
 
 	/*
 	 * Check that clearing ACLs gets rid of them all by repeating
 	 * the first test.
 	 */
-	set_acls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]));
+	assertEntrySetAcls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]));
 	failure("Basic ACLs shouldn't be stored as extended ACLs");
 	assertEqualInt(4,
 	    archive_entry_acl_reset(ae, ARCHIVE_ENTRY_ACL_TYPE_NFS4));
@@ -280,9 +192,9 @@ DEFINE_TEST(test_acl_nfs4)
 	 * Different types of malformed ACL entries that should
 	 * fail when added to existing NFS4 ACLs.
 	 */
-	set_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
+	assertEntrySetAcls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
 	for (i = 0; i < (int)(sizeof(acls_bad)/sizeof(acls_bad[0])); ++i) {
-		struct acl_t *p = &acls_bad[i];
+		struct archive_test_acl_t *p = &acls_bad[i];
 		failure("Malformed ACL test #%d", i);
 		assertEqualInt(ARCHIVE_FAILED,
 		    archive_entry_acl_add_entry(ae,

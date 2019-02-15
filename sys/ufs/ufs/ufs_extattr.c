@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999-2002 Robert N. M. Watson
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -68,6 +70,8 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/ufs_extern.h>
 
 #ifdef UFS_EXTATTR
+
+FEATURE(ufs_extattr, "ufs extended attribute support");
 
 static MALLOC_DEFINE(M_UFS_EXTATTR, "ufs_extattr", "ufs extended attribute");
 
@@ -597,8 +601,6 @@ ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
 
 	attribute = malloc(sizeof(struct ufs_extattr_list_entry),
 	    M_UFS_EXTATTR, M_WAITOK);
-	if (attribute == NULL)
-		return (ENOMEM);
 
 	if (!(ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_STARTED)) {
 		error = EOPNOTSUPP;

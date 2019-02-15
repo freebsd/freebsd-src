@@ -1,6 +1,62 @@
 Major changes between releases                  Automated Testing Framework
 ===========================================================================
 
+Changes in version 0.21
+***********************
+
+Released on October 23rd, 2014.
+
+* Restored the atf(7) manual page to serve as a reference to all the other
+  manual pages shipped by ATF.
+
+* Added the -s flag to atf-sh to support specifying the shell interpreter
+  to be used.
+
+* Removed ATF_WORKDIR.  The only remaining consumers have been converted to
+  use the standard TMPDIR environment variable.  As a benefit, and because
+  Kyua forces the TMPDIR to live within the test case's work directory,
+  any stale files left behind by ATF will be automatically cleaned up.
+
+* Documented the environment variables recognized by each component in the
+  relevant manual pages.  This information was lost with the atf-config(1)
+  removal.
+
+* Added a new "require.diskspace" metadata property to test cases so that
+  they can specify the minimum amount of disk space required for the test
+  to run.
+
+* Renamed the atf-{c,c++,sh}-api(3) manual pages to atf-{c,c++,sh}(3) for
+  discoverability purposes.  Symbolic links are provided for the time
+  being to still make the old names visible.
+
+* Issue #5: Recommend the (expected, actual) idiom for calls to the test
+  macros in the manual pages.
+
+* Issue #7: Stopped catching unhandled exceptions in atf-c++ tests.  This
+  propagates the crash to the caller, which in turn allows it to obtain
+  proper debugging information.  In particular, Kyua should now be able to
+  extract a stacktrace pinpointing the problem.
+
+* Issue #8: Fixed atf-c/macros_test:use test failures spotted by the clang
+  that ships with FreeBSD 11.0-CURRENT.
+
+* Issue #12: Improved documentation of atf-sh(3) and atf-check(1) by better
+  explaining how they relate to each other.
+
+* Issue #14: Stopped setting 'set -e' in atf-sh.  This setting was
+  initially added as a way to enable a "strict" mode in the library and to
+  make test cases fail fast when they run unprotected commands.  However,
+  doing so in the library is surprising as the responsibility of enabling
+  'set -e' should be on the user's code.  Also, 'set -e' introduces
+  inconsistent behavior on subshells and users do not expect that.
+
+* Issue #15: Fixed atf_utils_{fork,wait} to support nested calls.
+
+* Issue #16: Fixed test failures (by removing a long-standing hack) on
+  systems that lack \e support in printf(1).
+
+* Issue #19: Removed stale references to atf-config and atf-run.
+
 
 Changes in version 0.20
 ***********************

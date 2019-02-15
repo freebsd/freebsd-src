@@ -10,11 +10,13 @@
 #include "SystemZMCTargetDesc.h"
 #include "InstPrinter/SystemZInstPrinter.h"
 #include "SystemZMCAsmInfo.h"
-#include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/TargetRegistry.h"
+
+using namespace llvm;
 
 #define GET_INSTRINFO_MC_DESC
 #include "SystemZGenInstrInfo.inc"
@@ -24,8 +26,6 @@
 
 #define GET_REGINFO_MC_DESC
 #include "SystemZGenRegisterInfo.inc"
-
-using namespace llvm;
 
 const unsigned SystemZMC::GR32Regs[16] = {
   SystemZ::R0L, SystemZ::R1L, SystemZ::R2L, SystemZ::R3L,
@@ -76,6 +76,53 @@ const unsigned SystemZMC::FP128Regs[16] = {
   SystemZ::F12Q, SystemZ::F13Q, 0, 0
 };
 
+const unsigned SystemZMC::VR32Regs[32] = {
+  SystemZ::F0S, SystemZ::F1S, SystemZ::F2S, SystemZ::F3S,
+  SystemZ::F4S, SystemZ::F5S, SystemZ::F6S, SystemZ::F7S,
+  SystemZ::F8S, SystemZ::F9S, SystemZ::F10S, SystemZ::F11S,
+  SystemZ::F12S, SystemZ::F13S, SystemZ::F14S, SystemZ::F15S,
+  SystemZ::F16S, SystemZ::F17S, SystemZ::F18S, SystemZ::F19S,
+  SystemZ::F20S, SystemZ::F21S, SystemZ::F22S, SystemZ::F23S,
+  SystemZ::F24S, SystemZ::F25S, SystemZ::F26S, SystemZ::F27S,
+  SystemZ::F28S, SystemZ::F29S, SystemZ::F30S, SystemZ::F31S
+};
+
+const unsigned SystemZMC::VR64Regs[32] = {
+  SystemZ::F0D, SystemZ::F1D, SystemZ::F2D, SystemZ::F3D,
+  SystemZ::F4D, SystemZ::F5D, SystemZ::F6D, SystemZ::F7D,
+  SystemZ::F8D, SystemZ::F9D, SystemZ::F10D, SystemZ::F11D,
+  SystemZ::F12D, SystemZ::F13D, SystemZ::F14D, SystemZ::F15D,
+  SystemZ::F16D, SystemZ::F17D, SystemZ::F18D, SystemZ::F19D,
+  SystemZ::F20D, SystemZ::F21D, SystemZ::F22D, SystemZ::F23D,
+  SystemZ::F24D, SystemZ::F25D, SystemZ::F26D, SystemZ::F27D,
+  SystemZ::F28D, SystemZ::F29D, SystemZ::F30D, SystemZ::F31D
+};
+
+const unsigned SystemZMC::VR128Regs[32] = {
+  SystemZ::V0, SystemZ::V1, SystemZ::V2, SystemZ::V3,
+  SystemZ::V4, SystemZ::V5, SystemZ::V6, SystemZ::V7,
+  SystemZ::V8, SystemZ::V9, SystemZ::V10, SystemZ::V11,
+  SystemZ::V12, SystemZ::V13, SystemZ::V14, SystemZ::V15,
+  SystemZ::V16, SystemZ::V17, SystemZ::V18, SystemZ::V19,
+  SystemZ::V20, SystemZ::V21, SystemZ::V22, SystemZ::V23,
+  SystemZ::V24, SystemZ::V25, SystemZ::V26, SystemZ::V27,
+  SystemZ::V28, SystemZ::V29, SystemZ::V30, SystemZ::V31
+};
+
+const unsigned SystemZMC::AR32Regs[16] = {
+  SystemZ::A0, SystemZ::A1, SystemZ::A2, SystemZ::A3,
+  SystemZ::A4, SystemZ::A5, SystemZ::A6, SystemZ::A7,
+  SystemZ::A8, SystemZ::A9, SystemZ::A10, SystemZ::A11,
+  SystemZ::A12, SystemZ::A13, SystemZ::A14, SystemZ::A15
+};
+
+const unsigned SystemZMC::CR64Regs[16] = {
+  SystemZ::C0, SystemZ::C1, SystemZ::C2, SystemZ::C3,
+  SystemZ::C4, SystemZ::C5, SystemZ::C6, SystemZ::C7,
+  SystemZ::C8, SystemZ::C9, SystemZ::C10, SystemZ::C11,
+  SystemZ::C12, SystemZ::C13, SystemZ::C14, SystemZ::C15
+};
+
 unsigned SystemZMC::getFirstReg(unsigned Reg) {
   static unsigned Map[SystemZ::NUM_TARGET_REGS];
   static bool Initialized = false;
@@ -85,9 +132,13 @@ unsigned SystemZMC::getFirstReg(unsigned Reg) {
       Map[GRH32Regs[I]] = I;
       Map[GR64Regs[I]] = I;
       Map[GR128Regs[I]] = I;
-      Map[FP32Regs[I]] = I;
-      Map[FP64Regs[I]] = I;
       Map[FP128Regs[I]] = I;
+      Map[AR32Regs[I]] = I;
+    }
+    for (unsigned I = 0; I < 32; ++I) {
+      Map[VR32Regs[I]] = I;
+      Map[VR64Regs[I]] = I;
+      Map[VR128Regs[I]] = I;
     }
   }
   assert(Reg < SystemZ::NUM_TARGET_REGS);
@@ -95,10 +146,11 @@ unsigned SystemZMC::getFirstReg(unsigned Reg) {
 }
 
 static MCAsmInfo *createSystemZMCAsmInfo(const MCRegisterInfo &MRI,
-                                         StringRef TT) {
+                                         const Triple &TT) {
   MCAsmInfo *MAI = new SystemZMCAsmInfo(TT);
   MCCFIInstruction Inst =
-      MCCFIInstruction::createDefCfa(0, MRI.getDwarfRegNum(SystemZ::R15D, true),
+      MCCFIInstruction::createDefCfa(nullptr,
+                                     MRI.getDwarfRegNum(SystemZ::R15D, true),
                                      SystemZMC::CFAOffsetFromInitialSP);
   MAI->addInitialFrameState(Inst);
   return MAI;
@@ -110,120 +162,51 @@ static MCInstrInfo *createSystemZMCInstrInfo() {
   return X;
 }
 
-static MCRegisterInfo *createSystemZMCRegisterInfo(StringRef TT) {
+static MCRegisterInfo *createSystemZMCRegisterInfo(const Triple &TT) {
   MCRegisterInfo *X = new MCRegisterInfo();
   InitSystemZMCRegisterInfo(X, SystemZ::R14D);
   return X;
 }
 
-static MCSubtargetInfo *createSystemZMCSubtargetInfo(StringRef TT,
-                                                     StringRef CPU,
-                                                     StringRef FS) {
-  MCSubtargetInfo *X = new MCSubtargetInfo();
-  InitSystemZMCSubtargetInfo(X, TT, CPU, FS);
-  return X;
+static MCSubtargetInfo *
+createSystemZMCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
+  return createSystemZMCSubtargetInfoImpl(TT, CPU, FS);
 }
 
-static MCCodeGenInfo *createSystemZMCCodeGenInfo(StringRef TT, Reloc::Model RM,
-                                                 CodeModel::Model CM,
-                                                 CodeGenOpt::Level OL) {
-  MCCodeGenInfo *X = new MCCodeGenInfo();
-
-  // Static code is suitable for use in a dynamic executable; there is no
-  // separate DynamicNoPIC model.
-  if (RM == Reloc::Default || RM == Reloc::DynamicNoPIC)
-    RM = Reloc::Static;
-
-  // For SystemZ we define the models as follows:
-  //
-  // Small:  BRASL can call any function and will use a stub if necessary.
-  //         Locally-binding symbols will always be in range of LARL.
-  //
-  // Medium: BRASL can call any function and will use a stub if necessary.
-  //         GOT slots and locally-defined text will always be in range
-  //         of LARL, but other symbols might not be.
-  //
-  // Large:  Equivalent to Medium for now.
-  //
-  // Kernel: Equivalent to Medium for now.
-  //
-  // This means that any PIC module smaller than 4GB meets the
-  // requirements of Small, so Small seems like the best default there.
-  //
-  // All symbols bind locally in a non-PIC module, so the choice is less
-  // obvious.  There are two cases:
-  //
-  // - When creating an executable, PLTs and copy relocations allow
-  //   us to treat external symbols as part of the executable.
-  //   Any executable smaller than 4GB meets the requirements of Small,
-  //   so that seems like the best default.
-  //
-  // - When creating JIT code, stubs will be in range of BRASL if the
-  //   image is less than 4GB in size.  GOT entries will likewise be
-  //   in range of LARL.  However, the JIT environment has no equivalent
-  //   of copy relocs, so locally-binding data symbols might not be in
-  //   the range of LARL.  We need the Medium model in that case.
-  if (CM == CodeModel::Default)
-    CM = CodeModel::Small;
-  else if (CM == CodeModel::JITDefault)
-    CM = RM == Reloc::PIC_ ? CodeModel::Small : CodeModel::Medium;
-  X->InitMCCodeGenInfo(RM, CM, OL);
-  return X;
-}
-
-static MCInstPrinter *createSystemZMCInstPrinter(const Target &T,
+static MCInstPrinter *createSystemZMCInstPrinter(const Triple &T,
                                                  unsigned SyntaxVariant,
                                                  const MCAsmInfo &MAI,
                                                  const MCInstrInfo &MII,
-                                                 const MCRegisterInfo &MRI,
-                                                 const MCSubtargetInfo &STI) {
+                                                 const MCRegisterInfo &MRI) {
   return new SystemZInstPrinter(MAI, MII, MRI);
-}
-
-static MCStreamer *createSystemZMCObjectStreamer(const Target &T, StringRef TT,
-                                                 MCContext &Ctx,
-                                                 MCAsmBackend &MAB,
-                                                 raw_ostream &OS,
-                                                 MCCodeEmitter *Emitter,
-                                                 bool RelaxAll,
-                                                 bool NoExecStack) {
-  return createELFStreamer(Ctx, 0, MAB, OS, Emitter, RelaxAll, NoExecStack);
 }
 
 extern "C" void LLVMInitializeSystemZTargetMC() {
   // Register the MCAsmInfo.
-  TargetRegistry::RegisterMCAsmInfo(TheSystemZTarget,
+  TargetRegistry::RegisterMCAsmInfo(getTheSystemZTarget(),
                                     createSystemZMCAsmInfo);
 
-  // Register the MCCodeGenInfo.
-  TargetRegistry::RegisterMCCodeGenInfo(TheSystemZTarget,
-                                        createSystemZMCCodeGenInfo);
-
   // Register the MCCodeEmitter.
-  TargetRegistry::RegisterMCCodeEmitter(TheSystemZTarget,
-					createSystemZMCCodeEmitter);
+  TargetRegistry::RegisterMCCodeEmitter(getTheSystemZTarget(),
+                                        createSystemZMCCodeEmitter);
 
   // Register the MCInstrInfo.
-  TargetRegistry::RegisterMCInstrInfo(TheSystemZTarget,
+  TargetRegistry::RegisterMCInstrInfo(getTheSystemZTarget(),
                                       createSystemZMCInstrInfo);
 
   // Register the MCRegisterInfo.
-  TargetRegistry::RegisterMCRegInfo(TheSystemZTarget,
+  TargetRegistry::RegisterMCRegInfo(getTheSystemZTarget(),
                                     createSystemZMCRegisterInfo);
 
   // Register the MCSubtargetInfo.
-  TargetRegistry::RegisterMCSubtargetInfo(TheSystemZTarget,
+  TargetRegistry::RegisterMCSubtargetInfo(getTheSystemZTarget(),
                                           createSystemZMCSubtargetInfo);
 
   // Register the MCAsmBackend.
-  TargetRegistry::RegisterMCAsmBackend(TheSystemZTarget,
+  TargetRegistry::RegisterMCAsmBackend(getTheSystemZTarget(),
                                        createSystemZMCAsmBackend);
 
   // Register the MCInstPrinter.
-  TargetRegistry::RegisterMCInstPrinter(TheSystemZTarget,
+  TargetRegistry::RegisterMCInstPrinter(getTheSystemZTarget(),
                                         createSystemZMCInstPrinter);
-
-  // Register the MCObjectStreamer;
-  TargetRegistry::RegisterMCObjectStreamer(TheSystemZTarget,
-                                           createSystemZMCObjectStreamer);
 }

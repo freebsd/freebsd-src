@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd October 30, 2012
+.Dd June 22, 2015
 .Dt ATRUN 8
 .Os
 .Sh NAME
@@ -14,32 +14,32 @@
 runs jobs queued by
 .Xr at 1 .
 .Pp
-Root's
+The system
 .Xr crontab 5
 file
 .Pa /etc/crontab
-has to contain the line
+must contain the line
 .Bd -literal
 */5     *       *       *       *       root    /usr/libexec/atrun
 .Ed
 .Pp
-so that
+so
 .Nm
-gets invoked every five minutes.
+is invoked every five minutes.
 .Pp
 At every invocation,
 .Nm
-will start all the jobs in the lowercase queues whose start
+starts all the jobs in the lowercase queues whose start
 time has elapsed.
 In addition, if the load average over the last minute was less than
-the specified limit then a maximum of one batch job (denoted by the
+the specified limit, then a maximum of one batch job (denoted by the
 uppercase queues) is started.
 .Pp
 Before starting a job,
 .Nm
-will check the status of its owner's account with
+checks the status of its owner's account with
 .Xr pam 3
-and refuse to run the job if the account is unavailable,
+and refuses to run the job if the account is unavailable,
 e.g., locked out or expired.
 .Sh OPTIONS
 .Bl -tag -width indent
@@ -53,9 +53,11 @@ Debug; print error messages to standard error instead of using
 .Sh WARNINGS
 For
 .Nm
-to work, you have to start up a
+to work, a
 .Xr cron 8
-daemon.
+daemon must be running
+.Nm
+periodically.
 .Sh FILES
 .Bl -tag -width /etc/pam.d/atrun -compact
 .It Pa /etc/pam.d/atrun

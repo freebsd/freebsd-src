@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Luigi Rizzo
  * Copyright (c) 1999 Robert Nordier
  * All rights reserved.
@@ -88,7 +90,7 @@ static const struct {
     {"update", 1},
     {"setdrv", 0}
 };
-static const int nopt = sizeof(opttbl) / sizeof(opttbl[0]);
+static const int nopt = nitems(opttbl);
 
 static const char fmt0[] = "#   flag     start chs   type"
     "       end chs       offset         size\n";
@@ -336,7 +338,8 @@ read_mbr(const char *disk, u_int8_t **mbr, int check_version)
 	close(fd);
 	return (mbr_size);
     }
-    *mbr = malloc(sizeof(buf));
+    if ((*mbr = malloc(sizeof(buf))) == NULL)
+	errx(1, "%s: unable to allocate MBR buffer", disk);
     memcpy(*mbr, buf, sizeof(buf));
     close(fd);
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997        Gabor Kincses <gabor@acm.org>
  *               1997 - 2001 Brian Somers <brian@Awfulhak.org>
  *          based on work by Eric Rosenquist

@@ -1,4 +1,4 @@
-//===-- DeclContextInternals.h - DeclContext Representation -----*- C++ -*-===//
+//===- DeclContextInternals.h - DeclContext Representation ------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,10 +11,12 @@
 //  of DeclContext.
 //
 //===----------------------------------------------------------------------===//
+
 #ifndef LLVM_CLANG_AST_DECLCONTEXTINTERNALS_H
 #define LLVM_CLANG_AST_DECLCONTEXTINTERNALS_H
 
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclarationName.h"
 #include "llvm/ADT/DenseMap.h"
@@ -22,6 +24,7 @@
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/SmallVector.h"
 #include <algorithm>
+#include <cassert>
 
 namespace clang {
 
@@ -30,26 +33,23 @@ class DependentDiagnostic;
 /// \brief An array of decls optimized for the common case of only containing
 /// one entry.
 struct StoredDeclsList {
-
   /// \brief When in vector form, this is what the Data pointer points to.
-  typedef SmallVector<NamedDecl *, 4> DeclsTy;
+  using DeclsTy = SmallVector<NamedDecl *, 4>;
 
   /// \brief A collection of declarations, with a flag to indicate if we have
   /// further external declarations.
-  typedef llvm::PointerIntPair<DeclsTy *, 1, bool> DeclsAndHasExternalTy;
+  using DeclsAndHasExternalTy = llvm::PointerIntPair<DeclsTy *, 1, bool>;
 
   /// \brief The stored data, which will be either a pointer to a NamedDecl,
   /// or a pointer to a vector with a flag to indicate if there are further
   /// external declarations.
-  llvm::PointerUnion<NamedDecl*, DeclsAndHasExternalTy> Data;
+  llvm::PointerUnion<NamedDecl *, DeclsAndHasExternalTy> Data;
 
 public:
-  StoredDeclsList() {}
+  StoredDeclsList() = default;
 
-  StoredDeclsList(const StoredDeclsList &RHS) : Data(RHS.Data) {
-    if (DeclsTy *RHSVec = RHS.getAsVector())
-      Data = DeclsAndHasExternalTy(new DeclsTy(*RHSVec),
-                                   RHS.hasExternalDecls());
+  StoredDeclsList(StoredDeclsList &&RHS) : Data(RHS.Data) {
+    RHS.Data = (NamedDecl *)nullptr;
   }
 
   ~StoredDeclsList() {
@@ -58,12 +58,11 @@ public:
       delete Vector;
   }
 
-  StoredDeclsList &operator=(const StoredDeclsList &RHS) {
+  StoredDeclsList &operator=(StoredDeclsList &&RHS) {
     if (DeclsTy *Vector = getAsVector())
       delete Vector;
     Data = RHS.Data;
-    if (DeclsTy *RHSVec = RHS.getAsVector())
-      Data = DeclsAndHasExternalTy(new DeclsTy(*RHSVec), hasExternalDecls());
+    RHS.Data = (NamedDecl *)nullptr;
     return *this;
   }
 
@@ -110,7 +109,7 @@ public:
     if (NamedDecl *Singleton = getAsDecl()) {
       assert(Singleton == D && "list is different singleton");
       (void)Singleton;
-      Data = (NamedDecl *)0;
+      Data = (NamedDecl *)nullptr;
       return;
     }
 
@@ -134,7 +133,7 @@ public:
     } else {
       DeclsTy &Vec = *getAsVector();
       Vec.erase(std::remove_if(Vec.begin(), Vec.end(),
-                               std::mem_fun(&Decl::isFromASTFile)),
+                               [](Decl *D) { return D->isFromASTFile(); }),
                 Vec.end());
       // Don't have any external decls any more.
       Data = DeclsAndHasExternalTy(&Vec, false);
@@ -145,31 +144,29 @@ public:
   /// represents.
   DeclContext::lookup_result getLookupResult() {
     if (isNull())
-      return DeclContext::lookup_result(DeclContext::lookup_iterator(0),
-                                        DeclContext::lookup_iterator(0));
+      return DeclContext::lookup_result();
 
     // If we have a single NamedDecl, return it.
-    if (getAsDecl()) {
+    if (NamedDecl *ND = getAsDecl()) {
       assert(!isNull() && "Empty list isn't allowed");
 
       // Data is a raw pointer to a NamedDecl*, return it.
-      void *Ptr = &Data;
-      return DeclContext::lookup_result((NamedDecl**)Ptr, (NamedDecl**)Ptr+1);
+      return DeclContext::lookup_result(ND);
     }
 
     assert(getAsVector() && "Must have a vector at this point");
     DeclsTy &Vector = *getAsVector();
 
     // Otherwise, we have a range result.
-    return DeclContext::lookup_result(Vector.begin(), Vector.end());
+    return DeclContext::lookup_result(Vector);
   }
 
   /// HandleRedeclaration - If this is a redeclaration of an existing decl,
   /// replace the old one with D and return true.  Otherwise return false.
-  bool HandleRedeclaration(NamedDecl *D) {
+  bool HandleRedeclaration(NamedDecl *D, bool IsKnownNewer) {
     // Most decls only have one entry in their list, special case it.
     if (NamedDecl *OldD = getAsDecl()) {
-      if (!D->declarationReplaces(OldD))
+      if (!D->declarationReplaces(OldD, IsKnownNewer))
         return false;
       setOnlyValue(D);
       return true;
@@ -180,7 +177,7 @@ public:
     for (DeclsTy::iterator OD = Vec.begin(), ODEnd = Vec.end();
          OD != ODEnd; ++OD) {
       NamedDecl *OldD = *OD;
-      if (D->declarationReplaces(OldD)) {
+      if (D->declarationReplaces(OldD, IsKnownNewer)) {
         *OD = D;
         return true;
       }
@@ -191,7 +188,6 @@ public:
 
   /// AddSubsequentDecl - This is called on the second and later decl when it is
   /// not a redeclaration to merge it into the appropriate place in our list.
-  ///
   void AddSubsequentDecl(NamedDecl *D) {
     assert(!isNull() && "don't AddSubsequentDecl when we have no decls");
 
@@ -242,28 +238,28 @@ public:
 };
 
 class StoredDeclsMap
-  : public llvm::SmallDenseMap<DeclarationName, StoredDeclsList, 4> {
-
+    : public llvm::SmallDenseMap<DeclarationName, StoredDeclsList, 4> {
 public:
   static void DestroyAll(StoredDeclsMap *Map, bool Dependent);
 
 private:
   friend class ASTContext; // walks the chain deleting these
   friend class DeclContext;
+
   llvm::PointerIntPair<StoredDeclsMap*, 1> Previous;
 };
 
 class DependentStoredDeclsMap : public StoredDeclsMap {
 public:
-  DependentStoredDeclsMap() : FirstDiagnostic(0) {}
+  DependentStoredDeclsMap() = default;
 
 private:
-  friend class DependentDiagnostic;
   friend class DeclContext; // iterates over diagnostics
+  friend class DependentDiagnostic;
 
-  DependentDiagnostic *FirstDiagnostic;
+  DependentDiagnostic *FirstDiagnostic = nullptr;
 };
 
-} // end namespace clang
+} // namespace clang
 
-#endif
+#endif // LLVM_CLANG_AST_DECLCONTEXTINTERNALS_H

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1991 The Regents of the University of California.
  * Copyright (c) 1999 Michael Smith
@@ -18,7 +20,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -156,6 +158,13 @@ cninit(void)
 	 * Make the best console the preferred console.
 	 */
 	cnselect(best_cn);
+
+#ifdef EARLY_PRINTF
+	/*
+	 * Release early console.
+	 */
+	early_putc = NULL;
+#endif
 }
 
 void
@@ -285,7 +294,8 @@ sysctl_kern_console(SYSCTL_HANDLER_ARGS)
 	int delete, error;
 	struct sbuf *sb;
 
-	sb = sbuf_new(NULL, NULL, CNDEVPATHMAX * 2, SBUF_AUTOEXTEND);
+	sb = sbuf_new(NULL, NULL, CNDEVPATHMAX * 2, SBUF_AUTOEXTEND |
+	    SBUF_INCLUDENUL);
 	if (sb == NULL)
 		return (ENOMEM);
 	sbuf_clear(sb);
@@ -371,6 +381,19 @@ cnungrab()
 		cn = cnd->cnd_cn;
 		if (!kdb_active || !(cn->cn_flags & CN_FLAG_NODEBUG))
 			cn->cn_ops->cn_ungrab(cn);
+	}
+}
+
+void
+cnresume()
+{
+	struct cn_device *cnd;
+	struct consdev *cn;
+
+	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
+		cn = cnd->cnd_cn;
+		if (cn->cn_ops->cn_resume != NULL)
+			cn->cn_ops->cn_resume(cn);
 	}
 }
 
@@ -499,21 +522,34 @@ cnputc(int c)
 }
 
 void
-cnputs(char *p)
+cnputsn(const char *p, size_t n)
 {
-	int c;
+	size_t i;
 	int unlock_reqd = 0;
 
 	if (use_cnputs_mtx) {
+	  	/*
+		 * NOTE: Debug prints and/or witness printouts in
+		 * console driver clients can cause the "cnputs_mtx"
+		 * mutex to recurse. Simply return if that happens.
+		 */
+		if (mtx_owned(&cnputs_mtx))
+			return;
 		mtx_lock_spin(&cnputs_mtx);
 		unlock_reqd = 1;
 	}
 
-	while ((c = *p++) != '\0')
-		cnputc(c);
+	for (i = 0; i < n; i++)
+		cnputc(p[i]);
 
 	if (unlock_reqd)
 		mtx_unlock_spin(&cnputs_mtx);
+}
+
+void
+cnputs(char *p)
+{
+	cnputsn(p, strlen(p));
 }
 
 static int consmsgbuf_size = 8192;
@@ -639,7 +675,7 @@ static void
 sysbeep_init(void *unused)
 {
 
-	callout_init(&beeping_timer, CALLOUT_MPSAFE);
+	callout_init(&beeping_timer, 1);
 }
 SYSINIT(sysbeep, SI_SUB_SOFTINTR, SI_ORDER_ANY, sysbeep_init, NULL);
 #else
@@ -689,10 +725,10 @@ vty_enabled(unsigned vty)
 				vty_selected = vty_prefer;
 				break;
 			}
-#if defined(DEV_SC)
-			vty_selected = VTY_SC;
-#elif defined(DEV_VT)
+#if defined(DEV_VT)
 			vty_selected = VTY_VT;
+#elif defined(DEV_SC)
+			vty_selected = VTY_SC;
 #endif
 		} while (0);
 

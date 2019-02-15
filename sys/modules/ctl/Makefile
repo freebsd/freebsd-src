@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../cam/ctl
+.PATH: ${SRCTOP}/sys/cam/ctl
 
 KMOD=	ctl
 
@@ -11,8 +11,8 @@ SRCS+=	ctl_backend_ramdisk.c
 SRCS+=	ctl_cmd_table.c
 SRCS+=	ctl_frontend.c
 SRCS+=	ctl_frontend_cam_sim.c
-SRCS+=	ctl_frontend_internal.c
-SRCS+=	ctl_frontend_iscsi.c
+SRCS+=	ctl_frontend_ioctl.c
+SRCS+=	ctl_ha.c
 SRCS+=	ctl_scsi_all.c
 SRCS+=	ctl_tpc.c
 SRCS+=	ctl_tpc_local.c
@@ -25,5 +25,7 @@ SRCS+=	vnode_if.h
 SRCS+=	opt_cam.h
 
 #CFLAGS+=-DICL_KERNEL_PROXY
+
+MFILES=	kern/bus_if.m kern/device_if.m
 
 .include <bsd.kmod.mk>

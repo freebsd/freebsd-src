@@ -1,5 +1,7 @@
 /* $Id: osm.h,v 1.10 2010/05/11 10:30:33 lcn Exp $ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2005-2011 HighPoint Technologies, Inc.
  * All rights reserved.
  *
@@ -153,7 +155,10 @@ void     os_pci_writel(void *osext, HPT_U8 offset, HPT_U32 value);
 #define MAX_PCI_BUS_NUMBER 0xff
 #define MAX_PCI_DEVICE_NUMBER 32
 #define MAX_PCI_FUNC_NUMBER 1
+HPT_U8 pcicfg_read_byte (HPT_U8 bus, HPT_U8 dev, HPT_U8 func, HPT_U8 reg);
 HPT_U32 pcicfg_read_dword(HPT_U8 bus, HPT_U8 dev, HPT_U8 func, HPT_U8 reg);
+void pcicfg_write_byte (HPT_U8 bus, HPT_U8 dev, HPT_U8 func, HPT_U8 reg, HPT_U8 v);
+void pcicfg_write_dword(HPT_U8 bus, HPT_U8 dev, HPT_U8 func, HPT_U8 reg, HPT_U32 v);
 
 
 void *os_map_pci_bar(

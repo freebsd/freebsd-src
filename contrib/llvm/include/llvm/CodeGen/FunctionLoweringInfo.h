@@ -1,4 +1,4 @@
-//===-- FunctionLoweringInfo.h - Lower functions from LLVM IR to CodeGen --===//
+//===- FunctionLoweringInfo.h - Lower functions from LLVM IR to CodeGen ---===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -18,47 +18,51 @@
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IndexedMap.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/CodeGen/ISDOpcodes.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/CodeGen/ValueTypes.h"
-#include "llvm/IR/InlineAsm.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Value.h"
+#include "llvm/Support/KnownBits.h"
+#include <cassert>
+#include <utility>
 #include <vector>
 
 namespace llvm {
 
-class AllocaInst;
+class Argument;
 class BasicBlock;
 class BranchProbabilityInfo;
-class CallInst;
 class Function;
-class GlobalVariable;
 class Instruction;
-class MachineInstr;
-class MachineBasicBlock;
 class MachineFunction;
-class MachineModuleInfo;
+class MachineInstr;
 class MachineRegisterInfo;
+class MVT;
 class SelectionDAG;
 class TargetLowering;
-class Value;
 
 //===--------------------------------------------------------------------===//
 /// FunctionLoweringInfo - This contains information that is global to a
 /// function that is used when lowering a region of the function.
 ///
 class FunctionLoweringInfo {
-  const TargetMachine &TM;
 public:
   const Function *Fn;
   MachineFunction *MF;
+  const TargetLowering *TLI;
   MachineRegisterInfo *RegInfo;
   BranchProbabilityInfo *BPI;
   /// CanLowerReturn - true iff the function's return value can be lowered to
   /// registers.
   bool CanLowerReturn;
+
+  /// True if part of the CSRs will be handled via explicit copies.
+  bool SplitCSR;
 
   /// DemoteRegister - if CanLowerReturn is false, DemoteRegister is a vreg
   /// allocated to hold a pointer to the hidden sret parameter.
@@ -67,10 +71,86 @@ public:
   /// MBBMap - A mapping from LLVM basic blocks to their machine code entry.
   DenseMap<const BasicBlock*, MachineBasicBlock *> MBBMap;
 
+  /// A map from swifterror value in a basic block to the virtual register it is
+  /// currently represented by.
+  DenseMap<std::pair<const MachineBasicBlock *, const Value *>, unsigned>
+      SwiftErrorVRegDefMap;
+
+  /// A list of upward exposed vreg uses that need to be satisfied by either a
+  /// copy def or a phi node at the beginning of the basic block representing
+  /// the predecessor(s) swifterror value.
+  DenseMap<std::pair<const MachineBasicBlock *, const Value *>, unsigned>
+      SwiftErrorVRegUpwardsUse;
+
+  /// A map from instructions that define/use a swifterror value to the virtual
+  /// register that represents that def/use.
+  llvm::DenseMap<PointerIntPair<const Instruction *, 1, bool>, unsigned>
+      SwiftErrorVRegDefUses;
+
+  /// The swifterror argument of the current function.
+  const Value *SwiftErrorArg;
+
+  using SwiftErrorValues = SmallVector<const Value*, 1>;
+  /// A function can only have a single swifterror argument. And if it does
+  /// have a swifterror argument, it must be the first entry in
+  /// SwiftErrorVals.
+  SwiftErrorValues SwiftErrorVals;
+
+  /// Get or create the swifterror value virtual register in
+  /// SwiftErrorVRegDefMap for this basic block.
+  unsigned getOrCreateSwiftErrorVReg(const MachineBasicBlock *,
+                                     const Value *);
+
+  /// Set the swifterror virtual register in the SwiftErrorVRegDefMap for this
+  /// basic block.
+  void setCurrentSwiftErrorVReg(const MachineBasicBlock *MBB, const Value *,
+                                unsigned);
+
+  /// Get or create the swifterror value virtual register for a def of a
+  /// swifterror by an instruction.
+  std::pair<unsigned, bool> getOrCreateSwiftErrorVRegDefAt(const Instruction *);
+  std::pair<unsigned, bool>
+  getOrCreateSwiftErrorVRegUseAt(const Instruction *, const MachineBasicBlock *,
+                                 const Value *);
+
   /// ValueMap - Since we emit code for the function a basic block at a time,
   /// we must remember which virtual registers hold the values for
   /// cross-basic-block values.
-  DenseMap<const Value*, unsigned> ValueMap;
+  DenseMap<const Value *, unsigned> ValueMap;
+
+  /// Track virtual registers created for exception pointers.
+  DenseMap<const Value *, unsigned> CatchPadExceptionPointers;
+
+  /// Keep track of frame indices allocated for statepoints as they could be
+  /// used across basic block boundaries.  This struct is more complex than a
+  /// simple map because the stateopint lowering code de-duplicates gc pointers
+  /// based on their SDValue (so %p and (bitcast %p to T) will get the same
+  /// slot), and we track that here.
+
+  struct StatepointSpillMap {
+    using SlotMapTy = DenseMap<const Value *, Optional<int>>;
+
+    /// Maps uniqued llvm IR values to the slots they were spilled in.  If a
+    /// value is mapped to None it means we visited the value but didn't spill
+    /// it (because it was a constant, for instance).
+    SlotMapTy SlotMap;
+
+    /// Maps llvm IR values to the values they were de-duplicated to.
+    DenseMap<const Value *, const Value *> DuplicateMap;
+
+    SlotMapTy::const_iterator find(const Value *V) const {
+      auto DuplIt = DuplicateMap.find(V);
+      if (DuplIt != DuplicateMap.end())
+        V = DuplIt->second;
+      return SlotMap.find(V);
+    }
+
+    SlotMapTy::const_iterator end() const { return SlotMap.end(); }
+  };
+
+  /// Maps gc.statepoint instructions to their corresponding StatepointSpillMap
+  /// instances.
+  DenseMap<const Instruction *, StatepointSpillMap> StatepointSpillMaps;
 
   /// StaticAllocaMap - Keep track of frame indices for fixed sized allocas in
   /// the entry block.  This allows the allocas to be efficiently referenced
@@ -87,24 +167,29 @@ public:
   /// RegFixups - Registers which need to be replaced after isel is done.
   DenseMap<unsigned, unsigned> RegFixups;
 
+  /// StatepointStackSlots - A list of temporary stack slots (frame indices)
+  /// used to spill values at a statepoint.  We store them here to enable
+  /// reuse of the same stack slots across different statepoints in different
+  /// basic blocks.
+  SmallVector<unsigned, 50> StatepointStackSlots;
+
   /// MBB - The current block.
   MachineBasicBlock *MBB;
 
   /// MBB - The current insert position inside the current block.
   MachineBasicBlock::iterator InsertPt;
 
-#ifndef NDEBUG
-  SmallPtrSet<const Instruction *, 8> CatchInfoLost;
-  SmallPtrSet<const Instruction *, 8> CatchInfoFound;
-#endif
-
   struct LiveOutInfo {
     unsigned NumSignBits : 31;
-    bool IsValid : 1;
-    APInt KnownOne, KnownZero;
-    LiveOutInfo() : NumSignBits(0), IsValid(true), KnownOne(1, 0),
-                    KnownZero(1, 0) {}
+    unsigned IsValid : 1;
+    KnownBits Known = 1;
+
+    LiveOutInfo() : NumSignBits(0), IsValid(true) {}
   };
+
+  /// Record the preferred extend type (ISD::SIGN_EXTEND or ISD::ZERO_EXTEND)
+  /// for a value.
+  DenseMap<const Value *, ISD::NodeType> PreferredExtendType;
 
   /// VisitedBBs - The set of basic blocks visited thus far by instruction
   /// selection.
@@ -115,13 +200,12 @@ public:
   /// TODO: This isn't per-function state, it's per-basic-block state. But
   /// there's no other convenient place for it to live right now.
   std::vector<std::pair<MachineInstr*, unsigned> > PHINodesToUpdate;
+  unsigned OrigNumPHINodesToUpdate;
 
   /// If the current MBB is a landing pad, the exception pointer and exception
   /// selector registers are copied into these virtual registers by
   /// SelectionDAGISel::PrepareEHLandingPad().
   unsigned ExceptionPointerVirtReg, ExceptionSelectorVirtReg;
-
-  explicit FunctionLoweringInfo(const TargetMachine &TM) : TM(TM) {}
 
   /// set - Initialize this FunctionLoweringInfo with the given Function
   /// and its associated MachineFunction.
@@ -140,10 +224,13 @@ public:
   }
 
   unsigned CreateReg(MVT VT);
-  
+
   unsigned CreateRegs(Type *Ty);
-  
+
   unsigned InitializeRegForValue(const Value *V) {
+    // Tokens never live in vregs.
+    if (V->getType()->isTokenTy())
+      return 0;
     unsigned &R = ValueMap[V];
     assert(R == 0 && "Already initialized this value register!");
     return R = CreateRegs(V->getType());
@@ -153,11 +240,11 @@ public:
   /// register is a PHI destination and the PHI's LiveOutInfo is not valid.
   const LiveOutInfo *GetLiveOutRegInfo(unsigned Reg) {
     if (!LiveOutRegInfo.inBounds(Reg))
-      return NULL;
+      return nullptr;
 
     const LiveOutInfo *LOI = &LiveOutRegInfo[Reg];
     if (!LOI->IsValid)
-      return NULL;
+      return nullptr;
 
     return LOI;
   }
@@ -171,16 +258,16 @@ public:
 
   /// AddLiveOutRegInfo - Adds LiveOutInfo for a register.
   void AddLiveOutRegInfo(unsigned Reg, unsigned NumSignBits,
-                         const APInt &KnownZero, const APInt &KnownOne) {
+                         const KnownBits &Known) {
     // Only install this information if it tells us something.
-    if (NumSignBits == 1 && KnownZero == 0 && KnownOne == 0)
+    if (NumSignBits == 1 && Known.isUnknown())
       return;
 
     LiveOutRegInfo.grow(Reg);
     LiveOutInfo &LOI = LiveOutRegInfo[Reg];
     LOI.NumSignBits = NumSignBits;
-    LOI.KnownOne = KnownOne;
-    LOI.KnownZero = KnownZero;
+    LOI.Known.One = Known.One;
+    LOI.Known.Zero = Known.Zero;
   }
 
   /// ComputePHILiveOutRegInfo - Compute LiveOutInfo for a PHI's destination
@@ -196,6 +283,9 @@ public:
       return;
 
     unsigned Reg = It->second;
+    if (Reg == 0)
+      return;
+
     LiveOutRegInfo.grow(Reg);
     LiveOutRegInfo[Reg].IsValid = false;
   }
@@ -207,28 +297,16 @@ public:
   /// getArgumentFrameIndex - Get frame index for the byval argument.
   int getArgumentFrameIndex(const Argument *A);
 
+  unsigned getCatchPadExceptionPointerVReg(const Value *CPI,
+                                           const TargetRegisterClass *RC);
+
 private:
+  void addSEHHandlersForLPads(ArrayRef<const LandingPadInst *> LPads);
+
   /// LiveOutRegInfo - Information about live out vregs.
   IndexedMap<LiveOutInfo, VirtReg2IndexFunctor> LiveOutRegInfo;
 };
 
-/// ComputeUsesVAFloatArgument - Determine if any floating-point values are
-/// being passed to this variadic function, and set the MachineModuleInfo's
-/// usesVAFloatArgument flag if so. This flag is used to emit an undefined
-/// reference to _fltused on Windows, which will link in MSVCRT's
-/// floating-point support.
-void ComputeUsesVAFloatArgument(const CallInst &I, MachineModuleInfo *MMI);
-
-/// AddCatchInfo - Extract the personality and type infos from an eh.selector
-/// call, and add them to the specified machine basic block.
-void AddCatchInfo(const CallInst &I,
-                  MachineModuleInfo *MMI, MachineBasicBlock *MBB);
-
-/// AddLandingPadInfo - Extract the exception handling information from the
-/// landingpad instruction and add them to the specified machine module info.
-void AddLandingPadInfo(const LandingPadInst &I, MachineModuleInfo &MMI,
-                       MachineBasicBlock *MBB);
-
 } // end namespace llvm
 
-#endif
+#endif // LLVM_CODEGEN_FUNCTIONLOWERINGINFO_H

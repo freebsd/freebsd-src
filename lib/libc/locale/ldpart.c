@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000, 2001 Alexey Zelkin <phantom@FreeBSD.org>
  * All rights reserved.
  *
@@ -61,7 +63,8 @@ __part_load_locale(const char *name,
 	size_t		namesize, bufsize;
 
 	/* 'name' must be already checked. */
-	if (strcmp(name, "C") == 0 || strcmp(name, "POSIX") == 0) {
+	if (strcmp(name, "C") == 0 || strcmp(name, "POSIX") == 0 ||
+	    strncmp(name, "C.", 2) == 0) {
 		*using_locale = 0;
 		return (_LDP_CACHE);
 	}

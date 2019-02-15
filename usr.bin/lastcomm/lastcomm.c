@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -61,9 +63,9 @@ __FBSDID("$FreeBSD$");
 time_t	 expand(u_int);
 char	*flagbits(int);
 const	 char *getdev(dev_t);
-int	 readrec_forward(FILE *f, struct acctv2 *av2);
-int	 readrec_backward(FILE *f, struct acctv2 *av2);
-int	 requested(char *[], struct acctv2 *);
+int	 readrec_forward(FILE *f, struct acctv3 *av3);
+int	 readrec_backward(FILE *f, struct acctv3 *av3);
+int	 requested(char *[], struct acctv3 *);
 static	 void usage(void);
 
 #define AC_UTIME 1 /* user */
@@ -77,10 +79,10 @@ static	 void usage(void);
 int
 main(int argc, char *argv[])
 {
-	struct acctv2 ab;
+	struct acctv3 ab;
 	char *p;
 	FILE *fp;
-	int (*readrec)(FILE *f, struct acctv2 *av2);
+	int (*readrec)(FILE *f, struct acctv3 *av3);
 	time_t t;
 	int ch, rv;
 	const char *acctfile, *format;
@@ -234,7 +236,7 @@ flagbits(int f)
 }
 
 int
-requested(char *argv[], struct acctv2 *acp)
+requested(char *argv[], struct acctv3 *acp)
 {
 	const char *p;
 

@@ -1,6 +1,8 @@
 /*	$NetBSD: ffs_bswap.c,v 1.28 2004/05/25 14:54:59 hannken Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1998 Manuel Bouyer.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,11 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Manuel Bouyer.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -38,17 +35,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #endif
 
-#include <ufs/ufs/dinode.h>
-#include "ffs/ufs_bswap.h"
-#include <ufs/ffs/fs.h>
-
 #if !defined(_KERNEL)
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define panic(x)	printf("%s\n", (x)), abort()
 #endif
+
+#include <ufs/ufs/dinode.h>
+#include "ffs/ufs_bswap.h"
+#include <ufs/ffs/fs.h>
+#include "ffs/ffs_extern.h"
 
 #define	fs_old_postbloff	fs_spare5[0]
 #define	fs_old_rotbloff		fs_spare5[1]
@@ -67,7 +65,7 @@ void ffs_csumtotal_swap(struct csum_total *o, struct csum_total *n);
 void
 ffs_sb_swap(struct fs *o, struct fs *n)
 {
-	int i;
+	size_t i;
 	u_int32_t *o32, *n32;
 
 	/*
@@ -97,7 +95,7 @@ ffs_sb_swap(struct fs *o, struct fs *n)
 	n->fs_csaddr = bswap64(o->fs_csaddr);
 	n->fs_pendingblocks = bswap64(o->fs_pendingblocks);
 	n->fs_pendinginodes = bswap32(o->fs_pendinginodes);
-	
+
 	/* These fields overlap with the second half of the
 	 * historic FS_42POSTBLFMT postbl table
 	 */
@@ -135,7 +133,8 @@ ffs_dinode1_swap(struct ufs1_dinode *o, struct ufs1_dinode *n)
 	n->di_mtimensec = bswap32(o->di_mtimensec);
 	n->di_ctime = bswap32(o->di_ctime);
 	n->di_ctimensec = bswap32(o->di_ctimensec);
-	memcpy(n->di_db, o->di_db, (NDADDR + NIADDR) * sizeof(u_int32_t));
+	memcpy(n->di_db, o->di_db, sizeof(n->di_db));
+	memcpy(n->di_ib, o->di_ib, sizeof(n->di_ib));
 	n->di_flags = bswap32(o->di_flags);
 	n->di_blocks = bswap32(o->di_blocks);
 	n->di_gen = bswap32(o->di_gen);
@@ -165,15 +164,17 @@ ffs_dinode2_swap(struct ufs2_dinode *o, struct ufs2_dinode *n)
 	n->di_kernflags = bswap32(o->di_kernflags);
 	n->di_flags = bswap32(o->di_flags);
 	n->di_extsize = bswap32(o->di_extsize);
-	memcpy(n->di_extb, o->di_extb, (NXADDR + NDADDR + NIADDR) * 8);
+	memcpy(n->di_extb, o->di_extb, sizeof(n->di_extb));
+	memcpy(n->di_db, o->di_db, sizeof(n->di_db));
+	memcpy(n->di_ib, o->di_ib, sizeof(n->di_ib));
 }
 
 void
 ffs_csum_swap(struct csum *o, struct csum *n, int size)
 {
-	int i;
+	size_t i;
 	u_int32_t *oint, *nint;
-	
+
 	oint = (u_int32_t*)o;
 	nint = (u_int32_t*)n;
 

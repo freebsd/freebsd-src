@@ -2,7 +2,7 @@
 
 MAN=
 
-.include "${.CURDIR}/../Makefile.inc"
+.include "${.CURDIR:H}/Makefile.inc"
 
 .PATH:	${SVNDIR}/svnrdump
 
@@ -10,11 +10,11 @@ PROG=	svn${SVNLITE}rdump
 
 SRCS=	dump_editor.c load_editor.c svnrdump.c util.c
 
-CFLAGS+=-I${SVNDIR}/include -I${SVNDIR} -I${.CURDIR}/.. \
-	-I${.CURDIR}/../lib/libapr \
+CFLAGS+=-I${SVNDIR}/include -I${SVNDIR} -I${.CURDIR:H} \
+	-I${.CURDIR:H}/lib/libapr \
 	-I${APR}/include/arch/unix \
 	-I${APR}/include \
-	-I${.CURDIR}/../lib/libapr_util \
+	-I${.CURDIR:H}/lib/libapr_util \
 	-I${APRU}/include/private \
 	-I${APRU}/include
 
@@ -27,22 +27,20 @@ LDADD=	-L${LIBSVN_CLIENTDIR} -lsvn_client \
 	-L${LIBSVN_REPOSDIR} -lsvn_repos \
 	-L${LIBSVN_FSDIR} -lsvn_fs \
 	-L${LIBSVN_FS_FSDIR} -lsvn_fs_fs \
+	-L${LIBSVN_FS_XDIR} -lsvn_fs_x \
 	-L${LIBSVN_FS_UTILDIR} -lsvn_fs_util \
 	-L${LIBSVN_DELTADIR} -lsvn_delta \
 	-L${LIBSVN_DIFFDIR} -lsvn_diff \
 	-L${LIBSVN_SUBRDIR} -lsvn_subr \
 	-L${LIBSERFDIR} -lserf \
 	-L${LIBAPR_UTILDIR} -lapr-util \
-	-lbsdxml \
-	-L${LIBAPRDIR} -lapr \
-	-L${LIBSQLITEDIR} -lsqlite3 \
-	-lz -lcrypt -lmagic -lcrypto -lssl -lpthread
+	-L${LIBAPRDIR} -lapr
+LIBADD+=	bsdxml sqlite3 z crypto ssl pthread
 
 DPADD=	${LIBSVN_CLIENT} ${LIBSVN_WC} ${LIBSVN_RA} ${LIBSVN_RA_LOCAL} \
 	${LIBSVN_RA_SVN} ${LIBSVN_RA_SERF} ${LIBSVN_REPOS} \
 	${LIBSVN_FS} ${LIBSVN_FS_FS} ${LIBSVN_FS_UTIL} ${LIBSVN_DELTA} \
 	${LIBSVN_DIFF} ${LIBSVN_SUBR} ${LIBSERF} ${LIBAPR_UTIL} \
-	${LIBBSDXML} ${LIBAPR} ${LIBSQLITE} ${LIBZ} ${LIBCRYPT} ${LIBMAGIC} \
-	${LIBCRYPTO} ${LIBSSL} ${LIBPTHREAD}
+	${LIBAPR}
 
 .include <bsd.prog.mk>

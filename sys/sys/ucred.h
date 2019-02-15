@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,6 +38,8 @@
 #include <bsm/audit.h>
 
 struct loginclass;
+
+#define	XU_NGROUPS	16
 
 /*
  * Credentials.
@@ -64,12 +68,11 @@ struct ucred {
 	struct auditinfo_addr	cr_audit;	/* Audit properties. */
 	gid_t	*cr_groups;		/* groups */
 	int	cr_agroups;		/* Available groups */
+	gid_t   cr_smallgroups[XU_NGROUPS];	/* storage for small groups */
 };
 #define	NOCRED	((struct ucred *)0)	/* no credential available */
 #define	FSCRED	((struct ucred *)-1)	/* filesystem credential */
 #endif /* _KERNEL || _WANT_UCRED */
-
-#define	XU_NGROUPS	16
 
 /*
  * Flags for cr_flags.
@@ -104,7 +107,9 @@ void	change_svuid(struct ucred *newcred, uid_t svuid);
 void	crcopy(struct ucred *dest, struct ucred *src);
 struct ucred	*crcopysafe(struct proc *p, struct ucred *cr);
 struct ucred	*crdup(struct ucred *cr);
-void	cred_update_thread(struct thread *td);
+void	crextend(struct ucred *cr, int n);
+void	proc_set_cred_init(struct proc *p, struct ucred *cr);
+struct ucred	*proc_set_cred(struct proc *p, struct ucred *cr);
 void	crfree(struct ucred *cr);
 struct ucred	*crget(void);
 struct ucred	*crhold(struct ucred *cr);

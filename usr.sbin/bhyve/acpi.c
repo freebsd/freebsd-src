@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 NetApp, Inc.
  * All rights reserved.
  *
@@ -116,18 +118,14 @@ struct basl_fio {
 };
 
 #define EFPRINTF(...) \
-	err = fprintf(__VA_ARGS__); if (err < 0) goto err_exit;
+	if (fprintf(__VA_ARGS__) < 0) goto err_exit;
 
 #define EFFLUSH(x) \
-	err = fflush(x); if (err != 0) goto err_exit;
+	if (fflush(x) != 0) goto err_exit;
 
 static int
 basl_fwrite_rsdp(FILE *fp)
 {
-	int err;
-
-	err = 0;
-
 	EFPRINTF(fp, "/*\n");
 	EFPRINTF(fp, " * bhyve RSDP template\n");
 	EFPRINTF(fp, " */\n");
@@ -154,10 +152,6 @@ err_exit:
 static int
 basl_fwrite_rsdt(FILE *fp)
 {
-	int err;
-
-	err = 0;
-
 	EFPRINTF(fp, "/*\n");
 	EFPRINTF(fp, " * bhyve RSDT template\n");
 	EFPRINTF(fp, " */\n");
@@ -194,10 +188,6 @@ err_exit:
 static int
 basl_fwrite_xsdt(FILE *fp)
 {
-	int err;
-
-	err = 0;
-
 	EFPRINTF(fp, "/*\n");
 	EFPRINTF(fp, " * bhyve XSDT template\n");
 	EFPRINTF(fp, " */\n");
@@ -234,10 +224,7 @@ err_exit:
 static int
 basl_fwrite_madt(FILE *fp)
 {
-	int err;
 	int i;
-
-	err = 0;
 
 	EFPRINTF(fp, "/*\n");
 	EFPRINTF(fp, " * bhyve MADT template\n");
@@ -324,10 +311,6 @@ err_exit:
 static int
 basl_fwrite_fadt(FILE *fp)
 {
-	int err;
-
-	err = 0;
-
 	EFPRINTF(fp, "/*\n");
 	EFPRINTF(fp, " * bhyve FADT template\n");
 	EFPRINTF(fp, " */\n");
@@ -386,7 +369,7 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp, "[0001]\t\tDuty Cycle Width : 00\n");
 	EFPRINTF(fp, "[0001]\t\tRTC Day Alarm Index : 00\n");
 	EFPRINTF(fp, "[0001]\t\tRTC Month Alarm Index : 00\n");
-	EFPRINTF(fp, "[0001]\t\tRTC Century Index : 00\n");
+	EFPRINTF(fp, "[0001]\t\tRTC Century Index : 32\n");
 	EFPRINTF(fp, "[0002]\t\tBoot Flags (decoded below) : 0000\n");
 	EFPRINTF(fp, "\t\t\tLegacy Devices Supported (V2) : 0\n");
 	EFPRINTF(fp, "\t\t\t8042 Present on ports 60/64 (V2) : 0\n");
@@ -492,7 +475,7 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp,
 	    "[0012]\t\tPM Timer Block : [Generic Address Structure]\n");
 	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 32\n");
+	EFPRINTF(fp, "[0001]\t\tBit Width : 20\n");
 	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
 	EFPRINTF(fp,
 	    "[0001]\t\tEncoded Access Width : 03 [DWord Access:32]\n");
@@ -502,7 +485,7 @@ basl_fwrite_fadt(FILE *fp)
 
 	EFPRINTF(fp, "[0012]\t\tGPE0 Block : [Generic Address Structure]\n");
 	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 80\n");
+	EFPRINTF(fp, "[0001]\t\tBit Width : 00\n");
 	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
 	EFPRINTF(fp, "[0001]\t\tEncoded Access Width : 01 [Byte Access:8]\n");
 	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000000\n");
@@ -545,10 +528,6 @@ err_exit:
 static int
 basl_fwrite_hpet(FILE *fp)
 {
-	int err;
-
-	err = 0;
-
 	EFPRINTF(fp, "/*\n");
 	EFPRINTF(fp, " * bhyve HPET template\n");
 	EFPRINTF(fp, " */\n");
@@ -594,8 +573,6 @@ err_exit:
 static int
 basl_fwrite_mcfg(FILE *fp)
 {
-	int err = 0;
-
 	EFPRINTF(fp, "/*\n");
 	EFPRINTF(fp, " * bhyve MCFG template\n");
 	EFPRINTF(fp, " */\n");
@@ -627,10 +604,6 @@ err_exit:
 static int
 basl_fwrite_facs(FILE *fp)
 {
-	int err;
-
-	err = 0;
-
 	EFPRINTF(fp, "/*\n");
 	EFPRINTF(fp, " * bhyve FACS template\n");
 	EFPRINTF(fp, " */\n");
@@ -664,7 +637,6 @@ void
 dsdt_line(const char *fmt, ...)
 {
 	va_list ap;
-	int err;
 
 	if (dsdt_error != 0)
 		return;
@@ -673,8 +645,10 @@ dsdt_line(const char *fmt, ...)
 		if (dsdt_indent_level != 0)
 			EFPRINTF(dsdt_fp, "%*c", dsdt_indent_level * 2, ' ');
 		va_start(ap, fmt);
-		if (vfprintf(dsdt_fp, fmt, ap) < 0)
+		if (vfprintf(dsdt_fp, fmt, ap) < 0) {
+			va_end(ap);
 			goto err_exit;
+		}
 		va_end(ap);
 	}
 	EFPRINTF(dsdt_fp, "\n");
@@ -733,9 +707,6 @@ dsdt_fixed_mem32(uint32_t base, uint32_t length)
 static int
 basl_fwrite_dsdt(FILE *fp)
 {
-	int err;
-
-	err = 0;
 	dsdt_fp = fp;
 	dsdt_error = 0;
 	dsdt_indent_level = 0;
@@ -790,10 +761,10 @@ basl_open(struct basl_fio *bf, int suffix)
 	err = 0;
 
 	if (suffix) {
-		strncpy(bf->f_name, basl_stemplate, MAXPATHLEN);
+		strlcpy(bf->f_name, basl_stemplate, MAXPATHLEN);
 		bf->fd = mkstemps(bf->f_name, strlen(BHYVE_ASL_SUFFIX));
 	} else {
-		strncpy(bf->f_name, basl_template, MAXPATHLEN);
+		strlcpy(bf->f_name, basl_template, MAXPATHLEN);
 		bf->fd = mkstemp(bf->f_name);
 	}
 
@@ -914,7 +885,7 @@ basl_make_templates(void)
 	int len;
 
 	err = 0;
-	
+
 	/*
 	 * 
 	 */

@@ -40,14 +40,27 @@ void mpr_describe_devinfo(uint32_t devinfo, char *string, int len);
 extern struct mpr_table_lookup mpr_event_names[];
 extern struct mpr_table_lookup mpr_phystatus_names[];
 extern struct mpr_table_lookup mpr_linkrate_names[];
+extern struct mpr_table_lookup mpr_pcie_linkrate_names[];
+extern struct mpr_table_lookup mpr_iocstatus_string[];
+extern struct mpr_table_lookup mpr_scsi_status_string[];
+extern struct mpr_table_lookup mpr_scsi_taskmgmt_string[];
 
 void mpr_print_iocfacts(struct mpr_softc *, MPI2_IOC_FACTS_REPLY *);
 void mpr_print_portfacts(struct mpr_softc *, MPI2_PORT_FACTS_REPLY *);
-void mpr_print_event(struct mpr_softc *, MPI2_EVENT_NOTIFICATION_REPLY *);
+void mpr_print_evt_generic(struct mpr_softc *, MPI2_EVENT_NOTIFICATION_REPLY *);
 void mpr_print_sasdev0(struct mpr_softc *, MPI2_CONFIG_PAGE_SAS_DEV_0 *);
 void mpr_print_evt_sas(struct mpr_softc *, MPI2_EVENT_NOTIFICATION_REPLY *);
 void mpr_print_expander1(struct mpr_softc *, MPI2_CONFIG_PAGE_EXPANDER_1 *);
 void mpr_print_sasphy0(struct mpr_softc *, MPI2_CONFIG_PAGE_SAS_PHY_0 *);
 void mpr_print_sgl(struct mpr_softc *, struct mpr_command *, int);
 void mpr_print_scsiio_cmd(struct mpr_softc *, struct mpr_command *);
+
+#define MPR_DPRINT_PAGE(sc, level, func, buf)			\
+do {								\
+	if ((sc)->mpr_debug & level)				\
+		mpr_print_##func((sc), buf);			\
+} while (0)
+
+#define MPR_DPRINT_EVENT(sc, func, buf)				\
+	MPR_DPRINT_PAGE(sc, MPR_EVENT, evt_##func, buf)
 #endif

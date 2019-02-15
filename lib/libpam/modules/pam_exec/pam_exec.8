@@ -1,4 +1,6 @@
 .\" Copyright (c) 2001,2003 Networks Associates Technology, Inc.
+.\" Copyright (c) 2017 Dag-Erling Smørgrav
+.\" Copyright (c) 2018 Thomas Munro
 .\" All rights reserved.
 .\"
 .\" Portions of this software were developed for the FreeBSD Project by
@@ -32,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2012
+.Dd August 14, 2018
 .Dt PAM_EXEC 8
 .Os
 .Sh NAME
@@ -55,10 +57,25 @@ if the program name conflicts with an option name.
 .Pp
 The following options may be passed before the program and its
 arguments:
-.Bl -tag -width ".Cm return_prog_exit_status"
+.Bl -tag -width indent
+.It Cm capture_stderr
+Capture text printed by the program to its standard error stream and
+pass it to the conversation function as error messages.
+No attempt is made at buffering the text, so results may vary.
+.It Cm capture_stdout
+Capture text printed by the program to its standard output stream and
+pass it to the conversation function as informational messages.
+No attempt is made at buffering the text, so results may vary.
+.It Cm debug
+Ignored for compatibility reasons.
+.It Cm no_warn
+Ignored for compatibility reasons.
 .It Cm return_prog_exit_status
 Use the program exit status as the return code of the pam_sm_* function.
 It must be a valid return value for this function.
+.It Cm expose_authtok
+Write the authentication token to the program's standard input stream,
+followed by a NUL character.
 .It Cm --
 Stop options parsing;
 program and its arguments follow.

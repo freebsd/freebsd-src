@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013-2014 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
@@ -49,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
@@ -380,15 +381,15 @@ set_clock(struct ccm_softc *sc, char *name)
 				reg &= ~(clk->sel_mask << clk->sel_shift);
 				reg |= (clk->sel_val << clk->sel_shift);
 				WRITE4(sc, clk->sel_reg, reg);
-			};
+			}
 
 			reg = READ4(sc, clk->reg);
 			reg |= clk->enable_reg;
 			reg &= ~(clk->div_mask << clk->div_shift);
 			reg |= (clk->div_val << clk->div_shift);
 			WRITE4(sc, clk->reg, reg);
-		};
-	};
+		}
+	}
 
 	return (0);
 }
@@ -413,12 +414,12 @@ ccm_fdt_set(struct ccm_softc *sc)
 			child = OF_child(child);
 		}
 
-		if (!fdt_is_enabled(child))
+		if (!ofw_bus_node_status_okay(child))
 			continue;
 
 		if ((len = OF_getproplen(child, "clock_names")) > 0) {
 			len = OF_getproplen(child, "clock_names");
-			OF_getprop_alloc(child, "clock_names", 1,
+			OF_getprop_alloc(child, "clock_names",
 			    (void **)&fdt_config);
 
 			while (len > 0) {
@@ -426,8 +427,8 @@ ccm_fdt_set(struct ccm_softc *sc)
 				fdt_config += strlen(name) + 1;
 				len -= strlen(name) + 1;
 				set_clock(sc, name);
-			};
-		};
+			}
+		}
 
 		if (OF_peer(child) == 0) {
 			/* No more siblings. */

@@ -1,4 +1,4 @@
-//===--- AttrIterator.h - Classes for attribute iteration -------*- C++ -*-===//
+//===- AttrIterator.h - Classes for attribute iteration ---------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -15,16 +15,23 @@
 #define LLVM_CLANG_AST_ATTRITERATOR_H
 
 #include "clang/Basic/LLVM.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Casting.h"
+#include <cassert>
+#include <cstddef>
 #include <iterator>
 
 namespace clang {
-  class ASTContext;
-  class Attr;
-}
+
+class ASTContext;
+class Attr;
+
+} // namespace clang
 
 // Defined in ASTContext.h
 void *operator new(size_t Bytes, const clang::ASTContext &C,
-                   size_t Alignment = 16);
+                   size_t Alignment = 8);
+
 // FIXME: Being forced to not have a default argument here due to redeclaration
 //        rules on default arguments sucks
 void *operator new[](size_t Bytes, const clang::ASTContext &C,
@@ -39,21 +46,20 @@ void operator delete[](void *Ptr, const clang::ASTContext &C, size_t);
 namespace clang {
 
 /// AttrVec - A vector of Attr, which is how they are stored on the AST.
-typedef SmallVector<Attr*, 2> AttrVec;
-typedef SmallVector<const Attr*, 2> ConstAttrVec;
+using AttrVec = SmallVector<Attr *, 4>;
 
 /// specific_attr_iterator - Iterates over a subrange of an AttrVec, only
-/// providing attributes that are of a specifc type.
+/// providing attributes that are of a specific type.
 template <typename SpecificAttr, typename Container = AttrVec>
 class specific_attr_iterator {
-  typedef typename Container::const_iterator Iterator;
+  using Iterator = typename Container::const_iterator;
 
   /// Current - The current, underlying iterator.
   /// In order to ensure we don't dereference an invalid iterator unless
   /// specifically requested, we don't necessarily advance this all the
   /// way. Instead, we advance it when an operation is requested; if the
   /// operation is acting on what should be a past-the-end iterator,
-  /// then we offer no guarantees, but this way we do not dererence a
+  /// then we offer no guarantees, but this way we do not dereference a
   /// past-the-end iterator when we move to a past-the-end position.
   mutable Iterator Current;
 
@@ -68,14 +74,14 @@ class specific_attr_iterator {
   }
 
 public:
-  typedef SpecificAttr*             value_type;
-  typedef SpecificAttr*             reference;
-  typedef SpecificAttr*             pointer;
-  typedef std::forward_iterator_tag iterator_category;
-  typedef std::ptrdiff_t            difference_type;
+  using value_type = SpecificAttr *;
+  using reference = SpecificAttr *;
+  using pointer = SpecificAttr *;
+  using iterator_category = std::forward_iterator_tag;
+  using difference_type = std::ptrdiff_t;
 
-  specific_attr_iterator() : Current() { }
-  explicit specific_attr_iterator(Iterator i) : Current(i) { }
+  specific_attr_iterator() = default;
+  explicit specific_attr_iterator(Iterator i) : Current(i) {}
 
   reference operator*() const {
     AdvanceToNext();
@@ -98,7 +104,7 @@ public:
 
   friend bool operator==(specific_attr_iterator Left,
                          specific_attr_iterator Right) {
-    assert((Left.Current == 0) == (Right.Current == 0));
+    assert((Left.Current == nullptr) == (Right.Current == nullptr));
     if (Left.Current < Right.Current)
       Left.AdvanceToNext(Right.Current); 
     else
@@ -134,9 +140,9 @@ inline SpecificAttr *getSpecificAttr(const Container& container) {
   if (i != specific_attr_end<SpecificAttr>(container))
     return *i;
   else
-    return 0;
+    return nullptr;
 }
 
-}  // end namespace clang
+} // namespace clang
 
-#endif
+#endif // LLVM_CLANG_AST_ATTRITERATOR_H

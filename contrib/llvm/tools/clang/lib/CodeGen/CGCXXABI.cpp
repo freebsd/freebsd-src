@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CGCXXABI.h"
+#include "CGCleanup.h"
 
 using namespace clang;
 using namespace CodeGen;
@@ -28,6 +29,12 @@ void CGCXXABI::ErrorUnsupportedABI(CodeGenFunction &CGF, StringRef S) {
     << S;
 }
 
+bool CGCXXABI::canCopyArgument(const CXXRecordDecl *RD) const {
+  // We can only copy the argument if there exists at least one trivial,
+  // non-deleted copy or move constructor.
+  return RD->canPassInRegisters();
+}
+
 llvm::Constant *CGCXXABI::GetBogusMemberPointer(QualType T) {
   return llvm::Constant::getNullValue(CGM.getTypes().ConvertType(T));
 }
@@ -37,27 +44,30 @@ CGCXXABI::ConvertMemberPointerType(const MemberPointerType *MPT) {
   return CGM.getTypes().ConvertType(CGM.getContext().getPointerDiffType());
 }
 
-llvm::Value *CGCXXABI::EmitLoadOfMemberFunctionPointer(CodeGenFunction &CGF,
-                                                       llvm::Value *&This,
-                                                       llvm::Value *MemPtr,
-                                                 const MemberPointerType *MPT) {
+CGCallee CGCXXABI::EmitLoadOfMemberFunctionPointer(
+    CodeGenFunction &CGF, const Expr *E, Address This,
+    llvm::Value *&ThisPtrForCall,
+    llvm::Value *MemPtr, const MemberPointerType *MPT) {
   ErrorUnsupportedABI(CGF, "calls through member pointers");
 
+  ThisPtrForCall = This.getPointer();
   const FunctionProtoType *FPT = 
     MPT->getPointeeType()->getAs<FunctionProtoType>();
   const CXXRecordDecl *RD = 
     cast<CXXRecordDecl>(MPT->getClass()->getAs<RecordType>()->getDecl());
   llvm::FunctionType *FTy = CGM.getTypes().GetFunctionType(
-                              CGM.getTypes().arrangeCXXMethodType(RD, FPT));
-  return llvm::Constant::getNullValue(FTy->getPointerTo());
+      CGM.getTypes().arrangeCXXMethodType(RD, FPT, /*FD=*/nullptr));
+  llvm::Constant *FnPtr = llvm::Constant::getNullValue(FTy->getPointerTo());
+  return CGCallee::forDirect(FnPtr, FPT);
 }
 
-llvm::Value *CGCXXABI::EmitMemberDataPointerAddress(CodeGenFunction &CGF,
-                                                    llvm::Value *Base,
-                                                    llvm::Value *MemPtr,
-                                              const MemberPointerType *MPT) {
+llvm::Value *
+CGCXXABI::EmitMemberDataPointerAddress(CodeGenFunction &CGF, const Expr *E,
+                                       Address Base, llvm::Value *MemPtr,
+                                       const MemberPointerType *MPT) {
   ErrorUnsupportedABI(CGF, "loads of member pointers");
-  llvm::Type *Ty = CGF.ConvertType(MPT->getPointeeType())->getPointerTo();
+  llvm::Type *Ty = CGF.ConvertType(MPT->getPointeeType())
+                         ->getPointerTo(Base.getAddressSpace());
   return llvm::Constant::getNullValue(Ty);
 }
 
@@ -96,10 +106,9 @@ CGCXXABI::EmitNullMemberPointer(const MemberPointerType *MPT) {
   return GetBogusMemberPointer(QualType(MPT, 0));
 }
 
-llvm::Constant *CGCXXABI::EmitMemberPointer(const CXXMethodDecl *MD) {
-  return GetBogusMemberPointer(
-                         CGM.getContext().getMemberPointerType(MD->getType(),
-                                         MD->getParent()->getTypeForDecl()));
+llvm::Constant *CGCXXABI::EmitMemberFunctionPointer(const CXXMethodDecl *MD) {
+  return GetBogusMemberPointer(CGM.getContext().getMemberPointerType(
+      MD->getType(), MD->getParent()->getTypeForDecl()));
 }
 
 llvm::Constant *CGCXXABI::EmitMemberDataPointer(const MemberPointerType *MPT,
@@ -116,25 +125,39 @@ bool CGCXXABI::isZeroInitializable(const MemberPointerType *MPT) {
   return true;
 }
 
-void CGCXXABI::BuildThisParam(CodeGenFunction &CGF, FunctionArgList &params) {
+void CGCXXABI::buildThisParam(CodeGenFunction &CGF, FunctionArgList &params) {
   const CXXMethodDecl *MD = cast<CXXMethodDecl>(CGF.CurGD.getDecl());
 
   // FIXME: I'm not entirely sure I like using a fake decl just for code
   // generation. Maybe we can come up with a better way?
-  ImplicitParamDecl *ThisDecl
-    = ImplicitParamDecl::Create(CGM.getContext(), 0, MD->getLocation(),
-                                &CGM.getContext().Idents.get("this"),
-                                MD->getThisType(CGM.getContext()));
+  auto *ThisDecl = ImplicitParamDecl::Create(
+      CGM.getContext(), nullptr, MD->getLocation(),
+      &CGM.getContext().Idents.get("this"), MD->getThisType(CGM.getContext()),
+      ImplicitParamDecl::CXXThis);
   params.push_back(ThisDecl);
-  getThisDecl(CGF) = ThisDecl;
+  CGF.CXXABIThisDecl = ThisDecl;
+
+  // Compute the presumed alignment of 'this', which basically comes
+  // down to whether we know it's a complete object or not.
+  auto &Layout = CGF.getContext().getASTRecordLayout(MD->getParent());
+  if (MD->getParent()->getNumVBases() == 0 || // avoid vcall in common case
+      MD->getParent()->hasAttr<FinalAttr>() ||
+      !isThisCompleteObject(CGF.CurGD)) {
+    CGF.CXXABIThisAlignment = Layout.getAlignment();
+  } else {
+    CGF.CXXABIThisAlignment = Layout.getNonVirtualAlignment();
+  }
 }
 
-void CGCXXABI::EmitThisParam(CodeGenFunction &CGF) {
+llvm::Value *CGCXXABI::loadIncomingCXXThis(CodeGenFunction &CGF) {
+  return CGF.Builder.CreateLoad(CGF.GetAddrOfLocalVar(getThisDecl(CGF)),
+                                "this");
+}
+
+void CGCXXABI::setCXXABIThisValue(CodeGenFunction &CGF, llvm::Value *ThisPtr) {
   /// Initialize the 'this' slot.
   assert(getThisDecl(CGF) && "no 'this' variable for function");
-  getThisValue(CGF)
-    = CGF.Builder.CreateLoad(CGF.GetAddrOfLocalVar(getThisDecl(CGF)),
-                             "this");
+  CGF.CXXABIThisValue = ThisPtr;
 }
 
 void CGCXXABI::EmitReturnFromThunk(CodeGenFunction &CGF,
@@ -153,14 +176,14 @@ CharUnits CGCXXABI::getArrayCookieSizeImpl(QualType elementType) {
   return CharUnits::Zero();
 }
 
-llvm::Value *CGCXXABI::InitializeArrayCookie(CodeGenFunction &CGF,
-                                             llvm::Value *NewPtr,
-                                             llvm::Value *NumElements,
-                                             const CXXNewExpr *expr,
-                                             QualType ElementType) {
+Address CGCXXABI::InitializeArrayCookie(CodeGenFunction &CGF,
+                                        Address NewPtr,
+                                        llvm::Value *NumElements,
+                                        const CXXNewExpr *expr,
+                                        QualType ElementType) {
   // Should never be called.
   ErrorUnsupportedABI(CGF, "array cookie initialization");
-  return 0;
+  return Address::invalid();
 }
 
 bool CGCXXABI::requiresArrayCookie(const CXXDeleteExpr *expr,
@@ -182,45 +205,33 @@ bool CGCXXABI::requiresArrayCookie(const CXXNewExpr *expr) {
   return expr->getAllocatedType().isDestructedType();
 }
 
-void CGCXXABI::ReadArrayCookie(CodeGenFunction &CGF, llvm::Value *ptr,
+void CGCXXABI::ReadArrayCookie(CodeGenFunction &CGF, Address ptr,
                                const CXXDeleteExpr *expr, QualType eltTy,
                                llvm::Value *&numElements,
                                llvm::Value *&allocPtr, CharUnits &cookieSize) {
   // Derive a char* in the same address space as the pointer.
-  unsigned AS = ptr->getType()->getPointerAddressSpace();
-  llvm::Type *charPtrTy = CGF.Int8Ty->getPointerTo(AS);
-  ptr = CGF.Builder.CreateBitCast(ptr, charPtrTy);
+  ptr = CGF.Builder.CreateElementBitCast(ptr, CGF.Int8Ty);
 
   // If we don't need an array cookie, bail out early.
   if (!requiresArrayCookie(expr, eltTy)) {
-    allocPtr = ptr;
-    numElements = 0;
+    allocPtr = ptr.getPointer();
+    numElements = nullptr;
     cookieSize = CharUnits::Zero();
     return;
   }
 
   cookieSize = getArrayCookieSizeImpl(eltTy);
-  allocPtr = CGF.Builder.CreateConstInBoundsGEP1_64(ptr,
-                                                    -cookieSize.getQuantity());
-  numElements = readArrayCookieImpl(CGF, allocPtr, cookieSize);
+  Address allocAddr =
+    CGF.Builder.CreateConstInBoundsByteGEP(ptr, -cookieSize);
+  allocPtr = allocAddr.getPointer();
+  numElements = readArrayCookieImpl(CGF, allocAddr, cookieSize);
 }
 
 llvm::Value *CGCXXABI::readArrayCookieImpl(CodeGenFunction &CGF,
-                                           llvm::Value *ptr,
+                                           Address ptr,
                                            CharUnits cookieSize) {
   ErrorUnsupportedABI(CGF, "reading a new[] cookie");
   return llvm::ConstantInt::get(CGF.SizeTy, 0);
-}
-
-void CGCXXABI::registerGlobalDtor(CodeGenFunction &CGF,
-                                  const VarDecl &D,
-                                  llvm::Constant *dtor,
-                                  llvm::Constant *addr) {
-  if (D.getTLSKind())
-    CGM.ErrorUnsupported(&D, "non-trivial TLS destruction");
-
-  // The default behavior is to use atexit.
-  CGF.registerGlobalDtorWithAtExit(D, dtor, addr);
 }
 
 /// Returns the adjustment, in bytes, required for the given
@@ -273,20 +284,24 @@ CGCXXABI::EmitCtorCompleteObjectHandler(CodeGenFunction &CGF,
     llvm_unreachable("shouldn't be called in this ABI");
 
   ErrorUnsupportedABI(CGF, "complete object detection in ctor");
-  return 0;
-}
-
-void CGCXXABI::EmitThreadLocalInitFuncs(
-    llvm::ArrayRef<std::pair<const VarDecl *, llvm::GlobalVariable *> > Decls,
-    llvm::Function *InitFunc) {
-}
-
-LValue CGCXXABI::EmitThreadLocalDeclRefExpr(CodeGenFunction &CGF,
-                                          const DeclRefExpr *DRE) {
-  ErrorUnsupportedABI(CGF, "odr-use of thread_local global");
-  return LValue();
+  return nullptr;
 }
 
 bool CGCXXABI::NeedsVTTParameter(GlobalDecl GD) {
   return false;
+}
+
+llvm::CallInst *
+CGCXXABI::emitTerminateForUnexpectedException(CodeGenFunction &CGF,
+                                              llvm::Value *Exn) {
+  // Just call std::terminate and ignore the violating exception.
+  return CGF.EmitNounwindRuntimeCall(CGF.CGM.getTerminateFn());
+}
+
+CatchTypeInfo CGCXXABI::getCatchAllTypeInfo() {
+  return CatchTypeInfo{nullptr, 0};
+}
+
+std::vector<CharUnits> CGCXXABI::getVBPtrOffsets(const CXXRecordDecl *RD) {
+  return std::vector<CharUnits>();
 }

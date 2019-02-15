@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011-2013 Qlogic Corporation
  * All rights reserved.
  *
@@ -105,7 +107,7 @@ typedef struct qla_ivec qla_ivec_t;
 #define QLA_WATCHDOG_CALLOUT_TICKS	1
 
 /*
- * Adapter structure contains the hardware independant information of the
+ * Adapter structure contains the hardware independent information of the
  * pci function.
  */
 struct qla_host {
@@ -200,7 +202,7 @@ struct qla_host {
 typedef struct qla_host qla_host_t;
 
 /* note that align has to be a power of 2 */
-#define QL_ALIGN(size, align) (size + (align - 1)) & ~(align - 1);
+#define QL_ALIGN(size, align) (((size) + ((align) - 1)) & (~((align) - 1)))
 #define QL_MIN(x, y) ((x < y) ? x : y)
 
 #define QL_RUNNING(ifp) \

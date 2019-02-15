@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993 The Regents of the University of California.
  * All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -42,17 +44,6 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
-#ifdef XEN
-extern void xen_cli(void);
-extern void xen_sti(void);
-extern u_int xen_rcr2(void);
-extern void xen_load_cr3(u_int data);
-extern void xen_tlb_flush(void);
-extern void xen_invlpg(u_int addr);
-extern void write_eflags(u_int eflags);
-extern u_int read_eflags(void);
-#endif
-
 struct region_descriptor;
 
 #define readb(va)	(*(volatile uint8_t *) (va))
@@ -71,7 +62,7 @@ breakpoint(void)
 	__asm __volatile("int $3");
 }
 
-static __inline u_int
+static __inline __pure2 u_int
 bsfl(u_int mask)
 {
 	u_int	result;
@@ -80,7 +71,7 @@ bsfl(u_int mask)
 	return (result);
 }
 
-static __inline u_int
+static __inline __pure2 u_int
 bsrl(u_int mask)
 {
 	u_int	result;
@@ -97,6 +88,13 @@ clflush(u_long addr)
 }
 
 static __inline void
+clflushopt(u_long addr)
+{
+
+	__asm __volatile(".byte 0x66;clflush %0" : : "m" (*(char *)addr));
+}
+
+static __inline void
 clts(void)
 {
 
@@ -106,11 +104,8 @@ clts(void)
 static __inline void
 disable_intr(void)
 {
-#ifdef XEN
-	xen_cli();
-#else	
+
 	__asm __volatile("cli" : : : "memory");
-#endif
 }
 
 static __inline void
@@ -132,11 +127,8 @@ cpuid_count(u_int ax, u_int cx, u_int *p)
 static __inline void
 enable_intr(void)
 {
-#ifdef XEN
-	xen_sti();
-#else
+
 	__asm __volatile("sti");
-#endif
 }
 
 static __inline void
@@ -168,11 +160,18 @@ mfence(void)
 	__asm __volatile("mfence" : : : "memory");
 }
 
+static __inline void
+sfence(void)
+{
+
+	__asm __volatile("sfence" : : : "memory");
+}
+
 #ifdef _KERNEL
 
 #define	HAVE_INLINE_FFS
 
-static __inline int
+static __inline __pure2 int
 ffs(int mask)
 {
 	/*
@@ -186,7 +185,7 @@ ffs(int mask)
 
 #define	HAVE_INLINE_FFSL
 
-static __inline int
+static __inline __pure2 int
 ffsl(long mask)
 {
 	return (ffs((int)mask));
@@ -194,7 +193,7 @@ ffsl(long mask)
 
 #define	HAVE_INLINE_FLS
 
-static __inline int
+static __inline __pure2 int
 fls(int mask)
 {
 	return (mask == 0 ? mask : (int)bsrl((u_int)mask) + 1);
@@ -202,7 +201,7 @@ fls(int mask)
 
 #define	HAVE_INLINE_FLSL
 
-static __inline int
+static __inline __pure2 int
 flsl(long mask)
 {
 	return (fls((int)mask));
@@ -325,11 +324,7 @@ ia32_pause(void)
 }
 
 static __inline u_int
-#ifdef XEN
-_read_eflags(void)
-#else	
 read_eflags(void)
-#endif
 {
 	u_int	ef;
 
@@ -344,6 +339,15 @@ rdmsr(u_int msr)
 
 	__asm __volatile("rdmsr" : "=A" (rv) : "c" (msr));
 	return (rv);
+}
+
+static __inline uint32_t
+rdmsr32(u_int msr)
+{
+	uint32_t low;
+
+	__asm __volatile("rdmsr" : "=a" (low) : "c" (msr) : "edx");
+	return (low);
 }
 
 static __inline uint64_t
@@ -364,6 +368,15 @@ rdtsc(void)
 	return (rv);
 }
 
+static __inline uint64_t
+rdtscp(void)
+{
+	uint64_t rv;
+
+	__asm __volatile("rdtscp" : "=A" (rv) : : "ecx");
+	return (rv);
+}
+
 static __inline uint32_t
 rdtsc32(void)
 {
@@ -380,11 +393,7 @@ wbinvd(void)
 }
 
 static __inline void
-#ifdef XEN
-_write_eflags(u_int ef)
-#else
 write_eflags(u_int ef)
-#endif
 {
 	__asm __volatile("pushl %0; popfl" : : "r" (ef));
 }
@@ -416,9 +425,6 @@ rcr2(void)
 {
 	u_int	data;
 
-#ifdef XEN
-	return (xen_rcr2());
-#endif
 	__asm __volatile("movl %%cr2,%0" : "=r" (data));
 	return (data);
 }
@@ -426,11 +432,8 @@ rcr2(void)
 static __inline void
 load_cr3(u_int data)
 {
-#ifdef XEN
-	xen_load_cr3(data);
-#else
+
 	__asm __volatile("movl %0,%%cr3" : : "r" (data) : "memory");
-#endif
 }
 
 static __inline u_int
@@ -457,17 +460,33 @@ rcr4(void)
 	return (data);
 }
 
+static __inline uint64_t
+rxcr(u_int reg)
+{
+	u_int low, high;
+
+	__asm __volatile("xgetbv" : "=a" (low), "=d" (high) : "c" (reg));
+	return (low | ((uint64_t)high << 32));
+}
+
+static __inline void
+load_xcr(u_int reg, uint64_t val)
+{
+	u_int low, high;
+
+	low = val;
+	high = val >> 32;
+	__asm __volatile("xsetbv" : : "c" (reg), "a" (low), "d" (high));
+}
+
 /*
  * Global TLB flush (except for thise for pages marked PG_G)
  */
 static __inline void
 invltlb(void)
 {
-#ifdef XEN
-	xen_tlb_flush();
-#else	
+
 	load_cr3(rcr3());
-#endif
 }
 
 /*
@@ -478,11 +497,7 @@ static __inline void
 invlpg(u_int addr)
 {
 
-#ifdef XEN
-	xen_invlpg(addr);
-#else
 	__asm __volatile("invlpg %0" : : "m" (*(char *)addr) : "memory");
-#endif
 }
 
 static __inline u_short
@@ -628,34 +643,6 @@ load_dr3(u_int dr3)
 }
 
 static __inline u_int
-rdr4(void)
-{
-	u_int	data;
-	__asm __volatile("movl %%dr4,%0" : "=r" (data));
-	return (data);
-}
-
-static __inline void
-load_dr4(u_int dr4)
-{
-	__asm __volatile("movl %0,%%dr4" : : "r" (dr4));
-}
-
-static __inline u_int
-rdr5(void)
-{
-	u_int	data;
-	__asm __volatile("movl %%dr5,%0" : "=r" (data));
-	return (data);
-}
-
-static __inline void
-load_dr5(u_int dr5)
-{
-	__asm __volatile("movl %0,%%dr5" : : "r" (dr5));
-}
-
-static __inline u_int
 rdr6(void)
 {
 	u_int	data;
@@ -746,8 +733,6 @@ void	load_dr0(u_int dr0);
 void	load_dr1(u_int dr1);
 void	load_dr2(u_int dr2);
 void	load_dr3(u_int dr3);
-void	load_dr4(u_int dr4);
-void	load_dr5(u_int dr5);
 void	load_dr6(u_int dr6);
 void	load_dr7(u_int dr7);
 void	load_fs(u_short sel);
@@ -769,8 +754,6 @@ u_int	rdr0(void);
 u_int	rdr1(void);
 u_int	rdr2(void);
 u_int	rdr3(void);
-u_int	rdr4(void);
-u_int	rdr5(void);
 u_int	rdr6(void);
 u_int	rdr7(void);
 uint64_t rdtsc(void);

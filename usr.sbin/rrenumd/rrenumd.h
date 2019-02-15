@@ -1,6 +1,8 @@
 /*	$KAME: rrenumd.h,v 1.2 2000/07/03 02:54:09 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
  *

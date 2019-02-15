@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006-2007 Daniel Roethlisberger <daniel@roe.ch>
  * All rights reserved.
  *
@@ -72,7 +74,7 @@ cmx_pccard_probe(device_t dev)
 }
 
 /*
- * Attach to the pccard, and call bus independant attach and
+ * Attach to the pccard, and call bus independent attach and
  * resource allocation routines.
  */
 static int
@@ -112,4 +114,4 @@ static driver_t cmx_pccard_driver = {
 };
 
 DRIVER_MODULE(cmx, pccard, cmx_pccard_driver, cmx_devclass, 0, 0);
-
+PCCARD_PNP_INFO(cmx_pccard_products);

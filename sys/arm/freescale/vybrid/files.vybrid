@@ -2,19 +2,7 @@
 
 kern/kern_clocksource.c				standard
 
-arm/arm/bus_space_generic.c			standard
-arm/arm/bus_space_asm_generic.S			standard
-arm/arm/cpufunc_asm_armv5.S			standard
-arm/arm/cpufunc_asm_arm10.S			standard
-arm/arm/cpufunc_asm_arm11.S			standard
-arm/arm/cpufunc_asm_armv7.S			standard
-
-arm/arm/bus_space-v6.c				standard
-arm/arm/gic.c					standard
-arm/arm/mpcore_timer.c				standard
-
 arm/freescale/vybrid/vf_machdep.c		standard
-arm/freescale/vybrid/vf_common.c		standard
 arm/freescale/vybrid/vf_ccm.c			standard
 arm/freescale/vybrid/vf_anadig.c		standard
 arm/freescale/vybrid/vf_iomuxc.c		standard

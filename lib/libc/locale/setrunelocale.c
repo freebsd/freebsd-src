@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -18,7 +20,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,7 +40,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define __RUNETYPE_INTERNAL 1
+#define	__RUNETYPE_INTERNAL 1
 
 #include <runetype.h>
 #include <errno.h>
@@ -63,24 +65,16 @@ _Thread_local const _RuneLocale *_ThreadRuneLocale;
 
 extern int __mb_sb_limit;
 
-extern _RuneLocale	*_Read_RuneMagi(FILE *);
+extern _RuneLocale	*_Read_RuneMagi(const char *);
 
 static int		__setrunelocale(struct xlocale_ctype *l, const char *);
-
-#define __collate_substitute_nontrivial (table->__collate_substitute_nontrivial)
-#define __collate_substitute_table_ptr (table->__collate_substitute_table_ptr)
-#define __collate_char_pri_table_ptr (table->__collate_char_pri_table_ptr)
-#define __collate_chain_pri_table (table->__collate_chain_pri_table)
-
 
 static void
 destruct_ctype(void *v)
 {
 	struct xlocale_ctype *l = v;
 
-	if (strcmp(l->runes->__encoding, "EUC") == 0)
-		free(l->runes->__variable);
-	if (&_DefaultRuneLocale != l->runes) 
+	if (&_DefaultRuneLocale != l->runes)
 		free(l->runes);
 	free(l);
 }
@@ -89,18 +83,13 @@ const _RuneLocale *
 __getCurrentRuneLocale(void)
 {
 
-	return XLOCALE_CTYPE(__get_locale())->runes;
+	return (XLOCALE_CTYPE(__get_locale())->runes);
 }
 
 static void
 free_runes(_RuneLocale *rl)
 {
-
-	/* FIXME: The "EUC" check here is a hideous abstraction violation. */
 	if ((rl != &_DefaultRuneLocale) && (rl)) {
-		if (strcmp(rl->__encoding, "EUC") == 0) {
-			free(rl->__variable);
-		}
 		free(rl);
 	}
 }
@@ -108,10 +97,9 @@ free_runes(_RuneLocale *rl)
 static int
 __setrunelocale(struct xlocale_ctype *l, const char *encoding)
 {
-	FILE *fp;
-	char name[PATH_MAX];
 	_RuneLocale *rl;
-	int saverr, ret;
+	int ret;
+	char *path;
 	struct xlocale_ctype saved = *l;
 
 	/*
@@ -124,39 +112,40 @@ __setrunelocale(struct xlocale_ctype *l, const char *encoding)
 	}
 
 	/* Range checking not needed, encoding length already checked before */
-	(void) strcpy(name, _PathLocale);
-	(void) strcat(name, "/");
-	(void) strcat(name, encoding);
-	(void) strcat(name, "/LC_CTYPE");
+	if (asprintf(&path, "%s/%s/LC_CTYPE", _PathLocale, encoding) == -1)
+		return (errno);
 
-	if ((fp = fopen(name, "re")) == NULL)
-		return (errno == 0 ? ENOENT : errno);
-
-	if ((rl = _Read_RuneMagi(fp)) == NULL) {
-		saverr = (errno == 0 ? EFTYPE : errno);
-		(void)fclose(fp);
-		return (saverr);
+	if ((rl = _Read_RuneMagi(path)) == NULL) {
+		free(path);
+		errno = EINVAL;
+		return (errno);
 	}
-	(void)fclose(fp);
+	free(path);
 
 	l->__mbrtowc = NULL;
 	l->__mbsinit = NULL;
-	l->__mbsnrtowcs = __mbsnrtowcs_std;
+	l->__mbsnrtowcs = NULL;
 	l->__wcrtomb = NULL;
-	l->__wcsnrtombs = __wcsnrtombs_std;
+	l->__wcsnrtombs = NULL;
 
 	rl->__sputrune = NULL;
 	rl->__sgetrune = NULL;
-	if (strcmp(rl->__encoding, "NONE") == 0)
-		ret = _none_init(l, rl);
-	else if (strcmp(rl->__encoding, "ASCII") == 0)
+	if (strcmp(rl->__encoding, "NONE:US-ASCII") == 0)
 		ret = _ascii_init(l, rl);
+	else if (strncmp(rl->__encoding, "NONE", 4) == 0)
+		ret = _none_init(l, rl);
 	else if (strcmp(rl->__encoding, "UTF-8") == 0)
 		ret = _UTF8_init(l, rl);
-	else if (strcmp(rl->__encoding, "EUC") == 0)
-		ret = _EUC_init(l, rl);
+	else if (strcmp(rl->__encoding, "EUC-CN") == 0)
+		ret = _EUC_CN_init(l, rl);
+	else if (strcmp(rl->__encoding, "EUC-JP") == 0)
+		ret = _EUC_JP_init(l, rl);
+	else if (strcmp(rl->__encoding, "EUC-KR") == 0)
+		ret = _EUC_KR_init(l, rl);
+	else if (strcmp(rl->__encoding, "EUC-TW") == 0)
+		ret = _EUC_TW_init(l, rl);
 	else if (strcmp(rl->__encoding, "GB18030") == 0)
- 		ret = _GB18030_init(l, rl);
+		ret = _GB18030_init(l, rl);
 	else if (strcmp(rl->__encoding, "GB2312") == 0)
 		ret = _GB2312_init(l, rl);
 	else if (strcmp(rl->__encoding, "GBK") == 0)
@@ -171,6 +160,21 @@ __setrunelocale(struct xlocale_ctype *l, const char *encoding)
 	if (ret == 0) {
 		/* Free the old runes if it exists. */
 		free_runes(saved.runes);
+		/* Reset the mbstates */
+		memset(&l->c16rtomb, 0, sizeof(l->c16rtomb));
+		memset(&l->c32rtomb, 0, sizeof(l->c32rtomb));
+		memset(&l->mblen, 0, sizeof(l->mblen));
+		memset(&l->mbrlen, 0, sizeof(l->mbrlen));
+		memset(&l->mbrtoc16, 0, sizeof(l->mbrtoc16));
+		memset(&l->mbrtoc32, 0, sizeof(l->mbrtoc32));
+		memset(&l->mbrtowc, 0, sizeof(l->mbrtowc));
+		memset(&l->mbsnrtowcs, 0, sizeof(l->mbsnrtowcs));
+		memset(&l->mbsrtowcs, 0, sizeof(l->mbsrtowcs));
+		memset(&l->mbtowc, 0, sizeof(l->mbtowc));
+		memset(&l->wcrtomb, 0, sizeof(l->wcrtomb));
+		memset(&l->wcsnrtombs, 0, sizeof(l->wcsnrtombs));
+		memset(&l->wcsrtombs, 0, sizeof(l->wcsrtombs));
+		memset(&l->wctomb, 0, sizeof(l->wctomb));
 	} else {
 		/* Restore the saved version if this failed. */
 		memcpy(l, &saved, sizeof(struct xlocale_ctype));
@@ -211,15 +215,14 @@ __set_thread_rune_locale(locale_t loc)
 #endif
 
 void *
-__ctype_load(const char *locale, locale_t unused)
+__ctype_load(const char *locale, locale_t unused __unused)
 {
 	struct xlocale_ctype *l = calloc(sizeof(struct xlocale_ctype), 1);
 
 	l->header.header.destructor = destruct_ctype;
-	if (__setrunelocale(l, locale))
-	{
+	if (__setrunelocale(l, locale)) {
 		free(l);
-		return NULL;
+		return (NULL);
 	}
-	return l;
+	return (l);
 }

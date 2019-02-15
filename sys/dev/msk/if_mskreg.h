@@ -46,6 +46,8 @@
  ******************************************************************************/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause AND BSD-3-Clause
+ *
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -1309,7 +1311,7 @@
 #define PHY_ST_EXT_ST	(1<<8)	/* Bit  8:	Extended Status Present */
 #define PHY_ST_PRE_SUP	(1<<6)	/* Bit  6:	Preamble Suppression */
 #define PHY_ST_AN_OVER	(1<<5)	/* Bit  5:	Auto-Negotiation Over */
-#define PHY_ST_REM_FLT	(1<<4)	/* Bit  4:	Remote Fault Condition Occured */
+#define	PHY_ST_REM_FLT	(1<<4)	/* Bit  4:	Remote Fault Condition Occurred */
 #define PHY_ST_AN_CAP	(1<<3)	/* Bit  3:	Auto-Negotiation Capability */
 #define PHY_ST_LSYNC	(1<<2)	/* Bit  2:	Link Synchronized */
 #define PHY_ST_JAB_DET	(1<<1)	/* Bit  1:	Jabber Detected */
@@ -1813,8 +1815,8 @@
 #define GM_GPSR_LINK_UP		BIT_12	/* Link Up Status */
 #define GM_GPSR_PAUSE		BIT_11	/* Pause State */
 #define GM_GPSR_TX_ACTIVE	BIT_10	/* Tx in Progress */
-#define GM_GPSR_EXC_COL		BIT_9	/* Excessive Collisions Occured */
-#define GM_GPSR_LAT_COL		BIT_8	/* Late Collisions Occured */
+#define	GM_GPSR_EXC_COL		BIT_9	/* Excessive Collisions Occurred */
+#define	GM_GPSR_LAT_COL		BIT_8	/* Late Collisions Occurred */
 #define GM_GPSR_PHY_ST_CH	BIT_5	/* PHY Status Change */
 #define GM_GPSR_GIG_SPEED	BIT_4	/* Gigabit Speed (1 = 1000 Mbps) */
 #define GM_GPSR_PART_MODE	BIT_3	/* Partition mode */
@@ -2175,13 +2177,8 @@
 #define MSK_ADDR_LO(x)	((uint64_t) (x) & 0xffffffffUL)
 #define MSK_ADDR_HI(x)	((uint64_t) (x) >> 32)
 
-/*
- * At first I guessed 8 bytes, the size of a single descriptor, would be
- * required alignment constraints. But, it seems that Yukon II have 4096
- * bytes boundary alignment constraints.
- */
-#define MSK_RING_ALIGN	4096
-#define	MSK_STAT_ALIGN	4096
+#define	MSK_RING_ALIGN	32768
+#define	MSK_STAT_ALIGN	32768
 
 /* Rx descriptor data structure */
 struct msk_rx_desc {

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 2013 Nathan Whitehorn
  * All rights reserved.
  *
@@ -290,7 +292,8 @@ vscsi_attach(device_t dev)
 	mtx_init(&sc->io_lock, "vscsi", NULL, MTX_DEF);
 
 	/* Get properties */
-	OF_getprop(ofw_bus_get_node(dev), "reg", &sc->unit, sizeof(sc->unit));
+	OF_getencprop(ofw_bus_get_node(dev), "reg", &sc->unit,
+	    sizeof(sc->unit));
 
 	/* Setup interrupt */
 	sc->irqid = 0;
@@ -428,9 +431,9 @@ vscsi_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_target = 0;
 		cpi->max_lun = 0;
 		cpi->initiator_id = ~0;
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "IBM", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "IBM", HBA_IDLEN);
+		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
 		cpi->bus_id = cam_sim_bus(sim);
 		cpi->base_transfer_speed = 150000;
@@ -931,10 +934,11 @@ vscsi_check_response_queue(struct vscsi_softc *sc)
 
 	mtx_assert(&sc->io_lock, MA_OWNED);
 
-	phyp_hcall(H_VIO_SIGNAL, sc->unit, 0);
-	bus_dmamap_sync(sc->crq_tag, sc->crq_map, BUS_DMASYNC_POSTREAD);
-
 	while (sc->crq_queue[sc->cur_crq].valid != 0) {
+		/* The hypercalls at both ends of this are not optimal */
+		phyp_hcall(H_VIO_SIGNAL, sc->unit, 0);
+		bus_dmamap_sync(sc->crq_tag, sc->crq_map, BUS_DMASYNC_POSTREAD);
+
 		crq = &sc->crq_queue[sc->cur_crq];
 
 		switch (crq->valid) {
@@ -983,9 +987,9 @@ vscsi_check_response_queue(struct vscsi_softc *sc)
 
 		crq->valid = 0;
 		sc->cur_crq = (sc->cur_crq + 1) % sc->n_crqs;
-	};
 
-	bus_dmamap_sync(sc->crq_tag, sc->crq_map, BUS_DMASYNC_PREWRITE);
-	phyp_hcall(H_VIO_SIGNAL, sc->unit, 1);
+		bus_dmamap_sync(sc->crq_tag, sc->crq_map, BUS_DMASYNC_PREWRITE);
+		phyp_hcall(H_VIO_SIGNAL, sc->unit, 1);
+	}
 }
 

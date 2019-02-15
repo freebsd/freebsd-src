@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Daniel Eischen <deischen@FreeBSD.org>.
  * All rights reserved.
  *
@@ -125,6 +127,9 @@ pthread_func_entry_t __thr_jtable[PJT_MAX] = {
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_CLEANUP_PUSH_IMP */
 	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_CANCEL_ENTER */
 	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_CANCEL_LEAVE */
+	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_MUTEX_CONSISTENT */
+	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_MUTEXATTR_GETROBUST */
+	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_MUTEXATTR_SETROBUST */
 };
 
 /*
@@ -226,9 +231,14 @@ STUB_FUNC2(pthread_mutex_init,	PJT_MUTEX_INIT, int, void *, void *)
 STUB_FUNC1(pthread_mutex_lock,	PJT_MUTEX_LOCK, int, void *)
 STUB_FUNC1(pthread_mutex_trylock, PJT_MUTEX_TRYLOCK, int, void *)
 STUB_FUNC1(pthread_mutex_unlock, PJT_MUTEX_UNLOCK, int, void *)
+STUB_FUNC1(pthread_mutex_consistent, PJT_MUTEX_CONSISTENT, int, void *)
 STUB_FUNC1(pthread_mutexattr_destroy, PJT_MUTEXATTR_DESTROY, int, void *)
 STUB_FUNC1(pthread_mutexattr_init, PJT_MUTEXATTR_INIT, int, void *)
 STUB_FUNC2(pthread_mutexattr_settype, PJT_MUTEXATTR_SETTYPE, int, void *, int)
+STUB_FUNC2(pthread_mutexattr_getrobust, PJT_MUTEXATTR_GETROBUST, int, void *,
+    int *)
+STUB_FUNC2(pthread_mutexattr_setrobust, PJT_MUTEXATTR_SETROBUST, int, void *,
+    int)
 STUB_FUNC2(pthread_once, 	PJT_ONCE, int, void *, void *)
 STUB_FUNC1(pthread_rwlock_destroy, PJT_RWLOCK_DESTROY, int, void *)
 STUB_FUNC2(pthread_rwlock_init,	PJT_RWLOCK_INIT, int, void *, void *)
@@ -271,10 +281,11 @@ STUB_FUNC2(pthread_kill, PJT_KILL, int, void *, int)
 STUB_FUNC2(pthread_setcancelstate, PJT_SETCANCELSTATE, int, int, void *)
 STUB_FUNC2(pthread_setcanceltype, PJT_SETCANCELTYPE, int, int, void *)
 STUB_FUNC(pthread_testcancel, PJT_TESTCANCEL, void)
-STUB_FUNC1(__pthread_cleanup_pop_imp, PJT_CLEANUP_POP_IMP, int, int)
-STUB_FUNC2(__pthread_cleanup_push_imp, PJT_CLEANUP_PUSH_IMP, void, void*, void *);
-STUB_FUNC1(_pthread_cancel_enter, PJT_CANCEL_ENTER, int, int)
-STUB_FUNC1(_pthread_cancel_leave, PJT_CANCEL_LEAVE, int, int)
+STUB_FUNC1(__pthread_cleanup_pop_imp, PJT_CLEANUP_POP_IMP, void, int)
+STUB_FUNC3(__pthread_cleanup_push_imp, PJT_CLEANUP_PUSH_IMP, void, void *,
+    void *, void *);
+STUB_FUNC1(_pthread_cancel_enter, PJT_CANCEL_ENTER, void, int)
+STUB_FUNC1(_pthread_cancel_leave, PJT_CANCEL_LEAVE, void, int)
 
 static int
 stub_zero(void)

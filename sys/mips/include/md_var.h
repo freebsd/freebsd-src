@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1995 Bruce D. Evans.
  * All rights reserved.
  *
@@ -52,6 +54,7 @@ extern	int vm_page_dump_size;
 extern vm_offset_t kstack0;
 extern vm_offset_t kernel_kseg0_end;
 
+uint32_t MipsFPID(void);
 void	MipsSaveCurFPState(struct thread *);
 void	fork_trampoline(void);
 uintptr_t MipsEmulateBranch(struct trapframe *, uintptr_t, int, uintptr_t);
@@ -80,4 +83,5 @@ struct	dumperinfo;
 void	dump_add_page(vm_paddr_t);
 void	dump_drop_page(vm_paddr_t);
 int	minidumpsys(struct dumperinfo *);
+
 #endif /* !_MACHINE_MD_VAR_H_ */

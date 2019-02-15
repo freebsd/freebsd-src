@@ -1,4 +1,7 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2006 Peter Wemm
  * Copyright (c) 2008 Semihalf, Grzegorz Bernacki
  * All rights reserved.
  *
@@ -44,28 +47,21 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/atomic.h>
+#include <machine/cpu.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
-#include <machine/vmparam.h>
 #include <machine/minidump.h>
-#include <machine/cpufunc.h>
+#include <machine/vmparam.h>
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
-
-/*
- * Don't touch the first SIZEOF_METADATA bytes on the dump device. This
- * is to protect us from metadata and to protect metadata from us.
- */
-#define	SIZEOF_METADATA		(64*1024)
 
 uint32_t *vm_page_dump;
 int vm_page_dump_size;
 
 static struct kerneldumpheader kdh;
-static off_t dumplo;
 
 /* Handle chunked writes. */
-static size_t fragsz, offset;
+static size_t fragsz;
 static void *dump_va;
 static uint64_t counter, progress;
 
@@ -93,10 +89,8 @@ blk_flush(struct dumperinfo *di)
 	if (fragsz == 0)
 		return (0);
 
-	error = dump_write(di, (char*)dump_va + offset, 0, dumplo, fragsz - offset);
-	dumplo += (fragsz - offset);
+	error = dump_append(di, dump_va, 0, fragsz);
 	fragsz = 0;
-	offset = 0;
 	return (error);
 }
 
@@ -107,36 +101,36 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 	int error, i, c;
 	u_int maxdumpsz;
 
-	maxdumpsz = di->maxiosize;
-
+	maxdumpsz = min(di->maxiosize, MAXDUMPPGS * PAGE_SIZE);
 	if (maxdumpsz == 0)	/* seatbelt */
 		maxdumpsz = PAGE_SIZE;
-
 	error = 0;
-
 	if (ptr != NULL && pa != 0) {
 		printf("cant have both va and pa!\n");
 		return (EINVAL);
 	}
-
+	if (pa != 0) {
+		if ((sz % PAGE_SIZE) != 0) {
+			printf("size not page aligned\n");
+			return (EINVAL);
+		}
+		if ((pa & PAGE_MASK) != 0) {
+			printf("address not page aligned\n");
+			return (EINVAL);
+		}
+	}
 	if (ptr != NULL) {
-		/* If we're doing a virtual dump, flush any pre-existing pa pages */
+		/* Flush any pre-existing pa pages before a virtual dump. */
 		error = blk_flush(di);
 		if (error)
 			return (error);
 	}
-
 	while (sz) {
-		if (fragsz == 0) {
-			offset = pa & PAGE_MASK;
-			fragsz += offset;
-		}
 		len = maxdumpsz - fragsz;
 		if (len > sz)
 			len = sz;
 		counter += len;
 		progress -= len;
-
 		if (counter >> 22) {
 			printf(" %lld", PG2MB(progress >> PAGE_SHIFT));
 			counter &= (1<<22) - 1;
@@ -146,10 +140,9 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 		wdog_kern_pat(WD_LASTVAL);
 #endif
 		if (ptr) {
-			error = dump_write(di, ptr, 0, dumplo, len);
+			error = dump_append(di, ptr, 0, len);
 			if (error)
 				return (error);
-			dumplo += len;
 			ptr += len;
 			sz -= len;
 		} else {
@@ -177,24 +170,9 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 	return (0);
 }
 
-static int
-blk_write_cont(struct dumperinfo *di, vm_paddr_t pa, size_t sz)
-{
-	int error;
-
-	error = blk_write(di, 0, pa, sz);
-	if (error)
-		return (error);
-
-	error = blk_flush(di);
-	if (error)
-		return (error);
-
-	return (0);
-}
-
-/* A fake page table page, to avoid having to handle both 4K and 2M pages */
-static pt_entry_t fakept[NPTEPG];
+/* A buffer for general use. Its size must be one page at least. */
+static char dumpbuf[PAGE_SIZE];
+CTASSERT(sizeof(dumpbuf) % sizeof(pt2_entry_t) == 0);
 
 int
 minidumpsys(struct dumperinfo *di)
@@ -205,9 +183,7 @@ minidumpsys(struct dumperinfo *di)
 	uint32_t bits;
 	uint32_t pa, prev_pa = 0, count = 0;
 	vm_offset_t va;
-	pd_entry_t *pdp;
-	pt_entry_t *pt, *ptp;
-	int i, k, bit, error;
+	int i, bit, error;
 	char *addr;
 
 	/*
@@ -219,61 +195,22 @@ minidumpsys(struct dumperinfo *di)
 	 * by time we get to here, all that remains is to flush the L1 for the
 	 * current CPU, then the L2.
 	 */
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	counter = 0;
 	/* Walk page table pages, set bits in vm_page_dump */
 	ptesize = 0;
-	for (va = KERNBASE; va < kernel_vm_end; va += NBPDR) {
-		/*
-		 * We always write a page, even if it is zero. Each
-		 * page written corresponds to 2MB of space
-		 */
-		ptesize += L2_TABLE_SIZE_REAL;
-		pmap_get_pde_pte(pmap_kernel(), va, &pdp, &ptp);
-		if (pmap_pde_v(pdp) && pmap_pde_section(pdp)) {
-			/* This is a section mapping 1M page. */
-			pa = (*pdp & L1_S_ADDR_MASK) | (va & ~L1_S_ADDR_MASK);
-			for (k = 0; k < (L1_S_SIZE / PAGE_SIZE); k++) {
-				if (is_dumpable(pa))
-					dump_add_page(pa);
-				pa += PAGE_SIZE;
-			}
-			continue;
-		}
-		if (pmap_pde_v(pdp) && pmap_pde_page(pdp)) {
-			/* Set bit for each valid page in this 1MB block */
-			addr = pmap_kenter_temporary(*pdp & L1_C_ADDR_MASK, 0);
-			pt = (pt_entry_t*)(addr +
-			    (((uint32_t)*pdp  & L1_C_ADDR_MASK) & PAGE_MASK));
-			for (k = 0; k < 256; k++) {
-				if ((pt[k] & L2_TYPE_MASK) == L2_TYPE_L) {
-					pa = (pt[k] & L2_L_FRAME) |
-					    (va & L2_L_OFFSET);
-					for (i = 0; i < 16; i++) {
-						if (is_dumpable(pa))
-							dump_add_page(pa);
-						k++;
-						pa += PAGE_SIZE;
-					}
-				} else if ((pt[k] & L2_TYPE_MASK) == L2_TYPE_S) {
-					pa = (pt[k] & L2_S_FRAME) |
-					    (va & L2_S_OFFSET);
-					if (is_dumpable(pa))
-						dump_add_page(pa);
-				}
-			}
-		} else {
-			/* Nothing, we're going to dump a null page */
-		}
+	for (va = KERNBASE; va < kernel_vm_end; va += PAGE_SIZE) {
+		pa = pmap_dump_kextract(va, NULL);
+		if (pa != 0 && is_dumpable(pa))
+			dump_add_page(pa);
+		ptesize += sizeof(pt2_entry_t);
 	}
 
 	/* Calculate dump size. */
 	dumpsize = ptesize;
 	dumpsize += round_page(msgbufp->msg_size);
 	dumpsize += round_page(vm_page_dump_size);
-
 	for (i = 0; i < vm_page_dump_size / sizeof(*vm_page_dump); i++) {
 		bits = vm_page_dump[i];
 		while (bits) {
@@ -288,17 +225,8 @@ minidumpsys(struct dumperinfo *di)
 			bits &= ~(1ul << bit);
 		}
 	}
-
 	dumpsize += PAGE_SIZE;
 
-	/* Determine dump offset on device. */
-	if (di->mediasize < SIZEOF_METADATA + dumpsize + sizeof(kdh) * 2) {
-		error = ENOSPC;
-		goto fail;
-	}
-
-	dumplo = di->mediaoffset + di->mediasize - dumpsize;
-	dumplo -= sizeof(kdh) * 2;
 	progress = dumpsize;
 
 	/* Initialize mdhdr */
@@ -309,28 +237,32 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.bitmapsize = vm_page_dump_size;
 	mdhdr.ptesize = ptesize;
 	mdhdr.kernbase = KERNBASE;
+	mdhdr.arch = __ARM_ARCH;
+#if __ARM_ARCH >= 6
+	mdhdr.mmuformat = MINIDUMP_MMU_FORMAT_V6;
+#else
+	mdhdr.mmuformat = MINIDUMP_MMU_FORMAT_V4;
+#endif
+	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_ARM_VERSION,
+	    dumpsize);
 
-	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_ARM_VERSION, dumpsize,
-	    di->blocksize);
+	error = dump_start(di, &kdh);
+	if (error != 0)
+		goto fail;
 
 	printf("Physical memory: %u MB\n", ptoa((uintmax_t)physmem) / 1048576);
 	printf("Dumping %llu MB:", (long long)dumpsize >> 20);
 
-	/* Dump leader */
-	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
-	if (error)
-		goto fail;
-	dumplo += sizeof(kdh);
-
 	/* Dump my header */
-	bzero(&fakept, sizeof(fakept));
-	bcopy(&mdhdr, &fakept, sizeof(mdhdr));
-	error = blk_write(di, (char *)&fakept, 0, PAGE_SIZE);
+	bzero(dumpbuf, sizeof(dumpbuf));
+	bcopy(&mdhdr, dumpbuf, sizeof(mdhdr));
+	error = blk_write(di, dumpbuf, 0, PAGE_SIZE);
 	if (error)
 		goto fail;
 
 	/* Dump msgbuf up front */
-	error = blk_write(di, (char *)msgbufp->msg_ptr, 0, round_page(msgbufp->msg_size));
+	error = blk_write(di, (char *)msgbufp->msg_ptr, 0,
+	    round_page(msgbufp->msg_size));
 	if (error)
 		goto fail;
 
@@ -341,81 +273,21 @@ minidumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump kernel page table pages */
-	for (va = KERNBASE; va < kernel_vm_end; va += NBPDR) {
-		/* We always write a page, even if it is zero */
-		pmap_get_pde_pte(pmap_kernel(), va, &pdp, &ptp);
-
-		if (pmap_pde_v(pdp) && pmap_pde_section(pdp))  {
-			if (count) {
-				error = blk_write_cont(di, prev_pa,
-				    count * L2_TABLE_SIZE_REAL);
-				if (error)
-					goto fail;
-				count = 0;
-				prev_pa = 0;
-			}
-			/* This is a single 2M block. Generate a fake PTP */
-			pa = (*pdp & L1_S_ADDR_MASK) | (va & ~L1_S_ADDR_MASK);
-			for (k = 0; k < (L1_S_SIZE / PAGE_SIZE); k++) {
-				fakept[k] = L2_S_PROTO | (pa + (k * PAGE_SIZE)) |
-				    L2_S_PROT(PTE_KERNEL,
-				    VM_PROT_READ | VM_PROT_WRITE);
-			}
-			error = blk_write(di, (char *)&fakept, 0,
-			    L2_TABLE_SIZE_REAL);
-			if (error)
+	addr = dumpbuf;
+	for (va = KERNBASE; va < kernel_vm_end; va += PAGE_SIZE) {
+		pmap_dump_kextract(va, (pt2_entry_t *)addr);
+		addr += sizeof(pt2_entry_t);
+		if (addr == dumpbuf + sizeof(dumpbuf)) {
+			error = blk_write(di, dumpbuf, 0, sizeof(dumpbuf));
+			if (error != 0)
 				goto fail;
-			/* Flush, in case we reuse fakept in the same block */
-			error = blk_flush(di);
-			if (error)
-				goto fail;
-			continue;
-		}
-		if (pmap_pde_v(pdp) && pmap_pde_page(pdp)) {
-			pa = *pdp & L1_C_ADDR_MASK;
-			if (!count) {
-				prev_pa = pa;
-				count++;
-			}
-			else {
-				if (pa == (prev_pa + count * L2_TABLE_SIZE_REAL))
-					count++;
-				else {
-					error = blk_write_cont(di, prev_pa,
-					    count * L2_TABLE_SIZE_REAL);
-					if (error)
-						goto fail;
-					count = 1;
-					prev_pa = pa;
-				}
-			}
-		} else {
-			if (count) {
-				error = blk_write_cont(di, prev_pa,
-				    count * L2_TABLE_SIZE_REAL);
-				if (error)
-					goto fail;
-				count = 0;
-				prev_pa = 0;
-			}
-			bzero(fakept, sizeof(fakept));
-			error = blk_write(di, (char *)&fakept, 0,
-			    L2_TABLE_SIZE_REAL);
-			if (error)
-				goto fail;
-			/* Flush, in case we reuse fakept in the same block */
-			error = blk_flush(di);
-			if (error)
-				goto fail;
+			addr = dumpbuf;
 		}
 	}
-
-	if (count) {
-		error = blk_write_cont(di, prev_pa, count * L2_TABLE_SIZE_REAL);
-		if (error)
+	if (addr != dumpbuf) {
+		error = blk_write(di, dumpbuf, 0, addr - dumpbuf);
+		if (error != 0)
 			goto fail;
-		count = 0;
-		prev_pa = 0;
 	}
 
 	/* Dump memory chunks */
@@ -432,7 +304,7 @@ minidumpsys(struct dumperinfo *di)
 				if (pa == (prev_pa + count * PAGE_SIZE))
 					count++;
 				else {
-					error = blk_write_cont(di, prev_pa,
+					error = blk_write(di, NULL, prev_pa,
 					    count * PAGE_SIZE);
 					if (error)
 						goto fail;
@@ -444,21 +316,21 @@ minidumpsys(struct dumperinfo *di)
 		}
 	}
 	if (count) {
-		error = blk_write_cont(di, prev_pa, count * PAGE_SIZE);
+		error = blk_write(di, NULL, prev_pa, count * PAGE_SIZE);
 		if (error)
 			goto fail;
 		count = 0;
 		prev_pa = 0;
 	}
 
-	/* Dump trailer */
-	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
+	error = blk_flush(di);
 	if (error)
 		goto fail;
-	dumplo += sizeof(kdh);
 
-	/* Signal completion, signoff and exit stage left. */
-	dump_write(di, NULL, 0, 0, 0);
+	error = dump_finish(di, &kdh);
+	if (error != 0)
+		goto fail;
+
 	printf("\nDump complete\n");
 	return (0);
 
@@ -468,7 +340,7 @@ fail:
 
 	if (error == ECANCELED)
 		printf("\nDump aborted\n");
-	else if (error == ENOSPC)
+	else if (error == E2BIG || error == ENOSPC)
 		printf("\nDump failed. Partition too small.\n");
 	else
 		printf("\n** DUMP FAILED (ERROR %d) **\n", error);

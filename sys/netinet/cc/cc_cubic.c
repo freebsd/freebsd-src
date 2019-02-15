@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008-2010 Lawrence Stewart <lstewart@freebsd.org>
  * Copyright (c) 2010 The FreeBSD Foundation
  * All rights reserved.
@@ -59,11 +61,11 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 
-#include <netinet/cc.h>
+#include <netinet/tcp.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
-
+#include <netinet/cc/cc.h>
 #include <netinet/cc/cc_cubic.h>
 #include <netinet/cc/cc_module.h>
 
@@ -86,6 +88,8 @@ struct cubic {
 	unsigned long	max_cwnd;
 	/* cwnd at the previous congestion event. */
 	unsigned long	prev_max_cwnd;
+	/* Cached value for t_maxseg when K was computed */
+	uint32_t        k_maxseg;
 	/* Number of congestion events. */
 	uint32_t	num_cong_events;
 	/* Minimum observed rtt in ticks. */
@@ -122,6 +126,9 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 	cubic_data = ccv->cc_data;
 	cubic_record_rtt(ccv);
 
+	if (ccv->flags & CCF_MAX_CWND)
+		return;
+
 	/*
 	 * Regular ACK and we're not in cong/fast recovery and we're cwnd
 	 * limited and we're either not doing ABC or are slow starting or are
@@ -143,11 +150,17 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 			 * the I-D. Using min_rtt in the tf_cwnd calculation
 			 * causes w_tf to grow much faster than it should if the
 			 * RTT is dominated by network buffering rather than
-			 * propogation delay.
+			 * propagation delay.
 			 */
 			w_tf = tf_cwnd(ticks_since_cong,
 			    cubic_data->mean_rtt_ticks, cubic_data->max_cwnd,
 			    CCV(ccv, t_maxseg));
+
+			if (ccv->flags & CCF_CHG_MAX_CWND || cubic_data->k_maxseg != CCV(ccv, t_maxseg)) {
+				cubic_data->K = cubic_k(cubic_data->max_cwnd / CCV(ccv, t_maxseg));
+				cubic_data->k_maxseg = CCV(ccv, t_maxseg);
+				ccv->flags &= ~(CCF_MAX_CWND|CCF_CHG_MAX_CWND);
+			}
 
 			w_cubic_next = cubic_cwnd(ticks_since_cong +
 			    cubic_data->mean_rtt_ticks, cubic_data->max_cwnd,
@@ -160,13 +173,18 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 				 * TCP-friendly region, follow tf
 				 * cwnd growth.
 				 */
-				CCV(ccv, snd_cwnd) = w_tf;
+				CCV(ccv, snd_cwnd) = ulmin(w_tf, TCP_MAXWIN << CCV(ccv, snd_scale));
 
 			else if (CCV(ccv, snd_cwnd) < w_cubic_next) {
 				/*
 				 * Concave or convex region, follow CUBIC
 				 * cwnd growth.
 				 */
+				if (w_cubic_next >= TCP_MAXWIN << CCV(ccv, snd_scale)) {
+					w_cubic_next = TCP_MAXWIN << CCV(ccv, snd_scale);
+					ccv->flags |= CCF_MAX_CWND;
+				}
+				w_cubic_next = ulmin(w_cubic_next, TCP_MAXWIN << CCV(ccv, snd_scale));
 				if (V_tcp_do_rfc3465)
 					CCV(ccv, snd_cwnd) = w_cubic_next;
 				else
@@ -184,8 +202,10 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 			 * max_cwnd.
 			 */
 			if (cubic_data->num_cong_events == 0 &&
-			    cubic_data->max_cwnd < CCV(ccv, snd_cwnd))
+			    cubic_data->max_cwnd < CCV(ccv, snd_cwnd)) {
 				cubic_data->max_cwnd = CCV(ccv, snd_cwnd);
+				ccv->flags |= CCF_CHG_MAX_CWND;
+			}
 		}
 	}
 }
@@ -193,9 +213,7 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 static void
 cubic_cb_destroy(struct cc_var *ccv)
 {
-
-	if (ccv->cc_data != NULL)
-		free(ccv->cc_data, M_CUBIC);
+	free(ccv->cc_data, M_CUBIC);
 }
 
 static int
@@ -236,6 +254,7 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 				cubic_data->num_cong_events++;
 				cubic_data->prev_max_cwnd = cubic_data->max_cwnd;
 				cubic_data->max_cwnd = CCV(ccv, snd_cwnd);
+				ccv->flags |= CCF_CHG_MAX_CWND;
 			}
 			ENTER_RECOVERY(CCV(ccv, t_flags));
 		}
@@ -248,6 +267,8 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 			cubic_data->prev_max_cwnd = cubic_data->max_cwnd;
 			cubic_data->max_cwnd = CCV(ccv, snd_cwnd);
 			cubic_data->t_last_cong = ticks;
+			ccv->flags |= CCF_CHG_MAX_CWND;
+			ccv->flags &= ~CCF_MAX_CWND;
 			CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
 			ENTER_CONGRECOVERY(CCV(ccv, t_flags));
 		}
@@ -261,9 +282,11 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 		 * chance the first one is a false alarm and may not indicate
 		 * congestion.
 		 */
-		if (CCV(ccv, t_rxtshift) >= 2)
+		if (CCV(ccv, t_rxtshift) >= 2) {
 			cubic_data->num_cong_events++;
 			cubic_data->t_last_cong = ticks;
+			ccv->flags &= ~CCF_MAX_CWND;
+		}
 		break;
 	}
 }
@@ -281,6 +304,7 @@ cubic_conn_init(struct cc_var *ccv)
 	 * get used.
 	 */
 	cubic_data->max_cwnd = CCV(ccv, snd_cwnd);
+	ccv->flags |= CCF_CHG_MAX_CWND;
 }
 
 static int
@@ -299,13 +323,17 @@ static void
 cubic_post_recovery(struct cc_var *ccv)
 {
 	struct cubic *cubic_data;
+	int pipe;
 
 	cubic_data = ccv->cc_data;
+	pipe = 0;
 
 	/* Fast convergence heuristic. */
-	if (cubic_data->max_cwnd < cubic_data->prev_max_cwnd)
+	if (cubic_data->max_cwnd < cubic_data->prev_max_cwnd) {
 		cubic_data->max_cwnd = (cubic_data->max_cwnd * CUBIC_FC_FACTOR)
 		    >> CUBIC_SHIFT;
+		ccv->flags |= CCF_CHG_MAX_CWND;
+	}
 
 	if (IN_FASTRECOVERY(CCV(ccv, t_flags))) {
 		/*
@@ -315,16 +343,20 @@ cubic_post_recovery(struct cc_var *ccv)
 		 *
 		 * XXXLAS: Find a way to do this without needing curack
 		 */
-		if (SEQ_GT(ccv->curack + CCV(ccv, snd_ssthresh),
-		    CCV(ccv, snd_max)))
-			CCV(ccv, snd_cwnd) = CCV(ccv, snd_max) - ccv->curack +
-			    CCV(ccv, t_maxseg);
+		if (V_tcp_do_rfc6675_pipe)
+			pipe = tcp_compute_pipe(ccv->ccvc.tcp);
+		else
+			pipe = CCV(ccv, snd_max) - ccv->curack;
+
+		if (pipe < CCV(ccv, snd_ssthresh))
+			CCV(ccv, snd_cwnd) = pipe + CCV(ccv, t_maxseg);
 		else
 			/* Update cwnd based on beta and adjusted max_cwnd. */
 			CCV(ccv, snd_cwnd) = max(1, ((CUBIC_BETA *
 			    cubic_data->max_cwnd) >> CUBIC_SHIFT));
 	}
 	cubic_data->t_last_cong = ticks;
+	ccv->flags &= ~CCF_MAX_CWND;
 
 	/* Calculate the average RTT between congestion epochs. */
 	if (cubic_data->epoch_ack_count > 0 &&
@@ -335,7 +367,6 @@ cubic_post_recovery(struct cc_var *ccv)
 
 	cubic_data->epoch_ack_count = 0;
 	cubic_data->sum_rtt_ticks = 0;
-	cubic_data->K = cubic_k(cubic_data->max_cwnd / CCV(ccv, t_maxseg));
 }
 
 /*
@@ -398,8 +429,8 @@ cubic_ssthresh_update(struct cc_var *ccv)
 	if (cubic_data->num_cong_events == 0)
 		CCV(ccv, snd_ssthresh) = CCV(ccv, snd_cwnd) >> 1;
 	else
-		CCV(ccv, snd_ssthresh) = (CCV(ccv, snd_cwnd) * CUBIC_BETA)
-		    >> CUBIC_SHIFT;
+		CCV(ccv, snd_ssthresh) = ((u_long)CCV(ccv, snd_cwnd) *
+		    CUBIC_BETA) >> CUBIC_SHIFT;
 }
 
 

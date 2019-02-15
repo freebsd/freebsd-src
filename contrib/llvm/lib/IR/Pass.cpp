@@ -14,12 +14,25 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Pass.h"
-#include "llvm/Assembly/PrintModulePass.h"
+#include "llvm/IR/Attributes.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/IRPrintingPasses.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LegacyPassNameParser.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/OptBisect.h"
+#include "llvm/PassInfo.h"
 #include "llvm/PassRegistry.h"
+#include "llvm/PassSupport.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/PassNameParser.h"
 #include "llvm/Support/raw_ostream.h"
+#include <cassert>
+
 using namespace llvm;
+
+#define DEBUG_TYPE "ir"
 
 //===----------------------------------------------------------------------===//
 // Pass Implementation
@@ -31,19 +44,23 @@ Pass::~Pass() {
 }
 
 // Force out-of-line virtual method.
-ModulePass::~ModulePass() { }
+ModulePass::~ModulePass() = default;
 
-Pass *ModulePass::createPrinterPass(raw_ostream &O,
+Pass *ModulePass::createPrinterPass(raw_ostream &OS,
                                     const std::string &Banner) const {
-  return createPrintModulePass(&O, false, Banner);
+  return createPrintModulePass(OS, Banner);
 }
 
 PassManagerType ModulePass::getPotentialPassManagerType() const {
   return PMT_ModulePassManager;
 }
 
+bool ModulePass::skipModule(Module &M) const {
+  return !M.getContext().getOptBisect().shouldRunPass(this, M);
+}
+
 bool Pass::mustPreserveAnalysisID(char &AID) const {
-  return Resolver->getAnalysisIfAvailable(&AID, true) != 0;
+  return Resolver->getAnalysisIfAvailable(&AID, true) != nullptr;
 }
 
 // dumpPassStructure - Implement the -debug-pass=Structure option
@@ -54,8 +71,7 @@ void Pass::dumpPassStructure(unsigned Offset) {
 /// getPassName - Return a nice clean name for a pass.  This usually
 /// implemented in terms of the name that is registered by one of the
 /// Registration templates, but can be overloaded directly.
-///
-const char *Pass::getPassName() const {
+StringRef Pass::getPassName() const {
   AnalysisID AID =  getPassID();
   const PassInfo *PI = PassRegistry::getPassRegistry()->getPassInfo(AID);
   if (PI)
@@ -89,11 +105,11 @@ void *Pass::getAdjustedAnalysisPointer(AnalysisID AID) {
 }
 
 ImmutablePass *Pass::getAsImmutablePass() {
-  return 0;
+  return nullptr;
 }
 
 PMDataManager *Pass::getAsPMDataManager() {
-  return 0;
+  return nullptr;
 }
 
 void Pass::setResolver(AnalysisResolver *AR) {
@@ -104,21 +120,22 @@ void Pass::setResolver(AnalysisResolver *AR) {
 // print - Print out the internal state of the pass.  This is called by Analyze
 // to print out the contents of an analysis.  Otherwise it is not necessary to
 // implement this method.
-//
-void Pass::print(raw_ostream &O,const Module*) const {
-  O << "Pass::print not implemented for pass: '" << getPassName() << "'!\n";
+void Pass::print(raw_ostream &OS, const Module *) const {
+  OS << "Pass::print not implemented for pass: '" << getPassName() << "'!\n";
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 // dump - call print(cerr);
-void Pass::dump() const {
-  print(dbgs(), 0);
+LLVM_DUMP_METHOD void Pass::dump() const {
+  print(dbgs(), nullptr);
 }
+#endif
 
 //===----------------------------------------------------------------------===//
 // ImmutablePass Implementation
 //
 // Force out-of-line virtual method.
-ImmutablePass::~ImmutablePass() { }
+ImmutablePass::~ImmutablePass() = default;
 
 void ImmutablePass::initializePass() {
   // By default, don't do anything.
@@ -128,22 +145,34 @@ void ImmutablePass::initializePass() {
 // FunctionPass Implementation
 //
 
-Pass *FunctionPass::createPrinterPass(raw_ostream &O,
+Pass *FunctionPass::createPrinterPass(raw_ostream &OS,
                                       const std::string &Banner) const {
-  return createPrintFunctionPass(Banner, &O);
+  return createPrintFunctionPass(OS, Banner);
 }
 
 PassManagerType FunctionPass::getPotentialPassManagerType() const {
   return PMT_FunctionPassManager;
 }
 
+bool FunctionPass::skipFunction(const Function &F) const {
+  if (!F.getContext().getOptBisect().shouldRunPass(this, F))
+    return true;
+
+  if (F.hasFnAttribute(Attribute::OptimizeNone)) {
+    DEBUG(dbgs() << "Skipping pass '" << getPassName() << "' on function "
+                 << F.getName() << "\n");
+    return true;
+  }
+  return false;
+}
+
 //===----------------------------------------------------------------------===//
 // BasicBlockPass Implementation
 //
 
-Pass *BasicBlockPass::createPrinterPass(raw_ostream &O,
+Pass *BasicBlockPass::createPrinterPass(raw_ostream &OS,
                                         const std::string &Banner) const {
-  return createPrintBasicBlockPass(&O, false, Banner);
+  return createPrintBasicBlockPass(OS, Banner);
 }
 
 bool BasicBlockPass::doInitialization(Function &) {
@@ -153,6 +182,22 @@ bool BasicBlockPass::doInitialization(Function &) {
 
 bool BasicBlockPass::doFinalization(Function &) {
   // By default, don't do anything.
+  return false;
+}
+
+bool BasicBlockPass::skipBasicBlock(const BasicBlock &BB) const {
+  const Function *F = BB.getParent();
+  if (!F)
+    return false;
+  if (!F->getContext().getOptBisect().shouldRunPass(this, BB))
+    return true;
+  if (F->hasFnAttribute(Attribute::OptimizeNone)) {
+    // Report this only once per function.
+    if (&BB == &F->getEntryBlock())
+      DEBUG(dbgs() << "Skipping pass '" << getPassName()
+            << "' on function " << F->getName() << "\n");
+    return true;
+  }
   return false;
 }
 
@@ -171,16 +216,8 @@ const PassInfo *Pass::lookupPassInfo(StringRef Arg) {
 Pass *Pass::createPass(AnalysisID ID) {
   const PassInfo *PI = PassRegistry::getPassRegistry()->getPassInfo(ID);
   if (!PI)
-    return NULL;
+    return nullptr;
   return PI->createPass();
-}
-
-Pass *PassInfo::createPass() const {
-  assert((!isAnalysisGroup() || NormalCtor) &&
-         "No default implementation found for analysis group!");
-  assert(NormalCtor &&
-         "Cannot call createPass on PassInfo without default ctor!");
-  return NormalCtor();
 }
 
 //===----------------------------------------------------------------------===//
@@ -188,8 +225,8 @@ Pass *PassInfo::createPass() const {
 //===----------------------------------------------------------------------===//
 
 // RegisterAGBase implementation
-//
-RegisterAGBase::RegisterAGBase(const char *Name, const void *InterfaceID,
+
+RegisterAGBase::RegisterAGBase(StringRef Name, const void *InterfaceID,
                                const void *PassID, bool isDefault)
     : PassInfo(Name, InterfaceID) {
   PassRegistry::getPassRegistry()->registerAnalysisGroup(InterfaceID, PassID,
@@ -200,42 +237,42 @@ RegisterAGBase::RegisterAGBase(const char *Name, const void *InterfaceID,
 // PassRegistrationListener implementation
 //
 
-// PassRegistrationListener ctor - Add the current object to the list of
-// PassRegistrationListeners...
-PassRegistrationListener::PassRegistrationListener() {
-  PassRegistry::getPassRegistry()->addRegistrationListener(this);
-}
-
-// dtor - Remove object from list of listeners...
-PassRegistrationListener::~PassRegistrationListener() {
-  PassRegistry::getPassRegistry()->removeRegistrationListener(this);
-}
-
 // enumeratePasses - Iterate over the registered passes, calling the
 // passEnumerate callback on each PassInfo object.
-//
 void PassRegistrationListener::enumeratePasses() {
   PassRegistry::getPassRegistry()->enumerateWith(this);
 }
 
-PassNameParser::~PassNameParser() {}
+PassNameParser::PassNameParser(cl::Option &O)
+    : cl::parser<const PassInfo *>(O) {
+  PassRegistry::getPassRegistry()->addRegistrationListener(this);
+}
+
+// This only gets called during static destruction, in which case the
+// PassRegistry will have already been destroyed by llvm_shutdown().  So
+// attempting to remove the registration listener is an error.
+PassNameParser::~PassNameParser() = default;
 
 //===----------------------------------------------------------------------===//
 //   AnalysisUsage Class Implementation
 //
 
 namespace {
-  struct GetCFGOnlyPasses : public PassRegistrationListener {
-    typedef AnalysisUsage::VectorType VectorType;
-    VectorType &CFGOnlyList;
-    GetCFGOnlyPasses(VectorType &L) : CFGOnlyList(L) {}
 
-    void passEnumerate(const PassInfo *P) {
-      if (P->isCFGOnlyPass())
-        CFGOnlyList.push_back(P->getTypeInfo());
-    }
-  };
-}
+struct GetCFGOnlyPasses : public PassRegistrationListener {
+  using VectorType = AnalysisUsage::VectorType;
+
+  VectorType &CFGOnlyList;
+
+  GetCFGOnlyPasses(VectorType &L) : CFGOnlyList(L) {}
+
+  void passEnumerate(const PassInfo *P) override {
+    if (P->isCFGOnlyPass())
+      CFGOnlyList.push_back(P->getTypeInfo());
+  }
+};
+
+} // end anonymous namespace
 
 // setPreservesCFG - This function should be called to by the pass, iff they do
 // not:
@@ -245,7 +282,6 @@ namespace {
 //
 // This function annotates the AnalysisUsage info object to say that analyses
 // that only depend on the CFG are preserved by this pass.
-//
 void AnalysisUsage::setPreservesCFG() {
   // Since this transformation doesn't modify the CFG, it preserves all analyses
   // that only depend on the CFG (like dominators, loop info, etc...)

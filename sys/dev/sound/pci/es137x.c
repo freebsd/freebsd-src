@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-4-Clause
+ *
  * Copyright (c) 1999 Russell Cattelan <cattelan@thebarn.com>
  * Copyright (c) 1998 Joachim Kuebart <joachim.kuebart@gmx.net>
  * All rights reserved.
@@ -1741,7 +1743,7 @@ es_pci_attach(device_t dev)
 
 	es->st = rman_get_bustag(es->reg);
 	es->sh = rman_get_bushandle(es->reg);
-	callout_init(&es->poll_timer, CALLOUT_MPSAFE);
+	callout_init(&es->poll_timer, 1);
 	es->poll_ticks = 1;
 
 	if (resource_int_value(device_get_name(dev),
@@ -1856,7 +1858,7 @@ es_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	snprintf(status, SND_STATUSLEN, "at %s 0x%lx irq %ld %s",
+	snprintf(status, SND_STATUSLEN, "at %s 0x%jx irq %jd %s",
 	    (es->regtype == SYS_RES_IOPORT)? "io" : "memory",
 	    rman_get_start(es->reg), rman_get_start(es->irq),
 	    PCM_KLDSTRING(snd_es137x));

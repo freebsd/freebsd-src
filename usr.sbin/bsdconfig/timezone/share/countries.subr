@@ -1,6 +1,6 @@
 if [ ! "$_TIMEZONE_COUNTRIES_SUBR" ]; then _TIMEZONE_COUNTRIES_SUBR=1
 #
-# Copyright (c) 2011-2012 Devin Teske
+# Copyright (c) 2011-2015 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,8 +25,10 @@ if [ ! "$_TIMEZONE_COUNTRIES_SUBR" ]; then _TIMEZONE_COUNTRIES_SUBR=1
 # SUCH DAMAGE.
 #
 # $FreeBSD$
+#
+############################################################ FUNCTIONS
 
-# f_country $code $property
+# f_country $code $property [$var_to_set]
 #
 # Returns a single property of a given country. Available properties are:
 #
@@ -44,10 +46,13 @@ if [ ! "$_TIMEZONE_COUNTRIES_SUBR" ]; then _TIMEZONE_COUNTRIES_SUBR=1
 # 	descr_N      Like name, but for the Nth zone when the country has
 # 	             multiple zones (nzones > 0)
 #
+# If $var_to_set is missing or NULL, the value of $var_to_get is printed to
+# standard output for capturing in a sub-shell (which is less-recommended
+# because of performance degredation; for example, when called in a loop).
+#
 f_country()
 {
-	local code="$1" property="$2"
-	eval echo \"\${country_${code}_$property}\"
+	f_getvar "country_${1}_$2" $3
 }
 
 # f_sort_countries
@@ -59,21 +64,41 @@ f_country()
 # afterward is the sh(1) function which utilizes the below awk script.
 #
 f_sort_countries_awk='
+function _asorti(src, dest)
 {
-	split($0, array, /[[:space:]]+/)
+	k = nitems = 0
+	for (i in src) dest[++nitems] = i
+	for (i = 1; i <= nitems; k = i++) {
+		idx = dest[i]
+		while ((k > 0) && (dest[k] > idx)) {
+			dest[k+1] = dest[k]; k--
+		}
+		dest[k+1] = idx
+	}
+	return nitems
+}
+BEGIN {
+	split(ENVIRON["COUNTRIES"], array, /[[:space:]]+/)
 	for (item in array)
 	{
 		tlc = array[item]
-		print ENVIRON["country_" tlc "_name"] " " tlc
+		name = ENVIRON["country_" tlc "_name"]
+		countries[name] = tlc
 	}
+	n = _asorti(countries, sorted_countries)
+	for (i = 1; i <= n; i++)
+		print countries[sorted_countries[i]]
+	exit
 }
 '
 f_sort_countries()
 {
-	COUNTRIES=$( echo "$COUNTRIES" | awk "$f_sort_countries_awk" |
-	             	sort | awk '{print $NF}' )
-	export COUNTRIES
+	export COUNTRIES # for awk(1) ENVIRON[] visibility
+	COUNTRIES=$( awk "$f_sort_countries_awk" )
+	export COUNTRIES # Pedantic
 }
+
+############################################################ MAIN
 
 f_dprintf "%s: Successfully loaded." timezone/countries.subr
 

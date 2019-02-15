@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -111,15 +113,22 @@ main(int argc, char *argv[])
 
 	if (memf == NULL) {
 		/*
-		 * Running kernel.  Use sysctl.  This gives an unwrapped
-		 * buffer as a side effect.
+		 * Running kernel.  Use sysctl.  This gives an unwrapped buffer
+		 * as a side effect.  Remove nulterm (if present) so the value
+		 * returned by sysctl is formatted as the rest of the code
+		 * expects (the same as the value read from a core file below).
 		 */
 		if (sysctlbyname("kern.msgbuf", NULL, &buflen, NULL, 0) == -1)
 			err(1, "sysctl kern.msgbuf");
+		/* Allocate extra room for growth between the sysctl calls. */
+		buflen += buflen/8;
+		/* Allocate more than sysctl sees, for room to append \n\0. */
 		if ((bp = malloc(buflen + 2)) == NULL)
 			errx(1, "malloc failed");
 		if (sysctlbyname("kern.msgbuf", bp, &buflen, NULL, 0) == -1)
 			err(1, "sysctl kern.msgbuf");
+		if (buflen > 0 && bp[buflen - 1] == '\0')
+			buflen--;
 		if (clear)
 			if (sysctlbyname("kern.msgbuf_clear", NULL, NULL, &clear, sizeof(int)))
 				err(1, "sysctl kern.msgbuf_clear");

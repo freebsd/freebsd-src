@@ -37,11 +37,13 @@ typedef int win32_crashrpt__dummy;
 
 #include "svn_version.h"
 
+#include "sysinfo.h"
+
 #include "win32_crashrpt.h"
 #include "win32_crashrpt_dll.h"
 
 /*** Global variables ***/
-HANDLE dbghelp_dll = INVALID_HANDLE_VALUE;
+static HANDLE dbghelp_dll = INVALID_HANDLE_VALUE;
 
 /* Email address where the crash reports should be sent too. */
 #define CRASHREPORT_EMAIL "users@subversion.apache.org"
@@ -51,19 +53,20 @@ HANDLE dbghelp_dll = INVALID_HANDLE_VALUE;
 #define LOGFILE_PREFIX "svn-crash-log"
 
 #if defined(_M_IX86)
-#define FORMAT_PTR "0x%08x"
+#define FORMAT_PTR "0x%08Ix"
 #elif defined(_M_X64)
-#define FORMAT_PTR "0x%016I64x"
+#define FORMAT_PTR "0x%016Ix"
 #endif
 
 /*** Code. ***/
 
-/* Convert a wide-character string to utf-8. This function will create a buffer
- * large enough to hold the result string, the caller should free this buffer.
+/* Convert a wide-character string to the current windows locale, suitable
+ * for directly using stdio. This function will create a buffer large
+ * enough to hold the result string, the caller should free this buffer.
  * If the string can't be converted, NULL is returned.
  */
 static char *
-convert_wbcs_to_utf8(const wchar_t *str)
+convert_wbcs_to_ansi(const wchar_t *str)
 {
   size_t len = wcslen(str);
   char *utf8_str = malloc(sizeof(wchar_t) * len + 1);
@@ -81,32 +84,33 @@ convert_wbcs_to_utf8(const wchar_t *str)
 static const char *
 exception_string(int exception)
 {
-#define EXCEPTION(x) case EXCEPTION_##x: return (#x);
+#define EXCEPTION(x) case x: return (#x);
 
   switch (exception)
     {
-      EXCEPTION(ACCESS_VIOLATION)
-      EXCEPTION(DATATYPE_MISALIGNMENT)
-      EXCEPTION(BREAKPOINT)
-      EXCEPTION(SINGLE_STEP)
-      EXCEPTION(ARRAY_BOUNDS_EXCEEDED)
-      EXCEPTION(FLT_DENORMAL_OPERAND)
-      EXCEPTION(FLT_DIVIDE_BY_ZERO)
-      EXCEPTION(FLT_INEXACT_RESULT)
-      EXCEPTION(FLT_INVALID_OPERATION)
-      EXCEPTION(FLT_OVERFLOW)
-      EXCEPTION(FLT_STACK_CHECK)
-      EXCEPTION(FLT_UNDERFLOW)
-      EXCEPTION(INT_DIVIDE_BY_ZERO)
-      EXCEPTION(INT_OVERFLOW)
-      EXCEPTION(PRIV_INSTRUCTION)
-      EXCEPTION(IN_PAGE_ERROR)
-      EXCEPTION(ILLEGAL_INSTRUCTION)
-      EXCEPTION(NONCONTINUABLE_EXCEPTION)
-      EXCEPTION(STACK_OVERFLOW)
-      EXCEPTION(INVALID_DISPOSITION)
-      EXCEPTION(GUARD_PAGE)
-      EXCEPTION(INVALID_HANDLE)
+      EXCEPTION(EXCEPTION_ACCESS_VIOLATION)
+      EXCEPTION(EXCEPTION_DATATYPE_MISALIGNMENT)
+      EXCEPTION(EXCEPTION_BREAKPOINT)
+      EXCEPTION(EXCEPTION_SINGLE_STEP)
+      EXCEPTION(EXCEPTION_ARRAY_BOUNDS_EXCEEDED)
+      EXCEPTION(EXCEPTION_FLT_DENORMAL_OPERAND)
+      EXCEPTION(EXCEPTION_FLT_DIVIDE_BY_ZERO)
+      EXCEPTION(EXCEPTION_FLT_INEXACT_RESULT)
+      EXCEPTION(EXCEPTION_FLT_INVALID_OPERATION)
+      EXCEPTION(EXCEPTION_FLT_OVERFLOW)
+      EXCEPTION(EXCEPTION_FLT_STACK_CHECK)
+      EXCEPTION(EXCEPTION_FLT_UNDERFLOW)
+      EXCEPTION(EXCEPTION_INT_DIVIDE_BY_ZERO)
+      EXCEPTION(EXCEPTION_INT_OVERFLOW)
+      EXCEPTION(EXCEPTION_PRIV_INSTRUCTION)
+      EXCEPTION(EXCEPTION_IN_PAGE_ERROR)
+      EXCEPTION(EXCEPTION_ILLEGAL_INSTRUCTION)
+      EXCEPTION(EXCEPTION_NONCONTINUABLE_EXCEPTION)
+      EXCEPTION(EXCEPTION_STACK_OVERFLOW)
+      EXCEPTION(EXCEPTION_INVALID_DISPOSITION)
+      EXCEPTION(EXCEPTION_GUARD_PAGE)
+      EXCEPTION(EXCEPTION_INVALID_HANDLE)
+      EXCEPTION(STATUS_NO_MEMORY)
 
       default:
         return "UNKNOWN_ERROR";
@@ -167,8 +171,8 @@ write_module_info_callback(void *data,
       FILE *log_file = (FILE *)data;
       MINIDUMP_MODULE_CALLBACK module = callback_input->Module;
 
-      char *buf = convert_wbcs_to_utf8(module.FullPath);
-      fprintf(log_file, FORMAT_PTR, module.BaseOfImage);
+      char *buf = convert_wbcs_to_ansi(module.FullPath);
+      fprintf(log_file, FORMAT_PTR, (UINT_PTR)module.BaseOfImage);
       fprintf(log_file, "  %s", buf);
       free(buf);
 
@@ -188,7 +192,7 @@ static void
 write_process_info(EXCEPTION_RECORD *exception, CONTEXT *context,
                    FILE *log_file)
 {
-  OSVERSIONINFO oi;
+  OSVERSIONINFOEXW oi;
   const char *cmd_line;
   char workingdir[8192];
 
@@ -207,13 +211,11 @@ write_process_info(EXCEPTION_RECORD *exception, CONTEXT *context,
                 SVN_VERSION, __DATE__, __TIME__);
 
   /* write information about the OS */
-  oi.dwOSVersionInfoSize = sizeof(oi);
-  GetVersionEx(&oi);
-
-  fprintf(log_file,
-                "Platform: Windows OS version %d.%d build %d %s\n\n",
-                oi.dwMajorVersion, oi.dwMinorVersion, oi.dwBuildNumber,
-                oi.szCSDVersion);
+  if (svn_sysinfo___fill_windows_version(&oi))
+    fprintf(log_file,
+                  "Platform: Windows OS version %d.%d build %d %S\n\n",
+                  oi.dwMajorVersion, oi.dwMinorVersion, oi.dwBuildNumber,
+                  oi.szCSDVersion);
 
   /* write the exception code */
   fprintf(log_file,
@@ -244,33 +246,34 @@ write_process_info(EXCEPTION_RECORD *exception, CONTEXT *context,
                 "Rsp=%016I64x Rbp=%016I64x Rsi=%016I64x Rdi=%016I64x\n",
                 context->Rsp, context->Rbp, context->Rsi, context->Rdi);
   fprintf(log_file,
-                "R8= %016I64x R9= %016I64x R10= %016I64x R11=%016I64x\n",
+                "R8= %016I64x R9= %016I64x R10=%016I64x R11=%016I64x\n",
                 context->R8, context->R9, context->R10, context->R11);
   fprintf(log_file,
                 "R12=%016I64x R13=%016I64x R14=%016I64x R15=%016I64x\n",
                 context->R12, context->R13, context->R14, context->R15);
 
   fprintf(log_file,
-                "cs=%04x  ss=%04x  ds=%04x  es=%04x  fs=%04x  gs=%04x  ss=%04x\n",
-                context->SegCs, context->SegDs, context->SegEs,
-                context->SegFs, context->SegGs, context->SegSs);
+                "cs=%04x  ss=%04x  ds=%04x  es=%04x  fs=%04x  gs=%04x\n",
+                context->SegCs, context->SegSs, context->SegDs,
+                context->SegEs, context->SegFs, context->SegGs);
 #else
 #error Unknown processortype, please disable SVN_USE_WIN32_CRASHHANDLER
 #endif
 }
 
-/* Formats the value at address based on the specified basic type
- * (char, int, long ...). */
+/* Writes the value at address based on the specified basic type
+ * (char, int, long ...) to LOG_FILE. */
 static void
-format_basic_type(char *buf, DWORD basic_type, DWORD64 length, void *address)
+write_basic_type(FILE *log_file, DWORD basic_type, DWORD64 length,
+                 void *address)
 {
   switch(length)
     {
       case 1:
-        sprintf(buf, "0x%02x", (int)*(unsigned char *)address);
+        fprintf(log_file, "0x%02x", (int)*(unsigned char *)address);
         break;
       case 2:
-        sprintf(buf, "0x%04x", (int)*(unsigned short *)address);
+        fprintf(log_file, "0x%04x", (int)*(unsigned short *)address);
         break;
       case 4:
         switch(basic_type)
@@ -278,38 +281,38 @@ format_basic_type(char *buf, DWORD basic_type, DWORD64 length, void *address)
             case 2:  /* btChar */
               {
                 if (!IsBadStringPtr(*(PSTR*)address, 32))
-                  sprintf(buf, "\"%.31s\"", *(const char **)address);
+                  fprintf(log_file, "\"%.31s\"", *(const char **)address);
                 else
-                  sprintf(buf, FORMAT_PTR, *(DWORD_PTR *)address);
+                  fprintf(log_file, FORMAT_PTR, *(DWORD_PTR *)address);
               }
             case 6:  /* btInt */
-              sprintf(buf, "%d", *(int *)address);
+              fprintf(log_file, "%d", *(int *)address);
               break;
             case 8:  /* btFloat */
-              sprintf(buf, "%f", *(float *)address);
+              fprintf(log_file, "%f", *(float *)address);
               break;
             default:
-              sprintf(buf, FORMAT_PTR, *(DWORD_PTR *)address);
+              fprintf(log_file, FORMAT_PTR, *(DWORD_PTR *)address);
               break;
           }
         break;
       case 8:
         if (basic_type == 8) /* btFloat */
-          sprintf(buf, "%lf", *(double *)address);
+          fprintf(log_file, "%lf", *(double *)address);
         else
-          sprintf(buf, "0x%016I64X", *(unsigned __int64 *)address);
+          fprintf(log_file, "0x%016I64X", *(unsigned __int64 *)address);
         break;
       default:
-        sprintf(buf, "[unhandled type 0x%08x of length " FORMAT_PTR "]",
-                     basic_type, length);
+        fprintf(log_file, "[unhandled type 0x%08x of length " FORMAT_PTR "]",
+                basic_type, (UINT_PTR)length);
         break;
     }
 }
 
-/* Formats the value at address based on the type (pointer, user defined,
- * basic type). */
+/* Writes the value at address based on the type (pointer, user defined,
+ * basic type) to LOG_FILE. */
 static void
-format_value(char *value_str, DWORD64 mod_base, DWORD type, void *value_addr)
+write_value(FILE *log_file, DWORD64 mod_base, DWORD type, void *value_addr)
 {
   DWORD tag = 0;
   int ptr = 0;
@@ -335,23 +338,23 @@ format_value(char *value_str, DWORD64 mod_base, DWORD type, void *value_addr)
           if (SymGetTypeInfo_(proc, mod_base, type, TI_GET_SYMNAME,
                               &type_name_wbcs))
             {
-              char *type_name = convert_wbcs_to_utf8(type_name_wbcs);
+              char *type_name = convert_wbcs_to_ansi(type_name_wbcs);
               LocalFree(type_name_wbcs);
 
               if (ptr == 0)
-                sprintf(value_str, "(%s) " FORMAT_PTR,
-                        type_name, (DWORD_PTR *)value_addr);
+                fprintf(log_file, "(%s) " FORMAT_PTR,
+                        type_name, (UINT_PTR)(DWORD_PTR *)value_addr);
               else if (ptr == 1)
-                sprintf(value_str, "(%s *) " FORMAT_PTR,
+                fprintf(log_file, "(%s *) " FORMAT_PTR,
                         type_name, *(DWORD_PTR *)value_addr);
               else
-                sprintf(value_str, "(%s **) " FORMAT_PTR,
+                fprintf(log_file, "(%s **) " FORMAT_PTR,
                         type_name, *(DWORD_PTR *)value_addr);
 
               free(type_name);
             }
           else
-            sprintf(value_str, "[no symbol tag]");
+            fprintf(log_file, "[no symbol tag]");
         }
         break;
       case 16: /* SymTagBaseType */
@@ -363,27 +366,27 @@ format_value(char *value_str, DWORD64 mod_base, DWORD type, void *value_addr)
           /* print a char * as a string */
           if (ptr == 1 && length == 1)
             {
-              sprintf(value_str, FORMAT_PTR " \"%s\"",
+              fprintf(log_file, FORMAT_PTR " \"%s\"",
                       *(DWORD_PTR *)value_addr, *(const char **)value_addr);
             }
           else if (ptr >= 1)
             {
-              sprintf(value_str, FORMAT_PTR, *(DWORD_PTR *)value_addr);
+              fprintf(log_file, FORMAT_PTR, *(DWORD_PTR *)value_addr);
             }
           else if (SymGetTypeInfo_(proc, mod_base, type, TI_GET_BASETYPE, &bt))
             {
-              format_basic_type(value_str, bt, length, value_addr);
+              write_basic_type(log_file, bt, length, value_addr);
             }
         }
         break;
       case 12: /* SymTagEnum */
-          sprintf(value_str, "%d", *(DWORD_PTR *)value_addr);
+          fprintf(log_file, "%Id", *(DWORD_PTR *)value_addr);
           break;
       case 13: /* SymTagFunctionType */
-          sprintf(value_str, FORMAT_PTR, *(DWORD_PTR *)value_addr);
+          fprintf(log_file, FORMAT_PTR, *(DWORD_PTR *)value_addr);
           break;
       default:
-          sprintf(value_str, "[unhandled tag: %d]", tag);
+          fprintf(log_file, "[unhandled tag: %d]", tag);
           break;
     }
 }
@@ -407,7 +410,6 @@ write_var_values(PSYMBOL_INFO sym_info, ULONG sym_size, void *baton)
   FILE *log_file   = ((symbols_baton_t*)baton)->log_file;
   int nr_of_frame = ((symbols_baton_t*)baton)->nr_of_frame;
   BOOL log_params = ((symbols_baton_t*)baton)->log_params;
-  char value_str[256] = "";
 
   /* get the variable's data */
   if (sym_info->Flags & SYMFLAG_REGREL)
@@ -421,21 +423,21 @@ write_var_values(PSYMBOL_INFO sym_info, ULONG sym_size, void *baton)
   if (log_params && sym_info->Flags & SYMFLAG_PARAMETER)
     {
       if (last_nr_of_frame == nr_of_frame)
-        fprintf(log_file, ", ", 2);
+        fprintf(log_file, ", ");
       else
         last_nr_of_frame = nr_of_frame;
 
-      format_value(value_str, sym_info->ModBase, sym_info->TypeIndex,
-                   (void *)var_data);
-      fprintf(log_file, "%.*s=%s", (int)sym_info->NameLen, sym_info->Name,
-              value_str);
+      fprintf(log_file, "%.*s=", (int)sym_info->NameLen, sym_info->Name);
+      write_value(log_file, sym_info->ModBase, sym_info->TypeIndex,
+                  (void *)var_data);
     }
   if (!log_params && sym_info->Flags & SYMFLAG_LOCAL)
     {
-      format_value(value_str, sym_info->ModBase, sym_info->TypeIndex,
-                   (void *)var_data);
-      fprintf(log_file, "        %.*s = %s\n", (int)sym_info->NameLen,
-              sym_info->Name, value_str);
+      fprintf(log_file, "        %.*s = ", (int)sym_info->NameLen,
+              sym_info->Name);
+      write_value(log_file, sym_info->ModBase, sym_info->TypeIndex,
+                  (void *)var_data);
+      fprintf(log_file, "\n");
     }
 
   return TRUE;
@@ -597,20 +599,7 @@ write_stacktrace(CONTEXT *context, FILE *log_file)
 static BOOL
 is_debugger_present()
 {
-  HANDLE kernel32_dll = LoadLibrary("kernel32.dll");
-  BOOL result;
-
-  ISDEBUGGERPRESENT IsDebuggerPresent_ =
-          (ISDEBUGGERPRESENT)GetProcAddress(kernel32_dll, "IsDebuggerPresent");
-
-  if (IsDebuggerPresent_ && IsDebuggerPresent_())
-    result = TRUE;
-  else
-    result = FALSE;
-
-  FreeLibrary(kernel32_dll);
-
-  return result;
+  return IsDebuggerPresent();
 }
 
 /* Load the dbghelp.dll file, try to find a version that matches our
@@ -619,7 +608,7 @@ static BOOL
 load_dbghelp_dll()
 {
   dbghelp_dll = LoadLibrary(DBGHELP_DLL);
-  if (dbghelp_dll != INVALID_HANDLE_VALUE)
+  if (dbghelp_dll != NULL)
     {
       DWORD opts;
 
@@ -806,4 +795,11 @@ svn__unhandled_exception_filter(PEXCEPTION_POINTERS ptrs)
   return EXCEPTION_EXECUTE_HANDLER;
 }
 #endif /* SVN_USE_WIN32_CRASHHANDLER */
+#else  /* !WIN32 */
+
+/* Silence OSX ranlib warnings about object files with no symbols. */
+#include <apr.h>
+extern const apr_uint32_t svn__fake__win32_crashrpt;
+const apr_uint32_t svn__fake__win32_crashrpt = 0xdeadbeef;
+
 #endif /* WIN32 */

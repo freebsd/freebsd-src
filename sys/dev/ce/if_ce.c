@@ -76,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ce/ceddk.h>
 #include <machine/cserial.h>
 #include <machine/resource.h>
-#include <machine/pmap.h>
 
 /* If we don't have Cronyx's sppp version, we don't have fr support via sppp */
 #ifndef PP_FR
@@ -103,10 +102,6 @@ __FBSDID("$FreeBSD$");
 				printf ("%s: ", d->name); printf s;}})
 #define CE_DEBUG2(d,s)	({if (d->chan->debug>1) {\
 				printf ("%s: ", d->name); printf s;}})
-
-#ifndef CALLOUT_MPSAFE
-#define CALLOUT_MPSAFE		0
-#endif
 
 #ifndef IF_DRAIN
 #define IF_DRAIN(ifq) do {		\
@@ -307,8 +302,7 @@ static struct mbuf *makembuf (void *buf, unsigned len)
 	MGETHDR (m, M_NOWAIT, MT_DATA);
 	if (! m)
 		return 0;
-	MCLGET (m, M_NOWAIT);
-	if (! (m->m_flags & M_EXT)) {
+	if (!(MCLGET(m, M_NOWAIT))) {
 		m_freem (m);
 		return 0;
 	}
@@ -610,7 +604,7 @@ static int ce_attach (device_t dev)
 		return (ENXIO);
 	}
 #if __FreeBSD_version >= 500000
-	callout_init (&led_timo[unit], CALLOUT_MPSAFE);
+	callout_init (&led_timo[unit], 1);
 #else
 	callout_init (&led_timo[unit]);
 #endif
@@ -662,7 +656,7 @@ static int ce_attach (device_t dev)
 			continue;
 		d = c->sys;
 
-		callout_init (&d->timeout_handle, CALLOUT_MPSAFE);
+		callout_init (&d->timeout_handle, 1);
 #ifdef NETGRAPH
 		if (ng_make_node_common (&typestruct, &d->node) != 0) {
 			printf ("%s: cannot make common node\n", d->name);
@@ -846,11 +840,11 @@ static int ce_detach (device_t dev)
 		if (! d || ! d->chan)
 			continue;
 		callout_drain (&d->timeout_handle);
-		channel [b->num * NCHAN + c->num] = 0;
+		channel [b->num * NCHAN + c->num] = NULL;
 		/* Deallocate buffers. */
 		ce_bus_dma_mem_free (&d->dmamem);
 	}
-	adapter [b->num] = 0;
+	adapter [b->num] = NULL;
 	ce_bus_dma_mem_free (&bd->dmamem);
 	free (b, M_DEVBUF);
 #if __FreeBSD_version >= 504000
@@ -2454,7 +2448,7 @@ static int ng_ce_rmnode (node_p node)
 		NG_NODE_UNREF (node);
 	}
 #if __FreeBSD_version >= 502120
-	NG_NODE_REVIVE(node);		/* Persistant node */
+	NG_NODE_REVIVE(node);		/* Persistent node */
 #else
 	node->nd_flags &= ~NG_INVALID;
 #endif
@@ -2559,7 +2553,7 @@ static int ce_modevent (module_t mod, int type, void *unused)
 		cdevsw_add (&ce_cdevsw);
 #endif
 #if __FreeBSD_version >= 500000
-		callout_init (&timeout_handle, CALLOUT_MPSAFE);
+		callout_init (&timeout_handle, 1);
 #else
 		callout_init (&timeout_handle);
 #endif

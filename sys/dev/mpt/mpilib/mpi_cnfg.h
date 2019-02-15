@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2000-2010, LSI Logic Corporation and its contributors.
  * All rights reserved.
  * 
@@ -339,7 +341,7 @@
  *                      define.
  *                      Added BIOS Page 4 structure.
  *                      Added MPI_RAID_PHYS_DISK1_PATH_MAX define for RAID
- *                      Physcial Disk Page 1.
+ *                      Physical Disk Page 1.
  *  01-15-07  01.05.17  Added additional bit defines for ExtFlags field of
  *                      Manufacturing Page 4.
  *                      Added Solid State Drives Supported bit to IOC Page 6

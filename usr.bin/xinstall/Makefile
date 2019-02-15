@@ -1,18 +1,21 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PROG=		xinstall
 PROGNAME=	install
 SRCS=		xinstall.c getid.c
 MAN=		install.1
 
-.PATH:		${.CURDIR}/../../contrib/mtree
-.PATH:		${.CURDIR}/../../lib/libmd
-CFLAGS+=	-I${.CURDIR}/../../contrib/mtree
-CFLAGS+=	-I${.CURDIR}/../../lib/libnetbsd
-CFLAGS+=	-I${.CURDIR}/../../lib/libmd
+.PATH:		${SRCTOP}/contrib/mtree
+CFLAGS+=	-I${SRCTOP}/contrib/mtree
+CFLAGS+=	-I${SRCTOP}/lib/libnetbsd
+CFLAGS+=	-DHAVE_STRUCT_STAT_ST_FLAGS=1
 
-DPADD+=		${LIBMD}
-LDADD+=		-lmd
+LIBADD=	md
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

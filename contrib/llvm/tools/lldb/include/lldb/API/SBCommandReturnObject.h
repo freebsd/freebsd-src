@@ -10,124 +10,104 @@
 #ifndef LLDB_SBCommandReturnObject_h_
 #define LLDB_SBCommandReturnObject_h_
 
+// C Includes
 #include <stdio.h>
 
+// C++ Includes
+#include <memory>
+
+// Other libraries and framework includes
+// Project includes
 #include "lldb/API/SBDefines.h"
 
 namespace lldb {
 
-class SBCommandReturnObject
-{
+class LLDB_API SBCommandReturnObject {
 public:
+  SBCommandReturnObject();
 
-    SBCommandReturnObject ();
+  SBCommandReturnObject(const lldb::SBCommandReturnObject &rhs);
 
-    SBCommandReturnObject (const lldb::SBCommandReturnObject &rhs);
+  ~SBCommandReturnObject();
 
-    const lldb::SBCommandReturnObject &
-    operator = (const lldb::SBCommandReturnObject &rhs);
-    
+  const lldb::SBCommandReturnObject &
+  operator=(const lldb::SBCommandReturnObject &rhs);
 
-    SBCommandReturnObject (lldb_private::CommandReturnObject *ptr);
-    
-    lldb_private::CommandReturnObject *
-    Release ();
+  SBCommandReturnObject(lldb_private::CommandReturnObject *ptr);
 
-    ~SBCommandReturnObject ();
+  lldb_private::CommandReturnObject *Release();
 
-    bool
-    IsValid() const;
+  bool IsValid() const;
 
-    const char *
-    GetOutput ();
+  const char *GetOutput();
 
-    const char *
-    GetError ();
+  const char *GetError();
 
-    size_t
-    PutOutput (FILE *fh);
+  size_t PutOutput(FILE *fh);
 
-    size_t
-    GetOutputSize ();
+  size_t GetOutputSize();
 
-    size_t
-    GetErrorSize ();
+  size_t GetErrorSize();
 
-    size_t
-    PutError (FILE *fh);
+  size_t PutError(FILE *fh);
 
-    void
-    Clear();
+  void Clear();
 
-    lldb::ReturnStatus
-    GetStatus();
-    
-    void
-    SetStatus (lldb::ReturnStatus status);
+  lldb::ReturnStatus GetStatus();
 
-    bool
-    Succeeded ();
+  void SetStatus(lldb::ReturnStatus status);
 
-    bool
-    HasResult ();
+  bool Succeeded();
 
-    void
-    AppendMessage (const char *message);
+  bool HasResult();
 
-    void
-    AppendWarning (const char *message);
-    
-    bool
-    GetDescription (lldb::SBStream &description);
-    
-    void
-    SetImmediateOutputFile (FILE *fh);
-    
-    void
-    SetImmediateErrorFile (FILE *fh);
-    
-    void
-    PutCString(const char* string, int len = -1);
-    
-    size_t
-    Printf(const char* format, ...)  __attribute__ ((format (printf, 2, 3)));
-    
-    const char *
-    GetOutput (bool only_if_no_immediate);
-    
-    const char *
-    GetError (bool only_if_no_immediate);
-    
-    void
-    SetError (lldb::SBError &error,
-              const char *fallback_error_cstr = NULL);
-    
-    void
-    SetError (const char* error_cstr);
-    
+  void AppendMessage(const char *message);
+
+  void AppendWarning(const char *message);
+
+  bool GetDescription(lldb::SBStream &description);
+
+  // deprecated, these two functions do not take
+  // ownership of file handle
+  void SetImmediateOutputFile(FILE *fh);
+
+  void SetImmediateErrorFile(FILE *fh);
+
+  void SetImmediateOutputFile(FILE *fh, bool transfer_ownership);
+
+  void SetImmediateErrorFile(FILE *fh, bool transfer_ownership);
+
+  void PutCString(const char *string, int len = -1);
+
+  size_t Printf(const char *format, ...) __attribute__((format(printf, 2, 3)));
+
+  const char *GetOutput(bool only_if_no_immediate);
+
+  const char *GetError(bool only_if_no_immediate);
+
+  void SetError(lldb::SBError &error,
+                const char *fallback_error_cstr = nullptr);
+
+  void SetError(const char *error_cstr);
+
 protected:
-    friend class SBCommandInterpreter;
-    friend class SBOptions;
+  friend class SBCommandInterpreter;
+  friend class SBOptions;
 
-    lldb_private::CommandReturnObject *
-    operator->() const;
+  lldb_private::CommandReturnObject *operator->() const;
 
-    lldb_private::CommandReturnObject *
-    get() const;
+  lldb_private::CommandReturnObject *get() const;
 
-    lldb_private::CommandReturnObject &
-    operator*() const;
+  lldb_private::CommandReturnObject &operator*() const;
 
-    lldb_private::CommandReturnObject &
-    ref() const;
+  lldb_private::CommandReturnObject &ref() const;
 
-    void
-    SetLLDBObjectPtr (lldb_private::CommandReturnObject *ptr);
+  void SetLLDBObjectPtr(lldb_private::CommandReturnObject *ptr);
 
- private:
-    std::unique_ptr<lldb_private::CommandReturnObject> m_opaque_ap;
+private:
+  std::unique_ptr<lldb_private::CommandReturnObject> m_opaque_ap;
 };
 
 } // namespace lldb
 
-#endif        // LLDB_SBCommandReturnObject_h_
+#endif // LLDB_SBCommandReturnObject_h_

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
@@ -263,7 +265,7 @@
 #define        SATA_SS_SPD_NO_SPEED     0x00000000
 #define        SATA_SS_SPD_GEN1         0x00000010
 #define        SATA_SS_SPD_GEN2         0x00000020
-#define        SATA_SS_SPD_GEN3         0x00000040
+#define        SATA_SS_SPD_GEN3         0x00000030
 
 #define        SATA_SS_IPM_MASK         0x00000f00
 #define        SATA_SS_IPM_NO_DEVICE    0x00000000
@@ -298,7 +300,7 @@
 #define        SATA_SC_SPD_NO_SPEED     0x00000000
 #define        SATA_SC_SPD_SPEED_GEN1   0x00000010
 #define        SATA_SC_SPD_SPEED_GEN2   0x00000020
-#define        SATA_SC_SPD_SPEED_GEN3   0x00000040
+#define        SATA_SC_SPD_SPEED_GEN3   0x00000030
 
 #define        SATA_SC_IPM_MASK         0x00000f00
 #define        SATA_SC_IPM_NONE         0x00000000
@@ -566,7 +568,7 @@ struct mvs_channel {
 	int			numtslotspd[16];/* Number of NCQ slots per dev */
 	int			numhslots;	/* Number of held slots */
 	int			recoverycmd;	/* Our READ LOG active */
-	int			fatalerr;	/* Fatal error happend */
+	int			fatalerr;	/* Fatal error happened */
 	int			lastslot;	/* Last used slot */
 	int			taggedtarget;	/* Last tagged target */
 	int			resetting;	/* Hard-reset in progress. */

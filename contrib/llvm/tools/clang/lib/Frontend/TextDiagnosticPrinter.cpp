@@ -13,13 +13,11 @@
 
 #include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "clang/Basic/DiagnosticOptions.h"
-#include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Frontend/TextDiagnostic.h"
 #include "clang/Lex/Lexer.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 using namespace clang;
@@ -43,7 +41,7 @@ void TextDiagnosticPrinter::BeginSourceFile(const LangOptions &LO,
 }
 
 void TextDiagnosticPrinter::EndSourceFile() {
-  TextDiag.reset(0);
+  TextDiag.reset();
 }
 
 /// \brief Print any diagnostic option information to a raw_ostream.
@@ -81,7 +79,11 @@ static void printDiagnosticOptions(raw_ostream &OS,
 
     StringRef Opt = DiagnosticIDs::getWarningOptionForDiag(Info.getID());
     if (!Opt.empty()) {
-      OS << (Started ? "," : " [") << "-W" << Opt;
+      OS << (Started ? "," : " [")
+         << (Level == DiagnosticsEngine::Remark ? "-R" : "-W") << Opt;
+      StringRef OptValue = Info.getDiags()->getFlagValue();
+      if (!OptValue.empty())
+        OS << "=" << OptValue;
       Started = true;
     }
   }
@@ -148,11 +150,9 @@ void TextDiagnosticPrinter::HandleDiagnostic(DiagnosticsEngine::Level Level,
          "Unexpected diagnostic with no source manager");
   assert(TextDiag && "Unexpected diagnostic outside source file processing");
 
-  TextDiag->emitDiagnostic(Info.getLocation(), Level, DiagMessageStream.str(),
-                           Info.getRanges(),
-                           llvm::makeArrayRef(Info.getFixItHints(),
-                                              Info.getNumFixItHints()),
-                           &Info.getSourceManager());
+  TextDiag->emitDiagnostic(
+      FullSourceLoc(Info.getLocation(), Info.getSourceManager()), Level,
+      DiagMessageStream.str(), Info.getRanges(), Info.getFixItHints());
 
   OS.flush();
 }

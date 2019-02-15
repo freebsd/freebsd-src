@@ -1,3 +1,12 @@
+//===--- CommentLexer.cpp -------------------------------------------------===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
 #include "clang/AST/CommentLexer.h"
 #include "clang/AST/CommentCommandTraits.h"
 #include "clang/AST/CommentDiagnostic.h"
@@ -44,7 +53,7 @@ namespace {
 #include "clang/AST/CommentHTMLTags.inc"
 #include "clang/AST/CommentHTMLNamedCharacterReferences.inc"
 
-} // unnamed namespace
+} // end anonymous namespace
 
 StringRef Lexer::resolveHTMLNamedCharacterReference(StringRef Name) const {
   // Fast path, first check a few most widely used named character references.
@@ -266,7 +275,20 @@ const char *findCCommentEnd(const char *BufferPtr, const char *BufferEnd) {
   llvm_unreachable("buffer end hit before '*/' was seen");
 }
     
-} // unnamed namespace
+} // end anonymous namespace
+
+void Lexer::formTokenWithChars(Token &Result, const char *TokEnd,
+                               tok::TokenKind Kind) {
+  const unsigned TokLen = TokEnd - BufferPtr;
+  Result.setLocation(getSourceLocation(BufferPtr));
+  Result.setKind(Kind);
+  Result.setLength(TokLen);
+#ifndef NDEBUG
+  Result.TextPtr = "<UNSET>";
+  Result.IntVal = 7;
+#endif
+  BufferPtr = TokEnd;
+}
 
 void Lexer::lexCommentText(Token &T) {
   assert(CommentState == LCS_InsideBCPLComment ||
@@ -349,22 +371,24 @@ void Lexer::lexCommentText(Token &T) {
           }
         }
 
-        const StringRef CommandName(BufferPtr + 1, Length);
+        StringRef CommandName(BufferPtr + 1, Length);
 
         const CommandInfo *Info = Traits.getCommandInfoOrNULL(CommandName);
         if (!Info) {
           if ((Info = Traits.getTypoCorrectCommandInfo(CommandName))) {
             StringRef CorrectedName = Info->Name;
             SourceLocation Loc = getSourceLocation(BufferPtr);
-            SourceRange CommandRange(Loc.getLocWithOffset(1),
-                                     getSourceLocation(TokenPtr));
+            SourceLocation EndLoc = getSourceLocation(TokenPtr);
+            SourceRange FullRange = SourceRange(Loc, EndLoc);
+            SourceRange CommandRange(Loc.getLocWithOffset(1), EndLoc);
             Diag(Loc, diag::warn_correct_comment_command_name)
-              << CommandName << CorrectedName
+              << FullRange << CommandName << CorrectedName
               << FixItHint::CreateReplacement(CommandRange, CorrectedName);
           } else {
             formTokenWithChars(T, TokenPtr, tok::unknown_command);
             T.setUnknownCommandName(CommandName);
-            Diag(T.getLocation(), diag::warn_unknown_comment_command_name);
+            Diag(T.getLocation(), diag::warn_unknown_comment_command_name)
+                << SourceRange(T.getLocation(), T.getEndLocation());
             return;
           }
         }
@@ -398,7 +422,6 @@ void Lexer::lexCommentText(Token &T) {
           setupAndLexHTMLEndTag(T);
         else
           formTextToken(T, TokenPtr);
-
         return;
       }
 
@@ -501,6 +524,12 @@ void Lexer::lexVerbatimBlockBody(Token &T) {
   if (CommentState == LCS_InsideCComment)
     skipLineStartingDecorations();
 
+  if (BufferPtr == CommentEnd) {
+    formTokenWithChars(T, BufferPtr, tok::verbatim_block_line);
+    T.setVerbatimBlockText("");
+    return;
+  }
+
   lexVerbatimBlockFirstLine(T);
 }
 
@@ -518,7 +547,7 @@ void Lexer::lexVerbatimLineText(Token &T) {
 
   // Extract current line.
   const char *Newline = findNewline(BufferPtr, CommentEnd);
-  const StringRef Text(BufferPtr, Newline - BufferPtr);
+  StringRef Text(BufferPtr, Newline - BufferPtr);
   formTokenWithChars(T, Newline, tok::verbatim_line_text);
   T.setVerbatimLineText(Text);
 
@@ -585,7 +614,6 @@ void Lexer::lexHTMLCharacterReference(Token &T) {
   }
   formTokenWithChars(T, TokenPtr, tok::text);
   T.setText(Resolved);
-  return;
 }
 
 void Lexer::setupAndLexHTMLStartTag(Token &T) {
@@ -829,4 +857,3 @@ StringRef Lexer::getSpelling(const Token &Tok,
 
 } // end namespace comments
 } // end namespace clang
-

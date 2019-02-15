@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -58,6 +60,33 @@ usage(void)
 	errx(EX_USAGE, "usage: mksnap_ffs snapshot_name");
 }
 
+static int
+isdir(const char *path, struct stat *stbufp)
+{
+
+	if (stat(path, stbufp) < 0)
+		return (-1);
+        if (!S_ISDIR(stbufp->st_mode))
+		return (0);
+	return (1);
+}
+
+static int
+issamefs(const char *path, struct statfs *stfsp)
+{
+	struct statfs stfsbuf;
+	struct stat stbuf;
+
+	if (isdir(path, &stbuf) != 1)
+		return (-1);
+	if (statfs(path, &stfsbuf) < 0)
+		return (-1);
+	if ((stfsbuf.f_fsid.val[0] != stfsp->f_fsid.val[0]) ||
+	    (stfsbuf.f_fsid.val[1] != stfsp->f_fsid.val[1]))
+		return (0);
+	return (1);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -96,14 +125,31 @@ main(int argc, char **argv)
 	}
 	if (statfs(path, &stfsbuf) < 0)
 		err(1, "%s", path);
-	if (stat(path, &stbuf) < 0)
+	switch (isdir(path, &stbuf)) {
+	case -1:
 		err(1, "%s", path);
-	if (!S_ISDIR(stbuf.st_mode))
+	case 0:
 		errx(1, "%s: Not a directory", path);
+	default:
+		break;
+	}
 	if (access(path, W_OK) < 0)
 		err(1, "Lack write permission in %s", path);
 	if ((stbuf.st_mode & S_ISTXT) && stbuf.st_uid != getuid())
 		errx(1, "Lack write permission in %s: Sticky bit set", path);
+
+	/*
+	 * Work around an issue when mksnap_ffs is started in chroot'ed
+	 * environment and f_mntonname contains absolute path within
+	 * real root.
+	 */
+	for (cp = stfsbuf.f_mntonname; issamefs(cp, &stfsbuf) != 1;
+	    cp = strchrnul(cp + 1, '/')) {
+		if (cp[0] == '\0')
+			errx(1, "%s: Not a mount point", stfsbuf.f_mntonname);
+	}
+	if (cp != stfsbuf.f_mntonname)
+		strlcpy(stfsbuf.f_mntonname, cp, sizeof(stfsbuf.f_mntonname));
 
 	/*
 	 * Having verified access to the directory in which the

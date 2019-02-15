@@ -1,6 +1,8 @@
 /*-
  * Assembler for the sequencer program downloaded to Aic7xxx SCSI host adapters
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1997 Justin T. Gibbs.
  * Copyright (c) 2001, 2002 Adaptec Inc.
  * All rights reserved.

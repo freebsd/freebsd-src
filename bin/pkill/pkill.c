@@ -1,6 +1,8 @@
 /*	$NetBSD: pkill.c,v 1.16 2005/10/10 22:13:20 kleink Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2002 The NetBSD Foundation, Inc.
  * Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
@@ -43,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -59,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <grp.h>
 #include <errno.h>
 #include <locale.h>
+#include <jail.h>
 
 #define	STATUS_MATCH	0
 #define	STATUS_NOMATCH	1
@@ -70,7 +74,7 @@ __FBSDID("$FreeBSD$");
 
 /* Ignore system-processes (if '-S' flag is not specified) and myself. */
 #define	PSKIP(kp)	((kp)->ki_pid == mypid ||			\
-			 (!kthreads && ((kp)->ki_flag & P_KTHREAD) != 0))
+			 (!kthreads && ((kp)->ki_flag & P_KPROC) != 0))
 
 enum listtype {
 	LT_GENERIC,
@@ -78,7 +82,7 @@ enum listtype {
 	LT_GROUP,
 	LT_TTY,
 	LT_PGRP,
-	LT_JID,
+	LT_JAIL,
 	LT_SID,
 	LT_CLASS
 };
@@ -245,7 +249,7 @@ main(int argc, char **argv)
 			cflags |= REG_ICASE;
 			break;
 		case 'j':
-			makelist(&jidlist, LT_JID, optarg);
+			makelist(&jidlist, LT_JAIL, optarg);
 			criteria = 1;
 			break;
 		case 'l':
@@ -566,6 +570,8 @@ main(int argc, char **argv)
 			continue;
 		rv |= (*action)(kp);
 	}
+	if (rv && pgrep && !quiet)
+		putchar('\n');
 	if (!did_action && !pgrep && longfmt)
 		fprintf(stderr,
 		    "No matching processes belonging to you were found\n");
@@ -585,7 +591,7 @@ usage(void)
 
 	fprintf(stderr,
 		"usage: %s %s [-F pidfile] [-G gid] [-M core] [-N system]\n"
-		"             [-P ppid] [-U uid] [-c class] [-g pgrp] [-j jid]\n"
+		"             [-P ppid] [-U uid] [-c class] [-g pgrp] [-j jail]\n"
 		"             [-s sid] [-t tty] [-u euid] pattern ...\n",
 		getprogname(), ustr);
 
@@ -655,10 +661,12 @@ killact(const struct kinfo_proc *kp)
 static int
 grepact(const struct kinfo_proc *kp)
 {
+	static bool first = true;
 
-	show_process(kp);
-	if (!quiet)
+	if (!quiet && !first)
 		printf("%s", delim);
+	show_process(kp);
+	first = false;
 	return (1);
 }
 
@@ -700,7 +708,7 @@ makelist(struct listhead *head, enum listtype type, char *src)
 				if (li->li_number == 0)
 					li->li_number = getsid(mypid);
 				break;
-			case LT_JID:
+			case LT_JAIL:
 				if (li->li_number < 0)
 					errx(STATUS_BADUSAGE,
 					     "Negative jail ID `%s'", sp);
@@ -766,15 +774,20 @@ foundtty:		if ((st.st_mode & S_IFCHR) == 0)
 
 			li->li_number = st.st_rdev;
 			break;
-		case LT_JID:
+		case LT_JAIL: {
+			int jid;
+
 			if (strcmp(sp, "none") == 0)
 				li->li_number = 0;
 			else if (strcmp(sp, "any") == 0)
 				li->li_number = -1;
+			else if ((jid = jail_getid(sp)) != -1)
+				li->li_number = jid;
 			else if (*ep != '\0')
 				errx(STATUS_BADUSAGE,
-				     "Invalid jail ID `%s'", sp);
+				     "Invalid jail ID or name `%s'", sp);
 			break;
+		}
 		case LT_CLASS:
 			li->li_number = -1;
 			li->li_name = strdup(sp);

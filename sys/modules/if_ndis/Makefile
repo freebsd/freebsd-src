@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/if_ndis
+.PATH: ${SRCTOP}/sys/dev/if_ndis
 
 KMOD=	if_ndis
 SRCS=	if_ndis.c if_ndis_pci.c if_ndis_pccard.c if_ndis_usb.c

@@ -2,6 +2,8 @@
 /*	NetBSD: lxtphy.c,v 1.19 2000/02/02 23:34:57 thorpej Exp 	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1998, 1999 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -142,12 +144,10 @@ lxtphy_attach(device_t dev)
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & sc->mii_capmask;
 	device_printf(dev, " ");
 
-#define	ADD(m, c)	ifmedia_add(&sc->mii_pdata->mii_media, (m), (c), NULL)
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_FX, 0, sc->mii_inst),
-	    MII_MEDIA_100_TX);
+#define	ADD(m)	ifmedia_add(&sc->mii_pdata->mii_media, (m), 0, NULL)
+	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_FX, 0, sc->mii_inst));
 	printf("100baseFX, ");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_FX, IFM_FDX, sc->mii_inst),
-	    MII_MEDIA_100_TX_FDX);
+	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_FX, IFM_FDX, sc->mii_inst));
 	printf("100baseFX-FDX, ");
 #undef ADD
 

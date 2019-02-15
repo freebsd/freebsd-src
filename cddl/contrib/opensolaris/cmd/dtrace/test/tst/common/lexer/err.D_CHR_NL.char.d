@@ -36,8 +36,10 @@
 
 BEGIN
 {
-
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-pp-token"
 	h = '
 		';
+#pragma clang diagnostic pop
 	exit(0);
 }

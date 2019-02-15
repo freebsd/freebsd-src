@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1984, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1994
@@ -118,9 +120,9 @@ int bsd_arp_set(ia, eaddr, len)
 	char *eaddr;
 	int len;
 {
-	register struct sockaddr_in *sin = &sin_m;
-	register struct sockaddr_dl *sdl;
-	register struct rt_msghdr *rtm = &(m_rtmsg.m_rtm);
+	struct sockaddr_in *sin = &sin_m;
+	struct sockaddr_dl *sdl;
+	struct rt_msghdr *rtm = &(m_rtmsg.m_rtm);
 	u_char *ea;
 	struct timespec tp;
 	int op = RTM_ADD;
@@ -179,9 +181,9 @@ static int rtmsg(cmd)
 {
 	static int seq;
 	int rlen;
-	register struct rt_msghdr *rtm = &m_rtmsg.m_rtm;
-	register char *cp = m_rtmsg.m_space;
-	register int l;
+	struct rt_msghdr *rtm = &m_rtmsg.m_rtm;
+	char *cp = m_rtmsg.m_space;
+	int l;
 
 	errno = 0;
 	bzero((char *)&m_rtmsg, sizeof(m_rtmsg));

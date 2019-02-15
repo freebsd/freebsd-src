@@ -1,6 +1,8 @@
 /*	$NetBSD: obio_space.c,v 1.6 2003/07/15 00:25:05 lukem Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001, 2002, 2003 Wasabi Systems, Inc.
  * All rights reserved.
  *
@@ -43,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -51,21 +54,27 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/cpufunc.h>
-#include <machine/devmap.h>
+
+void
+generic_bs_unimplemented(void)
+{
+
+	panic("unimplemented bus_space function called");
+}
 
 /* Prototypes for all the bus_space structure functions */
 bs_protos(generic);
 
 int
-generic_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
+generic_bs_map(bus_space_tag_t t, bus_addr_t bpa, bus_size_t size, int flags,
     bus_space_handle_t *bshp)
 {
 	void *va;
 
 	/*
 	 * We don't even examine the passed-in flags.  For ARM, the CACHEABLE
-	 * flag doesn't make sense (we create PTE_DEVICE mappings), and the
-	 * LINEAR flag is just implied because we use kva_alloc(size).
+	 * flag doesn't make sense (we create VM_MEMATTR_DEVICE mappings), and
+	 * the LINEAR flag is just implied because we use kva_alloc(size).
 	 */
 	if ((va = pmap_mapdev(bpa, size)) == NULL)
 		return (ENOMEM);
@@ -74,7 +83,7 @@ generic_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 }
 
 int
-generic_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend, bus_size_t size,
+generic_bs_alloc(bus_space_tag_t t, bus_addr_t rstart, bus_addr_t rend, bus_size_t size,
     bus_size_t alignment, bus_size_t boundary, int flags, bus_addr_t *bpap,
     bus_space_handle_t *bshp)
 {
@@ -84,21 +93,21 @@ generic_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend, bus_size_t size,
 
 
 void
-generic_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
+generic_bs_unmap(bus_space_tag_t t, bus_space_handle_t h, bus_size_t size)
 {
 
 	pmap_unmapdev((vm_offset_t)h, size);
 }
 
 void
-generic_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
+generic_bs_free(bus_space_tag_t t, bus_space_handle_t bsh, bus_size_t size)
 {
 
 	panic("generic_bs_free(): not implemented");
 }
 
 int
-generic_bs_subregion(void *t, bus_space_handle_t bsh, bus_size_t offset,
+generic_bs_subregion(bus_space_tag_t t, bus_space_handle_t bsh, bus_size_t offset,
     bus_size_t size, bus_space_handle_t *nbshp)
 {
 
@@ -107,7 +116,7 @@ generic_bs_subregion(void *t, bus_space_handle_t bsh, bus_size_t offset,
 }
 
 void
-generic_bs_barrier(void *t, bus_space_handle_t bsh, bus_size_t offset,
+generic_bs_barrier(bus_space_tag_t t, bus_space_handle_t bsh, bus_size_t offset,
     bus_size_t len, int flags)
 {
 

@@ -1,6 +1,8 @@
 /*	$KAME: probe.c,v 1.17 2003/10/05 00:09:36 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
  * 
@@ -40,7 +42,6 @@
 #include <sys/queue.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_dl.h>
 
 #include <netinet/in.h>
@@ -78,12 +79,6 @@ probe_init(void)
 
 	if ((probesock = socket(AF_INET6, SOCK_RAW, IPPROTO_NONE)) < 0) {
 		warnmsg(LOG_ERR, __func__, "socket: %s", strerror(errno));
-		return (-1);
-	}
-
-	/* make the socket send-only */
-	if (shutdown(probesock, 0)) {
-		warnmsg(LOG_ERR, __func__, "shutdown: %s", strerror(errno));
 		return (-1);
 	}
 

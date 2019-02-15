@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -279,7 +281,7 @@ scic_sds_ssp_task_request_started_substate_handler_table
  *        for this sub-state.
  *
  * @param[in]  object This parameter specifies the request object for which
- *             the sub-state change is occuring.
+ *             the sub-state change is occurring.
  *
  * @return none.
  */
@@ -304,7 +306,7 @@ void scic_sds_io_request_started_task_mgmt_await_tc_completion_substate_enter(
  *        sub-state.
  *
  * @param[in]  object This parameter specifies the request object for which
- *             the sub-state change is occuring.
+ *             the sub-state change is occurring.
  *
  * @return none.
  */

@@ -19,24 +19,71 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ripng.c,v 1.18 2005-01-04 00:15:54 guy Exp $";
-#endif
+/* \summary: IPv6 Routing Information Protocol (RIPng) printer */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#ifdef INET6
+#include <netdissect-stdinc.h>
 
-#include <tcpdump-stdinc.h>
-#include <stdio.h>
-
-#include "route6d.h"
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
+
+/*
+ * Copyright (C) 1995, 1996, 1997 and 1998 WIDE Project.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the project nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+#define	RIP6_VERSION	1
+
+#define	RIP6_REQUEST	1
+#define	RIP6_RESPONSE	2
+
+struct netinfo6 {
+	struct in6_addr	rip6_dest;
+	uint16_t	rip6_tag;
+	uint8_t		rip6_plen;
+	uint8_t		rip6_metric;
+};
+
+struct	rip6 {
+	uint8_t		rip6_cmd;
+	uint8_t		rip6_vers;
+	uint8_t		rip6_res1[2];
+	union {
+		struct	netinfo6	ru6_nets[1];
+		char	ru6_tracefile[1];
+	} rip6un;
+#define	rip6_nets	rip6un.ru6_nets
+#define	rip6_tracefile	rip6un.ru6_tracefile
+};
+
+#define	HOPCNT_INFINITY6	16
 
 #if !defined(IN6_IS_ADDR_UNSPECIFIED) && !defined(_MSC_VER) /* MSVC inline */
 static int IN6_IS_ADDR_UNSPECIFIED(const struct in6_addr *addr)
@@ -47,82 +94,90 @@ static int IN6_IS_ADDR_UNSPECIFIED(const struct in6_addr *addr)
 #endif
 
 static int
-rip6_entry_print(register const struct netinfo6 *ni, int metric)
+rip6_entry_print(netdissect_options *ndo, register const struct netinfo6 *ni, int metric)
 {
 	int l;
-	l = printf("%s/%d", ip6addr_string(&ni->rip6_dest), ni->rip6_plen);
+	l = ND_PRINT((ndo, "%s/%d", ip6addr_string(ndo, &ni->rip6_dest), ni->rip6_plen));
 	if (ni->rip6_tag)
-		l += printf(" [%d]", EXTRACT_16BITS(&ni->rip6_tag));
+		l += ND_PRINT((ndo, " [%d]", EXTRACT_16BITS(&ni->rip6_tag)));
 	if (metric)
-		l += printf(" (%d)", ni->rip6_metric);
+		l += ND_PRINT((ndo, " (%d)", ni->rip6_metric));
 	return l;
 }
 
 void
-ripng_print(const u_char *dat, unsigned int length)
+ripng_print(netdissect_options *ndo, const u_char *dat, unsigned int length)
 {
-	register const struct rip6 *rp = (struct rip6 *)dat;
+	register const struct rip6 *rp = (const struct rip6 *)dat;
 	register const struct netinfo6 *ni;
-	register u_int amt;
-	register u_int i;
-	int j;
-	int trunc;
+	unsigned int length_left;
+	u_int j;
 
-	if (snapend < dat)
-		return;
-	amt = snapend - dat;
-	i = min(length, amt);
-	if (i < (sizeof(struct rip6) - sizeof(struct netinfo6)))
-		return;
-	i -= (sizeof(struct rip6) - sizeof(struct netinfo6));
-
+	ND_TCHECK(rp->rip6_cmd);
 	switch (rp->rip6_cmd) {
 
 	case RIP6_REQUEST:
-		j = length / sizeof(*ni);
-		if (j == 1
-		    &&  rp->rip6_nets->rip6_metric == HOPCNT_INFINITY6
-		    &&  IN6_IS_ADDR_UNSPECIFIED(&rp->rip6_nets->rip6_dest)) {
-			printf(" ripng-req dump");
-			break;
+		length_left = length;
+		if (length_left < (sizeof(struct rip6) - sizeof(struct netinfo6)))
+			goto trunc;
+		length_left -= (sizeof(struct rip6) - sizeof(struct netinfo6));
+ 		j = length_left / sizeof(*ni);
+		if (j == 1) {
+			ND_TCHECK(rp->rip6_nets);
+			if (rp->rip6_nets->rip6_metric == HOPCNT_INFINITY6
+			    &&  IN6_IS_ADDR_UNSPECIFIED(&rp->rip6_nets->rip6_dest)) {
+				ND_PRINT((ndo, " ripng-req dump"));
+				break;
+			}
 		}
-		if (j * sizeof(*ni) != length - 4)
-			printf(" ripng-req %d[%u]:", j, length);
+		if (j * sizeof(*ni) != length_left)
+			ND_PRINT((ndo, " ripng-req %u[%u]:", j, length));
 		else
-			printf(" ripng-req %d:", j);
-		trunc = ((i / sizeof(*ni)) * sizeof(*ni) != i);
-		for (ni = rp->rip6_nets; i >= sizeof(*ni);
-		    i -= sizeof(*ni), ++ni) {
-			if (vflag > 1)
-				printf("\n\t");
+			ND_PRINT((ndo, " ripng-req %u:", j));
+		for (ni = rp->rip6_nets; length_left >= sizeof(*ni);
+		    length_left -= sizeof(*ni), ++ni) {
+			ND_TCHECK(*ni);
+			if (ndo->ndo_vflag > 1)
+				ND_PRINT((ndo, "\n\t"));
 			else
-				printf(" ");
-			rip6_entry_print(ni, 0);
+				ND_PRINT((ndo, " "));
+			rip6_entry_print(ndo, ni, 0);
 		}
+		if (length_left != 0)
+			goto trunc;
 		break;
 	case RIP6_RESPONSE:
-		j = length / sizeof(*ni);
-		if (j * sizeof(*ni) != length - 4)
-			printf(" ripng-resp %d[%u]:", j, length);
+		length_left = length;
+		if (length_left < (sizeof(struct rip6) - sizeof(struct netinfo6)))
+			goto trunc;
+		length_left -= (sizeof(struct rip6) - sizeof(struct netinfo6));
+		j = length_left / sizeof(*ni);
+		if (j * sizeof(*ni) != length_left)
+			ND_PRINT((ndo, " ripng-resp %d[%u]:", j, length));
 		else
-			printf(" ripng-resp %d:", j);
-		trunc = ((i / sizeof(*ni)) * sizeof(*ni) != i);
-		for (ni = rp->rip6_nets; i >= sizeof(*ni);
-		    i -= sizeof(*ni), ++ni) {
-			if (vflag > 1)
-				printf("\n\t");
+			ND_PRINT((ndo, " ripng-resp %d:", j));
+		for (ni = rp->rip6_nets; length_left >= sizeof(*ni);
+		    length_left -= sizeof(*ni), ++ni) {
+			ND_TCHECK(*ni);
+			if (ndo->ndo_vflag > 1)
+				ND_PRINT((ndo, "\n\t"));
 			else
-				printf(" ");
-			rip6_entry_print(ni, ni->rip6_metric);
+				ND_PRINT((ndo, " "));
+			rip6_entry_print(ndo, ni, ni->rip6_metric);
 		}
-		if (trunc)
-			printf("[|ripng]");
+		if (length_left != 0)
+			goto trunc;
 		break;
 	default:
-		printf(" ripng-%d ?? %u", rp->rip6_cmd, length);
+		ND_PRINT((ndo, " ripng-%d ?? %u", rp->rip6_cmd, length));
 		break;
 	}
+	ND_TCHECK(rp->rip6_vers);
 	if (rp->rip6_vers != RIP6_VERSION)
-		printf(" [vers %d]", rp->rip6_vers);
+		ND_PRINT((ndo, " [vers %d]", rp->rip6_vers));
+	return;
+
+trunc:
+	ND_PRINT((ndo, "[|ripng]"));
+	return;
 }
-#endif /* INET6 */

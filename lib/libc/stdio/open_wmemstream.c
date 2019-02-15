@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2013 Advanced Computing Technologies LLC
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2013 Hudson River Trading LLC
  * Written by: John H. Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
@@ -32,6 +34,9 @@ __FBSDID("$FreeBSD$");
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>
+#ifdef DEBUG
+#include <stdint.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,7 +65,7 @@ wmemstream_grow(struct wmemstream *ms, fpos_t newoff)
 	else
 		newsize = newoff;
 	if (newsize > ms->len) {
-		buf = realloc(*ms->bufp, (newsize + 1) * sizeof(wchar_t));
+		buf = reallocarray(*ms->bufp, newsize + 1, sizeof(wchar_t));
 		if (buf != NULL) {
 #ifdef DEBUG
 			fprintf(stderr, "WMS: %p growing from %zd to %zd\n",

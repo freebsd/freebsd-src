@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 PROG=	newgrp
-DPADD=	${LIBCRYPT} ${LIBUTIL}
-LDADD=	-lcrypt -lutil
+
+LIBADD=	crypt util
 
 .if defined(ENABLE_SUID_NEWGRP)
 BINMODE=	4555

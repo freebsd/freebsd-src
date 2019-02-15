@@ -1,6 +1,8 @@
 /*	$KAME: if.c,v 1.27 2003/10/05 00:09:36 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  * 
@@ -38,7 +40,6 @@
 #include <sys/queue.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/if_dl.h>
@@ -83,7 +84,7 @@ interface_up(char *name)
 	int s;
 
 	memset(&ifr, 0, sizeof(ifr));
-	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	memset(&nd, 0, sizeof(nd));
 	strlcpy(nd.ifname, name, sizeof(nd.ifname));
 
@@ -181,7 +182,7 @@ interface_status(struct ifinfo *ifinfo)
 
 	/* get interface flags */
 	memset(&ifr, 0, sizeof(ifr));
-	strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
 	if (ioctl(ifsock, SIOCGIFFLAGS, &ifr) < 0) {
 		warnmsg(LOG_ERR, __func__, "ioctl(SIOCGIFFLAGS) on %s: %s",
 		    ifname, strerror(errno));
@@ -197,7 +198,7 @@ interface_status(struct ifinfo *ifinfo)
 	if (!ifinfo->mediareqok)
 		goto active;
 	memset(&ifmr, 0, sizeof(ifmr));
-	strncpy(ifmr.ifm_name, ifname, sizeof(ifmr.ifm_name));
+	strlcpy(ifmr.ifm_name, ifname, sizeof(ifmr.ifm_name));
 
 	if (ioctl(ifsock, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
 		if (errno != EINVAL) {
@@ -248,9 +249,6 @@ lladdropt_length(struct sockaddr_dl *sdl)
 {
 	switch (sdl->sdl_type) {
 	case IFT_ETHER:
-#ifdef IFT_IEEE80211
-	case IFT_IEEE80211:
-#endif
 		return (ROUNDUP8(ETHER_ADDR_LEN + 2));
 	default:
 		return (0);
@@ -266,9 +264,6 @@ lladdropt_fill(struct sockaddr_dl *sdl, struct nd_opt_hdr *ndopt)
 
 	switch (sdl->sdl_type) {
 	case IFT_ETHER:
-#ifdef IFT_IEEE80211
-	case IFT_IEEE80211:
-#endif
 		ndopt->nd_opt_len = (ROUNDUP8(ETHER_ADDR_LEN + 2)) >> 3;
 		addr = (char *)(ndopt + 1);
 		memcpy(addr, LLADDR(sdl), ETHER_ADDR_LEN);
@@ -285,18 +280,18 @@ lladdropt_fill(struct sockaddr_dl *sdl, struct nd_opt_hdr *ndopt)
 struct sockaddr_dl *
 if_nametosdl(char *name)
 {
-	int mib[6] = {CTL_NET, AF_ROUTE, 0, 0, NET_RT_IFLIST, 0};
+	int mib[] = {CTL_NET, AF_ROUTE, 0, 0, NET_RT_IFLIST, 0};
 	char *buf, *next, *lim;
 	size_t len;
 	struct if_msghdr *ifm;
 	struct sockaddr *sa, *rti_info[RTAX_MAX];
 	struct sockaddr_dl *sdl = NULL, *ret_sdl;
 
-	if (sysctl(mib, 6, NULL, &len, NULL, 0) < 0)
+	if (sysctl(mib, nitems(mib), NULL, &len, NULL, 0) < 0)
 		return(NULL);
 	if ((buf = malloc(len)) == NULL)
 		return(NULL);
-	if (sysctl(mib, 6, buf, &len, NULL, 0) < 0) {
+	if (sysctl(mib, nitems(mib), buf, &len, NULL, 0) < 0) {
 		free(buf);
 		return (NULL);
 	}
@@ -337,37 +332,6 @@ if_nametosdl(char *name)
 	return (ret_sdl);
 }
 
-int
-getinet6sysctl(int code)
-{
-	int mib[] = { CTL_NET, PF_INET6, IPPROTO_IPV6, 0 };
-	int value;
-	size_t size;
-
-	mib[3] = code;
-	size = sizeof(value);
-	if (sysctl(mib, sizeof(mib)/sizeof(mib[0]), &value, &size, NULL, 0) < 0)
-		return (-1);
-	else
-		return (value);
-}
-
-int
-setinet6sysctl(int code, int newval)
-{
-	int mib[] = { CTL_NET, PF_INET6, IPPROTO_IPV6, 0 };
-	int value;
-	size_t size;
-
-	mib[3] = code;
-	size = sizeof(value);
-	if (sysctl(mib, sizeof(mib)/sizeof(mib[0]), &value, &size,
-	    &newval, sizeof(newval)) < 0)
-		return (-1);
-	else
-		return (value);
-}
-
 /*------------------------------------------------------------*/
 
 /* get ia6_flags for link-local addr on if.  returns -1 on error. */
@@ -401,7 +365,7 @@ get_llflag(const char *name)
 			continue;
 
 		memset(&ifr6, 0, sizeof(ifr6));
-		strncpy(ifr6.ifr_name, name, sizeof(ifr6.ifr_name));
+		strlcpy(ifr6.ifr_name, name, sizeof(ifr6.ifr_name));
 		memcpy(&ifr6.ifr_ifru.ifru_addr, sin6, sin6->sin6_len);
 		if (ioctl(s, SIOCGIFAFLAG_IN6, &ifr6) < 0) {
 			warnmsg(LOG_ERR, __func__,

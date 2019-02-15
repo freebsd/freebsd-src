@@ -1,10 +1,11 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 LIB=		lzma
-LZMADIR=	${.CURDIR}/../../contrib/xz/src/liblzma
+LZMADIR=	${SRCTOP}/contrib/xz/src/liblzma
 
-.PATH: ${LZMADIR}/../common
-SRCS+=	tuklib_physmem.c
+.PATH: ${LZMADIR:H}/common
+SRCS+=	tuklib_physmem.c tuklib_cpucores.c
 
 .PATH: ${LZMADIR}/api/lzma
 
@@ -21,7 +22,7 @@ LZMAINCS+=	base.h \
 		hardware.h \
 		index.h \
 		index_hash.h \
-		lzma.h \
+		lzma12.h \
 		stream_flags.h \
 		version.h \
 		vli.h
@@ -36,6 +37,7 @@ SRCS+=	common.c \
 	easy_preset.c \
 	filter_common.c \
 	hardware_physmem.c \
+	hardware_cputhreads.c \
 	index.c \
 	stream_flags_common.c \
 	vli_size.c \
@@ -68,7 +70,10 @@ SRCS+=	common.c \
 	stream_buffer_decoder.c \
 	stream_decoder.c \
 	stream_flags_decoder.c \
-	vli_decoder.c
+	stream_encoder_mt.c \
+	vli_decoder.c \
+	outqueue.c
+
 
 .PATH: ${LZMADIR}/check
 SRCS+=	check.c \
@@ -117,7 +122,16 @@ SRCS+=	simple_coder.c \
 	arm.c \
 	armthumb.c \
 	sparc.c
-		
+
+.PATH: ${LZMADIR}
+
+VERSION_MAJOR!=	awk '$$1 == "\#define" && $$2 == "LZMA_VERSION_MAJOR" {print $$3 } ' \
+			${LZMADIR}/api/lzma/version.h
+VERSION_MINOR!=	awk '$$1 == "\#define" && $$2 == "LZMA_VERSION_MINOR" {print $$3 } ' \
+			${LZMADIR}/api/lzma/version.h
+VERSION_PATCH!=	awk '$$1 == "\#define" && $$2 == "LZMA_VERSION_PATCH" {print $$3 } ' \
+			${LZMADIR}/api/lzma/version.h
+
 WARNS?=	3
 
 CFLAGS+=	-DHAVE_CONFIG_H \
@@ -131,10 +145,27 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${LZMADIR}/lzma \
 		-I${LZMADIR}/delta \
 		-I${LZMADIR}/simple \
-		-I${LZMADIR}/../common
+		-I${LZMADIR:H}/common
+
+LIBADD+=	pthread
 
 VERSION_DEF=	${.CURDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 CFLAGS+=	-DSYMBOL_VERSIONING
+
+CLEANFILES+=	liblzma.pc
+
+FILES=		liblzma.pc
+FILESDIR=	${LIBDATADIR}/pkgconfig
+
+liblzma.pc: liblzma.pc.in
+	sed -e 's,@prefix@,/usr,g ; \
+		s,@exec_prefix@,/usr,g  ; \
+		s,@libdir@,/usr/lib,g ; \
+		s,@includedir@,/usr/include,g ; \
+		s,@PACKAGE_URL@,http://tukaani.org/xz/,g ; \
+		s,@PACKAGE_VERSION@,${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH},g ; \
+		s,@PTHREAD_CFLAGS@,,g ; \
+		s,@PTHREAD_LIBS@,,g' ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.lib.mk>

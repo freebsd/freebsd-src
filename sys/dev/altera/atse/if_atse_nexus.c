@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012,2013 Bjoern A. Zeeb
  * All rights reserved.
  *
@@ -64,7 +66,7 @@ MODULE_DEPEND(atse, miibus, 1, 1, 1);
  * Device routines for interacting with nexus (probe, attach, detach) & helpers.
  * XXX We should add suspend/resume later.
  */
-static int
+static int __unused
 atse_resource_int(device_t dev, const char *resname, int *v)
 {
 	int error;
@@ -80,7 +82,7 @@ atse_resource_int(device_t dev, const char *resname, int *v)
 	return (0);
 }
 
-static int
+static int __unused
 atse_resource_long(device_t dev, const char *resname, long *v)
 {
 	int error;
@@ -99,37 +101,9 @@ atse_resource_long(device_t dev, const char *resname, long *v)
 static int
 atse_probe_nexus(device_t dev)
 {
-	struct resource *res;
-	long l;
-	int error, rid;
 
-	/*
-	 * It is almost impossible to properly probe this device.  We must
-	 * rely on hints being set correctly.  So try to get hints and
-	 * one memory mapping.  Must cleanup and do again in attach but
-	 * should not probe successfully if not able to attach later.
-	 */
-	error = atse_resource_int(dev, "rx_irq", &rid);
-	error += atse_resource_long(dev, "rx_maddr", &l);
-	error += atse_resource_long(dev, "rx_msize", &l);
-	error += atse_resource_long(dev, "rxc_maddr", &l);
-	error += atse_resource_long(dev, "rxc_msize", &l);
-	error += atse_resource_int(dev, "tx_irq", &rid);
-	error += atse_resource_long(dev, "tx_maddr", &l);
-	error += atse_resource_long(dev, "tx_msize", &l);
-	error += atse_resource_long(dev, "txc_maddr", &l);
-	error += atse_resource_long(dev, "txc_msize", &l);
-	if (error != 0)
-		return (ENXIO);
-
-	rid = 0;
-	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
-	if (res == NULL)
-		return (ENXIO);
-	bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
-
-	/* Success. */
 	device_set_desc(dev, "Altera Triple-Speed Ethernet MegaCore");
+
 	return (BUS_PROBE_NOWILDCARD);
 }
 
@@ -143,20 +117,6 @@ atse_attach_nexus(device_t dev)
 	sc->atse_dev = dev;
 	sc->atse_unit = device_get_unit(dev);
 
-	/* Get RX and TX IRQ and FIFO information from hints. */
-	error = atse_resource_int(dev, "rx_irq", &sc->atse_rx_irq);
-	error += atse_resource_long(dev, "rx_maddr", &sc->atse_rx_maddr);
-	error += atse_resource_long(dev, "rx_msize", &sc->atse_rx_msize);
-	error += atse_resource_long(dev, "rxc_maddr", &sc->atse_rxc_maddr);
-	error += atse_resource_long(dev, "rxc_msize", &sc->atse_rxc_msize);
-	error += atse_resource_int(dev, "tx_irq", &sc->atse_tx_irq);
-	error += atse_resource_long(dev, "tx_maddr", &sc->atse_tx_maddr);
-	error += atse_resource_long(dev, "tx_msize", &sc->atse_tx_msize);
-	error += atse_resource_long(dev, "txc_maddr", &sc->atse_txc_maddr);
-	error += atse_resource_long(dev, "txc_msize", &sc->atse_txc_msize);
-	if (error != 0)
-		return (error);
-
 	/* Avalon-MM, atse management register region. */
 	sc->atse_mem_rid = 0;
 	sc->atse_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -166,71 +126,14 @@ atse_attach_nexus(device_t dev)
 		return (ENXIO);
 	}
 
-	/*
-	 * (Optional) RX IRQ and memory mapped regions.
-	 * 0x00: 2 * 32bit FIFO data,
-	 * 0x20: 8 * 32bit FIFO ctrl, Avalon-ST Sink to Avalon-MM R-Slave.
-	 */
-	sc->atse_rx_irq_rid = 0;
-	sc->atse_rx_irq_res = bus_alloc_resource(dev, SYS_RES_IRQ,
-	    &sc->atse_rx_irq_rid, sc->atse_rx_irq, sc->atse_rx_irq, 1,
-	    RF_ACTIVE | RF_SHAREABLE);
-
-	sc->atse_rx_mem_rid = 0;
-	sc->atse_rx_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-	    &sc->atse_rx_mem_rid, sc->atse_rx_maddr, sc->atse_rx_maddr +
-	    sc->atse_rx_msize, sc->atse_rx_msize, RF_ACTIVE);
-	if (sc->atse_rx_mem_res == NULL) {
-		device_printf(dev, "failed to map memory for RX\n");
-		goto err;
-        }
-	sc->atse_rxc_mem_rid = 0;
-	sc->atse_rxc_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-	    &sc->atse_rxc_mem_rid, sc->atse_rxc_maddr, sc->atse_rxc_maddr +
-	    sc->atse_rxc_msize, sc->atse_rxc_msize, RF_ACTIVE);
-	if (sc->atse_rxc_mem_res == NULL) {
-		device_printf(dev, "failed to map memory for RX control\n");
-		goto err;
-        }
-
-	/*
-	 * (Optional) TX IRQ and memory mapped regions.
-	 * 0x00: 2 * 32bit FIFO data,
-	 * 0x20: 8 * 32bit FIFO ctrl, Avalon-MM W-Slave to Avalon-ST Source.
-	 */
-	sc->atse_tx_irq_rid = 0;
-	sc->atse_tx_irq_res = bus_alloc_resource(dev, SYS_RES_IRQ,
-	    &sc->atse_tx_irq_rid, sc->atse_tx_irq, sc->atse_tx_irq, 1,
-	    RF_ACTIVE | RF_SHAREABLE);
-
-	sc->atse_tx_mem_rid = 0;
-	sc->atse_tx_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-	    &sc->atse_tx_mem_rid, sc->atse_tx_maddr, sc->atse_tx_maddr +
-	    sc->atse_tx_msize, sc->atse_tx_msize, RF_ACTIVE);
-	if (sc->atse_tx_mem_res == NULL) {
-		device_printf(dev, "failed to map memory for TX\n");
-		goto err;
-	}
-	sc->atse_txc_mem_rid = 0;
-	sc->atse_txc_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-	    &sc->atse_txc_mem_rid, sc->atse_txc_maddr, sc->atse_txc_maddr +
-	    sc->atse_txc_msize, sc->atse_txc_msize, RF_ACTIVE);
-	if (sc->atse_txc_mem_res == NULL) {
-		device_printf(dev, "failed to map memory for TX control\n");
-		goto err;
-	}
-
 	error = atse_attach(dev);
-	if (error)
-		goto err;
+	if (error) {
+		/* Cleanup. */
+		atse_detach_resources(dev);
+		return (error);
+	}
 
 	return (0);
-
-err:
-	/* Cleanup. */
-	atse_detach_resources(dev);
-
-	return (error);
 }
 
 static device_method_t atse_methods_nexus[] = {
@@ -255,5 +158,3 @@ static driver_t atse_driver_nexus = {
 
 DRIVER_MODULE(atse, nexus, atse_driver_nexus, atse_devclass, 0, 0);
 DRIVER_MODULE(miibus, atse, miibus_driver, miibus_devclass, 0, 0);
-
-/* end */

@@ -6,12 +6,11 @@ SRCS=	keyserv.c setkey.c crypt_svc.c crypt_server.c crypt.h
 
 CFLAGS+= -DKEYSERV_RANDOM -DBROKEN_DES -I.
 
-DPADD=	${LIBMP} ${LIBCRYPTO} ${LIBRPCSVC}
-LDADD=	-lmp -lcrypto -lrpcsvc
+LIBADD=	mp rpcsvc
 
 WARNS?=	1
 
-RPCDIR=	${DESTDIR}/usr/include/rpcsvc
+RPCDIR=	${SYSROOT:U${DESTDIR}}/usr/include/rpcsvc
 
 CLEANFILES= crypt_svc.c crypt.h
 

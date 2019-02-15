@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -214,7 +216,7 @@ typedef struct SCIC_SDS_PORT
    SCU_PORT_PE_CONFIGURATION_REGISTER_T *port_pe_configuration_register;
 
    /**
-    * This field is the VIIT register space for ths port object.
+    * This field is the VIIT register space for this port object.
     */
    SCU_VIIT_ENTRY_T *viit_registers;
 

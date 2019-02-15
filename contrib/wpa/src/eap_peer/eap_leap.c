@@ -244,7 +244,7 @@ static struct wpabuf * eap_leap_process_response(struct eap_sm *sm, void *priv,
 	ret->methodState = METHOD_DONE;
 	ret->allowNotifications = FALSE;
 
-	if (os_memcmp(pos, expected, LEAP_RESPONSE_LEN) != 0) {
+	if (os_memcmp_const(pos, expected, LEAP_RESPONSE_LEN) != 0) {
 		wpa_printf(MSG_WARNING, "EAP-LEAP: AP sent an invalid "
 			   "response - authentication failed");
 		wpa_hexdump(MSG_DEBUG, "EAP-LEAP: Expected response from AP",
@@ -383,6 +383,9 @@ static u8 * eap_leap_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	wpa_hexdump_key(MSG_DEBUG, "EAP-LEAP: master key", key, LEAP_KEY_LEN);
 	*len = LEAP_KEY_LEN;
 
+	os_memset(pw_hash, 0, sizeof(pw_hash));
+	os_memset(pw_hash_hash, 0, sizeof(pw_hash_hash));
+
 	return key;
 }
 
@@ -390,7 +393,6 @@ static u8 * eap_leap_getKey(struct eap_sm *sm, void *priv, size_t *len)
 int eap_peer_leap_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
 				    EAP_VENDOR_IETF, EAP_TYPE_LEAP, "LEAP");
@@ -403,8 +405,5 @@ int eap_peer_leap_register(void)
 	eap->isKeyAvailable = eap_leap_isKeyAvailable;
 	eap->getKey = eap_leap_getKey;
 
-	ret = eap_peer_method_register(eap);
-	if (ret)
-		eap_peer_method_free(eap);
-	return ret;
+	return eap_peer_method_register(eap);
 }

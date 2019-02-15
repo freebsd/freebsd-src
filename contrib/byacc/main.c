@@ -1,4 +1,4 @@
-/* $Id: main.c,v 1.54 2014/10/06 22:40:07 tom Exp $ */
+/* $Id: main.c,v 1.60 2017/04/30 20:57:56 Julien.Ramseier Exp $ */
 
 #include <signal.h>
 #ifndef _WIN32
@@ -48,13 +48,13 @@ const char *myname = "yacc";
 int lineno;
 int outline;
 
-static char empty_string[] = "";
 static char default_file_prefix[] = "y";
 
 static char *file_prefix = default_file_prefix;
 
 char *code_file_name;
-char *input_file_name = empty_string;
+char *input_file_name;
+size_t input_file_name_len = 0;
 char *defines_file_name;
 char *externs_file_name;
 
@@ -92,6 +92,7 @@ char *symbol_assoc;
 
 int pure_parser;
 int token_table;
+int error_verbose;
 
 #if defined(YYBTYACC)
 Value_t *symbol_pval;
@@ -99,6 +100,7 @@ char **symbol_destructor;
 char **symbol_type_tag;
 int locations = 0;	/* default to no position processing */
 int backtrack = 0;	/* default is no backtracking */
+char *initial_action = NULL;
 #endif
 
 int exit_code;
@@ -264,7 +266,7 @@ setflag(int ch)
 #if defined(YYBTYACC)
 	locations = 1;
 #else
-	unsupported_flag_warning("-B", "reconfigure with --enable-btyacc");
+	unsupported_flag_warning("-L", "reconfigure with --enable-btyacc");
 #endif
 	break;
 
@@ -379,7 +381,10 @@ getargs(int argc, char *argv[])
   no_more_options:;
     if (i + 1 != argc)
 	usage();
-    input_file_name = argv[i];
+    input_file_name_len = strlen(argv[i]);
+    input_file_name = TMALLOC(char, input_file_name_len + 1);
+    NO_SPACE(input_file_name);
+    strcpy(input_file_name, argv[i]);
 }
 
 void *
@@ -410,32 +415,46 @@ alloc_file_name(size_t len, const char *suffix)
     return result;
 }
 
+static char *
+find_suffix(char *name, const char *suffix)
+{
+    size_t len = strlen(name);
+    size_t slen = strlen(suffix);
+    if (len >= slen)
+    {
+	name += len - slen;
+	if (strcmp(name, suffix) == 0)
+	    return name;
+    }
+    return NULL;
+}
+
 static void
 create_file_names(void)
 {
     size_t len;
     const char *defines_suffix;
     const char *externs_suffix;
-    char *prefix;
+    char *suffix;
 
-    prefix = NULL;
+    suffix = NULL;
     defines_suffix = DEFINES_SUFFIX;
     externs_suffix = EXTERNS_SUFFIX;
 
     /* compute the file_prefix from the user provided output_file_name */
     if (output_file_name != 0)
     {
-	if (!(prefix = strstr(output_file_name, OUTPUT_SUFFIX))
-	    && (prefix = strstr(output_file_name, ".c")))
+	if (!(suffix = find_suffix(output_file_name, OUTPUT_SUFFIX))
+	    && (suffix = find_suffix(output_file_name, ".c")))
 	{
 	    defines_suffix = ".h";
 	    externs_suffix = ".i";
 	}
     }
 
-    if (prefix != NULL)
+    if (suffix != NULL)
     {
-	len = (size_t) (prefix - output_file_name);
+	len = (size_t) (suffix - output_file_name);
 	file_prefix = TMALLOC(char, len + 1);
 	NO_SPACE(file_prefix);
 	strncpy(file_prefix, output_file_name, len)[len] = 0;
@@ -477,7 +496,7 @@ create_file_names(void)
 	CREATE_FILE_NAME(graph_file_name, GRAPH_SUFFIX);
     }
 
-    if (prefix != NULL)
+    if (suffix != NULL)
     {
 	FREE(file_prefix);
     }
@@ -551,6 +570,7 @@ my_mkstemp(char *temp)
 static FILE *
 open_tmpfile(const char *label)
 {
+#define MY_FMT "%s/%.*sXXXXXX"
     FILE *result;
 #if USE_MKSTEMP
     int fd;
@@ -569,7 +589,11 @@ open_tmpfile(const char *label)
 	    tmpdir = ".";
     }
 
-    name = malloc(strlen(tmpdir) + 10 + strlen(label));
+    /* The size of the format is guaranteed to be longer than the result from
+     * printing empty strings with it; this calculation accounts for the
+     * string-lengths as well.
+     */
+    name = malloc(strlen(tmpdir) + sizeof(MY_FMT) + strlen(label));
 
     result = 0;
     if (name != 0)
@@ -579,7 +603,7 @@ open_tmpfile(const char *label)
 	if ((mark = strrchr(label, '_')) == 0)
 	    mark = label + strlen(label);
 
-	sprintf(name, "%s/%.*sXXXXXX", tmpdir, (int)(mark - label), label);
+	sprintf(name, MY_FMT, tmpdir, (int)(mark - label), label);
 	fd = mkstemp(name);
 	if (fd >= 0)
 	{
@@ -612,6 +636,7 @@ open_tmpfile(const char *label)
     if (result == 0)
 	open_error(label);
     return result;
+#undef MY_FMT
 }
 
 static void

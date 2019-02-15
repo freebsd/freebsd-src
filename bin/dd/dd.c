@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -14,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -47,11 +49,15 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/capsicum.h>
 #include <sys/conf.h>
 #include <sys/disklabel.h>
 #include <sys/filio.h>
+#include <sys/mtio.h>
+#include <sys/time.h>
 
 #include <assert.h>
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -77,22 +83,33 @@ STAT	st;			/* statistics */
 void	(*cfunc)(void);		/* conversion function */
 uintmax_t cpy_cnt;		/* # of blocks to copy */
 static off_t	pending = 0;	/* pending seek if sparse */
-static off_t	last_sp = 0;	/* size of last added sparse block */
 u_int	ddflags = 0;		/* conversion options */
 size_t	cbsz;			/* conversion block size */
 uintmax_t files_cnt = 1;	/* # of files to copy */
 const	u_char *ctab;		/* conversion table */
 char	fill_char;		/* Character to fill with if defined */
+size_t	speed = 0;		/* maximum speed, in bytes per second */
 volatile sig_atomic_t need_summary;
+volatile sig_atomic_t need_progress;
 
 int
 main(int argc __unused, char *argv[])
 {
+	struct itimerval itv = { { 1, 0 }, { 1, 0 } }; /* SIGALARM every second, if needed */
+
 	(void)setlocale(LC_CTYPE, "");
 	jcl(argv);
 	setup();
 
+	caph_cache_catpages();
+	if (caph_enter() < 0)
+		err(1, "unable to enter capability mode");
+
 	(void)signal(SIGINFO, siginfo_handler);
+	if (ddflags & C_PROGRESS) {
+		(void)signal(SIGALRM, sigalarm_handler);
+		setitimer(ITIMER_REAL, &itv, NULL);
+	}
 	(void)signal(SIGINT, terminate);
 
 	atexit(summary);
@@ -125,6 +142,8 @@ static void
 setup(void)
 {
 	u_int cnt;
+	cap_rights_t rights;
+	unsigned long cmds[] = { FIODTYPE, MTIOCTOP };
 
 	if (in.name == NULL) {
 		in.name = "stdin";
@@ -137,9 +156,14 @@ setup(void)
 
 	getfdtype(&in);
 
+	cap_rights_init(&rights, CAP_READ, CAP_SEEK);
+	if (caph_rights_limit(in.fd, &rights) == -1)
+		err(1, "unable to limit capability rights");
+
 	if (files_cnt > 1 && !(in.flags & ISTAPE))
 		errx(1, "files is not supported for non-tape devices");
 
+	cap_rights_set(&rights, CAP_FTRUNCATE, CAP_IOCTL, CAP_WRITE);
 	if (out.name == NULL) {
 		/* No way to check for read access here. */
 		out.fd = STDOUT_FILENO;
@@ -156,6 +180,7 @@ setup(void)
 		if (out.fd == -1) {
 			out.fd = open(out.name, O_WRONLY | OFLAGS, DEFFILEMODE);
 			out.flags |= NOREAD;
+			cap_rights_clear(&rights, CAP_READ);
 		}
 		if (out.fd == -1)
 			err(1, "%s", out.name);
@@ -163,15 +188,35 @@ setup(void)
 
 	getfdtype(&out);
 
+	if (caph_rights_limit(out.fd, &rights) == -1)
+		err(1, "unable to limit capability rights");
+	if (caph_ioctls_limit(out.fd, cmds, nitems(cmds)) == -1)
+		err(1, "unable to limit capability rights");
+
+	if (in.fd != STDIN_FILENO && out.fd != STDIN_FILENO) {
+		if (caph_limit_stdin() == -1)
+			err(1, "unable to limit capability rights");
+	}
+
+	if (in.fd != STDOUT_FILENO && out.fd != STDOUT_FILENO) {
+		if (caph_limit_stdout() == -1)
+			err(1, "unable to limit capability rights");
+	}
+
+	if (in.fd != STDERR_FILENO && out.fd != STDERR_FILENO) {
+		if (caph_limit_stderr() == -1)
+			err(1, "unable to limit capability rights");
+	}
+
 	/*
 	 * Allocate space for the input and output buffers.  If not doing
 	 * record oriented I/O, only need a single buffer.
 	 */
 	if (!(ddflags & (C_BLOCK | C_UNBLOCK))) {
-		if ((in.db = malloc(out.dbsz + in.dbsz - 1)) == NULL)
+		if ((in.db = malloc((size_t)out.dbsz + in.dbsz - 1)) == NULL)
 			err(1, "input buffer");
 		out.db = in.db;
-	} else if ((in.db = malloc(MAX(in.dbsz, cbsz) + cbsz)) == NULL ||
+	} else if ((in.db = malloc(MAX((size_t)in.dbsz, cbsz) + cbsz)) == NULL ||
 	    (out.db = malloc(out.dbsz + cbsz)) == NULL)
 		err(1, "output buffer");
 
@@ -277,6 +322,44 @@ getfdtype(IO *io)
 		io->flags |= ISSEEK;
 }
 
+/*
+ * Limit the speed by adding a delay before every block read.
+ * The delay (t_usleep) is equal to the time computed from block
+ * size and the specified speed limit (t_target) minus the time
+ * spent on actual read and write operations (t_io).
+ */
+static void
+speed_limit(void)
+{
+	static double t_prev, t_usleep;
+	double t_now, t_io, t_target;
+
+	t_now = secs_elapsed();
+	t_io = t_now - t_prev - t_usleep;
+	t_target = (double)in.dbsz / (double)speed;
+	t_usleep = t_target - t_io;
+	if (t_usleep > 0)
+		usleep(t_usleep * 1000000);
+	else
+		t_usleep = 0;
+	t_prev = t_now;
+}
+
+static void
+swapbytes(void *v, size_t len)
+{
+	unsigned char *p = v;
+	unsigned char t;
+
+	while (len > 1) {
+		t = p[0];
+		p[0] = p[1];
+		p[1] = t;
+		p += 2;
+		len -= 2;
+	}
+}
+
 static void
 dd_in(void)
 {
@@ -293,6 +376,9 @@ dd_in(void)
 				return;
 			break;
 		}
+
+		if (speed > 0)
+			speed_limit();
 
 		/*
 		 * Zero the buffer first if sync; if doing block operations,
@@ -343,7 +429,7 @@ dd_in(void)
 			++st.in_full;
 
 		/* Handle full input blocks. */
-		} else if ((size_t)n == in.dbsz) {
+		} else if ((size_t)n == (size_t)in.dbsz) {
 			in.dbcnt += in.dbrcnt = n;
 			++st.in_full;
 
@@ -374,14 +460,15 @@ dd_in(void)
 				++st.swab;
 				--n;
 			}
-			swab(in.dbp, in.dbp, (size_t)n);
+			swapbytes(in.dbp, (size_t)n);
 		}
 
 		in.dbp += in.dbrcnt;
 		(*cfunc)();
-		if (need_summary) {
+		if (need_summary)
 			summary();
-		}
+		if (need_progress)
+			progress();
 	}
 }
 
@@ -409,6 +496,15 @@ dd_close(void)
 	}
 	if (out.dbcnt || pending)
 		dd_out(1);
+
+	/*
+	 * If the file ends with a hole, ftruncate it to extend its size
+	 * up to the end of the hole (without having to write any data).
+	 */
+	if (out.seek_offset > 0 && (out.flags & ISTRUNC)) {
+		if (ftruncate(out.fd, out.seek_offset) == -1)
+			err(1, "truncating %s", out.name);
+	}
 }
 
 void
@@ -457,29 +553,27 @@ dd_out(int force)
 			}
 			if (sparse && !force) {
 				pending += cnt;
-				last_sp = cnt;
 				nw = cnt;
 			} else {
 				if (pending != 0) {
-					/* If forced to write, and we have no
-					 * data left, we need to write the last
-					 * sparse block explicitly.
+					/*
+					 * Seek past hole.  Note that we need to record the
+					 * reached offset, because we might have no more data
+					 * to write, in which case we'll need to call
+					 * ftruncate to extend the file size.
 					 */
-					if (force && cnt == 0) {
-						pending -= last_sp;
-						assert(outp == out.db);
-						memset(outp, 0, cnt);
-					}
-					if (lseek(out.fd, pending, SEEK_CUR) ==
-					    -1)
+					out.seek_offset = lseek(out.fd, pending, SEEK_CUR);
+					if (out.seek_offset == -1)
 						err(2, "%s: seek error creating sparse file",
 						    out.name);
-					pending = last_sp = 0;
+					pending = 0;
 				}
-				if (cnt)
+				if (cnt) {
 					nw = write(out.fd, outp, cnt);
-				else
+					out.seek_offset = 0;
+				} else {
 					return;
+				}
 			}
 
 			if (nw <= 0) {
@@ -493,7 +587,7 @@ dd_out(int force)
 			outp += nw;
 			st.bytes += nw;
 
-			if ((size_t)nw == n && n == out.dbsz)
+			if ((size_t)nw == n && n == (size_t)out.dbsz)
 				++st.out_full;
 			else
 				++st.out_part;

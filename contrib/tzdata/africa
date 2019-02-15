@@ -1,70 +1,67 @@
+# tzdb data for Africa and environs
+
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
-# This data is by no means authoritative; if you think you know better,
+# This file is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
-# tz@iana.org for general use in the future).
+# tz@iana.org for general use in the future).  For more, please see
+# the file CONTRIBUTING in the tz distribution.
 
-# From Paul Eggert (2013-02-21):
+# From Paul Eggert (2018-05-27):
 #
-# A good source for time zone historical data outside the U.S. is
+# Unless otherwise specified, the source for data through 1990 is:
 # Thomas G. Shanks and Rique Pottenger, The International Atlas (6th edition),
 # San Diego: ACS Publications, Inc. (2003).
+# Unfortunately this book contains many errors and cites no sources.
 #
-# Gwillim Law writes that a good source
-# for recent time zone data is the International Air Transport
+# Many years ago Gwillim Law wrote that a good source
+# for time zone data was the International Air Transport
 # Association's Standard Schedules Information Manual (IATA SSIM),
 # published semiannually.  Law sent in several helpful summaries
-# of the IATA's data after 1990.
-#
-# Except where otherwise noted, Shanks & Pottenger is the source for
-# entries through 1990, and IATA SSIM is the source for entries afterwards.
+# of the IATA's data after 1990.  Except where otherwise noted,
+# IATA SSIM is the source for entries after 1990.
 #
 # Another source occasionally used is Edward W. Whitman, World Time Differences,
 # Whitman Publishing Co, 2 Niagara Av, Ealing, London (undated), which
 # I found in the UCLA library.
 #
 # For data circa 1899, a common source is:
-# Milne J. Civil time. Geogr J. 1899 Feb;13(2):173-94
-# <http://www.jstor.org/stable/1774359>.
+# Milne J. Civil time. Geogr J. 1899 Feb;13(2):173-94.
+# https://www.jstor.org/stable/1774359
 #
 # A reliable and entertaining source about time zones is
 # Derek Howse, Greenwich time and longitude, Philip Wilson Publishers (1997).
 #
+# European-style abbreviations are commonly used along the Mediterranean.
+# For sub-Saharan Africa abbreviations were less standardized.
 # Previous editions of this database used WAT, CAT, SAT, and EAT
-# for +0:00 through +3:00, respectively,
-# but Mark R V Murray reports that
-# 'SAST' is the official abbreviation for +2:00 in the country of South Africa,
-# 'CAT' is commonly used for +2:00 in countries north of South Africa, and
-# 'WAT' is probably the best name for +1:00, as the common phrase for
+# for UT +00 through +03, respectively,
+# but in 1997 Mark R V Murray reported that
+# 'SAST' is the official abbreviation for +02 in the country of South Africa,
+# 'CAT' is commonly used for +02 in countries north of South Africa, and
+# 'WAT' is probably the best name for +01, as the common phrase for
 # the area that includes Nigeria is "West Africa".
-# He has heard of "Western Sahara Time" for +0:00 but can find no reference.
 #
-# To make things confusing, 'WAT' seems to have been used for -1:00 long ago;
-# I'd guess that this was because people needed _some_ name for -1:00,
-# and at the time, far west Africa was the only major land area in -1:00.
-# This usage is now obsolete, as the last use of -1:00 on the African
-# mainland seems to have been 1976 in Western Sahara.
+# To summarize, the following abbreviations seemed to have some currency:
+#	 +00	GMT	Greenwich Mean Time
+#	 +02	CAT	Central Africa Time
+#	 +02	SAST	South Africa Standard Time
+# and Murray suggested the following abbreviation:
+#	 +01	WAT	West Africa Time
+# Murray's suggestion seems to have caught on in news reports and the like.
+# I vaguely recall 'WAT' also being used for -01 in the past but
+# cannot now come up with solid citations.
 #
-# To summarize, the following abbreviations seem to have some currency:
-#	-1:00	WAT	West Africa Time (no longer used)
-#	 0:00	GMT	Greenwich Mean Time
-#	 2:00	CAT	Central Africa Time
-#	 2:00	SAST	South Africa Standard Time
-# and Murray suggests the following abbreviation:
-#	 1:00	WAT	West Africa Time
-# I realize that this leads to 'WAT' being used for both -1:00 and 1:00
-# for times before 1976, but this is the best I can think of
-# until we get more information.
-#
-# I invented the following abbreviations; corrections are welcome!
-#	 2:00	WAST	West Africa Summer Time
-#	 2:30	BEAT	British East Africa Time (no longer used)
-#	 2:45	BEAUT	British East Africa Unified Time (no longer used)
-#	 3:00	CAST	Central Africa Summer Time (no longer used)
-#	 3:00	SAST	South Africa Summer Time (no longer used)
-#	 3:00	EAT	East Africa Time
-#	 4:00	EAST	East Africa Summer Time (no longer used)
+# I invented the following abbreviations in the 1990s:
+#	 +02	WAST	West Africa Summer Time
+#	 +03	CAST	Central Africa Summer Time
+#	 +03	SAST	South Africa Summer Time
+#	 +03	EAT	East Africa Time
+# 'EAT' seems to have caught on and is in current timestamps, and though
+# the other abbreviations are rarer and are only in past timestamps,
+# they are paired with better-attested non-DST abbreviations.
+# Corrections are welcome.
 
 # Algeria
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -93,9 +90,9 @@ Rule	Algeria	1980	only	-	Oct	31	 2:00	0	-
 # Shanks & Pottenger give 0:09:20 for Paris Mean Time; go with Howse's
 # more precise 0:09:21.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Algiers	0:12:12 -	LMT	1891 Mar 15 0:01
-			0:09:21	-	PMT	1911 Mar 11    # Paris Mean Time
-			0:00	Algeria	WE%sT	1940 Feb 25 2:00
+Zone	Africa/Algiers	0:12:12 -	LMT	1891 Mar 15  0:01
+			0:09:21	-	PMT	1911 Mar 11 # Paris Mean Time
+			0:00	Algeria	WE%sT	1940 Feb 25  2:00
 			1:00	Algeria	CE%sT	1946 Oct  7
 			0:00	-	WET	1956 Jan 29
 			1:00	-	CET	1963 Apr 14
@@ -105,82 +102,55 @@ Zone	Africa/Algiers	0:12:12 -	LMT	1891 Mar 15 0:01
 			1:00	-	CET
 
 # Angola
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Luanda	0:52:56	-	LMT	1892
-			0:52:04	-	AOT	1911 May 26 # Angola Time
-			1:00	-	WAT
-
 # Benin
-# Whitman says they switched to 1:00 in 1946, not 1934;
-# go with Shanks & Pottenger.
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Africa/Porto-Novo	0:10:28	-	LMT	1912
-			0:00	-	GMT	1934 Feb 26
-			1:00	-	WAT
+# See Africa/Lagos.
 
 # Botswana
-# From Paul Eggert (2013-02-21):
-# Milne says they were regulated by the Cape Town Signal in 1899;
-# assume they switched to 2:00 when Cape Town did.
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Gaborone	1:43:40 -	LMT	1885
-			1:30	-	SAST	1903 Mar
-			2:00	-	CAT	1943 Sep 19 2:00
-			2:00	1:00	CAST	1944 Mar 19 2:00
-			2:00	-	CAT
+# See Africa/Maputo.
 
 # Burkina Faso
 # See Africa/Abidjan.
 
 # Burundi
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Africa/Bujumbura	1:57:28	-	LMT	1890
-			2:00	-	CAT
+# See Africa/Maputo.
 
 # Cameroon
-# Whitman says they switched to 1:00 in 1920; go with Shanks & Pottenger.
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Douala	0:38:48	-	LMT	1912
-			1:00	-	WAT
+# See Africa/Lagos.
 
-# Cape Verde
+# Cape Verde / Cabo Verde
+#
+# From Paul Eggert (2018-02-16):
+# Shanks gives 1907 for the transition to +02.
+# For now, ignore that and follow the 1911-05-26 Portuguese decree
+# (see Europe/Lisbon).
+#
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Atlantic/Cape_Verde -1:34:04 -	LMT	1907			# Praia
-			-2:00	-	CVT	1942 Sep
-			-2:00	1:00	CVST	1945 Oct 15
-			-2:00	-	CVT	1975 Nov 25 2:00
-			-1:00	-	CVT
+Zone Atlantic/Cape_Verde -1:34:04 -	LMT	1912 Jan 01  2:00u # Praia
+			-2:00	-	-02	1942 Sep
+			-2:00	1:00	-01	1945 Oct 15
+			-2:00	-	-02	1975 Nov 25  2:00
+			-1:00	-	-01
 
 # Central African Republic
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Bangui	1:14:20	-	LMT	1912
-			1:00	-	WAT
+# See Africa/Lagos.
 
 # Chad
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Ndjamena	1:00:12 -	LMT	1912 # N'Djamena
+Zone	Africa/Ndjamena	1:00:12 -	LMT	1912        # N'Djamena
 			1:00	-	WAT	1979 Oct 14
 			1:00	1:00	WAST	1980 Mar  8
 			1:00	-	WAT
 
 # Comoros
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Indian/Comoro	2:53:04 -	LMT	1911 Jul   # Moroni, Gran Comoro
-			3:00	-	EAT
+# See Africa/Nairobi.
 
-# Democratic Republic of Congo
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Africa/Kinshasa	1:01:12 -	LMT	1897 Nov 9
-			1:00	-	WAT
-Zone Africa/Lubumbashi	1:49:52 -	LMT	1897 Nov 9
-			2:00	-	CAT
+# Democratic Republic of the Congo
+# See Africa/Lagos for the western part and Africa/Maputo for the eastern.
 
 # Republic of the Congo
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Africa/Brazzaville	1:01:08 -	LMT	1912
-			1:00	-	WAT
+# See Africa/Lagos.
 
-# Côte D'Ivoire / Ivory Coast
+# Côte d'Ivoire / Ivory Coast
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Abidjan	-0:16:08 -	LMT	1912
 			 0:00	-	GMT
@@ -192,13 +162,10 @@ Link Africa/Abidjan Africa/Freetown	# Sierra Leone
 Link Africa/Abidjan Africa/Lome		# Togo
 Link Africa/Abidjan Africa/Nouakchott	# Mauritania
 Link Africa/Abidjan Africa/Ouagadougou	# Burkina Faso
-Link Africa/Abidjan Africa/Sao_Tome	# São Tomé and Príncipe
 Link Africa/Abidjan Atlantic/St_Helena	# St Helena
 
 # Djibouti
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Djibouti	2:52:36 -	LMT	1911 Jul
-			3:00	-	EAT
+# See Africa/Nairobi.
 
 ###############################################################################
 
@@ -254,7 +221,7 @@ Rule	Egypt	2006	only	-	Sep	21	24:00	0	-
 # saving time in Egypt will end in the night of 2007-09-06 to 2007-09-07.
 # From Jesper Nørgaard Welen (2007-08-15): [The following agree:]
 # http://www.nentjes.info/Bill/bill5.htm
-# http://www.timeanddate.com/worldclock/city.html?n=53
+# https://www.timeanddate.com/worldclock/city.html?n=53
 # From Steffen Thorsen (2007-09-04): The official information...:
 # http://www.sis.gov.eg/En/EgyptOnline/Miscellaneous/000002/0207000000000000001580.htm
 Rule	Egypt	2007	only	-	Sep	Thu>=1	24:00	0	-
@@ -292,8 +259,8 @@ Rule	Egypt	2007	only	-	Sep	Thu>=1	24:00	0	-
 # timeanddate[2] and another site I've found[3] also support that.
 #
 # [1] https://bugzilla.redhat.com/show_bug.cgi?id=492263
-# [2] http://www.timeanddate.com/worldclock/clockchange.html?n=53
-# [3] http://wwp.greenwichmeantime.com/time-zone/africa/egypt/
+# [2] https://www.timeanddate.com/worldclock/clockchange.html?n=53
+# [3] https://wwp.greenwichmeantime.com/time-zone/africa/egypt/
 
 # From Arthur David Olson (2009-04-20):
 # In 2009 (and for the next several years), Ramadan ends before the fourth
@@ -303,10 +270,10 @@ Rule	Egypt	2007	only	-	Sep	Thu>=1	24:00	0	-
 # From Steffen Thorsen (2009-08-11):
 # We have been able to confirm the August change with the Egyptian Cabinet
 # Information and Decision Support Center:
-# http://www.timeanddate.com/news/time/egypt-dst-ends-2009.html
+# https://www.timeanddate.com/news/time/egypt-dst-ends-2009.html
 #
 # The Middle East News Agency
-# http://www.mena.org.eg/index.aspx
+# https://www.mena.org.eg/index.aspx
 # also reports "Egypt starts winter time on August 21"
 # today in article numbered "71, 11/08/2009 12:25 GMT."
 # Only the title above is available without a subscription to their service,
@@ -327,7 +294,7 @@ Rule	Egypt	2007	only	-	Sep	Thu>=1	24:00	0	-
 # Egypt is to change back to Daylight system on May 15
 # http://english.ahram.org.eg/NewsContent/1/64/100735/Egypt/Politics-/Egypts-government-to-reapply-daylight-saving-time-.aspx
 
-# From Gunther Vermier (2015-05-13):
+# From Gunther Vermier (2014-05-13):
 # our Egypt office confirms that the change will be at 15 May "midnight" (24:00)
 
 # From Imed Chihi (2014-06-04):
@@ -349,35 +316,36 @@ Rule	Egypt	2007	only	-	Sep	Thu>=1	24:00	0	-
 # above) says DST had no affect on electricity consumption.  There is
 # no information about when DST will end this fall.  See:
 # http://abcnews.go.com/International/wireStory/el-sissi-pushes-egyptians-line-23614833
+
+# From Steffen Thorsen (2015-04-08):
+# Egypt will start DST on midnight after Thursday, April 30, 2015.
+# This is based on a law (no 35) from May 15, 2014 saying it starts the last
+# Thursday of April....  Clocks will still be turned back for Ramadan, but
+# dates not yet announced....
+# http://almogaz.com/news/weird-news/2015/04/05/1947105 ...
+# https://www.timeanddate.com/news/time/egypt-starts-dst-2015.html
+
+# From Ahmed Nazmy (2015-04-20):
+# Egypt's ministers cabinet just announced ... that it will cancel DST at
+# least for 2015.
 #
-# For now, guess that later spring and fall transitions will use
-# 2010's rules, and guess that Egypt will switch to standard time at
-# 24:00 the last Thursday before Ramadan, and back to DST at 00:00 the
-# first Friday after Ramadan.  To implement this,
-# transition dates for 2015 through 2037 were determined by running
-# the following program under GNU Emacs 24.3, with the results integrated
-# by hand into the table below.  Ramadan again intrudes on the guessed
-# DST starting in 2038, but that's beyond our somewhat-arbitrary cutoff.
-# (let ((islamic-year 1436))
-#   (while (< islamic-year 1460)
-#     (let ((a (calendar-islamic-to-absolute (list 9 1 islamic-year)))
-#           (b (calendar-islamic-to-absolute (list 10 1 islamic-year)))
-#           (friday 5))
-#       (while (/= friday (mod a 7))
-#         (setq a (1- a)))
-#       (while (/= friday (mod b 7))
-#         (setq b (1+ b)))
-#       (setq a (1- a))
-#       (setq b (1- b))
-#       (setq a (calendar-gregorian-from-absolute a))
-#       (setq b (calendar-gregorian-from-absolute b))
-#       (insert
-#        (format
-#         (concat "Rule\tEgypt\t%d\tonly\t-\t%s\t%2d\t24:00\t0\t-\n"
-#                 "Rule\tEgypt\t%d\tonly\t-\t%s\t%2d\t24:00\t1:00\tS\n")
-#         (car (cdr (cdr a))) (calendar-month-name (car a) t) (car (cdr a))
-#         (car (cdr (cdr b))) (calendar-month-name (car b) t) (car (cdr b)))))
-#     (setq islamic-year (+ 1 islamic-year))))
+# From Tim Parenti (2015-04-20):
+# http://english.ahram.org.eg/WriterArticles/NewsContentP/1/128195/Egypt/No-daylight-saving-this-summer-Egypts-prime-minist.aspx
+# "Egypt's cabinet agreed on Monday not to switch clocks for daylight saving
+# time this summer, and carry out studies on the possibility of canceling the
+# practice altogether in future years."
+#
+# From Paul Eggert (2015-04-24):
+# Yesterday the office of Egyptian President El-Sisi announced his
+# decision to abandon DST permanently.  See Ahram Online 2015-04-24.
+# http://english.ahram.org.eg/NewsContent/1/64/128509/Egypt/Politics-/Sisi-cancels-daylight-saving-time-in-Egypt.aspx
+
+# From Steffen Thorsen (2016-04-29):
+# Egypt will have DST from July 7 until the end of October....
+# http://english.ahram.org.eg/NewsContentP/1/204655/Egypt/Daylight-savings-time-returning-to-Egypt-on--July.aspx
+# From Mina Samuel (2016-07-04):
+# Egyptian government took the decision to cancel the DST,
+
 Rule	Egypt	2008	only	-	Aug	lastThu	24:00	0	-
 Rule	Egypt	2009	only	-	Aug	20	24:00	0	-
 Rule	Egypt	2010	only	-	Aug	10	24:00	0	-
@@ -386,114 +354,120 @@ Rule	Egypt	2010	only	-	Sep	lastThu	24:00	0	-
 Rule	Egypt	2014	only	-	May	15	24:00	1:00	S
 Rule	Egypt	2014	only	-	Jun	26	24:00	0	-
 Rule	Egypt	2014	only	-	Jul	31	24:00	1:00	S
-Rule	Egypt	2014	max	-	Sep	lastThu	24:00	0	-
-Rule	Egypt	2015	2019	-	Apr	lastFri	 0:00s	1:00	S
-Rule	Egypt	2015	only	-	Jun	11	24:00	0	-
-Rule	Egypt	2015	only	-	Jul	23	24:00	1:00	S
-Rule	Egypt	2016	only	-	Jun	 2	24:00	0	-
-Rule	Egypt	2016	only	-	Jul	 7	24:00	1:00	S
-Rule	Egypt	2017	only	-	May	25	24:00	0	-
-Rule	Egypt	2017	only	-	Jun	29	24:00	1:00	S
-Rule	Egypt	2018	only	-	May	10	24:00	0	-
-Rule	Egypt	2018	only	-	Jun	14	24:00	1:00	S
-Rule	Egypt	2019	only	-	May	 2	24:00	0	-
-Rule	Egypt	2019	only	-	Jun	 6	24:00	1:00	S
-Rule	Egypt	2020	only	-	May	28	24:00	1:00	S
-Rule	Egypt	2021	only	-	May	13	24:00	1:00	S
-Rule	Egypt	2022	only	-	May	 5	24:00	1:00	S
-Rule	Egypt	2023	max	-	Apr	lastFri	 0:00s	1:00	S
+Rule	Egypt	2014	only	-	Sep	lastThu	24:00	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Cairo	2:05:09 -	LMT	1900 Oct
 			2:00	Egypt	EE%sT
 
 # Equatorial Guinea
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Malabo	0:35:08 -	LMT	1912
-			0:00	-	GMT	1963 Dec 15
-			1:00	-	WAT
+# See Africa/Lagos.
 
 # Eritrea
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Asmara	2:35:32 -	LMT	1870
-			2:35:32	-	AMT	1890	      # Asmara Mean Time
-			2:35:20	-	ADMT	1936 May 5    # Adis Dera MT
-			3:00	-	EAT
-
 # Ethiopia
-# From Paul Eggert (2014-07-31):
-# Like the Swahili of Kenya and Tanzania, many Ethiopians keep a
-# 12-hour clock starting at our 06:00, so their "8 o'clock" is our
-# 02:00 or 14:00.  Keep this in mind when you ask the time in Amharic.
+# See Africa/Nairobi.
 #
-# Shanks & Pottenger write that Ethiopia had six narrowly-spaced time
-# zones between 1870 and 1890, that they merged to 38E50 (2:35:20) in
-# 1890, and that they switched to 3:00 on 1936-05-05.  Perhaps 38E50
-# was for Adis Dera.  Quite likely the Shanks data are wrong anyway.
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Africa/Addis_Ababa	2:34:48 -	LMT	1870
-			2:35:20	-	ADMT	1936 May 5    # Adis Dera MT
-			3:00	-	EAT
+# Unfortunately tzdb records only Western clock time in use in Ethiopia,
+# as the tzdb format is not up to properly recording a common Ethiopian
+# timekeeping practice that is based on solar time.  See:
+# Mortada D. If you have a meeting in Ethiopia, you'd better double
+# check the time. PRI's The World. 2015-01-30 15:15 -05.
+# https://www.pri.org/stories/2015-01-30/if-you-have-meeting-ethiopia-you-better-double-check-time
 
 # Gabon
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Africa/Libreville	0:37:48 -	LMT	1912
-			1:00	-	WAT
+# See Africa/Lagos.
 
 # Gambia
 # See Africa/Abidjan.
 
 # Ghana
-# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+
+# From Paul Eggert (2018-01-30):
 # Whitman says DST was observed from 1931 to "the present";
-# Shanks & Pottenger say 1936 to 1942;
-# and September 1 to January 1 is given by:
-# Scott Keltie J, Epstein M (eds), The Statesman's Year-Book,
-# 57th ed. Macmillan, London (1920), OCLC 609408015, pp xxviii.
-# For lack of better info, assume DST was observed from 1920 to 1942.
-Rule	Ghana	1920	1942	-	Sep	 1	0:00	0:20	GHST
-Rule	Ghana	1920	1942	-	Dec	31	0:00	0	GMT
+# Shanks & Pottenger say 1936 to 1942 with 20 minutes of DST,
+# with transitions on 09-01 and 12-31 at 00:00.
+# Page 33 of Parish GCB, Colonial Reports - Annual. No. 1066. Gold
+# Coast. Report for 1919. (March 1921), OCLC 784024077
+# http://libsysdigi.library.illinois.edu/ilharvest/africana/books2011-05/5530214/5530214_1919/5530214_1919_opt.pdf
+# lists the Determination of the Time Ordinance, 1919, No. 18,
+# "to advance the time observed locally by the space of twenty minutes
+# during the last four months of each year; the object in view being
+# to extend during those months the period of daylight-time available
+# for evening recreation after office hours."
+# Vanessa Ogle, The Global Transformation of Time, 1870-1950 (2015), p 33,
+# writes "In 1919, the Gold Coast (Ghana as of 1957) made Greenwich
+# time its legal time and simultaneously legalized a summer time of
+# UTC - 00:20 minutes from March to October."; a footnote lists
+# the ordinance as being dated 1919-11-24.
+# The Crown Colonist, Volume 12 (1942), p 176, says "the Government
+# intend advancing Gold Coast time half an hour ahead of G.M.T.
+# The actual date of the alteration has not yet been announced."
+# These sources are incomplete and contradictory.  Possibly what is
+# now Ghana observed different DST regimes in different years.  For
+# lack of better info, use Shanks except treat the minus sign as a
+# typo, and assume DST started in 1920 not 1936.
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Ghana	1920	1942	-	Sep	 1	0:00	0:20	-
+Rule	Ghana	1920	1942	-	Dec	31	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Accra	-0:00:52 -	LMT	1918
-			 0:00	Ghana	%s
+			 0:00	Ghana	GMT/+0020
 
 # Guinea
 # See Africa/Abidjan.
 
 # Guinea-Bissau
+#
+# From Paul Eggert (2018-02-16):
+# Shanks gives 1911-05-26 for the transition to WAT,
+# evidently confusing the date of the Portuguese decree
+# (see Europe/Lisbon) with the date that it took effect.
+#
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Bissau	-1:02:20 -	LMT	1911 May 26
-			-1:00	-	WAT	1975
+Zone	Africa/Bissau	-1:02:20 -	LMT	1912 Jan  1  1:00u
+			-1:00	-	-01	1975
 			 0:00	-	GMT
 
 # Kenya
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Nairobi	2:27:16	-	LMT	1928 Jul
 			3:00	-	EAT	1930
-			2:30	-	BEAT	1940
-			2:45	-	BEAUT	1960
+			2:30	-	+0230	1940
+			2:45	-	+0245	1960
 			3:00	-	EAT
+Link Africa/Nairobi Africa/Addis_Ababa	 # Ethiopia
+Link Africa/Nairobi Africa/Asmara	 # Eritrea
+Link Africa/Nairobi Africa/Dar_es_Salaam # Tanzania
+Link Africa/Nairobi Africa/Djibouti
+Link Africa/Nairobi Africa/Kampala	 # Uganda
+Link Africa/Nairobi Africa/Mogadishu	 # Somalia
+Link Africa/Nairobi Indian/Antananarivo	 # Madagascar
+Link Africa/Nairobi Indian/Comoro
+Link Africa/Nairobi Indian/Mayotte
 
 # Lesotho
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Maseru	1:50:00 -	LMT	1903 Mar
-			2:00	-	SAST	1943 Sep 19 2:00
-			2:00	1:00	SAST	1944 Mar 19 2:00
-			2:00	-	SAST
+# See Africa/Johannesburg.
 
 # Liberia
-# From Paul Eggert (2006-03-22):
-# In 1972 Liberia was the last country to switch
-# from a UTC offset that was not a multiple of 15 or 20 minutes.
-# Howse reports that it was in honor of their president's birthday.
-# Shank & Pottenger report the date as May 1, whereas Howse reports Jan;
-# go with Shanks & Pottenger.
-# For Liberia before 1972, Shanks & Pottenger report -0:44, whereas Howse and
-# Whitman each report -0:44:30; go with the more precise figure.
+#
+# From Paul Eggert (2017-03-02):
+#
+# The Nautical Almanac for the Year 1970, p 264, is the source for -0:44:30.
+#
+# In 1972 Liberia was the last country to switch from a UT offset
+# that was not a multiple of 15 or 20 minutes.  The 1972 change was on
+# 1972-01-07, according to an entry dated 1972-01-04 on p 330 of:
+# Presidential Papers: First year of the administration of
+# President William R. Tolbert, Jr., July 23, 1971-July 31, 1972.
+# Monrovia: Executive Mansion.
+#
+# Use the abbreviation "MMT" before 1972, as the more-accurate numeric
+# abbreviation "-004430" would be one byte over the POSIX limit.
+#
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Monrovia	-0:43:08 -	LMT	1882
 			-0:43:08 -	MMT	1919 Mar # Monrovia Mean Time
-			-0:44:30 -	LRT	1972 May # Liberia Time
+			-0:44:30 -	MMT	1972 Jan 7 # approximately MMT
 			 0:00	-	GMT
 
 ###############################################################################
@@ -502,11 +476,11 @@ Zone	Africa/Monrovia	-0:43:08 -	LMT	1882
 
 # From Even Scharning (2012-11-10):
 # Libya set their time one hour back at 02:00 on Saturday November 10.
-# http://www.libyaherald.com/2012/11/04/clocks-to-go-back-an-hour-on-saturday/
+# https://www.libyaherald.com/2012/11/04/clocks-to-go-back-an-hour-on-saturday/
 # Here is an official source [in Arabic]: http://ls.ly/fb6Yc
 #
 # Steffen Thorsen forwarded a translation (2012-11-10) in
-# http://mm.icann.org/pipermail/tz/2012-November/018451.html
+# https://mm.icann.org/pipermail/tz/2012-November/018451.html
 #
 # From Tim Parenti (2012-11-11):
 # Treat the 2012-11-10 change as a zone change from UTC+2 to UTC+1.
@@ -517,10 +491,10 @@ Zone	Africa/Monrovia	-0:43:08 -	LMT	1882
 # From Even Scharning (2013-10-25):
 # The scheduled end of DST in Libya on Friday, October 25, 2013 was
 # cancelled yesterday....
-# http://www.libyaherald.com/2013/10/24/correction-no-time-change-tomorrow/
+# https://www.libyaherald.com/2013/10/24/correction-no-time-change-tomorrow/
 #
 # From Paul Eggert (2013-10-25):
-# For now, assume they're reverting to the pre-2012 rules of permanent UTC+2.
+# For now, assume they're reverting to the pre-2012 rules of permanent UT +02.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Libya	1951	only	-	Oct	14	2:00	1:00	S
@@ -546,24 +520,18 @@ Zone	Africa/Tripoli	0:52:44 -	LMT	1920
 			2:00	-	EET	1982
 			1:00	Libya	CE%sT	1990 May  4
 # The 1996 and 1997 entries are from Shanks & Pottenger;
-# the IATA SSIM data contain some obvious errors.
+# the IATA SSIM data entries contain some obvious errors.
 			2:00	-	EET	1996 Sep 30
 			1:00	Libya	CE%sT	1997 Oct  4
-			2:00	-	EET	2012 Nov 10 2:00
-			1:00	Libya	CE%sT	2013 Oct 25 2:00
+			2:00	-	EET	2012 Nov 10  2:00
+			1:00	Libya	CE%sT	2013 Oct 25  2:00
 			2:00	-	EET
 
 # Madagascar
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Indian/Antananarivo 3:10:04 -	LMT	1911 Jul
-			3:00	-	EAT	1954 Feb 27 23:00s
-			3:00	1:00	EAST	1954 May 29 23:00s
-			3:00	-	EAT
+# See Africa/Nairobi.
 
 # Malawi
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Blantyre	2:20:00 -	LMT	1903 Mar
-			2:00	-	CAT
+# See Africa/Maputo.
 
 # Mali
 # Mauritania
@@ -576,7 +544,7 @@ Zone	Africa/Blantyre	2:20:00 -	LMT	1903 Mar
 # basis....
 # It seems that Mauritius observed daylight saving time from 1982-10-10 to
 # 1983-03-20 as well, but that was not successful....
-# http://www.timeanddate.com/news/time/mauritius-daylight-saving-time.html
+# https://www.timeanddate.com/news/time/mauritius-daylight-saving-time.html
 
 # From Alex Krivenyshev (2008-06-25):
 # http://economicdevelopment.gov.mu/portal/site/Mainhomepage/menuitem.a42b24128104d9845dabddd154508a0c/?content_id=0a7cee8b5d69a110VgnVCM1000000a04a8c0RCRD
@@ -606,7 +574,7 @@ Zone	Africa/Blantyre	2:20:00 -	LMT	1903 Mar
 
 # From Alex Krivenyshev (2008-07-11):
 # Seems that English language article "The revival of daylight saving
-# time:  Energy conservation?"-# No. 16578 (07/11/2008) was originally
+# time: Energy conservation?"- No. 16578 (07/11/2008) was originally
 # published on Monday, June 30, 2008...
 #
 # I guess that article in French "Le gouvernement avance l'introduction
@@ -644,7 +612,7 @@ Zone	Africa/Blantyre	2:20:00 -	LMT	1903 Mar
 # http://lexpress.mu/Story/3398~Beebeejaun---Les-objectifs-d-%C3%A9conomie-d-%C3%A9nergie-de-l-heure-d-%C3%A9t%C3%A9-ont-%C3%A9t%C3%A9-atteints-
 #
 # Our wrap-up:
-# http://www.timeanddate.com/news/time/mauritius-dst-will-not-repeat.html
+# https://www.timeanddate.com/news/time/mauritius-dst-will-not-repeat.html
 
 # From Arthur David Olson (2009-07-11):
 # The "mauritius-dst-will-not-repeat" wrapup includes this:
@@ -652,20 +620,18 @@ Zone	Africa/Blantyre	2:20:00 -	LMT	1903 Mar
 # at 2am (or 02:00) local time..."
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule Mauritius	1982	only	-	Oct	10	0:00	1:00	S
+Rule Mauritius	1982	only	-	Oct	10	0:00	1:00	-
 Rule Mauritius	1983	only	-	Mar	21	0:00	0	-
-Rule Mauritius	2008	only	-	Oct	lastSun	2:00	1:00	S
+Rule Mauritius	2008	only	-	Oct	lastSun	2:00	1:00	-
 Rule Mauritius	2009	only	-	Mar	lastSun	2:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Indian/Mauritius	3:50:00 -	LMT	1907		# Port Louis
-			4:00 Mauritius	MU%sT	# Mauritius Time
+Zone Indian/Mauritius	3:50:00 -	LMT	1907 # Port Louis
+			4:00 Mauritius	+04/+05
 # Agalega Is, Rodriguez
 # no information; probably like Indian/Mauritius
 
 # Mayotte
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Indian/Mayotte	3:00:56 -	LMT	1911 Jul	# Mamoutzou
-			3:00	-	EAT
+# See Africa/Nairobi.
 
 # Morocco
 # See the 'europe' file for Spanish Morocco (Africa/Ceuta).
@@ -678,11 +644,12 @@ Zone	Indian/Mayotte	3:00:56 -	LMT	1911 Jul	# Mamoutzou
 # be one hour ahead of GMT between 1 June and 27 September, according to
 # Communication Minister and Government Spokesman, Khalid Naciri...."
 #
-# http://www.worldtimezone.net/dst_news/dst_news_morocco01.html
+# http://www.worldtimezone.com/dst_news/dst_news_morocco01.html
 # http://en.afrik.com/news11892.html
 
 # From Alex Krivenyshev (2008-05-09):
-# The Morocco time change can be confirmed on Morocco web site Maghreb Arabe Presse:
+# The Morocco time change can be confirmed on Morocco web site Maghreb Arabe
+# Presse:
 # http://www.map.ma/eng/sections/box3/morocco_shifts_to_da/view
 #
 # Morocco shifts to daylight time on June 1st through September 27, Govt.
@@ -690,7 +657,7 @@ Zone	Indian/Mayotte	3:00:56 -	LMT	1911 Jul	# Mamoutzou
 
 # From Patrice Scattolin (2008-05-09):
 # According to this article:
-# http://www.avmaroc.com/actualite/heure-dete-comment-a127896.html
+# https://www.avmaroc.com/actualite/heure-dete-comment-a127896.html
 # (and republished here: <http://www.actu.ma/heure-dete-comment_i127896_0.html>)
 # the changes occur at midnight:
 #
@@ -712,7 +679,7 @@ Zone	Indian/Mayotte	3:00:56 -	LMT	1911 Jul	# Mamoutzou
 # posted in English).
 #
 # The following Google query will generate many relevant hits:
-# http://www.google.com/search?hl=en&q=Conseil+de+gouvernement+maroc+heure+avance&btnG=Search
+# https://www.google.com/search?hl=en&q=Conseil+de+gouvernement+maroc+heure+avance&btnG=Search
 
 # From Steffen Thorsen (2008-08-27):
 # Morocco will change the clocks back on the midnight between August 31
@@ -723,7 +690,7 @@ Zone	Indian/Mayotte	3:00:56 -	LMT	1911 Jul	# Mamoutzou
 # http://www.menara.ma/fr/Actualites/Maroc/Societe/ci.retour_a_l_heure_gmt_a_partir_du_dimanche_31_aout_a_minuit_officiel_.default
 #
 # We have some further details posted here:
-# http://www.timeanddate.com/news/time/morocco-ends-dst-early-2008.html
+# https://www.timeanddate.com/news/time/morocco-ends-dst-early-2008.html
 
 # From Steffen Thorsen (2009-03-17):
 # Morocco will observe DST from 2009-06-01 00:00 to 2009-08-21 00:00 according
@@ -733,13 +700,13 @@ Zone	Indian/Mayotte	3:00:56 -	LMT	1911 Jul	# Mamoutzou
 # (French)
 #
 # Our summary:
-# http://www.timeanddate.com/news/time/morocco-starts-dst-2009.html
+# https://www.timeanddate.com/news/time/morocco-starts-dst-2009.html
 
 # From Alexander Krivenyshev (2009-03-17):
 # Here is a link to official document from Royaume du Maroc Premier Ministre,
 # Ministère de la Modernisation des Secteurs Publics
 #
-# Under Article 1 of Royal Decree No. 455-67 of Act 23 safar 1387 (2 june 1967)
+# Under Article 1 of Royal Decree No. 455-67 of Act 23 safar 1387 (2 June 1967)
 # concerning the amendment of the legal time, the Ministry of Modernization of
 # Public Sectors announced that the official time in the Kingdom will be
 # advanced 60 minutes from Sunday 31 May 2009 at midnight.
@@ -756,12 +723,12 @@ Zone	Indian/Mayotte	3:00:56 -	LMT	1911 Jul	# Mamoutzou
 # http://www.lavieeco.com/actualites/4099-le-maroc-passera-a-l-heure-d-ete-gmt1-le-2-mai.html
 # (French)
 # Our page:
-# http://www.timeanddate.com/news/time/morocco-starts-dst-2010.html
+# https://www.timeanddate.com/news/time/morocco-starts-dst-2010.html
 
 # From Dan Abitol (2011-03-30):
 # ...Rules for Africa/Casablanca are the following (24h format)
-# The 3rd april 2011 at 00:00:00, [it] will be 3rd april 1:00:00
-# The 31th july 2011 at 00:59:59,  [it] will be 31th July 00:00:00
+# The 3rd April 2011 at 00:00:00, [it] will be 3rd April 01:00:00
+# The 31st July 2011 at 00:59:59, [it] will be 31st July 00:00:00
 # ...Official links of change in morocco
 # The change was broadcast on the FM Radio
 # I ve called ANRT (telecom regulations in Morocco) at
@@ -773,7 +740,7 @@ Zone	Indian/Mayotte	3:00:56 -	LMT	1911 Jul	# Mamoutzou
 # They said that the decision was already taken.
 #
 # More articles in the press
-# http://www.yabiladi.com/articles/details/5058/secret-l-heure-d-ete-maroc-leve.html
+# https://www.yabiladi.com/articles/details/5058/secret-l-heure-d-ete-maroc-leve.html
 # http://www.lematin.ma/Actualite/Express/Article.asp?id=148923
 # http://www.lavieeco.com/actualite/Le-Maroc-passe-sur-GMT%2B1-a-partir-de-dim
 
@@ -831,7 +798,7 @@ Zone	Indian/Mayotte	3:00:56 -	LMT	1911 Jul	# Mamoutzou
 # announced a bit in advance.  On 2012-07-11 the Moroccan government
 # announced that year's Ramadan daylight-saving transitions would be
 # 2012-07-20 and 2012-08-20; see
-# <http://www.mmsp.gov.ma/fr/actualites.aspx?id=288>.
+# http://www.mmsp.gov.ma/fr/actualites.aspx?id=288
 
 # From Andrew Paprocki (2013-07-02):
 # Morocco announced that the year's Ramadan daylight-savings
@@ -857,95 +824,81 @@ Zone	Indian/Mayotte	3:00:56 -	LMT	1911 Jul	# Mamoutzou
 # will resume again at 02:00 on Saturday, August 2, 2014....
 # http://www.mmsp.gov.ma/fr/actualites.aspx?id=586
 
-# From Paul Eggert (2014-06-05):
-# For now, guess that later spring and fall transitions will use 2014's rules,
-# and guess that Morocco will switch to standard time at 03:00 the last
-# Saturday before Ramadan, and back to DST at 02:00 the first Saturday after
-# Ramadan.  To implement this, transition dates for 2015 through 2037 were
-# determined by running the following program under GNU Emacs 24.3, with the
-# results integrated by hand into the table below.
-# (let ((islamic-year 1436))
-#   (while (< islamic-year 1460)
-#     (let ((a (calendar-islamic-to-absolute (list 9 1 islamic-year)))
-#           (b (calendar-islamic-to-absolute (list 10 1 islamic-year)))
-#           (saturday 6))
-#       (while (/= saturday (mod (setq a (1- a)) 7)))
-#       (while (/= saturday (mod b 7))
-#         (setq b (1+ b)))
-#       (setq a (calendar-gregorian-from-absolute a))
-#       (setq b (calendar-gregorian-from-absolute b))
-#       (insert
-#        (format
-#         (concat "Rule\tMorocco\t%d\tonly\t-\t%s\t%2d\t 3:00\t0\t-\n"
-#                 "Rule\tMorocco\t%d\tonly\t-\t%s\t%2d\t 2:00\t1:00\tS\n")
-#         (car (cdr (cdr a))) (calendar-month-name (car a) t) (car (cdr a))
-#         (car (cdr (cdr b))) (calendar-month-name (car b) t) (car (cdr b)))))
-#     (setq islamic-year (+ 1 islamic-year))))
+# From Milamber (2015-06-08):
+# (Google Translation) The hour will thus be delayed 60 minutes
+# Sunday, June 14 at 3:00, the ministry said in a statement, adding
+# that the time will be advanced again 60 minutes Sunday, July 19,
+# 2015 at 2:00.  The move comes under 2.12.126 Decree of 26 Jumada I
+# 1433 (18 April 2012) and the decision of the Head of Government of
+# 16 N. 3-29-15 Chaaban 1435 (4 June 2015).
+# Source (french):
+# https://lnt.ma/le-maroc-reculera-dune-heure-le-dimanche-14-juin/
+#
+# From Milamber (2015-06-09):
+# http://www.mmsp.gov.ma/fr/actualites.aspx?id=863
+#
+# From Michael Deckers (2015-06-09):
+# [The gov.ma announcement] would (probably) make the switch on 2015-07-19 go
+# from 03:00 to 04:00 rather than from 02:00 to 03:00, as in the patch....
+# I think the patch is correct and the quoted text is wrong; the text in
+# <https://lnt.ma/le-maroc-reculera-dune-heure-le-dimanche-14-juin/> agrees
+# with the patch.
+
+# From Mohamed Essedik Najd (2018-10-26):
+# Today, a Moroccan government council approved the perpetual addition
+# of 60 minutes to the regular Moroccan timezone.
+# From Brian Inglis (2018-10-26):
+# http://www.maroc.ma/fr/actualites/le-conseil-de-gouvernement-adopte-un-projet-de-decret-relatif-lheure-legale-stipulant-le
 
 # RULE	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-
-Rule	Morocco	1939	only	-	Sep	12	 0:00	1:00	S
+Rule	Morocco	1939	only	-	Sep	12	 0:00	1:00	-
 Rule	Morocco	1939	only	-	Nov	19	 0:00	0	-
-Rule	Morocco	1940	only	-	Feb	25	 0:00	1:00	S
+Rule	Morocco	1940	only	-	Feb	25	 0:00	1:00	-
 Rule	Morocco	1945	only	-	Nov	18	 0:00	0	-
-Rule	Morocco	1950	only	-	Jun	11	 0:00	1:00	S
+Rule	Morocco	1950	only	-	Jun	11	 0:00	1:00	-
 Rule	Morocco	1950	only	-	Oct	29	 0:00	0	-
-Rule	Morocco	1967	only	-	Jun	 3	12:00	1:00	S
+Rule	Morocco	1967	only	-	Jun	 3	12:00	1:00	-
 Rule	Morocco	1967	only	-	Oct	 1	 0:00	0	-
-Rule	Morocco	1974	only	-	Jun	24	 0:00	1:00	S
+Rule	Morocco	1974	only	-	Jun	24	 0:00	1:00	-
 Rule	Morocco	1974	only	-	Sep	 1	 0:00	0	-
-Rule	Morocco	1976	1977	-	May	 1	 0:00	1:00	S
+Rule	Morocco	1976	1977	-	May	 1	 0:00	1:00	-
 Rule	Morocco	1976	only	-	Aug	 1	 0:00	0	-
 Rule	Morocco	1977	only	-	Sep	28	 0:00	0	-
-Rule	Morocco	1978	only	-	Jun	 1	 0:00	1:00	S
+Rule	Morocco	1978	only	-	Jun	 1	 0:00	1:00	-
 Rule	Morocco	1978	only	-	Aug	 4	 0:00	0	-
-Rule	Morocco	2008	only	-	Jun	 1	 0:00	1:00	S
+Rule	Morocco	2008	only	-	Jun	 1	 0:00	1:00	-
 Rule	Morocco	2008	only	-	Sep	 1	 0:00	0	-
-Rule	Morocco	2009	only	-	Jun	 1	 0:00	1:00	S
+Rule	Morocco	2009	only	-	Jun	 1	 0:00	1:00	-
 Rule	Morocco	2009	only	-	Aug	21	 0:00	0	-
-Rule	Morocco	2010	only	-	May	 2	 0:00	1:00	S
+Rule	Morocco	2010	only	-	May	 2	 0:00	1:00	-
 Rule	Morocco	2010	only	-	Aug	 8	 0:00	0	-
-Rule	Morocco	2011	only	-	Apr	 3	 0:00	1:00	S
-Rule	Morocco	2011	only	-	Jul	31	 0	0	-
-Rule	Morocco	2012	2013	-	Apr	lastSun	 2:00	1:00	S
-Rule	Morocco	2012	only	-	Sep	30	 3:00	0	-
+Rule	Morocco	2011	only	-	Apr	 3	 0:00	1:00	-
+Rule	Morocco	2011	only	-	Jul	31	 0:00	0	-
+Rule	Morocco	2012	2013	-	Apr	lastSun	 2:00	1:00	-
 Rule	Morocco	2012	only	-	Jul	20	 3:00	0	-
-Rule	Morocco	2012	only	-	Aug	20	 2:00	1:00	S
+Rule	Morocco	2012	only	-	Aug	20	 2:00	1:00	-
+Rule	Morocco	2012	only	-	Sep	30	 3:00	0	-
 Rule	Morocco	2013	only	-	Jul	 7	 3:00	0	-
-Rule	Morocco	2013	only	-	Aug	10	 2:00	1:00	S
-Rule	Morocco	2013	max	-	Oct	lastSun	 3:00	0	-
-Rule	Morocco	2014	2022	-	Mar	lastSun	 2:00	1:00	S
+Rule	Morocco	2013	only	-	Aug	10	 2:00	1:00	-
+Rule	Morocco	2013	2018	-	Oct	lastSun	 3:00	0	-
+Rule	Morocco	2014	2018	-	Mar	lastSun	 2:00	1:00	-
 Rule	Morocco	2014	only	-	Jun	28	 3:00	0	-
-Rule	Morocco	2014	only	-	Aug	 2	 2:00	1:00	S
-Rule	Morocco	2015	only	-	Jun	13	 3:00	0	-
-Rule	Morocco	2015	only	-	Jul	18	 2:00	1:00	S
-Rule	Morocco	2016	only	-	Jun	 4	 3:00	0	-
-Rule	Morocco	2016	only	-	Jul	 9	 2:00	1:00	S
-Rule	Morocco	2017	only	-	May	20	 3:00	0	-
-Rule	Morocco	2017	only	-	Jul	 1	 2:00	1:00	S
-Rule	Morocco	2018	only	-	May	12	 3:00	0	-
-Rule	Morocco	2018	only	-	Jun	16	 2:00	1:00	S
-Rule	Morocco	2019	only	-	May	 4	 3:00	0	-
-Rule	Morocco	2019	only	-	Jun	 8	 2:00	1:00	S
-Rule	Morocco	2020	only	-	Apr	18	 3:00	0	-
-Rule	Morocco	2020	only	-	May	30	 2:00	1:00	S
-Rule	Morocco	2021	only	-	Apr	10	 3:00	0	-
-Rule	Morocco	2021	only	-	May	15	 2:00	1:00	S
-Rule	Morocco	2022	only	-	Apr	 2	 3:00	0	-
-Rule	Morocco	2022	only	-	May	 7	 2:00	1:00	S
-Rule	Morocco	2023	only	-	Apr	22	 2:00	1:00	S
-Rule	Morocco	2024	only	-	Apr	13	 2:00	1:00	S
-Rule	Morocco	2025	only	-	Apr	 5	 2:00	1:00	S
-Rule	Morocco	2026	max	-	Mar	lastSun	 2:00	1:00	S
-Rule	Morocco	2035	only	-	Oct	27	 3:00	0	-
-Rule	Morocco	2036	only	-	Oct	18	 3:00	0	-
-Rule	Morocco	2037	only	-	Oct	10	 3:00	0	-
+Rule	Morocco	2014	only	-	Aug	 2	 2:00	1:00	-
+Rule	Morocco	2015	only	-	Jun	14	 3:00	0	-
+Rule	Morocco	2015	only	-	Jul	19	 2:00	1:00	-
+Rule	Morocco	2016	only	-	Jun	 5	 3:00	0	-
+Rule	Morocco	2016	only	-	Jul	10	 2:00	1:00	-
+Rule	Morocco	2017	only	-	May	21	 3:00	0	-
+Rule	Morocco	2017	only	-	Jul	 2	 2:00	1:00	-
+Rule	Morocco	2018	only	-	May	13	 3:00	0	-
+Rule	Morocco	2018	only	-	Jun	17	 2:00	1:00	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Casablanca	-0:30:20 -	LMT	1913 Oct 26
-			 0:00	Morocco	WE%sT	1984 Mar 16
-			 1:00	-	CET	1986
-			 0:00	Morocco	WE%sT
+			 0:00	Morocco	+00/+01	1984 Mar 16
+			 1:00	-	+01	1986
+			 0:00	Morocco	+00/+01	2018 Oct 27
+			 1:00	-	+01
 
 # Western Sahara
 #
@@ -959,20 +912,46 @@ Zone Africa/Casablanca	-0:30:20 -	LMT	1913 Oct 26
 # since most of it was then controlled by Morocco.
 
 Zone Africa/El_Aaiun	-0:52:48 -	LMT	1934 Jan # El Aaiún
-			-1:00	-	WAT	1976 Apr 14
-			 0:00	Morocco	WE%sT
+			-1:00	-	-01	1976 Apr 14
+			 0:00	Morocco	+00/+01	2018 Oct 27
+			 1:00	-	+01
 
 # Mozambique
+#
+# Shanks gives 1903-03-01 for the transition to CAT.
+# Perhaps the 1911-05-26 Portuguese decree
+# https://dre.pt/pdf1sdip/1911/05/12500/23132313.pdf
+# merely made it official?
+#
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Maputo	2:10:20 -	LMT	1903 Mar
 			2:00	-	CAT
+Link Africa/Maputo Africa/Blantyre	# Malawi
+Link Africa/Maputo Africa/Bujumbura	# Burundi
+Link Africa/Maputo Africa/Gaborone	# Botswana
+Link Africa/Maputo Africa/Harare	# Zimbabwe
+Link Africa/Maputo Africa/Kigali	# Rwanda
+Link Africa/Maputo Africa/Lubumbashi	# E Dem. Rep. of Congo
+Link Africa/Maputo Africa/Lusaka	# Zambia
+
 
 # Namibia
-# The 1994-04-03 transition is from Shanks & Pottenger.
-# Shanks & Pottenger report no DST after 1998-04; go with IATA.
 
-# From Petronella Sibeene (2007-03-30) in
-# <http://allafrica.com/stories/200703300178.html>:
+# From Arthur David Olson (2017-08-09):
+# The text of the "Namibia Time Act, 1994" is available online at
+# www.lac.org.na/laws/1994/811.pdf
+# and includes this nugget:
+# Notwithstanding the provisions of subsection (2) of section 1, the
+# first winter period after the commencement of this Act shall
+# commence at OOhOO on Monday 21 March 1994 and shall end at 02h00 on
+# Sunday 4 September 1994.
+
+# From Michael Deckers (2017-04-06):
+# ... both summer and winter time are called "standard"
+# (which differs from the use in Ireland) ...
+
+# From Petronella Sibeene (2007-03-30):
+# http://allafrica.com/stories/200703300178.html
 # While the entire country changes its time, Katima Mulilo and other
 # settlements in Caprivi unofficially will not because the sun there
 # rises and sets earlier compared to other regions.  Chief of
@@ -980,38 +959,80 @@ Zone	Africa/Maputo	2:10:20 -	LMT	1903 Mar
 # the country are close to 40 minutes earlier in sunrise than the rest
 # of the country.
 #
-# From Paul Eggert (2007-03-31):
-# Apparently the Caprivi Strip informally observes Botswana time, but
-# we have no details.  In the meantime people there can use Africa/Gaborone.
+# From Paul Eggert (2017-02-22):
+# Although the Zambezi Region (formerly known as Caprivi) informally
+# observes Botswana time, we have no details about historical practice.
+# In the meantime people there can use Africa/Gaborone.
+# See: Immanuel S. The Namibian. 2017-02-23.
+# https://www.namibian.com.na/51480/read/Time-change-divides-lawmakers
+
+# From Steffen Thorsen (2017-08-09):
+# Namibia is going to change their time zone to what is now their DST:
+# https://www.newera.com.na/2017/02/23/namibias-winter-time-might-be-repealed/
+# This video is from the government decision:
+# https://www.nbc.na/news/na-passes-namibia-time-bill-repealing-1994-namibia-time-act.8665
+# We have made the assumption so far that they will change their time zone at
+# the same time they would normally start DST, the first Sunday in September:
+# https://www.timeanddate.com/news/time/namibia-new-time-zone.html
+
+# From Paul Eggert (2017-04-09):
+# Before the change, summer and winter time were both standard time legally.
+# However in common parlance, winter time was considered to be DST.  See, e.g.:
+# http://www.nbc.na/news/namibias-winter-time-could-be-scrapped.2706
+# https://zone.my.na/news/times-are-changing-in-namibia
+# https://www.newera.com.na/2017/02/23/namibias-winter-time-might-be-repealed/
+# Use plain "WAT" and "CAT" for the time zone abbreviations, to be compatible
+# with Namibia's neighbors.
 
 # RULE	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Namibia	1994	max	-	Sep	Sun>=1	2:00	1:00	S
-Rule	Namibia	1995	max	-	Apr	Sun>=1	2:00	0	-
+# Vanguard section, for zic and other parsers that support negative DST.
+Rule	Namibia	1994	only	-	Mar	21	0:00	-1:00	WAT
+Rule	Namibia	1994	2017	-	Sep	Sun>=1	2:00	0	CAT
+Rule	Namibia	1995	2017	-	Apr	Sun>=1	2:00	-1:00	WAT
+# Rearguard section, for parsers that do not support negative DST.
+#Rule	Namibia	1994	only	-	Mar	21	0:00	0	WAT
+#Rule	Namibia	1994	2017	-	Sep	Sun>=1	2:00	1:00	CAT
+#Rule	Namibia	1995	2017	-	Apr	Sun>=1	2:00	0	WAT
+# End of rearguard section.
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Windhoek	1:08:24 -	LMT	1892 Feb 8
-			1:30	-	SWAT	1903 Mar	# SW Africa Time
-			2:00	-	SAST	1942 Sep 20 2:00
-			2:00	1:00	SAST	1943 Mar 21 2:00
+			1:30	-	+0130	1903 Mar
+			2:00	-	SAST	1942 Sep 20  2:00
+			2:00	1:00	SAST	1943 Mar 21  2:00
 			2:00	-	SAST	1990 Mar 21 # independence
-			2:00	-	CAT	1994 Apr  3
-			1:00	Namibia	WA%sT
+# Vanguard section, for zic and other parsers that support negative DST.
+			2:00	Namibia	%s
+# Rearguard section, for parsers that do not support negative DST.
+#			2:00	-	CAT	1994 Mar 21  0:00
+# From Paul Eggert (2017-04-07):
+# The official date of the 2017 rule change was 2017-10-24.  See:
+# http://www.lac.org.na/laws/annoSTAT/Namibian%20Time%20Act%209%20of%202017.pdf
+#			1:00	Namibia	%s	2017 Oct 24
+#			2:00	-	CAT
+# End of rearguard section.
 
 # Niger
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Niamey	 0:08:28 -	LMT	1912
-			-1:00	-	WAT	1934 Feb 26
-			 0:00	-	GMT	1960
-			 1:00	-	WAT
+# See Africa/Lagos.
 
 # Nigeria
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Lagos	0:13:36 -	LMT	1919 Sep
 			1:00	-	WAT
+Link Africa/Lagos Africa/Bangui	     # Central African Republic
+Link Africa/Lagos Africa/Brazzaville # Rep. of the Congo
+Link Africa/Lagos Africa/Douala	     # Cameroon
+Link Africa/Lagos Africa/Kinshasa    # Dem. Rep. of the Congo (west)
+Link Africa/Lagos Africa/Libreville  # Gabon
+Link Africa/Lagos Africa/Luanda	     # Angola
+Link Africa/Lagos Africa/Malabo	     # Equatorial Guinea
+Link Africa/Lagos Africa/Niamey	     # Niger
+Link Africa/Lagos Africa/Porto-Novo  # Benin
 
 # Réunion
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Indian/Reunion	3:41:52 -	LMT	1911 Jun	# Saint-Denis
-			4:00	-	RET	# Réunion Time
+Zone	Indian/Reunion	3:41:52 -	LMT	1911 Jun # Saint-Denis
+			4:00	-	+04
 #
 # Crozet Islands also observes Réunion time; see the 'antarctica' file.
 #
@@ -1028,9 +1049,7 @@ Zone	Indian/Reunion	3:41:52 -	LMT	1911 Jun	# Saint-Denis
 # Tromelin - inhabited until at least 1958
 
 # Rwanda
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Kigali	2:00:16 -	LMT	1935 Jun
-			2:00	-	CAT
+# See Africa/Maputo.
 
 # St Helena
 # See Africa/Abidjan.
@@ -1042,13 +1061,28 @@ Zone	Africa/Kigali	2:00:16 -	LMT	1935 Jun
 #	Inaccessible, Nightingale: uninhabited
 
 # São Tomé and Príncipe
+
+# See Europe/Lisbon for info about the 1912 transition.
+
+# From Steffen Thorsen (2018-01-08):
+# Multiple sources tell that São Tomé changed from UTC to UTC+1 as
+# they entered the year 2018.
+# From Michael Deckers (2018-01-08):
+# the switch is from 01:00 to 02:00 ... [Decree No. 25/2017]
+# http://www.mnec.gov.st/index.php/publicacoes/documentos/file/90-decreto-lei-n-25-2017
+
+Zone	Africa/Sao_Tome	 0:26:56 -	LMT	1884
+			-0:36:45 -	LMT	1912 Jan  1 00:00u # Lisbon MT
+			 0:00	-	GMT	2018 Jan  1 01:00
+			 1:00	-	WAT
+
 # Senegal
 # See Africa/Abidjan.
 
 # Seychelles
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Indian/Mahe	3:41:48 -	LMT	1906 Jun	# Victoria
-			4:00	-	SCT	# Seychelles Time
+Zone	Indian/Mahe	3:41:48 -	LMT	1906 Jun # Victoria
+			4:00	-	+04
 # From Paul Eggert (2001-05-30):
 # Aldabra, Farquhar, and Desroches, originally dependencies of the
 # Seychelles, were transferred to the British Indian Ocean Territory
@@ -1060,11 +1094,7 @@ Zone	Indian/Mahe	3:41:48 -	LMT	1906 Jun	# Victoria
 # See Africa/Abidjan.
 
 # Somalia
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Africa/Mogadishu	3:01:28 -	LMT	1893 Nov
-			3:00	-	EAT	1931
-			2:30	-	BEAT	1957
-			3:00	-	EAT
+# See Africa/Nairobi.
 
 # South Africa
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -1074,19 +1104,32 @@ Rule	SA	1943	1944	-	Mar	Sun>=15	2:00	0	-
 Zone Africa/Johannesburg 1:52:00 -	LMT	1892 Feb 8
 			1:30	-	SAST	1903 Mar
 			2:00	SA	SAST
+Link Africa/Johannesburg Africa/Maseru	   # Lesotho
+Link Africa/Johannesburg Africa/Mbabane    # Swaziland
+#
 # Marion and Prince Edward Is
 # scientific station since 1947
 # no information
 
 # Sudan
-#
+
 # From <http://www.sunanews.net/sn13jane.html>
 # Sudan News Agency (2000-01-13),
 # also reported by Michaël De Beukelaer-Dossche via Steffen Thorsen:
 # Clocks will be moved ahead for 60 minutes all over the Sudan as of noon
 # Saturday....  This was announced Thursday by Caretaker State Minister for
 # Manpower Abdul-Rahman Nur-Eddin.
+
+# From Ahmed Atyya, National Telecommunications Corp. (NTC), Sudan (2017-10-17):
+# ... the Republic of Sudan is going to change the time zone from (GMT+3:00)
+# to (GMT+ 2:00) starting from Wednesday 1 November 2017.
 #
+# From Paul Eggert (2017-10-18):
+# A scanned copy (in Arabic) of Cabinet Resolution No. 352 for the
+# year 2017 can be found as an attachment in email today from Yahia
+# Abdalla of NTC, archived at:
+# https://mm.icann.org/pipermail/tz/2017-October/025333.html
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Sudan	1970	only	-	May	 1	0:00	1:00	S
 Rule	Sudan	1970	1985	-	Oct	15	0:00	0	-
@@ -1095,22 +1138,20 @@ Rule	Sudan	1972	1985	-	Apr	lastSun	0:00	1:00	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Khartoum	2:10:08 -	LMT	1931
 			2:00	Sudan	CA%sT	2000 Jan 15 12:00
-			3:00	-	EAT
+			3:00	-	EAT	2017 Nov  1
+			2:00	-	CAT
 
 # South Sudan
-Link Africa/Khartoum Africa/Juba
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone	Africa/Juba	2:06:28 -	LMT	1931
+			2:00	Sudan	CA%sT	2000 Jan 15 12:00
+			3:00	-	EAT
 
 # Swaziland
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Mbabane	2:04:24 -	LMT	1903 Mar
-			2:00	-	SAST
+# See Africa/Johannesburg.
 
 # Tanzania
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Africa/Dar_es_Salaam 2:37:08 -	LMT	1931
-			3:00	-	EAT	1948
-			2:45	-	BEAUT	1961
-			3:00	-	EAT
+# See Africa/Nairobi.
 
 # Togo
 # See Africa/Abidjan.
@@ -1128,7 +1169,7 @@ Zone Africa/Dar_es_Salaam 2:37:08 -	LMT	1931
 #
 # From Oscar van Vlijmen (2005-05-02):
 # La Presse, the first national daily newspaper ...
-# <http://www.lapresse.tn/archives/archives280405/actualites/lheure.html>
+# http://www.lapresse.tn/archives/archives280405/actualites/lheure.html
 # ... DST for 2005: on: Sun May 1 0h standard time, off: Fri Sept. 30,
 # 1h standard time.
 #
@@ -1142,11 +1183,11 @@ Zone Africa/Dar_es_Salaam 2:37:08 -	LMT	1931
 # According to several news sources, Tunisia will not observe DST this year.
 # (Arabic)
 # http://www.elbashayer.com/?page=viewn&nid=42546
-# http://www.babnet.net/kiwidetail-15295.asp
+# https://www.babnet.net/kiwidetail-15295.asp
 #
 # We have also confirmed this with the US embassy in Tunisia.
 # We have a wrap-up about this on the following page:
-# http://www.timeanddate.com/news/time/tunisia-cancels-dst-2009.html
+# https://www.timeanddate.com/news/time/tunisia-cancels-dst-2009.html
 
 # From Alexander Krivenyshev (2009-03-17):
 # Here is a link to Tunis Afrique Presse News Agency
@@ -1212,23 +1253,12 @@ Rule	Tunisia	2006	2008	-	Oct	lastSun	 2:00s	0	-
 # Shanks & Pottenger say the 1911 switch was on Mar 9; go with Howse's Mar 11.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Tunis	0:40:44 -	LMT	1881 May 12
-			0:09:21	-	PMT	1911 Mar 11    # Paris Mean Time
+			0:09:21	-	PMT	1911 Mar 11 # Paris Mean Time
 			1:00	Tunisia	CE%sT
 
 # Uganda
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Kampala	2:09:40 -	LMT	1928 Jul
-			3:00	-	EAT	1930
-			2:30	-	BEAT	1948
-			2:45	-	BEAUT	1957
-			3:00	-	EAT
+# See Africa/Nairobi.
 
 # Zambia
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Lusaka	1:53:08 -	LMT	1903 Mar
-			2:00	-	CAT
-
 # Zimbabwe
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Africa/Harare	2:04:12 -	LMT	1903 Mar
-			2:00	-	CAT
+# See Africa/Maputo.

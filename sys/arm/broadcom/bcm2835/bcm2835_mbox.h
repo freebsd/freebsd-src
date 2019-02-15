@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * All rights reserved.
  *
@@ -36,6 +38,7 @@
 #define	BCM2835_MBOX_CHAN_LEDS		4
 #define	BCM2835_MBOX_CHAN_BUTTONS	5
 #define	BCM2835_MBOX_CHAN_TS		6
-#define	BCM2835_MBOX_CHANS		7
+#define	BCM2835_MBOX_CHAN_PROP		8
+#define	BCM2835_MBOX_CHANS		9
 
 #endif /* _BCM2835_MBOX_H_ */

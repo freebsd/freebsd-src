@@ -109,10 +109,9 @@ archive_write_new(void)
 	struct archive_write *a;
 	unsigned char *nulls;
 
-	a = (struct archive_write *)malloc(sizeof(*a));
+	a = (struct archive_write *)calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
-	memset(a, 0, sizeof(*a));
 	a->archive.magic = ARCHIVE_WRITE_MAGIC;
 	a->archive.state = ARCHIVE_STATE_NEW;
 	a->archive.vtable = archive_write_vtable();
@@ -126,12 +125,11 @@ archive_write_new(void)
 
 	/* Initialize a block of nulls for padding purposes. */
 	a->null_length = 1024;
-	nulls = (unsigned char *)malloc(a->null_length);
+	nulls = (unsigned char *)calloc(1, a->null_length);
 	if (nulls == NULL) {
 		free(a);
 		return (NULL);
 	}
-	memset(nulls, 0, a->null_length);
 	a->nulls = nulls;
 	return (&a->archive);
 }
@@ -192,7 +190,7 @@ archive_write_get_bytes_in_last_block(struct archive *_a)
  * an archive to itself recursively.
  */
 int
-archive_write_set_skip_file(struct archive *_a, int64_t d, int64_t i)
+archive_write_set_skip_file(struct archive *_a, la_int64_t d, la_int64_t i)
 {
 	struct archive_write *a = (struct archive_write *)_a;
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
@@ -233,7 +231,7 @@ __archive_write_filter(struct archive_write_filter *f,
 	if (length == 0)
 		return(ARCHIVE_OK);
 	if (f->write == NULL)
-		/* If unset, a fatal error has already ocuured, so this filter
+		/* If unset, a fatal error has already occurred, so this filter
 		 * didn't open. We cannot write anything. */
 		return(ARCHIVE_FATAL);
 	r = (f->write)(f, buff, length);
@@ -444,6 +442,12 @@ archive_write_client_close(struct archive_write_filter *f)
 	/* Clear the close handler myself not to be called again. */
 	f->close = NULL;
 	a->client_data = NULL;
+	/* Clear passphrase. */
+	if (a->passphrase != NULL) {
+		memset(a->passphrase, 0, strlen(a->passphrase));
+		free(a->passphrase);
+		a->passphrase = NULL;
+	}
 	return (ret);
 }
 
@@ -503,8 +507,9 @@ _archive_write_close(struct archive *_a)
 
 	archive_clear_error(&a->archive);
 
-	/* Finish the last entry. */
-	if (a->archive.state == ARCHIVE_STATE_DATA)
+	/* Finish the last entry if a finish callback is specified */
+	if (a->archive.state == ARCHIVE_STATE_DATA
+	    && a->format_finish_entry != NULL)
 		r = ((a->format_finish_entry)(a));
 
 	/* Finish off the archive. */
@@ -591,6 +596,11 @@ _archive_write_free(struct archive *_a)
 	/* Release various dynamic buffers. */
 	free((void *)(uintptr_t)(const void *)a->nulls);
 	archive_string_free(&a->archive.error_string);
+	if (a->passphrase != NULL) {
+		/* A passphrase should be cleaned. */
+		memset(a->passphrase, 0, strlen(a->passphrase));
+		free(a->passphrase);
+	}
 	a->archive.magic = 0;
 	__archive_clean(&a->archive);
 	free(a);
@@ -638,6 +648,9 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 
 	/* Format and write header. */
 	r2 = ((a->format_write_header)(a, entry));
+	if (r2 == ARCHIVE_FAILED) {
+		return (ARCHIVE_FAILED);
+	}
 	if (r2 == ARCHIVE_FATAL) {
 		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
@@ -658,7 +671,8 @@ _archive_write_finish_entry(struct archive *_a)
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 	    "archive_write_finish_entry");
-	if (a->archive.state & ARCHIVE_STATE_DATA)
+	if (a->archive.state & ARCHIVE_STATE_DATA
+	    && a->format_finish_entry != NULL)
 		ret = (a->format_finish_entry)(a);
 	a->archive.state = ARCHIVE_STATE_HEADER;
 	return (ret);
@@ -709,7 +723,7 @@ static const char *
 _archive_filter_name(struct archive *_a, int n)
 {
 	struct archive_write_filter *f = filter_lookup(_a, n);
-	return f == NULL ? NULL : f->name;
+	return f != NULL ? f->name : NULL;
 }
 
 static int64_t

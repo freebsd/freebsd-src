@@ -175,7 +175,7 @@ static void eap_gtc_process(struct eap_sm *sm, void *priv,
 	}
 
 	if (rlen != sm->user->password_len ||
-	    os_memcmp(pos, sm->user->password, rlen) != 0) {
+	    os_memcmp_const(pos, sm->user->password, rlen) != 0) {
 		wpa_printf(MSG_DEBUG, "EAP-GTC: Done - Failure");
 		data->state = FAILURE;
 	} else {
@@ -202,7 +202,6 @@ static Boolean eap_gtc_isSuccess(struct eap_sm *sm, void *priv)
 int eap_server_gtc_register(void)
 {
 	struct eap_method *eap;
-	int ret;
 
 	eap = eap_server_method_alloc(EAP_SERVER_METHOD_INTERFACE_VERSION,
 				      EAP_VENDOR_IETF, EAP_TYPE_GTC, "GTC");
@@ -217,8 +216,5 @@ int eap_server_gtc_register(void)
 	eap->isDone = eap_gtc_isDone;
 	eap->isSuccess = eap_gtc_isSuccess;
 
-	ret = eap_server_method_register(eap);
-	if (ret)
-		eap_server_method_free(eap);
-	return ret;
+	return eap_server_method_register(eap);
 }

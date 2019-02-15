@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.glob.c,v 3.82 2011/02/27 00:15:17 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.glob.c,v 3.95 2016/08/01 16:21:09 christos Exp $ */
 /*
  * sh.glob.c: Regular expression expansion
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.glob.c,v 3.82 2011/02/27 00:15:17 christos Exp $")
+RCSID("$tcsh: sh.glob.c,v 3.95 2016/08/01 16:21:09 christos Exp $")
 
 #include "tc.h"
 #include "tw.h"
@@ -594,8 +594,13 @@ trim(Char **t)
     Char *p;
 
     while ((p = *t++) != '\0')
-	while (*p)
-	    *p++ &= TRIM;
+	while (*p) {
+#if INVALID_BYTE != 0
+	    if ((*p & INVALID_BYTE) != INVALID_BYTE)	/* *p < INVALID_BYTE */
+#endif
+		*p &= TRIM;
+	    p++;
+	}
 }
 
 int
@@ -699,11 +704,15 @@ backeval(struct blk_buf *bb, struct Strbuf *word, Char *cp, int literal)
     int    hadnl;
     int     pvec[2], quoted;
     Char   *fakecom[2], ibuf[BUFSIZE];
-    char    tibuf[BUFSIZE];
 
     hadnl = 0;
     icnt = 0;
-    quoted = (literal || (cp[0] & QUOTE)) ? QUOTE : 0;
+    if (!literal) {
+	for (ip = cp; (*ip & QUOTE) != 0; ip++)
+		continue;
+	quoted = *ip == '\0';
+    } else
+	quoted = literal;
     faket.t_dtyp = NODE_COMMAND;
     faket.t_dflg = F_BACKQ;
     faket.t_dlef = 0;
@@ -760,6 +769,9 @@ backeval(struct blk_buf *bb, struct Strbuf *word, Char *cp, int literal)
 	omark = cleanup_push_mark();
 	getexit(osetexit);
 	for (;;) {
+	    struct wordent paraml1;
+	    initlex(&paraml1);
+
 	    (void) setexit();
 	    justpr = 0;
 	    
@@ -775,19 +787,19 @@ backeval(struct blk_buf *bb, struct Strbuf *word, Char *cp, int literal)
 		seterr = NULL;
 	    }
 
-	    (void) lex(&paraml);
-	    cleanup_push(&paraml, lex_cleanup);
+	    freelex(&paraml1);
+	    (void) lex(&paraml1);
+	    cleanup_push(&paraml1, lex_cleanup);
 	    if (seterr)
 		stderror(ERR_OLD);
-	    alias(&paraml);
-	    t = syntax(paraml.next, &paraml, 0);
-	    if (t == NULL)
-		return;
+	    alias(&paraml1);
+	    t = syntax(paraml1.next, &paraml1, 0);
 	    cleanup_push(t, syntax_cleanup);
 	    /* The F_BACKQ flag must set so the job output is correct if
 	     * printexitvalue is set.  If it's not set, the job output
 	     * will have "Exit N" appended where N is the exit status. */
-	    t->t_dflg = F_BACKQ|F_NOFORK;
+	    if (t)
+		    t->t_dflg = F_BACKQ|F_NOFORK;
 	    if (seterr)
 		stderror(ERR_OLD);
 #ifdef SIGTSTP
@@ -801,7 +813,7 @@ backeval(struct blk_buf *bb, struct Strbuf *word, Char *cp, int literal)
 #endif
 	    execute(t, -1, NULL, NULL, TRUE);
 
-	    cleanup_until(&paraml);
+	    cleanup_until(&paraml1);
 	}
     }
     cleanup_until(&pvec[1]);
@@ -809,45 +821,13 @@ backeval(struct blk_buf *bb, struct Strbuf *word, Char *cp, int literal)
     ip = NULL;
     do {
 	ssize_t     cnt = 0;
-	char   *tmp;
 
-	tmp = tibuf;
 	for (;;) {
-	    while (icnt == 0) {
-		int     i, eof;
-
+	    if (icnt == 0) {
 		ip = ibuf;
-		icnt = xread(pvec[0], tmp, tibuf + BUFSIZE - tmp);
-		eof = 0;
-		if (icnt <= 0) {
-		    if (tmp == tibuf)
-			goto eof;
-		    icnt = 0;
-		    eof = 1;
-		}
-		icnt += tmp - tibuf;
-		i = 0;
-		tmp = tibuf;
-		while (tmp < tibuf + icnt) {
-		    int len;
-
-		    len = normal_mbtowc(&ip[i], tmp, tibuf + icnt - tmp);
-		    if (len == -1) {
-		        reset_mbtowc();
-		        if (!eof && (size_t)(tibuf + icnt - tmp) < MB_CUR_MAX) {
-			    break; /* Maybe a partial character */
-			}
-			ip[i] = (unsigned char) *tmp | INVALID_BYTE; /* Error */
-		    }
-		    if (len <= 0)
-		        len = 1;
-		    i++;
-		    tmp += len;
-		}
-		if (tmp != tibuf)
-		    memmove (tibuf, tmp, tibuf + icnt - tmp);
-		tmp = tibuf + (tibuf + icnt - tmp);
-		icnt = i;
+		icnt = wide_read(pvec[0], ibuf, BUFSIZE, 0);
+		if (icnt <= 0)
+		    goto eof;
 	    }
 	    if (hadnl)
 		break;
@@ -870,7 +850,9 @@ backeval(struct blk_buf *bb, struct Strbuf *word, Char *cp, int literal)
 	    if (!quoted && (c == ' ' || c == '\t'))
 		break;
 	    cnt++;
-	    Strbuf_append1(word, c | quoted);
+	    if (c == '\\' || quoted)
+		c |= QUOTE;
+	    Strbuf_append1(word, c);
 	}
 	/*
 	 * Unless at end-of-file, we will form a new word here if there were

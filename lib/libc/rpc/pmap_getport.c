@@ -1,6 +1,8 @@
 /*	$NetBSD: pmap_getport.c,v 1.16 2000/07/06 03:10:34 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -66,11 +68,8 @@ static const struct timeval tottimeout = { 60, 0 };
  * Returns 0 if no map exists.
  */
 u_short
-pmap_getport(address, program, version, protocol)
-	struct sockaddr_in *address;
-	u_long program;
-	u_long version;
-	u_int protocol;
+pmap_getport(struct sockaddr_in *address, u_long program, u_long version,
+    u_int protocol)
 {
 	u_short port = 0;
 	int sock = -1;

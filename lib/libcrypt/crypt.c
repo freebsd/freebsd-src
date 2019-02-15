@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Mark Murray
  * Copyright (c) 2014 Dag-Erling Smørgrav
  * All rights reserved.
@@ -46,9 +48,9 @@ __FBSDID("$FreeBSD$");
  * and it needs to be the default for backward compatibility.
  */
 static const struct crypt_format {
-	const char *const name;
-	char *(*const func)(const char *, const char *);
-	const char *const magic;
+	const char *name;
+	int (*func)(const char *, const char *, char *);
+	const char *magic;
 } crypt_formats[] = {
 	{ "md5",	crypt_md5,		"$1$"	},
 #ifdef HAS_BLOWFISH
@@ -104,20 +106,37 @@ crypt_set_format(const char *format)
  * otherwise, the currently selected format is used.
  */
 char *
-crypt(const char *passwd, const char *salt)
+crypt_r(const char *passwd, const char *salt, struct crypt_data *data)
 {
 	const struct crypt_format *cf;
+	int (*func)(const char *, const char *, char *);
 #ifdef HAS_DES
 	int len;
 #endif
 
 	for (cf = crypt_formats; cf->name != NULL; ++cf)
-		if (cf->magic != NULL && strstr(salt, cf->magic) == salt)
-			return (cf->func(passwd, salt));
+		if (cf->magic != NULL && strstr(salt, cf->magic) == salt) {
+			func = cf->func;
+			goto match;
+		}
 #ifdef HAS_DES
 	len = strlen(salt);
-	if ((len == 13 || len == 2) && strspn(salt, DES_SALT_ALPHABET) == len)
-		return (crypt_des(passwd, salt));
+	if ((len == 13 || len == 2) && strspn(salt, DES_SALT_ALPHABET) == len) {
+		func = crypt_des;
+		goto match;
+	}
 #endif
-	return (crypt_format->func(passwd, salt));
+	func = crypt_format->func;
+match:
+	if (func(passwd, salt, data->__buf) != 0)
+		return (NULL);
+	return (data->__buf);
+}
+
+char *
+crypt(const char *passwd, const char *salt)
+{
+	static struct crypt_data data;
+
+	return (crypt_r(passwd, salt, &data));
 }

@@ -30,13 +30,13 @@ static const char sccsid[] = "$Id: ex_global.c,v 10.32 2011/12/26 23:37:01 zy Ex
 
 enum which {GLOBAL, V};
 
-static int ex_g_setup __P((SCR *, EXCMD *, enum which));
+static int ex_g_setup(SCR *, EXCMD *, enum which);
 
 /*
  * ex_global -- [line [,line]] g[lobal][!] /pattern/ [commands]
  *	Exec on lines matching a pattern.
  *
- * PUBLIC: int ex_global __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_global(SCR *, EXCMD *);
  */
 int
 ex_global(SCR *sp, EXCMD *cmdp)
@@ -49,7 +49,7 @@ ex_global(SCR *sp, EXCMD *cmdp)
  * ex_v -- [line [,line]] v /pattern/ [commands]
  *	Exec on lines not matching a pattern.
  *
- * PUBLIC: int ex_v __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_v(SCR *, EXCMD *);
  */
 int
 ex_v(SCR *sp, EXCMD *cmdp)
@@ -248,7 +248,7 @@ usage:		ex_emsg(sp, cmdp->cmd->usage, EXM_USAGE);
  * ex_g_insdel --
  *	Update the ranges based on an insertion or deletion.
  *
- * PUBLIC: int ex_g_insdel __P((SCR *, lnop_t, recno_t));
+ * PUBLIC: int ex_g_insdel(SCR *, lnop_t, recno_t);
  */
 int
 ex_g_insdel(SCR *sp, lnop_t op, recno_t lno)

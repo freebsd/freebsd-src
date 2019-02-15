@@ -43,11 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
-#include <sys/timeet.h>
-#include <sys/timetc.h>
 
 #include <dev/mmc/bridge.h>
-#include <dev/mmc/mmcreg.h>
 #include <dev/mmc/mmcbrvar.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -56,11 +53,17 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#include <dev/mmc/host/dwmmc.h>
+#ifdef EXT_RESOURCES
+#include <dev/extres/clk/clk.h>
+#endif
+
+#include <dev/mmc/host/dwmmc_reg.h>
+#include <dev/mmc/host/dwmmc_var.h>
+
+#include "opt_mmccam.h"
 
 #include "mmcbr_if.h"
 
@@ -71,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #define	WRITE4(_sc, _reg, _val) \
 	bus_write_4((_sc)->res[0], _reg, _val)
 
-#define	DIV_ROUND_UP(n, d)		(((n) + (d) - 1) / (d))
+#define	DIV_ROUND_UP(n, d)		howmany(n, d)
 
 #define	DWMMC_LOCK(_sc)			mtx_lock(&(_sc)->sc_mtx)
 #define	DWMMC_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
@@ -112,46 +115,16 @@ struct idmac_desc {
 	uint32_t	des3;	/* buf2 phys addr or next descr */
 };
 
-#define	DESC_COUNT	256
-#define	DESC_SIZE	(sizeof(struct idmac_desc) * DESC_COUNT)
+#define	DESC_MAX	256
+#define	DESC_SIZE	(sizeof(struct idmac_desc) * DESC_MAX)
 #define	DEF_MSIZE	0x2	/* Burst size of multiple transaction */
-
-struct dwmmc_softc {
-	struct resource		*res[2];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	device_t		dev;
-	void			*intr_cookie;
-	struct mmc_host		host;
-	struct mtx		sc_mtx;
-	struct mmc_request	*req;
-	struct mmc_command	*curcmd;
-	uint32_t		flags;
-	uint32_t		hwtype;
-	uint32_t		use_auto_stop;
-
-	bus_dma_tag_t		desc_tag;
-	bus_dmamap_t		desc_map;
-	struct idmac_desc	*desc_ring;
-	bus_addr_t		desc_ring_paddr;
-	bus_dma_tag_t		buf_tag;
-	bus_dmamap_t		buf_map;
-
-	uint32_t		bus_busy;
-	uint32_t		dto_rcvd;
-	uint32_t		acd_rcvd;
-	uint32_t		cmd_done;
-	uint32_t		bus_hz;
-	uint32_t		fifo_depth;
-	uint32_t		num_slots;
-	uint32_t		sdr_timing;
-	uint32_t		ddr_timing;
-};
 
 static void dwmmc_next_operation(struct dwmmc_softc *);
 static int dwmmc_setup_bus(struct dwmmc_softc *, int);
 static int dma_done(struct dwmmc_softc *, struct mmc_command *);
 static int dma_stop(struct dwmmc_softc *);
+static void pio_read(struct dwmmc_softc *, struct mmc_command *);
+static void pio_write(struct dwmmc_softc *, struct mmc_command *);
 
 static struct resource_spec dwmmc_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
@@ -159,20 +132,8 @@ static struct resource_spec dwmmc_spec[] = {
 	{ -1, 0 }
 };
 
-enum {
-	HWTYPE_NONE,
-	HWTYPE_ALTERA,
-	HWTYPE_EXYNOS,
-};
-
 #define	HWTYPE_MASK		(0x0000ffff)
 #define	HWFLAG_MASK		(0xffff << 16)
-
-static struct ofw_compat_data compat_data[] = {
-	{"altr,socfpga-dw-mshc",	HWTYPE_ALTERA},
-	{"samsung,exynos5420-dw-mshc",	HWTYPE_EXYNOS},
-	{NULL,				HWTYPE_NONE},
-};
 
 static void
 dwmmc_get1paddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
@@ -226,7 +187,7 @@ dwmmc_ctrl_reset(struct dwmmc_softc *sc, int reset_bits)
 		if (!(READ4(sc, SDMMC_CTRL) & reset_bits))
 			return (0);
 		DELAY(10);
-	};
+	}
 
 	device_printf(sc->dev, "Reset failed\n");
 
@@ -278,10 +239,10 @@ dma_setup(struct dwmmc_softc *sc)
 		return (1);
 	}
 
-	for (idx = 0; idx < DESC_COUNT; idx++) {
+	for (idx = 0; idx < sc->desc_count; idx++) {
 		sc->desc_ring[idx].des0 = DES0_CH;
 		sc->desc_ring[idx].des1 = 0;
-		nidx = (idx + 1) % DESC_COUNT;
+		nidx = (idx + 1) % sc->desc_count;
 		sc->desc_ring[idx].des3 = sc->desc_ring_paddr + \
 		    (nidx * sizeof(struct idmac_desc));
 	}
@@ -292,8 +253,8 @@ dma_setup(struct dwmmc_softc *sc)
 	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
-	    DESC_COUNT*MMC_SECTOR_SIZE,	/* maxsize */
-	    DESC_COUNT,			/* nsegments */
+	    sc->desc_count * MMC_SECTOR_SIZE, /* maxsize */
+	    sc->desc_count,		/* nsegments */
 	    MMC_SECTOR_SIZE,		/* maxsegsize */
 	    0,				/* flags */
 	    NULL, NULL,			/* lockfunc, lockarg */
@@ -384,52 +345,58 @@ dwmmc_intr(void *arg)
 		dprintf("%s 0x%08x\n", __func__, reg);
 
 		if (reg & DWMMC_CMD_ERR_FLAGS) {
-			WRITE4(sc, SDMMC_RINTSTS, DWMMC_CMD_ERR_FLAGS);
 			dprintf("cmd err 0x%08x cmd 0x%08x\n",
 				reg, cmd->opcode);
 			cmd->error = MMC_ERR_TIMEOUT;
 		}
 
 		if (reg & DWMMC_DATA_ERR_FLAGS) {
-			WRITE4(sc, SDMMC_RINTSTS, DWMMC_DATA_ERR_FLAGS);
 			dprintf("data err 0x%08x cmd 0x%08x\n",
 				reg, cmd->opcode);
 			cmd->error = MMC_ERR_FAILED;
-			dma_done(sc, cmd);
-			dma_stop(sc);
+			if (!sc->use_pio) {
+				dma_done(sc, cmd);
+				dma_stop(sc);
+			}
 		}
 
 		if (reg & SDMMC_INTMASK_CMD_DONE) {
 			dwmmc_cmd_done(sc);
 			sc->cmd_done = 1;
-			WRITE4(sc, SDMMC_RINTSTS, SDMMC_INTMASK_CMD_DONE);
 		}
 
-		if (reg & SDMMC_INTMASK_ACD) {
+		if (reg & SDMMC_INTMASK_ACD)
 			sc->acd_rcvd = 1;
-			WRITE4(sc, SDMMC_RINTSTS, SDMMC_INTMASK_ACD);
-		}
 
-		if (reg & SDMMC_INTMASK_DTO) {
+		if (reg & SDMMC_INTMASK_DTO)
 			sc->dto_rcvd = 1;
-			WRITE4(sc, SDMMC_RINTSTS, SDMMC_INTMASK_DTO);
-		}
 
 		if (reg & SDMMC_INTMASK_CD) {
 			/* XXX: Handle card detect */
-			WRITE4(sc, SDMMC_RINTSTS, SDMMC_INTMASK_CD);
 		}
 	}
 
-	/* Now handle DMA interrupts */
-	reg = READ4(sc, SDMMC_IDSTS);
-	if (reg) {
-		dprintf("dma intr 0x%08x\n", reg);
-		if (reg & (SDMMC_IDINTEN_TI | SDMMC_IDINTEN_RI)) {
-			WRITE4(sc, SDMMC_IDSTS, (SDMMC_IDINTEN_TI |
-						 SDMMC_IDINTEN_RI));
-			WRITE4(sc, SDMMC_IDSTS, SDMMC_IDINTEN_NI);
-			dma_done(sc, cmd);
+	/* Ack interrupts */
+	WRITE4(sc, SDMMC_RINTSTS, reg);
+
+	if (sc->use_pio) {
+		if (reg & (SDMMC_INTMASK_RXDR|SDMMC_INTMASK_DTO)) {
+			pio_read(sc, cmd);
+		}
+		if (reg & (SDMMC_INTMASK_TXDR|SDMMC_INTMASK_DTO)) {
+			pio_write(sc, cmd);
+		}
+	} else {
+		/* Now handle DMA interrupts */
+		reg = READ4(sc, SDMMC_IDSTS);
+		if (reg) {
+			dprintf("dma intr 0x%08x\n", reg);
+			if (reg & (SDMMC_IDINTEN_TI | SDMMC_IDINTEN_RI)) {
+				WRITE4(sc, SDMMC_IDSTS, (SDMMC_IDINTEN_TI |
+							 SDMMC_IDINTEN_RI));
+				WRITE4(sc, SDMMC_IDSTS, SDMMC_IDINTEN_NI);
+				dma_done(sc, cmd);
+			}
 		}
 	}
 
@@ -443,91 +410,100 @@ parse_fdt(struct dwmmc_softc *sc)
 {
 	pcell_t dts_value[3];
 	phandle_t node;
+	uint32_t bus_hz = 0, bus_width;
 	int len;
+#ifdef EXT_RESOURCES
+	int error;
+#endif
 
 	if ((node = ofw_bus_get_node(sc->dev)) == -1)
 		return (ENXIO);
 
+	/* bus-width */
+	if (OF_getencprop(node, "bus-width", &bus_width, sizeof(uint32_t)) <= 0)
+		bus_width = 4;
+	if (bus_width >= 4)
+		sc->host.caps |= MMC_CAP_4_BIT_DATA;
+	if (bus_width >= 8)
+		sc->host.caps |= MMC_CAP_8_BIT_DATA;
+
+	/* max-frequency */
+	if (OF_getencprop(node, "max-frequency", &sc->max_hz, sizeof(uint32_t)) <= 0)
+		sc->max_hz = 200000000;
+
 	/* fifo-depth */
-	if ((len = OF_getproplen(node, "fifo-depth")) <= 0)
-		return (ENXIO);
-	OF_getencprop(node, "fifo-depth", dts_value, len);
-	sc->fifo_depth = dts_value[0];
+	if ((len = OF_getproplen(node, "fifo-depth")) > 0) {
+		OF_getencprop(node, "fifo-depth", dts_value, len);
+		sc->fifo_depth = dts_value[0];
+	}
 
-	/* num-slots */
-	if ((len = OF_getproplen(node, "num-slots")) <= 0)
-		return (ENXIO);
-	OF_getencprop(node, "num-slots", dts_value, len);
-	sc->num_slots = dts_value[0];
+	/* num-slots (Deprecated) */
+	sc->num_slots = 1;
+	if ((len = OF_getproplen(node, "num-slots")) > 0) {
+		device_printf(sc->dev, "num-slots property is deprecated\n");
+		OF_getencprop(node, "num-slots", dts_value, len);
+		sc->num_slots = dts_value[0];
+	}
+
+	/* clock-frequency */
+	if ((len = OF_getproplen(node, "clock-frequency")) > 0) {
+		OF_getencprop(node, "clock-frequency", dts_value, len);
+		bus_hz = dts_value[0];
+	}
+
+#ifdef EXT_RESOURCES
+	/* BIU (Bus Interface Unit clock) is optional */
+	error = clk_get_by_ofw_name(sc->dev, 0, "biu", &sc->biu);
+	if (sc->biu) {
+		error = clk_enable(sc->biu);
+		if (error != 0) {
+			device_printf(sc->dev, "cannot enable biu clock\n");
+			goto fail;
+		}
+	}
 
 	/*
-	 * We need some platform-specific code to know
-	 * what the clock is supplied for our device.
-	 * For now rely on the value specified in FDT.
+	 * CIU (Controller Interface Unit clock) is mandatory
+	 * if no clock-frequency property is given
 	 */
-	if ((len = OF_getproplen(node, "bus-frequency")) <= 0)
-		return (ENXIO);
-	OF_getencprop(node, "bus-frequency", dts_value, len);
-	sc->bus_hz = dts_value[0];
+	error = clk_get_by_ofw_name(sc->dev, 0, "ciu", &sc->ciu);
+	if (sc->ciu) {
+		error = clk_enable(sc->ciu);
+		if (error != 0) {
+			device_printf(sc->dev, "cannot enable ciu clock\n");
+			goto fail;
+		}
+		if (bus_hz != 0) {
+			error = clk_set_freq(sc->ciu, bus_hz, 0);
+			if (error != 0)
+				device_printf(sc->dev,
+				    "cannot set ciu clock to %u\n", bus_hz);
+		}
+		clk_get_freq(sc->ciu, &sc->bus_hz);
+	}
+#endif /* EXT_RESOURCES */
 
-	/*
-	 * Platform-specific stuff
-	 * XXX: Move to separate file
-	 */
-
-	if ((sc->hwtype & HWTYPE_MASK) != HWTYPE_EXYNOS)
-		return (0);
-
-	if ((len = OF_getproplen(node, "samsung,dw-mshc-ciu-div")) <= 0)
-		return (ENXIO);
-	OF_getencprop(node, "samsung,dw-mshc-ciu-div", dts_value, len);
-	sc->sdr_timing = (dts_value[0] << SDMMC_CLKSEL_DIVIDER_SHIFT);
-	sc->ddr_timing = (dts_value[0] << SDMMC_CLKSEL_DIVIDER_SHIFT);
-
-	if ((len = OF_getproplen(node, "samsung,dw-mshc-sdr-timing")) <= 0)
-		return (ENXIO);
-	OF_getencprop(node, "samsung,dw-mshc-sdr-timing", dts_value, len);
-	sc->sdr_timing |= ((dts_value[0] << SDMMC_CLKSEL_SAMPLE_SHIFT) |
-			  (dts_value[1] << SDMMC_CLKSEL_DRIVE_SHIFT));
-
-	if ((len = OF_getproplen(node, "samsung,dw-mshc-ddr-timing")) <= 0)
-		return (ENXIO);
-	OF_getencprop(node, "samsung,dw-mshc-ddr-timing", dts_value, len);
-	sc->ddr_timing |= ((dts_value[0] << SDMMC_CLKSEL_SAMPLE_SHIFT) |
-			  (dts_value[1] << SDMMC_CLKSEL_DRIVE_SHIFT));
+	if (sc->bus_hz == 0) {
+		device_printf(sc->dev, "No bus speed provided\n");
+		goto fail;
+	}
 
 	return (0);
+
+fail:
+	return (ENXIO);
 }
 
-static int
-dwmmc_probe(device_t dev)
-{
-	uintptr_t hwtype;
-
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	hwtype = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
-	if (hwtype == HWTYPE_NONE)
-		return (ENXIO);
-
-	device_set_desc(dev, "Synopsys DesignWare Mobile "
-				"Storage Host Controller");
-	return (BUS_PROBE_DEFAULT);
-}
-
-static int
+int
 dwmmc_attach(device_t dev)
 {
 	struct dwmmc_softc *sc;
-	device_t child;
 	int error;
 	int slot;
 
 	sc = device_get_softc(dev);
 
 	sc->dev = dev;
-	sc->hwtype = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 
 	/* Why not to use Auto Stop? It save a hundred of irq per second */
 	sc->use_auto_stop = 1;
@@ -545,10 +521,6 @@ dwmmc_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	/* Memory interface */
-	sc->bst = rman_get_bustag(sc->res[0]);
-	sc->bsh = rman_get_bushandle(sc->res[0]);
-
 	/* Setup interrupt handler. */
 	error = bus_setup_intr(dev, sc->res[1], INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, dwmmc_intr, sc, &sc->intr_cookie);
@@ -560,17 +532,16 @@ dwmmc_attach(device_t dev)
 	device_printf(dev, "Hardware version ID is %04x\n",
 		READ4(sc, SDMMC_VERID) & 0xffff);
 
-	WRITE4(sc, EMMCP_MPSBEGIN0, 0);
-	WRITE4(sc, EMMCP_SEND0, 0);
-	WRITE4(sc, EMMCP_CTRL0, (MPSCTRL_SECURE_READ_BIT |
-				 MPSCTRL_SECURE_WRITE_BIT |
-				 MPSCTRL_NON_SECURE_READ_BIT |
-				 MPSCTRL_NON_SECURE_WRITE_BIT |
-				 MPSCTRL_VALID));
+	if (sc->desc_count == 0)
+		sc->desc_count = DESC_MAX;
 
 	/* XXX: we support operation for slot index 0 only */
 	slot = 0;
-	WRITE4(sc, SDMMC_PWREN, (1 << slot));
+	if (sc->pwren_inverted) {
+		WRITE4(sc, SDMMC_PWREN, (0 << slot));
+	} else {
+		WRITE4(sc, SDMMC_PWREN, (1 << slot));
+	}
 
 	/* Reset all */
 	if (dwmmc_ctrl_reset(sc, (SDMMC_CTRL_RESET |
@@ -580,17 +551,26 @@ dwmmc_attach(device_t dev)
 
 	dwmmc_setup_bus(sc, sc->host.f_min);
 
-	if (dma_setup(sc))
-		return (ENXIO);
+	if (sc->fifo_depth == 0) {
+		sc->fifo_depth = 1 +
+		    ((READ4(sc, SDMMC_FIFOTH) >> SDMMC_FIFOTH_RXWMARK_S) & 0xfff);
+		device_printf(dev, "No fifo-depth, using FIFOTH %x\n",
+		    sc->fifo_depth);
+	}
 
-	/* Install desc base */
-	WRITE4(sc, SDMMC_DBADDR, sc->desc_ring_paddr);
+	if (!sc->use_pio) {
+		if (dma_setup(sc))
+			return (ENXIO);
 
-	/* Enable DMA interrupts */
-	WRITE4(sc, SDMMC_IDSTS, SDMMC_IDINTEN_MASK);
-	WRITE4(sc, SDMMC_IDINTEN, (SDMMC_IDINTEN_NI |
-				   SDMMC_IDINTEN_RI |
-				   SDMMC_IDINTEN_TI));
+		/* Install desc base */
+		WRITE4(sc, SDMMC_DBADDR, sc->desc_ring_paddr);
+
+		/* Enable DMA interrupts */
+		WRITE4(sc, SDMMC_IDSTS, SDMMC_IDINTEN_MASK);
+		WRITE4(sc, SDMMC_IDINTEN, (SDMMC_IDINTEN_NI |
+					   SDMMC_IDINTEN_RI |
+					   SDMMC_IDINTEN_TI));
+	}
 
 	/* Clear and disable interrups for a while */
 	WRITE4(sc, SDMMC_RINTSTS, 0xffffffff);
@@ -611,11 +591,12 @@ dwmmc_attach(device_t dev)
 	WRITE4(sc, SDMMC_CTRL, SDMMC_CTRL_INT_ENABLE);
 
 	sc->host.f_min = 400000;
-	sc->host.f_max = 200000000;
+	sc->host.f_max = sc->max_hz;
 	sc->host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
-	sc->host.caps = MMC_CAP_4_BIT_DATA;
+	sc->host.caps |= MMC_CAP_HSPEED;
+	sc->host.caps |= MMC_CAP_SIGNALING_330;
 
-	child = device_add_child(dev, "mmc", 0);
+	device_add_child(dev, "mmc", -1);
 	return (bus_generic_attach(dev));
 }
 
@@ -678,14 +659,14 @@ dwmmc_update_ios(device_t brdev, device_t reqdev)
 {
 	struct dwmmc_softc *sc;
 	struct mmc_ios *ios;
+	uint32_t reg;
+	int ret = 0;
 
 	sc = device_get_softc(brdev);
 	ios = &sc->host.ios;
 
 	dprintf("Setting up clk %u bus_width %d\n",
 		ios->clock, ios->bus_width);
-
-	dwmmc_setup_bus(sc, ios->clock);
 
 	if (ios->bus_width == bus_width_8)
 		WRITE4(sc, SDMMC_CTYPE, SDMMC_CTYPE_8BIT);
@@ -699,15 +680,22 @@ dwmmc_update_ios(device_t brdev, device_t reqdev)
 		WRITE4(sc, SDMMC_CLKSEL, sc->sdr_timing);
 	}
 
-	/*
-	 * XXX: take care about DDR bit
-	 *
-	 * reg = READ4(sc, SDMMC_UHS_REG);
-	 * reg |= (SDMMC_UHS_REG_DDR);
-	 * WRITE4(sc, SDMMC_UHS_REG, reg);
-	 */
+	/* Set DDR mode */
+	reg = READ4(sc, SDMMC_UHS_REG);
+	if (ios->timing == bus_timing_uhs_ddr50 ||
+	    ios->timing == bus_timing_mmc_ddr52 ||
+	    ios->timing == bus_timing_mmc_hs400)
+		reg |= (SDMMC_UHS_REG_DDR);
+	else
+		reg &= ~(SDMMC_UHS_REG_DDR);
+	WRITE4(sc, SDMMC_UHS_REG, reg);
 
-	return (0);
+	if (sc->update_ios)
+		ret = sc->update_ios(sc, ios);
+
+	dwmmc_setup_bus(sc, ios->clock);
+
+	return (ret);
 }
 
 static int
@@ -723,6 +711,9 @@ dma_done(struct dwmmc_softc *sc, struct mmc_command *cmd)
 	else
 		bus_dmamap_sync(sc->buf_tag, sc->buf_map,
 			BUS_DMASYNC_POSTREAD);
+
+	bus_dmamap_sync(sc->desc_tag, sc->desc_map,
+	    BUS_DMASYNC_POSTWRITE);
 
 	bus_dmamap_unload(sc->buf_tag, sc->buf_map);
 
@@ -751,12 +742,10 @@ static int
 dma_prepare(struct dwmmc_softc *sc, struct mmc_command *cmd)
 {
 	struct mmc_data *data;
-	int len;
 	int err;
 	int reg;
 
 	data = cmd->data;
-	len = data->len;
 
 	reg = READ4(sc, SDMMC_INTMASK);
 	reg &= ~(SDMMC_INTMASK_TXDR | SDMMC_INTMASK_RXDR);
@@ -767,6 +756,10 @@ dma_prepare(struct dwmmc_softc *sc, struct mmc_command *cmd)
 		sc, BUS_DMA_NOWAIT);
 	if (err != 0)
 		panic("dmamap_load failed\n");
+
+	/* Ensure the device can see the desc */
+	bus_dmamap_sync(sc->desc_tag, sc->desc_map,
+	    BUS_DMASYNC_PREWRITE);
 
 	if (data->flags & MMC_DATA_WRITE)
 		bus_dmamap_sync(sc->buf_tag, sc->buf_map,
@@ -797,6 +790,79 @@ dma_prepare(struct dwmmc_softc *sc, struct mmc_command *cmd)
 	return (0);
 }
 
+static int
+pio_prepare(struct dwmmc_softc *sc, struct mmc_command *cmd)
+{
+	struct mmc_data *data;
+	int reg;
+
+	data = cmd->data;
+	data->xfer_len = 0;
+
+	reg = (DEF_MSIZE << SDMMC_FIFOTH_MSIZE_S);
+	reg |= ((sc->fifo_depth / 2) - 1) << SDMMC_FIFOTH_RXWMARK_S;
+	reg |= (sc->fifo_depth / 2) << SDMMC_FIFOTH_TXWMARK_S;
+
+	WRITE4(sc, SDMMC_FIFOTH, reg);
+	wmb();
+
+	return (0);
+}
+
+static void
+pio_read(struct dwmmc_softc *sc, struct mmc_command *cmd)
+{
+	struct mmc_data *data;
+	uint32_t *p, status;
+
+	if (cmd == NULL || cmd->data == NULL)
+		return;
+
+	data = cmd->data;
+	if ((data->flags & MMC_DATA_READ) == 0)
+		return;
+
+	KASSERT((data->xfer_len & 3) == 0, ("xfer_len not aligned"));
+	p = (uint32_t *)data->data + (data->xfer_len >> 2);
+
+	while (data->xfer_len < data->len) {
+		status = READ4(sc, SDMMC_STATUS);
+		if (status & SDMMC_STATUS_FIFO_EMPTY)
+			break;
+		*p++ = READ4(sc, SDMMC_DATA);
+		data->xfer_len += 4;
+	}
+
+	WRITE4(sc, SDMMC_RINTSTS, SDMMC_INTMASK_RXDR);
+}
+
+static void
+pio_write(struct dwmmc_softc *sc, struct mmc_command *cmd)
+{
+	struct mmc_data *data;
+	uint32_t *p, status;
+
+	if (cmd == NULL || cmd->data == NULL)
+		return;
+
+	data = cmd->data;
+	if ((data->flags & MMC_DATA_WRITE) == 0)
+		return;
+
+	KASSERT((data->xfer_len & 3) == 0, ("xfer_len not aligned"));
+	p = (uint32_t *)data->data + (data->xfer_len >> 2);
+
+	while (data->xfer_len < data->len) {
+		status = READ4(sc, SDMMC_STATUS);
+		if (status & SDMMC_STATUS_FIFO_FULL)
+			break;
+		WRITE4(sc, SDMMC_DATA, *p++);
+		data->xfer_len += 4;
+	}
+
+	WRITE4(sc, SDMMC_RINTSTS, SDMMC_INTMASK_TXDR);
+}
+
 static void
 dwmmc_start_cmd(struct dwmmc_softc *sc, struct mmc_command *cmd)
 {
@@ -806,6 +872,9 @@ dwmmc_start_cmd(struct dwmmc_softc *sc, struct mmc_command *cmd)
 
 	sc->curcmd = cmd;
 	data = cmd->data;
+
+	if ((sc->hwtype & HWTYPE_MASK) == HWTYPE_ROCKCHIP)
+		dwmmc_setup_bus(sc, sc->host.ios.clock);
 
 	/* XXX Upper layers don't always set this */
 	cmd->mrq = sc->req;
@@ -861,7 +930,11 @@ dwmmc_start_cmd(struct dwmmc_softc *sc, struct mmc_command *cmd)
 			 data->len : MMC_SECTOR_SIZE;
 		WRITE4(sc, SDMMC_BLKSIZ, blksz);
 
-		dma_prepare(sc, cmd);
+		if (sc->use_pio) {
+			pio_prepare(sc, cmd);
+		} else {
+			dma_prepare(sc, cmd);
+		}
 		wmb();
 	}
 
@@ -1017,11 +1090,10 @@ dwmmc_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 		*(int *)result = sc->host.ios.vdd;
 		break;
 	case MMCBR_IVAR_CAPS:
-		sc->host.caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;
 		*(int *)result = sc->host.caps;
 		break;
 	case MMCBR_IVAR_MAX_DATA:
-		*(int *)result = DESC_COUNT;
+		*(int *)result = sc->desc_count;
 	}
 	return (0);
 }
@@ -1072,9 +1144,6 @@ dwmmc_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 }
 
 static device_method_t dwmmc_methods[] = {
-	DEVMETHOD(device_probe,		dwmmc_probe),
-	DEVMETHOD(device_attach,	dwmmc_attach),
-
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	dwmmc_read_ivar),
 	DEVMETHOD(bus_write_ivar,	dwmmc_write_ivar),
@@ -1089,13 +1158,5 @@ static device_method_t dwmmc_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t dwmmc_driver = {
-	"dwmmc",
-	dwmmc_methods,
-	sizeof(struct dwmmc_softc),
-};
-
-static devclass_t dwmmc_devclass;
-
-DRIVER_MODULE(dwmmc, simplebus, dwmmc_driver, dwmmc_devclass, 0, 0);
-
+DEFINE_CLASS_0(dwmmc, dwmmc_driver, dwmmc_methods,
+    sizeof(struct dwmmc_softc));

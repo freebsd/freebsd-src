@@ -609,12 +609,13 @@ reply_proc(void *res, struct netbuf *who, struct netconfig *nconf)
 	} else {
 		hostname = hostbuf;
 	}
-	if (!(uaddr = taddr2uaddr(nconf, who))) {
-		uaddr = UNKNOWN;
-	}
-	printf("%s\t%s\n", uaddr, hostname);
-	if (strcmp(uaddr, UNKNOWN))
+	uaddr = taddr2uaddr(nconf, who);
+	if (uaddr == NULL) {
+		printf("%s\t%s\n", UNKNOWN, hostname);
+	} else {
+		printf("%s\t%s\n", uaddr, hostname);
 		free((char *)uaddr);
+	}
 	return (FALSE);
 }
 
@@ -855,9 +856,9 @@ failed:
 			printf("%-10s", buf);
 			buf[0] = '\0';
 			for (nl = rs->nlist; nl; nl = nl->next) {
-				strcat(buf, nl->netid);
+				strlcat(buf, nl->netid, sizeof(buf));
 				if (nl->next)
-					strcat(buf, ",");
+					strlcat(buf, ",", sizeof(buf));
 			}
 			printf("%-32s", buf);
 			rpc = getrpcbynumber(rs->prog);

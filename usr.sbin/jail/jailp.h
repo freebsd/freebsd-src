@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 James Gritton.
  * All rights reserved.
  *
@@ -41,7 +43,7 @@
 
 #define DF_SEEN		0x01	/* Dependency has been followed */
 #define DF_LIGHT	0x02	/* Implied dependency on jail existence only */
-#define DF_NOFAIL	0x04	/* Don't propigate failed jails */
+#define DF_NOFAIL	0x04	/* Don't propagate failed jails */
 
 #define PF_VAR		0x01	/* This is a variable, not a true parameter */
 #define PF_APPEND	0x02	/* Append to existing parameter list */
@@ -51,6 +53,7 @@
 #define PF_INT		0x20	/* Integer parameter */
 #define PF_CONV		0x40	/* Parameter duplicated in converted form */
 #define PF_REV		0x80	/* Run commands in reverse order on stopping */
+#define	PF_IMMUTABLE	0x100	/* Immutable parameter */
 
 #define JF_START	0x0001	/* -c */
 #define JF_SET		0x0002	/* -m */
@@ -63,6 +66,8 @@
 #define JF_PERSIST	0x0100	/* Jail is temporarily persistent */
 #define JF_TIMEOUT	0x0200	/* A command (or process kill) timed out */
 #define JF_SLEEPQ	0x0400	/* Waiting on a command and/or timeout */
+#define JF_FROM_RUNQ	0x0800	/* Has already been on the run queue */
+#define JF_SHOW		0x1000	/* -e Exhibit list of configured jails */
 
 #define JF_OP_MASK		(JF_START | JF_SET | JF_STOP)
 #define JF_RESTART		(JF_START | JF_STOP)
@@ -84,6 +89,7 @@ enum intparam {
 	IP_EXEC_POSTSTOP,	/* Commands run outside jail after removing */
 	IP_EXEC_PRESTART,	/* Commands run outside jail before creating */
 	IP_EXEC_PRESTOP,	/* Commands run outside jail before removing */
+	IP_EXEC_CREATED,	/* Commands run outside jail right after it was started */
 	IP_EXEC_START,		/* Commands run inside jail on creation */
 	IP_EXEC_STOP,		/* Commands run inside jail on removal */
 	IP_EXEC_SYSTEM_JAIL_USER,/* Get jail_user from system passwd file */
@@ -96,6 +102,7 @@ enum intparam {
 	IP_MOUNT,		/* Mount points in fstab(5) form */
 	IP_MOUNT_DEVFS,		/* Mount /dev under prison root */
 	IP_MOUNT_FDESCFS,	/* Mount /dev/fd under prison root */
+	IP_MOUNT_PROCFS,	/* Mount /proc under prison root */
 	IP_MOUNT_FSTAB,		/* A standard fstab(5) file */
 	IP_STOP_TIMEOUT,	/* Time to wait after sending SIGTERM */
 	IP_VNET_INTERFACE,	/* Assign interface(s) to vnet jail */
@@ -114,7 +121,6 @@ enum intparam {
 	KP_ALLOW_SOCKET_AF,
 	KP_ALLOW_SYSVIPC,
 	KP_DEVFS_RULESET,
-	KP_ENFORCE_STATFS,
 	KP_HOST_HOSTNAME,
 #ifdef INET
 	KP_IP4_ADDR,
@@ -221,6 +227,7 @@ extern struct cfjail *next_jail(void);
 extern int start_state(const char *target, int docf, unsigned state,
     int running);
 extern void requeue(struct cfjail *j, struct cfjails *queue);
+extern void requeue_head(struct cfjail *j, struct cfjails *queue);
 
 extern void yyerror(const char *);
 extern int yylex(void);

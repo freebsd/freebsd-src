@@ -299,10 +299,18 @@ make_relative_prefix_1 (const char *progname, const char *bin_prefix,
     full_progname = strdup(progname);
 
   prog_dirs = split_directories (full_progname, &prog_num);
-  bin_dirs = split_directories (bin_prefix, &bin_num);
+  if (prog_dirs == NULL)
+    {
+      free (full_progname);
+      return NULL;
+    }
   free (full_progname);
-  if (bin_dirs == NULL || prog_dirs == NULL)
-    return NULL;
+  bin_dirs = split_directories (bin_prefix, &bin_num);
+  if (bin_dirs == NULL)
+    {
+      free_split_directories(prog_dirs);
+      return NULL;
+    }
 
   /* Remove the program name from comparison of directory names.  */
   prog_num--;
@@ -365,7 +373,12 @@ make_relative_prefix_1 (const char *progname, const char *bin_prefix,
 
   ret = (char *) malloc (needed_len);
   if (ret == NULL)
-    return NULL;
+    {
+      free_split_directories (prog_dirs);
+      free_split_directories (bin_dirs);
+      free_split_directories (prefix_dirs);
+      return NULL;
+    }
 
   /* Build up the pathnames in argv[0].  */
   *ret = '\0';

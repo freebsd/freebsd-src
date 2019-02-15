@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Anybots Inc
  * written by Akinori Furukoshi <moonlightakkiy@yahoo.ca>
  *  - ucom part is based on u3g.c
@@ -82,7 +84,7 @@ __FBSDID("$FreeBSD$");
 static int usie_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, usie, CTLFLAG_RW, 0, "sierra USB modem");
-SYSCTL_INT(_hw_usb_usie, OID_AUTO, debug, CTLFLAG_RW, &usie_debug, 0,
+SYSCTL_INT(_hw_usb_usie, OID_AUTO, debug, CTLFLAG_RWTUN, &usie_debug, 0,
     "usie debug level");
 #endif
 
@@ -212,6 +214,7 @@ DRIVER_MODULE(usie, uhub, usie_driver, usie_devclass, usie_driver_loaded, 0);
 MODULE_DEPEND(usie, ucom, 1, 1, 1);
 MODULE_DEPEND(usie, usb, 1, 1, 1);
 MODULE_VERSION(usie, 1);
+USB_PNP_HOST_INFO(usie_devs);
 
 static const struct ucom_callback usie_uc_callback = {
 	.ucom_cfg_get_status = &usie_uc_cfg_get_status,

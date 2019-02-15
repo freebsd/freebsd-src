@@ -10,56 +10,45 @@
 #ifndef SymbolFileDWARF_NameToDIE_h_
 #define SymbolFileDWARF_NameToDIE_h_
 
-#include "lldb/Core/UniqueCStringMap.h"
-
 #include <functional>
 
+#include "DIERef.h"
+#include "lldb/Core/UniqueCStringMap.h"
+#include "lldb/Core/dwarf.h"
 #include "lldb/lldb-defines.h"
 
 class SymbolFileDWARF;
 
-typedef std::vector<uint32_t> DIEArray;
-
-class NameToDIE
-{
+class NameToDIE {
 public:
-    NameToDIE () :   
-        m_map()
-    {
-    }
-    
-    ~NameToDIE ()
-    {
-    }
-    
-    void
-    Dump (lldb_private::Stream *s);
+  NameToDIE() : m_map() {}
 
-    void
-    Insert (const lldb_private::ConstString& name, uint32_t die_offset);
+  ~NameToDIE() {}
 
-    void
-    Finalize();
+  void Dump(lldb_private::Stream *s);
 
-    size_t
-    Find (const lldb_private::ConstString &name, 
-          DIEArray &info_array) const;
-    
-    size_t
-    Find (const lldb_private::RegularExpression& regex, 
-          DIEArray &info_array) const;
+  void Insert(const lldb_private::ConstString &name, const DIERef &die_ref);
 
-    size_t
-    FindAllEntriesForCompileUnit (uint32_t cu_offset, 
-                                  uint32_t cu_end_offset, 
-                                  DIEArray &info_array) const;
+  void Append(const NameToDIE &other);
 
-    void
-    ForEach (std::function <bool(const char *name, uint32_t die_offset)> const &callback) const;
+  void Finalize();
+
+  size_t Find(const lldb_private::ConstString &name,
+              DIEArray &info_array) const;
+
+  size_t Find(const lldb_private::RegularExpression &regex,
+              DIEArray &info_array) const;
+
+  size_t FindAllEntriesForCompileUnit(dw_offset_t cu_offset,
+                                      DIEArray &info_array) const;
+
+  void
+  ForEach(std::function<bool(lldb_private::ConstString name,
+                             const DIERef &die_ref)> const
+              &callback) const;
 
 protected:
-    lldb_private::UniqueCStringMap<uint32_t> m_map;
-
+  lldb_private::UniqueCStringMap<DIERef> m_map;
 };
 
-#endif  // SymbolFileDWARF_NameToDIE_h_
+#endif // SymbolFileDWARF_NameToDIE_h_

@@ -2,6 +2,8 @@
 /*	$NetBSD: citrus_iso2022.c,v 1.20 2010/12/07 22:01:45 joerg Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)1999, 2002 Citrus Project,
  * All rights reserved.
  *
@@ -259,8 +261,8 @@ get_recommend(_ISO2022EncodingInfo * __restrict ei,
 	if (!ei->recommend[i])
 		ei->recommend[i] = malloc(sizeof(_ISO2022Charset));
 	else {
-		p = realloc(ei->recommend[i],
-		    sizeof(_ISO2022Charset) * (ei->recommendsize[i] + 1));
+		p = reallocarray(ei->recommend[i], ei->recommendsize[i] + 1,
+		    sizeof(_ISO2022Charset));
 		if (!p)
 			return (_PARSEFAIL);
 		ei->recommend[i] = p;
@@ -574,7 +576,7 @@ terminate:
 
 static wchar_t
 _ISO2022_sgetwchar(_ISO2022EncodingInfo * __restrict ei __unused,
-    const char * __restrict string, size_t n, const char ** __restrict result,
+    char * __restrict string, size_t n, char ** __restrict result,
     _ISO2022State * __restrict psenc)
 {
 	const struct seqtable *sp;
@@ -774,6 +776,7 @@ asis:
 	case CS94:
 		if (!(is94(string[0] & 0x7f)))
 			goto asis;
+		break;
 	case CS96:
 		if (!(is96(string[0] & 0x7f)))
 			goto asis;
@@ -842,10 +845,10 @@ asis:
 
 static int
 _citrus_ISO2022_mbrtowc_priv(_ISO2022EncodingInfo * __restrict ei,
-    wchar_t * __restrict pwc, const char ** __restrict s,
+    wchar_t * __restrict pwc, char ** __restrict s,
     size_t n, _ISO2022State * __restrict psenc, size_t * __restrict nresult)
 {
-	const char *p, *result, *s0;
+	char *p, *result, *s0;
 	wchar_t wchar;
 	int c, chlenbak;
 

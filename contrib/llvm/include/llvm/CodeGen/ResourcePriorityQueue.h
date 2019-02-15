@@ -20,15 +20,15 @@
 #include "llvm/CodeGen/DFAPacketizer.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/MC/MCInstrItineraries.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
 
 namespace llvm {
   class ResourcePriorityQueue;
 
   /// Sorting functions for the Available queue.
-  struct resource_sort : public std::binary_function<SUnit*, SUnit*, bool> {
+  struct resource_sort {
     ResourcePriorityQueue *PQ;
     explicit resource_sort(ResourcePriorityQueue *pq) : PQ(pq) {}
 
@@ -64,7 +64,7 @@ namespace llvm {
     /// ResourcesModel - Represents VLIW state.
     /// Not limited to VLIW targets per say, but assumes
     /// definition of DFA by a target.
-    DFAPacketizer *ResourcesModel;
+    std::unique_ptr<DFAPacketizer> ResourcesModel;
 
     /// Resource model - packet/bundle model. Purely
     /// internal at the time.
@@ -72,27 +72,23 @@ namespace llvm {
 
     /// Heuristics for estimating register pressure.
     unsigned ParallelLiveRanges;
-    signed HorizontalVerticalBalance;
+    int HorizontalVerticalBalance;
 
   public:
     ResourcePriorityQueue(SelectionDAGISel *IS);
 
-    ~ResourcePriorityQueue() {
-      delete ResourcesModel;
-    }
+    bool isBottomUp() const override { return false; }
 
-    bool isBottomUp() const { return false; }
+    void initNodes(std::vector<SUnit> &sunits) override;
 
-    void initNodes(std::vector<SUnit> &sunits);
-
-    void addNode(const SUnit *SU) {
+    void addNode(const SUnit *SU) override {
       NumNodesSolelyBlocking.resize(SUnits->size(), 0);
     }
 
-    void updateNode(const SUnit *SU) {}
+    void updateNode(const SUnit *SU) override {}
 
-    void releaseState() {
-      SUnits = 0;
+    void releaseState() override {
+      SUnits = nullptr;
     }
 
     unsigned getLatency(unsigned NodeNum) const {
@@ -107,27 +103,25 @@ namespace llvm {
 
     /// Single cost function reflecting benefit of scheduling SU
     /// in the current cycle.
-    signed SUSchedulingCost (SUnit *SU);
+    int SUSchedulingCost (SUnit *SU);
 
     /// InitNumRegDefsLeft - Determine the # of regs defined by this node.
     ///
     void initNumRegDefsLeft(SUnit *SU);
     void updateNumRegDefsLeft(SUnit *SU);
-    signed regPressureDelta(SUnit *SU, bool RawPressure = false);
-    signed rawRegPressureDelta (SUnit *SU, unsigned RCId);
+    int regPressureDelta(SUnit *SU, bool RawPressure = false);
+    int rawRegPressureDelta (SUnit *SU, unsigned RCId);
 
-    bool empty() const { return Queue.empty(); }
+    bool empty() const override { return Queue.empty(); }
 
-    virtual void push(SUnit *U);
+    void push(SUnit *U) override;
 
-    virtual SUnit *pop();
+    SUnit *pop() override;
 
-    virtual void remove(SUnit *SU);
-
-    virtual void dump(ScheduleDAG* DAG) const;
+    void remove(SUnit *SU) override;
 
     /// scheduledNode - Main resource tracking point.
-    void scheduledNode(SUnit *Node);
+    void scheduledNode(SUnit *Node) override;
     bool isResourceAvailable(SUnit *SU);
     void reserveResources(SUnit *SU);
 

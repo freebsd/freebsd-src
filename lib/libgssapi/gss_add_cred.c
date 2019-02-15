@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Doug Rabson
  * All rights reserved.
  *
@@ -121,7 +123,7 @@ gss_add_cred(OM_uint32 *minor_status,
 	 * gss_add_cred for that mechanism, otherwise we copy the mc
 	 * to new_cred.
 	 */
-	target_mc = 0;
+	target_mc = NULL;
 	if (cred) {
 		SLIST_FOREACH(mc, &cred->gc_mc, gmc_link) {
 			if (gss_oid_equal(mc->gmc_mech_oid, desired_mech)) {
@@ -151,7 +153,7 @@ gss_add_cred(OM_uint32 *minor_status,
 			return (major_status);
 		}
 	} else {
-		mn = 0;
+		mn = NULL;
 	}
 
 	m = _gss_find_mech_switch(desired_mech);

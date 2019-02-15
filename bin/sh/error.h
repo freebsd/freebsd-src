@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -55,9 +55,8 @@ extern volatile sig_atomic_t exception;
 
 /* exceptions */
 #define EXINT 0		/* SIGINT received */
-#define EXERROR 1	/* a generic error */
-#define EXEXEC 2	/* command execution failed */
-#define EXEXIT 3	/* call exitshell(exitstatus) */
+#define EXERROR 1	/* a generic error with exitstatus */
+#define EXEXIT 2	/* call exitshell(exitstatus) */
 
 
 /*
@@ -73,16 +72,17 @@ extern volatile sig_atomic_t intpending;
 #define INTOFF suppressint++
 #define INTON { if (--suppressint == 0 && intpending) onint(); }
 #define is_int_on() suppressint
-#define SETINTON(s) suppressint = (s)
+#define SETINTON(s) do { suppressint = (s); if (suppressint == 0 && intpending) onint(); } while (0)
 #define FORCEINTON {suppressint = 0; if (intpending) onint();}
+#define SET_PENDING_INT intpending = 1
 #define CLEAR_PENDING_INT intpending = 0
 #define int_pending() intpending
 
 void exraise(int) __dead2;
-void onint(void);
+void onint(void) __dead2;
 void warning(const char *, ...) __printflike(1, 2);
 void error(const char *, ...) __printf0like(1, 2) __dead2;
-void exerror(int, const char *, ...) __printf0like(2, 3) __dead2;
+void errorwithstatus(int, const char *, ...) __printf0like(2, 3) __dead2;
 
 
 /*

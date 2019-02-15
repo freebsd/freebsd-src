@@ -27,7 +27,7 @@ static const char sccsid[] = "$Id: ex_yank.c,v 10.8 2001/06/25 15:19:22 skimo Ex
  * ex_yank -- :[line [,line]] ya[nk] [buffer] [count]
  *	Yank the lines into a buffer.
  *
- * PUBLIC: int ex_yank __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_yank(SCR *, EXCMD *);
  */
 int
 ex_yank(SCR *sp, EXCMD *cmdp)

@@ -7,7 +7,7 @@ $debug = 0;
 while (<>) {
     next if /^#/;
     next if /^\s*$/;
-    if (/^struct req_pkt/) {
+    if (/^typedef union req_data_u_tag/) {
 	$found = 1;
     }
     if (/^struct info_dns_assoc/) {
@@ -20,13 +20,19 @@ while (<>) {
 	    printf "  printf(\"sizeof($type) = %%d\\n\", \n\t (int) sizeof($type));\n";
 	    next;
 	}
+	if (/^typedef (union\s*\w*)\s*{\s*$/) {
+	    $type = $1;
+	    print STDERR "union = '$type'\n" if $debug;
+	    printf "  printf(\"sizeof($type) = %%d\\n\", \n\t (int) sizeof($type));\n";
+	    next;
+	}
 	if (/\s*\w+\s+(\w*)\s*(\[.*\])?\s*;\s*$/) {
 	    $field = $1;
 	    print STDERR "\tfield = '$field'\n" if $debug;
 	    printf "  printf(\"offsetof($field) = %%d\\n\", \n\t (int) offsetof($type, $field));\n";
 	    next;
 	}
-	if (/^}\s*;\s*$/) {
+	if (/^}\s*\w*\s*;\s*$/) {
 	    printf "  printf(\"\\n\");\n\n";
 	    $found = 0 if $last;
 	    next;

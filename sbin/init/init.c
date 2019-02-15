@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -46,6 +48,7 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/wait.h>
@@ -79,6 +82,7 @@ static const char rcsid[] =
 #include <login_cap.h>
 #endif
 
+#include "mntopts.h"
 #include "pathnames.h"
 
 /*
@@ -103,6 +107,7 @@ static void warning(const char *, ...) __printflike(1, 2);
 static void emergency(const char *, ...) __printflike(1, 2);
 static void disaster(int);
 static void badsys(int);
+static void revoke_ttys(void);
 static int  runshutdown(void);
 static char *strk(char *);
 
@@ -122,6 +127,8 @@ static state_func_t clean_ttys(void);
 static state_func_t catatonia(void);
 static state_func_t death(void);
 static state_func_t death_single(void);
+static state_func_t reroot(void);
+static state_func_t reroot_phase_two(void);
 
 static state_func_t run_script(const char *);
 
@@ -133,13 +140,16 @@ static int Reboot = FALSE;
 static int howto = RB_AUTOBOOT;
 
 static int devfs;
+static char *init_path_argv0;
 
 static void transition(state_t);
 static state_t requested_transition;
 static state_t current_state = death_single;
 
+static void execute_script(char *argv[]);
 static void open_console(void);
 static const char *get_shell(void);
+static void replace_init(char *path);
 static void write_stderr(const char *message);
 
 typedef struct init_session {
@@ -148,6 +158,8 @@ typedef struct init_session {
 	int	se_flags;		/* status of session */
 #define	SE_SHUTDOWN	0x1		/* session won't be restarted */
 #define	SE_PRESENT	0x2		/* session is in /etc/ttys */
+#define	SE_IFEXISTS	0x4		/* session defined as "onifexists" */
+#define	SE_IFCONSOLE	0x8		/* session defined as "onifconsole" */
 	int	se_nspace;		/* spacing count */
 	char	*se_device;		/* filename of port */
 	char	*se_getty;		/* what to run on that port */
@@ -193,7 +205,7 @@ main(int argc, char *argv[])
 {
 	state_t initial_transition = runcom;
 	char kenv_value[PATH_MAX];
-	int c;
+	int c, error;
 	struct sigaction sa;
 	sigset_t mask;
 
@@ -226,6 +238,9 @@ main(int argc, char *argv[])
 				case 'q': /* rescan /etc/ttys */
 					sig = SIGHUP;
 					break;
+				case 'r': /* remount root */
+					sig = SIGEMT;
+					break;
 				default:
 					goto invalid;
 				}
@@ -238,6 +253,11 @@ invalid:
 #endif
 			errx(1, "already running");
 	}
+
+	init_path_argv0 = strdup(argv[0]);
+	if (init_path_argv0 == NULL)
+		err(1, "strdup");
+
 	/*
 	 * Note that this does NOT open a file...
 	 * Does 'init' deserve its own facility number?
@@ -247,7 +267,7 @@ invalid:
 	/*
 	 * Create an initial session.
 	 */
-	if (setsid() < 0)
+	if (setsid() < 0 && (errno != EPERM || getsid(0) != 1))
 		warning("initial setsid() failed: %m");
 
 	/*
@@ -261,7 +281,7 @@ invalid:
 	 * This code assumes that we always get arguments through flags,
 	 * never through bits set in some random machine register.
 	 */
-	while ((c = getopt(argc, argv, "dsf")) != -1)
+	while ((c = getopt(argc, argv, "dsfr")) != -1)
 		switch (c) {
 		case 'd':
 			devfs = 1;
@@ -271,6 +291,9 @@ invalid:
 			break;
 		case 'f':
 			runcom_mode = FASTBOOT;
+			break;
+		case 'r':
+			initial_transition = reroot_phase_two;
 			break;
 		default:
 			warning("unrecognized flag '-%c'", c);
@@ -287,19 +310,19 @@ invalid:
 	handle(badsys, SIGSYS, 0);
 	handle(disaster, SIGABRT, SIGFPE, SIGILL, SIGSEGV, SIGBUS, SIGXCPU,
 	    SIGXFSZ, 0);
-	handle(transition_handler, SIGHUP, SIGINT, SIGTERM, SIGTSTP, SIGUSR1,
-	    SIGUSR2, 0);
+	handle(transition_handler, SIGHUP, SIGINT, SIGEMT, SIGTERM, SIGTSTP,
+	    SIGUSR1, SIGUSR2, SIGWINCH, 0);
 	handle(alrm_handler, SIGALRM, 0);
 	sigfillset(&mask);
 	delset(&mask, SIGABRT, SIGFPE, SIGILL, SIGSEGV, SIGBUS, SIGSYS,
-	    SIGXCPU, SIGXFSZ, SIGHUP, SIGINT, SIGTERM, SIGTSTP, SIGALRM,
-	    SIGUSR1, SIGUSR2, 0);
-	sigprocmask(SIG_SETMASK, &mask, (sigset_t *) 0);
+	    SIGXCPU, SIGXFSZ, SIGHUP, SIGINT, SIGEMT, SIGTERM, SIGTSTP,
+	    SIGALRM, SIGUSR1, SIGUSR2, SIGWINCH, 0);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;
 	sa.sa_handler = SIG_IGN;
-	sigaction(SIGTTIN, &sa, (struct sigaction *)0);
-	sigaction(SIGTTOU, &sa, (struct sigaction *)0);
+	sigaction(SIGTTIN, &sa, NULL);
+	sigaction(SIGTTOU, &sa, NULL);
 
 	/*
 	 * Paranoia.
@@ -308,10 +331,15 @@ invalid:
 	close(1);
 	close(2);
 
+	if (kenv(KENV_GET, "init_exec", kenv_value, sizeof(kenv_value)) > 0) {
+		replace_init(kenv_value);
+		_exit(0); /* reboot */
+	}
+
 	if (kenv(KENV_GET, "init_script", kenv_value, sizeof(kenv_value)) > 0) {
 		state_func_t next_transition;
 
-		if ((next_transition = run_script(kenv_value)) != 0)
+		if ((next_transition = run_script(kenv_value)) != NULL)
 			initial_transition = (state_t) next_transition;
 	}
 
@@ -373,6 +401,16 @@ invalid:
 			free(s);
 	}
 
+	if (initial_transition != reroot_phase_two) {
+		/*
+		 * Unmount reroot leftovers.  This runs after init(8)
+		 * gets reexecuted after reroot_phase_two() is done.
+		 */
+		error = unmount(_PATH_REROOT, MNT_FORCE);
+		if (error != 0 && errno != EINVAL)
+			warning("Cannot unmount %s: %m", _PATH_REROOT);
+	}
+
 	/*
 	 * Start the state machine.
 	 */
@@ -403,7 +441,7 @@ handle(sig_t handler, ...)
 		sa.sa_mask = mask_everything;
 		/* XXX SA_RESTART? */
 		sa.sa_flags = sig == SIGCHLD ? SA_NOCLDSTOP : 0;
-		sigaction(sig, &sa, (struct sigaction *) 0);
+		sigaction(sig, &sa, NULL);
 	}
 	va_end(ap);
 }
@@ -620,6 +658,218 @@ write_stderr(const char *message)
 	write(STDERR_FILENO, message, strlen(message));
 }
 
+static int
+read_file(const char *path, void **bufp, size_t *bufsizep)
+{
+	struct stat sb;
+	size_t bufsize;
+	void *buf;
+	ssize_t nbytes;
+	int error, fd;
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		emergency("%s: %s", path, strerror(errno));
+		return (-1);
+	}
+
+	error = fstat(fd, &sb);
+	if (error != 0) {
+		emergency("fstat: %s", strerror(errno));
+		close(fd);
+		return (error);
+	}
+
+	bufsize = sb.st_size;
+	buf = malloc(bufsize);
+	if (buf == NULL) {
+		emergency("malloc: %s", strerror(errno));
+		close(fd);
+		return (error);
+	}
+
+	nbytes = read(fd, buf, bufsize);
+	if (nbytes != (ssize_t)bufsize) {
+		emergency("read: %s", strerror(errno));
+		close(fd);
+		free(buf);
+		return (error);
+	}
+
+	error = close(fd);
+	if (error != 0) {
+		emergency("close: %s", strerror(errno));
+		free(buf);
+		return (error);
+	}
+
+	*bufp = buf;
+	*bufsizep = bufsize;
+
+	return (0);
+}
+
+static int
+create_file(const char *path, const void *buf, size_t bufsize)
+{
+	ssize_t nbytes;
+	int error, fd;
+
+	fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0700);
+	if (fd < 0) {
+		emergency("%s: %s", path, strerror(errno));
+		return (-1);
+	}
+
+	nbytes = write(fd, buf, bufsize);
+	if (nbytes != (ssize_t)bufsize) {
+		emergency("write: %s", strerror(errno));
+		close(fd);
+		return (-1);
+	}
+
+	error = close(fd);
+	if (error != 0) {
+		emergency("close: %s", strerror(errno));
+		return (-1);
+	}
+
+	return (0);
+}
+
+static int
+mount_tmpfs(const char *fspath)
+{
+	struct iovec *iov;
+	char errmsg[255];
+	int error, iovlen;
+
+	iov = NULL;
+	iovlen = 0;
+	memset(errmsg, 0, sizeof(errmsg));
+	build_iovec(&iov, &iovlen, "fstype",
+	    __DECONST(void *, "tmpfs"), (size_t)-1);
+	build_iovec(&iov, &iovlen, "fspath",
+	    __DECONST(void *, fspath), (size_t)-1);
+	build_iovec(&iov, &iovlen, "errmsg",
+	    errmsg, sizeof(errmsg));
+
+	error = nmount(iov, iovlen, 0);
+	if (error != 0) {
+		if (*errmsg != '\0') {
+			emergency("cannot mount tmpfs on %s: %s: %s",
+			    fspath, errmsg, strerror(errno));
+		} else {
+			emergency("cannot mount tmpfs on %s: %s",
+			    fspath, strerror(errno));
+		}
+		return (error);
+	}
+	return (0);
+}
+
+static state_func_t
+reroot(void)
+{
+	void *buf;
+	size_t bufsize;
+	int error;
+
+	buf = NULL;
+	bufsize = 0;
+
+	revoke_ttys();
+	runshutdown();
+
+	/*
+	 * Make sure nobody can interfere with our scheme.
+	 * Ignore ESRCH, which can apparently happen when
+	 * there are no processes to kill.
+	 */
+	error = kill(-1, SIGKILL);
+	if (error != 0 && errno != ESRCH) {
+		emergency("kill(2) failed: %s", strerror(errno));
+		goto out;
+	}
+
+	/*
+	 * Copy the init binary into tmpfs, so that we can unmount
+	 * the old rootfs without committing suicide.
+	 */
+	error = read_file(init_path_argv0, &buf, &bufsize);
+	if (error != 0)
+		goto out;
+	error = mount_tmpfs(_PATH_REROOT);
+	if (error != 0)
+		goto out;
+	error = create_file(_PATH_REROOT_INIT, buf, bufsize);
+	if (error != 0)
+		goto out;
+
+	/*
+	 * Execute the temporary init.
+	 */
+	execl(_PATH_REROOT_INIT, _PATH_REROOT_INIT, "-r", NULL);
+	emergency("cannot exec %s: %s", _PATH_REROOT_INIT, strerror(errno));
+
+out:
+	emergency("reroot failed; going to single user mode");
+	free(buf);
+	return (state_func_t) single_user;
+}
+
+static state_func_t
+reroot_phase_two(void)
+{
+	char init_path[PATH_MAX], *path, *path_component;
+	size_t init_path_len;
+	int nbytes, error;
+
+	/*
+	 * Ask the kernel to mount the new rootfs.
+	 */
+	error = reboot(RB_REROOT);
+	if (error != 0) {
+		emergency("RB_REBOOT failed: %s", strerror(errno));
+		goto out;
+	}
+
+	/*
+	 * Figure out where the destination init(8) binary is.  Note that
+	 * the path could be different than what we've started with.  Use
+	 * the value from kenv, if set, or the one from sysctl otherwise.
+	 * The latter defaults to a hardcoded value, but can be overridden
+	 * by a build time option.
+	 */
+	nbytes = kenv(KENV_GET, "init_path", init_path, sizeof(init_path));
+	if (nbytes <= 0) {
+		init_path_len = sizeof(init_path);
+		error = sysctlbyname("kern.init_path",
+		    init_path, &init_path_len, NULL, 0);
+		if (error != 0) {
+			emergency("failed to retrieve kern.init_path: %s",
+			    strerror(errno));
+			goto out;
+		}
+	}
+
+	/*
+	 * Repeat the init search logic from sys/kern/init_path.c
+	 */
+	path_component = init_path;
+	while ((path = strsep(&path_component, ":")) != NULL) {
+		/*
+		 * Execute init(8) from the new rootfs.
+		 */
+		execl(path, path, NULL);
+	}
+	emergency("cannot exec init from %s: %s", init_path, strerror(errno));
+
+out:
+	emergency("reroot failed; going to single user mode");
+	return (state_func_t) single_user;
+}
+
 /*
  * Bring the system up single user.
  */
@@ -631,6 +881,7 @@ single_user(void)
 	sigset_t mask;
 	const char *shell;
 	char *argv[2];
+	struct timeval tv, tn;
 #ifdef SECURE
 	struct ttyent *typ;
 	struct passwd *pp;
@@ -645,8 +896,13 @@ single_user(void)
 	if (Reboot) {
 		/* Instead of going single user, let's reboot the machine */
 		sync();
-		reboot(howto);
-		_exit(0);
+		if (reboot(howto) == -1) {
+			emergency("reboot(%#x) failed, %s", howto,
+			    strerror(errno));
+			_exit(1); /* panic and reboot */
+		}
+		warning("reboot(%#x) returned", howto);
+		_exit(0); /* panic as well */
 	}
 
 	shell = get_shell();
@@ -670,11 +926,11 @@ single_user(void)
 			write_stderr(banner);
 			for (;;) {
 				clear = getpass("Password:");
-				if (clear == 0 || *clear == '\0')
+				if (clear == NULL || *clear == '\0')
 					_exit(0);
 				password = crypt(clear, pp->pw_passwd);
 				bzero(clear, _PASSWORD_LEN);
-				if (password == NULL ||
+				if (password != NULL &&
 				    strcmp(password, pp->pw_passwd) == 0)
 					break;
 				warning("single-user login failed\n");
@@ -708,7 +964,7 @@ single_user(void)
 		 * and those are reset to SIG_DFL on exec.
 		 */
 		sigemptyset(&mask);
-		sigprocmask(SIG_SETMASK, &mask, (sigset_t *) 0);
+		sigprocmask(SIG_SETMASK, &mask, NULL);
 
 		/*
 		 * Fire off a shell.
@@ -718,7 +974,7 @@ single_user(void)
 		char name[] = "-sh";
 
 		argv[0] = name;
-		argv[1] = 0;
+		argv[1] = NULL;
 		execv(shell, argv);
 		emergency("can't exec %s for single user: %m", shell);
 		execv(_PATH_BSHELL, argv);
@@ -763,7 +1019,14 @@ single_user(void)
 			 *  reboot(8) killed shell?
 			 */
 			warning("single user shell terminated.");
-			sleep(STALL_TIMEOUT);
+			gettimeofday(&tv, NULL);
+			tn = tv;
+			tv.tv_sec += STALL_TIMEOUT;
+			while (tv.tv_sec > tn.tv_sec || (tv.tv_sec ==
+			    tn.tv_sec && tv.tv_usec > tn.tv_usec)) {
+				sleep(1);
+				gettimeofday(&tn, NULL);
+			}
 			_exit(0);
 		} else {
 			warning("single user shell terminated, restarting");
@@ -783,11 +1046,67 @@ runcom(void)
 {
 	state_func_t next_transition;
 
-	if ((next_transition = run_script(_PATH_RUNCOM)) != 0)
+	if ((next_transition = run_script(_PATH_RUNCOM)) != NULL)
 		return next_transition;
 
 	runcom_mode = AUTOBOOT;		/* the default */
 	return (state_func_t) read_ttys;
+}
+
+static void
+execute_script(char *argv[])
+{
+	struct sigaction sa;
+	const char *shell, *script;
+	int error;
+
+	bzero(&sa, sizeof(sa));
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler = SIG_IGN;
+	sigaction(SIGTSTP, &sa, NULL);
+	sigaction(SIGHUP, &sa, NULL);
+
+	open_console();
+
+	sigprocmask(SIG_SETMASK, &sa.sa_mask, NULL);
+#ifdef LOGIN_CAP
+	setprocresources(RESOURCE_RC);
+#endif
+
+	/*
+	 * Try to directly execute the script first.  If it
+	 * fails, try the old method of passing the script path
+	 * to sh(1).  Don't complain if it fails because of
+	 * the missing execute bit.
+	 */
+	script = argv[1];
+	error = access(script, X_OK);
+	if (error == 0) {
+		execv(script, argv + 1);
+		warning("can't exec %s: %m", script);
+	} else if (errno != EACCES) {
+		warning("can't access %s: %m", script);
+	}
+
+	shell = get_shell();
+	execv(shell, argv);
+	stall("can't exec %s for %s: %m", shell, script);
+}
+
+/*
+ * Execute binary, replacing init(8) as PID 1.
+ */
+static void
+replace_init(char *path)
+{
+	char *argv[3];
+	char sh[] = "sh";
+
+	argv[0] = sh;
+	argv[1] = path;
+	argv[2] = NULL;
+
+	execute_script(argv);
 }
 
 /*
@@ -804,18 +1123,10 @@ run_script(const char *script)
 	int status;
 	char *argv[4];
 	const char *shell;
-	struct sigaction sa;
 
 	shell = get_shell();
 
 	if ((pid = fork()) == 0) {
-		sigemptyset(&sa.sa_mask);
-		sa.sa_flags = 0;
-		sa.sa_handler = SIG_IGN;
-		sigaction(SIGTSTP, &sa, (struct sigaction *)0);
-		sigaction(SIGHUP, &sa, (struct sigaction *)0);
-
-		open_console();
 
 		char _sh[]		= "sh";
 		char _autoboot[]	= "autoboot";
@@ -823,15 +1134,10 @@ run_script(const char *script)
 		argv[0] = _sh;
 		argv[1] = __DECONST(char *, script);
 		argv[2] = runcom_mode == AUTOBOOT ? _autoboot : 0;
-		argv[3] = 0;
+		argv[3] = NULL;
 
-		sigprocmask(SIG_SETMASK, &sa.sa_mask, (sigset_t *) 0);
-
-#ifdef LOGIN_CAP
-		setprocresources(RESOURCE_RC);
-#endif
-		execv(shell, argv);
-		stall("can't exec %s for %s: %m", shell, script);
+		execute_script(argv);
+		sleep(STALL_TIMEOUT);
 		_exit(1);	/* force single user mode */
 	}
 
@@ -851,8 +1157,9 @@ run_script(const char *script)
 		if ((wpid = waitpid(-1, &status, WUNTRACED)) != -1)
 			collect_child(wpid);
 		if (wpid == -1) {
-			if (requested_transition == death_single)
-				return (state_func_t) death_single;
+			if (requested_transition == death_single ||
+			    requested_transition == reroot)
+				return (state_func_t) requested_transition;
 			if (errno == EINTR)
 				continue;
 			warning("wait for %s on %s failed: %m; going to "
@@ -899,7 +1206,7 @@ start_session_db(void)
 {
 	if (session_db && (*session_db->close)(session_db))
 		emergency("session database close: %s", strerror(errno));
-	if ((session_db = dbopen(NULL, O_RDWR, 0, DB_HASH, NULL)) == 0) {
+	if ((session_db = dbopen(NULL, O_RDWR, 0, DB_HASH, NULL)) == NULL) {
 		emergency("session database open: %s", strerror(errno));
 		return (1);
 	}
@@ -968,7 +1275,7 @@ construct_argv(char *command)
 	char **argv = (char **) malloc(((strlen(command) + 1) / 2 + 1)
 						* sizeof (char *));
 
-	if ((argv[argc++] = strk(command)) == 0) {
+	if ((argv[argc++] = strk(command)) == NULL) {
 		free(argv);
 		return (NULL);
 	}
@@ -1007,7 +1314,6 @@ static session_t *
 new_session(session_t *sprev, struct ttyent *typ)
 {
 	session_t *sp;
-	int fd;
 
 	if ((typ->ty_status & TTY_ON) == 0 ||
 	    typ->ty_name == 0 ||
@@ -1018,20 +1324,14 @@ new_session(session_t *sprev, struct ttyent *typ)
 
 	sp->se_flags |= SE_PRESENT;
 
-	sp->se_device = malloc(sizeof(_PATH_DEV) + strlen(typ->ty_name));
-	sprintf(sp->se_device, "%s%s", _PATH_DEV, typ->ty_name);
+	if ((typ->ty_status & TTY_IFEXISTS) != 0)
+		sp->se_flags |= SE_IFEXISTS;
 
-	/*
-	 * Attempt to open the device, if we get "device not configured"
-	 * then don't add the device to the session list.
-	 */
-	if ((fd = open(sp->se_device, O_RDONLY | O_NONBLOCK, 0)) < 0) {
-		if (errno == ENXIO) {
-			free_session(sp);
-			return (0);
-		}
-	} else
-		close(fd);
+	if ((typ->ty_status & TTY_IFCONSOLE) != 0)
+		sp->se_flags |= SE_IFCONSOLE;
+
+	if (asprintf(&sp->se_device, "%s%s", _PATH_DEV, typ->ty_name) < 0)
+		err(1, "asprintf");
 
 	if (setupargv(sp, typ) == 0) {
 		free_session(sp);
@@ -1039,7 +1339,7 @@ new_session(session_t *sprev, struct ttyent *typ)
 	}
 
 	sp->se_next = 0;
-	if (sprev == 0) {
+	if (sprev == NULL) {
 		sessions = sp;
 		sp->se_prev = 0;
 	} else {
@@ -1062,11 +1362,11 @@ setupargv(session_t *sp, struct ttyent *typ)
 		free(sp->se_getty_argv_space);
 		free(sp->se_getty_argv);
 	}
-	sp->se_getty = malloc(strlen(typ->ty_getty) + strlen(typ->ty_name) + 2);
-	sprintf(sp->se_getty, "%s %s", typ->ty_getty, typ->ty_name);
+	if (asprintf(&sp->se_getty, "%s %s", typ->ty_getty, typ->ty_name) < 0)
+		err(1, "asprintf");
 	sp->se_getty_argv_space = strdup(sp->se_getty);
 	sp->se_getty_argv = construct_argv(sp->se_getty_argv_space);
-	if (sp->se_getty_argv == 0) {
+	if (sp->se_getty_argv == NULL) {
 		warning("can't parse getty for port %s", sp->se_device);
 		free(sp->se_getty);
 		free(sp->se_getty_argv_space);
@@ -1084,7 +1384,7 @@ setupargv(session_t *sp, struct ttyent *typ)
 		sp->se_window = strdup(typ->ty_window);
 		sp->se_window_argv_space = strdup(sp->se_window);
 		sp->se_window_argv = construct_argv(sp->se_window_argv_space);
-		if (sp->se_window_argv == 0) {
+		if (sp->se_window_argv == NULL) {
 			warning("can't parse window for port %s",
 			    sp->se_device);
 			free(sp->se_window_argv_space);
@@ -1165,7 +1465,7 @@ start_window_system(session_t *sp)
 		_exit(0);
 
 	sigemptyset(&mask);
-	sigprocmask(SIG_SETMASK, &mask, (sigset_t *) 0);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 
 	if (setsid() < 0)
 		emergency("setsid failed (window) %m");
@@ -1176,12 +1476,12 @@ start_window_system(session_t *sp)
 	if (sp->se_type) {
 		/* Don't use malloc after fork */
 		strcpy(term, "TERM=");
-		strncat(term, sp->se_type, sizeof(term) - 6);
+		strlcat(term, sp->se_type, sizeof(term));
 		env[0] = term;
-		env[1] = 0;
+		env[1] = NULL;
 	}
 	else
-		env[0] = 0;
+		env[0] = NULL;
 	execve(sp->se_window_argv[0], sp->se_window_argv, env);
 	stall("can't exec window system '%s' for port %s: %m",
 		sp->se_window_argv[0], sp->se_device);
@@ -1232,7 +1532,7 @@ start_getty(session_t *sp)
 	}
 
 	sigemptyset(&mask);
-	sigprocmask(SIG_SETMASK, &mask, (sigset_t *) 0);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 
 #ifdef LOGIN_CAP
 	setprocresources(RESOURCE_GETTY);
@@ -1240,15 +1540,39 @@ start_getty(session_t *sp)
 	if (sp->se_type) {
 		/* Don't use malloc after fork */
 		strcpy(term, "TERM=");
-		strncat(term, sp->se_type, sizeof(term) - 6);
+		strlcat(term, sp->se_type, sizeof(term));
 		env[0] = term;
-		env[1] = 0;
+		env[1] = NULL;
 	} else
-		env[0] = 0;
+		env[0] = NULL;
 	execve(sp->se_getty_argv[0], sp->se_getty_argv, env);
 	stall("can't exec getty '%s' for port %s: %m",
 		sp->se_getty_argv[0], sp->se_device);
 	_exit(1);
+}
+
+/*
+ * Return 1 if the session is defined as "onifexists"
+ * or "onifconsole" and the device node does not exist.
+ */
+static int
+session_has_no_tty(session_t *sp)
+{
+	int fd;
+
+	if ((sp->se_flags & SE_IFEXISTS) == 0 &&
+	    (sp->se_flags & SE_IFCONSOLE) == 0)
+		return (0);
+
+	fd = open(sp->se_device, O_RDONLY | O_NONBLOCK, 0);
+	if (fd < 0) {
+		if (errno == ENOENT)
+			return (1);
+		return (0);
+	}
+
+	close(fd);
+	return (0);
 }
 
 /*
@@ -1269,7 +1593,8 @@ collect_child(pid_t pid)
 	del_session(sp);
 	sp->se_process = 0;
 
-	if (sp->se_flags & SE_SHUTDOWN) {
+	if (sp->se_flags & SE_SHUTDOWN ||
+	    session_has_no_tty(sp)) {
 		if ((sprev = sp->se_prev) != NULL)
 			sprev->se_next = sp->se_next;
 		else
@@ -1304,8 +1629,9 @@ transition_handler(int sig)
 		    current_state == clean_ttys || current_state == catatonia)
 			requested_transition = clean_ttys;
 		break;
+	case SIGWINCH:
 	case SIGUSR2:
-		howto = RB_POWEROFF;
+		howto = sig == SIGUSR2 ? RB_POWEROFF : RB_POWERCYCLE;
 	case SIGUSR1:
 		howto |= RB_HALT;
 	case SIGINT:
@@ -1322,6 +1648,9 @@ transition_handler(int sig)
 		    current_state == clean_ttys ||
 		    current_state == multi_user || current_state == catatonia)
 			requested_transition = catatonia;
+		break;
+	case SIGEMT:
+		requested_transition = reroot;
 		break;
 	default:
 		requested_transition = 0;
@@ -1351,6 +1680,8 @@ multi_user(void)
 
 	for (sp = sessions; sp; sp = sp->se_next) {
 		if (sp->se_process)
+			continue;
+		if (session_has_no_tty(sp))
 			continue;
 		if ((pid = start_getty(sp)) == -1) {
 			/* serious trouble */
@@ -1486,7 +1817,15 @@ alrm_handler(int sig)
 static state_func_t
 death(void)
 {
-	session_t *sp;
+	int block, blocked;
+	size_t len;
+
+	/* Temporarily block suspend. */
+	len = sizeof(blocked);
+	block = 1;
+	if (sysctlbyname("kern.suspend_blocked", &blocked, &len,
+	    &block, sizeof(block)) == -1)
+		blocked = 0;
 
 	/*
 	 * Also revoke the TTY here.  Because runshutdown() may reopen
@@ -1494,14 +1833,15 @@ death(void)
 	 * runshutdown() will perform the initial open() call, causing
 	 * the terminal attributes to be misconfigured.
 	 */
-	for (sp = sessions; sp; sp = sp->se_next) {
-		sp->se_flags |= SE_SHUTDOWN;
-		kill(sp->se_process, SIGHUP);
-		revoke(sp->se_device);
-	}
+	revoke_ttys();
 
 	/* Try to run the rc.shutdown script within a period of time */
 	runshutdown();
+
+	/* Unblock suspend if we blocked it. */
+	if (!blocked)
+		sysctlbyname("kern.suspend_blocked", NULL, NULL,
+		    &blocked, sizeof(blocked));
 
 	return (state_func_t) death_single;
 }
@@ -1539,6 +1879,18 @@ death_single(void)
 	return (state_func_t) single_user;
 }
 
+static void
+revoke_ttys(void)
+{
+	session_t *sp;
+
+	for (sp = sessions; sp; sp = sp->se_next) {
+		sp->se_flags |= SE_SHUTDOWN;
+		kill(sp->se_process, SIGHUP);
+		revoke(sp->se_device);
+	}
+}
+
 /*
  * Run the system shutdown script.
  *
@@ -1556,8 +1908,6 @@ runshutdown(void)
 	int shutdowntimeout;
 	size_t len;
 	char *argv[4];
-	const char *shell;
-	struct sigaction sa;
 	struct stat sb;
 
 	/*
@@ -1569,17 +1919,7 @@ runshutdown(void)
 	if (stat(_PATH_RUNDOWN, &sb) == -1 && errno == ENOENT)
 		return 0;
 
-	shell = get_shell();
-
 	if ((pid = fork()) == 0) {
-		sigemptyset(&sa.sa_mask);
-		sa.sa_flags = 0;
-		sa.sa_handler = SIG_IGN;
-		sigaction(SIGTSTP, &sa, (struct sigaction *)0);
-		sigaction(SIGHUP, &sa, (struct sigaction *)0);
-
-		open_console();
-
 		char _sh[]	= "sh";
 		char _reboot[]	= "reboot";
 		char _single[]	= "single";
@@ -1588,20 +1928,14 @@ runshutdown(void)
 		argv[0] = _sh;
 		argv[1] = _path_rundown;
 		argv[2] = Reboot ? _reboot : _single;
-		argv[3] = 0;
-
-		sigprocmask(SIG_SETMASK, &sa.sa_mask, (sigset_t *) 0);
-
-#ifdef LOGIN_CAP
-		setprocresources(RESOURCE_RC);
-#endif
-		execv(shell, argv);
-		warning("can't exec %s for %s: %m", shell, _PATH_RUNDOWN);
+		argv[3] = NULL;
+		
+		execute_script(argv);
 		_exit(1);	/* force single user mode */
 	}
 
 	if (pid == -1) {
-		emergency("can't fork for %s on %s: %m", shell, _PATH_RUNDOWN);
+		emergency("can't fork for %s: %m", _PATH_RUNDOWN);
 		while (waitpid(-1, (int *) 0, WNOHANG) > 0)
 			continue;
 		sleep(STALL_TIMEOUT);
@@ -1624,20 +1958,20 @@ runshutdown(void)
 		if (clang == 1) {
 			/* we were waiting for the sub-shell */
 			kill(wpid, SIGTERM);
-			warning("timeout expired for %s on %s: %m; going to "
-			    "single user mode", shell, _PATH_RUNDOWN);
+			warning("timeout expired for %s: %m; going to "
+			    "single user mode", _PATH_RUNDOWN);
 			return -1;
 		}
 		if (wpid == -1) {
 			if (errno == EINTR)
 				continue;
-			warning("wait for %s on %s failed: %m; going to "
-			    "single user mode", shell, _PATH_RUNDOWN);
+			warning("wait for %s failed: %m; going to "
+			    "single user mode", _PATH_RUNDOWN);
 			return -1;
 		}
 		if (wpid == pid && WIFSTOPPED(status)) {
-			warning("init: %s on %s stopped, restarting\n",
-				shell, _PATH_RUNDOWN);
+			warning("init: %s stopped, restarting\n",
+			    _PATH_RUNDOWN);
 			kill(pid, SIGCONT);
 			wpid = -1;
 		}
@@ -1660,8 +1994,8 @@ runshutdown(void)
 	}
 
 	if (!WIFEXITED(status)) {
-		warning("%s on %s terminated abnormally, going to "
-		    "single user mode", shell, _PATH_RUNDOWN);
+		warning("%s terminated abnormally, going to "
+		    "single user mode", _PATH_RUNDOWN);
 		return -2;
 	}
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@freebsd.org>
  * All rights reserved.
  *
@@ -30,5 +32,6 @@
 #define	_A10_SRAMC_H_
 
 int	a10_map_to_emac(void);
+int	a10_map_to_otg(void);
 
 #endif

@@ -1,38 +1,42 @@
 /*-
- * Copyright 2007-2009 Solarflare Communications Inc.  All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2007-2016 Solarflare Communications Inc.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
-#include "efx_regs.h"
 #include "efx_impl.h"
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_sram_buf_tbl_set(
 	__in		efx_nic_t *enp,
 	__in		uint32_t id,
@@ -45,10 +49,26 @@ efx_sram_buf_tbl_set(
 	efsys_dma_addr_t addr;
 	efx_oword_t oword;
 	unsigned int count;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NIC);
+
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+	if (enp->en_family == EFX_FAMILY_HUNTINGTON ||
+	    enp->en_family == EFX_FAMILY_MEDFORD) {
+		/*
+		 * FIXME: the efx_sram_buf_tbl_*() functionality needs to be
+		 * pulled inside the Falcon/Siena queue create/destroy code,
+		 * and then the original functions can be removed (see bug30834
+		 * comment #1).  But, for now, we just ensure that they are
+		 * no-ops for EF10, to allow bringing up existing drivers
+		 * without modification.
+		 */
+
+		return (0);
+	}
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
 	if (stop >= EFX_BUF_TBL_SIZE) {
 		rc = EFBIG;
@@ -138,7 +158,7 @@ fail2:
 	EFX_BAR_WRITEO(enp, FR_AZ_BUF_TBL_UPD_REG, &oword);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -155,6 +175,22 @@ efx_sram_buf_tbl_clear(
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NIC);
+
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+	if (enp->en_family == EFX_FAMILY_HUNTINGTON ||
+	    enp->en_family == EFX_FAMILY_MEDFORD) {
+		/*
+		 * FIXME: the efx_sram_buf_tbl_*() functionality needs to be
+		 * pulled inside the Falcon/Siena queue create/destroy code,
+		 * and then the original functions can be removed (see bug30834
+		 * comment #1).  But, for now, we just ensure that they are
+		 * no-ops for EF10, to allow bringing up existing drivers
+		 * without modification.
+		 */
+
+		return;
+	}
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 
 	EFSYS_ASSERT3U(stop, <, EFX_BUF_TBL_SIZE);
 
@@ -262,7 +298,7 @@ efx_sram_bit_sweep_set(
 	}
 }
 
-efx_sram_pattern_fn_t	__cs __efx_sram_pattern_fns[] = {
+efx_sram_pattern_fn_t	__efx_sram_pattern_fns[] = {
 	efx_sram_byte_increment_set,
 	efx_sram_all_the_same_set,
 	efx_sram_bit_alternate_set,
@@ -271,12 +307,11 @@ efx_sram_pattern_fn_t	__cs __efx_sram_pattern_fns[] = {
 	efx_sram_bit_sweep_set
 };
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_sram_test(
 	__in		efx_nic_t *enp,
 	__in		efx_pattern_type_t type)
 {
-	efx_nic_ops_t *enop = enp->en_enop;
 	efx_sram_pattern_fn_t func;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -287,11 +322,15 @@ efx_sram_test(
 	EFSYS_ASSERT(!(enp->en_mod_flags & EFX_MOD_TX));
 	EFSYS_ASSERT(!(enp->en_mod_flags & EFX_MOD_EV));
 
+	/* SRAM testing is only available on Siena. */
+	if (enp->en_family != EFX_FAMILY_SIENA)
+		return (0);
+
 	/* Select pattern generator */
 	EFSYS_ASSERT3U(type, <, EFX_PATTERN_NTYPES);
 	func = __efx_sram_pattern_fns[type];
 
-	return (enop->eno_sram_test(enp, func));
+	return (siena_sram_test(enp, func));
 }
 
 #endif	/* EFSYS_OPT_DIAG */

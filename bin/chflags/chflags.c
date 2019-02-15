@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -47,13 +49,24 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <fts.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+static volatile sig_atomic_t siginfo;
+
 static void usage(void);
+
+static void
+siginfo_handler(int sig __unused)
+{
+
+	siginfo = 1;
+}
 
 int
 main(int argc, char *argv[])
@@ -62,13 +75,12 @@ main(int argc, char *argv[])
 	FTSENT *p;
 	u_long clear, newflags, set;
 	long val;
-	int Hflag, Lflag, Rflag, fflag, hflag, vflag;
+	int Hflag, Lflag, Rflag, fflag, hflag, vflag, xflag;
 	int ch, fts_options, oct, rval;
 	char *flags, *ep;
-	int (*change_flags)(const char *, unsigned long);
 
-	Hflag = Lflag = Rflag = fflag = hflag = vflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRfhv")) != -1)
+	Hflag = Lflag = Rflag = fflag = hflag = vflag = xflag = 0;
+	while ((ch = getopt(argc, argv, "HLPRfhvx")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -93,6 +105,9 @@ main(int argc, char *argv[])
 		case 'v':
 			vflag++;
 			break;
+		case 'x':
+			xflag = 1;
+			break;
 		case '?':
 		default:
 			usage();
@@ -103,21 +118,28 @@ main(int argc, char *argv[])
 	if (argc < 2)
 		usage();
 
-	if (Rflag) {
-		fts_options = FTS_PHYSICAL;
-		if (hflag)
-			errx(1, "the -R and -h options "
-			        "may not be specified together");
-		if (Hflag)
-			fts_options |= FTS_COMFOLLOW;
-		if (Lflag) {
-			fts_options &= ~FTS_PHYSICAL;
-			fts_options |= FTS_LOGICAL;
-		}
-	} else
-		fts_options = hflag ? FTS_PHYSICAL : FTS_LOGICAL;
+	(void)signal(SIGINFO, siginfo_handler);
 
-	change_flags = hflag ? lchflags : chflags;
+	if (Rflag) {
+		if (hflag)
+			errx(1, "the -R and -h options may not be "
+			    "specified together.");
+		if (Lflag) {
+			fts_options = FTS_LOGICAL;
+		} else {
+			fts_options = FTS_PHYSICAL;
+
+			if (Hflag) {
+				fts_options |= FTS_COMFOLLOW;
+			}
+		}
+	} else if (hflag) {
+		fts_options = FTS_PHYSICAL;
+	} else {
+		fts_options = FTS_LOGICAL;
+	}
+	if (xflag)
+		fts_options |= FTS_XDEV;
 
 	flags = *argv;
 	if (*flags >= '0' && *flags <= '7') {
@@ -142,12 +164,21 @@ main(int argc, char *argv[])
 		err(1, NULL);
 
 	for (rval = 0; (p = fts_read(ftsp)) != NULL;) {
+		int atflag;
+
+		if ((fts_options & FTS_LOGICAL) ||
+		    ((fts_options & FTS_COMFOLLOW) &&
+		    p->fts_level == FTS_ROOTLEVEL))
+			atflag = 0;
+		else
+			atflag = AT_SYMLINK_NOFOLLOW;
+
 		switch (p->fts_info) {
 		case FTS_D:	/* Change it at FTS_DP if we're recursive. */
 			if (!Rflag)
 				fts_set(ftsp, p, FTS_SKIP);
 			continue;
-		case FTS_DNR:			/* Warn, chflag, continue. */
+		case FTS_DNR:			/* Warn, chflags. */
 			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			rval = 1;
 			break;
@@ -156,16 +187,6 @@ main(int argc, char *argv[])
 			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			rval = 1;
 			continue;
-		case FTS_SL:			/* Ignore. */
-		case FTS_SLNONE:
-			/*
-			 * The only symlinks that end up here are ones that
-			 * don't point to anything and ones that we found
-			 * doing a physical walk.
-			 */
-			if (!hflag)
-				continue;
-			/* FALLTHROUGH */
 		default:
 			break;
 		}
@@ -175,16 +196,18 @@ main(int argc, char *argv[])
 			newflags = (p->fts_statp->st_flags | set) & clear;
 		if (newflags == p->fts_statp->st_flags)
 			continue;
-		if ((*change_flags)(p->fts_accpath, newflags) && !fflag) {
+		if (chflagsat(AT_FDCWD, p->fts_accpath, newflags,
+		    atflag) == -1 && !fflag) {
 			warn("%s", p->fts_path);
 			rval = 1;
-		} else if (vflag) {
+		} else if (vflag || siginfo) {
 			(void)printf("%s", p->fts_path);
-			if (vflag > 1)
+			if (vflag > 1 || siginfo)
 				(void)printf(": 0%lo -> 0%lo",
 				    (u_long)p->fts_statp->st_flags,
 				    newflags);
 			(void)printf("\n");
+			siginfo = 0;
 		}
 	}
 	if (errno)
@@ -196,6 +219,6 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: chflags [-fhv] [-R [-H | -L | -P]] flags file ...\n");
+	    "usage: chflags [-fhvx] [-R [-H | -L | -P]] flags file ...\n");
 	exit(1);
 }

@@ -29,7 +29,7 @@
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
 #include <machine/specialreg.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 	.data				/* So we can modify it */
 
@@ -121,7 +121,7 @@ protmode:
 	 * Finally, switch to long bit mode by enabling paging.  We have
 	 * to be very careful here because all the segmentation disappears
 	 * out from underneath us.  The spec says we can depend on the
-	 * subsequent pipelined branch to execute, but *only if* everthing
+	 * subsequent pipelined branch to execute, but *only if* everything
 	 * is still identity mapped.  If any mappings change, the pipeline
 	 * will flush.
 	 */
@@ -130,7 +130,7 @@ protmode:
 	mov	%eax, %cr0
 
 	/*
-	 * At this point paging is enabled, and we are in "compatability" mode.
+	 * At this point paging is enabled, and we are in "compatibility" mode.
 	 * We do another far jump to reload %cs with the 64 bit selector.
 	 * %cr3 points to a 4-level page table page.
 	 * We cannot yet jump all the way to the kernel because we can only
@@ -216,20 +216,42 @@ lgdt_desc:
 	.word	gdtend-gdt		/* Length */
 	.long	gdt-mptramp_start	/* Offset plus %ds << 4 */
 
-	.globl	mptramp_end
 mptramp_end:
+	/*
+	 * The size of the trampoline code that needs to be relocated
+	 * below the 1MiB boundary.
+	 */
+	.globl	bootMP_size
+bootMP_size:
+	.long	mptramp_end - mptramp_start
 
 	/*
 	 * From here on down is executed in the kernel .text section.
-	 *
-	 * Load a real %cr3 that has all the direct map stuff and switches
-	 * off the 1GB replicated mirror.  Load a stack pointer and jump
-	 * into AP startup code in C.
 	 */
 	.text
 	.code64
 	.p2align 4,0
 entry_64:
+	/*
+	 * If the BSP reported NXE support, enable EFER.NXE for all APs
+	 * prior to loading %cr3. This avoids page faults if the AP
+	 * encounters memory marked with the NX bit prior to detecting and
+	 * enabling NXE support.
+	 */
+	movq	pg_nx, %rbx
+	testq	%rbx, %rbx
+	je	1f
+	movl	$MSR_EFER, %ecx
+	rdmsr
+	orl	$EFER_NXE, %eax
+	wrmsr
+
+1:
+	/*
+	 * Load a real %cr3 that has all the direct map stuff and switches
+	 * off the 1GB replicated mirror.  Load a stack pointer and jump
+	 * into AP startup code in C.
+	 */
 	movq	KPML4phys, %rax
 	movq	%rax, %cr3
 	movq	bootSTK, %rsp

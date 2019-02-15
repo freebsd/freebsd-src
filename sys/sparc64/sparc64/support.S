@@ -27,6 +27,8 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kstack_pages.h"
+
 #include <sys/errno.h>
 
 #include <machine/asi.h>
@@ -37,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pstate.h>
 #include <machine/wstate.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 	.register %g2, #ignore
 	.register %g3, #ignore
@@ -263,9 +265,17 @@ ENTRY(bcmp)
 END(bcmp)
 
 /*
+ * void *memmove(void *dst, const void *src, size_t len)
  * void bcopy(const void *src, void *dst, size_t len)
  */
-ENTRY(bcopy)
+ENTRY(memmove)
+	/*
+	 * Swap src/dst for memmove/bcopy differences
+	 */
+	mov	%o0, %o6
+	mov	%o1, %o0
+	mov	%o6, %o1
+ALTENTRY(bcopy)
 	/*
 	 * Check for overlap, and copy backwards if so.
 	 */
@@ -288,15 +298,15 @@ ENTRY(bcopy)
 	ba	%xcc, 1b
 	 stb	%g1, [%o1]
 2:	retl
-	 nop
+	 mov	%o6, %o0
 
 	/*
 	 * Do the fast version.
 	 */
 3:	_MEMCPY(%o1, %o0, %o2, EMPTY, EMPTY, EMPTY, EMPTY)
 	retl
-	 nop
-END(bcopy)
+	 mov	%o6, %o0
+END(memmove)
 
 /*
  * void bzero(void *b, size_t len)
@@ -485,31 +495,6 @@ ENTRY(suword64)
 	 clr	%o0
 END(suword64)
 
-	.globl	fs_nofault_intr_begin
-fs_nofault_intr_begin:
-	nop
-
-/*
- * int fuswintr(const void *base)
- */
-ENTRY(fuswintr)
-	retl
-	 lduha	[%o0] ASI_AIUP, %o0
-END(fuswintr)
-
-/*
- * int suswintr(const void *base, int word)
- */
-ENTRY(suswintr)
-	stha	%o1, [%o0] ASI_AIUP
-	retl
-	 clr	%o0
-END(suswintr)
-
-	.globl	fs_nofault_intr_end
-fs_nofault_intr_end:
-	nop
-
 	.globl	fs_nofault_end
 fs_nofault_end:
 	nop
@@ -517,7 +502,7 @@ fs_nofault_end:
 ENTRY(fs_fault)
 	retl
 	 mov	-1, %o0
-END(fsfault)
+END(fs_fault)
 
 	.globl	fas_nofault_begin
 fas_nofault_begin:

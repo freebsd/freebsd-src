@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
@@ -116,7 +118,9 @@ write_common(struct ath_hal *ah, const HAL_INI_ARRAY *ia,
 HAL_BOOL
 ar5212Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	struct ieee80211_channel *chan,
-	HAL_BOOL bChannelChange, HAL_STATUS *status)
+	HAL_BOOL bChannelChange,
+	HAL_RESET_TYPE resetType,
+	HAL_STATUS *status)
 {
 #define	N(a)	(sizeof (a) / sizeof (a[0]))
 #define	FAIL(_code)	do { ecode = _code; goto bad; } while (0)
@@ -197,7 +201,8 @@ ar5212Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		saveFrameSeqCount = 0;		/* NB: silence compiler */
 
 	/* Blank the channel survey statistics */
-	OS_MEMZERO(&ahp->ah_chansurvey, sizeof(ahp->ah_chansurvey));
+	ath_hal_survey_clear(ah);
+
 #if 0
 	/*
 	 * XXX disable for now; this appears to sometimes cause OFDM
@@ -1382,7 +1387,7 @@ ar5212GetNfHistMid(const int16_t calData[AR512_NF_CAL_HIST_MAX])
 }
 
 /*
- * Read the NF and check it against the noise floor threshhold
+ * Read the NF and check it against the noise floor threshold
  */
 int16_t
 ar5212GetNf(struct ath_hal *ah, struct ieee80211_channel *chan)
@@ -2605,6 +2610,12 @@ ar5212GetTargetPowers(struct ath_hal *ah, const struct ieee80211_channel *chan,
 		powInfo[ixlo].twicePwr54, powInfo[ixhi].twicePwr54);
 }
 
+static uint32_t
+udiff(uint32_t u, uint32_t v)
+{
+	return (u >= v ? u - v : v - u);
+}
+
 /*
  * Search a list for a specified value v that is within
  * EEP_DELTA of the search values.  Return the closest
@@ -2639,7 +2650,7 @@ ar5212GetLowerUpperValues(uint16_t v, uint16_t *lp, uint16_t listSize,
 		 * If value is close to the current value of the list
 		 * then target is not between values, it is one of the values
 		 */
-		if (abs(lp[0] * EEP_SCALE - target) < EEP_DELTA) {
+		if (udiff(lp[0] * EEP_SCALE, target) < EEP_DELTA) {
 			*vlo = *vhi = lp[0];
 			return;
 		}
@@ -2726,7 +2737,7 @@ ar5212SetRateDurationTable(struct ath_hal *ah,
 			AR_RATE_DURATION(rt->info[i].rateCode),
 			ath_hal_computetxtime(ah, rt,
 				WLAN_CTRL_FRAME_SIZE,
-				rt->info[i].controlRate, AH_FALSE));
+				rt->info[i].controlRate, AH_FALSE, AH_TRUE));
 	if (!IEEE80211_IS_CHAN_TURBO(chan)) {
 		/* 11g Table is used to cover the CCK rates. */
 		rt = ar5212GetRateTable(ah, HAL_MODE_11G);
@@ -2739,7 +2750,8 @@ ar5212SetRateDurationTable(struct ath_hal *ah,
 			OS_REG_WRITE(ah, reg,
 				ath_hal_computetxtime(ah, rt,
 					WLAN_CTRL_FRAME_SIZE,
-					rt->info[i].controlRate, AH_FALSE));
+					rt->info[i].controlRate, AH_FALSE,
+					AH_TRUE));
 			/* cck rates have short preamble option also */
 			if (rt->info[i].shortPreamble) {
 				reg += rt->info[i].shortPreamble << 2;
@@ -2747,7 +2759,7 @@ ar5212SetRateDurationTable(struct ath_hal *ah,
 					ath_hal_computetxtime(ah, rt,
 						WLAN_CTRL_FRAME_SIZE,
 						rt->info[i].controlRate,
-						AH_TRUE));
+						AH_TRUE, AH_TRUE));
 			}
 		}
 	}

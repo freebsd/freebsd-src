@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Justin Hibbits
  * Copyright (c) 2005, Joseph Koshy
  * All rights reserved.
@@ -311,9 +313,6 @@ static struct mpc7xxx_event_code_map mpc7xxx_event_codes[] = {
 	PMC_POWERPC_EVENT(PREFETCH_ENGINE_FULL, 0x20, 57)
 };
 
-const size_t mpc7xxx_event_codes_size = 
-	sizeof(mpc7xxx_event_codes) / sizeof(mpc7xxx_event_codes[0]);
-
 static pmc_value_t
 mpc7xxx_pmcn_read(unsigned int pmc)
 {
@@ -384,7 +383,7 @@ mpc7xxx_read_pmc(int cpu, int ri, pmc_value_t *v)
 		ri));
 
 	tmp = mpc7xxx_pmcn_read(ri);
-	PMCDBG(MDP,REA,2,"ppc-read id=%d -> %jd", ri, tmp);
+	PMCDBG2(MDP,REA,2,"ppc-read id=%d -> %jd", ri, tmp);
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		*v = POWERPC_PERFCTR_VALUE_TO_RELOAD_COUNT(tmp);
 	else
@@ -408,7 +407,7 @@ mpc7xxx_write_pmc(int cpu, int ri, pmc_value_t v)
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		v = POWERPC_RELOAD_COUNT_TO_PERFCTR_VALUE(v);
 	
-	PMCDBG(MDP,WRI,1,"powerpc-write cpu=%d ri=%d v=%jx", cpu, ri, v);
+	PMCDBG3(MDP,WRI,1,"powerpc-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
 	mpc7xxx_pmcn_write(ri, v);
 
@@ -420,7 +419,7 @@ mpc7xxx_config_pmc(int cpu, int ri, struct pmc *pm)
 {
 	struct pmc_hw *phw;
 
-	PMCDBG(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
+	PMCDBG3(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[powerpc,%d] illegal CPU value %d", __LINE__, cpu));
@@ -559,7 +558,7 @@ mpc7xxx_pcpu_init(struct pmc_mdep *md, int cpu)
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[powerpc,%d] wrong cpu number %d", __LINE__, cpu));
-	PMCDBG(MDP,INI,1,"powerpc-init cpu=%d", cpu);
+	PMCDBG1(MDP,INI,1,"powerpc-init cpu=%d", cpu);
 
 	powerpc_pcpu[cpu] = pac = malloc(sizeof(struct powerpc_cpu), M_PMC,
 	    M_WAITOK|M_ZERO);
@@ -567,7 +566,7 @@ mpc7xxx_pcpu_init(struct pmc_mdep *md, int cpu)
 	    M_PMC, M_WAITOK|M_ZERO);
 	pac->pc_class = PMC_CLASS_PPC7450;
 	pc = pmc_pcpu[cpu];
-	first_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_PPC7450].pcd_ri;
+	first_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_POWERPC].pcd_ri;
 	KASSERT(pc != NULL, ("[powerpc,%d] NULL per-cpu pointer", __LINE__));
 
 	for (i = 0, phw = pac->pc_ppcpmcs; i < MPC7XXX_MAX_PMCS; i++, phw++) {
@@ -578,9 +577,9 @@ mpc7xxx_pcpu_init(struct pmc_mdep *md, int cpu)
 	}
 
 	/* Clear the MMCRs, and set FC, to disable all PMCs. */
-	mtspr(SPR_MMCR0, SPR_MMCR0_FC | SPR_MMCR0_PMXE | SPR_MMCR0_PMC1CE | SPR_MMCR0_PMCNCE);
+	mtspr(SPR_MMCR0, SPR_MMCR0_FC | SPR_MMCR0_PMXE |
+	    SPR_MMCR0_FCECE | SPR_MMCR0_PMC1CE | SPR_MMCR0_PMCNCE);
 	mtspr(SPR_MMCR1, 0);
-	mtmsr(mfmsr() | PSL_PMM);
 
 	return 0;
 }
@@ -616,14 +615,14 @@ mpc7xxx_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	caps = a->pm_caps;
 
 	pe = a->pm_ev;
-	for (i = 0; i < mpc7xxx_event_codes_size; i++) {
+	for (i = 0; i < nitems(mpc7xxx_event_codes); i++) {
 		if (mpc7xxx_event_codes[i].pe_ev == pe) {
 			config = mpc7xxx_event_codes[i].pe_code;
 			counter =  mpc7xxx_event_codes[i].pe_counter_mask;
 			break;
 		}
 	}
-	if (i == mpc7xxx_event_codes_size)
+	if (i == nitems(mpc7xxx_event_codes))
 		return (EINVAL);
 
 	if ((counter & (1 << ri)) == 0)
@@ -638,7 +637,7 @@ mpc7xxx_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	pm->pm_md.pm_powerpc.pm_powerpc_evsel = config;
 
-	PMCDBG(MDP,ALL,2,"powerpc-allocate ri=%d -> config=0x%x", ri, config);
+	PMCDBG2(MDP,ALL,2,"powerpc-allocate ri=%d -> config=0x%x", ri, config);
 
 	return 0;
 }
@@ -661,26 +660,25 @@ mpc7xxx_release_pmc(int cpu, int ri, struct pmc *pmc)
 }
 
 static int
-mpc7xxx_intr(int cpu, struct trapframe *tf)
+mpc7xxx_intr(struct trapframe *tf)
 {
-	int i, error, retval;
+	int i, error, retval, cpu;
 	uint32_t config;
 	struct pmc *pm;
 	struct powerpc_cpu *pac;
-	pmc_value_t v;
 
+	cpu = curcpu;
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[powerpc,%d] out of range CPU %d", __LINE__, cpu));
 
-	PMCDBG(MDP,INT,1, "cpu=%d tf=%p um=%d", cpu, (void *) tf,
+	PMCDBG3(MDP,INT,1, "cpu=%d tf=%p um=%d", cpu, (void *) tf,
 	    TRAPF_USERMODE(tf));
 
 	retval = 0;
 
 	pac = powerpc_pcpu[cpu];
 
-	config  = mfspr(SPR_MMCR0);
-	mtspr(SPR_MMCR0, config | SPR_MMCR0_FC);
+	config  = mfspr(SPR_MMCR0) & ~SPR_MMCR0_FC;
 
 	/*
 	 * look for all PMCs that have interrupted:
@@ -704,22 +702,22 @@ mpc7xxx_intr(int cpu, struct trapframe *tf)
 		if (pm->pm_state != PMC_STATE_RUNNING)
 			continue;
 
-		/* Stop the PMC, reload count. */
-		v       = pm->pm_sc.pm_reloadcount;
-		mpc7xxx_pmcn_write(i, v);
-
-		/* Restart the counter if logging succeeded. */
-		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
-		    TRAPF_USERMODE(tf));
+		/* Stop the counter if logging fails. */
+		error = pmc_process_interrupt(PMC_HR, pm, tf);
 		if (error != 0)
 			mpc7xxx_stop_pmc(cpu, i);
-		atomic_add_int(retval ? &pmc_stats.pm_intr_processed :
-				&pmc_stats.pm_intr_ignored, 1);
 
+		/* reload count. */
+		mpc7xxx_write_pmc(cpu, i, pm->pm_sc.pm_reloadcount);
 	}
+	if (retval)
+		counter_u64_add(pmc_stats.pm_intr_processed, 1);
+	else
+		counter_u64_add(pmc_stats.pm_intr_ignored, 1);
 
 	/* Re-enable PERF exceptions. */
-	mtspr(SPR_MMCR0, config | SPR_MMCR0_PMXE);
+	if (retval)
+		mtspr(SPR_MMCR0, config | SPR_MMCR0_PMXE);
 
 	return (retval);
 }
@@ -731,7 +729,7 @@ pmc_mpc7xxx_initialize(struct pmc_mdep *pmc_mdep)
 
 	pmc_mdep->pmd_cputype = PMC_CPU_PPC_7450;
 
-	pcd = &pmc_mdep->pmd_classdep[PMC_MDEP_CLASS_INDEX_PPC7450];
+	pcd = &pmc_mdep->pmd_classdep[PMC_MDEP_CLASS_INDEX_POWERPC];
 	pcd->pcd_caps  = POWERPC_PMC_CAPS;
 	pcd->pcd_class = PMC_CLASS_PPC7450;
 	pcd->pcd_num   = MPC7XXX_MAX_PMCS;

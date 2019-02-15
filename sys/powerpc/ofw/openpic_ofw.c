@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 2003 by Peter Grehan. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -127,9 +129,9 @@ openpic_ofw_attach(device_t dev)
 
 	node = ofw_bus_get_node(dev);
 
-	if (OF_getprop(node, "phandle", &xref, sizeof(xref)) == -1 &&
-	    OF_getprop(node, "ibm,phandle", &xref, sizeof(xref)) == -1 &&
-	    OF_getprop(node, "linux,phandle", &xref, sizeof(xref)) == -1)
+	if (OF_getencprop(node, "phandle", &xref, sizeof(xref)) == -1 &&
+	    OF_getencprop(node, "ibm,phandle", &xref, sizeof(xref)) == -1 &&
+	    OF_getencprop(node, "linux,phandle", &xref, sizeof(xref)) == -1)
 		xref = node;
 
 	return (openpic_common_attach(dev, xref));

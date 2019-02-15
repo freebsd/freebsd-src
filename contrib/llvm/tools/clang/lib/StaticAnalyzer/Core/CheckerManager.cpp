@@ -58,7 +58,7 @@ void CheckerManager::runCheckersOnASTDecl(const Decl *D, AnalysisManager& mgr,
   assert(D);
 
   unsigned DeclKind = D->getKind();
-  CachedDeclCheckers *checkers = 0;
+  CachedDeclCheckers *checkers = nullptr;
   CachedDeclCheckersMapTy::iterator CCI = CachedDeclCheckersMap.find(DeclKind);
   if (CCI != CachedDeclCheckersMap.end()) {
     checkers = &(CCI->second);
@@ -109,7 +109,7 @@ static void expandGraphWithCheckers(CHECK_CTX checkCtx,
   const ExplodedNodeSet *PrevSet = &Src;
 
   for (; I != E; ++I) {
-    ExplodedNodeSet *CurrSet = 0;
+    ExplodedNodeSet *CurrSet = nullptr;
     if (I+1 == E)
       CurrSet = &Dst;
     else {
@@ -177,7 +177,9 @@ void CheckerManager::runCheckersForStmt(bool isPreVisit,
 namespace {
   struct CheckObjCMessageContext {
     typedef std::vector<CheckerManager::CheckObjCMessageFunc> CheckersTy;
-    bool IsPreVisit, WasInlined;
+
+    ObjCMessageVisitKind Kind;
+    bool WasInlined;
     const CheckersTy &Checkers;
     const ObjCMethodCall &Msg;
     ExprEngine &Eng;
@@ -185,14 +187,28 @@ namespace {
     CheckersTy::const_iterator checkers_begin() { return Checkers.begin(); }
     CheckersTy::const_iterator checkers_end() { return Checkers.end(); }
 
-    CheckObjCMessageContext(bool isPreVisit, const CheckersTy &checkers,
+    CheckObjCMessageContext(ObjCMessageVisitKind visitKind,
+                            const CheckersTy &checkers,
                             const ObjCMethodCall &msg, ExprEngine &eng,
                             bool wasInlined)
-      : IsPreVisit(isPreVisit), WasInlined(wasInlined), Checkers(checkers),
+      : Kind(visitKind), WasInlined(wasInlined), Checkers(checkers),
         Msg(msg), Eng(eng) { }
 
     void runChecker(CheckerManager::CheckObjCMessageFunc checkFn,
                     NodeBuilder &Bldr, ExplodedNode *Pred) {
+
+      bool IsPreVisit;
+
+      switch (Kind) {
+        case ObjCMessageVisitKind::Pre:
+          IsPreVisit = true;
+          break;
+        case ObjCMessageVisitKind::MessageNil:
+        case ObjCMessageVisitKind::Post:
+          IsPreVisit = false;
+          break;
+      }
+
       const ProgramPoint &L = Msg.getProgramPoint(IsPreVisit,checkFn.Checker);
       CheckerContext C(Bldr, Eng, Pred, L, WasInlined);
 
@@ -202,19 +218,30 @@ namespace {
 }
 
 /// \brief Run checkers for visiting obj-c messages.
-void CheckerManager::runCheckersForObjCMessage(bool isPreVisit,
+void CheckerManager::runCheckersForObjCMessage(ObjCMessageVisitKind visitKind,
                                                ExplodedNodeSet &Dst,
                                                const ExplodedNodeSet &Src,
                                                const ObjCMethodCall &msg,
                                                ExprEngine &Eng,
                                                bool WasInlined) {
-  CheckObjCMessageContext C(isPreVisit,
-                            isPreVisit ? PreObjCMessageCheckers
-                                       : PostObjCMessageCheckers,
-                            msg, Eng, WasInlined);
+  auto &checkers = getObjCMessageCheckers(visitKind);
+  CheckObjCMessageContext C(visitKind, checkers, msg, Eng, WasInlined);
   expandGraphWithCheckers(C, Dst, Src);
 }
 
+const std::vector<CheckerManager::CheckObjCMessageFunc> &
+CheckerManager::getObjCMessageCheckers(ObjCMessageVisitKind Kind) {
+  switch (Kind) {
+  case ObjCMessageVisitKind::Pre:
+    return PreObjCMessageCheckers;
+    break;
+  case ObjCMessageVisitKind::Post:
+    return PostObjCMessageCheckers;
+  case ObjCMessageVisitKind::MessageNil:
+    return ObjCMessageNilCheckers;
+  }
+  llvm_unreachable("Unknown Kind");
+}
 namespace {
   // FIXME: This has all the same signatures as CheckObjCMessageContext.
   // Is there a way we can merge the two?
@@ -350,6 +377,40 @@ void CheckerManager::runCheckersForEndAnalysis(ExplodedGraph &G,
     EndAnalysisCheckers[i](G, BR, Eng);
 }
 
+namespace {
+struct CheckBeginFunctionContext {
+  typedef std::vector<CheckerManager::CheckBeginFunctionFunc> CheckersTy;
+  const CheckersTy &Checkers;
+  ExprEngine &Eng;
+  const ProgramPoint &PP;
+
+  CheckersTy::const_iterator checkers_begin() { return Checkers.begin(); }
+  CheckersTy::const_iterator checkers_end() { return Checkers.end(); }
+
+  CheckBeginFunctionContext(const CheckersTy &Checkers, ExprEngine &Eng,
+                            const ProgramPoint &PP)
+      : Checkers(Checkers), Eng(Eng), PP(PP) {}
+
+  void runChecker(CheckerManager::CheckBeginFunctionFunc checkFn,
+                  NodeBuilder &Bldr, ExplodedNode *Pred) {
+    const ProgramPoint &L = PP.withTag(checkFn.Checker);
+    CheckerContext C(Bldr, Eng, Pred, L);
+
+    checkFn(C);
+  }
+};
+}
+
+void CheckerManager::runCheckersForBeginFunction(ExplodedNodeSet &Dst,
+                                                 const BlockEdge &L,
+                                                 ExplodedNode *Pred,
+                                                 ExprEngine &Eng) {
+  ExplodedNodeSet Src;
+  Src.insert(Pred);
+  CheckBeginFunctionContext C(BeginFunctionCheckers, Eng, L);
+  expandGraphWithCheckers(C, Dst, Src);
+}
+
 /// \brief Run checkers for end of path.
 // Note, We do not chain the checker output (like in expandGraphWithCheckers)
 // for this callback since end of path nodes are expected to be final.
@@ -357,9 +418,9 @@ void CheckerManager::runCheckersForEndFunction(NodeBuilderContext &BC,
                                                ExplodedNodeSet &Dst,
                                                ExplodedNode *Pred,
                                                ExprEngine &Eng) {
-  
+
   // We define the builder outside of the loop bacause if at least one checkers
-  // creates a sucsessor for Pred, we do not need to generate an 
+  // creates a sucsessor for Pred, we do not need to generate an
   // autotransition for it.
   NodeBuilder Bldr(Pred, Dst, BC);
   for (unsigned i = 0, e = EndFunctionCheckers.size(); i != e; ++i) {
@@ -457,29 +518,22 @@ void CheckerManager::runCheckersForDeadSymbols(ExplodedNodeSet &Dst,
   expandGraphWithCheckers(C, Dst, Src);
 }
 
-/// \brief True if at least one checker wants to check region changes.
-bool CheckerManager::wantsRegionChangeUpdate(ProgramStateRef state) {
-  for (unsigned i = 0, e = RegionChangesCheckers.size(); i != e; ++i)
-    if (RegionChangesCheckers[i].WantUpdateFn(state))
-      return true;
-
-  return false;
-}
-
 /// \brief Run checkers for region changes.
-ProgramStateRef 
+ProgramStateRef
 CheckerManager::runCheckersForRegionChanges(ProgramStateRef state,
-                                    const InvalidatedSymbols *invalidated,
-                                    ArrayRef<const MemRegion *> ExplicitRegions,
-                                    ArrayRef<const MemRegion *> Regions,
-                                    const CallEvent *Call) {
+                                            const InvalidatedSymbols *invalidated,
+                                            ArrayRef<const MemRegion *> ExplicitRegions,
+                                            ArrayRef<const MemRegion *> Regions,
+                                            const LocationContext *LCtx,
+                                            const CallEvent *Call) {
   for (unsigned i = 0, e = RegionChangesCheckers.size(); i != e; ++i) {
     // If any checker declares the state infeasible (or if it starts that way),
     // bail out.
     if (!state)
-      return NULL;
-    state = RegionChangesCheckers[i].CheckFn(state, invalidated, 
-                                             ExplicitRegions, Regions, Call);
+      return nullptr;
+    state = RegionChangesCheckers[i](state, invalidated,
+                                     ExplicitRegions, Regions,
+                                     LCtx, Call);
   }
   return state;
 }
@@ -491,7 +545,7 @@ CheckerManager::runCheckersForPointerEscape(ProgramStateRef State,
                                    const CallEvent *Call,
                                    PointerEscapeKind Kind,
                                    RegionAndSymbolInvalidationTraits *ETraits) {
-  assert((Call != NULL ||
+  assert((Call != nullptr ||
           (Kind != PSK_DirectEscapeOnCall &&
            Kind != PSK_IndirectEscapeOnCall)) &&
          "Call must not be NULL when escaping on call");
@@ -499,21 +553,21 @@ CheckerManager::runCheckersForPointerEscape(ProgramStateRef State,
       // If any checker declares the state infeasible (or if it starts that
       //  way), bail out.
       if (!State)
-        return NULL;
+        return nullptr;
       State = PointerEscapeCheckers[i](State, Escaped, Call, Kind, ETraits);
     }
   return State;
 }
 
 /// \brief Run checkers for handling assumptions on symbolic values.
-ProgramStateRef 
+ProgramStateRef
 CheckerManager::runCheckersForEvalAssume(ProgramStateRef state,
                                          SVal Cond, bool Assumption) {
   for (unsigned i = 0, e = EvalAssumeCheckers.size(); i != e; ++i) {
     // If any checker declares the state infeasible (or if it starts that way),
     // bail out.
     if (!state)
-      return NULL;
+      return nullptr;
     state = EvalAssumeCheckers[i](state, Cond, Assumption);
   }
   return state;
@@ -558,7 +612,7 @@ void CheckerManager::runCheckersForEvalCall(ExplodedNodeSet &Dst,
 #endif
       }
     }
-    
+
     // If none of the checkers evaluated the call, ask ExprEngine to handle it.
     if (!anyEvaluated) {
       NodeBuilder B(Pred, Dst, Eng.getBuilderContext());
@@ -616,6 +670,11 @@ void CheckerManager::_registerForPostStmt(CheckStmtFunc checkfn,
 void CheckerManager::_registerForPreObjCMessage(CheckObjCMessageFunc checkfn) {
   PreObjCMessageCheckers.push_back(checkfn);
 }
+
+void CheckerManager::_registerForObjCMessageNil(CheckObjCMessageFunc checkfn) {
+  ObjCMessageNilCheckers.push_back(checkfn);
+}
+
 void CheckerManager::_registerForPostObjCMessage(CheckObjCMessageFunc checkfn) {
   PostObjCMessageCheckers.push_back(checkfn);
 }
@@ -639,6 +698,10 @@ void CheckerManager::_registerForEndAnalysis(CheckEndAnalysisFunc checkfn) {
   EndAnalysisCheckers.push_back(checkfn);
 }
 
+void CheckerManager::_registerForBeginFunction(CheckBeginFunctionFunc checkfn) {
+  BeginFunctionCheckers.push_back(checkfn);
+}
+
 void CheckerManager::_registerForEndFunction(CheckEndFunctionFunc checkfn) {
   EndFunctionCheckers.push_back(checkfn);
 }
@@ -656,10 +719,8 @@ void CheckerManager::_registerForDeadSymbols(CheckDeadSymbolsFunc checkfn) {
   DeadSymbolsCheckers.push_back(checkfn);
 }
 
-void CheckerManager::_registerForRegionChanges(CheckRegionChangesFunc checkfn,
-                                     WantsRegionChangeUpdateFunc wantUpdateFn) {
-  RegionChangesCheckerInfo info = {checkfn, wantUpdateFn};
-  RegionChangesCheckers.push_back(info);
+void CheckerManager::_registerForRegionChanges(CheckRegionChangesFunc checkfn) {
+  RegionChangesCheckers.push_back(checkfn);
 }
 
 void CheckerManager::_registerForPointerEscape(CheckPointerEscapeFunc checkfn){

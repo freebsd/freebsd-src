@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: MIT-CMU
+ *
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
@@ -49,7 +51,7 @@ static int 	db_read_char(void);
 static void 	db_unread_char(int);
 
 int
-db_read_line()
+db_read_line(void)
 {
 	int	i;
 
@@ -97,7 +99,7 @@ db_flush_line()
 static int	db_look_char = 0;
 
 static int
-db_read_char()
+db_read_char(void)
 {
 	int	c;
 
@@ -148,7 +150,7 @@ char	db_tok_string[TOK_STRING_SIZE];
 db_expr_t	db_radix = 16;
 
 void
-db_flush_lex()
+db_flush_lex(void)
 {
 	db_flush_line();
 	db_look_char = 0;
@@ -156,7 +158,7 @@ db_flush_lex()
 }
 
 static int
-db_lex()
+db_lex(void)
 {
 	int	c;
 
@@ -274,6 +276,10 @@ db_lex()
 	    case '/':
 		return (tSLASH);
 	    case '=':
+		c = db_read_char();
+		if (c == '=')
+		    return (tLOG_EQ);
+		db_unread_char(c);
 		return (tEQ);
 	    case '%':
 		return (tPCT);
@@ -290,21 +296,46 @@ db_lex()
 	    case '$':
 		return (tDOLLAR);
 	    case '!':
+		c = db_read_char();
+		if (c == '='){
+			return (tLOG_NOT_EQ);
+		}
+		db_unread_char(c);
 		return (tEXCL);
 	    case ';':
 		return (tSEMI);
+	    case '&':
+		c = db_read_char();
+		if (c == '&')
+		    return (tLOG_AND);
+		db_unread_char(c);
+		return (tBIT_AND);
+	    case '|':
+		c = db_read_char();
+		if (c == '|')
+		    return (tLOG_OR);
+		db_unread_char(c);
+		return (tBIT_OR);
 	    case '<':
 		c = db_read_char();
 		if (c == '<')
 		    return (tSHIFT_L);
+		if (c == '=') 
+		    return (tLESS_EQ);
 		db_unread_char(c);
-		break;
+		return (tLESS);
 	    case '>':
 		c = db_read_char();
 		if (c == '>')
 		    return (tSHIFT_R);
+		if (c == '=')
+		    return (tGREATER_EQ);
 		db_unread_char(c);
-		break;
+		return (tGREATER);
+	    case '?':
+		return (tQUESTION);
+	    case '~':
+		return (tBIT_NOT);
 	    case -1:
 		return (tEOF);
 	}

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/isp
+.PATH: ${SRCTOP}/sys/dev/isp
 
 KMOD=	isp
 SRCS=	bus_if.h device_if.h pci_if.h \

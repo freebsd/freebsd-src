@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001 David E. O'Brien
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -46,7 +48,7 @@
  * for all data types (int, long, ...).   The result is unsigned int
  * and must be cast to any desired pointer type.
  */
-#define	_ALIGNBYTES	(sizeof(register_t) - 1)
-#define	_ALIGN(p)	(((uintptr_t)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
+#define	_ALIGNBYTES	(sizeof(__register_t) - 1)
+#define	_ALIGN(p)	(((__uintptr_t)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
 
 #endif /* !_X86_INCLUDE__ALIGN_H_ */

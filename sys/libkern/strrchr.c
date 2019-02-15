@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -34,20 +36,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 
 char *
-strrchr(const char *p, int ch)
+strrchr(const char *cp, int ch)
 {
-	union {
-		const char *cp;
-		char *p;
-	} u;
-	char *save;
+	char *p, *save;
 
-	u.cp = p;
-	for (save = NULL;; ++u.p) {
-		if (*u.p == ch)
-			save = u.p;
-		if (*u.p == '\0')
-			return(save);
+	p = __DECONST(char *, cp);
+	for (save = NULL;; ++p) {
+		if (*p == ch)
+			save = p;
+		if (*p == '\0')
+			return (save);
 	}
 	/* NOTREACHED */
 }

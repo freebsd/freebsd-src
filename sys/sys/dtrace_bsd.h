@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2008 John Birrell (jb@freebsd.org)
  * All rights reserved.
  *
@@ -37,25 +39,15 @@ struct trapframe;
 struct thread;
 struct vattr;
 struct vnode;
-struct reg;
 
-/*
- * Cyclic clock function type definition used to hook the cyclic
- * subsystem into the appropriate timer interrupt.
- */
-typedef	void (*cyclic_clock_func_t)(struct trapframe *);
-extern cyclic_clock_func_t	cyclic_clock_func;
-
-void clocksource_cyc_set(const struct bintime *t);
-
-int dtrace_trap(struct trapframe *);
+int dtrace_trap(struct trapframe *, u_int);
 
 /*
  * The dtrace module handles traps that occur during a DTrace probe.
  * This type definition is used in the trap handler to provide a
  * hook for the dtrace module to register its handler with.
  */
-typedef int (*dtrace_trap_func_t)(struct trapframe *);
+typedef int (*dtrace_trap_func_t)(struct trapframe *, u_int);
 extern dtrace_trap_func_t	dtrace_trap_func;
 
 /*
@@ -67,9 +59,9 @@ typedef void (*dtrace_doubletrap_func_t)(void);
 extern	dtrace_doubletrap_func_t	dtrace_doubletrap_func;
 
 /* Pid provider hooks */
-typedef int (*dtrace_pid_probe_ptr_t)(struct reg *);
+typedef int (*dtrace_pid_probe_ptr_t)(struct trapframe *);
 extern	dtrace_pid_probe_ptr_t	dtrace_pid_probe_ptr;
-typedef int (*dtrace_return_probe_ptr_t)(struct reg *);
+typedef int (*dtrace_return_probe_ptr_t)(struct trapframe *);
 extern	dtrace_return_probe_ptr_t	dtrace_return_probe_ptr;
 
 /* Virtual time hook function type. */

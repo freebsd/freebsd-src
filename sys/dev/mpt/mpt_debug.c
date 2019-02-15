@@ -2,6 +2,8 @@
  * Debug routines for LSI '909 FC  adapters.
  * FreeBSD Version.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-3-Clause
+ *
  * Copyright (c)  2000, 2001 by Greg Ansley
  *
  * Redistribution and use in source and binary forms, with or without
@@ -536,7 +538,7 @@ mpt_print_scsi_io_request(MSG_SCSI_IO_REQUEST *orig_msg)
 	printf("\tBus:                %d\n", msg->Bus);
 	printf("\tTargetID            %d\n", msg->TargetID);
 	printf("\tSenseBufferLength   %d\n", msg->SenseBufferLength);
-	printf("\tLUN:              0x%0x\n", msg->LUN[1]);
+	printf("\tLUN:              0x%jx\n", (uintmax_t)be64dec(msg->LUN));
 	printf("\tControl           0x%08x ", msg->Control);
 #define MPI_PRINT_FIELD(x)						\
 	case MPI_SCSIIO_CONTROL_ ## x :					\
@@ -585,7 +587,7 @@ mpt_print_scsi_tmf_request(MSG_SCSI_TASK_MGMT *msg)
 {
 
 	mpt_print_request_hdr((MSG_REQUEST_HEADER *)msg);
-	printf("\tLun             0x%02x\n", msg->LUN[1]);
+	printf("\tLun             0x%jx\n", (uintmax_t)be64dec(msg->LUN));
 	printf("\tTaskType        %s\n", mpt_scsi_tm_type(msg->TaskType));
 	printf("\tTaskMsgContext  0x%08x\n", msg->TaskMsgContext);
 }
@@ -600,7 +602,7 @@ mpt_print_scsi_target_assist_request(PTR_MSG_TARGET_ASSIST_REQUEST msg)
 	printf("\tTargetAssist  0x%02x\n", msg->TargetAssistFlags);
 	printf("\tQueueTag      0x%04x\n", msg->QueueTag);
 	printf("\tReplyWord     0x%08x\n", msg->ReplyWord);
-	printf("\tLun           0x%02x\n", msg->LUN[1]);
+	printf("\tLun           0x%jx\n", (uintmax_t)be64dec(msg->LUN));
 	printf("\tRelativeOff   0x%08x\n", msg->RelativeOffset);
 	printf("\tDataLength    0x%08x\n", msg->DataLength);
 	mpt_dump_sgl(msg->SGL, 0);
@@ -616,7 +618,7 @@ mpt_print_scsi_target_status_send_request(MSG_TARGET_STATUS_SEND_REQUEST *msg)
 	printf("\tStatusFlags   0x%02x\n", msg->StatusFlags);
 	printf("\tQueueTag      0x%04x\n", msg->QueueTag);
 	printf("\tReplyWord     0x%08x\n", msg->ReplyWord);
-	printf("\tLun           0x%02x\n", msg->LUN[1]);
+	printf("\tLun           0x%jx\n", (uintmax_t)be64dec(msg->LUN));
 	x.u.Simple = msg->StatusDataSGE;
 	mpt_dump_sgl(&x, 0);
 }

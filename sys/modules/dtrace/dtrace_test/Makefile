@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SYSDIR?=	${.CURDIR}/../../..
+SYSDIR?=	${SRCTOP}/sys
 
 .PATH:		${SYSDIR}/cddl/dev/dtrace
 
@@ -10,8 +10,6 @@ SRCS=		dtrace_test.c
 SRCS+=		vnode_if.h
 
 CFLAGS+=	-I${SYSDIR}
-
-CFLAGS+=	-D_KERNEL
 
 .include <bsd.kmod.mk>
 

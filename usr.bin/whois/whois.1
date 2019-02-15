@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     From: @(#)whois.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd October 2, 2009
+.Dd April 25, 2016
 .Dt WHOIS 1
 .Os
 .Sh NAME
@@ -36,9 +36,10 @@
 .Nd "Internet domain name and network number directory service"
 .Sh SYNOPSIS
 .Nm
-.Op Fl aAbfgiIklmQrR
-.Op Fl c Ar country-code | Fl h Ar host
+.Op Fl aAbfgiIklmPQrRS
+.Op Fl c Ar TLD | Fl h Ar host
 .Op Fl p Ar port
+.Op Fl -
 .Ar name ...
 .Sh DESCRIPTION
 The
@@ -46,6 +47,25 @@ The
 utility looks up records in the databases maintained by several
 Network Information Centers
 .Pq Tn NICs .
+.Pp
+By default
+.Nm
+starts by querying the Internet Assigned Numbers Authority (IANA) whois server,
+and follows referrals to whois servers
+that have more specific details about the query
+.Ar name .
+The IANA whois server knows about
+IP address and AS numbers
+as well as domain names.
+.Pp
+There are a few special cases where referrals do not work, so
+.Nm
+goes directly to the appropriate server.
+These include point-of-contact handles for ARIN,
+.Pa nic.at ,
+NORID, and RIPE,
+and domain names under
+.Pa ac.uk .
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -57,102 +77,64 @@ It contains network numbers used in those parts of the world covered neither by
 .Tn APNIC , AfriNIC , LACNIC ,
 nor by
 .Tn RIPE .
-.Pp
-(Hint: All point of contact handles in the
-.Tn ARIN
-whois database end with
-.Qq Li -ARIN . )
+The query syntax is documented at
+.Pa https://www.arin.net/resources/whoisrws/whois_api.html#nicname
 .It Fl A
 Use the Asia/Pacific Network Information Center
 .Pq Tn APNIC
 database.
 It contains network numbers used in East Asia, Australia,
 New Zealand, and the Pacific islands.
+Get query syntax documentation using
+.Ic whois -A help
 .It Fl b
 Use the Network Abuse Clearinghouse database.
 It contains addresses to which network abuse should be reported,
 indexed by domain name.
-.It Fl c Ar country-code
+.It Fl c Ar TLD
 This is the equivalent of using the
 .Fl h
 option with an argument of
-.Qq Ar country-code Ns Li .whois-servers.net .
+.Qq Ar TLD Ns Li .whois-servers.net .
+This can be helpful for locating country-class TLD whois servers.
 .It Fl f
 Use the African Network Information Centre
 .Pq Tn AfriNIC
 database.
 It contains network numbers used in Africa and the islands of the
 western Indian Ocean.
+Get query syntax documentation using
+.Ic whois -f help
 .It Fl g
 Use the US non-military federal government database, which contains points of
 contact for subdomains of
 .Pa .GOV .
 .It Fl h Ar host
-Use the specified host instead of the default variant.
+Use the specified host instead of the default.
 Either a host name or an IP address may be specified.
-.Pp
-By default
-.Nm
-constructs the name of a whois server to use from the top-level domain
-.Pq Tn TLD
-of the supplied (single) argument, and appending
-.Qq Li .whois-servers.net .
-This effectively allows a suitable whois server to be selected
-automatically for a large number of
-.Tn TLDs .
-.Pp
-In the event that an IP
-address is specified, the whois server will default to the American
-Registry for Internet Numbers
-.Pq Tn ARIN .
-If a query to
-.Tn ARIN
-references
-.Tn APNIC , AfriNIC , LACNIC ,
-or
-.Tn RIPE ,
-that server will be queried also, provided that the
-.Fl Q
-option is not specified.
-.Pp
-If the query is not a domain name or IP address,
-.Nm
-will fall back to
-.Pa whois.crsnic.net .
 .It Fl i
-Use the Network Solutions Registry for Internet Numbers
-.Pq Pa whois.networksolutions.com
-database.
-It contains network numbers and domain contact information for most of
-.Pa .COM , .NET , .ORG
-and
-.Pa .EDU
-domains.
-.Pp
-.Sy NOTE !
-The registration of these domains is now done by a number of
-independent and competing registrars and this database holds no information
-on the domains registered by organizations other than Network Solutions, Inc.
-Also, note that the
-.Tn InterNIC
-database
+Use the traditional Network Information Center (InterNIC)
 .Pq Pa whois.internic.net
-is no longer handled by Network Solutions, Inc.
-For details, see
-.Pa http://www.internic.net/ .
-.Pp
-(Hint: Contact information, identified by the term
-.Em handle ,
-can be looked up by prefixing
-.Qq Li "handle "
-to the
-.Tn NIC
-handle in the query.)
+database.
+This now contains only registrations for domain names under
+.Pa .COM ,
+.Pa .NET ,
+.Pa .EDU .
+You can specify the type of object to search for like
+.Ic whois -i ' Ns Ar type Ar name Ns Ic '
+where
+.Ar type
+can be
+.Nm domain , nameserver , registrar .
+The
+.Ar name
+can contain
+.Li *
+wildcards.
 .It Fl I
 Use the Internet Assigned Numbers Authority
 .Pq Tn IANA
 database.
-It contains network information for top-level domains.
 .It Fl k
 Use the National Internet Development Agency of Korea's
 .Pq Tn KRNIC
@@ -177,51 +159,71 @@ Connect to the whois server on
 If this option is not specified,
 .Nm
 defaults to port 43.
+.It Fl P
+Use the PeeringDB database of AS numbers.
+It contains details about presence at internet peering points
+for many network operators.
 .It Fl Q
-Do a quick lookup.
-This means that
+Do a quick lookup;
 .Nm
-will not attempt to lookup the name in the authoritative whois
-server (if one is listed).
-This option has no effect when combined with any other options.
+will not attempt to follow referrals to other whois servers.
+This is the default if a server is explicitly specified
+using one of the other options or in an environment variable.
+See also the
+.Fl R
+option.
 .It Fl r
 Use the R\(aaeseaux IP Europ\(aaeens
 .Pq Tn RIPE
 database.
 It contains network numbers and domain contact information
 for Europe.
+Get query syntax documentation using
+.Ic whois -r help
 .It Fl R
-Use the Russia Network Information Center
-.Pq Tn RIPN
-database.
-It contains network numbers and domain contact information
-for subdomains of
-.Pa .RU .
-This option is deprecated; use the
-.Fl c
-option with an argument of
-.Qq Li RU
-instead.
+Do a recursive lookup;
+.Nm
+will attempt to follow referrals to other whois servers.
+This is the default if no server is explicitly specified.
+See also the
+.Fl Q
+option.
+.It Fl S
+By default
+.Nm
+adjusts simple queries (without spaces) to produce more useful output
+from certain whois servers,
+and it suppresses some uninformative output.
+With the
+.Fl S
+option,
+.Nm
+sends the query and prints the output verbatim.
 .El
 .Pp
 The operands specified to
 .Nm
 are treated independently and may be used
 as queries on different whois servers.
+.Sh ENVIRONMENT
+.Bl -tag -width WHOIS_SERVER
+.It Ev WHOIS_SERVER
+The primary default whois server.
+If this is unset,
+.Nm
+uses the
+.Ev RA_SERVER
+environment variable.
+.It Ev RA_SERVER
+The secondary default whois server.
+If this is unset,
+.Nm
+will use
+.Pa whois.iana.org .
+.El
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
-Most types of data, such as domain names and
-.Tn IP
-addresses, can be used as arguments to
-.Nm
-without any options, and
-.Nm
-will choose the correct whois server to query.
-Some exceptions, where
-.Nm
-will not be able to handle data correctly, are detailed below.
-.Pp
 To obtain contact information about an
 administrator located in the Russian
 .Tn TLD
@@ -233,7 +235,7 @@ option as shown in the following example, where
 .Ar CONTACT-ID
 is substituted with the actual contact identifier.
 .Pp
-.Dl "whois -c RU CONTACT-ID"
+.Dl Ic whois -c RU CONTACT-ID
 .Pp
 (Note: This example is specific to the
 .Tn TLD
@@ -251,7 +253,25 @@ on port
 .Dq Li rwhois
 (written numerically as 4321).
 .Pp
-.Dl "whois -h whois.example.com -p rwhois query-data"
+.Dl Ic whois -h whois.example.com -p rwhois query-data
+.Pp
+Some whois servers support complex queries
+with dash-letter options.
+You can use the
+.Fl -
+option to separate
+.Nm
+command options from whois server query options.
+A query containing spaces must be quoted as one
+argument to the
+.Nm
+command.
+The following example asks the RIPE whois server
+to return a brief description of its
+.Dq Li domain
+object type:
+.Pp
+.Dl Ic whois -r -- '-t domain'
 .Sh SEE ALSO
 .Rs
 .%A Ken Harrenstien

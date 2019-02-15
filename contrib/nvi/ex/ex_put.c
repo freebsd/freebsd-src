@@ -29,7 +29,7 @@ static const char sccsid[] = "$Id: ex_put.c,v 10.8 2001/06/25 15:19:18 skimo Exp
  * ex_put -- [line] pu[t] [buffer]
  *	Append a cut buffer into the file.
  *
- * PUBLIC: int ex_put __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_put(SCR *, EXCMD *);
  */
 int
 ex_put(SCR *sp, EXCMD *cmdp)

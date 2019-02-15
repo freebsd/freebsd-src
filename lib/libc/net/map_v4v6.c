@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * ++Copyright++ 1985, 1988, 1993
  * -
  * Copyright (c) 1985, 1988, 1993
@@ -12,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -55,7 +57,6 @@ static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -68,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <resolv.h>
 #include <ctype.h>
 #include <syslog.h>
+#include "netdb_private.h"
 
 typedef union {
 	int32_t al;
@@ -77,19 +79,11 @@ typedef union {
 void
 _map_v4v6_address(const char *src, char *dst)
 {
-	u_char *p = (u_char *)dst;
-	char tmp[NS_INADDRSZ];
-	int i;
-
-	/* Stash a temporary copy so our caller can update in place. */
-	memcpy(tmp, src, NS_INADDRSZ);
+	/* Our caller may update in place. */
+	memmove(&dst[12], src, NS_INADDRSZ);
 	/* Mark this ipv6 addr as a mapped ipv4. */
-	for (i = 0; i < 10; i++)
-		*p++ = 0x00;
-	*p++ = 0xff;
-	*p++ = 0xff;
-	/* Retrieve the saved copy and we're done. */
-	memcpy((void*)p, tmp, NS_INADDRSZ);
+	memset(&dst[10], 0xff, 2);
+	memset(&dst[0], 0, 10);
 }
 
 void

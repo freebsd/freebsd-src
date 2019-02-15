@@ -5,20 +5,21 @@
 
 SRCTOP?= ${.CURDIR:H:H:H}
 
-# $Id: Makefile.in,v 1.44 2013/08/28 22:09:29 sjg Exp $
+# $Id: Makefile.in,v 1.48 2015/12/07 04:06:29 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.38 2013/08/28 21:56:50 sjg Exp $
+# $NetBSD: Makefile,v 1.52 2015/05/05 21:51:09 sjg Exp $
 #
 # Unit tests for make(1)
 # The main targets are:
 # 
 # all:	run all the tests
-# test:	run 'all', capture output and compare to expected results
+# test:	run 'all', and compare to expected results
 # accept: move generated output to expected results
 #
 # Adding a test case.  
 # Each feature should get its own set of tests in its own suitably
-# named makefile which should be added to SUBFILES to hook it in.
+# named makefile (*.mk), with its own set of expected results (*.exp),
+# and it should be added to the TESTNAMES list.
 # 
 
 srcdir= ${SRCTOP}/contrib/bmake/unit-tests
@@ -26,12 +27,14 @@ srcdir= ${SRCTOP}/contrib/bmake/unit-tests
 .MAIN: all
 
 UNIT_TESTS:= ${srcdir}
+.PATH: ${UNIT_TESTS}
 
-# Simple sub-makefiles - we run them as a black box
-# keep the list sorted.
-SUBFILES= \
+# Each test is in a sub-makefile.
+# Keep the list sorted.
+TESTNAMES= \
 	comment \
 	cond1 \
+	cond2 \
 	error \
 	export \
 	export-all \
@@ -49,7 +52,6 @@ SUBFILES= \
 	modts \
 	modword \
 	order \
-	phony-end \
 	posix \
 	qequals \
 	sunshcmd \
@@ -57,23 +59,36 @@ SUBFILES= \
 	ternary \
 	unexport \
 	unexport-env \
-	varcmd
+	varcmd \
+	varmisc \
+	varshell
 
-all: ${SUBFILES}
+# these tests were broken by referting POSIX chanegs
+STRICT_POSIX_TESTS = \
+	escape \
+	impsrc \
+	phony-end \
+	posix1 \
+	suffixes
 
+# Override make flags for certain tests
 flags.doterror=
 flags.order=-j1
 
-# the tests are actually done with sub-makes.
-.PHONY: ${SUBFILES}
-.PRECIOUS: ${SUBFILES}
-${SUBFILES}:
-	-@${.MAKE} ${flags.$@:U-k} -f ${UNIT_TESTS}/$@
+OUTFILES= ${TESTNAMES:S/$/.out/}
+
+all: ${OUTFILES}
+
+CLEANFILES += *.rawout *.out *.status *.tmp *.core *.tmp
+CLEANFILES += obj*.[och] lib*.a		# posix1.mk
+CLEANFILES += issue* .[ab]*		# suffixes.mk
+CLEANRECURSIVE += dir dummy		# posix1.mk
 
 clean:
-	rm -f *.out *.fail *.core
-
-.sinclude <bsd.obj.mk>
+	rm -f ${CLEANFILES}
+.if !empty(CLEANRECURSIVE)
+	rm -rf ${CLEANRECURSIVE}
+.endif
 
 TEST_MAKE?= ${.MAKE}
 TOOL_SED?= sed
@@ -88,22 +103,56 @@ LANG= C
 .export LANG LC_ALL
 .endif
 
-# The driver.
+# some tests need extra post-processing
+SED_CMDS.varshell = -e 's,^[a-z]*sh: ,,' \
+	-e '/command/s,No such.*,not found,'
+
+# the tests are actually done with sub-makes.
+.SUFFIXES: .mk .rawout .out
+.mk.rawout:
+	@echo ${TEST_MAKE} ${flags.${.TARGET:R}:U-k} -f ${.IMPSRC}
+	-@cd ${.OBJDIR} && \
+	{ ${TEST_MAKE} ${flags.${.TARGET:R}:U-k} -f ${.IMPSRC} \
+	  2>&1 ; echo $$? >${.TARGET:R}.status ; } > ${.TARGET}.tmp
+	@mv ${.TARGET}.tmp ${.TARGET}
+
 # We always pretend .MAKE was called 'make' 
 # and strip ${.CURDIR}/ from the output
 # and replace anything after 'stopped in' with unit-tests
 # so the results can be compared.
-test:
-	@echo "${TEST_MAKE} -f ${MAKEFILE} > ${.TARGET}.out 2>&1"
-	@cd ${.OBJDIR} && ${TEST_MAKE} -f ${MAKEFILE} 2>&1 | \
-	${TOOL_TR} -d '\015' | \
-	${TOOL_SED} -e 's,^${TEST_MAKE:T:C/\./\\\./g}[^:]*:,make:,' \
-	-e '/stopped/s, /.*, unit-tests,' \
-	-e 's,${.CURDIR:C/\./\\\./g}/,,g' \
-	-e 's,${UNIT_TESTS:C/\./\\\./g}/,,g' > ${.TARGET}.out || { \
-	tail ${.TARGET}.out; mv ${.TARGET}.out ${.TARGET}.fail; exit 1; }
-	${TOOL_DIFF} ${DIFF_FLAGS} ${UNIT_TESTS}/${.TARGET}.exp ${.TARGET}.out
+.rawout.out:
+	@echo postprocess ${.TARGET}
+	@${TOOL_SED} -e 's,^${TEST_MAKE:T:C/\./\\\./g}[][0-9]*:,make:,' \
+	  -e 's,${TEST_MAKE:C/\./\\\./g},make,' \
+	  -e '/stopped/s, /.*, unit-tests,' \
+	  -e 's,${.CURDIR:C/\./\\\./g}/,,g' \
+	  -e 's,${UNIT_TESTS:C/\./\\\./g}/,,g' ${SED_CMDS.${.TARGET:T:R}} \
+	  < ${.IMPSRC} > ${.TARGET}.tmp
+	@echo "exit status `cat ${.TARGET:R}.status`" >> ${.TARGET}.tmp
+	@mv ${.TARGET}.tmp ${.TARGET}
+
+# Compare all output files
+test:	${OUTFILES} .PHONY
+	@failed= ; \
+	for test in ${TESTNAMES}; do \
+	  ${TOOL_DIFF} ${DIFF_FLAGS} ${UNIT_TESTS}/$${test}.exp $${test}.out \
+	  || failed="$${failed}$${failed:+ }$${test}" ; \
+	done ; \
+	if [ -n "$${failed}" ]; then \
+	  echo "Failed tests: $${failed}" ; false ; \
+	else \
+	  echo "All tests passed" ; \
+	fi
 
 accept:
-	mv test.out ${srcdir}/test.exp
+	@for test in ${TESTNAMES}; do \
+	  cmp -s ${UNIT_TESTS}/$${test}.exp $${test}.out \
+	  || { echo "Replacing $${test}.exp" ; \
+	       cp $${test}.out ${UNIT_TESTS}/$${test}.exp ; } \
+	done
 
+.if exists(${TEST_MAKE})
+${TESTNAMES:S/$/.rawout/}: ${TEST_MAKE}
+.endif
+
+.sinclude <bsd.obj.mk>

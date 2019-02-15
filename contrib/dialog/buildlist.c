@@ -1,9 +1,9 @@
 /*
- *  $Id: buildlist.c,v 1.59 2013/09/02 17:01:02 tom Exp $
+ *  $Id: buildlist.c,v 1.83 2018/06/19 22:57:01 tom Exp $
  *
  *  buildlist.c -- implements the buildlist dialog
  *
- *  Copyright 2012,2013	Thomas E. Dickey
+ *  Copyright 2012-2017,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -31,7 +31,6 @@
 #define sLEFT         (-2)
 #define sRIGHT        (-1)
 
-#define KEY_TOGGLE    ' '
 #define KEY_LEFTCOL   '^'
 #define KEY_RIGHTCOL  '$'
 
@@ -43,10 +42,22 @@ typedef struct {
     int box_x;
     int top_index;
     int cur_index;
+    DIALOG_LISTITEM **ip;	/* pointers to items in this list */
 } MY_DATA;
 
+#if 0
+#define TRACE(p)    dlg_trace_msg p
+#else
+#define TRACE(p)		/* nothing */
+#endif
+
+#define okIndex(all,index) ((index) >= 0 && (index) < (all)->item_no)
+
+#define myItem(p,n) ((p)->ip)[n]
+#define mySide(n)   ((n)?"right":"left")
+
 typedef struct {
-    DIALOG_LISTITEM *items;
+    DIALOG_LISTITEM *items;	/* all items in the widget */
     int base_y;			/* base for mouse coordinates */
     int base_x;
     int use_height;		/* actual size of column box */
@@ -58,33 +69,81 @@ typedef struct {
 } ALL_DATA;
 
 /*
+ * Translate a choice from items[] to a row-number in an unbounded column,
+ * starting at zero.
+ */
+static int
+index2row(ALL_DATA * all, int choice, int selected)
+{
+    MY_DATA *data = all->list + selected;
+    int result = -1;
+    int row;
+
+    if (okIndex(all, choice)) {
+	for (row = 0; row < all->item_no; ++row) {
+	    TRACE(("!... choice %d: %p vs row %d: %p\n",
+		   choice, all->items + choice,
+		   row, myItem(data, row)));
+	    if (myItem(data, row) == all->items + choice) {
+		result = row;
+		break;
+	    }
+	}
+    }
+    TRACE(("! index2row(choice %d, %s) = %d\n", choice, mySide(selected), result));
+    return result;
+}
+
+/*
+ * Convert a row-number back to an item number, i.e., index into items[].
+ */
+static int
+row2index(ALL_DATA * all, int row, int selected)
+{
+    MY_DATA *data = all->list + selected;
+    int result = -1;
+    int n;
+    for (n = 0; n < all->item_no; ++n) {
+	TRACE(("!... row %d: %p vs choice %d: %p\n",
+	       row, myItem(data, row),
+	       n, all->items + n));
+	if (myItem(data, row) == all->items + n) {
+	    result = n;
+	    break;
+	}
+    }
+    TRACE(("! row2index(row %d, %s) = %d\n", row, mySide(selected), result));
+    return result;
+}
+
+/*
  * Print list item.  The 'selected' parameter is true if 'choice' is the
  * current item.  That one is colored differently from the other items.
  */
 static void
-print_item(ALL_DATA * data,
+print_item(ALL_DATA * all,
 	   WINDOW *win,
 	   DIALOG_LISTITEM * item,
-	   int choice,
+	   int row,
 	   int selected)
 {
     chtype save = dlg_get_attrs(win);
     int i;
     bool both = (!dialog_vars.no_tags && !dialog_vars.no_items);
     bool first = TRUE;
-    int climit = (data->item_x - data->check_x - 1);
+    int climit = (all->item_x - all->check_x - 1);
     const char *show = (dialog_vars.no_items
 			? item->name
 			: item->text);
 
     /* Clear 'residue' of last item */
-    (void) wattrset(win, menubox_attr);
-    (void) wmove(win, choice, 0);
+    dlg_attrset(win, menubox_attr);
+    (void) wmove(win, row, 0);
     for (i = 0; i < getmaxx(win); i++)
 	(void) waddch(win, ' ');
 
-    (void) wmove(win, choice, data->check_x);
-    (void) wattrset(win, menubox_attr);
+    (void) wmove(win, row, all->check_x);
+    dlg_attrset(win, menubox_attr);
 
     if (both) {
 	dlg_print_listitem(win, item->name, climit, first, selected);
@@ -92,44 +151,54 @@ print_item(ALL_DATA * data,
 	first = FALSE;
     }
 
-    (void) wmove(win, choice, data->item_x);
-    climit = (getmaxx(win) - data->item_x + 1);
+    (void) wmove(win, row, all->item_x);
+    climit = (getmaxx(win) - all->item_x + 1);
     dlg_print_listitem(win, show, climit, first, selected);
 
     if (selected) {
 	dlg_item_help(item->help);
     }
-    (void) wattrset(win, save);
+    dlg_attrset(win, save);
 }
 
 /*
  * Prints either the left (unselected) or right (selected) list.
  */
 static void
-print_1_list(ALL_DATA * data,
+print_1_list(ALL_DATA * all,
 	     int choice,
 	     int selected)
 {
-    MY_DATA *moi = data->list + selected;
-    WINDOW *win = moi->win;
+    MY_DATA *data = all->list + selected;
+    DIALOG_LISTITEM *target = (okIndex(all, choice)
+			       ? all->items + choice
+			       : 0);
+    WINDOW *win = data->win;
     int i, j;
     int last = 0;
+    int top_row = index2row(all, data->top_index, selected);
     int max_rows = getmaxy(win);
 
+    TRACE(("! print_1_list %d %s, top %d\n", choice, mySide(selected), top_row));
     for (i = j = 0; j < max_rows; i++) {
-	int ii = i + moi->top_index;
-	if (ii >= data->item_no) {
-	    break;
-	} else if (!(selected ^ (data->items[ii].state != 0))) {
-	    print_item(data,
+	int ii = i + top_row;
+	if (ii < 0) {
+	    continue;
+	} else if (myItem(data, ii)) {
+	    print_item(all,
 		       win,
-		       &data->items[ii],
-		       j, ii == choice);
+		       myItem(data, ii),
+		       j, myItem(data, ii) == target);
 	    last = ++j;
+	} else {
+	    break;
 	}
     }
-    if (wmove(win, last, 0) != ERR)
-	wclrtobot(win);
+    if (wmove(win, last, 0) != ERR) {
+	while (waddch(win, ' ') != ERR) {
+	    ;
+	}
+    }
     (void) wnoutrefresh(win);
 }
 
@@ -138,17 +207,15 @@ print_1_list(ALL_DATA * data,
  * further movement is possible, return the same choice as given.
  */
 static int
-prev_item(ALL_DATA * data, int choice, int selected)
+prev_item(ALL_DATA * all, int choice, int selected)
 {
     int result = choice;
-    int n;
-
-    for (n = choice - 1; n >= 0; --n) {
-	if ((data->items[n].state != 0) == selected) {
-	    result = n;
-	    break;
-	}
+    int row = index2row(all, choice, selected);
+    if (row > 0) {
+	row--;
+	result = row2index(all, row, selected);
     }
+    TRACE(("! prev_item choice %d, %s = %d\n", choice, mySide(selected), result));
     return result;
 }
 
@@ -156,9 +223,9 @@ prev_item(ALL_DATA * data, int choice, int selected)
  * Return true if the given choice is on the first page in the current column.
  */
 static bool
-stop_prev(ALL_DATA * data, int choice, int selected)
+stop_prev(ALL_DATA * all, int choice, int selected)
 {
-    return (prev_item(data, choice, selected) == choice);
+    return (prev_item(all, choice, selected) == choice);
 }
 
 static bool
@@ -182,37 +249,16 @@ check_hotkey(DIALOG_LISTITEM * items, int choice, int selected)
  * further movement is possible, return the same choice as given.
  */
 static int
-next_item(ALL_DATA * data, int choice, int selected)
+next_item(ALL_DATA * all, int choice, int selected)
 {
+    MY_DATA *data = all->list + selected;
     int result = choice;
-    int n;
-
-    for (n = choice + 1; n < data->item_no; ++n) {
-	if ((data->items[n].state != 0) == selected) {
-	    result = n;
-	    break;
-	}
+    int row = index2row(all, choice, selected);
+    TRACE(("! given item %d, testing next-item on row %d\n", choice, row + 1));
+    if (myItem(data, row + 1)) {
+	result = row2index(all, row + 1, selected);
     }
-    dlg_trace_msg("next_item(%d) ->%d\n", choice, result);
-    return result;
-}
-
-/*
- * Translate a choice from items[] to a row-number in an unbounded column,
- * starting at zero.
- */
-static int
-index2row(ALL_DATA * data, int choice, int selected)
-{
-    int result = -1;
-    int n;
-    for (n = 0; n < data->item_no; ++n) {
-	if ((data->items[n].state != 0) == selected) {
-	    ++result;
-	}
-	if (n == choice)
-	    break;
-    }
+    TRACE(("! next_item(%d, %s) ->%d\n", choice, mySide(selected), result));
     return result;
 }
 
@@ -220,17 +266,21 @@ index2row(ALL_DATA * data, int choice, int selected)
  * Return the first choice from items[] for the given column.
  */
 static int
-first_item(ALL_DATA * data, int selected)
+first_item(ALL_DATA * all, int selected)
 {
+    MY_DATA *data = all->list + selected;
     int result = -1;
     int n;
 
-    for (n = 0; n < data->item_no; ++n) {
-	if ((data->items[n].state != 0) == selected) {
-	    result = n;
-	    break;
+    if (myItem(data, 0) != 0) {
+	for (n = 0; n < all->item_no; ++n) {
+	    if (myItem(data, 0) == &all->items[n]) {
+		result = n;
+		break;
+	    }
 	}
     }
+    TRACE(("! first_item %s = %d\n", mySide(selected), result));
     return result;
 }
 
@@ -238,62 +288,42 @@ first_item(ALL_DATA * data, int selected)
  * Return the last choice from items[] for the given column.
  */
 static int
-last_item(ALL_DATA * data, int selected)
+last_item(ALL_DATA * all, int selected)
 {
+    MY_DATA *data = all->list + selected;
     int result = -1;
     int n;
 
-    for (n = data->item_no - 1; n >= 0; --n) {
-	if ((data->items[n].state != 0) == selected) {
-	    result = n;
-	    break;
-	}
+    for (n = 0; myItem(data, n) != 0; ++n) {
+	result = n;
     }
-    return result;
-}
-
-/*
- * Convert a row-number back to an item number, i.e., index into items[].
- */
-static int
-row2index(ALL_DATA * data, int row, int selected)
-{
-    int result = -1;
-    int n;
-    for (n = 0; n < data->item_no; ++n) {
-	if ((data->items[n].state != 0) == selected) {
-	    if (row-- <= 0) {
-		result = n;
-		break;
-	    }
-	}
+    if (result >= 0) {
+	result = row2index(all, result, selected);
     }
+    TRACE(("! last_item %s = %d\n", mySide(selected), result));
     return result;
 }
 
 static int
-skip_rows(ALL_DATA * data, int row, int skip, int selected)
+skip_rows(ALL_DATA * all, int row, int skip, int selected)
 {
-    int choice = row2index(data, row, selected);
+    MY_DATA *data = all->list + selected;
     int result = row;
     int n;
+
     if (skip > 0) {
-	for (n = choice + 1; n < data->item_no; ++n) {
-	    if ((data->items[n].state != 0) == selected) {
-		++result;
-		if (--skip <= 0)
-		    break;
-	    }
+	for (n = row + 1; (n < all->item_no) && (n <= row + skip); ++n) {
+	    if (myItem(data, n) == 0)
+		break;
+	    result = n;
 	}
     } else if (skip < 0) {
-	for (n = choice - 1; n >= 0; --n) {
-	    if ((data->items[n].state != 0) == selected) {
-		--result;
-		if (++skip >= 0)
-		    break;
-	    }
-	}
+	result -= skip;
+	if (result < 0)
+	    result = 0;
     }
+    TRACE(("! skip_rows row %d, skip %d, %s = %d\n",
+	   row, skip, mySide(selected), result));
     return result;
 }
 
@@ -301,7 +331,7 @@ skip_rows(ALL_DATA * data, int row, int skip, int selected)
  * Find the closest item in the given column starting with the given choice.
  */
 static int
-closest_item(ALL_DATA * data, int choice, int selected)
+closest_item(ALL_DATA * all, int choice, int selected)
 {
     int prev = choice;
     int next = choice;
@@ -309,13 +339,13 @@ closest_item(ALL_DATA * data, int choice, int selected)
     int n;
 
     for (n = choice; n >= 0; --n) {
-	if ((data->items[n].state != 0) == selected) {
+	if ((all->items[n].state != 0) == selected) {
 	    prev = n;
 	    break;
 	}
     }
-    for (n = choice; n < data->item_no; ++n) {
-	if ((data->items[n].state != 0) == selected) {
+    for (n = choice; n < all->item_no; ++n) {
+	if ((all->items[n].state != 0) == selected) {
 	    next = n;
 	    break;
 	}
@@ -330,37 +360,40 @@ closest_item(ALL_DATA * data, int choice, int selected)
     } else if (next != choice) {
 	result = next;
     }
+    TRACE(("! XXX closest item choice %d, %s = %d\n",
+	   choice, mySide(selected), result));
     return result;
 }
 
 static void
-print_both(ALL_DATA * data,
+print_both(ALL_DATA * all,
 	   int choice)
 {
     int selected;
     int cur_y, cur_x;
-    WINDOW *dialog = wgetparent(data->list[0].win);
+    WINDOW *dialog = wgetparent(all->list[0].win);
 
+    TRACE(("! print_both %d\n", choice));
     getyx(dialog, cur_y, cur_x);
     for (selected = 0; selected < 2; ++selected) {
-	MY_DATA *moi = data->list + selected;
-	WINDOW *win = moi->win;
-	int thumb_top = index2row(data, moi->top_index, selected);
-	int thumb_max = index2row(data, -1, selected);
+	MY_DATA *data = all->list + selected;
+	WINDOW *win = data->win;
+	int thumb_top = index2row(all, data->top_index, selected);
+	int thumb_max = index2row(all, -1, selected);
 	int thumb_end = thumb_top + getmaxy(win);
 
-	print_1_list(data, choice, selected);
+	print_1_list(all, choice, selected);
 
 	dlg_mouse_setcode(selected * KEY_MAX);
 	dlg_draw_scrollbar(dialog,
-			   (long) (moi->top_index),
+			   (long) (data->top_index),
 			   (long) (thumb_top),
 			   (long) MIN(thumb_end, thumb_max),
 			   (long) thumb_max,
-			   moi->box_x + data->check_x,
-			   moi->box_x + getmaxx(win),
-			   moi->box_y,
-			   moi->box_y + getmaxy(win) + 1,
+			   data->box_x + all->check_x,
+			   data->box_x + getmaxx(win),
+			   data->box_y,
+			   data->box_y + getmaxy(win) + 1,
 			   menubox_border2_attr,
 			   menubox_border_attr);
     }
@@ -369,13 +402,13 @@ print_both(ALL_DATA * data,
 }
 
 static void
-set_top_item(ALL_DATA * data, int value, int selected)
+set_top_item(ALL_DATA * all, int choice, int selected)
 {
-    if (value != data->list[selected].top_index) {
-	dlg_trace_msg("set top of %s column to %d\n",
-		      selected ? "right" : "left",
-		      value);
-	data->list[selected].top_index = value;
+    if (choice != all->list[selected].top_index) {
+	DLG_TRACE(("# set top of %s column to %d\n",
+		   mySide(selected),
+		   choice));
+	all->list[selected].top_index = choice;
     }
 }
 
@@ -384,23 +417,82 @@ set_top_item(ALL_DATA * data, int value, int selected)
  * visible.
  */
 static void
-fix_top_item(ALL_DATA * data, int cur_item, int selected)
+fix_top_item(ALL_DATA * all, int cur_item, int selected)
 {
-    int top_item = data->list[selected].top_index;
-    int cur_row = index2row(data, cur_item, selected);
-    int top_row = index2row(data, top_item, selected);
+    int top_item = all->list[selected].top_index;
+    int cur_row = index2row(all, cur_item, selected);
+    int top_row = index2row(all, top_item, selected);
 
     if (cur_row < top_row) {
 	top_item = cur_item;
-    } else if ((cur_row - top_row) > data->use_height) {
-	top_item = row2index(data, cur_row + 1 - data->use_height, selected);
+    } else if ((cur_row - top_row) >= all->use_height) {
+	top_item = row2index(all, cur_row + 1 - all->use_height, selected);
     }
-    if (cur_row < data->use_height) {
-	top_item = row2index(data, 0, selected);
+    if (cur_row < all->use_height) {
+	top_item = row2index(all, 0, selected);
     }
-    dlg_trace_msg("fix_top_item(cur_item %d, selected %d) ->top_item %d\n",
-		  cur_item, selected, top_item);
-    set_top_item(data, top_item, selected);
+    DLG_TRACE(("# fix_top_item(cur_item %d, %s) ->top_item %d\n",
+	       cur_item, mySide(selected), top_item));
+    set_top_item(all, top_item, selected);
+}
+
+static void
+append_right_side(ALL_DATA * all, int choice)
+{
+    MY_DATA *data = &all->list[1];
+    int j;
+    for (j = 0; j < all->item_no; ++j) {
+	if (myItem(data, j) == 0) {
+	    myItem(data, j) = &all->items[choice];
+	    break;
+	}
+    }
+}
+
+static void
+amend_right_side(ALL_DATA * all, int choice)
+{
+    MY_DATA *data = &all->list[1];
+    int j, k;
+    for (j = 0; j < all->item_no; ++j) {
+	if (myItem(data, j) == &all->items[choice]) {
+	    for (k = j; k < all->item_no; ++k) {
+		if ((myItem(data, k) = myItem(data, k + 1)) == 0)
+		    break;
+	    }
+	    break;
+	}
+    }
+}
+
+static void
+fill_one_side(ALL_DATA * all, int selected)
+{
+    int i, j;
+    MY_DATA *data = all->list + selected;
+
+    for (i = j = 0; j < all->item_no; ++j) {
+	myItem(data, i) = 0;
+	if ((all->items[j].state != 0) == selected) {
+	    myItem(data, i) = all->items + j;
+	    TRACE(("! %s item[%d] %p = all[%d] %p\n",
+		   mySide(selected),
+		   i, myItem(data, i),
+		   j, all->items + j));
+	    ++i;
+	}
+    }
+    myItem(data, i) = 0;
+}
+
+static void
+fill_both_sides(ALL_DATA * all)
+{
+    int k;
+
+    for (k = 0; k < 2; ++k) {
+	fill_one_side(all, k);
+    }
 }
 
 /*
@@ -420,6 +512,7 @@ dlg_buildlist(const char *title,
 	      int order_mode,
 	      int *current_item)
 {
+#define THIS_FUNC "dlg_buildlist"
     /* *INDENT-OFF* */
     static DLG_KEYS_BINDING binding[] = {
 	HELPKEY_BINDINGS,
@@ -445,6 +538,7 @@ dlg_buildlist(const char *title,
 	DLG_KEYS_DATA( DLGK_PAGE_PREV,	DLGK_MOUSE(KEY_PPAGE+KEY_MAX) ),
 	DLG_KEYS_DATA( DLGK_GRID_LEFT,	KEY_LEFTCOL ),
 	DLG_KEYS_DATA( DLGK_GRID_RIGHT,	KEY_RIGHTCOL ),
+	TOGGLEKEY_BINDINGS,
 	END_KEYS_BINDING
     };
     /* *INDENT-ON* */
@@ -466,11 +560,11 @@ dlg_buildlist(const char *title,
     int num_states;
     bool first = TRUE;
     WINDOW *dialog;
-    char *prompt = dlg_strclone(cprompt);
+    char *prompt;
     const char **buttons = dlg_ok_labels();
     const char *widget_name = "buildlist";
 
-    (void) order_mode;
+    dialog_state.plain_buttons = TRUE;
 
     /*
      * Unlike other uses of --visit-items, we have two windows to visit.
@@ -481,6 +575,10 @@ dlg_buildlist(const char *title,
     memset(&all, 0, sizeof(all));
     all.items = items;
     all.item_no = item_no;
+    for (k = 0; k < 2; ++k) {
+	data[k].ip = dlg_calloc(DIALOG_LISTITEM *, (item_no + 2));
+    }
+    fill_both_sides(&all);
 
     if (dialog_vars.default_item != 0) {
 	cur_item = dlg_default_listitem(items);
@@ -493,11 +591,13 @@ dlg_buildlist(const char *title,
 	      : dlg_default_button());
 
     dlg_does_output();
-    dlg_tab_correct_str(prompt);
 
 #ifdef KEY_RESIZE
   retry:
 #endif
+
+    prompt = dlg_strclone(cprompt);
+    dlg_tab_correct_str(prompt);
 
     all.use_height = list_height;
     all.use_width = (2 * (dlg_calc_list_width(item_no, items)
@@ -536,7 +636,7 @@ dlg_buildlist(const char *title,
     dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
     dlg_draw_title(dialog, title);
 
-    (void) wattrset(dialog, dialog_attr);
+    dlg_attrset(dialog, dialog_attr);
     dlg_print_autowrap(dialog, prompt, height, width);
 
     list_width = (width - 6 * MARGIN - 2) / 2;
@@ -612,11 +712,12 @@ dlg_buildlist(const char *title,
     /* ensure we are scrolled to show the current choice */
     j = MIN(all.use_height, item_no);
     for (i = 0; i < 2; ++i) {
-	int top_item = 0;
 	if ((items[cur_item].state != 0) == i) {
-	    top_item = cur_item - j + 1;
+	    int top_item = cur_item - j + 1;
 	    if (top_item < 0)
 		top_item = 0;
+	    while ((items[top_item].state != 0) != i)
+		++top_item;
 	    set_top_item(&all, top_item, i);
 	} else {
 	    set_top_item(&all, 0, i);
@@ -642,11 +743,11 @@ dlg_buildlist(const char *title,
 	int at_end = index2row(&all, -1, which);
 	int at_bot = skip_rows(&all, at_top, all.use_height, which);
 
-	dlg_trace_msg("\t** state %d:%d top %d (%d:%d:%d) %d\n",
-		      cur_item, item_no - 1,
-		      moi->top_index,
-		      at_top, at_bot, at_end,
-		      which);
+	DLG_TRACE(("# ** state %d:%d top %d (%d:%d:%d) %s\n",
+		   cur_item, item_no - 1,
+		   moi->top_index,
+		   at_top, at_bot, at_end,
+		   mySide(which)));
 
 	if (first) {
 	    print_both(&all, cur_item);
@@ -663,7 +764,7 @@ dlg_buildlist(const char *title,
 		cur_y -= at_top;
 	    cur_x = (data[which].box_x
 		     + all.check_x + 1);
-	    dlg_trace_msg("\t...visit row %d (%d,%d)\n", cur_row, cur_y, cur_x);
+	    DLG_TRACE(("# ...visit row %d (%d,%d)\n", cur_row, cur_y, cur_x));
 	    wmove(dialog, cur_y, cur_x);
 	}
 
@@ -681,7 +782,7 @@ dlg_buildlist(const char *title,
 	    i = (key - 2 * KEY_MAX) % (1 + all.use_height);
 	    j = (key - 2 * KEY_MAX) / (1 + all.use_height);
 	    k = row2index(&all, i + at_top, j);
-	    dlg_trace_msg("MOUSE column %d, row %d ->item %d\n", j, i, k);
+	    DLG_TRACE(("# MOUSE column %d, row %d ->item %d\n", j, i, k));
 	    if (k >= 0 && j < 2) {
 		if (j != which) {
 		    /*
@@ -695,7 +796,7 @@ dlg_buildlist(const char *title,
 		at_bot = skip_rows(&all, at_top, all.use_height, which);
 		cur_item = k;
 		print_both(&all, cur_item);
-		key = KEY_TOGGLE;	/* force the selected item to toggle */
+		key = DLGK_TOGGLE;	/* force the selected item to toggle */
 	    } else {
 		beep();
 		continue;
@@ -723,18 +824,29 @@ dlg_buildlist(const char *title,
 	 * the next available item in the same column.  But if there are no
 	 * more items in the column, move the cursor to the other column.
 	 */
-	if (key == KEY_TOGGLE) {
+	if (key == DLGK_TOGGLE) {
 	    int new_choice;
 	    int new_state = items[cur_item].state + 1;
 
 	    if ((new_choice = next_item(&all, cur_item, which)) == cur_item) {
 		new_choice = prev_item(&all, cur_item, which);
 	    }
-	    dlg_trace_msg("cur_item %d, new_choice:%d\n", cur_item, new_choice);
+	    DLG_TRACE(("# cur_item %d, new_choice:%d\n", cur_item, new_choice));
+	    /* FIXME - how to test and handle multiple states? */
 	    if (new_state >= num_states)
 		new_state = 0;
 
 	    items[cur_item].state = new_state;
+	    if (order_mode) {
+		fill_one_side(&all, 0);
+		if (new_state) {
+		    append_right_side(&all, cur_item);
+		} else {
+		    amend_right_side(&all, cur_item);
+		}
+	    } else {
+		fill_both_sides(&all);
+	    }
 	    if (cur_item == moi->top_index) {
 		set_top_item(&all, new_choice, which);
 	    }
@@ -837,7 +949,11 @@ dlg_buildlist(const char *title,
 		fix_top_item(&all, i, 0);
 		break;
 	    case DLGK_GRID_RIGHT:
-		i = closest_item(&all, cur_item, 1);
+		if (order_mode) {
+		    i = last_item(&all, 1);
+		} else {
+		    i = closest_item(&all, cur_item, 1);
+		}
 		fix_top_item(&all, i, 1);
 		break;
 	    case DLGK_PAGE_PREV:
@@ -895,11 +1011,11 @@ dlg_buildlist(const char *title,
 		int oops = item_no;
 		int old_item;
 
-		dlg_trace_msg("<--CHOICE %d\n", i);
-		dlg_trace_msg("<--topITM %d\n", moi->top_index);
-		dlg_trace_msg("<--now_at %d\n", now_at);
-		dlg_trace_msg("<--at_top %d\n", at_top);
-		dlg_trace_msg("<--at_bot %d\n", at_bot);
+		DLG_TRACE(("# <--CHOICE %d\n", i));
+		DLG_TRACE(("# <--topITM %d\n", moi->top_index));
+		DLG_TRACE(("# <--now_at %d\n", now_at));
+		DLG_TRACE(("# <--at_top %d\n", at_top));
+		DLG_TRACE(("# <--at_bot %d\n", at_bot));
 
 		if (now_at >= at_bot) {
 		    while (now_at >= at_bot) {
@@ -911,11 +1027,11 @@ dlg_buildlist(const char *title,
 			at_top = index2row(&all, moi->top_index, which);
 			at_bot = skip_rows(&all, at_top, all.use_height, which);
 
-			dlg_trace_msg("...at_bot %d (now %d vs %d)\n",
-				      at_bot, now_at, at_end);
-			dlg_trace_msg("...topITM %d\n", moi->top_index);
-			dlg_trace_msg("...at_top %d (diff %d)\n", at_top,
-				      at_bot - at_top);
+			DLG_TRACE(("# ...at_bot %d (now %d vs %d)\n",
+				   at_bot, now_at, at_end));
+			DLG_TRACE(("# ...topITM %d\n", moi->top_index));
+			DLG_TRACE(("# ...at_top %d (diff %d)\n", at_top,
+				   at_bot - at_top));
 
 			if (at_bot >= at_end) {
 			    /*
@@ -936,7 +1052,7 @@ dlg_buildlist(const char *title,
 			    break;
 			}
 			if (--oops < 0) {
-			    dlg_trace_msg("OOPS-forward\n");
+			    DLG_TRACE(("# OOPS-forward\n"));
 			    break;
 			}
 		    }
@@ -948,20 +1064,20 @@ dlg_buildlist(const char *title,
 				     which);
 			at_top = index2row(&all, moi->top_index, which);
 
-			dlg_trace_msg("...at_top %d (now %d)\n", at_top, now_at);
-			dlg_trace_msg("...topITM %d\n", moi->top_index);
+			DLG_TRACE(("# ...at_top %d (now %d)\n", at_top, now_at));
+			DLG_TRACE(("# ...topITM %d\n", moi->top_index));
 
 			if (moi->top_index >= old_item)
 			    break;
 			if (at_top <= now_at)
 			    break;
 			if (--oops < 0) {
-			    dlg_trace_msg("OOPS-backward\n");
+			    DLG_TRACE(("# OOPS-backward\n"));
 			    break;
 			}
 		    }
 		}
-		dlg_trace_msg("-->now_at %d\n", now_at);
+		DLG_TRACE(("# -->now_at %d\n", now_at));
 		cur_item = i;
 		print_both(&all, cur_item);
 	    }
@@ -976,14 +1092,16 @@ dlg_buildlist(const char *title,
 		break;
 #ifdef KEY_RESIZE
 	    case KEY_RESIZE:
+		dlg_will_resize(dialog);
 		/* reset data */
 		height = old_height;
 		width = old_width;
-		/* repaint */
+		free(prompt);
 		dlg_clear();
 		dlg_del_window(dialog);
-		refresh();
 		dlg_mouse_free_regions();
+		/* repaint */
+		first = TRUE;
 		goto retry;
 #endif
 	    default:
@@ -1000,12 +1118,50 @@ dlg_buildlist(const char *title,
 	}
     }
 
+    /*
+     * If told to re-order the list, update it to reflect the current display:
+     * a) The left-side will be at the beginning, without gaps.
+     * b) The right-side will follow, in display-order.
+     */
+    if (order_mode) {
+	DIALOG_LISTITEM *redo;
+	int row;
+	int choice;
+	int new_item = cur_item;
+
+	redo = dlg_calloc(DIALOG_LISTITEM, (size_t) item_no + 1);
+	assert_ptr(redo, THIS_FUNC);
+
+	j = 0;
+	for (k = 0; k < 2; ++k) {
+	    for (row = 0; row < item_no; ++row) {
+		if (myItem(all.list + k, row) == 0)
+		    break;
+		choice = row2index(&all, row, k);
+		if (choice == cur_item)
+		    new_item = j;
+		redo[j++] = items[choice];
+	    }
+	}
+
+	cur_item = new_item;
+	memcpy(items, redo, sizeof(DIALOG_LISTITEM) * (size_t) (item_no + 1));
+
+	free(redo);
+    }
+
+    for (k = 0; k < 2; ++k) {
+	free(data[k].ip);
+    }
+
     dialog_state.visit_cols = save_visit;
     dlg_del_window(dialog);
     dlg_mouse_free_regions();
     free(prompt);
+
     *current_item = cur_item;
     return result;
+#undef THIS_FUNC
 }
 
 /*
@@ -1021,6 +1177,7 @@ dialog_buildlist(const char *title,
 		 char **items,
 		 int order_mode)
 {
+#define THIS_FUNC "dialog_buildlist"
     int result;
     int i, j;
     DIALOG_LISTITEM *listitems;
@@ -1029,8 +1186,18 @@ dialog_buildlist(const char *title,
     int current = 0;
     char *help_result;
 
+    DLG_TRACE(("# buildlist args:\n"));
+    DLG_TRACE2S("title", title);
+    DLG_TRACE2S("message", cprompt);
+    DLG_TRACE2N("height", height);
+    DLG_TRACE2N("width", width);
+    DLG_TRACE2N("lheight", list_height);
+    DLG_TRACE2N("llength", item_no);
+    /* FIXME dump the items[][] too */
+    DLG_TRACE2N("order", order_mode != 0);
+
     listitems = dlg_calloc(DIALOG_LISTITEM, (size_t) item_no + 1);
-    assert_ptr(listitems, "dialog_buildlist");
+    assert_ptr(listitems, THIS_FUNC);
 
     for (i = j = 0; i < item_no; ++i) {
 	listitems[i].name = items[j++];
@@ -1094,4 +1261,5 @@ dialog_buildlist(const char *title,
     dlg_free_columns(&listitems[0].text, (int) sizeof(DIALOG_LISTITEM), item_no);
     free(listitems);
     return result;
+#undef THIS_FUNC
 }

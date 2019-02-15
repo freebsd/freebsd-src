@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1993 Andrew Moore, Talke Studio
  * All rights reserved.
  *

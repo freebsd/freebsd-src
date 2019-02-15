@@ -21,6 +21,8 @@
  *	from: XFree86: ffb_dac.h,v 1.1 2000/05/23 04:47:44 dawes Exp
  */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Jake Burkholder.
  * All rights reserved.
  *

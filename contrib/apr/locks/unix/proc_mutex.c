@@ -114,7 +114,9 @@ static apr_status_t proc_mutex_posix_create(apr_proc_mutex_t *new_mutex,
         usec = apr_time_usec(now);
         apr_snprintf(semname, sizeof(semname), "/ApR.%lxZ%lx", sec, usec);
     }
-    psem = sem_open(semname, O_CREAT | O_EXCL, 0644, 1);
+    do {
+        psem = sem_open(semname, O_CREAT | O_EXCL, 0644, 1);
+    } while (psem == (sem_t *)SEM_FAILED && errno == EINTR);
     if (psem == (sem_t *)SEM_FAILED) {
         if (errno == ENAMETOOLONG) {
             /* Oh well, good try */
@@ -122,7 +124,9 @@ static apr_status_t proc_mutex_posix_create(apr_proc_mutex_t *new_mutex,
         } else {
             return errno;
         }
-        psem = sem_open(semname, O_CREAT | O_EXCL, 0644, 1);
+        do {
+            psem = sem_open(semname, O_CREAT | O_EXCL, 0644, 1);
+        } while (psem == (sem_t *)SEM_FAILED && errno == EINTR);
     }
 
     if (psem == (sem_t *)SEM_FAILED) {
@@ -140,7 +144,12 @@ static apr_status_t proc_mutex_posix_create(apr_proc_mutex_t *new_mutex,
 
 static apr_status_t proc_mutex_posix_acquire(apr_proc_mutex_t *mutex)
 {
-    if (sem_wait(mutex->psem_interproc) < 0) {
+    int rc;
+
+    do {
+        rc = sem_wait(mutex->psem_interproc);
+    } while (rc < 0 && errno == EINTR);
+    if (rc < 0) {
         return errno;
     }
     mutex->curr_locked = 1;
@@ -149,7 +158,12 @@ static apr_status_t proc_mutex_posix_acquire(apr_proc_mutex_t *mutex)
 
 static apr_status_t proc_mutex_posix_tryacquire(apr_proc_mutex_t *mutex)
 {
-    if (sem_trywait(mutex->psem_interproc) < 0) {
+    int rc;
+
+    do {
+        rc = sem_trywait(mutex->psem_interproc);
+    } while (rc < 0 && errno == EINTR);
+    if (rc < 0) {
         if (errno == EAGAIN) {
             return APR_EBUSY;
         }

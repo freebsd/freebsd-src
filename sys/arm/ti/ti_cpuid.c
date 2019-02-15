@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011
  *	Ben Gray <ben.r.gray@gmail.com>.
  * All rights reserved.
@@ -39,17 +41,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/cpu.h>
-#include <machine/cpufunc.h>
+#include <machine/fdt.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
+
+#include <dev/fdt/simplebus.h>
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/ti/tivar.h>
 #include <arm/ti/ti_cpuid.h>
 
 #include <arm/ti/omap4/omap4_reg.h>
-#include <arm/ti/omap3/omap3_reg.h>
 #include <arm/ti/am335x/am335x_reg.h>
 
 #define OMAP4_STD_FUSE_DIE_ID_0    0x2200
@@ -121,7 +125,7 @@ omap4_get_revision(void)
 	 * the ARM cpuid to get the correct revision.
 	 */
 	if (revision == 0) {
-		id_code = cpufunc_id();
+		id_code = cp15_midr_get();
 		revision = (id_code & 0xf) - 1;
 	}
 
@@ -198,73 +202,14 @@ omap4_get_revision(void)
 	}
 }
 
-/**
- *	omap3_get_revision - determines omap3 revision
- *
- *	Reads the registers to determine the revision of the chip we are currently
- *	running on.  Stores the information in global variables.
- *
- *	WARNING: This function currently only really works for OMAP3530 devices.
- *
- *
- *
- */
-static void
-omap3_get_revision(void)
-{
-	uint32_t id_code;
-	uint32_t revision;
-	uint32_t hawkeye;
-	bus_space_handle_t bsh;
-
-	/* The chip revsion is read from the device identification registers and
-	 * the JTAG (?) tap registers, which are located in address 0x4A00_2200 to
-	 * 0x4A00_2218.  This is part of the L4_CORE memory range and should have
-	 * been mapped in by the machdep.c code.
-	 *
-	 *   CONTROL_IDCODE       0x4830 A204   (this is the only one we need)
-	 *
-	 *
-	 */
-	bus_space_map(fdtbus_bs_tag, OMAP35XX_L4_WAKEUP_HWBASE, 0x10000, 0, &bsh);
-	id_code = bus_space_read_4(fdtbus_bs_tag, bsh, OMAP3_ID_CODE);
-	bus_space_unmap(fdtbus_bs_tag, bsh, 0x10000);
-
-	hawkeye = ((id_code >> 12) & 0xffff);
-	revision = ((id_code >> 28) & 0xf);
-
-	switch (hawkeye) {
-	case 0xB6D6:
-		chip_revision = OMAP3350_REV_ES1_0;
-		break;
-	case 0xB7AE:
-		if (revision == 1)
-			chip_revision = OMAP3530_REV_ES2_0;
-		else if (revision == 2)
-			chip_revision = OMAP3530_REV_ES2_1;
-		else if (revision == 3)
-			chip_revision = OMAP3530_REV_ES3_0;
-		else if (revision == 4)
-			chip_revision = OMAP3530_REV_ES3_1;
-		else if (revision == 7)
-			chip_revision = OMAP3530_REV_ES3_1_2;
-		break;
-	default:
-		/* Default to the latest revision if we can't determine type */
-		chip_revision = OMAP3530_REV_ES3_1_2;
-		break;
-	}
-	printf("Texas Instruments OMAP%04x Processor, Revision ES%u.%u\n",
-		OMAP_REV_DEVICE(chip_revision), OMAP_REV_MAJOR(chip_revision), 
-		OMAP_REV_MINOR(chip_revision));
-}
-
 static void
 am335x_get_revision(void)
 {
 	uint32_t dev_feature;
-	uint8_t cpu_last_char;
+	char cpu_last_char;
 	bus_space_handle_t bsh;
+	int major;
+	int minor;
 
 	bus_space_map(fdtbus_bs_tag, AM335X_CONTROL_BASE, AM335X_CONTROL_SIZE, 0, &bsh);
 	chip_revision = bus_space_read_4(fdtbus_bs_tag, bsh, AM335X_CONTROL_DEVICE_ID);
@@ -294,8 +239,26 @@ am335x_get_revision(void)
 			cpu_last_char='x';
 	}
 
-	printf("Texas Instruments AM335%c Processor, Revision ES1.%u\n",
-		cpu_last_char, AM335X_DEVREV(chip_revision));
+	switch(AM335X_DEVREV(chip_revision)) {
+		case 0:
+			major = 1;
+			minor = 0;
+			break;
+		case 1:
+			major = 2;
+			minor = 0;
+			break;
+		case 2:
+			major = 2;
+			minor = 1;
+			break;
+		default:
+			major = 0;
+			minor = AM335X_DEVREV(chip_revision);
+			break;
+	}
+	printf("Texas Instruments AM335%c Processor, Revision ES%u.%u\n",
+		cpu_last_char, major, minor);
 }
 
 /**
@@ -312,10 +275,9 @@ am335x_get_revision(void)
 static void
 ti_cpu_ident(void *dummy)
 {
+	if (!ti_soc_is_supported())
+		return;
 	switch(ti_chip()) {
-	case CHIP_OMAP_3:
-		omap3_get_revision();
-		break;
 	case CHIP_OMAP_4:
 		omap4_get_revision();
 		break;

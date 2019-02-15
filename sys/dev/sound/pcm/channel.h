@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2009 Ariff Abdullah <ariff@FreeBSD.org>
  * Portions Copyright (c) Ryan Beasley <ryan.beasley@gmail.com> - GSoC 2006
  * Copyright (c) 1999 Cameron Grant <cg@FreeBSD.org>
@@ -162,6 +164,7 @@ struct pcm_channel {
 	} channels;
 
 	struct pcmchan_matrix matrix;
+  	struct pcmchan_matrix matrix_scratch;
 
 	int volume[SND_VOL_C_MAX][SND_CHN_T_VOL_MAX];
 

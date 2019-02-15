@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Andre Oppermann, Internet Business Solutions AG
  * All rights reserved.
  *
@@ -59,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
 #endif
 
 #include <netgraph/ng_ipfw.h>
@@ -67,15 +70,15 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>
 
-static VNET_DEFINE(int, fw_enable) = 1;
+VNET_DEFINE_STATIC(int, fw_enable) = 1;
 #define V_fw_enable	VNET(fw_enable)
 
 #ifdef INET6
-static VNET_DEFINE(int, fw6_enable) = 1;
+VNET_DEFINE_STATIC(int, fw6_enable) = 1;
 #define V_fw6_enable	VNET(fw6_enable)
 #endif
 
-static VNET_DEFINE(int, fwlink_enable) = 0;
+VNET_DEFINE_STATIC(int, fwlink_enable) = 0;
 #define V_fwlink_enable	VNET(fwlink_enable)
 
 int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
@@ -92,20 +95,21 @@ int ipfw_check_frame(void *, struct mbuf **, struct ifnet *, int,
 SYSBEGIN(f1)
 
 SYSCTL_DECL(_net_inet_ip_fw);
-SYSCTL_VNET_PROC(_net_inet_ip_fw, OID_AUTO, enable,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw_enable), 0,
-    ipfw_chg_hook, "I", "Enable ipfw");
+SYSCTL_PROC(_net_inet_ip_fw, OID_AUTO, enable,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3,
+    &VNET_NAME(fw_enable), 0, ipfw_chg_hook, "I", "Enable ipfw");
 #ifdef INET6
 SYSCTL_DECL(_net_inet6_ip6_fw);
-SYSCTL_VNET_PROC(_net_inet6_ip6_fw, OID_AUTO, enable,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw6_enable), 0,
-    ipfw_chg_hook, "I", "Enable ipfw+6");
+SYSCTL_PROC(_net_inet6_ip6_fw, OID_AUTO, enable,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3,
+    &VNET_NAME(fw6_enable), 0, ipfw_chg_hook, "I", "Enable ipfw+6");
 #endif /* INET6 */
 
 SYSCTL_DECL(_net_link_ether);
-SYSCTL_VNET_PROC(_net_link_ether, OID_AUTO, ipfw,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fwlink_enable), 0,
-    ipfw_chg_hook, "I", "Pass ether pkts through firewall");
+SYSCTL_PROC(_net_link_ether, OID_AUTO, ipfw,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3,
+    &VNET_NAME(fwlink_enable), 0, ipfw_chg_hook, "I",
+    "Pass ether pkts through firewall");
 
 SYSEND
 
@@ -196,8 +200,20 @@ again:
 		}
 #ifdef INET6
 		if (args.next_hop6 != NULL) {
-			bcopy(args.next_hop6, (fwd_tag+1), len);
-			if (in6_localip(&args.next_hop6->sin6_addr))
+			struct sockaddr_in6 *sa6;
+
+			sa6 = (struct sockaddr_in6 *)(fwd_tag + 1);
+			bcopy(args.next_hop6, sa6, len);
+			/*
+			 * If nh6 address is link-local we should convert
+			 * it to kernel internal form before doing any
+			 * comparisons.
+			 */
+			if (sa6_embedscope(sa6, V_ip6_use_defzone) != 0) {
+				ret = EACCES;
+				break;
+			}
+			if (in6_localip(&sa6->sin6_addr))
 				(*m0)->m_flags |= M_FASTFWD_OURS;
 			(*m0)->m_flags |= M_IP6_NEXTHOP;
 		}
@@ -289,11 +305,9 @@ again:
 
 /*
  * ipfw processing for ethernet packets (in and out).
- * Inteface is NULL from ether_demux, and ifp from
- * ether_output_frame.
  */
 int
-ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *dst, int dir,
+ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
 	struct ether_header *eh;
@@ -303,20 +317,16 @@ ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *dst, int dir,
 	struct ip_fw_args args;
 	struct m_tag *mtag;
 
-	/* fetch start point from rule, if any */
-	mtag = m_tag_locate(*m0, MTAG_IPFW_RULE, 0, NULL);
-	if (mtag == NULL) {
-		args.rule.slot = 0;
-	} else {
-		/* dummynet packet, already partially processed */
-		struct ipfw_rule_ref *r;
+	bzero(&args, sizeof(args));
 
-		/* XXX can we free it after use ? */
-		mtag->m_tag_id = PACKET_TAG_NONE;
-		r = (struct ipfw_rule_ref *)(mtag + 1);
-		if (r->info & IPFW_ONEPASS)
+again:
+	/* fetch start point from rule, if any.  remove the tag if present. */
+	mtag = m_tag_locate(*m0, MTAG_IPFW_RULE, 0, NULL);
+	if (mtag != NULL) {
+		args.rule = *((struct ipfw_rule_ref *)(mtag+1));
+		m_tag_delete(*m0, mtag);
+		if (args.rule.info & IPFW_ONEPASS)
 			return (0);
-		args.rule = *r;
 	}
 
 	/* I need some amt of data to be contiguous */
@@ -334,7 +344,7 @@ ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *dst, int dir,
 	m_adj(m, ETHER_HDR_LEN);	/* strip ethernet header */
 
 	args.m = m;		/* the packet we are looking at		*/
-	args.oif = dir == PFIL_OUT ? dst: NULL;	/* destination, if any	*/
+	args.oif = dir == PFIL_OUT ? ifp: NULL;	/* destination, if any	*/
 	args.next_hop = NULL;	/* we do not support forward yet	*/
 	args.next_hop6 = NULL;	/* we do not support forward yet	*/
 	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
@@ -369,15 +379,27 @@ ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *dst, int dir,
 
 	case IP_FW_DUMMYNET:
 		ret = EACCES;
-		int dir;
+		int dir2;
 
 		if (ip_dn_io_ptr == NULL)
 			break; /* i.e. drop */
 
 		*m0 = NULL;
-		dir = PROTO_LAYER2 | (dst ? DIR_OUT : DIR_IN);
-		ip_dn_io_ptr(&m, dir, &args);
+		dir2 = (dir == PFIL_IN) ? DIR_IN : DIR_OUT;
+		ip_dn_io_ptr(&m, dir2 | PROTO_LAYER2, &args);
 		return 0;
+
+	case IP_FW_NGTEE:
+	case IP_FW_NETGRAPH:
+		if (ng_ipfw_input_p == NULL) {
+			ret = EACCES;
+			break; /* i.e. drop */
+		}
+		ret = ng_ipfw_input_p(m0, (dir == PFIL_IN) ? DIR_IN : DIR_OUT,
+			&args, (i == IP_FW_NGTEE) ? 1 : 0);
+		if (i == IP_FW_NGTEE) /* ignore errors for NGTEE */
+			goto again;	/* continue with packet */
+		break;
 
 	default:
 		KASSERT(0, ("%s: unknown retval", __func__));
@@ -491,7 +513,7 @@ static int
 ipfw_hook(int onoff, int pf)
 {
 	struct pfil_head *pfh;
-	void *hook_func;
+	pfil_func_t hook_func;
 
 	pfh = pfil_head_get(PFIL_TYPE_AF, pf);
 	if (pfh == NULL)

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1985, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -52,7 +54,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 int trace = 0;
-FILE *fd = 0;
+FILE *fd = NULL;
 int	margc;
 int	fromatty;
 #define	MAX_MARGV	20
@@ -82,7 +84,7 @@ main(int argc, char *argv[])
 			printf("?Ambiguous command\n");
 			exit(1);
 		}
-		if (c == 0) {
+		if (c == NULL) {
 			printf("?Invalid command\n");
 			exit(1);
 		}
@@ -108,14 +110,14 @@ main(int argc, char *argv[])
 		if (cmdline[0] == 0)
 			break;
 		makeargv();
-		if (margv[0] == 0)
+		if (margv[0] == NULL)
 			continue;
 		c = getcmd(margv[0]);
 		if (c == (struct cmd *)-1) {
 			printf("?Ambiguous command\n");
 			continue;
 		}
-		if (c == 0) {
+		if (c == NULL) {
 			printf("?Invalid command\n");
 			continue;
 		}
@@ -147,7 +149,7 @@ getcmd(char *name)
 
 	longest = 0;
 	nmatches = 0;
-	found = 0;
+	found = NULL;
 	for (c = cmdtab; c < &cmdtab[NCMDS]; c++) {
 		p = c->c_name;
 		for (q = name; *q == *p++; q++)
@@ -190,7 +192,7 @@ makeargv(void)
 			break;
 		*cp++ = '\0';
 	}
-	*argp++ = 0;
+	*argp++ = NULL;
 }
 
 #define HELPINDENT (sizeof ("directory"))

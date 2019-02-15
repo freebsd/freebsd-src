@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011-2013 Qlogic Corporation
  * All rights reserved.
  *
@@ -157,7 +159,7 @@ qla_add_sysctls(qla_host_t *ha)
 	SYSCTL_ADD_STRING(device_get_sysctl_ctx(dev),
 		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 		OID_AUTO, "fw_version", CTLFLAG_RD,
-		&ha->fw_ver_str, 0, "firmware version");
+		ha->fw_ver_str, 0, "firmware version");
 
 	dbg_level = 0;
         SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
@@ -378,7 +380,7 @@ qla_pci_attach(device_t dev)
 	ha->flags.qla_watchdog_active = 1;
 	ha->flags.qla_watchdog_pause = 1;
 	
-	callout_init(&ha->tx_callout, TRUE);
+	callout_init(&ha->tx_callout, 1);
 
 	/* create ioctl device interface */
 	if (qla_make_cdev(ha)) {
@@ -771,7 +773,7 @@ qla_set_multi(qla_host_t *ha, uint32_t add_multi)
 
 	if_maddr_rlock(ifp);
 
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1401,7 +1403,7 @@ int
 qla_get_mbuf(qla_host_t *ha, qla_rx_buf_t *rxb, struct mbuf *nmp,
 	uint32_t jumbo)
 {
-	register struct mbuf *mp = nmp;
+	struct mbuf *mp = nmp;
 	struct ifnet   *ifp;
 	int             ret = 0;
 	uint32_t	offset;

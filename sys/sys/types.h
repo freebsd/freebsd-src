@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -174,6 +176,11 @@ typedef	__off_t		off_t;		/* file offset */
 #define	_OFF_T_DECLARED
 #endif
 
+#ifndef _OFF64_T_DECLARED
+typedef	__off64_t	off64_t;	/* file offset (alias) */
+#define	_OFF64_T_DECLARED
+#endif
+
 #ifndef _PID_T_DECLARED
 typedef	__pid_t		pid_t;		/* process id */
 #define	_PID_T_DECLARED
@@ -232,6 +239,11 @@ typedef	__useconds_t	useconds_t;	/* microseconds (unsigned) */
 #define	_USECONDS_T_DECLARED
 #endif
 
+#ifndef _CAP_IOCTL_T_DECLARED
+#define	_CAP_IOCTL_T_DECLARED
+typedef	unsigned long	cap_ioctl_t;
+#endif
+
 #ifndef _CAP_RIGHTS_T_DECLARED
 #define	_CAP_RIGHTS_T_DECLARED
 struct cap_rights;
@@ -239,11 +251,22 @@ struct cap_rights;
 typedef	struct cap_rights	cap_rights_t;
 #endif
 
+/*
+ * Types suitable for exporting size and pointers (as virtual addresses)
+ * from the kernel independent of native word size.  These should be
+ * used in place of size_t and (u)intptr_t in structs which contain such
+ * types that are shared with userspace.
+ */
+typedef	__uint64_t	kvaddr_t;
+typedef	__uint64_t	ksize_t;
+
 typedef	__vm_offset_t	vm_offset_t;
-typedef	__vm_ooffset_t	vm_ooffset_t;
+typedef	__int64_t	vm_ooffset_t;
 typedef	__vm_paddr_t	vm_paddr_t;
-typedef	__vm_pindex_t	vm_pindex_t;
+typedef	__uint64_t	vm_pindex_t;
 typedef	__vm_size_t	vm_size_t;
+
+typedef __rman_res_t    rman_res_t;
 
 #ifdef _KERNEL
 typedef	int		boolean_t;
@@ -285,18 +308,103 @@ typedef	_Bool	bool;
  * The following are all things that really shouldn't exist in this header,
  * since its purpose is to provide typedefs, not miscellaneous doodads.
  */
+
+#ifdef __POPCNT__
+#define	__bitcount64(x)	__builtin_popcountll((__uint64_t)(x))
+#define	__bitcount32(x)	__builtin_popcount((__uint32_t)(x))
+#define	__bitcount16(x)	__builtin_popcount((__uint16_t)(x))
+#define	__bitcountl(x)	__builtin_popcountl((unsigned long)(x))
+#define	__bitcount(x)	__builtin_popcount((unsigned int)(x))
+#else
+/*
+ * Population count algorithm using SWAR approach
+ * - "SIMD Within A Register".
+ */
+static __inline __uint16_t
+__bitcount16(__uint16_t _x)
+{
+
+	_x = (_x & 0x5555) + ((_x & 0xaaaa) >> 1);
+	_x = (_x & 0x3333) + ((_x & 0xcccc) >> 2);
+	_x = (_x + (_x >> 4)) & 0x0f0f;
+	_x = (_x + (_x >> 8)) & 0x00ff;
+	return (_x);
+}
+
+static __inline __uint32_t
+__bitcount32(__uint32_t _x)
+{
+
+	_x = (_x & 0x55555555) + ((_x & 0xaaaaaaaa) >> 1);
+	_x = (_x & 0x33333333) + ((_x & 0xcccccccc) >> 2);
+	_x = (_x + (_x >> 4)) & 0x0f0f0f0f;
+	_x = (_x + (_x >> 8));
+	_x = (_x + (_x >> 16)) & 0x000000ff;
+	return (_x);
+}
+
+#ifdef __LP64__
+static __inline __uint64_t
+__bitcount64(__uint64_t _x)
+{
+
+	_x = (_x & 0x5555555555555555) + ((_x & 0xaaaaaaaaaaaaaaaa) >> 1);
+	_x = (_x & 0x3333333333333333) + ((_x & 0xcccccccccccccccc) >> 2);
+	_x = (_x + (_x >> 4)) & 0x0f0f0f0f0f0f0f0f;
+	_x = (_x + (_x >> 8));
+	_x = (_x + (_x >> 16));
+	_x = (_x + (_x >> 32)) & 0x000000ff;
+	return (_x);
+}
+
+#define	__bitcountl(x)	__bitcount64((unsigned long)(x))
+#else
+static __inline __uint64_t
+__bitcount64(__uint64_t _x)
+{
+
+	return (__bitcount32(_x >> 32) + __bitcount32(_x));
+}
+
+#define	__bitcountl(x)	__bitcount32((unsigned long)(x))
+#endif
+#define	__bitcount(x)	__bitcount32((unsigned int)(x))
+#endif
+
 #if __BSD_VISIBLE
 
 #include <sys/select.h>
 
 /*
- * minor() gives a cookie instead of an index since we don't want to
- * change the meanings of bits 0-15 or waste time and space shifting
- * bits 16-31 for devices that don't use them.
+ * The major and minor numbers are encoded in dev_t as MMMmmmMm (where
+ * letters correspond to bytes).  The encoding of the lower 4 bytes is
+ * constrained by compatibility with 16-bit and 32-bit dev_t's.  The
+ * encoding of of the upper 4 bytes is the least unnatural one consistent
+ * with this and other constraints.  Also, the decoding of the m bytes by
+ * minor() is unnatural to maximize compatibility subject to not discarding
+ * bits.  The upper m byte is shifted into the position of the lower M byte
+ * instead of shifting 3 upper m bytes to close the gap.  Compatibility for
+ * minor() is achieved iff the upper m byte is 0.
  */
-#define	major(x)	((int)(((u_int)(x) >> 8)&0xff))	/* major number */
-#define	minor(x)	((int)((x)&0xffff00ff))		/* minor number */
-#define	makedev(x,y)	((dev_t)(((x) << 8) | (y)))	/* create dev_t */
+#define	major(d)	__major(d)
+static __inline int
+__major(dev_t _d)
+{
+	return (((_d >> 32) & 0xffffff00) | ((_d >> 8) & 0xff));
+}
+#define	minor(d)	__minor(d)
+static __inline int
+__minor(dev_t _d)
+{
+	return (((_d >> 24) & 0xff00) | (_d & 0xffff00ff));
+}
+#define	makedev(M, m)	__makedev((M), (m))
+static __inline dev_t
+__makedev(int _Major, int _Minor)
+{
+	return (((dev_t)(_Major & 0xffffff00) << 32) | ((_Major & 0xff) << 8) |
+	    ((dev_t)(_Minor & 0xff00) << 24) | (_Minor & 0xffff00ff));
+}
 
 /*
  * These declarations belong elsewhere, but are repeated here and in

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2009-2012 Semihalf
  * All rights reserved.
  *
@@ -71,6 +73,7 @@ static struct nandsim_chip *get_nandsim_chip(uint8_t, uint8_t);
 
 static struct cdevsw nandsim_cdevsw = {
 	.d_version =    D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_ioctl =      nandsim_ioctl,
 	.d_name =       "nandsim",
 };
@@ -639,7 +642,7 @@ nandsim_modevent(module_t mod __unused, int type, void *data __unused)
 	switch (type) {
 	case MOD_LOAD:
 		nandsim_dev = make_dev(&nandsim_cdevsw, 0,
-		    UID_ROOT, GID_WHEEL, 0666, "nandsim.ioctl");
+		    UID_ROOT, GID_WHEEL, 0600, "nandsim.ioctl");
 		break;
 	case MOD_UNLOAD:
 		for (i = 0; i < MAX_SIM_DEV; i++) {

@@ -11,19 +11,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MSP430TARGETASMINFO_H
-#define MSP430TARGETASMINFO_H
+#ifndef LLVM_LIB_TARGET_MSP430_MCTARGETDESC_MSP430MCASMINFO_H
+#define LLVM_LIB_TARGET_MSP430_MCTARGETDESC_MSP430MCASMINFO_H
 
 #include "llvm/MC/MCAsmInfoELF.h"
 
 namespace llvm {
-  class StringRef;
+class Triple;
 
-  class MSP430MCAsmInfo : public MCAsmInfoELF {
-    virtual void anchor();
-  public:
-    explicit MSP430MCAsmInfo(StringRef TT);
-  };
+class MSP430MCAsmInfo : public MCAsmInfoELF {
+  void anchor() override;
+
+public:
+  explicit MSP430MCAsmInfo(const Triple &TT);
+};
 
 } // namespace llvm
 

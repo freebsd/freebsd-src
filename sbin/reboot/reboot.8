@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)reboot.8	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd October 11, 2010
+.Dd December 20, 2017
 .Dt REBOOT 8
 .Os
 .Sh NAME
@@ -39,16 +39,16 @@
 .Nd stopping and restarting the system
 .Sh SYNOPSIS
 .Nm halt
-.Op Fl lnpq
+.Op Fl lNnpq
 .Op Fl k Ar kernel
 .Nm
-.Op Fl dlnpq
+.Op Fl cdlNnpqr
 .Op Fl k Ar kernel
 .Nm fasthalt
-.Op Fl lnpq
+.Op Fl lNnpq
 .Op Fl k Ar kernel
 .Nm fastboot
-.Op Fl dlnpq
+.Op Fl dlNnpq
 .Op Fl k Ar kernel
 .Sh DESCRIPTION
 The
@@ -66,6 +66,20 @@ accounting database.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl c
+The system will turn off the power and then turn it back on if it can.
+If the power down action fails, the system
+will halt or reboot normally, depending on whether
+.Nm halt
+or
+.Nm
+was called.
+At the present time, only the
+.Xr ipmi 4
+driver implements the power cycle functionality and only on hardware
+with a BMC that supports power cycling.
+Unlike power off, the amount of hardware that supports power cycling
+is small.
 .It Fl d
 The system is requested to create a crash dump.
 This option is
@@ -94,6 +108,16 @@ that call
 or
 .Nm halt
 and log this themselves.
+.It Fl N
+The file system cache is not flushed during the initial process clean-up,
+however the kernel level
+.Xr reboot 2
+is still processed with a sync.
+This option can be useful for performing a
+.Dq best-effort
+reboot when devices might be unavailable.
+This can happen when devices have been disconnected, such as with
+.Xr iscsi 4 .
 .It Fl n
 The file system cache is not flushed.
 This option should probably not be used.
@@ -111,6 +135,19 @@ the flushing of the file system cache is performed (if the
 .Fl n
 option is not specified).
 This option should probably not be used.
+.It Fl r
+The system kills all processes, unmounts all filesystems, mounts the new
+root filesystem, and begins the usual startup sequence.
+After changing vfs.root.mountfrom with
+.Xr kenv 1 ,
+.Nm Fl r
+can be used to change the root filesystem while preserving kernel state.
+This requires the
+.Xr tmpfs 5
+kernel module to be loaded because
+.Xr init 8
+needs a place to store itself after the old root is unmounted, but
+before the new root is in place.
 .El
 .Pp
 The
@@ -128,8 +165,24 @@ Normally, the
 utility is used when the system needs to be halted or restarted, giving
 users advance warning of their impending doom and cleanly terminating
 specific programs.
+.Sh EXAMPLES
+Replace current root filesystem with UFS mounted from
+.Pa /dev/ada0s1a :
+.Bd -literal -offset indent
+kenv vfs.root.mountfrom=ufs:/dev/ada0s1a
+reboot -r
+.Ed
+.Pp
+This mechanism can also be used with NFS, with a caveat that
+it only works with NFSv4, and requires a numeric IPv4 address:
+.Bd -literal -offset indent
+kenv vfs.root.mountfrom=nfs:192.168.1.1:/share/name
+reboot -r
+.Ed
 .Sh SEE ALSO
+.Xr kenv 1 ,
 .Xr getutxent 3 ,
+.Xr ipmi 4 ,
 .Xr boot 8 ,
 .Xr dumpon 8 ,
 .Xr nextboot 8 ,
@@ -140,4 +193,4 @@ specific programs.
 A
 .Nm
 utility appeared in
-.At v6 .
+.Bx 4.0 .

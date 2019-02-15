@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002, 2005-2007, 2011 Marcel Moolenaar
  * All rights reserved.
  *
@@ -144,8 +146,12 @@ static struct g_part_scheme g_part_gpt_scheme = {
 	.gps_bootcodesz = MBRSIZE,
 };
 G_PART_SCHEME_DECLARE(g_part_gpt);
+MODULE_VERSION(geom_part_gpt, 0);
 
+static struct uuid gpt_uuid_apple_apfs = GPT_ENT_TYPE_APPLE_APFS;
 static struct uuid gpt_uuid_apple_boot = GPT_ENT_TYPE_APPLE_BOOT;
+static struct uuid gpt_uuid_apple_core_storage =
+    GPT_ENT_TYPE_APPLE_CORE_STORAGE;
 static struct uuid gpt_uuid_apple_hfs = GPT_ENT_TYPE_APPLE_HFS;
 static struct uuid gpt_uuid_apple_label = GPT_ENT_TYPE_APPLE_LABEL;
 static struct uuid gpt_uuid_apple_raid = GPT_ENT_TYPE_APPLE_RAID;
@@ -153,6 +159,19 @@ static struct uuid gpt_uuid_apple_raid_offline = GPT_ENT_TYPE_APPLE_RAID_OFFLINE
 static struct uuid gpt_uuid_apple_tv_recovery = GPT_ENT_TYPE_APPLE_TV_RECOVERY;
 static struct uuid gpt_uuid_apple_ufs = GPT_ENT_TYPE_APPLE_UFS;
 static struct uuid gpt_uuid_bios_boot = GPT_ENT_TYPE_BIOS_BOOT;
+static struct uuid gpt_uuid_chromeos_firmware = GPT_ENT_TYPE_CHROMEOS_FIRMWARE;
+static struct uuid gpt_uuid_chromeos_kernel = GPT_ENT_TYPE_CHROMEOS_KERNEL;
+static struct uuid gpt_uuid_chromeos_reserved = GPT_ENT_TYPE_CHROMEOS_RESERVED;
+static struct uuid gpt_uuid_chromeos_root = GPT_ENT_TYPE_CHROMEOS_ROOT;
+static struct uuid gpt_uuid_dfbsd_ccd = GPT_ENT_TYPE_DRAGONFLY_CCD;
+static struct uuid gpt_uuid_dfbsd_hammer = GPT_ENT_TYPE_DRAGONFLY_HAMMER;
+static struct uuid gpt_uuid_dfbsd_hammer2 = GPT_ENT_TYPE_DRAGONFLY_HAMMER2;
+static struct uuid gpt_uuid_dfbsd_label32 = GPT_ENT_TYPE_DRAGONFLY_LABEL32;
+static struct uuid gpt_uuid_dfbsd_label64 = GPT_ENT_TYPE_DRAGONFLY_LABEL64;
+static struct uuid gpt_uuid_dfbsd_legacy = GPT_ENT_TYPE_DRAGONFLY_LEGACY;
+static struct uuid gpt_uuid_dfbsd_swap = GPT_ENT_TYPE_DRAGONFLY_SWAP;
+static struct uuid gpt_uuid_dfbsd_ufs1 = GPT_ENT_TYPE_DRAGONFLY_UFS1;
+static struct uuid gpt_uuid_dfbsd_vinum = GPT_ENT_TYPE_DRAGONFLY_VINUM;
 static struct uuid gpt_uuid_efi = GPT_ENT_TYPE_EFI;
 static struct uuid gpt_uuid_freebsd = GPT_ENT_TYPE_FREEBSD;
 static struct uuid gpt_uuid_freebsd_boot = GPT_ENT_TYPE_FREEBSD_BOOT;
@@ -165,39 +184,35 @@ static struct uuid gpt_uuid_linux_data = GPT_ENT_TYPE_LINUX_DATA;
 static struct uuid gpt_uuid_linux_lvm = GPT_ENT_TYPE_LINUX_LVM;
 static struct uuid gpt_uuid_linux_raid = GPT_ENT_TYPE_LINUX_RAID;
 static struct uuid gpt_uuid_linux_swap = GPT_ENT_TYPE_LINUX_SWAP;
-static struct uuid gpt_uuid_vmfs = GPT_ENT_TYPE_VMFS;
-static struct uuid gpt_uuid_vmkdiag = GPT_ENT_TYPE_VMKDIAG;
-static struct uuid gpt_uuid_vmreserved = GPT_ENT_TYPE_VMRESERVED;
-static struct uuid gpt_uuid_vmvsanhdr = GPT_ENT_TYPE_VMVSANHDR;
+static struct uuid gpt_uuid_mbr = GPT_ENT_TYPE_MBR;
 static struct uuid gpt_uuid_ms_basic_data = GPT_ENT_TYPE_MS_BASIC_DATA;
-static struct uuid gpt_uuid_ms_reserved = GPT_ENT_TYPE_MS_RESERVED;
 static struct uuid gpt_uuid_ms_ldm_data = GPT_ENT_TYPE_MS_LDM_DATA;
 static struct uuid gpt_uuid_ms_ldm_metadata = GPT_ENT_TYPE_MS_LDM_METADATA;
+static struct uuid gpt_uuid_ms_recovery = GPT_ENT_TYPE_MS_RECOVERY;
+static struct uuid gpt_uuid_ms_reserved = GPT_ENT_TYPE_MS_RESERVED;
+static struct uuid gpt_uuid_ms_spaces = GPT_ENT_TYPE_MS_SPACES;
 static struct uuid gpt_uuid_netbsd_ccd = GPT_ENT_TYPE_NETBSD_CCD;
 static struct uuid gpt_uuid_netbsd_cgd = GPT_ENT_TYPE_NETBSD_CGD;
 static struct uuid gpt_uuid_netbsd_ffs = GPT_ENT_TYPE_NETBSD_FFS;
 static struct uuid gpt_uuid_netbsd_lfs = GPT_ENT_TYPE_NETBSD_LFS;
 static struct uuid gpt_uuid_netbsd_raid = GPT_ENT_TYPE_NETBSD_RAID;
 static struct uuid gpt_uuid_netbsd_swap = GPT_ENT_TYPE_NETBSD_SWAP;
-static struct uuid gpt_uuid_mbr = GPT_ENT_TYPE_MBR;
-static struct uuid gpt_uuid_unused = GPT_ENT_TYPE_UNUSED;
-static struct uuid gpt_uuid_dfbsd_swap = GPT_ENT_TYPE_DRAGONFLY_SWAP;
-static struct uuid gpt_uuid_dfbsd_ufs1 = GPT_ENT_TYPE_DRAGONFLY_UFS1;
-static struct uuid gpt_uuid_dfbsd_vinum = GPT_ENT_TYPE_DRAGONFLY_VINUM;
-static struct uuid gpt_uuid_dfbsd_ccd = GPT_ENT_TYPE_DRAGONFLY_CCD;
-static struct uuid gpt_uuid_dfbsd_legacy = GPT_ENT_TYPE_DRAGONFLY_LEGACY;
-static struct uuid gpt_uuid_dfbsd_hammer = GPT_ENT_TYPE_DRAGONFLY_HAMMER;
-static struct uuid gpt_uuid_dfbsd_hammer2 = GPT_ENT_TYPE_DRAGONFLY_HAMMER2;
-static struct uuid gpt_uuid_dfbsd_label32 = GPT_ENT_TYPE_DRAGONFLY_LABEL32;
-static struct uuid gpt_uuid_dfbsd_label64 = GPT_ENT_TYPE_DRAGONFLY_LABEL64;
+static struct uuid gpt_uuid_openbsd_data = GPT_ENT_TYPE_OPENBSD_DATA;
 static struct uuid gpt_uuid_prep_boot = GPT_ENT_TYPE_PREP_BOOT;
+static struct uuid gpt_uuid_unused = GPT_ENT_TYPE_UNUSED;
+static struct uuid gpt_uuid_vmfs = GPT_ENT_TYPE_VMFS;
+static struct uuid gpt_uuid_vmkdiag = GPT_ENT_TYPE_VMKDIAG;
+static struct uuid gpt_uuid_vmreserved = GPT_ENT_TYPE_VMRESERVED;
+static struct uuid gpt_uuid_vmvsanhdr = GPT_ENT_TYPE_VMVSANHDR;
 
 static struct g_part_uuid_alias {
 	struct uuid *uuid;
 	int alias;
 	int mbrtype;
 } gpt_uuid_alias_match[] = {
+	{ &gpt_uuid_apple_apfs,		G_PART_ALIAS_APPLE_APFS,	 0 },
 	{ &gpt_uuid_apple_boot,		G_PART_ALIAS_APPLE_BOOT,	 0xab },
+	{ &gpt_uuid_apple_core_storage,	G_PART_ALIAS_APPLE_CORE_STORAGE, 0 },
 	{ &gpt_uuid_apple_hfs,		G_PART_ALIAS_APPLE_HFS,		 0xaf },
 	{ &gpt_uuid_apple_label,	G_PART_ALIAS_APPLE_LABEL,	 0 },
 	{ &gpt_uuid_apple_raid,		G_PART_ALIAS_APPLE_RAID,	 0 },
@@ -205,6 +220,19 @@ static struct g_part_uuid_alias {
 	{ &gpt_uuid_apple_tv_recovery,	G_PART_ALIAS_APPLE_TV_RECOVERY,	 0 },
 	{ &gpt_uuid_apple_ufs,		G_PART_ALIAS_APPLE_UFS,		 0 },
 	{ &gpt_uuid_bios_boot,		G_PART_ALIAS_BIOS_BOOT,		 0 },
+	{ &gpt_uuid_chromeos_firmware,	G_PART_ALIAS_CHROMEOS_FIRMWARE,	 0 },
+	{ &gpt_uuid_chromeos_kernel,	G_PART_ALIAS_CHROMEOS_KERNEL,	 0 },
+	{ &gpt_uuid_chromeos_reserved,	G_PART_ALIAS_CHROMEOS_RESERVED,	 0 },
+	{ &gpt_uuid_chromeos_root,	G_PART_ALIAS_CHROMEOS_ROOT,	 0 },
+	{ &gpt_uuid_dfbsd_ccd,		G_PART_ALIAS_DFBSD_CCD,		 0 },
+	{ &gpt_uuid_dfbsd_hammer,	G_PART_ALIAS_DFBSD_HAMMER,	 0 },
+	{ &gpt_uuid_dfbsd_hammer2,	G_PART_ALIAS_DFBSD_HAMMER2,	 0 },
+	{ &gpt_uuid_dfbsd_label32,	G_PART_ALIAS_DFBSD,		 0xa5 },
+	{ &gpt_uuid_dfbsd_label64,	G_PART_ALIAS_DFBSD64,		 0xa5 },
+	{ &gpt_uuid_dfbsd_legacy,	G_PART_ALIAS_DFBSD_LEGACY,	 0 },
+	{ &gpt_uuid_dfbsd_swap,		G_PART_ALIAS_DFBSD_SWAP,	 0 },
+	{ &gpt_uuid_dfbsd_ufs1,		G_PART_ALIAS_DFBSD_UFS,		 0 },
+	{ &gpt_uuid_dfbsd_vinum,	G_PART_ALIAS_DFBSD_VINUM,	 0 },
 	{ &gpt_uuid_efi, 		G_PART_ALIAS_EFI,		 0xee },
 	{ &gpt_uuid_freebsd,		G_PART_ALIAS_FREEBSD,		 0xa5 },
 	{ &gpt_uuid_freebsd_boot, 	G_PART_ALIAS_FREEBSD_BOOT,	 0 },
@@ -217,31 +245,25 @@ static struct g_part_uuid_alias {
 	{ &gpt_uuid_linux_lvm,		G_PART_ALIAS_LINUX_LVM,		 0 },
 	{ &gpt_uuid_linux_raid,		G_PART_ALIAS_LINUX_RAID,	 0 },
 	{ &gpt_uuid_linux_swap,		G_PART_ALIAS_LINUX_SWAP,	 0 },
-	{ &gpt_uuid_vmfs,		G_PART_ALIAS_VMFS,		 0 },
-	{ &gpt_uuid_vmkdiag,		G_PART_ALIAS_VMKDIAG,		 0 },
-	{ &gpt_uuid_vmreserved,		G_PART_ALIAS_VMRESERVED,	 0 },
-	{ &gpt_uuid_vmvsanhdr,		G_PART_ALIAS_VMVSANHDR,		 0 },
 	{ &gpt_uuid_mbr,		G_PART_ALIAS_MBR,		 0 },
 	{ &gpt_uuid_ms_basic_data,	G_PART_ALIAS_MS_BASIC_DATA,	 0x0b },
 	{ &gpt_uuid_ms_ldm_data,	G_PART_ALIAS_MS_LDM_DATA,	 0 },
 	{ &gpt_uuid_ms_ldm_metadata,	G_PART_ALIAS_MS_LDM_METADATA,	 0 },
+	{ &gpt_uuid_ms_recovery,	G_PART_ALIAS_MS_RECOVERY,	 0 },
 	{ &gpt_uuid_ms_reserved,	G_PART_ALIAS_MS_RESERVED,	 0 },
+	{ &gpt_uuid_ms_spaces,		G_PART_ALIAS_MS_SPACES,		 0 },
 	{ &gpt_uuid_netbsd_ccd,		G_PART_ALIAS_NETBSD_CCD,	 0 },
 	{ &gpt_uuid_netbsd_cgd,		G_PART_ALIAS_NETBSD_CGD,	 0 },
 	{ &gpt_uuid_netbsd_ffs,		G_PART_ALIAS_NETBSD_FFS,	 0 },
 	{ &gpt_uuid_netbsd_lfs,		G_PART_ALIAS_NETBSD_LFS,	 0 },
 	{ &gpt_uuid_netbsd_raid,	G_PART_ALIAS_NETBSD_RAID,	 0 },
 	{ &gpt_uuid_netbsd_swap,	G_PART_ALIAS_NETBSD_SWAP,	 0 },
-	{ &gpt_uuid_dfbsd_swap,		G_PART_ALIAS_DFBSD_SWAP,	 0 },
-	{ &gpt_uuid_dfbsd_ufs1,		G_PART_ALIAS_DFBSD_UFS,		 0 },
-	{ &gpt_uuid_dfbsd_vinum,	G_PART_ALIAS_DFBSD_VINUM,	 0 },
-	{ &gpt_uuid_dfbsd_ccd,		G_PART_ALIAS_DFBSD_CCD,		 0 },
-	{ &gpt_uuid_dfbsd_legacy,	G_PART_ALIAS_DFBSD_LEGACY,	 0 },
-	{ &gpt_uuid_dfbsd_hammer,	G_PART_ALIAS_DFBSD_HAMMER,	 0 },
-	{ &gpt_uuid_dfbsd_hammer2,	G_PART_ALIAS_DFBSD_HAMMER2,	 0 },
-	{ &gpt_uuid_dfbsd_label32,	G_PART_ALIAS_DFBSD,		 0xa5 },
-	{ &gpt_uuid_dfbsd_label64,	G_PART_ALIAS_DFBSD64,		 0xa5 },
+	{ &gpt_uuid_openbsd_data,	G_PART_ALIAS_OPENBSD_DATA,	 0 },
 	{ &gpt_uuid_prep_boot,		G_PART_ALIAS_PREP_BOOT,		 0x41 },
+	{ &gpt_uuid_vmfs,		G_PART_ALIAS_VMFS,		 0 },
+	{ &gpt_uuid_vmkdiag,		G_PART_ALIAS_VMKDIAG,		 0 },
+	{ &gpt_uuid_vmreserved,		G_PART_ALIAS_VMRESERVED,	 0 },
+	{ &gpt_uuid_vmvsanhdr,		G_PART_ALIAS_VMVSANHDR,		 0 },
 	{ NULL, 0, 0 }
 };
 
@@ -455,8 +477,7 @@ gpt_read_hdr(struct g_part_gpt_table *table, struct g_consumer *cp,
 	    hdr->hdr_lba_table <= hdr->hdr_lba_end)
 		goto fail;
 	lba = hdr->hdr_lba_table +
-	    (hdr->hdr_entries * hdr->hdr_entsz + pp->sectorsize - 1) /
-	    pp->sectorsize - 1;
+	    howmany(hdr->hdr_entries * hdr->hdr_entsz, pp->sectorsize) - 1;
 	if (lba >= last)
 		goto fail;
 	if (lba >= hdr->hdr_lba_start && lba <= hdr->hdr_lba_end)
@@ -498,7 +519,7 @@ gpt_read_tbl(struct g_part_gpt_table *table, struct g_consumer *cp,
 
 	table->state[elt] = GPT_STATE_MISSING;
 	tblsz = hdr->hdr_entries * hdr->hdr_entsz;
-	sectors = (tblsz + pp->sectorsize - 1) / pp->sectorsize;
+	sectors = howmany(tblsz, pp->sectorsize);
 	buf = g_malloc(sectors * pp->sectorsize, M_WAITOK | M_ZERO);
 	for (idx = 0; idx < sectors; idx += MAXPHYS / pp->sectorsize) {
 		size = (sectors - idx > MAXPHYS / pp->sectorsize) ?  MAXPHYS:
@@ -636,8 +657,8 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 
 	table = (struct g_part_gpt_table *)basetable;
 	pp = gpp->gpp_provider;
-	tblsz = (basetable->gpt_entries * sizeof(struct gpt_ent) +
-	    pp->sectorsize - 1) / pp->sectorsize;
+	tblsz = howmany(basetable->gpt_entries * sizeof(struct gpt_ent),
+	    pp->sectorsize);
 	if (pp->sectorsize < MBRSIZE ||
 	    pp->mediasize < (3 + 2 * tblsz + basetable->gpt_entries) *
 	    pp->sectorsize)
@@ -671,10 +692,11 @@ g_part_gpt_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 	table->hdr = NULL;
 
 	/*
-	 * Wipe the first 2 sectors to clear the partitioning. Wipe the last
-	 * sector only if it has valid secondary header.
+	 * Wipe the first 2 sectors and last one to clear the partitioning.
+	 * Wipe sectors only if they have valid metadata.
 	 */
-	basetable->gpt_smhead |= 3;
+	if (table->state[GPT_ELT_PRIHDR] == GPT_STATE_OK)
+		basetable->gpt_smhead |= 3;
 	if (table->state[GPT_ELT_SECHDR] == GPT_STATE_OK &&
 	    table->lba[GPT_ELT_SECHDR] == pp->mediasize / pp->sectorsize - 1)
 		basetable->gpt_smtail |= 1;
@@ -682,11 +704,11 @@ g_part_gpt_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 }
 
 static void
-g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry, 
+g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
     struct sbuf *sb, const char *indent)
 {
 	struct g_part_gpt_entry *entry;
- 
+
 	entry = (struct g_part_gpt_entry *)baseentry;
 	if (indent == NULL) {
 		/* conftxt: libdisk compatibility */
@@ -714,13 +736,19 @@ g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 		sbuf_printf(sb, "%s<rawuuid>", indent);
 		sbuf_printf_uuid(sb, &entry->ent.ent_uuid);
 		sbuf_printf(sb, "</rawuuid>\n");
+		sbuf_printf(sb, "%s<efimedia>", indent);
+		sbuf_printf(sb, "HD(%d,GPT,", entry->base.gpe_index);
+		sbuf_printf_uuid(sb, &entry->ent.ent_uuid);
+		sbuf_printf(sb, ",%#jx,%#jx)", (intmax_t)entry->base.gpe_start,
+		    (intmax_t)(entry->base.gpe_end - entry->base.gpe_start + 1));
+		sbuf_printf(sb, "</efimedia>\n");
 	} else {
 		/* confxml: scheme information */
 	}
 }
 
 static int
-g_part_gpt_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)  
+g_part_gpt_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 {
 	struct g_part_gpt_entry *entry;
 
@@ -757,7 +785,7 @@ g_part_gpt_resize(struct g_part_table *basetable,
 	struct g_part_gpt_entry *entry;
 
 	if (baseentry == NULL)
-		return (EOPNOTSUPP);
+		return (g_part_gpt_recover(basetable));
 
 	entry = (struct g_part_gpt_entry *)baseentry;
 	baseentry->gpe_end = baseentry->gpe_start + gpp->gpp_size - 1;
@@ -820,29 +848,30 @@ g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 		return (error);
 	res = le16dec(buf + DOSMAGICOFFSET);
 	pri = G_PART_PROBE_PRI_LOW;
-	for (index = 0; index < NDOSPART; index++) {
-		if (buf[DOSPARTOFF + DOSPARTSIZE * index + 4] == 0xee)
-			pri = G_PART_PROBE_PRI_HIGH;
-	}
-	g_free(buf);
-	if (res != DOSMAGIC) 
-		return (ENXIO);
+	if (res == DOSMAGIC) {
+		for (index = 0; index < NDOSPART; index++) {
+			if (buf[DOSPARTOFF + DOSPARTSIZE * index + 4] == 0xee)
+				pri = G_PART_PROBE_PRI_HIGH;
+		}
+		g_free(buf);
 
-	/* Check that there's a primary header. */
-	buf = g_read_data(cp, pp->sectorsize, pp->sectorsize, &error);
-	if (buf == NULL)
-		return (error);
-	res = memcmp(buf, GPT_HDR_SIG, 8);
-	g_free(buf);
-	if (res == 0)
-		return (pri);
+		/* Check that there's a primary header. */
+		buf = g_read_data(cp, pp->sectorsize, pp->sectorsize, &error);
+		if (buf == NULL)
+			return (error);
+		res = memcmp(buf, GPT_HDR_SIG, 8);
+		g_free(buf);
+		if (res == 0)
+			return (pri);
+	} else
+		g_free(buf);
 
 	/* No primary? Check that there's a secondary. */
 	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
 	    &error);
 	if (buf == NULL)
 		return (error);
-	res = memcmp(buf, GPT_HDR_SIG, 8); 
+	res = memcmp(buf, GPT_HDR_SIG, 8);
 	g_free(buf);
 	return ((res == 0) ? pri : ENXIO);
 }
@@ -895,6 +924,14 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 		    pp->name);
 		printf("GEOM: %s: GPT rejected -- may not be recoverable.\n",
 		    pp->name);
+		if (prihdr != NULL)
+			g_free(prihdr);
+		if (pritbl != NULL)
+			g_free(pritbl);
+		if (sechdr != NULL)
+			g_free(sechdr);
+		if (sectbl != NULL)
+			g_free(sectbl);
 		return (EINVAL);
 	}
 
@@ -1004,6 +1041,7 @@ g_part_gpt_setunset(struct g_part_table *basetable,
 {
 	struct g_part_gpt_entry *entry;
 	struct g_part_gpt_table *table;
+	struct g_provider *pp;
 	uint8_t *p;
 	uint64_t attr;
 	int i;
@@ -1032,6 +1070,21 @@ g_part_gpt_setunset(struct g_part_table *basetable,
 				p[0] = (p[4] == 0xee) ? ((set) ? 0x80 : 0) : 0;
 			}
 		}
+		return (0);
+	} else if (strcasecmp(attrib, "lenovofix") == 0) {
+		/*
+		 * Write the 0xee GPT entry to slot #1 (2nd slot) in the pMBR.
+		 * This workaround allows Lenovo X220, T420, T520, etc to boot
+		 * from GPT Partitions in BIOS mode.
+		 */
+
+		if (entry != NULL)
+			return (ENXIO);
+
+		pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
+		bzero(table->mbr + DOSPARTOFF, DOSPARTSIZE * NDOSPART);
+		gpt_write_mbr_entry(table->mbr, ((set) ? 1 : 0), 0xee, 1,
+		    MIN(pp->mediasize / pp->sectorsize - 1, UINT32_MAX));
 		return (0);
 	}
 
@@ -1068,13 +1121,13 @@ g_part_gpt_setunset(struct g_part_table *basetable,
 }
 
 static const char *
-g_part_gpt_type(struct g_part_table *basetable, struct g_part_entry *baseentry, 
+g_part_gpt_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
 {
 	struct g_part_gpt_entry *entry;
 	struct uuid *type;
 	struct g_part_uuid_alias *uap;
- 
+
 	entry = (struct g_part_gpt_entry *)baseentry;
 	type = &entry->ent.ent_type;
 	for (uap = &gpt_uuid_alias_match[0]; uap->uuid; uap++)
@@ -1100,8 +1153,8 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 
 	pp = cp->provider;
 	table = (struct g_part_gpt_table *)basetable;
-	tblsz = (table->hdr->hdr_entries * table->hdr->hdr_entsz +
-	    pp->sectorsize - 1) / pp->sectorsize;
+	tblsz = howmany(table->hdr->hdr_entries * table->hdr->hdr_entsz,
+	    pp->sectorsize);
 
 	/* Reconstruct the MBR from the GPT if under Boot Camp. */
 	if (table->bootcamp)
@@ -1205,8 +1258,8 @@ g_gpt_set_defaults(struct g_part_table *basetable, struct g_provider *pp)
 
 	table = (struct g_part_gpt_table *)basetable;
 	last = pp->mediasize / pp->sectorsize - 1;
-	tblsz = (basetable->gpt_entries * sizeof(struct gpt_ent) +
-	    pp->sectorsize - 1) / pp->sectorsize;
+	tblsz = howmany(basetable->gpt_entries * sizeof(struct gpt_ent),
+	    pp->sectorsize);
 
 	table->lba[GPT_ELT_PRIHDR] = 1;
 	table->lba[GPT_ELT_PRITBL] = 2;

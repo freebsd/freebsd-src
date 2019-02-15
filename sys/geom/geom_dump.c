@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -61,8 +63,9 @@ static void
 g_confdot_provider(struct sbuf *sb, struct g_provider *pp)
 {
 
-	sbuf_printf(sb, "z%p [shape=hexagon,label=\"%s\\nr%dw%de%d\\nerr#%d\"];\n",
-	    pp, pp->name, pp->acr, pp->acw, pp->ace, pp->error);
+	sbuf_printf(sb, "z%p [shape=hexagon,label=\"%s\\nr%dw%de%d\\nerr#%d\\n"
+	    "sector=%u\\nstripe=%ju\"];\n", pp, pp->name, pp->acr, pp->acw,
+	    pp->ace, pp->error, pp->sectorsize, (uintmax_t)pp->stripesize);
 }
 
 static void
@@ -213,9 +216,11 @@ g_conf_provider(struct sbuf *sb, struct g_provider *pp)
 	sbuf_printf(sb, "\t  <mediasize>%jd</mediasize>\n",
 	    (intmax_t)pp->mediasize);
 	sbuf_printf(sb, "\t  <sectorsize>%u</sectorsize>\n", pp->sectorsize);
-	sbuf_printf(sb, "\t  <stripesize>%u</stripesize>\n", pp->stripesize);
-	sbuf_printf(sb, "\t  <stripeoffset>%u</stripeoffset>\n", pp->stripeoffset);
-	if (pp->geom->flags & G_GEOM_WITHER)
+	sbuf_printf(sb, "\t  <stripesize>%ju</stripesize>\n", (uintmax_t)pp->stripesize);
+	sbuf_printf(sb, "\t  <stripeoffset>%ju</stripeoffset>\n", (uintmax_t)pp->stripeoffset);
+	if (pp->flags & G_PF_WITHER)
+		sbuf_printf(sb, "\t  <wither/>\n");
+	else if (pp->geom->flags & G_GEOM_WITHER)
 		;
 	else if (pp->geom->dumpconf != NULL) {
 		sbuf_printf(sb, "\t  <config>\n");
@@ -231,6 +236,7 @@ g_conf_geom(struct sbuf *sb, struct g_geom *gp, struct g_provider *pp, struct g_
 {
 	struct g_consumer *cp2;
 	struct g_provider *pp2;
+	struct g_geom_alias *gap;
 
 	sbuf_printf(sb, "    <geom id=\"%p\">\n", gp);
 	sbuf_printf(sb, "      <class ref=\"%p\"/>\n", gp->class);
@@ -255,6 +261,11 @@ g_conf_geom(struct sbuf *sb, struct g_geom *gp, struct g_provider *pp, struct g_
 		if (pp != NULL && pp != pp2)
 			continue;
 		g_conf_provider(sb, pp2);
+	}
+	LIST_FOREACH(gap, &gp->aliases, ga_next) {
+		sbuf_printf(sb, "      <alias>\n");
+		g_conf_printf_escaped(sb, "%s", gap->ga_alias);
+		sbuf_printf(sb, "      </alias>\n");
 	}
 	sbuf_printf(sb, "    </geom>\n");
 }

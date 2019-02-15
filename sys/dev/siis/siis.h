@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
@@ -92,7 +94,7 @@
 #define         ATA_SS_SPD_NO_SPEED     0x00000000
 #define         ATA_SS_SPD_GEN1         0x00000010
 #define         ATA_SS_SPD_GEN2         0x00000020
-#define         ATA_SS_SPD_GEN3         0x00000040
+#define         ATA_SS_SPD_GEN3         0x00000030
 
 #define         ATA_SS_IPM_MASK         0x00000f00
 #define         ATA_SS_IPM_NO_DEVICE    0x00000000
@@ -128,7 +130,7 @@
 #define         ATA_SC_SPD_NO_SPEED     0x00000000
 #define         ATA_SC_SPD_SPEED_GEN1   0x00000010
 #define         ATA_SC_SPD_SPEED_GEN2   0x00000020
-#define         ATA_SC_SPD_SPEED_GEN3   0x00000040
+#define         ATA_SC_SPD_SPEED_GEN3   0x00000030
 
 #define         ATA_SC_IPM_MASK         0x00000f00
 #define         ATA_SC_IPM_NONE         0x00000000
@@ -389,7 +391,7 @@ struct siis_channel {
 	int			numtslots[SIIS_MAX_SLOTS]; /* Number of tagged slots */
 	int			numhslots;	/* Number of held slots */
 	int			recoverycmd;	/* Our READ LOG active */
-	int			fatalerr;	/* Fatal error happend */
+	int			fatalerr;	/* Fatal error happened */
 	int			recovery;	/* Some slots are in error */
 	union ccb		*frozen;	/* Frozen command */
 

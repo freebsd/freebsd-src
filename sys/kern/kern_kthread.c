@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Peter Wemm <peter@FreeBSD.org>
  * All rights reserved.
  *
@@ -38,9 +40,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/signalvar.h>
 #include <sys/sx.h>
+#include <sys/umtx.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
 #include <sys/sched.h>
+#include <sys/tslog.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
@@ -54,8 +58,7 @@ __FBSDID("$FreeBSD$");
  * to be called from SYSINIT().
  */
 void
-kproc_start(udata)
-	const void *udata;
+kproc_start(const void *udata)
 {
 	const struct kproc_desc	*kp = udata;
 	int error;
@@ -80,6 +83,7 @@ int
 kproc_create(void (*func)(void *), void *arg,
     struct proc **newpp, int flags, int pages, const char *fmt, ...)
 {
+	struct fork_req fr;
 	int error;
 	va_list ap;
 	struct thread *td;
@@ -88,8 +92,11 @@ kproc_create(void (*func)(void *), void *arg,
 	if (!proc0.p_stats)
 		panic("kproc_create called too soon");
 
-	error = fork1(&thread0, RFMEM | RFFDG | RFPROC | RFSTOPPED | flags,
-	    pages, &p2, NULL, 0);
+	bzero(&fr, sizeof(fr));
+	fr.fr_flags = RFMEM | RFFDG | RFPROC | RFSTOPPED | flags;
+	fr.fr_pages = pages;
+	fr.fr_procp = &p2;
+	error = fork1(&thread0, &fr);
 	if (error)
 		return error;
 
@@ -100,7 +107,7 @@ kproc_create(void (*func)(void *), void *arg,
 	/* this is a non-swapped system process */
 	PROC_LOCK(p2);
 	td = FIRST_THREAD_IN_PROC(p2);
-	p2->p_flag |= P_SYSTEM | P_KTHREAD;
+	p2->p_flag |= P_SYSTEM | P_KPROC;
 	td->td_pflags |= TDP_KTHREAD;
 	mtx_lock(&p2->p_sigacts->ps_mtx);
 	p2->p_sigacts->ps_flag |= PS_NOCLDWAIT;
@@ -118,12 +125,19 @@ kproc_create(void (*func)(void *), void *arg,
 #ifdef KTR
 	sched_clear_tdname(td);
 #endif
+	TSTHREAD(td, td->td_name);
+#ifdef HWPMC_HOOKS
+	if (PMC_SYSTEM_SAMPLING_ACTIVE()) {
+		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_PROC_CREATE_LOG, p2);
+		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_THR_CREATE_LOG, NULL);
+	}
+#endif
 
 	/* call the processes' main()... */
-	cpu_set_fork_handler(td, func, arg);
+	cpu_fork_kthread_handler(td, func, arg);
 
 	/* Avoid inheriting affinity from a random parent. */
-	cpuset_setthread(td->td_tid, cpuset_root);
+	cpuset_kernthread(td);
 	thread_lock(td);
 	TD_SET_CAN_RUN(td);
 	sched_prio(td, PVM);
@@ -162,7 +176,7 @@ kproc_exit(int ecode)
 	wakeup(p);
 
 	/* Buh-bye! */
-	exit1(td, W_EXITCODE(ecode, 0));
+	exit1(td, ecode, 0);
 }
 
 /*
@@ -177,7 +191,7 @@ kproc_suspend(struct proc *p, int timo)
 	 * use the p_siglist field.
 	 */
 	PROC_LOCK(p);
-	if ((p->p_flag & P_KTHREAD) == 0) {
+	if ((p->p_flag & P_KPROC) == 0) {
 		PROC_UNLOCK(p);
 		return (EINVAL);
 	}
@@ -194,7 +208,7 @@ kproc_resume(struct proc *p)
 	 * use the p_siglist field.
 	 */
 	PROC_LOCK(p);
-	if ((p->p_flag & P_KTHREAD) == 0) {
+	if ((p->p_flag & P_KPROC) == 0) {
 		PROC_UNLOCK(p);
 		return (EINVAL);
 	}
@@ -224,8 +238,7 @@ kproc_suspend_check(struct proc *p)
  */
 
 void
-kthread_start(udata)
-	const void *udata;
+kthread_start(const void *udata)
 {
 	const struct kthread_desc	*kp = udata;
 	int error;
@@ -278,17 +291,16 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	vsnprintf(newtd->td_name, sizeof(newtd->td_name), fmt, ap);
 	va_end(ap);
 
-	newtd->td_proc = p;  /* needed for cpu_set_upcall */
+	TSTHREAD(newtd, newtd->td_name);
 
-	/* XXX optimise this probably? */
-	/* On x86 (and probably the others too) it is way too full of junk */
-	/* Needs a better name */
-	cpu_set_upcall(newtd, oldtd);
+	newtd->td_proc = p;  /* needed for cpu_copy_thread */
+	/* might be further optimized for kthread */
+	cpu_copy_thread(newtd, oldtd);
 	/* put the designated function(arg) as the resume context */
-	cpu_set_fork_handler(newtd, func, arg);
+	cpu_fork_kthread_handler(newtd, func, arg);
 
 	newtd->td_pflags |= TDP_KTHREAD;
-	newtd->td_ucred = crhold(p->p_ucred);
+	thread_cow_get_proc(newtd, p);
 
 	/* this code almost the same as create_thread() in kern_thr.c */
 	p->p_flag |= P_HADTHREADS;
@@ -303,8 +315,11 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	tidhash_add(newtd);
 
 	/* Avoid inheriting affinity from a random parent. */
-	cpuset_setthread(newtd->td_tid, cpuset_root);
-
+	cpuset_kernthread(newtd);
+#ifdef HWPMC_HOOKS
+	if (PMC_SYSTEM_SAMPLING_ACTIVE())
+		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_THR_CREATE_LOG, NULL);
+#endif
 	/* Delay putting it on the run queue until now. */
 	if (!(flags & RFSTOPPED)) {
 		thread_lock(newtd);
@@ -320,11 +335,17 @@ void
 kthread_exit(void)
 {
 	struct proc *p;
+	struct thread *td;
 
-	p = curthread->td_proc;
+	td = curthread;
+	p = td->td_proc;
 
+#ifdef HWPMC_HOOKS
+	if (PMC_SYSTEM_SAMPLING_ACTIVE())
+		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_THR_EXIT_LOG, NULL);
+#endif
 	/* A module may be waiting for us to exit. */
-	wakeup(curthread);
+	wakeup(td);
 
 	/*
 	 * The last exiting thread in a kernel process must tear down
@@ -337,8 +358,10 @@ kthread_exit(void)
 		rw_wunlock(&tidhash_lock);
 		kproc_exit(0);
 	}
-	LIST_REMOVE(curthread, td_hash);
+	LIST_REMOVE(td, td_hash);
 	rw_wunlock(&tidhash_lock);
+	umtx_thread_exit(td);
+	tdsigcleanup(td);
 	PROC_SLOCK(p);
 	thread_exit();
 }
@@ -407,7 +430,7 @@ kthread_resume(struct thread *td)
  * and notify the caller that is has happened.
  */
 void
-kthread_suspend_check()
+kthread_suspend_check(void)
 {
 	struct proc *p;
 	struct thread *td;
@@ -441,7 +464,7 @@ kproc_kthread_add(void (*func)(void *), void *arg,
 	char buf[100];
 	struct thread *td;
 
-	if (*procptr == 0) {
+	if (*procptr == NULL) {
 		error = kproc_create(func, arg,
 		    	procptr, flags, pages, "%s", procname);
 		if (error)

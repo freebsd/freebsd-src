@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  * Copyright (c) 1994 John S. Dyson
@@ -52,7 +54,7 @@
 /*
  * Virtual memory related constants, all in bytes
  */
-#define	MAXTSIZ		(128UL*1024*1024)	/* max text size */
+#define	MAXTSIZ		(32768UL*1024*1024)	/* max text size */
 #ifndef DFLDSIZ
 #define	DFLDSIZ		(32768UL*1024*1024)	/* initial data size limit */
 #endif
@@ -90,25 +92,34 @@
 #define	VM_PHYSSEG_MAX		63
 
 /*
- * Create three free page pools: VM_FREEPOOL_DEFAULT is the default pool
+ * Create two free page pools: VM_FREEPOOL_DEFAULT is the default pool
  * from which physical pages are allocated and VM_FREEPOOL_DIRECT is
  * the pool from which physical pages for page tables and small UMA
  * objects are allocated.
  */
-#define	VM_NFREEPOOL		3
-#define	VM_FREEPOOL_CACHE	2
+#define	VM_NFREEPOOL		2
 #define	VM_FREEPOOL_DEFAULT	0
 #define	VM_FREEPOOL_DIRECT	1
 
 /*
- * Create two free page lists: VM_FREELIST_DEFAULT is for physical
- * pages that are above the largest physical address that is
- * accessible by ISA DMA and VM_FREELIST_ISADMA is for physical pages
- * that are below that address.
+ * Create up to three free page lists: VM_FREELIST_DMA32 is for physical pages
+ * that have physical addresses below 4G but are not accessible by ISA DMA,
+ * and VM_FREELIST_ISADMA is for physical pages that are accessible by ISA
+ * DMA.
  */
-#define	VM_NFREELIST		2
+#define	VM_NFREELIST		3
 #define	VM_FREELIST_DEFAULT	0
-#define	VM_FREELIST_ISADMA	1
+#define	VM_FREELIST_DMA32	1
+#define	VM_FREELIST_LOWMEM	2
+
+#define VM_LOWMEM_BOUNDARY	(16 << 20)	/* 16MB ISA DMA limit */
+
+/*
+ * Create the DMA32 free list only if the number of physical pages above
+ * physical address 4G is at least 16M, which amounts to 64GB of physical
+ * memory.
+ */
+#define	VM_DMA32_NPAGES_THRESHOLD	16777216
 
 /*
  * An allocation size of 16MB is supported in order to optimize the
@@ -145,7 +156,9 @@
  * 0x0000000000000000 - 0x00007fffffffffff   user map
  * 0x0000800000000000 - 0xffff7fffffffffff   does not exist (hole)
  * 0xffff800000000000 - 0xffff804020100fff   recursive page table (512GB slot)
- * 0xffff804020101000 - 0xfffff7ffffffffff   unused
+ * 0xffff804020100fff - 0xffff807fffffffff   unused
+ * 0xffff808000000000 - 0xffff847fffffffff   large map (can be tuned up)
+ * 0xffff848000000000 - 0xfffff7ffffffffff   unused (large map extends there)
  * 0xfffff80000000000 - 0xfffffbffffffffff   4TB direct map
  * 0xfffffc0000000000 - 0xfffffdffffffffff   unused
  * 0xfffffe0000000000 - 0xffffffffffffffff   2TB kernel map
@@ -162,6 +175,9 @@
 #define	DMAP_MIN_ADDRESS	KVADDR(DMPML4I, 0, 0, 0)
 #define	DMAP_MAX_ADDRESS	KVADDR(DMPML4I + NDMPML4E, 0, 0, 0)
 
+#define	LARGEMAP_MIN_ADDRESS	KVADDR(LMSPML4I, 0, 0, 0)
+#define	LARGEMAP_MAX_ADDRESS	KVADDR(LMEPML4I + 1, 0, 0, 0)
+
 #define	KERNBASE		KVADDR(KPML4I, KPDPI, 0, 0)
 
 #define	UPT_MAX_ADDRESS		KVADDR(PML4PML4I, PML4PML4I, PML4PML4I, PML4PML4I)
@@ -175,8 +191,25 @@
 #define	VM_MAX_ADDRESS		UPT_MAX_ADDRESS
 #define	VM_MIN_ADDRESS		(0)
 
-#define	PHYS_TO_DMAP(x)		((x) | DMAP_MIN_ADDRESS)
-#define	DMAP_TO_PHYS(x)		((x) & ~DMAP_MIN_ADDRESS)
+/*
+ * XXX Allowing dmaplimit == 0 is a temporary workaround for vt(4) efifb's
+ * early use of PHYS_TO_DMAP before the mapping is actually setup. This works
+ * because the result is not actually accessed until later, but the early
+ * vt fb startup needs to be reworked.
+ */
+#define	PMAP_HAS_DMAP	1
+#define	PHYS_TO_DMAP(x)	({						\
+	KASSERT(dmaplimit == 0 || (x) < dmaplimit,			\
+	    ("physical address %#jx not covered by the DMAP",		\
+	    (uintmax_t)x));						\
+	(x) | DMAP_MIN_ADDRESS; })
+
+#define	DMAP_TO_PHYS(x)	({						\
+	KASSERT((x) < (DMAP_MIN_ADDRESS + dmaplimit) &&			\
+	    (x) >= DMAP_MIN_ADDRESS,					\
+	    ("virtual address %#jx not covered by the DMAP",		\
+	    (uintmax_t)x));						\
+	(x) & ~DMAP_MIN_ADDRESS; })
 
 /*
  * How many physical pages per kmem arena virtual page.
@@ -200,5 +233,11 @@
 #endif
 
 #define	ZERO_REGION_SIZE	(2 * 1024 * 1024)	/* 2MB */
+
+/*
+ * Use a fairly large batch size since we expect amd64 systems to have lots of
+ * memory.
+ */
+#define	VM_BATCHQUEUE_SIZE	31
 
 #endif /* _MACHINE_VMPARAM_H_ */

@@ -12,7 +12,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -137,9 +137,10 @@ It must be called before the
 call.
 If a sequential access is being performed (see below), it must be called
 before the first sequential access call
-.Fn ( cgetfirst
+.Po Fn cgetfirst
 or
-.Fn cgetnext ) ,
+.Fn cgetnext
+.Pc ,
 or be directly preceded by a
 .Fn cgetclose
 call.

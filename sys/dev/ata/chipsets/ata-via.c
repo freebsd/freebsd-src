@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
@@ -78,7 +80,6 @@ static int ata_via_sata_status(device_t dev);
 #define VIACLK          0x01
 #define VIABUG          0x02
 #define VIABAR          0x04
-#define VIAAHCI         0x08
 #define VIASATA         0x10
 
 /*
@@ -120,7 +121,6 @@ ata_via_probe(device_t dev)
      { ATA_VIA8237S,  0x00, 7,      0x00,    ATA_SA150, "8237S" },
      { ATA_VIA8237_5372, 0x00, 7,   0x00,    ATA_SA300, "8237" },
      { ATA_VIA8237_7372, 0x00, 7,   0x00,    ATA_SA300, "8237" },
-     { ATA_VIA8251,   0x00, 0,      VIAAHCI, ATA_SA300, "8251" },
      { 0, 0, 0, 0, 0, 0 }};
 
     if (pci_get_vendor(dev) != ATA_VIA_ID)
@@ -141,7 +141,7 @@ ata_via_probe(device_t dev)
 
     ata_set_desc(dev);
     ctlr->chipinit = ata_via_chipinit;
-    return (BUS_PROBE_DEFAULT);
+    return (BUS_PROBE_LOW_PRIORITY);
 }
 
 static int
@@ -152,11 +152,6 @@ ata_via_chipinit(device_t dev)
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
 
-    /* AHCI SATA */
-    if (ctlr->chip->cfg2 & VIAAHCI) {
-	if (ata_ahci_chipinit(dev) != ENXIO)
-	    return (0);
-    }
     /* 2 SATA with "SATA registers" at PCI config space + PATA on secondary */
     if (ctlr->chip->cfg2 & VIASATA) {
 	ctlr->ch_attach = ata_via_sata_ch_attach;
@@ -454,12 +449,29 @@ static void
 ata_via_sata_reset(device_t dev)
 {
 	struct ata_channel *ch = device_get_softc(dev);
-	int devs;
+	int devs, count;
+	uint8_t status;
 
 	if (ch->unit == 0) {
 		devs = ata_sata_phy_reset(dev, 0, 0);
-		DELAY(10000);
+		count = 0;
+		do {
+			ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA |
+			    ATA_DEV(ATA_MASTER));
+			DELAY(1000);
+			status = ATA_IDX_INB(ch, ATA_STATUS);
+			count++;
+		} while (status & ATA_S_BUSY && count < 100);
+
 		devs += ata_sata_phy_reset(dev, 1, 0);
+		count = 0;
+		do {
+			ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA |
+			    ATA_DEV(ATA_SLAVE));
+			DELAY(1000);
+			status = ATA_IDX_INB(ch, ATA_STATUS);
+			count++;
+		} while (status & ATA_S_BUSY && count < 100);
 	} else
 		devs = 1;
 	if (devs)
@@ -554,4 +566,3 @@ ata_via_sata_status(device_t dev)
 }
 
 ATA_DECLARE_DRIVER(ata_via);
-MODULE_DEPEND(ata_via, ata_ahci, 1, 1, 1);

@@ -11,7 +11,7 @@ let Component = "Comment" in {
 let CategoryName = "Documentation Issue" in {
 
 // HTML parsing errors.  These are under -Wdocumentation to make sure the user
-// knows that we didn't parse something as he might expect.
+// knows that we didn't parse something as they might expect.
 
 def warn_doc_html_start_tag_expected_quoted_string : Warning<
   "expected quoted string after equals sign">,
@@ -40,6 +40,10 @@ def warn_doc_html_start_end_mismatch : Warning<
 
 def note_doc_html_end_tag : Note<
   "end tag">;
+
+def warn_doc_html_missing_end_tag : Warning<
+  "HTML tag '%0' requires an end tag">,
+  InGroup<DocumentationHTML>, DefaultIgnore;
 
 // Commands
 
@@ -162,7 +166,7 @@ def warn_unknown_comment_command_name : Warning<
 
 def warn_correct_comment_command_name : Warning<
   "unknown command tag name '%0'; did you mean '%1'?">,
-  InGroup<Documentation>, DefaultIgnore;
+  InGroup<DocumentationUnknownCommand>, DefaultIgnore;
 
 } // end of documentation issue category
 } // end of AST component

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -62,9 +64,9 @@ puts(char const *s)
 	uio.uio_resid = c + 1;
 	uio.uio_iov = &iov[0];
 	uio.uio_iovcnt = 2;
-	FLOCKFILE(stdout);
+	FLOCKFILE_CANCELSAFE(stdout);
 	ORIENT(stdout, -1);
 	retval = __sfvwrite(stdout, &uio) ? EOF : '\n';
-	FUNLOCKFILE(stdout);
+	FUNLOCKFILE_CANCELSAFE();
 	return (retval);
 }

@@ -1,6 +1,6 @@
 if [ ! "$_DEVICE_SUBR" ]; then _DEVICE_SUBR=1
 #
-# Copyright (c) 2012-2014 Devin Teske
+# Copyright (c) 2012-2016 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1032,7 +1032,7 @@ f_device_is_active()
 #
 f_device_find()
 {
-	local OPTIND OPTARG flag only_one=
+	local OPTIND=1 OPTARG flag only_one=
 	while getopts 1 flag; do
 		case "$flag" in
 		1) only_one=1 ;;
@@ -1116,8 +1116,9 @@ f_device_shutdown()
 f_device_sort_by_awk='
 # Variables that should be defined on the invocation line:
 # 	-v prop="property"
-function asorti(src, dest)
+function _asorti(src, dest)
 {
+	k = nitems = 0
 	for (i in src) dest[++nitems] = i
 	for (i = 1; i <= nitems; k = i++) {
 		idx = dest[i]
@@ -1136,7 +1137,7 @@ function asorti(src, dest)
 	}
 }
 END {
-	nitems = asorti(devices, devices_sorted)
+	nitems = _asorti(devices, devices_sorted)
 	for (i = 1; i <= nitems; i++) print devices[devices_sorted[i]]
 }
 '
@@ -1304,7 +1305,6 @@ f_network "disc%d"  "Software discard network interface"
 f_network "ed%d"    "Novell NE1000/2000; 3C503; NE2000-compatible PCMCIA"
 f_network "el%d"    "3Com 3C501 Ethernet card"
 f_network "em%d"    "Intel(R) PRO/1000 Ethernet card"
-f_network "en%d"    "Efficient Networks ATM PCI card"
 f_network "ep%d"    "3Com 3C509 Ethernet card/3C589 PCMCIA"
 f_network "et%d"    "Agere ET1310 based PCI Express Gigabit Ethernet card"
 f_network "ex%d"    "Intel EtherExpress Pro/10 Ethernet card"
@@ -1321,7 +1321,6 @@ f_network "ipw%d"   "Intel PRO/Wireless 2100 IEEE 802.11 adapter"
 f_network "iwi%d"   "Intel PRO/Wireless 2200BG/2225BG/2915ABG adapter"
 f_network "iwn%d"   "Intel Wireless WiFi Link 4965AGN IEEE 802.11n adapter"
 f_network "ix%d"    "Intel Etherexpress Ethernet card"
-f_network "ixgb%d"  "Intel(R) PRO/10Gb Ethernet card"
 f_network "ixgbe%d" "Intel(R) PRO/10Gb Ethernet card"
 f_network "jme%d"   "JMicron JMC250 Gigabit/JMC260 Fast Ethernet"
 f_network "kue%d"   "Kawasaki LSI USB Ethernet adapter"
@@ -1337,7 +1336,6 @@ f_network "nfe%d"   "NVIDIA nForce MCP Ethernet"
 f_network "ng%d"    "Vimage netgraph(4) bridged Ethernet device"
 f_network "nge%d"   "NatSemi PCI Gigabit Ethernet card"
 f_network "nve%d"   "NVIDIA nForce MCP Ethernet"
-f_network "nxge%d"  "Neterion Xframe 10GbE Server/Storage adapter"
 f_network "pcn%d"   "AMD Am79c79x PCI Ethernet card"
 f_network "plip%d"  "Parallel Port IP (PLIP) peer connection"
 f_network "ral%d"   "Ralink Technology IEEE 802.11 wireless adapter"

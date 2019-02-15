@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 28, 2000
+.Dd December 11, 2015
 .Dt UTRACE 2
 .Os
 .Sh NAME
@@ -37,7 +37,6 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
 .In sys/param.h
 .In sys/time.h
 .In sys/uio.h
@@ -71,7 +70,9 @@ support
 .Sh SEE ALSO
 .Xr kdump 1 ,
 .Xr ktrace 1 ,
-.Xr ktrace 2
+.Xr truss 1 ,
+.Xr ktrace 2 ,
+.Xr sysdecode_utrace 3
 .Sh HISTORY
 The
 .Fn utrace

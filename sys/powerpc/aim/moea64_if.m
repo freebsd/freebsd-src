@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2010 Nathan Whitehorn
+# Copyright (c) 2010,2015 Nathan Whitehorn
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,72 +44,78 @@
 
 INTERFACE moea64;
 
+CODE {
+	static moea64_pte_replace_t moea64_pte_replace_default;
+
+	static int64_t moea64_pte_replace_default(mmu_t mmu,
+	    struct pvo_entry *pvo, int flags)
+	{
+		int64_t refchg;
+
+		refchg = MOEA64_PTE_UNSET(mmu, pvo);
+		MOEA64_PTE_INSERT(mmu, pvo);
+
+		return (refchg);
+	}
+}
 
 /**
- * Copy ref/changed bits from PTE referenced by _pt_cookie to _pvo_pt.
+ * Return ref/changed bits from PTE referenced by _pvo if _pvo is currently in
+ * the page table. Returns -1 if _pvo not currently present in the page table.
  */
-METHOD void pte_synch {
+METHOD int64_t pte_synch {
 	mmu_t		_mmu;
-	uintptr_t	_pt_cookie;
-	struct lpte	*_pvo_pt;
+	struct pvo_entry *_pvo;
 };
 
 /**
  * Clear bits ptebit (a mask) from the low word of the PTE referenced by
- * _pt_cookie. Note that _pvo_pt is for reference use only -- the bit should
- * NOT be cleared there.
+ * _pvo. Return previous values of ref/changed bits or -1 if _pvo is not
+ * currently in the page table.
  */
-METHOD void pte_clear {
+METHOD int64_t pte_clear {
 	mmu_t		_mmu;
-	uintptr_t	_pt_cookie;
-	struct lpte	*_pvo_pt;
-	uint64_t	_vpn;
+	struct pvo_entry *_pvo;
 	uint64_t	_ptebit;
 };
 
 /**
- * Invalidate the PTE referenced by _pt_cookie, synchronizing its validity
- * and ref/changed bits after completion.
+ * Invalidate the PTE referenced by _pvo, returning its ref/changed bits.
+ * Returns -1 if PTE not currently present in page table.
  */
-METHOD void pte_unset {
+METHOD int64_t pte_unset {
 	mmu_t		_mmu;
-	uintptr_t	_pt_cookie;
-	struct lpte	*_pvo_pt;
-	uint64_t	_vpn;
+	struct pvo_entry *_pvo;
 };
 
 /**
- * Update the PTE referenced by _pt_cookie with the values in _pvo_pt,
- * making sure that the values of ref/changed bits are preserved and
- * synchronized back to _pvo_pt.
+ * Update the reference PTE to correspond to the contents of _pvo. Has the
+ * same ref/changed semantics as pte_unset() (and should clear R/C bits). May
+ * change the PVO's location in the page table or return with it unmapped if
+ * PVO_WIRED is not set. By default, does unset() followed by insert().
+ * 
+ * _flags is a bitmask describing what level of page invalidation should occur:
+ *   0 means no invalidation is required
+ *   MOEA64_PTE_PROT_UPDATE signifies that the page protection bits are changing
+ *   MOEA64_PTE_INVALIDATE requires an invalidation of the same strength as
+ *    pte_unset() followed by pte_insert() 
  */
-METHOD void pte_change {
+METHOD int64_t pte_replace {
 	mmu_t		_mmu;
-	uintptr_t	_pt_cookie;
-	struct lpte	*_pvo_pt;
-	uint64_t	_vpn;
-};
-	
+	struct pvo_entry *_pvo;
+	int		_flags;
+} DEFAULT moea64_pte_replace_default;
 
 /**
- * Insert the PTE _pvo_pt into the PTEG group _ptegidx, returning the index
- * of the PTE in its group at completion, or -1 if no slots were free. Must
- * not replace PTEs marked LPTE_WIRED or LPTE_LOCKED, and must set LPTE_HID
- * and LPTE_VALID appropriately in _pvo_pt.
+ * Insert a PTE corresponding to _pvo into the page table, returning any errors
+ * encountered and (optionally) setting the PVO slot value to some
+ * representation of where the entry was placed.
+ *
+ * Must not replace PTEs marked LPTE_WIRED. If an existing valid PTE is spilled,
+ * must synchronize ref/changed bits as in pte_unset().
  */
 METHOD int pte_insert {
 	mmu_t		_mmu;
-	u_int		_ptegidx;
-	struct lpte	*_pvo_pt;
+	struct pvo_entry *_pvo;
 };
-
-/**
- * Return the page table reference cookie corresponding to _pvo, or -1 if
- * the _pvo is not currently in the page table.
- */
-METHOD uintptr_t pvo_to_pte {
-	mmu_t		_mmu;
-	const struct pvo_entry *_pvo;
-};
-
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Matthew N. Dodd <winter@jurai.net>
  * All rights reserved.
  *
@@ -216,8 +218,8 @@ agp_nvidia_attach (device_t dev)
 	if (sc->num_dirs == 0) {
 		sc->num_dirs = 1;
 		sc->num_active_entries /= (64 / size);
-		sc->pg_offset = (apbase & (64 * 1024 * 1024 - 1) &
-				 ~(AGP_GET_APERTURE(dev) - 1)) / PAGE_SIZE;
+		sc->pg_offset = rounddown2(apbase & (64 * 1024 * 1024 - 1),
+		    AGP_GET_APERTURE(dev)) / PAGE_SIZE;
 	}
 
 	/* (G)ATT Base Address */
@@ -274,11 +276,11 @@ static u_int32_t
 agp_nvidia_get_aperture(device_t dev)
 {
 	switch (pci_read_config(dev, AGP_NVIDIA_0_APSIZE, 1) & 0x0f) {
-	case 0: return (512 * 1024 * 1024); break;
-	case 8: return (256 * 1024 * 1024); break;
-	case 12: return (128 * 1024 * 1024); break;
-	case 14: return (64 * 1024 * 1024); break;
-	case 15: return (32 * 1024 * 1024); break;
+	case 0: return (512 * 1024 * 1024);
+	case 8: return (256 * 1024 * 1024);
+	case 12: return (128 * 1024 * 1024);
+	case 14: return (64 * 1024 * 1024);
+	case 15: return (32 * 1024 * 1024);
 	default:
 		device_printf(dev, "Invalid aperture setting 0x%x\n",
 		    pci_read_config(dev, AGP_NVIDIA_0_APSIZE, 1));
@@ -410,7 +412,7 @@ nvidia_init_iorr(u_int32_t addr, u_int32_t size)
 	}
 
 	base = (addr & ~0xfff) | 0x18;
-	mask = (0xfULL << 32) | ((~(size - 1)) & 0xfffff000) | 0x800;
+	mask = (0xfULL << 32) | rounddown2(0xfffff000, size) | 0x800;
 	wrmsr(IORR_BASE0 + 2 * iorr_addr, base);
 	wrmsr(IORR_MASK0 + 2 * iorr_addr, mask);
 

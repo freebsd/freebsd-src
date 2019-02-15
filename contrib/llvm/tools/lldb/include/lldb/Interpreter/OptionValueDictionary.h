@@ -19,121 +19,75 @@
 #include "lldb/Interpreter/OptionValue.h"
 
 namespace lldb_private {
-    
-class OptionValueDictionary : public OptionValue
-{
+
+class OptionValueDictionary : public OptionValue {
 public:
-    OptionValueDictionary (uint32_t type_mask = UINT32_MAX, bool raw_value_dump = true) :
-        OptionValue(),
-        m_type_mask (type_mask),
-        m_values (),
-        m_raw_value_dump (raw_value_dump)
-    {
-    }
-    
-    virtual 
-    ~OptionValueDictionary()
-    {
-    }
-    
-    //---------------------------------------------------------------------
-    // Virtual subclass pure virtual overrides
-    //---------------------------------------------------------------------
-    
-    virtual OptionValue::Type
-    GetType () const
-    {
-        return eTypeDictionary;
-    }
-    
-    virtual void
-    DumpValue (const ExecutionContext *exe_ctx, Stream &strm, uint32_t dump_mask);
-    
-    virtual Error
-    SetValueFromCString (const char *value,
-                         VarSetOperationType op = eVarSetOperationAssign);
-    
-    virtual bool
-    Clear ()
-    {
-        m_values.clear();
-        m_value_was_set = false;
-        return true;
-    }
-    
-    virtual lldb::OptionValueSP
-    DeepCopy () const;
-    
-    virtual bool
-    IsAggregateValue () const
-    {
-        return true;
-    }
+  OptionValueDictionary(uint32_t type_mask = UINT32_MAX,
+                        bool raw_value_dump = true)
+      : OptionValue(), m_type_mask(type_mask), m_values(),
+        m_raw_value_dump(raw_value_dump) {}
 
-    bool
-    IsHomogenous() const
-    {
-        return ConvertTypeMaskToType (m_type_mask) != eTypeInvalid;
-    }
+  ~OptionValueDictionary() override {}
 
-    //---------------------------------------------------------------------
-    // Subclass specific functions
-    //---------------------------------------------------------------------
-    
-    size_t
-    GetNumValues() const
-    {
-        return m_values.size();
-    }
-    
-    lldb::OptionValueSP
-    GetValueForKey (const ConstString &key) const;
-    
-    virtual lldb::OptionValueSP
-    GetSubValue (const ExecutionContext *exe_ctx,
-                 const char *name,
-                 bool will_modify,
-                 Error &error) const;
-    
-    virtual Error
-    SetSubValue (const ExecutionContext *exe_ctx,
-                 VarSetOperationType op,
-                 const char *name,
-                 const char *value);
+  //---------------------------------------------------------------------
+  // Virtual subclass pure virtual overrides
+  //---------------------------------------------------------------------
 
-    //---------------------------------------------------------------------
-    // String value getters and setters
-    //---------------------------------------------------------------------
-    const char *
-    GetStringValueForKey (const ConstString &key);
+  OptionValue::Type GetType() const override { return eTypeDictionary; }
 
-    bool
-    SetStringValueForKey (const ConstString &key, 
-                          const char *value,
-                          bool can_replace = true);
+  void DumpValue(const ExecutionContext *exe_ctx, Stream &strm,
+                 uint32_t dump_mask) override;
 
-    
-    bool
-    SetValueForKey (const ConstString &key, 
-                    const lldb::OptionValueSP &value_sp, 
-                    bool can_replace = true);
-    
-    bool
-    DeleteValueForKey (const ConstString &key);
-    
-    size_t
-    GetArgs (Args &args) const;
-    
-    Error
-    SetArgs (const Args &args, VarSetOperationType op);
-    
+  Status
+  SetValueFromString(llvm::StringRef value,
+                     VarSetOperationType op = eVarSetOperationAssign) override;
+
+  bool Clear() override {
+    m_values.clear();
+    m_value_was_set = false;
+    return true;
+  }
+
+  lldb::OptionValueSP DeepCopy() const override;
+
+  bool IsAggregateValue() const override { return true; }
+
+  bool IsHomogenous() const {
+    return ConvertTypeMaskToType(m_type_mask) != eTypeInvalid;
+  }
+
+  //---------------------------------------------------------------------
+  // Subclass specific functions
+  //---------------------------------------------------------------------
+
+  size_t GetNumValues() const { return m_values.size(); }
+
+  lldb::OptionValueSP GetValueForKey(const ConstString &key) const;
+
+  lldb::OptionValueSP GetSubValue(const ExecutionContext *exe_ctx,
+                                  llvm::StringRef name, bool will_modify,
+                                  Status &error) const override;
+
+  Status SetSubValue(const ExecutionContext *exe_ctx, VarSetOperationType op,
+                     llvm::StringRef name, llvm::StringRef value) override;
+
+  bool SetValueForKey(const ConstString &key,
+                      const lldb::OptionValueSP &value_sp,
+                      bool can_replace = true);
+
+  bool DeleteValueForKey(const ConstString &key);
+
+  size_t GetArgs(Args &args) const;
+
+  Status SetArgs(const Args &args, VarSetOperationType op);
+
 protected:
-    typedef std::map<ConstString, lldb::OptionValueSP> collection;
-    uint32_t m_type_mask;
-    collection m_values;
-    bool m_raw_value_dump;
+  typedef std::map<ConstString, lldb::OptionValueSP> collection;
+  uint32_t m_type_mask;
+  collection m_values;
+  bool m_raw_value_dump;
 };
-    
+
 } // namespace lldb_private
 
-#endif  // liblldb_OptionValueDictionary_h_
+#endif // liblldb_OptionValueDictionary_h_

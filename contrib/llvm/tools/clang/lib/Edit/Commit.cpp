@@ -38,9 +38,7 @@ CharSourceRange Commit::Edit::getInsertFromRange(SourceManager &SM) const {
 Commit::Commit(EditedSource &Editor)
   : SourceMgr(Editor.getSourceManager()), LangOpts(Editor.getLangOpts()),
     PPRec(Editor.getPPCondDirectiveRecord()),
-    Editor(&Editor),
-    ForceCommitInSystemHeader(Editor.getForceCommitInSystemHeader()),
-    IsCommitable(true) { }
+    Editor(&Editor), IsCommitable(true) { }
 
 bool Commit::insert(SourceLocation loc, StringRef text,
                     bool afterToken, bool beforePreviousInsertions) {
@@ -185,7 +183,7 @@ void Commit::addInsert(SourceLocation OrigLoc, FileOffset Offs, StringRef text,
   data.Kind = Act_Insert;
   data.OrigLoc = OrigLoc;
   data.Offset = Offs;
-  data.Text = copyString(text);
+  data.Text = text.copy(StrAlloc);
   data.BeforePrev = beforePreviousInsertions;
   CachedEdits.push_back(data);
 }
@@ -234,7 +232,7 @@ bool Commit::canInsert(SourceLocation loc, FileOffset &offs) {
     if (!isAtStartOfMacroExpansion(loc, &loc))
       return false;
 
-  if (SM.isInSystemHeader(loc) && ForceCommitInSystemHeader)
+  if (SM.isInSystemHeader(loc))
     return false;
 
   std::pair<FileID, unsigned> locInfo = SM.getDecomposedLoc(loc);
@@ -265,7 +263,7 @@ bool Commit::canInsertAfterToken(SourceLocation loc, FileOffset &offs,
     if (!isAtEndOfMacroExpansion(loc, &loc))
       return false;
 
-  if (SM.isInSystemHeader(loc) && ForceCommitInSystemHeader)
+  if (SM.isInSystemHeader(loc))
     return false;
 
   loc = Lexer::getLocForEndOfToken(loc, 0, SourceMgr, LangOpts);
@@ -303,8 +301,8 @@ bool Commit::canRemoveRange(CharSourceRange range,
   
   if (range.getBegin().isMacroID() || range.getEnd().isMacroID())
     return false;
-  if ((SM.isInSystemHeader(range.getBegin()) ||
-       SM.isInSystemHeader(range.getEnd())) && ForceCommitInSystemHeader)
+  if (SM.isInSystemHeader(range.getBegin()) ||
+      SM.isInSystemHeader(range.getEnd()))
     return false;
 
   if (PPRec && PPRec->rangeIntersectsConditionalDirective(range.getAsRange()))

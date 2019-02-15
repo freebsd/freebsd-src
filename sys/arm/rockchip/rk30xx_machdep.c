@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@freebsd.org>
  * All rights reserved.
  *
@@ -34,44 +36,30 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/armreg.h>
 #include <machine/bus.h>
-#include <machine/devmap.h>
 #include <machine/machdep.h>
-#include <machine/platform.h> 
-
-#include <dev/fdt/fdt_common.h>
+#include <machine/platform.h>
+#include <machine/platformvar.h>
 
 #include <arm/rockchip/rk30xx_wdog.h>
+#include <arm/rockchip/rk30xx_mp.h>
 
-vm_offset_t
-platform_lastaddr(void)
-{
+#include "platform_if.h"
 
-	return (arm_devmap_lastaddr());
-}
+static platform_devmap_init_t rk30xx_devmap_init;
+static platform_late_init_t rk30xx_late_init;
+static platform_cpu_reset_t rk30xx_cpu_reset;
 
-void
-platform_probe_and_attach(void)
-{
-
-}
-
-void
-platform_gpio_init(void)
-{
-}
-
-void
-platform_late_init(void)
+static void
+rk30xx_late_init(platform_t plat)
 {
 
 	/* Enable cache */
@@ -82,35 +70,36 @@ platform_late_init(void)
 /*
  * Set up static device mappings.
  */
-int
-platform_devmap_init(void)
+static int
+rk30xx_devmap_init(platform_t plat)
 {
 
-	arm_devmap_add_entry(0x10000000, 0x00200000);
-	arm_devmap_add_entry(0x20000000, 0x00100000);
+	devmap_add_entry(0x10000000, 0x00200000);
+	devmap_add_entry(0x20000000, 0x00100000);
 	
 	return (0);
 }
 
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
-
-	return (NULL);
-}
-
-int
-bus_dma_get_range_nb(void)
-{
-
-	return (0);
-}
-
-void
-cpu_reset()
+static void
+rk30xx_cpu_reset(platform_t plat)
 {
 
 	rk30_wd_watchdog_reset();
 	printf("Reset failed!\n");
 	while (1);
 }
+
+#if defined(SOC_ROCKCHIP_RK3188)
+static platform_method_t rk30xx_methods[] = {
+	PLATFORMMETHOD(platform_devmap_init,	rk30xx_devmap_init),
+	PLATFORMMETHOD(platform_late_init,	rk30xx_late_init),
+	PLATFORMMETHOD(platform_cpu_reset,	rk30xx_cpu_reset),
+
+#ifdef SMP
+	PLATFORMMETHOD(platform_mp_start_ap,	rk30xx_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid,	rk30xx_mp_setmaxid),
+#endif
+	PLATFORMMETHOD_END,
+};
+FDT_PLATFORM_DEF(rk30xx, "RK3188", 0, "rockchip,rk3188", 200);
+#endif

@@ -10,9 +10,11 @@
 // inter-checker communications.
 //===----------------------------------------------------------------------===//
 
-#ifndef INTERCHECKERAPI_H_
-#define INTERCHECKERAPI_H_
+#ifndef LLVM_CLANG_LIB_STATICANALYZER_CHECKERS_INTERCHECKERAPI_H
+#define LLVM_CLANG_LIB_STATICANALYZER_CHECKERS_INTERCHECKERAPI_H
 namespace clang {
+class CheckerManager;
+
 namespace ento {
 
 /// Register the checker which evaluates CString API calls.

@@ -87,13 +87,18 @@ int iter_apply_cfg(struct iter_env* iter_env, struct config_file* cfg);
  * @param open_target: number of currently outstanding target queries.
  * 	If we wait for these, perhaps more server addresses become available.
  * @param blacklist: the IP blacklist to use.
+ * @param prefetch: if not 0, prefetch is in use for this query.
+ * 	This means the query can have different timing, because prefetch is
+ * 	not waited upon by the downstream client, and thus a good time to
+ * 	perform exploration of other targets.
  * @return best target or NULL if no target.
  *	if not null, that target is removed from the result list in the dp.
  */
 struct delegpt_addr* iter_server_selection(struct iter_env* iter_env, 
 	struct module_env* env, struct delegpt* dp, uint8_t* name, 
 	size_t namelen, uint16_t qtype, int* dnssec_lame,
-	int* chase_to_rd, int open_target, struct sock_list* blacklist);
+	int* chase_to_rd, int open_target, struct sock_list* blacklist,
+	time_t prefetch);
 
 /**
  * Allocate dns_msg from parsed msg, in regional.
@@ -124,6 +129,7 @@ struct dns_msg* dns_copy_msg(struct dns_msg* from, struct regional* regional);
  * @param pside: true if dp is parentside, thus message is 'fresh' and NS
  * 	can be prefetch-updates.
  * @param region: to copy modified (cache is better) rrs back to.
+ * @param flags: with BIT_CD for dns64 AAAA translated queries.
  * @return void, because we are not interested in alloc errors,
  * 	the iterator and validator can operate on the results in their
  * 	scratch space (the qstate.region) and are not dependent on the cache.
@@ -132,7 +138,7 @@ struct dns_msg* dns_copy_msg(struct dns_msg* from, struct regional* regional);
  */
 void iter_dns_store(struct module_env* env, struct query_info* qinf,
 	struct reply_info* rep, int is_referral, time_t leeway, int pside,
-	struct regional* region);
+	struct regional* region, uint16_t flags);
 
 /**
  * Select randomly with n/m probability.
@@ -173,6 +179,17 @@ int iter_dp_is_useless(struct query_info* qinfo, uint16_t qflags,
 	struct delegpt* dp);
 
 /**
+ * See if qname has DNSSEC needs.  This is true if there is a trust anchor above
+ * it.  Whether there is an insecure delegation to the data is unknown.
+ * @param env: environment with anchors.
+ * @param qinfo: query name and class.
+ * @return true if trust anchor above qname, false if no anchor or insecure
+ * point above qname.
+ */
+int iter_qname_indicates_dnssec(struct module_env* env,
+	struct query_info *qinfo);
+
+/**
  * See if delegation is expected to have DNSSEC information (RRSIGs) in 
  * its answers, or not. Inspects delegation point (name), trust anchors,
  * and delegation message (DS RRset) to determine this.
@@ -180,7 +197,7 @@ int iter_dp_is_useless(struct query_info* qinfo, uint16_t qflags,
  * @param dp: delegation point.
  * @param msg: delegation message, with DS if a secure referral.
  * @param dclass: class of query.
- * @return 1 if dnssec is expected, 0 if not.
+ * @return 1 if dnssec is expected, 0 if not or insecure point above qname.
  */
 int iter_indicates_dnssec(struct module_env* env, struct delegpt* dp,
 	struct dns_msg* msg, uint16_t dclass);
@@ -222,7 +239,24 @@ int iter_msg_from_zone(struct dns_msg* msg, struct delegpt* dp,
 int reply_equal(struct reply_info* p, struct reply_info* q, struct regional* region);
 
 /**
- * Store parent-side rrset in seperate rrset cache entries for later 
+ * Remove unused bits from the reply if possible.
+ * So that caps-for-id (0x20) fallback is more likely to be successful.
+ * This removes like, the additional section, and NS record in the authority
+ * section if those records are gratuitous (not for a referral).
+ * @param rep: the reply to strip stuff out of.
+ */
+void caps_strip_reply(struct reply_info* rep);
+
+/**
+ * see if reply has a 'useful' rcode for capsforid comparison, so
+ * not SERVFAIL or REFUSED, and thus NOERROR or NXDOMAIN.
+ * @param rep: reply to check.
+ * @return true if the rcode is a bad type of message.
+ */
+int caps_failed_rcode(struct reply_info* rep);
+
+/**
+ * Store parent-side rrset in separate rrset cache entries for later 
  * last-resort * lookups in case the child-side versions of this information 
  * fails.
  * @param env: environment with cache, time, ...

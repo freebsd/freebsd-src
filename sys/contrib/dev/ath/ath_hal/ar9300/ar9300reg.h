@@ -506,6 +506,7 @@
 #define AR_Q0_MISC                        AR_MAC_QCU_OFFSET(MAC_QCU_MISC)
 #define AR_QMISC(_i)                      (AR_Q0_MISC + ((_i)<<2))
 #define AR_Q_MISC_FSP                     0x0000000F // Mask for Frame Scheduling Policy
+#define AR_Q_MISC_FSP_S                   0
 #define AR_Q_MISC_FSP_ASAP                0          // ASAP
 #define AR_Q_MISC_FSP_CBR                 1          // CBR
 #define AR_Q_MISC_FSP_DBA_GATED           2          // DMA Beacon Alert gated
@@ -2855,6 +2856,9 @@ enum {
 #define AR_BTCOEX_WL_WEIGHTS3           AR_WLAN_COEX_OFFSET(BTCOEX_WL_WEIGHTS3) 
 #define AR_BTCOEX_MAX_TXPWR(_x)         (AR_WLAN_COEX_OFFSET(BTCOEX_MAX_TXPWR) + ((_x) << 2))
 #define AR_BTCOEX_WL_LNA                AR_WLAN_COEX_OFFSET(BTCOEX_WL_LNA) 
+#define AR_BTCOEX_WL_LNA_TIMEOUT                        0x003FFFFF
+#define AR_BTCOEX_WL_LNA_TIMEOUT_S                      0
+
 #define AR_BTCOEX_RFGAIN_CTRL           AR_WLAN_COEX_OFFSET(BTCOEX_RFGAIN_CTRL) 
 
 #define AR_BTCOEX_CTRL2                 AR_WLAN_COEX_OFFSET(BTCOEX_CTRL2) 
@@ -2886,6 +2890,32 @@ enum {
 #define AR_BTCOEX_CTRL3                 AR_WLAN_COEX_OFFSET(BTCOEX_CTRL3)
 #define AR_BTCOEX_CTRL3_CONT_INFO_TIMEOUT   0x00000FFF
 #define AR_BTCOEX_CTRL3_CONT_INFO_TIMEOUT_S 0
+
+/* QCA9565 */
+
+#define AR_BTCOEX_WL_LNADIV                                0x1a64
+#define AR_BTCOEX_WL_LNADIV_PREDICTED_PERIOD               0x00003FFF
+#define AR_BTCOEX_WL_LNADIV_PREDICTED_PERIOD_S             0
+#define AR_BTCOEX_WL_LNADIV_DPDT_IGNORE_PRIORITY           0x00004000
+#define AR_BTCOEX_WL_LNADIV_DPDT_IGNORE_PRIORITY_S         14
+#define AR_BTCOEX_WL_LNADIV_FORCE_ON                       0x00008000
+#define AR_BTCOEX_WL_LNADIV_FORCE_ON_S                     15
+#define AR_BTCOEX_WL_LNADIV_MODE_OPTION                    0x00030000
+#define AR_BTCOEX_WL_LNADIV_MODE_OPTION_S                  16
+#define AR_BTCOEX_WL_LNADIV_MODE                           0x007c0000
+#define AR_BTCOEX_WL_LNADIV_MODE_S                         18
+#define AR_BTCOEX_WL_LNADIV_ALLOWED_TX_ANTDIV_WL_TX_REQ    0x00800000
+#define AR_BTCOEX_WL_LNADIV_ALLOWED_TX_ANTDIV_WL_TX_REQ_S  23
+#define AR_BTCOEX_WL_LNADIV_DISABLE_TX_ANTDIV_ENABLE       0x01000000
+#define AR_BTCOEX_WL_LNADIV_DISABLE_TX_ANTDIV_ENABLE_S     24
+#define AR_BTCOEX_WL_LNADIV_CONTINUOUS_BT_ACTIVE_PROTECT   0x02000000
+#define AR_BTCOEX_WL_LNADIV_CONTINUOUS_BT_ACTIVE_PROTECT_S 25
+#define AR_BTCOEX_WL_LNADIV_BT_INACTIVE_THRESHOLD          0xFC000000
+#define AR_BTCOEX_WL_LNADIV_BT_INACTIVE_THRESHOLD_S        26
+
+#define AR_MCI_MISC                                     0x1a74
+#define AR_MCI_MISC_HW_FIX_EN                           0x00000001
+#define AR_MCI_MISC_HW_FIX_EN_S                         0
 
 /******************************************************************************
  * WLAN BT Global Register Map
@@ -2945,6 +2975,7 @@ enum {
 #define AR_SREV_VERSION_WASP   0x300 /* XXX: Check Wasp version number */
 #define AR_SREV_VERSION_SCORPION 0x400
 #define AR_SREV_VERSION_POSEIDON 0x240
+#define AR_SREV_VERSION_HONEYBEE 0x500
 #define AR_SREV_VERSION_APHRODITE 0x2C0
 
 #define AR_SREV_REVISION_OSPREY_10            0      /* Osprey 1.0 */
@@ -2970,6 +3001,11 @@ enum {
 
 #define AR_SREV_REVISION_JUPITER_10           0      /* Jupiter 1.0 */
 #define AR_SREV_REVISION_JUPITER_20           2      /* Jupiter 2.0 */
+#define AR_SREV_REVISION_JUPITER_21           3      /* Jupiter 2.1 */
+
+#define AR_SREV_REVISION_HONEYBEE_10          0      /* Honeybee 1.0 */
+#define AR_SREV_REVISION_HONEYBEE_11          1      /* Honeybee 1.1 */
+#define AR_SREV_REVISION_HONEYBEE_MASK        0xf    /* Honeybee revision mask */
 
 #define AR_SREV_REVISION_APHRODITE_10         0      /* Aphrodite 1.0 */
 
@@ -2999,7 +3035,7 @@ enum {
 
 /* NOTE: When adding chips newer than Peacock, add chip check here.  */
 #define AR_SREV_AR9580_10_OR_LATER(_ah) \
-    (AR_SREV_AR9580(_ah))
+    (AR_SREV_AR9580(_ah) || AR_SREV_SCORPION(_ah) || AR_SREV_HONEYBEE(_ah))
 
 #define AR_SREV_JUPITER(_ah) \
     ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_JUPITER))
@@ -3012,9 +3048,17 @@ enum {
     ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_JUPITER) && \
      (AH_PRIVATE((_ah))->ah_macRev == AR_SREV_REVISION_JUPITER_20))
 
+#define AR_SREV_JUPITER_21(_ah) \
+    ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_JUPITER) && \
+     (AH_PRIVATE((_ah))->ah_macRev == AR_SREV_REVISION_JUPITER_21))
+
 #define AR_SREV_JUPITER_20_OR_LATER(_ah) \
     ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_JUPITER) && \
      (AH_PRIVATE((_ah))->ah_macRev >= AR_SREV_REVISION_JUPITER_20))
+
+#define AR_SREV_JUPITER_21_OR_LATER(_ah) \
+    ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_JUPITER) && \
+     (AH_PRIVATE((_ah))->ah_macRev >= AR_SREV_REVISION_JUPITER_21))
 
 #define AR_SREV_APHRODITE(_ah) \
     ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_APHRODITE))
@@ -3051,6 +3095,21 @@ enum {
 #else
 #define AR_SREV_WASP(_ah)                                         0
 #endif /* #if defined(AH_SUPPORT_WASP) */
+
+#if defined(AH_SUPPORT_HONEYBEE)
+#define AR_SREV_HONEYBEE(_ah) \
+    ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_HONEYBEE))
+#define AR_SREV_HONEYBEE_10(_ah) \
+    ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_HONEYBEE) && \
+     (AH_PRIVATE((_ah))->ah_macRev == AR_SREV_REVISION_HONEYBEE_10))
+#define AR_SREV_HONEYBEE_11(_ah) \
+    ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_HONEYBEE) && \
+     (AH_PRIVATE((_ah))->ah_macRev == AR_SREV_REVISION_HONEYBEE_11))
+#else
+#define AR_SREV_HONEYBEE(_ah)                                         0
+#define AR_SREV_HONEYBEE_10(_ah) 0
+#define AR_SREV_HONEYBEE_11(_ah) 0
+#endif /* #if defined(AH_SUPPORT_HONEYBEE) */
 
 #define AR_SREV_WASP_10(_ah) \
     ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_WASP) && \
@@ -3094,7 +3153,7 @@ enum {
 
 #define AR_SREV_POSEIDON_OR_LATER(_ah) \
     (AH_PRIVATE((_ah))->ah_macVersion >= AR_SREV_VERSION_POSEIDON)
-#define AR_SREV_SOC(_ah) (AR_SREV_HORNET(_ah) || AR_SREV_POSEIDON(_ah) || AR_SREV_WASP(_ah))
+#define AR_SREV_SOC(_ah) (AR_SREV_HORNET(_ah) || AR_SREV_POSEIDON(_ah) || AR_SREV_WASP(_ah) || AR_SREV_HONEYBEE(_ah))
 /*
 * Mask used to construct AAD for CCMP-AES
 * Cisco spec defined bits 0-3 as mask 

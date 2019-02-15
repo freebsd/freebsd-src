@@ -3,16 +3,18 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime
 PROG=	ls
 SRCS=	cmp.c ls.c print.c util.c
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 
 .if !defined(RELEASE_CRUNCH) && \
 	${MK_LS_COLORS} != no
 CFLAGS+= -DCOLORLS
-DPADD+=	${LIBTERMCAPW}
-LDADD+=	-ltermcapw
+LIBADD+=	termcapw
 .endif
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

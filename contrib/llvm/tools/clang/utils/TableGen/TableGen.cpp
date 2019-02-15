@@ -24,15 +24,16 @@ using namespace clang;
 
 enum ActionType {
   GenClangAttrClasses,
-  GenClangAttrIdentifierArgList,
-  GenClangAttrTypeArgList,
+  GenClangAttrParserStringSwitches,
+  GenClangAttrSubjectMatchRulesParserStringSwitches,
   GenClangAttrImpl,
   GenClangAttrList,
+  GenClangAttrSubjectMatchRuleList,
   GenClangAttrPCHRead,
   GenClangAttrPCHWrite,
-  GenClangAttrSpellingList,
+  GenClangAttrHasAttributeImpl,
   GenClangAttrSpellingListIndex,
-  GenClangAttrLateParsedList,
+  GenClangAttrASTVisitor,
   GenClangAttrTemplateInstantiate,
   GenClangAttrParsedAttrList,
   GenClangAttrParsedAttrImpl,
@@ -52,7 +53,12 @@ enum ActionType {
   GenClangCommentCommandList,
   GenArmNeon,
   GenArmNeonSema,
-  GenArmNeonTest
+  GenArmNeonTest,
+  GenAttrDocs,
+  GenDiagDocs,
+  GenOptDocs,
+  GenDataCollectors,
+  GenTestPragmaAttributeSupportedAttributes
 };
 
 namespace {
@@ -61,30 +67,32 @@ cl::opt<ActionType> Action(
     cl::values(
         clEnumValN(GenClangAttrClasses, "gen-clang-attr-classes",
                    "Generate clang attribute clases"),
-        clEnumValN(GenClangAttrIdentifierArgList,
-                   "gen-clang-attr-identifier-arg-list",
-                   "Generate a list of attributes that take an "
-                   "identifier as their first argument"),
-        clEnumValN(GenClangAttrTypeArgList,
-                   "gen-clang-attr-type-arg-list",
-                   "Generate a list of attributes that take a type as their "
-                   "first argument"),
+        clEnumValN(GenClangAttrParserStringSwitches,
+                   "gen-clang-attr-parser-string-switches",
+                   "Generate all parser-related attribute string switches"),
+        clEnumValN(GenClangAttrSubjectMatchRulesParserStringSwitches,
+                   "gen-clang-attr-subject-match-rules-parser-string-switches",
+                   "Generate all parser-related attribute subject match rule"
+                   "string switches"),
         clEnumValN(GenClangAttrImpl, "gen-clang-attr-impl",
                    "Generate clang attribute implementations"),
         clEnumValN(GenClangAttrList, "gen-clang-attr-list",
                    "Generate a clang attribute list"),
+        clEnumValN(GenClangAttrSubjectMatchRuleList,
+                   "gen-clang-attr-subject-match-rule-list",
+                   "Generate a clang attribute subject match rule list"),
         clEnumValN(GenClangAttrPCHRead, "gen-clang-attr-pch-read",
                    "Generate clang PCH attribute reader"),
         clEnumValN(GenClangAttrPCHWrite, "gen-clang-attr-pch-write",
                    "Generate clang PCH attribute writer"),
-        clEnumValN(GenClangAttrSpellingList, "gen-clang-attr-spelling-list",
+        clEnumValN(GenClangAttrHasAttributeImpl,
+                   "gen-clang-attr-has-attribute-impl",
                    "Generate a clang attribute spelling list"),
         clEnumValN(GenClangAttrSpellingListIndex,
                    "gen-clang-attr-spelling-index",
                    "Generate a clang attribute spelling index"),
-        clEnumValN(GenClangAttrLateParsedList,
-                   "gen-clang-attr-late-parsed-list",
-                   "Generate a clang attribute LateParsed list"),
+        clEnumValN(GenClangAttrASTVisitor, "gen-clang-attr-ast-visitor",
+                   "Generate a recursive AST visitor for clang attributes"),
         clEnumValN(GenClangAttrTemplateInstantiate,
                    "gen-clang-attr-template-instantiate",
                    "Generate a clang template instantiate code"),
@@ -135,7 +143,17 @@ cl::opt<ActionType> Action(
                    "Generate ARM NEON sema support for clang"),
         clEnumValN(GenArmNeonTest, "gen-arm-neon-test",
                    "Generate ARM NEON tests for clang"),
-        clEnumValEnd));
+        clEnumValN(GenAttrDocs, "gen-attr-docs",
+                   "Generate attribute documentation"),
+        clEnumValN(GenDiagDocs, "gen-diag-docs",
+                   "Generate diagnostic documentation"),
+        clEnumValN(GenOptDocs, "gen-opt-docs", "Generate option documentation"),
+        clEnumValN(GenDataCollectors, "gen-clang-data-collectors",
+                   "Generate data collectors for AST nodes"),
+        clEnumValN(GenTestPragmaAttributeSupportedAttributes,
+                   "gen-clang-test-pragma-attribute-supported-attributes",
+                   "Generate a list of attributes supported by #pragma clang "
+                   "attribute for testing purposes")));
 
 cl::opt<std::string>
 ClangComponent("clang-component",
@@ -147,11 +165,11 @@ bool ClangTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   case GenClangAttrClasses:
     EmitClangAttrClass(Records, OS);
     break;
-  case GenClangAttrIdentifierArgList:
-    EmitClangAttrIdentifierArgList(Records, OS);
+  case GenClangAttrParserStringSwitches:
+    EmitClangAttrParserStringSwitches(Records, OS);
     break;
-  case GenClangAttrTypeArgList:
-    EmitClangAttrTypeArgList(Records, OS);
+  case GenClangAttrSubjectMatchRulesParserStringSwitches:
+    EmitClangAttrSubjectMatchRulesParserStringSwitches(Records, OS);
     break;
   case GenClangAttrImpl:
     EmitClangAttrImpl(Records, OS);
@@ -159,20 +177,23 @@ bool ClangTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   case GenClangAttrList:
     EmitClangAttrList(Records, OS);
     break;
+  case GenClangAttrSubjectMatchRuleList:
+    EmitClangAttrSubjectMatchRuleList(Records, OS);
+    break;
   case GenClangAttrPCHRead:
     EmitClangAttrPCHRead(Records, OS);
     break;
   case GenClangAttrPCHWrite:
     EmitClangAttrPCHWrite(Records, OS);
     break;
-  case GenClangAttrSpellingList:
-    EmitClangAttrSpellingList(Records, OS);
+  case GenClangAttrHasAttributeImpl:
+    EmitClangAttrHasAttrImpl(Records, OS);
     break;
   case GenClangAttrSpellingListIndex:
     EmitClangAttrSpellingListIndex(Records, OS);
     break;
-  case GenClangAttrLateParsedList:
-    EmitClangAttrLateParsedList(Records, OS);
+  case GenClangAttrASTVisitor:
+    EmitClangAttrASTVisitor(Records, OS);
     break;
   case GenClangAttrTemplateInstantiate:
     EmitClangAttrTemplateInstantiate(Records, OS);
@@ -235,6 +256,21 @@ bool ClangTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   case GenArmNeonTest:
     EmitNeonTest(Records, OS);
     break;
+  case GenAttrDocs:
+    EmitClangAttrDocs(Records, OS);
+    break;
+  case GenDiagDocs:
+    EmitClangDiagDocs(Records, OS);
+    break;
+  case GenOptDocs:
+    EmitClangOptDocs(Records, OS);
+    break;
+  case GenDataCollectors:
+    EmitClangDataCollectors(Records, OS);
+    break;
+  case GenTestPragmaAttributeSupportedAttributes:
+    EmitTestPragmaAttributeSupportedAttributes(Records, OS);
+    break;
   }
 
   return false;
@@ -242,9 +278,20 @@ bool ClangTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
 }
 
 int main(int argc, char **argv) {
-  sys::PrintStackTraceOnErrorSignal();
+  sys::PrintStackTraceOnErrorSignal(argv[0]);
   PrettyStackTraceProgram X(argc, argv);
   cl::ParseCommandLineOptions(argc, argv);
 
+  llvm_shutdown_obj Y;
+
   return TableGenMain(argv[0], &ClangTableGenMain);
 }
+
+#ifdef __has_feature
+#if __has_feature(address_sanitizer)
+#include <sanitizer/lsan_interface.h>
+// Disable LeakSanitizer for this binary as it has too many leaks that are not
+// very interesting to fix. See compiler-rt/include/sanitizer/lsan_interface.h .
+int __lsan_is_turned_off() { return 1; }
+#endif  // __has_feature(address_sanitizer)
+#endif  // defined(__has_feature)

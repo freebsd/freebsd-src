@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2012 Broadcom Corporation
  * All Rights Reserved
  *
@@ -12,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,18 +32,12 @@
 #ifndef _NLMRSALIB_H_
 #define _NLMRSALIB_H_
 
-#define	XLP_RSA_SESSION(sid)	((sid) & 0x000007ff)
-#define	XLP_RSA_SID(crd,ses)	(((crd) << 28) | ((ses) & 0x7ff))
-
 #define	RSA_ERROR(msg0)		(((msg0) >> 53) & 0x1f)
 
 struct xlp_rsa_session {
-	uint32_t sessionid;
-	int hs_used;
 };
 
 struct xlp_rsa_command {
-	uint16_t session_num;
 	struct xlp_rsa_session *ses;
 	struct cryptkop *krp;
 	uint8_t *rsasrc;
@@ -57,8 +53,6 @@ struct xlp_rsa_softc {
 	device_t sc_dev;	/* device backpointer */
 	uint64_t rsa_base;
 	int sc_cid;
-	struct xlp_rsa_session *sc_sessions;
-	int sc_nsessions;
 	int rsaecc_vc_start;
 	int rsaecc_vc_end;
 };

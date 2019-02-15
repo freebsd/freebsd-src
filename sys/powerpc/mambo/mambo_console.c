@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2008 by Nathan Whitehorn. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -89,7 +91,7 @@ cn_drvinit(void *unused)
 
 		polltime = 1;
 
-		callout_init(&mambo_callout, CALLOUT_MPSAFE);
+		callout_init(&mambo_callout, 1);
 		callout_reset(&mambo_callout, polltime, mambo_timeout, NULL);
 	}
 }

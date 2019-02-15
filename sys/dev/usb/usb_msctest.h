@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,5 +54,7 @@ usb_error_t usb_msc_write_10(struct usb_device *udev,
 usb_error_t usb_msc_read_capacity(struct usb_device *udev,
 	    uint8_t iface_index, uint32_t *lba_last,
 	    uint32_t *block_size);
+usb_error_t usb_dymo_eject(struct usb_device *udev,
+	    uint8_t iface_index);
 
 #endif					/* _USB_MSCTEST_H_ */

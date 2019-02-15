@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ian Lepore <ian@freebsd.org>
  * All rights reserved.
  *
@@ -58,6 +60,9 @@
 #define	IMX6_ANALOG_CCM_PLL_SYS_NUM			0x050
 #define	IMX6_ANALOG_CCM_PLL_SYS_DENOM			0x060
 #define	IMX6_ANALOG_CCM_PLL_AUDIO			0x070
+#define	   IMX6_ANALOG_CCM_PLL_AUDIO_ENABLE		  (1 << 13)
+#define	   IMX6_ANALOG_CCM_PLL_AUDIO_DIV_SELECT_SHIFT	  0
+#define	   IMX6_ANALOG_CCM_PLL_AUDIO_DIV_SELECT_MASK	  0x7f
 #define	IMX6_ANALOG_CCM_PLL_AUDIO_SET			0x074
 #define	IMX6_ANALOG_CCM_PLL_AUDIO_CLR			0x078
 #define	IMX6_ANALOG_CCM_PLL_AUDIO_TOG			0x07C

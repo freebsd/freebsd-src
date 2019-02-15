@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1995
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -711,6 +713,7 @@ yp_maplist_create(const char *domain)
 				yp_error("strdup() failed: %s",strerror(errno));
 				closedir(dird);
 				yp_maplist_free(yp_maplist);
+				free(cur);
 				return(NULL);
 			}
 			cur->next = yp_maplist;

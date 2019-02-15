@@ -27,9 +27,7 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
-#pragma D depends_on module unix
+#pragma D depends_on module kernel
 #pragma D depends_on provider sched
 
 struct cpuinfo {
@@ -83,4 +81,3 @@ inline chipid_t chip = curcpu->cpu_chip;
 inline lgrp_id_t lgrp = curcpu->cpu_lgrp;
 #pragma D attributes Stable/Stable/Common lgrp
 #pragma D binding "1.0" lgrp
-

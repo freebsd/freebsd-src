@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -94,6 +96,7 @@ static void
 configure_final(void *dummy)
 {
 
+	enable_interrupts(PSR_I | PSR_F);
 	cninit_finish();
 	cold = 0;
 }

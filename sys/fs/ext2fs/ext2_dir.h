@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Aditya Sarawgi
  * All rights reserved.
  *
@@ -34,7 +36,7 @@
  */
 #define	EXT2FS_MAXNAMLEN	255
 
-struct	ext2fs_direct {
+struct ext2fs_direct {
 	uint32_t e2d_ino;		/* inode number of entry */
 	uint16_t e2d_reclen;		/* length of this record */
 	uint16_t e2d_namlen;		/* length of string in e2d_name */
@@ -49,10 +51,10 @@ enum slotstatus {
 
 struct ext2fs_searchslot {
 	enum slotstatus slotstatus;
-	doff_t slotoffset;	/* offset of area with free space */
-	int slotsize;		/* size of area at slotoffset */
-	int slotfreespace;	/* amount of space free in slot */
-	int slotneeded;		/* sizeof the entry we are seeking */
+	doff_t	slotoffset;		/* offset of area with free space */
+	int	slotsize;		/* size of area at slotoffset */
+	int	slotfreespace;		/* amount of space free in slot */
+	int	slotneeded;		/* sizeof the entry we are seeking */
 };
 
 /*
@@ -61,18 +63,33 @@ struct ext2fs_searchslot {
  * bigger than 255 chars, it's safe to reclaim the extra byte for the
  * file_type field.
  */
-struct	ext2fs_direct_2 {
+struct ext2fs_direct_2 {
 	uint32_t e2d_ino;		/* inode number of entry */
 	uint16_t e2d_reclen;		/* length of this record */
-	uint8_t e2d_namlen;		/* length of string in e2d_name */
-	uint8_t e2d_type;		/* file type */
-	char e2d_name[EXT2FS_MAXNAMLEN];/* name with length<=EXT2FS_MAXNAMLEN */
+	uint8_t	e2d_namlen;		/* length of string in e2d_name */
+	uint8_t	e2d_type;		/* file type */
+	char	e2d_name[EXT2FS_MAXNAMLEN];	/* name with
+						 * length<=EXT2FS_MAXNAMLEN */
 };
+
+struct ext2fs_direct_tail {
+	uint32_t e2dt_reserved_zero1;	/* pretend to be unused */
+	uint16_t e2dt_rec_len;		/* 12 */
+	uint8_t	e2dt_reserved_zero2;	/* zero name length */
+	uint8_t	e2dt_reserved_ft;	/* 0xDE, fake file type */
+	uint32_t e2dt_checksum;		/* crc32c(uuid+inum+dirblock) */
+};
+
+#define EXT2_FT_DIR_CSUM	0xDE
+
+#define EXT2_DIRENT_TAIL(data, blocksize) \
+	((struct ext2fs_direct_tail *)(((char *)(data)) + \
+	(blocksize) - sizeof(struct ext2fs_direct_tail)))
 
 /*
  * Maximal count of links to a file
  */
-#define	EXT2_LINK_MAX	32000
+#define	EXT4_LINK_MAX	65000
 
 /*
  * Ext2 directory file types.  Only the low 3 bits are used.  The
@@ -97,5 +114,4 @@ struct	ext2fs_direct_2 {
 #define	EXT2_DIR_ROUND			(EXT2_DIR_PAD - 1)
 #define	EXT2_DIR_REC_LEN(name_len)	(((name_len) + 8 + EXT2_DIR_ROUND) & \
 					 ~EXT2_DIR_ROUND)
-#endif /* !_FS_EXT2FS_EXT2_DIR_H_ */
-
+#endif	/* !_FS_EXT2FS_EXT2_DIR_H_ */

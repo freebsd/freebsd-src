@@ -16,9 +16,6 @@
 #include <sys/ioctl.h>
 
 #include <net/if.h>
-#if __FreeBSD_version >= 300000
-# include <net/if_var.h>
-#endif
 #include <netinet/in.h>
 
 #include <arpa/inet.h>
@@ -276,7 +273,7 @@ grouplist:
 	| addrmask next			{ $$ = calloc(1, sizeof(iphtent_t));
 					  $$->ipe_addr = $1[0].adf_addr;
 					  $$->ipe_mask = $1[1].adf_addr;
-#ifdef AF_INET6
+#ifdef USE_INET6
 					  if (use_inet6)
 						$$->ipe_family = AF_INET6;
 					  else
@@ -300,7 +297,7 @@ groupentry:
 					  $$->ipe_mask = $1[1].adf_addr;
 					  strncpy($$->ipe_group, $3,
 						  FR_GROUPLEN);
-#ifdef AF_INET6
+#ifdef USE_INET6
 					  if (use_inet6)
 						$$->ipe_family = AF_INET6;
 					  else

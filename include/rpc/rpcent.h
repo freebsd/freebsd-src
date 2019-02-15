@@ -2,6 +2,8 @@
 /*	$FreeBSD$ */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -56,7 +58,7 @@ __BEGIN_DECLS
  * These interfaces are currently implemented through nsswitch and are
  * MT-safe.
  */
-extern struct rpcent *getrpcbyname(char *);
+extern struct rpcent *getrpcbyname(const char *);
 extern struct rpcent *getrpcbynumber(int);
 extern struct rpcent *getrpcent(void);
 extern void setrpcent(int);

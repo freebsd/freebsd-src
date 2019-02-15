@@ -1,5 +1,3 @@
-/* $Id: openbsd-compat.h,v 1.61 2014/02/04 00:18:23 djm Exp $ */
-
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
  * Copyright (c) 2003 Ben Lindstrom. All rights reserved.
@@ -36,14 +34,18 @@
 
 #include <sys/socket.h>
 
+#include <stddef.h>  /* for wchar_t */
+
 /* OpenBSD function replacements */
 #include "base64.h"
 #include "sigact.h"
-#include "glob.h"
 #include "readpassphrase.h"
 #include "vis.h"
 #include "getrrsetbyname.h"
+#include "sha1.h"
 #include "sha2.h"
+#include "rmd160.h"
+#include "md5.h"
 #include "blf.h"
 
 #ifndef HAVE_BASENAME
@@ -58,27 +60,53 @@ int bindresvport_sa(int sd, struct sockaddr *sa);
 void closefrom(int);
 #endif
 
+#ifndef HAVE_GETLINE
+ssize_t getline(char **, size_t *, FILE *);
+#endif
+
+#ifndef HAVE_GETPAGESIZE
+int getpagesize(void);
+#endif
+
 #ifndef HAVE_GETCWD
 char *getcwd(char *pt, size_t size);
-#endif 
+#endif
+
+#ifndef HAVE_REALLOCARRAY
+void *reallocarray(void *, size_t, size_t);
+#endif
+
+#ifndef HAVE_RECALLOCARRAY
+void *recallocarray(void *, size_t, size_t, size_t);
+#endif
 
 #if !defined(HAVE_REALPATH) || defined(BROKEN_REALPATH)
+/*
+ * glibc's FORTIFY_SOURCE can redefine this and prevent us picking up the
+ * compat version.
+ */
+# ifdef BROKEN_REALPATH
+#  define realpath(x, y) _ssh_compat_realpath(x, y)
+# endif
+
 char *realpath(const char *path, char *resolved);
-#endif 
+#endif
 
 #ifndef HAVE_RRESVPORT_AF
 int rresvport_af(int *alport, sa_family_t af);
 #endif
 
 #ifndef HAVE_STRLCPY
-/* #include <sys/types.h> XXX Still needed? */
 size_t strlcpy(char *dst, const char *src, size_t siz);
 #endif
 
 #ifndef HAVE_STRLCAT
-/* #include <sys/types.h> XXX Still needed? */
 size_t strlcat(char *dst, const char *src, size_t siz);
-#endif 
+#endif
+
+#ifndef HAVE_STRCASESTR
+char *strcasestr(const char *, const char *);
+#endif
 
 #ifndef HAVE_SETENV
 int setenv(register const char *name, register const char *value, int rewrite);
@@ -97,11 +125,11 @@ char *strptime(const char *buf, const char *fmt, struct tm *tm);
 int mkstemps(char *path, int slen);
 int mkstemp(char *path);
 char *mkdtemp(char *path);
-#endif 
+#endif
 
 #ifndef HAVE_DAEMON
 int daemon(int nochdir, int noclose);
-#endif 
+#endif
 
 #ifndef HAVE_DIRNAME
 char *dirname(const char *path);
@@ -126,7 +154,7 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t size);
 
 #ifndef HAVE_INET_ATON
 int inet_aton(const char *cp, struct in_addr *addr);
-#endif 
+#endif
 
 #ifndef HAVE_STRSEP
 char *strsep(char **stringp, const char *delim);
@@ -138,7 +166,6 @@ void compat_init_setproctitle(int argc, char *argv[]);
 #endif
 
 #ifndef HAVE_GETGROUPLIST
-/* #include <grp.h> XXXX Still needed ? */
 int getgrouplist(const char *, gid_t, gid_t *, int *);
 #endif
 
@@ -147,15 +174,24 @@ int BSDgetopt(int argc, char * const *argv, const char *opts);
 #include "openbsd-compat/getopt.h"
 #endif
 
-#if defined(HAVE_DECL_WRITEV) && HAVE_DECL_WRITEV == 0
+#if ((defined(HAVE_DECL_READV) && HAVE_DECL_READV == 0) || \
+    (defined(HAVE_DECL_WRITEV) && HAVE_DECL_WRITEV == 0))
 # include <sys/types.h>
 # include <sys/uio.h>
+
+# if defined(HAVE_DECL_READV) && HAVE_DECL_READV == 0
+int readv(int, struct iovec *, int);
+# endif
+
+# if defined(HAVE_DECL_WRITEV) && HAVE_DECL_WRITEV == 0
 int writev(int, struct iovec *, int);
+# endif
 #endif
 
 /* Home grown routines */
 #include "bsd-misc.h"
 #include "bsd-setres_id.h"
+#include "bsd-signal.h"
 #include "bsd-statvfs.h"
 #include "bsd-waitpid.h"
 #include "bsd-poll.h"
@@ -183,18 +219,16 @@ u_int32_t arc4random_uniform(u_int32_t);
 
 #ifndef HAVE_ASPRINTF
 int asprintf(char **, const char *, ...);
-#endif 
+#endif
 
 #ifndef HAVE_OPENPTY
 # include <sys/ioctl.h>	/* for struct winsize */
 int openpty(int *, int *, char *, struct termios *, struct winsize *);
 #endif /* HAVE_OPENPTY */
 
-/* #include <sys/types.h> XXX needed? For size_t */
-
 #ifndef HAVE_SNPRINTF
 int snprintf(char *, size_t, SNPRINTF_CONST char *, ...);
-#endif 
+#endif
 
 #ifndef HAVE_STRTOLL
 long long strtoll(const char *, char **, int);
@@ -214,11 +248,44 @@ long long strtonum(const char *, long long, long long, const char **);
 
 /* multibyte character support */
 #ifndef HAVE_MBLEN
-# define mblen(x, y)	1
+# define mblen(x, y)	(1)
+#endif
+
+#ifndef HAVE_WCWIDTH
+# define wcwidth(x)	(((x) >= 0x20 && (x) <= 0x7e) ? 1 : -1)
+/* force our no-op nl_langinfo and mbtowc */
+# undef HAVE_NL_LANGINFO
+# undef HAVE_MBTOWC
+# undef HAVE_LANGINFO_H
+#endif
+
+#ifndef HAVE_NL_LANGINFO
+# define nl_langinfo(x)	""
+#endif
+
+#ifndef HAVE_MBTOWC
+int mbtowc(wchar_t *, const char*, size_t);
 #endif
 
 #if !defined(HAVE_VASPRINTF) || !defined(HAVE_VSNPRINTF)
 # include <stdarg.h>
+#endif
+
+/*
+ * Some platforms unconditionally undefine va_copy() so we define VA_COPY()
+ * instead.  This is known to be the case on at least some configurations of
+ * AIX with the xlc compiler.
+ */
+#ifndef VA_COPY
+# ifdef HAVE_VA_COPY
+#  define VA_COPY(dest, src) va_copy(dest, src)
+# else
+#  ifdef HAVE___VA_COPY
+#   define VA_COPY(dest, src) __va_copy(dest, src)
+#  else
+#   define VA_COPY(dest, src) (dest) = (src)
+#  endif
+# endif
 #endif
 
 #ifndef HAVE_VASPRINTF
@@ -250,7 +317,10 @@ int	bcrypt_pbkdf(const char *, size_t, const u_int8_t *, size_t,
 void explicit_bzero(void *p, size_t n);
 #endif
 
-void *xmmap(size_t size);
+#ifndef HAVE_FREEZERO
+void freezero(void *, size_t);
+#endif
+
 char *xcrypt(const char *password, const char *salt);
 char *shadow_pw(struct passwd *pw);
 
@@ -258,14 +328,29 @@ char *shadow_pw(struct passwd *pw);
 #include "fake-rfc2553.h"
 
 /* Routines for a single OS platform */
-#include "bsd-cray.h"
 #include "bsd-cygwin_util.h"
 
 #include "port-aix.h"
 #include "port-irix.h"
 #include "port-linux.h"
 #include "port-solaris.h"
-#include "port-tun.h"
+#include "port-net.h"
 #include "port-uw.h"
+
+/* _FORTIFY_SOURCE breaks FD_ISSET(n)/FD_SET(n) for n > FD_SETSIZE. Avoid. */
+#if defined(HAVE_FEATURES_H) && defined(_FORTIFY_SOURCE)
+# include <features.h>
+# if defined(__GNU_LIBRARY__) && defined(__GLIBC_PREREQ)
+#  if __GLIBC_PREREQ(2, 15) && (_FORTIFY_SOURCE > 0)
+#   include <sys/socket.h>  /* Ensure include guard is defined */
+#   undef FD_SET
+#   undef FD_ISSET
+#   define FD_SET(n, set)	kludge_FD_SET(n, set)
+#   define FD_ISSET(n, set)	kludge_FD_ISSET(n, set)
+void kludge_FD_SET(int, fd_set *);
+int kludge_FD_ISSET(int, fd_set *);
+#  endif /* __GLIBC_PREREQ(2, 15) && (_FORTIFY_SOURCE > 0) */
+# endif /* __GNU_LIBRARY__ && __GLIBC_PREREQ */
+#endif /* HAVE_FEATURES_H && _FORTIFY_SOURCE */
 
 #endif /* _OPENBSD_COMPAT_H */

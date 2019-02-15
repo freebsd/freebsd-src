@@ -41,7 +41,7 @@ struct kthr {
 	uintptr_t	pcb;
 	int		tid;
 	int		pid;
-	u_char		cpu;
+	int		cpu;
 };
 
 extern struct kthr *curkthr;
@@ -74,5 +74,8 @@ CORE_ADDR kgdb_parse_1(const char *, int);
 
 #define	kgdb_parse(exp)		kgdb_parse_1((exp), 0)
 #define	kgdb_parse_quiet(exp)	kgdb_parse_1((exp), 1)
+
+extern int (*arm_tdep_pc_fixup)(CORE_ADDR *pc);
+int kgdb_trgt_pc_fixup(CORE_ADDR *pc);
 
 #endif /* _KGDB_H_ */

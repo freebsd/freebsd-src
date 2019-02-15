@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001 Dag-Erling Coïdan Smørgrav
  * All rights reserved.
  *
@@ -51,6 +53,7 @@ static struct mtx pfs_vncache_mutex;
 static struct pfs_vdata *pfs_vncache;
 static eventhandler_tag pfs_exit_tag;
 static void pfs_exit(void *arg, struct proc *p);
+static void pfs_purge_locked(struct pfs_node *pn, bool force);
 
 static SYSCTL_NODE(_vfs_pfs, OID_AUTO, vncache, CTLFLAG_RW, 0,
     "pseudofs vnode cache");
@@ -84,7 +87,6 @@ void
 pfs_vncache_load(void)
 {
 
-	mtx_assert(&Giant, MA_OWNED);
 	mtx_init(&pfs_vncache_mutex, "pfs_vncache", NULL, MTX_DEF);
 	pfs_exit_tag = EVENTHANDLER_REGISTER(process_exit, pfs_exit, NULL,
 	    EVENTHANDLER_PRI_ANY);
@@ -97,8 +99,10 @@ void
 pfs_vncache_unload(void)
 {
 
-	mtx_assert(&Giant, MA_OWNED);
 	EVENTHANDLER_DEREGISTER(process_exit, pfs_exit_tag);
+	mtx_lock(&pfs_vncache_mutex);
+	pfs_purge_locked(NULL, true);
+	mtx_unlock(&pfs_vncache_mutex);
 	KASSERT(pfs_vncache_entries == 0,
 	    ("%d vncache entries remaining", pfs_vncache_entries));
 	mtx_destroy(&pfs_vncache_mutex);
@@ -274,7 +278,7 @@ pfs_vncache_free(struct vnode *vp)
  * used to implement the cache.
  */
 static void
-pfs_purge_locked(struct pfs_node *pn)
+pfs_purge_locked(struct pfs_node *pn, bool force)
 {
 	struct pfs_vdata *pvd;
 	struct vnode *vnp;
@@ -282,7 +286,8 @@ pfs_purge_locked(struct pfs_node *pn)
 	mtx_assert(&pfs_vncache_mutex, MA_OWNED);
 	pvd = pfs_vncache;
 	while (pvd != NULL) {
-		if (pvd->pvd_dead || (pn != NULL && pvd->pvd_pn == pn)) {
+		if (force || pvd->pvd_dead ||
+		    (pn != NULL && pvd->pvd_pn == pn)) {
 			vnp = pvd->pvd_vnode;
 			vhold(vnp);
 			mtx_unlock(&pfs_vncache_mutex);
@@ -303,7 +308,7 @@ pfs_purge(struct pfs_node *pn)
 {
 
 	mtx_lock(&pfs_vncache_mutex);
-	pfs_purge_locked(pn);
+	pfs_purge_locked(pn, false);
 	mtx_unlock(&pfs_vncache_mutex);
 }
 
@@ -323,6 +328,6 @@ pfs_exit(void *arg, struct proc *p)
 		if (pvd->pvd_pid == p->p_pid)
 			dead = pvd->pvd_dead = 1;
 	if (dead)
-		pfs_purge_locked(NULL);
+		pfs_purge_locked(NULL, false);
 	mtx_unlock(&pfs_vncache_mutex);
 }

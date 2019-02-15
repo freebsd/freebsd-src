@@ -2,6 +2,8 @@
 /*	$NetBSD: uipc_mbuf.c,v 1.40 1999/04/01 00:23:25 thorpej Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1999 WIDE Project.
  * All rights reserved.
  * 
@@ -41,7 +43,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -131,6 +133,8 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 	}
 
 	/*
+	 * The following comment is dated but still partially applies:
+	 *
 	 * XXX: This code is flawed because it considers a "writable" mbuf
 	 *      data region to require all of the following:
 	 *	  (i) mbuf _has_ to have M_EXT set; if it is just a regular
@@ -141,16 +145,12 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 	 *      Ideally, the requirement should only be (iii).
 	 *
 	 * If we're writable, we're sure we're writable, because the ref. count
-	 * cannot increase from 1, as that would require posession of mbuf
+	 * cannot increase from 1, as that would require possession of mbuf
 	 * n by someone else (which is impossible). However, if we're _not_
 	 * writable, we may eventually become writable )if the ref. count drops
 	 * to 1), but we'll fail to notice it unless we re-evaluate
 	 * M_WRITABLE(). For now, we only evaluate once at the beginning and
 	 * live with this.
-	 */
-	/*
-	 * XXX: This is dumb. If we're just a regular mbuf with no M_EXT,
-	 *      then we're not "writable," according to this code.
 	 */
 	writable = 0;
 	if ((n->m_flags & M_EXT) == 0 ||
@@ -161,7 +161,7 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 	 * the target data is on <n, off>.
 	 * if we got enough data on the mbuf "n", we're done.
 	 */
-	if ((off == 0 || offp) && len <= n->m_len - off && writable)
+	if ((off == 0 || offp) && len <= n->m_len - off)
 		goto ok;
 
 	/*
@@ -429,7 +429,7 @@ m_tag_copy(struct m_tag *t, int how)
  * destination mbuf.
  */
 int
-m_tag_copy_chain(struct mbuf *to, struct mbuf *from, int how)
+m_tag_copy_chain(struct mbuf *to, const struct mbuf *from, int how)
 {
 	struct m_tag *p, *t, *tprev = NULL;
 

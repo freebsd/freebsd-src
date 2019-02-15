@@ -248,36 +248,6 @@ checksum offloading is enabled.
 Counter of frames discarded due to an incorrect UDP checksum when
 checksum offloading is enabled.
 .El
-.Sh BUGS
-The GEM can perform TCP/UDP/IP checksum offloading.
-However, when transmit checksum offloading is enabled, the GEM generates and
-replaces checksums for all packets it transmits.
-In a system that is forwarding packets, the device could potentially correct
-the checksum of packet that was corrupted in transit.
-For this reason, checksum offloading is disabled by default but can be
-enabled using ifconfig(8).
-.Pp
-When receive checksum offloading is enabled, the device will discard packets
-with bad TCP/UDP/IP checksums.
-The bad packets will not be counted in any
-.Xr netstat 1
-statistics.  There are
-.Xr sysctl 8
-variables that count
-packets discarded by the hardware (see below).
-.Pp
-The GEM used in the Zynq-7000 has a bug such that  the receiver can
-potentially freeze up under a high load.  The issue is described in sec. 16.7
-"Known Issues" of the Zynq-7000 SoC Technical Reference Manual (Xilinx
-UG585 v1.7).
-The
-.Nm
-driver implements the work-around suggested in the manual.
-If the bug does not exist in other versions of this device, the
-work-around can be disabled by setting the dev.cgem.%d.rxhangwar
-.Xr sysctl 8
-variable to 0.
-.Pp
 .Sh SEE ALSO
 .Xr miibus 4 ,
 .Xr ifconfig 8
@@ -295,3 +265,34 @@ The
 .Nm
 driver and this manual page was written by
 .An Thomas Skibo Aq Mt thomasskibo@yahoo.com .
+.Sh BUGS
+The GEM can perform TCP/UDP/IP checksum offloading.
+However, when transmit checksum offloading is enabled, the GEM generates and
+replaces checksums for all packets it transmits.
+In a system that is forwarding packets, the device could potentially correct
+the checksum of packet that was corrupted in transit.
+For this reason, checksum offloading is disabled by default but can be
+enabled using ifconfig(8).
+.Pp
+When receive checksum offloading is enabled, the device will discard packets
+with bad TCP/UDP/IP checksums.
+The bad packets will not be counted in any
+.Xr netstat 1
+statistics.
+There are
+.Xr sysctl 8
+variables that count
+packets discarded by the hardware (see below).
+.Pp
+The GEM used in the Zynq-7000 has a bug such that  the receiver can
+potentially freeze up under a high load.
+The issue is described in sec. 16.7
+"Known Issues" of the Zynq-7000 SoC Technical Reference Manual (Xilinx
+UG585 v1.7).
+The
+.Nm
+driver implements the work-around suggested in the manual.
+If the bug does not exist in other versions of this device, the
+work-around can be disabled by setting the dev.cgem.%d.rxhangwar
+.Xr sysctl 8
+variable to 0.

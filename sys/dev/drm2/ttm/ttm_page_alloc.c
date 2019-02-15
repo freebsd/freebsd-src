@@ -44,10 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/ttm/ttm_bo_driver.h>
 #include <dev/drm2/ttm/ttm_page_alloc.h>
-
-#ifdef TTM_HAS_AGP
-#include <asm/agp.h>
-#endif
+#include <vm/vm_pageout.h>
 
 #define NUM_PAGES_TO_ALLOC		(PAGE_SIZE/sizeof(vm_page_t))
 #define SMALL_ALLOCATION		16
@@ -139,7 +136,7 @@ ttm_vm_page_free(vm_page_t m)
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0, ("ttm got unmanaged %p", m));
 	m->flags &= ~PG_FICTITIOUS;
 	m->oflags |= VPO_UNMANAGED;
-	vm_page_unwire(m, PQ_INACTIVE);
+	vm_page_unwire(m, PQ_NONE);
 	vm_page_free(m);
 }
 
@@ -156,6 +153,62 @@ ttm_caching_state_to_vm(enum ttm_caching_state cstate)
 		return (VM_MEMATTR_WRITE_BACK);
 	}
 	panic("caching state %d\n", cstate);
+}
+
+static vm_page_t
+ttm_vm_page_alloc_dma32(int req, vm_memattr_t memattr)
+{
+	vm_page_t p;
+	int tries;
+
+	for (tries = 0; ; tries++) {
+		p = vm_page_alloc_contig(NULL, 0, req, 1, 0, 0xffffffff,
+		    PAGE_SIZE, 0, memattr);
+		if (p != NULL || tries > 2)
+			return (p);
+		if (!vm_page_reclaim_contig(req, 1, 0, 0xffffffff,
+		    PAGE_SIZE, 0))
+			vm_wait(NULL);
+	}
+}
+
+static vm_page_t
+ttm_vm_page_alloc_any(int req, vm_memattr_t memattr)
+{
+	vm_page_t p;
+
+	while (1) {
+		p = vm_page_alloc(NULL, 0, req);
+		if (p != NULL)
+			break;
+		vm_wait(NULL);
+	}
+	pmap_page_set_memattr(p, memattr);
+	return (p);
+}
+
+static vm_page_t
+ttm_vm_page_alloc(int flags, enum ttm_caching_state cstate)
+{
+	vm_page_t p;
+	vm_memattr_t memattr;
+	int req;
+
+	memattr = ttm_caching_state_to_vm(cstate);
+	req = VM_ALLOC_NORMAL | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ;
+	if ((flags & TTM_PAGE_FLAG_ZERO_ALLOC) != 0)
+		req |= VM_ALLOC_ZERO;
+
+	if ((flags & TTM_PAGE_FLAG_DMA32) != 0)
+		p = ttm_vm_page_alloc_dma32(req, memattr);
+	else
+		p = ttm_vm_page_alloc_any(req, memattr);
+
+	if (p != NULL) {
+		p->oflags &= ~VPO_UNMANAGED;
+		p->flags |= PG_FICTITIOUS;
+	}
+	return (p);
 }
 
 static void ttm_pool_kobj_release(struct ttm_pool_manager *m)
@@ -220,46 +273,34 @@ static struct ttm_pool_manager *_manager;
 
 static int set_pages_array_wb(vm_page_t *pages, int addrinarray)
 {
-	vm_page_t m;
+#ifdef TTM_HAS_AGP
 	int i;
 
-	for (i = 0; i < addrinarray; i++) {
-		m = pages[i];
-#ifdef TTM_HAS_AGP
-		unmap_page_from_agp(m);
+	for (i = 0; i < addrinarray; i++)
+		pmap_page_set_memattr(pages[i], VM_MEMATTR_WRITE_BACK);
 #endif
-		pmap_page_set_memattr(m, VM_MEMATTR_WRITE_BACK);
-	}
 	return 0;
 }
 
 static int set_pages_array_wc(vm_page_t *pages, int addrinarray)
 {
-	vm_page_t m;
+#ifdef TTM_HAS_AGP
 	int i;
 
-	for (i = 0; i < addrinarray; i++) {
-		m = pages[i];
-#ifdef TTM_HAS_AGP
-		map_page_into_agp(pages[i]);
+	for (i = 0; i < addrinarray; i++)
+		pmap_page_set_memattr(pages[i], VM_MEMATTR_WRITE_COMBINING);
 #endif
-		pmap_page_set_memattr(m, VM_MEMATTR_WRITE_COMBINING);
-	}
 	return 0;
 }
 
 static int set_pages_array_uc(vm_page_t *pages, int addrinarray)
 {
-	vm_page_t m;
+#ifdef TTM_HAS_AGP
 	int i;
 
-	for (i = 0; i < addrinarray; i++) {
-		m = pages[i];
-#ifdef TTM_HAS_AGP
-		map_page_into_agp(pages[i]);
+	for (i = 0; i < addrinarray; i++)
+		pmap_page_set_memattr(pages[i], VM_MEMATTR_UNCACHEABLE);
 #endif
-		pmap_page_set_memattr(m, VM_MEMATTR_UNCACHEABLE);
-	}
 	return 0;
 }
 
@@ -488,23 +529,16 @@ static int ttm_alloc_new_pages(struct pglist *pages, int ttm_alloc_flags,
 	vm_page_t *caching_array;
 	vm_page_t p;
 	int r = 0;
-	unsigned i, cpages, aflags;
+	unsigned i, cpages;
 	unsigned max_cpages = min(count,
 			(unsigned)(PAGE_SIZE/sizeof(vm_page_t)));
 
-	aflags = VM_ALLOC_NORMAL | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ |
-	    ((ttm_alloc_flags & TTM_PAGE_FLAG_ZERO_ALLOC) != 0 ?
-	    VM_ALLOC_ZERO : 0);
-	
 	/* allocate array for page caching change */
 	caching_array = malloc(max_cpages * sizeof(vm_page_t), M_TEMP,
 	    M_WAITOK | M_ZERO);
 
 	for (i = 0, cpages = 0; i < count; ++i) {
-		p = vm_page_alloc_contig(NULL, 0, aflags, 1, 0,
-		    (ttm_alloc_flags & TTM_PAGE_FLAG_DMA32) ? 0xffffffff :
-		    VM_MAX_ADDRESS, PAGE_SIZE, 0,
-		    ttm_caching_state_to_vm(cstate));
+		p = ttm_vm_page_alloc(ttm_alloc_flags, cstate);
 		if (!p) {
 			printf("[TTM] Unable to get page %u\n", i);
 
@@ -521,8 +555,6 @@ static int ttm_alloc_new_pages(struct pglist *pages, int ttm_alloc_flags,
 			r = -ENOMEM;
 			goto out;
 		}
-		p->oflags &= ~VPO_UNMANAGED;
-		p->flags |= PG_FICTITIOUS;
 
 #ifdef CONFIG_HIGHMEM /* KIB: nop */
 		/* gfp flags of highmem page should never be dma32 so we
@@ -704,26 +736,18 @@ static int ttm_get_pages(vm_page_t *pages, unsigned npages, int flags,
 	struct ttm_page_pool *pool = ttm_get_pool(flags, cstate);
 	struct pglist plist;
 	vm_page_t p = NULL;
-	int gfp_flags, aflags;
+	int gfp_flags;
 	unsigned count;
 	int r;
-
-	aflags = VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
-	    ((flags & TTM_PAGE_FLAG_ZERO_ALLOC) != 0 ? VM_ALLOC_ZERO : 0);
 
 	/* No pool for cached pages */
 	if (pool == NULL) {
 		for (r = 0; r < npages; ++r) {
-			p = vm_page_alloc_contig(NULL, 0, aflags, 1, 0,
-			    (flags & TTM_PAGE_FLAG_DMA32) ? 0xffffffff :
-			    VM_MAX_ADDRESS, PAGE_SIZE,
-			    0, ttm_caching_state_to_vm(cstate));
+			p = ttm_vm_page_alloc(flags, cstate);
 			if (!p) {
 				printf("[TTM] Unable to allocate page\n");
 				return -ENOMEM;
 			}
-			p->oflags &= ~VPO_UNMANAGED;
-			p->flags |= PG_FICTITIOUS;
 			pages[r] = p;
 		}
 		return 0;

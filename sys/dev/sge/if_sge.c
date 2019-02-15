@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2008-2010 Nikolay Denev <ndenev@gmail.com>
  * Copyright (c) 2007-2008 Alexander Pohoyda <alexander.pohoyda@gmx.net>
  * Copyright (c) 1997, 1998, 1999
@@ -276,9 +278,8 @@ sge_get_mac_addr_apc(struct sge_softc *sc, uint8_t *dest)
 		{ SIS_VENDORID, 0x0968 }
 	};
 	uint8_t reg;
-	int busnum, cnt, i, j, numkids;
+	int busnum, i, j, numkids;
 
-	cnt = sizeof(apc_tbls) / sizeof(apc_tbls[0]);
 	pci = devclass_find("pci");
 	for (busnum = 0; busnum < devclass_get_maxunit(pci); busnum++) {
 		bus = devclass_get_device(pci, busnum);
@@ -291,7 +292,7 @@ sge_get_mac_addr_apc(struct sge_softc *sc, uint8_t *dest)
 			if (pci_get_class(dev) == PCIC_BRIDGE &&
 			    pci_get_subclass(dev) == PCIS_BRIDGE_ISA) {
 				tp = apc_tbls;
-				for (j = 0; j < cnt; j++) {
+				for (j = 0; j < nitems(apc_tbls); j++) {
 					if (pci_get_vendor(dev) == tp->vid &&
 					    pci_get_device(dev) == tp->did) {
 						free(kids, M_TEMP);
@@ -468,7 +469,7 @@ sge_rxfilter(struct sge_softc *sc)
 		hashes[0] = hashes[1] = 0;
 		/* Now program new ones. */
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1992 The University of Utah and the Center
  *	for Software Science (CSS).
  * Copyright (c) 1992, 1993
@@ -241,7 +243,7 @@ BpfGetIntfName(char **errmsg)
 	ifrp = ibuf;
 	ifend = (struct ifreq *)((char *)ibuf + ifc.ifc_len);
 
-	mp = 0;
+	mp = NULL;
 	minunit = 666;
 	for (; ifrp < ifend; ++ifrp) {
 		if (ioctl(fd, SIOCGIFFLAGS, (char *)ifrp) < 0) {
@@ -271,7 +273,7 @@ BpfGetIntfName(char **errmsg)
 	}
 
 	(void) close(fd);
-	if (mp == 0) {
+	if (mp == NULL) {
 		(void) strcpy(errbuf, "bpf: no interfaces found");
 		return(NULL);
 	}

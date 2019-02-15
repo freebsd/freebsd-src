@@ -7,10 +7,12 @@ SUBDIR=	${_IPv6} \
 	${_atf} \
 	legal \
 	${_llvm} \
+	${_pjdfstest} \
 	${_roffdocs}
 
 .if ${MK_TESTS} != "no"
 _atf= atf
+_pjdfstest= pjdfstest
 .endif
 
 .if ${MK_CLANG} != "no"
@@ -21,10 +23,7 @@ _llvm=	llvm
 _IPv6=	IPv6
 .endif
 
-# FIXME this is not a real solution ...
-.if ${MK_GROFF} != "no"
-_roffdocs=	papers psd smm usd
-.endif
+SUBDIR_PARALLEL=
 
 # Default output format for troff documents is ascii.
 # To generate postscript versions of troff documents, use:

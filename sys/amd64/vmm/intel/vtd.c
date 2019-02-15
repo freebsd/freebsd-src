@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -463,7 +465,7 @@ vtd_update_mapping(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, uint64_t len,
 		panic("vtd_create_mapping: unaligned len 0x%0lx", len);
 
 	/*
-	 * Compute the size of the mapping that we can accomodate.
+	 * Compute the size of the mapping that we can accommodate.
 	 *
 	 * This is based on three factors:
 	 * - supported super page size

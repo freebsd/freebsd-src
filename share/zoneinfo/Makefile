@@ -28,13 +28,25 @@
 # $ svn commit	# Commit message: "MFV of tzdata2008X"
 #
 
+.include <src.opts.mk>
+
 CLEANFILES+=	yearistype
 CLEANDIRS+=	builddir
-CONTRIBDIR=	${.CURDIR}/../../contrib/tzdata/
+CONTRIBDIR=	${SRCTOP}/contrib/tzdata/
 .PATH:		${CONTRIBDIR}
 
 .if defined(LEAPSECONDS)
-LEAPFILE=	-L leapseconds
+.warning "Using backwards compatibility variable for LEAPSECONDS; please use WITH_ZONEINFO_LEAPSECONDS_SUPPORT instead"
+MK_ZONEINFO_LEAPSECONDS_SUPPORT= yes
+.endif
+
+.if defined(OLDTIMEZONES)
+.warning "Using backwards compatibility variable for OLDTIMEZONES; please use WITH_ZONEINFO_OLD_TIMEZONES_SUPPORT instead"
+MK_ZONEINFO_OLD_TIMEZONES_SUPPORT= yes
+.endif
+
+.if ${MK_ZONEINFO_LEAPSECONDS_SUPPORT} != "no"
+LEAPFILE=	-L ${CONTRIBDIR}leapseconds
 .else
 LEAPFILE=
 .endif
@@ -43,7 +55,7 @@ TZFILES=	africa antarctica asia australasia etcetera europe \
 		factory northamerica southamerica
 POSIXRULES=	America/New_York
 
-.if defined(OLDTIMEZONES)
+.if ${MK_ZONEINFO_OLD_TIMEZONES_SUPPORT} != "no"
 TZFILES+=	backward systemv
 .endif
 
@@ -67,9 +79,15 @@ TZBUILDSUBDIRS=	\
 		Pacific \
 		SystemV
 
-all: zoneinfo
+.if ${MK_ZONEINFO_OLD_TIMEZONES_SUPPORT} != "no"
+TZBUILDSUBDIRS+= US Mexico Chile Canada Brazil
+.endif
 
-.PHONY: zoneinfo
+.if !defined(_SKIP_BUILD)
+all: zoneinfo
+.endif
+META_TARGETS+=	zoneinfo install-zoneinfo
+
 zoneinfo: yearistype ${TDATA}
 	mkdir -p ${TZBUILDDIR}
 	cd ${TZBUILDDIR}; mkdir -p ${TZBUILDSUBDIRS}
@@ -77,12 +95,25 @@ zoneinfo: yearistype ${TDATA}
 	zic -D -d ${TZBUILDDIR} -p ${POSIXRULES} -m ${NOBINMODE} \
 	    ${LEAPFILE} -y ${.OBJDIR}/yearistype ${TZFILES}
 
-beforeinstall:
-	cd ${TZBUILDDIR} && \
-	    find * -type f -print -exec ${INSTALL} \
+#
+# Sort TZS to ensure they are the same every build. find -s might
+# be a shorter way to express this, but it's non-portable. Any
+# differences between the two don't matter for this purpose.
+#
+.if make(*install*)
+TZS!= cd ${TZBUILDDIR} && find * -type f | LC_ALL=C sort
+.endif
+
+beforeinstall: install-zoneinfo
+install-zoneinfo:
+	mkdir -p ${DESTDIR}/usr/share/zoneinfo
+	cd ${DESTDIR}/usr/share/zoneinfo;  mkdir -p ${TZBUILDSUBDIRS}
+.for f in ${TZS}
+	${INSTALL} ${TAG_ARGS} \
 	    -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-	    \{} ${DESTDIR}/usr/share/zoneinfo/\{} \;
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+	    ${TZBUILDDIR}/${f} ${DESTDIR}/usr/share/zoneinfo/${f}
+.endfor
+	${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${CONTRIBDIR}/zone.tab ${DESTDIR}/usr/share/zoneinfo/
 
 afterinstall:
@@ -104,5 +135,8 @@ afterinstall:
 	else \
 		echo "Run tzsetup(8) manually to update /etc/localtime."; \
 	fi
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

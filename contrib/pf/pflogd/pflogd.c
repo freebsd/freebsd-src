@@ -766,7 +766,7 @@ main(int argc, char **argv)
 		np = pcap_dispatch(hpcap, PCAP_NUM_PKTS,
 		    phandler, (u_char *)dpcap);
 		if (np < 0) {
-			if (!if_exists(interface) == -1) {
+			if (!if_exists(interface)) {
 				logmsg(LOG_NOTICE, "interface %s went away",
 				    interface);
 				ret = -1;

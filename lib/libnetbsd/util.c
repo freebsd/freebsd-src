@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 SRI International
  * All rights reserved.
  *
@@ -36,7 +38,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <util.h>
+
+#include "util.h"
 
 char *
 flags_to_string(u_long flags, const char *def)

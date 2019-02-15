@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2008 Yahoo!, Inc.
  * All rights reserved.
  * Written by: John Baldwin <jhb@FreeBSD.org>
@@ -192,6 +194,31 @@ sglist_count(void *buf, size_t len)
 }
 
 /*
+ * Determine the number of scatter/gather list elements needed to
+ * describe a buffer backed by an array of VM pages.
+ */
+int
+sglist_count_vmpages(vm_page_t *m, size_t pgoff, size_t len)
+{
+	vm_paddr_t lastaddr, paddr;
+	int i, nsegs;
+
+	if (len == 0)
+		return (0);
+
+	len += pgoff;
+	nsegs = 1;
+	lastaddr = VM_PAGE_TO_PHYS(m[0]);
+	for (i = 1; len > PAGE_SIZE; len -= PAGE_SIZE, i++) {
+		paddr = VM_PAGE_TO_PHYS(m[i]);
+		if (lastaddr + PAGE_SIZE != paddr)
+			nsegs++;
+		lastaddr = paddr;
+	}
+	return (nsegs);
+}
+
+/*
  * Allocate a scatter/gather list along with 'nsegs' segments.  The
  * 'mflags' parameters are the same as passed to malloc(9).  The caller
  * should use sglist_free() to free this list.
@@ -215,6 +242,9 @@ sglist_alloc(int nsegs, int mflags)
 void
 sglist_free(struct sglist *sg)
 {
+
+	if (sg == NULL)
+		return;
 
 	if (refcount_release(&sg->sg_refs))
 		free(sg, M_SGLIST);
@@ -249,33 +279,14 @@ sglist_append(struct sglist *sg, void *buf, size_t len)
 int
 sglist_append_bio(struct sglist *sg, struct bio *bp)
 {
-	struct sgsave save;
-	vm_paddr_t paddr;
-	size_t len, tlen;
-	int error, i, ma_offs;
+	int error;
 
-	if ((bp->bio_flags & BIO_UNMAPPED) == 0) {
+	if ((bp->bio_flags & BIO_UNMAPPED) == 0)
 		error = sglist_append(sg, bp->bio_data, bp->bio_bcount);
-		return (error);
-	}
-
-	if (sg->sg_maxseg == 0)
-		return (EINVAL);
-
-	SGLIST_SAVE(sg, save);
-	tlen = bp->bio_bcount;
-	ma_offs = bp->bio_ma_offset;
-	for (i = 0; tlen > 0; i++, tlen -= len) {
-		len = min(PAGE_SIZE - ma_offs, tlen);
-		paddr = VM_PAGE_TO_PHYS(bp->bio_ma[i]) + ma_offs;
-		error = sglist_append_phys(sg, paddr, len);
-		if (error) {
-			SGLIST_RESTORE(sg, save);
-			return (error);
-		}
-		ma_offs = 0;
-	}
-	return (0);
+	else
+		error = sglist_append_vmpages(sg, bp->bio_ma,
+		    bp->bio_ma_offset, bp->bio_bcount);
+	return (error);
 }
 
 /*
@@ -338,6 +349,51 @@ sglist_append_mbuf(struct sglist *sg, struct mbuf *m0)
 }
 
 /*
+ * Append the segments that describe a buffer spanning an array of VM
+ * pages.  The buffer begins at an offset of 'pgoff' in the first
+ * page.
+ */
+int
+sglist_append_vmpages(struct sglist *sg, vm_page_t *m, size_t pgoff,
+    size_t len)
+{
+	struct sgsave save;
+	struct sglist_seg *ss;
+	vm_paddr_t paddr;
+	size_t seglen;
+	int error, i;
+
+	if (sg->sg_maxseg == 0)
+		return (EINVAL);
+	if (len == 0)
+		return (0);
+
+	SGLIST_SAVE(sg, save);
+	i = 0;
+	if (sg->sg_nseg == 0) {
+		seglen = min(PAGE_SIZE - pgoff, len);
+		sg->sg_segs[0].ss_paddr = VM_PAGE_TO_PHYS(m[0]) + pgoff;
+		sg->sg_segs[0].ss_len = seglen;
+		sg->sg_nseg = 1;
+		pgoff = 0;
+		len -= seglen;
+		i++;
+	}
+	ss = &sg->sg_segs[sg->sg_nseg - 1];
+	for (; len > 0; i++, len -= seglen) {
+		seglen = min(PAGE_SIZE - pgoff, len);
+		paddr = VM_PAGE_TO_PHYS(m[i]) + pgoff;
+		error = _sglist_append_range(sg, &ss, paddr, seglen);
+		if (error) {
+			SGLIST_RESTORE(sg, save);
+			return (error);
+		}
+		pgoff = 0;
+	}
+	return (0);
+}
+
+/*
  * Append the segments that describe a single user address range to a
  * scatter/gather list.  If there are insufficient segments, then this
  * fails with EFBIG.
@@ -353,6 +409,49 @@ sglist_append_user(struct sglist *sg, void *buf, size_t len, struct thread *td)
 	SGLIST_SAVE(sg, save);
 	error = _sglist_append_buf(sg, buf, len,
 	    vmspace_pmap(td->td_proc->p_vmspace), NULL);
+	if (error)
+		SGLIST_RESTORE(sg, save);
+	return (error);
+}
+
+/*
+ * Append a subset of an existing scatter/gather list 'source' to a
+ * the scatter/gather list 'sg'.  If there are insufficient segments,
+ * then this fails with EFBIG.
+ */
+int
+sglist_append_sglist(struct sglist *sg, struct sglist *source, size_t offset,
+    size_t length)
+{
+	struct sgsave save;
+	struct sglist_seg *ss;
+	size_t seglen;
+	int error, i;
+
+	if (sg->sg_maxseg == 0 || length == 0)
+		return (EINVAL);
+	SGLIST_SAVE(sg, save);
+	error = EINVAL;
+	ss = &sg->sg_segs[sg->sg_nseg - 1];
+	for (i = 0; i < source->sg_nseg; i++) {
+		if (offset >= source->sg_segs[i].ss_len) {
+			offset -= source->sg_segs[i].ss_len;
+			continue;
+		}
+		seglen = source->sg_segs[i].ss_len - offset;
+		if (seglen > length)
+			seglen = length;
+		error = _sglist_append_range(sg, &ss,
+		    source->sg_segs[i].ss_paddr + offset, seglen);
+		if (error)
+			break;
+		offset = 0;
+		length -= seglen;
+		if (length == 0)
+			break;
+	}
+	if (length != 0)
+		error = EINVAL;
 	if (error)
 		SGLIST_RESTORE(sg, save);
 	return (error);

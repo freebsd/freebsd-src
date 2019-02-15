@@ -31,7 +31,6 @@ if [ $# != 1 ]; then
 fi
 
 dtrace=$1
-CC=/usr/bin/gcc
 CFLAGS=
 
 doit()
@@ -47,7 +46,7 @@ void
 main()
 {}
 EOF
-	if $CC $CFLAGS -o $cofile $cfile >/dev/null 2>&1; then
+	if cc $CFLAGS -o $cofile $cfile >/dev/null 2>&1; then
 		$dtrace -xerrtags -C -s /dev/stdin \
 		    >/dev/null 2>$errfile <<EOF
 #include <sys/$file>
@@ -66,11 +65,6 @@ EOF
 
 	rm -f $cofile $cfile 2>/dev/null
 }
-
-if [ ! -x $CC ]; then
-	echo "$0: bad compiler: $CC" >& 2
-	exit 1
-fi
 
 concurrency=`psrinfo | wc -l`
 let concurrency=concurrency*4

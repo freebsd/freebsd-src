@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Jake Burkholder
  * Copyright (c) 2004 Robert Watson
  * All rights reserved.
@@ -29,11 +31,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/capsicum.h>
 #include <sys/ktr.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
@@ -46,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #define	SBUFLEN	128
 #define	USAGE \
-	"usage: ktrdump [-cfqrtH] [-e execfile] [-i ktrfile] [-m corefile] [-o outfile]\n"
+	"usage: ktrdump [-cflqrtH] [-i ktrfile] [-M core] [-N system] [-o outfile]\n"
 
 static void usage(void);
 
@@ -59,9 +64,10 @@ static struct nlist nl[] = {
 };
 
 static int cflag;
-static int eflag;
 static int fflag;
-static int mflag;
+static int lflag;
+static int Mflag;
+static int Nflag;
 static int qflag;
 static int rflag;
 static int tflag;
@@ -70,6 +76,7 @@ static int hflag;
 
 static char corefile[PATH_MAX];
 static char execfile[PATH_MAX];
+static char outfile[PATH_MAX] = "stdout";
 
 static char desc[SBUFLEN];
 static char errbuf[_POSIX2_LINE_MAX];
@@ -87,12 +94,14 @@ main(int ac, char **av)
 	struct ktr_entry *buf;
 	uintmax_t tlast, tnow;
 	unsigned long bufptr;
+	cap_rights_t rights;
 	struct stat sb;
 	kvm_t *kd;
 	FILE *out;
 	char *p;
 	int version;
 	int entries;
+	int count;
 	int index, index2;
 	int parm;
 	int in;
@@ -103,16 +112,17 @@ main(int ac, char **av)
 	 * Parse commandline arguments.
 	 */
 	out = stdout;
-	while ((c = getopt(ac, av, "cfqrtHe:i:m:o:")) != -1)
+	while ((c = getopt(ac, av, "cflqrtHe:i:m:M:N:o:")) != -1)
 		switch (c) {
 		case 'c':
 			cflag = 1;
 			break;
+		case 'N':
 		case 'e':
 			if (strlcpy(execfile, optarg, sizeof(execfile))
 			    >= sizeof(execfile))
 				errx(1, "%s: File name too long", optarg);
-			eflag = 1;
+			Nflag = 1;
 			break;
 		case 'f':
 			fflag = 1;
@@ -121,16 +131,25 @@ main(int ac, char **av)
 			iflag = 1;
 			if ((in = open(optarg, O_RDONLY)) == -1)
 				err(1, "%s", optarg);
+			cap_rights_init(&rights, CAP_FSTAT, CAP_MMAP_R);
+			if (caph_rights_limit(in, &rights) < 0)
+				err(1, "unable to limit rights for %s",
+				    optarg);
 			break;
+		case 'l':
+			lflag = 1;
+			break;
+		case 'M':
 		case 'm':
 			if (strlcpy(corefile, optarg, sizeof(corefile))
 			    >= sizeof(corefile))
 				errx(1, "%s: File name too long", optarg);
-			mflag = 1;
+			Mflag = 1;
 			break;
 		case 'o':
 			if ((out = fopen(optarg, "w")) == NULL)
 				err(1, "%s", optarg);
+			strlcpy(outfile, optarg, sizeof(outfile));
 			break;
 		case 'q':
 			qflag++;
@@ -153,18 +172,44 @@ main(int ac, char **av)
 	if (ac != 0)
 		usage();
 
+	if (caph_limit_stream(fileno(out), CAPH_WRITE) < 0)
+		err(1, "unable to limit rights for %s", outfile);
+	if (caph_limit_stderr() < 0)
+		err(1, "unable to limit rights for stderr");
+
 	/*
 	 * Open our execfile and corefile, resolve needed symbols and read in
 	 * the trace buffer.
 	 */
-	if ((kd = kvm_openfiles(eflag ? execfile : NULL,
-	    mflag ? corefile : NULL, NULL, O_RDONLY, errbuf)) == NULL)
+	if ((kd = kvm_openfiles(Nflag ? execfile : NULL,
+	    Mflag ? corefile : NULL, NULL, O_RDONLY, errbuf)) == NULL)
 		errx(1, "%s", errbuf);
-	if (kvm_nlist(kd, nl) != 0 ||
-	    kvm_read(kd, nl[0].n_value, &version, sizeof(version)) == -1)
+
+	/*
+	 * Cache NLS data, for strerror, for err(3), before entering capability
+	 * mode.
+	 */
+	caph_cache_catpages();
+
+	count = kvm_nlist(kd, nl);
+	if (count == -1)
+		errx(1, "%s", kvm_geterr(kd));
+	if (count > 0)
+		errx(1, "failed to resolve ktr symbols");
+	if (kvm_read(kd, nl[0].n_value, &version, sizeof(version)) == -1)
 		errx(1, "%s", kvm_geterr(kd));
 	if (version != KTR_VERSION)
 		errx(1, "ktr version mismatch");
+
+	/*
+	 * Enter Capsicum sandbox.
+	 *
+	 * kvm_nlist() above uses kldsym(2) for native kernels, and that isn't
+	 * allowed in the sandbox.
+	 */
+	if (caph_enter() < 0)
+		err(1, "unable to enter capability mode");
+
 	if (iflag) {
 		if (fstat(in, &sb) == -1)
 			errx(1, "stat");
@@ -217,15 +262,29 @@ main(int ac, char **av)
 		fprintf(out, "\n");
 	}
 
+	tlast = -1;
 	/*
 	 * Now tear through the trace buffer.
+	 *
+	 * In "live" mode, find the oldest entry (first non-NULL entry
+	 * after index2) and walk forward.  Otherwise, start with the
+	 * most recent entry and walk backwards.
 	 */
 	if (!iflag) {
-		i = index - 1;
-		if (i < 0)
-			i = entries - 1;
+		if (lflag) {
+			i = index2 + 1 % entries;
+			while (buf[i].ktr_desc == NULL && i != index) {
+				i++;
+				if (i == entries)
+					i = 0;
+			}
+		} else {
+			i = index - 1;
+			if (i < 0)
+				i = entries - 1;
+		}
 	}
-	tlast = -1;
+dump_entries:
 	for (;;) {
 		if (buf[i].ktr_desc == NULL)
 			break;
@@ -297,14 +356,40 @@ next:			if ((c = *p++) == '\0')
 			 * 'index2' were in flux while the KTR buffer was
 			 * being copied to userspace we don't dump them.
 			 */
-			if (i == index2)
-				break;
-			if (--i < 0)
-				i = entries - 1;
+			if (lflag) {
+				if (++i == entries)
+					i = 0;
+				if (i == index)
+					break;
+			} else {
+				if (i == index2)
+					break;
+				if (--i < 0)
+					i = entries - 1;
+			}
 		} else {
 			if (++i == entries)
 				break;
 		}
+	}
+
+	/*
+	 * In "live" mode, poll 'ktr_idx' periodically and dump any
+	 * new entries since our last pass through the ring.
+	 */
+	if (lflag && !iflag) {
+		while (index == index2) {
+			usleep(50 * 1000);
+			if (kvm_read(kd, nl[2].n_value, &index2,
+			    sizeof(index2)) == -1)
+				errx(1, "%s", kvm_geterr(kd));
+		}
+		i = index;
+		index = index2;
+		if (kvm_read(kd, bufptr, buf, sizeof(*buf) * entries) == -1 ||
+		    kvm_read(kd, nl[2].n_value, &index2, sizeof(index2)) == -1)
+			errx(1, "%s", kvm_geterr(kd));
+		goto dump_entries;
 	}
 
 	return (0);

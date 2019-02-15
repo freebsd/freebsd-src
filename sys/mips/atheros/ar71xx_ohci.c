@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, Oleksandr Tymoshenko <gonzo@FreeBSD.org>
  * All rights reserved.
  *
@@ -49,6 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ohci.h>
 #include <dev/usb/controller/ohcireg.h>
 
+#include <mips/atheros/ar71xxreg.h> /* for stuff in ar71xx_cpudef.h */
+#include <mips/atheros/ar71xx_cpudef.h>
+
 static int ar71xx_ohci_attach(device_t dev);
 static int ar71xx_ohci_detach(device_t dev);
 static int ar71xx_ohci_probe(device_t dev);
@@ -65,6 +70,16 @@ ar71xx_ohci_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
+static void
+ar71xx_ohci_intr(void *arg)
+{
+
+	/* XXX TODO: should really see if this was our interrupt.. */
+	ar71xx_device_flush_ddr(AR71XX_CPU_DDR_FLUSH_USB);
+	ohci_interrupt(arg);
+}
+
+
 static int
 ar71xx_ohci_attach(device_t dev)
 {
@@ -76,6 +91,7 @@ ar71xx_ohci_attach(device_t dev)
 	sc->sc_ohci.sc_bus.parent = dev;
 	sc->sc_ohci.sc_bus.devices = sc->sc_ohci.sc_devices;
 	sc->sc_ohci.sc_bus.devices_max = OHCI_MAX_DEVICES;
+	sc->sc_ohci.sc_bus.dma_bits = 32;
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_ohci.sc_bus,
@@ -112,7 +128,7 @@ ar71xx_ohci_attach(device_t dev)
 
 	err = bus_setup_intr(dev, sc->sc_ohci.sc_irq_res, 
 	    INTR_TYPE_BIO | INTR_MPSAFE, NULL, 
-	    (driver_intr_t *)ohci_interrupt, sc, &sc->sc_ohci.sc_intr_hdl);
+	    ar71xx_ohci_intr, sc, &sc->sc_ohci.sc_intr_hdl);
 	if (err) {
 		err = ENXIO;
 		goto error;
@@ -142,13 +158,7 @@ static int
 ar71xx_ohci_detach(device_t dev)
 {
 	struct ar71xx_ohci_softc *sc = device_get_softc(dev);
-	device_t bdev;
 
-	if (sc->sc_ohci.sc_bus.bdev) {
-		bdev = sc->sc_ohci.sc_bus.bdev;
-		device_detach(bdev);
-		device_delete_child(dev, bdev);
-	}
 	/* during module unload there are lots of children leftover */
 	device_delete_children(dev);
 

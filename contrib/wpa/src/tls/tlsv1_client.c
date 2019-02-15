@@ -1,6 +1,6 @@
 /*
  * TLS v1.0/v1.1/v1.2 client (RFC 2246, RFC 4346, RFC 5246)
- * Copyright (c) 2006-2011, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2006-2015, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -11,6 +11,7 @@
 #include "common.h"
 #include "crypto/sha1.h"
 #include "crypto/tls.h"
+#include "x509v3.h"
 #include "tlsv1_common.h"
 #include "tlsv1_record.h"
 #include "tlsv1_client.h"
@@ -110,7 +111,6 @@ int tls_derive_keys(struct tlsv1_client *conn,
 		pos += conn->rl.iv_size;
 		/* server_write_IV */
 		os_memcpy(conn->rl.read_iv, pos, conn->rl.iv_size);
-		pos += conn->rl.iv_size;
 	} else {
 		/*
 		 * Use IV field to set the mask value for TLS v1.1. A fixed
@@ -459,10 +459,15 @@ struct tlsv1_client * tlsv1_client_init(void)
 
 	count = 0;
 	suites = conn->cipher_suites;
+	suites[count++] = TLS_DHE_RSA_WITH_AES_256_CBC_SHA256;
 	suites[count++] = TLS_RSA_WITH_AES_256_CBC_SHA256;
+	suites[count++] = TLS_DHE_RSA_WITH_AES_256_CBC_SHA;
 	suites[count++] = TLS_RSA_WITH_AES_256_CBC_SHA;
+	suites[count++] = TLS_DHE_RSA_WITH_AES_128_CBC_SHA256;
 	suites[count++] = TLS_RSA_WITH_AES_128_CBC_SHA256;
+	suites[count++] = TLS_DHE_RSA_WITH_AES_128_CBC_SHA;
 	suites[count++] = TLS_RSA_WITH_AES_128_CBC_SHA;
+	suites[count++] = TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA;
 	suites[count++] = TLS_RSA_WITH_3DES_EDE_CBC_SHA;
 	suites[count++] = TLS_RSA_WITH_RC4_128_SHA;
 	suites[count++] = TLS_RSA_WITH_RC4_128_MD5;
@@ -489,6 +494,7 @@ void tlsv1_client_deinit(struct tlsv1_client *conn)
 	tlsv1_client_free_dh(conn);
 	tlsv1_cred_free(conn->cred);
 	wpabuf_free(conn->partial_input);
+	x509_certificate_chain_free(conn->server_cert);
 	os_free(conn);
 }
 
@@ -565,8 +571,26 @@ int tlsv1_client_get_cipher(struct tlsv1_client *conn, char *buf,
 	case TLS_RSA_WITH_3DES_EDE_CBC_SHA:
 		cipher = "DES-CBC3-SHA";
 		break;
-	case TLS_DH_anon_WITH_AES_128_CBC_SHA256:
-		cipher = "ADH-AES-128-SHA256";
+	case TLS_DHE_RSA_WITH_DES_CBC_SHA:
+		cipher = "DHE-RSA-DES-CBC-SHA";
+		break;
+	case TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA:
+		cipher = "DHE-RSA-DES-CBC3-SHA";
+		break;
+	case TLS_DH_anon_WITH_RC4_128_MD5:
+		cipher = "ADH-RC4-MD5";
+		break;
+	case TLS_DH_anon_WITH_DES_CBC_SHA:
+		cipher = "ADH-DES-SHA";
+		break;
+	case TLS_DH_anon_WITH_3DES_EDE_CBC_SHA:
+		cipher = "ADH-DES-CBC3-SHA";
+		break;
+	case TLS_RSA_WITH_AES_128_CBC_SHA:
+		cipher = "AES-128-SHA";
+		break;
+	case TLS_DHE_RSA_WITH_AES_128_CBC_SHA:
+		cipher = "DHE-RSA-AES-128-SHA";
 		break;
 	case TLS_DH_anon_WITH_AES_128_CBC_SHA:
 		cipher = "ADH-AES-128-SHA";
@@ -574,14 +598,29 @@ int tlsv1_client_get_cipher(struct tlsv1_client *conn, char *buf,
 	case TLS_RSA_WITH_AES_256_CBC_SHA:
 		cipher = "AES-256-SHA";
 		break;
-	case TLS_RSA_WITH_AES_256_CBC_SHA256:
-		cipher = "AES-256-SHA256";
+	case TLS_DHE_RSA_WITH_AES_256_CBC_SHA:
+		cipher = "DHE-RSA-AES-256-SHA";
 		break;
-	case TLS_RSA_WITH_AES_128_CBC_SHA:
-		cipher = "AES-128-SHA";
+	case TLS_DH_anon_WITH_AES_256_CBC_SHA:
+		cipher = "ADH-AES-256-SHA";
 		break;
 	case TLS_RSA_WITH_AES_128_CBC_SHA256:
 		cipher = "AES-128-SHA256";
+		break;
+	case TLS_RSA_WITH_AES_256_CBC_SHA256:
+		cipher = "AES-256-SHA256";
+		break;
+	case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256:
+		cipher = "DHE-RSA-AES-128-SHA256";
+		break;
+	case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256:
+		cipher = "DHE-RSA-AES-256-SHA256";
+		break;
+	case TLS_DH_anon_WITH_AES_128_CBC_SHA256:
+		cipher = "ADH-AES-128-SHA256";
+		break;
+	case TLS_DH_anon_WITH_AES_256_CBC_SHA256:
+		cipher = "ADH-AES-256-SHA256";
 		break;
 	default:
 		return -1;
@@ -653,18 +692,16 @@ int tlsv1_client_hello_ext(struct tlsv1_client *conn, int ext_type,
 	if (data == NULL || data_len == 0)
 		return 0;
 
-	pos = conn->client_hello_ext = os_malloc(6 + data_len);
+	pos = conn->client_hello_ext = os_malloc(4 + data_len);
 	if (pos == NULL)
 		return -1;
 
-	WPA_PUT_BE16(pos, 4 + data_len);
-	pos += 2;
 	WPA_PUT_BE16(pos, ext_type);
 	pos += 2;
 	WPA_PUT_BE16(pos, data_len);
 	pos += 2;
 	os_memcpy(pos, data, data_len);
-	conn->client_hello_ext_len = 6 + data_len;
+	conn->client_hello_ext_len = 4 + data_len;
 
 	if (ext_type == TLS_EXT_PAC_OPAQUE) {
 		conn->session_ticket_included = 1;
@@ -676,12 +713,12 @@ int tlsv1_client_hello_ext(struct tlsv1_client *conn, int ext_type,
 
 
 /**
- * tlsv1_client_get_keys - Get master key and random data from TLS connection
+ * tlsv1_client_get_random - Get random data from TLS connection
  * @conn: TLSv1 client connection data from tlsv1_client_init()
- * @keys: Structure of key/random data (filled on success)
+ * @keys: Structure of random data (filled on success)
  * Returns: 0 on success, -1 on failure
  */
-int tlsv1_client_get_keys(struct tlsv1_client *conn, struct tls_keys *keys)
+int tlsv1_client_get_random(struct tlsv1_client *conn, struct tls_random *keys)
 {
 	os_memset(keys, 0, sizeof(*keys));
 	if (conn->state == CLIENT_HELLO)
@@ -693,8 +730,6 @@ int tlsv1_client_get_keys(struct tlsv1_client *conn, struct tls_keys *keys)
 	if (conn->state != SERVER_HELLO) {
 		keys->server_random = conn->server_random;
 		keys->server_random_len = TLS_RANDOM_LEN;
-		keys->master_key = conn->master_secret;
-		keys->master_key_len = TLS_MASTER_SECRET_LEN;
 	}
 
 	return 0;
@@ -777,9 +812,14 @@ int tlsv1_client_set_cred(struct tlsv1_client *conn,
 }
 
 
-void tlsv1_client_set_time_checks(struct tlsv1_client *conn, int enabled)
+/**
+ * tlsv1_client_set_flags - Set connection flags
+ * @conn: TLSv1 client connection data from tlsv1_client_init()
+ * @flags: TLS_CONN_* bitfield
+ */
+void tlsv1_client_set_flags(struct tlsv1_client *conn, unsigned int flags)
 {
-	conn->disable_time_checks = !enabled;
+	conn->flags = flags;
 }
 
 
@@ -791,4 +831,39 @@ void tlsv1_client_set_session_ticket_cb(struct tlsv1_client *conn,
 		   cb, ctx);
 	conn->session_ticket_cb = cb;
 	conn->session_ticket_cb_ctx = ctx;
+}
+
+
+void tlsv1_client_set_cb(struct tlsv1_client *conn,
+			 void (*event_cb)(void *ctx, enum tls_event ev,
+					  union tls_event_data *data),
+			 void *cb_ctx,
+			 int cert_in_cb)
+{
+	conn->event_cb = event_cb;
+	conn->cb_ctx = cb_ctx;
+	conn->cert_in_cb = !!cert_in_cb;
+}
+
+
+int tlsv1_client_get_version(struct tlsv1_client *conn, char *buf,
+			     size_t buflen)
+{
+	if (!conn)
+		return -1;
+	switch (conn->rl.tls_version) {
+	case TLS_VERSION_1:
+		os_strlcpy(buf, "TLSv1", buflen);
+		break;
+	case TLS_VERSION_1_1:
+		os_strlcpy(buf, "TLSv1.1", buflen);
+		break;
+	case TLS_VERSION_1_2:
+		os_strlcpy(buf, "TLSv1.2", buflen);
+		break;
+	default:
+		return -1;
+	}
+
+	return 0;
 }

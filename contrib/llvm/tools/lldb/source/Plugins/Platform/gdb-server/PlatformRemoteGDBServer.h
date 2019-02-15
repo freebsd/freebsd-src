@@ -1,4 +1,5 @@
-//===-- PlatformRemoteGDBServer.h ----------------------------------------*- C++ -*-===//
+//===-- PlatformRemoteGDBServer.h ----------------------------------------*- C++
+//-*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -16,209 +17,194 @@
 
 // Other libraries and framework includes
 // Project includes
-#include "lldb/Target/Platform.h"
 #include "../../Process/gdb-remote/GDBRemoteCommunicationClient.h"
+#include "Plugins/Process/Utility/GDBRemoteSignals.h"
+#include "lldb/Target/Platform.h"
 
-class PlatformRemoteGDBServer : public lldb_private::Platform
-{
+namespace lldb_private {
+namespace platform_gdb_server {
+
+class PlatformRemoteGDBServer : public Platform {
 public:
+  static void Initialize();
 
-    static void
-    Initialize ();
+  static void Terminate();
 
-    static void
-    Terminate ();
-    
-    static lldb_private::Platform* 
-    CreateInstance (bool force, const lldb_private::ArchSpec *arch);
+  static lldb::PlatformSP CreateInstance(bool force, const ArchSpec *arch);
 
-    static lldb_private::ConstString
-    GetPluginNameStatic();
+  static ConstString GetPluginNameStatic();
 
-    static const char *
-    GetDescriptionStatic();
+  static const char *GetDescriptionStatic();
 
+  PlatformRemoteGDBServer();
 
-    PlatformRemoteGDBServer ();
+  virtual ~PlatformRemoteGDBServer();
 
-    virtual
-    ~PlatformRemoteGDBServer();
+  //------------------------------------------------------------
+  // lldb_private::PluginInterface functions
+  //------------------------------------------------------------
+  ConstString GetPluginName() override { return GetPluginNameStatic(); }
 
-    //------------------------------------------------------------
-    // lldb_private::PluginInterface functions
-    //------------------------------------------------------------
-    virtual lldb_private::ConstString
-    GetPluginName()
-    {
-        return GetPluginNameStatic();
-    }
-    
-    virtual uint32_t
-    GetPluginVersion()
-    {
-        return 1;
-    }
-    
+  uint32_t GetPluginVersion() override { return 1; }
 
-    //------------------------------------------------------------
-    // lldb_private::Platform functions
-    //------------------------------------------------------------
-    virtual lldb_private::Error
-    ResolveExecutable (const lldb_private::FileSpec &exe_file,
-                       const lldb_private::ArchSpec &arch,
-                       lldb::ModuleSP &module_sp,
-                       const lldb_private::FileSpecList *module_search_paths_ptr);
+  //------------------------------------------------------------
+  // lldb_private::Platform functions
+  //------------------------------------------------------------
+  Status
+  ResolveExecutable(const ModuleSpec &module_spec, lldb::ModuleSP &module_sp,
+                    const FileSpecList *module_search_paths_ptr) override;
 
-    virtual const char *
-    GetDescription ();
+  bool GetModuleSpec(const FileSpec &module_file_spec, const ArchSpec &arch,
+                     ModuleSpec &module_spec) override;
 
-    virtual lldb_private::Error
-    GetFileWithUUID (const lldb_private::FileSpec &platform_file, 
-                     const lldb_private::UUID *uuid_ptr,
-                     lldb_private::FileSpec &local_file);
+  const char *GetDescription() override;
 
-    virtual bool
-    GetProcessInfo (lldb::pid_t pid, 
-                    lldb_private::ProcessInstanceInfo &proc_info);
-    
-    virtual uint32_t
-    FindProcesses (const lldb_private::ProcessInstanceInfoMatch &match_info,
-                   lldb_private::ProcessInstanceInfoList &process_infos);
+  Status GetFileWithUUID(const FileSpec &platform_file, const UUID *uuid_ptr,
+                         FileSpec &local_file) override;
 
-    virtual lldb_private::Error
-    LaunchProcess (lldb_private::ProcessLaunchInfo &launch_info);
-    
-    virtual lldb::ProcessSP
-    DebugProcess (lldb_private::ProcessLaunchInfo &launch_info,
-                  lldb_private::Debugger &debugger,
-                  lldb_private::Target *target,       // Can be NULL, if NULL create a new target, else use existing one
-                  lldb_private::Listener &listener,
-                  lldb_private::Error &error);
+  bool GetProcessInfo(lldb::pid_t pid, ProcessInstanceInfo &proc_info) override;
 
-    virtual lldb::ProcessSP
-    Attach (lldb_private::ProcessAttachInfo &attach_info,
-            lldb_private::Debugger &debugger,
-            lldb_private::Target *target,       // Can be NULL, if NULL create a new target, else use existing one
-            lldb_private::Listener &listener,
-            lldb_private::Error &error);
+  uint32_t FindProcesses(const ProcessInstanceInfoMatch &match_info,
+                         ProcessInstanceInfoList &process_infos) override;
 
-    virtual bool
-    GetSupportedArchitectureAtIndex (uint32_t idx, lldb_private::ArchSpec &arch);
+  Status LaunchProcess(ProcessLaunchInfo &launch_info) override;
 
-    virtual size_t
-    GetSoftwareBreakpointTrapOpcode (lldb_private::Target &target, 
-                                     lldb_private::BreakpointSite *bp_site);
+  Status KillProcess(const lldb::pid_t pid) override;
 
-    virtual bool
-    GetRemoteOSVersion ();
+  lldb::ProcessSP DebugProcess(ProcessLaunchInfo &launch_info,
+                               Debugger &debugger,
+                               Target *target, // Can be NULL, if NULL create a
+                                               // new target, else use existing
+                                               // one
+                               Status &error) override;
 
-    virtual bool
-    GetRemoteOSBuildString (std::string &s);
-    
-    virtual bool
-    GetRemoteOSKernelDescription (std::string &s);
+  lldb::ProcessSP Attach(ProcessAttachInfo &attach_info, Debugger &debugger,
+                         Target *target, // Can be NULL, if NULL create a new
+                                         // target, else use existing one
+                         Status &error) override;
 
-    // Remote Platform subclasses need to override this function
-    virtual lldb_private::ArchSpec
-    GetRemoteSystemArchitecture ();
+  bool GetSupportedArchitectureAtIndex(uint32_t idx, ArchSpec &arch) override;
 
-    virtual lldb_private::ConstString
-    GetRemoteWorkingDirectory();
-    
-    virtual bool
-    SetRemoteWorkingDirectory(const lldb_private::ConstString &path);
-    
+  size_t GetSoftwareBreakpointTrapOpcode(Target &target,
+                                         BreakpointSite *bp_site) override;
 
-    // Remote subclasses should override this and return a valid instance
-    // name if connected.
-    virtual const char *
-    GetHostname ();
+  bool GetRemoteOSVersion() override;
 
-    virtual const char *
-    GetUserName (uint32_t uid);
-    
-    virtual const char *
-    GetGroupName (uint32_t gid);
+  bool GetRemoteOSBuildString(std::string &s) override;
 
-    virtual bool
-    IsConnected () const;
+  bool GetRemoteOSKernelDescription(std::string &s) override;
 
-    virtual lldb_private::Error
-    ConnectRemote (lldb_private::Args& args);
+  // Remote Platform subclasses need to override this function
+  ArchSpec GetRemoteSystemArchitecture() override;
 
-    virtual lldb_private::Error
-    DisconnectRemote ();
-    
-    virtual lldb_private::Error
-    MakeDirectory (const char *path, uint32_t file_permissions);
-    
-    virtual lldb_private::Error
-    GetFilePermissions (const char *path, uint32_t &file_permissions);
-    
-    virtual lldb_private::Error
-    SetFilePermissions (const char *path, uint32_t file_permissions);
-    
+  FileSpec GetRemoteWorkingDirectory() override;
 
-    virtual lldb::user_id_t
-    OpenFile (const lldb_private::FileSpec& file_spec,
-              uint32_t flags,
-              uint32_t mode,
-              lldb_private::Error &error);
-    
-    virtual bool
-    CloseFile (lldb::user_id_t fd,
-               lldb_private::Error &error);
-    
-    virtual uint64_t
-    ReadFile (lldb::user_id_t fd,
-              uint64_t offset,
-              void *data_ptr,
-              uint64_t len,
-              lldb_private::Error &error);
-    
-    virtual uint64_t
-    WriteFile (lldb::user_id_t fd,
-               uint64_t offset,
-               const void* data,
-               uint64_t len,
-               lldb_private::Error &error);
+  bool SetRemoteWorkingDirectory(const FileSpec &working_dir) override;
 
-    virtual lldb::user_id_t
-    GetFileSize (const lldb_private::FileSpec& file_spec);
+  // Remote subclasses should override this and return a valid instance
+  // name if connected.
+  const char *GetHostname() override;
 
-    virtual lldb_private::Error
-    PutFile (const lldb_private::FileSpec& source,
-             const lldb_private::FileSpec& destination,
-             uint32_t uid = UINT32_MAX,
-             uint32_t gid = UINT32_MAX);
-    
-    virtual lldb_private::Error
-    CreateSymlink (const char *src, const char *dst);
+  const char *GetUserName(uint32_t uid) override;
 
-    virtual bool
-    GetFileExists (const lldb_private::FileSpec& file_spec);
+  const char *GetGroupName(uint32_t gid) override;
 
-    virtual lldb_private::Error
-    Unlink (const char *path);
+  bool IsConnected() const override;
 
-    virtual lldb_private::Error
-    RunShellCommand (const char *command,           // Shouldn't be NULL
-                     const char *working_dir,       // Pass NULL to use the current working directory
-                     int *status_ptr,               // Pass NULL if you don't want the process exit status
-                     int *signo_ptr,                // Pass NULL if you don't want the signal that caused the process to exit
-                     std::string *command_output,   // Pass NULL if you don't want the command output
-                     uint32_t timeout_sec);         // Timeout in seconds to wait for shell program to finish
+  Status ConnectRemote(Args &args) override;
 
-    virtual void
-    CalculateTrapHandlerSymbolNames ();
+  Status DisconnectRemote() override;
+
+  Status MakeDirectory(const FileSpec &file_spec,
+                       uint32_t file_permissions) override;
+
+  Status GetFilePermissions(const FileSpec &file_spec,
+                            uint32_t &file_permissions) override;
+
+  Status SetFilePermissions(const FileSpec &file_spec,
+                            uint32_t file_permissions) override;
+
+  lldb::user_id_t OpenFile(const FileSpec &file_spec, uint32_t flags,
+                           uint32_t mode, Status &error) override;
+
+  bool CloseFile(lldb::user_id_t fd, Status &error) override;
+
+  uint64_t ReadFile(lldb::user_id_t fd, uint64_t offset, void *data_ptr,
+                    uint64_t len, Status &error) override;
+
+  uint64_t WriteFile(lldb::user_id_t fd, uint64_t offset, const void *data,
+                     uint64_t len, Status &error) override;
+
+  lldb::user_id_t GetFileSize(const FileSpec &file_spec) override;
+
+  Status PutFile(const FileSpec &source, const FileSpec &destination,
+                 uint32_t uid = UINT32_MAX, uint32_t gid = UINT32_MAX) override;
+
+  Status CreateSymlink(const FileSpec &src, const FileSpec &dst) override;
+
+  bool GetFileExists(const FileSpec &file_spec) override;
+
+  Status Unlink(const FileSpec &path) override;
+
+  Status RunShellCommand(
+      const char *command,         // Shouldn't be NULL
+      const FileSpec &working_dir, // Pass empty FileSpec to use the current
+                                   // working directory
+      int *status_ptr, // Pass NULL if you don't want the process exit status
+      int *signo_ptr,  // Pass NULL if you don't want the signal that caused the
+                       // process to exit
+      std::string
+          *command_output, // Pass NULL if you don't want the command output
+      uint32_t timeout_sec)
+      override; // Timeout in seconds to wait for shell program to finish
+
+  void CalculateTrapHandlerSymbolNames() override;
+
+  const lldb::UnixSignalsSP &GetRemoteUnixSignals() override;
+
+  lldb::ProcessSP ConnectProcess(llvm::StringRef connect_url,
+                                 llvm::StringRef plugin_name,
+                                 lldb_private::Debugger &debugger,
+                                 lldb_private::Target *target,
+                                 lldb_private::Status &error) override;
+
+  size_t ConnectToWaitingProcesses(lldb_private::Debugger &debugger,
+                                   lldb_private::Status &error) override;
+
+  virtual size_t
+  GetPendingGdbServerList(std::vector<std::string> &connection_urls);
 
 protected:
-    GDBRemoteCommunicationClient m_gdb_client;
-    std::string m_platform_description; // After we connect we can get a more complete description of what we are connected to
+  process_gdb_remote::GDBRemoteCommunicationClient m_gdb_client;
+  std::string m_platform_description; // After we connect we can get a more
+                                      // complete description of what we are
+                                      // connected to
+  std::string m_platform_scheme;
+  std::string m_platform_hostname;
+
+  lldb::UnixSignalsSP m_remote_signals_sp;
+
+  // Launch the debug server on the remote host - caller connects to launched
+  // debug server using connect_url.
+  // Subclasses should override this method if they want to do extra actions
+  // before or
+  // after launching the debug server.
+  virtual bool LaunchGDBServer(lldb::pid_t &pid, std::string &connect_url);
+
+  virtual bool KillSpawnedProcess(lldb::pid_t pid);
+
+  virtual std::string MakeUrl(const char *scheme, const char *hostname,
+                              uint16_t port, const char *path);
 
 private:
-    DISALLOW_COPY_AND_ASSIGN (PlatformRemoteGDBServer);
+  std::string MakeGdbServerUrl(const std::string &platform_scheme,
+                               const std::string &platform_hostname,
+                               uint16_t port, const char *socket_name);
 
+  DISALLOW_COPY_AND_ASSIGN(PlatformRemoteGDBServer);
 };
 
-#endif  // liblldb_PlatformRemoteGDBServer_h_
+} // namespace platform_gdb_server
+} // namespace lldb_private
+
+#endif // liblldb_PlatformRemoteGDBServer_h_

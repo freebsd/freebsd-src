@@ -607,7 +607,7 @@ upload_data(struct sbni_softc *sc, u_int framelen, u_int frameno,
 
 		/*
 		 * if CRC is right but framelen incorrect then transmitter
-		 * error was occured... drop entire packet
+		 * error was occurred... drop entire packet
 		 */
 		} else if ((frame_ok = skip_tail(sc, framelen, crc)) != 0) {
 			sc->wait_frameno = 0;
@@ -738,7 +738,7 @@ prepare_to_send(struct sbni_softc *sc)
 		len = SBNI_MIN_LEN;
 
 	sc->pktlen	= len;
-	sc->tx_frameno	= (len + sc->maxframe - 1) / sc->maxframe;
+	sc->tx_frameno	= howmany(len, sc->maxframe);
 	sc->framelen	= min(len, sc->maxframe);
 
 	sbni_outb(sc, CSR0, sbni_inb(sc, CSR0) | TR_REQ);
@@ -878,8 +878,7 @@ get_rx_buf(struct sbni_softc *sc)
 	 */
 	if (ETHER_MAX_LEN + 2 > MHLEN) {
 		/* Attach an mbuf cluster */
-		MCLGET(m, M_NOWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
+		if (!(MCLGET(m, M_NOWAIT))) {
 			m_freem(m);
 			return (0);
 		}
@@ -1145,7 +1144,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		flags.fixed_rxl = (sc->delta_rxl == 0);
 		flags.fixed_rate = 1;
 		SBNI_UNLOCK(sc);
-		ifr->ifr_data = *(caddr_t*) &flags;
+		bcopy(&flags, &ifr->ifr_ifru, sizeof(flags));
 		break;
 
 	case SIOCGINSTATS:
@@ -1154,7 +1153,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		SBNI_LOCK(sc);
 		bcopy(&sc->in_stats, in_stats, sizeof(struct sbni_in_stats));
 		SBNI_UNLOCK(sc);
-		error = copyout(ifr->ifr_data, in_stats,
+		error = copyout(in_stats, ifr_data_get_ptr(ifr),
 		    sizeof(struct sbni_in_stats));
 		free(in_stats, M_DEVBUF);
 		break;
@@ -1164,7 +1163,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = priv_check(td, PRIV_DRIVER);
 		if (error)
 			break;
-		flags = *(struct sbni_flags*)&ifr->ifr_data;
+		bcopy(&ifr->ifr_ifru, &flags, sizeof(flags));
 		SBNI_LOCK(sc);
 		if (flags.fixed_rxl) {
 			sc->delta_rxl = 0;

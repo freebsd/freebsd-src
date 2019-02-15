@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Principal Author: Parag Patel
  * Copyright (c) 2001
  * All rights reserved.
@@ -132,14 +134,12 @@ static int
 e1000phy_attach(device_t dev)
 {
 	struct mii_softc *sc;
-	if_t ifp;
 
 	sc = device_get_softc(dev);
 
 	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &e1000phy_funcs, 0);
 
-	ifp = sc->mii_pdata->mii_ifp;
-	if (strcmp(if_getdname(ifp), "msk") == 0 &&
+	if (mii_dev_mac_match(dev, "msk") &&
 	    (sc->mii_flags & MIIF_MACPRIV0) != 0)
 		sc->mii_flags |= MIIF_PHYPRIV0;
 

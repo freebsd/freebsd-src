@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)directory.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd July 28, 2014
+.Dd May 22, 2017
 .Dt DIRECTORY 3
 .Os
 .Sh NAME
@@ -46,7 +46,6 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
 .In dirent.h
 .Ft DIR *
 .Fn opendir "const char *filename"
@@ -69,6 +68,15 @@
 .Ft int
 .Fn dirfd "DIR *dirp"
 .Sh DESCRIPTION
+.Bf -symbolic
+The
+.Fn readdir_r
+interface is deprecated
+because it cannot be used correctly unless
+.Brq Va NAME_MAX
+is a fixed value.
+.Ef
+.Pp
 The
 .Fn opendir
 function
@@ -123,7 +131,13 @@ The
 .Fn readdir
 function
 returns a pointer to the next directory entry.
-It returns
+The directory entry remains valid until the next call to
+.Fn readdir
+or
+.Fn closedir
+on the same
+.Em directory stream .
+The function returns
 .Dv NULL
 upon reaching the end of the directory or on error.
 In the event of an error,
@@ -140,6 +154,13 @@ provides the same functionality as
 but the caller must provide a directory
 .Fa entry
 buffer to store the results in.
+The buffer must be large enough for a
+.Vt struct dirent
+with a
+.Va d_name
+array with
+.Brq Va NAME_MAX
++ 1 elements.
 If the read succeeds,
 .Fa result
 is pointed at the
@@ -263,8 +284,26 @@ function appeared in
 function appeared in
 .Fx 10.0 .
 .Sh BUGS
-The invalidation of
+The behaviour of
 .Fn telldir
-tokens when calling
+and
 .Fn seekdir
-is non-standard.
+is likely to be wrong if there are parallel unlinks happening
+and the directory is larger than one page.
+There is code to ensure that a
+.Fn seekdir
+to the location given by a
+.Fn telldir
+immediately before the last
+.Fn readdir
+will always set the correct location to return the same value as that last
+.Fn readdir
+performed.
+This is enough for some applications which want to
+"push back the last entry read", e.g., Samba.
+Seeks back to any other location,
+other than the beginning of the directory,
+may result in unexpected behaviour if deletes are present.
+It is hoped that this situation will be resolved with changes to
+.Fn getdirentries
+and the VFS.

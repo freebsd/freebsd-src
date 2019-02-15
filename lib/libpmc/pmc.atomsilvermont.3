@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 20, 2014
+.Dd April 6, 2017
 .Dt PMC.ATOMSILVERMONT 3
 .Os
 .Sh NAME
@@ -262,7 +262,8 @@ The number of store uops reissued from Rehabq.
 .It Li MEM_UOPS_RETIRED.L1_MISS_LOADS
 .Pq Event 04H , Umask 01H
 The number of load ops retired that miss in L1
-Data cache. Note that prefetch misses will not be counted.
+Data cache.
+Note that prefetch misses will not be counted.
 .It Li MEM_UOPS_RETIRED.L2_HIT_LOADS
 .Pq Event 04H , Umask 02H
 The number of load micro-ops retired that hit L2.
@@ -287,26 +288,27 @@ The number of load ops retired.
 The number of store ops retired.
 .It Li PAGE_WALKS.D_SIDE_CYCLES
 .Pq Event 05H , Umask 01H
-Every cycle when a D-side (walks due to a load) page walk
-is in progress. Page walk duration divided by
-number of page walks is the average duration of page-walks.
-Edge trigger bit must be cleared. Set Edge to count the number
-of page walks.
+Every cycle when a D-side (walks due to a load) page walk is in progress.
+Page walk duration divided by number of page walks is the average duration of
+page-walks.
+Edge trigger bit must be cleared.
+Set Edge to count the number of page walks.
 .It Li PAGE_WALKS.I_SIDE_CYCLES
 .Pq Event 05H , Umask 02H
-Every cycle when a I-side (walks due to an instruction fetch)
-page walk is in progress. Page walk duration divided by number
-of page walks is the average duration of page-walks.
+Every cycle when a I-side (walks due to an instruction fetch) page walk is in
+progress.
+Page walk duration divided by number of page walks is the average duration of
+page-walks.
 .It Li PAGE_WALKS.WALKS
 .Pq Event 05H , Umask 03H
-The number of times a data (D) page walk or an instruction (I)
-page walk is completed or started. Since a page walk implies a
-TLB miss, the number of TLB misses can be counted by counting
-the number of pagewalks.
+The number of times a data (D) page walk or an instruction (I) page walk is
+completed or started.
+Since a page walk implies a TLB miss, the number of TLB misses can be counted
+by counting the number of pagewalks.
 .It Li LONGEST_LAT_CACHE.MISS
 .Pq Event 2EH , Umask 41H
-the total number of L2 cache references and
-The number of L2 cache misses respectively.
+the total number of L2 cache references and the number of L2 cache misses
+respectively.
 L3 is not supported in Silvermont microarchitecture.
 .It Li LONGEST_LAT_CACHE.REFERENCE
 .Pq Event 2EH , Umask 4FH
@@ -323,39 +325,39 @@ requests), BBS (L2 misses) and WOB (L2 write-back victims)
 .It Li CORE_REJECT_L2Q.ALL
 .Pq Event 31H , Umask 00H
 The number of demand and L1 prefetcher
-requests rejected by the L2Q due to a full or nearly full
-condition which likely indicates back pressure from L2Q.
-It also counts requests that would have gone directly to
-the XQ, but are rejected due to a full or nearly full condition,
-indicating back pressure from the IDI link. The L2Q may also
-reject transactions from a core to insure fairness between
-cores, or to delay a core's dirty eviction when the address
-conflicts incoming external snoops. (Note that L2 prefetcher
-requests that are dropped are not counted by this event.).
+requests rejected by the L2Q due to a full or nearly full condition which
+likely indicates back pressure from L2Q.
+It also counts requests that would have gone directly to the XQ, but are
+rejected due to a full or nearly full condition, indicating back pressure from
+the IDI link.
+The L2Q may also reject transactions from a core to insure fairness between
+cores, or to delay a core's dirty eviction when the address conflicts incoming
+external snoops.
+(Note that L2 prefetcher requests that are dropped are not counted by this
+event).
 .It Li CPU_CLK_UNHALTED.CORE_P
 .Pq Event 3CH , Umask 00H
-The number of core cycles while the core is not in a halt
-state. The core enters the halt state when it is running
-the HLT instruction. In mobile systems the core frequency
-may change from time to time. For this reason this event
-may have a changing ratio with regards to time.
+The number of core cycles while the core is not in a halt state.
+The core enters the halt state when it is running the HLT instruction.
+In mobile systems the core frequency may change from time to time.
+For this reason this event may have a changing ratio with regards to time.
 .It Li CPU_CLK_UNHALTED.REF_P
 .Pq Event 3CH , Umask 01H
-The number of reference cycles that the core is not in a halt
-state. The core enters the halt state when it is running
-the HLT instruction.
+The number of reference cycles that the core is not in a halt state.
+The core enters the halt state when it is running the HLT instruction.
 In mobile systems the core frequency may change from time.
-This event is not affected by core frequency changes but counts
-as if the core is running at the maximum frequency all the time.
+This event is not affected by core frequency changes but counts as if the core
+is running at the maximum frequency all the time.
 .It Li ICACHE.HIT
 .Pq Event 80H , Umask 01H
 The number of instruction fetches from the instruction cache.
 .It Li ICACHE.MISSES
 .Pq Event 80H , Umask 02H
-The number of instruction fetches that miss the
-Instruction cache or produce memory requests. This includes
-uncacheable fetches. An instruction fetch miss is counted only
-once and not once for every cycle it is outstanding.
+The number of instruction fetches that miss the Instruction cache or produce
+memory requests.
+This includes uncacheable fetches.
+An instruction fetch miss is counted only once and not once for every cycle
+it is outstanding.
 .It Li ICACHE.ACCESSES
 .Pq Event 80H , Umask 03H
 The number of instruction fetches, including uncacheable fetches.
@@ -372,10 +374,10 @@ Requires MSR_OFFCORE_RESP0 to specify request type and response.
 Requires MSR_OFFCORE_RESP  to specify request type and response.
 .It Li INST_RETIRED.ANY_P
 .Pq Event C0H , Umask 00H
-The number of instructions that retire execution. For instructions
-that consist of multiple micro-ops, this event counts the
-retirement of the last micro-op of the instruction. The counter
-continues counting during hardware interrupts, traps, and inside
+The number of instructions that retire execution.
+For instructions that consist of multiple micro-ops, this event counts the
+retirement of the last micro-op of the instruction.
+The counter continues counting during hardware interrupts, traps, and inside
 interrupt handlers.
 .It Li UOPS_RETIRED.MS
 .Pq Event C2H , Umask 01H

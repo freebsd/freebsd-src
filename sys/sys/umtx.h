@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002, Jeffrey Roberson <jeff@freebsd.org>
  * All rights reserved.
  *
@@ -32,13 +34,26 @@
 
 #include <sys/_umtx.h>
 
+/* Common lock flags */
 #define USYNC_PROCESS_SHARED	0x0001	/* Process shared sync objs */
 
-#define	UMUTEX_UNOWNED		0x0
-#define	UMUTEX_CONTESTED	0x80000000U
-
+/* umutex flags */
 #define	UMUTEX_PRIO_INHERIT	0x0004	/* Priority inherited mutex */
 #define	UMUTEX_PRIO_PROTECT	0x0008	/* Priority protect mutex */
+#define	UMUTEX_ROBUST		0x0010	/* Robust mutex */
+#define	UMUTEX_NONCONSISTENT	0x0020	/* Robust locked but not consistent */
+
+/*
+ * The umutex.m_lock values and bits.  The m_owner is the word which
+ * serves as the lock.  Its high bit is the contention indicator and
+ * rest of bits records the owner TID.  TIDs values start with PID_MAX
+ * + 2 and end by INT32_MAX.  The low range [1..PID_MAX] is guaranteed
+ * to be useable as the special markers.
+ */
+#define	UMUTEX_UNOWNED		0x0
+#define	UMUTEX_CONTESTED	0x80000000U
+#define	UMUTEX_RB_OWNERDEAD	(UMUTEX_CONTESTED | 0x10)
+#define	UMUTEX_RB_NOTRECOV	(UMUTEX_CONTESTED | 0x11)
 
 /* urwlock flags */
 #define URWLOCK_PREFER_READER	0x0002
@@ -51,6 +66,11 @@
 
 /* _usem flags */
 #define SEM_NAMED	0x0002
+
+/* _usem2 count field */
+#define	USEM_HAS_WAITERS	0x80000000U
+#define	USEM_MAX_COUNT		0x7fffffffU
+#define	USEM_COUNT(c)		((c) & USEM_MAX_COUNT)
 
 /* op code for _umtx_op */
 #define	UMTX_OP_RESERVED0	0
@@ -72,11 +92,14 @@
 #define	UMTX_OP_WAKE_PRIVATE	16
 #define	UMTX_OP_MUTEX_WAIT	17
 #define	UMTX_OP_MUTEX_WAKE	18	/* deprecated */
-#define	UMTX_OP_SEM_WAIT	19
-#define	UMTX_OP_SEM_WAKE	20
+#define	UMTX_OP_SEM_WAIT	19	/* deprecated */
+#define	UMTX_OP_SEM_WAKE	20	/* deprecated */
 #define	UMTX_OP_NWAKE_PRIVATE   21
 #define	UMTX_OP_MUTEX_WAKE2	22
-#define	UMTX_OP_MAX		23
+#define	UMTX_OP_SEM2_WAIT	23
+#define	UMTX_OP_SEM2_WAKE	24
+#define	UMTX_OP_SHM		25
+#define	UMTX_OP_ROBUST_LISTS	26
 
 /* Flags for UMTX_OP_CV_WAIT */
 #define	CVWAIT_CHECK_UNPARKING	0x01
@@ -87,9 +110,25 @@
 
 #define	UMTX_CHECK_UNPARKING	CVWAIT_CHECK_UNPARKING
 
+/* Flags for UMTX_OP_SHM */
+#define	UMTX_SHM_CREAT		0x0001
+#define	UMTX_SHM_LOOKUP		0x0002
+#define	UMTX_SHM_DESTROY	0x0004
+#define	UMTX_SHM_ALIVE		0x0008
+
+struct umtx_robust_lists_params {
+	uintptr_t	robust_list_offset;
+	uintptr_t	robust_priv_list_offset;
+	uintptr_t	robust_inact_offset;
+};
+
 #ifndef _KERNEL
 
+__BEGIN_DECLS
+
 int _umtx_op(void *obj, int op, u_long val, void *uaddr, void *uaddr2);
+
+__END_DECLS
 
 #else
 
@@ -107,7 +146,10 @@ enum {
 	TYPE_PI_UMUTEX,
 	TYPE_PP_UMUTEX,
 	TYPE_RWLOCK,
-	TYPE_FUTEX
+	TYPE_FUTEX,
+	TYPE_SHM,
+	TYPE_PI_ROBUST_UMUTEX,
+	TYPE_PP_ROBUST_UMUTEX,
 };
 
 /* Key to represent a unique userland synchronous object */
@@ -146,7 +188,7 @@ umtx_key_match(const struct umtx_key *k1, const struct umtx_key *k2)
 }
 
 int umtx_copyin_timeout(const void *, struct timespec *);
-int umtx_key_get(void *, int, int, struct umtx_key *);
+int umtx_key_get(const void *, int, int, struct umtx_key *);
 void umtx_key_release(struct umtx_key *);
 struct umtx_q *umtxq_alloc(void);
 void umtxq_free(struct umtx_q *);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 John Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
@@ -31,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/smp.h>
 #include <vm/vm.h>
@@ -39,8 +42,11 @@ __FBSDID("$FreeBSD$");
 #include <x86/apicreg.h>
 #include <machine/intr_machdep.h>
 #include <x86/apicvar.h>
+#include <machine/md_var.h>
+#include <x86/vmware.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/aclocal.h>
 #include <contrib/dev/acpica/include/actables.h>
 
 #include <dev/acpica/acpivar.h>
@@ -53,9 +59,9 @@ static struct {
 } *ioapics;
 
 static struct lapic_info {
-	u_int la_enabled:1;
-	u_int la_acpi_id:8;
-} lapics[MAX_APIC_ID + 1];
+	u_int la_enabled;
+	u_int la_acpi_id;
+} *lapics;
 
 int madt_found_sci_override;
 static ACPI_TABLE_MADT *madt;
@@ -79,17 +85,19 @@ static int	madt_probe(void);
 static int	madt_probe_cpus(void);
 static void	madt_probe_cpus_handler(ACPI_SUBTABLE_HEADER *entry,
 		    void *arg __unused);
+static void	madt_setup_cpus_handler(ACPI_SUBTABLE_HEADER *entry,
+		    void *arg __unused);
 static void	madt_register(void *dummy);
 static int	madt_setup_local(void);
 static int	madt_setup_io(void);
 static void	madt_walk_table(acpi_subtable_handler *handler, void *arg);
 
 static struct apic_enumerator madt_enumerator = {
-	"MADT",
-	madt_probe,
-	madt_probe_cpus,
-	madt_setup_local,
-	madt_setup_io
+	.apic_name = "MADT",
+	.apic_probe = madt_probe,
+	.apic_probe_cpus = madt_probe_cpus,
+	.apic_setup_local = madt_setup_local,
+	.apic_setup_io = madt_setup_io
 };
 
 /*
@@ -127,8 +135,98 @@ madt_probe_cpus(void)
 static int
 madt_setup_local(void)
 {
+	ACPI_TABLE_DMAR *dmartbl;
+	vm_paddr_t dmartbl_physaddr;
+	const char *reason;
+	char *hw_vendor;
+	u_int p[4];
+	int user_x2apic;
+	bool bios_x2apic;
+
+	if ((cpu_feature2 & CPUID2_X2APIC) != 0) {
+		reason = NULL;
+
+		/*
+		 * Automatically detect several configurations where
+		 * x2APIC mode is known to cause troubles.  User can
+		 * override the setting with hw.x2apic_enable tunable.
+		 */
+		dmartbl_physaddr = acpi_find_table(ACPI_SIG_DMAR);
+		if (dmartbl_physaddr != 0) {
+			dmartbl = acpi_map_table(dmartbl_physaddr,
+			    ACPI_SIG_DMAR);
+			if ((dmartbl->Flags & ACPI_DMAR_X2APIC_OPT_OUT) != 0)
+				reason = "by DMAR table";
+			acpi_unmap_table(dmartbl);
+		}
+		if (vm_guest == VM_GUEST_VMWARE) {
+			vmware_hvcall(VMW_HVCMD_GETVCPU_INFO, p);
+			if ((p[0] & VMW_VCPUINFO_VCPU_RESERVED) != 0 ||
+			    (p[0] & VMW_VCPUINFO_LEGACY_X2APIC) == 0)
+				reason =
+				    "inside VMWare without intr redirection";
+		} else if (vm_guest == VM_GUEST_XEN) {
+			reason = "due to running under XEN";
+		} else if (vm_guest == VM_GUEST_NO &&
+		    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+		    CPUID_TO_MODEL(cpu_id) == 0x2a) {
+			hw_vendor = kern_getenv("smbios.planar.maker");
+			/*
+			 * It seems that some Lenovo and ASUS
+			 * SandyBridge-based notebook BIOSes have a
+			 * bug which prevents booting AP in x2APIC
+			 * mode.  Since the only way to detect mobile
+			 * CPU is to check northbridge pci id, which
+			 * cannot be done that early, disable x2APIC
+			 * for all Lenovo and ASUS SandyBridge
+			 * machines.
+			 */
+			if (hw_vendor != NULL) {
+				if (!strcmp(hw_vendor, "LENOVO") ||
+				    !strcmp(hw_vendor,
+				    "ASUSTeK Computer Inc.")) {
+					reason =
+				    "for a suspected SandyBridge BIOS bug";
+				}
+				freeenv(hw_vendor);
+			}
+		}
+		bios_x2apic = lapic_is_x2apic();
+		if (reason != NULL && bios_x2apic) {
+			if (bootverbose)
+				printf("x2APIC should be disabled %s but "
+				    "already enabled by BIOS; enabling.\n",
+				     reason);
+			reason = NULL;
+		}
+		if (reason == NULL)
+			x2apic_mode = 1;
+		else if (bootverbose)
+			printf("x2APIC available but disabled %s\n", reason);
+		user_x2apic = x2apic_mode;
+		TUNABLE_INT_FETCH("hw.x2apic_enable", &user_x2apic);
+		if (user_x2apic != x2apic_mode) {
+			if (bios_x2apic && !user_x2apic)
+				printf("x2APIC disabled by tunable and "
+				    "enabled by BIOS; ignoring tunable.");
+			else
+				x2apic_mode = user_x2apic;
+		}
+	}
+
+	/*
+	 * Truncate max_apic_id if not in x2APIC mode. Some structures
+	 * will already be allocated with the previous max_apic_id, but
+	 * at least we can prevent wasting more memory elsewhere.
+	 */
+	if (!x2apic_mode)
+		max_apic_id = min(max_apic_id, xAPIC_MAX_APIC_ID);
 
 	madt = pmap_mapbios(madt_physaddr, madt_length);
+	lapics = malloc(sizeof(*lapics) * (max_apic_id + 1), M_MADT,
+	    M_WAITOK | M_ZERO);
+	madt_walk_table(madt_setup_cpus_handler, NULL);
+
 	lapic_init(madt->Address);
 	printf("ACPI APIC Table: <%.*s %.*s>\n",
 	    (int)sizeof(madt->Header.OemId), madt->Header.OemId,
@@ -151,6 +249,8 @@ madt_setup_io(void)
 	u_int pin;
 	int i;
 
+	KASSERT(lapics != NULL, ("local APICs not initialized"));
+
 	/* Try to initialize ACPI so that we can access the FADT. */
 	i = acpi_Startup();
 	if (ACPI_FAILURE(i)) {
@@ -160,7 +260,7 @@ madt_setup_io(void)
 		panic("Using MADT but ACPI doesn't work");
 	}
 
-	ioapics = malloc(sizeof(*ioapics) * (MAX_APIC_ID + 1), M_MADT,
+	ioapics = malloc(sizeof(*ioapics) * (IOAPIC_MAX_ID + 1), M_MADT,
 	    M_WAITOK | M_ZERO);
 
 	/* First, we run through adding I/O APIC's. */
@@ -187,7 +287,7 @@ madt_setup_io(void)
 	}
 
 	/* Third, we register all the I/O APIC's. */
-	for (i = 0; i <= MAX_APIC_ID; i++)
+	for (i = 0; i <= IOAPIC_MAX_ID; i++)
 		if (ioapics[i].io_apic != NULL)
 			ioapic_register(ioapics[i].io_apic);
 
@@ -196,6 +296,10 @@ madt_setup_io(void)
 
 	free(ioapics, M_MADT);
 	ioapics = NULL;
+
+	/* NB: this is the last use of the lapics array. */
+	free(lapics, M_MADT);
+	lapics = NULL;
 
 	return (0);
 }
@@ -220,34 +324,84 @@ madt_walk_table(acpi_subtable_handler *handler, void *arg)
 }
 
 static void
+madt_parse_cpu(unsigned int apic_id, unsigned int flags)
+{
+
+	if (!(flags & ACPI_MADT_ENABLED) ||
+#ifdef SMP
+	    mp_ncpus == MAXCPU ||
+#endif
+	    apic_id > MAX_APIC_ID)
+		return;
+
+#ifdef SMP
+	mp_ncpus++;
+	mp_maxid = mp_ncpus - 1;
+#endif
+	max_apic_id = max(apic_id, max_apic_id);
+}
+
+static void
+madt_add_cpu(u_int acpi_id, u_int apic_id, u_int flags)
+{
+	struct lapic_info *la;
+
+	/*
+	 * The MADT does not include a BSP flag, so we have to let the
+	 * MP code figure out which CPU is the BSP on its own.
+	 */
+	if (bootverbose)
+		printf("MADT: Found CPU APIC ID %u ACPI ID %u: %s\n",
+		    apic_id, acpi_id, flags & ACPI_MADT_ENABLED ?
+		    "enabled" : "disabled");
+	if (!(flags & ACPI_MADT_ENABLED))
+		return;
+	if (apic_id > max_apic_id) {
+		printf("MADT: Ignoring local APIC ID %u (too high)\n",
+		    apic_id);
+		return;
+	}
+
+	la = &lapics[apic_id];
+	KASSERT(la->la_enabled == 0, ("Duplicate local APIC ID %u", apic_id));
+	la->la_enabled = 1;
+	la->la_acpi_id = acpi_id;
+	lapic_create(apic_id, 0);
+}
+
+static void
 madt_probe_cpus_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
 {
 	ACPI_MADT_LOCAL_APIC *proc;
-	struct lapic_info *la;
+	ACPI_MADT_LOCAL_X2APIC *x2apic;
 
 	switch (entry->Type) {
 	case ACPI_MADT_TYPE_LOCAL_APIC:
-		/*
-		 * The MADT does not include a BSP flag, so we have to
-		 * let the MP code figure out which CPU is the BSP on
-		 * its own.
-		 */
 		proc = (ACPI_MADT_LOCAL_APIC *)entry;
-		if (bootverbose)
-			printf("MADT: Found CPU APIC ID %u ACPI ID %u: %s\n",
-			    proc->Id, proc->ProcessorId,
-			    (proc->LapicFlags & ACPI_MADT_ENABLED) ?
-			    "enabled" : "disabled");
-		if (!(proc->LapicFlags & ACPI_MADT_ENABLED))
-			break;
-		if (proc->Id > MAX_APIC_ID)
-			panic("%s: CPU ID %u too high", __func__, proc->Id);
-		la = &lapics[proc->Id];
-		KASSERT(la->la_enabled == 0,
-		    ("Duplicate local APIC ID %u", proc->Id));
-		la->la_enabled = 1;
-		la->la_acpi_id = proc->ProcessorId;
-		lapic_create(proc->Id, 0);
+		madt_parse_cpu(proc->Id, proc->LapicFlags);
+		break;
+	case ACPI_MADT_TYPE_LOCAL_X2APIC:
+		x2apic = (ACPI_MADT_LOCAL_X2APIC *)entry;
+		madt_parse_cpu(x2apic->LocalApicId, x2apic->LapicFlags);
+		break;
+	}
+}
+
+static void
+madt_setup_cpus_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
+{
+	ACPI_MADT_LOCAL_APIC *proc;
+	ACPI_MADT_LOCAL_X2APIC *x2apic;
+
+	switch (entry->Type) {
+	case ACPI_MADT_TYPE_LOCAL_APIC:
+		proc = (ACPI_MADT_LOCAL_APIC *)entry;
+		madt_add_cpu(proc->ProcessorId, proc->Id, proc->LapicFlags);
+		break;
+	case ACPI_MADT_TYPE_LOCAL_X2APIC:
+		x2apic = (ACPI_MADT_LOCAL_X2APIC *)entry;
+		madt_add_cpu(x2apic->Uid, x2apic->LocalApicId,
+		    x2apic->LapicFlags);
 		break;
 	}
 }
@@ -269,15 +423,11 @@ madt_parse_apics(ACPI_SUBTABLE_HEADER *entry, void *arg __unused)
 			    "MADT: Found IO APIC ID %u, Interrupt %u at %p\n",
 			    apic->Id, apic->GlobalIrqBase,
 			    (void *)(uintptr_t)apic->Address);
-		if (apic->Id > MAX_APIC_ID)
+		if (apic->Id > IOAPIC_MAX_ID)
 			panic("%s: I/O APIC ID %u too high", __func__,
 			    apic->Id);
 		if (ioapics[apic->Id].io_apic != NULL)
 			panic("%s: Double APIC ID %u", __func__, apic->Id);
-		if (apic->GlobalIrqBase >= FIRST_MSI_INT) {
-			printf("MADT: Ignoring bogus I/O APIC ID %u", apic->Id);
-			break;
-		}
 		ioapics[apic->Id].io_apic = ioapic_create(apic->Address,
 		    apic->Id, apic->GlobalIrqBase);
 		ioapics[apic->Id].io_vector = apic->GlobalIrqBase;
@@ -341,7 +491,7 @@ madt_find_cpu(u_int acpi_id, u_int *apic_id)
 {
 	int i;
 
-	for (i = 0; i <= MAX_APIC_ID; i++) {
+	for (i = 0; i <= max_apic_id; i++) {
 		if (!lapics[i].la_enabled)
 			continue;
 		if (lapics[i].la_acpi_id != acpi_id)
@@ -362,7 +512,7 @@ madt_find_interrupt(int intr, void **apic, u_int *pin)
 	int i, best;
 
 	best = -1;
-	for (i = 0; i <= MAX_APIC_ID; i++) {
+	for (i = 0; i <= IOAPIC_MAX_ID; i++) {
 		if (ioapics[i].io_apic == NULL ||
 		    ioapics[i].io_vector > intr)
 			continue;
@@ -516,29 +666,44 @@ madt_parse_nmi(ACPI_MADT_NMI_SOURCE *nmi)
  * Parse an entry for an NMI routed to a local APIC LVT pin.
  */
 static void
-madt_parse_local_nmi(ACPI_MADT_LOCAL_APIC_NMI *nmi)
+madt_handle_local_nmi(u_int acpi_id, UINT8 Lint, UINT16 IntiFlags)
 {
 	u_int apic_id, pin;
 
-	if (nmi->ProcessorId == 0xff)
+	if (acpi_id == 0xffffffff)
 		apic_id = APIC_ID_ALL;
-	else if (madt_find_cpu(nmi->ProcessorId, &apic_id) != 0) {
+	else if (madt_find_cpu(acpi_id, &apic_id) != 0) {
 		if (bootverbose)
 			printf("MADT: Ignoring local NMI routed to "
-			    "ACPI CPU %u\n", nmi->ProcessorId);
+			    "ACPI CPU %u\n", acpi_id);
 		return;
 	}
-	if (nmi->Lint == 0)
+	if (Lint == 0)
 		pin = APIC_LVT_LINT0;
 	else
 		pin = APIC_LVT_LINT1;
 	lapic_set_lvt_mode(apic_id, pin, APIC_LVT_DM_NMI);
-	if (!(nmi->IntiFlags & ACPI_MADT_TRIGGER_CONFORMS))
+	if (!(IntiFlags & ACPI_MADT_TRIGGER_CONFORMS))
 		lapic_set_lvt_triggermode(apic_id, pin,
-		    interrupt_trigger(nmi->IntiFlags, 0));
-	if (!(nmi->IntiFlags & ACPI_MADT_POLARITY_CONFORMS))
+		    interrupt_trigger(IntiFlags, 0));
+	if (!(IntiFlags & ACPI_MADT_POLARITY_CONFORMS))
 		lapic_set_lvt_polarity(apic_id, pin,
-		    interrupt_polarity(nmi->IntiFlags, 0));
+		    interrupt_polarity(IntiFlags, 0));
+}
+
+static void
+madt_parse_local_nmi(ACPI_MADT_LOCAL_APIC_NMI *nmi)
+{
+
+	madt_handle_local_nmi(nmi->ProcessorId == 0xff ? 0xffffffff :
+	    nmi->ProcessorId, nmi->Lint, nmi->IntiFlags);
+}
+
+static void
+madt_parse_local_x2apic_nmi(ACPI_MADT_LOCAL_X2APIC_NMI *nmi)
+{
+
+	madt_handle_local_nmi(nmi->Uid, nmi->Lint, nmi->IntiFlags);
 }
 
 /*
@@ -559,6 +724,10 @@ madt_parse_ints(ACPI_SUBTABLE_HEADER *entry, void *arg __unused)
 	case ACPI_MADT_TYPE_LOCAL_APIC_NMI:
 		madt_parse_local_nmi((ACPI_MADT_LOCAL_APIC_NMI *)entry);
 		break;
+	case ACPI_MADT_TYPE_LOCAL_X2APIC_NMI:
+		madt_parse_local_x2apic_nmi(
+		    (ACPI_MADT_LOCAL_X2APIC_NMI *)entry);
+		break;
 	}
 }
 
@@ -574,6 +743,9 @@ madt_set_ids(void *dummy)
 
 	if (madt == NULL)
 		return;
+
+	KASSERT(lapics != NULL, ("local APICs not initialized"));
+
 	CPU_FOREACH(i) {
 		pc = pcpu_find(i);
 		KASSERT(pc != NULL, ("no pcpu data for CPU %u", i));

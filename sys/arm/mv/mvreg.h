@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2007-2011 MARVELL INTERNATIONAL LTD.
  * All rights reserved.
  *
@@ -34,6 +36,8 @@
 #ifndef _MVREG_H_
 #define _MVREG_H_
 
+#include <arm/mv/mvwin.h>
+
 #if defined(SOC_MV_DISCOVERY)
 #define IRQ_CAUSE_ERROR		0x0
 #define IRQ_CAUSE		0x4
@@ -50,22 +54,7 @@
 #define ENDPOINT_IRQ_MASK(n)	0x30
 #define ENDPOINT_IRQ_MASK_HI(n)	0x34
 #define ENDPOINT_IRQ_CAUSE_SELECT 0x38
-#elif defined (SOC_MV_LOKIPLUS) || defined (SOC_MV_FREY)
-#define IRQ_CAUSE		0x0
-#define IRQ_MASK		0x4
-#define FIQ_MASK		0x8
-#define ENDPOINT_IRQ_MASK(n)	(0xC + (n) * 4)
-#define IRQ_CAUSE_HI		(-1)		/* Fake defines for unified */
-#define IRQ_MASK_HI		(-1)		/* interrupt controller code */
-#define FIQ_MASK_HI		(-1)
-#define ENDPOINT_IRQ_MASK_HI(n)	(-1)
-#define ENDPOINT_IRQ_MASK_ERROR(n) (-1)
-#define IRQ_CAUSE_ERROR		(-1)
-#define IRQ_MASK_ERROR		(-1)
-#elif defined (SOC_MV_ARMADAXP)
-#define IRQ_CAUSE		0x18
-#define IRQ_MASK		0x30
-#else /* !SOC_MV_DISCOVERY && !SOC_MV_LOKIPLUS */
+#else
 #define IRQ_CAUSE		0x0
 #define IRQ_MASK		0x4
 #define FIQ_MASK		0x8
@@ -79,22 +68,19 @@
 #define IRQ_MASK_ERROR		(-1)		/* interrupt controller code */
 #endif
 
-#if defined(SOC_MV_FREY)
-#define BRIDGE_IRQ_CAUSE	0x118
-#define IRQ_TIMER0		0x00000002
-#define IRQ_TIMER1		0x00000004
-#define IRQ_TIMER_WD		0x00000008
+#define MAIN_IRQ_NUM		116
+#define ERR_IRQ_NUM		32
+#define ERR_IRQ			(MAIN_IRQ_NUM)
+#define MSI_IRQ			(ERR_IRQ + ERR_IRQ_NUM)
 
-#define BRIDGE_IRQ_MASK		0x11c
-#define IRQ_TIMER0_MASK		0x00000002
-#define IRQ_TIMER1_MASK		0x00000004
-#define IRQ_TIMER_WD_MASK	0x00000008
-#elif defined(SOC_MV_ARMADAXP)
-#define BRIDGE_IRQ_CAUSE	0x68
-#define IRQ_TIMER0		0x00000001
-#define IRQ_TIMER1		0x00000002
-#define IRQ_TIMER_WD		0x00000004
-#else
+#define MSI_IRQ_NUM		32
+
+#define IRQ_CPU_SELF		0x00000001
+#define	BRIDGE_IRQ_CAUSE_ARMADAXP	0x68
+#define	IRQ_TIMER0_ARMADAXP		0x00000001
+#define	IRQ_TIMER1_ARMADAXP		0x00000002
+#define	IRQ_TIMER_WD_ARMADAXP		0x00000004
+
 #define BRIDGE_IRQ_CAUSE	0x10
 #define IRQ_CPU_SELF		0x00000001
 #define IRQ_TIMER0		0x00000002
@@ -106,38 +92,31 @@
 #define IRQ_TIMER0_MASK		0x00000002
 #define IRQ_TIMER1_MASK		0x00000004
 #define IRQ_TIMER_WD_MASK	0x00000008
-#endif
 
-#if defined(SOC_MV_LOKIPLUS) || defined(SOC_MV_FREY)
-#define IRQ_CPU_SELF_CLR	IRQ_CPU_SELF
-#define IRQ_TIMER0_CLR		IRQ_TIMER0
-#define IRQ_TIMER1_CLR		IRQ_TIMER1
-#define IRQ_TIMER_WD_CLR	IRQ_TIMER_WD
-#else
 #define IRQ_CPU_SELF_CLR	(~IRQ_CPU_SELF)
 #define IRQ_TIMER0_CLR		(~IRQ_TIMER0)
-#define IRQ_TIMER1_CLR		(~IRQ_TIMER1)
 #define IRQ_TIMER_WD_CLR	(~IRQ_TIMER_WD)
-#endif
+
+#define	IRQ_TIMER0_CLR_ARMADAXP		(~IRQ_TIMER0_ARMADAXP)
+#define	IRQ_TIMER_WD_CLR_ARMADAXP	(~IRQ_TIMER_WD_ARMADAXP)
 
 /*
  * System reset
  */
-#if defined(SOC_MV_ARMADAXP)
-#define RSTOUTn_MASK		0x60
-#define SYSTEM_SOFT_RESET	0x64
-#define WD_RSTOUTn_MASK		0x4
-#define WD_GLOBAL_MASK		0x00000100
-#define WD_CPU0_MASK		0x00000001
-#define SOFT_RST_OUT_EN		0x00000001
-#define SYS_SOFT_RST		0x00000001
-#else
+#define	RSTOUTn_MASK_ARMV7	0x60
+#define	SYSTEM_SOFT_RESET_ARMV7	0x64
+#define	SOFT_RST_OUT_EN_ARMV7	0x00000001
+#define	SYS_SOFT_RST_ARMV7	0x00000001
+
 #define RSTOUTn_MASK		0x8
-#define WD_RST_OUT_EN		0x00000002
 #define SOFT_RST_OUT_EN		0x00000004
 #define SYSTEM_SOFT_RESET	0xc
 #define SYS_SOFT_RST		0x00000001
-#endif
+#define RSTOUTn_MASK_WD		0x400
+#define WD_RSTOUTn_MASK		0x4
+#define WD_GLOBAL_MASK		0x00000100
+#define WD_CPU0_MASK		0x00000001
+#define WD_RST_OUT_EN		0x00000002
 
 /*
  * Power Control
@@ -217,8 +196,10 @@
 #define CPU_TIMER0_AUTO		0x00000002
 #define CPU_TIMER1_EN		0x00000004
 #define CPU_TIMER1_AUTO		0x00000008
-#define CPU_TIMER_WD_EN		0x00000010
-#define CPU_TIMER_WD_AUTO	0x00000020
+#define	CPU_TIMER2_EN		0x00000010
+#define	CPU_TIMER2_AUTO		0x00000020
+#define	CPU_TIMER_WD_EN		0x00000100
+#define	CPU_TIMER_WD_AUTO	0x00000200
 /* 25MHz mode is Armada XP - specific */
 #define CPU_TIMER_WD_25MHZ_EN	0x00000400
 #define CPU_TIMER0_25MHZ_EN	0x00000800
@@ -315,48 +296,32 @@
 #define GPIO_INT_EDGE_MASK	0x18
 #define GPIO_INT_LEV_MASK	0x1c
 
-#define GPIO_HI_DATA_OUT		0x40
-#define GPIO_HI_DATA_OUT_EN_CTRL	0x44
-#define GPIO_HI_BLINK_EN		0x48
-#define GPIO_HI_DATA_IN_POLAR		0x4c
-#define GPIO_HI_DATA_IN			0x50
-#define GPIO_HI_INT_CAUSE		0x54
-#define GPIO_HI_INT_EDGE_MASK		0x58
-#define GPIO_HI_INT_LEV_MASK		0x5c
-
 #define GPIO(n)			(1 << (n))
 #define MV_GPIO_MAX_NPINS	64
 
-#define MV_GPIO_IN_NONE		0x0
-#define MV_GPIO_IN_POL_LOW	(1 << 16)
-#define MV_GPIO_IN_IRQ_EDGE	(2 << 16)
-#define MV_GPIO_IN_IRQ_LEVEL	(4 << 16)
-#define MV_GPIO_OUT_NONE	0x0
-#define MV_GPIO_OUT_BLINK	0x1
-#define MV_GPIO_OUT_OPEN_DRAIN	0x2
-#define MV_GPIO_OUT_OPEN_SRC	0x4
+#define MV_GPIO_IN_NONE			0x0
+#define MV_GPIO_IN_POL_LOW		(1 << 16)
+#define MV_GPIO_IN_IRQ_EDGE		(2 << 16)
+#define MV_GPIO_IN_IRQ_LEVEL		(4 << 16)
+#define MV_GPIO_IN_IRQ_DOUBLE_EDGE	(8 << 16)
+#define MV_GPIO_IN_DEBOUNCE		(16 << 16)
+#define MV_GPIO_OUT_NONE		0x0
+#define MV_GPIO_OUT_BLINK		0x1
+#define MV_GPIO_OUT_OPEN_DRAIN		0x2
+#define MV_GPIO_OUT_OPEN_SRC		0x4
 
 #define IS_GPIO_IRQ(irq)	((irq) >= NIRQ && (irq) < NIRQ + MV_GPIO_MAX_NPINS)
 #define GPIO2IRQ(gpio)		((gpio) + NIRQ)
 #define IRQ2GPIO(irq)		((irq) - NIRQ)
 
-#if defined(SOC_MV_ORION) || defined(SOC_MV_LOKIPLUS)
+#if defined(SOC_MV_ORION)
 #define SAMPLE_AT_RESET		0x10
 #elif defined(SOC_MV_KIRKWOOD)
 #define SAMPLE_AT_RESET		0x30
-#elif defined(SOC_MV_FREY)
-#define SAMPLE_AT_RESET		0x100
 #endif
-#if defined(SOC_MV_DISCOVERY)
-#define SAMPLE_AT_RESET_LO	0x30
-#define SAMPLE_AT_RESET_HI	0x34
-#elif defined(SOC_MV_DOVE)
-#define SAMPLE_AT_RESET_LO	0x14
-#define SAMPLE_AT_RESET_HI	0x18
-#elif defined(SOC_MV_ARMADAXP)
-#define SAMPLE_AT_RESET_LO	0x30
-#define SAMPLE_AT_RESET_HI	0x34
-#endif
+#define	SAMPLE_AT_RESET_ARMADA38X	0x400
+#define	SAMPLE_AT_RESET_LO		0x30
+#define	SAMPLE_AT_RESET_HI		0x34
 
 /*
  * Clocks
@@ -367,10 +332,10 @@
 #elif defined(SOC_MV_DISCOVERY)
 #define TCLK_MASK		0x00000180
 #define TCLK_SHIFT		0x07
-#elif defined(SOC_MV_LOKIPLUS)
-#define TCLK_MASK		0x0000F000
-#define TCLK_SHIFT		0x0C
 #endif
+
+#define	TCLK_MASK_ARMADA38X		0x00008000
+#define	TCLK_SHIFT_ARMADA38X		15
 
 #define TCLK_100MHZ		100000000
 #define TCLK_125MHZ		125000000
@@ -381,6 +346,9 @@
 #define TCLK_250MHZ		250000000
 #define TCLK_300MHZ		300000000
 #define TCLK_667MHZ		667000000
+
+#define	A38X_CPU_DDR_CLK_MASK	0x00007c00
+#define	A38X_CPU_DDR_CLK_SHIFT	10
 
 /*
  * CPU Cache Configuration
@@ -415,6 +383,9 @@
 #define MV_DEV_88F6281		0x6281
 #define MV_DEV_88F6282		0x6282
 #define MV_DEV_88F6781		0x6781
+#define MV_DEV_88F6828		0x6828
+#define MV_DEV_88F6820		0x6820
+#define MV_DEV_88F6810		0x6810
 #define MV_DEV_MV78100_Z0	0x6381
 #define MV_DEV_MV78100		0x7810
 #define MV_DEV_MV78130		0x7813
@@ -428,6 +399,7 @@
 
 #define MV_DEV_FAMILY_MASK	0xff00
 #define MV_DEV_DISCOVERY	0x7800
+#define	MV_DEV_ARMADA38X	0x6800
 
 /*
  * Doorbell register control
@@ -435,13 +407,37 @@
 #define MV_DRBL_PCIE_TO_CPU	0
 #define MV_DRBL_CPU_TO_PCIE	1
 
-#if defined(SOC_MV_FREY)
-#define MV_DRBL_CAUSE(d,u)	(0x60 + 0x20 * (d) + 0x8 * (u))
-#define MV_DRBL_MASK(d,u)	(0x60 + 0x20 * (d) + 0x8 * (u) + 0x4)
-#define MV_DRBL_MSG(m,d,u)	(0x8 * (u) + 0x20 * (d) + 0x4 * (m))
-#else
 #define MV_DRBL_CAUSE(d,u)	(0x10 * (u) + 0x8 * (d))
 #define MV_DRBL_MASK(d,u)	(0x10 * (u) + 0x8 * (d) + 0x4)
 #define MV_DRBL_MSG(m,d,u)	(0x10 * (u) + 0x8 * (d) + 0x4 * (m) + 0x30)
-#endif
+
+/*
+ * SCU
+ */
+#define	MV_SCU_BASE		(MV_BASE + 0xc000)
+#define	MV_SCU_REGS_LEN		0x100
+#define	MV_SCU_REG_CTRL		0x00
+#define	MV_SCU_REG_CONFIG	0x04
+#define	MV_SCU_ENABLE		(1 << 0)
+#define	MV_SCU_SL_L2_ENABLE	(1 << 3)
+#define	SCU_CFG_REG_NCPU_MASK	0x3
+
+/*
+ * PMSU
+ */
+#define	MV_PMSU_BASE		(MV_BASE + 0x22000)
+#define	MV_PMSU_REGS_LEN	0x1000
+#define	PMSU_BOOT_ADDR_REDIRECT_OFFSET(cpu)	(((cpu) * 0x100) + 0x124)
+
+/*
+ * CPU RESET
+ */
+#define	MV_CPU_RESET_BASE	(MV_BASE + 0x20800)
+#define	MV_CPU_RESET_REGS_LEN	0x8
+#define	CPU_RESET_OFFSET(cpu)	((cpu) * 0x8)
+#define	CPU_RESET_ASSERT	0x1
+
+#define	MV_MBUS_CTRL_BASE	(MV_BASE + 0x20420)
+#define	MV_MBUS_CTRL_REGS_LEN	0x10
+
 #endif /* _MVREG_H_ */

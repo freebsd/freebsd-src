@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -352,7 +354,7 @@ SCI_STATUS scic_io_request_construct_smp_pass_through(
  *          -# task_type == SCU_TASK_TYPE_SMP.  This simply indicates
  *             that a normal request type (i.e. non-raw frame) is being
  *             utilized to perform task management.
- *          -# control_frame == 1.  This ensures that the proper endianess
+ *          -# control_frame == 1.  This ensures that the proper endianness
  *             is set so that the bytes are transmitted in the right order
  *             for a smp request frame.
  *
@@ -811,7 +813,7 @@ scic_sds_smp_request_started_substate_handler_table
  *        sub-state.
  *
  * @param[in]  object This parameter specifies the request object for which
- *             the sub-state change is occuring.
+ *             the sub-state change is occurring.
  *
  * @return none.
  */
@@ -836,7 +838,7 @@ void scic_sds_smp_request_started_await_response_substate_enter(
  *        this sub-state.
  *
  * @param[in]  object This parameter specifies the request object for which
- *             the sub-state change is occuring.
+ *             the sub-state change is occurring.
  *
  * @return none.
  */

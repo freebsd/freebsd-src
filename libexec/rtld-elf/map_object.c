@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
  *
@@ -38,9 +40,10 @@
 #include "debug.h"
 #include "rtld.h"
 
-static Elf_Ehdr *get_elf_header(int, const char *);
-static int convert_prot(int);	/* Elf flags -> mmap protection */
+static Elf_Ehdr *get_elf_header(int, const char *, const struct stat *);
 static int convert_flags(int); /* Elf flags -> mmap flags */
+
+int __getosreldate(void);
 
 /*
  * Map a shared object into memory.  The "fd" argument is a file descriptor,
@@ -88,8 +91,11 @@ map_object(int fd, const char *path, const struct stat *sb)
     size_t relro_size;
     Elf_Addr note_start;
     Elf_Addr note_end;
+    char *note_map;
+    size_t note_map_len;
+    Elf_Addr text_end;
 
-    hdr = get_elf_header(fd, path);
+    hdr = get_elf_header(fd, path, sb);
     if (hdr == NULL)
 	return (NULL);
 
@@ -98,7 +104,7 @@ map_object(int fd, const char *path, const struct stat *sb)
      *
      * We expect that the loadable segments are ordered by load address.
      */
-    phdr = (Elf_Phdr *) ((char *)hdr + hdr->e_phoff);
+    phdr = (Elf_Phdr *)((char *)hdr + hdr->e_phoff);
     phsize  = hdr->e_phnum * sizeof (phdr[0]);
     phlimit = phdr + hdr->e_phnum;
     nsegs = -1;
@@ -108,8 +114,11 @@ map_object(int fd, const char *path, const struct stat *sb)
     relro_size = 0;
     note_start = 0;
     note_end = 0;
+    note_map = NULL;
+    note_map_len = 0;
     segs = alloca(sizeof(segs[0]) * hdr->e_phnum);
     stack_flags = RTLD_DEFAULT_STACK_PF_EXEC | PF_R | PF_W;
+    text_end = 0;
     while (phdr < phlimit) {
 	switch (phdr->p_type) {
 
@@ -123,6 +132,10 @@ map_object(int fd, const char *path, const struct stat *sb)
 		_rtld_error("%s: PT_LOAD segment %d not page-aligned",
 		    path, nsegs);
 		goto error;
+	    }
+	    if ((segs[nsegs]->p_flags & PF_X) == PF_X) {
+		text_end = MAX(text_end,
+		    round_page(segs[nsegs]->p_vaddr + segs[nsegs]->p_memsz));
 	    }
 	    break;
 
@@ -150,9 +163,20 @@ map_object(int fd, const char *path, const struct stat *sb)
 
 	case PT_NOTE:
 	    if (phdr->p_offset > PAGE_SIZE ||
-	      phdr->p_offset + phdr->p_filesz > PAGE_SIZE)
-		break;
-	    note_start = (Elf_Addr)(char *)hdr + phdr->p_offset;
+	      phdr->p_offset + phdr->p_filesz > PAGE_SIZE) {
+		note_map_len = round_page(phdr->p_offset +
+		  phdr->p_filesz) - trunc_page(phdr->p_offset);
+		note_map = mmap(NULL, note_map_len, PROT_READ,
+		  MAP_PRIVATE, fd, trunc_page(phdr->p_offset));
+		if (note_map == MAP_FAILED) {
+		    _rtld_error("%s: error mapping PT_NOTE (%d)", path, errno);
+		    goto error;
+		}
+		note_start = (Elf_Addr)(note_map + phdr->p_offset -
+		  trunc_page(phdr->p_offset));
+	    } else {
+		note_start = (Elf_Addr)(char *)hdr + phdr->p_offset;
+	    }
 	    note_end = note_start + phdr->p_filesz;
 	    break;
 	}
@@ -177,9 +201,12 @@ map_object(int fd, const char *path, const struct stat *sb)
     base_vlimit = round_page(segs[nsegs]->p_vaddr + segs[nsegs]->p_memsz);
     mapsize = base_vlimit - base_vaddr;
     base_addr = (caddr_t) base_vaddr;
-    base_flags = MAP_PRIVATE | MAP_ANON | MAP_NOCORE;
+    base_flags = __getosreldate() >= P_OSREL_MAP_GUARD ? MAP_GUARD :
+	MAP_PRIVATE | MAP_ANON | MAP_NOCORE;
     if (npagesizes > 1 && round_page(segs[0]->p_filesz) >= pagesizes[1])
 	base_flags |= MAP_ALIGNED_SUPER;
+    if (base_vaddr != 0)
+	base_flags |= MAP_FIXED | MAP_EXCL;
 
     mapbase = mmap(base_addr, mapsize, PROT_NONE, base_flags, -1, 0);
     if (mapbase == (caddr_t) -1) {
@@ -260,15 +287,13 @@ map_object(int fd, const char *path, const struct stat *sb)
     }
     obj->mapbase = mapbase;
     obj->mapsize = mapsize;
-    obj->textsize = round_page(segs[0]->p_vaddr + segs[0]->p_memsz) -
-      base_vaddr;
     obj->vaddrbase = base_vaddr;
     obj->relocbase = mapbase - base_vaddr;
-    obj->dynamic = (const Elf_Dyn *) (obj->relocbase + phdyn->p_vaddr);
+    obj->dynamic = (const Elf_Dyn *)(obj->relocbase + phdyn->p_vaddr);
     if (hdr->e_entry != 0)
-	obj->entry = (caddr_t) (obj->relocbase + hdr->e_entry);
+	obj->entry = (caddr_t)(obj->relocbase + hdr->e_entry);
     if (phdr_vaddr != 0) {
-	obj->phdr = (const Elf_Phdr *) (obj->relocbase + phdr_vaddr);
+	obj->phdr = (const Elf_Phdr *)(obj->relocbase + phdr_vaddr);
     } else {
 	obj->phdr = malloc(phsize);
 	if (obj->phdr == NULL) {
@@ -276,12 +301,12 @@ map_object(int fd, const char *path, const struct stat *sb)
 	    _rtld_error("%s: cannot allocate program header", path);
 	    goto error1;
 	}
-	memcpy((char *)obj->phdr, (char *)hdr + hdr->e_phoff, phsize);
+	memcpy(__DECONST(char *, obj->phdr), (char *)hdr + hdr->e_phoff, phsize);
 	obj->phdr_alloc = true;
     }
     obj->phsize = phsize;
     if (phinterp != NULL)
-	obj->interp = (const char *) (obj->relocbase + phinterp->p_vaddr);
+	obj->interp = (const char *)(obj->relocbase + phinterp->p_vaddr);
     if (phtls != NULL) {
 	tls_dtv_generation++;
 	obj->tlsindex = ++tls_max_index;
@@ -295,20 +320,30 @@ map_object(int fd, const char *path, const struct stat *sb)
     obj->relro_size = round_page(relro_size);
     if (note_start < note_end)
 	digest_notes(obj, note_start, note_end);
+    if (note_map != NULL)
+	munmap(note_map, note_map_len);
     munmap(hdr, PAGE_SIZE);
     return (obj);
 
 error1:
     munmap(mapbase, mapsize);
 error:
+    if (note_map != NULL && note_map != MAP_FAILED)
+	munmap(note_map, note_map_len);
     munmap(hdr, PAGE_SIZE);
     return (NULL);
 }
 
 static Elf_Ehdr *
-get_elf_header(int fd, const char *path)
+get_elf_header(int fd, const char *path, const struct stat *sbp)
 {
 	Elf_Ehdr *hdr;
+
+	/* Make sure file has enough data for the ELF header */
+	if (sbp != NULL && sbp->st_size < (off_t)sizeof(Elf_Ehdr)) {
+		_rtld_error("%s: invalid file format", path);
+		return (NULL);
+	}
 
 	hdr = mmap(NULL, PAGE_SIZE, PROT_READ, MAP_PRIVATE | MAP_PREFAULT_READ,
 	    fd, 0);
@@ -395,13 +430,13 @@ obj_free(Obj_Entry *obj)
     if (obj->origin_path)
 	free(obj->origin_path);
     if (obj->z_origin)
-	free(obj->rpath);
+	free(__DECONST(void*, obj->rpath));
     if (obj->priv)
 	free(obj->priv);
     if (obj->path)
 	free(obj->path);
     if (obj->phdr_alloc)
-	free((void *)obj->phdr);
+	free(__DECONST(void *, obj->phdr));
     free(obj);
 }
 
@@ -421,7 +456,7 @@ obj_new(void)
  * Given a set of ELF protection flags, return the corresponding protection
  * flags for MMAP.
  */
-static int
+int
 convert_prot(int elfflags)
 {
     int prot = 0;

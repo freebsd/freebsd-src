@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Takeshi Shibagaki
  * All rights reserved.
  *
@@ -140,7 +142,7 @@ xe_cemfix(device_t dev)
 
 	DEVPRINTF(2, (dev, "cemfix\n"));
 
-	DEVPRINTF(1, (dev, "CEM I/O port 0x%0lx, size 0x%0lx\n",
+	DEVPRINTF(1, (dev, "CEM I/O port 0x%0jx, size 0x%0jx\n",
 		bus_get_resource_start(dev, SYS_RES_IOPORT, sc->port_rid),
 		bus_get_resource_count(dev, SYS_RES_IOPORT, sc->port_rid)));
 
@@ -386,3 +388,4 @@ static driver_t xe_pccard_driver = {
 devclass_t xe_devclass;
 
 DRIVER_MODULE(xe, pccard, xe_pccard_driver, xe_devclass, 0, 0);
+PCCARD_PNP_INFO(xe_pccard_products);

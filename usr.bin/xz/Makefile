@@ -10,8 +10,8 @@ LINKS+=	${BINDIR}/xz ${BINDIR}/lzcat
 
 MLINKS= xz.1 unxz.1 xz.1 lzma.1 xz.1 unlzma.1 xz.1 xzcat.1 xz.1 lzcat.1
 
-XZDIR=	${.CURDIR}/../../contrib/xz/src
-LZMALIBDIR=	${.CURDIR}/../../lib/liblzma
+XZDIR=	${SRCTOP}/contrib/xz/src
+LZMALIBDIR=	${SRCTOP}/lib/liblzma
 
 .PATH: ${XZDIR}/xz
 
@@ -22,6 +22,7 @@ SRCS=	args.c \
 	list.c \
 	main.c \
 	message.c \
+	mytime.c \
 	options.c \
 	signals.c \
 	suffix.c \
@@ -42,7 +43,6 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${LZMALIBDIR} \
 		-I${XZDIR}/common
 
-DPADD=	${LIBLZMA}
-LDADD=	-llzma
+LIBADD=	lzma
 
 .include <bsd.prog.mk>

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -39,16 +41,18 @@
 #define	_SYS_BIO_H_
 
 #include <sys/queue.h>
+#include <sys/disk_zone.h>
 
 /* bio_cmd */
 #define BIO_READ	0x01	/* Read I/O data */
 #define BIO_WRITE	0x02	/* Write I/O data */
-#define BIO_DELETE	0x04	/* TRIM or free blocks, i.e. mark as unused */
-#define BIO_GETATTR	0x08	/* Get GEOM attributes of object */
-#define BIO_FLUSH	0x10	/* Commit outstanding I/O now */
-#define BIO_CMD0	0x20	/* Available for local hacks */
-#define BIO_CMD1	0x40	/* Available for local hacks */
-#define BIO_CMD2	0x80	/* Available for local hacks */
+#define BIO_DELETE	0x03	/* TRIM or free blocks, i.e. mark as unused */
+#define BIO_GETATTR	0x04	/* Get GEOM attributes of object */
+#define BIO_FLUSH	0x05	/* Commit outstanding I/O now */
+#define BIO_CMD0	0x06	/* Available for local hacks */
+#define BIO_CMD1	0x07	/* Available for local hacks */
+#define BIO_CMD2	0x08	/* Available for local hacks */
+#define BIO_ZONE	0x09	/* Zone command */
 
 /* bio_flags */
 #define BIO_ERROR	0x01	/* An error occurred processing this bio. */
@@ -61,6 +65,7 @@
 #define BIO_ORDERED	0x08
 #define	BIO_UNMAPPED	0x10
 #define	BIO_TRANSIENT_MAPPING	0x20
+#define	BIO_VLIST	0x40
 
 #ifdef _KERNEL
 struct disk;
@@ -76,10 +81,10 @@ typedef void bio_task_t(void *);
  * The bio structure describes an I/O operation in the kernel.
  */
 struct bio {
-	uint8_t	bio_cmd;		/* I/O operation. */
-	uint8_t	bio_flags;		/* General flags. */
-	uint8_t	bio_cflags;		/* Private use by the consumer. */
-	uint8_t	bio_pflags;		/* Private use by the provider. */
+	uint16_t bio_cmd;		/* I/O operation. */
+	uint16_t bio_flags;		/* General flags. */
+	uint16_t bio_cflags;		/* Private use by the consumer. */
+	uint16_t bio_pflags;		/* Private use by the provider. */
 	struct cdev *bio_dev;		/* Device to do I/O on. */
 	struct disk *bio_disk;		/* Valid below geom_disk.c only */
 	off_t	bio_offset;		/* Offset into file. */
@@ -97,6 +102,7 @@ struct bio {
 	void	*bio_caller2;		/* Private use by the consumer. */
 	TAILQ_ENTRY(bio) bio_queue;	/* Disksort queue. */
 	const char *bio_attribute;	/* Attribute for BIO_[GS]ETATTR */
+	struct  disk_zone_args bio_zone;/* Used for BIO_ZONE */
 	struct g_consumer *bio_from;	/* GEOM linkage */
 	struct g_provider *bio_to;	/* GEOM linkage */
 	off_t	bio_length;		/* Like bio_bcount */
@@ -117,6 +123,9 @@ struct bio {
 	void	*_bio_caller2;
 	uint8_t	_bio_cflags;
 #endif
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	struct buf *bio_track_bp;	/* Parent buf for tracking */
+#endif
 
 	/* XXX: these go away when bio chaining is introduced */
 	daddr_t bio_pblkno;               /* physical block number */
@@ -129,6 +138,8 @@ struct bio_queue_head {
 	TAILQ_HEAD(bio_queue, bio) queue;
 	off_t last_offset;
 	struct	bio *insert_point;
+	int total;
+	int batched;
 };
 
 extern struct vm_map *bio_transient_map;
@@ -138,6 +149,23 @@ void biodone(struct bio *bp);
 void biofinish(struct bio *bp, struct devstat *stat, int error);
 int biowait(struct bio *bp, const char *wchan);
 
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+void biotrack_buf(struct bio *bp, const char *location);
+
+static __inline void
+biotrack(struct bio *bp, const char *location)
+{
+
+	if (bp->bio_track_bp != NULL)
+		biotrack_buf(bp, location);
+}
+#else
+static __inline void
+biotrack(struct bio *bp __unused, const char *location __unused)
+{
+}
+#endif
+
 void bioq_disksort(struct bio_queue_head *ap, struct bio *bp);
 struct bio *bioq_first(struct bio_queue_head *head);
 struct bio *bioq_takefirst(struct bio_queue_head *head);
@@ -146,8 +174,6 @@ void bioq_init(struct bio_queue_head *head);
 void bioq_insert_head(struct bio_queue_head *head, struct bio *bp);
 void bioq_insert_tail(struct bio_queue_head *head, struct bio *bp);
 void bioq_remove(struct bio_queue_head *head, struct bio *bp);
-
-void bio_taskqueue(struct bio *bp, bio_task_t *fund, void *arg);
 
 int	physio(struct cdev *dev, struct uio *uio, int ioflag);
 #define physread physio

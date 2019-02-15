@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002-2003 Luigi Rizzo
  * Copyright (c) 1996 Alex Nash, Paul Traina, Poul-Henning Kamp
  * Copyright (c) 1994 Ugen J.S.Antsilevich
@@ -56,6 +56,12 @@ struct cmdline_opts {
 
 };
 
+enum {
+	TIMESTAMP_NONE = 0,
+	TIMESTAMP_STRING,
+	TIMESTAMP_NUMERIC,
+};
+
 extern struct cmdline_opts co;
 
 /*
@@ -81,8 +87,11 @@ enum tokens {
 	TOK_STARTBRACE,
 	TOK_ENDBRACE,
 
+	TOK_ABORT6,
+	TOK_ABORT,
 	TOK_ACCEPT,
 	TOK_COUNT,
+	TOK_EACTION,
 	TOK_PIPE,
 	TOK_LINK,
 	TOK_QUEUE,
@@ -115,7 +124,9 @@ enum tokens {
 	TOK_JAIL,
 	TOK_IN,
 	TOK_LIMIT,
+	TOK_SETLIMIT,
 	TOK_KEEPSTATE,
+	TOK_RECORDSTATE,
 	TOK_LAYER2,
 	TOK_OUT,
 	TOK_DIVERTED,
@@ -170,6 +181,31 @@ enum tokens {
 	TOK_ECN,
 	TOK_DROPTAIL,
 	TOK_PROTO,
+#ifdef NEW_AQM
+	/* AQM tokens*/
+	TOK_NO_ECN,
+	TOK_CODEL, 
+	TOK_FQ_CODEL,
+	TOK_TARGET,
+	TOK_INTERVAL,
+	TOK_FLOWS,
+	TOK_QUANTUM,
+	
+	TOK_PIE,
+	TOK_FQ_PIE,
+	TOK_TUPDATE,
+	TOK_MAX_BURST,
+	TOK_MAX_ECNTH,
+	TOK_ALPHA,
+	TOK_BETA,
+	TOK_CAPDROP,
+	TOK_NO_CAPDROP,
+	TOK_ONOFF,
+	TOK_DRE,
+	TOK_TS,
+	TOK_DERAND,
+	TOK_NO_DERAND,
+#endif
 	/* dummynet tokens */
 	TOK_WEIGHT,
 	TOK_LMAX,
@@ -179,14 +215,14 @@ enum tokens {
 
 	TOK_IP,
 	TOK_IF,
- 	TOK_ALOG,
- 	TOK_DENY_INC,
- 	TOK_SAME_PORTS,
- 	TOK_UNREG_ONLY,
+	TOK_ALOG,
+	TOK_DENY_INC,
+	TOK_SAME_PORTS,
+	TOK_UNREG_ONLY,
 	TOK_SKIP_GLOBAL,
- 	TOK_RESET_ADDR,
- 	TOK_ALIAS_REV,
- 	TOK_PROXY_ONLY,
+	TOK_RESET_ADDR,
+	TOK_ALIAS_REV,
+	TOK_PROXY_ONLY,
 	TOK_REDIR_ADDR,
 	TOK_REDIR_PORT,
 	TOK_REDIR_PROTO,
@@ -227,6 +263,41 @@ enum tokens {
 	TOK_LOCK,
 	TOK_UNLOCK,
 	TOK_VLIST,
+	TOK_OLIST,
+
+	/* NAT64 tokens */
+	TOK_NAT64STL,
+	TOK_NAT64LSN,
+	TOK_STATS,
+	TOK_STATES,
+	TOK_CONFIG,
+	TOK_TABLE4,
+	TOK_TABLE6,
+	TOK_PREFIX4,
+	TOK_PREFIX6,
+	TOK_AGG_LEN,
+	TOK_AGG_COUNT,
+	TOK_MAX_PORTS,
+	TOK_JMAXLEN,
+	TOK_PORT_RANGE,
+	TOK_HOST_DEL_AGE,
+	TOK_PG_DEL_AGE,
+	TOK_TCP_SYN_AGE,
+	TOK_TCP_CLOSE_AGE,
+	TOK_TCP_EST_AGE,
+	TOK_UDP_AGE,
+	TOK_ICMP_AGE,
+	TOK_LOGOFF,
+
+	/* NPTv6 tokens */
+	TOK_NPTV6,
+	TOK_INTPREFIX,
+	TOK_EXTPREFIX,
+	TOK_PREFIXLEN,
+
+	TOK_TCPSETMSS,
+
+	TOK_SKIPACTION,
 };
 
 /*
@@ -260,8 +331,9 @@ int _substrcmp2(const char *str1, const char* str2, const char* str3);
 int stringnum_cmp(const char *a, const char *b);
 
 /* utility functions */
-int match_token(struct _s_x *table, char *string);
-int match_token_relaxed(struct _s_x *table, char *string);
+int match_token(struct _s_x *table, const char *string);
+int match_token_relaxed(struct _s_x *table, const char *string);
+int get_token(struct _s_x *table, const char *string, const char *errbase);
 char const *match_value(struct _s_x *p, int value);
 size_t concat_tokens(char *buf, size_t bufsize, struct _s_x *table,
     char *delimiter);
@@ -271,7 +343,7 @@ void print_flags_buffer(char *buf, size_t sz, struct _s_x *list, uint32_t set);
 
 struct _ip_fw3_opheader;
 int do_cmd(int optname, void *optval, uintptr_t optlen);
-int do_set3(int optname, struct _ip_fw3_opheader *op3, uintptr_t optlen);
+int do_set3(int optname, struct _ip_fw3_opheader *op3, size_t optlen);
 int do_get3(int optname, struct _ip_fw3_opheader *op3, size_t *optlen);
 
 struct in6_addr;
@@ -312,6 +384,11 @@ void ipfw_flush(int force);
 void ipfw_zero(int ac, char *av[], int optname);
 void ipfw_list(int ac, char *av[], int show_counters);
 void ipfw_internal_handler(int ac, char *av[]);
+void ipfw_nat64lsn_handler(int ac, char *av[]);
+void ipfw_nat64stl_handler(int ac, char *av[]);
+void ipfw_nptv6_handler(int ac, char *av[]);
+int ipfw_check_object_name(const char *name);
+int ipfw_check_nat64prefix(const struct in6_addr *prefix, int length);
 
 #ifdef PF
 /* altq.c */
@@ -328,25 +405,34 @@ void dummynet_flush(void);
 int ipfw_delete_pipe(int pipe_or_queue, int n);
 
 /* ipv6.c */
-void print_unreach6_code(uint16_t code);
-void print_ip6(struct buf_pr *bp, struct _ipfw_insn_ip6 *cmd, char const *s);
+void print_unreach6_code(struct buf_pr *bp, uint16_t code);
+void print_ip6(struct buf_pr *bp, struct _ipfw_insn_ip6 *cmd);
 void print_flow6id(struct buf_pr *bp, struct _ipfw_insn_u32 *cmd);
 void print_icmp6types(struct buf_pr *bp, struct _ipfw_insn_u32 *cmd);
 void print_ext6hdr(struct buf_pr *bp, struct _ipfw_insn *cmd );
 
-struct _ipfw_insn *add_srcip6(struct _ipfw_insn *cmd, char *av, int cblen);
-struct _ipfw_insn *add_dstip6(struct _ipfw_insn *cmd, char *av, int cblen);
+struct tidx;
+struct _ipfw_insn *add_srcip6(struct _ipfw_insn *cmd, char *av, int cblen,
+    struct tidx *tstate);
+struct _ipfw_insn *add_dstip6(struct _ipfw_insn *cmd, char *av, int cblen,
+    struct tidx *tstate);
 
 void fill_flow6(struct _ipfw_insn_u32 *cmd, char *av, int cblen);
 void fill_unreach6_code(u_short *codep, char *str);
 void fill_icmp6types(struct _ipfw_insn_icmp6 *cmd, char *av, int cblen);
 int fill_ext6hdr(struct _ipfw_insn *cmd, char *av);
 
+/* ipfw2.c */
+void bp_flush(struct buf_pr *b);
+void fill_table(struct _ipfw_insn *cmd, char *av, uint8_t opcode,
+    struct tidx *tstate);
+
 /* tables.c */
 struct _ipfw_obj_ctlv;
-char *table_search_ctlv(struct _ipfw_obj_ctlv *ctlv, uint16_t idx);
-void table_sort_ctlv(struct _ipfw_obj_ctlv *ctlv);
-int table_check_name(char *tablename);
+struct _ipfw_obj_ntlv;
+int table_check_name(const char *tablename);
 void ipfw_list_ta(int ac, char *av[]);
 void ipfw_list_values(int ac, char *av[]);
+void table_fill_ntlv(struct _ipfw_obj_ntlv *ntlv, const char *name,
+    uint8_t set, uint16_t uidx);
 

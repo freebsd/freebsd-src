@@ -156,7 +156,7 @@ sm_bprintf(fp, fmt, ap)
 #define FPT		0x100		/* Floating point number */
 
 /*
-**  SM_IO_VPRINTF -- performs actual formating for o/p
+**  SM_IO_VFPRINTF -- performs actual formating for o/p
 **
 **	Parameters:
 **		fp -- file pointer for o/p

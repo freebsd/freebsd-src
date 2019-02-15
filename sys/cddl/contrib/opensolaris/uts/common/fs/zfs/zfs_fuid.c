@@ -71,14 +71,10 @@ static char *nulldomain = "";
 static int
 idx_compare(const void *arg1, const void *arg2)
 {
-	const fuid_domain_t *node1 = arg1;
-	const fuid_domain_t *node2 = arg2;
+	const fuid_domain_t *node1 = (const fuid_domain_t *)arg1;
+	const fuid_domain_t *node2 = (const fuid_domain_t *)arg2;
 
-	if (node1->f_idx < node2->f_idx)
-		return (-1);
-	else if (node1->f_idx > node2->f_idx)
-		return (1);
-	return (0);
+	return (AVL_CMP(node1->f_idx, node2->f_idx));
 }
 
 /*
@@ -87,14 +83,13 @@ idx_compare(const void *arg1, const void *arg2)
 static int
 domain_compare(const void *arg1, const void *arg2)
 {
-	const fuid_domain_t *node1 = arg1;
-	const fuid_domain_t *node2 = arg2;
+	const fuid_domain_t *node1 = (const fuid_domain_t *)arg1;
+	const fuid_domain_t *node2 = (const fuid_domain_t *)arg2;
 	int val;
 
 	val = strcmp(node1->f_ksid->kd_name, node2->f_ksid->kd_name);
-	if (val == 0)
-		return (0);
-	return (val > 0 ? 1 : -1);
+
+	return (AVL_ISIGN(val));
 }
 
 void
@@ -406,7 +401,7 @@ zfs_fuid_map_id(zfsvfs_t *zfsvfs, uint64_t fuid,
 	domain = zfs_fuid_find_by_idx(zfsvfs, index);
 	ASSERT(domain != NULL);
 
-#ifdef sun
+#ifdef illumos
 	if (type == ZFS_OWNER || type == ZFS_ACE_USER) {
 		(void) kidmap_getuidbysid(crgetzone(cr), domain,
 		    FUID_RID(fuid), &id);
@@ -414,9 +409,9 @@ zfs_fuid_map_id(zfsvfs_t *zfsvfs, uint64_t fuid,
 		(void) kidmap_getgidbysid(crgetzone(cr), domain,
 		    FUID_RID(fuid), &id);
 	}
-#else	/* !sun */
+#else
 	id = UID_NOBODY;
-#endif	/* !sun */
+#endif
 	return (id);
 }
 
@@ -703,13 +698,13 @@ zfs_fuid_info_free(zfs_fuid_info_t *fuidp)
 boolean_t
 zfs_groupmember(zfsvfs_t *zfsvfs, uint64_t id, cred_t *cr)
 {
-#ifdef sun
+#ifdef illumos
 	ksid_t		*ksid = crgetsid(cr, KSID_GROUP);
 	ksidlist_t	*ksidlist = crgetsidlist(cr);
-#endif	/* !sun */
+#endif
 	uid_t		gid;
 
-#ifdef sun
+#ifdef illumos
 	if (ksid && ksidlist) {
 		int 		i;
 		ksid_t		*ksid_groups;
@@ -741,7 +736,7 @@ zfs_groupmember(zfsvfs_t *zfsvfs, uint64_t id, cred_t *cr)
 			}
 		}
 	}
-#endif	/* !sun */
+#endif	/* illumos */
 
 	/*
 	 * Not found in ksidlist, check posix groups

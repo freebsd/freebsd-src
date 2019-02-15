@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.prompt.c,v 3.70 2011/10/27 22:41:06 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.prompt.c,v 3.71 2014/08/23 09:07:57 christos Exp $ */
 /*
  * tc.prompt.c: Prompt printing stuff
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: tc.prompt.c,v 3.70 2011/10/27 22:41:06 christos Exp $")
+RCSID("$tcsh: tc.prompt.c,v 3.71 2014/08/23 09:07:57 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -213,7 +213,22 @@ tprintf(int what, const Char *fmt, const char *str, time_t tim, ptr_t info)
 		}
 		break;
 	    case '#':
+#ifdef __CYGWIN__
+		/* Check for being member of the Administrators group */
+		{
+			gid_t grps[NGROUPS_MAX];
+			int grp, gcnt;
+
+			gcnt = getgroups(NGROUPS_MAX, grps);
+# define DOMAIN_GROUP_RID_ADMINS 544
+			for (grp = 0; grp < gcnt; ++grp)
+				if (grps[grp] == DOMAIN_GROUP_RID_ADMINS)
+					break;
+			Scp = (grp < gcnt) ? PRCHROOT : PRCH;
+		}
+#else
 		Scp = (uid == 0 || euid == 0) ? PRCHROOT : PRCH;
+#endif
 		if (Scp != '\0')
 		    Strbuf_append1(&buf, attributes | Scp);
 		break;

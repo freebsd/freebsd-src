@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2011 HighPoint Technologies, Inc.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2005-2011 HighPoint Technologies, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

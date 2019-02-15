@@ -31,8 +31,8 @@ static const char sccsid[] = "$Id: seq.c,v 10.18 2011/12/11 23:13:00 zy Exp $";
  * seq_set --
  *	Internal version to enter a sequence.
  *
- * PUBLIC: int seq_set __P((SCR *, CHAR_T *,
- * PUBLIC:    size_t, CHAR_T *, size_t, CHAR_T *, size_t, seq_t, int));
+ * PUBLIC: int seq_set(SCR *, CHAR_T *,
+ * PUBLIC:    size_t, CHAR_T *, size_t, CHAR_T *, size_t, seq_t, int);
  */
 int
 seq_set(
@@ -136,7 +136,7 @@ mem1:		errno = sv_errno;
  * seq_delete --
  *	Delete a sequence.
  *
- * PUBLIC: int seq_delete __P((SCR *, CHAR_T *, size_t, seq_t));
+ * PUBLIC: int seq_delete(SCR *, CHAR_T *, size_t, seq_t);
  */
 int
 seq_delete(
@@ -172,7 +172,7 @@ seq_delete(
  * seq_free --
  *	Free a map entry.
  *
- * PUBLIC: int seq_free __P((SEQ *));
+ * PUBLIC: int seq_free(SEQ *);
  */
 int
 seq_free(SEQ *qp)
@@ -193,7 +193,7 @@ seq_free(SEQ *qp)
  *	isn't NULL, partial matches count.
  *
  * PUBLIC: SEQ *seq_find
- * PUBLIC:    __P((SCR *, SEQ **, EVENT *, CHAR_T *, size_t, seq_t, int *));
+ * PUBLIC:   (SCR *, SEQ **, EVENT *, CHAR_T *, size_t, seq_t, int *);
  */
 SEQ *
 seq_find(
@@ -278,7 +278,7 @@ seq_find(
  * seq_close --
  *	Discard all sequences.
  *
- * PUBLIC: void seq_close __P((GS *));
+ * PUBLIC: void seq_close(GS *);
  */
 void
 seq_close(GS *gp)
@@ -295,7 +295,7 @@ seq_close(GS *gp)
  * seq_dump --
  *	Display the sequence entries of a specified type.
  *
- * PUBLIC: int seq_dump __P((SCR *, seq_t, int));
+ * PUBLIC: int seq_dump(SCR *, seq_t, int);
  */
 int
 seq_dump(
@@ -343,7 +343,7 @@ seq_dump(
  * seq_save --
  *	Save the sequence entries to a file.
  *
- * PUBLIC: int seq_save __P((SCR *, FILE *, char *, seq_t));
+ * PUBLIC: int seq_save(SCR *, FILE *, char *, seq_t);
  */
 int
 seq_save(
@@ -389,7 +389,7 @@ seq_save(
  * e_memcmp --
  *	Compare a string of EVENT's to a string of CHAR_T's.
  *
- * PUBLIC: int e_memcmp __P((CHAR_T *, EVENT *, size_t));
+ * PUBLIC: int e_memcmp(CHAR_T *, EVENT *, size_t);
  */
 int
 e_memcmp(
@@ -398,11 +398,11 @@ e_memcmp(
 	size_t n)
 {
 	if (n != 0) {
-                do {
-                        if (*p1++ != ep->e_c)
-                                return (*--p1 - ep->e_c);
+		do {
+			if (*p1++ != ep->e_c)
+				return (*--p1 - ep->e_c);
 			++ep;
-                } while (--n != 0);
-        }
-        return (0);
+		} while (--n != 0);
+	}
+	return (0);
 }

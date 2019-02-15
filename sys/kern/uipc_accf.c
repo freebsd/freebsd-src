@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Paycounter, Inc.
  * Copyright (c) 2005 Robert N. M. Watson
  * Author: Alfred Perlstein <alfred@paycounter.com>, <alfred@FreeBSD.org>
@@ -130,8 +132,7 @@ accept_filt_generic_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-		p = malloc(sizeof(*p), M_ACCF,
-		    M_WAITOK);
+		p = malloc(sizeof(*p), M_ACCF, M_WAITOK);
 		bcopy(accfp, p, sizeof(*p));
 		error = accept_filt_add(p);
 		break;
@@ -162,26 +163,25 @@ accept_filt_generic_mod_event(module_t mod, int event, void *data)
 }
 
 int
-do_getopt_accept_filter(struct socket *so, struct sockopt *sopt)
+accept_filt_getopt(struct socket *so, struct sockopt *sopt)
 {
 	struct accept_filter_arg *afap;
 	int error;
 
 	error = 0;
-	afap = malloc(sizeof(*afap), M_TEMP,
-	    M_WAITOK | M_ZERO);
+	afap = malloc(sizeof(*afap), M_TEMP, M_WAITOK | M_ZERO);
 	SOCK_LOCK(so);
 	if ((so->so_options & SO_ACCEPTCONN) == 0) {
 		error = EINVAL;
 		goto out;
 	}
-	if ((so->so_options & SO_ACCEPTFILTER) == 0) {
+	if (so->sol_accept_filter == NULL) {
 		error = EINVAL;
 		goto out;
 	}
-	strcpy(afap->af_name, so->so_accf->so_accept_filter->accf_name);
-	if (so->so_accf->so_accept_filter_str != NULL)
-		strcpy(afap->af_arg, so->so_accf->so_accept_filter_str);
+	strcpy(afap->af_name, so->sol_accept_filter->accf_name);
+	if (so->sol_accept_filter_str != NULL)
+		strcpy(afap->af_arg, so->sol_accept_filter_str);
 out:
 	SOCK_UNLOCK(so);
 	if (error == 0)
@@ -191,35 +191,61 @@ out:
 }
 
 int
-do_setopt_accept_filter(struct socket *so, struct sockopt *sopt)
+accept_filt_setopt(struct socket *so, struct sockopt *sopt)
 {
 	struct accept_filter_arg *afap;
 	struct accept_filter *afp;
-	struct so_accf *newaf;
-	int error = 0;
+	char *accept_filter_str = NULL;
+	void *accept_filter_arg = NULL;
+	int error;
 
 	/*
 	 * Handle the simple delete case first.
 	 */
 	if (sopt == NULL || sopt->sopt_val == NULL) {
+		struct socket *sp, *sp1;
+		int wakeup;
+
 		SOCK_LOCK(so);
 		if ((so->so_options & SO_ACCEPTCONN) == 0) {
 			SOCK_UNLOCK(so);
 			return (EINVAL);
 		}
-		if (so->so_accf != NULL) {
-			struct so_accf *af = so->so_accf;
-			if (af->so_accept_filter != NULL &&
-				af->so_accept_filter->accf_destroy != NULL) {
-				af->so_accept_filter->accf_destroy(so);
-			}
-			if (af->so_accept_filter_str != NULL)
-				free(af->so_accept_filter_str, M_ACCF);
-			free(af, M_ACCF);
-			so->so_accf = NULL;
+		if (so->sol_accept_filter == NULL) {
+			SOCK_UNLOCK(so);
+			return (0);
 		}
+		if (so->sol_accept_filter->accf_destroy != NULL)
+			so->sol_accept_filter->accf_destroy(so);
+		if (so->sol_accept_filter_str != NULL)
+			free(so->sol_accept_filter_str, M_ACCF);
+		so->sol_accept_filter = NULL;
+		so->sol_accept_filter_arg = NULL;
+		so->sol_accept_filter_str = NULL;
 		so->so_options &= ~SO_ACCEPTFILTER;
-		SOCK_UNLOCK(so);
+
+		/*
+		 * Move from incomplete queue to complete only those
+		 * connections, that are blocked by us.
+		 */
+		wakeup = 0;
+		TAILQ_FOREACH_SAFE(sp, &so->sol_incomp, so_list, sp1) {
+			SOCK_LOCK(sp);
+			if (sp->so_options & SO_ACCEPTFILTER) {
+				TAILQ_REMOVE(&so->sol_incomp, sp, so_list);
+				TAILQ_INSERT_TAIL(&so->sol_comp, sp, so_list);
+				sp->so_qstate = SQ_COMP;
+				sp->so_options &= ~SO_ACCEPTFILTER;
+				so->sol_incqlen--;
+				so->sol_qlen++;
+				wakeup = 1;
+			}
+			SOCK_UNLOCK(sp);
+		}
+		if (wakeup)
+			solisten_wakeup(so);  /* unlocks */
+		else
+			SOLISTEN_UNLOCK(so);
 		return (0);
 	}
 
@@ -227,8 +253,7 @@ do_setopt_accept_filter(struct socket *so, struct sockopt *sopt)
 	 * Pre-allocate any memory we may need later to avoid blocking at
 	 * untimely moments.  This does not optimize for invalid arguments.
 	 */
-	afap = malloc(sizeof(*afap), M_TEMP,
-	    M_WAITOK);
+	afap = malloc(sizeof(*afap), M_TEMP, M_WAITOK);
 	error = sooptcopyin(sopt, afap, sizeof *afap, sizeof *afap);
 	afap->af_name[sizeof(afap->af_name)-1] = '\0';
 	afap->af_arg[sizeof(afap->af_arg)-1] = '\0';
@@ -241,19 +266,10 @@ do_setopt_accept_filter(struct socket *so, struct sockopt *sopt)
 		free(afap, M_TEMP);
 		return (ENOENT);
 	}
-	/*
-	 * Allocate the new accept filter instance storage.  We may
-	 * have to free it again later if we fail to attach it.  If
-	 * attached properly, 'newaf' is NULLed to avoid a free()
-	 * while in use.
-	 */
-	newaf = malloc(sizeof(*newaf), M_ACCF, M_WAITOK |
-	    M_ZERO);
 	if (afp->accf_create != NULL && afap->af_name[0] != '\0') {
-		int len = strlen(afap->af_name) + 1;
-		newaf->so_accept_filter_str = malloc(len, M_ACCF,
-		    M_WAITOK);
-		strcpy(newaf->so_accept_filter_str, afap->af_name);
+		size_t len = strlen(afap->af_name) + 1;
+		accept_filter_str = malloc(len, M_ACCF, M_WAITOK);
+		strcpy(accept_filter_str, afap->af_name);
 	}
 
 	/*
@@ -261,8 +277,8 @@ do_setopt_accept_filter(struct socket *so, struct sockopt *sopt)
 	 * without first removing it.
 	 */
 	SOCK_LOCK(so);
-	if (((so->so_options & SO_ACCEPTCONN) == 0) ||
-	    (so->so_accf != NULL)) {
+	if ((so->so_options & SO_ACCEPTCONN) == 0 ||
+	    so->sol_accept_filter != NULL) {
 		error = EINVAL;
 		goto out;
 	}
@@ -273,25 +289,20 @@ do_setopt_accept_filter(struct socket *so, struct sockopt *sopt)
 	 * can't block.
 	 */
 	if (afp->accf_create != NULL) {
-		newaf->so_accept_filter_arg =
-		    afp->accf_create(so, afap->af_arg);
-		if (newaf->so_accept_filter_arg == NULL) {
+		accept_filter_arg = afp->accf_create(so, afap->af_arg);
+		if (accept_filter_arg == NULL) {
 			error = EINVAL;
 			goto out;
 		}
 	}
-	newaf->so_accept_filter = afp;
-	so->so_accf = newaf;
+	so->sol_accept_filter = afp;
+	so->sol_accept_filter_arg = accept_filter_arg;
+	so->sol_accept_filter_str = accept_filter_str;
 	so->so_options |= SO_ACCEPTFILTER;
-	newaf = NULL;
 out:
 	SOCK_UNLOCK(so);
-	if (newaf != NULL) {
-		if (newaf->so_accept_filter_str != NULL)
-			free(newaf->so_accept_filter_str, M_ACCF);
-		free(newaf, M_ACCF);
-	}
-	if (afap != NULL)
-		free(afap, M_TEMP);
+	if (accept_filter_str != NULL)
+		free(accept_filter_str, M_ACCF);
+	free(afap, M_TEMP);
 	return (error);
 }

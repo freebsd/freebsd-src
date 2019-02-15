@@ -1,5 +1,8 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Mikolaj Golub <trociny@FreeBSD.org>
+ * Copyright (c) 2017 Dell EMC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/elf.h>
 #include <sys/exec.h>
+#include <sys/ptrace.h>
 #include <sys/user.h>
 
 #include <assert.h>
@@ -54,6 +58,24 @@ struct procstat_core
 	Elf		*pc_elf;
 	GElf_Ehdr	pc_ehdr;
 	GElf_Phdr	pc_phdr;
+};
+
+static struct psc_type_info {
+	unsigned int	n_type;
+	int		structsize;
+} psc_type_info[PSC_TYPE_MAX] = {
+	{ .n_type  = NT_PROCSTAT_PROC, .structsize = sizeof(struct kinfo_proc) },
+	{ .n_type = NT_PROCSTAT_FILES, .structsize = sizeof(struct kinfo_file) },
+	{ .n_type = NT_PROCSTAT_VMMAP, .structsize = sizeof(struct kinfo_vmentry) },
+	{ .n_type = NT_PROCSTAT_GROUPS, .structsize = sizeof(gid_t) },
+	{ .n_type = NT_PROCSTAT_UMASK, .structsize = sizeof(u_short) },
+	{ .n_type = NT_PROCSTAT_RLIMIT, .structsize = sizeof(struct rlimit) * RLIM_NLIMITS },
+	{ .n_type = NT_PROCSTAT_OSREL, .structsize = sizeof(int) },
+	{ .n_type = NT_PROCSTAT_PSSTRINGS, .structsize = sizeof(vm_offset_t) },
+	{ .n_type = NT_PROCSTAT_PSSTRINGS, .structsize = sizeof(vm_offset_t) },
+	{ .n_type = NT_PROCSTAT_PSSTRINGS, .structsize = sizeof(vm_offset_t) },
+	{ .n_type = NT_PROCSTAT_AUXV, .structsize = sizeof(Elf_Auxinfo) },
+	{ .n_type = NT_PTLWPINFO, .structsize = sizeof(struct ptrace_lwpinfo) },
 };
 
 static bool	core_offset(struct procstat_core *core, off_t offset);
@@ -154,59 +176,20 @@ procstat_core_get(struct procstat_core *core, enum psc_type type, void *buf,
 	off_t offset, eoffset;
 	vm_offset_t psstrings;
 	void *freebuf;
-	size_t len;
-	u_int32_t n_type;
-	int cstructsize, structsize;
+	size_t len, curlen;
+	int cstructsize;
 	char nbuf[8];
 
 	assert(core->pc_magic == PROCSTAT_CORE_MAGIC);
 
-	switch(type) {
-	case PSC_TYPE_PROC:
-		n_type = NT_PROCSTAT_PROC;
-		structsize = sizeof(struct kinfo_proc);
-		break;
-	case PSC_TYPE_FILES:
-		n_type = NT_PROCSTAT_FILES;
-		structsize = sizeof(struct kinfo_file);
-		break;
-	case PSC_TYPE_VMMAP:
-		n_type = NT_PROCSTAT_VMMAP;
-		structsize = sizeof(struct kinfo_vmentry);
-		break;
-	case PSC_TYPE_GROUPS:
-		n_type = NT_PROCSTAT_GROUPS;
-		structsize = sizeof(gid_t);
-		break;
-	case PSC_TYPE_UMASK:
-		n_type = NT_PROCSTAT_UMASK;
-		structsize = sizeof(u_short);
-		break;
-	case PSC_TYPE_RLIMIT:
-		n_type = NT_PROCSTAT_RLIMIT;
-		structsize = sizeof(struct rlimit) * RLIM_NLIMITS;
-		break;
-	case PSC_TYPE_OSREL:
-		n_type = NT_PROCSTAT_OSREL;
-		structsize = sizeof(int);
-		break;
-	case PSC_TYPE_PSSTRINGS:
-	case PSC_TYPE_ARGV:
-	case PSC_TYPE_ENVV:
-		n_type = NT_PROCSTAT_PSSTRINGS;
-		structsize = sizeof(vm_offset_t);
-		break;
-	case PSC_TYPE_AUXV:
-		n_type = NT_PROCSTAT_AUXV;
-		structsize = sizeof(Elf_Auxinfo);
-		break;
-	default:
+	if (type >= PSC_TYPE_MAX) {
 		warnx("unknown core stat type: %d", type);
 		return (NULL);
 	}
 
 	offset = core->pc_phdr.p_offset;
 	eoffset = offset + core->pc_phdr.p_filesz;
+	curlen = 0;
 
 	while (offset < eoffset) {
 		if (!core_offset(core, offset))
@@ -220,7 +203,7 @@ procstat_core_get(struct procstat_core *core, enum psc_type type, void *buf,
 
 		if (nhdr.n_namesz == 0 && nhdr.n_descsz == 0)
 			break;
-		if (nhdr.n_type != n_type)
+		if (nhdr.n_type != psc_type_info[type].n_type)
 			continue;
 		if (nhdr.n_namesz != 8)
 			continue;
@@ -234,7 +217,7 @@ procstat_core_get(struct procstat_core *core, enum psc_type type, void *buf,
 		}
 		if (!core_read(core, &cstructsize, sizeof(cstructsize)))
 			return (NULL);
-		if (cstructsize != structsize) {
+		if (cstructsize != psc_type_info[type].structsize) {
 			warnx("version mismatch");
 			return (NULL);
 		}
@@ -251,7 +234,7 @@ procstat_core_get(struct procstat_core *core, enum psc_type type, void *buf,
 				return (NULL);
 			}
 		}
-		if (!core_read(core, buf, len)) {
+		if (!core_read(core, (char *)buf + curlen, len)) {
 			free(freebuf);
 			return (NULL);
 		}
@@ -267,10 +250,19 @@ procstat_core_get(struct procstat_core *core, enum psc_type type, void *buf,
 				buf = NULL;
 			free(freebuf);
 			buf = get_args(core, psstrings, type, buf, &len);
+		} else if (type == PSC_TYPE_PTLWPINFO) {
+			*lenp -= len;
+			curlen += len;
+			continue;
 		}
 		*lenp = len;
 		return (buf);
         }
+
+	if (curlen != 0) {
+		*lenp = curlen;
+		return (buf);
+	}
 
 	return (NULL);
 }
@@ -430,4 +422,58 @@ done:
 	*lenp = done;
 	free(argv);
 	return (args);
+}
+
+int
+procstat_core_note_count(struct procstat_core *core, enum psc_type type)
+{
+	Elf_Note nhdr;
+	off_t offset, eoffset;
+	int cstructsize;
+	char nbuf[8];
+	int n;
+
+	if (type >= PSC_TYPE_MAX) {
+		warnx("unknown core stat type: %d", type);
+		return (0);
+	}
+
+	offset = core->pc_phdr.p_offset;
+	eoffset = offset + core->pc_phdr.p_filesz;
+
+	for (n = 0; offset < eoffset; n++) {
+		if (!core_offset(core, offset))
+			return (0);
+		if (!core_read(core, &nhdr, sizeof(nhdr)))
+			return (0);
+
+		offset += sizeof(nhdr) +
+		    roundup2(nhdr.n_namesz, sizeof(Elf32_Size)) +
+		    roundup2(nhdr.n_descsz, sizeof(Elf32_Size));
+
+		if (nhdr.n_namesz == 0 && nhdr.n_descsz == 0)
+			break;
+		if (nhdr.n_type != psc_type_info[type].n_type)
+			continue;
+		if (nhdr.n_namesz != 8)
+			continue;
+		if (!core_read(core, nbuf, sizeof(nbuf)))
+			return (0);
+		if (strcmp(nbuf, "FreeBSD") != 0)
+			continue;
+		if (nhdr.n_descsz < sizeof(cstructsize)) {
+			warnx("corrupted core file");
+			return (0);
+		}
+		if (!core_read(core, &cstructsize, sizeof(cstructsize)))
+			return (0);
+		if (cstructsize != psc_type_info[type].structsize) {
+			warnx("version mismatch");
+			return (0);
+		}
+		if (nhdr.n_descsz - sizeof(cstructsize) == 0)
+			return (0);
+	}
+
+	return (n);
 }

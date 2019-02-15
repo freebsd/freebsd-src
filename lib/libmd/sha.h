@@ -79,17 +79,101 @@ typedef struct SHAstate_st {
 #define	SHA1_CTX	SHA_CTX
 
 __BEGIN_DECLS
+
+/* Ensure libmd symbols do not clash with libcrypto */
+
+#ifndef SHA_Init
+#define SHA_Init	_libmd_SHA_Init
+#endif
+#ifndef SHA_Update
+#define SHA_Update	_libmd_SHA_Update
+#endif
+#ifndef SHA_Final
+#define SHA_Final	_libmd_SHA_Final
+#endif
+#ifndef SHA_End
+#define SHA_End		_libmd_SHA_End
+#endif
+#ifndef SHA_Fd
+#define SHA_Fd		_libmd_SHA_Fd
+#endif
+#ifndef SHA_FdChunk
+#define SHA_FdChunk	_libmd_SHA_FdChunk
+#endif
+#ifndef SHA_File
+#define SHA_File	_libmd_SHA_File
+#endif
+#ifndef SHA_FileChunk
+#define SHA_FileChunk	_libmd_SHA_FileChunk
+#endif
+#ifndef SHA_Data
+#define SHA_Data	_libmd_SHA_Data
+#endif
+
+#ifndef SHA_Transform
+#define SHA_Transform	_libmd_SHA_Transform
+#endif
+#ifndef SHA_version
+#define SHA_version	_libmd_SHA_version
+#endif
+#ifndef sha_block
+#define sha_block	_libmd_sha_block
+#endif
+
+#ifndef SHA1_Init
+#define SHA1_Init	_libmd_SHA1_Init
+#endif
+#ifndef SHA1_Update
+#define SHA1_Update	_libmd_SHA1_Update
+#endif
+#ifndef SHA1_Final
+#define SHA1_Final	_libmd_SHA1_Final
+#endif
+#ifndef SHA1_End
+#define SHA1_End	_libmd_SHA1_End
+#endif
+#ifndef SHA1_Fd
+#define SHA1_Fd		_libmd_SHA1_Fd
+#endif
+#ifndef SHA1_FdChunk
+#define SHA1_FdChunk	_libmd_SHA1_FdChunk
+#endif
+#ifndef SHA1_File
+#define SHA1_File	_libmd_SHA1_File
+#endif
+#ifndef SHA1_FileChunk
+#define SHA1_FileChunk	_libmd_SHA1_FileChunk
+#endif
+#ifndef SHA1_Data
+#define SHA1_Data	_libmd_SHA1_Data
+#endif
+
+#ifndef SHA1_Transform
+#define SHA1_Transform	_libmd_SHA1_Transform
+#endif
+#ifndef SHA1_version
+#define SHA1_version	_libmd_SHA1_version
+#endif
+#ifndef sha1_block
+#define sha1_block	_libmd_sha1_block
+#endif
+
 void	SHA_Init(SHA_CTX *c);
 void	SHA_Update(SHA_CTX *c, const void *data, size_t len);
 void	SHA_Final(unsigned char *md, SHA_CTX *c);
 char   *SHA_End(SHA_CTX *, char *);
+char   *SHA_Fd(int, char *);
+char   *SHA_FdChunk(int, char *, off_t, off_t);
 char   *SHA_File(const char *, char *);
 char   *SHA_FileChunk(const char *, char *, off_t, off_t);
 char   *SHA_Data(const void *, unsigned int, char *);
+
 void	SHA1_Init(SHA_CTX *c);
 void	SHA1_Update(SHA_CTX *c, const void *data, size_t len);
 void	SHA1_Final(unsigned char *md, SHA_CTX *c);
 char   *SHA1_End(SHA_CTX *, char *);
+char   *SHA1_Fd(int, char *);
+char   *SHA1_FdChunk(int, char *, off_t, off_t);
 char   *SHA1_File(const char *, char *);
 char   *SHA1_FileChunk(const char *, char *, off_t, off_t);
 char   *SHA1_Data(const void *, unsigned int, char *);

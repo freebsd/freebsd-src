@@ -1,4 +1,11 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2007-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 
 package x86gas;
 
@@ -17,7 +24,7 @@ sub opsize()
 { my $reg=shift;
     if    ($reg =~ m/^%e/o)		{ "l"; }
     elsif ($reg =~ m/^%[a-d][hl]$/o)	{ "b"; }
-    elsif ($reg =~ m/^%[xm]/o)		{ undef; }
+    elsif ($reg =~ m/^%[yxm]/o)		{ undef; }
     else				{ "w"; }
 }
 
@@ -70,6 +77,8 @@ sub ::DWP
 { my($addr,$reg1,$reg2,$idx)=@_;
   my $ret="";
 
+    if (!defined($idx) && 1*$reg2) { $idx=$reg2; $reg2=$reg1; undef $reg1; }
+
     $addr =~ s/^\s+//;
     # prepend global references with optional underscore
     $addr =~ s/^([^\+\-0-9][^\+\-]*)/&::islabel($1) or "$nmdecor$1"/ige;
@@ -95,7 +104,7 @@ sub ::BC	{ @_;		}
 sub ::DWC	{ @_;		}
 
 sub ::file
-{   push(@out,".file\t\"$_[0].s\"\n.text\n");	}
+{   push(@out,".text\n");	}
 
 sub ::function_begin_B
 { my $func=shift;
@@ -157,7 +166,7 @@ sub ::file_end
 	}
     }
     if (grep {/\b${nmdecor}OPENSSL_ia32cap_P\b/i} @out) {
-	my $tmp=".comm\t${nmdecor}OPENSSL_ia32cap_P,8";
+	my $tmp=".comm\t${nmdecor}OPENSSL_ia32cap_P,16";
 	if ($::macosx)	{ push (@out,"$tmp,2\n"); }
 	elsif ($::elf)	{ push (@out,"$tmp,4\n"); }
 	else		{ push (@out,"$tmp\n"); }
@@ -170,10 +179,9 @@ sub ::data_short{   push(@out,".value\t".join(',',@_)."\n");  }
 sub ::data_word {   push(@out,".long\t".join(',',@_)."\n");   }
 
 sub ::align
-{ my $val=$_[0],$p2,$i;
+{ my $val=$_[0];
     if ($::aout)
-    {	for ($p2=0;$val!=0;$val>>=1) { $p2++; }
-	$val=$p2-1;
+    {	$val=int(log($val)/log(2));
 	$val.=",0x90";
     }
     push(@out,".align\t$val\n");
@@ -195,6 +203,8 @@ sub ::picmeup
 	    &::mov($dst,&::DWP("$indirect-$reflabel",$base));
 	    $non_lazy_ptr{"$nmdecor$sym"}=$indirect;
 	}
+	elsif ($sym eq "OPENSSL_ia32cap_P" && $::elf>0)
+	{   &::lea($dst,&::DWP("$sym-$reflabel",$base));   }
 	else
 	{   &::lea($dst,&::DWP("_GLOBAL_OFFSET_TABLE_+[.-$reflabel]",
 			    $base));
@@ -249,5 +259,7 @@ ___
 
 sub ::dataseg
 {   push(@out,".data\n");   }
+
+*::hidden = sub { push(@out,".hidden\t$nmdecor$_[0]\n"); } if ($::elf);
 
 1;

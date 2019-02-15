@@ -1,5 +1,5 @@
 /*
- * $Id: openpam_attr.h 656 2013-03-06 22:58:45Z des $
+ * $OpenPAM: openpam_attr.h 938 2017-04-30 21:34:42Z des $
  */
 
 #ifndef SECURITY_OPENPAM_ATTR_H_INCLUDED

@@ -1,7 +1,7 @@
 # $FreeBSD$
 files	"../malta/files.malta"
 
-cpu		CPU_MIPS4KC
+cpu		CPU_MALTA
 device		pci
 device		ata
 

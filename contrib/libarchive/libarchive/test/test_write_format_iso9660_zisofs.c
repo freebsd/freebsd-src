@@ -25,7 +25,7 @@
 #include "test.h"
 
 /*
- * Check that a "zisofs" ISO 9660 imaeg is correctly created.
+ * Check that a "zisofs" ISO 9660 image is correctly created.
  */
 
 static const unsigned char primary_id[] = {

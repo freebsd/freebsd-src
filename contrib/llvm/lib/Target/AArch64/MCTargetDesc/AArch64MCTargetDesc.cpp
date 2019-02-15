@@ -1,4 +1,4 @@
-//===-- AArch64MCTargetDesc.cpp - AArch64 Target Descriptions -------------===//
+//===-- AArch64MCTargetDesc.cpp - AArch64 Target Descriptions ---*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,19 +14,19 @@
 #include "AArch64MCTargetDesc.h"
 #include "AArch64ELFStreamer.h"
 #include "AArch64MCAsmInfo.h"
+#include "AArch64WinCOFFStreamer.h"
 #include "InstPrinter/AArch64InstPrinter.h"
-#include "llvm/ADT/APInt.h"
-#include "llvm/MC/MCCodeGenInfo.h"
+#include "llvm/MC/MCAsmBackend.h"
+#include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCInstrAnalysis.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/TargetRegistry.h"
 
-#define GET_REGINFO_MC_DESC
-#include "AArch64GenRegisterInfo.inc"
+using namespace llvm;
 
 #define GET_INSTRINFO_MC_DESC
 #include "AArch64GenInstrInfo.inc"
@@ -34,16 +34,8 @@
 #define GET_SUBTARGETINFO_MC_DESC
 #include "AArch64GenSubtargetInfo.inc"
 
-using namespace llvm;
-
-MCSubtargetInfo *AArch64_MC::createAArch64MCSubtargetInfo(StringRef TT,
-                                                          StringRef CPU,
-                                                          StringRef FS) {
-  MCSubtargetInfo *X = new MCSubtargetInfo();
-  InitAArch64MCSubtargetInfo(X, TT, CPU, FS);
-  return X;
-}
-
+#define GET_REGINFO_MC_DESC
+#include "AArch64GenRegisterInfo.inc"
 
 static MCInstrInfo *createAArch64MCInstrInfo() {
   MCInstrInfo *X = new MCInstrInfo();
@@ -51,151 +43,139 @@ static MCInstrInfo *createAArch64MCInstrInfo() {
   return X;
 }
 
-static MCRegisterInfo *createAArch64MCRegisterInfo(StringRef Triple) {
+static MCSubtargetInfo *
+createAArch64MCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
+  if (CPU.empty())
+    CPU = "generic";
+
+  return createAArch64MCSubtargetInfoImpl(TT, CPU, FS);
+}
+
+void AArch64_MC::initLLVMToCVRegMapping(MCRegisterInfo *MRI) {
+  for (unsigned Reg = AArch64::NoRegister + 1;
+       Reg < AArch64::NUM_TARGET_REGS; ++Reg) {
+    unsigned CV = MRI->getEncodingValue(Reg);
+    MRI->mapLLVMRegToCVReg(Reg, CV);
+  }
+}
+
+static MCRegisterInfo *createAArch64MCRegisterInfo(const Triple &Triple) {
   MCRegisterInfo *X = new MCRegisterInfo();
-  InitAArch64MCRegisterInfo(X, AArch64::X30);
+  InitAArch64MCRegisterInfo(X, AArch64::LR);
+  AArch64_MC::initLLVMToCVRegMapping(X);
   return X;
 }
 
 static MCAsmInfo *createAArch64MCAsmInfo(const MCRegisterInfo &MRI,
-                                         StringRef TT) {
-  Triple TheTriple(TT);
+                                         const Triple &TheTriple) {
+  MCAsmInfo *MAI;
+  if (TheTriple.isOSBinFormatMachO())
+    MAI = new AArch64MCAsmInfoDarwin();
+  else if (TheTriple.isWindowsMSVCEnvironment())
+    MAI = new AArch64MCAsmInfoMicrosoftCOFF();
+  else if (TheTriple.isOSBinFormatCOFF())
+    MAI = new AArch64MCAsmInfoGNUCOFF();
+  else {
+    assert(TheTriple.isOSBinFormatELF() && "Invalid target");
+    MAI = new AArch64MCAsmInfoELF(TheTriple);
+  }
 
-  MCAsmInfo *MAI = new AArch64ELFMCAsmInfo();
-  unsigned Reg = MRI.getDwarfRegNum(AArch64::XSP, true);
-  MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(0, Reg, 0);
+  // Initial state of the frame pointer is SP.
+  unsigned Reg = MRI.getDwarfRegNum(AArch64::SP, true);
+  MCCFIInstruction Inst = MCCFIInstruction::createDefCfa(nullptr, Reg, 0);
   MAI->addInitialFrameState(Inst);
 
   return MAI;
 }
 
-static MCCodeGenInfo *createAArch64MCCodeGenInfo(StringRef TT, Reloc::Model RM,
-                                                 CodeModel::Model CM,
-                                                 CodeGenOpt::Level OL) {
-  MCCodeGenInfo *X = new MCCodeGenInfo();
-  if (RM == Reloc::Default || RM == Reloc::DynamicNoPIC) {
-    // On ELF platforms the default static relocation model has a smart enough
-    // linker to cope with referencing external symbols defined in a shared
-    // library. Hence DynamicNoPIC doesn't need to be promoted to PIC.
-    RM = Reloc::Static;
-  }
-
-  if (CM == CodeModel::Default)
-    CM = CodeModel::Small;
-  else if (CM == CodeModel::JITDefault) {
-    // The default MCJIT memory managers make no guarantees about where they can
-    // find an executable page; JITed code needs to be able to refer to globals
-    // no matter how far away they are.
-    CM = CodeModel::Large;
-  }
-
-  X->InitMCCodeGenInfo(RM, CM, OL);
-  return X;
-}
-
-static MCStreamer *createMCStreamer(const Target &T, StringRef TT,
-                                    MCContext &Ctx, MCAsmBackend &MAB,
-                                    raw_ostream &OS,
-                                    MCCodeEmitter *Emitter,
-                                    bool RelaxAll,
-                                    bool NoExecStack) {
-  Triple TheTriple(TT);
-
-  return createAArch64ELFStreamer(Ctx, MAB, OS, Emitter, RelaxAll, NoExecStack);
-}
-
-
-static MCInstPrinter *createAArch64MCInstPrinter(const Target &T,
+static MCInstPrinter *createAArch64MCInstPrinter(const Triple &T,
                                                  unsigned SyntaxVariant,
                                                  const MCAsmInfo &MAI,
                                                  const MCInstrInfo &MII,
-                                                 const MCRegisterInfo &MRI,
-                                                 const MCSubtargetInfo &STI) {
+                                                 const MCRegisterInfo &MRI) {
   if (SyntaxVariant == 0)
-    return new AArch64InstPrinter(MAI, MII, MRI, STI);
-  return 0;
+    return new AArch64InstPrinter(MAI, MII, MRI);
+  if (SyntaxVariant == 1)
+    return new AArch64AppleInstPrinter(MAI, MII, MRI);
+
+  return nullptr;
 }
 
-namespace {
-
-class AArch64MCInstrAnalysis : public MCInstrAnalysis {
-public:
-  AArch64MCInstrAnalysis(const MCInstrInfo *Info) : MCInstrAnalysis(Info) {}
-
-  virtual bool isUnconditionalBranch(const MCInst &Inst) const {
-    if (Inst.getOpcode() == AArch64::Bcc
-        && Inst.getOperand(0).getImm() == A64CC::AL)
-      return true;
-    return MCInstrAnalysis::isUnconditionalBranch(Inst);
-  }
-
-  virtual bool isConditionalBranch(const MCInst &Inst) const {
-    if (Inst.getOpcode() == AArch64::Bcc
-        && Inst.getOperand(0).getImm() == A64CC::AL)
-      return false;
-    return MCInstrAnalysis::isConditionalBranch(Inst);
-  }
-
-  bool evaluateBranch(const MCInst &Inst, uint64_t Addr,
-                      uint64_t Size, uint64_t &Target) const {
-    unsigned LblOperand = Inst.getOpcode() == AArch64::Bcc ? 1 : 0;
-    // FIXME: We only handle PCRel branches for now.
-    if (Info->get(Inst.getOpcode()).OpInfo[LblOperand].OperandType
-        != MCOI::OPERAND_PCREL)
-      return false;
-
-    int64_t Imm = Inst.getOperand(LblOperand).getImm();
-    Target = Addr + Imm;
-    return true;
-  }
-};
-
+static MCStreamer *createELFStreamer(const Triple &T, MCContext &Ctx,
+                                     std::unique_ptr<MCAsmBackend> &&TAB,
+                                     raw_pwrite_stream &OS,
+                                     std::unique_ptr<MCCodeEmitter> &&Emitter,
+                                     bool RelaxAll) {
+  return createAArch64ELFStreamer(Ctx, std::move(TAB), OS, std::move(Emitter),
+                                  RelaxAll);
 }
 
-static MCInstrAnalysis *createAArch64MCInstrAnalysis(const MCInstrInfo *Info) {
-  return new AArch64MCInstrAnalysis(Info);
+static MCStreamer *createMachOStreamer(MCContext &Ctx,
+                                       std::unique_ptr<MCAsmBackend> &&TAB,
+                                       raw_pwrite_stream &OS,
+                                       std::unique_ptr<MCCodeEmitter> &&Emitter,
+                                       bool RelaxAll,
+                                       bool DWARFMustBeAtTheEnd) {
+  return createMachOStreamer(Ctx, std::move(TAB), OS, std::move(Emitter),
+                             RelaxAll, DWARFMustBeAtTheEnd,
+                             /*LabelSections*/ true);
 }
 
+static MCStreamer *
+createWinCOFFStreamer(MCContext &Ctx, std::unique_ptr<MCAsmBackend> &&TAB,
+                      raw_pwrite_stream &OS,
+                      std::unique_ptr<MCCodeEmitter> &&Emitter, bool RelaxAll,
+                      bool IncrementalLinkerCompatible) {
+  return createAArch64WinCOFFStreamer(Ctx, std::move(TAB), OS,
+                                      std::move(Emitter), RelaxAll,
+                                      IncrementalLinkerCompatible);
+}
 
+static MCInstrAnalysis *createAArch64InstrAnalysis(const MCInstrInfo *Info) {
+  return new MCInstrAnalysis(Info);
+}
 
+// Force static initialization.
 extern "C" void LLVMInitializeAArch64TargetMC() {
-  // Register the MC asm info.
-  RegisterMCAsmInfoFn A(TheAArch64Target, createAArch64MCAsmInfo);
+  for (Target *T : {&getTheAArch64leTarget(), &getTheAArch64beTarget(),
+                    &getTheARM64Target()}) {
+    // Register the MC asm info.
+    RegisterMCAsmInfoFn X(*T, createAArch64MCAsmInfo);
 
-  // Register the MC codegen info.
-  TargetRegistry::RegisterMCCodeGenInfo(TheAArch64Target,
-                                        createAArch64MCCodeGenInfo);
+    // Register the MC instruction info.
+    TargetRegistry::RegisterMCInstrInfo(*T, createAArch64MCInstrInfo);
 
-  // Register the MC instruction info.
-  TargetRegistry::RegisterMCInstrInfo(TheAArch64Target,
-                                      createAArch64MCInstrInfo);
+    // Register the MC register info.
+    TargetRegistry::RegisterMCRegInfo(*T, createAArch64MCRegisterInfo);
 
-  // Register the MC register info.
-  TargetRegistry::RegisterMCRegInfo(TheAArch64Target,
-                                    createAArch64MCRegisterInfo);
+    // Register the MC subtarget info.
+    TargetRegistry::RegisterMCSubtargetInfo(*T, createAArch64MCSubtargetInfo);
 
-  // Register the MC subtarget info.
-  using AArch64_MC::createAArch64MCSubtargetInfo;
-  TargetRegistry::RegisterMCSubtargetInfo(TheAArch64Target,
-                                          createAArch64MCSubtargetInfo);
+    // Register the MC instruction analyzer.
+    TargetRegistry::RegisterMCInstrAnalysis(*T, createAArch64InstrAnalysis);
 
-  // Register the MC instruction analyzer.
-  TargetRegistry::RegisterMCInstrAnalysis(TheAArch64Target,
-                                          createAArch64MCInstrAnalysis);
+    // Register the MC Code Emitter
+    TargetRegistry::RegisterMCCodeEmitter(*T, createAArch64MCCodeEmitter);
 
-  // Register the MC Code Emitter
-  TargetRegistry::RegisterMCCodeEmitter(TheAArch64Target,
-                                        createAArch64MCCodeEmitter);
+    // Register the obj streamers.
+    TargetRegistry::RegisterELFStreamer(*T, createELFStreamer);
+    TargetRegistry::RegisterMachOStreamer(*T, createMachOStreamer);
+    TargetRegistry::RegisterCOFFStreamer(*T, createWinCOFFStreamer);
+
+    // Register the obj target streamer.
+    TargetRegistry::RegisterObjectTargetStreamer(
+        *T, createAArch64ObjectTargetStreamer);
+
+    // Register the asm streamer.
+    TargetRegistry::RegisterAsmTargetStreamer(*T,
+                                              createAArch64AsmTargetStreamer);
+    // Register the MCInstPrinter.
+    TargetRegistry::RegisterMCInstPrinter(*T, createAArch64MCInstPrinter);
+  }
 
   // Register the asm backend.
-  TargetRegistry::RegisterMCAsmBackend(TheAArch64Target,
-                                       createAArch64AsmBackend);
-
-  // Register the object streamer.
-  TargetRegistry::RegisterMCObjectStreamer(TheAArch64Target,
-                                           createMCStreamer);
-
-  // Register the MCInstPrinter.
-  TargetRegistry::RegisterMCInstPrinter(TheAArch64Target,
-                                        createAArch64MCInstPrinter);
+  for (Target *T : {&getTheAArch64leTarget(), &getTheARM64Target()})
+    TargetRegistry::RegisterMCAsmBackend(*T, createAArch64leAsmBackend);
+  TargetRegistry::RegisterMCAsmBackend(getTheAArch64beTarget(),
+                                       createAArch64beAsmBackend);
 }

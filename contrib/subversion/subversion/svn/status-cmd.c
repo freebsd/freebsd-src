@@ -115,7 +115,7 @@ print_start_target_xml(const char *target, apr_pool_t *pool)
   svn_stringbuf_t *sb = svn_stringbuf_create_empty(pool);
 
   svn_xml_make_open_tag(&sb, pool, svn_xml_normal, "target",
-                        "path", target, NULL);
+                        "path", target, SVN_VA_NULL);
 
   return svn_cl__error_checked_fputs(sb->data, stdout);
 }
@@ -135,7 +135,7 @@ print_finish_target_xml(svn_revnum_t repos_rev,
       const char *repos_rev_str;
       repos_rev_str = apr_psprintf(pool, "%ld", repos_rev);
       svn_xml_make_open_tag(&sb, pool, svn_xml_self_closing, "against",
-                            "revision", repos_rev_str, NULL);
+                            "revision", repos_rev_str, SVN_VA_NULL);
     }
 
   svn_xml_make_close_tag(&sb, pool, "target");
@@ -187,7 +187,7 @@ print_status(void *baton,
    * ### _read_info() returns. The svn_wc_status_func4_t callback is
    * ### suppposed to handle the gathering of additional information from the
    * ### WORKING nodes on its own. Until we've agreed on how the CLI should
-   * ### handle the revision information, we use this appproach to stay compat
+   * ### handle the revision information, we use this approach to stay compat
    * ### with our testsuite. */
   if (status->versioned
       && !SVN_IS_VALID_REVNUM(status->revision)
@@ -288,8 +288,15 @@ svn_cl__status(apr_getopt_t *os,
 
   SVN_ERR(svn_cl__check_targets_are_local_paths(targets));
 
-  /* We want our -u statuses to be against HEAD. */
-  rev.kind = svn_opt_revision_head;
+  /* We want our -u statuses to be against HEAD by default. */
+  if (opt_state->start_revision.kind == svn_opt_revision_unspecified)
+    rev.kind = svn_opt_revision_head;
+  else if (! opt_state->update)
+    return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                        _("--revision (-r) option valid only with "
+                          "--show-updates (-u) option"));
+  else
+    rev = opt_state->start_revision;
 
   sb.had_print_error = FALSE;
 
@@ -345,10 +352,11 @@ svn_cl__status(apr_getopt_t *os,
 
       /* Retrieve a hash of status structures with the information
          requested by the user. */
-      SVN_ERR(svn_cl__try(svn_client_status5(&repos_rev, ctx, target, &rev,
+      SVN_ERR(svn_cl__try(svn_client_status6(&repos_rev, ctx, target, &rev,
                                              opt_state->depth,
                                              opt_state->verbose,
                                              opt_state->update,
+                                             TRUE /* check_working_copy */,
                                              opt_state->no_ignore,
                                              opt_state->ignore_externals,
                                              FALSE /* depth_as_sticky */,
@@ -359,13 +367,13 @@ svn_cl__status(apr_getopt_t *os,
                           /* not versioned: */
                           SVN_ERR_WC_NOT_WORKING_COPY,
                           SVN_ERR_WC_PATH_NOT_FOUND,
-                          SVN_NO_ERROR));
+                          0));
 
       if (opt_state->xml)
         SVN_ERR(print_finish_target_xml(repos_rev, iterpool));
     }
 
-  /* If any paths were cached because they were associatied with
+  /* If any paths were cached because they were associated with
      changelists, we can now display them as grouped changelists. */
   if (apr_hash_count(master_cl_hash) > 0)
     {
@@ -378,8 +386,8 @@ svn_cl__status(apr_getopt_t *os,
       for (hi = apr_hash_first(scratch_pool, master_cl_hash); hi;
            hi = apr_hash_next(hi))
         {
-          const char *changelist_name = svn__apr_hash_index_key(hi);
-          apr_array_header_t *path_array = svn__apr_hash_index_val(hi);
+          const char *changelist_name = apr_hash_this_key(hi);
+          apr_array_header_t *path_array = apr_hash_this_val(hi);
           int j;
 
           /* ### TODO: For non-XML output, we shouldn't print the
@@ -390,7 +398,7 @@ svn_cl__status(apr_getopt_t *os,
               svn_stringbuf_setempty(buf);
               svn_xml_make_open_tag(&buf, scratch_pool, svn_xml_normal,
                                     "changelist", "name", changelist_name,
-                                    NULL);
+                                    SVN_VA_NULL);
               SVN_ERR(svn_cl__error_checked_fputs(buf->data, stdout));
             }
           else

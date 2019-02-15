@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Ian Dowse.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,7 +52,7 @@ static u_int msgbuf_cksum(struct msgbuf *mbp);
 
 /*
  * Timestamps in msgbuf are useful when trying to diagnose when core dumps
- * or other actions occured.
+ * or other actions occurred.
  */
 static int msgbuf_show_timestamp = 0;
 SYSCTL_INT(_kern, OID_AUTO, msgbuf_show_timestamp, CTLFLAG_RWTUN,
@@ -179,17 +181,16 @@ msgbuf_addchar(struct msgbuf *mbp, int c)
  * carriage returns down this path.  So do we still need it?
  */
 void
-msgbuf_addstr(struct msgbuf *mbp, int pri, char *str, int filter_cr)
+msgbuf_addstr(struct msgbuf *mbp, int pri, const char *str, int filter_cr)
 {
 	u_int seq;
 	size_t len, prefix_len;
 	char prefix[MAXPRIBUF];
 	char buf[32];
-	int nl, i, j, needtime;
+	int i, j, needtime;
 
 	len = strlen(str);
 	prefix_len = 0;
-	nl = 0;
 
 	/* If we have a zero-length string, no need to do anything. */
 	if (len == 0)

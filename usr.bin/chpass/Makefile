@@ -3,32 +3,31 @@
 
 .include <src.opts.mk>
 
-.PATH: ${.CURDIR}/../../usr.sbin/pwd_mkdb ${.CURDIR}/../../lib/libc/gen
+.PATH: ${SRCTOP}/usr.sbin/pwd_mkdb ${SRCTOP}/lib/libc/gen
 
 PROG=	chpass
 SRCS=	chpass.c edit.c field.c pw_scan.c table.c util.c
 BINOWN=	root
 BINMODE=4555
+PRECIOUSPROG=
 .if ${MK_NIS} != "no"
 CFLAGS+= -DYP
 .endif
 #Some people need this, uncomment to activate
 #CFLAGS+=-DRESTRICT_FULLNAME_CHANGE
-CFLAGS+=-I${.CURDIR}/../../usr.sbin/pwd_mkdb -I${.CURDIR}/../../lib/libc/gen -I.
+CFLAGS+=-I${SRCTOP}/usr.sbin/pwd_mkdb -I${SRCTOP}/lib/libc/gen -I.
 
-DPADD=	${LIBCRYPT} ${LIBUTIL}
-LDADD=	-lcrypt -lutil
+LIBADD=	crypt util
 .if ${MK_NIS} != "no"
-DPADD+=	${LIBYPCLNT}
-LDADD+=	-lypclnt
+LIBADD+=	ypclnt
 .endif 
 
-LINKS=	${BINDIR}/chpass ${BINDIR}/chfn
-LINKS+=	${BINDIR}/chpass ${BINDIR}/chsh
+SYMLINKS=	chpass ${BINDIR}/chfn
+SYMLINKS+=	chpass ${BINDIR}/chsh
 .if ${MK_NIS} != "no"
-LINKS+=	${BINDIR}/chpass ${BINDIR}/ypchpass
-LINKS+=	${BINDIR}/chpass ${BINDIR}/ypchfn
-LINKS+=	${BINDIR}/chpass ${BINDIR}/ypchsh
+SYMLINKS+=	chpass ${BINDIR}/ypchfn
+SYMLINKS+=	chpass ${BINDIR}/ypchpass
+SYMLINKS+=	chpass ${BINDIR}/ypchsh
 .endif
 
 MLINKS=	chpass.1 chfn.1 chpass.1 chsh.1
@@ -42,10 +41,5 @@ beforeinstall:
 	-chflags noschg ${DESTDIR}${BINDIR}/$i
 .endif
 .endfor
-
-.if !defined(NO_FSCHG)
-afterinstall:
-	-chflags schg ${DESTDIR}${BINDIR}/chpass
-.endif
 
 .include <bsd.prog.mk>

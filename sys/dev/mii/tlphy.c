@@ -1,6 +1,8 @@
 /*	$NetBSD: tlphy.c,v 1.18 1999/05/14 11:40:28 drochner Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-2-Clause
+ *
  * Copyright (c) 1998, 1999 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -130,8 +132,7 @@ static int
 tlphy_probe(device_t dev)
 {
 
-	if (strcmp(device_get_name(device_get_parent(device_get_parent(dev))),
-	    "tl") != 0)
+	if (!mii_dev_mac_match(dev, "tl"))
 		return (ENXIO);
 	return (mii_phy_dev_probe(dev, tlphys, BUS_PROBE_DEFAULT));
 }

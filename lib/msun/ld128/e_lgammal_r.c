@@ -206,13 +206,13 @@ sin_pil(long double x)
 	    n--;
 	}
 	n &= 7;
-	y = y - z + n * 0.25L;
+	y = y - z + n * 0.25;
 
 	switch (n) {
 	    case 0:   y =  __kernel_sinl(pi*y,zero,0); break;
 	    case 1:
 	    case 2:   y =  __kernel_cosl(pi*(0.5-y),zero); break;
-	    case 3: 
+	    case 3:
 	    case 4:   y =  __kernel_sinl(pi*(one-y),zero,0); break;
 	    case 5:
 	    case 6:   y = -__kernel_cosl(pi*(y-1.5),zero); break;
@@ -221,41 +221,33 @@ sin_pil(long double x)
 	return -y;
 }
 
-
 long double
 lgammal_r(long double x, int *signgamp)
 {
 	long double nadj,p,p1,p2,p3,q,r,t,w,y,z;
 	uint64_t llx,lx;
 	int i;
-	uint16_t hx;
+	uint16_t hx,ix;
 
-	EXTRACT_LDBL128_WORDS(hx, lx, llx, x);
+	EXTRACT_LDBL128_WORDS(hx,lx,llx,x);
 
-	if((hx & 0x7fff) == 0x7fff) {	/* erfl(nan)=nan */
-		i = (hx>>15)<<1;
-		return (1-i)+one/x;	/* erfl(+-inf)=+-1 */
-	}
-
-    /* purge off +-inf, NaN, +-0, tiny and negative arguments */
+    /* purge +-Inf and NaNs */
 	*signgamp = 1;
-	if((hx & 0x7fff) == 0x7fff)	/* x is +-Inf or NaN */
-		return x*x;
-	if((hx==0||hx==0x8000)&&lx==0) {
-	    if (hx&0x8000)
-		*signgamp = -1;
-	    return one/vzero;
+	ix = hx&0x7fff;
+	if(ix==0x7fff) return x*x;
+
+   /* purge +-0 and tiny arguments */
+	*signgamp = 1-2*(hx>>15);
+	if(ix<0x3fff-116) {		/* |x|<2**-(p+3), return -log(|x|) */
+	    if((ix|lx|llx)==0)
+		return one/vzero;
+	    return -logl(fabsl(x));
 	}
 
-   /* purge off tiny and negative arguments */
-	if(fabsl(x)<0x1p-119L) {
-	    if(hx&0x8000) {
-	        *signgamp = -1;
-	        return -logl(-x);
-	    } else return -logl(x);
-	}
+    /* purge negative integers and start evaluation for other x < 0 */
 	if(hx&0x8000) {
-	    if(fabsl(x)>=0x1p112)
+	    *signgamp = 1;
+	    if(ix>=0x3fff+112) 		/* |x|>=2**(p-1), must be -integer */
 		return one/vzero;
 	    t = sin_pil(x);
 	    if(t==zero) return one/vzero;
@@ -264,17 +256,19 @@ lgammal_r(long double x, int *signgamp)
 	    x = -x;
 	}
 
-	if(x == 1 || x ==2) r = 0;
-	else if(x<2) {
-	    if(x<=0.8999996185302734) {
+    /* purge 1 and 2 */
+	if((ix==0x3fff || ix==0x4000) && (lx|llx)==0) r = 0;
+    /* for x < 2.0 */
+	else if(ix<0x4000) {
+	    if(x<=8.9999961853027344e-01) {
 		r = -logl(x);
-		if(x>=0.7315998077392578) {y = 1-x; i= 0;}
-		else if(x>=0.2316399812698364) {y= x-(tc-1); i=1;}
+		if(x>=7.3159980773925781e-01) {y = 1-x; i= 0;}
+		else if(x>=2.3163998126983643e-01) {y= x-(tc-1); i=1;}
 	  	else {y = x; i=2;}
 	    } else {
-	  	r = 0;
-	        if(x>=1.7316312789916992) {y=2-x;i=0;}
-	        else if(x>=1.2316322326660156) {y=x-tc;i=1;}
+		r = 0;
+	        if(x>=1.7316312789916992e+00) {y=2-x;i=0;}
+	        else if(x>=1.2316322326660156e+00) {y=x-tc;i=1;}
 		else {y=x-1;i=2;}
 	    }
 	    switch(i) {
@@ -285,23 +279,24 @@ lgammal_r(long double x, int *signgamp)
 		p2 = z*(a1+z*(a3+z*(a5+z*(a7+z*(a9+z*(a11+z*(a13+z*(a15+
 		    z*(a17+z*(a19+z*(a21+z*a23)))))))))));
 		p  = y*p1+p2;
-		r  += (p-y/2); break;
+		r  += p-y/2; break;
 	      case 1:
 		p = t0+y*t1+tt+y*y*(t2+y*(t3+y*(t4+y*(t5+y*(t6+y*(t7+y*(t8+
 		    y*(t9+y*(t10+y*(t11+y*(t12+y*(t13+y*(t14+y*(t15+y*(t16+
 		    y*(t17+y*(t18+y*(t19+y*(t20+y*(t21+y*(t22+y*(t23+
 		    y*(t24+y*(t25+y*(t26+y*(t27+y*(t28+y*(t29+y*(t30+
 		    y*(t31+y*t32))))))))))))))))))))))))))))));
-		r += (tf + p); break;
+		r += tf + p; break;
 	      case 2:
 		p1 = y*(u0+y*(u1+y*(u2+y*(u3+y*(u4+y*(u5+y*(u6+y*(u7+
 		    y*(u8+y*(u9+y*u10))))))))));
 		p2 = one+y*(v1+y*(v2+y*(v3+y*(v4+y*(v5+y*(v6+y*(v7+
 		    y*(v8+y*(v9+y*(v10+y*v11))))))))));
-		r += (-y/2 + p1/p2);
+		r += p1/p2-y/2;
 	    }
 	}
-	else if(x<8) {
+    /* x < 8.0 */
+	else if(ix<0x4002) {
 	    i = x;
 	    y = x-i;
 	    p = y*(s0+y*(s1+y*(s2+y*(s3+y*(s4+y*(s5+y*(s6+y*(s7+y*(s8+
@@ -318,7 +313,8 @@ lgammal_r(long double x, int *signgamp)
 	    case 3: z *= (y+2);		/* FALLTHRU */
 		    r += logl(z); break;
 	    }
-	} else if (x < 0x1p119L) {
+    /* 8.0 <= x < 2**(p+3) */
+	} else if (ix<0x3fff+116) {
 	    t = logl(x);
 	    z = one/x;
 	    y = z*z;
@@ -326,6 +322,7 @@ lgammal_r(long double x, int *signgamp)
 		y*(w9+y*(w10+y*(w11+y*(w12+y*(w13+y*(w14+y*(w15+y*(w16+
 		y*(w17+y*w18)))))))))))))))));
 	    r = (x-half)*(t-one)+w;
+    /* 2**(p+3) <= x <= inf */
 	} else 
 	    r =  x*(logl(x)-1);
 	if(hx&0x8000) r = nadj - r;

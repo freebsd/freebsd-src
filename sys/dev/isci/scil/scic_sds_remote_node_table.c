@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -138,7 +140,7 @@ void scic_sds_remote_node_table_clear_group_index(
 }
 
 /**
- * This method will set the group index bit entry in the specified gropu index
+ * This method will set the group index bit entry in the specified group index
  * table.
  *
  * @param[in out] remote_node_table This the remote node table in which to set

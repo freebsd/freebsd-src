@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPSINSTPRINTER_H
-#define MIPSINSTPRINTER_H
+#ifndef LLVM_LIB_TARGET_MIPS_INSTPRINTER_MIPSINSTPRINTER_H
+#define LLVM_LIB_TARGET_MIPS_INSTPRINTER_MIPSINSTPRINTER_H
 #include "llvm/MC/MCInstPrinter.h"
 
 namespace llvm {
@@ -73,8 +73,6 @@ enum CondCode {
 const char *MipsFCCToString(Mips::CondCode CC);
 } // end namespace Mips
 
-class TargetMachine;
-
 class MipsInstPrinter : public MCInstPrinter {
 public:
   MipsInstPrinter(const MCAsmInfo &MAI, const MCInstrInfo &MII,
@@ -85,18 +83,22 @@ public:
   void printInstruction(const MCInst *MI, raw_ostream &O);
   static const char *getRegisterName(unsigned RegNo);
 
-  virtual void printRegName(raw_ostream &OS, unsigned RegNo) const;
-  virtual void printInst(const MCInst *MI, raw_ostream &O, StringRef Annot);
+  void printRegName(raw_ostream &OS, unsigned RegNo) const override;
+  void printInst(const MCInst *MI, raw_ostream &O, StringRef Annot,
+                 const MCSubtargetInfo &STI) override;
 
   bool printAliasInstr(const MCInst *MI, raw_ostream &OS);
+  void printCustomAliasOperand(const MCInst *MI, unsigned OpIdx,
+                               unsigned PrintMethodIdx, raw_ostream &O);
 
 private:
   void printOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
-  void printUnsignedImm(const MCInst *MI, int opNum, raw_ostream &O);
-  void printUnsignedImm8(const MCInst *MI, int opNum, raw_ostream &O);
+  template <unsigned Bits, unsigned Offset = 0>
+  void printUImm(const MCInst *MI, int opNum, raw_ostream &O);
   void printMemOperand(const MCInst *MI, int opNum, raw_ostream &O);
   void printMemOperandEA(const MCInst *MI, int opNum, raw_ostream &O);
   void printFCCOperand(const MCInst *MI, int opNum, raw_ostream &O);
+  void printRegisterPair(const MCInst *MI, int opNum, raw_ostream &O);
   void printSHFMask(const MCInst *MI, int opNum, raw_ostream &O);
 
   bool printAlias(const char *Str, const MCInst &MI, unsigned OpNo,
@@ -104,6 +106,8 @@ private:
   bool printAlias(const char *Str, const MCInst &MI, unsigned OpNo0,
                   unsigned OpNo1, raw_ostream &OS);
   bool printAlias(const MCInst &MI, raw_ostream &OS);
+  void printSaveRestore(const MCInst *MI, raw_ostream &O);
+  void printRegisterList(const MCInst *MI, int opNum, raw_ostream &O);
 };
 } // end namespace llvm
 

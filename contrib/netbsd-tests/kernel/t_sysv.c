@@ -72,7 +72,7 @@ void	sharer(void);
 
 #define	MESSAGE_TEXT_LEN	256
 
-struct mymsg {
+struct testmsg {
 	long	mtype;
 	char	mtext[MESSAGE_TEXT_LEN];
 };
@@ -127,7 +127,8 @@ read_int(const char *path)
 		return -1;
 	else {
 		int value;
-		read(input, &value, sizeof(value));
+		ATF_REQUIRE_EQ(read(input, &value, sizeof(value)), sizeof(value));
+		close(input);
 		return value;
 	}
 }
@@ -174,7 +175,7 @@ key_t get_ftok(int id)
 
 	/* Create the file, since ftok() requires it to exist! */
 
-	fd = open(token_key, O_RDWR | O_CREAT | O_EXCL);
+	fd = open(token_key, O_RDWR | O_CREAT | O_EXCL, 0600);
 	if (fd == -1) {
 		rmdir(tmpdir);
 		atf_tc_fail("open() of temp file failed: %d", errno);
@@ -202,7 +203,7 @@ ATF_TC_BODY(msg, tc)
 {
 	struct sigaction sa;
 	struct msqid_ds m_ds;
-	struct mymsg m;
+	struct testmsg m;
 	sigset_t sigmask;
 	int sender_msqid;
 	int loop;
@@ -282,7 +283,7 @@ ATF_TC_BODY(msg, tc)
 		 * Send the first message to the receiver and wait for the ACK.
 		 */
 		m.mtype = MTYPE_1;
-		strcpy(m.mtext, m1_str);
+		strlcpy(m.mtext, m1_str, sizeof(m.mtext));
 		ATF_REQUIRE_MSG(msgsnd(sender_msqid, &m, MESSAGE_TEXT_LEN,
 		    0) != -1, "sender: msgsnd 1: %d", errno);
 
@@ -296,7 +297,7 @@ ATF_TC_BODY(msg, tc)
 		 * Send the second message to the receiver and wait for the ACK.
 		 */
 		m.mtype = MTYPE_2;
-		strcpy(m.mtext, m2_str);
+		strlcpy(m.mtext, m2_str, sizeof(m.mtext));
 		ATF_REQUIRE_MSG(msgsnd(sender_msqid, &m, MESSAGE_TEXT_LEN, 0) != -1,
 		    "sender: msgsnd 2: %d", errno);
 
@@ -347,9 +348,7 @@ ATF_TC_CLEANUP(msg, tc)
 }
 
 void
-print_msqid_ds(mp, mode)
-	struct msqid_ds *mp;
-	mode_t mode;
+print_msqid_ds(struct msqid_ds *mp, mode_t mode)
 {
 	uid_t uid = geteuid();
 	gid_t gid = getegid();
@@ -381,9 +380,9 @@ print_msqid_ds(mp, mode)
 }
 
 void
-receiver()
+receiver(void)
 {
-	struct mymsg m;
+	struct testmsg m;
 	int msqid, loop;
 
 	if ((msqid = msgget(msgkey, 0)) == -1)
@@ -588,9 +587,7 @@ ATF_TC_CLEANUP(sem, tc)
 }
 
 void
-print_semid_ds(sp, mode)
-	struct semid_ds *sp;
-	mode_t mode;
+print_semid_ds(struct semid_ds *sp, mode_t mode)
 {
 	uid_t uid = geteuid();
 	gid_t gid = getegid();
@@ -620,7 +617,7 @@ print_semid_ds(sp, mode)
 }
 
 void
-waiter()
+waiter(void)
 {
 	struct sembuf s;
 	int semid;
@@ -789,9 +786,7 @@ ATF_TC_CLEANUP(shm, tc)
 }
 
 void
-print_shmid_ds(sp, mode)
-	struct shmid_ds *sp;
-	mode_t mode;
+print_shmid_ds(struct shmid_ds *sp, mode_t mode)
 {
 	uid_t uid = geteuid();
 	gid_t gid = getegid();
@@ -823,7 +818,7 @@ print_shmid_ds(sp, mode)
 }
 
 void
-sharer()
+sharer(void)
 {
 	int shmid;
 	void *shm_buf;

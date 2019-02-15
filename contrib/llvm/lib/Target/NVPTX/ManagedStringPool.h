@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_MANAGED_STRING_H
-#define LLVM_SUPPORT_MANAGED_STRING_H
+#ifndef LLVM_LIB_TARGET_NVPTX_MANAGEDSTRINGPOOL_H
+#define LLVM_LIB_TARGET_NVPTX_MANAGEDSTRINGPOOL_H
 
 #include "llvm/ADT/SmallVector.h"
 #include <string>
@@ -27,7 +27,8 @@ class ManagedStringPool {
   SmallVector<std::string *, 8> Pool;
 
 public:
-  ManagedStringPool() {}
+  ManagedStringPool() = default;
+
   ~ManagedStringPool() {
     SmallVectorImpl<std::string *>::iterator Current = Pool.begin();
     while (Current != Pool.end()) {
@@ -43,6 +44,6 @@ public:
   }
 };
 
-}
+} // end namespace llvm
 
-#endif
+#endif // LLVM_LIB_TARGET_NVPTX_MANAGEDSTRINGPOOL_H

@@ -16,16 +16,22 @@
 #define LLVM_EXECUTIONENGINE_JITEVENTLISTENER_H
 
 #include "llvm/Config/llvm-config.h"
-#include "llvm/Support/DataTypes.h"
-#include "llvm/Support/DebugLoc.h"
+#include "llvm/ExecutionEngine/RuntimeDyld.h"
+#include "llvm/IR/DebugLoc.h"
+#include <cstdint>
 #include <vector>
 
 namespace llvm {
-class Function;
+
+class IntelJITEventsWrapper;
 class MachineFunction;
 class OProfileWrapper;
-class IntelJITEventsWrapper;
-class ObjectImage;
+
+namespace object {
+
+class ObjectFile;
+
+} // end namespace object
 
 /// JITEvent_EmittedFunctionDetails - Helper struct for containing information
 /// about a generated machine code function.
@@ -53,28 +59,11 @@ struct JITEvent_EmittedFunctionDetails {
 /// The default implementation of each method does nothing.
 class JITEventListener {
 public:
-  typedef JITEvent_EmittedFunctionDetails EmittedFunctionDetails;
+  using EmittedFunctionDetails = JITEvent_EmittedFunctionDetails;
 
 public:
-  JITEventListener() {}
-  virtual ~JITEventListener();
-
-  /// NotifyFunctionEmitted - Called after a function has been successfully
-  /// emitted to memory.  The function still has its MachineFunction attached,
-  /// if you should happen to need that.
-  virtual void NotifyFunctionEmitted(const Function &,
-                                     void *, size_t,
-                                     const EmittedFunctionDetails &) {}
-
-  /// NotifyFreeingMachineCode - Called from freeMachineCodeForFunction(), after
-  /// the global mapping is removed, but before the machine code is returned to
-  /// the allocator.
-  ///
-  /// OldPtr is the address of the machine code and will be the same as the Code
-  /// parameter to a previous NotifyFunctionEmitted call.  The Function passed
-  /// to NotifyFunctionEmitted may have been destroyed by the time of the
-  /// matching NotifyFreeingMachineCode call.
-  virtual void NotifyFreeingMachineCode(void *) {}
+  JITEventListener() = default;
+  virtual ~JITEventListener() = default;
 
   /// NotifyObjectEmitted - Called after an object has been successfully
   /// emitted to memory.  NotifyFunctionEmitted will not be called for
@@ -84,11 +73,15 @@ public:
   /// The ObjectImage contains the generated object image
   /// with section headers updated to reflect the address at which sections
   /// were loaded and with relocations performed in-place on debug sections.
-  virtual void NotifyObjectEmitted(const ObjectImage &Obj) {}
+  virtual void NotifyObjectEmitted(const object::ObjectFile &Obj,
+                                   const RuntimeDyld::LoadedObjectInfo &L) {}
 
   /// NotifyFreeingObject - Called just before the memory associated with
   /// a previously emitted object is released.
-  virtual void NotifyFreeingObject(const ObjectImage &Obj) {}
+  virtual void NotifyFreeingObject(const object::ObjectFile &Obj) {}
+
+  // Get a pointe to the GDB debugger registration listener.
+  static JITEventListener *createGDBRegistrationListener();
 
 #if LLVM_USE_INTEL_JITEVENTS
   // Construct an IntelJITEventListener
@@ -98,11 +91,11 @@ public:
   static JITEventListener *createIntelJITEventListener(
                                       IntelJITEventsWrapper* AlternativeImpl);
 #else
-  static JITEventListener *createIntelJITEventListener() { return 0; }
+  static JITEventListener *createIntelJITEventListener() { return nullptr; }
 
   static JITEventListener *createIntelJITEventListener(
                                       IntelJITEventsWrapper* AlternativeImpl) {
-    return 0;
+    return nullptr;
   }
 #endif // USE_INTEL_JITEVENTS
 
@@ -114,17 +107,18 @@ public:
   static JITEventListener *createOProfileJITEventListener(
                                       OProfileWrapper* AlternativeImpl);
 #else
-
-  static JITEventListener *createOProfileJITEventListener() { return 0; }
+  static JITEventListener *createOProfileJITEventListener() { return nullptr; }
 
   static JITEventListener *createOProfileJITEventListener(
                                       OProfileWrapper* AlternativeImpl) {
-    return 0;
+    return nullptr;
   }
 #endif // USE_OPROFILE
 
+private:
+  virtual void anchor();
 };
 
-} // end namespace llvm.
+} // end namespace llvm
 
-#endif // defined LLVM_EXECUTIONENGINE_JITEVENTLISTENER_H
+#endif // LLVM_EXECUTIONENGINE_JITEVENTLISTENER_H

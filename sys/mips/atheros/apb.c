@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, Oleksandr Tymoshenko <gonzo@FreeBSD.org>
  * All rights reserved.
  *
@@ -63,8 +65,8 @@ static int	apb_activate_resource(device_t, device_t, int, int,
 		    struct resource *);
 static device_t	apb_add_child(device_t, u_int, const char *, int);
 static struct resource *
-		apb_alloc_resource(device_t, device_t, int, int *, u_long,
-		    u_long, u_long, u_int);
+		apb_alloc_resource(device_t, device_t, int, int *, rman_res_t,
+		    rman_res_t, rman_res_t, u_int);
 static int	apb_attach(device_t);
 static int	apb_deactivate_resource(device_t, device_t, int, int,
 		    struct resource *);
@@ -161,7 +163,7 @@ apb_attach(device_t dev)
 
 static struct resource *
 apb_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct apb_softc		*sc = device_get_softc(bus);
 	struct apb_ivar			*ivar = device_get_ivars(child);
@@ -170,7 +172,7 @@ apb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct rman			*rm;
 	int				 isdefault, needactivate, passthrough;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = (RMAN_IS_DEFAULT_RANGE(start, end));
 	needactivate = flags & RF_ACTIVE;
 	/*
 	 * Pass memory requests to nexus device
@@ -178,7 +180,7 @@ apb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	passthrough = (device_get_parent(child) != bus);
 	rle = NULL;
 
-	dprintf("%s: entry (%p, %p, %d, %d, %p, %p, %ld, %d)\n",
+	dprintf("%s: entry (%p, %p, %d, %d, %p, %p, %jd, %d)\n",
 	    __func__, bus, child, type, *rid, (void *)(intptr_t)start,
 	    (void *)(intptr_t)end, count, flags);
 
@@ -223,7 +225,7 @@ apb_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (rv == 0) {
+	if (rv == NULL) {
 		printf("%s: could not reserve resource\n", __func__);
 		return (0);
 	}
@@ -364,6 +366,10 @@ apb_filter(void *arg)
 			case AR71XX_SOC_AR9341:
 			case AR71XX_SOC_AR9342:
 			case AR71XX_SOC_AR9344:
+			case AR71XX_SOC_QCA9533:
+			case AR71XX_SOC_QCA9533_V2:
+			case AR71XX_SOC_QCA9556:
+			case AR71XX_SOC_QCA9558:
 				/* ACK/clear the given interrupt */
 				ATH_WRITE_REG(AR71XX_MISC_INTR_STATUS,
 				    (1 << irq));
@@ -374,16 +380,15 @@ apb_filter(void *arg)
 			}
 
 			event = sc->sc_eventstab[irq];
-			if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
+			/* always count interrupts; spurious or otherwise */
+			mips_intrcnt_inc(sc->sc_intr_counter[irq]);
+			if (!event || CK_SLIST_EMPTY(&event->ie_handlers)) {
 				if (irq == APB_INTR_PMC) {
 					td = PCPU_GET(curthread);
 					tf = td->td_intr_frame;
 
 					if (pmc_intr)
-						(*pmc_intr)(PCPU_GET(cpuid), tf);
-
-					mips_intrcnt_inc(sc->sc_intr_counter[irq]);
-
+						(*pmc_intr)(tf);
 					continue;
 				}
 				/* Ignore timer interrupts */
@@ -393,7 +398,6 @@ apb_filter(void *arg)
 			}
 
 			intr_event_handle(event, PCPU_GET(curthread)->td_intr_frame);
-			mips_intrcnt_inc(sc->sc_intr_counter[irq]);
 		}
 	}
 
@@ -449,10 +453,6 @@ apb_add_child(device_t bus, u_int order, const char *name, int unit)
 	struct apb_ivar	*ivar;
 
 	ivar = malloc(sizeof(struct apb_ivar), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (ivar == NULL) {
-		printf("Failed to allocate ivar\n");
-		return (0);
-	}
 	resource_list_init(&ivar->resources);
 
 	child = device_add_child_ordered(bus, order, name, unit);
@@ -489,8 +489,8 @@ apb_print_all_resources(device_t dev)
 	if (STAILQ_FIRST(rl))
 		retval += printf(" at");
 
-	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 
 	return (retval);
 }

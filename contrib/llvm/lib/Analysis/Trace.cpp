@@ -16,10 +16,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/Trace.h"
-#include "llvm/Assembly/Writer.h"
+#include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Function.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+
 using namespace llvm;
 
 Function *Trace::getFunction() const {
@@ -31,13 +33,12 @@ Module *Trace::getModule() const {
 }
 
 /// print - Write trace to output stream.
-///
 void Trace::print(raw_ostream &O) const {
   Function *F = getFunction();
   O << "; Trace from function " << F->getName() << ", blocks:\n";
   for (const_iterator i = begin(), e = end(); i != e; ++i) {
     O << "; ";
-    WriteAsOperand(O, *i, true, getModule());
+    (*i)->printAsOperand(O, true, getModule());
     O << "\n";
   }
   O << "; Trace parent function: \n" << *F;
@@ -46,8 +47,7 @@ void Trace::print(raw_ostream &O) const {
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 /// dump - Debugger convenience method; writes trace to standard error
 /// output stream.
-///
-void Trace::dump() const {
+LLVM_DUMP_METHOD void Trace::dump() const {
   print(dbgs());
 }
 #endif

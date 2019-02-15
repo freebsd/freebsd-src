@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SA_LIB_CHECKERS_CLANGSACHECKERS_H
-#define LLVM_CLANG_SA_LIB_CHECKERS_CLANGSACHECKERS_H
+#ifndef LLVM_CLANG_LIB_STATICANALYZER_CHECKERS_CLANGSACHECKERS_H
+#define LLVM_CLANG_LIB_STATICANALYZER_CHECKERS_CLANGSACHECKERS_H
 
 #include "clang/StaticAnalyzer/Core/BugReporter/CommonBugCategories.h"
 
@@ -26,7 +26,7 @@ class CheckerRegistry;
 #define GET_CHECKERS
 #define CHECKER(FULLNAME,CLASS,CXXFILE,HELPTEXT,GROUPINDEX,HIDDEN)    \
   void register##CLASS(CheckerManager &mgr);
-#include "Checkers.inc"
+#include "clang/StaticAnalyzer/Checkers/Checkers.inc"
 #undef CHECKER
 #undef GET_CHECKERS
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997, 1998, 1999, 2000-2003
  *	Bill Paul <wpaul@windriver.com>.  All rights reserved.
  *
@@ -135,7 +137,7 @@ __FBSDID("$FreeBSD$");
 static int axe_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, axe, CTLFLAG_RW, 0, "USB axe");
-SYSCTL_INT(_hw_usb_axe, OID_AUTO, debug, CTLFLAG_RW, &axe_debug, 0,
+SYSCTL_INT(_hw_usb_axe, OID_AUTO, debug, CTLFLAG_RWTUN, &axe_debug, 0,
     "Debug level");
 #endif
 
@@ -175,6 +177,7 @@ static const STRUCT_USB_HOST_ID axe_devs[] = {
 	AXE_DEV(PLANEX3, GU1000T, AXE_FLAG_178),
 	AXE_DEV(SITECOM, LN029, 0),
 	AXE_DEV(SITECOMEU, LN028, AXE_FLAG_178),
+	AXE_DEV(SITECOMEU, LN031, AXE_FLAG_178),
 	AXE_DEV(SYSTEMTALKS, SGCX2UL, 0),
 #undef AXE_DEV
 };
@@ -278,6 +281,7 @@ MODULE_DEPEND(axe, usb, 1, 1, 1);
 MODULE_DEPEND(axe, ether, 1, 1, 1);
 MODULE_DEPEND(axe, miibus, 1, 1, 1);
 MODULE_VERSION(axe, 1);
+USB_PNP_HOST_INFO(axe_devs);
 
 static const struct usb_ether_methods axe_ue_methods = {
 	.ue_attach_post = axe_attach_post,
@@ -498,7 +502,7 @@ axe_setmulti(struct usb_ether *ue)
 	rxmode &= ~AXE_RXCMD_ALLMULTI;
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 	{
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;

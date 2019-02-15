@@ -1,6 +1,8 @@
 %{
-/*
+/*-
  * parser.y
+ *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
@@ -32,6 +34,7 @@
 
 #include <sys/fcntl.h>
 #include <sys/queue.h>
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <errno.h>
 #include <limits.h>

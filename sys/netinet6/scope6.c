@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2000 WIDE Project.
  * All rights reserved.
  *
@@ -60,7 +62,7 @@ VNET_DEFINE(int, ip6_use_defzone) = 0;
 #endif
 VNET_DEFINE(int, deembed_scopeid) = 1;
 SYSCTL_DECL(_net_inet6_ip6);
-SYSCTL_VNET_INT(_net_inet6_ip6, OID_AUTO, deembed_scopeid, CTLFLAG_RW,
+SYSCTL_INT(_net_inet6_ip6, OID_AUTO, deembed_scopeid, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(deembed_scopeid), 0,
     "Extract embedded zone ID and set it to sin6_scope_id in sockaddr_in6.");
 
@@ -74,7 +76,7 @@ static struct mtx scope6_lock;
 #define	SCOPE6_UNLOCK()		mtx_unlock(&scope6_lock)
 #define	SCOPE6_LOCK_ASSERT()	mtx_assert(&scope6_lock, MA_OWNED)
 
-static VNET_DEFINE(struct scope6_id, sid_default);
+VNET_DEFINE_STATIC(struct scope6_id, sid_default);
 #define	V_sid_default			VNET(sid_default)
 
 #define SID(ifp) \
@@ -371,7 +373,7 @@ sa6_recoverscope(struct sockaddr_in6 *sin6)
 			    zoneid != sin6->sin6_scope_id) {
 				log(LOG_NOTICE,
 				    "%s: embedded scope mismatch: %s%%%d. "
-				    "sin6_scope_id was overridden.", __func__,
+				    "sin6_scope_id was overridden\n", __func__,
 				    ip6_sprintf(ip6buf, &sin6->sin6_addr),
 				    sin6->sin6_scope_id);
 			}
@@ -409,7 +411,7 @@ in6_setscope(struct in6_addr *in6, struct ifnet *ifp, u_int32_t *ret_id)
 		if (scope == IPV6_ADDR_SCOPE_INTFACELOCAL ||
 		    scope == IPV6_ADDR_SCOPE_LINKLOCAL) {
 			/*
-			 * Currently we use interface indeces as the
+			 * Currently we use interface indices as the
 			 * zone IDs for interface-local and link-local
 			 * scopes.
 			 */
@@ -451,7 +453,7 @@ in6_clearscope(struct in6_addr *in6)
  * Return the scope identifier or zero.
  */
 uint16_t
-in6_getscope(struct in6_addr *in6)
+in6_getscope(const struct in6_addr *in6)
 {
 
 	if (IN6_IS_SCOPE_LINKLOCAL(in6) || IN6_IS_ADDR_MC_INTFACELOCAL(in6))
@@ -484,6 +486,22 @@ in6_getscopezone(const struct ifnet *ifp, int scope)
 	if (scope >= 0 && scope < IPV6_ADDR_SCOPES_COUNT)
 		return (SID(ifp)->s6id_list[scope]);
 	return (0);
+}
+
+/*
+ * Extracts scope from adddress @dst, stores cleared address
+ * inside @dst and zone inside @scopeid
+ */
+void
+in6_splitscope(const struct in6_addr *src, struct in6_addr *dst,
+    uint32_t *scopeid)
+{
+	uint32_t zoneid;
+
+	*dst = *src;
+	zoneid = ntohs(in6_getscope(dst));
+	in6_clearscope(dst);
+	*scopeid = zoneid;
 }
 
 /*
@@ -530,6 +548,27 @@ sa6_checkzone(struct sockaddr_in6 *sa6)
 		sa6->sin6_scope_id = V_sid_default.s6id_list[scope];
 	/* Return error if we can't determine zone id */
 	return (sa6->sin6_scope_id ? 0: EADDRNOTAVAIL);
+}
+
+/*
+ * This function is similar to sa6_checkzone, but it uses given ifp
+ * to initialize sin6_scope_id.
+ */
+int
+sa6_checkzone_ifp(struct ifnet *ifp, struct sockaddr_in6 *sa6)
+{
+	int scope;
+
+	scope = in6_addrscope(&sa6->sin6_addr);
+	if (scope == IPV6_ADDR_SCOPE_LINKLOCAL ||
+	    scope == IPV6_ADDR_SCOPE_INTFACELOCAL) {
+		if (sa6->sin6_scope_id == 0) {
+			sa6->sin6_scope_id = in6_getscopezone(ifp, scope);
+			return (0);
+		} else if (sa6->sin6_scope_id != in6_getscopezone(ifp, scope))
+			return (EADDRNOTAVAIL);
+	}
+	return (sa6_checkzone(sa6));
 }
 
 

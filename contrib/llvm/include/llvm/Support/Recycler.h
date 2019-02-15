@@ -16,66 +16,50 @@
 #define LLVM_SUPPORT_RECYCLER_H
 
 #include "llvm/ADT/ilist.h"
-#include "llvm/Support/AlignOf.h"
+#include "llvm/Support/Allocator.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cassert>
 
 namespace llvm {
-
-class BumpPtrAllocator;
 
 /// PrintRecyclingAllocatorStats - Helper for RecyclingAllocator for
 /// printing statistics.
 ///
 void PrintRecyclerStats(size_t Size, size_t Align, size_t FreeListSize);
 
-/// RecyclerStruct - Implementation detail for Recycler. This is a
-/// class that the recycler imposes on free'd memory to carve out
-/// next/prev pointers.
-struct RecyclerStruct {
-  RecyclerStruct *Prev, *Next;
-};
-
-template<>
-struct ilist_traits<RecyclerStruct> :
-    public ilist_default_traits<RecyclerStruct> {
-  static RecyclerStruct *getPrev(const RecyclerStruct *t) { return t->Prev; }
-  static RecyclerStruct *getNext(const RecyclerStruct *t) { return t->Next; }
-  static void setPrev(RecyclerStruct *t, RecyclerStruct *p) { t->Prev = p; }
-  static void setNext(RecyclerStruct *t, RecyclerStruct *n) { t->Next = n; }
-
-  mutable RecyclerStruct Sentinel;
-  RecyclerStruct *createSentinel() const {
-    return &Sentinel;
-  }
-  static void destroySentinel(RecyclerStruct *) {}
-
-  RecyclerStruct *provideInitialHead() const { return createSentinel(); }
-  RecyclerStruct *ensureHead(RecyclerStruct*) const { return createSentinel(); }
-  static void noteHead(RecyclerStruct*, RecyclerStruct*) {}
-
-  static void deleteNode(RecyclerStruct *) {
-    llvm_unreachable("Recycler's ilist_traits shouldn't see a deleteNode call!");
-  }
-};
-
 /// Recycler - This class manages a linked-list of deallocated nodes
 /// and facilitates reusing deallocated memory in place of allocating
 /// new memory.
 ///
-template<class T, size_t Size = sizeof(T), size_t Align = AlignOf<T>::Alignment>
+template <class T, size_t Size = sizeof(T), size_t Align = alignof(T)>
 class Recycler {
-  /// FreeList - Doubly-linked list of nodes that have deleted contents and
-  /// are not in active use.
-  ///
-  iplist<RecyclerStruct> FreeList;
+  struct FreeNode {
+    FreeNode *Next;
+  };
+
+  /// List of nodes that have deleted contents and are not in active use.
+  FreeNode *FreeList = nullptr;
+
+  FreeNode *pop_val() {
+    auto *Val = FreeList;
+    __asan_unpoison_memory_region(Val, Size);
+    FreeList = FreeList->Next;
+    __msan_allocated_memory(Val, Size);
+    return Val;
+  }
+
+  void push(FreeNode *N) {
+    N->Next = FreeList;
+    FreeList = N;
+    __asan_poison_memory_region(N, Size);
+  }
 
 public:
   ~Recycler() {
     // If this fails, either the callee has lost track of some allocation,
     // or the callee isn't tracking allocations and should just call
     // clear() before deleting the Recycler.
-    assert(FreeList.empty() && "Non-empty recycler deleted!");
+    assert(!FreeList && "Non-empty recycler deleted!");
   }
 
   /// clear - Release all the tracked allocations to the allocator. The
@@ -83,8 +67,8 @@ public:
   /// deleted; calling clear is one way to ensure this.
   template<class AllocatorType>
   void clear(AllocatorType &Allocator) {
-    while (!FreeList.empty()) {
-      T *t = reinterpret_cast<T *>(FreeList.remove(FreeList.begin()));
+    while (FreeList) {
+      T *t = reinterpret_cast<T *>(pop_val());
       Allocator.Deallocate(t);
     }
   }
@@ -94,19 +78,16 @@ public:
   ///
   /// There is no need to traverse the free list, pulling all the objects into
   /// cache.
-  void clear(BumpPtrAllocator&) {
-    FreeList.clearAndLeakNodesUnsafely();
-  }
+  void clear(BumpPtrAllocator &) { FreeList = nullptr; }
 
   template<class SubClass, class AllocatorType>
   SubClass *Allocate(AllocatorType &Allocator) {
-    assert(sizeof(SubClass) <= Size &&
-           "Recycler allocation size is less than object size!");
-    assert(AlignOf<SubClass>::Alignment <= Align &&
-           "Recycler allocation alignment is less than object alignment!");
-    return !FreeList.empty() ?
-           reinterpret_cast<SubClass *>(FreeList.remove(FreeList.begin())) :
-           static_cast<SubClass *>(Allocator.Allocate(Size, Align));
+    static_assert(alignof(SubClass) <= Align,
+                  "Recycler allocation alignment is less than object align!");
+    static_assert(sizeof(SubClass) <= Size,
+                  "Recycler allocation size is less than object size!");
+    return FreeList ? reinterpret_cast<SubClass *>(pop_val())
+                    : static_cast<SubClass *>(Allocator.Allocate(Size, Align));
   }
 
   template<class AllocatorType>
@@ -116,13 +97,19 @@ public:
 
   template<class SubClass, class AllocatorType>
   void Deallocate(AllocatorType & /*Allocator*/, SubClass* Element) {
-    FreeList.push_front(reinterpret_cast<RecyclerStruct *>(Element));
+    push(reinterpret_cast<FreeNode *>(Element));
   }
 
-  void PrintStats() {
-    PrintRecyclerStats(Size, Align, FreeList.size());
-  }
+  void PrintStats();
 };
+
+template <class T, size_t Size, size_t Align>
+void Recycler<T, Size, Align>::PrintStats() {
+  size_t S = 0;
+  for (auto *I = FreeList; I; I = I->Next)
+    ++S;
+  PrintRecyclerStats(Size, Align, S);
+}
 
 }
 

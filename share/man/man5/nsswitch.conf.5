@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2013
+.Dd November 10, 2018
 .Dt NSSWITCH.CONF 5
 .Os
 .Sh NAME
@@ -148,7 +148,9 @@ The following databases are used by the following C library functions:
 .Xr getprotoent 3
 .It netgroup
 .Xr getnetgrent 3 ,
+.Xr getnetgrent_r 3 ,
 .Xr setnetgrent 3 ,
+.Xr endnetgrent 3 ,
 .Xr innetgr 3
 .El
 .Ss Status codes
@@ -221,7 +223,7 @@ and continue on anything else (i.e,
 You can enable caching for the particular database by specifying
 .Dq cache
 as the first source in the
-.Xr nsswitch.conf 5
+.Nm
 file.
 You should also enable caching for this database in
 .Xr nscd.conf 5 .
@@ -338,6 +340,12 @@ sets a policy of "if the user is notfound in nis, do not try files."
 This treats nis as the authoritative source of information, except
 when the server is down.
 .Sh NOTES
+The
+.Nm
+file is parsed by each program only once.
+Subsequent changes will not be applied until the program
+is restarted.
+.Pp
 If system got compiled with
 .Va WITHOUT_NIS
 you have to remove

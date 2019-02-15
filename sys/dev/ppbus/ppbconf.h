@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, 1998, 1999 Nicolas Souchu
  * All rights reserved.
  *
@@ -263,7 +265,7 @@ extern void _ppb_assert_locked(device_t, const char *, int);
 extern void ppb_init_callout(device_t, struct callout *, int);
 extern int ppb_sleep(device_t, void *, int, const char *, int);
 extern int ppb_get_status(device_t, struct ppb_status *);
-extern int ppb_poll_bus(device_t, int, char, char, int);
+extern int ppb_poll_bus(device_t, int, uint8_t, uint8_t, int);
 extern int ppb_reset_epp_timeout(device_t);
 extern int ppb_ecp_sync(device_t);
 extern int ppb_get_epp_protocol(device_t);

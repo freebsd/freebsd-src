@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Bill Paul <wpaul@ee.columbia.edu>.  All rights reserved.
  *
@@ -47,7 +49,7 @@ __FBSDID("$FreeBSD$");
  * RX filter uses a 512-bit multicast hash table, single perfect entry
  * for the station address, and promiscuous mode. Unlike the ADMtek
  * and KLSI chips, the CATC ASIC supports read and write combining
- * mode where multiple packets can be transfered using a single bulk
+ * mode where multiple packets can be transferred using a single bulk
  * transaction, which helps performance a great deal.
  */
 
@@ -129,7 +131,7 @@ static void	cue_reset(struct cue_softc *);
 static int cue_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, cue, CTLFLAG_RW, 0, "USB cue");
-SYSCTL_INT(_hw_usb_cue, OID_AUTO, debug, CTLFLAG_RW, &cue_debug, 0,
+SYSCTL_INT(_hw_usb_cue, OID_AUTO, debug, CTLFLAG_RWTUN, &cue_debug, 0,
     "Debug level");
 #endif
 
@@ -177,6 +179,7 @@ MODULE_DEPEND(cue, uether, 1, 1, 1);
 MODULE_DEPEND(cue, usb, 1, 1, 1);
 MODULE_DEPEND(cue, ether, 1, 1, 1);
 MODULE_VERSION(cue, 1);
+USB_PNP_HOST_INFO(cue_devs);
 
 static const struct usb_ether_methods cue_ue_methods = {
 	.ue_attach_post = cue_attach_post,
@@ -325,7 +328,7 @@ cue_setmulti(struct usb_ether *ue)
 
 	/* now program new ones */
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 	{
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;

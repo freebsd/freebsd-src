@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 Steven Lawrance <stl@koffein.net>
  * All rights reserved.
  *
@@ -59,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <dev/fdt/fdt_common.h>
-#include <machine/devmap.h>
+#include <sys/devmap.h>
 
 static uint32_t   *ocotp_regs;
 static vm_size_t   ocotp_size;
@@ -70,7 +72,7 @@ fsl_ocotp_devmap(void)
 	phandle_t child, root;
 	u_long base, size;
 
-	if ((root = OF_finddevice("/")) == 0)
+	if ((root = OF_finddevice("/")) == -1)
 		goto fatal;
 	if ((child = fdt_depth_search_compatible(root, "fsl,imx6q-ocotp", 0)) == 0)
 		goto fatal;

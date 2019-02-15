@@ -1,5 +1,7 @@
 #!/bin/sh
 #
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
 # Copyright (c) 2001-2006,2012 Douglas Barton, dougb@FreeBSD.org
 # All rights reserved.
 #
@@ -53,7 +55,7 @@ case ${entropy_dir} in
 	;;
 esac
 
-entropy_save_sz=${entropy_save_sz:-2048}
+entropy_save_sz=${entropy_save_sz:-4096}
 entropy_save_num=${entropy_save_num:-8}
 
 if [ ! -d "${entropy_dir}" ]; then

@@ -80,12 +80,16 @@ test_read_format_tar_filename_KOI8R_CP866(const char *refname)
 	assertEqualString("\x8f\x90\x88\x82\x85\x92",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Verify regular second file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("\xaf\xe0\xa8\xa2\xa5\xe2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 
 	/* End of archive. */
@@ -123,6 +127,8 @@ next_test:
 	assertEqualString("\xf0\xf2\xe9\xf7\xe5\xf4",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/*
 	 * Verify regular second file.
@@ -132,6 +138,8 @@ next_test:
 	assertEqualString("\xaf\xe0\xa8\xa2\xa5\xe2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 
 	/* End of archive. */
@@ -179,13 +187,20 @@ test_read_format_tar_filename_KOI8R_UTF8(const char *refname)
 	assertEqualString("\xd0\x9f\xd0\xa0\xd0\x98\xd0\x92\xd0\x95\xd0\xa2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Verify regular file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("\xd0\xbf\xd1\x80\xd0\xb8\xd0\xb2\xd0\xb5\xd1\x82",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
+	/* Verify encryption status */
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* End of archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
@@ -194,6 +209,10 @@ test_read_format_tar_filename_KOI8R_UTF8(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FILTER_COMPRESS, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE,
 	    archive_format(a));
+	
+	/* Verify encryption status */
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Close the archive. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
@@ -220,6 +239,10 @@ test_read_format_tar_filename_KOI8R_UTF8(const char *refname)
 	assertEqualString("\xf0\xf2\xe9\xf7\xe5\xf4",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	
+	/* Verify encryption status */
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/*
 	 * Verify regular second file.
@@ -286,12 +309,16 @@ test_read_format_tar_filename_KOI8R_CP1251(const char *refname)
 	assertEqualString("\xcf\xd0\xc8\xc2\xc5\xd2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/* Verify regular second file. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("\xef\xf0\xe8\xe2\xe5\xf2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 
 	/* End of archive. */
@@ -328,6 +355,8 @@ next_test:
 	assertEqualString("\xf0\xf2\xe9\xf7\xe5\xf4",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 	/*
 	 * Verify regular second file.
@@ -336,6 +365,8 @@ next_test:
 	assertEqualString("\xef\xf0\xe8\xe2\xe5\xf2",
 	    archive_entry_pathname(ae));
 	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
 
 	/* End of archive. */

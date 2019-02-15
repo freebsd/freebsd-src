@@ -29,7 +29,7 @@
 # $FreeBSD$
 #
 
-.PATH: ${.CURDIR}/../../dev/mwl
+.PATH: ${SRCTOP}/sys/dev/mwl
 
 KMOD=	if_mwl
 SRCS=	if_mwl.c if_mwl_pci.c mwlhal.c

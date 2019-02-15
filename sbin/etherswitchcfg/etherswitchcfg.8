@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 20, 2013
+.Dd October 2, 2016
 .Dt ETHERSWITCHCFG 8
 .Os
 .Sh NAME
@@ -33,26 +33,26 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl "f control file"
-.Ar info
+.Cm info
 .Nm
 .Op Fl "f control file"
-.Ar config
+.Cm config
 .Ar command parameter
 .Nm
 .Op Fl "f control file"
-.Ar phy
+.Cm phy
 .Ar phy.register[=value]
 .Nm
 .Op Fl "f control file"
-.Ar port%d
+.Cm port%d
 .Ar [flags] command parameter
 .Nm
 .Op Fl "f control file"
-.Ar reg
+.Cm reg
 .Ar register[=value]
 .Nm
 .Op Fl "f control file"
-.Ar vlangroup%d
+.Cm vlangroup%d
 .Ar command parameter
 .Sh DESCRIPTION
 The
@@ -81,8 +81,8 @@ The config command provides access to global switch configuration
 parameters.
 It support the following commands:
 .Pp
-.Bl -tag -width ".Ar vlan_mode mode" -compact
-.It Ar vlan_mode mode
+.Bl -tag -width ".Cm vlan_mode mode" -compact
+.It Cm vlan_mode Ar mode
 Sets the switch VLAN mode (depends on the hardware).
 .El
 .Ss phy
@@ -103,51 +103,61 @@ The port command selects one of the ports of the switch.
 It supports the following commands:
 .Pp
 .Bl -tag -width ".Ar pvid number" -compact
-.It Ar pvid number
+.It Cm pvid Ar number
 Sets the default port VID that is used to process incoming frames that are not tagged.
-.It Ar media mediaspec
+.It Cm media Ar mediaspec
 Specifies the physical media configuration to be configured for a port.
-.It Ar mediaopt mediaoption
+.It Cm mediaopt Ar mediaoption
 Specifies a list of media options for a port.
 See
 .Xr ifconfig 8
 for details on
-.Ar media
+.Cm media
 and
-.Ar mediaopt .
+.Cm mediaopt .
+.It Cm led Ar number style
+Sets the display style for a given LED.
+Available styles are:
+.Cm default
+(usually flash on activity),
+.Cm on ,
+.Cm off ,
+and
+.Cm blink .
+Not all switches will support all styles.
 .El
 .Pp
 And the following flags (please note that not all flags
 are supported by all switch drivers):
 .Pp
-.Bl -tag -width ".Ar addtag" -compact
-.It Ar addtag
+.Bl -tag -width ".Fl addtag" -compact
+.It Cm addtag
 Add VLAN tag to each packet sent by the port.
-.It Ar -addtag
+.It Fl addtag
 Disable the add VLAN tag option.
-.It Ar striptag
+.It Cm striptag
 Strip the VLAN tags from the packets sent by the port.
-.It Ar -striptag
+.It Fl striptag
 Disable the strip VLAN tag option.
-.It Ar firstlock
+.It Cm firstlock
 This options makes the switch port lock on the first MAC address it sees.
 After that, usually you need to reset the switch to learn different
 MAC addresses.
-.It Ar -firstlock
+.It Fl firstlock
 Disable the first lock option.
 Note that sometimes you need to reset the
 switch to really disable this option.
-.It Ar dropuntagged
+.It Cm dropuntagged
 Drop packets without a VLAN tag.
-.It Ar -dropuntagged
+.It Fl dropuntagged
 Disable the drop untagged packets option.
-.It Ar doubletag
+.It Cm doubletag
 Enable QinQ for the port.
-.It Ar -doubletag
+.It Fl doubletag
 Disable QinQ for the port.
-.It Ar ingress
+.It Cm ingress
 Enable the ingress filter on the port.
-.It Ar -ingress
+.It Fl ingress
 Disable the ingress filter.
 .El
 .Ss reg
@@ -156,14 +166,14 @@ The reg command provides access to the registers of the switch controller.
 The vlangroup command selects one of the VLAN groups for configuration.
 It supports the following commands:
 .Pp
-.Bl -tag -width ".Ar vlangroup" -compact
-.It Ar vlan VID
+.Bl -tag -width ".Cm members" -compact
+.It Cm vlan Ar VID
 Sets the VLAN ID (802.1q VID) for this VLAN group.
 Frames transmitted on tagged member ports of this group will be tagged
 with this VID.
 Incoming frames carrying this tag will be forwarded according to the
 configuration of this VLAN group.
-.It Ar members port,...
+.It Cm members Ar port,...
 Configures which ports are to be a member of this VLAN group.
 The port numbers are given as a comma-separated list.
 Each port can optionally be followed by

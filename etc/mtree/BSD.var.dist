@@ -9,9 +9,9 @@
     ..
     at
 /set uname=daemon
-        jobs
+        jobs            tags=package=at
         ..
-        spool
+        spool           tags=package=at
         ..
 /set uname=root
     ..
@@ -28,7 +28,7 @@
 /set gname=wheel
     backups
     ..
-    cache		mode=0755
+    cache               mode=0755
     ..
     crash
     ..
@@ -46,11 +46,17 @@
         ..
         ipf             mode=0700
         ..
+        ntp             uname=ntpd gname=ntpd
+        ..
         pkg
         ..
         ports
         ..
         portsnap
+        ..
+        zfsd
+            cases
+            ..
         ..
     ..
     empty           mode=0555 flags=schg
@@ -68,6 +74,8 @@
     preserve
     ..
     run
+        dhclient
+        ..
         ppp             gname=network mode=0770
         ..
         wpa_supplicant
@@ -97,8 +105,8 @@
         vi.recover      mode=01777
         ..
     ..
-    unbound         uname=unbound gname=unbound mode=0755
-        conf.d          uname=unbound gname=unbound mode=0755
+    unbound         uname=unbound gname=unbound mode=0755 tags=package=unbound
+        conf.d          uname=unbound gname=unbound mode=0755 tags=package=unbound
         ..
     ..
     yp

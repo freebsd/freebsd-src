@@ -13,8 +13,8 @@
 
 Summary:	OpenSSH, a free Secure Shell (SSH) protocol implementation
 Name:		openssh
-Version:	6.6p1
-URL:		http://www.openssh.com/
+Version:	7.8p1
+URL:		https://www.openssh.com/
 Release:	1
 Source0:	openssh-%{version}.tar.gz
 Source1:	x11-ssh-askpass-%{xversion}.tar.gz
@@ -28,11 +28,9 @@ Provides:	ssh
 # (Build[ing] Prereq[uisites] only work for RPM 2.95 and newer.)
 # building prerequisites -- stuff for
 #   OpenSSL (openssl-devel),
-#   TCP Wrappers (tcpd-devel),
 #   and Gnome (glibdev, gtkdev, and gnlibsd)
 #
 BuildPrereq:	openssl
-BuildPrereq:	tcpd-devel
 BuildPrereq:	zlib-devel
 #BuildPrereq:	glibdev
 #BuildPrereq:	gtkdev
@@ -58,7 +56,7 @@ arbitrary TCP/IP ports can also be forwarded over the secure channel.
 
 OpenSSH is OpenBSD's rework of the last free version of SSH, bringing it
 up to date in terms of security and features, as well as removing all
-patented algorithms to seperate libraries (OpenSSL).
+patented algorithms to separate libraries (OpenSSL).
 
 This package includes all files necessary for both the OpenSSH
 client and server.
@@ -72,7 +70,7 @@ arbitrary TCP/IP ports can also be forwarded over the secure channel.
 
 OpenSSH is OpenBSD's rework of the last free version of SSH, bringing it
 up to date in terms of security and features, as well as removing all
-patented algorithms to seperate libraries (OpenSSL).
+patented algorithms to separate libraries (OpenSSL).
 
 This package contains an X Window System passphrase dialog for OpenSSH.
 
@@ -140,7 +138,6 @@ CFLAGS="$RPM_OPT_FLAGS" \
 		--mandir=%{_mandir} \
 		--with-privsep-path=/var/lib/empty \
 		--with-pam \
-		--with-tcp-wrappers \
 		--libexecdir=%{_libdir}/ssh
 make
 
@@ -205,7 +202,6 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0755,root,root) %{_bindir}/ssh-keygen
 %attr(0755,root,root) %{_bindir}/scp
 %attr(0755,root,root) %{_bindir}/ssh
-%attr(-,root,root) %{_bindir}/slogin
 %attr(0755,root,root) %{_bindir}/ssh-agent
 %attr(0755,root,root) %{_bindir}/ssh-add
 %attr(0755,root,root) %{_bindir}/ssh-keyscan
@@ -217,7 +213,6 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0755,root,root) %{_libdir}/ssh/ssh-pkcs11-helper
 %attr(0644,root,root) %doc %{_mandir}/man1/scp.1*
 %attr(0644,root,root) %doc %{_mandir}/man1/sftp.1*
-%attr(-,root,root) %doc %{_mandir}/man1/slogin.1*
 %attr(0644,root,root) %doc %{_mandir}/man1/ssh.1*
 %attr(0644,root,root) %doc %{_mandir}/man1/ssh-add.1*
 %attr(0644,root,root) %doc %{_mandir}/man1/ssh-agent.1*

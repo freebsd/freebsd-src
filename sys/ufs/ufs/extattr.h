@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999-2001 Robert N. M. Watson
  * All rights reserved.
  *
@@ -73,11 +75,12 @@ struct ufs_extattr_header {
  * This structure defines the required fields of an extended-attribute header.
  */
 struct extattr {
-	int32_t	ea_length;	    /* length of this attribute */
-	int8_t	ea_namespace;	    /* name space of this attribute */
-	int8_t	ea_contentpadlen;   /* bytes of padding at end of attribute */
-	int8_t	ea_namelength;	    /* length of attribute name */
-	char	ea_name[1];	    /* null-terminated attribute name */
+	uint32_t ea_length;	    /* length of this attribute */
+	uint8_t	ea_namespace;	    /* name space of this attribute */
+	uint8_t	ea_contentpadlen;   /* bytes of padding at end of attribute */
+	uint8_t	ea_namelength;	    /* length of attribute name */
+	char	ea_name[1];	    /* attribute name (NOT nul-terminated) */
+	/* padding, if any, to align attribute content to 8 byte boundary */
 	/* extended attribute content follows */
 };
 
@@ -90,26 +93,16 @@ struct extattr {
  *	content referenced by eap.
  * EXTATTR_CONTENT_SIZE(eap) returns the size of the extended attribute
  *	content referenced by eap.
- * EXTATTR_SET_LENGTHS(eap, contentsize) called after initializing the
- *	attribute name to calculate and set the ea_length, ea_namelength,
- *	and ea_contentpadlen fields of the extended attribute structure.
  */
 #define	EXTATTR_NEXT(eap) \
-	((struct extattr *)(((void *)(eap)) + (eap)->ea_length))
-#define	EXTATTR_CONTENT(eap) (((void *)(eap)) + EXTATTR_BASE_LENGTH(eap))
+	((struct extattr *)(((u_char *)(eap)) + (eap)->ea_length))
+#define	EXTATTR_CONTENT(eap) \
+	(void *)(((u_char *)(eap)) + EXTATTR_BASE_LENGTH(eap))
 #define	EXTATTR_CONTENT_SIZE(eap) \
 	((eap)->ea_length - EXTATTR_BASE_LENGTH(eap) - (eap)->ea_contentpadlen)
+/* -1 below compensates for ea_name[1] */
 #define	EXTATTR_BASE_LENGTH(eap) \
-	((sizeof(struct extattr) + (eap)->ea_namelength + 7) & ~7)
-#define	EXTATTR_SET_LENGTHS(eap, contentsize) do { \
-	KASSERT(((eap)->ea_name[0] != 0), \
-		("Must initialize name before setting lengths")); \
-	(eap)->ea_namelength = strlen((eap)->ea_name); \
-	(eap)->ea_contentpadlen = ((contentsize) % 8) ? \
-		8 - ((contentsize) % 8) : 0; \
-	(eap)->ea_length = EXTATTR_BASE_LENGTH(eap) + \
-		(contentsize) + (eap)->ea_contentpadlen; \
-} while (0)
+	roundup2((sizeof(struct extattr) - 1 + (eap)->ea_namelength), 8)
 
 #ifdef _KERNEL
 
@@ -133,6 +126,10 @@ struct ufs_extattr_per_mount {
 	int	uepm_flags;
 };
 
+struct vop_getextattr_args;
+struct vop_deleteextattr_args;
+struct vop_setextattr_args;
+
 void	ufs_extattr_uepm_init(struct ufs_extattr_per_mount *uepm);
 void	ufs_extattr_uepm_destroy(struct ufs_extattr_per_mount *uepm);
 int	ufs_extattr_start(struct mount *mp, struct thread *td);
@@ -144,13 +141,6 @@ int	ufs_getextattr(struct vop_getextattr_args *ap);
 int	ufs_deleteextattr(struct vop_deleteextattr_args *ap);
 int	ufs_setextattr(struct vop_setextattr_args *ap);
 void	ufs_extattr_vnode_inactive(struct vnode *vp, struct thread *td);
-
-#else
-
-/* User-level definition of KASSERT for macros above */
-#define	KASSERT(cond, str) do { \
-        if (!(cond)) { printf("panic: "); printf(str); printf("\n"); exit(1); }\
-} while (0)
 
 #endif /* !_KERNEL */
 

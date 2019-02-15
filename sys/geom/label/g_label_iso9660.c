@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
@@ -47,7 +49,6 @@ g_label_iso9660_taste(struct g_consumer *cp, char *label, size_t size)
 {
 	struct g_provider *pp;
 	char *sector, *volume;
-	int i;
 
 	g_topology_assert_not();
 	pp = cp->provider;
@@ -68,14 +69,7 @@ g_label_iso9660_taste(struct g_consumer *cp, char *label, size_t size)
 	bzero(label, size);
 	strlcpy(label, volume, MIN(size, VOLUME_LEN));
 	g_free(sector);
-	for (i = size - 1; i > 0; i--) {
-		if (label[i] == '\0')
-			continue;
-		else if (label[i] == ' ')
-			label[i] = '\0';
-		else
-			break;
-	}
+	g_label_rtrim(label, size);
 }
 
 struct g_label_desc g_label_iso9660 = {

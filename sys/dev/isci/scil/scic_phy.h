@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -308,7 +310,7 @@ SCI_STATUS scic_sas_phy_get_properties(
 
 /**
  * @brief This method will enable the user to retrieve information
- *        specific to a SATA phy, such as: the recieved signature
+ *        specific to a SATA phy, such as: the received signature
  *        FIS, if a port selector is present, etc.
  *
  * @param[in]  phy this parameter specifies the phy for which to

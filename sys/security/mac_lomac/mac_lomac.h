@@ -56,7 +56,7 @@
 					 * MAC_LOMAC_TYPE_LABEL. */
 #define	MAC_LOMAC_TYPE_HIGH	3	/* Dominates any
 					 * MAC_LOMAC_TYPE_LABEL. */
-#define	MAC_LOMAC_TYPE_EQUAL	4	/* Equivilent to any
+#define	MAC_LOMAC_TYPE_EQUAL	4	/* Equivalent to any
 					 * MAC_LOMAC_TYPE_LABEL. */
 
 /*

@@ -2,6 +2,8 @@
 /*	$NetBSD: iconv.h,v 1.6 2005/02/03 04:39:32 perry Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2003 Citrus Project,
  * Copyright (c) 2009, 2010 Gabor Kovesdan <gabor@FreeBSD.org>
  * All rights reserved.
@@ -53,7 +55,7 @@ typedef	struct __tag_iconv_t	*iconv_t;
 
 __BEGIN_DECLS
 iconv_t	iconv_open(const char *, const char *);
-size_t	iconv(iconv_t, const char ** __restrict,
+size_t	iconv(iconv_t, char ** __restrict,
 	      size_t * __restrict, char ** __restrict,
 	      size_t * __restrict);
 int	iconv_close(iconv_t);
@@ -62,7 +64,7 @@ int	iconv_close(iconv_t);
  */
 int	__iconv_get_list(char ***, size_t *, __iconv_bool);
 void	__iconv_free_list(char **, size_t);
-size_t	__iconv(iconv_t, const char **, size_t *, char **,
+size_t	__iconv(iconv_t, char **, size_t *, char **,
 		     size_t *, __uint32_t, size_t *);
 #define __ICONV_F_HIDE_INVALID	0x0001
 

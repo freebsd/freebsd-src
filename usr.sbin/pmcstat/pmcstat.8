@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2014
+.Dd May 25, 2018
 .Dt PMCSTAT 8
 .Os
 .Sh NAME
@@ -38,6 +38,8 @@
 .Op Fl E
 .Op Fl F Ar pathname
 .Op Fl G Ar pathname
+.Op Fl I
+.Op Fl L
 .Op Fl M Ar mapfilename
 .Op Fl N
 .Op Fl O Ar logfilename
@@ -45,12 +47,15 @@
 .Op Fl R Ar logfilename
 .Op Fl S Ar event-spec
 .Op Fl T
+.Op Fl U
 .Op Fl W
 .Op Fl a Ar pathname
 .Op Fl c Ar cpu-spec
 .Op Fl d
+.Op Fl e
 .Op Fl f Ar pluginopt
 .Op Fl g
+.Op Fl i Ar lwp
 .Op Fl k Ar kerneldir
 .Op Fl l Ar secs
 .Op Fl m Ar pathname
@@ -61,6 +66,7 @@
 .Op Fl r Ar fsroot
 .Op Fl s Ar event-spec
 .Op Fl t Ar process-spec
+.Op Fl u Ar event-spec
 .Op Fl v
 .Op Fl w Ar secs
 .Op Fl z Ar graphdepth
@@ -154,6 +160,10 @@ is a
 this information is sent to the output file specified by the
 .Fl o
 option.
+.It Fl I
+Skip symbol lookup and display address instead.
+.It Fl L
+List all event names.
 .It Fl M Ar mapfilename
 Write the mapping between executable objects encountered in the event
 log and the abbreviated pathnames used for
@@ -216,6 +226,10 @@ can be used: 'c+a' switch to accumulative mode, 'c+d' switch
 to delta mode, 'm' merge PMCs, 'n' change view, 'p' show next
 PMC, ' ' pause, 'q' quit. calltree only: 'f' cost under threshold
 is seen as a dot.
+.It Fl U
+Toggle capturing user-space call traces while in kernel mode.
+The default is for sampling PMCs to capture user-space callchain information
+while in user-space mode, and kernel callchain information while in kernel mode.
 .It Fl W
 Toggle logging the incremental counts seen by the threads of a
 tracked process each time they are scheduled on a CPU.
@@ -236,7 +250,7 @@ This option requires the
 .Fl R
 option to read in samples that were previously collected and
 saved with the
-.Fl o
+.Fl O
 option.
 .It Fl c Ar cpu-spec
 Set the cpus for subsequent system mode PMCs specified on the
@@ -246,14 +260,26 @@ Argument
 .Ar cpu-spec
 is a comma separated list of CPU numbers, or the literal
 .Sq *
-denoting all unhalted CPUs.
-The default is to allocate system mode PMCs on all unhalted
+denoting all available CPUs.
+The default is to allocate system mode PMCs on all available
 CPUs.
 .It Fl d
 Toggle between process mode PMCs measuring events for the target
 process' current and future children or only measuring events for
 the target process.
 The default is to measure events for the target process alone.
+(it has to be passed in the command line prior to
+.Fl p ,
+.Fl s ,
+.Fl P ,
+or
+.Fl S ) .
+.It Fl e
+Specify that the gprof profile files will use a wide history counter.
+These files are produced in a format compatible with
+.Xr gprof 1 .
+However, other tools that cannot fully parse a BSD-style
+gmon header might be unable to correctly parse these files.
 .It Fl f Ar pluginopt
 Pass option string to the active plugin.
 .br
@@ -267,14 +293,22 @@ A separate profile file is generated for each executable object
 encountered.
 Profile files are placed in sub-directories named by their PMC
 event name.
+.It Fl i Ar lwp
+Filter on thread ID
+.Ar lwp ,
+which you can get from
+.Xr ps 1
+.Fl o
+.Li lwp .
 .It Fl k Ar kerneldir
 Set the pathname of the kernel directory to argument
 .Ar kerneldir .
 This directory specifies where
 .Nm
 should look for the kernel and its modules.
-The default is
-.Pa /boot/kernel .
+The default is to use the path of the running kernel obtained from the
+.Va kern.bootfile
+sysctl.
 .It Fl l Ar secs
 Set system-wide performance measurement duration for
 .Ar secs
@@ -294,6 +328,12 @@ is a
 .Dq Li -
 this information is sent to the output file specified by the
 .Fl o
+option.
+This option requires the
+.Fl R
+option to read in samples that were previously collected and
+saved with the
+.Fl O
 option.
 .It Fl n Ar rate
 Set the default sampling rate for subsequent sampling mode
@@ -332,6 +372,8 @@ Argument
 .Ar process-spec
 may be a non-negative integer denoting a specific process id, or a
 regular expression for selecting processes based on their command names.
+.It Fl u Ar event-spec
+Provide short description of event.
 .It Fl v
 Increase verbosity.
 .It Fl w Ar secs

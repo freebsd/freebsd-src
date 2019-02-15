@@ -25,11 +25,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 10, 2004
+.Dd April 29, 2016
 .Dt HASHINIT 9
 .Os
 .Sh NAME
-.Nm hashinit , hashinit_flags , hashdestroy , phashinit
+.Nm hashinit , hashinit_flags ,  hashdestroy , phashinit , phashinit_flags
 .Nd manage kernel hash tables
 .Sh SYNOPSIS
 .In sys/malloc.h
@@ -45,12 +45,14 @@
 .Fn hashdestroy "void *hashtbl" "struct malloc_type *type" "u_long hashmask"
 .Ft "void *"
 .Fn phashinit "int nelements" "struct malloc_type *type" "u_long *nentries"
+.Fn phashinit_flags "int nelements" "struct malloc_type *type" "u_long *nentries" "int flags"
 .Sh DESCRIPTION
 The
 .Fn hashinit ,
-.Fn hashinit_flags
-and
+.Fn hashinit_flags ,
 .Fn phashinit
+and
+.Fn phashinit_flags
 functions allocate space for hash tables of size given by the argument
 .Fa nelements .
 .Pp
@@ -68,6 +70,12 @@ The
 .Fn hashinit_flags
 function operates like
 .Fn hashinit
+but also accepts an additional argument
+.Fa flags
+which control various options during allocation.
+.Fn phashinit_flags
+function operates like
+.Fn phashinit
 but also accepts an additional argument
 .Fa flags
 which control various options during allocation.
@@ -100,11 +108,19 @@ must be used with one of the following values.
 .It Dv HASH_NOWAIT
 Any malloc performed by the
 .Fn hashinit_flags
+and
+.Fn phashinit_flags
 function will not be allowed to wait, and therefore may fail.
 .It Dv HASH_WAITOK
-Any malloc performed by the
+Any malloc performed by
 .Fn hashinit_flags
+and
+.Fn phashinit_flags
 function is allowed to wait for memory.
+This is also the behavior of
+.Fn hashinit
+and
+.Fn phashinit .
 .El
 .Sh IMPLEMENTATION NOTES
 The largest prime hash value chosen by

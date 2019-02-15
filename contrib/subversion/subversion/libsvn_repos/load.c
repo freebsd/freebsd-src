@@ -21,26 +21,18 @@
  */
 
 
-#include "svn_private_config.h"
+#include <apr.h>
+
 #include "svn_hash.h"
 #include "svn_pools.h"
 #include "svn_error.h"
-#include "svn_fs.h"
 #include "svn_repos.h"
 #include "svn_string.h"
-#include "svn_path.h"
-#include "svn_props.h"
 #include "repos.h"
 #include "svn_private_config.h"
-#include "svn_mergeinfo.h"
-#include "svn_checksum.h"
-#include "svn_subst.h"
 #include "svn_ctype.h"
 
-#include <apr_lib.h>
-
 #include "private/svn_dep_compat.h"
-#include "private/svn_mergeinfo_private.h"
 
 /*----------------------------------------------------------------------*/
 
@@ -150,7 +142,7 @@ read_key_or_val(char **pbuf,
   char c;
 
   numread = len;
-  SVN_ERR(svn_stream_read(stream, buf, &numread));
+  SVN_ERR(svn_stream_read_full(stream, buf, &numread));
   *actual_length += numread;
   if (numread != len)
     return svn_error_trace(stream_ran_dry());
@@ -158,7 +150,7 @@ read_key_or_val(char **pbuf,
 
   /* Suck up extra newline after key data */
   numread = 1;
-  SVN_ERR(svn_stream_read(stream, &c, &numread));
+  SVN_ERR(svn_stream_read_full(stream, &c, &numread));
   *actual_length += numread;
   if (numread != 1)
     return svn_error_trace(stream_ran_dry());
@@ -291,7 +283,8 @@ parse_property_block(svn_stream_t *stream,
 }
 
 
-/* Read CONTENT_LENGTH bytes from STREAM, and use
+/* Read CONTENT_LENGTH bytes from STREAM. If IS_DELTA is true, use
+   PARSE_FNS->apply_textdelta to push a text delta, otherwise use
    PARSE_FNS->set_fulltext to push those bytes as replace fulltext for
    a node.  Use BUFFER/BUFLEN to push the fulltext in "chunks".
 
@@ -324,15 +317,6 @@ parse_text_block(svn_stream_t *stream,
       SVN_ERR(parse_fns->set_fulltext(&text_stream, record_baton));
     }
 
-  /* If there are no contents to read, just write an empty buffer
-     through our callback. */
-  if (content_length == 0)
-    {
-      wlen = 0;
-      if (text_stream)
-        SVN_ERR(svn_stream_write(text_stream, "", &wlen));
-    }
-
   /* Regardless of whether or not we have a sink for our data, we
      need to read it. */
   while (content_length)
@@ -343,7 +327,7 @@ parse_text_block(svn_stream_t *stream,
         rlen = (apr_size_t) content_length;
 
       num_to_read = rlen;
-      SVN_ERR(svn_stream_read(stream, buffer, &rlen));
+      SVN_ERR(svn_stream_read_full(stream, buffer, &rlen));
       content_length -= rlen;
       if (rlen != num_to_read)
         return stream_ran_dry();
@@ -401,7 +385,135 @@ parse_format_version(int *version,
   return SVN_NO_ERROR;
 }
 
+/*----------------------------------------------------------------------*/
+
+/** Dummy callback implementations for functions not provided by the user **/
 
+static svn_error_t *
+dummy_handler_magic_header_record(int version,
+                                  void *parse_baton,
+                                  apr_pool_t *pool)
+{
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+dummy_handler_uuid_record(const char *uuid,
+                          void *parse_baton,
+                          apr_pool_t *pool)
+{
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+dummy_handler_new_revision_record(void **revision_baton,
+                                  apr_hash_t *headers,
+                                  void *parse_baton,
+                                  apr_pool_t *pool)
+{
+  *revision_baton = NULL;
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+dummy_handler_new_node_record(void **node_baton,
+                              apr_hash_t *headers,
+                              void *revision_baton,
+                              apr_pool_t *pool)
+{
+  *node_baton = NULL;
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+dummy_handler_set_revision_property(void *revision_baton,
+                                    const char *name,
+                                    const svn_string_t *value)
+{
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+dummy_handler_set_node_property(void *node_baton,
+                                const char *name,
+                                const svn_string_t *value)
+{
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+dummy_handler_delete_node_property(void *node_baton,
+                                   const char *name)
+{
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+dummy_handler_remove_node_props(void *node_baton)
+{
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+dummy_handler_set_fulltext(svn_stream_t **stream,
+                               void *node_baton)
+{
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+dummy_handler_apply_textdelta(svn_txdelta_window_handler_t *handler,
+                              void **handler_baton,
+                              void *node_baton)
+{
+  /* Only called by parse_text_block() and that tests for NULL handlers. */
+  *handler = NULL;
+  *handler_baton = NULL;
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+dummy_handler_close_node(void *node_baton)
+{
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+dummy_handler_close_revision(void *revision_baton)
+{
+  return SVN_NO_ERROR;
+}
+
+/* Helper macro to copy the function pointer SOURCE->NAME to DEST->NAME.
+ * If the source pointer is NULL, pick the corresponding dummy handler
+ * instead. */
+#define SET_VTABLE_ENTRY(dest, source, name) \
+  dest->name = provided->name ? provided->name : dummy_handler_##name
+
+/* Return a copy of PROVIDED with all NULL callbacks replaced by a dummy
+ * handler.  Allocate the result in RESULT_POOL. */
+static const svn_repos_parse_fns3_t *
+complete_vtable(const svn_repos_parse_fns3_t *provided,
+                apr_pool_t *result_pool)
+{
+  svn_repos_parse_fns3_t *completed = apr_pcalloc(result_pool,
+                                                  sizeof(*completed));
+
+  SET_VTABLE_ENTRY(completed, provided, magic_header_record);
+  SET_VTABLE_ENTRY(completed, provided, uuid_record);
+  SET_VTABLE_ENTRY(completed, provided, new_revision_record);
+  SET_VTABLE_ENTRY(completed, provided, new_node_record);
+  SET_VTABLE_ENTRY(completed, provided, set_revision_property);
+  SET_VTABLE_ENTRY(completed, provided, set_node_property);
+  SET_VTABLE_ENTRY(completed, provided, delete_node_property);
+  SET_VTABLE_ENTRY(completed, provided, remove_node_props);
+  SET_VTABLE_ENTRY(completed, provided, set_fulltext);
+  SET_VTABLE_ENTRY(completed, provided, apply_textdelta);
+  SET_VTABLE_ENTRY(completed, provided, close_node);
+  SET_VTABLE_ENTRY(completed, provided, close_revision);
+
+  return completed;
+}
 
 /*----------------------------------------------------------------------*/
 
@@ -426,6 +538,10 @@ svn_repos_parse_dumpstream3(svn_stream_t *stream,
   apr_pool_t *nodepool = svn_pool_create(pool);
   int version;
 
+  /* Make sure we can blindly invoke callbacks. */
+  parse_fns = complete_vtable(parse_fns, pool);
+
+  /* Start parsing process. */
   SVN_ERR(svn_stream_readline(stream, &linebuf, "\n", &eof, linepool));
   if (eof)
     return stream_ran_dry();
@@ -654,7 +770,7 @@ svn_repos_parse_dumpstream3(svn_stream_t *stream,
                 rlen = (apr_size_t) remaining;
 
               num_to_read = rlen;
-              SVN_ERR(svn_stream_read(stream, buffer, &rlen));
+              SVN_ERR(svn_stream_read_full(stream, buffer, &rlen));
               remaining -= rlen;
               if (rlen != num_to_read)
                 return stream_ran_dry();

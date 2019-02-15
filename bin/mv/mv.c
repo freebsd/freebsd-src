@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -122,7 +124,7 @@ main(int argc, char *argv[])
 	 */
 	if (stat(argv[argc - 1], &sb) || !S_ISDIR(sb.st_mode)) {
 		if (argc > 2)
-			usage();
+			errx(1, "%s is not a directory", argv[argc - 1]);
 		exit(do_move(argv[0], argv[1]));
 	}
 
@@ -273,7 +275,7 @@ do_move(const char *from, const char *to)
 static int
 fastcopy(const char *from, const char *to, struct stat *sbp)
 {
-	struct timeval tval[2];
+	struct timespec ts[2];
 	static u_int blen = MAXPHYS;
 	static char *bp = NULL;
 	mode_t oldmode;
@@ -286,6 +288,7 @@ fastcopy(const char *from, const char *to, struct stat *sbp)
 	}
 	if (bp == NULL && (bp = malloc((size_t)blen)) == NULL) {
 		warnx("malloc(%u) failed", blen);
+		(void)close(from_fd);
 		return (1);
 	}
 	while ((to_fd =
@@ -350,10 +353,9 @@ err:		if (unlink(to))
 	} else
 		warn("%s: cannot stat", to);
 
-	tval[0].tv_sec = sbp->st_atime;
-	tval[1].tv_sec = sbp->st_mtime;
-	tval[0].tv_usec = tval[1].tv_usec = 0;
-	if (utimes(to, tval))
+	ts[0] = sbp->st_atim;
+	ts[1] = sbp->st_mtim;
+	if (futimens(to_fd, ts))
 		warn("%s: set times", to);
 
 	if (close(to_fd)) {

@@ -6,6 +6,7 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
+//
 /// \file
 ///
 /// This file defines a special form of Alias Analysis called ``Provenance
@@ -19,33 +20,43 @@
 /// WARNING: This file knows about how certain Objective-C library functions are
 /// used. Naive LLVM IR transformations which would otherwise be
 /// behavior-preserving may break these assumptions.
-///
+//
 //===----------------------------------------------------------------------===//
 
-#include "ObjCARC.h"
 #include "ProvenanceAnalysis.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/ObjCARCAnalysisUtils.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Use.h"
+#include "llvm/IR/User.h"
+#include "llvm/IR/Value.h"
+#include "llvm/Support/Casting.h"
+#include <utility>
 
 using namespace llvm;
 using namespace llvm::objcarc;
 
 bool ProvenanceAnalysis::relatedSelect(const SelectInst *A,
                                        const Value *B) {
+  const DataLayout &DL = A->getModule()->getDataLayout();
   // If the values are Selects with the same condition, we can do a more precise
   // check: just check for relations between the values on corresponding arms.
   if (const SelectInst *SB = dyn_cast<SelectInst>(B))
     if (A->getCondition() == SB->getCondition())
-      return related(A->getTrueValue(), SB->getTrueValue()) ||
-             related(A->getFalseValue(), SB->getFalseValue());
+      return related(A->getTrueValue(), SB->getTrueValue(), DL) ||
+             related(A->getFalseValue(), SB->getFalseValue(), DL);
 
   // Check both arms of the Select node individually.
-  return related(A->getTrueValue(), B) ||
-         related(A->getFalseValue(), B);
+  return related(A->getTrueValue(), B, DL) ||
+         related(A->getFalseValue(), B, DL);
 }
 
 bool ProvenanceAnalysis::relatedPHI(const PHINode *A,
                                     const Value *B) {
+  const DataLayout &DL = A->getModule()->getDataLayout();
   // If the values are PHIs in the same block, we can do a more precise as well
   // as efficient check: just check for relations between the values on
   // corresponding edges.
@@ -53,16 +64,15 @@ bool ProvenanceAnalysis::relatedPHI(const PHINode *A,
     if (PNB->getParent() == A->getParent()) {
       for (unsigned i = 0, e = A->getNumIncomingValues(); i != e; ++i)
         if (related(A->getIncomingValue(i),
-                    PNB->getIncomingValueForBlock(A->getIncomingBlock(i))))
+                    PNB->getIncomingValueForBlock(A->getIncomingBlock(i)), DL))
           return true;
       return false;
     }
 
   // Check each unique source of the PHI node against B.
   SmallPtrSet<const Value *, 4> UniqueSrc;
-  for (unsigned i = 0, e = A->getNumIncomingValues(); i != e; ++i) {
-    const Value *PV1 = A->getIncomingValue(i);
-    if (UniqueSrc.insert(PV1) && related(PV1, B))
+  for (Value *PV1 : A->incoming_values()) {
+    if (UniqueSrc.insert(PV1).second && related(PV1, B, DL))
       return true;
   }
 
@@ -79,11 +89,10 @@ static bool IsStoredObjCPointer(const Value *P) {
   Visited.insert(P);
   do {
     P = Worklist.pop_back_val();
-    for (Value::const_use_iterator UI = P->use_begin(), UE = P->use_end();
-         UI != UE; ++UI) {
-      const User *Ur = *UI;
+    for (const Use &U : P->uses()) {
+      const User *Ur = U.getUser();
       if (isa<StoreInst>(Ur)) {
-        if (UI.getOperandNo() == 0)
+        if (U.getOperandNo() == 0)
           // The pointer is stored.
           return true;
         // The pointed is stored through.
@@ -95,7 +104,7 @@ static bool IsStoredObjCPointer(const Value *P) {
       if (isa<PtrToIntInst>(P))
         // Assume the worst.
         return true;
-      if (Visited.insert(Ur))
+      if (Visited.insert(Ur).second)
         Worklist.push_back(Ur);
     }
   } while (!Worklist.empty());
@@ -104,11 +113,11 @@ static bool IsStoredObjCPointer(const Value *P) {
   return false;
 }
 
-bool ProvenanceAnalysis::relatedCheck(const Value *A,
-                                      const Value *B) {
+bool ProvenanceAnalysis::relatedCheck(const Value *A, const Value *B,
+                                      const DataLayout &DL) {
   // Skip past provenance pass-throughs.
-  A = GetUnderlyingObjCPtr(A);
-  B = GetUnderlyingObjCPtr(B);
+  A = GetUnderlyingObjCPtr(A, DL);
+  B = GetUnderlyingObjCPtr(B, DL);
 
   // Quick check.
   if (A == B)
@@ -116,12 +125,12 @@ bool ProvenanceAnalysis::relatedCheck(const Value *A,
 
   // Ask regular AliasAnalysis, for a first approximation.
   switch (AA->alias(A, B)) {
-  case AliasAnalysis::NoAlias:
+  case NoAlias:
     return false;
-  case AliasAnalysis::MustAlias:
-  case AliasAnalysis::PartialAlias:
+  case MustAlias:
+  case PartialAlias:
     return true;
-  case AliasAnalysis::MayAlias:
+  case MayAlias:
     break;
   }
 
@@ -160,8 +169,8 @@ bool ProvenanceAnalysis::relatedCheck(const Value *A,
   return true;
 }
 
-bool ProvenanceAnalysis::related(const Value *A,
-                                 const Value *B) {
+bool ProvenanceAnalysis::related(const Value *A, const Value *B,
+                                 const DataLayout &DL) {
   // Begin by inserting a conservative value into the map. If the insertion
   // fails, we have the answer already. If it succeeds, leave it there until we
   // compute the real answer to guard against recursive queries.
@@ -171,7 +180,7 @@ bool ProvenanceAnalysis::related(const Value *A,
   if (!Pair.second)
     return Pair.first->second;
 
-  bool Result = relatedCheck(A, B);
+  bool Result = relatedCheck(A, B, DL);
   CachedResults[ValuePairTy(A, B)] = Result;
   return Result;
 }

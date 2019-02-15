@@ -1,9 +1,9 @@
 /*
- *  $Id: editbox.c,v 1.62 2013/03/17 15:03:41 tom Exp $
+ *  $Id: editbox.c,v 1.70 2018/06/19 22:57:01 tom Exp $
  *
  *  editbox.c -- implements the edit box
  *
- *  Copyright 2007-2012,2013 Thomas E. Dickey
+ *  Copyright 2007-2016,2018 Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -69,7 +69,7 @@ load_list(const char *file, char ***list, int *rows)
 	dlg_exiterr("Not a file: %s", file);
 
     size = (size_t) sb.st_size;
-    if ((blob = dlg_malloc(char, size + 1)) == 0) {
+    if ((blob = dlg_malloc(char, size + 2)) == 0) {
 	fail_list();
     } else {
 	blob[size] = '\0';
@@ -78,6 +78,14 @@ load_list(const char *file, char ***list, int *rows)
 	    dlg_exiterr("Cannot open: %s", file);
 	size = fread(blob, sizeof(char), size, fp);
 	fclose(fp);
+
+	/*
+	 * If the file is not empty, ensure that it ends with a newline.
+	 */
+	if (size != 0 && blob[size - 1] != '\n') {
+	    blob[++size - 1] = '\n';
+	    blob[size] = '\0';
+	}
 
 	for (pass = 0; pass < 2; ++pass) {
 	    int first = TRUE;
@@ -318,6 +326,7 @@ dlg_editbox(const char *title,
 	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	NAVIGATE_BINDINGS,
+	TOGGLEKEY_BINDINGS,
 	END_KEYS_BINDING
     };
     static DLG_KEYS_BINDING binding2[] = {
@@ -325,6 +334,7 @@ dlg_editbox(const char *title,
 	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	NAVIGATE_BINDINGS,
+	/* no TOGGLEKEY_BINDINGS, since that includes space... */
 	END_KEYS_BINDING
     };
     /* *INDENT-ON* */
@@ -353,6 +363,12 @@ dlg_editbox(const char *title,
     DIALOG_VARS save_vars;
     const char **buttons = dlg_ok_labels();
     int mincols = (3 * COLS / 4);
+
+    DLG_TRACE(("# editbox args:\n"));
+    DLG_TRACE2S("title", title);
+    /* FIXME dump the rows & list */
+    DLG_TRACE2N("height", height);
+    DLG_TRACE2N("width", width);
 
     dlg_save_vars(&save_vars);
     dialog_vars.separate_output = TRUE;
@@ -389,7 +405,7 @@ dlg_editbox(const char *title,
     dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
     dlg_draw_title(dialog, title);
 
-    (void) wattrset(dialog, dialog_attr);
+    dlg_attrset(dialog, dialog_attr);
 
     /* Draw the editing field in a box */
     box_y = MARGIN + 0;
@@ -517,13 +533,18 @@ dlg_editbox(const char *title,
 	    && (key >= KEY_MAX)) {
 	    int wide = getmaxx(editing);
 	    int cell = key - KEY_MAX;
-	    thisrow = (cell / wide) + base_row;
-	    col_offset = (cell % wide);
-	    chr_offset = col_to_chr_offset(THIS_ROW, col_offset);
-	    show_one = TRUE;
-	    if (state != sTEXT) {
-		state = sTEXT;
-		show_buttons = TRUE;
+	    int check = (cell / wide) + base_row;
+	    if (check < listsize) {
+		thisrow = check;
+		col_offset = (cell % wide);
+		chr_offset = col_to_chr_offset(THIS_ROW, col_offset);
+		show_one = TRUE;
+		if (state != sTEXT) {
+		    state = sTEXT;
+		    show_buttons = TRUE;
+		}
+	    } else {
+		beep();
 	    }
 	    continue;
 	} else if (was_mouse && key >= KEY_MIN) {
@@ -637,10 +658,14 @@ dlg_editbox(const char *title,
 	/* handle functionkeys */
 	if (fkey) {
 	    switch (key) {
+	    case DLGK_GRID_UP:
+	    case DLGK_GRID_LEFT:
 	    case DLGK_FIELD_PREV:
 		show_buttons = TRUE;
 		state = dlg_prev_ok_buttonindex(state, sTEXT);
 		break;
+	    case DLGK_GRID_RIGHT:
+	    case DLGK_GRID_DOWN:
 	    case DLGK_FIELD_NEXT:
 		show_buttons = TRUE;
 		state = dlg_next_ok_buttonindex(state, sTEXT);
@@ -670,27 +695,31 @@ dlg_editbox(const char *title,
 		break;
 #ifdef KEY_RESIZE
 	    case KEY_RESIZE:
+		dlg_will_resize(dialog);
 		/* reset data */
 		height = old_height;
 		width = old_width;
-		/* repaint */
 		dlg_clear();
+		dlg_unregister_window(editing);
 		dlg_del_window(editing);
 		dlg_del_window(dialog);
-		refresh();
 		dlg_mouse_free_regions();
+		/* repaint */
 		goto retry;
 #endif
+	    case DLGK_TOGGLE:
+		if (state != sTEXT) {
+		    result = dlg_ok_buttoncode(state);
+		} else {
+		    beep();
+		}
+		break;
 	    default:
 		beep();
 		break;
 	    }
 	} else {
-	    if ((key == ' ') && (state != sTEXT)) {
-		result = dlg_ok_buttoncode(state);
-	    } else {
-		beep();
-	    }
+	    beep();
 	}
     }
 

@@ -46,10 +46,6 @@ extern "C" {
  * UTF8_TARGET need not be canonical. *TRUE_TARGET will not be canonical
  * unless UTF8_TARGET is.
  *
- * It is an error if *TRUE_TARGET results in the empty string after the
- * split, which happens in case UTF8_TARGET has a leading '@' character
- * with no additional '@' characters to escape the first '@'.
- *
  * Note that *PEG_REVISION will still contain the '@' symbol as the first
  * character if a peg revision was found. If a trailing '@' symbol was
  * used to escape other '@' characters in UTF8_TARGET, *PEG_REVISION will

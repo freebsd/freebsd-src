@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
  *
@@ -31,10 +33,6 @@
 
 #ifndef DEBUG_H
 #define DEBUG_H 1
-
-#ifndef __GNUC__
-#error "This file must be compiled with GCC"
-#endif
 
 #include <sys/cdefs.h>
 

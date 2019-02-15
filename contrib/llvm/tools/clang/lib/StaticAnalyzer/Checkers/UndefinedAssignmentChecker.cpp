@@ -24,7 +24,7 @@ using namespace ento;
 namespace {
 class UndefinedAssignmentChecker
   : public Checker<check::Bind> {
-  mutable OwningPtr<BugType> BT;
+  mutable std::unique_ptr<BugType> BT;
 
 public:
   void checkBind(SVal location, SVal val, const Stmt *S,
@@ -46,7 +46,7 @@ void UndefinedAssignmentChecker::checkBind(SVal location, SVal val,
     if (C.getCalleeName(EnclosingFunctionDecl) == "swap")
       return;
 
-  ExplodedNode *N = C.generateSink();
+  ExplodedNode *N = C.generateErrorNode();
 
   if (!N)
     return;
@@ -54,12 +54,20 @@ void UndefinedAssignmentChecker::checkBind(SVal location, SVal val,
   const char *str = "Assigned value is garbage or undefined";
 
   if (!BT)
-    BT.reset(new BuiltinBug(str));
+    BT.reset(new BuiltinBug(this, str));
 
   // Generate a report for this bug.
-  const Expr *ex = 0;
+  const Expr *ex = nullptr;
 
   while (StoreE) {
+    if (const UnaryOperator *U = dyn_cast<UnaryOperator>(StoreE)) {
+      str = "The expression is an uninitialized value. "
+            "The computed value will also be garbage";
+
+      ex = U->getSubExpr();
+      break;
+    }
+
     if (const BinaryOperator *B = dyn_cast<BinaryOperator>(StoreE)) {
       if (B->isCompoundAssignmentOp()) {
         ProgramStateRef state = C.getState();
@@ -83,12 +91,12 @@ void UndefinedAssignmentChecker::checkBind(SVal location, SVal val,
     break;
   }
 
-  BugReport *R = new BugReport(*BT, str, N);
+  auto R = llvm::make_unique<BugReport>(*BT, str, N);
   if (ex) {
     R->addRange(ex->getSourceRange());
     bugreporter::trackNullOrUndefValue(N, ex, *R);
   }
-  C.emitReport(R);
+  C.emitReport(std::move(R));
 }
 
 void ento::registerUndefinedAssignmentChecker(CheckerManager &mgr) {

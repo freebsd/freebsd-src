@@ -288,6 +288,7 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
     const struct ieee80211_channel *chan = AH_PRIVATE(ah)->ah_curchan;
     HAL_TX_QUEUE_INFO       *qi;
     u_int32_t               cw_min, chan_cw_min, value;
+    uint32_t                qmisc, dmisc;
 
     if (q >= p_cap->halTotalQueues) {
         HALDEBUG(ah, HAL_DEBUG_QUEUE, "%s: invalid queue num %u\n", __func__, q);
@@ -335,17 +336,15 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
         SM(qi->tqi_shretry, AR_D_RETRY_LIMIT_FR_SH));
 
     /* enable early termination on the QCU */
-    OS_REG_WRITE(ah, AR_QMISC(q), AR_Q_MISC_DCU_EARLY_TERM_REQ);
+    qmisc = AR_Q_MISC_DCU_EARLY_TERM_REQ;
 
     /* enable DCU to wait for next fragment from QCU  */
     if (AR_SREV_WASP(ah) && (AH_PRIVATE((ah))->ah_macRev <= AR_SREV_REVISION_WASP_12)) {
         /* WAR for EV#85395: Wasp Rx overrun issue - reduces Tx queue backoff 
          * threshold to 1 to avoid Rx overruns - Fixed in Wasp 1.3 */
-        OS_REG_WRITE(ah, AR_DMISC(q), 
-            AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x1);
+        dmisc = AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x1;
     } else {
-        OS_REG_WRITE(ah, AR_DMISC(q), 
-            AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x2);
+        dmisc = AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x2;
     }
 
     /* multiqueue support */
@@ -355,11 +354,9 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
             SM(qi->tqi_cbrPeriod, AR_Q_CBRCFG_INTERVAL) |
                 SM(qi->tqi_cbrOverflowLimit,
             AR_Q_CBRCFG_OVF_THRESH));
-        OS_REG_WRITE(ah, AR_QMISC(q),
-            OS_REG_READ(ah, AR_QMISC(q)) |
-            AR_Q_MISC_FSP_CBR |
+        qmisc |= AR_Q_MISC_FSP_CBR |
             (qi->tqi_cbrOverflowLimit ?
-                AR_Q_MISC_CBR_EXP_CNTR_LIMIT_EN : 0));
+                AR_Q_MISC_CBR_EXP_CNTR_LIMIT_EN : 0);
     }
 
     if (qi->tqi_readyTime && (qi->tqi_type != HAL_TX_QUEUE_CAB)) {
@@ -371,37 +368,51 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
     OS_REG_WRITE(ah, AR_DCHNTIME(q), SM(qi->tqi_burstTime, AR_D_CHNTIME_DUR) |
                 (qi->tqi_burstTime ? AR_D_CHNTIME_EN : 0));
 
-    if (qi->tqi_burstTime &&
-        (qi->tqi_qflags & HAL_TXQ_RDYTIME_EXP_POLICY_ENABLE))
-    {
-        OS_REG_WRITE(ah, AR_QMISC(q), OS_REG_READ(ah, AR_QMISC(q)) |
-                     AR_Q_MISC_RDYTIME_EXP_POLICY);
+    if (qi->tqi_readyTime &&
+      (qi->tqi_qflags & HAL_TXQ_RDYTIME_EXP_POLICY_ENABLE))
+        qmisc |= AR_Q_MISC_RDYTIME_EXP_POLICY;
+    if (qi->tqi_qflags & HAL_TXQ_DBA_GATED)
+        qmisc = (qmisc &~ AR_Q_MISC_FSP) | AR_Q_MISC_FSP_DBA_GATED;
+    if (MS(qmisc, AR_Q_MISC_FSP) != AR_Q_MISC_FSP_ASAP) {
+        /*
+        * These are meangingful only when not scheduled asap.
+        */
+        if (qi->tqi_qflags & HAL_TXQ_CBR_DIS_BEMPTY)
+            qmisc |= AR_Q_MISC_CBR_INCR_DIS0;
+        else
+            qmisc &= ~AR_Q_MISC_CBR_INCR_DIS0;
+        if (qi->tqi_qflags & HAL_TXQ_CBR_DIS_QEMPTY)
+            qmisc |= AR_Q_MISC_CBR_INCR_DIS1;
+        else
+            qmisc &= ~AR_Q_MISC_CBR_INCR_DIS1;
     }
 
-    if (qi->tqi_qflags & HAL_TXQ_BACKOFF_DISABLE) {
-        OS_REG_WRITE(ah, AR_DMISC(q), OS_REG_READ(ah, AR_DMISC(q)) |
-                    AR_D_MISC_POST_FR_BKOFF_DIS);
-    }
-
-    if (qi->tqi_qflags & HAL_TXQ_FRAG_BURST_BACKOFF_ENABLE) {
-        OS_REG_WRITE(ah, AR_DMISC(q), OS_REG_READ(ah, AR_DMISC(q)) |
-                    AR_D_MISC_FRAG_BKOFF_EN);
-    }
+    if (qi->tqi_qflags & HAL_TXQ_BACKOFF_DISABLE)
+        dmisc |= AR_D_MISC_POST_FR_BKOFF_DIS;
+    if (qi->tqi_qflags & HAL_TXQ_FRAG_BURST_BACKOFF_ENABLE)
+        dmisc |= AR_D_MISC_FRAG_BKOFF_EN;
+    if (qi->tqi_qflags & HAL_TXQ_ARB_LOCKOUT_GLOBAL)
+        dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
+                    AR_D_MISC_ARB_LOCKOUT_CNTRL);
+    else if (qi->tqi_qflags & HAL_TXQ_ARB_LOCKOUT_INTRA)
+        dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_INTRA_FR,
+                    AR_D_MISC_ARB_LOCKOUT_CNTRL);
+    if (qi->tqi_qflags & HAL_TXQ_IGNORE_VIRTCOL)
+        dmisc |= SM(AR_D_MISC_VIR_COL_HANDLING_IGNORE,
+                    AR_D_MISC_VIR_COL_HANDLING);
+    if (qi->tqi_qflags & HAL_TXQ_SEQNUM_INC_DIS)
+        dmisc |= AR_D_MISC_SEQ_NUM_INCR_DIS;
 
     switch (qi->tqi_type) {
     case HAL_TX_QUEUE_BEACON:               /* beacon frames */
-        OS_REG_WRITE(ah, AR_QMISC(q),
-                    OS_REG_READ(ah, AR_QMISC(q))
-                    | AR_Q_MISC_FSP_DBA_GATED
+        qmisc |= AR_Q_MISC_FSP_DBA_GATED
                     | AR_Q_MISC_BEACON_USE
-                    | AR_Q_MISC_CBR_INCR_DIS1);
+                    | AR_Q_MISC_CBR_INCR_DIS1;
 
-        OS_REG_WRITE(ah, AR_DMISC(q),
-                    OS_REG_READ(ah, AR_DMISC(q))
-                    | (AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL <<
+        dmisc |= (AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL <<
                     AR_D_MISC_ARB_LOCKOUT_CNTRL_S)
                     | AR_D_MISC_BEACON_USE
-                    | AR_D_MISC_POST_FR_BKOFF_DIS);
+                    | AR_D_MISC_POST_FR_BKOFF_DIS;
         /* XXX cwmin and cwmax should be 0 for beacon queue */
         if (AH_PRIVATE(ah)->ah_opmode != HAL_M_IBSS) {
             OS_REG_WRITE(ah, AR_DLCL_IFS(q), SM(0, AR_D_LCL_IFS_CWMIN)
@@ -416,21 +427,37 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
          * not properly refreshing the Tx descriptor if
          * the TXE clear setting is used.
          */
-        OS_REG_WRITE(ah, AR_QMISC(q),
-                        OS_REG_READ(ah, AR_QMISC(q))
-                        | AR_Q_MISC_FSP_DBA_GATED
+        qmisc |= AR_Q_MISC_FSP_DBA_GATED
                         | AR_Q_MISC_CBR_INCR_DIS1
-                        | AR_Q_MISC_CBR_INCR_DIS0);
+                        | AR_Q_MISC_CBR_INCR_DIS0;
 
-        value = TU_TO_USEC(qi->tqi_readyTime)
-                - (ah->ah_config.ah_sw_beacon_response_time
-                -  ah->ah_config.ah_dma_beacon_response_time)
-                - ah->ah_config.ah_additional_swba_backoff;
-        OS_REG_WRITE(ah, AR_QRDYTIMECFG(q), value | AR_Q_RDYTIMECFG_EN);
+        if (qi->tqi_readyTime) {
+            OS_REG_WRITE(ah, AR_QRDYTIMECFG(q),
+              SM(qi->tqi_readyTime, AR_Q_RDYTIMECFG_DURATION) |
+              AR_Q_RDYTIMECFG_EN);
+        } else {
 
-        OS_REG_WRITE(ah, AR_DMISC(q), OS_REG_READ(ah, AR_DMISC(q))
-                    | (AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL <<
-                                AR_D_MISC_ARB_LOCKOUT_CNTRL_S));
+            value = (ahp->ah_beaconInterval * 50 / 100)
+              - ah->ah_config.ah_additional_swba_backoff
+              - ah->ah_config.ah_sw_beacon_response_time
+              + ah->ah_config.ah_dma_beacon_response_time;
+            /*
+             * XXX Ensure it isn't too low - nothing lower
+             * XXX than 10 TU
+             */
+            if (value < 10)
+                value = 10;
+            if (value < 0)
+                value = 10;
+            HALDEBUG(ah, HAL_DEBUG_TXQUEUE,
+              "%s: defaulting to rdytime = %d uS\n",
+              __func__, value);
+            OS_REG_WRITE(ah, AR_QRDYTIMECFG(q),
+              SM(TU_TO_USEC(value), AR_Q_RDYTIMECFG_DURATION) |
+              AR_Q_RDYTIMECFG_EN);
+        }
+        dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
+                    AR_D_MISC_ARB_LOCKOUT_CNTRL);
         break;
     case HAL_TX_QUEUE_PSPOLL:
         /*
@@ -441,12 +468,10 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
          * non-TIM elements and send PS-poll PS poll processing
          * will be done in software
          */
-        OS_REG_WRITE(ah, AR_QMISC(q),
-                        OS_REG_READ(ah, AR_QMISC(q)) | AR_Q_MISC_CBR_INCR_DIS1);
+        qmisc |= AR_Q_MISC_CBR_INCR_DIS1;
         break;
     case HAL_TX_QUEUE_UAPSD:
-        OS_REG_WRITE(ah, AR_DMISC(q), OS_REG_READ(ah, AR_DMISC(q))
-                    | AR_D_MISC_POST_FR_BKOFF_DIS);
+        dmisc |= AR_D_MISC_POST_FR_BKOFF_DIS;
         break;
     default:                        /* NB: silence compiler */
         break;
@@ -461,15 +486,15 @@ ar9300_reset_tx_queue(struct ath_hal *ah, u_int q)
      * queue_info->dcumode.
      */
     if (qi->tqi_intFlags & HAL_TXQ_USE_LOCKOUT_BKOFF_DIS) {
-        OS_REG_WRITE(ah, AR_DMISC(q),
-            OS_REG_READ(ah, AR_DMISC(q)) |
-                SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
+        dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
                     AR_D_MISC_ARB_LOCKOUT_CNTRL) |
-                AR_D_MISC_POST_FR_BKOFF_DIS);
+                AR_D_MISC_POST_FR_BKOFF_DIS;
     }
 #endif
 
     OS_REG_WRITE(ah, AR_Q_DESC_CRCCHK, AR_Q_DESC_CRCCHK_EN);
+    OS_REG_WRITE(ah, AR_QMISC(q), qmisc);
+    OS_REG_WRITE(ah, AR_DMISC(q), dmisc);
 
     /*
      * Always update the secondary interrupt mask registers - this
@@ -583,6 +608,14 @@ ar9300_num_tx_pending(struct ath_hal *ah, u_int q)
 HAL_BOOL
 ar9300_stop_tx_dma(struct ath_hal *ah, u_int q, u_int timeout)
 {
+    struct ath_hal_9300 *ahp = AH9300(ah);
+
+    /*
+     * If we call abort txdma instead, no need to stop RX.
+     * Otherwise, the RX logic might not be restarted properly.
+     */
+    ahp->ah_abort_txdma_norx = AH_FALSE;
+
     /*
      * Directly call abort.  It is better, hardware-wise, to stop all
      * queues at once than individual ones.
@@ -798,10 +831,40 @@ ar9300_stop_tx_dma_indv_que(struct ath_hal *ah, u_int q, u_int timeout)
  */
 #define AR9300_ABORT_LOOPS     1000
 #define AR9300_ABORT_WAIT      5
+#define NEXT_TBTT_NOW       10
 HAL_BOOL
 ar9300_abort_tx_dma(struct ath_hal *ah)
 {
+    struct ath_hal_9300 *ahp = AH9300(ah);
     int i, q;
+    u_int32_t nexttbtt, nextdba, tsf_tbtt, tbtt, dba;
+    HAL_BOOL stopped;
+    HAL_BOOL status = AH_TRUE;
+
+    if (ahp->ah_abort_txdma_norx) {
+        /*
+         * First of all, make sure RX has been stopped
+         */
+        if (ar9300_get_power_mode(ah) != HAL_PM_FULL_SLEEP) {
+            /* Need to stop RX DMA before reset otherwise chip might hang */
+            stopped = ar9300_set_rx_abort(ah, AH_TRUE); /* abort and disable PCU */
+            ar9300_set_rx_filter(ah, 0);
+            stopped &= ar9300_stop_dma_receive(ah, 0); /* stop and disable RX DMA */
+            if (!stopped) {
+                /*
+                 * During the transition from full sleep to reset,
+                 * recv DMA regs are not available to be read
+                 */
+                HALDEBUG(ah, HAL_DEBUG_UNMASKABLE,
+                    "%s[%d]: ar9300_stop_dma_receive failed\n", __func__, __LINE__);
+                //We still continue to stop TX dma
+                //return AH_FALSE;
+            }
+        } else {
+            HALDEBUG(ah, HAL_DEBUG_UNMASKABLE,
+                "%s[%d]: Chip is already in full sleep\n", __func__, __LINE__);
+        }
+    }
 
     /*
      * set txd on all queues
@@ -812,13 +875,27 @@ ar9300_abort_tx_dma(struct ath_hal *ah)
      * set tx abort bits (also disable rx)
      */
     OS_REG_SET_BIT(ah, AR_PCU_MISC, AR_PCU_FORCE_QUIET_COLL | AR_PCU_CLEAR_VMF);
-    OS_REG_SET_BIT(ah, AR_DIAG_SW, (AR_DIAG_FORCE_CH_IDLE_HIGH | AR_DIAG_RX_DIS |
-                   AR_DIAG_RX_ABORT | AR_DIAG_FORCE_RX_CLEAR));
+    /* Add a new receipe from K31 code */
+    OS_REG_SET_BIT(ah, AR_DIAG_SW, AR_DIAG_FORCE_CH_IDLE_HIGH | AR_DIAG_RX_DIS |
+                                   AR_DIAG_RX_ABORT | AR_DIAG_FORCE_RX_CLEAR);
+     /* beacon Q flush */
+    nexttbtt = OS_REG_READ(ah, AR_NEXT_TBTT_TIMER);
+    nextdba = OS_REG_READ(ah, AR_NEXT_DMA_BEACON_ALERT);
+    //printk("%s[%d]:dba: %d, nt: %d \n", __func__, __LINE__, nextdba, nexttbtt);
+    tsf_tbtt =  OS_REG_READ(ah, AR_TSF_L32);
+    tbtt = tsf_tbtt + NEXT_TBTT_NOW;
+    dba = tsf_tbtt;
+    OS_REG_WRITE(ah, AR_NEXT_DMA_BEACON_ALERT, dba);
+    OS_REG_WRITE(ah, AR_NEXT_TBTT_TIMER, tbtt);
     OS_REG_SET_BIT(ah, AR_D_GBL_IFS_MISC, AR_D_GBL_IFS_MISC_IGNORE_BACKOFF);
 
-    /* Let TXE (all queues) clear before waiting on any pending frames */
-    for (i = 0; i < AR9300_ABORT_LOOPS; i++) {
-        if (OS_REG_READ(ah, AR_Q_TXE) == 0) {
+    /*
+     * Let TXE (all queues) clear before waiting for any pending frames 
+     * This is needed before starting the RF_BUS GRANT sequence other wise causes kernel 
+     * panic 
+     */     
+    for(i = 0; i < AR9300_ABORT_LOOPS; i++) {
+        if(OS_REG_READ(ah, AR_Q_TXE) == 0) {
             break;
         }
         OS_DELAY(AR9300_ABORT_WAIT);
@@ -830,28 +907,38 @@ ar9300_abort_tx_dma(struct ath_hal *ah)
 
     /*
      * wait on all tx queues
+     * This need to be checked in the last to gain extra 50 usec. on avg. 
+     * Currently checked first since we dont have a previous channel information currently. 
+     * Which is needed to revert the rf changes. 
      */
-    for (q = 0; q < AR_NUM_QCU; q++) {
+    for (q = AR_NUM_QCU - 1; q >= 0; q--) {
         for (i = 0; i < AR9300_ABORT_LOOPS; i++) {
-            if (!ar9300_num_tx_pending(ah, q)) {
+            if (!(ar9300_num_tx_pending(ah, q))) {
                 break;
             }
             OS_DELAY(AR9300_ABORT_WAIT);
         }
         if (i == AR9300_ABORT_LOOPS) {
-            HALDEBUG(ah, HAL_DEBUG_TX,
-                     "%s[%d] reached max wait on pending tx, q %d\n",
-                     __func__, __LINE__, q);
-            return AH_FALSE;
+            status = AH_FALSE;
+            HALDEBUG(ah, HAL_DEBUG_UNMASKABLE,
+                    "ABORT LOOP finsihsed for Q: %d, num_pending: %d \n",
+                    q, ar9300_num_tx_pending(ah, q));
+            goto exit;
         }
     }
 
+    /* Updating the beacon alert register with correct value */
+    OS_REG_WRITE(ah, AR_NEXT_DMA_BEACON_ALERT, nextdba);
+    OS_REG_WRITE(ah, AR_NEXT_TBTT_TIMER, nexttbtt);
+
+exit:
     /*
      * clear tx abort bits
      */
     OS_REG_CLR_BIT(ah, AR_PCU_MISC, AR_PCU_FORCE_QUIET_COLL | AR_PCU_CLEAR_VMF);
-    OS_REG_CLR_BIT(ah, AR_DIAG_SW, (AR_DIAG_FORCE_CH_IDLE_HIGH | AR_DIAG_RX_DIS |
-                   AR_DIAG_RX_ABORT | AR_DIAG_FORCE_RX_CLEAR));
+    /* Added a new receipe from K31 code */
+    OS_REG_CLR_BIT(ah, AR_DIAG_SW, AR_DIAG_FORCE_CH_IDLE_HIGH | AR_DIAG_RX_DIS |
+                                   AR_DIAG_RX_ABORT | AR_DIAG_FORCE_RX_CLEAR);
     OS_REG_CLR_BIT(ah, AR_D_GBL_IFS_MISC, AR_D_GBL_IFS_MISC_IGNORE_BACKOFF);
 
     /*
@@ -859,7 +946,9 @@ ar9300_abort_tx_dma(struct ath_hal *ah)
      */
     OS_REG_WRITE(ah, AR_Q_TXD, 0);
 
-    return AH_TRUE;
+    ahp->ah_abort_txdma_norx = AH_TRUE;
+
+    return status;
 }
 
 /*

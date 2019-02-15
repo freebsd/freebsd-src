@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2010
  *	Swinburne University of Technology, Melbourne, Australia
  * Copyright (c) 2010-2011 The FreeBSD Foundation
@@ -65,14 +67,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
-#include <net/if.h>
 #include <net/vnet.h>
 
-#include <netinet/cc.h>
+#include <netinet/tcp.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
-
+#include <netinet/cc/cc.h>
 #include <netinet/cc/cc_module.h>
 
 #include <netinet/khelp/h_ertt.h>
@@ -116,11 +117,11 @@ struct chd {
 
 static int ertt_id;
 
-static VNET_DEFINE(uint32_t, chd_qmin) = 5;
-static VNET_DEFINE(uint32_t, chd_pmax) = 50;
-static VNET_DEFINE(uint32_t, chd_loss_fair) = 1;
-static VNET_DEFINE(uint32_t, chd_use_max) = 1;
-static VNET_DEFINE(uint32_t, chd_qthresh) = 20;
+VNET_DEFINE_STATIC(uint32_t, chd_qmin) = 5;
+VNET_DEFINE_STATIC(uint32_t, chd_pmax) = 50;
+VNET_DEFINE_STATIC(uint32_t, chd_loss_fair) = 1;
+VNET_DEFINE_STATIC(uint32_t, chd_use_max) = 1;
+VNET_DEFINE_STATIC(uint32_t, chd_qthresh) = 20;
 #define	V_chd_qthresh	VNET(chd_qthresh)
 #define	V_chd_qmin	VNET(chd_qmin)
 #define	V_chd_pmax	VNET(chd_pmax)
@@ -306,8 +307,7 @@ static void
 chd_cb_destroy(struct cc_var *ccv)
 {
 
-	if (ccv->cc_data != NULL)
-		free(ccv->cc_data, M_CHD);
+	free(ccv->cc_data, M_CHD);
 }
 
 static int
@@ -471,24 +471,27 @@ SYSCTL_DECL(_net_inet_tcp_cc_chd);
 SYSCTL_NODE(_net_inet_tcp_cc, OID_AUTO, chd, CTLFLAG_RW, NULL,
     "CAIA Hamilton delay-based congestion control related settings");
 
-SYSCTL_VNET_PROC(_net_inet_tcp_cc_chd, OID_AUTO, loss_fair,
-    CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(chd_loss_fair), 1, &chd_loss_fair_handler,
+SYSCTL_PROC(_net_inet_tcp_cc_chd, OID_AUTO, loss_fair,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
+    &VNET_NAME(chd_loss_fair), 1, &chd_loss_fair_handler,
     "IU", "Flag to enable shadow window functionality.");
 
-SYSCTL_VNET_PROC(_net_inet_tcp_cc_chd, OID_AUTO, pmax,
-    CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(chd_pmax), 5, &chd_pmax_handler,
+SYSCTL_PROC(_net_inet_tcp_cc_chd, OID_AUTO, pmax,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
+    &VNET_NAME(chd_pmax), 5, &chd_pmax_handler,
     "IU", "Per RTT maximum backoff probability as a percentage");
 
-SYSCTL_VNET_PROC(_net_inet_tcp_cc_chd, OID_AUTO, queue_threshold,
-    CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(chd_qthresh), 20, &chd_qthresh_handler,
+SYSCTL_PROC(_net_inet_tcp_cc_chd, OID_AUTO, queue_threshold,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
+    &VNET_NAME(chd_qthresh), 20, &chd_qthresh_handler,
     "IU", "Queueing congestion threshold in ticks");
 
-SYSCTL_VNET_UINT(_net_inet_tcp_cc_chd, OID_AUTO, queue_min,
-    CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(chd_qmin), 5,
+SYSCTL_UINT(_net_inet_tcp_cc_chd, OID_AUTO, queue_min,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(chd_qmin), 5,
     "Minimum queueing delay threshold in ticks");
 
-SYSCTL_VNET_UINT(_net_inet_tcp_cc_chd,  OID_AUTO, use_max,
-    CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(chd_use_max), 1,
+SYSCTL_UINT(_net_inet_tcp_cc_chd,  OID_AUTO, use_max,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(chd_use_max), 1,
     "Use the maximum RTT seen within the measurement period (RTT) "
     "as the basic delay measurement for the algorithm.");
 

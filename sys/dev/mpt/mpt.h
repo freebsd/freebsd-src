@@ -3,6 +3,8 @@
  * Generic defines for LSI '909 FC  adapters.
  * FreeBSD Version.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-3-Clause
+ *
  * Copyright (c)  2000, 2001 by Greg Ansley
  *
  * Redistribution and use in source and binary forms, with or without
@@ -237,7 +239,7 @@ struct mpt_map_info {
 
 void mpt_map_rquest(void *, bus_dma_segment_t *, int, int);
 
-/********************************** Endianess *********************************/
+/********************************* Endianness *********************************/
 #define	MPT_2_HOST64(ptr, tag)	ptr->tag = le64toh(ptr->tag)
 #define	MPT_2_HOST32(ptr, tag)	ptr->tag = le32toh(ptr->tag)
 #define	MPT_2_HOST16(ptr, tag)	ptr->tag = le16toh(ptr->tag)
@@ -329,17 +331,17 @@ typedef struct mpt_config_params {
 } cfgparms_t;
 
 /**************************** MPI Target State Info ***************************/
-
 typedef struct {
 	uint32_t reply_desc;	/* current reply descriptor */
-	uint32_t resid;		/* current data residual */
 	uint32_t bytes_xfered;	/* current relative offset */
+	int resid;		/* current data residual */
 	union ccb *ccb;		/* pointer to currently active ccb */
 	request_t *req;		/* pointer to currently active assist request */
 	uint32_t
 		is_local : 1,
 		nxfers	 : 31;
-	uint32_t tag_id;
+	uint32_t tag_id;	/* Our local tag. */
+	uint16_t itag;		/* Initiator tag. */
 	enum {
 		TGT_STATE_NIL,
 		TGT_STATE_LOADING,
@@ -613,8 +615,9 @@ struct mpt_softc {
 			unsigned int initiator_id;
 		} spi;
 		struct {
-			char wwnn[19];
-			char wwpn[19];
+			uint64_t wwnn;
+			uint64_t wwpn;
+			uint32_t portid;
 		} fc;
 	} scinfo;
 
@@ -664,8 +667,8 @@ struct mpt_softc {
 	bus_addr_t		reply_phys;	/* BusAddr of reply memory */
 
 	bus_dma_tag_t		buffer_dmat;	/* DMA tag for buffers */
-	bus_dma_tag_t		request_dmat;	/* DMA tag for request memroy */
-	bus_dmamap_t		request_dmap;	/* DMA map for request memroy */
+	bus_dma_tag_t		request_dmat;	/* DMA tag for request memory */
+	bus_dmamap_t		request_dmap;	/* DMA map for request memory */
 	uint8_t		       *request;	/* KVA of Request memory */
 	bus_addr_t		request_phys;	/* BusAddr of request memory */
 
@@ -771,10 +774,10 @@ mpt_assign_serno(struct mpt_softc *mpt, request_t *req)
 #define	MPT_UNLOCK(mpt)		mtx_unlock(&(mpt)->mpt_lock)
 #define	MPT_OWNED(mpt)		mtx_owned(&(mpt)->mpt_lock)
 #define	MPT_LOCK_ASSERT(mpt)	mtx_assert(&(mpt)->mpt_lock, MA_OWNED)
-#define mpt_sleep(mpt, ident, priority, wmesg, timo) \
-	msleep(ident, &(mpt)->mpt_lock, priority, wmesg, timo)
-#define mpt_req_timeout(req, ticks, func, arg) \
-	callout_reset(&(req)->callout, (ticks), (func), (arg))
+#define mpt_sleep(mpt, ident, priority, wmesg, sbt) \
+    msleep_sbt(ident, &(mpt)->mpt_lock, priority, wmesg, sbt, 0, 0)
+#define mpt_req_timeout(req, sbt, func, arg) \
+    callout_reset_sbt(&(req)->callout, (sbt), 0, (func), (arg), 0)
 #define mpt_req_untimeout(req, func, arg) \
 	callout_stop(&(req)->callout)
 #define mpt_callout_init(mpt, c) \
@@ -784,6 +787,7 @@ mpt_assign_serno(struct mpt_softc *mpt, request_t *req)
 
 /******************************* Register Access ******************************/
 static __inline void mpt_write(struct mpt_softc *, size_t, uint32_t);
+static __inline void mpt_write_stream(struct mpt_softc *, size_t, uint32_t);
 static __inline uint32_t mpt_read(struct mpt_softc *, int);
 static __inline void mpt_pio_write(struct mpt_softc *, size_t, uint32_t);
 static __inline uint32_t mpt_pio_read(struct mpt_softc *, int);
@@ -792,6 +796,12 @@ static __inline void
 mpt_write(struct mpt_softc *mpt, size_t offset, uint32_t val)
 {
 	bus_space_write_4(mpt->pci_st, mpt->pci_sh, offset, val);
+}
+
+static __inline void
+mpt_write_stream(struct mpt_softc *mpt, size_t offset, uint32_t val)
+{
+	bus_space_write_stream_4(mpt->pci_st, mpt->pci_sh, offset, val);
 }
 
 static __inline uint32_t
@@ -803,7 +813,7 @@ mpt_read(struct mpt_softc *mpt, int offset)
 /*
  * Some operations (e.g. diagnostic register writes while the ARM proccessor
  * is disabled), must be performed using "PCI pio" operations.  On non-PCI
- * busses, these operations likely map to normal register accesses.
+ * buses, these operations likely map to normal register accesses.
  */
 static __inline void
 mpt_pio_write(struct mpt_softc *mpt, size_t offset, uint32_t val)
@@ -818,6 +828,7 @@ mpt_pio_read(struct mpt_softc *mpt, int offset)
 	KASSERT(mpt->pci_pio_reg != NULL, ("no PIO resource"));
 	return (bus_space_read_4(mpt->pci_pio_st, mpt->pci_pio_sh, offset));
 }
+
 /*********************** Reply Frame/Request Management ***********************/
 /* Max MPT Reply we are willing to accept (must be power of 2) */
 #define MPT_REPLY_SIZE   	256
@@ -923,14 +934,14 @@ enum {
 
 #define mpt_lprt(mpt, level, ...)		\
 do {						\
-	if (level <= (mpt)->verbose)		\
+	if ((level) <= (mpt)->verbose)		\
 		mpt_prt(mpt, __VA_ARGS__);	\
 } while (0)
 
 #if 0
 #define mpt_lprtc(mpt, level, ...)		\
 do {						\
-	if (level <= (mpt)->verbose)		\
+	if ((level) <= (mpt)->verbose)		\
 		mpt_prtc(mpt, __VA_ARGS__);	\
 } while (0)
 #endif
@@ -941,23 +952,6 @@ void mpt_prtc(struct mpt_softc *, const char *, ...)
 	__printflike(2, 3);
 
 /**************************** Target Mode Related ***************************/
-static __inline int mpt_cdblen(uint8_t, int);
-static __inline int
-mpt_cdblen(uint8_t cdb0, int maxlen)
-{
-	int group = cdb0 >> 5;
-	switch (group) {
-	case 0:
-		return (6);
-	case 1:
-		return (10);
-	case 4:
-	case 5:
-		return (12);
-	default:
-		return (16);
-	}
-}
 #ifdef	INVARIANTS
 static __inline request_t * mpt_tag_2_req(struct mpt_softc *, uint32_t);
 static __inline request_t *
@@ -1062,11 +1056,13 @@ mpt_req_not_spcl(struct mpt_softc *mpt, request_t *req, const char *s, int line)
  * Task Management Types, purely for internal consumption
  */
 typedef enum {
-	MPT_ABORT_TASK_SET=1234,
+	MPT_QUERY_TASK_SET=1234,
+	MPT_ABORT_TASK_SET,
 	MPT_CLEAR_TASK_SET,
+	MPT_QUERY_ASYNC_EVENT,
+	MPT_LOGICAL_UNIT_RESET,
 	MPT_TARGET_RESET,
 	MPT_CLEAR_ACA,
-	MPT_TERMINATE_TASK,
 	MPT_NIL_TMT_VALUE=5678
 } mpt_task_mgmt_t;
 
@@ -1136,6 +1132,7 @@ mpt_write_cur_cfg_page(struct mpt_softc *mpt, uint32_t PageAddress,
 				   PageAddress, hdr, len, sleep_ok,
 				   timeout_ms));
 }
+
 /* mpt_debug.c functions */
 void mpt_print_reply(void *vmsg);
 void mpt_print_db(uint32_t mb);
@@ -1145,4 +1142,5 @@ void mpt_req_state(mpt_req_state_t state);
 void mpt_print_config_request(void *vmsg);
 void mpt_print_request(void *vmsg);
 void mpt_dump_sgl(SGE_IO_UNION *se, int offset);
+
 #endif /* _MPT_H_ */

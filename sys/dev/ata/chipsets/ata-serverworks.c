@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
@@ -96,7 +98,7 @@ ata_serverworks_probe(device_t dev)
 
     ata_set_desc(dev);
     ctlr->chipinit = ata_serverworks_chipinit;
-    return (BUS_PROBE_DEFAULT);
+    return (BUS_PROBE_LOW_PRIORITY);
 }
 
 static int
@@ -162,9 +164,8 @@ ata_serverworks_chipinit(device_t dev)
 	}
     }
     else {
-	pci_write_config(dev, 0x5a,
-			 (pci_read_config(dev, 0x5a, 1) & ~0x40) |
-			 (ctlr->chip->cfg1 == SWKS_100) ? 0x03 : 0x02, 1);
+	pci_write_config(dev, 0x5a, (pci_read_config(dev, 0x5a, 1) & ~0x40) |
+	    ((ctlr->chip->cfg1 == SWKS_100) ? 0x03 : 0x02), 1);
     }
     ctlr->setmode = ata_serverworks_setmode;
     return 0;

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Brian Somers <brian@Awfulhak.org>
  * All rights reserved.
  *
@@ -40,6 +42,7 @@ struct ncp {
     struct {
       struct port_range tcp, udp;	/* The range of urgent ports */
       unsigned tos : 1;			/* Urgent IPTOS_LOWDELAY packets ? */
+      int len;				/* The size below which traffic is prioritised */
     } urgent;
   } cfg;
 
@@ -66,6 +69,8 @@ extern size_t ncp_QueueLen(struct ncp *);
 extern size_t ncp_FillPhysicalQueues(struct ncp *, struct bundle *);
 extern int ncp_PushPacket(struct ncp *, int *, struct link *);
 extern int ncp_IsUrgentPort(struct port_range *, u_short, u_short);
+extern int ncp_IsUrgentTcpLen(struct ncp *, int);
+extern void ncp_SetUrgentTcpLen(struct ncp *, int);
 extern void ncp_AddUrgentPort(struct port_range *, u_short);
 extern void ncp_RemoveUrgentPort(struct port_range *, u_short);
 extern void ncp_ClearUrgentPorts(struct port_range *);

@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -55,7 +55,7 @@ ENTRY(setjmp)
 	movq	$0,%rsi			/* (sigset_t*)set  */
 	leaq	72(%rcx),%rdx		/* 9,10; (sigset_t*)oset */
 	/* stack is 16-byte aligned */
-	call	PIC_PLT(CNAME(_sigprocmask))
+	call	__libc_sigprocmask
 	popq	%rdi
 	movq	%rdi,%rcx
 	movq	0(%rsp),%rdx		/* retval */
@@ -82,7 +82,7 @@ ENTRY(__longjmp)
 	leaq	72(%rdx),%rsi		/* (sigset_t*)set  */
 	movq	$0,%rdx			/* (sigset_t*)oset */
 	subq	$0x8,%rsp		/* make the stack 16-byte aligned */
-	call	PIC_PLT(CNAME(_sigprocmask))
+	call	__libc_sigprocmask
 	addq	$0x8,%rsp
 	popq	%rsi
 	popq	%rdi			/* jmpbuf */

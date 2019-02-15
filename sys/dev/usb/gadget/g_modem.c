@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -95,18 +97,18 @@ static SYSCTL_NODE(_hw_usb, OID_AUTO, g_modem, CTLFLAG_RW, 0, "USB modem gadget"
 #ifdef USB_DEBUG
 static int g_modem_debug = 0;
 
-SYSCTL_INT(_hw_usb_g_modem, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_g_modem, OID_AUTO, debug, CTLFLAG_RWTUN,
     &g_modem_debug, 0, "Debug level");
 #endif
 
 static int g_modem_mode = 0;
 
-SYSCTL_INT(_hw_usb_g_modem, OID_AUTO, mode, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_g_modem, OID_AUTO, mode, CTLFLAG_RWTUN,
     &g_modem_mode, 0, "Mode selection");
 
 static int g_modem_pattern_interval = 1000;
 
-SYSCTL_INT(_hw_usb_g_modem, OID_AUTO, pattern_interval, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_g_modem, OID_AUTO, pattern_interval, CTLFLAG_RWTUN,
     &g_modem_pattern_interval, 0, "Pattern interval in milliseconds");
 
 static char g_modem_pattern_data[G_MODEM_MAX_STRLEN];

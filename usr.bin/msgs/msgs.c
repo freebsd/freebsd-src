@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -802,6 +804,7 @@ ask(const char *prompt)
 			mailing = NO;
 			fseeko(newmsg, oldpos, SEEK_SET);
 			ask(prompt);
+			fclose(cpfrom);
 			return;
 		}
 
@@ -855,7 +858,7 @@ gfrsub(FILE *infile)
 			}
 			*ptr = '\0';
 			if (*(in = nxtfld(in)))
-				strncpy(date, in, sizeof date);
+				strlcpy(date, in, sizeof date);
 			else {
 				date[0] = '\n';
 				date[1] = '\0';
@@ -886,7 +889,7 @@ gfrsub(FILE *infile)
 		if (!seensubj && strncmp(inbuf, "Subj", 4)==0) {
 			seensubj = YES;
 			frompos = ftello(infile);
-			strncpy(subj, nxtfld(inbuf), sizeof subj);
+			strlcpy(subj, nxtfld(inbuf), sizeof subj);
 		}
 	}
 	if (!blankline)
@@ -899,7 +902,7 @@ gfrsub(FILE *infile)
 		/*
 		 * for possible use with Mail
 		 */
-		strncpy(subj, "(No Subject)\n", sizeof subj);
+		strlcpy(subj, "(No Subject)\n", sizeof subj);
 }
 
 static char *

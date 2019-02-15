@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994 David S. Miller, davem@nadzieja.rutgers.edu
  * Copyright (c) 1995 Paul Kranenburg
  * All rights reserved.
@@ -803,7 +805,7 @@ static const struct sparc_insn sparc_i[] = {
 };
 
 db_addr_t
-db_disasm(db_addr_t loc, boolean_t altfmt)
+db_disasm(db_addr_t loc, bool altfmt)
 {
 	const struct sparc_insn* i_ptr = (struct sparc_insn *)&sparc_i;
 	unsigned int insn, you_lose, bitmask;
@@ -867,7 +869,7 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 			break;
 		}
 		i_ptr++;
-	};
+	}
 
 	if (!matchp) {
 		db_printf("undefined\n");
@@ -1023,7 +1025,7 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 		}
 		if (*(++f_ptr))
 			db_printf(", ");
-	};
+	}
 
 	db_printf("\n");
 

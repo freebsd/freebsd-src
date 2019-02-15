@@ -1,9 +1,9 @@
-# $Id: Makefile.am 720 2013-08-19 16:02:10Z des $
+# $OpenPAM: Makefile.am 938 2017-04-30 21:34:42Z des $
 
 NULL =
 
 # Standard PAM API
-PMAN = \
+PAM_MAN = \
 	pam_acct_mgmt.3 \
 	pam_authenticate.3 \
 	pam_chauthtok.3 \
@@ -24,7 +24,7 @@ PMAN = \
 	$(NULL)
 
 # Standard module API
-MMAN = \
+MOD_MAN = \
 	pam_sm_acct_mgmt.3 \
 	pam_sm_authenticate.3 \
 	pam_sm_chauthtok.3 \
@@ -34,7 +34,7 @@ MMAN = \
 	$(NULL)
 
 # OpenPAM extensions
-OMAN = \
+OPENPAM_MAN = \
 	openpam_borrow_cred.3 \
 	openpam_free_data.3 \
 	openpam_free_envlist.3 \
@@ -63,8 +63,13 @@ OMAN = \
 
 EXTRA_DIST = openpam.man pam.man
 
-ALLCMAN = $(PMAN) $(MMAN) $(OMAN)
-GENMAN = $(ALLCMAN) openpam.3 pam.3
+if !WITH_SYSTEM_LIBPAM
+PAMCMAN = $(PAM_MAN) $(MOD_MAN) $(OPENPAM_MAN)
+PAMXMAN = openpam.3 pam.3
+endif
+
+ALLCMAN = $(PAMCMAN)
+GENMAN = $(ALLCMAN) $(PAMXMAN)
 
 dist_man3_MANS = $(GENMAN) pam_conv.3
 
@@ -74,9 +79,9 @@ CLEANFILES = $(GENMAN)
 
 GENDOC = $(top_srcdir)/misc/gendoc.pl
 
-LIBSRCDIR = $(top_srcdir)/lib/libpam
+LIBPAMSRCDIR = $(top_srcdir)/lib/libpam
 
-VPATH = $(LIBSRCDIR) $(srcdir)
+VPATH = $(LIBPAMSRCDIR) $(srcdir)
 
 SUFFIXES = .3
 

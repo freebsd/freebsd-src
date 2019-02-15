@@ -132,7 +132,7 @@ CXXABI_1.3 {
 
 GLIBCXX_3.4 {
     # operator new and new[]
-    _Znai[jm];
+    _Zna[jm];
     _Zna[jm]RKSt9nothrow_t;
     _Znw[jm];
     _Znw[jm]RKSt9nothrow_t;

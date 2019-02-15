@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,16 +29,18 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)usleep.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
+__SCCSID("@(#)usleep.c	8.1 (Berkeley) 6/4/93");
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <time.h>
 #include <unistd.h>
 #include "un-namespace.h"
+
+#include "libc_private.h"
+
+int __usleep(useconds_t);
 
 int
 __usleep(useconds_t useconds)
@@ -45,7 +49,8 @@ __usleep(useconds_t useconds)
 
 	time_to_sleep.tv_nsec = (useconds % 1000000) * 1000;
 	time_to_sleep.tv_sec = useconds / 1000000;
-	return (_nanosleep(&time_to_sleep, NULL));
+	return (((int (*)(const struct timespec *, struct timespec *))
+	    __libc_interposing[INTERPOS_nanosleep])(&time_to_sleep, NULL));
 }
 
 __weak_reference(__usleep, usleep);

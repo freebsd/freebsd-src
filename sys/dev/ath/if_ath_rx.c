@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -111,6 +113,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_rx.h>
 #include <dev/ath/if_ath_beacon.h>
 #include <dev/ath/if_athdfs.h>
+#include <dev/ath/if_ath_descdma.h>
 
 #ifdef ATH_TX99_DIAG
 #include <dev/ath/ath_tx99/ath_tx99.h>
@@ -154,8 +157,7 @@ __FBSDID("$FreeBSD$");
 u_int32_t
 ath_calcrxfilter(struct ath_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	u_int32_t rfilt;
 
 	rfilt = HAL_RX_FILTER_UCAST | HAL_RX_FILTER_BCAST | HAL_RX_FILTER_MCAST;
@@ -164,7 +166,7 @@ ath_calcrxfilter(struct ath_softc *sc)
 	if (ic->ic_opmode != IEEE80211_M_STA)
 		rfilt |= HAL_RX_FILTER_PROBEREQ;
 	/* XXX ic->ic_monvaps != 0? */
-	if (ic->ic_opmode == IEEE80211_M_MONITOR || (ifp->if_flags & IFF_PROMISC))
+	if (ic->ic_opmode == IEEE80211_M_MONITOR || ic->ic_promisc > 0)
 		rfilt |= HAL_RX_FILTER_PROM;
 
 	/*
@@ -172,9 +174,14 @@ ath_calcrxfilter(struct ath_softc *sc)
 	 *
 	 * Otherwise we only really need to hear beacons from
 	 * our own BSSID.
+	 *
+	 * IBSS? software beacon miss? Just receive all beacons.
+	 * We need to hear beacons/probe requests from everyone so
+	 * we can merge ibss.
 	 */
-	if (ic->ic_opmode == IEEE80211_M_STA ||
-	    ic->ic_opmode == IEEE80211_M_IBSS || sc->sc_swbmiss) {
+	if (ic->ic_opmode == IEEE80211_M_IBSS || sc->sc_swbmiss) {
+		rfilt |= HAL_RX_FILTER_BEACON;
+	} else if (ic->ic_opmode == IEEE80211_M_STA) {
 		if (sc->sc_do_mybeacon && ! sc->sc_scanning) {
 			rfilt |= HAL_RX_FILTER_MYBEACON;
 		} else { /* scanning, non-mybeacon chips */
@@ -232,8 +239,8 @@ ath_calcrxfilter(struct ath_softc *sc)
 	if (sc->sc_dospectral)
 		rfilt |= HAL_RX_FILTER_PHYRADAR;
 
-	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x, %s if_flags 0x%x\n",
-	    __func__, rfilt, ieee80211_opmode_name[ic->ic_opmode], ifp->if_flags);
+	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x, %s\n",
+	    __func__, rfilt, ieee80211_opmode_name[ic->ic_opmode]);
 	return rfilt;
 }
 
@@ -327,10 +334,10 @@ ath_legacy_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
  */
 void
 ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
-	int subtype, int rssi, int nf)
+	int subtype, const struct ieee80211_rx_stats *rxs, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
+	struct ath_softc *sc = vap->iv_ic->ic_softc;
 	uint64_t tsf_beacon_old, tsf_beacon;
 	uint64_t nexttbtt;
 	int64_t tsf_delta;
@@ -339,8 +346,8 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 	uint64_t tsf_beacon_target;
 	int tsf_intval;
 
-	tsf_beacon_old = ((uint64_t) LE_READ_4(ni->ni_tstamp.data + 4)) << 32;
-	tsf_beacon_old |= LE_READ_4(ni->ni_tstamp.data);
+	tsf_beacon_old = ((uint64_t) le32dec(ni->ni_tstamp.data + 4)) << 32;
+	tsf_beacon_old |= le32dec(ni->ni_tstamp.data);
 
 #define	TU_TO_TSF(_tu)	(((u_int64_t)(_tu)) << 10)
 	tsf_intval = 1;
@@ -353,89 +360,110 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 	 * Call up first so subsequent work can use information
 	 * potentially stored in the node (e.g. for ibss merge).
 	 */
-	ATH_VAP(vap)->av_recv_mgmt(ni, m, subtype, rssi, nf);
+	ATH_VAP(vap)->av_recv_mgmt(ni, m, subtype, rxs, rssi, nf);
 	switch (subtype) {
 	case IEEE80211_FC0_SUBTYPE_BEACON:
-		/* update rssi statistics for use by the hal */
-		/* XXX unlocked check against vap->iv_bss? */
-		ATH_RSSI_LPF(sc->sc_halstats.ns_avgbrssi, rssi);
-
-		tsf_beacon = ((uint64_t) LE_READ_4(ni->ni_tstamp.data + 4)) << 32;
-		tsf_beacon |= LE_READ_4(ni->ni_tstamp.data);
-
-		nexttbtt = ath_hal_getnexttbtt(sc->sc_ah);
 
 		/*
-		 * Let's calculate the delta and remainder, so we can see
-		 * if the beacon timer from the AP is varying by more than
-		 * a few TU.  (Which would be a huge, huge problem.)
+		 * Only do the following processing if it's for
+		 * the current BSS.
+		 *
+		 * In scan and IBSS mode we receive all beacons,
+		 * which means we need to filter out stuff
+		 * that isn't for us or we'll end up constantly
+		 * trying to sync / merge to BSSes that aren't
+		 * actually us.
 		 */
-		tsf_delta = (long long) tsf_beacon - (long long) tsf_beacon_old;
+		if (IEEE80211_ADDR_EQ(ni->ni_bssid, vap->iv_bss->ni_bssid)) {
+			/* update rssi statistics for use by the hal */
+			/* XXX unlocked check against vap->iv_bss? */
+			ATH_RSSI_LPF(sc->sc_halstats.ns_avgbrssi, rssi);
 
-		tsf_delta_bmiss = tsf_delta / tsf_intval;
 
-		/*
-		 * If our delta is greater than half the beacon interval,
-		 * let's round the bmiss value up to the next beacon
-		 * interval.  Ie, we're running really, really early
-		 * on the next beacon.
-		 */
-		if (tsf_delta % tsf_intval > (tsf_intval / 2))
-			tsf_delta_bmiss ++;
+			tsf_beacon = ((uint64_t) le32dec(ni->ni_tstamp.data + 4)) << 32;
+			tsf_beacon |= le32dec(ni->ni_tstamp.data);
 
-		tsf_beacon_target = tsf_beacon_old +
-		    (((unsigned long long) tsf_delta_bmiss) * (long long) tsf_intval);
+			nexttbtt = ath_hal_getnexttbtt(sc->sc_ah);
 
-		/*
-		 * The remainder using '%' is between 0 .. intval-1.
-		 * If we're actually running too fast, then the remainder
-		 * will be some large number just under intval-1.
-		 * So we need to look at whether we're running
-		 * before or after the target beacon interval
-		 * and if we are, modify how we do the remainder
-		 * calculation.
-		 */
-		if (tsf_beacon < tsf_beacon_target) {
-			tsf_remainder =
-			    -(tsf_intval - ((tsf_beacon - tsf_beacon_old) % tsf_intval));
-		} else {
-			tsf_remainder = (tsf_beacon - tsf_beacon_old) % tsf_intval;
-		}
-
-		DPRINTF(sc, ATH_DEBUG_BEACON, "%s: old_tsf=%llu, new_tsf=%llu, target_tsf=%llu, delta=%lld, bmiss=%d, remainder=%d\n",
-		    __func__,
-		    (unsigned long long) tsf_beacon_old,
-		    (unsigned long long) tsf_beacon,
-		    (unsigned long long) tsf_beacon_target,
-		    (long long) tsf_delta,
-		    tsf_delta_bmiss,
-		    tsf_remainder);
-
-		DPRINTF(sc, ATH_DEBUG_BEACON, "%s: tsf=%llu, nexttbtt=%llu, delta=%d\n",
-		    __func__,
-		    (unsigned long long) tsf_beacon,
-		    (unsigned long long) nexttbtt,
-		    (int32_t) tsf_beacon - (int32_t) nexttbtt + tsf_intval);
-
-		if (sc->sc_syncbeacon &&
-		    ni == vap->iv_bss &&
-		    (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP)) {
-			DPRINTF(sc, ATH_DEBUG_BEACON,
-			    "%s: syncbeacon=1; syncing\n",
-			    __func__);
 			/*
-			 * Resync beacon timers using the tsf of the beacon
-			 * frame we just received.
+			 * Let's calculate the delta and remainder, so we can see
+			 * if the beacon timer from the AP is varying by more than
+			 * a few TU.  (Which would be a huge, huge problem.)
 			 */
-			ath_beacon_config(sc, vap);
-			sc->sc_syncbeacon = 0;
-		}
+			tsf_delta = (long long) tsf_beacon - (long long) tsf_beacon_old;
 
+			tsf_delta_bmiss = tsf_delta / tsf_intval;
+
+			/*
+			 * If our delta is greater than half the beacon interval,
+			 * let's round the bmiss value up to the next beacon
+			 * interval.  Ie, we're running really, really early
+			 * on the next beacon.
+			 */
+			if (tsf_delta % tsf_intval > (tsf_intval / 2))
+				tsf_delta_bmiss ++;
+
+			tsf_beacon_target = tsf_beacon_old +
+			    (((unsigned long long) tsf_delta_bmiss) * (long long) tsf_intval);
+
+			/*
+			 * The remainder using '%' is between 0 .. intval-1.
+			 * If we're actually running too fast, then the remainder
+			 * will be some large number just under intval-1.
+			 * So we need to look at whether we're running
+			 * before or after the target beacon interval
+			 * and if we are, modify how we do the remainder
+			 * calculation.
+			 */
+			if (tsf_beacon < tsf_beacon_target) {
+				tsf_remainder =
+				    -(tsf_intval - ((tsf_beacon - tsf_beacon_old) % tsf_intval));
+			} else {
+				tsf_remainder = (tsf_beacon - tsf_beacon_old) % tsf_intval;
+			}
+
+			DPRINTF(sc, ATH_DEBUG_BEACON, "%s: old_tsf=%llu (%u), new_tsf=%llu (%u), target_tsf=%llu (%u), delta=%lld, bmiss=%d, remainder=%d\n",
+			    __func__,
+			    (unsigned long long) tsf_beacon_old,
+			    (unsigned int) (tsf_beacon_old >> 10),
+			    (unsigned long long) tsf_beacon,
+			    (unsigned int ) (tsf_beacon >> 10),
+			    (unsigned long long) tsf_beacon_target,
+			    (unsigned int) (tsf_beacon_target >> 10),
+			    (long long) tsf_delta,
+			    tsf_delta_bmiss,
+			    tsf_remainder);
+
+			DPRINTF(sc, ATH_DEBUG_BEACON, "%s: tsf=%llu (%u), nexttbtt=%llu (%u), delta=%d\n",
+			    __func__,
+			    (unsigned long long) tsf_beacon,
+			    (unsigned int) (tsf_beacon >> 10),
+			    (unsigned long long) nexttbtt,
+			    (unsigned int) (nexttbtt >> 10),
+			    (int32_t) tsf_beacon - (int32_t) nexttbtt + tsf_intval);
+
+			/* We only do syncbeacon on STA VAPs; not on IBSS */
+			if (vap->iv_opmode == IEEE80211_M_STA &&
+			    sc->sc_syncbeacon &&
+			    ni == vap->iv_bss &&
+			    (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP)) {
+				DPRINTF(sc, ATH_DEBUG_BEACON,
+				    "%s: syncbeacon=1; syncing\n",
+				    __func__);
+				/*
+				 * Resync beacon timers using the tsf of the beacon
+				 * frame we just received.
+				 */
+				ath_beacon_config(sc, vap);
+				sc->sc_syncbeacon = 0;
+			}
+		}
 
 		/* fall thru... */
 	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
 		if (vap->iv_opmode == IEEE80211_M_IBSS &&
-		    vap->iv_state == IEEE80211_S_RUN) {
+		    vap->iv_state == IEEE80211_S_RUN &&
+		    ieee80211_ibss_merge_check(ni)) {
 			uint32_t rstamp = sc->sc_lastrs->rs_tstamp;
 			uint64_t tsf = ath_extend_tsf(sc, rstamp,
 				ath_hal_gettsf64(sc->sc_ah));
@@ -463,10 +491,9 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 
 #ifdef	ATH_ENABLE_RADIOTAP_VENDOR_EXT
 static void
-ath_rx_tap_vendor(struct ifnet *ifp, struct mbuf *m,
+ath_rx_tap_vendor(struct ath_softc *sc, struct mbuf *m,
     const struct ath_rx_status *rs, u_int64_t tsf, int16_t nf)
 {
-	struct ath_softc *sc = ifp->if_softc;
 
 	/* Fill in the extension bitmap */
 	sc->sc_rx_th.wr_ext_bitmap = htole32(1 << ATH_RADIOTAP_VENDOR_HEADER);
@@ -529,14 +556,13 @@ ath_rx_tap_vendor(struct ifnet *ifp, struct mbuf *m,
 #endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
 
 static void
-ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
+ath_rx_tap(struct ath_softc *sc, struct mbuf *m,
 	const struct ath_rx_status *rs, u_int64_t tsf, int16_t nf)
 {
 #define	CHAN_HT20	htole32(IEEE80211_CHAN_HT20)
 #define	CHAN_HT40U	htole32(IEEE80211_CHAN_HT40U)
 #define	CHAN_HT40D	htole32(IEEE80211_CHAN_HT40D)
 #define	CHAN_HT		(CHAN_HT20|CHAN_HT40U|CHAN_HT40D)
-	struct ath_softc *sc = ifp->if_softc;
 	const HAL_RATE_TABLE *rt;
 	uint8_t rix;
 
@@ -545,7 +571,8 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 	rix = rt->rateCodeToIndex[rs->rs_rate];
 	sc->sc_rx_th.wr_rate = sc->sc_hwmap[rix].ieeerate;
 	sc->sc_rx_th.wr_flags = sc->sc_hwmap[rix].rxflags;
-#ifdef AH_SUPPORT_AR5416
+
+	/* 802.11 specific flags */
 	sc->sc_rx_th.wr_chan_flags &= ~CHAN_HT;
 	if (rs->rs_status & HAL_RXERR_PHY) {
 		/*
@@ -560,7 +587,7 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 		else if (IEEE80211_IS_CHAN_HT20(sc->sc_curchan))
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT20;
 	} else if (sc->sc_rx_th.wr_rate & IEEE80211_RATE_MCS) {	/* HT rate */
-		struct ieee80211com *ic = ifp->if_l2com;
+		struct ieee80211com *ic = &sc->sc_ic;
 
 		if ((rs->rs_flags & HAL_RX_2040) == 0)
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT20;
@@ -568,11 +595,11 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40U;
 		else
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40D;
-		if ((rs->rs_flags & HAL_RX_GI) == 0)
+
+		if (rs->rs_flags & HAL_RX_GI)
 			sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_SHORTGI;
 	}
 
-#endif
 	sc->sc_rx_th.wr_tsf = htole64(ath_extend_tsf(sc, rs->rs_tstamp, tsf));
 	if (rs->rs_status & HAL_RXERR_CRC)
 		sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_BADFCS;
@@ -616,9 +643,10 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
     struct mbuf *m)
 {
 	uint64_t rstamp;
-	int len, type;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	/* XXX TODO: make this an mbuf tag? */
+	struct ieee80211_rx_stats rxs;
+	int len, type, i;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni;
 	int is_good = 0;
 	struct ath_rx_edma *re = &sc->sc_rxedma[qtype];
@@ -629,8 +657,7 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 	 */
 	rstamp = ath_extend_tsf(sc, rs->rs_tstamp, tsf);
 
-	/* These aren't specifically errors */
-#ifdef	AH_SUPPORT_AR5416
+	/* 802.11 return codes - These aren't specifically errors */
 	if (rs->rs_flags & HAL_RX_GI)
 		sc->sc_stats.ast_rx_halfgi++;
 	if (rs->rs_flags & HAL_RX_2040)
@@ -645,7 +672,6 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 		sc->sc_stats.ast_rx_hi_rx_chain++;
 	if (rs->rs_flags & HAL_RX_STBC)
 		sc->sc_stats.ast_rx_stbc++;
-#endif /* AH_SUPPORT_AR5416 */
 
 	if (rs->rs_status != 0) {
 		if (rs->rs_status & HAL_RXERR_CRC)
@@ -704,7 +730,7 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 					rs->rs_keyix-32 : rs->rs_keyix);
 			}
 		}
-		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		counter_u64_add(ic->ic_ierrors, 1);
 rx_error:
 		/*
 		 * Cleanup any pending partial frame.
@@ -724,9 +750,9 @@ rx_error:
 			/* NB: bpf needs the mbuf length setup */
 			len = rs->rs_datalen;
 			m->m_pkthdr.len = m->m_len = len;
-			ath_rx_tap(ifp, m, rs, rstamp, nf);
+			ath_rx_tap(sc, m, rs, rstamp, nf);
 #ifdef	ATH_ENABLE_RADIOTAP_VENDOR_EXT
-			ath_rx_tap_vendor(ifp, m, rs, rstamp, nf);
+			ath_rx_tap_vendor(sc, m, rs, rstamp, nf);
 #endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
 			ieee80211_radiotap_rx_all(ic, m);
 		}
@@ -749,7 +775,6 @@ rx_accept:
 			sc->sc_stats.ast_rx_toobig++;
 			m_freem(re->m_rxpending);
 		}
-		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = len;
 		re->m_rxpending = m;
 		m = NULL;
@@ -766,10 +791,8 @@ rx_accept:
 		re->m_rxpending = NULL;
 	} else {
 		/*
-		 * Normal single-descriptor receive; setup
-		 * the rcvif and packet length.
+		 * Normal single-descriptor receive; setup packet length.
 		 */
-		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = len;
 	}
 
@@ -787,7 +810,7 @@ rx_accept:
 	 * This code should be removed once the actual
 	 * root cause of the issue has been identified.
 	 * For example, it may be that the rs_antenna
-	 * field is only valid for the lsat frame of
+	 * field is only valid for the last frame of
 	 * an aggregate and it just happens that it is
 	 * "mostly" right. (This is a general statement -
 	 * the majority of the statistics are only valid
@@ -830,7 +853,6 @@ rx_accept:
 			rs->rs_antenna |= 0x4;
 	}
 
-	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	sc->sc_stats.ast_ant_rx[rs->rs_antenna]++;
 
 	/*
@@ -841,9 +863,9 @@ rx_accept:
 	 * noise setting is filled in above.
 	 */
 	if (ieee80211_radiotap_active(ic)) {
-		ath_rx_tap(ifp, m, rs, rstamp, nf);
+		ath_rx_tap(sc, m, rs, rstamp, nf);
 #ifdef	ATH_ENABLE_RADIOTAP_VENDOR_EXT
-		ath_rx_tap_vendor(ifp, m, rs, rstamp, nf);
+		ath_rx_tap_vendor(sc, m, rs, rstamp, nf);
 #endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
 	}
 
@@ -885,10 +907,34 @@ rx_accept:
 			IEEE80211_KEYIX_NONE : rs->rs_keyix);
 	sc->sc_lastrs = rs;
 
-#ifdef	AH_SUPPORT_AR5416
 	if (rs->rs_isaggr)
 		sc->sc_stats.ast_rx_agg++;
-#endif /* AH_SUPPORT_AR5416 */
+
+	/*
+	 * Populate the per-chain RSSI values where appropriate.
+	 */
+	bzero(&rxs, sizeof(rxs));
+	rxs.r_flags |= IEEE80211_R_NF | IEEE80211_R_RSSI |
+	    IEEE80211_R_C_CHAIN |
+	    IEEE80211_R_C_NF |
+	    IEEE80211_R_C_RSSI |
+	    IEEE80211_R_TSF64 |
+	    IEEE80211_R_TSF_START;	/* XXX TODO: validate */
+	rxs.c_rssi = rs->rs_rssi;
+	rxs.c_nf = nf;
+	rxs.c_chain = 3;	/* XXX TODO: check */
+	rxs.c_rx_tsf = rstamp;
+
+	for (i = 0; i < 3; i++) {
+		rxs.c_rssi_ctl[i] = rs->rs_rssi_ctl[i];
+		rxs.c_rssi_ext[i] = rs->rs_rssi_ext[i];
+		/*
+		 * XXX note: we currently don't track
+		 * per-chain noisefloor.
+		 */
+		rxs.c_nf_ctl[i] = nf;
+		rxs.c_nf_ext[i] = nf;
+	}
 
 	if (ni != NULL) {
 		/*
@@ -902,7 +948,8 @@ rx_accept:
 		/*
 		 * Sending station is known, dispatch directly.
 		 */
-		type = ieee80211_input(ni, m, rs->rs_rssi, nf);
+		(void) ieee80211_add_rx_params(m, &rxs);
+		type = ieee80211_input_mimo(ni, m);
 		ieee80211_free_node(ni);
 		m = NULL;
 		/*
@@ -915,7 +962,8 @@ rx_accept:
 		    rs->rs_keyix != HAL_RXKEYIX_INVALID)
 			is_good = 1;
 	} else {
-		type = ieee80211_input_all(ic, m, rs->rs_rssi, nf);
+		(void) ieee80211_add_rx_params(m, &rxs);
+		type = ieee80211_input_mimo_all(ic, m);
 		m = NULL;
 	}
 
@@ -991,10 +1039,9 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 	((struct ath_desc *)((caddr_t)(_sc)->sc_rxdma.dd_desc + \
 		((_pa) - (_sc)->sc_rxdma.dd_desc_paddr)))
 	struct ath_buf *bf;
-	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
 #ifdef IEEE80211_SUPPORT_SUPERG
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 #endif
 	struct ath_desc *ds;
 	struct ath_rx_status *rs;
@@ -1037,7 +1084,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 
 		bf = TAILQ_FIRST(&sc->sc_rxbuf);
 		if (sc->sc_rxslink && bf == NULL) {	/* NB: shouldn't happen */
-			if_printf(ifp, "%s: no buffer!\n", __func__);
+			device_printf(sc->sc_dev, "%s: no buffer!\n", __func__);
 			break;
 		} else if (bf == NULL) {
 			/*
@@ -1054,7 +1101,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 			 * will be no mbuf; try again to re-populate it.
 			 */
 			/* XXX make debug msg */
-			if_printf(ifp, "%s: no mbuf!\n", __func__);
+			device_printf(sc->sc_dev, "%s: no mbuf!\n", __func__);
 			TAILQ_REMOVE(&sc->sc_rxbuf, bf, bf_list);
 			goto rx_proc_next;
 		}
@@ -1189,15 +1236,10 @@ rx_proc_next:
 		ATH_PCU_UNLOCK(sc);
 	}
 
-	/* XXX check this inside of IF_LOCK? */
-	if (resched && (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
 #ifdef IEEE80211_SUPPORT_SUPERG
+	if (resched)
 		ieee80211_ff_age_all(ic, 100);
 #endif
-		if (!IFQ_IS_EMPTY(&ifp->if_snd))
-			ath_tx_kick(sc);
-	}
-#undef PA2DESC
 
 	/*
 	 * Put the hardware to sleep again if we're done with it.
@@ -1219,7 +1261,7 @@ rx_proc_next:
 	sc->sc_rxproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
 }
-
+#undef	PA2DESC
 #undef	ATH_RX_MAX
 
 /*

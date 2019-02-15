@@ -5,6 +5,8 @@ static char sccsid[] = 	"@(#)authdes_prot.c	2.1 88/07/29 4.0 RPCSRC; from 1.6 88
 __FBSDID("$FreeBSD$");
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -49,9 +51,7 @@ __FBSDID("$FreeBSD$");
 #define ATTEMPT(xdr_op) if (!(xdr_op)) return (FALSE)
 
 bool_t
-xdr_authdes_cred(xdrs, cred)
-	XDR *xdrs;
-	struct authdes_cred *cred;
+xdr_authdes_cred(XDR *xdrs, struct authdes_cred *cred)
 {
 	enum authdes_namekind *padc_namekind = &cred->adc_namekind;
 	/*
@@ -78,9 +78,7 @@ xdr_authdes_cred(xdrs, cred)
 
 
 bool_t
-xdr_authdes_verf(xdrs, verf)
-	XDR *xdrs;
-	struct authdes_verf *verf;	
+xdr_authdes_verf(XDR *xdrs, struct authdes_verf *verf)
 {
 	/*
  	 * Unrolled xdr

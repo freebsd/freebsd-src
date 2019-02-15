@@ -1,5 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/gmpls.h,v 1.5 2006-04-14 07:11:59 hannes Exp $ (LBL) */
-/* 
+/*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code
  * distributions retain the above copyright notice and this paragraph
@@ -11,7 +10,7 @@
  * LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE.
  *
- * Original code by Hannes Gredler (hannes@juniper.net)
+ * Original code by Hannes Gredler (hannes@gredler.at)
  */
 
 #define GMPLS_PSC1   1

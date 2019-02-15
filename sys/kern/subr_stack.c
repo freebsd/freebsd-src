@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Antoine Brodin
  * All rights reserved.
  *
@@ -46,15 +48,15 @@ FEATURE(stack, "Support for capturing kernel stack");
 static MALLOC_DEFINE(M_STACK, "stack", "Stack Traces");
 
 static int stack_symbol(vm_offset_t pc, char *namebuf, u_int buflen,
-	    long *offset);
+	    long *offset, int flags);
 static int stack_symbol_ddb(vm_offset_t pc, const char **name, long *offset);
 
 struct stack *
-stack_create(void)
+stack_create(int flags)
 {
 	struct stack *st;
 
-	st = malloc(sizeof *st, M_STACK, M_WAITOK | M_ZERO);
+	st = malloc(sizeof(*st), M_STACK, flags | M_ZERO);
 	return (st);
 }
 
@@ -100,7 +102,7 @@ stack_print(const struct stack *st)
 	KASSERT(st->depth <= STACK_MAX, ("bogus stack"));
 	for (i = 0; i < st->depth; i++) {
 		(void)stack_symbol(st->pcs[i], namebuf, sizeof(namebuf),
-		    &offset);
+		    &offset, M_WAITOK);
 		printf("#%d %p at %s+%#lx\n", i, (void *)st->pcs[i],
 		    namebuf, offset);
 	}
@@ -118,7 +120,7 @@ stack_print_short(const struct stack *st)
 		if (i > 0)
 			printf(" ");
 		if (stack_symbol(st->pcs[i], namebuf, sizeof(namebuf),
-		    &offset) == 0)
+		    &offset, M_WAITOK) == 0)
 			printf("%s+%#lx", namebuf, offset);
 		else
 			printf("%p", (void *)st->pcs[i]);
@@ -141,7 +143,7 @@ stack_print_ddb(const struct stack *st)
 	}
 }
 
-#ifdef DDB
+#if defined(DDB) || defined(WITNESS)
 void
 stack_print_short_ddb(const struct stack *st)
 {
@@ -163,26 +165,37 @@ stack_print_short_ddb(const struct stack *st)
 #endif
 
 /*
- * Two print routines -- one for use from DDB and DDB-like contexts, the
- * other for use in the live kernel.
+ * Format stack into sbuf from live kernel.
+ *
+ * flags - M_WAITOK or M_NOWAIT (EWOULDBLOCK).
  */
-void
-stack_sbuf_print(struct sbuf *sb, const struct stack *st)
+int
+stack_sbuf_print_flags(struct sbuf *sb, const struct stack *st, int flags)
 {
 	char namebuf[64];
 	long offset;
-	int i;
+	int i, error;
 
 	KASSERT(st->depth <= STACK_MAX, ("bogus stack"));
 	for (i = 0; i < st->depth; i++) {
-		(void)stack_symbol(st->pcs[i], namebuf, sizeof(namebuf),
-		    &offset);
+		error = stack_symbol(st->pcs[i], namebuf, sizeof(namebuf),
+		    &offset, flags);
+		if (error == EWOULDBLOCK)
+			return (error);
 		sbuf_printf(sb, "#%d %p at %s+%#lx\n", i, (void *)st->pcs[i],
 		    namebuf, offset);
 	}
+	return (0);
 }
 
-#ifdef DDB
+void
+stack_sbuf_print(struct sbuf *sb, const struct stack *st)
+{
+
+	(void)stack_sbuf_print_flags(sb, st, M_WAITOK);
+}
+
+#if defined(DDB) || defined(WITNESS)
 void
 stack_sbuf_print_ddb(struct sbuf *sb, const struct stack *st)
 {
@@ -244,16 +257,19 @@ stack_ktr(u_int mask, const char *file, int line, const struct stack *st,
  * and bypasses linker locking, and the other that doesn't.
  */
 static int
-stack_symbol(vm_offset_t pc, char *namebuf, u_int buflen, long *offset)
+stack_symbol(vm_offset_t pc, char *namebuf, u_int buflen, long *offset,
+    int flags)
 {
+	int error;
 
-	if (linker_search_symbol_name((caddr_t)pc, namebuf, buflen,
-	    offset) != 0) {
-		*offset = 0;
-		strlcpy(namebuf, "??", buflen);
-		return (ENOENT);
-	} else
-		return (0);
+	error = linker_search_symbol_name_flags((caddr_t)pc, namebuf, buflen,
+	    offset, flags);
+	if (error == 0 || error == EWOULDBLOCK)
+		return (error);
+
+	*offset = 0;
+	strlcpy(namebuf, "??", buflen);
+	return (ENOENT);
 }
 
 static int

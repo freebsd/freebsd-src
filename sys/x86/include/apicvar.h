@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 John Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
@@ -74,8 +76,12 @@
  * I/O device!
  */
 
-#define	MAX_APIC_ID	0xfe
-#define	APIC_ID_ALL	0xff
+#define	xAPIC_MAX_APIC_ID	0xfe
+#define	xAPIC_ID_ALL		0xff
+#define	MAX_APIC_ID		0x200
+#define	APIC_ID_ALL		0xffffffff
+
+#define	IOAPIC_MAX_ID		xAPIC_MAX_APIC_ID
 
 /* I/O Interrupts are used for external devices such as ISA, PCI, etc. */
 #define	APIC_IO_INTS	(IDT_IO_INTS + 16)
@@ -111,11 +117,8 @@
 #define	IPI_INVLPG	(APIC_IPI_INTS + 2)
 #define	IPI_INVLRNG	(APIC_IPI_INTS + 3)
 #define	IPI_INVLCACHE	(APIC_IPI_INTS + 4)
-#ifdef __i386__
-#define	IPI_LAZYPMAP	(APIC_IPI_INTS + 5)	/* Lazy pmap release. */
-#endif
 /* Vector to handle bitmap based IPIs */
-#define	IPI_BITMAP_VECTOR	(APIC_IPI_INTS + 6) 
+#define	IPI_BITMAP_VECTOR	(APIC_IPI_INTS + 5) 
 
 /* IPIs handled by IPI_BITMAP_VECTOR */
 #define	IPI_AST		0 	/* Generate software trap. */
@@ -124,9 +127,18 @@
 #define IPI_BITMAP_LAST IPI_HARDCLOCK
 #define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
 
-#define	IPI_STOP	(APIC_IPI_INTS + 7)	/* Stop CPU until restarted. */
-#define	IPI_SUSPEND	(APIC_IPI_INTS + 8)	/* Suspend CPU until restarted. */
-#define	IPI_STOP_HARD	(APIC_IPI_INTS + 9)	/* Stop CPU with a NMI. */
+#define	IPI_STOP	(APIC_IPI_INTS + 6)	/* Stop CPU until restarted. */
+#define	IPI_SUSPEND	(APIC_IPI_INTS + 7)	/* Suspend CPU until restarted. */
+#define	IPI_DYN_FIRST	(APIC_IPI_INTS + 8)
+#define	IPI_DYN_LAST	(253)			/* IPIs allocated at runtime */
+
+/*
+ * IPI_STOP_HARD does not need to occupy a slot in the IPI vector space since
+ * it is delivered using an NMI anyways.
+ */
+#define	IPI_NMI_FIRST	254
+#define	IPI_TRACE	254			/* Interrupt for tracing. */
+#define	IPI_STOP_HARD	255			/* Stop CPU with a NMI. */
 
 /*
  * The spurious interrupt can share the priority class with the IPIs since
@@ -146,8 +158,13 @@
 #define	APIC_BUS_PCI		2
 #define	APIC_BUS_MAX		APIC_BUS_PCI
 
+#define	IRQ_EXTINT		-1
+#define	IRQ_NMI			-2
+#define	IRQ_SMI			-3
+#define	IRQ_DISABLED		-4
+
 /*
- * An APIC enumerator is a psuedo bus driver that enumerates APIC's including
+ * An APIC enumerator is a pseudo bus driver that enumerates APIC's including
  * CPU's and I/O APIC's.
  */
 struct apic_enumerator {
@@ -163,10 +180,14 @@ inthand_t
 	IDTVEC(apic_isr1), IDTVEC(apic_isr2), IDTVEC(apic_isr3),
 	IDTVEC(apic_isr4), IDTVEC(apic_isr5), IDTVEC(apic_isr6),
 	IDTVEC(apic_isr7), IDTVEC(cmcint), IDTVEC(errorint),
-	IDTVEC(spuriousint), IDTVEC(timerint);
+	IDTVEC(spuriousint), IDTVEC(timerint),
+	IDTVEC(apic_isr1_pti), IDTVEC(apic_isr2_pti), IDTVEC(apic_isr3_pti),
+	IDTVEC(apic_isr4_pti), IDTVEC(apic_isr5_pti), IDTVEC(apic_isr6_pti),
+	IDTVEC(apic_isr7_pti), IDTVEC(cmcint_pti), IDTVEC(errorint_pti),
+	IDTVEC(spuriousint_pti), IDTVEC(timerint_pti);
 
 extern vm_paddr_t lapic_paddr;
-extern int apic_cpuids[];
+extern int *apic_cpuids;
 
 void	apic_register_enumerator(struct apic_enumerator *enumerator);
 void	*ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase);
@@ -189,6 +210,8 @@ int	ioapic_set_smi(void *cookie, u_int pin);
 struct apic_ops {
 	void	(*create)(u_int, int);
 	void	(*init)(vm_paddr_t);
+	void	(*xapic_mode)(void);
+	bool	(*is_x2apic)(void);
 	void	(*setup)(int);
 	void	(*dump)(const char *);
 	void	(*disable)(void);
@@ -214,10 +237,15 @@ struct apic_ops {
 	/* CMC */
 	void	(*enable_cmc)(void);
 
+	/* AMD ELVT */
+	int	(*enable_mca_elvt)(void);
+
 	/* IPI */
 	void	(*ipi_raw)(register_t, u_int);
 	void	(*ipi_vectored)(u_int, int);
 	int	(*ipi_wait)(int);
+	int	(*ipi_alloc)(inthand_t *ipifunc);
+	void	(*ipi_free)(int vector);
 
 	/* LVT */
 	int	(*set_lvt_mask)(u_int, u_int, u_char);
@@ -240,6 +268,20 @@ lapic_init(vm_paddr_t addr)
 {
 
 	apic_ops.init(addr);
+}
+
+static inline void
+lapic_xapic_mode(void)
+{
+
+	apic_ops.xapic_mode();
+}
+
+static inline bool
+lapic_is_x2apic(void)
+{
+
+	return (apic_ops.is_x2apic());
 }
 
 static inline void
@@ -362,6 +404,13 @@ lapic_enable_cmc(void)
 	apic_ops.enable_cmc();
 }
 
+static inline int
+lapic_enable_mca_elvt(void)
+{
+
+	return (apic_ops.enable_mca_elvt());
+}
+
 static inline void
 lapic_ipi_raw(register_t icrlo, u_int dest)
 {
@@ -381,6 +430,20 @@ lapic_ipi_wait(int delay)
 {
 
 	return (apic_ops.ipi_wait(delay));
+}
+
+static inline int
+lapic_ipi_alloc(inthand_t *ipifunc)
+{
+
+	return (apic_ops.ipi_alloc(ipifunc));
+}
+
+static inline void
+lapic_ipi_free(int vector)
+{
+
+	return (apic_ops.ipi_free(vector));
 }
 
 static inline int
@@ -415,7 +478,15 @@ void	lapic_handle_cmc(void);
 void	lapic_handle_error(void);
 void	lapic_handle_intr(int vector, struct trapframe *frame);
 void	lapic_handle_timer(struct trapframe *frame);
-void	xen_intr_handle_upcall(struct trapframe *frame);
+
+int	ioapic_get_rid(u_int apic_id, uint16_t *ridp);
+
+extern int x2apic_mode;
+extern int lapic_eoi_suppression;
+
+#ifdef _SYS_SYSCTL_H_
+SYSCTL_DECL(_hw_apic);
+#endif
 
 #endif /* !LOCORE */
 #endif /* _X86_APICVAR_H_ */

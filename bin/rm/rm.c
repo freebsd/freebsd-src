@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -50,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <fts.h>
 #include <grp.h>
+#include <locale.h>
 #include <pwd.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -58,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
-static int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
+static int dflag, eval, fflag, iflag, vflag, Wflag, stdin_ok;
 static int rflag, Iflag, xflag;
 static uid_t uid;
 static volatile sig_atomic_t info;
@@ -68,7 +71,6 @@ static int	check2(char **);
 static void	checkdot(char **);
 static void	checkslash(char **);
 static void	rm_file(char **);
-static int	rm_overwrite(const char *, struct stat *);
 static void	rm_tree(char **);
 static void siginfo(int __unused);
 static void	usage(void);
@@ -86,6 +88,8 @@ main(int argc, char *argv[])
 	int ch;
 	char *p;
 
+	(void)setlocale(LC_ALL, "");
+
 	/*
 	 * Test for the special case where the utility is called as
 	 * "unlink", for which the functionality provided is greatly
@@ -96,17 +100,16 @@ main(int argc, char *argv[])
 	else
 		++p;
 	if (strcmp(p, "unlink") == 0) {
-		while (getopt(argc, argv, "") != -1)
+		if (argc == 2)
+			rm_file(&argv[1]);
+		else if (argc == 3 && strcmp(argv[1], "--") == 0)
+			rm_file(&argv[2]);
+		else
 			usage();
-		argc -= optind;
-		argv += optind;
-		if (argc != 1)
-			usage();
-		rm_file(&argv[0]);
 		exit(eval);
 	}
 
-	Pflag = rflag = xflag = 0;
+	rflag = xflag = 0;
 	while ((ch = getopt(argc, argv, "dfiIPRrvWx")) != -1)
 		switch(ch) {
 		case 'd':
@@ -124,7 +127,7 @@ main(int argc, char *argv[])
 			Iflag = 1;
 			break;
 		case 'P':
-			Pflag = 1;
+			/* Compatibility no-op. */
 			break;
 		case 'R':
 		case 'r':			/* Compatibility. */
@@ -152,8 +155,7 @@ main(int argc, char *argv[])
 	}
 
 	checkdot(argv);
-	if (getenv("POSIXLY_CORRECT") == NULL)
-		checkslash(argv);
+	checkslash(argv);
 	uid = geteuid();
 
 	(void)signal(SIGINFO, siginfo);
@@ -310,12 +312,6 @@ rm_tree(char **argv)
 
 			case FTS_F:
 			case FTS_NSOK:
-				if (Pflag)
-					if (!rm_overwrite(p->fts_accpath, p->fts_info ==
-					    FTS_NSOK ? NULL : p->fts_statp))
-						continue;
-				/* FALLTHROUGH */
-
 			default:
 				rval = unlink(p->fts_accpath);
 				if (rval == 0 || (fflag && errno == ENOENT)) {
@@ -386,12 +382,8 @@ rm_file(char **argv)
 				rval = undelete(f);
 			else if (S_ISDIR(sb.st_mode))
 				rval = rmdir(f);
-			else {
-				if (Pflag)
-					if (!rm_overwrite(f, &sb))
-						continue;
+			else
 				rval = unlink(f);
-			}
 		}
 		if (rval && (!fflag || errno != ENOENT)) {
 			warn("%s", f);
@@ -405,84 +397,6 @@ rm_file(char **argv)
 		}
 	}
 }
-
-/*
- * rm_overwrite --
- *	Overwrite the file 3 times with varying bit patterns.
- *
- * XXX
- * This is a cheap way to *really* delete files.  Note that only regular
- * files are deleted, directories (and therefore names) will remain.
- * Also, this assumes a fixed-block file system (like FFS, or a V7 or a
- * System V file system).  In a logging or COW file system, you'll have to
- * have kernel support.
- */
-static int
-rm_overwrite(const char *file, struct stat *sbp)
-{
-	struct stat sb, sb2;
-	struct statfs fsb;
-	off_t len;
-	int bsize, fd, wlen;
-	char *buf = NULL;
-
-	fd = -1;
-	if (sbp == NULL) {
-		if (lstat(file, &sb))
-			goto err;
-		sbp = &sb;
-	}
-	if (!S_ISREG(sbp->st_mode))
-		return (1);
-	if (sbp->st_nlink > 1 && !fflag) {
-		warnx("%s (inode %ju): not overwritten due to multiple links",
-		    file, (uintmax_t)sbp->st_ino);
-		return (0);
-	}
-	if ((fd = open(file, O_WRONLY|O_NONBLOCK|O_NOFOLLOW, 0)) == -1)
-		goto err;
-	if (fstat(fd, &sb2))
-		goto err;
-	if (sb2.st_dev != sbp->st_dev || sb2.st_ino != sbp->st_ino ||
-	    !S_ISREG(sb2.st_mode)) {
-		errno = EPERM;
-		goto err;
-	}
-	if (fstatfs(fd, &fsb) == -1)
-		goto err;
-	bsize = MAX(fsb.f_iosize, 1024);
-	if ((buf = malloc(bsize)) == NULL)
-		err(1, "%s: malloc", file);
-
-#define	PASS(byte) {							\
-	memset(buf, byte, bsize);					\
-	for (len = sbp->st_size; len > 0; len -= wlen) {		\
-		wlen = len < bsize ? len : bsize;			\
-		if (write(fd, buf, wlen) != wlen)			\
-			goto err;					\
-	}								\
-}
-	PASS(0xff);
-	if (fsync(fd) || lseek(fd, (off_t)0, SEEK_SET))
-		goto err;
-	PASS(0x00);
-	if (fsync(fd) || lseek(fd, (off_t)0, SEEK_SET))
-		goto err;
-	PASS(0xff);
-	if (!fsync(fd) && !close(fd)) {
-		free(buf);
-		return (1);
-	}
-
-err:	eval = 1;
-	if (buf)
-		free(buf);
-	if (fd != -1)
-		close(fd);
-	warn("%s", file);
-	return (0);
-}
-
 
 static int
 check(const char *path, const char *name, struct stat *sp)
@@ -508,12 +422,8 @@ check(const char *path, const char *name, struct stat *sp)
 		strmode(sp->st_mode, modep);
 		if ((flagsp = fflagstostr(sp->st_flags)) == NULL)
 			err(1, "fflagstostr");
-		if (Pflag)
-			errx(1,
-			    "%s: -P was specified, but file is not writable",
-			    path);
 		(void)fprintf(stderr, "override %s%s%s/%s %s%sfor %s? ",
-		    modep + 1, modep[9] == ' ' ? "" : " ",
+		    modep + 1, modep[10] == ' ' ? "" : " ",
 		    user_from_uid(sp->st_uid, 0),
 		    group_from_gid(sp->st_gid, 0),
 		    *flagsp ? flagsp : "", *flagsp ? " " : "",
@@ -630,7 +540,7 @@ usage(void)
 
 	(void)fprintf(stderr, "%s\n%s\n",
 	    "usage: rm [-f | -i] [-dIPRrvWx] file ...",
-	    "       unlink file");
+	    "       unlink [--] file");
 	exit(EX_USAGE);
 }
 

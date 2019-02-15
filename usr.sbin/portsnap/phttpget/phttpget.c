@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 2005 Colin Percival
  * All rights reserved
  *
@@ -598,7 +600,7 @@ main(int argc, char *argv[])
 			fd = open(fname, O_CREAT | O_TRUNC | O_WRONLY, 0644);
 			if (fd == -1)
 				errx(1, "open(%s)", fname);
-		};
+		}
 
 		/* Read the message and send data to fd if appropriate */
 		if (chunked) {

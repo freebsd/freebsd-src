@@ -1,4 +1,4 @@
-/*	$NetBSD: t_renamerace.c,v 1.32 2014/07/29 09:15:48 gson Exp $	*/
+/*	$NetBSD: t_renamerace.c,v 1.34 2017/01/13 21:30:40 christos Exp $	*/
 
 /*
  * Modified for rump and atf from a program supplied
@@ -34,7 +34,7 @@
 #define FSTEST_IMGSIZE (50000 * 512)
 
 #include "../common/h_fsmacros.h"
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 static volatile int quittingtime;
 pid_t wrkpid;
@@ -127,7 +127,7 @@ renamerace(const atf_tc_t *tc, const char *mp)
 		atf_tc_fail("race did not trigger this time");
 
 	if (FSTYPE_MSDOS(tc)) {
-		atf_tc_expect_fail("PR kern/44661");
+		atf_tc_expect_fail("PR kern/43626");
 		/*
 		 * XXX: race does not trigger every time at least
 		 * on amd64/qemu.

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -180,4 +182,18 @@ build_iovec_argf(struct iovec **iov, int *iovlen, const char *name,
 	vsnprintf(val, sizeof(val), fmt, ap);
 	va_end(ap);
 	build_iovec(iov, iovlen, name, strdup(val), (size_t)-1);
+}
+
+/*
+ * Free the iovec and reset to NULL with zero length.  Useful for calling
+ * nmount in a loop.
+ */
+void
+free_iovec(struct iovec **iov, int *iovlen)
+{
+	int i;
+
+	for (i = 0; i < *iovlen; i++)
+		free((*iov)[i].iov_base);
+	free(*iov);
 }

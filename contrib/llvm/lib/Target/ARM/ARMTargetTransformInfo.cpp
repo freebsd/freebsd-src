@@ -1,4 +1,4 @@
-//===-- ARMTargetTransformInfo.cpp - ARM specific TTI pass ----------------===//
+//===- ARMTargetTransformInfo.cpp - ARM specific TTI ----------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -6,186 +6,136 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-/// \file
-/// This file implements a TargetTransformInfo analysis pass specific to the
-/// ARM target machine. It uses the target's detailed information to provide
-/// more precise answers to certain TTI queries, while letting the target
-/// independent and default TTI implementations handle the rest.
-///
-//===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "armtti"
-#include "ARM.h"
-#include "ARMTargetMachine.h"
-#include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/CostTable.h"
+#include "ARMTargetTransformInfo.h"
+#include "ARMSubtarget.h"
+#include "MCTargetDesc/ARMAddressingModes.h"
+#include "llvm/ADT/APInt.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Analysis/LoopInfo.h"
+#include "llvm/CodeGen/CostTable.h"
+#include "llvm/CodeGen/ISDOpcodes.h"
+#include "llvm/CodeGen/MachineValueType.h"
+#include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/CallSite.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Type.h"
+#include "llvm/MC/SubtargetFeature.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Target/TargetMachine.h"
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <utility>
+
 using namespace llvm;
 
-// Declare the pass initialization routine locally as target-specific passes
-// don't havve a target-wide initialization entry point, and so we rely on the
-// pass constructor initialization.
-namespace llvm {
-void initializeARMTTIPass(PassRegistry &);
+#define DEBUG_TYPE "armtti"
+
+bool ARMTTIImpl::areInlineCompatible(const Function *Caller,
+                                     const Function *Callee) const {
+  const TargetMachine &TM = getTLI()->getTargetMachine();
+  const FeatureBitset &CallerBits =
+      TM.getSubtargetImpl(*Caller)->getFeatureBits();
+  const FeatureBitset &CalleeBits =
+      TM.getSubtargetImpl(*Callee)->getFeatureBits();
+
+  // To inline a callee, all features not in the whitelist must match exactly.
+  bool MatchExact = (CallerBits & ~InlineFeatureWhitelist) ==
+                    (CalleeBits & ~InlineFeatureWhitelist);
+  // For features in the whitelist, the callee's features must be a subset of
+  // the callers'.
+  bool MatchSubset = ((CallerBits & CalleeBits) & InlineFeatureWhitelist) ==
+                     (CalleeBits & InlineFeatureWhitelist);
+  return MatchExact && MatchSubset;
 }
 
-namespace {
-
-class ARMTTI : public ImmutablePass, public TargetTransformInfo {
-  const ARMBaseTargetMachine *TM;
-  const ARMSubtarget *ST;
-  const ARMTargetLowering *TLI;
-
-  /// Estimate the overhead of scalarizing an instruction. Insert and Extract
-  /// are set if the result needs to be inserted and/or extracted from vectors.
-  unsigned getScalarizationOverhead(Type *Ty, bool Insert, bool Extract) const;
-
-public:
-  ARMTTI() : ImmutablePass(ID), TM(0), ST(0), TLI(0) {
-    llvm_unreachable("This pass cannot be directly constructed");
-  }
-
-  ARMTTI(const ARMBaseTargetMachine *TM)
-      : ImmutablePass(ID), TM(TM), ST(TM->getSubtargetImpl()),
-        TLI(TM->getTargetLowering()) {
-    initializeARMTTIPass(*PassRegistry::getPassRegistry());
-  }
-
-  virtual void initializePass() {
-    pushTTIStack(this);
-  }
-
-  virtual void finalizePass() {
-    popTTIStack();
-  }
-
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-    TargetTransformInfo::getAnalysisUsage(AU);
-  }
-
-  /// Pass identification.
-  static char ID;
-
-  /// Provide necessary pointer adjustments for the two base classes.
-  virtual void *getAdjustedAnalysisPointer(const void *ID) {
-    if (ID == &TargetTransformInfo::ID)
-      return (TargetTransformInfo*)this;
-    return this;
-  }
-
-  /// \name Scalar TTI Implementations
-  /// @{
-
-  virtual unsigned getIntImmCost(const APInt &Imm, Type *Ty) const;
-
-  /// @}
-
-
-  /// \name Vector TTI Implementations
-  /// @{
-
-  unsigned getNumberOfRegisters(bool Vector) const {
-    if (Vector) {
-      if (ST->hasNEON())
-        return 16;
-      return 0;
-    }
-
-    if (ST->isThumb1Only())
-      return 8;
-    return 16;
-  }
-
-  unsigned getRegisterBitWidth(bool Vector) const {
-    if (Vector) {
-      if (ST->hasNEON())
-        return 128;
-      return 0;
-    }
-
-    return 32;
-  }
-
-  unsigned getMaximumUnrollFactor() const {
-    // These are out of order CPUs:
-    if (ST->isCortexA15() || ST->isSwift())
-      return 2;
-    return 1;
-  }
-
-  unsigned getShuffleCost(ShuffleKind Kind, Type *Tp,
-                          int Index, Type *SubTp) const;
-
-  unsigned getCastInstrCost(unsigned Opcode, Type *Dst,
-                                      Type *Src) const;
-
-  unsigned getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy) const;
-
-  unsigned getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index) const;
-
-  unsigned getAddressComputationCost(Type *Val, bool IsComplex) const;
-
-  unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty,
-                                  OperandValueKind Op1Info = OK_AnyValue,
-                                  OperandValueKind Op2Info = OK_AnyValue) const;
-
-  unsigned getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
-                           unsigned AddressSpace) const;
-  /// @}
-};
-
-} // end anonymous namespace
-
-INITIALIZE_AG_PASS(ARMTTI, TargetTransformInfo, "armtti",
-                   "ARM Target Transform Info", true, true, false)
-char ARMTTI::ID = 0;
-
-ImmutablePass *
-llvm::createARMTargetTransformInfoPass(const ARMBaseTargetMachine *TM) {
-  return new ARMTTI(TM);
-}
-
-
-unsigned ARMTTI::getIntImmCost(const APInt &Imm, Type *Ty) const {
+int ARMTTIImpl::getIntImmCost(const APInt &Imm, Type *Ty) {
   assert(Ty->isIntegerTy());
 
-  unsigned Bits = Ty->getPrimitiveSizeInBits();
-  if (Bits == 0 || Bits > 32)
-    return 4;
+ unsigned Bits = Ty->getPrimitiveSizeInBits();
+ if (Bits == 0 || Imm.getActiveBits() >= 64)
+   return 4;
 
-  int32_t SImmVal = Imm.getSExtValue();
-  uint32_t ZImmVal = Imm.getZExtValue();
+  int64_t SImmVal = Imm.getSExtValue();
+  uint64_t ZImmVal = Imm.getZExtValue();
   if (!ST->isThumb()) {
     if ((SImmVal >= 0 && SImmVal < 65536) ||
         (ARM_AM::getSOImmVal(ZImmVal) != -1) ||
         (ARM_AM::getSOImmVal(~ZImmVal) != -1))
       return 1;
     return ST->hasV6T2Ops() ? 2 : 3;
-  } else if (ST->isThumb2()) {
+  }
+  if (ST->isThumb2()) {
     if ((SImmVal >= 0 && SImmVal < 65536) ||
         (ARM_AM::getT2SOImmVal(ZImmVal) != -1) ||
         (ARM_AM::getT2SOImmVal(~ZImmVal) != -1))
       return 1;
     return ST->hasV6T2Ops() ? 2 : 3;
-  } else /*Thumb1*/ {
-    if (SImmVal >= 0 && SImmVal < 256)
-      return 1;
-    if ((~ZImmVal < 256) || ARM_AM::isThumbImmShiftedVal(ZImmVal))
-      return 2;
-    // Load from constantpool.
-    return 3;
   }
-  return 2;
+  // Thumb1.
+  if (SImmVal >= 0 && SImmVal < 256)
+    return 1;
+  if ((~SImmVal < 256) || ARM_AM::isThumbImmShiftedVal(ZImmVal))
+    return 2;
+  // Load from constantpool.
+  return 3;
 }
 
-unsigned ARMTTI::getCastInstrCost(unsigned Opcode, Type *Dst,
-                                    Type *Src) const {
+// Constants smaller than 256 fit in the immediate field of
+// Thumb1 instructions so we return a zero cost and 1 otherwise.
+int ARMTTIImpl::getIntImmCodeSizeCost(unsigned Opcode, unsigned Idx,
+                                      const APInt &Imm, Type *Ty) {
+  if (Imm.isNonNegative() && Imm.getLimitedValue() < 256)
+    return 0;
+
+  return 1;
+}
+
+int ARMTTIImpl::getIntImmCost(unsigned Opcode, unsigned Idx, const APInt &Imm,
+                              Type *Ty) {
+  // Division by a constant can be turned into multiplication, but only if we
+  // know it's constant. So it's not so much that the immediate is cheap (it's
+  // not), but that the alternative is worse.
+  // FIXME: this is probably unneeded with GlobalISel.
+  if ((Opcode == Instruction::SDiv || Opcode == Instruction::UDiv ||
+       Opcode == Instruction::SRem || Opcode == Instruction::URem) &&
+      Idx == 1)
+    return 0;
+
+  if (Opcode == Instruction::And)
+      // Conversion to BIC is free, and means we can use ~Imm instead.
+      return std::min(getIntImmCost(Imm, Ty), getIntImmCost(~Imm, Ty));
+
+  if (Opcode == Instruction::Add)
+    // Conversion to SUB is free, and means we can use -Imm instead.
+    return std::min(getIntImmCost(Imm, Ty), getIntImmCost(-Imm, Ty));
+
+  if (Opcode == Instruction::ICmp && Imm.isNegative() &&
+      Ty->getIntegerBitWidth() == 32) {
+    int64_t NegImm = -Imm.getSExtValue();
+    if (ST->isThumb2() && NegImm < 1<<12)
+      // icmp X, #-C -> cmn X, #C
+      return 0;
+    if (ST->isThumb() && NegImm < 1<<8)
+      // icmp X, #-C -> adds X, #C
+      return 0;
+  }
+
+  return getIntImmCost(Imm, Ty);
+}
+
+int ARMTTIImpl::getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src,
+                                 const Instruction *I) {
   int ISD = TLI->InstructionOpcodeToISD(Opcode);
   assert(ISD && "Invalid opcode");
 
   // Single to/from double precision conversions.
-  static const CostTblEntry<MVT::SimpleValueType> NEONFltDblTbl[] = {
+  static const CostTblEntry NEONFltDblTbl[] = {
     // Vector fptrunc/fpext conversions.
     { ISD::FP_ROUND,   MVT::v2f64, 2 },
     { ISD::FP_EXTEND,  MVT::v2f32, 2 },
@@ -194,23 +144,21 @@ unsigned ARMTTI::getCastInstrCost(unsigned Opcode, Type *Dst,
 
   if (Src->isVectorTy() && ST->hasNEON() && (ISD == ISD::FP_ROUND ||
                                           ISD == ISD::FP_EXTEND)) {
-    std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(Src);
-    int Idx = CostTableLookup(NEONFltDblTbl, ISD, LT.second);
-    if (Idx != -1)
-      return LT.first * NEONFltDblTbl[Idx].Cost;
+    std::pair<int, MVT> LT = TLI->getTypeLegalizationCost(DL, Src);
+    if (const auto *Entry = CostTableLookup(NEONFltDblTbl, ISD, LT.second))
+      return LT.first * Entry->Cost;
   }
 
-  EVT SrcTy = TLI->getValueType(Src);
-  EVT DstTy = TLI->getValueType(Dst);
+  EVT SrcTy = TLI->getValueType(DL, Src);
+  EVT DstTy = TLI->getValueType(DL, Dst);
 
   if (!SrcTy.isSimple() || !DstTy.isSimple())
-    return TargetTransformInfo::getCastInstrCost(Opcode, Dst, Src);
+    return BaseT::getCastInstrCost(Opcode, Dst, Src);
 
   // Some arithmetic, load and store operations have specific instructions
   // to cast up/down their types automatically at no extra cost.
   // TODO: Get these tables to know at least what the related operations are.
-  static const TypeConversionCostTblEntry<MVT::SimpleValueType>
-  NEONVectorConversionTbl[] = {
+  static const TypeConversionCostTblEntry NEONVectorConversionTbl[] = {
     { ISD::SIGN_EXTEND, MVT::v4i32, MVT::v4i16, 0 },
     { ISD::ZERO_EXTEND, MVT::v4i32, MVT::v4i16, 0 },
     { ISD::SIGN_EXTEND, MVT::v2i64, MVT::v2i32, 1 },
@@ -286,15 +234,14 @@ unsigned ARMTTI::getCastInstrCost(unsigned Opcode, Type *Dst,
   };
 
   if (SrcTy.isVector() && ST->hasNEON()) {
-    int Idx = ConvertCostTableLookup(NEONVectorConversionTbl, ISD,
-                                     DstTy.getSimpleVT(), SrcTy.getSimpleVT());
-    if (Idx != -1)
-      return NEONVectorConversionTbl[Idx].Cost;
+    if (const auto *Entry = ConvertCostTableLookup(NEONVectorConversionTbl, ISD,
+                                                   DstTy.getSimpleVT(),
+                                                   SrcTy.getSimpleVT()))
+      return Entry->Cost;
   }
 
   // Scalar float to integer conversions.
-  static const TypeConversionCostTblEntry<MVT::SimpleValueType>
-  NEONFloatConversionTbl[] = {
+  static const TypeConversionCostTblEntry NEONFloatConversionTbl[] = {
     { ISD::FP_TO_SINT,  MVT::i1, MVT::f32, 2 },
     { ISD::FP_TO_UINT,  MVT::i1, MVT::f32, 2 },
     { ISD::FP_TO_SINT,  MVT::i1, MVT::f64, 2 },
@@ -317,15 +264,14 @@ unsigned ARMTTI::getCastInstrCost(unsigned Opcode, Type *Dst,
     { ISD::FP_TO_UINT,  MVT::i64, MVT::f64, 10 }
   };
   if (SrcTy.isFloatingPoint() && ST->hasNEON()) {
-    int Idx = ConvertCostTableLookup(NEONFloatConversionTbl, ISD,
-                                     DstTy.getSimpleVT(), SrcTy.getSimpleVT());
-    if (Idx != -1)
-        return NEONFloatConversionTbl[Idx].Cost;
+    if (const auto *Entry = ConvertCostTableLookup(NEONFloatConversionTbl, ISD,
+                                                   DstTy.getSimpleVT(),
+                                                   SrcTy.getSimpleVT()))
+      return Entry->Cost;
   }
 
   // Scalar integer to float conversions.
-  static const TypeConversionCostTblEntry<MVT::SimpleValueType>
-  NEONIntegerConversionTbl[] = {
+  static const TypeConversionCostTblEntry NEONIntegerConversionTbl[] = {
     { ISD::SINT_TO_FP,  MVT::f32, MVT::i1, 2 },
     { ISD::UINT_TO_FP,  MVT::f32, MVT::i1, 2 },
     { ISD::SINT_TO_FP,  MVT::f64, MVT::i1, 2 },
@@ -349,15 +295,14 @@ unsigned ARMTTI::getCastInstrCost(unsigned Opcode, Type *Dst,
   };
 
   if (SrcTy.isInteger() && ST->hasNEON()) {
-    int Idx = ConvertCostTableLookup(NEONIntegerConversionTbl, ISD,
-                                     DstTy.getSimpleVT(), SrcTy.getSimpleVT());
-    if (Idx != -1)
-      return NEONIntegerConversionTbl[Idx].Cost;
+    if (const auto *Entry = ConvertCostTableLookup(NEONIntegerConversionTbl,
+                                                   ISD, DstTy.getSimpleVT(),
+                                                   SrcTy.getSimpleVT()))
+      return Entry->Cost;
   }
 
   // Scalar integer conversion costs.
-  static const TypeConversionCostTblEntry<MVT::SimpleValueType>
-  ARMIntegerConversionTbl[] = {
+  static const TypeConversionCostTblEntry ARMIntegerConversionTbl[] = {
     // i16 -> i64 requires two dependent operations.
     { ISD::SIGN_EXTEND, MVT::i64, MVT::i16, 2 },
 
@@ -369,70 +314,79 @@ unsigned ARMTTI::getCastInstrCost(unsigned Opcode, Type *Dst,
   };
 
   if (SrcTy.isInteger()) {
-    int Idx = ConvertCostTableLookup(ARMIntegerConversionTbl, ISD,
-                                     DstTy.getSimpleVT(), SrcTy.getSimpleVT());
-    if (Idx != -1)
-      return ARMIntegerConversionTbl[Idx].Cost;
+    if (const auto *Entry = ConvertCostTableLookup(ARMIntegerConversionTbl, ISD,
+                                                   DstTy.getSimpleVT(),
+                                                   SrcTy.getSimpleVT()))
+      return Entry->Cost;
   }
 
-  return TargetTransformInfo::getCastInstrCost(Opcode, Dst, Src);
+  return BaseT::getCastInstrCost(Opcode, Dst, Src);
 }
 
-unsigned ARMTTI::getVectorInstrCost(unsigned Opcode, Type *ValTy,
-                                    unsigned Index) const {
+int ARMTTIImpl::getVectorInstrCost(unsigned Opcode, Type *ValTy,
+                                   unsigned Index) {
   // Penalize inserting into an D-subregister. We end up with a three times
   // lower estimated throughput on swift.
-  if (ST->isSwift() &&
-      Opcode == Instruction::InsertElement &&
-      ValTy->isVectorTy() &&
-      ValTy->getScalarSizeInBits() <= 32)
+  if (ST->hasSlowLoadDSubregister() && Opcode == Instruction::InsertElement &&
+      ValTy->isVectorTy() && ValTy->getScalarSizeInBits() <= 32)
     return 3;
 
-  return TargetTransformInfo::getVectorInstrCost(Opcode, ValTy, Index);
+  if ((Opcode == Instruction::InsertElement ||
+       Opcode == Instruction::ExtractElement)) {
+    // Cross-class copies are expensive on many microarchitectures,
+    // so assume they are expensive by default.
+    if (ValTy->getVectorElementType()->isIntegerTy())
+      return 3;
+
+    // Even if it's not a cross class copy, this likely leads to mixing
+    // of NEON and VFP code and should be therefore penalized.
+    if (ValTy->isVectorTy() &&
+        ValTy->getScalarSizeInBits() <= 32)
+      return std::max(BaseT::getVectorInstrCost(Opcode, ValTy, Index), 2U);
+  }
+
+  return BaseT::getVectorInstrCost(Opcode, ValTy, Index);
 }
 
-unsigned ARMTTI::getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
-                                    Type *CondTy) const {
-
+int ARMTTIImpl::getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy,
+                                   const Instruction *I) {
   int ISD = TLI->InstructionOpcodeToISD(Opcode);
   // On NEON a a vector select gets lowered to vbsl.
   if (ST->hasNEON() && ValTy->isVectorTy() && ISD == ISD::SELECT) {
     // Lowering of some vector selects is currently far from perfect.
-    static const TypeConversionCostTblEntry<MVT::SimpleValueType>
-    NEONVectorSelectTbl[] = {
-      { ISD::SELECT, MVT::v16i1, MVT::v16i16, 2*16 + 1 + 3*1 + 4*1 },
-      { ISD::SELECT, MVT::v8i1, MVT::v8i32, 4*8 + 1*3 + 1*4 + 1*2 },
-      { ISD::SELECT, MVT::v16i1, MVT::v16i32, 4*16 + 1*6 + 1*8 + 1*4 },
+    static const TypeConversionCostTblEntry NEONVectorSelectTbl[] = {
       { ISD::SELECT, MVT::v4i1, MVT::v4i64, 4*4 + 1*2 + 1 },
       { ISD::SELECT, MVT::v8i1, MVT::v8i64, 50 },
       { ISD::SELECT, MVT::v16i1, MVT::v16i64, 100 }
     };
 
-    EVT SelCondTy = TLI->getValueType(CondTy);
-    EVT SelValTy = TLI->getValueType(ValTy);
+    EVT SelCondTy = TLI->getValueType(DL, CondTy);
+    EVT SelValTy = TLI->getValueType(DL, ValTy);
     if (SelCondTy.isSimple() && SelValTy.isSimple()) {
-      int Idx = ConvertCostTableLookup(NEONVectorSelectTbl, ISD,
-                                       SelCondTy.getSimpleVT(),
-                                       SelValTy.getSimpleVT());
-      if (Idx != -1)
-        return NEONVectorSelectTbl[Idx].Cost;
+      if (const auto *Entry = ConvertCostTableLookup(NEONVectorSelectTbl, ISD,
+                                                     SelCondTy.getSimpleVT(),
+                                                     SelValTy.getSimpleVT()))
+        return Entry->Cost;
     }
 
-    std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(ValTy);
+    std::pair<int, MVT> LT = TLI->getTypeLegalizationCost(DL, ValTy);
     return LT.first;
   }
 
-  return TargetTransformInfo::getCmpSelInstrCost(Opcode, ValTy, CondTy);
+  return BaseT::getCmpSelInstrCost(Opcode, ValTy, CondTy, I);
 }
 
-unsigned ARMTTI::getAddressComputationCost(Type *Ty, bool IsComplex) const {
+int ARMTTIImpl::getAddressComputationCost(Type *Ty, ScalarEvolution *SE,
+                                          const SCEV *Ptr) {
   // Address computations in vectorized code with non-consecutive addresses will
   // likely result in more instructions compared to scalar code where the
   // computation can more often be merged into the index mode. The resulting
   // extra micro-ops can significantly decrease throughput.
   unsigned NumVectorInstToHideOverhead = 10;
+  int MaxMergeDistance = 64;
 
-  if (Ty->isVectorTy() && IsComplex)
+  if (Ty->isVectorTy() && SE && 
+      !BaseT::isConstantStridedAccessLessThan(SE, Ptr, MaxMergeDistance + 1))
     return NumVectorInstToHideOverhead;
 
   // In many cases the address computation is not merged into the instruction
@@ -440,44 +394,72 @@ unsigned ARMTTI::getAddressComputationCost(Type *Ty, bool IsComplex) const {
   return 1;
 }
 
-unsigned ARMTTI::getShuffleCost(ShuffleKind Kind, Type *Tp, int Index,
-                                Type *SubTp) const {
-  // We only handle costs of reverse shuffles for now.
-  if (Kind != SK_Reverse)
-    return TargetTransformInfo::getShuffleCost(Kind, Tp, Index, SubTp);
+int ARMTTIImpl::getShuffleCost(TTI::ShuffleKind Kind, Type *Tp, int Index,
+                               Type *SubTp) {
+  // We only handle costs of reverse and alternate shuffles for now.
+  if (Kind != TTI::SK_Reverse && Kind != TTI::SK_Alternate)
+    return BaseT::getShuffleCost(Kind, Tp, Index, SubTp);
 
-  static const CostTblEntry<MVT::SimpleValueType> NEONShuffleTbl[] = {
-    // Reverse shuffle cost one instruction if we are shuffling within a double
-    // word (vrev) or two if we shuffle a quad word (vrev, vext).
-    { ISD::VECTOR_SHUFFLE, MVT::v2i32, 1 },
-    { ISD::VECTOR_SHUFFLE, MVT::v2f32, 1 },
-    { ISD::VECTOR_SHUFFLE, MVT::v2i64, 1 },
-    { ISD::VECTOR_SHUFFLE, MVT::v2f64, 1 },
+  if (Kind == TTI::SK_Reverse) {
+    static const CostTblEntry NEONShuffleTbl[] = {
+        // Reverse shuffle cost one instruction if we are shuffling within a
+        // double word (vrev) or two if we shuffle a quad word (vrev, vext).
+        {ISD::VECTOR_SHUFFLE, MVT::v2i32, 1},
+        {ISD::VECTOR_SHUFFLE, MVT::v2f32, 1},
+        {ISD::VECTOR_SHUFFLE, MVT::v2i64, 1},
+        {ISD::VECTOR_SHUFFLE, MVT::v2f64, 1},
 
-    { ISD::VECTOR_SHUFFLE, MVT::v4i32, 2 },
-    { ISD::VECTOR_SHUFFLE, MVT::v4f32, 2 },
-    { ISD::VECTOR_SHUFFLE, MVT::v8i16, 2 },
-    { ISD::VECTOR_SHUFFLE, MVT::v16i8, 2 }
-  };
+        {ISD::VECTOR_SHUFFLE, MVT::v4i32, 2},
+        {ISD::VECTOR_SHUFFLE, MVT::v4f32, 2},
+        {ISD::VECTOR_SHUFFLE, MVT::v8i16, 2},
+        {ISD::VECTOR_SHUFFLE, MVT::v16i8, 2}};
 
-  std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(Tp);
+    std::pair<int, MVT> LT = TLI->getTypeLegalizationCost(DL, Tp);
 
-  int Idx = CostTableLookup(NEONShuffleTbl, ISD::VECTOR_SHUFFLE, LT.second);
-  if (Idx == -1)
-    return TargetTransformInfo::getShuffleCost(Kind, Tp, Index, SubTp);
+    if (const auto *Entry = CostTableLookup(NEONShuffleTbl, ISD::VECTOR_SHUFFLE,
+                                            LT.second))
+      return LT.first * Entry->Cost;
 
-  return LT.first * NEONShuffleTbl[Idx].Cost;
+    return BaseT::getShuffleCost(Kind, Tp, Index, SubTp);
+  }
+  if (Kind == TTI::SK_Alternate) {
+    static const CostTblEntry NEONAltShuffleTbl[] = {
+        // Alt shuffle cost table for ARM. Cost is the number of instructions
+        // required to create the shuffled vector.
+
+        {ISD::VECTOR_SHUFFLE, MVT::v2f32, 1},
+        {ISD::VECTOR_SHUFFLE, MVT::v2i64, 1},
+        {ISD::VECTOR_SHUFFLE, MVT::v2f64, 1},
+        {ISD::VECTOR_SHUFFLE, MVT::v2i32, 1},
+
+        {ISD::VECTOR_SHUFFLE, MVT::v4i32, 2},
+        {ISD::VECTOR_SHUFFLE, MVT::v4f32, 2},
+        {ISD::VECTOR_SHUFFLE, MVT::v4i16, 2},
+
+        {ISD::VECTOR_SHUFFLE, MVT::v8i16, 16},
+
+        {ISD::VECTOR_SHUFFLE, MVT::v16i8, 32}};
+
+    std::pair<int, MVT> LT = TLI->getTypeLegalizationCost(DL, Tp);
+    if (const auto *Entry = CostTableLookup(NEONAltShuffleTbl,
+                                            ISD::VECTOR_SHUFFLE, LT.second))
+      return LT.first * Entry->Cost;
+    return BaseT::getShuffleCost(Kind, Tp, Index, SubTp);
+  }
+  return BaseT::getShuffleCost(Kind, Tp, Index, SubTp);
 }
 
-unsigned ARMTTI::getArithmeticInstrCost(unsigned Opcode, Type *Ty, OperandValueKind Op1Info,
-                                        OperandValueKind Op2Info) const {
-
+int ARMTTIImpl::getArithmeticInstrCost(
+    unsigned Opcode, Type *Ty, TTI::OperandValueKind Op1Info,
+    TTI::OperandValueKind Op2Info, TTI::OperandValueProperties Opd1PropInfo,
+    TTI::OperandValueProperties Opd2PropInfo,
+    ArrayRef<const Value *> Args) {
   int ISDOpcode = TLI->InstructionOpcodeToISD(Opcode);
-  std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(Ty);
+  std::pair<int, MVT> LT = TLI->getTypeLegalizationCost(DL, Ty);
 
   const unsigned FunctionCallDivCost = 20;
   const unsigned ReciprocalDivCost = 10;
-  static const CostTblEntry<MVT::SimpleValueType> CostTbl[] = {
+  static const CostTblEntry CostTbl[] = {
     // Division.
     // These costs are somewhat random. Choose a cost of 20 to indicate that
     // vectorizing devision (added function call) is going to be very expensive.
@@ -518,22 +500,18 @@ unsigned ARMTTI::getArithmeticInstrCost(unsigned Opcode, Type *Ty, OperandValueK
     // Multiplication.
   };
 
-  int Idx = -1;
-
   if (ST->hasNEON())
-    Idx = CostTableLookup(CostTbl, ISDOpcode, LT.second);
+    if (const auto *Entry = CostTableLookup(CostTbl, ISDOpcode, LT.second))
+      return LT.first * Entry->Cost;
 
-  if (Idx != -1)
-    return LT.first * CostTbl[Idx].Cost;
-
-  unsigned Cost =
-      TargetTransformInfo::getArithmeticInstrCost(Opcode, Ty, Op1Info, Op2Info);
+  int Cost = BaseT::getArithmeticInstrCost(Opcode, Ty, Op1Info, Op2Info,
+                                           Opd1PropInfo, Opd2PropInfo);
 
   // This is somewhat of a hack. The problem that we are facing is that SROA
   // creates a sequence of shift, and, or instructions to construct values.
   // These sequences are recognized by the ISel and have zero-cost. Not so for
   // the vectorized code. Because we have support for v2i64 but not i64 those
-  // sequences look particularily beneficial to vectorize.
+  // sequences look particularly beneficial to vectorize.
   // To work around this we increase the cost of v2i64 operations to make them
   // seem less beneficial.
   if (LT.second == MVT::v2i64 &&
@@ -543,9 +521,9 @@ unsigned ARMTTI::getArithmeticInstrCost(unsigned Opcode, Type *Ty, OperandValueK
   return Cost;
 }
 
-unsigned ARMTTI::getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
-                                 unsigned AddressSpace) const {
-  std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(Src);
+int ARMTTIImpl::getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
+                                unsigned AddressSpace, const Instruction *I) {
+  std::pair<int, MVT> LT = TLI->getTypeLegalizationCost(DL, Src);
 
   if (Src->isVectorTy() && Alignment != 16 &&
       Src->getVectorElementType()->isDoubleTy()) {
@@ -554,4 +532,95 @@ unsigned ARMTTI::getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
     return LT.first * 4;
   }
   return LT.first;
+}
+
+int ARMTTIImpl::getInterleavedMemoryOpCost(unsigned Opcode, Type *VecTy,
+                                           unsigned Factor,
+                                           ArrayRef<unsigned> Indices,
+                                           unsigned Alignment,
+                                           unsigned AddressSpace) {
+  assert(Factor >= 2 && "Invalid interleave factor");
+  assert(isa<VectorType>(VecTy) && "Expect a vector type");
+
+  // vldN/vstN doesn't support vector types of i64/f64 element.
+  bool EltIs64Bits = DL.getTypeSizeInBits(VecTy->getScalarType()) == 64;
+
+  if (Factor <= TLI->getMaxSupportedInterleaveFactor() && !EltIs64Bits) {
+    unsigned NumElts = VecTy->getVectorNumElements();
+    auto *SubVecTy = VectorType::get(VecTy->getScalarType(), NumElts / Factor);
+
+    // vldN/vstN only support legal vector types of size 64 or 128 in bits.
+    // Accesses having vector types that are a multiple of 128 bits can be
+    // matched to more than one vldN/vstN instruction.
+    if (NumElts % Factor == 0 &&
+        TLI->isLegalInterleavedAccessType(SubVecTy, DL))
+      return Factor * TLI->getNumInterleavedAccesses(SubVecTy, DL);
+  }
+
+  return BaseT::getInterleavedMemoryOpCost(Opcode, VecTy, Factor, Indices,
+                                           Alignment, AddressSpace);
+}
+
+void ARMTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
+                                         TTI::UnrollingPreferences &UP) {
+  // Only currently enable these preferences for M-Class cores.
+  if (!ST->isMClass())
+    return BasicTTIImplBase::getUnrollingPreferences(L, SE, UP);
+
+  // Disable loop unrolling for Oz and Os.
+  UP.OptSizeThreshold = 0;
+  UP.PartialOptSizeThreshold = 0;
+  if (L->getHeader()->getParent()->optForSize())
+    return;
+
+  // Only enable on Thumb-2 targets.
+  if (!ST->isThumb2())
+    return;
+
+  SmallVector<BasicBlock*, 4> ExitingBlocks;
+  L->getExitingBlocks(ExitingBlocks);
+  DEBUG(dbgs() << "Loop has:\n"
+      << "Blocks: " << L->getNumBlocks() << "\n"
+      << "Exit blocks: " << ExitingBlocks.size() << "\n");
+
+  // Only allow another exit other than the latch. This acts as an early exit
+  // as it mirrors the profitability calculation of the runtime unroller.
+  if (ExitingBlocks.size() > 2)
+    return;
+
+  // Limit the CFG of the loop body for targets with a branch predictor.
+  // Allowing 4 blocks permits if-then-else diamonds in the body.
+  if (ST->hasBranchPredictor() && L->getNumBlocks() > 4)
+    return;
+
+  // Scan the loop: don't unroll loops with calls as this could prevent
+  // inlining.
+  unsigned Cost = 0;
+  for (auto *BB : L->getBlocks()) {
+    for (auto &I : *BB) {
+      if (isa<CallInst>(I) || isa<InvokeInst>(I)) {
+        ImmutableCallSite CS(&I);
+        if (const Function *F = CS.getCalledFunction()) {
+          if (!isLoweredToCall(F))
+            continue;
+        }
+        return;
+      }
+      SmallVector<const Value*, 4> Operands(I.value_op_begin(),
+                                            I.value_op_end());
+      Cost += getUserCost(&I, Operands);
+    }
+  }
+
+  DEBUG(dbgs() << "Cost of loop: " << Cost << "\n");
+
+  UP.Partial = true;
+  UP.Runtime = true;
+  UP.UnrollRemainder = true;
+  UP.DefaultUnrollRuntimeCount = 4;
+
+  // Force unrolling small loops can be very useful because of the branch
+  // taken cost of the backedge.
+  if (Cost < 12)
+    UP.Force = true;
 }

@@ -76,7 +76,6 @@ main(argc, argv)
 {
 	char *progname;
 	char *cfile;
-	bool verbose = false;
 	bool query = false;
 	bool update = false;
 	bool remove = false;
@@ -131,7 +130,7 @@ main(argc, argv)
 	(void) sm_strlcpy(user_info.smdbu_name, RunAsUserName,
 			  SMDB_MAX_USER_NAME_LEN);
 
-#define OPTIONS		"C:fquxvN"
+#define OPTIONS		"C:fquxN"
 	while ((opt = getopt(argc, argv, OPTIONS)) != -1)
 	{
 		switch (opt)
@@ -157,10 +156,6 @@ main(argc, argv)
 		  case 'x':
 			remove = true;
 			nops++;
-			break;
-
-		  case 'v':
-			verbose = true;
 			break;
 
 		  case 'N':

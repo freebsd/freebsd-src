@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,27 +28,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/stdint.h>
-#include <sys/stddef.h>
 #include <sys/param.h>
-#include <sys/queue.h>
-#include <sys/types.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/condvar.h>
-#include <sys/sysctl.h>
-#include <sys/sx.h>
-#include <sys/unistd.h>
-#include <sys/callout.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/priv.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/rman.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -63,13 +55,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 
 #include <dev/usb/controller/dwc_otg.h>
+#include <dev/usb/controller/dwc_otg_fdt.h>
 
 static device_probe_t dwc_otg_probe;
-static device_attach_t dwc_otg_attach;
-static device_detach_t dwc_otg_detach;
 
-struct dwc_otg_super_softc {
-	struct dwc_otg_softc sc_otg;	/* must be first */
+static struct ofw_compat_data compat_data[] = {
+	{ "synopsys,designware-hs-otg2",	1 },
+	{ "snps,dwc2",				1 },
+	{ NULL,					0 }
 };
 
 static int
@@ -79,18 +72,18 @@ dwc_otg_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "synopsys,designware-hs-otg2"))
+	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
 
 	device_set_desc(dev, "DWC OTG 2.0 integrated USB controller");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
-static int
+int
 dwc_otg_attach(device_t dev)
 {
-	struct dwc_otg_super_softc *sc = device_get_softc(dev);
+	struct dwc_otg_fdt_softc *sc = device_get_softc(dev);
 	char usb_mode[24];
 	int err;
 	int rid;
@@ -99,6 +92,7 @@ dwc_otg_attach(device_t dev)
 	sc->sc_otg.sc_bus.parent = dev;
 	sc->sc_otg.sc_bus.devices = sc->sc_otg.sc_devices;
 	sc->sc_otg.sc_bus.devices_max = DWC_OTG_MAX_DEVICES;
+	sc->sc_otg.sc_bus.dma_bits = 32;
 
 	/* get USB mode, if any */
 	if (OF_getprop(ofw_bus_get_node(dev), "dr_mode",
@@ -134,7 +128,12 @@ dwc_otg_attach(device_t dev)
 	sc->sc_otg.sc_io_hdl = rman_get_bushandle(sc->sc_otg.sc_io_res);
 	sc->sc_otg.sc_io_size = rman_get_size(sc->sc_otg.sc_io_res);
 
-	rid = 0;
+
+	/*
+	 * brcm,bcm2708-usb FDT provides two interrupts,
+	 * we need only second one (VC_USB)
+	 */
+	rid = ofw_bus_is_compatible(dev, "brcm,bcm2708-usb") ? 1 : 0;
 	sc->sc_otg.sc_irq_res =
 	    bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->sc_otg.sc_irq_res == NULL)
@@ -167,18 +166,11 @@ error:
 	return (ENXIO);
 }
 
-static int
+int
 dwc_otg_detach(device_t dev)
 {
-	struct dwc_otg_super_softc *sc = device_get_softc(dev);
-	device_t bdev;
-	int err;
+	struct dwc_otg_fdt_softc *sc = device_get_softc(dev);
 
-	if (sc->sc_otg.sc_bus.bdev) {
-		bdev = sc->sc_otg.sc_bus.bdev;
-		device_detach(bdev);
-		device_delete_child(dev, bdev);
-	}
 	/* during module unload there are lots of children leftover */
 	device_delete_children(dev);
 
@@ -188,7 +180,7 @@ dwc_otg_detach(device_t dev)
 		 */
 		dwc_otg_uninit(&sc->sc_otg);
 
-		err = bus_teardown_intr(dev, sc->sc_otg.sc_irq_res,
+		bus_teardown_intr(dev, sc->sc_otg.sc_irq_res,
 		    sc->sc_otg.sc_intr_hdl);
 		sc->sc_otg.sc_intr_hdl = NULL;
 	}
@@ -221,10 +213,10 @@ static device_method_t dwc_otg_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t dwc_otg_driver = {
+driver_t dwc_otg_driver = {
 	.name = "dwcotg",
 	.methods = dwc_otg_methods,
-	.size = sizeof(struct dwc_otg_super_softc),
+	.size = sizeof(struct dwc_otg_fdt_softc),
 };
 
 static devclass_t dwc_otg_devclass;

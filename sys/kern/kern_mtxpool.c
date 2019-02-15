@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Matthew Dillon.  All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,7 +41,7 @@
  *
  * Disadvantages:
  *	- should generally only be used as leaf mutexes.
- *	- pool/pool dependancy ordering cannot be depended on.
+ *	- pool/pool dependency ordering cannot be depended on.
  *	- possible L1 cache mastersip contention between cpus.
  */
 

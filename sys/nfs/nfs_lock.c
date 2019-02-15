@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1997 Berkeley Software Design, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -241,6 +243,7 @@ nfs_dolock(struct vop_advlock_args *ap)
 	struct flock *fl;
 	struct proc *p;
 	struct nfsmount *nmp;
+	struct timeval boottime;
 
 	td = curthread;
 	p = td->td_proc;
@@ -284,6 +287,7 @@ nfs_dolock(struct vop_advlock_args *ap)
 		p->p_nlminfo = malloc(sizeof(struct nlminfo),
 		    M_NLMINFO, M_WAITOK | M_ZERO);
 		p->p_nlminfo->pid_start = p->p_stats->p_start;
+		getboottime(&boottime);
 		timevaladd(&p->p_nlminfo->pid_start, &boottime);
 	}
 	msg.lm_msg_ident.pid_start = p->p_nlminfo->pid_start;

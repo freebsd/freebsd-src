@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1991, 1994 Wolfgang Solfrank.
  * Copyright (C) 1991, 1994 TooLs GmbH.
  * All rights reserved.
@@ -43,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <fstab.h>
 #include <errno.h>
+#include <libufs.h>
 #include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -142,7 +145,7 @@ get_inode(int fd, struct fs *super, ino_t ino)
 		if (!ipbuf
 		    && !(ipbuf = malloc(INOSZ(super))))
 			errx(1, "allocate inodes");
-		last = (ino / INOCNT(super)) * INOCNT(super);
+		last = rounddown(ino, INOCNT(super));
 		if (lseek(fd, (off_t)ino_to_fsba(super, last) << super->fs_fshift, 0) < (off_t)0
 		    || read(fd, ipbuf, INOSZ(super)) != (ssize_t)INOSZ(super))
 			err(1, "read inodes");
@@ -170,7 +173,7 @@ static int virtualblocks(struct fs *super, union dinode *dp)
 
 	sz = DIP(super, dp, di_size);
 #ifdef	COMPAT
-	if (lblkno(super,sz) >= NDADDR) {
+	if (lblkno(super,sz) >= UFS_NDADDR) {
 		nblk = blkroundup(super,sz);
 		if (sz == nblk)
 			nblk += super->fs_bsize;
@@ -180,10 +183,10 @@ static int virtualblocks(struct fs *super, union dinode *dp)
 
 #else	/* COMPAT */
 
-	if (lblkno(super,sz) >= NDADDR) {
+	if (lblkno(super,sz) >= UFS_NDADDR) {
 		nblk = blkroundup(super,sz);
 		sz = lblkno(super,nblk);
-		sz = (sz - NDADDR + NINDIR(super) - 1) / NINDIR(super);
+		sz = (sz - UFS_NDADDR + NINDIR(super) - 1) / NINDIR(super);
 		while (sz > 0) {
 			nblk += sz * super->fs_bsize;
 			/* sz - 1 rounded up */
@@ -414,7 +417,7 @@ dofsizes(int fd, struct fs *super, char *name)
 					errx(1, "allocate fsize structure");
 				fp->fsz_next = *fsp;
 				*fsp = fp;
-				fp->fsz_first = (ksz / FSZCNT) * FSZCNT;
+				fp->fsz_first = rounddown(ksz, FSZCNT);
 				fp->fsz_last = fp->fsz_first + FSZCNT;
 				for (i = FSZCNT; --i >= 0;) {
 					fp->fsz_count[i] = 0;
@@ -533,16 +536,10 @@ usage(void)
 	exit(1);
 }
 
-/*
- * Possible superblock locations ordered from most to least likely.
- */
-static int sblock_try[] = SBLOCKSEARCH;
-static char superblock[SBLOCKSIZE];
-
 void
 quot(char *name, char *mp)
 {
-	int i, fd;
+	int fd;
 	struct fs *fs;
 
 	get_inode(-1, NULL, 0);		/* flush cache */
@@ -553,25 +550,15 @@ quot(char *name, char *mp)
 		close(fd);
 		return;
 	}
-	for (i = 0; sblock_try[i] != -1; i++) {
-		if (lseek(fd, sblock_try[i], 0) != sblock_try[i]) {
-			close(fd);
-			return;
-		}
-		if (read(fd, superblock, SBLOCKSIZE) != SBLOCKSIZE) {
-			close(fd);
-			return;
-		}
-		fs = (struct fs *)superblock;
-		if ((fs->fs_magic == FS_UFS1_MAGIC ||
-		     (fs->fs_magic == FS_UFS2_MAGIC &&
-		      fs->fs_sblockloc == sblock_try[i])) &&
-		    fs->fs_bsize <= MAXBSIZE &&
-		    fs->fs_bsize >= sizeof(struct fs))
-			break;
-	}
-	if (sblock_try[i] == -1) {
-		warnx("%s: not a BSD filesystem",name);
+	switch (sbget(fd, &fs, -1)) {
+	case 0:
+		break;
+	case ENOENT:
+		warn("Cannot find file system superblock");
+		close(fd);
+		return;
+	default:
+		warn("Unable to read file system superblock");
 		close(fd);
 		return;
 	}

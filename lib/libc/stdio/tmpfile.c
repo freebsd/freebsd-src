@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -46,9 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <paths.h>
 #include "un-namespace.h"
+#include "libc_private.h"
 
 FILE *
-tmpfile()
+tmpfile(void)
 {
 	sigset_t set, oset;
 	FILE *fp;
@@ -69,7 +72,7 @@ tmpfile()
 		return (NULL);
 
 	sigfillset(&set);
-	(void)_sigprocmask(SIG_BLOCK, &set, &oset);
+	(void)__libc_sigprocmask(SIG_BLOCK, &set, &oset);
 
 	fd = mkstemp(buf);
 	if (fd != -1)
@@ -77,7 +80,7 @@ tmpfile()
 
 	free(buf);
 
-	(void)_sigprocmask(SIG_SETMASK, &oset, NULL);
+	(void)__libc_sigprocmask(SIG_SETMASK, &oset, NULL);
 
 	if (fd == -1)
 		return (NULL);

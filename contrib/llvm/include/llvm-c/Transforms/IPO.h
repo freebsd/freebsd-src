@@ -15,7 +15,7 @@
 #ifndef LLVM_C_TRANSFORMS_IPO_H
 #define LLVM_C_TRANSFORMS_IPO_H
 
-#include "llvm-c/Core.h"
+#include "llvm-c/Types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,6 +33,9 @@ void LLVMAddArgumentPromotionPass(LLVMPassManagerRef PM);
 
 /** See llvm::createConstantMergePass function. */
 void LLVMAddConstantMergePass(LLVMPassManagerRef PM);
+
+/** See llvm::createCalledValuePropagationPass function. */
+void LLVMAddCalledValuePropagationPass(LLVMPassManagerRef PM);
 
 /** See llvm::createDeadArgEliminationPass function. */
 void LLVMAddDeadArgEliminationPass(LLVMPassManagerRef PM);

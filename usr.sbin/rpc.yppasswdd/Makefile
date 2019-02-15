@@ -2,12 +2,12 @@
 
 RPCDIR=	${DESTDIR}/usr/include/rpcsvc
 
-.PATH: ${.CURDIR}/../../usr.sbin/ypserv ${.CURDIR}/../../usr.bin/chpass \
-       ${.CURDIR}/../../libexec/ypxfr ${RPCDIR}
+.PATH: ${SRCTOP}/usr.sbin/ypserv ${SRCTOP}/usr.bin/chpass \
+       ${SRCTOP}/libexec/ypxfr ${RPCDIR}
 
 PROG=	rpc.yppasswdd
 SCRIPTS=yppwupdate
-SCRIPTSDIR= /usr/libexec
+SCRIPTSDIR= ${LIBEXECDIR}
 MAN=	rpc.yppasswdd.8
 SRCS=	util.c yp_access.c yp_dblookup.c yp_dbwrite.c \
 	yp_error.c yppasswdd_main.c yppasswdd_server.c ypxfr_misc.c ${GENSRCS}
@@ -16,12 +16,11 @@ GENSRCS=yp.h yp_clnt.c yppasswd.h yppasswd_private.h yppasswd_private_svc.c \
 
 WARNS?=	 5
 CFLAGS+= -fno-strict-aliasing
-CFLAGS+= -I${.CURDIR}/../../usr.sbin/vipw \
-	 -I${.CURDIR}/../../usr.sbin/ypserv \
-	 -I${.CURDIR}/../../libexec/ypxfr \
+CFLAGS+= -I${SRCTOP}/usr.sbin/vipw \
+	 -I${SRCTOP}/usr.sbin/ypserv \
+	 -I${SRCTOP}/libexec/ypxfr \
 	 -I${.CURDIR} -I.
-DPADD=	${LIBRPCSVC} ${LIBCRYPT} ${LIBUTIL}
-LDADD=	-lrpcsvc -lcrypt -lutil
+LIBADD=	rpcsvc crypt util
 
 CLEANFILES= ${GENSRCS}
 

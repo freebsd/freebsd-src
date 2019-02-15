@@ -54,7 +54,7 @@ static char *findport(const char *);
 static struct xinpgen *getxpcblist(const char *);
 static void sockinfo(const struct sockaddr *, struct host_service *);
 static bool tcpdrop(const struct sockaddr *, const struct sockaddr *);
-static bool tcpdropall(void);
+static bool tcpdropall(const char *, int);
 static bool tcpdropbyname(const char *, const char *, const char *,
     const char *);
 static bool tcpdropconn(const struct in_conninfo *);
@@ -66,19 +66,34 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
+	char stack[TCP_FUNCTION_NAME_LEN_MAX];
 	char *lport, *fport;
-	bool dropall;
-	int ch;
+	bool dropall, dropallstack;
+	int ch, state;
 
 	dropall = false;
+	dropallstack = false;
+	stack[0] = '\0';
+	state = -1;
 
-	while ((ch = getopt(argc, argv, "al")) != -1) {
+	while ((ch = getopt(argc, argv, "alS:s:")) != -1) {
 		switch (ch) {
 		case 'a':
 			dropall = true;
 			break;
 		case 'l':
 			tcpdrop_list_commands = true;
+			break;
+		case 'S':
+			dropallstack = true;
+			strlcpy(stack, optarg, sizeof(stack));
+			break;
+		case 's':
+			dropallstack = true;
+			for (state = 0; state < TCP_NSTATES; state++) {
+				if (strcmp(tcpstates[state], optarg) == 0)
+					break;
+			}
 			break;
 		default:
 			usage();
@@ -87,10 +102,16 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (dropall) {
+	if (state == TCP_NSTATES ||
+	    state == TCPS_CLOSED ||
+	    state == TCPS_LISTEN)
+		usage();
+	if (dropall && dropallstack)
+		usage();
+	if (dropall || dropallstack) {
 		if (argc != 0)
 			usage();
-		if (!tcpdropall())
+		if (!tcpdropall(stack, state))
 			exit(1);
 		exit(0);
 	}
@@ -202,12 +223,11 @@ tcpdrop(const struct sockaddr *lsa, const struct sockaddr *fsa)
 }
 
 static bool
-tcpdropall(void)
+tcpdropall(const char *stack, int state)
 {
 	struct xinpgen *head, *xinp;
-	struct xtcpcb *xpcb;
-	struct tcpcb *tp;
-	struct inpcb *inp;
+	struct xtcpcb *xtp;
+	struct xinpcb *xip;
 	bool ok;
 
 	ok = true;
@@ -215,13 +235,12 @@ tcpdropall(void)
 	head = getxpcblist("net.inet.tcp.pcblist");
 
 #define	XINP_NEXT(xinp)							\
-	((struct xinpgen *)((uintptr_t)(xinp) + (xinp)->xig_len))
+	((struct xinpgen *)(uintptr_t)((uintptr_t)(xinp) + (xinp)->xig_len))
 
 	for (xinp = XINP_NEXT(head); xinp->xig_len > sizeof *xinp;
 	    xinp = XINP_NEXT(xinp)) {
-		xpcb = (struct xtcpcb *)xinp;
-		tp = &xpcb->xt_tp;
-		inp = &xpcb->xt_inp;
+		xtp = (struct xtcpcb *)xinp;
+		xip = &xtp->xt_inp;
 
 		/*
 		 * XXX
@@ -229,14 +248,23 @@ tcpdropall(void)
 		 */
 
 		/* Ignore PCBs which were freed during copyout.  */
-		if (inp->inp_gencnt > head->xig_gen)
+		if (xip->inp_gencnt > head->xig_gen)
 			continue;
 
 		/* Skip listening sockets.  */
-		if (tp->t_state == TCPS_LISTEN)
+		if (xtp->t_state == TCPS_LISTEN)
 			continue;
 
-		if (!tcpdropconn(&inp->inp_inc))
+		/* If requested, skip sockets not having the requested state. */
+		if ((state != -1) && (xtp->t_state != state))
+			continue;
+
+		/* If requested, skip sockets not having the requested stack. */
+		if (stack[0] != '\0' &&
+		    strncmp(xtp->xt_stack, stack, TCP_FUNCTION_NAME_LEN_MAX))
+			continue;
+
+		if (!tcpdropconn(&xip->inp_inc))
 			ok = false;
 	}
 	free(head);
@@ -323,7 +351,7 @@ tcpdropconn(const struct in_conninfo *inc)
 		    sizeof inc->inc6_faddr);
 		foreign = (struct sockaddr *)&sin6[TCPDROP_FOREIGN];
 	} else {
-		memset(&sin4[TCPDROP_LOCAL], 0, sizeof sin4[TCPDROP_LOCAL]);
+		memset(sin4, 0, sizeof sin4);
 
 		sin4[TCPDROP_LOCAL].sin_len = sizeof sin4[TCPDROP_LOCAL];
 		sin4[TCPDROP_LOCAL].sin_family = AF_INET;
@@ -350,6 +378,9 @@ usage(void)
 "usage: tcpdrop local-address local-port foreign-address foreign-port\n"
 "       tcpdrop local-address:local-port foreign-address:foreign-port\n"
 "       tcpdrop local-address.local-port foreign-address.foreign-port\n"
-"       tcpdrop [-l] -a\n");
+"       tcpdrop [-l] -a\n"
+"       tcpdrop [-l] -S stack\n"
+"       tcpdrop [-l] -s state\n"
+"       tcpdrop [-l] -S stack -s state\n");
 	exit(1);
 }

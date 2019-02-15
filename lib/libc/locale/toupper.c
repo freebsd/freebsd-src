@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -18,7 +20,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -45,9 +47,7 @@ __FBSDID("$FreeBSD$");
 #include "mblocal.h"
 
 __ct_rune_t
-___toupper_l(c, l)
-	__ct_rune_t c;
-	locale_t l;
+___toupper_l(__ct_rune_t c, locale_t l)
 {
 	size_t lim;
 	FIX_LOCALE(l);
@@ -74,8 +74,7 @@ ___toupper_l(c, l)
 	return(c);
 }
 __ct_rune_t
-___toupper(c)
-	__ct_rune_t c;
+___toupper(__ct_rune_t c)
 {
 	return ___toupper_l(c, __get_locale());
 }

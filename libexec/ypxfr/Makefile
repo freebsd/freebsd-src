@@ -7,7 +7,7 @@ SRCS=	yp_dblookup.c yp_dbwrite.c yp_error.c \
 	${GENSRCS}
 GENSRCS=yp.h yp_clnt.c ypxfr_clnt.c
 
-.PATH: ${.CURDIR}/../../usr.sbin/ypserv
+.PATH: ${SRCTOP}/usr.sbin/ypserv
 
 MAN=	ypxfr.8
 
@@ -16,12 +16,11 @@ CFLAGS+= -I.
 WARNS?=	2
 WFORMAT=0
 
-DPADD=	${LIBRPCSVC}
-LDADD=	-lrpcsvc
+LIBADD=	rpcsvc
 
 CLEANFILES= ${GENSRCS}
 
-RPCDIR= ${.CURDIR}/../../include/rpcsvc
+RPCDIR= ${SRCTOP}/include/rpcsvc
 RPCGEN=	RPCGEN_CPP=${CPP:Q} rpcgen -I -C
 
 ypxfr_clnt.c: ${RPCDIR}/yp.x

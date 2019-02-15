@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989 The Regents of the University of California.
  * All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -30,11 +32,8 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-/* from static char sccsid[] = "@(#)crypt.c	5.11 (Berkeley) 6/25/91"; */
-#endif /* LIBC_SCCS and not lint */
-
 #include <sys/cdefs.h>
+__SCCSID("@(#)crypt.c	5.11 (Berkeley) 6/25/91");
 __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
@@ -48,47 +47,41 @@ __FBSDID("$FreeBSD$");
  * encryption, make sure you've got libcrypt.a around.
  */
 
-__warn_references(des_setkey,
-	"WARNING!  des_setkey(3) not present in the system!");
-
 /* ARGSUSED */
 int
-des_setkey(const char *key __unused)
+__freebsd11_des_setkey(const char *key __unused)
 {
 	fprintf(stderr, "WARNING!  des_setkey(3) not present in the system!\n");
 	return (0);
 }
 
-__warn_references(des_cipher,
-	"WARNING!  des_cipher(3) not present in the system!");
-
 /* ARGSUSED */
 int
-des_cipher(const char *in, char *out, long salt __unused, int num_iter __unused)
+__freebsd11_des_cipher(const char *in, char *out, long salt __unused,
+    int num_iter __unused)
 {
 	fprintf(stderr, "WARNING!  des_cipher(3) not present in the system!\n");
 	bcopy(in, out, 8);
 	return (0);
 }
 
-__warn_references(setkey,
-	"WARNING!  setkey(3) not present in the system!");
-
 /* ARGSUSED */
 int
-setkey(const char *key __unused)
+__freebsd11_setkey(const char *key __unused)
 {
 	fprintf(stderr, "WARNING!  setkey(3) not present in the system!\n");
 	return (0);
 }
 
-__warn_references(encrypt,
-	"WARNING!  encrypt(3) not present in the system!");
-
 /* ARGSUSED */
 int
-encrypt(char *block __unused, int flag __unused)
+__freebsd11_encrypt(char *block __unused, int flag __unused)
 {
 	fprintf(stderr, "WARNING!  encrypt(3) not present in the system!\n");
 	return (0);
 }
+
+__sym_compat(des_setkey, __freebsd11_des_setkey, FBSD_1.0);
+__sym_compat(des_cipher, __freebsd11_des_cipher, FBSD_1.0);
+__sym_compat(setkey, __freebsd11_setkey, FBSD_1.0);
+__sym_compat(encrypt, __freebsd11_encrypt, FBSD_1.0);

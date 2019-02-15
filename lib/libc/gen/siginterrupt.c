@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,10 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)siginterrupt.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
+__SCCSID("@(#)siginterrupt.c	8.1 (Berkeley) 6/4/93");
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
@@ -43,14 +43,13 @@ __FBSDID("$FreeBSD$");
  * after an instance of the indicated signal.
  */
 int
-siginterrupt(sig, flag)
-	int sig, flag;
+siginterrupt(int sig, int flag)
 {
 	extern sigset_t _sigintr __hidden;
 	struct sigaction sa;
 	int ret;
 
-	if ((ret = _sigaction(sig, (struct sigaction *)0, &sa)) < 0)
+	if ((ret = __libc_sigaction(sig, (struct sigaction *)0, &sa)) < 0)
 		return (ret);
 	if (flag) {
 		sigaddset(&_sigintr, sig);
@@ -59,5 +58,5 @@ siginterrupt(sig, flag)
 		sigdelset(&_sigintr, sig);
 		sa.sa_flags |= SA_RESTART;
 	}
-	return (_sigaction(sig, &sa, (struct sigaction *)0));
+	return (__libc_sigaction(sig, &sa, (struct sigaction *)0));
 }

@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997-2006 Erez Zadok
+.\" Copyright (c) 1997-2014 Erez Zadok
 .\" Copyright (c) 1990 Jan-Simon Pendry
 .\" Copyright (c) 1990 Imperial College of Science, Technology & Medicine
 .\" Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgment:
-.\"      This product includes software developed by the University of
-.\"      California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -36,12 +32,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	%W% (Berkeley) %G%
 .\"
-.\" $Id: amq.8,v 1.15.2.1 2006/01/02 18:48:24 ezk Exp $
+.\" File: am-utils/amq/amq.8
 .\" $FreeBSD$
 .\"
-.Dd January 2, 2006
+.Dd August 31, 2016
 .Dt AMQ 8
 .Os
 .Sh NAME
@@ -49,7 +44,7 @@
 .Nd automounter query tool
 .Sh SYNOPSIS
 .Nm
-.Op Fl fmpsvwHTU
+.Op Fl fimpqsvwHTU
 .Op Fl h Ar hostname
 .Op Fl l Ar log_file
 .Op Fl x Ar log_options
@@ -57,6 +52,13 @@
 .Op Fl P Ar program_number
 .Op Oo Fl u Oc Ar directory ...
 .Sh DESCRIPTION
+.Bf -symbolic
+This command is obsolete.
+Users are advised to use
+.Xr autofs 5
+instead.
+.Ef
+.Pp
 The
 .Nm
 utility
@@ -89,6 +91,10 @@ an
 .Tn HP-UX
 cluster, the root server is queried by default, since that is the system on
 which the automounter is normally run.
+.TP
+.It Fl i
+Print information about the mount maps.
+.TP
 .It Fl l Ar log_file
 Tell
 .Xr amd 8
@@ -119,6 +125,13 @@ search through the process table.
 This option is used in the
 .Pa ctl-amd
 script.
+.TP
+.It Fl q
+Suppress error messages produced when attempting synchronous unmounts
+with the
+.B \-u
+option.
+.TP
 .It Fl s
 Ask the automounter to provide system-wide mount statistics.
 .It Fl u
@@ -131,9 +144,19 @@ They merely
 cause the mounted file system to timeout, which will be picked up by
 .Nm amd Ns 's
 main scheduler thus causing the normal timeout action to be taken.
+If the
+.B \-u
+option is repeated,
+.B amq
+will attempt to unmount the file system synchronously by waiting until
+the timeout action is taken and returning an error if the unmount
+fails.
+Any error messages produced may be suppressed with the
+.B \-q
+option.
+.TP
 .It Fl v
-Ask the automounter for its version information.
-This is a subset of the
+Ask the automounter for its version information.  This is a subset of the
 information output by
 .Xr amd 8 Ns 's
 .Fl v
@@ -150,8 +173,10 @@ is running.
 .It Fl x Ar log_options
 Ask the automounter to use the logging options specified in
 .Ar log_options
-from now on.
+from now on.  Note that the "fatal" and "error" options cannot be turned
+off.
 .It Fl D Ar debug_options
+.BI \-D " debug_options"
 Ask the automounter to use the debugging options specified in
 .Ar debug_options
 from now on.
@@ -237,11 +262,13 @@ add this line to
 and this line to
 .Pa /etc/hosts.deny :
 .Pp
+.RS
 .Dl "amd: ALL"
 .Sh SEE ALSO
 .Xr amd.conf 5 ,
-.Xr hosts_access 5 ,
-.Xr amd 8
+.Xr hosts_access 5 .
+.Xr amd 8 ,
+.\" .Xr ctl-amd 8 ,
 .Pp
 .Dq am-utils
 .Xr info 1

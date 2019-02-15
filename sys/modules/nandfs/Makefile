@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../fs/nandfs
+.PATH: ${SRCTOP}/sys/fs/nandfs
 
 KMOD=	nandfs
 SRCS=	vnode_if.h opt_ddb.h \

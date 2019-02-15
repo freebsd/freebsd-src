@@ -2,7 +2,7 @@
                Subversion, a version control system.
                =====================================
 
-$LastChangedDate: 2012-02-10 14:58:53 +0000 (Fri, 10 Feb 2012) $
+$LastChangedDate: 2016-05-31 14:07:51 +0000 (Tue, 31 May 2016) $
 
 Contents:
 
@@ -36,10 +36,10 @@ II.   DOCUMENTATION
 
       It is written in DocBook XML, and the sources can be found at:
 
-         http://svnbook.googlecode.com/svn/trunk/
+         http://svn.code.sf.net/p/svnbook/source/trunk/
          
       If you wish to build the documentation from source, read the
-      src/en/README file within the book source.
+      en/README file within the book source.
 
 
 

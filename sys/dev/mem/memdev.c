@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Mark R V Murray
  * All rights reserved.
  *
@@ -52,7 +54,7 @@ static struct cdev *memdev, *kmemdev;
 
 static struct cdevsw mem_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_MEM|D_NEEDGIANT,
+	.d_flags =	D_MEM,
 	.d_open =	memopen,
 	.d_read =	memrw,
 	.d_write =	memrw,

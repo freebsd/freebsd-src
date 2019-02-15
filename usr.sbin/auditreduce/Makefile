@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-OPENBSMDIR=${.CURDIR}/../../contrib/openbsm
+OPENBSMDIR=${SRCTOP}/contrib/openbsm
 .PATH: ${OPENBSMDIR}/bin/auditreduce
 
 CFLAGS+=	-I${OPENBSMDIR}
@@ -10,8 +10,7 @@ CFLAGS+=	-I${OPENBSMDIR}
 PROG=	auditreduce
 MAN=	auditreduce.1
 
-DPADD=	${LIBBSM}
-LDADD=	-lbsm
+LIBADD=	bsm
 
 WARNS?=	3
 

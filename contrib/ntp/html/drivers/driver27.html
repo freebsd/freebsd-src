@@ -11,6 +11,9 @@
 
 	<body>
 		<h3>Arcron MSF Receiver</h3>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->21-Oct-2010  23:44<!-- #EndDate -->
+  UTC</p>
 		<hr>
 		<h4>Synopsis</h4>
 		<p>Address: 127.127.27.<i>u</i><br>
@@ -46,7 +49,6 @@
 		<dl>
 			<dt><tt>g</tt> CR
 			<dd>Request for signal quality. Answer only valid during (late part of) resync to MSF signal. The response consists of two characters as follows:
-				<ol>
 					<dl compact>
 						<dt>bit 7
 						<dd>parity
@@ -79,7 +81,6 @@
 						<dt>bit 2--0
 						<dd>reception signal quality in the range 0--5 (very poor to very good); if in the range 0--2 no successful reception is to be expected. The reported value drops to zero when not resyncing, ie when first returned byte is not `3'.
 					</dl>
-				</ol>
 			<dt><tt>h</tt> CR
 			<dd>Request to resync to signal. Can take up from about 30s to 360s. Drains batteries so should not be used excessively. After this the clock time and date should be correct and the phase within 20ms of time as transmitted from the source signal (remember to allow for propagation time). By default the clock resyncs once per day in the late evening/early morning (presumably to catch transitions to/from daylight saving time quickly). This driver code, by default, resyncs at least once per hour to minimise clock wander.
 			<dt><tt>o</tt> CR

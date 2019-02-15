@@ -1,14 +1,7 @@
-/*
- * Copyright 2011 Freescale Semiconductor, Inc.
- * Copyright 2011 Linaro Ltd.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2011 Freescale Semiconductor, Inc.
+// Copyright 2011 Linaro Ltd.
 
 /dts-v1/;
 
@@ -20,27 +13,23 @@
 };
 
 &iomuxc {
-	i2c1 {
-		/* open drain */
-		pinctrl_i2c1_qsrb: i2c1grp-1 {
+	imx53-qsrb {
+		pinctrl_pmic: pmicgrp {
 			fsl,pins = <
-				MX53_PAD_CSI0_DAT8__I2C1_SDA      0x400001ec
-				MX53_PAD_CSI0_DAT9__I2C1_SCL      0x400001ec
+				MX53_PAD_CSI0_DAT5__GPIO5_23	0x1c4 /* IRQ */
 			>;
 		};
 	};
 };
 
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c1_qsrb>;
-	status = "okay";
-
 	pmic: mc34708@8 {
 		compatible = "fsl,mc34708";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pmic>;
 		reg = <0x08>;
 		interrupt-parent = <&gpio5>;
-		interrupts = <23 0x8>;
+		interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
 		regulators {
 			sw1_reg: sw1a {
 				regulator-name = "SW1";
@@ -132,10 +121,8 @@
 
 			vdac_reg: vdac {
 				regulator-name = "VDAC";
-				regulator-min-microvolt = <2500000>;
-				regulator-max-microvolt = <2775000>;
-				regulator-boot-on;
-				regulator-always-on;
+				regulator-min-microvolt = <2750000>;
+				regulator-max-microvolt = <2750000>;
 			};
 
 			vgen1_reg: vgen1 {
@@ -155,4 +142,8 @@
 			};
 		};
 	};
+};
+
+&tve {
+	dac-supply = <&vdac_reg>;
 };

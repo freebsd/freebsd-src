@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../security/mac_test
+.PATH: ${SRCTOP}/sys/security/mac_test
 
 KMOD=	mac_test
 SRCS=	vnode_if.h \

@@ -1,6 +1,8 @@
 /*	$OpenBSD: dispatch.c,v 1.31 2004/09/21 04:07:03 david Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 2004 Henning Brauer <henning@openbsd.org>
  * Copyright (c) 1995, 1996, 1997, 1998, 1999
  * The Internet Software Consortium.   All rights reserved.
@@ -43,15 +45,20 @@
 __FBSDID("$FreeBSD$");
 
 #include "dhcpd.h"
+#include "privsep.h"
 
 #include <sys/ioctl.h>
 
+#include <assert.h>
 #include <net/if_media.h>
 #include <ifaddrs.h>
 #include <poll.h>
 
-struct protocol *protocols;
-struct timeout *timeouts;
+/* Assert that pointer p is aligned to at least align bytes */
+#define assert_aligned(p, align) assert((((uintptr_t)p) & ((align) - 1)) == 0)
+
+static struct protocol *protocols;
+static struct timeout *timeouts;
 static struct timeout *free_timeouts;
 static int interfaces_invalidated;
 void (*bootp_packet_handler)(struct interface_info *,
@@ -70,7 +77,6 @@ void
 discover_interfaces(struct interface_info *iface)
 {
 	struct ifaddrs *ifap, *ifa;
-	struct sockaddr_in foo;
 	struct ifreq *tif;
 
 	if (getifaddrs(&ifap) != 0)
@@ -90,8 +96,22 @@ discover_interfaces(struct interface_info *iface)
 		 * and record it in a linked list.
 		 */
 		if (ifa->ifa_addr->sa_family == AF_LINK) {
-			struct sockaddr_dl *foo =
-			    (struct sockaddr_dl *)ifa->ifa_addr;
+			struct sockaddr_dl *foo;
+
+			/* 
+			 * The implementation of getifaddrs should guarantee
+			 * this alignment
+			 */
+			assert_aligned(ifa->ifa_addr,
+				       _Alignof(struct sockaddr_dl));
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcast-align"
+#endif
+			foo = (struct sockaddr_dl *)ifa->ifa_addr;
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 			iface->index = foo->sdl_index;
 			iface->hw_address.hlen = foo->sdl_alen;
@@ -99,14 +119,15 @@ discover_interfaces(struct interface_info *iface)
 			memcpy(iface->hw_address.haddr,
 			    LLADDR(foo), foo->sdl_alen);
 		} else if (ifa->ifa_addr->sa_family == AF_INET) {
+			struct sockaddr_in foo;
 			struct iaddr addr;
 
 			memcpy(&foo, ifa->ifa_addr, sizeof(foo));
 			if (foo.sin_addr.s_addr == htonl(INADDR_LOOPBACK))
 				continue;
 			if (!iface->ifp) {
-				int len = IFNAMSIZ + ifa->ifa_addr->sa_len;
-				if ((tif = malloc(len)) == NULL)
+				if ((tif = calloc(1, sizeof(struct ifreq)))
+				    == NULL)
 					error("no space to remember ifp");
 				strlcpy(tif->ifr_name, ifa->ifa_name, IFNAMSIZ);
 				memcpy(&tif->ifr_addr, ifa->ifa_addr,
@@ -297,7 +318,8 @@ interface_status(struct interface_info *ifinfo)
 	memset(&ifr, 0, sizeof(ifr));
 	strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
 	if (ioctl(ifsock, SIOCGIFFLAGS, &ifr) < 0) {
-		syslog(LOG_ERR, "ioctl(SIOCGIFFLAGS) on %s: %m", ifname);
+		cap_syslog(capsyslog, LOG_ERR, "ioctl(SIOCGIFFLAGS) on %s: %m",
+		    ifname);
 		goto inactive;
 	}
 
@@ -315,9 +337,8 @@ interface_status(struct interface_info *ifinfo)
 	strlcpy(ifmr.ifm_name, ifname, sizeof(ifmr.ifm_name));
 	if (ioctl(ifsock, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
 		if (errno != EINVAL) {
-			syslog(LOG_DEBUG, "ioctl(SIOCGIFMEDIA) on %s: %m",
-			    ifname);
-
+			cap_syslog(capsyslog, LOG_DEBUG,
+			    "ioctl(SIOCGIFMEDIA) on %s: %m", ifname);
 			ifinfo->noifmedia = 1;
 			goto active;
 		}
@@ -434,7 +455,7 @@ cancel_timeout(void (*where)(void *), void *what)
 
 /* Add a protocol to the list of protocols... */
 void
-add_protocol(char *name, int fd, void (*handler)(struct protocol *),
+add_protocol(const char *name, int fd, void (*handler)(struct protocol *),
     void *local)
 {
 	struct protocol *p;
@@ -453,16 +474,12 @@ add_protocol(char *name, int fd, void (*handler)(struct protocol *),
 void
 remove_protocol(struct protocol *proto)
 {
-	struct protocol *p, *next, *prev;
+	struct protocol *p, *next;
 
-	prev = NULL;
 	for (p = protocols; p; p = next) {
 		next = p->next;
 		if (p == proto) {
-			if (prev)
-				prev->next = p->next;
-			else
-				protocols = p->next;
+			protocols = p->next;
 			free(p);
 		}
 	}
@@ -482,8 +499,8 @@ interface_link_status(char *ifname)
 	if (ioctl(sock, SIOCGIFMEDIA, (caddr_t)&ifmr) == -1) {
 		/* EINVAL -> link state unknown. treat as active */
 		if (errno != EINVAL)
-			syslog(LOG_DEBUG, "ioctl(SIOCGIFMEDIA) on %s: %m",
-			    ifname);
+			cap_syslog(capsyslog, LOG_DEBUG,
+			    "ioctl(SIOCGIFMEDIA) on %s: %m", ifname);
 		close(sock);
 		return (1);
 	}
@@ -500,4 +517,59 @@ interface_link_status(char *ifname)
 		}
 	}
 	return (1);
+}
+
+void
+interface_set_mtu_unpriv(int privfd, u_int16_t mtu)
+{
+	struct imsg_hdr hdr;
+	struct buf *buf;
+	int errs = 0;
+
+	hdr.code = IMSG_SET_INTERFACE_MTU;
+	hdr.len = sizeof(hdr) +
+		sizeof(u_int16_t);
+
+	if ((buf = buf_open(hdr.len)) == NULL)
+		error("buf_open: %m");
+
+	errs += buf_add(buf, &hdr, sizeof(hdr));
+	errs += buf_add(buf, &mtu, sizeof(mtu));
+	if (errs)
+		error("buf_add: %m");
+	
+	if (buf_close(privfd, buf) == -1)
+		error("buf_close: %m");
+}
+
+void
+interface_set_mtu_priv(char *ifname, u_int16_t mtu)
+{
+	struct ifreq ifr;
+	int sock;
+	u_int16_t old_mtu;
+
+	if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
+		error("Can't create socket");
+
+	memset(&ifr, 0, sizeof(ifr));
+	old_mtu = 0;
+
+	strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+
+	if (ioctl(sock, SIOCGIFMTU, (caddr_t)&ifr) == -1)
+		warning("SIOCGIFMTU failed (%s): %s", ifname,
+			strerror(errno));
+	else
+		old_mtu = ifr.ifr_mtu;
+
+	if (mtu != old_mtu) {
+		ifr.ifr_mtu = mtu;
+
+		if (ioctl(sock, SIOCSIFMTU, &ifr) == -1)
+			warning("SIOCSIFMTU failed (%d): %s", mtu,
+				strerror(errno));
+	}
+
+	close(sock);
 }

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -129,11 +131,23 @@ typedef	__pid_t		pid_t;
 #define	O_CLOEXEC	0x00100000
 #endif
 
+#if __BSD_VISIBLE
+#define	O_VERIFY	0x00200000	/* open only after verification */
+#define	O_BENEATH	0x00400000	/* Fail if not under cwd */
+#endif
+
 /*
  * XXX missing O_DSYNC, O_RSYNC.
  */
 
 #ifdef _KERNEL
+
+/* Only for devfs d_close() flags. */
+#define	FLASTCLOSE	O_DIRECTORY
+#define	FREVOKE		O_VERIFY
+/* Only for fo_close() from half-succeeded open */
+#define	FOPENFAILED	O_TTY_INIT
+
 /* convert from open() flags to/from fflags; convert O_RD/WR to FREAD/FWRITE */
 #define	FFLAGS(oflags)	((oflags) & O_EXEC ? (oflags) : (oflags) + 1)
 #define	OFLAGS(fflags)	((fflags) & O_EXEC ? (fflags) : (fflags) - 1)
@@ -193,10 +207,12 @@ typedef	__pid_t		pid_t;
 /*
  * Miscellaneous flags for the *at() syscalls.
  */
-#define	AT_EACCESS		0x100	/* Check access using effective user and group ID */
-#define	AT_SYMLINK_NOFOLLOW	0x200   /* Do not follow symbolic links */
-#define	AT_SYMLINK_FOLLOW	0x400	/* Follow symbolic link */
-#define	AT_REMOVEDIR		0x800	/* Remove directory instead of file */
+#define	AT_EACCESS		0x0100	/* Check access using effective user
+					   and group ID */
+#define	AT_SYMLINK_NOFOLLOW	0x0200	/* Do not follow symbolic links */
+#define	AT_SYMLINK_FOLLOW	0x0400	/* Follow symbolic link */
+#define	AT_REMOVEDIR		0x0800	/* Remove directory instead of file */
+#define	AT_BENEATH		0x1000	/* Fail if not under dirfd */
 #endif
 
 /*

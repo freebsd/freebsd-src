@@ -23,14 +23,11 @@
 # SUCH DAMAGE.
 #
 
-.PATH: ${.CURDIR}/../../../dev/virtio/pci
+.PATH: ${SRCTOP}/sys/dev/virtio/pci
 
 KMOD=	virtio_pci
 SRCS=	virtio_pci.c
 SRCS+=	virtio_bus_if.h virtio_if.h 
 SRCS+=	bus_if.h device_if.h pci_if.h
-
-MFILES=	kern/bus_if.m kern/device_if.m dev/pci/pci_if.m \
-	dev/virtio/virtio_bus_if.m dev/virtio/virtio_if.m
 
 .include <bsd.kmod.mk>

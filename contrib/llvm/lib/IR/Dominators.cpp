@@ -14,30 +14,28 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Analysis/Dominators.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/Analysis/DominatorInternals.h"
-#include "llvm/Assembly/Writer.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/Support/CFG.h"
+#include "llvm/IR/PassManager.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/GenericDomTreeConstruction.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 using namespace llvm;
 
 // Always verify dominfo if expensive checking is enabled.
-#ifdef XDEBUG
-static bool VerifyDomInfo = true;
+#ifdef EXPENSIVE_CHECKS
+bool llvm::VerifyDomInfo = true;
 #else
-static bool VerifyDomInfo = false;
+bool llvm::VerifyDomInfo = false;
 #endif
-static cl::opt<bool,true>
-VerifyDomInfoX("verify-dom-info", cl::location(VerifyDomInfo),
-               cl::desc("Verify dominator info (time consuming)"));
+static cl::opt<bool, true>
+    VerifyDomInfoX("verify-dom-info", cl::location(VerifyDomInfo), cl::Hidden,
+                   cl::desc("Verify dominator info (time consuming)"));
 
 bool BasicBlockEdge::isSingleEdge() const {
   const TerminatorInst *TI = Start->getTerminator();
@@ -57,40 +55,49 @@ bool BasicBlockEdge::isSingleEdge() const {
 //===----------------------------------------------------------------------===//
 //
 // Provide public access to DominatorTree information.  Implementation details
-// can be found in DominatorInternals.h.
+// can be found in Dominators.h, GenericDomTree.h, and
+// GenericDomTreeConstruction.h.
 //
 //===----------------------------------------------------------------------===//
 
-TEMPLATE_INSTANTIATION(class llvm::DomTreeNodeBase<BasicBlock>);
-TEMPLATE_INSTANTIATION(class llvm::DominatorTreeBase<BasicBlock>);
+template class llvm::DomTreeNodeBase<BasicBlock>;
+template class llvm::DominatorTreeBase<BasicBlock, false>; // DomTreeBase
+template class llvm::DominatorTreeBase<BasicBlock, true>; // PostDomTreeBase
 
-char DominatorTree::ID = 0;
-INITIALIZE_PASS(DominatorTree, "domtree",
-                "Dominator Tree Construction", true, true)
+template struct llvm::DomTreeBuilder::Update<BasicBlock *>;
 
-bool DominatorTree::runOnFunction(Function &F) {
-  DT->recalculate(F);
-  return false;
-}
+template void llvm::DomTreeBuilder::Calculate<DomTreeBuilder::BBDomTree>(
+    DomTreeBuilder::BBDomTree &DT);
+template void llvm::DomTreeBuilder::Calculate<DomTreeBuilder::BBPostDomTree>(
+    DomTreeBuilder::BBPostDomTree &DT);
 
-void DominatorTree::verifyAnalysis() const {
-  if (!VerifyDomInfo) return;
+template void llvm::DomTreeBuilder::InsertEdge<DomTreeBuilder::BBDomTree>(
+    DomTreeBuilder::BBDomTree &DT, BasicBlock *From, BasicBlock *To);
+template void llvm::DomTreeBuilder::InsertEdge<DomTreeBuilder::BBPostDomTree>(
+    DomTreeBuilder::BBPostDomTree &DT, BasicBlock *From, BasicBlock *To);
 
-  Function &F = *getRoot()->getParent();
+template void llvm::DomTreeBuilder::DeleteEdge<DomTreeBuilder::BBDomTree>(
+    DomTreeBuilder::BBDomTree &DT, BasicBlock *From, BasicBlock *To);
+template void llvm::DomTreeBuilder::DeleteEdge<DomTreeBuilder::BBPostDomTree>(
+    DomTreeBuilder::BBPostDomTree &DT, BasicBlock *From, BasicBlock *To);
 
-  DominatorTree OtherDT;
-  OtherDT.getBase().recalculate(F);
-  if (compare(OtherDT)) {
-    errs() << "DominatorTree is not up to date!\nComputed:\n";
-    print(errs());
-    errs() << "\nActual:\n";
-    OtherDT.print(errs());
-    abort();
-  }
-}
+template void llvm::DomTreeBuilder::ApplyUpdates<DomTreeBuilder::BBDomTree>(
+    DomTreeBuilder::BBDomTree &DT, DomTreeBuilder::BBUpdates);
+template void llvm::DomTreeBuilder::ApplyUpdates<DomTreeBuilder::BBPostDomTree>(
+    DomTreeBuilder::BBPostDomTree &DT, DomTreeBuilder::BBUpdates);
 
-void DominatorTree::print(raw_ostream &OS, const Module *) const {
-  DT->print(OS);
+template bool llvm::DomTreeBuilder::Verify<DomTreeBuilder::BBDomTree>(
+    const DomTreeBuilder::BBDomTree &DT);
+template bool llvm::DomTreeBuilder::Verify<DomTreeBuilder::BBPostDomTree>(
+    const DomTreeBuilder::BBPostDomTree &DT);
+
+bool DominatorTree::invalidate(Function &F, const PreservedAnalyses &PA,
+                               FunctionAnalysisManager::Invalidator &) {
+  // Check whether the analysis, all analyses on functions, or the function's
+  // CFG have been preserved.
+  auto PAC = PA.getChecker<DominatorTreeAnalysis>();
+  return !(PAC.preserved() || PAC.preservedSet<AllAnalysesOn<Function>>() ||
+           PAC.preservedSet<CFGAnalyses>());
 }
 
 // dominates - Return true if Def dominates a use in User. This performs
@@ -113,10 +120,10 @@ bool DominatorTree::dominates(const Instruction *Def,
   if (Def == User)
     return false;
 
-  // The value defined by an invoke dominates an instruction only if
-  // it dominates every instruction in UseBB.
-  // A PHI is dominated only if the instruction dominates every possible use
-  // in the UseBB.
+  // The value defined by an invoke dominates an instruction only if it
+  // dominates every instruction in UseBB.
+  // A PHI is dominated only if the instruction dominates every possible use in
+  // the UseBB.
   if (isa<InvokeInst>(Def) || isa<PHINode>(User))
     return dominates(Def, UseBB);
 
@@ -148,24 +155,19 @@ bool DominatorTree::dominates(const Instruction *Def,
   if (DefBB == UseBB)
     return false;
 
-  const InvokeInst *II = dyn_cast<InvokeInst>(Def);
-  if (!II)
-    return dominates(DefBB, UseBB);
-
   // Invoke results are only usable in the normal destination, not in the
   // exceptional destination.
-  BasicBlock *NormalDest = II->getNormalDest();
-  BasicBlockEdge E(DefBB, NormalDest);
-  return dominates(E, UseBB);
+  if (const auto *II = dyn_cast<InvokeInst>(Def)) {
+    BasicBlock *NormalDest = II->getNormalDest();
+    BasicBlockEdge E(DefBB, NormalDest);
+    return dominates(E, UseBB);
+  }
+
+  return dominates(DefBB, UseBB);
 }
 
 bool DominatorTree::dominates(const BasicBlockEdge &BBE,
                               const BasicBlock *UseBB) const {
-  // Assert that we have a single edge. We could handle them by simply
-  // returning false, but since isSingleEdge is linear on the number of
-  // edges, the callers can normally handle them more efficiently.
-  assert(BBE.isSingleEdge());
-
   // If the BB the edge ends in doesn't dominate the use BB, then the
   // edge also doesn't.
   const BasicBlock *Start = BBE.getStart();
@@ -198,11 +200,17 @@ bool DominatorTree::dominates(const BasicBlockEdge &BBE,
   // trivially dominates itself, so we only have to find if it dominates the
   // other predecessors. Since the only way out of X is via NormalDest, X can
   // only properly dominate a node if NormalDest dominates that node too.
+  int IsDuplicateEdge = 0;
   for (const_pred_iterator PI = pred_begin(End), E = pred_end(End);
        PI != E; ++PI) {
     const BasicBlock *BB = *PI;
-    if (BB == Start)
+    if (BB == Start) {
+      // If there are multiple edges between Start and End, by definition they
+      // can't dominate anything.
+      if (IsDuplicateEdge++)
+        return false;
       continue;
+    }
 
     if (!dominates(End, BB))
       return false;
@@ -210,13 +218,7 @@ bool DominatorTree::dominates(const BasicBlockEdge &BBE,
   return true;
 }
 
-bool DominatorTree::dominates(const BasicBlockEdge &BBE,
-                              const Use &U) const {
-  // Assert that we have a single edge. We could handle them by simply
-  // returning false, but since isSingleEdge is linear on the number of
-  // edges, the callers can normally handle them more efficiently.
-  assert(BBE.isSingleEdge());
-
+bool DominatorTree::dominates(const BasicBlockEdge &BBE, const Use &U) const {
   Instruction *UserInst = cast<Instruction>(U.getUser());
   // A PHI in the end of the edge is dominated by it.
   PHINode *PN = dyn_cast<PHINode>(UserInst);
@@ -234,8 +236,7 @@ bool DominatorTree::dominates(const BasicBlockEdge &BBE,
   return dominates(BBE, UseBB);
 }
 
-bool DominatorTree::dominates(const Instruction *Def,
-                              const Use &U) const {
+bool DominatorTree::dominates(const Instruction *Def, const Use &U) const {
   Instruction *UserInst = cast<Instruction>(U.getUser());
   const BasicBlock *DefBB = Def->getParent();
 
@@ -256,8 +257,8 @@ bool DominatorTree::dominates(const Instruction *Def,
   if (!isReachableFromEntry(DefBB))
     return false;
 
-  // Invoke instructions define their return values on the edges
-  // to their normal successors, so we have to handle them specially.
+  // Invoke instructions define their return values on the edges to their normal
+  // successors, so we have to handle them specially.
   // Among other things, this means they don't dominate anything in
   // their own block, except possibly a phi, so we don't need to
   // walk the block in any case.
@@ -300,3 +301,91 @@ bool DominatorTree::isReachableFromEntry(const Use &U) const {
   // Everything else uses their operands in their own block.
   return isReachableFromEntry(I->getParent());
 }
+
+void DominatorTree::verifyDomTree() const {
+  // Perform the expensive checks only when VerifyDomInfo is set.
+  if (VerifyDomInfo && !verify()) {
+    errs() << "\n~~~~~~~~~~~\n\t\tDomTree verification failed!\n~~~~~~~~~~~\n";
+    print(errs());
+    abort();
+  }
+
+  Function &F = *getRoot()->getParent();
+
+  DominatorTree OtherDT;
+  OtherDT.recalculate(F);
+  if (compare(OtherDT)) {
+    errs() << "DominatorTree for function " << F.getName()
+           << " is not up to date!\nComputed:\n";
+    print(errs());
+    errs() << "\nActual:\n";
+    OtherDT.print(errs());
+    errs() << "\nCFG:\n";
+    F.print(errs());
+    errs().flush();
+    abort();
+  }
+}
+
+//===----------------------------------------------------------------------===//
+//  DominatorTreeAnalysis and related pass implementations
+//===----------------------------------------------------------------------===//
+//
+// This implements the DominatorTreeAnalysis which is used with the new pass
+// manager. It also implements some methods from utility passes.
+//
+//===----------------------------------------------------------------------===//
+
+DominatorTree DominatorTreeAnalysis::run(Function &F,
+                                         FunctionAnalysisManager &) {
+  DominatorTree DT;
+  DT.recalculate(F);
+  return DT;
+}
+
+AnalysisKey DominatorTreeAnalysis::Key;
+
+DominatorTreePrinterPass::DominatorTreePrinterPass(raw_ostream &OS) : OS(OS) {}
+
+PreservedAnalyses DominatorTreePrinterPass::run(Function &F,
+                                                FunctionAnalysisManager &AM) {
+  OS << "DominatorTree for function: " << F.getName() << "\n";
+  AM.getResult<DominatorTreeAnalysis>(F).print(OS);
+
+  return PreservedAnalyses::all();
+}
+
+PreservedAnalyses DominatorTreeVerifierPass::run(Function &F,
+                                                 FunctionAnalysisManager &AM) {
+  AM.getResult<DominatorTreeAnalysis>(F).verifyDomTree();
+
+  return PreservedAnalyses::all();
+}
+
+//===----------------------------------------------------------------------===//
+//  DominatorTreeWrapperPass Implementation
+//===----------------------------------------------------------------------===//
+//
+// The implementation details of the wrapper pass that holds a DominatorTree
+// suitable for use with the legacy pass manager.
+//
+//===----------------------------------------------------------------------===//
+
+char DominatorTreeWrapperPass::ID = 0;
+INITIALIZE_PASS(DominatorTreeWrapperPass, "domtree",
+                "Dominator Tree Construction", true, true)
+
+bool DominatorTreeWrapperPass::runOnFunction(Function &F) {
+  DT.recalculate(F);
+  return false;
+}
+
+void DominatorTreeWrapperPass::verifyAnalysis() const {
+    if (VerifyDomInfo)
+      DT.verifyDomTree();
+}
+
+void DominatorTreeWrapperPass::print(raw_ostream &OS, const Module *) const {
+  DT.print(OS);
+}
+

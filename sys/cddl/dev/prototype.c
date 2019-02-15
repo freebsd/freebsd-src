@@ -39,16 +39,16 @@ static dtrace_pattr_t prototype_attr = {
 };
 
 static dtrace_pops_t prototype_pops = {
-	prototype_provide,
-	NULL,
-	prototype_enable,
-	prototype_disable,
-	NULL,
-	NULL,
-	prototype_getargdesc,
-	NULL,
-	NULL,
-	prototype_destroy
+	.dtps_provide =		prototype_provide,
+	.dtps_provide_module =	NULL,
+	.dtps_enable =		prototype_enable,
+	.dtps_disable =		prototype_disable,
+	.dtps_suspend =		NULL,
+	.dtps_resume =		NULL,
+	.dtps_getargdesc =	prototype_getargdesc,
+	.dtps_getargval =	NULL,
+	.dtps_usermode =	NULL,
+	.dtps_destroy =		prototype_destroy
 };
 
 static struct cdev		*prototype_cdev;

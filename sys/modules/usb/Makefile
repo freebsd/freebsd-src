@@ -25,7 +25,7 @@
 # SUCH DAMAGE.
 #
 
-SYSDIR?=${.CURDIR}/../..
+SYSDIR?=${SRCTOP}/sys
 .include "${SYSDIR}/conf/kern.opts.mk"
 
 #
@@ -44,15 +44,16 @@ MAKE+=" DEBUG_FLAGS+=-DUSB_REQ_DEBUG"
 # MK_SOURCELESS_UCODE option (see below).
 
 SUBDIR = usb
-SUBDIR += ${_dwc_otg} ehci ${_musb} ohci uhci xhci ${_uss820dci} ${_at91dci} \
+SUBDIR += ${_dwc_otg} ehci ${_musb} ohci uhci xhci ${_uss820dci} \
 	  ${_atmegadci} ${_avr32dci} ${_rsu} ${_rsufw} ${_saf1761otg}
 SUBDIR += ${_rum} ${_run} ${_runfw} ${_uath} upgt usie ural ${_zyd} ${_urtw} 
-SUBDIR += ${_urtwn} ${_urtwnfw}
-SUBDIR += atp uhid ukbd ums udbp ufm uep wsp uled
+SUBDIR += atp cfumass uhid uhid_snes ukbd ums udbp ufm uep wmt wsp ugold uled
 SUBDIR += ucom u3g uark ubsa ubser uchcom ucycom ufoma uftdi ugensa uipaq ulpt \
 	  umct umcs umodem umoscom uplcom uslcom uvisor uvscom
+SUBDIR += udl
 SUBDIR += uether aue axe axge cdce cue ${_kue} mos rue smsc udav uhso ipheth
-SUBDIR += urndis
+SUBDIR += muge
+SUBDIR += ure urndis
 SUBDIR += usfs umass urio
 SUBDIR += quirk template
 SUBDIR += ${_g_audio} ${_g_keyboard} ${_g_modem} ${_g_mouse}
@@ -69,12 +70,13 @@ _rum=		rum
 _uath=		uath
 _zyd=		zyd
 _kue=		kue
-_urtwn=		urtwn
-_urtwnfw=	urtwnfw
 _run=		run
-_runfw=		runfw
 _rsu=		rsu
+
+.if ${MACHINE_CPUARCH} != "mips"
 _rsufw=		rsufw
+_runfw=		runfw
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
@@ -82,7 +84,6 @@ _urtw=		urtw
 .endif
 
 .if ${MACHINE_CPUARCH} == "arm"
-_at91dci=	at91dci
 _atmegadci=	atmegadci
 _dwc_otg=	dwc_otg
 _musb=		musb

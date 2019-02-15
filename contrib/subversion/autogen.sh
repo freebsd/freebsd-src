@@ -23,6 +23,10 @@
 ### Run this to produce everything needed for configuration. ###
 
 
+# Some shells can produce output when running 'cd' which interferes
+# with the construct 'abs=`cd dir && pwd`'.
+(unset CDPATH) >/dev/null 2>&1 && unset CDPATH
+
 # Run tests to ensure that our build requirements are met
 RELEASE_MODE=""
 RELEASE_ARGS=""
@@ -59,7 +63,8 @@ done
 # ### APR's libtool. deferring to a second round of change...
 #
 
-libtoolize="`./build/PrintPath glibtoolize libtoolize libtoolize15`"
+# Much like APR except we do not prefer libtool 1 over libtool 2.
+libtoolize="`./build/PrintPath glibtoolize libtoolize glibtoolize1 libtoolize15 libtoolize14`"
 lt_major_version=`$libtoolize --version 2>/dev/null | sed -e 's/^[^0-9]*//' -e 's/\..*//' -e '/^$/d' -e 1q`
 
 if [ "x$libtoolize" = "x" ]; then
@@ -71,48 +76,80 @@ rm -f build/config.guess build/config.sub
 $libtoolize --copy --automake --force
 
 ltpath="`dirname $libtoolize`"
-ltfile=${LIBTOOL_M4-`cd $ltpath/../share/aclocal ; pwd`/libtool.m4}
 
-if [ ! -f $ltfile ]; then
-    echo "$ltfile not found (try setting the LIBTOOL_M4 environment variable)"
+if [ "x$LIBTOOL_M4" = "x" ]; then
+    ltm4_error='(try setting the LIBTOOL_M4 environment variable)'
+    if [ -d "$ltpath/../share/aclocal/." ]; then
+        ltm4=`cd "$ltpath/../share/aclocal" && pwd`
+    else
+        echo "Libtool helper path not found $ltm4_error"
+        echo "  expected at: '$ltpath/../share/aclocal'"
+        exit 1
+    fi
+else
+    ltm4_error="(the LIBTOOL_M4 environment variable is: $LIBTOOL_M4)"
+    ltm4="$LIBTOOL_M4"
+fi
+
+ltfile="$ltm4/libtool.m4"
+if [ ! -f "$ltfile" ]; then
+    echo "$ltfile not found $ltm4_error"
     exit 1
 fi
 
-echo "Copying libtool helper: $ltfile"
+echo "Copying libtool helper:  $ltfile"
 # An ancient helper might already be present from previous builds,
 # and it might be write-protected (e.g. mode 444, seen on FreeBSD).
 # This would cause cp to fail and print an error message, but leave
 # behind a potentially outdated libtool helper.  So, remove before
 # copying:
 rm -f build/libtool.m4
-cp $ltfile build/libtool.m4
+cp "$ltfile" build/libtool.m4
 
 for file in ltoptions.m4 ltsugar.m4 ltversion.m4 lt~obsolete.m4; do
     rm -f build/$file
 
     if [ $lt_major_version -ge 2 ]; then
-        ltfile=${LIBTOOL_M4-`cd $ltpath/../share/aclocal ; pwd`/$file}
+        ltfile="$ltm4/$file"
 
-        if [ ! -f $ltfile ]; then
-            echo "$ltfile not found (try setting the LIBTOOL_M4 environment variable)"
+        if [ ! -f "$ltfile" ]; then
+            echo "$ltfile not found $ltm4_error"
             exit 1
         fi
 
-        echo "Copying libtool helper: $ltfile"
-        cp $ltfile build/$file
+        echo "Copying libtool helper:  $ltfile"
+        cp "$ltfile" "build/$file"
     fi
 done
 
 if [ $lt_major_version -ge 2 ]; then
-    for file in config.guess config.sub; do
-        configfile=${LIBTOOL_CONFIG-`cd $ltpath/../share/libtool/config ; pwd`/$file}
+    if [ "x$LIBTOOL_CONFIG" = "x" ]; then
+        ltconfig_error='(try setting the LIBTOOL_CONFIG environment variable)'
+        if [ -d "$ltpath/../share/libtool/config/." ]; then
+            ltconfig=`cd "$ltpath/../share/libtool/config" && pwd`
+        elif [ -d "$ltpath/../share/libtool/build-aux/." ]; then
+            ltconfig=`cd "$ltpath/../share/libtool/build-aux" && pwd`
+        else
+            echo "Autoconf helper path not found $ltconfig_error"
+            echo "  expected at: '$ltpath/../share/libtool/config'"
+            echo "           or: '$ltpath/../share/libtool/build-aux'"
+            exit 1
+        fi
+    else
+        ltconfig_error="(the LIBTOOL_CONFIG environment variable is: $LIBTOOL_CONFIG)"
+        ltconfig="$LIBTOOL_CONFIG"
+    fi
 
-        if [ ! -f $configfile ]; then
-            echo "$configfile not found (try setting the LIBTOOL_CONFIG environment variable)"
+    for file in config.guess config.sub; do
+        configfile="$ltconfig/$file"
+
+        if [ ! -f "$configfile" ]; then
+            echo "$configfile not found $ltconfig_error"
             exit 1
         fi
 
-	cp $configfile build/$file
+        echo "Copying autoconf helper: $configfile"
+	cp "$configfile" build/$file
     done
 fi
 
@@ -120,11 +157,11 @@ fi
 #
 # Note: this dependency on Python is fine: only SVN developers use autogen.sh
 #       and we can state that dev people need Python on their machine. Note
-#       that running gen-make.py requires Python 2.5 or newer.
+#       that running gen-make.py requires Python 2.7 or newer.
 
 PYTHON="`./build/find_python.sh`"
 if test -z "$PYTHON"; then
-  echo "Python 2.5 or later is required to run autogen.sh"
+  echo "Python 2.7 or later is required to run autogen.sh"
   echo "If you have a suitable Python installed, but not on the"
   echo "PATH, set the environment variable PYTHON to the full path"
   echo "to the Python executable, and re-run autogen.sh"
@@ -168,7 +205,7 @@ fi
 echo "Creating svn_private_config.h.in..."
 ${AUTOHEADER:-autoheader}
 
-# If there's a config.cache file, we may need to delete it.  
+# If there's a config.cache file, we may need to delete it.
 # If we have an existing configure script, save a copy for comparison.
 if [ -f config.cache ] && [ -f configure ]; then
   cp configure configure.$$.tmp
@@ -203,7 +240,7 @@ echo "./configure --enable-maintainer-mode"
 echo "./configure --disable-shared"
 echo "./configure --enable-maintainer-mode --disable-shared"
 echo "./configure --disable-optimize --enable-debug"
-echo "./configure CUSERFLAGS='--flags-for-C' CXXUSERFLAGS='--flags-for-C++'"
+echo "./configure CFLAGS='--flags-for-C' CXXFLAGS='--flags-for-C++'"
 echo ""
 echo "Note:  If you wish to run a Subversion HTTP server, you will need"
 echo "Apache 2.x.  See the INSTALL file for details."

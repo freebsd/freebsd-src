@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * BSD LICENSE
  *
  * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
@@ -34,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/isci/isci.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 #include <machine/vmparam.h>
 #include <machine/pc/bios.h>
 #include <dev/isci/scil/scu_bios_definitions.h>

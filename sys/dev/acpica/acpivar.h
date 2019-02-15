@@ -36,6 +36,9 @@
 #include "acpi_if.h"
 #include "bus_if.h"
 #include <sys/eventhandler.h>
+#ifdef INTRNG
+#include <sys/intr.h>
+#endif
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -85,10 +88,21 @@ struct acpi_device {
     ACPI_HANDLE			ad_handle;
     void			*ad_private;
     int				ad_flags;
+    int				ad_cls_class;
 
     /* Resources */
     struct resource_list	ad_rl;
 };
+
+#ifdef INTRNG
+struct intr_map_data_acpi {
+	struct intr_map_data	hdr;
+	u_int			irq;
+	u_int			pol;
+	u_int			trig;
+};
+
+#endif
 
 /* Track device (/dev/{apm,apmctl} and /dev/acpi) notification status. */
 struct apm_clone_data {
@@ -185,7 +199,7 @@ extern struct mtx			acpi_mutex;
  * Various features and capabilities for the acpi_get_features() method.
  * In particular, these are used for the ACPI 3.0 _PDC and _OSC methods.
  * See the Intel document titled "Intel Processor Vendor-Specific ACPI",
- * number 302223-005.
+ * number 302223-007.
  */
 #define	ACPI_CAP_PERF_MSRS	(1 << 0)  /* Intel SpeedStep PERF_CTL MSRs */
 #define	ACPI_CAP_C1_IO_HALT	(1 << 1)  /* Intel C1 "IO then halt" sequence */
@@ -198,6 +212,9 @@ extern struct mtx			acpi_mutex;
 #define	ACPI_CAP_SMP_C1_NATIVE	(1 << 8)  /* MP C1 support other than halt */
 #define	ACPI_CAP_SMP_C3_NATIVE	(1 << 9)  /* MP C2 and C3 support */
 #define	ACPI_CAP_PX_HW_COORD	(1 << 11) /* Intel P-state HW coordination */
+#define	ACPI_CAP_INTR_CPPC	(1 << 12) /* Native Interrupt Handling for
+	     Collaborative Processor Performance Control notifications */
+#define	ACPI_CAP_HW_DUTY_C	(1 << 13) /* Hardware Duty Cycling */
 
 /*
  * Quirk flags.
@@ -297,20 +314,20 @@ void		acpi_EnterDebugger(void);
 	device_printf(dev, x);					\
 } while (0)
 
-/* Values for the device _STA (status) method. */
-#define ACPI_STA_PRESENT	(1 << 0)
-#define ACPI_STA_ENABLED	(1 << 1)
-#define ACPI_STA_SHOW_IN_UI	(1 << 2)
-#define ACPI_STA_FUNCTIONAL	(1 << 3)
-#define ACPI_STA_BATT_PRESENT	(1 << 4)
+/* Values for the first status word returned by _OSC. */
+#define	ACPI_OSC_FAILURE	(1 << 1)
+#define	ACPI_OSC_BAD_UUID	(1 << 2)
+#define	ACPI_OSC_BAD_REVISION	(1 << 3)
+#define	ACPI_OSC_CAPS_MASKED	(1 << 4)
 
 #define ACPI_DEVINFO_PRESENT(x, flags)					\
 	(((x) & (flags)) == (flags))
 #define ACPI_DEVICE_PRESENT(x)						\
-	ACPI_DEVINFO_PRESENT(x, ACPI_STA_PRESENT | ACPI_STA_FUNCTIONAL)
+	ACPI_DEVINFO_PRESENT(x, ACPI_STA_DEVICE_PRESENT |		\
+	    ACPI_STA_DEVICE_FUNCTIONING)
 #define ACPI_BATTERY_PRESENT(x)						\
-	ACPI_DEVINFO_PRESENT(x, ACPI_STA_PRESENT | ACPI_STA_FUNCTIONAL | \
-	    ACPI_STA_BATT_PRESENT)
+	ACPI_DEVINFO_PRESENT(x, ACPI_STA_DEVICE_PRESENT |		\
+	    ACPI_STA_DEVICE_FUNCTIONING | ACPI_STA_BATTERY_PRESENT)
 
 /* Callback function type for walking subtables within a table. */
 typedef void acpi_subtable_handler(ACPI_SUBTABLE_HEADER *, void *);
@@ -332,6 +349,13 @@ ACPI_STATUS	acpi_FindIndexedResource(ACPI_BUFFER *buf, int index,
 		    ACPI_RESOURCE **resp);
 ACPI_STATUS	acpi_AppendBufferResource(ACPI_BUFFER *buf,
 		    ACPI_RESOURCE *res);
+UINT8		acpi_DSMQuery(ACPI_HANDLE h, uint8_t *uuid, int revision);
+ACPI_STATUS	acpi_EvaluateDSM(ACPI_HANDLE handle, uint8_t *uuid,
+		    int revision, uint64_t function, union acpi_object *package,
+		    ACPI_BUFFER *out_buf);
+ACPI_STATUS	acpi_EvaluateOSC(ACPI_HANDLE handle, uint8_t *uuid,
+		    int revision, int count, uint32_t *caps_in,
+		    uint32_t *caps_out, bool query);
 ACPI_STATUS	acpi_OverrideInterruptLevel(UINT32 InterruptNumber);
 ACPI_STATUS	acpi_SetIntrModel(int model);
 int		acpi_ReqSleepState(struct acpi_softc *sc, int state);
@@ -347,7 +371,11 @@ int		acpi_bus_alloc_gas(device_t dev, int *type, int *rid,
 		    u_int flags);
 void		acpi_walk_subtables(void *first, void *end,
 		    acpi_subtable_handler *handler, void *arg);
-BOOLEAN		acpi_MatchHid(ACPI_HANDLE h, const char *hid);
+int		acpi_MatchHid(ACPI_HANDLE h, const char *hid);
+#define ACPI_MATCHHID_NOMATCH 0
+#define ACPI_MATCHHID_HID 1
+#define ACPI_MATCHHID_CID 2
+
 
 struct acpi_parse_resource_set {
     void	(*set_init)(device_t dev, void *arg, void **context);
@@ -380,7 +408,8 @@ ACPI_STATUS	acpi_lookup_irq_resource(device_t dev, int rid,
 ACPI_STATUS	acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
 		    struct acpi_parse_resource_set *set, void *arg);
 struct resource *acpi_alloc_sysres(device_t child, int type, int *rid,
-		    u_long start, u_long end, u_long count, u_int flags);
+		    rman_res_t start, rman_res_t end, rman_res_t count,
+		    u_int flags);
 
 /* ACPI event handling */
 UINT32		acpi_event_power_button_sleep(void *context);
@@ -437,6 +466,8 @@ int		acpi_wakeup_machdep(struct acpi_softc *sc, int state,
 int		acpi_table_quirks(int *quirks);
 int		acpi_machdep_quirks(int *quirks);
 
+uint32_t	hpet_get_uid(device_t dev);
+
 /* Battery Abstraction. */
 struct acpi_battinfo;
 
@@ -464,6 +495,8 @@ int		acpi_PkgInt32(ACPI_OBJECT *res, int idx, uint32_t *dst);
 int		acpi_PkgStr(ACPI_OBJECT *res, int idx, void *dst, size_t size);
 int		acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *type,
 		    int *rid, struct resource **dst, u_int flags);
+int		acpi_PkgFFH_IntelCpu(ACPI_OBJECT *res, int idx, int *vendor,
+		    int *class, uint64_t *address, int *accsize);
 ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
 
 /*
@@ -494,11 +527,10 @@ SYSCTL_DECL(_debug_acpi);
  *
  * Returns the VM domain ID if found, or -1 if not found / invalid.
  */
-#if MAXMEMDOM > 1
-extern	int acpi_map_pxm_to_vm_domainid(int pxm);
-#endif
-
-extern	int acpi_get_domain(device_t dev, device_t child, int *domain);
+int		acpi_map_pxm_to_vm_domainid(int pxm);
+int		acpi_get_cpus(device_t dev, device_t child, enum cpu_sets op,
+		    size_t setsize, cpuset_t *cpuset);
+int		acpi_get_domain(device_t dev, device_t child, int *domain);
 
 #endif /* _KERNEL */
 #endif /* !_ACPIVAR_H_ */

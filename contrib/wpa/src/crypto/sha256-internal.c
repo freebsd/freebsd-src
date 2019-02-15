@@ -28,6 +28,9 @@ int sha256_vector(size_t num_elem, const u8 *addr[], const size_t *len,
 	struct sha256_state ctx;
 	size_t i;
 
+	if (TEST_FAIL())
+		return -1;
+
 	sha256_init(&ctx);
 	for (i = 0; i < num_elem; i++)
 		if (sha256_process(&ctx, addr[i], len[i]))

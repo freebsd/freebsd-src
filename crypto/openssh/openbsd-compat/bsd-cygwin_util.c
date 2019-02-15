@@ -36,15 +36,16 @@
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdarg.h>
 
 #include "xmalloc.h"
 
-int 
+int
 binary_open(const char *filename, int flags, ...)
 {
 	va_list ap;
 	mode_t mode;
-	
+
 	va_start(ap, flags);
 	mode = va_arg(ap, mode_t);
 	va_end(ap);
@@ -55,6 +56,22 @@ int
 check_ntsec(const char *filename)
 {
 	return (pathconf(filename, _PC_POSIX_PERMISSIONS));
+}
+
+const char *
+cygwin_ssh_privsep_user()
+{
+  static char cyg_privsep_user[DNLEN + UNLEN + 2];
+
+  if (!cyg_privsep_user[0])
+    {
+#ifdef CW_CYGNAME_FROM_WINNAME
+      if (cygwin_internal (CW_CYGNAME_FROM_WINNAME, "sshd", cyg_privsep_user,
+			   sizeof cyg_privsep_user) != 0)
+#endif
+	strlcpy(cyg_privsep_user, "sshd", sizeof(cyg_privsep_user));
+    }
+  return cyg_privsep_user;
 }
 
 #define NL(x) x, (sizeof (x) - 1)

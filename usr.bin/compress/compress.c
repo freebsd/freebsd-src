@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -48,6 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -128,7 +131,7 @@ main(int argc, char *argv[])
 		exit (eval);
 	}
 
-	if (cat == 1 && argc > 1)
+	if (cat == 1 && style == COMPRESS && argc > 1)
 		errx(1, "the -c option permits only a single file argument");
 
 	for (; *argv; ++argv)
@@ -360,14 +363,14 @@ err:	if (ofp) {
 static void
 setfile(const char *name, struct stat *fs)
 {
-	static struct timeval tv[2];
+	static struct timespec tspec[2];
 
 	fs->st_mode &= S_ISUID|S_ISGID|S_IRWXU|S_IRWXG|S_IRWXO;
 
-	TIMESPEC_TO_TIMEVAL(&tv[0], &fs->st_atim);
-	TIMESPEC_TO_TIMEVAL(&tv[1], &fs->st_mtim);
-	if (utimes(name, tv))
-		cwarn("utimes: %s", name);
+	tspec[0] = fs->st_atim;
+	tspec[1] = fs->st_mtim;
+	if (utimensat(AT_FDCWD, name, tspec, 0))
+		cwarn("utimensat: %s", name);
 
 	/*
 	 * Changing the ownership probably won't succeed, unless we're root

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,10 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)assert.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
+__SCCSID("@(#)assert.c	8.1 (Berkeley) 6/4/93");
 __FBSDID("$FreeBSD$");
 
 #include <assert.h>
@@ -38,10 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 
 void
-__assert(func, file, line, failedexpr)
-	const char *func, *file;
-	int line;
-	const char *failedexpr;
+__assert(const char *func, const char *file, int line, const char *failedexpr)
 {
 	if (func == NULL)
 		(void)fprintf(stderr,

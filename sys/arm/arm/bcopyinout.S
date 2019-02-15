@@ -36,7 +36,7 @@
  */
 
 
-#include "assym.s"
+#include "assym.inc"
 
 #include <machine/asm.h>
 #include <sys/errno.h>
@@ -52,9 +52,9 @@ __FBSDID("$FreeBSD$");
 #else
 
 	.text
-	.align	0
+	.align	2
 
-#ifdef _ARM_ARCH_6
+#if __ARM_ARCH >= 6
 #define GET_PCB(tmp) \
 	mrc p15, 0, tmp, c13, c0, 4; \
 	add	tmp, tmp, #(TD_PCB)
@@ -67,9 +67,9 @@ __FBSDID("$FreeBSD$");
 #endif
 
 
-#define SAVE_REGS	stmfd	sp!, {r4-r11}
+#define SAVE_REGS	stmfd	sp!, {r4-r11}; _SAVE({r4-r11})
 #define RESTORE_REGS	ldmfd	sp!, {r4-r11}
-		
+
 #if defined(_ARM_ARCH_5E)
 #define HELLOCPP #
 #define PREFETCH(rx,o)	pld	[ rx , HELLOCPP (o) ]
@@ -88,10 +88,19 @@ __FBSDID("$FreeBSD$");
  * r4-r11 are scratch
  */
 ENTRY(copyin)
-	/* Quick exit if length is zero */	
+	/* Quick exit if length is zero */
 	teq	r2, #0
 	moveq	r0, #0
 	RETeq
+
+	adds	r3, r0, r2
+	movcs	r0, #EFAULT
+	RETc(cs)
+
+	ldr	r12, =(VM_MAXUSER_ADDRESS + 1)
+	cmp	r3, r12
+	movcs	r0, #EFAULT
+	RETc(cs)
 
 	ldr	r3, .L_arm_memcpy
 	ldr	r3, [r3]
@@ -326,10 +335,19 @@ END(copyin)
  */
 
 ENTRY(copyout)
-	/* Quick exit if length is zero */	
+	/* Quick exit if length is zero */
 	teq	r2, #0
 	moveq	r0, #0
 	RETeq
+
+	adds	r3, r1, r2
+	movcs	r0, #EFAULT
+	RETc(cs)
+
+	ldr	r12, =(VM_MAXUSER_ADDRESS + 1)
+	cmp	r3, r12
+	movcs	r0, #EFAULT
+	RETc(cs)
 
 	ldr	r3, .L_arm_memcpy
 	ldr	r3, [r3]
@@ -340,6 +358,7 @@ ENTRY(copyout)
 	cmp	r2, r3
 	blt	.Lnormale
 	stmfd	sp!, {r0-r2, r4, lr}
+	_SAVE({r0-r2, r4, lr})
 	mov     r3, r0
 	mov     r0, r1
 	mov     r1, r3

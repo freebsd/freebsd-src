@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
@@ -75,7 +77,7 @@ ata_cypress_probe(device_t dev)
 	pci_get_subclass(dev) == PCIS_STORAGE_IDE) {
 	device_set_desc(dev, "Cypress 82C693 ATA controller");
 	ctlr->chipinit = ata_cypress_chipinit;
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_LOW_PRIORITY);
     }
     return ENXIO;
 }

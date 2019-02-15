@@ -71,6 +71,14 @@ CODE {
 	{
 		return (ENOSYS);
 	}
+
+	static int
+	default_ioctl(struct g_part_table *table __unused, struct g_provider *pp __unused,
+	    u_long cmd __unused, void *data __unused, int fflag __unused,
+	    struct thread *td __unused)
+	{
+		return (ENOIOCTL);
+	}
 };
 
 # add() - scheme specific processing for the add verb.
@@ -119,6 +127,16 @@ METHOD void fullname {
 	struct sbuf *sb;
 	const char *pfx;
 } DEFAULT default_fullname;
+
+# ioctl() - implement historic ioctls, perhaps.
+METHOD int ioctl {
+	struct g_part_table *table;
+	struct g_provider *pp;
+	u_long cmd;
+	void *data;
+	int fflag;
+	struct thread *td;
+} DEFAULT default_ioctl;
 
 # modify() - scheme specific processing for the modify verb.
 METHOD int modify {
@@ -183,7 +201,7 @@ METHOD int setunset {
 };
 
 # type() - return a string representation of the partition type.
-# Preferrably, the alias names.
+# Preferably, the alias names.
 METHOD const char * type {
         struct g_part_table *table;
         struct g_part_entry *entry;

@@ -3,6 +3,8 @@
  * settings for the aic7xxx based adaptec SCSI controllers.  It can
  * also be used for 93C26 and 93C06 serial EEPROMS.
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994, 1995, 2000 Justin T. Gibbs.
  * All rights reserved.
  *

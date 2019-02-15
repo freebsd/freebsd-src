@@ -130,6 +130,7 @@ static int	vmxnet3_alloc_queue_data(struct vmxnet3_softc *);
 static void	vmxnet3_free_queue_data(struct vmxnet3_softc *);
 static int	vmxnet3_alloc_mcast_table(struct vmxnet3_softc *);
 static void	vmxnet3_init_shared_data(struct vmxnet3_softc *);
+static void	vmxnet3_init_hwassist(struct vmxnet3_softc *);
 static void	vmxnet3_reinit_interface(struct vmxnet3_softc *);
 static void	vmxnet3_reinit_rss_shared_data(struct vmxnet3_softc *);
 static void	vmxnet3_reinit_shared_data(struct vmxnet3_softc *);
@@ -510,6 +511,13 @@ vmxnet3_check_version(struct vmxnet3_softc *sc)
 	return (0);
 }
 
+static int
+trunc_powerof2(int val)
+{
+
+	return (1U << (fls(val) - 1));
+}
+
 static void
 vmxnet3_initial_config(struct vmxnet3_softc *sc)
 {
@@ -520,14 +528,14 @@ vmxnet3_initial_config(struct vmxnet3_softc *sc)
 		nqueue = VMXNET3_DEF_TX_QUEUES;
 	if (nqueue > mp_ncpus)
 		nqueue = mp_ncpus;
-	sc->vmx_max_ntxqueues = nqueue;
+	sc->vmx_max_ntxqueues = trunc_powerof2(nqueue);
 
 	nqueue = vmxnet3_tunable_int(sc, "rxnqueue", vmxnet3_default_rxnqueue);
 	if (nqueue > VMXNET3_MAX_RX_QUEUES || nqueue < 1)
 		nqueue = VMXNET3_DEF_RX_QUEUES;
 	if (nqueue > mp_ncpus)
 		nqueue = mp_ncpus;
-	sc->vmx_max_nrxqueues = nqueue;
+	sc->vmx_max_nrxqueues = trunc_powerof2(nqueue);
 
 	if (vmxnet3_tunable_int(sc, "mq_disable", vmxnet3_mq_disable)) {
 		sc->vmx_max_nrxqueues = 1;
@@ -1576,6 +1584,24 @@ vmxnet3_init_shared_data(struct vmxnet3_softc *sc)
 }
 
 static void
+vmxnet3_init_hwassist(struct vmxnet3_softc *sc)
+{
+	struct ifnet *ifp = sc->vmx_ifp;
+	uint64_t hwassist;
+
+	hwassist = 0;
+	if (ifp->if_capenable & IFCAP_TXCSUM)
+		hwassist |= VMXNET3_CSUM_OFFLOAD;
+	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
+		hwassist |= VMXNET3_CSUM_OFFLOAD_IPV6;
+	if (ifp->if_capenable & IFCAP_TSO4)
+		hwassist |= CSUM_IP_TSO;
+	if (ifp->if_capenable & IFCAP_TSO6)
+		hwassist |= CSUM_IP6_TSO;
+	ifp->if_hwassist = hwassist;
+}
+
+static void
 vmxnet3_reinit_interface(struct vmxnet3_softc *sc)
 {
 	struct ifnet *ifp;
@@ -1586,15 +1612,7 @@ vmxnet3_reinit_interface(struct vmxnet3_softc *sc)
 	bcopy(IF_LLADDR(sc->vmx_ifp), sc->vmx_lladdr, ETHER_ADDR_LEN);
 	vmxnet3_set_lladdr(sc);
 
-	ifp->if_hwassist = 0;
-	if (ifp->if_capenable & IFCAP_TXCSUM)
-		ifp->if_hwassist |= VMXNET3_CSUM_OFFLOAD;
-	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
-		ifp->if_hwassist |= VMXNET3_CSUM_OFFLOAD_IPV6;
-	if (ifp->if_capenable & IFCAP_TSO4)
-		ifp->if_hwassist |= CSUM_IP_TSO;
-	if (ifp->if_capenable & IFCAP_TSO6)
-		ifp->if_hwassist |= CSUM_IP6_TSO;
+	vmxnet3_init_hwassist(sc);
 }
 
 static void
@@ -2059,7 +2077,7 @@ vmxnet3_rxq_input(struct vmxnet3_rxqueue *rxq,
 	}
 #else
 	m->m_pkthdr.flowid = rxq->vxrxq_id;
-	m->m_flags |= M_FLOWID;
+	M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 #endif
 
 	if (!rxcd->no_csum)
@@ -2176,6 +2194,20 @@ vmxnet3_rxq_eof(struct vmxnet3_rxqueue *rxq)
 		} else {
 			KASSERT(rxd->btype == VMXNET3_BTYPE_BODY,
 			    ("%s: non start of frame w/o body buffer", __func__));
+
+			if (m_head == NULL && m_tail == NULL) {
+				/*
+				 * This is a continuation of a packet that we
+				 * started to drop, but could not drop entirely
+				 * because this segment was still owned by the
+				 * host.  So, drop the remainder now.
+				 */
+				vmxnet3_rxq_eof_discard(rxq, rxr, idx);
+				if (!rxcd->eop)
+					vmxnet3_rxq_discard_chain(rxq);
+				goto nextp;
+			}
+
 			KASSERT(m_head != NULL,
 			    ("%s: frame not started?", __func__));
 
@@ -3002,7 +3034,8 @@ vmxnet3_txq_mq_start(struct ifnet *ifp, struct mbuf *m)
 	sc = ifp->if_softc;
 	ntxq = sc->vmx_ntxqueues;
 
-	if (m->m_flags & M_FLOWID)
+	/* check if flowid is set */
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		i = m->m_pkthdr.flowid % ntxq;
 	else
 		i = curcpu % ntxq;
@@ -3140,7 +3173,7 @@ vmxnet3_set_rxfilter(struct vmxnet3_softc *sc)
 		int cnt = 0, overflow = 0;
 
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			else if (cnt == VMXNET3_MULTICAST_MAX) {
@@ -3276,6 +3309,8 @@ vmxnet3_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (reinit && (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			vmxnet3_init_locked(sc);
+		} else {
+			vmxnet3_init_hwassist(sc);
 		}
 
 		VMXNET3_CORE_UNLOCK(sc);
@@ -3450,14 +3485,15 @@ vmxnet3_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	sc = ifp->if_softc;
 
-	ifmr->ifm_active = IFM_ETHER | IFM_AUTO;
 	ifmr->ifm_status = IFM_AVALID;
+	ifmr->ifm_active = IFM_ETHER;
 
 	VMXNET3_CORE_LOCK(sc);
-	if (vmxnet3_link_is_up(sc) != 0)
+	if (vmxnet3_link_is_up(sc) != 0) {
 		ifmr->ifm_status |= IFM_ACTIVE;
-	else
-		ifmr->ifm_status |= IFM_NONE;
+		ifmr->ifm_active |= IFM_AUTO;
+	} else
+		ifmr->ifm_active |= IFM_NONE;
 	VMXNET3_CORE_UNLOCK(sc);
 }
 

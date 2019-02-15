@@ -119,7 +119,7 @@ archive_write_add_filter_gzip(struct archive *_a)
 	data->compression_level = Z_DEFAULT_COMPRESSION;
 	return (ARCHIVE_OK);
 #else
-	data->pdata = __archive_write_program_allocate();
+	data->pdata = __archive_write_program_allocate("gzip");
 	if (data->pdata == NULL) {
 		free(data);
 		archive_set_error(&a->archive, ENOMEM, "Out of memory");
@@ -226,7 +226,12 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 		data->compressed[7] = (uint8_t)(t>>24)&0xff;
 	} else
 		memset(&data->compressed[4], 0, 4);
-	data->compressed[8] = 0; /* No deflate options */
+    if (data->compression_level == 9)
+	    data->compressed[8] = 2;
+    else if(data->compression_level == 1)
+	    data->compressed[8] = 4;
+    else
+	    data->compressed[8] = 0;
 	data->compressed[9] = 3; /* OS=Unix */
 	data->stream.next_out += 10;
 	data->stream.avail_out -= 10;

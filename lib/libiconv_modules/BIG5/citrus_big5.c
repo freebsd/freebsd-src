@@ -28,6 +28,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -269,12 +271,12 @@ static int
 /*ARGSUSED*/
 _citrus_BIG5_mbrtowc_priv(_BIG5EncodingInfo * __restrict ei,
     wchar_t * __restrict pwc,
-    const char ** __restrict s, size_t n,
+    char ** __restrict s, size_t n,
     _BIG5State * __restrict psenc,
     size_t * __restrict nresult)
 {
 	wchar_t wchar;
-	const char *s0;
+	char *s0;
 	int c, chlenbak;
 
 	s0 = *s;

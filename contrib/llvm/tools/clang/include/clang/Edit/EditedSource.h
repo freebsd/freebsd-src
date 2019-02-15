@@ -10,11 +10,14 @@
 #ifndef LLVM_CLANG_EDIT_EDITEDSOURCE_H
 #define LLVM_CLANG_EDIT_EDITEDSOURCE_H
 
+#include "clang/Basic/IdentifierTable.h"
 #include "clang/Edit/FileOffset.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/Support/Allocator.h"
 #include <map>
+#include <tuple>
 
 namespace clang {
   class LangOptions;
@@ -28,7 +31,6 @@ class EditedSource {
   const SourceManager &SourceMgr;
   const LangOptions &LangOpts;
   const PPConditionalDirectiveRecord *PPRec;
-  const bool ForceCommitInSystemHeader;
 
   struct FileEdit {
     StringRef Text;
@@ -40,40 +42,46 @@ class EditedSource {
   typedef std::map<FileOffset, FileEdit> FileEditsTy;
   FileEditsTy FileEdits;
 
-  llvm::DenseMap<unsigned, SourceLocation> ExpansionToArgMap;
+  struct MacroArgUse {
+    IdentifierInfo *Identifier;
+    SourceLocation ImmediateExpansionLoc;
+    // Location of argument use inside the top-level macro
+    SourceLocation UseLoc;
 
+    bool operator==(const MacroArgUse &Other) const {
+      return std::tie(Identifier, ImmediateExpansionLoc, UseLoc) ==
+             std::tie(Other.Identifier, Other.ImmediateExpansionLoc,
+                      Other.UseLoc);
+    }
+  };
+
+  llvm::DenseMap<unsigned, SmallVector<MacroArgUse, 2>> ExpansionToArgMap;
+  SmallVector<std::pair<SourceLocation, MacroArgUse>, 2>
+    CurrCommitMacroArgExps;
+
+  IdentifierTable IdentTable;
   llvm::BumpPtrAllocator StrAlloc;
 
 public:
   EditedSource(const SourceManager &SM, const LangOptions &LangOpts,
-               const PPConditionalDirectiveRecord *PPRec = 0,
-               const bool FCommitInSystemHeader = true)
-    : SourceMgr(SM), LangOpts(LangOpts), PPRec(PPRec),
-      ForceCommitInSystemHeader(FCommitInSystemHeader),
-      StrAlloc(/*size=*/512) { }
+               const PPConditionalDirectiveRecord *PPRec = nullptr)
+    : SourceMgr(SM), LangOpts(LangOpts), PPRec(PPRec), IdentTable(LangOpts),
+      StrAlloc() { }
 
   const SourceManager &getSourceManager() const { return SourceMgr; }
   const LangOptions &getLangOpts() const { return LangOpts; }
   const PPConditionalDirectiveRecord *getPPCondDirectiveRecord() const {
     return PPRec;
   }
-  
-  bool getForceCommitInSystemHeader() const {
-    return ForceCommitInSystemHeader;
-  }
 
   bool canInsertInOffset(SourceLocation OrigLoc, FileOffset Offs);
 
   bool commit(const Commit &commit);
   
-  void applyRewrites(EditsReceiver &receiver);
+  void applyRewrites(EditsReceiver &receiver, bool adjustRemovals = true);
   void clearRewrites();
 
-  StringRef copyString(StringRef str) {
-    char *buf = StrAlloc.Allocate<char>(str.size());
-    std::memcpy(buf, str.data(), str.size());
-    return StringRef(buf, str.size());
-  }
+  StringRef copyString(StringRef str) { return str.copy(StrAlloc); }
   StringRef copyString(const Twine &twine);
 
 private:
@@ -87,6 +95,12 @@ private:
   StringRef getSourceText(FileOffset BeginOffs, FileOffset EndOffs,
                           bool &Invalid);
   FileEditsTy::iterator getActionForOffset(FileOffset Offs);
+  void deconstructMacroArgLoc(SourceLocation Loc,
+                              SourceLocation &ExpansionLoc,
+                              MacroArgUse &ArgUse);
+
+  void startingCommit();
+  void finishedCommit();
 };
 
 }

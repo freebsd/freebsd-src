@@ -1,6 +1,8 @@
 /*-
  * Inline routines shareable across OS platforms.
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994-2001 Justin T. Gibbs.
  * Copyright (c) 2000-2001 Adaptec Inc.
  * All rights reserved.
@@ -229,7 +231,7 @@ ahc_name(struct ahc_softc *ahc)
 	return (ahc->name);
 }
 
-/*********************** Miscelaneous Support Functions ***********************/
+/********************** Miscellaneous Support Functions ***********************/
 
 static __inline void	ahc_update_residual(struct ahc_softc *ahc,
 					    struct scb *scb);

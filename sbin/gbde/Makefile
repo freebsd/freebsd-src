@@ -1,10 +1,11 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 PROG=	gbde
 SRCS=	gbde.c template.c
 SRCS+=	rijndael-alg-fst.c
 SRCS+=	rijndael-api-fst.c
-SRCS+=	sha2.c
+SRCS+=	sha512c.c
 SRCS+=	g_bde_lock.c
 
 # rijndael-fst.c does evil casting things which can results in warnings,
@@ -12,16 +13,15 @@ SRCS+=	g_bde_lock.c
 NO_WCAST_ALIGN=
 NO_WMISSING_VARIABLE_DECLARATIONS=
 
-CFLAGS+= -I${.CURDIR}/../../sys
-.PATH:	${.CURDIR}/../../sys/geom/bde \
-	${.CURDIR}/../../sys/crypto/rijndael \
-	${.CURDIR}/../../sys/crypto/sha2
+CFLAGS+= -I${SRCTOP}/sys
+.PATH:	${SRCTOP}/sys/geom/bde \
+	${SRCTOP}/sys/crypto/rijndael \
+	${SRCTOP}/sys/crypto/sha2
 
 CLEANFILES+= template.c
 
 MAN=	gbde.8
-DPADD=	${LIBMD} ${LIBUTIL} ${LIBGEOM}
-LDADD=	-lmd -lutil -lgeom
+LIBADD=	md util geom
 
 template.c: template.txt
 	file2c 'const char template[] = {' ',0};' \

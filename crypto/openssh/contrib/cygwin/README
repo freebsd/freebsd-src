@@ -25,6 +25,7 @@ Options:
     --yes    -y            Answer all questions with "yes" automatically.
     --no     -n            Answer all questions with "no" automatically.
     --cygwin -c <options>  Use "options" as value for CYGWIN environment var.
+    --name   -N <name>     sshd windows service name.
     --port   -p <n>        sshd listens on port n.
     --user   -u <account>  privileged user for service, default 'cyg_server'.
     --pwd    -w <passwd>   Use "pwd" as password for privileged user.
@@ -69,7 +70,7 @@ Building OpenSSH
 Building from source is easy.  Just unpack the source archive, cd to that
 directory, and call cygport:
 
-	cygport openssh.cygport almostall
+	cygport openssh.cygport all
 
 You must have installed the following packages to be able to build OpenSSH
 with the aforementioned cygport script:
@@ -77,7 +78,6 @@ with the aforementioned cygport script:
   zlib
   crypt
   openssl-devel
-  libwrap-devel
   libedit-devel
   libkrb5-devel
 

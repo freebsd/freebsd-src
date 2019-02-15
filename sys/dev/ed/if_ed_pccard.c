@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005, M. Warner Losh
  * Copyright (c) 1995, David Greenman
  * All rights reserved.
@@ -509,8 +511,8 @@ ed_pccard_attach(device_t dev)
 	}
 	if (rman_get_size(sc->port_res) == ED_NOVELL_IO_PORTS / 2) {
 		port_rid++;
-		sc->port_res2 = bus_alloc_resource(dev, SYS_RES_IOPORT,
-		    &port_rid, 0ul, ~0ul, 1, RF_ACTIVE);
+		sc->port_res2 = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+		    &port_rid, RF_ACTIVE);
 		if (sc->port_res2 == NULL ||
 		    rman_get_size(sc->port_res2) != ED_NOVELL_IO_PORTS / 2) {
 			error = ENXIO;
@@ -1172,8 +1174,8 @@ ed_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	sc = ifp->if_softc;
 	ED_LOCK(sc);
 	if (sc->miibus == NULL) {
-		return;
 		ED_UNLOCK(sc);
+		return;
 	}
 
 	mii = device_get_softc(sc->miibus);
@@ -1248,3 +1250,4 @@ DRIVER_MODULE(ed, pccard, ed_pccard_driver, ed_devclass, 0, NULL);
 DRIVER_MODULE(miibus, ed, miibus_driver, miibus_devclass, 0, NULL);
 MODULE_DEPEND(ed, miibus, 1, 1, 1);
 MODULE_DEPEND(ed, ether, 1, 1, 1);
+PCCARD_PNP_INFO(ed_pccard_products);

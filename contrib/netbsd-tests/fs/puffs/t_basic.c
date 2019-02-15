@@ -1,4 +1,4 @@
-/*	$NetBSD: t_basic.c,v 1.12 2013/10/19 17:45:00 christos Exp $	*/
+/*	$NetBSD: t_basic.c,v 1.14 2017/01/13 21:30:40 christos Exp $	*/
 
 #include <sys/types.h>
 #include <sys/mount.h>
@@ -20,7 +20,7 @@
 #include <rump/rump.h>
 #include <rump/rump_syscalls.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 #include "../common/h_fsmacros.h"
 
 /*
@@ -286,7 +286,7 @@ ATF_TC_BODY(inactive_reclaim, tc)
 	rump_sys_close(fd);
 	syncbar(FSTEST_MNTNAME);
 
-	ATF_REQUIRE_EQ(pargs->pta_vn_toserv_ops[PUFFS_VN_INACTIVE], 1);
+	ATF_REQUIRE(pargs->pta_vn_toserv_ops[PUFFS_VN_INACTIVE] > 0);
 	ATF_REQUIRE_EQ(pargs->pta_vn_toserv_ops[PUFFS_VN_RECLAIM], 1);
 
 	FSTEST_EXIT();
@@ -383,7 +383,7 @@ ATF_TC_BODY(unlink_accessible, tc)
 	syncbar(FSTEST_MNTNAME);
 
 	ATF_REQUIRE_EQ(pargs->pta_vn_toserv_ops[PUFFS_VN_RECLAIM], 1);
-	ATF_REQUIRE_EQ(pargs->pta_vn_toserv_ops[PUFFS_VN_INACTIVE], ianow+1);
+	ATF_REQUIRE(pargs->pta_vn_toserv_ops[PUFFS_VN_INACTIVE] > ianow);
 
 	ATF_REQUIRE_STREQ(buf, MAGICSTR);
 

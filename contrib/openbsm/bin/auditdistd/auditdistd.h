@@ -25,8 +25,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/auditdistd.h#2 $
  */
 
 #ifndef	_AUDITDISTD_H_
@@ -249,6 +247,21 @@ struct adrep {
 	mtx_unlock(list##_lock);					\
 	if (_wakeup)							\
 		cv_signal(list##_cond);					\
+} while (0)
+#define	QUEUE_CONCAT2(tolist, fromlist1, fromlist2)	do {		\
+	bool _wakeup;							\
+									\
+	mtx_lock(tolist##_lock);					\
+	_wakeup = TAILQ_EMPTY(tolist);					\
+	mtx_lock(fromlist1##_lock);					\
+	TAILQ_CONCAT((tolist), (fromlist1), adr_next);			\
+	mtx_unlock(fromlist1##_lock);					\
+	mtx_lock(fromlist2##_lock);					\
+	TAILQ_CONCAT((tolist), (fromlist2), adr_next);			\
+	mtx_unlock(fromlist2##_lock);					\
+	mtx_unlock(tolist##_lock);					\
+	if (_wakeup)							\
+		cv_signal(tolist##_cond);				\
 } while (0)
 #define	QUEUE_WAIT(list)	do {					\
 	mtx_lock(list##_lock);						\

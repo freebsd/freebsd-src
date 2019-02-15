@@ -38,13 +38,13 @@ class RetainReleaseDeallocRemover :
   MigrationPass &Pass;
 
   ExprSet Removables;
-  OwningPtr<ParentMap> StmtMap;
+  std::unique_ptr<ParentMap> StmtMap;
 
   Selector DelegateSel, FinalizeSel;
 
 public:
   RetainReleaseDeallocRemover(MigrationPass &pass)
-    : Body(0), Pass(pass) {
+    : Body(nullptr), Pass(pass) {
     DelegateSel =
         Pass.Ctx.Selectors.getNullarySelector(&Pass.Ctx.Idents.get("delegate"));
     FinalizeSel =
@@ -70,7 +70,7 @@ public:
           // An unused autorelease is badness. If we remove it the receiver
           // will likely die immediately while previously it was kept alive
           // by the autorelease pool. This is bad practice in general, leave it
-          // and emit an error to force the user to restructure his code.
+          // and emit an error to force the user to restructure their code.
           Pass.TA.reportError("it is not safe to remove an unused 'autorelease' "
               "message; its receiver may be destroyed immediately",
               E->getLocStart(), E->getSourceRange());
@@ -78,6 +78,7 @@ public:
         }
       }
       // Pass through.
+      LLVM_FALLTHROUGH;
     case OMF_retain:
     case OMF_release:
       if (E->getReceiverKind() == ObjCMessageExpr::Instance)
@@ -145,16 +146,13 @@ public:
       // when an exception is thrown.
       Pass.TA.replace(RecContainer->getSourceRange(), RecRange);
       std::string str = " = ";
-      str += getNilString(Pass.Ctx);
+      str += getNilString(Pass);
       Pass.TA.insertAfterToken(RecRange.getEnd(), str);
       return true;
     }
 
-    if (!hasSideEffects(rec, Pass.Ctx)) {
-      if (tryRemoving(RecContainer))
-        return true;
-    }
-    Pass.TA.replace(RecContainer->getSourceRange(), RecRange);
+    if (hasSideEffects(rec, Pass.Ctx) || !tryRemoving(RecContainer))
+      Pass.TA.replace(RecContainer->getSourceRange(), RecRange);
 
     return true;
   }
@@ -174,11 +172,8 @@ private:
   ///   return var;
   ///
   bool isCommonUnusedAutorelease(ObjCMessageExpr *E) {
-    if (isPlusOneAssignBeforeOrAfterAutorelease(E))
-      return true;
-    if (isReturnedAfterAutorelease(E))
-      return true;
-    return false;
+    return isPlusOneAssignBeforeOrAfterAutorelease(E) ||
+           isReturnedAfterAutorelease(E);
   }
 
   bool isReturnedAfterAutorelease(ObjCMessageExpr *E) {
@@ -212,7 +207,7 @@ private:
       return false;
 
     Stmt *prevStmt, *nextStmt;
-    llvm::tie(prevStmt, nextStmt) = getPreviousAndNextStmt(E);
+    std::tie(prevStmt, nextStmt) = getPreviousAndNextStmt(E);
 
     return isPlusOneAssignToVar(prevStmt, RefD) ||
            isPlusOneAssignToVar(nextStmt, RefD);
@@ -225,11 +220,7 @@ private:
     // Check for "RefD = [+1 retained object];".
 
     if (BinaryOperator *Bop = dyn_cast<BinaryOperator>(S)) {
-      if (RefD != getReferencedDecl(Bop->getLHS()))
-        return false;
-      if (isPlusOneAssign(Bop))
-        return true;
-      return false;
+      return (RefD == getReferencedDecl(Bop->getLHS())) && isPlusOneAssign(Bop);
     }
 
     if (DeclStmt *DS = dyn_cast<DeclStmt>(S)) {
@@ -248,7 +239,7 @@ private:
   }
 
   std::pair<Stmt *, Stmt *> getPreviousAndNextStmt(Expr *E) {
-    Stmt *prevStmt = 0, *nextStmt = 0;
+    Stmt *prevStmt = nullptr, *nextStmt = nullptr;
     if (!E)
       return std::make_pair(prevStmt, nextStmt);
 
@@ -294,7 +285,7 @@ private:
 
   Decl *getReferencedDecl(Expr *E) {
     if (!E)
-      return 0;
+      return nullptr;
 
     E = E->IgnoreParenCasts();
     if (ObjCMessageExpr *ME = dyn_cast<ObjCMessageExpr>(E)) {
@@ -305,7 +296,7 @@ private:
       case OMF_retain:
         return getReferencedDecl(ME->getInstanceReceiver());
       default:
-        return 0;
+        return nullptr;
       }
     }
     if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E))
@@ -315,7 +306,7 @@ private:
     if (ObjCIvarRefExpr *IRE = dyn_cast<ObjCIvarRefExpr>(E))
       return IRE->getDecl();
 
-    return 0;
+    return nullptr;
   }
 
   /// \brief Check if the retain/release is due to a GCD/XPC macro that are
@@ -345,7 +336,7 @@ private:
     if (!isGCDOrXPC)
       return;
 
-    StmtExpr *StmtE = 0;
+    StmtExpr *StmtE = nullptr;
     Stmt *S = Msg;
     while (S) {
       if (StmtExpr *SE = dyn_cast<StmtExpr>(S)) {
@@ -359,16 +350,16 @@ private:
       return;
 
     Stmt::child_range StmtExprChild = StmtE->children();
-    if (!StmtExprChild)
+    if (StmtExprChild.begin() == StmtExprChild.end())
       return;
-    CompoundStmt *CompS = dyn_cast_or_null<CompoundStmt>(*StmtExprChild);
+    auto *CompS = dyn_cast_or_null<CompoundStmt>(*StmtExprChild.begin());
     if (!CompS)
       return;
 
     Stmt::child_range CompStmtChild = CompS->children();
-    if (!CompStmtChild)
+    if (CompStmtChild.begin() == CompStmtChild.end())
       return;
-    DeclStmt *DeclS = dyn_cast_or_null<DeclStmt>(*CompStmtChild);
+    auto *DeclS = dyn_cast_or_null<DeclStmt>(*CompStmtChild.begin());
     if (!DeclS)
       return;
     if (!DeclS->isSingleDecl())

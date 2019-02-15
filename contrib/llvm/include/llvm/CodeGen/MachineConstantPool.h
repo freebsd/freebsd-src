@@ -1,4 +1,4 @@
-//===-- CodeGen/MachineConstantPool.h - Abstract Constant Pool --*- C++ -*-===//
+//===- CodeGen/MachineConstantPool.h - Abstract Constant Pool ---*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -17,41 +17,34 @@
 #define LLVM_CODEGEN_MACHINECONSTANTPOOL_H
 
 #include "llvm/ADT/DenseSet.h"
-#include <cassert>
+#include "llvm/MC/SectionKind.h"
 #include <climits>
 #include <vector>
 
 namespace llvm {
 
 class Constant;
-class FoldingSetNodeID;
 class DataLayout;
-class TargetMachine;
-class Type;
+class FoldingSetNodeID;
 class MachineConstantPool;
 class raw_ostream;
+class Type;
 
 /// Abstract base class for all machine specific constantpool value subclasses.
 ///
 class MachineConstantPoolValue {
   virtual void anchor();
+
   Type *Ty;
 
 public:
   explicit MachineConstantPoolValue(Type *ty) : Ty(ty) {}
-  virtual ~MachineConstantPoolValue() {}
+  virtual ~MachineConstantPoolValue() = default;
 
   /// getType - get type of this MachineConstantPoolValue.
   ///
   Type *getType() const { return Ty; }
 
-  
-  /// getRelocationInfo - This method classifies the entry according to
-  /// whether or not it may generate a relocation entry.  This must be
-  /// conservative, so if it might codegen to a relocatable entry, it should say
-  /// so.  The return values are the same as Constant::getRelocationInfo().
-  virtual unsigned getRelocationInfo() const = 0;
-  
   virtual int getExistingMachineCPValue(MachineConstantPool *CP,
                                         unsigned Alignment) = 0;
 
@@ -66,7 +59,6 @@ inline raw_ostream &operator<<(raw_ostream &OS,
   V.print(OS);
   return OS;
 }
-  
 
 /// This class is a data container for one entry in a MachineConstantPool.
 /// It contains a pointer to the value and an offset from the start of
@@ -88,10 +80,11 @@ public:
     : Alignment(A) {
     Val.ConstVal = V;
   }
+
   MachineConstantPoolEntry(MachineConstantPoolValue *V, unsigned A)
-    : Alignment(A) {
-    Val.MachineCPVal = V; 
-    Alignment |= 1U << (sizeof(unsigned)*CHAR_BIT-1);
+      : Alignment(A) {
+    Val.MachineCPVal = V;
+    Alignment |= 1U << (sizeof(unsigned) * CHAR_BIT - 1);
   }
 
   /// isMachineConstantPoolEntry - Return true if the MachineConstantPoolEntry
@@ -101,26 +94,20 @@ public:
     return (int)Alignment < 0;
   }
 
-  int getAlignment() const { 
-    return Alignment & ~(1 << (sizeof(unsigned)*CHAR_BIT-1));
+  int getAlignment() const {
+    return Alignment & ~(1 << (sizeof(unsigned) * CHAR_BIT - 1));
   }
 
   Type *getType() const;
-  
-  /// getRelocationInfo - This method classifies the entry according to
-  /// whether or not it may generate a relocation entry.  This must be
-  /// conservative, so if it might codegen to a relocatable entry, it should say
-  /// so.  The return values are:
-  /// 
-  ///  0: This constant pool entry is guaranteed to never have a relocation
-  ///     applied to it (because it holds a simple constant like '4').
-  ///  1: This entry has relocations, but the entries are guaranteed to be
-  ///     resolvable by the static linker, so the dynamic linker will never see
-  ///     them.
-  ///  2: This entry may have arbitrary relocations. 
-  unsigned getRelocationInfo() const;
+
+  /// This method classifies the entry according to whether or not it may
+  /// generate a relocation entry.  This must be conservative, so if it might
+  /// codegen to a relocatable entry, it should say so.
+  bool needsRelocation() const;
+
+  SectionKind getSectionKind(const DataLayout *DL) const;
 };
-  
+
 /// The MachineConstantPool class keeps track of constants referenced by a
 /// function which must be spilled to memory.  This is used for constants which
 /// are unable to be used directly as operands to instructions, which typically
@@ -132,29 +119,31 @@ public:
 /// address of the function constant pool values.
 /// @brief The machine constant pool.
 class MachineConstantPool {
-  const TargetMachine &TM;      ///< The target machine.
   unsigned PoolAlignment;       ///< The alignment for the pool.
   std::vector<MachineConstantPoolEntry> Constants; ///< The pool of constants.
   /// MachineConstantPoolValues that use an existing MachineConstantPoolEntry.
   DenseSet<MachineConstantPoolValue*> MachineCPVsSharingEntries;
+  const DataLayout &DL;
 
-  const DataLayout *getDataLayout() const;
+  const DataLayout &getDataLayout() const { return DL; }
+
 public:
   /// @brief The only constructor.
-  explicit MachineConstantPool(const TargetMachine &TM)
-    : TM(TM), PoolAlignment(1) {}
+  explicit MachineConstantPool(const DataLayout &DL)
+      : PoolAlignment(1), DL(DL) {}
   ~MachineConstantPool();
-    
+
   /// getConstantPoolAlignment - Return the alignment required by
   /// the whole constant pool, of which the first element must be aligned.
   unsigned getConstantPoolAlignment() const { return PoolAlignment; }
-  
+
   /// getConstantPoolIndex - Create a new entry in the constant pool or return
   /// an existing one.  User must specify the minimum required alignment for
   /// the object.
   unsigned getConstantPoolIndex(const Constant *C, unsigned Alignment);
-  unsigned getConstantPoolIndex(MachineConstantPoolValue *V,unsigned Alignment);
-  
+  unsigned getConstantPoolIndex(MachineConstantPoolValue *V,
+                                unsigned Alignment);
+
   /// isEmpty - Return true if this constant pool contains no constants.
   bool isEmpty() const { return Constants.empty(); }
 
@@ -164,13 +153,12 @@ public:
 
   /// print - Used by the MachineFunction printer to print information about
   /// constant pool objects.  Implemented in MachineFunction.cpp
-  ///
   void print(raw_ostream &OS) const;
 
   /// dump - Call print(cerr) to be called from the debugger.
   void dump() const;
 };
 
-} // End llvm namespace
+} // end namespace llvm
 
-#endif
+#endif // LLVM_CODEGEN_MACHINECONSTANTPOOL_H

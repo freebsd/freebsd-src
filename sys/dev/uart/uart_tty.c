@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Marcel Moolenaar
  * All rights reserved.
  *
@@ -51,13 +53,27 @@ __FBSDID("$FreeBSD$");
 
 static cn_probe_t uart_cnprobe;
 static cn_init_t uart_cninit;
+static cn_init_t uart_cnresume;
 static cn_term_t uart_cnterm;
 static cn_getc_t uart_cngetc;
 static cn_putc_t uart_cnputc;
 static cn_grab_t uart_cngrab;
 static cn_ungrab_t uart_cnungrab;
 
-CONSOLE_DRIVER(uart);
+static tsw_open_t uart_tty_open;
+static tsw_close_t uart_tty_close;
+static tsw_outwakeup_t uart_tty_outwakeup;
+static tsw_inwakeup_t uart_tty_inwakeup;
+static tsw_ioctl_t uart_tty_ioctl;
+static tsw_param_t uart_tty_param;
+static tsw_modem_t uart_tty_modem;
+static tsw_free_t uart_tty_free;
+static tsw_busy_t uart_tty_busy;
+
+CONSOLE_DRIVER(
+	uart,
+	.cn_resume = uart_cnresume,
+);
 
 static struct uart_devinfo uart_console;
 
@@ -100,6 +116,13 @@ uart_cninit(struct consdev *cp)
 	di->type = UART_DEV_CONSOLE;
 	uart_add_sysdev(di);
 	uart_init(di);
+}
+
+static void
+uart_cnresume(struct consdev *cp)
+{
+
+	uart_init(cp->cn_arg);
 }
 
 static void
@@ -157,7 +180,7 @@ uart_tty_close(struct tty *tp)
 	struct uart_softc *sc;
 
 	sc = tty_softc(tp);
-	if (sc == NULL || sc->sc_leaving || !sc->sc_opened) 
+	if (sc == NULL || sc->sc_leaving || !sc->sc_opened)
 		return;
 
 	if (sc->sc_hwiflow)
@@ -169,7 +192,6 @@ uart_tty_close(struct tty *tp)
 
 	wakeup(sc);
 	sc->sc_opened = 0;
-	return;
 }
 
 static void
@@ -215,7 +237,8 @@ uart_tty_inwakeup(struct tty *tp)
 }
 
 static int
-uart_tty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
+uart_tty_ioctl(struct tty *tp, u_long cmd, caddr_t data,
+    struct thread *td __unused)
 {
 	struct uart_softc *sc;
 
@@ -256,8 +279,8 @@ uart_tty_param(struct tty *tp, struct termios *t)
 	}
 	stopbits = (t->c_cflag & CSTOPB) ? 2 : 1;
 	if (t->c_cflag & PARENB)
-		parity = (t->c_cflag & PARODD) ? UART_PARITY_ODD
-		    : UART_PARITY_EVEN;
+		parity = (t->c_cflag & PARODD) ? UART_PARITY_ODD :
+		    UART_PARITY_EVEN;
 	else
 		parity = UART_PARITY_NONE;
 	if (UART_PARAM(sc, t->c_ospeed, databits, stopbits, parity) != 0)
@@ -285,7 +308,7 @@ uart_tty_modem(struct tty *tp, int biton, int bitoff)
 
 	sc = tty_softc(tp);
 	if (biton != 0 || bitoff != 0)
-		UART_SETSIG(sc, SER_DELTA(bitoff|biton) | biton);
+		UART_SETSIG(sc, SER_DELTA(bitoff | biton) | biton);
 	return (sc->sc_hwsig);
 }
 
@@ -344,7 +367,7 @@ uart_tty_intr(void *arg)
 }
 
 static void
-uart_tty_free(void *arg)
+uart_tty_free(void *arg __unused)
 {
 
 	/*
@@ -353,6 +376,18 @@ uart_tty_free(void *arg)
 	 * the device unit number, but unfortunately newbus does not
 	 * seem to support such a construct.
 	 */
+}
+
+static bool
+uart_tty_busy(struct tty *tp)
+{
+	struct uart_softc *sc;
+
+	sc = tty_softc(tp);
+	if (sc == NULL || sc->sc_leaving)
+                return (FALSE);
+
+	return (sc->sc_txbusy);
 }
 
 static struct ttydevsw uart_tty_class = {
@@ -365,6 +400,7 @@ static struct ttydevsw uart_tty_class = {
 	.tsw_param	= uart_tty_param,
 	.tsw_modem	= uart_tty_modem,
 	.tsw_free	= uart_tty_free,
+	.tsw_busy	= uart_tty_busy,
 };
 
 int
@@ -403,4 +439,14 @@ uart_tty_detach(struct uart_softc *sc)
 	tty_rel_gone(tp);
 
 	return (0);
+}
+
+struct mtx *
+uart_tty_getlock(struct uart_softc *sc)
+{
+
+	if (sc->sc_u.u_tty.tp != NULL)
+		return (tty_getlock(sc->sc_u.u_tty.tp));
+	else
+		return (NULL);
 }

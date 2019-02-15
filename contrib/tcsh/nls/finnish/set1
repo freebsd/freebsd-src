@@ -1,4 +1,4 @@
-$ $tcsh: set1,v 1.4 2011/02/04 18:19:34 christos Exp $
+$ $tcsh: set1,v 1.5 2015/05/26 17:38:25 christos Exp $
 $ Error messages
 $set 1 
 1 Kielioppivirhe
@@ -8,7 +8,7 @@ $set 1
 5 Puuttuva tiedosto $0
 6 Vajavainen [] muunnos
 7 $ -laajennuksen on päätyttävä ennen ']'-merkkiä
-8 Virheellinen : -muunnos $ (%c)
+8 Virheellinen : -muunnos $ '%c'
 9 Indeksivirhe
 10 Virheellinen numero
 11 Liian vähän sanoja
@@ -51,8 +51,8 @@ $set 1
 48 Silmukan (while/foreach) ulkopuolella
 49 Lisää prosesseja ei voida luoda
 50 Ei vastaavuuksia (match)
-51 Puuttuva %c
-52 Ylimääräinen/pariton %c
+51 Puuttuva '%c'
+52 Ylimääräinen/pariton '%c'
 53 Muisti loppu
 54 Putkea ei voida luoda
 55 %s: %s
@@ -93,7 +93,7 @@ $set 1
 90 Virheellinen korvaava merkkijono
 91 Edellistä vasemmanpuolista merkkijonoa ei ole
 92 Oikeanpuolinen merkkijono on liian pitkä
-93 Virheellinen ! -muunnos: %c
+93 Virheellinen ! -muunnos: '%c'
 94 Muunnos epäonnistui
 95 Korvauspuskurin ylivuoto
 96 Virheellinen ! argumenttivalitsin
@@ -118,7 +118,7 @@ $set 1
 115 Päätetyypin kuvaukselle (termcap) ei ole tarpeeksi tilaa
 116 Käyttö: settc %s [yes|no]
 117 Tuntematon toiminne `%s'
-118 Tuntematon päätetyypin (termcap) parameteri `%%%c'
+118 Tuntematon päätetyypin (termcap) parameteri '%%%c'
 119 Liian paljon argumentteja käskylle `%s' (%d)
 120 `%s' edellyttää %d argumenttia
 121 Käyttö: echotc [-v|-s] [<toiminne> [<argumentit>]]
@@ -137,4 +137,4 @@ $set 1
 134 Käyttö: unlimit [-fh] [rajoitteet (limits)]
 135 Muuttujalle $%S ei voida asettaa arvoa
 136 Viitattua työtä ei ole
-137 Tuntematon colorls-muuttuja `%c%c'
+137 Tuntematon colorls-muuttuja '%c%c'

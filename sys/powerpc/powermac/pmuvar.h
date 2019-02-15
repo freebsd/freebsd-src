@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Michael Lorenz
  * Copyright (c) 2008 Nathan Whitehorn
  * All rights reserved.
@@ -99,6 +101,7 @@
 
 /* Bits from PMU_GET_LID_STATE or PMU_INT_ENVIRONMENT on core99 */
 #define PMU_ENV_LID_CLOSED	0x01	/* The lid is closed */
+#define PMU_ENV_POWER		0x08	/* Power Button pressed */
 
 /* PMU PMU_POWER_EVENTS commands */
 enum {

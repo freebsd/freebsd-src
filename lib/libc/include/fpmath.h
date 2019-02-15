@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Mike Barcroft <mike@FreeBSD.org>
  * Copyright (c) 2002 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
@@ -26,6 +28,9 @@
  *
  * $FreeBSD$
  */
+
+#ifndef _FPMATH_H_
+#define _FPMATH_H_
 
 #include <sys/endian.h>
 #include "_fpmath.h"
@@ -73,3 +78,5 @@ union IEEEd2bits {
 #endif
 	} bits;
 };
+
+#endif /* !_FPMATH_H */

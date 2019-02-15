@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Edward Tomasz Napierała <trasz@FreeBSD.org>
  * All rights reserved.
  *
@@ -28,6 +30,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/acl.h>
+
+int __oldacl_get_perm_np(acl_permset_t, oldacl_perm_t);
+int __oldacl_add_perm(acl_permset_t, oldacl_perm_t);
+int __oldacl_delete_perm(acl_permset_t, oldacl_perm_t);
 
 /*
  * Compatibility wrappers for applications compiled against libc from before

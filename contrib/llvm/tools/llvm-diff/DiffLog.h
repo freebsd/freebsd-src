@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _LLVM_DIFFLOG_H_
-#define _LLVM_DIFFLOG_H_
+#ifndef LLVM_TOOLS_LLVM_DIFF_DIFFLOG_H
+#define LLVM_TOOLS_LLVM_DIFF_DIFFLOG_H
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
@@ -27,7 +27,7 @@ namespace llvm {
 
   /// A temporary-object class for building up log messages.
   class LogBuilder {
-    Consumer &consumer;
+    Consumer *consumer;
 
     /// The use of a stored StringRef here is okay because
     /// LogBuilder should be used only as a temporary, and as a
@@ -38,8 +38,12 @@ namespace llvm {
     SmallVector<Value*, 4> Arguments;
 
   public:
-    LogBuilder(Consumer &c, StringRef Format)
-      : consumer(c), Format(Format) {}
+    LogBuilder(Consumer &c, StringRef Format) : consumer(&c), Format(Format) {}
+    LogBuilder(LogBuilder &&L)
+        : consumer(L.consumer), Format(L.Format),
+          Arguments(std::move(L.Arguments)) {
+      L.consumer = nullptr;
+    }
 
     LogBuilder &operator<<(Value *V) {
       Arguments.push_back(V);

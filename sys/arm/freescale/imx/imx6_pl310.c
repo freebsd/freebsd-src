@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Olivier Houchard.
  * All rights reserved.
  *
@@ -40,9 +42,14 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/pl310.h>
+#include <machine/platformvar.h>
+
+#include <arm/freescale/imx/imx6_machdep.h>
+
+#include "platform_pl310_if.h"
 
 void
-platform_pl310_init(struct pl310_softc *sc)
+imx6_pl310_init(platform_t plat, struct pl310_softc *sc)
 {
 	uint32_t reg;
 
@@ -58,18 +65,3 @@ platform_pl310_init(struct pl310_softc *sc)
 	pl310_set_ram_latency(sc, PL310_TAG_RAM_CTRL,  4, 2, 3);
 	pl310_set_ram_latency(sc, PL310_DATA_RAM_CTRL, 4, 2, 3);
 }
-
-void
-platform_pl310_write_ctrl(struct pl310_softc *sc, uint32_t val)
-{
-
-	pl310_write4(sc, PL310_CTRL, val);
-}
-
-void
-platform_pl310_write_debug(struct pl310_softc *sc, uint32_t val)
-{
-
-	pl310_write4(sc, PL310_DEBUG_CTRL, val);
-}
-

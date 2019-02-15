@@ -34,19 +34,23 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 #include <sys/fcntl.h>
+#include <sys/mman.h>
+#include <sys/pciio.h>
+#include <sys/queue.h>
+
+#include <vm/vm.h>
+
+#include <dev/pci/pcireg.h>
 
 #include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <inttypes.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/pciio.h>
-#include <sys/queue.h>
-
-#include <dev/pci/pcireg.h>
 
 #include "pathnames.h"
 #include "pciconf.h"
@@ -66,12 +70,13 @@ struct pci_vendor_info
     char				*desc;
 };
 
-TAILQ_HEAD(,pci_vendor_info)	pci_vendors;
+static TAILQ_HEAD(,pci_vendor_info)	pci_vendors;
 
 static struct pcisel getsel(const char *str);
+static void list_bridge(int fd, struct pci_conf *p);
 static void list_bars(int fd, struct pci_conf *p);
-static void list_devs(const char *name, int verbose, int bars, int caps,
-    int errors, int vpd);
+static void list_devs(const char *name, int verbose, int bars, int bridge,
+    int caps, int errors, int vpd);
 static void list_verbose(struct pci_conf *p);
 static void list_vpd(int fd, struct pci_conf *p);
 static const char *guess_class(struct pci_conf *p);
@@ -80,44 +85,57 @@ static int load_vendors(void);
 static void readit(const char *, const char *, int);
 static void writeit(const char *, const char *, const char *, int);
 static void chkattached(const char *);
+static void dump_bar(const char *name, const char *reg, const char *bar_start,
+    const char *bar_count, int width, int verbose);
 
 static int exitstatus = 0;
 
 static void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-		"usage: pciconf -l [-bcevV] [device]",
-		"       pciconf -a device",
-		"       pciconf -r [-b | -h] device addr[:addr2]",
-		"       pciconf -w [-b | -h] device addr value");
-	exit (1);
+
+	fprintf(stderr, "%s",
+		"usage: pciconf -l [-BbcevV] [device]\n"
+		"       pciconf -a device\n"
+		"       pciconf -r [-b | -h] device addr[:addr2]\n"
+		"       pciconf -w [-b | -h] device addr value\n"
+		"       pciconf -D [-b | -h | -x] device bar [start [count]]"
+		"\n");
+	exit(1);
 }
 
 int
 main(int argc, char **argv)
 {
-	int c;
-	int listmode, readmode, writemode, attachedmode;
-	int bars, caps, errors, verbose, vpd;
-	int byte, isshort;
+	int c, width;
+	int listmode, readmode, writemode, attachedmode, dumpbarmode;
+	int bars, bridge, caps, errors, verbose, vpd;
 
-	listmode = readmode = writemode = attachedmode = 0;
-	bars = caps = errors = verbose = vpd = byte = isshort = 0;
+	listmode = readmode = writemode = attachedmode = dumpbarmode = 0;
+	bars = bridge = caps = errors = verbose = vpd= 0;
+	width = 4;
 
-	while ((c = getopt(argc, argv, "abcehlrwvV")) != -1) {
+	while ((c = getopt(argc, argv, "aBbcDehlrwVv")) != -1) {
 		switch(c) {
 		case 'a':
 			attachedmode = 1;
 			break;
 
+		case 'B':
+			bridge = 1;
+			break;
+
 		case 'b':
 			bars = 1;
-			byte = 1;
+			width = 1;
 			break;
 
 		case 'c':
 			caps = 1;
+			break;
+
+		case 'D':
+			dumpbarmode = 1;
 			break;
 
 		case 'e':
@@ -125,7 +143,7 @@ main(int argc, char **argv)
 			break;
 
 		case 'h':
-			isshort = 1;
+			width = 2;
 			break;
 
 		case 'l':
@@ -148,6 +166,10 @@ main(int argc, char **argv)
 			vpd = 1;
 			break;
 
+		case 'x':
+			width = 8;
+			break;
+
 		default:
 			usage();
 		}
@@ -156,30 +178,36 @@ main(int argc, char **argv)
 	if ((listmode && optind >= argc + 1)
 	    || (writemode && optind + 3 != argc)
 	    || (readmode && optind + 2 != argc)
-	    || (attachedmode && optind + 1 != argc))
+	    || (attachedmode && optind + 1 != argc)
+	    || (dumpbarmode && (optind + 2 > argc || optind + 4 < argc))
+	    || (width == 8 && !dumpbarmode))
 		usage();
 
 	if (listmode) {
 		list_devs(optind + 1 == argc ? argv[optind] : NULL, verbose,
-		    bars, caps, errors, vpd);
+		    bars, bridge, caps, errors, vpd);
 	} else if (attachedmode) {
 		chkattached(argv[optind]);
 	} else if (readmode) {
-		readit(argv[optind], argv[optind + 1],
-		    byte ? 1 : isshort ? 2 : 4);
+		readit(argv[optind], argv[optind + 1], width);
 	} else if (writemode) {
 		writeit(argv[optind], argv[optind + 1], argv[optind + 2],
-		    byte ? 1 : isshort ? 2 : 4);
+		    width);
+	} else if (dumpbarmode) {
+		dump_bar(argv[optind], argv[optind + 1],
+		    optind + 2 < argc ? argv[optind + 2] : NULL, 
+		    optind + 3 < argc ? argv[optind + 3] : NULL, 
+		    width, verbose);
 	} else {
 		usage();
 	}
 
-	return exitstatus;
+	return (exitstatus);
 }
 
 static void
-list_devs(const char *name, int verbose, int bars, int caps, int errors,
-    int vpd)
+list_devs(const char *name, int verbose, int bars, int bridge, int caps,
+    int errors, int vpd)
 {
 	int fd;
 	struct pci_conf_io pc;
@@ -190,7 +218,8 @@ list_devs(const char *name, int verbose, int bars, int caps, int errors,
 	if (verbose)
 		load_vendors();
 
-	fd = open(_PATH_DEVPCI, (caps || errors) ? O_RDWR : O_RDONLY, 0);
+	fd = open(_PATH_DEVPCI, (bridge || caps || errors) ? O_RDWR : O_RDONLY,
+	    0);
 	if (fd < 0)
 		err(1, "%s", _PATH_DEVPCI);
 
@@ -234,9 +263,9 @@ list_devs(const char *name, int verbose, int bars, int caps, int errors,
 		for (p = conf; p < &conf[pc.num_matches]; p++) {
 			printf("%s%d@pci%d:%d:%d:%d:\tclass=0x%06x card=0x%08x "
 			    "chip=0x%08x rev=0x%02x hdr=0x%02x\n",
-			    (p->pd_name && *p->pd_name) ? p->pd_name :
+			    *p->pd_name ? p->pd_name :
 			    "none",
-			    (p->pd_name && *p->pd_name) ? (int)p->pd_unit :
+			    *p->pd_name ? (int)p->pd_unit :
 			    none_count++, p->pc_sel.pc_domain,
 			    p->pc_sel.pc_bus, p->pc_sel.pc_dev,
 			    p->pc_sel.pc_func, (p->pc_class << 16) |
@@ -248,6 +277,8 @@ list_devs(const char *name, int verbose, int bars, int caps, int errors,
 				list_verbose(p);
 			if (bars)
 				list_bars(fd, p);
+			if (bridge)
+				list_bridge(fd, p);
 			if (caps)
 				list_caps(fd, p);
 			if (errors)
@@ -261,12 +292,192 @@ list_devs(const char *name, int verbose, int bars, int caps, int errors,
 }
 
 static void
+print_bus_range(int fd, struct pci_conf *p, int secreg, int subreg)
+{
+	uint8_t secbus, subbus;
+
+	secbus = read_config(fd, &p->pc_sel, secreg, 1);
+	subbus = read_config(fd, &p->pc_sel, subreg, 1);
+	printf("    bus range  = %u-%u\n", secbus, subbus);
+}
+
+static void
+print_window(int reg, const char *type, int range, uint64_t base,
+    uint64_t limit)
+{
+
+	printf("    window[%02x] = type %s, range %2d, addr %#jx-%#jx, %s\n",
+	    reg, type, range, (uintmax_t)base, (uintmax_t)limit,
+	    base < limit ? "enabled" : "disabled");
+}
+
+static void
+print_special_decode(bool isa, bool vga, bool subtractive)
+{
+	bool comma;
+
+	if (isa || vga || subtractive) {
+		comma = false;
+		printf("    decode     = ");
+		if (isa) {
+			printf("ISA");
+			comma = true;
+		}
+		if (vga) {
+			printf("%sVGA", comma ? ", " : "");
+			comma = true;
+		}
+		if (subtractive)
+			printf("%ssubtractive", comma ? ", " : "");
+		printf("\n");
+	}
+}
+
+static void
+print_bridge_windows(int fd, struct pci_conf *p)
+{
+	uint64_t base, limit;
+	uint32_t val;
+	uint16_t bctl;
+	bool subtractive;
+	int range;
+
+	/*
+	 * XXX: This assumes that a window with a base and limit of 0
+	 * is not implemented.  In theory a window might be programmed
+	 * at the smallest size with a base of 0, but those do not seem
+	 * common in practice.
+	 */
+	val = read_config(fd, &p->pc_sel, PCIR_IOBASEL_1, 1);
+	if (val != 0 || read_config(fd, &p->pc_sel, PCIR_IOLIMITL_1, 1) != 0) {
+		if ((val & PCIM_BRIO_MASK) == PCIM_BRIO_32) {
+			base = PCI_PPBIOBASE(
+			    read_config(fd, &p->pc_sel, PCIR_IOBASEH_1, 2),
+			    val);
+			limit = PCI_PPBIOLIMIT(
+			    read_config(fd, &p->pc_sel, PCIR_IOLIMITH_1, 2),
+			    read_config(fd, &p->pc_sel, PCIR_IOLIMITL_1, 1));
+			range = 32;
+		} else {
+			base = PCI_PPBIOBASE(0, val);
+			limit = PCI_PPBIOLIMIT(0,
+			    read_config(fd, &p->pc_sel, PCIR_IOLIMITL_1, 1));
+			range = 16;
+		}
+		print_window(PCIR_IOBASEL_1, "I/O Port", range, base, limit);
+	}
+
+	base = PCI_PPBMEMBASE(0,
+	    read_config(fd, &p->pc_sel, PCIR_MEMBASE_1, 2));
+	limit = PCI_PPBMEMLIMIT(0,
+	    read_config(fd, &p->pc_sel, PCIR_MEMLIMIT_1, 2));
+	print_window(PCIR_MEMBASE_1, "Memory", 32, base, limit);
+
+	val = read_config(fd, &p->pc_sel, PCIR_PMBASEL_1, 2);
+	if (val != 0 || read_config(fd, &p->pc_sel, PCIR_PMLIMITL_1, 2) != 0) {
+		if ((val & PCIM_BRPM_MASK) == PCIM_BRPM_64) {
+			base = PCI_PPBMEMBASE(
+			    read_config(fd, &p->pc_sel, PCIR_PMBASEH_1, 4),
+			    val);
+			limit = PCI_PPBMEMLIMIT(
+			    read_config(fd, &p->pc_sel, PCIR_PMLIMITH_1, 4),
+			    read_config(fd, &p->pc_sel, PCIR_PMLIMITL_1, 2));
+			range = 64;
+		} else {
+			base = PCI_PPBMEMBASE(0, val);
+			limit = PCI_PPBMEMLIMIT(0,
+			    read_config(fd, &p->pc_sel, PCIR_PMLIMITL_1, 2));
+			range = 32;
+		}
+		print_window(PCIR_PMBASEL_1, "Prefetchable Memory", range, base,
+		    limit);
+	}
+
+	/*
+	 * XXX: This list of bridges that are subtractive but do not set
+	 * progif to indicate it is copied from pci_pci.c.
+	 */
+	subtractive = p->pc_progif == PCIP_BRIDGE_PCI_SUBTRACTIVE;
+	switch (p->pc_device << 16 | p->pc_vendor) {
+	case 0xa002177d:		/* Cavium ThunderX */
+	case 0x124b8086:		/* Intel 82380FB Mobile */
+	case 0x060513d7:		/* Toshiba ???? */
+		subtractive = true;
+	}
+	if (p->pc_vendor == 0x8086 && (p->pc_device & 0xff00) == 0x2400)
+		subtractive = true;
+		
+	bctl = read_config(fd, &p->pc_sel, PCIR_BRIDGECTL_1, 2);
+	print_special_decode(bctl & PCIB_BCR_ISA_ENABLE,
+	    bctl & PCIB_BCR_VGA_ENABLE, subtractive);
+}
+
+static void
+print_cardbus_mem_window(int fd, struct pci_conf *p, int basereg, int limitreg,
+    bool prefetch)
+{
+
+	print_window(basereg, prefetch ? "Prefetchable Memory" : "Memory", 32,
+	    PCI_CBBMEMBASE(read_config(fd, &p->pc_sel, basereg, 4)),
+	    PCI_CBBMEMLIMIT(read_config(fd, &p->pc_sel, limitreg, 4)));
+}
+
+static void
+print_cardbus_io_window(int fd, struct pci_conf *p, int basereg, int limitreg)
+{
+	uint32_t base, limit;
+	uint32_t val;
+	int range;
+
+	val = read_config(fd, &p->pc_sel, basereg, 2);
+	if ((val & PCIM_CBBIO_MASK) == PCIM_CBBIO_32) {
+		base = PCI_CBBIOBASE(read_config(fd, &p->pc_sel, basereg, 4));
+		limit = PCI_CBBIOBASE(read_config(fd, &p->pc_sel, limitreg, 4));
+		range = 32;
+	} else {
+		base = PCI_CBBIOBASE(val);
+		limit = PCI_CBBIOBASE(read_config(fd, &p->pc_sel, limitreg, 2));
+		range = 16;
+	}
+	print_window(basereg, "I/O Port", range, base, limit);
+}
+
+static void
+print_cardbus_windows(int fd, struct pci_conf *p)
+{
+	uint16_t bctl;
+
+	bctl = read_config(fd, &p->pc_sel, PCIR_BRIDGECTL_2, 2);
+	print_cardbus_mem_window(fd, p, PCIR_MEMBASE0_2, PCIR_MEMLIMIT0_2,
+	    bctl & CBB_BCR_PREFETCH_0_ENABLE);
+	print_cardbus_mem_window(fd, p, PCIR_MEMBASE1_2, PCIR_MEMLIMIT1_2,
+	    bctl & CBB_BCR_PREFETCH_1_ENABLE);
+	print_cardbus_io_window(fd, p, PCIR_IOBASE0_2, PCIR_IOLIMIT0_2);
+	print_cardbus_io_window(fd, p, PCIR_IOBASE1_2, PCIR_IOLIMIT1_2);
+	print_special_decode(bctl & CBB_BCR_ISA_ENABLE,
+	    bctl & CBB_BCR_VGA_ENABLE, false);
+}
+
+static void
+list_bridge(int fd, struct pci_conf *p)
+{
+
+	switch (p->pc_hdr & PCIM_HDRTYPE) {
+	case PCIM_HDRTYPE_BRIDGE:
+		print_bus_range(fd, p, PCIR_SECBUS_1, PCIR_SUBBUS_1);
+		print_bridge_windows(fd, p);
+		break;
+	case PCIM_HDRTYPE_CARDBUS:
+		print_bus_range(fd, p, PCIR_SECBUS_2, PCIR_SUBBUS_2);
+		print_cardbus_windows(fd, p);
+		break;
+	}
+}
+
+static void
 list_bars(int fd, struct pci_conf *p)
 {
-	struct pci_bar_io bar;
-	uint64_t base;
-	const char *type;
-	int i, range, max;
+	int i, max;
 
 	switch (p->pc_hdr & PCIM_HDRTYPE) {
 	case PCIM_HDRTYPE_NORMAL:
@@ -282,40 +493,50 @@ list_bars(int fd, struct pci_conf *p)
 		return;
 	}
 
-	for (i = 0; i <= max; i++) {
-		bar.pbi_sel = p->pc_sel;
-		bar.pbi_reg = PCIR_BAR(i);
-		if (ioctl(fd, PCIOCGETBAR, &bar) < 0)
-			continue;
-		if (PCI_BAR_IO(bar.pbi_base)) {
-			type = "I/O Port";
+	for (i = 0; i <= max; i++)
+		print_bar(fd, p, "bar   ", PCIR_BAR(i));
+}
+
+void
+print_bar(int fd, struct pci_conf *p, const char *label, uint16_t bar_offset)
+{
+	uint64_t base;
+	const char *type;
+	struct pci_bar_io bar;
+	int range;
+
+	bar.pbi_sel = p->pc_sel;
+	bar.pbi_reg = bar_offset;
+	if (ioctl(fd, PCIOCGETBAR, &bar) < 0)
+		return;
+	if (PCI_BAR_IO(bar.pbi_base)) {
+		type = "I/O Port";
+		range = 32;
+		base = bar.pbi_base & PCIM_BAR_IO_BASE;
+	} else {
+		if (bar.pbi_base & PCIM_BAR_MEM_PREFETCH)
+			type = "Prefetchable Memory";
+		else
+			type = "Memory";
+		switch (bar.pbi_base & PCIM_BAR_MEM_TYPE) {
+		case PCIM_BAR_MEM_32:
 			range = 32;
-			base = bar.pbi_base & PCIM_BAR_IO_BASE;
-		} else {
-			if (bar.pbi_base & PCIM_BAR_MEM_PREFETCH)
-				type = "Prefetchable Memory";
-			else
-				type = "Memory";
-			switch (bar.pbi_base & PCIM_BAR_MEM_TYPE) {
-			case PCIM_BAR_MEM_32:
-				range = 32;
-				break;
-			case PCIM_BAR_MEM_1MB:
-				range = 20;
-				break;
-			case PCIM_BAR_MEM_64:
-				range = 64;
-				break;
-			default:
-				range = -1;
-			}
-			base = bar.pbi_base & ~((uint64_t)0xf);
+			break;
+		case PCIM_BAR_MEM_1MB:
+			range = 20;
+			break;
+		case PCIM_BAR_MEM_64:
+			range = 64;
+			break;
+		default:
+			range = -1;
 		}
-		printf("    bar   [%02x] = type %s, range %2d, base %#jx, ",
-		    PCIR_BAR(i), type, range, (uintmax_t)base);
-		printf("size %ju, %s\n", (uintmax_t)bar.pbi_length,
-		    bar.pbi_enabled ? "enabled" : "disabled");
+		base = bar.pbi_base & ~((uint64_t)0xf);
 	}
+	printf("    %s[%02x] = type %s, range %2d, base %#jx, ",
+	    label, bar_offset, type, range, (uintmax_t)base);
+	printf("size %ju, %s\n", (uintmax_t)bar.pbi_length,
+	    bar.pbi_enabled ? "enabled" : "disabled");
 }
 
 static void
@@ -498,6 +719,12 @@ static struct
 	{PCIC_CRYPTO,		PCIS_CRYPTO_NETCOMP,	"entertainment crypto"},
 	{PCIC_DASP,		-1,			"dasp"},
 	{PCIC_DASP,		PCIS_DASP_DPIO,		"DPIO module"},
+	{PCIC_DASP,		PCIS_DASP_PERFCNTRS,	"performance counters"},
+	{PCIC_DASP,		PCIS_DASP_COMM_SYNC,	"communication synchronizer"},
+	{PCIC_DASP,		PCIS_DASP_MGMT_CARD,	"signal processing management"},
+	{PCIC_ACCEL,		-1,			"processing accelerators"},
+	{PCIC_ACCEL,		PCIS_ACCEL_PROCESSING,	"processing accelerators"},
+	{PCIC_INSTRUMENT,	-1,			"non-essential instrumentation"},
 	{0, 0,		NULL}
 };
 
@@ -542,9 +769,12 @@ load_vendors(void)
 	 */
 	TAILQ_INIT(&pci_vendors);
 	if ((dbf = getenv("PCICONF_VENDOR_DATABASE")) == NULL)
+		dbf = _PATH_LPCIVDB;
+	if ((db = fopen(dbf, "r")) == NULL) {
 		dbf = _PATH_PCIVDB;
-	if ((db = fopen(dbf, "r")) == NULL)
-		return(1);
+		if ((db = fopen(dbf, "r")) == NULL)
+			return(1);
+	}
 	cv = NULL;
 	cd = NULL;
 	error = 0;
@@ -662,19 +892,20 @@ getdevice(const char *name)
 	 * find the start of the unit.
 	 */
 	if (name[0] == '\0')
-		err(1, "Empty device name");
+		errx(1, "Empty device name");
 	cp = strchr(name, '\0');
 	assert(cp != NULL && cp != name);
 	cp--;
 	while (cp != name && isdigit(cp[-1]))
 		cp--;
-	if (cp == name)
+	if (cp == name || !isdigit(*cp))
 		errx(1, "Invalid device name");
 	if ((size_t)(cp - name) + 1 > sizeof(patterns[0].pd_name))
-		errx(1, "Device name i2s too long");
+		errx(1, "Device name is too long");
 	memcpy(patterns[0].pd_name, name, cp - name);
 	patterns[0].pd_unit = strtol(cp, &cp, 10);
-	assert(*cp == '\0');
+	if (*cp != '\0')
+		errx(1, "Invalid device name");
 	patterns[0].flags = PCI_GETCONF_MATCH_NAME | PCI_GETCONF_MATCH_UNIT;
 	pc.num_patterns = 1;
 	pc.pat_buf_len = sizeof(patterns);
@@ -694,40 +925,36 @@ getdevice(const char *name)
 static struct pcisel
 parsesel(const char *str)
 {
-	char *ep = strchr(str, '@');
-	char *epbase;
+	const char *ep;
+	char *eppos;
 	struct pcisel sel;
 	unsigned long selarr[4];
 	int i;
 
-	if (ep == NULL)
-		ep = (char *)str;
-	else
+	ep = strchr(str, '@');
+	if (ep != NULL)
 		ep++;
-
-	epbase = ep;
+	else
+		ep = str;
 
 	if (strncmp(ep, "pci", 3) == 0) {
 		ep += 3;
 		i = 0;
-		do {
-			selarr[i++] = strtoul(ep, &ep, 10);
-		} while ((*ep == ':' || *ep == '.') && *++ep != '\0' && i < 4);
-
-		if (i > 2)
-			sel.pc_func = selarr[--i];
-		else
-			sel.pc_func = 0;
-		sel.pc_dev = selarr[--i];
-		sel.pc_bus = selarr[--i];
-		if (i > 0)
-			sel.pc_domain = selarr[--i];
-		else
-			sel.pc_domain = 0;
+		while (isdigit(*ep) && i < 4) {
+			selarr[i++] = strtoul(ep, &eppos, 10);
+			ep = eppos;
+			if (*ep == ':')
+				ep++;
+		}
+		if (i > 0 && *ep == '\0') {
+			sel.pc_func = (i > 2) ? selarr[--i] : 0;
+			sel.pc_dev = (i > 0) ? selarr[--i] : 0;
+			sel.pc_bus = (i > 0) ? selarr[--i] : 0;
+			sel.pc_domain = (i > 0) ? selarr[--i] : 0;
+			return (sel);
+		}
 	}
-	if (*ep != '\x0' || ep == epbase)
-		errx(1, "cannot parse selector %s", str);
-	return sel;
+	errx(1, "cannot parse selector %s", str);
 }
 
 static struct pcisel
@@ -800,6 +1027,7 @@ writeit(const char *name, const char *reg, const char *data, int width)
 
 	if (ioctl(fd, PCIOCWRITE, &pi) < 0)
 		err(1, "ioctl(PCIOCWRITE)");
+	close(fd);
 }
 
 static void
@@ -819,4 +1047,119 @@ chkattached(const char *name)
 
 	exitstatus = pi.pi_data ? 0 : 2; /* exit(2), if NOT attached */
 	printf("%s: %s%s\n", name, pi.pi_data == 0 ? "not " : "", "attached");
+	close(fd);
+}
+
+static void
+dump_bar(const char *name, const char *reg, const char *bar_start,
+    const char *bar_count, int width, int verbose)
+{
+	struct pci_bar_mmap pbm;
+	uint32_t *dd;
+	uint16_t *dh;
+	uint8_t *db;
+	uint64_t *dx, a, start, count;
+	char *el;
+	size_t res;
+	int fd;
+
+	start = 0;
+	if (bar_start != NULL) {
+		start = strtoul(bar_start, &el, 0);
+		if (*el != '\0')
+			errx(1, "Invalid bar start specification %s",
+			    bar_start);
+	}
+	count = 0;
+	if (bar_count != NULL) {
+		count = strtoul(bar_count, &el, 0);
+		if (*el != '\0')
+			errx(1, "Invalid count specification %s",
+			    bar_count);
+	}
+
+	pbm.pbm_sel = getsel(name);
+	pbm.pbm_reg = strtoul(reg, &el, 0);
+	if (*reg == '\0' || *el != '\0')
+		errx(1, "Invalid bar specification %s", reg);
+	pbm.pbm_flags = 0;
+	pbm.pbm_memattr = VM_MEMATTR_UNCACHEABLE; /* XXX */
+
+	fd = open(_PATH_DEVPCI, O_RDWR, 0);
+	if (fd < 0)
+		err(1, "%s", _PATH_DEVPCI);
+
+	if (ioctl(fd, PCIOCBARMMAP, &pbm) < 0)
+		err(1, "ioctl(PCIOCBARMMAP)");
+
+	if (count == 0)
+		count = pbm.pbm_bar_length / width;
+	if (start + count < start || (start + count) * width < (uint64_t)width)
+		errx(1, "(start + count) x width overflow");
+	if ((start + count) * width > pbm.pbm_bar_length) {
+		if (start * width > pbm.pbm_bar_length)
+			count = 0;
+		else
+			count = (pbm.pbm_bar_length - start * width) / width;
+	}
+	if (verbose) {
+		fprintf(stderr,
+		    "Dumping pci%d:%d:%d:%d BAR %x mapped base %p "
+		    "off %#x length %#jx from %#jx count %#jx in %d-bytes\n",
+		    pbm.pbm_sel.pc_domain, pbm.pbm_sel.pc_bus,
+		    pbm.pbm_sel.pc_dev, pbm.pbm_sel.pc_func,
+		    pbm.pbm_reg, pbm.pbm_map_base, pbm.pbm_bar_off,
+		    pbm.pbm_bar_length, start, count, width);
+	}
+	switch (width) {
+	case 1:
+		db = (uint8_t *)(uintptr_t)((uintptr_t)pbm.pbm_map_base +
+		    pbm.pbm_bar_off + start * width);
+		for (a = 0; a < count; a += width, db++) {
+			res = fwrite(db, width, 1, stdout);
+			if (res != 1) {
+				errx(1, "error writing to stdout");
+				break;
+			}
+		}
+		break;
+	case 2:
+		dh = (uint16_t *)(uintptr_t)((uintptr_t)pbm.pbm_map_base +
+		    pbm.pbm_bar_off + start * width);
+		for (a = 0; a < count; a += width, dh++) {
+			res = fwrite(dh, width, 1, stdout);
+			if (res != 1) {
+				errx(1, "error writing to stdout");
+				break;
+			}
+		}
+		break;
+	case 4:
+		dd = (uint32_t *)(uintptr_t)((uintptr_t)pbm.pbm_map_base +
+		    pbm.pbm_bar_off + start * width);
+		for (a = 0; a < count; a += width, dd++) {
+			res = fwrite(dd, width, 1, stdout);
+			if (res != 1) {
+				errx(1, "error writing to stdout");
+				break;
+			}
+		}
+		break;
+	case 8:
+		dx = (uint64_t *)(uintptr_t)((uintptr_t)pbm.pbm_map_base +
+		    pbm.pbm_bar_off + start * width);
+		for (a = 0; a < count; a += width, dx++) {
+			res = fwrite(dx, width, 1, stdout);
+			if (res != 1) {
+				errx(1, "error writing to stdout");
+				break;
+			}
+		}
+		break;
+	default:
+		errx(1, "invalid access width");
+	}
+
+	munmap((void *)pbm.pbm_map_base, pbm.pbm_map_length);
+	close(fd);
 }

@@ -1,4 +1,4 @@
-$ $tcsh: set1,v 1.6 2006/03/02 18:46:45 christos Exp $
+$ $tcsh: set1,v 1.7 2015/05/26 17:38:25 christos Exp $
 $ Error messages
 $set 1 
 1 Syntax Error
@@ -8,7 +8,7 @@ $set 1
 5 No file for $0
 6 Incomplete [] modifier
 7 $ expansion must end before ]
-8 Bad : modifier in $ (%c)
+8 Bad : modifier in $ '%c'
 9 Subscript error
 10 Badly formed number
 11 No more words
@@ -51,8 +51,8 @@ $set 1
 48 Not in while/foreach
 49 No more processes
 50 No match
-51 Missing %c
-52 Unmatched %c
+51 Missing '%c'
+52 Unmatched '%c'
 53 Out of memory
 54 Can't make pipe
 55 %s: %s
@@ -93,7 +93,7 @@ $set 1
 90 Bad substitute
 91 No previous left hand side
 92 Right hand side too long
-93 Bad ! modifier: %c
+93 Bad ! modifier: '%c'
 94 Modifier failed
 95 Substitution buffer overflow
 96 Bad ! arg selector
@@ -118,7 +118,7 @@ $set 1
 115 Out of termcap string space
 116 Usage: settc %s [yes|no]
 117 Unknown capability `%s'
-118 Unknown termcap parameter `%%%c'
+118 Unknown termcap parameter '%%%c'
 119 Too many arguments for `%s' (%d)
 120 `%s' requires %d arguments
 121 Usage: echotc [-v|-s] [<capability> [<args>]]
@@ -137,4 +137,4 @@ $set 1
 134 Usage: unlimit [-fh] [limits]
 135 $%S is read-only
 136 No such job
-137 Unknown colorls variable `%c%c'
+137 Unknown colorls variable '%c%c'

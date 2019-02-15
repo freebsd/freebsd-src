@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
@@ -48,7 +50,7 @@ gss_pseudo_random(OM_uint32 *minor_status,
 		  gss_buffer_t prf_out)
 {
     struct _gss_context *ctx = (struct _gss_context *) context;
-    struct _gss_mech_switch *m = ctx->gc_mech;
+    struct _gss_mech_switch *m;
     OM_uint32 major_status;
 
     _gss_buffer_zero(prf_out);
@@ -58,6 +60,7 @@ gss_pseudo_random(OM_uint32 *minor_status,
 	*minor_status = 0;
 	return GSS_S_NO_CONTEXT;
     }
+    m = ctx->gc_mech;
 
     if (m->gm_pseudo_random == NULL)
 	return GSS_S_UNAVAILABLE;

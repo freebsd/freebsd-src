@@ -19,5 +19,6 @@ SUBDIR=	title \
 	20.meref \
 	21.troff \
 	22.trofftut
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

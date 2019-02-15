@@ -27,7 +27,7 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_extract_cpio_lzo)
 {
-	const char *reffile = "test_extract.cpio.lrz";
+	const char *reffile = "test_extract.cpio.lzo";
 	int f;
 
 	extract_reference_file(reffile);

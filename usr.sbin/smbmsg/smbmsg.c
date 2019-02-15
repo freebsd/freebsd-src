@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2004 Joerg Wunsch
  * All Rights Reserved.
  *
@@ -61,7 +63,7 @@ static int wflag;		/* word IO */
 
 static unsigned char ibuf[SMB_MAXBLOCKSIZE];
 static unsigned char obuf[SMB_MAXBLOCKSIZE];
-static unsigned short oword, iword;
+static unsigned short oword;
 
 /*
  * The I2C specs say that all addresses below 16 and above or equal
@@ -135,6 +137,8 @@ do_io(void)
 
 	c.slave = slave;
 	c.cmd = cflag;
+	c.rcount = 0;
+	c.wcount = 0;
 
 	if (fmt == NULL && iflag > 0)
 		fmt = wflag? wordfmt: bytefmt;
@@ -163,47 +167,44 @@ do_io(void)
 	}
 	if (iflag == 1 && oflag == -1) {
 		/* command + 1 byte input: read byte op. */
-		c.data.byte_ptr = ibuf;
 		if (ioctl(fd, SMB_READB, &c) == -1)
 			return (-1);
-		printf(fmt, (int)(unsigned char)ibuf[0]);
+		printf(fmt, (unsigned char)c.rdata.byte);
 		putchar('\n');
 		return (0);
 	} else if (iflag == -1 && oflag == 1) {
 		/* command + 1 byte output: write byte op. */
-		c.data.byte = obuf[0];
+		c.wdata.byte = obuf[0];
 		return (ioctl(fd, SMB_WRITEB, &c));
 	} else if (wflag && iflag == 2 && oflag == -1) {
 		/* command + 2 bytes input: read word op. */
-		c.data.word_ptr = &iword;
 		if (ioctl(fd, SMB_READW, &c) == -1)
 			return (-1);
-		printf(fmt, (int)(unsigned short)iword);
+		printf(fmt, (unsigned short)c.rdata.word);
 		putchar('\n');
 		return (0);
 	} else if (wflag && iflag == -1 && oflag == 2) {
 		/* command + 2 bytes output: write word op. */
-		c.data.word = oword;
+		c.wdata.word = oword;
 		return (ioctl(fd, SMB_WRITEW, &c));
 	} else if (wflag && iflag == 2 && oflag == 2) {
 		/*
 		 * command + 2 bytes output + 2 bytes input:
 		 * "process call" op.
 		 */
-		c.data.process.sdata = oword;
-		c.data.process.rdata = &iword;
+		c.wdata.word = oword;
 		if (ioctl(fd, SMB_PCALL, &c) == -1)
 			return (-1);
-		printf(fmt, (int)(unsigned short)iword);
+		printf(fmt, (unsigned short)c.rdata.word);
 		putchar('\n');
 		return (0);
 	} else if (iflag > 1 && oflag == -1) {
 		/* command + > 1 bytes of input: block read */
-		c.data.byte_ptr = ibuf;
-		c.count = iflag;
+		c.rbuf = ibuf;
+		c.rcount = iflag;
 		if (ioctl(fd, SMB_BREAD, &c) == -1)
 			return (-1);
-		for (i = 0; i < iflag; i++) {
+		for (i = 0; i < c.rcount; i++) {
 			if (i != 0)
 				putchar(' ');
 			printf(fmt, ibuf[i]);
@@ -212,8 +213,8 @@ do_io(void)
 		return (0);
 	} else if (iflag == -1 && oflag > 1) {
 		/* command + > 1 bytes of output: block write */
-		c.data.byte_ptr = obuf;
-		c.count = oflag;
+		c.wbuf = obuf;
+		c.wcount = oflag;
 		return (ioctl(fd, SMB_BWRITE, &c));
 	}
 

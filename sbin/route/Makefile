@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime
 PROG=	route
 MAN=	route.8
 SRCS=	route.c keywords.h

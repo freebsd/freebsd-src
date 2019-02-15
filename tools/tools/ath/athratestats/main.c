@@ -38,7 +38,6 @@
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_media.h>
-#include <net/if_var.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -115,7 +114,7 @@ static void
 ath_sample_stats(struct ath_ratestats *r, struct ath_rateioctl_rt *rt,
     struct sample_node *sn)
 {
-	uint32_t mask;
+	uint64_t mask;
 	int rix, y;
 
 	PRINTMSG("static_rix (%d) ratemask 0x%llx\n",
@@ -311,7 +310,7 @@ main(int argc, char *argv[])
 
 	ifname = getenv("ATH");
 	if (ifname == NULL)
-		ifname = "ath0";
+		ifname = ATH_DEFAULT;
 
 	while ((c = getopt(argc, argv, "ahi:m:s:")) != -1) {
 		switch (c) {

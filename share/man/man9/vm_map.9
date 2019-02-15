@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2011
+.Dd July 3, 2018
 .Dt VM_MAP 9
 .Os
 .Sh NAME
@@ -62,8 +62,7 @@ struct vm_map {
         vm_flags_t flags;
         vm_map_entry_t root;
         pmap_t pmap;
-#define min_offset      header.start
-#define max_offset      header.end
+        int busy;
 };
 .Ed
 .Pp
@@ -99,29 +98,16 @@ Root node of a binary search tree used for fast lookup of map entries.
 .It Va pmap
 Pointer to the underlying physical map with which this virtual map
 is associated.
-.It Va min_offset
-The minimum
-.Vt vm_offset_t
-in this map.
-Programs should never use
-.Va header.start
-or
-.Va header.end
-directly, use
-.Va min_offset
-and
-.Va max_offset
-instead.
-.It Va max_offset
-The maximum
-.Vt vm_offset_t
-in this map.
+.It Va busy
+Map busy counter, prevents forks.
 .El
 .Pp
-There is one possible map flag:
+Possible map flags:
 .Bl -tag -width ".Dv MAP_PREFAULT_MADVISE"
 .It Dv MAP_WIREFUTURE
 Wire all future pages in this map.
+.It Dv MAP_BUSY_WAKEUP
+There are waiters for the map busy status.
 .El
 .Pp
 The following flags can be passed to

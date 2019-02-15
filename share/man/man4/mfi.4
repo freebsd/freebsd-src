@@ -75,8 +75,9 @@ then the driver will allow mounted volumes to be removed.
 .Pp
 A tunable is provided to adjust the
 .Nm
-driver's behaviour when attaching to a card.  By default the driver will
-attach to all known cards with high probe priority.  If the tunable
+driver's behaviour when attaching to a card.
+By default the driver will attach to all known cards with high probe priority.
+If the tunable
 .Va hw.mfi.mrsas_enable
 is set to 1,
 then the driver will reduce its probe priority to allow

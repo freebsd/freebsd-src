@@ -1,43 +1,48 @@
 /*-
- * Copyright 2009 Solarflare Communications Inc.  All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2009-2016 Solarflare Communications Inc.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "efsys.h"
 #include "efx.h"
-#include "efx_types.h"
 #include "efx_impl.h"
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_port_init(
 	__in		efx_nic_t *enp)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_phy_ops_t *epop = epp->ep_epop;
-	int rc;
+	const efx_phy_ops_t *epop = epp->ep_epop;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
@@ -52,7 +57,6 @@ efx_port_init(
 
 	epp->ep_mac_type = EFX_MAC_INVALID;
 	epp->ep_link_mode = EFX_LINK_UNKNOWN;
-	epp->ep_mac_poll_needed = B_TRUE;
 	epp->ep_mac_drain = B_TRUE;
 
 	/* Configure the MAC */
@@ -60,6 +64,9 @@ efx_port_init(
 		goto fail1;
 
 	epp->ep_emop->emo_reconfigure(enp);
+
+	/* Pick up current phy capababilities */
+	efx_port_poll(enp, NULL);
 
 	/*
 	 * Turn on the PHY if available, otherwise reset it, and
@@ -86,22 +93,22 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	enp->en_mod_flags &= ~EFX_MOD_PORT;
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_port_poll(
 	__in		efx_nic_t *enp,
-	__out		efx_link_mode_t	*link_modep)
+	__out_opt	efx_link_mode_t	*link_modep)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_mac_ops_t *emop = epp->ep_emop;
+	const efx_mac_ops_t *emop = epp->ep_emop;
 	efx_link_mode_t ignore_link_mode;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
@@ -118,14 +125,14 @@ efx_port_poll(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 #if EFSYS_OPT_LOOPBACK
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_port_loopback_set(
 	__in		efx_nic_t *enp,
 	__in		efx_link_mode_t link_mode,
@@ -133,15 +140,17 @@ efx_port_loopback_set(
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	efx_mac_ops_t *emop = epp->ep_emop;
-	int rc;
+	const efx_mac_ops_t *emop = epp->ep_emop;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
 	EFSYS_ASSERT(emop != NULL);
 
 	EFSYS_ASSERT(link_mode < EFX_LINK_NMODES);
-	if ((1 << loopback_type) & ~encp->enc_loopback_types[link_mode]) {
+
+	if (EFX_TEST_QWORD_BIT(encp->enc_loopback_types[link_mode],
+		loopback_type) == 0) {
 		rc = ENOTSUP;
 		goto fail1;
 	}
@@ -158,14 +167,14 @@ efx_port_loopback_set(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 #if EFSYS_OPT_NAMES
 
-static const char 	__cs * __cs __efx_loopback_type_name[] = {
+static const char * const __efx_loopback_type_name[] = {
 	"OFF",
 	"DATA",
 	"GMAC",
@@ -184,13 +193,33 @@ static const char 	__cs * __cs __efx_loopback_type_name[] = {
 	"PHY_XS",
 	"PCS",
 	"PMA_PMD",
+	"XPORT",
+	"XGMII_WS",
+	"XAUI_WS",
+	"XAUI_WS_FAR",
+	"XAUI_WS_NEAR",
+	"GMII_WS",
+	"XFI_WS",
+	"XFI_WS_FAR",
+	"PHYXS_WS",
+	"PMA_INT",
+	"SD_NEAR",
+	"SD_FAR",
+	"PMA_INT_WS",
+	"SD_FEP2_WS",
+	"SD_FEP1_5_WS",
+	"SD_FEP_WS",
+	"SD_FES_WS",
 };
 
-	__checkReturn	const char __cs *
+	__checkReturn	const char *
 efx_loopback_type_name(
 	__in		efx_nic_t *enp,
 	__in		efx_loopback_type_t type)
 {
+	EFX_STATIC_ASSERT(EFX_ARRAY_SIZE(__efx_loopback_type_name) ==
+	    EFX_LOOPBACK_NTYPES);
+
 	_NOTE(ARGUNUSED(enp))
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(type, <, EFX_LOOPBACK_NTYPES);
@@ -207,7 +236,7 @@ efx_port_fini(
 	__in		efx_nic_t *enp)
 {
 	efx_port_t *epp = &(enp->en_port);
-	efx_phy_ops_t *epop = epp->ep_epop;
+	const efx_phy_ops_t *epop = epp->ep_epop;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
@@ -219,7 +248,6 @@ efx_port_fini(
 	epp->ep_emop = NULL;
 	epp->ep_mac_type = EFX_MAC_INVALID;
 	epp->ep_mac_drain = B_FALSE;
-	epp->ep_mac_poll_needed = B_FALSE;
 
 	/* Turn off the PHY */
 	if (epop->epo_power != NULL)

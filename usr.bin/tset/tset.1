@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)tset.1	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd June 6, 2015
 .Dt TSET 1
 .Os
 .Sh NAME
@@ -400,5 +400,22 @@ older terminal interfaces.
 .Sh HISTORY
 The
 .Nm
-command appeared in
-.Bx 3.0 .
+and
+.Nm reset
+utilities first appeared in
+.Bx 1 .
+.Sh AUTHORS
+.An -nosplit
+The original version of
+.Nm tset
+was written by
+.An Eric P. Allman
+in October 1977, and
+.Nm reset
+was originally written by
+.An Kurt Shoens .
+The current version also contains code by
+.An Zeyd M. Ben-Halim ,
+.An Eric S. Raymond ,
+and
+.An Thomas E. Dickey .

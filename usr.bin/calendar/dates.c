@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1992-2009 Edwin Groothuis <edwin@FreeBSD.org>.
  * All rights reserved.
  *
@@ -381,7 +383,7 @@ walkthrough_dates(struct event **e)
 		d = m->days;
 		*e = d->events;
 		return (1);
-	};
+	}
 	if (d->nextday != NULL) {
 		d = d->nextday;
 		*e = d->events;

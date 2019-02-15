@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.h,v 1.79 2010/06/25 07:14:46 djm Exp $ */
+/* $OpenBSD: ssh.h,v 1.88 2018/06/06 18:29:18 markus Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -19,17 +19,16 @@
 #define SSH_DEFAULT_PORT	22
 
 /*
+ * Maximum number of certificate files that can be specified
+ * in configuration files or on the command line.
+ */
+#define SSH_MAX_CERTIFICATE_FILES	100
+
+/*
  * Maximum number of RSA authentication identity files that can be specified
  * in configuration files or on the command line.
  */
 #define SSH_MAX_IDENTITY_FILES		100
-
-/*
- * Maximum length of lines in authorized_keys file.
- * Current value permits 16kbit RSA and RSA1 keys and 8kbit DSA keys, with
- * some room for options and comments.
- */
-#define SSH_MAX_PUBKEY_BYTES		8192
 
 /*
  * Major protocol version.  Different version indicates major incompatibility
@@ -41,7 +40,7 @@
 #define PROTOCOL_MAJOR_1	1
 #define PROTOCOL_MINOR_1	5
 
-/* We support both SSH1 and SSH2 */
+/* We support only SSH2 */
 #define PROTOCOL_MAJOR_2	2
 #define PROTOCOL_MINOR_2	0
 
@@ -91,9 +90,6 @@
 #ifndef SSH_PRIVSEP_USER
 #define SSH_PRIVSEP_USER		"sshd"
 #endif
-
-/* Minimum modulus size (n) for RSA keys. */
-#define SSH_RSA_MINIMUM_MODULUS_SIZE	768
 
 /* Listen backlog for sshd, ssh-agent and forwarding sockets */
 #define SSH_LISTEN_BACKLOG		128

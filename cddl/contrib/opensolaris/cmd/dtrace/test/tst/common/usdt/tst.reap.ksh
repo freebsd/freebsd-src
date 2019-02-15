@@ -51,17 +51,17 @@ provider test_prov {
 };
 EOF
 
-gcc -c test.c
+cc -c test.c
 if [ $? -ne 0 ]; then
 	print -u2 "failed to compile test.c"
 	exit 1
 fi
-$dtrace -G -32 -s prov.d test.o
+$dtrace -G -s prov.d test.o
 if [ $? -ne 0 ]; then
 	print -u2 "failed to create DOF"
 	exit 1
 fi
-gcc -o test test.o prov.o
+cc -o test test.o prov.o
 if [ $? -ne 0 ]; then
 	print -u2 "failed to link final executable"
 	exit 1
@@ -110,6 +110,6 @@ grep D_PDESC_INVAL test.out 2> /dev/null 1>&2
 status=$?
 
 cd /
-/usr/bin/rm -rf $DIR
+rm -rf $DIR
 
 exit $status

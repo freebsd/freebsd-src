@@ -2,6 +2,8 @@
 /*	$NetBSD: citrus_iconv.c,v 1.10 2011/11/19 18:34:21 tnozaki Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2003 Citrus Project,
  * All rights reserved.
  *
@@ -278,7 +280,9 @@ _citrus_iconv_open(struct _citrus_iconv * __restrict * __restrict rcv,
 	struct _citrus_iconv *cv = NULL;
 	struct _citrus_iconv_shared *ci = NULL;
 	char realdst[PATH_MAX], realsrc[PATH_MAX];
+#ifdef _PATH_ICONV
 	char buf[PATH_MAX], path[PATH_MAX];
+#endif
 	int ret;
 
 	init_cache();
@@ -290,10 +294,16 @@ _citrus_iconv_open(struct _citrus_iconv * __restrict * __restrict rcv,
 		dst = nl_langinfo(CODESET);
 
 	/* resolve codeset name aliases */
+#ifdef _PATH_ICONV
+	snprintf(path, sizeof(path), "%s/%s", _PATH_ICONV, _CITRUS_ICONV_ALIAS);
 	strlcpy(realsrc, _lookup_alias(path, src, buf, (size_t)PATH_MAX,
 	    _LOOKUP_CASE_IGNORE), (size_t)PATH_MAX);
 	strlcpy(realdst, _lookup_alias(path, dst, buf, (size_t)PATH_MAX,
 	    _LOOKUP_CASE_IGNORE), (size_t)PATH_MAX);
+#else
+	strlcpy(realsrc, src, (size_t)PATH_MAX);
+	strlcpy(realdst, dst, (size_t)PATH_MAX);
+#endif
 
 	/* sanity check */
 	if (strchr(realsrc, '/') != NULL || strchr(realdst, '/'))

@@ -1,6 +1,8 @@
 /*	$NetBSD: if_bridgevar.h,v 1.4 2003/07/08 07:13:50 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright 2001 Wasabi Systems, Inc.
  * All rights reserved.
  *
@@ -35,7 +37,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
+/*-
  * Copyright (c) 1999, 2000 Jason L. Wright (jason@thought.net)
  * All rights reserved.
  *

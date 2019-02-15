@@ -42,7 +42,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -61,7 +61,7 @@
  */
 
 #include <sys/cdefs.h>
- __FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -77,6 +77,7 @@
 #include <sys/sysctl.h>
 #include <sys/syscallsubr.h>
 #include <sys/taskqueue.h>
+#include <sys/tree.h>
 #include <sys/vnode.h>
 #include <machine/atomic.h>
 #include <vm/uma.h>
@@ -148,6 +149,15 @@ int autofs_interruptible = 1;
 TUNABLE_INT("vfs.autofs.interruptible", &autofs_interruptible);
 SYSCTL_INT(_vfs_autofs, OID_AUTO, interruptible, CTLFLAG_RWTUN,
     &autofs_interruptible, 1, "Allow requests to be interrupted by signal");
+
+static int
+autofs_node_cmp(const struct autofs_node *a, const struct autofs_node *b)
+{
+
+	return (strcmp(a->an_name, b->an_name));
+}
+
+RB_GENERATE(autofs_node_tree, autofs_node, an_link, autofs_node_cmp);
 
 int
 autofs_init(struct vfsconf *vfsp)
@@ -274,6 +284,7 @@ autofs_task(void *context, int pending)
 	 * XXX: EIO perhaps?
 	 */
 	ar->ar_error = ETIMEDOUT;
+	ar->ar_wildcards = true;
 	ar->ar_done = true;
 	ar->ar_in_progress = false;
 	cv_broadcast(&autofs_softc->sc_cv);
@@ -291,12 +302,13 @@ autofs_cached(struct autofs_node *anp, const char *component, int componentlen)
 	AUTOFS_ASSERT_UNLOCKED(amp);
 
 	/*
-	 * For top-level nodes we need to request automountd(8)
-	 * assistance even if the node is marked as cached,
-	 * but the requested subdirectory does not exist.  This
-	 * is necessary for wildcard indirect map keys to work.
+	 * For root node we need to request automountd(8) assistance even
+	 * if the node is marked as cached, but the requested top-level
+	 * directory does not exist.  This is necessary for wildcard indirect
+	 * map keys to work.  We don't do this if we know that there are
+	 * no wildcards.
 	 */
-	if (anp->an_parent == NULL && componentlen != 0) {
+	if (anp->an_parent == NULL && componentlen != 0 && anp->an_wildcards) {
 		AUTOFS_SLOCK(amp);
 		error = autofs_node_find(anp, component, componentlen, NULL);
 		AUTOFS_SUNLOCK(amp);
@@ -316,6 +328,18 @@ autofs_cache_callout(void *context)
 	anp->an_cached = false;
 }
 
+void
+autofs_flush(struct autofs_mount *amp)
+{
+
+	/*
+	 * XXX: This will do for now, but ideally we should iterate
+	 * 	over all the nodes.
+	 */
+	amp->am_root->an_cached = false;
+	AUTOFS_DEBUG("%s flushed", amp->am_mountpoint);
+}
+
 /*
  * The set/restore sigmask functions are used to (temporarily) overwrite
  * the thread td_sigmask during triggering.
@@ -330,7 +354,7 @@ autofs_set_sigmask(sigset_t *oldset)
 	/* Remove the autofs set of signals from newset */
 	PROC_LOCK(curproc);
 	mtx_lock(&curproc->p_sigacts->ps_mtx);
-	for (i = 0 ; i < sizeof(autofs_sig_set)/sizeof(int) ; i++) {
+	for (i = 0 ; i < nitems(autofs_sig_set); i++) {
 		/*
 		 * But make sure we leave the ones already masked
 		 * by the process, i.e. remove the signal from the
@@ -366,6 +390,7 @@ autofs_trigger_one(struct autofs_node *anp,
 	struct autofs_request *ar;
 	char *key, *path;
 	int error = 0, request_error, last;
+	bool wildcards;
 
 	amp = anp->an_mount;
 
@@ -417,12 +442,8 @@ autofs_trigger_one(struct autofs_node *anp,
 
 		TIMEOUT_TASK_INIT(taskqueue_thread, &ar->ar_task, 0,
 		    autofs_task, ar);
-		error = taskqueue_enqueue_timeout(taskqueue_thread,
-		    &ar->ar_task, autofs_timeout * hz);
-		if (error != 0) {
-			AUTOFS_WARN("taskqueue_enqueue_timeout() failed "
-			    "with error %d", error);
-		}
+		taskqueue_enqueue_timeout(taskqueue_thread, &ar->ar_task,
+		    autofs_timeout * hz);
 		refcount_init(&ar->ar_refcount, 1);
 		TAILQ_INSERT_TAIL(&autofs_softc->sc_requests, ar, ar_next);
 	}
@@ -450,6 +471,8 @@ autofs_trigger_one(struct autofs_node *anp,
 		    ar->ar_path, request_error);
 	}
 
+	wildcards = ar->ar_wildcards;
+
 	last = refcount_release(&ar->ar_refcount);
 	if (last) {
 		TAILQ_REMOVE(&autofs_softc->sc_requests, ar, ar_next);
@@ -470,6 +493,7 @@ autofs_trigger_one(struct autofs_node *anp,
 	 */
 	if (error == 0 && request_error == 0 && autofs_cache > 0) {
 		anp->an_cached = true;
+		anp->an_wildcards = wildcards;
 		callout_reset(&anp->an_callout, autofs_cache * hz,
 		    autofs_cache_callout, anp);
 	}
@@ -544,7 +568,6 @@ autofs_ioctl_request(struct autofs_daemon_request *adr)
 		    &autofs_softc->sc_lock);
 		if (error != 0) {
 			sx_xunlock(&autofs_softc->sc_lock);
-			AUTOFS_DEBUG("failed with error %d", error);
 			return (error);
 		}
 	}
@@ -567,6 +590,34 @@ autofs_ioctl_request(struct autofs_daemon_request *adr)
 }
 
 static int
+autofs_ioctl_done_101(struct autofs_daemon_done_101 *add)
+{
+	struct autofs_request *ar;
+
+	sx_xlock(&autofs_softc->sc_lock);
+	TAILQ_FOREACH(ar, &autofs_softc->sc_requests, ar_next) {
+		if (ar->ar_id == add->add_id)
+			break;
+	}
+
+	if (ar == NULL) {
+		sx_xunlock(&autofs_softc->sc_lock);
+		AUTOFS_DEBUG("id %d not found", add->add_id);
+		return (ESRCH);
+	}
+
+	ar->ar_error = add->add_error;
+	ar->ar_wildcards = true;
+	ar->ar_done = true;
+	ar->ar_in_progress = false;
+	cv_broadcast(&autofs_softc->sc_cv);
+
+	sx_xunlock(&autofs_softc->sc_lock);
+
+	return (0);
+}
+
+static int
 autofs_ioctl_done(struct autofs_daemon_done *add)
 {
 	struct autofs_request *ar;
@@ -584,6 +635,7 @@ autofs_ioctl_done(struct autofs_daemon_done *add)
 	}
 
 	ar->ar_error = add->add_error;
+	ar->ar_wildcards = add->add_wildcards;
 	ar->ar_done = true;
 	ar->ar_in_progress = false;
 	cv_broadcast(&autofs_softc->sc_cv);
@@ -640,6 +692,9 @@ autofs_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode,
 	case AUTOFSREQUEST:
 		return (autofs_ioctl_request(
 		    (struct autofs_daemon_request *)arg));
+	case AUTOFSDONE101:
+		return (autofs_ioctl_done_101(
+		    (struct autofs_daemon_done_101 *)arg));
 	case AUTOFSDONE:
 		return (autofs_ioctl_done(
 		    (struct autofs_daemon_done *)arg));

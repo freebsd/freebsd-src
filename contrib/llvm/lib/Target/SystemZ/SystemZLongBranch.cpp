@@ -53,121 +53,126 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "systemz-long-branch"
-
+#include "SystemZ.h"
+#include "SystemZInstrInfo.h"
 #include "SystemZTargetMachine.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/IR/Function.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/MathExtras.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/IR/DebugLoc.h"
+#include "llvm/Support/ErrorHandling.h"
+#include <cassert>
+#include <cstdint>
 
 using namespace llvm;
+
+#define DEBUG_TYPE "systemz-long-branch"
 
 STATISTIC(LongBranches, "Number of long branches.");
 
 namespace {
-  // Represents positional information about a basic block.
-  struct MBBInfo {
-    // The address that we currently assume the block has.
-    uint64_t Address;
 
-    // The size of the block in bytes, excluding terminators.
-    // This value never changes.
-    uint64_t Size;
+// Represents positional information about a basic block.
+struct MBBInfo {
+  // The address that we currently assume the block has.
+  uint64_t Address = 0;
 
-    // The minimum alignment of the block, as a log2 value.
-    // This value never changes.
-    unsigned Alignment;
+  // The size of the block in bytes, excluding terminators.
+  // This value never changes.
+  uint64_t Size = 0;
 
-    // The number of terminators in this block.  This value never changes.
-    unsigned NumTerminators;
+  // The minimum alignment of the block, as a log2 value.
+  // This value never changes.
+  unsigned Alignment = 0;
 
-    MBBInfo()
-      : Address(0), Size(0), Alignment(0), NumTerminators(0) {} 
-  };
+  // The number of terminators in this block.  This value never changes.
+  unsigned NumTerminators = 0;
 
-  // Represents the state of a block terminator.
-  struct TerminatorInfo {
-    // If this terminator is a relaxable branch, this points to the branch
-    // instruction, otherwise it is null.
-    MachineInstr *Branch;
+  MBBInfo() = default;
+};
 
-    // The address that we currently assume the terminator has.
-    uint64_t Address;
+// Represents the state of a block terminator.
+struct TerminatorInfo {
+  // If this terminator is a relaxable branch, this points to the branch
+  // instruction, otherwise it is null.
+  MachineInstr *Branch = nullptr;
 
-    // The current size of the terminator in bytes.
-    uint64_t Size;
+  // The address that we currently assume the terminator has.
+  uint64_t Address = 0;
 
-    // If Branch is nonnull, this is the number of the target block,
-    // otherwise it is unused.
-    unsigned TargetBlock;
+  // The current size of the terminator in bytes.
+  uint64_t Size = 0;
 
-    // If Branch is nonnull, this is the length of the longest relaxed form,
-    // otherwise it is zero.
-    unsigned ExtraRelaxSize;
+  // If Branch is nonnull, this is the number of the target block,
+  // otherwise it is unused.
+  unsigned TargetBlock = 0;
 
-    TerminatorInfo() : Branch(0), Size(0), TargetBlock(0), ExtraRelaxSize(0) {}
-  };
+  // If Branch is nonnull, this is the length of the longest relaxed form,
+  // otherwise it is zero.
+  unsigned ExtraRelaxSize = 0;
 
-  // Used to keep track of the current position while iterating over the blocks.
-  struct BlockPosition {
-    // The address that we assume this position has.
-    uint64_t Address;
+  TerminatorInfo() = default;
+};
 
-    // The number of low bits in Address that are known to be the same
-    // as the runtime address.
-    unsigned KnownBits;
+// Used to keep track of the current position while iterating over the blocks.
+struct BlockPosition {
+  // The address that we assume this position has.
+  uint64_t Address = 0;
 
-    BlockPosition(unsigned InitialAlignment)
-      : Address(0), KnownBits(InitialAlignment) {}
-  };
+  // The number of low bits in Address that are known to be the same
+  // as the runtime address.
+  unsigned KnownBits;
 
-  class SystemZLongBranch : public MachineFunctionPass {
-  public:
-    static char ID;
-    SystemZLongBranch(const SystemZTargetMachine &tm)
-      : MachineFunctionPass(ID), TII(0) {}
+  BlockPosition(unsigned InitialAlignment) : KnownBits(InitialAlignment) {}
+};
 
-    virtual const char *getPassName() const {
-      return "SystemZ Long Branch";
-    }
+class SystemZLongBranch : public MachineFunctionPass {
+public:
+  static char ID;
 
-    bool runOnMachineFunction(MachineFunction &F);
+  SystemZLongBranch(const SystemZTargetMachine &tm)
+    : MachineFunctionPass(ID) {}
 
-  private:
-    void skipNonTerminators(BlockPosition &Position, MBBInfo &Block);
-    void skipTerminator(BlockPosition &Position, TerminatorInfo &Terminator,
-                        bool AssumeRelaxed);
-    TerminatorInfo describeTerminator(MachineInstr *MI);
-    uint64_t initMBBInfo();
-    bool mustRelaxBranch(const TerminatorInfo &Terminator, uint64_t Address);
-    bool mustRelaxABranch();
-    void setWorstCaseAddresses();
-    void splitBranchOnCount(MachineInstr *MI, unsigned AddOpcode);
-    void splitCompareBranch(MachineInstr *MI, unsigned CompareOpcode);
-    void relaxBranch(TerminatorInfo &Terminator);
-    void relaxBranches();
+  StringRef getPassName() const override { return "SystemZ Long Branch"; }
 
-    const SystemZInstrInfo *TII;
-    MachineFunction *MF;
-    SmallVector<MBBInfo, 16> MBBs;
-    SmallVector<TerminatorInfo, 16> Terminators;
-  };
+  bool runOnMachineFunction(MachineFunction &F) override;
 
-  char SystemZLongBranch::ID = 0;
+  MachineFunctionProperties getRequiredProperties() const override {
+    return MachineFunctionProperties().set(
+        MachineFunctionProperties::Property::NoVRegs);
+  }
 
-  const uint64_t MaxBackwardRange = 0x10000;
-  const uint64_t MaxForwardRange = 0xfffe;
-} // end of anonymous namespace
+private:
+  void skipNonTerminators(BlockPosition &Position, MBBInfo &Block);
+  void skipTerminator(BlockPosition &Position, TerminatorInfo &Terminator,
+                      bool AssumeRelaxed);
+  TerminatorInfo describeTerminator(MachineInstr &MI);
+  uint64_t initMBBInfo();
+  bool mustRelaxBranch(const TerminatorInfo &Terminator, uint64_t Address);
+  bool mustRelaxABranch();
+  void setWorstCaseAddresses();
+  void splitBranchOnCount(MachineInstr *MI, unsigned AddOpcode);
+  void splitCompareBranch(MachineInstr *MI, unsigned CompareOpcode);
+  void relaxBranch(TerminatorInfo &Terminator);
+  void relaxBranches();
 
-FunctionPass *llvm::createSystemZLongBranchPass(SystemZTargetMachine &TM) {
-  return new SystemZLongBranch(TM);
-}
+  const SystemZInstrInfo *TII = nullptr;
+  MachineFunction *MF;
+  SmallVector<MBBInfo, 16> MBBs;
+  SmallVector<TerminatorInfo, 16> Terminators;
+};
+
+char SystemZLongBranch::ID = 0;
+
+const uint64_t MaxBackwardRange = 0x10000;
+const uint64_t MaxForwardRange = 0xfffe;
+
+} // end anonymous namespace
 
 // Position describes the state immediately before Block.  Update Block
 // accordingly and move Position to the end of the block's non-terminator
@@ -206,11 +211,11 @@ void SystemZLongBranch::skipTerminator(BlockPosition &Position,
 }
 
 // Return a description of terminator instruction MI.
-TerminatorInfo SystemZLongBranch::describeTerminator(MachineInstr *MI) {
+TerminatorInfo SystemZLongBranch::describeTerminator(MachineInstr &MI) {
   TerminatorInfo Terminator;
   Terminator.Size = TII->getInstSizeInBytes(MI);
-  if (MI->isConditionalBranch() || MI->isUnconditionalBranch()) {
-    switch (MI->getOpcode()) {
+  if (MI.isConditionalBranch() || MI.isUnconditionalBranch()) {
+    switch (MI.getOpcode()) {
     case SystemZ::J:
       // Relaxes to JG, which is 2 bytes longer.
       Terminator.ExtraRelaxSize = 2;
@@ -223,6 +228,10 @@ TerminatorInfo SystemZLongBranch::describeTerminator(MachineInstr *MI) {
     case SystemZ::BRCTG:
       // Relaxes to A(G)HI and BRCL, which is 6 bytes longer.
       Terminator.ExtraRelaxSize = 6;
+      break;
+    case SystemZ::BRCTH:
+      // Never needs to be relaxed.
+      Terminator.ExtraRelaxSize = 0;
       break;
     case SystemZ::CRJ:
     case SystemZ::CLRJ:
@@ -247,7 +256,7 @@ TerminatorInfo SystemZLongBranch::describeTerminator(MachineInstr *MI) {
     default:
       llvm_unreachable("Unrecognized branch instruction");
     }
-    Terminator.Branch = MI;
+    Terminator.Branch = &MI;
     Terminator.TargetBlock =
       TII->getBranchInfo(MI).Target->getMBB()->getNumber();
   }
@@ -279,7 +288,7 @@ uint64_t SystemZLongBranch::initMBBInfo() {
     MachineBasicBlock::iterator MI = MBB->begin();
     MachineBasicBlock::iterator End = MBB->end();
     while (MI != End && !MI->isTerminator()) {
-      Block.Size += TII->getInstSizeInBytes(MI);
+      Block.Size += TII->getInstSizeInBytes(*MI);
       ++MI;
     }
     skipNonTerminators(Position, Block);
@@ -288,7 +297,7 @@ uint64_t SystemZLongBranch::initMBBInfo() {
     while (MI != End) {
       if (!MI->isDebugValue()) {
         assert(MI->isTerminator() && "Terminator followed by non-terminator");
-        Terminators.push_back(describeTerminator(MI));
+        Terminators.push_back(describeTerminator(*MI));
         skipTerminator(Position, Terminators.back(), false);
         ++Block.NumTerminators;
       }
@@ -321,9 +330,8 @@ bool SystemZLongBranch::mustRelaxBranch(const TerminatorInfo &Terminator,
 // Return true if, under current assumptions, any terminator needs
 // to be relaxed.
 bool SystemZLongBranch::mustRelaxABranch() {
-  for (SmallVectorImpl<TerminatorInfo>::iterator TI = Terminators.begin(),
-         TE = Terminators.end(); TI != TE; ++TI)
-    if (mustRelaxBranch(*TI, TI->Address))
+  for (auto &Terminator : Terminators)
+    if (mustRelaxBranch(Terminator, Terminator.Address))
       return true;
   return false;
 }
@@ -333,10 +341,9 @@ bool SystemZLongBranch::mustRelaxABranch() {
 void SystemZLongBranch::setWorstCaseAddresses() {
   SmallVector<TerminatorInfo, 16>::iterator TI = Terminators.begin();
   BlockPosition Position(MF->getAlignment());
-  for (SmallVectorImpl<MBBInfo>::iterator BI = MBBs.begin(), BE = MBBs.end();
-       BI != BE; ++BI) {
-    skipNonTerminators(Position, *BI);
-    for (unsigned BTI = 0, BTE = BI->NumTerminators; BTI != BTE; ++BTI) {
+  for (auto &Block : MBBs) {
+    skipNonTerminators(Position, Block);
+    for (unsigned BTI = 0, BTE = Block.NumTerminators; BTI != BTE; ++BTI) {
       skipTerminator(Position, *TI, true);
       ++TI;
     }
@@ -350,13 +357,13 @@ void SystemZLongBranch::splitBranchOnCount(MachineInstr *MI,
   MachineBasicBlock *MBB = MI->getParent();
   DebugLoc DL = MI->getDebugLoc();
   BuildMI(*MBB, MI, DL, TII->get(AddOpcode))
-    .addOperand(MI->getOperand(0))
-    .addOperand(MI->getOperand(1))
-    .addImm(-1);
+      .add(MI->getOperand(0))
+      .add(MI->getOperand(1))
+      .addImm(-1);
   MachineInstr *BRCL = BuildMI(*MBB, MI, DL, TII->get(SystemZ::BRCL))
-    .addImm(SystemZ::CCMASK_ICMP)
-    .addImm(SystemZ::CCMASK_CMP_NE)
-    .addOperand(MI->getOperand(2));
+                           .addImm(SystemZ::CCMASK_ICMP)
+                           .addImm(SystemZ::CCMASK_CMP_NE)
+                           .add(MI->getOperand(2));
   // The implicit use of CC is a killing use.
   BRCL->addRegisterKilled(SystemZ::CC, &TII->getRegisterInfo());
   MI->eraseFromParent();
@@ -369,12 +376,12 @@ void SystemZLongBranch::splitCompareBranch(MachineInstr *MI,
   MachineBasicBlock *MBB = MI->getParent();
   DebugLoc DL = MI->getDebugLoc();
   BuildMI(*MBB, MI, DL, TII->get(CompareOpcode))
-    .addOperand(MI->getOperand(0))
-    .addOperand(MI->getOperand(1));
+      .add(MI->getOperand(0))
+      .add(MI->getOperand(1));
   MachineInstr *BRCL = BuildMI(*MBB, MI, DL, TII->get(SystemZ::BRCL))
-    .addImm(SystemZ::CCMASK_ICMP)
-    .addOperand(MI->getOperand(2))
-    .addOperand(MI->getOperand(3));
+                           .addImm(SystemZ::CCMASK_ICMP)
+                           .add(MI->getOperand(2))
+                           .add(MI->getOperand(3));
   // The implicit use of CC is a killing use.
   BRCL->addRegisterKilled(SystemZ::CC, &TII->getRegisterInfo());
   MI->eraseFromParent();
@@ -426,7 +433,7 @@ void SystemZLongBranch::relaxBranch(TerminatorInfo &Terminator) {
 
   Terminator.Size += Terminator.ExtraRelaxSize;
   Terminator.ExtraRelaxSize = 0;
-  Terminator.Branch = 0;
+  Terminator.Branch = nullptr;
 
   ++LongBranches;
 }
@@ -435,10 +442,9 @@ void SystemZLongBranch::relaxBranch(TerminatorInfo &Terminator) {
 void SystemZLongBranch::relaxBranches() {
   SmallVector<TerminatorInfo, 16>::iterator TI = Terminators.begin();
   BlockPosition Position(MF->getAlignment());
-  for (SmallVectorImpl<MBBInfo>::iterator BI = MBBs.begin(), BE = MBBs.end();
-       BI != BE; ++BI) {
-    skipNonTerminators(Position, *BI);
-    for (unsigned BTI = 0, BTE = BI->NumTerminators; BTI != BTE; ++BTI) {
+  for (auto &Block : MBBs) {
+    skipNonTerminators(Position, Block);
+    for (unsigned BTI = 0, BTE = Block.NumTerminators; BTI != BTE; ++BTI) {
       assert(Position.Address <= TI->Address &&
              "Addresses shouldn't go forwards");
       if (mustRelaxBranch(*TI, Position.Address))
@@ -450,7 +456,7 @@ void SystemZLongBranch::relaxBranches() {
 }
 
 bool SystemZLongBranch::runOnMachineFunction(MachineFunction &F) {
-  TII = static_cast<const SystemZInstrInfo *>(F.getTarget().getInstrInfo());
+  TII = static_cast<const SystemZInstrInfo *>(F.getSubtarget().getInstrInfo());
   MF = &F;
   uint64_t Size = initMBBInfo();
   if (Size <= MaxForwardRange || !mustRelaxABranch())
@@ -459,4 +465,8 @@ bool SystemZLongBranch::runOnMachineFunction(MachineFunction &F) {
   setWorstCaseAddresses();
   relaxBranches();
   return true;
+}
+
+FunctionPass *llvm::createSystemZLongBranchPass(SystemZTargetMachine &TM) {
+  return new SystemZLongBranch(TM);
 }

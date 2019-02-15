@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Sylvestre Gallon. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -159,17 +161,19 @@ libusb10_handle_events_sub(struct libusb_context *ctx, struct timeval *tv)
 		if (ppdev[i] != NULL) {
 			dev = libusb_get_device(ppdev[i]);
 
-			if (fds[i].revents == 0)
-				err = 0;	/* nothing to do */
-			else
+			if (fds[i].revents != 0) {
 				err = libusb20_dev_process(ppdev[i]);
 
-			if (err) {
-				/* cancel all transfers - device is gone */
-				libusb10_cancel_all_transfer(dev);
+				if (err) {
+					/* set device is gone */
+					dev->device_is_gone = 1;
 
-				/* remove USB device from polling loop */
-				libusb10_remove_pollfd(dev->ctx, &dev->dev_poll);
+					/* remove USB device from polling loop */
+					libusb10_remove_pollfd(dev->ctx, &dev->dev_poll);
+
+					/* cancel all pending transfers */
+					libusb10_cancel_all_transfer_locked(ppdev[i], dev);
+				}
 			}
 			CTX_UNLOCK(ctx);
 			libusb_unref_device(dev);
@@ -178,10 +182,8 @@ libusb10_handle_events_sub(struct libusb_context *ctx, struct timeval *tv)
 		} else {
 			uint8_t dummy;
 
-			while (1) {
-				if (read(fds[i].fd, &dummy, 1) != 1)
-					break;
-			}
+			while (read(fds[i].fd, &dummy, 1) == 1)
+				;
 		}
 	}
 
@@ -310,6 +312,9 @@ libusb_wait_for_event(libusb_context *ctx, struct timeval *tv)
 	if (tv == NULL) {
 		pthread_cond_wait(&ctx->ctx_cond,
 		    &ctx->ctx_lock);
+		/* try to grab polling of actual events, if any */
+		if (ctx->ctx_handler == NO_THREAD)
+			ctx->ctx_handler = pthread_self();
 		return (0);
 	}
 	err = clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -328,6 +333,9 @@ libusb_wait_for_event(libusb_context *ctx, struct timeval *tv)
 	}
 	err = pthread_cond_timedwait(&ctx->ctx_cond,
 	    &ctx->ctx_lock, &ts);
+	/* try to grab polling of actual events, if any */
+	if (ctx->ctx_handler == NO_THREAD)
+		ctx->ctx_handler = pthread_self();
 
 	if (err == ETIMEDOUT)
 		return (1);
@@ -487,13 +495,26 @@ libusb_control_transfer(libusb_device_handle *devh,
 	return (actlen);
 }
 
+static libusb_context *
+libusb10_get_context_by_device_handle(libusb_device_handle *devh)
+{
+	libusb_context *ctx;
+
+	if (devh != NULL)
+		ctx = libusb_get_device(devh)->ctx;
+	else
+		ctx = NULL;
+
+	return (GET_CONTEXT(ctx));
+}
+
 static void
 libusb10_do_transfer_cb(struct libusb_transfer *transfer)
 {
 	libusb_context *ctx;
 	int *pdone;
 
-	ctx = GET_CONTEXT(NULL);
+	ctx = libusb10_get_context_by_device_handle(transfer->dev_handle);
 
 	DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "sync I/O done");
 
@@ -583,7 +604,8 @@ libusb_bulk_transfer(libusb_device_handle *devh,
 	libusb_context *ctx;
 	int ret;
 
-	ctx = GET_CONTEXT(NULL);
+	ctx = libusb10_get_context_by_device_handle(devh);
+
 	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_bulk_transfer enter");
 
 	ret = libusb10_do_transfer(devh, endpoint, data, length, transferred,
@@ -601,7 +623,8 @@ libusb_interrupt_transfer(libusb_device_handle *devh,
 	libusb_context *ctx;
 	int ret;
 
-	ctx = GET_CONTEXT(NULL);
+	ctx = libusb10_get_context_by_device_handle(devh);
+
 	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_interrupt_transfer enter");
 
 	ret = libusb10_do_transfer(devh, endpoint, data, length, transferred,
@@ -767,3 +790,48 @@ libusb_fill_iso_transfer(struct libusb_transfer *transfer,
 	transfer->callback = callback;
 }
 
+int
+libusb_alloc_streams(libusb_device_handle *dev, uint32_t num_streams,
+    unsigned char *endpoints, int num_endpoints)
+{
+	if (num_streams > 1)
+		return (LIBUSB_ERROR_INVALID_PARAM);
+	return (0);
+}
+
+int
+libusb_free_streams(libusb_device_handle *dev, unsigned char *endpoints, int num_endpoints)
+{
+
+	return (0);
+}
+
+void
+libusb_transfer_set_stream_id(struct libusb_transfer *transfer, uint32_t stream_id)
+{
+	struct libusb_super_transfer *sxfer;
+
+	if (transfer == NULL)
+		return;
+
+	sxfer = (struct libusb_super_transfer *)(
+	    ((uint8_t *)transfer) - sizeof(*sxfer));
+
+	/* set stream ID */
+	sxfer->stream_id = stream_id;
+}
+
+uint32_t
+libusb_transfer_get_stream_id(struct libusb_transfer *transfer)
+{
+	struct libusb_super_transfer *sxfer;
+
+	if (transfer == NULL)
+		return (0);
+
+	sxfer = (struct libusb_super_transfer *)(
+	    ((uint8_t *)transfer) - sizeof(*sxfer));
+
+	/* get stream ID */
+	return (sxfer->stream_id);
+}

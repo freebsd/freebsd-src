@@ -1,4 +1,4 @@
-//===--- OptSpecifier.h - Option Specifiers ---------------------*- C++ -*-===//
+//===- OptSpecifier.h - Option Specifiers -----------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,28 +12,28 @@
 
 namespace llvm {
 namespace opt {
-  class Option;
 
-  /// OptSpecifier - Wrapper class for abstracting references to option IDs.
-  class OptSpecifier {
-    unsigned ID;
+class Option;
 
-  private:
-    explicit OptSpecifier(bool) LLVM_DELETED_FUNCTION;
+/// OptSpecifier - Wrapper class for abstracting references to option IDs.
+class OptSpecifier {
+  unsigned ID = 0;
 
-  public:
-    OptSpecifier() : ID(0) {}
-    /*implicit*/ OptSpecifier(unsigned _ID) : ID(_ID) {}
-    /*implicit*/ OptSpecifier(const Option *Opt);
+public:
+  OptSpecifier() = default;
+  explicit OptSpecifier(bool) = delete;
+  /*implicit*/ OptSpecifier(unsigned ID) : ID(ID) {}
+  /*implicit*/ OptSpecifier(const Option *Opt);
 
-    bool isValid() const { return ID != 0; }
+  bool isValid() const { return ID != 0; }
 
-    unsigned getID() const { return ID; }
+  unsigned getID() const { return ID; }
 
-    bool operator==(OptSpecifier Opt) const { return ID == Opt.getID(); }
-    bool operator!=(OptSpecifier Opt) const { return !(*this == Opt); }
-  };
-}
-}
+  bool operator==(OptSpecifier Opt) const { return ID == Opt.getID(); }
+  bool operator!=(OptSpecifier Opt) const { return !(*this == Opt); }
+};
 
-#endif
+} // end namespace opt
+} // end namespace llvm
+
+#endif // LLVM_OPTION_OPTSPECIFIER_H

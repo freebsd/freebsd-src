@@ -14,6 +14,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -81,7 +83,7 @@
 static int uvisor_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uvisor, CTLFLAG_RW, 0, "USB uvisor");
-SYSCTL_INT(_hw_usb_uvisor, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uvisor, OID_AUTO, debug, CTLFLAG_RWTUN,
     &uvisor_debug, 0, "Debug level");
 #endif
 
@@ -100,7 +102,7 @@ SYSCTL_INT(_hw_usb_uvisor, OID_AUTO, debug, CTLFLAG_RW,
 /* From the Linux driver */
 /*
  * UVISOR_REQUEST_BYTES_AVAILABLE asks the visor for the number of bytes that
- * are available to be transfered to the host for the specified endpoint.
+ * are available to be transferred to the host for the specified endpoint.
  * Currently this is not used, and always returns 0x0001
  */
 #define	UVISOR_REQUEST_BYTES_AVAILABLE		0x01
@@ -251,11 +253,6 @@ static driver_t uvisor_driver = {
 	.size = sizeof(struct uvisor_softc),
 };
 
-DRIVER_MODULE(uvisor, uhub, uvisor_driver, uvisor_devclass, NULL, 0);
-MODULE_DEPEND(uvisor, ucom, 1, 1, 1);
-MODULE_DEPEND(uvisor, usb, 1, 1, 1);
-MODULE_VERSION(uvisor, 1);
-
 static const STRUCT_USB_HOST_ID uvisor_devs[] = {
 #define	UVISOR_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
 	UVISOR_DEV(ACEECA, MEZ1000, UVISOR_FLAG_PALM4),
@@ -287,6 +284,12 @@ static const STRUCT_USB_HOST_ID uvisor_devs[] = {
 	UVISOR_DEV(TAPWAVE, ZODIAC, UVISOR_FLAG_PALM4),
 #undef UVISOR_DEV
 };
+
+DRIVER_MODULE(uvisor, uhub, uvisor_driver, uvisor_devclass, NULL, 0);
+MODULE_DEPEND(uvisor, ucom, 1, 1, 1);
+MODULE_DEPEND(uvisor, usb, 1, 1, 1);
+MODULE_VERSION(uvisor, 1);
+USB_PNP_HOST_INFO(uvisor_devs);
 
 static int
 uvisor_probe(device_t dev)

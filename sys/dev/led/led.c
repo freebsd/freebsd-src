@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: Beerware
+ *
  * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
  * <phk@FreeBSD.org> wrote this file.  As long as you retain this notice you
@@ -293,7 +295,8 @@ led_create_state(led_t *func, void *priv, char const *name, int state)
 	mtx_lock(&led_mtx);
 	sc->dev->si_drv1 = sc;
 	LIST_INSERT_HEAD(&led_list, sc, list);
-	sc->func(sc->private, state != 0);
+	if (state != -1)
+		sc->func(sc->private, state != 0);
 	mtx_unlock(&led_mtx);
 
 	return (sc->dev);

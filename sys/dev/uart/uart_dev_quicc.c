@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Juniper Networks
  * All rights reserved.
  *
@@ -271,7 +273,8 @@ struct uart_class uart_quicc_class = {
 	sizeof(struct quicc_softc),
 	.uc_ops = &uart_quicc_ops,
 	.uc_range = 2,
-	.uc_rclk = DEFAULT_RCLK
+	.uc_rclk = DEFAULT_RCLK,
+	.uc_rshift = 0
 };
 
 #define	SIGCHG(c, i, s, d)				\

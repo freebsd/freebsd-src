@@ -2,11 +2,9 @@
 
 .include <bsd.own.mk>
 
-TEST_DIR=	${.CURDIR}/../../../contrib/byacc/test
+TEST_DIR=	${SRCTOP}/contrib/byacc/test
 
 .PATH: ${TEST_DIR} ${TEST_DIR}/yacc
-
-TESTSDIR=	${TESTSBASE}/usr.bin/yacc
 
 PLAIN_TESTS_SH=	yacc_tests
 # NOTE: due to caveats with how permissions are handled on FreeBSD
@@ -17,12 +15,19 @@ TEST_METADATA.yacc_tests+=	required_user="unprivileged"
 SCRIPTS=	run_test
 SCRIPTSDIR=	${TESTSDIR}
 
-FILESGROUPS=	FILES FILEStest FILEStest_yacc
+CLEANFILES=	run_test
+
+FILESGROUPS+=	FILEStest FILEStest_yacc
+FILEStestPACKAGE=${PACKAGE}
+FILEStest_yaccPACKAGE=${PACKAGE}
 
 FILEStestDIR=	${TESTSDIR}
 
 FILEStest+=	btyacc_calc1.y
 FILEStest+=	btyacc_demo.y
+FILEStest+=	btyacc_destroy1.y
+FILEStest+=	btyacc_destroy2.y
+FILEStest+=	btyacc_destroy3.y
 FILEStest+=	calc.y
 FILEStest+=	calc1.y
 FILEStest+=	calc2.y
@@ -67,6 +72,7 @@ FILEStest+=	err_syntax8.y
 FILEStest+=	err_syntax8a.y
 FILEStest+=	err_syntax9.y
 FILEStest+=	error.y
+FILEStest+=	expr.oxout.y
 FILEStest+=	grammar.y
 FILEStest+=	inherit0.y
 FILEStest+=	inherit1.y
@@ -240,6 +246,10 @@ FILEStest_yacc+=	error.error
 FILEStest_yacc+=	error.output
 FILEStest_yacc+=	error.tab.c
 FILEStest_yacc+=	error.tab.h
+FILEStest_yacc+=	expr.oxout.error
+FILEStest_yacc+=	expr.oxout.output
+FILEStest_yacc+=	expr.oxout.tab.c
+FILEStest_yacc+=	expr.oxout.tab.h
 FILEStest_yacc+=	grammar.dot
 FILEStest_yacc+=	grammar.error
 FILEStest_yacc+=	grammar.output

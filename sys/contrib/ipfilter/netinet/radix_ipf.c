@@ -103,7 +103,6 @@ buildnodes(addr, mask, nodes)
 	ipf_rdx_node_t nodes[2];
 {
 	u_32_t maskbits;
-	u_32_t lastbits;
 	u_32_t lastmask;
 	u_32_t *last;
 	int masklen;
@@ -117,7 +116,6 @@ buildnodes(addr, mask, nodes)
 		masklen = last - (u_32_t *)mask;
 		lastmask = *last;
 	}
-	lastbits = maskbits & 0x1f;
 
 	bzero(&nodes[0], sizeof(ipf_rdx_node_t) * 2);
 	nodes[0].maskbitcount = maskbits;
@@ -1509,6 +1507,8 @@ random_add(rnh)
 		add_addr(rnh, i, order[i]);
 		checktree(rnh);
 	}
+
+	free(order);
 }
 
 
@@ -1526,5 +1526,7 @@ random_delete(rnh)
 		delete_addr(rnh, i);
 		checktree(rnh);
 	}
+
+	free(order);
 }
 #endif /* RDX_DEBUG */

@@ -12,13 +12,17 @@
 
 #include <dbus/dbus.h>
 
-typedef DBusMessage * (* WPADBusMethodHandler)(DBusMessage *message,
-					       void *user_data);
-typedef void (* WPADBusArgumentFreeFunction)(void *handler_arg);
+typedef DBusMessage * (*WPADBusMethodHandler)(DBusMessage *message,
+					      void *user_data);
+typedef void (*WPADBusArgumentFreeFunction)(void *handler_arg);
 
-typedef dbus_bool_t (* WPADBusPropertyAccessor)(DBusMessageIter *iter,
-                                                DBusError *error,
-						void *user_data);
+struct wpa_dbus_property_desc;
+typedef dbus_bool_t (*WPADBusPropertyAccessor)(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data);
+#define DECLARE_ACCESSOR(f) \
+dbus_bool_t f(const struct wpa_dbus_property_desc *property_desc, \
+	      DBusMessageIter *iter, DBusError *error, void *user_data)
 
 struct wpa_dbus_object_desc {
 	DBusConnection *connection;
@@ -89,6 +93,8 @@ struct wpa_dbus_property_desc {
 	WPADBusPropertyAccessor getter;
 	/* property setter function */
 	WPADBusPropertyAccessor setter;
+	/* other data */
+	const char *data;
 };
 
 
@@ -137,10 +143,8 @@ void wpa_dbus_mark_property_changed(struct wpas_dbus_priv *iface,
 DBusMessage * wpa_dbus_introspect(DBusMessage *message,
 				  struct wpa_dbus_object_desc *obj_dsc);
 
-char *wpas_dbus_new_decompose_object_path(const char *path,
-					   int p2p_persistent_group,
-					   char **network,
-					   char **bssid);
+char * wpas_dbus_new_decompose_object_path(const char *path, const char *sep,
+					   char **item);
 
 DBusMessage *wpas_dbus_reply_new_from_error(DBusMessage *message,
 					    DBusError *error,

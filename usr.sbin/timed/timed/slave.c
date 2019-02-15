@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1985, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -54,7 +56,7 @@ static void schgdate(struct tsp *, char *);
 static void setmaster(struct tsp *);
 static void answerdelay(void);
 
-int
+void
 slave(void)
 {
 	int tries;
@@ -78,7 +80,7 @@ slave(void)
 	struct utmpx utx;
 
 
-	old_slavenet = 0;
+	old_slavenet = NULL;
 	seq = 0;
 	refusetime = 0;
 	adjtime = 0;
@@ -254,9 +256,10 @@ loop:
 			 * the following line is necessary due to syslog
 			 * calling ctime() which clobbers the static buffer
 			 */
-			(void)strcpy(olddate, date());
+			(void)strlcpy(olddate, date(), sizeof(olddate));
 			tsp_time_sec = msg->tsp_time.tv_sec;
-			(void)strcpy(newdate, ctime(&tsp_time_sec));
+			(void)strlcpy(newdate, ctime(&tsp_time_sec),
+			    sizeof(newdate));
 
 			if (!good_host_name(msg->tsp_name)) {
 				syslog(LOG_NOTICE,
@@ -342,7 +345,8 @@ loop:
 
 		case TSP_SETDATE:
 			tsp_time_sec = msg->tsp_time.tv_sec;
-			(void)strcpy(newdate, ctime(&tsp_time_sec));
+			(void)strlcpy(newdate, ctime(&tsp_time_sec),
+			    sizeof(newdate));
 			schgdate(msg, newdate);
 			break;
 
@@ -350,9 +354,10 @@ loop:
 			if (fromnet->status != MASTER)
 				break;
 			tsp_time_sec = msg->tsp_time.tv_sec;
-			(void)strcpy(newdate, ctime(&tsp_time_sec));
+			(void)strlcpy(newdate, ctime(&tsp_time_sec),
+			    sizeof(newdate));
 			htp = findhost(msg->tsp_name);
-			if (0 == htp) {
+			if (htp == NULL) {
 				syslog(LOG_WARNING,
 				       "DATEREQ from uncontrolled machine");
 				break;
@@ -544,7 +549,7 @@ loop:
 				if (msg->tsp_hopcnt-- < 1)
 				    break;
 				bytenetorder(msg);
-				for (ntp = nettab; ntp != 0; ntp = ntp->next) {
+				for (ntp = nettab; ntp != NULL; ntp = ntp->next) {
 				    if (ntp->status == MASTER
 					&& 0 > sendto(sock, (char *)msg,
 						      sizeof(struct tsp), 0,

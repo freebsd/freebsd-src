@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1995
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -57,8 +59,8 @@ __FBSDID("$FreeBSD$");
 
 extern int debug;
 
-			/* NIS v1 */
-const char *yp_procs[] = {
+static const char *yp_procs[] = {
+	/* NIS v1 */
 	"ypoldproc_null",
 	"ypoldproc_domain",
 	"ypoldproc_domain_nonack",
@@ -71,7 +73,7 @@ const char *yp_procs[] = {
 	"badproc1", /* placeholder */
 	"badproc2", /* placeholder */
 	"badproc3", /* placeholder */
-	
+
 	/* NIS v2 */
 	"ypproc_null",
 	"ypproc_domain",
@@ -93,7 +95,7 @@ struct securenet {
 	struct securenet *next;
 };
 
-struct securenet *securenets;
+static struct securenet *securenets;
 
 #define LINEBUFSZ 1024
 
@@ -129,7 +131,7 @@ load_securenets(void)
 
 	if ((fp = fopen(path, "r")) == NULL) {
 		if (errno == ENOENT) {
-			securenets = (struct securenet *)malloc(sizeof(struct securenet));
+			securenets = malloc(sizeof(struct securenet));
 			securenets->net.s_addr = INADDR_ANY;
 			securenets->mask.s_addr = INADDR_ANY;
 			securenets->next = NULL;
@@ -154,7 +156,7 @@ load_securenets(void)
 			continue;
 		}
 
-		tmp = (struct securenet *)malloc(sizeof(struct securenet));
+		tmp = malloc(sizeof(struct securenet));
 
 		if (!inet_aton((char *)&addr1, (struct in_addr *)&tmp->net)) {
 			yp_error("badly formatted securenets entry: %s", addr1);

@@ -71,9 +71,6 @@ static struct isa_pnp_id  sbni_ids[] = {
 	{ 0, NULL }	/* we have no pnp sbni cards atm.  */
 };
 
-DRIVER_MODULE(sbni, isa, sbni_isa_driver, sbni_isa_devclass, 0, 0);
-MODULE_DEPEND(sbni, isa, 1, 1, 1);
-
 static int
 sbni_probe_isa(device_t dev)
 {
@@ -86,8 +83,9 @@ sbni_probe_isa(device_t dev)
 
 	sc = device_get_softc(dev);
 
- 	sc->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->io_rid,
-					0ul, ~0ul, SBNI_PORTS, RF_ACTIVE);
+ 	sc->io_res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+ 						 &sc->io_rid, SBNI_PORTS,
+ 						 RF_ACTIVE);
 	if (!sc->io_res) {
 		printf("sbni: cannot allocate io ports!\n");
 		return (ENOENT);
@@ -131,7 +129,7 @@ sbni_attach_isa(device_t dev)
 	} else {
 		struct sbni_softc  *master;
 
-		if ((master = connect_to_master(sc)) == 0) {
+		if ((master = connect_to_master(sc)) == NULL) {
 			device_printf(dev, "failed to alloc irq\n");
 			sbni_release_resources(sc);
 			return (ENXIO);
@@ -165,3 +163,7 @@ sbni_attach_isa(device_t dev)
 
 	return (0);
 }
+
+DRIVER_MODULE(sbni, isa, sbni_isa_driver, sbni_isa_devclass, 0, 0);
+MODULE_DEPEND(sbni, isa, 1, 1, 1);
+ISA_PNP_INFO(sbni_ids);

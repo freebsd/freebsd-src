@@ -26,16 +26,6 @@ SystemZConstantPoolValue::Create(const GlobalValue *GV,
   return new SystemZConstantPoolValue(GV, Modifier);
 }
 
-unsigned SystemZConstantPoolValue::getRelocationInfo() const {
-  switch (Modifier) {
-  case SystemZCP::NTPOFF:
-    // May require a relocation, but the relocations are always resolved
-    // by the static linker.
-    return 1;
-  }
-  llvm_unreachable("Unknown modifier");
-}
-
 int SystemZConstantPoolValue::
 getExistingMachineCPValue(MachineConstantPool *CP, unsigned Alignment) {
   unsigned AlignMask = Alignment - 1;
@@ -43,7 +33,7 @@ getExistingMachineCPValue(MachineConstantPool *CP, unsigned Alignment) {
   for (unsigned I = 0, E = Constants.size(); I != E; ++I) {
     if (Constants[I].isMachineConstantPoolEntry() &&
         (Constants[I].getAlignment() & AlignMask) == 0) {
-      SystemZConstantPoolValue *ZCPV =
+      auto *ZCPV =
         static_cast<SystemZConstantPoolValue *>(Constants[I].Val.MachineCPVal);
       if (ZCPV->GV == GV && ZCPV->Modifier == Modifier)
         return I;

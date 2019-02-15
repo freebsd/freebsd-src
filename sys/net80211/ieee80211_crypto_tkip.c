@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -54,7 +56,8 @@ __FBSDID("$FreeBSD$");
 static	void *tkip_attach(struct ieee80211vap *, struct ieee80211_key *);
 static	void tkip_detach(struct ieee80211_key *);
 static	int tkip_setkey(struct ieee80211_key *);
-static	int tkip_encap(struct ieee80211_key *, struct mbuf *m, uint8_t keyid);
+static	void tkip_setiv(struct ieee80211_key *, uint8_t *);
+static	int tkip_encap(struct ieee80211_key *, struct mbuf *);
 static	int tkip_enmic(struct ieee80211_key *, struct mbuf *, int);
 static	int tkip_decap(struct ieee80211_key *, struct mbuf *, int);
 static	int tkip_demic(struct ieee80211_key *, struct mbuf *, int);
@@ -69,6 +72,7 @@ static const struct ieee80211_cipher tkip  = {
 	.ic_attach	= tkip_attach,
 	.ic_detach	= tkip_detach,
 	.ic_setkey	= tkip_setkey,
+	.ic_setiv	= tkip_setiv,
 	.ic_encap	= tkip_encap,
 	.ic_decap	= tkip_decap,
 	.ic_enmic	= tkip_enmic,
@@ -84,7 +88,6 @@ struct tkip_ctx {
 	struct ieee80211vap *tc_vap;	/* for diagnostics+statistics */
 
 	u16	tx_ttak[5];
-	int	tx_phase1_done;
 	u8	tx_rc4key[16];		/* XXX for test module; make locals? */
 
 	u16	rx_ttak[5];
@@ -109,8 +112,8 @@ tkip_attach(struct ieee80211vap *vap, struct ieee80211_key *k)
 {
 	struct tkip_ctx *ctx;
 
-	ctx = (struct tkip_ctx *) malloc(sizeof(struct tkip_ctx),
-		M_80211_CRYPTO, M_NOWAIT | M_ZERO);
+	ctx = (struct tkip_ctx *) IEEE80211_MALLOC(sizeof(struct tkip_ctx),
+		M_80211_CRYPTO, IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (ctx == NULL) {
 		vap->iv_stats.is_crypto_nomem++;
 		return NULL;
@@ -126,7 +129,7 @@ tkip_detach(struct ieee80211_key *k)
 {
 	struct tkip_ctx *ctx = k->wk_private;
 
-	free(ctx, M_80211_CRYPTO);
+	IEEE80211_FREE(ctx, M_80211_CRYPTO);
 	KASSERT(nrefs > 0, ("imbalanced attach/detach"));
 	nrefs--;			/* NB: we assume caller locking */
 }
@@ -143,22 +146,46 @@ tkip_setkey(struct ieee80211_key *k)
 			__func__, k->wk_keylen, 128/NBBY);
 		return 0;
 	}
-	k->wk_keytsc = 1;		/* TSC starts at 1 */
 	ctx->rx_phase1_done = 0;
 	return 1;
+}
+
+static void
+tkip_setiv(struct ieee80211_key *k, uint8_t *ivp)
+{
+	struct tkip_ctx *ctx = k->wk_private;
+	struct ieee80211vap *vap = ctx->tc_vap;
+	uint8_t keyid;
+
+	keyid = ieee80211_crypto_get_keyid(vap, k) << 6;
+
+	k->wk_keytsc++;
+	ivp[0] = k->wk_keytsc >> 8;		/* TSC1 */
+	ivp[1] = (ivp[0] | 0x20) & 0x7f;	/* WEP seed */
+	ivp[2] = k->wk_keytsc >> 0;		/* TSC0 */
+	ivp[3] = keyid | IEEE80211_WEP_EXTIV;	/* KeyID | ExtID */
+	ivp[4] = k->wk_keytsc >> 16;		/* TSC2 */
+	ivp[5] = k->wk_keytsc >> 24;		/* TSC3 */
+	ivp[6] = k->wk_keytsc >> 32;		/* TSC4 */
+	ivp[7] = k->wk_keytsc >> 40;		/* TSC5 */
 }
 
 /*
  * Add privacy headers and do any s/w encryption required.
  */
 static int
-tkip_encap(struct ieee80211_key *k, struct mbuf *m, uint8_t keyid)
+tkip_encap(struct ieee80211_key *k, struct mbuf *m)
 {
 	struct tkip_ctx *ctx = k->wk_private;
 	struct ieee80211vap *vap = ctx->tc_vap;
 	struct ieee80211com *ic = vap->iv_ic;
+	struct ieee80211_frame *wh;
 	uint8_t *ivp;
 	int hdrlen;
+	int is_mgmt;
+
+	wh = mtod(m, struct ieee80211_frame *);
+	is_mgmt = IEEE80211_IS_MGMT(wh);
 
 	/*
 	 * Handle TKIP counter measures requirement.
@@ -173,6 +200,16 @@ tkip_encap(struct ieee80211_key *k, struct mbuf *m, uint8_t keyid)
 		vap->iv_stats.is_crypto_tkipcm++;
 		return 0;
 	}
+
+	/*
+	 * Check to see whether IV needs to be included.
+	 */
+	if (is_mgmt && (k->wk_flags & IEEE80211_KEY_NOIVMGT))
+		return 1;
+	if ((! is_mgmt) && (k->wk_flags & IEEE80211_KEY_NOIV))
+		return 1;
+
+
 	hdrlen = ieee80211_hdrspace(ic, mtod(m, void *));
 
 	/*
@@ -185,24 +222,14 @@ tkip_encap(struct ieee80211_key *k, struct mbuf *m, uint8_t keyid)
 	memmove(ivp, ivp + tkip.ic_header, hdrlen);
 	ivp += hdrlen;
 
-	ivp[0] = k->wk_keytsc >> 8;		/* TSC1 */
-	ivp[1] = (ivp[0] | 0x20) & 0x7f;	/* WEP seed */
-	ivp[2] = k->wk_keytsc >> 0;		/* TSC0 */
-	ivp[3] = keyid | IEEE80211_WEP_EXTIV;	/* KeyID | ExtID */
-	ivp[4] = k->wk_keytsc >> 16;		/* TSC2 */
-	ivp[5] = k->wk_keytsc >> 24;		/* TSC3 */
-	ivp[6] = k->wk_keytsc >> 32;		/* TSC4 */
-	ivp[7] = k->wk_keytsc >> 40;		/* TSC5 */
+	tkip_setiv(k, ivp);
 
 	/*
-	 * Finally, do software encrypt if neeed.
+	 * Finally, do software encrypt if needed.
 	 */
-	if (k->wk_flags & IEEE80211_KEY_SWENCRYPT) {
-		if (!tkip_encrypt(ctx, k, m, hdrlen))
-			return 0;
-		/* NB: tkip_encrypt handles wk_keytsc */
-	} else
-		k->wk_keytsc++;
+	if ((k->wk_flags & IEEE80211_KEY_SWENCRYPT) &&
+	    !tkip_encrypt(ctx, k, m, hdrlen))
+		return 0;
 
 	return 1;
 }
@@ -214,6 +241,19 @@ static int
 tkip_enmic(struct ieee80211_key *k, struct mbuf *m, int force)
 {
 	struct tkip_ctx *ctx = k->wk_private;
+	struct ieee80211_frame *wh;
+	int is_mgmt;
+
+	wh = mtod(m, struct ieee80211_frame *);
+	is_mgmt = IEEE80211_IS_MGMT(wh);
+
+	/*
+	 * Check to see whether MIC needs to be included.
+	 */
+	if (is_mgmt && (k->wk_flags & IEEE80211_KEY_NOMICMGT))
+		return 1;
+	if ((! is_mgmt) && (k->wk_flags & IEEE80211_KEY_NOMIC))
+		return 1;
 
 	if (force || (k->wk_flags & IEEE80211_KEY_SWENMIC)) {
 		struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
@@ -249,10 +289,19 @@ READ_6(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5)
 static int
 tkip_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 {
+	const struct ieee80211_rx_stats *rxs;
 	struct tkip_ctx *ctx = k->wk_private;
 	struct ieee80211vap *vap = ctx->tc_vap;
 	struct ieee80211_frame *wh;
 	uint8_t *ivp, tid;
+
+	rxs = ieee80211_get_rx_params_ptr(m);
+
+	/*
+	 * If IV has been stripped, we skip most of the below.
+	 */
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))
+		goto finish;
 
 	/*
 	 * Header should have extended IV and sequence number;
@@ -308,11 +357,22 @@ tkip_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 	    !tkip_decrypt(ctx, k, m, hdrlen))
 		return 0;
 
+finish:
+
 	/*
-	 * Copy up 802.11 header and strip crypto bits.
+	 * Copy up 802.11 header and strip crypto bits - but only if we
+	 * are required to.
 	 */
-	memmove(mtod(m, uint8_t *) + tkip.ic_header, mtod(m, void *), hdrlen);
-	m_adj(m, tkip.ic_header);
+	if (! ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))) {
+		memmove(mtod(m, uint8_t *) + tkip.ic_header, mtod(m, void *),
+		    hdrlen);
+		m_adj(m, tkip.ic_header);
+	}
+
+	/*
+	 * XXX TODO: do we need an option to potentially not strip the
+	 * WEP trailer?  Does "MMIC_STRIP" also mean this? Or?
+	 */
 	m_adj(m, -tkip.ic_trailer);
 
 	return 1;
@@ -324,11 +384,33 @@ tkip_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 static int
 tkip_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 {
+	const struct ieee80211_rx_stats *rxs;
 	struct tkip_ctx *ctx = k->wk_private;
 	struct ieee80211_frame *wh;
 	uint8_t tid;
 
 	wh = mtod(m, struct ieee80211_frame *);
+	rxs = ieee80211_get_rx_params_ptr(m);
+
+	/*
+	 * If we are told about a MIC failure from the driver,
+	 * directly notify as a michael failure to the upper
+	 * layers.
+	 */
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_FAIL_MIC)) {
+		struct ieee80211vap *vap = ctx->tc_vap;
+		ieee80211_notify_michael_failure(vap, wh,
+		    k->wk_rxkeyix != IEEE80211_KEYIX_NONE ?
+		    k->wk_rxkeyix : k->wk_keyix);
+		return 0;
+	}
+
+	/*
+	 * If IV has been stripped, we skip most of the below.
+	 */
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_MMIC_STRIP))
+		goto finish;
+
 	if ((k->wk_flags & IEEE80211_KEY_SWDEMIC) || force) {
 		struct ieee80211vap *vap = ctx->tc_vap;
 		int hdrlen = ieee80211_hdrspace(vap->iv_ic, wh);
@@ -361,6 +443,7 @@ tkip_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 	tid = ieee80211_gettid(wh);
 	k->wk_keyrsc[tid] = ctx->rx_rsc;
 
+finish:
 	return 1;
 }
 
@@ -931,10 +1014,9 @@ tkip_encrypt(struct tkip_ctx *ctx, struct ieee80211_key *key,
 	ctx->tc_vap->iv_stats.is_crypto_tkip++;
 
 	wh = mtod(m, struct ieee80211_frame *);
-	if (!ctx->tx_phase1_done) {
+	if ((u16)(key->wk_keytsc) == 0 || key->wk_keytsc == 1) {
 		tkip_mixing_phase1(ctx->tx_ttak, key->wk_key, wh->i_addr2,
 				   (u32)(key->wk_keytsc >> 16));
-		ctx->tx_phase1_done = 1;
 	}
 	tkip_mixing_phase2(ctx->tx_rc4key, key->wk_key, ctx->tx_ttak,
 		(u16) key->wk_keytsc);
@@ -945,9 +1027,6 @@ tkip_encrypt(struct tkip_ctx *ctx, struct ieee80211_key *key,
 		icv);
 	(void) m_append(m, IEEE80211_WEP_CRCLEN, icv);	/* XXX check return */
 
-	key->wk_keytsc++;
-	if ((u16)(key->wk_keytsc) == 0)
-		ctx->tx_phase1_done = 0;
 	return 1;
 }
 

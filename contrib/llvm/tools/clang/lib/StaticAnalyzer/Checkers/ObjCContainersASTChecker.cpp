@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 #include "ClangSACheckers.h"
 #include "clang/AST/StmtVisitor.h"
-#include "clang/Analysis/AnalysisContext.h"
+#include "clang/Analysis/AnalysisDeclContext.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
@@ -27,6 +27,7 @@ using namespace ento;
 namespace {
 class WalkAST : public StmtVisitor<WalkAST> {
   BugReporter &BR;
+  const CheckerBase *Checker;
   AnalysisDeclContext* AC;
   ASTContext &ASTC;
   uint64_t PtrWidth;
@@ -65,15 +66,14 @@ class WalkAST : public StmtVisitor<WalkAST> {
     // The type must be an array/pointer type.
 
     // This could be a null constant, which is allowed.
-    if (E->isNullPointerConstant(ASTC, Expr::NPC_ValueDependentIsNull))
-      return true;
-    return false;
+    return static_cast<bool>(
+        E->isNullPointerConstant(ASTC, Expr::NPC_ValueDependentIsNull));
   }
 
 public:
-  WalkAST(BugReporter &br, AnalysisDeclContext* ac)
-  : BR(br), AC(ac), ASTC(AC->getASTContext()),
-    PtrWidth(ASTC.getTargetInfo().getPointerWidth(0)) {}
+  WalkAST(BugReporter &br, const CheckerBase *checker, AnalysisDeclContext *ac)
+      : BR(br), Checker(checker), AC(ac), ASTC(AC->getASTContext()),
+        PtrWidth(ASTC.getTargetInfo().getPointerWidth(0)) {}
 
   // Statement visitor methods.
   void VisitChildren(Stmt *S);
@@ -99,7 +99,7 @@ void WalkAST::VisitCallExpr(CallExpr *CE) {
   if (Name.empty())
     return;
 
-  const Expr *Arg = 0;
+  const Expr *Arg = nullptr;
   unsigned ArgNum;
 
   if (Name.equals("CFArrayCreate") || Name.equals("CFSetCreate")) {
@@ -142,9 +142,9 @@ void WalkAST::VisitCallExpr(CallExpr *CE) {
 
     PathDiagnosticLocation CELoc =
         PathDiagnosticLocation::createBegin(CE, BR.getSourceManager(), AC);
-    BR.EmitBasicReport(AC->getDecl(),
-                       OsName.str(), categories::CoreFoundationObjectiveC,
-                       Os.str(), CELoc, Arg->getSourceRange());
+    BR.EmitBasicReport(AC->getDecl(), Checker, OsName.str(),
+                       categories::CoreFoundationObjectiveC, Os.str(), CELoc,
+                       Arg->getSourceRange());
   }
 
   // Recurse and check children.
@@ -152,9 +152,9 @@ void WalkAST::VisitCallExpr(CallExpr *CE) {
 }
 
 void WalkAST::VisitChildren(Stmt *S) {
-  for (Stmt::child_iterator I = S->child_begin(), E = S->child_end(); I!=E; ++I)
-    if (Stmt *child = *I)
-      Visit(child);
+  for (Stmt *Child : S->children())
+    if (Child)
+      Visit(Child);
 }
 
 namespace {
@@ -163,7 +163,7 @@ public:
 
   void checkASTCodeBody(const Decl *D, AnalysisManager& Mgr,
                         BugReporter &BR) const {
-    WalkAST walker(BR, Mgr.getAnalysisDeclContext(D));
+    WalkAST walker(BR, this, Mgr.getAnalysisDeclContext(D));
     walker.Visit(D->getBody());
   }
 };

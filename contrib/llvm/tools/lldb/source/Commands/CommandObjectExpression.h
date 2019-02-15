@@ -16,95 +16,80 @@
 // Project includes
 #include "lldb/Core/IOHandler.h"
 #include "lldb/Interpreter/CommandObject.h"
+#include "lldb/Interpreter/OptionGroupBoolean.h"
 #include "lldb/Interpreter/OptionGroupFormat.h"
 #include "lldb/Interpreter/OptionGroupValueObjectDisplay.h"
 #include "lldb/Target/ExecutionContext.h"
-
+#include "lldb/lldb-private-enumerations.h"
 namespace lldb_private {
 
-class CommandObjectExpression :
-    public CommandObjectRaw,
-    public IOHandlerDelegate
-{
+class CommandObjectExpression : public CommandObjectRaw,
+                                public IOHandlerDelegate {
 public:
+  class CommandOptions : public OptionGroup {
+  public:
+    CommandOptions();
 
-    class CommandOptions : public OptionGroup
-    {
-    public:
+    ~CommandOptions() override;
 
-        CommandOptions ();
+    llvm::ArrayRef<OptionDefinition> GetDefinitions() override;
 
-        virtual
-        ~CommandOptions ();
+    Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_value,
+                          ExecutionContext *execution_context) override;
 
-        virtual uint32_t
-        GetNumDefinitions ();
-        
-        virtual const OptionDefinition*
-        GetDefinitions ();
-        
-        virtual Error
-        SetOptionValue (CommandInterpreter &interpreter,
-                        uint32_t option_idx,
-                        const char *option_value);
-        
-        virtual void
-        OptionParsingStarting (CommandInterpreter &interpreter);
+    void OptionParsingStarting(ExecutionContext *execution_context) override;
 
-        // Options table: Required for subclasses of Options.
+    // Options table: Required for subclasses of Options.
 
-        static OptionDefinition g_option_table[];
-        bool        unwind_on_error;
-        bool        ignore_breakpoints;
-        bool        show_types;
-        bool        show_summary;
-        bool        debug;
-        uint32_t    timeout;
-        bool        try_all_threads;
-        LanguageRuntimeDescriptionDisplayVerbosity m_verbosity;
-    };
+    static OptionDefinition g_option_table[];
+    bool top_level;
+    bool unwind_on_error;
+    bool ignore_breakpoints;
+    bool allow_jit;
+    bool show_types;
+    bool show_summary;
+    bool debug;
+    uint32_t timeout;
+    bool try_all_threads;
+    lldb::LanguageType language;
+    LanguageRuntimeDescriptionDisplayVerbosity m_verbosity;
+    LazyBool auto_apply_fixits;
+  };
 
-    CommandObjectExpression (CommandInterpreter &interpreter);
+  CommandObjectExpression(CommandInterpreter &interpreter);
 
-    virtual
-    ~CommandObjectExpression ();
+  ~CommandObjectExpression() override;
 
-    virtual
-    Options *
-    GetOptions ();
+  Options *GetOptions() override;
 
 protected:
-    
-    //------------------------------------------------------------------
-    // IOHandler::Delegate functions
-    //------------------------------------------------------------------
-    virtual void
-    IOHandlerInputComplete (IOHandler &io_handler,
-                            std::string &line);
+  //------------------------------------------------------------------
+  // IOHandler::Delegate functions
+  //------------------------------------------------------------------
+  void IOHandlerInputComplete(IOHandler &io_handler,
+                              std::string &line) override;
 
-    virtual LineStatus
-    IOHandlerLinesUpdated (IOHandler &io_handler,
-                           StringList &lines,
-                           uint32_t line_idx,
-                           Error &error);
-    virtual bool
-    DoExecute (const char *command,
-               CommandReturnObject &result);
+  bool IOHandlerIsInputComplete(IOHandler &io_handler,
+                                StringList &lines) override;
 
-    bool
-    EvaluateExpression (const char *expr,
-                        Stream *output_stream,
-                        Stream *error_stream,
-                        CommandReturnObject *result = NULL);
+  bool DoExecute(const char *command, CommandReturnObject &result) override;
 
-    OptionGroupOptions m_option_group;
-    OptionGroupFormat m_format_options;
-    OptionGroupValueObjectDisplay m_varobj_options;
-    CommandOptions m_command_options;
-    uint32_t m_expr_line_count;
-    std::string m_expr_lines; // Multi-line expression support
+  bool EvaluateExpression(const char *expr, Stream *output_stream,
+                          Stream *error_stream,
+                          CommandReturnObject *result = NULL);
+
+  void GetMultilineExpression();
+
+  OptionGroupOptions m_option_group;
+  OptionGroupFormat m_format_options;
+  OptionGroupValueObjectDisplay m_varobj_options;
+  OptionGroupBoolean m_repl_option;
+  CommandOptions m_command_options;
+  uint32_t m_expr_line_count;
+  std::string m_expr_lines;       // Multi-line expression support
+  std::string m_fixed_expression; // Holds the current expression's fixed text.
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_CommandObjectExpression_h_
+#endif // liblldb_CommandObjectExpression_h_

@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2013 LSI Corp.
+ * Copyright (c) 2012-2015 LSI Corp.
+ * Copyright (c) 2013-2016 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,20 +27,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * LSI MPT-Fusion Host Adapter FreeBSD
+ * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
  *
  * $FreeBSD$
  */
 
 /*
- *  Copyright (c) 2009-2011 LSI Corporation.
+ *  Copyright (c) 2009-2015 LSI Corporation.
+ *  Copyright (c) 2013-2016 Avago Technologies
+ *  All rights reserved.
  *
  *
  *           Name:  mpi2_hbd.h
  *          Title:  MPI Host Based Discovery messages and structures
  *  Creation Date:  October 21, 2009
  *
- *  mpi2_hbd.h Version:  02.00.02
+ *  mpi2_hbd.h Version:  02.00.04
  *
  *  NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *        prefix are for use only on MPI v2.5 products, and must not be used
@@ -55,6 +58,8 @@
  *  08-11-10  02.00.01  Removed PortGroups, DmaGroup, and ControlGroup from
  *                      HBD Action request, replaced by AdditionalInfo field.
  *  11-18-11  02.00.02  Incorporating additions for MPI v2.5.
+ *  11-18-14  02.00.03  Updated copyright information.
+ *  02-17-16  02.00.04  Added SAS 4 22.5 gbs speed support.
  *  --------------------------------------------------------------------------
  */
 
@@ -125,6 +130,7 @@ typedef struct _MPI2_HBD_ACTION_REQUEST
 #define MPI2_HBD_MAX_RATE_3_0                   (0x09)
 #define MPI2_HBD_MAX_RATE_6_0                   (0x0A)
 #define MPI25_HBD_MAX_RATE_12_0                 (0x0B)
+#define MPI26_HBD_MAX_RATE_22_5                 (0x0C)
 
 
 /* Host Based Discovery Action Reply Message */

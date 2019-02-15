@@ -12,24 +12,22 @@
  * LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE.
  *
- * Dynamic Trunk Protocol (DTP)
- *
  * Original code by Carles Kishimoto <carles.kishimoto@gmail.com>
  */
+
+/* \summary: Dynamic Trunking Protocol (DTP) printer */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include <stdio.h>
-#include <string.h>
-
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
-#include "extract.h"		
-#include "nlpid.h"
+#include "extract.h"
+
+static const char tstr[] = " [|dtp]";
 
 #define DTP_HEADER_LEN			1
 #define DTP_DOMAIN_TLV			0x0001
@@ -37,7 +35,7 @@
 #define DTP_DTP_TYPE_TLV		0x0003
 #define DTP_NEIGHBOR_TLV		0x0004
 
-static struct tok dtp_tlv_values[] = {
+static const struct tok dtp_tlv_values[] = {
     { DTP_DOMAIN_TLV, "Domain TLV"},
     { DTP_STATUS_TLV, "Status TLV"},
     { DTP_DTP_TYPE_TLV, "DTP type TLV"},
@@ -46,7 +44,7 @@ static struct tok dtp_tlv_values[] = {
 };
 
 void
-dtp_print (const u_char *pptr, u_int length)
+dtp_print (netdissect_options *ndo, const u_char *pptr, u_int length)
 {
     int type, len;
     const u_char *tptr;
@@ -54,19 +52,18 @@ dtp_print (const u_char *pptr, u_int length)
     if (length < DTP_HEADER_LEN)
         goto trunc;
 
-    tptr = pptr; 
+    tptr = pptr;
 
-    if (!TTEST2(*tptr, DTP_HEADER_LEN))	
-	goto trunc;
+    ND_TCHECK2(*tptr, DTP_HEADER_LEN);
 
-    printf("DTPv%u, length %u", 
+    ND_PRINT((ndo, "DTPv%u, length %u",
            (*tptr),
-           length);
+           length));
 
     /*
      * In non-verbose mode, just print version.
      */
-    if (vflag < 1) {
+    if (ndo->ndo_vflag < 1) {
 	return;
     }
 
@@ -74,45 +71,53 @@ dtp_print (const u_char *pptr, u_int length)
 
     while (tptr < (pptr+length)) {
 
-        if (!TTEST2(*tptr, 4)) 
-            goto trunc;
-
+        ND_TCHECK2(*tptr, 4);
 	type = EXTRACT_16BITS(tptr);
-        len  = EXTRACT_16BITS(tptr+2); 
+        len  = EXTRACT_16BITS(tptr+2);
+       /* XXX: should not be but sometimes it is, see the test captures */
+        if (type == 0)
+            return;
+        ND_PRINT((ndo, "\n\t%s (0x%04x) TLV, length %u",
+               tok2str(dtp_tlv_values, "Unknown", type),
+               type, len));
 
         /* infinite loop check */
-        if (type == 0 || len == 0) {
-            return;
-        }
-
-        printf("\n\t%s (0x%04x) TLV, length %u",
-               tok2str(dtp_tlv_values, "Unknown", type),
-               type, len);
+        if (len < 4)
+            goto invalid;
+        ND_TCHECK2(*tptr, len);
 
         switch (type) {
 	case DTP_DOMAIN_TLV:
-		printf(", %s", tptr+4);
+		ND_PRINT((ndo, ", "));
+		fn_printzp(ndo, tptr+4, len-4, pptr+length);
 		break;
 
-	case DTP_STATUS_TLV:            
+	case DTP_STATUS_TLV:
 	case DTP_DTP_TYPE_TLV:
-                printf(", 0x%x", *(tptr+4));
+                if (len < 5)
+                    goto invalid;
+                ND_PRINT((ndo, ", 0x%x", *(tptr+4)));
                 break;
 
 	case DTP_NEIGHBOR_TLV:
-                printf(", %s", etheraddr_string(tptr+4));
+                if (len < 10)
+                    goto invalid;
+                ND_PRINT((ndo, ", %s", etheraddr_string(ndo, tptr+4)));
                 break;
 
         default:
             break;
-        }	
+        }
         tptr += len;
     }
 
     return;
 
+ invalid:
+    ND_PRINT((ndo, "%s", istr));
+    return;
  trunc:
-    printf("[|dtp]");
+    ND_PRINT((ndo, "%s", tstr));
 }
 
 /*

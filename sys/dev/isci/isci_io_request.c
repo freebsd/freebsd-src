@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * BSD LICENSE
  *
  * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
@@ -86,6 +88,7 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 	struct ISCI_REMOTE_DEVICE *isci_remote_device;
 	union ccb *ccb;
 	BOOL complete_ccb;
+	struct ccb_scsiio *csio;
 
 	complete_ccb = TRUE;
 	isci_controller = (struct ISCI_CONTROLLER *) sci_object_get_association(scif_controller);
@@ -93,7 +96,7 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 		(struct ISCI_REMOTE_DEVICE *) sci_object_get_association(remote_device);
 
 	ccb = isci_request->ccb;
-
+	csio = &ccb->csio;
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 
 	switch (completion_status) {
@@ -124,7 +127,6 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 		SCI_SSP_RESPONSE_IU_T * response_buffer;
 		uint32_t sense_length;
 		int error_code, sense_key, asc, ascq;
-		struct ccb_scsiio *csio = &ccb->csio;
 
 		response_buffer = (SCI_SSP_RESPONSE_IU_T *)
 		    scif_io_request_get_response_iu_address(
@@ -146,7 +148,7 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 		isci_log_message(1, "ISCI",
 		    "isci: bus=%x target=%x lun=%x cdb[0]=%x status=%x key=%x asc=%x ascq=%x\n",
 		    ccb->ccb_h.path_id, ccb->ccb_h.target_id,
-		    ccb->ccb_h.target_lun, csio->cdb_io.cdb_bytes[0],
+		    ccb->ccb_h.target_lun, scsiio_cdb_ptr(csio),
 		    csio->scsi_status, sense_key, asc, ascq);
 		break;
 	}
@@ -157,7 +159,7 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 		isci_log_message(0, "ISCI",
 		    "isci: bus=%x target=%x lun=%x cdb[0]=%x remote device reset required\n",
 		    ccb->ccb_h.path_id, ccb->ccb_h.target_id,
-		    ccb->ccb_h.target_lun, ccb->csio.cdb_io.cdb_bytes[0]);
+		    ccb->ccb_h.target_lun, scsiio_cdb_ptr(csio));
 		break;
 
 	case SCI_IO_FAILURE_TERMINATED:
@@ -165,7 +167,7 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 		isci_log_message(0, "ISCI",
 		    "isci: bus=%x target=%x lun=%x cdb[0]=%x terminated\n",
 		    ccb->ccb_h.path_id, ccb->ccb_h.target_id,
-		    ccb->ccb_h.target_lun, ccb->csio.cdb_io.cdb_bytes[0]);
+		    ccb->ccb_h.target_lun, scsiio_cdb_ptr(csio));
 		break;
 
 	case SCI_IO_FAILURE_INVALID_STATE:
@@ -208,7 +210,7 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 		isci_log_message(1, "ISCI",
 		    "isci: bus=%x target=%x lun=%x cdb[0]=%x completion status=%x\n",
 		    ccb->ccb_h.path_id, ccb->ccb_h.target_id,
-		    ccb->ccb_h.target_lun, ccb->csio.cdb_io.cdb_bytes[0],
+		    ccb->ccb_h.target_lun, scsiio_cdb_ptr(csio),
 		    completion_status);
 		ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
 		break;
@@ -285,13 +287,13 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 			 *   get a ready notification for this device.
 			 */
 			isci_log_message(1, "ISCI", "already queued %p %x\n",
-			    ccb, ccb->csio.cdb_io.cdb_bytes[0]);
+			    ccb, scsiio_cdb_ptr(csio));
 
 			isci_remote_device->queued_ccb_in_progress = NULL;
 
 		} else {
 			isci_log_message(1, "ISCI", "queue %p %x\n", ccb,
-			    ccb->csio.cdb_io.cdb_bytes[0]);
+			    scsiio_cdb_ptr(csio));
 			ccb->ccb_h.status |= CAM_SIM_QUEUED;
 
 			TAILQ_INSERT_TAIL(&isci_remote_device->queued_ccbs,
@@ -309,7 +311,7 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
  *            handle.
  * @param[in] io_request This parameter is the io request object handle
  *            for which the physical address is being requested.
- * @param[in] virtual_address This paramter is the virtual address which
+ * @param[in] virtual_address This parameter is the virtual address which
  *            is to be returned as a physical address.
  * @param[out] physical_address The physical address for the supplied virtual
  *             address.
@@ -373,7 +375,7 @@ scif_cb_io_request_get_cdb_address(void * scif_user_io_request)
 	struct ISCI_IO_REQUEST *isci_request =
 	    (struct ISCI_IO_REQUEST *)scif_user_io_request;
 
-	return (isci_request->ccb->csio.cdb_io.cdb_bytes);
+	return (scsiio_cdb_ptr(&isci_request->ccb->csio));
 }
 
 /**
@@ -540,14 +542,14 @@ scif_cb_io_request_get_virtual_address_from_sgl(void * scif_user_io_request,
 
 /**
  * @brief This callback method asks the user to provide the number of
- *        bytes to be transfered as part of this request.
+ *        bytes to be transferred as part of this request.
  *
  * @param[in] scif_user_io_request This parameter points to the user's
  *            IO request object.  It is a cookie that allows the user to
  *            provide the necessary information for this callback.
  *
  * @return This method returns the number of payload data bytes to be
- *         transfered for this IO request.
+ *         transferred for this IO request.
  */
 uint32_t
 scif_cb_io_request_get_transfer_length(void * scif_user_io_request)
@@ -680,7 +682,7 @@ isci_request_construct(struct ISCI_REQUEST *request,
 	request->dma_tag = io_buffer_dma_tag;
 	request->physical_address = physical_address;
 	bus_dmamap_create(request->dma_tag, 0, &request->dma_map);
-	callout_init(&request->timer, CALLOUT_MPSAFE);
+	callout_init(&request->timer, 1);
 }
 
 static void
@@ -731,8 +733,9 @@ isci_io_request_construct(void *arg, bus_dma_segment_t *seg, int nseg,
 	}
 
 	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY)
-		callout_reset(&io_request->parent.timer, ccb->ccb_h.timeout,
-		    isci_io_request_timeout, io_request);
+		callout_reset_sbt(&io_request->parent.timer,
+		    SBT_1MS * ccb->ccb_h.timeout, 0, isci_io_request_timeout,
+		    io_request, 0);
 }
 
 void
@@ -983,7 +986,8 @@ isci_io_request_execute_smp_io(union ccb *ccb,
 	}
 
 	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY)
-		callout_reset(&io_request->parent.timer, ccb->ccb_h.timeout,
-		    isci_io_request_timeout, request);
+		callout_reset_sbt(&io_request->parent.timer,
+		    SBT_1MS *  ccb->ccb_h.timeout, 0, isci_io_request_timeout,
+		    request, 0);
 }
 #endif

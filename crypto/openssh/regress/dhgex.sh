@@ -1,10 +1,11 @@
-#	$OpenBSD: dhgex.sh,v 1.1 2014/01/25 04:35:32 dtucker Exp $
+#	$OpenBSD: dhgex.sh,v 1.4 2017/05/08 01:52:49 djm Exp $
 #	Placed in the Public Domain.
 
 tid="dhgex"
 
 LOG=${TEST_SSH_LOGFILE}
 rm -f ${LOG}
+cp $OBJ/sshd_proxy $OBJ/sshd_proxy_bak
 
 kexs=`${SSH} -Q kex | grep diffie-hellman-group-exchange`
 
@@ -14,9 +15,14 @@ ssh_test_dhgex()
 	cipher="$1"; shift
 	kex="$1"; shift
 
+	cp $OBJ/sshd_proxy_bak $OBJ/sshd_proxy
+	echo "KexAlgorithms=$kex" >> $OBJ/sshd_proxy
+	echo "Ciphers=$cipher" >> $OBJ/sshd_proxy
 	rm -f ${LOG}
 	opts="-oKexAlgorithms=$kex -oCiphers=$cipher"
-	groupsz="1024<$bits<8192"
+	min=2048
+	max=8192
+	groupsz="$min<$bits<$max"
 	verbose "$tid bits $bits $kex $cipher"
 	${SSH} ${opts} $@ -vvv -F ${OBJ}/ssh_proxy somehost true
 	if [ $? -ne 0 ]; then
@@ -48,7 +54,6 @@ check()
 
 #check 2048 3des-cbc
 check 3072 `${SSH} -Q cipher | grep 128`
-check 3072 arcfour blowfish-cbc
 check 7680 `${SSH} -Q cipher | grep 192`
 check 8192 `${SSH} -Q cipher | grep 256`
 check 8192 rijndael-cbc@lysator.liu.se chacha20-poly1305@openssh.com

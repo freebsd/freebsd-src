@@ -45,11 +45,12 @@
 #include "util/rbtree.h"
 #include "services/modstack.h"
 #include "libunbound/unbound.h"
+#include "libunbound/unbound-event.h"
 #include "util/data/packed_rrset.h"
 struct libworker;
 struct tube;
 struct sldns_buffer;
-struct event_base;
+struct ub_event_base;
 
 /**
  * The context structure
@@ -61,17 +62,17 @@ struct event_base;
 struct ub_ctx {
 	/* --- pipes --- */
 	/** mutex on query write pipe */
-	lock_basic_t qqpipe_lock;
+	lock_basic_type qqpipe_lock;
 	/** the query write pipe */
 	struct tube* qq_pipe;
 	/** mutex on result read pipe */
-	lock_basic_t rrpipe_lock;
+	lock_basic_type rrpipe_lock;
 	/** the result read pipe */
 	struct tube* rr_pipe;
 
 	/* --- shared data --- */
 	/** mutex for access to env.cfg, finalized and dothread */
-	lock_basic_t cfglock;
+	lock_basic_type cfglock;
 	/** 
 	 * The context has been finalized 
 	 * This is after config when the first resolve is done.
@@ -84,13 +85,13 @@ struct ub_ctx {
 	/** pid of bg worker process */
 	pid_t bg_pid;
 	/** tid of bg worker thread */
-	ub_thread_t bg_tid;
+	ub_thread_type bg_tid;
 
 	/** do threading (instead of forking) for async resolution */
 	int dothread;
 	/** next thread number for new threads */
 	int thr_next_num;
-	/** if logfile is overriden */
+	/** if logfile is overridden */
 	int logfile_override;
 	/** what logfile to use instead */
 	FILE* log_out;
@@ -114,7 +115,7 @@ struct ub_ctx {
 	struct ub_randstate* seed_rnd;
 
 	/** event base for event oriented interface */
-	struct event_base* event_base;
+	struct ub_event_base* event_base;
 	/** libworker for event based interface */
 	struct libworker* event_worker;
 
@@ -129,7 +130,7 @@ struct ub_ctx {
 	 * Used to see if querynum is free for use.
 	 * Content of type ctx_query.
 	 */ 
-	rbtree_t queries;
+	rbtree_type queries;
 };
 
 /**
@@ -140,7 +141,7 @@ struct ub_ctx {
  */
 struct ctx_query {
 	/** node in rbtree, must be first entry, key is ptr to the querynum */
-	struct rbnode_t node;
+	struct rbnode_type node;
 	/** query id number, key for node */
 	int querynum;
 	/** was this an async query? */
@@ -148,8 +149,10 @@ struct ctx_query {
 	/** was this query cancelled (for bg worker) */
 	int cancelled;
 
-	/** for async query, the callback function */
-	ub_callback_t cb;
+	/** for async query, the callback function of type ub_callback_type */
+	ub_callback_type cb;
+	/** for event callbacks the type is ub_event_callback_type */
+        ub_event_callback_type cb_event;
 	/** for async query, the callback user arg */
 	void* cb_arg;
 
@@ -238,11 +241,13 @@ void context_query_delete(struct ctx_query* q);
  * @param rrtype: type
  * @param rrclass: class
  * @param cb: callback for async, or NULL for sync.
+ * @param cb_event: event callback for async, or NULL for sync.
  * @param cbarg: user arg for async queries.
  * @return new ctx_query or NULL for malloc failure.
  */
 struct ctx_query* context_new(struct ub_ctx* ctx, const char* name, int rrtype,
-        int rrclass, ub_callback_t cb, void* cbarg);
+        int rrclass,  ub_callback_type cb, ub_event_callback_type cb_event,
+	void* cbarg);
 
 /**
  * Get a new alloc. Creates a new one or uses a cached one.

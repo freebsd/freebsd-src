@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 Nicolas Souchu
  * All rights reserved.
  *
@@ -56,6 +58,8 @@ struct iic_rdwr_data {
 	uint32_t nmsgs;
 };
 
+#define IIC_RDRW_MAX_MSGS	42
+
 #define I2CSTART	_IOW('i', 1, struct iiccmd)	/* start condition */
 #define I2CSTOP		_IO('i', 2)			/* stop condition */
 #define I2CRSTCARD	_IOW('i', 3, struct iiccmd)	/* reset the card */
@@ -63,5 +67,6 @@ struct iic_rdwr_data {
 #define I2CREAD		_IOW('i', 5, struct iiccmd)	/* receive data */
 #define I2CRDWR		_IOW('i', 6, struct iic_rdwr_data)	/* General read/write interface */
 #define I2CRPTSTART	_IOW('i', 7, struct iiccmd)	/* repeated start */
+#define I2CSADDR	_IOW('i', 8, uint8_t)		/* set slave address for future I/O */
 
 #endif

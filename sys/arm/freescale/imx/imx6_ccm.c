@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ian Lepore <ian@freebsd.org>
  * All rights reserved.
  *
@@ -76,6 +78,57 @@ WR4(struct ccm_softc *sc, bus_size_t off, uint32_t val)
 	bus_write_4(sc->mem_res, off, val);
 }
 
+/*
+ * Until we have a fully functional ccm driver which implements the fdt_clock
+ * interface, use the age-old workaround of unconditionally enabling the clocks
+ * for devices we might need to use.  The SoC defaults to most clocks enabled,
+ * but the rom boot code and u-boot disable a few of them.  We turn on only
+ * what's needed to run the chip plus devices we have drivers for, and turn off
+ * devices we don't yet have drivers for.  (Note that USB is not turned on here
+ * because that is one we do when the driver asks for it.)
+ */
+static void
+ccm_init_gates(struct ccm_softc *sc)
+{
+	uint32_t reg;
+
+ 	/* ahpbdma, aipstz 1 & 2 buses */
+	reg = CCGR0_AIPS_TZ1 | CCGR0_AIPS_TZ2 | CCGR0_ABPHDMA;
+	WR4(sc, CCM_CCGR0, reg);
+
+	/* enet, epit, gpt, spi */
+	reg = CCGR1_ENET | CCGR1_EPIT1 | CCGR1_GPT | CCGR1_ECSPI1 |
+	    CCGR1_ECSPI2 | CCGR1_ECSPI3 | CCGR1_ECSPI4 | CCGR1_ECSPI5;
+	WR4(sc, CCM_CCGR1, reg);
+
+	/* ipmux & ipsync (bridges), iomux, i2c */
+	reg = CCGR2_I2C1 | CCGR2_I2C2 | CCGR2_I2C3 | CCGR2_IIM |
+	    CCGR2_IOMUX_IPT | CCGR2_IPMUX1 | CCGR2_IPMUX2 | CCGR2_IPMUX3 |
+	    CCGR2_IPSYNC_IP2APB_TZASC1 | CCGR2_IPSYNC_IP2APB_TZASC2 |
+	    CCGR2_IPSYNC_VDOA;
+	WR4(sc, CCM_CCGR2, reg);
+
+	/* DDR memory controller */
+	reg = CCGR3_OCRAM | CCGR3_MMDC_CORE_IPG |
+	    CCGR3_MMDC_CORE_ACLK_FAST | CCGR3_CG11 | CCGR3_CG13;
+	WR4(sc, CCM_CCGR3, reg);
+
+	/* pl301 bus crossbar */
+	reg = CCGR4_PL301_MX6QFAST1_S133 |
+	    CCGR4_PL301_MX6QPER1_BCH | CCGR4_PL301_MX6QPER2_MAIN;
+	WR4(sc, CCM_CCGR4, reg);
+
+	/* uarts, ssi, sdma */
+	reg = CCGR5_SDMA | CCGR5_SSI1 | CCGR5_SSI2 | CCGR5_SSI3 |
+	    CCGR5_UART | CCGR5_UART_SERIAL;
+	WR4(sc, CCM_CCGR5, reg);
+
+	/* usdhc 1-4, usboh3 */
+	reg = CCGR6_USBOH3 | CCGR6_USDHC1 | CCGR6_USDHC2 |
+	    CCGR6_USDHC3 | CCGR6_USDHC4;
+	WR4(sc, CCM_CCGR6, reg);
+}
+
 static int
 ccm_detach(device_t dev)
 {
@@ -130,6 +183,8 @@ ccm_attach(device_t dev)
 	reg = (reg & ~CCM_CLPCR_LPM_MASK) | CCM_CLPCR_LPM_RUN;
 	WR4(sc, CCM_CLPCR, reg);
 
+	ccm_init_gates(sc);
+
 	err = 0;
 
 out:
@@ -153,6 +208,58 @@ ccm_probe(device_t dev)
 	device_set_desc(dev, "Freescale i.MX6 Clock Control Module");
 
 	return (BUS_PROBE_DEFAULT);
+}
+
+void
+imx_ccm_ssi_configure(device_t _ssidev)
+{
+	struct ccm_softc *sc;
+	uint32_t reg;
+
+	sc = ccm_sc;
+
+	/*
+	 * Select PLL4 (Audio PLL) clock multiplexer as source.
+	 * PLL output frequency = Fref * (DIV_SELECT + NUM/DENOM).
+	 */
+
+	reg = RD4(sc, CCM_CSCMR1);
+	reg &= ~(SSI_CLK_SEL_M << SSI1_CLK_SEL_S);
+	reg |= (SSI_CLK_SEL_PLL4 << SSI1_CLK_SEL_S);
+	reg &= ~(SSI_CLK_SEL_M << SSI2_CLK_SEL_S);
+	reg |= (SSI_CLK_SEL_PLL4 << SSI2_CLK_SEL_S);
+	reg &= ~(SSI_CLK_SEL_M << SSI3_CLK_SEL_S);
+	reg |= (SSI_CLK_SEL_PLL4 << SSI3_CLK_SEL_S);
+	WR4(sc, CCM_CSCMR1, reg);
+
+	/*
+	 * Ensure we have set hardware-default values
+	 * for pre and post dividers.
+	 */
+
+	/* SSI1 and SSI3 */
+	reg = RD4(sc, CCM_CS1CDR);
+	/* Divide by 2 */
+	reg &= ~(SSI_CLK_PODF_MASK << SSI1_CLK_PODF_SHIFT);
+	reg &= ~(SSI_CLK_PODF_MASK << SSI3_CLK_PODF_SHIFT);
+	reg |= (0x1 << SSI1_CLK_PODF_SHIFT);
+	reg |= (0x1 << SSI3_CLK_PODF_SHIFT);
+	/* Divide by 4 */
+	reg &= ~(SSI_CLK_PRED_MASK << SSI1_CLK_PRED_SHIFT);
+	reg &= ~(SSI_CLK_PRED_MASK << SSI3_CLK_PRED_SHIFT);
+	reg |= (0x3 << SSI1_CLK_PRED_SHIFT);
+	reg |= (0x3 << SSI3_CLK_PRED_SHIFT);
+	WR4(sc, CCM_CS1CDR, reg);
+
+	/* SSI2 */
+	reg = RD4(sc, CCM_CS2CDR);
+	/* Divide by 2 */
+	reg &= ~(SSI_CLK_PODF_MASK << SSI2_CLK_PODF_SHIFT);
+	reg |= (0x1 << SSI2_CLK_PODF_SHIFT);
+	/* Divide by 4 */
+	reg &= ~(SSI_CLK_PRED_MASK << SSI2_CLK_PRED_SHIFT);
+	reg |= (0x3 << SSI2_CLK_PRED_SHIFT);
+	WR4(sc, CCM_CS2CDR, reg);
 }
 
 void
@@ -210,6 +317,48 @@ imx_ccm_usbphy_enable(device_t _phydev)
 #endif
 }
 
+int
+imx6_ccm_sata_enable(void)
+{
+	uint32_t v;
+	int timeout;
+
+	/* Un-gate the sata controller. */
+	WR4(ccm_sc, CCM_CCGR5, RD4(ccm_sc, CCM_CCGR5) | CCGR5_SATA);
+
+	/* Power up the PLL that feeds ENET/SATA/PCI phys, wait for lock. */
+	v = RD4(ccm_sc, CCM_ANALOG_PLL_ENET);
+	v &= ~CCM_ANALOG_PLL_ENET_POWERDOWN;
+	WR4(ccm_sc, CCM_ANALOG_PLL_ENET, v);
+
+	for (timeout = 100000; timeout > 0; timeout--) {
+		if (RD4(ccm_sc, CCM_ANALOG_PLL_ENET) &
+		   CCM_ANALOG_PLL_ENET_LOCK) {
+			break;
+		}
+	}
+	if (timeout <= 0) {
+		return ETIMEDOUT;
+	}
+
+	/* Enable the PLL, and enable its 100mhz output. */
+	v |= CCM_ANALOG_PLL_ENET_ENABLE;
+	v &= ~CCM_ANALOG_PLL_ENET_BYPASS;
+	WR4(ccm_sc, CCM_ANALOG_PLL_ENET, v);
+
+	v |= CCM_ANALOG_PLL_ENET_ENABLE_100M;
+	WR4(ccm_sc, CCM_ANALOG_PLL_ENET, v);
+
+	return 0;
+}
+
+uint32_t
+imx_ccm_ecspi_hz(void)
+{
+
+	return (60000000);
+}
+
 uint32_t
 imx_ccm_ipg_hz(void)
 {
@@ -244,6 +393,57 @@ imx_ccm_ahb_hz(void)
 	return (132000000);
 }
 
+void
+imx_ccm_ipu_enable(int ipu)
+{
+	struct ccm_softc *sc;
+	uint32_t reg;
+
+	sc = ccm_sc;
+	reg = RD4(sc, CCM_CCGR3);
+	if (ipu == 1)
+		reg |= CCGR3_IPU1_IPU | CCGR3_IPU1_DI0;
+	else
+		reg |= CCGR3_IPU2_IPU | CCGR3_IPU2_DI0;
+	WR4(sc, CCM_CCGR3, reg);
+}
+
+void
+imx_ccm_hdmi_enable(void)
+{
+	struct ccm_softc *sc;
+	uint32_t reg;
+
+	sc = ccm_sc;
+	reg = RD4(sc, CCM_CCGR2);
+	reg |= CCGR2_HDMI_TX | CCGR2_HDMI_TX_ISFR;
+	WR4(sc, CCM_CCGR2, reg);
+
+	/* Set HDMI clock to 280MHz */
+	reg = RD4(sc, CCM_CHSCCDR);
+	reg &= ~(CHSCCDR_IPU1_DI0_PRE_CLK_SEL_MASK |
+	    CHSCCDR_IPU1_DI0_PODF_MASK | CHSCCDR_IPU1_DI0_CLK_SEL_MASK);
+	reg |= (CHSCCDR_PODF_DIVIDE_BY_3 << CHSCCDR_IPU1_DI0_PODF_SHIFT);
+	reg |= (CHSCCDR_IPU_PRE_CLK_540M_PFD << CHSCCDR_IPU1_DI0_PRE_CLK_SEL_SHIFT);
+	WR4(sc, CCM_CHSCCDR, reg);
+	reg |= (CHSCCDR_CLK_SEL_LDB_DI0 << CHSCCDR_IPU1_DI0_CLK_SEL_SHIFT);
+	WR4(sc, CCM_CHSCCDR, reg);
+}
+
+uint32_t
+imx_ccm_get_cacrr(void)
+{
+
+	return (RD4(ccm_sc, CCM_CACCR));
+}
+
+void
+imx_ccm_set_cacrr(uint32_t divisor)
+{
+
+	WR4(ccm_sc, CCM_CACCR, divisor);
+}
+
 static device_method_t ccm_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,  ccm_probe),
@@ -261,5 +461,6 @@ static driver_t ccm_driver = {
 
 static devclass_t ccm_devclass;
 
-DRIVER_MODULE(ccm, simplebus, ccm_driver, ccm_devclass, 0, 0);
+EARLY_DRIVER_MODULE(ccm, simplebus, ccm_driver, ccm_devclass, 0, 0, 
+    BUS_PASS_CPU + BUS_PASS_ORDER_EARLY);
 

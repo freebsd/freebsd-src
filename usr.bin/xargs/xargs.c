@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -46,9 +48,11 @@ static char sccsid[] = "@(#)xargs.c	8.1 (Berkeley) 6/6/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/wait.h>
-
+#include <sys/time.h>
+#include <sys/limits.h>
+#include <sys/resource.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -100,7 +104,9 @@ main(int argc, char *argv[])
 	long arg_max;
 	int ch, Jflag, nargs, nflag, nline;
 	size_t linelen;
+	struct rlimit rl;
 	char *endptr;
+	const char *errstr;
 
 	inpline = replstr = NULL;
 	ep = environ;
@@ -148,19 +154,27 @@ main(int argc, char *argv[])
 			replstr = optarg;
 			break;
 		case 'L':
-			Lflag = atoi(optarg);
+			Lflag = strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr)
+				errx(1, "-L %s: %s", optarg, errstr);
 			break;
 		case 'n':
 			nflag = 1;
-			if ((nargs = atoi(optarg)) <= 0)
-				errx(1, "illegal argument count");
+			nargs = strtonum(optarg, 1, INT_MAX, &errstr);
+			if (errstr)
+				errx(1, "-n %s: %s", optarg, errstr);
 			break;
 		case 'o':
 			oflag = 1;
 			break;
 		case 'P':
-			if ((maxprocs = atoi(optarg)) <= 0)
-				errx(1, "max. processes must be >0");
+			maxprocs = strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr)
+				errx(1, "-P %s: %s", optarg, errstr);
+			if (getrlimit(RLIMIT_NPROC, &rl) != 0)
+				errx(1, "getrlimit failed");
+			if (maxprocs == 0 || maxprocs > rl.rlim_cur)
+				maxprocs = rl.rlim_cur;
 			break;
 		case 'p':
 			pflag = 1;
@@ -179,7 +193,9 @@ main(int argc, char *argv[])
 				errx(1, "replsize must be a number");
 			break;
 		case 's':
-			nline = atoi(optarg);
+			nline = strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr)
+				errx(1, "-s %s: %s", optarg, errstr);
 			break;
 		case 't':
 			tflag = 1;
@@ -220,7 +236,7 @@ main(int argc, char *argv[])
 	 * NULL.
 	 */
 	linelen = 1 + argc + nargs + 1;
-	if ((av = bxp = malloc(linelen * sizeof(char **))) == NULL)
+	if ((av = bxp = malloc(linelen * sizeof(char *))) == NULL)
 		errx(1, "malloc failed");
 
 	/*
@@ -457,7 +473,7 @@ prerun(int argc, char *argv[])
 	 * Allocate memory to hold the argument list, and
 	 * a NULL at the tail.
 	 */
-	tmp = malloc((argc + 1) * sizeof(char**));
+	tmp = malloc((argc + 1) * sizeof(char *));
 	if (tmp == NULL) {
 		warnx("malloc failed");
 		xexit(*argv, 1);

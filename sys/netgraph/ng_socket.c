@@ -360,7 +360,7 @@ ngc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
 
-	if (pcbp == 0)
+	if (pcbp == NULL)
 		return (EINVAL);
 	return (ng_bind(nam, pcbp));
 }
@@ -474,7 +474,7 @@ ngd_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
 
-	if (pcbp == 0)
+	if (pcbp == NULL)
 		return (EINVAL);
 	return (ng_connect_data(nam, pcbp));
 }
@@ -1163,7 +1163,7 @@ struct domain ngdomain = {
 	.dom_family =		AF_NETGRAPH,
 	.dom_name =		"netgraph",
 	.dom_protosw =		ngsw,
-	.dom_protoswNPROTOSW =	&ngsw[sizeof(ngsw) / sizeof(ngsw[0])]
+	.dom_protoswNPROTOSW =	&ngsw[nitems(ngsw)]
 };
 
 /*
@@ -1199,9 +1199,9 @@ ngs_mod_event(module_t mod, int event, void *data)
 
 VNET_DOMAIN_SET(ng);
 
-SYSCTL_INT(_net_graph, OID_AUTO, family, CTLFLAG_RD, 0, AF_NETGRAPH, "");
+SYSCTL_INT(_net_graph, OID_AUTO, family, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, AF_NETGRAPH, "");
 static SYSCTL_NODE(_net_graph, OID_AUTO, data, CTLFLAG_RW, 0, "DATA");
-SYSCTL_INT(_net_graph_data, OID_AUTO, proto, CTLFLAG_RD, 0, NG_DATA, "");
+SYSCTL_INT(_net_graph_data, OID_AUTO, proto, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, NG_DATA, "");
 static SYSCTL_NODE(_net_graph, OID_AUTO, control, CTLFLAG_RW, 0, "CONTROL");
-SYSCTL_INT(_net_graph_control, OID_AUTO, proto, CTLFLAG_RD, 0, NG_CONTROL, "");
+SYSCTL_INT(_net_graph_control, OID_AUTO, proto, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, NG_CONTROL, "");
 

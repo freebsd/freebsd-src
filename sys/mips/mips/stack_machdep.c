@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Antoine Brodin
  * All rights reserved.
  *
@@ -35,7 +37,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/mips_opcode.h>
 
-#include <machine/param.h>
 #include <machine/pcb.h>
 #include <machine/regnum.h>
 
@@ -95,8 +96,7 @@ stack_capture(struct stack *st, u_register_t pc, u_register_t sp)
 
 			switch (insn.IType.op) {
 			case OP_SPECIAL:
-				if((insn.RType.func == OP_JR))
-				{
+				if (insn.RType.func == OP_JR) {
 					if (ra >= (u_register_t)(intptr_t)btext)
 						break;
 					if (insn.RType.rs != RA)
@@ -140,6 +140,13 @@ stack_save_td(struct stack *st, struct thread *td)
 	pc = td->td_pcb->pcb_regs.pc;
 	sp = td->td_pcb->pcb_regs.sp;
 	stack_capture(st, pc, sp);
+}
+
+int
+stack_save_td_running(struct stack *st, struct thread *td)
+{
+
+	return (EOPNOTSUPP);
 }
 
 void

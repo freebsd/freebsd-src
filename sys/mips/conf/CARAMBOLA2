@@ -11,8 +11,10 @@
 # $FreeBSD$
 #
 
+#NO_UNIVERSE
+
 # Include the default AR933x parameters
-include         "AR933X_BASE"
+include         "std.AR933X"
 
 ident           CARAMBOLA2
 
@@ -22,6 +24,8 @@ hints           "CARAMBOLA2.hints"
 # Board memory - 64MB
 options         AR71XX_REALMEM=(64*1024*1024)
 
+options	EARLY_PRINTF
+
 # i2c GPIO bus
 #device		gpioiic
 #device		iicbb
@@ -29,6 +33,7 @@ options         AR71XX_REALMEM=(64*1024*1024)
 #device		iic
 
 # Options required for miiproxy and mdiobus
+options		ARGE_DEBUG
 options 	ARGE_MDIO	# Export an MDIO bus separate from arge
 device		miiproxy	# MDIO bus <-> MII PHY rendezvous
 
@@ -43,11 +48,11 @@ device		arswitch
 options 	AR71XX_ENV_UBOOT
 
 # uzip - to boot natively from flash
-device		geom_uncompress
-options 	GEOM_UNCOMPRESS
+device		geom_uzip
+options 	GEOM_UZIP
 
 # Used for the static uboot partition map
 device          geom_map
 
 # Boot off of the rootfs, as defined in the geom_map setup.
-options 	ROOTDEVNAME=\"ufs:map/rootfs.uncompress\"
+options 	ROOTDEVNAME=\"ufs:map/rootfs.uzip\"

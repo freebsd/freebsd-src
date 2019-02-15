@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2009 Ariff Abdullah <ariff@FreeBSD.org>
  * Portions Copyright (c) Ryan Beasley <ryan.beasley@gmail.com> - GSoC 2006
  * Copyright (c) 1999 Cameron Grant <cg@FreeBSD.org>
@@ -49,19 +51,16 @@ devclass_t pcm_devclass;
 int pcm_veto_load = 1;
 
 int snd_unit = -1;
-TUNABLE_INT("hw.snd.default_unit", &snd_unit);
 
 static int snd_unit_auto = -1;
 SYSCTL_INT(_hw_snd, OID_AUTO, default_auto, CTLFLAG_RWTUN,
     &snd_unit_auto, 0, "assign default unit to a newly attached device");
 
 int snd_maxautovchans = 16;
-/* XXX: a tunable implies that we may need more than one sound channel before
-   the system can change a sysctl (/etc/sysctl.conf), do we really need
-   this? */
-TUNABLE_INT("hw.snd.maxautovchans", &snd_maxautovchans);
 
 SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
+
+static void pcm_sysinit(device_t);
 
 /*
  * XXX I've had enough with people not telling proper version/arch
@@ -124,11 +123,7 @@ snd_setup_intr(device_t dev, struct resource *res, int flags, driver_intr_t hand
 	if (d != NULL && (flags & INTR_MPSAFE))
 		d->flags |= SD_F_MPSAFE;
 
-	return bus_setup_intr(dev, res, flags,
-#if __FreeBSD_version >= 700031
-			NULL,
-#endif
-			hand, param, cookiep);
+	return bus_setup_intr(dev, res, flags, NULL, hand, param, cookiep);
 }
 
 static void
@@ -448,7 +443,7 @@ sysctl_hw_snd_default_unit(SYSCTL_HANDLER_ARGS)
 }
 /* XXX: do we need a way to let the user change the default unit? */
 SYSCTL_PROC(_hw_snd, OID_AUTO, default_unit,
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY,
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_ANYBODY,
 	    0, sizeof(int), sysctl_hw_snd_default_unit, "I",
 	    "default sound device");
 
@@ -478,7 +473,7 @@ sysctl_hw_snd_maxautovchans(SYSCTL_HANDLER_ARGS)
 	}
 	return (error);
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, maxautovchans, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_hw_snd, OID_AUTO, maxautovchans, CTLTYPE_INT | CTLFLAG_RWTUN,
             0, sizeof(int), sysctl_hw_snd_maxautovchans, "I", "maximum virtual channel");
 
 struct pcm_channel *
@@ -770,16 +765,17 @@ pcm_setstatus(device_t dev, char *str)
 {
 	struct snddev_info *d = device_get_softc(dev);
 
+	/* should only be called once */
+	if (d->flags & SD_F_REGISTERED)
+		return (EINVAL);
+
 	PCM_BUSYASSERT(d);
 
 	if (d->playcount == 0 || d->reccount == 0)
 		d->flags |= SD_F_SIMPLEX;
 
-	if ((d->playcount > 0 || d->reccount > 0) &&
-	    !(d->flags & SD_F_AUTOVCHAN)) {
+	if (d->playcount > 0 || d->reccount > 0)
 		d->flags |= SD_F_AUTOVCHAN;
-		vchan_initsys(dev);
-	}
 
 	pcm_setmaxautovchans(d, snd_maxautovchans);
 
@@ -797,6 +793,12 @@ pcm_setstatus(device_t dev, char *str)
 	PCM_RELEASE(d);
 
 	PCM_UNLOCK(d);
+
+	/*
+	 * Create all sysctls once SD_F_REGISTERED is set else
+	 * tunable sysctls won't work:
+	 */
+	pcm_sysinit(dev);
 
 	if (snd_unit_auto < 0)
 		snd_unit_auto = (snd_unit < 0) ? 1 : 0;
@@ -1005,10 +1007,48 @@ sysctl_hw_snd_clone_gc(SYSCTL_HANDLER_ARGS)
 
 	return (err);
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, clone_gc, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_hw_snd, OID_AUTO, clone_gc, CTLTYPE_INT | CTLFLAG_RWTUN,
     0, sizeof(int), sysctl_hw_snd_clone_gc, "I",
     "global clone garbage collector");
 #endif
+
+static void
+pcm_sysinit(device_t dev)
+{
+  	struct snddev_info *d = device_get_softc(dev);
+
+  	/* XXX: an user should be able to set this with a control tool, the
+	   sysadmin then needs min+max sysctls for this */
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+            OID_AUTO, "buffersize", CTLFLAG_RD, &d->bufsz, 0, "allocated buffer size");
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "bitperfect", CTLTYPE_INT | CTLFLAG_RWTUN, d, sizeof(d),
+	    sysctl_dev_pcm_bitperfect, "I",
+	    "bit-perfect playback/recording (0=disable, 1=enable)");
+#ifdef SND_DEBUG
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "clone_flags", CTLTYPE_UINT | CTLFLAG_RWTUN, d, sizeof(d),
+	    sysctl_dev_pcm_clone_flags, "IU",
+	    "clone flags");
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "clone_deadline", CTLTYPE_INT | CTLFLAG_RWTUN, d, sizeof(d),
+	    sysctl_dev_pcm_clone_deadline, "I",
+	    "clone expiration deadline (ms)");
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "clone_gc", CTLTYPE_INT | CTLFLAG_RWTUN, d, sizeof(d),
+	    sysctl_dev_pcm_clone_gc, "I",
+	    "clone garbage collector");
+#endif
+	if (d->flags & SD_F_AUTOVCHAN)
+		vchan_initsys(dev);
+	if (d->flags & SD_F_EQ)
+		feeder_eq_initsys(dev);
+}
 
 int
 pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
@@ -1091,41 +1131,9 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	d->rec_sysctl_tree = SYSCTL_ADD_NODE(&d->rec_sysctl_ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "rec",
 	    CTLFLAG_RD, 0, "record channels node");
-	/* XXX: an user should be able to set this with a control tool, the
-	   sysadmin then needs min+max sysctls for this */
-	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-            OID_AUTO, "buffersize", CTLFLAG_RD, &d->bufsz, 0, "allocated buffer size");
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "bitperfect", CTLTYPE_INT | CTLFLAG_RW, d, sizeof(d),
-	    sysctl_dev_pcm_bitperfect, "I",
-	    "bit-perfect playback/recording (0=disable, 1=enable)");
-#ifdef SND_DEBUG
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "clone_flags", CTLTYPE_UINT | CTLFLAG_RW, d, sizeof(d),
-	    sysctl_dev_pcm_clone_flags, "IU",
-	    "clone flags");
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "clone_deadline", CTLTYPE_INT | CTLFLAG_RW, d, sizeof(d),
-	    sysctl_dev_pcm_clone_deadline, "I",
-	    "clone expiration deadline (ms)");
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "clone_gc", CTLTYPE_INT | CTLFLAG_RW, d, sizeof(d),
-	    sysctl_dev_pcm_clone_gc, "I",
-	    "clone garbage collector");
-#endif
 
-	if (numplay > 0 || numrec > 0) {
+	if (numplay > 0 || numrec > 0)
 		d->flags |= SD_F_AUTOVCHAN;
-		vchan_initsys(dev);
-	}
-
-	if (d->flags & SD_F_EQ)
-		feeder_eq_initsys(dev);
 
 	sndstat_register(dev, d->status, sndstat_prepare_pcm);
 
@@ -1147,18 +1155,12 @@ pcm_unregister(device_t dev)
 		return (0);
 	}
 
-	if (sndstat_acquire(td) != 0) {
-		device_printf(dev, "unregister: sndstat busy\n");
-		return (EBUSY);
-	}
-
 	PCM_LOCK(d);
 	PCM_WAIT(d);
 
 	if (d->inprog != 0) {
 		device_printf(dev, "unregister: operation in progress\n");
 		PCM_UNLOCK(d);
-		sndstat_release(td);
 		return (EBUSY);
 	}
 
@@ -1173,7 +1175,6 @@ pcm_unregister(device_t dev)
 			    ch->name, ch->pid);
 			CHN_UNLOCK(ch);
 			PCM_RELEASE_QUICK(d);
-			sndstat_release(td);
 			return (EBUSY);
 		}
 		CHN_UNLOCK(ch);
@@ -1183,7 +1184,6 @@ pcm_unregister(device_t dev)
 		if (snd_clone_busy(d->clones) != 0) {
 			device_printf(dev, "unregister: clone busy\n");
 			PCM_RELEASE_QUICK(d);
-			sndstat_release(td);
 			return (EBUSY);
 		} else {
 			PCM_LOCK(d);
@@ -1199,10 +1199,12 @@ pcm_unregister(device_t dev)
 			(void)snd_clone_enable(d->clones);
 		PCM_RELEASE(d);
 		PCM_UNLOCK(d);
-		sndstat_release(td);
 		return (EBUSY);
 	}
 
+	/* remove /dev/sndstat entry first */
+	sndstat_unregister(dev);
+	
 	PCM_LOCK(d);
 	d->flags |= SD_F_DYING;
 	d->flags &= ~SD_F_REGISTERED;
@@ -1236,8 +1238,6 @@ pcm_unregister(device_t dev)
 	cv_destroy(&d->cv);
 	PCM_UNLOCK(d);
 	snd_mtxfree(d->lock);
-	sndstat_unregister(dev);
-	sndstat_release(td);
 
 	if (snd_unit == device_get_unit(dev)) {
 		snd_unit = pcm_best_unit(-1);
@@ -1409,9 +1409,6 @@ sound_modevent(module_t mod, int type, void *data)
 			pcmsg_unrhdr = new_unrhdr(1, INT_MAX, NULL);
 			break;
 		case MOD_UNLOAD:
-			ret = sndstat_acquire(curthread);
-			if (ret != 0)
-				break;
 			if (pcmsg_unrhdr != NULL) {
 				delete_unrhdr(pcmsg_unrhdr);
 				pcmsg_unrhdr = NULL;

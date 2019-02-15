@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, 1998, 1999 Nicolas Souchu
  * All rights reserved.
  *
@@ -187,17 +189,19 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 #ifdef VP0_DEBUG
 	int i;
 #endif
+	uint8_t *ptr;
 
+	ptr = scsiio_cdb_ptr(csio);
 	if (vpo->vpo_isplus) {
 		errno = imm_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
 			csio->ccb_h.target_id,
-			(char *)&csio->cdb_io.cdb_bytes, csio->cdb_len,
+			ptr, csio->cdb_len,
 			(char *)csio->data_ptr, csio->dxfer_len,
 			&vpo->vpo_stat, &vpo->vpo_count, &vpo->vpo_error);
 	} else {
 		errno = vpoio_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
 			csio->ccb_h.target_id,
-			(char *)&csio->cdb_io.cdb_bytes, csio->cdb_len,
+			ptr, csio->cdb_len,
 			(char *)csio->data_ptr, csio->dxfer_len,
 			&vpo->vpo_stat, &vpo->vpo_count, &vpo->vpo_error);
 	}
@@ -208,7 +212,7 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 
 	/* dump of command */
 	for (i=0; i<csio->cdb_len; i++)
-		printf("%x ", ((char *)&csio->cdb_io.cdb_bytes)[i]);
+		printf("%x ", ((char *)ptr)[i]);
 
 	printf("\n");
 #endif
@@ -219,7 +223,7 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 		return;
 	}
 
-	/* if a timeout occured, no sense */
+	/* if a timeout occurred, no sense */
 	if (vpo->vpo_error) {
 		if (vpo->vpo_error != VP0_ESELECT_TIMEOUT)
 			device_printf(vpo->vpo_dev, "VP0 error/timeout (%d)\n",
@@ -307,11 +311,15 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 
 		csio = &ccb->csio;
 
+		if (ccb->ccb_h.flags & CAM_CDB_PHYS) {
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			xpt_done(ccb);
+			break;
+		}
 #ifdef VP0_DEBUG
 		device_printf(vpo->vpo_dev, "XPT_SCSI_IO (0x%x) request\n",
-			csio->cdb_io.cdb_bytes[0]);
+		    *scsiio_cdb_ptr(csio));
 #endif
-
 		vpo_intr(vpo, csio);
 
 		xpt_done(ccb);
@@ -384,9 +392,9 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->initiator_id = VP0_INITIATOR;
 		cpi->bus_id = sim->bus_id;
 		cpi->base_transfer_speed = 93;
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "Iomega", HBA_IDLEN);
-		strncpy(cpi->dev_name, sim->sim_name, DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "Iomega", HBA_IDLEN);
+		strlcpy(cpi->dev_name, sim->sim_name, DEV_IDLEN);
 		cpi->unit_number = sim->unit_number;
 		cpi->transport = XPORT_PPB;
 		cpi->transport_version = 0;

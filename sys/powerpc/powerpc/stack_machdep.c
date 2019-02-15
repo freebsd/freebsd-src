@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Antoine Brodin
  * All rights reserved.
  *
@@ -98,11 +100,18 @@ stack_save_td(struct stack *st, struct thread *td)
 	stack_capture(st, frame);
 }
 
+int
+stack_save_td_running(struct stack *st, struct thread *td)
+{
+
+	return (EOPNOTSUPP);
+}
+
 void
 stack_save(struct stack *st)
 {
 	register_t frame;
 
-	frame = (register_t)__builtin_frame_address(1);
+	frame = (register_t)__builtin_frame_address(0);
 	stack_capture(st, frame);
 }

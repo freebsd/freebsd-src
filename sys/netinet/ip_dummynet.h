@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998-2010 Luigi Rizzo, Universita` di Pisa
  * Portions Copyright (c) 2000 Akamba Corp.
  * All rights reserved
@@ -29,7 +31,7 @@
 
 #ifndef _IP_DUMMYNET_H
 #define _IP_DUMMYNET_H
-
+#define NEW_AQM
 /*
  * Definition of the kernel-userland API for dummynet.
  *
@@ -85,7 +87,13 @@ enum {
 	/* special commands for emulation of sysctl variables */
 	DN_SYSCTL_GET,
 	DN_SYSCTL_SET,
-
+#ifdef NEW_AQM
+	/* subtypes used for setting/getting extra parameters.
+	 * these subtypes used with IP_DUMMYNET3 command (get)
+	 * and DN_TEXT (set). */
+	DN_AQM_PARAMS, /* AQM extra params */
+	DN_SCH_PARAMS, /* scheduler extra params */
+#endif
 	DN_LAST,
 };
 
@@ -105,6 +113,9 @@ enum {	/* user flags */
 	DN_IS_RED	= 0x0020,
 	DN_IS_GENTLE_RED= 0x0040,
 	DN_IS_ECN	= 0x0080,
+	#ifdef NEW_AQM
+	DN_IS_AQM = 0x0100,     /* AQMs: e.g Codel & PIE */
+	#endif
 	DN_PIPE_CMD	= 0x1000,	/* pipe config... */
 };
 
@@ -210,7 +221,19 @@ struct dn_profile {
 	int	samples[ED_MAX_SAMPLES_NO];	/* may be shorter */
 };
 
-
+#ifdef NEW_AQM
+/* Extra parameters for AQM and scheduler.
+ * This struct is used to pass and retrieve parameters (configurations)
+ * to/from AQM and Scheduler.
+ */
+struct dn_extra_parms {
+	struct dn_id oid;
+	char name[16];
+	uint32_t nr;
+#define DN_MAX_EXTRA_PARM	10
+	int64_t par[DN_MAX_EXTRA_PARM];
+};
+#endif
 
 /*
  * Overall structure of dummynet

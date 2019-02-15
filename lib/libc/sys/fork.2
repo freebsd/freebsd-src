@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)fork.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2013
+.Dd December 1, 2017
 .Dt FORK 2
 .Os
 .Sh NAME
@@ -53,7 +53,10 @@ The child process has a unique process ID.
 The child process has a different parent
 process ID (i.e., the process ID of the parent process).
 .It
-The child process has its own copy of the parent's descriptors.
+The child process has its own copy of the parent's descriptors,
+except for descriptors returned by
+.Xr kqueue 2 ,
+which are not inherited from the parent process.
 These descriptors reference the same underlying objects, so that,
 for instance, file pointers in file objects are shared between
 the child and the parent, so that an
@@ -142,4 +145,4 @@ There is insufficient swap space for the new process.
 The
 .Fn fork
 function appeared in
-.At v6 .
+.At v1 .

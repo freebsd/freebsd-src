@@ -1,4 +1,4 @@
-/* $OpenBSD: match.c,v 1.29 2013/11/20 20:54:10 deraadt Exp $ */
+/* $OpenBSD: match.c,v 1.38 2018/07/04 13:49:31 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -42,9 +42,11 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "xmalloc.h"
 #include "match.h"
+#include "misc.h"
 
 /*
  * Returns true if the given string matches the pattern (which may contain ?
@@ -115,15 +117,13 @@ match_pattern(const char *s, const char *pattern)
  * indicate negation).  Returns -1 if negation matches, 1 if there is
  * a positive match, 0 if there is no match at all.
  */
-
 int
-match_pattern_list(const char *string, const char *pattern, u_int len,
-    int dolower)
+match_pattern_list(const char *string, const char *pattern, int dolower)
 {
 	char sub[1024];
 	int negated;
 	int got_positive;
-	u_int i, subi;
+	u_int i, subi, len = strlen(pattern);
 
 	got_positive = 0;
 	for (i = 0; i < len;) {
@@ -147,7 +147,7 @@ match_pattern_list(const char *string, const char *pattern, u_int len,
 		if (subi >= sizeof(sub) - 1)
 			return 0;
 
-		/* If the subpattern was terminated by a comma, skip the comma. */
+		/* If the subpattern was terminated by a comma, then skip it. */
 		if (i < len && pattern[i] == ',')
 			i++;
 
@@ -177,9 +177,15 @@ match_pattern_list(const char *string, const char *pattern, u_int len,
  * a positive match, 0 if there is no match at all.
  */
 int
-match_hostname(const char *host, const char *pattern, u_int len)
+match_hostname(const char *host, const char *pattern)
 {
-	return match_pattern_list(host, pattern, len, 1);
+	char *hostcopy = xstrdup(host);
+	int r;
+
+	lowercase(hostcopy);
+	r = match_pattern_list(hostcopy, pattern, 1);
+	free(hostcopy);
+	return r;
 }
 
 /*
@@ -193,14 +199,13 @@ match_host_and_ip(const char *host, const char *ipaddr,
 {
 	int mhost, mip;
 
-	/* error in ipaddr match */
 	if ((mip = addr_match_list(ipaddr, patterns)) == -2)
-		return -1;
-	else if (mip == -1) /* negative ip address match */
-		return 0;
+		return -1; /* error in ipaddr match */
+	else if (host == NULL || ipaddr == NULL || mip == -1)
+		return 0; /* negative ip address match, or testing pattern */
 
 	/* negative hostname match */
-	if ((mhost = match_hostname(host, patterns, strlen(patterns))) == -1)
+	if ((mhost = match_hostname(host, patterns)) == -1)
 		return 0;
 	/* no match at all */
 	if (mhost == 0 && mip == 0)
@@ -209,7 +214,9 @@ match_host_and_ip(const char *host, const char *ipaddr,
 }
 
 /*
- * match user, user@host_or_ip, user@host_or_ip_list against pattern
+ * Match user, user@host_or_ip, user@host_or_ip_list against pattern.
+ * If user, host and ipaddr are all NULL then validate pattern/
+ * Returns -1 on invalid pattern, 0 on no match, 1 on match.
  */
 int
 match_user(const char *user, const char *host, const char *ipaddr,
@@ -217,6 +224,14 @@ match_user(const char *user, const char *host, const char *ipaddr,
 {
 	char *p, *pat;
 	int ret;
+
+	/* test mode */
+	if (user == NULL && host == NULL && ipaddr == NULL) {
+		if ((p = strchr(pattern, '@')) != NULL &&
+		    match_host_and_ip(NULL, NULL, p + 1) < 0)
+			return -1;
+		return 0;
+	}
 
 	if ((p = strchr(pattern,'@')) == NULL)
 		return match_pattern(user, pattern);
@@ -276,4 +291,60 @@ match_list(const char *client, const char *server, u_int *next)
 	free(c);
 	free(s);
 	return NULL;
+}
+
+/*
+ * Filter proposal using pattern-list filter.
+ * "blacklist" determines sense of filter:
+ * non-zero indicates that items matching filter should be excluded.
+ * zero indicates that only items matching filter should be included.
+ * returns NULL on allocation error, otherwise caller must free result.
+ */
+static char *
+filter_list(const char *proposal, const char *filter, int blacklist)
+{
+	size_t len = strlen(proposal) + 1;
+	char *fix_prop = malloc(len);
+	char *orig_prop = strdup(proposal);
+	char *cp, *tmp;
+	int r;
+
+	if (fix_prop == NULL || orig_prop == NULL) {
+		free(orig_prop);
+		free(fix_prop);
+		return NULL;
+	}
+
+	tmp = orig_prop;
+	*fix_prop = '\0';
+	while ((cp = strsep(&tmp, ",")) != NULL) {
+		r = match_pattern_list(cp, filter, 0);
+		if ((blacklist && r != 1) || (!blacklist && r == 1)) {
+			if (*fix_prop != '\0')
+				strlcat(fix_prop, ",", len);
+			strlcat(fix_prop, cp, len);
+		}
+	}
+	free(orig_prop);
+	return fix_prop;
+}
+
+/*
+ * Filters a comma-separated list of strings, excluding any entry matching
+ * the 'filter' pattern list. Caller must free returned string.
+ */
+char *
+match_filter_blacklist(const char *proposal, const char *filter)
+{
+	return filter_list(proposal, filter, 1);
+}
+
+/*
+ * Filters a comma-separated list of strings, including only entries matching
+ * the 'filter' pattern list. Caller must free returned string.
+ */
+char *
+match_filter_whitelist(const char *proposal, const char *filter)
+{
+	return filter_list(proposal, filter, 0);
 }

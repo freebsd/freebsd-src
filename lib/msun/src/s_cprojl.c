@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
@@ -39,5 +41,5 @@ cprojl(long double complex z)
 	if (!isinf(creall(z)) && !isinf(cimagl(z)))
 		return (z);
 	else
-		return (cpackl(INFINITY, copysignl(0.0, cimagl(z))));
+		return (CMPLXL(INFINITY, copysignl(0.0, cimagl(z))));
 }

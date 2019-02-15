@@ -28,11 +28,25 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * XXX gp?
+ * This requires makecontext() to setup a valid GP for locating
+ * _ctx_done rather than deriving GP from T9 on entry.  Currently this
+ * uses the GP inherited from getcontext() assuming that getcontext()
+ * is in the same shared object as _ctx_done().  For N32 and N64, GP
+ * is caller-save so will be preserved across the call to the callback
+ * function.  For O32, GP is callee-save, so save it in a different
+ * caller-save register (S1) while invoking the callback.  This is
+ * done instead of the usual SETUP_GP/SAVE_GP to avoid disturbing the
+ * stack frame setup by makecontext() for the callback function.
  */
 ENTRY(_ctx_start)
+#ifdef __mips_o32
+	move	s1, gp
+#endif
 	jalr	t9
 
+#ifdef __mips_o32
+	move	gp, s1
+#endif
 	move	a0, s0
 	PTR_LA	t9, _ctx_done
 	jalr	t9

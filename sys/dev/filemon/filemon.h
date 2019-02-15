@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011, David E. O'Brien.
  * Copyright (c) 2009-2011, Juniper Networks, Inc.
  * All rights reserved.
@@ -30,5 +32,5 @@
 #define FILEMON_SET_FD		_IOWR('S', 1, int)
 #define FILEMON_SET_PID		_IOWR('S', 2, pid_t)
 
-#define FILEMON_VERSION		4	/* output format
+#define FILEMON_VERSION		5	/* output format
 					   (bump when adding record types) */

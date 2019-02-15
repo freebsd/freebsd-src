@@ -1,4 +1,6 @@
 #!/bin/sh -
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
 # Copyright (c) 2013 Garrett Cooper
 # All rights reserved.
 #
@@ -35,8 +37,8 @@ trap "rm -f $tmpfile" EXIT
 
 ${ECHO} creating osreldate.h from newvers.sh
 
-export PARAMFILE="${PARAM_H:=$CURDIR/../sys/sys/param.h}"
 set +e
+VARS_ONLY=1
 . "${NEWVERS_SH:=$CURDIR/../sys/conf/newvers.sh}" || exit 1
 set -e
 cat > $tmpfile <<EOF
@@ -49,4 +51,4 @@ $COPYRIGHT
 #endif
 EOF
 chmod 644 $tmpfile
-mv $tmpfile osreldate.h
+mv -f $tmpfile osreldate.h

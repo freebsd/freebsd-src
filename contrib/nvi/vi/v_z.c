@@ -28,7 +28,7 @@ static const char sccsid[] = "$Id: v_z.c,v 10.13 2011/12/02 17:26:59 zy Exp $";
  * v_z -- [count]z[count][-.+^<CR>]
  *	Move the screen.
  *
- * PUBLIC: int v_z __P((SCR *, VICMD *));
+ * PUBLIC: int v_z(SCR *, VICMD *);
  */
 int
 v_z(SCR *sp, VICMD *vp)
@@ -131,7 +131,7 @@ v_z(SCR *sp, VICMD *vp)
  * vs_crel --
  *	Change the relative size of the current screen.
  *
- * PUBLIC: int vs_crel __P((SCR *, long));
+ * PUBLIC: int vs_crel(SCR *, long);
  */
 int
 vs_crel(SCR *sp, long int count)

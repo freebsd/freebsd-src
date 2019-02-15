@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994, Sean Eric Fagan
  * All rights reserved.
  *
@@ -32,8 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -41,9 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/pioctl.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/procctl.h>
 #include <sys/vnode.h>
 #include <sys/ptrace.h>
 #include <sys/rwlock.h>
@@ -87,18 +87,6 @@ struct ptrace_vm_entry32 {
 	u_int		pve_fsid;
 	uint32_t	pve_path;
 };
-
-struct ptrace_lwpinfo32 {
-	lwpid_t	pl_lwpid;	/* LWP described. */
-	int	pl_event;	/* Event that stopped the LWP. */
-	int	pl_flags;	/* LWP flags. */
-	sigset_t	pl_sigmask;	/* LWP signal mask */
-	sigset_t	pl_siglist;	/* LWP pending signal */
-	struct siginfo32 pl_siginfo;	/* siginfo for signal */
-	char	pl_tdname[MAXCOMLEN + 1];	/* LWP name. */
-	int	pl_child_pid;		/* New child pid */
-};
-
 #endif
 
 /*
@@ -249,8 +237,8 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	 * curthread but we can't assert that.)  This keeps the process
 	 * from exiting out from under us until this operation completes.
 	 */
-	KASSERT(p->p_lock >= 1, ("%s: process %p (pid %d) not held", __func__,
-	    p, p->p_pid));
+	PROC_ASSERT_HELD(p);
+	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
 
 	/*
 	 * The map we want...
@@ -326,6 +314,48 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	return (error);
 }
 
+static ssize_t
+proc_iop(struct thread *td, struct proc *p, vm_offset_t va, void *buf,
+    size_t len, enum uio_rw rw)
+{
+	struct iovec iov;
+	struct uio uio;
+	ssize_t slen;
+
+	MPASS(len < SSIZE_MAX);
+	slen = (ssize_t)len;
+
+	iov.iov_base = (caddr_t)buf;
+	iov.iov_len = len;
+	uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = va;
+	uio.uio_resid = slen;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = rw;
+	uio.uio_td = td;
+	proc_rwmem(p, &uio);
+	if (uio.uio_resid == slen)
+		return (-1);
+	return (slen - uio.uio_resid);
+}
+
+ssize_t
+proc_readmem(struct thread *td, struct proc *p, vm_offset_t va, void *buf,
+    size_t len)
+{
+
+	return (proc_iop(td, p, va, buf, len, UIO_READ));
+}
+
+ssize_t
+proc_writemem(struct thread *td, struct proc *p, vm_offset_t va, void *buf,
+    size_t len)
+{
+
+	return (proc_iop(td, p, va, buf, len, UIO_WRITE));
+}
+
 static int
 ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 {
@@ -357,8 +387,9 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 			error = EINVAL;
 			break;
 		}
-		while (entry != &map->header &&
-		    (entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0) {
+		KASSERT((map->header.eflags & MAP_ENTRY_IS_SUB_MAP) == 0,
+		    ("Submap in map header"));
+		while ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0) {
 			entry = entry->next;
 			index++;
 		}
@@ -388,7 +419,6 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 	} while (0);
 
 	vm_map_unlock_read(map);
-	vmspace_free(vm);
 
 	pve->pve_fsid = VNOVAL;
 	pve->pve_fileid = VNOVAL;
@@ -403,7 +433,7 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 			lobj = tobj;
 			pve->pve_offset += tobj->backing_object_offset;
 		}
-		vp = (lobj->type == OBJT_VNODE) ? lobj->handle : NULL;
+		vp = vm_object_vnode(lobj);
 		if (vp != NULL)
 			vref(vp);
 		if (lobj != obj)
@@ -433,12 +463,16 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 				free(freepath, M_TEMP);
 		}
 	}
+	vmspace_free(vm);
+	if (error == 0)
+		CTR3(KTR_PTRACE, "PT_VM_ENTRY: pid %d, entry %d, start %p",
+		    p->p_pid, pve->pve_entry, pve->pve_start);
 
 	return (error);
 }
 
 #ifdef COMPAT_FREEBSD32
-static int      
+static int
 ptrace_vm_entry32(struct thread *td, struct proc *p,
     struct ptrace_vm_entry32 *pve32)
 {
@@ -470,6 +504,7 @@ ptrace_lwpinfo_to32(const struct ptrace_lwpinfo *pl,
     struct ptrace_lwpinfo32 *pl32)
 {
 
+	bzero(pl32, sizeof(*pl32));
 	pl32->pl_lwpid = pl->pl_lwpid;
 	pl32->pl_event = pl->pl_event;
 	pl32->pl_flags = pl->pl_flags;
@@ -478,6 +513,8 @@ ptrace_lwpinfo_to32(const struct ptrace_lwpinfo *pl,
 	siginfo_to_siginfo32(&pl->pl_siginfo, &pl32->pl_siginfo);
 	strcpy(pl32->pl_tdname, pl->pl_tdname);
 	pl32->pl_child_pid = pl->pl_child_pid;
+	pl32->pl_syscall_code = pl->pl_syscall_code;
+	pl32->pl_syscall_narg = pl->pl_syscall_narg;
 }
 #endif /* COMPAT_FREEBSD32 */
 
@@ -536,6 +573,8 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		struct ptrace_lwpinfo32 pl32;
 		struct ptrace_vm_entry32 pve32;
 #endif
+		char args[nitems(td->td_sa.args) * sizeof(register_t)];
+		int ptevents;
 	} r;
 	void *addr;
 	int error = 0;
@@ -550,10 +589,12 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 	AUDIT_ARG_VALUE(uap->data);
 	addr = &r;
 	switch (uap->req) {
+	case PT_GET_EVENT_MASK:
 	case PT_GETREGS:
 	case PT_GETFPREGS:
 	case PT_GETDBREGS:
 	case PT_LWPINFO:
+	case PT_GET_SC_ARGS:
 		break;
 	case PT_SETREGS:
 		error = COPYIN(uap->addr, &r.reg, sizeof r.reg);
@@ -563,6 +604,12 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		break;
 	case PT_SETDBREGS:
 		error = COPYIN(uap->addr, &r.dbreg, sizeof r.dbreg);
+		break;
+	case PT_SET_EVENT_MASK:
+		if (uap->data != sizeof(r.ptevents))
+			error = EINVAL;
+		else
+			error = copyin(uap->addr, &r.ptevents, uap->data);
 		break;
 	case PT_IO:
 		error = COPYIN(uap->addr, &r.piod, sizeof r.piod);
@@ -597,8 +644,17 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_GETDBREGS:
 		error = COPYOUT(&r.dbreg, uap->addr, sizeof r.dbreg);
 		break;
+	case PT_GET_EVENT_MASK:
+		/* NB: The size in uap->data is validated in kern_ptrace(). */
+		error = copyout(&r.ptevents, uap->addr, uap->data);
+		break;
 	case PT_LWPINFO:
+		/* NB: The size in uap->data is validated in kern_ptrace(). */
 		error = copyout(&r.pl, uap->addr, uap->data);
+		break;
+	case PT_GET_SC_ARGS:
+		error = copyout(r.args, uap->addr, MIN(uap->data,
+		    sizeof(r.args)));
 		break;
 	}
 
@@ -629,6 +685,19 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 #define	PROC_WRITE(w, t, a)	proc_write_ ## w (t, a)
 #endif
 
+void
+proc_set_traced(struct proc *p, bool stop)
+{
+
+	sx_assert(&proctree_lock, SX_XLOCKED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	p->p_flag |= P_TRACED;
+	if (stop)
+		p->p_flag2 |= P2_PTRACE_FSTP;
+	p->p_ptevents = PTRACE_DEFAULT;
+	p->p_oppid = p->p_pptr->p_pid;
+}
+
 int
 kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 {
@@ -638,7 +707,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	struct thread *td2 = NULL, *td3;
 	struct ptrace_io_desc *piod = NULL;
 	struct ptrace_lwpinfo *pl;
-	int error, write, tmp, num;
+	int error, num, tmp;
 	int proctree_locked = 0;
 	lwpid_t tid = 0, *buf;
 #ifdef COMPAT_FREEBSD32
@@ -660,7 +729,11 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	case PT_TO_SCX:
 	case PT_SYSCALL:
 	case PT_FOLLOW_FORK:
+	case PT_LWP_EVENTS:
+	case PT_GET_EVENT_MASK:
+	case PT_SET_EVENT_MASK:
 	case PT_DETACH:
+	case PT_GET_SC_ARGS:
 		sx_xlock(&proctree_lock);
 		proctree_locked = 1;
 		break;
@@ -668,7 +741,6 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 	}
 
-	write = 0;
 	if (req == PT_TRACE_ME) {
 		p = td->td_proc;
 		PROC_LOCK(p);
@@ -737,12 +809,23 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	 */
 	switch (req) {
 	case PT_TRACE_ME:
-		/* Always legal. */
+		/*
+		 * Always legal, when there is a parent process which
+		 * could trace us.  Otherwise, reject.
+		 */
+		if ((p->p_flag & P_TRACED) != 0) {
+			error = EBUSY;
+			goto fail;
+		}
+		if (p->p_pptr == initproc) {
+			error = EPERM;
+			goto fail;
+		}
 		break;
 
 	case PT_ATTACH:
 		/* Self */
-		if (p->p_pid == td->td_proc->p_pid) {
+		if (p == td->td_proc) {
 			error = EINVAL;
 			goto fail;
 		}
@@ -787,17 +870,11 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		}
 
 		/* not currently stopped */
-		if ((p->p_flag & (P_STOPPED_SIG | P_STOPPED_TRACE)) == 0 ||
+		if ((p->p_flag & P_STOPPED_TRACE) == 0 ||
 		    p->p_suspcount != p->p_numthreads  ||
 		    (p->p_flag & P_WAITED) == 0) {
 			error = EBUSY;
 			goto fail;
-		}
-
-		if ((p->p_flag & P_STOPPED_TRACE) == 0) {
-			static int count = 0;
-			if (count++ == 0)
-				printf("P_STOPPED_TRACE not set.\n");
 		}
 
 		/* OK */
@@ -823,10 +900,10 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	switch (req) {
 	case PT_TRACE_ME:
 		/* set my trace flag and "owner" so it can read/write me */
-		p->p_flag |= P_TRACED;
+		proc_set_traced(p, false);
 		if (p->p_flag & P_PPWAIT)
 			p->p_flag |= P_PPTRACE;
-		p->p_oppid = p->p_pptr->p_pid;
+		CTR1(KTR_PTRACE, "PT_TRACE_ME: pid %d", p->p_pid);
 		break;
 
 	case PT_ATTACH:
@@ -840,23 +917,47 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		 * The old parent is remembered so we can put things back
 		 * on a "detach".
 		 */
-		p->p_flag |= P_TRACED;
-		p->p_oppid = p->p_pptr->p_pid;
+		proc_set_traced(p, true);
 		if (p->p_pptr != td->td_proc) {
 			proc_reparent(p, td->td_proc);
 		}
-		data = SIGSTOP;
-		goto sendsig;	/* in PT_CONTINUE below */
+		CTR2(KTR_PTRACE, "PT_ATTACH: pid %d, oppid %d", p->p_pid,
+		    p->p_oppid);
+
+		sx_xunlock(&proctree_lock);
+		proctree_locked = 0;
+		MPASS(p->p_xthread == NULL);
+		MPASS((p->p_flag & P_STOPPED_TRACE) == 0);
+
+		/*
+		 * If already stopped due to a stop signal, clear the
+		 * existing stop before triggering a traced SIGSTOP.
+		 */
+		if ((p->p_flag & P_STOPPED_SIG) != 0) {
+			PROC_SLOCK(p);
+			p->p_flag &= ~(P_STOPPED_SIG | P_WAITED);
+			thread_unsuspend(p);
+			PROC_SUNLOCK(p);
+		}
+
+		kern_psignal(p, SIGSTOP);
+		break;
 
 	case PT_CLEARSTEP:
+		CTR2(KTR_PTRACE, "PT_CLEARSTEP: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		error = ptrace_clear_single_step(td2);
 		break;
 
 	case PT_SETSTEP:
+		CTR2(KTR_PTRACE, "PT_SETSTEP: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		error = ptrace_single_step(td2);
 		break;
 
 	case PT_SUSPEND:
+		CTR2(KTR_PTRACE, "PT_SUSPEND: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		td2->td_dbgflags |= TDB_SUSPEND;
 		thread_lock(td2);
 		td2->td_flags |= TDF_NEEDSUSPCHK;
@@ -864,16 +965,79 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_RESUME:
+		CTR2(KTR_PTRACE, "PT_RESUME: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		td2->td_dbgflags &= ~TDB_SUSPEND;
 		break;
 
 	case PT_FOLLOW_FORK:
+		CTR3(KTR_PTRACE, "PT_FOLLOW_FORK: pid %d %s -> %s", p->p_pid,
+		    p->p_ptevents & PTRACE_FORK ? "enabled" : "disabled",
+		    data ? "enabled" : "disabled");
 		if (data)
-			p->p_flag |= P_FOLLOWFORK;
+			p->p_ptevents |= PTRACE_FORK;
 		else
-			p->p_flag &= ~P_FOLLOWFORK;
+			p->p_ptevents &= ~PTRACE_FORK;
 		break;
 
+	case PT_LWP_EVENTS:
+		CTR3(KTR_PTRACE, "PT_LWP_EVENTS: pid %d %s -> %s", p->p_pid,
+		    p->p_ptevents & PTRACE_LWP ? "enabled" : "disabled",
+		    data ? "enabled" : "disabled");
+		if (data)
+			p->p_ptevents |= PTRACE_LWP;
+		else
+			p->p_ptevents &= ~PTRACE_LWP;
+		break;
+
+	case PT_GET_EVENT_MASK:
+		if (data != sizeof(p->p_ptevents)) {
+			error = EINVAL;
+			break;
+		}
+		CTR2(KTR_PTRACE, "PT_GET_EVENT_MASK: pid %d mask %#x", p->p_pid,
+		    p->p_ptevents);
+		*(int *)addr = p->p_ptevents;
+		break;
+
+	case PT_SET_EVENT_MASK:
+		if (data != sizeof(p->p_ptevents)) {
+			error = EINVAL;
+			break;
+		}
+		tmp = *(int *)addr;
+		if ((tmp & ~(PTRACE_EXEC | PTRACE_SCE | PTRACE_SCX |
+		    PTRACE_FORK | PTRACE_LWP | PTRACE_VFORK)) != 0) {
+			error = EINVAL;
+			break;
+		}
+		CTR3(KTR_PTRACE, "PT_SET_EVENT_MASK: pid %d mask %#x -> %#x",
+		    p->p_pid, p->p_ptevents, tmp);
+		p->p_ptevents = tmp;
+		break;
+
+	case PT_GET_SC_ARGS:
+		CTR1(KTR_PTRACE, "PT_GET_SC_ARGS: pid %d", p->p_pid);
+		if ((td2->td_dbgflags & (TDB_SCE | TDB_SCX)) == 0
+#ifdef COMPAT_FREEBSD32
+		    || (wrap32 && !safe)
+#endif
+		    ) {
+			error = EINVAL;
+			break;
+		}
+		bzero(addr, sizeof(td2->td_sa.args));
+#ifdef COMPAT_FREEBSD32
+		if (wrap32)
+			for (num = 0; num < nitems(td2->td_sa.args); num++)
+				((uint32_t *)addr)[num] = (uint32_t)
+				    td2->td_sa.args[num];
+		else
+#endif
+			bcopy(td2->td_sa.args, addr, td2->td_sa.narg *
+			    sizeof(register_t));
+		break;
+		
 	case PT_STEP:
 	case PT_CONTINUE:
 	case PT_TO_SCE:
@@ -888,6 +1052,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 		switch (req) {
 		case PT_STEP:
+			CTR3(KTR_PTRACE, "PT_STEP: tid %d (pid %d), sig = %d",
+			    td2->td_tid, p->p_pid, data);
 			error = ptrace_single_step(td2);
 			if (error)
 				goto out;
@@ -904,18 +1070,43 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			}
 			switch (req) {
 			case PT_TO_SCE:
-				p->p_stops |= S_PT_SCE;
+				p->p_ptevents |= PTRACE_SCE;
+				CTR4(KTR_PTRACE,
+		    "PT_TO_SCE: pid %d, events = %#x, PC = %#lx, sig = %d",
+				    p->p_pid, p->p_ptevents,
+				    (u_long)(uintfptr_t)addr, data);
 				break;
 			case PT_TO_SCX:
-				p->p_stops |= S_PT_SCX;
+				p->p_ptevents |= PTRACE_SCX;
+				CTR4(KTR_PTRACE,
+		    "PT_TO_SCX: pid %d, events = %#x, PC = %#lx, sig = %d",
+				    p->p_pid, p->p_ptevents,
+				    (u_long)(uintfptr_t)addr, data);
 				break;
 			case PT_SYSCALL:
-				p->p_stops |= S_PT_SCE | S_PT_SCX;
+				p->p_ptevents |= PTRACE_SYSCALL;
+				CTR4(KTR_PTRACE,
+		    "PT_SYSCALL: pid %d, events = %#x, PC = %#lx, sig = %d",
+				    p->p_pid, p->p_ptevents,
+				    (u_long)(uintfptr_t)addr, data);
+				break;
+			case PT_CONTINUE:
+				CTR3(KTR_PTRACE,
+				    "PT_CONTINUE: pid %d, PC = %#lx, sig = %d",
+				    p->p_pid, (u_long)(uintfptr_t)addr, data);
 				break;
 			}
 			break;
 		case PT_DETACH:
-			/* reset process parent */
+			/*
+			 * Reset the process parent.
+			 *
+			 * NB: This clears P_TRACED before reparenting
+			 * a detached process back to its original
+			 * parent.  Otherwise the debugee will be set
+			 * as an orphan of the debugger.
+			 */
+			p->p_flag &= ~(P_TRACED | P_WAITED);
 			if (p->p_oppid != p->p_pptr->p_pid) {
 				PROC_LOCK(p->p_pptr);
 				sigqueue_take(p->p_ksi);
@@ -925,83 +1116,99 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 				proc_reparent(p, pp);
 				if (pp == initproc)
 					p->p_sigparent = SIGCHLD;
-			}
+				CTR3(KTR_PTRACE,
+			    "PT_DETACH: pid %d reparented to pid %d, sig %d",
+				    p->p_pid, pp->p_pid, data);
+			} else
+				CTR2(KTR_PTRACE, "PT_DETACH: pid %d, sig %d",
+				    p->p_pid, data);
 			p->p_oppid = 0;
-			p->p_flag &= ~(P_TRACED | P_WAITED | P_FOLLOWFORK);
+			p->p_ptevents = 0;
+			FOREACH_THREAD_IN_PROC(p, td3) {
+				if ((td3->td_dbgflags & TDB_FSTP) != 0) {
+					sigqueue_delete(&td3->td_sigqueue,
+					    SIGSTOP);
+				}
+				td3->td_dbgflags &= ~(TDB_XSIG | TDB_FSTP |
+				    TDB_SUSPEND);
+			}
+
+			if ((p->p_flag2 & P2_PTRACE_FSTP) != 0) {
+				sigqueue_delete(&p->p_sigqueue, SIGSTOP);
+				p->p_flag2 &= ~P2_PTRACE_FSTP;
+			}
 
 			/* should we send SIGCHLD? */
 			/* childproc_continued(p); */
 			break;
 		}
 
-	sendsig:
-		if (proctree_locked) {
-			sx_xunlock(&proctree_lock);
-			proctree_locked = 0;
-		}
-		p->p_xstat = data;
-		p->p_xthread = NULL;
-		if ((p->p_flag & (P_STOPPED_SIG | P_STOPPED_TRACE)) != 0) {
-			/* deliver or queue signal */
-			td2->td_dbgflags &= ~TDB_XSIG;
-			td2->td_xsig = data;
+		sx_xunlock(&proctree_lock);
+		proctree_locked = 0;
 
-			if (req == PT_DETACH) {
-				FOREACH_THREAD_IN_PROC(p, td3)
-					td3->td_dbgflags &= ~TDB_SUSPEND; 
-			}
-			/*
-			 * unsuspend all threads, to not let a thread run,
-			 * you should use PT_SUSPEND to suspend it before
-			 * continuing process.
-			 */
-			PROC_SLOCK(p);
-			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG|P_WAITED);
-			thread_unsuspend(p);
-			PROC_SUNLOCK(p);
-			if (req == PT_ATTACH)
-				kern_psignal(p, data);
-		} else {
-			if (data)
-				kern_psignal(p, data);
-		}
+	sendsig:
+		MPASS(proctree_locked == 0);
+		
+		/* 
+		 * Clear the pending event for the thread that just
+		 * reported its event (p_xthread).  This may not be
+		 * the thread passed to PT_CONTINUE, PT_STEP, etc. if
+		 * the debugger is resuming a different thread.
+		 *
+		 * Deliver any pending signal via the reporting thread.
+		 */
+		MPASS(p->p_xthread != NULL);
+		p->p_xthread->td_dbgflags &= ~TDB_XSIG;
+		p->p_xthread->td_xsig = data;
+		p->p_xthread = NULL;
+		p->p_xsig = data;
+
+		/*
+		 * P_WKILLED is insurance that a PT_KILL/SIGKILL
+		 * always works immediately, even if another thread is
+		 * unsuspended first and attempts to handle a
+		 * different signal or if the POSIX.1b style signal
+		 * queue cannot accommodate any new signals.
+		 */
+		if (data == SIGKILL)
+			proc_wkilled(p);
+
+		/*
+		 * Unsuspend all threads.  To leave a thread
+		 * suspended, use PT_SUSPEND to suspend it before
+		 * continuing the process.
+		 */
+		PROC_SLOCK(p);
+		p->p_flag &= ~(P_STOPPED_TRACE | P_STOPPED_SIG | P_WAITED);
+		thread_unsuspend(p);
+		PROC_SUNLOCK(p);
 		break;
 
 	case PT_WRITE_I:
 	case PT_WRITE_D:
 		td2->td_dbgflags |= TDB_USERWR;
-		write = 1;
-		/* FALLTHROUGH */
+		PROC_UNLOCK(p);
+		error = 0;
+		if (proc_writemem(td, p, (off_t)(uintptr_t)addr, &data,
+		    sizeof(int)) != sizeof(int))
+			error = ENOMEM;
+		else
+			CTR3(KTR_PTRACE, "PT_WRITE: pid %d: %p <= %#x",
+			    p->p_pid, addr, data);
+		PROC_LOCK(p);
+		break;
+
 	case PT_READ_I:
 	case PT_READ_D:
 		PROC_UNLOCK(p);
-		tmp = 0;
-		/* write = 0 set above */
-		iov.iov_base = write ? (caddr_t)&data : (caddr_t)&tmp;
-		iov.iov_len = sizeof(int);
-		uio.uio_iov = &iov;
-		uio.uio_iovcnt = 1;
-		uio.uio_offset = (off_t)(uintptr_t)addr;
-		uio.uio_resid = sizeof(int);
-		uio.uio_segflg = UIO_SYSSPACE;	/* i.e.: the uap */
-		uio.uio_rw = write ? UIO_WRITE : UIO_READ;
-		uio.uio_td = td;
-		error = proc_rwmem(p, &uio);
-		if (uio.uio_resid != 0) {
-			/*
-			 * XXX proc_rwmem() doesn't currently return ENOSPC,
-			 * so I think write() can bogusly return 0.
-			 * XXX what happens for short writes?  We don't want
-			 * to write partial data.
-			 * XXX proc_rwmem() returns EPERM for other invalid
-			 * addresses.  Convert this to EINVAL.  Does this
-			 * clobber returns of EPERM for other reasons?
-			 */
-			if (error == 0 || error == ENOSPC || error == EPERM)
-				error = EINVAL;	/* EOF */
-		}
-		if (!write)
-			td->td_retval[0] = tmp;
+		error = tmp = 0;
+		if (proc_readmem(td, p, (off_t)(uintptr_t)addr, &tmp,
+		    sizeof(int)) != sizeof(int))
+			error = ENOMEM;
+		else
+			CTR3(KTR_PTRACE, "PT_READ: pid %d: %p >= %#x",
+			    p->p_pid, addr, tmp);
+		td->td_retval[0] = tmp;
 		PROC_LOCK(p);
 		break;
 
@@ -1034,10 +1241,14 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		switch (tmp) {
 		case PIOD_READ_D:
 		case PIOD_READ_I:
+			CTR3(KTR_PTRACE, "PT_IO: pid %d: READ (%p, %#x)",
+			    p->p_pid, (uintptr_t)uio.uio_offset, uio.uio_resid);
 			uio.uio_rw = UIO_READ;
 			break;
 		case PIOD_WRITE_D:
 		case PIOD_WRITE_I:
+			CTR3(KTR_PTRACE, "PT_IO: pid %d: WRITE (%p, %#x)",
+			    p->p_pid, (uintptr_t)uio.uio_offset, uio.uio_resid);
 			td2->td_dbgflags |= TDB_USERWR;
 			uio.uio_rw = UIO_WRITE;
 			break;
@@ -1057,33 +1268,46 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_KILL:
+		CTR1(KTR_PTRACE, "PT_KILL: pid %d", p->p_pid);
 		data = SIGKILL;
 		goto sendsig;	/* in PT_CONTINUE above */
 
 	case PT_SETREGS:
+		CTR2(KTR_PTRACE, "PT_SETREGS: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		td2->td_dbgflags |= TDB_USERWR;
 		error = PROC_WRITE(regs, td2, addr);
 		break;
 
 	case PT_GETREGS:
+		CTR2(KTR_PTRACE, "PT_GETREGS: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		error = PROC_READ(regs, td2, addr);
 		break;
 
 	case PT_SETFPREGS:
+		CTR2(KTR_PTRACE, "PT_SETFPREGS: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		td2->td_dbgflags |= TDB_USERWR;
 		error = PROC_WRITE(fpregs, td2, addr);
 		break;
 
 	case PT_GETFPREGS:
+		CTR2(KTR_PTRACE, "PT_GETFPREGS: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		error = PROC_READ(fpregs, td2, addr);
 		break;
 
 	case PT_SETDBREGS:
+		CTR2(KTR_PTRACE, "PT_SETDBREGS: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		td2->td_dbgflags |= TDB_USERWR;
 		error = PROC_WRITE(dbregs, td2, addr);
 		break;
 
 	case PT_GETDBREGS:
+		CTR2(KTR_PTRACE, "PT_GETDBREGS: tid %d (pid %d)", td2->td_tid,
+		    p->p_pid);
 		error = PROC_READ(dbregs, td2, addr);
 		break;
 
@@ -1105,12 +1329,13 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		} else
 #endif
 		pl = addr;
+		bzero(pl, sizeof(*pl));
 		pl->pl_lwpid = td2->td_tid;
 		pl->pl_event = PL_EVENT_NONE;
 		pl->pl_flags = 0;
 		if (td2->td_dbgflags & TDB_XSIG) {
 			pl->pl_event = PL_EVENT_SIGNAL;
-			if (td2->td_dbgksi.ksi_signo != 0 &&
+			if (td2->td_si.si_signo != 0 &&
 #ifdef COMPAT_FREEBSD32
 			    ((!wrap32 && data >= offsetof(struct ptrace_lwpinfo,
 			    pl_siginfo) + sizeof(pl->pl_siginfo)) ||
@@ -1122,11 +1347,9 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 #endif
 			){
 				pl->pl_flags |= PL_FLAG_SI;
-				pl->pl_siginfo = td2->td_dbgksi.ksi_info;
+				pl->pl_siginfo = td2->td_si;
 			}
 		}
-		if ((pl->pl_flags & PL_FLAG_SI) == 0)
-			bzero(&pl->pl_siginfo, sizeof(pl->pl_siginfo));
 		if (td2->td_dbgflags & TDB_SCE)
 			pl->pl_flags |= PL_FLAG_SCE;
 		else if (td2->td_dbgflags & TDB_SCX)
@@ -1136,23 +1359,46 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		if (td2->td_dbgflags & TDB_FORK) {
 			pl->pl_flags |= PL_FLAG_FORKED;
 			pl->pl_child_pid = td2->td_dbg_forked;
-		}
+			if (td2->td_dbgflags & TDB_VFORK)
+				pl->pl_flags |= PL_FLAG_VFORKED;
+		} else if ((td2->td_dbgflags & (TDB_SCX | TDB_VFORK)) ==
+		    TDB_VFORK)
+			pl->pl_flags |= PL_FLAG_VFORK_DONE;
 		if (td2->td_dbgflags & TDB_CHILD)
 			pl->pl_flags |= PL_FLAG_CHILD;
+		if (td2->td_dbgflags & TDB_BORN)
+			pl->pl_flags |= PL_FLAG_BORN;
+		if (td2->td_dbgflags & TDB_EXIT)
+			pl->pl_flags |= PL_FLAG_EXITED;
 		pl->pl_sigmask = td2->td_sigmask;
 		pl->pl_siglist = td2->td_siglist;
 		strcpy(pl->pl_tdname, td2->td_name);
+		if ((td2->td_dbgflags & (TDB_SCE | TDB_SCX)) != 0) {
+			pl->pl_syscall_code = td2->td_sa.code;
+			pl->pl_syscall_narg = td2->td_sa.narg;
+		} else {
+			pl->pl_syscall_code = 0;
+			pl->pl_syscall_narg = 0;
+		}
 #ifdef COMPAT_FREEBSD32
 		if (wrap32)
 			ptrace_lwpinfo_to32(pl, pl32);
 #endif
+		CTR6(KTR_PTRACE,
+    "PT_LWPINFO: tid %d (pid %d) event %d flags %#x child pid %d syscall %d",
+		    td2->td_tid, p->p_pid, pl->pl_event, pl->pl_flags,
+		    pl->pl_child_pid, pl->pl_syscall_code);
 		break;
 
 	case PT_GETNUMLWPS:
+		CTR2(KTR_PTRACE, "PT_GETNUMLWPS: pid %d: %d threads", p->p_pid,
+		    p->p_numthreads);
 		td->td_retval[0] = p->p_numthreads;
 		break;
 
 	case PT_GETLWPLIST:
+		CTR3(KTR_PTRACE, "PT_GETLWPLIST: pid %d: data %d, actual %d",
+		    p->p_pid, data, p->p_numthreads);
 		if (data <= 0) {
 			error = EINVAL;
 			break;
@@ -1176,6 +1422,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_VM_TIMESTAMP:
+		CTR2(KTR_PTRACE, "PT_VM_TIMESTAMP: pid %d: timestamp %d",
+		    p->p_pid, p->p_vmspace->vm_map.timestamp);
 		td->td_retval[0] = p->p_vmspace->vm_map.timestamp;
 		break;
 
@@ -1226,204 +1474,14 @@ stopevent(struct proc *p, unsigned int event, unsigned int val)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	p->p_step = 1;
+	CTR3(KTR_PTRACE, "stopevent: pid %d event %u val %u", p->p_pid, event,
+	    val);
 	do {
-		p->p_xstat = val;
+		if (event != S_EXIT)
+			p->p_xsig = val;
 		p->p_xthread = NULL;
 		p->p_stype = event;	/* Which event caused the stop? */
 		wakeup(&p->p_stype);	/* Wake up any PIOCWAIT'ing procs */
 		msleep(&p->p_step, &p->p_mtx, PWAIT, "stopevent", 0);
 	} while (p->p_step);
-}
-
-static int
-protect_setchild(struct thread *td, struct proc *p, int flags)
-{
-
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if (p->p_flag & P_SYSTEM || p_cansched(td, p) != 0)
-		return (0);
-	if (flags & PPROT_SET) {
-		p->p_flag |= P_PROTECTED;
-		if (flags & PPROT_INHERIT)
-			p->p_flag2 |= P2_INHERIT_PROTECTED;
-	} else {
-		p->p_flag &= ~P_PROTECTED;
-		p->p_flag2 &= ~P2_INHERIT_PROTECTED;
-	}
-	return (1);
-}
-
-static int
-protect_setchildren(struct thread *td, struct proc *top, int flags)
-{
-	struct proc *p;
-	int ret;
-
-	p = top;
-	ret = 0;
-	sx_assert(&proctree_lock, SX_LOCKED);
-	for (;;) {
-		ret |= protect_setchild(td, p, flags);
-		PROC_UNLOCK(p);
-		/*
-		 * If this process has children, descend to them next,
-		 * otherwise do any siblings, and if done with this level,
-		 * follow back up the tree (but not past top).
-		 */
-		if (!LIST_EMPTY(&p->p_children))
-			p = LIST_FIRST(&p->p_children);
-		else for (;;) {
-			if (p == top) {
-				PROC_LOCK(p);
-				return (ret);
-			}
-			if (LIST_NEXT(p, p_sibling)) {
-				p = LIST_NEXT(p, p_sibling);
-				break;
-			}
-			p = p->p_pptr;
-		}
-		PROC_LOCK(p);
-	}
-}
-
-static int
-protect_set(struct thread *td, struct proc *p, int flags)
-{
-	int error, ret;
-
-	switch (PPROT_OP(flags)) {
-	case PPROT_SET:
-	case PPROT_CLEAR:
-		break;
-	default:
-		return (EINVAL);
-	}
-
-	if ((PPROT_FLAGS(flags) & ~(PPROT_DESCEND | PPROT_INHERIT)) != 0)
-		return (EINVAL);
-
-	error = priv_check(td, PRIV_VM_MADV_PROTECT);
-	if (error)
-		return (error);
-
-	if (flags & PPROT_DESCEND)
-		ret = protect_setchildren(td, p, flags);
-	else
-		ret = protect_setchild(td, p, flags);
-	if (ret == 0)
-		return (EPERM);
-	return (0);
-}
-
-#ifndef _SYS_SYSPROTO_H_
-struct procctl_args {
-	idtype_t idtype;
-	id_t	id;
-	int	com;
-	void	*data;
-};
-#endif
-/* ARGSUSED */
-int
-sys_procctl(struct thread *td, struct procctl_args *uap)
-{
-	int error, flags;
-	void *data;
-
-	switch (uap->com) {
-	case PROC_SPROTECT:
-		error = copyin(uap->data, &flags, sizeof(flags));
-		if (error)
-			return (error);
-		data = &flags;
-		break;
-	default:
-		return (EINVAL);
-	}
-
-	return (kern_procctl(td, uap->idtype, uap->id, uap->com, data));
-}
-
-static int
-kern_procctl_single(struct thread *td, struct proc *p, int com, void *data)
-{
-
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-	switch (com) {
-	case PROC_SPROTECT:
-		return (protect_set(td, p, *(int *)data));
-	default:
-		return (EINVAL);
-	}
-}
-
-int
-kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
-{
-	struct pgrp *pg;
-	struct proc *p;
-	int error, first_error, ok;
-
-	sx_slock(&proctree_lock);
-	switch (idtype) {
-	case P_PID:
-		p = pfind(id);
-		if (p == NULL) {
-			error = ESRCH;
-			break;
-		}
-		if (p->p_state == PRS_NEW)
-			error = ESRCH;
-		else
-			error = p_cansee(td, p);
-		if (error == 0)
-			error = kern_procctl_single(td, p, com, data);
-		PROC_UNLOCK(p);
-		break;
-	case P_PGID:
-		/*
-		 * Attempt to apply the operation to all members of the
-		 * group.  Ignore processes in the group that can't be
-		 * seen.  Ignore errors so long as at least one process is
-		 * able to complete the request successfully.
-		 */
-		pg = pgfind(id);
-		if (pg == NULL) {
-			error = ESRCH;
-			break;
-		}
-		PGRP_UNLOCK(pg);
-		ok = 0;
-		first_error = 0;
-		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
-			PROC_LOCK(p);
-			if (p->p_state == PRS_NEW || p_cansee(td, p) != 0) {
-				PROC_UNLOCK(p);
-				continue;
-			}
-			error = kern_procctl_single(td, p, com, data);
-			PROC_UNLOCK(p);
-			if (error == 0)
-				ok = 1;
-			else if (first_error == 0)
-				first_error = error;
-		}
-		if (ok)
-			error = 0;
-		else if (first_error != 0)
-			error = first_error;
-		else
-			/*
-			 * Was not able to see any processes in the
-			 * process group.
-			 */
-			error = ESRCH;
-		break;
-	default:
-		error = EINVAL;
-		break;
-	}
-	sx_sunlock(&proctree_lock);
-	return (error);
 }

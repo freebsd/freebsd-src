@@ -10,6 +10,8 @@
 # $FreeBSD$
 #
 
+set -e
+
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
 export PATH
 
@@ -29,20 +31,14 @@ if [ -e ${2} ]; then
 fi
 
 echo '/dev/ufs/FreeBSD_Install / ufs ro,noatime 1 1' > ${1}/etc/fstab
-makefs -B little -o label=FreeBSD_Install ${2} ${1}
-if [ $? -ne 0 ]; then
-	echo "makefs failed"
-	exit 1
-fi
+echo 'root_rw_mount="NO"' > ${1}/etc/rc.conf.local
+makefs -B little -o label=FreeBSD_Install -o version=2 ${2}.part ${1}
 rm ${1}/etc/fstab
+rm ${1}/etc/rc.conf.local
 
-unit=$(mdconfig -a -t vnode -f ${2})
-if [ $? -ne 0 ]; then
-	echo "mdconfig failed"
-	exit 1
-fi
-gpart create -s BSD ${unit}
-gpart bootcode -b ${1}/boot/boot ${unit}
-gpart add -t freebsd-ufs ${unit}
-mdconfig -d -u ${unit}
+mkimg -s mbr \
+    -b ${1}/boot/mbr \
+    -p freebsd:-"mkimg -s bsd -b ${1}/boot/boot -p freebsd-ufs:=${2}.part" \
+    -o ${2}
+rm ${2}.part
 

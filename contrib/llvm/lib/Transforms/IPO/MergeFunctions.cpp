@@ -9,13 +9,32 @@
 //
 // This pass looks for equivalent functions that are mergable and folds them.
 //
-// A hash is computed from the function, based on its type and number of
-// basic blocks.
+// Order relation is defined on set of functions. It was made through
+// special function comparison procedure that returns
+// 0 when functions are equal,
+// -1 when Left function is less than right function, and
+// 1 for opposite case. We need total-ordering, so we need to maintain
+// four properties on the functions set:
+// a <= a (reflexivity)
+// if a <= b and b <= a then a = b (antisymmetry)
+// if a <= b and b <= c then a <= c (transitivity).
+// for all a and b: a <= b or b <= a (totality).
 //
-// Once all hashes are computed, we perform an expensive equality comparison
-// on each function pair. This takes n^2/2 comparisons per bucket, so it's
-// important that the hash function be high quality. The equality comparison
-// iterates through each instruction in each basic block.
+// Comparison iterates through each instruction in each basic block.
+// Functions are kept on binary tree. For each new function F we perform
+// lookup in binary tree.
+// In practice it works the following way:
+// -- We define Function* container class with custom "operator<" (FunctionPtr).
+// -- "FunctionPtr" instances are stored in std::set collection, so every
+//    std::set::insert operation will give you result in log(N) time.
+// 
+// As an optimization, a hash of the function structure is calculated first, and
+// two functions are only compared if they have the same hash. This hash is
+// cheap to compute, and has the property that if function F == G according to
+// the comparison function, then hash(F) == hash(G). This consistency property
+// is critical to ensuring all possible merging opportunities are exploited.
+// Collisions in the hash affect the speed of the pass but not the correctness
+// or determinism of the resulting transformation.
 //
 // When a match is found the functions are folded. If both functions are
 // overridable, we move the functionality into a new internal function and
@@ -31,9 +50,6 @@
 // the object they belong to. However, as long as it's only used for a lookup
 // and call, this is irrelevant, and we'd like to fold such functions.
 //
-// * switch from n^2 pair-wise comparisons to an n-way comparison for each
-// bucket.
-//
 // * be smarter about bitcasts.
 //
 // In order to fold functions, we will sometimes add either bitcast instructions
@@ -41,544 +57,192 @@
 // analysis since the two functions differ where one has a bitcast and the
 // other doesn't. We should learn to look through bitcasts.
 //
+// * Compare complex types with pointer types inside.
+// * Compare cross-reference cases.
+// * Compare complex expressions.
+//
+// All the three issues above could be described as ability to prove that
+// fA == fB == fC == fE == fF == fG in example below:
+//
+//  void fA() {
+//    fB();
+//  }
+//  void fB() {
+//    fA();
+//  }
+//
+//  void fE() {
+//    fF();
+//  }
+//  void fF() {
+//    fG();
+//  }
+//  void fG() {
+//    fE();
+//  }
+//
+// Simplest cross-reference case (fA <--> fB) was implemented in previous
+// versions of MergeFunctions, though it presented only in two function pairs
+// in test-suite (that counts >50k functions)
+// Though possibility to detect complex cross-referencing (e.g.: A->B->C->D->A)
+// could cover much more cases.
+//
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "mergefunc"
-#include "llvm/Transforms/IPO.h"
-#include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/FoldingSet.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/IR/Argument.h"
+#include "llvm/IR/Attributes.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/CallSite.h"
+#include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/DebugLoc.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/InlineAsm.h"
+#include "llvm/IR/InstrTypes.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
-#include "llvm/IR/Operator.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Use.h"
+#include "llvm/IR/User.h"
+#include "llvm/IR/Value.h"
+#include "llvm/IR/ValueHandle.h"
+#include "llvm/IR/ValueMap.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/CallSite.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/IPO.h"
+#include "llvm/Transforms/Utils/FunctionComparator.h"
+#include <algorithm>
+#include <cassert>
+#include <iterator>
+#include <set>
+#include <utility>
 #include <vector>
+
 using namespace llvm;
+
+#define DEBUG_TYPE "mergefunc"
 
 STATISTIC(NumFunctionsMerged, "Number of functions merged");
 STATISTIC(NumThunksWritten, "Number of thunks generated");
-STATISTIC(NumAliasesWritten, "Number of aliases generated");
 STATISTIC(NumDoubleWeak, "Number of new functions created");
 
-/// Returns the type id for a type to be hashed. We turn pointer types into
-/// integers here because the actual compare logic below considers pointers and
-/// integers of the same size as equal.
-static Type::TypeID getTypeIDForHash(Type *Ty) {
-  if (Ty->isPointerTy())
-    return Type::IntegerTyID;
-  return Ty->getTypeID();
-}
+static cl::opt<unsigned> NumFunctionsForSanityCheck(
+    "mergefunc-sanity",
+    cl::desc("How many functions in module could be used for "
+             "MergeFunctions pass sanity check. "
+             "'0' disables this check. Works only with '-debug' key."),
+    cl::init(0), cl::Hidden);
 
-/// Creates a hash-code for the function which is the same for any two
-/// functions that will compare equal, without looking at the instructions
-/// inside the function.
-static unsigned profileFunction(const Function *F) {
-  FunctionType *FTy = F->getFunctionType();
-
-  FoldingSetNodeID ID;
-  ID.AddInteger(F->size());
-  ID.AddInteger(F->getCallingConv());
-  ID.AddBoolean(F->hasGC());
-  ID.AddBoolean(FTy->isVarArg());
-  ID.AddInteger(getTypeIDForHash(FTy->getReturnType()));
-  for (unsigned i = 0, e = FTy->getNumParams(); i != e; ++i)
-    ID.AddInteger(getTypeIDForHash(FTy->getParamType(i)));
-  return ID.ComputeHash();
-}
+// Under option -mergefunc-preserve-debug-info we:
+// - Do not create a new function for a thunk.
+// - Retain the debug info for a thunk's parameters (and associated
+//   instructions for the debug info) from the entry block.
+//   Note: -debug will display the algorithm at work.
+// - Create debug-info for the call (to the shared implementation) made by
+//   a thunk and its return value.
+// - Erase the rest of the function, retaining the (minimally sized) entry
+//   block to create a thunk.
+// - Preserve a thunk's call site to point to the thunk even when both occur
+//   within the same translation unit, to aid debugability. Note that this
+//   behaviour differs from the underlying -mergefunc implementation which
+//   modifies the thunk's call site to point to the shared implementation
+//   when both occur within the same translation unit.
+static cl::opt<bool>
+    MergeFunctionsPDI("mergefunc-preserve-debug-info", cl::Hidden,
+                      cl::init(false),
+                      cl::desc("Preserve debug info in thunk when mergefunc "
+                               "transformations are made."));
 
 namespace {
 
-/// ComparableFunction - A struct that pairs together functions with a
-/// DataLayout so that we can keep them together as elements in the DenseSet.
-class ComparableFunction {
+class FunctionNode {
+  mutable AssertingVH<Function> F;
+  FunctionComparator::FunctionHash Hash;
+
 public:
-  static const ComparableFunction EmptyKey;
-  static const ComparableFunction TombstoneKey;
-  static DataLayout * const LookupOnly;
+  // Note the hash is recalculated potentially multiple times, but it is cheap.
+  FunctionNode(Function *F)
+    : F(F), Hash(FunctionComparator::functionHash(*F))  {}
 
-  ComparableFunction(Function *Func, DataLayout *TD)
-    : Func(Func), Hash(profileFunction(Func)), TD(TD) {}
+  Function *getFunc() const { return F; }
+  FunctionComparator::FunctionHash getHash() const { return Hash; }
 
-  Function *getFunc() const { return Func; }
-  unsigned getHash() const { return Hash; }
-  DataLayout *getTD() const { return TD; }
-
-  // Drops AssertingVH reference to the function. Outside of debug mode, this
-  // does nothing.
-  void release() {
-    assert(Func &&
-           "Attempted to release function twice, or release empty/tombstone!");
-    Func = NULL;
+  /// Replace the reference to the function F by the function G, assuming their
+  /// implementations are equal.
+  void replaceBy(Function *G) const {
+    F = G;
   }
 
-private:
-  explicit ComparableFunction(unsigned Hash)
-    : Func(NULL), Hash(Hash), TD(NULL) {}
-
-  AssertingVH<Function> Func;
-  unsigned Hash;
-  DataLayout *TD;
+  void release() { F = nullptr; }
 };
-
-const ComparableFunction ComparableFunction::EmptyKey = ComparableFunction(0);
-const ComparableFunction ComparableFunction::TombstoneKey =
-    ComparableFunction(1);
-DataLayout *const ComparableFunction::LookupOnly = (DataLayout*)(-1);
-
-}
-
-namespace llvm {
-  template <>
-  struct DenseMapInfo<ComparableFunction> {
-    static ComparableFunction getEmptyKey() {
-      return ComparableFunction::EmptyKey;
-    }
-    static ComparableFunction getTombstoneKey() {
-      return ComparableFunction::TombstoneKey;
-    }
-    static unsigned getHashValue(const ComparableFunction &CF) {
-      return CF.getHash();
-    }
-    static bool isEqual(const ComparableFunction &LHS,
-                        const ComparableFunction &RHS);
-  };
-}
-
-namespace {
-
-/// FunctionComparator - Compares two functions to determine whether or not
-/// they will generate machine code with the same behaviour. DataLayout is
-/// used if available. The comparator always fails conservatively (erring on the
-/// side of claiming that two functions are different).
-class FunctionComparator {
-public:
-  FunctionComparator(const DataLayout *TD, const Function *F1,
-                     const Function *F2)
-    : F1(F1), F2(F2), TD(TD) {}
-
-  /// Test whether the two functions have equivalent behaviour.
-  bool compare();
-
-private:
-  /// Test whether two basic blocks have equivalent behaviour.
-  bool compare(const BasicBlock *BB1, const BasicBlock *BB2);
-
-  /// Assign or look up previously assigned numbers for the two values, and
-  /// return whether the numbers are equal. Numbers are assigned in the order
-  /// visited.
-  bool enumerate(const Value *V1, const Value *V2);
-
-  /// Compare two Instructions for equivalence, similar to
-  /// Instruction::isSameOperationAs but with modifications to the type
-  /// comparison.
-  bool isEquivalentOperation(const Instruction *I1,
-                             const Instruction *I2) const;
-
-  /// Compare two GEPs for equivalent pointer arithmetic.
-  bool isEquivalentGEP(const GEPOperator *GEP1, const GEPOperator *GEP2);
-  bool isEquivalentGEP(const GetElementPtrInst *GEP1,
-                       const GetElementPtrInst *GEP2) {
-    return isEquivalentGEP(cast<GEPOperator>(GEP1), cast<GEPOperator>(GEP2));
-  }
-
-  /// Compare two Types, treating all pointer types as equal.
-  bool isEquivalentType(Type *Ty1, Type *Ty2) const;
-
-  // The two functions undergoing comparison.
-  const Function *F1, *F2;
-
-  const DataLayout *TD;
-
-  DenseMap<const Value *, const Value *> id_map;
-  DenseSet<const Value *> seen_values;
-};
-
-}
-
-// Any two pointers in the same address space are equivalent, intptr_t and
-// pointers are equivalent. Otherwise, standard type equivalence rules apply.
-bool FunctionComparator::isEquivalentType(Type *Ty1, Type *Ty2) const {
-
-  PointerType *PTy1 = dyn_cast<PointerType>(Ty1);
-  PointerType *PTy2 = dyn_cast<PointerType>(Ty2);
-
-  if (TD) {
-    if (PTy1 && PTy1->getAddressSpace() == 0) Ty1 = TD->getIntPtrType(Ty1);
-    if (PTy2 && PTy2->getAddressSpace() == 0) Ty2 = TD->getIntPtrType(Ty2);
-  }
-
-  if (Ty1 == Ty2)
-    return true;
-
-  if (Ty1->getTypeID() != Ty2->getTypeID())
-    return false;
-
-  switch (Ty1->getTypeID()) {
-  default:
-    llvm_unreachable("Unknown type!");
-    // Fall through in Release mode.
-  case Type::IntegerTyID:
-  case Type::VectorTyID:
-    // Ty1 == Ty2 would have returned true earlier.
-    return false;
-
-  case Type::VoidTyID:
-  case Type::FloatTyID:
-  case Type::DoubleTyID:
-  case Type::X86_FP80TyID:
-  case Type::FP128TyID:
-  case Type::PPC_FP128TyID:
-  case Type::LabelTyID:
-  case Type::MetadataTyID:
-    return true;
-
-  case Type::PointerTyID: {
-    assert(PTy1 && PTy2 && "Both types must be pointers here.");
-    return PTy1->getAddressSpace() == PTy2->getAddressSpace();
-  }
-
-  case Type::StructTyID: {
-    StructType *STy1 = cast<StructType>(Ty1);
-    StructType *STy2 = cast<StructType>(Ty2);
-    if (STy1->getNumElements() != STy2->getNumElements())
-      return false;
-
-    if (STy1->isPacked() != STy2->isPacked())
-      return false;
-
-    for (unsigned i = 0, e = STy1->getNumElements(); i != e; ++i) {
-      if (!isEquivalentType(STy1->getElementType(i), STy2->getElementType(i)))
-        return false;
-    }
-    return true;
-  }
-
-  case Type::FunctionTyID: {
-    FunctionType *FTy1 = cast<FunctionType>(Ty1);
-    FunctionType *FTy2 = cast<FunctionType>(Ty2);
-    if (FTy1->getNumParams() != FTy2->getNumParams() ||
-        FTy1->isVarArg() != FTy2->isVarArg())
-      return false;
-
-    if (!isEquivalentType(FTy1->getReturnType(), FTy2->getReturnType()))
-      return false;
-
-    for (unsigned i = 0, e = FTy1->getNumParams(); i != e; ++i) {
-      if (!isEquivalentType(FTy1->getParamType(i), FTy2->getParamType(i)))
-        return false;
-    }
-    return true;
-  }
-
-  case Type::ArrayTyID: {
-    ArrayType *ATy1 = cast<ArrayType>(Ty1);
-    ArrayType *ATy2 = cast<ArrayType>(Ty2);
-    return ATy1->getNumElements() == ATy2->getNumElements() &&
-           isEquivalentType(ATy1->getElementType(), ATy2->getElementType());
-  }
-  }
-}
-
-// Determine whether the two operations are the same except that pointer-to-A
-// and pointer-to-B are equivalent. This should be kept in sync with
-// Instruction::isSameOperationAs.
-bool FunctionComparator::isEquivalentOperation(const Instruction *I1,
-                                               const Instruction *I2) const {
-  // Differences from Instruction::isSameOperationAs:
-  //  * replace type comparison with calls to isEquivalentType.
-  //  * we test for I->hasSameSubclassOptionalData (nuw/nsw/tail) at the top
-  //  * because of the above, we don't test for the tail bit on calls later on
-  if (I1->getOpcode() != I2->getOpcode() ||
-      I1->getNumOperands() != I2->getNumOperands() ||
-      !isEquivalentType(I1->getType(), I2->getType()) ||
-      !I1->hasSameSubclassOptionalData(I2))
-    return false;
-
-  // We have two instructions of identical opcode and #operands.  Check to see
-  // if all operands are the same type
-  for (unsigned i = 0, e = I1->getNumOperands(); i != e; ++i)
-    if (!isEquivalentType(I1->getOperand(i)->getType(),
-                          I2->getOperand(i)->getType()))
-      return false;
-
-  // Check special state that is a part of some instructions.
-  if (const LoadInst *LI = dyn_cast<LoadInst>(I1))
-    return LI->isVolatile() == cast<LoadInst>(I2)->isVolatile() &&
-           LI->getAlignment() == cast<LoadInst>(I2)->getAlignment() &&
-           LI->getOrdering() == cast<LoadInst>(I2)->getOrdering() &&
-           LI->getSynchScope() == cast<LoadInst>(I2)->getSynchScope();
-  if (const StoreInst *SI = dyn_cast<StoreInst>(I1))
-    return SI->isVolatile() == cast<StoreInst>(I2)->isVolatile() &&
-           SI->getAlignment() == cast<StoreInst>(I2)->getAlignment() &&
-           SI->getOrdering() == cast<StoreInst>(I2)->getOrdering() &&
-           SI->getSynchScope() == cast<StoreInst>(I2)->getSynchScope();
-  if (const CmpInst *CI = dyn_cast<CmpInst>(I1))
-    return CI->getPredicate() == cast<CmpInst>(I2)->getPredicate();
-  if (const CallInst *CI = dyn_cast<CallInst>(I1))
-    return CI->getCallingConv() == cast<CallInst>(I2)->getCallingConv() &&
-           CI->getAttributes() == cast<CallInst>(I2)->getAttributes();
-  if (const InvokeInst *CI = dyn_cast<InvokeInst>(I1))
-    return CI->getCallingConv() == cast<InvokeInst>(I2)->getCallingConv() &&
-           CI->getAttributes() == cast<InvokeInst>(I2)->getAttributes();
-  if (const InsertValueInst *IVI = dyn_cast<InsertValueInst>(I1))
-    return IVI->getIndices() == cast<InsertValueInst>(I2)->getIndices();
-  if (const ExtractValueInst *EVI = dyn_cast<ExtractValueInst>(I1))
-    return EVI->getIndices() == cast<ExtractValueInst>(I2)->getIndices();
-  if (const FenceInst *FI = dyn_cast<FenceInst>(I1))
-    return FI->getOrdering() == cast<FenceInst>(I2)->getOrdering() &&
-           FI->getSynchScope() == cast<FenceInst>(I2)->getSynchScope();
-  if (const AtomicCmpXchgInst *CXI = dyn_cast<AtomicCmpXchgInst>(I1))
-    return CXI->isVolatile() == cast<AtomicCmpXchgInst>(I2)->isVolatile() &&
-           CXI->getOrdering() == cast<AtomicCmpXchgInst>(I2)->getOrdering() &&
-           CXI->getSynchScope() == cast<AtomicCmpXchgInst>(I2)->getSynchScope();
-  if (const AtomicRMWInst *RMWI = dyn_cast<AtomicRMWInst>(I1))
-    return RMWI->getOperation() == cast<AtomicRMWInst>(I2)->getOperation() &&
-           RMWI->isVolatile() == cast<AtomicRMWInst>(I2)->isVolatile() &&
-           RMWI->getOrdering() == cast<AtomicRMWInst>(I2)->getOrdering() &&
-           RMWI->getSynchScope() == cast<AtomicRMWInst>(I2)->getSynchScope();
-
-  return true;
-}
-
-// Determine whether two GEP operations perform the same underlying arithmetic.
-bool FunctionComparator::isEquivalentGEP(const GEPOperator *GEP1,
-                                         const GEPOperator *GEP2) {
-  unsigned AS = GEP1->getPointerAddressSpace();
-  if (AS != GEP2->getPointerAddressSpace())
-    return false;
-
-  if (TD) {
-    // When we have target data, we can reduce the GEP down to the value in bytes
-    // added to the address.
-    unsigned BitWidth = TD ? TD->getPointerSizeInBits(AS) : 1;
-    APInt Offset1(BitWidth, 0), Offset2(BitWidth, 0);
-    if (GEP1->accumulateConstantOffset(*TD, Offset1) &&
-        GEP2->accumulateConstantOffset(*TD, Offset2)) {
-      return Offset1 == Offset2;
-    }
-  }
-
-  if (GEP1->getPointerOperand()->getType() !=
-      GEP2->getPointerOperand()->getType())
-    return false;
-
-  if (GEP1->getNumOperands() != GEP2->getNumOperands())
-    return false;
-
-  for (unsigned i = 0, e = GEP1->getNumOperands(); i != e; ++i) {
-    if (!enumerate(GEP1->getOperand(i), GEP2->getOperand(i)))
-      return false;
-  }
-
-  return true;
-}
-
-// Compare two values used by the two functions under pair-wise comparison. If
-// this is the first time the values are seen, they're added to the mapping so
-// that we will detect mismatches on next use.
-bool FunctionComparator::enumerate(const Value *V1, const Value *V2) {
-  // Check for function @f1 referring to itself and function @f2 referring to
-  // itself, or referring to each other, or both referring to either of them.
-  // They're all equivalent if the two functions are otherwise equivalent.
-  if (V1 == F1 && V2 == F2)
-    return true;
-  if (V1 == F2 && V2 == F1)
-    return true;
-
-  if (const Constant *C1 = dyn_cast<Constant>(V1)) {
-    if (V1 == V2) return true;
-    const Constant *C2 = dyn_cast<Constant>(V2);
-    if (!C2) return false;
-    // TODO: constant expressions with GEP or references to F1 or F2.
-    if (C1->isNullValue() && C2->isNullValue() &&
-        isEquivalentType(C1->getType(), C2->getType()))
-      return true;
-    // Try bitcasting C2 to C1's type. If the bitcast is legal and returns C1
-    // then they must have equal bit patterns.
-    return C1->getType()->canLosslesslyBitCastTo(C2->getType()) &&
-      C1 == ConstantExpr::getBitCast(const_cast<Constant*>(C2), C1->getType());
-  }
-
-  if (isa<InlineAsm>(V1) || isa<InlineAsm>(V2))
-    return V1 == V2;
-
-  // Check that V1 maps to V2. If we find a value that V1 maps to then we simply
-  // check whether it's equal to V2. When there is no mapping then we need to
-  // ensure that V2 isn't already equivalent to something else. For this
-  // purpose, we track the V2 values in a set.
-
-  const Value *&map_elem = id_map[V1];
-  if (map_elem)
-    return map_elem == V2;
-  if (!seen_values.insert(V2).second)
-    return false;
-  map_elem = V2;
-  return true;
-}
-
-// Test whether two basic blocks have equivalent behaviour.
-bool FunctionComparator::compare(const BasicBlock *BB1, const BasicBlock *BB2) {
-  BasicBlock::const_iterator F1I = BB1->begin(), F1E = BB1->end();
-  BasicBlock::const_iterator F2I = BB2->begin(), F2E = BB2->end();
-
-  do {
-    if (!enumerate(F1I, F2I))
-      return false;
-
-    if (const GetElementPtrInst *GEP1 = dyn_cast<GetElementPtrInst>(F1I)) {
-      const GetElementPtrInst *GEP2 = dyn_cast<GetElementPtrInst>(F2I);
-      if (!GEP2)
-        return false;
-
-      if (!enumerate(GEP1->getPointerOperand(), GEP2->getPointerOperand()))
-        return false;
-
-      if (!isEquivalentGEP(GEP1, GEP2))
-        return false;
-    } else {
-      if (!isEquivalentOperation(F1I, F2I))
-        return false;
-
-      assert(F1I->getNumOperands() == F2I->getNumOperands());
-      for (unsigned i = 0, e = F1I->getNumOperands(); i != e; ++i) {
-        Value *OpF1 = F1I->getOperand(i);
-        Value *OpF2 = F2I->getOperand(i);
-
-        if (!enumerate(OpF1, OpF2))
-          return false;
-
-        if (OpF1->getValueID() != OpF2->getValueID() ||
-            !isEquivalentType(OpF1->getType(), OpF2->getType()))
-          return false;
-      }
-    }
-
-    ++F1I, ++F2I;
-  } while (F1I != F1E && F2I != F2E);
-
-  return F1I == F1E && F2I == F2E;
-}
-
-// Test whether the two functions have equivalent behaviour.
-bool FunctionComparator::compare() {
-  // We need to recheck everything, but check the things that weren't included
-  // in the hash first.
-
-  if (F1->getAttributes() != F2->getAttributes())
-    return false;
-
-  if (F1->hasGC() != F2->hasGC())
-    return false;
-
-  if (F1->hasGC() && F1->getGC() != F2->getGC())
-    return false;
-
-  if (F1->hasSection() != F2->hasSection())
-    return false;
-
-  if (F1->hasSection() && F1->getSection() != F2->getSection())
-    return false;
-
-  if (F1->isVarArg() != F2->isVarArg())
-    return false;
-
-  // TODO: if it's internal and only used in direct calls, we could handle this
-  // case too.
-  if (F1->getCallingConv() != F2->getCallingConv())
-    return false;
-
-  if (!isEquivalentType(F1->getFunctionType(), F2->getFunctionType()))
-    return false;
-
-  assert(F1->arg_size() == F2->arg_size() &&
-         "Identically typed functions have different numbers of args!");
-
-  // Visit the arguments so that they get enumerated in the order they're
-  // passed in.
-  for (Function::const_arg_iterator f1i = F1->arg_begin(),
-         f2i = F2->arg_begin(), f1e = F1->arg_end(); f1i != f1e; ++f1i, ++f2i) {
-    if (!enumerate(f1i, f2i))
-      llvm_unreachable("Arguments repeat!");
-  }
-
-  // We do a CFG-ordered walk since the actual ordering of the blocks in the
-  // linked list is immaterial. Our walk starts at the entry block for both
-  // functions, then takes each block from each terminator in order. As an
-  // artifact, this also means that unreachable blocks are ignored.
-  SmallVector<const BasicBlock *, 8> F1BBs, F2BBs;
-  SmallSet<const BasicBlock *, 128> VisitedBBs; // in terms of F1.
-
-  F1BBs.push_back(&F1->getEntryBlock());
-  F2BBs.push_back(&F2->getEntryBlock());
-
-  VisitedBBs.insert(F1BBs[0]);
-  while (!F1BBs.empty()) {
-    const BasicBlock *F1BB = F1BBs.pop_back_val();
-    const BasicBlock *F2BB = F2BBs.pop_back_val();
-
-    if (!enumerate(F1BB, F2BB) || !compare(F1BB, F2BB))
-      return false;
-
-    const TerminatorInst *F1TI = F1BB->getTerminator();
-    const TerminatorInst *F2TI = F2BB->getTerminator();
-
-    assert(F1TI->getNumSuccessors() == F2TI->getNumSuccessors());
-    for (unsigned i = 0, e = F1TI->getNumSuccessors(); i != e; ++i) {
-      if (!VisitedBBs.insert(F1TI->getSuccessor(i)))
-        continue;
-
-      F1BBs.push_back(F1TI->getSuccessor(i));
-      F2BBs.push_back(F2TI->getSuccessor(i));
-    }
-  }
-  return true;
-}
-
-namespace {
 
 /// MergeFunctions finds functions which will generate identical machine code,
 /// by considering all pointer types to be equivalent. Once identified,
 /// MergeFunctions will fold them by replacing a call to one to a call to a
 /// bitcast of the other.
-///
 class MergeFunctions : public ModulePass {
 public:
   static char ID;
+
   MergeFunctions()
-    : ModulePass(ID), HasGlobalAliases(false) {
+    : ModulePass(ID), FnTree(FunctionNodeCmp(&GlobalNumbers)) {
     initializeMergeFunctionsPass(*PassRegistry::getPassRegistry());
   }
 
-  bool runOnModule(Module &M);
+  bool runOnModule(Module &M) override;
 
 private:
-  typedef DenseSet<ComparableFunction> FnSetType;
+  // The function comparison operator is provided here so that FunctionNodes do
+  // not need to become larger with another pointer.
+  class FunctionNodeCmp {
+    GlobalNumberState* GlobalNumbers;
+
+  public:
+    FunctionNodeCmp(GlobalNumberState* GN) : GlobalNumbers(GN) {}
+
+    bool operator()(const FunctionNode &LHS, const FunctionNode &RHS) const {
+      // Order first by hashes, then full function comparison.
+      if (LHS.getHash() != RHS.getHash())
+        return LHS.getHash() < RHS.getHash();
+      FunctionComparator FCmp(LHS.getFunc(), RHS.getFunc(), GlobalNumbers);
+      return FCmp.compare() == -1;
+    }
+  };
+  using FnTreeType = std::set<FunctionNode, FunctionNodeCmp>;
+
+  GlobalNumberState GlobalNumbers;
 
   /// A work queue of functions that may have been modified and should be
   /// analyzed again.
-  std::vector<WeakVH> Deferred;
+  std::vector<WeakTrackingVH> Deferred;
 
-  /// Insert a ComparableFunction into the FnSet, or merge it away if it's
+#ifndef NDEBUG
+  /// Checks the rules of order relation introduced among functions set.
+  /// Returns true, if sanity check has been passed, and false if failed.
+  bool doSanityCheck(std::vector<WeakTrackingVH> &Worklist);
+#endif
+
+  /// Insert a ComparableFunction into the FnTree, or merge it away if it's
   /// equal to one that's already present.
-  bool insert(ComparableFunction &NewF);
+  bool insert(Function *NewFunction);
 
-  /// Remove a Function from the FnSet and queue it up for a second sweep of
+  /// Remove a Function from the FnTree and queue it up for a second sweep of
   /// analysis.
   void remove(Function *F);
 
-  /// Find the functions that use this Value and remove them from FnSet and
+  /// Find the functions that use this Value and remove them from FnTree and
   /// queue the functions.
   void removeUsers(Value *V);
 
@@ -591,141 +255,237 @@ private:
   /// again.
   void mergeTwoFunctions(Function *F, Function *G);
 
-  /// Replace G with a thunk or an alias to F. Deletes G.
-  void writeThunkOrAlias(Function *F, Function *G);
+  /// Fill PDIUnrelatedWL with instructions from the entry block that are
+  /// unrelated to parameter related debug info.
+  void filterInstsUnrelatedToPDI(BasicBlock *GEntryBlock,
+                                 std::vector<Instruction *> &PDIUnrelatedWL);
 
-  /// Replace G with a simple tail call to bitcast(F). Also replace direct uses
-  /// of G with bitcast(F). Deletes G.
+  /// Erase the rest of the CFG (i.e. barring the entry block).
+  void eraseTail(Function *G);
+
+  /// Erase the instructions in PDIUnrelatedWL as they are unrelated to the
+  /// parameter debug info, from the entry block.
+  void eraseInstsUnrelatedToPDI(std::vector<Instruction *> &PDIUnrelatedWL);
+
+  /// Replace G with a simple tail call to bitcast(F). Also (unless
+  /// MergeFunctionsPDI holds) replace direct uses of G with bitcast(F),
+  /// delete G.
   void writeThunk(Function *F, Function *G);
 
-  /// Replace G with an alias to F. Deletes G.
-  void writeAlias(Function *F, Function *G);
+  /// Replace function F with function G in the function tree.
+  void replaceFunctionInTree(const FunctionNode &FN, Function *G);
 
   /// The set of all distinct functions. Use the insert() and remove() methods
-  /// to modify it.
-  FnSetType FnSet;
+  /// to modify it. The map allows efficient lookup and deferring of Functions.
+  FnTreeType FnTree;
 
-  /// DataLayout for more accurate GEP comparisons. May be NULL.
-  DataLayout *TD;
-
-  /// Whether or not the target supports global aliases.
-  bool HasGlobalAliases;
+  // Map functions to the iterators of the FunctionNode which contains them
+  // in the FnTree. This must be updated carefully whenever the FnTree is
+  // modified, i.e. in insert(), remove(), and replaceFunctionInTree(), to avoid
+  // dangling iterators into FnTree. The invariant that preserves this is that
+  // there is exactly one mapping F -> FN for each FunctionNode FN in FnTree.
+  ValueMap<Function*, FnTreeType::iterator> FNodesInTree;
 };
 
-}  // end anonymous namespace
+} // end anonymous namespace
 
 char MergeFunctions::ID = 0;
+
 INITIALIZE_PASS(MergeFunctions, "mergefunc", "Merge Functions", false, false)
 
 ModulePass *llvm::createMergeFunctionsPass() {
   return new MergeFunctions();
 }
 
-bool MergeFunctions::runOnModule(Module &M) {
-  bool Changed = false;
-  TD = getAnalysisIfAvailable<DataLayout>();
+#ifndef NDEBUG
+bool MergeFunctions::doSanityCheck(std::vector<WeakTrackingVH> &Worklist) {
+  if (const unsigned Max = NumFunctionsForSanityCheck) {
+    unsigned TripleNumber = 0;
+    bool Valid = true;
 
-  for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
-    if (!I->isDeclaration() && !I->hasAvailableExternallyLinkage())
-      Deferred.push_back(WeakVH(I));
+    dbgs() << "MERGEFUNC-SANITY: Started for first " << Max << " functions.\n";
+
+    unsigned i = 0;
+    for (std::vector<WeakTrackingVH>::iterator I = Worklist.begin(),
+                                               E = Worklist.end();
+         I != E && i < Max; ++I, ++i) {
+      unsigned j = i;
+      for (std::vector<WeakTrackingVH>::iterator J = I; J != E && j < Max;
+           ++J, ++j) {
+        Function *F1 = cast<Function>(*I);
+        Function *F2 = cast<Function>(*J);
+        int Res1 = FunctionComparator(F1, F2, &GlobalNumbers).compare();
+        int Res2 = FunctionComparator(F2, F1, &GlobalNumbers).compare();
+
+        // If F1 <= F2, then F2 >= F1, otherwise report failure.
+        if (Res1 != -Res2) {
+          dbgs() << "MERGEFUNC-SANITY: Non-symmetric; triple: " << TripleNumber
+                 << "\n";
+          dbgs() << *F1 << '\n' << *F2 << '\n';
+          Valid = false;
+        }
+
+        if (Res1 == 0)
+          continue;
+
+        unsigned k = j;
+        for (std::vector<WeakTrackingVH>::iterator K = J; K != E && k < Max;
+             ++k, ++K, ++TripleNumber) {
+          if (K == J)
+            continue;
+
+          Function *F3 = cast<Function>(*K);
+          int Res3 = FunctionComparator(F1, F3, &GlobalNumbers).compare();
+          int Res4 = FunctionComparator(F2, F3, &GlobalNumbers).compare();
+
+          bool Transitive = true;
+
+          if (Res1 != 0 && Res1 == Res4) {
+            // F1 > F2, F2 > F3 => F1 > F3
+            Transitive = Res3 == Res1;
+          } else if (Res3 != 0 && Res3 == -Res4) {
+            // F1 > F3, F3 > F2 => F1 > F2
+            Transitive = Res3 == Res1;
+          } else if (Res4 != 0 && -Res3 == Res4) {
+            // F2 > F3, F3 > F1 => F2 > F1
+            Transitive = Res4 == -Res1;
+          }
+
+          if (!Transitive) {
+            dbgs() << "MERGEFUNC-SANITY: Non-transitive; triple: "
+                   << TripleNumber << "\n";
+            dbgs() << "Res1, Res3, Res4: " << Res1 << ", " << Res3 << ", "
+                   << Res4 << "\n";
+            dbgs() << *F1 << '\n' << *F2 << '\n' << *F3 << '\n';
+            Valid = false;
+          }
+        }
+      }
+    }
+
+    dbgs() << "MERGEFUNC-SANITY: " << (Valid ? "Passed." : "Failed.") << "\n";
+    return Valid;
   }
-  FnSet.resize(Deferred.size());
+  return true;
+}
+#endif
 
+bool MergeFunctions::runOnModule(Module &M) {
+  if (skipModule(M))
+    return false;
+
+  bool Changed = false;
+
+  // All functions in the module, ordered by hash. Functions with a unique
+  // hash value are easily eliminated.
+  std::vector<std::pair<FunctionComparator::FunctionHash, Function *>>
+    HashedFuncs;
+  for (Function &Func : M) {
+    if (!Func.isDeclaration() && !Func.hasAvailableExternallyLinkage()) {
+      HashedFuncs.push_back({FunctionComparator::functionHash(Func), &Func});
+    } 
+  }
+
+  std::stable_sort(
+      HashedFuncs.begin(), HashedFuncs.end(),
+      [](const std::pair<FunctionComparator::FunctionHash, Function *> &a,
+         const std::pair<FunctionComparator::FunctionHash, Function *> &b) {
+        return a.first < b.first;
+      });
+
+  auto S = HashedFuncs.begin();
+  for (auto I = HashedFuncs.begin(), IE = HashedFuncs.end(); I != IE; ++I) {
+    // If the hash value matches the previous value or the next one, we must
+    // consider merging it. Otherwise it is dropped and never considered again.
+    if ((I != S && std::prev(I)->first == I->first) ||
+        (std::next(I) != IE && std::next(I)->first == I->first) ) {
+      Deferred.push_back(WeakTrackingVH(I->second));
+    }
+  }
+  
   do {
-    std::vector<WeakVH> Worklist;
+    std::vector<WeakTrackingVH> Worklist;
     Deferred.swap(Worklist);
+
+    DEBUG(doSanityCheck(Worklist));
 
     DEBUG(dbgs() << "size of module: " << M.size() << '\n');
     DEBUG(dbgs() << "size of worklist: " << Worklist.size() << '\n');
 
-    // Insert only strong functions and merge them. Strong function merging
-    // always deletes one of them.
-    for (std::vector<WeakVH>::iterator I = Worklist.begin(),
-           E = Worklist.end(); I != E; ++I) {
-      if (!*I) continue;
-      Function *F = cast<Function>(*I);
-      if (!F->isDeclaration() && !F->hasAvailableExternallyLinkage() &&
-          !F->mayBeOverridden()) {
-        ComparableFunction CF = ComparableFunction(F, TD);
-        Changed |= insert(CF);
+    // Insert functions and merge them.
+    for (WeakTrackingVH &I : Worklist) {
+      if (!I)
+        continue;
+      Function *F = cast<Function>(I);
+      if (!F->isDeclaration() && !F->hasAvailableExternallyLinkage()) {
+        Changed |= insert(F);
       }
     }
-
-    // Insert only weak functions and merge them. By doing these second we
-    // create thunks to the strong function when possible. When two weak
-    // functions are identical, we create a new strong function with two weak
-    // weak thunks to it which are identical but not mergable.
-    for (std::vector<WeakVH>::iterator I = Worklist.begin(),
-           E = Worklist.end(); I != E; ++I) {
-      if (!*I) continue;
-      Function *F = cast<Function>(*I);
-      if (!F->isDeclaration() && !F->hasAvailableExternallyLinkage() &&
-          F->mayBeOverridden()) {
-        ComparableFunction CF = ComparableFunction(F, TD);
-        Changed |= insert(CF);
-      }
-    }
-    DEBUG(dbgs() << "size of FnSet: " << FnSet.size() << '\n');
+    DEBUG(dbgs() << "size of FnTree: " << FnTree.size() << '\n');
   } while (!Deferred.empty());
 
-  FnSet.clear();
+  FnTree.clear();
+  GlobalNumbers.clear();
 
   return Changed;
-}
-
-bool DenseMapInfo<ComparableFunction>::isEqual(const ComparableFunction &LHS,
-                                               const ComparableFunction &RHS) {
-  if (LHS.getFunc() == RHS.getFunc() &&
-      LHS.getHash() == RHS.getHash())
-    return true;
-  if (!LHS.getFunc() || !RHS.getFunc())
-    return false;
-
-  // One of these is a special "underlying pointer comparison only" object.
-  if (LHS.getTD() == ComparableFunction::LookupOnly ||
-      RHS.getTD() == ComparableFunction::LookupOnly)
-    return false;
-
-  assert(LHS.getTD() == RHS.getTD() &&
-         "Comparing functions for different targets");
-
-  return FunctionComparator(LHS.getTD(), LHS.getFunc(),
-                            RHS.getFunc()).compare();
 }
 
 // Replace direct callers of Old with New.
 void MergeFunctions::replaceDirectCallers(Function *Old, Function *New) {
   Constant *BitcastNew = ConstantExpr::getBitCast(New, Old->getType());
-  for (Value::use_iterator UI = Old->use_begin(), UE = Old->use_end();
-       UI != UE;) {
-    Value::use_iterator TheIter = UI;
+  for (auto UI = Old->use_begin(), UE = Old->use_end(); UI != UE;) {
+    Use *U = &*UI;
     ++UI;
-    CallSite CS(*TheIter);
-    if (CS && CS.isCallee(TheIter)) {
+    CallSite CS(U->getUser());
+    if (CS && CS.isCallee(U)) {
+      // Transfer the called function's attributes to the call site. Due to the
+      // bitcast we will 'lose' ABI changing attributes because the 'called
+      // function' is no longer a Function* but the bitcast. Code that looks up
+      // the attributes from the called function will fail.
+
+      // FIXME: This is not actually true, at least not anymore. The callsite
+      // will always have the same ABI affecting attributes as the callee,
+      // because otherwise the original input has UB. Note that Old and New
+      // always have matching ABI, so no attributes need to be changed.
+      // Transferring other attributes may help other optimizations, but that
+      // should be done uniformly and not in this ad-hoc way.
+      auto &Context = New->getContext();
+      auto NewPAL = New->getAttributes();
+      SmallVector<AttributeSet, 4> NewArgAttrs;
+      for (unsigned argIdx = 0; argIdx < CS.arg_size(); argIdx++)
+        NewArgAttrs.push_back(NewPAL.getParamAttributes(argIdx));
+      // Don't transfer attributes from the function to the callee. Function
+      // attributes typically aren't relevant to the calling convention or ABI.
+      CS.setAttributes(AttributeList::get(Context, /*FnAttrs=*/AttributeSet(),
+                                          NewPAL.getRetAttributes(),
+                                          NewArgAttrs));
+
       remove(CS.getInstruction()->getParent()->getParent());
-      TheIter.getUse().set(BitcastNew);
+      U->set(BitcastNew);
     }
   }
-}
-
-// Replace G with an alias to F if possible, or else a thunk to F. Deletes G.
-void MergeFunctions::writeThunkOrAlias(Function *F, Function *G) {
-  if (HasGlobalAliases && G->hasUnnamedAddr()) {
-    if (G->hasExternalLinkage() || G->hasLocalLinkage() ||
-        G->hasWeakLinkage()) {
-      writeAlias(F, G);
-      return;
-    }
-  }
-
-  writeThunk(F, G);
 }
 
 // Helper for writeThunk,
 // Selects proper bitcast operation,
-// but a bit simplier then CastInst::getCastOpcode.
-static Value* createCast(IRBuilder<false> &Builder, Value *V, Type *DestTy) {
+// but a bit simpler then CastInst::getCastOpcode.
+static Value *createCast(IRBuilder<> &Builder, Value *V, Type *DestTy) {
   Type *SrcTy = V->getType();
+  if (SrcTy->isStructTy()) {
+    assert(DestTy->isStructTy());
+    assert(SrcTy->getStructNumElements() == DestTy->getStructNumElements());
+    Value *Result = UndefValue::get(DestTy);
+    for (unsigned int I = 0, E = SrcTy->getStructNumElements(); I < E; ++I) {
+      Value *Element = createCast(
+          Builder, Builder.CreateExtractValue(V, makeArrayRef(I)),
+          DestTy->getStructElementType(I));
+
+      Result =
+          Builder.CreateInsertValue(Result, Element, makeArrayRef(I));
+    }
+    return Result;
+  }
+  assert(!DestTy->isStructTy());
   if (SrcTy->isIntegerTy() && DestTy->isPointerTy())
     return Builder.CreateIntToPtr(V, DestTy);
   else if (SrcTy->isPointerTy() && DestTy->isIntegerTy())
@@ -734,154 +494,372 @@ static Value* createCast(IRBuilder<false> &Builder, Value *V, Type *DestTy) {
     return Builder.CreateBitCast(V, DestTy);
 }
 
-// Replace G with a simple tail call to bitcast(F). Also replace direct uses
-// of G with bitcast(F). Deletes G.
+// Erase the instructions in PDIUnrelatedWL as they are unrelated to the
+// parameter debug info, from the entry block.
+void MergeFunctions::eraseInstsUnrelatedToPDI(
+    std::vector<Instruction *> &PDIUnrelatedWL) {
+  DEBUG(dbgs() << " Erasing instructions (in reverse order of appearance in "
+                  "entry block) unrelated to parameter debug info from entry "
+                  "block: {\n");
+  while (!PDIUnrelatedWL.empty()) {
+    Instruction *I = PDIUnrelatedWL.back();
+    DEBUG(dbgs() << "  Deleting Instruction: ");
+    DEBUG(I->print(dbgs()));
+    DEBUG(dbgs() << "\n");
+    I->eraseFromParent();
+    PDIUnrelatedWL.pop_back();
+  }
+  DEBUG(dbgs() << " } // Done erasing instructions unrelated to parameter "
+                  "debug info from entry block. \n");
+}
+
+// Reduce G to its entry block.
+void MergeFunctions::eraseTail(Function *G) {
+  std::vector<BasicBlock *> WorklistBB;
+  for (Function::iterator BBI = std::next(G->begin()), BBE = G->end();
+       BBI != BBE; ++BBI) {
+    BBI->dropAllReferences();
+    WorklistBB.push_back(&*BBI);
+  }
+  while (!WorklistBB.empty()) {
+    BasicBlock *BB = WorklistBB.back();
+    BB->eraseFromParent();
+    WorklistBB.pop_back();
+  }
+}
+
+// We are interested in the following instructions from the entry block as being
+// related to parameter debug info:
+// - @llvm.dbg.declare
+// - stores from the incoming parameters to locations on the stack-frame
+// - allocas that create these locations on the stack-frame
+// - @llvm.dbg.value
+// - the entry block's terminator
+// The rest are unrelated to debug info for the parameters; fill up
+// PDIUnrelatedWL with such instructions.
+void MergeFunctions::filterInstsUnrelatedToPDI(
+    BasicBlock *GEntryBlock, std::vector<Instruction *> &PDIUnrelatedWL) {
+  std::set<Instruction *> PDIRelated;
+  for (BasicBlock::iterator BI = GEntryBlock->begin(), BIE = GEntryBlock->end();
+       BI != BIE; ++BI) {
+    if (auto *DVI = dyn_cast<DbgValueInst>(&*BI)) {
+      DEBUG(dbgs() << " Deciding: ");
+      DEBUG(BI->print(dbgs()));
+      DEBUG(dbgs() << "\n");
+      DILocalVariable *DILocVar = DVI->getVariable();
+      if (DILocVar->isParameter()) {
+        DEBUG(dbgs() << "  Include (parameter): ");
+        DEBUG(BI->print(dbgs()));
+        DEBUG(dbgs() << "\n");
+        PDIRelated.insert(&*BI);
+      } else {
+        DEBUG(dbgs() << "  Delete (!parameter): ");
+        DEBUG(BI->print(dbgs()));
+        DEBUG(dbgs() << "\n");
+      }
+    } else if (auto *DDI = dyn_cast<DbgDeclareInst>(&*BI)) {
+      DEBUG(dbgs() << " Deciding: ");
+      DEBUG(BI->print(dbgs()));
+      DEBUG(dbgs() << "\n");
+      DILocalVariable *DILocVar = DDI->getVariable();
+      if (DILocVar->isParameter()) {
+        DEBUG(dbgs() << "  Parameter: ");
+        DEBUG(DILocVar->print(dbgs()));
+        AllocaInst *AI = dyn_cast_or_null<AllocaInst>(DDI->getAddress());
+        if (AI) {
+          DEBUG(dbgs() << "  Processing alloca users: ");
+          DEBUG(dbgs() << "\n");
+          for (User *U : AI->users()) {
+            if (StoreInst *SI = dyn_cast<StoreInst>(U)) {
+              if (Value *Arg = SI->getValueOperand()) {
+                if (dyn_cast<Argument>(Arg)) {
+                  DEBUG(dbgs() << "  Include: ");
+                  DEBUG(AI->print(dbgs()));
+                  DEBUG(dbgs() << "\n");
+                  PDIRelated.insert(AI);
+                  DEBUG(dbgs() << "   Include (parameter): ");
+                  DEBUG(SI->print(dbgs()));
+                  DEBUG(dbgs() << "\n");
+                  PDIRelated.insert(SI);
+                  DEBUG(dbgs() << "  Include: ");
+                  DEBUG(BI->print(dbgs()));
+                  DEBUG(dbgs() << "\n");
+                  PDIRelated.insert(&*BI);
+                } else {
+                  DEBUG(dbgs() << "   Delete (!parameter): ");
+                  DEBUG(SI->print(dbgs()));
+                  DEBUG(dbgs() << "\n");
+                }
+              }
+            } else {
+              DEBUG(dbgs() << "   Defer: ");
+              DEBUG(U->print(dbgs()));
+              DEBUG(dbgs() << "\n");
+            }
+          }
+        } else {
+          DEBUG(dbgs() << "  Delete (alloca NULL): ");
+          DEBUG(BI->print(dbgs()));
+          DEBUG(dbgs() << "\n");
+        }
+      } else {
+        DEBUG(dbgs() << "  Delete (!parameter): ");
+        DEBUG(BI->print(dbgs()));
+        DEBUG(dbgs() << "\n");
+      }
+    } else if (dyn_cast<TerminatorInst>(BI) == GEntryBlock->getTerminator()) {
+      DEBUG(dbgs() << " Will Include Terminator: ");
+      DEBUG(BI->print(dbgs()));
+      DEBUG(dbgs() << "\n");
+      PDIRelated.insert(&*BI);
+    } else {
+      DEBUG(dbgs() << " Defer: ");
+      DEBUG(BI->print(dbgs()));
+      DEBUG(dbgs() << "\n");
+    }
+  }
+  DEBUG(dbgs()
+        << " Report parameter debug info related/related instructions: {\n");
+  for (BasicBlock::iterator BI = GEntryBlock->begin(), BE = GEntryBlock->end();
+       BI != BE; ++BI) {
+
+    Instruction *I = &*BI;
+    if (PDIRelated.find(I) == PDIRelated.end()) {
+      DEBUG(dbgs() << "  !PDIRelated: ");
+      DEBUG(I->print(dbgs()));
+      DEBUG(dbgs() << "\n");
+      PDIUnrelatedWL.push_back(I);
+    } else {
+      DEBUG(dbgs() << "   PDIRelated: ");
+      DEBUG(I->print(dbgs()));
+      DEBUG(dbgs() << "\n");
+    }
+  }
+  DEBUG(dbgs() << " }\n");
+}
+
+// Don't merge tiny functions using a thunk, since it can just end up
+// making the function larger.
+static bool isThunkProfitable(Function * F) {
+  if (F->size() == 1) {
+    if (F->front().size() <= 2) {
+      DEBUG(dbgs() << "isThunkProfitable: " << F->getName()
+                    << " is too small to bother creating a thunk for\n");
+      return false;
+    }
+  }
+  return true;
+}
+
+// Replace G with a simple tail call to bitcast(F). Also (unless
+// MergeFunctionsPDI holds) replace direct uses of G with bitcast(F),
+// delete G. Under MergeFunctionsPDI, we use G itself for creating
+// the thunk as we preserve the debug info (and associated instructions)
+// from G's entry block pertaining to G's incoming arguments which are
+// passed on as corresponding arguments in the call that G makes to F.
+// For better debugability, under MergeFunctionsPDI, we do not modify G's
+// call sites to point to F even when within the same translation unit.
 void MergeFunctions::writeThunk(Function *F, Function *G) {
-  if (!G->mayBeOverridden()) {
-    // Redirect direct callers of G to F.
-    replaceDirectCallers(G, F);
+  BasicBlock *GEntryBlock = nullptr;
+  std::vector<Instruction *> PDIUnrelatedWL;
+  BasicBlock *BB = nullptr;
+  Function *NewG = nullptr;
+  if (MergeFunctionsPDI) {
+    DEBUG(dbgs() << "writeThunk: (MergeFunctionsPDI) Do not create a new "
+                    "function as thunk; retain original: "
+                 << G->getName() << "()\n");
+    GEntryBlock = &G->getEntryBlock();
+    DEBUG(dbgs() << "writeThunk: (MergeFunctionsPDI) filter parameter related "
+                    "debug info for "
+                 << G->getName() << "() {\n");
+    filterInstsUnrelatedToPDI(GEntryBlock, PDIUnrelatedWL);
+    GEntryBlock->getTerminator()->eraseFromParent();
+    BB = GEntryBlock;
+  } else {
+    NewG = Function::Create(G->getFunctionType(), G->getLinkage(), "",
+                            G->getParent());
+    BB = BasicBlock::Create(F->getContext(), "", NewG);
   }
 
-  // If G was internal then we may have replaced all uses of G with F. If so,
-  // stop here and delete G. There's no need for a thunk.
-  if (G->hasLocalLinkage() && G->use_empty()) {
-    G->eraseFromParent();
-    return;
-  }
-
-  Function *NewG = Function::Create(G->getFunctionType(), G->getLinkage(), "",
-                                    G->getParent());
-  BasicBlock *BB = BasicBlock::Create(F->getContext(), "", NewG);
-  IRBuilder<false> Builder(BB);
-
+  IRBuilder<> Builder(BB);
+  Function *H = MergeFunctionsPDI ? G : NewG;
   SmallVector<Value *, 16> Args;
   unsigned i = 0;
   FunctionType *FFTy = F->getFunctionType();
-  for (Function::arg_iterator AI = NewG->arg_begin(), AE = NewG->arg_end();
-       AI != AE; ++AI) {
-    Args.push_back(createCast(Builder, (Value*)AI, FFTy->getParamType(i)));
+  for (Argument &AI : H->args()) {
+    Args.push_back(createCast(Builder, &AI, FFTy->getParamType(i)));
     ++i;
   }
 
   CallInst *CI = Builder.CreateCall(F, Args);
+  ReturnInst *RI = nullptr;
   CI->setTailCall();
   CI->setCallingConv(F->getCallingConv());
-  if (NewG->getReturnType()->isVoidTy()) {
-    Builder.CreateRetVoid();
+  CI->setAttributes(F->getAttributes());
+  if (H->getReturnType()->isVoidTy()) {
+    RI = Builder.CreateRetVoid();
   } else {
-    Builder.CreateRet(createCast(Builder, CI, NewG->getReturnType()));
+    RI = Builder.CreateRet(createCast(Builder, CI, H->getReturnType()));
   }
 
-  NewG->copyAttributesFrom(G);
-  NewG->takeName(G);
-  removeUsers(G);
-  G->replaceAllUsesWith(NewG);
-  G->eraseFromParent();
+  if (MergeFunctionsPDI) {
+    DISubprogram *DIS = G->getSubprogram();
+    if (DIS) {
+      DebugLoc CIDbgLoc = DebugLoc::get(DIS->getScopeLine(), 0, DIS);
+      DebugLoc RIDbgLoc = DebugLoc::get(DIS->getScopeLine(), 0, DIS);
+      CI->setDebugLoc(CIDbgLoc);
+      RI->setDebugLoc(RIDbgLoc);
+    } else {
+      DEBUG(dbgs() << "writeThunk: (MergeFunctionsPDI) No DISubprogram for "
+                   << G->getName() << "()\n");
+    }
+    eraseTail(G);
+    eraseInstsUnrelatedToPDI(PDIUnrelatedWL);
+    DEBUG(dbgs() << "} // End of parameter related debug info filtering for: "
+                 << G->getName() << "()\n");
+  } else {
+    NewG->copyAttributesFrom(G);
+    NewG->takeName(G);
+    removeUsers(G);
+    G->replaceAllUsesWith(NewG);
+    G->eraseFromParent();
+  }
 
-  DEBUG(dbgs() << "writeThunk: " << NewG->getName() << '\n');
+  DEBUG(dbgs() << "writeThunk: " << H->getName() << '\n');
   ++NumThunksWritten;
-}
-
-// Replace G with an alias to F and delete G.
-void MergeFunctions::writeAlias(Function *F, Function *G) {
-  Constant *BitcastF = ConstantExpr::getBitCast(F, G->getType());
-  GlobalAlias *GA = new GlobalAlias(G->getType(), G->getLinkage(), "",
-                                    BitcastF, G->getParent());
-  F->setAlignment(std::max(F->getAlignment(), G->getAlignment()));
-  GA->takeName(G);
-  GA->setVisibility(G->getVisibility());
-  removeUsers(G);
-  G->replaceAllUsesWith(GA);
-  G->eraseFromParent();
-
-  DEBUG(dbgs() << "writeAlias: " << GA->getName() << '\n');
-  ++NumAliasesWritten;
 }
 
 // Merge two equivalent functions. Upon completion, Function G is deleted.
 void MergeFunctions::mergeTwoFunctions(Function *F, Function *G) {
-  if (F->mayBeOverridden()) {
-    assert(G->mayBeOverridden());
+  if (F->isInterposable()) {
+    assert(G->isInterposable());
 
-    if (HasGlobalAliases) {
-      // Make them both thunks to the same internal function.
-      Function *H = Function::Create(F->getFunctionType(), F->getLinkage(), "",
-                                     F->getParent());
-      H->copyAttributesFrom(F);
-      H->takeName(F);
-      removeUsers(F);
-      F->replaceAllUsesWith(H);
-
-      unsigned MaxAlignment = std::max(G->getAlignment(), H->getAlignment());
-
-      writeAlias(F, G);
-      writeAlias(F, H);
-
-      F->setAlignment(MaxAlignment);
-      F->setLinkage(GlobalValue::PrivateLinkage);
-    } else {
-      // We can't merge them. Instead, pick one and update all direct callers
-      // to call it and hope that we improve the instruction cache hit rate.
-      replaceDirectCallers(G, F);
+    if (!isThunkProfitable(F)) {
+      return;
     }
 
-    ++NumDoubleWeak;
-  } else {
-    writeThunkOrAlias(F, G);
-  }
+    // Make them both thunks to the same internal function.
+    Function *H = Function::Create(F->getFunctionType(), F->getLinkage(), "",
+                                   F->getParent());
+    H->copyAttributesFrom(F);
+    H->takeName(F);
+    removeUsers(F);
+    F->replaceAllUsesWith(H);
 
-  ++NumFunctionsMerged;
+    unsigned MaxAlignment = std::max(G->getAlignment(), H->getAlignment());
+
+    writeThunk(F, G);
+    writeThunk(F, H);
+
+    F->setAlignment(MaxAlignment);
+    F->setLinkage(GlobalValue::PrivateLinkage);
+    ++NumDoubleWeak;
+    ++NumFunctionsMerged;
+  } else {
+    // For better debugability, under MergeFunctionsPDI, we do not modify G's
+    // call sites to point to F even when within the same translation unit.
+    if (!G->isInterposable() && !MergeFunctionsPDI) {
+      if (G->hasGlobalUnnamedAddr()) {
+        // G might have been a key in our GlobalNumberState, and it's illegal
+        // to replace a key in ValueMap<GlobalValue *> with a non-global.
+        GlobalNumbers.erase(G);
+        // If G's address is not significant, replace it entirely.
+        Constant *BitcastF = ConstantExpr::getBitCast(F, G->getType());
+        G->replaceAllUsesWith(BitcastF);
+      } else {
+        // Redirect direct callers of G to F. (See note on MergeFunctionsPDI
+        // above).
+        replaceDirectCallers(G, F);
+      }
+    }
+
+    // If G was internal then we may have replaced all uses of G with F. If so,
+    // stop here and delete G. There's no need for a thunk. (See note on
+    // MergeFunctionsPDI above).
+    if (G->hasLocalLinkage() && G->use_empty() && !MergeFunctionsPDI) {
+      G->eraseFromParent();
+      ++NumFunctionsMerged;
+      return;
+    }
+
+    if (!isThunkProfitable(F)) {
+      return;
+    }
+
+    writeThunk(F, G);
+    ++NumFunctionsMerged;
+  }
 }
 
-// Insert a ComparableFunction into the FnSet, or merge it away if equal to one
+/// Replace function F by function G.
+void MergeFunctions::replaceFunctionInTree(const FunctionNode &FN,
+                                           Function *G) {
+  Function *F = FN.getFunc();
+  assert(FunctionComparator(F, G, &GlobalNumbers).compare() == 0 &&
+         "The two functions must be equal");
+  
+  auto I = FNodesInTree.find(F);
+  assert(I != FNodesInTree.end() && "F should be in FNodesInTree");
+  assert(FNodesInTree.count(G) == 0 && "FNodesInTree should not contain G");
+  
+  FnTreeType::iterator IterToFNInFnTree = I->second;
+  assert(&(*IterToFNInFnTree) == &FN && "F should map to FN in FNodesInTree.");
+  // Remove F -> FN and insert G -> FN
+  FNodesInTree.erase(I);
+  FNodesInTree.insert({G, IterToFNInFnTree});
+  // Replace F with G in FN, which is stored inside the FnTree.
+  FN.replaceBy(G);
+}
+
+// Insert a ComparableFunction into the FnTree, or merge it away if equal to one
 // that was already inserted.
-bool MergeFunctions::insert(ComparableFunction &NewF) {
-  std::pair<FnSetType::iterator, bool> Result = FnSet.insert(NewF);
+bool MergeFunctions::insert(Function *NewFunction) {
+  std::pair<FnTreeType::iterator, bool> Result =
+      FnTree.insert(FunctionNode(NewFunction));
+
   if (Result.second) {
-    DEBUG(dbgs() << "Inserting as unique: " << NewF.getFunc()->getName() << '\n');
+    assert(FNodesInTree.count(NewFunction) == 0);
+    FNodesInTree.insert({NewFunction, Result.first});
+    DEBUG(dbgs() << "Inserting as unique: " << NewFunction->getName() << '\n');
     return false;
   }
 
-  const ComparableFunction &OldF = *Result.first;
+  const FunctionNode &OldF = *Result.first;
 
-  // Don't merge tiny functions, since it can just end up making the function
-  // larger.
-  // FIXME: Should still merge them if they are unnamed_addr and produce an
-  // alias.
-  if (NewF.getFunc()->size() == 1) {
-    if (NewF.getFunc()->front().size() <= 2) {
-      DEBUG(dbgs() << NewF.getFunc()->getName()
-            << " is to small to bother merging\n");
-      return false;
-    }
+  // Impose a total order (by name) on the replacement of functions. This is
+  // important when operating on more than one module independently to prevent
+  // cycles of thunks calling each other when the modules are linked together.
+  //
+  // First of all, we process strong functions before weak functions.
+  if ((OldF.getFunc()->isInterposable() && !NewFunction->isInterposable()) ||
+     (OldF.getFunc()->isInterposable() == NewFunction->isInterposable() &&
+       OldF.getFunc()->getName() > NewFunction->getName())) {
+    // Swap the two functions.
+    Function *F = OldF.getFunc();
+    replaceFunctionInTree(*Result.first, NewFunction);
+    NewFunction = F;
+    assert(OldF.getFunc() != F && "Must have swapped the functions.");
   }
 
-  // Never thunk a strong function to a weak function.
-  assert(!OldF.getFunc()->mayBeOverridden() ||
-         NewF.getFunc()->mayBeOverridden());
+  DEBUG(dbgs() << "  " << OldF.getFunc()->getName()
+               << " == " << NewFunction->getName() << '\n');
 
-  DEBUG(dbgs() << "  " << OldF.getFunc()->getName() << " == "
-               << NewF.getFunc()->getName() << '\n');
-
-  Function *DeleteF = NewF.getFunc();
-  NewF.release();
+  Function *DeleteF = NewFunction;
   mergeTwoFunctions(OldF.getFunc(), DeleteF);
   return true;
 }
 
-// Remove a function from FnSet. If it was already in FnSet, add it to Deferred
-// so that we'll look at it in the next round.
+// Remove a function from FnTree. If it was already in FnTree, add
+// it to Deferred so that we'll look at it in the next round.
 void MergeFunctions::remove(Function *F) {
-  // We need to make sure we remove F, not a function "equal" to F per the
-  // function equality comparator.
-  //
-  // The special "lookup only" ComparableFunction bypasses the expensive
-  // function comparison in favour of a pointer comparison on the underlying
-  // Function*'s.
-  ComparableFunction CF = ComparableFunction(F, ComparableFunction::LookupOnly);
-  if (FnSet.erase(CF)) {
-    DEBUG(dbgs() << "Removed " << F->getName() << " from set and deferred it.\n");
-    Deferred.push_back(F);
+  auto I = FNodesInTree.find(F);
+  if (I != FNodesInTree.end()) {
+    DEBUG(dbgs() << "Deferred " << F->getName()<< ".\n");
+    FnTree.erase(I->second);
+    // I->second has been invalidated, remove it from the FNodesInTree map to
+    // preserve the invariant.
+    FNodesInTree.erase(I);
+    Deferred.emplace_back(F);
   }
 }
 
@@ -890,21 +868,22 @@ void MergeFunctions::remove(Function *F) {
 void MergeFunctions::removeUsers(Value *V) {
   std::vector<Value *> Worklist;
   Worklist.push_back(V);
+  SmallSet<Value*, 8> Visited;
+  Visited.insert(V);
   while (!Worklist.empty()) {
     Value *V = Worklist.back();
     Worklist.pop_back();
 
-    for (Value::use_iterator UI = V->use_begin(), UE = V->use_end();
-         UI != UE; ++UI) {
-      Use &U = UI.getUse();
-      if (Instruction *I = dyn_cast<Instruction>(U.getUser())) {
+    for (User *U : V->users()) {
+      if (Instruction *I = dyn_cast<Instruction>(U)) {
         remove(I->getParent()->getParent());
-      } else if (isa<GlobalValue>(U.getUser())) {
+      } else if (isa<GlobalValue>(U)) {
         // do nothing
-      } else if (Constant *C = dyn_cast<Constant>(U.getUser())) {
-        for (Value::use_iterator CUI = C->use_begin(), CUE = C->use_end();
-             CUI != CUE; ++CUI)
-          Worklist.push_back(*CUI);
+      } else if (Constant *C = dyn_cast<Constant>(U)) {
+        for (User *UU : C->users()) {
+          if (!Visited.insert(UU).second)
+            Worklist.push_back(UU);
+        }
       }
     }
   }

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -390,7 +392,7 @@ getprivs(long id, int quotatype, char *fspath)
 		if ((qup = (struct quotause *)calloc(1, sizeof(*qup))) == NULL)
 			errx(2, "out of memory");
 		qup->qf = qf;
-		strncpy(qup->fsname, fs->fs_file, sizeof(qup->fsname));
+		strlcpy(qup->fsname, fs->fs_file, sizeof(qup->fsname));
 		if (quota_read(qf, &qup->dqblk, id) == -1) {
 			warn("cannot read quotas on %s", fs->fs_file);
 			freeprivs(qup);

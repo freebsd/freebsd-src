@@ -1,4 +1,4 @@
-#	$Id: subdir.mk,v 1.14 2012/11/12 04:34:33 sjg Exp $
+#	$Id: subdir.mk,v 1.16 2017/02/08 22:16:59 sjg Exp $
 #	skip missing directories...
 
 #	$NetBSD: bsd.subdir.mk,v 1.11 1996/04/04 02:05:06 jtc Exp $
@@ -9,9 +9,7 @@
 # keep everyone happy
 _SUBDIRUSE:
 .elif !commands(_SUBDIRUSE) && !defined(NO_SUBDIR) && !defined(NOSUBDIR)
-.if exists(${.CURDIR}/Makefile.inc)
-.include "Makefile.inc"
-.endif
+.-include <${.CURDIR}/Makefile.inc>
 .if !target(.MAIN)
 .MAIN: all
 .endif
@@ -47,13 +45,18 @@ _SUBDIRUSE: .USE
 	done
 
 ${SUBDIR}::
-	@set -e; if test -d ${.CURDIR}/${.TARGET}.${MACHINE}; then \
-		_newdir_=${.TARGET}.${MACHINE}; \
+	@set -e; _r=${.CURDIR}/; \
+	if test -z "${.TARGET:M/*}"; then \
+		if test -d ${.CURDIR}/${.TARGET}.${MACHINE}; then \
+			_newdir_=${.TARGET}.${MACHINE}; \
+		else \
+			_newdir_=${.TARGET}; \
+		fi; \
 	else \
-		_newdir_=${.TARGET}; \
+		_r= _newdir_=${.TARGET}; \
 	fi; \
 	${ECHO_DIR} "===> $${_newdir_}"; \
-	cd ${.CURDIR}/$${_newdir_}; \
+	cd $${_r}$${_newdir_}; \
 	${.MAKE} _THISDIR_="$${_newdir_}" all
 .endif
 

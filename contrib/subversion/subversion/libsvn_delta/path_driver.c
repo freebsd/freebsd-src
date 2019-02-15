@@ -32,6 +32,7 @@
 #include "svn_path.h"
 #include "svn_sorts.h"
 #include "private/svn_fspath.h"
+#include "private/svn_sorts_private.h"
 
 
 /*** Helper functions. ***/
@@ -157,8 +158,7 @@ svn_delta_path_driver2(const svn_delta_editor_t *editor,
   if (sort_paths && paths->nelts > 1)
     {
       apr_array_header_t *sorted = apr_array_copy(subpool, paths);
-      qsort(sorted->elts, sorted->nelts, sorted->elt_size,
-            svn_sort_compare_paths);
+      svn_sort__array(sorted, svn_sort_compare_paths);
       paths = sorted;
     }
 
@@ -187,7 +187,7 @@ svn_delta_path_driver2(const svn_delta_editor_t *editor,
      driving the editor. */
   for (; i < paths->nelts; i++)
     {
-      const char *pdir, *bname;
+      const char *pdir;
       const char *common = "";
       size_t common_len;
 
@@ -224,9 +224,10 @@ svn_delta_path_driver2(const svn_delta_editor_t *editor,
       /*** Step C - Open any directories between the common ancestor
            and the parent of the current path. ***/
       if (*path == '/')
-        svn_fspath__split(&pdir, &bname, path, iterpool);
+        pdir = svn_fspath__dirname(path, iterpool);
       else
-        svn_relpath_split(&pdir, &bname, path, iterpool);
+        pdir = svn_relpath_dirname(path, iterpool);
+
       if (strlen(pdir) > common_len)
         {
           const char *piece = pdir + common_len + 1;

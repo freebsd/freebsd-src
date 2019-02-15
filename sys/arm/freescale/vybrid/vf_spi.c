@@ -48,13 +48,11 @@ __FBSDID("$FreeBSD$");
 
 #include "spibus_if.h"
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
@@ -263,6 +261,8 @@ spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	/* get the proper chip select */
 	spibus_get_cs(child, &cs);
+
+	cs &= ~SPIBUS_CS_HIGH;
 
 	/* Command */
 	spi_txrx(sc, cmd->tx_cmd, cmd->rx_cmd, cmd->tx_cmd_sz, cs);

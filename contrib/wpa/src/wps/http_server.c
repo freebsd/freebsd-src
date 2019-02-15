@@ -232,6 +232,7 @@ struct http_server * http_server_init(struct in_addr *addr, int port,
 {
 	struct sockaddr_in sin;
 	struct http_server *srv;
+	int on = 1;
 
 	srv = os_zalloc(sizeof(*srv));
 	if (srv == NULL)
@@ -242,6 +243,15 @@ struct http_server * http_server_init(struct in_addr *addr, int port,
 	srv->fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (srv->fd < 0)
 		goto fail;
+
+	if (setsockopt(srv->fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
+	{
+		wpa_printf(MSG_DEBUG,
+			   "HTTP: setsockopt(SO_REUSEADDR) failed: %s",
+			   strerror(errno));
+		/* try to continue anyway */
+	}
+
 	if (fcntl(srv->fd, F_SETFL, O_NONBLOCK) < 0)
 		goto fail;
 	if (port < 0)
@@ -267,11 +277,9 @@ struct http_server * http_server_init(struct in_addr *addr, int port,
 			   "%s", srv->port, strerror(errno));
 		goto fail;
 	}
-	if (listen(srv->fd, 10 /* max backlog */) < 0)
-		goto fail;
-	if (fcntl(srv->fd, F_SETFL, O_NONBLOCK) < 0)
-		goto fail;
-	if (eloop_register_sock(srv->fd, EVENT_TYPE_READ, http_server_cb,
+	if (listen(srv->fd, 10 /* max backlog */) < 0 ||
+	    fcntl(srv->fd, F_SETFL, O_NONBLOCK) < 0 ||
+	    eloop_register_sock(srv->fd, EVENT_TYPE_READ, http_server_cb,
 				srv, NULL))
 		goto fail;
 

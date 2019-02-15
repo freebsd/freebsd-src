@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)du.1	8.2 (Berkeley) 4/1/94
 .\" $FreeBSD$
 .\"
-.Dd November 4, 2012
+.Dd August 8, 2017
 .Dt DU 1
 .Os
 .Sh NAME
@@ -63,9 +63,10 @@ Calculate block counts in
 .Ar blocksize
 byte blocks.
 This is different from the
-.Fl h, k, m
+.Fl h, k, m,
+.Fl Fl si
 and
-.Fl  g
+.Fl g
 options or setting
 .Ev BLOCKSIZE
 and gives an estimate of how much space the examined file hierarchy would
@@ -101,7 +102,7 @@ Display block counts in 1073741824-byte (1 GiB) blocks.
 .Dq Human-readable
 output.
 Use unit suffixes: Byte, Kilobyte, Megabyte,
-Gigabyte, Terabyte and Petabyte.
+Gigabyte, Terabyte and Petabyte based on powers of 1024.
 .It Fl k
 Display block counts in 1024-byte (1 kiB) blocks.
 .It Fl l
@@ -131,6 +132,11 @@ This option exists solely for conformance with
 Display an entry for each specified file.
 (Equivalent to
 .Fl d Li 0 )
+.It Fl Fl si
+.Dq Human-readable
+output.
+Use unit suffixes: Byte, Kilobyte, Megabyte,
+Gigabyte, Terabyte and Petabyte based on powers of 1000.
 .It Fl t Ar threshold
 Display only entries for which size exceeds
 .Ar threshold .
@@ -166,9 +172,9 @@ options override each other and the command's actions are determined
 by the last one specified.
 .Pp
 The
-.Fl h, k
+.Fl h, k, m
 and
-.Fl m
+.Fl Fl si
 options all override each other; the last one specified determines
 the block counts used.
 .Sh ENVIRONMENT
@@ -177,17 +183,17 @@ the block counts used.
 If the environment variable
 .Ev BLOCKSIZE
 is set, and the
-.Fl h, k
+.Fl h, k, m
 or
-.Fl m
+.Fl Fl si
 options are not specified, the block counts will be displayed in units of
 that block size.
 If
 .Ev BLOCKSIZE
 is not set, and the
-.Fl h, k
+.Fl h, k, m
 or
-.Fl m
+.Fl Fl si
 options are not specified, the block counts will be displayed in 512-byte
 blocks.
 .El

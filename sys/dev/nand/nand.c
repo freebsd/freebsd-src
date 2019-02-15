@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2009-2012 Semihalf
  * All rights reserved.
  *
@@ -811,7 +813,7 @@ nand_erase_blocks(struct nand_chip *chip, off_t offset, size_t len)
 			err = ENXIO;
 
 		block++;
-	};
+	}
 
 	NANDBUS_UNLOCK(nandbus);
 

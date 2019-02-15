@@ -34,13 +34,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2009
+.Dd April 17, 2018
 .Dt STORE 9
 .Os
 .Sh NAME
 .Nm store ,
 .Nm subyte ,
-.Nm suswintr ,
 .Nm suword
 .Nd store data to user-space
 .Sh SYNOPSIS
@@ -48,27 +47,27 @@
 .In sys/time.h
 .In sys/systm.h
 .Ft int
-.Fn subyte "void *base" "int byte"
+.Fn subyte "volatile void *base" "int byte"
 .Ft int
-.Fn suword "void *base" "long word"
+.Fn suword "volatile void *base" "long word"
 .Ft int
-.Fn suword16 "void *base" "int word"
+.Fn suword16 "volatile void *base" "int word"
 .Ft int
-.Fn suword32 "void *base" "int32_t word"
+.Fn suword32 "volatile void *base" "int32_t word"
 .Ft int
-.Fn suword64 "void *base" "int64_t word"
+.Fn suword64 "volatile void *base" "int64_t word"
 .In sys/resourcevar.h
-.Ft int
-.Fn suswintr "void *base" "int word"
 .Sh DESCRIPTION
 The
 .Nm
 functions are designed to copy small amounts of data to user-space.
+If write is successful, it is performed atomically.
+The data written must be naturally aligned.
 .Pp
 The
 .Nm
 routines provide the following functionality:
-.Bl -tag -width "suswintr()"
+.Bl -tag -width "suword64()"
 .It Fn subyte
 Stores a byte of data to the user-space address
 .Pa base .
@@ -84,10 +83,6 @@ Stores 32 bits of data to the user-space address
 .It Fn suword64
 Stores 64 bits of data to the user-space address
 .Pa base .
-.It Fn suswintr
-Stores a short word of data to the user-space address
-.Pa base .
-This function is safe to call during an interrupt context.
 .El
 .Sh RETURN VALUES
 The

@@ -47,7 +47,7 @@ class ClangASTNodesEmitter {
     if (&R == &Root && !BaseSuffix.empty())
       return BaseSuffix;
 
-    return R.getName() + BaseSuffix;
+    return R.getName().str() + BaseSuffix;
   }
 
   std::pair<Record *, Record *> EmitNode (const ChildMap &Tree, raw_ostream& OS,
@@ -77,7 +77,7 @@ std::pair<Record *, Record *> ClangASTNodesEmitter::EmitNode(
 
   ChildIterator i = Tree.lower_bound(Base), e = Tree.upper_bound(Base);
 
-  Record *First = 0, *Last = 0;
+  Record *First = nullptr, *Last = nullptr;
   // This might be the pseudo-node for Stmt; don't assume it has an Abstract
   // bit
   if (Base->getValue("Abstract") && !Base->getValueAsBit("Abstract"))

@@ -48,9 +48,11 @@ unsigned char * base64_encode(const unsigned char *src, size_t len,
 	pos = out;
 	line_len = 0;
 	while (end - in >= 3) {
-		*pos++ = base64_table[in[0] >> 2];
-		*pos++ = base64_table[((in[0] & 0x03) << 4) | (in[1] >> 4)];
-		*pos++ = base64_table[((in[1] & 0x0f) << 2) | (in[2] >> 6)];
+		*pos++ = base64_table[(in[0] >> 2) & 0x3f];
+		*pos++ = base64_table[(((in[0] & 0x03) << 4) |
+				       (in[1] >> 4)) & 0x3f];
+		*pos++ = base64_table[(((in[1] & 0x0f) << 2) |
+				       (in[2] >> 6)) & 0x3f];
 		*pos++ = base64_table[in[2] & 0x3f];
 		in += 3;
 		line_len += 4;
@@ -61,14 +63,14 @@ unsigned char * base64_encode(const unsigned char *src, size_t len,
 	}
 
 	if (end - in) {
-		*pos++ = base64_table[in[0] >> 2];
+		*pos++ = base64_table[(in[0] >> 2) & 0x3f];
 		if (end - in == 1) {
-			*pos++ = base64_table[(in[0] & 0x03) << 4];
+			*pos++ = base64_table[((in[0] & 0x03) << 4) & 0x3f];
 			*pos++ = '=';
 		} else {
-			*pos++ = base64_table[((in[0] & 0x03) << 4) |
-					      (in[1] >> 4)];
-			*pos++ = base64_table[(in[1] & 0x0f) << 2];
+			*pos++ = base64_table[(((in[0] & 0x03) << 4) |
+					       (in[1] >> 4)) & 0x3f];
+			*pos++ = base64_table[((in[1] & 0x0f) << 2) & 0x3f];
 		}
 		*pos++ = '=';
 		line_len += 4;

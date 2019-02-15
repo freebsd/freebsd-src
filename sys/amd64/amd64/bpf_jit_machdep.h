@@ -1,6 +1,8 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2002-2003 NetGroup, Politecnico di Torino (Italy)
- * Copyright (C) 2005-2009 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (C) 2005-2016 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -350,6 +352,24 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 #define ORid(i32, r32) do {						\
 	if (r32 == EAX) {						\
 		emitm(&stream, 0x0d, 1);				\
+	} else {							\
+		emitm(&stream, 0x81, 1);				\
+		emitm(&stream, (25 << 3) | r32, 1);			\
+	}								\
+	emitm(&stream, i32, 4);						\
+} while (0)
+
+/* xorl sr32,dr32 */
+#define XORrd(sr32, dr32) do {						\
+	emitm(&stream, 0x31, 1);					\
+	emitm(&stream,							\
+	    (3 << 6) | ((sr32 & 0x7) << 3) | (dr32 & 0x7), 1);		\
+} while (0)
+
+/* xorl i32,r32 */
+#define XORid(i32, r32) do {						\
+	if (r32 == EAX) {						\
+		emitm(&stream, 0x35, 1);				\
 	} else {							\
 		emitm(&stream, 0x81, 1);				\
 		emitm(&stream, (25 << 3) | r32, 1);			\

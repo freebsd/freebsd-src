@@ -37,7 +37,7 @@
 .Bk -words
 .Fl s Xo
 .Sm off
-.Op Cm + | -
+.Op Cm + | - | % | /
 .Ar size
 .Op Cm K | k | M | m | G | g | T | t
 .Sm on
@@ -69,7 +69,7 @@ Truncate or extend files to the length of the file
 .Ar rfile .
 .It Fl s Xo
 .Sm off
-.Op Cm + | -
+.Op Cm + | - | % | /
 .Ar size
 .Op Cm K | k | M | m | G | g | T | t
 .Sm on
@@ -84,6 +84,17 @@ If the
 argument is preceded by a dash
 .Pq Cm - ,
 file lengths will be reduced by no more than this number of bytes,
+to a minimum length of zero bytes.
+If the
+.Ar size
+argument is preceded by a percent sign
+.Pq Cm % ,
+files will be round up to a multiple of this number of bytes.
+If the
+.Ar size
+argument is preceded by a slash sign
+.Pq Cm / ,
+files will be round down to a multiple of this number of bytes,
 to a minimum length of zero bytes.
 Otherwise, the
 .Ar size

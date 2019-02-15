@@ -2,6 +2,8 @@
 /*	$NetBSD: citrus_utf1632.c,v 1.9 2008/06/14 16:01:08 tnozaki Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2003 Citrus Project,
  * All rights reserved.
  *
@@ -97,9 +99,9 @@ _citrus_UTF1632_init_state(_UTF1632EncodingInfo *ei __unused,
 
 static int
 _citrus_UTF1632_mbrtowc_priv(_UTF1632EncodingInfo *ei, wchar_t *pwc,
-    const char **s, size_t n, _UTF1632State *psenc, size_t *nresult)
+    char **s, size_t n, _UTF1632State *psenc, size_t *nresult)
 {
-	const char *s0;
+	char *s0;
 	size_t result;
 	wchar_t wc = L'\0';
 	int chlenbak, endian, needlen;

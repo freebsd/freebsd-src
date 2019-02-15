@@ -113,7 +113,9 @@ long double
 tanhl(long double x)
 {
 	long double hi,lo,s,x2,x4,z;
+#if LDBL_MANT_DIG == 113
 	double dx2;
+#endif
 	int16_t jx,ix;
 
 	GET_LDBL_EXPSIGN(jx,x);

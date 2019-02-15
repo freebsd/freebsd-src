@@ -16,12 +16,18 @@ can not/should not be used directly but are used by the other make include
 files.  In most cases it is only interesting to include bsd.prog.mk or
 bsd.lib.mk.
 
-bsd.cpu.mk		- sets CPU/arch-related variables
+bsd.arch.inc.mk		- includes arch-specific Makefile.$arch
+bsd.compiler.mk		- defined based on current compiler
+bsd.confs.mk		- install of configuration files
+bsd.cpu.mk		- sets CPU/arch-related variables (included from sys.mk)
+bsd.crunchgen.mk	- building crunched binaries using crunchgen(1)
 bsd.dep.mk		- handle Makefile dependencies
+bsd.dirs.mk		- handle directory creation
 bsd.doc.mk		- building troff system documents
+bsd.endian.mk		- TARGET_ENDIAN=1234(little) or 4321 (big) for target
 bsd.files.mk		- install of general purpose files
 bsd.incs.mk		- install of include files
-bsd.info.mk		- building GNU Info hypertext system
+bsd.info.mk		- building GNU Info hypertext system (deprecated)
 bsd.init.mk		- initialization for the make include files
 bsd.kmod.mk		- building loadable kernel modules
 bsd.lib.mk		- support for building libraries
@@ -36,6 +42,7 @@ bsd.port.post.mk	- building ports
 bsd.port.pre.mk		- building ports
 bsd.port.subdir.mk	- targets for building subdirectories for ports
 bsd.prog.mk		- building programs from source files
+bsd.progs.mk		- build multiple programs from sources
 bsd.snmpmod.mk		- building modules for the SNMP daemon bsnmpd
 bsd.subdir.mk		- targets for building subdirectories
 bsd.sys.mk		- common settings used for building FreeBSD sources
@@ -108,12 +115,57 @@ the tree where the file gets installed.
 
 The profiled libraries are no longer built in a different directory than
 the regular libraries.  A new suffix, ".po", is used to denote a profiled
-object.
+object, and ".pico" denotes a position-independent relocatable object.
+".nossppico" denotes a position-independent relocatable object without
+stack smashing protection.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+The following variables are common:
+
+AFLAGS.${SRC}
+		Flags dependent on source file name.
+ACFLAGS.${SRC}
+		Flags dependent on source file name.
+CFLAGS.${SRC}
+		Flags dependent on source file name.
+CFLAGS.${COMPILER_TYPE}
+		Flags dependent on compiler added to CFLAGS.
+CFLAGS.${MACHINE_ARCH}
+		Architectural flags added to CFLAGS.
+CFLAGS_NO_SIMD	Add this to CFLAGS for programs that don't want any SIMD
+		instructions generated. It is setup in bsd.cpu.mk to an
+		appropriate value for the compiler and target.
+CXXFLAGS.${COMPILER_TYPE}
+		Flags dependent on compiler added to CXXFLAGS.
+CXXFLAGS.${MACHINE_ARCH}
+		Architectural flags added to CXXFLAGS.
+CXXFLAGS.${SRC}
+		Flags dependent on source file name.
+COMPILER_FEATURES
+		A list of features that the compiler supports. Zero or
+		more of:
+			c++11	Supports full C++ 11 standard.
+
+COMPILER_TYPE	Type of compiler, either clang or gcc, though other
+		values are possible. Don't assume != clang == gcc.
+
+COMPILER_VERSION
+		A numeric constant equal to:
+		     major * 10000 + minor * 100 + tiny
+		for the compiler's self-reported version.
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 The include file <sys.mk> has the default rules for all makes, in the BSD
 environment or otherwise.  You probably don't want to touch this file.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+The include file <bsd.arch.inc.mk> includes other Makefiles for specific
+architectures, if they exist. It will include the first of the following
+files that it finds: Makefile.${MACHINE}, Makefile.${MACHINE_ARCH},
+Makefile.${MACHINE_CPUARCH}
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -131,22 +183,22 @@ It has three targets:
 
 It sets/uses the following variables:
 
+MAN		The manual pages to be installed (use a .1 - .9 suffix).
+
 MANDIR		Base path for manual installation.
 
 MANGRP		Manual group.
 
-MANOWN		Manual owner.
-
 MANMODE		Manual mode.
+
+MANOWN		Manual owner.
 
 MANSUBDIR	Subdirectory under the manual page section, i.e. "/vax"
 		or "/tahoe" for machine specific manual pages.
 
-MAN		The manual pages to be installed (use a .1 - .9 suffix).
-
 MLINKS		List of manual page links (using a .1 - .9 suffix).  The
 		linked-to file must come first, the linked file second,
-		and there may be multiple pairs.  The files are soft-linked.
+		and there may be multiple pairs.  The files are hard-linked.
 
 The include file <bsd.man.mk> includes a file named "../Makefile.inc" if
 it exists.
@@ -162,17 +214,35 @@ It sets/uses the following variables:
 
 BINGRP		Binary group.
 
-BINOWN		Binary owner.
-
 BINMODE		Binary mode.
+
+BINOWN		Binary owner.
 
 MANDIR		Base path for manual installation.
 
 MANGRP		Manual group.
 
+MANMODE		Manual mode.
+
 MANOWN		Manual owner.
 
-MANMODE		Manual mode.
+INSTALL_LINK	Command to install a hard link.
+
+INSTALL_SYMLINK	Command to install a symbolic link.
+
+INSTALL_RSYMLINK	Command to install a relative symbolic link.
+
+LINKOWN		Owner of hard links created by INSTALL_LINK.
+
+LINKGRP		Group of hard links created by INSTALL_LINK.
+
+LINKMODE	Mode of hard links created by INSTALL_LINK.
+
+SYMLINKOWN	Owner of hard links created by INSTALL_[R]SYMLINK.
+
+SYMLINKGRP	Group of hard links created by INSTALL_[R]SYMLINK.
+
+SYMLINKMODE	Mode of hard links created by INSTALL_[R]SYMLINK.
 
 This file is generally useful when building your own Makefiles so that
 they use the same default owners etc. as the rest of the tree.
@@ -201,64 +271,39 @@ It has seven targets:
 		beforeinstall and afterinstall may also be used to cause
 		actions immediately before and after the install target
 		is executed.
-	lint:
-		run lint on the source files
 	tags:
 		create a tags file for the source files.
 
 It sets/uses the following variables:
 
-BINGRP		Binary group.
+ACFLAGS		Flags to the compiler when preprocessing and
+		assembling .S files.
 
-BINOWN		Binary owner.
+AFLAGS		Flags to the assembler when assembling .s files.
+
+BINGRP		Binary group.
 
 BINMODE		Binary mode.
 
-CLEANFILES	Additional files to remove and
-CLEANDIRS	additional directories to remove during clean and cleandir
-		targets.  "rm -f" and "rm -rf" used respectively.
+BINOWN		Binary owner.
 
 CFLAGS		Flags to the compiler when creating C objects.
 
-FILES		A list of non-executable files.
-		The installation is controlled by the FILESNAME, FILESOWN,
-		FILESGRP, FILESMODE, FILESDIR variables that can be
-		further specialized by FILES<VAR>_<file>.
+CLEANDIRS	Additional files (CLEANFILES) and directories (CLEANDIRS) to
+CLEANFILES	remove during clean and cleandir targets.  "rm -rf" and
+		"rm -f" are used, respectively.
 
-LDADD		Additional loader objects.  Usually used for libraries.
-		For example, to load with the compatibility and utility
-		libraries, use:
+DIRS		A list of variables referring to directories.  For example:
 
-			LDADD=-lutil -lcompat
+			DIRS+=	FOO
+			FOO=	/usr/share/foo
 
-LDFLAGS		Additional loader flags. Passed to the loader via CC,
-		since that's used to link programs as well, so loader
-		specific flags need to be prefixed with -Wl, to work.
+		Owner, Group, Mode and Flags are handled by FOO_OWN,
+		FOO_GRP, FOO_MODE and FOO_FLAGS, respectively.
 
-LINKS		The list of binary links; should be full pathnames, the
-		linked-to file coming first, followed by the linked
-		file.  The files are hard-linked.  For example, to link
-		/bin/test and /bin/[, use:
-
-			LINKS=	${DESTDIR}/bin/test ${DESTDIR}/bin/[
-
-MAN		Manual pages (should end in .1 - .9).  If no MAN variable
-		is defined, "MAN=${PROG}.1" is assumed.
-
-PROG		The name of the program to build.  If not supplied, nothing
-		is built.
-
-PROG_CXX	If defined, the name of the program to build.  Also
-		causes <bsd.prog.mk> to link the program with the
-		standard C++ library.  PROG_CXX overrides the value
-		of PROG if PROG is also set.
-
-PROGNAME	The name that the above program will be installed as, if
-		different from ${PROG}.
-
-SRCS		List of source files to build the program.  If SRCS is not
-		defined, it's assumed to be ${PROG}.c or, if PROG_CXX is
-		defined, ${PROG_CXX}.cc.
+		This allows FILESDIR to be set to FOO, and the directory
+		will be created before the files are installed and the
+		dependencies will be set correctly.
 
 DPADD		Additional dependencies for the program.  Usually used for
 		libraries.  For example, to depend on the compatibility and
@@ -280,6 +325,95 @@ DPADD		Additional dependencies for the program.  Usually used for
 		shared libraries should be only on the library version
 		numbers.
 
+FILES		A list of non-executable files.
+		The installation is controlled by the FILESNAME, FILESOWN,
+		FILESGRP, FILESMODE, FILESDIR variables that can be
+		further specialized by FILES<VAR>_<file>.
+
+LDADD		Additional loader objects.  Usually used for libraries.
+		For example, to load with the compatibility and utility
+		libraries, use:
+
+			LDADD=-lutil -lcompat
+
+LDFLAGS		Additional loader flags. Passed to the loader via CC,
+		since that's used to link programs as well, so loader
+		specific flags need to be prefixed with -Wl, to work.
+
+LIBADD		Additional libraries.  This is for base system libraries
+		and is only valid inside of the /usr/src tree.
+		Use LIBADD=name instead of LDADD=-lname.
+
+LINKS		The list of binary links; should be full pathnames, the
+		linked-to file coming first, followed by the linked
+		file.  The files are hard-linked.  For example, to link
+		/bin/test and /bin/[, use:
+
+			LINKS=	/bin/test /bin/[
+
+LINKOWN		Owner of links created with LINKS [${BINOWN}].
+
+LINKGRP		Group of links created with LINKS [${BINGRP}].
+
+LINKMODE	Mode of links created with LINKS [${BINMODE}].
+
+
+MAN		Manual pages.  If no MAN variable is defined,
+		"MAN=${PROG}.1" is assumed. See bsd.man.mk for more details.
+
+PROG		The name of the program to build.  If not supplied, nothing
+		is built.
+
+PROGNAME	The name that the above program will be installed as, if
+		different from ${PROG}.
+
+PROG_CXX	If defined, the name of the program to build.  Also
+		causes <bsd.prog.mk> to link the program with the
+		standard C++ library.  PROG_CXX overrides the value
+		of PROG if PROG is also set.
+
+PROGS		When used with <bsd.progs.mk>, allow building multiple
+PROGS_CXX	PROG and PROG_CXX in one Makefile.  To define
+		individual variables for each program the VAR.prog
+		syntax should be used.  For example:
+
+		PROGS=		foo bar
+		SRCS.foo=	foo_src.c
+		LDADD.foo=	-lutil
+		SRCS.bar=	bar_src.c
+
+		The supported variables are:
+		- BINDIR
+		- BINGRP
+		- BINMODE
+		- BINOWN
+		- CFLAGS
+		- CXXFLAGS
+		- DEBUG_FLAGS
+		- DPADD
+		- DPSRCS
+		- INTERNALPROG (no installation)
+		- LDADD
+		- LDFLAGS
+		- LIBADD
+		- LINKS
+		- MAN
+		- MLINKS
+		- NO_WERROR
+		- PROGNAME
+		- SRCS
+		- STRIP
+		- WARNS
+
+SCRIPTS		A list of interpreter scripts [file.{sh,csh,pl,awk,...}].
+		The installation is controlled by the SCRIPTSNAME, SCRIPTSOWN,
+		SCRIPTSGRP, SCRIPTSMODE, SCRIPTSDIR variables that can be
+		further specialized by SCRIPTS<VAR>_<script>.
+
+SRCS		List of source files to build the program.  If SRCS is not
+		defined, it's assumed to be ${PROG}.c or, if PROG_CXX is
+		defined, ${PROG_CXX}.cc.
+
 STRIP		The flag passed to the install program to cause the binary
 		to be stripped.  This is to be used when building your
 		own install script so that the entire system can be made
@@ -288,11 +422,6 @@ STRIP		The flag passed to the install program to cause the binary
 SUBDIR		A list of subdirectories that should be built as well.
 		Each of the targets will execute the same target in the
 		subdirectories.
-
-SCRIPTS		A list of interpreter scripts [file.{sh,csh,pl,awk,...}].
-		The installation is controlled by the SCRIPTSNAME, SCRIPTSOWN,
-		SCRIPTSGRP, SCRIPTSMODE, SCRIPTSDIR variables that can be
-		further specialized by SCRIPTS<VAR>_<script>.
 
 The include file <bsd.prog.mk> includes the file named "../Makefile.inc"
 if it exists, as well as the include file <bsd.man.mk>.
@@ -319,47 +448,155 @@ If foo has multiple source files, add the line:
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-The include file <bsd.subdir.mk> contains the default targets for building
-subdirectories.  It has the same seven targets as <bsd.prog.mk>: all, clean,
-cleandir, depend, install, lint, and tags.  For all of the directories
-listed in the variable SUBDIRS, the specified directory will be visited
-and the target made.  There is also a default target which allows the
-command "make subdir" where subdir is any directory listed in the variable
-SUBDIRS.
+The include file, <bsd.snmpmod.mk>, handles building MIB modules for bsnmpd
+from one or more source files, along with their manual pages.  It has a
+limited number of suffixes, consistent with the current needs of the BSD
+tree.
 
-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+bsd.snmpmod.mk leverages bsd.lib.mk for building MIB modules and
+bsd.files.mk for installing MIB description and definition files.
 
-The include file <bsd.lib.mk> has support for building libraries.  It has
-the same seven targets as <bsd.prog.mk>: all, clean, cleandir, depend,
-install, lint, and tags.  It has a limited number of suffixes, consistent
-with the current needs of the BSD tree.
+It implements the following additional targets:
+
+	smilint:
+		execute smilint on the MIBs defined by BMIBS.
+
+		The net-mgmt/libsmi package must be installed before
+		executing this target. The net-mgmt/net-snmp package
+		should be installed as well to reduce false positives
+		from smilint.
 
 It sets/uses the following variables:
 
-LIBDIR		Target directory for libraries.
+BMIBS		The MIB definitions to install.
 
-LINTLIBDIR	Target directory for lint libraries.
+BMIBSDIR	The directory where the MIB definitions are installed.
+		This defaults to `${SHAREDIR}/snmp/mibs`.
 
-LIBGRP		Library group.
+DEFS		The MIB description files to install.
 
-LIBOWN		Library owner.
+DEFSDIR		The directory where MIB description files are installed.
+		This defaults to `${SHAREDIR}/snmp/defs`.
 
-LIBMODE		Library mode.
+EXTRAMIBDEFS	Extra MIB description files to use as input when
+		generating ${MOD}_oid.h and ${MOD}_tree.[ch].
+
+EXTRAMIBSYMS	Extra MIB definition files used only for extracting
+		symbols.
+
+		EXTRAMIBSYMS are useful when resolving inter-module
+		dependencies and are useful with files containing only
+		enum-definitions.
+
+		See ${MOD}_oid.h for more details.
+
+LOCALBASE	The package root where smilint and the net-snmp
+		definitions can be found
+
+MOD		The bsnmpd module name.
+
+SMILINT		smilint binary to use with the smilint make target.
+
+SMILINT_FLAGS	flags to pass to smilint.
+
+SMIPATH		A colon-separated directory path where MIBs definitions
+		can be found. See "SMIPATH" in smi_config for more
+		details.
+
+XSYM		MIB names to extract symbols for. See ${MOD}_oid.h for
+		more details.
+
+It generates the following files:
+
+${MOD}_tree.c	A source file and header which programmatically describes
+${MOD}_tree.h	the MIB (type, OID name, ACCESS attributes, etc).
+
+		The files are generated via "gensnmptree -p".
+
+		See gensnmptree(1) for more details.
+
+${MOD}_oid.h	A header which programmatically describes the MIB root and
+		MIB tables.
+
+		The files are generated via "gensnmptree -e".
+
+		See gensnmptree(1) for more details.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+The include file <bsd.subdir.mk> contains the default targets for building
+subdirectories.  It has the same seven targets as <bsd.prog.mk>: all, clean,
+cleandir, depend, install, and tags.  For all of the directories listed in the
+variable SUBDIRS, the specified directory will be visited and the target made.
+There is also a default target which allows the command "make subdir" where
+subdir is any directory listed in the variable SUBDIRS.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+The include file <bsd.lib.mk> has support for building libraries.  It has the
+same seven targets as <bsd.prog.mk>: all, clean, cleandir, depend, install, and
+tags.  It has a limited number of suffixes, consistent with the current needs of
+the BSD tree.
+
+It sets/uses the following variables:
 
 LDADD		Additional loader objects.
 
-MAN		The manual pages to be installed (use a .1 - .9 suffix).
+LIB		The name of the library to build.  Both a shared and static
+		library will be built.  NO_PIC can be set to only build a
+		static library.
+
+LIBADD		Additional libraries.  This is for base system libraries
+		and is only valid inside of the /usr/src tree.
+		Use LIBADD=name instead of LDADD=-lname.
+
+LIBDIR		Target directory for libraries.
+
+LIBGRP		Library group.
+
+LIBMODE		Library mode.
+
+LIBOWN		Library owner.
+
+LIBRARIES_ONLY	Do not build or install files other than the library.
+
+LIB_CXX		The name of the library to build. It also causes
+		<bsd.lib.mk> to link the library with the
+		standard C++ library.  LIB_CXX overrides the value
+		of LIB if LIB is also set.  Both a shared and static library
+		will be built.  NO_PIC can be set to only build a static
+		library.
+
+LINKS		The list of binary links; should be full pathnames, the
+		linked-to file coming first, followed by the linked
+		file.  The files are hard-linked.  For example, to link
+		/bin/test and /bin/[, use:
+
+			LINKS=	/bin/test /bin/[
+
+LINKOWN		Owner of links created with LINKS [${LIBOWN}].
+
+LINKGRP		Group of links created with LINKS [${LIBGRP}].
+
+LINKMODE	Mode of links created with LINKS [${LIBMODE}].
+
+LINTLIBDIR	Target directory for lint libraries.
+
+MAN		The manual pages to be installed. See bsd.man.mk for more
+		details.
+
+SHLIB		Like LIB but only builds a shared library.
+
+SHLIB_CXX	Like LIB_CXX but only builds a shared library.
+
+SHLIB_LDSCRIPT	Template file to generate shared library linker script.
+		If not defined, a simple symlink is created to the real
+		shared object.
 
 SRCS		List of source files to build the library.  Suffix types
 		.s, .c, and .f are supported.  Note, .s files are preferred
 		to .c files of the same name.  (This is not the default for
 		versions of make.)
-
-SHLIB_LDSCRIPT	Template file to generate shared library linker script.
-		Unless used, a simple symlink is created to the real
-		shared object.
-
-LIBRARIES_ONLY	Do not build or install files other than the library.
 
 The include file <bsd.lib.mk> includes the file named "../Makefile.inc"
 if it exists, as well as the include file <bsd.man.mk>.
@@ -378,6 +615,15 @@ It has seven targets:
 
 	all:
 		build the test programs.
+	check:
+		runs the test programs with kyua test.
+
+		The beforecheck and aftercheck targets will be invoked, if
+		defined, to execute commands before and after the realcheck
+		target has been executed, respectively.
+
+		The devel/kyua package must be installed before invoking this
+		target.
 	clean:
 		remove the test programs and any object files.
 	cleandir:
@@ -392,22 +638,16 @@ It has seven targets:
                 targets beforeinstall and afterinstall may also be used
                 to cause actions immediately before and after the
                 install target is executed.
-	lint:
-		run lint on the source files.
 	tags:
 		create a tags file for the source files.
-	test:
-		runs the test programs from the object directory; if the
-		Makefile does not itself define the target test, the
-		targets beforetest and aftertest may also be used to
-		cause actions immediately before and after the test
-		target is executed.
 
 It sets/uses the following variables, among many others:
 
-TESTDIR		Path to the installed tests.  Must be a subdirectory of
-		TESTSBASE and the subpath should match the relative
-		location of the tests within the src tree.
+ATF_TESTS_C	The names of the ATF C test programs to build.
+
+ATF_TESTS_CXX	The names of the ATF C++ test programs to build.
+
+ATF_TESTS_SH	The names of the ATF sh test programs to build.
 
 KYUAFILE	If 'auto' (the default), generate a Kyuafile out of the
 		test programs defined in the Makefile.  If 'yes', then a
@@ -416,11 +656,16 @@ KYUAFILE	If 'auto' (the default), generate a Kyuafile out of the
 		subdirectories providing helper programs or data files
 		only).
 
-ATF_TESTS_C	The names of the ATF C test programs to build.
+LOCALBASE	The --prefix for the kyua package.
 
-ATF_TESTS_CXX	The names of the ATF C++ test programs to build.
+		The value of LOCALBASE defaults to /usr/local .
 
-ATF_TESTS_SH	The names of the ATF sh test programs to build.
+NOT_FOR_TEST_SUITE
+		If defined, none of the built test programs get
+		installed under /usr/tests/ and no Kyuafile is
+		automatically generated.  Should not be used within the
+		FreeBSD source tree but is provided for the benefit of
+		third-parties.
 
 PLAIN_TESTS_C	The names of the plain (legacy) programs to build.
 
@@ -447,17 +692,20 @@ TAP_TESTS_PERL	The names of the TAP-compliant Perl test programs to
 TAP_TESTS_SH	The names of the TAP-compliant sh test programs to
 		build.
 
+TESTSBASE	Installation prefix for tests. Defaults to /usr/tests
+
+TESTSDIR	Path to the installed tests.  Must be a subdirectory of
+		TESTSBASE and the subpath should match the relative
+		location of the tests within the src tree.
+
+		The value of TESTSDIR defaults to
+		${TESTSBASE}/${RELDIR:H} , e.g. /usr/tests/bin/ls when
+		included from bin/ls/tests .
+
 TESTS_SUBDIRS	List of subdirectories containing tests into which to
 		recurse.  Differs from SUBDIR in that these directories
 		get registered into the automatically-generated
 		Kyuafile (if any).
-
-NOT_FOR_TEST_SUITE
-		If defined, none of the built test programs get
-		installed under /usr/tests/ and no Kyuafile is
-		automatically generated.  Should not be used within the
-		FreeBSD source tree but is provided for the benefit of
-		third-parties.
 
 The actual building of the test programs is performed by <bsd.prog.mk>.
 Please see the documentation above for this other file for additional

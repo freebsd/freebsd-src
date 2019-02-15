@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003 Daniel M. Eischen <deischen@freebsd.org>
  * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
@@ -29,14 +31,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/types.h>
 #include <sys/signalvar.h>
 #include <sys/ioctl.h>
+#include <sys/link_elf.h>
 #include <sys/resource.h>
 #include <sys/sysctl.h>
 #include <sys/ttycom.h>
@@ -90,13 +94,17 @@ struct pthread_attr _pthread_attr_default = {
 struct pthread_mutex_attr _pthread_mutexattr_default = {
 	.m_type = PTHREAD_MUTEX_DEFAULT,
 	.m_protocol = PTHREAD_PRIO_NONE,
-	.m_ceiling = 0
+	.m_ceiling = 0,
+	.m_pshared = PTHREAD_PROCESS_PRIVATE,
+	.m_robust = PTHREAD_MUTEX_STALLED,
 };
 
 struct pthread_mutex_attr _pthread_mutexattr_adaptive_default = {
 	.m_type = PTHREAD_MUTEX_ADAPTIVE_NP,
 	.m_protocol = PTHREAD_PRIO_NONE,
-	.m_ceiling = 0
+	.m_ceiling = 0,
+	.m_pshared = PTHREAD_PROCESS_PRIVATE,
+	.m_robust = PTHREAD_MUTEX_STALLED,
 };
 
 /* Default condition variable attributes: */
@@ -105,7 +113,6 @@ struct pthread_cond_attr _pthread_condattr_default = {
 	.c_clockid = CLOCK_REALTIME
 };
 
-pid_t		_thr_pid;
 int		_thr_is_smp = 0;
 size_t		_thr_guard_default;
 size_t		_thr_stack_default = THR_STACK_DEFAULT;
@@ -168,7 +175,6 @@ STATIC_LIB_REQUIRE(_sigtimedwait);
 STATIC_LIB_REQUIRE(_sigwait);
 STATIC_LIB_REQUIRE(_sigwaitinfo);
 STATIC_LIB_REQUIRE(_spinlock);
-STATIC_LIB_REQUIRE(_spinlock_debug);
 STATIC_LIB_REQUIRE(_spinunlock);
 STATIC_LIB_REQUIRE(_thread_init_hack);
 
@@ -262,7 +268,10 @@ static pthread_func_t jmp_table[][2] = {
 	{DUAL_ENTRY(__pthread_cleanup_pop_imp)},/* PJT_CLEANUP_POP_IMP */
 	{DUAL_ENTRY(__pthread_cleanup_push_imp)},/* PJT_CLEANUP_PUSH_IMP */
 	{DUAL_ENTRY(_pthread_cancel_enter)},	/* PJT_CANCEL_ENTER */
-	{DUAL_ENTRY(_pthread_cancel_leave)}		/* PJT_CANCEL_LEAVE */
+	{DUAL_ENTRY(_pthread_cancel_leave)},	/* PJT_CANCEL_LEAVE */
+	{DUAL_ENTRY(_pthread_mutex_consistent)},/* PJT_MUTEX_CONSISTENT */
+	{DUAL_ENTRY(_pthread_mutexattr_getrobust)},/* PJT_MUTEXATTR_GETROBUST */
+	{DUAL_ENTRY(_pthread_mutexattr_setrobust)},/* PJT_MUTEXATTR_SETROBUST */
 };
 
 static int init_once = 0;
@@ -302,10 +311,10 @@ _thread_init_hack(void)
 void
 _libpthread_init(struct pthread *curthread)
 {
-	int fd, first = 0;
+	int first, dlopened;
 
 	/* Check if this function has already been called: */
-	if ((_thr_initial != NULL) && (curthread == NULL))
+	if (_thr_initial != NULL && curthread == NULL)
 		/* Only initialize the threaded application once. */
 		return;
 
@@ -313,30 +322,10 @@ _libpthread_init(struct pthread *curthread)
 	 * Check the size of the jump table to make sure it is preset
 	 * with the correct number of entries.
 	 */
-	if (sizeof(jmp_table) != (sizeof(pthread_func_t) * PJT_MAX * 2))
+	if (sizeof(jmp_table) != sizeof(pthread_func_t) * PJT_MAX * 2)
 		PANIC("Thread jump table not properly initialized");
 	memcpy(__thr_jtable, jmp_table, sizeof(jmp_table));
-
-	/*
-	 * Check for the special case of this process running as
-	 * or in place of init as pid = 1:
-	 */
-	if ((_thr_pid = getpid()) == 1) {
-		/*
-		 * Setup a new session for this process which is
-		 * assumed to be running as root.
-		 */
-		if (setsid() == -1)
-			PANIC("Can't set session ID");
-		if (revoke(_PATH_CONSOLE) != 0)
-			PANIC("Can't revoke console");
-		if ((fd = __sys_open(_PATH_CONSOLE, O_RDWR)) < 0)
-			PANIC("Can't open console");
-		if (setlogin("root") == -1)
-			PANIC("Can't set login to root");
-		if (_ioctl(fd, TIOCSCTTY, (char *) NULL) == -1)
-			PANIC("Can't set controlling terminal");
-	}
+	__thr_interpose_libc();
 
 	/* Initialize pthread private data. */
 	init_private();
@@ -349,7 +338,10 @@ _libpthread_init(struct pthread *curthread)
 		if (curthread == NULL)
 			PANIC("Can't allocate initial thread");
 		init_main_thread(curthread);
+	} else {
+		first = 0;
 	}
+		
 	/*
 	 * Add the thread to the thread list queue.
 	 */
@@ -361,7 +353,8 @@ _libpthread_init(struct pthread *curthread)
 
 	if (first) {
 		_thr_initial = curthread;
-		_thr_signal_init();
+		dlopened = _rtld_is_dlopened(&_thread_autoinit_dummy_decl) != 0;
+		_thr_signal_init(dlopened);
 		if (_thread_event_mask & TD_CREATE)
 			_thr_report_creation(curthread, curthread);
 		/*
@@ -381,6 +374,7 @@ static void
 init_main_thread(struct pthread *thread)
 {
 	struct sched_param sched_param;
+	int i;
 
 	/* Setup the thread attributes. */
 	thr_self(&thread->tid);
@@ -422,9 +416,9 @@ init_main_thread(struct pthread *thread)
 	thread->cancel_enable = 1;
 	thread->cancel_async = 0;
 
-	/* Initialize the mutex queue: */
-	TAILQ_INIT(&thread->mutexq);
-	TAILQ_INIT(&thread->pp_mutexq);
+	/* Initialize the mutex queues */
+	for (i = 0; i < TMQ_NITEMS; i++)
+		TAILQ_INIT(&thread->mq[i]);
 
 	thread->state = PS_RUNNING;
 
@@ -454,7 +448,6 @@ init_private(void)
 	_thr_urwlock_init(&_thr_atfork_lock);
 	_thr_umutex_init(&_thr_event_lock);
 	_thr_umutex_init(&_suspend_all_lock);
-	_thr_once_init();
 	_thr_spinlock_init();
 	_thr_list_init();
 	_thr_wake_addr_init();
@@ -467,6 +460,7 @@ init_private(void)
 	 * e.g. after a fork().
 	 */
 	if (init_once == 0) {
+		__thr_pshared_init();
 		/* Find the stack top */
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_USRSTACK;

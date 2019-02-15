@@ -1,5 +1,3 @@
-/* $Id: bsd-statvfs.c,v 1.2 2014/01/17 07:10:59 dtucker Exp $ */
-
 /*
  * Copyright (c) 2008,2014 Darren Tucker <dtucker@zip.com.au>
  *
@@ -27,6 +25,10 @@
 
 #include <errno.h>
 
+#ifndef MNAMELEN
+# define MNAMELEN 32
+#endif
+
 static void
 copy_statfs_to_statvfs(struct statvfs *to, struct statfs *from)
 {
@@ -39,7 +41,11 @@ copy_statfs_to_statvfs(struct statvfs *to, struct statfs *from)
 	to->f_ffree = from->f_ffree;
 	to->f_favail = from->f_ffree;	/* no exact equivalent */
 	to->f_fsid = 0;			/* XXX fix me */
+#ifdef HAVE_STRUCT_STATFS_F_FLAGS
 	to->f_flag = from->f_flags;
+#else
+	to->f_flag = 0;
+#endif
 	to->f_namemax = MNAMELEN;
 }
 

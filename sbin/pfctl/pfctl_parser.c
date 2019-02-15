@@ -1,6 +1,8 @@
 /*	$OpenBSD: pfctl_parser.c,v 1.240 2008/06/10 20:55:02 mcbride Exp $ */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2001 Daniel Hartmeier
  * Copyright (c) 2002,2003 Henning Brauer
  * All rights reserved.
@@ -76,7 +78,7 @@ struct node_host	*host_v4(const char *, int);
 struct node_host	*host_v6(const char *, int);
 struct node_host	*host_dns(const char *, int, int);
 
-const char *tcpflags = "FSRPAUEW";
+const char * const tcpflags = "FSRPAUEW";
 
 static const struct icmptypeent icmp_type[] = {
 	{ "echoreq",	ICMP_ECHO },
@@ -213,14 +215,12 @@ geticmptypebynumber(u_int8_t type, sa_family_t af)
 	unsigned int	i;
 
 	if (af != AF_INET6) {
-		for (i=0; i < (sizeof (icmp_type) / sizeof(icmp_type[0]));
-		    i++) {
+		for (i=0; i < nitems(icmp_type); i++) {
 			if (type == icmp_type[i].type)
 				return (&icmp_type[i]);
 		}
 	} else {
-		for (i=0; i < (sizeof (icmp6_type) /
-		    sizeof(icmp6_type[0])); i++) {
+		for (i=0; i < nitems(icmp6_type); i++) {
 			if (type == icmp6_type[i].type)
 				 return (&icmp6_type[i]);
 		}
@@ -234,14 +234,12 @@ geticmptypebyname(char *w, sa_family_t af)
 	unsigned int	i;
 
 	if (af != AF_INET6) {
-		for (i=0; i < (sizeof (icmp_type) / sizeof(icmp_type[0]));
-		    i++) {
+		for (i=0; i < nitems(icmp_type); i++) {
 			if (!strcmp(w, icmp_type[i].name))
 				return (&icmp_type[i]);
 		}
 	} else {
-		for (i=0; i < (sizeof (icmp6_type) /
-		    sizeof(icmp6_type[0])); i++) {
+		for (i=0; i < nitems(icmp6_type); i++) {
 			if (!strcmp(w, icmp6_type[i].name))
 				return (&icmp6_type[i]);
 		}
@@ -255,15 +253,13 @@ geticmpcodebynumber(u_int8_t type, u_int8_t code, sa_family_t af)
 	unsigned int	i;
 
 	if (af != AF_INET6) {
-		for (i=0; i < (sizeof (icmp_code) / sizeof(icmp_code[0]));
-		    i++) {
+		for (i=0; i < nitems(icmp_code); i++) {
 			if (type == icmp_code[i].type &&
 			    code == icmp_code[i].code)
 				return (&icmp_code[i]);
 		}
 	} else {
-		for (i=0; i < (sizeof (icmp6_code) /
-		    sizeof(icmp6_code[0])); i++) {
+		for (i=0; i < nitems(icmp6_code); i++) {
 			if (type == icmp6_code[i].type &&
 			    code == icmp6_code[i].code)
 				return (&icmp6_code[i]);
@@ -278,15 +274,13 @@ geticmpcodebyname(u_long type, char *w, sa_family_t af)
 	unsigned int	i;
 
 	if (af != AF_INET6) {
-		for (i=0; i < (sizeof (icmp_code) / sizeof(icmp_code[0]));
-		    i++) {
+		for (i=0; i < nitems(icmp_code); i++) {
 			if (type == icmp_code[i].type &&
 			    !strcmp(w, icmp_code[i].name))
 				return (&icmp_code[i]);
 		}
 	} else {
-		for (i=0; i < (sizeof (icmp6_code) /
-		    sizeof(icmp6_code[0])); i++) {
+		for (i=0; i < nitems(icmp6_code); i++) {
 			if (type == icmp6_code[i].type &&
 			    !strcmp(w, icmp6_code[i].name))
 				return (&icmp6_code[i]);
@@ -481,10 +475,10 @@ print_pool(struct pf_pool *pool, u_int16_t p1, u_int16_t p2,
 		printf(" static-port");
 }
 
-const char	*pf_reasons[PFRES_MAX+1] = PFRES_NAMES;
-const char	*pf_lcounters[LCNT_MAX+1] = LCNT_NAMES;
-const char	*pf_fcounters[FCNT_MAX+1] = FCNT_NAMES;
-const char	*pf_scounters[FCNT_MAX+1] = FCNT_NAMES;
+const char	* const pf_reasons[PFRES_MAX+1] = PFRES_NAMES;
+const char	* const pf_lcounters[LCNT_MAX+1] = LCNT_NAMES;
+const char	* const pf_fcounters[FCNT_MAX+1] = FCNT_NAMES;
+const char	* const pf_scounters[FCNT_MAX+1] = FCNT_NAMES;
 
 void
 print_status(struct pf_status *s, int opts)
@@ -618,6 +612,12 @@ print_status(struct pf_status *s, int opts)
 				printf("%14s\n", "");
 		}
 	}
+}
+
+void
+print_running(struct pf_status *status)
+{
+	printf("%s\n", status->running ? "Enabled" : "Disabled");
 }
 
 void
@@ -786,12 +786,8 @@ print_rule(struct pf_rule *r, const char *anchor_call, int verbose, int numeric)
 			printf(" reply-to");
 		else if (r->rt == PF_DUPTO)
 			printf(" dup-to");
-		else if (r->rt == PF_FASTROUTE)
-			printf(" fastroute");
-		if (r->rt != PF_FASTROUTE) {
-			printf(" ");
-			print_pool(&r->rpool, 0, 0, r->af, PF_PASS);
-		}
+		printf(" ");
+		print_pool(&r->rpool, 0, 0, r->af, PF_PASS);
 	}
 	if (r->af) {
 		if (r->af == AF_INET)
@@ -849,6 +845,21 @@ print_rule(struct pf_rule *r, const char *anchor_call, int verbose, int numeric)
 	}
 	if (r->tos)
 		printf(" tos 0x%2.2x", r->tos);
+	if (r->prio)
+		printf(" prio %u", r->prio == PF_PRIO_ZERO ? 0 : r->prio);
+	if (r->scrub_flags & PFSTATE_SETMASK) {
+		char *comma = "";
+		printf(" set (");
+		if (r->scrub_flags & PFSTATE_SETPRIO) {
+			if (r->set_prio[0] == r->set_prio[1])
+				printf("%s prio %u", comma, r->set_prio[0]);
+			else
+				printf("%s prio(%u, %u)", comma, r->set_prio[0],
+				    r->set_prio[1]);
+			comma = ",";
+		}
+		printf(" )");
+	}
 	if (!r->keep_state && r->action == PF_PASS && !anchor_call[0])
 		printf(" no state");
 	else if (r->keep_state == PF_STATE_NORMAL)
@@ -990,12 +1001,7 @@ print_rule(struct pf_rule *r, const char *anchor_call, int verbose, int numeric)
 		if (r->rule_flag & PFRULE_REASSEMBLE_TCP)
 			printf(" reassemble tcp");
 
-		if (r->rule_flag & PFRULE_FRAGDROP)
-			printf(" fragment drop-ovl");
-		else if (r->rule_flag & PFRULE_FRAGCROP)
-			printf(" fragment crop");
-		else
-			printf(" fragment reassemble");
+		printf(" fragment reassemble");
 	}
 	if (r->label[0])
 		printf(" label \"%s\"", r->label);
@@ -1145,7 +1151,7 @@ check_netmask(struct node_host *h, sa_family_t af)
 
 /* interface lookup routines */
 
-struct node_host	*iftab;
+static struct node_host	*iftab;
 
 void
 ifa_load(void)
@@ -1360,6 +1366,9 @@ ifa_lookup(const char *ifa_name, int flags)
 		last_if = p->ifname;
 		if ((flags & PFI_AFLAG_NOALIAS) && p->af == AF_INET && got4)
 			continue;
+		if ((flags & PFI_AFLAG_NOALIAS) && p->af == AF_INET6 &&
+		    IN6_IS_ADDR_LINKLOCAL(&p->addr.v.a.addr.v6))
+			continue;
 		if ((flags & PFI_AFLAG_NOALIAS) && p->af == AF_INET6 && got6)
 			continue;
 		if (p->af == AF_INET)
@@ -1394,6 +1403,7 @@ ifa_lookup(const char *ifa_name, int flags)
 				set_ipmask(n, 128);
 		}
 		n->ifindex = p->ifindex;
+		n->ifname = strdup(p->ifname);
 
 		n->next = NULL;
 		n->tail = n;

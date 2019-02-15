@@ -131,7 +131,7 @@ nscd_trace_out(const char *s, const char *f, int l)
 		for (i = 0; i < trace_level; ++i)
 			printf("\t");
 
-		printf("<= %s\n", s);
+		printf("<= %s, %s: %d\n", s, f, l);
 	}
 }
 

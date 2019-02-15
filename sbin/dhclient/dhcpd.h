@@ -1,6 +1,8 @@
 /*	$OpenBSD: dhcpd.h,v 1.33 2004/05/06 22:29:15 deraadt Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2004 Henning Brauer <henning@openbsd.org>
  * Copyright (c) 1995, 1996, 1997, 1998, 1999
  * The Internet Software Consortium.    All rights reserved.
@@ -73,6 +75,9 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <libcasper.h>
+#include <casper/cap_syslog.h>
+
 #include "dhcp.h"
 #include "tree.h"
 
@@ -80,7 +85,7 @@
 #define	REMOTE_PORT	67
 
 struct option_data {
-	int		 len;
+	size_t		 len;
 	u_int8_t	*data;
 };
 
@@ -90,7 +95,7 @@ struct string_list {
 };
 
 struct iaddr {
-	int len;
+	size_t len;
 	unsigned char iabuf[16];
 };
 
@@ -230,7 +235,7 @@ struct protocol {
 
 struct hash_bucket {
 	struct hash_bucket *next;
-	unsigned char *name;
+	const unsigned char *name;
 	int len;
 	unsigned char *value;
 };
@@ -253,26 +258,27 @@ struct hash_table {
 /* options.c */
 int cons_options(struct packet *, struct dhcp_packet *, int,
     struct tree_cache **, int, int, int, u_int8_t *, int);
-char *pretty_print_option(unsigned int,
+const char *pretty_print_option(unsigned int,
     unsigned char *, int, int, int);
 void do_packet(struct interface_info *, struct dhcp_packet *,
     int, unsigned int, struct iaddr, struct hardware *);
 
 /* errwarn.c */
 extern int warnings_occurred;
-void error(char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
-int warning(char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
-int note(char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
-int debug(char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
-int parse_warn(char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
+void error(const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2))) __dead2;
+int warning(const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
+int note(const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
+int debug(const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
+int parse_warn(const char *, ...) __attribute__ ((__format__ (__printf__, 1, 2)));
 
 /* conflex.c */
 extern int lexline, lexchar;
-extern char *token_line, *tlname;
+extern char *token_line;
+extern const char *tlname;
 extern char comments[4096];
 extern int comment_index;
 extern int eol_token;
-void new_parse(char *);
+void new_parse(const char *);
 int next_token(char **, FILE *);
 int peek_token(char **, FILE *);
 
@@ -283,9 +289,9 @@ char *parse_string(FILE *);
 int parse_ip_addr(FILE *, struct iaddr *);
 void parse_hardware_param(FILE *, struct hardware *);
 void parse_lease_time(FILE *, time_t *);
-unsigned char *parse_numeric_aggregate(FILE *, unsigned char *, int *,
-    int, int, int);
-void convert_num(unsigned char *, char *, int, int);
+unsigned char *parse_numeric_aggregate(FILE *, unsigned char *, size_t *,
+    int, unsigned, int);
+void convert_num(unsigned char *, char *, unsigned, int);
 time_t parse_date(FILE *);
 
 /* tree.c */
@@ -316,14 +322,16 @@ void dispatch(void);
 void got_one(struct protocol *);
 void add_timeout(time_t, void (*)(void *), void *);
 void cancel_timeout(void (*)(void *), void *);
-void add_protocol(char *, int, void (*)(struct protocol *), void *);
+void add_protocol(const char *, int, void (*)(struct protocol *), void *);
 void remove_protocol(struct protocol *);
 int interface_link_status(char *);
+void interface_set_mtu_unpriv(int, u_int16_t);
+void interface_set_mtu_priv(char *, u_int16_t); 
 
 /* hash.c */
 struct hash_table *new_hash(void);
-void add_hash(struct hash_table *, unsigned char *, int, unsigned char *);
-unsigned char *hash_lookup(struct hash_table *, unsigned char *, int);
+void add_hash(struct hash_table *, const unsigned char *, int, unsigned char *);
+void *hash_lookup(struct hash_table *, unsigned char *, int);
 
 /* tables.c */
 extern struct option dhcp_options[256];
@@ -350,7 +358,8 @@ int addr_eq(struct iaddr, struct iaddr);
 char *piaddr(struct iaddr);
 
 /* dhclient.c */
-extern char *path_dhclient_conf;
+extern cap_channel_t *capsyslog;
+extern const char *path_dhclient_conf;
 extern char *path_dhclient_db;
 extern time_t cur_time;
 extern int log_priority;
@@ -359,6 +368,8 @@ extern int log_perror;
 extern struct client_config top_level_config;
 
 extern struct pidfh *pidfile;
+
+extern struct interface_info *ifi;
 
 void dhcpoffer(struct packet *);
 void dhcpack(struct packet *);
@@ -385,12 +396,12 @@ void free_client_lease(struct client_lease *);
 void rewrite_client_leases(void);
 void write_client_lease(struct interface_info *, struct client_lease *, int);
 
-void	 priv_script_init(char *, char *);
-void	 priv_script_write_params(char *, struct client_lease *);
+void	 priv_script_init(const char *, char *);
+void	 priv_script_write_params(const char *, struct client_lease *);
 int	 priv_script_go(void);
 
-void script_init(char *, struct string_list *);
-void script_write_params(char *, struct client_lease *);
+void script_init(const char *, struct string_list *);
+void script_write_params(const char *, struct client_lease *);
 int script_go(void);
 void client_envadd(struct client_state *,
     const char *, const char *, const char *, ...);
@@ -419,7 +430,7 @@ int read_client_conf(void);
 void read_client_leases(void);
 void parse_client_statement(FILE *, struct interface_info *,
     struct client_config *);
-int parse_X(FILE *, u_int8_t *, int);
+unsigned parse_X(FILE *, u_int8_t *, unsigned);
 int parse_option_list(FILE *, u_int8_t *);
 void parse_interface_declaration(FILE *, struct client_config *);
 struct interface_info *interface_or_dummy(char *);
@@ -434,7 +445,7 @@ void parse_reject_statement(FILE *, struct client_config *);
 
 /* privsep.c */
 struct buf	*buf_open(size_t);
-int		 buf_add(struct buf *, void *, size_t);
+int		 buf_add(struct buf *, const void *, size_t);
 int		 buf_close(int, struct buf *);
 ssize_t		 buf_read(int, void *, size_t);
 void		 dispatch_imsg(struct interface_info *, int);

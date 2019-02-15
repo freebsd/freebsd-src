@@ -1,7 +1,9 @@
 /*	$FreeBSD$	*/
 /*	$KAME: setkey.c,v 1.28 2003/06/27 07:15:45 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
  * All rights reserved.
  *
@@ -56,7 +58,7 @@
 void usage(void);
 int main(int, char **);
 int get_supported(void);
-void sendkeyshort(u_int);
+void sendkeyshort(u_int, uint8_t);
 void promisc(void);
 int sendkeymsg(char *, size_t);
 int postproc(struct sadb_msg *, int);
@@ -81,6 +83,7 @@ int f_cmddump = 0;
 int f_policy = 0;
 int f_hexdump = 0;
 int f_tflag = 0;
+int f_scope = 0;
 static time_t thiszone;
 
 extern int lineno;
@@ -93,7 +96,7 @@ usage()
 
 	printf("usage: setkey [-v] -c\n");
 	printf("       setkey [-v] -f filename\n");
-	printf("       setkey [-Palv] -D\n");
+	printf("       setkey [-Pagltv] -D\n");
 	printf("       setkey [-Pv] -F\n");
 	printf("       setkey [-h] -x\n");
 	exit(1);
@@ -114,7 +117,7 @@ main(ac, av)
 
 	thiszone = gmt2local(0);
 
-	while ((c = getopt(ac, av, "acdf:hlvxDFP")) != -1) {
+	while ((c = getopt(ac, av, "acdf:ghltvxDFP")) != -1) {
 		switch (c) {
 		case 'c':
 			f_mode = MODE_SCRIPT;
@@ -149,6 +152,12 @@ main(ac, av)
 		case 'P':
 			f_policy = 1;
 			break;
+		case 'g': /* global */
+			f_scope |= IPSEC_POLICYSCOPE_GLOBAL;
+			break;
+		case 't': /* tunnel */
+			f_scope |= IPSEC_POLICYSCOPE_IFNET;
+			break;
 		case 'v':
 			f_verbose = 1;
 			break;
@@ -166,10 +175,12 @@ main(ac, av)
 
 	switch (f_mode) {
 	case MODE_CMDDUMP:
-		sendkeyshort(f_policy ? SADB_X_SPDDUMP: SADB_DUMP);
+		sendkeyshort(f_policy ? SADB_X_SPDDUMP: SADB_DUMP,
+		    f_policy ? f_scope: SADB_SATYPE_UNSPEC);
 		break;
 	case MODE_CMDFLUSH:
-		sendkeyshort(f_policy ? SADB_X_SPDFLUSH: SADB_FLUSH);
+		sendkeyshort(f_policy ? SADB_X_SPDFLUSH: SADB_FLUSH,
+		    SADB_SATYPE_UNSPEC);
 		break;
 	case MODE_SCRIPT:
 		if (get_supported() < 0) {
@@ -204,15 +215,14 @@ get_supported()
 }
 
 void
-sendkeyshort(type)
-        u_int type;
+sendkeyshort(u_int type, uint8_t satype)
 {
 	struct sadb_msg msg;
 
 	msg.sadb_msg_version = PF_KEY_V2;
 	msg.sadb_msg_type = type;
 	msg.sadb_msg_errno = 0;
-	msg.sadb_msg_satype = SADB_SATYPE_UNSPEC;
+	msg.sadb_msg_satype = satype;
 	msg.sadb_msg_len = PFKEY_UNIT64(sizeof(msg));
 	msg.sadb_msg_reserved = 0;
 	msg.sadb_msg_seq = 0;

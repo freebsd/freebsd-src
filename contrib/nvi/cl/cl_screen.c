@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "$Id: cl_screen.c,v 10.56 2002/05/03 19:59:44 skimo Exp $";
+static const char sccsid[] = "$Id: cl_screen.c,v 10.58 2015/04/08 02:12:11 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -32,18 +32,18 @@ static const char sccsid[] = "$Id: cl_screen.c,v 10.56 2002/05/03 19:59:44 skimo
 #include "../common/common.h"
 #include "cl.h"
 
-static int	cl_ex_end __P((GS *));
-static int	cl_ex_init __P((SCR *));
-static void	cl_freecap __P((CL_PRIVATE *));
-static int	cl_vi_end __P((GS *));
-static int	cl_vi_init __P((SCR *));
-static int	cl_putenv __P((char *, char *, u_long));
+static int	cl_ex_end(GS *);
+static int	cl_ex_init(SCR *);
+static void	cl_freecap(CL_PRIVATE *);
+static int	cl_vi_end(GS *);
+static int	cl_vi_init(SCR *);
+static int	cl_putenv(char *, char *, u_long);
 
 /*
  * cl_screen --
  *	Switch screen types.
  *
- * PUBLIC: int cl_screen __P((SCR *, u_int32_t));
+ * PUBLIC: int cl_screen(SCR *, u_int32_t);
  */
 int
 cl_screen(SCR *sp, u_int32_t flags)
@@ -58,11 +58,9 @@ cl_screen(SCR *sp, u_int32_t flags)
 
 	/* See if the current information is incorrect. */
 	if (F_ISSET(gp, G_SRESTART)) {
-		if (CLSP(sp)) {
-		    delwin(CLSP(sp));
-		    sp->cl_private = NULL;
-		}
-		if (cl_quit(gp))
+		if ((!F_ISSET(sp, SC_SCR_EX | SC_SCR_VI) ||
+		     resizeterm(O_VAL(sp, O_LINES), O_VAL(sp, O_COLUMNS))) &&
+		    cl_quit(gp))
 			return (1);
 		F_CLR(gp, G_SRESTART);
 	}
@@ -131,7 +129,7 @@ cl_screen(SCR *sp, u_int32_t flags)
  * cl_quit --
  *	Shutdown the screens.
  *
- * PUBLIC: int cl_quit __P((GS *));
+ * PUBLIC: int cl_quit(GS *);
  */
 int
 cl_quit(GS *gp)
@@ -234,20 +232,15 @@ cl_vi_init(SCR *sp)
 	cl_putenv("COLUMNS", NULL, (u_long)O_VAL(sp, O_COLUMNS));
 
 	/*
-	 * We don't care about the SCREEN reference returned by newterm, we
-	 * never have more than one SCREEN at a time.
-	 *
-	 * XXX
-	 * The SunOS initscr() can't be called twice.  Don't even think about
-	 * using it.  It fails in subtle ways (e.g. select(2) on fileno(stdin)
-	 * stops working).  (The SVID notes that applications should only call
-	 * initscr() once.)
-	 *
-	 * XXX
-	 * The HP/UX newterm doesn't support the NULL first argument, so we
-	 * have to specify the terminal type.
+	 * The terminal is aways initialized, either in `main`, or by a
+	 * previous call to newterm(3X).
 	 */
 	(void)del_curterm(cur_term);
+
+	/*
+	 * We never have more than one SCREEN at a time, so set_term(NULL) will
+	 * give us the last SCREEN.
+	 */
 	errno = 0;
 	if (newterm(ttype, stdout, stdin) == NULL) {
 		if (errno)
@@ -416,6 +409,9 @@ cl_vi_end(GS *gp)
 	/* End curses window. */
 	(void)endwin();
 
+	/* Free the SCREEN created by newterm(3X). */
+	delscreen(set_term(NULL));
+
 	/*
 	 * XXX
 	 * The screen TE sequence just got sent.  See the comment in
@@ -520,7 +516,7 @@ cl_ex_end(GS *gp)
  * cl_getcap --
  *	Retrieve termcap/terminfo strings.
  *
- * PUBLIC: int cl_getcap __P((SCR *, char *, char **));
+ * PUBLIC: int cl_getcap(SCR *, char *, char **);
  */
 int
 cl_getcap(SCR *sp, char *name, char **elementp)

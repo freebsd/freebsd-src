@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <locale.h>
 #include <nl_types.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -56,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
-#include "../locale/setlocale.h"        /* for ENCODING_LEN */
+#include "../locale/xlocale_private.h"
 
 #define _DEFAULT_NLS_PATH "/usr/share/nls/%L/%N.cat:/usr/share/nls/%N/%L:/usr/local/share/nls/%L/%N.cat:/usr/local/share/nls/%N/%L"
 
@@ -83,6 +82,7 @@ __FBSDID("$FreeBSD$");
 				  	np->name = strdup(n);			\
 					np->path = NULL;			\
 					np->catd = NLERR;			\
+					np->refcount = 0;			\
 					np->lang = (l == NULL) ? NULL :		\
 					    strdup(l);				\
 					np->caterrno = e;			\
@@ -114,9 +114,10 @@ catopen(const char *name, int type)
 {
 	struct stat sbuf;
 	struct catentry *np;
-	char *base, *cptr, *cptr1, *lang, *nlspath, *pathP, *pcode;
-	char *plang, *pter, *tmpptr;
+	char *base, *cptr, *cptr1, *nlspath, *pathP, *pcode;
+	char *plang, *pter;
 	int saverr, spcleft;
+	const char *lang, *tmpptr;
 	char path[PATH_MAX];
 
 	/* sanity checking */
@@ -128,7 +129,7 @@ catopen(const char *name, int type)
 		lang = NULL;
 	else {
 		if (type == NL_CAT_LOCALE)
-			lang = setlocale(LC_MESSAGES, NULL);
+			lang = querylocale(LC_MESSAGES_MASK, __get_locale());
 		else
 			lang = getenv("LANG");
 
@@ -324,6 +325,21 @@ notfound:
 	return ((char *)s);
 }
 
+static void
+catfree(struct catentry *np)
+{
+
+	if (np->catd != NULL && np->catd != NLERR) {
+		munmap(np->catd->__data, (size_t)np->catd->__size);
+		free(np->catd);
+	}
+	SLIST_REMOVE(&cache, np, catentry, list);
+	free(np->name);
+	free(np->path);
+	free(np->lang);
+	free(np);
+}
+
 int
 catclose(nl_catd catd)
 {
@@ -340,15 +356,8 @@ catclose(nl_catd catd)
 	SLIST_FOREACH(np, &cache, list) {
 		if (catd == np->catd) {
 			np->refcount--;
-			if (np->refcount == 0) {
-				munmap(catd->__data, (size_t)catd->__size);
-				free(catd);
-				SLIST_REMOVE(&cache, np, catentry, list);
-				free(np->name);
-				free(np->path);
-				free(np->lang);
-				free(np);
-			}
+			if (np->refcount == 0)
+				catfree(np);
 			break;
 		}
 	}

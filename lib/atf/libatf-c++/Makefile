@@ -28,23 +28,22 @@
 .include <src.opts.mk>
 .include <bsd.init.mk>
 
-LIB=		atf-c++
+LIB_CXX=	atf-c++
 PRIVATELIB=	true
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
 
 # libatf-c++ depends on the C version of the ATF library to build.
-DPADD=		${LIBATF_C}
-LDADD=		-latf-c
+LIBADD+=	atf_c
 
-LDFLAGS+=	-L${.OBJDIR}/../libatf-c
+LDFLAGS+=	-L${.OBJDIR:H}/libatf-c
 
-ATF=		${.CURDIR:H:H:H}/contrib/atf
+ATF=		${SRCTOP}/contrib/atf
 .PATH:		${ATF}
 .PATH:		${ATF}/atf-c++
 .PATH:		${ATF}/atf-c++/detail
 
 CFLAGS+=	-I${ATF}
-CFLAGS+=	-I${.CURDIR}/../libatf-c
+CFLAGS+=	-I${.CURDIR:H}/libatf-c
 CFLAGS+=	-I.
 
 CFLAGS+=	-DHAVE_CONFIG_H
@@ -52,7 +51,6 @@ CFLAGS+=	-DHAVE_CONFIG_H
 SRCS=		application.cpp \
 		build.cpp \
 		check.cpp \
-		config.cpp \
 		env.cpp \
 		exceptions.cpp \
 		fs.cpp \
@@ -63,7 +61,6 @@ SRCS=		application.cpp \
 
 INCS=		build.hpp \
 		check.hpp \
-		config.hpp \
 		macros.hpp \
 		tests.hpp \
 		utils.hpp
@@ -72,11 +69,11 @@ INCSDIR=	${INCLUDEDIR}/atf-c++
 INCS+=		atf-c++.hpp
 INCSDIR_atf-c++.hpp= ${INCLUDEDIR}
 
-MAN=		atf-c++-api.3
+MAN=		atf-c++.3
+MLINKS+=	atf-c++.3 atf-c-api++.3  # Backwards compatibility.
 
-.if ${MK_TESTS} != "no"
-SUBDIR=		tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include "../common.mk"
 .include <bsd.lib.mk>

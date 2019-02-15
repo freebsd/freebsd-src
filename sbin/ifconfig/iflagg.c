@@ -41,9 +41,17 @@ setlaggport(const char *val, int d, int s, const struct afswtch *afp)
 	strlcpy(rp.rp_ifname, name, sizeof(rp.rp_ifname));
 	strlcpy(rp.rp_portname, val, sizeof(rp.rp_portname));
 
-	/* Don't choke if the port is already in this lagg. */
-	if (ioctl(s, SIOCSLAGGPORT, &rp) && errno != EEXIST)
-		err(1, "SIOCSLAGGPORT");
+	/*
+	 * Do not exit with an error here.  Doing so permits a
+	 * failed NIC to take down an entire lagg.
+	 *
+	 * Don't error at all if the port is already in the lagg.
+	 */
+	if (ioctl(s, SIOCSLAGGPORT, &rp) && errno != EEXIST) {
+		warnx("%s %s: SIOCSLAGGPORT: %s",
+		    name, val, strerror(errno));
+		exit_code = 1;
+	}
 }
 
 static void
@@ -100,6 +108,19 @@ setlaggflowidshift(const char *val, int d, int s, const struct afswtch *afp)
 }
 
 static void
+setlaggrr_limit(const char *val, int d, int s, const struct afswtch *afp)
+{
+	struct lagg_reqopts ro;
+	
+	bzero(&ro, sizeof(ro));
+	strlcpy(ro.ro_ifname, name, sizeof(ro.ro_ifname));
+	ro.ro_bkt = (int)strtol(val, NULL, 10);
+
+	if (ioctl(s, SIOCSLAGGOPTS, &ro) != 0)
+		err(1, "SIOCSLAGG");
+}
+
+static void
 setlaggsetopt(const char *val, int d, int s, const struct afswtch *afp)
 {
 	struct lagg_reqopts ro;
@@ -115,6 +136,8 @@ setlaggsetopt(const char *val, int d, int s, const struct afswtch *afp)
 	case -LAGG_OPT_LACP_TXTEST:
 	case LAGG_OPT_LACP_RXTEST:
 	case -LAGG_OPT_LACP_RXTEST:
+	case LAGG_OPT_LACP_TIMEOUT:
+	case -LAGG_OPT_LACP_TIMEOUT:
 		break;
 	default:
 		err(1, "Invalid lagg option");
@@ -185,23 +208,16 @@ static void
 lagg_status(int s)
 {
 	struct lagg_protos lpr[] = LAGG_PROTOS;
-	struct lagg_reqport rp, rpbuf[LAGG_MAX_PORTS];
+	struct lagg_reqport rpbuf[LAGG_MAX_PORTS];
 	struct lagg_reqall ra;
 	struct lagg_reqopts ro;
 	struct lagg_reqflags rf;
 	struct lacp_opreq *lp;
 	const char *proto = "<unknown>";
-	int i, isport = 0;
+	int i;
 
-	bzero(&rp, sizeof(rp));
 	bzero(&ra, sizeof(ra));
 	bzero(&ro, sizeof(ro));
-
-	strlcpy(rp.rp_ifname, name, sizeof(rp.rp_ifname));
-	strlcpy(rp.rp_portname, name, sizeof(rp.rp_portname));
-
-	if (ioctl(s, SIOCGLAGGPORT, &rp) == 0)
-		isport = 1;
 
 	strlcpy(ra.ra_ifname, name, sizeof(ra.ra_ifname));
 	ra.ra_size = sizeof(rpbuf);
@@ -242,14 +258,14 @@ lagg_status(int s)
 				sep = ",";
 			}
 		}
-		if (isport)
-			printf(" laggdev %s", rp.rp_ifname);
 		putchar('\n');
 		if (verbose) {
 			printf("\tlagg options:\n");
 			printb("\t\tflags", ro.ro_opts, LAGG_OPT_BITS);
 			putchar('\n');
 			printf("\t\tflowid_shift: %d\n", ro.ro_flowid_shift);
+			if (ra.ra_proto == LAGG_PROTO_ROUNDROBIN)
+				printf("\t\trr_limit: %d\n", ro.ro_bkt);
 			printf("\tlagg statistics:\n");
 			printf("\t\tactive ports: %d\n", ro.ro_active);
 			printf("\t\tflapping: %u\n", ro.ro_flapping);
@@ -274,7 +290,7 @@ lagg_status(int s)
 
 		if (0 /* XXX */) {
 			printf("\tsupported aggregation protocols:\n");
-			for (i = 0; i < (sizeof(lpr) / sizeof(lpr[0])); i++)
+			for (i = 0; i < nitems(lpr); i++)
 				printf("\t\tlaggproto %s\n", lpr[i].lpr_name);
 		}
 	}
@@ -293,7 +309,10 @@ static struct cmd lagg_cmds[] = {
 	DEF_CMD("-lacp_txtest",	-LAGG_OPT_LACP_TXTEST,	setlaggsetopt),
 	DEF_CMD("lacp_rxtest",	LAGG_OPT_LACP_RXTEST,	setlaggsetopt),
 	DEF_CMD("-lacp_rxtest",	-LAGG_OPT_LACP_RXTEST,	setlaggsetopt),
+	DEF_CMD("lacp_fast_timeout",	LAGG_OPT_LACP_TIMEOUT,	setlaggsetopt),
+	DEF_CMD("-lacp_fast_timeout",	-LAGG_OPT_LACP_TIMEOUT,	setlaggsetopt),
 	DEF_CMD_ARG("flowid_shift",	setlaggflowidshift),
+	DEF_CMD_ARG("rr_limit",		setlaggrr_limit),
 };
 static struct afswtch af_lagg = {
 	.af_name	= "af_lagg",
@@ -304,11 +323,9 @@ static struct afswtch af_lagg = {
 static __constructor void
 lagg_ctor(void)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	int i;
 
-	for (i = 0; i < N(lagg_cmds);  i++)
+	for (i = 0; i < nitems(lagg_cmds);  i++)
 		cmd_register(&lagg_cmds[i]);
 	af_register(&af_lagg);
-#undef N
 }

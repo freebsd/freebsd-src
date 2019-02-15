@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Bill Paul <wpaul@ee.columbia.edu>.  All rights reserved.
  *
@@ -107,7 +109,7 @@ __FBSDID("$FreeBSD$");
 static int aue_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, aue, CTLFLAG_RW, 0, "USB aue");
-SYSCTL_INT(_hw_usb_aue, OID_AUTO, debug, CTLFLAG_RW, &aue_debug, 0,
+SYSCTL_INT(_hw_usb_aue, OID_AUTO, debug, CTLFLAG_RWTUN, &aue_debug, 0,
     "Debug level");
 #endif
 
@@ -279,6 +281,7 @@ MODULE_DEPEND(aue, usb, 1, 1, 1);
 MODULE_DEPEND(aue, ether, 1, 1, 1);
 MODULE_DEPEND(aue, miibus, 1, 1, 1);
 MODULE_VERSION(aue, 1);
+USB_PNP_HOST_INFO(aue_devs);
 
 static const struct usb_ether_methods aue_ue_methods = {
 	.ue_attach_post = aue_attach_post,
@@ -552,7 +555,7 @@ aue_setmulti(struct usb_ether *ue)
 
 	/* now program new ones */
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = ether_crc32_le(LLADDR((struct sockaddr_dl *)

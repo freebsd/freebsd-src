@@ -17,11 +17,9 @@
 #include "clang/AST/Stmt.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
-#include <vector>
 
 using namespace clang;
 using namespace ento;
@@ -34,7 +32,7 @@ using namespace ento;
 ExplodedNode::Auditor::~Auditor() {}
 
 #ifndef NDEBUG
-static ExplodedNode::Auditor* NodeAuditor = 0;
+static ExplodedNode::Auditor* NodeAuditor = nullptr;
 #endif
 
 void ExplodedNode::SetAuditor(ExplodedNode::Auditor* A) {
@@ -90,8 +88,9 @@ bool ExplodedGraph::shouldCollect(const ExplodedNode *node) {
   // (7) The LocationContext is the same as the predecessor.
   // (8) Expressions that are *not* lvalue expressions.
   // (9) The PostStmt isn't for a non-consumed Stmt or Expr.
-  // (10) The successor is not a CallExpr StmtPoint (so that we would
-  //      be able to find it when retrying a call with no inlining).
+  // (10) The successor is neither a CallExpr StmtPoint nor a CallEnter or
+  //      PreImplicitCall (so that we would be able to find it when retrying a
+  //      call with no inlining).
   // FIXME: It may be safe to reclaim PreCall and PostCall nodes as well.
 
   // Conditions 1 and 2.
@@ -101,7 +100,7 @@ bool ExplodedGraph::shouldCollect(const ExplodedNode *node) {
   const ExplodedNode *pred = *(node->pred_begin());
   if (pred->succ_size() != 1)
     return false;
-  
+
   const ExplodedNode *succ = *(node->succ_begin());
   if (succ->pred_size() != 1)
     return false;
@@ -122,7 +121,7 @@ bool ExplodedGraph::shouldCollect(const ExplodedNode *node) {
 
   // Conditions 5, 6, and 7.
   ProgramStateRef state = node->getState();
-  ProgramStateRef pred_state = pred->getState();    
+  ProgramStateRef pred_state = pred->getState();
   if (state->store != pred_state->store || state->GDM != pred_state->GDM ||
       progPoint.getLocationContext() != pred->getLocationContext())
     return false;
@@ -153,6 +152,10 @@ bool ExplodedGraph::shouldCollect(const ExplodedNode *node) {
     if (CallEvent::isCallStmt(SP->getStmt()))
       return false;
 
+  // Condition 10, continuation.
+  if (SuccLoc.getAs<CallEnter>() || SuccLoc.getAs<PreImplicitCall>())
+    return false;
+
   return true;
 }
 
@@ -169,7 +172,7 @@ void ExplodedGraph::collectNode(ExplodedNode *node) {
   FreeNodes.push_back(node);
   Nodes.RemoveNode(node);
   --NumNodes;
-  node->~ExplodedNode();  
+  node->~ExplodedNode();
 }
 
 void ExplodedGraph::reclaimRecentlyAllocatedNodes() {
@@ -271,11 +274,11 @@ unsigned ExplodedNode::NodeGroup::size() const {
 
 ExplodedNode * const *ExplodedNode::NodeGroup::begin() const {
   if (getFlag())
-    return 0;
+    return nullptr;
 
   const GroupStorage &Storage = reinterpret_cast<const GroupStorage &>(P);
   if (Storage.isNull())
-    return 0;
+    return nullptr;
   if (ExplodedNodeVector *V = Storage.dyn_cast<ExplodedNodeVector *>())
     return V->begin();
   return Storage.getAddrOfPtr1();
@@ -283,11 +286,11 @@ ExplodedNode * const *ExplodedNode::NodeGroup::begin() const {
 
 ExplodedNode * const *ExplodedNode::NodeGroup::end() const {
   if (getFlag())
-    return 0;
+    return nullptr;
 
   const GroupStorage &Storage = reinterpret_cast<const GroupStorage &>(P);
   if (Storage.isNull())
-    return 0;
+    return nullptr;
   if (ExplodedNodeVector *V = Storage.dyn_cast<ExplodedNodeVector *>())
     return V->end();
   return Storage.getAddrOfPtr1() + 1;
@@ -299,7 +302,7 @@ ExplodedNode *ExplodedGraph::getNode(const ProgramPoint &L,
                                      bool* IsNew) {
   // Profile 'State' to determine if we already have an existing node.
   llvm::FoldingSetNodeID profile;
-  void *InsertPos = 0;
+  void *InsertPos = nullptr;
 
   NodeTy::Profile(profile, L, State, IsSink);
   NodeTy* V = Nodes.FindNodeOrInsertPos(profile, InsertPos);
@@ -331,13 +334,21 @@ ExplodedNode *ExplodedGraph::getNode(const ProgramPoint &L,
   return V;
 }
 
-ExplodedGraph *
+ExplodedNode *ExplodedGraph::createUncachedNode(const ProgramPoint &L,
+                                                ProgramStateRef State,
+                                                bool IsSink) {
+  NodeTy *V = (NodeTy *) getAllocator().Allocate<NodeTy>();
+  new (V) NodeTy(L, State, IsSink);
+  return V;
+}
+
+std::unique_ptr<ExplodedGraph>
 ExplodedGraph::trim(ArrayRef<const NodeTy *> Sinks,
                     InterExplodedGraphMap *ForwardMap,
-                    InterExplodedGraphMap *InverseMap) const{
+                    InterExplodedGraphMap *InverseMap) const {
 
   if (Nodes.empty())
-    return 0;
+    return nullptr;
 
   typedef llvm::DenseSet<const ExplodedNode*> Pass1Ty;
   Pass1Ty Pass1;
@@ -360,11 +371,8 @@ ExplodedGraph::trim(ArrayRef<const NodeTy *> Sinks,
     const ExplodedNode *N = WL1.pop_back_val();
 
     // Have we already visited this node?  If so, continue to the next one.
-    if (Pass1.count(N))
+    if (!Pass1.insert(N).second)
       continue;
-
-    // Otherwise, mark this node as visited.
-    Pass1.insert(N);
 
     // If this is a root enqueue it to the second worklist.
     if (N->Preds.empty()) {
@@ -373,17 +381,15 @@ ExplodedGraph::trim(ArrayRef<const NodeTy *> Sinks,
     }
 
     // Visit our predecessors and enqueue them.
-    for (ExplodedNode::pred_iterator I = N->Preds.begin(), E = N->Preds.end();
-         I != E; ++I)
-      WL1.push_back(*I);
+    WL1.append(N->Preds.begin(), N->Preds.end());
   }
 
   // We didn't hit a root? Return with a null pointer for the new graph.
   if (WL2.empty())
-    return 0;
+    return nullptr;
 
   // Create an empty graph.
-  ExplodedGraph* G = MakeEmptyGraph();
+  std::unique_ptr<ExplodedGraph> G = MakeEmptyGraph();
 
   // ===- Pass 2 (forward DFS to construct the new graph) -===
   while (!WL2.empty()) {
@@ -395,7 +401,7 @@ ExplodedGraph::trim(ArrayRef<const NodeTy *> Sinks,
 
     // Create the corresponding node in the new graph and record the mapping
     // from the old node to the new node.
-    ExplodedNode *NewN = G->getNode(N->getLocation(), N->State, N->isSink(), 0);
+    ExplodedNode *NewN = G->createUncachedNode(N->getLocation(), N->State, N->isSink());
     Pass2[N] = NewN;
 
     // Also record the reverse mapping from the new node to the old node.

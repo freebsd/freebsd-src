@@ -29,11 +29,11 @@
  * $FreeBSD$
  */
 
+#include <sys/nv.h>
+
 #include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
-
-#include <nv.h>
 
 static int ntest = 1;
 

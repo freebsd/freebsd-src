@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Weongyo Jeong <weongyo@freebsd.org>
  * All rights reserved.
  *
@@ -94,8 +96,6 @@ struct usbcap_filehdr {
 	uint8_t		minor;
 	uint8_t		reserved[26];
 } __packed;
-
-#define	HEADER_ALIGN(x,a) (((x) + (a) - 1) & ~((a) - 1))
 
 struct header_32 {
 	/* capture timestamp */
@@ -622,7 +622,7 @@ print_packets(uint8_t *data, const int datalen)
 		temp.hdrlen = hdr32->hdrlen;
 		temp.align = hdr32->align;
 
-		next = ptr + HEADER_ALIGN(temp.hdrlen + temp.caplen, temp.align);
+		next = ptr + roundup2(temp.hdrlen + temp.caplen, temp.align);
 
 		if (next <= ptr)
 			err(EXIT_FAILURE, "Invalid length");

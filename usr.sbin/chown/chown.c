@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -47,10 +49,13 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <fts.h>
 #include <grp.h>
 #include <libgen.h>
 #include <pwd.h>
+#include <signal.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,11 +67,20 @@ static void	a_uid(const char *);
 static void	chownerr(const char *);
 static uid_t	id(const char *, const char *);
 static void	usage(void);
+static void	print_info(const FTSENT *, int);
 
 static uid_t uid;
 static gid_t gid;
 static int ischown;
 static const char *gname;
+static volatile sig_atomic_t siginfo;
+
+static void
+siginfo_handler(int sig __unused)
+{
+
+	siginfo = 1;
+}
 
 int
 main(int argc, char **argv)
@@ -118,19 +132,27 @@ main(int argc, char **argv)
 	if (argc < 2)
 		usage();
 
+	(void)signal(SIGINFO, siginfo_handler);
+
 	if (Rflag) {
-		fts_options = FTS_PHYSICAL;
 		if (hflag && (Hflag || Lflag))
 			errx(1, "the -R%c and -h options may not be "
 			    "specified together", Hflag ? 'H' : 'L');
-		if (Hflag)
-			fts_options |= FTS_COMFOLLOW;
-		else if (Lflag) {
-			fts_options &= ~FTS_PHYSICAL;
-			fts_options |= FTS_LOGICAL;
+		if (Lflag) {
+			fts_options = FTS_LOGICAL;
+		} else {
+			fts_options = FTS_PHYSICAL;
+
+			if (Hflag) {
+				fts_options |= FTS_COMFOLLOW;
+			}
 		}
-	} else
-		fts_options = hflag ? FTS_PHYSICAL : FTS_LOGICAL;
+	} else if (hflag) {
+		fts_options = FTS_PHYSICAL;
+	} else {
+		fts_options = FTS_LOGICAL;
+	}
+
 	if (xflag)
 		fts_options |= FTS_XDEV;
 
@@ -152,10 +174,19 @@ main(int argc, char **argv)
 	} else
 		a_gid(*argv);
 
-	if ((ftsp = fts_open(++argv, fts_options, 0)) == NULL)
+	if ((ftsp = fts_open(++argv, fts_options, NULL)) == NULL)
 		err(1, NULL);
 
 	for (rval = 0; (p = fts_read(ftsp)) != NULL;) {
+		int atflag;
+
+		if ((fts_options & FTS_LOGICAL) ||
+		    ((fts_options & FTS_COMFOLLOW) &&
+		    p->fts_level == FTS_ROOTLEVEL))
+			atflag = 0;
+		else
+			atflag = AT_SYMLINK_NOFOLLOW;
+
 		switch (p->fts_info) {
 		case FTS_D:			/* Change it at FTS_DP. */
 			if (!Rflag)
@@ -170,59 +201,22 @@ main(int argc, char **argv)
 			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			rval = 1;
 			continue;
-		case FTS_SL:
-		case FTS_SLNONE:
-			/*
-			 * The only symlinks that end up here are ones that
-			 * don't point to anything and ones that we found
-			 * doing a physical walk.
-			 */
-			if (hflag)
-				break;
-			else
-				continue;
 		default:
 			break;
+		}
+		if (siginfo) {
+			print_info(p, 2);
+			siginfo = 0;
 		}
 		if ((uid == (uid_t)-1 || uid == p->fts_statp->st_uid) &&
 		    (gid == (gid_t)-1 || gid == p->fts_statp->st_gid))
 			continue;
-		if ((hflag ? lchown : chown)(p->fts_accpath, uid, gid) == -1) {
-			if (!fflag) {
-				chownerr(p->fts_path);
-				rval = 1;
-			}
-		} else {
-			if (vflag) {
-				printf("%s", p->fts_path);
-				if (vflag > 1) {
-					if (ischown) {
-						printf(": %ju:%ju -> %ju:%ju",
-						    (uintmax_t)
-						    p->fts_statp->st_uid, 
-						    (uintmax_t)
-						    p->fts_statp->st_gid,
-						    (uid == (uid_t)-1) ? 
-						    (uintmax_t)
-						    p->fts_statp->st_uid : 
-						    (uintmax_t)uid,
-						    (gid == (gid_t)-1) ? 
-						    (uintmax_t)
-						    p->fts_statp->st_gid :
-						    (uintmax_t)gid);
-					} else {
-						printf(": %ju -> %ju",
-						    (uintmax_t)
-						    p->fts_statp->st_gid,
-						    (gid == (gid_t)-1) ? 
-						    (uintmax_t)
-						    p->fts_statp->st_gid : 
-						    (uintmax_t)gid);
-					}
-				}
-				printf("\n");
-			}
-		}
+		if (fchownat(AT_FDCWD, p->fts_accpath, uid, gid, atflag)
+		    == -1 && !fflag) {
+			chownerr(p->fts_path);
+			rval = 1;
+		} else if (vflag)
+			print_info(p, vflag);
 	}
 	if (errno)
 		err(1, "fts_read");
@@ -253,16 +247,13 @@ a_uid(const char *s)
 static uid_t
 id(const char *name, const char *type)
 {
-	uid_t val;
+	unsigned long val;
 	char *ep;
 
-	/*
-	 * XXX
-	 * We know that uid_t's and gid_t's are unsigned longs.
-	 */
 	errno = 0;
 	val = strtoul(name, &ep, 10);
-	if (errno || *ep != '\0')
+	_Static_assert(UID_MAX >= GID_MAX, "UID MAX less than GID MAX");
+	if (errno || *ep != '\0' || val > UID_MAX)
 		errx(1, "%s: illegal %s name", name, type);
 	return (val);
 }
@@ -312,4 +303,27 @@ usage(void)
 		(void)fprintf(stderr, "%s\n",
 		    "usage: chgrp [-fhvx] [-R [-H | -L | -P]] group file ...");
 	exit(1);
+}
+
+static void
+print_info(const FTSENT *p, int vflag)
+{
+
+	printf("%s", p->fts_path);
+	if (vflag > 1) {
+		if (ischown) {
+			printf(": %ju:%ju -> %ju:%ju",
+			    (uintmax_t)p->fts_statp->st_uid, 
+			    (uintmax_t)p->fts_statp->st_gid,
+			    (uid == (uid_t)-1) ? 
+			    (uintmax_t)p->fts_statp->st_uid : (uintmax_t)uid,
+			    (gid == (gid_t)-1) ? 
+			    (uintmax_t)p->fts_statp->st_gid : (uintmax_t)gid);
+		} else {
+			printf(": %ju -> %ju", (uintmax_t)p->fts_statp->st_gid,
+			    (gid == (gid_t)-1) ? 
+			    (uintmax_t)p->fts_statp->st_gid : (uintmax_t)gid);
+		}
+	}
+	printf("\n");
 }

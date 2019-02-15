@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Konstantin Belousov <kib@FreeBSD.org>
  * All rights reserved.
  *
@@ -34,6 +36,8 @@
 #include <sys/proc.h>
 #endif
 
+#define	EARLY_COUNTER	&((struct pcpu *)pcpu_space)->pc_early_dummy_counter
+
 #define	counter_enter()	critical_enter()
 #define	counter_exit()	critical_exit()
 
@@ -43,7 +47,7 @@ static inline uint64_t
 counter_u64_read_one(uint64_t *p, int cpu)
 {
 
-	return (*(uint64_t *)((char *)p + sizeof(struct pcpu) * cpu));
+	return (*(uint64_t *)((char *)p + UMA_PCPU_ALLOC_SIZE * cpu));
 }
 
 static inline uint64_t
@@ -64,7 +68,7 @@ static void
 counter_u64_zero_one_cpu(void *arg)
 {
 
-	*((uint64_t *)((char *)arg + sizeof(struct pcpu) *
+	*((uint64_t *)((char *)arg + UMA_PCPU_ALLOC_SIZE *
 	    PCPU_GET(cpuid))) = 0;
 }
 
@@ -72,8 +76,8 @@ static inline void
 counter_u64_zero_inline(counter_u64_t c)
 {
 
-	smp_rendezvous(smp_no_rendevous_barrier, counter_u64_zero_one_cpu,
-	    smp_no_rendevous_barrier, c);
+	smp_rendezvous(smp_no_rendezvous_barrier, counter_u64_zero_one_cpu,
+	    smp_no_rendezvous_barrier, c);
 }
 #endif
 

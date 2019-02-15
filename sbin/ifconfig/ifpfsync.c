@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Ryan McBride. All rights reserved.
  * Copyright (c) 2004 Max Laier. All rights reserved.
  *
@@ -26,7 +28,7 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
@@ -120,6 +122,7 @@ setpfsync_syncpeer(const char *val, int d, int s, const struct afswtch *rafp)
 
 	if (ioctl(s, SIOCSETPFSYNC, (caddr_t)&ifr) == -1)
 		err(1, "SIOCSETPFSYNC");
+	freeaddrinfo(peerres);
 }
 
 /* ARGSUSED */
@@ -227,11 +230,9 @@ static struct afswtch af_pfsync = {
 static __constructor void
 pfsync_ctor(void)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	int i;
 
-	for (i = 0; i < N(pfsync_cmds);  i++)
+	for (i = 0; i < nitems(pfsync_cmds);  i++)
 		cmd_register(&pfsync_cmds[i]);
 	af_register(&af_pfsync);
-#undef N
 }

@@ -12,16 +12,19 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/IR/LLVMContext.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/Assembly/PrintModulePass.h"
-#include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/Bitcode/BitcodeWriterPass.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/IRPrintingPasses.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IRReader/IRReader.h"
-#include "llvm/PassManager.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Error.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Regex.h"
@@ -47,6 +50,10 @@ Force("f", cl::desc("Enable binary output on terminals"));
 
 static cl::opt<bool>
 DeleteFn("delete", cl::desc("Delete specified Globals from Module"));
+
+static cl::opt<bool>
+    Recursive("recursive",
+              cl::desc("Recursively extract all called functions"));
 
 // ExtractFuncs - The functions to extract from the module.
 static cl::list<std::string>
@@ -89,21 +96,30 @@ static cl::opt<bool>
 OutputAssembly("S",
                cl::desc("Write output as LLVM assembly"), cl::Hidden);
 
+static cl::opt<bool> PreserveBitcodeUseListOrder(
+    "preserve-bc-uselistorder",
+    cl::desc("Preserve use-list order when writing LLVM bitcode."),
+    cl::init(true), cl::Hidden);
+
+static cl::opt<bool> PreserveAssemblyUseListOrder(
+    "preserve-ll-uselistorder",
+    cl::desc("Preserve use-list order when writing LLVM assembly."),
+    cl::init(false), cl::Hidden);
+
 int main(int argc, char **argv) {
   // Print a stack trace if we signal out.
-  sys::PrintStackTraceOnErrorSignal();
+  sys::PrintStackTraceOnErrorSignal(argv[0]);
   PrettyStackTraceProgram X(argc, argv);
 
-  LLVMContext &Context = getGlobalContext();
+  LLVMContext Context;
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
   cl::ParseCommandLineOptions(argc, argv, "llvm extractor\n");
 
   // Use lazy loading, since we only care about selected global values.
   SMDiagnostic Err;
-  OwningPtr<Module> M;
-  M.reset(getLazyIRFileModule(InputFilename, Err, Context));
+  std::unique_ptr<Module> M = getLazyIRFileModule(InputFilename, Err, Context);
 
-  if (M.get() == 0) {
+  if (!M.get()) {
     Err.print(argv[0], errs());
     return 1;
   }
@@ -165,10 +181,9 @@ int main(int argc, char **argv) {
         "invalid regex: " << Error;
     }
     bool match = false;
-    for (Module::global_iterator GV = M->global_begin(),
-           E = M->global_end(); GV != E; GV++) {
-      if (RegEx.match(GV->getName())) {
-        GVs.insert(&*GV);
+    for (auto &GV : M->globals()) {
+      if (RegEx.match(GV.getName())) {
+        GVs.insert(&GV);
         match = true;
       }
     }
@@ -213,68 +228,85 @@ int main(int argc, char **argv) {
     }
   }
 
-  // Materialize requisite global values.
-  if (!DeleteFn)
-    for (size_t i = 0, e = GVs.size(); i != e; ++i) {
-      GlobalValue *GV = GVs[i];
-      if (GV->isMaterializable()) {
-        std::string ErrInfo;
-        if (GV->Materialize(&ErrInfo)) {
-          errs() << argv[0] << ": error reading input: " << ErrInfo << "\n";
-          return 1;
-        }
+  // Use *argv instead of argv[0] to work around a wrong GCC warning.
+  ExitOnError ExitOnErr(std::string(*argv) + ": error reading input: ");
+
+  if (Recursive) {
+    std::vector<llvm::Function *> Workqueue;
+    for (GlobalValue *GV : GVs) {
+      if (auto *F = dyn_cast<Function>(GV)) {
+        Workqueue.push_back(F);
       }
     }
-  else {
-    // Deleting. Materialize every GV that's *not* in GVs.
-    SmallPtrSet<GlobalValue *, 8> GVSet(GVs.begin(), GVs.end());
-    for (Module::global_iterator I = M->global_begin(), E = M->global_end();
-         I != E; ++I) {
-      GlobalVariable *G = I;
-      if (!GVSet.count(G) && G->isMaterializable()) {
-        std::string ErrInfo;
-        if (G->Materialize(&ErrInfo)) {
-          errs() << argv[0] << ": error reading input: " << ErrInfo << "\n";
-          return 1;
-        }
-      }
-    }
-    for (Module::iterator I = M->begin(), E = M->end(); I != E; ++I) {
-      Function *F = I;
-      if (!GVSet.count(F) && F->isMaterializable()) {
-        std::string ErrInfo;
-        if (F->Materialize(&ErrInfo)) {
-          errs() << argv[0] << ": error reading input: " << ErrInfo << "\n";
-          return 1;
+    while (!Workqueue.empty()) {
+      Function *F = &*Workqueue.back();
+      Workqueue.pop_back();
+      ExitOnErr(F->materialize());
+      for (auto &BB : *F) {
+        for (auto &I : BB) {
+          auto *CI = dyn_cast<CallInst>(&I);
+          if (!CI)
+            continue;
+          Function *CF = CI->getCalledFunction();
+          if (!CF)
+            continue;
+          if (CF->isDeclaration() || GVs.count(CF))
+            continue;
+          GVs.insert(CF);
+          Workqueue.push_back(CF);
         }
       }
     }
   }
 
+  auto Materialize = [&](GlobalValue &GV) { ExitOnErr(GV.materialize()); };
+
+  // Materialize requisite global values.
+  if (!DeleteFn) {
+    for (size_t i = 0, e = GVs.size(); i != e; ++i)
+      Materialize(*GVs[i]);
+  } else {
+    // Deleting. Materialize every GV that's *not* in GVs.
+    SmallPtrSet<GlobalValue *, 8> GVSet(GVs.begin(), GVs.end());
+    for (auto &F : *M) {
+      if (!GVSet.count(&F))
+        Materialize(F);
+    }
+  }
+
+  {
+    std::vector<GlobalValue *> Gvs(GVs.begin(), GVs.end());
+    legacy::PassManager Extract;
+    Extract.add(createGVExtractionPass(Gvs, DeleteFn));
+    Extract.run(*M);
+
+    // Now that we have all the GVs we want, mark the module as fully
+    // materialized.
+    // FIXME: should the GVExtractionPass handle this?
+    ExitOnErr(M->materializeAll());
+  }
+
   // In addition to deleting all other functions, we also want to spiff it
   // up a little bit.  Do this now.
-  PassManager Passes;
-  Passes.add(new DataLayout(M.get())); // Use correct DataLayout
+  legacy::PassManager Passes;
 
-  std::vector<GlobalValue*> Gvs(GVs.begin(), GVs.end());
-
-  Passes.add(createGVExtractionPass(Gvs, DeleteFn));
   if (!DeleteFn)
     Passes.add(createGlobalDCEPass());           // Delete unreachable globals
   Passes.add(createStripDeadDebugInfoPass());    // Remove dead debug info
   Passes.add(createStripDeadPrototypesPass());   // Remove dead func decls
 
-  std::string ErrorInfo;
-  tool_output_file Out(OutputFilename.c_str(), ErrorInfo, sys::fs::F_Binary);
-  if (!ErrorInfo.empty()) {
-    errs() << ErrorInfo << '\n';
+  std::error_code EC;
+  ToolOutputFile Out(OutputFilename, EC, sys::fs::F_None);
+  if (EC) {
+    errs() << EC.message() << '\n';
     return 1;
   }
 
   if (OutputAssembly)
-    Passes.add(createPrintModulePass(&Out.os()));
+    Passes.add(
+        createPrintModulePass(Out.os(), "", PreserveAssemblyUseListOrder));
   else if (Force || !CheckBitcodeOutputToConsole(Out.os(), true))
-    Passes.add(createBitcodeWriterPass(Out.os()));
+    Passes.add(createBitcodeWriterPass(Out.os(), PreserveBitcodeUseListOrder));
 
   Passes.run(*M.get());
 

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1985, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,11 +29,9 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)getusershell.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
-/*	$NetBSD: getusershell.c,v 1.17 1999/01/25 01:09:34 lukem Exp $	*/
 #include <sys/cdefs.h>
+__SCCSID("@(#)getusershell.c	8.1 (Berkeley) 6/4/93");
+__RCSID("$NetBSD: getusershell.c,v 1.17 1999/01/25 01:09:34 lukem Exp $");
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
@@ -102,10 +102,7 @@ static int	_local_initshells(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int
-_local_initshells(rv, cb_data, ap)
-	void	*rv;
-	void	*cb_data;
-	va_list	 ap;
+_local_initshells(void	*rv, void *cb_data, va_list ap)
 {
 	char	*sp, *cp;
 	FILE	*fp;
@@ -118,8 +115,8 @@ _local_initshells(rv, cb_data, ap)
 	if ((fp = fopen(_PATH_SHELLS, "re")) == NULL)
 		return NS_UNAVAIL;
 
-	cp = line;
-	while (fgets(cp, MAXPATHLEN + 1, fp) != NULL) {
+	while (fgets(line, MAXPATHLEN + 1, fp) != NULL) {
+		cp = line;
 		while (*cp != '#' && *cp != '/' && *cp != '\0')
 			cp++;
 		if (*cp == '#' || *cp == '\0')
@@ -127,7 +124,7 @@ _local_initshells(rv, cb_data, ap)
 		sp = cp;
 		while (!isspace(*cp) && *cp != '#' && *cp != '\0')
 			cp++;
-		*cp++ = '\0';
+		*cp = '\0';
 		sl_add(sl, strdup(sp));
 	}
 	(void)fclose(fp);
@@ -139,10 +136,7 @@ static int	_dns_initshells(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int
-_dns_initshells(rv, cb_data, ap)
-	void	*rv;
-	void	*cb_data;
-	va_list	 ap;
+_dns_initshells(void *rv, void *cb_data, va_list ap)
 {
 	char	  shellname[] = "shells-XXXXX";
 	int	  hsindex, hpi, r;
@@ -183,10 +177,7 @@ static int	_nis_initshells(void *, void *, va_list);
 
 /*ARGSUSED*/
 static int
-_nis_initshells(rv, cb_data, ap)
-	void	*rv;
-	void	*cb_data;
-	va_list	 ap;
+_nis_initshells(void *rv, void *cb_data, va_list ap)
 {
 	static char *ypdomain;
 	char	*key, *data;
@@ -239,7 +230,7 @@ _nis_initshells(rv, cb_data, ap)
 #endif /* YP */
 
 static const char *const *
-initshells()
+initshells(void)
 {
 	static const ns_dtab dtab[] = {
 		NS_FILES_CB(_local_initshells, NULL)

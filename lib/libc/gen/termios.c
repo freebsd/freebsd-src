@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,10 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)termios.c	8.2 (Berkeley) 2/21/94";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
+__SCCSID("@(#)termios.c	8.2 (Berkeley) 2/21/94");
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <termios.h>
 #include <unistd.h>
 #include "un-namespace.h"
+
+#include "libc_private.h"
 
 int
 tcgetattr(int fd, struct termios *t)
@@ -208,13 +210,23 @@ tcsendbreak(int fd, int len __unused)
 }
 
 int
-__tcdrain(int fd)
+__libc_tcdrain(int fd)
 {
+
 	return (_ioctl(fd, TIOCDRAIN, 0));
 }
 
-__weak_reference(__tcdrain, tcdrain);
-__weak_reference(__tcdrain, _tcdrain);
+#pragma weak tcdrain
+int
+tcdrain(int fd)
+{
+
+	return (((int (*)(int))
+	    __libc_interposing[INTERPOS_tcdrain])(fd));
+}
+
+__weak_reference(__libc_tcdrain, __tcdrain);
+__weak_reference(__libc_tcdrain, _tcdrain);
 
 int
 tcflush(int fd, int which)

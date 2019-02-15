@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Jake Burkholder.
  * Copyright (c) 2005 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
@@ -203,9 +205,9 @@ fhc_attach(device_t dev)
 	}
 
 	device_printf(dev, "board %d, ", board);
-	if (OF_getprop_alloc(node, "board-model", 1, (void **)&name) != -1) {
+	if (OF_getprop_alloc(node, "board-model", (void **)&name) != -1) {
 		printf("model %s\n", name);
-		free(name, M_OFWPROP);
+		OF_prop_free(name);
 	} else
 		printf("model unknown\n");
 
@@ -225,7 +227,7 @@ fhc_attach(device_t dev)
 	bus_write_4(sc->sc_memres[FHC_INTERNAL], FHC_CTRL, ctrl);
 	(void)bus_read_4(sc->sc_memres[FHC_INTERNAL], FHC_CTRL);
 
-	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
+	sc->sc_nrange = OF_getprop_alloc_multi(node, "ranges",
 	    sizeof(*sc->sc_ranges), (void **)&sc->sc_ranges);
 	if (sc->sc_nrange == -1) {
 		device_printf(dev, "cannot get ranges\n");
@@ -283,7 +285,7 @@ fhc_attach(device_t dev)
 			free(fdi, M_DEVBUF);
 			continue;
 		}
-		i = OF_getprop_alloc(child, "reg", sizeof(*reg),
+		i = OF_getprop_alloc_multi(child, "reg", sizeof(*reg),
 		    (void **)&reg);
 		if (i == -1) {
 			device_printf(dev, "<%s>: incomplete\n",
@@ -297,9 +299,9 @@ fhc_attach(device_t dev)
 			resource_list_add(&fdi->fdi_rl, SYS_RES_MEMORY, j,
 			    reg[j].sbr_offset, reg[j].sbr_offset +
 			    reg[j].sbr_size, reg[j].sbr_size);
-		free(reg, M_OFWPROP);
+		OF_prop_free(reg);
 		if (central == 1) {
-			i = OF_getprop_alloc(child, "interrupts",
+			i = OF_getprop_alloc_multi(child, "interrupts",
 			    sizeof(*intr), (void **)&intr);
 			if (i != -1) {
 				for (j = 0; j < i; j++) {
@@ -307,7 +309,7 @@ fhc_attach(device_t dev)
 					resource_list_add(&fdi->fdi_rl,
 					    SYS_RES_IRQ, j, iv, iv, 1);
 				}
-				free(intr, M_OFWPROP);
+				OF_prop_free(intr);
 			}
 		}
 		cdev = device_add_child(dev, NULL, -1);
@@ -420,7 +422,7 @@ fhc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 
 static struct resource *
 fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource_list *rl;
 	struct resource_list_entry *rle;
@@ -433,7 +435,7 @@ fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	int passthrough;
 	int i;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != bus);
 	res = NULL;
 	rle = NULL;
@@ -479,8 +481,8 @@ fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 static int
 fhc_adjust_resource(device_t bus __unused, device_t child __unused,
-    int type __unused, struct resource *r __unused, u_long start __unused,
-    u_long end __unused)
+    int type __unused, struct resource *r __unused, rman_res_t start __unused,
+    rman_res_t end __unused)
 {
 
 	return (ENXIO);
@@ -529,7 +531,7 @@ fhc_print_res(struct fhc_devinfo *fdi)
 
 	rv = 0;
 	rv += resource_list_print_type(&fdi->fdi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx");
-	rv += resource_list_print_type(&fdi->fdi_rl, "irq", SYS_RES_IRQ, "%ld");
+	    "%#jx");
+	rv += resource_list_print_type(&fdi->fdi_rl, "irq", SYS_RES_IRQ, "%jd");
 	return (rv);
 }

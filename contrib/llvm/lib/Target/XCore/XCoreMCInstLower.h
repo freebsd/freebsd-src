@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef XCOREMCINSTLOWER_H
-#define XCOREMCINSTLOWER_H
+#ifndef LLVM_LIB_TARGET_XCORE_XCOREMCINSTLOWER_H
+#define LLVM_LIB_TARGET_XCORE_XCOREMCINSTLOWER_H
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/Support/Compiler.h"
 
@@ -25,11 +25,10 @@ namespace llvm {
 class LLVM_LIBRARY_VISIBILITY XCoreMCInstLower {
   typedef MachineOperand::MachineOperandType MachineOperandType;
   MCContext *Ctx;
-  Mangler *Mang;
   AsmPrinter &Printer;
 public:
   XCoreMCInstLower(class AsmPrinter &asmprinter);
-  void Initialize(Mangler *mang, MCContext *C);
+  void Initialize(MCContext *C);
   void Lower(const MachineInstr *MI, MCInst &OutMI) const;
   MCOperand LowerOperand(const MachineOperand& MO, unsigned offset = 0) const;
 

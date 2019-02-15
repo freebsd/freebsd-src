@@ -74,6 +74,8 @@ static int canonicalize_username(sasl_conn_t *conn,
     {
       /* The only valid realm is user_realm (i.e. the repository's realm).
          If the user gave us another realm, complain. */
+      if (realm_len != inlen-(pos-in+1))
+        return SASL_BADPROT;
       if (strncmp(pos+1, user_realm, inlen-(pos-in+1)) != 0)
         return SASL_BADPROT;
     }
@@ -110,11 +112,12 @@ static svn_error_t *initialize(void *baton, apr_pool_t *pool)
 
   /* The second parameter tells SASL to look for a configuration file
      named subversion.conf. */
-  result = sasl_server_init(callbacks, SVN_RA_SVN_SASL_NAME);
+  result = svn_sasl__server_init(callbacks, SVN_RA_SVN_SASL_NAME);
   if (result != SASL_OK)
     {
-      svn_error_t *err = svn_error_create(SVN_ERR_RA_NOT_AUTHORIZED, NULL,
-                                          sasl_errstring(result, NULL, NULL));
+      svn_error_t *err = svn_error_create(
+          SVN_ERR_RA_NOT_AUTHORIZED, NULL,
+          svn_sasl__errstring(result, NULL, NULL));
       return svn_error_quick_wrap(err,
                                   _("Could not initialize the SASL library"));
     }
@@ -133,7 +136,7 @@ svn_error_t *cyrus_init(apr_pool_t *pool)
 static svn_error_t *
 fail_auth(svn_ra_svn_conn_t *conn, apr_pool_t *pool, sasl_conn_t *sasl_ctx)
 {
-  const char *msg = sasl_errdetail(sasl_ctx);
+  const char *msg = svn_sasl__errdetail(sasl_ctx);
   SVN_ERR(svn_ra_svn__write_tuple(conn, pool, "w(c)", "failure", msg));
   return svn_ra_svn__flush(conn, pool);
 }
@@ -154,7 +157,7 @@ static svn_error_t *
 fail_cmd(svn_ra_svn_conn_t *conn, apr_pool_t *pool, sasl_conn_t *sasl_ctx)
 {
   svn_error_t *err = svn_error_create(SVN_ERR_RA_NOT_AUTHORIZED, NULL,
-                                      sasl_errdetail(sasl_ctx));
+                                      svn_sasl__errdetail(sasl_ctx));
   SVN_ERR(write_failure(conn, pool, &err));
   return svn_ra_svn__flush(conn, pool);
 }
@@ -177,23 +180,30 @@ static svn_error_t *try_auth(svn_ra_svn_conn_t *conn,
   SVN_ERR(svn_ra_svn__read_tuple(conn, pool, "w(?s)", &mech, &in));
 
   if (strcmp(mech, "EXTERNAL") == 0 && !in)
-    in = svn_string_create(b->tunnel_user, pool);
+    in = svn_string_create(b->client_info->tunnel_user, pool);
   else if (in)
     in = svn_base64_decode_string(in, pool);
 
   /* For CRAM-MD5, we don't base64-encode stuff. */
   use_base64 = (strcmp(mech, "CRAM-MD5") != 0);
 
-  result = sasl_server_start(sasl_ctx, mech,
-                             in ? in->data : NULL,
-                             in ? in->len : 0, &out, &outlen);
+  /* sasl uses unsigned int for the length of strings, we use apr_size_t
+   * which may not be the same size.  Deal with potential integer overflow */
+  if (in && in->len > UINT_MAX)
+    return svn_error_createf(SVN_ERR_RA_NOT_AUTHORIZED, NULL,
+                             _("Initial token is too long"));
+
+  result = svn_sasl__server_start(sasl_ctx, mech,
+                                  in ? in->data : NULL,
+                                  in ? (unsigned int) in->len : 0,
+                                  &out, &outlen);
 
   if (result != SASL_OK && result != SASL_CONTINUE)
     return fail_auth(conn, pool, sasl_ctx);
 
   while (result == SASL_CONTINUE)
     {
-      svn_ra_svn_item_t *item;
+      svn_ra_svn__item_t *item;
 
       arg = svn_string_ncreate(out, outlen, pool);
       /* Encode what we send to the client. */
@@ -207,10 +217,17 @@ static svn_error_t *try_auth(svn_ra_svn_conn_t *conn,
       if (item->kind != SVN_RA_SVN_STRING)
         return SVN_NO_ERROR;
 
-      in = item->u.string;
+      in = &item->u.string;
       if (use_base64)
         in = svn_base64_decode_string(in, pool);
-      result = sasl_server_step(sasl_ctx, in->data, in->len, &out, &outlen);
+
+      if (in->len > UINT_MAX)
+        return svn_error_createf(SVN_ERR_RA_NOT_AUTHORIZED, NULL,
+                                 _("Step response is too long"));
+
+      result = svn_sasl__server_step(sasl_ctx, in->data,
+                                     (unsigned int) in->len,
+                                     &out, &outlen);
     }
 
   if (result != SASL_OK)
@@ -232,7 +249,7 @@ static svn_error_t *try_auth(svn_ra_svn_conn_t *conn,
 static apr_status_t sasl_dispose_cb(void *data)
 {
   sasl_conn_t *sasl_ctx = (sasl_conn_t*) data;
-  sasl_dispose(&sasl_ctx);
+  svn_sasl__dispose(&sasl_ctx);
   return APR_SUCCESS;
 }
 
@@ -246,7 +263,7 @@ svn_error_t *cyrus_auth_request(svn_ra_svn_conn_t *conn,
   apr_pool_t *subpool;
   apr_status_t apr_err;
   const char *localaddrport = NULL, *remoteaddrport = NULL;
-  const char *mechlist, *val;
+  const char *mechlist;
   char hostname[APRMAXHOSTLEN + 1];
   sasl_security_properties_t secprops;
   svn_boolean_t success, no_anonymous;
@@ -264,15 +281,16 @@ svn_error_t *cyrus_auth_request(svn_ra_svn_conn_t *conn,
 
   /* Create a SASL context. SASL_SUCCESS_DATA tells SASL that the protocol
      supports sending data along with the final "success" message. */
-  result = sasl_server_new(SVN_RA_SVN_SASL_NAME,
-                           hostname, b->realm,
-                           localaddrport, remoteaddrport,
-                           NULL, SASL_SUCCESS_DATA,
-                           &sasl_ctx);
+  result = svn_sasl__server_new(SVN_RA_SVN_SASL_NAME,
+                                hostname, b->repository->realm,
+                                localaddrport, remoteaddrport,
+                                NULL, SASL_SUCCESS_DATA,
+                                &sasl_ctx);
   if (result != SASL_OK)
     {
-      svn_error_t *err = svn_error_create(SVN_ERR_RA_NOT_AUTHORIZED, NULL,
-                                          sasl_errstring(result, NULL, NULL));
+      svn_error_t *err = svn_error_create(
+          SVN_ERR_RA_NOT_AUTHORIZED, NULL,
+          svn_sasl__errstring(result, NULL, NULL));
       SVN_ERR(write_failure(conn, pool, &err));
       return svn_ra_svn__flush(conn, pool);
     }
@@ -285,36 +303,28 @@ svn_error_t *cyrus_auth_request(svn_ra_svn_conn_t *conn,
   svn_ra_svn__default_secprops(&secprops);
 
   /* Don't allow ANONYMOUS if a username is required. */
-  no_anonymous = needs_username || get_access(b, UNAUTHENTICATED) < required;
+  no_anonymous = needs_username || b->repository->anon_access < required;
   if (no_anonymous)
     secprops.security_flags |= SASL_SEC_NOANONYMOUS;
 
-  svn_config_get(b->cfg, &val,
-                 SVN_CONFIG_SECTION_SASL,
-                 SVN_CONFIG_OPTION_MIN_SSF,
-                 "0");
-  SVN_ERR(svn_cstring_atoui(&secprops.min_ssf, val));
-
-  svn_config_get(b->cfg, &val,
-                 SVN_CONFIG_SECTION_SASL,
-                 SVN_CONFIG_OPTION_MAX_SSF,
-                 "256");
-  SVN_ERR(svn_cstring_atoui(&secprops.max_ssf, val));
+  secprops.min_ssf = b->repository->min_ssf;
+  secprops.max_ssf = b->repository->max_ssf;
 
   /* Set security properties. */
-  result = sasl_setprop(sasl_ctx, SASL_SEC_PROPS, &secprops);
+  result = svn_sasl__setprop(sasl_ctx, SASL_SEC_PROPS, &secprops);
   if (result != SASL_OK)
     return fail_cmd(conn, pool, sasl_ctx);
 
   /* SASL needs to know if we are externally authenticated. */
-  if (b->tunnel_user)
-    result = sasl_setprop(sasl_ctx, SASL_AUTH_EXTERNAL, b->tunnel_user);
+  if (b->client_info->tunnel_user)
+    result = svn_sasl__setprop(sasl_ctx, SASL_AUTH_EXTERNAL,
+                               b->client_info->tunnel_user);
   if (result != SASL_OK)
     return fail_cmd(conn, pool, sasl_ctx);
 
   /* Get the list of mechanisms. */
-  result = sasl_listmech(sasl_ctx, NULL, NULL, " ", NULL,
-                         &mechlist, NULL, &mech_count);
+  result = svn_sasl__listmech(sasl_ctx, NULL, NULL, " ", NULL,
+                              &mechlist, NULL, &mech_count);
 
   if (result != SASL_OK)
     return fail_cmd(conn, pool, sasl_ctx);
@@ -330,7 +340,7 @@ svn_error_t *cyrus_auth_request(svn_ra_svn_conn_t *conn,
 
   /* Send the list of mechanisms and the realm to the client. */
   SVN_ERR(svn_ra_svn__write_cmd_response(conn, pool, "(w)c",
-                                         mechlist, b->realm));
+                                         mechlist, b->repository->realm));
 
   /* The main authentication loop. */
   subpool = svn_pool_create(pool);
@@ -350,7 +360,7 @@ svn_error_t *cyrus_auth_request(svn_ra_svn_conn_t *conn,
       const void *user;
 
       /* Get the authenticated username. */
-      result = sasl_getprop(sasl_ctx, SASL_USERNAME, &user);
+      result = svn_sasl__getprop(sasl_ctx, SASL_USERNAME, &user);
 
       if (result != SASL_OK)
         return fail_cmd(conn, pool, sasl_ctx);
@@ -358,7 +368,8 @@ svn_error_t *cyrus_auth_request(svn_ra_svn_conn_t *conn,
       if ((p = strchr(user, '@')) != NULL)
         {
           /* Drop the realm part. */
-          b->user = apr_pstrndup(b->pool, user, p - (const char *)user);
+          b->client_info->user = apr_pstrndup(b->pool, user,
+                                              p - (const char *)user);
         }
       else
         {

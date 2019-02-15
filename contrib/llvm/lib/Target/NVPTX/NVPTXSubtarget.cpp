@@ -12,48 +12,57 @@
 //===----------------------------------------------------------------------===//
 
 #include "NVPTXSubtarget.h"
+#include "NVPTXTargetMachine.h"
+
+using namespace llvm;
+
+#define DEBUG_TYPE "nvptx-subtarget"
+
 #define GET_SUBTARGETINFO_ENUM
 #define GET_SUBTARGETINFO_TARGET_DESC
 #define GET_SUBTARGETINFO_CTOR
 #include "NVPTXGenSubtargetInfo.inc"
 
-using namespace llvm;
-
+static cl::opt<bool>
+    NoF16Math("nvptx-no-f16-math", cl::ZeroOrMore, cl::Hidden,
+              cl::desc("NVPTX Specific: Disable generation of f16 math ops."),
+              cl::init(false));
 
 // Pin the vtable to this file.
 void NVPTXSubtarget::anchor() {}
 
-NVPTXSubtarget::NVPTXSubtarget(const std::string &TT, const std::string &CPU,
-                               const std::string &FS, bool is64Bit)
-    : NVPTXGenSubtargetInfo(TT, CPU, FS), Is64Bit(is64Bit), PTXVersion(0),
-      SmVersion(20) {
+NVPTXSubtarget &NVPTXSubtarget::initializeSubtargetDependencies(StringRef CPU,
+                                                                StringRef FS) {
+    // Provide the default CPU if we don't have one.
+  TargetName = CPU.empty() ? "sm_20" : CPU;
 
-  Triple T(TT);
+  ParseSubtargetFeatures(TargetName, FS);
 
-  if (T.getOS() == Triple::NVCL)
-    drvInterface = NVPTX::NVCL;
-  else
-    drvInterface = NVPTX::CUDA;
-
-  // Provide the default CPU if none
-  std::string defCPU = "sm_20";
-
-  ParseSubtargetFeatures((CPU.empty() ? defCPU : CPU), FS);
-
-  // Get the TargetName from the FS if available
-  if (FS.empty() && CPU.empty())
-    TargetName = defCPU;
-  else if (!CPU.empty())
-    TargetName = CPU;
-  else
-    llvm_unreachable("we are not using FeatureStr");
-
-  // We default to PTX 3.1, but we cannot just default to it in the initializer
-  // since the attribute parser checks if the given option is >= the default.
-  // So if we set ptx31 as the default, the ptx30 attribute would never match.
-  // Instead, we use 0 as the default and manually set 31 if the default is
-  // used.
+  // Set default to PTX 3.2 (CUDA 5.5)
   if (PTXVersion == 0) {
-    PTXVersion = 31;
+    PTXVersion = 32;
   }
+
+  return *this;
+}
+
+NVPTXSubtarget::NVPTXSubtarget(const Triple &TT, const std::string &CPU,
+                               const std::string &FS,
+                               const NVPTXTargetMachine &TM)
+    : NVPTXGenSubtargetInfo(TT, CPU, FS), PTXVersion(0), SmVersion(20), TM(TM),
+      InstrInfo(), TLInfo(TM, initializeSubtargetDependencies(CPU, FS)),
+      FrameLowering() {}
+
+bool NVPTXSubtarget::hasImageHandles() const {
+  // Enable handles for Kepler+, where CUDA supports indirect surfaces and
+  // textures
+  if (TM.getDrvInterface() == NVPTX::CUDA)
+    return (SmVersion >= 30);
+
+  // Disabled, otherwise
+  return false;
+}
+
+bool NVPTXSubtarget::allowFP16Math() const {
+  return hasFP16Math() && NoF16Math == false;
 }

@@ -1,4 +1,8 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2015-2016, Stanislav Galabov
+ * Copyright (c) 2014, Aleksandr A. Mityaev
  * Copyright (c) 2011, Aleksandr Rybalko
  * based on hard work
  * by Alexander Egorenkov <egorenar@gmail.com>
@@ -56,11 +60,28 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 
+#include "opt_platform.h"
+#include "opt_rt305x.h"
+
+#ifdef FDT
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
+
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
+#ifdef RT_MDIO
+#include <dev/mdio/mdio.h>
+#include <dev/etherswitch/miiproxy.h>
+#include "mdio_if.h"
+#endif
+
+#if 0
 #include <mips/rt305x/rt305x_sysctlvar.h>
 #include <mips/rt305x/rt305xreg.h>
+#endif
 
 #ifdef IF_RT_PHY_SUPPORT
 #include "miibus_if.h"
@@ -77,6 +98,28 @@ __FBSDID("$FreeBSD$");
 #define	RT_SM(_v, _f)			(((_v) << _f##_S) & _f)
 
 #define	RT_TX_WATCHDOG_TIMEOUT		5
+
+#define RT_CHIPID_RT2880 0x2880
+#define RT_CHIPID_RT3050 0x3050
+#define RT_CHIPID_RT5350 0x5350
+#define RT_CHIPID_MT7620 0x7620
+#define RT_CHIPID_MT7621 0x7621
+
+#ifdef FDT
+/* more specific and new models should go first */
+static const struct ofw_compat_data rt_compat_data[] = {
+	{ "ralink,rt2880-eth",		RT_CHIPID_RT2880 },
+	{ "ralink,rt3050-eth",		RT_CHIPID_RT3050 },
+	{ "ralink,rt3352-eth",		RT_CHIPID_RT3050 },
+	{ "ralink,rt3883-eth",		RT_CHIPID_RT3050 },
+	{ "ralink,rt5350-eth",		RT_CHIPID_RT5350 },
+	{ "ralink,mt7620a-eth",		RT_CHIPID_MT7620 },
+	{ "mediatek,mt7620-eth",	RT_CHIPID_MT7620 },
+	{ "ralink,mt7621-eth",		RT_CHIPID_MT7621 },
+	{ "mediatek,mt7621-eth",	RT_CHIPID_MT7621 },
+	{ NULL,				0 }
+};
+#endif
 
 /*
  * Static function prototypes
@@ -96,16 +139,18 @@ static int	rt_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static void	rt_periodic(void *arg);
 static void	rt_tx_watchdog(void *arg);
 static void	rt_intr(void *arg);
+static void	rt_rt5350_intr(void *arg);
 static void	rt_tx_coherent_intr(struct rt_softc *sc);
 static void	rt_rx_coherent_intr(struct rt_softc *sc);
 static void	rt_rx_delay_intr(struct rt_softc *sc);
 static void	rt_tx_delay_intr(struct rt_softc *sc);
-static void	rt_rx_intr(struct rt_softc *sc);
+static void	rt_rx_intr(struct rt_softc *sc, int qid);
 static void	rt_tx_intr(struct rt_softc *sc, int qid);
 static void	rt_rx_done_task(void *context, int pending);
 static void	rt_tx_done_task(void *context, int pending);
 static void	rt_periodic_task(void *context, int pending);
-static int	rt_rx_eof(struct rt_softc *sc, int limit);
+static int	rt_rx_eof(struct rt_softc *sc,
+		    struct rt_softc_rx_ring *ring, int limit);
 static void	rt_tx_eof(struct rt_softc *sc,
 		    struct rt_softc_tx_ring *ring);
 static void	rt_update_stats(struct rt_softc *sc);
@@ -115,7 +160,7 @@ static void	rt_intr_enable(struct rt_softc *sc, uint32_t intr_mask);
 static void	rt_intr_disable(struct rt_softc *sc, uint32_t intr_mask);
 static int	rt_txrx_enable(struct rt_softc *sc);
 static int	rt_alloc_rx_ring(struct rt_softc *sc,
-		    struct rt_softc_rx_ring *ring);
+		    struct rt_softc_rx_ring *ring, int qid);
 static void	rt_reset_rx_ring(struct rt_softc *sc,
 		    struct rt_softc_rx_ring *ring);
 static void	rt_free_rx_ring(struct rt_softc *sc,
@@ -131,6 +176,8 @@ static void	rt_dma_map_addr(void *arg, bus_dma_segment_t *segs,
 static void	rt_sysctl_attach(struct rt_softc *sc);
 #ifdef IF_RT_PHY_SUPPORT
 void		rt_miibus_statchg(device_t);
+#endif
+#if defined(IF_RT_PHY_SUPPORT) || defined(RT_MDIO)
 static int	rt_miibus_readreg(device_t, int, int);
 static int	rt_miibus_writereg(device_t, int, int, int);
 #endif
@@ -147,8 +194,31 @@ SYSCTL_INT(_hw_rt, OID_AUTO, debug, CTLFLAG_RWTUN, &rt_debug, 0,
 static int
 rt_probe(device_t dev)
 {
-	device_set_desc(dev, "Ralink RT305XF onChip Ethernet MAC");
-	return (BUS_PROBE_NOWILDCARD);
+	struct rt_softc *sc = device_get_softc(dev);
+	char buf[80];
+#ifdef FDT
+	const struct ofw_compat_data * cd;
+
+	cd = ofw_bus_search_compatible(dev, rt_compat_data);
+	if (cd->ocd_data == 0)
+	        return (ENXIO);
+	        
+	sc->rt_chipid = (unsigned int)(cd->ocd_data);
+#else
+#if defined(MT7620)
+	sc->rt_chipid = RT_CHIPID_MT7620;
+#elif defined(MT7621)
+	sc->rt_chipid = RT_CHIPID_MT7621;
+#elif defined(RT5350)
+	sc->rt_chipid = RT_CHIPID_RT5350;
+#else
+	sc->rt_chipid = RT_CHIPID_RT3050;
+#endif
+#endif
+	snprintf(buf, sizeof(buf), "Ralink %cT%x onChip Ethernet driver",
+		sc->rt_chipid >= 0x7600 ? 'M' : 'R', sc->rt_chipid);
+	device_set_desc_copy(dev, buf);
+	return (BUS_PROBE_GENERIC);
 }
 
 /*
@@ -176,20 +246,6 @@ macaddr_atoi(const char *str, uint8_t *mac)
 }
 
 #ifdef USE_GENERATED_MAC_ADDRESS
-static char *
-kernenv_next(char *cp)
-{
-
-	if (cp != NULL) {
-		while (*cp != 0)
-			cp++;
-		cp++;
-		if (*cp == 0)
-			cp = NULL;
-	}
-	return (cp);
-}
-
 /*
  * generate_mac(uin8_t *mac)
  * This is MAC address generator for cases when real device MAC address
@@ -208,14 +264,8 @@ generate_mac(uint8_t *mac)
 	uint32_t crc = 0xffffffff;
 
 	/* Generate CRC32 on kenv */
-	if (dynamic_kenv) {
-		for (cp = kenvp[0]; cp != NULL; cp = kenvp[++i]) {
-			crc = calculate_crc32c(crc, cp, strlen(cp) + 1);
-		}
-	} else {
-		for (cp = kern_envp; cp != NULL; cp = kernenv_next(cp)) {
-			crc = calculate_crc32c(crc, cp, strlen(cp) + 1);
-		}
+	for (cp = kenvp[0]; cp != NULL; cp = kenvp[++i]) {
+		crc = calculate_crc32c(crc, cp, strlen(cp) + 1);
 	}
 	crc = ~crc;
 
@@ -240,9 +290,9 @@ ether_request_mac(device_t dev, uint8_t *mac)
 	 * "ethaddr" is passed via envp on RedBoot platforms
 	 * "kmac" is passed via argv on RouterBOOT platforms
 	 */
-#if defined(__U_BOOT__) ||  defined(__REDBOOT__) || defined(__ROUTERBOOT__)
-	if ((var = getenv("ethaddr")) != NULL ||
-	    (var = getenv("kmac")) != NULL ) {
+#if defined(RT305X_UBOOT) ||  defined(__REDBOOT__) || defined(__ROUTERBOOT__)
+	if ((var = kern_getenv("ethaddr")) != NULL ||
+	    (var = kern_getenv("kmac")) != NULL ) {
 
 		if(!macaddr_atoi(var, mac)) {
 			printf("%s: use %s macaddr from KENV\n",
@@ -288,6 +338,16 @@ ether_request_mac(device_t dev, uint8_t *mac)
 	return (0);
 }
 
+/*
+ * Reset hardware
+ */
+static void
+reset_freng(struct rt_softc *sc)
+{
+	/* XXX hard reset kills everything so skip it ... */
+	return;
+}
+
 static int
 rt_attach(device_t dev)
 {
@@ -303,7 +363,7 @@ rt_attach(device_t dev)
 
 	sc->mem_rid = 0;
 	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
-	    RF_ACTIVE);
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->mem == NULL) {
 		device_printf(dev, "could not allocate memory resource\n");
 		error = ENXIO;
@@ -331,23 +391,96 @@ rt_attach(device_t dev)
 		"debug", CTLFLAG_RW, &sc->debug, 0, "rt debug level");
 #endif
 
-	device_printf(dev, "RT305XF Ethernet MAC (rev 0x%08x)\n",
-	    sc->mac_rev);
-
 	/* Reset hardware */
-	RT_WRITE(sc, GE_PORT_BASE + FE_RST_GLO, PSE_RESET);
+	reset_freng(sc);
 
-	RT_WRITE(sc, GDMA1_BASE + GDMA_FWD_CFG,
-	    (
-	    GDM_ICS_EN | /* Enable IP Csum */
-	    GDM_TCS_EN | /* Enable TCP Csum */
-	    GDM_UCS_EN | /* Enable UDP Csum */
-	    GDM_STRPCRC | /* Strip CRC from packet */
-	    GDM_DST_PORT_CPU << GDM_UFRC_P_SHIFT | /* Forward UCast to CPU */
-	    GDM_DST_PORT_CPU << GDM_BFRC_P_SHIFT | /* Forward BCast to CPU */
-	    GDM_DST_PORT_CPU << GDM_MFRC_P_SHIFT | /* Forward MCast to CPU */
-	    GDM_DST_PORT_CPU << GDM_OFRC_P_SHIFT   /* Forward Other to CPU */
-	    ));
+
+	if (sc->rt_chipid == RT_CHIPID_MT7620) {
+		sc->csum_fail_ip = MT7620_RXD_SRC_IP_CSUM_FAIL;
+		sc->csum_fail_l4 = MT7620_RXD_SRC_L4_CSUM_FAIL;
+	} else if (sc->rt_chipid == RT_CHIPID_MT7621) {
+		sc->csum_fail_ip = MT7621_RXD_SRC_IP_CSUM_FAIL;
+		sc->csum_fail_l4 = MT7621_RXD_SRC_L4_CSUM_FAIL;
+	} else {
+		sc->csum_fail_ip = RT305X_RXD_SRC_IP_CSUM_FAIL;
+		sc->csum_fail_l4 = RT305X_RXD_SRC_L4_CSUM_FAIL;
+	}
+
+	/* Fill in soc-specific registers map */
+	switch(sc->rt_chipid) {
+	  case RT_CHIPID_MT7620:
+	  case RT_CHIPID_MT7621:
+		sc->gdma1_base = MT7620_GDMA1_BASE;
+		/* fallthrough */
+	  case RT_CHIPID_RT5350:
+	  	device_printf(dev, "%cT%x Ethernet MAC (rev 0x%08x)\n",
+			sc->rt_chipid >= 0x7600 ? 'M' : 'R',
+	  		sc->rt_chipid, sc->mac_rev);
+		/* RT5350: No GDMA, PSE, CDMA, PPE */
+		RT_WRITE(sc, GE_PORT_BASE + 0x0C00, // UDPCS, TCPCS, IPCS=1
+			RT_READ(sc, GE_PORT_BASE + 0x0C00) | (0x7<<16));
+		sc->delay_int_cfg=RT5350_PDMA_BASE+RT5350_DELAY_INT_CFG;
+		sc->fe_int_status=RT5350_FE_INT_STATUS;
+		sc->fe_int_enable=RT5350_FE_INT_ENABLE;
+		sc->pdma_glo_cfg=RT5350_PDMA_BASE+RT5350_PDMA_GLO_CFG;
+		sc->pdma_rst_idx=RT5350_PDMA_BASE+RT5350_PDMA_RST_IDX;
+		for (i = 0; i < RT_SOFTC_TX_RING_COUNT; i++) {
+		  sc->tx_base_ptr[i]=RT5350_PDMA_BASE+RT5350_TX_BASE_PTR(i);
+		  sc->tx_max_cnt[i]=RT5350_PDMA_BASE+RT5350_TX_MAX_CNT(i);
+		  sc->tx_ctx_idx[i]=RT5350_PDMA_BASE+RT5350_TX_CTX_IDX(i);
+		  sc->tx_dtx_idx[i]=RT5350_PDMA_BASE+RT5350_TX_DTX_IDX(i);
+		}
+		sc->rx_ring_count=2;
+		sc->rx_base_ptr[0]=RT5350_PDMA_BASE+RT5350_RX_BASE_PTR0;
+		sc->rx_max_cnt[0]=RT5350_PDMA_BASE+RT5350_RX_MAX_CNT0;
+		sc->rx_calc_idx[0]=RT5350_PDMA_BASE+RT5350_RX_CALC_IDX0;
+		sc->rx_drx_idx[0]=RT5350_PDMA_BASE+RT5350_RX_DRX_IDX0;
+		sc->rx_base_ptr[1]=RT5350_PDMA_BASE+RT5350_RX_BASE_PTR1;
+		sc->rx_max_cnt[1]=RT5350_PDMA_BASE+RT5350_RX_MAX_CNT1;
+		sc->rx_calc_idx[1]=RT5350_PDMA_BASE+RT5350_RX_CALC_IDX1;
+		sc->rx_drx_idx[1]=RT5350_PDMA_BASE+RT5350_RX_DRX_IDX1;
+		sc->int_rx_done_mask=RT5350_INT_RXQ0_DONE;
+		sc->int_tx_done_mask=RT5350_INT_TXQ0_DONE;
+	  	break;
+	  default:
+		device_printf(dev, "RT305XF Ethernet MAC (rev 0x%08x)\n",
+			sc->mac_rev);
+		sc->gdma1_base = GDMA1_BASE;
+		sc->delay_int_cfg=PDMA_BASE+DELAY_INT_CFG;
+		sc->fe_int_status=GE_PORT_BASE+FE_INT_STATUS;
+		sc->fe_int_enable=GE_PORT_BASE+FE_INT_ENABLE;
+		sc->pdma_glo_cfg=PDMA_BASE+PDMA_GLO_CFG;
+		sc->pdma_rst_idx=PDMA_BASE+PDMA_RST_IDX;
+		for (i = 0; i < RT_SOFTC_TX_RING_COUNT; i++) {
+		  sc->tx_base_ptr[i]=PDMA_BASE+TX_BASE_PTR(i);
+		  sc->tx_max_cnt[i]=PDMA_BASE+TX_MAX_CNT(i);
+		  sc->tx_ctx_idx[i]=PDMA_BASE+TX_CTX_IDX(i);
+		  sc->tx_dtx_idx[i]=PDMA_BASE+TX_DTX_IDX(i);
+		}
+		sc->rx_ring_count=1;
+		sc->rx_base_ptr[0]=PDMA_BASE+RX_BASE_PTR0;
+		sc->rx_max_cnt[0]=PDMA_BASE+RX_MAX_CNT0;
+		sc->rx_calc_idx[0]=PDMA_BASE+RX_CALC_IDX0;
+		sc->rx_drx_idx[0]=PDMA_BASE+RX_DRX_IDX0;
+		sc->int_rx_done_mask=INT_RX_DONE;
+		sc->int_tx_done_mask=INT_TXQ0_DONE;
+	}
+
+	if (sc->gdma1_base != 0)
+		RT_WRITE(sc, sc->gdma1_base + GDMA_FWD_CFG,
+		(
+		GDM_ICS_EN | /* Enable IP Csum */
+		GDM_TCS_EN | /* Enable TCP Csum */
+		GDM_UCS_EN | /* Enable UDP Csum */
+		GDM_STRPCRC | /* Strip CRC from packet */
+		GDM_DST_PORT_CPU << GDM_UFRC_P_SHIFT | /* fwd UCast to CPU */
+		GDM_DST_PORT_CPU << GDM_BFRC_P_SHIFT | /* fwd BCast to CPU */
+		GDM_DST_PORT_CPU << GDM_MFRC_P_SHIFT | /* fwd MCast to CPU */
+		GDM_DST_PORT_CPU << GDM_OFRC_P_SHIFT   /* fwd Other to CPU */
+		));
+
+	if (sc->rt_chipid == RT_CHIPID_RT2880)
+		RT_WRITE(sc, MDIO_CFG, MDIO_2880_100T_INIT);
 
 	/* allocate Tx and Rx rings */
 	for (i = 0; i < RT_SOFTC_TX_RING_COUNT; i++) {
@@ -360,11 +493,12 @@ rt_attach(device_t dev)
 	}
 
 	sc->tx_ring_mgtqid = 5;
-
-	error = rt_alloc_rx_ring(sc, &sc->rx_ring);
-	if (error != 0) {
-		device_printf(dev, "could not allocate Rx ring\n");
-		goto fail;
+	for (i = 0; i < sc->rx_ring_count; i++) {
+		error = rt_alloc_rx_ring(sc, &sc->rx_ring[i], i);
+		if (error != 0) {
+			device_printf(dev, "could not allocate Rx ring\n");
+			goto fail;
+		}
 	}
 
 	callout_init(&sc->periodic_ch, 0);
@@ -434,7 +568,10 @@ rt_attach(device_t dev)
 
 	/* set up interrupt */
 	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, rt_intr, sc, &sc->irqh);
+	    NULL, (sc->rt_chipid == RT_CHIPID_RT5350 ||
+	    sc->rt_chipid == RT_CHIPID_MT7620 ||
+	    sc->rt_chipid == RT_CHIPID_MT7621) ? rt_rt5350_intr : rt_intr,
+	    sc, &sc->irqh);
 	if (error != 0) {
 		printf("%s: could not set up interrupt\n",
 			device_get_nameunit(dev));
@@ -451,7 +588,8 @@ fail:
 	for (i = 0; i < RT_SOFTC_TX_RING_COUNT; i++)
 		rt_free_tx_ring(sc, &sc->tx_ring[i]);
 
-	rt_free_rx_ring(sc, &sc->rx_ring);
+	for (i = 0; i < sc->rx_ring_count; i++)
+		rt_free_rx_ring(sc, &sc->rx_ring[i]);
 
 	mtx_destroy(&sc->lock);
 
@@ -567,8 +705,8 @@ rt_detach(device_t dev)
 	/* free Tx and Rx rings */
 	for (i = 0; i < RT_SOFTC_TX_RING_COUNT; i++)
 		rt_free_tx_ring(sc, &sc->tx_ring[i]);
-
-	rt_free_rx_ring(sc, &sc->rx_ring);
+	for (i = 0; i < sc->rx_ring_count; i++)
+		rt_free_rx_ring(sc, &sc->rx_ring[i]);
 
 	RT_SOFTC_UNLOCK(sc);
 
@@ -658,29 +796,30 @@ rt_init_locked(void *priv)
 	RT_SOFTC_ASSERT_LOCKED(sc);
 
 	/* hardware reset */
-	RT_WRITE(sc, GE_PORT_BASE + FE_RST_GLO, PSE_RESET);
-	rt305x_sysctl_set(SYSCTL_RSTCTRL, SYSCTL_RSTCTRL_FRENG);
+	//RT_WRITE(sc, GE_PORT_BASE + FE_RST_GLO, PSE_RESET);
+	//rt305x_sysctl_set(SYSCTL_RSTCTRL, SYSCTL_RSTCTRL_FRENG);
 
 	/* Fwd to CPU (uni|broad|multi)cast and Unknown */
-	RT_WRITE(sc, GDMA1_BASE + GDMA_FWD_CFG,
-	    (
-	    GDM_ICS_EN | /* Enable IP Csum */
-	    GDM_TCS_EN | /* Enable TCP Csum */
-	    GDM_UCS_EN | /* Enable UDP Csum */
-	    GDM_STRPCRC | /* Strip CRC from packet */
-	    GDM_DST_PORT_CPU << GDM_UFRC_P_SHIFT | /* Forward UCast to CPU */
-	    GDM_DST_PORT_CPU << GDM_BFRC_P_SHIFT | /* Forward BCast to CPU */
-	    GDM_DST_PORT_CPU << GDM_MFRC_P_SHIFT | /* Forward MCast to CPU */
-	    GDM_DST_PORT_CPU << GDM_OFRC_P_SHIFT   /* Forward Other to CPU */
-	    ));
+	if (sc->gdma1_base != 0)
+		RT_WRITE(sc, sc->gdma1_base + GDMA_FWD_CFG,
+		(
+		GDM_ICS_EN | /* Enable IP Csum */
+		GDM_TCS_EN | /* Enable TCP Csum */
+		GDM_UCS_EN | /* Enable UDP Csum */
+		GDM_STRPCRC | /* Strip CRC from packet */
+		GDM_DST_PORT_CPU << GDM_UFRC_P_SHIFT | /* fwd UCast to CPU */
+		GDM_DST_PORT_CPU << GDM_BFRC_P_SHIFT | /* fwd BCast to CPU */
+		GDM_DST_PORT_CPU << GDM_MFRC_P_SHIFT | /* fwd MCast to CPU */
+		GDM_DST_PORT_CPU << GDM_OFRC_P_SHIFT   /* fwd Other to CPU */
+		));
 
 	/* disable DMA engine */
-	RT_WRITE(sc, PDMA_BASE + PDMA_GLO_CFG, 0);
-	RT_WRITE(sc, PDMA_BASE + PDMA_RST_IDX, 0xffffffff);
+	RT_WRITE(sc, sc->pdma_glo_cfg, 0);
+	RT_WRITE(sc, sc->pdma_rst_idx, 0xffffffff);
 
 	/* wait while DMA engine is busy */
 	for (ntries = 0; ntries < 100; ntries++) {
-		tmp = RT_READ(sc, PDMA_BASE + PDMA_GLO_CFG);
+		tmp = RT_READ(sc, sc->pdma_glo_cfg);
 		if (!(tmp & (FE_TX_DMA_BUSY | FE_RX_DMA_BUSY)))
 			break;
 		DELAY(1000);
@@ -698,7 +837,7 @@ rt_init_locked(void *priv)
 		FE_RST_DTX_IDX1 |
 		FE_RST_DTX_IDX0;
 
-	RT_WRITE(sc, PDMA_BASE + PDMA_RST_IDX, tmp);
+	RT_WRITE(sc, sc->pdma_rst_idx, tmp);
 
 	/* XXX switch set mac address */
 	for (i = 0; i < RT_SOFTC_TX_RING_COUNT; i++)
@@ -706,36 +845,54 @@ rt_init_locked(void *priv)
 
 	for (i = 0; i < RT_SOFTC_TX_RING_COUNT; i++) {
 		/* update TX_BASE_PTRx */
-		RT_WRITE(sc, PDMA_BASE + TX_BASE_PTR(i),
+		RT_WRITE(sc, sc->tx_base_ptr[i],
 			sc->tx_ring[i].desc_phys_addr);
-		RT_WRITE(sc, PDMA_BASE + TX_MAX_CNT(i),
+		RT_WRITE(sc, sc->tx_max_cnt[i],
 			RT_SOFTC_TX_RING_DESC_COUNT);
-		RT_WRITE(sc, PDMA_BASE + TX_CTX_IDX(i), 0);
+		RT_WRITE(sc, sc->tx_ctx_idx[i], 0);
 	}
 
 	/* init Rx ring */
-	rt_reset_rx_ring(sc, &sc->rx_ring);
+	for (i = 0; i < sc->rx_ring_count; i++)
+		rt_reset_rx_ring(sc, &sc->rx_ring[i]);
 
-	/* update RX_BASE_PTR0 */
-	RT_WRITE(sc, PDMA_BASE + RX_BASE_PTR0,
-		sc->rx_ring.desc_phys_addr);
-	RT_WRITE(sc, PDMA_BASE + RX_MAX_CNT0,
-		RT_SOFTC_RX_RING_DATA_COUNT);
-	RT_WRITE(sc, PDMA_BASE + RX_CALC_IDX0,
-		RT_SOFTC_RX_RING_DATA_COUNT - 1);
+	/* update RX_BASE_PTRx */
+	for (i = 0; i < sc->rx_ring_count; i++) {
+		RT_WRITE(sc, sc->rx_base_ptr[i],
+			sc->rx_ring[i].desc_phys_addr);
+		RT_WRITE(sc, sc->rx_max_cnt[i],
+			RT_SOFTC_RX_RING_DATA_COUNT);
+		RT_WRITE(sc, sc->rx_calc_idx[i],
+			RT_SOFTC_RX_RING_DATA_COUNT - 1);
+	}
 
 	/* write back DDONE, 16byte burst enable RX/TX DMA */
-	RT_WRITE(sc, PDMA_BASE + PDMA_GLO_CFG,
-	    FE_TX_WB_DDONE | FE_DMA_BT_SIZE16 | FE_RX_DMA_EN | FE_TX_DMA_EN);
+	tmp = FE_TX_WB_DDONE | FE_DMA_BT_SIZE16 | FE_RX_DMA_EN | FE_TX_DMA_EN;
+	if (sc->rt_chipid == RT_CHIPID_MT7620 ||
+	    sc->rt_chipid == RT_CHIPID_MT7621)
+		tmp |= (1<<31);
+	RT_WRITE(sc, sc->pdma_glo_cfg, tmp);
 
 	/* disable interrupts mitigation */
-	RT_WRITE(sc, PDMA_BASE + DELAY_INT_CFG, 0);
+	RT_WRITE(sc, sc->delay_int_cfg, 0);
 
 	/* clear pending interrupts */
-	RT_WRITE(sc, GE_PORT_BASE + FE_INT_STATUS, 0xffffffff);
+	RT_WRITE(sc, sc->fe_int_status, 0xffffffff);
 
 	/* enable interrupts */
-	tmp = 	CNT_PPE_AF |
+	if (sc->rt_chipid == RT_CHIPID_RT5350 ||
+	    sc->rt_chipid == RT_CHIPID_MT7620 ||
+	    sc->rt_chipid == RT_CHIPID_MT7621)
+	  tmp = RT5350_INT_TX_COHERENT |
+	  	RT5350_INT_RX_COHERENT |
+	  	RT5350_INT_TXQ3_DONE |
+	  	RT5350_INT_TXQ2_DONE |
+	  	RT5350_INT_TXQ1_DONE |
+	  	RT5350_INT_TXQ0_DONE |
+	  	RT5350_INT_RXQ1_DONE |
+	  	RT5350_INT_RXQ0_DONE;
+	else
+	  tmp = CNT_PPE_AF |
 		CNT_GDM_AF |
 		PSE_P2_FC |
 		GDM_CRC_DROP |
@@ -754,7 +911,7 @@ rt_init_locked(void *priv)
 
 	sc->intr_enable_mask = tmp;
 
-	RT_WRITE(sc, GE_PORT_BASE + FE_INT_ENABLE, tmp);
+	RT_WRITE(sc, sc->fe_int_enable, tmp);
 
 	if (rt_txrx_enable(sc) != 0)
 		goto fail;
@@ -824,22 +981,27 @@ rt_stop_locked(void *priv)
 	RT_SOFTC_LOCK(sc);
 
 	/* disable interrupts */
-	RT_WRITE(sc, GE_PORT_BASE + FE_INT_ENABLE, 0);
+	RT_WRITE(sc, sc->fe_int_enable, 0);
+	
+	if(sc->rt_chipid != RT_CHIPID_RT5350 &&
+	   sc->rt_chipid != RT_CHIPID_MT7620 &&
+	   sc->rt_chipid != RT_CHIPID_MT7621) {
+		/* reset adapter */
+		RT_WRITE(sc, GE_PORT_BASE + FE_RST_GLO, PSE_RESET);
+	}
 
-	/* reset adapter */
-	RT_WRITE(sc, GE_PORT_BASE + FE_RST_GLO, PSE_RESET);
-
-	RT_WRITE(sc, GDMA1_BASE + GDMA_FWD_CFG,
-	    (
-	    GDM_ICS_EN | /* Enable IP Csum */
-	    GDM_TCS_EN | /* Enable TCP Csum */
-	    GDM_UCS_EN | /* Enable UDP Csum */
-	    GDM_STRPCRC | /* Strip CRC from packet */
-	    GDM_DST_PORT_CPU << GDM_UFRC_P_SHIFT | /* Forward UCast to CPU */
-	    GDM_DST_PORT_CPU << GDM_BFRC_P_SHIFT | /* Forward BCast to CPU */
-	    GDM_DST_PORT_CPU << GDM_MFRC_P_SHIFT | /* Forward MCast to CPU */
-	    GDM_DST_PORT_CPU << GDM_OFRC_P_SHIFT   /* Forward Other to CPU */
-	    ));
+	if (sc->gdma1_base != 0)
+		RT_WRITE(sc, sc->gdma1_base + GDMA_FWD_CFG,
+		(
+		GDM_ICS_EN | /* Enable IP Csum */
+		GDM_TCS_EN | /* Enable TCP Csum */
+		GDM_UCS_EN | /* Enable UDP Csum */
+		GDM_STRPCRC | /* Strip CRC from packet */
+		GDM_DST_PORT_CPU << GDM_UFRC_P_SHIFT | /* fwd UCast to CPU */
+		GDM_DST_PORT_CPU << GDM_BFRC_P_SHIFT | /* fwd BCast to CPU */
+		GDM_DST_PORT_CPU << GDM_MFRC_P_SHIFT | /* fwd MCast to CPU */
+		GDM_DST_PORT_CPU << GDM_OFRC_P_SHIFT   /* fwd Other to CPU */
+		));
 }
 
 static void
@@ -930,17 +1092,32 @@ rt_tx_data(struct rt_softc *sc, struct mbuf *m, int qid)
 
 	/* set up Tx descs */
 	for (i = 0; i < ndmasegs; i += 2) {
-		/* Set destenation */
-		desc->dst = (TXDSCR_DST_PORT_GDMA1);
-		if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
-			desc->dst |= (TXDSCR_IP_CSUM_GEN|TXDSCR_UDP_CSUM_GEN|
-			    TXDSCR_TCP_CSUM_GEN);
-		/* Set queue id */
-		desc->qn = qid;
-		/* No PPPoE */
-		desc->pppoe = 0;
-		/* No VLAN */
-		desc->vid = 0;
+
+		/* TODO: this needs to be refined as MT7620 for example has
+		 * a different word3 layout than RT305x and RT5350 (the last
+		 * one doesn't use word3 at all). And so does MT7621...
+		 */
+
+		if (sc->rt_chipid != RT_CHIPID_MT7621) {
+			/* Set destination */
+			if (sc->rt_chipid != RT_CHIPID_MT7620)
+			    desc->dst = (TXDSCR_DST_PORT_GDMA1);
+
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
+				desc->dst |= (TXDSCR_IP_CSUM_GEN |
+				    TXDSCR_UDP_CSUM_GEN | TXDSCR_TCP_CSUM_GEN);
+			/* Set queue id */
+			desc->qn = qid;
+			/* No PPPoE */
+			desc->pppoe = 0;
+			/* No VLAN */
+			desc->vid = 0;
+		} else {
+			desc->vid = 0;
+			desc->pppoe = 0;
+			desc->qn = 0;
+			desc->dst = 2;
+		}
 
 		desc->sdp0 = htole32(dma_seg[i].ds_addr);
 		desc->sdl0 = htole16(dma_seg[i].ds_len |
@@ -986,7 +1163,7 @@ rt_tx_data(struct rt_softc *sc, struct mbuf *m, int qid)
 	ring->data_cur = (ring->data_cur + 1) % RT_SOFTC_TX_RING_DATA_COUNT;
 
 	/* kick Tx */
-	RT_WRITE(sc, PDMA_BASE + TX_CTX_IDX(qid), ring->desc_cur);
+	RT_WRITE(sc, sc->tx_ctx_idx[qid], ring->desc_cur);
 
 	return (0);
 }
@@ -1272,8 +1449,8 @@ rt_intr(void *arg)
 	ifp = sc->ifp;
 
 	/* acknowledge interrupts */
-	status = RT_READ(sc, GE_PORT_BASE + FE_INT_STATUS);
-	RT_WRITE(sc, GE_PORT_BASE + FE_INT_STATUS, status);
+	status = RT_READ(sc, sc->fe_int_status);
+	RT_WRITE(sc, sc->fe_int_status, status);
 
 	RT_DPRINTF(sc, RT_DEBUG_INTR, "interrupt: status=0x%08x\n", status);
 
@@ -1326,7 +1503,7 @@ rt_intr(void *arg)
 		rt_tx_delay_intr(sc);
 
 	if (status & INT_RX_DONE)
-		rt_rx_intr(sc);
+		rt_rx_intr(sc, 0);
 
 	if (status & INT_TXQ3_DONE)
 		rt_tx_intr(sc, 3);
@@ -1341,6 +1518,56 @@ rt_intr(void *arg)
 		rt_tx_intr(sc, 0);
 }
 
+/*
+ * rt_rt5350_intr - main ISR for Ralink 5350 SoC
+ */
+static void
+rt_rt5350_intr(void *arg)
+{
+	struct rt_softc *sc;
+	struct ifnet *ifp;
+	uint32_t status;
+	
+	sc = arg;
+	ifp = sc->ifp;
+	
+	/* acknowledge interrupts */
+	status = RT_READ(sc, sc->fe_int_status);
+	RT_WRITE(sc, sc->fe_int_status, status);
+	
+	RT_DPRINTF(sc, RT_DEBUG_INTR, "interrupt: status=0x%08x\n", status);
+	
+	if (status == 0xffffffff ||     /* device likely went away */
+		status == 0)            /* not for us */
+		return;
+	
+	sc->interrupts++;
+	
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+	        return;
+	
+	if (status & RT5350_INT_TX_COHERENT)
+		rt_tx_coherent_intr(sc);
+	if (status & RT5350_INT_RX_COHERENT)
+		rt_rx_coherent_intr(sc);
+	if (status & RT5350_RX_DLY_INT)
+	        rt_rx_delay_intr(sc);
+	if (status & RT5350_TX_DLY_INT)
+	        rt_tx_delay_intr(sc);
+	if (status & RT5350_INT_RXQ1_DONE)
+		rt_rx_intr(sc, 1);	
+	if (status & RT5350_INT_RXQ0_DONE)
+		rt_rx_intr(sc, 0);	
+	if (status & RT5350_INT_TXQ3_DONE)
+		rt_tx_intr(sc, 3);
+	if (status & RT5350_INT_TXQ2_DONE)
+		rt_tx_intr(sc, 2);
+	if (status & RT5350_INT_TXQ1_DONE)
+		rt_tx_intr(sc, 1);
+	if (status & RT5350_INT_TXQ0_DONE)
+		rt_tx_intr(sc, 0);
+} 
+
 static void
 rt_tx_coherent_intr(struct rt_softc *sc)
 {
@@ -1352,19 +1579,19 @@ rt_tx_coherent_intr(struct rt_softc *sc)
 	sc->tx_coherent_interrupts++;
 
 	/* restart DMA engine */
-	tmp = RT_READ(sc, PDMA_BASE + PDMA_GLO_CFG);
+	tmp = RT_READ(sc, sc->pdma_glo_cfg);
 	tmp &= ~(FE_TX_WB_DDONE | FE_TX_DMA_EN);
-	RT_WRITE(sc, PDMA_BASE + PDMA_GLO_CFG, tmp);
+	RT_WRITE(sc, sc->pdma_glo_cfg, tmp);
 
 	for (i = 0; i < RT_SOFTC_TX_RING_COUNT; i++)
 		rt_reset_tx_ring(sc, &sc->tx_ring[i]);
 
 	for (i = 0; i < RT_SOFTC_TX_RING_COUNT; i++) {
-		RT_WRITE(sc, PDMA_BASE + TX_BASE_PTR(i),
+		RT_WRITE(sc, sc->tx_base_ptr[i],
 			sc->tx_ring[i].desc_phys_addr);
-		RT_WRITE(sc, PDMA_BASE + TX_MAX_CNT(i),
+		RT_WRITE(sc, sc->tx_max_cnt[i],
 			RT_SOFTC_TX_RING_DESC_COUNT);
-		RT_WRITE(sc, PDMA_BASE + TX_CTX_IDX(i), 0);
+		RT_WRITE(sc, sc->tx_ctx_idx[i], 0);
 	}
 
 	rt_txrx_enable(sc);
@@ -1377,24 +1604,29 @@ static void
 rt_rx_coherent_intr(struct rt_softc *sc)
 {
 	uint32_t tmp;
+	int i;
 
 	RT_DPRINTF(sc, RT_DEBUG_INTR, "Rx coherent interrupt\n");
 
 	sc->rx_coherent_interrupts++;
 
 	/* restart DMA engine */
-	tmp = RT_READ(sc, PDMA_BASE + PDMA_GLO_CFG);
+	tmp = RT_READ(sc, sc->pdma_glo_cfg);
 	tmp &= ~(FE_RX_DMA_EN);
-	RT_WRITE(sc, PDMA_BASE + PDMA_GLO_CFG, tmp);
+	RT_WRITE(sc, sc->pdma_glo_cfg, tmp);
 
 	/* init Rx ring */
-	rt_reset_rx_ring(sc, &sc->rx_ring);
-	RT_WRITE(sc, PDMA_BASE + RX_BASE_PTR0,
-		sc->rx_ring.desc_phys_addr);
-	RT_WRITE(sc, PDMA_BASE + RX_MAX_CNT0,
-		RT_SOFTC_RX_RING_DATA_COUNT);
-	RT_WRITE(sc, PDMA_BASE + RX_CALC_IDX0,
-		RT_SOFTC_RX_RING_DATA_COUNT - 1);
+	for (i = 0; i < sc->rx_ring_count; i++)
+		rt_reset_rx_ring(sc, &sc->rx_ring[i]);
+
+	for (i = 0; i < sc->rx_ring_count; i++) {
+		RT_WRITE(sc, sc->rx_base_ptr[i],
+			sc->rx_ring[i].desc_phys_addr);
+		RT_WRITE(sc, sc->rx_max_cnt[i],
+			RT_SOFTC_RX_RING_DATA_COUNT);
+		RT_WRITE(sc, sc->rx_calc_idx[i],
+			RT_SOFTC_RX_RING_DATA_COUNT - 1);
+	}
 
 	rt_txrx_enable(sc);
 }
@@ -1403,19 +1635,22 @@ rt_rx_coherent_intr(struct rt_softc *sc)
  * rt_rx_intr - a packet received
  */
 static void
-rt_rx_intr(struct rt_softc *sc)
+rt_rx_intr(struct rt_softc *sc, int qid)
 {
+	KASSERT(qid >= 0 && qid < sc->rx_ring_count,
+		("%s: Rx interrupt: invalid qid=%d\n",
+		 device_get_nameunit(sc->dev), qid));
 
 	RT_DPRINTF(sc, RT_DEBUG_INTR, "Rx interrupt\n");
-	sc->rx_interrupts++;
+	sc->rx_interrupts[qid]++;
 	RT_SOFTC_LOCK(sc);
 
-	if (!(sc->intr_disable_mask & INT_RX_DONE)) {
-		rt_intr_disable(sc, INT_RX_DONE);
+	if (!(sc->intr_disable_mask & (sc->int_rx_done_mask << qid))) {
+		rt_intr_disable(sc, (sc->int_rx_done_mask << qid));
 		taskqueue_enqueue(sc->taskqueue, &sc->rx_done_task);
 	}
 
-	sc->intr_pending_mask |= INT_RX_DONE;
+	sc->intr_pending_mask |= (sc->int_rx_done_mask << qid);
 	RT_SOFTC_UNLOCK(sc);
 }
 
@@ -1451,12 +1686,12 @@ rt_tx_intr(struct rt_softc *sc, int qid)
 	sc->tx_interrupts[qid]++;
 	RT_SOFTC_LOCK(sc);
 
-	if (!(sc->intr_disable_mask & (INT_TXQ0_DONE << qid))) {
-		rt_intr_disable(sc, (INT_TXQ0_DONE << qid));
+	if (!(sc->intr_disable_mask & (sc->int_tx_done_mask << qid))) {
+		rt_intr_disable(sc, (sc->int_tx_done_mask << qid));
 		taskqueue_enqueue(sc->taskqueue, &sc->tx_done_task);
 	}
 
-	sc->intr_pending_mask |= (INT_TXQ0_DONE << qid);
+	sc->intr_pending_mask |= (sc->int_tx_done_mask << qid);
 	RT_SOFTC_UNLOCK(sc);
 }
 
@@ -1478,18 +1713,18 @@ rt_rx_done_task(void *context, int pending)
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return;
 
-	sc->intr_pending_mask &= ~INT_RX_DONE;
+	sc->intr_pending_mask &= ~sc->int_rx_done_mask;
 
-	again = rt_rx_eof(sc, sc->rx_process_limit);
+	again = rt_rx_eof(sc, &sc->rx_ring[0], sc->rx_process_limit);
 
 	RT_SOFTC_LOCK(sc);
 
-	if ((sc->intr_pending_mask & INT_RX_DONE) || again) {
+	if ((sc->intr_pending_mask & sc->int_rx_done_mask) || again) {
 		RT_DPRINTF(sc, RT_DEBUG_RX,
 		    "Rx done task: scheduling again\n");
 		taskqueue_enqueue(sc->taskqueue, &sc->rx_done_task);
 	} else {
-		rt_intr_enable(sc, INT_RX_DONE);
+		rt_intr_enable(sc, sc->int_rx_done_mask);
 	}
 
 	RT_SOFTC_UNLOCK(sc);
@@ -1515,8 +1750,8 @@ rt_tx_done_task(void *context, int pending)
 		return;
 
 	for (i = RT_SOFTC_TX_RING_COUNT - 1; i >= 0; i--) {
-		if (sc->intr_pending_mask & (INT_TXQ0_DONE << i)) {
-			sc->intr_pending_mask &= ~(INT_TXQ0_DONE << i);
+		if (sc->intr_pending_mask & (sc->int_tx_done_mask << i)) {
+			sc->intr_pending_mask &= ~(sc->int_tx_done_mask << i);
 			rt_tx_eof(sc, &sc->tx_ring[i]);
 		}
 	}
@@ -1525,7 +1760,16 @@ rt_tx_done_task(void *context, int pending)
 
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	intr_mask = (
+	if(sc->rt_chipid == RT_CHIPID_RT5350 ||
+	   sc->rt_chipid == RT_CHIPID_MT7620 ||
+	   sc->rt_chipid == RT_CHIPID_MT7621)
+	  intr_mask = (
+		RT5350_INT_TXQ3_DONE |
+		RT5350_INT_TXQ2_DONE |
+		RT5350_INT_TXQ1_DONE |
+		RT5350_INT_TXQ0_DONE);
+	else
+	  intr_mask = (
 		INT_TXQ3_DONE |
 		INT_TXQ2_DONE |
 		INT_TXQ1_DONE |
@@ -1584,10 +1828,10 @@ rt_periodic_task(void *context, int pending)
  * network subsystem.
  */
 static int
-rt_rx_eof(struct rt_softc *sc, int limit)
+rt_rx_eof(struct rt_softc *sc, struct rt_softc_rx_ring *ring, int limit)
 {
 	struct ifnet *ifp;
-	struct rt_softc_rx_ring *ring;
+/*	struct rt_softc_rx_ring *ring; */
 	struct rt_rxdesc *desc;
 	struct rt_softc_rx_data *data;
 	struct mbuf *m, *mnew;
@@ -1597,12 +1841,12 @@ rt_rx_eof(struct rt_softc *sc, int limit)
 	int error, nsegs, len, nframes;
 
 	ifp = sc->ifp;
-	ring = &sc->rx_ring;
+/*	ring = &sc->rx_ring[0]; */
 
 	nframes = 0;
 
 	while (limit != 0) {
-		index = RT_READ(sc, PDMA_BASE + RX_DRX_IDX0);
+		index = RT_READ(sc, sc->rx_drx_idx[0]);
 		if (ring->cur == index)
 			break;
 
@@ -1674,15 +1918,13 @@ rt_rx_eof(struct rt_softc *sc, int limit)
 			BUS_DMASYNC_PREREAD);
 
 		m = data->m;
-		desc_flags = desc->src;
+		desc_flags = desc->word3;
 
 		data->m = mnew;
 		/* Add 2 for proper align of RX IP header */
 		desc->sdp0 = htole32(segs[0].ds_addr+2);
 		desc->sdl0 = htole32(segs[0].ds_len-2);
-		desc->src = 0;
-		desc->ai = 0;
-		desc->foe = 0;
+		desc->word3 = 0;
 
 		RT_DPRINTF(sc, RT_DEBUG_RX,
 		    "Rx frame: rxdesc flags=0x%08x\n", desc_flags);
@@ -1695,8 +1937,7 @@ rt_rx_eof(struct rt_softc *sc, int limit)
 		/* check for crc errors */
 		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0) {
 			/*check for valid checksum*/
-			if (desc_flags & (RXDSXR_SRC_IP_CSUM_FAIL|
-			    RXDSXR_SRC_L4_CSUM_FAIL)) {
+			if (desc_flags & (sc->csum_fail_ip|sc->csum_fail_l4)) {
 				RT_DPRINTF(sc, RT_DEBUG_RX,
 				    "rxdesc: crc error\n");
 
@@ -1707,7 +1948,7 @@ rt_rx_eof(struct rt_softc *sc, int limit)
 				    goto skip;
 				}
 			}
-			if ((desc_flags & RXDSXR_SRC_IP_CSUM_FAIL) != 0) {
+			if ((desc_flags & sc->csum_fail_ip) == 0) {
 				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
 				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
 				m->m_pkthdr.csum_data = 0xffff;
@@ -1728,10 +1969,10 @@ skip:
 	}
 
 	if (ring->cur == 0)
-		RT_WRITE(sc, PDMA_BASE + RX_CALC_IDX0,
+		RT_WRITE(sc, sc->rx_calc_idx[0],
 			RT_SOFTC_RX_RING_DATA_COUNT - 1);
 	else
-		RT_WRITE(sc, PDMA_BASE + RX_CALC_IDX0,
+		RT_WRITE(sc, sc->rx_calc_idx[0],
 			ring->cur - 1);
 
 	RT_DPRINTF(sc, RT_DEBUG_RX, "Rx eof: nframes=%d\n", nframes);
@@ -1760,7 +2001,7 @@ rt_tx_eof(struct rt_softc *sc, struct rt_softc_tx_ring *ring)
 	nframes = 0;
 
 	for (;;) {
-		index = RT_READ(sc, PDMA_BASE + TX_DTX_IDX(ring->qid));
+		index = RT_READ(sc, sc->tx_dtx_idx[ring->qid]);
 		if (ring->desc_next == index)
 			break;
 
@@ -1834,12 +2075,14 @@ rt_watchdog(struct rt_softc *sc)
 #ifdef notyet
 	int ntries;
 #endif
+	if(sc->rt_chipid != RT_CHIPID_RT5350 &&
+	   sc->rt_chipid != RT_CHIPID_MT7620 &&
+	   sc->rt_chipid != RT_CHIPID_MT7621) {
+		tmp = RT_READ(sc, PSE_BASE + CDMA_OQ_STA);
 
-	tmp = RT_READ(sc, PSE_BASE + CDMA_OQ_STA);
-
-	RT_DPRINTF(sc, RT_DEBUG_WATCHDOG, "watchdog: PSE_IQ_STA=0x%08x\n",
-	    tmp);
-
+		RT_DPRINTF(sc, RT_DEBUG_WATCHDOG,
+			   "watchdog: PSE_IQ_STA=0x%08x\n", tmp);
+	}
 	/* XXX: do not reset */
 #ifdef notyet
 	if (((tmp >> P0_IQ_PCNT_SHIFT) & 0xff) != 0) {
@@ -1896,7 +2139,7 @@ rt_intr_enable(struct rt_softc *sc, uint32_t intr_mask)
 
 	sc->intr_disable_mask &= ~intr_mask;
 	tmp = sc->intr_enable_mask & ~sc->intr_disable_mask;
-	RT_WRITE(sc, GE_PORT_BASE + FE_INT_ENABLE, tmp);
+	RT_WRITE(sc, sc->fe_int_enable, tmp);
 }
 
 static void
@@ -1906,7 +2149,7 @@ rt_intr_disable(struct rt_softc *sc, uint32_t intr_mask)
 
 	sc->intr_disable_mask |= intr_mask;
 	tmp = sc->intr_enable_mask & ~sc->intr_disable_mask;
-	RT_WRITE(sc, GE_PORT_BASE + FE_INT_ENABLE, tmp);
+	RT_WRITE(sc, sc->fe_int_enable, tmp);
 }
 
 /*
@@ -1923,7 +2166,7 @@ rt_txrx_enable(struct rt_softc *sc)
 
 	/* enable Tx/Rx DMA engine */
 	for (ntries = 0; ntries < 200; ntries++) {
-		tmp = RT_READ(sc, PDMA_BASE + PDMA_GLO_CFG);
+		tmp = RT_READ(sc, sc->pdma_glo_cfg);
 		if (!(tmp & (FE_TX_DMA_BUSY | FE_RX_DMA_BUSY)))
 			break;
 
@@ -1938,7 +2181,7 @@ rt_txrx_enable(struct rt_softc *sc)
 	DELAY(50);
 
 	tmp |= FE_TX_WB_DDONE |	FE_RX_DMA_EN | FE_TX_DMA_EN;
-	RT_WRITE(sc, PDMA_BASE + PDMA_GLO_CFG, tmp);
+	RT_WRITE(sc, sc->pdma_glo_cfg, tmp);
 
 	/* XXX set Rx filter */
 	return (0);
@@ -1948,7 +2191,7 @@ rt_txrx_enable(struct rt_softc *sc)
  * rt_alloc_rx_ring - allocate RX DMA ring buffer
  */
 static int
-rt_alloc_rx_ring(struct rt_softc *sc, struct rt_softc_rx_ring *ring)
+rt_alloc_rx_ring(struct rt_softc *sc, struct rt_softc_rx_ring *ring, int qid)
 {
 	struct rt_rxdesc *desc;
 	struct rt_softc_rx_data *data;
@@ -2041,6 +2284,7 @@ rt_alloc_rx_ring(struct rt_softc *sc, struct rt_softc_rx_ring *ring)
 
 	bus_dmamap_sync(ring->desc_dma_tag, ring->desc_dma_map,
 		BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	ring->qid = qid;
 	return (0);
 
 fail:
@@ -2339,45 +2583,45 @@ rt_sysctl_attach(struct rt_softc *sc)
 	stats = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "stats", CTLFLAG_RD, 0, "statistic");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "interrupts", CTLFLAG_RD, &sc->interrupts, 0,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "interrupts", CTLFLAG_RD, &sc->interrupts,
 	    "all interrupts");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
 	    "tx_coherent_interrupts", CTLFLAG_RD, &sc->tx_coherent_interrupts,
-	    0, "Tx coherent interrupts");
+	    "Tx coherent interrupts");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
 	    "rx_coherent_interrupts", CTLFLAG_RD, &sc->rx_coherent_interrupts,
-	    0, "Rx coherent interrupts");
+	    "Rx coherent interrupts");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "rx_interrupts", CTLFLAG_RD, &sc->rx_interrupts, 0,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "rx_interrupts", CTLFLAG_RD, &sc->rx_interrupts[0],
 	    "Rx interrupts");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "rx_delay_interrupts", CTLFLAG_RD, &sc->rx_delay_interrupts, 0,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "rx_delay_interrupts", CTLFLAG_RD, &sc->rx_delay_interrupts,
 	    "Rx delay interrupts");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "TXQ3_interrupts", CTLFLAG_RD, &sc->tx_interrupts[3], 0,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "TXQ3_interrupts", CTLFLAG_RD, &sc->tx_interrupts[3],
 	    "Tx AC3 interrupts");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "TXQ2_interrupts", CTLFLAG_RD, &sc->tx_interrupts[2], 0,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "TXQ2_interrupts", CTLFLAG_RD, &sc->tx_interrupts[2],
 	    "Tx AC2 interrupts");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "TXQ1_interrupts", CTLFLAG_RD, &sc->tx_interrupts[1], 0,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "TXQ1_interrupts", CTLFLAG_RD, &sc->tx_interrupts[1],
 	    "Tx AC1 interrupts");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "TXQ0_interrupts", CTLFLAG_RD, &sc->tx_interrupts[0], 0,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "TXQ0_interrupts", CTLFLAG_RD, &sc->tx_interrupts[0],
 	    "Tx AC0 interrupts");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
 	    "tx_delay_interrupts", CTLFLAG_RD, &sc->tx_delay_interrupts,
-	    0, "Tx delay interrupts");
+	    "Tx delay interrupts");
 
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
 	    "TXQ3_desc_queued", CTLFLAG_RD, &sc->tx_ring[3].desc_queued,
@@ -2411,106 +2655,113 @@ rt_sysctl_attach(struct rt_softc *sc)
 	    "TXQ0_data_queued", CTLFLAG_RD, &sc->tx_ring[0].data_queued,
 	    0, "Tx AC0 data queued");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
 	    "TXQ3_data_queue_full", CTLFLAG_RD, &sc->tx_data_queue_full[3],
-	    0, "Tx AC3 data queue full");
+	    "Tx AC3 data queue full");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
 	    "TXQ2_data_queue_full", CTLFLAG_RD, &sc->tx_data_queue_full[2],
-	    0, "Tx AC2 data queue full");
+	    "Tx AC2 data queue full");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
 	    "TXQ1_data_queue_full", CTLFLAG_RD, &sc->tx_data_queue_full[1],
-	    0, "Tx AC1 data queue full");
+	    "Tx AC1 data queue full");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
 	    "TXQ0_data_queue_full", CTLFLAG_RD, &sc->tx_data_queue_full[0],
-	    0, "Tx AC0 data queue full");
+	    "Tx AC0 data queue full");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
 	    "tx_watchdog_timeouts", CTLFLAG_RD, &sc->tx_watchdog_timeouts,
-	    0, "Tx watchdog timeouts");
+	    "Tx watchdog timeouts");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "tx_defrag_packets", CTLFLAG_RD, &sc->tx_defrag_packets, 0,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "tx_defrag_packets", CTLFLAG_RD, &sc->tx_defrag_packets,
 	    "Tx defragmented packets");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "no_tx_desc_avail", CTLFLAG_RD, &sc->no_tx_desc_avail, 0,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "no_tx_desc_avail", CTLFLAG_RD, &sc->no_tx_desc_avail,
 	    "no Tx descriptors available");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
 	    "rx_mbuf_alloc_errors", CTLFLAG_RD, &sc->rx_mbuf_alloc_errors,
-	    0, "Rx mbuf allocation errors");
+	    "Rx mbuf allocation errors");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
 	    "rx_mbuf_dmamap_errors", CTLFLAG_RD, &sc->rx_mbuf_dmamap_errors,
-	    0, "Rx mbuf DMA mapping errors");
+	    "Rx mbuf DMA mapping errors");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
 	    "tx_queue_0_not_empty", CTLFLAG_RD, &sc->tx_queue_not_empty[0],
-	    0, "Tx queue 0 not empty");
+	    "Tx queue 0 not empty");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
 	    "tx_queue_1_not_empty", CTLFLAG_RD, &sc->tx_queue_not_empty[1],
-	    0, "Tx queue 1 not empty");
+	    "Tx queue 1 not empty");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "rx_packets", CTLFLAG_RD, &sc->rx_packets, 0,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "rx_packets", CTLFLAG_RD, &sc->rx_packets,
 	    "Rx packets");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "rx_crc_errors", CTLFLAG_RD, &sc->rx_crc_err, 0,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "rx_crc_errors", CTLFLAG_RD, &sc->rx_crc_err,
 	    "Rx CRC errors");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "rx_phy_errors", CTLFLAG_RD, &sc->rx_phy_err, 0,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "rx_phy_errors", CTLFLAG_RD, &sc->rx_phy_err,
 	    "Rx PHY errors");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "rx_dup_packets", CTLFLAG_RD, &sc->rx_dup_packets, 0,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "rx_dup_packets", CTLFLAG_RD, &sc->rx_dup_packets,
 	    "Rx duplicate packets");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "rx_fifo_overflows", CTLFLAG_RD, &sc->rx_fifo_overflows, 0,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "rx_fifo_overflows", CTLFLAG_RD, &sc->rx_fifo_overflows,
 	    "Rx FIFO overflows");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "rx_bytes", CTLFLAG_RD, &sc->rx_bytes, 0,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "rx_bytes", CTLFLAG_RD, &sc->rx_bytes,
 	    "Rx bytes");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "rx_long_err", CTLFLAG_RD, &sc->rx_long_err, 0,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "rx_long_err", CTLFLAG_RD, &sc->rx_long_err,
 	    "Rx too long frame errors");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "rx_short_err", CTLFLAG_RD, &sc->rx_short_err, 0,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "rx_short_err", CTLFLAG_RD, &sc->rx_short_err,
 	    "Rx too short frame errors");
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "tx_bytes", CTLFLAG_RD, &sc->tx_bytes, 0,
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "tx_bytes", CTLFLAG_RD, &sc->tx_bytes,
 	    "Tx bytes");
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "tx_packets", CTLFLAG_RD, &sc->tx_packets, 0,
+
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "tx_packets", CTLFLAG_RD, &sc->tx_packets,
 	    "Tx packets");
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "tx_skip", CTLFLAG_RD, &sc->tx_skip, 0,
+
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "tx_skip", CTLFLAG_RD, &sc->tx_skip,
 	    "Tx skip count for GDMA ports");
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
-	    "tx_collision", CTLFLAG_RD, &sc->tx_collision, 0,
+
+	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(stats), OID_AUTO,
+	    "tx_collision", CTLFLAG_RD, &sc->tx_collision,
 	    "Tx collision count for GDMA ports");
 }
 
-#ifdef IF_RT_PHY_SUPPORT
+#if defined(IF_RT_PHY_SUPPORT) || defined(RT_MDIO)
+/* This code is only work RT2880 and same chip. */
+/* TODO: make RT3052 and later support code. But nobody need it? */
 static int
 rt_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct rt_softc *sc = device_get_softc(dev);
+	int dat;
 
 	/*
 	 * PSEUDO_PHYAD is a special value for indicate switch attached.
 	 * No one PHY use PSEUDO_PHYAD (0x1e) address.
 	 */
+#ifndef RT_MDIO
 	if (phy == 31) {
 		/* Fake PHY ID for bfeswitch attach */
 		switch (reg) {
@@ -2522,13 +2773,14 @@ rt_miibus_readreg(device_t dev, int phy, int reg)
 			return (0x6250);		/* bfeswitch */
 		}
 	}
+#endif
 
 	/* Wait prev command done if any */
 	while (RT_READ(sc, MDIO_ACCESS) & MDIO_CMD_ONGO);
-	RT_WRITE(sc, MDIO_ACCESS,
-	    MDIO_CMD_ONGO ||
-	    ((phy << MDIO_PHY_ADDR_SHIFT) & MDIO_PHY_ADDR_MASK) ||
-	    ((reg << MDIO_PHYREG_ADDR_SHIFT) & MDIO_PHYREG_ADDR_MASK));
+	dat = ((phy << MDIO_PHY_ADDR_SHIFT) & MDIO_PHY_ADDR_MASK) |
+	    ((reg << MDIO_PHYREG_ADDR_SHIFT) & MDIO_PHYREG_ADDR_MASK);
+	RT_WRITE(sc, MDIO_ACCESS, dat);
+	RT_WRITE(sc, MDIO_ACCESS, dat | MDIO_CMD_ONGO);
 	while (RT_READ(sc, MDIO_ACCESS) & MDIO_CMD_ONGO);
 
 	return (RT_READ(sc, MDIO_ACCESS) & MDIO_PHY_DATA_MASK);
@@ -2538,19 +2790,23 @@ static int
 rt_miibus_writereg(device_t dev, int phy, int reg, int val)
 {
 	struct rt_softc *sc = device_get_softc(dev);
+	int dat;
 
 	/* Wait prev command done if any */
 	while (RT_READ(sc, MDIO_ACCESS) & MDIO_CMD_ONGO);
-	RT_WRITE(sc, MDIO_ACCESS,
-	    MDIO_CMD_ONGO || MDIO_CMD_WR ||
-	    ((phy << MDIO_PHY_ADDR_SHIFT) & MDIO_PHY_ADDR_MASK) ||
-	    ((reg << MDIO_PHYREG_ADDR_SHIFT) & MDIO_PHYREG_ADDR_MASK) ||
-	    (val & MDIO_PHY_DATA_MASK));
+	dat = MDIO_CMD_WR |
+	    ((phy << MDIO_PHY_ADDR_SHIFT) & MDIO_PHY_ADDR_MASK) |
+	    ((reg << MDIO_PHYREG_ADDR_SHIFT) & MDIO_PHYREG_ADDR_MASK) |
+	    (val & MDIO_PHY_DATA_MASK);
+	RT_WRITE(sc, MDIO_ACCESS, dat);
+	RT_WRITE(sc, MDIO_ACCESS, dat | MDIO_CMD_ONGO);
 	while (RT_READ(sc, MDIO_ACCESS) & MDIO_CMD_ONGO);
 
 	return (0);
 }
+#endif
 
+#ifdef IF_RT_PHY_SUPPORT
 void
 rt_miibus_statchg(device_t dev)
 {
@@ -2603,6 +2859,92 @@ static driver_t rt_driver =
 static devclass_t rt_dev_class;
 
 DRIVER_MODULE(rt, nexus, rt_driver, rt_dev_class, 0, 0);
+#ifdef FDT
+DRIVER_MODULE(rt, simplebus, rt_driver, rt_dev_class, 0, 0);
+#endif
+
 MODULE_DEPEND(rt, ether, 1, 1, 1);
 MODULE_DEPEND(rt, miibus, 1, 1, 1);
 
+#ifdef RT_MDIO       
+MODULE_DEPEND(rt, mdio, 1, 1, 1);
+
+static int rtmdio_probe(device_t);
+static int rtmdio_attach(device_t);
+static int rtmdio_detach(device_t);
+
+static struct mtx miibus_mtx;
+
+MTX_SYSINIT(miibus_mtx, &miibus_mtx, "rt mii lock", MTX_DEF);
+
+/*
+ * Declare an additional, separate driver for accessing the MDIO bus.
+ */
+static device_method_t rtmdio_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,         rtmdio_probe),
+	DEVMETHOD(device_attach,        rtmdio_attach),
+	DEVMETHOD(device_detach,        rtmdio_detach),
+
+	/* bus interface */
+	DEVMETHOD(bus_add_child,        device_add_child_ordered),
+
+	/* MDIO access */
+	DEVMETHOD(mdio_readreg,         rt_miibus_readreg),
+	DEVMETHOD(mdio_writereg,        rt_miibus_writereg),
+};
+
+DEFINE_CLASS_0(rtmdio, rtmdio_driver, rtmdio_methods,
+    sizeof(struct rt_softc));
+static devclass_t rtmdio_devclass;
+
+DRIVER_MODULE(miiproxy, rt, miiproxy_driver, miiproxy_devclass, 0, 0);
+DRIVER_MODULE(rtmdio, simplebus, rtmdio_driver, rtmdio_devclass, 0, 0);
+DRIVER_MODULE(mdio, rtmdio, mdio_driver, mdio_devclass, 0, 0);
+
+static int
+rtmdio_probe(device_t dev)
+{
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (!ofw_bus_is_compatible(dev, "ralink,rt2880-mdio"))
+		return (ENXIO);
+
+	device_set_desc(dev, "FV built-in ethernet interface, MDIO controller");
+	return(0);
+}
+
+static int
+rtmdio_attach(device_t dev)
+{
+	struct rt_softc	*sc;
+	int	error;
+
+	sc = device_get_softc(dev);
+	sc->dev = dev;
+	sc->mem_rid = 0;
+	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &sc->mem_rid, RF_ACTIVE | RF_SHAREABLE);
+	if (sc->mem == NULL) {
+		device_printf(dev, "couldn't map memory\n");
+		error = ENXIO;
+		goto fail;
+	}
+
+	sc->bst = rman_get_bustag(sc->mem);
+	sc->bsh = rman_get_bushandle(sc->mem);
+
+        bus_generic_probe(dev);
+	bus_enumerate_hinted_children(dev);
+	error = bus_generic_attach(dev);
+fail:
+	return(error);
+}
+
+static int
+rtmdio_detach(device_t dev)
+{
+	return(0);
+}
+#endif

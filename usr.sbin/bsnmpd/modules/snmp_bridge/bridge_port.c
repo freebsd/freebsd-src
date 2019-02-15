@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Shteryana Shopova <syrinx@FreeBSD.org>
  * All rights reserved.
  *
@@ -47,6 +49,7 @@
 #include <bsnmp/snmpmod.h>
 #include <bsnmp/snmp_mibII.h>
 
+#define	SNMPTREE_TYPES
 #include "bridge_tree.h"
 #include "bridge_snmp.h"
 
@@ -626,7 +629,7 @@ op_dot1d_stp_ext_port(struct snmp_context *ctx, struct snmp_value *val,
 			    return (SNMP_ERR_NOERROR);
 
 			case LEAF_dot1dStpPortAdminPointToPoint:
-			    if (val->v.integer < 0 || val->v.integer > 
+			    if (val->v.integer < 0 || val->v.integer >
 				StpPortAdminPointToPointType_auto)
 				return (SNMP_ERR_WRONG_VALUE);
 
@@ -864,7 +867,7 @@ bridge_port_index_getnext(const struct asn_oid *oid, uint sub, int8_t status)
 		for (i = 0; i < oid->subs[sub]; i++)
 			bif_name[i] = oid->subs[sub + i + 1];
 		bif_name[i] = '\0';
-	
+
 		port_no = oid->subs[sub + i + 1];
 
 		if ((bif = bridge_if_find_ifname(bif_name)) == NULL ||
@@ -937,7 +940,7 @@ bridge_port_set_status(struct snmp_context *ctx,
 		ctx->scratch->int1 = bp->status;
 		bp->status = RowStatus_active;
 		break;
-		
+
 	    case RowStatus_notInService:
 		if (bp == NULL || bp->span_enable == 0 ||
 		    bp->status == RowStatus_active)

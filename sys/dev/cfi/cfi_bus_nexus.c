@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 SRI International
  * Copyright (c) 2009 Roelof Jonkman, Carlson Wireless Inc.
  * Copyright (c) 2009 Sam Leffler, Errno Consulting

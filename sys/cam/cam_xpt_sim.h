@@ -2,6 +2,8 @@
  * Data structures and definitions for dealing with the 
  * Common Access Method Transport (xpt) layer.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Justin T. Gibbs.
  * All rights reserved.
  *

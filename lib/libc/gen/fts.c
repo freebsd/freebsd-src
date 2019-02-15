@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -29,13 +31,8 @@
  * $OpenBSD: fts.c,v 1.22 1999/10/03 19:22:22 millert Exp $
  */
 
-#if 0
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)fts.c	8.6 (Berkeley) 8/14/94";
-#endif /* LIBC_SCCS and not lint */
-#endif
-
 #include <sys/cdefs.h>
+__SCCSID("@(#)fts.c	8.6 (Berkeley) 8/14/94");
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
@@ -104,16 +101,13 @@ static const char *ufslike_filesystems[] = {
 	"ufs",
 	"zfs",
 	"nfs",
-	"nfs4",
 	"ext2fs",
 	0
 };
 
 FTS *
-fts_open(argv, options, compar)
-	char * const *argv;
-	int options;
-	int (*compar)(const FTSENT * const *, const FTSENT * const *);
+fts_open(char * const *argv, int options,
+    int (*compar)(const FTSENT * const *, const FTSENT * const *))
 {
 	struct _fts_private *priv;
 	FTS *sp;
@@ -140,9 +134,6 @@ fts_open(argv, options, compar)
 	sp->fts_compar = compar;
 	sp->fts_options = options;
 
-	/* Shush, GCC. */
-	tmp = NULL;
-
 	/* Logical walks turn on NOCHDIR; symbolic links are too hard. */
 	if (ISSET(FTS_LOGICAL))
 		SET(FTS_NOCHDIR);
@@ -158,6 +149,9 @@ fts_open(argv, options, compar)
 	if ((parent = fts_alloc(sp, "", 0)) == NULL)
 		goto mem2;
 	parent->fts_level = FTS_ROOTPARENTLEVEL;
+
+	/* Shush, GCC. */
+	tmp = NULL;
 
 	/* Allocate/initialize root(s). */
 	for (root = NULL, nitems = 0; *argv != NULL; ++argv, ++nitems) {
@@ -515,7 +509,7 @@ FTSENT *
 fts_children(FTS *sp, int instr)
 {
 	FTSENT *p;
-	int fd;
+	int fd, rc, serrno;
 
 	if (instr != 0 && instr != FTS_NAMEONLY) {
 		errno = EINVAL;
@@ -571,11 +565,14 @@ fts_children(FTS *sp, int instr)
 	if ((fd = _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
 		return (NULL);
 	sp->fts_child = fts_build(sp, instr);
-	if (fchdir(fd)) {
-		(void)_close(fd);
-		return (NULL);
-	}
+	serrno = (sp->fts_child == NULL) ? errno : 0;
+	rc = fchdir(fd);
+	if (rc < 0 && serrno == 0)
+		serrno = errno;
 	(void)_close(fd);
+	errno = serrno;
+	if (rc < 0)
+		return (NULL);
 	return (sp->fts_child);
 }
 
@@ -850,6 +847,7 @@ mem1:				saved_errno = errno;
 	    (cur->fts_level == FTS_ROOTLEVEL ?
 	    FCHDIR(sp, sp->fts_rfd) :
 	    fts_safe_changedir(sp, cur->fts_parent, -1, ".."))) {
+		fts_lfree(head);
 		cur->fts_info = FTS_ERR;
 		SET(FTS_STOP);
 		return (NULL);
@@ -905,12 +903,13 @@ fts_stat(FTS *sp, FTSENT *p, int follow, int dfd)
 	if (ISSET(FTS_LOGICAL) || follow) {
 		if (fstatat(dfd, path, sbp, 0)) {
 			saved_errno = errno;
-			if (!fstatat(dfd, path, sbp, AT_SYMLINK_NOFOLLOW)) {
-				errno = 0;
-				return (FTS_SLNONE);
+			if (fstatat(dfd, path, sbp, AT_SYMLINK_NOFOLLOW)) {
+				p->fts_errno = saved_errno;
+				goto err;
 			}
-			p->fts_errno = saved_errno;
-			goto err;
+			errno = 0;
+			if (S_ISLNK(sbp->st_mode))
+				return (FTS_SLNONE);
 		}
 	} else if (fstatat(dfd, path, sbp, AT_SYMLINK_NOFOLLOW)) {
 		p->fts_errno = errno;
@@ -1101,8 +1100,7 @@ fts_padjust(FTS *sp, FTSENT *head)
 }
 
 static size_t
-fts_maxarglen(argv)
-	char * const *argv;
+fts_maxarglen(char * const *argv)
 {
 	size_t len, max;
 

@@ -1,6 +1,8 @@
 /*	$NetBSD: rpc_generic.c,v 1.4 2000/09/28 09:07:04 kleink Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -311,6 +313,8 @@ __rpc_taddr2uaddr_af(int af, const struct netbuf *nbuf)
 
 	switch (af) {
 	case AF_INET:
+		if (nbuf->len < sizeof(*sin))
+			return NULL;
 		sin = nbuf->buf;
 		if (inet_ntop(af, &sin->sin_addr, namebuf, sizeof namebuf)
 		    == NULL)
@@ -323,6 +327,8 @@ __rpc_taddr2uaddr_af(int af, const struct netbuf *nbuf)
 		break;
 #ifdef INET6
 	case AF_INET6:
+		if (nbuf->len < sizeof(*sin6))
+			return NULL;
 		sin6 = nbuf->buf;
 		if (inet_ntop(af, &sin6->sin6_addr, namebuf6, sizeof namebuf6)
 		    == NULL)
@@ -366,6 +372,10 @@ __rpc_uaddr2taddr_af(int af, const char *uaddr)
 
 	port = 0;
 	sin = NULL;
+
+	if (uaddr == NULL)
+		return NULL;
+
 	addrstr = strdup(uaddr, M_RPC);
 	if (addrstr == NULL)
 		return NULL;
@@ -390,15 +400,11 @@ __rpc_uaddr2taddr_af(int af, const char *uaddr)
 	}
 
 	ret = (struct netbuf *)malloc(sizeof *ret, M_RPC, M_WAITOK);
-	if (ret == NULL)
-		goto out;
 	
 	switch (af) {
 	case AF_INET:
 		sin = (struct sockaddr_in *)malloc(sizeof *sin, M_RPC,
 		    M_WAITOK);
-		if (sin == NULL)
-			goto out;
 		memset(sin, 0, sizeof *sin);
 		sin->sin_family = AF_INET;
 		sin->sin_port = htons(port);
@@ -415,8 +421,6 @@ __rpc_uaddr2taddr_af(int af, const char *uaddr)
 	case AF_INET6:
 		sin6 = (struct sockaddr_in6 *)malloc(sizeof *sin6, M_RPC,
 		    M_WAITOK);
-		if (sin6 == NULL)
-			goto out;
 		memset(sin6, 0, sizeof *sin6);
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_port = htons(port);
@@ -433,8 +437,6 @@ __rpc_uaddr2taddr_af(int af, const char *uaddr)
 	case AF_LOCAL:
 		sun = (struct sockaddr_un *)malloc(sizeof *sun, M_RPC,
 		    M_WAITOK);
-		if (sun == NULL)
-			goto out;
 		memset(sun, 0, sizeof *sun);
 		sun->sun_family = AF_LOCAL;
 		strncpy(sun->sun_path, addrstr, sizeof(sun->sun_path) - 1);
@@ -703,7 +705,9 @@ __rpc_sockisbound(struct socket *so)
 	struct sockaddr *sa;
 	int error, bound;
 
+	CURVNET_SET(so->so_vnet);
 	error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
+	CURVNET_RESTORE();
 	if (error)
 		return (0);
 
@@ -791,7 +795,9 @@ bindresvport(struct socket *so, struct sockaddr *sa)
 	socklen_t salen;
 
 	if (sa == NULL) {
+		CURVNET_SET(so->so_vnet);
 		error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
+		CURVNET_RESTORE();
 		if (error)
 			return (error);
 		freesa = TRUE;

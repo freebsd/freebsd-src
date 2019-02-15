@@ -34,6 +34,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -44,24 +46,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/gpio.h>
+#include <sys/proc.h>
 
 #include <machine/bus.h>
+#include <machine/intr.h>
 #include <machine/resource.h>
 
-#include <dev/fdt/fdt_common.h>
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include "gpio_if.h"
 
-#define GPIO_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
-#define	GPIO_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
-#define GPIO_LOCK_INIT(_sc)	mtx_init(&_sc->sc_mtx, 			\
-	    device_get_nameunit(_sc->sc_dev), "imx_gpio", MTX_DEF)
-#define GPIO_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
-#define GPIO_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define GPIO_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
+#ifdef INTRNG
+#include "pic_if.h"
+#endif
 
 #define	WRITE4(_sc, _r, _v)						\
 	    bus_space_write_4((_sc)->sc_iot, (_sc)->sc_ioh, (_r), (_v))
@@ -83,23 +83,42 @@ __FBSDID("$FreeBSD$");
 #define		GPIO_ICR_COND_HIGH	1
 #define		GPIO_ICR_COND_RISE	2
 #define		GPIO_ICR_COND_FALL	3
+#define		GPIO_ICR_COND_MASK	0x3
 #define	IMX_GPIO_IMR_REG	0x014 /* Interrupt Mask Register */
 #define	IMX_GPIO_ISR_REG	0x018 /* Interrupt Status Register */
 #define	IMX_GPIO_EDGE_REG	0x01C /* Edge Detect Register */
 
+#ifdef INTRNG
+#define	DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT | \
+    GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH | GPIO_INTR_EDGE_RISING | \
+    GPIO_INTR_EDGE_FALLING | GPIO_INTR_EDGE_BOTH)
+#else
 #define	DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)
+#endif
+
 #define	NGPIO		32
+
+#ifdef INTRNG
+struct gpio_irqsrc {
+	struct intr_irqsrc	gi_isrc;
+	u_int			gi_irq;
+	uint32_t		gi_mode;
+};
+#endif
 
 struct imx51_gpio_softc {
 	device_t		dev;
+	device_t		sc_busdev;
 	struct mtx		sc_mtx;
-	struct resource		*sc_res[11]; /* 1 x mem, 2 x IRQ, 8 x IRQ */
-	void			*gpio_ih[11]; /* 1 ptr is not a big waste */
-	int			sc_l_irq; /* Last irq resource */
+	struct resource		*sc_res[3]; /* 1 x mem, 2 x IRQ */
+	void			*gpio_ih[2];
 	bus_space_tag_t		sc_iot;
 	bus_space_handle_t	sc_ioh;
 	int			gpio_npins;
 	struct gpio_pin		gpio_pins[NGPIO];
+#ifdef INTRNG
+	struct gpio_irqsrc 	gpio_pic_irqsrc[NGPIO];
+#endif
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -115,18 +134,8 @@ static struct resource_spec imx_gpio_spec[] = {
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
 	{ -1, 0 }
 };
-
-static struct resource_spec imx_gpio0irq_spec[] = {
-	{ SYS_RES_IRQ,		2,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		3,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		4,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		5,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		6,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		7,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		8,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		9,	RF_ACTIVE },
-	{ -1, 0 }
-};
+#define	FIRST_IRQRES	1
+#define	NUM_IRQRES	2
 
 /*
  * Helpers
@@ -140,11 +149,11 @@ static void imx51_gpio_pin_configure(struct imx51_gpio_softc *,
 static int imx51_gpio_probe(device_t);
 static int imx51_gpio_attach(device_t);
 static int imx51_gpio_detach(device_t);
-static int imx51_gpio_intr(void *);
 
 /*
  * GPIO interface
  */
+static device_t imx51_gpio_get_bus(device_t);
 static int imx51_gpio_pin_max(device_t, int *);
 static int imx51_gpio_pin_getcaps(device_t, uint32_t, uint32_t *);
 static int imx51_gpio_pin_getflags(device_t, uint32_t, uint32_t *);
@@ -154,36 +163,415 @@ static int imx51_gpio_pin_set(device_t, uint32_t, unsigned int);
 static int imx51_gpio_pin_get(device_t, uint32_t, unsigned int *);
 static int imx51_gpio_pin_toggle(device_t, uint32_t pin);
 
+#ifdef INTRNG
+static int
+gpio_pic_map_fdt(struct imx51_gpio_softc *sc, struct intr_map_data_fdt *daf,
+    u_int *irqp, uint32_t *modep)
+{
+	u_int irq;
+	uint32_t mode;
+
+	/*
+	 * From devicetree/bindings/gpio/fsl-imx-gpio.txt:
+	 *  #interrupt-cells:  2. The first cell is the GPIO number. The second
+	 *  cell bits[3:0] is used to specify trigger type and level flags:
+	 *    1 = low-to-high edge triggered.
+	 *    2 = high-to-low edge triggered.
+	 *    4 = active high level-sensitive.
+	 *    8 = active low level-sensitive.
+	 * We can do any single one of these modes, and also edge low+high
+	 * (i.e., trigger on both edges); other combinations are not supported.
+	 */
+
+	if (daf->ncells != 2) {
+		device_printf(sc->dev, "Invalid #interrupt-cells\n");
+		return (EINVAL);
+	}
+
+	irq = daf->cells[0];
+	if (irq >= sc->gpio_npins) {
+		device_printf(sc->dev, "Invalid interrupt number %u\n", irq);
+		return (EINVAL);
+	}
+	switch (daf->cells[1]) {
+	case 1:
+		mode = GPIO_INTR_EDGE_RISING;
+		break;
+	case 2:
+		mode = GPIO_INTR_EDGE_FALLING;
+		break;
+	case 3:
+		mode = GPIO_INTR_EDGE_BOTH;
+		break;
+	case 4:
+		mode = GPIO_INTR_LEVEL_HIGH;
+		break;
+	case 8:
+		mode = GPIO_INTR_LEVEL_LOW;
+		break;
+	default:
+		device_printf(sc->dev, "Unsupported interrupt mode 0x%2x\n",
+		    daf->cells[1]);
+		return (ENOTSUP);
+	}
+	*irqp = irq;
+	if (modep != NULL)
+		*modep = mode;
+	return (0);
+}
+
+static int
+gpio_pic_map_gpio(struct imx51_gpio_softc *sc, struct intr_map_data_gpio *dag,
+    u_int *irqp, uint32_t *modep)
+{
+	u_int irq;
+
+	irq = dag->gpio_pin_num;
+	if (irq >= sc->gpio_npins) {
+		device_printf(sc->dev, "Invalid interrupt number %u\n", irq);
+		return (EINVAL);
+	}
+
+	switch (dag->gpio_intr_mode) {
+	case GPIO_INTR_LEVEL_LOW:
+	case GPIO_INTR_LEVEL_HIGH:
+	case GPIO_INTR_EDGE_RISING:
+	case GPIO_INTR_EDGE_FALLING:
+	case GPIO_INTR_EDGE_BOTH:
+		break;
+	default:
+		device_printf(sc->dev, "Unsupported interrupt mode 0x%8x\n",
+		    dag->gpio_intr_mode);
+		return (EINVAL);
+	}
+
+	*irqp = irq;
+	if (modep != NULL)
+		*modep = dag->gpio_intr_mode;
+	return (0);
+}
+
+static int
+gpio_pic_map(struct imx51_gpio_softc *sc, struct intr_map_data *data,
+    u_int *irqp, uint32_t *modep)
+{
+
+	switch (data->type) {
+	case INTR_MAP_DATA_FDT:
+		return (gpio_pic_map_fdt(sc, (struct intr_map_data_fdt *)data,
+		    irqp, modep));
+	case INTR_MAP_DATA_GPIO:
+		return (gpio_pic_map_gpio(sc, (struct intr_map_data_gpio *)data,
+		    irqp, modep));
+	default:
+		return (ENOTSUP);
+	}
+}
+
+static int
+gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
+    struct intr_irqsrc **isrcp)
+{
+	int error;
+	u_int irq;
+	struct imx51_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+	error = gpio_pic_map(sc, data, &irq, NULL);
+	if (error == 0)
+		*isrcp = &sc->gpio_pic_irqsrc[irq].gi_isrc;
+	return (error);
+}
+
+static int
+gpio_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct imx51_gpio_softc *sc;
+	struct gpio_irqsrc *gi;
+
+	sc = device_get_softc(dev);
+	if (isrc->isrc_handlers == 0) {
+		gi = (struct gpio_irqsrc *)isrc;
+		gi->gi_mode = GPIO_INTR_CONFORM;
+
+		// XXX Not sure this is necessary
+		mtx_lock_spin(&sc->sc_mtx);
+		CLEAR4(sc, IMX_GPIO_IMR_REG, (1U << gi->gi_irq));
+		WRITE4(sc, IMX_GPIO_ISR_REG, (1U << gi->gi_irq));
+		mtx_unlock_spin(&sc->sc_mtx);
+	}
+	return (0);
+}
+
+static int
+gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct imx51_gpio_softc *sc;
+	struct gpio_irqsrc *gi;
+	int error;
+	u_int icfg, irq, reg, shift, wrk;
+	uint32_t mode;
+
+	if (data == NULL)
+		return (ENOTSUP);
+
+	sc = device_get_softc(dev);
+	gi = (struct gpio_irqsrc *)isrc;
+
+	/* Get config for interrupt. */
+	error = gpio_pic_map(sc, data, &irq, &mode);
+	if (error != 0)
+		return (error);
+	if (gi->gi_irq != irq)
+		return (EINVAL);
+
+	/* Compare config if this is not first setup. */
+	if (isrc->isrc_handlers != 0)
+		return (gi->gi_mode == mode ? 0 : EINVAL);
+	gi->gi_mode = mode;
+
+	/*
+	 * To interrupt on both edges we have to use the EDGE register.  The
+	 * manual says it only exists for backwards compatibilty with older imx
+	 * chips, but it's also the only way to configure interrupting on both
+	 * edges.  If the EDGE bit is on, the corresponding ICRn bit is ignored.
+	 */
+	mtx_lock_spin(&sc->sc_mtx);
+	if (mode == GPIO_INTR_EDGE_BOTH) {
+		SET4(sc, IMX_GPIO_EDGE_REG, (1u << irq));
+	} else {
+		CLEAR4(sc, IMX_GPIO_EDGE_REG, (1u << irq));
+		switch (mode) {
+		default: 
+			/* silence warnings; default can't actually happen. */
+			/* FALLTHROUGH */
+		case GPIO_INTR_LEVEL_LOW:
+			icfg = GPIO_ICR_COND_LOW;
+			break;
+		case GPIO_INTR_LEVEL_HIGH:
+			icfg = GPIO_ICR_COND_HIGH;
+			break;
+		case GPIO_INTR_EDGE_RISING:
+			icfg = GPIO_ICR_COND_RISE;
+			break;
+		case GPIO_INTR_EDGE_FALLING:
+			icfg = GPIO_ICR_COND_FALL;
+			break;
+		}
+		if (irq < 16) {
+			reg = IMX_GPIO_ICR1_REG;
+			shift = 2 * irq;
+		} else {
+			reg = IMX_GPIO_ICR2_REG;
+			shift = 2 * (irq - 16);
+		}
+		wrk = READ4(sc, reg);
+		wrk &= ~(GPIO_ICR_COND_MASK << shift);
+		wrk |= icfg << shift;
+		WRITE4(sc, reg, wrk);
+	}
+	WRITE4(sc, IMX_GPIO_ISR_REG, (1u << irq));
+	SET4(sc, IMX_GPIO_IMR_REG, (1u << irq));
+	mtx_unlock_spin(&sc->sc_mtx);
+
+	return (0);
+}
+
+/*
+ * this is mask_intr
+ */
+static void
+gpio_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct imx51_gpio_softc *sc;
+	u_int irq;
+
+	sc = device_get_softc(dev);
+	irq = ((struct gpio_irqsrc *)isrc)->gi_irq;
+
+	mtx_lock_spin(&sc->sc_mtx);
+	CLEAR4(sc, IMX_GPIO_IMR_REG, (1U << irq));
+	mtx_unlock_spin(&sc->sc_mtx);
+}
+
+/*
+ * this is unmask_intr
+ */
+static void
+gpio_pic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct imx51_gpio_softc *sc;
+	u_int irq;
+
+	sc = device_get_softc(dev);
+	irq = ((struct gpio_irqsrc *)isrc)->gi_irq;
+
+	mtx_lock_spin(&sc->sc_mtx);
+	SET4(sc, IMX_GPIO_IMR_REG, (1U << irq));
+	mtx_unlock_spin(&sc->sc_mtx);
+}
+
+static void
+gpio_pic_post_filter(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct imx51_gpio_softc *sc;
+	u_int irq;
+
+	sc = device_get_softc(dev);
+	irq = ((struct gpio_irqsrc *)isrc)->gi_irq;
+
+	arm_irq_memory_barrier(0);
+        /* EOI.  W1C reg so no r-m-w, no locking needed. */
+	WRITE4(sc, IMX_GPIO_ISR_REG, (1U << irq));
+}
+
+static void
+gpio_pic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct imx51_gpio_softc *sc;
+	u_int irq;
+
+	sc = device_get_softc(dev);
+	irq = ((struct gpio_irqsrc *)isrc)->gi_irq;
+
+	arm_irq_memory_barrier(0);
+	/* EOI.  W1C reg so no r-m-w, no locking needed. */
+	WRITE4(sc, IMX_GPIO_ISR_REG, (1U << irq));
+	gpio_pic_enable_intr(dev, isrc);
+}
+
+static void
+gpio_pic_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+	gpio_pic_disable_intr(dev, isrc);
+}
+
+static int
+gpio_pic_filter(void *arg)
+{
+	struct imx51_gpio_softc *sc;
+	struct intr_irqsrc *isrc;
+	uint32_t i, interrupts;
+
+	sc = arg;
+	mtx_lock_spin(&sc->sc_mtx);
+	interrupts = READ4(sc, IMX_GPIO_ISR_REG) & READ4(sc, IMX_GPIO_IMR_REG);
+	mtx_unlock_spin(&sc->sc_mtx);
+
+	for (i = 0; interrupts != 0; i++, interrupts >>= 1) {
+		if ((interrupts & 0x1) == 0)
+			continue;
+		isrc = &sc->gpio_pic_irqsrc[i].gi_isrc;
+		if (intr_isrc_dispatch(isrc, curthread->td_intr_frame) != 0) {
+			gpio_pic_disable_intr(sc->dev, isrc);
+			gpio_pic_post_filter(sc->dev, isrc);
+			device_printf(sc->dev, "Stray irq %u disabled\n", i);
+		}
+	}
+
+	return (FILTER_HANDLED);
+}
+
+/*
+ * Initialize our isrcs and register them with intrng.
+ */
+static int
+gpio_pic_register_isrcs(struct imx51_gpio_softc *sc)
+{
+	int error;
+	uint32_t irq;
+	const char *name;
+
+	name = device_get_nameunit(sc->dev);
+	for (irq = 0; irq < NGPIO; irq++) {
+		sc->gpio_pic_irqsrc[irq].gi_irq = irq;
+		sc->gpio_pic_irqsrc[irq].gi_mode = GPIO_INTR_CONFORM;
+
+		error = intr_isrc_register(&sc->gpio_pic_irqsrc[irq].gi_isrc,
+		    sc->dev, 0, "%s,%u", name, irq);
+		if (error != 0) {
+			/* XXX call intr_isrc_deregister() */
+			device_printf(sc->dev, "%s failed", __func__);
+			return (error);
+		}
+	}
+	return (0);
+}
+#endif
+
+/*
+ *
+ */
 static void
 imx51_gpio_pin_configure(struct imx51_gpio_softc *sc, struct gpio_pin *pin,
     unsigned int flags)
 {
+	u_int newflags, pad;
 
-	GPIO_LOCK(sc);
+	mtx_lock_spin(&sc->sc_mtx);
 
 	/*
-	 * Manage input/output
+	 * Manage input/output; other flags not supported yet (maybe not ever,
+	 * since we have no connection to the pad config registers from here).
+	 *
+	 * When setting a pin to output, honor the PRESET_[LOW,HIGH] flags if
+	 * present.  Otherwise, for glitchless transistions on pins with pulls,
+	 * read the current state of the pad and preset the DR register to drive
+	 * the current value onto the pin before enabling the pin for output.
+	 *
+	 * Note that changes to pin->gp_flags must be acccumulated in newflags
+	 * and stored with a single writeback to gp_flags at the end, to enable
+	 * unlocked reads of that value elsewhere. This is only about unlocked
+	 * access to gp_flags from elsewhere; we still use locking in this
+	 * function to protect r-m-w access to the hardware registers.
 	 */
-	if (flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) {
-		pin->gp_flags &= ~(GPIO_PIN_INPUT|GPIO_PIN_OUTPUT);
+	if (flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) {
+		newflags = pin->gp_flags & ~(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT);
 		if (flags & GPIO_PIN_OUTPUT) {
-			pin->gp_flags |= GPIO_PIN_OUTPUT;
-			SET4(sc, IMX_GPIO_OE_REG, (1 << pin->gp_pin));
+			if (flags & GPIO_PIN_PRESET_LOW) {
+				pad = 0;
+			} else if (flags & GPIO_PIN_PRESET_HIGH) {
+				pad = 1;
+			} else {
+				if (flags & GPIO_PIN_OPENDRAIN)
+					pad = READ4(sc, IMX_GPIO_PSR_REG);
+				else
+					pad = READ4(sc, IMX_GPIO_DR_REG);
+				pad = (pad >> pin->gp_pin) & 1;
+			}
+			newflags |= GPIO_PIN_OUTPUT;
+			SET4(sc, IMX_GPIO_DR_REG, (pad << pin->gp_pin));
+			SET4(sc, IMX_GPIO_OE_REG, (1U << pin->gp_pin));
+		} else {
+			newflags |= GPIO_PIN_INPUT;
+			CLEAR4(sc, IMX_GPIO_OE_REG, (1U << pin->gp_pin));
 		}
-		else {
-			pin->gp_flags |= GPIO_PIN_INPUT;
-			CLEAR4(sc, IMX_GPIO_OE_REG, (1 << pin->gp_pin));
-		}
+		pin->gp_flags = newflags;
 	}
 
-	GPIO_UNLOCK(sc);
+	mtx_unlock_spin(&sc->sc_mtx);
+}
+
+static device_t
+imx51_gpio_get_bus(device_t dev)
+{
+	struct imx51_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (sc->sc_busdev);
 }
 
 static int
 imx51_gpio_pin_max(device_t dev, int *maxpin)
 {
+	struct imx51_gpio_softc *sc;
 
-	*maxpin = NGPIO - 1;
+	sc = device_get_softc(dev);
+	*maxpin = sc->gpio_npins - 1;
+
 	return (0);
 }
 
@@ -191,20 +579,13 @@ static int
 imx51_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
 
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	GPIO_LOCK(sc);
-	*caps = sc->gpio_pins[i].gp_caps;
-	GPIO_UNLOCK(sc);
+	*caps = sc->gpio_pins[pin].gp_caps;
 
 	return (0);
 }
@@ -213,20 +594,13 @@ static int
 imx51_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
 
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	GPIO_LOCK(sc);
-	*flags = sc->gpio_pins[i].gp_flags;
-	GPIO_UNLOCK(sc);
+	*flags = sc->gpio_pins[pin].gp_flags;
 
 	return (0);
 }
@@ -235,20 +609,14 @@ static int
 imx51_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
-
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	GPIO_LOCK(sc);
-	memcpy(name, sc->gpio_pins[i].gp_name, GPIOMAXNAME);
-	GPIO_UNLOCK(sc);
+	mtx_lock_spin(&sc->sc_mtx);
+	memcpy(name, sc->gpio_pins[pin].gp_name, GPIOMAXNAME);
+	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (0);
 }
@@ -257,28 +625,13 @@ static int
 imx51_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
 
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	/* Check for unwanted flags. */
-	if ((flags & sc->gpio_pins[i].gp_caps) != flags)
-		return (EINVAL);
-
-	/* Can't mix input/output together */
-	if ((flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) ==
-	    (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT))
-		return (EINVAL);
-
-	imx51_gpio_pin_configure(sc, &sc->gpio_pins[i], flags);
-
+	imx51_gpio_pin_configure(sc, &sc->gpio_pins[pin], flags);
 
 	return (0);
 }
@@ -287,23 +640,18 @@ static int
 imx51_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
 
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	GPIO_LOCK(sc);
+	mtx_lock_spin(&sc->sc_mtx);
 	if (value)
-		SET4(sc, IMX_GPIO_DR_REG, (1 << i));
+		SET4(sc, IMX_GPIO_DR_REG, (1U << pin));
 	else
-		CLEAR4(sc, IMX_GPIO_DR_REG, (1 << i));
-	GPIO_UNLOCK(sc);
+		CLEAR4(sc, IMX_GPIO_DR_REG, (1U << pin));
+	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (0);
 }
@@ -312,20 +660,26 @@ static int
 imx51_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
 
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	GPIO_LOCK(sc);
-	*val = (READ4(sc, IMX_GPIO_DR_REG) >> i) & 1;
-	GPIO_UNLOCK(sc);
+	/*
+	 * Normally a pin set for output can be read by reading the DR reg which
+	 * indicates what value is being driven to that pin.  The exception is
+	 * pins configured for open-drain mode, in which case we have to read
+	 * the pad status register in case the pin is being driven externally.
+	 * Doing so requires that the SION bit be configured in pinmux, which
+	 * isn't the case for most normal gpio pins, so only try to read via PSR
+	 * if the OPENDRAIN flag is set, and it's the user's job to correctly
+	 * configure SION along with open-drain output mode for those pins.
+	 */
+	if (sc->gpio_pins[pin].gp_flags & GPIO_PIN_OPENDRAIN)
+		*val = (READ4(sc, IMX_GPIO_PSR_REG) >> pin) & 1;
+	else
+		*val = (READ4(sc, IMX_GPIO_DR_REG) >> pin) & 1;
 
 	return (0);
 }
@@ -334,43 +688,84 @@ static int
 imx51_gpio_pin_toggle(device_t dev, uint32_t pin)
 {
 	struct imx51_gpio_softc *sc;
-	int i;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < sc->gpio_npins; i++) {
-		if (sc->gpio_pins[i].gp_pin == pin)
-			break;
-	}
 
-	if (i >= sc->gpio_npins)
+	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	GPIO_LOCK(sc);
+	mtx_lock_spin(&sc->sc_mtx);
 	WRITE4(sc, IMX_GPIO_DR_REG,
-	    (READ4(sc, IMX_GPIO_DR_REG) ^ (1 << i)));
-	GPIO_UNLOCK(sc);
+	    (READ4(sc, IMX_GPIO_DR_REG) ^ (1U << pin)));
+	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (0);
 }
 
 static int
-imx51_gpio_intr(void *arg)
+imx51_gpio_pin_access_32(device_t dev, uint32_t first_pin, uint32_t clear_pins,
+    uint32_t change_pins, uint32_t *orig_pins)
 {
 	struct imx51_gpio_softc *sc;
-	uint32_t input, value;
 
-	sc = arg;
-	input = READ4(sc, IMX_GPIO_ISR_REG);
-	value = input & READ4(sc, IMX_GPIO_IMR_REG);
-	WRITE4(sc, IMX_GPIO_ISR_REG, input);
+	if (first_pin != 0)
+		return (EINVAL);
 
-	if (!value)
-		goto intr_done;
+	sc = device_get_softc(dev);
 
-	/* TODO: interrupt handling */
+	if (orig_pins != NULL)
+		*orig_pins = READ4(sc, IMX_GPIO_DR_REG);
 
-intr_done:
-	return (FILTER_HANDLED);
+	if ((clear_pins | change_pins) != 0) {
+		mtx_lock_spin(&sc->sc_mtx);
+		WRITE4(sc, IMX_GPIO_DR_REG,
+		    (READ4(sc, IMX_GPIO_DR_REG) & ~clear_pins) ^ change_pins);
+		mtx_unlock_spin(&sc->sc_mtx);
+	}
+
+	return (0);
+}
+
+static int
+imx51_gpio_pin_config_32(device_t dev, uint32_t first_pin, uint32_t num_pins,
+    uint32_t *pin_flags)
+{
+	struct imx51_gpio_softc *sc;
+	u_int i;
+	uint32_t bit, drclr, drset, flags, oeclr, oeset, pads;
+
+	sc = device_get_softc(dev);
+
+	if (first_pin != 0 || num_pins > sc->gpio_npins)
+		return (EINVAL);
+
+	drclr = drset = oeclr = oeset = 0;
+	pads = READ4(sc, IMX_GPIO_DR_REG);
+
+	for (i = 0; i < num_pins; ++i) {
+		bit = 1u << i;
+		flags = pin_flags[i];
+		if (flags & GPIO_PIN_INPUT) {
+			oeclr |= bit;
+		} else if (flags & GPIO_PIN_OUTPUT) {
+			oeset |= bit;
+			if (flags & GPIO_PIN_PRESET_LOW)
+				drclr |= bit;
+			else if (flags & GPIO_PIN_PRESET_HIGH)
+				drset |= bit;
+			else /* Drive whatever it's now pulled to. */
+				drset |= pads & bit;
+		}
+	}
+
+	mtx_lock_spin(&sc->sc_mtx);
+	WRITE4(sc, IMX_GPIO_DR_REG,
+	    (READ4(sc, IMX_GPIO_DR_REG) & ~drclr) | drset);
+	WRITE4(sc, IMX_GPIO_OE_REG,
+	    (READ4(sc, IMX_GPIO_OE_REG) & ~oeclr) | oeset);
+	mtx_unlock_spin(&sc->sc_mtx);
+
+	return (0);
 }
 
 static int
@@ -392,72 +787,79 @@ static int
 imx51_gpio_attach(device_t dev)
 {
 	struct imx51_gpio_softc *sc;
-	int i, irq;
+	int i, irq, unit;
 
 	sc = device_get_softc(dev);
-	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
+	sc->dev = dev;
+	sc->gpio_npins = NGPIO;
+
+	mtx_init(&sc->sc_mtx, device_get_nameunit(sc->dev), NULL, MTX_SPIN);
 
 	if (bus_alloc_resources(dev, imx_gpio_spec, sc->sc_res)) {
 		device_printf(dev, "could not allocate resources\n");
+		bus_release_resources(dev, imx_gpio_spec, sc->sc_res);
+		mtx_destroy(&sc->sc_mtx);
 		return (ENXIO);
 	}
 
-	sc->dev = dev;
-	sc->gpio_npins = NGPIO;
-	sc->sc_l_irq = 2;
 	sc->sc_iot = rman_get_bustag(sc->sc_res[0]);
 	sc->sc_ioh = rman_get_bushandle(sc->sc_res[0]);
-
-	if (bus_alloc_resources(dev, imx_gpio0irq_spec, &sc->sc_res[3]) == 0) {
-		/*
-		 * First GPIO unit able to serve +8 interrupts for 8 first
-		 * pins.
-		 */
-		sc->sc_l_irq = 10;
-	}
-
-	for (irq = 1; irq <= sc->sc_l_irq; irq ++) {
-		if ((bus_setup_intr(dev, sc->sc_res[irq], INTR_TYPE_MISC,
-		    imx51_gpio_intr, NULL, sc, &sc->gpio_ih[irq]))) {
+	/*
+	 * Mask off all interrupts in hardware, then set up interrupt handling.
+	 */
+	WRITE4(sc, IMX_GPIO_IMR_REG, 0);
+	for (irq = 0; irq < 2; irq++) {
+#ifdef INTRNG
+		if ((bus_setup_intr(dev, sc->sc_res[1 + irq], INTR_TYPE_CLK,
+		    gpio_pic_filter, NULL, sc, &sc->gpio_ih[irq]))) {
 			device_printf(dev,
 			    "WARNING: unable to register interrupt handler\n");
+			imx51_gpio_detach(dev);
 			return (ENXIO);
 		}
+#endif		
 	}
 
+	unit = device_get_unit(dev);
 	for (i = 0; i < sc->gpio_npins; i++) {
  		sc->gpio_pins[i].gp_pin = i;
  		sc->gpio_pins[i].gp_caps = DEFAULT_CAPS;
  		sc->gpio_pins[i].gp_flags =
- 		    (READ4(sc, IMX_GPIO_OE_REG) & (1 << i)) ? GPIO_PIN_OUTPUT:
+ 		    (READ4(sc, IMX_GPIO_OE_REG) & (1U << i)) ? GPIO_PIN_OUTPUT :
  		    GPIO_PIN_INPUT;
  		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME,
- 		    "imx_gpio%d.%d", device_get_unit(dev), i);
+ 		    "GPIO%d_IO%02d", unit + 1, i);
 	}
 
-	device_add_child(dev, "gpioc", device_get_unit(dev));
-	device_add_child(dev, "gpiobus", device_get_unit(dev));
+#ifdef INTRNG
+	gpio_pic_register_isrcs(sc);
+	intr_pic_register(dev, OF_xref_from_node(ofw_bus_get_node(dev)));
+#endif
+	sc->sc_busdev = gpiobus_attach_bus(dev);
+	
+	if (sc->sc_busdev == NULL) {
+		imx51_gpio_detach(dev);
+		return (ENXIO);
+	}
 
-	return (bus_generic_attach(dev));
+	return (0);
 }
 
 static int
 imx51_gpio_detach(device_t dev)
 {
+	int irq;
 	struct imx51_gpio_softc *sc;
 
 	sc = device_get_softc(dev);
 
-	KASSERT(mtx_initialized(&sc->sc_mtx), ("gpio mutex not initialized"));
-
-	bus_generic_detach(dev);
-
-	if (sc->sc_res[3])
-		bus_release_resources(dev, imx_gpio0irq_spec, &sc->sc_res[3]);
-
-	if (sc->sc_res[0])
-		bus_release_resources(dev, imx_gpio_spec, sc->sc_res);
-
+	gpiobus_detach_bus(dev);
+	for (irq = 0; irq < NUM_IRQRES; irq++) {
+		if (sc->gpio_ih[irq])
+			bus_teardown_intr(dev, sc->sc_res[irq + FIRST_IRQRES],
+			    sc->gpio_ih[irq]);
+	}
+	bus_release_resources(dev, imx_gpio_spec, sc->sc_res);
 	mtx_destroy(&sc->sc_mtx);
 
 	return(0);
@@ -468,7 +870,20 @@ static device_method_t imx51_gpio_methods[] = {
 	DEVMETHOD(device_attach,	imx51_gpio_attach),
 	DEVMETHOD(device_detach,	imx51_gpio_detach),
 
+#ifdef INTRNG
+	/* Interrupt controller interface */
+	DEVMETHOD(pic_disable_intr,	gpio_pic_disable_intr),
+	DEVMETHOD(pic_enable_intr,	gpio_pic_enable_intr),
+	DEVMETHOD(pic_map_intr,		gpio_pic_map_intr),
+	DEVMETHOD(pic_setup_intr,	gpio_pic_setup_intr),
+	DEVMETHOD(pic_teardown_intr,	gpio_pic_teardown_intr),
+	DEVMETHOD(pic_post_filter,	gpio_pic_post_filter),
+	DEVMETHOD(pic_post_ithread,	gpio_pic_post_ithread),
+	DEVMETHOD(pic_pre_ithread,	gpio_pic_pre_ithread),
+#endif
+
 	/* GPIO protocol */
+	DEVMETHOD(gpio_get_bus,		imx51_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max,		imx51_gpio_pin_max),
 	DEVMETHOD(gpio_pin_getname,	imx51_gpio_pin_getname),
 	DEVMETHOD(gpio_pin_getflags,	imx51_gpio_pin_getflags),
@@ -477,6 +892,8 @@ static device_method_t imx51_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_get,		imx51_gpio_pin_get),
 	DEVMETHOD(gpio_pin_set,		imx51_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle,	imx51_gpio_pin_toggle),
+	DEVMETHOD(gpio_pin_access_32,	imx51_gpio_pin_access_32),
+	DEVMETHOD(gpio_pin_config_32,	imx51_gpio_pin_config_32),
 	{0, 0},
 };
 
@@ -487,5 +904,5 @@ static driver_t imx51_gpio_driver = {
 };
 static devclass_t imx51_gpio_devclass;
 
-DRIVER_MODULE(imx51_gpio, simplebus, imx51_gpio_driver, imx51_gpio_devclass,
-    0, 0);
+EARLY_DRIVER_MODULE(imx51_gpio, simplebus, imx51_gpio_driver,
+    imx51_gpio_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);

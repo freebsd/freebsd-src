@@ -1,7 +1,9 @@
 /*	$NetBSD: ifconfig.c,v 1.34 1997/04/21 01:17:58 lukem Exp $	*/
 /* $FreeBSD$ */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997 Jason R. Thorpe.
  * All rights reserved.
  *
@@ -109,11 +111,17 @@ media_status(int s)
 {
 	struct ifmediareq ifmr;
 	int *media_list, i;
+	int xmedia = 1;
 
 	(void) memset(&ifmr, 0, sizeof(ifmr));
-	(void) strncpy(ifmr.ifm_name, name, sizeof(ifmr.ifm_name));
+	(void) strlcpy(ifmr.ifm_name, name, sizeof(ifmr.ifm_name));
 
-	if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
+	/*
+	 * Check if interface supports extended media types.
+	 */
+	if (ioctl(s, SIOCGIFXMEDIA, (caddr_t)&ifmr) < 0)
+		xmedia = 0;
+	if (xmedia == 0 && ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
 		/*
 		 * Interface doesn't support SIOC{G,S}IFMEDIA.
 		 */
@@ -130,8 +138,13 @@ media_status(int s)
 		err(1, "malloc");
 	ifmr.ifm_ulist = media_list;
 
-	if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0)
-		err(1, "SIOCGIFMEDIA");
+	if (xmedia) {
+		if (ioctl(s, SIOCGIFXMEDIA, (caddr_t)&ifmr) < 0)
+			err(1, "SIOCGIFXMEDIA");
+	} else {
+		if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0)
+			err(1, "SIOCGIFMEDIA");
+	}
 
 	printf("\tmedia: ");
 	print_media_word(ifmr.ifm_current, 1);
@@ -153,14 +166,6 @@ media_status(int s)
 				printf("active");
 			else
 				printf("no carrier");
-			break;
-
-		case IFM_FDDI:
-		case IFM_TOKEN:
-			if (ifmr.ifm_status & IFM_ACTIVE)
-				printf("inserted");
-			else
-				printf("no ring");
 			break;
 
 		case IFM_IEEE80211:
@@ -194,6 +199,7 @@ ifmedia_getstate(int s)
 {
 	static struct ifmediareq *ifmr = NULL;
 	int *mwords;
+	int xmedia = 1;
 
 	if (ifmr == NULL) {
 		ifmr = (struct ifmediareq *)malloc(sizeof(struct ifmediareq));
@@ -201,7 +207,7 @@ ifmedia_getstate(int s)
 			err(1, "malloc");
 
 		(void) memset(ifmr, 0, sizeof(struct ifmediareq));
-		(void) strncpy(ifmr->ifm_name, name,
+		(void) strlcpy(ifmr->ifm_name, name,
 		    sizeof(ifmr->ifm_name));
 
 		ifmr->ifm_count = 0;
@@ -213,7 +219,10 @@ ifmedia_getstate(int s)
 		 * the current media type and the top-level type.
 		 */
 
-		if (ioctl(s, SIOCGIFMEDIA, (caddr_t)ifmr) < 0) {
+		if (ioctl(s, SIOCGIFXMEDIA, (caddr_t)ifmr) < 0) {
+			xmedia = 0;
+		}
+		if (xmedia == 0 && ioctl(s, SIOCGIFMEDIA, (caddr_t)ifmr) < 0) {
 			err(1, "SIOCGIFMEDIA");
 		}
 
@@ -225,8 +234,13 @@ ifmedia_getstate(int s)
 			err(1, "malloc");
   
 		ifmr->ifm_ulist = mwords;
-		if (ioctl(s, SIOCGIFMEDIA, (caddr_t)ifmr) < 0)
-			err(1, "SIOCGIFMEDIA");
+		if (xmedia) {
+			if (ioctl(s, SIOCGIFXMEDIA, (caddr_t)ifmr) < 0)
+				err(1, "SIOCGIFXMEDIA");
+		} else {
+			if (ioctl(s, SIOCGIFMEDIA, (caddr_t)ifmr) < 0)
+				err(1, "SIOCGIFMEDIA");
+		}
 	}
 
 	return ifmr;
@@ -267,7 +281,7 @@ setmedia(const char *val, int d, int s, const struct afswtch *afp)
 	 */
 	subtype = get_media_subtype(IFM_TYPE(ifmr->ifm_ulist[0]), val);
 
-	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	ifr.ifr_media = (ifmr->ifm_current & IFM_IMASK) |
 	    IFM_TYPE(ifmr->ifm_ulist[0]) | subtype;
 
@@ -299,7 +313,7 @@ domediaopt(const char *val, int clear, int s)
 
 	options = get_media_options(IFM_TYPE(ifmr->ifm_ulist[0]), val);
 
-	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	ifr.ifr_media = ifmr->ifm_current;
 	if (clear)
 		ifr.ifr_media &= ~options;
@@ -326,7 +340,7 @@ setmediainst(const char *val, int d, int s, const struct afswtch *afp)
 	if (inst < 0 || inst > (int)IFM_INST_MAX)
 		errx(1, "invalid media instance: %s", val);
 
-	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	ifr.ifr_media = (ifmr->ifm_current & ~IFM_IMASK) | inst << IFM_ISHIFT;
 
 	ifmr->ifm_current = ifr.ifr_media;
@@ -343,7 +357,7 @@ setmediamode(const char *val, int d, int s, const struct afswtch *afp)
 
 	mode = get_media_mode(IFM_TYPE(ifmr->ifm_ulist[0]), val);
 
-	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	ifr.ifr_media = (ifmr->ifm_current & ~IFM_MMASK) | mode;
 
 	ifmr->ifm_current = ifr.ifr_media;
@@ -351,7 +365,7 @@ setmediamode(const char *val, int d, int s, const struct afswtch *afp)
 }
 
 /**********************************************************************
- * A good chunk of this is duplicated from sys/net/ifmedia.c
+ * A good chunk of this is duplicated from sys/net/if_media.c
  **********************************************************************/
 
 static struct ifmedia_description ifm_type_descriptions[] =
@@ -365,24 +379,6 @@ static struct ifmedia_description ifm_subtype_ethernet_aliases[] =
 
 static struct ifmedia_description ifm_subtype_ethernet_option_descriptions[] =
     IFM_SUBTYPE_ETHERNET_OPTION_DESCRIPTIONS;
-
-static struct ifmedia_description ifm_subtype_tokenring_descriptions[] =
-    IFM_SUBTYPE_TOKENRING_DESCRIPTIONS;
-
-static struct ifmedia_description ifm_subtype_tokenring_aliases[] =
-    IFM_SUBTYPE_TOKENRING_ALIASES;
-
-static struct ifmedia_description ifm_subtype_tokenring_option_descriptions[] =
-    IFM_SUBTYPE_TOKENRING_OPTION_DESCRIPTIONS;
-
-static struct ifmedia_description ifm_subtype_fddi_descriptions[] =
-    IFM_SUBTYPE_FDDI_DESCRIPTIONS;
-
-static struct ifmedia_description ifm_subtype_fddi_aliases[] =
-    IFM_SUBTYPE_FDDI_ALIASES;
-
-static struct ifmedia_description ifm_subtype_fddi_option_descriptions[] =
-    IFM_SUBTYPE_FDDI_OPTION_DESCRIPTIONS;
 
 static struct ifmedia_description ifm_subtype_ieee80211_descriptions[] =
     IFM_SUBTYPE_IEEE80211_DESCRIPTIONS;
@@ -449,42 +445,6 @@ static struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 			{ &ifm_shared_option_descriptions[0], 0 },
 			{ &ifm_shared_option_aliases[0], 1 },
 			{ &ifm_subtype_ethernet_option_descriptions[0], 0 },
-			{ NULL, 0 },
-		},
-		{
-			{ NULL, 0 },
-		},
-	},
-	{
-		{
-			{ &ifm_subtype_shared_descriptions[0], 0 },
-			{ &ifm_subtype_shared_aliases[0], 1 },
-			{ &ifm_subtype_tokenring_descriptions[0], 0 },
-			{ &ifm_subtype_tokenring_aliases[0], 1 },
-			{ NULL, 0 },
-		},
-		{
-			{ &ifm_shared_option_descriptions[0], 0 },
-			{ &ifm_shared_option_aliases[0], 1 },
-			{ &ifm_subtype_tokenring_option_descriptions[0], 0 },
-			{ NULL, 0 },
-		},
-		{
-			{ NULL, 0 },
-		},
-	},
-	{
-		{
-			{ &ifm_subtype_shared_descriptions[0], 0 },
-			{ &ifm_subtype_shared_aliases[0], 1 },
-			{ &ifm_subtype_fddi_descriptions[0], 0 },
-			{ &ifm_subtype_fddi_aliases[0], 1 },
-			{ NULL, 0 },
-		},
-		{
-			{ &ifm_shared_option_descriptions[0], 0 },
-			{ &ifm_shared_option_aliases[0], 1 },
-			{ &ifm_subtype_fddi_option_descriptions[0], 0 },
 			{ NULL, 0 },
 		},
 		{
@@ -825,11 +785,9 @@ static struct afswtch af_media = {
 static __constructor void
 ifmedia_ctor(void)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	size_t i;
 
-	for (i = 0; i < N(media_cmds);  i++)
+	for (i = 0; i < nitems(media_cmds);  i++)
 		cmd_register(&media_cmds[i]);
 	af_register(&af_media);
-#undef N
 }

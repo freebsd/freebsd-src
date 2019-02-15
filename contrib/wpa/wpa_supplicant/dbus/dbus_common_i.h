@@ -13,6 +13,8 @@
 
 #include <dbus/dbus.h>
 
+struct wpa_dbus_property_desc;
+
 struct wpas_dbus_priv {
 	DBusConnection *con;
 	int should_dispatch;
@@ -20,9 +22,13 @@ struct wpas_dbus_priv {
 	u32 next_objid;
 	int dbus_new_initialized;
 
-#if defined(CONFIG_CTRL_IFACE_DBUS_NEW) && defined(CONFIG_AP)
+#if defined(CONFIG_CTRL_IFACE_DBUS_NEW)
+	struct wpa_dbus_property_desc *all_interface_properties;
+	int globals_start;
+#if defined(CONFIG_AP)
 	int dbus_noc_refcnt;
-#endif /* CONFIG_CTRL_IFACE_DBUS_NEW && CONFIG_AP */
+#endif /* CONFIG_AP */
+#endif /* CONFIG_CTRL_IFACE_DBUS_NEW */
 };
 
 #endif /* DBUS_COMMON_I_H */

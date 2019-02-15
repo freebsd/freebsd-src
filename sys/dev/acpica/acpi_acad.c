@@ -142,13 +142,14 @@ static int
 acpi_acad_probe(device_t dev)
 {
     static char *acad_ids[] = { "ACPI0003", NULL };
+    int rv;
 
-    if (acpi_disabled("acad") ||
-	ACPI_ID_PROBE(device_get_parent(dev), dev, acad_ids) == NULL)
+    if (acpi_disabled("acad"))
 	return (ENXIO);
-
-    device_set_desc(dev, "AC Adapter");
-    return (0);
+    rv = ACPI_ID_PROBE(device_get_parent(dev), dev, acad_ids, NULL);
+    if (rv <= 0)
+	device_set_desc(dev, "AC Adapter");
+    return (rv);
 }
 
 static int

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999 Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
  * All rights reserved.
  *
@@ -86,7 +88,7 @@ vid_realloc_array(void)
 		return ENOMEM;
 
 	s = spltty();
-	newsize = ((adapters + ARRAY_DELTA)/ARRAY_DELTA)*ARRAY_DELTA;
+	newsize = rounddown(adapters + ARRAY_DELTA, ARRAY_DELTA);
 	new_adp = malloc(sizeof(*new_adp)*newsize, M_DEVBUF, M_WAITOK | M_ZERO);
 	new_vidsw = malloc(sizeof(*new_vidsw)*newsize, M_DEVBUF,
 	    M_WAITOK | M_ZERO);
@@ -530,7 +532,6 @@ static char
 	{ KD_CGA,	"CGA" },
 	{ KD_EGA,	"EGA" },
 	{ KD_VGA,	"VGA" },
-	{ KD_PC98,	"PC-98x1" },
 	{ KD_TGA,	"TGA" },
 	{ -1,		"Unknown" },
     };
@@ -605,12 +606,11 @@ fb_type(int adp_type)
 		{ FBTYPE_CGA,		KD_CGA },
 		{ FBTYPE_EGA,		KD_EGA },
 		{ FBTYPE_VGA,		KD_VGA },
-		{ FBTYPE_PC98,		KD_PC98 },
 		{ FBTYPE_TGA,		KD_TGA },
 	};
 	int i;
 
-	for (i = 0; i < sizeof(types)/sizeof(types[0]); ++i) {
+	for (i = 0; i < nitems(types); ++i) {
 		if (types[i].va_type == adp_type)
 			return types[i].fb_type;
 	}

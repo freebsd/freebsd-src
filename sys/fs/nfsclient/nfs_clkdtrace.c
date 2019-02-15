@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Robert N. M. Watson
  * All rights reserved.
  *
@@ -46,7 +48,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * dtnfscl is a DTrace provider that tracks the intent to perform RPCs
- * in the NFS client, as well as acess to and maintenance of the access and
+ * in the NFS client, as well as access to and maintenance of the access and
  * attribute caches.  This is not quite the same as RPCs, because NFS may
  * issue multiple RPC transactions in the event that authentication fails,
  * there's a jukebox error, or none at all if the access or attribute cache
@@ -162,16 +164,16 @@ static char	*dtnfsclient_miss_str = "miss";
 static char	*dtnfsclient_start_str = "start";
 
 static dtrace_pops_t dtnfsclient_pops = {
-	dtnfsclient_provide,
-	NULL,
-	dtnfsclient_enable,
-	dtnfsclient_disable,
-	NULL,
-	NULL,
-	dtnfsclient_getargdesc,
-	NULL,
-	NULL,
-	dtnfsclient_destroy
+	.dtps_provide =		dtnfsclient_provide,
+	.dtps_provide_module =	NULL,
+	.dtps_enable =		dtnfsclient_enable,
+	.dtps_disable =		dtnfsclient_disable,
+	.dtps_suspend =		NULL,
+	.dtps_resume =		NULL,
+	.dtps_getargdesc =	dtnfsclient_getargdesc,
+	.dtps_getargval =	NULL,
+	.dtps_usermode =	NULL,
+	.dtps_destroy =		dtnfsclient_destroy
 };
 
 static dtrace_provider_id_t	dtnfsclient_id;

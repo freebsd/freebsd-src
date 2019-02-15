@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPSSEISELDAGTODAG_H
-#define MIPSSEISELDAGTODAG_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPSSEISELDAGTODAG_H
+#define LLVM_LIB_TARGET_MIPS_MIPSSEISELDAGTODAG_H
 
 #include "MipsISelDAGToDAG.h"
 
@@ -21,11 +21,14 @@ namespace llvm {
 class MipsSEDAGToDAGISel : public MipsDAGToDAGISel {
 
 public:
-  explicit MipsSEDAGToDAGISel(MipsTargetMachine &TM) : MipsDAGToDAGISel(TM) {}
+  explicit MipsSEDAGToDAGISel(MipsTargetMachine &TM, CodeGenOpt::Level OL)
+      : MipsDAGToDAGISel(TM, OL) {}
 
 private:
 
-  virtual bool runOnMachineFunction(MachineFunction &MF);
+  bool runOnMachineFunction(MachineFunction &MF) override;
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override;
 
   void addDSPCtrlRegOperands(bool IsDef, MachineInstr &MI,
                              MachineFunction &MF);
@@ -34,74 +37,111 @@ private:
 
   bool replaceUsesWithZeroReg(MachineRegisterInfo *MRI, const MachineInstr&);
 
-  std::pair<SDNode*, SDNode*> selectMULT(SDNode *N, unsigned Opc, SDLoc dl,
-                                         EVT Ty, bool HasLo, bool HasHi);
+  std::pair<SDNode *, SDNode *> selectMULT(SDNode *N, unsigned Opc,
+                                           const SDLoc &dl, EVT Ty, bool HasLo,
+                                           bool HasHi);
 
-  SDNode *selectAddESubE(unsigned MOp, SDValue InFlag, SDValue CmpLHS,
-                         SDLoc DL, SDNode *Node) const;
+  void selectAddE(SDNode *Node, const SDLoc &DL) const;
 
-  virtual bool selectAddrRegImm(SDValue Addr, SDValue &Base,
-                                SDValue &Offset) const;
+  bool selectAddrFrameIndex(SDValue Addr, SDValue &Base, SDValue &Offset) const;
+  bool selectAddrFrameIndexOffset(SDValue Addr, SDValue &Base, SDValue &Offset,
+                                  unsigned OffsetBits,
+                                  unsigned ShiftAmount) const;
 
-  virtual bool selectAddrRegReg(SDValue Addr, SDValue &Base,
-                                SDValue &Offset) const;
+  bool selectAddrRegImm(SDValue Addr, SDValue &Base,
+                        SDValue &Offset) const override;
 
-  virtual bool selectAddrDefault(SDValue Addr, SDValue &Base,
-                                 SDValue &Offset) const;
+  bool selectAddrDefault(SDValue Addr, SDValue &Base,
+                         SDValue &Offset) const override;
 
-  virtual bool selectIntAddr(SDValue Addr, SDValue &Base,
-                             SDValue &Offset) const;
+  bool selectIntAddr(SDValue Addr, SDValue &Base,
+                     SDValue &Offset) const override;
 
-  virtual bool selectAddrRegImm12(SDValue Addr, SDValue &Base,
-                                  SDValue &Offset) const;
+  bool selectAddrRegImm9(SDValue Addr, SDValue &Base,
+                         SDValue &Offset) const;
 
-  virtual bool selectIntAddrMM(SDValue Addr, SDValue &Base,
-                               SDValue &Offset) const;
+  bool selectAddrRegImm11(SDValue Addr, SDValue &Base,
+                          SDValue &Offset) const;
+
+  bool selectAddrRegImm12(SDValue Addr, SDValue &Base,
+                          SDValue &Offset) const;
+
+  bool selectAddrRegImm16(SDValue Addr, SDValue &Base,
+                          SDValue &Offset) const;
+
+  bool selectIntAddr11MM(SDValue Addr, SDValue &Base,
+                         SDValue &Offset) const override;
+
+  bool selectIntAddr12MM(SDValue Addr, SDValue &Base,
+                         SDValue &Offset) const override;
+
+  bool selectIntAddr16MM(SDValue Addr, SDValue &Base,
+                         SDValue &Offset) const override;
+
+  bool selectIntAddrLSL2MM(SDValue Addr, SDValue &Base,
+                           SDValue &Offset) const override;
+
+  bool selectIntAddrSImm10(SDValue Addr, SDValue &Base,
+                           SDValue &Offset) const override;
+
+  bool selectIntAddrSImm10Lsl1(SDValue Addr, SDValue &Base,
+                               SDValue &Offset) const override;
+
+  bool selectIntAddrSImm10Lsl2(SDValue Addr, SDValue &Base,
+                               SDValue &Offset) const override;
+
+  bool selectIntAddrSImm10Lsl3(SDValue Addr, SDValue &Base,
+                               SDValue &Offset) const override;
 
   /// \brief Select constant vector splats.
-  virtual bool selectVSplat(SDNode *N, APInt &Imm) const;
+  bool selectVSplat(SDNode *N, APInt &Imm,
+                    unsigned MinSizeInBits) const override;
   /// \brief Select constant vector splats whose value fits in a given integer.
-  virtual bool selectVSplatCommon(SDValue N, SDValue &Imm, bool Signed,
+  bool selectVSplatCommon(SDValue N, SDValue &Imm, bool Signed,
                                   unsigned ImmBitSize) const;
   /// \brief Select constant vector splats whose value fits in a uimm1.
-  virtual bool selectVSplatUimm1(SDValue N, SDValue &Imm) const;
+  bool selectVSplatUimm1(SDValue N, SDValue &Imm) const override;
   /// \brief Select constant vector splats whose value fits in a uimm2.
-  virtual bool selectVSplatUimm2(SDValue N, SDValue &Imm) const;
+  bool selectVSplatUimm2(SDValue N, SDValue &Imm) const override;
   /// \brief Select constant vector splats whose value fits in a uimm3.
-  virtual bool selectVSplatUimm3(SDValue N, SDValue &Imm) const;
+  bool selectVSplatUimm3(SDValue N, SDValue &Imm) const override;
   /// \brief Select constant vector splats whose value fits in a uimm4.
-  virtual bool selectVSplatUimm4(SDValue N, SDValue &Imm) const;
+  bool selectVSplatUimm4(SDValue N, SDValue &Imm) const override;
   /// \brief Select constant vector splats whose value fits in a uimm5.
-  virtual bool selectVSplatUimm5(SDValue N, SDValue &Imm) const;
+  bool selectVSplatUimm5(SDValue N, SDValue &Imm) const override;
   /// \brief Select constant vector splats whose value fits in a uimm6.
-  virtual bool selectVSplatUimm6(SDValue N, SDValue &Imm) const;
+  bool selectVSplatUimm6(SDValue N, SDValue &Imm) const override;
   /// \brief Select constant vector splats whose value fits in a uimm8.
-  virtual bool selectVSplatUimm8(SDValue N, SDValue &Imm) const;
+  bool selectVSplatUimm8(SDValue N, SDValue &Imm) const override;
   /// \brief Select constant vector splats whose value fits in a simm5.
-  virtual bool selectVSplatSimm5(SDValue N, SDValue &Imm) const;
+  bool selectVSplatSimm5(SDValue N, SDValue &Imm) const override;
   /// \brief Select constant vector splats whose value is a power of 2.
-  virtual bool selectVSplatUimmPow2(SDValue N, SDValue &Imm) const;
+  bool selectVSplatUimmPow2(SDValue N, SDValue &Imm) const override;
   /// \brief Select constant vector splats whose value is the inverse of a
   /// power of 2.
-  virtual bool selectVSplatUimmInvPow2(SDValue N, SDValue &Imm) const;
+  bool selectVSplatUimmInvPow2(SDValue N, SDValue &Imm) const override;
   /// \brief Select constant vector splats whose value is a run of set bits
   /// ending at the most significant bit
-  virtual bool selectVSplatMaskL(SDValue N, SDValue &Imm) const;
+  bool selectVSplatMaskL(SDValue N, SDValue &Imm) const override;
   /// \brief Select constant vector splats whose value is a run of set bits
   /// starting at bit zero.
-  virtual bool selectVSplatMaskR(SDValue N, SDValue &Imm) const;
+  bool selectVSplatMaskR(SDValue N, SDValue &Imm) const override;
 
-  virtual std::pair<bool, SDNode*> selectNode(SDNode *Node);
+  bool trySelect(SDNode *Node) override;
 
-  virtual void processFunctionAfterISel(MachineFunction &MF);
+  void processFunctionAfterISel(MachineFunction &MF) override;
 
   // Insert instructions to initialize the global base register in the
   // first MBB of the function.
   void initGlobalBaseReg(MachineFunction &MF);
+
+  bool SelectInlineAsmMemoryOperand(const SDValue &Op,
+                                    unsigned ConstraintID,
+                                    std::vector<SDValue> &OutOps) override;
 };
 
-FunctionPass *createMipsSEISelDag(MipsTargetMachine &TM);
-
+FunctionPass *createMipsSEISelDag(MipsTargetMachine &TM,
+                                  CodeGenOpt::Level OptLevel);
 }
 
 #endif

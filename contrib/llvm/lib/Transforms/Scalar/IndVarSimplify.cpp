@@ -24,31 +24,69 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "indvars"
-#include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar/IndVarSimplify.h"
+#include "llvm/ADT/APFloat.h"
+#include "llvm/ADT/APInt.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/None.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Analysis/Dominators.h"
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopPass.h"
+#include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpander.h"
+#include "llvm/Analysis/ScalarEvolutionExpressions.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Constant.h"
+#include "llvm/IR/ConstantRange.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Dominators.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/InstrTypes.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Operator.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/IR/PatternMatch.h"
 #include "llvm/IR/Type.h"
-#include "llvm/Support/CFG.h"
+#include "llvm/IR/Use.h"
+#include "llvm/IR/User.h"
+#include "llvm/IR/Value.h"
+#include "llvm/IR/ValueHandle.h"
+#include "llvm/Pass.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetLibraryInfo.h"
+#include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar/LoopPassManager.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
+#include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Transforms/Utils/SimplifyIndVar.h"
+#include <cassert>
+#include <cstdint>
+#include <utility>
+
 using namespace llvm;
+
+#define DEBUG_TYPE "indvars"
 
 STATISTIC(NumWidened     , "Number of indvars widened");
 STATISTIC(NumReplaced    , "Number of exit values replaced");
@@ -63,78 +101,75 @@ static cl::opt<bool> VerifyIndvars(
   "verify-indvars", cl::Hidden,
   cl::desc("Verify the ScalarEvolution result after running indvars"));
 
+enum ReplaceExitVal { NeverRepl, OnlyCheapRepl, AlwaysRepl };
+
+static cl::opt<ReplaceExitVal> ReplaceExitValue(
+    "replexitval", cl::Hidden, cl::init(OnlyCheapRepl),
+    cl::desc("Choose the strategy to replace exit value in IndVarSimplify"),
+    cl::values(clEnumValN(NeverRepl, "never", "never replace exit value"),
+               clEnumValN(OnlyCheapRepl, "cheap",
+                          "only replace exit value when the cost is cheap"),
+               clEnumValN(AlwaysRepl, "always",
+                          "always replace exit value whenever possible")));
+
+static cl::opt<bool> UsePostIncrementRanges(
+  "indvars-post-increment-ranges", cl::Hidden,
+  cl::desc("Use post increment control-dependent ranges in IndVarSimplify"),
+  cl::init(true));
+
+static cl::opt<bool>
+DisableLFTR("disable-lftr", cl::Hidden, cl::init(false),
+            cl::desc("Disable Linear Function Test Replace optimization"));
+
 namespace {
-  class IndVarSimplify : public LoopPass {
-    LoopInfo        *LI;
-    ScalarEvolution *SE;
-    DominatorTree   *DT;
-    DataLayout      *TD;
-    TargetLibraryInfo *TLI;
 
-    SmallVector<WeakVH, 16> DeadInsts;
-    bool Changed;
-  public:
+struct RewritePhi;
 
-    static char ID; // Pass identification, replacement for typeid
-    IndVarSimplify() : LoopPass(ID), LI(0), SE(0), DT(0), TD(0),
-                       Changed(false) {
-      initializeIndVarSimplifyPass(*PassRegistry::getPassRegistry());
-    }
+class IndVarSimplify {
+  LoopInfo *LI;
+  ScalarEvolution *SE;
+  DominatorTree *DT;
+  const DataLayout &DL;
+  TargetLibraryInfo *TLI;
+  const TargetTransformInfo *TTI;
 
-    virtual bool runOnLoop(Loop *L, LPPassManager &LPM);
+  SmallVector<WeakTrackingVH, 16> DeadInsts;
+  bool Changed = false;
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-      AU.addRequired<DominatorTree>();
-      AU.addRequired<LoopInfo>();
-      AU.addRequired<ScalarEvolution>();
-      AU.addRequiredID(LoopSimplifyID);
-      AU.addRequiredID(LCSSAID);
-      AU.addPreserved<ScalarEvolution>();
-      AU.addPreservedID(LoopSimplifyID);
-      AU.addPreservedID(LCSSAID);
-      AU.setPreservesCFG();
-    }
+  bool isValidRewrite(Value *FromVal, Value *ToVal);
 
-  private:
-    virtual void releaseMemory() {
-      DeadInsts.clear();
-    }
+  void handleFloatingPointIV(Loop *L, PHINode *PH);
+  void rewriteNonIntegerIVs(Loop *L);
 
-    bool isValidRewrite(Value *FromVal, Value *ToVal);
+  void simplifyAndExtend(Loop *L, SCEVExpander &Rewriter, LoopInfo *LI);
 
-    void HandleFloatingPointIV(Loop *L, PHINode *PH);
-    void RewriteNonIntegerIVs(Loop *L);
+  bool canLoopBeDeleted(Loop *L, SmallVector<RewritePhi, 8> &RewritePhiSet);
+  void rewriteLoopExitValues(Loop *L, SCEVExpander &Rewriter);
+  void rewriteFirstIterationLoopExitValues(Loop *L);
 
-    void SimplifyAndExtend(Loop *L, SCEVExpander &Rewriter, LPPassManager &LPM);
+  Value *linearFunctionTestReplace(Loop *L, const SCEV *BackedgeTakenCount,
+                                   PHINode *IndVar, SCEVExpander &Rewriter);
 
-    void RewriteLoopExitValues(Loop *L, SCEVExpander &Rewriter);
+  void sinkUnusedInvariants(Loop *L);
 
-    Value *LinearFunctionTestReplace(Loop *L, const SCEV *BackedgeTakenCount,
-                                     PHINode *IndVar, SCEVExpander &Rewriter);
+  Value *expandSCEVIfNeeded(SCEVExpander &Rewriter, const SCEV *S, Loop *L,
+                            Instruction *InsertPt, Type *Ty);
 
-    void SinkUnusedInvariants(Loop *L);
-  };
-}
+public:
+  IndVarSimplify(LoopInfo *LI, ScalarEvolution *SE, DominatorTree *DT,
+                 const DataLayout &DL, TargetLibraryInfo *TLI,
+                 TargetTransformInfo *TTI)
+      : LI(LI), SE(SE), DT(DT), DL(DL), TLI(TLI), TTI(TTI) {}
 
-char IndVarSimplify::ID = 0;
-INITIALIZE_PASS_BEGIN(IndVarSimplify, "indvars",
-                "Induction Variable Simplification", false, false)
-INITIALIZE_PASS_DEPENDENCY(DominatorTree)
-INITIALIZE_PASS_DEPENDENCY(LoopInfo)
-INITIALIZE_PASS_DEPENDENCY(ScalarEvolution)
-INITIALIZE_PASS_DEPENDENCY(LoopSimplify)
-INITIALIZE_PASS_DEPENDENCY(LCSSA)
-INITIALIZE_PASS_END(IndVarSimplify, "indvars",
-                "Induction Variable Simplification", false, false)
+  bool run(Loop *L);
+};
 
-Pass *llvm::createIndVarSimplifyPass() {
-  return new IndVarSimplify();
-}
+} // end anonymous namespace
 
-/// isValidRewrite - Return true if the SCEV expansion generated by the
-/// rewriter can replace the original value. SCEV guarantees that it
-/// produces the same value, but the way it is produced may be illegal IR.
-/// Ideally, this function will only be called for verification.
+/// Return true if the SCEV expansion generated by the rewriter can replace the
+/// original value. SCEV guarantees that it produces the same value, but the way
+/// it is produced may be illegal IR.  Ideally, this function will only be
+/// called for verification.
 bool IndVarSimplify::isValidRewrite(Value *FromVal, Value *ToVal) {
   // If an SCEV expression subsumed multiple pointers, its expansion could
   // reassociate the GEP changing the base pointer. This is illegal because the
@@ -148,10 +183,10 @@ bool IndVarSimplify::isValidRewrite(Value *FromVal, Value *ToVal) {
   // because it understands lcssa phis while SCEV does not.
   Value *FromPtr = FromVal;
   Value *ToPtr = ToVal;
-  if (GEPOperator *GEP = dyn_cast<GEPOperator>(FromVal)) {
+  if (auto *GEP = dyn_cast<GEPOperator>(FromVal)) {
     FromPtr = GEP->getPointerOperand();
   }
-  if (GEPOperator *GEP = dyn_cast<GEPOperator>(ToVal)) {
+  if (auto *GEP = dyn_cast<GEPOperator>(ToVal)) {
     ToPtr = GEP->getPointerOperand();
   }
   if (FromPtr != FromVal || ToPtr != ToVal) {
@@ -188,12 +223,12 @@ bool IndVarSimplify::isValidRewrite(Value *FromVal, Value *ToVal) {
 /// loop. For PHI nodes, there may be multiple uses, so compute the nearest
 /// common dominator for the incoming blocks.
 static Instruction *getInsertPointForUses(Instruction *User, Value *Def,
-                                          DominatorTree *DT) {
+                                          DominatorTree *DT, LoopInfo *LI) {
   PHINode *PHI = dyn_cast<PHINode>(User);
   if (!PHI)
     return User;
 
-  Instruction *InsertPt = 0;
+  Instruction *InsertPt = nullptr;
   for (unsigned i = 0, e = PHI->getNumIncomingValues(); i != e; ++i) {
     if (PHI->getIncomingValue(i) != Def)
       continue;
@@ -207,44 +242,54 @@ static Instruction *getInsertPointForUses(Instruction *User, Value *Def,
     InsertPt = InsertBB->getTerminator();
   }
   assert(InsertPt && "Missing phi operand");
-  assert((!isa<Instruction>(Def) ||
-          DT->dominates(cast<Instruction>(Def), InsertPt)) &&
-         "def does not dominate all uses");
-  return InsertPt;
+
+  auto *DefI = dyn_cast<Instruction>(Def);
+  if (!DefI)
+    return InsertPt;
+
+  assert(DT->dominates(DefI, InsertPt) && "def does not dominate all uses");
+
+  auto *L = LI->getLoopFor(DefI->getParent());
+  assert(!L || L->contains(LI->getLoopFor(InsertPt->getParent())));
+
+  for (auto *DTN = (*DT)[InsertPt->getParent()]; DTN; DTN = DTN->getIDom())
+    if (LI->getLoopFor(DTN->getBlock()) == L)
+      return DTN->getBlock()->getTerminator();
+
+  llvm_unreachable("DefI dominates InsertPt!");
 }
 
 //===----------------------------------------------------------------------===//
-// RewriteNonIntegerIVs and helpers. Prefer integer IVs.
+// rewriteNonIntegerIVs and helpers. Prefer integer IVs.
 //===----------------------------------------------------------------------===//
 
-/// ConvertToSInt - Convert APF to an integer, if possible.
+/// Convert APF to an integer, if possible.
 static bool ConvertToSInt(const APFloat &APF, int64_t &IntVal) {
   bool isExact = false;
   // See if we can convert this to an int64_t
   uint64_t UIntVal;
-  if (APF.convertToInteger(&UIntVal, 64, true, APFloat::rmTowardZero,
-                           &isExact) != APFloat::opOK || !isExact)
+  if (APF.convertToInteger(makeMutableArrayRef(UIntVal), 64, true,
+                           APFloat::rmTowardZero, &isExact) != APFloat::opOK ||
+      !isExact)
     return false;
   IntVal = UIntVal;
   return true;
 }
 
-/// HandleFloatingPointIV - If the loop has floating induction variable
-/// then insert corresponding integer induction variable if possible.
+/// If the loop has floating induction variable then insert corresponding
+/// integer induction variable if possible.
 /// For example,
 /// for(double i = 0; i < 10000; ++i)
 ///   bar(i)
 /// is converted into
 /// for(int i = 0; i < 10000; ++i)
 ///   bar((double)i);
-///
-void IndVarSimplify::HandleFloatingPointIV(Loop *L, PHINode *PN) {
+void IndVarSimplify::handleFloatingPointIV(Loop *L, PHINode *PN) {
   unsigned IncomingEdge = L->contains(PN->getIncomingBlock(0));
   unsigned BackEdge     = IncomingEdge^1;
 
   // Check incoming value.
-  ConstantFP *InitValueVal =
-    dyn_cast<ConstantFP>(PN->getIncomingValue(IncomingEdge));
+  auto *InitValueVal = dyn_cast<ConstantFP>(PN->getIncomingValue(IncomingEdge));
 
   int64_t InitValue;
   if (!InitValueVal || !ConvertToSInt(InitValueVal->getValueAPF(), InitValue))
@@ -252,36 +297,35 @@ void IndVarSimplify::HandleFloatingPointIV(Loop *L, PHINode *PN) {
 
   // Check IV increment. Reject this PN if increment operation is not
   // an add or increment value can not be represented by an integer.
-  BinaryOperator *Incr =
-    dyn_cast<BinaryOperator>(PN->getIncomingValue(BackEdge));
-  if (Incr == 0 || Incr->getOpcode() != Instruction::FAdd) return;
+  auto *Incr = dyn_cast<BinaryOperator>(PN->getIncomingValue(BackEdge));
+  if (Incr == nullptr || Incr->getOpcode() != Instruction::FAdd) return;
 
   // If this is not an add of the PHI with a constantfp, or if the constant fp
   // is not an integer, bail out.
   ConstantFP *IncValueVal = dyn_cast<ConstantFP>(Incr->getOperand(1));
   int64_t IncValue;
-  if (IncValueVal == 0 || Incr->getOperand(0) != PN ||
+  if (IncValueVal == nullptr || Incr->getOperand(0) != PN ||
       !ConvertToSInt(IncValueVal->getValueAPF(), IncValue))
     return;
 
   // Check Incr uses. One user is PN and the other user is an exit condition
   // used by the conditional terminator.
-  Value::use_iterator IncrUse = Incr->use_begin();
+  Value::user_iterator IncrUse = Incr->user_begin();
   Instruction *U1 = cast<Instruction>(*IncrUse++);
-  if (IncrUse == Incr->use_end()) return;
+  if (IncrUse == Incr->user_end()) return;
   Instruction *U2 = cast<Instruction>(*IncrUse++);
-  if (IncrUse != Incr->use_end()) return;
+  if (IncrUse != Incr->user_end()) return;
 
   // Find exit condition, which is an fcmp.  If it doesn't exist, or if it isn't
   // only used by a branch, we can't transform it.
   FCmpInst *Compare = dyn_cast<FCmpInst>(U1);
   if (!Compare)
     Compare = dyn_cast<FCmpInst>(U2);
-  if (Compare == 0 || !Compare->hasOneUse() ||
-      !isa<BranchInst>(Compare->use_back()))
+  if (!Compare || !Compare->hasOneUse() ||
+      !isa<BranchInst>(Compare->user_back()))
     return;
 
-  BranchInst *TheBr = cast<BranchInst>(Compare->use_back());
+  BranchInst *TheBr = cast<BranchInst>(Compare->user_back());
 
   // We need to verify that the branch actually controls the iteration count
   // of the loop.  If not, the new IV can overflow and no one will notice.
@@ -293,12 +337,11 @@ void IndVarSimplify::HandleFloatingPointIV(Loop *L, PHINode *PN) {
        L->contains(TheBr->getSuccessor(1))))
     return;
 
-
   // If it isn't a comparison with an integer-as-fp (the exit value), we can't
   // transform it.
   ConstantFP *ExitValueVal = dyn_cast<ConstantFP>(Compare->getOperand(1));
   int64_t ExitValue;
-  if (ExitValueVal == 0 ||
+  if (ExitValueVal == nullptr ||
       !ConvertToSInt(ExitValueVal->getValueAPF(), ExitValue))
     return;
 
@@ -361,7 +404,6 @@ void IndVarSimplify::HandleFloatingPointIV(Loop *L, PHINode *PN) {
     // transform the IV.
     if (Leftover != 0 && int32_t(ExitValue+IncValue) < ExitValue)
       return;
-
   } else {
     // If we have a negative stride, we require the init to be greater than the
     // exit value.
@@ -407,8 +449,8 @@ void IndVarSimplify::HandleFloatingPointIV(Loop *L, PHINode *PN) {
                                       Compare->getName());
 
   // In the following deletions, PN may become dead and may be deleted.
-  // Use a WeakVH to observe whether this happens.
-  WeakVH WeakPH = PN;
+  // Use a WeakTrackingVH to observe whether this happens.
+  WeakTrackingVH WeakPH = PN;
 
   // Delete the old floating point exit comparison.  The branch starts using the
   // new comparison.
@@ -429,28 +471,26 @@ void IndVarSimplify::HandleFloatingPointIV(Loop *L, PHINode *PN) {
   // platforms.
   if (WeakPH) {
     Value *Conv = new SIToFPInst(NewPHI, PN->getType(), "indvar.conv",
-                                 PN->getParent()->getFirstInsertionPt());
+                                 &*PN->getParent()->getFirstInsertionPt());
     PN->replaceAllUsesWith(Conv);
     RecursivelyDeleteTriviallyDeadInstructions(PN, TLI);
   }
   Changed = true;
 }
 
-void IndVarSimplify::RewriteNonIntegerIVs(Loop *L) {
+void IndVarSimplify::rewriteNonIntegerIVs(Loop *L) {
   // First step.  Check to see if there are any floating-point recurrences.
   // If there are, change them into integer recurrences, permitting analysis by
   // the SCEV routines.
-  //
   BasicBlock *Header = L->getHeader();
 
-  SmallVector<WeakVH, 8> PHIs;
-  for (BasicBlock::iterator I = Header->begin();
-       PHINode *PN = dyn_cast<PHINode>(I); ++I)
-    PHIs.push_back(PN);
+  SmallVector<WeakTrackingVH, 8> PHIs;
+  for (PHINode &PN : Header->phis())
+    PHIs.push_back(&PN);
 
   for (unsigned i = 0, e = PHIs.size(); i != e; ++i)
     if (PHINode *PN = dyn_cast_or_null<PHINode>(&*PHIs[i]))
-      HandleFloatingPointIV(L, PN);
+      handleFloatingPointIV(L, PN);
 
   // If the loop previously had floating-point IV, ScalarEvolution
   // may not have been able to compute a trip count. Now that we've done some
@@ -459,34 +499,69 @@ void IndVarSimplify::RewriteNonIntegerIVs(Loop *L) {
     SE->forgetLoop(L);
 }
 
+namespace {
+
+// Collect information about PHI nodes which can be transformed in
+// rewriteLoopExitValues.
+struct RewritePhi {
+  PHINode *PN;
+
+  // Ith incoming value.
+  unsigned Ith;
+
+  // Exit value after expansion.
+  Value *Val;
+
+  // High Cost when expansion.
+  bool HighCost;
+
+  RewritePhi(PHINode *P, unsigned I, Value *V, bool H)
+      : PN(P), Ith(I), Val(V), HighCost(H) {}
+};
+
+} // end anonymous namespace
+
+Value *IndVarSimplify::expandSCEVIfNeeded(SCEVExpander &Rewriter, const SCEV *S,
+                                          Loop *L, Instruction *InsertPt,
+                                          Type *ResultTy) {
+  // Before expanding S into an expensive LLVM expression, see if we can use an
+  // already existing value as the expansion for S.
+  if (Value *ExistingValue = Rewriter.getExactExistingExpansion(S, InsertPt, L))
+    if (ExistingValue->getType() == ResultTy)
+      return ExistingValue;
+
+  // We didn't find anything, fall back to using SCEVExpander.
+  return Rewriter.expandCodeFor(S, ResultTy, InsertPt);
+}
+
 //===----------------------------------------------------------------------===//
-// RewriteLoopExitValues - Optimize IV users outside the loop.
+// rewriteLoopExitValues - Optimize IV users outside the loop.
 // As a side effect, reduces the amount of IV processing within the loop.
 //===----------------------------------------------------------------------===//
 
-/// RewriteLoopExitValues - Check to see if this loop has a computable
-/// loop-invariant execution count.  If so, this means that we can compute the
-/// final value of any expressions that are recurrent in the loop, and
-/// substitute the exit values from the loop into any instructions outside of
-/// the loop that use the final values of the current expressions.
+/// Check to see if this loop has a computable loop-invariant execution count.
+/// If so, this means that we can compute the final value of any expressions
+/// that are recurrent in the loop, and substitute the exit values from the loop
+/// into any instructions outside of the loop that use the final values of the
+/// current expressions.
 ///
 /// This is mostly redundant with the regular IndVarSimplify activities that
 /// happen later, except that it's more powerful in some cases, because it's
 /// able to brute-force evaluate arbitrary instructions as long as they have
 /// constant operands at the beginning of the loop.
-void IndVarSimplify::RewriteLoopExitValues(Loop *L, SCEVExpander &Rewriter) {
-  // Verify the input to the pass in already in LCSSA form.
-  assert(L->isLCSSAForm(*DT));
+void IndVarSimplify::rewriteLoopExitValues(Loop *L, SCEVExpander &Rewriter) {
+  // Check a pre-condition.
+  assert(L->isRecursivelyLCSSAForm(*DT, *LI) &&
+         "Indvars did not preserve LCSSA!");
 
   SmallVector<BasicBlock*, 8> ExitBlocks;
   L->getUniqueExitBlocks(ExitBlocks);
 
+  SmallVector<RewritePhi, 8> RewritePhiSet;
   // Find all values that are computed inside the loop, but used outside of it.
   // Because of LCSSA, these values will only occur in LCSSA PHI Nodes.  Scan
   // the exit blocks of the loop to find them.
-  for (unsigned i = 0, e = ExitBlocks.size(); i != e; ++i) {
-    BasicBlock *ExitBB = ExitBlocks[i];
-
+  for (BasicBlock *ExitBB : ExitBlocks) {
     // If there are no PHI nodes in this exit block, then no values defined
     // inside the loop are used on this path, skip it.
     PHINode *PN = dyn_cast<PHINode>(ExitBB->begin());
@@ -500,8 +575,7 @@ void IndVarSimplify::RewriteLoopExitValues(Loop *L, SCEVExpander &Rewriter) {
       if (PN->use_empty())
         continue; // dead use, don't replace it
 
-      // SCEV only supports integer expressions for now.
-      if (!PN->getType()->isIntegerTy() && !PN->getType()->isPointerTy())
+      if (!SE->isSCEVable(PN->getType()))
         continue;
 
       // It's necessary to tell ScalarEvolution about this explicitly so that
@@ -545,8 +619,8 @@ void IndVarSimplify::RewriteLoopExitValues(Loop *L, SCEVExpander &Rewriter) {
           unsigned NumHardInternalUses = 0;
           unsigned NumSoftExternalUses = 0;
           unsigned NumUses = 0;
-          for (Value::use_iterator IB=Inst->use_begin(), IE=Inst->use_end();
-               IB!=IE && NumUses<=6 ; ++IB) {
+          for (auto IB = Inst->user_begin(), IE = Inst->user_end();
+               IB != IE && NumUses <= 6; ++IB) {
             Instruction *UseInstr = cast<Instruction>(*IB);
             unsigned Opc = UseInstr->getOpcode();
             NumUses++;
@@ -558,9 +632,9 @@ void IndVarSimplify::RewriteLoopExitValues(Loop *L, SCEVExpander &Rewriter) {
                 // Do not count the Phi as a use. LCSSA may have inserted
                 // plenty of trivial ones.
                 NumUses--;
-                for (Value::use_iterator PB=UseInstr->use_begin(),
-                                         PE=UseInstr->use_end();
-                     PB!=PE && NumUses<=6 ; ++PB, ++NumUses) {
+                for (auto PB = UseInstr->user_begin(),
+                          PE = UseInstr->user_end();
+                     PB != PE && NumUses <= 6; ++PB, ++NumUses) {
                   unsigned PhiOpc = cast<Instruction>(*PB)->getOpcode();
                   if (PhiOpc != Instruction::Call && PhiOpc != Instruction::Ret)
                     NumSoftExternalUses++;
@@ -575,7 +649,9 @@ void IndVarSimplify::RewriteLoopExitValues(Loop *L, SCEVExpander &Rewriter) {
             continue;
         }
 
-        Value *ExitVal = Rewriter.expandCodeFor(ExitValue, PN->getType(), Inst);
+        bool HighCost = Rewriter.isHighCostExpansion(ExitValue, L, Inst);
+        Value *ExitVal =
+            expandSCEVIfNeeded(Rewriter, ExitValue, L, Inst, PN->getType());
 
         DEBUG(dbgs() << "INDVARS: RLEV: AfterLoopVal = " << *ExitVal << '\n'
                      << "  LoopVal = " << *Inst << "\n");
@@ -584,33 +660,42 @@ void IndVarSimplify::RewriteLoopExitValues(Loop *L, SCEVExpander &Rewriter) {
           DeadInsts.push_back(ExitVal);
           continue;
         }
-        Changed = true;
-        ++NumReplaced;
 
-        PN->setIncomingValue(i, ExitVal);
-
-        // If this instruction is dead now, delete it. Don't do it now to avoid
-        // invalidating iterators.
-        if (isInstructionTriviallyDead(Inst, TLI))
-          DeadInsts.push_back(Inst);
-
-        if (NumPreds == 1) {
-          // Completely replace a single-pred PHI. This is safe, because the
-          // NewVal won't be variant in the loop, so we don't need an LCSSA phi
-          // node anymore.
-          PN->replaceAllUsesWith(ExitVal);
-          PN->eraseFromParent();
-        }
+        // Collect all the candidate PHINodes to be rewritten.
+        RewritePhiSet.emplace_back(PN, i, ExitVal, HighCost);
       }
-      if (NumPreds != 1) {
-        // Clone the PHI and delete the original one. This lets IVUsers and
-        // any other maps purge the original user from their records.
-        PHINode *NewPN = cast<PHINode>(PN->clone());
-        NewPN->takeName(PN);
-        NewPN->insertBefore(PN);
-        PN->replaceAllUsesWith(NewPN);
-        PN->eraseFromParent();
-      }
+    }
+  }
+
+  bool LoopCanBeDel = canLoopBeDeleted(L, RewritePhiSet);
+
+  // Transformation.
+  for (const RewritePhi &Phi : RewritePhiSet) {
+    PHINode *PN = Phi.PN;
+    Value *ExitVal = Phi.Val;
+
+    // Only do the rewrite when the ExitValue can be expanded cheaply.
+    // If LoopCanBeDel is true, rewrite exit value aggressively.
+    if (ReplaceExitValue == OnlyCheapRepl && !LoopCanBeDel && Phi.HighCost) {
+      DeadInsts.push_back(ExitVal);
+      continue;
+    }
+
+    Changed = true;
+    ++NumReplaced;
+    Instruction *Inst = cast<Instruction>(PN->getIncomingValue(Phi.Ith));
+    PN->setIncomingValue(Phi.Ith, ExitVal);
+
+    // If this instruction is dead now, delete it. Don't do it now to avoid
+    // invalidating iterators.
+    if (isInstructionTriviallyDead(Inst, TLI))
+      DeadInsts.push_back(Inst);
+
+    // Replace PN with ExitVal if that is legal and does not break LCSSA.
+    if (PN->getNumIncomingValues() == 1 &&
+        LI->replacementPreservesLCSSAForm(PN, ExitVal)) {
+      PN->replaceAllUsesWith(ExitVal);
+      PN->eraseFromParent();
     }
   }
 
@@ -619,50 +704,188 @@ void IndVarSimplify::RewriteLoopExitValues(Loop *L, SCEVExpander &Rewriter) {
   Rewriter.clearInsertPoint();
 }
 
+//===---------------------------------------------------------------------===//
+// rewriteFirstIterationLoopExitValues: Rewrite loop exit values if we know
+// they will exit at the first iteration.
+//===---------------------------------------------------------------------===//
+
+/// Check to see if this loop has loop invariant conditions which lead to loop
+/// exits. If so, we know that if the exit path is taken, it is at the first
+/// loop iteration. This lets us predict exit values of PHI nodes that live in
+/// loop header.
+void IndVarSimplify::rewriteFirstIterationLoopExitValues(Loop *L) {
+  // Verify the input to the pass is already in LCSSA form.
+  assert(L->isLCSSAForm(*DT));
+
+  SmallVector<BasicBlock *, 8> ExitBlocks;
+  L->getUniqueExitBlocks(ExitBlocks);
+  auto *LoopHeader = L->getHeader();
+  assert(LoopHeader && "Invalid loop");
+
+  for (auto *ExitBB : ExitBlocks) {
+    // If there are no more PHI nodes in this exit block, then no more
+    // values defined inside the loop are used on this path.
+    for (PHINode &PN : ExitBB->phis()) {
+      for (unsigned IncomingValIdx = 0, E = PN.getNumIncomingValues();
+           IncomingValIdx != E; ++IncomingValIdx) {
+        auto *IncomingBB = PN.getIncomingBlock(IncomingValIdx);
+
+        // We currently only support loop exits from loop header. If the
+        // incoming block is not loop header, we need to recursively check
+        // all conditions starting from loop header are loop invariants.
+        // Additional support might be added in the future.
+        if (IncomingBB != LoopHeader)
+          continue;
+
+        // Get condition that leads to the exit path.
+        auto *TermInst = IncomingBB->getTerminator();
+
+        Value *Cond = nullptr;
+        if (auto *BI = dyn_cast<BranchInst>(TermInst)) {
+          // Must be a conditional branch, otherwise the block
+          // should not be in the loop.
+          Cond = BI->getCondition();
+        } else if (auto *SI = dyn_cast<SwitchInst>(TermInst))
+          Cond = SI->getCondition();
+        else
+          continue;
+
+        if (!L->isLoopInvariant(Cond))
+          continue;
+
+        auto *ExitVal = dyn_cast<PHINode>(PN.getIncomingValue(IncomingValIdx));
+
+        // Only deal with PHIs.
+        if (!ExitVal)
+          continue;
+
+        // If ExitVal is a PHI on the loop header, then we know its
+        // value along this exit because the exit can only be taken
+        // on the first iteration.
+        auto *LoopPreheader = L->getLoopPreheader();
+        assert(LoopPreheader && "Invalid loop");
+        int PreheaderIdx = ExitVal->getBasicBlockIndex(LoopPreheader);
+        if (PreheaderIdx != -1) {
+          assert(ExitVal->getParent() == LoopHeader &&
+                 "ExitVal must be in loop header");
+          PN.setIncomingValue(IncomingValIdx,
+                              ExitVal->getIncomingValue(PreheaderIdx));
+        }
+      }
+    }
+  }
+}
+
+/// Check whether it is possible to delete the loop after rewriting exit
+/// value. If it is possible, ignore ReplaceExitValue and do rewriting
+/// aggressively.
+bool IndVarSimplify::canLoopBeDeleted(
+    Loop *L, SmallVector<RewritePhi, 8> &RewritePhiSet) {
+  BasicBlock *Preheader = L->getLoopPreheader();
+  // If there is no preheader, the loop will not be deleted.
+  if (!Preheader)
+    return false;
+
+  // In LoopDeletion pass Loop can be deleted when ExitingBlocks.size() > 1.
+  // We obviate multiple ExitingBlocks case for simplicity.
+  // TODO: If we see testcase with multiple ExitingBlocks can be deleted
+  // after exit value rewriting, we can enhance the logic here.
+  SmallVector<BasicBlock *, 4> ExitingBlocks;
+  L->getExitingBlocks(ExitingBlocks);
+  SmallVector<BasicBlock *, 8> ExitBlocks;
+  L->getUniqueExitBlocks(ExitBlocks);
+  if (ExitBlocks.size() > 1 || ExitingBlocks.size() > 1)
+    return false;
+
+  BasicBlock *ExitBlock = ExitBlocks[0];
+  BasicBlock::iterator BI = ExitBlock->begin();
+  while (PHINode *P = dyn_cast<PHINode>(BI)) {
+    Value *Incoming = P->getIncomingValueForBlock(ExitingBlocks[0]);
+
+    // If the Incoming value of P is found in RewritePhiSet, we know it
+    // could be rewritten to use a loop invariant value in transformation
+    // phase later. Skip it in the loop invariant check below.
+    bool found = false;
+    for (const RewritePhi &Phi : RewritePhiSet) {
+      unsigned i = Phi.Ith;
+      if (Phi.PN == P && (Phi.PN)->getIncomingValue(i) == Incoming) {
+        found = true;
+        break;
+      }
+    }
+
+    Instruction *I;
+    if (!found && (I = dyn_cast<Instruction>(Incoming)))
+      if (!L->hasLoopInvariantOperands(I))
+        return false;
+
+    ++BI;
+  }
+
+  for (auto *BB : L->blocks())
+    if (llvm::any_of(*BB, [](Instruction &I) {
+          return I.mayHaveSideEffects();
+        }))
+      return false;
+
+  return true;
+}
+
 //===----------------------------------------------------------------------===//
 //  IV Widening - Extend the width of an IV to cover its widest uses.
 //===----------------------------------------------------------------------===//
 
 namespace {
-  // Collect information about induction variables that are used by sign/zero
-  // extend operations. This information is recorded by CollectExtend and
-  // provides the input to WidenIV.
-  struct WideIVInfo {
-    PHINode *NarrowIV;
-    Type *WidestNativeType; // Widest integer type created [sz]ext
-    bool IsSigned;          // Was an sext user seen before a zext?
 
-    WideIVInfo() : NarrowIV(0), WidestNativeType(0), IsSigned(false) {}
-  };
+// Collect information about induction variables that are used by sign/zero
+// extend operations. This information is recorded by CollectExtend and provides
+// the input to WidenIV.
+struct WideIVInfo {
+  PHINode *NarrowIV = nullptr;
 
-  class WideIVVisitor : public IVVisitor {
-    ScalarEvolution *SE;
-    const DataLayout *TD;
+  // Widest integer type created [sz]ext
+  Type *WidestNativeType = nullptr;
 
-  public:
-    WideIVInfo WI;
+  // Was a sext user seen before a zext?
+  bool IsSigned = false;
+};
 
-    WideIVVisitor(PHINode *NarrowIV, ScalarEvolution *SCEV,
-                  const DataLayout *TData) :
-      SE(SCEV), TD(TData) { WI.NarrowIV = NarrowIV; }
+} // end anonymous namespace
 
-    // Implement the interface used by simplifyUsersOfIV.
-    virtual void visitCast(CastInst *Cast);
-  };
-}
-
-/// visitCast - Update information about the induction variable that is
-/// extended by this sign or zero extend operation. This is used to determine
-/// the final width of the IV before actually widening it.
-void WideIVVisitor::visitCast(CastInst *Cast) {
+/// Update information about the induction variable that is extended by this
+/// sign or zero extend operation. This is used to determine the final width of
+/// the IV before actually widening it.
+static void visitIVCast(CastInst *Cast, WideIVInfo &WI, ScalarEvolution *SE,
+                        const TargetTransformInfo *TTI) {
   bool IsSigned = Cast->getOpcode() == Instruction::SExt;
   if (!IsSigned && Cast->getOpcode() != Instruction::ZExt)
     return;
 
   Type *Ty = Cast->getType();
   uint64_t Width = SE->getTypeSizeInBits(Ty);
-  if (TD && !TD->isLegalInteger(Width))
+  if (!Cast->getModule()->getDataLayout().isLegalInteger(Width))
     return;
+
+  // Check that `Cast` actually extends the induction variable (we rely on this
+  // later).  This takes care of cases where `Cast` is extending a truncation of
+  // the narrow induction variable, and thus can end up being narrower than the
+  // "narrow" induction variable.
+  uint64_t NarrowIVWidth = SE->getTypeSizeInBits(WI.NarrowIV->getType());
+  if (NarrowIVWidth >= Width)
+    return;
+
+  // Cast is either an sext or zext up to this point.
+  // We should not widen an indvar if arithmetics on the wider indvar are more
+  // expensive than those on the narrower indvar. We check only the cost of ADD
+  // because at least an ADD is required to increment the induction variable. We
+  // could compute more comprehensively the cost of all instructions on the
+  // induction variable when necessary.
+  if (TTI &&
+      TTI->getArithmeticInstrCost(Instruction::Add, Ty) >
+          TTI->getArithmeticInstrCost(Instruction::Add,
+                                      Cast->getOperand(0)->getType())) {
+    return;
+  }
 
   if (!WI.WidestNativeType) {
     WI.WidestNativeType = SE->getEffectiveSCEVType(Ty);
@@ -680,30 +903,33 @@ void WideIVVisitor::visitCast(CastInst *Cast) {
 
 namespace {
 
-/// NarrowIVDefUse - Record a link in the Narrow IV def-use chain along with the
-/// WideIV that computes the same value as the Narrow IV def.  This avoids
-/// caching Use* pointers.
+/// Record a link in the Narrow IV def-use chain along with the WideIV that
+/// computes the same value as the Narrow IV def.  This avoids caching Use*
+/// pointers.
 struct NarrowIVDefUse {
-  Instruction *NarrowDef;
-  Instruction *NarrowUse;
-  Instruction *WideDef;
+  Instruction *NarrowDef = nullptr;
+  Instruction *NarrowUse = nullptr;
+  Instruction *WideDef = nullptr;
 
-  NarrowIVDefUse(): NarrowDef(0), NarrowUse(0), WideDef(0) {}
+  // True if the narrow def is never negative.  Tracking this information lets
+  // us use a sign extension instead of a zero extension or vice versa, when
+  // profitable and legal.
+  bool NeverNegative = false;
 
-  NarrowIVDefUse(Instruction *ND, Instruction *NU, Instruction *WD):
-    NarrowDef(ND), NarrowUse(NU), WideDef(WD) {}
+  NarrowIVDefUse(Instruction *ND, Instruction *NU, Instruction *WD,
+                 bool NeverNegative)
+      : NarrowDef(ND), NarrowUse(NU), WideDef(WD),
+        NeverNegative(NeverNegative) {}
 };
 
-/// WidenIV - The goal of this transform is to remove sign and zero extends
-/// without creating any new induction variables. To do this, it creates a new
-/// phi of the wider type and redirects all users, either removing extends or
-/// inserting truncs whenever we stop propagating the type.
-///
+/// The goal of this transform is to remove sign and zero extends without
+/// creating any new induction variables. To do this, it creates a new phi of
+/// the wider type and redirects all users, either removing extends or inserting
+/// truncs whenever we stop propagating the type.
 class WidenIV {
   // Parameters
   PHINode *OrigPhi;
   Type *WideType;
-  bool IsSigned;
 
   // Context
   LoopInfo        *LI;
@@ -711,54 +937,101 @@ class WidenIV {
   ScalarEvolution *SE;
   DominatorTree   *DT;
 
-  // Result
-  PHINode *WidePhi;
-  Instruction *WideInc;
-  const SCEV *WideIncExpr;
-  SmallVectorImpl<WeakVH> &DeadInsts;
+  // Does the module have any calls to the llvm.experimental.guard intrinsic
+  // at all? If not we can avoid scanning instructions looking for guards.
+  bool HasGuards;
 
-  SmallPtrSet<Instruction*,16> Widened;
+  // Result
+  PHINode *WidePhi = nullptr;
+  Instruction *WideInc = nullptr;
+  const SCEV *WideIncExpr = nullptr;
+  SmallVectorImpl<WeakTrackingVH> &DeadInsts;
+
+  SmallPtrSet<Instruction *,16> Widened;
   SmallVector<NarrowIVDefUse, 8> NarrowIVUsers;
 
-public:
-  WidenIV(const WideIVInfo &WI, LoopInfo *LInfo,
-          ScalarEvolution *SEv, DominatorTree *DTree,
-          SmallVectorImpl<WeakVH> &DI) :
-    OrigPhi(WI.NarrowIV),
-    WideType(WI.WidestNativeType),
-    IsSigned(WI.IsSigned),
-    LI(LInfo),
-    L(LI->getLoopFor(OrigPhi->getParent())),
-    SE(SEv),
-    DT(DTree),
-    WidePhi(0),
-    WideInc(0),
-    WideIncExpr(0),
-    DeadInsts(DI) {
-    assert(L->getHeader() == OrigPhi->getParent() && "Phi must be an IV");
+  enum ExtendKind { ZeroExtended, SignExtended, Unknown };
+
+  // A map tracking the kind of extension used to widen each narrow IV
+  // and narrow IV user.
+  // Key: pointer to a narrow IV or IV user.
+  // Value: the kind of extension used to widen this Instruction.
+  DenseMap<AssertingVH<Instruction>, ExtendKind> ExtendKindMap;
+
+  using DefUserPair = std::pair<AssertingVH<Value>, AssertingVH<Instruction>>;
+
+  // A map with control-dependent ranges for post increment IV uses. The key is
+  // a pair of IV def and a use of this def denoting the context. The value is
+  // a ConstantRange representing possible values of the def at the given
+  // context.
+  DenseMap<DefUserPair, ConstantRange> PostIncRangeInfos;
+
+  Optional<ConstantRange> getPostIncRangeInfo(Value *Def,
+                                              Instruction *UseI) {
+    DefUserPair Key(Def, UseI);
+    auto It = PostIncRangeInfos.find(Key);
+    return It == PostIncRangeInfos.end()
+               ? Optional<ConstantRange>(None)
+               : Optional<ConstantRange>(It->second);
   }
 
-  PHINode *CreateWideIV(SCEVExpander &Rewriter);
+  void calculatePostIncRanges(PHINode *OrigPhi);
+  void calculatePostIncRange(Instruction *NarrowDef, Instruction *NarrowUser);
+
+  void updatePostIncRangeInfo(Value *Def, Instruction *UseI, ConstantRange R) {
+    DefUserPair Key(Def, UseI);
+    auto It = PostIncRangeInfos.find(Key);
+    if (It == PostIncRangeInfos.end())
+      PostIncRangeInfos.insert({Key, R});
+    else
+      It->second = R.intersectWith(It->second);
+  }
+
+public:
+  WidenIV(const WideIVInfo &WI, LoopInfo *LInfo, ScalarEvolution *SEv,
+          DominatorTree *DTree, SmallVectorImpl<WeakTrackingVH> &DI,
+          bool HasGuards)
+      : OrigPhi(WI.NarrowIV), WideType(WI.WidestNativeType), LI(LInfo),
+        L(LI->getLoopFor(OrigPhi->getParent())), SE(SEv), DT(DTree),
+        HasGuards(HasGuards), DeadInsts(DI) {
+    assert(L->getHeader() == OrigPhi->getParent() && "Phi must be an IV");
+    ExtendKindMap[OrigPhi] = WI.IsSigned ? SignExtended : ZeroExtended;
+  }
+
+  PHINode *createWideIV(SCEVExpander &Rewriter);
 
 protected:
-  Value *getExtend(Value *NarrowOper, Type *WideType, bool IsSigned,
-                   Instruction *Use);
+  Value *createExtendInst(Value *NarrowOper, Type *WideType, bool IsSigned,
+                          Instruction *Use);
 
-  Instruction *CloneIVUser(NarrowIVDefUse DU);
+  Instruction *cloneIVUser(NarrowIVDefUse DU, const SCEVAddRecExpr *WideAR);
+  Instruction *cloneArithmeticIVUser(NarrowIVDefUse DU,
+                                     const SCEVAddRecExpr *WideAR);
+  Instruction *cloneBitwiseIVUser(NarrowIVDefUse DU);
 
-  const SCEVAddRecExpr *GetWideRecurrence(Instruction *NarrowUse);
+  ExtendKind getExtendKind(Instruction *I);
 
-  const SCEVAddRecExpr* GetExtendedOperandRecurrence(NarrowIVDefUse DU);
+  using WidenedRecTy = std::pair<const SCEVAddRecExpr *, ExtendKind>;
 
-  Instruction *WidenIVUse(NarrowIVDefUse DU, SCEVExpander &Rewriter);
+  WidenedRecTy getWideRecurrence(NarrowIVDefUse DU);
+
+  WidenedRecTy getExtendedOperandRecurrence(NarrowIVDefUse DU);
+
+  const SCEV *getSCEVByOpCode(const SCEV *LHS, const SCEV *RHS,
+                              unsigned OpCode) const;
+
+  Instruction *widenIVUse(NarrowIVDefUse DU, SCEVExpander &Rewriter);
+
+  bool widenLoopCompare(NarrowIVDefUse DU);
 
   void pushNarrowIVUsers(Instruction *NarrowDef, Instruction *WideDef);
 };
-} // anonymous namespace
 
-/// isLoopInvariant - Perform a quick domtree based check for loop invariance
-/// assuming that V is used within the loop. LoopInfo::isLoopInvariant() seems
-/// gratuitous for this purpose.
+} // end anonymous namespace
+
+/// Perform a quick domtree based check for loop invariance assuming that V is
+/// used within the loop. LoopInfo::isLoopInvariant() seems gratuitous for this
+/// purpose.
 static bool isLoopInvariant(Value *V, const Loop *L, const DominatorTree *DT) {
   Instruction *Inst = dyn_cast<Instruction>(V);
   if (!Inst)
@@ -767,8 +1040,8 @@ static bool isLoopInvariant(Value *V, const Loop *L, const DominatorTree *DT) {
   return DT->properlyDominates(Inst->getParent(), L->getHeader());
 }
 
-Value *WidenIV::getExtend(Value *NarrowOper, Type *WideType, bool IsSigned,
-                          Instruction *Use) {
+Value *WidenIV::createExtendInst(Value *NarrowOper, Type *WideType,
+                                 bool IsSigned, Instruction *Use) {
   // Set the debug location and conservative insertion point.
   IRBuilder<> Builder(Use);
   // Hoist the insertion point into loop preheaders as far as possible.
@@ -781,127 +1054,367 @@ Value *WidenIV::getExtend(Value *NarrowOper, Type *WideType, bool IsSigned,
                     Builder.CreateZExt(NarrowOper, WideType);
 }
 
-/// CloneIVUser - Instantiate a wide operation to replace a narrow
-/// operation. This only needs to handle operations that can evaluation to
-/// SCEVAddRec. It can safely return 0 for any operation we decide not to clone.
-Instruction *WidenIV::CloneIVUser(NarrowIVDefUse DU) {
+/// Instantiate a wide operation to replace a narrow operation. This only needs
+/// to handle operations that can evaluation to SCEVAddRec. It can safely return
+/// 0 for any operation we decide not to clone.
+Instruction *WidenIV::cloneIVUser(NarrowIVDefUse DU,
+                                  const SCEVAddRecExpr *WideAR) {
   unsigned Opcode = DU.NarrowUse->getOpcode();
   switch (Opcode) {
   default:
-    return 0;
+    return nullptr;
   case Instruction::Add:
   case Instruction::Mul:
   case Instruction::UDiv:
   case Instruction::Sub:
+    return cloneArithmeticIVUser(DU, WideAR);
+
   case Instruction::And:
   case Instruction::Or:
   case Instruction::Xor:
   case Instruction::Shl:
   case Instruction::LShr:
   case Instruction::AShr:
-    DEBUG(dbgs() << "Cloning IVUser: " << *DU.NarrowUse << "\n");
-
-    // Replace NarrowDef operands with WideDef. Otherwise, we don't know
-    // anything about the narrow operand yet so must insert a [sz]ext. It is
-    // probably loop invariant and will be folded or hoisted. If it actually
-    // comes from a widened IV, it should be removed during a future call to
-    // WidenIVUse.
-    Value *LHS = (DU.NarrowUse->getOperand(0) == DU.NarrowDef) ? DU.WideDef :
-      getExtend(DU.NarrowUse->getOperand(0), WideType, IsSigned, DU.NarrowUse);
-    Value *RHS = (DU.NarrowUse->getOperand(1) == DU.NarrowDef) ? DU.WideDef :
-      getExtend(DU.NarrowUse->getOperand(1), WideType, IsSigned, DU.NarrowUse);
-
-    BinaryOperator *NarrowBO = cast<BinaryOperator>(DU.NarrowUse);
-    BinaryOperator *WideBO = BinaryOperator::Create(NarrowBO->getOpcode(),
-                                                    LHS, RHS,
-                                                    NarrowBO->getName());
-    IRBuilder<> Builder(DU.NarrowUse);
-    Builder.Insert(WideBO);
-    if (const OverflowingBinaryOperator *OBO =
-        dyn_cast<OverflowingBinaryOperator>(NarrowBO)) {
-      if (OBO->hasNoUnsignedWrap()) WideBO->setHasNoUnsignedWrap();
-      if (OBO->hasNoSignedWrap()) WideBO->setHasNoSignedWrap();
-    }
-    return WideBO;
+    return cloneBitwiseIVUser(DU);
   }
+}
+
+Instruction *WidenIV::cloneBitwiseIVUser(NarrowIVDefUse DU) {
+  Instruction *NarrowUse = DU.NarrowUse;
+  Instruction *NarrowDef = DU.NarrowDef;
+  Instruction *WideDef = DU.WideDef;
+
+  DEBUG(dbgs() << "Cloning bitwise IVUser: " << *NarrowUse << "\n");
+
+  // Replace NarrowDef operands with WideDef. Otherwise, we don't know anything
+  // about the narrow operand yet so must insert a [sz]ext. It is probably loop
+  // invariant and will be folded or hoisted. If it actually comes from a
+  // widened IV, it should be removed during a future call to widenIVUse.
+  bool IsSigned = getExtendKind(NarrowDef) == SignExtended;
+  Value *LHS = (NarrowUse->getOperand(0) == NarrowDef)
+                   ? WideDef
+                   : createExtendInst(NarrowUse->getOperand(0), WideType,
+                                      IsSigned, NarrowUse);
+  Value *RHS = (NarrowUse->getOperand(1) == NarrowDef)
+                   ? WideDef
+                   : createExtendInst(NarrowUse->getOperand(1), WideType,
+                                      IsSigned, NarrowUse);
+
+  auto *NarrowBO = cast<BinaryOperator>(NarrowUse);
+  auto *WideBO = BinaryOperator::Create(NarrowBO->getOpcode(), LHS, RHS,
+                                        NarrowBO->getName());
+  IRBuilder<> Builder(NarrowUse);
+  Builder.Insert(WideBO);
+  WideBO->copyIRFlags(NarrowBO);
+  return WideBO;
+}
+
+Instruction *WidenIV::cloneArithmeticIVUser(NarrowIVDefUse DU,
+                                            const SCEVAddRecExpr *WideAR) {
+  Instruction *NarrowUse = DU.NarrowUse;
+  Instruction *NarrowDef = DU.NarrowDef;
+  Instruction *WideDef = DU.WideDef;
+
+  DEBUG(dbgs() << "Cloning arithmetic IVUser: " << *NarrowUse << "\n");
+
+  unsigned IVOpIdx = (NarrowUse->getOperand(0) == NarrowDef) ? 0 : 1;
+
+  // We're trying to find X such that
+  //
+  //  Widen(NarrowDef `op` NonIVNarrowDef) == WideAR == WideDef `op.wide` X
+  //
+  // We guess two solutions to X, sext(NonIVNarrowDef) and zext(NonIVNarrowDef),
+  // and check using SCEV if any of them are correct.
+
+  // Returns true if extending NonIVNarrowDef according to `SignExt` is a
+  // correct solution to X.
+  auto GuessNonIVOperand = [&](bool SignExt) {
+    const SCEV *WideLHS;
+    const SCEV *WideRHS;
+
+    auto GetExtend = [this, SignExt](const SCEV *S, Type *Ty) {
+      if (SignExt)
+        return SE->getSignExtendExpr(S, Ty);
+      return SE->getZeroExtendExpr(S, Ty);
+    };
+
+    if (IVOpIdx == 0) {
+      WideLHS = SE->getSCEV(WideDef);
+      const SCEV *NarrowRHS = SE->getSCEV(NarrowUse->getOperand(1));
+      WideRHS = GetExtend(NarrowRHS, WideType);
+    } else {
+      const SCEV *NarrowLHS = SE->getSCEV(NarrowUse->getOperand(0));
+      WideLHS = GetExtend(NarrowLHS, WideType);
+      WideRHS = SE->getSCEV(WideDef);
+    }
+
+    // WideUse is "WideDef `op.wide` X" as described in the comment.
+    const SCEV *WideUse = nullptr;
+
+    switch (NarrowUse->getOpcode()) {
+    default:
+      llvm_unreachable("No other possibility!");
+
+    case Instruction::Add:
+      WideUse = SE->getAddExpr(WideLHS, WideRHS);
+      break;
+
+    case Instruction::Mul:
+      WideUse = SE->getMulExpr(WideLHS, WideRHS);
+      break;
+
+    case Instruction::UDiv:
+      WideUse = SE->getUDivExpr(WideLHS, WideRHS);
+      break;
+
+    case Instruction::Sub:
+      WideUse = SE->getMinusSCEV(WideLHS, WideRHS);
+      break;
+    }
+
+    return WideUse == WideAR;
+  };
+
+  bool SignExtend = getExtendKind(NarrowDef) == SignExtended;
+  if (!GuessNonIVOperand(SignExtend)) {
+    SignExtend = !SignExtend;
+    if (!GuessNonIVOperand(SignExtend))
+      return nullptr;
+  }
+
+  Value *LHS = (NarrowUse->getOperand(0) == NarrowDef)
+                   ? WideDef
+                   : createExtendInst(NarrowUse->getOperand(0), WideType,
+                                      SignExtend, NarrowUse);
+  Value *RHS = (NarrowUse->getOperand(1) == NarrowDef)
+                   ? WideDef
+                   : createExtendInst(NarrowUse->getOperand(1), WideType,
+                                      SignExtend, NarrowUse);
+
+  auto *NarrowBO = cast<BinaryOperator>(NarrowUse);
+  auto *WideBO = BinaryOperator::Create(NarrowBO->getOpcode(), LHS, RHS,
+                                        NarrowBO->getName());
+
+  IRBuilder<> Builder(NarrowUse);
+  Builder.Insert(WideBO);
+  WideBO->copyIRFlags(NarrowBO);
+  return WideBO;
+}
+
+WidenIV::ExtendKind WidenIV::getExtendKind(Instruction *I) {
+  auto It = ExtendKindMap.find(I);
+  assert(It != ExtendKindMap.end() && "Instruction not yet extended!");
+  return It->second;
+}
+
+const SCEV *WidenIV::getSCEVByOpCode(const SCEV *LHS, const SCEV *RHS,
+                                     unsigned OpCode) const {
+  if (OpCode == Instruction::Add)
+    return SE->getAddExpr(LHS, RHS);
+  if (OpCode == Instruction::Sub)
+    return SE->getMinusSCEV(LHS, RHS);
+  if (OpCode == Instruction::Mul)
+    return SE->getMulExpr(LHS, RHS);
+
+  llvm_unreachable("Unsupported opcode.");
 }
 
 /// No-wrap operations can transfer sign extension of their result to their
 /// operands. Generate the SCEV value for the widened operation without
 /// actually modifying the IR yet. If the expression after extending the
-/// operands is an AddRec for this loop, return it.
-const SCEVAddRecExpr* WidenIV::GetExtendedOperandRecurrence(NarrowIVDefUse DU) {
+/// operands is an AddRec for this loop, return the AddRec and the kind of
+/// extension used.
+WidenIV::WidenedRecTy WidenIV::getExtendedOperandRecurrence(NarrowIVDefUse DU) {
   // Handle the common case of add<nsw/nuw>
-  if (DU.NarrowUse->getOpcode() != Instruction::Add)
-    return 0;
+  const unsigned OpCode = DU.NarrowUse->getOpcode();
+  // Only Add/Sub/Mul instructions supported yet.
+  if (OpCode != Instruction::Add && OpCode != Instruction::Sub &&
+      OpCode != Instruction::Mul)
+    return {nullptr, Unknown};
 
   // One operand (NarrowDef) has already been extended to WideDef. Now determine
   // if extending the other will lead to a recurrence.
-  unsigned ExtendOperIdx = DU.NarrowUse->getOperand(0) == DU.NarrowDef ? 1 : 0;
+  const unsigned ExtendOperIdx =
+      DU.NarrowUse->getOperand(0) == DU.NarrowDef ? 1 : 0;
   assert(DU.NarrowUse->getOperand(1-ExtendOperIdx) == DU.NarrowDef && "bad DU");
 
-  const SCEV *ExtendOperExpr = 0;
+  const SCEV *ExtendOperExpr = nullptr;
   const OverflowingBinaryOperator *OBO =
     cast<OverflowingBinaryOperator>(DU.NarrowUse);
-  if (IsSigned && OBO->hasNoSignedWrap())
+  ExtendKind ExtKind = getExtendKind(DU.NarrowDef);
+  if (ExtKind == SignExtended && OBO->hasNoSignedWrap())
     ExtendOperExpr = SE->getSignExtendExpr(
       SE->getSCEV(DU.NarrowUse->getOperand(ExtendOperIdx)), WideType);
-  else if(!IsSigned && OBO->hasNoUnsignedWrap())
+  else if(ExtKind == ZeroExtended && OBO->hasNoUnsignedWrap())
     ExtendOperExpr = SE->getZeroExtendExpr(
       SE->getSCEV(DU.NarrowUse->getOperand(ExtendOperIdx)), WideType);
   else
-    return 0;
+    return {nullptr, Unknown};
 
-  // When creating this AddExpr, don't apply the current operations NSW or NUW
+  // When creating this SCEV expr, don't apply the current operations NSW or NUW
   // flags. This instruction may be guarded by control flow that the no-wrap
   // behavior depends on. Non-control-equivalent instructions can be mapped to
   // the same SCEV expression, and it would be incorrect to transfer NSW/NUW
   // semantics to those operations.
-  const SCEVAddRecExpr *AddRec = dyn_cast<SCEVAddRecExpr>(
-    SE->getAddExpr(SE->getSCEV(DU.WideDef), ExtendOperExpr));
+  const SCEV *lhs = SE->getSCEV(DU.WideDef);
+  const SCEV *rhs = ExtendOperExpr;
+
+  // Let's swap operands to the initial order for the case of non-commutative
+  // operations, like SUB. See PR21014.
+  if (ExtendOperIdx == 0)
+    std::swap(lhs, rhs);
+  const SCEVAddRecExpr *AddRec =
+      dyn_cast<SCEVAddRecExpr>(getSCEVByOpCode(lhs, rhs, OpCode));
 
   if (!AddRec || AddRec->getLoop() != L)
-    return 0;
-  return AddRec;
+    return {nullptr, Unknown};
+
+  return {AddRec, ExtKind};
 }
 
-/// GetWideRecurrence - Is this instruction potentially interesting from
-/// IVUsers' perspective after widening it's type? In other words, can the
-/// extend be safely hoisted out of the loop with SCEV reducing the value to a
-/// recurrence on the same loop. If so, return the sign or zero extended
-/// recurrence. Otherwise return NULL.
-const SCEVAddRecExpr *WidenIV::GetWideRecurrence(Instruction *NarrowUse) {
-  if (!SE->isSCEVable(NarrowUse->getType()))
-    return 0;
+/// Is this instruction potentially interesting for further simplification after
+/// widening it's type? In other words, can the extend be safely hoisted out of
+/// the loop with SCEV reducing the value to a recurrence on the same loop. If
+/// so, return the extended recurrence and the kind of extension used. Otherwise
+/// return {nullptr, Unknown}.
+WidenIV::WidenedRecTy WidenIV::getWideRecurrence(NarrowIVDefUse DU) {
+  if (!SE->isSCEVable(DU.NarrowUse->getType()))
+    return {nullptr, Unknown};
 
-  const SCEV *NarrowExpr = SE->getSCEV(NarrowUse);
-  if (SE->getTypeSizeInBits(NarrowExpr->getType())
-      >= SE->getTypeSizeInBits(WideType)) {
+  const SCEV *NarrowExpr = SE->getSCEV(DU.NarrowUse);
+  if (SE->getTypeSizeInBits(NarrowExpr->getType()) >=
+      SE->getTypeSizeInBits(WideType)) {
     // NarrowUse implicitly widens its operand. e.g. a gep with a narrow
     // index. So don't follow this use.
-    return 0;
+    return {nullptr, Unknown};
   }
 
-  const SCEV *WideExpr = IsSigned ?
-    SE->getSignExtendExpr(NarrowExpr, WideType) :
-    SE->getZeroExtendExpr(NarrowExpr, WideType);
+  const SCEV *WideExpr;
+  ExtendKind ExtKind;
+  if (DU.NeverNegative) {
+    WideExpr = SE->getSignExtendExpr(NarrowExpr, WideType);
+    if (isa<SCEVAddRecExpr>(WideExpr))
+      ExtKind = SignExtended;
+    else {
+      WideExpr = SE->getZeroExtendExpr(NarrowExpr, WideType);
+      ExtKind = ZeroExtended;
+    }
+  } else if (getExtendKind(DU.NarrowDef) == SignExtended) {
+    WideExpr = SE->getSignExtendExpr(NarrowExpr, WideType);
+    ExtKind = SignExtended;
+  } else {
+    WideExpr = SE->getZeroExtendExpr(NarrowExpr, WideType);
+    ExtKind = ZeroExtended;
+  }
   const SCEVAddRecExpr *AddRec = dyn_cast<SCEVAddRecExpr>(WideExpr);
   if (!AddRec || AddRec->getLoop() != L)
-    return 0;
-  return AddRec;
+    return {nullptr, Unknown};
+  return {AddRec, ExtKind};
 }
 
-/// WidenIVUse - Determine whether an individual user of the narrow IV can be
-/// widened. If so, return the wide clone of the user.
-Instruction *WidenIV::WidenIVUse(NarrowIVDefUse DU, SCEVExpander &Rewriter) {
+/// This IV user cannot be widen. Replace this use of the original narrow IV
+/// with a truncation of the new wide IV to isolate and eliminate the narrow IV.
+static void truncateIVUse(NarrowIVDefUse DU, DominatorTree *DT, LoopInfo *LI) {
+  DEBUG(dbgs() << "INDVARS: Truncate IV " << *DU.WideDef
+        << " for user " << *DU.NarrowUse << "\n");
+  IRBuilder<> Builder(
+      getInsertPointForUses(DU.NarrowUse, DU.NarrowDef, DT, LI));
+  Value *Trunc = Builder.CreateTrunc(DU.WideDef, DU.NarrowDef->getType());
+  DU.NarrowUse->replaceUsesOfWith(DU.NarrowDef, Trunc);
+}
+
+/// If the narrow use is a compare instruction, then widen the compare
+//  (and possibly the other operand).  The extend operation is hoisted into the
+// loop preheader as far as possible.
+bool WidenIV::widenLoopCompare(NarrowIVDefUse DU) {
+  ICmpInst *Cmp = dyn_cast<ICmpInst>(DU.NarrowUse);
+  if (!Cmp)
+    return false;
+
+  // We can legally widen the comparison in the following two cases:
+  //
+  //  - The signedness of the IV extension and comparison match
+  //
+  //  - The narrow IV is always positive (and thus its sign extension is equal
+  //    to its zero extension).  For instance, let's say we're zero extending
+  //    %narrow for the following use
+  //
+  //      icmp slt i32 %narrow, %val   ... (A)
+  //
+  //    and %narrow is always positive.  Then
+  //
+  //      (A) == icmp slt i32 sext(%narrow), sext(%val)
+  //          == icmp slt i32 zext(%narrow), sext(%val)
+  bool IsSigned = getExtendKind(DU.NarrowDef) == SignExtended;
+  if (!(DU.NeverNegative || IsSigned == Cmp->isSigned()))
+    return false;
+
+  Value *Op = Cmp->getOperand(Cmp->getOperand(0) == DU.NarrowDef ? 1 : 0);
+  unsigned CastWidth = SE->getTypeSizeInBits(Op->getType());
+  unsigned IVWidth = SE->getTypeSizeInBits(WideType);
+  assert(CastWidth <= IVWidth && "Unexpected width while widening compare.");
+
+  // Widen the compare instruction.
+  IRBuilder<> Builder(
+      getInsertPointForUses(DU.NarrowUse, DU.NarrowDef, DT, LI));
+  DU.NarrowUse->replaceUsesOfWith(DU.NarrowDef, DU.WideDef);
+
+  // Widen the other operand of the compare, if necessary.
+  if (CastWidth < IVWidth) {
+    Value *ExtOp = createExtendInst(Op, WideType, Cmp->isSigned(), Cmp);
+    DU.NarrowUse->replaceUsesOfWith(Op, ExtOp);
+  }
+  return true;
+}
+
+/// Determine whether an individual user of the narrow IV can be widened. If so,
+/// return the wide clone of the user.
+Instruction *WidenIV::widenIVUse(NarrowIVDefUse DU, SCEVExpander &Rewriter) {
+  assert(ExtendKindMap.count(DU.NarrowDef) &&
+         "Should already know the kind of extension used to widen NarrowDef");
 
   // Stop traversing the def-use chain at inner-loop phis or post-loop phis.
-  if (isa<PHINode>(DU.NarrowUse) &&
-      LI->getLoopFor(DU.NarrowUse->getParent()) != L)
-    return 0;
+  if (PHINode *UsePhi = dyn_cast<PHINode>(DU.NarrowUse)) {
+    if (LI->getLoopFor(UsePhi->getParent()) != L) {
+      // For LCSSA phis, sink the truncate outside the loop.
+      // After SimplifyCFG most loop exit targets have a single predecessor.
+      // Otherwise fall back to a truncate within the loop.
+      if (UsePhi->getNumOperands() != 1)
+        truncateIVUse(DU, DT, LI);
+      else {
+        // Widening the PHI requires us to insert a trunc.  The logical place
+        // for this trunc is in the same BB as the PHI.  This is not possible if
+        // the BB is terminated by a catchswitch.
+        if (isa<CatchSwitchInst>(UsePhi->getParent()->getTerminator()))
+          return nullptr;
+
+        PHINode *WidePhi =
+          PHINode::Create(DU.WideDef->getType(), 1, UsePhi->getName() + ".wide",
+                          UsePhi);
+        WidePhi->addIncoming(DU.WideDef, UsePhi->getIncomingBlock(0));
+        IRBuilder<> Builder(&*WidePhi->getParent()->getFirstInsertionPt());
+        Value *Trunc = Builder.CreateTrunc(WidePhi, DU.NarrowDef->getType());
+        UsePhi->replaceAllUsesWith(Trunc);
+        DeadInsts.emplace_back(UsePhi);
+        DEBUG(dbgs() << "INDVARS: Widen lcssa phi " << *UsePhi
+              << " to " << *WidePhi << "\n");
+      }
+      return nullptr;
+    }
+  }
+
+  // This narrow use can be widened by a sext if it's non-negative or its narrow
+  // def was widended by a sext. Same for zext.
+  auto canWidenBySExt = [&]() {
+    return DU.NeverNegative || getExtendKind(DU.NarrowDef) == SignExtended;
+  };
+  auto canWidenByZExt = [&]() {
+    return DU.NeverNegative || getExtendKind(DU.NarrowDef) == ZeroExtended;
+  };
 
   // Our raison d'etre! Eliminate sign and zero extension.
-  if (IsSigned ? isa<SExtInst>(DU.NarrowUse) : isa<ZExtInst>(DU.NarrowUse)) {
+  if ((isa<SExtInst>(DU.NarrowUse) && canWidenBySExt()) ||
+      (isa<ZExtInst>(DU.NarrowUse) && canWidenByZExt())) {
     Value *NewDef = DU.WideDef;
     if (DU.NarrowUse->getType() != WideType) {
       unsigned CastWidth = SE->getTypeSizeInBits(DU.NarrowUse->getType());
@@ -926,7 +1439,7 @@ Instruction *WidenIV::WidenIVUse(NarrowIVDefUse DU, SCEVExpander &Rewriter) {
             << " replaced by " << *DU.WideDef << "\n");
       ++NumElimExt;
       DU.NarrowUse->replaceAllUsesWith(NewDef);
-      DeadInsts.push_back(DU.NarrowUse);
+      DeadInsts.emplace_back(DU.NarrowUse);
     }
     // Now that the extend is gone, we want to expose it's uses for potential
     // further simplification. We don't need to directly inform SimplifyIVUsers
@@ -935,22 +1448,26 @@ Instruction *WidenIV::WidenIVUse(NarrowIVDefUse DU, SCEVExpander &Rewriter) {
     // push the uses of WideDef here.
 
     // No further widening is needed. The deceased [sz]ext had done it for us.
-    return 0;
+    return nullptr;
   }
 
   // Does this user itself evaluate to a recurrence after widening?
-  const SCEVAddRecExpr *WideAddRec = GetWideRecurrence(DU.NarrowUse);
-  if (!WideAddRec) {
-      WideAddRec = GetExtendedOperandRecurrence(DU);
-  }
-  if (!WideAddRec) {
-    // This user does not evaluate to a recurence after widening, so don't
+  WidenedRecTy WideAddRec = getExtendedOperandRecurrence(DU);
+  if (!WideAddRec.first)
+    WideAddRec = getWideRecurrence(DU);
+
+  assert((WideAddRec.first == nullptr) == (WideAddRec.second == Unknown));
+  if (!WideAddRec.first) {
+    // If use is a loop condition, try to promote the condition instead of
+    // truncating the IV first.
+    if (widenLoopCompare(DU))
+      return nullptr;
+
+    // This user does not evaluate to a recurrence after widening, so don't
     // follow it. Instead insert a Trunc to kill off the original use,
     // eventually isolating the original narrow IV so it can be removed.
-    IRBuilder<> Builder(getInsertPointForUses(DU.NarrowUse, DU.NarrowDef, DT));
-    Value *Trunc = Builder.CreateTrunc(DU.WideDef, DU.NarrowDef->getType());
-    DU.NarrowUse->replaceUsesOfWith(DU.NarrowDef, Trunc);
-    return 0;
+    truncateIVUse(DU, DT, LI);
+    return nullptr;
   }
   // Assume block terminators cannot evaluate to a recurrence. We can't to
   // insert a Trunc after a terminator if there happens to be a critical edge.
@@ -959,66 +1476,75 @@ Instruction *WidenIV::WidenIVUse(NarrowIVDefUse DU, SCEVExpander &Rewriter) {
 
   // Reuse the IV increment that SCEVExpander created as long as it dominates
   // NarrowUse.
-  Instruction *WideUse = 0;
-  if (WideAddRec == WideIncExpr
-      && Rewriter.hoistIVInc(WideInc, DU.NarrowUse))
+  Instruction *WideUse = nullptr;
+  if (WideAddRec.first == WideIncExpr &&
+      Rewriter.hoistIVInc(WideInc, DU.NarrowUse))
     WideUse = WideInc;
   else {
-    WideUse = CloneIVUser(DU);
+    WideUse = cloneIVUser(DU, WideAddRec.first);
     if (!WideUse)
-      return 0;
+      return nullptr;
   }
   // Evaluation of WideAddRec ensured that the narrow expression could be
   // extended outside the loop without overflow. This suggests that the wide use
   // evaluates to the same expression as the extended narrow use, but doesn't
   // absolutely guarantee it. Hence the following failsafe check. In rare cases
   // where it fails, we simply throw away the newly created wide use.
-  if (WideAddRec != SE->getSCEV(WideUse)) {
+  if (WideAddRec.first != SE->getSCEV(WideUse)) {
     DEBUG(dbgs() << "Wide use expression mismatch: " << *WideUse
-          << ": " << *SE->getSCEV(WideUse) << " != " << *WideAddRec << "\n");
-    DeadInsts.push_back(WideUse);
-    return 0;
+          << ": " << *SE->getSCEV(WideUse) << " != " << *WideAddRec.first << "\n");
+    DeadInsts.emplace_back(WideUse);
+    return nullptr;
   }
 
+  ExtendKindMap[DU.NarrowUse] = WideAddRec.second;
   // Returning WideUse pushes it on the worklist.
   return WideUse;
 }
 
-/// pushNarrowIVUsers - Add eligible users of NarrowDef to NarrowIVUsers.
-///
+/// Add eligible users of NarrowDef to NarrowIVUsers.
 void WidenIV::pushNarrowIVUsers(Instruction *NarrowDef, Instruction *WideDef) {
-  for (Value::use_iterator UI = NarrowDef->use_begin(),
-         UE = NarrowDef->use_end(); UI != UE; ++UI) {
-    Instruction *NarrowUse = cast<Instruction>(*UI);
+  const SCEV *NarrowSCEV = SE->getSCEV(NarrowDef);
+  bool NonNegativeDef =
+      SE->isKnownPredicate(ICmpInst::ICMP_SGE, NarrowSCEV,
+                           SE->getConstant(NarrowSCEV->getType(), 0));
+  for (User *U : NarrowDef->users()) {
+    Instruction *NarrowUser = cast<Instruction>(U);
 
     // Handle data flow merges and bizarre phi cycles.
-    if (!Widened.insert(NarrowUse))
+    if (!Widened.insert(NarrowUser).second)
       continue;
 
-    NarrowIVUsers.push_back(NarrowIVDefUse(NarrowDef, NarrowUse, WideDef));
+    bool NonNegativeUse = false;
+    if (!NonNegativeDef) {
+      // We might have a control-dependent range information for this context.
+      if (auto RangeInfo = getPostIncRangeInfo(NarrowDef, NarrowUser))
+        NonNegativeUse = RangeInfo->getSignedMin().isNonNegative();
+    }
+
+    NarrowIVUsers.emplace_back(NarrowDef, NarrowUser, WideDef,
+                               NonNegativeDef || NonNegativeUse);
   }
 }
 
-/// CreateWideIV - Process a single induction variable. First use the
-/// SCEVExpander to create a wide induction variable that evaluates to the same
-/// recurrence as the original narrow IV. Then use a worklist to forward
-/// traverse the narrow IV's def-use chain. After WidenIVUse has processed all
-/// interesting IV users, the narrow IV will be isolated for removal by
-/// DeleteDeadPHIs.
+/// Process a single induction variable. First use the SCEVExpander to create a
+/// wide induction variable that evaluates to the same recurrence as the
+/// original narrow IV. Then use a worklist to forward traverse the narrow IV's
+/// def-use chain. After widenIVUse has processed all interesting IV users, the
+/// narrow IV will be isolated for removal by DeleteDeadPHIs.
 ///
 /// It would be simpler to delete uses as they are processed, but we must avoid
 /// invalidating SCEV expressions.
-///
-PHINode *WidenIV::CreateWideIV(SCEVExpander &Rewriter) {
+PHINode *WidenIV::createWideIV(SCEVExpander &Rewriter) {
   // Is this phi an induction variable?
   const SCEVAddRecExpr *AddRec = dyn_cast<SCEVAddRecExpr>(SE->getSCEV(OrigPhi));
   if (!AddRec)
-    return NULL;
+    return nullptr;
 
   // Widen the induction variable expression.
-  const SCEV *WideIVExpr = IsSigned ?
-    SE->getSignExtendExpr(AddRec, WideType) :
-    SE->getZeroExtendExpr(AddRec, WideType);
+  const SCEV *WideIVExpr = getExtendKind(OrigPhi) == SignExtended
+                               ? SE->getSignExtendExpr(AddRec, WideType)
+                               : SE->getZeroExtendExpr(AddRec, WideType);
 
   assert(SE->getEffectiveSCEVType(WideIVExpr->getType()) == WideType &&
          "Expect the new IV expression to preserve its type");
@@ -1026,30 +1552,49 @@ PHINode *WidenIV::CreateWideIV(SCEVExpander &Rewriter) {
   // Can the IV be extended outside the loop without overflow?
   AddRec = dyn_cast<SCEVAddRecExpr>(WideIVExpr);
   if (!AddRec || AddRec->getLoop() != L)
-    return NULL;
+    return nullptr;
 
   // An AddRec must have loop-invariant operands. Since this AddRec is
   // materialized by a loop header phi, the expression cannot have any post-loop
   // operands, so they must dominate the loop header.
-  assert(SE->properlyDominates(AddRec->getStart(), L->getHeader()) &&
-         SE->properlyDominates(AddRec->getStepRecurrence(*SE), L->getHeader())
-         && "Loop header phi recurrence inputs do not dominate the loop");
+  assert(
+      SE->properlyDominates(AddRec->getStart(), L->getHeader()) &&
+      SE->properlyDominates(AddRec->getStepRecurrence(*SE), L->getHeader()) &&
+      "Loop header phi recurrence inputs do not dominate the loop");
+
+  // Iterate over IV uses (including transitive ones) looking for IV increments
+  // of the form 'add nsw %iv, <const>'. For each increment and each use of
+  // the increment calculate control-dependent range information basing on
+  // dominating conditions inside of the loop (e.g. a range check inside of the
+  // loop). Calculated ranges are stored in PostIncRangeInfos map.
+  //
+  // Control-dependent range information is later used to prove that a narrow
+  // definition is not negative (see pushNarrowIVUsers). It's difficult to do
+  // this on demand because when pushNarrowIVUsers needs this information some
+  // of the dominating conditions might be already widened.
+  if (UsePostIncrementRanges)
+    calculatePostIncRanges(OrigPhi);
 
   // The rewriter provides a value for the desired IV expression. This may
   // either find an existing phi or materialize a new one. Either way, we
   // expect a well-formed cyclic phi-with-increments. i.e. any operand not part
   // of the phi-SCC dominates the loop entry.
-  Instruction *InsertPt = L->getHeader()->begin();
+  Instruction *InsertPt = &L->getHeader()->front();
   WidePhi = cast<PHINode>(Rewriter.expandCodeFor(AddRec, WideType, InsertPt));
 
   // Remembering the WideIV increment generated by SCEVExpander allows
-  // WidenIVUse to reuse it when widening the narrow IV's increment. We don't
+  // widenIVUse to reuse it when widening the narrow IV's increment. We don't
   // employ a general reuse mechanism because the call above is the only call to
   // SCEVExpander. Henceforth, we produce 1-to-1 narrow to wide uses.
   if (BasicBlock *LatchBlock = L->getLoopLatch()) {
     WideInc =
       cast<Instruction>(WidePhi->getIncomingValueForBlock(LatchBlock));
     WideIncExpr = SE->getSCEV(WideInc);
+    // Propagate the debug location associated with the original loop increment
+    // to the new (widened) increment.
+    auto *OrigInc =
+      cast<Instruction>(OrigPhi->getIncomingValueForBlock(LatchBlock));
+    WideInc->setDebugLoc(OrigInc->getDebugLoc());
   }
 
   DEBUG(dbgs() << "Wide IV: " << *WidePhi << "\n");
@@ -1066,34 +1611,181 @@ PHINode *WidenIV::CreateWideIV(SCEVExpander &Rewriter) {
 
     // Process a def-use edge. This may replace the use, so don't hold a
     // use_iterator across it.
-    Instruction *WideUse = WidenIVUse(DU, Rewriter);
+    Instruction *WideUse = widenIVUse(DU, Rewriter);
 
     // Follow all def-use edges from the previous narrow use.
     if (WideUse)
       pushNarrowIVUsers(DU.NarrowUse, WideUse);
 
-    // WidenIVUse may have removed the def-use edge.
+    // widenIVUse may have removed the def-use edge.
     if (DU.NarrowDef->use_empty())
-      DeadInsts.push_back(DU.NarrowDef);
+      DeadInsts.emplace_back(DU.NarrowDef);
   }
+
+  // Attach any debug information to the new PHI. Since OrigPhi and WidePHI
+  // evaluate the same recurrence, we can just copy the debug info over.
+  SmallVector<DbgValueInst *, 1> DbgValues;
+  llvm::findDbgValues(DbgValues, OrigPhi);
+  auto *MDPhi = MetadataAsValue::get(WidePhi->getContext(),
+                                     ValueAsMetadata::get(WidePhi));
+  for (auto &DbgValue : DbgValues)
+    DbgValue->setOperand(0, MDPhi);
   return WidePhi;
 }
+
+/// Calculates control-dependent range for the given def at the given context
+/// by looking at dominating conditions inside of the loop
+void WidenIV::calculatePostIncRange(Instruction *NarrowDef,
+                                    Instruction *NarrowUser) {
+  using namespace llvm::PatternMatch;
+
+  Value *NarrowDefLHS;
+  const APInt *NarrowDefRHS;
+  if (!match(NarrowDef, m_NSWAdd(m_Value(NarrowDefLHS),
+                                 m_APInt(NarrowDefRHS))) ||
+      !NarrowDefRHS->isNonNegative())
+    return;
+
+  auto UpdateRangeFromCondition = [&] (Value *Condition,
+                                       bool TrueDest) {
+    CmpInst::Predicate Pred;
+    Value *CmpRHS;
+    if (!match(Condition, m_ICmp(Pred, m_Specific(NarrowDefLHS),
+                                 m_Value(CmpRHS))))
+      return;
+
+    CmpInst::Predicate P =
+            TrueDest ? Pred : CmpInst::getInversePredicate(Pred);
+
+    auto CmpRHSRange = SE->getSignedRange(SE->getSCEV(CmpRHS));
+    auto CmpConstrainedLHSRange =
+            ConstantRange::makeAllowedICmpRegion(P, CmpRHSRange);
+    auto NarrowDefRange =
+            CmpConstrainedLHSRange.addWithNoSignedWrap(*NarrowDefRHS);
+
+    updatePostIncRangeInfo(NarrowDef, NarrowUser, NarrowDefRange);
+  };
+
+  auto UpdateRangeFromGuards = [&](Instruction *Ctx) {
+    if (!HasGuards)
+      return;
+
+    for (Instruction &I : make_range(Ctx->getIterator().getReverse(),
+                                     Ctx->getParent()->rend())) {
+      Value *C = nullptr;
+      if (match(&I, m_Intrinsic<Intrinsic::experimental_guard>(m_Value(C))))
+        UpdateRangeFromCondition(C, /*TrueDest=*/true);
+    }
+  };
+
+  UpdateRangeFromGuards(NarrowUser);
+
+  BasicBlock *NarrowUserBB = NarrowUser->getParent();
+  // If NarrowUserBB is statically unreachable asking dominator queries may
+  // yield surprising results. (e.g. the block may not have a dom tree node)
+  if (!DT->isReachableFromEntry(NarrowUserBB))
+    return;
+
+  for (auto *DTB = (*DT)[NarrowUserBB]->getIDom();
+       L->contains(DTB->getBlock());
+       DTB = DTB->getIDom()) {
+    auto *BB = DTB->getBlock();
+    auto *TI = BB->getTerminator();
+    UpdateRangeFromGuards(TI);
+
+    auto *BI = dyn_cast<BranchInst>(TI);
+    if (!BI || !BI->isConditional())
+      continue;
+
+    auto *TrueSuccessor = BI->getSuccessor(0);
+    auto *FalseSuccessor = BI->getSuccessor(1);
+
+    auto DominatesNarrowUser = [this, NarrowUser] (BasicBlockEdge BBE) {
+      return BBE.isSingleEdge() &&
+             DT->dominates(BBE, NarrowUser->getParent());
+    };
+
+    if (DominatesNarrowUser(BasicBlockEdge(BB, TrueSuccessor)))
+      UpdateRangeFromCondition(BI->getCondition(), /*TrueDest=*/true);
+
+    if (DominatesNarrowUser(BasicBlockEdge(BB, FalseSuccessor)))
+      UpdateRangeFromCondition(BI->getCondition(), /*TrueDest=*/false);
+  }
+}
+
+/// Calculates PostIncRangeInfos map for the given IV
+void WidenIV::calculatePostIncRanges(PHINode *OrigPhi) {
+  SmallPtrSet<Instruction *, 16> Visited;
+  SmallVector<Instruction *, 6> Worklist;
+  Worklist.push_back(OrigPhi);
+  Visited.insert(OrigPhi);
+
+  while (!Worklist.empty()) {
+    Instruction *NarrowDef = Worklist.pop_back_val();
+
+    for (Use &U : NarrowDef->uses()) {
+      auto *NarrowUser = cast<Instruction>(U.getUser());
+
+      // Don't go looking outside the current loop.
+      auto *NarrowUserLoop = (*LI)[NarrowUser->getParent()];
+      if (!NarrowUserLoop || !L->contains(NarrowUserLoop))
+        continue;
+
+      if (!Visited.insert(NarrowUser).second)
+        continue;
+
+      Worklist.push_back(NarrowUser);
+
+      calculatePostIncRange(NarrowDef, NarrowUser);
+    }
+  }
+}
+
+//===----------------------------------------------------------------------===//
+//  Live IV Reduction - Minimize IVs live across the loop.
+//===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
 //  Simplification of IV users based on SCEV evaluation.
 //===----------------------------------------------------------------------===//
 
+namespace {
 
-/// SimplifyAndExtend - Iteratively perform simplification on a worklist of IV
-/// users. Each successive simplification may push more users which may
-/// themselves be candidates for simplification.
+class IndVarSimplifyVisitor : public IVVisitor {
+  ScalarEvolution *SE;
+  const TargetTransformInfo *TTI;
+  PHINode *IVPhi;
+
+public:
+  WideIVInfo WI;
+
+  IndVarSimplifyVisitor(PHINode *IV, ScalarEvolution *SCEV,
+                        const TargetTransformInfo *TTI,
+                        const DominatorTree *DTree)
+    : SE(SCEV), TTI(TTI), IVPhi(IV) {
+    DT = DTree;
+    WI.NarrowIV = IVPhi;
+  }
+
+  // Implement the interface used by simplifyUsersOfIV.
+  void visitCast(CastInst *Cast) override { visitIVCast(Cast, WI, SE, TTI); }
+};
+
+} // end anonymous namespace
+
+/// Iteratively perform simplification on a worklist of IV users. Each
+/// successive simplification may push more users which may themselves be
+/// candidates for simplification.
 ///
 /// Sign/Zero extend elimination is interleaved with IV simplification.
-///
-void IndVarSimplify::SimplifyAndExtend(Loop *L,
+void IndVarSimplify::simplifyAndExtend(Loop *L,
                                        SCEVExpander &Rewriter,
-                                       LPPassManager &LPM) {
+                                       LoopInfo *LI) {
   SmallVector<WideIVInfo, 8> WideIVs;
+
+  auto *GuardDecl = L->getBlocks()[0]->getModule()->getFunction(
+          Intrinsic::getName(Intrinsic::experimental_guard));
+  bool HasGuards = GuardDecl && !GuardDecl->use_empty();
 
   SmallVector<PHINode*, 8> LoopPhis;
   for (BasicBlock::iterator I = L->getHeader()->begin(); isa<PHINode>(I); ++I) {
@@ -1109,23 +1801,24 @@ void IndVarSimplify::SimplifyAndExtend(Loop *L,
     // extension. The first time SCEV attempts to normalize sign/zero extension,
     // the result becomes final. So for the most predictable results, we delay
     // evaluation of sign/zero extend evaluation until needed, and avoid running
-    // other SCEV based analysis prior to SimplifyAndExtend.
+    // other SCEV based analysis prior to simplifyAndExtend.
     do {
       PHINode *CurrIV = LoopPhis.pop_back_val();
 
       // Information about sign/zero extensions of CurrIV.
-      WideIVVisitor WIV(CurrIV, SE, TD);
+      IndVarSimplifyVisitor Visitor(CurrIV, SE, TTI, DT);
 
-      Changed |= simplifyUsersOfIV(CurrIV, SE, &LPM, DeadInsts, &WIV);
+      Changed |=
+          simplifyUsersOfIV(CurrIV, SE, DT, LI, DeadInsts, Rewriter, &Visitor);
 
-      if (WIV.WI.WidestNativeType) {
-        WideIVs.push_back(WIV.WI);
+      if (Visitor.WI.WidestNativeType) {
+        WideIVs.push_back(Visitor.WI);
       }
     } while(!LoopPhis.empty());
 
     for (; !WideIVs.empty(); WideIVs.pop_back()) {
-      WidenIV Widener(WideIVs.back(), LI, SE, DT, DeadInsts);
-      if (PHINode *WidePhi = Widener.CreateWideIV(Rewriter)) {
+      WidenIV Widener(WideIVs.back(), LI, SE, DT, DeadInsts, HasGuards);
+      if (PHINode *WidePhi = Widener.createWideIV(Rewriter)) {
         Changed = true;
         LoopPhis.push_back(WidePhi);
       }
@@ -1134,61 +1827,12 @@ void IndVarSimplify::SimplifyAndExtend(Loop *L,
 }
 
 //===----------------------------------------------------------------------===//
-//  LinearFunctionTestReplace and its kin. Rewrite the loop exit condition.
+//  linearFunctionTestReplace and its kin. Rewrite the loop exit condition.
 //===----------------------------------------------------------------------===//
 
-/// Check for expressions that ScalarEvolution generates to compute
-/// BackedgeTakenInfo. If these expressions have not been reduced, then
-/// expanding them may incur additional cost (albeit in the loop preheader).
-static bool isHighCostExpansion(const SCEV *S, BranchInst *BI,
-                                SmallPtrSet<const SCEV*, 8> &Processed,
-                                ScalarEvolution *SE) {
-  if (!Processed.insert(S))
-    return false;
-
-  // If the backedge-taken count is a UDiv, it's very likely a UDiv that
-  // ScalarEvolution's HowFarToZero or HowManyLessThans produced to compute a
-  // precise expression, rather than a UDiv from the user's code. If we can't
-  // find a UDiv in the code with some simple searching, assume the former and
-  // forego rewriting the loop.
-  if (isa<SCEVUDivExpr>(S)) {
-    ICmpInst *OrigCond = dyn_cast<ICmpInst>(BI->getCondition());
-    if (!OrigCond) return true;
-    const SCEV *R = SE->getSCEV(OrigCond->getOperand(1));
-    R = SE->getMinusSCEV(R, SE->getConstant(R->getType(), 1));
-    if (R != S) {
-      const SCEV *L = SE->getSCEV(OrigCond->getOperand(0));
-      L = SE->getMinusSCEV(L, SE->getConstant(L->getType(), 1));
-      if (L != S)
-        return true;
-    }
-  }
-
-  // Recurse past add expressions, which commonly occur in the
-  // BackedgeTakenCount. They may already exist in program code, and if not,
-  // they are not too expensive rematerialize.
-  if (const SCEVAddExpr *Add = dyn_cast<SCEVAddExpr>(S)) {
-    for (SCEVAddExpr::op_iterator I = Add->op_begin(), E = Add->op_end();
-         I != E; ++I) {
-      if (isHighCostExpansion(*I, BI, Processed, SE))
-        return true;
-    }
-    return false;
-  }
-
-  // HowManyLessThans uses a Max expression whenever the loop is not guarded by
-  // the exit condition.
-  if (isa<SCEVSMaxExpr>(S) || isa<SCEVUMaxExpr>(S))
-    return true;
-
-  // If we haven't recognized an expensive SCEV pattern, assume it's an
-  // expression produced by program code.
-  return false;
-}
-
-/// canExpandBackedgeTakenCount - Return true if this loop's backedge taken
-/// count expression can be safely and cheaply expanded into an instruction
-/// sequence that can be used by LinearFunctionTestReplace.
+/// Return true if this loop's backedge taken count expression can be safely and
+/// cheaply expanded into an instruction sequence that can be used by
+/// linearFunctionTestReplace.
 ///
 /// TODO: This fails for pointer-type loop counters with greater than one byte
 /// strides, consequently preventing LFTR from running. For the purpose of LFTR
@@ -1199,7 +1843,8 @@ static bool isHighCostExpansion(const SCEV *S, BranchInst *BI,
 /// used by ABI constrained operation, as opposed to inttoptr/ptrtoint).
 /// However, we don't yet have a strong motivation for converting loop tests
 /// into inequality tests.
-static bool canExpandBackedgeTakenCount(Loop *L, ScalarEvolution *SE) {
+static bool canExpandBackedgeTakenCount(Loop *L, ScalarEvolution *SE,
+                                        SCEVExpander &Rewriter) {
   const SCEV *BackedgeTakenCount = SE->getBackedgeTakenCount(L);
   if (isa<SCEVCouldNotCompute>(BackedgeTakenCount) ||
       BackedgeTakenCount->isZero())
@@ -1209,23 +1854,20 @@ static bool canExpandBackedgeTakenCount(Loop *L, ScalarEvolution *SE) {
     return false;
 
   // Can't rewrite non-branch yet.
-  BranchInst *BI = dyn_cast<BranchInst>(L->getExitingBlock()->getTerminator());
-  if (!BI)
+  if (!isa<BranchInst>(L->getExitingBlock()->getTerminator()))
     return false;
 
-  SmallPtrSet<const SCEV*, 8> Processed;
-  if (isHighCostExpansion(BackedgeTakenCount, BI, Processed, SE))
+  if (Rewriter.isHighCostExpansion(BackedgeTakenCount, L))
     return false;
 
   return true;
 }
 
-/// getLoopPhiForCounter - Return the loop header phi IFF IncV adds a loop
-/// invariant value to the phi.
+/// Return the loop header phi IFF IncV adds a loop invariant value to the phi.
 static PHINode *getLoopPhiForCounter(Value *IncV, Loop *L, DominatorTree *DT) {
   Instruction *IncI = dyn_cast<Instruction>(IncV);
   if (!IncI)
-    return 0;
+    return nullptr;
 
   switch (IncI->getOpcode()) {
   case Instruction::Add:
@@ -1235,18 +1877,19 @@ static PHINode *getLoopPhiForCounter(Value *IncV, Loop *L, DominatorTree *DT) {
     // An IV counter must preserve its type.
     if (IncI->getNumOperands() == 2)
       break;
+    LLVM_FALLTHROUGH;
   default:
-    return 0;
+    return nullptr;
   }
 
   PHINode *Phi = dyn_cast<PHINode>(IncI->getOperand(0));
   if (Phi && Phi->getParent() == L->getHeader()) {
     if (isLoopInvariant(IncI->getOperand(1), L, DT))
       return Phi;
-    return 0;
+    return nullptr;
   }
   if (IncI->getOpcode() == Instruction::GetElementPtr)
-    return 0;
+    return nullptr;
 
   // Allow add/sub to be commuted.
   Phi = dyn_cast<PHINode>(IncI->getOperand(1));
@@ -1254,7 +1897,7 @@ static PHINode *getLoopPhiForCounter(Value *IncV, Loop *L, DominatorTree *DT) {
     if (isLoopInvariant(IncI->getOperand(0), L, DT))
       return Phi;
   }
-  return 0;
+  return nullptr;
 }
 
 /// Return the compare guarding the loop latch, or NULL for unrecognized tests.
@@ -1264,7 +1907,7 @@ static ICmpInst *getLoopTest(Loop *L) {
   BasicBlock *LatchBlock = L->getLoopLatch();
   // Don't bother with LFTR if the loop is not properly simplified.
   if (!LatchBlock)
-    return 0;
+    return nullptr;
 
   BranchInst *BI = dyn_cast<BranchInst>(L->getExitingBlock()->getTerminator());
   assert(BI && "expected exit branch");
@@ -1272,8 +1915,8 @@ static ICmpInst *getLoopTest(Loop *L) {
   return dyn_cast<ICmpInst>(BI->getCondition());
 }
 
-/// needsLFTR - LinearFunctionTestReplace policy. Return true unless we can show
-/// that the current exit test is already sufficiently canonical.
+/// linearFunctionTestReplace policy. Return true unless we can show that the
+/// current exit test is already sufficiently canonical.
 static bool needsLFTR(Loop *L, DominatorTree *DT) {
   // Do LFTR to simplify the exit condition to an ICMP.
   ICmpInst *Cond = getLoopTest(L);
@@ -1314,7 +1957,7 @@ static bool needsLFTR(Loop *L, DominatorTree *DT) {
 /// Recursive helper for hasConcreteDef(). Unfortunately, this currently boils
 /// down to checking that all operands are constant and listing instructions
 /// that may hide undef.
-static bool hasConcreteDefImpl(Value *V, SmallPtrSet<Value*, 8> &Visited,
+static bool hasConcreteDefImpl(Value *V, SmallPtrSetImpl<Value*> &Visited,
                                unsigned Depth) {
   if (isa<Constant>(V))
     return !isa<UndefValue>(V);
@@ -1333,10 +1976,10 @@ static bool hasConcreteDefImpl(Value *V, SmallPtrSet<Value*, 8> &Visited,
     return false;
 
   // Optimistically handle other instructions.
-  for (User::op_iterator OI = I->op_begin(), E = I->op_end(); OI != E; ++OI) {
-    if (!Visited.insert(*OI))
+  for (Value *Op : I->operands()) {
+    if (!Visited.insert(Op).second)
       continue;
-    if (!hasConcreteDefImpl(*OI, Visited, Depth+1))
+    if (!hasConcreteDefImpl(Op, Visited, Depth+1))
       return false;
   }
   return true;
@@ -1353,25 +1996,21 @@ static bool hasConcreteDef(Value *V) {
   return hasConcreteDefImpl(V, Visited, 0);
 }
 
-/// AlmostDeadIV - Return true if this IV has any uses other than the (soon to
-/// be rewritten) loop exit test.
+/// Return true if this IV has any uses other than the (soon to be rewritten)
+/// loop exit test.
 static bool AlmostDeadIV(PHINode *Phi, BasicBlock *LatchBlock, Value *Cond) {
   int LatchIdx = Phi->getBasicBlockIndex(LatchBlock);
   Value *IncV = Phi->getIncomingValue(LatchIdx);
 
-  for (Value::use_iterator UI = Phi->use_begin(), UE = Phi->use_end();
-       UI != UE; ++UI) {
-    if (*UI != Cond && *UI != IncV) return false;
-  }
+  for (User *U : Phi->users())
+    if (U != Cond && U != IncV) return false;
 
-  for (Value::use_iterator UI = IncV->use_begin(), UE = IncV->use_end();
-       UI != UE; ++UI) {
-    if (*UI != Cond && *UI != Phi) return false;
-  }
+  for (User *U : IncV->users())
+    if (U != Cond && U != Phi) return false;
   return true;
 }
 
-/// FindLoopCounter - Find an affine IV in canonical form.
+/// Find an affine IV in canonical form.
 ///
 /// BECount may be an i8* pointer type. The pointer difference is already
 /// valid count without scaling the address stride, so it remains a pointer
@@ -1384,19 +2023,19 @@ static bool AlmostDeadIV(PHINode *Phi, BasicBlock *LatchBlock, Value *Cond) {
 /// FIXME: Accept non-unit stride as long as SCEV can reduce BECount * Stride.
 /// This is difficult in general for SCEV because of potential overflow. But we
 /// could at least handle constant BECounts.
-static PHINode *
-FindLoopCounter(Loop *L, const SCEV *BECount,
-                ScalarEvolution *SE, DominatorTree *DT, const DataLayout *TD) {
+static PHINode *FindLoopCounter(Loop *L, const SCEV *BECount,
+                                ScalarEvolution *SE, DominatorTree *DT) {
   uint64_t BCWidth = SE->getTypeSizeInBits(BECount->getType());
 
   Value *Cond =
     cast<BranchInst>(L->getExitingBlock()->getTerminator())->getCondition();
 
   // Loop over all of the PHI nodes, looking for a simple counter.
-  PHINode *BestPhi = 0;
-  const SCEV *BestInit = 0;
+  PHINode *BestPhi = nullptr;
+  const SCEV *BestInit = nullptr;
   BasicBlock *LatchBlock = L->getLoopLatch();
   assert(LatchBlock && "needsLFTR should guarantee a loop latch");
+  const DataLayout &DL = L->getHeader()->getModule()->getDataLayout();
 
   for (BasicBlock::iterator I = L->getHeader()->begin(); isa<PHINode>(I); ++I) {
     PHINode *Phi = cast<PHINode>(I);
@@ -1415,7 +2054,7 @@ FindLoopCounter(Loop *L, const SCEV *BECount,
     // AR may be wider than BECount. With eq/ne tests overflow is immaterial.
     // AR may not be a narrower type, or we may never exit.
     uint64_t PhiWidth = SE->getTypeSizeInBits(AR->getType());
-    if (PhiWidth < BCWidth || (TD && !TD->isLegalInteger(PhiWidth)))
+    if (PhiWidth < BCWidth || !DL.isLegalInteger(PhiWidth))
       continue;
 
     const SCEV *Step = dyn_cast<SCEVConstant>(AR->getStepRecurrence(*SE));
@@ -1434,8 +2073,8 @@ FindLoopCounter(Loop *L, const SCEV *BECount,
       // the loop test. In this case we assume that performing LFTR could not
       // increase the number of undef users.
       if (ICmpInst *Cond = getLoopTest(L)) {
-        if (Phi != getLoopPhiForCounter(Cond->getOperand(0), L, DT)
-            && Phi != getLoopPhiForCounter(Cond->getOperand(1), L, DT)) {
+        if (Phi != getLoopPhiForCounter(Cond->getOperand(0), L, DT) &&
+            Phi != getLoopPhiForCounter(Cond->getOperand(1), L, DT)) {
           continue;
         }
       }
@@ -1465,8 +2104,8 @@ FindLoopCounter(Loop *L, const SCEV *BECount,
   return BestPhi;
 }
 
-/// genLoopLimit - Help LinearFunctionTestReplace by generating a value that
-/// holds the RHS of the new loop test.
+/// Help linearFunctionTestReplace by generating a value that holds the RHS of
+/// the new loop test.
 static Value *genLoopLimit(PHINode *IndVar, const SCEV *IVCount, Loop *L,
                            SCEVExpander &Rewriter, ScalarEvolution *SE) {
   const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(SE->getSCEV(IndVar));
@@ -1477,9 +2116,7 @@ static Value *genLoopLimit(PHINode *IndVar, const SCEV *IVCount, Loop *L,
   // finds a valid pointer IV. Sign extend BECount in order to materialize a
   // GEP. Avoid running SCEVExpander on a new pointer value, instead reusing
   // the existing GEPs whenever possible.
-  if (IndVar->getType()->isPointerTy()
-      && !IVCount->getType()->isPointerTy()) {
-
+  if (IndVar->getType()->isPointerTy() && !IVCount->getType()->isPointerTy()) {
     // IVOffset will be the new GEP offset that is interpreted by GEP as a
     // signed value. IVCount on the other hand represents the loop trip count,
     // which is an unsigned value. FindLoopCounter only allows induction
@@ -1500,15 +2137,15 @@ static Value *genLoopLimit(PHINode *IndVar, const SCEV *IVCount, Loop *L,
     // We could handle pointer IVs other than i8*, but we need to compensate for
     // gep index scaling. See canExpandBackedgeTakenCount comments.
     assert(SE->getSizeOfExpr(IntegerType::getInt64Ty(IndVar->getContext()),
-             cast<PointerType>(GEPBase->getType())->getElementType())->isOne()
-           && "unit stride pointer IV must be i8*");
+                             cast<PointerType>(GEPBase->getType())
+                                 ->getElementType())->isOne() &&
+           "unit stride pointer IV must be i8*");
 
     IRBuilder<> Builder(L->getLoopPreheader()->getTerminator());
-    return Builder.CreateGEP(GEPBase, GEPOffset, "lftr.limit");
-  }
-  else {
+    return Builder.CreateGEP(nullptr, GEPBase, GEPOffset, "lftr.limit");
+  } else {
     // In any other case, convert both IVInit and IVCount to integers before
-    // comparing. This may result in SCEV expension of pointers, but in practice
+    // comparing. This may result in SCEV expansion of pointers, but in practice
     // SCEV will fold the pointer arithmetic away as such:
     // BECount = (IVEnd - IVInit - 1) => IVLimit = IVInit (postinc).
     //
@@ -1518,7 +2155,7 @@ static Value *genLoopLimit(PHINode *IndVar, const SCEV *IVCount, Loop *L,
     // IVInit integer and IVCount pointer would only occur if a canonical IV
     // were generated on top of case #2, which is not expected.
 
-    const SCEV *IVLimit = 0;
+    const SCEV *IVLimit = nullptr;
     // For unit stride, IVCount = Start + BECount with 2's complement overflow.
     // For non-zero Start, compute IVCount here.
     if (AR->getStart()->isZero())
@@ -1548,21 +2185,23 @@ static Value *genLoopLimit(PHINode *IndVar, const SCEV *IVCount, Loop *L,
   }
 }
 
-/// LinearFunctionTestReplace - This method rewrites the exit condition of the
-/// loop to be a canonical != comparison against the incremented loop induction
-/// variable.  This pass is able to rewrite the exit tests of any loop where the
-/// SCEV analysis can determine a loop-invariant trip count of the loop, which
-/// is actually a much broader range than just linear tests.
+/// This method rewrites the exit condition of the loop to be a canonical !=
+/// comparison against the incremented loop induction variable.  This pass is
+/// able to rewrite the exit tests of any loop where the SCEV analysis can
+/// determine a loop-invariant trip count of the loop, which is actually a much
+/// broader range than just linear tests.
 Value *IndVarSimplify::
-LinearFunctionTestReplace(Loop *L,
+linearFunctionTestReplace(Loop *L,
                           const SCEV *BackedgeTakenCount,
                           PHINode *IndVar,
                           SCEVExpander &Rewriter) {
-  assert(canExpandBackedgeTakenCount(L, SE) && "precondition");
+  assert(canExpandBackedgeTakenCount(L, SE, Rewriter) && "precondition");
 
   // Initialize CmpIndVar and IVCount to their preincremented values.
   Value *CmpIndVar = IndVar;
   const SCEV *IVCount = BackedgeTakenCount;
+
+  assert(L->getLoopLatch() && "Loop no longer in simplified form?");
 
   // If the exiting block is the same as the backedge block, we prefer to
   // compare against the post-incremented value, otherwise we must compare
@@ -1572,7 +2211,7 @@ LinearFunctionTestReplace(Loop *L,
     // This addition may overflow, which is valid as long as the comparison is
     // truncated to BackedgeTakenCount->getType().
     IVCount = SE->getAddExpr(BackedgeTakenCount,
-                             SE->getConstant(BackedgeTakenCount->getType(), 1));
+                             SE->getOne(BackedgeTakenCount->getType()));
     // The BackedgeTaken expression contains the number of times that the
     // backedge branches to the loop header.  This is one less than the
     // number of times the loop executes, so use the incremented indvar.
@@ -1580,8 +2219,9 @@ LinearFunctionTestReplace(Loop *L,
   }
 
   Value *ExitCnt = genLoopLimit(IndVar, IVCount, L, Rewriter, SE);
-  assert(ExitCnt->getType()->isPointerTy() == IndVar->getType()->isPointerTy()
-         && "genLoopLimit missed a cast");
+  assert(ExitCnt->getType()->isPointerTy() ==
+             IndVar->getType()->isPointerTy() &&
+         "genLoopLimit missed a cast");
 
   // Insert a new icmp_ne or icmp_eq instruction before the branch.
   BranchInst *BI = cast<BranchInst>(L->getExitingBlock()->getTerminator());
@@ -1600,6 +2240,11 @@ LinearFunctionTestReplace(Loop *L,
 
   IRBuilder<> Builder(BI);
 
+  // The new loop exit condition should reuse the debug location of the
+  // original loop exit condition.
+  if (auto *Cond = dyn_cast<Instruction>(BI->getCondition()))
+    Builder.SetCurrentDebugLocation(Cond->getDebugLoc());
+
   // LFTR can ignore IV overflow and truncate to the width of
   // BECount. This avoids materializing the add(zext(add)) expression.
   unsigned CmpIndVarSize = SE->getTypeSizeInBits(CmpIndVar->getType());
@@ -1610,8 +2255,8 @@ LinearFunctionTestReplace(Loop *L,
     const SCEV *ARStep = AR->getStepRecurrence(*SE);
     // For constant IVCount, avoid truncation.
     if (isa<SCEVConstant>(ARStart) && isa<SCEVConstant>(IVCount)) {
-      const APInt &Start = cast<SCEVConstant>(ARStart)->getValue()->getValue();
-      APInt Count = cast<SCEVConstant>(IVCount)->getValue()->getValue();
+      const APInt &Start = cast<SCEVConstant>(ARStart)->getAPInt();
+      APInt Count = cast<SCEVConstant>(IVCount)->getAPInt();
       // Note that the post-inc value of BackedgeTakenCount may have overflowed
       // above such that IVCount is now zero.
       if (IVCount != BackedgeTakenCount && Count == 0) {
@@ -1629,8 +2274,36 @@ LinearFunctionTestReplace(Loop *L,
 
       DEBUG(dbgs() << "  Widen RHS:\t" << *ExitCnt << "\n");
     } else {
-      CmpIndVar = Builder.CreateTrunc(CmpIndVar, ExitCnt->getType(),
-                                      "lftr.wideiv");
+      // We try to extend trip count first. If that doesn't work we truncate IV.
+      // Zext(trunc(IV)) == IV implies equivalence of the following two:
+      // Trunc(IV) == ExitCnt and IV == zext(ExitCnt). Similarly for sext. If
+      // one of the two holds, extend the trip count, otherwise we truncate IV.
+      bool Extended = false;
+      const SCEV *IV = SE->getSCEV(CmpIndVar);
+      const SCEV *ZExtTrunc =
+           SE->getZeroExtendExpr(SE->getTruncateExpr(SE->getSCEV(CmpIndVar),
+                                                     ExitCnt->getType()),
+                                 CmpIndVar->getType());
+
+      if (ZExtTrunc == IV) {
+        Extended = true;
+        ExitCnt = Builder.CreateZExt(ExitCnt, IndVar->getType(),
+                                     "wide.trip.count");
+      } else {
+        const SCEV *SExtTrunc =
+          SE->getSignExtendExpr(SE->getTruncateExpr(SE->getSCEV(CmpIndVar),
+                                                    ExitCnt->getType()),
+                                CmpIndVar->getType());
+        if (SExtTrunc == IV) {
+          Extended = true;
+          ExitCnt = Builder.CreateSExt(ExitCnt, IndVar->getType(),
+                                       "wide.trip.count");
+        }
+      }
+
+      if (!Extended)
+        CmpIndVar = Builder.CreateTrunc(CmpIndVar, ExitCnt->getType(),
+                                        "lftr.wideiv");
     }
   }
   Value *Cond = Builder.CreateICmp(P, CmpIndVar, ExitCnt, "exitcond");
@@ -1649,21 +2322,21 @@ LinearFunctionTestReplace(Loop *L,
 }
 
 //===----------------------------------------------------------------------===//
-//  SinkUnusedInvariants. A late subpass to cleanup loop preheaders.
+//  sinkUnusedInvariants. A late subpass to cleanup loop preheaders.
 //===----------------------------------------------------------------------===//
 
 /// If there's a single exit block, sink any loop-invariant values that
 /// were defined in the preheader but not used inside the loop into the
 /// exit block to reduce register pressure in the loop.
-void IndVarSimplify::SinkUnusedInvariants(Loop *L) {
+void IndVarSimplify::sinkUnusedInvariants(Loop *L) {
   BasicBlock *ExitBlock = L->getExitBlock();
   if (!ExitBlock) return;
 
   BasicBlock *Preheader = L->getLoopPreheader();
   if (!Preheader) return;
 
-  Instruction *InsertPt = ExitBlock->getFirstInsertionPt();
-  BasicBlock::iterator I = Preheader->getTerminator();
+  BasicBlock::iterator InsertPt = ExitBlock->getFirstInsertionPt();
+  BasicBlock::iterator I(Preheader->getTerminator());
   while (I != Preheader->begin()) {
     --I;
     // New instructions were inserted at the end of the preheader.
@@ -1683,8 +2356,8 @@ void IndVarSimplify::SinkUnusedInvariants(Loop *L) {
     if (isa<DbgInfoIntrinsic>(I))
       continue;
 
-    // Skip landingpad instructions.
-    if (isa<LandingPadInst>(I))
+    // Skip eh pad instructions.
+    if (I->isEHPad())
       continue;
 
     // Don't sink alloca: we never want to sink static alloca's out of the
@@ -1697,13 +2370,12 @@ void IndVarSimplify::SinkUnusedInvariants(Loop *L) {
     // Determine if there is a use in or before the loop (direct or
     // otherwise).
     bool UsedInLoop = false;
-    for (Value::use_iterator UI = I->use_begin(), UE = I->use_end();
-         UI != UE; ++UI) {
-      User *U = *UI;
-      BasicBlock *UseBB = cast<Instruction>(U)->getParent();
-      if (PHINode *P = dyn_cast<PHINode>(U)) {
+    for (Use &U : I->uses()) {
+      Instruction *User = cast<Instruction>(U.getUser());
+      BasicBlock *UseBB = User->getParent();
+      if (PHINode *P = dyn_cast<PHINode>(User)) {
         unsigned i =
-          PHINode::getIncomingValueNumForOperand(UI.getOperandNo());
+          PHINode::getIncomingValueNumForOperand(U.getOperandNo());
         UseBB = P->getIncomingBlock(i);
       }
       if (UseBB == Preheader || L->contains(UseBB)) {
@@ -1717,7 +2389,7 @@ void IndVarSimplify::SinkUnusedInvariants(Loop *L) {
       continue;
 
     // Otherwise, sink it to the exit block.
-    Instruction *ToMove = I;
+    Instruction *ToMove = &*I;
     bool Done = false;
 
     if (I != Preheader->begin()) {
@@ -1732,9 +2404,9 @@ void IndVarSimplify::SinkUnusedInvariants(Loop *L) {
       Done = true;
     }
 
-    ToMove->moveBefore(InsertPt);
+    ToMove->moveBefore(*ExitBlock, InsertPt);
     if (Done) break;
-    InsertPt = ToMove;
+    InsertPt = ToMove->getIterator();
   }
 }
 
@@ -1742,7 +2414,11 @@ void IndVarSimplify::SinkUnusedInvariants(Loop *L) {
 //  IndVarSimplify driver. Manage several subpasses of IV simplification.
 //===----------------------------------------------------------------------===//
 
-bool IndVarSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
+bool IndVarSimplify::run(Loop *L) {
+  // We need (and expect!) the incoming loop to be in LCSSA.
+  assert(L->isRecursivelyLCSSAForm(*DT, *LI) &&
+         "LCSSA required to run indvars!");
+
   // If LoopSimplify form is not available, stay out of trouble. Some notes:
   //  - LSR currently only supports LoopSimplify-form loops. Indvars'
   //    canonicalization can be a pessimization without LSR to "clean up"
@@ -1751,26 +2427,18 @@ bool IndVarSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
   //    Loop::getCanonicalInductionVariable only supports loops with preheaders,
   //    and we're in trouble if we can't find the induction variable even when
   //    we've manually inserted one.
+  //  - LFTR relies on having a single backedge.
   if (!L->isLoopSimplifyForm())
     return false;
 
-  LI = &getAnalysis<LoopInfo>();
-  SE = &getAnalysis<ScalarEvolution>();
-  DT = &getAnalysis<DominatorTree>();
-  TD = getAnalysisIfAvailable<DataLayout>();
-  TLI = getAnalysisIfAvailable<TargetLibraryInfo>();
-
-  DeadInsts.clear();
-  Changed = false;
-
   // If there are any floating-point recurrences, attempt to
   // transform them to use integer recurrences.
-  RewriteNonIntegerIVs(L);
+  rewriteNonIntegerIVs(L);
 
   const SCEV *BackedgeTakenCount = SE->getBackedgeTakenCount(L);
 
   // Create a rewriter object which we'll use to transform the code with.
-  SCEVExpander Rewriter(*SE, "indvars");
+  SCEVExpander Rewriter(*SE, DL, "indvars");
 #ifndef NDEBUG
   Rewriter.setDebugType(DEBUG_TYPE);
 #endif
@@ -1782,7 +2450,7 @@ bool IndVarSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
   // other expressions involving loop IVs have been evaluated. This helps SCEV
   // set no-wrap flags before normalizing sign/zero extension.
   Rewriter.disableCanonicalMode();
-  SimplifyAndExtend(L, Rewriter, LPM);
+  simplifyAndExtend(L, Rewriter, LI);
 
   // Check to see if this loop has a computable loop-invariant execution count.
   // If so, this means that we can compute the final value of any expressions
@@ -1790,28 +2458,30 @@ bool IndVarSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
   // loop into any instructions outside of the loop that use the final values of
   // the current expressions.
   //
-  if (!isa<SCEVCouldNotCompute>(BackedgeTakenCount))
-    RewriteLoopExitValues(L, Rewriter);
+  if (ReplaceExitValue != NeverRepl &&
+      !isa<SCEVCouldNotCompute>(BackedgeTakenCount))
+    rewriteLoopExitValues(L, Rewriter);
 
   // Eliminate redundant IV cycles.
   NumElimIV += Rewriter.replaceCongruentIVs(L, DT, DeadInsts);
 
   // If we have a trip count expression, rewrite the loop's exit condition
   // using it.  We can currently only handle loops with a single exit.
-  if (canExpandBackedgeTakenCount(L, SE) && needsLFTR(L, DT)) {
-    PHINode *IndVar = FindLoopCounter(L, BackedgeTakenCount, SE, DT, TD);
+  if (!DisableLFTR && canExpandBackedgeTakenCount(L, SE, Rewriter) &&
+      needsLFTR(L, DT)) {
+    PHINode *IndVar = FindLoopCounter(L, BackedgeTakenCount, SE, DT);
     if (IndVar) {
       // Check preconditions for proper SCEVExpander operation. SCEV does not
       // express SCEVExpander's dependencies, such as LoopSimplify. Instead any
       // pass that uses the SCEVExpander must do it. This does not work well for
-      // loop passes because SCEVExpander makes assumptions about all loops, while
-      // LoopPassManager only forces the current loop to be simplified.
+      // loop passes because SCEVExpander makes assumptions about all loops,
+      // while LoopPassManager only forces the current loop to be simplified.
       //
       // FIXME: SCEV expansion has no way to bail out, so the caller must
       // explicitly check any assumptions made by SCEV. Brittle.
       const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(BackedgeTakenCount);
       if (!AR || AR->getLoop()->getLoopPreheader())
-        (void)LinearFunctionTestReplace(L, BackedgeTakenCount, IndVar,
+        (void)linearFunctionTestReplace(L, BackedgeTakenCount, IndVar,
                                         Rewriter);
     }
   }
@@ -1824,20 +2494,26 @@ bool IndVarSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
   // which are now dead.
   while (!DeadInsts.empty())
     if (Instruction *Inst =
-          dyn_cast_or_null<Instruction>(&*DeadInsts.pop_back_val()))
+            dyn_cast_or_null<Instruction>(DeadInsts.pop_back_val()))
       RecursivelyDeleteTriviallyDeadInstructions(Inst, TLI);
 
   // The Rewriter may not be used from this point on.
 
   // Loop-invariant instructions in the preheader that aren't used in the
   // loop may be sunk below the loop to reduce register pressure.
-  SinkUnusedInvariants(L);
+  sinkUnusedInvariants(L);
+
+  // rewriteFirstIterationLoopExitValues does not rely on the computation of
+  // trip count and therefore can further simplify exit values in addition to
+  // rewriteLoopExitValues.
+  rewriteFirstIterationLoopExitValues(L);
 
   // Clean up dead instructions.
   Changed |= DeleteDeadPHIs(L->getHeader(), TLI);
+
   // Check a post-condition.
-  assert(L->isLCSSAForm(*DT) &&
-         "Indvars did not leave the loop in lcssa form!");
+  assert(L->isRecursivelyLCSSAForm(*DT, *LI) &&
+         "Indvars did not preserve LCSSA!");
 
   // Verify that LFTR, and any other change have not interfered with SCEV's
   // ability to compute trip count.
@@ -1857,4 +2533,65 @@ bool IndVarSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
 #endif
 
   return Changed;
+}
+
+PreservedAnalyses IndVarSimplifyPass::run(Loop &L, LoopAnalysisManager &AM,
+                                          LoopStandardAnalysisResults &AR,
+                                          LPMUpdater &) {
+  Function *F = L.getHeader()->getParent();
+  const DataLayout &DL = F->getParent()->getDataLayout();
+
+  IndVarSimplify IVS(&AR.LI, &AR.SE, &AR.DT, DL, &AR.TLI, &AR.TTI);
+  if (!IVS.run(&L))
+    return PreservedAnalyses::all();
+
+  auto PA = getLoopPassPreservedAnalyses();
+  PA.preserveSet<CFGAnalyses>();
+  return PA;
+}
+
+namespace {
+
+struct IndVarSimplifyLegacyPass : public LoopPass {
+  static char ID; // Pass identification, replacement for typeid
+
+  IndVarSimplifyLegacyPass() : LoopPass(ID) {
+    initializeIndVarSimplifyLegacyPassPass(*PassRegistry::getPassRegistry());
+  }
+
+  bool runOnLoop(Loop *L, LPPassManager &LPM) override {
+    if (skipLoop(L))
+      return false;
+
+    auto *LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
+    auto *SE = &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
+    auto *DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
+    auto *TLIP = getAnalysisIfAvailable<TargetLibraryInfoWrapperPass>();
+    auto *TLI = TLIP ? &TLIP->getTLI() : nullptr;
+    auto *TTIP = getAnalysisIfAvailable<TargetTransformInfoWrapperPass>();
+    auto *TTI = TTIP ? &TTIP->getTTI(*L->getHeader()->getParent()) : nullptr;
+    const DataLayout &DL = L->getHeader()->getModule()->getDataLayout();
+
+    IndVarSimplify IVS(LI, SE, DT, DL, TLI, TTI);
+    return IVS.run(L);
+  }
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.setPreservesCFG();
+    getLoopAnalysisUsage(AU);
+  }
+};
+
+} // end anonymous namespace
+
+char IndVarSimplifyLegacyPass::ID = 0;
+
+INITIALIZE_PASS_BEGIN(IndVarSimplifyLegacyPass, "indvars",
+                      "Induction Variable Simplification", false, false)
+INITIALIZE_PASS_DEPENDENCY(LoopPass)
+INITIALIZE_PASS_END(IndVarSimplifyLegacyPass, "indvars",
+                    "Induction Variable Simplification", false, false)
+
+Pass *llvm::createIndVarSimplifyPass() {
+  return new IndVarSimplifyLegacyPass();
 }

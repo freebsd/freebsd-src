@@ -1,7 +1,9 @@
 /*	$NetBSD: fpu_emu.h,v 1.3 2005/12/11 12:18:42 christos Exp $ */
 /* $FreeBSD$ */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -138,7 +140,7 @@ struct fpn {
  * Emulator state.
  */
 struct fpemu {
-	struct	fpreg *fe_fpstate;	/* registers, etc */
+	struct	fpu *fe_fpstate;	/* registers, etc */
 	int	fe_fpscr;		/* fpscr copy (modified during op) */
 	int	fe_cx;			/* keep track of exceptions */
 	struct	fpn fe_f1;		/* operand 1 */

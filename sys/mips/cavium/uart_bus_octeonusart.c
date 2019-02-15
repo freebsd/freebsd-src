@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Wojciech A. Koszek <wkoszek@FreeBSD.org>
  * All rights reserved.
  *
@@ -105,7 +107,7 @@ uart_octeon_probe(device_t dev)
 	if (bus_space_map(sc->sc_bas.bst, CVMX_MIO_UARTX_RBR(0),
 	    uart_getrange(sc->sc_class), 0, &sc->sc_bas.bsh) != 0)
 		return (ENXIO);
-	return (uart_bus_probe(dev, sc->sc_bas.regshft, 0, 0, unit));
+	return (uart_bus_probe(dev, sc->sc_bas.regshft, 0, 0, 0, unit, 0));
 }
 
 DRIVER_MODULE(uart, obio, uart_octeon_driver, uart_devclass, 0, 0);

@@ -36,7 +36,7 @@
 #include <string.h>
 
 #include "ssh.h"
-#include "key.h"
+#include "ssh_api.h"
 #include "hostfile.h"
 #include "auth.h"
 #include "auth-sia.h"
@@ -50,11 +50,12 @@ extern int saved_argc;
 extern char **saved_argv;
 
 int
-sys_auth_passwd(Authctxt *authctxt, const char *pass)
+sys_auth_passwd(struct ssh *ssh, const char *pass)
 {
 	int ret;
 	SIAENTITY *ent = NULL;
 	const char *host;
+	Authctxt *authctxt = ssh->authctxt;
 
 	host = get_canonical_hostname(options.use_dns);
 

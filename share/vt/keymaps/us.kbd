@@ -56,7 +56,7 @@
   050   'm'    'M'    cr     cr     'm'    'M'    cr     cr      C
   051   ','    '<'    nop    nop    ','    '<'    nop    nop     O
   052   '.'    '>'    nop    nop    '.'    '>'    nop    nop     O
-  053   '/'    '?'    nop    nop    '/'    '?'    nop    nop     O
+  053   '/'    '?'    0x1f   nop    '/'    '?'    nop    nop     O
   054   rshift rshift rshift rshift rshift rshift rshift rshift  O
   055   '*'    '*'    '*'    '*'    '*'    '*'    '*'    '*'     O
   056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O

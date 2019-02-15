@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
 #include <err.h>
@@ -56,16 +57,17 @@ static struct iwnstats *
 iwnstats_new(const char *ifname)
 {
 	struct iwnstats *is;
+	char buf[128];
 
 	is = calloc(1, sizeof(struct iwnstats));
 	if (is == NULL)
 		return (NULL);
 
-	is->s = socket(AF_INET, SOCK_DGRAM, 0);
+	snprintf(buf, sizeof(buf), "/dev/%s", ifname);
+	is->s = open(buf, O_RDWR);
 	if (is->s < 0)
-		err(1, "socket");
+		err(1, "open");
 
-	iwn_setifname(is, ifname);
 	return (is);
 }
 
@@ -290,19 +292,6 @@ main(int argc, char *argv[])
 			if (ifname)
 				free(ifname);
 			ifname = strdup(optarg);
-			if (strncmp(ifname, "wlan", 4) == 0) {
-				free(ifname);
-				len = 0;
-				asprintf(&sysctlname, "net.wlan.%s.%%parent", ifname + 4);
-				ret = sysctlbyname(sysctlname, NULL, &len, NULL, 0);
-				if (ret != 0)
-					err(1, "sysctl failed");
-				ifname = calloc(len, 1);
-				ret = sysctlbyname(sysctlname, ifname, &len, NULL, 0);
-				if (ret != 0)
-					err(1, "sysctl failed");
-				free(sysctlname);
-			}
 			break;
 		default:
 		case '?':

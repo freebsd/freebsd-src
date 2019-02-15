@@ -94,8 +94,8 @@ main( )
 	char *actl = ac_dev;
 	int devmask = 0, recmask = 0, recsrc = 0;
 
-	(void)sprintf(ai_dev, AI_DEV, unit);
-	(void)sprintf(ac_dev, AC_DEV, unit);
+	snprintf(ai_dev, sizeof(ai_dev), AI_DEV, unit);
+	snprintf(ac_dev, sizeof(ac_dev), AC_DEV, unit);
 
 	/*
 	 * Open audio device. Do not complain if not there.

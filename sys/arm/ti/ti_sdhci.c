@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ian Lepore <ian@freebsd.org>
  * Copyright (c) 2011 Ben Gray <ben.r.gray@gmail.com>.
  * All rights reserved.
@@ -39,12 +41,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -53,28 +56,32 @@ __FBSDID("$FreeBSD$");
 #include <dev/mmc/mmcbrvar.h>
 
 #include <dev/sdhci/sdhci.h>
+#include <dev/sdhci/sdhci_fdt_gpio.h>
 #include "sdhci_if.h"
 
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_prcm.h>
+#include <arm/ti/ti_hwmods.h>
 #include "gpio_if.h"
+
+#include "opt_mmccam.h"
 
 struct ti_sdhci_softc {
 	device_t		dev;
-	device_t		gpio_dev;
+	struct sdhci_fdt_gpio * gpio;
 	struct resource *	mem_res;
 	struct resource *	irq_res;
 	void *			intr_cookie;
 	struct sdhci_slot	slot;
-	uint32_t		mmchs_device_id;
+	clk_ident_t		mmchs_clk_id;
 	uint32_t		mmchs_reg_off;
 	uint32_t		sdhci_reg_off;
 	uint32_t		baseclk_hz;
-	uint32_t		wp_gpio_pin;
 	uint32_t		cmd_and_mode;
 	uint32_t		sdhci_clkdiv;
 	boolean_t		disable_highspeed;
 	boolean_t		force_card_present;
+	boolean_t		disable_readonly;
 };
 
 /*
@@ -112,6 +119,7 @@ static struct ofw_compat_data compat_data[] = {
 #define	MMCHS_CON			0x02C
 #define	  MMCHS_CON_DW8			  (1 << 5)
 #define	  MMCHS_CON_DVAL_8_4MS		  (3 << 9)
+#define	  MMCHS_CON_OD			  (1 << 0)
 #define MMCHS_SYSCTL			0x12C
 #define   MMCHS_SYSCTL_CLKD_MASK	   0x3FF
 #define   MMCHS_SYSCTL_CLKD_SHIFT	   6
@@ -119,6 +127,11 @@ static struct ofw_compat_data compat_data[] = {
 #define	  MMCHS_SD_CAPA_VS18		  (1 << 26)
 #define	  MMCHS_SD_CAPA_VS30		  (1 << 25)
 #define	  MMCHS_SD_CAPA_VS33		  (1 << 24)
+
+/* Forward declarations, CAM-relataed */
+// static void ti_sdhci_cam_poll(struct cam_sim *);
+// static void ti_sdhci_cam_action(struct cam_sim *, union ccb *);
+// static int ti_sdhci_cam_settran_settings(struct ti_sdhci_softc *sc, union ccb *);
 
 static inline uint32_t
 ti_mmchs_read_4(struct ti_sdhci_softc *sc, bus_size_t off)
@@ -239,6 +252,22 @@ ti_sdhci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 	struct ti_sdhci_softc *sc = device_get_softc(dev);
 	uint32_t val32;
 
+#ifdef MMCCAM
+	uint32_t newval32;
+	if (off == SDHCI_HOST_CONTROL) {
+		val32 = ti_mmchs_read_4(sc, MMCHS_CON);
+		newval32  = val32;
+		if (val & SDHCI_CTRL_8BITBUS) {
+			device_printf(dev, "Custom-enabling 8-bit bus\n");
+			newval32 |= MMCHS_CON_DW8;
+		} else {
+			device_printf(dev, "Custom-disabling 8-bit bus\n");
+			newval32 &= ~MMCHS_CON_DW8;
+		}
+		if (newval32 != val32)
+			ti_mmchs_write_4(sc, MMCHS_CON, newval32);
+	}
+#endif
 	val32 = RD4(sc, off & ~3);
 	val32 &= ~(0xff << (off & 3) * 8);
 	val32 |= (val << (off & 3) * 8);
@@ -327,7 +356,7 @@ ti_sdhci_update_ios(device_t brdev, device_t reqdev)
 	struct ti_sdhci_softc *sc = device_get_softc(brdev);
 	struct sdhci_slot *slot;
 	struct mmc_ios *ios;
-	uint32_t val32;
+	uint32_t val32, newval32;
 
 	slot = device_get_ivars(reqdev);
 	ios = &slot->host.ios;
@@ -339,10 +368,20 @@ ti_sdhci_update_ios(device_t brdev, device_t reqdev)
 	 * requested, then let the standard driver handle everything else.
 	 */
 	val32 = ti_mmchs_read_4(sc, MMCHS_CON);
+	newval32  = val32;
+
 	if (ios->bus_width == bus_width_8)
-		ti_mmchs_write_4(sc, MMCHS_CON, val32 | MMCHS_CON_DW8); 
+		newval32 |= MMCHS_CON_DW8;
 	else
-		ti_mmchs_write_4(sc, MMCHS_CON, val32 & ~MMCHS_CON_DW8); 
+		newval32 &= ~MMCHS_CON_DW8;
+
+	if (ios->bus_mode == opendrain)
+		newval32 |= MMCHS_CON_OD;
+	else /* if (ios->bus_mode == pushpull) */
+		newval32 &= ~MMCHS_CON_OD;
+
+	if (newval32 != val32)
+		ti_mmchs_write_4(sc, MMCHS_CON, newval32);
 
 	return (sdhci_generic_update_ios(brdev, reqdev));
 }
@@ -351,19 +390,26 @@ static int
 ti_sdhci_get_ro(device_t brdev, device_t reqdev)
 {
 	struct ti_sdhci_softc *sc = device_get_softc(brdev);
-	unsigned int readonly = 0;
 
-	/* If a gpio pin is configured, read it. */
-	if (sc->gpio_dev != NULL) {
-		GPIO_PIN_GET(sc->gpio_dev, sc->wp_gpio_pin, &readonly);
-	}
+	if (sc->disable_readonly)
+		return (0);
 
-	return (readonly);
+	return (sdhci_fdt_gpio_get_readonly(sc->gpio));
+}
+
+static bool
+ti_sdhci_get_card_present(device_t dev, struct sdhci_slot *slot)
+{
+	struct ti_sdhci_softc *sc = device_get_softc(dev);
+
+	return (sdhci_fdt_gpio_get_present(sc->gpio));
 }
 
 static int
 ti_sdhci_detach(device_t dev)
 {
+
+	/* sdhci_fdt_gpio_teardown(sc->gpio); */
 
 	return (EBUSY);
 }
@@ -372,19 +418,18 @@ static void
 ti_sdhci_hw_init(device_t dev)
 {
 	struct ti_sdhci_softc *sc = device_get_softc(dev);
-	clk_ident_t clk;
 	uint32_t regval;
 	unsigned long timeout;
 
 	/* Enable the controller and interface/functional clocks */
-	clk = MMC0_CLK + sc->mmchs_device_id;
-	if (ti_prcm_clk_enable(clk) != 0) {
+	if (ti_prcm_clk_enable(sc->mmchs_clk_id) != 0) {
 		device_printf(dev, "Error: failed to enable MMC clock\n");
 		return;
 	}
 
 	/* Get the frequency of the source clock */
-	if (ti_prcm_clk_get_source_freq(clk, &sc->baseclk_hz) != 0) {
+	if (ti_prcm_clk_get_source_freq(sc->mmchs_clk_id,
+	    &sc->baseclk_hz) != 0) {
 		device_printf(dev, "Error: failed to get source clock freq\n");
 		return;
 	}
@@ -392,20 +437,42 @@ ti_sdhci_hw_init(device_t dev)
 	/* Issue a softreset to the controller */
 	ti_mmchs_write_4(sc, MMCHS_SYSCONFIG, MMCHS_SYSCONFIG_RESET);
 	timeout = 1000;
-	while (!(ti_mmchs_read_4(sc, MMCHS_SYSSTATUS) & MMCHS_SYSSTATUS_RESETDONE)) {
+	while (!(ti_mmchs_read_4(sc, MMCHS_SYSSTATUS) &
+	    MMCHS_SYSSTATUS_RESETDONE)) {
 		if (--timeout == 0) {
-			device_printf(dev, "Error: Controller reset operation timed out\n");
+			device_printf(dev,
+			    "Error: Controller reset operation timed out\n");
 			break;
 		}
 		DELAY(100);
 	}
 
-	/* Reset both the command and data state machines */
+	/*
+	 * Reset the command and data state machines and also other aspects of
+	 * the controller such as bus clock and power.
+	 *
+	 * If we read the software reset register too fast after writing it we
+	 * can get back a zero that means the reset hasn't started yet rather
+	 * than that the reset is complete. Per TI recommendations, work around
+	 * it by reading until we see the reset bit asserted, then read until
+	 * it's clear. We also set the SDHCI_QUIRK_WAITFOR_RESET_ASSERTED quirk
+	 * so that the main sdhci driver uses this same logic in its resets.
+	 */
 	ti_sdhci_write_1(dev, NULL, SDHCI_SOFTWARE_RESET, SDHCI_RESET_ALL);
-	timeout = 1000;
-	while ((ti_sdhci_read_1(dev, NULL, SDHCI_SOFTWARE_RESET) & SDHCI_RESET_ALL)) {
+	timeout = 10000;
+	while ((ti_sdhci_read_1(dev, NULL, SDHCI_SOFTWARE_RESET) &
+	    SDHCI_RESET_ALL) != SDHCI_RESET_ALL) {
 		if (--timeout == 0) {
-			device_printf(dev, "Error: Software reset operation timed out\n");
+			break;
+		}
+		DELAY(1);
+	}
+	timeout = 10000;
+	while ((ti_sdhci_read_1(dev, NULL, SDHCI_SOFTWARE_RESET) &
+	    SDHCI_RESET_ALL)) {
+		if (--timeout == 0) {
+			device_printf(dev,
+			    "Error: Software reset operation timed out\n");
 			break;
 		}
 		DELAY(100);
@@ -451,12 +518,10 @@ ti_sdhci_attach(device_t dev)
 	 * up and added in freebsd, it doesn't exist in the published bindings.
 	 */
 	node = ofw_bus_get_node(dev);
-	if ((OF_getprop(node, "mmchs-device-id", &prop, sizeof(prop))) <= 0) {
-		sc->mmchs_device_id = device_get_unit(dev);
-		device_printf(dev, "missing mmchs-device-id attribute in FDT, "
-		    "using unit number (%d)", sc->mmchs_device_id);
-	} else
-		sc->mmchs_device_id = fdt32_to_cpu(prop);
+	sc->mmchs_clk_id = ti_hwmods_get_clock(dev);
+	if (sc->mmchs_clk_id == INVALID_CLK_IDENT) {
+		device_printf(dev, "failed to get clock based on hwmods property\n");
+	}
 
 	/*
 	 * The hardware can inherently do dual-voltage (1p8v, 3p0v) on the first
@@ -467,42 +532,29 @@ ti_sdhci_attach(device_t dev)
 	 * be done once and never reset.
 	 */
 	sc->slot.host.caps |= MMC_OCR_LOW_VOLTAGE;
-	if (sc->mmchs_device_id == 0 || OF_hasprop(node, "ti,dual-volt")) {
+	if (sc->mmchs_clk_id == MMC1_CLK || OF_hasprop(node, "ti,dual-volt")) {
 		sc->slot.host.caps |= MMC_OCR_290_300 | MMC_OCR_300_310;
-	}
-
-	/*
-	 * See if we've got a GPIO-based write detect pin.  This is not the
-	 * standard documented property for this, we added it in freebsd.
-	 */
-	if ((OF_getprop(node, "mmchs-wp-gpio-pin", &prop, sizeof(prop))) <= 0)
-		sc->wp_gpio_pin = 0xffffffff;
-	else
-		sc->wp_gpio_pin = fdt32_to_cpu(prop);
-
-	if (sc->wp_gpio_pin != 0xffffffff) {
-		sc->gpio_dev = devclass_get_device(devclass_find("gpio"), 0);
-		if (sc->gpio_dev == NULL) 
-			device_printf(dev, "Error: No GPIO device, "
-			    "Write Protect pin will not function\n");
-		else
-			GPIO_PIN_SETFLAGS(sc->gpio_dev, sc->wp_gpio_pin,
-			                  GPIO_PIN_INPUT);
 	}
 
 	/*
 	 * Set the offset from the device's memory start to the MMCHS registers.
 	 * Also for OMAP4 disable high speed mode due to erratum ID i626.
 	 */
-	if (ti_chip() == CHIP_OMAP_3)
-		sc->mmchs_reg_off = OMAP3_MMCHS_REG_OFFSET;
-	else if (ti_chip() == CHIP_OMAP_4) {
+	switch (ti_chip()) {
+#ifdef SOC_OMAP4
+	case CHIP_OMAP_4:
 		sc->mmchs_reg_off = OMAP4_MMCHS_REG_OFFSET;
 		sc->disable_highspeed = true;
-        } else if (ti_chip() == CHIP_AM335X)
+		break;
+#endif
+#ifdef SOC_TI_AM335X
+	case CHIP_AM335X:
 		sc->mmchs_reg_off = AM335X_MMCHS_REG_OFFSET;
-	else
+		break;
+#endif
+	default:
 		panic("Unknown OMAP device\n");
+	}
 
 	/*
 	 * The standard SDHCI registers are at a fixed offset (the same on all
@@ -536,6 +588,21 @@ ti_sdhci_attach(device_t dev)
 		goto fail;
 	}
 
+	/*
+	 * Set up handling of card-detect and write-protect gpio lines.
+	 *
+	 * If there is no write protect info in the fdt data, fall back to the
+	 * historical practice of assuming that the card is writable.  This
+	 * works around bad fdt data from the upstream source.  The alternative
+	 * would be to trust the sdhci controller's PRESENT_STATE register WP
+	 * bit, but it may say write protect is in effect when it's not if the
+	 * pinmux setup doesn't route the WP signal into the sdchi block.
+	 */
+	sc->gpio = sdhci_fdt_gpio_setup(sc->dev, &sc->slot);
+
+	if (!OF_hasprop(node, "wp-gpios") && !OF_hasprop(node, "wp-disable"))
+		sc->disable_readonly = true;
+
 	/* Initialise the MMCHS hardware. */
 	ti_sdhci_hw_init(dev);
 
@@ -560,6 +627,17 @@ ti_sdhci_attach(device_t dev)
 	 * the spec), so tell the sdhci driver not to do the same in software.
 	 */
 	sc->slot.quirks |= SDHCI_QUIRK_DONT_SHIFT_RESPONSE;
+
+	/*
+	 * Reset bits are broken, have to wait to see the bits asserted
+	 * before waiting to see them de-asserted.
+	 */
+	sc->slot.quirks |= SDHCI_QUIRK_WAITFOR_RESET_ASSERTED;
+	
+	/*
+	 * The controller waits for busy responses.
+	 */
+	sc->slot.quirks |= SDHCI_QUIRK_WAIT_WHILE_BUSY;
 
 	/*
 	 * DMA is not really broken, I just haven't implemented it yet.
@@ -608,7 +686,6 @@ ti_sdhci_attach(device_t dev)
 	bus_generic_attach(dev);
 
 	sdhci_start_slot(&sc->slot);
-
 	return (0);
 
 fail:
@@ -646,7 +723,6 @@ static device_method_t ti_sdhci_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	sdhci_generic_read_ivar),
 	DEVMETHOD(bus_write_ivar,	sdhci_generic_write_ivar),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
 	/* MMC bridge interface */
 	DEVMETHOD(mmcbr_update_ios,	ti_sdhci_update_ios),
@@ -664,6 +740,7 @@ static device_method_t ti_sdhci_methods[] = {
 	DEVMETHOD(sdhci_write_2,	ti_sdhci_write_2),
 	DEVMETHOD(sdhci_write_4,	ti_sdhci_write_4),
 	DEVMETHOD(sdhci_write_multi_4,	ti_sdhci_write_multi_4),
+	DEVMETHOD(sdhci_get_card_present, ti_sdhci_get_card_present),
 
 	DEVMETHOD_END
 };
@@ -676,5 +753,10 @@ static driver_t ti_sdhci_driver = {
 	sizeof(struct ti_sdhci_softc),
 };
 
-DRIVER_MODULE(sdhci_ti, simplebus, ti_sdhci_driver, ti_sdhci_devclass, 0, 0);
+DRIVER_MODULE(sdhci_ti, simplebus, ti_sdhci_driver, ti_sdhci_devclass, NULL,
+    NULL);
 MODULE_DEPEND(sdhci_ti, sdhci, 1, 1, 1);
+
+#ifndef MMCCAM
+MMC_DECLARE_BRIDGE(sdhci_ti);
+#endif

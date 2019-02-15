@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -94,8 +96,8 @@ showpigs(void)
 	qsort(pt, nproc, sizeof (struct p_times), compar);
 	y = 1;
 	i = nproc;
-	if (i > wnd->_maxy-1)
-		i = wnd->_maxy-1;
+	if (i > getmaxy(wnd)-2)
+		i = getmaxy(wnd)-2;
 	for (k = 0; i > 0 && pt[k].pt_pctcpu > 0.01; i--, y++, k++) {
 		uname = user_from_uid(pt[k].pt_kp->ki_uid, 0);
 		pname = pt[k].pt_kp->ki_comm;

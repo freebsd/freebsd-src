@@ -12,133 +12,131 @@
 
 // C Includes
 // C++ Includes
-#include <string>
 #include <map>
+#include <string>
+#include <vector>
 
 // Other libraries and framework includes
 // Project includes
+#include "lldb/Utility/ConstString.h"
 #include "lldb/lldb-private.h"
-#include "lldb/Core/ConstString.h"
+#include "llvm/ADT/Optional.h"
 
-namespace lldb_private
-{
+namespace lldb_private {
 
-class UnixSignals
-{
+class UnixSignals {
 public:
-    //------------------------------------------------------------------
-    // Constructors and Destructors
-    //------------------------------------------------------------------
-    UnixSignals();
+  static lldb::UnixSignalsSP Create(const ArchSpec &arch);
 
-    virtual
-    ~UnixSignals();
+  //------------------------------------------------------------------
+  // Constructors and Destructors
+  //------------------------------------------------------------------
+  UnixSignals();
 
-    const char *
-    GetSignalAsCString (int32_t signo) const;
+  virtual ~UnixSignals();
 
-    bool
-    SignalIsValid (int32_t signo) const;
+  const char *GetSignalAsCString(int32_t signo) const;
 
-    int32_t
-    GetSignalNumberFromName (const char *name) const;
+  bool SignalIsValid(int32_t signo) const;
 
-    const char *
-    GetSignalInfo (int32_t signo,
-                   bool &should_suppress,
-                   bool &should_stop,
-                   bool &should_notify) const;
+  int32_t GetSignalNumberFromName(const char *name) const;
 
-    bool
-    GetShouldSuppress (int32_t signo) const;
+  const char *GetSignalInfo(int32_t signo, bool &should_suppress,
+                            bool &should_stop, bool &should_notify) const;
 
-    bool
-    SetShouldSuppress (int32_t signo,
-                       bool value);
+  bool GetShouldSuppress(int32_t signo) const;
 
-    bool
-    SetShouldSuppress (const char *signal_name,
-                       bool value);
+  bool SetShouldSuppress(int32_t signo, bool value);
 
-    bool
-    GetShouldStop (int32_t signo) const;
+  bool SetShouldSuppress(const char *signal_name, bool value);
 
-    bool
-    SetShouldStop (int32_t signo,
-                   bool value);
-    bool
-    SetShouldStop (const char *signal_name,
-                   bool value);
+  bool GetShouldStop(int32_t signo) const;
 
-    bool
-    GetShouldNotify (int32_t signo) const;
+  bool SetShouldStop(int32_t signo, bool value);
+  bool SetShouldStop(const char *signal_name, bool value);
 
-    bool
-    SetShouldNotify (int32_t signo, bool value);
+  bool GetShouldNotify(int32_t signo) const;
 
-    bool
-    SetShouldNotify (const char *signal_name,
-                     bool value);
+  bool SetShouldNotify(int32_t signo, bool value);
 
-    // These provide an iterator through the signals available on this system.
-    // Call GetFirstSignalNumber to get the first entry, then iterate on GetNextSignalNumber
-    // till you get back LLDB_INVALID_SIGNAL_NUMBER.
-    int32_t
-    GetFirstSignalNumber () const;
+  bool SetShouldNotify(const char *signal_name, bool value);
 
-    int32_t
-    GetNextSignalNumber (int32_t current_signal) const;
+  // These provide an iterator through the signals available on this system.
+  // Call GetFirstSignalNumber to get the first entry, then iterate on
+  // GetNextSignalNumber
+  // till you get back LLDB_INVALID_SIGNAL_NUMBER.
+  int32_t GetFirstSignalNumber() const;
 
-    // We assume that the elements of this object are constant once it is constructed,
-    // since a process should never need to add or remove symbols as it runs.  So don't
-    // call these functions anywhere but the constructor of your subclass of UnixSignals or in
-    // your Process Plugin's GetUnixSignals method before you return the UnixSignal object.
+  int32_t GetNextSignalNumber(int32_t current_signal) const;
 
-    void
-    AddSignal (int signo,
-               const char *name,
-               const char *short_name,
-               bool default_suppress,
-               bool default_stop,
-               bool default_notify,
-               const char *description);
+  int32_t GetNumSignals() const;
 
-    void
-    RemoveSignal (int signo);
+  int32_t GetSignalAtIndex(int32_t index) const;
+
+  ConstString GetShortName(ConstString name) const;
+
+  // We assume that the elements of this object are constant once it is
+  // constructed,
+  // since a process should never need to add or remove symbols as it runs.  So
+  // don't
+  // call these functions anywhere but the constructor of your subclass of
+  // UnixSignals or in
+  // your Process Plugin's GetUnixSignals method before you return the
+  // UnixSignal object.
+
+  void AddSignal(int signo, const char *name, bool default_suppress,
+                 bool default_stop, bool default_notify,
+                 const char *description, const char *alias = nullptr);
+
+  void RemoveSignal(int signo);
+
+  // Returns a current version of the data stored in this class.
+  // Version gets incremented each time Set... method is called.
+  uint64_t GetVersion() const;
+
+  // Returns a vector of signals that meet criteria provided in arguments.
+  // Each should_[suppress|stop|notify] flag can be
+  // None  - no filtering by this flag
+  // true  - only signals that have it set to true are returned
+  // false - only signals that have it set to true are returned
+  std::vector<int32_t> GetFilteredSignals(llvm::Optional<bool> should_suppress,
+                                          llvm::Optional<bool> should_stop,
+                                          llvm::Optional<bool> should_notify);
 
 protected:
-    //------------------------------------------------------------------
-    // Classes that inherit from UnixSignals can see and modify these
-    //------------------------------------------------------------------
+  //------------------------------------------------------------------
+  // Classes that inherit from UnixSignals can see and modify these
+  //------------------------------------------------------------------
 
-    struct Signal
-    {
-        ConstString m_name;
-        ConstString m_short_name;
-        std::string m_description;
-        bool m_suppress:1,
-             m_stop:1,
-             m_notify:1;
+  struct Signal {
+    ConstString m_name;
+    ConstString m_alias;
+    std::string m_description;
+    bool m_suppress : 1, m_stop : 1, m_notify : 1;
 
-        Signal (const char *name,
-                const char *short_name,
-                bool default_suppress,
-                bool default_stop,
-                bool default_notify,
-                const char *description);
+    Signal(const char *name, bool default_suppress, bool default_stop,
+           bool default_notify, const char *description, const char *alias);
 
-        ~Signal () {}
-    };
+    ~Signal() {}
+  };
 
-    void
-    Reset ();
+  virtual void Reset();
 
-    typedef std::map <int32_t, Signal> collection;
+  typedef std::map<int32_t, Signal> collection;
 
-    collection m_signals;
+  collection m_signals;
 
-    DISALLOW_COPY_AND_ASSIGN (UnixSignals);
+  // This version gets incremented every time something is changing in
+  // this class, including when we call AddSignal from the constructor.
+  // So after the object is constructed m_version is going to be > 0
+  // if it has at least one signal registered in it.
+  uint64_t m_version = 0;
+
+  // GDBRemote signals need to be copyable.
+  UnixSignals(const UnixSignals &rhs);
+
+  const UnixSignals &operator=(const UnixSignals &rhs) = delete;
 };
 
 } // Namespace lldb
-#endif  // lldb_UnixSignals_h_
+#endif // lldb_UnixSignals_h_

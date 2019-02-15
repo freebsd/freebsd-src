@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003
  *	Bill Paul <wpaul@windriver.com>.  All rights reserved.
  *
@@ -887,6 +889,12 @@ regkey_add (const char *r)
 void
 push_word (const char *w)
 {
+
+	if (idx == W_MAX) {
+		fprintf(stderr, "too many words; try bumping W_MAX in inf.h\n");
+		exit(1);
+	}
+
 	if (w && strlen(w))
 		words[idx++] = w;
 	else

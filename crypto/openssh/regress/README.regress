@@ -31,7 +31,7 @@ TEST_SHELL: shell used for running the test scripts.
 TEST_SSH_PORT: TCP port to be used for the listening tests.
 TEST_SSH_SSH_CONFOPTS: Configuration directives to be added to ssh_config
 	before running each test.
-TEST_SSH_SSHD_CONFOTPS: Configuration directives to be added to sshd_config
+TEST_SSH_SSHD_CONFOPTS: Configuration directives to be added to sshd_config
 	before running each test.
 
 
@@ -100,5 +100,3 @@ Known Issues.
 - Recent GNU coreutils deprecate "head -[n]": this will cause the yes-head
   test to fail.  The old behaviour can be restored by setting (and
   exporting) _POSIX2_VERSION=199209 before running the tests.
-
-$Id: README.regress,v 1.12 2011/05/05 03:48:42 djm Exp $

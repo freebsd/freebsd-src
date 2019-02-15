@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Max Laier. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +30,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <net/if.h>
@@ -86,9 +88,6 @@ getifgroups(int s)
 	struct ifgroupreq	 ifgr;
 	struct ifg_req		*ifg;
 
-	if (!verbose)
-		return;
-
 	memset(&ifgr, 0, sizeof(ifgr));
 	strlcpy(ifgr.ifgr_name, name, IFNAMSIZ);
 
@@ -121,6 +120,8 @@ getifgroups(int s)
 	}
 	if (cnt)
 		printf("\n");
+
+	free(ifgr.ifgr_groups);
 }
 
 static void
@@ -139,7 +140,7 @@ printgroup(const char *groupname)
 	if (ioctl(s, SIOCGIFGMEMB, (caddr_t)&ifgr) == -1) {
 		if (errno == EINVAL || errno == ENOTTY ||
 		    errno == ENOENT)
-			exit(0);
+			exit(exit_code);
 		else
 			err(1, "SIOCGIFGMEMB");
 	}
@@ -158,7 +159,7 @@ printgroup(const char *groupname)
 	}
 	free(ifgr.ifgr_groups);
 
-	exit(0);
+	exit(exit_code);
 }
 
 static struct cmd group_cmds[] = {
@@ -175,12 +176,10 @@ static struct option group_gopt = { "g:", "[-g groupname]", printgroup };
 static __constructor void
 group_ctor(void)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	int i;
 
-	for (i = 0; i < N(group_cmds);  i++)
+	for (i = 0; i < nitems(group_cmds);  i++)
 		cmd_register(&group_cmds[i]);
 	af_register(&af_group);
 	opt_register(&group_gopt);
-#undef N
 }

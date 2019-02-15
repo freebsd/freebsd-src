@@ -3,6 +3,27 @@
 # This file contains machine dependent kernel configuration notes.  For
 # machine independent notes, look in /sys/conf/NOTES.
 
+#
+# Enable the kernel DTrace hooks which are required to load the DTrace
+# kernel modules.
+#
+options 	KDTRACE_HOOKS
+
+# DTrace core
+# NOTE: introduces CDDL-licensed components into the kernel
+#device		dtrace
+
+# DTrace modules
+#device		dtrace_profile
+#device		dtrace_sdt
+#device		dtrace_fbt
+#device		dtrace_systrace
+#device		dtrace_prototype
+#device		dtnfscl
+#device		dtmalloc
+
+# Alternatively include all the DTrace modules
+#device		dtraceall
 
 
 #####################################################################
@@ -24,7 +45,6 @@ options 	POWERMAC		#NewWorld Apple PowerMacs
 #options	PS3			#Sony Playstation 3
 options 	PSIM			#GDB PSIM ppc simulator
 options 	MAMBO			#IBM Mambo Full System Simulator
-#options 	WII			#Nintendo Wii
 
 options 	SC_OFWFB		# OFW frame buffer
 
@@ -32,7 +52,6 @@ options 	SC_OFWFB		# OFW frame buffer
 device		cpufreq
 
 # Standard busses
-device		pci
 device		agp
 
 device		bm		# Apple BMAC (Big Mac Ethernet)
@@ -50,13 +69,16 @@ device		pmu		# Apple Power Management Unit
 device		smu		# Apple System Management Unit
 device		snd_ai2s	# Apple I2S Audio
 device		snd_davbus	# Apple Davbus Audio
-device		windtunnel	# Apple G4 MDD fan controller
+device		adm1030		# Apple G4 MDD fan controller
 
 
 #####################################################################
 # Devices we don't want to deal with
 
 nodevice	bktr
+nodevice	ccr
+nodevice	cxgbe		# XXX: builds on powerpc64 only.
+nodevice	cxgbev
 nodevice	fdc
 nodevice	ppc
 nodevice	splash
@@ -75,9 +97,6 @@ nodevice	warp_saver
 nodevice	daemon_saver
 nodevice	star_saver
 nodevice	snake_saver
-# isa
-nodevice	pcii
-nodevice	tnt4882
 # sound
 nodevice	snd_cmi
 # wants gdb_cur

@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 31, 2006
+.Dd April 29, 2016
 .Dt PTHREAD_MUTEX_LOCK 3
 .Os
 .Sh NAME
@@ -55,7 +55,7 @@ indicate the error.
 The
 .Fn pthread_mutex_lock
 function will fail if:
-.Bl -tag -width Er
+.Bl -tag -width "Er ENOTRECOVERABLE"
 .It Bq Er EINVAL
 The value specified by
 .Fa mutex
@@ -63,8 +63,20 @@ is invalid.
 .It Bq Er EDEADLK
 A deadlock would occur if the thread blocked waiting for
 .Fa mutex .
+.It Bq Er EOWNERDEAD
+The argument
+.Fa mutex
+points to a robust mutex and the previous owning thread terminated
+while holding the mutex lock.
+The lock was granted to the caller and it is up to the new owner
+to make the state consistent.
+.It Bq Er ENOTRECOVERABLE
+The state protected by the
+.Fa mutex
+is not recoverable.
 .El
 .Sh SEE ALSO
+.Xr pthread_mutex_consistent 3 ,
 .Xr pthread_mutex_destroy 3 ,
 .Xr pthread_mutex_init 3 ,
 .Xr pthread_mutex_trylock 3 ,

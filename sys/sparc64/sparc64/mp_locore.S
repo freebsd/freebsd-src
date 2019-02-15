@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/ver.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 	.register	%g2, #ignore
 	.register	%g3, #ignore

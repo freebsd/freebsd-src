@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Chelsio Communications, Inc.
  * All rights reserved.
  * Written by: Navdeep Parhar <np@FreeBSD.org>
@@ -65,11 +67,8 @@ typedef uint64_t __be64;
 
 #if BYTE_ORDER == BIG_ENDIAN
 #define __BIG_ENDIAN_BITFIELD
-#define htobe32_const(x) (x)
 #elif BYTE_ORDER == LITTLE_ENDIAN
 #define __LITTLE_ENDIAN_BITFIELD
-#define htobe32_const(x) (((x) >> 24) | (((x) >> 8) & 0xff00) |	\
-    ((((x) & 0xffffff) << 8) & 0xff0000) | ((((x) & 0xff) << 24) & 0xff000000))
 #else
 #error "Must set BYTE_ORDER"
 #endif
@@ -80,19 +79,20 @@ typedef boolean_t bool;
 #define true TRUE
 #endif
 
+#define __force
+
 #define mdelay(x) DELAY((x) * 1000)
 #define udelay(x) DELAY(x)
 
-#define __devinit
 #define simple_strtoul strtoul
 #define DIV_ROUND_UP(x, y) howmany(x, y)
 
 #define ARRAY_SIZE(x) nitems(x)
 #define container_of(p, s, f) ((s *)(((uint8_t *)(p)) - offsetof(s, f)))
 
-#define swab16(x) bswap16(x) 
-#define swab32(x) bswap32(x) 
-#define swab64(x) bswap64(x) 
+#define swab16(x) bswap16(x)
+#define swab32(x) bswap32(x)
+#define swab64(x) bswap64(x)
 #define le16_to_cpu(x) le16toh(x)
 #define le32_to_cpu(x) le32toh(x)
 #define le64_to_cpu(x) le64toh(x)
@@ -106,13 +106,9 @@ typedef boolean_t bool;
 #define cpu_to_be32(x) htobe32(x)
 #define cpu_to_be64(x) htobe64(x)
 
-#define SPEED_10	10
-#define SPEED_100	100
-#define SPEED_1000	1000
-#define SPEED_10000	10000
-#define SPEED_40000	40000
 #define DUPLEX_HALF	0
 #define DUPLEX_FULL	1
+#define AUTONEG_AUTO	(-1)
 #define AUTONEG_DISABLE	0
 #define AUTONEG_ENABLE	1
 

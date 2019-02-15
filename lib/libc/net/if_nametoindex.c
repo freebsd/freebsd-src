@@ -1,6 +1,8 @@
 /*	$KAME: if_nametoindex.c,v 1.6 2000/11/24 08:18:54 itojun Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-1-Clause
+ *
  * Copyright (c) 1997, 2000
  *	Berkeley Software Design, Inc.  All rights reserved.
  *
@@ -70,9 +72,7 @@ if_nametoindex(const char *ifname)
 
 	s = _socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 	if (s != -1) {
-#ifdef PURIFY
 		memset(&ifr, 0, sizeof(ifr));
-#endif
 		strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
 		if (_ioctl(s, SIOCGIFINDEX, &ifr) != -1) {
 			_close(s);

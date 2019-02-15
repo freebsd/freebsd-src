@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 SRI International
  * All rights reserved.
  *
@@ -33,6 +35,8 @@
 #include <vis.h>
 
 #define	_UNVIS_END	1
+
+int __unvis_44bsd(char *, int, int *, int);
 
 int
 __unvis_44bsd(char *cp, int c, int *astate, int flag)

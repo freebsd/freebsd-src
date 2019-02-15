@@ -1,19 +1,27 @@
-#	$OpenBSD: reconfigure.sh,v 1.2 2003/06/21 09:14:05 markus Exp $
+#	$OpenBSD: reconfigure.sh,v 1.6 2017/04/30 23:34:55 djm Exp $
 #	Placed in the Public Domain.
 
 tid="simple connect after reconfigure"
 
 # we need the full path to sshd for -HUP
-case $SSHD in
-/*)
-	# full path is OK 
-	;;
-*)
-	# otherwise make fully qualified
-	SSHD=$OBJ/$SSHD
-esac
+if test "x$USE_VALGRIND" = "x" ; then
+	case $SSHD in
+	/*)
+		# full path is OK
+		;;
+	*)
+		# otherwise make fully qualified
+		SSHD=$OBJ/$SSHD
+	esac
+fi
 
 start_sshd
+
+trace "connect before restart"
+${SSH} -F $OBJ/ssh_config somehost true
+if [ $? -ne 0 ]; then
+	fail "ssh connect with failed before reconfigure"
+fi
 
 PID=`$SUDO cat $PIDFILE`
 rm -f $PIDFILE
@@ -28,9 +36,8 @@ done
 
 test -f $PIDFILE || fatal "sshd did not restart"
 
-for p in 1 2; do
-	${SSH} -o "Protocol=$p" -F $OBJ/ssh_config somehost true
-	if [ $? -ne 0 ]; then
-		fail "ssh connect with protocol $p failed after reconfigure"
-	fi
-done
+trace "connect after restart"
+${SSH} -F $OBJ/ssh_config somehost true
+if [ $? -ne 0 ]; then
+	fail "ssh connect with failed after reconfigure"
+fi

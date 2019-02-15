@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
  * All rights reserved.
  *
@@ -67,8 +69,10 @@ acl_init(int count)
 
 	error = posix_memalign((void *)&acl, 1 << _ACL_T_ALIGNMENT_BITS,
 	    sizeof(struct acl_t_struct));
-	if (error)
+	if (error) {
+		errno = error;
 		return (NULL);
+	}
 
 	bzero(acl, sizeof(struct acl_t_struct));
 	acl->ats_brand = ACL_BRAND_UNKNOWN;

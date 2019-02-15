@@ -1,4 +1,4 @@
-/* $OpenBSD: ttymodes.h,v 1.14 2006/03/25 22:22:43 djm Exp $ */
+/* $OpenBSD: ttymodes.h,v 1.16 2017/04/30 23:26:54 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -38,22 +38,13 @@
  */
 
 /*
- * SSH1:
- * The tty mode description is a stream of bytes.  The stream consists of
+ * The tty mode description is a string, consisting of
  * opcode-arguments pairs.  It is terminated by opcode TTY_OP_END (0).
- * Opcodes 1-127 have one-byte arguments.  Opcodes 128-159 have integer
- * arguments.  Opcodes 160-255 are not yet defined, and cause parsing to
- * stop (they should only be used after any other data).
+ * Opcodes 1-159 have uint32 arguments.
+ * Opcodes 160-255 are not yet defined and cause parsing to stop (they
+ * should only be used after any other data).
  *
- * SSH2:
- * Differences between SSH1 and SSH2 terminal mode encoding include:
- * 1. Encoded terminal modes are represented as a string, and a stream
- *    of bytes within that string.
- * 2. Opcode arguments are uint32 (1-159); 160-255 remain undefined.
- * 3. The values for TTY_OP_ISPEED and TTY_OP_OSPEED are different;
- *    128 and 129 vs. 192 and 193 respectively.
- *
- * The client puts in the stream any modes it knows about, and the
+ * The client puts in the string any modes it knows about, and the
  * server ignores any modes it does not know about.  This allows some degree
  * of machine-independence, at least between systems that use a posix-like
  * tty interface.  The protocol can support other systems as well, but might
@@ -127,6 +118,9 @@ TTYMODE(IXOFF,	c_iflag, 40)
 #ifdef IMAXBEL
 TTYMODE(IMAXBEL,c_iflag, 41)
 #endif /* IMAXBEL */
+#ifdef IUTF8
+TTYMODE(IUTF8,  c_iflag, 42)
+#endif /* IUTF8 */
 
 TTYMODE(ISIG,	c_lflag, 50)
 TTYMODE(ICANON,	c_lflag, 51)

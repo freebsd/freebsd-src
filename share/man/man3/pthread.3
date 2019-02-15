@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 12, 2014
+.Dd August 17, 2018
 .Dt PTHREAD 3
 .Os
 .Sh NAME
@@ -236,17 +236,17 @@ Set the detach state in a thread attributes object.
 Destroy a mutex attributes object.
 .It Xo
 .Ft int
-.Fn pthread_mutexattr_getprioceiling "pthread_mutexattr_t *attr" "int *ceiling"
+.Fn pthread_mutexattr_getprioceiling "const pthread_mutexattr_t *restrict attr" "int *restrict ceiling"
 .Xc
 Obtain priority ceiling attribute of mutex attribute object.
 .It Xo
 .Ft int
-.Fn pthread_mutexattr_getprotocol "pthread_mutexattr_t *attr" "int *protocol"
+.Fn pthread_mutexattr_getprotocol "const pthread_mutexattr_t *restrict attr" "int *restrict protocol"
 .Xc
 Obtain protocol attribute of mutex attribute object.
 .It Xo
 .Ft int
-.Fn pthread_mutexattr_gettype "pthread_mutexattr_t *attr" "int *type"
+.Fn pthread_mutexattr_gettype "const pthread_mutexattr_t *restrict attr" "int *restrict type"
 .Xc
 Obtain the mutex type attribute in the specified mutex attributes object.
 .It Xo
@@ -484,14 +484,14 @@ Threaded applications are linked with this library.
 .Xr pthread_cancel 3 ,
 .Xr pthread_cleanup_pop 3 ,
 .Xr pthread_cleanup_push 3 ,
-.Xr pthread_condattr_destroy 3 ,
-.Xr pthread_condattr_init 3 ,
 .Xr pthread_cond_broadcast 3 ,
 .Xr pthread_cond_destroy 3 ,
 .Xr pthread_cond_init 3 ,
 .Xr pthread_cond_signal 3 ,
 .Xr pthread_cond_timedwait 3 ,
 .Xr pthread_cond_wait 3 ,
+.Xr pthread_condattr_destroy 3 ,
+.Xr pthread_condattr_init 3 ,
 .Xr pthread_create 3 ,
 .Xr pthread_detach 3 ,
 .Xr pthread_equal 3 ,
@@ -500,6 +500,11 @@ Threaded applications are linked with this library.
 .Xr pthread_join 3 ,
 .Xr pthread_key_delete 3 ,
 .Xr pthread_kill 3 ,
+.Xr pthread_mutex_destroy 3 ,
+.Xr pthread_mutex_init 3 ,
+.Xr pthread_mutex_lock 3 ,
+.Xr pthread_mutex_trylock 3 ,
+.Xr pthread_mutex_unlock 3 ,
 .Xr pthread_mutexattr_destroy 3 ,
 .Xr pthread_mutexattr_getprioceiling 3 ,
 .Xr pthread_mutexattr_getprotocol 3 ,
@@ -508,21 +513,16 @@ Threaded applications are linked with this library.
 .Xr pthread_mutexattr_setprioceiling 3 ,
 .Xr pthread_mutexattr_setprotocol 3 ,
 .Xr pthread_mutexattr_settype 3 ,
-.Xr pthread_mutex_destroy 3 ,
-.Xr pthread_mutex_init 3 ,
-.Xr pthread_mutex_lock 3 ,
-.Xr pthread_mutex_trylock 3 ,
-.Xr pthread_mutex_unlock 3 ,
 .Xr pthread_once 3 ,
-.Xr pthread_rwlockattr_destroy 3 ,
-.Xr pthread_rwlockattr_getpshared 3 ,
-.Xr pthread_rwlockattr_init 3 ,
-.Xr pthread_rwlockattr_setpshared 3 ,
 .Xr pthread_rwlock_destroy 3 ,
 .Xr pthread_rwlock_init 3 ,
 .Xr pthread_rwlock_rdlock 3 ,
 .Xr pthread_rwlock_unlock 3 ,
 .Xr pthread_rwlock_wrlock 3 ,
+.Xr pthread_rwlockattr_destroy 3 ,
+.Xr pthread_rwlockattr_getpshared 3 ,
+.Xr pthread_rwlockattr_init 3 ,
+.Xr pthread_rwlockattr_setpshared 3 ,
 .Xr pthread_self 3 ,
 .Xr pthread_setcancelstate 3 ,
 .Xr pthread_setcanceltype 3 ,

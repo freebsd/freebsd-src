@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Michael Smith
  * Copyright (c) 1998 Jonathan Lemon
  * All rights reserved.
@@ -40,6 +42,9 @@
 #define	SMAP_TYPE_ACPI_RECLAIM	3
 #define	SMAP_TYPE_ACPI_NVS	4
 #define	SMAP_TYPE_ACPI_ERROR	5
+#define	SMAP_TYPE_DISABLED	6
+#define	SMAP_TYPE_PMEM		7
+#define	SMAP_TYPE_PRAM		12
 
 #define	SMAP_XATTR_ENABLED	0x00000001
 #define	SMAP_XATTR_NON_VOLATILE	0x00000002

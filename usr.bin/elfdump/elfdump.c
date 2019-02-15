@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 David O'Brien.  All rights reserved.
  * Copyright (c) 2001 Jake Burkholder
  * All rights reserved.
@@ -29,12 +31,16 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+
+#include <sys/capsicum.h>
 #include <sys/elf32.h>
 #include <sys/elf64.h>
 #include <sys/endian.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <capsicum_helpers.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <stddef.h>
@@ -54,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #define	ED_SHDR		(1<<8)
 #define	ED_SYMTAB	(1<<9)
 #define	ED_ALL		((1<<10)-1)
+#define	ED_IS_ELF	(1<<10)	/* Exclusive with other flags */
 
 #define	elf_get_addr	elf_get_quad
 #define	elf_get_off	elf_get_quad
@@ -237,9 +244,9 @@ d_tags(u_int64_t tag)
 	case 0x6ffffff0:	return "DT_GNU_VERSYM";
 	/* 0x70000000 - 0x7fffffff processor-specific semantics */
 	case 0x70000000:	return "DT_IA_64_PLT_RESERVE";
-	case 0x7ffffffd:	return "DT_SUNW_AUXILIARY";
-	case 0x7ffffffe:	return "DT_SUNW_USED";
-	case 0x7fffffff:	return "DT_SUNW_FILTER";
+	case DT_AUXILIARY:	return "DT_AUXILIARY";
+	case DT_USED:		return "DT_USED";
+	case DT_FILTER:		return "DT_FILTER";
 	}
 	snprintf(unknown_tag, sizeof(unknown_tag),
 		"ERROR: TAG NOT DEFINED -- tag 0x%jx", (uintmax_t)tag);
@@ -258,6 +265,7 @@ e_machines(u_int mach)
 	case EM_386:	return "EM_386";
 	case EM_68K:	return "EM_68K";
 	case EM_88K:	return "EM_88K";
+	case EM_IAMCU:	return "EM_IAMCU";
 	case EM_860:	return "EM_860";
 	case EM_MIPS:	return "EM_MIPS";
 	case EM_PPC:	return "EM_PPC";
@@ -268,6 +276,7 @@ e_machines(u_int mach)
 	case EM_IA_64:	return "EM_IA_64";
 	case EM_X86_64:	return "EM_X86_64";
 	case EM_AARCH64:return "EM_AARCH64";
+	case EM_RISCV:	return "EM_RISCV";
 	}
 	snprintf(machdesc, sizeof(machdesc),
 	    "(unknown machine) -- type 0x%x", mach);
@@ -291,7 +300,7 @@ static const char *ei_data[] = {
 };
 
 static const char *ei_abis[256] = {
-	"ELFOSABI_SYSV", "ELFOSABI_HPUX", "ELFOSABI_NETBSD", "ELFOSABI_LINUX",
+	"ELFOSABI_NONE", "ELFOSABI_HPUX", "ELFOSABI_NETBSD", "ELFOSABI_LINUX",
 	"ELFOSABI_HURD", "ELFOSABI_86OPEN", "ELFOSABI_SOLARIS", "ELFOSABI_AIX",
 	"ELFOSABI_IRIX", "ELFOSABI_FREEBSD", "ELFOSABI_TRU64",
 	"ELFOSABI_MODESTO", "ELFOSABI_OPENBSD",
@@ -374,7 +383,9 @@ sh_types(uint64_t machine, uint64_t sht) {
 			break;
 		case EM_MIPS:
 			switch (sht) {
+			case SHT_MIPS_REGINFO: return "SHT_MIPS_REGINFO";
 			case SHT_MIPS_OPTIONS: return "SHT_MIPS_OPTIONS";
+			case SHT_MIPS_ABIFLAGS: return "SHT_MIPS_ABIFLAGS";
 			}
 			break;
 		}
@@ -401,9 +412,27 @@ static const char *sh_flags[] = {
 	"SHF_WRITE|SHF_ALLOC|SHF_EXECINSTR"
 };
 
-static const char *st_types[] = {
-	"STT_NOTYPE", "STT_OBJECT", "STT_FUNC", "STT_SECTION", "STT_FILE"
-};
+static const char *
+st_type(unsigned int mach, unsigned int type)
+{
+        static char s_type[32];
+
+        switch (type) {
+        case STT_NOTYPE: return "STT_NOTYPE";
+        case STT_OBJECT: return "STT_OBJECT";
+        case STT_FUNC: return "STT_FUNC";
+        case STT_SECTION: return "STT_SECTION";
+        case STT_FILE: return "STT_FILE";
+        case STT_COMMON: return "STT_COMMON";
+        case STT_TLS: return "STT_TLS";
+        case 13:
+                if (mach == EM_SPARCV9)
+                        return "STT_SPARC_REGISTER";
+                break;
+        }
+        snprintf(s_type, sizeof(s_type), "<unknown: %#x>", type);
+        return (s_type);
+}
 
 static const char *st_bindings[] = {
 	"STB_LOCAL", "STB_GLOBAL", "STB_WEAK"
@@ -467,6 +496,7 @@ elf_get_shstrndx(Elf32_Ehdr *e, void *sh)
 int
 main(int ac, char **av)
 {
+	cap_rights_t rights;
 	u_int64_t phoff;
 	u_int64_t shoff;
 	u_int64_t phentsize;
@@ -489,7 +519,7 @@ main(int ac, char **av)
 
 	out = stdout;
 	flags = 0;
-	while ((ch = getopt(ac, av, "acdeiGhnprsw:")) != -1)
+	while ((ch = getopt(ac, av, "acdEeiGhnprsw:")) != -1)
 		switch (ch) {
 		case 'a':
 			flags = ED_ALL;
@@ -499,6 +529,9 @@ main(int ac, char **av)
 			break;
 		case 'd':
 			flags |= ED_DYN;
+			break;
+		case 'E':
+			flags = ED_IS_ELF;
 			break;
 		case 'e':
 			flags |= ED_EHDR;
@@ -527,6 +560,9 @@ main(int ac, char **av)
 		case 'w':
 			if ((out = fopen(optarg, "w")) == NULL)
 				err(1, "%s", optarg);
+			cap_rights_init(&rights, CAP_FSTAT, CAP_WRITE);
+			if (caph_rights_limit(fileno(out), &rights) < 0)
+				err(1, "unable to limit rights for %s", optarg);
 			break;
 		case '?':
 		default:
@@ -534,16 +570,31 @@ main(int ac, char **av)
 		}
 	ac -= optind;
 	av += optind;
-	if (ac == 0 || flags == 0)
+	if (ac == 0 || flags == 0 || ((flags & ED_IS_ELF) &&
+	    (ac != 1 || (flags & ~ED_IS_ELF) || out != stdout)))
 		usage();
 	if ((fd = open(*av, O_RDONLY)) < 0 ||
 	    fstat(fd, &sb) < 0)
 		err(1, "%s", *av);
+	cap_rights_init(&rights, CAP_MMAP_R);
+	if (caph_rights_limit(fd, &rights) < 0)
+		err(1, "unable to limit rights for %s", *av);
+	cap_rights_init(&rights);
+	if (caph_rights_limit(STDIN_FILENO, &rights) < 0 ||
+	    caph_limit_stdout() < 0 || caph_limit_stderr() < 0) {
+                err(1, "unable to limit rights for stdio");
+	}
+	if (caph_enter() < 0)
+		err(1, "unable to enter capability mode");
 	e = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
 	if (e == MAP_FAILED)
 		err(1, NULL);
-	if (!IS_ELF(*(Elf32_Ehdr *)e))
+	if (!IS_ELF(*(Elf32_Ehdr *)e)) {
+		if (flags & ED_IS_ELF)
+			exit(1);
 		errx(1, "not an elf file");
+	} else if (flags & ED_IS_ELF)
+		exit (0);
 	phoff = elf_get_off(e, e, E_PHOFF);
 	shoff = elf_get_off(e, e, E_SHOFF);
 	phentsize = elf_get_quarter(e, e, E_PHENTSIZE);
@@ -617,7 +668,7 @@ main(int ac, char **av)
 		case SHT_NOTE:
 			name = elf_get_word(e, v, SH_NAME);
 			if (flags & ED_NOTE &&
-			    strcmp(shstrtab + name, ".note.ABI-tag") == 0)
+			    strcmp(shstrtab + name, ".note.tag") == 0)
 				elf_print_note(e, v);
 			break;
 		case SHT_DYNSYM:
@@ -802,6 +853,7 @@ elf_print_shdr(Elf32_Ehdr *e, void *sh)
 static void
 elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str)
 {
+	u_int64_t machine;
 	u_int64_t offset;
 	u_int64_t entsize;
 	u_int64_t size;
@@ -813,6 +865,7 @@ elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str)
 	int len;
 	int i;
 
+	machine = elf_get_quarter(e, e, E_MACHINE);
 	offset = elf_get_off(e, sh, SH_OFFSET);
 	entsize = elf_get_size(e, sh, SH_ENTSIZE);
 	size = elf_get_size(e, sh, SH_SIZE);
@@ -832,7 +885,7 @@ elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str)
 		fprintf(out, "\tst_value: %#jx\n", value);
 		fprintf(out, "\tst_size: %jd\n", (intmax_t)size);
 		fprintf(out, "\tst_info: %s %s\n",
-		    st_types[ELF32_ST_TYPE(info)],
+		    st_type(machine, ELF32_ST_TYPE(info)),
 		    st_bindings[ELF32_ST_BIND(info)]);
 		fprintf(out, "\tst_shndx: %jd\n", (intmax_t)shndx);
 	}
@@ -1210,6 +1263,7 @@ elf_get_quad(Elf32_Ehdr *e, void *base, elf_member_t member)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: elfdump -a | -cdeGhinprs [-w file] file\n");
+	fprintf(stderr,
+	    "usage: elfdump -a | -E | -cdeGhinprs [-w file] file\n");
 	exit(1);
 }

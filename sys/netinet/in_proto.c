@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -42,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/domain.h>
 #include <sys/proc.h>
@@ -89,10 +92,6 @@ __FBSDID("$FreeBSD$");
 
 static struct pr_usrreqs nousrreqs;
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#endif /* IPSEC */
-
 #ifdef SCTP
 #include <netinet/in_pcb.h>
 #include <netinet/sctp_pcb.h>
@@ -118,9 +117,6 @@ struct protosw inetsw[] = {
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_IP,
 	.pr_init =		ip_init,
-#ifdef VIMAGE
-	.pr_destroy =		ip_destroy,
-#endif
 	.pr_slowtimo =		ip_slowtimo,
 	.pr_drain =		ip_drain,
 	.pr_usrreqs =		&nousrreqs
@@ -134,9 +130,6 @@ struct protosw inetsw[] = {
 	.pr_ctlinput =		udp_ctlinput,
 	.pr_ctloutput =		udp_ctloutput,
 	.pr_init =		udp_init,
-#ifdef VIMAGE
-	.pr_destroy =		udp_destroy,
-#endif
 	.pr_usrreqs =		&udp_usrreqs
 },
 {
@@ -148,9 +141,6 @@ struct protosw inetsw[] = {
 	.pr_ctlinput =		tcp_ctlinput,
 	.pr_ctloutput =		tcp_ctloutput,
 	.pr_init =		tcp_init,
-#ifdef VIMAGE
-	.pr_destroy =		tcp_destroy,
-#endif
 	.pr_slowtimo =		tcp_slowtimo,
 	.pr_drain =		tcp_drain,
 	.pr_usrreqs =		&tcp_usrreqs
@@ -160,14 +150,11 @@ struct protosw inetsw[] = {
 	.pr_type =		SOCK_SEQPACKET,
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_SCTP,
-	.pr_flags =		PR_WANTRCVD,
+	.pr_flags =		PR_WANTRCVD|PR_LASTHDR,
 	.pr_input =		sctp_input,
 	.pr_ctlinput =		sctp_ctlinput,
 	.pr_ctloutput =		sctp_ctloutput,
 	.pr_init =		sctp_init,
-#ifdef VIMAGE
-	.pr_destroy =		sctp_finish,
-#endif
 	.pr_drain =		sctp_drain,
 	.pr_usrreqs =		&sctp_usrreqs
 },
@@ -175,7 +162,7 @@ struct protosw inetsw[] = {
 	.pr_type =		SOCK_STREAM,
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_SCTP,
-	.pr_flags =		PR_WANTRCVD,
+	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD|PR_LASTHDR,
 	.pr_input =		sctp_input,
 	.pr_ctlinput =		sctp_ctlinput,
 	.pr_ctloutput =		sctp_ctloutput,
@@ -192,9 +179,6 @@ struct protosw inetsw[] = {
 	.pr_ctlinput =		udplite_ctlinput,
 	.pr_ctloutput =		udp_ctloutput,
 	.pr_init =		udplite_init,
-#ifdef VIMAGE
-	.pr_destroy =		udplite_destroy,
-#endif
 	.pr_usrreqs =		&udp_usrreqs
 },
 {
@@ -236,34 +220,6 @@ struct protosw inetsw[] = {
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 },
-#ifdef IPSEC
-{
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_AH,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		ah4_input,
-	.pr_ctlinput =		ah4_ctlinput,
-	.pr_usrreqs =		&nousrreqs
-},
-{
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_ESP,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		esp4_input,
-	.pr_ctlinput =		esp4_ctlinput,
-	.pr_usrreqs =		&nousrreqs
-},
-{
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_IPCOMP,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		ipcomp4_input,
-	.pr_usrreqs =		&nousrreqs
-},
-#endif /* IPSEC */
 {
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inetdomain,
@@ -271,7 +227,6 @@ struct protosw inetsw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
 	.pr_input =		encap4_input,
 	.pr_ctloutput =		rip_ctloutput,
-	.pr_init =		encap_init,
 	.pr_usrreqs =		&rip_usrreqs
 },
 {
@@ -281,7 +236,6 @@ struct protosw inetsw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
 	.pr_input =		encap4_input,
 	.pr_ctloutput =		rip_ctloutput,
-	.pr_init =		encap_init,
 	.pr_usrreqs =		&rip_usrreqs
 },
 {
@@ -291,7 +245,6 @@ struct protosw inetsw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
 	.pr_input =		encap4_input,
 	.pr_ctloutput =		rip_ctloutput,
-	.pr_init =		encap_init,
 	.pr_usrreqs =		&rip_usrreqs
 },
 {
@@ -301,7 +254,6 @@ struct protosw inetsw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
 	.pr_input =		encap4_input,
 	.pr_ctloutput =		rip_ctloutput,
-	.pr_init =		encap_init,
 	.pr_usrreqs =		&rip_usrreqs
 },
 # ifdef INET6
@@ -312,7 +264,6 @@ struct protosw inetsw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
 	.pr_input =		encap4_input,
 	.pr_ctloutput =		rip_ctloutput,
-	.pr_init =		encap_init,
 	.pr_usrreqs =		&rip_usrreqs
 },
 #endif
@@ -342,9 +293,6 @@ IPPROTOSPACER,
 	.pr_input =		rip_input,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_init =		rip_init,
-#ifdef VIMAGE
-	.pr_destroy =		rip_destroy,
-#endif
 	.pr_usrreqs =		&rip_usrreqs
 },
 };
@@ -356,7 +304,7 @@ struct domain inetdomain = {
 	.dom_family =		AF_INET,
 	.dom_name =		"internet",
 	.dom_protosw =		inetsw,
-	.dom_protoswNPROTOSW =	&inetsw[sizeof(inetsw)/sizeof(inetsw[0])],
+	.dom_protoswNPROTOSW =	&inetsw[nitems(inetsw)],
 #ifdef RADIX_MPATH
 	.dom_rtattach =		rn4_mpath_inithead,
 #else
@@ -365,8 +313,6 @@ struct domain inetdomain = {
 #ifdef VIMAGE
 	.dom_rtdetach =		in_detachhead,
 #endif
-	.dom_rtoffset =		32,
-	.dom_maxrtkey =		sizeof(struct sockaddr_in),
 	.dom_ifattach =		in_domifattach,
 	.dom_ifdetach =		in_domifdetach
 };
@@ -385,7 +331,7 @@ SYSCTL_NODE(_net_inet, IPPROTO_TCP,	tcp,	CTLFLAG_RW, 0,	"TCP");
 SYSCTL_NODE(_net_inet, IPPROTO_SCTP,	sctp,	CTLFLAG_RW, 0,	"SCTP");
 #endif
 SYSCTL_NODE(_net_inet, IPPROTO_IGMP,	igmp,	CTLFLAG_RW, 0,	"IGMP");
-#ifdef IPSEC
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 /* XXX no protocol # to use, pick something "reserved" */
 SYSCTL_NODE(_net_inet, 253,		ipsec,	CTLFLAG_RW, 0,	"IPSEC");
 SYSCTL_NODE(_net_inet, IPPROTO_AH,	ah,	CTLFLAG_RW, 0,	"AH");

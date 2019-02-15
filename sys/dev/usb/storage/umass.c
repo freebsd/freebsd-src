@@ -2,6 +2,8 @@
 __FBSDID("$FreeBSD$");
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 MAEKAWA Masahide <bishop@rr.iij4u.or.jp>,
  *		      Nick Hibma <n_hibma@FreeBSD.org>
  * All rights reserved.
@@ -706,19 +708,20 @@ static driver_t umass_driver = {
 	.size = sizeof(struct umass_softc),
 };
 
-DRIVER_MODULE(umass, uhub, umass_driver, umass_devclass, NULL, 0);
-MODULE_DEPEND(umass, usb, 1, 1, 1);
-MODULE_DEPEND(umass, cam, 1, 1, 1);
-MODULE_VERSION(umass, 1);
-
-/*
- * USB device probe/attach/detach
- */
-
 static const STRUCT_USB_HOST_ID __used umass_devs[] = {
 	/* generic mass storage class */
 	{USB_IFACE_CLASS(UICLASS_MASS),},
 };
+
+DRIVER_MODULE(umass, uhub, umass_driver, umass_devclass, NULL, 0);
+MODULE_DEPEND(umass, usb, 1, 1, 1);
+MODULE_DEPEND(umass, cam, 1, 1, 1);
+MODULE_VERSION(umass, 1);
+USB_PNP_HOST_INFO(umass_devs);
+
+/*
+ * USB device probe/attach/detach
+ */
 
 static uint16_t
 umass_get_proto(struct usb_interface *iface)
@@ -1086,7 +1089,6 @@ static void
 umass_init_shuttle(struct umass_softc *sc)
 {
 	struct usb_device_request req;
-	usb_error_t err;
 	uint8_t status[2] = {0, 0};
 
 	/*
@@ -1099,7 +1101,7 @@ umass_init_shuttle(struct umass_softc *sc)
 	req.wIndex[0] = sc->sc_iface_no;
 	req.wIndex[1] = 0;
 	USETW(req.wLength, sizeof(status));
-	err = usbd_do_request(sc->sc_udev, NULL, &req, &status);
+	usbd_do_request(sc->sc_udev, NULL, &req, &status);
 
 	DPRINTF(sc, UDMASS_GEN, "Shuttle init returned 0x%02x%02x\n",
 	    status[0], status[1]);
@@ -1140,7 +1142,7 @@ umass_cancel_ccb(struct umass_softc *sc)
 {
 	union ccb *ccb;
 
-	mtx_assert(&sc->sc_mtx, MA_OWNED);
+	USB_MTX_ASSERT(&sc->sc_mtx, MA_OWNED);
 
 	ccb = sc->sc_transfer.ccb;
 	sc->sc_transfer.ccb = NULL;
@@ -2698,8 +2700,7 @@ umass_rbc_transform(struct umass_softc *sc, uint8_t *cmd_ptr, uint8_t cmd_len)
 	case START_STOP_UNIT:
 	case SYNCHRONIZE_CACHE:
 	case WRITE_10:
-	case 0x2f:			/* VERIFY_10 is absent from
-					 * scsi_all.h??? */
+	case VERIFY_10:
 	case INQUIRY:
 	case MODE_SELECT_10:
 	case MODE_SENSE_10:
@@ -2721,7 +2722,7 @@ umass_rbc_transform(struct umass_softc *sc, uint8_t *cmd_ptr, uint8_t cmd_len)
 			cmd_len = 12;
 		}
 		sc->sc_transfer.cmd_len = cmd_len;
-		return (1);		/* sucess */
+		return (1);		/* success */
 
 		/* All other commands are not legal in RBC */
 	default:

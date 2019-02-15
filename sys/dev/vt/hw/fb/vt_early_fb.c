@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -25,8 +27,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -60,6 +60,7 @@ static struct vt_driver vt_fb_early_driver = {
 	.vd_init = vt_efb_init,
 	.vd_blank = vt_fb_blank,
 	.vd_bitblt_text = vt_fb_bitblt_text,
+	.vd_invalidate_text = vt_fb_invalidate_text,
 	.vd_bitblt_bmp = vt_fb_bitblt_bitmap,
 	.vd_drawrect = vt_fb_drawrect,
 	.vd_setpixel = vt_fb_setpixel,
@@ -127,7 +128,7 @@ vt_efb_initialize(struct fb_info *info)
 	default:
 		panic("Unknown color space fb_depth %d", info->fb_depth);
 		break;
-        }
+	}
 }
 
 static phandle_t
@@ -213,9 +214,9 @@ vt_efb_init(struct vt_device *vd)
 	if (len == -1) {
 		len = OF_getprop(OF_parent(node), "assigned-addresses",
 		    pciaddrs, sizeof(pciaddrs));
-        }
-        if (len == -1)
-                len = 0;
+	}
+	if (len == -1)
+		len = 0;
 	n_pciaddrs = len / sizeof(struct ofw_pci_register);
 
 	/*
@@ -224,7 +225,7 @@ vt_efb_init(struct vt_device *vd)
 	 * remapped for us when relocation turns on.
 	 */
 	if (OF_getproplen(node, "address") == sizeof(info->fb_pbase)) {
-	 	/* XXX We assume #address-cells is 1 at this point. */
+		/* XXX We assume #address-cells is 1 at this point. */
 		OF_getencprop(node, "address", &info->fb_pbase,
 		    sizeof(info->fb_pbase));
 
@@ -283,7 +284,7 @@ vt_efb_init(struct vt_device *vd)
 		    BUS_SPACE_MAP_PREFETCHABLE,
 		    (bus_space_handle_t *)&info->fb_vbase);
 	#endif
-        }
+	}
 
 	/* blank full size */
 	len = info->fb_size / 4;

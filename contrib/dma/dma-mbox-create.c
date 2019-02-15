@@ -1,9 +1,9 @@
 /*
- * Copyright (c) 2010 Simon Schubert <2@0x2c.org>
+ * Copyright (c) 2010-2014, Simon Schubert <2@0x2c.org>.
  * Copyright (c) 2008 The DragonFly Project.  All rights reserved.
  *
  * This code is derived from software contributed to The DragonFly Project
- * by Simon 'corecode' Schubert <corecode@fs.ei.tum.de>.
+ * by Simon Schubert <2@0x2c.org>.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,15 +38,25 @@
  * user-supplied information.  Keep the root window as small as possible.
  */
 
+#ifdef __FreeBSD__
+#define	USE_CAPSICUM	1
+#endif
+
 #include <sys/param.h>
+#if USE_CAPSICUM
+#include <sys/capsicum.h>
+#endif
 #include <sys/stat.h>
 
+#include <capsicum_helpers.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
 #include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <string.h>
 #include <syslog.h>
 #include <unistd.h>
 
@@ -54,7 +64,7 @@
 
 
 static void
-logfail(const char *fmt, ...)
+logfail(int exitcode, const char *fmt, ...)
 {
 	int oerrno = errno;
 	va_list ap;
@@ -73,7 +83,7 @@ logfail(const char *fmt, ...)
 	else
 		syslog(LOG_ERR, errno ? "%m" : "unknown error");
 
-	exit(1);
+	exit(exitcode);
 }
 
 /*
@@ -84,35 +94,39 @@ logfail(const char *fmt, ...)
 int
 main(int argc, char **argv)
 {
+#if USE_CAPSICUM
+	cap_rights_t rights;
+#endif
 	const char *user;
 	struct passwd *pw;
 	struct group *gr;
 	uid_t user_uid;
 	gid_t mail_gid;
-	int error;
-	char fn[PATH_MAX+1];
-	int f;
+	int f, maildirfd;
 
-	openlog("dma-mbox-create", 0, LOG_MAIL);
+	/*
+	 * Open log fd now for capability sandbox.
+	 */
+	openlog("dma-mbox-create", LOG_NDELAY, LOG_MAIL);
 
 	errno = 0;
 	gr = getgrnam(DMA_GROUP);
 	if (!gr)
-		logfail("cannot find dma group `%s'", DMA_GROUP);
+		logfail(EX_CONFIG, "cannot find dma group `%s'", DMA_GROUP);
 
 	mail_gid = gr->gr_gid;
 
 	if (setgid(mail_gid) != 0)
-		logfail("cannot set gid to %d (%s)", mail_gid, DMA_GROUP);
+		logfail(EX_NOPERM, "cannot set gid to %d (%s)", mail_gid, DMA_GROUP);
 	if (getegid() != mail_gid)
-		logfail("cannot set gid to %d (%s), still at %d", mail_gid, DMA_GROUP, getegid());
+		logfail(EX_NOPERM, "cannot set gid to %d (%s), still at %d", mail_gid, DMA_GROUP, getegid());
 
 	/*
 	 * We take exactly one argument: the username.
 	 */
 	if (argc != 2) {
 		errno = 0;
-		logfail("no arguments");
+		logfail(EX_USAGE, "no arguments");
 	}
 	user = argv[1];
 
@@ -121,7 +135,7 @@ main(int argc, char **argv)
 	/* the username may not contain a pathname separator */
 	if (strchr(user, '/')) {
 		errno = 0;
-		logfail("path separator in username `%s'", user);
+		logfail(EX_DATAERR, "path separator in username `%s'", user);
 		exit(1);
 	}
 
@@ -129,28 +143,46 @@ main(int argc, char **argv)
 	errno = 0;
 	pw = getpwnam(user);
 	if (!pw)
-		logfail("cannot find user `%s'", user);
+		logfail(EX_NOUSER, "cannot find user `%s'", user);
+
+	maildirfd = open(_PATH_MAILDIR, O_RDONLY);
+	if (maildirfd < 0)
+		logfail(EX_NOINPUT, "cannot open maildir %s", _PATH_MAILDIR);
+
+	/*
+	 * Cache NLS data, for strerror, for err(3), before entering capability
+	 * mode.
+	 */
+	caph_cache_catpages();
+
+	/*
+	 * Cache local time before entering Capsicum capability sandbox.
+	 */
+	caph_cache_tzdata();
+
+#if USE_CAPSICUM
+	cap_rights_init(&rights, CAP_CREATE, CAP_FCHMOD, CAP_FCHOWN,
+	    CAP_LOOKUP, CAP_READ);
+	if (cap_rights_limit(maildirfd, &rights) < 0 && errno != ENOSYS)
+		err(EX_OSERR, "can't limit maildirfd rights");
+
+	/* Enter Capsicum capability sandbox */
+	if (caph_enter() < 0)
+		err(EX_OSERR, "cap_enter");
+#endif
 
 	user_uid = pw->pw_uid;
 
-	error = snprintf(fn, sizeof(fn), "%s/%s", _PATH_MAILDIR, user);
-	if (error < 0 || (size_t)error >= sizeof(fn)) {
-		if (error >= 0) {
-			errno = 0;
-			logfail("mbox path too long");
-		}
-		logfail("cannot build mbox path for `%s/%s'", _PATH_MAILDIR, user);
-	}
-
-	f = open(fn, O_RDONLY|O_CREAT, 0600);
+	f = openat(maildirfd, user, O_RDONLY|O_CREAT|O_NOFOLLOW, 0600);
 	if (f < 0)
-		logfail("cannot open mbox `%s'", fn);
+		logfail(EX_NOINPUT, "cannot open mbox `%s'", user);
 
 	if (fchown(f, user_uid, mail_gid))
-		logfail("cannot change owner of mbox `%s'", fn);
+		logfail(EX_OSERR, "cannot change owner of mbox `%s'", user);
 
 	if (fchmod(f, 0620))
-		logfail("cannot change permissions of mbox `%s'", fn);
+		logfail(EX_OSERR, "cannot change permissions of mbox `%s'",
+		    user);
 
 	/* file should be present with the right owner and permissions */
 

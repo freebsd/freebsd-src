@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Jake Burkholder.
  * Copyright (c) 2005, 2008 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
@@ -31,8 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/smp.h>
@@ -326,7 +325,7 @@ tick_get_timecount_up(struct timecounter *tc)
 static u_int
 stick_get_timecount_mp(struct timecounter *tc)
 {
-	u_long stick;
+	static u_long stick;
 
 	sched_pin();
 	if (curcpu == 0)
@@ -340,7 +339,7 @@ stick_get_timecount_mp(struct timecounter *tc)
 static u_int
 tick_get_timecount_mp(struct timecounter *tc)
 {
-	u_long tick;
+	static u_long tick;
 
 	sched_pin();
 	if (curcpu == 0)

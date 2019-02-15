@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -135,6 +137,7 @@ protosw_init(struct protosw *pr)
 
 #define DEFAULT(foo, bar)	if ((foo) == NULL)  (foo) = (bar)
 	DEFAULT(pu->pru_accept, pru_accept_notsupp);
+	DEFAULT(pu->pru_aio_queue, pru_aio_queue_notsupp);
 	DEFAULT(pu->pru_bind, pru_bind_notsupp);
 	DEFAULT(pu->pru_bindat, pru_bindat_notsupp);
 	DEFAULT(pu->pru_connect, pru_connect_notsupp);
@@ -152,6 +155,7 @@ protosw_init(struct protosw *pr)
 	DEFAULT(pu->pru_sosend, sosend_generic);
 	DEFAULT(pu->pru_soreceive, soreceive_generic);
 	DEFAULT(pu->pru_sopoll, sopoll_generic);
+	DEFAULT(pu->pru_ready, pru_ready_notsupp);
 #undef DEFAULT
 	if (pr->pr_init)
 		(*pr->pr_init)();
@@ -194,11 +198,7 @@ void
 vnet_domain_uninit(void *arg)
 {
 	struct domain *dp = arg;
-	struct protosw *pr;
 
-	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
-		if (pr->pr_destroy)
-			(*pr->pr_destroy)();
 	if (dp->dom_destroy)
 		(*dp->dom_destroy)();
 }
@@ -247,8 +247,8 @@ domaininit(void *dummy)
 	if (max_linkhdr < 16)		/* XXX */
 		max_linkhdr = 16;
 
-	callout_init(&pffast_callout, CALLOUT_MPSAFE);
-	callout_init(&pfslow_callout, CALLOUT_MPSAFE);
+	callout_init(&pffast_callout, 1);
+	callout_init(&pfslow_callout, 1);
 
 	mtx_lock(&dom_mtx);
 	KASSERT(domain_init_status == 0, ("domaininit called too late!"));

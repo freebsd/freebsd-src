@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/filemon
+.PATH: ${SRCTOP}/sys/dev/filemon
 
 KMOD=	filemon
 SRCS=	${KMOD}.c
-SRCS+=	opt_compat.h
+SRCS+=	vnode_if.h
 
 .include <bsd.kmod.mk>

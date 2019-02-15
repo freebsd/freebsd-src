@@ -1,5 +1,3 @@
-/* $Id: port-solaris.c,v 1.4 2010/11/05 01:03:05 dtucker Exp $ */
-
 /*
  * Copyright (c) 2006 Chad Mynhier.
  *
@@ -215,7 +213,7 @@ solaris_set_default_project(struct passwd *pw)
 
 	/* get default project, if we fail just return gracefully  */
 	if ((defaultproject = getdefaultproj(pw->pw_name, &tempproject, &buf,
-	    sizeof(buf))) > 0) {
+	    sizeof(buf))) != NULL) {
 		/* set default project */
 		if (setproject(defaultproject->pj_name, pw->pw_name,
 		    TASK_NORMAL) != 0)
@@ -227,3 +225,139 @@ solaris_set_default_project(struct passwd *pw)
 	}
 }
 #endif /* USE_SOLARIS_PROJECTS */
+
+#ifdef USE_SOLARIS_PRIVS
+# ifdef HAVE_PRIV_H
+#  include <priv.h>
+# endif
+
+priv_set_t *
+solaris_basic_privset(void)
+{
+	priv_set_t *pset;
+
+#ifdef HAVE_PRIV_BASICSET
+	if ((pset = priv_allocset()) == NULL) {
+		error("priv_allocset: %s", strerror(errno));
+		return NULL;
+	}
+	priv_basicset(pset);
+#else
+	if ((pset = priv_str_to_set("basic", ",", NULL)) == NULL) {
+		error("priv_str_to_set: %s", strerror(errno));
+		return NULL;
+	}
+#endif
+	return pset;
+}
+
+void
+solaris_drop_privs_pinfo_net_fork_exec(void)
+{
+	priv_set_t *pset = NULL, *npset = NULL;
+
+	/*
+	 * Note: this variant avoids dropping DAC filesystem rights, in case
+	 * the process calling it is running as root and should have the
+	 * ability to read/write/chown any file on the system.
+	 *
+	 * We start with the basic set, then *add* the DAC rights to it while
+	 * taking away other parts of BASIC we don't need. Then we intersect
+	 * this with our existing PERMITTED set. In this way we keep any
+	 * DAC rights we had before, while otherwise reducing ourselves to
+	 * the minimum set of privileges we need to proceed.
+	 *
+	 * This also means we drop any other parts of "root" that we don't
+	 * need (e.g. the ability to kill any process, create new device nodes
+	 * etc etc).
+	 */
+
+	if ((pset = priv_allocset()) == NULL)
+		fatal("priv_allocset: %s", strerror(errno));
+	if ((npset = solaris_basic_privset()) == NULL)
+		fatal("solaris_basic_privset: %s", strerror(errno));
+
+	if (priv_addset(npset, PRIV_FILE_CHOWN) != 0 ||
+	    priv_addset(npset, PRIV_FILE_DAC_READ) != 0 ||
+	    priv_addset(npset, PRIV_FILE_DAC_SEARCH) != 0 ||
+	    priv_addset(npset, PRIV_FILE_DAC_WRITE) != 0 ||
+	    priv_addset(npset, PRIV_FILE_OWNER) != 0)
+		fatal("priv_addset: %s", strerror(errno));
+
+	if (priv_delset(npset, PRIV_FILE_LINK_ANY) != 0 ||
+#ifdef PRIV_NET_ACCESS
+	    priv_delset(npset, PRIV_NET_ACCESS) != 0 ||
+#endif
+	    priv_delset(npset, PRIV_PROC_EXEC) != 0 ||
+	    priv_delset(npset, PRIV_PROC_FORK) != 0 ||
+	    priv_delset(npset, PRIV_PROC_INFO) != 0 ||
+	    priv_delset(npset, PRIV_PROC_SESSION) != 0)
+		fatal("priv_delset: %s", strerror(errno));
+
+	if (getppriv(PRIV_PERMITTED, pset) != 0)
+		fatal("getppriv: %s", strerror(errno));
+
+	priv_intersect(pset, npset);
+
+	if (setppriv(PRIV_SET, PRIV_PERMITTED, npset) != 0 ||
+	    setppriv(PRIV_SET, PRIV_LIMIT, npset) != 0 ||
+	    setppriv(PRIV_SET, PRIV_INHERITABLE, npset) != 0)
+		fatal("setppriv: %s", strerror(errno));
+
+	priv_freeset(pset);
+	priv_freeset(npset);
+}
+
+void
+solaris_drop_privs_root_pinfo_net(void)
+{
+	priv_set_t *pset = NULL;
+
+	/* Start with "basic" and drop everything we don't need. */
+	if ((pset = solaris_basic_privset()) == NULL)
+		fatal("solaris_basic_privset: %s", strerror(errno));
+
+	if (priv_delset(pset, PRIV_FILE_LINK_ANY) != 0 ||
+#ifdef PRIV_NET_ACCESS
+	    priv_delset(pset, PRIV_NET_ACCESS) != 0 ||
+#endif
+	    priv_delset(pset, PRIV_PROC_INFO) != 0 ||
+	    priv_delset(pset, PRIV_PROC_SESSION) != 0)
+		fatal("priv_delset: %s", strerror(errno));
+
+	if (setppriv(PRIV_SET, PRIV_PERMITTED, pset) != 0 ||
+	    setppriv(PRIV_SET, PRIV_LIMIT, pset) != 0 ||
+	    setppriv(PRIV_SET, PRIV_INHERITABLE, pset) != 0)
+		fatal("setppriv: %s", strerror(errno));
+
+	priv_freeset(pset);
+}
+
+void
+solaris_drop_privs_root_pinfo_net_exec(void)
+{
+	priv_set_t *pset = NULL;
+
+
+	/* Start with "basic" and drop everything we don't need. */
+	if ((pset = solaris_basic_privset()) == NULL)
+		fatal("solaris_basic_privset: %s", strerror(errno));
+
+	if (priv_delset(pset, PRIV_FILE_LINK_ANY) != 0 ||
+#ifdef PRIV_NET_ACCESS
+	    priv_delset(pset, PRIV_NET_ACCESS) != 0 ||
+#endif
+	    priv_delset(pset, PRIV_PROC_EXEC) != 0 ||
+	    priv_delset(pset, PRIV_PROC_INFO) != 0 ||
+	    priv_delset(pset, PRIV_PROC_SESSION) != 0)
+		fatal("priv_delset: %s", strerror(errno));
+
+	if (setppriv(PRIV_SET, PRIV_PERMITTED, pset) != 0 ||
+	    setppriv(PRIV_SET, PRIV_LIMIT, pset) != 0 ||
+	    setppriv(PRIV_SET, PRIV_INHERITABLE, pset) != 0)
+		fatal("setppriv: %s", strerror(errno));
+
+	priv_freeset(pset);
+}
+
+#endif

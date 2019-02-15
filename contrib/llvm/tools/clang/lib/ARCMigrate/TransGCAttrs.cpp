@@ -80,7 +80,7 @@ public:
     }
   }
 
-  bool handleAttr(AttributedTypeLoc TL, Decl *D = 0) {
+  bool handleAttr(AttributedTypeLoc TL, Decl *D = nullptr) {
     if (TL.getAttrKind() != AttributedType::attr_objc_ownership)
       return false;
 
@@ -134,8 +134,7 @@ public:
       return hasObjCImpl(ContD);
 
     if (CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(D)) {
-      for (CXXRecordDecl::method_iterator
-             MI = RD->method_begin(), ME = RD->method_end(); MI != ME; ++MI) {
+      for (const auto *MI : RD->methods()) {
         if (MI->isOutOfLine())
           return true;
       }
@@ -150,12 +149,10 @@ public:
       return false;
     if (ObjCContainerDecl *ContD = dyn_cast<ObjCContainerDecl>(D)) {
       if (ObjCInterfaceDecl *ID = dyn_cast<ObjCInterfaceDecl>(ContD))
-        return ID->getImplementation() != 0;
+        return ID->getImplementation() != nullptr;
       if (ObjCCategoryDecl *CD = dyn_cast<ObjCCategoryDecl>(ContD))
-        return CD->getImplementation() != 0;
-      if (isa<ObjCImplDecl>(ContD))
-        return true;
-      return false;
+        return CD->getImplementation() != nullptr;
+      return isa<ObjCImplDecl>(ContD);
     }
     return false;
   }
@@ -164,8 +161,7 @@ public:
     if (!D)
       return false;
 
-    for (Decl::redecl_iterator
-           I = D->redecls_begin(), E = D->redecls_end(); I != E; ++I)
+    for (auto I : D->redecls())
       if (!isInMainFile(I->getLocation()))
         return false;
     

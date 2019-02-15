@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 Kazutaka YOKOTA and Michael Smith
  * Copyright (c) 2009-2013 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
@@ -79,6 +81,7 @@ struct adp_state {
 typedef struct adp_state adp_state_t;
 
 static struct mtx vesa_lock;
+MTX_SYSINIT(vesa_lock, &vesa_lock, "VESA lock", MTX_DEF);
 
 static int vesa_state;
 static void *vesa_state_buf;
@@ -653,7 +656,7 @@ vesa_map_gen_mode_num(int type, int color, int mode)
     };
     int i;
 
-    for (i = 0; i < sizeof(mode_map)/sizeof(mode_map[0]); ++i) {
+    for (i = 0; i < nitems(mode_map); ++i) {
         if (mode_map[i].from == mode)
             return (mode_map[i].to);
     }
@@ -676,7 +679,7 @@ vesa_translate_flags(u_int16_t vflags)
 	int flags;
 	int i;
 
-	for (flags = 0, i = 0; i < sizeof(ftable)/sizeof(ftable[0]); ++i) {
+	for (flags = 0, i = 0; i < nitems(ftable); ++i) {
 		flags |= (vflags & ftable[i].mask) ? 
 			 ftable[i].set : ftable[i].reset;
 	}
@@ -1025,7 +1028,8 @@ vesa_bios_init(void)
 
 		++modes;
 	}
-	vesa_vmode[modes].vi_mode = EOT;
+	if (vesa_vmode != NULL)
+		vesa_vmode[modes].vi_mode = EOT;
 
 	if (bootverbose)
 		printf("VESA: %d mode(s) found\n", modes);
@@ -1320,6 +1324,16 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 #if VESA_DEBUG > 0
 	printf("VESA: about to set a VESA mode...\n");
 #endif
+	/*
+	 * The mode change should reset the palette format to 6 bits, so
+	 * we must reset V_ADP_DAC8.  Some BIOSes do an incomplete reset
+	 * if we call them with an 8-bit palette, so reset directly.
+	 */
+	if (adp->va_flags & V_ADP_DAC8) {
+	    vesa_bios_set_dac(6);
+	    adp->va_flags &= ~V_ADP_DAC8;
+	}
+
 	/* don't use the linear frame buffer for text modes. XXX */
 	if (!(info.vi_flags & V_INFO_GRAPHICS))
 		info.vi_flags &= ~V_INFO_LINEAR;
@@ -1328,9 +1342,6 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 		mode |= 0x4000;
 	if (vesa_bios_set_mode(mode | 0x8000))
 		return (1);
-
-	/* Palette format is reset by the above VBE function call. */
-	adp->va_flags &= ~V_ADP_DAC8;
 
 	if ((vesa_adp_info->v_flags & V_DAC8) != 0 &&
 	    (info.vi_flags & V_INFO_GRAPHICS) != 0 &&
@@ -1350,6 +1361,7 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 	vesa_adp->va_crtc_addr =
 		(vesa_adp->va_flags & V_ADP_COLOR) ? COLOR_CRTC : MONO_CRTC;
 
+	vesa_adp->va_flags &= ~V_ADP_CWIDTH9;
 	vesa_adp->va_line_width = info.vi_buffer_size / info.vi_height;
 	if ((info.vi_flags & V_INFO_GRAPHICS) != 0)
 		vesa_adp->va_line_width /= info.vi_planes;
@@ -1581,7 +1593,7 @@ vesa_set_origin(video_adapter_t *adp, off_t offset)
 	regs.R_DX = offset / adp->va_window_gran;
 	x86bios_intr(&regs, 0x10);
 
-	adp->va_window_orig = (offset/adp->va_window_gran)*adp->va_window_gran;
+	adp->va_window_orig = rounddown(offset, adp->va_window_gran);
 	return (0);			/* XXX */
 }
 
@@ -1633,6 +1645,9 @@ vesa_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
 		if (offset > adp->va_window_size - PAGE_SIZE)
 			return (-1);
 		*paddr = adp->va_info.vi_buffer + offset;
+#ifdef VM_MEMATTR_WRITE_COMBINING
+		*memattr = VM_MEMATTR_WRITE_COMBINING;
+#endif
 		return (0);
 	}
 	return ((*prevvidsw->mmap)(adp, offset, paddr, prot, memattr));
@@ -1913,8 +1928,6 @@ vesa_load(void)
 	if (vesa_init_done)
 		return (0);
 
-	mtx_init(&vesa_lock, "VESA lock", NULL, MTX_DEF);
-
 	/* locate a VGA adapter */
 	vesa_adp = NULL;
 	error = vesa_configure(0);
@@ -1928,7 +1941,6 @@ vesa_load(void)
 static int
 vesa_unload(void)
 {
-	u_char palette[256*3];
 	int error;
 
 	/* if the adapter is currently in a VESA mode, don't unload */
@@ -1942,10 +1954,8 @@ vesa_unload(void)
 	if ((error = vesa_unload_ioctl()) == 0) {
 		if (vesa_adp != NULL) {
 			if ((vesa_adp->va_flags & V_ADP_DAC8) != 0) {
-				vesa_bios_save_palette(0, 256, palette, 8);
 				vesa_bios_set_dac(6);
 				vesa_adp->va_flags &= ~V_ADP_DAC8;
-				vesa_bios_load_palette(0, 256, palette, 6);
 			}
 			vesa_adp->va_flags &= ~V_ADP_VESA;
 			vidsw[vesa_adp->va_index] = prevvidsw;
@@ -1953,7 +1963,6 @@ vesa_unload(void)
 	}
 
 	vesa_bios_uninit();
-	mtx_destroy(&vesa_lock);
 
 	return (error);
 }

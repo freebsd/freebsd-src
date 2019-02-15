@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Semen Ustimenko (semenu@FreeBSD.org)
  * All rights reserved.
  *
@@ -44,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/queue.h>
@@ -425,6 +428,8 @@ epic_attach(device_t dev)
 		goto fail;
 	}
 
+	gone_by_fcp101_dev(dev);
+
 	return (0);
 fail:
 	epic_release(sc);
@@ -795,7 +800,7 @@ epic_rx_done(epic_softc_t *sc)
 		(*ifp->if_input)(ifp, m);
 		EPIC_LOCK(sc);
 
-		/* Successfuly received frame */
+		/* Successfully received frame */
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
         }
 	bus_dmamap_sync(sc->rtag, sc->rmap,
@@ -896,7 +901,7 @@ epic_intr(void *arg)
 		      INTSTAT_APE|INTSTAT_DPE|INTSTAT_TXU|INTSTAT_RXE)) {
     	    if (status & (INTSTAT_FATAL|INTSTAT_PMA|INTSTAT_PTA|
 			  INTSTAT_APE|INTSTAT_DPE)) {
-		device_printf(sc->dev, "PCI fatal errors occured: %s%s%s%s\n",
+		device_printf(sc->dev, "PCI fatal errors occurred: %s%s%s%s\n",
 		    (status & INTSTAT_PMA) ? "PMA " : "",
 		    (status & INTSTAT_PTA) ? "PTA " : "",
 		    (status & INTSTAT_APE) ? "APE " : "",
@@ -1396,7 +1401,7 @@ epic_set_mc_table(epic_softc_t *sc)
 	filter[3] = 0;
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = ether_crc32_be(LLADDR((struct sockaddr_dl *)

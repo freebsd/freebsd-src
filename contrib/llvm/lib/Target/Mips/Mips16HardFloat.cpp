@@ -1,4 +1,4 @@
-//===---- Mips16HardFloat.cpp for Mips16 Hard Float               --------===//
+//===- Mips16HardFloat.cpp for Mips16 Hard Float --------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,44 +11,52 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "mips16-hard-float"
-#include "Mips16HardFloat.h"
+#include "MipsTargetMachine.h"
+#include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Value.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <string>
 
-static void inlineAsmOut
-  (LLVMContext &C, StringRef AsmString, BasicBlock *BB ) {
-  std::vector<llvm::Type *> AsmArgTypes;
-  std::vector<llvm::Value*> AsmArgs;
-  llvm::FunctionType *AsmFTy =
-    llvm::FunctionType::get(Type::getVoidTy(C),
-                            AsmArgTypes, false);
-  llvm::InlineAsm *IA =
-    llvm::InlineAsm::get(AsmFTy, AsmString, "", true,
-                         /* IsAlignStack */ false,
-                         llvm::InlineAsm::AD_ATT);
-  CallInst::Create(IA, AsmArgs, "", BB);
-}
+using namespace llvm;
+
+#define DEBUG_TYPE "mips16-hard-float"
 
 namespace {
 
-class InlineAsmHelper {
-  LLVMContext &C;
-  BasicBlock *BB;
-public:
-  InlineAsmHelper(LLVMContext &C_, BasicBlock *BB_) :
-    C(C_), BB(BB_) {
-  }
+  class Mips16HardFloat : public ModulePass {
+  public:
+    static char ID;
 
-  void Out(StringRef AsmString) {
-    inlineAsmOut(C, AsmString, BB);
-  }
+    Mips16HardFloat() : ModulePass(ID) {}
 
-};
+    StringRef getPassName() const override { return "MIPS16 Hard Float Pass"; }
+
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
+      AU.addRequired<TargetPassConfig>();
+      ModulePass::getAnalysisUsage(AU);
+    }
+
+    bool runOnModule(Module &M) override;
+  };
+
+} // end anonymous namespace
+
+static void EmitInlineAsm(LLVMContext &C, BasicBlock *BB, StringRef AsmText) {
+  std::vector<Type *> AsmArgTypes;
+  std::vector<Value *> AsmArgs;
+
+  FunctionType *AsmFTy =
+      FunctionType::get(Type::getVoidTy(C), AsmArgTypes, false);
+  InlineAsm *IA = InlineAsm::get(AsmFTy, AsmText, "", true,
+                                 /* IsAlignStack */ false, InlineAsm::AD_ATT);
+  CallInst::Create(IA, AsmArgs, "", BB);
 }
+
+char Mips16HardFloat::ID = 0;
+
 //
 // Return types that matter for hard float are:
 // float, double, complex float, and complex double
@@ -82,18 +90,15 @@ static FPReturnVariant whichFPReturnVariant(Type *T) {
   return NoFPRet;
 }
 
-//
 // Parameter type that matter are float, (float, float), (float, double),
 // double, (double, double), (double, float)
-//
 enum FPParamVariant {
   FSig, FFSig, FDSig,
   DSig, DDSig, DFSig, NoSig
 };
 
 // which floating point parameter signature variant we are dealing with
-//
-typedef Type::TypeID TypeID;
+using TypeID = Type::TypeID;
 const Type::TypeID FloatTyID = Type::FloatTyID;
 const Type::TypeID DoubleTyID = Type::DoubleTyID;
 
@@ -147,16 +152,15 @@ static FPParamVariant whichFPParamVariantNeeded(Function &F) {
 // Figure out if we need float point based on the function parameters.
 // We need to move variables in and/or out of floating point
 // registers because of the ABI
-//
 static bool needsFPStubFromParams(Function &F) {
   if (F.arg_size() >=1) {
     Type *ArgType = F.getFunctionType()->getParamType(0);
     switch (ArgType->getTypeID()) {
-      case Type::FloatTyID:
-      case Type::DoubleTyID:
-        return true;
-      default:
-        break;
+    case Type::FloatTyID:
+    case Type::DoubleTyID:
+      return true;
+    default:
+      break;
     }
   }
   return false;
@@ -167,85 +171,94 @@ static bool needsFPReturnHelper(Function &F) {
   return whichFPReturnVariant(RetType) != NoFPRet;
 }
 
+static bool needsFPReturnHelper(FunctionType &FT) {
+  Type* RetType = FT.getReturnType();
+  return whichFPReturnVariant(RetType) != NoFPRet;
+}
+
 static bool needsFPHelperFromSig(Function &F) {
   return needsFPStubFromParams(F) || needsFPReturnHelper(F);
 }
 
-//
 // We swap between FP and Integer registers to allow Mips16 and Mips32 to
 // interoperate
-//
+static std::string swapFPIntParams(FPParamVariant PV, Module *M, bool LE,
+                                   bool ToFP) {
+  std::string MI = ToFP ? "mtc1 ": "mfc1 ";
+  std::string AsmText;
 
-static void swapFPIntParams
-  (FPParamVariant PV, Module *M, InlineAsmHelper &IAH,
-   bool LE, bool ToFP) {
-  //LLVMContext &Context = M->getContext();
-  std::string MI = ToFP? "mtc1 ": "mfc1 ";
   switch (PV) {
   case FSig:
-    IAH.Out(MI + "$$4,$$f12");
+    AsmText += MI + "$$4, $$f12\n";
     break;
+
   case FFSig:
-    IAH.Out(MI +"$$4,$$f12");
-    IAH.Out(MI + "$$5,$$f14");
+    AsmText += MI + "$$4, $$f12\n";
+    AsmText += MI + "$$5, $$f14\n";
     break;
+
   case FDSig:
-    IAH.Out(MI + "$$4,$$f12");
+    AsmText += MI + "$$4, $$f12\n";
     if (LE) {
-      IAH.Out(MI + "$$6,$$f14");
-      IAH.Out(MI + "$$7,$$f15");
+      AsmText += MI + "$$6, $$f14\n";
+      AsmText += MI + "$$7, $$f15\n";
     } else {
-      IAH.Out(MI + "$$7,$$f14");
-      IAH.Out(MI + "$$6,$$f15");
+      AsmText += MI + "$$7, $$f14\n";
+      AsmText += MI + "$$6, $$f15\n";
     }
     break;
+
   case DSig:
     if (LE) {
-      IAH.Out(MI + "$$4,$$f12");
-      IAH.Out(MI + "$$5,$$f13");
+      AsmText += MI + "$$4, $$f12\n";
+      AsmText += MI + "$$5, $$f13\n";
     } else {
-      IAH.Out(MI + "$$5,$$f12");
-      IAH.Out(MI + "$$4,$$f13");
+      AsmText += MI + "$$5, $$f12\n";
+      AsmText += MI + "$$4, $$f13\n";
     }
     break;
+
   case DDSig:
     if (LE) {
-      IAH.Out(MI + "$$4,$$f12");
-      IAH.Out(MI + "$$5,$$f13");
-      IAH.Out(MI + "$$6,$$f14");
-      IAH.Out(MI + "$$7,$$f15");
+      AsmText += MI + "$$4, $$f12\n";
+      AsmText += MI + "$$5, $$f13\n";
+      AsmText += MI + "$$6, $$f14\n";
+      AsmText += MI + "$$7, $$f15\n";
     } else {
-      IAH.Out(MI + "$$5,$$f12");
-      IAH.Out(MI + "$$4,$$f13");
-      IAH.Out(MI + "$$7,$$f14");
-      IAH.Out(MI + "$$6,$$f15");
+      AsmText += MI + "$$5, $$f12\n";
+      AsmText += MI + "$$4, $$f13\n";
+      AsmText += MI + "$$7, $$f14\n";
+      AsmText += MI + "$$6, $$f15\n";
     }
     break;
+
   case DFSig:
     if (LE) {
-      IAH.Out(MI + "$$4,$$f12");
-      IAH.Out(MI + "$$5,$$f13");
+      AsmText += MI + "$$4, $$f12\n";
+      AsmText += MI + "$$5, $$f13\n";
     } else {
-      IAH.Out(MI + "$$5,$$f12");
-      IAH.Out(MI + "$$4,$$f13");
+      AsmText += MI + "$$5, $$f12\n";
+      AsmText += MI + "$$4, $$f13\n";
     }
-    IAH.Out(MI + "$$6,$$f14");
+    AsmText += MI + "$$6, $$f14\n";
     break;
+
   case NoSig:
-    return;
+    break;
   }
+
+  return AsmText;
 }
-//
+
 // Make sure that we know we already need a stub for this function.
 // Having called needsFPHelperFromSig
-//
-static void assureFPCallStub(Function &F, Module *M,  
-                             const MipsSubtarget &Subtarget){
+static void assureFPCallStub(Function &F, Module *M,
+                             const MipsTargetMachine &TM) {
   // for now we only need them for static relocation
-  if (Subtarget.getRelocationModel() == Reloc::PIC_)
+  if (TM.isPositionIndependent())
     return;
   LLVMContext &Context = M->getContext();
-  bool LE = Subtarget.isLittle();
+  bool LE = TM.isLittleEndian();
   std::string Name = F.getName();
   std::string SectionName = ".mips16.call.fp." + Name;
   std::string StubName = "__call_stub_fp_" + Name;
@@ -257,115 +270,117 @@ static void assureFPCallStub(Function &F, Module *M,
   FStub = Function::Create(F.getFunctionType(),
                            Function::InternalLinkage, StubName, M);
   FStub->addFnAttr("mips16_fp_stub");
-  FStub->addFnAttr(llvm::Attribute::Naked);
-  FStub->addFnAttr(llvm::Attribute::NoInline);
-  FStub->addFnAttr(llvm::Attribute::NoUnwind);
+  FStub->addFnAttr(Attribute::Naked);
+  FStub->addFnAttr(Attribute::NoInline);
+  FStub->addFnAttr(Attribute::NoUnwind);
   FStub->addFnAttr("nomips16");
   FStub->setSection(SectionName);
   BasicBlock *BB = BasicBlock::Create(Context, "entry", FStub);
-  InlineAsmHelper IAH(Context, BB);
-  IAH.Out(".set reorder");
   FPReturnVariant RV = whichFPReturnVariant(FStub->getReturnType());
   FPParamVariant PV = whichFPParamVariantNeeded(F);
-  swapFPIntParams(PV, M, IAH, LE, true);
+
+  std::string AsmText;
+  AsmText += ".set reorder\n";
+  AsmText += swapFPIntParams(PV, M, LE, true);
   if (RV != NoFPRet) {
-    IAH.Out("move $$18, $$31");
-    IAH.Out("jal " + Name);
+    AsmText += "move $$18, $$31\n";
+    AsmText += "jal " + Name + "\n";
   } else {
-    IAH.Out("lui  $$25,%hi(" + Name + ")");
-    IAH.Out("addiu  $$25,$$25,%lo(" + Name + ")" );
+    AsmText += "lui  $$25, %hi(" + Name + ")\n";
+    AsmText += "addiu  $$25, $$25, %lo(" + Name + ")\n";
   }
+
   switch (RV) {
   case FRet:
-    IAH.Out("mfc1 $$2,$$f0");
+    AsmText += "mfc1 $$2, $$f0\n";
     break;
+
   case DRet:
     if (LE) {
-      IAH.Out("mfc1 $$2,$$f0");
-      IAH.Out("mfc1 $$3,$$f1");
+      AsmText += "mfc1 $$2, $$f0\n";
+      AsmText += "mfc1 $$3, $$f1\n";
     } else {
-      IAH.Out("mfc1 $$3,$$f0");
-      IAH.Out("mfc1 $$2,$$f1");
+      AsmText += "mfc1 $$3, $$f0\n";
+      AsmText += "mfc1 $$2, $$f1\n";
     }
     break;
+
   case CFRet:
     if (LE) {
-    IAH.Out("mfc1 $$2,$$f0");
-    IAH.Out("mfc1 $$3,$$f2");
+      AsmText += "mfc1 $$2, $$f0\n";
+      AsmText += "mfc1 $$3, $$f2\n";
     } else {
-      IAH.Out("mfc1 $$3,$$f0");
-      IAH.Out("mfc1 $$3,$$f2");
+      AsmText += "mfc1 $$3, $$f0\n";
+      AsmText += "mfc1 $$3, $$f2\n";
     }
     break;
+
   case CDRet:
     if (LE) {
-      IAH.Out("mfc1 $$4,$$f2");
-      IAH.Out("mfc1 $$5,$$f3");
-      IAH.Out("mfc1 $$2,$$f0");
-      IAH.Out("mfc1 $$3,$$f1");
+      AsmText += "mfc1 $$4, $$f2\n";
+      AsmText += "mfc1 $$5, $$f3\n";
+      AsmText += "mfc1 $$2, $$f0\n";
+      AsmText += "mfc1 $$3, $$f1\n";
 
     } else {
-      IAH.Out("mfc1 $$5,$$f2");
-      IAH.Out("mfc1 $$4,$$f3");
-      IAH.Out("mfc1 $$3,$$f0");
-      IAH.Out("mfc1 $$2,$$f1");
+      AsmText += "mfc1 $$5, $$f2\n";
+      AsmText += "mfc1 $$4, $$f3\n";
+      AsmText += "mfc1 $$3, $$f0\n";
+      AsmText += "mfc1 $$2, $$f1\n";
     }
     break;
+
   case NoFPRet:
     break;
   }
+
   if (RV != NoFPRet)
-    IAH.Out("jr $$18");
+    AsmText += "jr $$18\n";
   else
-    IAH.Out("jr $$25");
+    AsmText += "jr $$25\n";
+  EmitInlineAsm(Context, BB, AsmText);
+
   new UnreachableInst(Context, BB);
 }
 
-//
 // Functions that are llvm intrinsics and don't need helpers.
-//
-static const char *IntrinsicInline[] =
-  {"fabs",
-   "fabsf",
-   "llvm.ceil.f32", "llvm.ceil.f64",
-   "llvm.copysign.f32", "llvm.copysign.f64",
-   "llvm.cos.f32", "llvm.cos.f64",
-   "llvm.exp.f32", "llvm.exp.f64",
-   "llvm.exp2.f32", "llvm.exp2.f64",
-   "llvm.fabs.f32", "llvm.fabs.f64",
-   "llvm.floor.f32", "llvm.floor.f64",
-   "llvm.fma.f32", "llvm.fma.f64",
-   "llvm.log.f32", "llvm.log.f64",
-   "llvm.log10.f32", "llvm.log10.f64",
-   "llvm.nearbyint.f32", "llvm.nearbyint.f64",
-   "llvm.pow.f32", "llvm.pow.f64",
-   "llvm.powi.f32", "llvm.powi.f64",
-   "llvm.rint.f32", "llvm.rint.f64",
-   "llvm.round.f32", "llvm.round.f64",
-   "llvm.sin.f32", "llvm.sin.f64",
-   "llvm.sqrt.f32", "llvm.sqrt.f64",
-   "llvm.trunc.f32", "llvm.trunc.f64",
-  };
+static const char *const IntrinsicInline[] = {
+  "fabs", "fabsf",
+  "llvm.ceil.f32", "llvm.ceil.f64",
+  "llvm.copysign.f32", "llvm.copysign.f64",
+  "llvm.cos.f32", "llvm.cos.f64",
+  "llvm.exp.f32", "llvm.exp.f64",
+  "llvm.exp2.f32", "llvm.exp2.f64",
+  "llvm.fabs.f32", "llvm.fabs.f64",
+  "llvm.floor.f32", "llvm.floor.f64",
+  "llvm.fma.f32", "llvm.fma.f64",
+  "llvm.log.f32", "llvm.log.f64",
+  "llvm.log10.f32", "llvm.log10.f64",
+  "llvm.nearbyint.f32", "llvm.nearbyint.f64",
+  "llvm.pow.f32", "llvm.pow.f64",
+  "llvm.powi.f32", "llvm.powi.f64",
+  "llvm.rint.f32", "llvm.rint.f64",
+  "llvm.round.f32", "llvm.round.f64",
+  "llvm.sin.f32", "llvm.sin.f64",
+  "llvm.sqrt.f32", "llvm.sqrt.f64",
+  "llvm.trunc.f32", "llvm.trunc.f64",
+};
 
 static bool isIntrinsicInline(Function *F) {
-  return std::binary_search(
-    IntrinsicInline, array_endof(IntrinsicInline),
-    F->getName());
+  return std::binary_search(std::begin(IntrinsicInline),
+                            std::end(IntrinsicInline), F->getName());
 }
-//
+
 // Returns of float, double and complex need to be handled with a helper
 // function.
-//
-static bool fixupFPReturnAndCall
-  (Function &F, Module *M,  const MipsSubtarget &Subtarget) {
+static bool fixupFPReturnAndCall(Function &F, Module *M,
+                                 const MipsTargetMachine &TM) {
   bool Modified = false;
   LLVMContext &C = M->getContext();
   Type *MyVoid = Type::getVoidTy(C);
-  for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
-    for (BasicBlock::iterator I = BB->begin(), E = BB->end();
-         I != E; ++I) {
-      Instruction &Inst = *I;
-      if (const ReturnInst *RI = dyn_cast<ReturnInst>(I)) {
+  for (auto &BB: F)
+    for (auto &I: BB) {
+      if (const ReturnInst *RI = dyn_cast<ReturnInst>(&I)) {
         Value *RVal = RI->getReturnValue();
         if (!RVal) continue;
         //
@@ -378,11 +393,12 @@ static bool fixupFPReturnAndCall
         Type *T = RVal->getType();
         FPReturnVariant RV = whichFPReturnVariant(T);
         if (RV == NoFPRet) continue;
-        static const char* Helper[NoFPRet] =
-          {"__mips16_ret_sf", "__mips16_ret_df", "__mips16_ret_sc",
-           "__mips16_ret_dc"};
+        static const char *const Helper[NoFPRet] = {
+          "__mips16_ret_sf", "__mips16_ret_df", "__mips16_ret_sc",
+          "__mips16_ret_dc"
+        };
         const char *Name = Helper[RV];
-        AttributeSet A;
+        AttributeList A;
         Value *Params[] = {RVal};
         Modified = true;
         //
@@ -391,33 +407,45 @@ static bool fixupFPReturnAndCall
         // during call setup, the proper call lowering to the helper
         // functions will take place.
         //
-        A = A.addAttribute(C, AttributeSet::FunctionIndex,
+        A = A.addAttribute(C, AttributeList::FunctionIndex,
                            "__Mips16RetHelper");
-        A = A.addAttribute(C, AttributeSet::FunctionIndex,
+        A = A.addAttribute(C, AttributeList::FunctionIndex,
                            Attribute::ReadNone);
-        A = A.addAttribute(C, AttributeSet::FunctionIndex,
+        A = A.addAttribute(C, AttributeList::FunctionIndex,
                            Attribute::NoInline);
-        Value *F = (M->getOrInsertFunction(Name, A, MyVoid, T, NULL));
-        CallInst::Create(F, Params, "", &Inst );
-      } else if (const CallInst *CI = dyn_cast<CallInst>(I)) {
+        Value *F = (M->getOrInsertFunction(Name, A, MyVoid, T));
+        CallInst::Create(F, Params, "", &I);
+      } else if (const CallInst *CI = dyn_cast<CallInst>(&I)) {
+        FunctionType *FT = CI->getFunctionType();
+        Function *F_ =  CI->getCalledFunction();
+        if (needsFPReturnHelper(*FT) &&
+            !(F_ && isIntrinsicInline(F_))) {
+          Modified=true;
+          F.addFnAttr("saveS2");
+        }
+        if (F_ && !isIntrinsicInline(F_)) {
           // pic mode calls are handled by already defined
           // helper functions
-          if (Subtarget.getRelocationModel() != Reloc::PIC_ ) {
-            Function *F_ =  CI->getCalledFunction();
-            if (F_ && !isIntrinsicInline(F_) && needsFPHelperFromSig(*F_)) {
-              assureFPCallStub(*F_, M, Subtarget);
+          if (needsFPReturnHelper(*F_)) {
+            Modified=true;
+            F.addFnAttr("saveS2");
+          }
+          if (!TM.isPositionIndependent()) {
+            if (needsFPHelperFromSig(*F_)) {
+              assureFPCallStub(*F_, M, TM);
               Modified=true;
             }
           }
+        }
       }
     }
   return Modified;
 }
 
 static void createFPFnStub(Function *F, Module *M, FPParamVariant PV,
-                  const MipsSubtarget &Subtarget ) {
-  bool PicMode = Subtarget.getRelocationModel() == Reloc::PIC_;
-  bool LE = Subtarget.isLittle();
+                           const MipsTargetMachine &TM) {
+  bool PicMode = TM.isPositionIndependent();
+  bool LE = TM.isLittleEndian();
   LLVMContext &Context = M->getContext();
   std::string Name = F->getName();
   std::string SectionName = ".mips16.fn." + Name;
@@ -427,57 +455,51 @@ static void createFPFnStub(Function *F, Module *M, FPParamVariant PV,
     (F->getFunctionType(),
      Function::InternalLinkage, StubName, M);
   FStub->addFnAttr("mips16_fp_stub");
-  FStub->addFnAttr(llvm::Attribute::Naked);
-  FStub->addFnAttr(llvm::Attribute::NoUnwind);
-  FStub->addFnAttr(llvm::Attribute::NoInline);
+  FStub->addFnAttr(Attribute::Naked);
+  FStub->addFnAttr(Attribute::NoUnwind);
+  FStub->addFnAttr(Attribute::NoInline);
   FStub->addFnAttr("nomips16");
   FStub->setSection(SectionName);
   BasicBlock *BB = BasicBlock::Create(Context, "entry", FStub);
-  InlineAsmHelper IAH(Context, BB);
-  IAH.Out(" .set  macro");
+
+  std::string AsmText;
   if (PicMode) {
-    IAH.Out(".set noreorder");
-    IAH.Out(".cpload  $$25");
-    IAH.Out(".set reorder");
-    IAH.Out(".reloc 0,R_MIPS_NONE," + Name);
-    IAH.Out("la $$25," + LocalName);
-  }
-  else {
-    IAH.Out(".set reorder");
-    IAH.Out("la $$25," + Name);
-  }
-  swapFPIntParams(PV, M, IAH, LE, false);
-  IAH.Out("jr $$25");
-  IAH.Out(LocalName + " = " + Name);
+    AsmText += ".set noreorder\n";
+    AsmText += ".cpload $$25\n";
+    AsmText += ".set reorder\n";
+    AsmText += ".reloc 0, R_MIPS_NONE, " + Name + "\n";
+    AsmText += "la $$25, " + LocalName + "\n";
+  } else
+    AsmText += "la $$25, " + Name + "\n";
+  AsmText += swapFPIntParams(PV, M, LE, false);
+  AsmText += "jr $$25\n";
+  AsmText += LocalName + " = " + Name + "\n";
+  EmitInlineAsm(Context, BB, AsmText);
+
   new UnreachableInst(FStub->getContext(), BB);
 }
 
-//
 // remove the use-soft-float attribute
-//
 static void removeUseSoftFloat(Function &F) {
-  AttributeSet A;
+  AttrBuilder B;
   DEBUG(errs() << "removing -use-soft-float\n");
-  A = A.addAttribute(F.getContext(), AttributeSet::FunctionIndex,
-                     "use-soft-float", "false");
-  F.removeAttributes(AttributeSet::FunctionIndex, A);
+  B.addAttribute("use-soft-float", "false");
+  F.removeAttributes(AttributeList::FunctionIndex, B);
   if (F.hasFnAttribute("use-soft-float")) {
     DEBUG(errs() << "still has -use-soft-float\n");
   }
-  F.addAttributes(AttributeSet::FunctionIndex, A);
+  F.addAttributes(AttributeList::FunctionIndex, B);
 }
 
-namespace llvm {
-
-//
 // This pass only makes sense when the underlying chip has floating point but
 // we are compiling as mips16.
 // For all mips16 functions (that are not stubs we have already generated), or
 // declared via attributes as nomips16, we must:
 //    1) fixup all returns of float, double, single and double complex
 //       by calling a helper function before the actual return.
-//    2) generate helper functions (stubs) that can be called by mips32 functions
-//       that will move parameters passed normally passed in floating point
+//    2) generate helper functions (stubs) that can be called by mips32
+//       functions that will move parameters passed normally passed in
+//       floating point
 //       registers the soft float equivalents.
 //    3) in the case of static relocation, generate helper functions so that
 //       mips16 functions can call extern functions of unknown type (mips16 or
@@ -485,8 +507,9 @@ namespace llvm {
 //    4) TBD. For pic, calls to extern functions of unknown type are handled by
 //       predefined helper functions in libc but this work is currently done
 //       during call lowering but it should be moved here in the future.
-//
 bool Mips16HardFloat::runOnModule(Module &M) {
+  auto &TM = static_cast<const MipsTargetMachine &>(
+      getAnalysis<TargetPassConfig>().getTM<TargetMachine>());
   DEBUG(errs() << "Run on Module Mips16HardFloat\n");
   bool Modified = false;
   for (Module::iterator F = M.begin(), E = M.end(); F != E; ++F) {
@@ -497,21 +520,16 @@ bool Mips16HardFloat::runOnModule(Module &M) {
     }
     if (F->isDeclaration() || F->hasFnAttribute("mips16_fp_stub") ||
         F->hasFnAttribute("nomips16")) continue;
-    Modified |= fixupFPReturnAndCall(*F, &M, Subtarget);
+    Modified |= fixupFPReturnAndCall(*F, &M, TM);
     FPParamVariant V = whichFPParamVariantNeeded(*F);
     if (V != NoSig) {
       Modified = true;
-      createFPFnStub(F, &M, V, Subtarget);
+      createFPFnStub(&*F, &M, V, TM);
     }
   }
   return Modified;
 }
 
-char Mips16HardFloat::ID = 0;
-
+ModulePass *llvm::createMips16HardFloatPass() {
+  return new Mips16HardFloat();
 }
-
-ModulePass *llvm::createMips16HardFloat(MipsTargetMachine &TM) {
-  return new Mips16HardFloat(TM);
-}
-

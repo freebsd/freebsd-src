@@ -2,12 +2,11 @@
 
 PROG=	fifolog_writer
 
-CFLAGS+= -I${.CURDIR}/../lib
+CFLAGS+= -I${.CURDIR:H}/lib
 
 MAN=
 
-DPADD=	${LIBFIFOLOG} ${LIBUTIL} ${LIBZ}
-LDADD=	${LIBFIFOLOG} -lutil -lz
+LIBADD=	fifolog
 
 regress:
 	date | ./${PROG} -z 0 /tmp/fifolog.0

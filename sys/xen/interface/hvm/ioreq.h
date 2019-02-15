@@ -34,13 +34,20 @@
 
 #define IOREQ_TYPE_PIO          0 /* pio */
 #define IOREQ_TYPE_COPY         1 /* mmio ops */
+#define IOREQ_TYPE_PCI_CONFIG   2
 #define IOREQ_TYPE_TIMEOFFSET   7
 #define IOREQ_TYPE_INVALIDATE   8 /* mapcache */
 
 /*
  * VMExit dispatcher should cooperate with instruction decoder to
  * prepare this structure and notify service OS and DM by sending
- * virq
+ * virq.
+ *
+ * For I/O type IOREQ_TYPE_PCI_CONFIG, the physical address is formatted
+ * as follows:
+ * 
+ * 63....48|47..40|39..35|34..32|31........0
+ * SEGMENT |BUS   |DEV   |FN    |OFFSET
  */
 struct ioreq {
     uint64_t addr;          /* physical address */
@@ -76,29 +83,20 @@ typedef struct buf_ioreq buf_ioreq_t;
 
 #define IOREQ_BUFFER_SLOT_NUM     511 /* 8 bytes each, plus 2 4-byte indexes */
 struct buffered_iopage {
-    unsigned int read_pointer;
-    unsigned int write_pointer;
+#ifdef __XEN__
+    union bufioreq_pointers {
+        struct {
+#endif
+            uint32_t read_pointer;
+            uint32_t write_pointer;
+#ifdef __XEN__
+        };
+        uint64_t full;
+    } ptrs;
+#endif
     buf_ioreq_t buf_ioreq[IOREQ_BUFFER_SLOT_NUM];
 }; /* NB. Size of this structure must be no greater than one page. */
 typedef struct buffered_iopage buffered_iopage_t;
-
-#if defined(__ia64__)
-struct pio_buffer {
-    uint32_t page_offset;
-    uint32_t pointer;
-    uint32_t data_end;
-    uint32_t buf_size;
-    void *opaque;
-};
-
-#define PIO_BUFFER_IDE_PRIMARY   0 /* I/O port = 0x1F0 */
-#define PIO_BUFFER_IDE_SECONDARY 1 /* I/O port = 0x170 */
-#define PIO_BUFFER_ENTRY_NUM     2
-struct buffered_piopage {
-    struct pio_buffer pio[PIO_BUFFER_ENTRY_NUM];
-    uint8_t buffer[1];
-};
-#endif /* defined(__ia64__) */
 
 /*
  * ACPI Control/Event register locations. Location is controlled by a 
@@ -132,7 +130,7 @@ struct buffered_piopage {
 /*
  * Local variables:
  * mode: C
- * c-set-style: "BSD"
+ * c-file-style: "BSD"
  * c-basic-offset: 4
  * tab-width: 4
  * indent-tabs-mode: nil

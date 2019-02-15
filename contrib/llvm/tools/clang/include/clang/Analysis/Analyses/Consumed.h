@@ -12,14 +12,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_CONSUMED_H
-#define LLVM_CLANG_CONSUMED_H
+#ifndef LLVM_CLANG_ANALYSIS_ANALYSES_CONSUMED_H
+#define LLVM_CLANG_ANALYSIS_ANALYSES_CONSUMED_H
 
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/StmtCXX.h"
-#include "clang/Analysis/AnalysisContext.h"
 #include "clang/Analysis/Analyses/PostOrderCFGView.h"
+#include "clang/Analysis/AnalysisDeclContext.h"
 #include "clang/Basic/SourceLocation.h"
 
 namespace clang {
@@ -71,7 +71,7 @@ namespace consumed {
     virtual void warnParamReturnTypestateMismatch(SourceLocation Loc,
                                                   StringRef VariableName,
                                                   StringRef ExpectedState,
-                                                  StringRef ObservedState) {};
+                                                  StringRef ObservedState) {}
     
     // FIXME: Add documentation.
     virtual void warnParamTypestateMismatch(SourceLocation LOC,
@@ -142,7 +142,7 @@ namespace consumed {
     TmpMapType TmpMap;
     
   public:
-    ConsumedStateMap() : Reachable(true), From(NULL) {}
+    ConsumedStateMap() : Reachable(true), From(nullptr) {}
     ConsumedStateMap(const ConsumedStateMap &Other)
       : Reachable(Other.Reachable), From(Other.From), VarMap(Other.VarMap),
         TmpMap() {}
@@ -162,8 +162,8 @@ namespace consumed {
     ConsumedState getState(const CXXBindTemporaryExpr *Tmp) const;
     
     /// \brief Merge this state map with another map.
-    void intersect(const ConsumedStateMap *Other);
-    
+    void intersect(const ConsumedStateMap &Other);
+
     void intersectAtLoopHead(const CFGBlock *LoopHead, const CFGBlock *LoopBack,
       const ConsumedStateMap *LoopBackStates,
       ConsumedWarningsHandlerBase &WarningsHandler);
@@ -185,8 +185,8 @@ namespace consumed {
     /// \brief Set the consumed state of a given temporary value.
     void setState(const CXXBindTemporaryExpr *Tmp, ConsumedState State);
     
-    /// \brief Remove the variable from our state map.
-    void remove(const VarDecl *Var);
+    /// \brief Remove the temporary value from our state map.
+    void remove(const CXXBindTemporaryExpr *Tmp);
     
     /// \brief Tests to see if there is a mismatch in the states stored in two
     /// maps.
@@ -196,14 +196,14 @@ namespace consumed {
   };
   
   class ConsumedBlockInfo {
-    std::vector<ConsumedStateMap*> StateMapsArray;
+    std::vector<std::unique_ptr<ConsumedStateMap>> StateMapsArray;
     std::vector<unsigned int> VisitOrder;
     
   public:
-    ConsumedBlockInfo() { }
-    
+    ConsumedBlockInfo() = default;
+
     ConsumedBlockInfo(unsigned int NumBlocks, PostOrderCFGView *SortedGraph)
-        : StateMapsArray(NumBlocks, 0), VisitOrder(NumBlocks, 0) {
+        : StateMapsArray(NumBlocks), VisitOrder(NumBlocks, 0) {
       unsigned int VisitOrderCounter = 0;
       for (PostOrderCFGView::iterator BI = SortedGraph->begin(),
            BE = SortedGraph->end(); BI != BE; ++BI) {
@@ -213,17 +213,18 @@ namespace consumed {
     
     bool allBackEdgesVisited(const CFGBlock *CurrBlock,
                              const CFGBlock *TargetBlock);
-    
+
     void addInfo(const CFGBlock *Block, ConsumedStateMap *StateMap,
-                 bool &AlreadyOwned);
-    void addInfo(const CFGBlock *Block, ConsumedStateMap *StateMap);
-    
+                 std::unique_ptr<ConsumedStateMap> &OwnedStateMap);
+    void addInfo(const CFGBlock *Block,
+                 std::unique_ptr<ConsumedStateMap> StateMap);
+
     ConsumedStateMap* borrowInfo(const CFGBlock *Block);
     
     void discardInfo(const CFGBlock *Block);
-    
-    ConsumedStateMap* getInfo(const CFGBlock *Block);
-    
+
+    std::unique_ptr<ConsumedStateMap> getInfo(const CFGBlock *Block);
+
     bool isBackEdge(const CFGBlock *From, const CFGBlock *To);
     bool isBackEdgeTarget(const CFGBlock *Block);
   };
@@ -232,13 +233,12 @@ namespace consumed {
   class ConsumedAnalyzer {
     
     ConsumedBlockInfo BlockInfo;
-    ConsumedStateMap *CurrStates;
-    
+    std::unique_ptr<ConsumedStateMap> CurrStates;
+
     ConsumedState ExpectedReturnState;
     
     void determineExpectedReturnState(AnalysisDeclContext &AC,
                                       const FunctionDecl *D);
-    bool hasConsumableAttributes(const CXXRecordDecl *RD);
     bool splitState(const CFGBlock *CurrBlock,
                     const ConsumedStmtVisitor &Visitor);
     

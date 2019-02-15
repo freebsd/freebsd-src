@@ -33,9 +33,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/smp.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
+#include <machine/cpu.h>
+#include <machine/cpu-v6.h>
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
+#include <machine/platformvar.h>
+
+#include <arm/rockchip/rk30xx_mp.h>
 
 #define	SCU_PHYSBASE			0x1013c000
 #define	SCU_SIZE			0x100
@@ -76,14 +84,7 @@ rk30xx_boot2(void)
 }
 
 void
-platform_mp_init_secondary(void)
-{
-
-	gic_init_secondary();
-}
-
-void
-platform_mp_setmaxid(void)
+rk30xx_mp_setmaxid(platform_t plat)
 {
 	bus_space_handle_t scu;
 	int ncpu;
@@ -103,18 +104,8 @@ platform_mp_setmaxid(void)
 	mp_maxid = ncpu - 1;
 }
 
-int
-platform_mp_probe(void)
-{
-
-	if (mp_ncpus == 0)
-		platform_mp_setmaxid();
-
-	return (mp_ncpus > 1);
-}
-
 void
-platform_mp_start_ap(void)
+rk30xx_mp_start_ap(platform_t plat)
 {
 	bus_space_handle_t scu;
 	bus_space_handle_t imem;
@@ -168,8 +159,7 @@ platform_mp_start_ap(void)
 	bus_space_write_region_4(fdtbus_bs_tag, imem, 0,
 	    (uint32_t *)&rk30xx_boot2, 8);
 
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	/* Start all cores */
 	val = bus_space_read_4(fdtbus_bs_tag, pmu, PMU_PWRDN_CON);
@@ -177,16 +167,10 @@ platform_mp_start_ap(void)
 		val &= ~(1 << i);
 	bus_space_write_4(fdtbus_bs_tag, pmu, PMU_PWRDN_CON, val);
 
-	armv7_sev();
+	dsb();
+	sev();
 
 	bus_space_unmap(fdtbus_bs_tag, scu, SCU_SIZE);
 	bus_space_unmap(fdtbus_bs_tag, imem, IMEM_SIZE);
 	bus_space_unmap(fdtbus_bs_tag, pmu, PMU_SIZE);
-}
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
 }

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2010 The FreeBSD Foundation
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
@@ -42,9 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <pjdlog.h>
 #include <proto.h>
 
-#ifdef HAVE_CRYPTO
 #include "hast_checksum.h"
-#endif
 #include "hast_compression.h"
 #include "hast_proto.h"
 
@@ -68,9 +68,7 @@ struct hast_pipe_stage {
 
 static struct hast_pipe_stage pipeline[] = {
 	{ "compression", compression_send, compression_recv },
-#ifdef HAVE_CRYPTO
 	{ "checksum", checksum_send, checksum_recv }
-#endif
 };
 
 /*

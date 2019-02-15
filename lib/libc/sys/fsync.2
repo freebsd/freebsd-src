@@ -1,5 +1,11 @@
 .\" Copyright (c) 1983, 1993
 .\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2016 The FreeBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" Parts of this documentation were written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -9,7 +15,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,10 +34,11 @@
 .\"     @(#)fsync.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd February 6, 2018
 .Dt FSYNC 2
 .Os
 .Sh NAME
+.Nm fdatasync ,
 .Nm fsync
 .Nd "synchronise changes to a file"
 .Sh LIBRARY
@@ -39,16 +46,29 @@
 .Sh SYNOPSIS
 .In unistd.h
 .Ft int
+.Fn fdatasync "int fd"
+.Ft int
 .Fn fsync "int fd"
 .Sh DESCRIPTION
 The
 .Fn fsync
 system call
-causes all modified data and attributes of
+causes all modified data and attributes of the file referenced by
+the file descriptor
 .Fa fd
 to be moved to a permanent storage device.
 This normally results in all in-core modified copies
 of buffers for the associated file to be written to a disk.
+.Pp
+The
+.Fn fdatasync
+system call causes all modified data of
+.Fa fd
+to be moved to a permanent storage device.
+Unlike
+.Fn fsync ,
+the system call does not guarantee that file attributes or
+metadata necessary to access the file are committed to the permanent storage.
 .Pp
 The
 .Fn fsync
@@ -56,12 +76,24 @@ system call
 should be used by programs that require a file to be
 in a known state, for example, in building a simple transaction
 facility.
+If the file metadata has already been committed, using
+.Fn fdatasync
+can be more efficient than
+.Fn fsync .
+.Pp
+Both
+.Fn fdatasync
+and
+.Fn fsync
+calls are cancellation points.
 .Sh RETURN VALUES
 .Rv -std fsync
 .Sh ERRORS
 The
 .Fn fsync
-fails if:
+and
+.Fn fdatasync
+calls fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The
@@ -77,6 +109,7 @@ refers to a socket, not to a file.
 An I/O error occurred while reading from or writing to the file system.
 .El
 .Sh SEE ALSO
+.Xr fsync 1 ,
 .Xr sync 2 ,
 .Xr syncer 4 ,
 .Xr sync 8
@@ -85,3 +118,15 @@ The
 .Fn fsync
 system call appeared in
 .Bx 4.2 .
+The
+.Fn fdatasync
+system call appeared in
+.Fx 11.1 .
+.Sh BUGS
+The
+.Fn fdatasync
+system call currently does not guarantee that enqueued
+.Xr aio 4
+requests for the file referenced by
+.Fa fd
+are completed before the syscall returns.

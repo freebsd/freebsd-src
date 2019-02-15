@@ -1,6 +1,8 @@
 /*	$NetBSD: SYS.h,v 1.8 2003/08/07 16:42:02 agc Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -39,15 +41,11 @@
 #include <sys/syscall.h>
 #include <machine/swi.h>
 
-#ifdef __ARM_EABI__
 #define SYSTRAP(x)							\
 			mov ip, r7;					\
 			ldr r7, =SYS_ ## x;				\
 			swi 0;						\
 			mov r7, ip
-#else
-#define SYSTRAP(x)	swi 0 | SYS_ ## x
-#endif
 
 #define	CERROR		_C_LABEL(cerror)
 #define	CURBRK		_C_LABEL(curbrk)
@@ -62,6 +60,7 @@
 
 #define _SYSCALL(x)							\
 	_SYSCALL_NOERROR(x);						\
+	it	cs;							\
 	bcs PIC_SYM(CERROR, PLT)
 
 #define SYSCALL(x)							\
@@ -72,6 +71,7 @@
 	.weak _C_LABEL(__CONCAT(_,x));					\
 	.set _C_LABEL(__CONCAT(_,x)),_C_LABEL(__CONCAT(__sys_,x));	\
 	SYSTRAP(x);							\
+	it	cs;							\
 	bcs PIC_SYM(CERROR, PLT);					\
 	RET
 

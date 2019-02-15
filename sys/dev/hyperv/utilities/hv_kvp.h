@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2014 Microsoft Corp.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2014,2016 Microsoft Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +30,6 @@
 
 #ifndef _KVP_H
 #define _KVP_H
-
 /*
  * An implementation of HyperV key value pair (KVP) functionality for FreeBSD
  *
@@ -145,19 +146,6 @@ enum hv_kvp_exchg_pool {
 	HV_KVP_POOL_COUNT /* Number of pools, must be last. */
 };
 
-
-/*
- * Some Hyper-V status codes.
- */
-#define HV_KVP_S_OK                      0x00000000
-#define HV_KVP_E_FAIL                    0x80004005
-#define HV_KVP_S_CONT                    0x80070103
-#define HV_ERROR_NOT_SUPPORTED           0x80070032
-#define HV_ERROR_MACHINE_LOCKED          0x800704F7
-#define HV_ERROR_DEVICE_NOT_CONNECTED    0x8007048F
-#define HV_INVALIDARG                    0x80070057
-#define HV_KVP_GUID_NOTFOUND             0x80041002
-
 #define ADDR_FAMILY_NONE                 0x00
 #define ADDR_FAMILY_IPV4                 0x01
 #define ADDR_FAMILY_IPV6                 0x02
@@ -178,9 +166,9 @@ struct hv_kvp_ipaddr_value {
 }__attribute__((packed));
 
 struct hv_kvp_hdr {
-	uint8_t  operation;
-	uint8_t  pool;
-	uint16_t pad;
+	uint8_t                 operation;
+	uint8_t                 pool;
+	uint16_t                pad;
 } __attribute__((packed));
 
 struct hv_kvp_exchg_msg_value {
@@ -237,18 +225,5 @@ struct hv_kvp_ip_msg {
 	uint8_t pool;
 	struct hv_kvp_ipaddr_value      kvp_ip_val;
 } __attribute__((packed));
-
-
-#define HV_SHUT_DOWN                0
-#define HV_TIME_SYNCH               1
-#define HV_HEART_BEAT               2
-#define HV_KVP                      3
-#define HV_MAX_UTIL_SERVICES        4
-
-#define HV_WLTIMEDELTA              116444736000000000L     /* in 100ns unit */
-#define HV_ICTIMESYNCFLAG_PROBE     0
-#define HV_ICTIMESYNCFLAG_SYNC      1
-#define HV_ICTIMESYNCFLAG_SAMPLE    2
-#define HV_NANO_SEC_PER_SEC         1000000000
 
 #endif /* _KVP_H */

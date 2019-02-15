@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2008
  * 	Swinburne University of Technology, Melbourne, Australia
  * Copyright (c) 2009-2010 Lawrence Stewart <lstewart@freebsd.org>
@@ -62,11 +64,11 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 
-#include <netinet/cc.h>
+#include <netinet/tcp.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
-
+#include <netinet/cc/cc.h>
 #include <netinet/cc/cc_module.h>
 
 /* Fixed point math shifts. */
@@ -168,8 +170,8 @@ static int htcp_rtt_ref;
 static int htcp_max_diff = INT_MAX / ((1 << HTCP_ALPHA_INC_SHIFT) * 10);
 
 /* Per-netstack vars. */
-static VNET_DEFINE(u_int, htcp_adaptive_backoff) = 0;
-static VNET_DEFINE(u_int, htcp_rtt_scaling) = 0;
+VNET_DEFINE_STATIC(u_int, htcp_adaptive_backoff) = 0;
+VNET_DEFINE_STATIC(u_int, htcp_rtt_scaling) = 0;
 #define	V_htcp_adaptive_backoff    VNET(htcp_adaptive_backoff)
 #define	V_htcp_rtt_scaling    VNET(htcp_rtt_scaling)
 
@@ -236,9 +238,7 @@ htcp_ack_received(struct cc_var *ccv, uint16_t type)
 static void
 htcp_cb_destroy(struct cc_var *ccv)
 {
-
-	if (ccv->cc_data != NULL)
-		free(ccv->cc_data, M_HTCP);
+	free(ccv->cc_data, M_HTCP);
 }
 
 static int
@@ -346,8 +346,10 @@ htcp_mod_init(void)
 static void
 htcp_post_recovery(struct cc_var *ccv)
 {
+	int pipe;
 	struct htcp *htcp_data;
 
+	pipe = 0;
 	htcp_data = ccv->cc_data;
 
 	if (IN_FASTRECOVERY(CCV(ccv, t_flags))) {
@@ -358,10 +360,13 @@ htcp_post_recovery(struct cc_var *ccv)
 		 *
 		 * XXXLAS: Find a way to do this without needing curack
 		 */
-		if (SEQ_GT(ccv->curack + CCV(ccv, snd_ssthresh),
-		    CCV(ccv, snd_max)))
-			CCV(ccv, snd_cwnd) = CCV(ccv, snd_max) - ccv->curack +
-			    CCV(ccv, t_maxseg);
+		if (V_tcp_do_rfc6675_pipe)
+			pipe = tcp_compute_pipe(ccv->ccvc.tcp);
+		else
+			pipe = CCV(ccv, snd_max) - ccv->curack;
+		
+		if (pipe < CCV(ccv, snd_ssthresh))
+			CCV(ccv, snd_cwnd) = pipe + CCV(ccv, t_maxseg);
 		else
 			CCV(ccv, snd_cwnd) = max(1, ((htcp_data->beta *
 			    htcp_data->prev_cwnd / CCV(ccv, t_maxseg))
@@ -440,7 +445,7 @@ htcp_recalc_beta(struct cc_var *ccv)
 	/*
 	 * TCPTV_SRTTBASE is the initialised value of each connection's SRTT, so
 	 * we only calc beta if the connection's SRTT has been changed from its
-	 * inital value. beta is bounded to ensure it is always between
+	 * initial value. beta is bounded to ensure it is always between
 	 * HTCP_MINBETA and HTCP_MAXBETA.
 	 */
 	if (V_htcp_adaptive_backoff && htcp_data->minrtt != TCPTV_SRTTBASE &&
@@ -499,12 +504,12 @@ htcp_ssthresh_update(struct cc_var *ccv)
 	 * subsequent congestion events, set it to cwnd * beta.
 	 */
 	if (CCV(ccv, snd_ssthresh) == TCP_MAXWIN << TCP_MAX_WINSHIFT)
-		CCV(ccv, snd_ssthresh) = (CCV(ccv, snd_cwnd) * HTCP_MINBETA)
-		    >> HTCP_SHIFT;
+		CCV(ccv, snd_ssthresh) = ((u_long)CCV(ccv, snd_cwnd) *
+		    HTCP_MINBETA) >> HTCP_SHIFT;
 	else {
 		htcp_recalc_beta(ccv);
-		CCV(ccv, snd_ssthresh) = (CCV(ccv, snd_cwnd) * htcp_data->beta)
-		    >> HTCP_SHIFT;
+		CCV(ccv, snd_ssthresh) = ((u_long)CCV(ccv, snd_cwnd) *
+		    htcp_data->beta) >> HTCP_SHIFT;
 	}
 }
 
@@ -512,9 +517,11 @@ htcp_ssthresh_update(struct cc_var *ccv)
 SYSCTL_DECL(_net_inet_tcp_cc_htcp);
 SYSCTL_NODE(_net_inet_tcp_cc, OID_AUTO, htcp, CTLFLAG_RW,
     NULL, "H-TCP related settings");
-SYSCTL_VNET_UINT(_net_inet_tcp_cc_htcp, OID_AUTO, adaptive_backoff, CTLFLAG_RW,
-    &VNET_NAME(htcp_adaptive_backoff), 0, "enable H-TCP adaptive backoff");
-SYSCTL_VNET_UINT(_net_inet_tcp_cc_htcp, OID_AUTO, rtt_scaling, CTLFLAG_RW,
-    &VNET_NAME(htcp_rtt_scaling), 0, "enable H-TCP RTT scaling");
+SYSCTL_UINT(_net_inet_tcp_cc_htcp, OID_AUTO, adaptive_backoff,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(htcp_adaptive_backoff), 0,
+    "enable H-TCP adaptive backoff");
+SYSCTL_UINT(_net_inet_tcp_cc_htcp, OID_AUTO, rtt_scaling,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(htcp_rtt_scaling), 0,
+    "enable H-TCP RTT scaling");
 
 DECLARE_CC_MODULE(htcp, &htcp_cc_algo);

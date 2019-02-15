@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -40,6 +42,14 @@
 #include <machine/atomic.h>
 #include "setlocale.h"
 
+/**
+ * The XLC_ values are indexes into the components array.  They are defined in
+ * the same order as the LC_ values in locale.h, but without the LC_ALL zero
+ * value.  Translating from LC_X to XLC_X is done by subtracting one.
+ *
+ * Any reordering of this enum should ensure that these invariants are not
+ * violated.
+ */
 enum {
 	XLC_COLLATE = 0,
 	XLC_CTYPE,
@@ -50,6 +60,19 @@ enum {
 	XLC_LAST
 };
 
+_Static_assert(XLC_LAST - XLC_COLLATE == 6, "XLC values should be contiguous");
+_Static_assert(XLC_COLLATE == LC_COLLATE - 1,
+               "XLC_COLLATE doesn't match the LC_COLLATE value.");
+_Static_assert(XLC_CTYPE == LC_CTYPE - 1,
+               "XLC_CTYPE doesn't match the LC_CTYPE value.");
+_Static_assert(XLC_MONETARY == LC_MONETARY - 1,
+               "XLC_MONETARY doesn't match the LC_MONETARY value.");
+_Static_assert(XLC_NUMERIC == LC_NUMERIC - 1,
+               "XLC_NUMERIC doesn't match the LC_NUMERIC value.");
+_Static_assert(XLC_TIME == LC_TIME - 1,
+               "XLC_TIME doesn't match the LC_TIME value.");
+_Static_assert(XLC_MESSAGES == LC_MESSAGES - 1,
+               "XLC_MESSAGES doesn't match the LC_MESSAGES value.");
 
 /**
  * Header used for objects that are reference counted.  Objects may optionally
@@ -105,34 +128,6 @@ struct _xlocale {
 	int using_messages_locale;
 	/** The structure to be returned from localeconv_l() for this locale. */
 	struct lconv lconv;
-	/** Persistent state used by mblen() calls. */
-	__mbstate_t mblen;
-	/** Persistent state used by mbrlen() calls. */
-	__mbstate_t mbrlen;
-	/** Persistent state used by mbrtoc16() calls. */
-	__mbstate_t mbrtoc16;
-	/** Persistent state used by mbrtoc32() calls. */
-	__mbstate_t mbrtoc32;
-	/** Persistent state used by mbrtowc() calls. */
-	__mbstate_t mbrtowc;
-	/** Persistent state used by mbsnrtowcs() calls. */
-	__mbstate_t mbsnrtowcs;
-	/** Persistent state used by mbsrtowcs() calls. */
-	__mbstate_t mbsrtowcs;
-	/** Persistent state used by mbtowc() calls. */
-	__mbstate_t mbtowc;
-	/** Persistent state used by c16rtomb() calls. */
-	__mbstate_t c16rtomb;
-	/** Persistent state used by c32rtomb() calls. */
-	__mbstate_t c32rtomb;
-	/** Persistent state used by wcrtomb() calls. */
-	__mbstate_t wcrtomb;
-	/** Persistent state used by wcsnrtombs() calls. */
-	__mbstate_t wcsnrtombs;
-	/** Persistent state used by wcsrtombs() calls. */
-	__mbstate_t wcsrtombs;
-	/** Persistent state used by wctomb() calls. */
-	__mbstate_t wctomb;
 	/** Buffer used by nl_langinfo_l() */
 	char *csym;
 };
@@ -155,12 +150,11 @@ __attribute__((unused)) static void
 xlocale_release(void *val)
 {
 	struct xlocale_refcounted *obj = val;
-	long count = atomic_fetchadd_long(&(obj->retain_count), -1) - 1;
-	if (count < 0) {
-		if (0 != obj->destructor) {
-			obj->destructor(obj);
-		}
-	}
+	long count;
+
+	count = atomic_fetchadd_long(&(obj->retain_count), -1) - 1;
+	if (count < 0 && obj->destructor != NULL)
+		obj->destructor(obj);
 }
 
 /**

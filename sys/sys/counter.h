@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Gleb Smirnoff <glebius@FreeBSD.org>
  * All rights reserved.
  *
@@ -59,5 +61,18 @@ uint64_t	counter_u64_fetch(counter_u64_t);
 	for (int i = 0; i < (n); i++)				\
 		counter_u64_zero((a)[i]);			\
 } while (0)
+
+/*
+ * counter(9) based rate checking.
+ */
+struct counter_rate {
+	counter_u64_t	cr_rate;	/* Events since last second */
+	volatile int	cr_lock;	/* Lock to clean the struct */
+	int		cr_ticks;	/* Ticks on last clean */
+	int		cr_over;	/* Over limit since cr_ticks? */
+};
+
+int64_t	counter_ratecheck(struct counter_rate *, int64_t);
+
 #endif	/* _KERNEL */
 #endif	/* ! __SYS_COUNTER_H__ */

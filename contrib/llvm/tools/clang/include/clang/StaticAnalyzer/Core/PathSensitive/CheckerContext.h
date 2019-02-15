@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SA_CORE_PATHSENSITIVE_CHECKERCONTEXT
-#define LLVM_CLANG_SA_CORE_PATHSENSITIVE_CHECKERCONTEXT
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_CHECKERCONTEXT_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_CHECKERCONTEXT_H
 
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
@@ -174,8 +174,13 @@ public:
     return Pred->getLocationContext()->getAnalysisDeclContext();
   }
 
-  /// \brief If the given node corresponds to a PostStore program point, retrieve
-  /// the location region as it was uttered in the code.
+  /// \brief Get the blockID.
+  unsigned getBlockID() const {
+    return NB.getContext().getBlock()->getBlockID();
+  }
+
+  /// \brief If the given node corresponds to a PostStore program point,
+  /// retrieve the location region as it was uttered in the code.
   ///
   /// This utility can be useful for generating extensive diagnostics, for
   /// example, for finding variables that the given symbol was assigned to.
@@ -183,13 +188,20 @@ public:
     ProgramPoint L = N->getLocation();
     if (Optional<PostStore> PSL = L.getAs<PostStore>())
       return reinterpret_cast<const MemRegion*>(PSL->getLocationValue());
-    return 0;
+    return nullptr;
   }
 
   /// \brief Get the value of arbitrary expressions at this point in the path.
   SVal getSVal(const Stmt *S) const {
     return getState()->getSVal(S, getLocationContext());
   }
+
+  /// \brief Returns true if the value of \p E is greater than or equal to \p
+  /// Val under unsigned comparison
+  bool isGreaterOrEqual(const Expr *E, unsigned long long Val);
+
+  /// Returns true if the value of \p E is negative.
+  bool isNegative(const Expr *E);
 
   /// \brief Generates a new transition in the program state graph
   /// (ExplodedGraph). Uses the default CheckerContext predecessor node.
@@ -200,9 +212,9 @@ public:
   ///        tag is specified, a default tag, unique to the given checker,
   ///        will be used. Tags are used to prevent states generated at
   ///        different sites from caching out.
-  ExplodedNode *addTransition(ProgramStateRef State = 0,
-                              const ProgramPointTag *Tag = 0) {
-    return addTransitionImpl(State ? State : getState(), false, 0, Tag);
+  ExplodedNode *addTransition(ProgramStateRef State = nullptr,
+                              const ProgramPointTag *Tag = nullptr) {
+    return addTransitionImpl(State ? State : getState(), false, nullptr, Tag);
   }
 
   /// \brief Generates a new transition with the given predecessor.
@@ -214,23 +226,53 @@ public:
   /// @param Tag The tag to uniquely identify the creation site.
   ExplodedNode *addTransition(ProgramStateRef State,
                               ExplodedNode *Pred,
-                              const ProgramPointTag *Tag = 0) {
+                              const ProgramPointTag *Tag = nullptr) {
     return addTransitionImpl(State, false, Pred, Tag);
   }
 
   /// \brief Generate a sink node. Generating a sink stops exploration of the
-  /// given path.
-  ExplodedNode *generateSink(ProgramStateRef State = 0,
-                             ExplodedNode *Pred = 0,
-                             const ProgramPointTag *Tag = 0) {
+  /// given path. To create a sink node for the purpose of reporting an error,
+  /// checkers should use generateErrorNode() instead.
+  ExplodedNode *generateSink(ProgramStateRef State, ExplodedNode *Pred,
+                             const ProgramPointTag *Tag = nullptr) {
     return addTransitionImpl(State ? State : getState(), true, Pred, Tag);
   }
 
-  /// \brief Emit the diagnostics report.
-  void emitReport(BugReport *R) {
-    Changed = true;
-    Eng.getBugReporter().emitReport(R);
+  /// \brief Generate a transition to a node that will be used to report
+  /// an error. This node will be a sink. That is, it will stop exploration of
+  /// the given path.
+  ///
+  /// @param State The state of the generated node.
+  /// @param Tag The tag to uniquely identify the creation site. If null,
+  ///        the default tag for the checker will be used.
+  ExplodedNode *generateErrorNode(ProgramStateRef State = nullptr,
+                                  const ProgramPointTag *Tag = nullptr) {
+    return generateSink(State, Pred,
+                       (Tag ? Tag : Location.getTag()));
   }
+
+  /// \brief Generate a transition to a node that will be used to report
+  /// an error. This node will not be a sink. That is, exploration will
+  /// continue along this path.
+  ///
+  /// @param State The state of the generated node.
+  /// @param Tag The tag to uniquely identify the creation site. If null,
+  ///        the default tag for the checker will be used.
+  ExplodedNode *
+  generateNonFatalErrorNode(ProgramStateRef State = nullptr,
+                            const ProgramPointTag *Tag = nullptr) {
+    return addTransition(State, (Tag ? Tag : Location.getTag()));
+  }
+
+  /// \brief Emit the diagnostics report.
+  void emitReport(std::unique_ptr<BugReport> R) {
+    Changed = true;
+    Eng.getBugReporter().emitReport(std::move(R));
+  }
+
+  /// \brief Returns the word that should be used to refer to the declaration
+  /// in the report.
+  StringRef getDeclDescription(const Decl *D);
 
   /// \brief Get the declaration of the called function (path-sensitive).
   const FunctionDecl *getCalleeDecl(const CallExpr *CE) const;
@@ -244,7 +286,7 @@ public:
     if (FunDecl)
       return FunDecl->getIdentifier();
     else
-      return 0;
+      return nullptr;
   }
 
   /// \brief Get the name of the called function (path-sensitive).
@@ -280,8 +322,20 @@ public:
 private:
   ExplodedNode *addTransitionImpl(ProgramStateRef State,
                                  bool MarkAsSink,
-                                 ExplodedNode *P = 0,
-                                 const ProgramPointTag *Tag = 0) {
+                                 ExplodedNode *P = nullptr,
+                                 const ProgramPointTag *Tag = nullptr) {
+    // The analyzer may stop exploring if it sees a state it has previously
+    // visited ("cache out"). The early return here is a defensive check to
+    // prevent accidental caching out by checker API clients. Unless there is a
+    // tag or the client checker has requested that the generated node be
+    // marked as a sink, we assume that a client requesting a transition to a
+    // state that is the same as the predecessor state has made a mistake. We
+    // return the predecessor rather than cache out.
+    //
+    // TODO: We could potentially change the return to an assertion to alert
+    // clients to their mistake, but several checkers (including
+    // DereferenceChecker, CallAndMessageChecker, and DynamicTypePropagation)
+    // rely upon the defensive behavior and would need to be updated.
     if (!State || (State == Pred->getState() && !Tag && !MarkAsSink))
       return Pred;
 

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_get_item.c 648 2013-03-05 17:54:27Z des $
+ * $OpenPAM: pam_get_item.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -59,8 +59,6 @@ pam_get_item(const pam_handle_t *pamh,
 {
 
 	ENTERI(item_type);
-	if (pamh == NULL)
-		RETURNC(PAM_SYSTEM_ERR);
 	switch (item_type) {
 	case PAM_SERVICE:
 	case PAM_USER:
@@ -78,15 +76,14 @@ pam_get_item(const pam_handle_t *pamh,
 		*item = pamh->item[item_type];
 		RETURNC(PAM_SUCCESS);
 	default:
-		RETURNC(PAM_SYMBOL_ERR);
+		RETURNC(PAM_BAD_ITEM);
 	}
 }
 
 /*
  * Error codes:
  *
- *	PAM_SYMBOL_ERR
- *	PAM_SYSTEM_ERR
+ *	PAM_BAD_ITEM
  */
 
 /**

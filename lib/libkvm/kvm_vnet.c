@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Robert N. M. Watson
  * Copyright (c) 2009 Bjoern A. Zeeb <bz@FreeBSD.org>
  * All rights reserved.
@@ -43,7 +45,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 
-#include <nlist.h>
 #include <kvm.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -62,7 +63,7 @@ _kvm_vnet_selectpid(kvm_t *kd, pid_t pid)
 	struct ucred cred;
 	struct prison prison;
 	struct vnet vnet;
-	struct nlist nl[] = {
+	struct kvm_nlist nl[] = {
 		/*
 		 * Note: kvm_nlist strips the first '_' so add an extra one
 		 * here to __{start,stop}_set_vnet.
@@ -88,6 +89,12 @@ _kvm_vnet_selectpid(kvm_t *kd, pid_t pid)
 	uintptr_t tdp;
 #endif
 	lwpid_t dumptid;
+
+	/*
+	 * XXX: This only works for native kernels for now.
+	 */
+	if (!kvm_native(kd))
+		return (-1);
 
 	/*
 	 * Locate and cache locations of important symbols
@@ -122,7 +129,7 @@ _kvm_vnet_selectpid(kvm_t *kd, pid_t pid)
 
 	/*
 	 * First, find the process for this pid.  If we are working on a
-	 * dump, either locate the thread dumptid is refering to or proc0.
+	 * dump, either locate the thread dumptid is referring to or proc0.
 	 * Based on either, take the address of the ucred.
 	 */
 	credp = 0;
@@ -203,8 +210,8 @@ _kvm_vnet_selectpid(kvm_t *kd, pid_t pid)
 }
 
 /*
- * Check whether the vnet module has been initialized sucessfully
- * or not, intialize it if permitted.
+ * Check whether the vnet module has been initialized successfully
+ * or not, initialize it if permitted.
  */
 int
 _kvm_vnet_initialized(kvm_t *kd, int intialize)
@@ -222,8 +229,8 @@ _kvm_vnet_initialized(kvm_t *kd, int intialize)
  * Check whether the value is within the vnet symbol range and
  * only if so adjust the offset relative to the current base.
  */
-uintptr_t
-_kvm_vnet_validaddr(kvm_t *kd, uintptr_t value)
+kvaddr_t
+_kvm_vnet_validaddr(kvm_t *kd, kvaddr_t value)
 {
 
 	if (value == 0)

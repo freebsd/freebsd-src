@@ -6,7 +6,7 @@ SRCS= entry.c env.c misc.c
 
 WARNS?=	3
 
-CFLAGS+= -I${.CURDIR}/../cron
+CFLAGS+= -I${.CURDIR:H}/cron
 CFLAGS+= -DLOGIN_CAP -DPAM
 
 .include <bsd.lib.mk>

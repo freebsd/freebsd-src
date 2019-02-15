@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -43,9 +45,6 @@
  */
 static vop_lookup_t	dead_lookup;
 static vop_open_t	dead_open;
-static vop_poll_t	dead_poll;
-static vop_read_t	dead_read;
-static vop_write_t	dead_write;
 static vop_getwritemount_t dead_getwritemount;
 static vop_rename_t	dead_rename;
 
@@ -80,14 +79,10 @@ struct vop_vector dead_vnodeops = {
 	.vop_write =		dead_write,
 };
 
-/* ARGSUSED */
 static int
-dead_getwritemount(ap)
-	struct vop_getwritemount_args /* {
-		struct vnode *a_vp;
-		struct mount **a_mpp;
-	} */ *ap;
+dead_getwritemount(struct vop_getwritemount_args *ap)
 {
+
 	*(ap->a_mpp) = NULL;
 	return (0);
 }
@@ -95,14 +90,8 @@ dead_getwritemount(ap)
 /*
  * Trivial lookup routine that always fails.
  */
-/* ARGSUSED */
 static int
-dead_lookup(ap)
-	struct vop_lookup_args /* {
-		struct vnode * a_dvp;
-		struct vnode ** a_vpp;
-		struct componentname * a_cnp;
-	} */ *ap;
+dead_lookup(struct vop_lookup_args *ap)
 {
 
 	*ap->a_vpp = NULL;
@@ -112,33 +101,17 @@ dead_lookup(ap)
 /*
  * Open always fails as if device did not exist.
  */
-/* ARGSUSED */
 static int
-dead_open(ap)
-	struct vop_open_args /* {
-		struct vnode *a_vp;
-		int  a_mode;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
+dead_open(struct vop_open_args *ap)
 {
 
 	return (ENXIO);
 }
 
-/*
- * Vnode op for read
- */
-/* ARGSUSED */
-static int
-dead_read(ap)
-	struct vop_read_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int  a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
+int
+dead_read(struct vop_read_args *ap)
 {
+
 	/*
 	 * Return EOF for tty devices, EIO for others
 	 */
@@ -147,44 +120,29 @@ dead_read(ap)
 	return (0);
 }
 
-/*
- * Vnode op for write
- */
-/* ARGSUSED */
-static int
-dead_write(ap)
-	struct vop_write_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int  a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
+int
+dead_write(struct vop_write_args *ap)
 {
+
 	return (EIO);
 }
 
-/*
- * Trivial poll routine that always returns POLLHUP.
- * This is necessary so that a process which is polling a file
- * gets notified when that file is revoke()d.
- */
-static int
-dead_poll(ap)
-	struct vop_poll_args *ap;
+int
+dead_poll(struct vop_poll_args *ap)
 {
-	return (POLLHUP);
+
+	if (ap->a_events & ~POLLSTANDARD)
+		return (POLLNVAL);
+
+	/*
+	 * Let the user find out that the descriptor is gone.
+	 */
+	return (POLLHUP | ((POLLIN | POLLRDNORM) & ap->a_events));
+
 }
 
 static int
-dead_rename(ap)
-	struct vop_rename_args  /* {
-		struct vnode *a_fdvp;
-		struct vnode *a_fvp;
-		struct componentname *a_fcnp;
-		struct vnode *a_tdvp;
-		struct vnode *a_tvp;
-		struct componentname *a_tcnp;
-	} */ *ap;
+dead_rename(struct vop_rename_args *ap)
 {
 
 	vop_rename_fail(ap);

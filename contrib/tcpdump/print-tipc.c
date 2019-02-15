@@ -19,32 +19,26 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-arp.c,v 1.66 2006-03-03 22:53:21 hannes Exp $ (LBL)";
-#endif
+/* \summary: Transparent Inter-Process Communication (TIPC) protocol printer */
+
+/*
+ * specification:
+ *	http://tipc.sourceforge.net/doc/draft-spec-tipc-07.html
+ *	http://tipc.sourceforge.net/doc/tipc_message_formats.html
+ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
-
-#include <stdio.h>
-#include <string.h>
+#include <netdissect-stdinc.h>
 
 #include "netdissect.h"
-#include "addrtoname.h"
 #include "ether.h"
 #include "ethertype.h"
-#include "extract.h"			/* must come after interface.h */
+#include "extract.h"
 
-/*
- * Transparent Inter-Process Communication (TIPC) protocol.
- *
- *	http://tipc.sourceforge.net/doc/draft-spec-tipc-07.html
- *	http://tipc.sourceforge.net/doc/tipc_message_formats.html
- */
+static const char tstr[] = "[|TIPC]";
 
 #define TIPC_USER_LOW_IMPORTANCE	0
 #define TIPC_USER_MEDIUM_IMPORTANCE	1
@@ -69,8 +63,8 @@ static const char rcsid[] _U_ =
 #define TIPC_NODE(addr)		(((addr) >> 0) & 0xFFF)
 
 struct tipc_pkthdr {
-	u_int32_t w0;
-	u_int32_t w1;
+	uint32_t w0;
+	uint32_t w1;
 };
 
 #define TIPC_VER(w0)		(((w0) >> 29) & 0x07)
@@ -113,30 +107,30 @@ static const struct tok tipc_linkconf_mtype_values[] = {
 };
 
 struct payload_tipc_pkthdr {
-	u_int32_t w0;
-	u_int32_t w1;
-	u_int32_t w2;
-	u_int32_t prev_node;
-	u_int32_t orig_port;
-	u_int32_t dest_port;
-	u_int32_t orig_node;
-	u_int32_t dest_node;
-	u_int32_t name_type;
-	u_int32_t w9;
-	u_int32_t wA;
+	uint32_t w0;
+	uint32_t w1;
+	uint32_t w2;
+	uint32_t prev_node;
+	uint32_t orig_port;
+	uint32_t dest_port;
+	uint32_t orig_node;
+	uint32_t dest_node;
+	uint32_t name_type;
+	uint32_t w9;
+	uint32_t wA;
 };
 
 struct  internal_tipc_pkthdr {
-	u_int32_t w0;
-	u_int32_t w1;
-	u_int32_t w2;
-	u_int32_t prev_node;
-	u_int32_t w4;
-	u_int32_t w5;
-	u_int32_t orig_node;
-	u_int32_t dest_node;
-	u_int32_t trans_seq;
-	u_int32_t w9;
+	uint32_t w0;
+	uint32_t w1;
+	uint32_t w2;
+	uint32_t prev_node;
+	uint32_t w4;
+	uint32_t w5;
+	uint32_t orig_node;
+	uint32_t dest_node;
+	uint32_t trans_seq;
+	uint32_t w9;
 };
 
 #define TIPC_SEQ_GAP(w1)	(((w1) >> 16) & 0x1FFF)
@@ -149,13 +143,13 @@ struct  internal_tipc_pkthdr {
 #define TIPC_LINK_TOL(w9)	(((w9) >> 0) & 0xFFFF)
 
 struct link_conf_tipc_pkthdr {
-	u_int32_t w0;
-	u_int32_t w1;
-	u_int32_t dest_domain;
-	u_int32_t prev_node;
-	u_int32_t ntwrk_id;
-	u_int32_t w5;
-	u_int8_t media_address[16];
+	uint32_t w0;
+	uint32_t w1;
+	uint32_t dest_domain;
+	uint32_t prev_node;
+	uint32_t ntwrk_id;
+	uint32_t w5;
+	uint8_t media_address[16];
 };
 
 #define TIPC_NODE_SIG(w1)	(((w1) >> 0) & 0xFFFF)
@@ -164,7 +158,7 @@ struct link_conf_tipc_pkthdr {
 static void
 print_payload(netdissect_options *ndo, const struct payload_tipc_pkthdr *ap)
 {
-	u_int32_t w0, w1, w2;
+	uint32_t w0, w1, w2;
 	u_int user;
 	u_int hsize;
 	u_int msize;
@@ -223,13 +217,13 @@ print_payload(netdissect_options *ndo, const struct payload_tipc_pkthdr *ap)
 	return;
 
 trunc:
-	ND_PRINT((ndo, "[|TIPC]"));
+	ND_PRINT((ndo, "%s", tstr));
 }
-	 
+
 static void
 print_internal(netdissect_options *ndo, const struct internal_tipc_pkthdr *ap)
 {
-	u_int32_t w0, w1, w2, w4, w5, w9;
+	uint32_t w0, w1, w2, w4, w5, w9;
 	u_int user;
 	u_int hsize;
 	u_int msize;
@@ -291,13 +285,13 @@ print_internal(netdissect_options *ndo, const struct internal_tipc_pkthdr *ap)
 	return;
 
 trunc:
-	ND_PRINT((ndo, "[|TIPC]"));
+	ND_PRINT((ndo, "%s", tstr));
 }
 
 static void
 print_link_conf(netdissect_options *ndo, const struct link_conf_tipc_pkthdr *ap)
 {
-	u_int32_t w0, w1, w5;
+	uint32_t w0, w1, w5;
 	u_int user;
 	u_int hsize;
 	u_int msize;
@@ -315,7 +309,6 @@ print_link_conf(netdissect_options *ndo, const struct link_conf_tipc_pkthdr *ap)
 	msize = TIPC_MSIZE(w0);
 	w1 = EXTRACT_32BITS(&ap->w1);
 	mtype = TIPC_MTYPE(w1);
-	prev_node = EXTRACT_32BITS(&ap->prev_node);
 	dest_domain = EXTRACT_32BITS(&ap->dest_domain);
 	prev_node = EXTRACT_32BITS(&ap->prev_node);
 
@@ -338,7 +331,7 @@ print_link_conf(netdissect_options *ndo, const struct link_conf_tipc_pkthdr *ap)
 	return;
 
 trunc:
-	ND_PRINT((ndo, "[|TIPC]"));
+	ND_PRINT((ndo, "%s", tstr));
 }
 
 void
@@ -346,10 +339,10 @@ tipc_print(netdissect_options *ndo, const u_char *bp, u_int length _U_,
     u_int caplen _U_)
 {
 	const struct tipc_pkthdr *ap;
-	u_int32_t w0;
+	uint32_t w0;
 	u_int user;
 
-	ap = (struct tipc_pkthdr *)bp;
+	ap = (const struct tipc_pkthdr *)bp;
 	ND_TCHECK(ap->w0);
 	w0 = EXTRACT_32BITS(&ap->w0);
 	user = TIPC_USER(w0);
@@ -362,11 +355,11 @@ tipc_print(netdissect_options *ndo, const u_char *bp, u_int length _U_,
 		case TIPC_USER_CRITICAL_IMPORTANCE:
 		case TIPC_USER_NAME_DISTRIBUTOR:
 		case TIPC_USER_CONN_MANAGER:
-			print_payload(ndo, (struct payload_tipc_pkthdr *)bp);
-			break;			 
+			print_payload(ndo, (const struct payload_tipc_pkthdr *)bp);
+			break;
 
 		case TIPC_USER_LINK_CONFIG:
-			print_link_conf(ndo, (struct link_conf_tipc_pkthdr *)bp);
+			print_link_conf(ndo, (const struct link_conf_tipc_pkthdr *)bp);
 			break;
 
 		case TIPC_USER_BCAST_PROTOCOL:
@@ -374,14 +367,14 @@ tipc_print(netdissect_options *ndo, const u_char *bp, u_int length _U_,
 		case TIPC_USER_LINK_PROTOCOL:
 		case TIPC_USER_CHANGEOVER_PROTOCOL:
 		case TIPC_USER_MSG_FRAGMENTER:
-			print_internal(ndo, (struct internal_tipc_pkthdr *)bp);
+			print_internal(ndo, (const struct internal_tipc_pkthdr *)bp);
 			break;
 
 	}
 	return;
 
 trunc:
-	ND_PRINT((ndo, "[|TIPC]"));
+	ND_PRINT((ndo, "%s", tstr));
 }
 
 /*

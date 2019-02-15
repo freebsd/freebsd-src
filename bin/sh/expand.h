@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -33,29 +33,29 @@
  * $FreeBSD$
  */
 
-struct strlist {
-	struct strlist *next;
-	char *text;
-};
-
-
 struct arglist {
-	struct strlist *list;
-	struct strlist **lastp;
+	char **args;
+	int count;
+	int capacity;
+	char *smallarg[1];
 };
 
 /*
  * expandarg() flags
  */
-#define EXP_FULL	0x1	/* perform word splitting & file globbing */
+#define EXP_SPLIT	0x1	/* perform word splitting */
 #define EXP_TILDE	0x2	/* do normal tilde expansion */
 #define	EXP_VARTILDE	0x4	/* expand tildes in an assignment */
-#define	EXP_REDIR	0x8	/* file glob for a redirection (1 match only) */
 #define EXP_CASE	0x10	/* keeps quotes around for CASE pattern */
 #define EXP_SPLIT_LIT	0x20	/* IFS split literal text ${v+-a b c} */
 #define EXP_LIT_QUOTED	0x40	/* for EXP_SPLIT_LIT, start off quoted */
+#define EXP_GLOB	0x80	/* perform file globbing */
+
+#define EXP_FULL	(EXP_SPLIT | EXP_GLOB)
 
 
+void emptyarglist(struct arglist *);
+void appendarglist(struct arglist *, char *);
 union node;
 void expandarg(union node *, struct arglist *, int);
 void rmescapes(char *);

@@ -1,4 +1,4 @@
-/* $NetBSD: t_sleep.c,v 1.8 2014/07/15 14:56:34 gson Exp $ */
+/* $NetBSD: t_sleep.c,v 1.11 2017/01/10 15:43:59 maya Exp $ */
 
 /*-
  * Copyright (c) 2006 Frank Kardel
@@ -26,18 +26,20 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+#include <sys/event.h>
+#include <sys/signal.h>
+#include <sys/time.h>		/* for TIMESPEC_TO_TIMEVAL on FreeBSD */
+
 #include <atf-c.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-
-#include <sys/cdefs.h>
-#include <sys/event.h>
-#include <sys/signal.h>
 
 #include "isqemu.h"
 
@@ -78,7 +80,9 @@ static volatile int sig;
 int sleeptest(int (*)(struct timespec *, struct timespec *), bool, bool);
 int do_nanosleep(struct timespec *, struct timespec *);
 int do_select(struct timespec *, struct timespec *);
+#ifdef __NetBSD__
 int do_poll(struct timespec *, struct timespec *);
+#endif
 int do_sleep(struct timespec *, struct timespec *);
 int do_kevent(struct timespec *, struct timespec *);
 void sigalrm(int);
@@ -116,6 +120,7 @@ do_select(struct timespec *delay, struct timespec *remain)
 	return ret;
 }
 
+#ifdef __NetBSD__
 int
 do_poll(struct timespec *delay, struct timespec *remain)
 {
@@ -129,6 +134,7 @@ do_poll(struct timespec *delay, struct timespec *remain)
 		ret = 0;
 	return ret;
 }
+#endif
 
 int
 do_sleep(struct timespec *delay, struct timespec *remain)
@@ -171,7 +177,8 @@ do_kevent(struct timespec *delay, struct timespec *remain)
 	(void)close(kq);
 
 	if (rtc == -1) {
-		ATF_REQUIRE_MSG(kerrno == EINTR, "kevent: %s", strerror(errno));
+		ATF_REQUIRE_MSG(kerrno == EINTR, "kevent: %s",
+		    strerror(kerrno));
 		return 0;
 	}
 
@@ -210,6 +217,7 @@ ATF_TC_BODY(select, tc)
 	sleeptest(do_select, true, true);
 }
 
+#ifdef __NetBSD__
 ATF_TC(poll);
 ATF_TC_HEAD(poll, tc) 
 {
@@ -223,6 +231,7 @@ ATF_TC_BODY(poll, tc)
 
 	sleeptest(do_poll, true, true);
 }
+#endif
 
 ATF_TC(sleep);
 ATF_TC_HEAD(sleep, tc) 
@@ -329,7 +338,9 @@ ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, nanosleep);
 	ATF_TP_ADD_TC(tp, select);
+#ifdef __NetBSD__
 	ATF_TP_ADD_TC(tp, poll); 
+#endif
 	ATF_TP_ADD_TC(tp, sleep);
 	ATF_TP_ADD_TC(tp, kevent);
  

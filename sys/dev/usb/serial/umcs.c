@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Lev Serebryakov <lev@FreeBSD.org>.
  * All rights reserved.
  *
@@ -80,7 +82,7 @@ __FBSDID("$FreeBSD$");
 static int umcs_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, umcs, CTLFLAG_RW, 0, "USB umcs quadport serial adapter");
-SYSCTL_INT(_hw_usb_umcs, OID_AUTO, debug, CTLFLAG_RW, &umcs_debug, 0, "Debug level");
+SYSCTL_INT(_hw_usb_umcs, OID_AUTO, debug, CTLFLAG_RWTUN, &umcs_debug, 0, "Debug level");
 #endif					/* USB_DEBUG */
 
 
@@ -278,6 +280,7 @@ DRIVER_MODULE(umcs7840, uhub, umcs7840_driver, umcs7840_devclass, 0, 0);
 MODULE_DEPEND(umcs7840, ucom, 1, 1, 1);
 MODULE_DEPEND(umcs7840, usb, 1, 1, 1);
 MODULE_VERSION(umcs7840, UMCS7840_MODVER);
+USB_PNP_HOST_INFO(umcs7840_devs);
 
 static int
 umcs7840_probe(device_t dev)
@@ -742,15 +745,26 @@ umcs7840_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 {
 	struct umcs7840_softc *sc = ucom->sc_parent;
 	uint8_t pn = ucom->sc_portno;
-	uint8_t	hw_lsr = 0;	/* local line status register */
 	uint8_t	hw_msr = 0;	/* local modem status register */
 
-	/* Read LSR & MSR */
-	umcs7840_get_UART_reg_sync(sc, pn, MCS7840_UART_REG_LSR, &hw_lsr);
+	/*
+	 * Read status registers.  MSR bits need translation from ns16550 to
+	 * SER_* values.  LSR bits are ns16550 in hardware and ucom.
+	 */
+	umcs7840_get_UART_reg_sync(sc, pn, MCS7840_UART_REG_LSR, lsr);
 	umcs7840_get_UART_reg_sync(sc, pn, MCS7840_UART_REG_MSR, &hw_msr);
 
-	*lsr = hw_lsr;
-	*msr = hw_msr;
+	if (hw_msr & MCS7840_UART_MSR_NEGCTS)
+		*msr |= SER_CTS;
+
+	if (hw_msr & MCS7840_UART_MSR_NEGDCD)
+		*msr |= SER_DCD;
+
+	if (hw_msr & MCS7840_UART_MSR_NEGRI)
+		*msr |= SER_RI;
+
+	if (hw_msr & MCS7840_UART_MSR_NEGDSR)
+		*msr |= SER_DSR;
 
 	DPRINTF("Port %d status: LSR=%02x MSR=%02x\n", ucom->sc_portno, *lsr, *msr);
 }
@@ -1071,7 +1085,7 @@ umcs7840_set_baudrate(struct umcs7840_softc *sc, uint8_t portno, uint32_t rate)
 
 /* Maximum speeds for standard frequences, when PLL is not used */
 static const uint32_t umcs7840_baudrate_divisors[] = {0, 115200, 230400, 403200, 460800, 806400, 921600, 1572864, 3145728,};
-static const uint8_t umcs7840_baudrate_divisors_len = sizeof(umcs7840_baudrate_divisors) / sizeof(umcs7840_baudrate_divisors[0]);
+static const uint8_t umcs7840_baudrate_divisors_len = nitems(umcs7840_baudrate_divisors);
 
 static usb_error_t
 umcs7840_calc_baudrate(uint32_t rate, uint16_t *divisor, uint8_t *clk)

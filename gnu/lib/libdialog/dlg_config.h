@@ -6,9 +6,8 @@
  */
 
 #define CURSES_WACS_ARRAY _nc_wacs
-#define CURSES_WACS_SYMBOLS 1
-#define DIALOG_PATCHDATE 20130923
-#define DIALOG_VERSION "1.2"
+#define DIALOG_PATCHDATE 20180621
+#define DIALOG_VERSION "1.3"
 #define HAVE_ALLOCA 1
 #define HAVE_BTOWC 1
 #define HAVE_COLOR 1
@@ -43,7 +42,6 @@
 #define HAVE_INTTYPES_H 1
 #define HAVE_LANGINFO_CODESET 1
 #define HAVE_LC_MESSAGES 1
-#define HAVE_LIBNCURSESW 1
 #define HAVE_LIMITS_H 1
 #define HAVE_LOCALE_H 1
 #define HAVE_MBLEN 1
@@ -53,14 +51,17 @@
 #define HAVE_MBTOWC 1
 #define HAVE_MEMORY_H 1
 #define HAVE_MIXEDGAUGE 1
+#define HAVE_MKTIME 1
 #define HAVE_MMAP 1
 #define HAVE_MUNMAP 1
+#define HAVE_NCURSES_H 1
 #define HAVE_NL_TYPES_H 1
 #define HAVE_PUTENV 1
 #define HAVE_RC_FILE 1
 #define HAVE_SEARCH_H 1
 #define HAVE_SETENV 1
 #define HAVE_SETLOCALE 1
+#define HAVE_SIZECHANGE 1
 #define HAVE_STDDEF_H 1
 #define HAVE_STDINT_H 1
 #define HAVE_STDLIB_H 1
@@ -72,10 +73,12 @@
 #define HAVE_STRINGS_H 1
 #define HAVE_STRING_H 1
 #define HAVE_STRTOUL 1
+#define HAVE_SYS_IOCTL_H 1
 #define HAVE_SYS_PARAM_H 1
 #define HAVE_SYS_STAT_H 1
 #define HAVE_SYS_TYPES_H 1
 #define HAVE_SYS_WAIT_H 1
+#define HAVE_TERMIOS_H 1
 #define HAVE_TERM_H 1
 #define HAVE_TSEARCH 1
 #define HAVE_TYPE_CHTYPE 1
@@ -95,14 +98,14 @@
 #define HAVE_XDIALOG 1
 #define HAVE_XDIALOG2 1
 #define HAVE__NC_FREE_AND_EXIT 1
-#define ICONV_CONST const
+#define ICONV_CONST 
 #define MIXEDCASE_FILENAMES 1
 #define NCURSES 1
 #define NEED_WCHAR_H 1
 #define PACKAGE "dialog"
 #define RETSIGTYPE void
 #define STDC_HEADERS 1
-#define SYSTEM_NAME "freebsd10.0"
+#define SYSTEM_NAME "freebsd12.0"
 #define TIME_WITH_SYS_TIME 1
 #define TYPE_CHTYPE_IS_SCALAR 1
 #define USE_WIDE_CURSES 1

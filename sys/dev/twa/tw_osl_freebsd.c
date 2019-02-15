@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-07 Applied Micro Circuits Corporation.
  * Copyright (c) 2004-05 Vinod Kashyap.
  * Copyright (c) 2000 Michael Smith
@@ -338,8 +340,8 @@ twa_attach(device_t dev)
 		return(error);
 	}
 	sc->reg_res_id = PCIR_BARS + bar0_offset;
-	if ((sc->reg_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-				&(sc->reg_res_id), 0, ~0, 1, RF_ACTIVE))
+	if ((sc->reg_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+				&(sc->reg_res_id), RF_ACTIVE))
 				== NULL) {
 		tw_osli_printf(sc, "error = %d",
 			TW_CL_SEVERITY_ERROR_STRING,
@@ -355,8 +357,8 @@ twa_attach(device_t dev)
 
 	/* Allocate and register our interrupt. */
 	sc->irq_res_id = 0;
-	if ((sc->irq_res = bus_alloc_resource(sc->bus_dev, SYS_RES_IRQ,
-				&(sc->irq_res_id), 0, ~0, 1,
+	if ((sc->irq_res = bus_alloc_resource_any(sc->bus_dev, SYS_RES_IRQ,
+				&(sc->irq_res_id),
 				RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 		tw_osli_printf(sc, "error = %d",
 			TW_CL_SEVERITY_ERROR_STRING,
@@ -423,8 +425,8 @@ twa_attach(device_t dev)
 	}
 
 	sc->watchdog_index = 0;
-	callout_init(&(sc->watchdog_callout[0]), CALLOUT_MPSAFE);
-	callout_init(&(sc->watchdog_callout[1]), CALLOUT_MPSAFE);
+	callout_init(&(sc->watchdog_callout[0]), 1);
+	callout_init(&(sc->watchdog_callout[1]), 1);
 	callout_reset(&(sc->watchdog_callout[0]), 5*hz, twa_watchdog, &sc->ctlr_handle);
 
 	return(0);

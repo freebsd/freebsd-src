@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 James Gritton
  * All rights reserved.
  *
@@ -71,6 +73,7 @@ static const struct ipspec intparams[] = {
     [IP_EXEC_POSTSTOP] =	{"exec.poststop",	PF_INTERNAL},
     [IP_EXEC_PRESTART] =	{"exec.prestart",	PF_INTERNAL},
     [IP_EXEC_PRESTOP] =		{"exec.prestop",	PF_INTERNAL},
+    [IP_EXEC_CREATED] =		{"exec.created",	PF_INTERNAL},
     [IP_EXEC_START] =		{"exec.start",		PF_INTERNAL},
     [IP_EXEC_STOP] =		{"exec.stop",		PF_INTERNAL},
     [IP_EXEC_SYSTEM_JAIL_USER]=	{"exec.system_jail_user",
@@ -84,6 +87,7 @@ static const struct ipspec intparams[] = {
     [IP_MOUNT] =		{"mount",		PF_INTERNAL | PF_REV},
     [IP_MOUNT_DEVFS] =		{"mount.devfs",		PF_INTERNAL | PF_BOOL},
     [IP_MOUNT_FDESCFS] =	{"mount.fdescfs",	PF_INTERNAL | PF_BOOL},
+    [IP_MOUNT_PROCFS] =		{"mount.procfs",	PF_INTERNAL | PF_BOOL},
     [IP_MOUNT_FSTAB] =		{"mount.fstab",		PF_INTERNAL},
     [IP_STOP_TIMEOUT] =		{"stop.timeout",	PF_INTERNAL | PF_INT},
     [IP_VNET_INTERFACE] =	{"vnet.interface",	PF_INTERNAL},
@@ -102,7 +106,6 @@ static const struct ipspec intparams[] = {
     [KP_ALLOW_SOCKET_AF] =	{"allow.socket_af",	0},
     [KP_ALLOW_SYSVIPC] =	{"allow.sysvipc",	0},
     [KP_DEVFS_RULESET] =	{"devfs_ruleset",	0},
-    [KP_ENFORCE_STATFS] =	{"enforce_statfs",	0},
     [KP_HOST_HOSTNAME] =	{"host.hostname",	0},
 #ifdef INET
     [KP_IP4_ADDR] =		{"ip4.addr",		0},
@@ -110,8 +113,8 @@ static const struct ipspec intparams[] = {
 #ifdef INET6
     [KP_IP6_ADDR] =		{"ip6.addr",		0},
 #endif
-    [KP_JID] =			{"jid",			0},
-    [KP_NAME] =			{"name",		0},
+    [KP_JID] =			{"jid",			PF_IMMUTABLE},
+    [KP_NAME] =			{"name",		PF_IMMUTABLE},
     [KP_PATH] =			{"path",		0},
     [KP_PERSIST] =		{"persist",		0},
     [KP_SECURELEVEL] =		{"securelevel",		0},
@@ -129,9 +132,8 @@ load_config(void)
 	struct cfjail *j, *tj, *wj;
 	struct cfparam *p, *vp, *tp;
 	struct cfstring *s, *vs, *ns;
-	struct cfvar *v;
+	struct cfvar *v, *vv;
 	char *ep;
-	size_t varoff;
 	int did_self, jseq, pgen;
 
 	if (!strcmp(cfname, "-")) {
@@ -190,7 +192,6 @@ load_config(void)
 		    p->gen = ++pgen;
 		find_vars:
 		    TAILQ_FOREACH(s, &p->val, tq) {
-			varoff = 0;
 			while ((v = STAILQ_FIRST(&s->vars))) {
 				TAILQ_FOREACH(vp, &j->params, tq)
 					if (!strcmp(vp->name, v->name))
@@ -232,11 +233,13 @@ load_config(void)
 					goto bad_var;
 				}
 				s->s = erealloc(s->s, s->len + vs->len + 1);
-				memmove(s->s + v->pos + varoff + vs->len,
-				    s->s + v->pos + varoff,
-				    s->len - (v->pos + varoff) + 1);
-				memcpy(s->s + v->pos + varoff, vs->s, vs->len);
-				varoff += vs->len;
+				memmove(s->s + v->pos + vs->len,
+				    s->s + v->pos,
+				    s->len - v->pos + 1);
+				memcpy(s->s + v->pos, vs->s, vs->len);
+				vv = v;
+				while ((vv = STAILQ_NEXT(vv, tq)))
+					vv->pos += vs->len;
 				s->len += vs->len;
 				while ((vs = TAILQ_NEXT(vs, tq))) {
 					ns = emalloc(sizeof(struct cfstring));
@@ -361,6 +364,11 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 				break;
 	if (dp != NULL) {
 		/* Found it - append or replace. */
+		if (dp->flags & PF_IMMUTABLE) {
+			jail_warnx(j, "cannot redefine variable \"%s\".",
+			    dp->name);
+			return;
+		}
 		if (strcmp(dp->name, name)) {
 			free(dp->name);
 			dp->name = estrdup(name);
@@ -448,7 +456,7 @@ check_intparams(struct cfjail *j)
 	struct addrinfo hints;
 	struct addrinfo *ai0, *ai;
 	const char *hostname;
-	int gicode, defif, prefix;
+	int gicode, defif;
 #endif
 #ifdef INET
 	struct in_addr addr4;
@@ -591,15 +599,7 @@ check_intparams(struct cfjail *j)
 				strcpy(s->s, cs + 1);
 				s->len -= cs + 1 - s->s;
 			}
-			if ((cs = strchr(s->s, '/'))) {
-				prefix = strtol(cs + 1, &ep, 10);
-				if (*ep == '.'
-				    ? inet_pton(AF_INET, cs + 1, &addr4) != 1
-				    : *ep || prefix < 0 || prefix > 32) {
-					jail_warnx(j,
-					    "ip4.addr: bad netmask \"%s\"", cs);
-					error = -1;	
-				}
+			if ((cs = strchr(s->s, '/')) != NULL) {
 				*cs = '\0';
 				s->len = cs - s->s;
 			}
@@ -620,14 +620,7 @@ check_intparams(struct cfjail *j)
 				strcpy(s->s, cs + 1);
 				s->len -= cs + 1 - s->s;
 			}
-			if ((cs = strchr(s->s, '/'))) {
-				prefix = strtol(cs + 1, &ep, 10);
-				if (*ep || prefix < 0 || prefix > 128) {
-					jail_warnx(j,
-					    "ip6.addr: bad prefixlen \"%s\"",
-					    cs);
-					error = -1;	
-				}
+			if ((cs = strchr(s->s, '/')) != NULL) {
 				*cs = '\0';
 				s->len = cs - s->s;
 			}

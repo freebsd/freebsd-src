@@ -48,12 +48,14 @@
 int
 main(int a, char **v)
 {
+	encioc_string_t stri;
 	encioc_element_t *objp;
 	encioc_elm_status_t ob;
 	encioc_elm_desc_t objd;
 	encioc_elm_devnames_t objdn;
 	int fd, nobj, f, i, verbose, quiet, errors;
 	u_char estat;
+	char str[32];
 
 	if (a < 2) {
 		fprintf(stderr, "usage: %s [ -v ] device [ device ... ]\n", *v);
@@ -77,6 +79,16 @@ main(int a, char **v)
 		if (fd < 0) {
 			perror(*v);
 			continue;
+		}
+		if (verbose > 1) {
+			stri.bufsiz = sizeof(str);
+			stri.buf = &str[0];
+			if (ioctl(fd, ENCIOC_GETENCNAME, (caddr_t) &stri) == 0)
+				printf("%s: Enclosure Name: %s\n", *v, stri.buf);
+			stri.bufsiz = sizeof(str);
+			stri.buf = &str[0];
+			if (ioctl(fd, ENCIOC_GETENCID, (caddr_t) &stri) == 0)
+				printf("%s: Enclosure ID: %s\n", *v, stri.buf);
 		}
 		if (ioctl(fd, ENCIOC_GETNELM, (caddr_t) &nobj) < 0) {
 			perror("ENCIOC_GETNELM");

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -43,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/module.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/sx.h>
@@ -60,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_message.h>
 
 #include <dev/iscsi/icl.h>
+#include <dev/iscsi/icl_wrappers.h>
 #include <dev/iscsi/iscsi_ioctl.h>
 #include <dev/iscsi/iscsi_proto.h>
 #include <dev/iscsi/iscsi.h>
@@ -97,6 +101,9 @@ SYSCTL_INT(_kern_iscsi, OID_AUTO, maxtags, CTLFLAG_RWTUN, &maxtags,
 static int fail_on_disconnection = 0;
 SYSCTL_INT(_kern_iscsi, OID_AUTO, fail_on_disconnection, CTLFLAG_RWTUN,
     &fail_on_disconnection, 0, "Destroy CAM SIM on connection failure");
+static int fail_on_shutdown = 1;
+SYSCTL_INT(_kern_iscsi, OID_AUTO, fail_on_shutdown, CTLFLAG_RWTUN,
+    &fail_on_shutdown, 0, "Fail disconnected sessions on shutdown");
 
 static MALLOC_DEFINE(M_ISCSI, "iSCSI", "iSCSI initiator");
 static uma_zone_t iscsi_outstanding_zone;
@@ -139,6 +146,7 @@ static uma_zone_t iscsi_outstanding_zone;
 #define ISCSI_SESSION_LOCK(X)		mtx_lock(&X->is_lock)
 #define ISCSI_SESSION_UNLOCK(X)		mtx_unlock(&X->is_lock)
 #define ISCSI_SESSION_LOCK_ASSERT(X)	mtx_assert(&X->is_lock, MA_OWNED)
+#define ISCSI_SESSION_LOCK_ASSERT_NOT(X) mtx_assert(&X->is_lock, MA_NOTOWNED)
 
 static int	iscsi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg,
 		    int mode, struct thread *td);
@@ -167,7 +175,8 @@ static void	iscsi_poll(struct cam_sim *sim);
 static struct iscsi_outstanding	*iscsi_outstanding_find(struct iscsi_session *is,
 		    uint32_t initiator_task_tag);
 static struct iscsi_outstanding	*iscsi_outstanding_add(struct iscsi_session *is,
-		    uint32_t initiator_task_tag, union ccb *ccb);
+		    struct icl_pdu *request, union ccb *ccb,
+		    uint32_t *initiator_task_tagp);
 static void	iscsi_outstanding_remove(struct iscsi_session *is,
 		    struct iscsi_outstanding *io);
 
@@ -191,7 +200,7 @@ iscsi_pdu_prepare(struct icl_pdu *request)
 	 * Data-Out PDU does not contain CmdSN.
 	 */
 	if (bhssc->bhssc_opcode != ISCSI_BHS_OPCODE_SCSI_DATA_OUT) {
-		if (is->is_cmdsn > is->is_maxcmdsn &&
+		if (ISCSI_SNGT(is->is_cmdsn, is->is_maxcmdsn) &&
 		    (bhssc->bhssc_opcode & ISCSI_BHS_OPCODE_IMMEDIATE) == 0) {
 			/*
 			 * Current MaxCmdSN prevents us from sending any more
@@ -200,8 +209,10 @@ iscsi_pdu_prepare(struct icl_pdu *request)
 			 * or by maintenance thread.
 			 */
 #if 0
-			ISCSI_SESSION_DEBUG(is, "postponing send, CmdSN %d, ExpCmdSN %d, MaxCmdSN %d, opcode 0x%x",
-			    is->is_cmdsn, is->is_expcmdsn, is->is_maxcmdsn, bhssc->bhssc_opcode);
+			ISCSI_SESSION_DEBUG(is, "postponing send, CmdSN %u, "
+			    "ExpCmdSN %u, MaxCmdSN %u, opcode 0x%x",
+			    is->is_cmdsn, is->is_expcmdsn, is->is_maxcmdsn,
+			    bhssc->bhssc_opcode);
 #endif
 			return (true);
 		}
@@ -222,14 +233,16 @@ iscsi_session_send_postponed(struct iscsi_session *is)
 
 	ISCSI_SESSION_LOCK_ASSERT(is);
 
-	while (!STAILQ_EMPTY(&is->is_postponed)) {
-		request = STAILQ_FIRST(&is->is_postponed);
+	if (STAILQ_EMPTY(&is->is_postponed))
+		return;
+	while ((request = STAILQ_FIRST(&is->is_postponed)) != NULL) {
 		postpone = iscsi_pdu_prepare(request);
 		if (postpone)
-			break;
+			return;
 		STAILQ_REMOVE_HEAD(&is->is_postponed, ip_next);
 		icl_pdu_queue(request);
 	}
+	xpt_release_simq(is->is_sim, 1);
 }
 
 static void
@@ -243,6 +256,8 @@ iscsi_pdu_queue_locked(struct icl_pdu *request)
 	iscsi_session_send_postponed(is);
 	postpone = iscsi_pdu_prepare(request);
 	if (postpone) {
+		if (STAILQ_EMPTY(&is->is_postponed))
+			xpt_freeze_simq(is->is_sim, 1);
 		STAILQ_INSERT_TAIL(&is->is_postponed, request, ip_next);
 		return;
 	}
@@ -266,7 +281,7 @@ iscsi_session_logout(struct iscsi_session *is)
 	struct icl_pdu *request;
 	struct iscsi_bhs_logout_request *bhslr;
 
-	request = icl_pdu_new_bhs(is->is_conn, M_NOWAIT);
+	request = icl_pdu_new(is->is_conn, M_NOWAIT);
 	if (request == NULL)
 		return;
 
@@ -278,15 +293,14 @@ iscsi_session_logout(struct iscsi_session *is)
 
 static void
 iscsi_session_terminate_task(struct iscsi_session *is,
-    struct iscsi_outstanding *io, bool requeue)
+    struct iscsi_outstanding *io, cam_status status)
 {
+
+	ISCSI_SESSION_LOCK_ASSERT(is);
 
 	if (io->io_ccb != NULL) {
 		io->io_ccb->ccb_h.status &= ~(CAM_SIM_QUEUED | CAM_STATUS_MASK);
-		if (requeue)
-			io->io_ccb->ccb_h.status |= CAM_REQUEUE_REQ;
-		else
-			io->io_ccb->ccb_h.status |= CAM_REQ_ABORTED;
+		io->io_ccb->ccb_h.status |= status;
 		if ((io->io_ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
 			io->io_ccb->ccb_h.status |= CAM_DEV_QFRZN;
 			xpt_freeze_devq(io->io_ccb->ccb_h.path, 1);
@@ -298,14 +312,14 @@ iscsi_session_terminate_task(struct iscsi_session *is,
 }
 
 static void
-iscsi_session_terminate_tasks(struct iscsi_session *is, bool requeue)
+iscsi_session_terminate_tasks(struct iscsi_session *is, cam_status status)
 {
 	struct iscsi_outstanding *io, *tmp;
 
 	ISCSI_SESSION_LOCK_ASSERT(is);
 
 	TAILQ_FOREACH_SAFE(io, &is->is_outstanding, io_next, tmp) {
-		iscsi_session_terminate_task(is, io, requeue);
+		iscsi_session_terminate_task(is, io, status);
 	}
 }
 
@@ -328,8 +342,9 @@ iscsi_session_cleanup(struct iscsi_session *is, bool destroy_sim)
 	/*
 	 * Remove postponed PDUs.
 	 */
-	while (!STAILQ_EMPTY(&is->is_postponed)) {
-		pdu = STAILQ_FIRST(&is->is_postponed);
+	if (!STAILQ_EMPTY(&is->is_postponed))
+		xpt_release_simq(is->is_sim, 1);
+	while ((pdu = STAILQ_FIRST(&is->is_postponed)) != NULL) {
 		STAILQ_REMOVE_HEAD(&is->is_postponed, ip_next);
 		icl_pdu_free(pdu);
 	}
@@ -338,11 +353,11 @@ iscsi_session_cleanup(struct iscsi_session *is, bool destroy_sim)
 		/*
 		 * Terminate SCSI tasks, asking CAM to requeue them.
 		 */
-		iscsi_session_terminate_tasks(is, true);
+		iscsi_session_terminate_tasks(is, CAM_REQUEUE_REQ);
 		return;
 	}
 
-	iscsi_session_terminate_tasks(is, false);
+	iscsi_session_terminate_tasks(is, CAM_DEV_NOT_THERE);
 
 	if (is->is_sim == NULL)
 		return;
@@ -395,6 +410,11 @@ iscsi_maintenance_thread_reconnect(struct iscsi_session *is)
 	KASSERT(STAILQ_EMPTY(&is->is_postponed),
 	    ("destroying session with postponed PDUs"));
 
+	if (is->is_conf.isc_enable == 0 && is->is_conf.isc_discovery == 0) {
+		ISCSI_SESSION_UNLOCK(is);
+		return;
+	}
+
 	/*
 	 * Request immediate reconnection from iscsid(8).
 	 */
@@ -417,6 +437,7 @@ iscsi_maintenance_thread_terminate(struct iscsi_session *is)
 	sx_xunlock(&sc->sc_lock);
 
 	icl_conn_close(is->is_conn);
+	callout_drain(&is->is_callout);
 
 	ISCSI_SESSION_LOCK(is);
 
@@ -429,8 +450,6 @@ iscsi_maintenance_thread_terminate(struct iscsi_session *is)
 	}
 	cv_signal(&is->is_login_cv);
 #endif
-
-	callout_drain(&is->is_callout);
 
 	iscsi_session_cleanup(is, true);
 
@@ -447,6 +466,7 @@ iscsi_maintenance_thread_terminate(struct iscsi_session *is)
 #ifdef ICL_KERNEL_PROXY
 	cv_destroy(&is->is_login_cv);
 #endif
+
 	ISCSI_SESSION_DEBUG(is, "terminated");
 	free(is, M_ISCSI);
 
@@ -459,23 +479,17 @@ iscsi_maintenance_thread_terminate(struct iscsi_session *is)
 static void
 iscsi_maintenance_thread(void *arg)
 {
-	struct iscsi_session *is;
+	struct iscsi_session *is = arg;
 
-	is = arg;
-
+	ISCSI_SESSION_LOCK(is);
 	for (;;) {
-		ISCSI_SESSION_LOCK(is);
 		if (is->is_reconnecting == false &&
 		    is->is_terminating == false &&
-		    STAILQ_EMPTY(&is->is_postponed))
+		    (STAILQ_EMPTY(&is->is_postponed) ||
+		     ISCSI_SNGT(is->is_cmdsn, is->is_maxcmdsn)))
 			cv_wait(&is->is_maintenance_cv, &is->is_lock);
 
-		if (is->is_reconnecting) {
-			ISCSI_SESSION_UNLOCK(is);
-			iscsi_maintenance_thread_reconnect(is);
-			continue;
-		}
-
+		/* Terminate supersedes reconnect. */
 		if (is->is_terminating) {
 			ISCSI_SESSION_UNLOCK(is);
 			iscsi_maintenance_thread_terminate(is);
@@ -483,9 +497,16 @@ iscsi_maintenance_thread(void *arg)
 			return;
 		}
 
+		if (is->is_reconnecting) {
+			ISCSI_SESSION_UNLOCK(is);
+			iscsi_maintenance_thread_reconnect(is);
+			ISCSI_SESSION_LOCK(is);
+			continue;
+		}
+
 		iscsi_session_send_postponed(is);
-		ISCSI_SESSION_UNLOCK(is);
 	}
+	ISCSI_SESSION_UNLOCK(is);
 }
 
 static void
@@ -507,6 +528,7 @@ iscsi_session_reconnect(struct iscsi_session *is)
 static void
 iscsi_session_terminate(struct iscsi_session *is)
 {
+
 	if (is->is_terminating)
 		return;
 
@@ -528,12 +550,17 @@ iscsi_callout(void *context)
 
 	is = context;
 
-	if (is->is_terminating)
+	ISCSI_SESSION_LOCK(is);
+	if (is->is_terminating) {
+		ISCSI_SESSION_UNLOCK(is);
 		return;
+	}
 
 	callout_schedule(&is->is_callout, 1 * hz);
 
-	ISCSI_SESSION_LOCK(is);
+	if (is->is_conf.isc_enable == 0)
+		goto out;
+
 	is->is_timeout++;
 
 	if (is->is_waiting_for_iscsid) {
@@ -585,7 +612,7 @@ iscsi_callout(void *context)
 	if (is->is_timeout < 2)
 		return;
 
-	request = icl_pdu_new_bhs(is->is_conn, M_NOWAIT);
+	request = icl_pdu_new(is->is_conn, M_NOWAIT);
 	if (request == NULL) {
 		ISCSI_SESSION_WARN(is, "failed to allocate PDU");
 		return;
@@ -599,6 +626,11 @@ iscsi_callout(void *context)
 	return;
 
 out:
+	if (is->is_terminating) {
+		ISCSI_SESSION_UNLOCK(is);
+		return;
+	}
+
 	ISCSI_SESSION_UNLOCK(is);
 
 	if (reconnect_needed)
@@ -610,7 +642,7 @@ iscsi_pdu_update_statsn(const struct icl_pdu *response)
 {
 	const struct iscsi_bhs_data_in *bhsdi;
 	struct iscsi_session *is;
-	uint32_t expcmdsn, maxcmdsn;
+	uint32_t expcmdsn, maxcmdsn, statsn;
 
 	is = PDU_SESSION(response);
 
@@ -629,26 +661,27 @@ iscsi_pdu_update_statsn(const struct icl_pdu *response)
 	 */
 	if (bhsdi->bhsdi_opcode != ISCSI_BHS_OPCODE_SCSI_DATA_IN ||
 	    (bhsdi->bhsdi_flags & BHSDI_FLAGS_S) != 0) {
-		if (ntohl(bhsdi->bhsdi_statsn) < is->is_statsn) {
-			ISCSI_SESSION_WARN(is,
-			    "PDU StatSN %d >= session StatSN %d, opcode 0x%x",
-			    is->is_statsn, ntohl(bhsdi->bhsdi_statsn),
-			    bhsdi->bhsdi_opcode);
+		statsn = ntohl(bhsdi->bhsdi_statsn);
+		if (statsn != is->is_statsn && statsn != (is->is_statsn + 1)) {
+			/* XXX: This is normal situation for MCS */
+			ISCSI_SESSION_WARN(is, "PDU 0x%x StatSN %u != "
+			    "session ExpStatSN %u (or + 1); reconnecting",
+			    bhsdi->bhsdi_opcode, statsn, is->is_statsn);
+			iscsi_session_reconnect(is);
 		}
-		is->is_statsn = ntohl(bhsdi->bhsdi_statsn);
+		if (ISCSI_SNGT(statsn, is->is_statsn))
+			is->is_statsn = statsn;
 	}
 
 	expcmdsn = ntohl(bhsdi->bhsdi_expcmdsn);
 	maxcmdsn = ntohl(bhsdi->bhsdi_maxcmdsn);
 
-	/*
-	 * XXX: Compare using Serial Arithmetic Sense.
-	 */
-	if (maxcmdsn + 1 < expcmdsn) {
-		ISCSI_SESSION_DEBUG(is, "PDU MaxCmdSN %d + 1 < PDU ExpCmdSN %d; ignoring",
+	if (ISCSI_SNLT(maxcmdsn + 1, expcmdsn)) {
+		ISCSI_SESSION_DEBUG(is,
+		    "PDU MaxCmdSN %u + 1 < PDU ExpCmdSN %u; ignoring",
 		    maxcmdsn, expcmdsn);
 	} else {
-		if (maxcmdsn > is->is_maxcmdsn) {
+		if (ISCSI_SNGT(maxcmdsn, is->is_maxcmdsn)) {
 			is->is_maxcmdsn = maxcmdsn;
 
 			/*
@@ -657,15 +690,19 @@ iscsi_pdu_update_statsn(const struct icl_pdu *response)
 			 */
 			if (!STAILQ_EMPTY(&is->is_postponed))
 				cv_signal(&is->is_maintenance_cv);
-		} else if (maxcmdsn < is->is_maxcmdsn) {
-			ISCSI_SESSION_DEBUG(is, "PDU MaxCmdSN %d < session MaxCmdSN %d; ignoring",
+		} else if (ISCSI_SNLT(maxcmdsn, is->is_maxcmdsn)) {
+			/* XXX: This is normal situation for MCS */
+			ISCSI_SESSION_DEBUG(is,
+			    "PDU MaxCmdSN %u < session MaxCmdSN %u; ignoring",
 			    maxcmdsn, is->is_maxcmdsn);
 		}
 
-		if (expcmdsn > is->is_expcmdsn) {
+		if (ISCSI_SNGT(expcmdsn, is->is_expcmdsn)) {
 			is->is_expcmdsn = expcmdsn;
-		} else if (expcmdsn < is->is_expcmdsn) {
-			ISCSI_SESSION_DEBUG(is, "PDU ExpCmdSN %d < session ExpCmdSN %d; ignoring",
+		} else if (ISCSI_SNLT(expcmdsn, is->is_expcmdsn)) {
+			/* XXX: This is normal situation for MCS */
+			ISCSI_SESSION_DEBUG(is,
+			    "PDU ExpCmdSN %u < session ExpCmdSN %u; ignoring",
 			    expcmdsn, is->is_expcmdsn);
 		}
 	}
@@ -688,6 +725,8 @@ iscsi_receive_callback(struct icl_pdu *response)
 
 	ISCSI_SESSION_LOCK(is);
 
+	iscsi_pdu_update_statsn(response);
+
 #ifdef ICL_KERNEL_PROXY
 	if (is->is_login_phase) {
 		if (is->is_login_pdu == NULL)
@@ -700,8 +739,6 @@ iscsi_receive_callback(struct icl_pdu *response)
 	}
 #endif
 
-	iscsi_pdu_update_statsn(response);
-	
 	/*
 	 * The handling routine is responsible for freeing the PDU
 	 * when it's no longer needed.
@@ -709,37 +746,46 @@ iscsi_receive_callback(struct icl_pdu *response)
 	switch (response->ip_bhs->bhs_opcode) {
 	case ISCSI_BHS_OPCODE_NOP_IN:
 		iscsi_pdu_handle_nop_in(response);
+		ISCSI_SESSION_UNLOCK(is);
 		break;
 	case ISCSI_BHS_OPCODE_SCSI_RESPONSE:
 		iscsi_pdu_handle_scsi_response(response);
+		/* Session lock dropped inside. */
+		ISCSI_SESSION_LOCK_ASSERT_NOT(is);
 		break;
 	case ISCSI_BHS_OPCODE_TASK_RESPONSE:
 		iscsi_pdu_handle_task_response(response);
+		ISCSI_SESSION_UNLOCK(is);
 		break;
 	case ISCSI_BHS_OPCODE_SCSI_DATA_IN:
 		iscsi_pdu_handle_data_in(response);
+		/* Session lock dropped inside. */
+		ISCSI_SESSION_LOCK_ASSERT_NOT(is);
 		break;
 	case ISCSI_BHS_OPCODE_LOGOUT_RESPONSE:
 		iscsi_pdu_handle_logout_response(response);
+		ISCSI_SESSION_UNLOCK(is);
 		break;
 	case ISCSI_BHS_OPCODE_R2T:
 		iscsi_pdu_handle_r2t(response);
+		ISCSI_SESSION_UNLOCK(is);
 		break;
 	case ISCSI_BHS_OPCODE_ASYNC_MESSAGE:
 		iscsi_pdu_handle_async_message(response);
+		ISCSI_SESSION_UNLOCK(is);
 		break;
 	case ISCSI_BHS_OPCODE_REJECT:
 		iscsi_pdu_handle_reject(response);
+		ISCSI_SESSION_UNLOCK(is);
 		break;
 	default:
 		ISCSI_SESSION_WARN(is, "received PDU with unsupported "
 		    "opcode 0x%x; reconnecting",
 		    response->ip_bhs->bhs_opcode);
 		iscsi_session_reconnect(is);
+		ISCSI_SESSION_UNLOCK(is);
 		icl_pdu_free(response);
 	}
-
-	ISCSI_SESSION_UNLOCK(is);
 }
 
 static void
@@ -789,7 +835,7 @@ iscsi_pdu_handle_nop_in(struct icl_pdu *response)
 		icl_pdu_get_data(response, 0, data, datasize);
 	}
 
-	request = icl_pdu_new_bhs(response->ip_conn, M_NOWAIT);
+	request = icl_pdu_new(response->ip_conn, M_NOWAIT);
 	if (request == NULL) {
 		ISCSI_SESSION_WARN(is, "failed to allocate memory; "
 		    "reconnecting");
@@ -828,9 +874,11 @@ iscsi_pdu_handle_scsi_response(struct icl_pdu *response)
 	struct iscsi_bhs_scsi_response *bhssr;
 	struct iscsi_outstanding *io;
 	struct iscsi_session *is;
+	union ccb *ccb;
 	struct ccb_scsiio *csio;
-	size_t data_segment_len;
+	size_t data_segment_len, received;
 	uint16_t sense_len;
+	uint32_t resid;
 
 	is = PDU_SESSION(response);
 
@@ -840,46 +888,60 @@ iscsi_pdu_handle_scsi_response(struct icl_pdu *response)
 		ISCSI_SESSION_WARN(is, "bad itt 0x%x", bhssr->bhssr_initiator_task_tag);
 		icl_pdu_free(response);
 		iscsi_session_reconnect(is);
+		ISCSI_SESSION_UNLOCK(is);
 		return;
 	}
+
+	ccb = io->io_ccb;
+
+	/*
+	 * With iSER, after getting good response we can be sure
+	 * that all the data has been successfully transferred.
+	 */
+	if (is->is_conn->ic_iser) {
+		resid = ntohl(bhssr->bhssr_residual_count);
+		if (bhssr->bhssr_flags & BHSSR_FLAGS_RESIDUAL_UNDERFLOW) {
+			io->io_received = ccb->csio.dxfer_len - resid;
+		} else if (bhssr->bhssr_flags & BHSSR_FLAGS_RESIDUAL_OVERFLOW) {
+			ISCSI_SESSION_WARN(is, "overflow: target indicates %d", resid);
+		} else {
+			io->io_received = ccb->csio.dxfer_len;
+		}
+	}
+
+	received = io->io_received;
+	iscsi_outstanding_remove(is, io);
+	ISCSI_SESSION_UNLOCK(is);
 
 	if (bhssr->bhssr_response != BHSSR_RESPONSE_COMMAND_COMPLETED) {
 		ISCSI_SESSION_WARN(is, "service response 0x%x", bhssr->bhssr_response);
- 		if ((io->io_ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
- 			xpt_freeze_devq(io->io_ccb->ccb_h.path, 1);
+ 		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
+ 			xpt_freeze_devq(ccb->ccb_h.path, 1);
 			ISCSI_SESSION_DEBUG(is, "freezing devq");
 		}
- 		io->io_ccb->ccb_h.status = CAM_REQ_CMP_ERR | CAM_DEV_QFRZN;
+ 		ccb->ccb_h.status = CAM_REQ_CMP_ERR | CAM_DEV_QFRZN;
 	} else if (bhssr->bhssr_status == 0) {
-		io->io_ccb->ccb_h.status = CAM_REQ_CMP;
+		ccb->ccb_h.status = CAM_REQ_CMP;
 	} else {
- 		if ((io->io_ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
- 			xpt_freeze_devq(io->io_ccb->ccb_h.path, 1);
+ 		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
+ 			xpt_freeze_devq(ccb->ccb_h.path, 1);
 			ISCSI_SESSION_DEBUG(is, "freezing devq");
 		}
- 		io->io_ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR | CAM_DEV_QFRZN;
-		io->io_ccb->csio.scsi_status = bhssr->bhssr_status;
+ 		ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR | CAM_DEV_QFRZN;
+		ccb->csio.scsi_status = bhssr->bhssr_status;
 	}
 
-	if (bhssr->bhssr_flags & BHSSR_FLAGS_RESIDUAL_OVERFLOW) {
-		ISCSI_SESSION_WARN(is, "target indicated residual overflow");
-		icl_pdu_free(response);
-		iscsi_session_reconnect(is);
-		return;
-	}
-
-	csio = &io->io_ccb->csio;
-
+	csio = &ccb->csio;
 	data_segment_len = icl_pdu_data_segment_length(response);
 	if (data_segment_len > 0) {
 		if (data_segment_len < sizeof(sense_len)) {
 			ISCSI_SESSION_WARN(is, "truncated data segment (%zd bytes)",
 			    data_segment_len);
-			if ((io->io_ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
-				xpt_freeze_devq(io->io_ccb->ccb_h.path, 1);
+			if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
+				xpt_freeze_devq(ccb->ccb_h.path, 1);
 				ISCSI_SESSION_DEBUG(is, "freezing devq");
 			}
-			io->io_ccb->ccb_h.status = CAM_REQ_CMP_ERR | CAM_DEV_QFRZN;
+			ccb->ccb_h.status = CAM_REQ_CMP_ERR | CAM_DEV_QFRZN;
 			goto out;
 		}
 		icl_pdu_get_data(response, 0, &sense_len, sizeof(sense_len));
@@ -892,11 +954,11 @@ iscsi_pdu_handle_scsi_response(struct icl_pdu *response)
 			ISCSI_SESSION_WARN(is, "truncated data segment "
 			    "(%zd bytes, should be %zd)",
 			    data_segment_len, sizeof(sense_len) + sense_len);
-			if ((io->io_ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
-				xpt_freeze_devq(io->io_ccb->ccb_h.path, 1);
+			if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
+				xpt_freeze_devq(ccb->ccb_h.path, 1);
 				ISCSI_SESSION_DEBUG(is, "freezing devq");
 			}
-			io->io_ccb->ccb_h.status = CAM_REQ_CMP_ERR | CAM_DEV_QFRZN;
+			ccb->ccb_h.status = CAM_REQ_CMP_ERR | CAM_DEV_QFRZN;
 			goto out;
 		} else if (sizeof(sense_len) + sense_len < data_segment_len)
 			ISCSI_SESSION_WARN(is, "oversize data segment "
@@ -909,7 +971,7 @@ iscsi_pdu_handle_scsi_response(struct icl_pdu *response)
 		}
 		icl_pdu_get_data(response, sizeof(sense_len), &csio->sense_data, sense_len);
 		csio->sense_resid = csio->sense_len - sense_len;
-		io->io_ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
+		ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
 	}
 
 out:
@@ -917,21 +979,19 @@ out:
 		csio->resid = ntohl(bhssr->bhssr_residual_count);
 
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-		KASSERT(io->io_received <= csio->dxfer_len,
-		    ("io->io_received > csio->dxfer_len"));
-		if (io->io_received < csio->dxfer_len) {
-			if (csio->resid != csio->dxfer_len - io->io_received) {
+		KASSERT(received <= csio->dxfer_len,
+		    ("received > csio->dxfer_len"));
+		if (received < csio->dxfer_len) {
+			if (csio->resid != csio->dxfer_len - received) {
 				ISCSI_SESSION_WARN(is, "underflow mismatch: "
 				    "target indicates %d, we calculated %zd",
-				    csio->resid,
-				    csio->dxfer_len - io->io_received);
+				    csio->resid, csio->dxfer_len - received);
 			}
-			csio->resid = csio->dxfer_len - io->io_received;
+			csio->resid = csio->dxfer_len - received;
 		}
 	}
 
-	xpt_done(io->io_ccb);
-	iscsi_outstanding_remove(is, io);
+	xpt_done(ccb);
 	icl_pdu_free(response);
 }
 
@@ -960,7 +1020,7 @@ iscsi_pdu_handle_task_response(struct icl_pdu *response)
 	} else {
 		aio = iscsi_outstanding_find(is, io->io_datasn);
 		if (aio != NULL && aio->io_ccb != NULL)
-			iscsi_session_terminate_task(is, aio, false);
+			iscsi_session_terminate_task(is, aio, CAM_REQ_ABORTED);
 	}
 
 	iscsi_outstanding_remove(is, io);
@@ -973,8 +1033,9 @@ iscsi_pdu_handle_data_in(struct icl_pdu *response)
 	struct iscsi_bhs_data_in *bhsdi;
 	struct iscsi_outstanding *io;
 	struct iscsi_session *is;
+	union ccb *ccb;
 	struct ccb_scsiio *csio;
-	size_t data_segment_len;
+	size_t data_segment_len, received, oreceived;
 	
 	is = PDU_SESSION(response);
 	bhsdi = (struct iscsi_bhs_data_in *)response->ip_bhs;
@@ -983,6 +1044,7 @@ iscsi_pdu_handle_data_in(struct icl_pdu *response)
 		ISCSI_SESSION_WARN(is, "bad itt 0x%x", bhsdi->bhsdi_initiator_task_tag);
 		icl_pdu_free(response);
 		iscsi_session_reconnect(is);
+		ISCSI_SESSION_UNLOCK(is);
 		return;
 	}
 
@@ -993,6 +1055,7 @@ iscsi_pdu_handle_data_in(struct icl_pdu *response)
 		 * but initiators and targets MUST be able to properly receive
 		 * 0 length data segments."
 		 */
+		ISCSI_SESSION_UNLOCK(is);
 		icl_pdu_free(response);
 		return;
 	}
@@ -1007,10 +1070,12 @@ iscsi_pdu_handle_data_in(struct icl_pdu *response)
 		    io->io_received, (size_t)ntohl(bhsdi->bhsdi_buffer_offset));
 		icl_pdu_free(response);
 		iscsi_session_reconnect(is);
+		ISCSI_SESSION_UNLOCK(is);
 		return;
 	}
 
-	csio = &io->io_ccb->csio;
+	ccb = io->io_ccb;
+	csio = &ccb->csio;
 
 	if (io->io_received + data_segment_len > csio->dxfer_len) {
 		ISCSI_SESSION_WARN(is, "oversize data segment (%zd bytes "
@@ -1018,11 +1083,18 @@ iscsi_pdu_handle_data_in(struct icl_pdu *response)
 		    data_segment_len, io->io_received, csio->dxfer_len);
 		icl_pdu_free(response);
 		iscsi_session_reconnect(is);
+		ISCSI_SESSION_UNLOCK(is);
 		return;
 	}
 
-	icl_pdu_get_data(response, 0, csio->data_ptr + io->io_received, data_segment_len);
+	oreceived = io->io_received;
 	io->io_received += data_segment_len;
+	received = io->io_received;
+	if ((bhsdi->bhsdi_flags & BHSDI_FLAGS_S) != 0)
+		iscsi_outstanding_remove(is, io);
+	ISCSI_SESSION_UNLOCK(is);
+
+	icl_pdu_get_data(response, 0, csio->data_ptr + oreceived, data_segment_len);
 
 	/*
 	 * XXX: Check DataSN.
@@ -1038,33 +1110,31 @@ iscsi_pdu_handle_data_in(struct icl_pdu *response)
 
 	//ISCSI_SESSION_DEBUG(is, "got S flag; status 0x%x", bhsdi->bhsdi_status);
 	if (bhsdi->bhsdi_status == 0) {
-		io->io_ccb->ccb_h.status = CAM_REQ_CMP;
+		ccb->ccb_h.status = CAM_REQ_CMP;
 	} else {
-		if ((io->io_ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
-			xpt_freeze_devq(io->io_ccb->ccb_h.path, 1);
+		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
+			xpt_freeze_devq(ccb->ccb_h.path, 1);
 			ISCSI_SESSION_DEBUG(is, "freezing devq");
 		}
-		io->io_ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR | CAM_DEV_QFRZN;
+		ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR | CAM_DEV_QFRZN;
 		csio->scsi_status = bhsdi->bhsdi_status;
 	}
 
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-		KASSERT(io->io_received <= csio->dxfer_len,
-		    ("io->io_received > csio->dxfer_len"));
-		if (io->io_received < csio->dxfer_len) {
+		KASSERT(received <= csio->dxfer_len,
+		    ("received > csio->dxfer_len"));
+		if (received < csio->dxfer_len) {
 			csio->resid = ntohl(bhsdi->bhsdi_residual_count);
-			if (csio->resid != csio->dxfer_len - io->io_received) {
+			if (csio->resid != csio->dxfer_len - received) {
 				ISCSI_SESSION_WARN(is, "underflow mismatch: "
 				    "target indicates %d, we calculated %zd",
-				    csio->resid,
-				    csio->dxfer_len - io->io_received);
+				    csio->resid, csio->dxfer_len - received);
 			}
-			csio->resid = csio->dxfer_len - io->io_received;
+			csio->resid = csio->dxfer_len - received;
 		}
 	}
 
-	xpt_done(io->io_ccb);
-	iscsi_outstanding_remove(is, io);
+	xpt_done(ccb);
 	icl_pdu_free(response);
 }
 
@@ -1138,8 +1208,8 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 	for (;;) {
 		len = total_len;
 
-		if (len > is->is_max_data_segment_length)
-			len = is->is_max_data_segment_length;
+		if (len > is->is_max_send_data_segment_length)
+			len = is->is_max_send_data_segment_length;
 
 		if (off + len > csio->dxfer_len) {
 			ISCSI_SESSION_WARN(is, "target requested invalid "
@@ -1150,7 +1220,7 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 			return;
 		}
 
-		request = icl_pdu_new_bhs(response->ip_conn, M_NOWAIT);
+		request = icl_pdu_new(response->ip_conn, M_NOWAIT);
 		if (request == NULL) {
 			icl_pdu_free(response);
 			iscsi_session_reconnect(is);
@@ -1211,10 +1281,10 @@ iscsi_pdu_handle_async_message(struct icl_pdu *response)
 		iscsi_session_terminate(is);
 		break;
 	case BHSAM_EVENT_TARGET_TERMINATES_CONNECTION:
-		ISCSI_SESSION_WARN(is, "target indicates it will drop drop the connection");
+		ISCSI_SESSION_WARN(is, "target indicates it will drop the connection");
 		break;
 	case BHSAM_EVENT_TARGET_TERMINATES_SESSION:
-		ISCSI_SESSION_WARN(is, "target indicates it will drop drop the session");
+		ISCSI_SESSION_WARN(is, "target indicates it will drop the session");
 		break;
 	default:
 		/*
@@ -1247,12 +1317,18 @@ iscsi_ioctl_daemon_wait(struct iscsi_softc *sc,
     struct iscsi_daemon_request *request)
 {
 	struct iscsi_session *is;
+	struct icl_drv_limits idl;
 	int error;
 
 	sx_slock(&sc->sc_lock);
 	for (;;) {
 		TAILQ_FOREACH(is, &sc->sc_sessions, is_next) {
 			ISCSI_SESSION_LOCK(is);
+			if (is->is_conf.isc_enable == 0 &&
+			    is->is_conf.isc_discovery == 0) {
+				ISCSI_SESSION_UNLOCK(is);
+				continue;
+			}
 			if (is->is_waiting_for_iscsid)
 				break;
 			ISCSI_SESSION_UNLOCK(is);
@@ -1282,6 +1358,24 @@ iscsi_ioctl_daemon_wait(struct iscsi_softc *sc,
 		memcpy(&request->idr_conf, &is->is_conf,
 		    sizeof(request->idr_conf));
 
+		error = icl_limits(is->is_conf.isc_offload,
+		    is->is_conf.isc_iser, &idl);
+		if (error != 0) {
+			ISCSI_SESSION_WARN(is, "icl_limits for offload \"%s\" "
+			    "failed with error %d", is->is_conf.isc_offload,
+			    error);
+			sx_sunlock(&sc->sc_lock);
+			return (error);
+		}
+		request->idr_limits.isl_max_recv_data_segment_length =
+		    idl.idl_max_recv_data_segment_length;
+		request->idr_limits.isl_max_send_data_segment_length =
+		    idl.idl_max_send_data_segment_length;
+		request->idr_limits.isl_max_burst_length =
+		    idl.idl_max_burst_length;
+		request->idr_limits.isl_first_burst_length =
+		    idl.idl_first_burst_length;
+
 		sx_sunlock(&sc->sc_lock);
 		return (0);
 	}
@@ -1292,6 +1386,7 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
     struct iscsi_daemon_handoff *handoff)
 {
 	struct iscsi_session *is;
+	struct icl_conn *ic;
 	int error;
 
 	sx_slock(&sc->sc_lock);
@@ -1308,6 +1403,7 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 		return (ESRCH);
 	}
 	ISCSI_SESSION_LOCK(is);
+	ic = is->is_conn;
 	if (is->is_conf.isc_discovery || is->is_terminating) {
 		ISCSI_SESSION_UNLOCK(is);
 		sx_sunlock(&sc->sc_lock);
@@ -1332,18 +1428,23 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 	is->is_statsn = handoff->idh_statsn;
 	is->is_initial_r2t = handoff->idh_initial_r2t;
 	is->is_immediate_data = handoff->idh_immediate_data;
-	is->is_max_data_segment_length = handoff->idh_max_data_segment_length;
+
+	is->is_max_recv_data_segment_length =
+	    handoff->idh_max_recv_data_segment_length;
+	is->is_max_send_data_segment_length =
+	    handoff->idh_max_send_data_segment_length;
 	is->is_max_burst_length = handoff->idh_max_burst_length;
 	is->is_first_burst_length = handoff->idh_first_burst_length;
 
 	if (handoff->idh_header_digest == ISCSI_DIGEST_CRC32C)
-		is->is_conn->ic_header_crc32c = true;
+		ic->ic_header_crc32c = true;
 	else
-		is->is_conn->ic_header_crc32c = false;
+		ic->ic_header_crc32c = false;
 	if (handoff->idh_data_digest == ISCSI_DIGEST_CRC32C)
-		is->is_conn->ic_data_crc32c = true;
+		ic->ic_data_crc32c = true;
 	else
-		is->is_conn->ic_data_crc32c = false;
+		ic->ic_data_crc32c = false;
+	ic->ic_maxtags = maxtags;
 
 	is->is_cmdsn = 0;
 	is->is_expcmdsn = 0;
@@ -1356,21 +1457,17 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 
 	ISCSI_SESSION_UNLOCK(is);
 
-#ifdef ICL_KERNEL_PROXY
-	if (handoff->idh_socket != 0) {
-#endif
-		/*
-		 * Handoff without using ICL proxy.
-		 */
-		error = icl_conn_handoff(is->is_conn, handoff->idh_socket);
-		if (error != 0) {
-			sx_sunlock(&sc->sc_lock);
-			iscsi_session_terminate(is);
-			return (error);
-		}
-#ifdef ICL_KERNEL_PROXY
+	/*
+	 * If we're going through the proxy, the idh_socket will be 0,
+	 * and the ICL module can simply ignore this call.  It can also
+	 * use it to determine it's no longer in the Login phase.
+	 */
+	error = icl_conn_handoff(ic, handoff->idh_socket);
+	if (error != 0) {
+		sx_sunlock(&sc->sc_lock);
+		iscsi_session_terminate(is);
+		return (error);
 	}
-#endif
 
 	sx_sunlock(&sc->sc_lock);
 
@@ -1387,7 +1484,7 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 
 	} else {
 		ISCSI_SESSION_LOCK(is);
-		is->is_devq = cam_simq_alloc(maxtags);
+		is->is_devq = cam_simq_alloc(ic->ic_maxtags);
 		if (is->is_devq == NULL) {
 			ISCSI_SESSION_WARN(is, "failed to allocate simq");
 			iscsi_session_terminate(is);
@@ -1396,7 +1493,7 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 
 		is->is_sim = cam_sim_alloc(iscsi_action, iscsi_poll, "iscsi",
 		    is, is->is_id /* unit */, &is->is_lock,
-		    1, maxtags, is->is_devq);
+		    1, ic->ic_maxtags, is->is_devq);
 		if (is->is_sim == NULL) {
 			ISCSI_SESSION_UNLOCK(is);
 			ISCSI_SESSION_WARN(is, "failed to allocate SIM");
@@ -1496,12 +1593,16 @@ iscsi_ioctl_daemon_connect(struct iscsi_softc *sc,
 	}
 
 	ISCSI_SESSION_LOCK(is);
+	is->is_statsn = 0;
+	is->is_cmdsn = 0;
+	is->is_expcmdsn = 0;
+	is->is_maxcmdsn = 0;
 	is->is_waiting_for_iscsid = false;
 	is->is_login_phase = true;
 	is->is_timeout = 0;
 	ISCSI_SESSION_UNLOCK(is);
 
-	error = icl_conn_connect(is->is_conn, idc->idc_iser, idc->idc_domain,
+	error = icl_conn_connect(is->is_conn, idc->idc_domain,
 	    idc->idc_socktype, idc->idc_protocol, from_sa, to_sa);
 	free(from_sa, M_SONAME);
 	free(to_sa, M_SONAME);
@@ -1543,7 +1644,7 @@ iscsi_ioctl_daemon_send(struct iscsi_softc *sc,
 		return (EIO);
 
 	datalen = ids->ids_data_segment_len;
-	if (datalen > ISCSI_MAX_DATA_SEGMENT_LENGTH)
+	if (datalen > is->is_max_send_data_segment_length)
 		return (EINVAL);
 	if (datalen > 0) {
 		data = malloc(datalen, M_ISCSI, M_WAITOK);
@@ -1554,14 +1655,14 @@ iscsi_ioctl_daemon_send(struct iscsi_softc *sc,
 		}
 	}
 
-	ip = icl_pdu_new_bhs(is->is_conn, M_WAITOK);
+	ip = icl_pdu_new(is->is_conn, M_WAITOK);
 	memcpy(ip->ip_bhs, ids->ids_bhs, sizeof(*ip->ip_bhs));
 	if (datalen > 0) {
 		error = icl_pdu_append_data(ip, data, datalen, M_WAITOK);
 		KASSERT(error == 0, ("icl_pdu_append_data(..., M_WAITOK) failed"));
 		free(data, M_ISCSI);
 	}
-	icl_pdu_queue(ip);
+	iscsi_pdu_queue(ip);
 
 	return (0);
 }
@@ -1573,6 +1674,7 @@ iscsi_ioctl_daemon_receive(struct iscsi_softc *sc,
 	struct iscsi_session *is;
 	struct icl_pdu *ip;
 	void *data;
+	int error;
 
 	sx_slock(&sc->sc_lock);
 	TAILQ_FOREACH(is, &sc->sc_sessions, is_next) {
@@ -1591,8 +1693,13 @@ iscsi_ioctl_daemon_receive(struct iscsi_softc *sc,
 	ISCSI_SESSION_LOCK(is);
 	while (is->is_login_pdu == NULL &&
 	    is->is_terminating == false &&
-	    is->is_reconnecting == false)
-		cv_wait(&is->is_login_cv, &is->is_lock);
+	    is->is_reconnecting == false) {
+		error = cv_wait_sig(&is->is_login_cv, &is->is_lock);
+		if (error != 0) {
+			ISCSI_SESSION_UNLOCK(is);
+			return (error);
+		}
+	}
 	if (is->is_terminating || is->is_reconnecting) {
 		ISCSI_SESSION_UNLOCK(is);
 		return (EIO);
@@ -1682,6 +1789,18 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 	is = malloc(sizeof(*is), M_ISCSI, M_ZERO | M_WAITOK);
 	memcpy(&is->is_conf, &isa->isa_conf, sizeof(is->is_conf));
 
+	/*
+	 * Set some default values, from RFC 3720, section 12.
+	 *
+	 * These values are updated by the handoff IOCTL, but are
+	 * needed prior to the handoff to support sending the ISER
+	 * login PDU.
+	 */
+	is->is_max_recv_data_segment_length = 8192;
+	is->is_max_send_data_segment_length = 8192;
+	is->is_max_burst_length = 262144;
+	is->is_first_burst_length = 65536;
+
 	sx_xlock(&sc->sc_lock);
 
 	/*
@@ -1706,7 +1825,13 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 		return (EBUSY);
 	}
 
-	is->is_conn = icl_conn_new("iscsi", &is->is_lock);
+	is->is_conn = icl_new_conn(is->is_conf.isc_offload,
+	    is->is_conf.isc_iser, "iscsi", &is->is_lock);
+	if (is->is_conn == NULL) {
+		sx_xunlock(&sc->sc_lock);
+		free(is, M_ISCSI);
+		return (EINVAL);
+	}
 	is->is_conn->ic_receive = iscsi_receive_callback;
 	is->is_conn->ic_error = iscsi_error_callback;
 	is->is_conn->ic_prv0 = is;
@@ -1725,26 +1850,33 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 	arc4rand(&is->is_isid[1], 5, 0);
 	is->is_tsih = 0;
 	callout_init(&is->is_callout, 1);
-	callout_reset(&is->is_callout, 1 * hz, iscsi_callout, is);
-	TAILQ_INSERT_TAIL(&sc->sc_sessions, is, is_next);
 
 	error = kthread_add(iscsi_maintenance_thread, is, NULL, NULL, 0, 0, "iscsimt");
 	if (error != 0) {
 		ISCSI_SESSION_WARN(is, "kthread_add(9) failed with error %d", error);
+		sx_xunlock(&sc->sc_lock);
 		return (error);
 	}
 
-	/*
-	 * Trigger immediate reconnection.
-	 */
+	callout_reset(&is->is_callout, 1 * hz, iscsi_callout, is);
+	TAILQ_INSERT_TAIL(&sc->sc_sessions, is, is_next);
+
 	ISCSI_SESSION_LOCK(is);
+	/*
+	 * Don't notify iscsid(8) if the session is disabled and it's not
+	 * a discovery session,
+	 */
+	if (is->is_conf.isc_enable == 0 && is->is_conf.isc_discovery == 0) {
+		ISCSI_SESSION_UNLOCK(is);
+		sx_xunlock(&sc->sc_lock);
+		return (0);
+	}
+
 	is->is_waiting_for_iscsid = true;
 	strlcpy(is->is_reason, "Waiting for iscsid(8)", sizeof(is->is_reason));
 	ISCSI_SESSION_UNLOCK(is);
 	cv_signal(&sc->sc_cv);
-
 	sx_xunlock(&sc->sc_lock);
-
 	return (0);
 }
 
@@ -1752,18 +1884,16 @@ static bool
 iscsi_session_conf_matches(unsigned int id1, const struct iscsi_session_conf *c1,
     unsigned int id2, const struct iscsi_session_conf *c2)
 {
-	if (id2 == 0 && c2->isc_target[0] == '\0' &&
-	    c2->isc_target_addr[0] == '\0')
-		return (true);
-	if (id2 != 0 && id2 == id1)
-		return (true);
+
+	if (id2 != 0 && id2 != id1)
+		return (false);
 	if (c2->isc_target[0] != '\0' &&
-	    strcmp(c1->isc_target, c2->isc_target) == 0)
-		return (true);
+	    strcmp(c1->isc_target, c2->isc_target) != 0)
+		return (false);
 	if (c2->isc_target_addr[0] != '\0' &&
-	    strcmp(c1->isc_target_addr, c2->isc_target_addr) == 0)
-		return (true);
-	return (false);
+	    strcmp(c1->isc_target_addr, c2->isc_target_addr) != 0)
+		return (false);
+	return (true);
 }
 
 static int
@@ -1813,6 +1943,7 @@ iscsi_ioctl_session_list(struct iscsi_softc *sc, struct iscsi_session_list *isl)
 		iss.iss_id = is->is_id;
 		strlcpy(iss.iss_target_alias, is->is_target_alias, sizeof(iss.iss_target_alias));
 		strlcpy(iss.iss_reason, is->is_reason, sizeof(iss.iss_reason));
+		strlcpy(iss.iss_offload, is->is_conn->ic_offload, sizeof(iss.iss_offload));
 
 		if (is->is_conn->ic_header_crc32c)
 			iss.iss_header_digest = ISCSI_DIGEST_CRC32C;
@@ -1824,10 +1955,15 @@ iscsi_ioctl_session_list(struct iscsi_softc *sc, struct iscsi_session_list *isl)
 		else
 			iss.iss_data_digest = ISCSI_DIGEST_NONE;
 
-		iss.iss_max_data_segment_length = is->is_max_data_segment_length;
+		iss.iss_max_send_data_segment_length =
+		    is->is_max_send_data_segment_length;
+		iss.iss_max_recv_data_segment_length =
+		    is->is_max_recv_data_segment_length;
+		iss.iss_max_burst_length = is->is_max_burst_length;
+		iss.iss_first_burst_length = is->is_first_burst_length;
 		iss.iss_immediate_data = is->is_immediate_data;
 		iss.iss_connected = is->is_connected;
-	
+
 		error = copyout(&iss, isl->isl_pstates + i, sizeof(iss));
 		if (error != 0) {
 			sx_sunlock(&sc->sc_lock);
@@ -1847,6 +1983,7 @@ iscsi_ioctl_session_modify(struct iscsi_softc *sc,
     struct iscsi_session_modify *ism)
 {
 	struct iscsi_session *is;
+	const struct iscsi_session *is2;
 
 	iscsi_sanitize_session_conf(&ism->ism_conf);
 	if (iscsi_valid_session_conf(&ism->ism_conf) == false)
@@ -1855,14 +1992,42 @@ iscsi_ioctl_session_modify(struct iscsi_softc *sc,
 	sx_xlock(&sc->sc_lock);
 	TAILQ_FOREACH(is, &sc->sc_sessions, is_next) {
 		ISCSI_SESSION_LOCK(is);
-		if (is->is_id == ism->ism_session_id)
+		if (is->is_id == ism->ism_session_id) {
+			/* Note that the session remains locked. */
 			break;
+		}
 		ISCSI_SESSION_UNLOCK(is);
 	}
 	if (is == NULL) {
 		sx_xunlock(&sc->sc_lock);
 		return (ESRCH);
 	}
+
+	/*
+	 * Prevent duplicates.
+	 */
+	TAILQ_FOREACH(is2, &sc->sc_sessions, is_next) {
+		if (is == is2)
+			continue;
+
+		if (!!ism->ism_conf.isc_discovery !=
+		    !!is2->is_conf.isc_discovery)
+			continue;
+
+		if (strcmp(ism->ism_conf.isc_target_addr,
+		    is2->is_conf.isc_target_addr) != 0)
+			continue;
+
+		if (ism->ism_conf.isc_discovery == 0 &&
+		    strcmp(ism->ism_conf.isc_target,
+		    is2->is_conf.isc_target) != 0)
+			continue;
+
+		ISCSI_SESSION_UNLOCK(is);
+		sx_xunlock(&sc->sc_lock);
+		return (EBUSY);
+	}
+
 	sx_xunlock(&sc->sc_lock);
 
 	memcpy(&is->is_conf, &ism->ism_conf, sizeof(is->is_conf));
@@ -1948,22 +2113,34 @@ iscsi_outstanding_find_ccb(struct iscsi_session *is, union ccb *ccb)
 }
 
 static struct iscsi_outstanding *
-iscsi_outstanding_add(struct iscsi_session *is,
-    uint32_t initiator_task_tag, union ccb *ccb)
+iscsi_outstanding_add(struct iscsi_session *is, struct icl_pdu *request,
+    union ccb *ccb, uint32_t *initiator_task_tagp)
 {
 	struct iscsi_outstanding *io;
+	int error;
 
 	ISCSI_SESSION_LOCK_ASSERT(is);
 
-	KASSERT(iscsi_outstanding_find(is, initiator_task_tag) == NULL,
-	    ("initiator_task_tag 0x%x already added", initiator_task_tag));
-
 	io = uma_zalloc(iscsi_outstanding_zone, M_NOWAIT | M_ZERO);
 	if (io == NULL) {
-		ISCSI_SESSION_WARN(is, "failed to allocate %zd bytes", sizeof(*io));
+		ISCSI_SESSION_WARN(is, "failed to allocate %zd bytes",
+		    sizeof(*io));
 		return (NULL);
 	}
-	io->io_initiator_task_tag = initiator_task_tag;
+
+	error = icl_conn_task_setup(is->is_conn, request, &ccb->csio,
+	    initiator_task_tagp, &io->io_icl_prv);
+	if (error != 0) {
+		ISCSI_SESSION_WARN(is,
+		    "icl_conn_task_setup() failed with error %d", error);
+		uma_zfree(iscsi_outstanding_zone, io);
+		return (NULL);
+	}
+
+	KASSERT(iscsi_outstanding_find(is, *initiator_task_tagp) == NULL,
+	    ("initiator_task_tag 0x%x already added", *initiator_task_tagp));
+
+	io->io_initiator_task_tag = *initiator_task_tagp;
 	io->io_ccb = ccb;
 	TAILQ_INSERT_TAIL(&is->is_outstanding, io, io_next);
 	return (io);
@@ -1975,6 +2152,7 @@ iscsi_outstanding_remove(struct iscsi_session *is, struct iscsi_outstanding *io)
 
 	ISCSI_SESSION_LOCK_ASSERT(is);
 
+	icl_conn_task_done(is->is_conn, io->io_icl_prv);
 	TAILQ_REMOVE(&is->is_outstanding, io, io_next);
 	uma_zfree(iscsi_outstanding_zone, io);
 }
@@ -1986,6 +2164,7 @@ iscsi_action_abort(struct iscsi_session *is, union ccb *ccb)
 	struct iscsi_bhs_task_management_request *bhstmr;
 	struct ccb_abort *cab = &ccb->cab;
 	struct iscsi_outstanding *io, *aio;
+	uint32_t initiator_task_tag;
 
 	ISCSI_SESSION_LOCK_ASSERT(is);
 
@@ -2006,23 +2185,16 @@ iscsi_action_abort(struct iscsi_session *is, union ccb *ccb)
 		return;
 	}
 
-	request = icl_pdu_new_bhs(is->is_conn, M_NOWAIT);
+	request = icl_pdu_new(is->is_conn, M_NOWAIT);
 	if (request == NULL) {
 		ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 		xpt_done(ccb);
 		return;
 	}
 
-	bhstmr = (struct iscsi_bhs_task_management_request *)request->ip_bhs;
-	bhstmr->bhstmr_opcode = ISCSI_BHS_OPCODE_TASK_REQUEST;
-	bhstmr->bhstmr_function = 0x80 | BHSTMR_FUNCTION_ABORT_TASK;
+	initiator_task_tag = is->is_initiator_task_tag++;
 
-	bhstmr->bhstmr_lun = htobe64(CAM_EXTLUN_BYTE_SWIZZLE(ccb->ccb_h.target_lun));
-	bhstmr->bhstmr_initiator_task_tag = is->is_initiator_task_tag;
-	is->is_initiator_task_tag++;
-	bhstmr->bhstmr_referenced_task_tag = aio->io_initiator_task_tag;
-
-	io = iscsi_outstanding_add(is, bhstmr->bhstmr_initiator_task_tag, NULL);
+	io = iscsi_outstanding_add(is, request, NULL, &initiator_task_tag);
 	if (io == NULL) {
 		icl_pdu_free(request);
 		ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
@@ -2030,6 +2202,14 @@ iscsi_action_abort(struct iscsi_session *is, union ccb *ccb)
 		return;
 	}
 	io->io_datasn = aio->io_initiator_task_tag;
+
+	bhstmr = (struct iscsi_bhs_task_management_request *)request->ip_bhs;
+	bhstmr->bhstmr_opcode = ISCSI_BHS_OPCODE_TASK_REQUEST;
+	bhstmr->bhstmr_function = 0x80 | BHSTMR_FUNCTION_ABORT_TASK;
+	bhstmr->bhstmr_lun = htobe64(CAM_EXTLUN_BYTE_SWIZZLE(ccb->ccb_h.target_lun));
+	bhstmr->bhstmr_initiator_task_tag = initiator_task_tag;
+	bhstmr->bhstmr_referenced_task_tag = aio->io_initiator_task_tag;
+
 	iscsi_pdu_queue_locked(request);
 }
 
@@ -2041,6 +2221,7 @@ iscsi_action_scsiio(struct iscsi_session *is, union ccb *ccb)
 	struct ccb_scsiio *csio;
 	struct iscsi_outstanding *io;
 	size_t len;
+	uint32_t initiator_task_tag;
 	int error;
 
 	ISCSI_SESSION_LOCK_ASSERT(is);
@@ -2060,8 +2241,21 @@ iscsi_action_scsiio(struct iscsi_session *is, union ccb *ccb)
 	}
 #endif
 
-	request = icl_pdu_new_bhs(is->is_conn, M_NOWAIT);
+	request = icl_pdu_new(is->is_conn, M_NOWAIT);
 	if (request == NULL) {
+		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
+			xpt_freeze_devq(ccb->ccb_h.path, 1);
+			ISCSI_SESSION_DEBUG(is, "freezing devq");
+		}
+		ccb->ccb_h.status = CAM_RESRC_UNAVAIL | CAM_DEV_QFRZN;
+		xpt_done(ccb);
+		return;
+	}
+
+	initiator_task_tag = is->is_initiator_task_tag++;
+	io = iscsi_outstanding_add(is, request, ccb, &initiator_task_tag);
+	if (io == NULL) {
+		icl_pdu_free(request);
 		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
 			xpt_freeze_devq(ccb->ccb_h.path, 1);
 			ISCSI_SESSION_DEBUG(is, "freezing devq");
@@ -2104,8 +2298,7 @@ iscsi_action_scsiio(struct iscsi_session *is, union ccb *ccb)
 		bhssc->bhssc_flags |= BHSSC_FLAGS_ATTR_UNTAGGED;
 
 	bhssc->bhssc_lun = htobe64(CAM_EXTLUN_BYTE_SWIZZLE(ccb->ccb_h.target_lun));
-	bhssc->bhssc_initiator_task_tag = is->is_initiator_task_tag;
-	is->is_initiator_task_tag++;
+	bhssc->bhssc_initiator_task_tag = initiator_task_tag;
 	bhssc->bhssc_expected_data_transfer_length = htonl(csio->dxfer_len);
 	KASSERT(csio->cdb_len <= sizeof(bhssc->bhssc_cdb),
 	    ("unsupported CDB size %zd", (size_t)csio->cdb_len));
@@ -2115,29 +2308,23 @@ iscsi_action_scsiio(struct iscsi_session *is, union ccb *ccb)
 	else
 		memcpy(&bhssc->bhssc_cdb, csio->cdb_io.cdb_bytes, csio->cdb_len);
 
-	io = iscsi_outstanding_add(is, bhssc->bhssc_initiator_task_tag, ccb);
-	if (io == NULL) {
-		icl_pdu_free(request);
-		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
-			xpt_freeze_devq(ccb->ccb_h.path, 1);
-			ISCSI_SESSION_DEBUG(is, "freezing devq");
-		}
-		ccb->ccb_h.status = CAM_RESRC_UNAVAIL | CAM_DEV_QFRZN;
-		xpt_done(ccb);
-		return;
-	}
-
 	if (is->is_immediate_data &&
 	    (csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
 		len = csio->dxfer_len;
 		//ISCSI_SESSION_DEBUG(is, "adding %zd of immediate data", len);
 		if (len > is->is_first_burst_length) {
-			ISCSI_SESSION_DEBUG(is, "len %zd -> %zd", len, is->is_first_burst_length);
+			ISCSI_SESSION_DEBUG(is, "len %zd -> %d", len, is->is_first_burst_length);
 			len = is->is_first_burst_length;
+		}
+		if (len > is->is_max_send_data_segment_length) {
+			ISCSI_SESSION_DEBUG(is, "len %zd -> %d", len,
+			    is->is_max_send_data_segment_length);
+			len = is->is_max_send_data_segment_length;
 		}
 
 		error = icl_pdu_append_data(request, csio->data_ptr, len, M_NOWAIT);
 		if (error != 0) {
+			iscsi_outstanding_remove(is, io);
 			icl_pdu_free(request);
 			if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
 				xpt_freeze_devq(ccb->ccb_h.path, 1);
@@ -2176,6 +2363,14 @@ iscsi_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_inquiry = PI_TAG_ABLE;
 		cpi->target_sprt = 0;
 		cpi->hba_misc = PIM_EXTLUNS;
+		/*
+		 * XXX: It shouldn't ever be NULL; this could be turned
+		 *      into a KASSERT eventually.
+		 */
+		if (is->is_conn == NULL)
+			ISCSI_WARN("NULL conn");
+		else if (is->is_conn->ic_unmapped)
+			cpi->hba_misc |= PIM_UNMAPPED;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 0;
 		/*
@@ -2254,16 +2449,62 @@ iscsi_poll(struct cam_sim *sim)
 }
 
 static void
-iscsi_shutdown(struct iscsi_softc *sc)
+iscsi_terminate_sessions(struct iscsi_softc *sc)
 {
 	struct iscsi_session *is;
-
-	ISCSI_DEBUG("removing all sessions due to shutdown");
 
 	sx_slock(&sc->sc_lock);
 	TAILQ_FOREACH(is, &sc->sc_sessions, is_next)
 		iscsi_session_terminate(is);
+	while(!TAILQ_EMPTY(&sc->sc_sessions)) {
+		ISCSI_DEBUG("waiting for sessions to terminate");
+		cv_wait(&sc->sc_cv, &sc->sc_lock);
+	}
+	ISCSI_DEBUG("all sessions terminated");
 	sx_sunlock(&sc->sc_lock);
+}
+
+static void
+iscsi_shutdown_pre(struct iscsi_softc *sc)
+{
+	struct iscsi_session *is;
+
+	if (!fail_on_shutdown)
+		return;
+
+	/*
+	 * If we have any sessions waiting for reconnection, request
+	 * maintenance thread to fail them immediately instead of waiting
+	 * for reconnect timeout.
+	 *
+	 * This prevents LUNs with mounted filesystems that are supported
+	 * by disconnected iSCSI sessions from hanging, however it will
+	 * fail all queued BIOs.
+	 */
+	ISCSI_DEBUG("forcing failing all disconnected sessions due to shutdown");
+
+	fail_on_disconnection = 1;
+
+	sx_slock(&sc->sc_lock);
+	TAILQ_FOREACH(is, &sc->sc_sessions, is_next) {
+		ISCSI_SESSION_LOCK(is);
+		if (!is->is_connected) {
+			ISCSI_SESSION_DEBUG(is, "force failing disconnected session early");
+			iscsi_session_reconnect(is);
+		}
+		ISCSI_SESSION_UNLOCK(is);
+	}
+	sx_sunlock(&sc->sc_lock);
+}
+
+static void
+iscsi_shutdown_post(struct iscsi_softc *sc)
+{
+
+	if (panicstr == NULL) {
+		ISCSI_DEBUG("removing all sessions due to shutdown");
+		iscsi_terminate_sessions(sc);
+	}
 }
 
 static int
@@ -2288,13 +2529,16 @@ iscsi_load(void)
 	}
 	sc->sc_cdev->si_drv1 = sc;
 
+	sc->sc_shutdown_pre_eh = EVENTHANDLER_REGISTER(shutdown_pre_sync,
+	    iscsi_shutdown_pre, sc, SHUTDOWN_PRI_FIRST);
 	/*
-	 * Note that this needs to get run before dashutdown().  Otherwise,
-	 * when rebooting with iSCSI session with outstanding requests,
-	 * but disconnected, dashutdown() will hang on cam_periph_runccb().
+	 * shutdown_post_sync needs to run after filesystem shutdown and before
+	 * CAM shutdown - otherwise when rebooting with an iSCSI session that is
+	 * disconnected but has outstanding requests, dashutdown() will hang on
+	 * cam_periph_runccb().
 	 */
-	sc->sc_shutdown_eh = EVENTHANDLER_REGISTER(shutdown_post_sync,
-	    iscsi_shutdown, sc, SHUTDOWN_PRI_FIRST);
+	sc->sc_shutdown_post_eh = EVENTHANDLER_REGISTER(shutdown_post_sync,
+	    iscsi_shutdown_post, sc, SHUTDOWN_PRI_DEFAULT - 1);
 
 	return (0);
 }
@@ -2302,7 +2546,6 @@ iscsi_load(void)
 static int
 iscsi_unload(void)
 {
-	struct iscsi_session *is, *tmp;
 
 	if (sc->sc_cdev != NULL) {
 		ISCSI_DEBUG("removing device node");
@@ -2310,18 +2553,12 @@ iscsi_unload(void)
 		ISCSI_DEBUG("device node removed");
 	}
 
-	if (sc->sc_shutdown_eh != NULL)
-		EVENTHANDLER_DEREGISTER(shutdown_post_sync, sc->sc_shutdown_eh);
+	if (sc->sc_shutdown_pre_eh != NULL)
+		EVENTHANDLER_DEREGISTER(shutdown_pre_sync, sc->sc_shutdown_pre_eh);
+	if (sc->sc_shutdown_post_eh != NULL)
+		EVENTHANDLER_DEREGISTER(shutdown_post_sync, sc->sc_shutdown_post_eh);
 
-	sx_slock(&sc->sc_lock);
-	TAILQ_FOREACH_SAFE(is, &sc->sc_sessions, is_next, tmp)
-		iscsi_session_terminate(is);
-	while(!TAILQ_EMPTY(&sc->sc_sessions)) {
-		ISCSI_DEBUG("waiting for sessions to terminate");
-		cv_wait(&sc->sc_cv, &sc->sc_lock);
-	}
-	ISCSI_DEBUG("all sessions terminated");
-	sx_sunlock(&sc->sc_lock);
+	iscsi_terminate_sessions(sc);
 
 	uma_zdestroy(iscsi_outstanding_zone);
 	sx_destroy(&sc->sc_lock);

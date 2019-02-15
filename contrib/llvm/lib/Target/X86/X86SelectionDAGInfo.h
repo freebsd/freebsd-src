@@ -7,14 +7,15 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines the X86 subclass for TargetSelectionDAGInfo.
+// This file defines the X86 subclass for SelectionDAGTargetInfo.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86SELECTIONDAGINFO_H
-#define X86SELECTIONDAGINFO_H
+#ifndef LLVM_LIB_TARGET_X86_X86SELECTIONDAGINFO_H
+#define LLVM_LIB_TARGET_X86_X86SELECTIONDAGINFO_H
 
-#include "llvm/Target/TargetSelectionDAGInfo.h"
+#include "llvm/CodeGen/SelectionDAGTargetInfo.h"
+#include "llvm/MC/MCRegisterInfo.h"
 
 namespace llvm {
 
@@ -22,33 +23,26 @@ class X86TargetLowering;
 class X86TargetMachine;
 class X86Subtarget;
 
-class X86SelectionDAGInfo : public TargetSelectionDAGInfo {
-  /// Subtarget - Keep a pointer to the X86Subtarget around so that we can
-  /// make the right decision when generating code for different targets.
-  const X86Subtarget *Subtarget;
-
-  const X86TargetLowering &TLI;
+class X86SelectionDAGInfo : public SelectionDAGTargetInfo {
+  /// Returns true if it is possible for the base register to conflict with the
+  /// given set of clobbers for a memory intrinsic.
+  bool isBaseRegConflictPossible(SelectionDAG &DAG,
+                                 ArrayRef<MCPhysReg> ClobberSet) const;
 
 public:
-  explicit X86SelectionDAGInfo(const X86TargetMachine &TM);
-  ~X86SelectionDAGInfo();
+  explicit X86SelectionDAGInfo() = default;
 
-  virtual
-  SDValue EmitTargetCodeForMemset(SelectionDAG &DAG, SDLoc dl,
-                                  SDValue Chain,
-                                  SDValue Dst, SDValue Src,
-                                  SDValue Size, unsigned Align,
-                                  bool isVolatile,
-                                  MachinePointerInfo DstPtrInfo) const;
+  SDValue EmitTargetCodeForMemset(SelectionDAG &DAG, const SDLoc &dl,
+                                  SDValue Chain, SDValue Dst, SDValue Src,
+                                  SDValue Size, unsigned Align, bool isVolatile,
+                                  MachinePointerInfo DstPtrInfo) const override;
 
-  virtual
-  SDValue EmitTargetCodeForMemcpy(SelectionDAG &DAG, SDLoc dl,
-                                  SDValue Chain,
-                                  SDValue Dst, SDValue Src,
-                                  SDValue Size, unsigned Align,
-                                  bool isVolatile, bool AlwaysInline,
+  SDValue EmitTargetCodeForMemcpy(SelectionDAG &DAG, const SDLoc &dl,
+                                  SDValue Chain, SDValue Dst, SDValue Src,
+                                  SDValue Size, unsigned Align, bool isVolatile,
+                                  bool AlwaysInline,
                                   MachinePointerInfo DstPtrInfo,
-                                  MachinePointerInfo SrcPtrInfo) const;
+                                  MachinePointerInfo SrcPtrInfo) const override;
 };
 
 }

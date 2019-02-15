@@ -8,8 +8,7 @@ MAN=	mptutil.8
 
 WARNS?= 3
 
-DPADD=	${LIBCAM} ${LIBSBUF} ${LIBUTIL}
-LDADD=	-lcam -lsbuf -lutil
+LIBADD=	cam util
 
 # Here be dragons
 .ifdef DEBUG

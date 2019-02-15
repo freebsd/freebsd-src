@@ -722,8 +722,8 @@ retry:
 
     /* Setup BAR2 attributes */
     /* Relaxed Ordering (NPEI_CTL_PORTn[PTLP_RO,CTLP_RO, WAIT_COM]) */
-    /* ­ PTLP_RO,CTLP_RO should normally be set (except for debug). */
-    /* ­ WAIT_COM=0 will likely work for all applications. */
+    /* - PTLP_RO,CTLP_RO should normally be set (except for debug). */
+    /* - WAIT_COM=0 will likely work for all applications. */
     /* Load completion relaxed ordering (NPEI_CTL_PORTn[WAITL_COM]) */
     if (pcie_port)
     {
@@ -981,7 +981,7 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 
     /* Make sure we aren't trying to setup a target mode interface in host mode */
     mio_rst_ctl.u64 = cvmx_read_csr(CVMX_MIO_RST_CTLX(pcie_port));
-    ep_mode = (OCTEON_IS_MODEL(OCTEON_CN61XX || OCTEON_IS_MODEL(OCTEON_CNF71XX)) ? (mio_rst_ctl.s.prtmode != 1) : (!mio_rst_ctl.s.host_mode));
+    ep_mode = ((OCTEON_IS_MODEL(OCTEON_CN61XX) || OCTEON_IS_MODEL(OCTEON_CNF71XX)) ? (mio_rst_ctl.s.prtmode != 1) : (!mio_rst_ctl.s.host_mode));
     if (ep_mode)
     {
         cvmx_dprintf("PCIe: Port %d in endpoint mode.\n", pcie_port);
@@ -1139,8 +1139,8 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 
     /* Setup BAR2 attributes */
     /* Relaxed Ordering (NPEI_CTL_PORTn[PTLP_RO,CTLP_RO, WAIT_COM]) */
-    /* ­ PTLP_RO,CTLP_RO should normally be set (except for debug). */
-    /* ­ WAIT_COM=0 will likely work for all applications. */
+    /* - PTLP_RO,CTLP_RO should normally be set (except for debug). */
+    /* - WAIT_COM=0 will likely work for all applications. */
     /* Load completion relaxed ordering (NPEI_CTL_PORTn[WAITL_COM]) */
     pemx_bar_ctl.u64 = cvmx_read_csr(CVMX_PEMX_BAR_CTL(pcie_port));
     pemx_bar_ctl.s.bar1_siz = 3;  /* 256MB BAR1*/

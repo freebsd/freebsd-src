@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: MIT-CMU
+ *
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
@@ -38,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/proc.h>
+#include <sys/systm.h>
 
 #include <machine/kdb.h>
 #include <machine/pcb.h>
@@ -48,16 +51,16 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_break.h>
 #include <ddb/db_access.h>
 
-static int	db_run_mode;
-#define	STEP_NONE	0
 #define	STEP_ONCE	1
 #define	STEP_RETURN	2
 #define	STEP_CALLT	3
 #define	STEP_CONTINUE	4
-#define STEP_INVISIBLE	5
+#define	STEP_INVISIBLE	5
 #define	STEP_COUNT	6
+static int	db_run_mode = STEP_CONTINUE;
 
-static boolean_t	db_sstep_print;
+static bool		db_sstep_multiple;
+static bool		db_sstep_print;
 static int		db_loop_count;
 static int		db_call_depth;
 
@@ -65,31 +68,41 @@ int		db_inst_count;
 int		db_load_count;
 int		db_store_count;
 
+#ifdef SOFTWARE_SSTEP
+db_breakpoint_t	db_not_taken_bkpt = 0;
+db_breakpoint_t	db_taken_bkpt = 0;
+#endif
+
 #ifndef db_set_single_step
 void db_set_single_step(void);
 #endif
 #ifndef db_clear_single_step
 void db_clear_single_step(void);
 #endif
-
-#ifdef SOFTWARE_SSTEP
-db_breakpoint_t	db_not_taken_bkpt = 0;
-db_breakpoint_t	db_taken_bkpt = 0;
-#endif
-
-boolean_t
-db_stop_at_pc(is_breakpoint)
-	boolean_t	*is_breakpoint;
+#ifndef db_pc_is_singlestep
+static bool
+db_pc_is_singlestep(db_addr_t pc)
 {
-	register db_addr_t	pc;
-	register db_breakpoint_t bkpt;
-
-	pc = PC_REGS();
 #ifdef SOFTWARE_SSTEP
 	if ((db_not_taken_bkpt != 0 && pc == db_not_taken_bkpt->address)
 	    || (db_taken_bkpt != 0 && pc == db_taken_bkpt->address))
-		*is_breakpoint = FALSE;
+		return (true);
 #endif
+	return (false);
+}
+#endif
+
+bool
+db_stop_at_pc(int type, int code, bool *is_breakpoint, bool *is_watchpoint)
+{
+	db_addr_t	pc;
+	db_breakpoint_t bkpt;
+
+	*is_breakpoint = IS_BREAKPOINT_TRAP(type, code);
+	*is_watchpoint = IS_WATCHPOINT_TRAP(type, code);
+	pc = PC_REGS();
+	if (db_pc_is_singlestep(pc))
+		*is_breakpoint = false;
 
 	db_clear_single_step();
 	db_clear_breakpoints();
@@ -113,79 +126,102 @@ db_stop_at_pc(is_breakpoint)
 	if (bkpt) {
 	    if (--bkpt->count == 0) {
 		bkpt->count = bkpt->init_count;
-		*is_breakpoint = TRUE;
-		return (TRUE);	/* stop here */
+		*is_breakpoint = true;
+		return (true);	/* stop here */
 	    }
+	    return (false);	/* continue the countdown */
 	} else if (*is_breakpoint) {
 #ifdef BKPT_SKIP
 		BKPT_SKIP;
 #endif
 	}
 
-	*is_breakpoint = FALSE;
+	*is_breakpoint = false;	/* might be a breakpoint, but not ours */
+
+	/*
+	 * If not stepping, then silently ignore single-step traps
+	 * (except for clearing the single-step-flag above).
+	 *
+	 * If stepping, then abort if the trap type is unexpected.
+	 * Breakpoints owned by us are expected and were handled above.
+	 * Single-steps are expected and are handled below.  All others
+	 * are unexpected.
+	 *
+	 * Only do either of these if the MD layer claims to classify
+	 * single-step traps unambiguously (by defining IS_SSTEP_TRAP).
+	 * Otherwise, fall through to the bad historical behaviour
+	 * given by turning unexpected traps into expected traps: if not
+	 * stepping, then expect only breakpoints and stop, and if
+	 * stepping, then expect only single-steps and step.
+	 */
+#ifdef IS_SSTEP_TRAP
+	if (db_run_mode == STEP_CONTINUE && IS_SSTEP_TRAP(type, code))
+	    return (false);
+	if (db_run_mode != STEP_CONTINUE && !IS_SSTEP_TRAP(type, code)) {
+	    printf("Stepping aborted\n");
+	    return (true);
+	}
+#endif
 
 	if (db_run_mode == STEP_INVISIBLE) {
 	    db_run_mode = STEP_CONTINUE;
-	    return (FALSE);	/* continue */
+	    return (false);	/* continue */
 	}
 	if (db_run_mode == STEP_COUNT) {
-	    return (FALSE); /* continue */
+	    return (false); /* continue */
 	}
 	if (db_run_mode == STEP_ONCE) {
 	    if (--db_loop_count > 0) {
 		if (db_sstep_print) {
 		    db_printf("\t\t");
 		    db_print_loc_and_inst(pc);
-		    db_printf("\n");
 		}
-		return (FALSE);	/* continue */
+		return (false);	/* continue */
 	    }
 	}
 	if (db_run_mode == STEP_RETURN) {
 	    /* continue until matching return */
 	    db_expr_t ins;
 
-	    ins = db_get_value(pc, sizeof(int), FALSE);
+	    ins = db_get_value(pc, sizeof(int), false);
 	    if (!inst_trap_return(ins) &&
 		(!inst_return(ins) || --db_call_depth != 0)) {
 		if (db_sstep_print) {
 		    if (inst_call(ins) || inst_return(ins)) {
-			register int i;
+			int i;
 
 			db_printf("[after %6d]     ", db_inst_count);
 			for (i = db_call_depth; --i > 0; )
 			    db_printf("  ");
 			db_print_loc_and_inst(pc);
-			db_printf("\n");
 		    }
 		}
 		if (inst_call(ins))
 		    db_call_depth++;
-		return (FALSE);	/* continue */
+		return (false);	/* continue */
 	    }
 	}
 	if (db_run_mode == STEP_CALLT) {
 	    /* continue until call or return */
 	    db_expr_t ins;
 
-	    ins = db_get_value(pc, sizeof(int), FALSE);
+	    ins = db_get_value(pc, sizeof(int), false);
 	    if (!inst_call(ins) &&
 		!inst_return(ins) &&
 		!inst_trap_return(ins)) {
-		return (FALSE);	/* continue */
+		return (false);	/* continue */
 	    }
 	}
-	db_run_mode = STEP_NONE;
-	return (TRUE);
+	return (true);
 }
 
 void
-db_restart_at_pc(watchpt)
-	boolean_t watchpt;
+db_restart_at_pc(bool watchpt)
 {
-	register db_addr_t	pc = PC_REGS();
+	db_addr_t	pc = PC_REGS();
 
 	if ((db_run_mode == STEP_COUNT) ||
+	    ((db_run_mode == STEP_ONCE) && db_sstep_multiple) ||
 	    (db_run_mode == STEP_RETURN) ||
 	    (db_run_mode == STEP_CALLT)) {
 	    /*
@@ -195,7 +231,7 @@ db_restart_at_pc(watchpt)
 #ifdef	SOFTWARE_SSTEP
 	    db_expr_t		ins =
 #endif
-	    db_get_value(pc, sizeof(int), FALSE);
+	    db_get_value(pc, sizeof(int), false);
 	    db_inst_count++;
 	    db_load_count += inst_load(ins);
 	    db_store_count += inst_store(ins);
@@ -203,7 +239,7 @@ db_restart_at_pc(watchpt)
 	    /* XXX works on mips, but... */
 	    if (inst_branch(ins) || inst_call(ins)) {
 		ins = db_get_value(next_instr_address(pc,1),
-				   sizeof(int), FALSE);
+				   sizeof(int), false);
 		db_inst_count++;
 		db_load_count += inst_load(ins);
 		db_store_count += inst_store(ins);
@@ -236,7 +272,7 @@ db_restart_at_pc(watchpt)
  *	Just define the above conditional and provide
  *	the functions/macros defined below.
  *
- * extern boolean_t
+ * extern bool
  *	inst_branch(),		returns true if the instruction might branch
  * extern unsigned
  *	branch_taken(),		return the address the instruction might
@@ -268,7 +304,7 @@ db_set_single_step(void)
 	 *	User was stopped at pc, e.g. the instruction
 	 *	at pc was not executed.
 	 */
-	inst = db_get_value(pc, sizeof(int), FALSE);
+	inst = db_get_value(pc, sizeof(int), false);
 	if (inst_branch(inst) || inst_call(inst) || inst_return(inst)) {
 		brpc = branch_taken(inst, pc);
 		if (brpc != pc) {	/* self-branches are hopeless */
@@ -301,22 +337,19 @@ extern int	db_cmd_loop_done;
 /* single-step */
 /*ARGSUSED*/
 void
-db_single_step_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_single_step_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 {
-	boolean_t	print = FALSE;
+	bool		print = false;
 
 	if (count == -1)
 	    count = 1;
 
 	if (modif[0] == 'p')
-	    print = TRUE;
+	    print = true;
 
 	db_run_mode = STEP_ONCE;
 	db_loop_count = count;
+	db_sstep_multiple = (count != 1);
 	db_sstep_print = print;
 	db_inst_count = 0;
 	db_load_count = 0;
@@ -328,16 +361,13 @@ db_single_step_cmd(addr, have_addr, count, modif)
 /* trace and print until call/return */
 /*ARGSUSED*/
 void
-db_trace_until_call_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_trace_until_call_cmd(db_expr_t addr, bool have_addr, db_expr_t count,
+    char *modif)
 {
-	boolean_t	print = FALSE;
+	bool	print = false;
 
 	if (modif[0] == 'p')
-	    print = TRUE;
+	    print = true;
 
 	db_run_mode = STEP_CALLT;
 	db_sstep_print = print;
@@ -350,16 +380,13 @@ db_trace_until_call_cmd(addr, have_addr, count, modif)
 
 /*ARGSUSED*/
 void
-db_trace_until_matching_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_trace_until_matching_cmd(db_expr_t addr, bool have_addr, db_expr_t count,
+    char *modif)
 {
-	boolean_t	print = FALSE;
+	bool	print = false;
 
 	if (modif[0] == 'p')
-	    print = TRUE;
+	    print = true;
 
 	db_run_mode = STEP_RETURN;
 	db_call_depth = 1;
@@ -374,11 +401,7 @@ db_trace_until_matching_cmd(addr, have_addr, count, modif)
 /* continue */
 /*ARGSUSED*/
 void
-db_continue_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_continue_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 {
 	if (modif[0] == 'c')
 	    db_run_mode = STEP_COUNT;

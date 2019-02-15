@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Thomas Skibo
  * All rights reserved.
  *
@@ -52,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/stdarg.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -78,7 +79,6 @@ extern void (*zynq7_cpu_reset);
 #define WR4(sc, off, val) 	(bus_write_4((sc)->mem_res, (off), (val)))
 
 #define ZYNQ_DEFAULT_PS_CLK_FREQUENCY	33333333	/* 33.3 Mhz */
-
 
 SYSCTL_NODE(_hw, OID_AUTO, zynq, CTLFLAG_RD, 0, "Xilinx Zynq-7000");
 
@@ -125,7 +125,6 @@ zy7_slcr_lock(struct zy7_slcr_softc *sc)
 	/* Lock SLCR with magic number. */
 	WR4(sc, ZY7_SLCR_LOCK, ZY7_SLCR_LOCK_MAGIC);
 }
-
 
 static void
 zy7_slcr_cpu_reset(void)
@@ -179,7 +178,7 @@ zy7_slcr_preload_pl(void)
 /* After PL configuration, enable level shifters and deassert top-level
  * PL resets.  Called from zy7_devcfg.c.  Optionally, the level shifters
  * can be left disabled but that's rare of an FPGA application. That option
- * is controled by a sysctl in the devcfg driver.
+ * is controlled by a sysctl in the devcfg driver.
  */
 void
 zy7_slcr_postload_pl(int en_level_shifters)
@@ -253,6 +252,296 @@ cgem_set_ref_clk(int unit, int frequency)
 	ZSLCR_UNLOCK(sc);
 
 	return (0);
+}
+
+/* 
+ * PL clocks management function
+ */
+int 
+zy7_pl_fclk_set_source(int unit, int source)
+{
+	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;
+	uint32_t reg;
+
+	if (!sc)
+		return (-1);
+
+	ZSLCR_LOCK(sc);
+
+	/* Unlock SLCR registers. */
+	zy7_slcr_unlock(sc);
+
+	/* Modify FPGAx source. */
+	reg = RD4(sc, ZY7_SLCR_FPGA_CLK_CTRL(unit));
+	reg &= ~(ZY7_SLCR_FPGA_CLK_CTRL_SRCSEL_MASK);
+	reg |= (source << ZY7_SLCR_FPGA_CLK_CTRL_SRCSEL_SHIFT);
+	WR4(sc, ZY7_SLCR_FPGA_CLK_CTRL(unit), reg);
+
+	/* Lock SLCR registers. */
+	zy7_slcr_lock(sc);
+
+	ZSLCR_UNLOCK(sc);
+
+	return (0);
+}
+
+int 
+zy7_pl_fclk_get_source(int unit)
+{
+	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;
+	uint32_t reg;
+	int source;
+
+	if (!sc)
+		return (-1);
+
+	ZSLCR_LOCK(sc);
+
+	/* Modify GEM reference clock. */
+	reg = RD4(sc, ZY7_SLCR_FPGA_CLK_CTRL(unit));
+	source = (reg & ZY7_SLCR_FPGA_CLK_CTRL_SRCSEL_MASK) >> 
+	    ZY7_SLCR_FPGA_CLK_CTRL_SRCSEL_SHIFT;
+
+	/* ZY7_PL_FCLK_SRC_IO is actually b0x */
+	if ((source & 2) == 0)
+		source = ZY7_PL_FCLK_SRC_IO;
+
+	ZSLCR_UNLOCK(sc);
+
+	return (source);
+}
+
+int
+zy7_pl_fclk_set_freq(int unit, int frequency)
+{
+	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;
+	int div0, div1;
+	int base_frequency;
+	uint32_t reg;
+	int source;
+
+	if (!sc)
+		return (-1);
+
+	source = zy7_pl_fclk_get_source(unit);
+	switch (source) {
+		case ZY7_PL_FCLK_SRC_IO:
+			base_frequency = io_pll_frequency;
+			break;
+
+		case ZY7_PL_FCLK_SRC_ARM:
+			base_frequency = arm_pll_frequency;
+			break;
+
+		case ZY7_PL_FCLK_SRC_DDR:
+			base_frequency = ddr_pll_frequency;
+			break;
+
+		default:
+			return (-1);
+	}
+
+	/* Find suitable divisor pairs.  Round result to nearest khz
+	 * to test for match.
+	 */
+	for (div1 = 1; div1 <= ZY7_SLCR_FPGA_CLK_CTRL_DIVISOR_MAX; div1++) {
+		div0 = (base_frequency + div1 * frequency / 2) /
+			div1 / frequency;
+		if (div0 > 0 && div0 <= ZY7_SLCR_FPGA_CLK_CTRL_DIVISOR_MAX &&
+		    ((base_frequency / div0 / div1) + 500) / 1000 ==
+		    (frequency + 500) / 1000)
+			break;
+	}
+
+	if (div1 > ZY7_SLCR_FPGA_CLK_CTRL_DIVISOR_MAX)
+		return (-1);
+
+	ZSLCR_LOCK(sc);
+
+	/* Unlock SLCR registers. */
+	zy7_slcr_unlock(sc);
+
+	/* Modify FPGAx reference clock. */
+	reg = RD4(sc, ZY7_SLCR_FPGA_CLK_CTRL(unit));
+	reg &= ~(ZY7_SLCR_FPGA_CLK_CTRL_DIVISOR1_MASK |
+	    ZY7_SLCR_FPGA_CLK_CTRL_DIVISOR0_MASK);
+	reg |= (div1 << ZY7_SLCR_FPGA_CLK_CTRL_DIVISOR1_SHIFT) |
+	    (div0 << ZY7_SLCR_FPGA_CLK_CTRL_DIVISOR0_SHIFT);
+	WR4(sc, ZY7_SLCR_FPGA_CLK_CTRL(unit), reg);
+
+	/* Lock SLCR registers. */
+	zy7_slcr_lock(sc);
+
+	ZSLCR_UNLOCK(sc);
+
+	return (base_frequency / div0 / div1);
+}
+
+int
+zy7_pl_fclk_get_freq(int unit)
+{
+	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;
+	int div0, div1;
+	int base_frequency;
+	int frequency;
+	uint32_t reg;
+	int source;
+
+	if (!sc)
+		return (-1);
+
+	source = zy7_pl_fclk_get_source(unit);
+	switch (source) {
+		case ZY7_PL_FCLK_SRC_IO:
+			base_frequency = io_pll_frequency;
+			break;
+
+		case ZY7_PL_FCLK_SRC_ARM:
+			base_frequency = arm_pll_frequency;
+			break;
+
+		case ZY7_PL_FCLK_SRC_DDR:
+			base_frequency = ddr_pll_frequency;
+			break;
+
+		default:
+			return (-1);
+	}
+
+	ZSLCR_LOCK(sc);
+
+	/* Modify FPGAx reference clock. */
+	reg = RD4(sc, ZY7_SLCR_FPGA_CLK_CTRL(unit));
+	div1 = (reg & ZY7_SLCR_FPGA_CLK_CTRL_DIVISOR1_MASK) >>
+	    ZY7_SLCR_FPGA_CLK_CTRL_DIVISOR1_SHIFT;
+	div0 = (reg & ZY7_SLCR_FPGA_CLK_CTRL_DIVISOR0_MASK) >>
+	    ZY7_SLCR_FPGA_CLK_CTRL_DIVISOR0_SHIFT;
+
+	ZSLCR_UNLOCK(sc);
+
+	if (div0 == 0)
+		div0 = 1;
+
+	if (div1 == 0)
+		div1 = 1;
+
+	frequency = (base_frequency / div0 / div1);
+	/* Round to KHz */
+	frequency = (frequency + 500) / 1000;
+	frequency = frequency * 1000;
+
+	return (frequency);
+}
+
+int 
+zy7_pl_fclk_enable(int unit)
+{
+	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;
+
+	if (!sc)
+		return (-1);
+
+	ZSLCR_LOCK(sc);
+
+	/* Unlock SLCR registers. */
+	zy7_slcr_unlock(sc);
+
+	WR4(sc, ZY7_SLCR_FPGA_THR_CTRL(unit), 0);
+	WR4(sc, ZY7_SLCR_FPGA_THR_CNT(unit), 0);
+
+	/* Lock SLCR registers. */
+	zy7_slcr_lock(sc);
+
+	ZSLCR_UNLOCK(sc);
+
+	return (0);
+}
+
+int 
+zy7_pl_fclk_disable(int unit)
+{
+	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;
+
+	if (!sc)
+		return (-1);
+
+	ZSLCR_LOCK(sc);
+
+	/* Unlock SLCR registers. */
+	zy7_slcr_unlock(sc);
+
+	WR4(sc, ZY7_SLCR_FPGA_THR_CTRL(unit), 0);
+	WR4(sc, ZY7_SLCR_FPGA_THR_CNT(unit), 1);
+
+	/* Lock SLCR registers. */
+	zy7_slcr_lock(sc);
+
+	ZSLCR_UNLOCK(sc);
+
+	return (0);
+}
+
+int 
+zy7_pl_fclk_enabled(int unit)
+{
+	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;
+	uint32_t reg;
+
+	if (!sc)
+		return (-1);
+
+	ZSLCR_LOCK(sc);
+	reg = RD4(sc, ZY7_SLCR_FPGA_THR_CNT(unit));
+	ZSLCR_UNLOCK(sc);
+
+	return !(reg & 1);
+}
+
+int
+zy7_pl_level_shifters_enabled(void)
+{
+	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;
+
+	uint32_t reg;
+
+	if (!sc)
+		return (-1);
+
+	ZSLCR_LOCK(sc);
+	reg = RD4(sc, ZY7_SLCR_LVL_SHFTR_EN);
+	ZSLCR_UNLOCK(sc);
+
+	return (reg == ZY7_SLCR_LVL_SHFTR_EN_ALL);
+}
+
+void
+zy7_pl_level_shifters_enable(void)
+{
+	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;
+
+	if (!sc)
+		return;
+
+	ZSLCR_LOCK(sc);
+	zy7_slcr_unlock(sc);
+	WR4(sc, ZY7_SLCR_LVL_SHFTR_EN, ZY7_SLCR_LVL_SHFTR_EN_ALL);
+	zy7_slcr_lock(sc);
+	ZSLCR_UNLOCK(sc);
+}
+
+void
+zy7_pl_level_shifters_disable(void)
+{
+	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;
+
+	if (!sc)
+		return;
+
+	ZSLCR_LOCK(sc);
+	zy7_slcr_unlock(sc);
+	WR4(sc, ZY7_SLCR_LVL_SHFTR_EN, 0);
+	zy7_slcr_lock(sc);
+	ZSLCR_UNLOCK(sc);
 }
 
 static int
@@ -333,8 +622,8 @@ zy7_slcr_attach(device_t dev)
 
 	/* Derive PLL frequencies from PS_CLK. */
 	node = ofw_bus_get_node(dev);
-	if (OF_getprop(node, "clock-frequency", &cell, sizeof(cell)) > 0)
-		ps_clk_frequency = fdt32_to_cpu(cell);
+	if (OF_getencprop(node, "clock-frequency", &cell, sizeof(cell)) > 0)
+		ps_clk_frequency = cell;
 	else
 		ps_clk_frequency = ZYNQ_DEFAULT_PS_CLK_FREQUENCY;
 

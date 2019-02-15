@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2006 Marcel Moolenaar
  * All rights reserved.
  *
@@ -112,7 +114,7 @@ uart_scc_probe(device_t dev)
 	    BUS_READ_IVAR(parent, dev, SCC_IVAR_REGSHFT, &rs))
 		return (ENXIO);
 
-	return (uart_bus_probe(dev, rs, cl, 0, ch));
+	return (uart_bus_probe(dev, rs, 0, cl, 0, ch, 0));
 }
 
 DRIVER_MODULE(uart, scc, uart_scc_driver, uart_devclass, 0, 0);

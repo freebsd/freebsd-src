@@ -1,4 +1,4 @@
-/*	$NetBSD: targ.c,v 1.57 2012/06/12 19:21:51 joerg Exp $	*/
+/*	$NetBSD: targ.c,v 1.62 2017/04/16 19:53:58 riastradh Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: targ.c,v 1.57 2012/06/12 19:21:51 joerg Exp $";
+static char rcsid[] = "$NetBSD: targ.c,v 1.62 2017/04/16 19:53:58 riastradh Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)targ.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: targ.c,v 1.57 2012/06/12 19:21:51 joerg Exp $");
+__RCSID("$NetBSD: targ.c,v 1.62 2017/04/16 19:53:58 riastradh Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -292,10 +292,8 @@ TargFreeGN(void *gnp)
 
 
     free(gn->name);
-    if (gn->uname)
-	free(gn->uname);
-    if (gn->path)
-	free(gn->path);
+    free(gn->uname);
+    free(gn->path);
     /* gn->fname points to name allocated when file was opened, don't free */
 
     Lst_Destroy(gn->iParents, NULL);
@@ -523,10 +521,10 @@ TargPrintName(void *gnp, void *pflags MAKE_ATTR_UNUSED)
 
 
 int
-Targ_PrintCmd(void *cmd, void *dummy)
+Targ_PrintCmd(void *cmd, void *dummy MAKE_ATTR_UNUSED)
 {
     fprintf(debug_file, "\t%s\n", (char *)cmd);
-    return (dummy ? 0 : 0);
+    return 0;
 }
 
 /*-

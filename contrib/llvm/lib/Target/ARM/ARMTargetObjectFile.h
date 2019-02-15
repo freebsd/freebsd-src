@@ -7,37 +7,42 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TARGET_ARM_TARGETOBJECTFILE_H
-#define LLVM_TARGET_ARM_TARGETOBJECTFILE_H
+#ifndef LLVM_LIB_TARGET_ARM_ARMTARGETOBJECTFILE_H
+#define LLVM_LIB_TARGET_ARM_ARMTARGETOBJECTFILE_H
 
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
+#include "llvm/MC/MCExpr.h"
 
 namespace llvm {
 
-class MCContext;
-class TargetMachine;
-
 class ARMElfTargetObjectFile : public TargetLoweringObjectFileELF {
 protected:
-  const MCSection *AttributesSection;
+  const MCSection *AttributesSection = nullptr;
+
 public:
-  ARMElfTargetObjectFile() :
-    TargetLoweringObjectFileELF(),
-    AttributesSection(NULL)
-  {}
-
-  virtual void Initialize(MCContext &Ctx, const TargetMachine &TM);
-
-  const MCExpr *
-  getTTypeGlobalReference(const GlobalValue *GV, Mangler *Mang,
-                          MachineModuleInfo *MMI, unsigned Encoding,
-                          MCStreamer &Streamer) const;
-  
-  virtual const MCSection *getAttributesSection() const {
-    return AttributesSection;
+  ARMElfTargetObjectFile()
+      : TargetLoweringObjectFileELF() {
+    PLTRelativeVariantKind = MCSymbolRefExpr::VK_ARM_PREL31;
   }
+
+  void Initialize(MCContext &Ctx, const TargetMachine &TM) override;
+
+  const MCExpr *getTTypeGlobalReference(const GlobalValue *GV,
+                                        unsigned Encoding,
+                                        const TargetMachine &TM,
+                                        MachineModuleInfo *MMI,
+                                        MCStreamer &Streamer) const override;
+
+  /// \brief Describe a TLS variable address within debug info.
+  const MCExpr *getDebugThreadLocalSymbol(const MCSymbol *Sym) const override;
+
+  MCSection *getExplicitSectionGlobal(const GlobalObject *GO, SectionKind Kind,
+                                      const TargetMachine &TM) const override;
+
+  MCSection *SelectSectionForGlobal(const GlobalObject *GO, SectionKind Kind,
+                                    const TargetMachine &TM) const override;
 };
 
 } // end namespace llvm
 
-#endif
+#endif // LLVM_LIB_TARGET_ARM_ARMTARGETOBJECTFILE_H

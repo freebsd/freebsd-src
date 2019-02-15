@@ -145,17 +145,6 @@ Indispensable tool for making sure large programs are properly
 compiled with minimal effort. 
 .sp
 .IP
-.tl 'An Introduction to the Revision Control System''PSD:13'
-.if \n(.U \{\
-.br
-.>> <a href="13.rcs/paper.html">13.rcs/paper.html</a>
-.\}
-.QP
-RCS is a user-contributed tool for working together with other people
-without stepping on each other's toes.
-An alternative to \fIsccs\fR for controlling software changes.
-.sp
-.IP
 .tl 'An Introduction to the Source Code Control System''PSD:14'
 .QP
 A useful introductory article for those users with

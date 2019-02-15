@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Written by: yen_cw@myson.com.tw
  * Copyright (c) 2002 Myson Technology Inc.
  * All rights reserved.
@@ -161,6 +163,8 @@ static driver_t my_driver = {
 static devclass_t my_devclass;
 
 DRIVER_MODULE(my, pci, my_driver, my_devclass, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, my, my_devs,
+    nitems(my_devs) - 1);
 MODULE_DEPEND(my, pci, 1, 1, 1);
 MODULE_DEPEND(my, ether, 1, 1, 1);
 
@@ -334,7 +338,7 @@ my_setmulti(struct my_softc * sc)
 
 	/* now program new ones */
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = ~ether_crc32_be(LLADDR((struct sockaddr_dl *)
@@ -751,7 +755,7 @@ my_setcfg(struct my_softc * sc, int bmcr)
 static void
 my_reset(struct my_softc * sc)
 {
-	register int    i;
+	int    i;
 
 	MY_LOCK_ASSERT(sc);
 	MY_SETBIT(sc, MY_BCR, MY_SWR);
@@ -1085,8 +1089,7 @@ my_newbuf(struct my_softc * sc, struct my_chain_onefrag * c)
 		    "no memory for rx list -- packet dropped!\n");
 		return (ENOBUFS);
 	}
-	MCLGET(m_new, M_NOWAIT);
-	if (!(m_new->m_flags & M_EXT)) {
+	if (!(MCLGET(m_new, M_NOWAIT))) {
 		device_printf(sc->my_dev,
 		    "no memory for rx list -- packet dropped!\n");
 		m_freem(m_new);
@@ -1352,8 +1355,7 @@ my_encap(struct my_softc * sc, struct my_chain * c, struct mbuf * m_head)
 		return (1);
 	}
 	if (m_head->m_pkthdr.len > MHLEN) {
-		MCLGET(m_new, M_NOWAIT);
-		if (!(m_new->m_flags & M_EXT)) {
+		if (!(MCLGET(m_new, M_NOWAIT))) {
 			m_freem(m_new);
 			device_printf(sc->my_dev, "no memory for tx list");
 			return (1);
@@ -1719,7 +1721,7 @@ my_watchdog(void *arg)
 static void
 my_stop(struct my_softc * sc)
 {
-	register int    i;
+	int    i;
 	struct ifnet   *ifp;
 
 	MY_LOCK_ASSERT(sc);

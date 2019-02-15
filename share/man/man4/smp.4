@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 7, 2008
+.Dd January 6, 2018
 .Dt SMP 4
 .Os
 .Sh NAME
@@ -56,6 +56,11 @@ i386 also requires
 The
 .Xr mptable 1
 command may be used to view the status of multi-processor support.
+.Pp
+.Nm
+support can be disabled by setting the loader tunable
+.Va kern.smp.disabled
+to 1.
 .Pp
 The number of CPUs detected by the system is available in
 the read-only sysctl variable

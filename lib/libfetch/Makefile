@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=lib${LIB}
 LIB=		fetch
 CFLAGS+=	-I.
 SRCS=		fetch.c common.c ftp.c http.c file.c \
@@ -16,11 +17,9 @@ CFLAGS+=	-DINET6
 
 .if ${MK_OPENSSL} != "no"
 CFLAGS+=	-DWITH_SSL
-DPADD=		${LIBSSL} ${LIBCRYPTO}
-LDADD=		-lssl -lcrypto
+LIBADD+=	ssl crypto
 .else
-DPADD=		${LIBMD}
-LDADD=		-lmd
+LIBADD+=	md
 .endif
 
 CFLAGS+=	-DFTP_COMBINE_CWDS

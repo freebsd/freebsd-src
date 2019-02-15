@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1993 Paul Kranenburg
  * All rights reserved.
  *
@@ -37,7 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #include <arpa/inet.h>
 
-#include <a.out.h>
 #include <dlfcn.h>
 #include <err.h>
 #include <errno.h>
@@ -48,6 +49,12 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "extern.h"
+
+/* We don't support a.out executables on arm64 and riscv */
+#if !defined(__aarch64__) && !defined(__riscv)
+#include <a.out.h>
+#define	AOUT_SUPPORTED
+#endif
 
 /*
  * 32-bit ELF data structures can only be used if the system header[s] declare
@@ -83,7 +90,7 @@ static void	usage(void);
 static int
 execldd32(char *file, char *fmt1, char *fmt2, int aflag, int vflag)
 {
-	char *argv[8];
+	char *argv[9];
 	int i, rval, status;
 
 	LDD_UNSETENV("TRACE_LOADED_OBJECTS");
@@ -274,7 +281,9 @@ static int
 is_executable(const char *fname, int fd, int *is_shlib, int *type)
 {
 	union {
+#ifdef AOUT_SUPPORTED
 		struct exec aout;
+#endif
 #if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
 		Elf32_Ehdr elf32;
 #endif
@@ -290,6 +299,7 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 		return (0);
 	}
 
+#ifdef AOUT_SUPPORTED
 	if ((size_t)n >= sizeof(hdr.aout) && !N_BADMAG(hdr.aout)) {
 		/* a.out file */
 		if ((N_GETFLAG(hdr.aout) & EX_DPMASK) != EX_DYNAMIC
@@ -303,6 +313,7 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 		*type = TYPE_AOUT;
 		return (1);
 	}
+#endif
 
 #if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
 	if ((size_t)n >= sizeof(hdr.elf32) && IS_ELF(hdr.elf32) &&
@@ -377,9 +388,20 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 			return (0);
 		}
 		if (hdr.elf.e_type == ET_DYN) {
-			if (hdr.elf.e_ident[EI_OSABI] == ELFOSABI_FREEBSD) {
+			switch (hdr.elf.e_ident[EI_OSABI]) {
+			case ELFOSABI_FREEBSD:
 				*is_shlib = 1;
 				return (1);
+#ifdef __ARM_EABI__
+			case ELFOSABI_NONE:
+				if (hdr.elf.e_machine != EM_ARM)
+					break;
+				if (EF_ARM_EABI_VERSION(hdr.elf.e_flags) <
+				    EF_ARM_EABI_FREEBSD_MIN)
+					break;
+				*is_shlib = 1;
+				return (1);
+#endif
 			}
 			warnx("%s: not a FreeBSD ELF shared object", fname);
 			return (0);

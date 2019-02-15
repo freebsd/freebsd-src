@@ -34,7 +34,6 @@ struct SelectorDescriptor {
   const char *SelectorName;
   unsigned ArgumentCount;
 };
-}
 
 //===----------------------------------------------------------------------===//
 // FindSuperCallVisitor - Identify specific calls to the superclass.
@@ -50,7 +49,7 @@ public:
         DoesCallSuper = true;
 
     // Recurse if we didn't find the super call yet.
-    return !DoesCallSuper; 
+    return !DoesCallSuper;
   }
 
   bool DoesCallSuper;
@@ -60,10 +59,9 @@ private:
 };
 
 //===----------------------------------------------------------------------===//
-// ObjCSuperCallChecker 
+// ObjCSuperCallChecker
 //===----------------------------------------------------------------------===//
 
-namespace {
 class ObjCSuperCallChecker : public Checker<
                                       check::ASTDecl<ObjCImplementationDecl> > {
 public:
@@ -90,7 +88,7 @@ private:
 /// \param[out] SuperclassName On return, the found superclass name.
 bool ObjCSuperCallChecker::isCheckableClass(const ObjCImplementationDecl *D,
                                             StringRef &SuperclassName) const {
-  const ObjCInterfaceDecl *ID = D->getClassInterface();
+  const ObjCInterfaceDecl *ID = D->getClassInterface()->getSuperClass();
   for ( ; ID ; ID = ID->getSuperClass())
   {
     SuperclassName = ID->getIdentifier()->getName();
@@ -181,15 +179,11 @@ void ObjCSuperCallChecker::checkASTDecl(const ObjCImplementationDecl *D,
 
 
   // Iterate over all instance methods.
-  for (ObjCImplementationDecl::instmeth_iterator I = D->instmeth_begin(),
-                                                 E = D->instmeth_end();
-       I != E; ++I) {
-    Selector S = (*I)->getSelector();
+  for (auto *MD : D->instance_methods()) {
+    Selector S = MD->getSelector();
     // Find out whether this is a selector that we want to check.
     if (!SelectorsForClass[SuperclassName].count(S))
       continue;
-
-    ObjCMethodDecl *MD = *I;
 
     // Check if the method calls its superclass implementation.
     if (MD->getBody())
@@ -208,11 +202,11 @@ void ObjCSuperCallChecker::checkASTDecl(const ObjCImplementationDecl *D,
         SmallString<320> Buf;
         llvm::raw_svector_ostream os(Buf);
 
-        os << "The '" << S.getAsString() 
+        os << "The '" << S.getAsString()
            << "' instance method in " << SuperclassName.str() << " subclass '"
            << *D << "' is missing a [super " << S.getAsString() << "] call";
 
-        BR.EmitBasicReport(MD, Name, categories::CoreFoundationObjectiveC,
+        BR.EmitBasicReport(MD, this, Name, categories::CoreFoundationObjectiveC,
                            os.str(), DLoc);
       }
     }

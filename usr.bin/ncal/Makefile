@@ -4,14 +4,12 @@
 
 PROG=	ncal
 
-DPADD=	${LIBCALENDAR} ${LIBTERMCAPW}
-LDADD=	-lcalendar -ltermcapw
+LIBADD=	calendar ncursesw
 
 LINKS=	${BINDIR}/ncal ${BINDIR}/cal
 MLINKS=	ncal.1 cal.1
 
-.if ${MK_TESTS} != "no"
-SUBDIR+= tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

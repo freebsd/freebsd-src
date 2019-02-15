@@ -4,11 +4,10 @@
 .include <src.opts.mk>
 
 PROG=	apply
-DPADD=	${LIBSBUF}
-LDADD=	-lsbuf
 
-.if ${MK_TESTS} != "no"
-SUBDIR+= tests
-.endif
+LIBADD=	sbuf
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

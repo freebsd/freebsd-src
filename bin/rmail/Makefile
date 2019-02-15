@@ -1,7 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
 # $FreeBSD$
 
-SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
+PACKAGE=sendmail
+SENDMAIL_DIR=${SRCTOP}/contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/rmail
 
 # Not much point this being static. It calls a shared sendmail...
@@ -14,11 +15,7 @@ MAN=	rmail.8
 WARNS?=	2
 CFLAGS+=-I${SENDMAIL_DIR}/include -I.
 
-LIBSMDIR=	${.OBJDIR}/../../lib/libsm
-LIBSM=		${LIBSMDIR}/libsm.a
-
-DPADD=	${LIBSM}
-LDADD=	${LIBSM}
+LIBADD=	sm
 
 SRCS+=	sm_os.h
 CLEANFILES+=sm_os.h
@@ -33,7 +30,7 @@ LDFLAGS+=${SENDMAIL_LDFLAGS}
 # following:
 # CFLAGS+= -DQUEUE_ONLY
 
-sm_os.h:
-	ln -sf ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h sm_os.h
+sm_os.h: ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>

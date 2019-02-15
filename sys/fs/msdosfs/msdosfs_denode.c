@@ -2,6 +2,8 @@
 /*	$NetBSD: msdosfs_denode.c,v 1.28 1998/02/10 14:10:00 mrg Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1994, 1995, 1997 Wolfgang Solfrank.
  * Copyright (C) 1994, 1995, 1997 TooLs GmbH.
  * All rights reserved.
@@ -55,6 +57,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/vmmeter.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
@@ -92,11 +95,8 @@ de_vncmpf(struct vnode *vp, void *arg)
  * depp	     - returns the address of the gotten denode.
  */
 int
-deget(pmp, dirclust, diroffset, depp)
-	struct msdosfsmount *pmp;	/* so we know the maj/min number */
-	u_long dirclust;		/* cluster this dir entry came from */
-	u_long diroffset;		/* index of entry within the cluster */
-	struct denode **depp;		/* returns the addr of the gotten denode */
+deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
+    struct denode **depp)
 {
 	int error;
 	uint64_t inode;
@@ -162,7 +162,7 @@ deget(pmp, dirclust, diroffset, depp)
 	ldep->de_diroffset = diroffset;
 	ldep->de_inode = inode;
 	lockmgr(nvp->v_vnlock, LK_EXCLUSIVE, NULL);
-	fc_purge(ldep, 0);	/* init the fat cache for this denode */
+	fc_purge(ldep, 0);	/* init the FAT cache for this denode */
 	error = insmntque(nvp, mntp);
 	if (error != 0) {
 		free(ldep, M_MSDOSFSNODE);
@@ -284,9 +284,7 @@ deget(pmp, dirclust, diroffset, depp)
 }
 
 int
-deupdat(dep, waitfor)
-	struct denode *dep;
-	int waitfor;
+deupdat(struct denode *dep, int waitfor)
 {
 	struct direntry dir;
 	struct timespec ts;
@@ -299,7 +297,7 @@ deupdat(dep, waitfor)
 		    DE_MODIFIED);
 		return (0);
 	}
-	getnanotime(&ts);
+	vfs_timestamp(&ts);
 	DETIMES(dep, &ts, &ts, &ts);
 	if ((dep->de_flag & DE_MODIFIED) == 0 && waitfor == 0)
 		return (0);
@@ -334,11 +332,7 @@ deupdat(dep, waitfor)
  * Truncate the file described by dep to the length specified by length.
  */
 int
-detrunc(dep, length, flags, cred)
-	struct denode *dep;
-	u_long length;
-	int flags;
-	struct ucred *cred;
+detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 {
 	int error;
 	int allerror;
@@ -389,7 +383,7 @@ detrunc(dep, length, flags, cred)
 		dep->de_StartCluster = 0;
 		eofentry = ~0;
 	} else {
-		error = pcbmap(dep, de_clcount(pmp, length) - 1, 0, 
+		error = pcbmap(dep, de_clcount(pmp, length) - 1, 0,
 			       &eofentry, 0);
 		if (error) {
 #ifdef MSDOSFS_DEBUG
@@ -418,7 +412,7 @@ detrunc(dep, length, flags, cred)
 #endif
 				return (error);
 			}
-			bzero(bp->b_data + boff, pmp->pm_bpcluster - boff);
+			memset(bp->b_data + boff, 0, pmp->pm_bpcluster - boff);
 			if (flags & IO_SYNC)
 				bwrite(bp);
 			else
@@ -477,10 +471,7 @@ detrunc(dep, length, flags, cred)
  * Extend the file described by dep to length specified by length.
  */
 int
-deextend(dep, length, cred)
-	struct denode *dep;
-	u_long length;
-	struct ucred *cred;
+deextend(struct denode *dep, u_long length, struct ucred *cred)
 {
 	struct msdosfsmount *pmp = dep->de_pmp;
 	u_long count;
@@ -525,8 +516,7 @@ deextend(dep, length, cred)
  * been moved to a new directory.
  */
 void
-reinsert(dep)
-	struct denode *dep;
+reinsert(struct denode *dep)
 {
 	struct vnode *vp;
 
@@ -549,10 +539,7 @@ reinsert(dep)
 }
 
 int
-msdosfs_reclaim(ap)
-	struct vop_reclaim_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+msdosfs_reclaim(struct vop_reclaim_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(vp);
@@ -583,11 +570,7 @@ msdosfs_reclaim(ap)
 }
 
 int
-msdosfs_inactive(ap)
-	struct vop_inactive_args /* {
-		struct vnode *a_vp;
-		struct thread *a_td;
-	} */ *ap;
+msdosfs_inactive(struct vop_inactive_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(vp);
@@ -609,8 +592,9 @@ msdosfs_inactive(ap)
 	 * as empty.  (This may not be necessary for the dos filesystem.)
 	 */
 #ifdef MSDOSFS_DEBUG
-	printf("msdosfs_inactive(): dep %p, refcnt %ld, mntflag %x, MNT_RDONLY %x\n",
-	       dep, dep->de_refcnt, vp->v_mount->mnt_flag, MNT_RDONLY);
+	printf("msdosfs_inactive(): dep %p, refcnt %ld, mntflag %llx, MNT_RDONLY %llx\n",
+	    dep, dep->de_refcnt, (unsigned long long)vp->v_mount->mnt_flag,
+	    (unsigned long long)MNT_RDONLY);
 #endif
 	if (dep->de_refcnt <= 0 && (vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
 		error = detrunc(dep, (u_long) 0, 0, NOCRED);

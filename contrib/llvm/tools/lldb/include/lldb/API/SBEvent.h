@@ -15,88 +15,72 @@
 #include <stdio.h>
 #include <vector>
 
-
 namespace lldb {
 
 class SBBroadcaster;
 
-class SBEvent
-{
+class LLDB_API SBEvent {
 public:
-    SBEvent();
+  SBEvent();
 
-    SBEvent (const lldb::SBEvent &rhs);
-    
-    // Make an event that contains a C string.
-    SBEvent (uint32_t event, const char *cstr, uint32_t cstr_len);
+  SBEvent(const lldb::SBEvent &rhs);
 
-    ~SBEvent();
+  // Make an event that contains a C string.
+  SBEvent(uint32_t event, const char *cstr, uint32_t cstr_len);
 
-    const SBEvent &
-    operator = (const lldb::SBEvent &rhs);
+  SBEvent(lldb::EventSP &event_sp);
 
-    bool
-    IsValid() const;
+  SBEvent(lldb_private::Event *event_sp);
 
-    const char *
-    GetDataFlavor ();
+  ~SBEvent();
 
-    uint32_t
-    GetType () const;
+  const SBEvent &operator=(const lldb::SBEvent &rhs);
 
-    lldb::SBBroadcaster
-    GetBroadcaster () const;
+  bool IsValid() const;
 
-    const char *
-    GetBroadcasterClass () const;
+  const char *GetDataFlavor();
 
-    bool
-    BroadcasterMatchesPtr (const lldb::SBBroadcaster *broadcaster);
+  uint32_t GetType() const;
 
-    bool
-    BroadcasterMatchesRef (const lldb::SBBroadcaster &broadcaster);
+  lldb::SBBroadcaster GetBroadcaster() const;
 
-    void
-    Clear();
+  const char *GetBroadcasterClass() const;
 
-    static const char *
-    GetCStringFromEvent (const lldb::SBEvent &event);
+  bool BroadcasterMatchesPtr(const lldb::SBBroadcaster *broadcaster);
 
-    bool
-    GetDescription (lldb::SBStream &description);
+  bool BroadcasterMatchesRef(const lldb::SBBroadcaster &broadcaster);
 
-    bool
-    GetDescription (lldb::SBStream &description) const;
+  void Clear();
+
+  static const char *GetCStringFromEvent(const lldb::SBEvent &event);
+
+  bool GetDescription(lldb::SBStream &description);
+
+  bool GetDescription(lldb::SBStream &description) const;
 
 protected:
-    friend class SBListener;
-    friend class SBBroadcaster;
-    friend class SBBreakpoint;
-    friend class SBDebugger;
-    friend class SBProcess;
-    friend class SBThread;
-    friend class SBWatchpoint;
+  friend class SBListener;
+  friend class SBBroadcaster;
+  friend class SBBreakpoint;
+  friend class SBDebugger;
+  friend class SBProcess;
+  friend class SBTarget;
+  friend class SBThread;
+  friend class SBWatchpoint;
 
-    SBEvent (lldb::EventSP &event_sp);
+  lldb::EventSP &GetSP() const;
 
-    lldb::EventSP &
-    GetSP () const;
+  void reset(lldb::EventSP &event_sp);
 
-    void
-    reset (lldb::EventSP &event_sp);
+  void reset(lldb_private::Event *event);
 
-    void
-    reset (lldb_private::Event* event);
-
-    lldb_private::Event *
-    get () const;
+  lldb_private::Event *get() const;
 
 private:
-
-    mutable lldb::EventSP m_event_sp;
-    mutable lldb_private::Event *m_opaque_ptr;
+  mutable lldb::EventSP m_event_sp;
+  mutable lldb_private::Event *m_opaque_ptr;
 };
 
 } // namespace lldb
 
-#endif  // LLDB_SBEvent_h_
+#endif // LLDB_SBEvent_h_

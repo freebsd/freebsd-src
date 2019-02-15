@@ -2,6 +2,8 @@
 /*	$FreeBSD$	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -161,7 +163,7 @@ struct usb_cdc_notification {
 #define	UCDC_NOTIFICATION_LENGTH	8
 
 /*
- * Bits set in the SERIAL STATE notifcation (first byte of data)
+ * Bits set in the SERIAL STATE notification (first byte of data)
  */
 
 #define	UCDC_N_SERIAL_OVERRUN		0x40

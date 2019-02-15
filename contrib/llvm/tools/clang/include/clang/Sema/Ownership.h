@@ -14,9 +14,9 @@
 #ifndef LLVM_CLANG_SEMA_OWNERSHIP_H
 #define LLVM_CLANG_SEMA_OWNERSHIP_H
 
+#include "clang/AST/Expr.h"
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/PointerIntPair.h"
 
 //===----------------------------------------------------------------------===//
 // OpaquePtr
@@ -43,13 +43,13 @@ namespace clang {
   /// compatible with "Type" pointers for example.
   template <class PtrTy>
   class OpaquePtr {
-    void *Ptr;
+    void *Ptr = nullptr;
     explicit OpaquePtr(void *Ptr) : Ptr(Ptr) {}
 
     typedef llvm::PointerLikeTypeTraits<PtrTy> Traits;
 
   public:
-    OpaquePtr() : Ptr(0) {}
+    OpaquePtr(std::nullptr_t = nullptr) {}
 
     static OpaquePtr make(PtrTy P) { OpaquePtr OP; OP.set(P); return OP; }
 
@@ -79,7 +79,7 @@ namespace clang {
       Ptr = Traits::getAsVoidPointer(P);
     }
 
-    LLVM_EXPLICIT operator bool() const { return Ptr != 0; }
+    explicit operator bool() const { return Ptr != nullptr; }
 
     void *getAsOpaquePtr() const { return Ptr; }
     static OpaquePtr getFromOpaquePtr(void *P) { return OpaquePtr(P); }
@@ -107,8 +107,7 @@ namespace clang {
 
 namespace llvm {
   template <class T>
-  class PointerLikeTypeTraits<clang::OpaquePtr<T> > {
-  public:
+  struct PointerLikeTypeTraits<clang::OpaquePtr<T> > {
     static inline void *getAsVoidPointer(clang::OpaquePtr<T> P) {
       // FIXME: Doesn't work? return P.getAs< void >();
       return P.getAsOpaquePtr();
@@ -153,17 +152,15 @@ namespace clang {
     ActionResult(const DiagnosticBuilder &) : Val(PtrTy()), Invalid(true) {}
 
     // These two overloads prevent void* -> bool conversions.
-    ActionResult(const void *);
-    ActionResult(volatile void *);
+    ActionResult(const void *) = delete;
+    ActionResult(volatile void *) = delete;
 
     bool isInvalid() const { return Invalid; }
     bool isUsable() const { return !Invalid && Val; }
+    bool isUnset() const { return !Invalid && !Val; }
 
     PtrTy get() const { return Val; }
-    // FIXME: Replace with get.
-    PtrTy release() const { return Val; }
-    PtrTy take() const { return Val; }
-    template <typename T> T *takeAs() { return static_cast<T*>(get()); }
+    template <typename T> T *getAs() { return static_cast<T*>(get()); }
 
     void set(PtrTy V) { Val = V; }
 
@@ -194,20 +191,18 @@ namespace clang {
     ActionResult(const DiagnosticBuilder &) : PtrWithInvalid(0x01) { }
 
     // These two overloads prevent void* -> bool conversions.
-    ActionResult(const void *);
-    ActionResult(volatile void *);
+    ActionResult(const void *) = delete;
+    ActionResult(volatile void *) = delete;
 
     bool isInvalid() const { return PtrWithInvalid & 0x01; }
     bool isUsable() const { return PtrWithInvalid > 0x01; }
+    bool isUnset() const { return PtrWithInvalid == 0; }
 
     PtrTy get() const {
       void *VP = reinterpret_cast<void *>(PtrWithInvalid & ~0x01);
       return PtrTraits::getFromVoidPointer(VP);
     }
-    // FIXME: Replace with get.
-    PtrTy take() const { return get(); }
-    PtrTy release() const { return get(); }
-    template <typename T> T *takeAs() { return static_cast<T*>(get()); }
+    template <typename T> T *getAs() { return static_cast<T*>(get()); }
 
     void set(PtrTy V) {
       void *VP = PtrTraits::getAsVoidPointer(V);
@@ -261,12 +256,13 @@ namespace clang {
 
   typedef ActionResult<Decl*> DeclResult;
   typedef OpaquePtr<TemplateName> ParsedTemplateTy;
+  typedef UnionOpaquePtr<TemplateName> UnionParsedTemplateTy;
 
-  typedef llvm::MutableArrayRef<Expr*> MultiExprArg;
-  typedef llvm::MutableArrayRef<Stmt*> MultiStmtArg;
-  typedef llvm::MutableArrayRef<ParsedTemplateArgument> ASTTemplateArgsPtr;
-  typedef llvm::MutableArrayRef<ParsedType> MultiTypeArg;
-  typedef llvm::MutableArrayRef<TemplateParameterList*> MultiTemplateParamsArg;
+  typedef MutableArrayRef<Expr*> MultiExprArg;
+  typedef MutableArrayRef<Stmt*> MultiStmtArg;
+  typedef MutableArrayRef<ParsedTemplateArgument> ASTTemplateArgsPtr;
+  typedef MutableArrayRef<ParsedType> MultiTypeArg;
+  typedef MutableArrayRef<TemplateParameterList*> MultiTemplateParamsArg;
 
   inline ExprResult ExprError() { return ExprResult(true); }
   inline StmtResult StmtError() { return StmtResult(true); }

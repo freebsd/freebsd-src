@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -45,6 +47,7 @@
 #include <syslog.h>
 
 #include "event.h"
+#define L2CAP_SOCKET_CHECKED
 #include "btpand.h"
 
 #define		__event_link(ev) \

@@ -832,7 +832,7 @@
 #define USE_SHMEM_MMAP_ANON 1
 
 /* Define if mmap() via POSIX.1 shm_open() on temporary file will be used */
-/* #undef USE_SHMEM_MMAP_SHM */
+#define USE_SHMEM_MMAP_SHM 1
 
 /* Define if Classical mmap() on temporary file will be used */
 /* #undef USE_SHMEM_MMAP_TMP */
@@ -847,7 +847,7 @@
 /* #undef USE_SHMEM_OS2_ANON */
 
 /* Define if SysV IPC shmget() will be used */
-#define USE_SHMEM_SHMGET 1
+/* #undef USE_SHMEM_SHMGET */
 
 /* Define if SysV IPC shmget() will be used */
 /* #undef USE_SHMEM_SHMGET_ANON */

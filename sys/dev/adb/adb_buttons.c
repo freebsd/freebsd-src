@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2011, Justin Hibbits.
  * Copyright (c) 2002, Miodrag Vallat.
  * Copyright (C) 1999 Tsubai Masanari.  All rights reserved.

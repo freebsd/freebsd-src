@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -67,18 +69,21 @@ main(int argc, char *argv[])
 {
 	struct utmpx utx;
 	const struct passwd *pw;
-	int ch, howto, i, fd, lflag, nflag, qflag, sverrno;
+	int ch, howto, i, fd, lflag, nflag, qflag, sverrno, Nflag;
 	u_int pageins;
 	const char *user, *kernel = NULL;
 
-	if (strcmp(getprogname(), "halt") == 0) {
+	if (strstr(getprogname(), "halt") != NULL) {
 		dohalt = 1;
 		howto = RB_HALT;
 	} else
 		howto = 0;
-	lflag = nflag = qflag = 0;
-	while ((ch = getopt(argc, argv, "dk:lnpq")) != -1)
+	lflag = nflag = qflag = Nflag = 0;
+	while ((ch = getopt(argc, argv, "cdk:lNnpqr")) != -1)
 		switch(ch) {
+		case 'c':
+			howto |= RB_POWERCYCLE;
+			break;
 		case 'd':
 			howto |= RB_DUMP;
 			break;
@@ -92,11 +97,18 @@ main(int argc, char *argv[])
 			nflag = 1;
 			howto |= RB_NOSYNC;
 			break;
+		case 'N':
+			nflag = 1;
+			Nflag = 1;
+			break;
 		case 'p':
 			howto |= RB_POWEROFF;
 			break;
 		case 'q':
 			qflag = 1;
+			break;
+		case 'r':
+			howto |= RB_REROOT;
 			break;
 		case '?':
 		default:
@@ -104,9 +116,17 @@ main(int argc, char *argv[])
 		}
 	argc -= optind;
 	argv += optind;
+	if (argc != 0)
+		usage();
 
 	if ((howto & (RB_DUMP | RB_HALT)) == (RB_DUMP | RB_HALT))
 		errx(1, "cannot dump (-d) when halting; must reboot instead");
+	if (Nflag && (howto & RB_NOSYNC) != 0)
+		errx(1, "-N cannot be used with -n");
+	if ((howto & RB_POWEROFF) && (howto & RB_POWERCYCLE))
+		errx(1, "-c and -p cannot be used together");
+	if ((howto & RB_REROOT) != 0 && howto != RB_REROOT)
+		errx(1, "-r cannot be used with -c, -d, -n, or -p");
 	if (geteuid()) {
 		errno = EPERM;
 		err(1, NULL);
@@ -137,6 +157,15 @@ main(int argc, char *argv[])
 		if (dohalt) {
 			openlog("halt", 0, LOG_AUTH | LOG_CONS);
 			syslog(LOG_CRIT, "halted by %s", user);
+		} else if (howto & RB_REROOT) {
+			openlog("reroot", 0, LOG_AUTH | LOG_CONS);
+			syslog(LOG_CRIT, "rerooted by %s", user);
+		} else if (howto & RB_POWEROFF) {
+			openlog("reboot", 0, LOG_AUTH | LOG_CONS);
+			syslog(LOG_CRIT, "powered off by %s", user);
+		} else if (howto & RB_POWERCYCLE) {
+			openlog("reboot", 0, LOG_AUTH | LOG_CONS);
+			syslog(LOG_CRIT, "power cycled by %s", user);
 		} else {
 			openlog("reboot", 0, LOG_AUTH | LOG_CONS);
 			syslog(LOG_CRIT, "rebooted by %s", user);
@@ -169,6 +198,16 @@ main(int argc, char *argv[])
 	 * after killing whatever we're writing to.
 	 */
 	(void)signal(SIGPIPE, SIG_IGN);
+
+	/*
+	 * Only init(8) can perform rerooting.
+	 */
+	if (howto & RB_REROOT) {
+		if (kill(1, SIGEMT) == -1)
+			err(1, "SIGEMT init");
+
+		return (0);
+	}
 
 	/* Just stop init -- if we fail, we'll restart it. */
 	if (kill(1, SIGTSTP) == -1)
@@ -224,8 +263,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, dohalt ?
-	    "usage: halt [-lnpq] [-k kernel]\n" :
-	    "usage: reboot [-dlnpq] [-k kernel]\n");
+	    "usage: halt [-clNnpq] [-k kernel]\n" :
+	    "usage: reboot [-cdlNnpqr] [-k kernel]\n");
 	exit(1);
 }
 

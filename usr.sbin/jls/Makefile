@@ -4,8 +4,9 @@
 
 PROG=	jls
 MAN=	jls.8
-DPADD=	${LIBJAIL}
-LDADD=	-ljail
+LIBADD=	jail xo
+
+PACKAGE=jail
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6

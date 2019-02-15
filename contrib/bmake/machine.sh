@@ -2,7 +2,7 @@
 # derrived from /etc/rc_d/os.sh
 
 # RCSid:
-#	$Id: machine.sh,v 1.16 2010/10/17 00:05:51 sjg Exp $
+#	$Id: machine.sh,v 1.18 2017/08/13 19:11:28 sjg Exp $
 #
 #	@(#) Copyright (c) 1994-2002 Simon J. Gerraty
 #
@@ -44,10 +44,20 @@ Which() {
 }
 
 case $OS in
+AIX)	# from http://gnats.netbsd.org/29386
+	OSMAJOR=`uname -v`
+	OSMINOR=`uname -r`
+	MACHINE=$OS$OSMAJOR.$OSMINOR
+	MACHINE_ARCH=`bootinfo -T`
+	;;
 OpenBSD)
 	MACHINE=$OS$OSMAJOR.$machine
 	arch=`Which arch /usr/bin:/usr/ucb:$PATH`
 	MACHINE_ARCH=`$arch -s`;
+	;;
+Bitrig)
+	MACHINE=$OS$OSMAJOR.$machine
+	MACHINE_ARCH=`uname -m`;
 	;;
 *BSD)
 	MACHINE=$OS$OSMAJOR.$machine

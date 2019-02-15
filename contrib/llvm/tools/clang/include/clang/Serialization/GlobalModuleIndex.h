@@ -13,15 +13,15 @@
 // queries such as "do any modules know about this identifier?"
 //
 //===----------------------------------------------------------------------===//
-#ifndef LLVM_CLANG_SERIALIZATION_GLOBAL_MODULE_INDEX_H
-#define LLVM_CLANG_SERIALIZATION_GLOBAL_MODULE_INDEX_H
+#ifndef LLVM_CLANG_SERIALIZATION_GLOBALMODULEINDEX_H
+#define LLVM_CLANG_SERIALIZATION_GLOBALMODULEINDEX_H
 
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
+#include <memory>
 #include <utility>
 
 namespace llvm {
@@ -35,6 +35,8 @@ class DirectoryEntry;
 class FileEntry;
 class FileManager;
 class IdentifierIterator;
+class PCHContainerOperations;
+class PCHContainerReader;
 
 namespace serialization {
   class ModuleFile;
@@ -59,7 +61,7 @@ using serialization::ModuleFile;
 class GlobalModuleIndex {
   /// \brief Buffer containing the index file, which is lazily accessed so long
   /// as the global module index is live.
-  llvm::OwningPtr<llvm::MemoryBuffer> Buffer;
+  std::unique_ptr<llvm::MemoryBuffer> Buffer;
 
   /// \brief The hash table.
   ///
@@ -115,11 +117,11 @@ class GlobalModuleIndex {
   unsigned NumIdentifierLookupHits;
   
   /// \brief Internal constructor. Use \c readIndex() to read an index.
-  explicit GlobalModuleIndex(llvm::MemoryBuffer *Buffer,
+  explicit GlobalModuleIndex(std::unique_ptr<llvm::MemoryBuffer> Buffer,
                              llvm::BitstreamCursor Cursor);
 
-  GlobalModuleIndex(const GlobalModuleIndex &) LLVM_DELETED_FUNCTION;
-  GlobalModuleIndex &operator=(const GlobalModuleIndex &) LLVM_DELETED_FUNCTION;
+  GlobalModuleIndex(const GlobalModuleIndex &) = delete;
+  GlobalModuleIndex &operator=(const GlobalModuleIndex &) = delete;
 
 public:
   ~GlobalModuleIndex();
@@ -186,15 +188,20 @@ public:
   /// \brief Print statistics to standard error.
   void printStats();
 
+  /// \brief Print debugging view to standard error.
+  void dump();
+
   /// \brief Write a global index into the given
   ///
   /// \param FileMgr The file manager to use to load module files.
-  ///
+  /// \param PCHContainerRdr - The PCHContainerOperations to use for loading and
+  /// creating modules.
   /// \param Path The path to the directory containing module files, into
   /// which the global index will be written.
-  static ErrorCode writeIndex(FileManager &FileMgr, StringRef Path);
+  static ErrorCode writeIndex(FileManager &FileMgr,
+                              const PCHContainerReader &PCHContainerRdr,
+                              StringRef Path);
 };
-
 }
 
 #endif

@@ -12,22 +12,39 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "X86AsmPrinter.h"
 #include "InstPrinter/X86ATTInstPrinter.h"
-#include "X86COFFMachineModuleInfo.h"
+#include "InstPrinter/X86InstComments.h"
+#include "MCTargetDesc/X86BaseInfo.h"
+#include "MCTargetDesc/X86TargetStreamer.h"
+#include "Utils/X86ShuffleDecode.h"
+#include "X86AsmPrinter.h"
+#include "X86RegisterInfo.h"
+#include "X86ShuffleDecodeConstantPool.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/iterator_range.h"
+#include "llvm/CodeGen/MachineConstantPool.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineModuleInfoImpls.h"
+#include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/StackMaps.h"
-#include "llvm/IR/Type.h"
+#include "llvm/CodeGen/TargetLoweringObjectFile.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/GlobalValue.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCFixup.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstBuilder.h"
+#include "llvm/MC/MCSection.h"
+#include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
-#include "llvm/Support/FormattedStream.h"
-#include "llvm/Target/Mangler.h"
+#include "llvm/MC/MCSymbolELF.h"
+
 using namespace llvm;
 
 namespace {
@@ -42,6 +59,8 @@ class X86MCInstLower {
 public:
   X86MCInstLower(const MachineFunction &MF, X86AsmPrinter &asmprinter);
 
+  Optional<MCOperand> LowerMachineOperand(const MachineInstr *MI,
+                                          const MachineOperand &MO) const;
   void Lower(const MachineInstr *MI, MCInst &OutMI) const;
 
   MCSymbol *GetSymbolFromOperand(const MachineOperand &MO) const;
@@ -49,17 +68,48 @@ public:
 
 private:
   MachineModuleInfoMachO &getMachOMMI() const;
-  Mangler *getMang() const {
-    return AsmPrinter.Mang;
-  }
 };
 
 } // end anonymous namespace
 
+// Emit a minimal sequence of nops spanning NumBytes bytes.
+static void EmitNops(MCStreamer &OS, unsigned NumBytes, bool Is64Bit,
+                     const MCSubtargetInfo &STI);
+
+void X86AsmPrinter::StackMapShadowTracker::count(MCInst &Inst,
+                                                 const MCSubtargetInfo &STI,
+                                                 MCCodeEmitter *CodeEmitter) {
+  if (InShadow) {
+    SmallString<256> Code;
+    SmallVector<MCFixup, 4> Fixups;
+    raw_svector_ostream VecOS(Code);
+    CodeEmitter->encodeInstruction(Inst, VecOS, Fixups, STI);
+    CurrentShadowSize += Code.size();
+    if (CurrentShadowSize >= RequiredShadowSize)
+      InShadow = false; // The shadow is big enough. Stop counting.
+  }
+}
+
+void X86AsmPrinter::StackMapShadowTracker::emitShadowPadding(
+    MCStreamer &OutStreamer, const MCSubtargetInfo &STI) {
+  if (InShadow && CurrentShadowSize < RequiredShadowSize) {
+    InShadow = false;
+    EmitNops(OutStreamer, RequiredShadowSize - CurrentShadowSize,
+             MF->getSubtarget<X86Subtarget>().is64Bit(), STI);
+  }
+}
+
+void X86AsmPrinter::EmitAndCountInstruction(MCInst &Inst) {
+  OutStreamer->EmitInstruction(Inst, getSubtargetInfo(),
+                               EnablePrintSchedInfo &&
+                                   !(Inst.getFlags() & X86::NO_SCHED_INFO));
+  SMShadowTracker.count(Inst, getSubtargetInfo(), CodeEmitter.get());
+}
+
 X86MCInstLower::X86MCInstLower(const MachineFunction &mf,
                                X86AsmPrinter &asmprinter)
-: Ctx(mf.getContext()), MF(mf), TM(mf.getTarget()),
-  MAI(*TM.getMCAsmInfo()), AsmPrinter(asmprinter) {}
+    : Ctx(mf.getContext()), MF(mf), TM(mf.getTarget()), MAI(*TM.getMCAsmInfo()),
+      AsmPrinter(asmprinter) {}
 
 MachineModuleInfoMachO &X86MCInstLower::getMachOMMI() const {
   return MF.getMMI().getObjFileInfo<MachineModuleInfoMachO>();
@@ -70,98 +120,68 @@ MachineModuleInfoMachO &X86MCInstLower::getMachOMMI() const {
 /// operand to an MCSymbol.
 MCSymbol *X86MCInstLower::
 GetSymbolFromOperand(const MachineOperand &MO) const {
+  const DataLayout &DL = MF.getDataLayout();
   assert((MO.isGlobal() || MO.isSymbol() || MO.isMBB()) && "Isn't a symbol reference");
 
+  MCSymbol *Sym = nullptr;
   SmallString<128> Name;
+  StringRef Suffix;
+
+  switch (MO.getTargetFlags()) {
+  case X86II::MO_DLLIMPORT:
+    // Handle dllimport linkage.
+    Name += "__imp_";
+    break;
+  case X86II::MO_DARWIN_NONLAZY:
+  case X86II::MO_DARWIN_NONLAZY_PIC_BASE:
+    Suffix = "$non_lazy_ptr";
+    break;
+  }
+
+  if (!Suffix.empty())
+    Name += DL.getPrivateGlobalPrefix();
 
   if (MO.isGlobal()) {
     const GlobalValue *GV = MO.getGlobal();
-    bool isImplicitlyPrivate = false;
-    if (MO.getTargetFlags() == X86II::MO_DARWIN_STUB ||
-        MO.getTargetFlags() == X86II::MO_DARWIN_NONLAZY ||
-        MO.getTargetFlags() == X86II::MO_DARWIN_NONLAZY_PIC_BASE ||
-        MO.getTargetFlags() == X86II::MO_DARWIN_HIDDEN_NONLAZY_PIC_BASE)
-      isImplicitlyPrivate = true;
-
-    getMang()->getNameWithPrefix(Name, GV, isImplicitlyPrivate);
+    AsmPrinter.getNameWithPrefix(Name, GV);
   } else if (MO.isSymbol()) {
-    Name += MAI.getGlobalPrefix();
-    Name += MO.getSymbolName();
+    Mangler::getNameWithPrefix(Name, MO.getSymbolName(), DL);
   } else if (MO.isMBB()) {
-    Name += MO.getMBB()->getSymbol()->getName();
+    assert(Suffix.empty());
+    Sym = MO.getMBB()->getSymbol();
   }
+
+  Name += Suffix;
+  if (!Sym)
+    Sym = Ctx.getOrCreateSymbol(Name);
 
   // If the target flags on the operand changes the name of the symbol, do that
   // before we return the symbol.
   switch (MO.getTargetFlags()) {
   default: break;
-  case X86II::MO_DLLIMPORT: {
-    // Handle dllimport linkage.
-    const char *Prefix = "__imp_";
-    Name.insert(Name.begin(), Prefix, Prefix+strlen(Prefix));
-    break;
-  }
   case X86II::MO_DARWIN_NONLAZY:
   case X86II::MO_DARWIN_NONLAZY_PIC_BASE: {
-    Name += "$non_lazy_ptr";
-    MCSymbol *Sym = Ctx.GetOrCreateSymbol(Name.str());
-
     MachineModuleInfoImpl::StubValueTy &StubSym =
       getMachOMMI().getGVStubEntry(Sym);
-    if (StubSym.getPointer() == 0) {
+    if (!StubSym.getPointer()) {
       assert(MO.isGlobal() && "Extern symbol not handled yet");
       StubSym =
         MachineModuleInfoImpl::
         StubValueTy(AsmPrinter.getSymbol(MO.getGlobal()),
                     !MO.getGlobal()->hasInternalLinkage());
     }
-    return Sym;
-  }
-  case X86II::MO_DARWIN_HIDDEN_NONLAZY_PIC_BASE: {
-    Name += "$non_lazy_ptr";
-    MCSymbol *Sym = Ctx.GetOrCreateSymbol(Name.str());
-    MachineModuleInfoImpl::StubValueTy &StubSym =
-      getMachOMMI().getHiddenGVStubEntry(Sym);
-    if (StubSym.getPointer() == 0) {
-      assert(MO.isGlobal() && "Extern symbol not handled yet");
-      StubSym =
-        MachineModuleInfoImpl::
-        StubValueTy(AsmPrinter.getSymbol(MO.getGlobal()),
-                    !MO.getGlobal()->hasInternalLinkage());
-    }
-    return Sym;
-  }
-  case X86II::MO_DARWIN_STUB: {
-    Name += "$stub";
-    MCSymbol *Sym = Ctx.GetOrCreateSymbol(Name.str());
-    MachineModuleInfoImpl::StubValueTy &StubSym =
-      getMachOMMI().getFnStubEntry(Sym);
-    if (StubSym.getPointer())
-      return Sym;
-
-    if (MO.isGlobal()) {
-      StubSym =
-        MachineModuleInfoImpl::
-        StubValueTy(AsmPrinter.getSymbol(MO.getGlobal()),
-                    !MO.getGlobal()->hasInternalLinkage());
-    } else {
-      Name.erase(Name.end()-5, Name.end());
-      StubSym =
-        MachineModuleInfoImpl::
-        StubValueTy(Ctx.GetOrCreateSymbol(Name.str()), false);
-    }
-    return Sym;
+    break;
   }
   }
 
-  return Ctx.GetOrCreateSymbol(Name.str());
+  return Sym;
 }
 
 MCOperand X86MCInstLower::LowerSymbolOperand(const MachineOperand &MO,
                                              MCSymbol *Sym) const {
   // FIXME: We would like an efficient form for this, so we don't have to do a
   // lot of extra uniquing.
-  const MCExpr *Expr = 0;
+  const MCExpr *Expr = nullptr;
   MCSymbolRefExpr::VariantKind RefKind = MCSymbolRefExpr::VK_None;
 
   switch (MO.getTargetFlags()) {
@@ -170,15 +190,14 @@ MCOperand X86MCInstLower::LowerSymbolOperand(const MachineOperand &MO,
   // These affect the name of the symbol, not any suffix.
   case X86II::MO_DARWIN_NONLAZY:
   case X86II::MO_DLLIMPORT:
-  case X86II::MO_DARWIN_STUB:
     break;
 
   case X86II::MO_TLVP:      RefKind = MCSymbolRefExpr::VK_TLVP; break;
   case X86II::MO_TLVP_PIC_BASE:
-    Expr = MCSymbolRefExpr::Create(Sym, MCSymbolRefExpr::VK_TLVP, Ctx);
+    Expr = MCSymbolRefExpr::create(Sym, MCSymbolRefExpr::VK_TLVP, Ctx);
     // Subtract the pic base.
-    Expr = MCBinaryExpr::CreateSub(Expr,
-                                  MCSymbolRefExpr::Create(MF.getPICBaseSymbol(),
+    Expr = MCBinaryExpr::createSub(Expr,
+                                  MCSymbolRefExpr::create(MF.getPICBaseSymbol(),
                                                            Ctx),
                                    Ctx);
     break;
@@ -196,43 +215,37 @@ MCOperand X86MCInstLower::LowerSymbolOperand(const MachineOperand &MO,
   case X86II::MO_GOT:       RefKind = MCSymbolRefExpr::VK_GOT; break;
   case X86II::MO_GOTOFF:    RefKind = MCSymbolRefExpr::VK_GOTOFF; break;
   case X86II::MO_PLT:       RefKind = MCSymbolRefExpr::VK_PLT; break;
+  case X86II::MO_ABS8:      RefKind = MCSymbolRefExpr::VK_X86_ABS8; break;
   case X86II::MO_PIC_BASE_OFFSET:
   case X86II::MO_DARWIN_NONLAZY_PIC_BASE:
-  case X86II::MO_DARWIN_HIDDEN_NONLAZY_PIC_BASE:
-    Expr = MCSymbolRefExpr::Create(Sym, Ctx);
+    Expr = MCSymbolRefExpr::create(Sym, Ctx);
     // Subtract the pic base.
-    Expr = MCBinaryExpr::CreateSub(Expr,
-                            MCSymbolRefExpr::Create(MF.getPICBaseSymbol(), Ctx),
+    Expr = MCBinaryExpr::createSub(Expr,
+                            MCSymbolRefExpr::create(MF.getPICBaseSymbol(), Ctx),
                                    Ctx);
-    if (MO.isJTI() && MAI.hasSetDirective()) {
+    if (MO.isJTI()) {
+      assert(MAI.doesSetDirectiveSuppressReloc());
       // If .set directive is supported, use it to reduce the number of
       // relocations the assembler will generate for differences between
       // local labels. This is only safe when the symbols are in the same
       // section so we are restricting it to jumptable references.
-      MCSymbol *Label = Ctx.CreateTempSymbol();
-      AsmPrinter.OutStreamer.EmitAssignment(Label, Expr);
-      Expr = MCSymbolRefExpr::Create(Label, Ctx);
+      MCSymbol *Label = Ctx.createTempSymbol();
+      AsmPrinter.OutStreamer->EmitAssignment(Label, Expr);
+      Expr = MCSymbolRefExpr::create(Label, Ctx);
     }
     break;
   }
 
-  if (Expr == 0)
-    Expr = MCSymbolRefExpr::Create(Sym, RefKind, Ctx);
+  if (!Expr)
+    Expr = MCSymbolRefExpr::create(Sym, RefKind, Ctx);
 
   if (!MO.isJTI() && !MO.isMBB() && MO.getOffset())
-    Expr = MCBinaryExpr::CreateAdd(Expr,
-                                   MCConstantExpr::Create(MO.getOffset(), Ctx),
+    Expr = MCBinaryExpr::createAdd(Expr,
+                                   MCConstantExpr::create(MO.getOffset(), Ctx),
                                    Ctx);
-  return MCOperand::CreateExpr(Expr);
+  return MCOperand::createExpr(Expr);
 }
 
-
-/// LowerUnaryToTwoAddr - R = setb   -> R = sbb R, R
-static void LowerUnaryToTwoAddr(MCInst &OutMI, unsigned NewOpc) {
-  OutMI.setOpcode(NewOpc);
-  OutMI.addOperand(OutMI.getOperand(0));
-  OutMI.addOperand(OutMI.getOperand(0));
-}
 
 /// \brief Simplify FOO $imm, %{al,ax,eax,rax} to FOO $imm, for instruction with
 /// a short fixed-register form.
@@ -297,12 +310,12 @@ static void SimplifyShortMoveForm(X86AsmPrinter &Printer, MCInst &Inst,
   unsigned RegOp = IsStore ? 0 : 5;
   unsigned AddrOp = AddrBase + 3;
   assert(Inst.getNumOperands() == 6 && Inst.getOperand(RegOp).isReg() &&
-         Inst.getOperand(AddrBase + 0).isReg() && // base
-         Inst.getOperand(AddrBase + 1).isImm() && // scale
-         Inst.getOperand(AddrBase + 2).isReg() && // index register
-         (Inst.getOperand(AddrOp).isExpr() ||     // address
-          Inst.getOperand(AddrOp).isImm())&&
-         Inst.getOperand(AddrBase + 4).isReg() && // segment
+         Inst.getOperand(AddrBase + X86::AddrBaseReg).isReg() &&
+         Inst.getOperand(AddrBase + X86::AddrScaleAmt).isImm() &&
+         Inst.getOperand(AddrBase + X86::AddrIndexReg).isReg() &&
+         Inst.getOperand(AddrBase + X86::AddrSegmentReg).isReg() &&
+         (Inst.getOperand(AddrOp).isExpr() ||
+          Inst.getOperand(AddrOp).isImm()) &&
          "Unexpected instruction!");
 
   // Check whether the destination register can be fixed.
@@ -322,60 +335,63 @@ static void SimplifyShortMoveForm(X86AsmPrinter &Printer, MCInst &Inst,
   }
 
   if (Absolute &&
-      (Inst.getOperand(AddrBase + 0).getReg() != 0 ||
-       Inst.getOperand(AddrBase + 2).getReg() != 0 ||
-       Inst.getOperand(AddrBase + 4).getReg() != 0 ||
-       Inst.getOperand(AddrBase + 1).getImm() != 1))
+      (Inst.getOperand(AddrBase + X86::AddrBaseReg).getReg() != 0 ||
+       Inst.getOperand(AddrBase + X86::AddrScaleAmt).getImm() != 1 ||
+       Inst.getOperand(AddrBase + X86::AddrIndexReg).getReg() != 0))
     return;
 
   // If so, rewrite the instruction.
   MCOperand Saved = Inst.getOperand(AddrOp);
+  MCOperand Seg = Inst.getOperand(AddrBase + X86::AddrSegmentReg);
   Inst = MCInst();
   Inst.setOpcode(Opcode);
   Inst.addOperand(Saved);
+  Inst.addOperand(Seg);
+}
+
+static unsigned getRetOpcode(const X86Subtarget &Subtarget) {
+  return Subtarget.is64Bit() ? X86::RETQ : X86::RETL;
+}
+
+Optional<MCOperand>
+X86MCInstLower::LowerMachineOperand(const MachineInstr *MI,
+                                    const MachineOperand &MO) const {
+  switch (MO.getType()) {
+  default:
+    MI->print(errs());
+    llvm_unreachable("unknown operand type");
+  case MachineOperand::MO_Register:
+    // Ignore all implicit register operands.
+    if (MO.isImplicit())
+      return None;
+    return MCOperand::createReg(MO.getReg());
+  case MachineOperand::MO_Immediate:
+    return MCOperand::createImm(MO.getImm());
+  case MachineOperand::MO_MachineBasicBlock:
+  case MachineOperand::MO_GlobalAddress:
+  case MachineOperand::MO_ExternalSymbol:
+    return LowerSymbolOperand(MO, GetSymbolFromOperand(MO));
+  case MachineOperand::MO_MCSymbol:
+    return LowerSymbolOperand(MO, MO.getMCSymbol());
+  case MachineOperand::MO_JumpTableIndex:
+    return LowerSymbolOperand(MO, AsmPrinter.GetJTISymbol(MO.getIndex()));
+  case MachineOperand::MO_ConstantPoolIndex:
+    return LowerSymbolOperand(MO, AsmPrinter.GetCPISymbol(MO.getIndex()));
+  case MachineOperand::MO_BlockAddress:
+    return LowerSymbolOperand(
+        MO, AsmPrinter.GetBlockAddressSymbol(MO.getBlockAddress()));
+  case MachineOperand::MO_RegisterMask:
+    // Ignore call clobbers.
+    return None;
+  }
 }
 
 void X86MCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
   OutMI.setOpcode(MI->getOpcode());
 
-  for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
-    const MachineOperand &MO = MI->getOperand(i);
-
-    MCOperand MCOp;
-    switch (MO.getType()) {
-    default:
-      MI->dump();
-      llvm_unreachable("unknown operand type");
-    case MachineOperand::MO_Register:
-      // Ignore all implicit register operands.
-      if (MO.isImplicit()) continue;
-      MCOp = MCOperand::CreateReg(MO.getReg());
-      break;
-    case MachineOperand::MO_Immediate:
-      MCOp = MCOperand::CreateImm(MO.getImm());
-      break;
-    case MachineOperand::MO_MachineBasicBlock:
-    case MachineOperand::MO_GlobalAddress:
-    case MachineOperand::MO_ExternalSymbol:
-      MCOp = LowerSymbolOperand(MO, GetSymbolFromOperand(MO));
-      break;
-    case MachineOperand::MO_JumpTableIndex:
-      MCOp = LowerSymbolOperand(MO, AsmPrinter.GetJTISymbol(MO.getIndex()));
-      break;
-    case MachineOperand::MO_ConstantPoolIndex:
-      MCOp = LowerSymbolOperand(MO, AsmPrinter.GetCPISymbol(MO.getIndex()));
-      break;
-    case MachineOperand::MO_BlockAddress:
-      MCOp = LowerSymbolOperand(MO,
-                     AsmPrinter.GetBlockAddressSymbol(MO.getBlockAddress()));
-      break;
-    case MachineOperand::MO_RegisterMask:
-      // Ignore call clobbers.
-      continue;
-    }
-
-    OutMI.addOperand(MCOp);
-  }
+  for (const MachineOperand &MO : MI->operands())
+    if (auto MaybeMCOp = LowerMachineOperand(MI, MO))
+      OutMI.addOperand(MaybeMCOp.getValue());
 
   // Handle a few special cases to eliminate operand modifiers.
 ReSimplify:
@@ -390,14 +406,10 @@ ReSimplify:
     assert(OutMI.getOperand(1+X86::AddrSegmentReg).getReg() == 0 &&
            "LEA has segment specified!");
     break;
-  case X86::MOV32r0:      LowerUnaryToTwoAddr(OutMI, X86::XOR32rr); break;
-
-  case X86::MOV32ri64:
-    OutMI.setOpcode(X86::MOV32ri);
-    break;
 
   // Commute operands to get a smaller encoding by using VEX.R instead of VEX.B
   // if one of the registers is extended, but other isn't.
+  case X86::VMOVZPQILo2PQIrr:
   case X86::VMOVAPDrr:
   case X86::VMOVAPDYrr:
   case X86::VMOVAPSrr:
@@ -415,18 +427,19 @@ ReSimplify:
       unsigned NewOpc;
       switch (OutMI.getOpcode()) {
       default: llvm_unreachable("Invalid opcode");
-      case X86::VMOVAPDrr:  NewOpc = X86::VMOVAPDrr_REV;  break;
-      case X86::VMOVAPDYrr: NewOpc = X86::VMOVAPDYrr_REV; break;
-      case X86::VMOVAPSrr:  NewOpc = X86::VMOVAPSrr_REV;  break;
-      case X86::VMOVAPSYrr: NewOpc = X86::VMOVAPSYrr_REV; break;
-      case X86::VMOVDQArr:  NewOpc = X86::VMOVDQArr_REV;  break;
-      case X86::VMOVDQAYrr: NewOpc = X86::VMOVDQAYrr_REV; break;
-      case X86::VMOVDQUrr:  NewOpc = X86::VMOVDQUrr_REV;  break;
-      case X86::VMOVDQUYrr: NewOpc = X86::VMOVDQUYrr_REV; break;
-      case X86::VMOVUPDrr:  NewOpc = X86::VMOVUPDrr_REV;  break;
-      case X86::VMOVUPDYrr: NewOpc = X86::VMOVUPDYrr_REV; break;
-      case X86::VMOVUPSrr:  NewOpc = X86::VMOVUPSrr_REV;  break;
-      case X86::VMOVUPSYrr: NewOpc = X86::VMOVUPSYrr_REV; break;
+      case X86::VMOVZPQILo2PQIrr: NewOpc = X86::VMOVPQI2QIrr;   break;
+      case X86::VMOVAPDrr:        NewOpc = X86::VMOVAPDrr_REV;  break;
+      case X86::VMOVAPDYrr:       NewOpc = X86::VMOVAPDYrr_REV; break;
+      case X86::VMOVAPSrr:        NewOpc = X86::VMOVAPSrr_REV;  break;
+      case X86::VMOVAPSYrr:       NewOpc = X86::VMOVAPSYrr_REV; break;
+      case X86::VMOVDQArr:        NewOpc = X86::VMOVDQArr_REV;  break;
+      case X86::VMOVDQAYrr:       NewOpc = X86::VMOVDQAYrr_REV; break;
+      case X86::VMOVDQUrr:        NewOpc = X86::VMOVDQUrr_REV;  break;
+      case X86::VMOVDQUYrr:       NewOpc = X86::VMOVDQUYrr_REV; break;
+      case X86::VMOVUPDrr:        NewOpc = X86::VMOVUPDrr_REV;  break;
+      case X86::VMOVUPDYrr:       NewOpc = X86::VMOVUPDYrr_REV; break;
+      case X86::VMOVUPSrr:        NewOpc = X86::VMOVUPSrr_REV;  break;
+      case X86::VMOVUPSYrr:       NewOpc = X86::VMOVUPSYrr_REV; break;
       }
       OutMI.setOpcode(NewOpc);
     }
@@ -451,6 +464,7 @@ ReSimplify:
   // inputs modeled as normal uses instead of implicit uses.  As such, truncate
   // off all but the first operand (the callee).  FIXME: Change isel.
   case X86::TAILJMPr64:
+  case X86::TAILJMPr64_REX:
   case X86::CALL64r:
   case X86::CALL64pcrel32: {
     unsigned Opcode = OutMI.getOpcode();
@@ -464,28 +478,63 @@ ReSimplify:
   case X86::EH_RETURN:
   case X86::EH_RETURN64: {
     OutMI = MCInst();
-    OutMI.setOpcode(X86::RET);
+    OutMI.setOpcode(getRetOpcode(AsmPrinter.getSubtarget()));
     break;
   }
 
-  // TAILJMPd, TAILJMPd64 - Lower to the correct jump instructions.
-  case X86::TAILJMPr:
-  case X86::TAILJMPd:
-  case X86::TAILJMPd64: {
-    unsigned Opcode;
-    switch (OutMI.getOpcode()) {
-    default: llvm_unreachable("Invalid opcode");
-    case X86::TAILJMPr: Opcode = X86::JMP32r; break;
-    case X86::TAILJMPd:
-    case X86::TAILJMPd64: Opcode = X86::JMP_1; break;
-    }
+  case X86::CLEANUPRET: {
+    // Replace CATCHRET with the appropriate RET.
+    OutMI = MCInst();
+    OutMI.setOpcode(getRetOpcode(AsmPrinter.getSubtarget()));
+    break;
+  }
 
+  case X86::CATCHRET: {
+    // Replace CATCHRET with the appropriate RET.
+    const X86Subtarget &Subtarget = AsmPrinter.getSubtarget();
+    unsigned ReturnReg = Subtarget.is64Bit() ? X86::RAX : X86::EAX;
+    OutMI = MCInst();
+    OutMI.setOpcode(getRetOpcode(Subtarget));
+    OutMI.addOperand(MCOperand::createReg(ReturnReg));
+    break;
+  }
+
+  // TAILJMPd, TAILJMPd64, TailJMPd_cc - Lower to the correct jump instruction.
+  { unsigned Opcode;
+  case X86::TAILJMPr:   Opcode = X86::JMP32r; goto SetTailJmpOpcode;
+  case X86::TAILJMPd:
+  case X86::TAILJMPd64: Opcode = X86::JMP_1;  goto SetTailJmpOpcode;
+  case X86::TAILJMPd_CC:
+  case X86::TAILJMPd64_CC:
+    Opcode = X86::GetCondBranchFromCond(
+        static_cast<X86::CondCode>(MI->getOperand(1).getImm()));
+    goto SetTailJmpOpcode;
+
+  SetTailJmpOpcode:
     MCOperand Saved = OutMI.getOperand(0);
     OutMI = MCInst();
     OutMI.setOpcode(Opcode);
     OutMI.addOperand(Saved);
     break;
   }
+
+  case X86::DEC16r:
+  case X86::DEC32r:
+  case X86::INC16r:
+  case X86::INC32r:
+    // If we aren't in 64-bit mode we can use the 1-byte inc/dec instructions.
+    if (!AsmPrinter.getSubtarget().is64Bit()) {
+      unsigned Opcode;
+      switch (OutMI.getOpcode()) {
+      default: llvm_unreachable("Invalid opcode");
+      case X86::DEC16r: Opcode = X86::DEC16r_alt; break;
+      case X86::DEC32r: Opcode = X86::DEC32r_alt; break;
+      case X86::INC16r: Opcode = X86::INC16r_alt; break;
+      case X86::INC32r: Opcode = X86::INC32r_alt; break;
+      }
+      OutMI.setOpcode(Opcode);
+    }
+    break;
 
   // These are pseudo-ops for OR to help with the OR->ADD transformation.  We do
   // this with an ugly goto in case the resultant OR uses EAX and needs the
@@ -500,39 +549,53 @@ ReSimplify:
   case X86::ADD32ri8_DB:  OutMI.setOpcode(X86::OR32ri8); goto ReSimplify;
   case X86::ADD64ri8_DB:  OutMI.setOpcode(X86::OR64ri8); goto ReSimplify;
 
-  // The assembler backend wants to see branches in their small form and relax
-  // them to their large form.  The JIT can only handle the large form because
-  // it does not do relaxation.  For now, translate the large form to the
-  // small one here.
-  case X86::JMP_4: OutMI.setOpcode(X86::JMP_1); break;
-  case X86::JO_4:  OutMI.setOpcode(X86::JO_1); break;
-  case X86::JNO_4: OutMI.setOpcode(X86::JNO_1); break;
-  case X86::JB_4:  OutMI.setOpcode(X86::JB_1); break;
-  case X86::JAE_4: OutMI.setOpcode(X86::JAE_1); break;
-  case X86::JE_4:  OutMI.setOpcode(X86::JE_1); break;
-  case X86::JNE_4: OutMI.setOpcode(X86::JNE_1); break;
-  case X86::JBE_4: OutMI.setOpcode(X86::JBE_1); break;
-  case X86::JA_4:  OutMI.setOpcode(X86::JA_1); break;
-  case X86::JS_4:  OutMI.setOpcode(X86::JS_1); break;
-  case X86::JNS_4: OutMI.setOpcode(X86::JNS_1); break;
-  case X86::JP_4:  OutMI.setOpcode(X86::JP_1); break;
-  case X86::JNP_4: OutMI.setOpcode(X86::JNP_1); break;
-  case X86::JL_4:  OutMI.setOpcode(X86::JL_1); break;
-  case X86::JGE_4: OutMI.setOpcode(X86::JGE_1); break;
-  case X86::JLE_4: OutMI.setOpcode(X86::JLE_1); break;
-  case X86::JG_4:  OutMI.setOpcode(X86::JG_1); break;
-
   // Atomic load and store require a separate pseudo-inst because Acquire
   // implies mayStore and Release implies mayLoad; fix these to regular MOV
   // instructions here
-  case X86::ACQUIRE_MOV8rm:  OutMI.setOpcode(X86::MOV8rm); goto ReSimplify;
-  case X86::ACQUIRE_MOV16rm: OutMI.setOpcode(X86::MOV16rm); goto ReSimplify;
-  case X86::ACQUIRE_MOV32rm: OutMI.setOpcode(X86::MOV32rm); goto ReSimplify;
-  case X86::ACQUIRE_MOV64rm: OutMI.setOpcode(X86::MOV64rm); goto ReSimplify;
-  case X86::RELEASE_MOV8mr:  OutMI.setOpcode(X86::MOV8mr); goto ReSimplify;
-  case X86::RELEASE_MOV16mr: OutMI.setOpcode(X86::MOV16mr); goto ReSimplify;
-  case X86::RELEASE_MOV32mr: OutMI.setOpcode(X86::MOV32mr); goto ReSimplify;
-  case X86::RELEASE_MOV64mr: OutMI.setOpcode(X86::MOV64mr); goto ReSimplify;
+  case X86::ACQUIRE_MOV8rm:    OutMI.setOpcode(X86::MOV8rm); goto ReSimplify;
+  case X86::ACQUIRE_MOV16rm:   OutMI.setOpcode(X86::MOV16rm); goto ReSimplify;
+  case X86::ACQUIRE_MOV32rm:   OutMI.setOpcode(X86::MOV32rm); goto ReSimplify;
+  case X86::ACQUIRE_MOV64rm:   OutMI.setOpcode(X86::MOV64rm); goto ReSimplify;
+  case X86::RELEASE_MOV8mr:    OutMI.setOpcode(X86::MOV8mr); goto ReSimplify;
+  case X86::RELEASE_MOV16mr:   OutMI.setOpcode(X86::MOV16mr); goto ReSimplify;
+  case X86::RELEASE_MOV32mr:   OutMI.setOpcode(X86::MOV32mr); goto ReSimplify;
+  case X86::RELEASE_MOV64mr:   OutMI.setOpcode(X86::MOV64mr); goto ReSimplify;
+  case X86::RELEASE_MOV8mi:    OutMI.setOpcode(X86::MOV8mi); goto ReSimplify;
+  case X86::RELEASE_MOV16mi:   OutMI.setOpcode(X86::MOV16mi); goto ReSimplify;
+  case X86::RELEASE_MOV32mi:   OutMI.setOpcode(X86::MOV32mi); goto ReSimplify;
+  case X86::RELEASE_MOV64mi32: OutMI.setOpcode(X86::MOV64mi32); goto ReSimplify;
+  case X86::RELEASE_ADD8mi:    OutMI.setOpcode(X86::ADD8mi); goto ReSimplify;
+  case X86::RELEASE_ADD8mr:    OutMI.setOpcode(X86::ADD8mr); goto ReSimplify;
+  case X86::RELEASE_ADD32mi:   OutMI.setOpcode(X86::ADD32mi); goto ReSimplify;
+  case X86::RELEASE_ADD32mr:   OutMI.setOpcode(X86::ADD32mr); goto ReSimplify;
+  case X86::RELEASE_ADD64mi32: OutMI.setOpcode(X86::ADD64mi32); goto ReSimplify;
+  case X86::RELEASE_ADD64mr:   OutMI.setOpcode(X86::ADD64mr); goto ReSimplify;
+  case X86::RELEASE_AND8mi:    OutMI.setOpcode(X86::AND8mi); goto ReSimplify;
+  case X86::RELEASE_AND8mr:    OutMI.setOpcode(X86::AND8mr); goto ReSimplify;
+  case X86::RELEASE_AND32mi:   OutMI.setOpcode(X86::AND32mi); goto ReSimplify;
+  case X86::RELEASE_AND32mr:   OutMI.setOpcode(X86::AND32mr); goto ReSimplify;
+  case X86::RELEASE_AND64mi32: OutMI.setOpcode(X86::AND64mi32); goto ReSimplify;
+  case X86::RELEASE_AND64mr:   OutMI.setOpcode(X86::AND64mr); goto ReSimplify;
+  case X86::RELEASE_OR8mi:     OutMI.setOpcode(X86::OR8mi); goto ReSimplify;
+  case X86::RELEASE_OR8mr:     OutMI.setOpcode(X86::OR8mr); goto ReSimplify;
+  case X86::RELEASE_OR32mi:    OutMI.setOpcode(X86::OR32mi); goto ReSimplify;
+  case X86::RELEASE_OR32mr:    OutMI.setOpcode(X86::OR32mr); goto ReSimplify;
+  case X86::RELEASE_OR64mi32:  OutMI.setOpcode(X86::OR64mi32); goto ReSimplify;
+  case X86::RELEASE_OR64mr:    OutMI.setOpcode(X86::OR64mr); goto ReSimplify;
+  case X86::RELEASE_XOR8mi:    OutMI.setOpcode(X86::XOR8mi); goto ReSimplify;
+  case X86::RELEASE_XOR8mr:    OutMI.setOpcode(X86::XOR8mr); goto ReSimplify;
+  case X86::RELEASE_XOR32mi:   OutMI.setOpcode(X86::XOR32mi); goto ReSimplify;
+  case X86::RELEASE_XOR32mr:   OutMI.setOpcode(X86::XOR32mr); goto ReSimplify;
+  case X86::RELEASE_XOR64mi32: OutMI.setOpcode(X86::XOR64mi32); goto ReSimplify;
+  case X86::RELEASE_XOR64mr:   OutMI.setOpcode(X86::XOR64mr); goto ReSimplify;
+  case X86::RELEASE_INC8m:     OutMI.setOpcode(X86::INC8m); goto ReSimplify;
+  case X86::RELEASE_INC16m:    OutMI.setOpcode(X86::INC16m); goto ReSimplify;
+  case X86::RELEASE_INC32m:    OutMI.setOpcode(X86::INC32m); goto ReSimplify;
+  case X86::RELEASE_INC64m:    OutMI.setOpcode(X86::INC64m); goto ReSimplify;
+  case X86::RELEASE_DEC8m:     OutMI.setOpcode(X86::DEC8m); goto ReSimplify;
+  case X86::RELEASE_DEC16m:    OutMI.setOpcode(X86::DEC16m); goto ReSimplify;
+  case X86::RELEASE_DEC32m:    OutMI.setOpcode(X86::DEC32m); goto ReSimplify;
+  case X86::RELEASE_DEC64m:    OutMI.setOpcode(X86::DEC64m); goto ReSimplify;
 
   // We don't currently select the correct instruction form for instructions
   // which have a short %eax, etc. form. Handle this by custom lowering, for
@@ -542,50 +605,81 @@ ReSimplify:
   // MOV64ao8, MOV64o8a
   // XCHG16ar, XCHG32ar, XCHG64ar
   case X86::MOV8mr_NOREX:
-  case X86::MOV8mr:     SimplifyShortMoveForm(AsmPrinter, OutMI, X86::MOV8ao8); break;
+  case X86::MOV8mr:
   case X86::MOV8rm_NOREX:
-  case X86::MOV8rm:     SimplifyShortMoveForm(AsmPrinter, OutMI, X86::MOV8o8a); break;
-  case X86::MOV16mr:    SimplifyShortMoveForm(AsmPrinter, OutMI, X86::MOV16ao16); break;
-  case X86::MOV16rm:    SimplifyShortMoveForm(AsmPrinter, OutMI, X86::MOV16o16a); break;
-  case X86::MOV32mr:    SimplifyShortMoveForm(AsmPrinter, OutMI, X86::MOV32ao32); break;
-  case X86::MOV32rm:    SimplifyShortMoveForm(AsmPrinter, OutMI, X86::MOV32o32a); break;
+  case X86::MOV8rm:
+  case X86::MOV16mr:
+  case X86::MOV16rm:
+  case X86::MOV32mr:
+  case X86::MOV32rm: {
+    unsigned NewOpc;
+    switch (OutMI.getOpcode()) {
+    default: llvm_unreachable("Invalid opcode");
+    case X86::MOV8mr_NOREX:
+    case X86::MOV8mr:     NewOpc = X86::MOV8o32a; break;
+    case X86::MOV8rm_NOREX:
+    case X86::MOV8rm:     NewOpc = X86::MOV8ao32; break;
+    case X86::MOV16mr:    NewOpc = X86::MOV16o32a; break;
+    case X86::MOV16rm:    NewOpc = X86::MOV16ao32; break;
+    case X86::MOV32mr:    NewOpc = X86::MOV32o32a; break;
+    case X86::MOV32rm:    NewOpc = X86::MOV32ao32; break;
+    }
+    SimplifyShortMoveForm(AsmPrinter, OutMI, NewOpc);
+    break;
+  }
 
-  case X86::ADC8ri:     SimplifyShortImmForm(OutMI, X86::ADC8i8);    break;
-  case X86::ADC16ri:    SimplifyShortImmForm(OutMI, X86::ADC16i16);  break;
-  case X86::ADC32ri:    SimplifyShortImmForm(OutMI, X86::ADC32i32);  break;
-  case X86::ADC64ri32:  SimplifyShortImmForm(OutMI, X86::ADC64i32);  break;
-  case X86::ADD8ri:     SimplifyShortImmForm(OutMI, X86::ADD8i8);    break;
-  case X86::ADD16ri:    SimplifyShortImmForm(OutMI, X86::ADD16i16);  break;
-  case X86::ADD32ri:    SimplifyShortImmForm(OutMI, X86::ADD32i32);  break;
-  case X86::ADD64ri32:  SimplifyShortImmForm(OutMI, X86::ADD64i32);  break;
-  case X86::AND8ri:     SimplifyShortImmForm(OutMI, X86::AND8i8);    break;
-  case X86::AND16ri:    SimplifyShortImmForm(OutMI, X86::AND16i16);  break;
-  case X86::AND32ri:    SimplifyShortImmForm(OutMI, X86::AND32i32);  break;
-  case X86::AND64ri32:  SimplifyShortImmForm(OutMI, X86::AND64i32);  break;
-  case X86::CMP8ri:     SimplifyShortImmForm(OutMI, X86::CMP8i8);    break;
-  case X86::CMP16ri:    SimplifyShortImmForm(OutMI, X86::CMP16i16);  break;
-  case X86::CMP32ri:    SimplifyShortImmForm(OutMI, X86::CMP32i32);  break;
-  case X86::CMP64ri32:  SimplifyShortImmForm(OutMI, X86::CMP64i32);  break;
-  case X86::OR8ri:      SimplifyShortImmForm(OutMI, X86::OR8i8);     break;
-  case X86::OR16ri:     SimplifyShortImmForm(OutMI, X86::OR16i16);   break;
-  case X86::OR32ri:     SimplifyShortImmForm(OutMI, X86::OR32i32);   break;
-  case X86::OR64ri32:   SimplifyShortImmForm(OutMI, X86::OR64i32);   break;
-  case X86::SBB8ri:     SimplifyShortImmForm(OutMI, X86::SBB8i8);    break;
-  case X86::SBB16ri:    SimplifyShortImmForm(OutMI, X86::SBB16i16);  break;
-  case X86::SBB32ri:    SimplifyShortImmForm(OutMI, X86::SBB32i32);  break;
-  case X86::SBB64ri32:  SimplifyShortImmForm(OutMI, X86::SBB64i32);  break;
-  case X86::SUB8ri:     SimplifyShortImmForm(OutMI, X86::SUB8i8);    break;
-  case X86::SUB16ri:    SimplifyShortImmForm(OutMI, X86::SUB16i16);  break;
-  case X86::SUB32ri:    SimplifyShortImmForm(OutMI, X86::SUB32i32);  break;
-  case X86::SUB64ri32:  SimplifyShortImmForm(OutMI, X86::SUB64i32);  break;
-  case X86::TEST8ri:    SimplifyShortImmForm(OutMI, X86::TEST8i8);   break;
-  case X86::TEST16ri:   SimplifyShortImmForm(OutMI, X86::TEST16i16); break;
-  case X86::TEST32ri:   SimplifyShortImmForm(OutMI, X86::TEST32i32); break;
-  case X86::TEST64ri32: SimplifyShortImmForm(OutMI, X86::TEST64i32); break;
-  case X86::XOR8ri:     SimplifyShortImmForm(OutMI, X86::XOR8i8);    break;
-  case X86::XOR16ri:    SimplifyShortImmForm(OutMI, X86::XOR16i16);  break;
-  case X86::XOR32ri:    SimplifyShortImmForm(OutMI, X86::XOR32i32);  break;
-  case X86::XOR64ri32:  SimplifyShortImmForm(OutMI, X86::XOR64i32);  break;
+  case X86::ADC8ri: case X86::ADC16ri: case X86::ADC32ri: case X86::ADC64ri32:
+  case X86::ADD8ri: case X86::ADD16ri: case X86::ADD32ri: case X86::ADD64ri32:
+  case X86::AND8ri: case X86::AND16ri: case X86::AND32ri: case X86::AND64ri32:
+  case X86::CMP8ri: case X86::CMP16ri: case X86::CMP32ri: case X86::CMP64ri32:
+  case X86::OR8ri:  case X86::OR16ri:  case X86::OR32ri:  case X86::OR64ri32:
+  case X86::SBB8ri: case X86::SBB16ri: case X86::SBB32ri: case X86::SBB64ri32:
+  case X86::SUB8ri: case X86::SUB16ri: case X86::SUB32ri: case X86::SUB64ri32:
+  case X86::TEST8ri:case X86::TEST16ri:case X86::TEST32ri:case X86::TEST64ri32:
+  case X86::XOR8ri: case X86::XOR16ri: case X86::XOR32ri: case X86::XOR64ri32: {
+    unsigned NewOpc;
+    switch (OutMI.getOpcode()) {
+    default: llvm_unreachable("Invalid opcode");
+    case X86::ADC8ri:     NewOpc = X86::ADC8i8;    break;
+    case X86::ADC16ri:    NewOpc = X86::ADC16i16;  break;
+    case X86::ADC32ri:    NewOpc = X86::ADC32i32;  break;
+    case X86::ADC64ri32:  NewOpc = X86::ADC64i32;  break;
+    case X86::ADD8ri:     NewOpc = X86::ADD8i8;    break;
+    case X86::ADD16ri:    NewOpc = X86::ADD16i16;  break;
+    case X86::ADD32ri:    NewOpc = X86::ADD32i32;  break;
+    case X86::ADD64ri32:  NewOpc = X86::ADD64i32;  break;
+    case X86::AND8ri:     NewOpc = X86::AND8i8;    break;
+    case X86::AND16ri:    NewOpc = X86::AND16i16;  break;
+    case X86::AND32ri:    NewOpc = X86::AND32i32;  break;
+    case X86::AND64ri32:  NewOpc = X86::AND64i32;  break;
+    case X86::CMP8ri:     NewOpc = X86::CMP8i8;    break;
+    case X86::CMP16ri:    NewOpc = X86::CMP16i16;  break;
+    case X86::CMP32ri:    NewOpc = X86::CMP32i32;  break;
+    case X86::CMP64ri32:  NewOpc = X86::CMP64i32;  break;
+    case X86::OR8ri:      NewOpc = X86::OR8i8;     break;
+    case X86::OR16ri:     NewOpc = X86::OR16i16;   break;
+    case X86::OR32ri:     NewOpc = X86::OR32i32;   break;
+    case X86::OR64ri32:   NewOpc = X86::OR64i32;   break;
+    case X86::SBB8ri:     NewOpc = X86::SBB8i8;    break;
+    case X86::SBB16ri:    NewOpc = X86::SBB16i16;  break;
+    case X86::SBB32ri:    NewOpc = X86::SBB32i32;  break;
+    case X86::SBB64ri32:  NewOpc = X86::SBB64i32;  break;
+    case X86::SUB8ri:     NewOpc = X86::SUB8i8;    break;
+    case X86::SUB16ri:    NewOpc = X86::SUB16i16;  break;
+    case X86::SUB32ri:    NewOpc = X86::SUB32i32;  break;
+    case X86::SUB64ri32:  NewOpc = X86::SUB64i32;  break;
+    case X86::TEST8ri:    NewOpc = X86::TEST8i8;   break;
+    case X86::TEST16ri:   NewOpc = X86::TEST16i16; break;
+    case X86::TEST32ri:   NewOpc = X86::TEST32i32; break;
+    case X86::TEST64ri32: NewOpc = X86::TEST64i32; break;
+    case X86::XOR8ri:     NewOpc = X86::XOR8i8;    break;
+    case X86::XOR16ri:    NewOpc = X86::XOR16i16;  break;
+    case X86::XOR32ri:    NewOpc = X86::XOR32i32;  break;
+    case X86::XOR64ri32:  NewOpc = X86::XOR64i32;  break;
+    }
+    SimplifyShortImmForm(OutMI, NewOpc);
+    break;
+  }
 
   // Try to shrink some forms of movsx.
   case X86::MOVSX16rr8:
@@ -596,19 +690,18 @@ ReSimplify:
   }
 }
 
-static void LowerTlsAddr(MCStreamer &OutStreamer,
-                         X86MCInstLower &MCInstLowering,
-                         const MachineInstr &MI) {
+void X86AsmPrinter::LowerTlsAddr(X86MCInstLower &MCInstLowering,
+                                 const MachineInstr &MI) {
 
   bool is64Bits = MI.getOpcode() == X86::TLS_addr64 ||
                   MI.getOpcode() == X86::TLS_base_addr64;
 
   bool needsPadding = MI.getOpcode() == X86::TLS_addr64;
 
-  MCContext &context = OutStreamer.getContext();
+  MCContext &context = OutStreamer->getContext();
 
   if (needsPadding)
-    OutStreamer.EmitInstruction(MCInstBuilder(X86::DATA16_PREFIX));
+    EmitAndCountInstruction(MCInstBuilder(X86::DATA16_PREFIX));
 
   MCSymbolRefExpr::VariantKind SRVK;
   switch (MI.getOpcode()) {
@@ -627,196 +720,751 @@ static void LowerTlsAddr(MCStreamer &OutStreamer,
   }
 
   MCSymbol *sym = MCInstLowering.GetSymbolFromOperand(MI.getOperand(3));
-  const MCSymbolRefExpr *symRef = MCSymbolRefExpr::Create(sym, SRVK, context);
+  const MCSymbolRefExpr *symRef = MCSymbolRefExpr::create(sym, SRVK, context);
 
   MCInst LEA;
   if (is64Bits) {
     LEA.setOpcode(X86::LEA64r);
-    LEA.addOperand(MCOperand::CreateReg(X86::RDI)); // dest
-    LEA.addOperand(MCOperand::CreateReg(X86::RIP)); // base
-    LEA.addOperand(MCOperand::CreateImm(1));        // scale
-    LEA.addOperand(MCOperand::CreateReg(0));        // index
-    LEA.addOperand(MCOperand::CreateExpr(symRef));  // disp
-    LEA.addOperand(MCOperand::CreateReg(0));        // seg
+    LEA.addOperand(MCOperand::createReg(X86::RDI)); // dest
+    LEA.addOperand(MCOperand::createReg(X86::RIP)); // base
+    LEA.addOperand(MCOperand::createImm(1));        // scale
+    LEA.addOperand(MCOperand::createReg(0));        // index
+    LEA.addOperand(MCOperand::createExpr(symRef));  // disp
+    LEA.addOperand(MCOperand::createReg(0));        // seg
   } else if (SRVK == MCSymbolRefExpr::VK_TLSLDM) {
     LEA.setOpcode(X86::LEA32r);
-    LEA.addOperand(MCOperand::CreateReg(X86::EAX)); // dest
-    LEA.addOperand(MCOperand::CreateReg(X86::EBX)); // base
-    LEA.addOperand(MCOperand::CreateImm(1));        // scale
-    LEA.addOperand(MCOperand::CreateReg(0));        // index
-    LEA.addOperand(MCOperand::CreateExpr(symRef));  // disp
-    LEA.addOperand(MCOperand::CreateReg(0));        // seg
+    LEA.addOperand(MCOperand::createReg(X86::EAX)); // dest
+    LEA.addOperand(MCOperand::createReg(X86::EBX)); // base
+    LEA.addOperand(MCOperand::createImm(1));        // scale
+    LEA.addOperand(MCOperand::createReg(0));        // index
+    LEA.addOperand(MCOperand::createExpr(symRef));  // disp
+    LEA.addOperand(MCOperand::createReg(0));        // seg
   } else {
     LEA.setOpcode(X86::LEA32r);
-    LEA.addOperand(MCOperand::CreateReg(X86::EAX)); // dest
-    LEA.addOperand(MCOperand::CreateReg(0));        // base
-    LEA.addOperand(MCOperand::CreateImm(1));        // scale
-    LEA.addOperand(MCOperand::CreateReg(X86::EBX)); // index
-    LEA.addOperand(MCOperand::CreateExpr(symRef));  // disp
-    LEA.addOperand(MCOperand::CreateReg(0));        // seg
+    LEA.addOperand(MCOperand::createReg(X86::EAX)); // dest
+    LEA.addOperand(MCOperand::createReg(0));        // base
+    LEA.addOperand(MCOperand::createImm(1));        // scale
+    LEA.addOperand(MCOperand::createReg(X86::EBX)); // index
+    LEA.addOperand(MCOperand::createExpr(symRef));  // disp
+    LEA.addOperand(MCOperand::createReg(0));        // seg
   }
-  OutStreamer.EmitInstruction(LEA);
+  EmitAndCountInstruction(LEA);
 
   if (needsPadding) {
-    OutStreamer.EmitInstruction(MCInstBuilder(X86::DATA16_PREFIX));
-    OutStreamer.EmitInstruction(MCInstBuilder(X86::DATA16_PREFIX));
-    OutStreamer.EmitInstruction(MCInstBuilder(X86::REX64_PREFIX));
+    EmitAndCountInstruction(MCInstBuilder(X86::DATA16_PREFIX));
+    EmitAndCountInstruction(MCInstBuilder(X86::DATA16_PREFIX));
+    EmitAndCountInstruction(MCInstBuilder(X86::REX64_PREFIX));
   }
 
   StringRef name = is64Bits ? "__tls_get_addr" : "___tls_get_addr";
-  MCSymbol *tlsGetAddr = context.GetOrCreateSymbol(name);
+  MCSymbol *tlsGetAddr = context.getOrCreateSymbol(name);
   const MCSymbolRefExpr *tlsRef =
-    MCSymbolRefExpr::Create(tlsGetAddr,
+    MCSymbolRefExpr::create(tlsGetAddr,
                             MCSymbolRefExpr::VK_PLT,
                             context);
 
-  OutStreamer.EmitInstruction(MCInstBuilder(is64Bits ? X86::CALL64pcrel32
-                                                     : X86::CALLpcrel32)
-    .addExpr(tlsRef));
+  EmitAndCountInstruction(MCInstBuilder(is64Bits ? X86::CALL64pcrel32
+                                                 : X86::CALLpcrel32)
+                            .addExpr(tlsRef));
 }
 
-static std::pair<StackMaps::Location, MachineInstr::const_mop_iterator>
-parseMemoryOperand(StackMaps::Location::LocationType LocTy, unsigned Size,
-                   MachineInstr::const_mop_iterator MOI,
-                   MachineInstr::const_mop_iterator MOE) {
+/// \brief Emit the largest nop instruction smaller than or equal to \p NumBytes
+/// bytes.  Return the size of nop emitted.
+static unsigned EmitNop(MCStreamer &OS, unsigned NumBytes, bool Is64Bit,
+                        const MCSubtargetInfo &STI) {
+  // This works only for 64bit. For 32bit we have to do additional checking if
+  // the CPU supports multi-byte nops.
+  assert(Is64Bit && "EmitNops only supports X86-64");
 
-  typedef StackMaps::Location Location;
+  unsigned NopSize;
+  unsigned Opc, BaseReg, ScaleVal, IndexReg, Displacement, SegmentReg;
+  Opc = IndexReg = Displacement = SegmentReg = 0;
+  BaseReg = X86::RAX;
+  ScaleVal = 1;
+  switch (NumBytes) {
+  case  0: llvm_unreachable("Zero nops?"); break;
+  case  1: NopSize = 1; Opc = X86::NOOP; break;
+  case  2: NopSize = 2; Opc = X86::XCHG16ar; break;
+  case  3: NopSize = 3; Opc = X86::NOOPL; break;
+  case  4: NopSize = 4; Opc = X86::NOOPL; Displacement = 8; break;
+  case  5: NopSize = 5; Opc = X86::NOOPL; Displacement = 8;
+           IndexReg = X86::RAX; break;
+  case  6: NopSize = 6; Opc = X86::NOOPW; Displacement = 8;
+           IndexReg = X86::RAX; break;
+  case  7: NopSize = 7; Opc = X86::NOOPL; Displacement = 512; break;
+  case  8: NopSize = 8; Opc = X86::NOOPL; Displacement = 512;
+           IndexReg = X86::RAX; break;
+  case  9: NopSize = 9; Opc = X86::NOOPW; Displacement = 512;
+           IndexReg = X86::RAX; break;
+  default: NopSize = 10; Opc = X86::NOOPW; Displacement = 512;
+           IndexReg = X86::RAX; SegmentReg = X86::CS; break;
+  }
 
-  assert(std::distance(MOI, MOE) >= 5 && "Too few operands to encode mem op.");
+  unsigned NumPrefixes = std::min(NumBytes - NopSize, 5U);
+  NopSize += NumPrefixes;
+  for (unsigned i = 0; i != NumPrefixes; ++i)
+    OS.EmitBytes("\x66");
 
-  const MachineOperand &Base = *MOI;
-  const MachineOperand &Scale = *(++MOI);
-  const MachineOperand &Index = *(++MOI);
-  const MachineOperand &Disp = *(++MOI);
-  const MachineOperand &ZeroReg = *(++MOI);
-
-  // Sanity check for supported operand format.
-  assert(Base.isReg() &&
-         Scale.isImm() && Scale.getImm() == 1 &&
-         Index.isReg() && Index.getReg() == 0 &&
-         Disp.isImm() && ZeroReg.isReg() && (ZeroReg.getReg() == 0) &&
-         "Unsupported x86 memory operand sequence.");
-  (void)Scale;
-  (void)Index;
-  (void)ZeroReg;
-
-  return std::make_pair(
-    Location(LocTy, Size, Base.getReg(), Disp.getImm()), ++MOI);
+  switch (Opc) {
+  default:
+    llvm_unreachable("Unexpected opcode");
+    break;
+  case X86::NOOP:
+    OS.EmitInstruction(MCInstBuilder(Opc), STI);
+    break;
+  case X86::XCHG16ar:
+    OS.EmitInstruction(MCInstBuilder(Opc).addReg(X86::AX), STI);
+    break;
+  case X86::NOOPL:
+  case X86::NOOPW:
+    OS.EmitInstruction(MCInstBuilder(Opc)
+                           .addReg(BaseReg)
+                           .addImm(ScaleVal)
+                           .addReg(IndexReg)
+                           .addImm(Displacement)
+                           .addReg(SegmentReg),
+                       STI);
+    break;
+  }
+  assert(NopSize <= NumBytes && "We overemitted?");
+  return NopSize;
 }
 
-std::pair<StackMaps::Location, MachineInstr::const_mop_iterator>
-X86AsmPrinter::stackmapOperandParser(MachineInstr::const_mop_iterator MOI,
-                                     MachineInstr::const_mop_iterator MOE,
-                                     const TargetMachine &TM) {
+/// \brief Emit the optimal amount of multi-byte nops on X86.
+static void EmitNops(MCStreamer &OS, unsigned NumBytes, bool Is64Bit,
+                     const MCSubtargetInfo &STI) {
+  unsigned NopsToEmit = NumBytes;
+  (void)NopsToEmit;
+  while (NumBytes) {
+    NumBytes -= EmitNop(OS, NumBytes, Is64Bit, STI);
+    assert(NopsToEmit >= NumBytes && "Emitted more than I asked for!");
+  }
+}
 
-  typedef StackMaps::Location Location;
+void X86AsmPrinter::LowerSTATEPOINT(const MachineInstr &MI,
+                                    X86MCInstLower &MCIL) {
+  assert(Subtarget->is64Bit() && "Statepoint currently only supports X86-64");
 
-  const MachineOperand &MOP = *MOI;
-  assert(!MOP.isRegMask() && (!MOP.isReg() || !MOP.isImplicit()) &&
-         "Register mask and implicit operands should not be processed.");
-
-  if (MOP.isImm()) {
-    // Verify anyregcc
-    // [<def>], <id>, <numBytes>, <target>, <numArgs>, <cc>, ...
-
-    switch (MOP.getImm()) {
-    default: llvm_unreachable("Unrecognized operand type.");
-    case StackMaps::DirectMemRefOp: {
-      unsigned Size = TM.getDataLayout()->getPointerSizeInBits();
-      assert((Size % 8) == 0 && "Need pointer size in bytes.");
-      Size /= 8;
-      return parseMemoryOperand(StackMaps::Location::Direct, Size,
-                                llvm::next(MOI), MOE);
+  StatepointOpers SOpers(&MI);
+  if (unsigned PatchBytes = SOpers.getNumPatchBytes()) {
+    EmitNops(*OutStreamer, PatchBytes, Subtarget->is64Bit(),
+             getSubtargetInfo());
+  } else {
+    // Lower call target and choose correct opcode
+    const MachineOperand &CallTarget = SOpers.getCallTarget();
+    MCOperand CallTargetMCOp;
+    unsigned CallOpcode;
+    switch (CallTarget.getType()) {
+    case MachineOperand::MO_GlobalAddress:
+    case MachineOperand::MO_ExternalSymbol:
+      CallTargetMCOp = MCIL.LowerSymbolOperand(
+          CallTarget, MCIL.GetSymbolFromOperand(CallTarget));
+      CallOpcode = X86::CALL64pcrel32;
+      // Currently, we only support relative addressing with statepoints.
+      // Otherwise, we'll need a scratch register to hold the target
+      // address.  You'll fail asserts during load & relocation if this
+      // symbol is to far away. (TODO: support non-relative addressing)
+      break;
+    case MachineOperand::MO_Immediate:
+      CallTargetMCOp = MCOperand::createImm(CallTarget.getImm());
+      CallOpcode = X86::CALL64pcrel32;
+      // Currently, we only support relative addressing with statepoints.
+      // Otherwise, we'll need a scratch register to hold the target
+      // immediate.  You'll fail asserts during load & relocation if this
+      // address is to far away. (TODO: support non-relative addressing)
+      break;
+    case MachineOperand::MO_Register:
+      // FIXME: Add retpoline support and remove this.
+      if (Subtarget->useRetpoline())
+        report_fatal_error("Lowering register statepoints with retpoline not "
+                           "yet implemented.");
+      CallTargetMCOp = MCOperand::createReg(CallTarget.getReg());
+      CallOpcode = X86::CALL64r;
+      break;
+    default:
+      llvm_unreachable("Unsupported operand type in statepoint call target");
+      break;
     }
-    case StackMaps::IndirectMemRefOp: {
-      ++MOI;
-      int64_t Size = MOI->getImm();
-      assert(Size > 0 && "Need a valid size for indirect memory locations.");
-      return parseMemoryOperand(StackMaps::Location::Indirect, Size,
-                                llvm::next(MOI), MOE);
-    }
-    case StackMaps::ConstantOp: {
-      ++MOI;
-      assert(MOI->isImm() && "Expected constant operand.");
-      int64_t Imm = MOI->getImm();
-      return std::make_pair(
-        Location(Location::Constant, sizeof(int64_t), 0, Imm), ++MOI);
-    }
+
+    // Emit call
+    MCInst CallInst;
+    CallInst.setOpcode(CallOpcode);
+    CallInst.addOperand(CallTargetMCOp);
+    OutStreamer->EmitInstruction(CallInst, getSubtargetInfo());
+  }
+
+  // Record our statepoint node in the same section used by STACKMAP
+  // and PATCHPOINT
+  SM.recordStatepoint(MI);
+}
+
+void X86AsmPrinter::LowerFAULTING_OP(const MachineInstr &FaultingMI,
+                                     X86MCInstLower &MCIL) {
+  // FAULTING_LOAD_OP <def>, <faltinf type>, <MBB handler>,
+  //                  <opcode>, <operands>
+
+  unsigned DefRegister = FaultingMI.getOperand(0).getReg();
+  FaultMaps::FaultKind FK =
+      static_cast<FaultMaps::FaultKind>(FaultingMI.getOperand(1).getImm());
+  MCSymbol *HandlerLabel = FaultingMI.getOperand(2).getMBB()->getSymbol();
+  unsigned Opcode = FaultingMI.getOperand(3).getImm();
+  unsigned OperandsBeginIdx = 4;
+
+  assert(FK < FaultMaps::FaultKindMax && "Invalid Faulting Kind!");
+  FM.recordFaultingOp(FK, HandlerLabel);
+
+  MCInst MI;
+  MI.setOpcode(Opcode);
+
+  if (DefRegister != X86::NoRegister)
+    MI.addOperand(MCOperand::createReg(DefRegister));
+
+  for (auto I = FaultingMI.operands_begin() + OperandsBeginIdx,
+            E = FaultingMI.operands_end();
+       I != E; ++I)
+    if (auto MaybeOperand = MCIL.LowerMachineOperand(&FaultingMI, *I))
+      MI.addOperand(MaybeOperand.getValue());
+
+  OutStreamer->EmitInstruction(MI, getSubtargetInfo());
+}
+
+void X86AsmPrinter::LowerFENTRY_CALL(const MachineInstr &MI,
+                                     X86MCInstLower &MCIL) {
+  bool Is64Bits = Subtarget->is64Bit();
+  MCContext &Ctx = OutStreamer->getContext();
+  MCSymbol *fentry = Ctx.getOrCreateSymbol("__fentry__");
+  const MCSymbolRefExpr *Op =
+      MCSymbolRefExpr::create(fentry, MCSymbolRefExpr::VK_None, Ctx);
+
+  EmitAndCountInstruction(
+      MCInstBuilder(Is64Bits ? X86::CALL64pcrel32 : X86::CALLpcrel32)
+          .addExpr(Op));
+}
+
+void X86AsmPrinter::LowerPATCHABLE_OP(const MachineInstr &MI,
+                                      X86MCInstLower &MCIL) {
+  // PATCHABLE_OP minsize, opcode, operands
+
+  unsigned MinSize = MI.getOperand(0).getImm();
+  unsigned Opcode = MI.getOperand(1).getImm();
+
+  MCInst MCI;
+  MCI.setOpcode(Opcode);
+  for (auto &MO : make_range(MI.operands_begin() + 2, MI.operands_end()))
+    if (auto MaybeOperand = MCIL.LowerMachineOperand(&MI, MO))
+      MCI.addOperand(MaybeOperand.getValue());
+
+  SmallString<256> Code;
+  SmallVector<MCFixup, 4> Fixups;
+  raw_svector_ostream VecOS(Code);
+  CodeEmitter->encodeInstruction(MCI, VecOS, Fixups, getSubtargetInfo());
+
+  if (Code.size() < MinSize) {
+    if (MinSize == 2 && Opcode == X86::PUSH64r) {
+      // This is an optimization that lets us get away without emitting a nop in
+      // many cases.
+      //
+      // NB! In some cases the encoding for PUSH64r (e.g. PUSH64r %r9) takes two
+      // bytes too, so the check on MinSize is important.
+      MCI.setOpcode(X86::PUSH64rmr);
+    } else {
+      unsigned NopSize = EmitNop(*OutStreamer, MinSize, Subtarget->is64Bit(),
+                                 getSubtargetInfo());
+      assert(NopSize == MinSize && "Could not implement MinSize!");
+      (void) NopSize;
     }
   }
 
-  // Otherwise this is a reg operand. The physical register number will
-  // ultimately be encoded as a DWARF regno. The stack map also records the size
-  // of a spill slot that can hold the register content. (The runtime can
-  // track the actual size of the data type if it needs to.)
-  assert(MOP.isReg() && "Expected register operand here.");
-  assert(TargetRegisterInfo::isPhysicalRegister(MOP.getReg()) &&
-         "Virtreg operands should have been rewritten before now.");
-  const TargetRegisterClass *RC =
-    TM.getRegisterInfo()->getMinimalPhysRegClass(MOP.getReg());
-  assert(!MOP.getSubReg() && "Physical subreg still around.");
-  return std::make_pair(
-    Location(Location::Register, RC->getSize(), MOP.getReg(), 0), ++MOI);
+  OutStreamer->EmitInstruction(MCI, getSubtargetInfo());
 }
 
 // Lower a stackmap of the form:
 // <id>, <shadowBytes>, ...
-static void LowerSTACKMAP(MCStreamer &OutStreamer,
-                          StackMaps &SM,
-                          const MachineInstr &MI)
-{
-  unsigned NumNOPBytes = MI.getOperand(1).getImm();
+void X86AsmPrinter::LowerSTACKMAP(const MachineInstr &MI) {
+  SMShadowTracker.emitShadowPadding(*OutStreamer, getSubtargetInfo());
   SM.recordStackMap(MI);
-  // Emit padding.
-  // FIXME: These nops ensure that the stackmap's shadow is covered by
-  // instructions from the same basic block, but the nops should not be
-  // necessary if instructions from the same block follow the stackmap.
-  for (unsigned i = 0; i < NumNOPBytes; ++i)
-    OutStreamer.EmitInstruction(MCInstBuilder(X86::NOOP));
+  unsigned NumShadowBytes = MI.getOperand(1).getImm();
+  SMShadowTracker.reset(NumShadowBytes);
 }
 
 // Lower a patchpoint of the form:
 // [<def>], <id>, <numBytes>, <target>, <numArgs>, <cc>, ...
-static void LowerPATCHPOINT(MCStreamer &OutStreamer,
-                            StackMaps &SM,
-                            const MachineInstr &MI) {
+void X86AsmPrinter::LowerPATCHPOINT(const MachineInstr &MI,
+                                    X86MCInstLower &MCIL) {
+  assert(Subtarget->is64Bit() && "Patchpoint currently only supports X86-64");
+
+  SMShadowTracker.emitShadowPadding(*OutStreamer, getSubtargetInfo());
+
   SM.recordPatchPoint(MI);
 
   PatchPointOpers opers(&MI);
   unsigned ScratchIdx = opers.getNextScratchIdx();
   unsigned EncodedBytes = 0;
-  int64_t CallTarget = opers.getMetaOper(PatchPointOpers::TargetPos).getImm();
-  if (CallTarget) {
+  const MachineOperand &CalleeMO = opers.getCallTarget();
+
+  // Check for null target. If target is non-null (i.e. is non-zero or is
+  // symbolic) then emit a call.
+  if (!(CalleeMO.isImm() && !CalleeMO.getImm())) {
+    MCOperand CalleeMCOp;
+    switch (CalleeMO.getType()) {
+    default:
+      /// FIXME: Add a verifier check for bad callee types.
+      llvm_unreachable("Unrecognized callee operand type.");
+    case MachineOperand::MO_Immediate:
+      if (CalleeMO.getImm())
+        CalleeMCOp = MCOperand::createImm(CalleeMO.getImm());
+      break;
+    case MachineOperand::MO_ExternalSymbol:
+    case MachineOperand::MO_GlobalAddress:
+      CalleeMCOp =
+        MCIL.LowerSymbolOperand(CalleeMO,
+                                MCIL.GetSymbolFromOperand(CalleeMO));
+      break;
+    }
+
     // Emit MOV to materialize the target address and the CALL to target.
     // This is encoded with 12-13 bytes, depending on which register is used.
-    // We conservatively assume that it is 12 bytes and emit in worst case one
-    // extra NOP byte.
-    EncodedBytes = 12;
-    OutStreamer.EmitInstruction(MCInstBuilder(X86::MOV64ri)
-                                .addReg(MI.getOperand(ScratchIdx).getReg())
-                                .addImm(CallTarget));
-    OutStreamer.EmitInstruction(MCInstBuilder(X86::CALL64r)
-                                .addReg(MI.getOperand(ScratchIdx).getReg()));
+    unsigned ScratchReg = MI.getOperand(ScratchIdx).getReg();
+    if (X86II::isX86_64ExtendedReg(ScratchReg))
+      EncodedBytes = 13;
+    else
+      EncodedBytes = 12;
+
+    EmitAndCountInstruction(
+        MCInstBuilder(X86::MOV64ri).addReg(ScratchReg).addOperand(CalleeMCOp));
+    // FIXME: Add retpoline support and remove this.
+    if (Subtarget->useRetpoline())
+      report_fatal_error(
+          "Lowering patchpoint with retpoline not yet implemented.");
+    EmitAndCountInstruction(MCInstBuilder(X86::CALL64r).addReg(ScratchReg));
   }
+
   // Emit padding.
-  unsigned NumBytes = opers.getMetaOper(PatchPointOpers::NBytesPos).getImm();
+  unsigned NumBytes = opers.getNumPatchBytes();
   assert(NumBytes >= EncodedBytes &&
          "Patchpoint can't request size less than the length of a call.");
 
-  for (unsigned i = EncodedBytes; i < NumBytes; ++i)
-    OutStreamer.EmitInstruction(MCInstBuilder(X86::NOOP));
+  EmitNops(*OutStreamer, NumBytes - EncodedBytes, Subtarget->is64Bit(),
+           getSubtargetInfo());
+}
+
+void X86AsmPrinter::LowerPATCHABLE_EVENT_CALL(const MachineInstr &MI,
+                                              X86MCInstLower &MCIL) {
+  assert(Subtarget->is64Bit() && "XRay custom events only supports X86-64");
+
+  // We want to emit the following pattern, which follows the x86 calling
+  // convention to prepare for the trampoline call to be patched in.
+  //
+  //   .p2align 1, ...
+  // .Lxray_event_sled_N:
+  //   jmp +N                        // jump across the instrumentation sled
+  //   ...                           // set up arguments in register
+  //   callq __xray_CustomEvent@plt  // force dependency to symbol
+  //   ...
+  //   <jump here>
+  //
+  // After patching, it would look something like:
+  //
+  //   nopw (2-byte nop)
+  //   ...
+  //   callq __xrayCustomEvent  // already lowered
+  //   ...
+  //
+  // ---
+  // First we emit the label and the jump.
+  auto CurSled = OutContext.createTempSymbol("xray_event_sled_", true);
+  OutStreamer->AddComment("# XRay Custom Event Log");
+  OutStreamer->EmitCodeAlignment(2);
+  OutStreamer->EmitLabel(CurSled);
+
+  // Use a two-byte `jmp`. This version of JMP takes an 8-bit relative offset as
+  // an operand (computed as an offset from the jmp instruction).
+  // FIXME: Find another less hacky way do force the relative jump.
+  OutStreamer->EmitBinaryData("\xeb\x0f");
+
+  // The default C calling convention will place two arguments into %rcx and
+  // %rdx -- so we only work with those.
+  unsigned UsedRegs[] = {X86::RDI, X86::RSI};
+  bool UsedMask[] = {false, false};
+
+  // Then we put the operands in the %rdi and %rsi registers. We spill the
+  // values in the register before we clobber them, and mark them as used in
+  // UsedMask. In case the arguments are already in the correct register, we use
+  // emit nops appropriately sized to keep the sled the same size in every
+  // situation.
+  for (unsigned I = 0; I < MI.getNumOperands(); ++I)
+    if (auto Op = MCIL.LowerMachineOperand(&MI, MI.getOperand(I))) {
+      assert(Op->isReg() && "Only support arguments in registers");
+      if (Op->getReg() != UsedRegs[I]) {
+        UsedMask[I] = true;
+        EmitAndCountInstruction(
+            MCInstBuilder(X86::PUSH64r).addReg(UsedRegs[I]));
+        EmitAndCountInstruction(MCInstBuilder(X86::MOV64rr)
+                                    .addReg(UsedRegs[I])
+                                    .addReg(Op->getReg()));
+      } else {
+        EmitNops(*OutStreamer, 4, Subtarget->is64Bit(), getSubtargetInfo());
+      }
+    }
+
+  // We emit a hard dependency on the __xray_CustomEvent symbol, which is the
+  // name of the trampoline to be implemented by the XRay runtime.
+  auto TSym = OutContext.getOrCreateSymbol("__xray_CustomEvent");
+  MachineOperand TOp = MachineOperand::CreateMCSymbol(TSym);
+  if (isPositionIndependent())
+    TOp.setTargetFlags(X86II::MO_PLT);
+
+  // Emit the call instruction.
+  EmitAndCountInstruction(MCInstBuilder(X86::CALL64pcrel32)
+                              .addOperand(MCIL.LowerSymbolOperand(TOp, TSym)));
+
+  // Restore caller-saved and used registers.
+  for (unsigned I = sizeof UsedMask; I-- > 0;)
+    if (UsedMask[I])
+      EmitAndCountInstruction(MCInstBuilder(X86::POP64r).addReg(UsedRegs[I]));
+    else
+      EmitNops(*OutStreamer, 1, Subtarget->is64Bit(), getSubtargetInfo());
+
+  OutStreamer->AddComment("xray custom event end.");
+
+  // Record the sled version. Older versions of this sled were spelled
+  // differently, so we let the runtime handle the different offsets we're
+  // using.
+  recordSled(CurSled, MI, SledKind::CUSTOM_EVENT, 1);
+}
+
+void X86AsmPrinter::LowerPATCHABLE_FUNCTION_ENTER(const MachineInstr &MI,
+                                                  X86MCInstLower &MCIL) {
+  // We want to emit the following pattern:
+  //
+  //   .p2align 1, ...
+  // .Lxray_sled_N:
+  //   jmp .tmpN
+  //   # 9 bytes worth of noops
+  //
+  // We need the 9 bytes because at runtime, we'd be patching over the full 11
+  // bytes with the following pattern:
+  //
+  //   mov %r10, <function id, 32-bit>   // 6 bytes
+  //   call <relative offset, 32-bits>   // 5 bytes
+  //
+  auto CurSled = OutContext.createTempSymbol("xray_sled_", true);
+  OutStreamer->EmitCodeAlignment(2);
+  OutStreamer->EmitLabel(CurSled);
+
+  // Use a two-byte `jmp`. This version of JMP takes an 8-bit relative offset as
+  // an operand (computed as an offset from the jmp instruction).
+  // FIXME: Find another less hacky way do force the relative jump.
+  OutStreamer->EmitBytes("\xeb\x09");
+  EmitNops(*OutStreamer, 9, Subtarget->is64Bit(), getSubtargetInfo());
+  recordSled(CurSled, MI, SledKind::FUNCTION_ENTER);
+}
+
+void X86AsmPrinter::LowerPATCHABLE_RET(const MachineInstr &MI,
+                                       X86MCInstLower &MCIL) {
+  // Since PATCHABLE_RET takes the opcode of the return statement as an
+  // argument, we use that to emit the correct form of the RET that we want.
+  // i.e. when we see this:
+  //
+  //   PATCHABLE_RET X86::RET ...
+  //
+  // We should emit the RET followed by sleds.
+  //
+  //   .p2align 1, ...
+  // .Lxray_sled_N:
+  //   ret  # or equivalent instruction
+  //   # 10 bytes worth of noops
+  //
+  // This just makes sure that the alignment for the next instruction is 2.
+  auto CurSled = OutContext.createTempSymbol("xray_sled_", true);
+  OutStreamer->EmitCodeAlignment(2);
+  OutStreamer->EmitLabel(CurSled);
+  unsigned OpCode = MI.getOperand(0).getImm();
+  MCInst Ret;
+  Ret.setOpcode(OpCode);
+  for (auto &MO : make_range(MI.operands_begin() + 1, MI.operands_end()))
+    if (auto MaybeOperand = MCIL.LowerMachineOperand(&MI, MO))
+      Ret.addOperand(MaybeOperand.getValue());
+  OutStreamer->EmitInstruction(Ret, getSubtargetInfo());
+  EmitNops(*OutStreamer, 10, Subtarget->is64Bit(), getSubtargetInfo());
+  recordSled(CurSled, MI, SledKind::FUNCTION_EXIT);
+}
+
+void X86AsmPrinter::LowerPATCHABLE_TAIL_CALL(const MachineInstr &MI, X86MCInstLower &MCIL) {
+  // Like PATCHABLE_RET, we have the actual instruction in the operands to this
+  // instruction so we lower that particular instruction and its operands.
+  // Unlike PATCHABLE_RET though, we put the sled before the JMP, much like how
+  // we do it for PATCHABLE_FUNCTION_ENTER. The sled should be very similar to
+  // the PATCHABLE_FUNCTION_ENTER case, followed by the lowering of the actual
+  // tail call much like how we have it in PATCHABLE_RET.
+  auto CurSled = OutContext.createTempSymbol("xray_sled_", true);
+  OutStreamer->EmitCodeAlignment(2);
+  OutStreamer->EmitLabel(CurSled);
+  auto Target = OutContext.createTempSymbol();
+
+  // Use a two-byte `jmp`. This version of JMP takes an 8-bit relative offset as
+  // an operand (computed as an offset from the jmp instruction).
+  // FIXME: Find another less hacky way do force the relative jump.
+  OutStreamer->EmitBytes("\xeb\x09");
+  EmitNops(*OutStreamer, 9, Subtarget->is64Bit(), getSubtargetInfo());
+  OutStreamer->EmitLabel(Target);
+  recordSled(CurSled, MI, SledKind::TAIL_CALL);
+
+  unsigned OpCode = MI.getOperand(0).getImm();
+  MCInst TC;
+  TC.setOpcode(OpCode);
+
+  // Before emitting the instruction, add a comment to indicate that this is
+  // indeed a tail call.
+  OutStreamer->AddComment("TAILCALL");
+  for (auto &MO : make_range(MI.operands_begin() + 1, MI.operands_end()))
+    if (auto MaybeOperand = MCIL.LowerMachineOperand(&MI, MO))
+      TC.addOperand(MaybeOperand.getValue());
+  OutStreamer->EmitInstruction(TC, getSubtargetInfo());
+}
+
+// Returns instruction preceding MBBI in MachineFunction.
+// If MBBI is the first instruction of the first basic block, returns null.
+static MachineBasicBlock::const_iterator
+PrevCrossBBInst(MachineBasicBlock::const_iterator MBBI) {
+  const MachineBasicBlock *MBB = MBBI->getParent();
+  while (MBBI == MBB->begin()) {
+    if (MBB == &MBB->getParent()->front())
+      return MachineBasicBlock::const_iterator();
+    MBB = MBB->getPrevNode();
+    MBBI = MBB->end();
+  }
+  return --MBBI;
+}
+
+static const Constant *getConstantFromPool(const MachineInstr &MI,
+                                           const MachineOperand &Op) {
+  if (!Op.isCPI())
+    return nullptr;
+
+  ArrayRef<MachineConstantPoolEntry> Constants =
+      MI.getParent()->getParent()->getConstantPool()->getConstants();
+  const MachineConstantPoolEntry &ConstantEntry =
+      Constants[Op.getIndex()];
+
+  // Bail if this is a machine constant pool entry, we won't be able to dig out
+  // anything useful.
+  if (ConstantEntry.isMachineConstantPoolEntry())
+    return nullptr;
+
+  auto *C = dyn_cast<Constant>(ConstantEntry.Val.ConstVal);
+  assert((!C || ConstantEntry.getType() == C->getType()) &&
+         "Expected a constant of the same type!");
+  return C;
+}
+
+static std::string getShuffleComment(const MachineInstr *MI,
+                                     unsigned SrcOp1Idx,
+                                     unsigned SrcOp2Idx,
+                                     ArrayRef<int> Mask) {
+  std::string Comment;
+
+  // Compute the name for a register. This is really goofy because we have
+  // multiple instruction printers that could (in theory) use different
+  // names. Fortunately most people use the ATT style (outside of Windows)
+  // and they actually agree on register naming here. Ultimately, this is
+  // a comment, and so its OK if it isn't perfect.
+  auto GetRegisterName = [](unsigned RegNum) -> StringRef {
+    return X86ATTInstPrinter::getRegisterName(RegNum);
+  };
+
+  const MachineOperand &DstOp = MI->getOperand(0);
+  const MachineOperand &SrcOp1 = MI->getOperand(SrcOp1Idx);
+  const MachineOperand &SrcOp2 = MI->getOperand(SrcOp2Idx);
+
+  StringRef DstName = DstOp.isReg() ? GetRegisterName(DstOp.getReg()) : "mem";
+  StringRef Src1Name =
+      SrcOp1.isReg() ? GetRegisterName(SrcOp1.getReg()) : "mem";
+  StringRef Src2Name =
+      SrcOp2.isReg() ? GetRegisterName(SrcOp2.getReg()) : "mem";
+
+  // One source operand, fix the mask to print all elements in one span.
+  SmallVector<int, 8> ShuffleMask(Mask.begin(), Mask.end());
+  if (Src1Name == Src2Name)
+    for (int i = 0, e = ShuffleMask.size(); i != e; ++i)
+      if (ShuffleMask[i] >= e)
+        ShuffleMask[i] -= e;
+
+  raw_string_ostream CS(Comment);
+  CS << DstName;
+
+  // Handle AVX512 MASK/MASXZ write mask comments.
+  // MASK: zmmX {%kY}
+  // MASKZ: zmmX {%kY} {z}
+  if (SrcOp1Idx > 1) {
+    assert((SrcOp1Idx == 2 || SrcOp1Idx == 3) && "Unexpected writemask");
+
+    const MachineOperand &WriteMaskOp = MI->getOperand(SrcOp1Idx - 1);
+    if (WriteMaskOp.isReg()) {
+      CS << " {%" << GetRegisterName(WriteMaskOp.getReg()) << "}";
+
+      if (SrcOp1Idx == 2) {
+        CS << " {z}";
+      }
+    }
+  }
+
+  CS << " = ";
+
+  for (int i = 0, e = ShuffleMask.size(); i != e; ++i) {
+    if (i != 0)
+      CS << ",";
+    if (ShuffleMask[i] == SM_SentinelZero) {
+      CS << "zero";
+      continue;
+    }
+
+    // Otherwise, it must come from src1 or src2.  Print the span of elements
+    // that comes from this src.
+    bool isSrc1 = ShuffleMask[i] < (int)e;
+    CS << (isSrc1 ? Src1Name : Src2Name) << '[';
+
+    bool IsFirst = true;
+    while (i != e && ShuffleMask[i] != SM_SentinelZero &&
+           (ShuffleMask[i] < (int)e) == isSrc1) {
+      if (!IsFirst)
+        CS << ',';
+      else
+        IsFirst = false;
+      if (ShuffleMask[i] == SM_SentinelUndef)
+        CS << "u";
+      else
+        CS << ShuffleMask[i] % (int)e;
+      ++i;
+    }
+    CS << ']';
+    --i; // For loop increments element #.
+  }
+  CS.flush();
+
+  return Comment;
+}
+
+static void printConstant(const Constant *COp, raw_ostream &CS) {
+  if (isa<UndefValue>(COp)) {
+    CS << "u";
+  } else if (auto *CI = dyn_cast<ConstantInt>(COp)) {
+    if (CI->getBitWidth() <= 64) {
+      CS << CI->getZExtValue();
+    } else {
+      // print multi-word constant as (w0,w1)
+      const auto &Val = CI->getValue();
+      CS << "(";
+      for (int i = 0, N = Val.getNumWords(); i < N; ++i) {
+        if (i > 0)
+          CS << ",";
+        CS << Val.getRawData()[i];
+      }
+      CS << ")";
+    }
+  } else if (auto *CF = dyn_cast<ConstantFP>(COp)) {
+    SmallString<32> Str;
+    CF->getValueAPF().toString(Str);
+    CS << Str;
+  } else {
+    CS << "?";
+  }
+}
+
+void X86AsmPrinter::EmitSEHInstruction(const MachineInstr *MI) {
+  assert(MF->hasWinCFI() && "SEH_ instruction in function without WinCFI?");
+  assert(getSubtarget().isOSWindows() && "SEH_ instruction Windows only");
+  const X86RegisterInfo *RI =
+      MF->getSubtarget<X86Subtarget>().getRegisterInfo();
+
+  // Use the .cv_fpo directives if we're emitting CodeView on 32-bit x86.
+  if (EmitFPOData) {
+    X86TargetStreamer *XTS =
+        static_cast<X86TargetStreamer *>(OutStreamer->getTargetStreamer());
+    switch (MI->getOpcode()) {
+    case X86::SEH_PushReg:
+      XTS->emitFPOPushReg(MI->getOperand(0).getImm());
+      break;
+    case X86::SEH_StackAlloc:
+      XTS->emitFPOStackAlloc(MI->getOperand(0).getImm());
+      break;
+    case X86::SEH_SetFrame:
+      assert(MI->getOperand(1).getImm() == 0 &&
+             ".cv_fpo_setframe takes no offset");
+      XTS->emitFPOSetFrame(MI->getOperand(0).getImm());
+      break;
+    case X86::SEH_EndPrologue:
+      XTS->emitFPOEndPrologue();
+      break;
+    case X86::SEH_SaveReg:
+    case X86::SEH_SaveXMM:
+    case X86::SEH_PushFrame:
+      llvm_unreachable("SEH_ directive incompatible with FPO");
+      break;
+    default:
+      llvm_unreachable("expected SEH_ instruction");
+    }
+    return;
+  }
+
+  // Otherwise, use the .seh_ directives for all other Windows platforms.
+  switch (MI->getOpcode()) {
+  case X86::SEH_PushReg:
+    OutStreamer->EmitWinCFIPushReg(
+        RI->getSEHRegNum(MI->getOperand(0).getImm()));
+    break;
+
+  case X86::SEH_SaveReg:
+    OutStreamer->EmitWinCFISaveReg(RI->getSEHRegNum(MI->getOperand(0).getImm()),
+                                   MI->getOperand(1).getImm());
+    break;
+
+  case X86::SEH_SaveXMM:
+    OutStreamer->EmitWinCFISaveXMM(RI->getSEHRegNum(MI->getOperand(0).getImm()),
+                                   MI->getOperand(1).getImm());
+    break;
+
+  case X86::SEH_StackAlloc:
+    OutStreamer->EmitWinCFIAllocStack(MI->getOperand(0).getImm());
+    break;
+
+  case X86::SEH_SetFrame:
+    OutStreamer->EmitWinCFISetFrame(
+        RI->getSEHRegNum(MI->getOperand(0).getImm()),
+        MI->getOperand(1).getImm());
+    break;
+
+  case X86::SEH_PushFrame:
+    OutStreamer->EmitWinCFIPushFrame(MI->getOperand(0).getImm());
+    break;
+
+  case X86::SEH_EndPrologue:
+    OutStreamer->EmitWinCFIEndProlog();
+    break;
+
+  default:
+    llvm_unreachable("expected SEH_ instruction");
+  }
 }
 
 void X86AsmPrinter::EmitInstruction(const MachineInstr *MI) {
   X86MCInstLower MCInstLowering(*MF, *this);
+  const X86RegisterInfo *RI = MF->getSubtarget<X86Subtarget>().getRegisterInfo();
+
+  // Add a comment about EVEX-2-VEX compression for AVX-512 instrs that
+  // are compressed from EVEX encoding to VEX encoding.
+  if (TM.Options.MCOptions.ShowMCEncoding) {
+    if (MI->getAsmPrinterFlags() & AC_EVEX_2_VEX)
+      OutStreamer->AddComment("EVEX TO VEX Compression ", false);
+  }
+
   switch (MI->getOpcode()) {
   case TargetOpcode::DBG_VALUE:
     llvm_unreachable("Should be handled target independently");
 
   // Emit nothing here but a comment if we can.
   case X86::Int_MemBarrier:
-    if (OutStreamer.hasRawTextSupport())
-      OutStreamer.EmitRawText(StringRef("\t#MEMBARRIER"));
+    OutStreamer->emitRawComment("MEMBARRIER");
     return;
 
 
@@ -824,22 +1472,41 @@ void X86AsmPrinter::EmitInstruction(const MachineInstr *MI) {
   case X86::EH_RETURN64: {
     // Lower these as normal, but add some comments.
     unsigned Reg = MI->getOperand(0).getReg();
-    OutStreamer.AddComment(StringRef("eh_return, addr: %") +
-                           X86ATTInstPrinter::getRegisterName(Reg));
+    OutStreamer->AddComment(StringRef("eh_return, addr: %") +
+                            X86ATTInstPrinter::getRegisterName(Reg));
     break;
   }
-  case X86::TAILJMPr:
-  case X86::TAILJMPd:
-  case X86::TAILJMPd64:
+  case X86::CLEANUPRET: {
     // Lower these as normal, but add some comments.
-    OutStreamer.AddComment("TAILCALL");
+    OutStreamer->AddComment("CLEANUPRET");
+    break;
+  }
+
+  case X86::CATCHRET: {
+    // Lower these as normal, but add some comments.
+    OutStreamer->AddComment("CATCHRET");
+    break;
+  }
+
+  case X86::TAILJMPr:
+  case X86::TAILJMPm:
+  case X86::TAILJMPd:
+  case X86::TAILJMPd_CC:
+  case X86::TAILJMPr64:
+  case X86::TAILJMPm64:
+  case X86::TAILJMPd64:
+  case X86::TAILJMPd64_CC:
+  case X86::TAILJMPr64_REX:
+  case X86::TAILJMPm64_REX:
+    // Lower these as normal, but add some comments.
+    OutStreamer->AddComment("TAILCALL");
     break;
 
   case X86::TLS_addr32:
   case X86::TLS_addr64:
   case X86::TLS_base_addr32:
   case X86::TLS_base_addr64:
-    return LowerTlsAddr(OutStreamer, MCInstLowering, *MI);
+    return LowerTlsAddr(MCInstLowering, *MI);
 
   case X86::MOVPC32r: {
     // This is a pseudo op for a two instruction sequence with a label, which
@@ -852,15 +1519,33 @@ void X86AsmPrinter::EmitInstruction(const MachineInstr *MI) {
     MCSymbol *PICBase = MF->getPICBaseSymbol();
     // FIXME: We would like an efficient form for this, so we don't have to do a
     // lot of extra uniquing.
-    OutStreamer.EmitInstruction(MCInstBuilder(X86::CALLpcrel32)
-      .addExpr(MCSymbolRefExpr::Create(PICBase, OutContext)));
+    EmitAndCountInstruction(MCInstBuilder(X86::CALLpcrel32)
+      .addExpr(MCSymbolRefExpr::create(PICBase, OutContext)));
+
+    const X86FrameLowering* FrameLowering =
+        MF->getSubtarget<X86Subtarget>().getFrameLowering();
+    bool hasFP = FrameLowering->hasFP(*MF);
+    
+    // TODO: This is needed only if we require precise CFA.
+    bool HasActiveDwarfFrame = OutStreamer->getNumFrameInfos() &&
+                               !OutStreamer->getDwarfFrameInfos().back().End;
+
+    int stackGrowth = -RI->getSlotSize();
+
+    if (HasActiveDwarfFrame && !hasFP) {
+      OutStreamer->EmitCFIAdjustCfaOffset(-stackGrowth);
+    }
 
     // Emit the label.
-    OutStreamer.EmitLabel(PICBase);
+    OutStreamer->EmitLabel(PICBase);
 
     // popl $reg
-    OutStreamer.EmitInstruction(MCInstBuilder(X86::POP32r)
-      .addReg(MI->getOperand(0).getReg()));
+    EmitAndCountInstruction(MCInstBuilder(X86::POP32r)
+                            .addReg(MI->getOperand(0).getReg()));
+
+    if (HasActiveDwarfFrame && !hasFP) {
+      OutStreamer->EmitCFIAdjustCfaOffset(stackGrowth);
+    }
     return;
   }
 
@@ -876,47 +1561,472 @@ void X86AsmPrinter::EmitInstruction(const MachineInstr *MI) {
     //   MYGLOBAL + (. - PICBASE)
     // However, we can't generate a ".", so just emit a new label here and refer
     // to it.
-    MCSymbol *DotSym = OutContext.CreateTempSymbol();
-    OutStreamer.EmitLabel(DotSym);
+    MCSymbol *DotSym = OutContext.createTempSymbol();
+    OutStreamer->EmitLabel(DotSym);
 
     // Now that we have emitted the label, lower the complex operand expression.
     MCSymbol *OpSym = MCInstLowering.GetSymbolFromOperand(MI->getOperand(2));
 
-    const MCExpr *DotExpr = MCSymbolRefExpr::Create(DotSym, OutContext);
+    const MCExpr *DotExpr = MCSymbolRefExpr::create(DotSym, OutContext);
     const MCExpr *PICBase =
-      MCSymbolRefExpr::Create(MF->getPICBaseSymbol(), OutContext);
-    DotExpr = MCBinaryExpr::CreateSub(DotExpr, PICBase, OutContext);
+      MCSymbolRefExpr::create(MF->getPICBaseSymbol(), OutContext);
+    DotExpr = MCBinaryExpr::createSub(DotExpr, PICBase, OutContext);
 
-    DotExpr = MCBinaryExpr::CreateAdd(MCSymbolRefExpr::Create(OpSym,OutContext),
+    DotExpr = MCBinaryExpr::createAdd(MCSymbolRefExpr::create(OpSym,OutContext),
                                       DotExpr, OutContext);
 
-    OutStreamer.EmitInstruction(MCInstBuilder(X86::ADD32ri)
+    EmitAndCountInstruction(MCInstBuilder(X86::ADD32ri)
       .addReg(MI->getOperand(0).getReg())
       .addReg(MI->getOperand(1).getReg())
       .addExpr(DotExpr));
     return;
   }
+  case TargetOpcode::STATEPOINT:
+    return LowerSTATEPOINT(*MI, MCInstLowering);
+
+  case TargetOpcode::FAULTING_OP:
+    return LowerFAULTING_OP(*MI, MCInstLowering);
+
+  case TargetOpcode::FENTRY_CALL:
+    return LowerFENTRY_CALL(*MI, MCInstLowering);
+
+  case TargetOpcode::PATCHABLE_OP:
+    return LowerPATCHABLE_OP(*MI, MCInstLowering);
 
   case TargetOpcode::STACKMAP:
-    return LowerSTACKMAP(OutStreamer, SM, *MI);
+    return LowerSTACKMAP(*MI);
 
   case TargetOpcode::PATCHPOINT:
-    return LowerPATCHPOINT(OutStreamer, SM, *MI);
+    return LowerPATCHPOINT(*MI, MCInstLowering);
+
+  case TargetOpcode::PATCHABLE_FUNCTION_ENTER:
+    return LowerPATCHABLE_FUNCTION_ENTER(*MI, MCInstLowering);
+
+  case TargetOpcode::PATCHABLE_RET:
+    return LowerPATCHABLE_RET(*MI, MCInstLowering);
+
+  case TargetOpcode::PATCHABLE_TAIL_CALL:
+    return LowerPATCHABLE_TAIL_CALL(*MI, MCInstLowering);
+    
+  case TargetOpcode::PATCHABLE_EVENT_CALL:
+    return LowerPATCHABLE_EVENT_CALL(*MI, MCInstLowering);
 
   case X86::MORESTACK_RET:
-    OutStreamer.EmitInstruction(MCInstBuilder(X86::RET));
+    EmitAndCountInstruction(MCInstBuilder(getRetOpcode(*Subtarget)));
     return;
 
   case X86::MORESTACK_RET_RESTORE_R10:
     // Return, then restore R10.
-    OutStreamer.EmitInstruction(MCInstBuilder(X86::RET));
-    OutStreamer.EmitInstruction(MCInstBuilder(X86::MOV64rr)
-      .addReg(X86::R10)
-      .addReg(X86::RAX));
+    EmitAndCountInstruction(MCInstBuilder(getRetOpcode(*Subtarget)));
+    EmitAndCountInstruction(MCInstBuilder(X86::MOV64rr)
+                            .addReg(X86::R10)
+                            .addReg(X86::RAX));
     return;
+
+  case X86::SEH_PushReg:
+  case X86::SEH_SaveReg:
+  case X86::SEH_SaveXMM:
+  case X86::SEH_StackAlloc:
+  case X86::SEH_SetFrame:
+  case X86::SEH_PushFrame:
+  case X86::SEH_EndPrologue:
+    EmitSEHInstruction(MI);
+    return;
+
+  case X86::SEH_Epilogue: {
+    assert(MF->hasWinCFI() && "SEH_ instruction in function without WinCFI?");
+    MachineBasicBlock::const_iterator MBBI(MI);
+    // Check if preceded by a call and emit nop if so.
+    for (MBBI = PrevCrossBBInst(MBBI);
+         MBBI != MachineBasicBlock::const_iterator();
+         MBBI = PrevCrossBBInst(MBBI)) {
+      // Conservatively assume that pseudo instructions don't emit code and keep
+      // looking for a call. We may emit an unnecessary nop in some cases.
+      if (!MBBI->isPseudo()) {
+        if (MBBI->isCall())
+          EmitAndCountInstruction(MCInstBuilder(X86::NOOP));
+        break;
+      }
+    }
+    return;
+  }
+
+  // Lower PSHUFB and VPERMILP normally but add a comment if we can find
+  // a constant shuffle mask. We won't be able to do this at the MC layer
+  // because the mask isn't an immediate.
+  case X86::PSHUFBrm:
+  case X86::VPSHUFBrm:
+  case X86::VPSHUFBYrm:
+  case X86::VPSHUFBZ128rm:
+  case X86::VPSHUFBZ128rmk:
+  case X86::VPSHUFBZ128rmkz:
+  case X86::VPSHUFBZ256rm:
+  case X86::VPSHUFBZ256rmk:
+  case X86::VPSHUFBZ256rmkz:
+  case X86::VPSHUFBZrm:
+  case X86::VPSHUFBZrmk:
+  case X86::VPSHUFBZrmkz: {
+    if (!OutStreamer->isVerboseAsm())
+      break;
+    unsigned SrcIdx, MaskIdx;
+    switch (MI->getOpcode()) {
+    default: llvm_unreachable("Invalid opcode");
+    case X86::PSHUFBrm:
+    case X86::VPSHUFBrm:
+    case X86::VPSHUFBYrm:
+    case X86::VPSHUFBZ128rm:
+    case X86::VPSHUFBZ256rm:
+    case X86::VPSHUFBZrm:
+      SrcIdx = 1; MaskIdx = 5; break;
+    case X86::VPSHUFBZ128rmkz:
+    case X86::VPSHUFBZ256rmkz:
+    case X86::VPSHUFBZrmkz:
+      SrcIdx = 2; MaskIdx = 6; break;
+    case X86::VPSHUFBZ128rmk:
+    case X86::VPSHUFBZ256rmk:
+    case X86::VPSHUFBZrmk:
+      SrcIdx = 3; MaskIdx = 7; break;
+    }
+
+    assert(MI->getNumOperands() >= 6 &&
+           "We should always have at least 6 operands!");
+
+    const MachineOperand &MaskOp = MI->getOperand(MaskIdx);
+    if (auto *C = getConstantFromPool(*MI, MaskOp)) {
+      SmallVector<int, 64> Mask;
+      DecodePSHUFBMask(C, Mask);
+      if (!Mask.empty())
+        OutStreamer->AddComment(getShuffleComment(MI, SrcIdx, SrcIdx, Mask),
+                                !EnablePrintSchedInfo);
+    }
+    break;
+  }
+
+  case X86::VPERMILPSrm:
+  case X86::VPERMILPSYrm:
+  case X86::VPERMILPSZ128rm:
+  case X86::VPERMILPSZ128rmk:
+  case X86::VPERMILPSZ128rmkz:
+  case X86::VPERMILPSZ256rm:
+  case X86::VPERMILPSZ256rmk:
+  case X86::VPERMILPSZ256rmkz:
+  case X86::VPERMILPSZrm:
+  case X86::VPERMILPSZrmk:
+  case X86::VPERMILPSZrmkz:
+  case X86::VPERMILPDrm:
+  case X86::VPERMILPDYrm:
+  case X86::VPERMILPDZ128rm:
+  case X86::VPERMILPDZ128rmk:
+  case X86::VPERMILPDZ128rmkz:
+  case X86::VPERMILPDZ256rm:
+  case X86::VPERMILPDZ256rmk:
+  case X86::VPERMILPDZ256rmkz:
+  case X86::VPERMILPDZrm:
+  case X86::VPERMILPDZrmk:
+  case X86::VPERMILPDZrmkz: {
+    if (!OutStreamer->isVerboseAsm())
+      break;
+    unsigned SrcIdx, MaskIdx;
+    unsigned ElSize;
+    switch (MI->getOpcode()) {
+    default: llvm_unreachable("Invalid opcode");
+    case X86::VPERMILPSrm:
+    case X86::VPERMILPSYrm:
+    case X86::VPERMILPSZ128rm:
+    case X86::VPERMILPSZ256rm:
+    case X86::VPERMILPSZrm:
+      SrcIdx = 1; MaskIdx = 5; ElSize = 32; break;
+    case X86::VPERMILPSZ128rmkz:
+    case X86::VPERMILPSZ256rmkz:
+    case X86::VPERMILPSZrmkz:
+      SrcIdx = 2; MaskIdx = 6; ElSize = 32; break;
+    case X86::VPERMILPSZ128rmk:
+    case X86::VPERMILPSZ256rmk:
+    case X86::VPERMILPSZrmk:
+      SrcIdx = 3; MaskIdx = 7; ElSize = 32; break;
+    case X86::VPERMILPDrm:
+    case X86::VPERMILPDYrm:
+    case X86::VPERMILPDZ128rm:
+    case X86::VPERMILPDZ256rm:
+    case X86::VPERMILPDZrm:
+      SrcIdx = 1; MaskIdx = 5; ElSize = 64; break;
+    case X86::VPERMILPDZ128rmkz:
+    case X86::VPERMILPDZ256rmkz:
+    case X86::VPERMILPDZrmkz:
+      SrcIdx = 2; MaskIdx = 6; ElSize = 64; break;
+    case X86::VPERMILPDZ128rmk:
+    case X86::VPERMILPDZ256rmk:
+    case X86::VPERMILPDZrmk:
+      SrcIdx = 3; MaskIdx = 7; ElSize = 64; break;
+    }
+
+    assert(MI->getNumOperands() >= 6 &&
+           "We should always have at least 6 operands!");
+
+    const MachineOperand &MaskOp = MI->getOperand(MaskIdx);
+    if (auto *C = getConstantFromPool(*MI, MaskOp)) {
+      SmallVector<int, 16> Mask;
+      DecodeVPERMILPMask(C, ElSize, Mask);
+      if (!Mask.empty())
+        OutStreamer->AddComment(getShuffleComment(MI, SrcIdx, SrcIdx, Mask),
+                                !EnablePrintSchedInfo);
+    }
+    break;
+  }
+
+  case X86::VPERMIL2PDrm:
+  case X86::VPERMIL2PSrm:
+  case X86::VPERMIL2PDYrm:
+  case X86::VPERMIL2PSYrm: {
+    if (!OutStreamer->isVerboseAsm())
+      break;
+    assert(MI->getNumOperands() >= 8 &&
+           "We should always have at least 8 operands!");
+
+    const MachineOperand &CtrlOp = MI->getOperand(MI->getNumOperands() - 1);
+    if (!CtrlOp.isImm())
+      break;
+
+    unsigned ElSize;
+    switch (MI->getOpcode()) {
+    default: llvm_unreachable("Invalid opcode");
+    case X86::VPERMIL2PSrm: case X86::VPERMIL2PSYrm: ElSize = 32; break;
+    case X86::VPERMIL2PDrm: case X86::VPERMIL2PDYrm: ElSize = 64; break;
+    }
+
+    const MachineOperand &MaskOp = MI->getOperand(6);
+    if (auto *C = getConstantFromPool(*MI, MaskOp)) {
+      SmallVector<int, 16> Mask;
+      DecodeVPERMIL2PMask(C, (unsigned)CtrlOp.getImm(), ElSize, Mask);
+      if (!Mask.empty())
+        OutStreamer->AddComment(getShuffleComment(MI, 1, 2, Mask),
+                                !EnablePrintSchedInfo);
+    }
+    break;
+  }
+
+  case X86::VPPERMrrm: {
+    if (!OutStreamer->isVerboseAsm())
+      break;
+    assert(MI->getNumOperands() >= 7 &&
+           "We should always have at least 7 operands!");
+
+    const MachineOperand &MaskOp = MI->getOperand(6);
+    if (auto *C = getConstantFromPool(*MI, MaskOp)) {
+      SmallVector<int, 16> Mask;
+      DecodeVPPERMMask(C, Mask);
+      if (!Mask.empty())
+        OutStreamer->AddComment(getShuffleComment(MI, 1, 2, Mask),
+                                !EnablePrintSchedInfo);
+    }
+    break;
+  }
+
+#define MOV_CASE(Prefix, Suffix)        \
+  case X86::Prefix##MOVAPD##Suffix##rm: \
+  case X86::Prefix##MOVAPS##Suffix##rm: \
+  case X86::Prefix##MOVUPD##Suffix##rm: \
+  case X86::Prefix##MOVUPS##Suffix##rm: \
+  case X86::Prefix##MOVDQA##Suffix##rm: \
+  case X86::Prefix##MOVDQU##Suffix##rm:
+
+#define MOV_AVX512_CASE(Suffix)         \
+  case X86::VMOVDQA64##Suffix##rm:      \
+  case X86::VMOVDQA32##Suffix##rm:      \
+  case X86::VMOVDQU64##Suffix##rm:      \
+  case X86::VMOVDQU32##Suffix##rm:      \
+  case X86::VMOVDQU16##Suffix##rm:      \
+  case X86::VMOVDQU8##Suffix##rm:       \
+  case X86::VMOVAPS##Suffix##rm:        \
+  case X86::VMOVAPD##Suffix##rm:        \
+  case X86::VMOVUPS##Suffix##rm:        \
+  case X86::VMOVUPD##Suffix##rm:
+
+#define CASE_ALL_MOV_RM()               \
+  MOV_CASE(, )   /* SSE */              \
+  MOV_CASE(V, )  /* AVX-128 */          \
+  MOV_CASE(V, Y) /* AVX-256 */          \
+  MOV_AVX512_CASE(Z)                    \
+  MOV_AVX512_CASE(Z256)                 \
+  MOV_AVX512_CASE(Z128)
+
+  // For loads from a constant pool to a vector register, print the constant
+  // loaded.
+  CASE_ALL_MOV_RM()
+  case X86::VBROADCASTF128:
+  case X86::VBROADCASTI128:
+  case X86::VBROADCASTF32X4Z256rm:
+  case X86::VBROADCASTF32X4rm:
+  case X86::VBROADCASTF32X8rm:
+  case X86::VBROADCASTF64X2Z128rm:
+  case X86::VBROADCASTF64X2rm:
+  case X86::VBROADCASTF64X4rm:
+  case X86::VBROADCASTI32X4Z256rm:
+  case X86::VBROADCASTI32X4rm:
+  case X86::VBROADCASTI32X8rm:
+  case X86::VBROADCASTI64X2Z128rm:
+  case X86::VBROADCASTI64X2rm:
+  case X86::VBROADCASTI64X4rm:
+    if (!OutStreamer->isVerboseAsm())
+      break;
+    if (MI->getNumOperands() <= 4)
+      break;
+    if (auto *C = getConstantFromPool(*MI, MI->getOperand(4))) {
+      int NumLanes = 1;
+      // Override NumLanes for the broadcast instructions.
+      switch (MI->getOpcode()) {
+      case X86::VBROADCASTF128:         NumLanes = 2;  break;
+      case X86::VBROADCASTI128:         NumLanes = 2;  break;
+      case X86::VBROADCASTF32X4Z256rm:  NumLanes = 2;  break;
+      case X86::VBROADCASTF32X4rm:      NumLanes = 4;  break;
+      case X86::VBROADCASTF32X8rm:      NumLanes = 2;  break;
+      case X86::VBROADCASTF64X2Z128rm:  NumLanes = 2;  break;
+      case X86::VBROADCASTF64X2rm:      NumLanes = 4;  break;
+      case X86::VBROADCASTF64X4rm:      NumLanes = 2;  break;
+      case X86::VBROADCASTI32X4Z256rm:  NumLanes = 2;  break;
+      case X86::VBROADCASTI32X4rm:      NumLanes = 4;  break;
+      case X86::VBROADCASTI32X8rm:      NumLanes = 2;  break;
+      case X86::VBROADCASTI64X2Z128rm:  NumLanes = 2;  break;
+      case X86::VBROADCASTI64X2rm:      NumLanes = 4;  break;
+      case X86::VBROADCASTI64X4rm:      NumLanes = 2;  break;
+      }
+
+      std::string Comment;
+      raw_string_ostream CS(Comment);
+      const MachineOperand &DstOp = MI->getOperand(0);
+      CS << X86ATTInstPrinter::getRegisterName(DstOp.getReg()) << " = ";
+      if (auto *CDS = dyn_cast<ConstantDataSequential>(C)) {
+        CS << "[";
+        for (int l = 0; l != NumLanes; ++l) {
+          for (int i = 0, NumElements = CDS->getNumElements(); i < NumElements; ++i) {
+            if (i != 0 || l != 0)
+              CS << ",";
+            if (CDS->getElementType()->isIntegerTy())
+              CS << CDS->getElementAsInteger(i);
+            else if (CDS->getElementType()->isFloatTy())
+              CS << CDS->getElementAsFloat(i);
+            else if (CDS->getElementType()->isDoubleTy())
+              CS << CDS->getElementAsDouble(i);
+            else
+              CS << "?";
+          }
+        }
+        CS << "]";
+        OutStreamer->AddComment(CS.str(), !EnablePrintSchedInfo);
+      } else if (auto *CV = dyn_cast<ConstantVector>(C)) {
+        CS << "<";
+        for (int l = 0; l != NumLanes; ++l) {
+          for (int i = 0, NumOperands = CV->getNumOperands(); i < NumOperands; ++i) {
+            if (i != 0 || l != 0)
+              CS << ",";
+            printConstant(CV->getOperand(i), CS);
+          }
+        }
+        CS << ">";
+        OutStreamer->AddComment(CS.str(), !EnablePrintSchedInfo);
+      }
+    }
+    break;
+  case X86::VBROADCASTSSrm:
+  case X86::VBROADCASTSSYrm:
+  case X86::VBROADCASTSSZ128m:
+  case X86::VBROADCASTSSZ256m:
+  case X86::VBROADCASTSSZm:
+  case X86::VBROADCASTSDYrm:
+  case X86::VBROADCASTSDZ256m:
+  case X86::VBROADCASTSDZm:
+  case X86::VPBROADCASTBrm:
+  case X86::VPBROADCASTBYrm:
+  case X86::VPBROADCASTBZ128m:
+  case X86::VPBROADCASTBZ256m:
+  case X86::VPBROADCASTBZm:
+  case X86::VPBROADCASTDrm:
+  case X86::VPBROADCASTDYrm:
+  case X86::VPBROADCASTDZ128m:
+  case X86::VPBROADCASTDZ256m:
+  case X86::VPBROADCASTDZm:
+  case X86::VPBROADCASTQrm:
+  case X86::VPBROADCASTQYrm:
+  case X86::VPBROADCASTQZ128m:
+  case X86::VPBROADCASTQZ256m:
+  case X86::VPBROADCASTQZm:
+  case X86::VPBROADCASTWrm:
+  case X86::VPBROADCASTWYrm:
+  case X86::VPBROADCASTWZ128m:
+  case X86::VPBROADCASTWZ256m:
+  case X86::VPBROADCASTWZm:
+    if (!OutStreamer->isVerboseAsm())
+      break;
+    if (MI->getNumOperands() <= 4)
+      break;
+    if (auto *C = getConstantFromPool(*MI, MI->getOperand(4))) {
+      int NumElts;
+      switch (MI->getOpcode()) {
+      default: llvm_unreachable("Invalid opcode");
+      case X86::VBROADCASTSSrm:    NumElts = 4;  break;
+      case X86::VBROADCASTSSYrm:   NumElts = 8;  break;
+      case X86::VBROADCASTSSZ128m: NumElts = 4;  break;
+      case X86::VBROADCASTSSZ256m: NumElts = 8;  break;
+      case X86::VBROADCASTSSZm:    NumElts = 16; break;
+      case X86::VBROADCASTSDYrm:   NumElts = 4;  break;
+      case X86::VBROADCASTSDZ256m: NumElts = 4;  break;
+      case X86::VBROADCASTSDZm:    NumElts = 8;  break;
+      case X86::VPBROADCASTBrm:    NumElts = 16; break;
+      case X86::VPBROADCASTBYrm:   NumElts = 32; break;
+      case X86::VPBROADCASTBZ128m: NumElts = 16; break;
+      case X86::VPBROADCASTBZ256m: NumElts = 32; break;
+      case X86::VPBROADCASTBZm:    NumElts = 64; break;
+      case X86::VPBROADCASTDrm:    NumElts = 4;  break;
+      case X86::VPBROADCASTDYrm:   NumElts = 8;  break;
+      case X86::VPBROADCASTDZ128m: NumElts = 4;  break;
+      case X86::VPBROADCASTDZ256m: NumElts = 8;  break;
+      case X86::VPBROADCASTDZm:    NumElts = 16; break;
+      case X86::VPBROADCASTQrm:    NumElts = 2;  break;
+      case X86::VPBROADCASTQYrm:   NumElts = 4;  break;
+      case X86::VPBROADCASTQZ128m: NumElts = 2;  break;
+      case X86::VPBROADCASTQZ256m: NumElts = 4;  break;
+      case X86::VPBROADCASTQZm:    NumElts = 8;  break;
+      case X86::VPBROADCASTWrm:    NumElts = 8;  break;
+      case X86::VPBROADCASTWYrm:   NumElts = 16; break;
+      case X86::VPBROADCASTWZ128m: NumElts = 8;  break;
+      case X86::VPBROADCASTWZ256m: NumElts = 16; break;
+      case X86::VPBROADCASTWZm:    NumElts = 32; break;
+      }
+
+      std::string Comment;
+      raw_string_ostream CS(Comment);
+      const MachineOperand &DstOp = MI->getOperand(0);
+      CS << X86ATTInstPrinter::getRegisterName(DstOp.getReg()) << " = ";
+      CS << "[";
+      for (int i = 0; i != NumElts; ++i) {
+        if (i != 0)
+          CS << ",";
+        printConstant(C, CS);
+      }
+      CS << "]";
+      OutStreamer->AddComment(CS.str(), !EnablePrintSchedInfo);
+    }
   }
 
   MCInst TmpInst;
   MCInstLowering.Lower(MI, TmpInst);
-  OutStreamer.EmitInstruction(TmpInst);
+  if (MI->getAsmPrinterFlag(MachineInstr::NoSchedComment))
+    TmpInst.setFlags(TmpInst.getFlags() | X86::NO_SCHED_INFO);
+
+  // Stackmap shadows cannot include branch targets, so we can count the bytes
+  // in a call towards the shadow, but must ensure that the no thread returns
+  // in to the stackmap shadow.  The only way to achieve this is if the call
+  // is at the end of the shadow.
+  if (MI->isCall()) {
+    // Count then size of the call towards the shadow
+    SMShadowTracker.count(TmpInst, getSubtargetInfo(), CodeEmitter.get());
+    // Then flush the shadow so that we fill with nops before the call, not
+    // after it.
+    SMShadowTracker.emitShadowPadding(*OutStreamer, getSubtargetInfo());
+    // Then emit the call
+    OutStreamer->EmitInstruction(TmpInst, getSubtargetInfo());
+    return;
+  }
+
+  EmitAndCountInstruction(TmpInst);
 }

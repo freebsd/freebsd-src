@@ -186,7 +186,7 @@ FILE *d;
 			fprintf(d, ">");
 			break;
 		default:
-			fprintf(d, "!%d(%d)!", OP(*s), opnd);
+			fprintf(d, "!%ld(%ld)!", OP(*s), (long)opnd);
 			break;
 		}
 		if (!done)

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2009 Nathan Whitehorn
  * All rights reserved.
  *
@@ -61,6 +63,9 @@
 #define	SLBE_INDEX_MASK	0x0000000000000fffUL /* SLB index mask*/
 #define	SLBE_ESID_MASK	0xfffffffff0000000UL /* Effective segment ID mask */
 #define	SLBE_ESID_SHIFT	28
+
+/* Virtual real-mode VSID in LPARs */
+#define VSID_VRMA	0x1ffffff
 
 /*
  * User segment for copyin/out

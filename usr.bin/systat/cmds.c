@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -59,7 +61,7 @@ command(const char *cmd)
 	if (*cp)
 		*cp++ = '\0';
 	if (*tmpstr1 == '\0')
-		return;
+		goto done;
 	for (; *cp && isspace(*cp); cp++)
 		;
 	if (strcmp(tmpstr1, "quit") == 0 || strcmp(tmpstr1, "q") == 0)
@@ -120,10 +122,10 @@ command(const char *cmd)
 		(*curcmd->c_close)(wnd);
 		curcmd->c_flags &= ~CF_INIT;
 		wnd = (*p->c_open)();
-		if (wnd == 0) {
+		if (wnd == NULL) {
 			error("Couldn't open new display");
 			wnd = (*curcmd->c_open)();
-			if (wnd == 0) {
+			if (wnd == NULL) {
 				error("Couldn't change back to previous cmd");
 				exit(1);
 			}
@@ -141,7 +143,7 @@ command(const char *cmd)
 		status();
 		goto done;
 	}
-	if (curcmd->c_cmd == 0 || !(*curcmd->c_cmd)(tmpstr1, cp))
+	if (curcmd->c_cmd == NULL || !(*curcmd->c_cmd)(tmpstr1, cp))
 		error("%s: Unknown command.", tmpstr1);
 done:
 	free(tmpstr);

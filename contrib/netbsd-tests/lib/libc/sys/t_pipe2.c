@@ -1,4 +1,4 @@
-/* $NetBSD: t_pipe2.c,v 1.8 2012/05/16 13:54:28 jruoho Exp $ */
+/* $NetBSD: t_pipe2.c,v 1.9 2017/01/13 21:19:45 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -36,7 +36,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_pipe2.c,v 1.8 2012/05/16 13:54:28 jruoho Exp $");
+__RCSID("$NetBSD: t_pipe2.c,v 1.9 2017/01/13 21:19:45 christos Exp $");
 
 #include <atf-c.h>
 #include <fcntl.h>
@@ -53,7 +53,12 @@ run(int flags)
 	while ((i = open("/", O_RDONLY)) < 3)
 		ATF_REQUIRE(i != -1);
 
-	ATF_REQUIRE(fcntl(3, F_CLOSEM) != -1);
+#ifdef __FreeBSD__
+	closefrom(3);
+#else
+	ATF_REQUIRE_MSG(closefrom(3) != -1, "closefrom failed: %s",
+	    strerror(errno));
+#endif
 
 	ATF_REQUIRE(pipe2(fd, flags) == 0);
 
@@ -76,6 +81,7 @@ run(int flags)
 		ATF_REQUIRE((fcntl(fd[1], F_GETFL) & O_NONBLOCK) == 0);
 	}
 
+#ifndef __FreeBSD__
 	if (flags & O_NOSIGPIPE) {
 		ATF_REQUIRE(fcntl(fd[0], F_GETNOSIGPIPE) != 0);
 		ATF_REQUIRE(fcntl(fd[1], F_GETNOSIGPIPE) != 0);
@@ -83,6 +89,7 @@ run(int flags)
 		ATF_REQUIRE(fcntl(fd[0], F_GETNOSIGPIPE) == 0);
 		ATF_REQUIRE(fcntl(fd[1], F_GETNOSIGPIPE) == 0);
 	}
+#endif
 
 	ATF_REQUIRE(close(fd[0]) != -1);
 	ATF_REQUIRE(close(fd[1]) != -1);
@@ -110,9 +117,14 @@ ATF_TC_BODY(pipe2_consume, tc)
 {
 	struct rlimit rl;
 	int err, filedes[2];
+	int old;
 
-	err = fcntl(4, F_CLOSEM);
-	ATF_REQUIRE(err == 0);
+#ifdef __FreeBSD__
+	closefrom(4);
+#else
+	ATF_REQUIRE_MSG(closefrom(4) != -1, "closefrom failed: %s",
+	    strerror(errno));
+#endif
 
 	err = getrlimit(RLIMIT_NOFILE, &rl);
 	ATF_REQUIRE(err == 0);
@@ -121,12 +133,15 @@ ATF_TC_BODY(pipe2_consume, tc)
 	 * file descriptor limit in the middle of a pipe2() call - i.e.
 	 * before the call only a single descriptor may be openend.
 	 */
+	old = rl.rlim_cur;
 	rl.rlim_cur = 4;
 	err = setrlimit(RLIMIT_NOFILE, &rl);
 	ATF_REQUIRE(err == 0);
 
 	err = pipe2(filedes, O_CLOEXEC);
 	ATF_REQUIRE(err == -1);
+	rl.rlim_cur = old;
+	err = setrlimit(RLIMIT_NOFILE, &rl);
 }
 
 ATF_TC(pipe2_nonblock);
@@ -151,6 +166,7 @@ ATF_TC_BODY(pipe2_cloexec, tc)
 	run(O_CLOEXEC);
 }
 
+#ifdef __NetBSD__
 ATF_TC(pipe2_nosigpipe);
 ATF_TC_HEAD(pipe2_nosigpipe, tc)
 {
@@ -161,6 +177,7 @@ ATF_TC_BODY(pipe2_nosigpipe, tc)
 {
 	run(O_NOSIGPIPE);
 }
+#endif
 
 ATF_TC(pipe2_einval);
 ATF_TC_HEAD(pipe2_einval, tc)
@@ -181,7 +198,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, pipe2_consume);
 	ATF_TP_ADD_TC(tp, pipe2_nonblock);
 	ATF_TP_ADD_TC(tp, pipe2_cloexec);
+#ifdef __NetBSD__
 	ATF_TP_ADD_TC(tp, pipe2_nosigpipe);
+#endif
 	ATF_TP_ADD_TC(tp, pipe2_einval);
 
 	return atf_no_error();

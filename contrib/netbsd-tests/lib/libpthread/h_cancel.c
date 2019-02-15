@@ -42,7 +42,9 @@ main(void)
 	char str1[] = "You should see this.\n";
 	char str2[] = "You should not see this.\n";
 
+#ifdef __NetBSD__
 	printf("Cancellation test: Self-cancellation and disabling.\n");
+#endif
 
 	pthread_cancel(pthread_self());
 

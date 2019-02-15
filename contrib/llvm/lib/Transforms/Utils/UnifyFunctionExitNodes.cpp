@@ -15,7 +15,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
@@ -35,7 +34,6 @@ void UnifyFunctionExitNodes::getAnalysisUsage(AnalysisUsage &AU) const{
   // We preserve the non-critical-edgeness property
   AU.addPreservedID(BreakCriticalEdgesID);
   // This is a cluster of orthogonal Transforms
-  AU.addPreserved("mem2reg");
   AU.addPreservedID(LowerSwitchID);
 }
 
@@ -51,15 +49,15 @@ bool UnifyFunctionExitNodes::runOnFunction(Function &F) {
   //
   std::vector<BasicBlock*> ReturningBlocks;
   std::vector<BasicBlock*> UnreachableBlocks;
-  for(Function::iterator I = F.begin(), E = F.end(); I != E; ++I)
-    if (isa<ReturnInst>(I->getTerminator()))
-      ReturningBlocks.push_back(I);
-    else if (isa<UnreachableInst>(I->getTerminator()))
-      UnreachableBlocks.push_back(I);
+  for (BasicBlock &I : F)
+    if (isa<ReturnInst>(I.getTerminator()))
+      ReturningBlocks.push_back(&I);
+    else if (isa<UnreachableInst>(I.getTerminator()))
+      UnreachableBlocks.push_back(&I);
 
   // Then unreachable blocks.
   if (UnreachableBlocks.empty()) {
-    UnreachableBlock = 0;
+    UnreachableBlock = nullptr;
   } else if (UnreachableBlocks.size() == 1) {
     UnreachableBlock = UnreachableBlocks.front();
   } else {
@@ -67,9 +65,7 @@ bool UnifyFunctionExitNodes::runOnFunction(Function &F) {
                                           "UnifiedUnreachableBlock", &F);
     new UnreachableInst(F.getContext(), UnreachableBlock);
 
-    for (std::vector<BasicBlock*>::iterator I = UnreachableBlocks.begin(),
-           E = UnreachableBlocks.end(); I != E; ++I) {
-      BasicBlock *BB = *I;
+    for (BasicBlock *BB : UnreachableBlocks) {
       BB->getInstList().pop_back();  // Remove the unreachable inst.
       BranchInst::Create(UnreachableBlock, BB);
     }
@@ -77,7 +73,7 @@ bool UnifyFunctionExitNodes::runOnFunction(Function &F) {
 
   // Now handle return blocks.
   if (ReturningBlocks.empty()) {
-    ReturnBlock = 0;
+    ReturnBlock = nullptr;
     return false;                          // No blocks return
   } else if (ReturningBlocks.size() == 1) {
     ReturnBlock = ReturningBlocks.front(); // Already has a single return block
@@ -91,9 +87,9 @@ bool UnifyFunctionExitNodes::runOnFunction(Function &F) {
   BasicBlock *NewRetBlock = BasicBlock::Create(F.getContext(),
                                                "UnifiedReturnBlock", &F);
 
-  PHINode *PN = 0;
+  PHINode *PN = nullptr;
   if (F.getReturnType()->isVoidTy()) {
-    ReturnInst::Create(F.getContext(), NULL, NewRetBlock);
+    ReturnInst::Create(F.getContext(), nullptr, NewRetBlock);
   } else {
     // If the function doesn't return void... add a PHI node to the block...
     PN = PHINode::Create(F.getReturnType(), ReturningBlocks.size(),
@@ -105,10 +101,7 @@ bool UnifyFunctionExitNodes::runOnFunction(Function &F) {
   // Loop over all of the blocks, replacing the return instruction with an
   // unconditional branch.
   //
-  for (std::vector<BasicBlock*>::iterator I = ReturningBlocks.begin(),
-         E = ReturningBlocks.end(); I != E; ++I) {
-    BasicBlock *BB = *I;
-
+  for (BasicBlock *BB : ReturningBlocks) {
     // Add an incoming element to the PHI node for every return instruction that
     // is merging into this new block...
     if (PN)

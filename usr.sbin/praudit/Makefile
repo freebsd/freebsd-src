@@ -2,15 +2,19 @@
 # $FreeBSD$
 #
 
-OPENBSMDIR=${.CURDIR}/../../contrib/openbsm
+OPENBSMDIR=${SRCTOP}/contrib/openbsm
 .PATH: ${OPENBSMDIR}/bin/praudit
+
+CFLAGS+=	-I${OPENBSMDIR}
 
 PROG=	praudit
 MAN=	praudit.1
 
 WARNS?=	3
 
-DPADD=	${LIBBSM}
-LDADD=	-lbsm
+LIBADD=	bsm
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

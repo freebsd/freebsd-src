@@ -1,6 +1,8 @@
 /*	$NetBSD: am7990.c,v 1.68 2005/12/11 12:21:25 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-3-Clause
+ *
  * Copyright (c) 1997, 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -519,7 +521,7 @@ am7990_start_locked(struct lance_softc *sc)
 		}
 
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-		if (m == 0)
+		if (m == NULL)
 			break;
 
 		/*

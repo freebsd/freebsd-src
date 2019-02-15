@@ -27,15 +27,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/endian.h>
 #include <sys/errno.h>
+#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#include "endian.h"
 #include "image.h"
 #include "format.h"
 #include "mkimg.h"
@@ -71,7 +71,7 @@ struct qcow_header {
 			uint32_t	l1_entries;
 			uint64_t	l1_offset;
 			uint64_t	refcnt_offset;
-			uint32_t	refcnt_entries;
+			uint32_t	refcnt_clstrs;
 			uint32_t	snapshot_count;
 			uint64_t	snapshot_offset;
 		} v2;
@@ -102,7 +102,7 @@ qcow_resize(lba_t imgsz, u_int version)
 		clstr_log2sz = QCOW2_CLSTR_LOG2SZ;
 		break;
 	default:
-		return (EDOOFUS);
+		assert(0);
 	}
 
 	imagesz = round_clstr(imgsz * secsz);
@@ -139,12 +139,11 @@ qcow_write(int fd, u_int version)
 	uint64_t n, imagesz, nclstrs, ofs, ofsflags;
 	lba_t blk, blkofs, blk_imgsz;
 	u_int l1clno, l2clno, rcclno;
-	u_int blk_clstrsz;
+	u_int blk_clstrsz, refcnt_clstrs;
 	u_int clstrsz, l1idx, l2idx;
 	int error;
 
-	if (clstr_log2sz == 0)
-		return (EDOOFUS);
+	assert(clstr_log2sz != 0);
 
 	clstrsz = 1U << clstr_log2sz;
 	blk_clstrsz = clstrsz / secsz;
@@ -199,14 +198,15 @@ qcow_write(int fd, u_int version)
 		be32enc(&hdr->u.v2.l1_entries, clstr_l2tbls);
 		be64enc(&hdr->u.v2.l1_offset, clstrsz * l1clno);
 		be64enc(&hdr->u.v2.refcnt_offset, clstrsz * rcclno);
-		be32enc(&hdr->u.v2.refcnt_entries, clstr_rcblks);
+		refcnt_clstrs = round_clstr(clstr_rcblks * 8) >> clstr_log2sz;
+		be32enc(&hdr->u.v2.refcnt_clstrs, refcnt_clstrs);
 		break;
 	default:
-		return (EDOOFUS);
+		assert(0);
 	}
 
 	if (sparse_write(fd, hdr, clstrsz) < 0) {
-                error = errno;
+		error = errno;
 		goto out;
 	}
 
@@ -216,7 +216,7 @@ qcow_write(int fd, u_int version)
 	ofs = clstrsz * l2clno;
 	nclstrs = 1 + clstr_l1tblsz + clstr_rctblsz;
 
-	l1tbl = calloc(1, clstrsz * clstr_l1tblsz);
+	l1tbl = calloc(clstr_l1tblsz, clstrsz);
 	if (l1tbl == NULL) {
 		error = ENOMEM;
 		goto out;
@@ -247,7 +247,7 @@ qcow_write(int fd, u_int version)
 	} while (n < clstr_rcblks);
 
 	if (rcclno > 0) {
-		rctbl = calloc(1, clstrsz * clstr_rctblsz);
+		rctbl = calloc(clstr_rctblsz, clstrsz);
 		if (rctbl == NULL) {
 			error = ENOMEM;
 			goto out;
@@ -297,7 +297,7 @@ qcow_write(int fd, u_int version)
 	l1tbl = NULL;
 
 	if (rcclno > 0) {
-		rcblk = calloc(1, clstrsz * clstr_rcblks);
+		rcblk = calloc(clstr_rcblks, clstrsz);
 		if (rcblk == NULL) {
 			error = ENOMEM;
 			goto out;

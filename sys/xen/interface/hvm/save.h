@@ -102,9 +102,7 @@ DECLARE_HVM_SAVE_TYPE(END, 0, struct hvm_save_end);
 
 #if defined(__i386__) || defined(__x86_64__)
 #include "../arch-x86/hvm/save.h"
-#elif defined(__ia64__)
-#include "../arch-ia64/hvm/save.h"
-#elif defined(__arm__)
+#elif defined(__arm__) || defined(__aarch64__)
 #include "../arch-arm/hvm/save.h"
 #else
 #error "unsupported architecture"

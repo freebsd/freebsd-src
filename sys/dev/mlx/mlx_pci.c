@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Michael Smith
  * All rights reserved.
  *
@@ -189,7 +191,8 @@ mlx_pci_attach(device_t dev)
 			       BUS_SPACE_MAXADDR_32BIT, /* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
-			       MAXBSIZE, MLX_NSEG,	/* maxsize, nsegments */
+			       BUS_SPACE_MAXSIZE_32BIT, /* maxsize */
+			       BUS_SPACE_UNRESTRICTED,	/* nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
 			       NULL,			/* lockfunc */

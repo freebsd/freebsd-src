@@ -107,7 +107,7 @@ public:
   SourceLocation getLocStart() const LLVM_READONLY { return AtCatchLoc; }
   SourceLocation getLocEnd() const LLVM_READONLY { return Body->getLocEnd(); }
 
-  bool hasEllipsis() const { return getCatchParamDecl() == 0; }
+  bool hasEllipsis() const { return getCatchParamDecl() == nullptr; }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCAtCatchStmtClass;
@@ -118,12 +118,13 @@ public:
 
 /// \brief Represents Objective-C's \@finally statement
 class ObjCAtFinallyStmt : public Stmt {
-  Stmt *AtFinallyStmt;
   SourceLocation AtFinallyLoc;
+  Stmt *AtFinallyStmt;
+
 public:
   ObjCAtFinallyStmt(SourceLocation atFinallyLoc, Stmt *atFinallyStmt)
-  : Stmt(ObjCAtFinallyStmtClass),
-    AtFinallyStmt(atFinallyStmt), AtFinallyLoc(atFinallyLoc) {}
+      : Stmt(ObjCAtFinallyStmtClass), AtFinallyLoc(atFinallyLoc),
+        AtFinallyStmt(atFinallyStmt) {}
 
   explicit ObjCAtFinallyStmt(EmptyShell Empty) :
     Stmt(ObjCAtFinallyStmtClass, Empty) { }
@@ -222,13 +223,13 @@ public:
   /// \brief Retrieve the \@finally statement, if any.
   const ObjCAtFinallyStmt *getFinallyStmt() const {
     if (!HasFinally)
-      return 0;
+      return nullptr;
     
     return cast_or_null<ObjCAtFinallyStmt>(getStmts()[1 + NumCatchStmts]);
   }
   ObjCAtFinallyStmt *getFinallyStmt() {
     if (!HasFinally)
-      return 0;
+      return nullptr;
     
     return cast_or_null<ObjCAtFinallyStmt>(getStmts()[1 + NumCatchStmts]);
   }
@@ -260,9 +261,9 @@ public:
 /// \endcode
 class ObjCAtSynchronizedStmt : public Stmt {
 private:
+  SourceLocation AtSynchronizedLoc;
   enum { SYNC_EXPR, SYNC_BODY, END_EXPR };
   Stmt* SubStmts[END_EXPR];
-  SourceLocation AtSynchronizedLoc;
 
 public:
   ObjCAtSynchronizedStmt(SourceLocation atSynchronizedLoc, Stmt *synchExpr,
@@ -310,8 +311,9 @@ public:
 
 /// \brief Represents Objective-C's \@throw statement.
 class ObjCAtThrowStmt : public Stmt {
-  Stmt *Throw;
   SourceLocation AtThrowLoc;
+  Stmt *Throw;
+
 public:
   ObjCAtThrowStmt(SourceLocation atThrowLoc, Stmt *throwExpr)
   : Stmt(ObjCAtThrowStmtClass), Throw(throwExpr) {
@@ -324,7 +326,7 @@ public:
   Expr *getThrowExpr() { return reinterpret_cast<Expr*>(Throw); }
   void setThrowExpr(Stmt *S) { Throw = S; }
 
-  SourceLocation getThrowLoc() { return AtThrowLoc; }
+  SourceLocation getThrowLoc() const LLVM_READONLY { return AtThrowLoc; }
   void setThrowLoc(SourceLocation Loc) { AtThrowLoc = Loc; }
 
   SourceLocation getLocStart() const LLVM_READONLY { return AtThrowLoc; }
@@ -341,13 +343,12 @@ public:
 
 /// \brief Represents Objective-C's \@autoreleasepool Statement
 class ObjCAutoreleasePoolStmt : public Stmt {
-  Stmt *SubStmt;
   SourceLocation AtLoc;
+  Stmt *SubStmt;
+
 public:
-  ObjCAutoreleasePoolStmt(SourceLocation atLoc, 
-                            Stmt *subStmt)
-  : Stmt(ObjCAutoreleasePoolStmtClass),
-    SubStmt(subStmt), AtLoc(atLoc) {}
+  ObjCAutoreleasePoolStmt(SourceLocation atLoc, Stmt *subStmt)
+      : Stmt(ObjCAutoreleasePoolStmtClass), AtLoc(atLoc), SubStmt(subStmt) {}
 
   explicit ObjCAutoreleasePoolStmt(EmptyShell Empty) :
     Stmt(ObjCAutoreleasePoolStmtClass, Empty) { }

@@ -90,6 +90,21 @@
 #define HAVE_EVENT_BASE_FREE
 #endif
 
+/* redefine the calls to different names so that there is no name
+ * collision with other code that uses libevent names. (that uses libunbound)*/
+#define event_init winsockevent_init
+#define event_get_version winsockevent_get_version
+#define event_get_method winsockevent_get_method
+#define event_base_dispatch winsockevent_base_dispatch
+#define event_base_loopexit winsockevent_base_loopexit
+#define event_base_free winsockevent_base_free
+#define event_set winsockevent_set
+#define event_base_set winsockevent_base_set
+#define event_add winsockevent_add
+#define event_del winsockevent_del
+#define signal_add winsocksignal_add
+#define signal_del winsocksignal_del
+
 /** event timeout */
 #define EV_TIMEOUT      0x01
 /** event fd readable */
@@ -117,7 +132,7 @@
 struct event_base
 {
 	/** sorted by timeout (absolute), ptr */
-	rbtree_t* times;
+	rbtree_type* times;
 	/** array (first part in use) of handles to work on */
 	struct event** items;
 	/** number of items in use in array */
@@ -154,7 +169,7 @@ struct event_base
  */
 struct event {
         /** node in timeout rbtree */
-        rbnode_t node;
+        rbnode_type node;
         /** is event already added */
         int added;
 
@@ -186,7 +201,7 @@ struct event {
 	int stick_events;
 
 	/** true if this event is a signaling WSAEvent by the user. 
-	 * User created and user closed WSAEvent. Only signaled/unsigneled,
+	 * User created and user closed WSAEvent. Only signaled/unsignaled,
 	 * no read/write/distinctions needed. */
 	int is_signal;
 	/** used during callbacks to see which events were just checked */

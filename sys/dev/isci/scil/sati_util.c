@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -932,7 +934,7 @@ void sati_scsi_fixed_sense_data_construct(
     sati_set_sense_data_byte(sense_data, sense_len, 4,  0);
     sati_set_sense_data_byte(sense_data, sense_len, 5,  0);
     sati_set_sense_data_byte(sense_data, sense_len, 6,  0);
-    sati_set_sense_data_byte(sense_data, sense_len, 7,  0);
+    sati_set_sense_data_byte(sense_data, sense_len, 7,  (sense_len < 18 ? sense_len - 1 : 17) - 7);
     sati_set_sense_data_byte(sense_data, sense_len, 8,  0);
     sati_set_sense_data_byte(sense_data, sense_len, 9,  0);
     sati_set_sense_data_byte(sense_data, sense_len, 10, 0);
@@ -981,7 +983,7 @@ void sati_scsi_common_fixed_sense_construct(
 
    //Bytes 3, 4, 5, 6 are set in read_error_sense_construct functions
 
-   sati_set_sense_data_byte(sense_data, sense_len, 7,  0);
+   sati_set_sense_data_byte(sense_data, sense_len, 7,  (sense_len < 18 ? sense_len - 1 : 17) - 7);
    sati_set_sense_data_byte(sense_data, sense_len, 8,  0);
    sati_set_sense_data_byte(sense_data, sense_len, 9,  0);
    sati_set_sense_data_byte(sense_data, sense_len, 10, 0);
@@ -1790,7 +1792,7 @@ void sati_ata_smart_read_log_construct(
 
 /**
  * @brief This method will construct a Write Uncorrectable ATA command that
- *        will write one sector with a psuedo or flagged error. The type of
+ *        will write one sector with a pseudo or flagged error. The type of
  *        error is specified by the feature value.
  *
  * @return N/A

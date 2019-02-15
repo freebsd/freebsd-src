@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -1077,7 +1079,7 @@ void scic_sds_controller_afe_initialization(
       scu_afe_register_write(this_controller, afe_bias_control, 0x00005F00);
    else if (this_controller->pci_revision == SCIC_SDS_PCI_REVISION_C1)
       scu_afe_register_write(this_controller, afe_bias_control, 0x00005500);
-   // For C0 the AFE BIAS Controll is unchanged
+   // For C0 the AFE BIAS Control is unchanged
 
    scic_cb_stall_execution(AFE_REGISTER_WRITE_DELAY);
 
@@ -2429,7 +2431,7 @@ void scic_sds_controller_process_completions(
    SCIC_LOG_TRACE((
       sci_base_object_get_logger(this_controller),
       SCIC_LOG_OBJECT_COMPLETION_QUEUE,
-      "completion queue begining get : 0x%08x\n",
+      "completion queue beginning get : 0x%08x\n",
       this_controller->completion_queue_get
    ));
 
@@ -2544,7 +2546,7 @@ void scic_sds_controller_transitioned_process_completions(
    SCIC_LOG_TRACE((
       sci_base_object_get_logger(this_controller),
       SCIC_LOG_OBJECT_COMPLETION_QUEUE,
-      "completion queue begining get : 0x%08x\n",
+      "completion queue beginning get : 0x%08x\n",
       this_controller->completion_queue_get
    ));
 

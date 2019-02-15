@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #define IRQUNK	-1
 #endif
 
-#define	TPM_ACCESS			0x0000	/* acess register */
+#define	TPM_ACCESS			0x0000	/* access register */
 #define	TPM_ACCESS_ESTABLISHMENT	0x01	/* establishment */
 #define	TPM_ACCESS_REQUEST_USE		0x02	/* request using locality */
 #define	TPM_ACCESS_REQUEST_PENDING	0x04	/* pending request */
@@ -175,8 +175,8 @@ struct cfdriver tpm_cd = {
 	NULL, "tpm", DV_DULL
 };
 
-int	tpm_match(struct device *, void *, void *);
-void	tpm_attach(struct device *, struct device *, void *);
+int	tpm_match(device_t , void *, void *);
+void	tpm_attach(device_t , device_t , void *);
 
 struct cfattach tpm_ca = {
 	sizeof(struct tpm_softc), tpm_match, tpm_attach
@@ -337,7 +337,7 @@ tpm_detach(device_t dev)
  * OpenBSD specific code for probing and attaching TPM to device tree.
  */
 int
-tpm_match(struct device *parent, void *match, void *aux)
+tpm_match(device_t parent, void *match, void *aux)
 {
 	struct isa_attach_args *ia = aux;
 	struct cfdata *cf = match;
@@ -370,7 +370,7 @@ tpm_match(struct device *parent, void *match, void *aux)
 }
 
 void
-tpm_attach(struct device *parent, struct device *self, void *aux)
+tpm_attach(device_t parent, device_t self, void *aux)
 {
 	struct tpm_softc *sc = (struct tpm_softc *)self;
 	struct isa_attach_args *ia = aux;
@@ -422,12 +422,8 @@ tpm_attach(struct device *parent, struct device *self, void *aux)
 		return;
 	}
 
-#ifdef __FreeBSD__
-	sc->sc_suspend = 0;
-#else
 	sc->sc_suspend = PWR_RESUME;
 	sc->sc_powerhook = powerhook_establish(tpm_powerhook, sc);
-#endif
 }
 #endif
 
@@ -820,7 +816,7 @@ tpm_waitfor(struct tpm_softc *sc, u_int8_t b0, int tmo, void *c)
 		b = b0;
 
 		/*
-		 * Wait for data ready.  This interrupt only occures
+		 * Wait for data ready.  This interrupt only occurs
 		 * when both TPM_STS_VALID and TPM_STS_DATA_AVAIL are asserted.
 		 * Thus we don't have to bother with TPM_STS_VALID
 		 * separately and can just return.

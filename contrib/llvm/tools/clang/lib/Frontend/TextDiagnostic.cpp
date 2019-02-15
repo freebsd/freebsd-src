@@ -18,7 +18,7 @@
 #include "llvm/Support/ConvertUTF.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Locale.h"
-#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 
@@ -26,6 +26,8 @@ using namespace clang;
 
 static const enum raw_ostream::Colors noteColor =
   raw_ostream::BLACK;
+static const enum raw_ostream::Colors remarkColor =
+  raw_ostream::BLUE;
 static const enum raw_ostream::Colors fixitColor =
   raw_ostream::GREEN;
 static const enum raw_ostream::Colors caretColor =
@@ -117,16 +119,17 @@ printableTextForNextCharacter(StringRef SourceLine, size_t *i,
   begin = reinterpret_cast<unsigned char const *>(&*(SourceLine.begin() + *i));
   end = begin + (SourceLine.size() - *i);
   
-  if (isLegalUTF8Sequence(begin, end)) {
-    UTF32 c;
-    UTF32 *cptr = &c;
+  if (llvm::isLegalUTF8Sequence(begin, end)) {
+    llvm::UTF32 c;
+    llvm::UTF32 *cptr = &c;
     unsigned char const *original_begin = begin;
-    unsigned char const *cp_end = begin+getNumBytesForUTF8(SourceLine[*i]);
+    unsigned char const *cp_end =
+        begin + llvm::getNumBytesForUTF8(SourceLine[*i]);
 
-    ConversionResult res = ConvertUTF8toUTF32(&begin, cp_end, &cptr, cptr+1,
-                                              strictConversion);
+    llvm::ConversionResult res = llvm::ConvertUTF8toUTF32(
+        &begin, cp_end, &cptr, cptr + 1, llvm::strictConversion);
     (void)res;
-    assert(conversionOK==res);
+    assert(llvm::conversionOK == res);
     assert(0 < begin-original_begin
            && "we must be further along in the string now");
     *i += begin-original_begin;
@@ -174,7 +177,7 @@ static void expandTabs(std::string &SourceLine, unsigned TabStop) {
 ///  of the printable representation of the line to the columns those printable
 ///  characters will appear at (numbering the first column as 0).
 ///
-/// If a byte 'i' corresponds to muliple columns (e.g. the byte contains a tab
+/// If a byte 'i' corresponds to multiple columns (e.g. the byte contains a tab
 ///  character) then the array will map that byte to the first column the
 ///  tab appears at and the next value in the map will have been incremented
 ///  more than once.
@@ -291,14 +294,14 @@ struct SourceColumnMap {
 
   /// \brief Map from a byte index to the next byte which starts a column.
   int startOfNextColumn(int N) const {
-    assert(0 <= N && N < static_cast<int>(m_columnToByte.size() - 1));
+    assert(0 <= N && N < static_cast<int>(m_byteToColumn.size() - 1));
     while (byteToColumn(++N) == -1) {}
     return N;
   }
 
   /// \brief Map from a byte index to the previous byte which starts a column.
   int startOfPreviousColumn(int N) const {
-    assert(0 < N && N < static_cast<int>(m_columnToByte.size()));
+    assert(0 < N && N < static_cast<int>(m_byteToColumn.size()));
     while (byteToColumn(--N) == -1) {}
     return N;
   }
@@ -312,14 +315,6 @@ private:
   SmallVector<int,200> m_byteToColumn;
   SmallVector<int,200> m_columnToByte;
 };
-
-// used in assert in selectInterestingSourceRegion()
-struct char_out_of_range {
-  const char lower,upper;
-  char_out_of_range(char lower, char upper) :
-    lower(lower), upper(upper) {}
-  bool operator()(char c) { return c < lower || upper < c; }
-};
 } // end anonymous namespace
 
 /// \brief When the source code line we want to print is too long for
@@ -329,9 +324,10 @@ static void selectInterestingSourceRegion(std::string &SourceLine,
                                           std::string &FixItInsertionLine,
                                           unsigned Columns,
                                           const SourceColumnMap &map) {
-  unsigned MaxColumns = std::max<unsigned>(map.columns(),
-                                           std::max(CaretLine.size(),
-                                                    FixItInsertionLine.size()));
+  unsigned CaretColumns = CaretLine.size();
+  unsigned FixItColumns = llvm::sys::locale::columnWidth(FixItInsertionLine);
+  unsigned MaxColumns = std::max(static_cast<unsigned>(map.columns()),
+                                 std::max(CaretColumns, FixItColumns));
   // if the number of columns is less than the desired number we're done
   if (MaxColumns <= Columns)
     return;
@@ -339,7 +335,7 @@ static void selectInterestingSourceRegion(std::string &SourceLine,
   // No special characters are allowed in CaretLine.
   assert(CaretLine.end() ==
          std::find_if(CaretLine.begin(), CaretLine.end(),
-         char_out_of_range(' ','~')));
+                      [](char c) { return c < ' ' || '~' < c; }));
 
   // Find the slice that we need to display the full caret line
   // correctly.
@@ -493,7 +489,7 @@ static void selectInterestingSourceRegion(std::string &SourceLine,
   // We checked up front that the line needed truncation
   assert(FrontColumnsRemoved+ColumnsKept+BackColumnsRemoved > Columns);
 
-  // The line needs some trunctiona, and we'd prefer to keep the front
+  // The line needs some truncation, and we'd prefer to keep the front
   //  if possible, so remove the back
   if (BackColumnsRemoved > strlen(back_ellipse))
     SourceLine.replace(SourceEnd, std::string::npos, back_ellipse);
@@ -676,27 +672,24 @@ TextDiagnostic::TextDiagnostic(raw_ostream &OS,
 
 TextDiagnostic::~TextDiagnostic() {}
 
-void
-TextDiagnostic::emitDiagnosticMessage(SourceLocation Loc,
-                                      PresumedLoc PLoc,
-                                      DiagnosticsEngine::Level Level,
-                                      StringRef Message,
-                                      ArrayRef<clang::CharSourceRange> Ranges,
-                                      const SourceManager *SM,
-                                      DiagOrStoredDiag D) {
+void TextDiagnostic::emitDiagnosticMessage(
+    FullSourceLoc Loc, PresumedLoc PLoc, DiagnosticsEngine::Level Level,
+    StringRef Message, ArrayRef<clang::CharSourceRange> Ranges,
+    DiagOrStoredDiag D) {
   uint64_t StartOfLocationInfo = OS.tell();
 
   // Emit the location of this particular diagnostic.
   if (Loc.isValid())
-    emitDiagnosticLoc(Loc, PLoc, Level, Ranges, *SM);
-  
+    emitDiagnosticLoc(Loc, PLoc, Level, Ranges);
+
   if (DiagOpts->ShowColors)
     OS.resetColor();
   
   printDiagnosticLevel(OS, Level, DiagOpts->ShowColors,
                        DiagOpts->CLFallbackMode);
-  printDiagnosticMessage(OS, Level, Message,
-                         OS.tell() - StartOfLocationInfo,
+  printDiagnosticMessage(OS,
+                         /*IsSupplemental*/ Level == DiagnosticsEngine::Note,
+                         Message, OS.tell() - StartOfLocationInfo,
                          DiagOpts->MessageLength, DiagOpts->ShowColors);
 }
 
@@ -711,6 +704,7 @@ TextDiagnostic::printDiagnosticLevel(raw_ostream &OS,
     case DiagnosticsEngine::Ignored:
       llvm_unreachable("Invalid diagnostic type");
     case DiagnosticsEngine::Note:    OS.changeColor(noteColor, true); break;
+    case DiagnosticsEngine::Remark:  OS.changeColor(remarkColor, true); break;
     case DiagnosticsEngine::Warning: OS.changeColor(warningColor, true); break;
     case DiagnosticsEngine::Error:   OS.changeColor(errorColor, true); break;
     case DiagnosticsEngine::Fatal:   OS.changeColor(fatalColor, true); break;
@@ -721,6 +715,7 @@ TextDiagnostic::printDiagnosticLevel(raw_ostream &OS,
   case DiagnosticsEngine::Ignored:
     llvm_unreachable("Invalid diagnostic type");
   case DiagnosticsEngine::Note:    OS << "note"; break;
+  case DiagnosticsEngine::Remark:  OS << "remark"; break;
   case DiagnosticsEngine::Warning: OS << "warning"; break;
   case DiagnosticsEngine::Error:   OS << "error"; break;
   case DiagnosticsEngine::Fatal:   OS << "fatal error"; break;
@@ -739,24 +734,18 @@ TextDiagnostic::printDiagnosticLevel(raw_ostream &OS,
     OS.resetColor();
 }
 
-/*static*/ void
-TextDiagnostic::printDiagnosticMessage(raw_ostream &OS,
-                                       DiagnosticsEngine::Level Level,
-                                       StringRef Message,
-                                       unsigned CurrentColumn, unsigned Columns,
-                                       bool ShowColors) {
+/*static*/
+void TextDiagnostic::printDiagnosticMessage(raw_ostream &OS,
+                                            bool IsSupplemental,
+                                            StringRef Message,
+                                            unsigned CurrentColumn,
+                                            unsigned Columns, bool ShowColors) {
   bool Bold = false;
-  if (ShowColors) {
-    // Print warnings, errors and fatal errors in bold, no color
-    switch (Level) {
-    case DiagnosticsEngine::Warning:
-    case DiagnosticsEngine::Error:
-    case DiagnosticsEngine::Fatal:
-      OS.changeColor(savedColor, true);
-      Bold = true;
-      break;
-    default: break; //don't bold notes
-    }
+  if (ShowColors && !IsSupplemental) {
+    // Print primary diagnostic messages in bold and without color, to visually
+    // indicate the transition from continuation notes and other output.
+    OS.changeColor(savedColor, true);
+    Bold = true;
   }
 
   if (Columns)
@@ -772,23 +761,38 @@ TextDiagnostic::printDiagnosticMessage(raw_ostream &OS,
   OS << '\n';
 }
 
+void TextDiagnostic::emitFilename(StringRef Filename, const SourceManager &SM) {
+  SmallVector<char, 128> AbsoluteFilename;
+  if (DiagOpts->AbsolutePath) {
+    const DirectoryEntry *Dir = SM.getFileManager().getDirectory(
+        llvm::sys::path::parent_path(Filename));
+    if (Dir) {
+      StringRef DirName = SM.getFileManager().getCanonicalName(Dir);
+      llvm::sys::path::append(AbsoluteFilename, DirName,
+                              llvm::sys::path::filename(Filename));
+      Filename = StringRef(AbsoluteFilename.data(), AbsoluteFilename.size());
+    }
+  }
+
+  OS << Filename;
+}
+
 /// \brief Print out the file/line/column information and include trace.
 ///
 /// This method handlen the emission of the diagnostic location information.
 /// This includes extracting as much location information as is present for
 /// the diagnostic and printing it, as well as any include stack or source
 /// ranges necessary.
-void TextDiagnostic::emitDiagnosticLoc(SourceLocation Loc, PresumedLoc PLoc,
+void TextDiagnostic::emitDiagnosticLoc(FullSourceLoc Loc, PresumedLoc PLoc,
                                        DiagnosticsEngine::Level Level,
-                                       ArrayRef<CharSourceRange> Ranges,
-                                       const SourceManager &SM) {
+                                       ArrayRef<CharSourceRange> Ranges) {
   if (PLoc.isInvalid()) {
     // At least print the file name if available:
-    FileID FID = SM.getFileID(Loc);
-    if (!FID.isInvalid()) {
-      const FileEntry* FE = SM.getFileEntryForID(FID);
-      if (FE && FE->getName()) {
-        OS << FE->getName();
+    FileID FID = Loc.getFileID();
+    if (FID.isValid()) {
+      const FileEntry *FE = Loc.getFileEntry();
+      if (FE && FE->isValid()) {
+        emitFilename(FE->getName(), Loc.getManager());
         if (FE->isInPCH())
           OS << " (in PCH)";
         OS << ": ";
@@ -804,19 +808,22 @@ void TextDiagnostic::emitDiagnosticLoc(SourceLocation Loc, PresumedLoc PLoc,
   if (DiagOpts->ShowColors)
     OS.changeColor(savedColor, true);
 
-  OS << PLoc.getFilename();
+  emitFilename(PLoc.getFilename(), Loc.getManager());
   switch (DiagOpts->getFormat()) {
   case DiagnosticOptions::Clang: OS << ':'  << LineNo; break;
-  case DiagnosticOptions::Msvc:  OS << '('  << LineNo; break;
+  case DiagnosticOptions::MSVC:  OS << '('  << LineNo; break;
   case DiagnosticOptions::Vi:    OS << " +" << LineNo; break;
   }
 
   if (DiagOpts->ShowColumn)
     // Compute the column number.
     if (unsigned ColNo = PLoc.getColumn()) {
-      if (DiagOpts->getFormat() == DiagnosticOptions::Msvc) {
+      if (DiagOpts->getFormat() == DiagnosticOptions::MSVC) {
         OS << ',';
-        ColNo--;
+        // Visual Studio 2010 or earlier expects column number to be off by one
+        if (LangOpts.MSCompatibilityVersion &&
+            !LangOpts.isCompatibleWithMSVC(LangOptions::MSVC2012))
+          ColNo--;
       } else
         OS << ':';
       OS << ColNo;
@@ -824,12 +831,19 @@ void TextDiagnostic::emitDiagnosticLoc(SourceLocation Loc, PresumedLoc PLoc,
   switch (DiagOpts->getFormat()) {
   case DiagnosticOptions::Clang:
   case DiagnosticOptions::Vi:    OS << ':';    break;
-  case DiagnosticOptions::Msvc:  OS << ") : "; break;
+  case DiagnosticOptions::MSVC:
+    // MSVC2013 and before print 'file(4) : error'. MSVC2015 gets rid of the
+    // space and prints 'file(4): error'.
+    OS << ')';
+    if (LangOpts.MSCompatibilityVersion &&
+        !LangOpts.isCompatibleWithMSVC(LangOptions::MSVC2015))
+      OS << ' ';
+    OS << ": ";
+    break;
   }
 
   if (DiagOpts->ShowSourceRanges && !Ranges.empty()) {
-    FileID CaretFileID =
-      SM.getFileID(SM.getExpansionLoc(Loc));
+    FileID CaretFileID = Loc.getExpansionLoc().getFileID();
     bool PrintedRange = false;
 
     for (ArrayRef<CharSourceRange>::const_iterator RI = Ranges.begin(),
@@ -838,8 +852,10 @@ void TextDiagnostic::emitDiagnosticLoc(SourceLocation Loc, PresumedLoc PLoc,
       // Ignore invalid ranges.
       if (!RI->isValid()) continue;
 
-      SourceLocation B = SM.getExpansionLoc(RI->getBegin());
-      SourceLocation E = SM.getExpansionLoc(RI->getEnd());
+      FullSourceLoc B =
+          FullSourceLoc(RI->getBegin(), Loc.getManager()).getExpansionLoc();
+      FullSourceLoc E =
+          FullSourceLoc(RI->getEnd(), Loc.getManager()).getExpansionLoc();
 
       // If the End location and the start location are the same and are a
       // macro location, then the range was something that came from a
@@ -847,10 +863,12 @@ void TextDiagnostic::emitDiagnosticLoc(SourceLocation Loc, PresumedLoc PLoc,
       // best we can do is to highlight the range.  If this is a
       // function-like macro, we'd also like to highlight the arguments.
       if (B == E && RI->getEnd().isMacroID())
-        E = SM.getExpansionRange(RI->getEnd()).second;
+        E = FullSourceLoc(RI->getEnd(), Loc.getManager())
+                .getExpansionRange()
+                .second;
 
-      std::pair<FileID, unsigned> BInfo = SM.getDecomposedLoc(B);
-      std::pair<FileID, unsigned> EInfo = SM.getDecomposedLoc(E);
+      std::pair<FileID, unsigned> BInfo = B.getDecomposedLoc();
+      std::pair<FileID, unsigned> EInfo = E.getDecomposedLoc();
 
       // If the start or end of the range is in another file, just discard
       // it.
@@ -861,13 +879,10 @@ void TextDiagnostic::emitDiagnosticLoc(SourceLocation Loc, PresumedLoc PLoc,
       // tokens.
       unsigned TokSize = 0;
       if (RI->isTokenRange())
-        TokSize = Lexer::MeasureTokenLength(E, SM, LangOpts);
+        TokSize = Lexer::MeasureTokenLength(E, E.getManager(), LangOpts);
 
-      OS << '{' << SM.getLineNumber(BInfo.first, BInfo.second) << ':'
-        << SM.getColumnNumber(BInfo.first, BInfo.second) << '-'
-        << SM.getLineNumber(EInfo.first, EInfo.second) << ':'
-        << (SM.getColumnNumber(EInfo.first, EInfo.second)+TokSize)
-        << '}';
+      OS << '{' << B.getLineNumber() << ':' << B.getColumnNumber() << '-'
+         << E.getLineNumber() << ':' << (E.getColumnNumber() + TokSize) << '}';
       PrintedRange = true;
     }
 
@@ -877,41 +892,81 @@ void TextDiagnostic::emitDiagnosticLoc(SourceLocation Loc, PresumedLoc PLoc,
   OS << ' ';
 }
 
-void TextDiagnostic::emitBasicNote(StringRef Message) {
-  // FIXME: Emit this as a real note diagnostic.
-  // FIXME: Format an actual diagnostic rather than a hard coded string.
-  OS << "note: " << Message << "\n";
-}
-
-void TextDiagnostic::emitIncludeLocation(SourceLocation Loc,
-                                         PresumedLoc PLoc,
-                                         const SourceManager &SM) {
-  if (DiagOpts->ShowLocation)
+void TextDiagnostic::emitIncludeLocation(FullSourceLoc Loc, PresumedLoc PLoc) {
+  if (DiagOpts->ShowLocation && PLoc.isValid())
     OS << "In file included from " << PLoc.getFilename() << ':'
        << PLoc.getLine() << ":\n";
   else
     OS << "In included file:\n"; 
 }
 
-void TextDiagnostic::emitImportLocation(SourceLocation Loc, PresumedLoc PLoc,
-                                        StringRef ModuleName,
-                                        const SourceManager &SM) {
-  if (DiagOpts->ShowLocation)
+void TextDiagnostic::emitImportLocation(FullSourceLoc Loc, PresumedLoc PLoc,
+                                        StringRef ModuleName) {
+  if (DiagOpts->ShowLocation && PLoc.isValid())
     OS << "In module '" << ModuleName << "' imported from "
        << PLoc.getFilename() << ':' << PLoc.getLine() << ":\n";
   else
-    OS << "In module " << ModuleName << "':\n";
+    OS << "In module '" << ModuleName << "':\n";
 }
 
-void TextDiagnostic::emitBuildingModuleLocation(SourceLocation Loc,
+void TextDiagnostic::emitBuildingModuleLocation(FullSourceLoc Loc,
                                                 PresumedLoc PLoc,
-                                                StringRef ModuleName,
-                                                const SourceManager &SM) {
-  if (DiagOpts->ShowLocation && PLoc.getFilename())
+                                                StringRef ModuleName) {
+  if (DiagOpts->ShowLocation && PLoc.isValid())
     OS << "While building module '" << ModuleName << "' imported from "
       << PLoc.getFilename() << ':' << PLoc.getLine() << ":\n";
   else
     OS << "While building module '" << ModuleName << "':\n";
+}
+
+/// \brief Find the suitable set of lines to show to include a set of ranges.
+static llvm::Optional<std::pair<unsigned, unsigned>>
+findLinesForRange(const CharSourceRange &R, FileID FID,
+                  const SourceManager &SM) {
+  if (!R.isValid()) return None;
+
+  SourceLocation Begin = R.getBegin();
+  SourceLocation End = R.getEnd();
+  if (SM.getFileID(Begin) != FID || SM.getFileID(End) != FID)
+    return None;
+
+  return std::make_pair(SM.getExpansionLineNumber(Begin),
+                        SM.getExpansionLineNumber(End));
+}
+
+/// Add as much of range B into range A as possible without exceeding a maximum
+/// size of MaxRange. Ranges are inclusive.
+static std::pair<unsigned, unsigned>
+maybeAddRange(std::pair<unsigned, unsigned> A, std::pair<unsigned, unsigned> B,
+              unsigned MaxRange) {
+  // If A is already the maximum size, we're done.
+  unsigned Slack = MaxRange - (A.second - A.first + 1);
+  if (Slack == 0)
+    return A;
+
+  // Easy case: merge succeeds within MaxRange.
+  unsigned Min = std::min(A.first, B.first);
+  unsigned Max = std::max(A.second, B.second);
+  if (Max - Min + 1 <= MaxRange)
+    return {Min, Max};
+
+  // If we can't reach B from A within MaxRange, there's nothing to do.
+  // Don't add lines to the range that contain nothing interesting.
+  if ((B.first > A.first && B.first - A.first + 1 > MaxRange) ||
+      (B.second < A.second && A.second - B.second + 1 > MaxRange))
+    return A;
+
+  // Otherwise, expand A towards B to produce a range of size MaxRange. We
+  // attempt to expand by the same amount in both directions if B strictly
+  // contains A.
+
+  // Expand downwards by up to half the available amount, then upwards as
+  // much as possible, then downwards as much as possible.
+  A.second = std::min(A.second + (Slack + 1) / 2, Max);
+  Slack = MaxRange - (A.second - A.first + 1);
+  A.first = std::max(Min + Slack, A.first) - Slack;
+  A.second = std::min(A.first + MaxRange - 1, Max);
+  return A;
 }
 
 /// \brief Highlight a SourceRange (with ~'s) for any characters on LineNo.
@@ -976,9 +1031,12 @@ static void highlightRange(const CharSourceRange &R,
       EndColNo = map.startOfPreviousColumn(EndColNo);
 
     // If the start/end passed each other, then we are trying to highlight a
-    // range that just exists in whitespace, which must be some sort of other
-    // bug.
-    assert(StartColNo <= EndColNo && "Trying to highlight whitespace??");
+    // range that just exists in whitespace. That most likely means we have
+    // a multi-line highlighting range that covers a blank line.
+    if (StartColNo > EndColNo) {
+      assert(StartLineNo != EndLineNo && "trying to highlight whitespace");
+      StartColNo = EndColNo;
+    }
   }
 
   assert(StartColNo <= map.getSourceLine().size() && "Invalid range!");
@@ -994,7 +1052,8 @@ static void highlightRange(const CharSourceRange &R,
   std::fill(CaretLine.begin()+StartColNo,CaretLine.begin()+EndColNo,'~');
 }
 
-static std::string buildFixItInsertionLine(unsigned LineNo,
+static std::string buildFixItInsertionLine(FileID FID,
+                                           unsigned LineNo,
                                            const SourceColumnMap &map,
                                            ArrayRef<FixItHint> Hints,
                                            const SourceManager &SM,
@@ -1011,7 +1070,8 @@ static std::string buildFixItInsertionLine(unsigned LineNo,
       // code contains no newlines and is on the same line as the caret.
       std::pair<FileID, unsigned> HintLocInfo
         = SM.getDecomposedExpansionLoc(I->RemoveRange.getBegin());
-      if (LineNo == SM.getLineNumber(HintLocInfo.first, HintLocInfo.second) &&
+      if (FID == HintLocInfo.first &&
+          LineNo == SM.getLineNumber(HintLocInfo.first, HintLocInfo.second) &&
           StringRef(I->CodeToInsert).find_first_of("\n\r") == StringRef::npos) {
         // Insert the new code into the line just below the code
         // that the user wrote.
@@ -1047,9 +1107,6 @@ static std::string buildFixItInsertionLine(unsigned LineNo,
 
         PrevHintEndCol =
           HintCol + llvm::sys::locale::columnWidth(I->CodeToInsert);
-      } else {
-        FixItInsertionLine.clear();
-        break;
       }
     }
   }
@@ -1067,11 +1124,9 @@ static std::string buildFixItInsertionLine(unsigned LineNo,
 /// \param Ranges The underlined ranges for this code snippet.
 /// \param Hints The FixIt hints active for this diagnostic.
 void TextDiagnostic::emitSnippetAndCaret(
-    SourceLocation Loc, DiagnosticsEngine::Level Level,
-    SmallVectorImpl<CharSourceRange>& Ranges,
-    ArrayRef<FixItHint> Hints,
-    const SourceManager &SM) {
-  assert(!Loc.isInvalid() && "must have a valid source location here");
+    FullSourceLoc Loc, DiagnosticsEngine::Level Level,
+    SmallVectorImpl<CharSourceRange> &Ranges, ArrayRef<FixItHint> Hints) {
+  assert(Loc.isValid() && "must have a valid source location here");
   assert(Loc.isFileID() && "must have a file location here");
 
   // If caret diagnostics are enabled and we have location, we want to
@@ -1087,102 +1142,128 @@ void TextDiagnostic::emitSnippetAndCaret(
     return;
 
   // Decompose the location into a FID/Offset pair.
-  std::pair<FileID, unsigned> LocInfo = SM.getDecomposedLoc(Loc);
+  std::pair<FileID, unsigned> LocInfo = Loc.getDecomposedLoc();
   FileID FID = LocInfo.first;
-  unsigned FileOffset = LocInfo.second;
+  const SourceManager &SM = Loc.getManager();
 
   // Get information about the buffer it points into.
   bool Invalid = false;
-  const char *BufStart = SM.getBufferData(FID, &Invalid).data();
+  StringRef BufData = Loc.getBufferData(&Invalid);
   if (Invalid)
     return;
 
-  unsigned LineNo = SM.getLineNumber(FID, FileOffset);
-  unsigned ColNo = SM.getColumnNumber(FID, FileOffset);
-  
+  unsigned CaretLineNo = Loc.getLineNumber();
+  unsigned CaretColNo = Loc.getColumnNumber();
+
   // Arbitrarily stop showing snippets when the line is too long.
   static const size_t MaxLineLengthToPrint = 4096;
-  if (ColNo > MaxLineLengthToPrint)
+  if (CaretColNo > MaxLineLengthToPrint)
     return;
 
-  // Rewind from the current position to the start of the line.
-  const char *TokPtr = BufStart+FileOffset;
-  const char *LineStart = TokPtr-ColNo+1; // Column # is 1-based.
-
-  // Compute the line end.  Scan forward from the error position to the end of
-  // the line.
-  const char *LineEnd = TokPtr;
-  while (*LineEnd != '\n' && *LineEnd != '\r' && *LineEnd != '\0')
-    ++LineEnd;
-
-  // Arbitrarily stop showing snippets when the line is too long.
-  if (size_t(LineEnd - LineStart) > MaxLineLengthToPrint)
-    return;
-
-  // Copy the line of code into an std::string for ease of manipulation.
-  std::string SourceLine(LineStart, LineEnd);
-
-  // Create a line for the caret that is filled with spaces that is the same
-  // length as the line of source code.
-  std::string CaretLine(LineEnd-LineStart, ' ');
-
-  const SourceColumnMap sourceColMap(SourceLine, DiagOpts->TabStop);
-
-  // Highlight all of the characters covered by Ranges with ~ characters.
+  // Find the set of lines to include.
+  const unsigned MaxLines = DiagOpts->SnippetLineLimit;
+  std::pair<unsigned, unsigned> Lines = {CaretLineNo, CaretLineNo};
   for (SmallVectorImpl<CharSourceRange>::iterator I = Ranges.begin(),
                                                   E = Ranges.end();
        I != E; ++I)
-    highlightRange(*I, LineNo, FID, sourceColMap, CaretLine, SM, LangOpts);
+    if (auto OptionalRange = findLinesForRange(*I, FID, SM))
+      Lines = maybeAddRange(Lines, *OptionalRange, MaxLines);
 
-  // Next, insert the caret itself.
-  ColNo = sourceColMap.byteToContainingColumn(ColNo-1);
-  if (CaretLine.size()<ColNo+1)
-    CaretLine.resize(ColNo+1, ' ');
-  CaretLine[ColNo] = '^';
+  for (unsigned LineNo = Lines.first; LineNo != Lines.second + 1; ++LineNo) {
+    const char *BufStart = BufData.data();
+    const char *BufEnd = BufStart + BufData.size();
 
-  std::string FixItInsertionLine = buildFixItInsertionLine(LineNo,
-                                                           sourceColMap,
-                                                           Hints, SM,
-                                                           DiagOpts.getPtr());
+    // Rewind from the current position to the start of the line.
+    const char *LineStart =
+        BufStart +
+        SM.getDecomposedLoc(SM.translateLineCol(FID, LineNo, 1)).second;
+    if (LineStart == BufEnd)
+      break;
 
-  // If the source line is too long for our terminal, select only the
-  // "interesting" source region within that line.
-  unsigned Columns = DiagOpts->MessageLength;
-  if (Columns)
-    selectInterestingSourceRegion(SourceLine, CaretLine, FixItInsertionLine,
-                                  Columns, sourceColMap);
+    // Compute the line end.
+    const char *LineEnd = LineStart;
+    while (*LineEnd != '\n' && *LineEnd != '\r' && LineEnd != BufEnd)
+      ++LineEnd;
 
-  // If we are in -fdiagnostics-print-source-range-info mode, we are trying
-  // to produce easily machine parsable output.  Add a space before the
-  // source line and the caret to make it trivial to tell the main diagnostic
-  // line from what the user is intended to see.
-  if (DiagOpts->ShowSourceRanges) {
-    SourceLine = ' ' + SourceLine;
-    CaretLine = ' ' + CaretLine;
-  }
+    // Arbitrarily stop showing snippets when the line is too long.
+    // FIXME: Don't print any lines in this case.
+    if (size_t(LineEnd - LineStart) > MaxLineLengthToPrint)
+      return;
 
-  // Finally, remove any blank spaces from the end of CaretLine.
-  while (CaretLine[CaretLine.size()-1] == ' ')
-    CaretLine.erase(CaretLine.end()-1);
+    // Trim trailing null-bytes.
+    StringRef Line(LineStart, LineEnd - LineStart);
+    while (!Line.empty() && Line.back() == '\0' &&
+           (LineNo != CaretLineNo || Line.size() > CaretColNo))
+      Line = Line.drop_back();
 
-  // Emit what we have computed.
-  emitSnippet(SourceLine);
+    // Copy the line of code into an std::string for ease of manipulation.
+    std::string SourceLine(Line.begin(), Line.end());
 
-  if (DiagOpts->ShowColors)
-    OS.changeColor(caretColor, true);
-  OS << CaretLine << '\n';
-  if (DiagOpts->ShowColors)
-    OS.resetColor();
+    // Build the byte to column map.
+    const SourceColumnMap sourceColMap(SourceLine, DiagOpts->TabStop);
 
-  if (!FixItInsertionLine.empty()) {
-    if (DiagOpts->ShowColors)
-      // Print fixit line in color
-      OS.changeColor(fixitColor, false);
-    if (DiagOpts->ShowSourceRanges)
-      OS << ' ';
-    OS << FixItInsertionLine << '\n';
-    if (DiagOpts->ShowColors)
-      OS.resetColor();
+    // Create a line for the caret that is filled with spaces that is the same
+    // number of columns as the line of source code.
+    std::string CaretLine(sourceColMap.columns(), ' ');
+
+    // Highlight all of the characters covered by Ranges with ~ characters.
+    for (SmallVectorImpl<CharSourceRange>::iterator I = Ranges.begin(),
+                                                    E = Ranges.end();
+         I != E; ++I)
+      highlightRange(*I, LineNo, FID, sourceColMap, CaretLine, SM, LangOpts);
+
+    // Next, insert the caret itself.
+    if (CaretLineNo == LineNo) {
+      CaretColNo = sourceColMap.byteToContainingColumn(CaretColNo - 1);
+      if (CaretLine.size() < CaretColNo + 1)
+        CaretLine.resize(CaretColNo + 1, ' ');
+      CaretLine[CaretColNo] = '^';
+    }
+
+    std::string FixItInsertionLine = buildFixItInsertionLine(
+        FID, LineNo, sourceColMap, Hints, SM, DiagOpts.get());
+
+    // If the source line is too long for our terminal, select only the
+    // "interesting" source region within that line.
+    unsigned Columns = DiagOpts->MessageLength;
+    if (Columns)
+      selectInterestingSourceRegion(SourceLine, CaretLine, FixItInsertionLine,
+                                    Columns, sourceColMap);
+
+    // If we are in -fdiagnostics-print-source-range-info mode, we are trying
+    // to produce easily machine parsable output.  Add a space before the
+    // source line and the caret to make it trivial to tell the main diagnostic
+    // line from what the user is intended to see.
+    if (DiagOpts->ShowSourceRanges) {
+      SourceLine = ' ' + SourceLine;
+      CaretLine = ' ' + CaretLine;
+    }
+
+    // Finally, remove any blank spaces from the end of CaretLine.
+    while (!CaretLine.empty() && CaretLine[CaretLine.size() - 1] == ' ')
+      CaretLine.erase(CaretLine.end() - 1);
+
+    // Emit what we have computed.
+    emitSnippet(SourceLine);
+
+    if (!CaretLine.empty()) {
+      if (DiagOpts->ShowColors)
+        OS.changeColor(caretColor, true);
+      OS << CaretLine << '\n';
+      if (DiagOpts->ShowColors)
+        OS.resetColor();
+    }
+
+    if (!FixItInsertionLine.empty()) {
+      if (DiagOpts->ShowColors)
+        // Print fixit line in color
+        OS.changeColor(fixitColor, false);
+      if (DiagOpts->ShowSourceRanges)
+        OS << ' ';
+      OS << FixItInsertionLine << '\n';
+      if (DiagOpts->ShowColors)
+        OS.resetColor();
+    }
   }
 
   // Print out any parseable fixit information requested by the options.

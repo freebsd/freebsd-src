@@ -9,14 +9,18 @@
 
 #include "ARMTargetObjectFile.h"
 #include "ARMSubtarget.h"
-#include "llvm/ADT/StringExtras.h"
+#include "ARMTargetMachine.h"
+#include "llvm/BinaryFormat/Dwarf.h"
+#include "llvm/BinaryFormat/ELF.h"
+#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCSectionELF.h"
-#include "llvm/Support/Dwarf.h"
-#include "llvm/Support/ELF.h"
-#include "llvm/Target/Mangler.h"
+#include "llvm/MC/MCTargetOptions.h"
+#include "llvm/MC/SectionKind.h"
 #include "llvm/Target/TargetMachine.h"
+#include <cassert>
+
 using namespace llvm;
 using namespace dwarf;
 
@@ -26,28 +30,62 @@ using namespace dwarf;
 
 void ARMElfTargetObjectFile::Initialize(MCContext &Ctx,
                                         const TargetMachine &TM) {
-  bool isAAPCS_ABI = TM.getSubtarget<ARMSubtarget>().isAAPCS_ABI();
+  const ARMBaseTargetMachine &ARM_TM = static_cast<const ARMBaseTargetMachine &>(TM);
+  bool isAAPCS_ABI = ARM_TM.TargetABI == ARMBaseTargetMachine::ARMABI::ARM_ABI_AAPCS;
+  //  genExecuteOnly = ARM_TM.getSubtargetImpl()->genExecuteOnly();
+
   TargetLoweringObjectFileELF::Initialize(Ctx, TM);
   InitializeELF(isAAPCS_ABI);
 
   if (isAAPCS_ABI) {
-    LSDASection = NULL;
+    LSDASection = nullptr;
   }
 
   AttributesSection =
-    getContext().getELFSection(".ARM.attributes",
-                               ELF::SHT_ARM_ATTRIBUTES,
-                               0,
-                               SectionKind::getMetadata());
+      getContext().getELFSection(".ARM.attributes", ELF::SHT_ARM_ATTRIBUTES, 0);
+}
+
+const MCExpr *ARMElfTargetObjectFile::getTTypeGlobalReference(
+    const GlobalValue *GV, unsigned Encoding, const TargetMachine &TM,
+    MachineModuleInfo *MMI, MCStreamer &Streamer) const {
+  if (TM.getMCAsmInfo()->getExceptionHandlingType() != ExceptionHandling::ARM)
+    return TargetLoweringObjectFileELF::getTTypeGlobalReference(
+        GV, Encoding, TM, MMI, Streamer);
+
+  assert(Encoding == DW_EH_PE_absptr && "Can handle absptr encoding only");
+
+  return MCSymbolRefExpr::create(TM.getSymbol(GV),
+                                 MCSymbolRefExpr::VK_ARM_TARGET2, getContext());
 }
 
 const MCExpr *ARMElfTargetObjectFile::
-getTTypeGlobalReference(const GlobalValue *GV, Mangler *Mang,
-                        MachineModuleInfo *MMI, unsigned Encoding,
-                        MCStreamer &Streamer) const {
-  assert(Encoding == DW_EH_PE_absptr && "Can handle absptr encoding only");
-
-  return MCSymbolRefExpr::Create(getSymbol(*Mang, GV),
-                                 MCSymbolRefExpr::VK_ARM_TARGET2,
+getDebugThreadLocalSymbol(const MCSymbol *Sym) const {
+  return MCSymbolRefExpr::create(Sym, MCSymbolRefExpr::VK_ARM_TLSLDO,
                                  getContext());
+}
+
+static bool isExecuteOnlyFunction(const GlobalObject *GO, SectionKind SK,
+                                  const TargetMachine &TM) {
+  if (const Function *F = dyn_cast<Function>(GO))
+    if (TM.getSubtarget<ARMSubtarget>(*F).genExecuteOnly() && SK.isText())
+      return true;
+  return false;
+}
+
+MCSection *ARMElfTargetObjectFile::getExplicitSectionGlobal(
+    const GlobalObject *GO, SectionKind SK, const TargetMachine &TM) const {
+  // Set execute-only access for the explicit section
+  if (isExecuteOnlyFunction(GO, SK, TM))
+    SK = SectionKind::getExecuteOnly();
+
+  return TargetLoweringObjectFileELF::getExplicitSectionGlobal(GO, SK, TM);
+}
+
+MCSection *ARMElfTargetObjectFile::SelectSectionForGlobal(
+    const GlobalObject *GO, SectionKind SK, const TargetMachine &TM) const {
+  // Place the global in the execute-only text section
+  if (isExecuteOnlyFunction(GO, SK, TM))
+    SK = SectionKind::getExecuteOnly();
+
+  return TargetLoweringObjectFileELF::SelectSectionForGlobal(GO, SK, TM);
 }

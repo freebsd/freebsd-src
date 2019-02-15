@@ -4,6 +4,8 @@ __FBSDID("$FreeBSD$");
 /*	$NetBSD: ulpt.c,v 1.60 2003/10/04 21:19:50 augustss Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1998, 2003 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -75,7 +77,7 @@ __FBSDID("$FreeBSD$");
 static int ulpt_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ulpt, CTLFLAG_RW, 0, "USB ulpt");
-SYSCTL_INT(_hw_usb_ulpt, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_ulpt, OID_AUTO, debug, CTLFLAG_RWTUN,
     &ulpt_debug, 0, "Debug level");
 #endif
 
@@ -419,7 +421,7 @@ ulpt_open(struct usb_fifo *fifo, int fflags)
 
 	if (sc->sc_fflags == 0) {
 
-		/* reset USB paralell port */
+		/* reset USB parallel port */
 
 		ulpt_reset(sc);
 	}
@@ -759,3 +761,4 @@ static driver_t ulpt_driver = {
 DRIVER_MODULE(ulpt, uhub, ulpt_driver, ulpt_devclass, NULL, 0);
 MODULE_DEPEND(ulpt, usb, 1, 1, 1);
 MODULE_VERSION(ulpt, 1);
+USB_PNP_HOST_INFO(ulpt_devs);

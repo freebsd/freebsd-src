@@ -161,7 +161,7 @@ struct isofile {
 	/* Used for managing struct isofile list. */
 	struct isofile		*allnext;
 	struct isofile		*datanext;
-	/* Used for managing a hardlined struct isofile list. */
+	/* Used for managing a hardlinked struct isofile list. */
 	struct isofile		*hlnext;
 	struct isofile		*hardlink_target;
 
@@ -197,7 +197,7 @@ struct isofile {
 	enum {
 		NO = 0,
 		BOOT_CATALOG,
-		BOOT_IMAGE,
+		BOOT_IMAGE
 	} boot;
 
 	/*
@@ -436,7 +436,7 @@ struct iso_option {
 	 * Type   : string
 	 * Default: Auto detect
 	 *        : We check a size of boot image;
-	 *        : If ths size is just 1.22M/1.44M/2.88M,
+	 *        : If the size is just 1.22M/1.44M/2.88M,
 	 *        : we assume boot_type is 'fd';
 	 *        : otherwise boot_type is 'no-emulation'.
 	 * COMPAT :
@@ -528,7 +528,7 @@ struct iso_option {
 	 *   - allow more then 8 depths of directory trees;
 	 *   - disable a version number to a File Name;
 	 *   - disable a forced period to the tail of a File Name;
-	 *   - the maxinum length of files and directories is raised to 193.
+	 *   - the maximum length of files and directories is raised to 193.
 	 *     if rockridge option is disabled, raised to 207.
 	 */
 	unsigned int	 iso_level:3;
@@ -626,7 +626,7 @@ struct iso_option {
 	 *        :    NOTE  Our rockridge=useful option does not set a zero
 	 *        :          to uid and gid, you should use application
 	 *        :          option such as --gid,--gname,--uid and --uname
-	 *        :          badtar options instead.
+	 *        :          bsdtar options instead.
 	 * Type   : boolean/string
 	 * Default: Enabled as rockridge=useful
 	 * COMPAT : mkisofs -r / -R
@@ -660,7 +660,7 @@ struct iso_option {
 	 *        :    for making zisofs.
 	 *        :    When the file size is less than one Logical Block
 	 *        :    size, that file will not zisofs'ed since it does
-	 *        :    reduece an ISO-image size.
+	 *        :    reduce an ISO-image size.
 	 *        :
 	 *        :    When you specify option 'boot=<boot-image>', that
 	 *        :    'boot-image' file won't be converted to zisofs file.
@@ -680,7 +680,7 @@ struct iso9660 {
 	/* The creation time of ISO image. */
 	time_t			 birth_time;
 	/* A file stream of a temporary file, which file contents
-	 * save to until ISO iamge can be created. */
+	 * save to until ISO image can be created. */
 	int			 temp_fd;
 
 	struct isofile		*cur_file;
@@ -703,7 +703,7 @@ struct iso9660 {
 	}			 all_file_list;
 
 	/* A list of struct isofile entries which have its
-	 * contents and are not a directory, a hardlined file
+	 * contents and are not a directory, a hardlinked file
 	 * and a symlink file. */
 	struct {
 		struct isofile	*first;
@@ -850,7 +850,7 @@ enum dir_rec_type {
 	DIR_REC_VD,		/* Stored in Volume Descriptor.	*/
 	DIR_REC_SELF,		/* Stored as Current Directory.	*/
 	DIR_REC_PARENT,		/* Stored as Parent Directory.	*/
-	DIR_REC_NORMAL,		/* Stored as Child.		*/
+	DIR_REC_NORMAL 		/* Stored as Child.		*/
 };
 
 /*
@@ -860,7 +860,7 @@ enum vdc {
 	VDC_STD,
 	VDC_LOWERCASE,
 	VDC_UCS2,
-	VDC_UCS2_DIRECT,
+	VDC_UCS2_DIRECT
 };
 
 /*
@@ -897,7 +897,7 @@ struct idr {
 
 enum char_type {
 	A_CHAR,
-	D_CHAR,
+	D_CHAR
 };
 
 
@@ -1907,9 +1907,9 @@ iso9660_close(struct archive_write *a)
 		    iso9660->primary.rootent);
 		if (ret < 0)
 			return (ret);
-		/* Make sure we have UTF-16BE convertors.
-		 * if there is no file entry, convertors are still
-		 * uninitilized. */
+		/* Make sure we have UTF-16BE converters.
+		 * if there is no file entry, converters are still
+		 * uninitialized. */
 		if (iso9660->sconv_to_utf16be == NULL) {
 			iso9660->sconv_to_utf16be =
 			    archive_string_conversion_to_charset(
@@ -1995,7 +1995,7 @@ iso9660_close(struct archive_write *a)
 	 * Write an ISO 9660 image.
 	 */
 
-	/* Switc to start using wbuff as file buffer. */
+	/* Switch to start using wbuff as file buffer. */
 	iso9660->wbuff_remaining = wb_buffmax();
 	iso9660->wbuff_type = WB_TO_STREAM;
 	iso9660->wbuff_offset = 0;
@@ -2524,7 +2524,8 @@ get_tmfromtime(struct tm *tm, time_t *t)
 	tzset();
 	localtime_r(t, tm);
 #elif HAVE__LOCALTIME64_S
-	_localtime64_s(tm, t);
+	__time64_t tmp_t = (__time64_t) *t; //time_t may be shorter than 64 bits
+	_localtime64_s(tm, &tmp_t);
 #else
 	memcpy(tm, localtime(t), sizeof(*tm));
 #endif
@@ -2553,7 +2554,7 @@ set_date_time(unsigned char *p, time_t t)
 static void
 set_date_time_null(unsigned char *p)
 {
-	memset(p, '0', 16);
+	memset(p, (int)'0', 16);
 	p[16] = 0;
 }
 
@@ -2719,6 +2720,16 @@ extra_get_record(struct isoent *isoent, int *space, int *off, int *loc)
 			rec->offset = 0;
 			/* Insert `rec` into the tail of isoent->extr_rec_list */
 			rec->next = NULL;
+			/*
+			 * Note: testing isoent->extr_rec_list.last == NULL
+			 * here is really unneeded since it has been already
+			 * initialized at isoent_new function but Clang Static
+			 * Analyzer claims that it is dereference of null
+			 * pointer.
+			 */
+			if (isoent->extr_rec_list.last == NULL)
+				isoent->extr_rec_list.last =
+					&(isoent->extr_rec_list.first);
 			*isoent->extr_rec_list.last = rec;
 			isoent->extr_rec_list.last = &(rec->next);
 		}
@@ -2949,7 +2960,7 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 			gid = archive_entry_gid(file->entry);
 			if (iso9660->opt.rr == OPT_RR_USEFUL) {
 				/*
-				 * This action is simular mkisofs -r option
+				 * This action is similar to mkisofs -r option
 				 * but our rockridge=useful option does not
 				 * set a zero to uid and gid.
 				 */
@@ -3014,8 +3025,8 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 		 *    +----+----+----+----+----+
 		 *   10   11   12   13   14   15
 		 *
-	 	 *    - cflg : flag of componet
-		 *    - clen : length of componet
+		 *    - cflg : flag of component
+		 *    - clen : length of component
 		 */
 		const char *sl;
 		char sl_last;
@@ -3098,7 +3109,7 @@ set_directory_record_rr(unsigned char *bp, int dr_len,
 					/*
 					 *     flg  len
 					 *    +----+----+
-					 *    | 02 | 00 | CURREENT component.
+					 *    | 02 | 00 | CURRENT component.
 					 *    +----+----+ (".")
 					 */
 					if (nc != NULL) {
@@ -3937,7 +3948,7 @@ write_VD(struct archive_write *a, struct vdd *vdd)
 	    "Abstract File", 0, D_CHAR);
 	if (r != ARCHIVE_OK)
 		return (r);
-	/* Bibliongraphic File Identifier */
+	/* Bibliographic File Identifier */
 	r = set_file_identifier(bp, 777, 813, vdc, a, vdd,
 	    &(iso9660->bibliographic_file_identifier),
 	    "Bibliongraphic File", 0, D_CHAR);
@@ -3994,7 +4005,7 @@ enum keytype {
 	KEY_FLG,
 	KEY_STR,
 	KEY_INT,
-	KEY_HEX,
+	KEY_HEX
 };
 static void
 set_option_info(struct archive_string *info, int *opt, const char *key,
@@ -4063,7 +4074,10 @@ write_information_block(struct archive_write *a)
 	memset(info.s, 0, info_size);
 	opt = 0;
 #if defined(HAVE__CTIME64_S)
-	_ctime64_s(buf, sizeof(buf), &(iso9660->birth_time));
+	{
+		__time64_t iso9660_birth_time_tmp = (__time64_t) iso9660->birth_time; //time_t may be shorter than 64 bits
+		_ctime64_s(buf, sizeof(buf), &(iso9660_birth_time_tmp));
+	}
 #elif defined(HAVE_CTIME_R)
 	ctime_r(&(iso9660->birth_time), buf);
 #else
@@ -4548,7 +4562,7 @@ write_file_descriptors(struct archive_write *a)
 		file->cur_content = &(file->content);
 		do {
 			blocks += file->cur_content->blocks;
-			/* Next fragument */
+			/* Next fragment */
 			file->cur_content = file->cur_content->next;
 		} while (file->cur_content != NULL);
 	}
@@ -4738,7 +4752,7 @@ isofile_gen_utility_names(struct archive_write *a, struct isofile *file)
 		}
 
 		/*
-		 * Converte a filename to UTF-16BE.
+		 * Convert a filename to UTF-16BE.
 		 */
 		if (0 > archive_entry_pathname_l(file->entry, &u16, &u16len,
 		    iso9660->sconv_to_utf16be)) {
@@ -5502,7 +5516,7 @@ isoent_setup_file_location(struct iso9660 *iso9660, int location)
 			file->cur_content->location = location;
 			location += file->cur_content->blocks;
 			total_block += file->cur_content->blocks;
-			/* Next fragument */
+			/* Next fragment */
 			file->cur_content = file->cur_content->next;
 		} while (file->cur_content != NULL);
 	}
@@ -6125,7 +6139,7 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 					off = ffmax - extlen;
 					if (off == 0) {
 						/* A dot('.')  character
-						 * does't place to the first
+						 * doesn't place to the first
 						 * byte of identifier. */
 						off ++;
 						extlen --;
@@ -6154,7 +6168,7 @@ isoent_gen_iso9660_identifier(struct archive_write *a, struct isoent *isoent,
 		np->id_len = l = ext_off + np->ext_len;
 
 		/* Make an offset of the number which is used to be set
-		 * hexadecimal number to avoid duplicate identififier. */
+		 * hexadecimal number to avoid duplicate identifier. */
 		if (iso9660->opt.iso_level == 1) {
 			if (ext_off >= 5)
 				noff = 5;
@@ -6215,7 +6229,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 	unsigned char *p;
 	size_t l;
 	int r;
-	int ffmax, parent_len;
+	size_t ffmax, parent_len;
 	static const struct archive_rb_tree_ops rb_ops = {
 		isoent_cmp_node_joliet, isoent_cmp_key_joliet
 	};
@@ -6229,7 +6243,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 	else
 		ffmax = 128;
 
-	r = idr_start(a, idr, isoent->children.cnt, ffmax, 6, 2, &rb_ops);
+	r = idr_start(a, idr, isoent->children.cnt, (int)ffmax, 6, 2, &rb_ops);
 	if (r < 0)
 		return (r);
 
@@ -6242,7 +6256,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		int ext_off, noff, weight;
 		size_t lt;
 
-		if ((int)(l = np->file->basename_utf16.length) > ffmax)
+		if ((l = np->file->basename_utf16.length) > ffmax)
 			l = ffmax;
 
 		p = malloc((l+1)*2);
@@ -6275,7 +6289,7 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 		/*
 		 * Get a length of MBS of a full-pathname.
 		 */
-		if ((int)np->file->basename_utf16.length > ffmax) {
+		if (np->file->basename_utf16.length > ffmax) {
 			if (archive_strncpy_l(&iso9660->mbs,
 			    (const char *)np->identifier, l,
 				iso9660->sconv_from_utf16be) != 0 &&
@@ -6292,7 +6306,9 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 
 		/* If a length of full-pathname is longer than 240 bytes,
 		 * it violates Joliet extensions regulation. */
-		if (parent_len + np->mb_len > 240) {
+		if (parent_len > 240
+		    || np->mb_len > 240
+		    || parent_len + np->mb_len > 240) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "The regulation of Joliet extensions;"
 			    " A length of a full-pathname of `%s' is "
@@ -6304,11 +6320,11 @@ isoent_gen_joliet_identifier(struct archive_write *a, struct isoent *isoent,
 
 		/* Make an offset of the number which is used to be set
 		 * hexadecimal number to avoid duplicate identifier. */
-		if ((int)l == ffmax)
+		if (l == ffmax)
 			noff = ext_off - 6;
-		else if ((int)l == ffmax-2)
+		else if (l == ffmax-2)
 			noff = ext_off - 4;
-		else if ((int)l == ffmax-4)
+		else if (l == ffmax-4)
 			noff = ext_off - 2;
 		else
 			noff = ext_off;
@@ -6730,7 +6746,7 @@ isoent_rr_move(struct archive_write *a)
 	int r;
 
 	pt = &(iso9660->primary.pathtbl[MAX_DEPTH-1]);
-	/* Theare aren't level 8 directories reaching a deepr level. */
+	/* There aren't level 8 directories reaching a deeper level. */
 	if (pt->cnt == 0)
 		return (ARCHIVE_OK);
 
@@ -6801,7 +6817,7 @@ _compare_path_table(const void *v1, const void *v2)
 	if (cmp != 0)
 		return (cmp);
 
-	/* Compare indetifier */
+	/* Compare identifier */
 	s1 = p1->identifier;
 	s2 = p2->identifier;
 	l = p1->ext_off;
@@ -6843,7 +6859,7 @@ _compare_path_table_joliet(const void *v1, const void *v2)
 	if (cmp != 0)
 		return (cmp);
 
-	/* Compare indetifier */
+	/* Compare identifier */
 	s1 = (const unsigned char *)p1->identifier;
 	s2 = (const unsigned char *)p2->identifier;
 	l = p1->ext_off;
@@ -7137,7 +7153,7 @@ isoent_create_boot_catalog(struct archive_write *a, struct isoent *rootent)
 
 	iso9660->el_torito.catalog = isoent;
 	/*
-	 * Get a boot medai type.
+	 * Get a boot media type.
 	 */
 	switch (iso9660->opt.boot_type) {
 	default:

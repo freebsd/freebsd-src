@@ -1,6 +1,8 @@
 /*	$NetBSD: btpand.h,v 1.1 2008/08/17 13:20:57 plunky Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2008 Iain Hibbert
  * All rights reserved.
  *
@@ -183,7 +185,7 @@ b2eaddr(void *dst, bdaddr_t *src)
 /* bnep.c */
 bool		bnep_send(channel_t *, packet_t *);
 bool		bnep_recv(packet_t *);
-void		bnep_send_control(channel_t *, uint8_t, ...);
+void		bnep_send_control(channel_t *, unsigned, ...);
 
 /* channel.c */
 void		channel_init(void);

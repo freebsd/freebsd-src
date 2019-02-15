@@ -1,4 +1,4 @@
-# $Id: auto.obj.mk,v 1.8 2011/08/08 17:35:20 sjg Exp $
+# $Id: auto.obj.mk,v 1.15 2017/11/04 21:05:04 sjg Exp $
 #
 #	@(#) Copyright (c) 2004, Simon J. Gerraty
 #
@@ -34,11 +34,22 @@ Mkdirs= Mkdirs() { \
 # if MKOBJDIRS is set to auto (and NOOBJ isn't defined) do some magic...
 # This will automatically create objdirs as needed.
 # Skip it if we are just doing 'clean'.
+.if ${MK_AUTO_OBJ:Uno} == "yes"
+MKOBJDIRS= auto
+.endif
 .if !defined(NOOBJ) && !defined(NO_OBJ) && ${MKOBJDIRS:Uno} == auto
 # Use __objdir here so it is easier to tweak without impacting
 # the logic.
-__objdir?= ${MAKEOBJDIR}
-.if ${.OBJDIR} != ${__objdir}
+.if !empty(MAKEOBJDIRPREFIX)
+.if ${.CURDIR:M${MAKEOBJDIRPREFIX}/*} != ""
+# we are already in obj tree!
+__objdir?= ${.CURDIR}
+.endif
+__objdir?= ${MAKEOBJDIRPREFIX}${.CURDIR}
+.endif
+__objdir?= ${MAKEOBJDIR:Uobj}
+__objdir:= ${__objdir}
+.if ${.OBJDIR:tA} != ${__objdir:tA}
 # We need to chdir, make the directory if needed
 .if !exists(${__objdir}/) && \
 	(${.TARGETS} == "" || ${.TARGETS:Nclean*:N*clean:Ndestroy*} != "")
@@ -49,8 +60,17 @@ __objdir_made != echo ${__objdir}/; umask ${OBJDIR_UMASK:U002}; \
 .endif
 # This causes make to use the specified directory as .OBJDIR
 .OBJDIR: ${__objdir}
-.if ${.OBJDIR} != ${__objdir} && ${__objdir_made:Uno:M${__objdir}/*} != ""
-.error could not use ${__objdir}
+.if ${.OBJDIR:tA} != ${__objdir:tA}
+# we did not get what we want - do we care?
+.if ${__objdir_made:Uno:M${__objdir}/*} != ""
+# watch out for __objdir being relative path
+.if !(${__objdir:M/*} == "" && ${.OBJDIR:tA} == ${${.CURDIR}/${__objdir}:L:tA})
+.error could not use ${__objdir}: .OBJDIR=${.OBJDIR}
+.endif
+.endif
+# apparently we can live with it
+# make sure we know what we have
+.OBJDIR: ${.CURDIR}
 .endif
 .endif
 .endif

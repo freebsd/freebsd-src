@@ -89,7 +89,7 @@ METHOD int lookup_set {
 };
 
 #
-# Unload a file, releasing dependancies and freeing storage.
+# Unload a file, releasing dependencies and freeing storage.
 #
 METHOD void unload {
     linker_file_t	file;

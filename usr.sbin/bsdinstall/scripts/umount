@@ -33,7 +33,7 @@ cat $PATH_FSTAB | awk -v BSDINSTALL_CHROOT=$BSDINSTALL_CHROOT '{
 		fsname = $2;
 		if (fsname == "/")
 			fsname = ""
-		printf("%s\t%s%s\t%s\t%s\t%s\t%s\n", $1, BSDINSTALL_CHROOT, 
+		printf("%s\t%s%s\t%s\t%s\t%s\t%s\n", $1, BSDINSTALL_CHROOT,
 		    fsname, $3, $4, $5, $6);
 	}
 }' > $TMP_FSTAB

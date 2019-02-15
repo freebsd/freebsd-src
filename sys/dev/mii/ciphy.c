@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2004
  *	Bill Paul <wpaul@windriver.com>.  All rights reserved.
  *
@@ -303,8 +305,7 @@ ciphy_fixup(struct mii_softc *sc)
 	status = PHY_READ(sc, CIPHY_MII_AUXCSR);
 	speed = status & CIPHY_AUXCSR_SPEED;
 
-	if (strcmp(device_get_name(device_get_parent(sc->mii_dev)),
-	    "nfe") == 0) {
+	if (mii_phy_mac_match(sc, "nfe")) {
 		/* need to set for 2.5V RGMII for NVIDIA adapters */
 		val = PHY_READ(sc, CIPHY_MII_ECTL1);
 		val &= ~(CIPHY_ECTL1_IOVOL | CIPHY_ECTL1_INTSEL);

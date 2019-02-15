@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -26,29 +28,28 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $OpenBSD: fts.c,v 1.22 1999/10/03 19:22:22 millert Exp $
+ * From: @(#)fts.c	8.6 (Berkeley) 8/14/94
+ * From: $OpenBSD: fts.c,v 1.22 1999/10/03 19:22:22 millert Exp $
  */
-
-#if 0
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)fts.c	8.6 (Berkeley) 8/14/94";
-#endif /* LIBC_SCCS and not lint */
-#endif
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/param.h>
+#define	_WANT_FREEBSD11_STATFS
 #include <sys/mount.h>
+#define	_WANT_FREEBSD11_STAT
 #include <sys/stat.h>
 
+#define	_WANT_FREEBSD11_DIRENT
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "gen-compat.h"
 #include "fts-compat.h"
 #include "un-namespace.h"
 
@@ -96,8 +97,8 @@ static int	 fts_ufslinks(FTS *, const FTSENT *);
  */
 struct _fts_private {
 	FTS		ftsp_fts;
-	struct statfs	ftsp_statfs;
-	dev_t		ftsp_dev;
+	struct freebsd11_statfs	ftsp_statfs;
+	uint32_t	ftsp_dev;
 	int		ftsp_linksreliable;
 };
 
@@ -114,16 +115,13 @@ static const char *ufslike_filesystems[] = {
 	"ufs",
 	"zfs",
 	"nfs",
-	"nfs4",
 	"ext2fs",
 	0
 };
 
 FTS *
-__fts_open_44bsd(argv, options, compar)
-	char * const *argv;
-	int options;
-	int (*compar)(const FTSENT * const *, const FTSENT * const *);
+__fts_open_44bsd(char * const *argv, int options,
+    int (*compar)(const FTSENT * const *, const FTSENT * const *))
 {
 	struct _fts_private *priv;
 	FTS *sp;
@@ -139,15 +137,11 @@ __fts_open_44bsd(argv, options, compar)
 	}
 
 	/* Allocate/initialize the stream. */
-	if ((priv = malloc(sizeof(*priv))) == NULL)
+	if ((priv = calloc(1, sizeof(*priv))) == NULL)
 		return (NULL);
-	memset(priv, 0, sizeof(*priv));
 	sp = &priv->ftsp_fts;
 	sp->fts_compar = compar;
 	sp->fts_options = options;
-
-	/* Shush, GCC. */
-	tmp = NULL;
 
 	/* Logical walks turn on NOCHDIR; symbolic links are too hard. */
 	if (ISSET(FTS_LOGICAL))
@@ -164,6 +158,9 @@ __fts_open_44bsd(argv, options, compar)
 	if ((parent = fts_alloc(sp, "", 0)) == NULL)
 		goto mem2;
 	parent->fts_level = FTS_ROOTPARENTLEVEL;
+
+	/* Shush, GCC. */
+	tmp = NULL;
 
 	/* Allocate/initialize root(s). */
 	for (root = NULL, nitems = 0; *argv != NULL; ++argv, ++nitems) {
@@ -234,9 +231,7 @@ mem1:	free(sp);
 }
 
 static void
-fts_load(sp, p)
-	FTS *sp;
-	FTSENT *p;
+fts_load(FTS *sp, FTSENT *p)
 {
 	int len;
 	char *cp;
@@ -260,8 +255,7 @@ fts_load(sp, p)
 }
 
 int
-__fts_close_44bsd(sp)
-	FTS *sp;
+__fts_close_44bsd(FTS *sp)
 {
 	FTSENT *freep, *p;
 	int saved_errno;
@@ -315,8 +309,7 @@ __fts_close_44bsd(sp)
 	    ? p->fts_pathlen - 1 : p->fts_pathlen)
 
 FTSENT *
-__fts_read_44bsd(sp)
-	FTS *sp;
+__fts_read_44bsd(FTS *sp)
 {
 	FTSENT *p, *tmp;
 	int instr;
@@ -510,10 +503,7 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
  */
 /* ARGSUSED */
 int
-__fts_set_44bsd(sp, p, instr)
-	FTS *sp;
-	FTSENT *p;
-	int instr;
+__fts_set_44bsd(FTS *sp, FTSENT *p, int instr)
 {
 	if (instr != 0 && instr != FTS_AGAIN && instr != FTS_FOLLOW &&
 	    instr != FTS_NOINSTR && instr != FTS_SKIP) {
@@ -525,9 +515,7 @@ __fts_set_44bsd(sp, p, instr)
 }
 
 FTSENT *
-__fts_children_44bsd(sp, instr)
-	FTS *sp;
-	int instr;
+__fts_children_44bsd(FTS *sp, int instr)
 {
 	FTSENT *p;
 	int fd;
@@ -586,8 +574,10 @@ __fts_children_44bsd(sp, instr)
 	if ((fd = _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
 		return (NULL);
 	sp->fts_child = fts_build(sp, instr);
-	if (fchdir(fd))
+	if (fchdir(fd)) {
+		(void)_close(fd);
 		return (NULL);
+	}
 	(void)_close(fd);
 	return (sp->fts_child);
 }
@@ -635,11 +625,9 @@ __fts_set_clientptr_44bsd(FTS *sp, void *clientptr)
  * been found, cutting the stat calls by about 2/3.
  */
 static FTSENT *
-fts_build(sp, type)
-	FTS *sp;
-	int type;
+fts_build(FTS *sp, int type)
 {
-	struct dirent *dp;
+	struct freebsd11_dirent *dp;
 	FTSENT *p, *head;
 	int nitems;
 	FTSENT *cur, *tail;
@@ -751,7 +739,8 @@ fts_build(sp, type)
 
 	/* Read the directory, attaching each entry to the `link' pointer. */
 	doadjust = 0;
-	for (head = tail = NULL, nitems = 0; dirp && (dp = readdir(dirp));) {
+	for (head = tail = NULL, nitems = 0;
+	    dirp && (dp = freebsd11_readdir(dirp));) {
 		dnamlen = dp->d_namlen;
 		if (!ISSET(FTS_SEEDOT) && ISDOT(dp->d_name))
 			continue;
@@ -901,15 +890,12 @@ mem1:				saved_errno = errno;
 }
 
 static u_short
-fts_stat(sp, p, follow)
-	FTS *sp;
-	FTSENT *p;
-	int follow;
+fts_stat(FTS *sp, FTSENT *p, int follow)
 {
 	FTSENT *t;
-	dev_t dev;
-	ino_t ino;
-	struct stat *sbp, sb;
+	uint32_t dev;
+	uint32_t ino;
+	struct freebsd11_stat *sbp, sb;
 	int saved_errno;
 
 	/* If user needs stat info, stat buffer already allocated. */
@@ -932,18 +918,18 @@ fts_stat(sp, p, follow)
 	 * fail, set the errno from the stat call.
 	 */
 	if (ISSET(FTS_LOGICAL) || follow) {
-		if (stat(p->fts_accpath, sbp)) {
+		if (freebsd11_stat(p->fts_accpath, sbp)) {
 			saved_errno = errno;
-			if (!lstat(p->fts_accpath, sbp)) {
+			if (!freebsd11_lstat(p->fts_accpath, sbp)) {
 				errno = 0;
 				return (FTS_SLNONE);
 			}
 			p->fts_errno = saved_errno;
 			goto err;
 		}
-	} else if (lstat(p->fts_accpath, sbp)) {
+	} else if (freebsd11_lstat(p->fts_accpath, sbp)) {
 		p->fts_errno = errno;
-err:		memset(sbp, 0, sizeof(struct stat));
+err:		memset(sbp, 0, sizeof(*sbp));
 		return (FTS_NS);
 	}
 
@@ -999,10 +985,7 @@ fts_compar(const void *a, const void *b)
 }
 
 static FTSENT *
-fts_sort(sp, head, nitems)
-	FTS *sp;
-	FTSENT *head;
-	int nitems;
+fts_sort(FTS *sp, FTSENT *head, int nitems)
 {
 	FTSENT **ap, *p;
 
@@ -1031,17 +1014,14 @@ fts_sort(sp, head, nitems)
 }
 
 static FTSENT *
-fts_alloc(sp, name, namelen)
-	FTS *sp;
-	char *name;
-	int namelen;
+fts_alloc(FTS *sp, char *name, int namelen)
 {
 	FTSENT *p;
 	size_t len;
 
 	struct ftsent_withstat {
 		FTSENT	ent;
-		struct	stat statbuf;
+		struct	freebsd11_stat statbuf;
 	};
 
 	/*
@@ -1081,8 +1061,7 @@ fts_alloc(sp, name, namelen)
 }
 
 static void
-fts_lfree(head)
-	FTSENT *head;
+fts_lfree(FTSENT *head)
 {
 	FTSENT *p;
 
@@ -1100,9 +1079,7 @@ fts_lfree(head)
  * plus 256 bytes so don't realloc the path 2 bytes at a time.
  */
 static int
-fts_palloc(sp, more)
-	FTS *sp;
-	size_t more;
+fts_palloc(FTS *sp, size_t more)
 {
 
 	sp->fts_pathlen += more + 256;
@@ -1127,9 +1104,7 @@ fts_palloc(sp, more)
  * already returned.
  */
 static void
-fts_padjust(sp, head)
-	FTS *sp;
-	FTSENT *head;
+fts_padjust(FTS *sp, FTSENT *head)
 {
 	FTSENT *p;
 	char *addr = sp->fts_path;
@@ -1153,8 +1128,7 @@ fts_padjust(sp, head)
 }
 
 static size_t
-fts_maxarglen(argv)
-	char * const *argv;
+fts_maxarglen(char * const *argv)
 {
 	size_t len, max;
 
@@ -1170,21 +1144,17 @@ fts_maxarglen(argv)
  * Assumes p->fts_dev and p->fts_ino are filled in.
  */
 static int
-fts_safe_changedir(sp, p, fd, path)
-	FTS *sp;
-	FTSENT *p;
-	int fd;
-	char *path;
+fts_safe_changedir(FTS *sp, FTSENT *p, int fd, char *path)
 {
 	int ret, oerrno, newfd;
-	struct stat sb;
+	struct freebsd11_stat sb;
 
 	newfd = fd;
 	if (ISSET(FTS_NOCHDIR))
 		return (0);
 	if (fd < 0 && (newfd = _open(path, O_RDONLY | O_CLOEXEC, 0)) < 0)
 		return (-1);
-	if (_fstat(newfd, &sb)) {
+	if (freebsd11_fstat(newfd, &sb)) {
 		ret = -1;
 		goto bail;
 	}
@@ -1219,7 +1189,7 @@ fts_ufslinks(FTS *sp, const FTSENT *ent)
 	 * avoidance.
 	 */
 	if (priv->ftsp_dev != ent->fts_dev) {
-		if (statfs(ent->fts_path, &priv->ftsp_statfs) != -1) {
+		if (freebsd11_statfs(ent->fts_path, &priv->ftsp_statfs) != -1) {
 			priv->ftsp_dev = ent->fts_dev;
 			priv->ftsp_linksreliable = 0;
 			for (cpp = ufslike_filesystems; *cpp; cpp++) {

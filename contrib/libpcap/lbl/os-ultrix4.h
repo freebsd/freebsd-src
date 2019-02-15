@@ -17,15 +17,12 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @(#) $Header: /tcpdump/master/libpcap/lbl/os-ultrix4.h,v 1.19 1999-10-07 23:46:41 mcr Exp $ (LBL)
  */
 
 /* Prototypes missing in Ultrix 4 */
 int	bcmp(const char *, const char *, u_int);
 void	bcopy(const void *, void *, u_int);
 void	bzero(void *, u_int);
-void	endservent(void);
 int	getopt(int, char * const *, const char *);
 #ifdef __STDC__
 struct timeval;

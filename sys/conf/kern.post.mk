@@ -12,8 +12,9 @@
 .if defined(DESTDIR)
 MKMODULESENV+=	DESTDIR="${DESTDIR}"
 .endif
-SYSDIR?= ${S:C;^[^/];${.CURDIR}/&;}
+SYSDIR?= ${S:C;^[^/];${.CURDIR}/&;:tA}
 MKMODULESENV+=	KERNBUILDDIR="${.CURDIR}" SYSDIR="${SYSDIR}"
+MKMODULESENV+=  MODULE_TIED=yes
 
 .if defined(CONF_CFLAGS)
 MKMODULESENV+=	CONF_CFLAGS="${CONF_CFLAGS}"
@@ -23,16 +24,48 @@ MKMODULESENV+=	CONF_CFLAGS="${CONF_CFLAGS}"
 MKMODULESENV+=	WITH_CTF="${WITH_CTF}"
 .endif
 
+.if defined(WITH_EXTRA_TCP_STACKS)
+MKMODULESENV+=	WITH_EXTRA_TCP_STACKS="${WITH_EXTRA_TCP_STACKS}"
+.endif
+
+.if defined(SAN_CFLAGS)
+MKMODULESENV+=	SAN_CFLAGS="${SAN_CFLAGS}"
+.endif
+
+# Allow overriding the kernel debug directory, so kernel and user debug may be
+# installed in different directories. Setting it to "" restores the historical
+# behavior of installing debug files in the kernel directory.
+KERN_DEBUGDIR?=	${DEBUGDIR}
+
 .MAIN: all
 
+.if !defined(NO_MODULES)
+# Default prefix used for modules installed from ports
+LOCALBASE?=	/usr/local
+
+LOCAL_MODULES_DIR?= ${LOCALBASE}/sys/modules
+
+# Default to installing all modules installed by ports unless overridden
+# by the user.
+.if !defined(LOCAL_MODULES) && exists($LOCAL_MODULES_DIR)
+LOCAL_MODULES!= ls ${LOCAL_MODULES_DIR}
+.endif
+.endif
+
 .for target in all clean cleandepend cleandir clobber depend install \
-    obj reinstall tags
+    ${_obj} reinstall tags
 ${target}: kernel-${target}
-.if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)
+.if !defined(NO_MODULES)
 ${target}: modules-${target}
 modules-${target}:
+.if !defined(MODULES_WITH_WORLD) && exists($S/modules)
 	cd $S/modules; ${MKMODULESENV} ${MAKE} \
 	    ${target:S/^reinstall$/install/:S/^clobber$/cleandir/}
+.endif
+.for module in ${LOCAL_MODULES}
+	cd ${LOCAL_MODULES_DIR}/${module}; ${MKMODULESENV} ${MAKE} \
+	    ${target:S/^reinstall$/install/:S/^clobber$/cleandir/}
+.endfor
 .endif
 .endfor
 
@@ -41,11 +74,9 @@ modules-${target}:
 #
 # The ports tree needs some environment variables defined to match the new kernel
 #
-# Ports search for some dependencies in PATH, so add the location of the installed files
-LOCALBASE?=	/usr/local
 # SRC_BASE is how the ports tree refers to the location of the base source files
 .if !defined(SRC_BASE)
-SRC_BASE!=	realpath "${SYSDIR:H}/"
+SRC_BASE=	${SYSDIR:H:tA}
 .endif
 # OSVERSION is used by some ports to determine build options
 .if !defined(OSRELDATE)
@@ -54,8 +85,20 @@ OSRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 		    ${MAKEOBJDIRPREFIX}${SRC_BASE}/include/osreldate.h
 .endif
 # Keep the related ports builds in the obj directory so that they are only rebuilt once per kernel build
-WRKDIRPREFIX?=	${MAKEOBJDIRPREFIX}${SRC_BASE}/sys/${KERNCONF}
+#
+# Ports search for some dependencies in PATH, so add the location of the
+# installed files
+WRKDIRPREFIX?=	${.OBJDIR}
 PORTSMODULESENV=\
+	env \
+	-u CC \
+	-u CXX \
+	-u CPP \
+	-u MAKESYSPATH \
+	-u MK_AUTO_OBJ \
+	-u MAKEOBJDIR \
+	MAKEFLAGS="${MAKEFLAGS:M*:tW:S/^-m /-m_/g:S/ -m / -m_/g:tw:N-m_*:NMK_AUTO_OBJ=*}" \
+	SYSDIR=${SYSDIR} \
 	PATH=${PATH}:${LOCALBASE}/bin:${LOCALBASE}/sbin \
 	SRC_BASE=${SRC_BASE} \
 	OSVERSION=${OSRELDATE} \
@@ -66,7 +109,7 @@ PORTSMODULESENV=\
 all:
 .for __i in ${PORTS_MODULES}
 	@${ECHO} "===> Ports module ${__i} (all)"
-	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B clean all
+	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B clean build
 .endfor
 
 .for __target in install reinstall clean
@@ -74,14 +117,15 @@ ${__target}: ports-${__target}
 ports-${__target}:
 .for __i in ${PORTS_MODULES}
 	@${ECHO} "===> Ports module ${__i} (${__target})"
-	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B ${__target:C/install/deinstall reinstall/:C/reinstall/deinstall reinstall/}
+	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B ${__target:C/(re)?install/deinstall reinstall/}
 .endfor
 .endfor
 .endif
 
 .ORDER: kernel-install modules-install
 
-kernel-all: ${KERNEL_KO} ${KERNEL_EXTRA}
+beforebuild: .PHONY
+kernel-all: beforebuild .WAIT ${KERNEL_KO} ${KERNEL_EXTRA}
 
 kernel-cleandir: kernel-clean kernel-cleandepend
 
@@ -90,7 +134,7 @@ kernel-clobber:
 
 kernel-obj:
 
-.if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)
+.if !defined(NO_MODULES)
 modules: modules-all
 
 .if !defined(NO_MODULES_OBJ)
@@ -101,11 +145,11 @@ modules-all modules-depend: modules-obj
 .if !defined(DEBUG)
 FULLKERNEL=	${KERNEL_KO}
 .else
-FULLKERNEL=	${KERNEL_KO}.debug
-${KERNEL_KO}: ${FULLKERNEL} ${KERNEL_KO}.symbols
-	${OBJCOPY} --strip-debug --add-gnu-debuglink=${KERNEL_KO}.symbols\
+FULLKERNEL=	${KERNEL_KO}.full
+${KERNEL_KO}: ${FULLKERNEL} ${KERNEL_KO}.debug
+	${OBJCOPY} --strip-debug --add-gnu-debuglink=${KERNEL_KO}.debug \
 	    ${FULLKERNEL} ${.TARGET}
-${KERNEL_KO}.symbols: ${FULLKERNEL}
+${KERNEL_KO}.debug: ${FULLKERNEL}
 	${OBJCOPY} --only-keep-debug ${FULLKERNEL} ${.TARGET}
 install.debug reinstall.debug: gdbinit
 	cd ${.CURDIR}; ${MAKE} ${.TARGET:R}
@@ -121,10 +165,13 @@ gdbinit:
 .endif
 .endif
 
-${FULLKERNEL}: ${SYSTEM_DEP} vers.o ${MFS_IMAGE}
+${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
+.if !empty(MD_ROOT_SIZE_CONFIGURED) && defined(MFS_IMAGE)
+	@sh ${S}/tools/embed_mfs.sh ${.TARGET} ${MFS_IMAGE}
+.endif
 .if ${MK_CTF} != "no"
 	@echo ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ...
 	@${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SYSTEM_OBJS} vers.o
@@ -133,15 +180,9 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o ${MFS_IMAGE}
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
 	${SYSTEM_LD_TAIL}
-.if defined(MFS_IMAGE)
-	sh ${S}/tools/embed_mfs.sh ${FULLKERNEL} ${MFS_IMAGE}
-.endif
 
-.if !exists(${.OBJDIR}/.depend)
-${SYSTEM_OBJS}: assym.s vnode_if.h ${BEFORE_DEPEND:M*.h} ${MFILES:T:S/.m$/.h/}
-.endif
-
-LNFILES=	${CFILES:T:S/.c$/.ln/}
+OBJS_DEPEND_GUESS+=	offset.inc assym.inc vnode_if.h ${BEFORE_DEPEND:M*.h} \
+			${MFILES:T:S/.m$/.h/}
 
 .for mfile in ${MFILES}
 # XXX the low quality .m.o rules gnerated by config are normally used
@@ -153,64 +194,138 @@ ${mfile:T:S/.m$/.h/}: ${mfile}
 .endfor
 
 kernel-clean:
-	rm -f *.o *.so *.So *.ko *.s eddep errs \
-	    ${FULLKERNEL} ${KERNEL_KO} ${KERNEL_KO}.symbols \
-	    linterrs tags vers.c \
+	rm -f *.o *.so *.pico *.ko *.s eddep errs \
+	    ${FULLKERNEL} ${KERNEL_KO} ${KERNEL_KO}.debug \
+	    tags vers.c \
 	    vnode_if.c vnode_if.h vnode_if_newproto.h vnode_if_typedef.h \
 	    ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
 	    ${CLEAN}
-
-lint: ${LNFILES}
-	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC} 2>&1 | \
-	    tee -a linterrs
 
 # This is a hack.  BFD "optimizes" away dynamic mode if there are no
 # dynamic references.  We could probably do a '-Bforcedynamic' mode like
 # in the a.out ld.  For now, this works.
 HACK_EXTRA_FLAGS?= -shared
-hack.So: Makefile
+hack.pico: Makefile
 	:> hack.c
-	${CC} ${HACK_EXTRA_FLAGS} -nostdlib hack.c -o hack.So
+	${CC} ${HACK_EXTRA_FLAGS} -nostdlib hack.c -o hack.pico
 	rm -f hack.c
 
-# This rule stops ./assym.s in .depend from causing problems.
-./assym.s: assym.s
+offset.inc: $S/kern/genoffset.sh genoffset.o
+	NM='${NM}' NMFLAGS='${NMFLAGS}' sh $S/kern/genoffset.sh genoffset.o > ${.TARGET}
 
-assym.s: $S/kern/genassym.sh genassym.o
-	NM='${NM}' sh $S/kern/genassym.sh genassym.o > ${.TARGET}
+genoffset.o: $S/kern/genoffset.c
+	${CC} -c ${CFLAGS:N-flto:N-fno-common} $S/kern/genoffset.c
 
-genassym.o: $S/$M/$M/genassym.c
-	${CC} -c ${CFLAGS:N-fno-common} $S/$M/$M/genassym.c
+# genoffset_test.o is not actually used for anything - the point of compiling it
+# is to exercise the CTASSERT that checks that the offsets in the offset.inc
+# _lite struct(s) match those in the original(s). 
+genoffset_test.o: $S/kern/genoffset.c offset.inc
+	${CC} -c ${CFLAGS:N-flto:N-fno-common} -DOFFSET_TEST \
+	    $S/kern/genoffset.c -o ${.TARGET}
 
-${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
+assym.inc: $S/kern/genassym.sh genassym.o genoffset_test.o
+	NM='${NM}' NMFLAGS='${NMFLAGS}' sh $S/kern/genassym.sh genassym.o > ${.TARGET}
 
-# We have "special" -I include paths for opensolaris/zfs files in 'depend'.
-CFILES_NOZFS=	${CFILES:N*/opensolaris/*}
-SFILES_NOZFS=	${SFILES:N*/opensolaris/*}
-CFILES_ZFS=	${CFILES:M*/opensolaris/*}
-SFILES_ZFS=	${SFILES:M*/opensolaris/*}
+genassym.o: $S/$M/$M/genassym.c  offset.inc
+	${CC} -c ${CFLAGS:N-flto:N-fno-common} $S/$M/$M/genassym.c
+
+OBJS_DEPEND_GUESS+= opt_global.h
+genoffset.o genassym.o vers.o: opt_global.h
+
+.if !empty(.MAKE.MODE:Unormal:Mmeta) && empty(.MAKE.MODE:Unormal:Mnofilemon)
+_meta_filemon=	1
+.endif
+# Skip reading .depend when not needed to speed up tree-walks and simple
+# lookups.  For install, only do this if no other targets are specified.
+# Also skip generating or including .depend.* files if in meta+filemon mode
+# since it will track dependencies itself.  OBJS_DEPEND_GUESS is still used
+# for _meta_filemon but not for _SKIP_DEPEND.
+.if !defined(NO_SKIP_DEPEND) && \
+    ((!empty(.MAKEFLAGS:M-V) && empty(.MAKEFLAGS:M*DEP*)) || \
+    ${.TARGETS:M*obj} == ${.TARGETS} || \
+    ${.TARGETS:M*clean*} == ${.TARGETS} || \
+    ${.TARGETS:M*install*} == ${.TARGETS})
+_SKIP_DEPEND=	1
+.endif
+.if defined(_SKIP_DEPEND) || defined(_meta_filemon)
+.MAKE.DEPENDFILE=	/dev/null
+.endif
 
 kernel-depend: .depend
-# The argument list can be very long, so use make -V and xargs to
-# pass it to mkdep.
-SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
+SRCS=	assym.inc offset.inc vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
 	${MFILES:T:S/.m$/.h/}
+DEPENDOBJS+=	${SYSTEM_OBJS} genassym.o genoffset.o genoffset_test.o
+DEPENDOBJS+=	${CLEAN:M*.o}
+DEPENDFILES=	${DEPENDOBJS:O:u:C/^/.depend./}
+.if ${MAKE_VERSION} < 20160220
+DEPEND_MP?=	-MP
+.endif
+.if defined(_SKIP_DEPEND)
+# Don't bother reading any .meta files
+${DEPENDOBJS}:	.NOMETA
+.depend:	.NOMETA
+# Unset these to avoid looping/statting on them later.
+.undef DEPENDOBJS
+.undef DEPENDFILES
+.endif	# defined(_SKIP_DEPEND)
+DEPEND_CFLAGS+=	-MD ${DEPEND_MP} -MF.depend.${.TARGET}
+DEPEND_CFLAGS+=	-MT${.TARGET}
+.if !defined(_meta_filemon)
+.if !empty(DEPEND_CFLAGS)
+# Only add in DEPEND_CFLAGS for CFLAGS on files we expect from DEPENDOBJS
+# as those are the only ones we will include.
+DEPEND_CFLAGS_CONDITION= "${DEPENDOBJS:M${.TARGET}}" != ""
+CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
+.endif
+.for __depend_obj in ${DEPENDFILES}
+.if ${MAKE_VERSION} < 20160220
+.sinclude "${.OBJDIR}/${__depend_obj}"
+.else
+.dinclude "${.OBJDIR}/${__depend_obj}"
+.endif
+.endfor
+.endif	# !defined(_meta_filemon)
+
+# Always run 'make depend' to generate dependencies early and to avoid the
+# need for manually running it.  For the kernel this is mostly a NOP since
+# all dependencies are correctly added or accounted for.  This is mostly to
+# ensure downstream uses of kernel-depend are handled.
+beforebuild: kernel-depend
+
+# Guess some dependencies for when no ${DEPENDFILE}.OBJ is generated yet.
+# For meta+filemon the .meta file is checked for since it is the dependency
+# file used.
+.for __obj in ${DEPENDOBJS:O:u}
+.if defined(_meta_filemon)
+_depfile=	${.OBJDIR}/${__obj}.meta
+.else
+_depfile=	${.OBJDIR}/.depend.${__obj}
+.endif
+.if !exists(${_depfile})
+.if ${SYSTEM_OBJS:M${__obj}}
+${__obj}: ${OBJS_DEPEND_GUESS}
+.endif
+${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
+.elif defined(_meta_filemon)
+# For meta mode we still need to know which file to depend on to avoid
+# ambiguous suffix transformation rules from .PATH.  Meta mode does not
+# use .depend files.  We really only need source files, not headers since
+# they are typically in SRCS/beforebuild already.  For target-specific
+# guesses do include headers though since they may not be in SRCS.
+.if ${SYSTEM_OBJS:M${__obj}}
+${__obj}: ${OBJS_DEPEND_GUESS:N*.h}
+.endif
+${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
+.endif	# !exists(${_depfile})
+.endfor
+
+.NOPATH: .depend ${DEPENDFILES}
+
 .depend: .PRECIOUS ${SRCS}
-	rm -f .newdep
-	${MAKE} -V CFILES_NOZFS -V SYSTEM_CFILES -V GEN_CFILES | \
-	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${CFLAGS}
-	${MAKE} -V CFILES_ZFS | \
-	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${ZFS_CFLAGS}
-	${MAKE} -V SFILES_NOZFS | \
-	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ASM_CFLAGS}
-	${MAKE} -V SFILES_ZFS | \
-	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ZFS_ASM_CFLAGS}
-	rm -f .depend
-	mv .newdep .depend
 
 _ILINKS= machine
-.if ${MACHINE} != ${MACHINE_CPUARCH}
+.if ${MACHINE} != ${MACHINE_CPUARCH} && ${MACHINE} != "arm64"
 _ILINKS+= ${MACHINE_CPUARCH}
 .endif
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
@@ -232,17 +347,17 @@ ${_ILINKS}:
 		path=${S}/${.TARGET}/include ;; \
 	esac ; \
 	${ECHO} ${.TARGET} "->" $$path ; \
-	ln -s $$path ${.TARGET}
+	ln -fns $$path ${.TARGET}
 
 # .depend needs include links so we remove them only together.
-kernel-cleandepend:
-	rm -f .depend ${_ILINKS}
+kernel-cleandepend: .PHONY
+	rm -f .depend .depend.* ${_ILINKS}
 
 kernel-tags:
 	@[ -f .depend ] || { echo "you must make depend first"; exit 1; }
 	sh $S/conf/systags.sh
 
-kernel-install:
+kernel-install: .PHONY
 	@if [ ! -f ${KERNEL_KO} ] ; then \
 		echo "You must build a kernel first." ; \
 		exit 1 ; \
@@ -252,42 +367,49 @@ kernel-install:
 	if [ ! "`dirname "$$thiskernel"`" -ef ${DESTDIR}${KODIR} ] ; then \
 		chflags -R noschg ${DESTDIR}${KODIR} ; \
 		rm -rf ${DESTDIR}${KODIR} ; \
+		rm -rf ${DESTDIR}${KERN_DEBUGDIR}${KODIR} ; \
 	else \
 		if [ -d ${DESTDIR}${KODIR}.old ] ; then \
 			chflags -R noschg ${DESTDIR}${KODIR}.old ; \
 			rm -rf ${DESTDIR}${KODIR}.old ; \
 		fi ; \
 		mv ${DESTDIR}${KODIR} ${DESTDIR}${KODIR}.old ; \
+		if [ -n "${KERN_DEBUGDIR}" -a \
+		     -d ${DESTDIR}${KERN_DEBUGDIR}${KODIR} ]; then \
+			rm -rf ${DESTDIR}${KERN_DEBUGDIR}${KODIR}.old ; \
+			mv ${DESTDIR}${KERN_DEBUGDIR}${KODIR} ${DESTDIR}${KERN_DEBUGDIR}${KODIR}.old ; \
+		fi ; \
 		sysctl kern.bootfile=${DESTDIR}${KODIR}.old/"`basename "$$thiskernel"`" ; \
 	fi
 .endif
 	mkdir -p ${DESTDIR}${KODIR}
-	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}
+	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}/
 .if defined(DEBUG) && !defined(INSTALL_NODEBUG) && ${MK_KERNEL_SYMBOLS} != "no"
-	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.symbols ${DESTDIR}${KODIR}
+	mkdir -p ${DESTDIR}${KERN_DEBUGDIR}${KODIR}
+	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.debug ${DESTDIR}${KERN_DEBUGDIR}${KODIR}/
 .endif
 .if defined(KERNEL_EXTRA_INSTALL)
-	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_EXTRA_INSTALL} ${DESTDIR}${KODIR}
+	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_EXTRA_INSTALL} ${DESTDIR}${KODIR}/
 .endif
 
 
 
 kernel-reinstall:
 	@-chflags -R noschg ${DESTDIR}${KODIR}
-	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}
+	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}/
 .if defined(DEBUG) && !defined(INSTALL_NODEBUG) && ${MK_KERNEL_SYMBOLS} != "no"
-	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.symbols ${DESTDIR}${KODIR}
+	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.debug ${DESTDIR}${KERN_DEBUGDIR}${KODIR}/
 .endif
 
 config.o env.o hints.o vers.o vnode_if.o:
 	${NORMAL_C}
 	${NORMAL_CTFCONVERT}
 
-config.ln env.ln hints.ln vers.ln vnode_if.ln:
-	${NORMAL_LINT}
-
+.if ${MK_REPRODUCIBLE_BUILD} != "no"
+REPRO_FLAG="-R"
+.endif
 vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP}
-	MAKE=${MAKE} sh $S/conf/newvers.sh ${KERN_IDENT}
+	MAKE="${MAKE}" sh $S/conf/newvers.sh ${REPRO_FLAG} ${KERN_IDENT}
 
 vnode_if.c: $S/tools/vnode_if.awk $S/kern/vnode_if.src
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -c
@@ -300,6 +422,29 @@ vnode_if_newproto.h:
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -p
 vnode_if_typedef.h:
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -q
+
+.if ${MFS_IMAGE:Uno} != "no"
+.if empty(MD_ROOT_SIZE_CONFIGURED)
+# Generate an object file from the file system image to embed in the kernel
+# via linking. Make sure the contents are in the mfs section and rename the
+# start/end/size variables to __start_mfs, __stop_mfs, and mfs_size,
+# respectively.
+embedfs_${MFS_IMAGE:T:R}.o: ${MFS_IMAGE}
+	${OBJCOPY} --input-target binary \
+	    --output-target ${EMBEDFS_FORMAT.${MACHINE_ARCH}} \
+	    --binary-architecture ${EMBEDFS_ARCH.${MACHINE_ARCH}} \
+	    ${MFS_IMAGE} ${.TARGET}
+	${OBJCOPY} \
+	    --rename-section .data=mfs,contents,alloc,load,readonly,data \
+	    --redefine-sym \
+		_binary_${MFS_IMAGE:C,[^[:alnum:]],_,g}_size=__mfs_root_size \
+	    --redefine-sym \
+		_binary_${MFS_IMAGE:C,[^[:alnum:]],_,g}_start=mfs_root \
+	    --redefine-sym \
+		_binary_${MFS_IMAGE:C,[^[:alnum:]],_,g}_end=mfs_root_end \
+	    ${.TARGET}
+.endif
+.endif
 
 # XXX strictly, everything depends on Makefile because changes to ${PROF}
 # only appear there, but we don't handle that.

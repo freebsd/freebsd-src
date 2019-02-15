@@ -39,6 +39,7 @@
 BEGIN
 {
 	i = 0;
+	notused = $1;
 }
 
 syscall::open:entry

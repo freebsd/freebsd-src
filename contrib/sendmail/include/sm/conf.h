@@ -473,6 +473,9 @@ typedef int		pid_t;
 #   ifndef HASGETUSERSHELL
 #    define HASGETUSERSHELL 0	/* getusershell(3) causes core dumps pre-2.7 */
 #   endif /* ! HASGETUSERSHELL */
+#   if SOLARIS < 21200
+#    define SIGWAIT_TAKES_1_ARG	1	/* S12 moves to UNIX V7 semantic */
+#   endif /* SOLARIS < 21200 */
 
 #  else /* SOLARIS */
 			/* SunOS 4.0.3 or 4.1.x */
@@ -1016,7 +1019,9 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #   if __FreeBSD__ >= 2
 #    include <osreldate.h>
 #    if __FreeBSD_version >= 199512	/* 2.2-current when it appeared */
+#      if __FreeBSD_version < 500012
 #     include <libutil.h>
+#      endif
 #     define SPT_TYPE	SPT_BUILTIN
 #    endif /* __FreeBSD_version >= 199512 */
 #    if __FreeBSD_version >= 222000	/* 2.2.2-release and later */
@@ -1906,6 +1911,7 @@ extern struct passwd *	sendmail_mpe_getpwuid __P((uid_t));
 #  define GIDSET_T		gid_t
 #  define SOCKADDR_LEN_T	size_t
 #  define SOCKOPT_LEN_T		size_t
+#  define SIGWAIT_TAKES_1_ARG	1
 #  ifndef _PATH_UNIX
 #   define _PATH_UNIX		"/stand/unix"
 #  endif /* ! _PATH_UNIX */
@@ -2920,6 +2926,10 @@ typedef void		(*sigfunc_t) __P((int));
 # define FD_SETSIZE	256
 #endif /* ! FD_SETSIZE */
 
+#ifndef SIGWAIT_TAKES_1_ARG
+# define SIGWAIT_TAKES_1_ARG	0
+#endif /* ! SIGWAIT_TAKES_1_ARG */
+
 /*
 **  Size of prescan buffer.
 **	Despite comments in the _sendmail_ book, this probably should
@@ -2969,6 +2979,12 @@ typedef void		(*sigfunc_t) __P((int));
 # ifndef SM_UINT16
 #  define SM_UINT16	uint16_t
 # endif /* ! SM_UINT16 */
+
+/* additional valid chars in user/group names in passwd */
+# ifndef SM_PWN_CHARS
+#  define SM_PWN_CHARS "-_."
+# endif
+
 
 /*
 **  SVr4 and similar systems use different routines for setjmp/longjmp

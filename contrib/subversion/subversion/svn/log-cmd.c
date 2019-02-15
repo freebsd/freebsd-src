@@ -37,51 +37,17 @@
 #include "svn_pools.h"
 
 #include "private/svn_cmdline_private.h"
+#include "private/svn_sorts_private.h"
+#include "private/svn_utf_private.h"
 
 #include "cl.h"
+#include "cl-log.h"
 
 #include "svn_private_config.h"
 
 
 /*** Code. ***/
 
-/* Baton for log_entry_receiver() and log_entry_receiver_xml(). */
-struct log_receiver_baton
-{
-  /* Client context. */
-  svn_client_ctx_t *ctx;
-
-  /* The target of the log operation. */
-  const char *target_path_or_url;
-  svn_opt_revision_t target_peg_revision;
-
-  /* Don't print log message body nor its line count. */
-  svn_boolean_t omit_log_message;
-
-  /* Whether to show diffs in the log. (maps to --diff) */
-  svn_boolean_t show_diff;
-
-  /* Depth applied to diff output. */
-  svn_depth_t depth;
-
-  /* Diff arguments received from command line. */
-  const char *diff_extensions;
-
-  /* Stack which keeps track of merge revision nesting, using svn_revnum_t's */
-  apr_array_header_t *merge_stack;
-
-  /* Log message search patterns. Log entries will only be shown if the author,
-   * the log message, or a changed path matches one of these patterns. */
-  apr_array_header_t *search_patterns;
-
-  /* Pool for persistent allocations. */
-  apr_pool_t *pool;
-};
-
-
-/* The separator between log messages. */
-#define SEP_STRING \
-  "------------------------------------------------------------------------\n"
 
 
 /* Display a diff of the subtree TARGET_PATH_OR_URL@TARGET_PEG_REVISION as
@@ -145,6 +111,24 @@ display_diff(const svn_log_entry_t *log_entry,
   return SVN_NO_ERROR;
 }
 
+/* Return TRUE if STR matches PATTERN. Else, return FALSE. Assumes that
+ * PATTERN is a UTF-8 string prepared for case- and accent-insensitive
+ * comparison via svn_utf__xfrm(). */
+static svn_boolean_t
+match(const char *pattern, const char *str, svn_membuf_t *buf)
+{
+  svn_error_t *err;
+
+  err = svn_utf__xfrm(&str, str, strlen(str), TRUE, TRUE, buf);
+  if (err)
+    {
+      /* Can't match invalid data. */
+      svn_error_clear(err);
+      return FALSE;
+    }
+
+  return apr_fnmatch(pattern, str, 0) == APR_SUCCESS;
+}
 
 /* Return TRUE if SEARCH_PATTERN matches the AUTHOR, DATE, LOG_MESSAGE,
  * or a path in the set of keys of the CHANGED_PATHS hash. Else, return FALSE.
@@ -155,22 +139,22 @@ match_search_pattern(const char *search_pattern,
                      const char *date,
                      const char *log_message,
                      apr_hash_t *changed_paths,
+                     svn_membuf_t *buf,
                      apr_pool_t *pool)
 {
   /* Match any substring containing the pattern, like UNIX 'grep' does. */
   const char *pattern = apr_psprintf(pool, "*%s*", search_pattern);
-  int flags = 0;
 
   /* Does the author match the search pattern? */
-  if (author && apr_fnmatch(pattern, author, flags) == APR_SUCCESS)
+  if (author && match(pattern, author, buf))
     return TRUE;
 
   /* Does the date the search pattern? */
-  if (date && apr_fnmatch(pattern, date, flags) == APR_SUCCESS)
+  if (date && match(pattern, date, buf))
     return TRUE;
 
   /* Does the log message the search pattern? */
-  if (log_message && apr_fnmatch(pattern, log_message, flags) == APR_SUCCESS)
+  if (log_message && match(pattern, log_message, buf))
     return TRUE;
 
   if (changed_paths)
@@ -182,18 +166,17 @@ match_search_pattern(const char *search_pattern,
            hi;
            hi = apr_hash_next(hi))
         {
-          const char *path = svn__apr_hash_index_key(hi);
+          const char *path = apr_hash_this_key(hi);
           svn_log_changed_path2_t *log_item;
 
-          if (apr_fnmatch(pattern, path, flags) == APR_SUCCESS)
+          if (match(pattern, path, buf))
             return TRUE;
 
           /* Match copy-from paths, too. */
-          log_item = svn__apr_hash_index_val(hi);
+          log_item = apr_hash_this_val(hi);
           if (log_item->copyfrom_path
               && SVN_IS_VALID_REVNUM(log_item->copyfrom_rev)
-              && apr_fnmatch(pattern,
-                             log_item->copyfrom_path, flags) == APR_SUCCESS)
+              && match(pattern, log_item->copyfrom_path, buf))
             return TRUE;
         }
     }
@@ -203,13 +186,14 @@ match_search_pattern(const char *search_pattern,
 
 /* Match all search patterns in SEARCH_PATTERNS against AUTHOR, DATE, MESSAGE,
  * and CHANGED_PATHS. Return TRUE if any pattern matches, else FALSE.
- * SCRACH_POOL is used for temporary allocations. */
+ * BUF and SCRATCH_POOL are used for temporary allocations. */
 static svn_boolean_t
 match_search_patterns(apr_array_header_t *search_patterns,
                       const char *author,
                       const char *date,
                       const char *message,
                       apr_hash_t *changed_paths,
+                      svn_membuf_t *buf,
                       apr_pool_t *scratch_pool)
 {
   int i;
@@ -232,7 +216,7 @@ match_search_patterns(apr_array_header_t *search_patterns,
 
           pattern = APR_ARRAY_IDX(pattern_group, j, const char *);
           match = match_search_pattern(pattern, author, date, message,
-                                       changed_paths, iterpool);
+                                       changed_paths, buf, iterpool);
           if (!match)
             break;
         }
@@ -249,7 +233,7 @@ match_search_patterns(apr_array_header_t *search_patterns,
 /* Implement `svn_log_entry_receiver_t', printing the logs in
  * a human-readable and machine-parseable format.
  *
- * BATON is of type `struct log_receiver_baton'.
+ * BATON is of type `svn_cl__log_receiver_baton'.
  *
  * First, print a header line.  Then if CHANGED_PATHS is non-null,
  * print all affected paths in a list headed "Changed paths:\n",
@@ -323,12 +307,12 @@ match_search_patterns(apr_array_header_t *search_patterns,
  * ------------------------------------------------------------------------
  *
  */
-static svn_error_t *
-log_entry_receiver(void *baton,
-                   svn_log_entry_t *log_entry,
-                   apr_pool_t *pool)
+svn_error_t *
+svn_cl__log_entry_receiver(void *baton,
+                           svn_log_entry_t *log_entry,
+                           apr_pool_t *pool)
 {
-  struct log_receiver_baton *lb = baton;
+  svn_cl__log_receiver_baton *lb = baton;
   const char *author;
   const char *date;
   const char *message;
@@ -343,7 +327,9 @@ log_entry_receiver(void *baton,
 
   if (! SVN_IS_VALID_REVNUM(log_entry->revision))
     {
-      apr_array_pop(lb->merge_stack);
+      if (lb->merge_stack)
+        apr_array_pop(lb->merge_stack);
+
       return SVN_NO_ERROR;
     }
 
@@ -364,16 +350,21 @@ log_entry_receiver(void *baton,
 
   if (lb->search_patterns &&
       ! match_search_patterns(lb->search_patterns, author, date, message,
-                              log_entry->changed_paths2, pool))
+                              log_entry->changed_paths2, &lb->buffer, pool))
     {
       if (log_entry->has_children)
-        APR_ARRAY_PUSH(lb->merge_stack, svn_revnum_t) = log_entry->revision;
+        {
+          if (! lb->merge_stack)
+            lb->merge_stack = apr_array_make(lb->pool, 1, sizeof(svn_revnum_t));
+
+          APR_ARRAY_PUSH(lb->merge_stack, svn_revnum_t) = log_entry->revision;
+        }
 
       return SVN_NO_ERROR;
     }
 
   SVN_ERR(svn_cmdline_printf(pool,
-                             SEP_STRING "r%ld | %s | %s",
+                             SVN_CL__LOG_SEP_STRING "r%ld | %s | %s",
                              log_entry->revision, author, date));
 
   if (message != NULL)
@@ -392,6 +383,7 @@ log_entry_receiver(void *baton,
     {
       apr_array_header_t *sorted_paths;
       int i;
+      apr_pool_t *iterpool;
 
       /* Get an array of sorted hash keys. */
       sorted_paths = svn_sort__hash(log_entry->changed_paths2,
@@ -399,6 +391,7 @@ log_entry_receiver(void *baton,
 
       SVN_ERR(svn_cmdline_printf(pool,
                                  _("Changed paths:\n")));
+      iterpool = svn_pool_create(pool);
       for (i = 0; i < sorted_paths->nelts; i++)
         {
           svn_sort__item_t *item = &(APR_ARRAY_IDX(sorted_paths, i,
@@ -407,6 +400,8 @@ log_entry_receiver(void *baton,
           svn_log_changed_path2_t *log_item = item->value;
           const char *copy_data = "";
 
+          svn_pool_clear(iterpool);
+
           if (lb->ctx->cancel_func)
             SVN_ERR(lb->ctx->cancel_func(lb->ctx->cancel_baton));
 
@@ -414,34 +409,39 @@ log_entry_receiver(void *baton,
               && SVN_IS_VALID_REVNUM(log_item->copyfrom_rev))
             {
               copy_data
-                = apr_psprintf(pool,
+                = apr_psprintf(iterpool,
                                _(" (from %s:%ld)"),
                                log_item->copyfrom_path,
                                log_item->copyfrom_rev);
             }
-          SVN_ERR(svn_cmdline_printf(pool, "   %c %s%s\n",
+          SVN_ERR(svn_cmdline_printf(iterpool, "   %c %s%s\n",
                                      log_item->action, path,
                                      copy_data));
         }
+      svn_pool_destroy(iterpool);
     }
 
-  if (lb->merge_stack->nelts > 0)
+  if (lb->merge_stack && lb->merge_stack->nelts > 0)
     {
       int i;
+      apr_pool_t *iterpool;
 
       /* Print the result of merge line */
       if (log_entry->subtractive_merge)
         SVN_ERR(svn_cmdline_printf(pool, _("Reverse merged via:")));
       else
         SVN_ERR(svn_cmdline_printf(pool, _("Merged via:")));
+      iterpool = svn_pool_create(pool);
       for (i = 0; i < lb->merge_stack->nelts; i++)
         {
           svn_revnum_t rev = APR_ARRAY_IDX(lb->merge_stack, i, svn_revnum_t);
 
-          SVN_ERR(svn_cmdline_printf(pool, " r%ld%c", rev,
+          svn_pool_clear(iterpool);
+          SVN_ERR(svn_cmdline_printf(iterpool, " r%ld%c", rev,
                                      i == lb->merge_stack->nelts - 1 ?
                                                                   '\n' : ','));
         }
+      svn_pool_destroy(iterpool);
     }
 
   if (message != NULL)
@@ -473,7 +473,12 @@ log_entry_receiver(void *baton,
     }
 
   if (log_entry->has_children)
-    APR_ARRAY_PUSH(lb->merge_stack, svn_revnum_t) = log_entry->revision;
+    {
+      if (! lb->merge_stack)
+        lb->merge_stack = apr_array_make(lb->pool, 1, sizeof(svn_revnum_t));
+
+      APR_ARRAY_PUSH(lb->merge_stack, svn_revnum_t) = log_entry->revision;
+    }
 
   return SVN_NO_ERROR;
 }
@@ -481,7 +486,7 @@ log_entry_receiver(void *baton,
 
 /* This implements `svn_log_entry_receiver_t', printing the logs in XML.
  *
- * BATON is of type `struct log_receiver_baton'.
+ * BATON is of type `svn_cl__log_receiver_baton'.
  *
  * Here is an example of the output; note that the "<log>" and
  * "</log>" tags are not emitted by this function:
@@ -515,12 +520,12 @@ log_entry_receiver(void *baton,
  * </log>
  *
  */
-static svn_error_t *
-log_entry_receiver_xml(void *baton,
-                       svn_log_entry_t *log_entry,
-                       apr_pool_t *pool)
+svn_error_t *
+svn_cl__log_entry_receiver_xml(void *baton,
+                               svn_log_entry_t *log_entry,
+                               apr_pool_t *pool)
 {
-  struct log_receiver_baton *lb = baton;
+  svn_cl__log_receiver_baton *lb = baton;
   /* Collate whole log message into sb before printing. */
   svn_stringbuf_t *sb = svn_stringbuf_create_empty(pool);
   char *revstr;
@@ -540,7 +545,8 @@ log_entry_receiver_xml(void *baton,
     {
       svn_xml_make_close_tag(&sb, pool, "logentry");
       SVN_ERR(svn_cl__error_checked_fputs(sb->data, stdout));
-      apr_array_pop(lb->merge_stack);
+      if (lb->merge_stack)
+        apr_array_pop(lb->merge_stack);
 
       return SVN_NO_ERROR;
     }
@@ -548,10 +554,15 @@ log_entry_receiver_xml(void *baton,
   /* Match search pattern before XML-escaping. */
   if (lb->search_patterns &&
       ! match_search_patterns(lb->search_patterns, author, date, message,
-                              log_entry->changed_paths2, pool))
+                              log_entry->changed_paths2, &lb->buffer, pool))
     {
       if (log_entry->has_children)
-        APR_ARRAY_PUSH(lb->merge_stack, svn_revnum_t) = log_entry->revision;
+        {
+          if (! lb->merge_stack)
+            lb->merge_stack = apr_array_make(lb->pool, 1, sizeof(svn_revnum_t));
+
+          APR_ARRAY_PUSH(lb->merge_stack, svn_revnum_t) = log_entry->revision;
+        }
 
       return SVN_NO_ERROR;
     }
@@ -565,8 +576,19 @@ log_entry_receiver_xml(void *baton,
 
   revstr = apr_psprintf(pool, "%ld", log_entry->revision);
   /* <logentry revision="xxx"> */
-  svn_xml_make_open_tag(&sb, pool, svn_xml_normal, "logentry",
-                        "revision", revstr, NULL);
+  if (lb->merge_stack && lb->merge_stack->nelts > 0)
+    {
+      svn_xml_make_open_tag(&sb, pool, svn_xml_normal, "logentry",
+                            "revision", revstr, "reverse-merge",
+                            log_entry->subtractive_merge ? "true" : "false",
+                            SVN_VA_NULL);
+
+    }
+  else
+    {
+        svn_xml_make_open_tag(&sb, pool, svn_xml_normal, "logentry",
+                              "revision", revstr, SVN_VA_NULL);
+    }
 
   /* <author>xxx</author> */
   svn_cl__xml_tagged_cdata(&sb, pool, "author", author);
@@ -587,7 +609,7 @@ log_entry_receiver_xml(void *baton,
 
       /* <paths> */
       svn_xml_make_open_tag(&sb, pool, svn_xml_normal, "paths",
-                            NULL);
+                            SVN_VA_NULL);
 
       /* Get an array of sorted hash keys. */
       sorted_paths = svn_sort__hash(log_entry->changed_paths2,
@@ -619,7 +641,7 @@ log_entry_receiver_xml(void *baton,
                                                      log_item->text_modified),
                                     "prop-mods", svn_tristate__to_word(
                                                      log_item->props_modified),
-                                    NULL);
+                                    SVN_VA_NULL);
             }
           else
             {
@@ -632,7 +654,7 @@ log_entry_receiver_xml(void *baton,
                                                      log_item->text_modified),
                                     "prop-mods", svn_tristate__to_word(
                                                      log_item->props_modified),
-                                    NULL);
+                                    SVN_VA_NULL);
             }
           /* xxx</path> */
           svn_xml_escape_cdata_cstring(&sb, path, pool);
@@ -652,7 +674,7 @@ log_entry_receiver_xml(void *baton,
   svn_compat_log_revprops_clear(log_entry->revprops);
   if (log_entry->revprops && apr_hash_count(log_entry->revprops) > 0)
     {
-      svn_xml_make_open_tag(&sb, pool, svn_xml_normal, "revprops", NULL);
+      svn_xml_make_open_tag(&sb, pool, svn_xml_normal, "revprops", SVN_VA_NULL);
       SVN_ERR(svn_cmdline__print_xml_prop_hash(&sb, log_entry->revprops,
                                                FALSE, /* name_only */
                                                FALSE, pool));
@@ -660,7 +682,12 @@ log_entry_receiver_xml(void *baton,
     }
 
   if (log_entry->has_children)
-    APR_ARRAY_PUSH(lb->merge_stack, svn_revnum_t) = log_entry->revision;
+    {
+      if (! lb->merge_stack)
+        lb->merge_stack = apr_array_make(lb->pool, 1, sizeof(svn_revnum_t));
+
+      APR_ARRAY_PUSH(lb->merge_stack, svn_revnum_t) = log_entry->revision;
+    }
   else
     svn_xml_make_close_tag(&sb, pool, "logentry");
 
@@ -677,7 +704,7 @@ svn_cl__log(apr_getopt_t *os,
   svn_cl__opt_state_t *opt_state = ((svn_cl__cmd_baton_t *) baton)->opt_state;
   svn_client_ctx_t *ctx = ((svn_cl__cmd_baton_t *) baton)->ctx;
   apr_array_header_t *targets;
-  struct log_receiver_baton lb;
+  svn_cl__log_receiver_baton lb;
   const char *target;
   int i;
   apr_array_header_t *revprops;
@@ -785,8 +812,9 @@ svn_cl__log(apr_getopt_t *os,
   lb.depth = opt_state->depth == svn_depth_unknown ? svn_depth_infinity
                                                    : opt_state->depth;
   lb.diff_extensions = opt_state->extensions;
-  lb.merge_stack = apr_array_make(pool, 0, sizeof(svn_revnum_t));
+  lb.merge_stack = NULL;
   lb.search_patterns = opt_state->search_patterns;
+  svn_membuf__create(&lb.buffer, 0, pool);
   lb.pool = pool;
 
   if (opt_state->xml)
@@ -813,8 +841,8 @@ svn_cl__log(apr_getopt_t *os,
                hi != NULL;
                hi = apr_hash_next(hi))
             {
-              const char *property = svn__apr_hash_index_key(hi);
-              svn_string_t *value = svn__apr_hash_index_val(hi);
+              const char *property = apr_hash_this_key(hi);
+              svn_string_t *value = apr_hash_this_val(hi);
 
               if (value && value->data[0] != '\0')
                 return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
@@ -839,7 +867,7 @@ svn_cl__log(apr_getopt_t *os,
                               opt_state->stop_on_copy,
                               opt_state->use_merge_history,
                               revprops,
-                              log_entry_receiver_xml,
+                              svn_cl__log_entry_receiver_xml,
                               &lb,
                               ctx,
                               pool));
@@ -862,13 +890,13 @@ svn_cl__log(apr_getopt_t *os,
                               opt_state->stop_on_copy,
                               opt_state->use_merge_history,
                               revprops,
-                              log_entry_receiver,
+                              svn_cl__log_entry_receiver,
                               &lb,
                               ctx,
                               pool));
 
       if (! opt_state->incremental)
-        SVN_ERR(svn_cmdline_printf(pool, SEP_STRING));
+        SVN_ERR(svn_cmdline_printf(pool, SVN_CL__LOG_SEP_STRING));
     }
 
   return SVN_NO_ERROR;

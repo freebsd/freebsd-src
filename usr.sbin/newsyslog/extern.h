@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * ------+---------+---------+---------+---------+---------+---------+---------*
  * Copyright (c) 2003  - Garance Alistair Drosehn <gad@FreeBSD.org>.
  * All rights reserved.
@@ -60,6 +62,8 @@ int		 ptime_free(struct ptime_data *_ptime);
 int		 ptime_relparse(struct ptime_data *_ptime, int _parseopts,
 		    time_t _basetime, const char *_str);
 const char	*ptimeget_ctime(const struct ptime_data *_ptime);
+char		*ptimeget_ctime_rfc5424(const struct ptime_data *_ptime,
+		    char *timebuf, size_t bufsize);
 double		 ptimeget_diff(const struct ptime_data *_minuend,
 		    const struct ptime_data *_subtrahend);
 time_t		 ptimeget_secs(const struct ptime_data *_ptime);

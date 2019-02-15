@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 # Vendor sources and generated files
-LDNSDIR= ${.CURDIR}/../../contrib/ldns
+LDNSDIR= ${SRCTOP}/contrib/ldns
 
 .PATH: ${LDNSDIR}/drill
 
@@ -12,8 +12,6 @@ CFLAGS+= -I${LDNSDIR}
 NO_WERROR= true
 MAN=	drill.1
 
-DPADD+=	${LIBLDNS} ${LIBCRYPTO}
-LDADD+=	${LDLDNS} -lcrypto
-USEPRIVATELIB= ldns
+LIBADD=	ldns crypto
 
 .include <bsd.prog.mk>

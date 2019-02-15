@@ -2,6 +2,8 @@
 /*-
  * DEVD (Device action daemon)
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 M. Warner Losh <imp@freebsd.org>.
  * All rights reserved.
  *

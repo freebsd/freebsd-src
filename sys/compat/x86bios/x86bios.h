@@ -27,7 +27,7 @@
  */
 /*
  * x86 registers were borrowed from x86emu.h x86emu_regs.h
- * for compatability.
+ * for compatibility.
  */
 
 #ifndef _X86BIOS_H_

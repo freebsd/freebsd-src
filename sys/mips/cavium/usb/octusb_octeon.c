@@ -2,6 +2,8 @@
 __FBSDID("$FreeBSD$");
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2008 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -103,6 +105,7 @@ octusb_octeon_attach(device_t dev)
 	sc->sc_dci.sc_bus.parent = dev;
 	sc->sc_dci.sc_bus.devices = sc->sc_dci.sc_devices;
 	sc->sc_dci.sc_bus.devices_max = OCTUSB_MAX_DEVICES;
+	sc->sc_dci.sc_bus.dma_bits = 32;
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_dci.sc_bus,
@@ -159,16 +162,10 @@ static int
 octusb_octeon_detach(device_t dev)
 {
 	struct octusb_octeon_softc *sc = device_get_softc(dev);
-	device_t bdev;
 	int err;
 	int nports;
 	int i;
 
-	if (sc->sc_dci.sc_bus.bdev) {
-		bdev = sc->sc_dci.sc_bus.bdev;
-		device_detach(bdev);
-		device_delete_child(dev, bdev);
-	}
 	/* during module unload there are lots of children leftover */
 	device_delete_children(dev);
 

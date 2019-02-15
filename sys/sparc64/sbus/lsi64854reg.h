@@ -1,6 +1,8 @@
 /*	$NetBSD: lsi64854reg.h,v 1.6 2008/04/28 20:23:50 martin Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

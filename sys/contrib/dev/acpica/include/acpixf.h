@@ -4,9 +4,117 @@
  *
  *****************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2014, Intel Corp.
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights. You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code. No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision. In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change. Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee. Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution. In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE. ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT, ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES. INTEL WILL NOT PROVIDE ANY
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS. INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government. In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
+ * following license:
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,30 +131,30 @@
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #ifndef __ACXFACE_H__
 #define __ACXFACE_H__
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20140926
+#define ACPI_CA_VERSION                 0x20181031
 
 #include <contrib/dev/acpica/include/acconfig.h>
 #include <contrib/dev/acpica/include/actypes.h>
@@ -162,13 +270,14 @@ ACPI_INIT_GLOBAL (UINT8,            AcpiGbl_CreateOsiMethod, TRUE);
 ACPI_INIT_GLOBAL (UINT8,            AcpiGbl_UseDefaultRegisterWidths, TRUE);
 
 /*
- * Whether or not to verify the table checksum before installation. Set
- * this to TRUE to verify the table checksum before install it to the table
- * manager. Note that enabling this option causes errors to happen in some
- * OSPMs during early initialization stages. Default behavior is to do such
- * verification.
+ * Whether or not to validate (map) an entire table to verify
+ * checksum/duplication in early stage before install. Set this to TRUE to
+ * allow early table validation before install it to the table manager.
+ * Note that enabling this option causes errors to happen in some OSPMs
+ * during early initialization stages. Default behavior is to allow such
+ * validation.
  */
-ACPI_INIT_GLOBAL (UINT8,            AcpiGbl_VerifyTableChecksum, TRUE);
+ACPI_INIT_GLOBAL (UINT8,            AcpiGbl_EnableTableValidation, TRUE);
 
 /*
  * Optionally enable output from the AML Debug Object.
@@ -192,6 +301,14 @@ ACPI_INIT_GLOBAL (UINT8,            AcpiGbl_CopyDsdtLocally, FALSE);
 ACPI_INIT_GLOBAL (UINT8,            AcpiGbl_DoNotUseXsdt, FALSE);
 
 /*
+ * Optionally support module level code by parsing an entire table as
+ * a method as it is loaded. Default is TRUE.
+ * NOTE, this is essentially obsolete and will be removed soon
+ * (01/2018).
+ */
+ACPI_INIT_GLOBAL (UINT8,            AcpiGbl_ExecuteTablesAsMethods, TRUE);
+
+/*
  * Optionally use 32-bit FADT addresses if and when there is a conflict
  * (address mismatch) between the 32-bit and 64-bit versions of the
  * address. Although ACPICA adheres to the ACPI specification which
@@ -200,6 +317,15 @@ ACPI_INIT_GLOBAL (UINT8,            AcpiGbl_DoNotUseXsdt, FALSE);
  * address. Default is FALSE, do not favor the 32-bit addresses.
  */
 ACPI_INIT_GLOBAL (UINT8,            AcpiGbl_Use32BitFadtAddresses, FALSE);
+
+/*
+ * Optionally use 32-bit FACS table addresses.
+ * It is reported that some platforms fail to resume from system suspending
+ * if 64-bit FACS table address is selected:
+ * https://bugzilla.kernel.org/show_bug.cgi?id=74021
+ * Default is TRUE, favor the 32-bit addresses.
+ */
+ACPI_INIT_GLOBAL (UINT8,            AcpiGbl_Use32BitFacsAddresses, TRUE);
 
 /*
  * Optionally truncate I/O addresses to 16 bits. Provides compatibility
@@ -222,6 +348,11 @@ ACPI_INIT_GLOBAL (UINT8,            AcpiGbl_DisableAutoRepair, FALSE);
 ACPI_INIT_GLOBAL (UINT8,            AcpiGbl_DisableSsdtTableInstall, FALSE);
 
 /*
+ * Optionally enable runtime namespace override.
+ */
+ACPI_INIT_GLOBAL (UINT8,            AcpiGbl_RuntimeNamespaceOverride, TRUE);
+
+/*
  * We keep track of the latest version of Windows that has been requested by
  * the BIOS. ACPI 5.0.
  */
@@ -235,11 +366,30 @@ ACPI_INIT_GLOBAL (UINT8,            AcpiGbl_OsiData, 0);
 ACPI_INIT_GLOBAL (BOOLEAN,          AcpiGbl_ReducedHardware, FALSE);
 
 /*
+ * Maximum timeout for While() loop iterations before forced method abort.
+ * This mechanism is intended to prevent infinite loops during interpreter
+ * execution within a host kernel.
+ */
+ACPI_INIT_GLOBAL (UINT32,           AcpiGbl_MaxLoopIterations, ACPI_MAX_LOOP_TIMEOUT);
+
+/*
+ * Optionally ignore AE_NOT_FOUND errors from named reference package elements
+ * during DSDT/SSDT table loading. This reduces error "noise" in platforms
+ * whose firmware is carrying around a bunch of unused package objects that
+ * refer to non-existent named objects. However, If the AML actually tries to
+ * use such a package, the unresolved element(s) will be replaced with NULL
+ * elements.
+ */
+ACPI_INIT_GLOBAL (BOOLEAN,          AcpiGbl_IgnorePackageResolutionErrors, FALSE);
+
+/*
  * This mechanism is used to trace a specified AML method. The method is
  * traced each time it is executed.
  */
 ACPI_INIT_GLOBAL (UINT32,           AcpiGbl_TraceFlags, 0);
-ACPI_INIT_GLOBAL (ACPI_NAME,        AcpiGbl_TraceMethodName, 0);
+ACPI_INIT_GLOBAL (const char *,     AcpiGbl_TraceMethodName, NULL);
+ACPI_INIT_GLOBAL (UINT32,           AcpiGbl_TraceDbgLevel, ACPI_TRACE_LEVEL_DEFAULT);
+ACPI_INIT_GLOBAL (UINT32,           AcpiGbl_TraceDbgLayer, ACPI_TRACE_LAYER_DEFAULT);
 
 /*
  * Runtime configuration of debug output control masks. We want the debug
@@ -252,6 +402,19 @@ ACPI_INIT_GLOBAL (UINT32,           AcpiDbgLevel, ACPI_DEBUG_DEFAULT);
 ACPI_INIT_GLOBAL (UINT32,           AcpiDbgLevel, ACPI_NORMAL_DEFAULT);
 #endif
 ACPI_INIT_GLOBAL (UINT32,           AcpiDbgLayer, ACPI_COMPONENT_DEFAULT);
+
+/* Optionally enable timer output with Debug Object output */
+
+ACPI_INIT_GLOBAL (UINT8,            AcpiGbl_DisplayDebugTimer, FALSE);
+
+/*
+ * Debugger command handshake globals. Host OSes need to access these
+ * variables to implement their own command handshake mechanism.
+ */
+#ifdef ACPI_DEBUGGER
+ACPI_INIT_GLOBAL (BOOLEAN,          AcpiGbl_MethodExecuting, FALSE);
+ACPI_GLOBAL (char,                  AcpiGbl_DbLineBuf[ACPI_DB_LINE_BUFFER_SIZE]);
+#endif
 
 /*
  * Other miscellaneous globals
@@ -361,6 +524,30 @@ ACPI_GLOBAL (BOOLEAN,               AcpiGbl_SystemAwakeAndRunning);
 #endif /* ACPI_APPLICATION */
 
 
+/*
+ * Debugger prototypes
+ *
+ * All interfaces used by debugger will be configured
+ * out of the ACPICA build unless the ACPI_DEBUGGER
+ * flag is defined.
+ */
+#ifdef ACPI_DEBUGGER
+#define ACPI_DBR_DEPENDENT_RETURN_OK(Prototype) \
+    ACPI_EXTERNAL_RETURN_OK(Prototype)
+
+#define ACPI_DBR_DEPENDENT_RETURN_VOID(Prototype) \
+    ACPI_EXTERNAL_RETURN_VOID(Prototype)
+
+#else
+#define ACPI_DBR_DEPENDENT_RETURN_OK(Prototype) \
+    static ACPI_INLINE Prototype {return(AE_OK);}
+
+#define ACPI_DBR_DEPENDENT_RETURN_VOID(Prototype) \
+    static ACPI_INLINE Prototype {return;}
+
+#endif /* ACPI_DEBUGGER */
+
+
 /*****************************************************************************
  *
  * ACPICA public interface prototypes
@@ -371,29 +558,29 @@ ACPI_GLOBAL (BOOLEAN,               AcpiGbl_SystemAwakeAndRunning);
  * Initialization
  */
 ACPI_EXTERNAL_RETURN_STATUS (
-ACPI_STATUS
+ACPI_STATUS ACPI_INIT_FUNCTION
 AcpiInitializeTables (
     ACPI_TABLE_DESC         *InitialStorage,
     UINT32                  InitialTableCount,
     BOOLEAN                 AllowResize))
 
 ACPI_EXTERNAL_RETURN_STATUS (
-ACPI_STATUS
+ACPI_STATUS ACPI_INIT_FUNCTION
 AcpiInitializeSubsystem (
     void))
 
 ACPI_EXTERNAL_RETURN_STATUS (
-ACPI_STATUS
+ACPI_STATUS ACPI_INIT_FUNCTION
 AcpiEnableSubsystem (
     UINT32                  Flags))
 
 ACPI_EXTERNAL_RETURN_STATUS (
-ACPI_STATUS
+ACPI_STATUS ACPI_INIT_FUNCTION
 AcpiInitializeObjects (
     UINT32                  Flags))
 
 ACPI_EXTERNAL_RETURN_STATUS (
-ACPI_STATUS
+ACPI_STATUS ACPI_INIT_FUNCTION
 AcpiTerminate (
     void))
 
@@ -471,7 +658,7 @@ AcpiDecodePldBuffer (
  * ACPI table load/unload interfaces
  */
 ACPI_EXTERNAL_RETURN_STATUS (
-ACPI_STATUS
+ACPI_STATUS ACPI_INIT_FUNCTION
 AcpiInstallTable (
     ACPI_PHYSICAL_ADDRESS   Address,
     BOOLEAN                 Physical))
@@ -487,7 +674,7 @@ AcpiUnloadParentTable (
     ACPI_HANDLE             Object))
 
 ACPI_EXTERNAL_RETURN_STATUS (
-ACPI_STATUS
+ACPI_STATUS ACPI_INIT_FUNCTION
 AcpiLoadTables (
     void))
 
@@ -496,14 +683,14 @@ AcpiLoadTables (
  * ACPI table manipulation interfaces
  */
 ACPI_EXTERNAL_RETURN_STATUS (
-ACPI_STATUS
+ACPI_STATUS ACPI_INIT_FUNCTION
 AcpiReallocateRootTable (
     void))
 
 ACPI_EXTERNAL_RETURN_STATUS (
-ACPI_STATUS
+ACPI_STATUS ACPI_INIT_FUNCTION
 AcpiFindRootPointer (
-    ACPI_SIZE               *RsdpAddress))
+    ACPI_PHYSICAL_ADDRESS   *RsdpAddress))
 
 ACPI_EXTERNAL_RETURN_STATUS (
 ACPI_STATUS
@@ -518,6 +705,11 @@ AcpiGetTable (
     ACPI_STRING             Signature,
     UINT32                  Instance,
     ACPI_TABLE_HEADER       **OutTable))
+
+ACPI_EXTERNAL_RETURN_VOID (
+void
+AcpiPutTable (
+    ACPI_TABLE_HEADER       *Table))
 
 ACPI_EXTERNAL_RETURN_STATUS (
 ACPI_STATUS
@@ -596,7 +788,7 @@ AcpiGetData (
 ACPI_EXTERNAL_RETURN_STATUS (
 ACPI_STATUS
 AcpiDebugTrace (
-    char                    *Name,
+    const char              *Name,
     UINT32                  DebugLevel,
     UINT32                  DebugLayer,
     UINT32                  Flags))
@@ -696,6 +888,15 @@ AcpiRemoveFixedEventHandler (
 ACPI_HW_DEPENDENT_RETURN_STATUS (
 ACPI_STATUS
 AcpiInstallGpeHandler (
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  GpeNumber,
+    UINT32                  Type,
+    ACPI_GPE_HANDLER        Address,
+    void                    *Context))
+
+ACPI_HW_DEPENDENT_RETURN_STATUS (
+ACPI_STATUS
+AcpiInstallGpeRawHandler (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber,
     UINT32                  Type,
@@ -851,6 +1052,13 @@ AcpiFinishGpe (
 
 ACPI_HW_DEPENDENT_RETURN_STATUS (
 ACPI_STATUS
+AcpiMaskGpe (
+    ACPI_HANDLE             GpeDevice,
+    UINT32                  GpeNumber,
+    BOOLEAN                 IsMasked))
+
+ACPI_HW_DEPENDENT_RETURN_STATUS (
+ACPI_STATUS
 AcpiMarkGpeForWake (
     ACPI_HANDLE             GpeDevice,
     UINT32                  GpeNumber))
@@ -884,6 +1092,11 @@ AcpiDisableAllGpes (
 ACPI_HW_DEPENDENT_RETURN_STATUS (
 ACPI_STATUS
 AcpiEnableAllRuntimeGpes (
+    void))
+
+ACPI_HW_DEPENDENT_RETURN_STATUS (
+ACPI_STATUS
+AcpiEnableAllWakeupGpes (
     void))
 
 ACPI_HW_DEPENDENT_RETURN_STATUS (
@@ -1052,14 +1265,8 @@ AcpiLeaveSleepState (
 ACPI_HW_DEPENDENT_RETURN_STATUS (
 ACPI_STATUS
 AcpiSetFirmwareWakingVector (
-    UINT32                  PhysicalAddress))
-
-#if ACPI_MACHINE_WIDTH == 64
-ACPI_HW_DEPENDENT_RETURN_STATUS (
-ACPI_STATUS
-AcpiSetFirmwareWakingVector64 (
-    UINT64                  PhysicalAddress))
-#endif
+    ACPI_PHYSICAL_ADDRESS   PhysicalAddress,
+    ACPI_PHYSICAL_ADDRESS   PhysicalAddress64))
 
 
 /*
@@ -1115,11 +1322,9 @@ AcpiWarning (
     ...))
 
 ACPI_MSG_DEPENDENT_RETURN_VOID (
-ACPI_PRINTF_LIKE(3)
+ACPI_PRINTF_LIKE(1)
 void ACPI_INTERNAL_VAR_XFACE
 AcpiInfo (
-    const char              *ModuleName,
-    UINT32                  LineNumber,
     const char              *Format,
     ...))
 
@@ -1169,11 +1374,28 @@ AcpiDebugPrintRaw (
     const char              *Format,
     ...))
 
-ACPI_APP_DEPENDENT_RETURN_VOID (
-ACPI_PRINTF_LIKE(1)
-void ACPI_INTERNAL_VAR_XFACE
-AcpiLogError (
-    const char              *Format,
-    ...))
+ACPI_DBG_DEPENDENT_RETURN_VOID (
+void
+AcpiTracePoint (
+    ACPI_TRACE_EVENT_TYPE   Type,
+    BOOLEAN                 Begin,
+    UINT8                   *Aml,
+    char                    *Pathname))
+
+ACPI_STATUS
+AcpiInitializeDebugger (
+    void);
+
+void
+AcpiTerminateDebugger (
+    void);
+
+void
+AcpiRunDebugger (
+    char                    *BatchBuffer);
+
+void
+AcpiSetDebuggerThreadId (
+    ACPI_THREAD_ID          ThreadId);
 
 #endif /* __ACXFACE_H__ */

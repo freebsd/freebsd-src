@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002, 2003, 2004, 2005 Jeffrey Roberson <jeff@FreeBSD.org>
  * Copyright (c) 2004, 2005 Bosko Milekic <bmilekic@FreeBSD.org>
  * All rights reserved.
@@ -48,8 +50,5 @@ int mtrash_ctor(void *mem, int size, void *arg, int flags);
 void mtrash_dtor(void *mem, int size, void *arg);
 int mtrash_init(void *mem, int size, int flags);
 void mtrash_fini(void *mem, int size);
-
-void uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item);
-void uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item);
 
 #endif /* VM_UMA_DBG_H */

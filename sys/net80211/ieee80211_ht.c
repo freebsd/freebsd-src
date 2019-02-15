@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -37,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/systm.h> 
 #include <sys/endian.h>
  
@@ -135,12 +138,10 @@ const struct ieee80211_mcs_rates ieee80211_htrates[IEEE80211_HTRATE_MAXSIZE] = {
 	{ 429, 477,  891,  990 },	/* MCS 76 */
 };
 
-#ifdef IEEE80211_AMPDU_AGE
 static	int ieee80211_ampdu_age = -1;	/* threshold for ampdu reorder q (ms) */
 SYSCTL_PROC(_net_wlan, OID_AUTO, ampdu_age, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_ampdu_age, 0, ieee80211_sysctl_msecs_ticks, "I",
 	"AMPDU max reorder age (ms)");
-#endif
 
 static	int ieee80211_recv_bar_ena = 1;
 SYSCTL_INT(_net_wlan, OID_AUTO, recv_bar, CTLFLAG_RW, &ieee80211_recv_bar_ena,
@@ -155,7 +156,7 @@ SYSCTL_PROC(_net_wlan, OID_AUTO, addba_backoff, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_addba_backoff, 0, ieee80211_sysctl_msecs_ticks, "I",
 	"ADDBA request backoff (ms)");
 static	int ieee80211_addba_maxtries = 3;/* max ADDBA requests before backoff */
-SYSCTL_INT(_net_wlan, OID_AUTO, addba_maxtries, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_INT(_net_wlan, OID_AUTO, addba_maxtries, CTLFLAG_RW,
 	&ieee80211_addba_maxtries, 0, "max ADDBA requests sent before backoff");
 
 static	int ieee80211_bar_timeout = -1;	/* timeout waiting for BAR response */
@@ -177,9 +178,7 @@ ieee80211_ht_init(void)
 	/*
 	 * Setup HT parameters that depends on the clock frequency.
 	 */
-#ifdef IEEE80211_AMPDU_AGE
 	ieee80211_ampdu_age = msecs_to_ticks(500);
-#endif
 	ieee80211_addba_timeout = msecs_to_ticks(250);
 	ieee80211_addba_backoff = msecs_to_ticks(10*1000);
 	ieee80211_bar_timeout = msecs_to_ticks(250);
@@ -296,6 +295,16 @@ ieee80211_ht_vattach(struct ieee80211vap *vap)
 		vap->iv_flags_ht |= IEEE80211_FHT_AMSDU_RX;
 		if (vap->iv_htcaps & IEEE80211_HTC_AMSDU)
 			vap->iv_flags_ht |= IEEE80211_FHT_AMSDU_TX;
+
+		if (vap->iv_htcaps & IEEE80211_HTCAP_TXSTBC)
+			vap->iv_flags_ht |= IEEE80211_FHT_STBC_TX;
+		if (vap->iv_htcaps & IEEE80211_HTCAP_RXSTBC)
+			vap->iv_flags_ht |= IEEE80211_FHT_STBC_RX;
+
+		if (vap->iv_htcaps & IEEE80211_HTCAP_LDPC)
+			vap->iv_flags_ht |= IEEE80211_FHT_LDPC_RX;
+		if (vap->iv_htcaps & IEEE80211_HTC_TXLDPC)
+			vap->iv_flags_ht |= IEEE80211_FHT_LDPC_TX;
 	}
 	/* NB: disable default legacy WDS, too many issues right now */
 	if (vap->iv_flags_ext & IEEE80211_FEXT_WDSLEGACY)
@@ -354,7 +363,6 @@ static struct printranges {
 static void
 ht_rateprint(struct ieee80211com *ic, enum ieee80211_phymode mode, int ratetype)
 {
-	struct ifnet *ifp = ic->ic_ifp;
 	int minrate, maxrate;
 	struct printranges *range;
 
@@ -369,12 +377,12 @@ ht_rateprint(struct ieee80211com *ic, enum ieee80211_phymode mode, int ratetype)
 		minrate = ht_getrate(ic, range->minmcs, mode, ratetype);
 		maxrate = ht_getrate(ic, range->maxmcs, mode, ratetype);
 		if (range->maxmcs) {
-			if_printf(ifp, "MCS %d-%d: %d%sMbps - %d%sMbps\n",
+			ic_printf(ic, "MCS %d-%d: %d%sMbps - %d%sMbps\n",
 			    range->minmcs, range->maxmcs,
 			    minrate/2, ((minrate & 0x1) != 0 ? ".5" : ""),
 			    maxrate/2, ((maxrate & 0x1) != 0 ? ".5" : ""));
 		} else {
-			if_printf(ifp, "MCS %d: %d%sMbps\n", range->minmcs,
+			ic_printf(ic, "MCS %d: %d%sMbps\n", range->minmcs,
 			    minrate/2, ((minrate & 0x1) != 0 ? ".5" : ""));
 		}
 	}
@@ -383,22 +391,21 @@ ht_rateprint(struct ieee80211com *ic, enum ieee80211_phymode mode, int ratetype)
 static void
 ht_announce(struct ieee80211com *ic, enum ieee80211_phymode mode)
 {
-	struct ifnet *ifp = ic->ic_ifp;
 	const char *modestr = ieee80211_phymode_name[mode];
 
-	if_printf(ifp, "%s MCS 20MHz\n", modestr);
+	ic_printf(ic, "%s MCS 20MHz\n", modestr);
 	ht_rateprint(ic, mode, 0);
 	if (ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20) {
-		if_printf(ifp, "%s MCS 20MHz SGI\n", modestr);
+		ic_printf(ic, "%s MCS 20MHz SGI\n", modestr);
 		ht_rateprint(ic, mode, 1);
 	}
 	if (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) {
-		if_printf(ifp, "%s MCS 40MHz:\n", modestr);
+		ic_printf(ic, "%s MCS 40MHz:\n", modestr);
 		ht_rateprint(ic, mode, 2);
 	}
 	if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) &&
 	    (ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40)) {
-		if_printf(ifp, "%s MCS 40MHz SGI:\n", modestr);
+		ic_printf(ic, "%s MCS 40MHz SGI:\n", modestr);
 		ht_rateprint(ic, mode, 3);
 	}
 }
@@ -406,30 +413,27 @@ ht_announce(struct ieee80211com *ic, enum ieee80211_phymode mode)
 void
 ieee80211_ht_announce(struct ieee80211com *ic)
 {
-	struct ifnet *ifp = ic->ic_ifp;
 
 	if (isset(ic->ic_modecaps, IEEE80211_MODE_11NA) ||
 	    isset(ic->ic_modecaps, IEEE80211_MODE_11NG))
-		if_printf(ifp, "%dT%dR\n", ic->ic_txstream, ic->ic_rxstream);
+		ic_printf(ic, "%dT%dR\n", ic->ic_txstream, ic->ic_rxstream);
 	if (isset(ic->ic_modecaps, IEEE80211_MODE_11NA))
 		ht_announce(ic, IEEE80211_MODE_11NA);
 	if (isset(ic->ic_modecaps, IEEE80211_MODE_11NG))
 		ht_announce(ic, IEEE80211_MODE_11NG);
 }
 
-static struct ieee80211_htrateset htrateset;
-
-const struct ieee80211_htrateset *
-ieee80211_get_suphtrates(struct ieee80211com *ic,
-    const struct ieee80211_channel *c)
+void
+ieee80211_init_suphtrates(struct ieee80211com *ic)
 {
 #define	ADDRATE(x)	do {						\
-	htrateset.rs_rates[htrateset.rs_nrates] = x;			\
-	htrateset.rs_nrates++;						\
+	htrateset->rs_rates[htrateset->rs_nrates] = x;			\
+	htrateset->rs_nrates++;						\
 } while (0)
+	struct ieee80211_htrateset *htrateset = &ic->ic_sup_htrates;
 	int i;
 
-	memset(&htrateset, 0, sizeof(struct ieee80211_htrateset));
+	memset(htrateset, 0, sizeof(struct ieee80211_htrateset));
 	for (i = 0; i < ic->ic_txstream * 8; i++)
 		ADDRATE(i);
 	if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) &&
@@ -449,7 +453,6 @@ ieee80211_get_suphtrates(struct ieee80211com *ic,
 				ADDRATE(i);
 		}
 	}
-	return &htrateset;
 #undef	ADDRATE
 }
 
@@ -512,23 +515,67 @@ ieee80211_decap_amsdu(struct ieee80211_node *ni, struct mbuf *m)
 }
 
 /*
+ * Add the given frame to the current RX reorder slot.
+ *
+ * For future offloaded A-MSDU handling where multiple frames with
+ * the same sequence number show up here, this routine will append
+ * those frames as long as they're appropriately tagged.
+ */
+static int
+ampdu_rx_add_slot(struct ieee80211_rx_ampdu *rap, int off, int tid,
+    ieee80211_seq rxseq,
+    struct ieee80211_node *ni,
+    struct mbuf *m)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+
+	if (rap->rxa_m[off] == NULL) {
+		rap->rxa_m[off] = m;
+		rap->rxa_qframes++;
+		rap->rxa_qbytes += m->m_pkthdr.len;
+		vap->iv_stats.is_ampdu_rx_reorder++;
+		return (0);
+	} else {
+		IEEE80211_DISCARD_MAC(vap,
+		    IEEE80211_MSG_INPUT | IEEE80211_MSG_11N,
+		    ni->ni_macaddr, "a-mpdu duplicate",
+		    "seqno %u tid %u BA win <%u:%u>",
+		    rxseq, tid, rap->rxa_start,
+		    IEEE80211_SEQ_ADD(rap->rxa_start, rap->rxa_wnd-1));
+		vap->iv_stats.is_rx_dup++;
+		IEEE80211_NODE_STAT(ni, rx_dup);
+		m_freem(m);
+		return (-1);
+	}
+}
+
+static void
+ampdu_rx_purge_slot(struct ieee80211_rx_ampdu *rap, int i)
+{
+	struct mbuf *m;
+
+	m = rap->rxa_m[i];
+	if (m == NULL)
+		return;
+
+	rap->rxa_m[i] = NULL;
+	rap->rxa_qbytes -= m->m_pkthdr.len;
+	rap->rxa_qframes--;
+	m_freem(m);
+}
+
+/*
  * Purge all frames in the A-MPDU re-order queue.
  */
 static void
 ampdu_rx_purge(struct ieee80211_rx_ampdu *rap)
 {
-	struct mbuf *m;
 	int i;
 
 	for (i = 0; i < rap->rxa_wnd; i++) {
-		m = rap->rxa_m[i];
-		if (m != NULL) {
-			rap->rxa_m[i] = NULL;
-			rap->rxa_qbytes -= m->m_pkthdr.len;
-			m_freem(m);
-			if (--rap->rxa_qframes == 0)
-				break;
-		}
+		ampdu_rx_purge_slot(rap, i);
+		if (rap->rxa_qframes == 0)
+			break;
 	}
 	KASSERT(rap->rxa_qbytes == 0 && rap->rxa_qframes == 0,
 	    ("lost %u data, %u frames on ampdu rx q",
@@ -561,6 +608,62 @@ ampdu_rx_start(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap,
 }
 
 /*
+ * Public function; manually setup the RX ampdu state.
+ */
+int
+ieee80211_ampdu_rx_start_ext(struct ieee80211_node *ni, int tid, int seq, int baw)
+{
+	struct ieee80211_rx_ampdu *rap;
+
+	/* XXX TODO: sanity check tid, seq, baw */
+
+	rap = &ni->ni_rx_ampdu[tid];
+
+	if (rap->rxa_flags & IEEE80211_AGGR_RUNNING) {
+		/*
+		 * AMPDU previously setup and not terminated with a DELBA,
+		 * flush the reorder q's in case anything remains.
+		 */
+		ampdu_rx_purge(rap);
+	}
+
+	memset(rap, 0, sizeof(*rap));
+	rap->rxa_wnd = (baw== 0) ?
+	    IEEE80211_AGGR_BAWMAX : min(baw, IEEE80211_AGGR_BAWMAX);
+	if (seq == -1) {
+		/* Wait for the first RX frame, use that as BAW */
+		rap->rxa_start = 0;
+		rap->rxa_flags |= IEEE80211_AGGR_WAITRX;
+	} else {
+		rap->rxa_start = seq;
+	}
+	rap->rxa_flags |=  IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_XCHGPEND;
+
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N, ni,
+	    "%s: tid=%d, start=%d, wnd=%d, flags=0x%08x",
+	    __func__,
+	    tid,
+	    seq,
+	    rap->rxa_wnd,
+	    rap->rxa_flags);
+
+	return 0;
+}
+
+/*
+ * Public function; manually stop the RX AMPDU state.
+ */
+void
+ieee80211_ampdu_rx_stop_ext(struct ieee80211_node *ni, int tid)
+{
+	struct ieee80211_rx_ampdu *rap;
+
+	/* XXX TODO: sanity check tid, seq, baw */
+	rap = &ni->ni_rx_ampdu[tid];
+	ampdu_rx_stop(ni, rap);
+}
+
+/*
  * Stop A-MPDU rx processing for the specified TID.
  */
 static void
@@ -568,7 +671,9 @@ ampdu_rx_stop(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap)
 {
 
 	ampdu_rx_purge(rap);
-	rap->rxa_flags &= ~(IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_XCHGPEND);
+	rap->rxa_flags &= ~(IEEE80211_AGGR_RUNNING
+	    | IEEE80211_AGGR_XCHGPEND
+	    | IEEE80211_AGGR_WAITRX);
 }
 
 /*
@@ -585,131 +690,42 @@ ampdu_dispatch(struct ieee80211_node *ni, struct mbuf *m)
 	(void) ieee80211_input(ni, m, 0, 0);
 }
 
-/*
- * Dispatch as many frames as possible from the re-order queue.
- * Frames will always be "at the front"; we process all frames
- * up to the first empty slot in the window.  On completion we
- * cleanup state if there are still pending frames in the current
- * BA window.  We assume the frame at slot 0 is already handled
- * by the caller; we always start at slot 1.
- */
-static void
-ampdu_rx_dispatch(struct ieee80211_rx_ampdu *rap, struct ieee80211_node *ni)
+static int
+ampdu_dispatch_slot(struct ieee80211_rx_ampdu *rap, struct ieee80211_node *ni,
+    int i)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
 	struct mbuf *m;
-	int i;
 
-	/* flush run of frames */
-	for (i = 1; i < rap->rxa_wnd; i++) {
-		m = rap->rxa_m[i];
-		if (m == NULL)
-			break;
-		rap->rxa_m[i] = NULL;
-		rap->rxa_qbytes -= m->m_pkthdr.len;
-		rap->rxa_qframes--;
+	if (rap->rxa_m[i] == NULL)
+		return (0);
 
-		ampdu_dispatch(ni, m);
-	}
-	/*
-	 * If frames remain, copy the mbuf pointers down so
-	 * they correspond to the offsets in the new window.
-	 */
-	if (rap->rxa_qframes != 0) {
-		int n = rap->rxa_qframes, j;
-		for (j = i+1; j < rap->rxa_wnd; j++) {
-			if (rap->rxa_m[j] != NULL) {
-				rap->rxa_m[j-i] = rap->rxa_m[j];
-				rap->rxa_m[j] = NULL;
-				if (--n == 0)
-					break;
-			}
-		}
-		KASSERT(n == 0, ("lost %d frames", n));
-		vap->iv_stats.is_ampdu_rx_copy += rap->rxa_qframes;
-	}
-	/*
-	 * Adjust the start of the BA window to
-	 * reflect the frames just dispatched.
-	 */
-	rap->rxa_start = IEEE80211_SEQ_ADD(rap->rxa_start, i);
-	vap->iv_stats.is_ampdu_rx_oor += i;
+	m = rap->rxa_m[i];
+	rap->rxa_m[i] = NULL;
+	rap->rxa_qbytes -= m->m_pkthdr.len;
+	rap->rxa_qframes--;
+
+	ampdu_dispatch(ni, m);
+
+	return (1);
 }
 
-#ifdef IEEE80211_AMPDU_AGE
-/*
- * Dispatch all frames in the A-MPDU re-order queue.
- */
 static void
-ampdu_rx_flush(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap)
+ampdu_rx_moveup(struct ieee80211_rx_ampdu *rap, struct ieee80211_node *ni,
+    int i, int winstart)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct mbuf *m;
-	int i;
 
-	for (i = 0; i < rap->rxa_wnd; i++) {
-		m = rap->rxa_m[i];
-		if (m == NULL)
-			continue;
-		rap->rxa_m[i] = NULL;
-		rap->rxa_qbytes -= m->m_pkthdr.len;
-		rap->rxa_qframes--;
-		vap->iv_stats.is_ampdu_rx_oor++;
-
-		ampdu_dispatch(ni, m);
-		if (rap->rxa_qframes == 0)
-			break;
-	}
-}
-#endif /* IEEE80211_AMPDU_AGE */
-
-/*
- * Dispatch all frames in the A-MPDU re-order queue
- * preceding the specified sequence number.  This logic
- * handles window moves due to a received MSDU or BAR.
- */
-static void
-ampdu_rx_flush_upto(struct ieee80211_node *ni,
-	struct ieee80211_rx_ampdu *rap, ieee80211_seq winstart)
-{
-	struct ieee80211vap *vap = ni->ni_vap;
-	struct mbuf *m;
-	ieee80211_seq seqno;
-	int i;
-
-	/*
-	 * Flush any complete MSDU's with a sequence number lower
-	 * than winstart.  Gaps may exist.  Note that we may actually
-	 * dispatch frames past winstart if a run continues; this is
-	 * an optimization that avoids having to do a separate pass
-	 * to dispatch frames after moving the BA window start.
-	 */
-	seqno = rap->rxa_start;
-	for (i = 0; i < rap->rxa_wnd; i++) {
-		m = rap->rxa_m[i];
-		if (m != NULL) {
-			rap->rxa_m[i] = NULL;
-			rap->rxa_qbytes -= m->m_pkthdr.len;
-			rap->rxa_qframes--;
-			vap->iv_stats.is_ampdu_rx_oor++;
-
-			ampdu_dispatch(ni, m);
-		} else {
-			if (!IEEE80211_SEQ_BA_BEFORE(seqno, winstart))
-				break;
-		}
-		seqno = IEEE80211_SEQ_INC(seqno);
-	}
-	/*
-	 * If frames remain, copy the mbuf pointers down so
-	 * they correspond to the offsets in the new window.
-	 */
 	if (rap->rxa_qframes != 0) {
 		int n = rap->rxa_qframes, j;
 
-		/* NB: this loop assumes i > 0 and/or rxa_m[0] is NULL */
-		KASSERT(rap->rxa_m[0] == NULL,
-		    ("%s: BA window slot 0 occupied", __func__));
+		if (winstart != -1) {
+			/*
+			 * NB: in window-sliding mode, loop assumes i > 0
+			 * and/or rxa_m[0] is NULL
+			 */
+			KASSERT(rap->rxa_m[0] == NULL,
+			    ("%s: BA window slot 0 occupied", __func__));
+		}
 		for (j = i+1; j < rap->rxa_wnd; j++) {
 			if (rap->rxa_m[j] != NULL) {
 				rap->rxa_m[j-i] = rap->rxa_m[j];
@@ -725,6 +741,98 @@ ampdu_rx_flush_upto(struct ieee80211_node *ni,
 		    winstart));
 		vap->iv_stats.is_ampdu_rx_copy += rap->rxa_qframes;
 	}
+}
+
+/*
+ * Dispatch as many frames as possible from the re-order queue.
+ * Frames will always be "at the front"; we process all frames
+ * up to the first empty slot in the window.  On completion we
+ * cleanup state if there are still pending frames in the current
+ * BA window.  We assume the frame at slot 0 is already handled
+ * by the caller; we always start at slot 1.
+ */
+static void
+ampdu_rx_dispatch(struct ieee80211_rx_ampdu *rap, struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	int i;
+
+	/* flush run of frames */
+	for (i = 1; i < rap->rxa_wnd; i++) {
+		if (ampdu_dispatch_slot(rap, ni, i) == 0)
+			break;
+	}
+
+	/*
+	 * If frames remain, copy the mbuf pointers down so
+	 * they correspond to the offsets in the new window.
+	 */
+	ampdu_rx_moveup(rap, ni, i, -1);
+
+	/*
+	 * Adjust the start of the BA window to
+	 * reflect the frames just dispatched.
+	 */
+	rap->rxa_start = IEEE80211_SEQ_ADD(rap->rxa_start, i);
+	vap->iv_stats.is_ampdu_rx_oor += i;
+}
+
+/*
+ * Dispatch all frames in the A-MPDU re-order queue.
+ */
+static void
+ampdu_rx_flush(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	int i, r;
+
+	for (i = 0; i < rap->rxa_wnd; i++) {
+		r = ampdu_dispatch_slot(rap, ni, i);
+		if (r == 0)
+			continue;
+		vap->iv_stats.is_ampdu_rx_oor += r;
+
+		if (rap->rxa_qframes == 0)
+			break;
+	}
+}
+
+/*
+ * Dispatch all frames in the A-MPDU re-order queue
+ * preceding the specified sequence number.  This logic
+ * handles window moves due to a received MSDU or BAR.
+ */
+static void
+ampdu_rx_flush_upto(struct ieee80211_node *ni,
+	struct ieee80211_rx_ampdu *rap, ieee80211_seq winstart)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	ieee80211_seq seqno;
+	int i, r;
+
+	/*
+	 * Flush any complete MSDU's with a sequence number lower
+	 * than winstart.  Gaps may exist.  Note that we may actually
+	 * dispatch frames past winstart if a run continues; this is
+	 * an optimization that avoids having to do a separate pass
+	 * to dispatch frames after moving the BA window start.
+	 */
+	seqno = rap->rxa_start;
+	for (i = 0; i < rap->rxa_wnd; i++) {
+		r = ampdu_dispatch_slot(rap, ni, i);
+		if (r == 0) {
+			if (!IEEE80211_SEQ_BA_BEFORE(seqno, winstart))
+				break;
+		}
+		vap->iv_stats.is_ampdu_rx_oor += r;
+		seqno = IEEE80211_SEQ_INC(seqno);
+	}
+	/*
+	 * If frames remain, copy the mbuf pointers down so
+	 * they correspond to the offsets in the new window.
+	 */
+	ampdu_rx_moveup(rap, ni, i, winstart);
+
 	/*
 	 * Move the start of the BA window; we use the
 	 * sequence number of the last MSDU that was
@@ -743,10 +851,9 @@ ampdu_rx_flush_upto(struct ieee80211_node *ni,
  * the frame should be processed normally by the caller.
  */
 int
-ieee80211_ampdu_reorder(struct ieee80211_node *ni, struct mbuf *m)
+ieee80211_ampdu_reorder(struct ieee80211_node *ni, struct mbuf *m,
+    const struct ieee80211_rx_stats *rxs)
 {
-#define	IEEE80211_FC0_QOSDATA \
-	(IEEE80211_FC0_TYPE_DATA|IEEE80211_FC0_SUBTYPE_QOS|IEEE80211_FC0_VERSION_0)
 #define	PROCESS		0	/* caller should process frame */
 #define	CONSUMED	1	/* frame consumed, caller does nothing */
 	struct ieee80211vap *vap = ni->ni_vap;
@@ -769,6 +876,16 @@ ieee80211_ampdu_reorder(struct ieee80211_node *ni, struct mbuf *m)
 		 */
 		return PROCESS;
 	}
+
+	/*
+	 * 802.11-2012 9.3.2.10 - Duplicate detection and recovery.
+	 *
+	 * Multicast QoS data frames are checked against a different
+	 * counter, not the per-TID counter.
+	 */
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+		return PROCESS;
+
 	if (IEEE80211_IS_DSTODS(wh))
 		tid = ((struct ieee80211_qosframe_addr4 *)wh)->i_qos[0];
 	else
@@ -797,6 +914,16 @@ ieee80211_ampdu_reorder(struct ieee80211_node *ni, struct mbuf *m)
 	}
 	rxseq >>= IEEE80211_SEQ_SEQ_SHIFT;
 	rap->rxa_nframes++;
+
+	/*
+	 * Handle waiting for the first frame to define the BAW.
+	 * Some firmware doesn't provide the RX of the starting point
+	 * of the BAW and we have to cope.
+	 */
+	if (rap->rxa_flags & IEEE80211_AGGR_WAITRX) {
+		rap->rxa_flags &= ~IEEE80211_AGGR_WAITRX;
+		rap->rxa_start = rxseq;
+	}
 again:
 	if (rxseq == rap->rxa_start) {
 		/*
@@ -829,7 +956,7 @@ again:
 		 * Common case (hopefully): in the BA window.
 		 * Sec 9.10.7.6.2 a) (p.137)
 		 */
-#ifdef IEEE80211_AMPDU_AGE
+
 		/* 
 		 * Check for frames sitting too long in the reorder queue.
 		 * This should only ever happen if frames are not delivered
@@ -868,24 +995,10 @@ again:
 			 */
 			rap->rxa_age = ticks;
 		}
-#endif /* IEEE80211_AMPDU_AGE */
-		/* save packet */
-		if (rap->rxa_m[off] == NULL) {
-			rap->rxa_m[off] = m;
-			rap->rxa_qframes++;
-			rap->rxa_qbytes += m->m_pkthdr.len;
-			vap->iv_stats.is_ampdu_rx_reorder++;
-		} else {
-			IEEE80211_DISCARD_MAC(vap,
-			    IEEE80211_MSG_INPUT | IEEE80211_MSG_11N,
-			    ni->ni_macaddr, "a-mpdu duplicate",
-			    "seqno %u tid %u BA win <%u:%u>",
-			    rxseq, tid, rap->rxa_start,
-			    IEEE80211_SEQ_ADD(rap->rxa_start, rap->rxa_wnd-1));
-			vap->iv_stats.is_rx_dup++;
-			IEEE80211_NODE_STAT(ni, rx_dup);
-			m_freem(m);
-		}
+
+		/* save packet - this consumes, no matter what */
+		ampdu_rx_add_slot(rap, off, tid, rxseq, ni, m);
+
 		return CONSUMED;
 	}
 	if (off < IEEE80211_SEQ_BA_RANGE) {
@@ -932,7 +1045,6 @@ again:
 	}
 #undef CONSUMED
 #undef PROCESS
-#undef IEEE80211_FC0_QOSDATA
 }
 
 /*
@@ -1028,8 +1140,9 @@ ieee80211_ht_node_init(struct ieee80211_node *ni)
 
 	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
 	    ni,
-	    "%s: called",
-	    __func__);
+	    "%s: called (%p)",
+	    __func__,
+	    ni);
 
 	if (ni->ni_flags & IEEE80211_NODE_HT) {
 		/*
@@ -1039,14 +1152,15 @@ ieee80211_ht_node_init(struct ieee80211_node *ni)
 		 */
 		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
 		    ni,
-		    "%s: calling cleanup",
-		    __func__);
+		    "%s: calling cleanup (%p)",
+		    __func__, ni);
 		ieee80211_ht_node_cleanup(ni);
 	}
 	for (tid = 0; tid < WME_NUM_TID; tid++) {
 		tap = &ni->ni_tx_ampdu[tid];
 		tap->txa_tid = tid;
 		tap->txa_ni = ni;
+		ieee80211_txampdu_init_pps(tap);
 		/* NB: further initialization deferred */
 	}
 	ni->ni_flags |= IEEE80211_NODE_HT | IEEE80211_NODE_AMPDU;
@@ -1064,8 +1178,8 @@ ieee80211_ht_node_cleanup(struct ieee80211_node *ni)
 
 	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
 	    ni,
-	    "%s: called",
-	    __func__);
+	    "%s: called (%p)",
+	    __func__, ni);
 
 	KASSERT(ni->ni_flags & IEEE80211_NODE_HT, ("not an HT node"));
 
@@ -1088,14 +1202,11 @@ ieee80211_ht_node_cleanup(struct ieee80211_node *ni)
 void
 ieee80211_ht_node_age(struct ieee80211_node *ni)
 {
-#ifdef IEEE80211_AMPDU_AGE
 	struct ieee80211vap *vap = ni->ni_vap;
 	uint8_t tid;
-#endif
 
 	KASSERT(ni->ni_flags & IEEE80211_NODE_HT, ("not an HT sta"));
 
-#ifdef IEEE80211_AMPDU_AGE
 	for (tid = 0; tid < WME_NUM_TID; tid++) {
 		struct ieee80211_rx_ampdu *rap;
 
@@ -1118,7 +1229,6 @@ ieee80211_ht_node_age(struct ieee80211_node *ni)
 			ampdu_rx_flush(ni, rap);
 		}
 	}
-#endif /* IEEE80211_AMPDU_AGE */
 }
 
 static struct ieee80211_channel *
@@ -1216,6 +1326,7 @@ ieee80211_ht_wds_init(struct ieee80211_node *ni)
 	for (tid = 0; tid < WME_NUM_TID; tid++) {
 		tap = &ni->ni_tx_ampdu[tid];
 		tap->txa_tid = tid;
+		ieee80211_txampdu_init_pps(tap);
 	}
 	/* NB: AMPDU tx/rx governed by IEEE80211_FHT_AMPDU_{TX,RX} */
 	ni->ni_flags |= IEEE80211_NODE_HT | IEEE80211_NODE_AMPDU;
@@ -1369,7 +1480,7 @@ ieee80211_ht_timeout(struct ieee80211com *ic)
 	IEEE80211_LOCK_ASSERT(ic);
 
 	if ((ic->ic_flags_ht & IEEE80211_FHT_NONHT_PR) &&
-	    time_after(ticks, ic->ic_lastnonht + IEEE80211_NONHT_PRESENT_AGE)) {
+	    ieee80211_time_after(ticks, ic->ic_lastnonht + IEEE80211_NONHT_PRESENT_AGE)) {
 #if 0
 		IEEE80211_NOTE(vap, IEEE80211_MSG_11N, ni,
 		    "%s", "time out non-HT STA present on channel");
@@ -1378,12 +1489,6 @@ ieee80211_ht_timeout(struct ieee80211com *ic)
 		htinfo_update(ic);
 	}
 }
-
-/* unalligned little endian access */     
-#define LE_READ_2(p)					\
-	((uint16_t)					\
-	 ((((const uint8_t *)(p))[0]      ) |		\
-	  (((const uint8_t *)(p))[1] <<  8)))
 
 /*
  * Process an 802.11n HT capabilities ie.
@@ -1402,7 +1507,7 @@ ieee80211_parse_htcap(struct ieee80211_node *ni, const uint8_t *ie)
 	} else
 		ni->ni_flags &= ~IEEE80211_NODE_HTCOMPAT;
 
-	ni->ni_htcap = LE_READ_2(ie +
+	ni->ni_htcap = le16dec(ie +
 		__offsetof(struct ieee80211_ie_htcap, hc_cap));
 	ni->ni_htparam = ie[__offsetof(struct ieee80211_ie_htcap, hc_param)];
 }
@@ -1415,9 +1520,9 @@ htinfo_parse(struct ieee80211_node *ni,
 
 	ni->ni_htctlchan = htinfo->hi_ctrlchannel;
 	ni->ni_ht2ndchan = SM(htinfo->hi_byte1, IEEE80211_HTINFO_2NDCHAN);
-	w = LE_READ_2(&htinfo->hi_byte2);
+	w = le16dec(&htinfo->hi_byte2);
 	ni->ni_htopmode = SM(w, IEEE80211_HTINFO_OPMODE);
-	w = LE_READ_2(&htinfo->hi_byte45);
+	w = le16dec(&htinfo->hi_byte45);
 	ni->ni_htstbc = SM(w, IEEE80211_HTINFO_BASIC_STBCMCS);
 }
 
@@ -1435,52 +1540,117 @@ ieee80211_parse_htinfo(struct ieee80211_node *ni, const uint8_t *ie)
 }
 
 /*
- * Handle 11n channel switch.  Use the received HT ie's to
- * identify the right channel to use.  If we cannot locate it
- * in the channel table then fallback to legacy operation.
+ * Handle 11n/11ac channel switch.
+ *
+ * Use the received HT/VHT ie's to identify the right channel to use.
+ * If we cannot locate it in the channel table then fallback to
+ * legacy operation.
+ *
  * Note that we use this information to identify the node's
  * channel only; the caller is responsible for insuring any
  * required channel change is done (e.g. in sta mode when
  * parsing the contents of a beacon frame).
  */
 static int
-htinfo_update_chw(struct ieee80211_node *ni, int htflags)
+htinfo_update_chw(struct ieee80211_node *ni, int htflags, int vhtflags)
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_channel *c;
 	int chanflags;
 	int ret = 0;
 
-	chanflags = (ni->ni_chan->ic_flags &~ IEEE80211_CHAN_HT) | htflags;
-	if (chanflags != ni->ni_chan->ic_flags) {
-		/* XXX not right for ht40- */
-		c = ieee80211_find_channel(ic, ni->ni_chan->ic_freq, chanflags);
-		if (c == NULL && (htflags & IEEE80211_CHAN_HT40)) {
-			/*
-			 * No HT40 channel entry in our table; fall back
-			 * to HT20 operation.  This should not happen.
-			 */
-			c = findhtchan(ic, ni->ni_chan, IEEE80211_CHAN_HT20);
+	/*
+	 * First step - do HT/VHT only channel lookup based on operating mode
+	 * flags.  This involves masking out the VHT flags as well.
+	 * Otherwise we end up doing the full channel walk each time
+	 * we trigger this, which is expensive.
+	 */
+	chanflags = (ni->ni_chan->ic_flags &~
+	    (IEEE80211_CHAN_HT | IEEE80211_CHAN_VHT)) | htflags | vhtflags;
+
+	if (chanflags == ni->ni_chan->ic_flags)
+		goto done;
+
+	/*
+	 * If HT /or/ VHT flags have changed then check both.
+	 * We need to start by picking a HT channel anyway.
+	 */
+
+	c = NULL;
+	chanflags = (ni->ni_chan->ic_flags &~
+	    (IEEE80211_CHAN_HT | IEEE80211_CHAN_VHT)) | htflags;
+	/* XXX not right for ht40- */
+	c = ieee80211_find_channel(ic, ni->ni_chan->ic_freq, chanflags);
+	if (c == NULL && (htflags & IEEE80211_CHAN_HT40)) {
+		/*
+		 * No HT40 channel entry in our table; fall back
+		 * to HT20 operation.  This should not happen.
+		 */
+		c = findhtchan(ic, ni->ni_chan, IEEE80211_CHAN_HT20);
 #if 0
-			IEEE80211_NOTE(ni->ni_vap,
-			    IEEE80211_MSG_ASSOC | IEEE80211_MSG_11N, ni,
-			    "no HT40 channel (freq %u), falling back to HT20",
-			    ni->ni_chan->ic_freq);
+		IEEE80211_NOTE(ni->ni_vap,
+		    IEEE80211_MSG_ASSOC | IEEE80211_MSG_11N, ni,
+		    "no HT40 channel (freq %u), falling back to HT20",
+		    ni->ni_chan->ic_freq);
 #endif
-			/* XXX stat */
-		}
-		if (c != NULL && c != ni->ni_chan) {
-			IEEE80211_NOTE(ni->ni_vap,
-			    IEEE80211_MSG_ASSOC | IEEE80211_MSG_11N, ni,
-			    "switch station to HT%d channel %u/0x%x",
-			    IEEE80211_IS_CHAN_HT40(c) ? 40 : 20,
-			    c->ic_freq, c->ic_flags);
-			ni->ni_chan = c;
-			ret = 1;
-		}
-		/* NB: caller responsible for forcing any channel change */
+		/* XXX stat */
 	}
-	/* update node's tx channel width */
+
+	/* Nothing found - leave it alone; move onto VHT */
+	if (c == NULL)
+		c = ni->ni_chan;
+
+	/*
+	 * If it's non-HT, then bail out now.
+	 */
+	if (! IEEE80211_IS_CHAN_HT(c)) {
+		IEEE80211_NOTE(ni->ni_vap,
+		    IEEE80211_MSG_ASSOC | IEEE80211_MSG_11N, ni,
+		    "not HT; skipping VHT check (%u/0x%x)",
+		    c->ic_freq, c->ic_flags);
+		goto done;
+	}
+
+	/*
+	 * Next step - look at the current VHT flags and determine
+	 * if we need to upgrade.  Mask out the VHT and HT flags since
+	 * the vhtflags field will already have the correct HT
+	 * flags to use.
+	 */
+	if (IEEE80211_CONF_VHT(ic) && ni->ni_vhtcap != 0 && vhtflags != 0) {
+		chanflags = (c->ic_flags
+		    &~ (IEEE80211_CHAN_HT | IEEE80211_CHAN_VHT))
+		    | vhtflags;
+		IEEE80211_NOTE(ni->ni_vap,
+		    IEEE80211_MSG_ASSOC | IEEE80211_MSG_11N,
+		    ni,
+		    "%s: VHT; chanwidth=0x%02x; vhtflags=0x%08x",
+		    __func__, ni->ni_vht_chanwidth, vhtflags);
+
+		IEEE80211_NOTE(ni->ni_vap,
+		    IEEE80211_MSG_ASSOC | IEEE80211_MSG_11N,
+		    ni,
+		    "%s: VHT; trying lookup for %d/0x%08x",
+		    __func__, c->ic_freq, chanflags);
+		c = ieee80211_find_channel(ic, c->ic_freq, chanflags);
+	}
+
+	/* Finally, if it's changed */
+	if (c != NULL && c != ni->ni_chan) {
+		IEEE80211_NOTE(ni->ni_vap,
+		    IEEE80211_MSG_ASSOC | IEEE80211_MSG_11N, ni,
+		    "switch station to %s%d channel %u/0x%x",
+		    IEEE80211_IS_CHAN_VHT(c) ? "VHT" : "HT",
+		    IEEE80211_IS_CHAN_VHT80(c) ? 80 :
+		      (IEEE80211_IS_CHAN_HT40(c) ? 40 : 20),
+		    c->ic_freq, c->ic_flags);
+		ni->ni_chan = c;
+		ret = 1;
+	}
+	/* NB: caller responsible for forcing any channel change */
+
+done:
+	/* update node's (11n) tx channel width */
 	ni->ni_chw = IEEE80211_IS_CHAN_HT40(ni->ni_chan)? 40 : 20;
 	return (ret);
 }
@@ -1530,30 +1700,155 @@ htcap_update_shortgi(struct ieee80211_node *ni)
 }
 
 /*
+ * Update LDPC state according to received htcap
+ * and local settings.
+ */
+static __inline void
+htcap_update_ldpc(struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+
+	if ((ni->ni_htcap & IEEE80211_HTCAP_LDPC) &&
+	    (vap->iv_flags_ht & IEEE80211_FHT_LDPC_TX))
+		ni->ni_flags |= IEEE80211_NODE_LDPC;
+}
+
+/*
  * Parse and update HT-related state extracted from
  * the HT cap and info ie's.
+ *
+ * This is called from the STA management path and
+ * the ieee80211_node_join() path.  It will take into
+ * account the IEs discovered during scanning and
+ * adjust things accordingly.
  */
-int
+void
 ieee80211_ht_updateparams(struct ieee80211_node *ni,
 	const uint8_t *htcapie, const uint8_t *htinfoie)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	const struct ieee80211_ie_htinfo *htinfo;
-	int htflags;
-	int ret = 0;
 
 	ieee80211_parse_htcap(ni, htcapie);
 	if (vap->iv_htcaps & IEEE80211_HTCAP_SMPS)
 		htcap_update_mimo_ps(ni);
 	htcap_update_shortgi(ni);
+	htcap_update_ldpc(ni);
 
 	if (htinfoie[0] == IEEE80211_ELEMID_VENDOR)
 		htinfoie += 4;
 	htinfo = (const struct ieee80211_ie_htinfo *) htinfoie;
 	htinfo_parse(ni, htinfo);
 
+	/*
+	 * Defer the node channel change; we need to now
+	 * update VHT parameters before we do it.
+	 */
+
+	if ((htinfo->hi_byte1 & IEEE80211_HTINFO_RIFSMODE_PERM) &&
+	    (vap->iv_flags_ht & IEEE80211_FHT_RIFS))
+		ni->ni_flags |= IEEE80211_NODE_RIFS;
+	else
+		ni->ni_flags &= ~IEEE80211_NODE_RIFS;
+}
+
+static uint32_t
+ieee80211_vht_get_vhtflags(struct ieee80211_node *ni, uint32_t htflags)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	uint32_t vhtflags = 0;
+
+	vhtflags = 0;
+	if (ni->ni_flags & IEEE80211_NODE_VHT && vap->iv_flags_vht & IEEE80211_FVHT_VHT) {
+		if ((ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_160MHZ) &&
+		    /* XXX 2 means "160MHz and 80+80MHz", 1 means "160MHz" */
+		    (MS(vap->iv_vhtcaps,
+		     IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) >= 1) &&
+		    (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT160)) {
+			vhtflags = IEEE80211_CHAN_VHT160;
+			/* Mirror the HT40 flags */
+			if (htflags == IEEE80211_CHAN_HT40U) {
+				vhtflags |= IEEE80211_CHAN_HT40U;
+			} else if (htflags == IEEE80211_CHAN_HT40D) {
+				vhtflags |= IEEE80211_CHAN_HT40D;
+			}
+		} else if ((ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_80P80MHZ) &&
+		    /* XXX 2 means "160MHz and 80+80MHz" */
+		    (MS(vap->iv_vhtcaps,
+		     IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) == 2) &&
+		    (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT80P80)) {
+			vhtflags = IEEE80211_CHAN_VHT80_80;
+			/* Mirror the HT40 flags */
+			if (htflags == IEEE80211_CHAN_HT40U) {
+				vhtflags |= IEEE80211_CHAN_HT40U;
+			} else if (htflags == IEEE80211_CHAN_HT40D) {
+				vhtflags |= IEEE80211_CHAN_HT40D;
+			}
+		} else if ((ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_80MHZ) &&
+		    (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT80)) {
+			vhtflags = IEEE80211_CHAN_VHT80;
+			/* Mirror the HT40 flags */
+			if (htflags == IEEE80211_CHAN_HT40U) {
+				vhtflags |= IEEE80211_CHAN_HT40U;
+			} else if (htflags == IEEE80211_CHAN_HT40D) {
+				vhtflags |= IEEE80211_CHAN_HT40D;
+			}
+		} else if (ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_USE_HT) {
+			/* Mirror the HT40 flags */
+			/*
+			 * XXX TODO: if ht40 is disabled, but vht40 isn't
+			 * disabled then this logic will get very, very sad.
+			 * It's quite possible the only sane thing to do is
+			 * to not have vht40 as an option, and just obey
+			 * 'ht40' as that flag.
+			 */
+			if ((htflags == IEEE80211_CHAN_HT40U) &&
+			    (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT40)) {
+				vhtflags = IEEE80211_CHAN_VHT40U
+				    | IEEE80211_CHAN_HT40U;
+			} else if (htflags == IEEE80211_CHAN_HT40D &&
+			    (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT40)) {
+				vhtflags = IEEE80211_CHAN_VHT40D
+				    | IEEE80211_CHAN_HT40D;
+			} else if (htflags == IEEE80211_CHAN_HT20) {
+				vhtflags = IEEE80211_CHAN_VHT20
+				    | IEEE80211_CHAN_HT20;
+			}
+		} else {
+			vhtflags = IEEE80211_CHAN_VHT20;
+		}
+	}
+	return (vhtflags);
+}
+
+/*
+ * Final part of updating the HT parameters.
+ *
+ * This is called from the STA management path and
+ * the ieee80211_node_join() path.  It will take into
+ * account the IEs discovered during scanning and
+ * adjust things accordingly.
+ *
+ * This is done after a call to ieee80211_ht_updateparams()
+ * because it (and the upcoming VHT version of updateparams)
+ * needs to ensure everything is parsed before htinfo_update_chw()
+ * is called - which will change the channel config for the
+ * node for us.
+ */
+int
+ieee80211_ht_updateparams_final(struct ieee80211_node *ni,
+	const uint8_t *htcapie, const uint8_t *htinfoie)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	const struct ieee80211_ie_htinfo *htinfo;
+	int htflags, vhtflags;
+	int ret = 0;
+
+	htinfo = (const struct ieee80211_ie_htinfo *) htinfoie;
+
 	htflags = (vap->iv_flags_ht & IEEE80211_FHT_HT) ?
 	    IEEE80211_CHAN_HT20 : 0;
+
 	/* NB: honor operating mode constraint */
 	if ((htinfo->hi_byte1 & IEEE80211_HTINFO_TXWIDTH_2040) &&
 	    (vap->iv_flags_ht & IEEE80211_FHT_USEHT40)) {
@@ -1562,14 +1857,16 @@ ieee80211_ht_updateparams(struct ieee80211_node *ni,
 		else if (ni->ni_ht2ndchan == IEEE80211_HTINFO_2NDCHAN_BELOW)
 			htflags = IEEE80211_CHAN_HT40D;
 	}
-	if (htinfo_update_chw(ni, htflags))
-		ret = 1;
 
-	if ((htinfo->hi_byte1 & IEEE80211_HTINFO_RIFSMODE_PERM) &&
-	    (vap->iv_flags_ht & IEEE80211_FHT_RIFS))
-		ni->ni_flags |= IEEE80211_NODE_RIFS;
-	else
-		ni->ni_flags &= ~IEEE80211_NODE_RIFS;
+	/*
+	 * VHT flags - do much the same; check whether VHT is available
+	 * and if so, what our ideal channel use would be based on our
+	 * capabilities and the (pre-parsed) VHT info IE.
+	 */
+	vhtflags = ieee80211_vht_get_vhtflags(ni, htflags);
+
+	if (htinfo_update_chw(ni, htflags, vhtflags))
+		ret = 1;
 
 	return (ret);
 }
@@ -1577,17 +1874,32 @@ ieee80211_ht_updateparams(struct ieee80211_node *ni,
 /*
  * Parse and update HT-related state extracted from the HT cap ie
  * for a station joining an HT BSS.
+ *
+ * This is called from the hostap path for each station.
  */
 void
 ieee80211_ht_updatehtcap(struct ieee80211_node *ni, const uint8_t *htcapie)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	int htflags;
 
 	ieee80211_parse_htcap(ni, htcapie);
 	if (vap->iv_htcaps & IEEE80211_HTCAP_SMPS)
 		htcap_update_mimo_ps(ni);
 	htcap_update_shortgi(ni);
+	htcap_update_ldpc(ni);
+}
+
+/*
+ * Called once HT and VHT capabilities are parsed in hostap mode -
+ * this will adjust the channel configuration of the given node
+ * based on the configuration and capabilities.
+ */
+void
+ieee80211_ht_updatehtcap_final(struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	int htflags;
+	int vhtflags;
 
 	/* NB: honor operating mode constraint */
 	/* XXX 40 MHz intolerant */
@@ -1600,7 +1912,14 @@ ieee80211_ht_updatehtcap(struct ieee80211_node *ni, const uint8_t *htcapie)
 		else if (IEEE80211_IS_CHAN_HT40D(vap->iv_bss->ni_chan))
 			htflags = IEEE80211_CHAN_HT40D;
 	}
-	(void) htinfo_update_chw(ni, htflags);
+	/*
+	 * VHT flags - do much the same; check whether VHT is available
+	 * and if so, what our ideal channel use would be based on our
+	 * capabilities and the (pre-parsed) VHT info IE.
+	 */
+	vhtflags = ieee80211_vht_get_vhtflags(ni, htflags);
+
+	(void) htinfo_update_chw(ni, htflags, vhtflags);
 }
 
 /*
@@ -1616,6 +1935,7 @@ ieee80211_setup_htrates(struct ieee80211_node *ni, const uint8_t *ie, int flags)
 	int i, maxequalmcs, maxunequalmcs;
 
 	maxequalmcs = ic->ic_txstream * 8 - 1;
+	maxunequalmcs = 0;
 	if (ic->ic_htcaps & IEEE80211_HTC_TXUNEQUAL) {
 		if (ic->ic_txstream >= 2)
 			maxunequalmcs = 38;
@@ -1623,8 +1943,7 @@ ieee80211_setup_htrates(struct ieee80211_node *ni, const uint8_t *ie, int flags)
 			maxunequalmcs = 52;
 		if (ic->ic_txstream >= 4)
 			maxunequalmcs = 76;
-	} else
-		maxunequalmcs = 0;
+	}
 
 	rs = &ni->ni_htrates;
 	memset(rs, 0, sizeof(*rs));
@@ -1689,8 +2008,9 @@ ieee80211_setup_basic_htrates(struct ieee80211_node *ni, const uint8_t *ie)
 static void
 ampdu_tx_setup(struct ieee80211_tx_ampdu *tap)
 {
-	callout_init(&tap->txa_timer, CALLOUT_MPSAFE);
+	callout_init(&tap->txa_timer, 1);
 	tap->txa_flags |= IEEE80211_AGGR_SETUP;
+	tap->txa_lastsample = ticks;
 }
 
 static void
@@ -1718,8 +2038,11 @@ ampdu_tx_stop(struct ieee80211_tx_ampdu *tap)
 	 */
 	bar_stop_timer(tap);
 
-	tap->txa_lastsample = 0;
-	tap->txa_avgpps = 0;
+	/*
+	 * Reset packet estimate.
+	 */
+	ieee80211_txampdu_init_pps(tap);
+
 	/* NB: clearing NAK means we may re-send ADDBA */ 
 	tap->txa_flags &= ~(IEEE80211_AGGR_SETUP | IEEE80211_AGGR_NAK);
 }
@@ -1792,6 +2115,55 @@ ieee80211_addba_request(struct ieee80211_node *ni,
 }
 
 /*
+ * Called by drivers that wish to request an ADDBA session be
+ * setup.  This brings it up and starts the request timer.
+ */
+int
+ieee80211_ampdu_tx_request_ext(struct ieee80211_node *ni, int tid)
+{
+	struct ieee80211_tx_ampdu *tap;
+
+	if (tid < 0 || tid > 15)
+		return (0);
+	tap = &ni->ni_tx_ampdu[tid];
+
+	/* XXX locking */
+	if ((tap->txa_flags & IEEE80211_AGGR_SETUP) == 0) {
+		/* do deferred setup of state */
+		ampdu_tx_setup(tap);
+	}
+	/* XXX hack for not doing proper locking */
+	tap->txa_flags &= ~IEEE80211_AGGR_NAK;
+	addba_start_timeout(tap);
+	return (1);
+}
+
+/*
+ * Called by drivers that have marked a session as active.
+ */
+int
+ieee80211_ampdu_tx_request_active_ext(struct ieee80211_node *ni, int tid,
+    int status)
+{
+	struct ieee80211_tx_ampdu *tap;
+
+	if (tid < 0 || tid > 15)
+		return (0);
+	tap = &ni->ni_tx_ampdu[tid];
+
+	/* XXX locking */
+	addba_stop_timeout(tap);
+	if (status == 1) {
+		tap->txa_flags |= IEEE80211_AGGR_RUNNING;
+		tap->txa_attempts = 0;
+	} else {
+		/* mark tid so we don't try again */
+		tap->txa_flags |= IEEE80211_AGGR_NAK;
+	}
+	return (1);
+}
+
+/*
  * Default method for processing an A-MPDU tx aggregation
  * response.  We shutdown any pending timer and update the
  * state block according to the reply.
@@ -1857,9 +2229,9 @@ ht_recv_action_ba_addba_request(struct ieee80211_node *ni,
 	int tid;
 
 	dialogtoken = frm[2];
-	baparamset = LE_READ_2(frm+3);
-	batimeout = LE_READ_2(frm+5);
-	baseqctl = LE_READ_2(frm+7);
+	baparamset = le16dec(frm+3);
+	batimeout = le16dec(frm+5);
+	baseqctl = le16dec(frm+7);
 
 	tid = MS(baparamset, IEEE80211_BAPS_TID);
 
@@ -1922,12 +2294,12 @@ ht_recv_action_ba_addba_response(struct ieee80211_node *ni,
 	int tid, bufsiz;
 
 	dialogtoken = frm[2];
-	code = LE_READ_2(frm+3);
-	baparamset = LE_READ_2(frm+5);
+	code = le16dec(frm+3);
+	baparamset = le16dec(frm+5);
 	tid = MS(baparamset, IEEE80211_BAPS_TID);
 	bufsiz = MS(baparamset, IEEE80211_BAPS_BUFSIZ);
 	policy = MS(baparamset, IEEE80211_BAPS_POLICY);
-	batimeout = LE_READ_2(frm+7);
+	batimeout = le16dec(frm+7);
 
 	tap = &ni->ni_tx_ampdu[tid];
 	if ((tap->txa_flags & IEEE80211_AGGR_XCHGPEND) == 0) {
@@ -1994,8 +2366,8 @@ ht_recv_action_ba_delba(struct ieee80211_node *ni,
 	uint16_t baparamset, code;
 	int tid;
 
-	baparamset = LE_READ_2(frm+2);
-	code = LE_READ_2(frm+4);
+	baparamset = le16dec(frm+2);
+	code = le16dec(frm+4);
 
 	tid = MS(baparamset, IEEE80211_DELBAPS_TID);
 
@@ -2027,6 +2399,7 @@ ht_recv_action_ht_txchwidth(struct ieee80211_node *ni,
 	    "%s: HT txchwidth, width %d%s",
 	    __func__, chw, ni->ni_chw != chw ? "*" : "");
 	if (chw != ni->ni_chw) {
+		/* XXX does this need to change the ht40 station count? */
 		ni->ni_chw = chw;
 		/* XXX notify on change */
 	}
@@ -2082,7 +2455,7 @@ ieee80211_ampdu_enable(struct ieee80211_node *ni,
 		return 0;
 	/* XXX check rssi? */
 	if (tap->txa_attempts >= ieee80211_addba_maxtries &&
-	    ticks < tap->txa_nextrequest) {
+	    ieee80211_time_after(ticks, tap->txa_nextrequest)) {
 		/*
 		 * Don't retry too often; txa_nextrequest is set
 		 * to the minimum interval we'll retry after
@@ -2091,9 +2464,9 @@ ieee80211_ampdu_enable(struct ieee80211_node *ni,
 		return 0;
 	}
 	IEEE80211_NOTE(vap, IEEE80211_MSG_11N, ni,
-	    "enable AMPDU on tid %d (%s), avgpps %d pkts %d",
+	    "enable AMPDU on tid %d (%s), avgpps %d pkts %d attempt %d",
 	    tap->txa_tid, ieee80211_wme_acnames[TID_TO_WME_AC(tap->txa_tid)],
-	    tap->txa_avgpps, tap->txa_pkts);
+	    tap->txa_avgpps, tap->txa_pkts, tap->txa_attempts);
 	return 1;
 }
 
@@ -2121,6 +2494,10 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 
 	dialogtoken = (tokens+1) % 63;		/* XXX */
 	tid = tap->txa_tid;
+
+	/*
+	 * XXX TODO: This is racy with any other parallel TX going on. :(
+	 */
 	tap->txa_start = ni->ni_txseqs[tid];
 
 	args[0] = dialogtoken;
@@ -2168,8 +2545,9 @@ ieee80211_ampdu_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	tap->txa_flags &= ~IEEE80211_AGGR_BARPEND;
 	if (IEEE80211_AMPDU_RUNNING(tap)) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N,
-		    ni, "%s: stop BA stream for TID %d (reason %d)",
-		    __func__, tap->txa_tid, reason);
+		    ni, "%s: stop BA stream for TID %d (reason: %d (%s))",
+		    __func__, tap->txa_tid, reason,
+		    ieee80211_reason_to_string(reason));
 		vap->iv_stats.is_ampdu_stop++;
 
 		ic->ic_addba_stop(ni, tap);
@@ -2180,8 +2558,9 @@ ieee80211_ampdu_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 			IEEE80211_ACTION_BA_DELBA, args);
 	} else {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N,
-		    ni, "%s: BA stream for TID %d not running (reason %d)",
-		    __func__, tap->txa_tid, reason);
+		    ni, "%s: BA stream for TID %d not running "
+		    "(reason: %d (%s))", __func__, tap->txa_tid, reason,
+		    ieee80211_reason_to_string(reason));
 		vap->iv_stats.is_ampdu_stop_failed++;
 	}
 }
@@ -2216,7 +2595,7 @@ bar_timeout(void *arg)
 		 * to make sure we notify the driver that a BAR
 		 * TX did occur and fail.  This gives the driver
 		 * a chance to undo any queue pause that may
-		 * have occured.
+		 * have occurred.
 		 */
 		ic->ic_bar_response(ni, tap, 1);
 		ieee80211_ampdu_stop(ni, tap, IEEE80211_REASON_TIMEOUT);
@@ -2509,8 +2888,8 @@ ht_send_action_ba_delba(struct ieee80211_node *ni,
 		   | args[1]
 		   ;
 	IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N, ni,
-	    "send DELBA action: tid %d, initiator %d reason %d",
-	    args[0], args[1], args[2]);
+	    "send DELBA action: tid %d, initiator %d reason %d (%s)",
+	    args[0], args[1], args[2], ieee80211_reason_to_string(args[2]));
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
 	    "ieee80211_ref_node (%s:%u) %p<%s> refcnt %d\n", __func__, __LINE__,
@@ -2655,9 +3034,31 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 			caps |= IEEE80211_HTCAP_CHWIDTH40;
 		else
 			caps &= ~IEEE80211_HTCAP_CHWIDTH40;
-		/* use advertised setting (XXX locally constraint) */
+
+		/* Start by using the advertised settings */
 		rxmax = MS(ni->ni_htparam, IEEE80211_HTCAP_MAXRXAMPDU);
 		density = MS(ni->ni_htparam, IEEE80211_HTCAP_MPDUDENSITY);
+
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_11N,
+		    "%s: advertised rxmax=%d, density=%d, vap rxmax=%d, density=%d\n",
+		    __func__,
+		    rxmax,
+		    density,
+		    vap->iv_ampdu_rxmax,
+		    vap->iv_ampdu_density);
+
+		/* Cap at VAP rxmax */
+		if (rxmax > vap->iv_ampdu_rxmax)
+			rxmax = vap->iv_ampdu_rxmax;
+
+		/*
+		 * If the VAP ampdu density value greater, use that.
+		 *
+		 * (Larger density value == larger minimum gap between A-MPDU
+		 * subframes.)
+		 */
+		if (vap->iv_ampdu_density > density)
+			density = vap->iv_ampdu_density;
 
 		/*
 		 * NB: Hardware might support HT40 on some but not all
@@ -2675,15 +3076,27 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 			caps |= IEEE80211_HTCAP_CHWIDTH40;
 		else
 			caps &= ~IEEE80211_HTCAP_CHWIDTH40;
+
+		/* XXX TODO should it start by using advertised settings? */
 		rxmax = vap->iv_ampdu_rxmax;
 		density = vap->iv_ampdu_density;
 	}
+
 	/* adjust short GI based on channel and config */
 	if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20) == 0)
 		caps &= ~IEEE80211_HTCAP_SHORTGI20;
 	if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40) == 0 ||
 	    (caps & IEEE80211_HTCAP_CHWIDTH40) == 0)
 		caps &= ~IEEE80211_HTCAP_SHORTGI40;
+
+	/* adjust STBC based on receive capabilities */
+	if ((vap->iv_flags_ht & IEEE80211_FHT_STBC_RX) == 0)
+		caps &= ~IEEE80211_HTCAP_RXSTBC;
+
+	/* adjust LDPC based on receive capabilites */
+	if ((vap->iv_flags_ht & IEEE80211_FHT_LDPC_RX) == 0)
+		caps &= ~IEEE80211_HTCAP_LDPC;
+
 	ADDSHORT(frm, caps);
 
 	/* HT parameters */
@@ -2729,6 +3142,96 @@ ieee80211_add_htcap(uint8_t *frm, struct ieee80211_node *ni)
 	frm[0] = IEEE80211_ELEMID_HTCAP;
 	frm[1] = sizeof(struct ieee80211_ie_htcap) - 2;
 	return ieee80211_add_htcap_body(frm + 2, ni);
+}
+
+/*
+ * Non-associated probe request - add HT capabilities based on
+ * the current channel configuration.
+ */
+static uint8_t *
+ieee80211_add_htcap_body_ch(uint8_t *frm, struct ieee80211vap *vap,
+    struct ieee80211_channel *c)
+{
+#define	ADDSHORT(frm, v) do {			\
+	frm[0] = (v) & 0xff;			\
+	frm[1] = (v) >> 8;			\
+	frm += 2;				\
+} while (0)
+	struct ieee80211com *ic = vap->iv_ic;
+	uint16_t caps, extcaps;
+	int rxmax, density;
+
+	/* HT capabilities */
+	caps = vap->iv_htcaps & 0xffff;
+
+	/*
+	 * We don't use this in STA mode; only in IBSS mode.
+	 * So in IBSS mode we base our HTCAP flags on the
+	 * given channel.
+	 */
+
+	/* override 20/40 use based on current channel */
+	if (IEEE80211_IS_CHAN_HT40(c))
+		caps |= IEEE80211_HTCAP_CHWIDTH40;
+	else
+		caps &= ~IEEE80211_HTCAP_CHWIDTH40;
+
+	/* Use the currently configured values */
+	rxmax = vap->iv_ampdu_rxmax;
+	density = vap->iv_ampdu_density;
+
+	/* adjust short GI based on channel and config */
+	if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20) == 0)
+		caps &= ~IEEE80211_HTCAP_SHORTGI20;
+	if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40) == 0 ||
+	    (caps & IEEE80211_HTCAP_CHWIDTH40) == 0)
+		caps &= ~IEEE80211_HTCAP_SHORTGI40;
+	ADDSHORT(frm, caps);
+
+	/* HT parameters */
+	*frm = SM(rxmax, IEEE80211_HTCAP_MAXRXAMPDU)
+	     | SM(density, IEEE80211_HTCAP_MPDUDENSITY)
+	     ;
+	frm++;
+
+	/* pre-zero remainder of ie */
+	memset(frm, 0, sizeof(struct ieee80211_ie_htcap) - 
+		__offsetof(struct ieee80211_ie_htcap, hc_mcsset));
+
+	/* supported MCS set */
+	/*
+	 * XXX: For sta mode the rate set should be restricted based
+	 * on the AP's capabilities, but ni_htrates isn't setup when
+	 * we're called to form an AssocReq frame so for now we're
+	 * restricted to the device capabilities.
+	 */
+	ieee80211_set_mcsset(ic, frm);
+
+	frm += __offsetof(struct ieee80211_ie_htcap, hc_extcap) -
+		__offsetof(struct ieee80211_ie_htcap, hc_mcsset);
+
+	/* HT extended capabilities */
+	extcaps = vap->iv_htextcaps & 0xffff;
+
+	ADDSHORT(frm, extcaps);
+
+	frm += sizeof(struct ieee80211_ie_htcap) -
+		__offsetof(struct ieee80211_ie_htcap, hc_txbf);
+
+	return frm;
+#undef ADDSHORT
+}
+
+/*
+ * Add 802.11n HT capabilities information element
+ */
+uint8_t *
+ieee80211_add_htcap_ch(uint8_t *frm, struct ieee80211vap *vap,
+    struct ieee80211_channel *c)
+{
+	frm[0] = IEEE80211_ELEMID_HTCAP;
+	frm[1] = sizeof(struct ieee80211_ie_htcap) - 2;
+	return ieee80211_add_htcap_body_ch(frm + 2, vap, c);
 }
 
 /*
@@ -2851,7 +3354,7 @@ ieee80211_add_htinfo_body(uint8_t *frm, struct ieee80211_node *ni)
 }
 
 /*
- * Add 802.11n HT information information element.
+ * Add 802.11n HT information element.
  */
 uint8_t *
 ieee80211_add_htinfo(uint8_t *frm, struct ieee80211_node *ni)

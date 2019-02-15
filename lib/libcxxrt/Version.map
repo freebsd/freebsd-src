@@ -26,6 +26,7 @@ CXXABI_1.3 {
     __cxa_pure_virtual;
     __cxa_rethrow;
     __cxa_throw;
+    __cxa_throw_bad_array_new_length;
     __cxa_type_match;
     __cxa_vec_cctor;
     __cxa_vec_cleanup;
@@ -111,19 +112,6 @@ CXXABI_1.3 {
         "typeinfo for void";
         "typeinfo for wchar_t const*";
         "typeinfo for wchar_t";
-        # C++11 typeinfo not understood by our linker
-        # std::nullptr_t
-        _ZTIDn;_ZTIPDn;_ZTIPKDn;
-        # char16_t
-        _ZTIDi;_ZTIPDi;_ZTIPKDi;
-        # char32_t
-        _ZTIDs;_ZTIPDs;_ZTIPKDs;
-        # IEEE 754r decimal floating point
-        _ZTIDd;_ZTIPDd;_ZTIPKDd;
-        _ZTIDe;_ZTIPDe;_ZTIPKDe;
-        _ZTIDf;_ZTIPDf;_ZTIPKDf;
-        # IEEE 754r half-precision floating point
-        _ZTIDh;_ZTIPDh;_ZTIPKDh;
 
         "typeinfo for bool*";
         "typeinfo for wchar_t*";
@@ -208,19 +196,6 @@ CXXABI_1.3 {
         "typeinfo name for void*";
         "typeinfo name for unsigned int*";
         "typeinfo name for float*";
-        # C++11 typeinfo not understood by our linker
-        # std::nullptr_t
-        _ZTSDn;_ZTIPDn;_ZTIPKDn;
-        # char16_t
-        _ZTSDi;_ZTIPDi;_ZTIPKDi;
-        # char32_t
-        _ZTSDs;_ZTIPDs;_ZTIPKDs;
-        # IEEE 754r decimal floating point
-        _ZTSDd;_ZTIPDd;_ZTIPKDd;
-        _ZTSDe;_ZTIPDe;_ZTIPKDe;
-        _ZTSDf;_ZTIPDf;_ZTIPKDf;
-        # IEEE 754r half-precision floating point
-        _ZTSDh;_ZTIPDh;_ZTIPKDh;
 
         "typeinfo name for __cxxabiv1::__array_type_info";
         "typeinfo name for __cxxabiv1::__class_type_info";
@@ -241,9 +216,35 @@ CXXABI_1.3 {
         "pathscale::set_terminate(void (*)())";
         "pathscale::set_unexpected(void (*)())";
         "pathscale::set_use_thread_local_handlers(bool)";
-
-
     };
+
+    # C++11 typeinfo not understood by ld.bfd 2.17.50
+    # std::nullptr_t
+    _ZTIDn;_ZTIPDn;_ZTIPKDn;
+    # char16_t
+    _ZTIDi;_ZTIPDi;_ZTIPKDi;
+    # char32_t
+    _ZTIDs;_ZTIPDs;_ZTIPKDs;
+    # IEEE 754r decimal floating point
+    _ZTIDd;_ZTIPDd;_ZTIPKDd;
+    _ZTIDe;_ZTIPDe;_ZTIPKDe;
+    _ZTIDf;_ZTIPDf;_ZTIPKDf;
+    # IEEE 754r half-precision floating point
+    _ZTIDh;_ZTIPDh;_ZTIPKDh;
+
+    # C++11 typeinfo name not understood by ld.bfd 2.17.50
+    # std::nullptr_t
+    _ZTSDn;_ZTSPDn;_ZTSPKDn;
+    # char16_t
+    _ZTSDi;_ZTSPDi;_ZTSPKDi;
+    # char32_t
+    _ZTSDs;_ZTSPDs;_ZTSPKDs;
+    # IEEE 754r decimal floating point
+    _ZTSDd;_ZTSPDd;_ZTSPKDd;
+    _ZTSDe;_ZTSPDe;_ZTSPKDe;
+    _ZTSDf;_ZTSPDf;_ZTSPKDf;
+    # IEEE 754r half-precision floating point
+    _ZTSDh;_ZTSPDh;_ZTSPKDh;
 
   local:
     *;
@@ -253,6 +254,31 @@ CXXABI_1.3.1 {
     __cxa_get_exception_ptr;
 } CXXABI_1.3;
 
+CXXABI_1.3.5 {
+    extern "C++" {
+        "typeinfo for __int128 const*";
+        "typeinfo for __int128";
+        "typeinfo for __int128*";
+        "typeinfo for unsigned __int128 const*";
+        "typeinfo for unsigned __int128";
+        "typeinfo for unsigned __int128*";
+    };
+} CXXABI_1.3.1;
+
+CXXABI_1.3.6 {
+    __cxa_deleted_virtual;
+} CXXABI_1.3.5;
+
+CXXABI_1.3.9 {
+    extern "C++" {
+        "typeinfo name for __int128 const*";
+        "typeinfo name for __int128";
+        "typeinfo name for __int128*";
+        "typeinfo name for unsigned __int128 const*";
+        "typeinfo name for unsigned __int128";
+        "typeinfo name for unsigned __int128*";
+    };
+} CXXABI_1.3.6;
 
 CXXRT_1.0 {
 
@@ -273,6 +299,9 @@ CXXRT_1.0 {
         "std::bad_alloc::bad_alloc(std::bad_alloc const&)";
         "std::bad_alloc::bad_alloc()";
         "std::bad_alloc::operator=(std::bad_alloc const&)";
+        "std::bad_array_new_length::bad_array_new_length(std::bad_array_new_length const&)";
+        "std::bad_array_new_length::bad_array_new_length()";
+        "std::bad_array_new_length::operator=(std::bad_array_new_length const&)";
 
     };
     __cxa_allocate_dependent_exception;
@@ -282,7 +311,7 @@ CXXRT_1.0 {
     __cxa_increment_exception_refcount;
     __cxa_rethrow_primary_exception;
 
-} CXXABI_1.3.1;
+} CXXABI_1.3.6;
 
 
 GLIBCXX_3.4 {
@@ -307,6 +336,7 @@ GLIBCXX_3.4 {
         "std::bad_typeid::~bad_typeid()";
         "std::exception::~exception()";
         "std::bad_alloc::~bad_alloc()";
+        "std::bad_array_new_length::~bad_array_new_length()";
 
         "std::exception::what() const";
 
@@ -320,17 +350,20 @@ GLIBCXX_3.4 {
         "vtable for std::bad_typeid";
         "vtable for std::exception";
         "vtable for std::type_info";
+        "vtable for std::bad_array_new_length";
 
         "typeinfo for std::bad_alloc";
         "typeinfo for std::bad_typeid";
         "typeinfo for std::bad_cast";
         "typeinfo for std::exception";
         "typeinfo for std::type_info";
+        "typeinfo for std::bad_array_new_length";
         "typeinfo name for std::bad_alloc";
         "typeinfo name for std::bad_typeid";
         "typeinfo name for std::bad_cast";
         "typeinfo name for std::exception";
         "typeinfo name for std::type_info";
+        "typeinfo name for std::bad_array_new_length";
 
     };
 };
@@ -340,6 +373,19 @@ GLIBCXX_3.4.9 {
         "std::bad_typeid::what() const";
         "std::bad_cast::what() const";
         "std::bad_alloc::what() const";
+        "std::bad_array_new_length::what() const";
     };
 } GLIBCXX_3.4;
+
+GLIBCXX_3.4.20 {
+    extern "C++" {
+        "std::get_new_handler()";
+    };
+} GLIBCXX_3.4.9;
+
+GLIBCXX_3.4.22 {
+    extern "C++" {
+        "std::uncaught_exceptions()";
+    };
+} GLIBCXX_3.4.20;
 

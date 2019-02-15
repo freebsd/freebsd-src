@@ -1,5 +1,7 @@
 /* $OpenBSD: if_pflog.h,v 1.13 2006/10/23 12:46:09 henning Exp $ */
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  *
@@ -22,6 +24,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef _NET_IF_PFLOG_H_

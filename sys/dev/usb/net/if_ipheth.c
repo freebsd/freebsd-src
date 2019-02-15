@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
  * Copyright (c) 2009 Diego Giagio. All rights reserved.
  *
@@ -86,7 +88,7 @@ static uether_fn_t ipheth_setpromisc;
 static int ipheth_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ipheth, CTLFLAG_RW, 0, "USB iPhone ethernet");
-SYSCTL_INT(_hw_usb_ipheth, OID_AUTO, debug, CTLFLAG_RW, &ipheth_debug, 0, "Debug level");
+SYSCTL_INT(_hw_usb_ipheth, OID_AUTO, debug, CTLFLAG_RWTUN, &ipheth_debug, 0, "Debug level");
 #endif
 
 static const struct usb_config ipheth_config[IPHETH_N_TRANSFER] = {
@@ -131,27 +133,6 @@ static driver_t ipheth_driver = {
 
 static devclass_t ipheth_devclass;
 
-DRIVER_MODULE(ipheth, uhub, ipheth_driver, ipheth_devclass, NULL, 0);
-MODULE_VERSION(ipheth, 1);
-MODULE_DEPEND(ipheth, uether, 1, 1, 1);
-MODULE_DEPEND(ipheth, usb, 1, 1, 1);
-MODULE_DEPEND(ipheth, ether, 1, 1, 1);
-
-static const struct usb_ether_methods ipheth_ue_methods = {
-	.ue_attach_post = ipheth_attach_post,
-	.ue_start = ipheth_start,
-	.ue_init = ipheth_init,
-	.ue_tick = ipheth_tick,
-	.ue_stop = ipheth_stop,
-	.ue_setmulti = ipheth_setmulti,
-	.ue_setpromisc = ipheth_setpromisc,
-};
-
-#define	IPHETH_ID(v,p,c,sc,pt) \
-    USB_VENDOR(v), USB_PRODUCT(p), \
-    USB_IFACE_CLASS(c), USB_IFACE_SUBCLASS(sc), \
-    USB_IFACE_PROTOCOL(pt)
-
 static const STRUCT_USB_HOST_ID ipheth_devs[] = {
 #if 0
 	{IPHETH_ID(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_IPHONE,
@@ -180,6 +161,28 @@ static const STRUCT_USB_HOST_ID ipheth_devs[] = {
 	 USB_IFACE_PROTOCOL(IPHETH_USBINTF_PROTO)},
 #endif
 };
+
+DRIVER_MODULE(ipheth, uhub, ipheth_driver, ipheth_devclass, NULL, 0);
+MODULE_VERSION(ipheth, 1);
+MODULE_DEPEND(ipheth, uether, 1, 1, 1);
+MODULE_DEPEND(ipheth, usb, 1, 1, 1);
+MODULE_DEPEND(ipheth, ether, 1, 1, 1);
+USB_PNP_HOST_INFO(ipheth_devs);
+
+static const struct usb_ether_methods ipheth_ue_methods = {
+	.ue_attach_post = ipheth_attach_post,
+	.ue_start = ipheth_start,
+	.ue_init = ipheth_init,
+	.ue_tick = ipheth_tick,
+	.ue_stop = ipheth_stop,
+	.ue_setmulti = ipheth_setmulti,
+	.ue_setpromisc = ipheth_setpromisc,
+};
+
+#define	IPHETH_ID(v,p,c,sc,pt) \
+    USB_VENDOR(v), USB_PRODUCT(p), \
+    USB_IFACE_CLASS(c), USB_IFACE_SUBCLASS(sc), \
+    USB_IFACE_PROTOCOL(pt)
 
 static int
 ipheth_get_mac_addr(struct ipheth_softc *sc)

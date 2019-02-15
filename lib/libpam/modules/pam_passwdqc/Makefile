@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SRCDIR=	${.CURDIR}/../../../../contrib/pam_modules/pam_passwdqc
+SRCDIR=	${SRCTOP}/contrib/pam_modules/pam_passwdqc
 .PATH: ${SRCDIR}
 
 LIB=	pam_passwdqc
@@ -10,8 +10,7 @@ MAN=	pam_passwdqc.8
 WARNS?=	2
 CFLAGS+= -I${SRCDIR}
 
-DPADD=	${LIBCRYPT}
-LDADD=	-lcrypt
+LIBADD+=	crypt
 
 .include <bsd.lib.mk>
 

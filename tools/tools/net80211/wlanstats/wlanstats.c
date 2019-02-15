@@ -32,23 +32,25 @@
 /*
  * net80211 statistics class.
  */
-#include <sys/types.h>
+
+#include <sys/param.h>
 #include <sys/file.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
+
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_var.h>
 #include <net/ethernet.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <string.h>
-#include <unistd.h>
 #include <err.h>
 #include <ifaddrs.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "../../../../sys/net80211/ieee80211_ioctl.h"
 
@@ -363,13 +365,13 @@ static const struct fmt wlanstats[] = {
 #define	S_TX_MCAST		AFTER(S_TX_UCAST)
 	{ 8,	"tx_mcast",	"tx_mcast",	"multicast data frames sent" },
 #define	S_RATE			AFTER(S_TX_MCAST)
-	{ 5,	"rate",		"rate",		"current transmit rate" },
+	{ 7,	"rate",		"rate",		"current transmit rate" },
 #define	S_RSSI			AFTER(S_RATE)
-	{ 5,	"rssi",		"rssi",		"current rssi" },
+	{ 6,	"rssi",		"rssi",		"current rssi" },
 #define	S_NOISE			AFTER(S_RSSI)
 	{ 5,	"noise",	"noise",	"current noise floor (dBm)" },
 #define	S_SIGNAL		AFTER(S_NOISE)
-	{ 5,	"signal",	"sig",		"current signal (dBm)" },
+	{ 6,	"signal",	"sig",		"current signal (dBm)" },
 #define	S_BEACON_BAD		AFTER(S_SIGNAL)
 	{ 9,	"beacon_bad",	"beaconbad",	"bad beacons received" },
 #define	S_AMPDU_BARTX		AFTER(S_BEACON_BAD)
@@ -558,7 +560,6 @@ wlan_update_tot(struct bsdstat *sf)
 void
 setreason(char b[], size_t bs, int v)
 {
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
     static const char *reasons[] = {
 	[IEEE80211_REASON_UNSPECIFIED]		= "unspecified",
 	[IEEE80211_REASON_AUTH_EXPIRE]		= "auth expire",
@@ -584,17 +585,15 @@ setreason(char b[], size_t bs, int v)
 	[IEEE80211_REASON_802_1X_AUTH_FAILED]	= "802.1x auth failed",
 	[IEEE80211_REASON_CIPHER_SUITE_REJECTED]= "cipher suite rejected",
     };
-    if (v < N(reasons) && reasons[v] != NULL)
+    if (v < nitems(reasons) && reasons[v] != NULL)
 	    snprintf(b, bs, "%s (%u)", reasons[v], v);
     else
 	    snprintf(b, bs, "%u", v);
-#undef N
 }
 
 void
 setstatus(char b[], size_t bs, int v)
 {
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
     static const char *status[] = {
 	[IEEE80211_STATUS_SUCCESS]		= "success",
 	[IEEE80211_STATUS_UNSPECIFIED]		= "unspecified",
@@ -623,11 +622,10 @@ setstatus(char b[], size_t bs, int v)
 	[IEEE80211_STATUS_INVALID_RSN_IE_CAP]	= "invalid rsn ie cap",
 	[IEEE80211_STATUS_CIPHER_SUITE_REJECTED]= "cipher suite rejected",
     };
-    if (v < N(status) && status[v] != NULL)
+    if (v < nitems(status) && status[v] != NULL)
 	    snprintf(b, bs, "%s (%u)", status[v], v);
     else
 	    snprintf(b, bs, "%u", v);
-#undef N
 }
 
 static int
@@ -637,16 +635,17 @@ wlan_getinfo(struct wlanstatfoo_p *wf, int s, char b[], size_t bs)
 
 	switch (s) {
 	case S_RATE:
-		snprintf(b, bs, "%uM", si->isi_txmbps/2);
+		snprintf(b, bs, "%.1fM", (float) si->isi_txmbps/2.0);
 		return 1;
 	case S_RSSI:
-		snprintf(b, bs, "%d", si->isi_rssi);
+		snprintf(b, bs, "%.1f", (float) si->isi_rssi/2.0);
 		return 1;
 	case S_NOISE:
 		snprintf(b, bs, "%d", si->isi_noise);
 		return 1;
 	case S_SIGNAL:
-		snprintf(b, bs, "%d", si->isi_rssi + si->isi_noise);
+		snprintf(b, bs, "%.1f", (float) si->isi_rssi/2.0
+		    + (float) si->isi_noise);
 		return 1;
 	case S_RX_AUTH_FAIL_CODE:
 		if (wf->cur.is_rx_authfail_code == 0)
@@ -769,6 +768,7 @@ wlan_get_curstat(struct bsdstat *sf, int s, char b[], size_t bs)
 	case S_FF_SPLIT:	STAT(ff_split);
 	case S_FF_DECAP:	STAT(ff_decap);
 	case S_FF_ENCAP:	STAT(ff_encap);
+	case S_FF_ENCAPFAIL:	STAT(ff_encapfail);
 	case S_RX_BADBINTVAL:	STAT(rx_badbintval);
 	case S_RX_MGMT:		STAT(rx_mgmt);
 	case S_RX_DEMICFAIL:	STAT(rx_demicfail);
@@ -931,6 +931,7 @@ wlan_get_totstat(struct bsdstat *sf, int s, char b[], size_t bs)
 	case S_FF_SPLIT:	STAT(ff_split);
 	case S_FF_DECAP:	STAT(ff_decap);
 	case S_FF_ENCAP:	STAT(ff_encap);
+	case S_FF_ENCAPFAIL:	STAT(ff_encapfail);
 	case S_RX_BADBINTVAL:	STAT(rx_badbintval);
 	case S_RX_MGMT:		STAT(rx_mgmt);
 	case S_RX_DEMICFAIL:	STAT(rx_demicfail);
@@ -999,12 +1000,12 @@ BSDSTAT_DEFINE_BOUNCE(wlanstatfoo)
 struct wlanstatfoo *
 wlanstats_new(const char *ifname, const char *fmtstring)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	struct wlanstatfoo_p *wf;
 
 	wf = calloc(1, sizeof(struct wlanstatfoo_p));
 	if (wf != NULL) {
-		bsdstat_init(&wf->base.base, "wlanstats", wlanstats, N(wlanstats));
+		bsdstat_init(&wf->base.base, "wlanstats", wlanstats,
+		    nitems(wlanstats));
 		/* override base methods */
 		wf->base.base.collect_cur = wlan_collect_cur;
 		wf->base.base.collect_tot = wlan_collect_tot;
@@ -1030,5 +1031,4 @@ wlanstats_new(const char *ifname, const char *fmtstring)
 		wf->base.setfmt(&wf->base, fmtstring);
 	}
 	return &wf->base;
-#undef N
 }

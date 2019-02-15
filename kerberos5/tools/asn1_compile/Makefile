@@ -2,9 +2,10 @@
 
 PROG=	asn1_compile
 MAN=
-LIBROKEN_A=	${.OBJDIR}/../../lib/libroken/libroken.a
-LDADD=	${LIBROKEN_A} ${LIBVERS}
-DPADD=	${LIBROKEN_A} ${LIBVERS}
+LIBROKEN_A=	${.OBJDIR:H:H}/lib/libroken/libprivateroken.a
+LIBADD=	vers
+LDADD=	${LIBROKEN_A}
+DPADD=	${LIBROKEN_A}
 
 SRCS=	\
 	asn1parse.y \

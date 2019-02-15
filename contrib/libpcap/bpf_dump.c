@@ -18,17 +18,15 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/bpf_dump.c,v 1.15 2008-01-02 04:16:46 guy Exp $ (LBL)";
-#endif
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
 #include <pcap.h>
 #include <stdio.h>
+
+#include "optimize.h"
 
 void
 bpf_dump(const struct bpf_program *p, int option)
@@ -54,8 +52,10 @@ bpf_dump(const struct bpf_program *p, int option)
 	}
 	for (i = 0; i < n; ++insn, ++i) {
 #ifdef BDEBUG
-		extern int bids[];
-		printf(bids[i] > 0 ? "[%02d]" : " -- ", bids[i] - 1);
+		if (i < NBIDS && bids[i] > 0)
+			printf("[%02d]", bids[i] - 1);
+		else
+			printf(" -- ");
 #endif
 		puts(bpf_image(insn, i));
 	}

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 2000
@@ -17,7 +19,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -99,30 +101,14 @@ struct cdev {
 
 struct bio;
 struct buf;
+struct dumperinfo;
+struct kerneldumpheader;
 struct thread;
 struct uio;
 struct knote;
 struct clonedevs;
 struct vm_object;
 struct vnode;
-
-/*
- * Note: d_thread_t is provided as a transition aid for those drivers
- * that treat struct proc/struct thread as an opaque data type and
- * exist in substantially the same form in both 4.x and 5.x.  Writers
- * of drivers that dips into the d_thread_t structure should use
- * struct thread or struct proc as appropriate for the version of the
- * OS they are using.  It is provided in lieu of each device driver
- * inventing its own way of doing this.  While it does violate style(9)
- * in a number of ways, this violation is deemed to be less
- * important than the benefits that a uniform API between releases
- * gives.
- *
- * Users of struct thread/struct proc that aren't device drivers should
- * not use d_thread_t.
- */
-
-typedef struct thread d_thread_t;
 
 typedef int d_open_t(struct cdev *dev, int oflags, int devtype, struct thread *td);
 typedef int d_fdopen_t(struct cdev *dev, int oflags, struct thread *td, struct file *fp);
@@ -147,6 +133,9 @@ typedef int dumper_t(
 	vm_offset_t _physical,	/* Physical address of virtual. */
 	off_t _offset,		/* Byte-offset to write at. */
 	size_t _length);	/* Number of bytes to dump. */
+typedef int dumper_start_t(struct dumperinfo *di);
+typedef int dumper_hdr_t(struct dumperinfo *di, struct kerneldumpheader *kdh,
+    void *key, uint32_t keylen);
 
 #endif /* _KERNEL */
 
@@ -156,7 +145,7 @@ typedef int dumper_t(
 #define	D_TAPE	0x0001
 #define	D_DISK	0x0002
 #define	D_TTY	0x0004
-#define	D_MEM	0x0008
+#define	D_MEM	0x0008	/* /dev/(k)mem */
 
 #ifdef _KERNEL
 
@@ -227,14 +216,16 @@ struct devsw_module_data {
 	/* Do not initialize fields hereafter */
 };
 
-#define	DEV_MODULE(name, evh, arg)					\
+#define	DEV_MODULE_ORDERED(name, evh, arg, ord)				\
 static moduledata_t name##_mod = {					\
     #name,								\
     evh,								\
     arg									\
 };									\
-DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
+DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, ord)
 
+#define	DEV_MODULE(name, evh, arg)					\
+    DEV_MODULE_ORDERED(name, evh, arg, SI_ORDER_MIDDLE)
 
 void clone_setup(struct clonedevs **cdp);
 void clone_cleanup(struct clonedevs **);
@@ -242,7 +233,30 @@ void clone_cleanup(struct clonedevs **);
 #define	CLONE_FLAG0	(CLONE_UNITMASK + 1)
 int clone_create(struct clonedevs **, struct cdevsw *, int *unit, struct cdev **dev, int extra);
 
+#define	MAKEDEV_REF		0x01
+#define	MAKEDEV_WHTOUT		0x02
+#define	MAKEDEV_NOWAIT		0x04
+#define	MAKEDEV_WAITOK		0x08
+#define	MAKEDEV_ETERNAL		0x10
+#define	MAKEDEV_CHECKNAME	0x20
+struct make_dev_args {
+	size_t		 mda_size;
+	int		 mda_flags;
+	struct cdevsw	*mda_devsw;
+	struct ucred	*mda_cr;
+	uid_t		 mda_uid;
+	gid_t		 mda_gid;
+	int		 mda_mode;
+	int		 mda_unit;
+	void		*mda_si_drv1;
+	void		*mda_si_drv2;
+};
+void make_dev_args_init_impl(struct make_dev_args *_args, size_t _sz);
+#define	make_dev_args_init(a) \
+    make_dev_args_init_impl((a), sizeof(struct make_dev_args))
+	
 int	count_dev(struct cdev *_dev);
+void	delist_dev(struct cdev *_dev);
 void	destroy_dev(struct cdev *_dev);
 int	destroy_dev_sched(struct cdev *dev);
 int	destroy_dev_sched_cb(struct cdev *dev, void (*cb)(void *), void *arg);
@@ -255,19 +269,11 @@ void	dev_depends(struct cdev *_pdev, struct cdev *_cdev);
 void	dev_ref(struct cdev *dev);
 void	dev_refl(struct cdev *dev);
 void	dev_rel(struct cdev *dev);
-void	dev_strategy(struct cdev *dev, struct buf *bp);
-void	dev_strategy_csw(struct cdev *dev, struct cdevsw *csw, struct buf *bp);
 struct cdev *make_dev(struct cdevsw *_devsw, int _unit, uid_t _uid, gid_t _gid,
 		int _perms, const char *_fmt, ...) __printflike(6, 7);
 struct cdev *make_dev_cred(struct cdevsw *_devsw, int _unit,
 		struct ucred *_cr, uid_t _uid, gid_t _gid, int _perms,
 		const char *_fmt, ...) __printflike(7, 8);
-#define	MAKEDEV_REF		0x01
-#define	MAKEDEV_WHTOUT		0x02
-#define	MAKEDEV_NOWAIT		0x04
-#define	MAKEDEV_WAITOK		0x08
-#define	MAKEDEV_ETERNAL		0x10
-#define	MAKEDEV_CHECKNAME	0x20
 struct cdev *make_dev_credf(int _flags,
 		struct cdevsw *_devsw, int _unit,
 		struct ucred *_cr, uid_t _uid, gid_t _gid, int _mode,
@@ -275,6 +281,8 @@ struct cdev *make_dev_credf(int _flags,
 int	make_dev_p(int _flags, struct cdev **_cdev, struct cdevsw *_devsw,
 		struct ucred *_cr, uid_t _uid, gid_t _gid, int _mode,
 		const char *_fmt, ...) __printflike(8, 9);
+int	make_dev_s(struct make_dev_args *_args, struct cdev **_cdev,
+		const char *_fmt, ...) __printflike(3, 4);
 struct cdev *make_dev_alias(struct cdev *_pdev, const char *_fmt, ...)
 		__printflike(2, 3);
 int	make_dev_alias_p(int _flags, struct cdev **_cdev, struct cdev *_pdev,
@@ -284,7 +292,6 @@ int	make_dev_physpath_alias(int _flags, struct cdev **_cdev,
 		const char *_physpath);
 void	dev_lock(void);
 void	dev_unlock(void);
-void	setconf(void);
 
 #ifdef KLD_MODULE
 #define	MAKEDEV_ETERNAL_KLD	0
@@ -294,11 +301,10 @@ void	setconf(void);
 
 #define	dev2unit(d)	((d)->si_drv0)
 
-typedef	void (*cdevpriv_dtr_t)(void *data);
+typedef void d_priv_dtor_t(void *data);
 int	devfs_get_cdevpriv(void **datap);
-int	devfs_set_cdevpriv(void *priv, cdevpriv_dtr_t dtr);
+int	devfs_set_cdevpriv(void *priv, d_priv_dtor_t *dtr);
 void	devfs_clear_cdevpriv(void);
-void	devfs_fpdrop(struct file *fp);	/* XXX This is not public KPI */
 
 ino_t	devfs_alloc_cdp_inode(void);
 void	devfs_free_cdp_inode(ino_t ino);
@@ -314,7 +320,9 @@ void	devfs_free_cdp_inode(ino_t ino);
 #define		GID_OPERATOR	5
 #define		GID_BIN		7
 #define		GID_GAMES	13
+#define		GID_VIDEO	44
 #define		GID_DIALER	68
+#define		GID_NOGROUP	65533
 #define		GID_NOBODY	65534
 
 typedef void (*dev_clone_fn)(void *arg, struct ucred *cred, char *name,
@@ -324,21 +332,41 @@ int dev_stdclone(char *_name, char **_namep, const char *_stem, int *_unit);
 EVENTHANDLER_DECLARE(dev_clone, dev_clone_fn);
 
 /* Stuff relating to kernel-dump */
+struct kerneldumpcrypto;
+struct kerneldumpheader;
 
 struct dumperinfo {
 	dumper_t *dumper;	/* Dumping function. */
-	void    *priv;		/* Private parts. */
-	u_int   blocksize;	/* Size of block in bytes. */
+	dumper_start_t *dumper_start; /* Dumper callback for dump_start(). */
+	dumper_hdr_t *dumper_hdr; /* Dumper callback for writing headers. */
+	void	*priv;		/* Private parts. */
+	u_int	blocksize;	/* Size of block in bytes. */
 	u_int	maxiosize;	/* Max size allowed for an individual I/O */
-	off_t   mediaoffset;	/* Initial offset in bytes. */
-	off_t   mediasize;	/* Space available in bytes. */
+	off_t	mediaoffset;	/* Initial offset in bytes. */
+	off_t	mediasize;	/* Space available in bytes. */
+
+	/* MI kernel dump state. */
+	void	*blockbuf;	/* Buffer for padding shorter dump blocks */
+	off_t	dumpoff;	/* Offset of ongoing kernel dump. */
+	off_t	origdumpoff;	/* Starting dump offset. */
+	struct kerneldumpcrypto	*kdcrypto; /* Kernel dump crypto. */
+	struct kerneldumpcomp *kdcomp; /* Kernel dump compression. */
 };
 
-int set_dumper(struct dumperinfo *, const char *_devname);
-int dump_write(struct dumperinfo *, void *, vm_offset_t, off_t, size_t);
-int dumpsys(struct dumperinfo *);
-int doadump(boolean_t);
 extern int dumping;		/* system is dumping */
+
+int doadump(boolean_t);
+int set_dumper(struct dumperinfo *di, const char *devname, struct thread *td,
+    uint8_t compression, uint8_t encryption, const uint8_t *key,
+    uint32_t encryptedkeysize, const uint8_t *encryptedkey);
+int clear_dumper(struct thread *td);
+
+int dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh);
+int dump_append(struct dumperinfo *, void *, vm_offset_t, size_t);
+int dump_write(struct dumperinfo *, void *, vm_offset_t, off_t, size_t);
+int dump_finish(struct dumperinfo *di, struct kerneldumpheader *kdh);
+void dump_init_header(const struct dumperinfo *di, struct kerneldumpheader *kdh,
+    char *magic, uint32_t archver, uint64_t dumplen);
 
 #endif /* _KERNEL */
 

@@ -25,8 +25,8 @@ using namespace ento;
 
 namespace {
 class ReturnUndefChecker : public Checker< check::PreStmt<ReturnStmt> > {
-  mutable OwningPtr<BuiltinBug> BT_Undef;
-  mutable OwningPtr<BuiltinBug> BT_NullReference;
+  mutable std::unique_ptr<BuiltinBug> BT_Undef;
+  mutable std::unique_ptr<BuiltinBug> BT_NullReference;
 
   void emitUndef(CheckerContext &C, const Expr *RetE) const;
   void checkReference(CheckerContext &C, const Expr *RetE,
@@ -79,31 +79,31 @@ void ReturnUndefChecker::checkPreStmt(const ReturnStmt *RS,
 }
 
 static void emitBug(CheckerContext &C, BuiltinBug &BT, const Expr *RetE,
-                    const Expr *TrackingE = 0) {
-  ExplodedNode *N = C.generateSink();
+                    const Expr *TrackingE = nullptr) {
+  ExplodedNode *N = C.generateErrorNode();
   if (!N)
     return;
 
-  BugReport *Report = new BugReport(BT, BT.getDescription(), N);
+  auto Report = llvm::make_unique<BugReport>(BT, BT.getDescription(), N);
 
   Report->addRange(RetE->getSourceRange());
   bugreporter::trackNullOrUndefValue(N, TrackingE ? TrackingE : RetE, *Report);
 
-  C.emitReport(Report);
+  C.emitReport(std::move(Report));
 }
 
 void ReturnUndefChecker::emitUndef(CheckerContext &C, const Expr *RetE) const {
   if (!BT_Undef)
-    BT_Undef.reset(new BuiltinBug("Garbage return value",
-                                  "Undefined or garbage value "
-                                    "returned to caller"));
+    BT_Undef.reset(
+        new BuiltinBug(this, "Garbage return value",
+                       "Undefined or garbage value returned to caller"));
   emitBug(C, *BT_Undef, RetE);
 }
 
 void ReturnUndefChecker::checkReference(CheckerContext &C, const Expr *RetE,
                                         DefinedOrUnknownSVal RetVal) const {
   ProgramStateRef StNonNull, StNull;
-  llvm::tie(StNonNull, StNull) = C.getState()->assume(RetVal);
+  std::tie(StNonNull, StNull) = C.getState()->assume(RetVal);
 
   if (StNonNull) {
     // Going forward, assume the location is non-null.
@@ -113,7 +113,7 @@ void ReturnUndefChecker::checkReference(CheckerContext &C, const Expr *RetE,
 
   // The return value is known to be null. Emit a bug report.
   if (!BT_NullReference)
-    BT_NullReference.reset(new BuiltinBug("Returning null reference"));
+    BT_NullReference.reset(new BuiltinBug(this, "Returning null reference"));
 
   emitBug(C, *BT_NullReference, RetE, bugreporter::getDerefExpr(RetE));
 }

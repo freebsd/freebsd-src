@@ -1,4 +1,4 @@
-/*	$NetBSD: t_mbuf.c,v 1.2 2014/07/08 21:44:26 alnsn Exp $	*/
+/*	$NetBSD: t_mbuf.c,v 1.3 2017/01/13 21:30:42 christos Exp $	*/
 
 /*-
  * Copyright (c) 2014 Alexander Nasonov.
@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_mbuf.c,v 1.2 2014/07/08 21:44:26 alnsn Exp $");
+__RCSID("$NetBSD: t_mbuf.c,v 1.3 2017/01/13 21:30:42 christos Exp $");
 
 #include <sys/param.h>
 #include <sys/mbuf.h>
@@ -47,7 +47,7 @@ __RCSID("$NetBSD: t_mbuf.c,v 1.2 2014/07/08 21:44:26 alnsn Exp $");
 #undef m_data
 #include <atf-c.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 static bool
 test_ldb_abs(size_t split)

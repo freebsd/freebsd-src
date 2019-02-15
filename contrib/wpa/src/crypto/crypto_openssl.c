@@ -1,6 +1,6 @@
 /*
- * WPA Supplicant / wrapper functions for libcrypto
- * Copyright (c) 2004-2012, Jouni Malinen <j@w1.fi>
+ * Wrapper functions for OpenSSL libcrypto
+ * Copyright (c) 2004-2015, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -19,23 +19,71 @@
 #ifdef CONFIG_OPENSSL_CMAC
 #include <openssl/cmac.h>
 #endif /* CONFIG_OPENSSL_CMAC */
+#ifdef CONFIG_ECC
+#include <openssl/ec.h>
+#endif /* CONFIG_ECC */
 
 #include "common.h"
 #include "wpabuf.h"
 #include "dh_group5.h"
+#include "sha1.h"
+#include "sha256.h"
+#include "sha384.h"
+#include "md5.h"
+#include "aes_wrap.h"
 #include "crypto.h"
 
-#if OPENSSL_VERSION_NUMBER < 0x00907000
-#define DES_key_schedule des_key_schedule
-#define DES_cblock des_cblock
-#define DES_set_key(key, schedule) des_set_key((key), *(schedule))
-#define DES_ecb_encrypt(input, output, ks, enc) \
-	des_ecb_encrypt((input), (output), *(ks), (enc))
-#endif /* openssl < 0.9.7 */
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
+/* Compatibility wrappers for older versions. */
+
+static HMAC_CTX * HMAC_CTX_new(void)
+{
+	HMAC_CTX *ctx;
+
+	ctx = os_zalloc(sizeof(*ctx));
+	if (ctx)
+		HMAC_CTX_init(ctx);
+	return ctx;
+}
+
+
+static void HMAC_CTX_free(HMAC_CTX *ctx)
+{
+	if (!ctx)
+		return;
+	HMAC_CTX_cleanup(ctx);
+	bin_clear_free(ctx, sizeof(*ctx));
+}
+
+
+static EVP_MD_CTX * EVP_MD_CTX_new(void)
+{
+	EVP_MD_CTX *ctx;
+
+	ctx = os_zalloc(sizeof(*ctx));
+	if (ctx)
+		EVP_MD_CTX_init(ctx);
+	return ctx;
+}
+
+
+static void EVP_MD_CTX_free(EVP_MD_CTX *ctx)
+{
+	if (!ctx)
+		return;
+	EVP_MD_CTX_cleanup(ctx);
+	bin_clear_free(ctx, sizeof(*ctx));
+}
+
+#endif /* OpenSSL version < 1.1.0 */
 
 static BIGNUM * get_group5_prime(void)
 {
-#if OPENSSL_VERSION_NUMBER < 0x00908000
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)
+	return BN_get_rfc3526_prime_1536(NULL);
+#elif !defined(OPENSSL_IS_BORINGSSL)
+	return get_rfc3526_prime_1536(NULL);
+#else
 	static const unsigned char RFC3526_PRIME_1536[] = {
 		0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xC9,0x0F,0xDA,0xA2,
 		0x21,0x68,0xC2,0x34,0xC4,0xC6,0x62,0x8B,0x80,0xDC,0x1C,0xD1,
@@ -55,19 +103,8 @@ static BIGNUM * get_group5_prime(void)
 		0xCA,0x23,0x73,0x27,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
 	};
         return BN_bin2bn(RFC3526_PRIME_1536, sizeof(RFC3526_PRIME_1536), NULL);
-#else /* openssl < 0.9.8 */
-	return get_rfc3526_prime_1536(NULL);
-#endif /* openssl < 0.9.8 */
+#endif
 }
-
-#if OPENSSL_VERSION_NUMBER < 0x00908000
-#ifndef OPENSSL_NO_SHA256
-#ifndef OPENSSL_FIPS
-#define NO_SHA256_WRAPPER
-#endif
-#endif
-
-#endif /* openssl < 0.9.8 */
 
 #ifdef OPENSSL_NO_SHA256
 #define NO_SHA256_WRAPPER
@@ -76,38 +113,49 @@ static BIGNUM * get_group5_prime(void)
 static int openssl_digest_vector(const EVP_MD *type, size_t num_elem,
 				 const u8 *addr[], const size_t *len, u8 *mac)
 {
-	EVP_MD_CTX ctx;
+	EVP_MD_CTX *ctx;
 	size_t i;
 	unsigned int mac_len;
 
-	EVP_MD_CTX_init(&ctx);
-	if (!EVP_DigestInit_ex(&ctx, type, NULL)) {
+	if (TEST_FAIL())
+		return -1;
+
+	ctx = EVP_MD_CTX_new();
+	if (!ctx)
+		return -1;
+	if (!EVP_DigestInit_ex(ctx, type, NULL)) {
 		wpa_printf(MSG_ERROR, "OpenSSL: EVP_DigestInit_ex failed: %s",
 			   ERR_error_string(ERR_get_error(), NULL));
+		EVP_MD_CTX_free(ctx);
 		return -1;
 	}
 	for (i = 0; i < num_elem; i++) {
-		if (!EVP_DigestUpdate(&ctx, addr[i], len[i])) {
+		if (!EVP_DigestUpdate(ctx, addr[i], len[i])) {
 			wpa_printf(MSG_ERROR, "OpenSSL: EVP_DigestUpdate "
 				   "failed: %s",
 				   ERR_error_string(ERR_get_error(), NULL));
+			EVP_MD_CTX_free(ctx);
 			return -1;
 		}
 	}
-	if (!EVP_DigestFinal(&ctx, mac, &mac_len)) {
+	if (!EVP_DigestFinal(ctx, mac, &mac_len)) {
 		wpa_printf(MSG_ERROR, "OpenSSL: EVP_DigestFinal failed: %s",
 			   ERR_error_string(ERR_get_error(), NULL));
+		EVP_MD_CTX_free(ctx);
 		return -1;
 	}
+	EVP_MD_CTX_free(ctx);
 
 	return 0;
 }
 
 
+#ifndef CONFIG_FIPS
 int md4_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 {
 	return openssl_digest_vector(EVP_md4(), num_elem, addr, len, mac);
 }
+#endif /* CONFIG_FIPS */
 
 
 void des_encrypt(const u8 *clear, const u8 *key, u8 *cypher)
@@ -125,53 +173,59 @@ void des_encrypt(const u8 *clear, const u8 *key, u8 *cypher)
 	}
 	pkey[i] = next | 1;
 
-	DES_set_key(&pkey, &ks);
+	DES_set_key((DES_cblock *) &pkey, &ks);
 	DES_ecb_encrypt((DES_cblock *) clear, (DES_cblock *) cypher, &ks,
 			DES_ENCRYPT);
 }
 
 
+#ifndef CONFIG_NO_RC4
 int rc4_skip(const u8 *key, size_t keylen, size_t skip,
 	     u8 *data, size_t data_len)
 {
 #ifdef OPENSSL_NO_RC4
 	return -1;
 #else /* OPENSSL_NO_RC4 */
-	EVP_CIPHER_CTX ctx;
+	EVP_CIPHER_CTX *ctx;
 	int outl;
 	int res = -1;
 	unsigned char skip_buf[16];
 
-	EVP_CIPHER_CTX_init(&ctx);
-	if (!EVP_CIPHER_CTX_set_padding(&ctx, 0) ||
-	    !EVP_CipherInit_ex(&ctx, EVP_rc4(), NULL, NULL, NULL, 1) ||
-	    !EVP_CIPHER_CTX_set_key_length(&ctx, keylen) ||
-	    !EVP_CipherInit_ex(&ctx, NULL, NULL, key, NULL, 1))
+	ctx = EVP_CIPHER_CTX_new();
+	if (!ctx ||
+	    !EVP_CIPHER_CTX_set_padding(ctx, 0) ||
+	    !EVP_CipherInit_ex(ctx, EVP_rc4(), NULL, NULL, NULL, 1) ||
+	    !EVP_CIPHER_CTX_set_key_length(ctx, keylen) ||
+	    !EVP_CipherInit_ex(ctx, NULL, NULL, key, NULL, 1))
 		goto out;
 
 	while (skip >= sizeof(skip_buf)) {
 		size_t len = skip;
 		if (len > sizeof(skip_buf))
 			len = sizeof(skip_buf);
-		if (!EVP_CipherUpdate(&ctx, skip_buf, &outl, skip_buf, len))
+		if (!EVP_CipherUpdate(ctx, skip_buf, &outl, skip_buf, len))
 			goto out;
 		skip -= len;
 	}
 
-	if (EVP_CipherUpdate(&ctx, data, &outl, data, data_len))
+	if (EVP_CipherUpdate(ctx, data, &outl, data, data_len))
 		res = 0;
 
 out:
-	EVP_CIPHER_CTX_cleanup(&ctx);
+	if (ctx)
+		EVP_CIPHER_CTX_free(ctx);
 	return res;
 #endif /* OPENSSL_NO_RC4 */
 }
+#endif /* CONFIG_NO_RC4 */
 
 
+#ifndef CONFIG_FIPS
 int md5_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 {
 	return openssl_digest_vector(EVP_md5(), num_elem, addr, len, mac);
 }
+#endif /* CONFIG_FIPS */
 
 
 int sha1_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
@@ -194,8 +248,10 @@ static const EVP_CIPHER * aes_get_evp_cipher(size_t keylen)
 	switch (keylen) {
 	case 16:
 		return EVP_aes_128_ecb();
+#ifndef OPENSSL_IS_BORINGSSL
 	case 24:
 		return EVP_aes_192_ecb();
+#endif /* OPENSSL_IS_BORINGSSL */
 	case 32:
 		return EVP_aes_256_ecb();
 	}
@@ -209,14 +265,16 @@ void * aes_encrypt_init(const u8 *key, size_t len)
 	EVP_CIPHER_CTX *ctx;
 	const EVP_CIPHER *type;
 
+	if (TEST_FAIL())
+		return NULL;
+
 	type = aes_get_evp_cipher(len);
 	if (type == NULL)
 		return NULL;
 
-	ctx = os_malloc(sizeof(*ctx));
+	ctx = EVP_CIPHER_CTX_new();
 	if (ctx == NULL)
 		return NULL;
-	EVP_CIPHER_CTX_init(ctx);
 	if (EVP_EncryptInit_ex(ctx, type, NULL, key, NULL) != 1) {
 		os_free(ctx);
 		return NULL;
@@ -250,8 +308,7 @@ void aes_encrypt_deinit(void *ctx)
 		wpa_printf(MSG_ERROR, "OpenSSL: Unexpected padding length %d "
 			   "in AES encrypt", len);
 	}
-	EVP_CIPHER_CTX_cleanup(c);
-	os_free(c);
+	EVP_CIPHER_CTX_free(c);
 }
 
 
@@ -260,16 +317,18 @@ void * aes_decrypt_init(const u8 *key, size_t len)
 	EVP_CIPHER_CTX *ctx;
 	const EVP_CIPHER *type;
 
+	if (TEST_FAIL())
+		return NULL;
+
 	type = aes_get_evp_cipher(len);
 	if (type == NULL)
 		return NULL;
 
-	ctx = os_malloc(sizeof(*ctx));
+	ctx = EVP_CIPHER_CTX_new();
 	if (ctx == NULL)
 		return NULL;
-	EVP_CIPHER_CTX_init(ctx);
 	if (EVP_DecryptInit_ex(ctx, type, NULL, key, NULL) != 1) {
-		os_free(ctx);
+		EVP_CIPHER_CTX_free(ctx);
 		return NULL;
 	}
 	EVP_CIPHER_CTX_set_padding(ctx, 0);
@@ -301,8 +360,95 @@ void aes_decrypt_deinit(void *ctx)
 		wpa_printf(MSG_ERROR, "OpenSSL: Unexpected padding length %d "
 			   "in AES decrypt", len);
 	}
-	EVP_CIPHER_CTX_cleanup(c);
-	os_free(ctx);
+	EVP_CIPHER_CTX_free(c);
+}
+
+
+#ifndef CONFIG_FIPS
+#ifndef CONFIG_OPENSSL_INTERNAL_AES_WRAP
+
+int aes_wrap(const u8 *kek, size_t kek_len, int n, const u8 *plain, u8 *cipher)
+{
+	AES_KEY actx;
+	int res;
+
+	if (AES_set_encrypt_key(kek, kek_len << 3, &actx))
+		return -1;
+	res = AES_wrap_key(&actx, NULL, cipher, plain, n * 8);
+	OPENSSL_cleanse(&actx, sizeof(actx));
+	return res <= 0 ? -1 : 0;
+}
+
+
+int aes_unwrap(const u8 *kek, size_t kek_len, int n, const u8 *cipher,
+	       u8 *plain)
+{
+	AES_KEY actx;
+	int res;
+
+	if (AES_set_decrypt_key(kek, kek_len << 3, &actx))
+		return -1;
+	res = AES_unwrap_key(&actx, NULL, plain, cipher, (n + 1) * 8);
+	OPENSSL_cleanse(&actx, sizeof(actx));
+	return res <= 0 ? -1 : 0;
+}
+
+#endif /* CONFIG_OPENSSL_INTERNAL_AES_WRAP */
+#endif /* CONFIG_FIPS */
+
+
+int aes_128_cbc_encrypt(const u8 *key, const u8 *iv, u8 *data, size_t data_len)
+{
+	EVP_CIPHER_CTX *ctx;
+	int clen, len;
+	u8 buf[16];
+	int res = -1;
+
+	if (TEST_FAIL())
+		return -1;
+
+	ctx = EVP_CIPHER_CTX_new();
+	if (!ctx)
+		return -1;
+	clen = data_len;
+	len = sizeof(buf);
+	if (EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv) == 1 &&
+	    EVP_CIPHER_CTX_set_padding(ctx, 0) == 1 &&
+	    EVP_EncryptUpdate(ctx, data, &clen, data, data_len) == 1 &&
+	    clen == (int) data_len &&
+	    EVP_EncryptFinal_ex(ctx, buf, &len) == 1 && len == 0)
+		res = 0;
+	EVP_CIPHER_CTX_free(ctx);
+
+	return res;
+}
+
+
+int aes_128_cbc_decrypt(const u8 *key, const u8 *iv, u8 *data, size_t data_len)
+{
+	EVP_CIPHER_CTX *ctx;
+	int plen, len;
+	u8 buf[16];
+	int res = -1;
+
+	if (TEST_FAIL())
+		return -1;
+
+	ctx = EVP_CIPHER_CTX_new();
+	if (!ctx)
+		return -1;
+	plen = data_len;
+	len = sizeof(buf);
+	if (EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv) == 1 &&
+	    EVP_CIPHER_CTX_set_padding(ctx, 0) == 1 &&
+	    EVP_DecryptUpdate(ctx, data, &plen, data, data_len) == 1 &&
+	    plen == (int) data_len &&
+	    EVP_DecryptFinal_ex(ctx, buf, &len) == 1 && len == 0)
+		res = 0;
+	EVP_CIPHER_CTX_free(ctx);
+
+	return res;
+
 }
 
 
@@ -335,18 +481,18 @@ int crypto_mod_exp(const u8 *base, size_t base_len,
 	ret = 0;
 
 error:
-	BN_free(bn_base);
-	BN_free(bn_exp);
-	BN_free(bn_modulus);
-	BN_free(bn_result);
+	BN_clear_free(bn_base);
+	BN_clear_free(bn_exp);
+	BN_clear_free(bn_modulus);
+	BN_clear_free(bn_result);
 	BN_CTX_free(ctx);
 	return ret;
 }
 
 
 struct crypto_cipher {
-	EVP_CIPHER_CTX enc;
-	EVP_CIPHER_CTX dec;
+	EVP_CIPHER_CTX *enc;
+	EVP_CIPHER_CTX *dec;
 };
 
 
@@ -362,20 +508,24 @@ struct crypto_cipher * crypto_cipher_init(enum crypto_cipher_alg alg,
 		return NULL;
 
 	switch (alg) {
+#ifndef CONFIG_NO_RC4
 #ifndef OPENSSL_NO_RC4
 	case CRYPTO_CIPHER_ALG_RC4:
 		cipher = EVP_rc4();
 		break;
 #endif /* OPENSSL_NO_RC4 */
+#endif /* CONFIG_NO_RC4 */
 #ifndef OPENSSL_NO_AES
 	case CRYPTO_CIPHER_ALG_AES:
 		switch (key_len) {
 		case 16:
 			cipher = EVP_aes_128_cbc();
 			break;
+#ifndef OPENSSL_IS_BORINGSSL
 		case 24:
 			cipher = EVP_aes_192_cbc();
 			break;
+#endif /* OPENSSL_IS_BORINGSSL */
 		case 32:
 			cipher = EVP_aes_256_cbc();
 			break;
@@ -403,23 +553,25 @@ struct crypto_cipher * crypto_cipher_init(enum crypto_cipher_alg alg,
 		return NULL;
 	}
 
-	EVP_CIPHER_CTX_init(&ctx->enc);
-	EVP_CIPHER_CTX_set_padding(&ctx->enc, 0);
-	if (!EVP_EncryptInit_ex(&ctx->enc, cipher, NULL, NULL, NULL) ||
-	    !EVP_CIPHER_CTX_set_key_length(&ctx->enc, key_len) ||
-	    !EVP_EncryptInit_ex(&ctx->enc, NULL, NULL, key, iv)) {
-		EVP_CIPHER_CTX_cleanup(&ctx->enc);
+	if (!(ctx->enc = EVP_CIPHER_CTX_new()) ||
+	    !EVP_CIPHER_CTX_set_padding(ctx->enc, 0) ||
+	    !EVP_EncryptInit_ex(ctx->enc, cipher, NULL, NULL, NULL) ||
+	    !EVP_CIPHER_CTX_set_key_length(ctx->enc, key_len) ||
+	    !EVP_EncryptInit_ex(ctx->enc, NULL, NULL, key, iv)) {
+		if (ctx->enc)
+			EVP_CIPHER_CTX_free(ctx->enc);
 		os_free(ctx);
 		return NULL;
 	}
 
-	EVP_CIPHER_CTX_init(&ctx->dec);
-	EVP_CIPHER_CTX_set_padding(&ctx->dec, 0);
-	if (!EVP_DecryptInit_ex(&ctx->dec, cipher, NULL, NULL, NULL) ||
-	    !EVP_CIPHER_CTX_set_key_length(&ctx->dec, key_len) ||
-	    !EVP_DecryptInit_ex(&ctx->dec, NULL, NULL, key, iv)) {
-		EVP_CIPHER_CTX_cleanup(&ctx->enc);
-		EVP_CIPHER_CTX_cleanup(&ctx->dec);
+	if (!(ctx->dec = EVP_CIPHER_CTX_new()) ||
+	    !EVP_CIPHER_CTX_set_padding(ctx->dec, 0) ||
+	    !EVP_DecryptInit_ex(ctx->dec, cipher, NULL, NULL, NULL) ||
+	    !EVP_CIPHER_CTX_set_key_length(ctx->dec, key_len) ||
+	    !EVP_DecryptInit_ex(ctx->dec, NULL, NULL, key, iv)) {
+		EVP_CIPHER_CTX_free(ctx->enc);
+		if (ctx->dec)
+			EVP_CIPHER_CTX_free(ctx->dec);
 		os_free(ctx);
 		return NULL;
 	}
@@ -432,7 +584,7 @@ int crypto_cipher_encrypt(struct crypto_cipher *ctx, const u8 *plain,
 			  u8 *crypt, size_t len)
 {
 	int outl;
-	if (!EVP_EncryptUpdate(&ctx->enc, crypt, &outl, plain, len))
+	if (!EVP_EncryptUpdate(ctx->enc, crypt, &outl, plain, len))
 		return -1;
 	return 0;
 }
@@ -443,7 +595,7 @@ int crypto_cipher_decrypt(struct crypto_cipher *ctx, const u8 *crypt,
 {
 	int outl;
 	outl = len;
-	if (!EVP_DecryptUpdate(&ctx->dec, plain, &outl, crypt, len))
+	if (!EVP_DecryptUpdate(ctx->dec, plain, &outl, crypt, len))
 		return -1;
 	return 0;
 }
@@ -451,19 +603,21 @@ int crypto_cipher_decrypt(struct crypto_cipher *ctx, const u8 *crypt,
 
 void crypto_cipher_deinit(struct crypto_cipher *ctx)
 {
-	EVP_CIPHER_CTX_cleanup(&ctx->enc);
-	EVP_CIPHER_CTX_cleanup(&ctx->dec);
+	EVP_CIPHER_CTX_free(ctx->enc);
+	EVP_CIPHER_CTX_free(ctx->dec);
 	os_free(ctx);
 }
 
 
 void * dh5_init(struct wpabuf **priv, struct wpabuf **publ)
 {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	DH *dh;
 	struct wpabuf *pubkey = NULL, *privkey = NULL;
 	size_t publen, privlen;
 
 	*priv = NULL;
+	wpabuf_free(*publ);
 	*publ = NULL;
 
 	dh = DH_new();
@@ -498,15 +652,67 @@ void * dh5_init(struct wpabuf **priv, struct wpabuf **publ)
 	return dh;
 
 err:
-	wpabuf_free(pubkey);
-	wpabuf_free(privkey);
+	wpabuf_clear_free(pubkey);
+	wpabuf_clear_free(privkey);
 	DH_free(dh);
 	return NULL;
+#else
+	DH *dh;
+	struct wpabuf *pubkey = NULL, *privkey = NULL;
+	size_t publen, privlen;
+	BIGNUM *p = NULL, *g;
+	const BIGNUM *priv_key = NULL, *pub_key = NULL;
+
+	*priv = NULL;
+	wpabuf_free(*publ);
+	*publ = NULL;
+
+	dh = DH_new();
+	if (dh == NULL)
+		return NULL;
+
+	g = BN_new();
+	p = get_group5_prime();
+	if (!g || BN_set_word(g, 2) != 1 || !p ||
+	    DH_set0_pqg(dh, p, NULL, g) != 1)
+		goto err;
+	p = NULL;
+	g = NULL;
+
+	if (DH_generate_key(dh) != 1)
+		goto err;
+
+	DH_get0_key(dh, &pub_key, &priv_key);
+	publen = BN_num_bytes(pub_key);
+	pubkey = wpabuf_alloc(publen);
+	if (!pubkey)
+		goto err;
+	privlen = BN_num_bytes(priv_key);
+	privkey = wpabuf_alloc(privlen);
+	if (!privkey)
+		goto err;
+
+	BN_bn2bin(pub_key, wpabuf_put(pubkey, publen));
+	BN_bn2bin(priv_key, wpabuf_put(privkey, privlen));
+
+	*priv = privkey;
+	*publ = pubkey;
+	return dh;
+
+err:
+	BN_free(p);
+	BN_free(g);
+	wpabuf_clear_free(pubkey);
+	wpabuf_clear_free(privkey);
+	DH_free(dh);
+	return NULL;
+#endif
 }
 
 
 void * dh5_init_fixed(const struct wpabuf *priv, const struct wpabuf *publ)
 {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	DH *dh;
 
 	dh = DH_new();
@@ -537,6 +743,42 @@ void * dh5_init_fixed(const struct wpabuf *priv, const struct wpabuf *publ)
 err:
 	DH_free(dh);
 	return NULL;
+#else
+	DH *dh;
+	BIGNUM *p = NULL, *g, *priv_key = NULL, *pub_key = NULL;
+
+	dh = DH_new();
+	if (dh == NULL)
+		return NULL;
+
+	g = BN_new();
+	p = get_group5_prime();
+	if (!g || BN_set_word(g, 2) != 1 || !p ||
+	    DH_set0_pqg(dh, p, NULL, g) != 1)
+		goto err;
+	p = NULL;
+	g = NULL;
+
+	priv_key = BN_bin2bn(wpabuf_head(priv), wpabuf_len(priv), NULL);
+	pub_key = BN_bin2bn(wpabuf_head(publ), wpabuf_len(publ), NULL);
+	if (!priv_key || !pub_key || DH_set0_key(dh, pub_key, priv_key) != 1)
+		goto err;
+	pub_key = NULL;
+	priv_key = NULL;
+
+	if (DH_generate_key(dh) != 1)
+		goto err;
+
+	return dh;
+
+err:
+	BN_free(p);
+	BN_free(g);
+	BN_free(pub_key);
+	BN_clear_free(priv_key);
+	DH_free(dh);
+	return NULL;
+#endif
 }
 
 
@@ -566,13 +808,13 @@ struct wpabuf * dh5_derive_shared(void *ctx, const struct wpabuf *peer_public,
 	if (keylen < 0)
 		goto err;
 	wpabuf_put(res, keylen);
-	BN_free(pub_key);
+	BN_clear_free(pub_key);
 
 	return res;
 
 err:
-	BN_free(pub_key);
-	wpabuf_free(res);
+	BN_clear_free(pub_key);
+	wpabuf_clear_free(res);
 	return NULL;
 }
 
@@ -588,7 +830,7 @@ void dh5_free(void *ctx)
 
 
 struct crypto_hash {
-	HMAC_CTX ctx;
+	HMAC_CTX *ctx;
 };
 
 
@@ -623,16 +865,17 @@ struct crypto_hash * crypto_hash_init(enum crypto_hash_alg alg, const u8 *key,
 	ctx = os_zalloc(sizeof(*ctx));
 	if (ctx == NULL)
 		return NULL;
-	HMAC_CTX_init(&ctx->ctx);
-
-#if OPENSSL_VERSION_NUMBER < 0x00909000
-	HMAC_Init_ex(&ctx->ctx, key, key_len, md, NULL);
-#else /* openssl < 0.9.9 */
-	if (HMAC_Init_ex(&ctx->ctx, key, key_len, md, NULL) != 1) {
+	ctx->ctx = HMAC_CTX_new();
+	if (!ctx->ctx) {
 		os_free(ctx);
 		return NULL;
 	}
-#endif /* openssl < 0.9.9 */
+
+	if (HMAC_Init_ex(ctx->ctx, key, key_len, md, NULL) != 1) {
+		HMAC_CTX_free(ctx->ctx);
+		bin_clear_free(ctx, sizeof(*ctx));
+		return NULL;
+	}
 
 	return ctx;
 }
@@ -642,7 +885,7 @@ void crypto_hash_update(struct crypto_hash *ctx, const u8 *data, size_t len)
 {
 	if (ctx == NULL)
 		return;
-	HMAC_Update(&ctx->ctx, data, len);
+	HMAC_Update(ctx->ctx, data, len);
 }
 
 
@@ -655,19 +898,15 @@ int crypto_hash_finish(struct crypto_hash *ctx, u8 *mac, size_t *len)
 		return -2;
 
 	if (mac == NULL || len == NULL) {
-		os_free(ctx);
+		HMAC_CTX_free(ctx->ctx);
+		bin_clear_free(ctx, sizeof(*ctx));
 		return 0;
 	}
 
 	mdlen = *len;
-#if OPENSSL_VERSION_NUMBER < 0x00909000
-	HMAC_Final(&ctx->ctx, mac, &mdlen);
-	res = 1;
-#else /* openssl < 0.9.9 */
-	res = HMAC_Final(&ctx->ctx, mac, &mdlen);
-#endif /* openssl < 0.9.9 */
-	HMAC_CTX_cleanup(&ctx->ctx);
-	os_free(ctx);
+	res = HMAC_Final(ctx->ctx, mac, &mdlen);
+	HMAC_CTX_free(ctx->ctx);
+	bin_clear_free(ctx, sizeof(*ctx));
 
 	if (res == 1) {
 		*len = mdlen;
@@ -678,19 +917,61 @@ int crypto_hash_finish(struct crypto_hash *ctx, u8 *mac, size_t *len)
 }
 
 
+static int openssl_hmac_vector(const EVP_MD *type, const u8 *key,
+			       size_t key_len, size_t num_elem,
+			       const u8 *addr[], const size_t *len, u8 *mac,
+			       unsigned int mdlen)
+{
+	HMAC_CTX *ctx;
+	size_t i;
+	int res;
+
+	if (TEST_FAIL())
+		return -1;
+
+	ctx = HMAC_CTX_new();
+	if (!ctx)
+		return -1;
+	res = HMAC_Init_ex(ctx, key, key_len, type, NULL);
+	if (res != 1)
+		goto done;
+
+	for (i = 0; i < num_elem; i++)
+		HMAC_Update(ctx, addr[i], len[i]);
+
+	res = HMAC_Final(ctx, mac, &mdlen);
+done:
+	HMAC_CTX_free(ctx);
+
+	return res == 1 ? 0 : -1;
+}
+
+
+#ifndef CONFIG_FIPS
+
+int hmac_md5_vector(const u8 *key, size_t key_len, size_t num_elem,
+		    const u8 *addr[], const size_t *len, u8 *mac)
+{
+	return openssl_hmac_vector(EVP_md5(), key ,key_len, num_elem, addr, len,
+				   mac, 16);
+}
+
+
+int hmac_md5(const u8 *key, size_t key_len, const u8 *data, size_t data_len,
+	     u8 *mac)
+{
+	return hmac_md5_vector(key, key_len, 1, &data, &data_len, mac);
+}
+
+#endif /* CONFIG_FIPS */
+
+
 int pbkdf2_sha1(const char *passphrase, const u8 *ssid, size_t ssid_len,
 		int iterations, u8 *buf, size_t buflen)
 {
-#if OPENSSL_VERSION_NUMBER < 0x00908000
-	if (PKCS5_PBKDF2_HMAC_SHA1(passphrase, os_strlen(passphrase),
-				   (unsigned char *) ssid,
-				   ssid_len, 4096, buflen, buf) != 1)
-		return -1;
-#else /* openssl < 0.9.8 */
 	if (PKCS5_PBKDF2_HMAC_SHA1(passphrase, os_strlen(passphrase), ssid,
-				   ssid_len, 4096, buflen, buf) != 1)
+				   ssid_len, iterations, buflen, buf) != 1)
 		return -1;
-#endif /* openssl < 0.9.8 */
 	return 0;
 }
 
@@ -698,32 +979,8 @@ int pbkdf2_sha1(const char *passphrase, const u8 *ssid, size_t ssid_len,
 int hmac_sha1_vector(const u8 *key, size_t key_len, size_t num_elem,
 		     const u8 *addr[], const size_t *len, u8 *mac)
 {
-	HMAC_CTX ctx;
-	size_t i;
-	unsigned int mdlen;
-	int res;
-
-	HMAC_CTX_init(&ctx);
-#if OPENSSL_VERSION_NUMBER < 0x00909000
-	HMAC_Init_ex(&ctx, key, key_len, EVP_sha1(), NULL);
-#else /* openssl < 0.9.9 */
-	if (HMAC_Init_ex(&ctx, key, key_len, EVP_sha1(), NULL) != 1)
-		return -1;
-#endif /* openssl < 0.9.9 */
-
-	for (i = 0; i < num_elem; i++)
-		HMAC_Update(&ctx, addr[i], len[i]);
-
-	mdlen = 20;
-#if OPENSSL_VERSION_NUMBER < 0x00909000
-	HMAC_Final(&ctx, mac, &mdlen);
-	res = 1;
-#else /* openssl < 0.9.9 */
-	res = HMAC_Final(&ctx, mac, &mdlen);
-#endif /* openssl < 0.9.9 */
-	HMAC_CTX_cleanup(&ctx);
-
-	return res == 1 ? 0 : -1;
+	return openssl_hmac_vector(EVP_sha1(), key, key_len, num_elem, addr,
+				   len, mac, 20);
 }
 
 
@@ -739,32 +996,8 @@ int hmac_sha1(const u8 *key, size_t key_len, const u8 *data, size_t data_len,
 int hmac_sha256_vector(const u8 *key, size_t key_len, size_t num_elem,
 		       const u8 *addr[], const size_t *len, u8 *mac)
 {
-	HMAC_CTX ctx;
-	size_t i;
-	unsigned int mdlen;
-	int res;
-
-	HMAC_CTX_init(&ctx);
-#if OPENSSL_VERSION_NUMBER < 0x00909000
-	HMAC_Init_ex(&ctx, key, key_len, EVP_sha256(), NULL);
-#else /* openssl < 0.9.9 */
-	if (HMAC_Init_ex(&ctx, key, key_len, EVP_sha256(), NULL) != 1)
-		return -1;
-#endif /* openssl < 0.9.9 */
-
-	for (i = 0; i < num_elem; i++)
-		HMAC_Update(&ctx, addr[i], len[i]);
-
-	mdlen = 32;
-#if OPENSSL_VERSION_NUMBER < 0x00909000
-	HMAC_Final(&ctx, mac, &mdlen);
-	res = 1;
-#else /* openssl < 0.9.9 */
-	res = HMAC_Final(&ctx, mac, &mdlen);
-#endif /* openssl < 0.9.9 */
-	HMAC_CTX_cleanup(&ctx);
-
-	return res == 1 ? 0 : -1;
+	return openssl_hmac_vector(EVP_sha256(), key, key_len, num_elem, addr,
+				   len, mac, 32);
 }
 
 
@@ -777,6 +1010,25 @@ int hmac_sha256(const u8 *key, size_t key_len, const u8 *data,
 #endif /* CONFIG_SHA256 */
 
 
+#ifdef CONFIG_SHA384
+
+int hmac_sha384_vector(const u8 *key, size_t key_len, size_t num_elem,
+		       const u8 *addr[], const size_t *len, u8 *mac)
+{
+	return openssl_hmac_vector(EVP_sha384(), key, key_len, num_elem, addr,
+				   len, mac, 32);
+}
+
+
+int hmac_sha384(const u8 *key, size_t key_len, const u8 *data,
+		size_t data_len, u8 *mac)
+{
+	return hmac_sha384_vector(key, key_len, 1, &data, &data_len, mac);
+}
+
+#endif /* CONFIG_SHA384 */
+
+
 int crypto_get_random(void *buf, size_t len)
 {
 	if (RAND_bytes(buf, len) != 1)
@@ -786,19 +1038,29 @@ int crypto_get_random(void *buf, size_t len)
 
 
 #ifdef CONFIG_OPENSSL_CMAC
-int omac1_aes_128_vector(const u8 *key, size_t num_elem,
-			 const u8 *addr[], const size_t *len, u8 *mac)
+int omac1_aes_vector(const u8 *key, size_t key_len, size_t num_elem,
+		     const u8 *addr[], const size_t *len, u8 *mac)
 {
 	CMAC_CTX *ctx;
 	int ret = -1;
 	size_t outlen, i;
 
+	if (TEST_FAIL())
+		return -1;
+
 	ctx = CMAC_CTX_new();
 	if (ctx == NULL)
 		return -1;
 
-	if (!CMAC_Init(ctx, key, 16, EVP_aes_128_cbc(), NULL))
+	if (key_len == 32) {
+		if (!CMAC_Init(ctx, key, 32, EVP_aes_256_cbc(), NULL))
+			goto fail;
+	} else if (key_len == 16) {
+		if (!CMAC_Init(ctx, key, 16, EVP_aes_128_cbc(), NULL))
+			goto fail;
+	} else {
 		goto fail;
+	}
 	for (i = 0; i < num_elem; i++) {
 		if (!CMAC_Update(ctx, addr[i], len[i]))
 			goto fail;
@@ -813,8 +1075,569 @@ fail:
 }
 
 
+int omac1_aes_128_vector(const u8 *key, size_t num_elem,
+			 const u8 *addr[], const size_t *len, u8 *mac)
+{
+	return omac1_aes_vector(key, 16, num_elem, addr, len, mac);
+}
+
+
 int omac1_aes_128(const u8 *key, const u8 *data, size_t data_len, u8 *mac)
 {
 	return omac1_aes_128_vector(key, 1, &data, &data_len, mac);
 }
+
+
+int omac1_aes_256(const u8 *key, const u8 *data, size_t data_len, u8 *mac)
+{
+	return omac1_aes_vector(key, 32, 1, &data, &data_len, mac);
+}
 #endif /* CONFIG_OPENSSL_CMAC */
+
+
+struct crypto_bignum * crypto_bignum_init(void)
+{
+	if (TEST_FAIL())
+		return NULL;
+	return (struct crypto_bignum *) BN_new();
+}
+
+
+struct crypto_bignum * crypto_bignum_init_set(const u8 *buf, size_t len)
+{
+	BIGNUM *bn;
+
+	if (TEST_FAIL())
+		return NULL;
+
+	bn = BN_bin2bn(buf, len, NULL);
+	return (struct crypto_bignum *) bn;
+}
+
+
+void crypto_bignum_deinit(struct crypto_bignum *n, int clear)
+{
+	if (clear)
+		BN_clear_free((BIGNUM *) n);
+	else
+		BN_free((BIGNUM *) n);
+}
+
+
+int crypto_bignum_to_bin(const struct crypto_bignum *a,
+			 u8 *buf, size_t buflen, size_t padlen)
+{
+	int num_bytes, offset;
+
+	if (TEST_FAIL())
+		return -1;
+
+	if (padlen > buflen)
+		return -1;
+
+	num_bytes = BN_num_bytes((const BIGNUM *) a);
+	if ((size_t) num_bytes > buflen)
+		return -1;
+	if (padlen > (size_t) num_bytes)
+		offset = padlen - num_bytes;
+	else
+		offset = 0;
+
+	os_memset(buf, 0, offset);
+	BN_bn2bin((const BIGNUM *) a, buf + offset);
+
+	return num_bytes + offset;
+}
+
+
+int crypto_bignum_add(const struct crypto_bignum *a,
+		      const struct crypto_bignum *b,
+		      struct crypto_bignum *c)
+{
+	return BN_add((BIGNUM *) c, (const BIGNUM *) a, (const BIGNUM *) b) ?
+		0 : -1;
+}
+
+
+int crypto_bignum_mod(const struct crypto_bignum *a,
+		      const struct crypto_bignum *b,
+		      struct crypto_bignum *c)
+{
+	int res;
+	BN_CTX *bnctx;
+
+	bnctx = BN_CTX_new();
+	if (bnctx == NULL)
+		return -1;
+	res = BN_mod((BIGNUM *) c, (const BIGNUM *) a, (const BIGNUM *) b,
+		     bnctx);
+	BN_CTX_free(bnctx);
+
+	return res ? 0 : -1;
+}
+
+
+int crypto_bignum_exptmod(const struct crypto_bignum *a,
+			  const struct crypto_bignum *b,
+			  const struct crypto_bignum *c,
+			  struct crypto_bignum *d)
+{
+	int res;
+	BN_CTX *bnctx;
+
+	if (TEST_FAIL())
+		return -1;
+
+	bnctx = BN_CTX_new();
+	if (bnctx == NULL)
+		return -1;
+	res = BN_mod_exp((BIGNUM *) d, (const BIGNUM *) a, (const BIGNUM *) b,
+			 (const BIGNUM *) c, bnctx);
+	BN_CTX_free(bnctx);
+
+	return res ? 0 : -1;
+}
+
+
+int crypto_bignum_inverse(const struct crypto_bignum *a,
+			  const struct crypto_bignum *b,
+			  struct crypto_bignum *c)
+{
+	BIGNUM *res;
+	BN_CTX *bnctx;
+
+	if (TEST_FAIL())
+		return -1;
+	bnctx = BN_CTX_new();
+	if (bnctx == NULL)
+		return -1;
+	res = BN_mod_inverse((BIGNUM *) c, (const BIGNUM *) a,
+			     (const BIGNUM *) b, bnctx);
+	BN_CTX_free(bnctx);
+
+	return res ? 0 : -1;
+}
+
+
+int crypto_bignum_sub(const struct crypto_bignum *a,
+		      const struct crypto_bignum *b,
+		      struct crypto_bignum *c)
+{
+	if (TEST_FAIL())
+		return -1;
+	return BN_sub((BIGNUM *) c, (const BIGNUM *) a, (const BIGNUM *) b) ?
+		0 : -1;
+}
+
+
+int crypto_bignum_div(const struct crypto_bignum *a,
+		      const struct crypto_bignum *b,
+		      struct crypto_bignum *c)
+{
+	int res;
+
+	BN_CTX *bnctx;
+
+	if (TEST_FAIL())
+		return -1;
+
+	bnctx = BN_CTX_new();
+	if (bnctx == NULL)
+		return -1;
+	res = BN_div((BIGNUM *) c, NULL, (const BIGNUM *) a,
+		     (const BIGNUM *) b, bnctx);
+	BN_CTX_free(bnctx);
+
+	return res ? 0 : -1;
+}
+
+
+int crypto_bignum_mulmod(const struct crypto_bignum *a,
+			 const struct crypto_bignum *b,
+			 const struct crypto_bignum *c,
+			 struct crypto_bignum *d)
+{
+	int res;
+
+	BN_CTX *bnctx;
+
+	if (TEST_FAIL())
+		return -1;
+
+	bnctx = BN_CTX_new();
+	if (bnctx == NULL)
+		return -1;
+	res = BN_mod_mul((BIGNUM *) d, (const BIGNUM *) a, (const BIGNUM *) b,
+			 (const BIGNUM *) c, bnctx);
+	BN_CTX_free(bnctx);
+
+	return res ? 0 : -1;
+}
+
+
+int crypto_bignum_cmp(const struct crypto_bignum *a,
+		      const struct crypto_bignum *b)
+{
+	return BN_cmp((const BIGNUM *) a, (const BIGNUM *) b);
+}
+
+
+int crypto_bignum_bits(const struct crypto_bignum *a)
+{
+	return BN_num_bits((const BIGNUM *) a);
+}
+
+
+int crypto_bignum_is_zero(const struct crypto_bignum *a)
+{
+	return BN_is_zero((const BIGNUM *) a);
+}
+
+
+int crypto_bignum_is_one(const struct crypto_bignum *a)
+{
+	return BN_is_one((const BIGNUM *) a);
+}
+
+
+int crypto_bignum_legendre(const struct crypto_bignum *a,
+			   const struct crypto_bignum *p)
+{
+	BN_CTX *bnctx;
+	BIGNUM *exp = NULL, *tmp = NULL;
+	int res = -2;
+
+	if (TEST_FAIL())
+		return -2;
+
+	bnctx = BN_CTX_new();
+	if (bnctx == NULL)
+		return -2;
+
+	exp = BN_new();
+	tmp = BN_new();
+	if (!exp || !tmp ||
+	    /* exp = (p-1) / 2 */
+	    !BN_sub(exp, (const BIGNUM *) p, BN_value_one()) ||
+	    !BN_rshift1(exp, exp) ||
+	    !BN_mod_exp(tmp, (const BIGNUM *) a, exp, (const BIGNUM *) p,
+			bnctx))
+		goto fail;
+
+	if (BN_is_word(tmp, 1))
+		res = 1;
+	else if (BN_is_zero(tmp))
+		res = 0;
+	else
+		res = -1;
+
+fail:
+	BN_clear_free(tmp);
+	BN_clear_free(exp);
+	BN_CTX_free(bnctx);
+	return res;
+}
+
+
+#ifdef CONFIG_ECC
+
+struct crypto_ec {
+	EC_GROUP *group;
+	BN_CTX *bnctx;
+	BIGNUM *prime;
+	BIGNUM *order;
+	BIGNUM *a;
+	BIGNUM *b;
+};
+
+struct crypto_ec * crypto_ec_init(int group)
+{
+	struct crypto_ec *e;
+	int nid;
+
+	/* Map from IANA registry for IKE D-H groups to OpenSSL NID */
+	switch (group) {
+	case 19:
+		nid = NID_X9_62_prime256v1;
+		break;
+	case 20:
+		nid = NID_secp384r1;
+		break;
+	case 21:
+		nid = NID_secp521r1;
+		break;
+	case 25:
+		nid = NID_X9_62_prime192v1;
+		break;
+	case 26:
+		nid = NID_secp224r1;
+		break;
+#ifdef NID_brainpoolP224r1
+	case 27:
+		nid = NID_brainpoolP224r1;
+		break;
+#endif /* NID_brainpoolP224r1 */
+#ifdef NID_brainpoolP256r1
+	case 28:
+		nid = NID_brainpoolP256r1;
+		break;
+#endif /* NID_brainpoolP256r1 */
+#ifdef NID_brainpoolP384r1
+	case 29:
+		nid = NID_brainpoolP384r1;
+		break;
+#endif /* NID_brainpoolP384r1 */
+#ifdef NID_brainpoolP512r1
+	case 30:
+		nid = NID_brainpoolP512r1;
+		break;
+#endif /* NID_brainpoolP512r1 */
+	default:
+		return NULL;
+	}
+
+	e = os_zalloc(sizeof(*e));
+	if (e == NULL)
+		return NULL;
+
+	e->bnctx = BN_CTX_new();
+	e->group = EC_GROUP_new_by_curve_name(nid);
+	e->prime = BN_new();
+	e->order = BN_new();
+	e->a = BN_new();
+	e->b = BN_new();
+	if (e->group == NULL || e->bnctx == NULL || e->prime == NULL ||
+	    e->order == NULL || e->a == NULL || e->b == NULL ||
+	    !EC_GROUP_get_curve_GFp(e->group, e->prime, e->a, e->b, e->bnctx) ||
+	    !EC_GROUP_get_order(e->group, e->order, e->bnctx)) {
+		crypto_ec_deinit(e);
+		e = NULL;
+	}
+
+	return e;
+}
+
+
+void crypto_ec_deinit(struct crypto_ec *e)
+{
+	if (e == NULL)
+		return;
+	BN_clear_free(e->b);
+	BN_clear_free(e->a);
+	BN_clear_free(e->order);
+	BN_clear_free(e->prime);
+	EC_GROUP_free(e->group);
+	BN_CTX_free(e->bnctx);
+	os_free(e);
+}
+
+
+struct crypto_ec_point * crypto_ec_point_init(struct crypto_ec *e)
+{
+	if (TEST_FAIL())
+		return NULL;
+	if (e == NULL)
+		return NULL;
+	return (struct crypto_ec_point *) EC_POINT_new(e->group);
+}
+
+
+size_t crypto_ec_prime_len(struct crypto_ec *e)
+{
+	return BN_num_bytes(e->prime);
+}
+
+
+size_t crypto_ec_prime_len_bits(struct crypto_ec *e)
+{
+	return BN_num_bits(e->prime);
+}
+
+
+const struct crypto_bignum * crypto_ec_get_prime(struct crypto_ec *e)
+{
+	return (const struct crypto_bignum *) e->prime;
+}
+
+
+const struct crypto_bignum * crypto_ec_get_order(struct crypto_ec *e)
+{
+	return (const struct crypto_bignum *) e->order;
+}
+
+
+void crypto_ec_point_deinit(struct crypto_ec_point *p, int clear)
+{
+	if (clear)
+		EC_POINT_clear_free((EC_POINT *) p);
+	else
+		EC_POINT_free((EC_POINT *) p);
+}
+
+
+int crypto_ec_point_to_bin(struct crypto_ec *e,
+			   const struct crypto_ec_point *point, u8 *x, u8 *y)
+{
+	BIGNUM *x_bn, *y_bn;
+	int ret = -1;
+	int len = BN_num_bytes(e->prime);
+
+	if (TEST_FAIL())
+		return -1;
+
+	x_bn = BN_new();
+	y_bn = BN_new();
+
+	if (x_bn && y_bn &&
+	    EC_POINT_get_affine_coordinates_GFp(e->group, (EC_POINT *) point,
+						x_bn, y_bn, e->bnctx)) {
+		if (x) {
+			crypto_bignum_to_bin((struct crypto_bignum *) x_bn,
+					     x, len, len);
+		}
+		if (y) {
+			crypto_bignum_to_bin((struct crypto_bignum *) y_bn,
+					     y, len, len);
+		}
+		ret = 0;
+	}
+
+	BN_clear_free(x_bn);
+	BN_clear_free(y_bn);
+	return ret;
+}
+
+
+struct crypto_ec_point * crypto_ec_point_from_bin(struct crypto_ec *e,
+						  const u8 *val)
+{
+	BIGNUM *x, *y;
+	EC_POINT *elem;
+	int len = BN_num_bytes(e->prime);
+
+	if (TEST_FAIL())
+		return NULL;
+
+	x = BN_bin2bn(val, len, NULL);
+	y = BN_bin2bn(val + len, len, NULL);
+	elem = EC_POINT_new(e->group);
+	if (x == NULL || y == NULL || elem == NULL) {
+		BN_clear_free(x);
+		BN_clear_free(y);
+		EC_POINT_clear_free(elem);
+		return NULL;
+	}
+
+	if (!EC_POINT_set_affine_coordinates_GFp(e->group, elem, x, y,
+						 e->bnctx)) {
+		EC_POINT_clear_free(elem);
+		elem = NULL;
+	}
+
+	BN_clear_free(x);
+	BN_clear_free(y);
+
+	return (struct crypto_ec_point *) elem;
+}
+
+
+int crypto_ec_point_add(struct crypto_ec *e, const struct crypto_ec_point *a,
+			const struct crypto_ec_point *b,
+			struct crypto_ec_point *c)
+{
+	if (TEST_FAIL())
+		return -1;
+	return EC_POINT_add(e->group, (EC_POINT *) c, (const EC_POINT *) a,
+			    (const EC_POINT *) b, e->bnctx) ? 0 : -1;
+}
+
+
+int crypto_ec_point_mul(struct crypto_ec *e, const struct crypto_ec_point *p,
+			const struct crypto_bignum *b,
+			struct crypto_ec_point *res)
+{
+	if (TEST_FAIL())
+		return -1;
+	return EC_POINT_mul(e->group, (EC_POINT *) res, NULL,
+			    (const EC_POINT *) p, (const BIGNUM *) b, e->bnctx)
+		? 0 : -1;
+}
+
+
+int crypto_ec_point_invert(struct crypto_ec *e, struct crypto_ec_point *p)
+{
+	if (TEST_FAIL())
+		return -1;
+	return EC_POINT_invert(e->group, (EC_POINT *) p, e->bnctx) ? 0 : -1;
+}
+
+
+int crypto_ec_point_solve_y_coord(struct crypto_ec *e,
+				  struct crypto_ec_point *p,
+				  const struct crypto_bignum *x, int y_bit)
+{
+	if (TEST_FAIL())
+		return -1;
+	if (!EC_POINT_set_compressed_coordinates_GFp(e->group, (EC_POINT *) p,
+						     (const BIGNUM *) x, y_bit,
+						     e->bnctx) ||
+	    !EC_POINT_is_on_curve(e->group, (EC_POINT *) p, e->bnctx))
+		return -1;
+	return 0;
+}
+
+
+struct crypto_bignum *
+crypto_ec_point_compute_y_sqr(struct crypto_ec *e,
+			      const struct crypto_bignum *x)
+{
+	BIGNUM *tmp, *tmp2, *y_sqr = NULL;
+
+	if (TEST_FAIL())
+		return NULL;
+
+	tmp = BN_new();
+	tmp2 = BN_new();
+
+	/* y^2 = x^3 + ax + b */
+	if (tmp && tmp2 &&
+	    BN_mod_sqr(tmp, (const BIGNUM *) x, e->prime, e->bnctx) &&
+	    BN_mod_mul(tmp, tmp, (const BIGNUM *) x, e->prime, e->bnctx) &&
+	    BN_mod_mul(tmp2, e->a, (const BIGNUM *) x, e->prime, e->bnctx) &&
+	    BN_mod_add_quick(tmp2, tmp2, tmp, e->prime) &&
+	    BN_mod_add_quick(tmp2, tmp2, e->b, e->prime)) {
+		y_sqr = tmp2;
+		tmp2 = NULL;
+	}
+
+	BN_clear_free(tmp);
+	BN_clear_free(tmp2);
+
+	return (struct crypto_bignum *) y_sqr;
+}
+
+
+int crypto_ec_point_is_at_infinity(struct crypto_ec *e,
+				   const struct crypto_ec_point *p)
+{
+	return EC_POINT_is_at_infinity(e->group, (const EC_POINT *) p);
+}
+
+
+int crypto_ec_point_is_on_curve(struct crypto_ec *e,
+				const struct crypto_ec_point *p)
+{
+	return EC_POINT_is_on_curve(e->group, (const EC_POINT *) p,
+				    e->bnctx) == 1;
+}
+
+
+int crypto_ec_point_cmp(const struct crypto_ec *e,
+			const struct crypto_ec_point *a,
+			const struct crypto_ec_point *b)
+{
+	return EC_POINT_cmp(e->group, (const EC_POINT *) a,
+			    (const EC_POINT *) b, e->bnctx);
+}
+
+#endif /* CONFIG_ECC */

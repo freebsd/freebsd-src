@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2000-2001, Boris Popov
  * All rights reserved.
  *
@@ -116,7 +118,7 @@ smb_ntencrypt(const u_char *apwd, u_char *C8, u_char *RN)
 	u_char S21[21];
 	u_int16_t *unipwd;
 	MD4_CTX *ctxp;
-	int len;
+	u_int len;
 
 	len = strlen(apwd);
 	unipwd = malloc((len + 1) * sizeof(u_int16_t), M_SMBTEMP, M_WAITOK);
@@ -146,7 +148,7 @@ smb_calcmackey(struct smb_vc *vcp)
 {
 	const char *pwd;
 	u_int16_t *unipwd;
-	int len;
+	u_int len;
 	MD4_CTX md4;
 	u_char S16[16], S21[21];
 

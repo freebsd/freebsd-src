@@ -22,9 +22,7 @@
 
 using namespace clang;
 
-// The number of ValueDecls we want to keep track of by default (per-function)
-#define VARDECL_SET_SIZE 256
-typedef llvm::SmallPtrSet<const VarDecl*, VARDECL_SET_SIZE> VarDeclSet;
+typedef llvm::SmallPtrSet<const VarDecl*, 32> VarDeclSet;
 
 PseudoConstantAnalysis::PseudoConstantAnalysis(const Stmt *DeclBody) :
       DeclBody(DeclBody), Analyzed(false) {
@@ -70,7 +68,7 @@ const Decl *PseudoConstantAnalysis::getDecl(const Expr *E) {
   if (const DeclRefExpr *DR = dyn_cast<DeclRefExpr>(E))
     return DR->getDecl();
   else
-    return 0;
+    return nullptr;
 }
 
 void PseudoConstantAnalysis::RunAnalysis() {
@@ -111,6 +109,7 @@ void PseudoConstantAnalysis::RunAnalysis() {
           // Do not visit the children
           continue;
 
+        LLVM_FALLTHROUGH;
       }
       case BO_AddAssign:
       case BO_SubAssign:
@@ -171,10 +170,9 @@ void PseudoConstantAnalysis::RunAnalysis() {
     case Stmt::DeclStmtClass: {
       const DeclStmt *DS = cast<DeclStmt>(Head);
       // Iterate over each decl and see if any of them contain reference decls
-      for (DeclStmt::const_decl_iterator I = DS->decl_begin(),
-          E = DS->decl_end(); I != E; ++I) {
+      for (const auto *I : DS->decls()) {
         // We only care about VarDecls
-        const VarDecl *VD = dyn_cast<VarDecl>(*I);
+        const VarDecl *VD = dyn_cast<VarDecl>(I);
         if (!VD)
           continue;
 
@@ -221,8 +219,8 @@ void PseudoConstantAnalysis::RunAnalysis() {
     } // switch (head->getStmtClass())
 
     // Add all substatements to the worklist
-    for (Stmt::const_child_range I = Head->children(); I; ++I)
-      if (*I)
-        WorkList.push_back(*I);
+    for (const Stmt *SubStmt : Head->children())
+      if (SubStmt)
+        WorkList.push_back(SubStmt);
   } // while (!WorkList.empty())
 }

@@ -56,8 +56,8 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_ddb.h"
+#include "opt_kstack_pages.h"
 
 #include <machine/asi.h>
 #include <machine/asmacros.h>
@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/utrap.h>
 #include <machine/wstate.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 #define	TSB_ASI			0x0
 #define	TSB_KERNEL		0x0
@@ -2475,9 +2475,8 @@ ENTRY(tl0_intr)
 	inc	%l1
 	stx	%l1, [%l0]
 
-	lduw	[PCPU(CNT) + V_INTR], %l0
-	inc	%l0
-	stw	%l0, [PCPU(CNT) + V_INTR]
+	call	counter_intr_inc
+	 nop
 
 	ba,a	%xcc, tl0_ret
 	 nop
@@ -2627,9 +2626,9 @@ ENTRY(tl0_ret)
 	andn	%l4, TSTATE_CWP_MASK, %g2
 
 	/*
-	 * Save %y in an alternate global.
+	 * Restore %y.  Could also be below if we had more alternate globals.
 	 */
-	mov	%l5, %g4
+	wr	%l5, 0, %y
 
 	/*
 	 * Setup %wstate for return.  We need to restore the user window state
@@ -2674,8 +2673,8 @@ tl0_ret_fill:
 	 * Fixup %tstate so the saved %cwp points to the current window and
 	 * restore it.
 	 */
-	rdpr	%cwp, %g1
-	wrpr	%g2, %g1, %tstate
+	rdpr	%cwp, %g4
+	wrpr	%g2, %g4, %tstate
 
 	/*
 	 * Restore the user window state.  The transition bit was set above
@@ -2685,23 +2684,18 @@ tl0_ret_fill:
 
 #if KTR_COMPILE & KTR_TRAP
 	CATR(KTR_TRAP, "tl0_ret: td=%#lx pil=%#lx pc=%#lx npc=%#lx sp=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	ldx	[PCPU(CURTHREAD)], %g2
-	stx	%g2, [%g1 + KTR_PARM1]
-	rdpr	%pil, %g2
-	stx	%g2, [%g1 + KTR_PARM2]
-	rdpr	%tpc, %g2
-	stx	%g2, [%g1 + KTR_PARM3]
-	rdpr	%tnpc, %g2
-	stx	%g2, [%g1 + KTR_PARM4]
-	stx	%sp, [%g1 + KTR_PARM5]
+	    , %g2, %g3, %g4, 7, 8, 9)
+	ldx	[PCPU(CURTHREAD)], %g3
+	stx	%g3, [%g2 + KTR_PARM1]
+	rdpr	%pil, %g3
+	stx	%g3, [%g2 + KTR_PARM2]
+	rdpr	%tpc, %g3
+	stx	%g3, [%g2 + KTR_PARM3]
+	rdpr	%tnpc, %g3
+	stx	%g3, [%g2 + KTR_PARM4]
+	stx	%sp, [%g2 + KTR_PARM5]
 9:
 #endif
-
-	/*
-	 * Restore %y.  Note that the CATR above clobbered it.
-	 */
-	wr	%g4, 0, %y
 
 	/*
 	 * Return to usermode.
@@ -2717,11 +2711,6 @@ tl0_ret_fill_end:
 	stx	%l6, [%l0 + KTR_PARM2]
 	stx	%sp, [%l0 + KTR_PARM3]
 9:
-
-	/*
-	 * Restore %y clobbered by the CATR.  This was saved in %l5 above.
-	 */
-	wr	%l5, 0, %y
 #endif
 
 	/*
@@ -2889,35 +2878,33 @@ ENTRY(tl1_ret)
 	andn	%l0, TSTATE_CWP_MASK, %g1
 	mov	%l1, %g2
 	mov	%l2, %g3
-	mov	%l4, %g4
 
 	wrpr	%l3, 0, %pil
+	wr	%l4, 0, %y
 
 	restore
 
 	wrpr	%g0, 2, %tl
 
+	rdpr	%cwp, %g4
+	wrpr	%g1, %g4, %tstate
 	wrpr	%g2, 0, %tpc
 	wrpr	%g3, 0, %tnpc
-	rdpr	%cwp, %g2
-	wrpr	%g1, %g2, %tstate
 
 #if KTR_COMPILE & KTR_TRAP
 	CATR(KTR_TRAP, "tl1_ret: td=%#lx pil=%#lx ts=%#lx pc=%#lx sp=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	ldx	[PCPU(CURTHREAD)], %g2
-	stx	%g2, [%g1 + KTR_PARM1]
-	rdpr	%pil, %g2
-	stx	%g2, [%g1 + KTR_PARM2]
-	rdpr	%tstate, %g2
-	stx	%g2, [%g1 + KTR_PARM3]
-	rdpr	%tpc, %g2
-	stx	%g2, [%g1 + KTR_PARM4]
-	stx	%sp, [%g1 + KTR_PARM5]
+	    , %g2, %g3, %g4, 7, 8, 9)
+	ldx	[PCPU(CURTHREAD)], %g3
+	stx	%g3, [%g2 + KTR_PARM1]
+	rdpr	%pil, %g3
+	stx	%g3, [%g2 + KTR_PARM2]
+	rdpr	%tstate, %g3
+	stx	%g3, [%g2 + KTR_PARM3]
+	rdpr	%tpc, %g3
+	stx	%g3, [%g2 + KTR_PARM4]
+	stx	%sp, [%g2 + KTR_PARM5]
 9:
 #endif
-
-	wr	%g4, 0, %y
 
 	retry
 END(tl1_ret)
@@ -3000,11 +2987,8 @@ ENTRY(tl1_intr)
 	add	%l5, %l4, %l4
 	ldx	[%l4], %l5
 	inc	%l5
-	stx	%l5, [%l4]
-
-	lduw	[PCPU(CNT) + V_INTR], %l4
-	inc	%l4
-	stw	%l4, [PCPU(CNT) + V_INTR]
+	call	counter_intr_inc
+	 stx	%l5, [%l4]
 
 	ldx	[%sp + SPOFF + CCFSZ + TF_Y], %l4
 
@@ -3019,34 +3003,32 @@ ENTRY(tl1_intr)
 	andn	%l0, TSTATE_CWP_MASK, %g1
 	mov	%l1, %g2
 	mov	%l2, %g3
-	mov	%l4, %g4
 	wrpr	%l3, 0, %pil
+	wr	%l4, 0, %y
 
 	restore
 
 	wrpr	%g0, 2, %tl
 
+	rdpr	%cwp, %g4
+	wrpr	%g1, %g4, %tstate
 	wrpr	%g2, 0, %tpc
 	wrpr	%g3, 0, %tnpc
-	rdpr	%cwp, %g2
-	wrpr	%g1, %g2, %tstate
 
 #if KTR_COMPILE & KTR_INTR
 	CATR(KTR_INTR, "tl1_intr: td=%#x pil=%#lx ts=%#lx pc=%#lx sp=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	ldx	[PCPU(CURTHREAD)], %g2
-	stx	%g2, [%g1 + KTR_PARM1]
-	rdpr	%pil, %g2
-	stx	%g2, [%g1 + KTR_PARM2]
-	rdpr	%tstate, %g2
-	stx	%g2, [%g1 + KTR_PARM3]
-	rdpr	%tpc, %g2
-	stx	%g2, [%g1 + KTR_PARM4]
-	stx	%sp, [%g1 + KTR_PARM5]
+	    , %g2, %g3, %g4, 7, 8, 9)
+	ldx	[PCPU(CURTHREAD)], %g3
+	stx	%g3, [%g2 + KTR_PARM1]
+	rdpr	%pil, %g3
+	stx	%g3, [%g2 + KTR_PARM2]
+	rdpr	%tstate, %g3
+	stx	%g3, [%g2 + KTR_PARM3]
+	rdpr	%tpc, %g3
+	stx	%g3, [%g2 + KTR_PARM4]
+	stx	%sp, [%g2 + KTR_PARM5]
 9:
 #endif
-
-	wr	%g4, 0, %y
 
 	retry
 END(tl1_intr)

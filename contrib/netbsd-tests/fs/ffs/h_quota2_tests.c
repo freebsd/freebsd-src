@@ -1,4 +1,4 @@
-/*	$NetBSD: h_quota2_tests.c,v 1.4 2012/09/30 21:26:57 bouyer Exp $	*/
+/*	$NetBSD: h_quota2_tests.c,v 1.5 2017/01/13 21:30:39 christos Exp $	*/
 
 /*
  * rump server for advanced quota tests
@@ -22,7 +22,7 @@
 #include <rump/rump.h>
 #include <rump/rump_syscalls.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 int background = 0;
 

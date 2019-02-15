@@ -1,3 +1,5 @@
+/*	$NetBSD: refresh.h,v 1.9 2016/02/16 15:53:48 christos Exp $	*/
+
 /*-
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -30,7 +32,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)refresh.h	8.1 (Berkeley) 6/4/93
- *	$NetBSD: refresh.h,v 1.5 2003/08/07 16:44:33 agc Exp $
  * $FreeBSD$
  */
 
@@ -40,15 +41,13 @@
 #ifndef _h_el_refresh
 #define	_h_el_refresh
 
-#include "histedit.h"
-
 typedef struct {
 	coord_t	r_cursor;	/* Refresh cursor position	*/
 	int	r_oldcv;	/* Vertical locations		*/
 	int	r_newcv;
 } el_refresh_t;
 
-protected void	re_putc(EditLine *, int, int);
+protected void	re_putc(EditLine *, wint_t, int);
 protected void	re_clear_lines(EditLine *);
 protected void	re_clear_display(EditLine *);
 protected void	re_refresh(EditLine *);

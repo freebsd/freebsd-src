@@ -32,7 +32,7 @@
 .\"     @(#)atoi.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd June 13, 2018
 .Dt ATOI 3
 .Os
 .Sh NAME
@@ -57,7 +57,7 @@ representation.
 .Pp
 It is equivalent to:
 .Bd -literal -offset indent
-(int)strtol(nptr, (char **)NULL, 10);
+(int)strtol(nptr, NULL, 10);
 .Ed
 .Pp
 The

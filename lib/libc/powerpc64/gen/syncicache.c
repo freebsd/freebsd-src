@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1995-1997, 1999 Wolfgang Solfrank.
  * Copyright (C) 1995-1997, 1999 TooLs GmbH.
  * All rights reserved.
@@ -66,8 +68,8 @@ getcachelinesize()
 
 	clen = sizeof(cacheline_size);
 
-	if (sysctl(cachemib, sizeof(cachemib) / sizeof(cachemib[0]),
-	    &cacheline_size, &clen, NULL, 0) < 0 || !cacheline_size) {
+	if (sysctl(cachemib, nitems(cachemib), &cacheline_size, &clen,
+	    NULL, 0) < 0 || !cacheline_size) {
 		abort();
 	}
 }

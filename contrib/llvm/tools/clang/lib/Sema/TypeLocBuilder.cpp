@@ -62,7 +62,7 @@ void TypeLocBuilder::grow(size_t NewCapacity) {
 
 TypeLoc TypeLocBuilder::pushImpl(QualType T, size_t LocalSize, unsigned LocalAlignment) {
 #ifndef NDEBUG
-  QualType TLast = TypeLoc(T, 0).getNextTypeLoc().getType();
+  QualType TLast = TypeLoc(T, nullptr).getNextTypeLoc().getType();
   assert(TLast == LastTy &&
          "mismatch between last type and new type's inner type");
   LastTy = T;
@@ -115,11 +115,39 @@ TypeLoc TypeLocBuilder::pushImpl(QualType T, size_t LocalSize, unsigned LocalAli
       NumBytesAtAlign4 += LocalSize;
     }
   } else if (LocalAlignment == 8) {
-    if (!NumBytesAtAlign8 && NumBytesAtAlign4 % 8 != 0) {
-      // No existing padding and misaligned members; add in 4 bytes padding
-      memmove(&Buffer[Index - 4], &Buffer[Index], NumBytesAtAlign4);
-      Index -= 4;
+    if (NumBytesAtAlign8 == 0) {
+      // We have not seen any 8-byte aligned element yet. We insert a padding
+      // only if the new Index is not 8-byte-aligned.
+      if ((Index - LocalSize) % 8 != 0) {
+        memmove(&Buffer[Index - 4], &Buffer[Index], NumBytesAtAlign4);
+        Index -= 4;
+      }
+    } else {
+      unsigned Padding = NumBytesAtAlign4 % 8;
+      if (Padding == 0) {
+        if (LocalSize % 8 == 0) {
+          // Everything is set: there's no padding and we don't need to add
+          // any.
+        } else {
+          assert(LocalSize % 8 == 4);
+          // No existing padding; add in 4 bytes padding
+          memmove(&Buffer[Index - 4], &Buffer[Index], NumBytesAtAlign4);
+          Index -= 4;
+        }
+      } else {
+        assert(Padding == 4);
+        if (LocalSize % 8 == 0) {
+          // Everything is set: there's 4 bytes padding and we don't need
+          // to add any.
+        } else {
+          assert(LocalSize % 8 == 4);
+          // There are 4 bytes padding, but we don't need any; remove it.
+          memmove(&Buffer[Index + 4], &Buffer[Index], NumBytesAtAlign4);
+          Index += 4;
+        }
+      }
     }
+
     // Forget about any padding.
     NumBytesAtAlign4 = 0;
     NumBytesAtAlign8 += LocalSize;

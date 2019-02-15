@@ -60,7 +60,7 @@ build_active_list(int isgcmd)
 			return ERR;
 		if (isbinary)
 			NUL_TO_NEWLINE(s, lp->len);
-		if (!regexec(pat, s, 0, NULL, 0) == isgcmd &&
+		if (!(regexec(pat, s, 0, NULL, 0) == isgcmd) &&
 		    set_active_node(lp) < 0)
 			return ERR;
 	}
@@ -146,14 +146,14 @@ int
 set_active_node(line_t *lp)
 {
 	if (active_last + 1 > active_size) {
-		int ti = active_size;
+		size_t ti = active_size;
 		line_t **ts;
 		SPL1();
 #if defined(sun) || defined(NO_REALLOC_NULL)
 		if (active_list != NULL) {
 #endif
 			if ((ts = (line_t **) realloc(active_list,
-			    (ti += MINBUFSZ) * sizeof(line_t **))) == NULL) {
+			    (ti += MINBUFSZ) * sizeof(line_t *))) == NULL) {
 				fprintf(stderr, "%s\n", strerror(errno));
 				errmsg = "out of memory";
 				SPL0();

@@ -26,24 +26,16 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-mpls.c,v 1.14 2005-07-05 09:38:19 hannes Exp $ (LBL)";
-#endif
+/* \summary: Multi-Protocol Label Switching (MPLS) printer */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "addrtoname.h"
-#include "interface.h"
-#include "extract.h"			/* must come after interface.h */
+#include "netdissect.h"
+#include "extract.h"
 #include "mpls.h"
 
 static const char *mpls_labelname[] = {
@@ -65,31 +57,36 @@ enum mpls_packet_type {
  * RFC3032: MPLS label stack encoding
  */
 void
-mpls_print(const u_char *bp, u_int length)
+mpls_print(netdissect_options *ndo, const u_char *bp, u_int length)
 {
 	const u_char *p;
-	u_int32_t label_entry;
-	u_int16_t label_stack_depth = 0;
+	uint32_t label_entry;
+	uint16_t label_stack_depth = 0;
 	enum mpls_packet_type pt = PT_UNKNOWN;
 
 	p = bp;
-	printf("MPLS");
+	ND_PRINT((ndo, "MPLS"));
 	do {
-		TCHECK2(*p, sizeof(label_entry));
+		ND_TCHECK2(*p, sizeof(label_entry));
+		if (length < sizeof(label_entry)) {
+			ND_PRINT((ndo, "[|MPLS], length %u", length));
+			return;
+		}
 		label_entry = EXTRACT_32BITS(p);
-		printf("%s(label %u",
-		       (label_stack_depth && vflag) ? "\n\t" : " ",
-       		       MPLS_LABEL(label_entry));
+		ND_PRINT((ndo, "%s(label %u",
+		       (label_stack_depth && ndo->ndo_vflag) ? "\n\t" : " ",
+       		       MPLS_LABEL(label_entry)));
 		label_stack_depth++;
-		if (vflag &&
+		if (ndo->ndo_vflag &&
 		    MPLS_LABEL(label_entry) < sizeof(mpls_labelname) / sizeof(mpls_labelname[0]))
-			printf(" (%s)", mpls_labelname[MPLS_LABEL(label_entry)]);
-		printf(", exp %u", MPLS_EXP(label_entry));
+			ND_PRINT((ndo, " (%s)", mpls_labelname[MPLS_LABEL(label_entry)]));
+		ND_PRINT((ndo, ", exp %u", MPLS_EXP(label_entry)));
 		if (MPLS_STACK(label_entry))
-			printf(", [S]");
-		printf(", ttl %u)", MPLS_TTL(label_entry));
+			ND_PRINT((ndo, ", [S]"));
+		ND_PRINT((ndo, ", ttl %u)", MPLS_TTL(label_entry)));
 
 		p += sizeof(label_entry);
+		length -= sizeof(label_entry);
 	} while (!MPLS_STACK(label_entry));
 
 	/*
@@ -132,6 +129,11 @@ mpls_print(const u_char *bp, u_int length)
 		 * Cisco sends control-plane traffic MPLS-encapsulated in
 		 * this fashion.
 		 */
+		ND_TCHECK(*p);
+		if (length < 1) {
+			/* nothing to print */
+			return;
+		}
 		switch(*p) {
 
 		case 0x45:
@@ -147,7 +149,7 @@ mpls_print(const u_char *bp, u_int length)
 		case 0x4f:
 			pt = PT_IPV4;
 			break;
-				
+
 		case 0x60:
 		case 0x61:
 		case 0x62:
@@ -183,30 +185,23 @@ mpls_print(const u_char *bp, u_int length)
 	 * Print the payload.
 	 */
 	if (pt == PT_UNKNOWN) {
-		if (!suppress_default_print)
-			default_print(p, length - (p - bp));
+		if (!ndo->ndo_suppress_default_print)
+			ND_DEFAULTPRINT(p, length);
 		return;
 	}
-	if (vflag)
-		printf("\n\t");
-	else
-		printf(" ");
+	ND_PRINT((ndo, ndo->ndo_vflag ? "\n\t" : " "));
 	switch (pt) {
 
 	case PT_IPV4:
-		ip_print(gndo, p, length - (p - bp));
+		ip_print(ndo, p, length);
 		break;
 
 	case PT_IPV6:
-#ifdef INET6
-		ip6_print(gndo, p, length - (p - bp));
-#else
-		printf("IPv6, length: %u", length);
-#endif
+		ip6_print(ndo, p, length);
 		break;
 
 	case PT_OSI:
-		isoclns_print(p, length - (p - bp), length - (p - bp));
+		isoclns_print(ndo, p, length);
 		break;
 
 	default:
@@ -215,7 +210,7 @@ mpls_print(const u_char *bp, u_int length)
 	return;
 
 trunc:
-	printf("[|MPLS]");
+	ND_PRINT((ndo, "[|MPLS]"));
 }
 
 

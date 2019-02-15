@@ -12,10 +12,9 @@
 namespace clang {
 namespace ast_matchers {
 namespace dynamic {
-
 Diagnostics::ArgStream Diagnostics::pushContextFrame(ContextType Type,
                                                      SourceRange Range) {
-  ContextStack.push_back(ContextFrame());
+  ContextStack.emplace_back();
   ContextFrame& data = ContextStack.back();
   data.Type = Type;
   data.Range = Range;
@@ -24,14 +23,14 @@ Diagnostics::ArgStream Diagnostics::pushContextFrame(ContextType Type,
 
 Diagnostics::Context::Context(ConstructMatcherEnum, Diagnostics *Error,
                               StringRef MatcherName,
-                              const SourceRange &MatcherRange)
+                              SourceRange MatcherRange)
     : Error(Error) {
   Error->pushContextFrame(CT_MatcherConstruct, MatcherRange) << MatcherName;
 }
 
 Diagnostics::Context::Context(MatcherArgEnum, Diagnostics *Error,
                               StringRef MatcherName,
-                              const SourceRange &MatcherRange,
+                              SourceRange MatcherRange,
                               unsigned ArgNumber)
     : Error(Error) {
   Error->pushContextFrame(CT_MatcherArg, MatcherRange) << ArgNumber
@@ -64,18 +63,18 @@ Diagnostics::ArgStream &Diagnostics::ArgStream::operator<<(const Twine &Arg) {
   return *this;
 }
 
-Diagnostics::ArgStream Diagnostics::addError(const SourceRange &Range,
+Diagnostics::ArgStream Diagnostics::addError(SourceRange Range,
                                              ErrorType Error) {
-  Errors.push_back(ErrorContent());
+  Errors.emplace_back();
   ErrorContent &Last = Errors.back();
   Last.ContextStack = ContextStack;
-  Last.Messages.push_back(ErrorContent::Message());
+  Last.Messages.emplace_back();
   Last.Messages.back().Range = Range;
   Last.Messages.back().Type = Error;
   return ArgStream(&Last.Messages.back().Args);
 }
 
-StringRef contextTypeToFormatString(Diagnostics::ContextType Type) {
+static StringRef contextTypeToFormatString(Diagnostics::ContextType Type) {
   switch (Type) {
     case Diagnostics::CT_MatcherConstruct:
       return "Error building matcher $0.";
@@ -85,9 +84,9 @@ StringRef contextTypeToFormatString(Diagnostics::ContextType Type) {
   llvm_unreachable("Unknown ContextType value.");
 }
 
-StringRef errorTypeToFormatString(Diagnostics::ErrorType Type) {
+static StringRef errorTypeToFormatString(Diagnostics::ErrorType Type) {
   switch (Type) {
-  case Diagnostics::ET_RegistryNotFound:
+  case Diagnostics::ET_RegistryMatcherNotFound:
     return "Matcher not found: $0";
   case Diagnostics::ET_RegistryWrongArgCount:
     return "Incorrect argument count. (Expected = $0) != (Actual = $1)";
@@ -98,6 +97,8 @@ StringRef errorTypeToFormatString(Diagnostics::ErrorType Type) {
   case Diagnostics::ET_RegistryAmbiguousOverload:
     // TODO: Add type info about the overload error.
     return "Ambiguous matcher overload.";
+  case Diagnostics::ET_RegistryValueNotFound:
+    return "Value not found: $0";
 
   case Diagnostics::ET_ParserStringError:
     return "Error parsing string token: <$0>";
@@ -117,8 +118,8 @@ StringRef errorTypeToFormatString(Diagnostics::ErrorType Type) {
     return "Malformed bind() expression.";
   case Diagnostics::ET_ParserTrailingCode:
     return "Expected end of code.";
-  case Diagnostics::ET_ParserUnsignedError:
-    return "Error parsing unsigned token: <$0>";
+  case Diagnostics::ET_ParserNumberError:
+    return "Error parsing numeric literal: <$0>";
   case Diagnostics::ET_ParserOverloadedType:
     return "Input value has unresolved overloaded type: $0";
 
@@ -128,8 +129,9 @@ StringRef errorTypeToFormatString(Diagnostics::ErrorType Type) {
   llvm_unreachable("Unknown ErrorType value.");
 }
 
-void formatErrorString(StringRef FormatString, ArrayRef<std::string> Args,
-                       llvm::raw_ostream &OS) {
+static void formatErrorString(StringRef FormatString,
+                              ArrayRef<std::string> Args,
+                              llvm::raw_ostream &OS) {
   while (!FormatString.empty()) {
     std::pair<StringRef, StringRef> Pieces = FormatString.split("$");
     OS << Pieces.first.str();
@@ -148,7 +150,7 @@ void formatErrorString(StringRef FormatString, ArrayRef<std::string> Args,
   }
 }
 
-static void maybeAddLineAndColumn(const SourceRange &Range,
+static void maybeAddLineAndColumn(SourceRange Range,
                                   llvm::raw_ostream &OS) {
   if (Range.Start.Line > 0 && Range.Start.Column > 0) {
     OS << Range.Start.Line << ":" << Range.Start.Column << ": ";

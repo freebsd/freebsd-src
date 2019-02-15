@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000-2008 Marc Alexander Lehmann <schmorp@schmorp.de>
  * 
  * Redistribution and use in source and binary forms, with or without modifica-
@@ -132,7 +134,11 @@ lzf_decompress (const void *const in_data,  unsigned int in_len,
  * Unconditionally aligning does not cost very much, so do it if unsure
  */
 #ifndef STRICT_ALIGN
-# define STRICT_ALIGN !(defined(__i386) || defined (__amd64))
+# if !(defined(__i386) || defined (__amd64))
+#  define STRICT_ALIGN 1
+# else
+#  define STRICT_ALIGN 0
+# endif
 #endif
 
 /*

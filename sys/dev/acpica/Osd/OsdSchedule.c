@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/malloc.h>
@@ -128,7 +127,7 @@ acpi_taskq_init(void *arg)
     acpi_taskq_started = 1;
 }
 
-SYSINIT(acpi_taskq, SI_SUB_CONFIGURE, SI_ORDER_SECOND, acpi_taskq_init, NULL);
+SYSINIT(acpi_taskq, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, acpi_taskq_init, NULL);
 
 /*
  * Bounce through this wrapper function since ACPI-CA doesn't understand
@@ -218,7 +217,8 @@ AcpiOsExecute(ACPI_EXECUTE_TYPE Type, ACPI_OSD_EXEC_CALLBACK Function,
     case OSL_EC_BURST_HANDLER:
 	pri = 5;
 	break;
-    case OSL_DEBUGGER_THREAD:
+    case OSL_DEBUGGER_MAIN_THREAD:
+    case OSL_DEBUGGER_EXEC_THREAD:
 	pri = 0;
 	break;
     default:
@@ -272,9 +272,6 @@ AcpiOsGetTimer(void)
 {
     struct bintime bt;
     UINT64 t;
-
-    /* XXX During early boot there is no (decent) timer available yet. */
-    KASSERT(cold == 0, ("acpi: timer op not yet supported during boot"));
 
     binuptime(&bt);
     t = (uint64_t)bt.sec * 10000000;

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2008, Sam Leffler <sam@errno.com>
  * All rights reserved.
  *
@@ -229,7 +231,7 @@ firmware_unregister(const char *imagename)
 		/*
 		 * It is ok for the lookup to fail; this can happen
 		 * when a module is unloaded on last reference and the
-		 * module unload handler unregister's each of it's
+		 * module unload handler unregister's each of its
 		 * firmware images.
 		 */
 		err = 0;
@@ -383,19 +385,8 @@ firmware_put(const struct firmware *p, int flags)
 static void
 set_rootvnode(void *arg, int npending)
 {
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
 
-	FILEDESC_XLOCK(p->p_fd);
-	if (p->p_fd->fd_cdir == NULL) {
-		p->p_fd->fd_cdir = rootvnode;
-		VREF(rootvnode);
-	}
-	if (p->p_fd->fd_rdir == NULL) {
-		p->p_fd->fd_rdir = rootvnode;
-		VREF(rootvnode);
-	}
-	FILEDESC_XUNLOCK(p->p_fd);
+	pwd_ensure_dirs();
 
 	free(arg, M_TEMP);
 }

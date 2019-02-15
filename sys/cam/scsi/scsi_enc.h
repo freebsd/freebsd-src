@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD OR GPL-2.0)
+ *
  * Copyright (c) 2000 by Matthew Jacob
  * All rights reserved.
  *
@@ -46,6 +48,8 @@
 #define	ENCIOC_GETELMDEVNAMES	_IO(ENCIOC, 10)
 #define	ENCIOC_GETSTRING	_IO(ENCIOC, 11)
 #define	ENCIOC_SETSTRING	_IO(ENCIOC, 12)
+#define	ENCIOC_GETENCNAME	_IO(ENCIOC, 13)
+#define	ENCIOC_GETENCID		_IO(ENCIOC, 14)
 
 /*
  * Platform Independent Definitions for enclosure devices.

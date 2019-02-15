@@ -22,11 +22,12 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <machine/armreg.h>
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-	.arch armv7a
+#include <machine/armreg.h>
+
+	.cpu cortex-a8
 	.arch_extension sec
 
 /* Issue a smc #0 call */

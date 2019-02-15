@@ -1,5 +1,7 @@
 #!/bin/sh
 #
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
 # Copyright (c) September 1995 Wolfram Schneider <wosch@FreeBSD.org>. Berlin.
 # All rights reserved.
 #
@@ -51,7 +53,7 @@ PATH=$LIBEXECDIR:/bin:/usr/bin:$PATH; export PATH
 : ${mklocatedb:=locate.mklocatedb}	 # make locate database program
 : ${FCODES:=/var/db/locate.database}	 # the database
 : ${SEARCHPATHS="/"}		# directories to be put in the database
-: ${PRUNEPATHS="/tmp /usr/tmp /var/tmp /var/db/portsnap"} # unwanted directories
+: ${PRUNEPATHS="/tmp /usr/tmp /var/tmp /var/db/portsnap /var/db/freebsd-update"} # unwanted directories
 : ${PRUNEDIRS=".zfs"}	# unwanted directories, in any parent
 : ${FILESYSTEMS="$(lsvfs | tail -n +3 | \
 	egrep -vw "loopback|network|synthetic|read-only|0" | \

@@ -23,9 +23,9 @@ using namespace clang;
 using namespace ento;
 
 namespace {
-class FixedAddressChecker 
+class FixedAddressChecker
   : public Checker< check::PreStmt<BinaryOperator> > {
-  mutable OwningPtr<BuiltinBug> BT;
+  mutable std::unique_ptr<BuiltinBug> BT;
 
 public:
   void checkPreStmt(const BinaryOperator *B, CheckerContext &C) const;
@@ -50,15 +50,16 @@ void FixedAddressChecker::checkPreStmt(const BinaryOperator *B,
   if (!RV.isConstant() || RV.isZeroConstant())
     return;
 
-  if (ExplodedNode *N = C.addTransition()) {
+  if (ExplodedNode *N = C.generateNonFatalErrorNode()) {
     if (!BT)
-      BT.reset(new BuiltinBug("Use fixed address", 
-                          "Using a fixed address is not portable because that "
-                          "address will probably not be valid in all "
-                          "environments or platforms."));
-    BugReport *R = new BugReport(*BT, BT->getDescription(), N);
+      BT.reset(
+          new BuiltinBug(this, "Use fixed address",
+                         "Using a fixed address is not portable because that "
+                         "address will probably not be valid in all "
+                         "environments or platforms."));
+    auto R = llvm::make_unique<BugReport>(*BT, BT->getDescription(), N);
     R->addRange(B->getRHS()->getSourceRange());
-    C.emitReport(R);
+    C.emitReport(std::move(R));
   }
 }
 

@@ -7,8 +7,11 @@
 INTERNALLIB=	yes
 LIB=		svn_fs_fs
 
-SRCS=		caching.c dag.c fs.c fs_fs.c id.c key-gen.c lock.c \
-		rep-cache.c temp_serializer.c tree.c
+SRCS=		cached_data.c caching.c dag.c dump-index.c fs.c fs_fs.c \
+		hotcopy.c id.c index.c load-index.c lock.c low_level.c \
+		pack.c recovery.c rep-cache.c rev_file.c revprops.c \
+		stats.c temp_serializer.c transaction.c tree.c util.c \
+		verify.c
 
 CFLAGS+=	-I${SVNDIR}/include -I${SVNDIR} -I${.CURDIR}/../.. \
 		-I${.CURDIR}/../libapr \

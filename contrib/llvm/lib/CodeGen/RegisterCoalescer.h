@@ -1,4 +1,4 @@
-//===-- RegisterCoalescer.h - Register Coalescing Interface -----*- C++ -*-===//
+//===- RegisterCoalescer.h - Register Coalescing Interface ------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,109 +12,102 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_REGISTER_COALESCER_H
-#define LLVM_CODEGEN_REGISTER_COALESCER_H
+#ifndef LLVM_LIB_CODEGEN_REGISTERCOALESCER_H
+#define LLVM_LIB_CODEGEN_REGISTERCOALESCER_H
 
 namespace llvm {
 
-  class MachineInstr;
-  class TargetRegisterInfo;
-  class TargetRegisterClass;
-  class TargetInstrInfo;
+class MachineInstr;
+class TargetRegisterClass;
+class TargetRegisterInfo;
 
-  /// CoalescerPair - A helper class for register coalescers. When deciding if
+  /// A helper class for register coalescers. When deciding if
   /// two registers can be coalesced, CoalescerPair can determine if a copy
   /// instruction would become an identity copy after coalescing.
   class CoalescerPair {
     const TargetRegisterInfo &TRI;
 
-    /// DstReg - The register that will be left after coalescing. It can be a
+    /// The register that will be left after coalescing. It can be a
     /// virtual or physical register.
-    unsigned DstReg;
+    unsigned DstReg = 0;
 
-    /// SrcReg - the virtual register that will be coalesced into dstReg.
-    unsigned SrcReg;
+    /// The virtual register that will be coalesced into dstReg.
+    unsigned SrcReg = 0;
 
-    /// DstIdx - The sub-register index of the old DstReg in the new coalesced
-    /// register.
-    unsigned DstIdx;
+    /// The sub-register index of the old DstReg in the new coalesced register.
+    unsigned DstIdx = 0;
 
-    /// SrcIdx - The sub-register index of the old SrcReg in the new coalesced
-    /// register.
-    unsigned SrcIdx;
+    /// The sub-register index of the old SrcReg in the new coalesced register.
+    unsigned SrcIdx = 0;
 
-    /// Partial - True when the original copy was a partial subregister copy.
-    bool Partial;
+    /// True when the original copy was a partial subregister copy.
+    bool Partial = false;
 
-    /// CrossClass - True when both regs are virtual, and newRC is constrained.
-    bool CrossClass;
+    /// True when both regs are virtual and newRC is constrained.
+    bool CrossClass = false;
 
-    /// Flipped - True when DstReg and SrcReg are reversed from the original
+    /// True when DstReg and SrcReg are reversed from the original
     /// copy instruction.
-    bool Flipped;
+    bool Flipped = false;
 
-    /// NewRC - The register class of the coalesced register, or NULL if DstReg
+    /// The register class of the coalesced register, or NULL if DstReg
     /// is a physreg. This register class may be a super-register of both
     /// SrcReg and DstReg.
-    const TargetRegisterClass *NewRC;
+    const TargetRegisterClass *NewRC = nullptr;
 
   public:
-    CoalescerPair(const TargetRegisterInfo &tri)
-      : TRI(tri), DstReg(0), SrcReg(0), DstIdx(0), SrcIdx(0),
-        Partial(false), CrossClass(false), Flipped(false), NewRC(0) {}
+    CoalescerPair(const TargetRegisterInfo &tri) : TRI(tri) {}
 
     /// Create a CoalescerPair representing a virtreg-to-physreg copy.
     /// No need to call setRegisters().
     CoalescerPair(unsigned VirtReg, unsigned PhysReg,
                   const TargetRegisterInfo &tri)
-      : TRI(tri), DstReg(PhysReg), SrcReg(VirtReg), DstIdx(0), SrcIdx(0),
-        Partial(false), CrossClass(false), Flipped(false), NewRC(0) {}
+      : TRI(tri), DstReg(PhysReg), SrcReg(VirtReg) {}
 
-    /// setRegisters - set registers to match the copy instruction MI. Return
+    /// Set registers to match the copy instruction MI. Return
     /// false if MI is not a coalescable copy instruction.
     bool setRegisters(const MachineInstr*);
 
-    /// flip - Swap SrcReg and DstReg. Return false if swapping is impossible
+    /// Swap SrcReg and DstReg. Return false if swapping is impossible
     /// because DstReg is a physical register, or SubIdx is set.
     bool flip();
 
-    /// isCoalescable - Return true if MI is a copy instruction that will become
+    /// Return true if MI is a copy instruction that will become
     /// an identity copy after coalescing.
     bool isCoalescable(const MachineInstr*) const;
 
-    /// isPhys - Return true if DstReg is a physical register.
+    /// Return true if DstReg is a physical register.
     bool isPhys() const { return !NewRC; }
 
-    /// isPartial - Return true if the original copy instruction did not copy
+    /// Return true if the original copy instruction did not copy
     /// the full register, but was a subreg operation.
     bool isPartial() const { return Partial; }
 
-    /// isCrossClass - Return true if DstReg is virtual and NewRC is a smaller
+    /// Return true if DstReg is virtual and NewRC is a smaller
     /// register class than DstReg's.
     bool isCrossClass() const { return CrossClass; }
 
-    /// isFlipped - Return true when getSrcReg is the register being defined by
+    /// Return true when getSrcReg is the register being defined by
     /// the original copy instruction.
     bool isFlipped() const { return Flipped; }
 
-    /// getDstReg - Return the register (virtual or physical) that will remain
+    /// Return the register (virtual or physical) that will remain
     /// after coalescing.
     unsigned getDstReg() const { return DstReg; }
 
-    /// getSrcReg - Return the virtual register that will be coalesced away.
+    /// Return the virtual register that will be coalesced away.
     unsigned getSrcReg() const { return SrcReg; }
 
-    /// getDstIdx - Return the subregister index that DstReg will be coalesced
-    /// into, or 0.
+    /// Return the subregister index that DstReg will be coalesced into, or 0.
     unsigned getDstIdx() const { return DstIdx; }
 
-    /// getSrcIdx - Return the subregister index that SrcReg will be coalesced
-    /// into, or 0.
+    /// Return the subregister index that SrcReg will be coalesced into, or 0.
     unsigned getSrcIdx() const { return SrcIdx; }
 
-    /// getNewRC - Return the register class of the coalesced register.
+    /// Return the register class of the coalesced register.
     const TargetRegisterClass *getNewRC() const { return NewRC; }
   };
-} // End llvm namespace
 
-#endif
+} // end namespace llvm
+
+#endif // LLVM_LIB_CODEGEN_REGISTERCOALESCER_H

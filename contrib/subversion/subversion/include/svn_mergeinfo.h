@@ -102,7 +102,7 @@ extern "C" {
  * both acceptable).
  */
 
-/* Suffix for SVN_PROP_MERGEINFO revision ranges indicating a given
+/** Suffix for SVN_PROP_MERGEINFO revision ranges indicating a given
    range is non-inheritable. */
 #define SVN_MERGEINFO_NONINHERITABLE_STR "*"
 
@@ -113,39 +113,44 @@ extern "C" {
  *
  * (a) Strings (@c svn_string_t *) containing "unparsed mergeinfo".
  *
- * (b) @c svn_rangelist_t, called a "rangelist".  An array of non-
- *     overlapping merge ranges (@c svn_merge_range_t *), sorted as said by
- *     @c svn_sort_compare_ranges().  An empty range list is represented by
- *     an empty array.  Unless specifically noted otherwise, all APIs require
- *     rangelists that describe only forward ranges, i.e. the range's start
- *     revision is less than its end revision.
+ * (b) @c svn_rangelist_t, called a "rangelist".
  *
- * (c) @c svn_mergeinfo_t, called "mergeinfo".  A hash mapping merge
- *     source paths (@c const char *, starting with slashes) to
- *     non-empty rangelist arrays.  A @c NULL hash is used to represent
- *     no mergeinfo and an empty hash is used to represent empty
- *     mergeinfo.
+ * (c) @c svn_mergeinfo_t, called "mergeinfo".
  *
- * (d) @c svn_mergeinfo_catalog_t, called a "mergeinfo catalog".  A hash
- *     mapping paths (@c const char *) to @c svn_mergeinfo_t.
+ * (d) @c svn_mergeinfo_catalog_t, called a "mergeinfo catalog".
  *
  * Both @c svn_mergeinfo_t and @c svn_mergeinfo_catalog_t are just
  * typedefs for @c apr_hash_t *; there is no static type-checking, and
  * you still use standard @c apr_hash_t functions to interact with
  * them.
- *
- * Note that while the keys of mergeinfos are always absolute from the
- * repository root, the keys of a catalog may be relative to something
- * else, such as an RA session root.
  */
 
+/** An array of non-overlapping merge ranges (@c svn_merge_range_t *),
+ * sorted as said by @c svn_sort_compare_ranges().  An empty range list is
+ * represented by an empty array.
+ *
+ * Unless specifically noted otherwise, all APIs require rangelists that
+ * describe only forward ranges, i.e. the range's start revision is less
+ * than its end revision. */
 typedef apr_array_header_t svn_rangelist_t;
+
+/** A hash mapping merge source paths to non-empty rangelist arrays.
+ *
+ * The keys are (@c const char *) absolute paths from the repository root,
+ * starting with slashes. A @c NULL hash represents no mergeinfo and an
+ * empty hash represents empty mergeinfo. */
 typedef apr_hash_t *svn_mergeinfo_t;
+
+/** A hash mapping paths (@c const char *) to @c svn_mergeinfo_t.
+ *
+ * @note While the keys of #svn_mergeinfo_t are always absolute from the
+ * repository root, the keys of a catalog may be relative to something
+ * else, such as an RA session root.
+ * */
 typedef apr_hash_t *svn_mergeinfo_catalog_t;
 
 /** Parse the mergeinfo from @a input into @a *mergeinfo.  If no
  * mergeinfo is available, return an empty mergeinfo (never @c NULL).
- * Perform temporary allocations in @a pool.
  *
  * If @a input is not a grammatically correct @c SVN_PROP_MERGEINFO
  * property, contains overlapping revision ranges of differing
@@ -159,6 +164,9 @@ typedef apr_hash_t *svn_mergeinfo_catalog_t;
  *
  * @a input may contain relative merge source paths, but these are
  * converted to absolute paths in @a *mergeinfo.
+ *
+ * Allocate the result deeply in @a pool. Also perform temporary
+ * allocations in @a pool.
  *
  * @since New in 1.5.
  */
@@ -357,6 +365,8 @@ svn_rangelist_merge(svn_rangelist_t **rangelist,
  * @c svn_merge_range_t inheritable field when comparing @a whiteboard's
  * and @a *eraser's rangelists for equality.  @see svn_mergeinfo_diff().
  *
+ * Allocate the entire output in @a pool.
+ *
  * @since New in 1.5.
  */
 svn_error_t *
@@ -411,6 +421,9 @@ svn_mergeinfo_intersect(svn_mergeinfo_t *mergeinfo,
  * Note: @a rangelist1 and @a rangelist2 must be sorted as said by @c
  * svn_sort_compare_ranges(). @a *rangelist is guaranteed to be in sorted
  * order.
+ *
+ * Allocate the entire output in @a pool.
+ *
  * @since New in 1.5.
  */
 svn_error_t *
@@ -444,14 +457,21 @@ svn_rangelist_to_string(svn_string_t **output,
                         const svn_rangelist_t *rangelist,
                         apr_pool_t *pool);
 
-/** Return a deep copy of @c svn_merge_range_t *'s in @a rangelist excluding
+/** Remove non-inheritable or inheritable revision ranges from a rangelist.
+ *
+ * Set @a *inheritable_rangelist to a deep copy of @a rangelist, excluding
  * all non-inheritable @c svn_merge_range_t if @a inheritable is TRUE or
- * excluding all inheritable @c svn_merge_range_t otherwise.  If @a start and
- * @a end are valid revisions and @a start is less than or equal to @a end,
- * then exclude only the non-inheritable revision ranges that intersect
- * inclusively with the range defined by @a start and @a end.  If
- * @a rangelist contains no elements, return an empty array.  Allocate the
- * copy in @a result_pool, use @a scratch_pool for temporary allocations.
+ * excluding all inheritable @c svn_merge_range_t otherwise.
+ *
+ * If @a start and @a end are valid revisions and @a start is less than or
+ * equal to @a end, then exclude only the (non-inheritable or inheritable)
+ * revision ranges that intersect inclusively with the range defined by
+ * @a start and @a end.
+ *
+ * If there are no remaining ranges, return an empty array.
+ *
+ * Allocate the copy in @a result_pool, and use @a scratch_pool for
+ * temporary allocations.
  *
  * @since New in 1.7.
  */
@@ -477,17 +497,26 @@ svn_rangelist_inheritable(svn_rangelist_t **inheritable_rangelist,
                           svn_revnum_t end,
                           apr_pool_t *pool);
 
-/** Return a deep copy of @a mergeinfo, excluding all non-inheritable
- * @c svn_merge_range_t if @a inheritable is TRUE or excluding all
- * inheritable @c svn_merge_range_t otherwise.  If @a start and @a end
- * are valid revisions and @a start is less than or equal to @a end,
- * then exclude only the non-inheritable revisions that intersect
- * inclusively with the range defined by @a start and @a end.  If @a path
- * is not NULL remove non-inheritable ranges only for @a path.  If all
- * ranges are removed for a given path then remove that path as well.
- * If all paths are removed or @a rangelist is empty then set
- * @a *inheritable_rangelist to an empty array.  Allocate the copy in
- * @a result_pool, use @a scratch_pool for temporary allocations.
+/** Remove non-inheritable or inheritable revision ranges from mergeinfo.
+ *
+ * Set @a *inheritable_mergeinfo to a deep copy of @a mergeinfo, excluding
+ * all non-inheritable @c svn_merge_range_t if @a inheritable is TRUE or
+ * excluding all inheritable @c svn_merge_range_t otherwise.
+ *
+ * If @a start and @a end are valid revisions and @a start is less than or
+ * equal to @a end, then exclude only the (non-inheritable or inheritable)
+ * revisions that intersect inclusively with the range defined by @a start
+ * and @a end.
+ *
+ * If @a path is not NULL remove (non-inheritable or inheritable) ranges
+ * only for @a path.
+ *
+ * If all ranges are removed for a given path then remove that path as well.
+ * If @a mergeinfo is initially empty or all paths are removed from it then
+ * set @a *inheritable_mergeinfo to an empty mergeinfo.
+ *
+ * Allocate the copy in @a result_pool, and use @a scratch_pool for
+ * temporary allocations.
  *
  * @since New in 1.7.
  */

@@ -1,4 +1,4 @@
-/*	$NetBSD: t_paths.c,v 1.13 2014/02/09 21:26:07 jmmv Exp $ */
+/*	$NetBSD: t_paths.c,v 1.16 2015/05/07 06:23:23 pgoyette Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_paths.c,v 1.13 2014/02/09 21:26:07 jmmv Exp $");
+__RCSID("$NetBSD: t_paths.c,v 1.16 2015/05/07 06:23:23 pgoyette Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -42,12 +42,12 @@ __RCSID("$NetBSD: t_paths.c,v 1.13 2014/02/09 21:26:07 jmmv Exp $");
 #include <unistd.h>
 
 #include <atf-c.h>
-#include <atf-c/config.h>
 
 #define PATH_DEV	__BIT(0)	/* A device node	*/
 #define PATH_DIR	__BIT(1)	/* A directory		*/
 #define PATH_FILE	__BIT(2)	/* A file		*/
 #define PATH_ROOT	__BIT(3)	/* Access for root only */
+#define PATH_OPT	__BIT(3)	/* Optional, ENODEV if not supported */
 
 static const struct {
 	const char	*path;
@@ -83,7 +83,7 @@ static const struct {
 	{ _PATH_MIXER,		PATH_DEV		},
 	{ _PATH_MIXER0,		PATH_DEV		},
 	{ _PATH_NOLOGIN,	PATH_FILE		},
-	{ _PATH_POWER,		PATH_DEV | PATH_ROOT	},
+	{ _PATH_POWER,		PATH_DEV | PATH_ROOT | PATH_OPT	},
 	{ _PATH_PRINTCAP,	PATH_FILE		},
 	{ _PATH_PUD,		PATH_DEV | PATH_ROOT	},
 	{ _PATH_PUFFS,		PATH_DEV | PATH_ROOT	},
@@ -93,12 +93,13 @@ static const struct {
 	{ _PATH_SKEYKEYS,	PATH_FILE | PATH_ROOT	},
 	{ _PATH_SOUND,		PATH_DEV		},
 	{ _PATH_SOUND0,		PATH_DEV		},
-	{ _PATH_SYSMON,		PATH_DEV		},
+	{ _PATH_SYSMON,		PATH_DEV | PATH_OPT	},
 	{ _PATH_TTY,		PATH_DEV		},
 	{ _PATH_UNIX,		PATH_FILE | PATH_ROOT	},
 	{ _PATH_URANDOM,	PATH_DEV		},
 	{ _PATH_VIDEO,		PATH_DEV		},
 	{ _PATH_VIDEO0,		PATH_DEV		},
+	{ _PATH_WATCHDOG,	PATH_DEV | PATH_OPT	},
 
 	{ _PATH_DEV,		PATH_DIR		},
 	{ _PATH_DEV_PTS,	PATH_DIR		},
@@ -144,13 +145,22 @@ ATF_TC_BODY(paths, tc)
 
 			switch (errno) {
 
+			case ENODEV:
+				if ((paths[i].flags & PATH_OPT) == 0) {
+
+					atf_tc_fail("Required path %s does "
+					    "not exist", paths[i].path);
+				}
+				break;
+
 			case EPERM:	/* FALLTHROUGH */
 			case EACCES:	/* FALLTHROUGH */
 
 				if ((paths[i].flags & PATH_ROOT) == 0) {
 
-					atf_tc_fail("UID %u failed to open %s",
-					    (uint32_t)uid, paths[i].path);
+					atf_tc_fail("UID %u failed to open %s, "
+					    "error %d", (uint32_t)uid,
+					     paths[i].path, errno);
 				}
 
 			case EBUSY:	/* FALLTHROUGH */

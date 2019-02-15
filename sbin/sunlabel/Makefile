@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../sys/geom
+.PATH: ${SRCTOP}/sys/geom
 
 PROG=	sunlabel
 SRCS=	sunlabel.c geom_sunlabel_enc.c
@@ -11,8 +11,7 @@ LINKS=	${BINDIR}/sunlabel ${BINDIR}/disklabel
 MLINKS=	sunlabel.8 disklabel.8
 .endif
 
-DPADD=	${LIBGEOM}
-LDADD=	-lgeom
+LIBADD=	geom
 
 .include <bsd.prog.mk>
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2006-2014 QLogic Corporation
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11727,8 +11729,8 @@ const u32	bce_RXP_b09FwText[(0x9090/4) + 1] = {
 0x90cf0009, 0x240d0004, 0x31ee00ff, 0x11cdfd85,
 0x24020001, 0x3c010801, 0xa022950d, 0xa002154,
 0x0, 0x0 };
-u32	bce_RXP_b09FwData[(0x0/4) + 1] = { 0x0 };
-u32	bce_RXP_b09FwRodata[(0x33c/4) + 1] = {
+const u32	bce_RXP_b09FwData[(0x0/4) + 1] = { 0x0 };
+const u32	bce_RXP_b09FwRodata[(0x33c/4) + 1] = {
 0x8003344,
 0x8003344, 0x8003420, 0x80033f4, 0x80033d8,
 0x8003328, 0x8003328, 0x8003328, 0x800334c,

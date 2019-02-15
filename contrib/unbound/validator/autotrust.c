@@ -57,11 +57,11 @@
 #include "services/mesh.h"
 #include "services/cache/rrset.h"
 #include "validator/val_kcache.h"
-#include "ldns/sbuffer.h"
-#include "ldns/wire2str.h"
-#include "ldns/str2wire.h"
-#include "ldns/keyraw.h"
-#include "ldns/rrdef.h"
+#include "sldns/sbuffer.h"
+#include "sldns/wire2str.h"
+#include "sldns/str2wire.h"
+#include "sldns/keyraw.h"
+#include "sldns/rrdef.h"
 #include <stdarg.h>
 #include <ctype.h>
 
@@ -430,6 +430,8 @@ find_add_tp(struct val_anchors* anchors, uint8_t* rr, size_t rr_len,
 	}
 	tp = autr_tp_create(anchors, rr, dname_len, sldns_wirerr_get_class(rr,
 		rr_len, dname_len));
+	if(!tp)	
+		return NULL;
 	lock_basic_lock(&tp->lock);
 	return tp;
 }
@@ -716,6 +718,7 @@ packed_rrset_heap_data(int iter(struct autr_ta**, uint8_t**, size_t*,
 	list_i = list;
 	i = 0;
 	while(iter(&list_i, &rr, &rr_len, &dname_len)) {
+		log_assert(data->rr_data[i]);
 		memmove(data->rr_data[i],
 			sldns_wirerr_get_rdatawl(rr, rr_len, dname_len),
 			data->rr_len[i]);
@@ -902,13 +905,13 @@ static int
 handle_origin(char* line, uint8_t** origin, size_t* origin_len)
 {
 	size_t len = 0;
-	while(isspace((int)*line))
+	while(isspace((unsigned char)*line))
 		line++;
 	if(strncmp(line, "$ORIGIN", 7) != 0)
 		return 0;
 	free(*origin);
 	line += 7;
-	while(isspace((int)*line))
+	while(isspace((unsigned char)*line))
 		line++;
 	*origin = sldns_str2wire_dname(line, &len);
 	*origin_len = len;
@@ -1062,7 +1065,7 @@ int autr_read_file(struct val_anchors* anchors, const char* nm)
 
 /** string for a trustanchor state */
 static const char*
-trustanchor_state2str(autr_state_t s)
+trustanchor_state2str(autr_state_type s)
 {
         switch (s) {
                 case AUTR_STATE_START:       return "  START  ";
@@ -1184,7 +1187,7 @@ void autr_write_file(struct module_env* env, struct trust_anchor* tp)
 	verbose(VERB_ALGO, "autotrust: write to disk: %s", tempf);
 	out = fopen(tempf, "w");
 	if(!out) {
-		log_err("could not open autotrust file for writing, %s: %s",
+		fatal_exit("could not open autotrust file for writing, %s: %s",
 			tempf, strerror(errno));
 		return;
 	}
@@ -1192,11 +1195,19 @@ void autr_write_file(struct module_env* env, struct trust_anchor* tp)
 		/* failed to write contents (completely) */
 		fclose(out);
 		unlink(tempf);
-		log_err("could not completely write: %s", fname);
+		fatal_exit("could not completely write: %s", fname);
 		return;
 	}
+	if(fflush(out) != 0)
+		log_err("could not fflush(%s): %s", fname, strerror(errno));
+#ifdef HAVE_FSYNC
+	if(fsync(fileno(out)) != 0)
+		log_err("could not fsync(%s): %s", fname, strerror(errno));
+#else
+	FlushFileBuffers((HANDLE)_get_osfhandle(_fileno(out)));
+#endif
 	if(fclose(out) != 0) {
-		log_err("could not complete write: %s: %s",
+		fatal_exit("could not complete write: %s: %s",
 			fname, strerror(errno));
 		unlink(tempf);
 		return;
@@ -1207,7 +1218,7 @@ void autr_write_file(struct module_env* env, struct trust_anchor* tp)
 	(void)unlink(fname); /* windows does not replace file with rename() */
 #endif
 	if(rename(tempf, fname) < 0) {
-		log_err("rename(%s to %s): %s", tempf, fname, strerror(errno));
+		fatal_exit("rename(%s to %s): %s", tempf, fname, strerror(errno));
 	}
 }
 
@@ -1217,17 +1228,20 @@ void autr_write_file(struct module_env* env, struct trust_anchor* tp)
  * @param ve: validator environment (with options) for verification.
  * @param tp: trust point to verify with
  * @param rrset: DNSKEY rrset to verify.
+ * @param qstate: qstate with region.
  * @return false on failure, true if verification successful.
  */
 static int
 verify_dnskey(struct module_env* env, struct val_env* ve,
-        struct trust_anchor* tp, struct ub_packed_rrset_key* rrset)
+        struct trust_anchor* tp, struct ub_packed_rrset_key* rrset,
+	struct module_qstate* qstate)
 {
 	char* reason = NULL;
 	uint8_t sigalg[ALGO_NEEDS_MAX+1];
-	int downprot = 1;
+	int downprot = env->cfg->harden_algo_downgrade;
 	enum sec_status sec = val_verify_DNSKEY_with_TA(env, ve, rrset,
-		tp->ds_rrset, tp->dnskey_rrset, downprot?sigalg:NULL, &reason);
+		tp->ds_rrset, tp->dnskey_rrset, downprot?sigalg:NULL, &reason,
+		qstate);
 	/* sigalg is ignored, it returns algorithms signalled to exist, but
 	 * in 5011 there are no other rrsets to check.  if downprot is
 	 * enabled, then it checks that the DNSKEY is signed with all
@@ -1266,7 +1280,8 @@ min_expiry(struct module_env* env, struct packed_rrset_data* dd)
 /** Is rr self-signed revoked key */
 static int
 rr_is_selfsigned_revoked(struct module_env* env, struct val_env* ve,
-	struct ub_packed_rrset_key* dnskey_rrset, size_t i)
+	struct ub_packed_rrset_key* dnskey_rrset, size_t i,
+	struct module_qstate* qstate)
 {
 	enum sec_status sec;
 	char* reason = NULL;
@@ -1275,7 +1290,7 @@ rr_is_selfsigned_revoked(struct module_env* env, struct val_env* ve,
 	/* no algorithm downgrade protection necessary, if it is selfsigned
 	 * revoked it can be removed. */
 	sec = dnskey_verify_rrset(env, ve, dnskey_rrset, dnskey_rrset, i, 
-		&reason);
+		&reason, LDNS_SECTION_ANSWER, qstate);
 	return (sec == sec_status_secure);
 }
 
@@ -1447,9 +1462,11 @@ set_tp_times(struct trust_anchor* tp, time_t rrsig_exp_interval,
 	if(rrsig_exp_interval/2 < x)
 		x = rrsig_exp_interval/2;
 	/* MAX(1hr, x) */
-	if(x < 3600)
-		tp->autr->query_interval = 3600;
-	else	tp->autr->query_interval = x;
+	if(!autr_permit_small_holddown) {
+		if(x < 3600)
+			tp->autr->query_interval = 3600;
+		else	tp->autr->query_interval = x;
+	}	else    tp->autr->query_interval = x;
 
 	/* x= MIN(1day, ttl/10, expire/10) */
 	x = 24 * 3600;
@@ -1458,9 +1475,11 @@ set_tp_times(struct trust_anchor* tp, time_t rrsig_exp_interval,
 	if(rrsig_exp_interval/10 < x)
 		x = rrsig_exp_interval/10;
 	/* MAX(1hr, x) */
-	if(x < 3600)
-		tp->autr->retry_time = 3600;
-	else	tp->autr->retry_time = x;
+	if(!autr_permit_small_holddown) {
+		if(x < 3600)
+			tp->autr->retry_time = 3600;
+		else	tp->autr->retry_time = x;
+	}	else    tp->autr->retry_time = x;
 
 	if(qi != tp->autr->query_interval || rt != tp->autr->retry_time) {
 		*changed = 1;
@@ -1487,7 +1506,7 @@ init_events(struct trust_anchor* tp)
 static void
 check_contains_revoked(struct module_env* env, struct val_env* ve,
 	struct trust_anchor* tp, struct ub_packed_rrset_key* dnskey_rrset,
-	int* changed)
+	int* changed, struct module_qstate* qstate)
 {
 	struct packed_rrset_data* dd = (struct packed_rrset_data*)
 		dnskey_rrset->entry.data;
@@ -1507,7 +1526,7 @@ check_contains_revoked(struct module_env* env, struct val_env* ve,
 		}
 		if(!ta)
 			continue; /* key not found */
-		if(rr_is_selfsigned_revoked(env, ve, dnskey_rrset, i)) {
+		if(rr_is_selfsigned_revoked(env, ve, dnskey_rrset, i, qstate)) {
 			/* checked if there is an rrsig signed by this key. */
 			/* same keytag, but stored can be revoked already, so 
 			 * compare keytags, with +0 or +128(REVOKE flag) */
@@ -1557,6 +1576,11 @@ key_matches_a_ds(struct module_env* env, struct val_env* ve,
 			verbose(VERB_ALGO, "DS match attempt failed");
 			continue;
 		}
+		/* match of hash is sufficient for bootstrap of trust point */
+		(void)reason;
+		(void)ve;
+		return 1;
+		/* no need to check RRSIG, DS hash already matched with source
 		if(dnskey_verify_rrset(env, ve, dnskey_rrset, 
 			dnskey_rrset, key_idx, &reason) == sec_status_secure) {
 			return 1;
@@ -1564,6 +1588,7 @@ key_matches_a_ds(struct module_env* env, struct val_env* ve,
 			verbose(VERB_ALGO, "DS match failed because the key "
 				"does not verify the keyset: %s", reason);
 		}
+		*/
 	}
 	return 0;
 }
@@ -1665,7 +1690,7 @@ reset_holddown(struct module_env* env, struct autr_ta* ta, int* changed)
 /** Set the state for this trust anchor */
 static void
 set_trustanchor_state(struct module_env* env, struct autr_ta* ta, int* changed,
-	autr_state_t s)
+	autr_state_type s)
 {
 	verbose_key(ta, VERB_ALGO, "update: %s to %s",
 		trustanchor_state2str(ta->s), trustanchor_state2str(s));
@@ -1959,8 +1984,12 @@ calc_next_probe(struct module_env* env, time_t wait)
 {
 	/* make it random, 90-100% */
 	time_t rnd, rest;
-	if(wait < 3600)
-		wait = 3600;
+	if(!autr_permit_small_holddown) {
+		if(wait < 3600)
+			wait = 3600;
+	} else {
+		if(wait == 0) wait = 1;
+	}
 	rnd = wait/10;
 	rest = wait-rnd;
 	rnd = (time_t)ub_random_max(env->rnd, (long int)rnd);
@@ -1971,7 +2000,7 @@ calc_next_probe(struct module_env* env, time_t wait)
 static time_t
 wait_probe_time(struct val_anchors* anchors)
 {
-	rbnode_t* t = rbtree_first(&anchors->autr->probe);
+	rbnode_type* t = rbtree_first(&anchors->autr->probe);
 	if(t != RBTREE_NULL) 
 		return ((struct trust_anchor*)t->key)->autr->next_probe_time;
 	return 0;
@@ -2094,7 +2123,8 @@ autr_tp_remove(struct module_env* env, struct trust_anchor* tp,
 }
 
 int autr_process_prime(struct module_env* env, struct val_env* ve,
-	struct trust_anchor* tp, struct ub_packed_rrset_key* dnskey_rrset)
+	struct trust_anchor* tp, struct ub_packed_rrset_key* dnskey_rrset,
+	struct module_qstate* qstate)
 {
 	int changed = 0;
 	log_assert(tp && tp->autr);
@@ -2130,12 +2160,12 @@ int autr_process_prime(struct module_env* env, struct val_env* ve,
 		verbose(VERB_ALGO, "autotrust: no dnskey rrset");
 		/* no update of query_failed, because then we would have
 		 * to write to disk. But we cannot because we maybe are
-		 * still 'initialising' with DS records, that we cannot write
+		 * still 'initializing' with DS records, that we cannot write
 		 * in the full format (which only contains KSKs). */
 		return 1; /* trust point exists */
 	}
 	/* check for revoked keys to remove immediately */
-	check_contains_revoked(env, ve, tp, dnskey_rrset, &changed);
+	check_contains_revoked(env, ve, tp, dnskey_rrset, &changed, qstate);
 	if(changed) {
 		verbose(VERB_ALGO, "autotrust: revokedkeys, reassemble");
 		if(!autr_assemble(tp)) {
@@ -2151,10 +2181,10 @@ int autr_process_prime(struct module_env* env, struct val_env* ve,
 		}
 	}
 	/* verify the dnskey rrset and see if it is valid. */
-	if(!verify_dnskey(env, ve, tp, dnskey_rrset)) {
+	if(!verify_dnskey(env, ve, tp, dnskey_rrset, qstate)) {
 		verbose(VERB_ALGO, "autotrust: dnskey did not verify.");
 		/* only increase failure count if this is not the first prime,
-		 * this means there was a previous succesful probe */
+		 * this means there was a previous successful probe */
 		if(tp->autr->last_success) {
 			tp->autr->query_failed += 1;
 			autr_write_file(env, tp);
@@ -2277,7 +2307,7 @@ autr_debug_print(struct val_anchors* anchors)
 
 void probe_answer_cb(void* arg, int ATTR_UNUSED(rcode), 
 	sldns_buffer* ATTR_UNUSED(buf), enum sec_status ATTR_UNUSED(sec),
-	char* ATTR_UNUSED(why_bogus))
+	char* ATTR_UNUSED(why_bogus), int ATTR_UNUSED(was_ratelimited))
 {
 	/* retry was set before the query was done,
 	 * re-querytime is set when query succeeded, but that may not
@@ -2310,6 +2340,7 @@ probe_anchor(struct module_env* env, struct trust_anchor* tp)
 	qinfo.qname_len = tp->namelen;
 	qinfo.qtype = LDNS_RR_TYPE_DNSKEY;
 	qinfo.qclass = tp->dclass;
+	qinfo.local_alias = NULL;
 	log_query_info(VERB_ALGO, "autotrust probe", &qinfo);
 	verbose(VERB_ALGO, "retry probe set in %d seconds", 
 		(int)tp->autr->next_probe_time - (int)*env->now);
@@ -2317,6 +2348,7 @@ probe_anchor(struct module_env* env, struct trust_anchor* tp)
 	edns.ext_rcode = 0;
 	edns.edns_version = 0;
 	edns.bits = EDNS_DO;
+	edns.opt_list = NULL;
 	if(sldns_buffer_capacity(buf) < 65535)
 		edns.udp_size = (uint16_t)sldns_buffer_capacity(buf);
 	else	edns.udp_size = 65535;
@@ -2343,12 +2375,14 @@ static struct trust_anchor*
 todo_probe(struct module_env* env, time_t* next)
 {
 	struct trust_anchor* tp;
-	rbnode_t* el;
+	rbnode_type* el;
 	/* get first one */
 	lock_basic_lock(&env->anchors->lock);
 	if( (el=rbtree_first(&env->anchors->autr->probe)) == RBTREE_NULL) {
 		/* in case of revoked anchors */
 		lock_basic_unlock(&env->anchors->lock);
+		/* signal that there are no anchors to probe */
+		*next = 0;
 		return NULL;
 	}
 	tp = (struct trust_anchor*)el->key;
@@ -2378,6 +2412,7 @@ autr_probe_timer(struct module_env* env)
 	struct trust_anchor* tp;
 	time_t next_probe = 3600;
 	int num = 0;
+	if(autr_permit_small_holddown) next_probe = 1;
 	verbose(VERB_ALGO, "autotrust probe timer callback");
 	/* while there are still anchors to probe */
 	while( (tp = todo_probe(env, &next_probe)) ) {
@@ -2386,7 +2421,7 @@ autr_probe_timer(struct module_env* env)
 		num++;
 	}
 	regional_free_all(env->scratch);
-	if(num == 0)
+	if(next_probe == 0)
 		return 0; /* no trust points to probe */
 	verbose(VERB_ALGO, "autotrust probe timer %d callbacks done", num);
 	return next_probe;

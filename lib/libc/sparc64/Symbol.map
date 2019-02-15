@@ -33,7 +33,6 @@ FBSD_1.0 {
 	ntohl;
 	ntohs;
 	brk;
-	exect;
 	sbrk;
 	vfork;
 
@@ -80,14 +79,8 @@ FBSDprivate_1.0 {
 	signalcontext;
 	__signalcontext;
 	__siglongjmp;
-	.curbrk;
-	.minbrk;
 	__sys_brk;
 	_brk;
-	.cerror;
-	__sys_exect;
-	_exect;
-	_end;
 	__sys_sbrk;
 	_sbrk;
 	__sys_vfork;

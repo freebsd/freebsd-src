@@ -103,19 +103,35 @@ extern "C" {
  * Note that it is possible for nodes to be described as a delete followed by
  * an add at the same place within one parent. (Iff the diff is reversed you
  * can see an add followed by a delete!)
+ *   ### "An add followed by a delete" sounds wrong.
  *
  * The directory batons live between the open and close events of a directory
  * and are thereby guaranteed to outlive the batons of their descendants.
  */
 
 /* Describes the source of a merge */
+/* ### You mean a diff?
+ * ### How come many users don't set the 'repos_relpath' field? */
 typedef struct svn_diff_source_t
 {
-  /* Always available */
+  /* Always available
+     In case of copyfrom: the revision copied from
+   */
   svn_revnum_t revision;
 
-  /* Depending on the driver available for copyfrom */
+  /* In case of copyfrom: the repository relative path copied from.
+
+     NULL if the node wasn't copied or moved, or when the driver doesn't
+     have this information */
   const char *repos_relpath;
+
+  /* In case of copyfrom: the relative path of source location before the
+     move. This path is relative WITHIN THE DIFF. The repository path is
+     typically in repos_relpath
+
+     NULL if the node wasn't moved or if the driver doesn't have this
+     information. */
+  const char *moved_from_relpath;
 } svn_diff_source_t;
 
 /**
@@ -137,9 +153,10 @@ typedef struct svn_diff_tree_processor_t
 {
   /** The value passed to svn_diff__tree_processor_create() as BATON.
    */
-  void *baton; /* To avoid an additional in some places */
+  void *baton; /* To avoid an additional in some places
+                * ### What? */
 
-  /* Called before a directories children are processed.
+  /* Called before a directory's children are processed.
    *
    * Set *SKIP_CHILDREN to TRUE, to skip calling callbacks for all
    * children.
@@ -319,7 +336,7 @@ svn_diff__tree_processor_filter_create(const svn_diff_tree_processor_t *processo
                                        apr_pool_t *result_pool);
 
 /**
- * Create a new svn_diff_tree_processor_t instace with all function setup
+ * Create a new svn_diff_tree_processor_t instance with all function setup
  * to call into processor with all adds with copyfrom information transformed
  * to simple node changes.
  *

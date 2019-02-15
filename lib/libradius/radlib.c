@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 1998 Juniper Networks, Inc.
  * All rights reserved.
  *
@@ -154,22 +156,21 @@ insert_message_authenticator(struct rad_handle *h, int resp)
 	u_char md[EVP_MAX_MD_SIZE];
 	u_int md_len;
 	const struct rad_server *srvp;
-	HMAC_CTX ctx;
+	HMAC_CTX *ctx;
 	srvp = &h->servers[h->srv];
 
 	if (h->authentic_pos != 0) {
-		HMAC_CTX_init(&ctx);
-		HMAC_Init(&ctx, srvp->secret, strlen(srvp->secret), EVP_md5());
-		HMAC_Update(&ctx, &h->out[POS_CODE], POS_AUTH - POS_CODE);
+		ctx = HMAC_CTX_new();
+		HMAC_Init_ex(ctx, srvp->secret, strlen(srvp->secret), EVP_md5(), NULL);
+		HMAC_Update(ctx, &h->out[POS_CODE], POS_AUTH - POS_CODE);
 		if (resp)
-		    HMAC_Update(&ctx, &h->in[POS_AUTH], LEN_AUTH);
+		    HMAC_Update(ctx, &h->in[POS_AUTH], LEN_AUTH);
 		else
-		    HMAC_Update(&ctx, &h->out[POS_AUTH], LEN_AUTH);
-		HMAC_Update(&ctx, &h->out[POS_ATTRS],
+		    HMAC_Update(ctx, &h->out[POS_AUTH], LEN_AUTH);
+		HMAC_Update(ctx, &h->out[POS_ATTRS],
 		    h->out_len - POS_ATTRS);
-		HMAC_Final(&ctx, md, &md_len);
-		HMAC_CTX_cleanup(&ctx);
-		HMAC_cleanup(&ctx);
+		HMAC_Final(ctx, md, &md_len);
+		HMAC_CTX_free(ctx);
 		memcpy(&h->out[h->authentic_pos + 2], md, md_len);
 	}
 #endif
@@ -188,7 +189,7 @@ is_valid_response(struct rad_handle *h, int srv,
 	const struct rad_server *srvp;
 	int len;
 #ifdef WITH_SSL
-	HMAC_CTX hctx;
+	HMAC_CTX *hctx;
 	u_char resp[MSGSIZE], md[EVP_MAX_MD_SIZE];
 	u_int md_len;
 	int pos;
@@ -230,31 +231,33 @@ is_valid_response(struct rad_handle *h, int srv,
 		pos = POS_ATTRS;
 
 		/* Search and verify the Message-Authenticator */
+		hctx = HMAC_CTX_new();
 		while (pos < len - 2) {
 
 			if (h->in[pos] == RAD_MESSAGE_AUTHENTIC) {
 				/* zero fill the Message-Authenticator */
 				memset(&resp[pos + 2], 0, MD5_DIGEST_LENGTH);
 
-				HMAC_CTX_init(&hctx);
-				HMAC_Init(&hctx, srvp->secret,
-				    strlen(srvp->secret), EVP_md5());
-				HMAC_Update(&hctx, &h->in[POS_CODE],
+				HMAC_Init_ex(hctx, srvp->secret,
+				    strlen(srvp->secret), EVP_md5(), NULL);
+				HMAC_Update(hctx, &h->in[POS_CODE],
 				    POS_AUTH - POS_CODE);
-				HMAC_Update(&hctx, &h->out[POS_AUTH],
+				HMAC_Update(hctx, &h->out[POS_AUTH],
 				    LEN_AUTH);
-				HMAC_Update(&hctx, &resp[POS_ATTRS],
+				HMAC_Update(hctx, &resp[POS_ATTRS],
 				    h->in_len - POS_ATTRS);
-				HMAC_Final(&hctx, md, &md_len);
-				HMAC_CTX_cleanup(&hctx);
-				HMAC_cleanup(&hctx);
+				HMAC_Final(hctx, md, &md_len);
+				HMAC_CTX_reset(hctx);
 				if (memcmp(md, &h->in[pos + 2],
-				    MD5_DIGEST_LENGTH) != 0)
+				    MD5_DIGEST_LENGTH) != 0) {
+					HMAC_CTX_free(hctx);
 					return 0;
+				}
 				break;
 			}
 			pos += h->in[pos + 1];
 		}
+		HMAC_CTX_free(hctx);
 	}
 #endif
 	return 1;
@@ -271,7 +274,7 @@ is_valid_request(struct rad_handle *h)
 	const struct rad_server *srvp;
 	int len;
 #ifdef WITH_SSL
-	HMAC_CTX hctx;
+	HMAC_CTX *hctx;
 	u_char resp[MSGSIZE], md[EVP_MAX_MD_SIZE];
 	u_int md_len;
 	int pos;
@@ -302,6 +305,7 @@ is_valid_request(struct rad_handle *h)
 #ifdef WITH_SSL
 	/* Search and verify the Message-Authenticator */
 	pos = POS_ATTRS;
+	hctx = HMAC_CTX_new();
 	while (pos < len - 2) {
 		if (h->in[pos] == RAD_MESSAGE_AUTHENTIC) {
 			memcpy(resp, h->in, MSGSIZE);
@@ -311,20 +315,21 @@ is_valid_request(struct rad_handle *h)
 			/* zero fill the Message-Authenticator */
 			memset(&resp[pos + 2], 0, MD5_DIGEST_LENGTH);
 
-			HMAC_CTX_init(&hctx);
-			HMAC_Init(&hctx, srvp->secret,
-			    strlen(srvp->secret), EVP_md5());
-			HMAC_Update(&hctx, resp, h->in_len);
-			HMAC_Final(&hctx, md, &md_len);
-			HMAC_CTX_cleanup(&hctx);
-			HMAC_cleanup(&hctx);
+			HMAC_Init_ex(hctx, srvp->secret,
+			    strlen(srvp->secret), EVP_md5(), NULL);
+			HMAC_Update(hctx, resp, h->in_len);
+			HMAC_Final(hctx, md, &md_len);
+			HMAC_CTX_reset(hctx);
 			if (memcmp(md, &h->in[pos + 2],
-			    MD5_DIGEST_LENGTH) != 0)
+			    MD5_DIGEST_LENGTH) != 0) {
+				HMAC_CTX_free(hctx);
 				return (0);
+			}
 			break;
 		}
 		pos += h->in[pos + 1];
 	}
+	HMAC_CTX_free(hctx);
 #endif
 	return (1);
 }

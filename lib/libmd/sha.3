@@ -9,7 +9,7 @@
 .\" 	From: Id: mdX.3,v 1.14 1999/02/11 20:31:49 wollman Exp
 .\" $FreeBSD$
 .\"
-.Dd March 28, 2014
+.Dd July 20, 2018
 .Dt SHA 3
 .Os
 .Sh NAME
@@ -100,7 +100,9 @@ initialize it with
 run over the data with
 .Fn SHA1_Update ,
 and finally extract the result using
-.Fn SHA1_Final .
+.Fn SHA1_Final ,
+which will also erase the
+.Vt SHA_CTX .
 .Pp
 .Fn SHA1_End
 is a wrapper for
@@ -157,7 +159,9 @@ argument is non-null it must point to at least 41 characters of buffer space.
 .Xr md4 3 ,
 .Xr md5 3 ,
 .Xr ripemd 3 ,
-.Xr sha256 3
+.Xr sha256 3 ,
+.Xr sha512 3 ,
+.Xr skein 3
 .Sh HISTORY
 These functions appeared in
 .Fx 4.0 .

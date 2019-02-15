@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 1, 2013
+.Dd October 26, 2018
 .Dt SETFACL 1
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Nd set ACL information
 .Sh SYNOPSIS
 .Nm
+.Op Fl R Op Fl H | L | P
 .Op Fl bdhkn
 .Op Fl a Ar position entries
 .Op Fl m Ar entries
@@ -62,8 +63,9 @@ starting at position
 counting from zero.
 This option is only applicable to NFSv4 ACLs.
 .It Fl b
-Remove all ACL entries except for the three required entries
-(POSIX.1e ACLs) or six "canonical" entries (NFSv4 ACLs).
+Remove all ACL entries except for the ones synthesized
+from the file mode - the three mandatory entries in case
+of POSIX.1e ACL.
 If the POSIX.1e ACL contains a
 .Dq Li mask
 entry, the permissions of the
@@ -78,18 +80,30 @@ entries of the current ACL.
 The operations apply to the default ACL entries instead of
 access ACL entries.
 Currently only directories may have
-default ACL's.  This option is not applicable to NFSv4 ACLs.
+default ACL's.
+This option is not applicable to NFSv4 ACLs.
 .It Fl h
 If the target of the operation is a symbolic link, perform the operation
 on the symbolic link itself, rather than following the link.
+.It Fl H
+If the
+.Fl R
+option is specified, symbolic links on the command line are followed
+and hence unaffected by the command.
+(Symbolic links encountered during tree traversal are not followed.)
 .It Fl k
 Delete any default ACL entries on the specified files.
 It
 is not considered an error if the specified files do not have
 any default ACL entries.
 An error will be reported if any of
-the specified files cannot have a default entry (i.e.\&
-non-directories).  This option is not applicable to NFSv4 ACLs.
+the specified files cannot have a default entry (i.e.,
+non-directories).
+This option is not applicable to NFSv4 ACLs.
+.It Fl L
+If the
+.Fl R
+option is specified, all symbolic links are followed.
 .It Fl m Ar entries
 Modify the ACL on the specified file.
 New entries will be added, and existing entries will be modified
@@ -113,7 +127,17 @@ is
 the input is taken from stdin.
 .It Fl n
 Do not recalculate the permissions associated with the ACL
-mask entry.  This option is not applicable to NFSv4 ACLs.
+mask entry.
+This option is not applicable to NFSv4 ACLs.
+.It Fl P
+If the
+.Fl R
+option is specified, no symbolic links are followed.
+This is the default.
+.It Fl R
+Perform the action recursively on any specified directories.
+When modifying or adding NFSv4 ACL entries, inheritance flags
+are applied only to directories.
 .It Fl x Ar entries | position
 If
 .Ar entries
@@ -290,7 +314,8 @@ specifying the access granted to the owner of the file;
 .Dq Li group@
 specifying the access granted to the file owning group;
 .Dq Li everyone@
-specifying everyone.  Note that
+specifying everyone.
+Note that
 .Dq Li everyone@
 is not the same as traditional Unix
 .Dq Li other
@@ -300,8 +325,8 @@ literally, everyone, including file owner and owning group.
 The ACL qualifier field describes the user or group associated with
 the ACL entry.
 It may consist of one of the following: uid or
-user name, or gid or group name.  In entries whose tag type is
-one of
+user name, or gid or group name.
+In entries whose tag type is one of
 .Dq Li owner@ ,
 .Dq Li group@ ,
 or
@@ -378,9 +403,11 @@ dir_inherit
 inherit_only
 .It n
 no_propagate
+.It I
+inherited
 .El
 .Pp
-Inheritance flags may be only set on directories.
+Other than the "inherited" flag, inheritance flags may be only set on directories.
 .It Ar "ACL type"
 The ACL type field is either
 .Dq Li allow

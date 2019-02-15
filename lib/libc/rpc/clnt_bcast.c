@@ -1,6 +1,8 @@
 /*	$NetBSD: clnt_bcast.c,v 1.3 2000/07/06 03:05:20 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -225,21 +227,26 @@ __rpc_broadenable(int af, int s, struct broadif *bip)
 	return 0;
 }
 
-
+/*
+ * rpc_broadcast_exp()
+ *
+ * prog      - program number
+ * vers      - version number
+ * proc      - procedure number
+ * xargs     - xdr routine for args
+ * argsp     - pointer to args
+ * xresults  - xdr routine for results
+ * resultsp  - pointer to results
+ * eachresult - call with each result obtained
+ * inittime  - how long to wait initially
+ * waittime  - maximum time to wait
+ * nettype   - transport type
+ */
 enum clnt_stat
-rpc_broadcast_exp(prog, vers, proc, xargs, argsp, xresults, resultsp,
-	eachresult, inittime, waittime, nettype)
-	rpcprog_t	prog;		/* program number */
-	rpcvers_t	vers;		/* version number */
-	rpcproc_t	proc;		/* procedure number */
-	xdrproc_t	xargs;		/* xdr routine for args */
-	caddr_t		argsp;		/* pointer to args */
-	xdrproc_t	xresults;	/* xdr routine for results */
-	caddr_t		resultsp;	/* pointer to results */
-	resultproc_t	eachresult;	/* call with each result obtained */
-	int 		inittime;	/* how long to wait initially */
-	int 		waittime;	/* maximum time to wait */
-	const char		*nettype;	/* transport type */
+rpc_broadcast_exp(rpcprog_t prog, rpcvers_t vers, rpcproc_t proc,
+    xdrproc_t xargs, caddr_t argsp, xdrproc_t xresults, caddr_t resultsp,
+    resultproc_t eachresult, int inittime, int waittime,
+    const char *nettype)
 {
 	enum clnt_stat	stat = RPC_SUCCESS; /* Return status */
 	XDR 		xdr_stream; /* XDR stream */
@@ -251,7 +258,7 @@ rpc_broadcast_exp(prog, vers, proc, xargs, argsp, xresults, resultsp,
 	int		inlen;
 	u_int 		maxbufsize = 0;
 	AUTH 		*sys_auth = authunix_create_default();
-	int		i;
+	u_int		i;
 	void		*handle;
 	char		uaddress[1024];	/* A self imposed limit */
 	char		*uaddrp = uaddress;
@@ -341,7 +348,8 @@ rpc_broadcast_exp(prog, vers, proc, xargs, argsp, xresults, resultsp,
 #ifdef PORTMAP
 		if (si.si_af == AF_INET && si.si_proto == IPPROTO_UDP) {
 			udpbufsz = fdlist[fdlistno].dsize;
-			if ((outbuf_pmap = malloc(udpbufsz)) == NULL) {
+			outbuf_pmap = reallocf(outbuf_pmap, udpbufsz);
+			if (outbuf_pmap == NULL) {
 				_close(fd);
 				stat = RPC_SYSTEMERROR;
 				goto done_broad;
@@ -464,7 +472,7 @@ rpc_broadcast_exp(prog, vers, proc, xargs, argsp, xresults, resultsp,
 						      "broadcast packet");
 						stat = RPC_CANTSEND;
 						continue;
-					};
+					}
 #ifdef RPC_DEBUG
 				if (!__rpc_lowvers)
 					fprintf(stderr, "Broadcast packet sent "
@@ -631,13 +639,10 @@ rpc_broadcast_exp(prog, vers, proc, xargs, argsp, xresults, resultsp,
 	}			/* The giant for loop */
 
 done_broad:
-	if (inbuf)
-		(void) free(inbuf);
-	if (outbuf)
-		(void) free(outbuf);
+	free(inbuf);
+	free(outbuf);
 #ifdef PORTMAP
-	if (outbuf_pmap)
-		(void) free(outbuf_pmap);
+	free(outbuf_pmap);
 #endif				/* PORTMAP */
 	for (i = 0; i < fdlistno; i++) {
 		(void)_close(fdlist[i].fd);
@@ -649,19 +654,23 @@ done_broad:
 	return (stat);
 }
 
-
+/*
+ * rpc_broadcast()
+ *
+ * prog       - program number 
+ * vers       - version number 
+ * proc       - procedure number 
+ * xargs      - xdr routine for args 
+ * argsp      - pointer to args 
+ * xresults   - xdr routine for results 
+ * resultsp   - pointer to results 
+ * eachresult - call with each result obtained 
+ * nettype    - transport type 
+ */
 enum clnt_stat
-rpc_broadcast(prog, vers, proc, xargs, argsp, xresults, resultsp,
-			eachresult, nettype)
-	rpcprog_t	prog;		/* program number */
-	rpcvers_t	vers;		/* version number */
-	rpcproc_t	proc;		/* procedure number */
-	xdrproc_t	xargs;		/* xdr routine for args */
-	caddr_t		argsp;		/* pointer to args */
-	xdrproc_t	xresults;	/* xdr routine for results */
-	caddr_t		resultsp;	/* pointer to results */
-	resultproc_t	eachresult;	/* call with each result obtained */
-	const char		*nettype;	/* transport type */
+rpc_broadcast(rpcprog_t prog, rpcvers_t vers, rpcproc_t proc, xdrproc_t xargs,
+    caddr_t argsp, xdrproc_t xresults, caddr_t resultsp,
+    resultproc_t eachresult, const char *nettype)
 {
 	enum clnt_stat	dummy;
 

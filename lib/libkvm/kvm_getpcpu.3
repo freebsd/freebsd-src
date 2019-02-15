@@ -28,11 +28,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 12, 2014
+.Dd March 15, 2017
 .Dt KVM_GETPCPU 3
 .Os
 .Sh NAME
-.Nm kvm_dpcpu_setcpu
+.Nm kvm_dpcpu_setcpu ,
 .Nm kvm_getmaxcpu ,
 .Nm kvm_getpcpu
 .Nd access per-CPU data
@@ -120,7 +120,7 @@ Symbols for dynamic per-CPU data are accessed via
 as with other symbols.
 .Nm libkvm
 maintains a notion of the "current CPU", set by
-.Xr kvm_dpcpu_setcpu ,
+.Fn kvm_dpcpu_setcpu ,
 which defaults to 0.
 Once another CPU is selected,
 .Xr kvm_nlist 3

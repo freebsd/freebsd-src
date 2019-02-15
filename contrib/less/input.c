@@ -1,12 +1,11 @@
 /*
- * Copyright (C) 1984-2012  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
  * For more information, see the README file.
  */
-
 
 /*
  * High level routines dealing with getting lines of input 
@@ -47,9 +46,10 @@ forw_line(curr_pos)
 {
 	POSITION base_pos;
 	POSITION new_pos;
-	register int c;
+	int c;
 	int blankline;
 	int endline;
+	int chopped;
 	int backchars;
 
 get_forw_line:
@@ -60,6 +60,7 @@ get_forw_line:
 	}
 #if HILITE_SEARCH
 	if (hilite_search == OPT_ONPLUS || is_filtering() || status_col)
+	{
 		/*
 		 * If we are ignoring EOI (command F), only prepare
 		 * one line ahead, to avoid getting stuck waiting for
@@ -69,6 +70,8 @@ get_forw_line:
 		 */
 		prep_hilite(curr_pos, curr_pos + 3*size_linebuf, 
 				ignore_eoi ? 1 : -1);
+		curr_pos = next_unfiltered(curr_pos);
+	}
 #endif
 	if (ch_seek(curr_pos))
 	{
@@ -140,6 +143,7 @@ get_forw_line:
 	/*
 	 * Read each character in the line and append to the line buffer.
 	 */
+	chopped = FALSE;
 	for (;;)
 	{
 		if (ABORT_SIGS())
@@ -190,6 +194,7 @@ get_forw_line:
 				new_pos = ch_tell();
 				endline = TRUE;
 				quit_if_one_screen = FALSE;
+				chopped = TRUE;
 			} else
 			{
 				new_pos = ch_tell() - backchars;
@@ -200,7 +205,7 @@ get_forw_line:
 		c = ch_forw_get();
 	}
 
-	pdone(endline, 1);
+	pdone(endline, chopped, 1);
 
 #if HILITE_SEARCH
 	if (is_filtered(base_pos))
@@ -252,6 +257,7 @@ back_line(curr_pos)
 	POSITION new_pos, begin_new_pos, base_pos;
 	int c;
 	int endline;
+	int chopped;
 	int backchars;
 
 get_back_line:
@@ -356,6 +362,7 @@ get_back_line:
     loop:
 	begin_new_pos = new_pos;
 	(void) ch_seek(new_pos);
+	chopped = FALSE;
 
 	do
 	{
@@ -388,6 +395,7 @@ get_back_line:
 			if (chopline || hshift > 0)
 			{
 				endline = TRUE;
+				chopped = TRUE;
 				quit_if_one_screen = FALSE;
 				break;
 			}
@@ -402,7 +410,7 @@ get_back_line:
 		}
 	} while (new_pos < curr_pos);
 
-	pdone(endline, 0);
+	pdone(endline, chopped, 0);
 
 #if HILITE_SEARCH
 	if (is_filtered(base_pos))
@@ -439,19 +447,22 @@ set_attnpos(pos)
 		{
 			c = ch_forw_get();
 			if (c == EOI)
-				return;
-			if (c != '\n' && c != '\r')
 				break;
+			if (c == '\n' || c == '\r')
+			{
+				(void) ch_back_get();
+				break;
+			}
 			pos++;
+		}
+		end_attnpos = pos;
+		for (;;)
+		{
+			c = ch_back_get();
+			if (c == EOI || c == '\n' || c == '\r')
+				break;
+			pos--;
 		}
 	}
 	start_attnpos = pos;
-	for (;;)
-	{
-		c = ch_forw_get();
-		pos++;
-		if (c == EOI || c == '\n' || c == '\r')
-			break;
-	}
-	end_attnpos = pos;
 }

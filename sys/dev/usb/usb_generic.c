@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -236,7 +238,7 @@ ugen_open_pipe_write(struct usb_fifo *f)
 	struct usb_endpoint *ep = usb_fifo_softc(f);
 	struct usb_endpoint_descriptor *ed = ep->edesc;
 
-	mtx_assert(f->priv_mtx, MA_OWNED);
+	USB_MTX_ASSERT(f->priv_mtx, MA_OWNED);
 
 	if (f->xfer[0] || f->xfer[1]) {
 		/* transfers are already opened */
@@ -305,7 +307,7 @@ ugen_open_pipe_read(struct usb_fifo *f)
 	struct usb_endpoint *ep = usb_fifo_softc(f);
 	struct usb_endpoint_descriptor *ed = ep->edesc;
 
-	mtx_assert(f->priv_mtx, MA_OWNED);
+	USB_MTX_ASSERT(f->priv_mtx, MA_OWNED);
 
 	if (f->xfer[0] || f->xfer[1]) {
 		/* transfers are already opened */
@@ -714,16 +716,16 @@ ugen_get_cdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 	return (error);
 }
 
-/*
- * This function is called having the enumeration SX locked which
- * protects the scratch area used.
- */
 static int
 ugen_get_sdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 {
 	void *ptr;
 	uint16_t size;
 	int error;
+	uint8_t do_unlock;
+
+	/* Protect scratch area */
+	do_unlock = usbd_ctrl_lock(f->udev);
 
 	ptr = f->udev->scratch.data;
 	size = sizeof(f->udev->scratch.data);
@@ -744,6 +746,9 @@ ugen_get_sdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 
 		error = copyout(ptr, ugd->ugd_data, size);
 	}
+	if (do_unlock)
+		usbd_ctrl_unlock(f->udev);
+
 	return (error);
 }
 
@@ -1849,14 +1854,13 @@ ugen_get_port_path(struct usb_fifo *f, struct usb_device_port_path *dpp)
 	if (nlevel > USB_DEVICE_PORT_PATH_MAX)
 		goto error;
 
+	/* store total level of ports */
+	dpp->udp_port_level = nlevel;
+
 	/* store port index array */
 	next = udev;
 	while (next->parent_hub != NULL) {
-		nlevel--;
-
-		dpp->udp_port_no[nlevel] = next->port_no;
-		dpp->udp_port_level = nlevel;
-
+		dpp->udp_port_no[--nlevel] = next->port_no;
 		next = next->parent_hub;
 	}
 	return (0);	/* success */

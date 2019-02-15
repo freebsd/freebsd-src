@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1996, 1997
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -226,7 +228,7 @@ __yp_ping(struct in_addr *restricted_addrs, int cnt, char *dom, short *port)
 	int			validsrvs = 0;
 
 	/* Set up handles. */
-	reqs = calloc(1, sizeof(struct ping_req *) * cnt);
+	reqs = calloc(cnt, sizeof(struct ping_req *));
 	xid_seed = time(NULL) ^ getpid();
 
 	for (i = 0; i < cnt; i++) {

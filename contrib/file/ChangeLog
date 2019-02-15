@@ -1,3 +1,361 @@
+2018-07-25   8:50  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.34
+
+2018-06-22  16:38  Christos Zoulas <christos@zoulas.com>
+
+	* Add Quad indirect offsets
+
+2018-05-24  14:10  Christos Zoulas <christos@zoulas.com>
+
+	* Enable parsing of ELF dynamic sections to handle PIE better
+
+2018-04-15  14:52  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.33
+
+2018-02-24  14:50  Christos Zoulas <christos@zoulas.com> 
+
+	* extend the support for ${x?:} expansions for magic descriptions
+
+2018-02-21  16:25  Christos Zoulas <christos@zoulas.com> 
+
+	* add support for ${x?:} in mime types to handle
+	  pie binaries.
+
+2017-11-03   9:23  Christos Zoulas <christos@zoulas.com>
+
+	* add support for negative offsets (offsets from the end of file)
+
+2017-09-26   8:22  Christos Zoulas <christos@zoulas.com>
+
+	* close the file on error when writing magic (Steve Grubb)
+
+2017-09-24  12:02  Christos Zoulas <christos@zoulas.com>
+
+	* seccomp support (Paul Moore)
+
+2017-09-02  11:53  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.32
+
+2017-08-28  16:37  Christos Zoulas <christos@zoulas.com>
+
+	* Always reset state in {file,buffer}_apprentice (Krzysztof Wilczynski)
+
+2017-08-27  03:55  Christos Zoulas <christos@zoulas.com>
+
+	* Fix always true condition (Thomas Jarosch)
+
+2017-05-24  17:30  Christos Zoulas <christos@zoulas.com>
+
+	* pickier parsing of numeric values in magic files.
+
+2017-05-23  17:55  Christos Zoulas <christos@zoulas.com>
+
+	* PR/615 add magic_getflags()
+
+2017-05-23  13:55  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.31
+
+2017-03-17  20:32  Christos Zoulas <christos@zoulas.com>
+
+	* remove trailing spaces from magic files
+	* refactor is_tar
+	* better bounds checks for cdf
+
+2017-02-10  12:24  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.30
+
+2017-02-07  23:27  Christos Zoulas <christos@zoulas.com>
+
+	* If we exceeded the offset in a search return no match
+	  (Christoph Biedl)
+	* Be more lenient on corrupt CDF files (Christoph Biedl)
+
+2017-02-04  16:46  Christos Zoulas <christos@zoulas.com>
+
+	* pacify ubsan sign extension (oss-fuzz/524)
+
+2017-02-01  12:42  Christos Zoulas <christos@zoulas.com>
+
+	* off by one in cdf parsing (PR/593)
+	* report debugging sections in elf (PR/591)
+
+2016-11-06  10:52  Christos Zoulas <christos@zoulas.com>
+
+	* Allow @@@ in extensions
+	* Add missing overflow check in der magic (Jonas Wagner)
+
+2016-10-25  10:40  Christos Zoulas <christos@zoulas.com>
+	
+	* release 5.29
+
+2016-10-24  11:20  Christos Zoulas <christos@zoulas.com>
+
+	* der getlength overflow (Jonas Wagner)
+	* multiple magic file load failure (Christoph Biedl)
+
+2016-10-17  11:26  Christos Zoulas <christos@zoulas.com>
+
+	* CDF parsing improvements (Guy Helmer)
+
+2016-07-20   7:26  Christos Zoulas <christos@zoulas.com>
+
+	* Add support for signed indirect offsets
+
+2016-07-18   7:41  Christos Zoulas <christos@zoulas.com>
+
+	* cat /dev/null | file - should print empty (Christoph Biedl)
+
+2016-07-05  15:20  Christos Zoulas <christos@zoulas.com>
+
+	* Bump string size from 64 to 96.
+
+2016-06-13  20:20  Christos Zoulas <christos@zoulas.com>
+
+	* PR/556: Fix separators on annotations.
+
+2016-06-13  19:40  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.28
+	* fix leak on allocation failure
+
+2016-06-01   1:20  Christos Zoulas <christos@zoulas.com>
+
+	* PR/555: Avoid overflow for offset > nbytes
+	* PR/550: Segv on DER parsing:
+	    - use the correct variable for length
+	    - set offset to 0 on failure.
+
+2016-05-13  12:00  Christos Zoulas <christos@zoulas.com>
+	
+	* release 5.27
+
+2016-04-18   9:35  Christos Zoulas <christos@zoulas.com>
+	
+	* Errors comparing DER entries or computing offsets
+	  are just indications of malformed non-DER files.
+	  Don't print them.
+	* Offset comparison was off-by-one.
+	* Fix compression code (Werner Fink)
+	* Put new bytes constant in the right file (not the generated one)
+
+2016-04-16  18:34  Christos Zoulas <christos@zoulas.com>
+	
+	* release 5.26
+
+2016-03-31  13:50  Christos Zoulas <christos@zoulas.com>
+
+	* make the number of bytes read from files configurable.
+
+2016-03-21  13:40  Christos Zoulas <christos@zoulas.com>
+
+	* Add bounds checks for DER code (discovered by Thomas Jarosch)
+	* Change indirect recursion limit to indirect use count and
+	  bump from 15 to 50 to prevent abuse.
+
+2016-03-13  20:39  Christos Zoulas <christos@zoulas.com>
+
+	* Add -00 which prints filename\0description\0
+
+2016-03-01  13:28  Christos Zoulas <christos@zoulas.com>
+
+	* Fix ID3 indirect parsing
+
+2016-01-19  10:18  Christos Zoulas <christos@zoulas.com>
+
+	* add DER parsing capability
+
+2015-11-13  10:35  Christos Zoulas <christos@zoulas.com>
+
+	* provide dprintf(3) for the OS's that don't have it.
+
+2015-11-11  16:25  Christos Zoulas <christos@zoulas.com>
+
+	* redo the compression code report decompression errors
+
+2015-11-10  23:25  Christos Zoulas <christos@zoulas.com>
+
+	* REG_STARTEND code is not working as expected, delete it.
+
+2015-11-09  16:05  Christos Zoulas <christos@zoulas.com>
+
+	* Add zlib support if we have it.
+
+2015-11-05  11:22  Christos Zoulas <christos@zoulas.com>
+
+	* PR/492: compression forking was broken with magic_buffer.
+
+2015-09-16   9:50  Christos Zoulas <christos@zoulas.com>
+	
+	* release 5.25
+
+2015-09-11  13:25  Christos Zoulas <christos@zoulas.com>
+
+	* add a limit to the length of regex searches
+
+2015-09-08   9:50  Christos Zoulas <christos@zoulas.com>
+
+	* fix problems with --parameter (Christoph Biedl)
+
+2015-07-11  10:35  Christos Zoulas <christos@zoulas.com>
+
+	* Windows fixes PR/466 (Jason Hood)
+
+2015-07-09  10:35  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.24
+
+2015-06-11   8:52  Christos Zoulas <christos@zoulas.com>
+
+	* redo long option encoding to fix off-by-one in 5.23
+
+2015-06-10  13:50  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.23
+
+2015-06-09  16:10  Christos Zoulas <christos@zoulas.com>
+	
+	* Fix issue with regex range for magic with offset
+	* Always return true from mget with USE (success to mget not match
+	  indication). Fixes mime evaluation after USE magic
+	* PR/459: Don't insert magic entries to the list if there are parsing
+	  errors for them.
+
+2015-06-03  16:00  Christos Zoulas <christos@zoulas.com>
+
+	* PR/455: Add utf-7 encoding
+
+2015-06-03  14:30  Christos Zoulas <christos@zoulas.com>
+
+	* PR/455: Implement -Z, look inside, but don't report on compression
+	* PR/454: Fix allocation error on bad magic.
+
+2015-05-29  10:30  Christos Zoulas <christos@zoulas.com>
+
+	* handle MAGIC_CONTINUE everywhere, not just in softmagic
+
+2015-05-21  14:30  Christos Zoulas <christos@zoulas.com>
+
+	* don't print descriptions for NAME types when mime.
+
+2015-04-09  15:59  Christos Zoulas <christos@zoulas.com>
+
+	* Add --extension to list the known extensions for this file type
+	  Idea by Andrew J Roazen
+
+2015-02-14  12:23  Christos Zoulas <christos@zoulas.com>
+
+	* Bump file search buffer size to 1M.
+
+2015-01-09  14:35  Christos Zoulas <christos@zoulas.com>
+
+	* Fix multiple issues with date formats reported by Christoph Biedl:
+		- T_LOCAL meaning was reversed
+		- Arithmetic did not work
+	  Also stop adjusting daylight savings for gmt printing.
+
+2015-01-05  13:00  Christos Zoulas <christos@zoulas.com>
+
+	* PR/411: Fix memory corruption from corrupt cdf file.
+
+2015-01-02  15:15  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.22
+
+2015-01-01  12:01  Christos Zoulas <christos@zoulas.com>
+
+	* add indirect relative for TIFF/Exif
+
+2014-12-16  18:10  Christos Zoulas <christos@zoulas.com>
+	
+	* restructure elf note printing to avoid repeated messages
+	* add note limit, suggested by Alexander Cherepanov
+
+2014-12-16  16:53  Christos Zoulas <christos@zoulas.com>
+	
+	* Bail out on partial pread()'s (Alexander Cherepanov)
+	* Fix incorrect bounds check in file_printable (Alexander Cherepanov)
+
+2014-12-11  20:01  Christos Zoulas <christos@zoulas.com>
+
+	* PR/405: ignore SIGPIPE from uncompress programs
+	* change printable -> file_printable and use it in
+	  more places for safety
+	* in ELF, instead of "(uses dynamic libraries)" when PT_INTERP
+	  is present print the interpreter name.
+	
+2014-12-10  20:01  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.21
+
+2014-11-27  18:40  Christos Zoulas <christos@zoulas.com>
+
+	* Allow setting more parameters from the command line.
+	* Split name/use and indirect magic recursion limits.
+
+2014-11-27  11:12  Christos Zoulas <christos@zoulas.com>
+
+	* Adjust ELF parameters and the default recursion
+	  level.
+	* Allow setting the recursion level dynamically.
+
+2014-11-24   8:55  Christos Zoulas <christos@zoulas.com>
+
+	* The following fixes resulted from Thomas Jarosch's fuzzing
+	  tests that revealed severe performance issues on pathological
+	  input:
+	    - limit number of elf program and sections processing
+	    - abort elf note processing quickly
+	    - reduce the number of recursion levels from 20 to 10
+	    - preserve error messages in indirect magic handling
+
+	This is tracked as CVE-2014-8116 and CVE-2014-8117
+
+2014-11-12  10:30  Christos Zoulas <christos@zoulas.com>
+
+	* fix bogus free in the user buffer case.
+
+2014-11-11  12:35  Christos Zoulas <christos@zoulas.com>
+
+	* fix out of bounds read for pascal strings
+	* fix memory leak (not freeing the head of each mlist)
+
+2014-11-07  10:25  Christos Zoulas <christos@zoulas.com>
+
+	* When printing strings from a file, convert them to printable
+	  on a byte by byte basis, so that we don't get issues with
+	  locale's trying to interpret random byte streams as UTF-8 and
+	  having printf error out with EILSEQ.
+	  
+2014-10-17  11:48  Christos Zoulas <christos@zoulas.com>
+
+	* fix bounds in note reading (Francisco Alonso / Red Hat)
+
+2014-10-11  15:02  Christos Zoulas <christos@zoulas.com>
+
+	* fix autoconf glue for setlocale and locale_t; some OS's
+	  have locale_t in xlocale.h
+
+2014-10-10  15:01  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.20
+
+2014-08-17  10:01  Christos Zoulas <christos@zoulas.com>
+
+	* recognize encrypted CDF documents
+
+2014-08-04   9:18  Christos Zoulas <christos@zoulas.com>
+
+	* add magic_load_buffers from Brooks Davis
+
+2014-07-24  16:40  Christos Zoulas <christos@zoulas.com>
+
+	* add thumbs.db support
+
 2014-06-12  12:28  Christos Zoulas <christos@zoulas.com>
 
 	* release 5.19
@@ -120,7 +478,7 @@
 		`
 2013-11-06  14:40  Christos Zoulas <christos@zoulas.com>
 
-	* fix erroneous non-zero exit code from non-existant file and message
+	* fix erroneous non-zero exit code from non-existent file and message
 
 2013-10-29  14:25  Christos Zoulas <christos@zoulas.com>
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 Doug Rabson
  * All rights reserved.
  *
@@ -82,7 +84,7 @@ static __inline void
 mtsrin(vm_offset_t va, register_t value)
 {
 
-	__asm __volatile ("mtsrin %0,%1" :: "r"(value), "r"(va));
+	__asm __volatile ("mtsrin %0,%1; isync" :: "r"(value), "r"(va));
 }
 
 static __inline register_t
@@ -201,7 +203,7 @@ intr_restore(register_t msr)
 }
 
 static __inline struct pcpu *
-powerpc_get_pcpup(void)
+get_pcpu(void)
 {
 	struct pcpu *ret;
 

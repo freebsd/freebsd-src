@@ -1,5 +1,3 @@
-/* $Id: bsd-statvfs.h,v 1.3 2014/01/17 07:48:22 dtucker Exp $ */
-
 /*
  * Copyright (c) 2008,2014 Darren Tucker <dtucker@zip.com.au>
  *
@@ -27,6 +25,9 @@
 #endif
 #ifdef HAVE_SYS_STATFS_H
 #include <sys/statfs.h>
+#endif
+#ifdef HAVE_SYS_VFS_H
+#include <sys/vfs.h>
 #endif
 
 #ifndef HAVE_FSBLKCNT_T

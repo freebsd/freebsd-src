@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
@@ -133,7 +135,7 @@ ddb_script(int argc, char *argv[])
 }
 
 void
-ddb_scripts(int argc, char *argv[])
+ddb_scripts(int argc, char *argv[] __unused)
 {
 
 	if (argc != 1)

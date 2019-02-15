@@ -35,6 +35,7 @@ enum MCSymbolAttr {
   MCSA_Local,               ///< .local (ELF)
   MCSA_NoDeadStrip,         ///< .no_dead_strip (MachO)
   MCSA_SymbolResolver,      ///< .symbol_resolver (MachO)
+  MCSA_AltEntry,            ///< .alt_entry (MachO)
   MCSA_PrivateExtern,       ///< .private_extern (MachO)
   MCSA_Protected,           ///< .protected (ELF)
   MCSA_Reference,           ///< .reference (MachO)
@@ -58,6 +59,13 @@ enum MCDataRegionType {
   MCDR_DataRegionJT16,        ///< .data_region jt16
   MCDR_DataRegionJT32,        ///< .data_region jt32
   MCDR_DataRegionEnd          ///< .end_data_region
+};
+
+enum MCVersionMinType {
+  MCVM_IOSVersionMin,         ///< .ios_version_min
+  MCVM_OSXVersionMin,         ///< .macosx_version_min
+  MCVM_TvOSVersionMin,        ///< .tvos_version_min
+  MCVM_WatchOSVersionMin,     ///< .watchos_version_min
 };
 
 } // end namespace llvm

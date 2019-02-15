@@ -13,14 +13,13 @@
 
 #include "DiffLog.h"
 #include "DiffConsumer.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/IR/Instructions.h"
 
 using namespace llvm;
 
 LogBuilder::~LogBuilder() {
-  consumer.logf(*this);
+  if (consumer)
+    consumer->logf(*this);
 }
 
 StringRef LogBuilder::getFormat() const { return Format; }
@@ -35,11 +34,11 @@ void DiffLogBuilder::addMatch(Instruction *L, Instruction *R) {
 }
 void DiffLogBuilder::addLeft(Instruction *L) {
   // HACK: VS 2010 has a bug in the stdlib that requires this.
-  Diff.push_back(DiffRecord(L, DiffRecord::second_type(0)));
+  Diff.push_back(DiffRecord(L, DiffRecord::second_type(nullptr)));
 }
 void DiffLogBuilder::addRight(Instruction *R) {
   // HACK: VS 2010 has a bug in the stdlib that requires this.
-  Diff.push_back(DiffRecord(DiffRecord::first_type(0), R));
+  Diff.push_back(DiffRecord(DiffRecord::first_type(nullptr), R));
 }
 
 unsigned DiffLogBuilder::getNumLines() const { return Diff.size(); }

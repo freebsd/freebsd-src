@@ -4,6 +4,9 @@
 # $FreeBSD$
 
 case "$1" in
+	*.zip)
+		exec unzip -c "$1" 2>/dev/null
+		;;
 	*.Z)
 		exec uncompress -c "$1"	2>/dev/null
 		;;
@@ -18,5 +21,8 @@ case "$1" in
 		;;
 	*.lzma)
 		exec lzma -d -c "$1"	2>/dev/null
+		;;
+	*.zst)
+		exec zstd -d -q -c "$1"	2>/dev/null
 		;;
 esac

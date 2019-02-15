@@ -45,6 +45,7 @@
  * 5. Repeat for next domain family and type from (2) on.
  */
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
@@ -143,6 +144,7 @@ t(u_int dom, u_int type)
 	if (s == -1) {
 		printf("not ok %d %s_%s # socket(): %s\n", testno,
 		    t_dom[dom].name, t_type[type].name, strerror(errno));
+		testno++;
 		return;
 	}
 	
@@ -168,13 +170,22 @@ main(int argc __unused, char *argv[] __unused)
 	u_int i, j;
 	size_t s;
 
-	/* Initalize randomness. */
+	if (geteuid() != 0) {
+		printf("1..0 # SKIP: must be root\n");
+		return (0);
+	}
+
+	/* Initialize randomness. */
 	srandomdev();
 
 	/* Get number of FIBs supported by kernel. */
 	s = sizeof(rt_numfibs);
 	if (sysctlbyname("net.fibs", &rt_numfibs, &s, NULL, 0) == -1)
 		err(1, "sysctlbyname(net.fibs, ..)");
+
+	printf("1..%lu\n",
+	    (nitems(t_dom) - 1) * nitems(t_type) * (2 + rt_numfibs + 2 + 3));
+
 	/* Adjust from number to index. */
 	rt_numfibs -= 1;
 

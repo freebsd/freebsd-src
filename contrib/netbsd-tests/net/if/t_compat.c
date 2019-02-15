@@ -1,4 +1,4 @@
-/*	$NetBSD: t_compat.c,v 1.1 2010/11/07 19:53:42 pooka Exp $	*/
+/*	$NetBSD: t_compat.c,v 1.4 2016/11/12 15:12:59 kre Exp $	*/
 
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -64,6 +64,8 @@ ATF_TC_BODY(OOSIOCGIFBRDADDR, tc)
 		atf_tc_fail("failed to create shmif: %s", strerror(rv));
 	sprintf(ifreq.ifr_name, "shmif%d", ifnum);
 	netcfg_rump_if(ifreq.ifr_name, "1.7.64.10", "255.255.0.0");
+
+	atf_tc_expect_fail("PR kern/51610: rump does not include COMPAT_43");
 
 	/* query kernel for iface bcast */
         RL(fd = rump_sys_socket(AF_INET, SOCK_DGRAM, 0));

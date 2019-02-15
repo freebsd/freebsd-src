@@ -1,5 +1,7 @@
 %{
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * APM (Advanced Power Management) Event Dispatcher
  *
  * Copyright (c) 1999 Mitsuru IWASAKI <iwasaki@FreeBSD.org>
@@ -30,6 +32,7 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
 #include <stdio.h>
 #include <bitstring.h>
 #include <stdlib.h>

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994 Herb Peyerl <hpeyerl@novatel.ca>
  * All rights reserved.
  *
@@ -63,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -347,6 +350,8 @@ ep_attach(struct ep_softc *sc)
 	epstop(sc);
 	EP_UNLOCK(sc);
 
+	gone_by_fcp101_dev(sc->dev);
+
 	return (0);
 }
 
@@ -529,31 +534,17 @@ startagain:
 		CSR_WRITE_2(sc, EP_COMMAND,
 		    SET_TX_AVAIL_THRESH | EP_THRESH_DISABLE);
 
-	/* XXX 4.x and earlier would splhigh here */
-
 	CSR_WRITE_2(sc, EP_W1_TX_PIO_WR_1, len);
 	/* Second dword meaningless */
 	CSR_WRITE_2(sc, EP_W1_TX_PIO_WR_1, 0x0);
 
-	if (EP_FTST(sc, F_ACCESS_32_BITS)) {
-		for (m = m0; m != NULL; m = m->m_next) {
-			if (m->m_len > 3)
-				CSR_WRITE_MULTI_4(sc, EP_W1_TX_PIO_WR_1,
-				    mtod(m, uint32_t *), m->m_len / 4);
-			if (m->m_len & 3)
-				CSR_WRITE_MULTI_1(sc, EP_W1_TX_PIO_WR_1,
-				    mtod(m, uint8_t *)+(m->m_len & (~3)),
-				    m->m_len & 3);
-		}
-	} else {
-		for (m = m0; m != NULL; m = m->m_next) {
-			if (m->m_len > 1)
-				CSR_WRITE_MULTI_2(sc, EP_W1_TX_PIO_WR_1,
-				    mtod(m, uint16_t *), m->m_len / 2);
-			if (m->m_len & 1)
-				CSR_WRITE_1(sc, EP_W1_TX_PIO_WR_1,
-				    *(mtod(m, uint8_t *)+m->m_len - 1));
-		}
+	for (m = m0; m != NULL; m = m->m_next) {
+		if (m->m_len > 1)
+			CSR_WRITE_MULTI_2(sc, EP_W1_TX_PIO_WR_1,
+			    mtod(m, uint16_t *), m->m_len / 2);
+		if (m->m_len & 1)
+			CSR_WRITE_1(sc, EP_W1_TX_PIO_WR_1,
+			    *(mtod(m, uint8_t *)+m->m_len - 1));
 	}
 
 	while (pad--)
@@ -787,25 +778,13 @@ read_again:
 			mcur->m_next = m;
 			lenthisone = min(rx_fifo, M_TRAILINGSPACE(m));
 		}
-		if (EP_FTST(sc, F_ACCESS_32_BITS)) {
-			/* default for EISA configured cards */
-			CSR_READ_MULTI_4(sc, EP_W1_RX_PIO_RD_1,
-			    (uint32_t *)(mtod(m, caddr_t)+m->m_len),
-			    lenthisone / 4);
-			m->m_len += (lenthisone & ~3);
-			if (lenthisone & 3)
-				CSR_READ_MULTI_1(sc, EP_W1_RX_PIO_RD_1,
-				    mtod(m, caddr_t)+m->m_len, lenthisone & 3);
-			m->m_len += (lenthisone & 3);
-		} else {
-			CSR_READ_MULTI_2(sc, EP_W1_RX_PIO_RD_1,
-			    (uint16_t *)(mtod(m, caddr_t)+m->m_len),
-			    lenthisone / 2);
-			m->m_len += lenthisone;
-			if (lenthisone & 1)
-				*(mtod(m, caddr_t)+m->m_len - 1) =
-				    CSR_READ_1(sc, EP_W1_RX_PIO_RD_1);
-		}
+		CSR_READ_MULTI_2(sc, EP_W1_RX_PIO_RD_1,
+		    (uint16_t *)(mtod(m, caddr_t)+m->m_len),
+		    lenthisone / 2);
+		m->m_len += lenthisone;
+		if (lenthisone & 1)
+			*(mtod(m, caddr_t)+m->m_len - 1) =
+			    CSR_READ_1(sc, EP_W1_RX_PIO_RD_1);
 		rx_fifo -= lenthisone;
 	}
 

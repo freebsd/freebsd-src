@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992 Keith Muller.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -14,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -68,7 +70,7 @@ static int no_op(void);
 static void printflg(unsigned int);
 static int c_frmt(const void *, const void *);
 static off_t str_offt(char *);
-static char *getline(FILE *fp);
+static char *get_line(FILE *fp);
 static void pax_options(int, char **);
 static void pax_usage(void);
 static void tar_options(int, char **);
@@ -76,10 +78,10 @@ static void tar_usage(void);
 static void cpio_options(int, char **);
 static void cpio_usage(void);
 
-/* errors from getline */
+/* errors from get_line */
 #define GETLINE_FILE_CORRUPT 1
 #define GETLINE_OUT_OF_MEM 2
-static int getline_error;
+static int get_line_error;
 
 char *chdname;
 
@@ -194,7 +196,7 @@ pax_options(int argc, char **argv)
 	/*
 	 * process option flags
 	 */
-	while ((c=getopt(argc,argv,"ab:cdf:iklno:p:rs:tuvwx:zB:DE:G:HLPT:U:XYZ"))
+	while ((c=getopt(argc,argv,"ab:cdf:iklno:p:rs:tuvwx:zB:DE:G:HLOPT:U:XYZ"))
 	    != -1) {
 		switch (c) {
 		case 'a':
@@ -447,6 +449,12 @@ pax_options(int argc, char **argv)
 			Lflag = 1;
 			flg |= CLF;
 			break;
+		case 'O':
+			/*
+			 * Force one volume. Non standard option.
+			 */
+			Oflag = 1;
+			break;
 		case 'P':
 			/*
 			 * do NOT follow symlinks (default)
@@ -584,7 +592,7 @@ tar_options(int argc, char **argv)
 {
 	int c;
 	int fstdin = 0;
-	int Oflag = 0;
+	int tar_Oflag = 0;
 	int nincfiles = 0;
 	int incfiles_max = 0;
 	struct incfile {
@@ -664,7 +672,7 @@ tar_options(int argc, char **argv)
 			if (opt_add("write_opt=nodir") < 0)
 				tar_usage();
 		case 'O':
-			Oflag = 1;
+			tar_Oflag = 1;
 			break;
 		case 'p':
 			/*
@@ -820,8 +828,8 @@ tar_options(int argc, char **argv)
 	 * (unless -o specified)
 	 */
 	if (act == ARCHIVE || act == APPND)
-		frmt = &(fsub[Oflag ? F_OTAR : F_TAR]);
-	else if (Oflag) {
+		frmt = &(fsub[tar_Oflag ? F_OTAR : F_TAR]);
+	else if (tar_Oflag) {
 		paxwarn(1, "The -O/-o options are only valid when writing an archive");
 		tar_usage();		/* only valid when writing */
 	}
@@ -867,14 +875,14 @@ tar_options(int argc, char **argv)
 						paxwarn(1, "Unable to open file '%s' for read", file);
 						tar_usage();
 					}
-					while ((str = getline(fp)) != NULL) {
+					while ((str = get_line(fp)) != NULL) {
 						if (pat_add(str, dir) < 0)
 							tar_usage();
 						sawpat = 1;
 					}
 					if (strcmp(file, "-") != 0)
 						fclose(fp);
-					if (getline_error) {
+					if (get_line_error) {
 						paxwarn(1, "Problem with file '%s'", file);
 						tar_usage();
 					}
@@ -940,13 +948,13 @@ tar_options(int argc, char **argv)
 					paxwarn(1, "Unable to open file '%s' for read", file);
 					tar_usage();
 				}
-				while ((str = getline(fp)) != NULL) {
+				while ((str = get_line(fp)) != NULL) {
 					if (ftree_add(str, 0) < 0)
 						tar_usage();
 				}
 				if (strcmp(file, "-") != 0)
 					fclose(fp);
-				if (getline_error) {
+				if (get_line_error) {
 					paxwarn(1, "Problem with file '%s'",
 					    file);
 					tar_usage();
@@ -1153,11 +1161,11 @@ cpio_options(int argc, char **argv)
 					paxwarn(1, "Unable to open file '%s' for read", optarg);
 					cpio_usage();
 				}
-				while ((str = getline(fp)) != NULL) {
+				while ((str = get_line(fp)) != NULL) {
 					pat_add(str, NULL);
 				}
 				fclose(fp);
-				if (getline_error) {
+				if (get_line_error) {
 					paxwarn(1, "Problem with file '%s'", optarg);
 					cpio_usage();
 				}
@@ -1252,10 +1260,10 @@ cpio_options(int argc, char **argv)
 			 * no read errors allowed on updates/append operation!
 			 */
 			maxflt = 0;
-			while ((str = getline(stdin)) != NULL) {
+			while ((str = get_line(stdin)) != NULL) {
 				ftree_add(str, 0);
 			}
-			if (getline_error) {
+			if (get_line_error) {
 				paxwarn(1, "Problem while reading stdin");
 				cpio_usage();
 			}
@@ -1483,21 +1491,21 @@ str_offt(char *val)
 }
 
 char *
-getline(FILE *f)
+get_line(FILE *f)
 {
 	char *name, *temp;
 	size_t len;
 
 	name = fgetln(f, &len);
 	if (!name) {
-		getline_error = ferror(f) ? GETLINE_FILE_CORRUPT : 0;
+		get_line_error = ferror(f) ? GETLINE_FILE_CORRUPT : 0;
 		return(0);
 	}
 	if (name[len-1] != '\n')
 		len++;
 	temp = malloc(len);
 	if (!temp) {
-		getline_error = GETLINE_OUT_OF_MEM;
+		get_line_error = GETLINE_OUT_OF_MEM;
 		return(0);
 	}
 	memcpy(temp, name, len-1);
@@ -1526,25 +1534,25 @@ no_op(void)
 void
 pax_usage(void)
 {
-	(void)fputs("usage: pax [-cdnvz] [-E limit] [-f archive] ", stderr);
+	(void)fputs("usage: pax [-cdnOvz] [-E limit] [-f archive] ", stderr);
 	(void)fputs("[-s replstr] ... [-U user] ...", stderr);
 	(void)fputs("\n	   [-G group] ... ", stderr);
 	(void)fputs("[-T [from_date][,to_date]] ... ", stderr);
 	(void)fputs("[pattern ...]\n", stderr);
-	(void)fputs("       pax -r [-cdiknuvzDYZ] [-E limit] ", stderr);
+	(void)fputs("       pax -r [-cdiknOuvzDYZ] [-E limit] ", stderr);
 	(void)fputs("[-f archive] [-o options] ... \n", stderr);
 	(void)fputs("	   [-p string] ... [-s replstr] ... ", stderr);
 	(void)fputs("[-U user] ... [-G group] ...\n	   ", stderr);
 	(void)fputs("[-T [from_date][,to_date]] ... ", stderr);
 	(void)fputs(" [pattern ...]\n", stderr);
-	(void)fputs("       pax -w [-dituvzHLPX] [-b blocksize] ", stderr);
+	(void)fputs("       pax -w [-dituvzHLOPX] [-b blocksize] ", stderr);
 	(void)fputs("[ [-a] [-f archive] ] [-x format] \n", stderr);
 	(void)fputs("	   [-B bytes] [-s replstr] ... ", stderr);
 	(void)fputs("[-o options] ... [-U user] ...", stderr);
 	(void)fputs("\n	   [-G group] ... ", stderr);
 	(void)fputs("[-T [from_date][,to_date][/[c][m]]] ... ", stderr);
 	(void)fputs("[file ...]\n", stderr);
-	(void)fputs("       pax -r -w [-diklntuvDHLPXYZ] ", stderr);
+	(void)fputs("       pax -r -w [-diklntuvDHLOPXYZ] ", stderr);
 	(void)fputs("[-p string] ... [-s replstr] ...", stderr);
 	(void)fputs("\n	   [-U user] ... [-G group] ... ", stderr);
 	(void)fputs("[-T [from_date][,to_date][/[c][m]]] ... ", stderr);

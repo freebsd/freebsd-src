@@ -31,15 +31,8 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: snprintf.c,v 1.1 2004-04-05 22:43:51 guy Exp $ */
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
-
-#ifndef lint
-static const char rcsid[] _U_ =
-     "@(#) $Header: /tcpdump/master/libpcap/missing/snprintf.c,v 1.1 2004-04-05 22:43:51 guy Exp $";
 #endif
 
 #include <stdio.h>
@@ -463,13 +456,13 @@ xyzprintf (struct state *state, const char *char_format, va_list ap)
 
 #ifndef HAVE_SNPRINTF
 int
-snprintf (char *str, size_t sz, const char *format, ...)
+pcap_snprintf (char *str, size_t sz, const char *format, ...)
 {
   va_list args;
   int ret;
 
   va_start(args, format);
-  ret = vsnprintf (str, sz, format, args);
+  ret = pcap_vsnprintf (str, sz, format, args);
 
 #ifdef PARANOIA
   {
@@ -480,7 +473,7 @@ snprintf (char *str, size_t sz, const char *format, ...)
     if (tmp == NULL)
       abort ();
 
-    ret2 = vsprintf (tmp, format, args);
+    ret2 = pcap_vsprintf (tmp, format, args);
     if (ret != ret2 || strcmp(str, tmp))
       abort ();
     free (tmp);
@@ -525,13 +518,13 @@ asprintf (char **ret, const char *format, ...)
 
 #ifndef HAVE_ASNPRINTF
 int
-asnprintf (char **ret, size_t max_sz, const char *format, ...)
+pcap_asnprintf (char **ret, size_t max_sz, const char *format, ...)
 {
   va_list args;
   int val;
 
   va_start(args, format);
-  val = vasnprintf (ret, max_sz, format, args);
+  val = pcap_vasnprintf (ret, max_sz, format, args);
 
 #ifdef PARANOIA
   {
@@ -541,7 +534,7 @@ asnprintf (char **ret, size_t max_sz, const char *format, ...)
     if (tmp == NULL)
       abort ();
 
-    ret2 = vsprintf (tmp, format, args);
+    ret2 = pcap_vsprintf (tmp, format, args);
     if (val != ret2 || strcmp(*ret, tmp))
       abort ();
     free (tmp);
@@ -555,16 +548,16 @@ asnprintf (char **ret, size_t max_sz, const char *format, ...)
 
 #ifndef HAVE_VASPRINTF
 int
-vasprintf (char **ret, const char *format, va_list args)
+pcap_vasprintf (char **ret, const char *format, va_list args)
 {
-  return vasnprintf (ret, 0, format, args);
+  return pcap_vasnprintf (ret, 0, format, args);
 }
 #endif
 
 
 #ifndef HAVE_VASNPRINTF
 int
-vasnprintf (char **ret, size_t max_sz, const char *format, va_list args)
+pcap_vasnprintf (char **ret, size_t max_sz, const char *format, va_list args)
 {
   int st;
   size_t len;
@@ -607,7 +600,7 @@ vasnprintf (char **ret, size_t max_sz, const char *format, va_list args)
 
 #ifndef HAVE_VSNPRINTF
 int
-vsnprintf (char *str, size_t sz, const char *format, va_list args)
+pcap_vsnprintf (char *str, size_t sz, const char *format, va_list args)
 {
   struct state state;
   int ret;

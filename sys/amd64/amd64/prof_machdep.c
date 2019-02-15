@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1996 Bruce D. Evans.
  * All rights reserved.
  *
@@ -28,10 +30,6 @@
 __FBSDID("$FreeBSD$");
 
 #ifdef GUPROF
-#if 0
-#include "opt_i586_guprof.h"
-#include "opt_perfmon.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -44,29 +42,34 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <machine/clock.h>
-#if 0
-#include <machine/perfmon.h>
-#endif
 #include <machine/timerreg.h>
 
 #define	CPUTIME_CLOCK_UNINITIALIZED	0
 #define	CPUTIME_CLOCK_I8254		1
 #define	CPUTIME_CLOCK_TSC		2
-#define	CPUTIME_CLOCK_I586_PMC		3
 #define	CPUTIME_CLOCK_I8254_SHIFT	7
 
 int	cputime_bias = 1;	/* initialize for locality of reference */
 
 static int	cputime_clock = CPUTIME_CLOCK_UNINITIALIZED;
-#if defined(PERFMON) && defined(I586_PMC_GUPROF)
-static u_int	cputime_clock_pmc_conf = I586_PMC_GUPROF;
-static int	cputime_clock_pmc_init;
-static struct gmonparam saved_gmp;
-#endif
 static int	cputime_prof_active;
 #endif /* GUPROF */
 
 #ifdef __GNUCLIKE_ASM
+#if defined(SMP) && defined(GUPROF)
+#define	MPLOCK "						\n\
+	movl	$1,%edx						\n\
+9:								\n\
+	xorl	%eax,%eax					\n\
+	lock 							\n\
+	cmpxchgl %edx,mcount_lock				\n\
+	jne	9b						\n"
+#define	MPUNLOCK "movl	$0,mcount_lock				\n"
+#else /* !(SMP && GUPROF) */
+#define	MPLOCK
+#define	MPUNLOCK
+#endif /* SMP && GUPROF */
+
 __asm("								\n\
 GM_STATE	=	0					\n\
 GMON_PROF_OFF	=	3					\n\
@@ -122,8 +125,10 @@ __mcount:							\n\
 	movq	7*8(%rsp),%rsi					\n\
 								\n\
 	pushfq							\n\
-	cli							\n\
-	call	mcount						\n\
+	cli							\n"
+	MPLOCK "						\n\
+	call	mcount						\n"
+	MPUNLOCK "						\n\
 	popfq							\n\
 	popq	%r9						\n\
 	popq	%r8						\n\
@@ -174,8 +179,10 @@ GMON_PROF_HIRES	=	4					\n\
 	pushq	%r9						\n\
 	movq	7*8(%rsp),%rdi					\n\
 	pushfq							\n\
-	cli							\n\
-	call	mexitcount					\n\
+	cli							\n"
+	MPLOCK "						\n\
+	call	mexitcount					\n"
+	MPUNLOCK "						\n\
 	popfq							\n\
 	popq	%r9						\n\
 	popq	%r8						\n\
@@ -198,9 +205,6 @@ cputime()
 {
 	u_int count;
 	int delta;
-#if defined(PERFMON) && defined(I586_PMC_GUPROF) && !defined(SMP)
-	u_quad_t event_count;
-#endif
 	u_char high, low;
 	static u_int prev_count;
 
@@ -217,21 +221,6 @@ cputime()
 		prev_count = count;
 		return (delta);
 	}
-#if defined(PERFMON) && defined(I586_PMC_GUPROF) && !defined(SMP)
-	if (cputime_clock == CPUTIME_CLOCK_I586_PMC) {
-		/*
-		 * XXX permon_read() should be inlined so that the
-		 * perfmon module doesn't need to be compiled with
-		 * profiling disabled and so that it is fast.
-		 */
-		perfmon_read(0, &event_count);
-
-		count = (u_int)event_count;
-		delta = (int)(count - prev_count);
-		prev_count = count;
-		return (delta);
-	}
-#endif /* PERFMON && I586_PMC_GUPROF && !SMP */
 
 	/*
 	 * Read the current value of the 8254 timer counter 0.
@@ -262,39 +251,13 @@ sysctl_machdep_cputime_clock(SYSCTL_HANDLER_ARGS)
 {
 	int clock;
 	int error;
-#if defined(PERFMON) && defined(I586_PMC_GUPROF)
-	int event;
-	struct pmc pmc;
-#endif
 
 	clock = cputime_clock;
-#if defined(PERFMON) && defined(I586_PMC_GUPROF)
-	if (clock == CPUTIME_CLOCK_I586_PMC) {
-		pmc.pmc_val = cputime_clock_pmc_conf;
-		clock += pmc.pmc_event;
-	}
-#endif
 	error = sysctl_handle_opaque(oidp, &clock, sizeof clock, req);
 	if (error == 0 && req->newptr != NULL) {
-#if defined(PERFMON) && defined(I586_PMC_GUPROF)
-		if (clock >= CPUTIME_CLOCK_I586_PMC) {
-			event = clock - CPUTIME_CLOCK_I586_PMC;
-			if (event >= 256)
-				return (EINVAL);
-			pmc.pmc_num = 0;
-			pmc.pmc_event = event;
-			pmc.pmc_unit = 0;
-			pmc.pmc_flags = PMCF_E | PMCF_OS | PMCF_USR;
-			pmc.pmc_mask = 0;
-			cputime_clock_pmc_conf = pmc.pmc_val;
-			cputime_clock = CPUTIME_CLOCK_I586_PMC;
-		} else
-#endif
-		{
-			if (clock < 0 || clock >= CPUTIME_CLOCK_I586_PMC)
-				return (EINVAL);
-			cputime_clock = clock;
-		}
+		if (clock < 0 || clock > CPUTIME_CLOCK_TSC)
+			return (EINVAL);
+		cputime_clock = clock;
 	}
 	return (error);
 }
@@ -325,32 +288,6 @@ startguprof(gp)
 		cputime_prof_active = 1;
 	} else
 		gp->profrate = i8254_freq << CPUTIME_CLOCK_I8254_SHIFT;
-#if defined(PERFMON) && defined(I586_PMC_GUPROF)
-	if (cputime_clock == CPUTIME_CLOCK_I586_PMC) {
-		if (perfmon_avail() &&
-		    perfmon_setup(0, cputime_clock_pmc_conf) == 0) {
-			if (perfmon_start(0) != 0)
-				perfmon_fini(0);
-			else {
-				/* XXX 1 event == 1 us. */
-				gp->profrate = 1000000;
-
-				saved_gmp = *gp;
-
-				/* Zap overheads.  They are invalid. */
-				gp->cputime_overhead = 0;
-				gp->mcount_overhead = 0;
-				gp->mcount_post_overhead = 0;
-				gp->mcount_pre_overhead = 0;
-				gp->mexitcount_overhead = 0;
-				gp->mexitcount_post_overhead = 0;
-				gp->mexitcount_pre_overhead = 0;
-
-				cputime_clock_pmc_init = TRUE;
-			}
-		}
-	}
-#endif /* PERFMON && I586_PMC_GUPROF */
 	cputime_bias = 0;
 	cputime();
 }
@@ -359,13 +296,6 @@ void
 stopguprof(gp)
 	struct gmonparam *gp;
 {
-#if defined(PERFMON) && defined(I586_PMC_GUPROF)
-	if (cputime_clock_pmc_init) {
-		*gp = saved_gmp;
-		perfmon_fini(0);
-		cputime_clock_pmc_init = FALSE;
-	}
-#endif
 	if (cputime_clock == CPUTIME_CLOCK_TSC)
 		cputime_prof_active = 0;
 }

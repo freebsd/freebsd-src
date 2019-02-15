@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2012 Qualcomm Atheros, All Rights Reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -119,7 +121,7 @@ ar5416ConfigureSpectralScan(struct ath_hal *ah, HAL_SPECTRAL_PARAM *ss)
 	} else {
 		if (ss->ss_count != HAL_SPECTRAL_PARAM_NOVAL) {
 			/*
-			 * In Merlin, for continous scan, scan_count = 128.
+			 * In Merlin, for continuous scan, scan_count = 128.
 			 * In case of Kiwi, this value should be 0
 			 */
 			if (ss->ss_count == 128)

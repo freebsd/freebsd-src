@@ -1,6 +1,8 @@
 /*	$OpenBSD: parse.y,v 1.554 2008/10/17 12:59:53 henning Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2001 Daniel Hartmeier.  All rights reserved.
  * Copyright (c) 2001 Theo de Raadt.  All rights reserved.
@@ -30,6 +32,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define PFIOC_USE_LATEST
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -44,10 +48,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <net/pfvar.h>
 #include <arpa/inet.h>
-#include <altq/altq.h>
-#include <altq/altq_cbq.h>
-#include <altq/altq_priq.h>
-#include <altq/altq_hfsc.h>
+#include <net/altq/altq.h>
+#include <net/altq/altq_cbq.h>
+#include <net/altq/altq_codel.h>
+#include <net/altq/altq_priq.h>
+#include <net/altq/altq_hfsc.h>
+#include <net/altq/altq_fairq.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -75,10 +81,11 @@ static u_int16_t	 returnicmpdefault =
 static u_int16_t	 returnicmp6default =
 			    (ICMP6_DST_UNREACH << 8) | ICMP6_DST_UNREACH_NOPORT;
 static int		 blockpolicy = PFRULE_DROP;
+static int		 failpolicy = PFRULE_DROP;
 static int		 require_order = 1;
 static int		 default_statelock;
 
-TAILQ_HEAD(files, file)		 files = TAILQ_HEAD_INITIALIZER(files);
+static TAILQ_HEAD(files, file)	 files = TAILQ_HEAD_INITIALIZER(files);
 static struct file {
 	TAILQ_ENTRY(file)	 entry;
 	FILE			*stream;
@@ -98,7 +105,7 @@ int		 lgetc(int);
 int		 lungetc(int);
 int		 findeol(void);
 
-TAILQ_HEAD(symhead, sym)	 symhead = TAILQ_HEAD_INITIALIZER(symhead);
+static TAILQ_HEAD(symhead, sym)	 symhead = TAILQ_HEAD_INITIALIZER(symhead);
 struct sym {
 	TAILQ_ENTRY(sym)	 entry;
 	int			 used;
@@ -194,7 +201,7 @@ struct peer {
 	struct node_port	*port;
 };
 
-struct node_queue {
+static struct node_queue {
 	char			 queue[PF_QNAME_SIZE];
 	char			 parent[PF_QNAME_SIZE];
 	char			 ifname[IFNAMSIZ];
@@ -208,13 +215,15 @@ struct node_qassign {
 	char		*pqname;
 };
 
-struct filter_opts {
+static struct filter_opts {
 	int			 marker;
 #define FOM_FLAGS	0x01
 #define FOM_ICMP	0x02
 #define FOM_TOS		0x04
 #define FOM_KEEP	0x08
 #define FOM_SRCTRACK	0x10
+#define FOM_SETPRIO	0x0400
+#define FOM_PRIO	0x2000
 	struct node_uid		*uid;
 	struct node_gid		*gid;
 	struct {
@@ -238,18 +247,20 @@ struct filter_opts {
 	char			*match_tag;
 	u_int8_t		 match_tag_not;
 	u_int			 rtableid;
+	u_int8_t		 prio;
+	u_int8_t		 set_prio[2];
 	struct {
 		struct node_host	*addr;
 		u_int16_t		port;
 	}			 divert;
 } filter_opts;
 
-struct antispoof_opts {
+static struct antispoof_opts {
 	char			*label;
 	u_int			 rtableid;
 } antispoof_opts;
 
-struct scrub_opts {
+static struct scrub_opts {
 	int			 marker;
 #define SOM_MINTTL	0x01
 #define SOM_MAXMSS	0x02
@@ -267,7 +278,7 @@ struct scrub_opts {
 	u_int			 rtableid;
 } scrub_opts;
 
-struct queue_opts {
+static struct queue_opts {
 	int			marker;
 #define QOM_BWSPEC	0x01
 #define QOM_SCHEDULER	0x02
@@ -277,17 +288,17 @@ struct queue_opts {
 	struct node_queue_bw	queue_bwspec;
 	struct node_queue_opt	scheduler;
 	int			priority;
-	int			tbrsize;
+	unsigned int		tbrsize;
 	int			qlimit;
 } queue_opts;
 
-struct table_opts {
+static struct table_opts {
 	int			flags;
 	int			init_addr;
 	struct node_tinithead	init_nodes;
 } table_opts;
 
-struct pool_opts {
+static struct pool_opts {
 	int			 marker;
 #define POM_TYPE		0x01
 #define POM_STICKYADDRESS	0x02
@@ -298,9 +309,10 @@ struct pool_opts {
 
 } pool_opts;
 
-
-struct node_hfsc_opts	 hfsc_opts;
-struct node_state_opt	*keep_state_defaults = NULL;
+static struct codel_opts	 codel_opts;
+static struct node_hfsc_opts	 hfsc_opts;
+static struct node_fairq_opts	 fairq_opts;
+static struct node_state_opt	*keep_state_defaults = NULL;
 
 int		 disallow_table(struct node_host *, const char *);
 int		 disallow_urpf_failed(struct node_host *, const char *);
@@ -344,8 +356,10 @@ void	 decide_address_family(struct node_host *, sa_family_t *);
 void	 remove_invalid_hosts(struct node_host **, sa_family_t *);
 int	 invalid_redirect(struct node_host *, sa_family_t);
 u_int16_t parseicmpspec(char *, sa_family_t);
+int	 kw_casecmp(const void *, const void *);
+int	 map_tos(char *string, int *);
 
-TAILQ_HEAD(loadanchorshead, loadanchors)
+static TAILQ_HEAD(loadanchorshead, loadanchors)
     loadanchorshead = TAILQ_HEAD_INITIALIZER(loadanchorshead);
 
 struct loadanchors {
@@ -422,6 +436,8 @@ typedef struct {
 		struct table_opts	 table_opts;
 		struct pool_opts	 pool_opts;
 		struct node_hfsc_opts	 hfsc_opts;
+		struct node_fairq_opts	 fairq_opts;
+		struct codel_opts	 codel_opts;
 	} v;
 	int lineno;
 } YYSTYPE;
@@ -442,13 +458,13 @@ int	parseport(char *, struct range *r, int);
 %token	MINTTL ERROR ALLOWOPTS FASTROUTE FILENAME ROUTETO DUPTO REPLYTO NO LABEL
 %token	NOROUTE URPFFAILED FRAGMENT USER GROUP MAXMSS MAXIMUM TTL TOS DROP TABLE
 %token	REASSEMBLE FRAGDROP FRAGCROP ANCHOR NATANCHOR RDRANCHOR BINATANCHOR
-%token	SET OPTIMIZATION TIMEOUT LIMIT LOGINTERFACE BLOCKPOLICY RANDOMID
-%token	REQUIREORDER SYNPROXY FINGERPRINTS NOSYNC DEBUG SKIP HOSTID
+%token	SET OPTIMIZATION TIMEOUT LIMIT LOGINTERFACE BLOCKPOLICY FAILPOLICY
+%token	RANDOMID REQUIREORDER SYNPROXY FINGERPRINTS NOSYNC DEBUG SKIP HOSTID
 %token	ANTISPOOF FOR INCLUDE
 %token	BITMASK RANDOM SOURCEHASH ROUNDROBIN STATICPORT PROBABILITY
-%token	ALTQ CBQ PRIQ HFSC BANDWIDTH TBRSIZE LINKSHARE REALTIME UPPERLIMIT
-%token	QUEUE PRIORITY QLIMIT RTABLE
-%token	LOAD RULESET_OPTIMIZATION
+%token	ALTQ CBQ CODEL PRIQ HFSC FAIRQ BANDWIDTH TBRSIZE LINKSHARE REALTIME
+%token	UPPERLIMIT QUEUE PRIORITY QLIMIT HOGS BUCKETS RTABLE TARGET INTERVAL
+%token	LOAD RULESET_OPTIMIZATION PRIO
 %token	STICKYADDRESS MAXSRCSTATES MAXSRCNODES SOURCETRACK GLOBAL RULE
 %token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY
 %token	TAGGED TAG IFBOUND FLOATING STATEPOLICY STATEDEFAULTS ROUTE SETTOS
@@ -463,7 +479,7 @@ int	parseport(char *, struct range *r, int);
 %type	<v.i>			no dir af fragcache optimizer
 %type	<v.i>			sourcetrack flush unaryop statelock
 %type	<v.b>			action nataction natpasslog scrubaction
-%type	<v.b>			flags flag blockspec
+%type	<v.b>			flags flag blockspec prio
 %type	<v.range>		portplain portstar portrange
 %type	<v.hashkey>		hashkey
 %type	<v.proto>		proto proto_list proto_item
@@ -495,8 +511,11 @@ int	parseport(char *, struct range *r, int);
 %type	<v.number>		cbqflags_list cbqflags_item
 %type	<v.number>		priqflags_list priqflags_item
 %type	<v.hfsc_opts>		hfscopts_list hfscopts_item hfsc_opts
+%type	<v.fairq_opts>		fairqopts_list fairqopts_item fairq_opts
+%type	<v.codel_opts>		codelopts_list codelopts_item codel_opts
 %type	<v.queue_bwspec>	bandwidth
 %type	<v.filter_opts>		filter_opts filter_opt filter_opts_l
+%type	<v.filter_opts>		filter_sets filter_set filter_sets_l
 %type	<v.antispoof_opts>	antispoof_opts antispoof_opt antispoof_opts_l
 %type	<v.queue_opts>		queue_opts queue_opt queue_opts_l
 %type	<v.scrub_opts>		scrub_opts scrub_opt scrub_opts_l
@@ -624,6 +643,20 @@ option		: SET OPTIMIZATION STRING		{
 				YYERROR;
 			blockpolicy = PFRULE_RETURN;
 		}
+		| SET FAILPOLICY DROP	{
+			if (pf->opts & PF_OPT_VERBOSE)
+				printf("set fail-policy drop\n");
+			if (check_rulestate(PFCTL_STATE_OPTION))
+				YYERROR;
+			failpolicy = PFRULE_DROP;
+		}
+		| SET FAILPOLICY RETURN {
+			if (pf->opts & PF_OPT_VERBOSE)
+				printf("set fail-policy return\n");
+			if (check_rulestate(PFCTL_STATE_OPTION))
+				YYERROR;
+			failpolicy = PFRULE_RETURN;
+		}
 		| SET REQUIREORDER yesno {
 			if (pf->opts & PF_OPT_VERBOSE)
 				printf("set require-order %s\n",
@@ -725,8 +758,16 @@ numberstring	: NUMBER				{
 		;
 
 varset		: STRING '=' varstring	{
+			char *s = $1;
 			if (pf->opts & PF_OPT_VERBOSE)
 				printf("%s = \"%s\"\n", $1, $3);
+			while (*s++) {
+				if (isspace((unsigned char)*s)) {
+					yyerror("macro name cannot contain "
+					   "whitespace");
+					YYERROR;
+				}
+			}
 			if (symset($1, $3, 0) == -1)
 				err(1, "cannot store variable %s", $1);
 			free($1);
@@ -882,6 +923,17 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 					YYERROR;
 				}
 			r.match_tag_not = $9.match_tag_not;
+			if ($9.marker & FOM_PRIO) {
+				if ($9.prio == 0)
+					r.prio = PF_PRIO_ZERO;
+				else
+					r.prio = $9.prio;
+			}
+			if ($9.marker & FOM_SETPRIO) {
+				r.set_prio[0] = $9.set_prio[0];
+				r.set_prio[1] = $9.set_prio[1];
+				r.scrub_flags |= PFSTATE_SETPRIO;
+			}
 
 			decide_address_family($8.src.host, &r.af);
 			decide_address_family($8.dst.host, &r.af);
@@ -1190,8 +1242,8 @@ scrub_opt	: NODF	{
 		;
 
 fragcache	: FRAGMENT REASSEMBLE	{ $$ = 0; /* default */ }
-		| FRAGMENT FRAGCROP	{ $$ = PFRULE_FRAGCROP; }
-		| FRAGMENT FRAGDROP	{ $$ = PFRULE_FRAGDROP; }
+		| FRAGMENT FRAGCROP	{ $$ = 0; }
+		| FRAGMENT FRAGDROP	{ $$ = 0; }
 		;
 
 antispoof	: ANTISPOOF logquick antispoof_ifspc af antispoof_opts {
@@ -1466,7 +1518,7 @@ altqif		: ALTQ interface queue_opts QUEUE qassign {
 			a.scheduler = $3.scheduler.qtype;
 			a.qlimit = $3.qlimit;
 			a.tbrsize = $3.tbrsize;
-			if ($5 == NULL) {
+			if ($5 == NULL && $3.scheduler.qtype != ALTQT_CODEL) {
 				yyerror("no child queues specified");
 				YYERROR;
 			}
@@ -1581,8 +1633,8 @@ queue_opt	: BANDWIDTH bandwidth	{
 				yyerror("tbrsize cannot be respecified");
 				YYERROR;
 			}
-			if ($2 < 0 || $2 > 65535) {
-				yyerror("tbrsize too big: max 65535");
+			if ($2 < 0 || $2 > UINT_MAX) {
+				yyerror("tbrsize too big: max %u", UINT_MAX);
 				YYERROR;
 			}
 			queue_opts.marker |= QOM_TBRSIZE;
@@ -1598,13 +1650,22 @@ bandwidth	: STRING {
 
 			bps = strtod($1, &cp);
 			if (cp != NULL) {
+				if (strlen(cp) > 1) {
+					char *cu = cp + 1;
+					if (!strcmp(cu, "Bit") ||
+					    !strcmp(cu, "B") ||
+					    !strcmp(cu, "bit") ||
+					    !strcmp(cu, "b")) {
+						*cu = 0;
+					}
+				}
 				if (!strcmp(cp, "b"))
 					; /* nothing */
-				else if (!strcmp(cp, "Kb"))
+				else if (!strcmp(cp, "K"))
 					bps *= 1000;
-				else if (!strcmp(cp, "Mb"))
+				else if (!strcmp(cp, "M"))
 					bps *= 1000 * 1000;
-				else if (!strcmp(cp, "Gb"))
+				else if (!strcmp(cp, "G"))
 					bps *= 1000 * 1000 * 1000;
 				else if (!strcmp(cp, "%")) {
 					if (bps < 0 || bps > 100) {
@@ -1622,10 +1683,10 @@ bandwidth	: STRING {
 				}
 			}
 			free($1);
-			$$.bw_absolute = (u_int32_t)bps;
+			$$.bw_absolute = (u_int64_t)bps;
 		}
 		| NUMBER {
-			if ($1 < 0 || $1 > UINT_MAX) {
+			if ($1 < 0 || $1 >= LLONG_MAX) {
 				yyerror("bandwidth number too big");
 				YYERROR;
 			}
@@ -1659,6 +1720,24 @@ scheduler	: CBQ				{
 			$$.qtype = ALTQT_HFSC;
 			$$.data.hfsc_opts = $3;
 		}
+		| FAIRQ				{
+			$$.qtype = ALTQT_FAIRQ;
+			bzero(&$$.data.fairq_opts,
+				sizeof(struct node_fairq_opts));
+		}
+		| FAIRQ '(' fairq_opts ')'      {
+			$$.qtype = ALTQT_FAIRQ;
+			$$.data.fairq_opts = $3;
+		}
+		| CODEL				{
+			$$.qtype = ALTQT_CODEL;
+			bzero(&$$.data.codel_opts,
+				sizeof(struct codel_opts));
+		}
+		| CODEL '(' codel_opts ')'	{
+			$$.qtype = ALTQT_CODEL;
+			$$.data.codel_opts = $3;
+		}
 		;
 
 cbqflags_list	: cbqflags_item				{ $$ |= $1; }
@@ -1676,6 +1755,8 @@ cbqflags_item	: STRING	{
 				$$ = CBQCLF_RED|CBQCLF_ECN;
 			else if (!strcmp($1, "rio"))
 				$$ = CBQCLF_RIO;
+			else if (!strcmp($1, "codel"))
+				$$ = CBQCLF_CODEL;
 			else {
 				yyerror("unknown cbq flag \"%s\"", $1);
 				free($1);
@@ -1698,6 +1779,8 @@ priqflags_item	: STRING	{
 				$$ = PRCF_RED|PRCF_ECN;
 			else if (!strcmp($1, "rio"))
 				$$ = PRCF_RIO;
+			else if (!strcmp($1, "codel"))
+				$$ = PRCF_CODEL;
 			else {
 				yyerror("unknown priq flag \"%s\"", $1);
 				free($1);
@@ -1798,8 +1881,106 @@ hfscopts_item	: LINKSHARE bandwidth				{
 				hfsc_opts.flags |= HFCF_RED|HFCF_ECN;
 			else if (!strcmp($1, "rio"))
 				hfsc_opts.flags |= HFCF_RIO;
+			else if (!strcmp($1, "codel"))
+				hfsc_opts.flags |= HFCF_CODEL;
 			else {
 				yyerror("unknown hfsc flag \"%s\"", $1);
+				free($1);
+				YYERROR;
+			}
+			free($1);
+		}
+		;
+
+fairq_opts	:	{
+				bzero(&fairq_opts,
+				    sizeof(struct node_fairq_opts));
+			}
+		    fairqopts_list				{
+			$$ = fairq_opts;
+		}
+		;
+
+fairqopts_list	: fairqopts_item
+		| fairqopts_list comma fairqopts_item
+		;
+
+fairqopts_item	: LINKSHARE bandwidth				{
+			if (fairq_opts.linkshare.used) {
+				yyerror("linkshare already specified");
+				YYERROR;
+			}
+			fairq_opts.linkshare.m2 = $2;
+			fairq_opts.linkshare.used = 1;
+		}
+		| LINKSHARE '(' bandwidth number bandwidth ')'	{
+			if (fairq_opts.linkshare.used) {
+				yyerror("linkshare already specified");
+				YYERROR;
+			}
+			fairq_opts.linkshare.m1 = $3;
+			fairq_opts.linkshare.d = $4;
+			fairq_opts.linkshare.m2 = $5;
+			fairq_opts.linkshare.used = 1;
+		}
+		| HOGS bandwidth {
+			fairq_opts.hogs_bw = $2;
+		}
+		| BUCKETS number {
+			fairq_opts.nbuckets = $2;
+		}
+		| STRING	{
+			if (!strcmp($1, "default"))
+				fairq_opts.flags |= FARF_DEFAULTCLASS;
+			else if (!strcmp($1, "red"))
+				fairq_opts.flags |= FARF_RED;
+			else if (!strcmp($1, "ecn"))
+				fairq_opts.flags |= FARF_RED|FARF_ECN;
+			else if (!strcmp($1, "rio"))
+				fairq_opts.flags |= FARF_RIO;
+			else if (!strcmp($1, "codel"))
+				fairq_opts.flags |= FARF_CODEL;
+			else {
+				yyerror("unknown fairq flag \"%s\"", $1);
+				free($1);
+				YYERROR;
+			}
+			free($1);
+		}
+		;
+
+codel_opts	:	{
+				bzero(&codel_opts,
+				    sizeof(struct codel_opts));
+			}
+		    codelopts_list				{
+			$$ = codel_opts;
+		}
+		;
+
+codelopts_list	: codelopts_item
+		| codelopts_list comma codelopts_item
+		;
+
+codelopts_item	: INTERVAL number				{
+			if (codel_opts.interval) {
+				yyerror("interval already specified");
+				YYERROR;
+			}
+			codel_opts.interval = $2;
+		}
+		| TARGET number					{
+			if (codel_opts.target) {
+				yyerror("target already specified");
+				YYERROR;
+			}
+			codel_opts.target = $2;
+		}
+		| STRING					{
+			if (!strcmp($1, "ecn"))
+				codel_opts.ecn = 1;
+			else {
+				yyerror("unknown codel option \"%s\"", $1);
 				free($1);
 				YYERROR;
 			}
@@ -1877,6 +2058,18 @@ pfrule		: action dir logquick interface route af proto fromto
 			r.quick = $3.quick;
 			r.prob = $9.prob;
 			r.rtableid = $9.rtableid;
+
+			if ($9.marker & FOM_PRIO) {
+				if ($9.prio == 0)
+					r.prio = PF_PRIO_ZERO;
+				else
+					r.prio = $9.prio;
+			}
+			if ($9.marker & FOM_SETPRIO) {
+				r.set_prio[0] = $9.set_prio[0];
+				r.set_prio[1] = $9.set_prio[1];
+				r.scrub_flags |= PFSTATE_SETPRIO;
+			}
 
 			r.af = $6;
 			if ($9.tag)
@@ -2166,7 +2359,7 @@ pfrule		: action dir logquick interface route af proto fromto
 					memcpy(&r.rpool.key, $5.key,
 					    sizeof(struct pf_poolhashkey));
 			}
-			if (r.rt && r.rt != PF_FASTROUTE) {
+			if (r.rt) {
 				decide_address_family($5.host, &r.af);
 				remove_invalid_hosts(&$5.host, &r.af);
 				if ($5.host == NULL) {
@@ -2298,6 +2491,18 @@ filter_opt	: USER uids {
 			filter_opts.marker |= FOM_ICMP;
 			filter_opts.icmpspec = $1;
 		}
+		| PRIO NUMBER {
+			if (filter_opts.marker & FOM_PRIO) {
+				yyerror("prio cannot be redefined");
+				YYERROR;
+			}
+			if ($2 < 0 || $2 > PF_PRIO_MAX) {
+				yyerror("prio must be 0 - %u", PF_PRIO_MAX);
+				YYERROR;
+			}
+			filter_opts.marker |= FOM_PRIO;
+			filter_opts.prio = $2;
+		}
 		| TOS tos {
 			if (filter_opts.marker & FOM_TOS) {
 				yyerror("tos cannot be redefined");
@@ -2396,6 +2601,42 @@ filter_opt	: USER uids {
 			filter_opts.divert.port = 1;	/* some random value */
 #endif
 		}
+		| filter_sets
+		;
+
+filter_sets	: SET '(' filter_sets_l ')'	{ $$ = filter_opts; }
+		| SET filter_set		{ $$ = filter_opts; }
+		;
+
+filter_sets_l	: filter_sets_l comma filter_set
+		| filter_set
+		;
+
+filter_set	: prio {
+			if (filter_opts.marker & FOM_SETPRIO) {
+				yyerror("prio cannot be redefined");
+				YYERROR;
+			}
+			filter_opts.marker |= FOM_SETPRIO;
+			filter_opts.set_prio[0] = $1.b1;
+			filter_opts.set_prio[1] = $1.b2;
+		}
+prio		: PRIO NUMBER {
+			if ($2 < 0 || $2 > PF_PRIO_MAX) {
+				yyerror("prio must be 0 - %u", PF_PRIO_MAX);
+				YYERROR;
+			}
+			$$.b1 = $$.b2 = $2;
+		}
+		| PRIO '(' NUMBER comma NUMBER ')' {
+			if ($3 < 0 || $3 > PF_PRIO_MAX ||
+			    $5 < 0 || $5 > PF_PRIO_MAX) {
+				yyerror("prio must be 0 - %u", PF_PRIO_MAX);
+				YYERROR;
+			}
+			$$.b1 = $3;
+			$$.b2 = $5;
+		}
 		;
 
 probability	: STRING				{
@@ -2420,7 +2661,12 @@ probability	: STRING				{
 		;
 
 
-action		: PASS			{ $$.b1 = PF_PASS; $$.b2 = $$.w = 0; }
+action		: PASS 			{
+			$$.b1 = PF_PASS;
+			$$.b2 = failpolicy;
+			$$.w = returnicmpdefault;
+			$$.w2 = returnicmp6default;
+		}
 		| BLOCK blockspec	{ $$ = $2; $$.b1 = PF_DROP; }
 		;
 
@@ -3372,17 +3618,19 @@ icmp6type	: STRING			{
 		;
 
 tos	: STRING			{
-			if (!strcmp($1, "lowdelay"))
-				$$ = IPTOS_LOWDELAY;
-			else if (!strcmp($1, "throughput"))
-				$$ = IPTOS_THROUGHPUT;
-			else if (!strcmp($1, "reliability"))
-				$$ = IPTOS_RELIABILITY;
-			else if ($1[0] == '0' && $1[1] == 'x')
-				$$ = strtoul($1, NULL, 16);
-			else
-				$$ = 0;		/* flag bad argument */
-			if (!$$ || $$ > 255) {
+			int val;
+			char *end;
+
+			if (map_tos($1, &val))
+				$$ = val;
+			else if ($1[0] == '0' && $1[1] == 'x') {
+				errno = 0;
+				$$ = strtoul($1, &end, 16);
+				if (errno || *end != '\0')
+					$$ = 256;
+			} else
+				$$ = 256;		/* flag bad argument */
+			if ($$ < 0 || $$ > 255) {
 				yyerror("illegal tos value %s", $1);
 				free($1);
 				YYERROR;
@@ -3391,7 +3639,7 @@ tos	: STRING			{
 		}
 		| NUMBER			{
 			$$ = $1;
-			if (!$$ || $$ > 255) {
+			if ($$ < 0 || $$ > 255) {
 				yyerror("illegal tos value %s", $1);
 				YYERROR;
 			}
@@ -3979,7 +4227,7 @@ natrule		: nataction interface af proto fromto tag tagged rtable
 		}
 		;
 
-binatrule	: no BINAT natpasslog interface af proto FROM host toipspec tag
+binatrule	: no BINAT natpasslog interface af proto FROM ipspec toipspec tag
 		    tagged rtable redirection
 		{
 			struct pf_rule		binat;
@@ -4168,14 +4416,17 @@ route_host	: STRING			{
 			$$ = calloc(1, sizeof(struct node_host));
 			if ($$ == NULL)
 				err(1, "route_host: calloc");
-			$$->ifname = $1;
+			$$->ifname = strdup($1);
 			set_ipmask($$, 128);
 			$$->next = NULL;
 			$$->tail = $$;
 		}
 		| '(' STRING host ')'		{
+			struct node_host *n;
+
 			$$ = $3;
-			$$->ifname = $2;
+			for (n = $3; n != NULL; n = n->next)
+				n->ifname = strdup($2);
 		}
 		;
 
@@ -4204,8 +4455,9 @@ route		: /* empty */			{
 			$$.pool_opts = 0;
 		}
 		| FASTROUTE {
+			/* backwards-compat */
 			$$.host = NULL;
-			$$.rt = PF_FASTROUTE;
+			$$.rt = 0;
 			$$.pool_opts = 0;
 		}
 		| ROUTETO routespec pool_opts {
@@ -4247,6 +4499,16 @@ timeout_spec	: STRING NUMBER
 				YYERROR;
 			}
 			free($1);
+		}
+		| INTERVAL NUMBER		{
+			if (check_rulestate(PFCTL_STATE_OPTION))
+				YYERROR;
+			if ($2 < 0 || $2 > UINT_MAX) {
+				yyerror("only positive values permitted");
+				YYERROR;
+			}
+			if (pfctl_set_timeout(pf, "interval", $2, 0) != 0)
+				YYERROR;
 		}
 		;
 
@@ -4732,7 +4994,8 @@ expand_altq(struct pf_altq *a, struct node_if *interfaces,
 
 	if ((pf->loadopt & PFCTL_FLAG_ALTQ) == 0) {
 		FREE_LIST(struct node_if, interfaces);
-		FREE_LIST(struct node_queue, nqueues);
+		if (nqueues)
+			FREE_LIST(struct node_queue, nqueues);
 		return (0);
 	}
 
@@ -4823,7 +5086,8 @@ expand_altq(struct pf_altq *a, struct node_if *interfaces,
 		}
 	);
 	FREE_LIST(struct node_if, interfaces);
-	FREE_LIST(struct node_queue, nqueues);
+	if (nqueues)
+		FREE_LIST(struct node_queue, nqueues);
 
 	return (errs);
 }
@@ -5226,8 +5490,10 @@ lookup(char *s)
 		{ "bitmask",		BITMASK},
 		{ "block",		BLOCK},
 		{ "block-policy",	BLOCKPOLICY},
+		{ "buckets",		BUCKETS},
 		{ "cbq",		CBQ},
 		{ "code",		CODE},
+		{ "codelq",		CODEL},
 		{ "crop",		FRAGCROP},
 		{ "debug",		DEBUG},
 		{ "divert-reply",	DIVERTREPLY},
@@ -5235,6 +5501,8 @@ lookup(char *s)
 		{ "drop",		DROP},
 		{ "drop-ovl",		FRAGDROP},
 		{ "dup-to",		DUPTO},
+		{ "fail-policy",	FAILPOLICY},
+		{ "fairq",		FAIRQ},
 		{ "fastroute",		FASTROUTE},
 		{ "file",		FILENAME},
 		{ "fingerprints",	FINGERPRINTS},
@@ -5247,6 +5515,7 @@ lookup(char *s)
 		{ "global",		GLOBAL},
 		{ "group",		GROUP},
 		{ "hfsc",		HFSC},
+		{ "hogs",		HOGS},
 		{ "hostid",		HOSTID},
 		{ "icmp-type",		ICMPTYPE},
 		{ "icmp6-type",		ICMP6TYPE},
@@ -5255,6 +5524,7 @@ lookup(char *s)
 		{ "include",		INCLUDE},
 		{ "inet",		INET},
 		{ "inet6",		INET6},
+		{ "interval",		INTERVAL},
 		{ "keep",		KEEP},
 		{ "label",		LABEL},
 		{ "limit",		LIMIT},
@@ -5283,6 +5553,7 @@ lookup(char *s)
 		{ "overload",		OVERLOAD},
 		{ "pass",		PASS},
 		{ "port",		PORT},
+		{ "prio",		PRIO},
 		{ "priority",		PRIORITY},
 		{ "priq",		PRIQ},
 		{ "probability",	PROBABILITY},
@@ -5324,6 +5595,7 @@ lookup(char *s)
 		{ "table",		TABLE},
 		{ "tag",		TAG},
 		{ "tagged",		TAGGED},
+		{ "target",		TARGET},
 		{ "tbrsize",		TBRSIZE},
 		{ "timeout",		TIMEOUT},
 		{ "to",			TO},
@@ -5351,10 +5623,10 @@ lookup(char *s)
 
 #define MAXPUSHBACK	128
 
-char	*parsebuf;
-int	 parseindex;
-char	 pushback_buffer[MAXPUSHBACK];
-int	 pushback_index = 0;
+static char	*parsebuf;
+static int	 parseindex;
+static char	 pushback_buffer[MAXPUSHBACK];
+static int	 pushback_index = 0;
 
 int
 lgetc(int quotec)
@@ -5501,8 +5773,10 @@ top:
 					return (0);
 				if (next == quotec || c == ' ' || c == '\t')
 					c = next;
-				else if (next == '\n')
+				else if (next == '\n') {
+					file->lineno++;
 					continue;
+				}
 				else
 					lungetc(next);
 			} else if (c == quotec) {
@@ -5694,6 +5968,7 @@ parse_config(char *filename, struct pfctl *xpf)
 	returnicmp6default =
 	    (ICMP6_DST_UNREACH << 8) | ICMP6_DST_UNREACH_NOPORT;
 	blockpolicy = PFRULE_DROP;
+	failpolicy = PFRULE_DROP;
 	require_order = 1;
 
 	if ((file = pushfile(filename, 0)) == NULL) {
@@ -6018,6 +6293,57 @@ pfctl_load_anchors(int dev, struct pfctl *pf, struct pfr_buffer *trans)
 }
 
 int
+kw_casecmp(const void *k, const void *e)
+{
+	return (strcasecmp(k, ((const struct keywords *)e)->k_name));
+}
+
+int
+map_tos(char *s, int *val)
+{
+	/* DiffServ Codepoints and other TOS mappings */
+	const struct keywords	 toswords[] = {
+		{ "af11",		IPTOS_DSCP_AF11 },
+		{ "af12",		IPTOS_DSCP_AF12 },
+		{ "af13",		IPTOS_DSCP_AF13 },
+		{ "af21",		IPTOS_DSCP_AF21 },
+		{ "af22",		IPTOS_DSCP_AF22 },
+		{ "af23",		IPTOS_DSCP_AF23 },
+		{ "af31",		IPTOS_DSCP_AF31 },
+		{ "af32",		IPTOS_DSCP_AF32 },
+		{ "af33",		IPTOS_DSCP_AF33 },
+		{ "af41",		IPTOS_DSCP_AF41 },
+		{ "af42",		IPTOS_DSCP_AF42 },
+		{ "af43",		IPTOS_DSCP_AF43 },
+		{ "critical",		IPTOS_PREC_CRITIC_ECP },
+		{ "cs0",		IPTOS_DSCP_CS0 },
+		{ "cs1",		IPTOS_DSCP_CS1 },
+		{ "cs2",		IPTOS_DSCP_CS2 },
+		{ "cs3",		IPTOS_DSCP_CS3 },
+		{ "cs4",		IPTOS_DSCP_CS4 },
+		{ "cs5",		IPTOS_DSCP_CS5 },
+		{ "cs6",		IPTOS_DSCP_CS6 },
+		{ "cs7",		IPTOS_DSCP_CS7 },
+		{ "ef",			IPTOS_DSCP_EF },
+		{ "inetcontrol",	IPTOS_PREC_INTERNETCONTROL },
+		{ "lowdelay",		IPTOS_LOWDELAY },
+		{ "netcontrol",		IPTOS_PREC_NETCONTROL },
+		{ "reliability",	IPTOS_RELIABILITY },
+		{ "throughput",		IPTOS_THROUGHPUT }
+	};
+	const struct keywords	*p;
+
+	p = bsearch(s, toswords, sizeof(toswords)/sizeof(toswords[0]),
+	    sizeof(toswords[0]), kw_casecmp);
+
+	if (p) {
+		*val = p->k_val;
+		return (1);
+	}
+	return (0);
+}
+
+int
 rt_tableid_max(void)
 {
 #ifdef __FreeBSD__
@@ -6029,7 +6355,7 @@ rt_tableid_max(void)
 	/*
 	 * As the OpenBSD code only compares > and not >= we need to adjust
 	 * here given we only accept values of 0..n and want to avoid #ifdefs
-	 * in the grammer.
+	 * in the grammar.
 	 */
 	return (fibs - 1);
 #else

@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -32,12 +28,6 @@
  */
 
 #ifndef lint
-static char copyright[] =
-"@(#) Copyright (c) 1992, 1993, 1994\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
 static char sccsid[] = "@(#)dump.c	8.1 (Berkeley) 8/31/94";
 #endif /* not lint */
 
@@ -45,8 +35,7 @@ static char sccsid[] = "@(#)dump.c	8.1 (Berkeley) 8/31/94";
 #include <stdio.h>
 
 static void
-parse(fp)
-	FILE *fp;
+parse(FILE *fp)
 {
 	int ch, s1, s2, s3;
 
@@ -96,9 +85,7 @@ parse(fp)
 }
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	FILE *fp;
 

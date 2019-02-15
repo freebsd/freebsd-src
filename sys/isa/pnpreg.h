@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1996, Sujal M. Patel
  * All rights reserved.
  *
@@ -40,13 +42,8 @@
 #define PNP_MAX_CARDS 8
 
 /* Static ports to access PnP state machine */
-#ifdef PC98
-#define _PNP_ADDRESS		0x259
-#define _PNP_WRITE_DATA		0xa59
-#else
 #define _PNP_ADDRESS		0x279
 #define _PNP_WRITE_DATA		0xa79
-#endif
 
 /* PnP Registers.  Write to ADDRESS and then use WRITE/READ_DATA */
 #define PNP_SET_RD_DATA		0x00

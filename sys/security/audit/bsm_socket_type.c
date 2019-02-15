@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2008 Apple Inc.
  * All rights reserved.
  *
@@ -25,8 +27,6 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE. 
- *
- * P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_socket_type.c#1
  */
 
 #include <sys/cdefs.h>
@@ -54,8 +54,7 @@ static const struct bsm_socket_type bsm_socket_types[] = {
 	{ BSM_SOCK_RDM, SOCK_RDM },
 	{ BSM_SOCK_SEQPACKET, SOCK_SEQPACKET },
 };
-static const int bsm_socket_types_count = sizeof(bsm_socket_types) /
-	    sizeof(bsm_socket_types[0]);
+static const int bsm_socket_types_count = nitems(bsm_socket_types);
 
 static const struct bsm_socket_type *
 bsm_lookup_local_socket_type(int local_socket_type)

@@ -2,6 +2,8 @@
  * cyclades cyclom-y serial driver
  *	Andrew Herbert <andrew@werple.apana.org.au>, 17 August 1993
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993 Andrew Herbert.
  * All rights reserved.
  *
@@ -30,8 +32,6 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#include "opt_compat.h"
 
 /*
  * TODO:
@@ -1347,7 +1347,7 @@ cyparam(struct tty *tp, struct termios *t)
 	/*
 	 * Set receive time-out period, normally to max(one char time, 5 ms).
 	 */
-	itimeout = (1000 * bits + t->c_ispeed - 1) / t->c_ispeed;
+	itimeout = howmany(1000 * bits, t->c_ispeed);
 #ifdef SOFT_HOTCHAR
 #define	MIN_RTP		1
 #else

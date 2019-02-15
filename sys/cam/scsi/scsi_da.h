@@ -92,28 +92,23 @@ struct scsi_reassign_blocks
 
 struct scsi_read_defect_data_10
 {
-	u_int8_t opcode;
-
-	/* 
-	 * The most significant 3 bits are the LUN, the other 5 are
-	 * reserved.
-	 */
-#define SRDD10_LUN_MASK 0xE0
-	u_int8_t byte2;
+	uint8_t opcode;
+	uint8_t byte2;
 #define SRDD10_GLIST 0x08
 #define SRDD10_PLIST 0x10
 #define SRDD10_DLIST_FORMAT_MASK 0x07
 #define SRDD10_BLOCK_FORMAT            0x00
+#define SRDD10_EXT_BFI_FORMAT 	       0x01
+#define SRDD10_EXT_PHYS_FORMAT 	       0x02
+#define SRDD10_LONG_BLOCK_FORMAT       0x03
 #define SRDD10_BYTES_FROM_INDEX_FORMAT 0x04
 #define SRDD10_PHYSICAL_SECTOR_FORMAT  0x05
-	u_int8_t format;
-
-	u_int8_t reserved[4];
-
-	u_int8_t alloc_length[2];
+#define SRDD10_VENDOR_FORMAT	       0x06
+	uint8_t format;
+	uint8_t reserved[4];
+	uint8_t alloc_length[2];
 #define	SRDD10_MAX_LENGTH		0xffff
-
-	u_int8_t control;
+	uint8_t control;
 };
 
 struct scsi_sanitize
@@ -143,31 +138,99 @@ struct scsi_sanitize_parameter_list
 
 struct scsi_read_defect_data_12
 {
-	u_int8_t opcode;
-
-	/* 
-	 * The most significant 3 bits are the LUN, the other 5 are
-	 * reserved.
-	 */
-#define SRDD12_LUN_MASK 0xE0
-	u_int8_t byte2;
-
+	uint8_t opcode;
 #define SRDD12_GLIST 0x08
 #define SRDD12_PLIST 0x10
 #define SRDD12_DLIST_FORMAT_MASK 0x07
-#define SRDD12_BLOCK_FORMAT            0x00
-#define SRDD12_BYTES_FROM_INDEX_FORMAT 0x04
-#define SRDD12_PHYSICAL_SECTOR_FORMAT  0x05
-	u_int8_t format;
-
-	u_int8_t reserved[4];
-
-	u_int8_t alloc_length[4];
-
-	u_int8_t control;
-	
+#define SRDD12_BLOCK_FORMAT            SRDD10_BLOCK_FORMAT
+#define SRDD12_BYTES_FROM_INDEX_FORMAT SRDD10_BYTES_FROM_INDEX_FORMAT
+#define SRDD12_PHYSICAL_SECTOR_FORMAT  SRDD10_PHYSICAL_SECTOR_FORMAT
+	uint8_t format;
+	uint8_t address_descriptor_index[4];
+	uint8_t alloc_length[4];
+#define	SRDD12_MAX_LENGTH		0xffffffff
+	uint8_t reserved;
+	uint8_t control;
 };
 
+struct scsi_zbc_out
+{
+	uint8_t opcode;
+	uint8_t service_action;
+#define	ZBC_OUT_SA_CLOSE	0x01
+#define	ZBC_OUT_SA_FINISH	0x02
+#define	ZBC_OUT_SA_OPEN		0x03
+#define	ZBC_OUT_SA_RWP		0x04
+	uint8_t zone_id[8];
+	uint8_t reserved[4];
+	uint8_t zone_flags;
+#define	ZBC_OUT_ALL		0x01
+	uint8_t control;
+};
+
+struct scsi_zbc_in
+{
+	uint8_t opcode;
+	uint8_t service_action;
+#define	ZBC_IN_SA_REPORT_ZONES	0x00
+	uint8_t zone_start_lba[8];
+	uint8_t length[4];
+	uint8_t zone_options;
+#define	ZBC_IN_PARTIAL		0x80
+#define	ZBC_IN_REP_ALL_ZONES	0x00
+#define	ZBC_IN_REP_EMPTY	0x01
+#define	ZBC_IN_REP_IMP_OPEN	0x02
+#define	ZBC_IN_REP_EXP_OPEN	0x03
+#define	ZBC_IN_REP_CLOSED	0x04
+#define	ZBC_IN_REP_FULL		0x05
+#define	ZBC_IN_REP_READONLY	0x06
+#define	ZBC_IN_REP_OFFLINE	0x07
+#define	ZBC_IN_REP_RESET	0x10
+#define	ZBC_IN_REP_NON_SEQ	0x11
+#define	ZBC_IN_REP_NON_WP	0x3f
+#define	ZBC_IN_REP_MASK		0x3f
+	uint8_t control;
+};
+
+struct scsi_report_zones_desc {
+	uint8_t zone_type;
+#define	SRZ_TYPE_CONVENTIONAL	0x01
+#define	SRZ_TYPE_SEQ_REQUIRED	0x02
+#define	SRZ_TYPE_SEQ_PREFERRED	0x03
+#define	SRZ_TYPE_MASK		0x0f
+	uint8_t zone_flags;
+#define	SRZ_ZONE_COND_SHIFT	4
+#define	SRZ_ZONE_COND_MASK	0xf0
+#define	SRZ_ZONE_COND_NWP	0x00
+#define	SRZ_ZONE_COND_EMPTY	0x10
+#define	SRZ_ZONE_COND_IMP_OPEN	0x20
+#define	SRZ_ZONE_COND_EXP_OPEN	0x30
+#define	SRZ_ZONE_COND_CLOSED	0x40
+#define	SRZ_ZONE_COND_READONLY	0xd0
+#define	SRZ_ZONE_COND_FULL	0xe0
+#define	SRZ_ZONE_COND_OFFLINE	0xf0
+#define	SRZ_ZONE_NON_SEQ	0x02
+#define	SRZ_ZONE_RESET		0x01
+	uint8_t reserved[6];
+	uint8_t zone_length[8];
+	uint8_t zone_start_lba[8];
+	uint8_t write_pointer_lba[8];
+	uint8_t reserved2[32];
+};
+
+struct scsi_report_zones_hdr {
+	uint8_t length[4];
+	uint8_t byte4;
+#define	SRZ_SAME_ALL_DIFFERENT	 0x00 /* Lengths and types vary */
+#define	SRZ_SAME_ALL_SAME	 0x01 /* Lengths and types the same */
+#define	SRZ_SAME_LAST_DIFFERENT	 0x02 /* Types same, last length varies */
+#define SRZ_SAME_TYPES_DIFFERENT 0x03 /* Types vary, length the same */
+#define	SRZ_SAME_MASK		 0x0f
+	uint8_t reserved[3];
+	uint8_t maximum_lba[8];
+	uint8_t reserved2[48];
+	struct scsi_report_zones_desc desc_list[];
+};
 
 /*
  * Opcodes
@@ -182,6 +245,8 @@ struct scsi_read_defect_data_12
 #define	VERIFY			0x2f
 #define READ_DEFECT_DATA_10	0x37
 #define SANITIZE		0x48
+#define	ZBC_OUT			0x94
+#define	ZBC_IN			0x95
 #define READ_DEFECT_DATA_12	0xb7
 
 struct format_defect_list_header
@@ -345,6 +410,8 @@ struct scsi_read_defect_data_hdr_10
 #define SRDDH10_PHYSICAL_SECTOR_FORMAT  0x05
 	u_int8_t format;
 	u_int8_t length[2];
+#define	SRDDH10_MAX_LENGTH	SRDD10_MAX_LENGTH -			     \
+				sizeof(struct scsi_read_defect_data_hdr_10) 
 };
 
 struct scsi_defect_desc_block
@@ -352,10 +419,18 @@ struct scsi_defect_desc_block
 	u_int8_t address[4];
 };
 
+struct scsi_defect_desc_long_block
+{
+	u_int8_t address[8];
+};
+
 struct scsi_defect_desc_bytes_from_index
 {
 	u_int8_t cylinder[3];
 	u_int8_t head;
+#define	SDD_EXT_BFI_MADS		0x80000000
+#define	SDD_EXT_BFI_FLAG_MASK		0xf0000000
+#define	SDD_EXT_BFI_ENTIRE_TRACK	0x0fffffff
 	u_int8_t bytes_from_index[4];
 };
 
@@ -363,6 +438,9 @@ struct scsi_defect_desc_phys_sector
 {
 	u_int8_t cylinder[3];
 	u_int8_t head;
+#define	SDD_EXT_PHYS_MADS		0x80000000
+#define	SDD_EXT_PHYS_FLAG_MASK		0xf0000000
+#define	SDD_EXT_PHYS_ENTIRE_TRACK	0x0fffffff
 	u_int8_t sector[4];
 };
 
@@ -376,7 +454,10 @@ struct scsi_read_defect_data_hdr_12
 #define SRDDH12_BYTES_FROM_INDEX_FORMAT 0x04
 #define SRDDH12_PHYSICAL_SECTOR_FORMAT  0x05
 	u_int8_t format;
+	u_int8_t generation[2];
 	u_int8_t length[4];
+#define	SRDDH12_MAX_LENGTH	SRDD12_MAX_LENGTH -			    \
+				sizeof(struct scsi_read_defect_data_hdr_12)
 };
 
 union	disk_pages /* this is the structure copied from osf */
@@ -546,17 +627,32 @@ struct scsi_da_rw_recovery_page {
 	u_int8_t correction_span;
 	u_int8_t head_offset_count;
 	u_int8_t data_strobe_offset_cnt;
-	u_int8_t reserved;
+	u_int8_t byte8;
+#define SMS_RWER_LBPERE			0x80
 	u_int8_t write_retry_count;
 	u_int8_t reserved2;
 	u_int8_t recovery_time_limit[2];
 };
 
+struct scsi_da_verify_recovery_page {
+	u_int8_t page_code;
+#define SMS_VERIFY_ERROR_RECOVERY_PAGE	0x07
+	u_int8_t page_length;
+	u_int8_t byte3;
+#define SMS_VER_EER			0x08
+#define SMS_VER_PER			0x04
+#define SMS_VER_DTE			0x02
+#define SMS_VER_DCR			0x01
+	u_int8_t read_retry_count;
+	u_int8_t reserved[6];
+	u_int8_t recovery_time_limit[2];
+};
+
 __BEGIN_DECLS
 /*
- * XXX This is only left out of the kernel build to silence warnings.  If,
- * for some reason this function is used in the kernel, the ifdefs should
- * be moved so it is included both in the kernel and userland.
+ * XXX These are only left out of the kernel build to silence warnings.  If,
+ * for some reason these functions are used in the kernel, the ifdefs should
+ * be moved so they are included both in the kernel and userland.
  */
 #ifndef _KERNEL
 void scsi_format_unit(struct ccb_scsiio *csio, u_int32_t retries,
@@ -565,6 +661,13 @@ void scsi_format_unit(struct ccb_scsiio *csio, u_int32_t retries,
 		      u_int8_t *data_ptr, u_int32_t dxfer_len,
 		      u_int8_t sense_len, u_int32_t timeout);
 
+void scsi_read_defects(struct ccb_scsiio *csio, uint32_t retries,
+		       void (*cbfcnp)(struct cam_periph *, union ccb *),
+		       uint8_t tag_action, uint8_t list_format,
+		       uint32_t addr_desc_index, uint8_t *data_ptr,
+		       uint32_t dxfer_len, int minimum_cmd_size, 
+		       uint8_t sense_len, uint32_t timeout);
+
 void scsi_sanitize(struct ccb_scsiio *csio, u_int32_t retries,
 		   void (*cbfcnp)(struct cam_periph *, union ccb *),
 		   u_int8_t tag_action, u_int8_t byte2, u_int16_t control,
@@ -572,6 +675,38 @@ void scsi_sanitize(struct ccb_scsiio *csio, u_int32_t retries,
 		   u_int32_t timeout);
 
 #endif /* !_KERNEL */
+
+void scsi_zbc_out(struct ccb_scsiio *csio, uint32_t retries, 
+		  void (*cbfcnp)(struct cam_periph *, union ccb *),
+		  uint8_t tag_action, uint8_t service_action, uint64_t zone_id,
+		  uint8_t zone_flags, uint8_t *data_ptr, uint32_t dxfer_len,
+		  uint8_t sense_len, uint32_t timeout);
+
+void scsi_zbc_in(struct ccb_scsiio *csio, uint32_t retries, 
+		 void (*cbfcnp)(struct cam_periph *, union ccb *),
+		 uint8_t tag_action, uint8_t service_action,
+		 uint64_t zone_start_lba, uint8_t zone_options,
+		 uint8_t *data_ptr, uint32_t dxfer_len, uint8_t sense_len,
+		 uint32_t timeout);
+
+int scsi_ata_zac_mgmt_out(struct ccb_scsiio *csio, uint32_t retries, 
+			  void (*cbfcnp)(struct cam_periph *, union ccb *),
+			  uint8_t tag_action, int use_ncq,
+			  uint8_t zm_action, uint64_t zone_id,
+			  uint8_t zone_flags, uint8_t *data_ptr,
+			  uint32_t dxfer_len, uint8_t *cdb_storage,
+			  size_t cdb_storage_len, uint8_t sense_len,
+			  uint32_t timeout);
+
+int scsi_ata_zac_mgmt_in(struct ccb_scsiio *csio, uint32_t retries, 
+			 void (*cbfcnp)(struct cam_periph *, union ccb *),
+			 uint8_t tag_action, int use_ncq,
+			 uint8_t zm_action, uint64_t zone_id,
+			 uint8_t zone_flags, uint8_t *data_ptr,
+			 uint32_t dxfer_len, uint8_t *cdb_storage,
+			 size_t cdb_storage_len, uint8_t sense_len,
+			 uint32_t timeout);
+
 __END_DECLS
 
 #endif /* _SCSI_SCSI_DA_H */

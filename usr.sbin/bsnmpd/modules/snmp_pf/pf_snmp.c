@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Philip Paeps <philip@FreeBSD.org>
  * All rights reserved.
  *
@@ -26,6 +28,8 @@
  * $FreeBSD$
  */
 
+#define PFIOC_USE_LATEST
+
 #include <sys/queue.h>
 #include <bsnmp/snmpmod.h>
 
@@ -41,6 +45,7 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#define	SNMPTREE_TYPES
 #include "pf_oid.h"
 #include "pf_tree.h"
 
@@ -650,7 +655,7 @@ pf_iftable(struct snmp_context __unused *ctx, struct snmp_value *val,
 			    e->pfi.pfik_packets[IPV6][OUT][PASS];
 			break;
 		case LEAF_pfInterfacesIf6PktsOutBlock:
-			val->v.counter64 = 
+			val->v.counter64 =
 			    e->pfi.pfik_packets[IPV6][OUT][BLOCK];
 			break;
 
@@ -932,7 +937,7 @@ pf_altq(struct snmp_context __unused *ctx, struct snmp_value *val,
 
 	abort();
 	return (SNMP_ERR_GENERR);
-}	
+}
 
 int
 pf_altqq(struct snmp_context __unused *ctx, struct snmp_value *val,
@@ -979,7 +984,8 @@ pf_altqq(struct snmp_context __unused *ctx, struct snmp_value *val,
 			val->v.integer = e->altq.scheduler;
 			break;
 		case LEAF_pfAltqQueueBandwidth:
-			val->v.uint32 = e->altq.bandwidth;
+			val->v.uint32 = (e->altq.bandwidth > UINT_MAX) ?
+			    UINT_MAX : (u_int32_t)e->altq.bandwidth;
 			break;
 		case LEAF_pfAltqQueuePriority:
 			val->v.integer = e->altq.priority;
@@ -987,7 +993,7 @@ pf_altqq(struct snmp_context __unused *ctx, struct snmp_value *val,
 		case LEAF_pfAltqQueueLimit:
 			val->v.integer = e->altq.qlimit;
 			break;
-		
+
 		default:
 			return (SNMP_ERR_NOSUCHNAME);
 	}
@@ -1225,7 +1231,7 @@ pfq_refresh(void)
 	}
 
 	bzero(&pa, sizeof(pa));
-	
+	pa.version = PFIOC_ALTQ_VERSION;
 	if (ioctl(dev, DIOCGETALTQS, &pa)) {
 		syslog(LOG_ERR, "pfq_refresh: ioctl(DIOCGETALTQS): %s",
 		    strerror(errno));
@@ -1260,7 +1266,7 @@ pfq_refresh(void)
 			INSERT_OBJECT_INT_LINK_INDEX(e, &pfq_table, link, index);
 		}
 	}
-	
+
 	pfq_table_age = time(NULL);
 	pf_tick = this_tick;
 
@@ -1640,20 +1646,21 @@ err:
 static int
 altq_is_enabled(int pfdev)
 {
-        struct pfioc_altq pa;
+	struct pfioc_altq pa;
 
 	errno = 0;
-        if (ioctl(pfdev, DIOCGETALTQS, &pa)) {
-                if (errno == ENODEV) {
+	pa.version = PFIOC_ALTQ_VERSION;
+	if (ioctl(pfdev, DIOCGETALTQS, &pa)) {
+		if (errno == ENODEV) {
 			syslog(LOG_INFO, "No ALTQ support in kernel\n"
 			    "ALTQ related functions disabled\n");
-                        return (0);
-                } else  
-                        syslog(LOG_ERR, "DIOCGETALTQS returned an error: %s",
+			return (0);
+		} else
+			syslog(LOG_ERR, "DIOCGETALTQS returned an error: %s",
 			    strerror(errno));
 			return (-1);
-        }
-        return (1);
+	}
+	return (1);
 }
 
 /*
@@ -1674,7 +1681,7 @@ pf_init(struct lmodule *mod, int __unused argc, char __unused *argv[])
 		syslog(LOG_ERR, "pf_init(): altq test failed");
 		return (-1);
 	}
-	
+
 	/* Prepare internal state */
 	TAILQ_INIT(&pfi_table);
 	TAILQ_INIT(&pfq_table);
@@ -1765,7 +1772,7 @@ pf_dump(void)
 	    (intmax_t)pfi_table_age);
 	syslog(LOG_ERR, "Dump: pfi_table_count = %d",
 	    pfi_table_count);
-	
+
 	syslog(LOG_ERR, "Dump: pfq_table_age = %jd",
 	    (intmax_t)pfq_table_age);
 	syslog(LOG_ERR, "Dump: pfq_table_count = %d",

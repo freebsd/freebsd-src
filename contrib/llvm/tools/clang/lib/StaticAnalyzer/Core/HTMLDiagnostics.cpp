@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/Basic/FileManager.h"
@@ -21,10 +20,15 @@
 #include "clang/Rewrite/Core/HTMLRewrite.h"
 #include "clang/Rewrite/Core/Rewriter.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
+#include "clang/StaticAnalyzer/Core/CheckerManager.h"
+#include "clang/StaticAnalyzer/Core/IssueHash.h"
+#include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
+#include "llvm/Support/Errc.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
+#include <sstream>
 
 using namespace clang;
 using namespace ento;
@@ -39,16 +43,25 @@ class HTMLDiagnostics : public PathDiagnosticConsumer {
   std::string Directory;
   bool createdDir, noDir;
   const Preprocessor &PP;
+  AnalyzerOptions &AnalyzerOpts;
+  const bool SupportsCrossFileDiagnostics;
 public:
-  HTMLDiagnostics(const std::string& prefix, const Preprocessor &pp);
+  HTMLDiagnostics(AnalyzerOptions &AnalyzerOpts,
+                  const std::string& prefix,
+                  const Preprocessor &pp,
+                  bool supportsMultipleFiles);
 
-  virtual ~HTMLDiagnostics() { FlushDiagnostics(NULL); }
+  ~HTMLDiagnostics() override { FlushDiagnostics(nullptr); }
 
-  virtual void FlushDiagnosticsImpl(std::vector<const PathDiagnostic *> &Diags,
-                                    FilesMade *filesMade);
+  void FlushDiagnosticsImpl(std::vector<const PathDiagnostic *> &Diags,
+                            FilesMade *filesMade) override;
 
-  virtual StringRef getName() const {
+  StringRef getName() const override {
     return "HTMLDiagnostics";
+  }
+
+  bool supportsCrossFileDiagnostics() const override {
+    return SupportsCrossFileDiagnostics;
   }
 
   unsigned ProcessMacroPiece(raw_ostream &os,
@@ -64,20 +77,50 @@ public:
 
   void ReportDiag(const PathDiagnostic& D,
                   FilesMade *filesMade);
+
+  // Generate the full HTML report
+  std::string GenerateHTML(const PathDiagnostic& D, Rewriter &R,
+                           const SourceManager& SMgr, const PathPieces& path,
+                           const char *declName);
+
+  // Add HTML header/footers to file specified by FID
+  void FinalizeHTML(const PathDiagnostic& D, Rewriter &R,
+                    const SourceManager& SMgr, const PathPieces& path,
+                    FileID FID, const FileEntry *Entry, const char *declName);
+
+  // Rewrite the file specified by FID with HTML formatting.
+  void RewriteFile(Rewriter &R, const SourceManager& SMgr,
+                   const PathPieces& path, FileID FID);
+
+  /// \return Javascript for navigating the HTML report using j/k keys.
+  std::string generateKeyboardNavigationJavascript();
 };
 
 } // end anonymous namespace
 
-HTMLDiagnostics::HTMLDiagnostics(const std::string& prefix,
-                                 const Preprocessor &pp)
-  : Directory(prefix), createdDir(false), noDir(false), PP(pp) {
-}
+HTMLDiagnostics::HTMLDiagnostics(AnalyzerOptions &AnalyzerOpts,
+                                 const std::string& prefix,
+                                 const Preprocessor &pp,
+                                 bool supportsMultipleFiles)
+    : Directory(prefix),
+      createdDir(false),
+      noDir(false),
+      PP(pp),
+      AnalyzerOpts(AnalyzerOpts),
+      SupportsCrossFileDiagnostics(supportsMultipleFiles) {}
 
 void ento::createHTMLDiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,
                                         PathDiagnosticConsumers &C,
                                         const std::string& prefix,
                                         const Preprocessor &PP) {
-  C.push_back(new HTMLDiagnostics(prefix, PP));
+  C.push_back(new HTMLDiagnostics(AnalyzerOpts, prefix, PP, true));
+}
+
+void ento::createHTMLSingleFileDiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,
+                                                  PathDiagnosticConsumers &C,
+                                                  const std::string& prefix,
+                                                  const Preprocessor &PP) {
+  C.push_back(new HTMLDiagnostics(AnalyzerOpts, prefix, PP, false));
 }
 
 //===----------------------------------------------------------------------===//
@@ -95,13 +138,11 @@ void HTMLDiagnostics::FlushDiagnosticsImpl(
 
 void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
                                  FilesMade *filesMade) {
-    
+
   // Create the HTML directory if it is missing.
   if (!createdDir) {
     createdDir = true;
-    bool existed;
-    if (llvm::error_code ec =
-            llvm::sys::fs::create_directories(Directory, existed)) {
+    if (std::error_code ec = llvm::sys::fs::create_directories(Directory)) {
       llvm::errs() << "warning: could not create directory '"
                    << Directory << "': " << ec.message() << '\n';
 
@@ -117,43 +158,174 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
   // First flatten out the entire path to make it easier to use.
   PathPieces path = D.path.flatten(/*ShouldFlattenMacros=*/false);
 
-  // The path as already been prechecked that all parts of the path are
-  // from the same file and that it is non-empty.
-  const SourceManager &SMgr = (*path.begin())->getLocation().getManager();
+  // The path as already been prechecked that the path is non-empty.
   assert(!path.empty());
-  FileID FID =
-    (*path.begin())->getLocation().asLocation().getExpansionLoc().getFileID();
-  assert(!FID.isInvalid());
+  const SourceManager &SMgr = path.front()->getLocation().getManager();
 
   // Create a new rewriter to generate HTML.
   Rewriter R(const_cast<SourceManager&>(SMgr), PP.getLangOpts());
 
-  // Process the path.
-  unsigned n = path.size();
-  unsigned max = n;
+  // The file for the first path element is considered the main report file, it
+  // will usually be equivalent to SMgr.getMainFileID(); however, it might be a
+  // header when -analyzer-opt-analyze-headers is used.
+  FileID ReportFile = path.front()->getLocation().asLocation().getExpansionLoc().getFileID();
 
-  for (PathPieces::const_reverse_iterator I = path.rbegin(), 
-       E = path.rend();
-        I != E; ++I, --n)
-    HandlePiece(R, FID, **I, n, max);
+  // Get the function/method name
+  SmallString<128> declName("unknown");
+  int offsetDecl = 0;
+  if (const Decl *DeclWithIssue = D.getDeclWithIssue()) {
+      if (const NamedDecl *ND = dyn_cast<NamedDecl>(DeclWithIssue))
+          declName = ND->getDeclName().getAsString();
 
-  // Add line numbers, header, footer, etc.
+      if (const Stmt *Body = DeclWithIssue->getBody()) {
+          // Retrieve the relative position of the declaration which will be used
+          // for the file name
+          FullSourceLoc L(
+              SMgr.getExpansionLoc(path.back()->getLocation().asLocation()),
+              SMgr);
+          FullSourceLoc FunL(SMgr.getExpansionLoc(Body->getLocStart()), SMgr);
+          offsetDecl = L.getExpansionLineNumber() - FunL.getExpansionLineNumber();
+      }
+  }
 
-  // unsigned FID = R.getSourceMgr().getMainFileID();
-  html::EscapeText(R, FID);
-  html::AddLineNumbers(R, FID);
+  std::string report = GenerateHTML(D, R, SMgr, path, declName.c_str());
+  if (report.empty()) {
+    llvm::errs() << "warning: no diagnostics generated for main file.\n";
+    return;
+  }
 
-  // If we have a preprocessor, relex the file and syntax highlight.
-  // We might not have a preprocessor if we come from a deserialized AST file,
-  // for example.
+  // Create a path for the target HTML file.
+  int FD;
+  SmallString<128> Model, ResultPath;
 
-  html::SyntaxHighlight(R, FID, PP);
-  html::HighlightMacros(R, FID, PP);
+  if (!AnalyzerOpts.shouldWriteStableReportFilename()) {
+      llvm::sys::path::append(Model, Directory, "report-%%%%%%.html");
+      if (std::error_code EC =
+          llvm::sys::fs::make_absolute(Model)) {
+          llvm::errs() << "warning: could not make '" << Model
+                       << "' absolute: " << EC.message() << '\n';
+        return;
+      }
+      if (std::error_code EC =
+          llvm::sys::fs::createUniqueFile(Model, FD, ResultPath)) {
+          llvm::errs() << "warning: could not create file in '" << Directory
+                       << "': " << EC.message() << '\n';
+          return;
+      }
 
-  // Get the full directory name of the analyzed file.
+  } else {
+      int i = 1;
+      std::error_code EC;
+      do {
+          // Find a filename which is not already used
+          const FileEntry* Entry = SMgr.getFileEntryForID(ReportFile);
+          std::stringstream filename;
+          Model = "";
+          filename << "report-"
+                   << llvm::sys::path::filename(Entry->getName()).str()
+                   << "-" << declName.c_str()
+                   << "-" << offsetDecl
+                   << "-" << i << ".html";
+          llvm::sys::path::append(Model, Directory,
+                                  filename.str());
+          EC = llvm::sys::fs::openFileForWrite(Model,
+                                               FD,
+                                               llvm::sys::fs::F_RW |
+                                               llvm::sys::fs::F_Excl);
+          if (EC && EC != llvm::errc::file_exists) {
+              llvm::errs() << "warning: could not create file '" << Model
+                           << "': " << EC.message() << '\n';
+              return;
+          }
+          i++;
+      } while (EC);
+  }
 
-  const FileEntry* Entry = SMgr.getFileEntryForID(FID);
+  llvm::raw_fd_ostream os(FD, true);
 
+  if (filesMade)
+    filesMade->addDiagnostic(D, getName(),
+                             llvm::sys::path::filename(ResultPath));
+
+  // Emit the HTML to disk.
+  os << report;
+}
+
+std::string HTMLDiagnostics::GenerateHTML(const PathDiagnostic& D, Rewriter &R,
+    const SourceManager& SMgr, const PathPieces& path, const char *declName) {
+
+  // Rewrite source files as HTML for every new file the path crosses
+  std::vector<FileID> FileIDs;
+  for (auto I : path) {
+    FileID FID = I->getLocation().asLocation().getExpansionLoc().getFileID();
+    if (std::find(FileIDs.begin(), FileIDs.end(), FID) != FileIDs.end())
+      continue;
+
+    FileIDs.push_back(FID);
+    RewriteFile(R, SMgr, path, FID);
+  }
+
+  if (SupportsCrossFileDiagnostics && FileIDs.size() > 1) {
+    // Prefix file names, anchor tags, and nav cursors to every file
+    for (auto I = FileIDs.begin(), E = FileIDs.end(); I != E; I++) {
+      std::string s;
+      llvm::raw_string_ostream os(s);
+
+      if (I != FileIDs.begin())
+        os << "<hr class=divider>\n";
+
+      os << "<div id=File" << I->getHashValue() << ">\n";
+
+      // Left nav arrow
+      if (I != FileIDs.begin())
+        os << "<div class=FileNav><a href=\"#File" << (I - 1)->getHashValue()
+           << "\">&#x2190;</a></div>";
+
+      os << "<h4 class=FileName>" << SMgr.getFileEntryForID(*I)->getName()
+         << "</h4>\n";
+
+      // Right nav arrow
+      if (I + 1 != E)
+        os << "<div class=FileNav><a href=\"#File" << (I + 1)->getHashValue()
+           << "\">&#x2192;</a></div>";
+
+      os << "</div>\n";
+
+      R.InsertTextBefore(SMgr.getLocForStartOfFile(*I), os.str());
+    }
+
+    // Append files to the main report file in the order they appear in the path
+    for (auto I : llvm::make_range(FileIDs.begin() + 1, FileIDs.end())) {
+      std::string s;
+      llvm::raw_string_ostream os(s);
+
+      const RewriteBuffer *Buf = R.getRewriteBufferFor(I);
+      for (auto BI : *Buf)
+        os << BI;
+
+      R.InsertTextAfter(SMgr.getLocForEndOfFile(FileIDs[0]), os.str());
+    }
+  }
+
+  const RewriteBuffer *Buf = R.getRewriteBufferFor(FileIDs[0]);
+  if (!Buf)
+    return "";
+
+  // Add CSS, header, and footer.
+  const FileEntry* Entry = SMgr.getFileEntryForID(FileIDs[0]);
+  FinalizeHTML(D, R, SMgr, path, FileIDs[0], Entry, declName);
+
+  std::string file;
+  llvm::raw_string_ostream os(file);
+  for (auto BI : *Buf)
+    os << BI;
+
+  return os.str();
+}
+
+void HTMLDiagnostics::FinalizeHTML(const PathDiagnostic& D, Rewriter &R,
+    const SourceManager& SMgr, const PathPieces& path, FileID FID,
+    const FileEntry *Entry, const char *declName) {
   // This is a cludge; basically we want to append either the full
   // working directory if we have no directory information.  This is
   // a work in progress.
@@ -165,25 +337,45 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
     DirName += '/';
   }
 
-  // Add the name of the file as an <h1> tag.
+  int LineNumber = path.back()->getLocation().asLocation().getExpansionLineNumber();
+  int ColumnNumber = path.back()->getLocation().asLocation().getExpansionColumnNumber();
 
+  R.InsertTextBefore(SMgr.getLocForStartOfFile(FID),
+                     generateKeyboardNavigationJavascript());
+
+  // Add the name of the file as an <h1> tag.
   {
     std::string s;
     llvm::raw_string_ostream os(s);
 
     os << "<!-- REPORTHEADER -->\n"
-      << "<h3>Bug Summary</h3>\n<table class=\"simpletable\">\n"
+       << "<h3>Bug Summary</h3>\n<table class=\"simpletable\">\n"
           "<tr><td class=\"rowname\">File:</td><td>"
-      << html::EscapeText(DirName)
-      << html::EscapeText(Entry->getName())
-      << "</td></tr>\n<tr><td class=\"rowname\">Location:</td><td>"
-         "<a href=\"#EndPath\">line "
-      << (*path.rbegin())->getLocation().asLocation().getExpansionLineNumber()
-      << ", column "
-      << (*path.rbegin())->getLocation().asLocation().getExpansionColumnNumber()
-      << "</a></td></tr>\n"
-         "<tr><td class=\"rowname\">Description:</td><td>"
-      << D.getVerboseDescription() << "</td></tr>\n";
+       << html::EscapeText(DirName)
+       << html::EscapeText(Entry->getName())
+       << "</td></tr>\n<tr><td class=\"rowname\">Warning:</td><td>"
+          "<a href=\"#EndPath\">line "
+       << LineNumber
+       << ", column "
+       << ColumnNumber
+       << "</a><br />"
+       << D.getVerboseDescription() << "</td></tr>\n";
+
+    // The navigation across the extra notes pieces.
+    unsigned NumExtraPieces = 0;
+    for (const auto &Piece : path) {
+      if (const auto *P = dyn_cast<PathDiagnosticNotePiece>(Piece.get())) {
+        int LineNumber =
+            P->getLocation().asLocation().getExpansionLineNumber();
+        int ColumnNumber =
+            P->getLocation().asLocation().getExpansionColumnNumber();
+        os << "<tr><td class=\"rowname\">Note:</td><td>"
+           << "<a href=\"#Note" << NumExtraPieces << "\">line "
+           << LineNumber << ", column " << ColumnNumber << "</a><br />"
+           << P->getString() << "</td></tr>";
+        ++NumExtraPieces;
+      }
+    }
 
     // Output any other meta data.
 
@@ -192,8 +384,14 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
       os << "<tr><td></td><td>" << html::EscapeText(*I) << "</td></tr>\n";
     }
 
-    os << "</table>\n<!-- REPORTSUMMARYEXTRA -->\n"
-          "<h3>Annotated Source Code</h3>\n";
+    os << R"<<<(
+</table>
+<!-- REPORTSUMMARYEXTRA -->
+<h3>Annotated Source Code</h3>
+<p><span class='macro'>[?]
+  <span class='expansion'>Use j/k keys for keyboard navigation</span>
+</span></p>
+)<<<";
 
     R.InsertTextBefore(SMgr.getLocForStartOfFile(FID), os.str());
   }
@@ -211,18 +409,33 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
     if (!BugType.empty())
       os << "\n<!-- BUGTYPE " << BugType << " -->\n";
 
+    PathDiagnosticLocation UPDLoc = D.getUniqueingLoc();
+    FullSourceLoc L(SMgr.getExpansionLoc(UPDLoc.isValid()
+                                             ? UPDLoc.asLocation()
+                                             : D.getLocation().asLocation()),
+                    SMgr);
+    const Decl *DeclWithIssue = D.getDeclWithIssue();
+
     StringRef BugCategory = D.getCategory();
     if (!BugCategory.empty())
       os << "\n<!-- BUGCATEGORY " << BugCategory << " -->\n";
 
     os << "\n<!-- BUGFILE " << DirName << Entry->getName() << " -->\n";
 
+    os << "\n<!-- FILENAME " << llvm::sys::path::filename(Entry->getName()) << " -->\n";
+
+    os  << "\n<!-- FUNCTIONNAME " <<  declName << " -->\n";
+
+    os << "\n<!-- ISSUEHASHCONTENTOFLINEINCONTEXT "
+       << GetIssueHash(SMgr, L, D.getCheckName(), D.getBugType(), DeclWithIssue,
+                       PP.getLangOpts()) << " -->\n";
+
     os << "\n<!-- BUGLINE "
-       << path.back()->getLocation().asLocation().getExpansionLineNumber()
+       << LineNumber
        << " -->\n";
 
     os << "\n<!-- BUGCOLUMN "
-      << path.back()->getLocation().asLocation().getExpansionColumnNumber()
+      << ColumnNumber
       << " -->\n";
 
     os << "\n<!-- BUGPATHLENGTH " << path.size() << " -->\n";
@@ -234,39 +447,48 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
     R.InsertTextBefore(SMgr.getLocForStartOfFile(FID), os.str());
   }
 
-  // Add CSS, header, and footer.
-
   html::AddHeaderFooterInternalBuiltinCSS(R, FID, Entry->getName());
+}
 
-  // Get the rewrite buffer.
-  const RewriteBuffer *Buf = R.getRewriteBufferFor(FID);
+void HTMLDiagnostics::RewriteFile(Rewriter &R, const SourceManager& SMgr,
+    const PathPieces& path, FileID FID) {
+  // Process the path.
+  // Maintain the counts of extra note pieces separately.
+  unsigned TotalPieces = path.size();
+  unsigned TotalNotePieces =
+      std::count_if(path.begin(), path.end(),
+                    [](const std::shared_ptr<PathDiagnosticPiece> &p) {
+                      return isa<PathDiagnosticNotePiece>(*p);
+                    });
 
-  if (!Buf) {
-    llvm::errs() << "warning: no diagnostics generated for main file.\n";
-    return;
+  unsigned TotalRegularPieces = TotalPieces - TotalNotePieces;
+  unsigned NumRegularPieces = TotalRegularPieces;
+  unsigned NumNotePieces = TotalNotePieces;
+
+  for (auto I = path.rbegin(), E = path.rend(); I != E; ++I) {
+    if (isa<PathDiagnosticNotePiece>(I->get())) {
+      // This adds diagnostic bubbles, but not navigation.
+      // Navigation through note pieces would be added later,
+      // as a separate pass through the piece list.
+      HandlePiece(R, FID, **I, NumNotePieces, TotalNotePieces);
+      --NumNotePieces;
+    } else {
+      HandlePiece(R, FID, **I, NumRegularPieces, TotalRegularPieces);
+      --NumRegularPieces;
+    }
   }
 
-  // Create a path for the target HTML file.
-  int FD;
-  SmallString<128> Model, ResultPath;
-  llvm::sys::path::append(Model, Directory, "report-%%%%%%.html");
+  // Add line numbers, header, footer, etc.
 
-  if (llvm::error_code EC =
-          llvm::sys::fs::createUniqueFile(Model.str(), FD, ResultPath)) {
-    llvm::errs() << "warning: could not create file in '" << Directory
-                 << "': " << EC.message() << '\n';
-    return;
-  }
+  html::EscapeText(R, FID);
+  html::AddLineNumbers(R, FID);
 
-  llvm::raw_fd_ostream os(FD, true);
+  // If we have a preprocessor, relex the file and syntax highlight.
+  // We might not have a preprocessor if we come from a deserialized AST file,
+  // for example.
 
-  if (filesMade)
-    filesMade->addDiagnostic(D, getName(),
-                             llvm::sys::path::filename(ResultPath));
-
-  // Emit the HTML to disk.
-  for (RewriteBuffer::iterator I = Buf->begin(), E = Buf->end(); I!=E; ++I)
-      os << *I;
+  html::SyntaxHighlight(R, FID, PP);
+  html::HighlightMacros(R, FID, PP);
 }
 
 void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
@@ -309,14 +531,21 @@ void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
 
   // Create the html for the message.
 
-  const char *Kind = 0;
+  const char *Kind = nullptr;
+  bool IsNote = false;
+  bool SuppressIndex = (max == 1);
   switch (P.getKind()) {
   case PathDiagnosticPiece::Call:
-      llvm_unreachable("Calls should already be handled");
+      llvm_unreachable("Calls and extra notes should already be handled");
   case PathDiagnosticPiece::Event:  Kind = "Event"; break;
   case PathDiagnosticPiece::ControlFlow: Kind = "Control"; break;
     // Setting Kind to "Control" is intentional.
   case PathDiagnosticPiece::Macro: Kind = "Control"; break;
+  case PathDiagnosticPiece::Note:
+    Kind = "Note";
+    IsNote = true;
+    SuppressIndex = true;
+    break;
   }
 
   std::string sbuf;
@@ -324,7 +553,9 @@ void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
 
   os << "\n<tr><td class=\"num\"></td><td class=\"line\"><div id=\"";
 
-  if (num == max)
+  if (IsNote)
+    os << "Note" << num;
+  else if (num == max)
     os << "EndPath";
   else
     os << "Path" << num;
@@ -337,13 +568,13 @@ void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
   // Output a maximum size.
   if (!isa<PathDiagnosticMacroPiece>(P)) {
     // Get the string and determining its maximum substring.
-    const std::string& Msg = P.getString();
+    const auto &Msg = P.getString();
     unsigned max_token = 0;
     unsigned cnt = 0;
     unsigned len = Msg.size();
 
-    for (std::string::const_iterator I=Msg.begin(), E=Msg.end(); I!=E; ++I)
-      switch (*I) {
+    for (char C : Msg)
+      switch (C) {
       default:
         ++cnt;
         continue;
@@ -386,7 +617,7 @@ void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
 
   os << "\">";
 
-  if (max > 1) {
+  if (!SuppressIndex) {
     os << "<table class=\"msgT\"><tr><td valign=\"top\">";
     os << "<div class=\"PathIndex";
     if (Kind) os << " PathIndex" << Kind;
@@ -426,7 +657,7 @@ void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
 
     os << "':\n";
 
-    if (max > 1) {
+    if (!SuppressIndex) {
       os << "</td>";
       if (num < max) {
         os << "<td><div class=\"PathNav\"><a href=\"#";
@@ -448,7 +679,7 @@ void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
   else {
     os << html::EscapeText(P.getString());
 
-    if (max > 1) {
+    if (!SuppressIndex) {
       os << "</td>";
       if (num < max) {
         os << "<td><div class=\"PathNav\"><a href=\"#";
@@ -460,7 +691,7 @@ void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
            << (num + 1)
            << ")\">&#x2192;</a></div></td>";
       }
-      
+
       os << "</tr></table>";
     }
   }
@@ -500,12 +731,13 @@ unsigned HTMLDiagnostics::ProcessMacroPiece(raw_ostream &os,
         I!=E; ++I) {
 
     if (const PathDiagnosticMacroPiece *MP =
-          dyn_cast<PathDiagnosticMacroPiece>(*I)) {
+            dyn_cast<PathDiagnosticMacroPiece>(I->get())) {
       num = ProcessMacroPiece(os, *MP, num);
       continue;
     }
 
-    if (PathDiagnosticEventPiece *EP = dyn_cast<PathDiagnosticEventPiece>(*I)) {
+    if (PathDiagnosticEventPiece *EP =
+            dyn_cast<PathDiagnosticEventPiece>(I->get())) {
       os << "<div class=\"msg msgEvent\" style=\"width:94%; "
             "margin-left:5px\">"
             "<table class=\"msgT\"><tr>"
@@ -556,4 +788,83 @@ void HTMLDiagnostics::HighlightRange(Rewriter& R, FileID BugFileID,
     InstantiationEnd.getLocWithOffset(EndColNo - OldEndColNo);
 
   html::HighlightRange(R, InstantiationStart, E, HighlightStart, HighlightEnd);
+}
+
+std::string HTMLDiagnostics::generateKeyboardNavigationJavascript() {
+  return R"<<<(
+<script type='text/javascript'>
+var digitMatcher = new RegExp("[0-9]+");
+
+document.addEventListener("DOMContentLoaded", function() {
+    document.querySelectorAll(".PathNav > a").forEach(
+        function(currentValue, currentIndex) {
+            var hrefValue = currentValue.getAttribute("href");
+            currentValue.onclick = function() {
+                scrollTo(document.querySelector(hrefValue));
+                return false;
+            };
+        });
+});
+
+var findNum = function() {
+    var s = document.querySelector(".selected");
+    if (!s || s.id == "EndPath") {
+        return 0;
+    }
+    var out = parseInt(digitMatcher.exec(s.id)[0]);
+    return out;
+};
+
+var scrollTo = function(el) {
+    document.querySelectorAll(".selected").forEach(function(s) {
+        s.classList.remove("selected");
+    });
+    el.classList.add("selected");
+    window.scrollBy(0, el.getBoundingClientRect().top -
+        (window.innerHeight / 2));
+}
+
+var move = function(num, up, numItems) {
+  if (num == 1 && up || num == numItems - 1 && !up) {
+    return 0;
+  } else if (num == 0 && up) {
+    return numItems - 1;
+  } else if (num == 0 && !up) {
+    return 1 % numItems;
+  }
+  return up ? num - 1 : num + 1;
+}
+
+var numToId = function(num) {
+  if (num == 0) {
+    return document.getElementById("EndPath")
+  }
+  return document.getElementById("Path" + num);
+};
+
+var navigateTo = function(up) {
+  var numItems = document.querySelectorAll(".line > .msg").length;
+  var currentSelected = findNum();
+  var newSelected = move(currentSelected, up, numItems);
+  var newEl = numToId(newSelected, numItems);
+
+  // Scroll element into center.
+  scrollTo(newEl);
+};
+
+window.addEventListener("keydown", function (event) {
+  if (event.defaultPrevented) {
+    return;
+  }
+  if (event.key == "j") {
+    navigateTo(/*up=*/false);
+  } else if (event.key == "k") {
+    navigateTo(/*up=*/true);
+  } else {
+    return;
+  } 
+  event.preventDefault();
+}, true);
+</script>
+  )<<<";
 }

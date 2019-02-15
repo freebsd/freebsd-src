@@ -1,5 +1,3 @@
-dnl $Id: aclocal.m4,v 1.13 2014/01/22 10:30:12 djm Exp $
-dnl
 dnl OpenSSH-specific autoconf macros
 dnl
 
@@ -27,7 +25,7 @@ int main(int argc, char **argv) {
 }
 	]])],
 		[
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		AC_MSG_RESULT([no])
 		CFLAGS="$saved_CFLAGS"
@@ -59,12 +57,13 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	long long int p = n * o;
+	printf("%d %d %d %f %f %lld %lld %lld\n", i, j, k, l, m, n, o, p);
 	exit(0);
 }
 	]])],
 		[
-if `grep -i "unrecognized option" conftest.err >/dev/null`
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
 then
 		AC_MSG_RESULT([no])
 		CFLAGS="$saved_CFLAGS"
@@ -96,12 +95,20 @@ int main(int argc, char **argv) {
 	float l = i * 2.1;
 	double m = l / 0.5;
 	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
-	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	long long p = n * o;
+	printf("%d %d %d %f %f %lld %lld %lld\n", i, j, k, l, m, n, o, p);
 	exit(0);
 }
 		]])],
-		[ AC_MSG_RESULT([yes])
-		  LDFLAGS="$saved_LDFLAGS $_define_flag"],
+		[
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
+then
+		  AC_MSG_RESULT([no])
+		  LDFLAGS="$saved_LDFLAGS"
+else
+		  AC_MSG_RESULT([yes])
+		  LDFLAGS="$saved_LDFLAGS $_define_flag"
+fi		],
 		[ AC_MSG_RESULT([no])
 		  LDFLAGS="$saved_LDFLAGS" ]
 	)

@@ -14,20 +14,32 @@
 #include "Unix.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Mutex.h"
 #include "llvm/Support/MutexGuard.h"
-#include "llvm/Support/TimeValue.h"
+#if HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
-// DragonFlyBSD, OpenBSD, and Bitrig have deprecated <malloc.h> for
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
+#if HAVE_SIGNAL_H
+#include <signal.h>
+#endif
+// DragonFlyBSD, and OpenBSD have deprecated <malloc.h> for
 // <stdlib.h> instead. Unix.h includes this for us already.
 #if defined(HAVE_MALLOC_H) && !defined(__DragonFly__) && \
-    !defined(__OpenBSD__) && !defined(__Bitrig__)
+    !defined(__OpenBSD__) 
 #include <malloc.h>
+#endif
+#if defined(HAVE_MALLCTL)
+#include <malloc_np.h>
 #endif
 #ifdef HAVE_MALLOC_MALLOC_H
 #include <malloc/malloc.h>
@@ -47,66 +59,29 @@
 using namespace llvm;
 using namespace sys;
 
-
-process::id_type self_process::get_id() {
-  return getpid();
-}
-
-static std::pair<TimeValue, TimeValue> getRUsageTimes() {
+static std::pair<std::chrono::microseconds, std::chrono::microseconds> getRUsageTimes() {
 #if defined(HAVE_GETRUSAGE)
   struct rusage RU;
   ::getrusage(RUSAGE_SELF, &RU);
-  return std::make_pair(
-      TimeValue(
-          static_cast<TimeValue::SecondsType>(RU.ru_utime.tv_sec),
-          static_cast<TimeValue::NanoSecondsType>(
-              RU.ru_utime.tv_usec * TimeValue::NANOSECONDS_PER_MICROSECOND)),
-      TimeValue(
-          static_cast<TimeValue::SecondsType>(RU.ru_stime.tv_sec),
-          static_cast<TimeValue::NanoSecondsType>(
-              RU.ru_stime.tv_usec * TimeValue::NANOSECONDS_PER_MICROSECOND)));
+  return { toDuration(RU.ru_utime), toDuration(RU.ru_stime) };
 #else
 #warning Cannot get usage times on this platform
-  return std::make_pair(TimeValue(), TimeValue());
+  return { std::chrono::microseconds::zero(), std::chrono::microseconds::zero() };
 #endif
-}
-
-TimeValue self_process::get_user_time() const {
-#if _POSIX_TIMERS > 0 && _POSIX_CPUTIME > 0
-  // Try to get a high resolution CPU timer.
-  struct timespec TS;
-  if (::clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &TS) == 0)
-    return TimeValue(static_cast<TimeValue::SecondsType>(TS.tv_sec),
-                     static_cast<TimeValue::NanoSecondsType>(TS.tv_nsec));
-#endif
-
-  // Otherwise fall back to rusage based timing.
-  return getRUsageTimes().first;
-}
-
-TimeValue self_process::get_system_time() const {
-  // We can only collect system time by inspecting the results of getrusage.
-  return getRUsageTimes().second;
 }
 
 // On Cygwin, getpagesize() returns 64k(AllocationGranularity) and
 // offset in mmap(3) should be aligned to the AllocationGranularity.
-static unsigned getPageSize() {
+unsigned Process::getPageSize() {
 #if defined(HAVE_GETPAGESIZE)
-  const int page_size = ::getpagesize();
+  static const int page_size = ::getpagesize();
 #elif defined(HAVE_SYSCONF)
-  long page_size = ::sysconf(_SC_PAGE_SIZE);
+  static long page_size = ::sysconf(_SC_PAGE_SIZE);
 #else
 #warning Cannot get the page size on this machine
 #endif
   return static_cast<unsigned>(page_size);
 }
-
-// This constructor guaranteed to be run exactly once on a single thread, and
-// sets up various process invariants that can be queried cheaply from then on.
-self_process::self_process() : PageSize(getPageSize()) {
-}
-
 
 size_t Process::GetMallocUsage() {
 #if defined(HAVE_MALLINFO)
@@ -117,6 +92,12 @@ size_t Process::GetMallocUsage() {
   malloc_statistics_t Stats;
   malloc_zone_statistics(malloc_default_zone(), &Stats);
   return Stats.size_in_use;   // darwin
+#elif defined(HAVE_MALLCTL)
+  size_t alloc, sz;
+  sz = sizeof(size_t);
+  if (mallctl("stats.allocated", &alloc, &sz, NULL, 0) == 0)
+    return alloc;
+  return 0;
 #elif defined(HAVE_SBRK)
   // Note this is only an approximation and more closely resembles
   // the value returned by mallinfo in the arena field.
@@ -124,18 +105,17 @@ size_t Process::GetMallocUsage() {
   char *EndOfMemory = (char*)sbrk(0);
   if (EndOfMemory != ((char*)-1) && StartOfMemory != ((char*)-1))
     return EndOfMemory - StartOfMemory;
-  else
-    return 0;
+  return 0;
 #else
 #warning Cannot get malloc info on this platform
   return 0;
 #endif
 }
 
-void Process::GetTimeUsage(TimeValue &elapsed, TimeValue &user_time,
-                           TimeValue &sys_time) {
-  elapsed = TimeValue::now();
-  llvm::tie(user_time, sys_time) = getRUsageTimes();
+void Process::GetTimeUsage(TimePoint<> &elapsed, std::chrono::nanoseconds &user_time,
+                           std::chrono::nanoseconds &sys_time) {
+  elapsed = std::chrono::system_clock::now();
+  std::tie(user_time, sys_time) = getRUsageTimes();
 }
 
 #if defined(HAVE_MACH_MACH_H) && !defined(__GNU__)
@@ -180,6 +160,8 @@ void Process::PreventCoreFiles() {
   signal(SIGSEGV, _exit);
   signal(SIGBUS,  _exit);
 #endif
+
+  coreFilesPrevented = true;
 }
 
 Optional<std::string> Process::GetEnv(StringRef Name) {
@@ -190,12 +172,98 @@ Optional<std::string> Process::GetEnv(StringRef Name) {
   return std::string(Val);
 }
 
-error_code Process::GetArgumentVector(SmallVectorImpl<const char *> &ArgsOut,
-                                      ArrayRef<const char *> ArgsIn,
-                                      SpecificBumpPtrAllocator<char> &) {
+std::error_code
+Process::GetArgumentVector(SmallVectorImpl<const char *> &ArgsOut,
+                           ArrayRef<const char *> ArgsIn,
+                           SpecificBumpPtrAllocator<char> &) {
   ArgsOut.append(ArgsIn.begin(), ArgsIn.end());
 
-  return error_code::success();
+  return std::error_code();
+}
+
+namespace {
+class FDCloser {
+public:
+  FDCloser(int &FD) : FD(FD), KeepOpen(false) {}
+  void keepOpen() { KeepOpen = true; }
+  ~FDCloser() {
+    if (!KeepOpen && FD >= 0)
+      ::close(FD);
+  }
+
+private:
+  FDCloser(const FDCloser &) = delete;
+  void operator=(const FDCloser &) = delete;
+
+  int &FD;
+  bool KeepOpen;
+};
+}
+
+std::error_code Process::FixupStandardFileDescriptors() {
+  int NullFD = -1;
+  FDCloser FDC(NullFD);
+  const int StandardFDs[] = {STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO};
+  for (int StandardFD : StandardFDs) {
+    struct stat st;
+    errno = 0;
+    if (RetryAfterSignal(-1, fstat, StandardFD, &st) < 0) {
+      assert(errno && "expected errno to be set if fstat failed!");
+      // fstat should return EBADF if the file descriptor is closed.
+      if (errno != EBADF)
+        return std::error_code(errno, std::generic_category());
+    }
+    // if fstat succeeds, move on to the next FD.
+    if (!errno)
+      continue;
+    assert(errno == EBADF && "expected errno to have EBADF at this point!");
+
+    if (NullFD < 0) {
+      if ((NullFD = RetryAfterSignal(-1, open, "/dev/null", O_RDWR)) < 0)
+        return std::error_code(errno, std::generic_category());
+    }
+
+    if (NullFD == StandardFD)
+      FDC.keepOpen();
+    else if (dup2(NullFD, StandardFD) < 0)
+      return std::error_code(errno, std::generic_category());
+  }
+  return std::error_code();
+}
+
+std::error_code Process::SafelyCloseFileDescriptor(int FD) {
+  // Create a signal set filled with *all* signals.
+  sigset_t FullSet;
+  if (sigfillset(&FullSet) < 0)
+    return std::error_code(errno, std::generic_category());
+  // Atomically swap our current signal mask with a full mask.
+  sigset_t SavedSet;
+#if LLVM_ENABLE_THREADS
+  if (int EC = pthread_sigmask(SIG_SETMASK, &FullSet, &SavedSet))
+    return std::error_code(EC, std::generic_category());
+#else
+  if (sigprocmask(SIG_SETMASK, &FullSet, &SavedSet) < 0)
+    return std::error_code(errno, std::generic_category());
+#endif
+  // Attempt to close the file descriptor.
+  // We need to save the error, if one occurs, because our subsequent call to
+  // pthread_sigmask might tamper with errno.
+  int ErrnoFromClose = 0;
+  if (::close(FD) < 0)
+    ErrnoFromClose = errno;
+  // Restore the signal mask back to what we saved earlier.
+  int EC = 0;
+#if LLVM_ENABLE_THREADS
+  EC = pthread_sigmask(SIG_SETMASK, &SavedSet, nullptr);
+#else
+  if (sigprocmask(SIG_SETMASK, &SavedSet, nullptr) < 0)
+    EC = errno;
+#endif
+  // The error code from close takes precedence over the one from
+  // pthread_sigmask.
+  if (ErrnoFromClose)
+    return std::error_code(ErrnoFromClose, std::generic_category());
+  return std::error_code(EC, std::generic_category());
 }
 
 bool Process::StandardInIsUserInput() {
@@ -263,14 +331,17 @@ extern "C" int del_curterm(struct term *termp);
 extern "C" int tigetnum(char *capname);
 #endif
 
+#ifdef HAVE_TERMINFO
+static ManagedStatic<sys::Mutex> TermColorMutex;
+#endif
+
 static bool terminalHasColors(int fd) {
 #ifdef HAVE_TERMINFO
   // First, acquire a global lock because these C routines are thread hostile.
-  static sys::Mutex M;
-  MutexGuard G(M);
+  MutexGuard G(*TermColorMutex);
 
   int errret = 0;
-  if (setupterm((char *)0, fd, &errret) != 0)
+  if (setupterm(nullptr, fd, &errret) != 0)
     // Regardless of why, if we can't get terminfo, we shouldn't try to print
     // colors.
     return false;
@@ -292,7 +363,7 @@ static bool terminalHasColors(int fd) {
 
   // Now extract the structure allocated by setupterm and free its memory
   // through a really silly dance.
-  struct term *termp = set_curterm((struct term *)0);
+  struct term *termp = set_curterm(nullptr);
   (void)del_curterm(termp); // Drop any errors here.
 
   // Return true if we found a color capabilities for the current terminal.
@@ -343,31 +414,36 @@ const char *Process::ResetColor() {
   return "\033[0m";
 }
 
-#if !defined(HAVE_ARC4RANDOM)
+#if !HAVE_DECL_ARC4RANDOM
 static unsigned GetRandomNumberSeed() {
   // Attempt to get the initial seed from /dev/urandom, if possible.
-  if (FILE *RandomSource = ::fopen("/dev/urandom", "r")) {
+  int urandomFD = open("/dev/urandom", O_RDONLY);
+
+  if (urandomFD != -1) {
     unsigned seed;
-    int count = ::fread((void *)&seed, sizeof(seed), 1, RandomSource);
-    ::fclose(RandomSource);
+    // Don't use a buffered read to avoid reading more data
+    // from /dev/urandom than we need.
+    int count = read(urandomFD, (void *)&seed, sizeof(seed));
+
+    close(urandomFD);
 
     // Return the seed if the read was successful.
-    if (count == 1)
+    if (count == sizeof(seed))
       return seed;
   }
 
   // Otherwise, swizzle the current time and the process ID to form a reasonable
   // seed.
-  TimeValue Now = TimeValue::now();
-  return hash_combine(Now.seconds(), Now.nanoseconds(), ::getpid());
+  const auto Now = std::chrono::high_resolution_clock::now();
+  return hash_combine(Now.time_since_epoch().count(), ::getpid());
 }
 #endif
 
 unsigned llvm::sys::Process::GetRandomNumber() {
-#if defined(HAVE_ARC4RANDOM)
+#if HAVE_DECL_ARC4RANDOM
   return arc4random();
 #else
-  static int x = (::srand(GetRandomNumberSeed()), 0);
+  static int x = (static_cast<void>(::srand(GetRandomNumberSeed())), 0);
   (void)x;
   return ::rand();
 #endif

@@ -4,9 +4,117 @@
  *
  *****************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2014, Intel Corp.
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights. You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code. No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision. In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change. Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee. Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution. In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE. ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT, ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES. INTEL WILL NOT PROVIDE ANY
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS. INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government. In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
+ * following license:
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,23 +131,23 @@
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
@@ -47,6 +155,8 @@
 #include <contrib/dev/acpica/include/acnamesp.h>
 #include <contrib/dev/acpica/include/amlcode.h>
 #include <contrib/dev/acpica/include/acapps.h>
+#include <sys/stat.h>
+
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslutils")
@@ -67,6 +177,158 @@ UtAttachNameseg (
 
 /*******************************************************************************
  *
+ * FUNCTION:    UtIsBigEndianMachine
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      TRUE if machine is big endian
+ *              FALSE if machine is little endian
+ *
+ * DESCRIPTION: Detect whether machine is little endian or big endian.
+ *
+ ******************************************************************************/
+
+UINT8
+UtIsBigEndianMachine (
+    void)
+{
+    union {
+        UINT32              Integer;
+        UINT8               Bytes[4];
+    } Overlay =                 {0xFF000000};
+
+
+    return (Overlay.Bytes[0]); /* Returns 0xFF (TRUE) for big endian */
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    UtQueryForOverwrite
+ *
+ * PARAMETERS:  Pathname            - Output filename
+ *
+ * RETURN:      TRUE if file does not exist or overwrite is authorized
+ *
+ * DESCRIPTION: Query for file overwrite if it already exists.
+ *
+ ******************************************************************************/
+
+BOOLEAN
+UtQueryForOverwrite (
+    char                    *Pathname)
+{
+    struct stat             StatInfo;
+
+
+    if (!stat (Pathname, &StatInfo))
+    {
+        fprintf (stderr, "Target file \"%s\" already exists, overwrite? [y|n] ",
+            Pathname);
+
+        if (getchar () != 'y')
+        {
+            return (FALSE);
+        }
+    }
+
+    return (TRUE);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    UtNodeIsDescendantOf
+ *
+ * PARAMETERS:  Node1                   - Child node
+ *              Node2                   - Possible parent node
+ *
+ * RETURN:      Boolean
+ *
+ * DESCRIPTION: Returns TRUE if Node1 is a descendant of Node2. Otherwise,
+ *              return FALSE. Note, we assume a NULL Node2 element to be the
+ *              topmost (root) scope. All nodes are descendants of the root.
+ *              Note: Nodes at the same level (siblings) are not considered
+ *              descendants.
+ *
+ ******************************************************************************/
+
+BOOLEAN
+UtNodeIsDescendantOf (
+    ACPI_NAMESPACE_NODE     *Node1,
+    ACPI_NAMESPACE_NODE     *Node2)
+{
+
+    if (Node1 == Node2)
+    {
+        return (FALSE);
+    }
+
+    if (!Node2)
+    {
+        return (TRUE); /* All nodes descend from the root */
+    }
+
+    /* Walk upward until the root is reached or parent is found */
+
+    while (Node1)
+    {
+        if (Node1 == Node2)
+        {
+            return (TRUE);
+        }
+
+        Node1 = Node1->Parent;
+    }
+
+    return (FALSE);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    UtGetParentMethod
+ *
+ * PARAMETERS:  Node                    - Namespace node for any object
+ *
+ * RETURN:      Namespace node for the parent method
+ *              NULL - object is not within a method
+ *
+ * DESCRIPTION: Find the parent (owning) method node for a namespace object
+ *
+ ******************************************************************************/
+
+void *
+UtGetParentMethod (
+    ACPI_NAMESPACE_NODE     *Node)
+{
+    ACPI_NAMESPACE_NODE     *ParentNode;
+
+
+    if (!Node)
+    {
+        return (NULL);
+    }
+
+    /* Walk upward until a method is found, or the root is reached */
+
+    ParentNode = Node->Parent;
+    while (ParentNode)
+    {
+        if (ParentNode->Type == ACPI_TYPE_METHOD)
+        {
+            return (ParentNode);
+        }
+
+        ParentNode = ParentNode->Parent;
+    }
+
+    return (NULL); /* Object is not within a control method */
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    UtDisplaySupportedTables
  *
  * PARAMETERS:  None
@@ -77,13 +339,11 @@ UtAttachNameseg (
  *
  ******************************************************************************/
 
-#define ACPI_TABLE_HELP_FORMAT  "%8u) %s    %s\n"
-
 void
 UtDisplaySupportedTables (
     void)
 {
-    ACPI_DMTABLE_DATA       *TableData;
+    const AH_TABLE          *TableData;
     UINT32                  i;
 
 
@@ -91,20 +351,14 @@ UtDisplaySupportedTables (
         "  (Compiler, Disassembler, Template Generator)\n\n",
         ACPI_CA_VERSION);
 
-    /* Special tables */
+    /* All ACPI tables with the common table header */
 
-    printf ("  Special tables and AML tables:\n");
-    printf (ACPI_TABLE_HELP_FORMAT, 1, ACPI_RSDP_NAME, "Root System Description Pointer");
-    printf (ACPI_TABLE_HELP_FORMAT, 2, ACPI_SIG_FACS, "Firmware ACPI Control Structure");
-    printf (ACPI_TABLE_HELP_FORMAT, 3, ACPI_SIG_DSDT, "Differentiated System Description Table");
-    printf (ACPI_TABLE_HELP_FORMAT, 4, ACPI_SIG_SSDT, "Secondary System Description Table");
-
-    /* All data tables with common table header */
-
-    printf ("\n  Standard ACPI data tables:\n");
-    for (TableData = AcpiDmTableData, i = 5; TableData->Signature; TableData++, i++)
+    printf ("\n  Supported ACPI tables:\n");
+    for (TableData = AcpiGbl_SupportedTables, i = 1;
+         TableData->Signature; TableData++, i++)
     {
-        printf (ACPI_TABLE_HELP_FORMAT, i, TableData->Signature, TableData->Name);
+        printf ("%8u) %s    %s\n", i,
+            TableData->Signature, TableData->Description);
     }
 }
 
@@ -142,45 +396,6 @@ UtDisplayConstantOpcodes (
 
 /*******************************************************************************
  *
- * FUNCTION:    UtLocalCalloc
- *
- * PARAMETERS:  Size                - Bytes to be allocated
- *
- * RETURN:      Pointer to the allocated memory. Guaranteed to be valid.
- *
- * DESCRIPTION: Allocate zero-initialized memory. Aborts the compile on an
- *              allocation failure, on the assumption that nothing more can be
- *              accomplished.
- *
- ******************************************************************************/
-
-void *
-UtLocalCalloc (
-    UINT32                  Size)
-{
-    void                    *Allocated;
-
-
-    Allocated = ACPI_ALLOCATE_ZEROED (Size);
-    if (!Allocated)
-    {
-        AslCommonError (ASL_ERROR, ASL_MSG_MEMORY_ALLOCATION,
-            Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
-            Gbl_InputByteCount, Gbl_CurrentColumn,
-            Gbl_Files[ASL_FILE_INPUT].Filename, NULL);
-
-        CmCleanupAndExit ();
-        exit (1);
-    }
-
-    TotalAllocations++;
-    TotalAllocated += Size;
-    return (Allocated);
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    UtBeginEvent
  *
  * PARAMETERS:  Name                - Ascii name of this event
@@ -207,7 +422,6 @@ UtBeginEvent (
     AslGbl_Events[AslGbl_NextEvent].StartTime = AcpiOsGetTimer ();
     AslGbl_Events[AslGbl_NextEvent].EventName = Name;
     AslGbl_Events[AslGbl_NextEvent].Valid = TRUE;
-
     return (AslGbl_NextEvent++);
 }
 
@@ -242,63 +456,6 @@ UtEndEvent (
 
 /*******************************************************************************
  *
- * FUNCTION:    UtConvertByteToHex
- *
- * PARAMETERS:  RawByte             - Binary data
- *              Buffer              - Pointer to where the hex bytes will be
- *                                    stored
- *
- * RETURN:      Ascii hex byte is stored in Buffer.
- *
- * DESCRIPTION: Perform hex-to-ascii translation. The return data is prefixed
- *              with "0x"
- *
- ******************************************************************************/
-
-void
-UtConvertByteToHex (
-    UINT8                   RawByte,
-    UINT8                   *Buffer)
-{
-
-    Buffer[0] = '0';
-    Buffer[1] = 'x';
-
-    Buffer[2] = (UINT8) AcpiUtHexToAsciiChar (RawByte, 4);
-    Buffer[3] = (UINT8) AcpiUtHexToAsciiChar (RawByte, 0);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    UtConvertByteToAsmHex
- *
- * PARAMETERS:  RawByte             - Binary data
- *              Buffer              - Pointer to where the hex bytes will be
- *                                    stored
- *
- * RETURN:      Ascii hex byte is stored in Buffer.
- *
- * DESCRIPTION: Perform hex-to-ascii translation. The return data is prefixed
- *              with '0', and a trailing 'h' is added.
- *
- ******************************************************************************/
-
-void
-UtConvertByteToAsmHex (
-    UINT8                   RawByte,
-    UINT8                   *Buffer)
-{
-
-    Buffer[0] = '0';
-    Buffer[1] = (UINT8) AcpiUtHexToAsciiChar (RawByte, 4);
-    Buffer[2] = (UINT8) AcpiUtHexToAsciiChar (RawByte, 0);
-    Buffer[3] = 'h';
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    DbgPrint
  *
  * PARAMETERS:  Type                - Type of output
@@ -321,7 +478,7 @@ DbgPrint (
     va_list                 Args;
 
 
-    if (!Gbl_DebugFlag)
+    if (!AslGbl_DebugFlag)
     {
         return;
     }
@@ -336,43 +493,6 @@ DbgPrint (
     (void) vfprintf (stderr, Fmt, Args);
     va_end (Args);
     return;
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    UtPrintFormattedName
- *
- * PARAMETERS:  ParseOpcode         - Parser keyword ID
- *              Level               - Indentation level
- *
- * RETURN:      None
- *
- * DESCRIPTION: Print the ascii name of the parse opcode.
- *
- ******************************************************************************/
-
-#define TEXT_OFFSET 10
-
-void
-UtPrintFormattedName (
-    UINT16                  ParseOpcode,
-    UINT32                  Level)
-{
-
-    if (Level)
-    {
-        DbgPrint (ASL_TREE_OUTPUT,
-            "%*s", (3 * Level), " ");
-    }
-    DbgPrint (ASL_TREE_OUTPUT,
-        " %-20.20s", UtGetOpName (ParseOpcode));
-
-    if (Level < TEXT_OFFSET)
-    {
-        DbgPrint (ASL_TREE_OUTPUT,
-            "%*s", (TEXT_OFFSET - Level) * 3, " ");
-    }
 }
 
 
@@ -393,7 +513,7 @@ UtSetParseOpName (
     ACPI_PARSE_OBJECT       *Op)
 {
 
-    strncpy (Op->Asl.ParseOpName, UtGetOpName (Op->Asl.ParseOpcode),
+    AcpiUtSafeStrncpy (Op->Asl.ParseOpName, UtGetOpName (Op->Asl.ParseOpcode),
         ACPI_MAX_PARSEOP_NAME);
 }
 
@@ -421,26 +541,26 @@ UtDisplaySummary (
     {
         /* Compiler name and version number */
 
-        FlPrintFile (FileId, "%s version %X%s\n\n",
-            ASL_COMPILER_NAME, (UINT32) ACPI_CA_VERSION, ACPI_WIDTH);
+        FlPrintFile (FileId, "%s version %X\n\n",
+            ASL_COMPILER_NAME, (UINT32) ACPI_CA_VERSION);
     }
 
     /* Summary of main input and output files */
 
-    if (Gbl_FileType == ASL_INPUT_TYPE_ASCII_DATA)
+    if (AslGbl_FileType == ASL_INPUT_TYPE_ASCII_DATA)
     {
         FlPrintFile (FileId,
             "%-14s %s - %u lines, %u bytes, %u fields\n",
             "Table Input:",
-            Gbl_Files[ASL_FILE_INPUT].Filename, Gbl_CurrentLineNumber,
-            Gbl_InputByteCount, Gbl_InputFieldCount);
+            AslGbl_Files[ASL_FILE_INPUT].Filename, AslGbl_CurrentLineNumber,
+            AslGbl_InputByteCount, AslGbl_InputFieldCount);
 
-        if ((Gbl_ExceptionCount[ASL_ERROR] == 0) || (Gbl_IgnoreErrors))
+        if ((AslGbl_ExceptionCount[ASL_ERROR] == 0) || (AslGbl_IgnoreErrors))
         {
             FlPrintFile (FileId,
                 "%-14s %s - %u bytes\n",
                 "Binary Output:",
-                Gbl_Files[ASL_FILE_AML_OUTPUT].Filename, Gbl_TableLength);
+                AslGbl_Files[ASL_FILE_AML_OUTPUT].Filename, AslGbl_TableLength);
         }
     }
     else
@@ -448,18 +568,23 @@ UtDisplaySummary (
         FlPrintFile (FileId,
             "%-14s %s - %u lines, %u bytes, %u keywords\n",
             "ASL Input:",
-            Gbl_Files[ASL_FILE_INPUT].Filename, Gbl_CurrentLineNumber,
-            Gbl_InputByteCount, TotalKeywords);
+            AslGbl_Files[ASL_FILE_INPUT].Filename, AslGbl_CurrentLineNumber,
+            AslGbl_OriginalInputFileSize, AslGbl_TotalKeywords);
 
         /* AML summary */
 
-        if ((Gbl_ExceptionCount[ASL_ERROR] == 0) || (Gbl_IgnoreErrors))
+        if ((AslGbl_ExceptionCount[ASL_ERROR] == 0) || (AslGbl_IgnoreErrors))
         {
-            FlPrintFile (FileId,
-                "%-14s %s - %u bytes, %u named objects, %u executable opcodes\n",
-                "AML Output:",
-                Gbl_Files[ASL_FILE_AML_OUTPUT].Filename, Gbl_TableLength,
-                TotalNamedObjects, TotalExecutableOpcodes);
+            if (AslGbl_Files[ASL_FILE_AML_OUTPUT].Handle)
+            {
+                FlPrintFile (FileId,
+                    "%-14s %s - %u bytes, %u named objects, "
+                    "%u executable opcodes\n",
+                    "AML Output:",
+                    AslGbl_Files[ASL_FILE_AML_OUTPUT].Filename,
+                    FlGetFileSize (ASL_FILE_AML_OUTPUT),
+                    AslGbl_TotalNamedObjects, AslGbl_TotalExecutableOpcodes);
+            }
         }
     }
 
@@ -467,44 +592,49 @@ UtDisplaySummary (
 
     for (i = ASL_FILE_SOURCE_OUTPUT; i <= ASL_MAX_FILE_TYPE; i++)
     {
-        if (!Gbl_Files[i].Filename || !Gbl_Files[i].Handle)
+        if (!AslGbl_Files[i].Filename || !AslGbl_Files[i].Handle)
         {
             continue;
         }
 
         /* .SRC is a temp file unless specifically requested */
 
-        if ((i == ASL_FILE_SOURCE_OUTPUT) && (!Gbl_SourceOutputFlag))
+        if ((i == ASL_FILE_SOURCE_OUTPUT) && (!AslGbl_SourceOutputFlag))
         {
             continue;
         }
 
-        /* .I is a temp file unless specifically requested */
+        /* .PRE is the preprocessor intermediate file */
 
-        if ((i == ASL_FILE_PREPROCESSOR) && (!Gbl_PreprocessorOutputFlag))
+        if ((i == ASL_FILE_PREPROCESSOR)  && (!AslGbl_KeepPreprocessorTempFile))
         {
             continue;
         }
 
         FlPrintFile (FileId, "%14s %s - %u bytes\n",
-            Gbl_Files[i].ShortDescription,
-            Gbl_Files[i].Filename, FlGetFileSize (i));
+            AslGbl_Files[i].ShortDescription,
+            AslGbl_Files[i].Filename, FlGetFileSize (i));
     }
 
     /* Error summary */
 
     FlPrintFile (FileId,
         "\nCompilation complete. %u Errors, %u Warnings, %u Remarks",
-        Gbl_ExceptionCount[ASL_ERROR],
-        Gbl_ExceptionCount[ASL_WARNING] +
-            Gbl_ExceptionCount[ASL_WARNING2] +
-            Gbl_ExceptionCount[ASL_WARNING3],
-        Gbl_ExceptionCount[ASL_REMARK]);
+        AslGbl_ExceptionCount[ASL_ERROR],
+        AslGbl_ExceptionCount[ASL_WARNING] +
+            AslGbl_ExceptionCount[ASL_WARNING2] +
+            AslGbl_ExceptionCount[ASL_WARNING3],
+        AslGbl_ExceptionCount[ASL_REMARK]);
 
-    if (Gbl_FileType != ASL_INPUT_TYPE_ASCII_DATA)
+    if (AslGbl_FileType != ASL_INPUT_TYPE_ASCII_DATA)
     {
-        FlPrintFile (FileId,
-            ", %u Optimizations", Gbl_ExceptionCount[ASL_OPTIMIZATION]);
+        FlPrintFile (FileId, ", %u Optimizations",
+            AslGbl_ExceptionCount[ASL_OPTIMIZATION]);
+
+        if (AslGbl_TotalFolds)
+        {
+            FlPrintFile (FileId, ", %u Constants Folded", AslGbl_TotalFolds);
+        }
     }
 
     FlPrintFile (FileId, "\n");
@@ -540,167 +670,14 @@ UtCheckIntegerRange (
     if ((Op->Asl.Value.Integer < LowValue) ||
         (Op->Asl.Value.Integer > HighValue))
     {
-        sprintf (MsgBuffer, "0x%X, allowable: 0x%X-0x%X",
+        sprintf (AslGbl_MsgBuffer, "0x%X, allowable: 0x%X-0x%X",
             (UINT32) Op->Asl.Value.Integer, LowValue, HighValue);
 
-        AslError (ASL_ERROR, ASL_MSG_RANGE, Op, MsgBuffer);
+        AslError (ASL_ERROR, ASL_MSG_RANGE, Op, AslGbl_MsgBuffer);
         return (NULL);
     }
 
     return (Op);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    UtStringCacheCalloc
- *
- * PARAMETERS:  Length              - Size of buffer requested
- *
- * RETURN:      Pointer to the buffer. Aborts on allocation failure
- *
- * DESCRIPTION: Allocate a string buffer. Bypass the local
- *              dynamic memory manager for performance reasons (This has a
- *              major impact on the speed of the compiler.)
- *
- ******************************************************************************/
-
-char *
-UtStringCacheCalloc (
-    UINT32                  Length)
-{
-    char                    *Buffer;
-    ASL_CACHE_INFO          *Cache;
-
-
-    if (Length > ASL_STRING_CACHE_SIZE)
-    {
-        Buffer = UtLocalCalloc (Length);
-        return (Buffer);
-    }
-
-    if ((Gbl_StringCacheNext + Length) >= Gbl_StringCacheLast)
-    {
-        /* Allocate a new buffer */
-
-        Cache = UtLocalCalloc (sizeof (Cache->Next) +
-            ASL_STRING_CACHE_SIZE);
-
-        /* Link new cache buffer to head of list */
-
-        Cache->Next = Gbl_StringCacheList;
-        Gbl_StringCacheList = Cache;
-
-        /* Setup cache management pointers */
-
-        Gbl_StringCacheNext = Cache->Buffer;
-        Gbl_StringCacheLast = Gbl_StringCacheNext + ASL_STRING_CACHE_SIZE;
-    }
-
-    Gbl_StringCount++;
-    Gbl_StringSize += Length;
-
-    Buffer = Gbl_StringCacheNext;
-    Gbl_StringCacheNext += Length;
-    return (Buffer);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    UtExpandLineBuffers
- *
- * PARAMETERS:  None. Updates global line buffer pointers.
- *
- * RETURN:      None. Reallocates the global line buffers
- *
- * DESCRIPTION: Called if the current line buffer becomes filled. Reallocates
- *              all global line buffers and updates Gbl_LineBufferSize. NOTE:
- *              Also used for the initial allocation of the buffers, when
- *              all of the buffer pointers are NULL. Initial allocations are
- *              of size ASL_DEFAULT_LINE_BUFFER_SIZE
- *
- *****************************************************************************/
-
-void
-UtExpandLineBuffers (
-    void)
-{
-    UINT32                  NewSize;
-
-
-    /* Attempt to double the size of all line buffers */
-
-    NewSize = Gbl_LineBufferSize * 2;
-    if (Gbl_CurrentLineBuffer)
-    {
-        DbgPrint (ASL_DEBUG_OUTPUT,
-            "Increasing line buffer size from %u to %u\n",
-            Gbl_LineBufferSize, NewSize);
-    }
-
-    Gbl_CurrentLineBuffer = realloc (Gbl_CurrentLineBuffer, NewSize);
-    Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
-    if (!Gbl_CurrentLineBuffer)
-    {
-        goto ErrorExit;
-    }
-
-    Gbl_MainTokenBuffer = realloc (Gbl_MainTokenBuffer, NewSize);
-    if (!Gbl_MainTokenBuffer)
-    {
-        goto ErrorExit;
-    }
-
-    Gbl_MacroTokenBuffer = realloc (Gbl_MacroTokenBuffer, NewSize);
-    if (!Gbl_MacroTokenBuffer)
-    {
-        goto ErrorExit;
-    }
-
-    Gbl_ExpressionTokenBuffer = realloc (Gbl_ExpressionTokenBuffer, NewSize);
-    if (!Gbl_ExpressionTokenBuffer)
-    {
-        goto ErrorExit;
-    }
-
-    Gbl_LineBufferSize = NewSize;
-    return;
-
-
-    /* On error above, simply issue error messages and abort, cannot continue */
-
-ErrorExit:
-    printf ("Could not increase line buffer size from %u to %u\n",
-        Gbl_LineBufferSize, Gbl_LineBufferSize * 2);
-
-    AslError (ASL_ERROR, ASL_MSG_BUFFER_ALLOCATION,
-        NULL, NULL);
-    AslAbort ();
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    UtFreeLineBuffers
- *
- * PARAMETERS:  None
- *
- * RETURN:      None
- *
- * DESCRIPTION: Free all line buffers
- *
- *****************************************************************************/
-
-void
-UtFreeLineBuffers (
-    void)
-{
-
-    free (Gbl_CurrentLineBuffer);
-    free (Gbl_MainTokenBuffer);
-    free (Gbl_MacroTokenBuffer);
-    free (Gbl_ExpressionTokenBuffer);
 }
 
 
@@ -738,11 +715,7 @@ UtInternalizeName (
 
     /* We need a segment to store the internal name */
 
-    Info.InternalName = UtStringCacheCalloc (Info.Length);
-    if (!Info.InternalName)
-    {
-        return (AE_NO_MEMORY);
-    }
+    Info.InternalName = UtLocalCacheCalloc (Info.Length);
 
     /* Build the name */
 
@@ -790,6 +763,7 @@ UtPadNameWithUnderscores (
         {
             *PaddedNameSeg = '_';
         }
+
         PaddedNameSeg++;
     }
 }
@@ -902,11 +876,11 @@ UtAttachNamepathToOwner (
  *
  * FUNCTION:    UtDoConstant
  *
- * PARAMETERS:  String              - Hex, Octal, or Decimal string
+ * PARAMETERS:  String              - Hex/Decimal/Octal
  *
  * RETURN:      Converted Integer
  *
- * DESCRIPTION: Convert a string to an integer, with error checking.
+ * DESCRIPTION: Convert a string to an integer, with overflow/error checking.
  *
  ******************************************************************************/
 
@@ -915,214 +889,20 @@ UtDoConstant (
     char                    *String)
 {
     ACPI_STATUS             Status;
-    UINT64                  Converted;
+    UINT64                  ConvertedInteger;
     char                    ErrBuf[64];
 
 
-    Status = UtStrtoul64 (String, 0, &Converted);
+    Status = AcpiUtStrtoul64 (String, &ConvertedInteger);
     if (ACPI_FAILURE (Status))
     {
-        sprintf (ErrBuf, "%s %s\n", "Conversion error:",
+        sprintf (ErrBuf, "While creating 64-bit constant: %s\n",
             AcpiFormatException (Status));
-        AslCompilererror (ErrBuf);
+
+        AslCommonError (ASL_ERROR, ASL_MSG_SYNTAX, AslGbl_CurrentLineNumber,
+            AslGbl_LogicalLineNumber, AslGbl_CurrentLineOffset,
+            AslGbl_CurrentColumn, AslGbl_Files[ASL_FILE_INPUT].Filename, ErrBuf);
     }
 
-    return (Converted);
-}
-
-
-/* TBD: use version in ACPICA main code base? */
-
-/*******************************************************************************
- *
- * FUNCTION:    UtStrtoul64
- *
- * PARAMETERS:  String              - Null terminated string
- *              Terminater          - Where a pointer to the terminating byte
- *                                    is returned
- *              Base                - Radix of the string
- *
- * RETURN:      Converted value
- *
- * DESCRIPTION: Convert a string into an unsigned value.
- *
- ******************************************************************************/
-
-ACPI_STATUS
-UtStrtoul64 (
-    char                    *String,
-    UINT32                  Base,
-    UINT64                  *RetInteger)
-{
-    UINT32                  Index;
-    UINT32                  Sign;
-    UINT64                  ReturnValue = 0;
-    ACPI_STATUS             Status = AE_OK;
-
-
-    *RetInteger = 0;
-
-    switch (Base)
-    {
-    case 0:
-    case 8:
-    case 10:
-    case 16:
-
-        break;
-
-    default:
-        /*
-         * The specified Base parameter is not in the domain of
-         * this function:
-         */
-        return (AE_BAD_PARAMETER);
-    }
-
-    /* Skip over any white space in the buffer: */
-
-    while (isspace ((int) *String) || *String == '\t')
-    {
-        ++String;
-    }
-
-    /*
-     * The buffer may contain an optional plus or minus sign.
-     * If it does, then skip over it but remember what is was:
-     */
-    if (*String == '-')
-    {
-        Sign = NEGATIVE;
-        ++String;
-    }
-    else if (*String == '+')
-    {
-        ++String;
-        Sign = POSITIVE;
-    }
-    else
-    {
-        Sign = POSITIVE;
-    }
-
-    /*
-     * If the input parameter Base is zero, then we need to
-     * determine if it is octal, decimal, or hexadecimal:
-     */
-    if (Base == 0)
-    {
-        if (*String == '0')
-        {
-            if (tolower ((int) *(++String)) == 'x')
-            {
-                Base = 16;
-                ++String;
-            }
-            else
-            {
-                Base = 8;
-            }
-        }
-        else
-        {
-            Base = 10;
-        }
-    }
-
-    /*
-     * For octal and hexadecimal bases, skip over the leading
-     * 0 or 0x, if they are present.
-     */
-    if (Base == 8 && *String == '0')
-    {
-        String++;
-    }
-
-    if (Base == 16 &&
-        *String == '0' &&
-        tolower ((int) *(++String)) == 'x')
-    {
-        String++;
-    }
-
-    /* Main loop: convert the string to an unsigned long */
-
-    while (*String)
-    {
-        if (isdigit ((int) *String))
-        {
-            Index = ((UINT8) *String) - '0';
-        }
-        else
-        {
-            Index = (UINT8) toupper ((int) *String);
-            if (isupper ((int) Index))
-            {
-                Index = Index - 'A' + 10;
-            }
-            else
-            {
-                goto ErrorExit;
-            }
-        }
-
-        if (Index >= Base)
-        {
-            goto ErrorExit;
-        }
-
-        /* Check to see if value is out of range: */
-
-        if (ReturnValue > ((ACPI_UINT64_MAX - (UINT64) Index) /
-                            (UINT64) Base))
-        {
-            goto ErrorExit;
-        }
-        else
-        {
-            ReturnValue *= Base;
-            ReturnValue += Index;
-        }
-
-        ++String;
-    }
-
-
-    /* If a minus sign was present, then "the conversion is negated": */
-
-    if (Sign == NEGATIVE)
-    {
-        ReturnValue = (ACPI_UINT32_MAX - ReturnValue) + 1;
-    }
-
-    *RetInteger = ReturnValue;
-    return (Status);
-
-
-ErrorExit:
-    switch (Base)
-    {
-    case 8:
-
-        Status = AE_BAD_OCTAL_CONSTANT;
-        break;
-
-    case 10:
-
-        Status = AE_BAD_DECIMAL_CONSTANT;
-        break;
-
-    case 16:
-
-        Status = AE_BAD_HEX_CONSTANT;
-        break;
-
-    default:
-
-        /* Base validated above */
-
-        break;
-    }
-
-    return (Status);
+    return (ConvertedInteger);
 }

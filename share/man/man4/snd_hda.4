@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 25, 2012
+.Dd April 1, 2018
 .Dt SND_HDA 4
 .Os
 .Sh NAME
@@ -322,8 +322,8 @@ driver.
 .It Va misc
 Misc bits.
 Can be specified as a number from 0 to 15.
-Bit 0 has a special meaning.  When set it means that jack detection is
-not implemented in hardware.
+Bit 0 has a special meaning.
+When set it means that jack detection is not implemented in hardware.
 .El
 .Ss Runtime Configuration
 The following
@@ -411,8 +411,8 @@ Here we can see, that the nodes with ID (nid) 25 and 27 are front panel
 connectors (Jack, Front), nids 20, 24 and 26 are rear panel connectors
 (Jack, Rear) and nid 21 is a built-in speaker (Fixed, Onboard).
 Pins with nids 22, 23, 28, 30 and 31 will be disabled by driver due to "None"
-connectivity. So the pin count and description matches to connectors that
-we have.
+connectivity.
+So the pin count and description matches to connectors that we have.
 .Pp
 Using association (as) and sequence (seq) fields values pins are grouped into
 3 associations:
@@ -473,8 +473,8 @@ hint.hdac.0.cad0.nid21.config="as=2"
 will swap line-out and speaker functions.
 So the
 .Li pcm0
-device will play to the line-out and headphones jacks. Line-out will
-be muted on the headphones jack connection.
+device will play to the line-out and headphones jacks.
+Line-out will be muted on the headphones jack connection.
 Recording on
 .Li pcm0
 will go from two external microphones and line-in jacks.
@@ -564,7 +564,7 @@ input mix
 first external or second internal microphone input
 .It Va monitor
 first internal or second external microphone input
-.It Va line , Va line1 , Va line2, Va line3
+.It Va line , Va line1 , Va line2 , Va line3
 analog (line) inputs
 .It Va dig1 , Va dig2 , Va dig3
 digital (S/PDIF, HDMI or DisplayPort) inputs
@@ -572,11 +572,12 @@ digital (S/PDIF, HDMI or DisplayPort) inputs
 CD input
 .It Va speaker
 PC speaker input
-.It Va phin , Va phout , Va radio . Va video
+.It Va phin , Va phout , Va radio , Va video
 other random inputs
 .El
 .Pp
-Controls have different precision. Some could be just an on/off triggers.
+Controls have different precision.
+Some could be just an on/off triggers.
 Most of controls use logarithmic scale.
 .Sh HARDWARE
 The
@@ -590,8 +591,8 @@ driver supports more than two hundred different controllers and CODECs.
 There is no sense to list all of them here, as in most cases specific CODEC
 configuration and wiring are more important then type of the CODEC itself.
 .Sh SEE ALSO
-.Xr sound 4 ,
 .Xr snd_ich 4 ,
+.Xr sound 4 ,
 .Xr device.hints 5 ,
 .Xr loader.conf 5 ,
 .Xr sysctl 8

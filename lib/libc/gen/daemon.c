@@ -1,6 +1,9 @@
 /*-
- * Copyright (c) 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Copyright (c) 1990, 1993 The Regents of the University of California.
+ * Copyright (c) 2017 Mariusz Zaborski <oshogbo@FreeBSD.org>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,10 +30,8 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)daemon.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
+__SCCSID("@(#)daemon.c	8.1 (Berkeley) 6/4/93");
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
@@ -41,13 +42,12 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 #include <unistd.h>
 #include "un-namespace.h"
+#include "libc_private.h"
 
 int
-daemon(nochdir, noclose)
-	int nochdir, noclose;
+daemonfd(int chdirfd, int nullfd)
 {
 	struct sigaction osa, sa;
-	int fd;
 	pid_t newgrp;
 	int oerrno;
 	int osa_ok;
@@ -56,7 +56,7 @@ daemon(nochdir, noclose)
 	sigemptyset(&sa.sa_mask);
 	sa.sa_handler = SIG_IGN;
 	sa.sa_flags = 0;
-	osa_ok = _sigaction(SIGHUP, &sa, &osa);
+	osa_ok = __libc_sigaction(SIGHUP, &sa, &osa);
 
 	switch (fork()) {
 	case -1:
@@ -74,22 +74,46 @@ daemon(nochdir, noclose)
 	newgrp = setsid();
 	oerrno = errno;
 	if (osa_ok != -1)
-		_sigaction(SIGHUP, &osa, NULL);
+		__libc_sigaction(SIGHUP, &osa, NULL);
 
 	if (newgrp == -1) {
 		errno = oerrno;
 		return (-1);
 	}
 
-	if (!nochdir)
-		(void)chdir("/");
+	if (chdirfd != -1)
+		(void)fchdir(chdirfd);
 
-	if (!noclose && (fd = _open(_PATH_DEVNULL, O_RDWR, 0)) != -1) {
-		(void)_dup2(fd, STDIN_FILENO);
-		(void)_dup2(fd, STDOUT_FILENO);
-		(void)_dup2(fd, STDERR_FILENO);
-		if (fd > 2)
-			(void)_close(fd);
+	if (nullfd != -1) {
+		(void)_dup2(nullfd, STDIN_FILENO);
+		(void)_dup2(nullfd, STDOUT_FILENO);
+		(void)_dup2(nullfd, STDERR_FILENO);
 	}
 	return (0);
+}
+
+int
+daemon(int nochdir, int noclose)
+{
+	int chdirfd, nullfd, ret;
+
+	if (!noclose)
+		nullfd = _open(_PATH_DEVNULL, O_RDWR, 0);
+	else
+		nullfd = -1;
+
+	if (!nochdir)
+		chdirfd = _open("/", O_EXEC);
+	else
+		chdirfd = -1;
+
+	ret = daemonfd(chdirfd, nullfd);
+
+	if (chdirfd != -1)
+		_close(chdirfd);
+
+	if (nullfd > 2)
+		_close(nullfd);
+
+	return (ret);
 }

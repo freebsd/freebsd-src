@@ -1,5 +1,6 @@
-
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1988, 1990, 1993, 1995
  *      The Regents of the University of California.  All rights reserved.
  * Copyright (c) 2004 The FreeBSD Foundation.  All rights reserved.
@@ -13,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -64,6 +65,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+
 #include "sdp.h"
 
 #include <net/if.h>
@@ -86,7 +91,7 @@ RW_SYSINIT(sdplockinit, &sdp_lock, "SDP lock");
 #define	SDP_LIST_RLOCK_ASSERT()	rw_assert(&sdp_lock, RW_RLOCKED)
 #define	SDP_LIST_LOCK_ASSERT()	rw_assert(&sdp_lock, RW_LOCKED)
 
-static MALLOC_DEFINE(M_SDP, "sdp", "Socket Direct Protocol");
+MALLOC_DEFINE(M_SDP, "sdp", "Sockets Direct Protocol");
 
 static void sdp_stop_keepalive_timer(struct socket *so);
 
@@ -129,7 +134,7 @@ sdp_pcbbind(struct sdp_sock *ssk, struct sockaddr *nam, struct ucred *cred)
 	/* rdma_bind_addr handles bind races.  */
 	SDP_WUNLOCK(ssk);
 	if (ssk->id == NULL)
-		ssk->id = rdma_create_id(sdp_cma_handler, ssk, RDMA_PS_SDP);
+		ssk->id = rdma_create_id(&init_net, sdp_cma_handler, ssk, RDMA_PS_SDP, IB_QPT_RC);
 	if (ssk->id == NULL) {
 		SDP_WLOCK(ssk);
 		return (ENOMEM);
@@ -156,7 +161,10 @@ sdp_pcbbind(struct sdp_sock *ssk, struct sockaddr *nam, struct ucred *cred)
 static void
 sdp_pcbfree(struct sdp_sock *ssk)
 {
+
 	KASSERT(ssk->socket == NULL, ("ssk %p socket still attached", ssk));
+	KASSERT((ssk->flags & SDP_DESTROY) == 0,
+	    ("ssk %p already destroyed", ssk));
 
 	sdp_dbg(ssk->socket, "Freeing pcb");
 	SDP_WLOCK_ASSERT(ssk);
@@ -167,7 +175,6 @@ sdp_pcbfree(struct sdp_sock *ssk)
 	LIST_REMOVE(ssk, list);
 	SDP_LIST_WUNLOCK();
 	crfree(ssk->cred);
-	sdp_destroy_cma(ssk);
 	ssk->qp_active = 0;
 	if (ssk->qp) {
 		ib_destroy_qp(ssk->qp);
@@ -175,9 +182,10 @@ sdp_pcbfree(struct sdp_sock *ssk)
 	}
 	sdp_tx_ring_destroy(ssk);
 	sdp_rx_ring_destroy(ssk);
+	sdp_destroy_cma(ssk);
 	rw_destroy(&ssk->rx_ring.destroyed_lock);
-	uma_zfree(sdp_zone, ssk);
 	rw_destroy(&ssk->lock);
+	uma_zfree(sdp_zone, ssk);
 }
 
 /*
@@ -303,7 +311,6 @@ sdp_closed(struct sdp_sock *ssk)
 		    ("sdp_closed: !SS_PROTOREF"));
 		ssk->flags &= ~SDP_SOCKREF;
 		SDP_WUNLOCK(ssk);
-		ACCEPT_LOCK();
 		SOCK_LOCK(so);
 		so->so_state &= ~SS_PROTOREF;
 		sofree(so);
@@ -469,6 +476,7 @@ sdp_attach(struct socket *so, int proto, struct thread *td)
 	ssk->flags = 0;
 	ssk->qp_active = 0;
 	ssk->state = TCPS_CLOSED;
+	mbufq_init(&ssk->rxctlq, INT_MAX);
 	SDP_LIST_WLOCK();
 	LIST_INSERT_HEAD(&sdp_list, ssk, list);
 	sdp_count++;
@@ -747,7 +755,7 @@ sdp_start_disconnect(struct sdp_sock *ssk)
 		    ("sdp_start_disconnect: sdp_drop() returned NULL"));
 	} else {
 		soisdisconnecting(so);
-		unread = so->so_rcv.sb_cc;
+		unread = sbused(&so->so_rcv);
 		sbflush(&so->so_rcv);
 		sdp_usrclosed(ssk);
 		if (!(ssk->flags & SDP_DROPPED)) {
@@ -889,7 +897,7 @@ sdp_append(struct sdp_sock *ssk, struct sockbuf *sb, struct mbuf *mb, int cnt)
 		m_adj(mb, SDP_HEAD_SIZE);
 		n->m_pkthdr.len += mb->m_pkthdr.len;
 		n->m_flags |= mb->m_flags & (M_PUSH | M_URG);
-		m_demote(mb, 1);
+		m_demote(mb, 1, 0);
 		sbcompress(sb, mb, sb->sb_mbtail);
 		return;
 	}
@@ -1259,7 +1267,7 @@ sdp_sorecv(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	/* We will never ever get anything unless we are connected. */
 	if (!(so->so_state & (SS_ISCONNECTED|SS_ISDISCONNECTED))) {
 		/* When disconnecting there may be still some data left. */
-		if (sb->sb_cc > 0)
+		if (sbavail(sb))
 			goto deliver;
 		if (!(so->so_state & SS_ISDISCONNECTED))
 			error = ENOTCONN;
@@ -1267,7 +1275,7 @@ sdp_sorecv(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	}
 
 	/* Socket buffer is empty and we shall not block. */
-	if (sb->sb_cc == 0 &&
+	if (sbavail(sb) == 0 &&
 	    ((so->so_state & SS_NBIO) || (flags & (MSG_DONTWAIT|MSG_NBIO)))) {
 		error = EAGAIN;
 		goto out;
@@ -1278,7 +1286,7 @@ restart:
 
 	/* Abort if socket has reported problems. */
 	if (so->so_error) {
-		if (sb->sb_cc > 0)
+		if (sbavail(sb))
 			goto deliver;
 		if (oresid > uio->uio_resid)
 			goto out;
@@ -1290,25 +1298,25 @@ restart:
 
 	/* Door is closed.  Deliver what is left, if any. */
 	if (sb->sb_state & SBS_CANTRCVMORE) {
-		if (sb->sb_cc > 0)
+		if (sbavail(sb))
 			goto deliver;
 		else
 			goto out;
 	}
 
 	/* Socket buffer got some data that we shall deliver now. */
-	if (sb->sb_cc > 0 && !(flags & MSG_WAITALL) &&
+	if (sbavail(sb) && !(flags & MSG_WAITALL) &&
 	    ((so->so_state & SS_NBIO) ||
 	     (flags & (MSG_DONTWAIT|MSG_NBIO)) ||
-	     sb->sb_cc >= sb->sb_lowat ||
-	     sb->sb_cc >= uio->uio_resid ||
-	     sb->sb_cc >= sb->sb_hiwat) ) {
+	     sbavail(sb) >= sb->sb_lowat ||
+	     sbavail(sb) >= uio->uio_resid ||
+	     sbavail(sb) >= sb->sb_hiwat) ) {
 		goto deliver;
 	}
 
 	/* On MSG_WAITALL we must wait until all data or error arrives. */
 	if ((flags & MSG_WAITALL) &&
-	    (sb->sb_cc >= uio->uio_resid || sb->sb_cc >= sb->sb_lowat))
+	    (sbavail(sb) >= uio->uio_resid || sbavail(sb) >= sb->sb_lowat))
 		goto deliver;
 
 	/*
@@ -1322,7 +1330,7 @@ restart:
 
 deliver:
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
-	KASSERT(sb->sb_cc > 0, ("%s: sockbuf empty", __func__));
+	KASSERT(sbavail(sb), ("%s: sockbuf empty", __func__));
 	KASSERT(sb->sb_mb != NULL, ("%s: sb_mb == NULL", __func__));
 
 	/* Statistics. */
@@ -1330,7 +1338,7 @@ deliver:
 		uio->uio_td->td_ru.ru_msgrcv++;
 
 	/* Fill uio until full or current end of socket buffer is reached. */
-	len = min(uio->uio_resid, sb->sb_cc);
+	len = min(uio->uio_resid, sbavail(sb));
 	if (mp0 != NULL) {
 		/* Dequeue as many mbufs as possible. */
 		if (!(flags & MSG_PEEK) && len >= sb->sb_mb->m_len) {
@@ -1510,7 +1518,7 @@ sdp_urg(struct sdp_sock *ssk, struct mbuf *mb)
 	if (so == NULL)
 		return;
 
-	so->so_oobmark = so->so_rcv.sb_cc + mb->m_pkthdr.len - 1;
+	so->so_oobmark = sbused(&so->so_rcv) + mb->m_pkthdr.len - 1;
 	sohasoutofband(so);
 	ssk->oobflags &= ~(SDP_HAVEOOB | SDP_HADOOB);
 	if (!(so->so_options & SO_OOBINLINE)) {
@@ -1707,7 +1715,6 @@ sdp_set_default_moderation(struct sdp_sock *ssk)
 	ib_modify_cq(ssk->rx_ring.cq, sdp_mod_count, sdp_mod_usec);
 }
 
-
 static void
 sdp_dev_add(struct ib_device *device)
 {
@@ -1715,12 +1722,9 @@ sdp_dev_add(struct ib_device *device)
 	struct sdp_device *sdp_dev;
 
 	sdp_dev = malloc(sizeof(*sdp_dev), M_SDP, M_WAITOK | M_ZERO);
-	sdp_dev->pd = ib_alloc_pd(device);
+	sdp_dev->pd = ib_alloc_pd(device, 0);
 	if (IS_ERR(sdp_dev->pd))
 		goto out_pd;
-        sdp_dev->mr = ib_get_dma_mr(sdp_dev->pd, IB_ACCESS_LOCAL_WRITE);
-        if (IS_ERR(sdp_dev->mr))
-		goto out_mr;
 	memset(&param, 0, sizeof param);
 	param.max_pages_per_fmr = SDP_FMR_SIZE;
 	param.page_shift = PAGE_SHIFT;
@@ -1735,15 +1739,13 @@ sdp_dev_add(struct ib_device *device)
 	return;
 
 out_fmr:
-	ib_dereg_mr(sdp_dev->mr);
-out_mr:
 	ib_dealloc_pd(sdp_dev->pd);
 out_pd:
 	free(sdp_dev, M_SDP);
 }
 
 static void
-sdp_dev_rem(struct ib_device *device)
+sdp_dev_rem(struct ib_device *device, void *client_data)
 {
 	struct sdp_device *sdp_dev;
 	struct sdp_sock *ssk;
@@ -1767,7 +1769,6 @@ sdp_dev_rem(struct ib_device *device)
 		return;
 	ib_flush_fmr_pool(sdp_dev->fmr_pool);
 	ib_destroy_fmr_pool(sdp_dev->fmr_pool);
-	ib_dereg_mr(sdp_dev->mr);
 	ib_dealloc_pd(sdp_dev->pd);
 	free(sdp_dev, M_SDP);
 }
@@ -1847,12 +1848,10 @@ sdp_pcblist(SYSCTL_HANDLER_ARGS)
 		xt.xt_inp.inp_lport = ssk->lport;
 		memcpy(&xt.xt_inp.inp_faddr, &ssk->faddr, sizeof(ssk->faddr));
 		xt.xt_inp.inp_fport = ssk->fport;
-		xt.xt_tp.t_state = ssk->state;
+		xt.t_state = ssk->state;
 		if (ssk->socket != NULL)
-			sotoxsocket(ssk->socket, &xt.xt_socket);
-		else
-			bzero(&xt.xt_socket, sizeof xt.xt_socket);
-		xt.xt_socket.xso_protocol = IPPROTO_TCP;
+			sotoxsocket(ssk->socket, &xt.xt_inp.xi_socket);
+		xt.xt_inp.xi_socket.xso_protocol = IPPROTO_TCP;
 		SDP_RUNLOCK(ssk);
 		error = SYSCTL_OUT(req, &xt, sizeof xt);
 		if (error)

@@ -684,6 +684,7 @@ static inline int cvmx_pip_get_bsel_table_index(cvmx_wqe_t *work)
     bsel_cfg.u64 = cvmx_read_csr(CVMX_PIP_BSEL_EXT_CFGX(bit));
     bsel_pos.u64 = cvmx_read_csr(CVMX_PIP_BSEL_EXT_POSX(bit));
 
+    index = 0;
     for (y = 0; y < 8; y++)
     {
         char *ptr = (char *)cvmx_phys_to_ptr(work->packet_ptr.s.addr);

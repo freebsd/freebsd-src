@@ -15,15 +15,20 @@
 #ifndef LLVM_TRANSFORMS_IPO_H
 #define LLVM_TRANSFORMS_IPO_H
 
-#include "llvm/ADT/ArrayRef.h"
+#include <functional>
+#include <vector>
 
 namespace llvm {
 
+struct InlineParams;
+class StringRef;
+class ModuleSummaryIndex;
 class ModulePass;
 class Pass;
 class Function;
 class BasicBlock;
 class GlobalValue;
+class raw_ostream;
 
 //===----------------------------------------------------------------------===//
 //
@@ -34,19 +39,23 @@ ModulePass *createStripSymbolsPass(bool OnlyDebugInfo = false);
 
 //===----------------------------------------------------------------------===//
 //
-// These functions strips symbols from functions and modules.  
+// These functions strips symbols from functions and modules.
 // Only debugging information is not stripped.
 //
 ModulePass *createStripNonDebugSymbolsPass();
 
+/// This function returns a new pass that downgrades the debug info in the
+/// module to line tables only.
+ModulePass *createStripNonLineTableDebugInfoPass();
+
 //===----------------------------------------------------------------------===//
 //
-// These pass removes llvm.dbg.declare intrinsics.
+// This pass removes llvm.dbg.declare intrinsics.
 ModulePass *createStripDebugDeclarePass();
 
 //===----------------------------------------------------------------------===//
 //
-// These pass removes unused symbols' debug info.
+// This pass removes unused symbols' debug info.
 ModulePass *createStripDeadDebugInfoPass();
 
 //===----------------------------------------------------------------------===//
@@ -58,13 +67,11 @@ ModulePass *createStripDeadDebugInfoPass();
 ///
 ModulePass *createConstantMergePass();
 
-
 //===----------------------------------------------------------------------===//
 /// createGlobalOptimizerPass - This function returns a new pass that optimizes
 /// non-address taken internal globals.
 ///
 ModulePass *createGlobalOptimizerPass();
-
 
 //===----------------------------------------------------------------------===//
 /// createGlobalDCEPass - This transform is designed to eliminate unreachable
@@ -72,29 +79,38 @@ ModulePass *createGlobalOptimizerPass();
 ///
 ModulePass *createGlobalDCEPass();
 
+//===----------------------------------------------------------------------===//
+/// This transform is designed to eliminate available external globals
+/// (functions or global variables)
+///
+ModulePass *createEliminateAvailableExternallyPass();
 
 //===----------------------------------------------------------------------===//
 /// createGVExtractionPass - If deleteFn is true, this pass deletes
 /// the specified global values. Otherwise, it deletes as much of the module as
 /// possible, except for the global values specified.
 ///
-ModulePass *createGVExtractionPass(std::vector<GlobalValue*>& GVs, bool 
+ModulePass *createGVExtractionPass(std::vector<GlobalValue*>& GVs, bool
                                    deleteFn = false);
+
+//===----------------------------------------------------------------------===//
+/// This pass performs iterative function importing from other modules.
+Pass *createFunctionImportPass();
 
 //===----------------------------------------------------------------------===//
 /// createFunctionInliningPass - Return a new pass object that uses a heuristic
 /// to inline direct function calls to small functions.
 ///
+/// The Threshold can be passed directly, or asked to be computed from the
+/// given optimization and size optimization arguments.
+///
 /// The -inline-threshold command line option takes precedence over the
 /// threshold given here.
 Pass *createFunctionInliningPass();
 Pass *createFunctionInliningPass(int Threshold);
-
-//===----------------------------------------------------------------------===//
-/// createAlwaysInlinerPass - Return a new pass object that inlines only 
-/// functions that are marked as "always_inline".
-Pass *createAlwaysInlinerPass();
-Pass *createAlwaysInlinerPass(bool InsertLifetime);
+Pass *createFunctionInliningPass(unsigned OptLevel, unsigned SizeOptLevel,
+                                 bool DisableInlineHotCallSite);
+Pass *createFunctionInliningPass(InlineParams &Params);
 
 //===----------------------------------------------------------------------===//
 /// createPruneEHPass - Return a new pass object which transforms invoke
@@ -106,14 +122,17 @@ Pass *createPruneEHPass();
 /// createInternalizePass - This pass loops over all of the functions in the
 /// input module, internalizing all globals (functions and variables) it can.
 ////
-/// The symbols in \p ExportList are never internalized.
+/// Before internalizing a symbol, the callback \p MustPreserveGV is invoked and
+/// gives to the client the ability to prevent internalizing specific symbols.
 ///
 /// The symbol in DSOList are internalized if it is safe to drop them from
 /// the symbol table.
 ///
 /// Note that commandline options that are used with the above function are not
 /// used now!
-ModulePass *createInternalizePass(ArrayRef<const char *> ExportList);
+ModulePass *
+createInternalizePass(std::function<bool(const GlobalValue &)> MustPreserveGV);
+
 /// createInternalizePass - Same as above, but with an empty exportList.
 ModulePass *createInternalizePass();
 
@@ -170,12 +189,11 @@ ModulePass *createBlockExtractorPass();
 ModulePass *createStripDeadPrototypesPass();
 
 //===----------------------------------------------------------------------===//
-/// createFunctionAttrsPass - This pass discovers functions that do not access
-/// memory, or only read memory, and gives them the readnone/readonly attribute.
-/// It also discovers function arguments that are not captured by the function
-/// and marks them with the nocapture attribute.
+/// createReversePostOrderFunctionAttrsPass - This pass walks SCCs of the call
+/// graph in RPO to deduce and propagate function attributes. Currently it
+/// only handles synthesizing norecurse attributes.
 ///
-Pass *createFunctionAttrsPass();
+Pass *createReversePostOrderFunctionAttrsPass();
 
 //===----------------------------------------------------------------------===//
 /// createMergeFunctionsPass - This pass discovers identical functions and
@@ -187,7 +205,7 @@ ModulePass *createMergeFunctionsPass();
 /// createPartialInliningPass - This pass inlines parts of functions.
 ///
 ModulePass *createPartialInliningPass();
-  
+
 //===----------------------------------------------------------------------===//
 // createMetaRenamerPass - Rename everything with metasyntatic names.
 //
@@ -197,6 +215,61 @@ ModulePass *createMetaRenamerPass();
 /// createBarrierNoopPass - This pass is purely a module pass barrier in a pass
 /// manager.
 ModulePass *createBarrierNoopPass();
+
+/// createCalledValuePropagationPass - Attach metadata to indirct call sites
+/// indicating the set of functions they may target at run-time.
+ModulePass *createCalledValuePropagationPass();
+
+/// What to do with the summary when running passes that operate on it.
+enum class PassSummaryAction {
+  None,   ///< Do nothing.
+  Import, ///< Import information from summary.
+  Export, ///< Export information to summary.
+};
+
+/// \brief This pass lowers type metadata and the llvm.type.test intrinsic to
+/// bitsets.
+///
+/// The behavior depends on the summary arguments:
+/// - If ExportSummary is non-null, this pass will export type identifiers to
+///   the given summary.
+/// - Otherwise, if ImportSummary is non-null, this pass will import type
+///   identifiers from the given summary.
+/// - Otherwise it does neither.
+/// It is invalid for both ExportSummary and ImportSummary to be non-null.
+ModulePass *createLowerTypeTestsPass(ModuleSummaryIndex *ExportSummary,
+                                     const ModuleSummaryIndex *ImportSummary);
+
+/// \brief This pass export CFI checks for use by external modules.
+ModulePass *createCrossDSOCFIPass();
+
+/// \brief This pass implements whole-program devirtualization using type
+/// metadata.
+///
+/// The behavior depends on the summary arguments:
+/// - If ExportSummary is non-null, this pass will export type identifiers to
+///   the given summary.
+/// - Otherwise, if ImportSummary is non-null, this pass will import type
+///   identifiers from the given summary.
+/// - Otherwise it does neither.
+/// It is invalid for both ExportSummary and ImportSummary to be non-null.
+ModulePass *
+createWholeProgramDevirtPass(ModuleSummaryIndex *ExportSummary,
+                             const ModuleSummaryIndex *ImportSummary);
+
+/// This pass splits globals into pieces for the benefit of whole-program
+/// devirtualization and control-flow integrity.
+ModulePass *createGlobalSplitPass();
+
+//===----------------------------------------------------------------------===//
+// SampleProfilePass - Loads sample profile data from disk and generates
+// IR metadata to reflect the profile.
+ModulePass *createSampleProfileLoaderPass();
+ModulePass *createSampleProfileLoaderPass(StringRef Name);
+
+/// Write ThinLTO-ready bitcode to Str.
+ModulePass *createWriteThinLTOBitcodePass(raw_ostream &Str,
+                                          raw_ostream *ThinLinkOS = nullptr);
 
 } // End llvm namespace
 

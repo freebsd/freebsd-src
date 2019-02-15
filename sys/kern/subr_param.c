@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -76,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #define NBUF 0
 #endif
 #ifndef MAXFILES
-#define	MAXFILES (maxproc * 2)
+#define	MAXFILES (40 + 32 * maxusers)
 #endif
 
 static int sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS);
@@ -99,7 +101,7 @@ pid_t	pid_max = PID_MAX;
 long	maxswzone;			/* max swmeta KVA storage */
 long	maxbcache;			/* max buffer cache KVA storage */
 long	maxpipekva;			/* Limit on pipe KVA */
-int 	vm_guest;			/* Running as virtual machine guest? */
+int	vm_guest = VM_GUEST_NO;		/* Running as virtual machine guest? */
 u_long	maxtsiz;			/* max text size */
 u_long	dfldsiz;			/* initial data size limit */
 u_long	maxdsiz;			/* max data size */
@@ -136,14 +138,7 @@ SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH, &sgrows
     "Amount to grow stack on a stack fault");
 SYSCTL_PROC(_kern, OID_AUTO, vm_guest, CTLFLAG_RD | CTLTYPE_STRING,
     NULL, 0, sysctl_kern_vm_guest, "A",
-    "Virtual machine guest detected? (none|generic|xen)");
-
-/*
- * These have to be allocated somewhere; allocating
- * them here forces loader errors if this file is omitted
- * (if they've been externed everywhere else; hah!).
- */
-struct	buf *swbuf;
+    "Virtual machine guest detected?");
 
 /*
  * The elements of this array are ordered based upon the values of the
@@ -154,61 +149,12 @@ static const char *const vm_guest_sysctl_names[] = {
 	"generic",
 	"xen",
 	"hv",
+	"vmware",
+	"kvm",
+	"bhyve",
 	NULL
 };
 CTASSERT(nitems(vm_guest_sysctl_names) - 1 == VM_LAST);
-
-#ifndef XEN
-static const char *const vm_bnames[] = {
-	"QEMU",				/* QEMU */
-	"Plex86",			/* Plex86 */
-	"Bochs",			/* Bochs */
-	"Xen",				/* Xen */
-	"BHYVE",			/* bhyve */
-	"Seabios",			/* KVM */
-	NULL
-};
-
-static const char *const vm_pnames[] = {
-	"VMware Virtual Platform",	/* VMWare VM */
-	"Virtual Machine",		/* Microsoft VirtualPC */
-	"VirtualBox",			/* Sun xVM VirtualBox */
-	"Parallels Virtual Platform",	/* Parallels VM */
-	"KVM",				/* KVM */
-	NULL
-};
-
-
-/*
- * Detect known Virtual Machine hosts by inspecting the emulated BIOS.
- */
-static enum VM_GUEST
-detect_virtual(void)
-{
-	char *sysenv;
-	int i;
-
-	sysenv = getenv("smbios.bios.vendor");
-	if (sysenv != NULL) {
-		for (i = 0; vm_bnames[i] != NULL; i++)
-			if (strcmp(sysenv, vm_bnames[i]) == 0) {
-				freeenv(sysenv);
-				return (VM_GUEST_VM);
-			}
-		freeenv(sysenv);
-	}
-	sysenv = getenv("smbios.system.product");
-	if (sysenv != NULL) {
-		for (i = 0; vm_pnames[i] != NULL; i++)
-			if (strcmp(sysenv, vm_pnames[i]) == 0) {
-				freeenv(sysenv);
-				return (VM_GUEST_VM);
-			}
-		freeenv(sysenv);
-	}
-	return (VM_GUEST_NO);
-}
-#endif
 
 /*
  * Boot time overrides that are not scaled against main memory
@@ -216,10 +162,9 @@ detect_virtual(void)
 void
 init_param1(void)
 {
-#ifndef XEN
-	vm_guest = detect_virtual();
-#else
-	vm_guest = VM_GUEST_XEN;
+
+#if !defined(__mips__) && !defined(__arm64__) && !defined(__sparc64__)
+	TUNABLE_INT_FETCH("kern.kstack_pages", &kstack_pages);
 #endif
 	hz = -1;
 	TUNABLE_INT_FETCH("kern.hz", &hz);
@@ -228,6 +173,12 @@ init_param1(void)
 	tick = 1000000 / hz;
 	tick_sbt = SBT_1S / hz;
 	tick_bt = sbttobt(tick_sbt);
+
+	/*
+	 * Arrange for ticks to wrap 10 minutes after boot to help catch
+	 * sign problems sooner.
+	 */
+	ticks = INT_MAX - (hz * 10 * 60);
 
 #ifdef VM_SWZONE_SIZE_MAX
 	maxswzone = VM_SWZONE_SIZE_MAX;
@@ -312,6 +263,8 @@ init_param2(long physpages)
 	TUNABLE_INT_FETCH("kern.maxproc", &maxproc);
 	if (maxproc > (physpages / 12))
 		maxproc = physpages / 12;
+	if (maxproc > pid_max)
+		maxproc = pid_max;
 	maxprocperuid = (maxproc * 9) / 10;
 
 	/*
@@ -324,7 +277,8 @@ init_param2(long physpages)
 	if (maxfiles > (physpages / 4))
 		maxfiles = physpages / 4;
 	maxfilesperproc = (maxfiles / 10) * 9;
-	
+	TUNABLE_INT_FETCH("kern.maxfilesperproc", &maxfilesperproc);
+
 	/*
 	 * Cannot be changed after boot.
 	 */
@@ -351,6 +305,5 @@ init_param2(long physpages)
 static int
 sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS)
 {
-	return (SYSCTL_OUT(req, vm_guest_sysctl_names[vm_guest], 
-	    strlen(vm_guest_sysctl_names[vm_guest])));
+	return (SYSCTL_OUT_STR(req, vm_guest_sysctl_names[vm_guest]));
 }

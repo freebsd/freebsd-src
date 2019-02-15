@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -58,7 +60,7 @@ struct dumptime {
 	SLIST_ENTRY(dumptime) dt_list;
 };
 SLIST_HEAD(dthead, dumptime) dthead = SLIST_HEAD_INITIALIZER(dthead);
-struct	dumpdates **ddatev = 0;
+struct	dumpdates **ddatev = NULL;
 int	nddates = 0;
 
 static	void dumprecout(FILE *, const struct dumpdates *);
@@ -118,8 +120,7 @@ readdumptimes(FILE *df)
 	 *	arrayify the list, leaving enough room for the additional
 	 *	record that we may have to add to the ddate structure
 	 */
-	ddatev = (struct dumpdates **)
-		calloc((unsigned) (nddates + 1), sizeof (struct dumpdates *));
+	ddatev = calloc((unsigned) (nddates + 1), sizeof (struct dumpdates *));
 	dtwalk = SLIST_FIRST(&dthead);
 	for (i = nddates - 1; i >= 0; i--, dtwalk = SLIST_NEXT(dtwalk, dt_list))
 		ddatev[i] = &dtwalk->dt_value;
@@ -174,8 +175,8 @@ putdumptime(void)
 	fd = fileno(df);
 	(void) flock(fd, LOCK_EX);
 	fname = disk;
-	free((char *)ddatev);
-	ddatev = 0;
+	free(ddatev);
+	ddatev = NULL;
 	nddates = 0;
 	readdumptimes(df);
 	if (fseek(df, 0L, 0) < 0)

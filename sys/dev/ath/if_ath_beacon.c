@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -134,7 +136,7 @@ int
 ath_beaconq_config(struct ath_softc *sc)
 {
 #define	ATH_EXPONENT_TO_VALUE(v)	((1<<(v))-1)
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_TXQ_INFO qi;
 
@@ -148,8 +150,12 @@ ath_beaconq_config(struct ath_softc *sc)
 		qi.tqi_cwmin = ATH_BEACON_CWMIN_DEFAULT;
 		qi.tqi_cwmax = ATH_BEACON_CWMAX_DEFAULT;
 	} else {
-		struct wmeParams *wmep =
-			&ic->ic_wme.wme_chanParams.cap_wmeParams[WME_AC_BE];
+		struct chanAccParams chp;
+		struct wmeParams *wmep;
+
+		ieee80211_wme_ic_getparams(ic, &chp);
+		wmep = &chp.cap_wmeParams[WME_AC_BE];
+
 		/*
 		 * Adhoc mode; important thing is to use 2x cwmin.
 		 */
@@ -199,7 +205,7 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 	 * we assume the mbuf routines will return us something
 	 * with this alignment (perhaps should assert).
 	 */
-	m = ieee80211_beacon_alloc(ni, &avp->av_boff);
+	m = ieee80211_beacon_alloc(ni);
 	if (m == NULL) {
 		device_printf(sc->sc_dev, "%s: cannot get mbuf\n", __func__);
 		sc->sc_stats.ast_be_nombuf++;
@@ -347,7 +353,7 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 		rc[0].tx_power_cap = 0x3f;
 		rc[0].PktDuration =
 		    ath_hal_computetxtime(ah, rt, roundup(m->m_len, 4),
-		        rix, 0);
+		        rix, 0, AH_TRUE);
 		ath_hal_set11nratescenario(ah, ds, 0, 0, rc, 4, flags);
 	}
 
@@ -374,7 +380,7 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 void
 ath_beacon_update(struct ieee80211vap *vap, int item)
 {
-	struct ieee80211_beacon_offsets *bo = &ATH_VAP(vap)->av_boff;
+	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
 
 	setbit(bo->bo_flags, item);
 }
@@ -464,7 +470,7 @@ ath_beacon_proc(void *arg, int pending)
 	}
 
 	if (sc->sc_stagbeacons) {			/* staggered beacons */
-		struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+		struct ieee80211com *ic = &sc->sc_ic;
 		uint32_t tsftu;
 
 		tsftu = ath_hal_gettsf32(ah) >> 10;
@@ -713,7 +719,7 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 	/* XXX lock mcastq? */
 	nmcastq = avp->av_mcastq.axq_depth;
 
-	if (ieee80211_beacon_update(bf->bf_node, &avp->av_boff, m, nmcastq)) {
+	if (ieee80211_beacon_update(bf->bf_node, m, nmcastq)) {
 		/* XXX too conservative? */
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m,
@@ -726,7 +732,7 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 			return NULL;
 		}
 	}
-	if ((avp->av_boff.bo_tim[4] & 1) && cabq->axq_depth) {
+	if ((vap->iv_bcn_off.bo_tim[4] & 1) && cabq->axq_depth) {
 		DPRINTF(sc, ATH_DEBUG_BEACON,
 		    "%s: cabq did not drain, mcastq %u cabq %u\n",
 		    __func__, nmcastq, cabq->axq_depth);
@@ -761,10 +767,16 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREWRITE);
 
 	/*
+	 * XXX TODO: tie into net80211 for quiet time IE update and program
+	 * local AP timer if we require it.  The process of updating the
+	 * beacon will also update the IE with the relevant counters.
+	 */
+
+	/*
 	 * Enable the CAB queue before the beacon queue to
 	 * insure cab frames are triggered by this beacon.
 	 */
-	if (avp->av_boff.bo_tim[4] & 1) {
+	if (vap->iv_bcn_off.bo_tim[4] & 1) {
 
 		/* NB: only at DTIM */
 		ATH_TXQ_LOCK(&avp->av_mcastq);
@@ -829,7 +841,7 @@ ath_beacon_start_adhoc(struct ath_softc *sc, struct ieee80211vap *vap)
 	 */
 	bf = avp->av_bcbuf;
 	m = bf->bf_m;
-	if (ieee80211_beacon_update(bf->bf_node, &avp->av_boff, m, 0)) {
+	if (ieee80211_beacon_update(bf->bf_node, m, 0)) {
 		/* XXX too conservative? */
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m,
@@ -917,7 +929,8 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 	((((u_int32_t)(_h)) << 22) | (((u_int32_t)(_l)) >> 10))
 #define	FUDGE	2
 	struct ath_hal *ah = sc->sc_ah;
-	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
+	struct ath_vap *avp;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni;
 	u_int32_t nexttbtt, intval, tsftu;
 	u_int32_t nexttbtt_u8, intval_u8;
@@ -935,18 +948,25 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 		return;
 	}
 
+	/* Now that we have a vap, we can do this bit */
+	avp = ATH_VAP(vap);
+
 	ni = ieee80211_ref_node(vap->iv_bss);
 
 	ATH_LOCK(sc);
 	ath_power_set_power_state(sc, HAL_PM_AWAKE);
 	ATH_UNLOCK(sc);
 
-	/* extract tstamp from last beacon and convert to TU */
-	nexttbtt = TSF_TO_TU(LE_READ_4(ni->ni_tstamp.data + 4),
-			     LE_READ_4(ni->ni_tstamp.data));
+	/* Always clear the quiet IE timers; let the next update program them */
+	ath_hal_set_quiet(ah, 0, 0, 0, HAL_QUIET_DISABLE);
+	memset(&avp->quiet_ie, 0, sizeof(avp->quiet_ie));
 
-	tsf_beacon = ((uint64_t) LE_READ_4(ni->ni_tstamp.data + 4)) << 32;
-	tsf_beacon |= LE_READ_4(ni->ni_tstamp.data);
+	/* extract tstamp from last beacon and convert to TU */
+	nexttbtt = TSF_TO_TU(le32dec(ni->ni_tstamp.data + 4),
+			     le32dec(ni->ni_tstamp.data));
+
+	tsf_beacon = ((uint64_t) le32dec(ni->ni_tstamp.data + 4)) << 32;
+	tsf_beacon |= le32dec(ni->ni_tstamp.data);
 
 	if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
 	    ic->ic_opmode == IEEE80211_M_MBSS) {
@@ -964,10 +984,27 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 		/* NB: the beacon interval is kept internally in TU's */
 		intval = ni->ni_intval & HAL_BEACON_PERIOD;
 	}
+
+	/*
+	 * Note: rounding up to the next intval can cause problems with
+	 * bad APs when we're in powersave mode.
+	 *
+	 * In STA mode with powersave enabled, beacons are only received
+	 * whenever the beacon timer fires to wake up the hardware.
+	 * Now, if this is rounded up to the next intval, it assumes
+	 * that the AP has started transmitting beacons at TSF values that
+	 * are multiples of intval, versus say being 25 TU off.
+	 *
+	 * The specification (802.11-2012 10.1.3.2 - Beacon Generation in
+	 * Infrastructure Networks) requires APs be beaconing at a
+	 * mutiple of intval.  So, if bintval=100, then we shouldn't
+	 * get beacons at intervals other than around multiples of 100.
+	 */
 	if (nexttbtt == 0)		/* e.g. for ap mode */
 		nexttbtt = intval;
-	else if (intval)		/* NB: can be 0 for monitor mode */
+	else
 		nexttbtt = roundup(nexttbtt, intval);
+
 	DPRINTF(sc, ATH_DEBUG_BEACON, "%s: nexttbtt %u intval %u (%u)\n",
 		__func__, nexttbtt, intval, ni->ni_intval);
 	if (ic->ic_opmode == IEEE80211_M_STA && !sc->sc_swbmiss) {

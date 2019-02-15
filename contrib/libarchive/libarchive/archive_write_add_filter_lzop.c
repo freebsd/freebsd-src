@@ -85,7 +85,7 @@ static int archive_write_lzop_free(struct archive_write_filter *);
 #if defined(HAVE_LZO_LZOCONF_H) && defined(HAVE_LZO_LZO1X_H)
 /* Maximum block size. */
 #define BLOCK_SIZE			(256 * 1024)
-/* Block infomation is composed of uncompressed size(4 bytes),
+/* Block information is composed of uncompressed size(4 bytes),
  * compressed size(4 bytes) and the checksum of uncompressed data(4 bytes)
  * in this lzop writer. */
 #define BLOCK_INfO_SIZE			12
@@ -173,7 +173,7 @@ archive_write_add_filter_lzop(struct archive *_a)
 	data->compression_level = 5;
 	return (ARCHIVE_OK);
 #else
-	data->pdata = __archive_write_program_allocate();
+	data->pdata = __archive_write_program_allocate("lzop");
 	if (data->pdata == NULL) {
 		free(data);
 		archive_set_error(_a, ENOMEM, "Can't allocate memory");

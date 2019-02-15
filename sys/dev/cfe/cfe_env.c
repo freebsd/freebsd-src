@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Neelkanth Natu
  * All rights reserved.
  *
@@ -52,7 +54,7 @@ cfe_env_init(void)
 		if (cfe_enumenv(idx, name, sizeof(name), val, sizeof(val)) != 0)
 			break;
 
-		if (setenv(name, val) != 0) {
+		if (kern_setenv(name, val) != 0) {
 			printf("No space to store CFE env: \"%s=%s\"\n",
 				name, val);
 		}

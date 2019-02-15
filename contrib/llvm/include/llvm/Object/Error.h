@@ -14,38 +14,79 @@
 #ifndef LLVM_OBJECT_ERROR_H
 #define LLVM_OBJECT_ERROR_H
 
-#include "llvm/Support/system_error.h"
+#include "llvm/ADT/Twine.h"
+#include "llvm/Support/Error.h"
+#include <system_error>
 
 namespace llvm {
 namespace object {
 
-const error_category &object_category();
+class Binary;
 
-struct object_error {
-  enum Impl {
-    success = 0,
-    arch_not_found,
-    invalid_file_type,
-    parse_failed,
-    unexpected_eof
-  };
-  Impl V;
+const std::error_category &object_category();
 
-  object_error(Impl V) : V(V) {}
-  operator Impl() const { return V; }
+enum class object_error {
+  // Error code 0 is absent. Use std::error_code() instead.
+  arch_not_found = 1,
+  invalid_file_type,
+  parse_failed,
+  unexpected_eof,
+  string_table_non_null_end,
+  invalid_section_index,
+  bitcode_section_not_found,
+  invalid_symbol_index,
 };
 
-inline error_code make_error_code(object_error e) {
-  return error_code(static_cast<int>(e), object_category());
+inline std::error_code make_error_code(object_error e) {
+  return std::error_code(static_cast<int>(e), object_category());
 }
+
+/// Base class for all errors indicating malformed binary files.
+///
+/// Having a subclass for all malformed binary files allows archive-walking
+/// code to skip malformed files without having to understand every possible
+/// way that a binary file might be malformed.
+///
+/// Currently inherits from ECError for easy interoperability with
+/// std::error_code, but this will be removed in the future.
+class BinaryError : public ErrorInfo<BinaryError, ECError> {
+public:
+  static char ID;
+  BinaryError() {
+    // Default to parse_failed, can be overridden with setErrorCode.
+    setErrorCode(make_error_code(object_error::parse_failed));
+  }
+};
+
+/// Generic binary error.
+///
+/// For errors that don't require their own specific sub-error (most errors)
+/// this class can be used to describe the error via a string message.
+class GenericBinaryError : public ErrorInfo<GenericBinaryError, BinaryError> {
+public:
+  static char ID;
+  GenericBinaryError(Twine Msg);
+  GenericBinaryError(Twine Msg, object_error ECOverride);
+  const std::string &getMessage() const { return Msg; }
+  void log(raw_ostream &OS) const override;
+private:
+  std::string Msg;
+};
+
+/// isNotObjectErrorInvalidFileType() is used when looping through the children
+/// of an archive after calling getAsBinary() on the child and it returns an
+/// llvm::Error.  In the cases we want to loop through the children and ignore the
+/// non-objects in the archive this is used to test the error to see if an
+/// error() function needs to called on the llvm::Error.
+Error isNotObjectErrorInvalidFileType(llvm::Error Err);
 
 } // end namespace object.
 
-template <> struct is_error_code_enum<object::object_error> : true_type { };
-
-template <> struct is_error_code_enum<object::object_error::Impl> : true_type {
-};
-
 } // end namespace llvm.
+
+namespace std {
+template <>
+struct is_error_code_enum<llvm::object::object_error> : std::true_type {};
+}
 
 #endif

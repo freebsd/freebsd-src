@@ -39,6 +39,11 @@
  */
 INTERFACE device;
 
+# Needed for timestamping device probe/attach calls
+HEADER {
+	#include <sys/tslog.h>
+}
+
 #
 # Default implementations of some methods.
 #
@@ -60,7 +65,12 @@ CODE {
 
 	static int null_quiesce(device_t dev)
 	{
-	    return EOPNOTSUPP;
+	    return 0;
+	}
+
+	static void * null_register(device_t dev)
+	{
+		return NULL;
 	}
 };
 	
@@ -137,6 +147,12 @@ CODE {
  *			be returned to indicate the type of error
  * @see DEVICE_ATTACH(), pci_get_vendor(), pci_get_device()
  */
+PROLOG {
+	TSENTER2(device_get_name(dev));
+}
+EPILOG {
+	TSEXIT2(device_get_name(dev));
+}
 METHOD int probe {
 	device_t dev;
 };
@@ -194,6 +210,12 @@ STATICMETHOD void identify {
  *			be returned to indicate the type of error
  * @see DEVICE_PROBE()
  */
+PROLOG {
+	TSENTER2(device_get_name(dev));
+}
+EPILOG {
+	TSEXIT2(device_get_name(dev));
+}
 METHOD int attach {
 	device_t dev;
 };
@@ -316,3 +338,24 @@ METHOD int resume {
 METHOD int quiesce {
 	device_t dev;
 } DEFAULT null_quiesce;
+
+/**
+ * @brief This is called when the driver is asked to register handlers.
+ *
+ *
+ * To include this method in a device driver, use a line like this
+ * in the driver's method list:
+ *
+ * @code
+ * 	KOBJMETHOD(device_register, foo_register)
+ * @endcode
+ *
+ * @param dev		the device for which handlers are being registered
+ *
+ * @retval NULL     method not implemented
+ * @retval non-NULL	a pointer to implementation specific static driver state
+ *
+ */
+METHOD void * register {
+	device_t dev;
+} DEFAULT null_register;

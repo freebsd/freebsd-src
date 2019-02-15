@@ -1,4 +1,5 @@
-//===-- RegisterContextHistory.h ----------------------------------------*- C++ -*-===//
+//===-- RegisterContextHistory.h ----------------------------------------*- C++
+//-*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -10,70 +11,62 @@
 #ifndef lldb_RegisterContextHistory_h_
 #define lldb_RegisterContextHistory_h_
 
+// C Includes
+// C++ Includes
 #include <vector>
 
-#include "lldb/lldb-private.h"
-#include "lldb/Target/RegisterContext.h"
+// Other libraries and framework includes
+// Project includes
 #include "lldb/Symbol/SymbolContext.h"
+#include "lldb/Target/RegisterContext.h"
+#include "lldb/lldb-private.h"
 
 namespace lldb_private {
-    
-class RegisterContextHistory : public lldb_private::RegisterContext
-{
+
+class RegisterContextHistory : public lldb_private::RegisterContext {
 public:
-    typedef std::shared_ptr<RegisterContextHistory> SharedPtr;
-    
-    RegisterContextHistory (Thread &thread, uint32_t concrete_frame_idx, uint32_t address_byte_size, lldb::addr_t pc_value);
-    
-    ///
-    // pure virtual functions from the base class that we must implement
-    ///
+  typedef std::shared_ptr<RegisterContextHistory> SharedPtr;
 
-    virtual
-    ~RegisterContextHistory ();
+  RegisterContextHistory(Thread &thread, uint32_t concrete_frame_idx,
+                         uint32_t address_byte_size, lldb::addr_t pc_value);
 
-    virtual void
-    InvalidateAllRegisters ();
+  ~RegisterContextHistory() override;
 
-    virtual size_t
-    GetRegisterCount ();
+  void InvalidateAllRegisters() override;
 
-    virtual const lldb_private::RegisterInfo *
-    GetRegisterInfoAtIndex (size_t reg);
+  size_t GetRegisterCount() override;
 
-    virtual size_t
-    GetRegisterSetCount ();
+  const lldb_private::RegisterInfo *GetRegisterInfoAtIndex(size_t reg) override;
 
-    virtual const lldb_private::RegisterSet *
-    GetRegisterSet (size_t reg_set);
+  size_t GetRegisterSetCount() override;
 
-    virtual bool
-    ReadRegister (const lldb_private::RegisterInfo *reg_info, lldb_private::RegisterValue &value);
+  const lldb_private::RegisterSet *GetRegisterSet(size_t reg_set) override;
 
-    virtual bool
-    WriteRegister (const lldb_private::RegisterInfo *reg_info, const lldb_private::RegisterValue &value);
+  bool ReadRegister(const lldb_private::RegisterInfo *reg_info,
+                    lldb_private::RegisterValue &value) override;
 
-    virtual bool
-    ReadAllRegisterValues (lldb::DataBufferSP &data_sp);
+  bool WriteRegister(const lldb_private::RegisterInfo *reg_info,
+                     const lldb_private::RegisterValue &value) override;
 
-    virtual bool
-    WriteAllRegisterValues (const lldb::DataBufferSP &data_sp);
+  bool ReadAllRegisterValues(lldb::DataBufferSP &data_sp) override;
 
-    virtual uint32_t
-    ConvertRegisterKindToRegisterNumber (uint32_t kind, uint32_t num);
-    
+  bool WriteAllRegisterValues(const lldb::DataBufferSP &data_sp) override;
+
+  uint32_t ConvertRegisterKindToRegisterNumber(lldb::RegisterKind kind,
+                                               uint32_t num) override;
+
 private:
-    //------------------------------------------------------------------
-    // For RegisterContextLLDB only
-    //------------------------------------------------------------------
-    
-    lldb_private::RegisterSet m_reg_set0; // register set 0 (PC only)
-    lldb_private::RegisterInfo m_pc_reg_info;
+  //------------------------------------------------------------------
+  // For RegisterContextLLDB only
+  //------------------------------------------------------------------
 
-    lldb::addr_t m_pc_value;
-    
-    DISALLOW_COPY_AND_ASSIGN (RegisterContextHistory);
+  lldb_private::RegisterSet m_reg_set0; // register set 0 (PC only)
+  lldb_private::RegisterInfo m_pc_reg_info;
+
+  lldb::addr_t m_pc_value;
+
+  DISALLOW_COPY_AND_ASSIGN(RegisterContextHistory);
 };
 } // namespace lldb_private
 
-#endif  // lldb_RegisterContextHistory_h_
+#endif // lldb_RegisterContextHistory_h_

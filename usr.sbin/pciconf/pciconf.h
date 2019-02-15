@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007 Yahoo!, Inc.
  * All rights reserved.
  * Written by: John Baldwin <jhb@FreeBSD.org>
@@ -37,6 +39,7 @@ void	list_caps(int fd, struct pci_conf *p);
 void	list_errors(int fd, struct pci_conf *p);
 uint8_t	pci_find_cap(int fd, struct pci_conf *p, uint8_t id);
 uint16_t pcie_find_cap(int fd, struct pci_conf *p, uint16_t id);
+void	print_bar(int fd, struct pci_conf *p, const char *label,  uint16_t bar);
 uint32_t read_config(int fd, struct pcisel *sel, long reg, int width);
 
 #endif

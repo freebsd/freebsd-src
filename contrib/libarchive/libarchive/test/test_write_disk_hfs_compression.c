@@ -45,8 +45,8 @@ has_xattr(const char *filename, const char *xattrname)
 	if (r == 0)
 		return (0);
 
-	nl = malloc(r);
-	if (!assert(nl != NULL))
+	assert((nl = malloc(r)) != NULL);
+	if (nl == NULL)
 		return (0);
 
 	r = listxattr(filename, nl, r, XATTR_SHOWCOMPRESSION);

@@ -44,9 +44,10 @@ Free(void *ptr, const char *file, int line)
 	return (free(ptr));
 }
 
-void
+int
 pager_output(const char *s)
 {
 
 	printf("%s", s);
+	return (0);
 }

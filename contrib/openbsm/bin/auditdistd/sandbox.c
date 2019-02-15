@@ -25,8 +25,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/sandbox.c#3 $
  */
 
 #include <config/config.h>
@@ -36,7 +34,7 @@
 #include <sys/jail.h>
 #endif
 #ifdef HAVE_CAP_ENTER
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #endif
 
 #include <errno.h>

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -40,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fnv_hash.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/mount.h>
@@ -162,6 +165,198 @@ vfs_byname_kld(const char *fstype, struct thread *td, int *error)
 	return (vfsp);
 }
 
+static int
+vfs_mount_sigdefer(struct mount *mp)
+{
+	int prev_stops, rc;
+
+	TSRAW(curthread, TS_ENTER, "VFS_MOUNT", mp->mnt_vfc->vfc_name);
+	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
+	rc = (*mp->mnt_vfc->vfc_vfsops_sd->vfs_mount)(mp);
+	sigallowstop(prev_stops);
+	TSRAW(curthread, TS_EXIT, "VFS_MOUNT", mp->mnt_vfc->vfc_name);
+	return (rc);
+}
+
+static int
+vfs_unmount_sigdefer(struct mount *mp, int mntflags)
+{
+	int prev_stops, rc;
+
+	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
+	rc = (*mp->mnt_vfc->vfc_vfsops_sd->vfs_unmount)(mp, mntflags);
+	sigallowstop(prev_stops);
+	return (rc);
+}
+
+static int
+vfs_root_sigdefer(struct mount *mp, int flags, struct vnode **vpp)
+{
+	int prev_stops, rc;
+
+	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
+	rc = (*mp->mnt_vfc->vfc_vfsops_sd->vfs_root)(mp, flags, vpp);
+	sigallowstop(prev_stops);
+	return (rc);
+}
+
+static int
+vfs_quotactl_sigdefer(struct mount *mp, int cmd, uid_t uid, void *arg)
+{
+	int prev_stops, rc;
+
+	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
+	rc = (*mp->mnt_vfc->vfc_vfsops_sd->vfs_quotactl)(mp, cmd, uid, arg);
+	sigallowstop(prev_stops);
+	return (rc);
+}
+
+static int
+vfs_statfs_sigdefer(struct mount *mp, struct statfs *sbp)
+{
+	int prev_stops, rc;
+
+	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
+	rc = (*mp->mnt_vfc->vfc_vfsops_sd->vfs_statfs)(mp, sbp);
+	sigallowstop(prev_stops);
+	return (rc);
+}
+
+static int
+vfs_sync_sigdefer(struct mount *mp, int waitfor)
+{
+	int prev_stops, rc;
+
+	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
+	rc = (*mp->mnt_vfc->vfc_vfsops_sd->vfs_sync)(mp, waitfor);
+	sigallowstop(prev_stops);
+	return (rc);
+}
+
+static int
+vfs_vget_sigdefer(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
+{
+	int prev_stops, rc;
+
+	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
+	rc = (*mp->mnt_vfc->vfc_vfsops_sd->vfs_vget)(mp, ino, flags, vpp);
+	sigallowstop(prev_stops);
+	return (rc);
+}
+
+static int
+vfs_fhtovp_sigdefer(struct mount *mp, struct fid *fidp, int flags,
+    struct vnode **vpp)
+{
+	int prev_stops, rc;
+
+	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
+	rc = (*mp->mnt_vfc->vfc_vfsops_sd->vfs_fhtovp)(mp, fidp, flags, vpp);
+	sigallowstop(prev_stops);
+	return (rc);
+}
+
+static int
+vfs_checkexp_sigdefer(struct mount *mp, struct sockaddr *nam, int *exflg,
+    struct ucred **credp, int *numsecflavors, int **secflavors)
+{
+	int prev_stops, rc;
+
+	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
+	rc = (*mp->mnt_vfc->vfc_vfsops_sd->vfs_checkexp)(mp, nam, exflg, credp,
+	    numsecflavors, secflavors);
+	sigallowstop(prev_stops);
+	return (rc);
+}
+
+static int
+vfs_extattrctl_sigdefer(struct mount *mp, int cmd, struct vnode *filename_vp,
+    int attrnamespace, const char *attrname)
+{
+	int prev_stops, rc;
+
+	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
+	rc = (*mp->mnt_vfc->vfc_vfsops_sd->vfs_extattrctl)(mp, cmd,
+	    filename_vp, attrnamespace, attrname);
+	sigallowstop(prev_stops);
+	return (rc);
+}
+
+static int
+vfs_sysctl_sigdefer(struct mount *mp, fsctlop_t op, struct sysctl_req *req)
+{
+	int prev_stops, rc;
+
+	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
+	rc = (*mp->mnt_vfc->vfc_vfsops_sd->vfs_sysctl)(mp, op, req);
+	sigallowstop(prev_stops);
+	return (rc);
+}
+
+static void
+vfs_susp_clean_sigdefer(struct mount *mp)
+{
+	int prev_stops;
+
+	if (*mp->mnt_vfc->vfc_vfsops_sd->vfs_susp_clean == NULL)
+		return;
+	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
+	(*mp->mnt_vfc->vfc_vfsops_sd->vfs_susp_clean)(mp);
+	sigallowstop(prev_stops);
+}
+
+static void
+vfs_reclaim_lowervp_sigdefer(struct mount *mp, struct vnode *vp)
+{
+	int prev_stops;
+
+	if (*mp->mnt_vfc->vfc_vfsops_sd->vfs_reclaim_lowervp == NULL)
+		return;
+	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
+	(*mp->mnt_vfc->vfc_vfsops_sd->vfs_reclaim_lowervp)(mp, vp);
+	sigallowstop(prev_stops);
+}
+
+static void
+vfs_unlink_lowervp_sigdefer(struct mount *mp, struct vnode *vp)
+{
+	int prev_stops;
+
+	if (*mp->mnt_vfc->vfc_vfsops_sd->vfs_unlink_lowervp == NULL)
+		return;
+	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
+	(*(mp)->mnt_vfc->vfc_vfsops_sd->vfs_unlink_lowervp)(mp, vp);
+	sigallowstop(prev_stops);
+}
+
+static void
+vfs_purge_sigdefer(struct mount *mp)
+{
+	int prev_stops;
+
+	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
+	(*mp->mnt_vfc->vfc_vfsops_sd->vfs_purge)(mp);
+	sigallowstop(prev_stops);
+}
+
+static struct vfsops vfsops_sigdefer = {
+	.vfs_mount =		vfs_mount_sigdefer,
+	.vfs_unmount =		vfs_unmount_sigdefer,
+	.vfs_root =		vfs_root_sigdefer,
+	.vfs_quotactl =		vfs_quotactl_sigdefer,
+	.vfs_statfs =		vfs_statfs_sigdefer,
+	.vfs_sync =		vfs_sync_sigdefer,
+	.vfs_vget =		vfs_vget_sigdefer,
+	.vfs_fhtovp =		vfs_fhtovp_sigdefer,
+	.vfs_checkexp =		vfs_checkexp_sigdefer,
+	.vfs_extattrctl =	vfs_extattrctl_sigdefer,
+	.vfs_sysctl =		vfs_sysctl_sigdefer,
+	.vfs_susp_clean =	vfs_susp_clean_sigdefer,
+	.vfs_reclaim_lowervp =	vfs_reclaim_lowervp_sigdefer,
+	.vfs_unlink_lowervp =	vfs_unlink_lowervp_sigdefer,
+	.vfs_purge =		vfs_purge_sigdefer,
+
+};
 
 /* Register a new filesystem type in the global table */
 static int
@@ -274,11 +469,22 @@ vfs_register(struct vfsconf *vfc)
 		vfsops->vfs_extattrctl = vfs_stdextattrctl;
 	if (vfsops->vfs_sysctl == NULL)
 		vfsops->vfs_sysctl = vfs_stdsysctl;
-	
+
+	if ((vfc->vfc_flags & VFCF_SBDRY) != 0) {
+		vfc->vfc_vfsops_sd = vfc->vfc_vfsops;
+		vfc->vfc_vfsops = &vfsops_sigdefer;
+	}
+
+	if (vfc->vfc_flags & VFCF_JAIL)
+		prison_add_vfs(vfc);
+
 	/*
 	 * Call init function for this VFS...
 	 */
-	(*(vfc->vfc_vfsops->vfs_init))(vfc);
+	if ((vfc->vfc_flags & VFCF_SBDRY) != 0)
+		vfc->vfc_vfsops_sd->vfs_init(vfc);
+	else
+		vfc->vfc_vfsops->vfs_init(vfc);
 	vfsconf_unlock();
 
 	/*
@@ -291,7 +497,7 @@ vfs_register(struct vfsconf *vfc)
 	 * preserved by re-registering the oid after modifying its
 	 * number.
 	 */
-	sysctl_lock();
+	sysctl_wlock();
 	SLIST_FOREACH(oidp, SYSCTL_CHILDREN(&sysctl___vfs), oid_link) {
 		if (strcmp(oidp->oid_name, vfc->vfc_name) == 0) {
 			sysctl_unregister_oid(oidp);
@@ -300,7 +506,7 @@ vfs_register(struct vfsconf *vfc)
 			break;
 		}
 	}
-	sysctl_unlock();
+	sysctl_wunlock();
 
 	return (0);
 }
@@ -311,9 +517,7 @@ static int
 vfs_unregister(struct vfsconf *vfc)
 {
 	struct vfsconf *vfsp;
-	int error, i, maxtypenum;
-
-	i = vfc->vfc_typenum;
+	int error, maxtypenum;
 
 	vfsconf_lock();
 	vfsp = vfs_byname_locked(vfc->vfc_name);
@@ -325,12 +529,18 @@ vfs_unregister(struct vfsconf *vfc)
 		vfsconf_unlock();
 		return (EBUSY);
 	}
-	if (vfc->vfc_vfsops->vfs_uninit != NULL) {
-		error = (*vfc->vfc_vfsops->vfs_uninit)(vfsp);
-		if (error != 0) {
-			vfsconf_unlock();
-			return (error);
-		}
+	error = 0;
+	if ((vfc->vfc_flags & VFCF_SBDRY) != 0) {
+		if (vfc->vfc_vfsops_sd->vfs_uninit != NULL)
+			error = vfc->vfc_vfsops_sd->vfs_uninit(vfsp);
+	} else {
+		if (vfc->vfc_vfsops->vfs_uninit != NULL) {
+			error = vfc->vfc_vfsops->vfs_uninit(vfsp);
+	}
+	if (error != 0) {
+		vfsconf_unlock();
+		return (error);
+	}
 	}
 	TAILQ_REMOVE(&vfsconf, vfsp, vfc_list);
 	maxtypenum = VFS_GENERIC;

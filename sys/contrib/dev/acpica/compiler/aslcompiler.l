@@ -5,9 +5,117 @@
  *
  *****************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2014, Intel Corp.
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights. You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code. No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision. In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change. Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee. Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution. In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE. ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT, ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES. INTEL WILL NOT PROVIDE ANY
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS. INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government. In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
+ * following license:
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,26 +132,27 @@
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
+#include <contrib/dev/acpica/include/acconvert.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -66,10 +175,10 @@ YYSTYPE AslCompilerlval;
 static void
 AslDoLineDirective (void);
 
-static char
+static BOOLEAN
 AslDoComment (void);
 
-static char
+static BOOLEAN
 AslDoCommentType2 (void);
 
 static char
@@ -86,6 +195,7 @@ count (int type);
 
 LeadNameChar                [A-Za-z_]
 DigitChar                   [0-9]
+OctalChar                   [0-7]
 HexDigitChar                [A-Fa-f0-9]
 RootChar                    [\\]
 Nothing                     []
@@ -117,9 +227,59 @@ NamePathTail                [.]{NameSeg}
                               else {yyterminate ();} }
 ";"                         { count (0); return(';'); }
 
+    /* ASL Extension: Standard C operators */
 
-0[xX]{HexDigitChar}+ |
-{DigitChar}+                { AslCompilerlval.i = UtDoConstant ((char *) AslCompilertext);
+"~"                         { count (3); return (PARSEOP_EXP_NOT); }
+"!"                         { count (3); return (PARSEOP_EXP_LOGICAL_NOT); }
+"*"                         { count (3); return (PARSEOP_EXP_MULTIPLY); }
+"/"                         { count (3); return (PARSEOP_EXP_DIVIDE); }
+"%"                         { count (3); return (PARSEOP_EXP_MODULO); }
+"+"                         { count (3); return (PARSEOP_EXP_ADD); }
+"-"                         { count (3); return (PARSEOP_EXP_SUBTRACT); }
+">>"                        { count (3); return (PARSEOP_EXP_SHIFT_RIGHT); }
+"<<"                        { count (3); return (PARSEOP_EXP_SHIFT_LEFT); }
+"<"                         { count (3); return (PARSEOP_EXP_LESS); }
+">"                         { count (3); return (PARSEOP_EXP_GREATER); }
+"&"                         { count (3); return (PARSEOP_EXP_AND); }
+"<="                        { count (3); return (PARSEOP_EXP_LESS_EQUAL); }
+">="                        { count (3); return (PARSEOP_EXP_GREATER_EQUAL); }
+"=="                        { count (3); return (PARSEOP_EXP_EQUAL); }
+"!="                        { count (3); return (PARSEOP_EXP_NOT_EQUAL); }
+"|"                         { count (3); return (PARSEOP_EXP_OR); }
+"&&"                        { count (3); return (PARSEOP_EXP_LOGICAL_AND); }
+"||"                        { count (3); return (PARSEOP_EXP_LOGICAL_OR); }
+"++"                        { count (3); return (PARSEOP_EXP_INCREMENT); }
+"--"                        { count (3); return (PARSEOP_EXP_DECREMENT); }
+"^ "                        { count (3); return (PARSEOP_EXP_XOR); }
+
+    /* ASL Extension: Standard C assignment operators */
+
+"="                         { count (3); return (PARSEOP_EXP_EQUALS); }
+"+="                        { count (3); return (PARSEOP_EXP_ADD_EQ); }
+"-="                        { count (3); return (PARSEOP_EXP_SUB_EQ); }
+"*="                        { count (3); return (PARSEOP_EXP_MUL_EQ); }
+"/="                        { count (3); return (PARSEOP_EXP_DIV_EQ); }
+"%="                        { count (3); return (PARSEOP_EXP_MOD_EQ); }
+"<<="                       { count (3); return (PARSEOP_EXP_SHL_EQ); }
+">>="                       { count (3); return (PARSEOP_EXP_SHR_EQ); }
+"&="                        { count (3); return (PARSEOP_EXP_AND_EQ); }
+"^="                        { count (3); return (PARSEOP_EXP_XOR_EQ); }
+"|="                        { count (3); return (PARSEOP_EXP_OR_EQ); }
+
+"["                         { count (3); return (PARSEOP_EXP_INDEX_LEFT); }
+"]"                         { count (0); return (PARSEOP_EXP_INDEX_RIGHT); }
+"("                         { count (0); return (PARSEOP_OPEN_PAREN); }
+")"                         { count (0); return (PARSEOP_CLOSE_PAREN); }
+
+"{"                         { count (0); return ('{'); }
+"}"                         { count (0); return ('}'); }
+","                         { count (0); return (','); }
+
+
+    /*
+     * Begin standard ASL grammar
+     */
+[0-9][a-zA-Z0-9]*            { AslCompilerlval.i = UtDoConstant ((char *) AslCompilertext);
                                 count (1); return (PARSEOP_INTEGER); }
 
 "Include"                   { count (1); return (PARSEOP_INCLUDE); }
@@ -165,7 +325,7 @@ NamePathTail                [.]{NameSeg}
 "Debug"                     { count (1); return (PARSEOP_DEBUG); }
 "Decrement"                 { count (3); return (PARSEOP_DECREMENT); }
 "Default"                   { count (3); return (PARSEOP_DEFAULT); }
-"DefinitionBlock"           { count (1); return (PARSEOP_DEFINITIONBLOCK); }
+"DefinitionBlock"           { count (1); return (PARSEOP_DEFINITION_BLOCK); }
 "DeRefOf"                   { count (3); return (PARSEOP_DEREFOF); }
 "Device"                    { count (2); return (PARSEOP_DEVICE); }
 "Divide"                    { count (3); return (PARSEOP_DIVIDE); }
@@ -287,6 +447,7 @@ NamePathTail                [.]{NameSeg}
 "GpioInt"                   { count (1); return (PARSEOP_GPIO_INT); }
 "GpioIo"                    { count (1); return (PARSEOP_GPIO_IO); }
 "I2cSerialBus"              { count (1); return (PARSEOP_I2C_SERIALBUS); }
+"I2cSerialBusV2"            { count (1); return (PARSEOP_I2C_SERIALBUS_V2); }
 "Interrupt"                 { count (1); return (PARSEOP_INTERRUPT); }
 "IO"                        { count (1); return (PARSEOP_IO); }
 "IRQ"                       { count (1); return (PARSEOP_IRQ); }
@@ -294,14 +455,21 @@ NamePathTail                [.]{NameSeg}
 "Memory24"                  { count (1); return (PARSEOP_MEMORY24); }
 "Memory32"                  { count (1); return (PARSEOP_MEMORY32); }
 "Memory32Fixed"             { count (1); return (PARSEOP_MEMORY32FIXED); }
+"PinConfig"                 { count (1); return (PARSEOP_PINCONFIG); }
+"PinFunction"               { count (1); return (PARSEOP_PINFUNCTION); }
+"PinGroup"                  { count (1); return (PARSEOP_PINGROUP); }
+"PinGroupConfig"            { count (1); return (PARSEOP_PINGROUPCONFIG); }
+"PinGroupFunction"          { count (1); return (PARSEOP_PINGROUPFUNCTION); }
 "QWordIO"                   { count (1); return (PARSEOP_QWORDIO); }
 "QWordMemory"               { count (1); return (PARSEOP_QWORDMEMORY); }
 "QWordSpace"                { count (1); return (PARSEOP_QWORDSPACE); }
 "Register"                  { count (1); return (PARSEOP_REGISTER); }
 "SpiSerialBus"              { count (1); return (PARSEOP_SPI_SERIALBUS); }
+"SpiSerialBusV2"            { count (1); return (PARSEOP_SPI_SERIALBUS_V2); }
 "StartDependentFn"          { count (1); return (PARSEOP_STARTDEPENDENTFN); }
 "StartDependentFnNoPri"     { count (1); return (PARSEOP_STARTDEPENDENTFN_NOPRI); }
 "UartSerialBus"             { count (1); return (PARSEOP_UART_SERIALBUS); }
+"UartSerialBusV2"           { count (1); return (PARSEOP_UART_SERIALBUS_V2); }
 "VendorLong"                { count (1); return (PARSEOP_VENDORLONG); }
 "VendorShort"               { count (1); return (PARSEOP_VENDORSHORT); }
 "WordBusNumber"             { count (1); return (PARSEOP_WORDBUSNUMBER); }
@@ -398,7 +566,7 @@ NamePathTail                [.]{NameSeg}
 
     /* ExtendedAttribKeyword: Bus attributes, AccessAs operator (ACPI 5.0) */
 
-"AttribBytes"               { count (0); return (PARSEOP_ACCESSATTRIB_MULTIBYTE); }
+"AttribBytes"               { count (0); return (PARSEOP_ACCESSATTRIB_BYTES); }
 "AttribRawBytes"            { count (0); return (PARSEOP_ACCESSATTRIB_RAW_BYTES); }
 "AttribRawProcessBytes"     { count (0); return (PARSEOP_ACCESSATTRIB_RAW_PROCESS); }
 
@@ -592,23 +760,60 @@ NamePathTail                [.]{NameSeg}
 "Transfer8_16"              { count (0); return (PARSEOP_XFERTYPE_8_16); }
 "Transfer16"                { count (0); return (PARSEOP_XFERTYPE_16); }
 
+    /* ToPld macro */
+
+"ToPLD"                     { count (0); return (PARSEOP_TOPLD); }
+
+"PLD_Revision"              { count (0); return (PARSEOP_PLD_REVISION); }
+"PLD_IgnoreColor"           { count (0); return (PARSEOP_PLD_IGNORECOLOR); }
+"PLD_Red"                   { count (0); return (PARSEOP_PLD_RED); }
+"PLD_Green"                 { count (0); return (PARSEOP_PLD_GREEN); }
+"PLD_Blue"                  { count (0); return (PARSEOP_PLD_BLUE); }
+"PLD_Width"                 { count (0); return (PARSEOP_PLD_WIDTH); }
+"PLD_Height"                { count (0); return (PARSEOP_PLD_HEIGHT); }
+"PLD_UserVisible"           { count (0); return (PARSEOP_PLD_USERVISIBLE); }
+"PLD_Dock"                  { count (0); return (PARSEOP_PLD_DOCK); }
+"PLD_Lid"                   { count (0); return (PARSEOP_PLD_LID); }
+"PLD_Panel"                 { count (0); return (PARSEOP_PLD_PANEL); }
+"PLD_VerticalPosition"      { count (0); return (PARSEOP_PLD_VERTICALPOSITION); }
+"PLD_HorizontalPosition"    { count (0); return (PARSEOP_PLD_HORIZONTALPOSITION); }
+"PLD_Shape"                 { count (0); return (PARSEOP_PLD_SHAPE); }
+"PLD_GroupOrientation"      { count (0); return (PARSEOP_PLD_GROUPORIENTATION); }
+"PLD_GroupToken"            { count (0); return (PARSEOP_PLD_GROUPTOKEN); }
+"PLD_GroupPosition"         { count (0); return (PARSEOP_PLD_GROUPPOSITION); }
+"PLD_Bay"                   { count (0); return (PARSEOP_PLD_BAY); }
+"PLD_Ejectable"             { count (0); return (PARSEOP_PLD_EJECTABLE); }
+"PLD_EjectRequired"         { count (0); return (PARSEOP_PLD_EJECTREQUIRED); }
+"PLD_CabinetNumber"         { count (0); return (PARSEOP_PLD_CABINETNUMBER); }
+"PLD_CardCageNumber"        { count (0); return (PARSEOP_PLD_CARDCAGENUMBER); }
+"PLD_Reference"             { count (0); return (PARSEOP_PLD_REFERENCE); }
+"PLD_Rotation"              { count (0); return (PARSEOP_PLD_ROTATION); }
+"PLD_Order"                 { count (0); return (PARSEOP_PLD_ORDER); }
+"PLD_Reserved"              { count (0); return (PARSEOP_PLD_RESERVED); }
+"PLD_VerticalOffset"        { count (0); return (PARSEOP_PLD_VERTICALOFFSET); }
+"PLD_HorizontalOffset"      { count (0); return (PARSEOP_PLD_HORIZONTALOFFSET); }
+
+
+    /* printf debug macros */
+
+"printf"                    { count (0); return (PARSEOP_PRINTF); }
+"fprintf"                   { count (0); return (PARSEOP_FPRINTF); }
+
+    /* Other macros */
+
+"For"                       { count (0); return (PARSEOP_FOR); }
+
     /* Predefined compiler names */
 
 "__DATE__"                  { count (0); return (PARSEOP___DATE__); }
 "__FILE__"                  { count (0); return (PARSEOP___FILE__); }
 "__LINE__"                  { count (0); return (PARSEOP___LINE__); }
 "__PATH__"                  { count (0); return (PARSEOP___PATH__); }
-
-
-"{"                         { count (0); return('{'); }
-"}"                         { count (0); return('}'); }
-","                         { count (0); return(','); }
-"("                         { count (0); return('('); }
-")"                         { count (0); return(')'); }
+"__METHOD__"                { count (0); return (PARSEOP___METHOD__); }
 
 {NameSeg}                   { char *s;
                                 count (0);
-                                s=UtStringCacheCalloc (ACPI_NAME_SIZE + 1);
+                                s=UtLocalCacheCalloc (ACPI_NAME_SIZE + 1);
                                 if (strcmp (AslCompilertext, "\\"))
                                 {
                                     strcpy (s, "____");
@@ -621,22 +826,27 @@ NamePathTail                [.]{NameSeg}
 
 {NameString}                { char *s;
                                 count (0);
-                                s=UtStringCacheCalloc (strlen (AslCompilertext)+1);
+                                s=UtLocalCacheCalloc (strlen (AslCompilertext)+1);
                                 AcpiUtStrupr (AslCompilertext);
                                 strcpy (s, AslCompilertext);
                                 AslCompilerlval.s = s;
                                 DbgPrint (ASL_PARSE_OUTPUT, "NameString: %s\n", s);
                                 return (PARSEOP_NAMESTRING); }
 
-"*" |
-"/"                         { count (1);
-                                AslCompilererror ("Parse error, expecting ASL keyword or name");}
-
 .                           { count (1);
-                                sprintf (MsgBuffer,
-                                    "Invalid character (0x%2.2X), expecting ASL keyword or name",
-                                    *AslCompilertext);
-                                AslCompilererror (MsgBuffer);}
+                                if (isprint ((int) *AslCompilertext))
+                                {
+                                    sprintf (AslGbl_MsgBuffer,
+                                        "Invalid character (%c), expecting ASL keyword or name",
+                                        *AslCompilertext);
+                                }
+                                else
+                                {
+                                    sprintf (AslGbl_MsgBuffer,
+                                        "Invalid character (0x%2.2X), expecting ASL keyword or name",
+                                        *AslCompilertext);
+                                }
+                                AslCompilererror (AslGbl_MsgBuffer);}
 
 <<EOF>>                     { if (AslPopInputFileStack ())
                                 {yyterminate();}

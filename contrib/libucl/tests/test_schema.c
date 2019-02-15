@@ -40,19 +40,23 @@ read_stdin (char **buf)
 	p = *buf;
 	remain = size;
 
-	while ((ret = read (STDIN_FILENO, p, remain)) > 0) {
+	while ((ret = read (STDIN_FILENO, p, remain - 1)) > 0) {
 		remain -= ret;
 		p += ret;
-		if (remain == 0) {
+
+		if (remain <= 1) {
 			*buf = realloc (*buf, size * 2);
 			if (*buf == NULL) {
 				return -1;
 			}
-			p = *buf + size;
-			remain = size;
+
+			p = *buf + size - 1;
+			remain = size + 1;
 			size *= 2;
 		}
 	}
+
+	*p = '\0';
 
 	return ret;
 }
@@ -61,12 +65,12 @@ static bool
 perform_test (const ucl_object_t *schema, const ucl_object_t *obj,
 		struct ucl_schema_error *err)
 {
-	const const ucl_object_t *valid, *data, *description;
+	const ucl_object_t *valid, *data, *description;
 	bool match;
 
-	data = ucl_object_find_key (obj, "data");
-	description = ucl_object_find_key (obj, "description");
-	valid = ucl_object_find_key (obj, "valid");
+	data = ucl_object_lookup (obj, "data");
+	description = ucl_object_lookup (obj, "description");
+	valid = ucl_object_lookup (obj, "valid");
 
 	if (data == NULL || description == NULL || valid == NULL) {
 		fprintf (stdout, "Bad test case\n");
@@ -79,6 +83,8 @@ perform_test (const ucl_object_t *schema, const ucl_object_t *obj,
 				ucl_object_tostring (description),
 				ucl_object_toboolean (valid) ? "valid" : "invalid",
 						err->msg);
+		fprintf (stdout, "%s\n", ucl_object_emit (data, UCL_EMIT_CONFIG));
+		fprintf (stdout, "%s\n", ucl_object_emit (schema, UCL_EMIT_CONFIG));
 		return false;
 	}
 
@@ -97,9 +103,9 @@ perform_tests (const ucl_object_t *obj)
 		return EXIT_FAILURE;
 	}
 
-	schema = ucl_object_find_key (obj, "schema");
-	tests = ucl_object_find_key (obj, "tests");
-	description = ucl_object_find_key (obj, "description");
+	schema = ucl_object_lookup (obj, "schema");
+	tests = ucl_object_lookup (obj, "tests");
+	description = ucl_object_lookup (obj, "description");
 
 	if (schema == NULL || tests == NULL || description == NULL) {
 		fprintf (stdout, "Bad test case\n");
@@ -108,7 +114,7 @@ perform_tests (const ucl_object_t *obj)
 
 	memset (&err, 0, sizeof (err));
 
-	while ((test = ucl_iterate_object (tests, &iter, true)) != NULL) {
+	while ((test = ucl_object_iterate (tests, &iter, true)) != NULL) {
 		if (!perform_test (schema, test, &err)) {
 			fprintf (stdout, "Test suite '%s' failed\n",
 							ucl_object_tostring (description));
@@ -145,7 +151,7 @@ main (int argc, char **argv)
 	obj = ucl_parser_get_object (parser);
 	ucl_parser_free (parser);
 
-	while ((elt = ucl_iterate_object (obj, &iter, true)) != NULL) {
+	while ((elt = ucl_object_iterate (obj, &iter, true)) != NULL) {
 		ret = perform_tests (elt);
 		if (ret != 0) {
 			break;

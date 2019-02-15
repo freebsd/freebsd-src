@@ -1,10 +1,10 @@
 # $FreeBSD$
 
 LIB=	hx509
+PRIVATELIB=	true
 LDFLAGS=	-Wl,--no-undefined
 VERSION_MAP= ${KRB5DIR}/lib/hx509/version-script.map
-LDADD=	-lasn1 -lcom_err -lcrypto -lroken -lwind
-DPADD=	${LIBASN1} ${LIBCOM_ERR} ${LIBCRYPTO} ${LIBROKEN} ${LIBWIND}
+LIBADD=	asn1 com_err crypto roken wind
 
 MAN=	hx509.3 \
 	hx509_ca.3 \
@@ -210,9 +210,10 @@ SRCS+=	${GEN_OCSP:S/.x$/.c/:S/.hx$/.h/} \
 
 CFLAGS+=-I${KRB5DIR}/lib/hx509
 CFLAGS+=-I${KRB5DIR}/lib/hx509/ref
-CFLAGS+=-I${KRB5DIR}/lib/asn1
-CFLAGS+=-I${KRB5DIR}/lib/wind
-CFLAGS+=-I${KRB5DIR}/lib/roken -I.
+CFLAGS+=-I${KRB5DIR}/lib/asn1 -I${.OBJDIR:H}/libasn1
+CFLAGS+=-I${KRB5DIR}/lib/wind -I${.OBJDIR:H}/libwind
+CFLAGS+=-I${KRB5DIR}/lib/roken -I${.OBJDIR:H}/libroken 
+CFLAGS+=-I${SRCTOP}/contrib/com_err -I.
 
 GEN_OCSP= \
 	asn1_OCSPBasicOCSPResponse.x \
@@ -269,27 +270,30 @@ CLEANFILES= ${GEN} ${GEN:S/.x$/.c/:S/.hx$/.h/} ocsp_asn1_files \
 
 INCS+=	ocsp_asn1.h pkcs10_asn1.h crmf_asn1.h
 
-.ORDER: ${GEN_OSCP}
+.ORDER: ${GEN_OCSP}
+${GEN_OCSP:[2..-1]}: .NOMETA
 ${GEN_OCSP}: ocsp.asn1 ocsp.opt
 	${ASN1_COMPILE} --option-file=${.ALLSRC:M*.opt} \
 	 ${.ALLSRC:M*.asn1} ocsp_asn1
 
 .ORDER: ${GEN_PKCS10}
+${GEN_PKCS10:[2..-1]}: .NOMETA
 ${GEN_PKCS10}: pkcs10.asn1 pkcs10.opt
 	${ASN1_COMPILE} --option-file=${.ALLSRC:M*.opt} \
 	${.ALLSRC:M*.asn1} pkcs10_asn1
 
 .ORDER: ${GEN_CRMF}
+${GEN_CRMF:[2..-1]}: .NOMETA
 ${GEN_CRMF}: crmf.asn1
 	${ASN1_COMPILE} ${.ALLSRC:M*.asn1} crmf_asn1
 
 .SUFFIXES: .h .c .x .hx
 
 .x.c:   
-	cp ${.IMPSRC} ${.TARGET}
+	${CP} ${.IMPSRC} ${.TARGET}
 
 .hx.h:
-	cp ${.IMPSRC} ${.TARGET}
+	${CP} ${.IMPSRC} ${.TARGET}
 
 .include <bsd.lib.mk>
 

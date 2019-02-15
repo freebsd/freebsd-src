@@ -167,9 +167,9 @@ void edit_deinit(const char *history_file,
 			if (filter_cb && filter_cb(edit_cb_ctx, p)) {
 				h = remove_history(where_history());
 				if (h) {
-					os_free(h->line);
+					free(h->line);
 					free(h->data);
-					os_free(h);
+					free(h);
 				} else
 					next_history();
 			} else

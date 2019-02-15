@@ -26,11 +26,11 @@ __FBSDID("$FreeBSD$");
 
 static const char *names[SOUND_MIXER_NRDEVICES] = SOUND_DEVICE_NAMES;
 
-static void	usage(int devmask, int recmask);
+static void	usage(int devmask, int recmask) __dead2;
 static int	res_name(const char *name, int mask);
 static void	print_recsrc(int recsrc, int recmask, int sflag);
 
-static void
+static void __dead2
 usage(int devmask, int recmask)
 {
 	int	i, n;
@@ -102,7 +102,7 @@ int
 main(int argc, char *argv[])
 {
 	char	mixer[PATH_MAX] = "/dev/mixer";
-	char	lstr[5], rstr[5];
+	char	lstr[8], rstr[8];
 	char	*name, *eptr;
 	int	devmask = 0, recmask = 0, recsrc = 0, orecsrc;
 	int	dusage = 0, drecsrc = 0, sflag = 0, Sflag = 0;

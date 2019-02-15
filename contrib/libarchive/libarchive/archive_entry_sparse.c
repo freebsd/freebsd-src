@@ -51,14 +51,14 @@ archive_entry_sparse_clear(struct archive_entry *entry)
 
 void
 archive_entry_sparse_add_entry(struct archive_entry *entry,
-	int64_t offset, int64_t length)
+	la_int64_t offset, la_int64_t length)
 {
 	struct ae_sparse *sp;
 
 	if (offset < 0 || length < 0)
 		/* Invalid value */
 		return;
-	if (offset + length < 0 ||
+	if (offset > INT64_MAX - length ||
 	    offset + length > archive_entry_size(entry))
 		/* A value of "length" parameter is too large. */
 		return;
@@ -135,7 +135,7 @@ archive_entry_sparse_reset(struct archive_entry * entry)
 
 int
 archive_entry_sparse_next(struct archive_entry * entry,
-	int64_t *offset, int64_t *length)
+	la_int64_t *offset, la_int64_t *length)
 {
 	if (entry->sparse_p) {
 		*offset = entry->sparse_p->offset;

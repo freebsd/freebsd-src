@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd August 5, 2014
+.Dd April 13, 2017
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -62,12 +62,6 @@ This command is normally executed by
 It implements the mount protocol as described in RFC 1094, Appendix A and
 .%T "NFS: Network File System Version 3 Protocol Specification" ,
 Appendix I.
-.Pp
-If the file system type is specified as ``oldnfs'', which implies this
-command is run as ``mount_oldnfs'', then it forces use of the old NFS
-client, which does not support the
-.Cm nfsv4
-option.
 .Pp
 By default,
 .Nm
@@ -118,6 +112,8 @@ for regular files, and 30 -> 60 seconds for directories.
 The algorithm to calculate the timeout is based on the age of the file.
 The older the file,
 the longer the cache is considered valid, subject to the limits above.
+.It Cm actimeo Ns = Ns Aq Ar seconds
+Set four cache timeouts above to specified value.
 .It Cm allgssname
 This option can be used along with
 .Fl o Cm gssname
@@ -187,8 +183,8 @@ for positive name cache entries.
 If this is set to 0 it disables positive name caching for the mount point.
 .It Cm negnametimeo Ns = Ns Aq Ar value
 Override the default of NFS_DEFAULT_NEGNAMETIMEO for the timeout (in seconds)
-for negative name cache entries. If this is set to 0 it disables negative
-name caching for the mount point.
+for negative name cache entries.
+If this is set to 0 it disables negative name caching for the mount point.
 .It Cm nfsv2
 Use the NFS Version 2 protocol (the default is to try version 3 first
 then version 2).
@@ -205,12 +201,22 @@ The only minor version currently supported is 1.
 This option is only meaningful when used with the
 .Cm nfsv4
 option.
+.It Cm oneopenown
+Make a minor version 1 of the NFS Version 4 protocol mount use a single OpenOwner
+for all Opens.
+This may be useful for a server with a very low limit on OpenOwners, such as
+AmazonEFS.
+It can only be used with an NFSv4.1 mount.
+It may not work correctly when Delegations are being issued by a server,
+but note that the AmazonEFS server does not issued delegations at this time.
 .It Cm pnfs
 Enable support for parallel NFS (pNFS) for minor version 1 of the
 NFS Version 4 protocol.
 This option is only meaningful when used with the
 .Cm minorversion
 option.
+.It Cm noac
+Disable attribute caching.
 .It Cm noconn
 For UDP mount points, do not do a
 .Xr connect 2 .
@@ -264,7 +270,7 @@ such that the dirty byte range becomes a superset of the bytes
 that are dirty.
 This reduces the number of writes significantly for software
 builds.
-The merging of byte ranges isn't done if the file has been file
+The merging of byte ranges is not done if the file has been file
 locked, since most applications modifying a file from multiple
 clients will use file locking.
 As such, this option could result in a corrupted file for the
@@ -273,8 +279,9 @@ clients concurrently without using file locking.
 .It Cm principal
 For the RPCSEC_GSS security flavors, such as krb5, krb5i and krb5p,
 this option sets the name of the host based principal name expected
-by the server. This option overrides the default, which will be
-``nfs@<server-fqdn>'' and should normally be sufficient.
+by the server.
+This option overrides the default, which will be ``nfs@<server-fqdn>''
+and should normally be sufficient.
 .It Cm noresvport
 Do
 .Em not
@@ -282,6 +289,15 @@ use a reserved socket port number (see below).
 .It Cm port Ns = Ns Aq Ar port_number
 Use specified port number for NFS requests.
 The default is to query the portmapper for the NFS port.
+.It Cm proto Ns = Ns Aq Ar protocol
+Specify transport protocol version to use.
+Currently, they are:
+.Bd -literal
+udp -   Use UDP over IPv4
+tcp -   Use TCP over IPv4
+udp6 -  Use UDP over IPv6
+tcp6 -  Use TCP over IPv6
+.Ed
 .It Cm rdirplus
 Used with NFSV3 to specify that the \fBReaddirPlus\fR RPC should
 be used.
@@ -357,7 +373,8 @@ LAN and WAN configurations compared to UDP.
 Some old NFS servers do not support this method; UDP mounts may be required
 for interoperability.
 .It Cm timeout Ns = Ns Aq Ar value
-Set the initial retransmit timeout to the specified value.
+Set the initial retransmit timeout to the specified value,
+expressed in tenths of a second.
 May be useful for fine tuning UDP mounts over internetworks
 with high packet loss rates or an overloaded server.
 Try increasing the interval if
@@ -369,6 +386,9 @@ value if there is a low retransmit rate but long response delay observed.
 option should be specified when using this option to manually
 tune the timeout
 interval.)
+.It Cm timeo Ns = Ns Aq Ar value
+Alias for
+.Cm timeout .
 .It Cm udp
 Use UDP transport.
 .It Cm vers Ns = Ns Aq Ar vers_number
@@ -376,7 +396,7 @@ Use the specified version number for NFS requests.
 See the
 .Cm nfsv2 ,
 .Cm nfsv3 ,
-and 
+and
 .Cm nfsv4
 options for details.
 .It Cm wcommitsize Ns = Ns Aq Ar value
@@ -504,6 +524,11 @@ Same as
 .Xr nfsd 8 ,
 .Xr nfsiod 8 ,
 .Xr showmount 8
+.Sh HISTORY
+A version of the
+.Nm
+utility appeared in
+.Bx 4.4 .
 .Sh BUGS
 Since nfsv4 performs open/lock operations that have their ordering strictly
 enforced by the server, the options

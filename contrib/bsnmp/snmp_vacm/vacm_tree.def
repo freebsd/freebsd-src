@@ -29,24 +29,7 @@
 # $FreeBSD$
 #
 
-#include "tc.def"
-
-typedef RowStatus ENUM (
-	1 active
-	2 notInService
-	3 notReady
-	4 createAndGo
-	5 createAndWait
-	6 destroy
-)
-
-typedef StorageType ENUM (
-	1 other
-	2 volatile
-	3 nonVolatile
-	4 permanent
-	5 readOnly
-)
+include "tc.def"
 
 (1 internet
   (6 snmpV2

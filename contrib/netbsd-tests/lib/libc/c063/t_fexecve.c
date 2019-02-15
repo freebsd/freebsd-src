@@ -1,4 +1,4 @@
-/*	$NetBSD: t_fexecve.c,v 1.2 2013/03/17 04:35:59 jmmv Exp $ */
+/*	$NetBSD: t_fexecve.c,v 1.3 2017/01/10 15:15:09 christos Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_fexecve.c,v 1.2 2013/03/17 04:35:59 jmmv Exp $");
+__RCSID("$NetBSD: t_fexecve.c,v 1.3 2017/01/10 15:15:09 christos Exp $");
 
 #include <sys/wait.h>
 
@@ -70,6 +70,7 @@ ATF_TC_BODY(fexecve, tc)
 				error = 76;
 			else
 				error = EXIT_FAILURE;
+			(void)close(fd);
 			err(error, "fexecve");
 		}
 	}

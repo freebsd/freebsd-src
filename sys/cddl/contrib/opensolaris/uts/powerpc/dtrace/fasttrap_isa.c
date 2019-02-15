@@ -33,6 +33,7 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/ptrace.h>
+#include <sys/rmlock.h>
 #include <sys/sysent.h>
 
 #define OP(x)	((x) >> 26)
@@ -42,46 +43,6 @@
 #define OP_RS(x) (((x) & 0x03E00000) >> 21)
 #define OP_RA(x) (((x) & 0x001F0000) >> 16)
 #define OP_RB(x) (((x) & 0x0000F100) >> 11)
-
-
-static int
-proc_ops(int op, proc_t *p, void *kaddr, off_t uaddr, size_t len)
-{
-	struct iovec iov;
-	struct uio uio;
-
-	iov.iov_base = kaddr;
-	iov.iov_len = len;
-	uio.uio_offset = uaddr;
-	uio.uio_iov = &iov;
-	uio.uio_resid = len;
-	uio.uio_iovcnt = 1;
-	uio.uio_segflg = UIO_SYSSPACE;
-	uio.uio_td = curthread;
-	uio.uio_rw = op;
-	PHOLD(p);
-	if (proc_rwmem(p, &uio) != 0) {
-		PRELE(p);
-		return (-1);
-	}
-	PRELE(p);
-
-	return (0);
-}
-
-static int
-uread(proc_t *p, void *kaddr, size_t len, uintptr_t uaddr)
-{
-
-	return (proc_ops(UIO_READ, p, kaddr, uaddr, len));
-}
-
-static int
-uwrite(proc_t *p, void *kaddr, size_t len, uintptr_t uaddr)
-{
-
-	return (proc_ops(UIO_WRITE, p, kaddr, uaddr, len));
-}
 
 int
 fasttrap_tracepoint_install(proc_t *p, fasttrap_tracepoint_t *tp)
@@ -244,8 +205,8 @@ fasttrap_anarg(struct reg *rp, int argno)
 		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT | CPU_DTRACE_BADADDR);
 	} else {
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
-		value = dtrace_fuword64((void *)(rp->fixreg[1] + 16 +
-		    ((argno - 8) * sizeof(uint32_t))));
+		value = dtrace_fuword64((void *)(rp->fixreg[1] + 48 +
+		    ((argno - 8) * sizeof(uint64_t))));
 		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT | CPU_DTRACE_BADADDR);
 	}
 	return value;
@@ -289,7 +250,7 @@ fasttrap_usdt_args(fasttrap_probe_t *probe, struct reg *rp, int argc,
 				argv[i] = fuword32((void *)(rp->fixreg[1] + 8 +
 				    (x * sizeof(uint32_t))));
 			else
-				argv[i] = fuword32((void *)(rp->fixreg[1] + 16 +
+				argv[i] = fuword64((void *)(rp->fixreg[1] + 48 +
 				    (x * sizeof(uint64_t))));
 	}
 
@@ -302,10 +263,12 @@ static void
 fasttrap_return_common(struct reg *rp, uintptr_t pc, pid_t pid,
     uintptr_t new_pc)
 {
+	struct rm_priotracker tracker;
 	fasttrap_tracepoint_t *tp;
 	fasttrap_bucket_t *bucket;
 	fasttrap_id_t *id;
 
+	rm_rlock(&fasttrap_tp_lock, &tracker);
 	bucket = &fasttrap_tpoints.fth_table[FASTTRAP_TPOINTS_INDEX(pid, pc)];
 
 	for (tp = bucket->ftb_data; tp != NULL; tp = tp->ftt_next) {
@@ -320,6 +283,7 @@ fasttrap_return_common(struct reg *rp, uintptr_t pc, pid_t pid,
 	 * is not essential to the correct execution of the process.
 	 */
 	if (tp == NULL) {
+		rm_runlock(&fasttrap_tp_lock, &tracker);
 		return;
 	}
 
@@ -337,6 +301,7 @@ fasttrap_return_common(struct reg *rp, uintptr_t pc, pid_t pid,
 		    pc - id->fti_probe->ftp_faddr,
 		    rp->fixreg[3], rp->fixreg[4], 0, 0);
 	}
+	rm_runlock(&fasttrap_tp_lock, &tracker);
 }
 
 
@@ -363,16 +328,22 @@ fasttrap_branch_taken(int bo, int bi, struct reg *regs)
 
 
 int
-fasttrap_pid_probe(struct reg *rp)
+fasttrap_pid_probe(struct trapframe *frame)
 {
+	struct reg reg, *rp;
+	struct rm_priotracker tracker;
 	proc_t *p = curproc;
-	uintptr_t pc = rp->pc;
+	uintptr_t pc;
 	uintptr_t new_pc = 0;
 	fasttrap_bucket_t *bucket;
 	fasttrap_tracepoint_t *tp, tp_local;
 	pid_t pid;
 	dtrace_icookie_t cookie;
 	uint_t is_enabled = 0;
+
+	fill_regs(curthread, &reg);
+	rp = &reg;
+	pc = rp->pc;
 
 	/*
 	 * It's possible that a user (in a veritable orgy of bad planning)
@@ -395,8 +366,7 @@ fasttrap_pid_probe(struct reg *rp)
 	curthread->t_dtrace_scrpc = 0;
 	curthread->t_dtrace_astpc = 0;
 
-
-	PROC_LOCK(p);
+	rm_rlock(&fasttrap_tp_lock, &tracker);
 	pid = p->p_pid;
 	bucket = &fasttrap_tpoints.fth_table[FASTTRAP_TPOINTS_INDEX(pid, pc)];
 
@@ -415,7 +385,7 @@ fasttrap_pid_probe(struct reg *rp)
 	 * fasttrap_ioctl), or somehow we have mislaid this tracepoint.
 	 */
 	if (tp == NULL) {
-		PROC_UNLOCK(p);
+		rm_runlock(&fasttrap_tp_lock, &tracker);
 		return (-1);
 	}
 
@@ -469,7 +439,7 @@ fasttrap_pid_probe(struct reg *rp)
 	 * tracepoint again later if we need to light up any return probes.
 	 */
 	tp_local = *tp;
-	PROC_UNLOCK(p);
+	rm_runlock(&fasttrap_tp_lock, &tracker);
 	tp = &tp_local;
 
 	/*
@@ -550,8 +520,9 @@ done:
 }
 
 int
-fasttrap_return_probe(struct reg *rp)
+fasttrap_return_probe(struct trapframe *tf)
 {
+	struct reg reg, *rp;
 	proc_t *p = curproc;
 	uintptr_t pc = curthread->t_dtrace_pc;
 	uintptr_t npc = curthread->t_dtrace_npc;
@@ -561,12 +532,13 @@ fasttrap_return_probe(struct reg *rp)
 	curthread->t_dtrace_scrpc = 0;
 	curthread->t_dtrace_astpc = 0;
 
+	fill_regs(curthread, &reg);
+	rp = &reg;
+
 	/*
 	 * We set rp->pc to the address of the traced instruction so
 	 * that it appears to dtrace_probe() that we're on the original
-	 * instruction, and so that the user can't easily detect our
-	 * complex web of lies. dtrace_return_probe() (our caller)
-	 * will correctly set %pc after we return.
+	 * instruction.
 	 */
 	rp->pc = pc;
 
@@ -574,4 +546,3 @@ fasttrap_return_probe(struct reg *rp)
 
 	return (0);
 }
-

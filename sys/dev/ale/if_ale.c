@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008, Pyun YongHyeon <yongari@FreeBSD.org>
  * All rights reserved.
  *
@@ -176,6 +178,8 @@ static driver_t ale_driver = {
 static devclass_t ale_devclass;
 
 DRIVER_MODULE(ale, pci, ale_driver, ale_devclass, NULL, NULL);
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, ale, ale_devs,
+    nitems(ale_devs));
 DRIVER_MODULE(miibus, ale, miibus_driver, miibus_devclass, NULL, NULL);
 
 static struct resource_spec ale_res_spec_mem[] = {
@@ -343,7 +347,7 @@ ale_probe(device_t dev)
 	vendor = pci_get_vendor(dev);
 	devid = pci_get_device(dev);
 	sp = ale_devs;
-	for (i = 0; i < sizeof(ale_devs) / sizeof(ale_devs[0]); i++) {
+	for (i = 0; i < nitems(ale_devs); i++) {
 		if (vendor == sp->ale_vendorid &&
 		    devid == sp->ale_deviceid) {
 			device_set_desc(dev, sp->ale_name);
@@ -603,7 +607,7 @@ ale_attach(device_t dev)
 	/* Create device sysctl node. */
 	ale_sysctl_node(sc);
 
-	if ((error = ale_dma_alloc(sc) != 0))
+	if ((error = ale_dma_alloc(sc)) != 0)
 		goto fail;
 
 	/* Load station address. */
@@ -3036,7 +3040,7 @@ ale_rxfilter(struct ale_softc *sc)
 	bzero(mchash, sizeof(mchash));
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &sc->ale_ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &sc->ale_ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)

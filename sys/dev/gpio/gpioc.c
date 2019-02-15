@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * All rights reserved.
  *
@@ -29,20 +31,18 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/types.h>
-
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/gpio.h>
 #include <sys/ioccom.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/queue.h>
-#include <machine/bus.h>
-#include <machine/resource.h>
 
-#include <sys/gpio.h>
+#include <dev/gpio/gpiobusvar.h>
+
 #include "gpio_if.h"
+#include "gpiobus_if.h"
 
 #undef GPIOC_DEBUG
 #ifdef GPIOC_DEBUG
@@ -80,18 +80,25 @@ gpioc_probe(device_t dev)
 static int
 gpioc_attach(device_t dev)
 {
-	struct gpioc_softc *sc = device_get_softc(dev);
+	int err;
+	struct gpioc_softc *sc;
+	struct make_dev_args devargs;
 
+	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	sc->sc_pdev = device_get_parent(dev);
 	sc->sc_unit = device_get_unit(dev);
-	sc->sc_ctl_dev = make_dev(&gpioc_cdevsw, sc->sc_unit,
-	    UID_ROOT, GID_WHEEL, 0600, "gpioc%d", sc->sc_unit);
-	if (!sc->sc_ctl_dev) {
+	make_dev_args_init(&devargs);
+	devargs.mda_devsw = &gpioc_cdevsw;
+	devargs.mda_uid = UID_ROOT;
+	devargs.mda_gid = GID_WHEEL;
+	devargs.mda_mode = 0600;
+	devargs.mda_si_drv1 = sc;
+	err = make_dev_s(&devargs, &sc->sc_ctl_dev, "gpioc%d", sc->sc_unit);
+	if (err != 0) {
 		printf("Failed to create gpioc%d", sc->sc_unit);
 		return (ENXIO);
 	}
-	sc->sc_ctl_dev->si_drv1 = sc;
 
 	return (0);
 }
@@ -115,11 +122,18 @@ static int
 gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag, 
     struct thread *td)
 {
+	device_t bus;
 	int max_pin, res;
 	struct gpioc_softc *sc = cdev->si_drv1;
 	struct gpio_pin pin;
 	struct gpio_req req;
+	struct gpio_access_32 *a32;
+	struct gpio_config_32 *c32;
+	uint32_t caps;
 
+	bus = GPIO_GET_BUS(sc->sc_pdev);
+	if (bus == NULL)
+		return (EINVAL);
 	switch (cmd) {
 		case GPIOMAXPIN:
 			max_pin = -1;
@@ -135,14 +149,18 @@ gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 			if (res)
 				break;
 			GPIO_PIN_GETCAPS(sc->sc_pdev, pin.gp_pin, &pin.gp_caps);
-			GPIO_PIN_GETNAME(sc->sc_pdev, pin.gp_pin, pin.gp_name);
+			GPIOBUS_PIN_GETNAME(bus, pin.gp_pin, pin.gp_name);
 			bcopy(&pin, arg, sizeof(pin));
 			break;
 		case GPIOSETCONFIG:
 			bcopy(arg, &pin, sizeof(pin));
 			dprintf("set config pin %d\n", pin.gp_pin);
-			res = GPIO_PIN_SETFLAGS(sc->sc_pdev, pin.gp_pin,
-			    pin.gp_flags);
+			res = GPIO_PIN_GETCAPS(sc->sc_pdev, pin.gp_pin, &caps);
+			if (res == 0)
+				res = gpio_check_flags(caps, pin.gp_flags);
+			if (res == 0)
+				res = GPIO_PIN_SETFLAGS(sc->sc_pdev, pin.gp_pin,
+				    pin.gp_flags);
 			break;
 		case GPIOGET:
 			bcopy(arg, &req, sizeof(req));
@@ -165,6 +183,22 @@ gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 			    req.gp_pin);
 			res = GPIO_PIN_TOGGLE(sc->sc_pdev, req.gp_pin);
 			break;
+		case GPIOSETNAME:
+			bcopy(arg, &pin, sizeof(pin));
+			dprintf("set name on pin %d\n", pin.gp_pin);
+			res = GPIOBUS_PIN_SETNAME(bus, pin.gp_pin,
+			    pin.gp_name);
+			break;
+		case GPIOACCESS32:
+			a32 = (struct gpio_access_32 *)arg;
+			res = GPIO_PIN_ACCESS_32(sc->sc_pdev, a32->first_pin,
+			    a32->clear_pins, a32->orig_pins, &a32->orig_pins);
+			break;
+		case GPIOCONFIG32:
+			c32 = (struct gpio_config_32 *)arg;
+			res = GPIO_PIN_CONFIG_32(sc->sc_pdev, c32->first_pin,
+			    c32->num_pins, c32->pin_flags);
+			break;
 		default:
 			return (ENOTTY);
 			break;
@@ -182,7 +216,7 @@ static device_method_t gpioc_methods[] = {
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 driver_t gpioc_driver = {

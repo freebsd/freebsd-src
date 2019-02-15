@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000-2001 Boris Popov
  * All rights reserved.
  *
@@ -67,8 +69,6 @@ static struct smb_dialect smb_dialects[] = {
 	{SMB_DIALECT_NTLM0_12,	"NT LM 0.12"},
 	{-1,			NULL}
 };
-
-#define	SMB_DIALECT_MAX	(sizeof(smb_dialects) / sizeof(struct smb_dialect) - 2)
 
 static u_int32_t
 smb_vc_maxread(struct smb_vc *vcp)

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Olivier Houchard
  * All rights reserved.
  *
@@ -28,6 +30,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/endian.h>
+#define _BYTEORDER_FUNC_DEFINED
+#include <arpa/inet.h>
 
 uint32_t
 htonl(uint32_t hl)

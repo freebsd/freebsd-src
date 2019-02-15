@@ -9,14 +9,16 @@
 
 #include "clang/AST/NSAPI.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/DeclObjC.h"
 #include "clang/AST/Expr.h"
+#include "llvm/ADT/StringSwitch.h"
 
 using namespace clang;
 
 NSAPI::NSAPI(ASTContext &ctx)
-  : Ctx(ctx), ClassIds(), BOOLId(0), NSIntegerId(0), NSUIntegerId(0),
-    NSASCIIStringEncodingId(0), NSUTF8StringEncodingId(0) {
-}
+  : Ctx(ctx), ClassIds(), BOOLId(nullptr), NSIntegerId(nullptr),
+    NSUIntegerId(nullptr), NSASCIIStringEncodingId(nullptr),
+    NSUTF8StringEncodingId(nullptr) {}
 
 IdentifierInfo *NSAPI::getNSClassId(NSClassIdKindKind K) const {
   static const char *ClassName[NumClassIds] = {
@@ -26,7 +28,10 @@ IdentifierInfo *NSAPI::getNSClassId(NSClassIdKindKind K) const {
     "NSMutableArray",
     "NSDictionary",
     "NSMutableDictionary",
-    "NSNumber"
+    "NSNumber",
+    "NSMutableSet",
+    "NSMutableOrderedSet",
+    "NSValue"
   };
 
   if (!ClassIds[K])
@@ -45,6 +50,10 @@ Selector NSAPI::getNSStringSelector(NSStringMethodKind MK) const {
     case NSStr_stringWithUTF8String:
       Sel = Ctx.Selectors.getUnarySelector(
                                        &Ctx.Idents.get("stringWithUTF8String"));
+      break;
+    case NSStr_initWithUTF8String:
+      Sel = Ctx.Selectors.getUnarySelector(
+                                       &Ctx.Idents.get("initWithUTF8String"));
       break;
     case NSStr_stringWithCStringEncoding: {
       IdentifierInfo *KeyIdents[] = {
@@ -115,6 +124,25 @@ Selector NSAPI::getNSArraySelector(NSArrayMethodKind MK) const {
       IdentifierInfo *KeyIdents[] = {
         &Ctx.Idents.get("replaceObjectAtIndex"),
         &Ctx.Idents.get("withObject")
+      };
+      Sel = Ctx.Selectors.getSelector(2, KeyIdents);
+      break;
+    }
+    case NSMutableArr_addObject:
+      Sel = Ctx.Selectors.getUnarySelector(&Ctx.Idents.get("addObject"));
+      break;
+    case NSMutableArr_insertObjectAtIndex: {
+      IdentifierInfo *KeyIdents[] = {
+        &Ctx.Idents.get("insertObject"),
+        &Ctx.Idents.get("atIndex")
+      };
+      Sel = Ctx.Selectors.getSelector(2, KeyIdents);
+      break;
+    }
+    case NSMutableArr_setObjectAtIndexedSubscript: {
+      IdentifierInfo *KeyIdents[] = {
+        &Ctx.Idents.get("setObject"),
+        &Ctx.Idents.get("atIndexedSubscript")
       };
       Sel = Ctx.Selectors.getSelector(2, KeyIdents);
       break;
@@ -204,6 +232,22 @@ Selector NSAPI::getNSDictionarySelector(
       Sel = Ctx.Selectors.getSelector(2, KeyIdents);
       break;
     }
+    case NSMutableDict_setObjectForKeyedSubscript: {
+      IdentifierInfo *KeyIdents[] = {
+        &Ctx.Idents.get("setObject"),
+        &Ctx.Idents.get("forKeyedSubscript")
+      };
+      Sel = Ctx.Selectors.getSelector(2, KeyIdents);
+      break;
+    }
+    case NSMutableDict_setValueForKey: {
+      IdentifierInfo *KeyIdents[] = {
+        &Ctx.Idents.get("setValue"),
+        &Ctx.Idents.get("forKey")
+      };
+      Sel = Ctx.Selectors.getSelector(2, KeyIdents);
+      break;
+    }
     }
     return (NSDictionarySelectors[MK] = Sel);
   }
@@ -216,6 +260,63 @@ NSAPI::getNSDictionaryMethodKind(Selector Sel) {
   for (unsigned i = 0; i != NumNSDictionaryMethods; ++i) {
     NSDictionaryMethodKind MK = NSDictionaryMethodKind(i);
     if (Sel == getNSDictionarySelector(MK))
+      return MK;
+  }
+
+  return None;
+}
+
+Selector NSAPI::getNSSetSelector(NSSetMethodKind MK) const {
+  if (NSSetSelectors[MK].isNull()) {
+    Selector Sel;
+    switch (MK) {
+    case NSMutableSet_addObject:
+      Sel = Ctx.Selectors.getUnarySelector(&Ctx.Idents.get("addObject"));
+      break;
+    case NSOrderedSet_insertObjectAtIndex: {
+      IdentifierInfo *KeyIdents[] = {
+        &Ctx.Idents.get("insertObject"),
+        &Ctx.Idents.get("atIndex")
+      };
+      Sel = Ctx.Selectors.getSelector(2, KeyIdents);
+      break;
+    }
+    case NSOrderedSet_setObjectAtIndex: {
+      IdentifierInfo *KeyIdents[] = {
+        &Ctx.Idents.get("setObject"),
+        &Ctx.Idents.get("atIndex")
+      };
+      Sel = Ctx.Selectors.getSelector(2, KeyIdents);
+      break;
+    }
+    case NSOrderedSet_setObjectAtIndexedSubscript: {
+      IdentifierInfo *KeyIdents[] = {
+        &Ctx.Idents.get("setObject"),
+        &Ctx.Idents.get("atIndexedSubscript")
+      };
+      Sel = Ctx.Selectors.getSelector(2, KeyIdents);
+      break;
+    }
+    case NSOrderedSet_replaceObjectAtIndexWithObject: {
+      IdentifierInfo *KeyIdents[] = {
+        &Ctx.Idents.get("replaceObjectAtIndex"),
+        &Ctx.Idents.get("withObject")
+      };
+      Sel = Ctx.Selectors.getSelector(2, KeyIdents);
+      break;
+    }
+    }
+    return (NSSetSelectors[MK] = Sel);
+  }
+
+  return NSSetSelectors[MK];
+}
+
+Optional<NSAPI::NSSetMethodKind>
+NSAPI::getNSSetMethodKind(Selector Sel) {
+  for (unsigned i = 0; i != NumNSSetMethods; ++i) {
+    NSSetMethodKind MK = NSSetMethodKind(i);
+    if (Sel == getNSSetSelector(MK))
       return MK;
   }
 
@@ -340,18 +441,20 @@ NSAPI::getNSNumberFactoryMethodKind(QualType T) const {
   case BuiltinType::Int128:
   case BuiltinType::LongDouble:
   case BuiltinType::UInt128:
+  case BuiltinType::Float16:
+  case BuiltinType::Float128:
   case BuiltinType::NullPtr:
   case BuiltinType::ObjCClass:
   case BuiltinType::ObjCId:
   case BuiltinType::ObjCSel:
-  case BuiltinType::OCLImage1d:
-  case BuiltinType::OCLImage1dArray:
-  case BuiltinType::OCLImage1dBuffer:
-  case BuiltinType::OCLImage2d:
-  case BuiltinType::OCLImage2dArray:
-  case BuiltinType::OCLImage3d:
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
+  case BuiltinType::Id:
+#include "clang/Basic/OpenCLImageTypes.def"
   case BuiltinType::OCLSampler:
   case BuiltinType::OCLEvent:
+  case BuiltinType::OCLClkEvent:
+  case BuiltinType::OCLQueue:
+  case BuiltinType::OCLReserveID:
   case BuiltinType::BoundMember:
   case BuiltinType::Dependent:
   case BuiltinType::Overload:
@@ -360,6 +463,7 @@ NSAPI::getNSNumberFactoryMethodKind(QualType T) const {
   case BuiltinType::Half:
   case BuiltinType::PseudoObject:
   case BuiltinType::BuiltinFn:
+  case BuiltinType::OMPArraySection:
     break;
   }
   
@@ -377,6 +481,57 @@ bool NSAPI::isObjCNSIntegerType(QualType T) const {
 /// \brief Returns true if \param T is a typedef of "NSUInteger" in objective-c.
 bool NSAPI::isObjCNSUIntegerType(QualType T) const {
   return isObjCTypedef(T, "NSUInteger", NSUIntegerId);
+}
+
+StringRef NSAPI::GetNSIntegralKind(QualType T) const {
+  if (!Ctx.getLangOpts().ObjC1 || T.isNull())
+    return StringRef();
+  
+  while (const TypedefType *TDT = T->getAs<TypedefType>()) {
+    StringRef NSIntegralResust =
+      llvm::StringSwitch<StringRef>(
+        TDT->getDecl()->getDeclName().getAsIdentifierInfo()->getName())
+    .Case("int8_t", "int8_t")
+    .Case("int16_t", "int16_t")
+    .Case("int32_t", "int32_t")
+    .Case("NSInteger", "NSInteger")
+    .Case("int64_t", "int64_t")
+    .Case("uint8_t", "uint8_t")
+    .Case("uint16_t", "uint16_t")
+    .Case("uint32_t", "uint32_t")
+    .Case("NSUInteger", "NSUInteger")
+    .Case("uint64_t", "uint64_t")
+    .Default(StringRef());
+    if (!NSIntegralResust.empty())
+      return NSIntegralResust;
+    T = TDT->desugar();
+  }
+  return StringRef();
+}
+
+bool NSAPI::isMacroDefined(StringRef Id) const {
+  // FIXME: Check whether the relevant module macros are visible.
+  return Ctx.Idents.get(Id).hasMacroDefinition();
+}
+
+bool NSAPI::isSubclassOfNSClass(ObjCInterfaceDecl *InterfaceDecl,
+                                NSClassIdKindKind NSClassKind) const {
+  if (!InterfaceDecl) {
+    return false;
+  }
+
+  IdentifierInfo *NSClassID = getNSClassId(NSClassKind);
+
+  bool IsSubclass = false;
+  do {
+    IsSubclass = NSClassID == InterfaceDecl->getIdentifier();
+
+    if (IsSubclass) {
+      break;
+    }
+  } while ((InterfaceDecl = InterfaceDecl->getSuperClass()));
+
+  return IsSubclass;
 }
 
 bool NSAPI::isObjCTypedef(QualType T,

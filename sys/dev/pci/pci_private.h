@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * Copyright (c) 2000, Michael Smith <msmith@freebsd.org>
  * Copyright (c) 2000, BSDi
@@ -34,7 +36,7 @@
 
 /*
  * Export definitions of the pci bus so that we can more easily share
- * it with "subclass" busses.
+ * it with "subclass" buses.
  */
 DECLARE_CLASS(pci_driver);
 
@@ -48,14 +50,18 @@ struct pci_softc {
 extern int 	pci_do_power_resume;
 extern int 	pci_do_power_suspend;
 
-void		pci_add_children(device_t dev, int domain, int busno,
-		    size_t dinfo_size);
+void		pci_add_children(device_t dev, int domain, int busno);
 void		pci_add_child(device_t bus, struct pci_devinfo *dinfo);
+device_t	pci_add_iov_child(device_t bus, device_t pf, uint16_t rid,
+		    uint16_t vid, uint16_t did);
 void		pci_add_resources(device_t bus, device_t dev, int force,
 		    uint32_t prefetchmask);
+void		pci_add_resources_ea(device_t bus, device_t dev, int alloc_iov);
+struct pci_devinfo *pci_alloc_devinfo_method(device_t dev);
 int		pci_attach_common(device_t dev);
-void		pci_delete_child(device_t dev, device_t child);
+int		pci_rescan_method(device_t dev);
 void		pci_driver_added(device_t dev, driver_t *driver);
+int		pci_ea_is_enabled(device_t dev, int rid);
 int		pci_print_child(device_t dev, device_t child);
 void		pci_probe_nomatch(device_t dev, device_t child);
 int		pci_read_ivar(device_t dev, device_t child, int which,
@@ -84,10 +90,16 @@ int		pci_enable_io_method(device_t dev, device_t child, int space);
 int		pci_disable_io_method(device_t dev, device_t child, int space);
 int		pci_find_cap_method(device_t dev, device_t child,
 		    int capability, int *capreg);
+int		pci_find_next_cap_method(device_t dev, device_t child,
+		    int capability, int start, int *capreg);
 int		pci_find_extcap_method(device_t dev, device_t child,
 		    int capability, int *capreg);
+int		pci_find_next_extcap_method(device_t dev, device_t child,
+		    int capability, int start, int *capreg);
 int		pci_find_htcap_method(device_t dev, device_t child,
 		    int capability, int *capreg);
+int		pci_find_next_htcap_method(device_t dev, device_t child,
+		    int capability, int start, int *capreg);
 int		pci_alloc_msi_method(device_t dev, device_t child, int *count);
 int		pci_alloc_msix_method(device_t dev, device_t child, int *count);
 void		pci_enable_msi_method(device_t dev, device_t child,
@@ -100,9 +112,11 @@ int		pci_remap_msix_method(device_t dev, device_t child,
 int		pci_release_msi_method(device_t dev, device_t child);
 int		pci_msi_count_method(device_t dev, device_t child);
 int		pci_msix_count_method(device_t dev, device_t child);
+int		pci_msix_pba_bar_method(device_t dev, device_t child);
+int		pci_msix_table_bar_method(device_t dev, device_t child);
 struct resource	*pci_alloc_resource(device_t dev, device_t child, 
-		    int type, int *rid, u_long start, u_long end, u_long count,
-		    u_int flags);
+		    int type, int *rid, rman_res_t start, rman_res_t end,
+		    rman_res_t count, u_int flags);
 int		pci_release_resource(device_t dev, device_t child, int type,
 		    int rid, struct resource *r);
 int		pci_activate_resource(device_t dev, device_t child, int type,
@@ -112,10 +126,11 @@ int		pci_deactivate_resource(device_t dev, device_t child, int type,
 void		pci_delete_resource(device_t dev, device_t child, 
 		    int type, int rid);
 struct resource_list *pci_get_resource_list (device_t dev, device_t child);
-struct pci_devinfo *pci_read_device(device_t pcib, int d, int b, int s, int f,
-		    size_t size);
+struct pci_devinfo *pci_read_device(device_t pcib, device_t bus, int d, int b,
+		    int s, int f);
 void		pci_print_verbose(struct pci_devinfo *dinfo);
 int		pci_freecfg(struct pci_devinfo *dinfo);
+void		pci_child_deleted(device_t dev, device_t child);
 void		pci_child_detached(device_t dev, device_t child);
 int		pci_child_location_str_method(device_t cbdev, device_t child,
 		    char *buf, size_t buflen);
@@ -140,4 +155,27 @@ void		pci_cfg_restore(device_t, struct pci_devinfo *);
  */
 void		pci_cfg_save(device_t, struct pci_devinfo *, int);
 
+int		pci_mapsize(uint64_t testval);
+void		pci_read_bar(device_t dev, int reg, pci_addr_t *mapp,
+		    pci_addr_t *testvalp, int *bar64);
+struct pci_map *pci_add_bar(device_t dev, int reg, pci_addr_t value,
+		    pci_addr_t size);
+
+struct resource *pci_alloc_multi_resource(device_t dev, device_t child,
+		    int type, int *rid, rman_res_t start, rman_res_t end,
+		    rman_res_t count, u_long num, u_int flags);
+
+int		pci_iov_attach_method(device_t bus, device_t dev,
+		    struct nvlist *pf_schema, struct nvlist *vf_schema,
+		    const char *name);
+int		pci_iov_detach_method(device_t bus, device_t dev);
+
+device_t	pci_create_iov_child_method(device_t bus, device_t pf,
+		    uint16_t rid, uint16_t vid, uint16_t did);
+
+struct resource *pci_vf_alloc_mem_resource(device_t dev, device_t child,
+		    int *rid, rman_res_t start, rman_res_t end,
+		    rman_res_t count, u_int flags);
+int		pci_vf_release_mem_resource(device_t dev, device_t child,
+		    int rid, struct resource *r);
 #endif /* _PCI_PRIVATE_H_ */

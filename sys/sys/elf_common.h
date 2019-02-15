@@ -1,4 +1,7 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2017, 2018 Dell EMC
  * Copyright (c) 2000, 2001, 2008, 2011, David E. O'Brien
  * Copyright (c) 1998 John D. Polstra.
  * All rights reserved.
@@ -48,6 +51,62 @@ typedef struct {
 	u_int32_t	n_descsz;	/* Length of descriptor. */
 	u_int32_t	n_type;		/* Type of this note. */
 } Elf_Note;
+typedef Elf_Note Elf_Nhdr;
+
+/*
+ * Option kinds.
+ */
+#define	ODK_NULL	0	/* undefined */
+#define	ODK_REGINFO	1	/* register usage info */
+#define	ODK_EXCEPTIONS	2	/* exception processing info */
+#define	ODK_PAD		3	/* section padding */
+#define	ODK_HWPATCH	4	/* hardware patch applied */
+#define	ODK_FILL	5	/* fill value used by the linker */
+#define	ODK_TAGS	6	/* reserved space for tools */
+#define	ODK_HWAND	7	/* hardware AND patch applied */
+#define	ODK_HWOR	8	/* hardware OR patch applied */
+#define	ODK_GP_GROUP	9	/* GP group for text/data sections */
+#define	ODK_IDENT	10	/* ID information */
+#define	ODK_PAGESIZE	11	/* page size information */
+
+/*
+ * ODK_EXCEPTIONS info field masks.
+ */
+#define	OEX_FPU_MIN	0x0000001f	/* min FPU exception required */
+#define	OEX_FPU_MAX	0x00001f00	/* max FPU exception allowed */
+#define	OEX_PAGE0	0x00010000	/* page zero must be mapped */
+#define	OEX_SMM		0x00020000	/* run in sequential memory mode */
+#define	OEX_PRECISEFP	0x00040000	/* run in precise FP exception mode */
+#define	OEX_DISMISS	0x00080000	/* dismiss invalid address traps */
+
+/*
+ * ODK_PAD info field masks.
+ */
+#define	OPAD_PREFIX	0x0001
+#define	OPAD_POSTFIX	0x0002
+#define	OPAD_SYMBOL	0x0004
+
+/*
+ * ODK_HWPATCH info field masks.
+ */
+#define	OHW_R4KEOP	0x00000001	/* patch for R4000 branch at end-of-page bug */
+#define	OHW_R8KPFETCH	0x00000002	/* R8000 prefetch bug may occur */
+#define	OHW_R5KEOP	0x00000004	/* patch for R5000 branch at end-of-page bug */
+#define	OHW_R5KCVTL	0x00000008	/* R5000 cvt.[ds].l bug: clean == 1 */
+#define	OHW_R10KLDL	0x00000010UL	/* need patch for R10000 misaligned load */
+
+/*
+ * ODK_HWAND/ODK_HWOR info field and hwp_flags[12] masks.
+ */
+#define	OHWA0_R4KEOP_CHECKED	0x00000001	/* object checked for R4000 end-of-page bug */
+#define	OHWA0_R4KEOP_CLEAN	0x00000002	/* object verified clean for R4000 end-of-page bug */
+#define	OHWO0_FIXADE		0x00000001	/* object requires call to fixade */
+
+/*
+ * ODK_IDENT/ODK_GP_GROUP info field masks.
+ */
+#define	OGP_GROUP	0x0000ffff	/* GP group number */
+#define	OGP_SELF	0x00010000	/* GP group is self-contained */
 
 /*
  * The header for GNU-style hash sections.
@@ -114,11 +173,15 @@ typedef struct {
 #define	ELFOSABI_OPENVMS	13	/* Open VMS */
 #define	ELFOSABI_NSK		14	/* HP Non-Stop Kernel */
 #define	ELFOSABI_AROS		15	/* Amiga Research OS */
+#define	ELFOSABI_FENIXOS	16	/* FenixOS */
+#define	ELFOSABI_CLOUDABI	17	/* Nuxi CloudABI */
+#define	ELFOSABI_ARM_AEABI	64	/* ARM EABI */
 #define	ELFOSABI_ARM		97	/* ARM */
 #define	ELFOSABI_STANDALONE	255	/* Standalone (embedded) application */
 
 #define	ELFOSABI_SYSV		ELFOSABI_NONE	/* symbol used in old spec */
 #define	ELFOSABI_MONTEREY	ELFOSABI_AIX	/* Monterey */
+#define	ELFOSABI_GNU		ELFOSABI_LINUX
 
 /* e_ident */
 #define	IS_ELF(ehdr)	((ehdr).e_ident[EI_MAG0] == ELFMAG0 && \
@@ -144,6 +207,7 @@ typedef struct {
 #define	EM_386		3	/* Intel i386. */
 #define	EM_68K		4	/* Motorola 68000. */
 #define	EM_88K		5	/* Motorola 88000. */
+#define	EM_IAMCU	6	/* Intel MCU. */
 #define	EM_860		7	/* Intel i860. */
 #define	EM_MIPS		8	/* MIPS R3000 Big-Endian only. */
 #define	EM_S370		9	/* IBM System/370. */
@@ -238,6 +302,7 @@ typedef struct {
 #define	EM_UNICORE	110	/* Microprocessor series from PKU-Unity Ltd.
 				   and MPRC of Peking University */
 #define	EM_AARCH64	183	/* AArch64 (64-bit ARM) */
+#define	EM_RISCV	243	/* RISC-V */
 
 /* Non-standard or deprecated. */
 #define	EM_486		6	/* Intel i486. */
@@ -245,12 +310,85 @@ typedef struct {
 #define	EM_ALPHA_STD	41	/* Digital Alpha (standard value). */
 #define	EM_ALPHA	0x9026	/* Alpha (written in the absence of an ABI) */
 
+/**
+ * e_flags
+ */
+#define	EF_ARM_RELEXEC	0x1
+#define	EF_ARM_HASENTRY	0x2
+#define	EF_ARM_SYMSARESORTED	0x4
+#define	EF_ARM_DYNSYMSUSESEGIDX	0x8
+#define	EF_ARM_MAPSYMSFIRST	0x10
+#define	EF_ARM_LE8		0x00400000
+#define	EF_ARM_BE8		0x00800000
+#define	EF_ARM_EABIMASK		0xFF000000
+#define	EF_ARM_EABI_UNKNOWN	0x00000000
+#define	EF_ARM_EABI_VER1	0x01000000
+#define	EF_ARM_EABI_VER2	0x02000000
+#define	EF_ARM_EABI_VER3	0x03000000
+#define	EF_ARM_EABI_VER4	0x04000000
+#define	EF_ARM_EABI_VER5	0x05000000
+#define	EF_ARM_INTERWORK	0x00000004
+#define	EF_ARM_APCS_26		0x00000008
+#define	EF_ARM_APCS_FLOAT	0x00000010
+#define	EF_ARM_PIC		0x00000020
+#define	EF_ARM_ALIGN8		0x00000040
+#define	EF_ARM_NEW_ABI		0x00000080
+#define	EF_ARM_OLD_ABI		0x00000100
+#define	EF_ARM_ABI_FLOAT_SOFT	0x00000200
+#define	EF_ARM_SOFT_FLOAT	EF_ARM_ABI_FLOAT_SOFT /* Pre-V5 ABI name */
+#define	EF_ARM_ABI_FLOAT_HARD	0x00000400
+#define	EF_ARM_VFP_FLOAT	EF_ARM_ABI_FLOAT_HARD /* Pre-V5 ABI name */
+#define	EF_ARM_MAVERICK_FLOAT	0x00000800
+
+#define	EF_MIPS_NOREORDER	0x00000001
+#define	EF_MIPS_PIC		0x00000002	/* Contains PIC code */
+#define	EF_MIPS_CPIC		0x00000004	/* STD PIC calling sequence */
+#define	EF_MIPS_UCODE		0x00000010
+#define	EF_MIPS_ABI2		0x00000020	/* N32 */
+#define	EF_MIPS_OPTIONS_FIRST	0x00000080
+#define	EF_MIPS_ABI		0x0000F000
+#define	EF_MIPS_ABI_O32		0x00001000
+#define	EF_MIPS_ABI_O64		0x00002000
+#define	EF_MIPS_ABI_EABI32	0x00003000
+#define	EF_MIPS_ABI_EABI64	0x00004000
+#define	EF_MIPS_ARCH_ASE	0x0F000000	/* Architectural extensions */
+#define	EF_MIPS_ARCH_ASE_MDMX	0x08000000	/* MDMX multimedia extension */
+#define	EF_MIPS_ARCH_ASE_M16	0x04000000	/* MIPS-16 ISA extensions */
+#define	EF_MIPS_ARCH		0xF0000000	/* Architecture field */
+#define	EF_MIPS_ARCH_1		0x00000000	/* -mips1 code */
+#define	EF_MIPS_ARCH_2		0x10000000	/* -mips2 code */
+#define	EF_MIPS_ARCH_3		0x20000000	/* -mips3 code */
+#define	EF_MIPS_ARCH_4		0x30000000	/* -mips4 code */
+#define	EF_MIPS_ARCH_5		0x40000000	/* -mips5 code */
+#define	EF_MIPS_ARCH_32		0x50000000	/* -mips32 code */
+#define	EF_MIPS_ARCH_64		0x60000000	/* -mips64 code */
+#define	EF_MIPS_ARCH_32R2	0x70000000	/* -mips32r2 code */
+#define	EF_MIPS_ARCH_64R2	0x80000000	/* -mips64r2 code */
+
+#define	EF_PPC_EMB		0x80000000
+#define	EF_PPC_RELOCATABLE	0x00010000
+#define	EF_PPC_RELOCATABLE_LIB	0x00008000
+
+#define	EF_SPARC_EXT_MASK	0x00ffff00
+#define	EF_SPARC_32PLUS		0x00000100
+#define	EF_SPARC_SUN_US1	0x00000200
+#define	EF_SPARC_HAL_R1		0x00000200
+#define	EF_SPARC_SUN_US3	0x00000800
+
+#define	EF_SPARCV9_MM		0x00000003
+#define	EF_SPARCV9_TSO		0x00000000
+#define	EF_SPARCV9_PSO		0x00000001
+#define	EF_SPARCV9_RMO		0x00000002
+
 /* Special section indexes. */
 #define	SHN_UNDEF	     0		/* Undefined, missing, irrelevant. */
 #define	SHN_LORESERVE	0xff00		/* First of reserved range. */
 #define	SHN_LOPROC	0xff00		/* First processor-specific. */
 #define	SHN_HIPROC	0xff1f		/* Last processor-specific. */
 #define	SHN_LOOS	0xff20		/* First operating system-specific. */
+#define	SHN_FBSD_CACHED	SHN_LOOS	/* Transient, for sys/kern/link_elf_obj
+					   linker only: Cached global in local
+					   symtab. */
 #define	SHN_HIOS	0xff3f		/* Last operating system-specific. */
 #define	SHN_ABS		0xfff1		/* Absolute values. */
 #define	SHN_COMMON	0xfff2		/* Common data. */
@@ -279,6 +417,7 @@ typedef struct {
 #define	SHT_LOSUNW		0x6ffffff4
 #define	SHT_SUNW_dof		0x6ffffff4
 #define	SHT_SUNW_cap		0x6ffffff5
+#define	SHT_GNU_ATTRIBUTES	0x6ffffff5
 #define	SHT_SUNW_SIGNATURE	0x6ffffff6
 #define	SHT_GNU_HASH		0x6ffffff6
 #define	SHT_GNU_LIBLIST		0x6ffffff7
@@ -297,7 +436,9 @@ typedef struct {
 #define	SHT_HISUNW		0x6fffffff
 #define	SHT_HIOS		0x6fffffff	/* Last of OS specific semantics */
 #define	SHT_LOPROC		0x70000000	/* reserved range for processor */
-#define	SHT_AMD64_UNWIND	0x70000001	/* unwind information */
+#define	SHT_X86_64_UNWIND	0x70000001	/* unwind information */
+#define	SHT_AMD64_UNWIND	SHT_X86_64_UNWIND 
+
 #define	SHT_ARM_EXIDX		0x70000001	/* Exception index table. */
 #define	SHT_ARM_PREEMPTMAP	0x70000002	/* BPABI DLL dynamic linking 
 						   pre-emption map. */
@@ -305,9 +446,39 @@ typedef struct {
 						   attributes. */
 #define	SHT_ARM_DEBUGOVERLAY	0x70000004	/* See DBGOVL for details. */
 #define	SHT_ARM_OVERLAYSECTION	0x70000005	/* See DBGOVL for details. */
+#define	SHT_MIPS_LIBLIST	0x70000000
+#define	SHT_MIPS_MSYM		0x70000001
+#define	SHT_MIPS_CONFLICT	0x70000002
+#define	SHT_MIPS_GPTAB		0x70000003
+#define	SHT_MIPS_UCODE		0x70000004
+#define	SHT_MIPS_DEBUG		0x70000005
 #define	SHT_MIPS_REGINFO	0x70000006
+#define	SHT_MIPS_PACKAGE	0x70000007
+#define	SHT_MIPS_PACKSYM	0x70000008
+#define	SHT_MIPS_RELD		0x70000009
+#define	SHT_MIPS_IFACE		0x7000000b
+#define	SHT_MIPS_CONTENT	0x7000000c
 #define	SHT_MIPS_OPTIONS	0x7000000d
+#define	SHT_MIPS_DELTASYM	0x7000001b
+#define	SHT_MIPS_DELTAINST	0x7000001c
+#define	SHT_MIPS_DELTACLASS	0x7000001d
 #define	SHT_MIPS_DWARF		0x7000001e	/* MIPS gcc uses MIPS_DWARF */
+#define	SHT_MIPS_DELTADECL	0x7000001f
+#define	SHT_MIPS_SYMBOL_LIB	0x70000020
+#define	SHT_MIPS_EVENTS		0x70000021
+#define	SHT_MIPS_TRANSLATE	0x70000022
+#define	SHT_MIPS_PIXIE		0x70000023
+#define	SHT_MIPS_XLATE		0x70000024
+#define	SHT_MIPS_XLATE_DEBUG	0x70000025
+#define	SHT_MIPS_WHIRL		0x70000026
+#define	SHT_MIPS_EH_REGION	0x70000027
+#define	SHT_MIPS_XLATE_OLD	0x70000028
+#define	SHT_MIPS_PDR_EXCEPTION	0x70000029
+#define	SHT_MIPS_ABIFLAGS	0x7000002a
+
+#define	SHT_SPARC_GOTDATA	0x70000000
+
+#define	SHTORDERED
 #define	SHT_HIPROC		0x7fffffff	/* specific section header types */
 #define	SHT_LOUSER		0x80000000	/* reserved range for application */
 #define	SHT_HIUSER		0xffffffff	/* specific indexes */
@@ -323,8 +494,18 @@ typedef struct {
 #define	SHF_OS_NONCONFORMING	0x100	/* OS-specific processing required. */
 #define	SHF_GROUP		0x200	/* Member of section group. */
 #define	SHF_TLS			0x400	/* Section contains TLS data. */
+#define	SHF_COMPRESSED		0x800	/* Section contains compressed data. */
 #define	SHF_MASKOS	0x0ff00000	/* OS-specific semantics. */
 #define	SHF_MASKPROC	0xf0000000	/* Processor-specific semantics. */
+
+/* Flags for section groups. */
+#define	GRP_COMDAT	0x1	/* COMDAT semantics. */
+
+/*
+ * Flags / mask for .gnu.versym sections.
+ */
+#define	VERSYM_VERSION	0x7fff
+#define	VERSYM_HIDDEN	0x8000
 
 /* Values for p_type. */
 #define	PT_NULL		0	/* Unused entry. */
@@ -340,6 +521,8 @@ typedef struct {
 #define	PT_GNU_EH_FRAME	0x6474e550
 #define	PT_GNU_STACK	0x6474e551
 #define	PT_GNU_RELRO	0x6474e552
+#define	PT_DUMP_DELTA	0x6fb5d000	/* va->pa map for kernel dumps
+					   (currently arm). */
 #define	PT_LOSUNW	0x6ffffffa
 #define	PT_SUNWBSS	0x6ffffffa	/* Sun Specific segment */
 #define	PT_SUNWSTACK	0x6ffffffb	/* describes the stack segment */
@@ -348,6 +531,8 @@ typedef struct {
 #define	PT_HISUNW	0x6fffffff
 #define	PT_HIOS		0x6fffffff	/* Last OS-specific. */
 #define	PT_LOPROC	0x70000000	/* First processor-specific type. */
+#define	PT_ARM_ARCHEXT	0x70000000	/* ARM arch compat information. */
+#define	PT_ARM_EXIDX	0x70000001	/* ARM exception unwind tables. */
 #define	PT_HIPROC	0x7fffffff	/* Last processor-specific type. */
 
 /* Values for p_flags. */
@@ -415,6 +600,7 @@ typedef struct {
 #define	DT_SUNW_RTLDINF		0x6000000e	/* ld.so.1 info (private) */
 #define	DT_SUNW_FILTER		0x6000000f	/* symbol filter name */
 #define	DT_SUNW_CAP		0x60000010	/* hardware/software */
+#define	DT_SUNW_ASLR		0x60000023	/* ASLR control */
 #define	DT_HIOS		0x6ffff000	/* Last OS-specific */
 
 /*
@@ -422,11 +608,15 @@ typedef struct {
  * Dyn.d_un.d_val field of the Elf*_Dyn structure.
  */
 #define	DT_VALRNGLO	0x6ffffd00
+#define	DT_GNU_PRELINKED	0x6ffffdf5 /* prelinking timestamp */
+#define	DT_GNU_CONFLICTSZ	0x6ffffdf6 /* size of conflict section */
+#define	DT_GNU_LIBLISTSZ	0x6ffffdf7 /* size of library list */
 #define	DT_CHECKSUM	0x6ffffdf8	/* elf checksum */
 #define	DT_PLTPADSZ	0x6ffffdf9	/* pltpadding size */
 #define	DT_MOVEENT	0x6ffffdfa	/* move table entry size */
 #define	DT_MOVESZ	0x6ffffdfb	/* move table size */
 #define	DT_FEATURE	0x6ffffdfc	/* feature holder */
+#define	DT_FEATURE_1	DT_FEATURE
 #define	DT_POSFLAG_1	0x6ffffdfd	/* flags for DT_* entries, effecting */
 					/*	the following DT_* entry. */
 					/*	See DF_P1_* definitions */
@@ -443,6 +633,10 @@ typedef struct {
  */
 #define	DT_ADDRRNGLO	0x6ffffe00
 #define	DT_GNU_HASH	0x6ffffef5	/* GNU-style hash table */
+#define	DT_TLSDESC_PLT	0x6ffffef6	/* loc. of PLT for tlsdesc resolver */
+#define	DT_TLSDESC_GOT	0x6ffffef7	/* loc. of GOT for tlsdesc resolver */
+#define	DT_GNU_CONFLICT	0x6ffffef8	/* address of conflict section */
+#define	DT_GNU_LIBLIST	0x6ffffef9	/* address of library list */
 #define	DT_CONFIG	0x6ffffefa	/* configuration information */
 #define	DT_DEPAUDIT	0x6ffffefb	/* dependency auditing */
 #define	DT_AUDIT	0x6ffffefc	/* object auditing */
@@ -461,7 +655,68 @@ typedef struct {
 #define	DT_VERNEEDNUM	0x6fffffff	/* Number of elems in verneed section */
 
 #define	DT_LOPROC	0x70000000	/* First processor-specific type. */
+
+#define	DT_ARM_SYMTABSZ			0x70000001
+#define	DT_ARM_PREEMPTMAP		0x70000002
+
+#define	DT_SPARC_REGISTER		0x70000001
 #define	DT_DEPRECATED_SPARC_REGISTER	0x7000001
+
+#define	DT_MIPS_RLD_VERSION		0x70000001
+#define	DT_MIPS_TIME_STAMP		0x70000002
+#define	DT_MIPS_ICHECKSUM		0x70000003
+#define	DT_MIPS_IVERSION		0x70000004
+#define	DT_MIPS_FLAGS			0x70000005
+#define	DT_MIPS_BASE_ADDRESS		0x70000006
+#define	DT_MIPS_CONFLICT		0x70000008
+#define	DT_MIPS_LIBLIST			0x70000009
+#define	DT_MIPS_LOCAL_GOTNO		0x7000000a
+#define	DT_MIPS_CONFLICTNO		0x7000000b
+#define	DT_MIPS_LIBLISTNO		0x70000010
+#define	DT_MIPS_SYMTABNO		0x70000011
+#define	DT_MIPS_UNREFEXTNO		0x70000012
+#define	DT_MIPS_GOTSYM			0x70000013
+#define	DT_MIPS_HIPAGENO		0x70000014
+#define	DT_MIPS_RLD_MAP			0x70000016
+#define	DT_MIPS_DELTA_CLASS		0x70000017
+#define	DT_MIPS_DELTA_CLASS_NO		0x70000018
+#define	DT_MIPS_DELTA_INSTANCE		0x70000019
+#define	DT_MIPS_DELTA_INSTANCE_NO	0x7000001A
+#define	DT_MIPS_DELTA_RELOC		0x7000001B
+#define	DT_MIPS_DELTA_RELOC_NO		0x7000001C
+#define	DT_MIPS_DELTA_SYM		0x7000001D
+#define	DT_MIPS_DELTA_SYM_NO		0x7000001E
+#define	DT_MIPS_DELTA_CLASSSYM		0x70000020
+#define	DT_MIPS_DELTA_CLASSSYM_NO	0x70000021
+#define	DT_MIPS_CXX_FLAGS		0x70000022
+#define	DT_MIPS_PIXIE_INIT		0x70000023
+#define	DT_MIPS_SYMBOL_LIB		0x70000024
+#define	DT_MIPS_LOCALPAGE_GOTIDX	0x70000025
+#define	DT_MIPS_LOCAL_GOTIDX		0x70000026
+#define	DT_MIPS_HIDDEN_GOTIDX		0x70000027
+#define	DT_MIPS_PROTECTED_GOTIDX	0x70000028
+#define	DT_MIPS_OPTIONS			0x70000029
+#define	DT_MIPS_INTERFACE		0x7000002A
+#define	DT_MIPS_DYNSTR_ALIGN		0x7000002B
+#define	DT_MIPS_INTERFACE_SIZE		0x7000002C
+#define	DT_MIPS_RLD_TEXT_RESOLVE_ADDR	0x7000002D
+#define	DT_MIPS_PERF_SUFFIX		0x7000002E
+#define	DT_MIPS_COMPACT_SIZE		0x7000002F
+#define	DT_MIPS_GP_VALUE		0x70000030
+#define	DT_MIPS_AUX_DYNAMIC		0x70000031
+#define	DT_MIPS_PLTGOT			0x70000032
+#define	DT_MIPS_RLD_OBJ_UPDATE		0x70000033
+#define	DT_MIPS_RWPLT			0x70000034
+#define	DT_MIPS_RLD_MAP_REL		0x70000035
+
+#define	DT_PPC_GOT			0x70000000
+#define	DT_PPC_TLSOPT			0x70000001
+
+#define	DT_PPC64_GLINK			0x70000000
+#define	DT_PPC64_OPD			0x70000001
+#define	DT_PPC64_OPDSZ			0x70000002
+#define	DT_PPC64_TLSOPT			0x70000003
+
 #define	DT_AUXILIARY	0x7ffffffd	/* shared library auxiliary name */
 #define	DT_USED		0x7ffffffe	/* ignored - same as needed */
 #define	DT_FILTER	0x7fffffff	/* shared library filter name */
@@ -492,6 +747,21 @@ typedef struct {
 #define	DF_1_INTERPOSE	0x00000400	/* Interpose all objects but main */
 #define	DF_1_NODEFLIB	0x00000800	/* Do not search default paths */
 
+/* Values for l_flags. */
+#define	LL_NONE			0x0	/* no flags */
+#define	LL_EXACT_MATCH		0x1	/* require an exact match */
+#define	LL_IGNORE_INT_VER	0x2	/* ignore version incompatibilities */
+#define	LL_REQUIRE_MINOR	0x4
+#define	LL_EXPORTS		0x8
+#define	LL_DELAY_LOAD		0x10
+#define	LL_DELTA		0x20
+
+/* Values for n_type used in executables. */
+#define	NT_FREEBSD_ABI_TAG	1
+#define	NT_FREEBSD_NOINIT_TAG	2
+#define	NT_FREEBSD_ARCH_TAG	3
+#define	NT_FREEBSD_FEATURE_CTL	4
+
 /* Values for n_type.  Used in core files. */
 #define	NT_PRSTATUS	1	/* Process status. */
 #define	NT_FPREGSET	2	/* Floating point registers. */
@@ -506,13 +776,19 @@ typedef struct {
 #define	NT_PROCSTAT_OSREL	14	/* Procstat osreldate data. */
 #define	NT_PROCSTAT_PSSTRINGS	15	/* Procstat ps_strings data. */
 #define	NT_PROCSTAT_AUXV	16	/* Procstat auxv data. */
+#define	NT_PTLWPINFO		17	/* Thread ptrace miscellaneous info. */
+#define	NT_PPC_VMX	0x100	/* PowerPC Altivec/VMX registers */
+#define	NT_PPC_VSX	0x102	/* PowerPC VSX registers */
+#define	NT_X86_XSTATE	0x202	/* x86 XSAVE extended state. */
+#define	NT_ARM_VFP	0x400	/* ARM VFP registers */
 
 /* Symbol Binding - ELFNN_ST_BIND - st_info */
 #define	STB_LOCAL	0	/* Local symbol */
 #define	STB_GLOBAL	1	/* Global symbol */
 #define	STB_WEAK	2	/* like global - lower precedence */
-#define	STB_LOOS	10	/* Reserved range for operating system */
-#define	STB_HIOS	12	/*   specific semantics. */
+#define	STB_LOOS	10	/* Start of operating system reserved range. */
+#define	STB_GNU_UNIQUE	10	/* Unique symbol (GNU) */
+#define	STB_HIOS	12	/* End of operating system reserved range. */
 #define	STB_LOPROC	13	/* reserved range for processor */
 #define	STB_HIPROC	15	/*   specific semantics. */
 
@@ -528,8 +804,9 @@ typedef struct {
 #define	STT_LOOS	10	/* Reserved range for operating system */
 #define	STT_GNU_IFUNC	10
 #define	STT_HIOS	12	/*   specific semantics. */
-#define	STT_LOPROC	13	/* reserved range for processor */
-#define	STT_HIPROC	15	/*   specific semantics. */
+#define	STT_LOPROC	13	/* Start of processor reserved range. */
+#define	STT_SPARC_REGISTER 13	/* SPARC register information. */
+#define	STT_HIPROC	15	/* End of processor reserved range. */
 
 /* Symbol visibility - ELFNN_ST_VISIBILITY - st_other */
 #define	STV_DEFAULT	0x0	/* Default visibility (see binding). */
@@ -598,6 +875,57 @@ typedef struct {
 #define	SYMINFO_CURRENT		1
 #define	SYMINFO_NUM		2
 
+/* Values for ch_type (compressed section headers). */
+#define	ELFCOMPRESS_ZLIB	1	/* ZLIB/DEFLATE */
+#define	ELFCOMPRESS_LOOS	0x60000000	/* OS-specific */
+#define	ELFCOMPRESS_HIOS	0x6fffffff
+#define	ELFCOMPRESS_LOPROC	0x70000000	/* Processor-specific */
+#define	ELFCOMPRESS_HIPROC	0x7fffffff
+
+/* Values for a_type. */
+#define	AT_NULL		0	/* Terminates the vector. */
+#define	AT_IGNORE	1	/* Ignored entry. */
+#define	AT_EXECFD	2	/* File descriptor of program to load. */
+#define	AT_PHDR		3	/* Program header of program already loaded. */
+#define	AT_PHENT	4	/* Size of each program header entry. */
+#define	AT_PHNUM	5	/* Number of program header entries. */
+#define	AT_PAGESZ	6	/* Page size in bytes. */
+#define	AT_BASE		7	/* Interpreter's base address. */
+#define	AT_FLAGS	8	/* Flags. */
+#define	AT_ENTRY	9	/* Where interpreter should transfer control. */
+#define	AT_NOTELF	10	/* Program is not ELF ?? */
+#define	AT_UID		11	/* Real uid. */
+#define	AT_EUID		12	/* Effective uid. */
+#ifndef __powerpc__
+#define	AT_GID		13	/* Real gid. */
+#define	AT_EGID		14	/* Effective gid. */
+#define	AT_EXECPATH	15	/* Path to the executable. */
+#define	AT_CANARY	16	/* Canary for SSP. */
+#define	AT_CANARYLEN	17	/* Length of the canary. */
+#define	AT_OSRELDATE	18	/* OSRELDATE. */
+#define	AT_NCPUS	19	/* Number of CPUs. */
+#define	AT_PAGESIZES	20	/* Pagesizes. */
+#define	AT_PAGESIZESLEN	21	/* Number of pagesizes. */
+#else /* defined(__powerpc__) */
+#define	AT_EXECPATH	13
+#define	AT_CANARY	14
+#define	AT_CANARYLEN	15
+#define	AT_OSRELDATE	16
+#define	AT_NCPUS	17
+#define	AT_PAGESIZES	18
+#define	AT_PAGESIZESLEN	19
+#define	AT_STACKPROT	21
+#endif /* defined(__powerpc__) */
+#define	AT_TIMEKEEP	22	/* Pointer to timehands. */
+#ifndef __powerpc__
+#define	AT_STACKPROT	23	/* Initial stack protection. */
+#endif
+#define	AT_EHDRFLAGS	24	/* e_flags field from elf hdr */
+#define	AT_HWCAP	25	/* CPU feature flags. */
+#define	AT_HWCAP2	26	/* CPU feature flags 2. */
+
+#define	AT_COUNT	27	/* Count of defined aux entry types. */
+
 /*
  * Relocation types.
  *
@@ -637,6 +965,23 @@ typedef struct {
 #define	R_386_TLS_DTPOFF32	36	/* GOT entry containing TLS offset */
 #define	R_386_TLS_TPOFF32	37	/* GOT entry of -ve static TLS offset */
 #define	R_386_IRELATIVE		42	/* PLT entry resolved indirectly at runtime */
+
+#define	R_AARCH64_NONE		0	/* No relocation */
+#define	R_AARCH64_ABS64		257	/* Absolute offset */
+#define	R_AARCH64_ABS32		258	/* Absolute, 32-bit overflow check */
+#define	R_AARCH64_ABS16		259	/* Absolute, 16-bit overflow check */
+#define	R_AARCH64_PREL64	260	/* PC relative */
+#define	R_AARCH64_PREL32	261	/* PC relative, 32-bit overflow check */
+#define	R_AARCH64_PREL16	262	/* PC relative, 16-bit overflow check */
+#define	R_AARCH64_COPY		1024	/* Copy data from shared object */
+#define	R_AARCH64_GLOB_DAT	1025	/* Set GOT entry to data address */
+#define	R_AARCH64_JUMP_SLOT	1026	/* Set GOT entry to code address */
+#define	R_AARCH64_RELATIVE 	1027	/* Add load address of shared object */
+#define	R_AARCH64_TLS_DTPREL64	1028
+#define	R_AARCH64_TLS_DTPMOD64	1029
+#define	R_AARCH64_TLS_TPREL64 	1030
+#define	R_AARCH64_TLSDESC 	1031	/* Identify the TLS descriptor */
+#define	R_AARCH64_IRELATIVE	1032
 
 #define	R_ARM_NONE		0	/* No relocation. */
 #define	R_ARM_PC24		1
@@ -772,10 +1117,18 @@ typedef struct {
 #define	R_MIPS_CALL16	11	/* 16 bit GOT entry for function */
 #define	R_MIPS_GPREL32	12	/* GP relative 32 bit */
 #define	R_MIPS_64	18	/* Direct 64 bit */
-#define	R_MIPS_GOTHI16	21	/* GOT HI 16 bit */
-#define	R_MIPS_GOTLO16	22	/* GOT LO 16 bit */
+#define	R_MIPS_GOT_DISP	19
+#define	R_MIPS_GOT_PAGE	20
+#define	R_MIPS_GOT_OFST	21
+#define	R_MIPS_GOT_HI16	22	/* GOT HI 16 bit */
+#define	R_MIPS_GOT_LO16	23	/* GOT LO 16 bit */
+#define	R_MIPS_SUB	24
 #define	R_MIPS_CALLHI16 30	/* upper 16 bit GOT entry for function */
 #define	R_MIPS_CALLLO16 31	/* lower 16 bit GOT entry for function */
+#define	R_MIPS_JALR	37
+#define	R_MIPS_TLS_GD	42
+#define	R_MIPS_COPY	126
+#define	R_MIPS_JUMP_SLOT	127
 
 #define	R_PPC_NONE		0	/* No relocation. */
 #define	R_PPC_ADDR32		1
@@ -886,6 +1239,56 @@ typedef struct {
 #define	R_PPC_EMB_BIT_FLD	115
 #define	R_PPC_EMB_RELSDA	116
 
+/*
+ * RISC-V relocation types.
+ */
+
+/* Relocation types used by the dynamic linker. */
+#define	R_RISCV_NONE		0
+#define	R_RISCV_32		1
+#define	R_RISCV_64		2
+#define	R_RISCV_RELATIVE	3
+#define	R_RISCV_COPY		4
+#define	R_RISCV_JUMP_SLOT	5
+#define	R_RISCV_TLS_DTPMOD32	6
+#define	R_RISCV_TLS_DTPMOD64	7
+#define	R_RISCV_TLS_DTPREL32	8
+#define	R_RISCV_TLS_DTPREL64	9
+#define	R_RISCV_TLS_TPREL32	10
+#define	R_RISCV_TLS_TPREL64	11
+
+/* Relocation types not used by the dynamic linker. */
+#define	R_RISCV_BRANCH		16
+#define	R_RISCV_JAL		17
+#define	R_RISCV_CALL		18
+#define	R_RISCV_CALL_PLT	19
+#define	R_RISCV_GOT_HI20	20
+#define	R_RISCV_TLS_GOT_HI20	21
+#define	R_RISCV_TLS_GD_HI20	22
+#define	R_RISCV_PCREL_HI20	23
+#define	R_RISCV_PCREL_LO12_I	24
+#define	R_RISCV_PCREL_LO12_S	25
+#define	R_RISCV_HI20		26
+#define	R_RISCV_LO12_I		27
+#define	R_RISCV_LO12_S		28
+#define	R_RISCV_TPREL_HI20	29
+#define	R_RISCV_TPREL_LO12_I	30
+#define	R_RISCV_TPREL_LO12_S	31
+#define	R_RISCV_TPREL_ADD	32
+#define	R_RISCV_ADD8		33
+#define	R_RISCV_ADD16		34
+#define	R_RISCV_ADD32		35
+#define	R_RISCV_ADD64		36
+#define	R_RISCV_SUB8		37
+#define	R_RISCV_SUB16		38
+#define	R_RISCV_SUB32		39
+#define	R_RISCV_SUB64		40
+#define	R_RISCV_GNU_VTINHERIT	41
+#define	R_RISCV_GNU_VTENTRY	42
+#define	R_RISCV_ALIGN		43
+#define	R_RISCV_RVC_BRANCH	44
+#define	R_RISCV_RVC_JUMP	45
+
 #define	R_SPARC_NONE		0
 #define	R_SPARC_8		1
 #define	R_SPARC_16		2
@@ -991,6 +1394,19 @@ typedef struct {
 #define	R_X86_64_DTPOFF32	21	/* Offset in TLS block */
 #define	R_X86_64_GOTTPOFF	22	/* PC relative offset to IE GOT entry */
 #define	R_X86_64_TPOFF32	23	/* Offset in static TLS block */
+#define	R_X86_64_PC64		24	/* PC-relative 64 bit signed sym value. */
+#define	R_X86_64_GOTOFF64	25
+#define	R_X86_64_GOTPC32	26
+#define	R_X86_64_GOT64		27
+#define	R_X86_64_GOTPCREL64	28
+#define	R_X86_64_GOTPC64	29
+#define	R_X86_64_GOTPLT64	30
+#define	R_X86_64_PLTOFF64	31
+#define	R_X86_64_SIZE32		32
+#define	R_X86_64_SIZE64		33
+#define	R_X86_64_GOTPC32_TLSDESC 34
+#define	R_X86_64_TLSDESC_CALL	35
+#define	R_X86_64_TLSDESC	36
 #define	R_X86_64_IRELATIVE	37
 
 

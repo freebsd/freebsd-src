@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Juli Mallett.  All rights reserved.
  *
  * This software was written by Juli Mallett <jmallett@FreeBSD.org> for the
@@ -45,79 +47,48 @@ __FBSDID("$FreeBSD$");
 
 #include <libufs.h>
 
-static int superblocks[] = SBLOCKSEARCH;
-
 int
 sbread(struct uufsd *disk)
 {
-	uint8_t block[MAXBSIZE];
 	struct fs *fs;
-	int sb, superblock;
-	int i, size, blks;
-	uint8_t *space;
 
 	ERROR(disk, NULL);
 
-	fs = &disk->d_fs;
-	superblock = superblocks[0];
-
-	for (sb = 0; (superblock = superblocks[sb]) != -1; sb++) {
-		if (bread(disk, superblock, disk->d_sb, SBLOCKSIZE) == -1) {
+	if ((errno = sbget(disk->d_fd, &fs, -1)) != 0) {
+		switch (errno) {
+		case EIO:
 			ERROR(disk, "non-existent or truncated superblock");
-			return (-1);
-		}
-		if (fs->fs_magic == FS_UFS1_MAGIC)
-			disk->d_ufs = 1;
-		if (fs->fs_magic == FS_UFS2_MAGIC &&
-		    fs->fs_sblockloc == superblock)
-			disk->d_ufs = 2;
-		if (fs->fs_bsize <= MAXBSIZE &&
-		    (size_t)fs->fs_bsize >= sizeof(*fs)) {
-			if (disk->d_ufs)
-				break;
+			break;
+		case ENOENT:
+			ERROR(disk, "no usable known superblock found");
+			break;
+		case ENOSPC:
+			ERROR(disk, "failed to allocate space for superblock "
+			    "information");
+			break;
+		case EINVAL:
+			ERROR(disk, "The previous newfs operation on this "
+			    "volume did not complete.\nYou must complete "
+			    "newfs before using this volume.");
+			break;
+		default:
+			ERROR(disk, "unknown superblock read error");
+			errno = EIO;
+			break;
 		}
 		disk->d_ufs = 0;
-	}
-	if (superblock == -1 || disk->d_ufs == 0) {
-		/*
-		 * Other error cases will result in errno being set, here we
-		 * must set it to indicate no superblock could be found with
-		 * which to associate this disk/filesystem.
-		 */
-		ERROR(disk, "no usable known superblock found");
-		errno = ENOENT;
 		return (-1);
 	}
+	memcpy(&disk->d_fs, fs, fs->fs_sbsize);
+	free(fs);
+	fs = &disk->d_fs;
+	if (fs->fs_magic == FS_UFS1_MAGIC)
+		disk->d_ufs = 1;
+	if (fs->fs_magic == FS_UFS2_MAGIC)
+		disk->d_ufs = 2;
 	disk->d_bsize = fs->fs_fsize / fsbtodb(fs, 1);
-	disk->d_sblock = superblock / disk->d_bsize;
-	/*
-	 * Read in the superblock summary information.
-	 */
-	size = fs->fs_cssize;
-	blks = howmany(size, fs->fs_fsize);
-	size += fs->fs_ncg * sizeof(int32_t);
-	space = malloc(size);
-	if (space == NULL) {
-		ERROR(disk, "failed to allocate space for summary information");
-		return (-1);
-	}
-	fs->fs_csp = (struct csum *)space;
-	for (i = 0; i < blks; i += fs->fs_frag) {
-		size = fs->fs_bsize;
-		if (i + fs->fs_frag > blks)
-			size = (blks - i) * fs->fs_fsize;
-		if (bread(disk, fsbtodb(fs, fs->fs_csaddr + i), block, size)
-		    == -1) {
-			ERROR(disk, "Failed to read sb summary information");
-			free(fs->fs_csp);
-			return (-1);
-		}
-		bcopy(block, space, size);
-		space += size;
-	}
-	fs->fs_maxcluster = (uint32_t *)space;
+	disk->d_sblock = fs->fs_sblockloc / disk->d_bsize;
 	disk->d_sbcsum = fs->fs_csp;
-
 	return (0);
 }
 
@@ -125,45 +96,114 @@ int
 sbwrite(struct uufsd *disk, int all)
 {
 	struct fs *fs;
-	int blks, size;
-	uint8_t *space;
-	unsigned i;
+	int rv;
 
 	ERROR(disk, NULL);
 
-	fs = &disk->d_fs;
-
-	if (!disk->d_sblock) {
-		disk->d_sblock = disk->d_fs.fs_sblockloc / disk->d_bsize;
-	}
-
-	if (bwrite(disk, disk->d_sblock, fs, SBLOCKSIZE) == -1) {
-		ERROR(disk, "failed to write superblock");
+	rv = ufs_disk_write(disk);
+	if (rv == -1) {
+		ERROR(disk, "failed to open disk for writing");
 		return (-1);
 	}
-	/*
-	 * Write superblock summary information.
-	 */
-	blks = howmany(fs->fs_cssize, fs->fs_fsize);
-	space = (uint8_t *)disk->d_sbcsum;
-	for (i = 0; i < blks; i += fs->fs_frag) {
-		size = fs->fs_bsize;
-		if (i + fs->fs_frag > blks)
-			size = (blks - i) * fs->fs_fsize;
-		if (bwrite(disk, fsbtodb(fs, fs->fs_csaddr + i), space, size)
-		    == -1) {
-			ERROR(disk, "Failed to write sb summary information");
+
+	fs = &disk->d_fs;
+	if ((errno = sbput(disk->d_fd, fs, all ? fs->fs_ncg : 0)) != 0) {
+		switch (errno) {
+		case EIO:
+			ERROR(disk, "failed to write superblock");
+			break;
+		default:
+			ERROR(disk, "unknown superblock write error");
+			errno = EIO;
+			break;
+		}
+		return (-1);
+	}
+	return (0);
+}
+
+/*
+ * These are the low-level functions that actually read and write
+ * the superblock and its associated data. The actual work is done by
+ * the functions ffs_sbget and ffs_sbput in /sys/ufs/ffs/ffs_subr.c.
+ */
+static int use_pread(void *devfd, off_t loc, void **bufp, int size);
+static int use_pwrite(void *devfd, off_t loc, void *buf, int size);
+
+/*
+ * Read a superblock from the devfd device allocating memory returned
+ * in fsp. Also read the superblock summary information.
+ */
+int
+sbget(int devfd, struct fs **fsp, off_t sblockloc)
+{
+
+	return (ffs_sbget(&devfd, fsp, sblockloc, "user", use_pread));
+}
+
+/*
+ * A read function for use by user-level programs using libufs.
+ */
+static int
+use_pread(void *devfd, off_t loc, void **bufp, int size)
+{
+	int fd;
+
+	fd = *(int *)devfd;
+	if ((*bufp = malloc(size)) == NULL)
+		return (ENOSPC);
+	if (pread(fd, *bufp, size, loc) != size)
+		return (EIO);
+	return (0);
+}
+
+/*
+ * Write a superblock to the devfd device from the memory pointed to by fs.
+ * Also write out the superblock summary information but do not free the
+ * summary information memory.
+ *
+ * Additionally write out numaltwrite of the alternate superblocks. Use
+ * fs->fs_ncg to write out all of the alternate superblocks.
+ */
+int
+sbput(int devfd, struct fs *fs, int numaltwrite)
+{
+	struct csum *savedcsp;
+	off_t savedactualloc;
+	int i, error;
+
+	if ((error = ffs_sbput(&devfd, fs, fs->fs_sblockactualloc,
+	     use_pwrite)) != 0)
+		return (error);
+	if (numaltwrite == 0)
+		return (0);
+	savedactualloc = fs->fs_sblockactualloc;
+	savedcsp = fs->fs_csp;
+	fs->fs_csp = NULL;
+	for (i = 0; i < numaltwrite; i++) {
+		fs->fs_sblockactualloc = dbtob(fsbtodb(fs, cgsblock(fs, i)));
+		if ((error = ffs_sbput(&devfd, fs, fs->fs_sblockactualloc,
+		     use_pwrite)) != 0) {
+			fs->fs_sblockactualloc = savedactualloc;
+			fs->fs_csp = savedcsp;
 			return (-1);
 		}
-		space += size;
 	}
-	if (all) {
-		for (i = 0; i < fs->fs_ncg; i++)
-			if (bwrite(disk, fsbtodb(fs, cgsblock(fs, i)),
-			    fs, SBLOCKSIZE) == -1) {
-				ERROR(disk, "failed to update a superblock");
-				return (-1);
-			}
-	}
+	fs->fs_sblockactualloc = savedactualloc;
+	fs->fs_csp = savedcsp;
+	return (0);
+}
+
+/*
+ * A write function for use by user-level programs using sbput in libufs.
+ */
+static int
+use_pwrite(void *devfd, off_t loc, void *buf, int size)
+{
+	int fd;
+
+	fd = *(int *)devfd;
+	if (pwrite(fd, buf, size, loc) != size)
+		return (EIO);
 	return (0);
 }

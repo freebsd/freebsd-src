@@ -1,5 +1,7 @@
-/*
+/*-
  * hccontrol.c
+ *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
@@ -29,6 +31,7 @@
  * $FreeBSD$
  */
 
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
@@ -102,13 +105,14 @@ socket_open(char const *node)
 	int					 s, mib[4], num;
 	size_t					 size;
 	struct nodeinfo 			*nodes;
+	char                                    *lnode = NULL;
 
 	num = find_hci_nodes(&nodes);
 	if (num == 0)
 		errx(7, "Could not find HCI nodes");
 
 	if (node == NULL) {
-		node = strdup(nodes[0].name);
+		node = lnode = strdup(nodes[0].name);
 		if (num > 1)
 			fprintf(stdout, "Using HCI node: %s\n", node);
 	}
@@ -129,6 +133,7 @@ socket_open(char const *node)
 	if (connect(s, (struct sockaddr *) &addr, sizeof(addr)) < 0)
 		err(3, "Could not connect socket, node=%s", node);
 
+	free(lnode);
 	memset(&filter, 0, sizeof(filter));
 	bit_set(filter.event_mask, NG_HCI_EVENT_COMMAND_COMPL - 1);
 	bit_set(filter.event_mask, NG_HCI_EVENT_COMMAND_STATUS - 1);
@@ -143,6 +148,7 @@ socket_open(char const *node)
 	bit_set(filter.event_mask, NG_HCI_EVENT_READ_CLOCK_OFFSET_COMPL - 1);
 	bit_set(filter.event_mask, NG_HCI_EVENT_CON_PKT_TYPE_CHANGED - 1);
 	bit_set(filter.event_mask, NG_HCI_EVENT_ROLE_CHANGE - 1);
+	bit_set(filter.event_mask, NG_HCI_EVENT_LE -1);
 
 	if (setsockopt(s, SOL_HCI_RAW, SO_HCI_RAW_FILTER, 
 			(void * const) &filter, sizeof(filter)) < 0)
@@ -181,6 +187,7 @@ do_hci_command(char const *node, int argc, char **argv)
 			print_hci_command(host_controller_baseband_commands);
 			print_hci_command(info_commands);
 			print_hci_command(status_commands);
+			print_hci_command(le_commands);
 			print_hci_command(node_commands);
 			fprintf(stdout, "\nFor more information use " \
 				"'help command'\n");
@@ -212,6 +219,11 @@ do_hci_command(char const *node, int argc, char **argv)
 	if (c != NULL)
 		goto execute;
 
+	c = find_hci_command(cmd, le_commands);
+	if (c != NULL)
+		goto execute;
+
+	
 	c = find_hci_command(cmd, node_commands);
 	if (c == NULL) {
 		fprintf(stdout, "Unknown command: \"%s\"\n", cmd);

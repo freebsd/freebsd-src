@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * units.c   Copyright (c) 1993 by Adrian Mariano (adrian@cam.cornell.edu)
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,12 +33,10 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-#include <sys/capsicum.h>
-
-#include "pathnames.h"
+#include <capsicum_helpers.h>
 
 #ifndef UNITSFILE
-#define UNITSFILE _PATH_UNITSLIB
+#define UNITSFILE "/usr/share/misc/definitions.units"
 #endif
 
 #define MAXUNITS 1000
@@ -47,6 +47,7 @@ static const char rcsid[] =
 #define PRIMITIVECHAR '!'
 
 static const char *powerstring = "^";
+static const char *numfmt = "%.8g";
 
 static struct {
 	char *uname;
@@ -128,12 +129,12 @@ readunits(const char *userfile)
 	linenum = 0;
 
 	if (userfile) {
-		unitfile = fopen(userfile, "rt");
+		unitfile = fopen(userfile, "r");
 		if (!unitfile)
 			errx(1, "unable to open units file '%s'", userfile);
 	}
 	else {
-		unitfile = fopen(UNITSFILE, "rt");
+		unitfile = fopen(UNITSFILE, "r");
 		if (!unitfile) {
 			char *direc, *env;
 			char filename[1000];
@@ -155,8 +156,7 @@ readunits(const char *userfile)
 		}
 	}
 	cap_rights_init(&unitfilerights, CAP_READ, CAP_FSTAT);
-	if (cap_rights_limit(fileno(unitfile), &unitfilerights) < 0
-		&& errno != ENOSYS)
+	if (caph_rights_limit(fileno(unitfile), &unitfilerights) < 0)
 		err(1, "cap_rights_limit() failed");
 	while (!feof(unitfile)) {
 		if (!fgets(line, sizeof(line), unitfile))
@@ -255,7 +255,7 @@ showunit(struct unittype * theunit)
 	int printedslash;
 	int counter = 1;
 
-	printf("%.8g", theunit->factor);
+	printf(numfmt, theunit->factor);
 	if (theunit->offset)
 		printf("&%.8g", theunit->offset);
 	for (ptr = theunit->numerator; *ptr; ptr++) {
@@ -353,6 +353,7 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 					num = atof(item);
 					if (!num) {
 						zeroerror();
+						free(savescr);
 						return 1;
 					}
 					if (doingtop ^ flip) {
@@ -365,6 +366,7 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 					num = atof(divider + 1);
 					if (!num) {
 						zeroerror();
+						free(savescr);
 						return 1;
 					}
 					if (doingtop ^ flip) {
@@ -379,6 +381,7 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 					num = atof(item);
 					if (!num) {
 						zeroerror();
+						free(savescr);
 						return 1;
 					}
 					if (doingtop ^ flip) {
@@ -400,9 +403,12 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 					repeat = item[strlen(item) - 1] - '0';
 					item[strlen(item) - 1] = 0;
 				}
-				for (; repeat; repeat--)
-					if (addsubunit(doingtop ^ flip ? theunit->numerator : theunit->denominator, item))
+				for (; repeat; repeat--) {
+					if (addsubunit(doingtop ^ flip ? theunit->numerator : theunit->denominator, item)) {
+						free(savescr);
 						return 1;
+					}
+				}
 			}
 			item = strtok(NULL, " *\t/\n");
 		}
@@ -618,8 +624,10 @@ compareproducts(char **one, char **two)
 			two++;
 		else if (strcmp(*one, *two))
 			return 1;
-		else
-			one++, two++;
+		else {
+			one++;
+			two++;
+		}
 	}
 	return 0;
 }
@@ -719,11 +727,11 @@ showanswer(struct unittype * have, struct unittype * want)
 }
 
 
-static void 
+static void __dead2
 usage(void)
 {
 	fprintf(stderr,
-		"usage: units [-f unitsfile] [-UVq] [from-unit to-unit]\n");
+		"usage: units [-f unitsfile] [-H historyfile] [-UVq] [from-unit to-unit]\n");
 	exit(3);
 }
 
@@ -731,6 +739,7 @@ static struct option longopts[] = {
 	{"help", no_argument, NULL, 'h'},
 	{"exponential", no_argument, NULL, 'e'},
 	{"file", required_argument, NULL, 'f'},
+	{"history", required_argument, NULL, 'H'},
 	{"output-format", required_argument, NULL, 'o'},
 	{"quiet", no_argument, NULL, 'q'},
 	{"terse", no_argument, NULL, 't'},
@@ -749,15 +758,19 @@ main(int argc, char **argv)
 	int optchar;
 	bool quiet;
 	bool readfile;
+	bool quit;
 	History *inhistory;
 	EditLine *el;
 	HistEvent ev;
 	int inputsz;
+	char const * history_file;
 
 	quiet = false;
 	readfile = false;
-	outputformat = "%.8g";
-	while ((optchar = getopt_long(argc, argv, "+ehf:oqtvUV", longopts, NULL)) != -1) {
+	history_file = NULL;
+	outputformat = numfmt;
+	quit = false;
+	while ((optchar = getopt_long(argc, argv, "+ehf:o:qtvH:UV", longopts, NULL)) != -1) {
 		switch (optchar) {
 		case 'e':
 			outputformat = "%6e";
@@ -768,6 +781,9 @@ main(int argc, char **argv)
 				readunits(NULL);
 			else
 				readunits(optarg);
+			break;
+		case 'H':
+			history_file = optarg;
 			break;
 		case 'q':
 			quiet = true;
@@ -790,7 +806,6 @@ main(int argc, char **argv)
 			else
 				printf("Units data file not found");
 			exit(0);
-			break;
 		case 'h':
 			/* FALLTHROUGH */
 
@@ -802,21 +817,10 @@ main(int argc, char **argv)
 	if (!readfile)
 		readunits(NULL);
 
-	inhistory = history_init();
-	el = el_init(argv[0], stdin, stdout, stderr);
-	el_set(el, EL_PROMPT, &prompt);
-	el_set(el, EL_EDITOR, "emacs");
-	el_set(el, EL_SIGNAL, 1);
-	el_set(el, EL_HIST, history, inhistory);
-	el_source(el, NULL);
-	history(inhistory, &ev, H_SETSIZE, 800);
-	if (inhistory == 0)
-		err(1, "Could not initialize history");
-
-	if (cap_enter() < 0 && errno != ENOSYS)
-		err(1, "unable to enter capability mode");
-
 	if (optind == argc - 2) {
+		if (caph_enter() < 0)
+			err(1, "unable to enter capability mode");
+
 		havestr = argv[optind];
 		wantstr = argv[optind + 1];
 		initializeunit(&have);
@@ -826,41 +830,65 @@ main(int argc, char **argv)
 		addunit(&want, wantstr, 0, 1);
 		completereduce(&want);
 		showanswer(&have, &want);
-	}
-	else {
+	} else {
+		inhistory = history_init();
+		el = el_init(argv[0], stdin, stdout, stderr);
+		el_set(el, EL_PROMPT, &prompt);
+		el_set(el, EL_EDITOR, "emacs");
+		el_set(el, EL_SIGNAL, 1);
+		el_set(el, EL_HIST, history, inhistory);
+		el_source(el, NULL);
+		history(inhistory, &ev, H_SETSIZE, 800);
+		if (inhistory == 0)
+			err(1, "Could not initialize history");
+
+		if (caph_enter() < 0)
+			err(1, "unable to enter capability mode");
+
 		if (!quiet)
 			printf("%d units, %d prefixes\n", unitcount,
 			    prefixcount);
-		for (;;) {
+		while (!quit) {
 			do {
 				initializeunit(&have);
 				if (!quiet)
 					promptstr = "You have: ";
 				havestr = el_gets(el, &inputsz);
-				if (havestr == NULL)
-					exit(0);
+				if (havestr == NULL) {
+					quit = true;
+					break;
+				}
 				if (inputsz > 0)
 					history(inhistory, &ev, H_ENTER,
 					havestr);
 			} while (addunit(&have, havestr, 0, 1) ||
 			    completereduce(&have));
+			if (quit) {
+				break;
+			}
 			do {
 				initializeunit(&want);
 				if (!quiet)
 					promptstr = "You want: ";
 				wantstr = el_gets(el, &inputsz);
-				if (wantstr == NULL)
-					exit(0);
+				if (wantstr == NULL) {
+					quit = true;
+					break;
+				}
 				if (inputsz > 0)
 					history(inhistory, &ev, H_ENTER,
 					wantstr);
 			} while (addunit(&want, wantstr, 0, 1) ||
 			    completereduce(&want));
+			if (quit) {
+				break;
+			}
 			showanswer(&have, &want);
 		}
+
+		history_end(inhistory);
+		el_end(el);
 	}
 
-	history_end(inhistory);
-	el_end(el);
 	return (0);
 }

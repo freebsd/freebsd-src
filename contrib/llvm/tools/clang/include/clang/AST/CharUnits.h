@@ -40,14 +40,14 @@ namespace clang {
       typedef int64_t QuantityType;
 
     private:
-      QuantityType Quantity;
+      QuantityType Quantity = 0;
 
       explicit CharUnits(QuantityType C) : Quantity(C) {}
 
     public:
 
       /// CharUnits - A default constructor.
-      CharUnits() : Quantity(0) {}
+      CharUnits() = default;
 
       /// Zero - Construct a CharUnits quantity of zero.
       static CharUnits Zero() {
@@ -130,12 +130,28 @@ namespace clang {
         return (Quantity & -Quantity) == Quantity;
       }
 
+      /// Test whether this is a multiple of the other value.
+      ///
+      /// Among other things, this promises that
+      /// self.alignTo(N) will just return self.
+      bool isMultipleOf(CharUnits N) const {
+        return (*this % N) == 0;
+      }
+
       // Arithmetic operators.
       CharUnits operator* (QuantityType N) const {
         return CharUnits(Quantity * N);
       }
+      CharUnits &operator*= (QuantityType N) {
+        Quantity *= N;
+        return *this;
+      }
       CharUnits operator/ (QuantityType N) const {
         return CharUnits(Quantity / N);
+      }
+      CharUnits &operator/= (QuantityType N) {
+        Quantity /= N;
+        return *this;
       }
       QuantityType operator/ (const CharUnits &Other) const {
         return Quantity / Other.Quantity;
@@ -162,23 +178,27 @@ namespace clang {
       /// getQuantity - Get the raw integer representation of this quantity.
       QuantityType getQuantity() const { return Quantity; }
 
-      /// RoundUpToAlignment - Returns the next integer (mod 2**64) that is
+      /// alignTo - Returns the next integer (mod 2**64) that is
       /// greater than or equal to this quantity and is a multiple of \p Align.
       /// Align must be non-zero.
-      CharUnits RoundUpToAlignment(const CharUnits &Align) {
-        return CharUnits(llvm::RoundUpToAlignment(Quantity, 
-                                                  Align.Quantity));
+      CharUnits alignTo(const CharUnits &Align) const {
+        return CharUnits(llvm::alignTo(Quantity, Align.Quantity));
       }
 
       /// Given that this is a non-zero alignment value, what is the
       /// alignment at the given offset?
-      CharUnits alignmentAtOffset(CharUnits offset) {
-        // alignment: 0010000
-        // offset:    1011100
-        // lowBits:   0001011
-        // result:    0000100
-        QuantityType lowBits = (Quantity-1) & (offset.Quantity-1);
-        return CharUnits((lowBits + 1) & ~lowBits);
+      CharUnits alignmentAtOffset(CharUnits offset) const {
+        assert(Quantity != 0 && "offsetting from unknown alignment?");
+        return CharUnits(llvm::MinAlign(Quantity, offset.Quantity));
+      }
+
+      /// Given that this is the alignment of the first element of an
+      /// array, return the minimum alignment of any element in the array.
+      CharUnits alignmentOfArrayElement(CharUnits elementSize) const {
+        // Since we don't track offsetted alignments, the alignment of
+        // the second element (or any odd element) will be minimally
+        // aligned.
+        return alignmentAtOffset(elementSize);
       }
 
 

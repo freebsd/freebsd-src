@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2011 glevand (geoffrey.levand@mail.ru)
  * All rights reserved.
  *
@@ -47,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/pio.h>
 #include <machine/bus.h>
 #include <machine/platform.h>
-#include <machine/pmap.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
 #include <sys/rman.h>

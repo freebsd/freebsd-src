@@ -2,6 +2,8 @@
 /*	$NetBSD: citrus_euctw.c,v 1.11 2008/06/14 16:01:07 tnozaki Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2002 Citrus Project,
  * All rights reserved.
  *
@@ -176,10 +178,10 @@ _citrus_EUCTW_encoding_module_uninit(_EUCTWEncodingInfo *ei __unused)
 
 static int
 _citrus_EUCTW_mbrtowc_priv(_EUCTWEncodingInfo * __restrict ei,
-    wchar_t * __restrict pwc, const char ** __restrict s,
+    wchar_t * __restrict pwc, char ** __restrict s,
     size_t n, _EUCTWState * __restrict psenc, size_t * __restrict nresult)
 {
-	const char *s0;
+	char *s0;
 	wchar_t wchar;
 	int c, chlenbak, cs;
 

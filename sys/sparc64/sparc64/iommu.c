@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-3-Clause
+ *
  * Copyright (c) 1999, 2000 Matthew R. Green
  * All rights reserved.
  *
@@ -101,7 +103,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/bus_private.h>
 #include <machine/iommureg.h>
-#include <machine/pmap.h>
 #include <machine/resource.h>
 #include <machine/ver.h>
 

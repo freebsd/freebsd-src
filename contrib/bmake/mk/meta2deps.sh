@@ -52,7 +52,7 @@
 #	$SB/obj-i386/bsd/gnu/lib/csu
 #	$SB/obj-i386/bsd/gnu/lib/libgcc
 #	$SB/obj-i386/bsd/include
-#	$SB/obj-i386/bsd/lib/csu/i386-elf
+#	$SB/obj-i386/bsd/lib/csu/i386
 #	$SB/obj-i386/bsd/lib/libc
 #	$SB/src/bsd/include
 #	$SB/src/bsd/sys/i386/include
@@ -77,7 +77,7 @@
 
 
 # RCSid:
-#	$Id: meta2deps.sh,v 1.7 2014/04/05 22:56:54 sjg Exp $
+#	$Id: meta2deps.sh,v 1.12 2016/12/13 20:44:16 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -139,10 +139,15 @@ add_list() {
     eval "$name=\"$list\""
 }
 
+_excludes_f() {
+    egrep -v "$EXCLUDES"
+}
+
 meta2deps() {
     DPDEPS=
     SRCTOPS=$SRCTOP
     OBJROOTS=
+    EXCLUDES=
     while :
     do
 	case "$1" in
@@ -153,6 +158,7 @@ meta2deps() {
 	-H) HOST_TARGET=$2; shift 2;;
 	-S) add_list SRCTOPS $2; shift 2;;
 	-O) add_list OBJROOTS $2; shift 2;;
+	-X) add_list EXCLUDES '|' $2; shift 2;;
 	-R) RELDIR=$2; shift 2;;
 	-T) TARGET_SPEC=$2; shift 2;;
 	*) break;;
@@ -212,8 +218,26 @@ meta2deps() {
     seenit=
     seensrc=
     lpid=
-    cat /dev/null "$@" |
-    sed -e 's,^CWD,C C,;/^[CREFL] /!d' -e "s,',,g" |
+    case "$EXCLUDES" in
+    "") _excludes=cat;;
+    *) _excludes=_excludes_f;;
+    esac
+    # handle @list files
+    case "$@" in
+    *@[!.]*)
+	for f in "$@"
+	do
+	    case "$f" in
+	    *.meta) cat $f;;
+	    @*) xargs cat < ${f#@};;
+	    *) cat $f;;
+	    esac
+	done
+	;;
+    *) cat /dev/null "$@";;
+    esac 2> /dev/null |
+    sed -e 's,^CWD,C C,;/^[CREFLM] /!d' -e "s,',,g" |
+    $_excludes |
     while read op pid path junk
     do
 	: op=$op pid=$pid path=$path
@@ -231,7 +255,7 @@ meta2deps() {
 	*)
 	    case "$lpid" in
 	    "") ;;
-	    *) eval ldir_$lpid=$ldir cwd_$lpid=$cwd;;
+	    *) eval ldir_$lpid=$ldir;;
 	    esac
 	    eval ldir=\${ldir_$pid:-$CWD} cwd=\${cwd_$pid:-$CWD}
 	    lpid=$pid
@@ -247,9 +271,11 @@ meta2deps() {
 	    esac
 	    # watch out for temp dirs that no longer exist
 	    test -d ${cwd:-/dev/null/no/such} || cwd=$CWD
+	    eval cwd_$pid=$cwd
 	    continue
 	    ;;
-	F,*)  eval cwd_$path=$cwd ldir_$path=$ldir
+	F,*) # $path is new pid  
+	    eval cwd_$path=$cwd ldir_$path=$ldir
 	    continue
 	    ;;	  
 	*)  dir=${path%/*}
@@ -285,7 +311,7 @@ meta2deps() {
 	*)  seen=$dir;;
 	esac
 	case "$dir" in
-	${CURDIR:-.}|${CURDIR:-.}/*|"") continue;;
+	${CURDIR:-.}|"") continue;;
 	$src_re)
 	    # avoid repeating ourselves...
 	    case "$DPDEPS,$seensrc," in

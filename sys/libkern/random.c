@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -39,8 +41,7 @@ __FBSDID("$FreeBSD$");
 static u_long randseed = 937186357; /* after srandom(1), NSHUFF counted */
 
 void
-srandom(seed)
-	u_long seed;
+srandom(u_long seed)
 {
 	int i;
 
@@ -50,14 +51,14 @@ srandom(seed)
 }
 
 /*
- * Pseudo-random number generator for randomizing the profiling clock,
+ * Pseudo-random number generator for perturbing the profiling clock,
  * and whatever else we might use it for.  The result is uniform on
  * [0, 2^31 - 1].
  */
 u_long
 random()
 {
-	register long x, hi, lo, t;
+	long x, hi, lo, t;
 
 	/*
 	 * Compute x[n + 1] = (7^5 * x[n]) mod (2^31 - 1).

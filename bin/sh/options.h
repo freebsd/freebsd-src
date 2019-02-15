@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,64 +40,64 @@ struct shparam {
 	unsigned char malloc;	/* if parameter list dynamically allocated */
 	unsigned char reset;	/* if getopts has been reset */
 	char **p;		/* parameter list */
+	char **optp;		/* parameter list for getopts */
 	char **optnext;		/* next parameter to be processed by getopts */
 	char *optptr;		/* used by getopts */
 };
 
 
 
-#define eflag optlist[0].val
-#define fflag optlist[1].val
-#define Iflag optlist[2].val
-#define iflag optlist[3].val
-#define mflag optlist[4].val
-#define nflag optlist[5].val
-#define sflag optlist[6].val
-#define xflag optlist[7].val
-#define vflag optlist[8].val
-#define Vflag optlist[9].val
-#define	Eflag optlist[10].val
-#define	Cflag optlist[11].val
-#define	aflag optlist[12].val
-#define	bflag optlist[13].val
-#define	uflag optlist[14].val
-#define	privileged optlist[15].val
-#define	Tflag optlist[16].val
-#define	Pflag optlist[17].val
-#define	hflag optlist[18].val
+#define eflag optval[0]
+#define fflag optval[1]
+#define Iflag optval[2]
+#define iflag optval[3]
+#define mflag optval[4]
+#define nflag optval[5]
+#define sflag optval[6]
+#define xflag optval[7]
+#define vflag optval[8]
+#define Vflag optval[9]
+#define	Eflag optval[10]
+#define	Cflag optval[11]
+#define	aflag optval[12]
+#define	bflag optval[13]
+#define	uflag optval[14]
+#define	privileged optval[15]
+#define	Tflag optval[16]
+#define	Pflag optval[17]
+#define	hflag optval[18]
+#define	nologflag optval[19]
 
-#define NOPTS	19
+#define NSHORTOPTS	19
+#define NOPTS		20
 
-struct optent {
-	const char *name;
-	const char letter;
-	char val;
-};
-
+extern char optval[NOPTS];
+extern const char optletter[NSHORTOPTS];
 #ifdef DEFINE_OPTIONS
-struct optent optlist[NOPTS] = {
-	{ "errexit",	'e',	0 },
-	{ "noglob",	'f',	0 },
-	{ "ignoreeof",	'I',	0 },
-	{ "interactive",'i',	0 },
-	{ "monitor",	'm',	0 },
-	{ "noexec",	'n',	0 },
-	{ "stdin",	's',	0 },
-	{ "xtrace",	'x',	0 },
-	{ "verbose",	'v',	0 },
-	{ "vi",		'V',	0 },
-	{ "emacs",	'E',	0 },
-	{ "noclobber",	'C',	0 },
-	{ "allexport",	'a',	0 },
-	{ "notify",	'b',	0 },
-	{ "nounset",	'u',	0 },
-	{ "privileged",	'p',	0 },
-	{ "trapsasync",	'T',	0 },
-	{ "physical",	'P',	0 },
-	{ "trackall",	'h',	0 },
-};
-#else
-extern struct optent optlist[NOPTS];
+char optval[NOPTS];
+const char optletter[NSHORTOPTS] = "efIimnsxvVECabupTPh";
+static const unsigned char optname[] =
+	"\007errexit"
+	"\006noglob"
+	"\011ignoreeof"
+	"\013interactive"
+	"\007monitor"
+	"\006noexec"
+	"\005stdin"
+	"\006xtrace"
+	"\007verbose"
+	"\002vi"
+	"\005emacs"
+	"\011noclobber"
+	"\011allexport"
+	"\006notify"
+	"\007nounset"
+	"\012privileged"
+	"\012trapsasync"
+	"\010physical"
+	"\010trackall"
+	"\005nolog"
+;
 #endif
 
 
@@ -108,7 +110,6 @@ extern char *nextopt_optptr;	/* used by nextopt */
 
 void procargs(int, char **);
 void optschanged(void);
-void setparam(char **);
 void freeparam(struct shparam *);
 int nextopt(const char *);
 void getoptsreset(const char *);

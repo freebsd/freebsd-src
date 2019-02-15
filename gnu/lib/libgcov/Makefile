@@ -4,17 +4,20 @@ MK_PROFILE=	no
 MK_SSP=		no
 
 .include <src.opts.mk>
-.include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
-GCCDIR=	${.CURDIR}/../../../contrib/gcc
-GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
+GCCDIR=	${SRCTOP}/contrib/gcc
+GCCLIB=	${SRCTOP}/contrib/gcclibs
+CCDIR=	${SRCTOP}/gnu/usr.bin/cc
+.include "${CCDIR}/Makefile.tgt"
+.include "${CCDIR}/cc_tools/Makefile.hdrs"
+
 .PATH: ${GCCDIR}/config/${GCC_CPU} ${GCCDIR}
 
 LIB=		gcov
 
 CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED
 CFLAGS+=	-D_PTHREADS -DGTHREAD_USE_WEAK
-CFLAGS+=	-I${.CURDIR}/../../usr.bin/cc/cc_tools \
+CFLAGS+=	-I${CCDIR}/cc_tools \
 		-I${GCCLIB}/include -I${GCCDIR}/config -I${GCCDIR} -I.
 
 .if ${TARGET_CPUARCH} == "arm"
@@ -32,7 +35,7 @@ SYMS = _gcov _gcov_merge_add _gcov_merge_single _gcov_merge_delta \
 OBJS=		${SYMS:S/$/.o/}
 OBJS_T=		${SYMS:S/$/.o/}
 OBJS_P=		${SYMS:S/$/.po/}
-OBJS_S=		${SYMS:S/$/.So/}
+OBJS_S=		${SYMS:S/$/.pico/}
 
 #-----------------------------------------------------------------------
 #
@@ -44,9 +47,6 @@ CC_S =	${CC} -c ${CFLAGS} ${PICFLAG} -DSHARED
 
 COMMONHDRS=	tm.h tconfig.h gcov-iov.h options.h
 CLEANFILES+=	${COMMONHDRS} cs-tm.h cs-tconfig.h options.h optionlist
-
-${COMMONHDRS}: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
-	(cd ${.CURDIR}; ${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET})
 
 ${OBJS} beforedepend: ${COMMONHDRS}
 

@@ -4,9 +4,117 @@
  *
  *****************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2014, Intel Corp.
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights. You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code. No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision. In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change. Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee. Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution. In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE. ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT, ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES. INTEL WILL NOT PROVIDE ANY
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS. INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government. In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
+ * following license:
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,29 +131,28 @@
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
-
-#define __UTDECODE_C__
+ *****************************************************************************/
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
+#include <contrib/dev/acpica/include/amlcode.h>
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utdecode")
@@ -121,7 +228,7 @@ const char        *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS] =
 };
 
 
-char *
+const char *
 AcpiUtGetRegionName (
     UINT8                   SpaceId)
 {
@@ -143,7 +250,7 @@ AcpiUtGetRegionName (
         return ("InvalidSpaceId");
     }
 
-    return (ACPI_CAST_PTR (char, AcpiGbl_RegionTypes[SpaceId]));
+    return (AcpiGbl_RegionTypes[SpaceId]);
 }
 
 
@@ -171,7 +278,7 @@ static const char        *AcpiGbl_EventTypes[ACPI_NUM_FIXED_EVENTS] =
 };
 
 
-char *
+const char *
 AcpiUtGetEventName (
     UINT32                  EventId)
 {
@@ -181,7 +288,7 @@ AcpiUtGetEventName (
         return ("InvalidEventID");
     }
 
-    return (ACPI_CAST_PTR (char, AcpiGbl_EventTypes[EventId]));
+    return (AcpiGbl_EventTypes[EventId]);
 }
 
 
@@ -203,7 +310,8 @@ AcpiUtGetEventName (
  *
  * The type ACPI_TYPE_ANY (Untyped) is used as a "don't care" when searching;
  * when stored in a table it really means that we have thus far seen no
- * evidence to indicate what type is actually going to be stored for this entry.
+ * evidence to indicate what type is actually going to be stored for this
+ & entry.
  */
 static const char           AcpiGbl_BadType[] = "UNDEFINED";
 
@@ -245,31 +353,47 @@ static const char           *AcpiGbl_NsTypeNames[] =
 };
 
 
-char *
+const char *
 AcpiUtGetTypeName (
     ACPI_OBJECT_TYPE        Type)
 {
 
     if (Type > ACPI_TYPE_INVALID)
     {
-        return (ACPI_CAST_PTR (char, AcpiGbl_BadType));
+        return (AcpiGbl_BadType);
     }
 
-    return (ACPI_CAST_PTR (char, AcpiGbl_NsTypeNames[Type]));
+    return (AcpiGbl_NsTypeNames[Type]);
 }
 
 
-char *
+const char *
 AcpiUtGetObjectTypeName (
     ACPI_OPERAND_OBJECT     *ObjDesc)
 {
+    ACPI_FUNCTION_TRACE (UtGetObjectTypeName);
+
 
     if (!ObjDesc)
     {
-        return ("[NULL Object Descriptor]");
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Null Object Descriptor\n"));
+        return_STR ("[NULL Object Descriptor]");
     }
 
-    return (AcpiUtGetTypeName (ObjDesc->Common.Type));
+    /* These descriptor types share a common area */
+
+    if ((ACPI_GET_DESCRIPTOR_TYPE (ObjDesc) != ACPI_DESC_TYPE_OPERAND) &&
+        (ACPI_GET_DESCRIPTOR_TYPE (ObjDesc) != ACPI_DESC_TYPE_NAMED))
+    {
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+            "Invalid object descriptor type: 0x%2.2X [%s] (%p)\n",
+            ACPI_GET_DESCRIPTOR_TYPE (ObjDesc),
+            AcpiUtGetDescriptorName (ObjDesc), ObjDesc));
+
+        return_STR ("Invalid object");
+    }
+
+    return_STR (AcpiUtGetTypeName (ObjDesc->Common.Type));
 }
 
 
@@ -285,7 +409,7 @@ AcpiUtGetObjectTypeName (
  *
  ******************************************************************************/
 
-char *
+const char *
 AcpiUtGetNodeName (
     void                    *Object)
 {
@@ -361,7 +485,7 @@ static const char           *AcpiGbl_DescTypeNames[] =
 };
 
 
-char *
+const char *
 AcpiUtGetDescriptorName (
     void                    *Object)
 {
@@ -376,9 +500,7 @@ AcpiUtGetDescriptorName (
         return ("Not a Descriptor");
     }
 
-    return (ACPI_CAST_PTR (char,
-        AcpiGbl_DescTypeNames[ACPI_GET_DESCRIPTOR_TYPE (Object)]));
-
+    return (AcpiGbl_DescTypeNames[ACPI_GET_DESCRIPTOR_TYPE (Object)]);
 }
 
 
@@ -436,11 +558,6 @@ AcpiUtGetReferenceName (
 }
 
 
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
-/*
- * Strings and procedures used for debug only
- */
-
 /*******************************************************************************
  *
  * FUNCTION:    AcpiUtGetMutexName
@@ -455,7 +572,7 @@ AcpiUtGetReferenceName (
 
 /* Names for internal mutex objects, used for debug output */
 
-static char                 *AcpiGbl_MutexNames[ACPI_NUM_MUTEX] =
+static const char           *AcpiGbl_MutexNames[ACPI_NUM_MUTEX] =
 {
     "ACPI_MTX_Interpreter",
     "ACPI_MTX_Namespace",
@@ -463,11 +580,9 @@ static char                 *AcpiGbl_MutexNames[ACPI_NUM_MUTEX] =
     "ACPI_MTX_Events",
     "ACPI_MTX_Caches",
     "ACPI_MTX_Memory",
-    "ACPI_MTX_CommandComplete",
-    "ACPI_MTX_CommandReady"
 };
 
-char *
+const char *
 AcpiUtGetMutexName (
     UINT32                  MutexId)
 {
@@ -480,6 +595,12 @@ AcpiUtGetMutexName (
     return (AcpiGbl_MutexNames[MutexId]);
 }
 
+
+#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+
+/*
+ * Strings and procedures used for debug only
+ */
 
 /*******************************************************************************
  *
@@ -495,7 +616,7 @@ AcpiUtGetMutexName (
 
 /* Names for Notify() values, used for debug output */
 
-static const char           *AcpiGbl_GenericNotify[ACPI_NOTIFY_MAX + 1] =
+static const char           *AcpiGbl_GenericNotify[ACPI_GENERIC_NOTIFY_MAX + 1] =
 {
     /* 00 */ "Bus Check",
     /* 01 */ "Device Check",
@@ -509,32 +630,36 @@ static const char           *AcpiGbl_GenericNotify[ACPI_NOTIFY_MAX + 1] =
     /* 09 */ "Device PLD Check",
     /* 0A */ "Reserved",
     /* 0B */ "System Locality Update",
-    /* 0C */ "Shutdown Request",
-    /* 0D */ "System Resource Affinity Update"
+    /* 0C */ "Reserved (was previously Shutdown Request)",  /* Reserved in ACPI 6.0 */
+    /* 0D */ "System Resource Affinity Update",
+    /* 0E */ "Heterogeneous Memory Attributes Update"       /* ACPI 6.2 */
 };
 
-static const char           *AcpiGbl_DeviceNotify[4] =
+static const char           *AcpiGbl_DeviceNotify[5] =
 {
     /* 80 */ "Status Change",
     /* 81 */ "Information Change",
     /* 82 */ "Device-Specific Change",
-    /* 83 */ "Device-Specific Change"
+    /* 83 */ "Device-Specific Change",
+    /* 84 */ "Reserved"
 };
 
-static const char           *AcpiGbl_ProcessorNotify[4] =
+static const char           *AcpiGbl_ProcessorNotify[5] =
 {
     /* 80 */ "Performance Capability Change",
     /* 81 */ "C-State Change",
     /* 82 */ "Throttling Capability Change",
-    /* 83 */ "Device-Specific Change"
+    /* 83 */ "Guaranteed Change",
+    /* 84 */ "Minimum Excursion"
 };
 
-static const char           *AcpiGbl_ThermalNotify[4] =
+static const char           *AcpiGbl_ThermalNotify[5] =
 {
     /* 80 */ "Thermal Status Change",
     /* 81 */ "Thermal Trip Point Change",
     /* 82 */ "Thermal Device List Change",
-    /* 83 */ "Thermal Relationship Change"
+    /* 83 */ "Thermal Relationship Change",
+    /* 84 */ "Reserved"
 };
 
 
@@ -544,23 +669,23 @@ AcpiUtGetNotifyName (
     ACPI_OBJECT_TYPE        Type)
 {
 
-    /* 00 - 0D are common to all object types */
+    /* 00 - 0D are "common to all object types" (from ACPI Spec) */
 
-    if (NotifyValue <= ACPI_NOTIFY_MAX)
+    if (NotifyValue <= ACPI_GENERIC_NOTIFY_MAX)
     {
         return (AcpiGbl_GenericNotify[NotifyValue]);
     }
 
-    /* 0D - 7F are reserved */
+    /* 0E - 7F are reserved */
 
     if (NotifyValue <= ACPI_MAX_SYS_NOTIFY)
     {
         return ("Reserved");
     }
 
-    /* 80 - 83 are per-object-type */
+    /* 80 - 84 are per-object-type */
 
-    if (NotifyValue <= 0x83)
+    if (NotifyValue <= ACPI_SPECIFIC_NOTIFY_MAX)
     {
         switch (Type)
         {
@@ -590,6 +715,59 @@ AcpiUtGetNotifyName (
 
     return ("Hardware-Specific");
 }
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtGetArgumentTypeName
+ *
+ * PARAMETERS:  ArgType             - an ARGP_* parser argument type
+ *
+ * RETURN:      Decoded ARGP_* type
+ *
+ * DESCRIPTION: Decode an ARGP_* parser type, as defined in the amlcode.h file,
+ *              and used in the acopcode.h file. For example, ARGP_TERMARG.
+ *              Used for debug only.
+ *
+ ******************************************************************************/
+
+static const char           *AcpiGbl_ArgumentType[20] =
+{
+    /* 00 */ "Unknown ARGP",
+    /* 01 */ "ByteData",
+    /* 02 */ "ByteList",
+    /* 03 */ "CharList",
+    /* 04 */ "DataObject",
+    /* 05 */ "DataObjectList",
+    /* 06 */ "DWordData",
+    /* 07 */ "FieldList",
+    /* 08 */ "Name",
+    /* 09 */ "NameString",
+    /* 0A */ "ObjectList",
+    /* 0B */ "PackageLength",
+    /* 0C */ "SuperName",
+    /* 0D */ "Target",
+    /* 0E */ "TermArg",
+    /* 0F */ "TermList",
+    /* 10 */ "WordData",
+    /* 11 */ "QWordData",
+    /* 12 */ "SimpleName",
+    /* 13 */ "NameOrRef"
+};
+
+const char *
+AcpiUtGetArgumentTypeName (
+    UINT32                  ArgType)
+{
+
+    if (ArgType > ARGP_MAX)
+    {
+        return ("Unknown ARGP");
+    }
+
+    return (AcpiGbl_ArgumentType[ArgType]);
+}
+
 #endif
 
 

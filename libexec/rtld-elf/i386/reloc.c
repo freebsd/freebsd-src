@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 1996, 1997, 1998, 1999 John D. Polstra.
  * All rights reserved.
  *
@@ -48,6 +50,7 @@
 
 #include "debug.h"
 #include "rtld.h"
+#include "rtld_tls.h"
 
 /*
  * Process the special R_386_COPY relocations in the main program.  These
@@ -64,7 +67,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 
     assert(dstobj->mainprog);	/* COPY relocations are invalid elsewhere */
 
-    rellim = (const Elf_Rel *) ((caddr_t) dstobj->rel + dstobj->relsize);
+    rellim = (const Elf_Rel *)((const char *)dstobj->rel + dstobj->relsize);
     for (rel = dstobj->rel;  rel < rellim;  rel++) {
 	if (ELF_R_TYPE(rel->r_info) == R_386_COPY) {
 	    void *dstaddr;
@@ -77,7 +80,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 	    SymLook req;
 	    int res;
 
-	    dstaddr = (void *) (dstobj->relocbase + rel->r_offset);
+	    dstaddr = (void *)(dstobj->relocbase + rel->r_offset);
 	    dstsym = dstobj->symtab + ELF_R_SYM(rel->r_info);
 	    name = dstobj->strtab + dstsym->st_name;
 	    size = dstsym->st_size;
@@ -85,7 +88,8 @@ do_copy_relocations(Obj_Entry *dstobj)
 	    req.ventry = fetch_ventry(dstobj, ELF_R_SYM(rel->r_info));
 	    req.flags = SYMLOOK_EARLY;
 
-	    for (srcobj = dstobj->next;  srcobj != NULL;  srcobj = srcobj->next) {
+	    for (srcobj = globallist_next(dstobj);  srcobj != NULL;
+	      srcobj = globallist_next(srcobj)) {
 		res = symlook_obj(&req, srcobj);
 		if (res == 0) {
 		    srcsym = req.sym_out;
@@ -100,7 +104,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 		return -1;
 	    }
 
-	    srcaddr = (const void *) (defobj->relocbase + srcsym->st_value);
+	    srcaddr = (const void *)(defobj->relocbase + srcsym->st_value);
 	    memcpy(dstaddr, srcaddr, size);
 	}
     }
@@ -142,7 +146,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	} else
 		cache = NULL;
 
-	rellim = (const Elf_Rel *)((caddr_t) obj->rel + obj->relsize);
+	rellim = (const Elf_Rel *)((const char *)obj->rel + obj->relsize);
 	for (rel = obj->rel;  rel < rellim;  rel++) {
 		switch (ELF_R_TYPE(rel->r_info)) {
 		case R_386_32:
@@ -235,7 +239,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			 * of space, we generate an error.
 			 */
 			if (!defobj->tls_done) {
-				if (!allocate_tls_offset((Obj_Entry*) defobj)) {
+				if (!allocate_tls_offset(
+				    __DECONST(Obj_Entry *, defobj))) {
 					_rtld_error("%s: No space available "
 					    "for static Thread Local Storage",
 					    obj->path);
@@ -274,7 +279,7 @@ reloc_plt(Obj_Entry *obj)
     const Elf_Rel *rellim;
     const Elf_Rel *rel;
 
-    rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
+    rellim = (const Elf_Rel *)((const char *)obj->pltrel + obj->pltrelsize);
     for (rel = obj->pltrel;  rel < rellim;  rel++) {
 	Elf_Addr *where/*, val*/;
 
@@ -307,7 +312,7 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 
     if (obj->jmpslots_done)
 	return 0;
-    rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
+    rellim = (const Elf_Rel *)((const char *)obj->pltrel + obj->pltrelsize);
     for (rel = obj->pltrel;  rel < rellim;  rel++) {
 	Elf_Addr *where, target;
 	const Elf_Sym *def;
@@ -342,6 +347,20 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
     return 0;
 }
 
+/* Fixup the jump slot at "where" to transfer control to "target". */
+Elf_Addr
+reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
+    const Obj_Entry *obj __unused, const Obj_Entry *refobj __unused,
+    const Elf_Rel *rel __unused)
+{
+#ifdef dbg
+	dbg("reloc_jmpslot: *%p = %p", where, (void *)target);
+#endif
+	if (!ld_bind_not)
+		*where = target;
+	return (target);
+}
+
 int
 reloc_iresolve(Obj_Entry *obj, RtldLockState *lockstate)
 {
@@ -351,13 +370,13 @@ reloc_iresolve(Obj_Entry *obj, RtldLockState *lockstate)
 
     if (!obj->irelative)
 	return (0);
-    rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
+    rellim = (const Elf_Rel *)((const char *)obj->pltrel + obj->pltrelsize);
     for (rel = obj->pltrel;  rel < rellim;  rel++) {
 	switch (ELF_R_TYPE(rel->r_info)) {
 	case R_386_IRELATIVE:
 	  where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
 	  lock_release(rtld_bind_lock, lockstate);
-	  target = ((Elf_Addr (*)(void))(obj->relocbase + *where))();
+	  target = call_ifunc_resolver(obj->relocbase + *where);
 	  wlock_acquire(rtld_bind_lock, lockstate);
 	  *where = target;
 	  break;
@@ -375,7 +394,7 @@ reloc_gnu_ifunc(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 
     if (!obj->gnu_ifunc)
 	return (0);
-    rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
+    rellim = (const Elf_Rel *)((const char *)obj->pltrel + obj->pltrelsize);
     for (rel = obj->pltrel;  rel < rellim;  rel++) {
 	Elf_Addr *where, target;
 	const Elf_Sym *def;
@@ -400,6 +419,64 @@ reloc_gnu_ifunc(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 
     obj->gnu_ifunc = false;
     return (0);
+}
+
+uint32_t cpu_feature, cpu_feature2, cpu_stdext_feature, cpu_stdext_feature2;
+
+static void
+rtld_cpuid_count(int idx, int cnt, u_int *p)
+{
+
+	__asm __volatile(
+	    "	pushl	%%ebx\n"
+	    "	cpuid\n"
+	    "	movl	%%ebx,%1\n"
+	    "	popl	%%ebx\n"
+	    : "=a" (p[0]), "=r" (p[1]), "=c" (p[2]), "=d" (p[3])
+	    :  "0" (idx), "2" (cnt));
+}
+
+void
+ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
+{
+	u_int p[4], cpu_high;
+	int cpuid_supported;
+
+	__asm __volatile(
+	    "	pushfl\n"
+	    "	popl	%%eax\n"
+	    "	movl    %%eax,%%ecx\n"
+	    "	xorl    $0x200000,%%eax\n"
+	    "	pushl	%%eax\n"
+	    "	popfl\n"
+	    "	pushfl\n"
+	    "	popl    %%eax\n"
+	    "	xorl    %%eax,%%ecx\n"
+	    "	je	1f\n"
+	    "	movl	$1,%0\n"
+	    "	jmp	2f\n"
+	    "1:	movl	$0,%0\n"
+	    "2:\n"
+	    : "=r" (cpuid_supported) : : "eax", "ecx");
+	if (!cpuid_supported)
+		return;
+
+	rtld_cpuid_count(1, 0, p);
+	cpu_feature = p[3];
+	cpu_feature2 = p[2];
+	rtld_cpuid_count(0, 0, p);
+	cpu_high = p[0];
+	if (cpu_high >= 7) {
+		rtld_cpuid_count(7, 0, p);
+		cpu_stdext_feature = p[1];
+		cpu_stdext_feature2 = p[2];
+	}
+}
+
+void
+pre_init(void)
+{
+
 }
 
 void

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1991 Keith Muller.
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -76,7 +78,7 @@ egetopt(int nargc, char * const *nargv, const char *ostr)
 {
 	static char *place = emsg;	/* option letter processing */
 	char *oli;			/* option letter list index */
-	static int delim;		/* which option delimeter */
+	static int delim;		/* which option delimiter */
 	char *p;
 	static char savec = '\0';
 

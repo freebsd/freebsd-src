@@ -39,14 +39,13 @@
 #include <QtCore/QString>
 
 #include <kaboutdata.h>
-#include <kcmdlineargs.h>
-#include <kcomponentdata.h>
 #include <klocalizedstring.h>
 #include <kwallet.h>
 
 #include "svn_auth.h"
 #include "svn_config.h"
 #include "svn_error.h"
+#include "svn_hash.h"
 #include "svn_io.h"
 #include "svn_pools.h"
 #include "svn_string.h"
@@ -56,6 +55,10 @@
 
 #include "svn_private_config.h"
 
+#ifndef SVN_HAVE_KF5
+#include <kcmdlineargs.h>
+#include <kcomponentdata.h>
+#endif
 
 /*-----------------------------------------------------------------------*/
 /* KWallet simple provider, puts passwords in KWallet                    */
@@ -135,34 +138,36 @@ get_wid(void)
   return wid;
 }
 
+/* Forward definition */
+static apr_status_t
+kwallet_terminate(void *data);
+
 static KWallet::Wallet *
 get_wallet(QString wallet_name,
            apr_hash_t *parameters)
 {
   KWallet::Wallet *wallet =
-    static_cast<KWallet::Wallet *> (apr_hash_get(parameters,
-                                                 "kwallet-wallet",
-                                                 APR_HASH_KEY_STRING));
-  if (! wallet && ! apr_hash_get(parameters,
-                                 "kwallet-opening-failed",
-                                 APR_HASH_KEY_STRING))
+    static_cast<KWallet::Wallet *> (svn_hash_gets(parameters,
+                                                  "kwallet-wallet"));
+  if (! wallet && ! svn_hash_gets(parameters, "kwallet-opening-failed"))
     {
       wallet = KWallet::Wallet::openWallet(wallet_name, get_wid(),
                                            KWallet::Wallet::Synchronous);
-    }
-  if (wallet)
-    {
-      apr_hash_set(parameters,
-                   "kwallet-wallet",
-                   APR_HASH_KEY_STRING,
-                   wallet);
-    }
-  else
-    {
-      apr_hash_set(parameters,
-                   "kwallet-opening-failed",
-                   APR_HASH_KEY_STRING,
-                   "");
+
+      if (wallet)
+        {
+          svn_hash_sets(parameters, "kwallet-wallet", wallet);
+
+          apr_pool_cleanup_register(apr_hash_pool_get(parameters),
+                                    parameters, kwallet_terminate,
+                                    apr_pool_cleanup_null);
+
+          svn_hash_sets(parameters, "kwallet-initialized", "");
+        }
+      else
+        {
+          svn_hash_sets(parameters, "kwallet-opening-failed", "");
+        }
     }
   return wallet;
 }
@@ -171,14 +176,12 @@ static apr_status_t
 kwallet_terminate(void *data)
 {
   apr_hash_t *parameters = static_cast<apr_hash_t *> (data);
-  if (apr_hash_get(parameters, "kwallet-initialized", APR_HASH_KEY_STRING))
+  if (svn_hash_gets(parameters, "kwallet-initialized"))
     {
       KWallet::Wallet *wallet = get_wallet(NULL, parameters);
       delete wallet;
-      apr_hash_set(parameters,
-                   "kwallet-initialized",
-                   APR_HASH_KEY_STRING,
-                   NULL);
+      svn_hash_sets(parameters, "kwallet-wallet", NULL);
+      svn_hash_sets(parameters, "kwallet-initialized", NULL);
     }
   return APR_SUCCESS;
 }
@@ -220,6 +223,16 @@ kwallet_password_get(svn_boolean_t *done,
       app = new QCoreApplication(argc, q_argv);
     }
 
+#if SVN_HAVE_KF5
+  KLocalizedString::setApplicationDomain("subversion"); /* translation domain */
+
+  /* componentName appears in KDE GUI prompts */
+  KAboutData aboutData(QStringLiteral("subversion"),     /* componentName */
+                       i18n(get_application_name(parameters,
+                                                 pool)), /* displayName */
+                       QStringLiteral(SVN_VER_NUMBER));
+  KAboutData::setApplicationData(aboutData);
+#else
   KCmdLineArgs::init(q_argc, q_argv,
                      get_application_name(parameters, pool),
                      "subversion",
@@ -228,6 +241,8 @@ kwallet_password_get(svn_boolean_t *done,
                      ki18n("Version control system"),
                      KCmdLineArgs::CmdLineArgKDE);
   KComponentData component_data(KCmdLineArgs::aboutData());
+#endif
+
   QString folder = QString::fromUtf8("Subversion");
   QString key =
     QString::fromUtf8(username) + "@" + QString::fromUtf8(realmstring);
@@ -236,10 +251,6 @@ kwallet_password_get(svn_boolean_t *done,
       KWallet::Wallet *wallet = get_wallet(wallet_name, parameters);
       if (wallet)
         {
-          apr_hash_set(parameters,
-                       "kwallet-initialized",
-                       APR_HASH_KEY_STRING,
-                       "");
           if (wallet->setFolder(folder))
             {
               QString q_password;
@@ -253,9 +264,6 @@ kwallet_password_get(svn_boolean_t *done,
             }
         }
     }
-
-  apr_pool_cleanup_register(pool, parameters, kwallet_terminate,
-                            apr_pool_cleanup_null);
 
   return SVN_NO_ERROR;
 }
@@ -297,6 +305,16 @@ kwallet_password_set(svn_boolean_t *done,
       app = new QCoreApplication(argc, q_argv);
     }
 
+#if SVN_HAVE_KF5
+  KLocalizedString::setApplicationDomain("subversion"); /* translation domain */
+
+  /* componentName appears in KDE GUI prompts */
+  KAboutData aboutData(QStringLiteral("subversion"),     /* componentName */
+                       i18n(get_application_name(parameters,
+                                                 pool)), /* displayName */
+                       QStringLiteral(SVN_VER_NUMBER));
+  KAboutData::setApplicationData(aboutData);
+#else
   KCmdLineArgs::init(q_argc, q_argv,
                      get_application_name(parameters, pool),
                      "subversion",
@@ -305,15 +323,13 @@ kwallet_password_set(svn_boolean_t *done,
                      ki18n("Version control system"),
                      KCmdLineArgs::CmdLineArgKDE);
   KComponentData component_data(KCmdLineArgs::aboutData());
+#endif
+
   QString q_password = QString::fromUtf8(password);
   QString folder = QString::fromUtf8("Subversion");
   KWallet::Wallet *wallet = get_wallet(wallet_name, parameters);
   if (wallet)
     {
-      apr_hash_set(parameters,
-                   "kwallet-initialized",
-                   APR_HASH_KEY_STRING,
-                   "");
       if (! wallet->hasFolder(folder))
         {
           wallet->createFolder(folder);
@@ -328,9 +344,6 @@ kwallet_password_set(svn_boolean_t *done,
             }
         }
     }
-
-  apr_pool_cleanup_register(pool, parameters, kwallet_terminate,
-                            apr_pool_cleanup_null);
 
   return SVN_NO_ERROR;
 }

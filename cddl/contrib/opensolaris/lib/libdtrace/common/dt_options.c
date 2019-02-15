@@ -38,7 +38,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <limits.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <errno.h>
@@ -280,6 +280,28 @@ dt_opt_ld_path(dtrace_hdl_t *dtp, const char *arg, uintptr_t option)
 	return (0);
 }
 
+#ifdef __FreeBSD__
+static int
+dt_opt_objcopy_path(dtrace_hdl_t *dtp, const char *arg, uintptr_t option)
+{
+	char *objcopy;
+
+	if (arg == NULL)
+		return (dt_set_errno(dtp, EDT_BADOPTVAL));
+
+	if (dtp->dt_pcb != NULL)
+		return (dt_set_errno(dtp, EDT_BADOPTCTX));
+
+	if ((objcopy = strdup(arg)) == NULL)
+		return (dt_set_errno(dtp, EDT_NOMEM));
+
+	free(dtp->dt_objcopy_path);
+	dtp->dt_objcopy_path = objcopy;
+
+	return (0);
+}
+#endif
+
 /*ARGSUSED*/
 static int
 dt_opt_libdir(dtrace_hdl_t *dtp, const char *arg, uintptr_t option)
@@ -393,7 +415,7 @@ dt_opt_setenv(dtrace_hdl_t *dtp, const char *arg, uintptr_t option)
 {
 	char **p;
 	char *var;
-	int i;
+	int nvars;
 
 	/*
 	 * We can't effectively set environment variables from #pragma lines
@@ -408,7 +430,7 @@ dt_opt_setenv(dtrace_hdl_t *dtp, const char *arg, uintptr_t option)
 	if (!option && strchr(arg, '=') != NULL)
 		return (dt_set_errno(dtp, EDT_BADOPTVAL));
 
-	for (i = 1, p = dtp->dt_proc_env; *p != NULL; i++, p++)
+	for (nvars = 0, p = dtp->dt_proc_env; *p != NULL; nvars++, p++)
 		continue;
 
 	for (p = dtp->dt_proc_env; *p != NULL; p++) {
@@ -417,9 +439,9 @@ dt_opt_setenv(dtrace_hdl_t *dtp, const char *arg, uintptr_t option)
 			var = *p + strlen(*p);
 		if (strncmp(*p, arg, var - *p) == 0) {
 			dt_free(dtp, *p);
-			*p = dtp->dt_proc_env[i - 1];
-			dtp->dt_proc_env[i - 1] = NULL;
-			i--;
+			*p = dtp->dt_proc_env[nvars - 1];
+			dtp->dt_proc_env[nvars - 1] = NULL;
+			nvars--;
 		}
 	}
 
@@ -427,17 +449,18 @@ dt_opt_setenv(dtrace_hdl_t *dtp, const char *arg, uintptr_t option)
 		if ((var = strdup(arg)) == NULL)
 			return (dt_set_errno(dtp, EDT_NOMEM));
 
-		if ((p = dt_alloc(dtp, sizeof (char *) * (i + 1))) == NULL) {
+		nvars++;
+		if ((p = dt_alloc(dtp, sizeof(char *) * (nvars + 1))) == NULL) {
 			dt_free(dtp, var);
 			return (dt_set_errno(dtp, EDT_NOMEM));
 		}
 
-		bcopy(dtp->dt_proc_env, p, sizeof (char *) * i);
+		bcopy(dtp->dt_proc_env, p, sizeof(char *) * nvars);
 		dt_free(dtp, dtp->dt_proc_env);
 		dtp->dt_proc_env = p;
 
-		dtp->dt_proc_env[i - 1] = var;
-		dtp->dt_proc_env[i] = NULL;
+		dtp->dt_proc_env[nvars - 1] = var;
+		dtp->dt_proc_env[nvars] = NULL;
 	}
 
 	return (0);
@@ -871,7 +894,7 @@ dt_options_load(dtrace_hdl_t *dtp)
 	bzero(&hdr, sizeof (dof_hdr_t));
 	hdr.dofh_loadsz = sizeof (dof_hdr_t);
 
-#if defined(sun)
+#ifdef illumos
 	if (dt_ioctl(dtp, DTRACEIOC_DOFGET, &hdr) == -1)
 #else
 	dof = &hdr;
@@ -889,7 +912,7 @@ dt_options_load(dtrace_hdl_t *dtp)
 	for (i = 0; i < DTRACEOPT_MAX; i++)
 		dtp->dt_options[i] = DTRACEOPT_UNSET;
 
-#if defined(sun)
+#ifdef illumos
 	if (dt_ioctl(dtp, DTRACEIOC_DOFGET, dof) == -1)
 #else
 	if (dt_ioctl(dtp, DTRACEIOC_DOFGET, &dof) == -1)
@@ -960,6 +983,9 @@ static const dt_option_t _dtrace_ctoptions[] = {
 	{ "linkmode", dt_opt_linkmode },
 	{ "linktype", dt_opt_linktype },
 	{ "nolibs", dt_opt_cflags, DTRACE_C_NOLIBS },
+#ifdef __FreeBSD__
+	{ "objcopypath", dt_opt_objcopy_path },
+#endif
 	{ "pgmax", dt_opt_pgmax },
 	{ "pspec", dt_opt_cflags, DTRACE_C_PSPEC },
 	{ "setenv", dt_opt_setenv, 1 },

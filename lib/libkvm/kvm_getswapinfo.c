@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999, Matthew Dillon.  All Rights Reserved.
  * Copyright (c) 2001, Thomas Moestl.  All Rights Reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/blist.h>
+#include <sys/queue.h>
 #include <sys/sysctl.h>
 
 #include <vm/swap_pager.h>
@@ -77,7 +80,7 @@ static int  getsysctl(kvm_t *, const char *, void *, size_t);
 		_kvm_err(kd, kd->program, "cannot read %s", msg);	\
 		return (-1);						\
 	}
-	
+
 #define GETSWDEVNAME(dev, str, flags)					\
 	if (dev == NODEV) {						\
 		strlcpy(str, "[NFS swap]", sizeof(str));		\
@@ -112,10 +115,17 @@ int
 kvm_getswapinfo_kvm(kvm_t *kd, struct kvm_swap *swap_ary, int swap_max,
     int flags)
 {
-	int i, ttl;
+	int i;
+	swblk_t ttl;
 	TAILQ_HEAD(, swdevt) swtailq;
 	struct swdevt *sp, swinfo;
 	struct kvm_swap tot;
+
+	if (!kd->arch->ka_native(kd)) {
+		_kvm_err(kd, kd->program,
+		    "cannot read swapinfo from non-native core");
+		return (-1);
+	}
 
 	if (!nlist_init(kd))
 		return (-1);
@@ -157,7 +167,8 @@ int
 kvm_getswapinfo_sysctl(kvm_t *kd, struct kvm_swap *swap_ary, int swap_max,
     int flags)
 {
-	int ti, ttl;
+	int ti;
+	swblk_t ttl;
 	size_t mibi, len;
 	int soid[SWI_MAXMIB];
 	struct xswdev xsd;
@@ -231,7 +242,7 @@ nlist_init(kvm_t *kd)
 		_kvm_err(kd, kd->program, "unable to find swtailq");
 		return (0);
 	}
-		
+
 	if (kvm_swap_nl[NL_DMMAX].n_value == 0) {
 		_kvm_err(kd, kd->program, "unable to find dmmax");
 		return (0);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2005 John Bicket
  * All rights reserved.
  *
@@ -488,8 +490,7 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 #define	RATE(ix)	(DOT11RATE(ix) / 2)
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	struct sample_softc *ssc = ATH_SOFTC_SAMPLE(sc);
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	const int size_bin = size_to_bin(frameLen);
 	int rix, mrr, best_rix, change_rates;
@@ -776,6 +777,10 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	 * XXX Don't mark the higher bit rates as also having failed; as this
 	 * unfortunately stops those rates from being tasted when trying to
 	 * TX. This happens with 11n aggregation.
+	 *
+	 * This is valid for higher CCK rates, higher OFDM rates, and higher
+	 * HT rates within the current number of streams (eg MCS0..7, 8..15,
+	 * etc.)
 	 */
 	if (nframes == nbad) {
 #if 0
@@ -843,9 +848,11 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 }
 
 static void
-badrate(struct ifnet *ifp, int series, int hwrate, int tries, int status)
+badrate(struct ath_softc *sc, int series, int hwrate, int tries, int status)
 {
-	if_printf(ifp, "bad series%d hwrate 0x%x, tries %u ts_status 0x%x\n",
+
+	device_printf(sc->sc_dev,
+	    "bad series%d hwrate 0x%x, tries %u ts_status 0x%x\n",
 	    series, hwrate, tries, status);
 }
 
@@ -854,8 +861,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 	const struct ath_rc_series *rc, const struct ath_tx_status *ts,
 	int frame_size, int nframes, int nbad)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	int final_rix, short_tries, long_tries;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
@@ -891,9 +897,10 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 
 	if (!mrr || ts->ts_finaltsi == 0) {
 		if (!IS_RATE_DEFINED(sn, final_rix)) {
-			device_printf(sc->sc_dev, "%s: ts_rate=%d ts_finaltsi=%d\n",
-			    __func__, ts->ts_rate, ts->ts_finaltsi);
-			badrate(ifp, 0, ts->ts_rate, long_tries, status);
+			device_printf(sc->sc_dev,
+			    "%s: ts_rate=%d ts_finaltsi=%d, final_rix=%d\n",
+			    __func__, ts->ts_rate, ts->ts_finaltsi, final_rix);
+			badrate(sc, 0, ts->ts_rate, long_tries, status);
 			return;
 		}
 		/*
@@ -945,7 +952,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 
 		for (i = 0; i < 4; i++) {
 			if (rc[i].tries && !IS_RATE_DEFINED(sn, rc[i].rix))
-				badrate(ifp, 0, rc[i].ratecode, rc[i].tries,
+				badrate(sc, 0, rc[i].ratecode, rc[i].tries,
 				    status);
 		}
 
@@ -1300,8 +1307,7 @@ static int
 ath_rate_sysctl_stats(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	int error, v;
 
 	v = 0;

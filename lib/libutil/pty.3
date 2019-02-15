@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\" "
-.Dd December 29, 1996
+.Dd June 2, 2018
 .Dt PTY 3
 .Os
 .Sh NAME
@@ -120,7 +120,7 @@ function may fail and set the global variable
 .Dv errno
 for any of the errors specified for the
 .Xr grantpt 3 ,
-.Xr posix_openpt 3 ,
+.Xr posix_openpt 2 ,
 .Xr ptsname 3 ,
 and
 .Xr unlockpt 3
@@ -143,3 +143,18 @@ may set it to any value as described for
 .Xr pty 4 ,
 .Xr termios 4 ,
 .Xr group 5
+.Sh HISTORY
+The
+.Fn openpty
+and
+.Fn forkpty
+functions first appeared in
+.Bx 4.3 Reno.
+.Sh BUGS
+.Fn openpty
+writes the slave terminal's name to
+.Fa name ,
+but does not check that sufficient space is available.
+It is advisable to use
+.Xr ptsname 3
+instead.

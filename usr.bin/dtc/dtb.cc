@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 David Chisnall
  * All rights reserved.
  *
@@ -36,6 +38,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
+using std::string;
 
 namespace dtc
 {
@@ -44,16 +47,16 @@ namespace dtb
 
 void output_writer::write_data(byte_buffer b)
 {
-	for (byte_buffer::iterator i=b.begin(), e=b.end(); i!=e ; i++)
+	for (auto i : b)
 	{
-		write_data(*i);
+		write_data(i);
 	}
 }
 
 void
-binary_writer::write_string(string name)
+binary_writer::write_string(const string &name)
 {
-	name.push_to_buffer(buffer);
+	push_string(buffer, name);
 	// Trailing nul
 	buffer.push_back(0);
 }
@@ -98,15 +101,6 @@ binary_writer::size()
 }
 
 void
-asm_writer::write_string(const char *c)
-{
-	while (*c)
-	{
-		buffer.push_back((uint8_t)*(c++));
-	}
-}
-
-void
 asm_writer::write_line(const char *c)
 {
 	if (byte_count != 0)
@@ -142,34 +136,44 @@ asm_writer::write_byte(uint8_t b)
 }
 
 void
-asm_writer::write_label(string name)
+asm_writer::write_label(const string &name)
 {
 	write_line("\t.globl ");
-	name.push_to_buffer(buffer);
+	push_string(buffer, name);
 	buffer.push_back('\n');
-	name.push_to_buffer(buffer);
+	push_string(buffer, name);
 	buffer.push_back(':');
 	buffer.push_back('\n');
 	buffer.push_back('_');
-	name.push_to_buffer(buffer);
+	push_string(buffer, name);
 	buffer.push_back(':');
 	buffer.push_back('\n');
 	
 }
 
 void
-asm_writer::write_comment(string name)
+asm_writer::write_comment(const string &name)
 {
 	write_line("\t/* ");
-	name.push_to_buffer(buffer);
+	push_string(buffer, name);
 	write_string(" */\n");
 }
 
 void
-asm_writer::write_string(string name)
+asm_writer::write_string(const char *c)
+{
+	while (*c)
+	{
+		buffer.push_back((uint8_t)*(c++));
+	}
+}
+
+
+void
+asm_writer::write_string(const string &name)
 {
 	write_line("\t.string \"");
-	name.push_to_buffer(buffer);
+	push_string(buffer, name);
 	write_line("\"\n");
 	bytes_written += name.size() + 1;
 }
@@ -231,8 +235,8 @@ asm_writer::size()
 void
 header::write(output_writer &out)
 {
-	out.write_label(string("dt_blob_start"));
-	out.write_label(string("dt_header"));
+	out.write_label("dt_blob_start");
+	out.write_label("dt_header");
 	out.write_comment("magic");
 	out.write_data(magic);
 	out.write_comment("totalsize");
@@ -258,9 +262,14 @@ header::write(output_writer &out)
 bool
 header::read_dtb(input_buffer &input)
 {
-	if (!(input.consume_binary(magic) && magic == 0xd00dfeed))
+	if (!input.consume_binary(magic))
 	{
-		fprintf(stderr, "Missing magic token in header.  Got %" PRIx32
+		fprintf(stderr, "Missing magic token in header.");
+		return false;
+	}
+	if (magic != 0xd00dfeed)
+	{
+		fprintf(stderr, "Bad magic token in header.  Got %" PRIx32
 		                " expected 0xd00dfeed\n", magic);
 		return false;
 	}
@@ -275,9 +284,9 @@ header::read_dtb(input_buffer &input)
 	       input.consume_binary(size_dt_struct);
 }
 uint32_t
-string_table::add_string(string str)
+string_table::add_string(const string &str)
 {
-	std::map<string, uint32_t>::iterator old = string_offsets.find(str);
+	auto old = string_offsets.find(str);
 	if (old == string_offsets.end())
 	{
 		uint32_t start = size;
@@ -296,14 +305,13 @@ string_table::add_string(string str)
 void
 string_table::write(dtb::output_writer &writer)
 {
-	writer.write_comment(string("Strings table."));
-	writer.write_label(string("dt_strings_start"));
-	for (std::vector<string>::iterator i=strings.begin(), e=strings.end() ;
-	     i!=e ; ++i)
+	writer.write_comment("Strings table.");
+	writer.write_label("dt_strings_start");
+	for (auto &i : strings)
 	{
-		writer.write_string(*i);
+		writer.write_string(i);
 	}
-	writer.write_label(string("dt_strings_end"));
+	writer.write_label("dt_strings_end");
 }
 
 } // namespace dtb

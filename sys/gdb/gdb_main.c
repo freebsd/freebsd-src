@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Marcel Moolenaar
  * All rights reserved.
  *
@@ -92,6 +94,33 @@ gdb_init(void)
 	} else
 		cur_pri = -1;
 	return (cur_pri);
+}
+
+static void
+gdb_do_mem_search(void)
+{
+	size_t patlen;
+	intmax_t addr, size;
+	const unsigned char *found;
+
+	if (gdb_rx_varhex(&addr) || gdb_rx_char() != ';' ||
+	    gdb_rx_varhex(&size) || gdb_rx_char() != ';' ||
+	    gdb_rx_bindata(gdb_bindata, sizeof(gdb_bindata), &patlen)) {
+		gdb_tx_err(EINVAL);
+		return;
+	}
+	if (gdb_search_mem((char *)(uintptr_t)addr, size, gdb_bindata,
+	    patlen, &found)) {
+		if (found == 0ULL)
+			gdb_tx_begin('0');
+		else {
+			gdb_tx_begin('1');
+			gdb_tx_char(',');
+			gdb_tx_hex((intmax_t)(uintptr_t)found, 8);
+		}
+		gdb_tx_end();
+	} else
+		gdb_tx_err(EIO);
 }
 
 static int
@@ -257,27 +286,7 @@ gdb_trap(int type, int code)
 					gdb_tx_end();
 				}
 			} else if (gdb_rx_equal("Search:memory:")) {
-				size_t patlen;
-				intmax_t addr, size;
-				const unsigned char *found;
-				if (gdb_rx_varhex(&addr) || gdb_rx_char() != ';' ||
-				    gdb_rx_varhex(&size) || gdb_rx_char() != ';' ||
-				    gdb_rx_bindata(gdb_bindata, sizeof(gdb_bindata), &patlen)) {
-					gdb_tx_err(EINVAL);
-					break;
-				}
-				if (gdb_search_mem((char *)(uintptr_t)addr, size, gdb_bindata, patlen, &found)) {
-					if (found == 0ULL)
-						gdb_tx_begin('0');
-					else {
-						gdb_tx_begin('1');
-						gdb_tx_char(',');
-						gdb_tx_hex((intmax_t)(uintptr_t)found, 8);
-					}
-					gdb_tx_end();
-				} else
-					gdb_tx_err(EIO);
-				break;
+				gdb_do_mem_search();
 			} else if (!gdb_cpu_query())
 				gdb_tx_empty();
 			break;

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Robert N. M. Watson
  * All rights reserved.
  *
@@ -101,6 +103,9 @@ void	 procdesc_finit(struct procdesc *, struct file *);
 pid_t	 procdesc_pid(struct file *);
 void	 procdesc_reap(struct proc *);
 
+int	 procdesc_falloc(struct thread *, struct file **, int *, int,
+	    struct filecaps *);
+
 #else /* !_KERNEL */
 
 #include <sys/_types.h>
@@ -127,5 +132,8 @@ __END_DECLS
  * Flags which can be passed to pdfork(2).
  */
 #define	PD_DAEMON	0x00000001	/* Don't exit when procdesc closes. */
+#define	PD_CLOEXEC	0x00000002	/* Close file descriptor on exec. */
+
+#define	PD_ALLOWED_AT_FORK	(PD_DAEMON | PD_CLOEXEC)
 
 #endif /* !_SYS_PROCDESC_H_ */

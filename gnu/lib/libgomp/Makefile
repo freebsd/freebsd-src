@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-GCCDIR=	${.CURDIR}/../../../contrib/gcc
-GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
+GCCDIR=	${SRCTOP}/contrib/gcc
+GCCLIB=	${SRCTOP}/contrib/gcclibs
 SRCDIR=	${GCCLIB}/libgomp
 
 .PATH: ${SRCDIR} ${SRCDIR}/config/posix
@@ -12,7 +12,7 @@ SHLIB_MAJOR=	1
 SRCS=	alloc.c barrier.c critical.c env.c \
 	error.c iter.c loop.c ordered.c parallel.c sections.c \
 	single.c team.c work.c lock.c mutex.c proc.c sem.c \
-	bar.c time.c fortran.c
+	bar.c time.c fortran.c affinity.c
 SRCS+=	gstdint.h libgomp_f.h omp.h omp_lib.h
 
 INCS+=	omp.h
@@ -24,7 +24,7 @@ VERSION_MAP=	${SRCDIR}/libgomp.map
 
 # Target-specific OpenMP configuration
 .if ${MACHINE_CPUARCH} == arm || ${MACHINE_CPUARCH} == i386 || \
-    ${MACHINE_ARCH} == powerpc || \
+    ${MACHINE_ARCH} == powerpc || ${MACHINE_ARCH} == powerpcspe || \
     (${MACHINE_CPUARCH} == mips &&  ${MACHINE_ARCH:Mmips64*} == "")
 OMP_LOCK_ALIGN	=	4
 OMP_LOCK_KIND=		4

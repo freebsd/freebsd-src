@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Adrian Chadd <adrian@FreeBSD.org>
  * All rights reserved.
  *
@@ -73,7 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_debug.h>
 #include <dev/ath/if_ath_lna_div.h>
 
-/* Linux compability macros */
+/* Linux compatibility macros */
 /*
  * XXX these don't handle rounding, underflow, overflow, wrapping!
  */
@@ -187,7 +189,7 @@ ath_lna_div_ioctl(struct ath_softc *sc, struct ath_diag *ad)
 		 * pointer for us to use below in reclaiming the buffer;
 		 * may want to be more defensive.
 		 */
-		outdata = malloc(outsize, M_TEMP, M_NOWAIT);
+		outdata = malloc(outsize, M_TEMP, M_NOWAIT | M_ZERO);
 		if (outdata == NULL) {
 			error = ENOMEM;
 			goto bad;
@@ -196,6 +198,7 @@ ath_lna_div_ioctl(struct ath_softc *sc, struct ath_diag *ad)
 	switch (id) {
 		default:
 			error = EINVAL;
+			goto bad;
 	}
 	if (outsize < ad->ad_out_size)
 		ad->ad_out_size = outsize;
@@ -766,7 +769,7 @@ ath_lna_rx_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs,
 
 	/* Short scan check */
 	if (antcomb->scan && antcomb->alt_good) {
-		if (time_after(ticks, antcomb->scan_start_time +
+		if (ieee80211_time_after(ticks, antcomb->scan_start_time +
 		    msecs_to_jiffies(ATH_ANT_DIV_COMB_SHORT_SCAN_INTR)))
 			short_scan = AH_TRUE;
 		else

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999-2002 Eduardo Horvath
  * All rights reserved.
  *
@@ -297,7 +299,7 @@ sbus_attach(device_t dev)
 	/*
 	 * Collect address translations from the OBP.
 	 */
-	if ((sc->sc_nrange = OF_getprop_alloc(node, "ranges",
+	if ((sc->sc_nrange = OF_getprop_alloc_multi(node, "ranges",
 	    sizeof(*range), (void **)&range)) == -1) {
 		panic("%s: error getting ranges property", __func__);
 	}
@@ -331,7 +333,7 @@ sbus_attach(device_t dev)
 		sc->sc_rd[i].rd_pend = phys + size;
 		sc->sc_rd[i].rd_res = res;
 	}
-	free(range, M_OFWPROP);
+	OF_prop_free(range);
 
 	/*
 	 * Get the SBus burst transfer size if burst transfers are supported.
@@ -341,7 +343,7 @@ sbus_attach(device_t dev)
 		sc->sc_burst =
 		    (SBUS_BURST64_DEF << SBUS_BURST64_SHIFT) | SBUS_BURST_DEF;
 
-	/* initalise the IOMMU */
+	/* initialise the IOMMU */
 
 	/* punch in our copies */
 	sc->sc_is.is_pmaxaddr = IOMMU_MAXADDR(SBUS_IOMMU_BITS);
@@ -409,7 +411,7 @@ sbus_attach(device_t dev)
 	    INTIGN(vec = rman_get_start(sc->sc_ot_ires)) != sc->sc_ign ||
 	    INTVEC(SYSIO_READ8(sc, SBR_THERM_INT_MAP)) != vec ||
 	    intr_vectors[vec].iv_ic != &sbus_ic ||
-	    bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC | INTR_BRIDGE,
+	    bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC | INTR_BRIDGE | INTR_MPSAFE,
 	    NULL, sbus_overtemp, sc, &sc->sc_ot_ihand) != 0)
 		panic("%s: failed to set up temperature interrupt", __func__);
 	i = 3;
@@ -419,7 +421,7 @@ sbus_attach(device_t dev)
 	    INTIGN(vec = rman_get_start(sc->sc_pf_ires)) != sc->sc_ign ||
 	    INTVEC(SYSIO_READ8(sc, SBR_POWER_INT_MAP)) != vec ||
 	    intr_vectors[vec].iv_ic != &sbus_ic ||
-	    bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC | INTR_BRIDGE,
+	    bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC | INTR_BRIDGE | INTR_MPSAFE,
 	    NULL, sbus_pwrfail, sc, &sc->sc_pf_ihand) != 0)
 		panic("%s: failed to set up power fail interrupt", __func__);
 
@@ -476,7 +478,7 @@ sbus_setup_dinfo(device_t dev, struct sbus_softc *sc, phandle_t node)
 	}
 	resource_list_init(&sdi->sdi_rl);
 	slot = -1;
-	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
+	nreg = OF_getprop_alloc_multi(node, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg == -1) {
 		if (sdi->sdi_obdinfo.obd_type == NULL ||
 		    strcmp(sdi->sdi_obdinfo.obd_type, "hierarchical") != 0) {
@@ -495,7 +497,7 @@ sbus_setup_dinfo(device_t dev, struct sbus_softc *sc, phandle_t node)
 			if (slot != -1 && slot != rslot) {
 				device_printf(dev, "<%s>: multiple slots\n",
 				    sdi->sdi_obdinfo.obd_name);
-				free(reg, M_OFWPROP);
+				OF_prop_free(reg);
 				goto fail;
 			}
 			slot = rslot;
@@ -503,14 +505,14 @@ sbus_setup_dinfo(device_t dev, struct sbus_softc *sc, phandle_t node)
 			resource_list_add(&sdi->sdi_rl, SYS_RES_MEMORY, i,
 			    base, base + reg[i].sbr_size, reg[i].sbr_size);
 		}
-		free(reg, M_OFWPROP);
+		OF_prop_free(reg);
 	}
 	sdi->sdi_slot = slot;
 
 	/*
 	 * The `interrupts' property contains the SBus interrupt level.
 	 */
-	nintr = OF_getprop_alloc(node, "interrupts", sizeof(*intr),
+	nintr = OF_getprop_alloc_multi(node, "interrupts", sizeof(*intr),
 	    (void **)&intr);
 	if (nintr != -1) {
 		for (i = 0; i < nintr; i++) {
@@ -525,7 +527,7 @@ sbus_setup_dinfo(device_t dev, struct sbus_softc *sc, phandle_t node)
 			resource_list_add(&sdi->sdi_rl, SYS_RES_IRQ, i,
 			    iv, iv, 1);
 		}
-		free(intr, M_OFWPROP);
+		OF_prop_free(intr);
 	}
 	if (OF_getprop(node, "burst-sizes", &sdi->sdi_burstsz,
 	    sizeof(sdi->sdi_burstsz)) == -1)
@@ -710,7 +712,7 @@ sbus_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 
 static struct resource *
 sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct sbus_softc *sc;
 	struct rman *rm;
@@ -723,7 +725,7 @@ sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	int i, slot;
 	int isdefault, passthrough;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != bus);
 	rle = NULL;
 	sc = device_get_softc(bus);
@@ -821,7 +823,7 @@ sbus_activate_resource(device_t bus, device_t child, int type, int rid,
 
 static int
 sbus_adjust_resource(device_t bus, device_t child, int type,
-    struct resource *r, u_long start, u_long end)
+    struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct sbus_softc *sc;
 	int i;
@@ -929,8 +931,8 @@ sbus_print_res(struct sbus_devinfo *sdi)
 
 	rv = 0;
 	rv += resource_list_print_type(&sdi->sdi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx");
+	    "%#jx");
 	rv += resource_list_print_type(&sdi->sdi_rl, "irq", SYS_RES_IRQ,
-	    "%ld");
+	    "%jd");
 	return (rv);
 }

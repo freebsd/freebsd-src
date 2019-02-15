@@ -1,5 +1,7 @@
-/*
+/*-
  * alias_smedia.c
+ *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-2-Clause
  *
  * Copyright (c) 2000 Whistle Communications, Inc.
  * All rights reserved.
@@ -518,7 +520,7 @@ AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *lnk, 
 
 		/*
 		 * When aliasing a server, check for the 200 reply
-		 * Accomodate varying number of blanks between 200 & OK
+		 * Accommodate varying number of blanks between 200 & OK
 		 */
 
 		if (dlen >= (int)strlen(str200)) {

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 Nahanni Systems Inc.
  * All rights reserved.
  *
@@ -35,9 +37,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#ifndef WITHOUT_CAPSICUM
+#include <sys/capsicum.h>
+#endif
 #include <sys/linker_set.h>
 #include <sys/uio.h>
 
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -46,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <assert.h>
 #include <pthread.h>
+#include <sysexits.h>
 
 #include "bhyverun.h"
 #include "pci_emul.h"
@@ -103,10 +110,9 @@ pci_vtrnd_notify(void *vsc, struct vqueue_info *vq)
 	struct iovec iov;
 	struct pci_vtrnd_softc *sc;
 	int len;
+	uint16_t idx;
 
 	sc = vsc;
-
-	vq_startchains(vq);
 
 	if (sc->vrsc_fd < 0) {
 		vq_endchains(vq, 0);
@@ -114,7 +120,7 @@ pci_vtrnd_notify(void *vsc, struct vqueue_info *vq)
 	}
 
 	while (vq_has_descs(vq)) {
-		vq_getchain(vq, &iov, 1, NULL);
+		vq_getchain(vq, &idx, &iov, 1, NULL);
 
 		len = read(sc->vrsc_fd, iov.iov_base, iov.iov_len);
 
@@ -126,7 +132,7 @@ pci_vtrnd_notify(void *vsc, struct vqueue_info *vq)
 		/*
 		 * Release this chain and handle more
 		 */
-		vq_relchain(vq, len);
+		vq_relchain(vq, idx, len);
 	}
 	vq_endchains(vq, 1);	/* Generate interrupt if appropriate. */
 }
@@ -139,6 +145,9 @@ pci_vtrnd_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	int fd;
 	int len;
 	uint8_t v;
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+#endif
 
 	/*
 	 * Should always be able to open /dev/random.
@@ -147,12 +156,19 @@ pci_vtrnd_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 
 	assert(fd >= 0);
 
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_READ);
+	if (cap_rights_limit(fd, &rights) == -1 && errno != ENOSYS)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
+
 	/*
 	 * Check that device is seeded and non-blocking.
 	 */
 	len = read(fd, &v, sizeof(v));
 	if (len <= 0) {
 		WPRINTF(("vtrnd: /dev/random not ready, read(): %d", len));
+		close(fd);
 		return (1);
 	}
 
@@ -171,6 +187,7 @@ pci_vtrnd_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata16(pi, PCIR_VENDOR, VIRTIO_VENDOR);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_CRYPTO);
 	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_ENTROPY);
+	pci_set_cfgdata16(pi, PCIR_SUBVEND_0, VIRTIO_VENDOR);
 
 	if (vi_intr_init(&sc->vrsc_vs, 1, fbsdrun_virtio_msix()))
 		return (1);

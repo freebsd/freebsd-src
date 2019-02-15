@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/cmd/dtrace
+.include <src.opts.mk>
+
+.PATH: ${SRCTOP}/cddl/contrib/opensolaris/cmd/dtrace
 
 PROG=		dtrace
 SRCS=		dtrace.c
@@ -8,8 +10,8 @@ BINDIR?=	/usr/sbin
 
 WARNS?=		1
 
-CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
-		-I${.CURDIR}/../../../cddl/compat/opensolaris/include \
+CFLAGS+=	-I${SRCTOP}/sys/cddl/compat/opensolaris \
+		-I${SRCTOP}/cddl/compat/opensolaris/include \
 		-I${OPENSOLARIS_USR_DISTDIR}/head \
 		-I${OPENSOLARIS_USR_DISTDIR}/lib/libdtrace/common \
 		-I${OPENSOLARIS_USR_DISTDIR}/lib/libproc/common \
@@ -20,9 +22,10 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 #CFLAGS+=	-DNEED_ERRLOC
 #YFLAGS+=	-d
 
-DPADD=		${LIBPTHREAD} ${LIBDTRACE} ${LIBY} ${LIBL} ${LIBPROC} \
-		${LIBCTF} ${LIBELF} ${LIBZ} ${LIBUTIL} ${LIBRTLD_DB}
-LDADD=		-lpthread -ldtrace -ly -ll -lproc -lctf -lelf -lz -lutil \
-		-lrtld_db
+LIBADD=	dtrace ctf elf proc
+
+.if ${MK_DTRACE_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.prog.mk>

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * ++Copyright++ 1985, 1988, 1993
  * -
  * Copyright (c) 1985, 1988, 1993
@@ -12,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -56,7 +58,6 @@ static char fromrcsid[] = "From: Id: gethnamaddr.c,v 8.23 1998/04/07 04:59:46 vi
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -88,7 +89,7 @@ static void addrsort(char **, int, res_state);
 #endif
 
 #ifdef DEBUG
-static void dprintf(char *, int, res_state) __printflike(1, 0);
+static void dbg_printf(char *, int, res_state) __printflike(1, 0);
 #endif
 
 #define MAXPACKET	(64*1024)
@@ -107,10 +108,7 @@ int _dns_ttl_;
 
 #ifdef DEBUG
 static void
-dprintf(msg, num, res)
-	char *msg;
-	int num;
-	res_state res;
+dbg_printf(char *msg, int num, res_state res)
 {
 	if (res->options & RES_DEBUG) {
 		int save = errno;
@@ -120,7 +118,7 @@ dprintf(msg, num, res)
 	}
 }
 #else
-# define dprintf(msg, num, res) /*nada*/
+# define dbg_printf(msg, num, res) /*nada*/
 #endif
 
 #define BOUNDED_INCR(x) \
@@ -373,13 +371,13 @@ gethostanswer(const querybuf *answer, int anslen, const char *qname, int qtype,
 			bp += sizeof(align) - ((u_long)bp % sizeof(align));
 
 			if (bp + n >= ep) {
-				dprintf("size (%d) too big\n", n, statp);
+				dbg_printf("size (%d) too big\n", n, statp);
 				had_error++;
 				continue;
 			}
 			if (hap >= &hed->h_addr_ptrs[_MAXADDRS-1]) {
 				if (!toobig++)
-					dprintf("Too many addresses (%d)\n",
+					dbg_printf("Too many addresses (%d)\n",
 						_MAXADDRS, statp);
 				cp += n;
 				continue;
@@ -393,7 +391,7 @@ gethostanswer(const querybuf *answer, int anslen, const char *qname, int qtype,
 			}
 			break;
 		default:
-			dprintf("Impossible condition (type=%d)\n", type,
+			dbg_printf("Impossible condition (type=%d)\n", type,
 			    statp);
 			RES_SET_H_ERRNO(statp, NO_RECOVERY);
 			return (-1);
@@ -520,12 +518,12 @@ _dns_gethostbyname(void *rval, void *cb_data, va_list ap)
 	n = res_nsearch(statp, name, C_IN, type, buf->buf, sizeof(buf->buf));
 	if (n < 0) {
 		free(buf);
-		dprintf("res_nsearch failed (%d)\n", n, statp);
+		dbg_printf("res_nsearch failed (%d)\n", n, statp);
 		*h_errnop = statp->res_h_errno;
 		return (NS_NOTFOUND);
 	} else if (n > sizeof(buf->buf)) {
 		free(buf);
-		dprintf("static buffer is too small (%d)\n", n, statp);
+		dbg_printf("static buffer is too small (%d)\n", n, statp);
 		*h_errnop = statp->res_h_errno;
 		return (NS_UNAVAIL);
 	}
@@ -627,13 +625,13 @@ _dns_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 	    sizeof buf->buf);
 	if (n < 0) {
 		free(buf);
-		dprintf("res_nquery failed (%d)\n", n, statp);
+		dbg_printf("res_nquery failed (%d)\n", n, statp);
 		*h_errnop = statp->res_h_errno;
 		return (NS_UNAVAIL);
 	}
 	if (n > sizeof buf->buf) {
 		free(buf);
-		dprintf("static buffer is too small (%d)\n", n, statp);
+		dbg_printf("static buffer is too small (%d)\n", n, statp);
 		*h_errnop = statp->res_h_errno;
 		return (NS_UNAVAIL);
 	}
@@ -769,7 +767,7 @@ _sethostdnsent(int stayopen)
 }
 
 void
-_endhostdnsent()
+_endhostdnsent(void)
 {
 	res_state statp;
 

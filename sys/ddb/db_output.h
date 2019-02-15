@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: MIT-CMU
+ *
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
@@ -30,7 +32,7 @@
 #define	_DDB_DB_OUTPUT_H_
 
 /*
- * 	Author: David B. Golub, Carnegie Mellon University
+ *	Author: David B. Golub, Carnegie Mellon University
  *	Date:	8/90
  */
 

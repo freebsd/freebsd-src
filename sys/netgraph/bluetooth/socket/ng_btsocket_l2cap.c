@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -184,7 +186,7 @@ static int ng_btsocket_l2cap_process_l2ca_write_rsp
 static int  ng_btsocket_l2cap_send_l2ca_con_req
 	(ng_btsocket_l2cap_pcb_p);
 static int  ng_btsocket_l2cap_send_l2ca_con_rsp_req
-	(u_int32_t, ng_btsocket_l2cap_rtentry_p, bdaddr_p, int, int, int);
+	(u_int32_t, ng_btsocket_l2cap_rtentry_p, bdaddr_p, int, int, int, int);
 static int  ng_btsocket_l2cap_send_l2ca_cfg_req
 	(ng_btsocket_l2cap_pcb_p);
 static int  ng_btsocket_l2cap_send_l2ca_cfg_rsp
@@ -209,14 +211,31 @@ static void ng_btsocket_l2cap_process_timeout (void *);
 
 static ng_btsocket_l2cap_pcb_p     ng_btsocket_l2cap_pcb_by_addr(bdaddr_p, int);
 static ng_btsocket_l2cap_pcb_p     ng_btsocket_l2cap_pcb_by_token(u_int32_t);
-static ng_btsocket_l2cap_pcb_p     ng_btsocket_l2cap_pcb_by_cid (bdaddr_p, int);
+static ng_btsocket_l2cap_pcb_p     ng_btsocket_l2cap_pcb_by_cid (bdaddr_p, int,int);
 static int                         ng_btsocket_l2cap_result2errno(int);
+
+static int ng_btsock_l2cap_addrtype_to_linktype(int addrtype);
 
 #define ng_btsocket_l2cap_wakeup_input_task() \
 	taskqueue_enqueue(taskqueue_swi_giant, &ng_btsocket_l2cap_queue_task)
 
 #define ng_btsocket_l2cap_wakeup_route_task() \
 	taskqueue_enqueue(taskqueue_swi_giant, &ng_btsocket_l2cap_rt_task)
+
+
+
+int ng_btsock_l2cap_addrtype_to_linktype(int addrtype)
+{
+	switch(addrtype){
+	case BDADDR_LE_PUBLIC:
+		return NG_HCI_LINK_LE_PUBLIC;
+	case BDADDR_LE_RANDOM:
+		return NG_HCI_LINK_LE_RANDOM;
+	default:
+		return NG_HCI_LINK_ACL;
+	}
+}
+
 
 /*****************************************************************************
  *****************************************************************************
@@ -445,28 +464,40 @@ ng_btsocket_l2cap_process_l2ca_con_req_rsp(struct ng_mesg *msg,
 		return (0);
 	}
 
-	if (op->result == NG_L2CAP_SUCCESS) {
-		/*
-		 * Channel is now open, so update local channel ID and 
-		 * start configuration process. Source and destination
-		 * addresses as well as route must be already set.
-		 */
-
-		pcb->cid = op->lcid;
-
-		error = ng_btsocket_l2cap_send_l2ca_cfg_req(pcb);
-		if (error != 0) {
-			/* Send disconnect request with "zero" token */
-			ng_btsocket_l2cap_send_l2ca_discon_req(0, pcb);
-
-			/* ... and close the socket */
-			pcb->state = NG_BTSOCKET_L2CAP_CLOSED;
-			soisdisconnected(pcb->so);
-		} else {
-			pcb->cfg_state = NG_BTSOCKET_L2CAP_CFG_IN_SENT;
-			pcb->state = NG_BTSOCKET_L2CAP_CONFIGURING;
-
-			ng_btsocket_l2cap_timeout(pcb);
+	if (op->result == NG_L2CAP_SUCCESS){
+		if((pcb->idtype == NG_L2CAP_L2CA_IDTYPE_ATT)||
+		   (pcb->idtype == NG_L2CAP_L2CA_IDTYPE_SMP)){
+			pcb->encryption = op->encryption;					pcb->cid = op->lcid;	
+			if(pcb->need_encrypt && !(pcb->encryption)){
+				ng_btsocket_l2cap_timeout(pcb);
+				pcb->state = NG_BTSOCKET_L2CAP_W4_ENC_CHANGE;
+			}else{
+				pcb->state = NG_BTSOCKET_L2CAP_OPEN;
+				soisconnected(pcb->so);
+			}
+		}else{
+			/*
+			 * Channel is now open, so update local channel ID and 
+			 * start configuration process. Source and destination
+			 * addresses as well as route must be already set.
+			 */
+			
+			pcb->cid = op->lcid;
+			pcb->encryption = op->encryption;
+			error = ng_btsocket_l2cap_send_l2ca_cfg_req(pcb);
+			if (error != 0) {
+				/* Send disconnect request with "zero" token */
+				ng_btsocket_l2cap_send_l2ca_discon_req(0, pcb);
+				
+				/* ... and close the socket */
+				pcb->state = NG_BTSOCKET_L2CAP_CLOSED;
+				soisdisconnected(pcb->so);
+			} else {
+				pcb->cfg_state = NG_BTSOCKET_L2CAP_CFG_IN_SENT;
+				pcb->state = NG_BTSOCKET_L2CAP_CONFIGURING;
+				
+				ng_btsocket_l2cap_timeout(pcb);
+			}
 		}
 	} else {
 		/*
@@ -479,7 +510,6 @@ ng_btsocket_l2cap_process_l2ca_con_req_rsp(struct ng_mesg *msg,
 		pcb->state = NG_BTSOCKET_L2CAP_CLOSED;
 		soisdisconnected(pcb->so); 
 	}
-
 	mtx_unlock(&pcb->pcb_mtx);
 	mtx_unlock(&ng_btsocket_l2cap_sockets_mtx);
 
@@ -586,21 +616,13 @@ ng_btsocket_l2cap_process_l2ca_con_ind(struct ng_mesg *msg,
 	
 	pcb = ng_btsocket_l2cap_pcb_by_addr(&rt->src, ip->psm);
 	if (pcb != NULL) {
-		struct socket	*so1 = NULL;
+		struct socket *so1;
 
 		mtx_lock(&pcb->pcb_mtx);
 
-		/*
-		 * First check the pending connections queue and if we have
-		 * space then create new socket and set proper source address.
-		 */
-
-		if (pcb->so->so_qlen <= pcb->so->so_qlimit) {
-			CURVNET_SET(pcb->so->so_vnet);
-			so1 = sonewconn(pcb->so, 0);
-			CURVNET_RESTORE();
-		}
-
+		CURVNET_SET(pcb->so->so_vnet);
+		so1 = sonewconn(pcb->so, 0);
+		CURVNET_RESTORE();
 		if (so1 == NULL) {
 			result = NG_L2CAP_NO_RESOURCES;
 			goto respond;
@@ -643,7 +665,9 @@ ng_btsocket_l2cap_process_l2ca_con_ind(struct ng_mesg *msg,
 
 respond:
 	error = ng_btsocket_l2cap_send_l2ca_con_rsp_req(token, rt,
-			&ip->bdaddr, ip->ident, ip->lcid, result);
+							&ip->bdaddr,
+							ip->ident, ip->lcid,
+							result,ip->linktype);
 	if (pcb1 != NULL) {
 		if (error != 0) {
 			pcb1->so->so_error = error;
@@ -666,7 +690,50 @@ respond:
 
 	return (error);
 } /* ng_btsocket_l2cap_process_l2ca_con_ind */
+/*Encryption Change*/
+static int ng_btsocket_l2cap_process_l2ca_enc_change(struct ng_mesg *msg, ng_btsocket_l2cap_rtentry_p rt)
+{
+	ng_l2cap_l2ca_enc_chg_op	*op = NULL;
+	ng_btsocket_l2cap_pcb_t		*pcb = NULL;
 
+
+	if (msg->header.arglen != sizeof(*op))
+		return (EMSGSIZE);
+
+	op = (ng_l2cap_l2ca_enc_chg_op *)(msg->data);
+
+	mtx_lock(&ng_btsocket_l2cap_sockets_mtx);
+
+	pcb = ng_btsocket_l2cap_pcb_by_cid(&rt->src, op->lcid,
+					   op->idtype);
+	if (pcb == NULL) {
+		mtx_unlock(&ng_btsocket_l2cap_sockets_mtx);
+		return (ENOENT);
+	}
+
+	mtx_lock(&pcb->pcb_mtx);
+	pcb->encryption = op->result;
+	
+	if(pcb->need_encrypt){
+		ng_btsocket_l2cap_untimeout(pcb);		
+		if(pcb->state != NG_BTSOCKET_L2CAP_W4_ENC_CHANGE){
+			NG_BTSOCKET_L2CAP_WARN("%s: Invalid pcb status %d",
+					       __func__, pcb->state);
+		}else if(pcb->encryption){
+			pcb->state = NG_BTSOCKET_L2CAP_OPEN;
+			soisconnected(pcb->so);
+		}else{
+			pcb->so->so_error = EPERM;
+			ng_btsocket_l2cap_send_l2ca_discon_req(0, pcb);
+			pcb->state = NG_BTSOCKET_L2CAP_CLOSED;
+			soisdisconnected(pcb->so);
+		}
+	}
+	mtx_unlock(&pcb->pcb_mtx);
+	mtx_unlock(&ng_btsocket_l2cap_sockets_mtx);
+
+	return 0;
+}
 /*
  * Process L2CA_Config response
  */
@@ -899,7 +966,8 @@ ng_btsocket_l2cap_process_l2ca_cfg_ind(struct ng_mesg *msg,
 	mtx_lock(&ng_btsocket_l2cap_sockets_mtx);
 
 	/* Check for the open socket that has given channel ID */
-	pcb = ng_btsocket_l2cap_pcb_by_cid(&rt->src, ip->lcid);
+	pcb = ng_btsocket_l2cap_pcb_by_cid(&rt->src, ip->lcid,
+					   NG_L2CAP_L2CA_IDTYPE_BREDR);
 	if (pcb == NULL) {
 		mtx_unlock(&ng_btsocket_l2cap_sockets_mtx);
 		return (ENOENT);
@@ -1040,7 +1108,8 @@ ng_btsocket_l2cap_process_l2ca_discon_ind(struct ng_mesg *msg,
 	mtx_lock(&ng_btsocket_l2cap_sockets_mtx);
 
 	/* Look for the socket with given channel ID */
-	pcb = ng_btsocket_l2cap_pcb_by_cid(&rt->src, ip->lcid);
+	pcb = ng_btsocket_l2cap_pcb_by_cid(&rt->src, ip->lcid,
+					   ip->idtype);
 	if (pcb == NULL) {
 		mtx_unlock(&ng_btsocket_l2cap_sockets_mtx);
 		return (0);
@@ -1127,9 +1196,8 @@ ng_btsocket_l2cap_process_l2ca_write_rsp(struct ng_mesg *msg,
 	/*
  	 * Check if we have more data to send
  	 */
-
 	sbdroprecord(&pcb->so->so_snd);
-	if (pcb->so->so_snd.sb_cc > 0) {
+	if (sbavail(&pcb->so->so_snd) > 0) {
 		if (ng_btsocket_l2cap_send2(pcb) == 0)
 			ng_btsocket_l2cap_timeout(pcb);
 		else
@@ -1177,7 +1245,8 @@ ng_btsocket_l2cap_send_l2ca_con_req(ng_btsocket_l2cap_pcb_p pcb)
 	ip = (ng_l2cap_l2ca_con_ip *)(msg->data);
 	bcopy(&pcb->dst, &ip->bdaddr, sizeof(ip->bdaddr));
 	ip->psm = pcb->psm;
-
+	ip->linktype = ng_btsock_l2cap_addrtype_to_linktype(pcb->dsttype);
+	ip->idtype = pcb->idtype;
 	NG_SEND_MSG_HOOK(error, ng_btsocket_l2cap_node, msg,pcb->rt->hook, 0);
 
 	return (error);
@@ -1190,7 +1259,7 @@ ng_btsocket_l2cap_send_l2ca_con_req(ng_btsocket_l2cap_pcb_p pcb)
 static int
 ng_btsocket_l2cap_send_l2ca_con_rsp_req(u_int32_t token,
 		ng_btsocket_l2cap_rtentry_p rt, bdaddr_p dst, int ident, 
-		int lcid, int result)
+					int lcid, int result, int linktype)
 {
 	struct ng_mesg			*msg = NULL;
 	ng_l2cap_l2ca_con_rsp_ip	*ip = NULL;
@@ -1210,6 +1279,7 @@ ng_btsocket_l2cap_send_l2ca_con_rsp_req(u_int32_t token,
 	bcopy(dst, &ip->bdaddr, sizeof(ip->bdaddr));
 	ip->ident = ident;
 	ip->lcid = lcid;
+	ip->linktype = linktype;
 	ip->result = result;
 	ip->status = 0;
 
@@ -1315,6 +1385,7 @@ ng_btsocket_l2cap_send_l2ca_discon_req(u_int32_t token,
 
 	ip = (ng_l2cap_l2ca_discon_ip *)(msg->data);
 	ip->lcid = pcb->cid;
+	ip->idtype = pcb->idtype;
 
 	NG_SEND_MSG_HOOK(error, ng_btsocket_l2cap_node, msg,pcb->rt->hook, 0);
 
@@ -1338,6 +1409,7 @@ ng_btsocket_l2cap_data_input(struct mbuf *m, hook_p hook)
 	ng_l2cap_clt_hdr_t		*clt_hdr = NULL;
 	ng_btsocket_l2cap_pcb_t		*pcb = NULL;
 	ng_btsocket_l2cap_rtentry_t	*rt = NULL;
+	uint16_t idtype;
 
 	if (hook == NULL) {
 		NG_BTSOCKET_L2CAP_ALERT(
@@ -1352,6 +1424,10 @@ ng_btsocket_l2cap_data_input(struct mbuf *m, hook_p hook)
 		goto drop;
 	}
 
+	m = m_pullup(m, sizeof(uint16_t));
+	idtype = *mtod(m, uint16_t *);
+	m_adj(m, sizeof(uint16_t));
+	
 	/* Make sure we can access header */
 	if (m->m_pkthdr.len < sizeof(*hdr)) {
 		NG_BTSOCKET_L2CAP_ERR(
@@ -1395,12 +1471,15 @@ ng_btsocket_l2cap_data_input(struct mbuf *m, hook_p hook)
 		rt->src.b[2], rt->src.b[1], rt->src.b[0],
 		hdr->dcid, hdr->length);
 
-	if (hdr->dcid >= NG_L2CAP_FIRST_CID) {
+	if ((hdr->dcid >= NG_L2CAP_FIRST_CID) ||
+	    (idtype == NG_L2CAP_L2CA_IDTYPE_ATT)||
+	    (idtype == NG_L2CAP_L2CA_IDTYPE_SMP)
+	    ){
 
 		mtx_lock(&ng_btsocket_l2cap_sockets_mtx);
 
 		/* Normal packet: find connected socket */
-		pcb = ng_btsocket_l2cap_pcb_by_cid(&rt->src, hdr->dcid);
+		pcb = ng_btsocket_l2cap_pcb_by_cid(&rt->src, hdr->dcid,idtype);
 		if (pcb == NULL) {
 			mtx_unlock(&ng_btsocket_l2cap_sockets_mtx);
 			goto drop;
@@ -1558,11 +1637,12 @@ ng_btsocket_l2cap_default_msg_input(struct ng_mesg *msg, hook_p hook)
 	switch (msg->header.cmd) {
 	case NGM_L2CAP_NODE_HOOK_INFO: {
 		ng_btsocket_l2cap_rtentry_t	*rt = NULL;
-
-		if (hook == NULL || msg->header.arglen != sizeof(bdaddr_t))
+		ng_l2cap_node_hook_info_ep *ep =
+		  (ng_l2cap_node_hook_info_ep *)msg->data;
+		if (hook == NULL || msg->header.arglen != sizeof(*ep))
 			break;
 
-		if (bcmp(msg->data, NG_HCI_BDADDR_ANY, sizeof(bdaddr_t)) == 0)
+		if (bcmp(&ep->addr, NG_HCI_BDADDR_ANY, sizeof(bdaddr_t)) == 0)
 			break;
 
 		mtx_lock(&ng_btsocket_l2cap_rt_mtx);
@@ -1581,7 +1661,7 @@ ng_btsocket_l2cap_default_msg_input(struct ng_mesg *msg, hook_p hook)
 			NG_HOOK_SET_PRIVATE(hook, rt);
 		}
 
-		bcopy(msg->data, &rt->src, sizeof(rt->src));
+		bcopy(&ep->addr, &rt->src, sizeof(rt->src));
 		rt->hook = hook;
 
 		mtx_unlock(&ng_btsocket_l2cap_rt_mtx);
@@ -1660,7 +1740,10 @@ ng_btsocket_l2cap_l2ca_msg_input(struct ng_mesg *msg, hook_p hook)
 	case NGM_L2CAP_L2CA_WRITE: /* L2CA_Write response */
 		ng_btsocket_l2cap_process_l2ca_write_rsp(msg, rt);
 		break;
+	case NGM_L2CAP_L2CA_ENC_CHANGE:
+		ng_btsocket_l2cap_process_l2ca_enc_change(msg, rt);
 
+		break;
 	/* XXX FIXME add other L2CA messages */
 
 	default:
@@ -1717,6 +1800,7 @@ ng_btsocket_l2cap_input(void *context, int pending)
 			case NGM_L2CAP_L2CA_DISCON:
 			case NGM_L2CAP_L2CA_DISCON_IND:
 			case NGM_L2CAP_L2CA_WRITE:
+			case NGM_L2CAP_L2CA_ENC_CHANGE:
 			/* XXX FIXME add other L2CA messages */
 				ng_btsocket_l2cap_l2ca_msg_input(msg, hook);
 				break;
@@ -1986,7 +2070,7 @@ ng_btsocket_l2cap_attach(struct socket *so, int proto, struct thread *td)
 	 * This is totally FUBAR. We could get here in two cases:
 	 *
 	 * 1) When user calls socket()
-	 * 2) When we need to accept new incomming connection and call 
+	 * 2) When we need to accept new incoming connection and call 
 	 *    sonewconn()
 	 *
 	 * In the first case we must acquire ng_btsocket_l2cap_sockets_mtx.
@@ -2036,7 +2120,9 @@ ng_btsocket_l2cap_bind(struct socket *so, struct sockaddr *nam,
 		return (EINVAL);
 	if (sa->l2cap_family != AF_BLUETOOTH)
 		return (EAFNOSUPPORT);
-	if (sa->l2cap_len != sizeof(*sa))
+	/*For the time being, Not support LE binding.*/
+	if ((sa->l2cap_len != sizeof(*sa))&&
+	    (sa->l2cap_len != sizeof(struct sockaddr_l2cap_compat)))
 		return (EINVAL);
 
 	psm = le16toh(sa->l2cap_psm);
@@ -2081,10 +2167,12 @@ ng_btsocket_l2cap_connect(struct socket *so, struct sockaddr *nam,
 		struct thread *td)
 {
 	ng_btsocket_l2cap_pcb_t		*pcb = so2l2cap_pcb(so);
-	struct sockaddr_l2cap		*sa = (struct sockaddr_l2cap *) nam;
+	struct sockaddr_l2cap_compat	*sal = (struct sockaddr_l2cap_compat *) nam;
+	struct sockaddr_l2cap *sa  = (struct sockaddr_l2cap *)nam;
+	struct sockaddr_l2cap  ba;
 	ng_btsocket_l2cap_rtentry_t	*rt = NULL;
 	int				 have_src, error = 0;
-
+	int idtype = NG_L2CAP_L2CA_IDTYPE_BREDR;
 	/* Check socket */
 	if (pcb == NULL)
 		return (EINVAL);
@@ -2098,14 +2186,34 @@ ng_btsocket_l2cap_connect(struct socket *so, struct sockaddr *nam,
 		return (EINVAL);
 	if (sa->l2cap_family != AF_BLUETOOTH)
 		return (EAFNOSUPPORT);
+	if (sa->l2cap_len == sizeof(*sal)){
+		bcopy(sal, &ba, sizeof(*sal));
+		sa = &ba;
+		sa->l2cap_len = sizeof(*sa);
+		sa->l2cap_bdaddr_type = BDADDR_BREDR;
+	}
 	if (sa->l2cap_len != sizeof(*sa))
 		return (EINVAL);
-	if (sa->l2cap_psm == 0 ||
-	    bcmp(&sa->l2cap_bdaddr, NG_HCI_BDADDR_ANY, sizeof(bdaddr_t)) == 0)
+	if ((sa->l2cap_psm &&  sa->l2cap_cid))
+		return EINVAL;
+	if (bcmp(&sa->l2cap_bdaddr, NG_HCI_BDADDR_ANY, sizeof(bdaddr_t)) == 0)
 		return (EDESTADDRREQ);
+	if((sa->l2cap_bdaddr_type == BDADDR_BREDR)&&
+	   (sa->l2cap_psm == 0))
+		return EDESTADDRREQ;
+	if(sa->l2cap_bdaddr_type != BDADDR_BREDR){
+		if(sa->l2cap_cid == NG_L2CAP_ATT_CID){
+			idtype = NG_L2CAP_L2CA_IDTYPE_ATT;
+		}else if (sa->l2cap_cid == NG_L2CAP_SMP_CID){
+			idtype =NG_L2CAP_L2CA_IDTYPE_SMP;
+		}else{
+			//if cid == 0 idtype = NG_L2CAP_L2CA_IDTYPE_LE;
+			// Not supported yet
+			return EINVAL;
+		}
+	}
 	if (pcb->psm != 0 && pcb->psm != le16toh(sa->l2cap_psm))
 		return (EINVAL);
-
 	/*
 	 * Routing. Socket should be bound to some source address. The source
 	 * address can be ANY. Destination address must be set and it must not
@@ -2120,7 +2228,9 @@ ng_btsocket_l2cap_connect(struct socket *so, struct sockaddr *nam,
 	/* Send destination address and PSM */
 	bcopy(&sa->l2cap_bdaddr, &pcb->dst, sizeof(pcb->dst));
 	pcb->psm = le16toh(sa->l2cap_psm);
-
+	pcb->dsttype = sa->l2cap_bdaddr_type;
+	pcb->cid = 0;
+	pcb->idtype = idtype;
 	pcb->rt = NULL;
 	have_src = bcmp(&pcb->src, NG_HCI_BDADDR_ANY, sizeof(pcb->src));
 
@@ -2141,8 +2251,12 @@ ng_btsocket_l2cap_connect(struct socket *so, struct sockaddr *nam,
 	if (rt != NULL) {
 		pcb->rt = rt;
 
-		if (!have_src)
+		if (!have_src){
 			bcopy(&rt->src, &pcb->src, sizeof(pcb->src));
+			pcb->srctype =
+			  (sa->l2cap_bdaddr_type == BDADDR_BREDR)?
+			  BDADDR_BREDR : BDADDR_LE_PUBLIC;
+		}
 	} else
 		error = EHOSTUNREACH;
 
@@ -2227,6 +2341,11 @@ ng_btsocket_l2cap_ctloutput(struct socket *so, struct sockopt *sopt)
 			error = sooptcopyout(sopt, &pcb->flush_timo,
 						sizeof(pcb->flush_timo));
 			break;
+		case SO_L2CAP_ENCRYPTED: /* get encrypt required */
+			error = sooptcopyout(sopt, &pcb->need_encrypt,
+						sizeof(pcb->need_encrypt));
+			break;
+
 
 		default:
 			error = ENOPROTOOPT;
@@ -2267,7 +2386,17 @@ ng_btsocket_l2cap_ctloutput(struct socket *so, struct sockopt *sopt)
 			if (error == 0)
 				pcb->flush_timo = v.flush_timo;
 			break;
-
+		case SO_L2CAP_ENCRYPTED: /*set connect encryption opt*/
+			if((pcb->state != NG_BTSOCKET_L2CAP_OPEN) &&
+			   (pcb->state != NG_BTSOCKET_L2CAP_W4_ENC_CHANGE)){
+				error = sooptcopyin(sopt, &v, sizeof(v),
+						    sizeof(v.encryption));
+				if(error == 0)
+					pcb->need_encrypt = (v.encryption)?1:0;
+			}else{
+				error = EINVAL;
+			}
+			break;
 		default:
 			error = ENOPROTOOPT;
 			break;
@@ -2419,7 +2548,18 @@ ng_btsocket_l2cap_peeraddr(struct socket *so, struct sockaddr **nam)
 	sa.l2cap_psm = htole16(pcb->psm);
 	sa.l2cap_len = sizeof(sa);
 	sa.l2cap_family = AF_BLUETOOTH;
-
+	switch(pcb->idtype){
+	case NG_L2CAP_L2CA_IDTYPE_ATT:
+		sa.l2cap_cid = NG_L2CAP_ATT_CID;
+		break;
+	case NG_L2CAP_L2CA_IDTYPE_SMP:
+		sa.l2cap_cid = NG_L2CAP_SMP_CID;
+		break;
+	default:
+		sa.l2cap_cid = 0;
+		break;
+	}
+	sa.l2cap_bdaddr_type = pcb->dsttype;
 	*nam = sodupsockaddr((struct sockaddr *) &sa, M_NOWAIT);
 
 	return ((*nam == NULL)? ENOMEM : 0);
@@ -2464,7 +2604,7 @@ ng_btsocket_l2cap_send(struct socket *so, int flags, struct mbuf *m,
 		goto drop;
 	}
 
-	/* Check packet size agains outgoing (peer's incoming) MTU) */
+	/* Check packet size against outgoing (peer's incoming) MTU) */
 	if (m->m_pkthdr.len > pcb->omtu) {
 		NG_BTSOCKET_L2CAP_ERR(
 "%s: Packet too big, len=%d, omtu=%d\n", __func__, m->m_pkthdr.len, pcb->omtu);
@@ -2513,7 +2653,7 @@ ng_btsocket_l2cap_send2(ng_btsocket_l2cap_pcb_p pcb)
 	
 	mtx_assert(&pcb->pcb_mtx, MA_OWNED);
 
-	if (pcb->so->so_snd.sb_cc == 0)
+	if (sbavail(&pcb->so->so_snd) == 0)
 		return (EINVAL); /* XXX */
 
 	m = m_dup(pcb->so->so_snd.sb_mb, M_NOWAIT);
@@ -2537,14 +2677,14 @@ ng_btsocket_l2cap_send2(ng_btsocket_l2cap_pcb_p pcb)
 	hdr->token = pcb->token;
 	hdr->length = m->m_pkthdr.len - sizeof(*hdr);
 	hdr->lcid = pcb->cid;
-
+	hdr->idtype = pcb->idtype;
 	NG_BTSOCKET_L2CAP_INFO(
 "%s: Sending packet: len=%d, length=%d, lcid=%d, token=%d, state=%d\n",
 		__func__, m->m_pkthdr.len, hdr->length, hdr->lcid, 
 		hdr->token, pcb->state);
 
 	/*
-	 * If we got here than we have successfuly creates new L2CAP 
+	 * If we got here than we have successfully creates new L2CAP 
 	 * data packet and now we can send it to the L2CAP layer
 	 */
 
@@ -2572,6 +2712,8 @@ ng_btsocket_l2cap_sockaddr(struct socket *so, struct sockaddr **nam)
 	sa.l2cap_psm = htole16(pcb->psm);
 	sa.l2cap_len = sizeof(sa);
 	sa.l2cap_family = AF_BLUETOOTH;
+	sa.l2cap_cid = 0;
+	sa.l2cap_bdaddr_type = pcb->srctype;
 
 	*nam = sodupsockaddr((struct sockaddr *) &sa, M_NOWAIT);
 
@@ -2639,16 +2781,19 @@ ng_btsocket_l2cap_pcb_by_token(u_int32_t token)
  */
 
 static ng_btsocket_l2cap_pcb_p
-ng_btsocket_l2cap_pcb_by_cid(bdaddr_p src, int cid)
+ng_btsocket_l2cap_pcb_by_cid(bdaddr_p src, int cid, int idtype)
 {
 	ng_btsocket_l2cap_pcb_p	p = NULL;
 
 	mtx_assert(&ng_btsocket_l2cap_sockets_mtx, MA_OWNED);
 
-	LIST_FOREACH(p, &ng_btsocket_l2cap_sockets, next)
-		if (p->cid == cid && bcmp(src, &p->src, sizeof(p->src)) == 0)
+	LIST_FOREACH(p, &ng_btsocket_l2cap_sockets, next){
+		if (p->cid == cid &&
+		    bcmp(src, &p->src, sizeof(p->src)) == 0&&
+		    p->idtype == idtype)		    
 			break;
 
+	}
 	return (p);
 } /* ng_btsocket_l2cap_pcb_by_cid */
 
@@ -2704,6 +2849,7 @@ ng_btsocket_l2cap_process_timeout(void *xpcb)
 	switch (pcb->state) {
 	case NG_BTSOCKET_L2CAP_CONNECTING:
 	case NG_BTSOCKET_L2CAP_CONFIGURING:
+	case NG_BTSOCKET_L2CAP_W4_ENC_CHANGE:		
 		/* Send disconnect request with "zero" token */
 		if (pcb->cid != 0)
 			ng_btsocket_l2cap_send_l2ca_discon_req(0, pcb);

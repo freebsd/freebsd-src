@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2013 Advanced Computing Technologies LLC
+# Copyright (c) 2013 Hudson River Trading LLC
 # Written by: John H. Baldwin <jhb@FreeBSD.org>
 # All rights reserved.
 #
@@ -196,7 +196,7 @@ $COMMAND -nr -d $WORKDIR -D $TEST > $WORKDIR/testn.out
 
 cat > $WORKDIR/correct.out <<EOF
 Warnings:
-  Needs update: /etc/localtime (required manual update via tzsetup(1))
+  Needs update: /etc/localtime (required manual update via tzsetup(8))
 EOF
 
 echo "Differences for missing /var/db/zoneinfo with -n:"

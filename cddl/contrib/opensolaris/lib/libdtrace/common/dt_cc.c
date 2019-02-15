@@ -21,8 +21,9 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
  * Copyright (c) 2013, Joyent Inc. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright 2015 Gary Mills
  */
 
 /*
@@ -118,7 +119,6 @@ static const dtrace_diftype_t dt_int_rtype = {
 
 static void *dt_compile(dtrace_hdl_t *, int, dtrace_probespec_t, void *,
     uint_t, int, char *const[], FILE *, const char *);
-
 
 /*ARGSUSED*/
 static int
@@ -1058,46 +1058,6 @@ dt_action_printm(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 }
 
 static void
-dt_action_printt(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
-{
-	dtrace_actdesc_t *ap = dt_stmt_action(dtp, sdp);
-
-	dt_node_t *size = dnp->dn_args;
-	dt_node_t *addr = dnp->dn_args->dn_list;
-
-	char n[DT_TYPE_NAMELEN];
-
-	if (dt_node_is_posconst(size) == 0) {
-		dnerror(size, D_PRINTT_SIZE, "printt( ) argument #1 must "
-		    "be a non-zero positive integral constant expression\n");
-	}
-
-	if (addr == NULL || addr->dn_kind != DT_NODE_FUNC ||
-	    addr->dn_ident != dt_idhash_lookup(dtp->dt_globals, "typeref")) {
-		dnerror(addr, D_PRINTT_ADDR,
-		    "printt( ) argument #2 is incompatible with "
-		    "prototype:\n\tprototype: typeref()\n"
-		    "\t argument: %s\n",
-		    dt_node_type_name(addr, n, sizeof (n)));
-	}
-
-	dt_cg(yypcb, addr);
-	ap->dtad_difo = dt_as(yypcb);
-	ap->dtad_kind = DTRACEACT_PRINTT;
-
-	ap->dtad_difo->dtdo_rtype.dtdt_flags |= DIF_TF_BYREF;
-
-	/*
-	 * Allow additional buffer space for the data size, type size,
-	 * type string length and a stab in the dark (32 bytes) for the
-	 * type string. The type string is part of the typeref() that
-	 * this action references.
-	 */
-	ap->dtad_difo->dtdo_rtype.dtdt_size = size->dn_value + 3 * sizeof(uintptr_t) + 32;
-
-}
-
-static void
 dt_action_commit(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 {
 	dtrace_actdesc_t *ap = dt_stmt_action(dtp, sdp);
@@ -1168,9 +1128,6 @@ dt_compile_fun(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 		break;
 	case DT_ACT_PRINTM:
 		dt_action_printm(dtp, dnp->dn_expr, sdp);
-		break;
-	case DT_ACT_PRINTT:
-		dt_action_printt(dtp, dnp->dn_expr, sdp);
 		break;
 	case DT_ACT_RAISE:
 		dt_action_raise(dtp, dnp->dn_expr, sdp);
@@ -1546,7 +1503,7 @@ dt_compile_agg(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 			    "divide a power of the factor\n");
 		}
 
-		for (i = 0, order = 1; i < args[2].value; i++) {
+		for (i = 0, order = 1; i <= args[2].value + 1; i++) {
 			if (order * args[0].value > order) {
 				order *= args[0].value;
 				continue;
@@ -1554,7 +1511,7 @@ dt_compile_agg(dtrace_hdl_t *dtp, dt_node_t *dnp, dtrace_stmtdesc_t *sdp)
 
 			dnerror(dnp, D_LLQUANT_MAGTOOBIG, "llquantize( ) "
 			    "factor (%d) raised to power of high magnitude "
-			    "(%d) overflows 64-bits\n", args[0].value,
+			    "(%d) plus 1 overflows 64-bits\n", args[0].value,
 			    args[2].value);
 		}
 
@@ -1888,7 +1845,7 @@ dt_preproc(dtrace_hdl_t *dtp, FILE *ifp)
 	char **argv = malloc(sizeof (char *) * (argc + 5));
 	FILE *ofp = tmpfile();
 
-#if defined(sun)
+#ifdef illumos
 	char ipath[20], opath[20]; /* big enough for /dev/fd/ + INT_MAX + \0 */
 #endif
 	char verdef[32]; /* big enough for -D__SUNW_D_VERSION=0x%08x + \0 */
@@ -1898,7 +1855,7 @@ dt_preproc(dtrace_hdl_t *dtp, FILE *ifp)
 
 	int wstat, estat;
 	pid_t pid;
-#if defined(sun)
+#ifdef illumos
 	off64_t off;
 #else
 	off_t off = 0;
@@ -1929,7 +1886,7 @@ dt_preproc(dtrace_hdl_t *dtp, FILE *ifp)
 		(void) fseeko64(ifp, off, SEEK_SET);
 	}
 
-#if defined(sun)
+#ifdef illumos
 	(void) snprintf(ipath, sizeof (ipath), "/dev/fd/%d", fileno(ifp));
 	(void) snprintf(opath, sizeof (opath), "/dev/fd/%d", fileno(ofp));
 #endif
@@ -1940,7 +1897,7 @@ dt_preproc(dtrace_hdl_t *dtp, FILE *ifp)
 	    "-D__SUNW_D_VERSION=0x%08x", dtp->dt_vmax);
 	argv[argc++] = verdef;
 
-#if defined(sun)
+#ifdef illumos
 	switch (dtp->dt_stdcmode) {
 	case DT_STDC_XA:
 	case DT_STDC_XT:
@@ -1982,7 +1939,7 @@ dt_preproc(dtrace_hdl_t *dtp, FILE *ifp)
 	}
 
 	if (pid == 0) {
-#if !defined(sun)
+#ifndef illumos
 		if (isatty(fileno(ifp)) == 0)
 			lseek(fileno(ifp), off, SEEK_SET);
 		dup2(fileno(ifp), 0);
@@ -2435,7 +2392,7 @@ dt_compile(dtrace_hdl_t *dtp, int context, dtrace_probespec_t pspec, void *arg,
 	dt_node_t *dnp;
 	dt_decl_t *ddp;
 	dt_pcb_t pcb;
-	void *rv;
+	void *volatile rv;
 	int err;
 
 	if ((fp == NULL && s == NULL) || (cflags & ~DTRACE_C_MASK) != 0) {
@@ -2518,6 +2475,28 @@ dt_compile(dtrace_hdl_t *dtp, int context, dtrace_probespec_t pspec, void *arg,
 	}
 
 	/*
+	 * Perform sugar transformations (for "if" / "else") and replace the
+	 * existing clause chain with the new one.
+	 */
+	if (context == DT_CTX_DPROG) {
+		dt_node_t *dnp, *next_dnp;
+		dt_node_t *new_list = NULL;
+
+		for (dnp = yypcb->pcb_root->dn_list;
+		    dnp != NULL; dnp = next_dnp) {
+			/* remove this node from the list */
+			next_dnp = dnp->dn_list;
+			dnp->dn_list = NULL;
+
+			if (dnp->dn_kind == DT_NODE_CLAUSE)
+				dnp = dt_compile_sugar(dtp, dnp);
+			/* append node to the new list */
+			new_list = dt_node_link(new_list, dnp);
+		}
+		yypcb->pcb_root->dn_list = new_list;
+	}
+
+	/*
 	 * If we have successfully created a parse tree for a D program, loop
 	 * over the clauses and actions and instantiate the corresponding
 	 * libdtrace program.  If we are parsing a D expression, then we
@@ -2537,6 +2516,8 @@ dt_compile(dtrace_hdl_t *dtp, int context, dtrace_probespec_t pspec, void *arg,
 		for (; dnp != NULL; dnp = dnp->dn_list) {
 			switch (dnp->dn_kind) {
 			case DT_NODE_CLAUSE:
+				if (DT_TREEDUMP_PASS(dtp, 4))
+					dt_printd(dnp, stderr, 0);
 				dt_compile_clause(dtp, dnp);
 				break;
 			case DT_NODE_XLATOR:

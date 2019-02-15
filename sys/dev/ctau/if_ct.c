@@ -194,8 +194,7 @@ static struct mbuf *makembuf (void *buf, u_int len)
 	MGETHDR (m, M_NOWAIT, MT_DATA);
 	if (! m)
 		return 0;
-	MCLGET (m, M_NOWAIT);
-	if (! (m->m_flags & M_EXT)) {
+	if (!(MCLGET(m, M_NOWAIT))) {
 		m_freem (m);
 		return 0;
 	}
@@ -318,13 +317,12 @@ static	short porttab [] = {
 static	char dmatab [] = { 7, 6, 5, 0 };
 static	char irqtab [] = { 5, 10, 11, 7, 3, 15, 12, 0 };
 
-static int ct_is_free_res (device_t dev, int rid, int type, u_long start,
-	u_long end, u_long count)
+static int ct_is_free_res (device_t dev, int rid, int type, rman_res_t start,
+	rman_res_t end, rman_res_t count)
 {
 	struct resource *res;
 	
-	if (!(res = bus_alloc_resource (dev, type, &rid, start, end, count,
-	    RF_ALLOCATED)))
+	if (!(res = bus_alloc_resource (dev, type, &rid, start, end, count, 0)))
 		return 0;
 		
 	bus_release_resource (dev, type, rid, res);
@@ -334,7 +332,7 @@ static int ct_is_free_res (device_t dev, int rid, int type, u_long start,
 
 static void ct_identify (driver_t *driver, device_t dev)
 {
-	u_long iobase, rescount;
+	rman_res_t iobase, rescount;
 	int devcount;
 	device_t *devices;
 	device_t child;
@@ -442,7 +440,7 @@ static void ct_identify (driver_t *driver, device_t dev)
 static int ct_probe (device_t dev)
 {
 	int unit = device_get_unit (dev);
-	u_long iobase, rescount;
+	rman_res_t iobase, rescount;
 
 	if (!device_get_desc (dev) ||
 	    strcmp (device_get_desc (dev), "Cronyx Tau-ISA"))
@@ -461,7 +459,7 @@ static int ct_probe (device_t dev)
 	}
 		
 	if (!ct_probe_board (iobase, -1, -1)) {
-		printf ("ct%d: probing for Tau-ISA at %lx faild\n", unit, iobase);
+		printf ("ct%d: probing for Tau-ISA at %jx faild\n", unit, iobase);
 		return ENXIO;
 	}
 	
@@ -531,7 +529,7 @@ ct_bus_dma_mem_free (ct_dma_mem_t *dmem)
 static int ct_attach (device_t dev)
 {
 	bdrv_t *bd = device_get_softc (dev);
-	u_long iobase, drq, irq, rescount;
+	rman_res_t iobase, drq, irq, rescount;
 	int unit = device_get_unit (dev);
 	char *ct_ln = CT_LOCK_NAME;
 	ct_board_t *b;
@@ -634,7 +632,7 @@ static int ct_attach (device_t dev)
 	ct_ln[2] = '0' + unit;
 	mtx_init (&bd->ct_mtx, ct_ln, MTX_NETWORK_LOCK, MTX_DEF|MTX_RECURSE);
 	if (! probe_irq (b, irq)) {
-		printf ("ct%d: irq %ld not functional\n", unit, irq);
+		printf ("ct%d: irq %jd not functional\n", unit, irq);
 		bd->board = 0;
 		adapter [unit] = 0;
 		free (b, M_DEVBUF);
@@ -648,12 +646,12 @@ static int ct_attach (device_t dev)
  		return ENXIO;
 	}
 	
-	callout_init (&led_timo[unit], CALLOUT_MPSAFE);
+	callout_init (&led_timo[unit], 1);
 	s = splimp ();
 	if (bus_setup_intr (dev, bd->irq_res,
 			   INTR_TYPE_NET|INTR_MPSAFE,
 			   NULL, ct_intr, bd, &bd->intrhand)) {
-		printf ("ct%d: Can't setup irq %ld\n", unit, irq);
+		printf ("ct%d: Can't setup irq %jd\n", unit, irq);
 		bd->board = 0;
 		adapter [unit] = 0;
 		free (b, M_DEVBUF);
@@ -687,7 +685,7 @@ static int ct_attach (device_t dev)
 		c->sys = d;
 		channel [b->num*NCHAN + c->num] = d;
 		sprintf (d->name, "ct%d.%d", b->num, c->num);
-		callout_init (&d->timeout_handle, CALLOUT_MPSAFE);
+		callout_init (&d->timeout_handle, 1);
 
 #ifdef NETGRAPH
 		if (ng_make_node_common (&typestruct, &d->node) != 0) {
@@ -841,8 +839,8 @@ static int ct_detach (device_t dev)
 		/* Deallocate buffers. */
 		ct_bus_dma_mem_free (&d->dmamem);
 	}
-	bd->board = 0;
-	adapter [b->num] = 0;
+	bd->board = NULL;
+	adapter [b->num] = NULL;
 	free (b, M_DEVBUF);
 	
 	mtx_destroy (&bd->ct_mtx);
@@ -2164,7 +2162,7 @@ static int ct_modevent (module_t mod, int type, void *unused)
 			printf ("Failed to register ng_ct\n");
 #endif
 		++load_count;
-		callout_init (&timeout_handle, CALLOUT_MPSAFE);
+		callout_init (&timeout_handle, 1);
 		callout_reset (&timeout_handle, hz*5, ct_timeout, 0);
 		break;
 	case MOD_UNLOAD:

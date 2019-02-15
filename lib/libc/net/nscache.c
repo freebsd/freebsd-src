@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Michael Bushkov <bushman@rsu.ru>
  * All rights reserved.
  *
@@ -29,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#define _NS_PRIVATE
 #include <nsswitch.h>
 #include <stdlib.h>
 #include <string.h>

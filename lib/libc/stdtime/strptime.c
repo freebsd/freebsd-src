@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 Gary Mills
  * Copyright 2011, Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 1994 Powerdog Industries.  All rights reserved.
@@ -93,6 +95,7 @@ _strptime(const char *buf, const char *fmt, struct tm *tm, int *GMTp,
 	int	i, len;
 	int flags;
 	int Ealternative, Oalternative;
+	int century, year;
 	const struct lc_time_T *tptr = __get_current_time_locale(locale);
 	static int start_of_month[2][13] = {
 		{0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365},
@@ -100,6 +103,8 @@ _strptime(const char *buf, const char *fmt, struct tm *tm, int *GMTp,
 	};
 
 	flags = FLAG_NONE;
+	century = -1;
+	year = -1;
 
 	ptr = fmt;
 	while (*ptr != 0) {
@@ -144,10 +149,8 @@ label:
 				i += *buf - '0';
 				len--;
 			}
-			if (i < 19)
-				return (NULL);
 
-			tm->tm_year = i * 100 - TM_YEAR_BASE;
+			century = i;
 			flags |= FLAG_YEAR;
 
 			break;
@@ -269,17 +272,24 @@ label:
 		case 'k':
 		case 'l':
 			/*
-			 * Of these, %l is the only specifier explicitly
-			 * documented as not being zero-padded.  However,
-			 * there is no harm in allowing zero-padding.
+			 * %k and %l specifiers are documented as being
+			 * blank-padded.  However, there is no harm in
+			 * allowing zero-padding.
 			 *
-			 * XXX The %l specifier may gobble one too many
+			 * XXX %k and %l specifiers may gobble one too many
 			 * digits if used incorrectly.
 			 */
+
+			len = 2;
+			if ((c == 'k' || c == 'l') &&
+			    isblank_l((unsigned char)*buf, locale)) {
+				buf++;
+				len = 1;
+			}
+
 			if (!isdigit_l((unsigned char)*buf, locale))
 				return (NULL);
 
-			len = 2;
 			for (i = 0; len && *buf != 0 &&
 			     isdigit_l((unsigned char)*buf, locale); buf++) {
 				i *= 10;
@@ -289,7 +299,7 @@ label:
 			if (c == 'H' || c == 'k') {
 				if (i > 23)
 					return (NULL);
-			} else if (i > 12)
+			} else if (i == 0 || i > 12)
 				return (NULL);
 
 			tm->tm_hour = i;
@@ -301,10 +311,11 @@ label:
 			 * XXX This is bogus if parsed before hour-related
 			 * specifiers.
 			 */
+			if (tm->tm_hour > 12)
+				return (NULL);
+
 			len = strlen(tptr->am);
 			if (strncasecmp_l(buf, tptr->am, len, locale) == 0) {
-				if (tm->tm_hour > 12)
-					return (NULL);
 				if (tm->tm_hour == 12)
 					tm->tm_hour = 0;
 				buf += len;
@@ -313,8 +324,6 @@ label:
 
 			len = strlen(tptr->pm);
 			if (strncasecmp_l(buf, tptr->pm, len, locale) == 0) {
-				if (tm->tm_hour > 12)
-					return (NULL);
 				if (tm->tm_hour != 12)
 					tm->tm_hour += 12;
 				buf += len;
@@ -374,15 +383,17 @@ label:
 
 			break;
 
+		case 'u':
 		case 'w':
 			if (!isdigit_l((unsigned char)*buf, locale))
 				return (NULL);
 
-			i = *buf - '0';
-			if (i > 6)
+			i = *buf++ - '0';
+			if (i < 0 || i > 7 || (c == 'u' && i < 1) ||
+			    (c == 'w' && i > 6))
 				return (NULL);
 
-			tm->tm_wday = i;
+			tm->tm_wday = i % 7;
 			flags |= FLAG_WDAY;
 
 			break;
@@ -416,7 +427,7 @@ label:
 				i += *buf - '0';
 				len--;
 			}
-			if (i > 31)
+			if (i == 0 || i > 31)
 				return (NULL);
 
 			tm->tm_mday = i;
@@ -524,13 +535,9 @@ label:
 				len--;
 			}
 			if (c == 'Y')
-				i -= TM_YEAR_BASE;
-			if (c == 'y' && i < 69)
-				i += 100;
-			if (i < 0)
-				return (NULL);
+				century = i / 100;
+			year = i % 100;
 
-			tm->tm_year = i;
 			flags |= FLAG_YEAR;
 
 			break;
@@ -581,10 +588,16 @@ label:
 					i *= 10;
 					i += *buf - '0';
 					buf++;
+				} else if (len == 2) {
+					i *= 100;
+					break;
 				} else
 					return (NULL);
 			}
 
+			if (i > 1400 || (sign == -1 && i > 1200) ||
+			    (i % 100) >= 60)
+				return (NULL);
 			tm->tm_hour -= sign * (i / 100);
 			tm->tm_min  -= sign * (i % 100);
 			*GMTp = 1;
@@ -602,6 +615,17 @@ label:
 		}
 	}
 
+	if (century != -1 || year != -1) {
+		if (year == -1)
+			year = 0;
+		if (century == -1) {
+			if (year < 69)
+				year += 100;
+		} else
+			year += century * 100 - TM_YEAR_BASE;
+		tm->tm_year = year;
+	}
+
 	if (!(flags & FLAG_YDAY) && (flags & FLAG_YEAR)) {
 		if ((flags & (FLAG_MONTH | FLAG_MDAY)) ==
 		    (FLAG_MONTH | FLAG_MDAY)) {
@@ -609,17 +633,28 @@ label:
 			    TM_YEAR_BASE)][tm->tm_mon] + (tm->tm_mday - 1);
 			flags |= FLAG_YDAY;
 		} else if (day_offset != -1) {
+			int tmpwday, tmpyday, fwo;
+
+			fwo = first_wday_of(tm->tm_year + TM_YEAR_BASE);
+			/* No incomplete week (week 0). */
+			if (week_offset == 0 && fwo == day_offset)
+				return (NULL);
+
 			/* Set the date to the first Sunday (or Monday)
 			 * of the specified week of the year.
 			 */
-			if (!(flags & FLAG_WDAY)) {
-				tm->tm_wday = day_offset;
-				flags |= FLAG_WDAY;
+			tmpwday = (flags & FLAG_WDAY) ? tm->tm_wday :
+			    day_offset;
+			tmpyday = (7 - fwo + day_offset) % 7 +
+			    (week_offset - 1) * 7 +
+			    (tmpwday - day_offset + 7) % 7;
+			/* Impossible yday for incomplete week (week 0). */
+			if (tmpyday < 0) {
+				if (flags & FLAG_WDAY)
+					return (NULL);
+				tmpyday = 0;
 			}
-			tm->tm_yday = (7 -
-			    first_wday_of(tm->tm_year + TM_YEAR_BASE) +
-			    day_offset) % 7 + (week_offset - 1) * 7 +
-			    tm->tm_wday - day_offset;
+			tm->tm_yday = tmpyday;
 			flags |= FLAG_YDAY;
 		}
 	}

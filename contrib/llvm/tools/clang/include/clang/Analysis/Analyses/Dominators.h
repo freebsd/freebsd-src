@@ -11,15 +11,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_DOMINATORS_H
-#define LLVM_CLANG_DOMINATORS_H
+#ifndef LLVM_CLANG_ANALYSIS_ANALYSES_DOMINATORS_H
+#define LLVM_CLANG_ANALYSIS_ANALYSES_DOMINATORS_H
 
-#include "clang/Analysis/AnalysisContext.h"
+#include "clang/Analysis/AnalysisDeclContext.h"
 #include "clang/Analysis/CFG.h"
 #include "llvm/ADT/GraphTraits.h"
-#include "llvm/Analysis/DominatorInternals.h"
-#include "llvm/Analysis/Dominators.h"
-#include "llvm/IR/Module.h"
+#include "llvm/Support/GenericDomTree.h"
+#include "llvm/Support/GenericDomTreeConstruction.h"
+
+// FIXME: There is no good reason for the domtree to require a print method
+// which accepts an LLVM Module, so remove this (and the method's argument that
+// needs it) when that is fixed.
+namespace llvm {
+class Module;
+}
 
 namespace clang {
 
@@ -32,17 +38,15 @@ typedef llvm::DomTreeNodeBase<CFGBlock> DomTreeNode;
 class DominatorTree : public ManagedAnalysis {
   virtual void anchor();
 public:
-  llvm::DominatorTreeBase<CFGBlock>* DT;
+  llvm::DomTreeBase<CFGBlock>* DT;
 
   DominatorTree() {
-    DT = new llvm::DominatorTreeBase<CFGBlock>(false);
+    DT = new llvm::DomTreeBase<CFGBlock>();
   }
 
-  ~DominatorTree() {
-    delete DT;
-  }
+  ~DominatorTree() override { delete DT; }
 
-  llvm::DominatorTreeBase<CFGBlock>& getBase() { return *DT; }
+  llvm::DomTreeBase<CFGBlock>& getBase() { return *DT; }
 
   /// \brief This method returns the root CFGBlock of the dominators tree.
   ///
@@ -147,18 +151,13 @@ public:
 
   /// \brief This method converts the dominator tree to human readable form.
   ///
-  virtual void print(raw_ostream &OS, const llvm::Module* M= 0) const {
+  virtual void print(raw_ostream &OS, const llvm::Module* M= nullptr) const {
     DT->print(OS);
   }
 
 private:
   CFG *cfg;
 };
-
-inline void WriteAsOperand(raw_ostream &OS, const CFGBlock *BB,
-                          bool t) {
-  OS << "BB#" << BB->getBlockID();
-}
 
 } // end namespace clang
 
@@ -168,42 +167,37 @@ inline void WriteAsOperand(raw_ostream &OS, const CFGBlock *BB,
 ///
 namespace llvm {
 template <> struct GraphTraits< ::clang::DomTreeNode* > {
-  typedef ::clang::DomTreeNode NodeType;
-  typedef NodeType::iterator  ChildIteratorType;
+  typedef ::clang::DomTreeNode *NodeRef;
+  typedef ::clang::DomTreeNode::iterator ChildIteratorType;
 
-  static NodeType *getEntryNode(NodeType *N) {
-    return N;
-  }
-  static inline ChildIteratorType child_begin(NodeType *N) {
-    return N->begin();
-  }
-  static inline ChildIteratorType child_end(NodeType *N) {
-    return N->end();
-  }
+  static NodeRef getEntryNode(NodeRef N) { return N; }
+  static ChildIteratorType child_begin(NodeRef N) { return N->begin(); }
+  static ChildIteratorType child_end(NodeRef N) { return N->end(); }
 
-  typedef df_iterator< ::clang::DomTreeNode* > nodes_iterator;
+  typedef llvm::pointer_iterator<df_iterator<::clang::DomTreeNode *>>
+      nodes_iterator;
 
   static nodes_iterator nodes_begin(::clang::DomTreeNode *N) {
-    return df_begin(getEntryNode(N));
+    return nodes_iterator(df_begin(getEntryNode(N)));
   }
 
   static nodes_iterator nodes_end(::clang::DomTreeNode *N) {
-    return df_end(getEntryNode(N));
+    return nodes_iterator(df_end(getEntryNode(N)));
   }
 };
 
 template <> struct GraphTraits< ::clang::DominatorTree* >
   : public GraphTraits< ::clang::DomTreeNode* > {
-  static NodeType *getEntryNode(::clang::DominatorTree *DT) {
+  static NodeRef getEntryNode(::clang::DominatorTree *DT) {
     return DT->getRootNode();
   }
 
   static nodes_iterator nodes_begin(::clang::DominatorTree *N) {
-    return df_begin(getEntryNode(N));
+    return nodes_iterator(df_begin(getEntryNode(N)));
   }
 
   static nodes_iterator nodes_end(::clang::DominatorTree *N) {
-    return df_end(getEntryNode(N));
+    return nodes_iterator(df_end(getEntryNode(N)));
   }
 };
 } // end namespace llvm

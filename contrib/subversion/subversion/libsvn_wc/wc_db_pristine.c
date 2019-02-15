@@ -26,7 +26,10 @@
 #define SVN_WC__I_AM_WC_DB
 
 #include "svn_pools.h"
+#include "svn_io.h"
 #include "svn_dirent_uri.h"
+
+#include "private/svn_io_private.h"
 
 #include "wc.h"
 #include "wc_db.h"
@@ -67,7 +70,7 @@ get_pristine_fname(const char **pristine_abspath,
                                           wcroot_abspath,
                                           svn_wc_get_adm_dir(scratch_pool),
                                           PRISTINE_STORAGE_RELPATH,
-                                          NULL);
+                                          SVN_VA_NULL);
 
   /* We should have a valid checksum and (thus) a valid digest. */
   SVN_ERR_ASSERT(hexdigest != NULL);
@@ -78,14 +81,14 @@ get_pristine_fname(const char **pristine_abspath,
   subdir[2] = '\0';
 
   hexdigest = apr_pstrcat(scratch_pool, hexdigest, PRISTINE_STORAGE_EXT,
-                          (char *)NULL);
+                          SVN_VA_NULL);
 
   /* The file is located at DIR/.svn/pristine/XX/XXYYZZ...svn-base */
   *pristine_abspath = svn_dirent_join_many(result_pool,
                                            base_dir_abspath,
                                            subdir,
                                            hexdigest,
-                                           NULL);
+                                           SVN_VA_NULL);
   return SVN_NO_ERROR;
 }
 
@@ -194,10 +197,20 @@ pristine_read_txn(svn_stream_t **contents,
     }
 
   /* Open the file as a readable stream.  It will remain readable even when
-   * deleted from disk; APR guarantees that on Windows as well as Unix. */
+   * deleted from disk; APR guarantees that on Windows as well as Unix.
+   *
+   * We also don't enable APR_BUFFERED on this file to maximize throughput
+   * e.g. for fulltext comparison.  As we use SVN__STREAM_CHUNK_SIZE buffers
+   * where needed in streams, there is no point in having another layer of
+   * buffers. */
   if (contents)
-    SVN_ERR(svn_stream_open_readonly(contents, pristine_abspath,
-                                     result_pool, scratch_pool));
+    {
+      apr_file_t *file;
+      SVN_ERR(svn_io_file_open(&file, pristine_abspath, APR_READ,
+                               APR_OS_DEFAULT, result_pool));
+      *contents = svn_stream_from_aprfile2(file, FALSE, result_pool);
+    }
+
   return SVN_NO_ERROR;
 }
 
@@ -214,7 +227,6 @@ svn_wc__db_pristine_read(svn_stream_t **contents,
   const char *local_relpath;
   const char *pristine_abspath;
 
-  SVN_ERR_ASSERT(contents != NULL);
   SVN_ERR_ASSERT(svn_dirent_is_absolute(wri_abspath));
 
   /* Some 1.6-to-1.7 wc upgrades created rows without checksums and
@@ -253,30 +265,8 @@ pristine_get_tempdir(svn_wc__db_wcroot_t *wcroot,
 {
   return svn_dirent_join_many(result_pool, wcroot->abspath,
                               svn_wc_get_adm_dir(scratch_pool),
-                              PRISTINE_TEMPDIR_RELPATH, (char *)NULL);
+                              PRISTINE_TEMPDIR_RELPATH, SVN_VA_NULL);
 }
-
-svn_error_t *
-svn_wc__db_pristine_get_tempdir(const char **temp_dir_abspath,
-                                svn_wc__db_t *db,
-                                const char *wri_abspath,
-                                apr_pool_t *result_pool,
-                                apr_pool_t *scratch_pool)
-{
-  svn_wc__db_wcroot_t *wcroot;
-  const char *local_relpath;
-
-  SVN_ERR_ASSERT(temp_dir_abspath != NULL);
-  SVN_ERR_ASSERT(svn_dirent_is_absolute(wri_abspath));
-
-  SVN_ERR(svn_wc__db_wcroot_parse_local_abspath(&wcroot, &local_relpath, db,
-                              wri_abspath, scratch_pool, scratch_pool));
-  VERIFY_USABLE_WCROOT(wcroot);
-
-  *temp_dir_abspath = pristine_get_tempdir(wcroot, result_pool, scratch_pool);
-  return SVN_NO_ERROR;
-}
-
 
 /* Install the pristine text described by BATON into the pristine store of
  * SDB.  If it is already stored then just delete the new file
@@ -290,7 +280,7 @@ svn_wc__db_pristine_get_tempdir(const char **temp_dir_abspath,
 static svn_error_t *
 pristine_install_txn(svn_sqlite__db_t *sdb,
                      /* The path to the source file that is to be moved into place. */
-                     const char *tempfile_abspath,
+                     svn_stream_t *install_stream,
                      /* The target path for the file (within the pristine store). */
                      const char *pristine_abspath,
                      /* The pristine text's SHA-1 checksum. */
@@ -299,10 +289,8 @@ pristine_install_txn(svn_sqlite__db_t *sdb,
                      const svn_checksum_t *md5_checksum,
                      apr_pool_t *scratch_pool)
 {
-  apr_finfo_t finfo;
   svn_sqlite__stmt_t *stmt;
   svn_boolean_t have_row;
-  svn_error_t *err;
 
   /* If this pristine text is already present in the store, just keep it:
    * delete the new one and return. */
@@ -310,6 +298,7 @@ pristine_install_txn(svn_sqlite__db_t *sdb,
   SVN_ERR(svn_sqlite__bind_checksum(stmt, 1, sha1_checksum, scratch_pool));
   SVN_ERR(svn_sqlite__step(&have_row, stmt));
   SVN_ERR(svn_sqlite__reset(stmt));
+
   if (have_row)
     {
 #ifdef SVN_DEBUG
@@ -317,99 +306,111 @@ pristine_install_txn(svn_sqlite__db_t *sdb,
        * ### We could check much more. */
       {
         apr_finfo_t finfo1, finfo2;
-        SVN_ERR(svn_io_stat(&finfo1, tempfile_abspath, APR_FINFO_SIZE,
-                            scratch_pool));
+
+        SVN_ERR(svn_stream__install_get_info(&finfo1, install_stream, APR_FINFO_SIZE,
+                                             scratch_pool));
+
         SVN_ERR(svn_io_stat(&finfo2, pristine_abspath, APR_FINFO_SIZE,
                             scratch_pool));
         if (finfo1.size != finfo2.size)
           {
             return svn_error_createf(
               SVN_ERR_WC_CORRUPT_TEXT_BASE, NULL,
-              _("New pristine text '%s' has different size: %ld versus %ld"),
+              _("New pristine text '%s' has different size: %s versus %s"),
               svn_checksum_to_cstring_display(sha1_checksum, scratch_pool),
-              (long int)finfo1.size, (long int)finfo2.size);
+              apr_off_t_toa(scratch_pool, finfo1.size),
+              apr_off_t_toa(scratch_pool, finfo2.size));
           }
       }
 #endif
 
       /* Remove the temp file: it's already there */
-      SVN_ERR(svn_io_remove_file2(tempfile_abspath,
-                                  FALSE /* ignore_enoent */, scratch_pool));
+      SVN_ERR(svn_stream__install_delete(install_stream, scratch_pool));
       return SVN_NO_ERROR;
     }
 
   /* Move the file to its target location.  (If it is already there, it is
    * an orphan file and it doesn't matter if we overwrite it.) */
-  err = svn_io_file_rename(tempfile_abspath, pristine_abspath,
-                           scratch_pool);
+  {
+    apr_finfo_t finfo;
+    SVN_ERR(svn_stream__install_get_info(&finfo, install_stream,
+                                         APR_FINFO_SIZE, scratch_pool));
+    SVN_ERR(svn_stream__install_stream(install_stream, pristine_abspath,
+                                       TRUE, scratch_pool));
 
-  /* Maybe the directory doesn't exist yet? */
-  if (err && APR_STATUS_IS_ENOENT(err->apr_err))
-    {
-      svn_error_t *err2;
+    SVN_ERR(svn_sqlite__get_statement(&stmt, sdb, STMT_INSERT_PRISTINE));
+    SVN_ERR(svn_sqlite__bind_checksum(stmt, 1, sha1_checksum, scratch_pool));
+    SVN_ERR(svn_sqlite__bind_checksum(stmt, 2, md5_checksum, scratch_pool));
+    SVN_ERR(svn_sqlite__bind_int64(stmt, 3, finfo.size));
+    SVN_ERR(svn_sqlite__insert(NULL, stmt));
 
-      err2 = svn_io_dir_make(svn_dirent_dirname(pristine_abspath,
-                                                scratch_pool),
-                             APR_OS_DEFAULT, scratch_pool);
-
-      if (err2)
-        /* Creating directory didn't work: Return all errors */
-        return svn_error_trace(svn_error_compose_create(err, err2));
-      else
-        /* We could create a directory: retry install */
-        svn_error_clear(err);
-
-      SVN_ERR(svn_io_file_rename(tempfile_abspath, pristine_abspath,
-                           scratch_pool));
-    }
-  else
-    SVN_ERR(err);
-
-  SVN_ERR(svn_io_stat(&finfo, pristine_abspath, APR_FINFO_SIZE,
-                      scratch_pool));
-
-  SVN_ERR(svn_sqlite__get_statement(&stmt, sdb,
-                                    STMT_INSERT_PRISTINE));
-  SVN_ERR(svn_sqlite__bind_checksum(stmt, 1, sha1_checksum, scratch_pool));
-  SVN_ERR(svn_sqlite__bind_checksum(stmt, 2, md5_checksum, scratch_pool));
-  SVN_ERR(svn_sqlite__bind_int64(stmt, 3, finfo.size));
-  SVN_ERR(svn_sqlite__insert(NULL, stmt));
+    SVN_ERR(svn_io_set_file_read_only(pristine_abspath, FALSE, scratch_pool));
+  }
 
   return SVN_NO_ERROR;
 }
 
+struct svn_wc__db_install_data_t
+{
+  svn_wc__db_wcroot_t *wcroot;
+  svn_stream_t *inner_stream;
+};
 
 svn_error_t *
-svn_wc__db_pristine_install(svn_wc__db_t *db,
-                            const char *tempfile_abspath,
-                            const svn_checksum_t *sha1_checksum,
-                            const svn_checksum_t *md5_checksum,
-                            apr_pool_t *scratch_pool)
+svn_wc__db_pristine_prepare_install(svn_stream_t **stream,
+                                    svn_wc__db_install_data_t **install_data,
+                                    svn_checksum_t **sha1_checksum,
+                                    svn_checksum_t **md5_checksum,
+                                    svn_wc__db_t *db,
+                                    const char *wri_abspath,
+                                    apr_pool_t *result_pool,
+                                    apr_pool_t *scratch_pool)
 {
   svn_wc__db_wcroot_t *wcroot;
   const char *local_relpath;
-  const char *wri_abspath;
-  const char *pristine_abspath;
+  const char *temp_dir_abspath;
 
-  SVN_ERR_ASSERT(svn_dirent_is_absolute(tempfile_abspath));
-  SVN_ERR_ASSERT(sha1_checksum != NULL);
-  SVN_ERR_ASSERT(sha1_checksum->kind == svn_checksum_sha1);
-  SVN_ERR_ASSERT(md5_checksum != NULL);
-  SVN_ERR_ASSERT(md5_checksum->kind == svn_checksum_md5);
-
-  /* ### this logic assumes that TEMPFILE_ABSPATH follows this pattern:
-     ###   WCROOT_ABSPATH/COMPONENT/COMPONENT/TEMPFNAME
-     ### if we change this (see PRISTINE_TEMPDIR_RELPATH), then this
-     ### logic should change.  */
-  wri_abspath = svn_dirent_dirname(
-                    svn_dirent_dirname(
-                        svn_dirent_dirname(tempfile_abspath, scratch_pool),
-                        scratch_pool),
-                    scratch_pool);
+  SVN_ERR_ASSERT(svn_dirent_is_absolute(wri_abspath));
 
   SVN_ERR(svn_wc__db_wcroot_parse_local_abspath(&wcroot, &local_relpath, db,
                               wri_abspath, scratch_pool, scratch_pool));
   VERIFY_USABLE_WCROOT(wcroot);
+
+  temp_dir_abspath = pristine_get_tempdir(wcroot, scratch_pool, scratch_pool);
+
+  *install_data = apr_pcalloc(result_pool, sizeof(**install_data));
+  (*install_data)->wcroot = wcroot;
+
+  SVN_ERR_W(svn_stream__create_for_install(stream,
+                                           temp_dir_abspath,
+                                           result_pool, scratch_pool),
+            _("Unable to create pristine install stream"));
+
+  (*install_data)->inner_stream = *stream;
+
+  if (md5_checksum)
+    *stream = svn_stream_checksummed2(*stream, NULL, md5_checksum,
+                                      svn_checksum_md5, FALSE, result_pool);
+  if (sha1_checksum)
+    *stream = svn_stream_checksummed2(*stream, NULL, sha1_checksum,
+                                      svn_checksum_sha1, FALSE, result_pool);
+
+  return SVN_NO_ERROR;
+}
+
+svn_error_t *
+svn_wc__db_pristine_install(svn_wc__db_install_data_t *install_data,
+                            const svn_checksum_t *sha1_checksum,
+                            const svn_checksum_t *md5_checksum,
+                            apr_pool_t *scratch_pool)
+{
+  svn_wc__db_wcroot_t *wcroot = install_data->wcroot;
+  const char *pristine_abspath;
+
+  SVN_ERR_ASSERT(sha1_checksum != NULL);
+  SVN_ERR_ASSERT(sha1_checksum->kind == svn_checksum_sha1);
+  SVN_ERR_ASSERT(md5_checksum != NULL);
+  SVN_ERR_ASSERT(md5_checksum->kind == svn_checksum_md5);
 
   SVN_ERR(get_pristine_fname(&pristine_abspath, wcroot->abspath,
                              sha1_checksum,
@@ -419,12 +420,20 @@ svn_wc__db_pristine_install(svn_wc__db_t *db,
    * at the disk, to ensure no concurrent pristine install/delete txn. */
   SVN_SQLITE__WITH_IMMEDIATE_TXN(
     pristine_install_txn(wcroot->sdb,
-                         tempfile_abspath, pristine_abspath,
+                         install_data->inner_stream, pristine_abspath,
                          sha1_checksum, md5_checksum,
                          scratch_pool),
     wcroot->sdb);
 
   return SVN_NO_ERROR;
+}
+
+svn_error_t *
+svn_wc__db_pristine_install_abort(svn_wc__db_install_data_t *install_data,
+                                  apr_pool_t *scratch_pool)
+{
+  return svn_error_trace(svn_stream__install_delete(install_data->inner_stream,
+                                                    scratch_pool));
 }
 
 
@@ -559,7 +568,8 @@ maybe_transfer_one_pristine(svn_wc__db_wcroot_t *src_wcroot,
 
   /* Move the file to its target location.  (If it is already there, it is
    * an orphan file and it doesn't matter if we overwrite it.) */
-  err = svn_io_file_rename(tmp_abspath, pristine_abspath, scratch_pool);
+  err = svn_io_file_rename2(tmp_abspath, pristine_abspath, FALSE,
+                            scratch_pool);
 
   /* Maybe the directory doesn't exist yet? */
   if (err && APR_STATUS_IS_ENOENT(err->apr_err))
@@ -577,7 +587,8 @@ maybe_transfer_one_pristine(svn_wc__db_wcroot_t *src_wcroot,
         /* We could create a directory: retry install */
         svn_error_clear(err);
 
-      SVN_ERR(svn_io_file_rename(tmp_abspath, pristine_abspath, scratch_pool));
+      SVN_ERR(svn_io_file_rename2(tmp_abspath, pristine_abspath, FALSE,
+                                  scratch_pool));
     }
   else
     SVN_ERR(err);
@@ -676,42 +687,6 @@ svn_wc__db_pristine_transfer(svn_wc__db_t *db,
 
 
 
-/* Remove the file at FILE_ABSPATH in such a way that we could re-create a
- * new file of the same name at any time thereafter.
- *
- * On Windows, the file will not disappear immediately from the directory if
- * it is still being read so the best thing to do is first rename it to a
- * unique name. */
-static svn_error_t *
-remove_file(const char *file_abspath,
-            svn_wc__db_wcroot_t *wcroot,
-            svn_boolean_t ignore_enoent,
-            apr_pool_t *scratch_pool)
-{
-#ifdef WIN32
-  svn_error_t *err;
-  const char *temp_abspath;
-  const char *temp_dir_abspath
-    = pristine_get_tempdir(wcroot, scratch_pool, scratch_pool);
-
-  /* To rename the file to a unique name in the temp dir, first create a
-   * uniquely named file in the temp dir and then overwrite it. */
-  SVN_ERR(svn_io_open_unique_file3(NULL, &temp_abspath, temp_dir_abspath,
-                                   svn_io_file_del_none,
-                                   scratch_pool, scratch_pool));
-  err = svn_io_file_rename(file_abspath, temp_abspath, scratch_pool);
-  if (err && ignore_enoent && APR_STATUS_IS_ENOENT(err->apr_err))
-    svn_error_clear(err);
-  else
-    SVN_ERR(err);
-  file_abspath = temp_abspath;
-#endif
-
-  SVN_ERR(svn_io_remove_file2(file_abspath, ignore_enoent, scratch_pool));
-
-  return SVN_NO_ERROR;
-}
-
 /* If the pristine text referenced by SHA1_CHECKSUM in WCROOT/SDB, whose path
  * within the pristine store is PRISTINE_ABSPATH, has a reference count of
  * zero, delete it (both the database row and the disk file).
@@ -747,8 +722,8 @@ pristine_remove_if_unreferenced_txn(svn_sqlite__db_t *sdb,
       svn_boolean_t ignore_enoent = TRUE;
 #endif
 
-      SVN_ERR(remove_file(pristine_abspath, wcroot, ignore_enoent,
-                          scratch_pool));
+      SVN_ERR(svn_io_remove_file2(pristine_abspath, ignore_enoent,
+                                  scratch_pool));
     }
 
   return SVN_NO_ERROR;
@@ -823,12 +798,44 @@ svn_wc__db_pristine_remove(svn_wc__db_t *db,
 }
 
 
+/* Remove all unreferenced pristines in the WC DB in WCROOT.
+ *
+ * Look for pristine texts whose 'refcount' in the DB is zero, and remove
+ * them from the 'pristine' table and from disk.
+ *
+ * TODO: At least check that any zero refcount is really correct, before
+ *       using it.  See dev@ email thread "Pristine text missing - cleanup
+ *       doesn't work", <http://svn.haxx.se/dev/archive-2013-04/0426.shtml>.
+ *
+ * TODO: Ideas for possible extra clean-up operations:
+ *
+ *       * Check and correct all the refcounts.  Identify any rows missing
+ *         from the 'pristine' table.  (Create a temporary index for speed
+ *         if necessary?)
+ *
+ *       * Check the checksums.  (Very expensive to check them all, so find
+ *         a way to not check them all.)
+ *
+ *       * Check for pristine files missing from disk but referenced in the
+ *         'pristine' table.
+ *
+ *       * Repair any pristine files missing from disk and/or rows missing
+ *         from the 'pristine' table and/or bad checksums.  Generally
+ *         requires contacting the server, so requires support at a higher
+ *         level than this function.
+ *
+ *       * Identify any pristine text files on disk that are not referenced
+ *         in the DB, and delete them.
+ *
+ * TODO: Provide feedback about any errors found and any corrections made.
+ */
 static svn_error_t *
 pristine_cleanup_wcroot(svn_wc__db_wcroot_t *wcroot,
                         apr_pool_t *scratch_pool)
 {
   svn_sqlite__stmt_t *stmt;
   svn_error_t *err = NULL;
+  apr_pool_t *iterpool = svn_pool_create(scratch_pool);
 
   /* Find each unreferenced pristine in the DB and remove it. */
   SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
@@ -838,15 +845,19 @@ pristine_cleanup_wcroot(svn_wc__db_wcroot_t *wcroot,
       svn_boolean_t have_row;
       const svn_checksum_t *sha1_checksum;
 
+      svn_pool_clear(iterpool);
+
       SVN_ERR(svn_sqlite__step(&have_row, stmt));
       if (! have_row)
         break;
 
       SVN_ERR(svn_sqlite__column_checksum(&sha1_checksum, stmt, 0,
-                                          scratch_pool));
+                                          iterpool));
       err = pristine_remove_if_unreferenced(wcroot, sha1_checksum,
-                                            scratch_pool);
+                                            iterpool);
     }
+
+  svn_pool_destroy(iterpool);
 
   return svn_error_trace(
       svn_error_compose_create(err, svn_sqlite__reset(stmt)));
@@ -903,11 +914,28 @@ svn_wc__db_pristine_check(svn_boolean_t *present,
   {
     const char *pristine_abspath;
     svn_node_kind_t kind_on_disk;
+    svn_error_t *err;
 
     SVN_ERR(get_pristine_fname(&pristine_abspath, wcroot->abspath,
                                sha1_checksum, scratch_pool, scratch_pool));
-    SVN_ERR(svn_io_check_path(pristine_abspath, &kind_on_disk, scratch_pool));
-    if (kind_on_disk != svn_node_file)
+    err = svn_io_check_path(pristine_abspath, &kind_on_disk, scratch_pool);
+#ifdef WIN32
+    if (err && err->apr_err == APR_FROM_OS_ERROR(ERROR_ACCESS_DENIED))
+      {
+        svn_error_clear(err);
+        /* Possible race condition: The filename is locked, but there is no
+           file or dir with this name. Let's fall back on checking the DB.
+
+           This case is triggered by the pristine store tests on deleting
+           a file that is still open via another handle, where this other
+           handle has a FILE_SHARE_DELETE share mode.
+         */
+      }
+    else
+#endif
+    if (err)
+      return svn_error_trace(err);
+    else if (kind_on_disk != svn_node_file)
       {
         *present = FALSE;
         return SVN_NO_ERROR;

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -62,6 +64,22 @@ typedef	___wchar_t	wchar_t;
 #endif
 #endif
 
-#define	offsetof(type, member)	__offsetof(type, member)
+#if __ISO_C_VISIBLE >= 2011 || __cplusplus >= 201103L
+#ifndef __CLANG_MAX_ALIGN_T_DEFINED
+typedef	__max_align_t	max_align_t;
+#define __CLANG_MAX_ALIGN_T_DEFINED
+#define _GCC_MAX_ALIGN_T
+#endif
+#endif
+
+#define	offsetof(type, field)	__offsetof(type, field)
+
+#if __EXT1_VISIBLE
+/* ISO/IEC 9899:2011 K.3.3.2 */
+#ifndef _RSIZE_T_DEFINED
+#define _RSIZE_T_DEFINED
+typedef size_t rsize_t;
+#endif
+#endif /* __EXT1_VISIBLE */
 
 #endif /* _STDDEF_H_ */

@@ -2,7 +2,9 @@
 
 /* BPF socket interface code, originally contributed by Archie Cobbs. */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1995, 1996, 1998, 1999
  * The Internet Software Consortium.    All rights reserved.
  *
@@ -55,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/if_ether.h>
 
+#include <capsicum_helpers.h>
+
 #define BPF_FORMAT "/dev/bpf%d"
 
 /*
@@ -93,7 +97,7 @@ if_register_bpf(struct interface_info *info, int flags)
  * Packet write filter program:
  * 'ip and udp and src port bootps and dst port (bootps or bootpc)'
  */
-struct bpf_insn dhcp_bpf_wfilter[] = {
+static struct bpf_insn dhcp_bpf_wfilter[] = {
 	BPF_STMT(BPF_LD + BPF_B + BPF_IND, 14),
 	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, (IPVERSION << 4) + 5, 0, 12),
 
@@ -127,7 +131,7 @@ struct bpf_insn dhcp_bpf_wfilter[] = {
 	BPF_STMT(BPF_RET+BPF_K, 0),
 };
 
-int dhcp_bpf_wfilter_len = sizeof(dhcp_bpf_wfilter) / sizeof(struct bpf_insn);
+static int dhcp_bpf_wfilter_len = nitems(dhcp_bpf_wfilter);
 
 void
 if_register_send(struct interface_info *info)
@@ -162,7 +166,7 @@ if_register_send(struct interface_info *info)
 		error("Cannot lock bpf");
 
 	cap_rights_init(&rights, CAP_WRITE);
-	if (cap_rights_limit(info->wfdesc, &rights) < 0 && errno != ENOSYS)
+	if (caph_rights_limit(info->wfdesc, &rights) < 0)
 		error("Can't limit bpf descriptor: %m");
 
 	/*
@@ -182,7 +186,7 @@ if_register_send(struct interface_info *info)
  * XXX: Changes to the filter program may require changes to the
  * constant offsets used in if_register_send to patch the BPF program!
  */
-struct bpf_insn dhcp_bpf_filter[] = {
+static struct bpf_insn dhcp_bpf_filter[] = {
 	/* Make sure this is an IP packet... */
 	BPF_STMT(BPF_LD + BPF_H + BPF_ABS, 12),
 	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, ETHERTYPE_IP, 0, 8),
@@ -209,7 +213,7 @@ struct bpf_insn dhcp_bpf_filter[] = {
 	BPF_STMT(BPF_RET+BPF_K, 0),
 };
 
-int dhcp_bpf_filter_len = sizeof(dhcp_bpf_filter) / sizeof(struct bpf_insn);
+static int dhcp_bpf_filter_len = nitems(dhcp_bpf_filter);
 
 void
 if_register_receive(struct interface_info *info)
@@ -268,9 +272,9 @@ if_register_receive(struct interface_info *info)
 		error("Cannot lock bpf");
 
 	cap_rights_init(&rights, CAP_IOCTL, CAP_EVENT, CAP_READ);
-	if (cap_rights_limit(info->rfdesc, &rights) < 0 && errno != ENOSYS)
+	if (caph_rights_limit(info->rfdesc, &rights) < 0)
 		error("Can't limit bpf descriptor: %m");
-	if (cap_ioctls_limit(info->rfdesc, cmds, 2) < 0 && errno != ENOSYS)
+	if (caph_ioctls_limit(info->rfdesc, cmds, 2) < 0)
 		error("Can't limit ioctls for bpf descriptor: %m");
 }
 

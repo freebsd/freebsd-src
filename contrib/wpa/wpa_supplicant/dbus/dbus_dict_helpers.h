@@ -26,9 +26,6 @@ const char * wpa_dbus_type_as_string(const int type);
 dbus_bool_t wpa_dbus_dict_append_string(DBusMessageIter *iter_dict,
 					const char *key, const char *value);
 
-dbus_bool_t wpa_dbus_dict_append_byte(DBusMessageIter *iter_dict,
-				      const char *key, const char value);
-
 dbus_bool_t wpa_dbus_dict_append_bool(DBusMessageIter *iter_dict,
 				      const char *key,
 				      const dbus_bool_t value);
@@ -49,18 +46,6 @@ dbus_bool_t wpa_dbus_dict_append_uint32(DBusMessageIter *iter_dict,
 					const char *key,
 					const dbus_uint32_t value);
 
-dbus_bool_t wpa_dbus_dict_append_int64(DBusMessageIter *iter_dict,
-				       const char *key,
-				       const dbus_int64_t value);
-
-dbus_bool_t wpa_dbus_dict_append_uint64(DBusMessageIter *iter_dict,
-					const char *key,
-					const dbus_uint64_t value);
-
-dbus_bool_t wpa_dbus_dict_append_double(DBusMessageIter *iter_dict,
-					const char *key,
-					const double value);
-
 dbus_bool_t wpa_dbus_dict_append_object_path(DBusMessageIter *iter_dict,
 					     const char *key,
 					     const char *value);
@@ -72,28 +57,28 @@ dbus_bool_t wpa_dbus_dict_append_byte_array(DBusMessageIter *iter_dict,
 
 /* Manual construction and addition of array elements */
 dbus_bool_t wpa_dbus_dict_begin_array(DBusMessageIter *iter_dict,
-                                      const char *key, const char *type,
-                                      DBusMessageIter *iter_dict_entry,
-                                      DBusMessageIter *iter_dict_val,
-                                      DBusMessageIter *iter_array);
+				      const char *key, const char *type,
+				      DBusMessageIter *iter_dict_entry,
+				      DBusMessageIter *iter_dict_val,
+				      DBusMessageIter *iter_array);
 
 dbus_bool_t wpa_dbus_dict_begin_string_array(DBusMessageIter *iter_dict,
-                                             const char *key,
-                                             DBusMessageIter *iter_dict_entry,
-                                             DBusMessageIter *iter_dict_val,
-                                             DBusMessageIter *iter_array);
+					     const char *key,
+					     DBusMessageIter *iter_dict_entry,
+					     DBusMessageIter *iter_dict_val,
+					     DBusMessageIter *iter_array);
 
 dbus_bool_t wpa_dbus_dict_string_array_add_element(DBusMessageIter *iter_array,
-                                             const char *elem);
+						   const char *elem);
 
 dbus_bool_t wpa_dbus_dict_bin_array_add_element(DBusMessageIter *iter_array,
 						const u8 *value,
 						size_t value_len);
 
 dbus_bool_t wpa_dbus_dict_end_array(DBusMessageIter *iter_dict,
-                                    DBusMessageIter *iter_dict_entry,
-                                    DBusMessageIter *iter_dict_val,
-                                    DBusMessageIter *iter_array);
+				    DBusMessageIter *iter_dict_entry,
+				    DBusMessageIter *iter_dict_val,
+				    DBusMessageIter *iter_array);
 
 static inline dbus_bool_t
 wpa_dbus_dict_end_string_array(DBusMessageIter *iter_dict,
@@ -120,7 +105,11 @@ dbus_bool_t wpa_dbus_dict_append_wpabuf_array(DBusMessageIter *iter_dict,
  * Reading a dict from a DBusMessage
  */
 
-#define WPAS_DBUS_TYPE_BINARRAY (DBUS_NUMBER_OF_TYPES + 100)
+/*
+ * Used only in struct wpa_dbus_dict_entry::array_type internally to identify
+ * special binary array case.
+ */
+#define WPAS_DBUS_TYPE_BINARRAY ((int) '@')
 
 struct wpa_dbus_dict_entry {
 	int type;         /** the dbus type of the dict entry's value */

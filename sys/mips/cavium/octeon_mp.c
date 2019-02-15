@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2010 Juli Mallett <jmallett@FreeBSD.org>
  * All rights reserved.
  *
@@ -63,9 +65,17 @@ platform_ipi_clear(void)
 }
 
 int
-platform_ipi_intrnum(void)
+platform_ipi_hardintr_num(void)
 {
+
 	return (1);
+}
+
+int
+platform_ipi_softintr_num(void)
+{
+
+	return (-1);
 }
 
 void
@@ -93,7 +103,7 @@ platform_init_ap(int cpuid)
 	 */
 	ciu_int_mask = hard_int_mask(0);
 	clock_int_mask = hard_int_mask(5);
-	ipi_int_mask = hard_int_mask(platform_ipi_intrnum());
+	ipi_int_mask = hard_int_mask(platform_ipi_hardintr_num());
 	set_intr_mask(ciu_int_mask | clock_int_mask | ipi_int_mask);
 
 	mips_wbflush();

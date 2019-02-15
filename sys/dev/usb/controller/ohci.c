@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  * Copyright (c) 1998 The NetBSD Foundation, Inc. All rights reserved.
  * Copyright (c) 1998 Lennart Augustsson. All rights reserved.
@@ -2043,7 +2045,7 @@ struct usb_device_descriptor ohci_devd =
 	UDPROTO_FSHUB,			/* protocol */
 	64,				/* max packet */
 	{0}, {0}, {0x00, 0x01},		/* device id */
-	1, 2, 0,			/* string indicies */
+	1, 2, 0,			/* string indexes */
 	1				/* # of configurations */
 };
 
@@ -2383,7 +2385,6 @@ ohci_xfer_setup(struct usb_setup_params *parm)
 {
 	struct usb_page_search page_info;
 	struct usb_page_cache *pc;
-	ohci_softc_t *sc;
 	struct usb_xfer *xfer;
 	void *last_obj;
 	uint32_t ntd;
@@ -2391,7 +2392,6 @@ ohci_xfer_setup(struct usb_setup_params *parm)
 	uint32_t nqh;
 	uint32_t n;
 
-	sc = OHCI_BUS2SC(parm->udev->bus);
 	xfer = parm->curr_xfer;
 
 	parm->hc_max_packet_size = 0x500;
@@ -2437,7 +2437,7 @@ ohci_xfer_setup(struct usb_setup_params *parm)
 		usbd_transfer_setup_sub(parm);
 
 		nitd = ((xfer->max_data_length / OHCI_PAGE_SIZE) +
-		    ((xfer->nframes + OHCI_ITD_NOFFSET - 1) / OHCI_ITD_NOFFSET) +
+		    howmany(xfer->nframes, OHCI_ITD_NOFFSET) +
 		    1 /* EXTRA */ );
 		ntd = 0;
 		nqh = 1;

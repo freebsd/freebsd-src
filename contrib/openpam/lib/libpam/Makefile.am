@@ -1,4 +1,4 @@
-# $Id: Makefile.am 807 2014-09-09 09:41:32Z des $
+# $OpenPAM: Makefile.am 938 2017-04-30 21:34:42Z des $
 
 NULL =
 
@@ -79,8 +79,8 @@ libpam_la_SOURCES = \
 	pam_vprompt.c \
 	$(NULL)
 
-libpam_la_LDFLAGS = -no-undefined -version-info @LIB_MAJ@
-libpam_la_LIBADD = @DL_LIBS@
+libpam_la_LDFLAGS = -no-undefined -version-info $(LIB_MAJ)
+libpam_la_LIBADD = $(DL_LIBS)
 
 EXTRA_DIST = \
 	pam_authenticate_secondary.c \

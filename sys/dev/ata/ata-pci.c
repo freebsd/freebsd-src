@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
@@ -217,7 +219,8 @@ ata_pci_write_config(device_t dev, device_t child, int reg,
 
 struct resource *
 ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
-		       u_long start, u_long end, u_long count, u_int flags)
+		       rman_res_t start, rman_res_t end, rman_res_t count,
+		       u_int flags)
 {
 	struct ata_pci_controller *controller = device_get_softc(dev);
 	struct resource *res = NULL;

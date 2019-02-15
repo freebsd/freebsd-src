@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Robert N. M. Watson
  * All rights reserved.
  *
@@ -93,6 +95,37 @@ ifdead_transmit(struct ifnet *ifp, struct mbuf *m)
 	return (ENXIO);
 }
 
+static uint64_t
+ifdead_get_counter(struct ifnet *ifp, ift_counter cnt)
+{
+
+	return (0);
+}
+
+static int
+ifdead_snd_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
+    struct m_snd_tag **ppmt)
+{
+	return (EOPNOTSUPP);
+}
+
+static int
+ifdead_snd_tag_modify(struct m_snd_tag *pmt, union if_snd_tag_modify_params *params)
+{
+	return (EOPNOTSUPP);
+}
+
+static int
+ifdead_snd_tag_query(struct m_snd_tag *pmt, union if_snd_tag_query_params *params)
+{
+	return (EOPNOTSUPP);
+}
+
+static void
+ifdead_snd_tag_free(struct m_snd_tag *pmt)
+{
+}
+
 void
 if_dead(struct ifnet *ifp)
 {
@@ -104,4 +137,9 @@ if_dead(struct ifnet *ifp)
 	ifp->if_resolvemulti = ifdead_resolvemulti;
 	ifp->if_qflush = ifdead_qflush;
 	ifp->if_transmit = ifdead_transmit;
+	ifp->if_get_counter = ifdead_get_counter;
+	ifp->if_snd_tag_alloc = ifdead_snd_tag_alloc;
+	ifp->if_snd_tag_modify = ifdead_snd_tag_modify;
+	ifp->if_snd_tag_query = ifdead_snd_tag_query;
+	ifp->if_snd_tag_free = ifdead_snd_tag_free;
 }

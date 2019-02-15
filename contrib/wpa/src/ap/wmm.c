@@ -4,14 +4,8 @@
  * Copyright 2005-2006, Devicescape Software, Inc.
  * Copyright (c) 2009, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "utils/includes.h"
@@ -157,7 +151,7 @@ static void wmm_send_action(struct hostapd_data *hapd, const u8 *addr,
 	len = ((u8 *) (t + 1)) - buf;
 
 	if (hostapd_drv_send_mlme(hapd, m, len, 0) < 0)
-		perror("wmm_send_action: send");
+		wpa_printf(MSG_INFO, "wmm_send_action: send failed");
 }
 
 
@@ -279,6 +273,9 @@ void hostapd_wmm_action(struct hostapd_data *hapd,
 		/* TODO: respond with action frame refused status code */
 		return;
 	}
+
+	if (left < 0)
+		return; /* not a valid WMM Action frame */
 
 	/* extract the tspec info element */
 	if (ieee802_11_parse_elems(pos, left, &elems, 1) == ParseFailed) {

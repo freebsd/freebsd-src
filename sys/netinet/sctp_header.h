@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
  * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
@@ -46,7 +48,7 @@ __FBSDID("$FreeBSD$");
  * Parameter structures
  */
 struct sctp_ipv4addr_param {
-	struct sctp_paramhdr ph;/* type=SCTP_IPV4_PARAM_TYPE, len=8 */
+	struct sctp_paramhdr ph;	/* type=SCTP_IPV4_PARAM_TYPE, len=8 */
 	uint32_t addr;		/* IPV4 address */
 }                   SCTP_PACKED;
 
@@ -54,20 +56,20 @@ struct sctp_ipv4addr_param {
 
 
 struct sctp_ipv6addr_param {
-	struct sctp_paramhdr ph;/* type=SCTP_IPV6_PARAM_TYPE, len=20 */
+	struct sctp_paramhdr ph;	/* type=SCTP_IPV6_PARAM_TYPE, len=20 */
 	uint8_t addr[SCTP_V6_ADDR_BYTES];	/* IPV6 address */
 }                   SCTP_PACKED;
 
 /* Cookie Preservative */
 struct sctp_cookie_perserve_param {
-	struct sctp_paramhdr ph;/* type=SCTP_COOKIE_PRESERVE, len=8 */
+	struct sctp_paramhdr ph;	/* type=SCTP_COOKIE_PRESERVE, len=8 */
 	uint32_t time;		/* time in ms to extend cookie */
 }                          SCTP_PACKED;
 
 #define SCTP_ARRAY_MIN_LEN 1
 /* Host Name Address */
 struct sctp_host_name_param {
-	struct sctp_paramhdr ph;/* type=SCTP_HOSTNAME_ADDRESS */
+	struct sctp_paramhdr ph;	/* type=SCTP_HOSTNAME_ADDRESS */
 	char name[SCTP_ARRAY_MIN_LEN];	/* host name */
 }                    SCTP_PACKED;
 
@@ -78,7 +80,7 @@ struct sctp_host_name_param {
 #define SCTP_MAX_ADDR_PARAMS_SIZE 12
 /* supported address type */
 struct sctp_supported_addr_param {
-	struct sctp_paramhdr ph;/* type=SCTP_SUPPORTED_ADDRTYPE */
+	struct sctp_paramhdr ph;	/* type=SCTP_SUPPORTED_ADDRTYPE */
 	uint16_t addr_type[2];	/* array of supported address types */
 }                         SCTP_PACKED;
 
@@ -106,8 +108,8 @@ struct sctp_prsctp_supported_param {
 
 /* draft-ietf-tsvwg-addip-sctp */
 struct sctp_asconf_paramhdr {	/* an ASCONF "parameter" */
-	struct sctp_paramhdr ph;/* a SCTP parameter header */
-	uint32_t correlation_id;/* correlation id for this param */
+	struct sctp_paramhdr ph;	/* a SCTP parameter header */
+	uint32_t correlation_id;	/* correlation id for this param */
 }                    SCTP_PACKED;
 
 struct sctp_asconf_addr_param {	/* an ASCONF address parameter */
@@ -131,7 +133,7 @@ struct sctp_asconf_addrv4_param {	/* an ASCONF address (v4) parameter */
 #define SCTP_MAX_SUPPORTED_EXT 256
 
 struct sctp_supported_chunk_types_param {
-	struct sctp_paramhdr ph;/* type = 0x8008  len = x */
+	struct sctp_paramhdr ph;	/* type = 0x8008  len = x */
 	uint8_t chunk_types[];
 }                                SCTP_PACKED;
 
@@ -141,9 +143,9 @@ struct sctp_supported_chunk_types_param {
  */
 struct sctp_data {
 	uint32_t tsn;
-	uint16_t stream_id;
-	uint16_t stream_sequence;
-	uint32_t protocol_id;
+	uint16_t sid;
+	uint16_t ssn;
+	uint32_t ppid;
 	/* user data follows */
 }         SCTP_PACKED;
 
@@ -151,6 +153,23 @@ struct sctp_data_chunk {
 	struct sctp_chunkhdr ch;
 	struct sctp_data dp;
 }               SCTP_PACKED;
+
+struct sctp_idata {
+	uint32_t tsn;
+	uint16_t sid;
+	uint16_t reserved;	/* Where does the SSN go? */
+	uint32_t mid;
+	union {
+		uint32_t ppid;
+		uint32_t fsn;	/* Fragment Sequence Number */
+	}     ppid_fsn;
+	/* user data follows */
+}          SCTP_PACKED;
+
+struct sctp_idata_chunk {
+	struct sctp_chunkhdr ch;
+	struct sctp_idata dp;
+}                SCTP_PACKED;
 
 /*
  * Structures for the control chunks
@@ -165,7 +184,6 @@ struct sctp_init {
 	uint32_t initial_tsn;	/* I-TSN */
 	/* optional param's follow */
 }         SCTP_PACKED;
-
 #define SCTP_IDENTIFICATION_SIZE 16
 #define SCTP_ADDRESS_SIZE 4
 #define SCTP_RESERVE_SPACE 6
@@ -188,8 +206,8 @@ struct sctp_state_cookie {	/* this is our definition... */
 
 	uint16_t peerport;	/* port address of the peer in the INIT */
 	uint16_t myport;	/* my port address used in the INIT */
-	uint8_t ipv4_addr_legal;/* Are V4 addr legal? */
-	uint8_t ipv6_addr_legal;/* Are V6 addr legal? */
+	uint8_t ipv4_addr_legal;	/* Are V4 addr legal? */
+	uint8_t ipv6_addr_legal;	/* Are V6 addr legal? */
 	uint8_t local_scope;	/* IPv6 local scope flag */
 	uint8_t site_scope;	/* IPv6 site scope flag */
 
@@ -201,34 +219,6 @@ struct sctp_state_cookie {	/* this is our definition... */
 	 * (minus the cookie).
 	 */
 }                 SCTP_PACKED;
-
-
-/* Used for NAT state error cause */
-struct sctp_missing_nat_state {
-	uint16_t cause;
-	uint16_t length;
-	uint8_t data[];
-}                      SCTP_PACKED;
-
-
-struct sctp_inv_mandatory_param {
-	uint16_t cause;
-	uint16_t length;
-	uint32_t num_param;
-	uint16_t param;
-	/*
-	 * We include this to 0 it since only a missing cookie will cause
-	 * this error.
-	 */
-	uint16_t resv;
-}                        SCTP_PACKED;
-
-struct sctp_unresolv_addr {
-	uint16_t cause;
-	uint16_t length;
-	uint16_t addr_type;
-	uint16_t reserved;	/* Only one invalid addr type */
-}                  SCTP_PACKED;
 
 /* state cookie parameter */
 struct sctp_state_cookie_param {
@@ -370,27 +360,10 @@ struct sctp_shutdown_complete_chunk {
 	struct sctp_chunkhdr ch;
 }                            SCTP_PACKED;
 
-/* Oper error holding a stale cookie */
-struct sctp_stale_cookie_msg {
-	struct sctp_paramhdr ph;/* really an error cause */
-	uint32_t time_usec;
-}                     SCTP_PACKED;
-
 struct sctp_adaptation_layer_indication {
 	struct sctp_paramhdr ph;
 	uint32_t indication;
 }                                SCTP_PACKED;
-
-struct sctp_cookie_while_shutting_down {
-	struct sctphdr sh;
-	struct sctp_chunkhdr ch;
-	struct sctp_paramhdr ph;/* really an error cause */
-}                               SCTP_PACKED;
-
-struct sctp_shutdown_complete_msg {
-	struct sctphdr sh;
-	struct sctp_shutdown_complete_chunk shut_cmp;
-}                          SCTP_PACKED;
 
 /*
  * draft-ietf-tsvwg-addip-sctp
@@ -419,9 +392,15 @@ struct sctp_forward_tsn_chunk {
 }                      SCTP_PACKED;
 
 struct sctp_strseq {
-	uint16_t stream;
-	uint16_t sequence;
+	uint16_t sid;
+	uint16_t ssn;
 }           SCTP_PACKED;
+
+struct sctp_strseq_mid {
+	uint16_t sid;
+	uint16_t flags;
+	uint32_t mid;
+};
 
 struct sctp_forward_tsn_msg {
 	struct sctphdr sh;
@@ -450,6 +429,11 @@ struct sctp_pktdrop_chunk {
 
 /**********STREAM RESET STUFF ******************/
 
+struct sctp_stream_reset_request {
+	struct sctp_paramhdr ph;
+	uint32_t request_seq;
+}                         SCTP_PACKED;
+
 struct sctp_stream_reset_out_request {
 	struct sctp_paramhdr ph;
 	uint32_t request_seq;	/* monotonically increasing seq no */
@@ -463,7 +447,6 @@ struct sctp_stream_reset_in_request {
 	uint32_t request_seq;
 	uint16_t list_of_streams[];	/* if not all list of streams */
 }                            SCTP_PACKED;
-
 
 struct sctp_stream_reset_tsn_request {
 	struct sctp_paramhdr ph;
@@ -529,17 +512,17 @@ struct sctp_stream_reset_resp_tsn {
 /* Should we make the max be 32? */
 #define SCTP_RANDOM_MAX_SIZE 256
 struct sctp_auth_random {
-	struct sctp_paramhdr ph;/* type = 0x8002 */
+	struct sctp_paramhdr ph;	/* type = 0x8002 */
 	uint8_t random_data[];
 }                SCTP_PACKED;
 
 struct sctp_auth_chunk_list {
-	struct sctp_paramhdr ph;/* type = 0x8003 */
+	struct sctp_paramhdr ph;	/* type = 0x8003 */
 	uint8_t chunk_types[];
 }                    SCTP_PACKED;
 
 struct sctp_auth_hmac_algo {
-	struct sctp_paramhdr ph;/* type = 0x8004 */
+	struct sctp_paramhdr ph;	/* type = 0x8004 */
 	uint16_t hmac_ids[];
 }                   SCTP_PACKED;
 
@@ -549,12 +532,6 @@ struct sctp_auth_chunk {
 	uint16_t hmac_id;
 	uint8_t hmac[];
 }               SCTP_PACKED;
-
-struct sctp_auth_invalid_hmac {
-	struct sctp_paramhdr ph;
-	uint16_t hmac_id;
-	uint16_t padding;
-}                      SCTP_PACKED;
 
 /*
  * we pre-reserve enough room for a ECNE or CWR AND a SACK with no missing

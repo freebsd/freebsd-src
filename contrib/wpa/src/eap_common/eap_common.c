@@ -1,6 +1,6 @@
 /*
  * EAP common peer/server definitions
- * Copyright (c) 2004-2012, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2014, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -192,7 +192,7 @@ u8 eap_get_id(const struct wpabuf *msg)
 
 
 /**
- * eap_get_id - Get EAP Type from wpabuf
+ * eap_get_type - Get EAP Type from wpabuf
  * @msg: Buffer starting with an EAP header
  * Returns: The EAP Type after the EAP header
  */
@@ -203,3 +203,86 @@ EapType eap_get_type(const struct wpabuf *msg)
 
 	return ((const u8 *) wpabuf_head(msg))[sizeof(struct eap_hdr)];
 }
+
+
+#ifdef CONFIG_ERP
+int erp_parse_tlvs(const u8 *pos, const u8 *end, struct erp_tlvs *tlvs,
+		   int stop_at_keyname)
+{
+	os_memset(tlvs, 0, sizeof(*tlvs));
+
+	while (pos < end) {
+		u8 tlv_type, tlv_len;
+
+		tlv_type = *pos++;
+		switch (tlv_type) {
+		case EAP_ERP_TV_RRK_LIFETIME:
+		case EAP_ERP_TV_RMSK_LIFETIME:
+			/* 4-octet TV */
+			if (pos + 4 > end) {
+				wpa_printf(MSG_DEBUG, "EAP: Too short TV");
+				return -1;
+			}
+			pos += 4;
+			break;
+		case EAP_ERP_TLV_DOMAIN_NAME:
+		case EAP_ERP_TLV_KEYNAME_NAI:
+		case EAP_ERP_TLV_CRYPTOSUITES:
+		case EAP_ERP_TLV_AUTHORIZATION_INDICATION:
+		case EAP_ERP_TLV_CALLED_STATION_ID:
+		case EAP_ERP_TLV_CALLING_STATION_ID:
+		case EAP_ERP_TLV_NAS_IDENTIFIER:
+		case EAP_ERP_TLV_NAS_IP_ADDRESS:
+		case EAP_ERP_TLV_NAS_IPV6_ADDRESS:
+			if (pos >= end) {
+				wpa_printf(MSG_DEBUG, "EAP: Too short TLV");
+				return -1;
+			}
+			tlv_len = *pos++;
+			if (tlv_len > (unsigned) (end - pos)) {
+				wpa_printf(MSG_DEBUG, "EAP: Truncated TLV");
+				return -1;
+			}
+			if (tlv_type == EAP_ERP_TLV_KEYNAME_NAI) {
+				if (tlvs->keyname) {
+					wpa_printf(MSG_DEBUG,
+						   "EAP: More than one keyName-NAI");
+					return -1;
+				}
+				tlvs->keyname = pos;
+				tlvs->keyname_len = tlv_len;
+				if (stop_at_keyname)
+					return 0;
+			} else if (tlv_type == EAP_ERP_TLV_DOMAIN_NAME) {
+				tlvs->domain = pos;
+				tlvs->domain_len = tlv_len;
+			}
+			pos += tlv_len;
+			break;
+		default:
+			if (tlv_type >= 128 && tlv_type <= 191) {
+				/* Undefined TLV */
+				if (pos >= end) {
+					wpa_printf(MSG_DEBUG,
+						   "EAP: Too short TLV");
+					return -1;
+				}
+				tlv_len = *pos++;
+				if (tlv_len > (unsigned) (end - pos)) {
+					wpa_printf(MSG_DEBUG,
+						   "EAP: Truncated TLV");
+					return -1;
+				}
+				pos += tlv_len;
+				break;
+			}
+			wpa_printf(MSG_DEBUG, "EAP: Unknown TV/TLV type %u",
+				   tlv_type);
+			pos = end;
+			break;
+		}
+	}
+
+	return 0;
+}
+#endif /* CONFIG_ERP */

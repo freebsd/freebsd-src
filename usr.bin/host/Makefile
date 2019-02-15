@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-LDNSDIR=	${.CURDIR}/../../contrib/ldns
-LDNSHOSTDIR=	${.CURDIR}/../../contrib/ldns-host
+LDNSDIR=	${SRCTOP}/contrib/ldns
+LDNSHOSTDIR=	${SRCTOP}/contrib/ldns-host
 
 .PATH:		${LDNSHOSTDIR}
 
@@ -15,8 +15,6 @@ host.1: ldns-host.1
 		(rm -rf ${.TARGET} ; false)
 
 CFLAGS+=	-I${LDNSDIR}
-DPADD+=		${LIBLDNS} ${LIBCRYPTO}
-LDADD+=		${LDLDNS} -lcrypto
-USEPRIVATELIB=	ldns
+LIBADD=		ldns
 
 .include <bsd.prog.mk>

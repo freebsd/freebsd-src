@@ -11,22 +11,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLI_INTERPRETER_H
-#define LLI_INTERPRETER_H
+#ifndef LLVM_LIB_EXECUTIONENGINE_INTERPRETER_INTERPRETER_H
+#define LLVM_LIB_EXECUTIONENGINE_INTERPRETER_INTERPRETER_H
 
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
+#include "llvm/IR/CallSite.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Function.h"
-#include "llvm/InstVisitor.h"
-#include "llvm/Support/CallSite.h"
+#include "llvm/IR/InstVisitor.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 namespace llvm {
 
 class IntrinsicLowering;
-struct FunctionInfo;
 template<typename T> class generic_gep_type_iterator;
 class ConstantExpr;
 typedef generic_gep_type_iterator<User::const_op_iterator> gep_type_iterator;
@@ -37,29 +36,21 @@ typedef generic_gep_type_iterator<User::const_op_iterator> gep_type_iterator;
 // stack, which causes the dtor to be run, which frees all the alloca'd memory.
 //
 class AllocaHolder {
-  friend class AllocaHolderHandle;
-  std::vector<void*> Allocations;
-  unsigned RefCnt;
+  std::vector<void *> Allocations;
+
 public:
-  AllocaHolder() : RefCnt(0) {}
-  void add(void *mem) { Allocations.push_back(mem); }
+  AllocaHolder() {}
+
+  // Make this type move-only.
+  AllocaHolder(AllocaHolder &&) = default;
+  AllocaHolder &operator=(AllocaHolder &&RHS) = default;
+
   ~AllocaHolder() {
-    for (unsigned i = 0; i < Allocations.size(); ++i)
-      free(Allocations[i]);
+    for (void *Allocation : Allocations)
+      free(Allocation);
   }
-};
 
-// AllocaHolderHandle gives AllocaHolder value semantics so we can stick it into
-// a vector...
-//
-class AllocaHolderHandle {
-  AllocaHolder *H;
-public:
-  AllocaHolderHandle() : H(new AllocaHolder()) { H->RefCnt++; }
-  AllocaHolderHandle(const AllocaHolderHandle &AH) : H(AH.H) { H->RefCnt++; }
-  ~AllocaHolderHandle() { if (--H->RefCnt == 0) delete H; }
-
-  void add(void *mem) { H->add(mem); }
+  void add(void *Mem) { Allocations.push_back(Mem); }
 };
 
 typedef std::vector<GenericValue> ValuePlaneTy;
@@ -71,18 +62,19 @@ struct ExecutionContext {
   Function             *CurFunction;// The currently executing function
   BasicBlock           *CurBB;      // The currently executing BB
   BasicBlock::iterator  CurInst;    // The next instruction to execute
-  std::map<Value *, GenericValue> Values; // LLVM values used in this invocation
-  std::vector<GenericValue>  VarArgs; // Values passed through an ellipsis
   CallSite             Caller;     // Holds the call that called subframes.
                                    // NULL if main func or debugger invoked fn
-  AllocaHolderHandle    Allocas;    // Track memory allocated by alloca
+  std::map<Value *, GenericValue> Values; // LLVM values used in this invocation
+  std::vector<GenericValue>  VarArgs; // Values passed through an ellipsis
+  AllocaHolder Allocas;            // Track memory allocated by alloca
+
+  ExecutionContext() : CurFunction(nullptr), CurBB(nullptr), CurInst(nullptr) {}
 };
 
 // Interpreter - This class represents the entirety of the interpreter.
 //
 class Interpreter : public ExecutionEngine, public InstVisitor<Interpreter> {
   GenericValue ExitValue;          // The return value of the called function
-  DataLayout TD;
   IntrinsicLowering *IL;
 
   // The runtime stack of executing code.  The top of the stack is the current
@@ -94,8 +86,8 @@ class Interpreter : public ExecutionEngine, public InstVisitor<Interpreter> {
   std::vector<Function*> AtExitHandlers;
 
 public:
-  explicit Interpreter(Module *M);
-  ~Interpreter();
+  explicit Interpreter(std::unique_ptr<Module> M);
+  ~Interpreter() override;
 
   /// runAtExitHandlers - Run any functions registered by the program's calls to
   /// atexit(3), which we intercept and store in AtExitHandlers.
@@ -105,36 +97,26 @@ public:
   static void Register() {
     InterpCtor = create;
   }
-  
-  /// create - Create an interpreter ExecutionEngine. This can never fail.
+
+  /// Create an interpreter ExecutionEngine.
   ///
-  static ExecutionEngine *create(Module *M, std::string *ErrorStr = 0);
+  static ExecutionEngine *create(std::unique_ptr<Module> M,
+                                 std::string *ErrorStr = nullptr);
 
   /// run - Start execution with the specified function and arguments.
   ///
-  virtual GenericValue runFunction(Function *F,
-                                   const std::vector<GenericValue> &ArgValues);
+  GenericValue runFunction(Function *F,
+                           ArrayRef<GenericValue> ArgValues) override;
 
-  virtual void *getPointerToNamedFunction(const std::string &Name,
-                                          bool AbortOnFailure = true) {
+  void *getPointerToNamedFunction(StringRef Name,
+                                  bool AbortOnFailure = true) override {
     // FIXME: not implemented.
-    return 0;
+    return nullptr;
   }
-
-  /// recompileAndRelinkFunction - For the interpreter, functions are always
-  /// up-to-date.
-  ///
-  virtual void *recompileAndRelinkFunction(Function *F) {
-    return getPointerToFunction(F);
-  }
-
-  /// freeMachineCodeForFunction - The interpreter does not generate any code.
-  ///
-  void freeMachineCodeForFunction(Function *F) { }
 
   // Methods used to execute code:
   // Place a call on the stack
-  void callFunction(Function *F, const std::vector<GenericValue> &ArgVals);
+  void callFunction(Function *F, ArrayRef<GenericValue> ArgVals);
   void run();                // Execute instructions until nothing left to do
 
   // Opcode Implementations
@@ -191,7 +173,7 @@ public:
   }
 
   GenericValue callExternalFunction(Function *F,
-                                    const std::vector<GenericValue> &ArgVals);
+                                    ArrayRef<GenericValue> ArgVals);
   void exitCalled(GenericValue GV);
 
   void addAtExitHandler(Function *F) {
@@ -212,8 +194,7 @@ private:  // Helper functions
   //
   void SwitchToNewBasicBlock(BasicBlock *Dest, ExecutionContext &SF);
 
-  void *getPointerToFunction(Function *F) { return (void*)F; }
-  void *getPointerToBasicBlock(BasicBlock *BB) { return (void*)BB; }
+  void *getPointerToFunction(Function *F) override { return (void*)F; }
 
   void initializeExecutionEngine() { }
   void initializeExternalFunctions();

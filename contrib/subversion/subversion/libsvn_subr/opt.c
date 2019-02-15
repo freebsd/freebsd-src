@@ -186,7 +186,7 @@ format_option(const char **string,
     opts = apr_psprintf(pool, "--%s", opt->name);
 
   if (opt->has_arg)
-    opts = apr_pstrcat(pool, opts, _(" ARG"), (char *)NULL);
+    opts = apr_pstrcat(pool, opts, _(" ARG"), SVN_VA_NULL);
 
   if (doc)
     opts = apr_psprintf(pool, "%-24s : %s", opts, _(opt->description));
@@ -350,6 +350,38 @@ print_command_info2(const svn_opt_subcommand_desc2_t *cmd,
   return SVN_NO_ERROR;
 }
 
+/* The body for svn_opt_print_generic_help2() function with standard error
+ * handling semantic. Handling of errors implemented at caller side. */
+static svn_error_t *
+print_generic_help_body(const char *header,
+                        const svn_opt_subcommand_desc2_t *cmd_table,
+                        const apr_getopt_option_t *opt_table,
+                        const char *footer,
+                        apr_pool_t *pool, FILE *stream)
+{
+  int i = 0;
+
+  if (header)
+    SVN_ERR(svn_cmdline_fputs(header, stream, pool));
+
+  while (cmd_table[i].name)
+    {
+      SVN_ERR(svn_cmdline_fputs("   ", stream, pool));
+      SVN_ERR(print_command_info2(cmd_table + i, opt_table,
+                                  NULL, FALSE,
+                                  pool, stream));
+      SVN_ERR(svn_cmdline_fputs("\n", stream, pool));
+      i++;
+    }
+
+  SVN_ERR(svn_cmdline_fputs("\n", stream, pool));
+
+  if (footer)
+    SVN_ERR(svn_cmdline_fputs(footer, stream, pool));
+
+  return SVN_NO_ERROR;
+}
+
 void
 svn_opt_print_generic_help2(const char *header,
                             const svn_opt_subcommand_desc2_t *cmd_table,
@@ -357,34 +389,11 @@ svn_opt_print_generic_help2(const char *header,
                             const char *footer,
                             apr_pool_t *pool, FILE *stream)
 {
-  int i = 0;
   svn_error_t *err;
 
-  if (header)
-    if ((err = svn_cmdline_fputs(header, stream, pool)))
-      goto print_error;
+  err = print_generic_help_body(header, cmd_table, opt_table, footer, pool,
+                                stream);
 
-  while (cmd_table[i].name)
-    {
-      if ((err = svn_cmdline_fputs("   ", stream, pool))
-          || (err = print_command_info2(cmd_table + i, opt_table,
-                                        NULL, FALSE,
-                                        pool, stream))
-          || (err = svn_cmdline_fputs("\n", stream, pool)))
-        goto print_error;
-      i++;
-    }
-
-  if ((err = svn_cmdline_fputs("\n", stream, pool)))
-    goto print_error;
-
-  if (footer)
-    if ((err = svn_cmdline_fputs(footer, stream, pool)))
-      goto print_error;
-
-  return;
-
- print_error:
   /* Issue #3014:
    * Don't print anything on broken pipes. The pipe was likely
    * closed by the process at the other end. We expect that
@@ -392,7 +401,7 @@ svn_opt_print_generic_help2(const char *header,
    *
    * ### This assumes that there is only one error in a chain for
    * ### SVN_ERR_IO_PIPE_WRITE_ERROR. See svn_cmdline_fputs(). */
-  if (err->apr_err != SVN_ERR_IO_PIPE_WRITE_ERROR)
+  if (err && err->apr_err != SVN_ERR_IO_PIPE_WRITE_ERROR)
     svn_handle_error2(err, stderr, FALSE, "svn: ");
   svn_error_clear(err);
 }
@@ -783,7 +792,7 @@ svn_opt_parse_path(svn_opt_revision_t *rev,
           if (svn_path_is_url(path))
             {
               /* URLs are URI-encoded, so we look for dates with
-                 URI-encoded delimeters.  */
+                 URI-encoded delimiters.  */
               size_t rev_len = strlen(rev_str);
               if (rev_len > 6
                   && rev_str[0] == '%'
@@ -935,7 +944,7 @@ svn_opt__args_to_target_array(apr_array_header_t **targets_p,
             }
         }
 
-      target = apr_pstrcat(pool, true_target, peg_rev, (char *)NULL);
+      target = apr_pstrcat(pool, true_target, peg_rev, SVN_VA_NULL);
 
       APR_ARRAY_PUSH(output_targets, const char *) = target;
     }
@@ -1012,13 +1021,6 @@ svn_opt__split_arg_at_peg_revision(const char **true_target,
 
   if (peg_start)
     {
-      /* Error out if target is the empty string. */
-      if (ptr == utf8_target)
-        return svn_error_createf(SVN_ERR_BAD_FILENAME, NULL,
-                                 _("'%s' is just a peg revision. "
-                                   "Maybe try '%s@' instead?"),
-                                 utf8_target, utf8_target);
-
       *true_target = apr_pstrmemdup(pool, utf8_target, ptr - utf8_target);
       if (peg_revision)
         *peg_revision = apr_pstrdup(pool, peg_start);

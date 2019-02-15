@@ -12,8 +12,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_OPERATOR_PRECEDENCE_H
-#define LLVM_CLANG_OPERATOR_PRECEDENCE_H
+#ifndef LLVM_CLANG_BASIC_OPERATORPRECEDENCE_H
+#define LLVM_CLANG_BASIC_OPERATORPRECEDENCE_H
 
 #include "clang/Basic/TokenKinds.h"
 
@@ -36,10 +36,11 @@ namespace prec {
     And             = 8,    // &
     Equality        = 9,    // ==, !=
     Relational      = 10,   //  >=, <=, >, <
-    Shift           = 11,   // <<, >>
-    Additive        = 12,   // -, +
-    Multiplicative  = 13,   // *, /, %
-    PointerToMember = 14    // .*, ->*
+    Spaceship       = 11,   // <=>
+    Shift           = 12,   // <<, >>
+    Additive        = 13,   // -, +
+    Multiplicative  = 14,   // *, /, %
+    PointerToMember = 15    // .*, ->*
   };
 }
 

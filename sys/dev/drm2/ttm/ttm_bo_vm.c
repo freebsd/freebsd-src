@@ -106,21 +106,18 @@ ttm_bo_vm_fault(vm_object_t vm_obj, vm_ooffset_t offset,
 	struct ttm_buffer_object *bo = vm_obj->handle;
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_tt *ttm = NULL;
-	vm_page_t m, m1, oldm;
+	vm_page_t m, m1;
 	int ret;
 	int retval = VM_PAGER_OK;
 	struct ttm_mem_type_manager *man =
 		&bdev->man[bo->mem.mem_type];
 
 	vm_object_pip_add(vm_obj, 1);
-	oldm = *mres;
-	if (oldm != NULL) {
-		vm_page_lock(oldm);
-		vm_page_remove(oldm);
-		vm_page_unlock(oldm);
-		*mres = NULL;
-	} else
-		oldm = NULL;
+	if (*mres != NULL) {
+		vm_page_lock(*mres);
+		vm_page_remove(*mres);
+		vm_page_unlock(*mres);
+	}
 retry:
 	VM_OBJECT_WUNLOCK(vm_obj);
 	m = NULL;
@@ -129,7 +126,7 @@ reserve:
 	ret = ttm_bo_reserve(bo, false, false, false, 0);
 	if (unlikely(ret != 0)) {
 		if (ret == -EBUSY) {
-			kern_yield(0);
+			kern_yield(PRI_USER);
 			goto reserve;
 		}
 	}
@@ -140,9 +137,9 @@ reserve:
 		case 0:
 			break;
 		case -EBUSY:
-		case -ERESTART:
+		case -ERESTARTSYS:
 		case -EINTR:
-			kern_yield(0);
+			kern_yield(PRI_USER);
 			goto reserve;
 		default:
 			retval = VM_PAGER_ERROR;
@@ -239,7 +236,7 @@ reserve:
 	if (vm_page_busied(m)) {
 		vm_page_lock(m);
 		VM_OBJECT_WUNLOCK(vm_obj);
-		vm_page_busy_sleep(m, "ttmpbs");
+		vm_page_busy_sleep(m, "ttmpbs", false);
 		VM_OBJECT_WLOCK(vm_obj);
 		ttm_mem_io_unlock(man);
 		ttm_bo_unreserve(bo);
@@ -249,7 +246,7 @@ reserve:
 	if (m1 == NULL) {
 		if (vm_page_insert(m, vm_obj, OFF_TO_IDX(offset))) {
 			VM_OBJECT_WUNLOCK(vm_obj);
-			VM_WAIT;
+			vm_wait(vm_obj);
 			VM_OBJECT_WLOCK(vm_obj);
 			ttm_mem_io_unlock(man);
 			ttm_bo_unreserve(bo);
@@ -261,14 +258,14 @@ reserve:
 		    bo, m, m1, (uintmax_t)offset));
 	}
 	m->valid = VM_PAGE_BITS_ALL;
-	*mres = m;
 	vm_page_xbusy(m);
-
-	if (oldm != NULL) {
-		vm_page_lock(oldm);
-		vm_page_free(oldm);
-		vm_page_unlock(oldm);
+	if (*mres != NULL) {
+		KASSERT(*mres != m, ("losing %p %p", *mres, m));
+		vm_page_lock(*mres);
+		vm_page_free(*mres);
+		vm_page_unlock(*mres);
 	}
+	*mres = m;
 
 out_io_unlock1:
 	ttm_mem_io_unlock(man);
@@ -299,7 +296,7 @@ ttm_bo_vm_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	 * acquired either in ttm_bo_mmap() or ttm_bo_vm_open(). It's
 	 * then released in ttm_bo_vm_close().
 	 *
-	 * Here, this function is called during mmap() intialization.
+	 * Here, this function is called during mmap() initialization.
 	 * Thus, the reference acquired in ttm_bo_mmap_single() is
 	 * sufficient.
 	 */
@@ -339,22 +336,22 @@ ttm_bo_mmap_single(struct ttm_bo_device *bdev, vm_ooffset_t *offset, vm_size_t s
 
 	if (unlikely(bo == NULL)) {
 		printf("[TTM] Could not find buffer object to map\n");
-		return (EINVAL);
+		return (-EINVAL);
 	}
 
 	driver = bo->bdev->driver;
 	if (unlikely(!driver->verify_access)) {
-		ret = EPERM;
+		ret = -EPERM;
 		goto out_unref;
 	}
-	ret = -driver->verify_access(bo);
+	ret = driver->verify_access(bo);
 	if (unlikely(ret != 0))
 		goto out_unref;
 
 	vm_obj = cdev_pager_allocate(bo, OBJT_MGTDEVICE, &ttm_pager_ops,
 	    size, nprot, 0, curthread->td_ucred);
 	if (vm_obj == NULL) {
-		ret = EINVAL;
+		ret = -EINVAL;
 		goto out_unref;
 	}
 	/*

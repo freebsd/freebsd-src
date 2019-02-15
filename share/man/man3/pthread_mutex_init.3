@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 4, 2006
+.Dd August 17, 2018
 .Dt PTHREAD_MUTEX_INIT 3
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Sh SYNOPSIS
 .In pthread.h
 .Ft int
-.Fn pthread_mutex_init "pthread_mutex_t *mutex" "const pthread_mutexattr_t *attr"
+.Fn pthread_mutex_init "pthread_mutex_t *restrict mutex" "const pthread_mutexattr_t *restrict attr"
 .Sh DESCRIPTION
 The
 .Fn pthread_mutex_init
@@ -66,11 +66,11 @@ is invalid.
 The process cannot allocate enough memory to create another mutex.
 .El
 .Sh SEE ALSO
-.Xr pthread_mutexattr 3 ,
 .Xr pthread_mutex_destroy 3 ,
 .Xr pthread_mutex_lock 3 ,
 .Xr pthread_mutex_trylock 3 ,
-.Xr pthread_mutex_unlock 3
+.Xr pthread_mutex_unlock 3 ,
+.Xr pthread_mutexattr 3
 .Sh STANDARDS
 The
 .Fn pthread_mutex_init

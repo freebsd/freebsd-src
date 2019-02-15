@@ -1,4 +1,4 @@
-//===--- PTHLexer.h - Lexer based on Pre-tokenized input --------*- C++ -*-===//
+//===- PTHLexer.h - Lexer based on Pre-tokenized input ----------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,15 +11,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_PTHLEXER_H
-#define LLVM_CLANG_PTHLEXER_H
+#ifndef LLVM_CLANG_LEX_PTHLEXER_H
+#define LLVM_CLANG_LEX_PTHLEXER_H
 
+#include "clang/Basic/SourceLocation.h"
+#include "clang/Basic/TokenKinds.h"
 #include "clang/Lex/PreprocessorLexer.h"
+#include "clang/Lex/Token.h"
 
 namespace clang {
 
+class Preprocessor;
 class PTHManager;
-class PTHSpellingSearch;
 
 class PTHLexer : public PreprocessorLexer {
   SourceLocation FileStartLoc;
@@ -33,10 +36,10 @@ class PTHLexer : public PreprocessorLexer {
 
   /// LastHashTokPtr - Pointer into TokBuf of the last processed '#'
   ///  token that appears at the start of a line.
-  const unsigned char* LastHashTokPtr;
+  const unsigned char* LastHashTokPtr = nullptr;
 
   /// PPCond - Pointer to a side table in the PTH file that provides a
-  ///  a consise summary of the preproccessor conditional block structure.
+  ///  a concise summary of the preprocessor conditional block structure.
   ///  This is used to perform quick skipping of conditional blocks.
   const unsigned char* PPCond;
 
@@ -44,11 +47,8 @@ class PTHLexer : public PreprocessorLexer {
   ///  to process when doing quick skipping of preprocessor blocks.
   const unsigned char* CurPPCondPtr;
 
-  PTHLexer(const PTHLexer &) LLVM_DELETED_FUNCTION;
-  void operator=(const PTHLexer &) LLVM_DELETED_FUNCTION;
-
   /// ReadToken - Used by PTHLexer to read tokens TokBuf.
-  void ReadToken(Token& T);
+  void ReadToken(Token &T);
   
   bool LexEndOfFile(Token &Result);
 
@@ -61,11 +61,13 @@ protected:
   friend class PTHManager;
 
   /// Create a PTHLexer for the specified token stream.
-  PTHLexer(Preprocessor& pp, FileID FID, const unsigned char *D,
+  PTHLexer(Preprocessor &pp, FileID FID, const unsigned char *D,
            const unsigned char* ppcond, PTHManager &PM);
-public:
 
-  ~PTHLexer() {}
+public:
+  PTHLexer(const PTHLexer &) = delete;
+  PTHLexer &operator=(const PTHLexer &) = delete;
+  ~PTHLexer() override = default;
 
   /// Lex - Return the next token.
   bool Lex(Token &Tok);
@@ -90,16 +92,16 @@ public:
 
   /// IndirectLex - An indirect call to 'Lex' that can be invoked via
   ///  the PreprocessorLexer interface.
-  void IndirectLex(Token &Result) { Lex(Result); }
+  void IndirectLex(Token &Result) override { Lex(Result); }
 
   /// getSourceLocation - Return a source location for the token in
   /// the current file.
-  SourceLocation getSourceLocation();
+  SourceLocation getSourceLocation() override;
 
   /// SkipBlock - Used by Preprocessor to skip the current conditional block.
   bool SkipBlock();
 };
 
-}  // end namespace clang
+} // namespace clang
 
-#endif
+#endif // LLVM_CLANG_LEX_PTHLEXER_H

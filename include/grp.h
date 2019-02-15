@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -75,8 +77,7 @@ int		 pwcache_groupdb(int (*)(int), void (*)(void),
 		    struct group * (*)(gid_t));
 #endif
 #if __XSI_VISIBLE
-/* XXX IEEE Std 1003.1, 2003 specifies `void setgrent(void)' */
-int		 setgrent(void);
+void		 setgrent(void);
 #endif
 #if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 int		 getgrgid_r(gid_t, struct group *, char *, size_t,

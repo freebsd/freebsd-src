@@ -1,6 +1,6 @@
 .\"-
 .\" Copyright (c) 1998-2013 Dag-Erling Smørgrav
-.\" Copyright (c) 2013 Michael Gmelin <freebsd@grem.de>
+.\" Copyright (c) 2013-2016 Michael Gmelin <freebsd@grem.de>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 30, 2013
+.Dd March 18, 2016
 .Dt FETCH 3
 .Os
 .Sh NAME
@@ -396,8 +396,15 @@ is currently unimplemented.
 .Sh HTTPS SCHEME
 Based on HTTP SCHEME.
 By default the peer is verified using the CA bundle located in
-.Pa /etc/ssl/cert.pem .
-The file may contain multiple CA certificates.
+.Pa /usr/local/etc/ssl/cert.pem .
+If this file does not exist,
+.Pa /etc/ssl/cert.pem
+is used instead.
+If neither file exists, and
+.Ev SSL_CA_CERT_PATH
+has not been set,
+OpenSSL's default CA cert and path settings apply.
+The certificate bundle can contain multiple CA certificates.
 A common source of a current CA bundle is
 .Pa \%security/ca_root_nss .
 .Pp
@@ -428,25 +435,26 @@ Client certificate based authentication is supported.
 The environment variable
 .Ev SSL_CLIENT_CERT_FILE
 should be set to point to a file containing key and client certificate
-to be used in PEM format. In case the key is stored in a separate
-file, the environment variable
+to be used in PEM format.
+When a PEM-format key is in a separate file from the client certificate,
+the environment variable
 .Ev SSL_CLIENT_KEY_FILE
-can be set to point to the key in PEM format.
+can be set to point to the key file.
 In case the key uses a password, the user will be prompted on standard
 input (see
 .Xr PEM 3 ) .
 .Pp
 By default
 .Nm libfetch
-allows SSLv3 and TLSv1 when negotiating the connecting with the remote
+allows TLSv1 and newer when negotiating the connecting with the remote
 peer.
-You can change this behavior by setting the environment variable
-.Ev SSL_ALLOW_SSL2
-to allow SSLv2 (not recommended) and
-.Ev SSL_NO_SSL3
-or
-.Ev SSL_NO_TLS1
-to disable the respective methods.
+You can change this behavior by setting the
+.Ev SSL_ALLOW_SSL3
+environment variable to allow SSLv3 and
+.Ev SSL_NO_TLS1 ,
+.Ev SSL_NO_TLS1_1 and
+.Ev SSL_NO_TLS1_2
+to disable TLS 1.0, 1.1 and 1.2 respectively.
 .Sh AUTHENTICATION
 Apart from setting the appropriate environment variables and
 specifying the user name and password in the URL or the
@@ -531,7 +539,7 @@ Invalid URL
 .El
 .Pp
 The accompanying error message includes a protocol-specific error code
-and message, e.g.\& "File is not available (404 Not Found)"
+and message, like "File is not available (404 Not Found)"
 .Sh ENVIRONMENT
 .Bl -tag -width ".Ev FETCH_BIND_ADDRESS"
 .It Ev FETCH_BIND_ADDRESS
@@ -631,11 +639,11 @@ If defined but empty, no User-Agent header is sent.
 .It Ev NETRC
 Specifies a file to use instead of
 .Pa ~/.netrc
-to look up login names and passwords for FTP sites.
+to look up login names and passwords for FTP and HTTP sites as well as
+HTTP proxies.
 See
 .Xr ftp 1
 for a description of the file format.
-This feature is experimental.
 .It Ev NO_PROXY
 Either a single asterisk, which disables the use of proxies
 altogether, or a comma- or whitespace-separated list of hosts for
@@ -644,12 +652,11 @@ which proxies should not be used.
 Same as
 .Ev NO_PROXY ,
 for compatibility.
-.It Ev SSL_ALLOW_SSL2
-Allow SSL version 2 when negotiating the connection (not recommended).
+.It Ev SSL_ALLOW_SSL3
+Allow SSL version 3 when negotiating the connection (not recommended).
 .It Ev SSL_CA_CERT_FILE
 CA certificate bundle containing trusted CA certificates.
-Default value:
-.Pa /etc/ssl/cert.pem .
+Default value: See HTTPS SCHEME above.
 .It Ev SSL_CA_CERT_PATH
 Path containing trusted CA hashes.
 .It Ev SSL_CLIENT_CERT_FILE
@@ -660,10 +667,12 @@ PEM encoded client key in case key and client certificate
 are stored separately.
 .It Ev SSL_CRL_FILE
 File containing certificate revocation list.
-.It Ev SSL_NO_SSL3
-Don't allow SSL version 3 when negotiating the connection.
 .It Ev SSL_NO_TLS1
-Don't allow TLV version 1 when negotiating the connection.
+Do not allow TLS version 1.0 when negotiating the connection.
+.It Ev SSL_NO_TLS1_1
+Do not allow TLS version 1.1 when negotiating the connection.
+.It Ev SSL_NO_TLS1_2
+Do not allow TLS version 1.2 when negotiating the connection.
 .It Ev SSL_NO_VERIFY_HOSTNAME
 If set, do not verify that the hostname matches the subject of the
 certificate presented by the server.
@@ -715,7 +724,6 @@ SSL_CA_CERT_FILE=/path/to/myca.pem
 .Ed
 .Sh SEE ALSO
 .Xr fetch 1 ,
-.Xr ftpio 3 ,
 .Xr ip 4
 .Rs
 .%A J. Postel

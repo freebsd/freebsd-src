@@ -191,7 +191,7 @@ int  smb_ctx_readrc(struct smb_ctx *);
 int  smb_ctx_resolve(struct smb_ctx *);
 int  smb_ctx_setflags(struct smb_ctx *, int, int, int);
 
-int  smb_smb_open_print_file(struct smb_ctx *, int, int, const char *, smbfh*);
+int  smb_smb_open_print_file(struct smb_ctx *, int, int, char *, smbfh*);
 int  smb_smb_close_print_file(struct smb_ctx *, smbfh);
 
 int  smb_read(struct smb_ctx *, smbfh, off_t, size_t, char *);
@@ -204,8 +204,8 @@ int  smb_rq_init(struct smb_ctx *, u_char, size_t, struct smb_rq **);
 void smb_rq_done(struct smb_rq *);
 void smb_rq_wend(struct smb_rq *);
 int  smb_rq_simple(struct smb_rq *);
-int  smb_rq_dmem(struct mbdata *, const char *, size_t);
-int  smb_rq_dstring(struct mbdata *, const char *);
+int  smb_rq_dmem(struct mbdata *, char *, size_t);
+int  smb_rq_dstring(struct mbdata *, char *);
 
 int  smb_t2_request(struct smb_ctx *, int, int, const char *,
 	int, void *, int, void *, int *, void *, int *, void *);
@@ -246,10 +246,10 @@ extern u_char nls_lower[256], nls_upper[256];
 
 int   nls_setrecode(const char *, const char *);
 int   nls_setlocale(const char *);
-char* nls_str_toext(char *, const char *);
-char* nls_str_toloc(char *, const char *);
-void* nls_mem_toext(void *, const void *, int);
-void* nls_mem_toloc(void *, const void *, int);
+char* nls_str_toext(char *, char *);
+char* nls_str_toloc(char *, char *);
+void* nls_mem_toext(void *, void *, int);
+void* nls_mem_toloc(void *, void *, int);
 char* nls_str_upper(char *, const char *);
 char* nls_str_lower(char *, const char *);
 

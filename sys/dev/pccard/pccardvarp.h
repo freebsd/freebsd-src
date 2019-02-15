@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005, M. Warner Losh
  * All rights reserved.
  *
@@ -48,14 +50,14 @@
 #define PCCARD_CFE_AUDIO		0x0800
 
 struct pccard_ce_iospace {
-	u_long	length;
-	u_long	start;
+	rman_res_t	length;
+	rman_res_t	start;
 };
 
 struct pccard_ce_memspace {
-	u_long	length;
-	u_long	cardaddr;
-	u_long	hostaddr;
+	rman_res_t	length;
+	rman_res_t	cardaddr;
+	rman_res_t	hostaddr;
 };
 
 struct pccard_config_entry {

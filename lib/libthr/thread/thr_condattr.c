@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1997 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
@@ -25,9 +27,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <stdlib.h>
@@ -79,7 +82,8 @@ _pthread_condattr_destroy(pthread_condattr_t *attr)
 }
 
 int
-_pthread_condattr_getclock(const pthread_condattr_t *attr, clockid_t *clock_id)
+_pthread_condattr_getclock(const pthread_condattr_t * __restrict attr,
+    clockid_t * __restrict clock_id)
 {
 	if (attr == NULL || *attr == NULL)
 		return (EINVAL);
@@ -103,22 +107,24 @@ _pthread_condattr_setclock(pthread_condattr_t *attr, clockid_t clock_id)
 }
 
 int
-_pthread_condattr_getpshared(const pthread_condattr_t *attr, int *pshared)
+_pthread_condattr_getpshared(const pthread_condattr_t * __restrict attr,
+    int * __restrict pshared)
 {
+
 	if (attr == NULL || *attr == NULL)
 		return (EINVAL);
-
-	*pshared = PTHREAD_PROCESS_PRIVATE;
+	*pshared = (*attr)->c_pshared;
 	return (0);
 }
 
 int
 _pthread_condattr_setpshared(pthread_condattr_t *attr, int pshared)
 {
-	if (attr == NULL || *attr == NULL)
-		return (EINVAL);
 
-	if  (pshared != PTHREAD_PROCESS_PRIVATE)
+	if (attr == NULL || *attr == NULL ||
+	    (pshared != PTHREAD_PROCESS_PRIVATE &&
+	    pshared != PTHREAD_PROCESS_SHARED))
 		return (EINVAL);
+	(*attr)->c_pshared = pshared;
 	return (0);
 }

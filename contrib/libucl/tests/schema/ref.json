@@ -125,10 +125,9 @@
             }
         ]
     },
-/*
     {
         "description": "remote ref, containing refs itself",
-        "schema": {"$ref": "http://json-schema.org/draft-04/schema#"},
+        "schema": {"$ref": "http://highsecure.ru/ucl-schema/schema#"},
         "tests": [
             {
                 "description": "remote ref valid",
@@ -142,5 +141,4 @@
             }
         ]
     }
-*/
 ]

@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)access.2	8.2 (Berkeley) 4/1/94
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2014
+.Dd October 20, 2018
 .Dt ACCESS 2
 .Os
 .Sh NAME
@@ -120,6 +120,8 @@ list, defined in
 The checks for accessibility are performed using the effective user and group
 IDs instead of the real user and group ID as required in a call to
 .Fn access .
+.It Dv AT_BENEATH
+Only operate on files and directories below the starting directory.
 .El
 .Pp
 Even if a process's real or effective user has appropriate privileges
@@ -136,7 +138,7 @@ and
 .Fn access ,
 .Fn eaccess ,
 or
-.Fn faccessat 
+.Fn faccessat
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
@@ -195,6 +197,15 @@ argument is not an absolute path and
 is neither
 .Dv AT_FDCWD
 nor a file descriptor associated with a directory.
+.It Bq Er ENOTCAPABLE
+The
+.Dv AT_BENEATH
+flag was specified but
+.Fa path
+is not strictly relative to the starting directory.
+For example,
+.Fa path
+is absolute or includes a ".." component that escapes the starting directory.
 .El
 .Sh SEE ALSO
 .Xr chmod 2 ,

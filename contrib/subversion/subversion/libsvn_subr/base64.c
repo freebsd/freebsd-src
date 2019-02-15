@@ -58,6 +58,7 @@ struct encode_baton {
   unsigned char buf[3];         /* Bytes waiting to be encoded */
   size_t buflen;                /* Number of bytes waiting */
   size_t linelen;               /* Bytes output so far on this line */
+  svn_boolean_t break_lines;
   apr_pool_t *scratch_pool;
 };
 
@@ -140,7 +141,7 @@ encode_bytes(svn_stringbuf_t *str, const void *data, apr_size_t len,
   svn_stringbuf_ensure(str, str->len + buflen);
 
   /* Keep encoding three-byte groups until we run out.  */
-  while (*inbuflen + (end - p) >= 3)
+  while ((end - p) >= (3 - *inbuflen))
     {
       /* May we encode BYTES_PER_LINE bytes without caring about
          line breaks, data in the temporary INBUF or running out
@@ -214,7 +215,8 @@ encode_data(void *baton, const char *data, apr_size_t *len)
   svn_error_t *err = SVN_NO_ERROR;
 
   /* Encode this block of data and write it out.  */
-  encode_bytes(encoded, data, *len, eb->buf, &eb->buflen, &eb->linelen, TRUE);
+  encode_bytes(encoded, data, *len, eb->buf, &eb->buflen, &eb->linelen,
+               eb->break_lines);
   enclen = encoded->len;
   if (enclen != 0)
     err = svn_stream_write(eb->output, encoded->data, &enclen);
@@ -233,7 +235,8 @@ finish_encoding_data(void *baton)
   svn_error_t *err = SVN_NO_ERROR;
 
   /* Encode a partial group at the end if necessary, and write it out.  */
-  encode_partial_group(encoded, eb->buf, eb->buflen, eb->linelen, TRUE);
+  encode_partial_group(encoded, eb->buf, eb->buflen, eb->linelen,
+                       eb->break_lines);
   enclen = encoded->len;
   if (enclen != 0)
     err = svn_stream_write(eb->output, encoded->data, &enclen);
@@ -247,7 +250,9 @@ finish_encoding_data(void *baton)
 
 
 svn_stream_t *
-svn_base64_encode(svn_stream_t *output, apr_pool_t *pool)
+svn_base64_encode2(svn_stream_t *output,
+                   svn_boolean_t break_lines,
+                   apr_pool_t *pool)
 {
   struct encode_baton *eb = apr_palloc(pool, sizeof(*eb));
   svn_stream_t *stream;
@@ -255,6 +260,7 @@ svn_base64_encode(svn_stream_t *output, apr_pool_t *pool)
   eb->output = output;
   eb->buflen = 0;
   eb->linelen = 0;
+  eb->break_lines = break_lines;
   eb->scratch_pool = svn_pool_create(pool);
   stream = svn_stream_create(eb, pool);
   svn_stream_set_write(stream, encode_data);
@@ -424,7 +430,7 @@ decode_bytes(svn_stringbuf_t *str, const char *data, apr_size_t len,
       /* If no data is left in temporary INBUF and there is at least
          one line-sized chunk left to decode, we may use the optimized
          code path. */
-      if ((*inbuflen == 0) && (p + BASE64_LINELEN <= end))
+      if ((*inbuflen == 0) && (end - p >= BASE64_LINELEN))
         if (decode_line(str, &p))
           continue;
 

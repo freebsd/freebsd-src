@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001-2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -972,7 +974,7 @@ ng_btsocket_rfcomm_send(struct socket *so, int flags, struct mbuf *m,
 	}
 
 	/* Put the packet on the socket's send queue and wakeup RFCOMM task */
-	sbappend(&pcb->so->so_snd, m);
+	sbappend(&pcb->so->so_snd, m, flags);
 	m = NULL;
 	
 	if (!(pcb->flags & NG_BTSOCKET_RFCOMM_DLC_SENDING)) {
@@ -1149,7 +1151,7 @@ ng_btsocket_rfcomm_connect_ind(ng_btsocket_rfcomm_session_p s, int channel)
 {
 	ng_btsocket_rfcomm_pcb_p	 pcb = NULL, pcb1 = NULL;
 	ng_btsocket_l2cap_pcb_p		 l2pcb = NULL;
-	struct socket			*so1 = NULL;
+	struct socket			*so1;
 
 	mtx_assert(&s->session_mtx, MA_OWNED);
 
@@ -1171,11 +1173,9 @@ ng_btsocket_rfcomm_connect_ind(ng_btsocket_rfcomm_session_p s, int channel)
 
 	mtx_lock(&pcb->pcb_mtx);
 
-	if (pcb->so->so_qlen <= pcb->so->so_qlimit) {
-		CURVNET_SET(pcb->so->so_vnet);
-		so1 = sonewconn(pcb->so, 0);
-		CURVNET_RESTORE();
-	}
+	CURVNET_SET(pcb->so->so_vnet);
+	so1 = sonewconn(pcb->so, 0);
+	CURVNET_RESTORE();
 
 	mtx_unlock(&pcb->pcb_mtx);
 
@@ -1339,6 +1339,8 @@ ng_btsocket_rfcomm_session_create(ng_btsocket_rfcomm_session_p *sp,
 	l2sa.l2cap_family = AF_BLUETOOTH;
 	l2sa.l2cap_psm = (dst == NULL)? htole16(NG_L2CAP_PSM_RFCOMM) : 0;
 	bcopy(src, &l2sa.l2cap_bdaddr, sizeof(l2sa.l2cap_bdaddr));
+	l2sa.l2cap_cid = 0;
+	l2sa.l2cap_bdaddr_type = BDADDR_BREDR;
 
 	error = sobind(s->l2so, (struct sockaddr *) &l2sa, td);
 	if (error != 0)
@@ -1360,6 +1362,8 @@ ng_btsocket_rfcomm_session_create(ng_btsocket_rfcomm_session_p *sp,
 		l2sa.l2cap_family = AF_BLUETOOTH;
 		l2sa.l2cap_psm = htole16(NG_L2CAP_PSM_RFCOMM);
 	        bcopy(dst, &l2sa.l2cap_bdaddr, sizeof(l2sa.l2cap_bdaddr));
+		l2sa.l2cap_cid = 0;
+		l2sa.l2cap_bdaddr_type = BDADDR_BREDR;
 
 		error = soconnect(s->l2so, (struct sockaddr *) &l2sa, td);
 		if (error != 0)
@@ -1401,46 +1405,24 @@ bad:
 static int
 ng_btsocket_rfcomm_session_accept(ng_btsocket_rfcomm_session_p s0)
 {
-	struct socket			*l2so = NULL;
+	struct socket			*l2so;
 	struct sockaddr_l2cap		*l2sa = NULL;
 	ng_btsocket_l2cap_pcb_t		*l2pcb = NULL;
 	ng_btsocket_rfcomm_session_p	 s = NULL;
-	int				 error = 0;
+	int				 error;
 
 	mtx_assert(&ng_btsocket_rfcomm_sessions_mtx, MA_OWNED);
 	mtx_assert(&s0->session_mtx, MA_OWNED);
 
-	/* Check if there is a complete L2CAP connection in the queue */
-	if ((error = s0->l2so->so_error) != 0) {
+	SOLISTEN_LOCK(s0->l2so);
+	error = solisten_dequeue(s0->l2so, &l2so, 0);
+	if (error == EWOULDBLOCK)
+		return (error);
+	if (error) {
 		NG_BTSOCKET_RFCOMM_ERR(
 "%s: Could not accept connection on L2CAP socket, error=%d\n", __func__, error);
-		s0->l2so->so_error = 0;
-
 		return (error);
 	}
-
-	ACCEPT_LOCK();
-	if (TAILQ_EMPTY(&s0->l2so->so_comp)) {
-		ACCEPT_UNLOCK();
-		if (s0->l2so->so_rcv.sb_state & SBS_CANTRCVMORE)
-			return (ECONNABORTED);
-		return (EWOULDBLOCK);
-	}
-
-	/* Accept incoming L2CAP connection */
-	l2so = TAILQ_FIRST(&s0->l2so->so_comp);
-	if (l2so == NULL)
-		panic("%s: l2so == NULL\n", __func__);
-
-	TAILQ_REMOVE(&s0->l2so->so_comp, l2so, so_list);
-	s0->l2so->so_qlen --;
-	l2so->so_qstate &= ~SQ_COMP;
-	l2so->so_head = NULL;
-	SOCK_LOCK(l2so);
-	soref(l2so);
-	l2so->so_state |= SS_NBIO;
-	SOCK_UNLOCK(l2so);
-	ACCEPT_UNLOCK();
 
 	error = soaccept(l2so, (struct sockaddr **) &l2sa);
 	if (error != 0) {
@@ -1471,7 +1453,7 @@ ng_btsocket_rfcomm_session_accept(ng_btsocket_rfcomm_session_p s0)
 			s->state = NG_BTSOCKET_RFCOMM_SESSION_CONNECTED;
 
 			/*
-			 * Adjust MTU on incomming connection. Reserve 5 bytes:
+			 * Adjust MTU on incoming connection. Reserve 5 bytes:
 			 * RFCOMM frame header, one extra byte for length and 
 			 * one extra byte for credits.
 			 */
@@ -2392,7 +2374,7 @@ ng_btsocket_rfcomm_receive_uih(ng_btsocket_rfcomm_session_p s, int dlci,
 			error = ENOBUFS;
 		} else {
 			/* Append packet to the socket receive queue */
-			sbappend(&pcb->so->so_rcv, m0);
+			sbappend(&pcb->so->so_rcv, m0, 0);
 			m0 = NULL;
 
 			sorwakeup(pcb->so);
@@ -2877,7 +2859,7 @@ ng_btsocket_rfcomm_receive_pn(ng_btsocket_rfcomm_session_p s, struct mbuf *m0)
 
 		mtx_unlock(&pcb->pcb_mtx);
 	} else if (RFCOMM_CR(hdr->type)) {
-		/* PN request to non-existing dlci - incomming connection */
+		/* PN request to non-existing dlci - incoming connection */
 		pcb = ng_btsocket_rfcomm_connect_ind(s,
 				RFCOMM_SRVCHANNEL(pn->dlci));
 		if (pcb != NULL) {
@@ -3279,7 +3261,7 @@ ng_btsocket_rfcomm_pcb_send(ng_btsocket_rfcomm_pcb_p pcb, int limit)
 	}
 
 	for (error = 0, sent = 0; sent < limit; sent ++) { 
-		length = min(pcb->mtu, pcb->so->so_snd.sb_cc);
+		length = min(pcb->mtu, sbavail(&pcb->so->so_snd));
 		if (length == 0)
 			break;
 

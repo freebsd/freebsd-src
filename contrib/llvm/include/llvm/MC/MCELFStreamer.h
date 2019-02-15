@@ -10,117 +10,93 @@
 #ifndef LLVM_MC_MCELFSTREAMER_H
 #define LLVM_MC_MCELFSTREAMER_H
 
-#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/MC/MCDirectives.h"
 #include "llvm/MC/MCObjectStreamer.h"
-#include "llvm/MC/SectionKind.h"
-#include "llvm/Support/DataTypes.h"
-#include <vector>
 
 namespace llvm {
+
 class MCAsmBackend;
-class MCAssembler;
 class MCCodeEmitter;
 class MCExpr;
 class MCInst;
-class MCSymbol;
-class MCSymbolData;
-class raw_ostream;
 
 class MCELFStreamer : public MCObjectStreamer {
 public:
-  MCELFStreamer(MCContext &Context, MCTargetStreamer *TargetStreamer,
-                MCAsmBackend &TAB, raw_ostream &OS, MCCodeEmitter *Emitter)
-      : MCObjectStreamer(Context, TargetStreamer, TAB, OS, Emitter), 
-                         SeenIdent(false) {}
+  MCELFStreamer(MCContext &Context, std::unique_ptr<MCAsmBackend> TAB,
+                raw_pwrite_stream &OS, std::unique_ptr<MCCodeEmitter> Emitter);
 
-  MCELFStreamer(MCContext &Context, MCTargetStreamer *TargetStreamer,
-                MCAsmBackend &TAB, raw_ostream &OS, MCCodeEmitter *Emitter,
-                MCAssembler *Assembler)
-      : MCObjectStreamer(Context, TargetStreamer, TAB, OS, Emitter, Assembler), 
-                         SeenIdent(false) {}
+  ~MCELFStreamer() override = default;
 
-  virtual ~MCELFStreamer();
+  /// state management
+  void reset() override {
+    SeenIdent = false;
+    BundleGroups.clear();
+    MCObjectStreamer::reset();
+  }
 
-  /// @name MCStreamer Interface
+  /// \name MCStreamer Interface
   /// @{
 
-  virtual void InitSections();
-  virtual void InitToTextSection();
-  virtual void ChangeSection(const MCSection *Section,
-                             const MCExpr *Subsection);
-  virtual void EmitLabel(MCSymbol *Symbol);
-  virtual void EmitDebugLabel(MCSymbol *Symbol);
-  virtual void EmitAssemblerFlag(MCAssemblerFlag Flag);
-  virtual void EmitThumbFunc(MCSymbol *Func);
-  virtual void EmitWeakReference(MCSymbol *Alias, const MCSymbol *Symbol);
-  virtual bool EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute);
-  virtual void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue);
-  virtual void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
-                                unsigned ByteAlignment);
-  virtual void BeginCOFFSymbolDef(const MCSymbol *Symbol);
-  virtual void EmitCOFFSymbolStorageClass(int StorageClass);
-  virtual void EmitCOFFSymbolType(int Type);
-  virtual void EndCOFFSymbolDef();
+  void InitSections(bool NoExecStack) override;
+  void ChangeSection(MCSection *Section, const MCExpr *Subsection) override;
+  void EmitLabel(MCSymbol *Symbol, SMLoc Loc = SMLoc()) override;
+  void EmitLabel(MCSymbol *Symbol, SMLoc Loc, MCFragment *F) override;
+  void EmitAssemblerFlag(MCAssemblerFlag Flag) override;
+  void EmitThumbFunc(MCSymbol *Func) override;
+  void EmitWeakReference(MCSymbol *Alias, const MCSymbol *Symbol) override;
+  bool EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute) override;
+  void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) override;
+  void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                        unsigned ByteAlignment) override;
 
-  virtual MCSymbolData &getOrCreateSymbolData(MCSymbol *Symbol);
+  void emitELFSize(MCSymbol *Symbol, const MCExpr *Value) override;
+  void emitELFSymverDirective(StringRef AliasName,
+                              const MCSymbol *Aliasee) override;
 
-  virtual void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value);
+  void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                             unsigned ByteAlignment) override;
 
-  virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
-                                     unsigned ByteAlignment);
+  void EmitZerofill(MCSection *Section, MCSymbol *Symbol = nullptr,
+                    uint64_t Size = 0, unsigned ByteAlignment = 0) override;
+  void EmitTBSSSymbol(MCSection *Section, MCSymbol *Symbol, uint64_t Size,
+                      unsigned ByteAlignment = 0) override;
+  void EmitValueImpl(const MCExpr *Value, unsigned Size,
+                     SMLoc Loc = SMLoc()) override;
 
-  virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
-                            uint64_t Size = 0, unsigned ByteAlignment = 0);
-  virtual void EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
-                              uint64_t Size, unsigned ByteAlignment = 0);
-  virtual void EmitValueImpl(const MCExpr *Value, unsigned Size);
+  void EmitIdent(StringRef IdentString) override;
 
-  virtual void EmitFileDirective(StringRef Filename);
+  void EmitValueToAlignment(unsigned, int64_t, unsigned, unsigned) override;
 
-  virtual void EmitIdent(StringRef IdentString);
+  void FinishImpl() override;
 
-  virtual void EmitValueToAlignment(unsigned, int64_t, unsigned, unsigned);
-
-  virtual void Flush();
-
-  virtual void FinishImpl();
+  void EmitBundleAlignMode(unsigned AlignPow2) override;
+  void EmitBundleLock(bool AlignToEnd) override;
+  void EmitBundleUnlock() override;
 
 private:
-  virtual void EmitInstToFragment(const MCInst &Inst);
-  virtual void EmitInstToData(const MCInst &Inst);
-
-  virtual void EmitBundleAlignMode(unsigned AlignPow2);
-  virtual void EmitBundleLock(bool AlignToEnd);
-  virtual void EmitBundleUnlock();
+  bool isBundleLocked() const;
+  void EmitInstToFragment(const MCInst &Inst, const MCSubtargetInfo &) override;
+  void EmitInstToData(const MCInst &Inst, const MCSubtargetInfo &) override;
 
   void fixSymbolsInTLSFixups(const MCExpr *expr);
 
-  bool SeenIdent;
+  /// \brief Merge the content of the fragment \p EF into the fragment \p DF.
+  void mergeFragment(MCDataFragment *, MCDataFragment *);
 
-  struct LocalCommon {
-    MCSymbolData *SD;
-    uint64_t Size;
-    unsigned ByteAlignment;
-  };
+  bool SeenIdent = false;
 
-  std::vector<LocalCommon> LocalCommons;
-
-  SmallPtrSet<MCSymbol *, 16> BindingExplicitlySet;
-
-
-  void SetSection(StringRef Section, unsigned Type, unsigned Flags,
-                  SectionKind Kind);
-  void SetSectionData();
-  void SetSectionText();
-  void SetSectionBss();
+  /// BundleGroups - The stack of fragments holding the bundle-locked
+  /// instructions.
+  SmallVector<MCDataFragment *, 4> BundleGroups;
 };
 
-MCELFStreamer *createARMELFStreamer(MCContext &Context, MCAsmBackend &TAB,
-                                    raw_ostream &OS, MCCodeEmitter *Emitter,
-                                    bool RelaxAll, bool NoExecStack,
-                                    bool IsThumb);
+MCELFStreamer *createARMELFStreamer(MCContext &Context,
+                                    std::unique_ptr<MCAsmBackend> TAB,
+                                    raw_pwrite_stream &OS,
+                                    std::unique_ptr<MCCodeEmitter> Emitter,
+                                    bool RelaxAll, bool IsThumb);
 
 } // end namespace llvm
 
-#endif
+#endif // LLVM_MC_MCELFSTREAMER_H

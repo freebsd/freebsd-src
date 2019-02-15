@@ -11,9 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_C_BINDING_WRAPPING_H
-#define LLVM_C_BINDING_WRAPPING_H
+#ifndef LLVM_SUPPORT_CBINDINGWRAPPING_H
+#define LLVM_SUPPORT_CBINDINGWRAPPING_H
 
+#include "llvm-c/Types.h"
 #include "llvm/Support/Casting.h"
 
 #define DEFINE_SIMPLE_CONVERSION_FUNCTIONS(ty, ref)     \

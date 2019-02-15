@@ -32,7 +32,13 @@
 # define 	__KERNEL__
 #endif
 
-#define	SOLARIS	(defined(sun) && (defined(__svr4__) || defined(__SVR4)))
+#ifndef	SOLARIS
+# if defined(sun) && (defined(__svr4__) || defined(__SVR4))
+#  define	SOLARIS		1
+# else
+#  define	SOLARIS		0
+# endif
+#endif
 
 
 #if defined(__SVR4) || defined(__svr4__) || defined(__sgi)
@@ -147,16 +153,19 @@ struct  ether_addr {
 
 #  include <sys/selinfo.h>
 #  include <sys/lock.h>
+#  include <sys/malloc.h>
 #  include <sys/mutex.h>
 #    define	KRWLOCK_FILL_SZ		56
 #    define	KMUTEX_FILL_SZ		56
 #   include <sys/rwlock.h>
 #   define	KMUTEX_T		struct mtx
 #   define	KRWLOCK_T		struct rwlock
-#   ifdef _KERNEL
+
+#ifdef _KERNEL
 #    define	READ_ENTER(x)		rw_rlock(&(x)->ipf_lk)
 #    define	WRITE_ENTER(x)		rw_wlock(&(x)->ipf_lk)
 #    define	MUTEX_DOWNGRADE(x)	rw_downgrade(&(x)->ipf_lk)
+#    define	MUTEX_TRY_UPGRADE(x)	rw_try_upgrade(&(x)->ipf_lk)
 #    define	RWLOCK_INIT(x,y)	rw_init(&(x)->ipf_lk, (y))
 #    define	RW_DESTROY(x)		rw_destroy(&(x)->ipf_lk)
 #    define	RWLOCK_EXIT(x)		do { \
@@ -165,17 +174,9 @@ struct  ether_addr {
 					    else \
 						rw_runlock(&(x)->ipf_lk); \
 					} while (0)
-#   endif
-
 #  include <net/if_var.h>
-#  define	IFNAME(x)	((struct ifnet *)x)->if_xname
-#  define	COPYIFNAME(v, x, b) \
-				(void) strncpy(b, \
-					       ((struct ifnet *)x)->if_xname, \
-					       LIFNAMSIZ)
-
-# ifdef _KERNEL
 #  define	GETKTIME(x)	microtime((struct timeval *)x)
+#  define	if_addrlist	if_addrhead
 
 #   include <netinet/in_systm.h>
 #   include <netinet/ip.h>
@@ -212,12 +213,32 @@ struct  ether_addr {
 #  define	MSGDSIZE(m)	mbufchainlen(m)
 #  define	M_LEN(m)	(m)->m_len
 #  define	M_ADJ(m,x)	m_adj(m, x)
-#  define	M_COPY(x)	m_copy((x), 0, M_COPYALL)
+#  define	M_COPY(x)	m_copym((x), 0, M_COPYALL, M_NOWAIT)
 #  define	M_DUP(m)	m_dup(m, M_NOWAIT)
 #  define	IPF_PANIC(x,y)	if (x) { printf y; panic("ipf_panic"); }
 typedef struct mbuf mb_t;
-# endif /* _KERNEL */
 
+#else	/* !_KERNEL */
+#ifndef _NET_IF_VAR_H_
+/*
+ * Userland emulation of struct ifnet.
+ */
+struct route;
+struct mbuf;
+struct ifnet {
+	char			if_xname[IFNAMSIZ];
+	STAILQ_HEAD(, ifaddr)	if_addrlist;
+	int	(*if_output)(struct ifnet *, struct mbuf *,
+	    const struct sockaddr *, struct route *);
+};
+#endif /* _NET_IF_VAR_H_ */
+#endif /* _KERNEL */
+
+#  define	IFNAME(x)	((struct ifnet *)x)->if_xname
+#  define	COPYIFNAME(v, x, b) \
+				(void) strncpy(b, \
+					       ((struct ifnet *)x)->if_xname, \
+					       LIFNAMSIZ)
 
 typedef	u_long		ioctlcmd_t;
 typedef	struct uio	uio_t;
@@ -401,6 +422,8 @@ extern	void	freembt __P((mb_t *));
 
 # define	MUTEX_DOWNGRADE(x)	eMrwlock_downgrade(&(x)->ipf_emu, \
 							   __FILE__, __LINE__)
+# define	MUTEX_TRY_UPGRADE(x)	eMrwlock_try_upgrade(&(x)->ipf_emu, \
+							   __FILE__, __LINE__)
 # define	READ_ENTER(x)		eMrwlock_read_enter(&(x)->ipf_emu, \
 							    __FILE__, __LINE__)
 # define	RWLOCK_INIT(x, y)	eMrwlock_init(&(x)->ipf_emu, y)
@@ -507,16 +530,16 @@ MALLOC_DECLARE(M_IPFILTER);
 #   endif /* M_PFIL */
 #  endif /* IPFILTER_M_IPFILTER */
 #  if !defined(KMALLOC)
-#   define	KMALLOC(a, b)	MALLOC((a), b, sizeof(*(a)), _M_IPF, M_NOWAIT)
+#   define	KMALLOC(a, b)		(a) = (b)malloc(sizeof(*(a)), _M_IPF, M_NOWAIT)
 #  endif
 #  if !defined(KMALLOCS)
-#   define	KMALLOCS(a, b, c)	MALLOC((a), b, (c), _M_IPF, M_NOWAIT)
+#   define	KMALLOCS(a, b, c)	(a) = (b)malloc((c), _M_IPF, M_NOWAIT)
 #  endif
 #  if !defined(KFREE)
-#   define	KFREE(x)	FREE((x), _M_IPF)
+#   define	KFREE(x)	free((x), _M_IPF)
 #  endif
 #   if !defined(KFREES)
-#  define	KFREES(x,s)	FREE((x), _M_IPF)
+#  define	KFREES(x,s)	free((x), _M_IPF)
 #  endif
 #  define	UIOMOVE(a,b,c,d)	uiomove((caddr_t)a,b,d)
 #  define	SLEEP(id, n)	tsleep((id), PPAUSE|PCATCH, n, 0)
@@ -651,6 +674,7 @@ extern	char	*ipf_getifname __P((struct ifnet *, char *));
 # define	READ_ENTER(x)		;
 # define	WRITE_ENTER(x)		;
 # define	MUTEX_DOWNGRADE(x)	;
+# define	MUTEX_TRY_UPGRADE(x)	;
 # define	RWLOCK_INIT(x, y)	;
 # define	RWLOCK_EXIT(x)		;
 # define	RW_DESTROY(x)		;
@@ -1437,10 +1461,6 @@ typedef	struct	tcpiphdr	tcpiphdr_t;
 # define	DPRINT(x)	printf x
 #else
 # define	DPRINT(x)
-#endif
-
-#ifndef	AF_INET6
-# define	AF_INET6	26
 #endif
 
 #ifdef DTRACE_PROBE

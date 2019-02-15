@@ -13,7 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,7 +32,7 @@
 .\"	@(#)chflags.1	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd April 8, 2013
+.Dd June 12, 2018
 .Dt CHFLAGS 1
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd change file flags
 .Sh SYNOPSIS
 .Nm
-.Op Fl fhv
+.Op Fl fhvx
 .Oo
 .Fl R
 .Op Fl H | Fl L | Fl P
@@ -66,8 +66,9 @@ nor modify the exit status to reflect such failures.
 .It Fl H
 If the
 .Fl R
-option is specified, symbolic links on the command line are followed.
-(Symbolic links encountered in the tree traversal are not followed.)
+option is specified, symbolic links on the command line are followed
+and hence unaffected by the command.
+(Symbolic links encountered during traversal are not followed.)
 .It Fl h
 If the
 .Ar file
@@ -83,8 +84,12 @@ If the
 option is specified, no symbolic links are followed.
 This is the default.
 .It Fl R
-Change the file flags for the file hierarchies rooted
-in the files instead of just the files themselves.
+Change the file flags of the file hierarchies rooted in the files,
+instead of just the files themselves.
+Beware of unintentionally matching the
+.Dq Pa ".."
+hard link to the parent directory when using wildcards like
+.Dq Li ".*" .
 .It Fl v
 Cause
 .Nm
@@ -93,6 +98,8 @@ If the
 .Fl v
 option is specified more than once, the old and new flags of the file
 will also be printed, in octal notation.
+.It Fl x
+Do not cross mount points.
 .El
 .Pp
 The flags are specified as an octal number or a comma separated list
@@ -210,8 +217,23 @@ setting.
 See
 .Xr security 7
 for more information on this setting.
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+signal (see the
+.Cm status
+argument for
+.Xr stty 1 ) ,
+then the current filename as well as the old and new flags are displayed.
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Recursively clear all flags on files and directories contained within the
+.Fa foobar
+directory hierarchy:
+.Dl Nm Fl R Ar 0 Ar foobar
 .Sh SEE ALSO
 .Xr ls 1 ,
 .Xr chflags 2 ,

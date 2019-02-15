@@ -48,7 +48,7 @@ BEGIN
 	i = 0;
 }
 
-lockstat::mtx_lock:adaptive-acquire
+lockstat:::adaptive-acquire
 {
 
 	ptr = mutex_owner((struct mtx *)arg0);

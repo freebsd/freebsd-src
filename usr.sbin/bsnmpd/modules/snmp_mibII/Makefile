@@ -2,7 +2,7 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 
-CONTRIB= ${.CURDIR}/../../../../contrib/bsnmp
+CONTRIB= ${SRCTOP}/contrib/bsnmp
 .PATH: ${CONTRIB}/snmp_mibII
 
 MOD=	mibII
@@ -15,15 +15,9 @@ MAN=	snmp_mibII.3
 
 CFLAGS+= -I${CONTRIB}/lib -I${CONTRIB}/snmpd
 CFLAGS+= -DHAVE_ERR_H -DHAVE_GETADDRINFO -DHAVE_STRLCPY -DHAVE_SYS_TREE_H
-# XXX Work around clang warning, until maintainer approves fix.
-NO_WERROR.clang=
 
 DEFS=	${MOD}_tree.def
 INCS=	snmp_${MOD}.h
 BMIBS=	BEGEMOT-IP-MIB.txt BEGEMOT-MIB2-MIB.txt
 
 .include <bsd.snmpmod.mk>
-
-smilint:
-	env SMIPATH=/usr/share/snmp/mibs:/usr/local/share/snmp/mibs \
-	    smilint -c /dev/null -l6 -i group-membership ${BMIBS:C/^/${CONTRIB}\/snmp_mibII\//}

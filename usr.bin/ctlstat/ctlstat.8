@@ -1,7 +1,7 @@
-.\" 
+.\"
 .\" Copyright (c) 2010 Silicon Graphics International Corp.
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -13,7 +13,7 @@
 .\"    ("Disclaimer") and any redistribution must be conditioned upon
 .\"    including a substantially similar Disclaimer requirement for further
 .\"    binary redistribution.
-.\" 
+.\"
 .\" NO WARRANTY
 .\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 .\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -26,7 +26,7 @@
 .\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGES.
-.\" 
+.\"
 .\" ctlstat utility man page.
 .\"
 .\" Author: Ken Merry <ken@FreeBSD.org>
@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.bin/ctlstat/ctlstat.8#2 $
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2013
+.Dd January 9, 2017
 .Dt CTLSTAT 8
 .Os
 .Sh NAME
@@ -50,6 +50,7 @@
 .Op Fl j
 .Op Fl l Ar lun
 .Op Fl n Ar numdevs
+.Op Fl p Ar port
 .Op Fl w Ar wait
 .Sh DESCRIPTION
 The
@@ -64,33 +65,30 @@ The options are as follows:
 .Bl -tag -width 10n
 .It Fl t
 Total mode.
-This displays separate columns with the total CTL read and write output,
+This displays separate columns with the total read and write output,
 and a combined total column that also includes non I/O operations.
 .It Fl c Ar count
 Display statistics this many times.
 .It Fl C
-Disable display of CPU statistics.
+Disable CPU statistics display.
 .It Fl d
 Display DMA operation time (latency) instead of overall I/O time (latency).
 .It Fl D
 Text dump mode.
-Dump all available statistics every 30 seconds in a text format suitable
-for parsing.
+Dump statistics every 30 seconds in a text format suitable for parsing.
 No statistics are computed in this mode, only raw numbers are displayed.
 .It Fl h
 Suppress display of the header.
 .It Fl j
 JSON dump mode.
-Dump all available statistics every 30 seconds in JavaScript Object
-Notation (JSON) format.
+Dump statistics every 30 seconds in JavaScript Object Notation (JSON) format.
 No statistics are computed in this mode, only raw numbers are displayed.
 .It Fl l Ar lun
 Request statistics for the specified LUN.
-This option is incompatible with total
-.Fl ( t )
-mode.
 .It Fl n Ar numdevs
 Display statistics for this many devices.
+.It Fl p Ar port
+Request statistics for the specified port.
 .It Fl w Ar wait
 Wait this many seconds in between displays.
 If this option is not specified,
@@ -117,7 +115,9 @@ every 10 seconds.
 .Xr xpt 4 ,
 .Xr camcontrol 8 ,
 .Xr ctladm 8 ,
+.Xr ctld 8 ,
 .Xr iostat 8
 .Sh AUTHORS
 .An Ken Merry Aq Mt ken@FreeBSD.org
 .An Will Andrews Aq Mt will@FreeBSD.org
+.An Alexander Motin Aq Mt mav@FreeBSD.org

@@ -8,13 +8,17 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) && !defined(__NetBSD__)
 
-#include <unistd.h>
+#ifdef _WIN32
+#define _BSD_SOURCE // Required so that getopt.h defines optreset
+#endif
+
 #include <getopt.h>
+#include <unistd.h>
 
 #else
 
-#include <lldb/Host/windows/GetOptInc.h>
+#include <lldb/Host/common/GetOptInc.h>
 
 #endif

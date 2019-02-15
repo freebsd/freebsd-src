@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997, 1998
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -116,7 +118,7 @@ __FBSDID("$FreeBSD$");
  * To transmit frames, the driver again sets up lists and fragment
  * descriptors, only this time the buffers contain frame data that
  * is to be DMA'ed into the chip instead of out of it. Once the chip
- * has transfered the data into its on-board SRAM, it will trigger a
+ * has transferred the data into its on-board SRAM, it will trigger a
  * TX 'end of frame' interrupt. It will also generate an 'end of channel'
  * interrupt when it reaches the end of the list.
  */
@@ -534,7 +536,7 @@ static u_int8_t tl_eeprom_putbyte(sc, byte)
 	struct tl_softc		*sc;
 	int			byte;
 {
-	register int		i, ack = 0;
+	int			i, ack = 0;
 
 	/*
 	 * Make sure we're in TX mode.
@@ -579,7 +581,7 @@ static u_int8_t tl_eeprom_getbyte(sc, addr, dest)
 	int			addr;
 	u_int8_t		*dest;
 {
-	register int		i;
+	int			i;
 	u_int8_t		byte = 0;
 	device_t		tl_dev = sc->tl_dev;
 
@@ -878,7 +880,8 @@ tl_setmulti(sc)
 	} else {
 		i = 1;
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH_REVERSE(ifma, &ifp->if_multiaddrs, ifmultihead, ifma_link) {
+		/* XXX want to maintain reverse semantics - pop list and re-add? */
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			/*
@@ -1238,6 +1241,8 @@ tl_attach(dev)
 		ether_ifdetach(ifp);
 		goto fail;
 	}
+
+	gone_by_fcp101_dev(dev);
 
 fail:
 	if (error)
@@ -1813,8 +1818,7 @@ tl_encap(sc, c, m_head)
 			return(1);
 		}
 		if (m_head->m_pkthdr.len > MHLEN) {
-			MCLGET(m_new, M_NOWAIT);
-			if (!(m_new->m_flags & M_EXT)) {
+			if (!(MCLGET(m_new, M_NOWAIT))) {
 				m_freem(m_new);
 				if_printf(ifp, "no memory for tx list\n");
 				return(1);
@@ -2200,7 +2204,7 @@ static void
 tl_stop(sc)
 	struct tl_softc		*sc;
 {
-	register int		i;
+	int			i;
 	struct ifnet		*ifp;
 
 	TL_LOCK_ASSERT(sc);

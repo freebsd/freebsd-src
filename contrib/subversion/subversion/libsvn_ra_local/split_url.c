@@ -30,7 +30,7 @@
 
 svn_error_t *
 svn_ra_local__split_URL(svn_repos_t **repos,
-                        const char **repos_url,
+                        const char **repos_root_url,
                         const char **fs_path,
                         const char *URL,
                         apr_pool_t *pool)
@@ -50,7 +50,7 @@ svn_ra_local__split_URL(svn_repos_t **repos,
                              _("Unable to open repository '%s'"), URL);
 
   /* Attempt to open a repository at URL. */
-  err = svn_repos_open2(repos, repos_root_dirent, NULL, pool);
+  err = svn_repos_open3(repos, repos_root_dirent, NULL, pool, pool);
   if (err)
     return svn_error_createf(SVN_ERR_RA_LOCAL_REPOS_OPEN_FAILED, err,
                              _("Unable to open repository '%s'"), URL);
@@ -96,7 +96,7 @@ svn_ra_local__split_URL(svn_repos_t **repos,
   svn_path_remove_components(urlbuf,
                              svn_path_component_count(repos_dirent)
                              - svn_path_component_count(repos_root_dirent));
-  *repos_url = urlbuf->data;
+  *repos_root_url = urlbuf->data;
 
   /* Configure hook script environment variables. */
   SVN_ERR(svn_repos_hooks_setenv(*repos, NULL, pool));

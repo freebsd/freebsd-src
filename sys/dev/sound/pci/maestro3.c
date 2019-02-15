@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Scott Long <scottl@freebsd.org>
  * Copyright (c) 2001 Darrell Anderson <anderson@cs.duke.edu>
  * All rights reserved.
@@ -43,7 +45,7 @@
  * <zab@zabbo.net>, http://www.zabbo.net/maestro3
  *
  * Cameron Grant created the pcm framework used here nearly verbatim.
- * <cg@freebsd.org>, http://people.freebsd.org/~cg/template.c
+ * <cg@freebsd.org>, https://people.freebsd.org/~cg/template.c
  *
  * Taku YAMAMOTO for his Maestro-1/2 FreeBSD driver and sanity reference.
  * <taku@cent.saitama-u.ac.jp>
@@ -1440,7 +1442,7 @@ m3_pci_attach(device_t dev)
 			goto bad;
 		}
 	}
- 	snprintf(status, SND_STATUSLEN, "at %s 0x%lx irq %ld %s",
+ 	snprintf(status, SND_STATUSLEN, "at %s 0x%jx irq %jd %s",
 	    (sc->regtype == SYS_RES_IOPORT)? "io" : "memory",
 	    rman_get_start(sc->reg), rman_get_start(sc->irq),
 	    PCM_KLDSTRING(snd_maestro3));

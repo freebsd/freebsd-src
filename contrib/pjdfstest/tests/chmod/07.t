@@ -1,4 +1,5 @@
 #!/bin/sh
+# vim: filetype=sh noexpandtab ts=8 sw=8
 # $FreeBSD: head/tools/regression/pjdfstest/tests/chmod/07.t 211352 2010-08-15 21:24:17Z pjd $
 
 desc="chmod returns EPERM if the operation would change the ownership, but the effective user ID is not the super-user"

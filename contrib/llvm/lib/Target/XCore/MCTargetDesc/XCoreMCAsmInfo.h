@@ -11,20 +11,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef XCORETARGETASMINFO_H
-#define XCORETARGETASMINFO_H
+#ifndef LLVM_LIB_TARGET_XCORE_MCTARGETDESC_XCOREMCASMINFO_H
+#define LLVM_LIB_TARGET_XCORE_MCTARGETDESC_XCOREMCASMINFO_H
 
 #include "llvm/MC/MCAsmInfoELF.h"
 
 namespace llvm {
-  class StringRef;
-  class Target;
+class Triple;
 
-  class XCoreMCAsmInfo : public MCAsmInfoELF {
-    virtual void anchor();
-  public:
-    explicit XCoreMCAsmInfo(StringRef TT);
-  };
+class XCoreMCAsmInfo : public MCAsmInfoELF {
+  void anchor() override;
+
+public:
+  explicit XCoreMCAsmInfo(const Triple &TT);
+};
 
 } // namespace llvm
 

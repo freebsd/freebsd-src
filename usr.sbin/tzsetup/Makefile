@@ -1,13 +1,16 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PROG=	tzsetup
 MAN=	tzsetup.8
 
-CFLAGS+= -I${.CURDIR}/../../contrib/dialog -I.
+CFLAGS+= -I.
 
+.if ${MK_DIALOG} != no
 WARNS?=	3
-
-DPADD=	${LIBDIALOG} ${LIBNCURSESW} ${LIBM}
-LDADD=	-ldialog -lncursesw -lm
+CFLAGS+=	-I${SRCTOP}/contrib/dialog -DHAVE_DIALOG
+LIBADD=	dialog ncursesw
+.endif
 
 .include <bsd.prog.mk>

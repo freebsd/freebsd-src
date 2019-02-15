@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
  * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
@@ -128,6 +130,7 @@ struct sctp_paramhdr {
 #define SCTP_RECONFIG_SUPPORTED         0x00000029
 #define SCTP_NRSACK_SUPPORTED           0x00000030
 #define SCTP_PKTDROP_SUPPORTED          0x00000031
+#define SCTP_MAX_CWND                   0x00000032
 
 /*
  * read-only options
@@ -195,6 +198,9 @@ struct sctp_paramhdr {
 #define SCTP_SS_VALUE			0x00001204
 #define SCTP_CC_OPTION			0x00001205	/* Options for CC
 							 * modules */
+/* For I-DATA */
+#define SCTP_INTERLEAVING_SUPPORTED	0x00001206
+
 /* read only */
 #define SCTP_GET_SNDBUF_USE		0x00001101
 #define SCTP_GET_STAT_LOG		0x00001103
@@ -387,40 +393,44 @@ struct sctp_error_cause {
 }                SCTP_PACKED;
 
 struct sctp_error_invalid_stream {
-	struct sctp_error_cause cause;	/* code=SCTP_ERROR_INVALID_STREAM */
+	struct sctp_error_cause cause;	/* code=SCTP_CAUSE_INVALID_STREAM */
 	uint16_t stream_id;	/* stream id of the DATA in error */
 	uint16_t reserved;
 }                         SCTP_PACKED;
 
 struct sctp_error_missing_param {
-	struct sctp_error_cause cause;	/* code=SCTP_ERROR_MISSING_PARAM */
+	struct sctp_error_cause cause;	/* code=SCTP_CAUSE_MISSING_PARAM */
 	uint32_t num_missing_params;	/* number of missing parameters */
-	/* uint16_t param_type's follow */
+	uint16_t type[];
 }                        SCTP_PACKED;
 
 struct sctp_error_stale_cookie {
-	struct sctp_error_cause cause;	/* code=SCTP_ERROR_STALE_COOKIE */
+	struct sctp_error_cause cause;	/* code=SCTP_CAUSE_STALE_COOKIE */
 	uint32_t stale_time;	/* time in usec of staleness */
 }                       SCTP_PACKED;
 
 struct sctp_error_out_of_resource {
-	struct sctp_error_cause cause;	/* code=SCTP_ERROR_OUT_OF_RESOURCES */
+	struct sctp_error_cause cause;	/* code=SCTP_CAUSE_OUT_OF_RESOURCES */
 }                          SCTP_PACKED;
 
 struct sctp_error_unresolv_addr {
-	struct sctp_error_cause cause;	/* code=SCTP_ERROR_UNRESOLVABLE_ADDR */
-
+	struct sctp_error_cause cause;	/* code=SCTP_CAUSE_UNRESOLVABLE_ADDR */
 }                        SCTP_PACKED;
 
 struct sctp_error_unrecognized_chunk {
-	struct sctp_error_cause cause;	/* code=SCTP_ERROR_UNRECOG_CHUNK */
-	struct sctp_chunkhdr ch;/* header from chunk in error */
+	struct sctp_error_cause cause;	/* code=SCTP_CAUSE_UNRECOG_CHUNK */
+	struct sctp_chunkhdr ch;	/* header from chunk in error */
 }                             SCTP_PACKED;
 
 struct sctp_error_no_user_data {
 	struct sctp_error_cause cause;	/* code=SCTP_CAUSE_NO_USER_DATA */
 	uint32_t tsn;		/* TSN of the empty data chunk */
 }                       SCTP_PACKED;
+
+struct sctp_error_auth_invalid_hmac {
+	struct sctp_error_cause cause;	/* code=SCTP_CAUSE_UNSUPPORTED_HMACID */
+	uint16_t hmac_id;
+}                            SCTP_PACKED;
 
 /*
  * Main SCTP chunk types we place these here so natd and f/w's in user land
@@ -447,6 +457,7 @@ struct sctp_error_no_user_data {
 /* EY nr_sack chunk id*/
 #define SCTP_NR_SELECTIVE_ACK	0x10
 /************0x40 series ***********/
+#define SCTP_IDATA		0x40
 /************0x80 series ***********/
 /* RFC5061 */
 #define	SCTP_ASCONF_ACK		0x80
@@ -462,7 +473,7 @@ struct sctp_error_no_user_data {
 #define SCTP_FORWARD_CUM_TSN	0xc0
 /* RFC5061 */
 #define SCTP_ASCONF		0xc1
-
+#define SCTP_IFORWARD_CUM_TSN	0xc2
 
 /* ABORT and SHUTDOWN COMPLETE FLAG */
 #define SCTP_HAD_NO_TCB		0x01
@@ -536,7 +547,6 @@ struct sctp_error_no_user_data {
 #define SCTP_PCB_FLAGS_INTERLEAVE_STRMS  0x0000000000000010
 #define SCTP_PCB_FLAGS_DO_ASCONF         0x0000000000000020
 #define SCTP_PCB_FLAGS_AUTO_ASCONF       0x0000000000000040
-#define SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE  0x0000000000000080
 /* socket options */
 #define SCTP_PCB_FLAGS_NODELAY           0x0000000000000100
 #define SCTP_PCB_FLAGS_AUTOCLOSE         0x0000000000000200

@@ -1,4 +1,4 @@
-//===--- BaseSubobject.h - BaseSubobject class ----------------------------===//
+//===- BaseSubobject.h - BaseSubobject class --------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -15,12 +15,14 @@
 #define LLVM_CLANG_AST_BASESUBOBJECT_H
 
 #include "clang/AST/CharUnits.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/Support/DataTypes.h"
+#include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/Support/type_traits.h"
+#include <cstdint>
+#include <utility>
 
 namespace clang {
-  class CXXRecordDecl;
+
+class CXXRecordDecl;
 
 // BaseSubobject - Uniquely identifies a direct or indirect base class. 
 // Stores both the base class decl and the offset from the most derived class to
@@ -33,9 +35,9 @@ class BaseSubobject {
   CharUnits BaseOffset;
   
 public:
-  BaseSubobject() { }
+  BaseSubobject() = default;
   BaseSubobject(const CXXRecordDecl *Base, CharUnits BaseOffset)
-    : Base(Base), BaseOffset(BaseOffset) { }
+      : Base(Base), BaseOffset(BaseOffset) {}
   
   /// getBase - Returns the base class declaration.
   const CXXRecordDecl *getBase() const { return Base; }
@@ -48,7 +50,7 @@ public:
  }
 };
 
-} // end namespace clang
+} // namespace clang
 
 namespace llvm {
 
@@ -66,7 +68,8 @@ template<> struct DenseMapInfo<clang::BaseSubobject> {
   }
 
   static unsigned getHashValue(const clang::BaseSubobject &Base) {
-    typedef std::pair<const clang::CXXRecordDecl *, clang::CharUnits> PairTy;
+    using PairTy = std::pair<const clang::CXXRecordDecl *, clang::CharUnits>;
+
     return DenseMapInfo<PairTy>::getHashValue(PairTy(Base.getBase(),
                                                      Base.getBaseOffset()));
   }
@@ -82,6 +85,6 @@ template <> struct isPodLike<clang::BaseSubobject> {
   static const bool value = true;
 };
 
-}
+} // namespace llvm
 
-#endif
+#endif // LLVM_CLANG_AST_BASESUBOBJECT_H

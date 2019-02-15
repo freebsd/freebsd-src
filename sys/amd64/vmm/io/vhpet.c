@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Tycho Nightingale <tycho.nightingale@pluribusnetworks.com>
  * Copyright (c) 2013 Neel Natu <neel@freebsd.org>
  * All rights reserved.
@@ -36,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
-#include <sys/cpuset.h>
 
 #include <dev/acpica/acpi_hpet.h>
 
@@ -52,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_VHPET, "vhpet", "bhyve virtual hpet");
 
-#define	HPET_FREQ	10000000		/* 10.0 Mhz */
+#define	HPET_FREQ	16777216		/* 16.7 (2^24) Mhz */
 #define	FS_PER_S	1000000000000000ul
 
 /* Timer N Configuration and Capabilities Register */
@@ -104,7 +105,6 @@ vhpet_capabilities(void)
 	uint64_t cap = 0;
 
 	cap |= 0x8086 << 16;			/* vendor id */
-	cap |= HPET_CAP_LEG_RT;			/* legacy routing capable */
 	cap |= (VHPET_NUM_TIMERS - 1) << 8;	/* number of timers */
 	cap |= 1;				/* revision */
 	cap &= ~HPET_CAP_COUNT_SIZE;		/* 32-bit timer */
@@ -127,15 +127,6 @@ vhpet_timer_msi_enabled(struct vhpet *vhpet, int n)
 {
 	const uint64_t msi_enable = HPET_TCAP_FSB_INT_DEL | HPET_TCNF_FSB_EN;
 
-	/*
-	 * LegacyReplacement Route configuration takes precedence over MSI
-	 * for timers 0 and 1.
-	 */
-	if (n == 0 || n == 1) {
-		if (vhpet->config & HPET_CNF_LEG_RT)
-			return (false);
-	}
-
 	if ((vhpet->timer[n].cap_config & msi_enable) == msi_enable)
 		return (true);
 	else
@@ -152,39 +143,7 @@ vhpet_timer_ioapic_pin(struct vhpet *vhpet, int n)
 	if (vhpet_timer_msi_enabled(vhpet, n))
 		return (0);
 
-	if (vhpet->config & HPET_CNF_LEG_RT) {
-		/*
-		 * In "legacy routing" timers 0 and 1 are connected to
-		 * ioapic pins 2 and 8 respectively.
-		 */
-		switch (n) {
-		case 0:
-			return (2);
-		case 1:
-			return (8);
-		}
-	}
-
 	return ((vhpet->timer[n].cap_config & HPET_TCNF_INT_ROUTE) >> 9);
-}
-
-static __inline int
-vhpet_timer_atpic_pin(struct vhpet *vhpet, int n)
-{
-	if (vhpet->config & HPET_CNF_LEG_RT) {
-		/*
-		 * In "legacy routing" timers 0 and 1 are connected to
-		 * 8259 master pin 0 and slave pin 0 respectively.
-		 */
-		switch (n) {
-		case 0:
-			return (0);
-		case 1:
-			return (8);
-		}
-	}
-
-	return (-1);
 }
 
 static uint32_t
@@ -206,7 +165,7 @@ vhpet_counter(struct vhpet *vhpet, sbintime_t *nowptr)
 		/*
 		 * The sbinuptime corresponding to the 'countbase' is
 		 * meaningless when the counter is disabled. Make sure
-		 * that the the caller doesn't want to use it.
+		 * that the caller doesn't want to use it.
 		 */
 		KASSERT(nowptr == NULL, ("vhpet_counter: nowptr must be NULL"));
 	}
@@ -216,17 +175,12 @@ vhpet_counter(struct vhpet *vhpet, sbintime_t *nowptr)
 static void
 vhpet_timer_clear_isr(struct vhpet *vhpet, int n)
 {
-	int pin, legacy_pin;
+	int pin;
 
 	if (vhpet->isr & (1 << n)) {
 		pin = vhpet_timer_ioapic_pin(vhpet, n);
 		KASSERT(pin != 0, ("vhpet timer %d irq incorrectly routed", n));
 		vioapic_deassert_irq(vhpet->vm, pin);
-
-		legacy_pin = vhpet_timer_atpic_pin(vhpet, n);
-		if (legacy_pin != -1)
-			vatpic_deassert_irq(vhpet->vm, legacy_pin);
-
 		vhpet->isr &= ~(1 << n);
 	}
 }
@@ -252,12 +206,6 @@ vhpet_timer_edge_trig(struct vhpet *vhpet, int n)
 	KASSERT(!vhpet_timer_msi_enabled(vhpet, n), ("vhpet_timer_edge_trig: "
 	    "timer %d is using MSI", n));
 
-	/* The legacy replacement interrupts are always edge triggered */
-	if (vhpet->config & HPET_CNF_LEG_RT) {
-		if (n == 0 || n == 1)
-			return (true);
-	}
-
 	if ((vhpet->timer[n].cap_config & HPET_TCNF_INT_TYPE) == 0)
 		return (true);
 	else
@@ -267,7 +215,7 @@ vhpet_timer_edge_trig(struct vhpet *vhpet, int n)
 static void
 vhpet_timer_interrupt(struct vhpet *vhpet, int n)
 {
-	int pin, legacy_pin;
+	int pin;
 
 	/* If interrupts are not enabled for this timer then just return. */
 	if (!vhpet_timer_interrupt_enabled(vhpet, n))
@@ -293,17 +241,11 @@ vhpet_timer_interrupt(struct vhpet *vhpet, int n)
 		return;
 	}
 
-	legacy_pin = vhpet_timer_atpic_pin(vhpet, n);
-
 	if (vhpet_timer_edge_trig(vhpet, n)) {
 		vioapic_pulse_irq(vhpet->vm, pin);
-		if (legacy_pin != -1)
-			vatpic_pulse_irq(vhpet->vm, legacy_pin);
 	} else {
 		vhpet->isr |= 1 << n;
 		vioapic_assert_irq(vhpet->vm, pin);
-		if (legacy_pin != -1)
-			vatpic_assert_irq(vhpet->vm, legacy_pin);
 	}
 }
 
@@ -579,6 +521,13 @@ vhpet_mmio_write(void *vm, int vcpuid, uint64_t gpa, uint64_t val, int size,
 		counter = vhpet_counter(vhpet, nowptr);
 		oldval = vhpet->config;
 		update_register(&vhpet->config, data, mask);
+
+		/*
+		 * LegacyReplacement Routing is not supported so clear the
+		 * bit explicitly.
+		 */
+		vhpet->config &= ~HPET_CNF_LEG_RT;
+
 		if ((oldval ^ vhpet->config) & HPET_CNF_ENABLE) {
 			if (vhpet_counter_enabled(vhpet)) {
 				vhpet_start_counting(vhpet);
@@ -768,8 +717,10 @@ vhpet_init(struct vm *vm)
 	vhpet->freq_sbt = bttosbt(bt);
 
 	pincount = vioapic_pincount(vm);
-	if (pincount >= 24)
-		allowed_irqs = 0x00f00000;	/* irqs 20, 21, 22 and 23 */
+	if (pincount >= 32)
+		allowed_irqs = 0xff000000;	/* irqs 24-31 */
+	else if (pincount >= 20)
+		allowed_irqs = 0xf << (pincount - 4);	/* 4 upper irqs */
 	else
 		allowed_irqs = 0;
 

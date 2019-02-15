@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Poul-Henning Kamp
  * All rights reserved.
  *
@@ -25,7 +27,7 @@
  */
 
 /* Functions to encode or decode struct dos_partition into a bytestream
- * of correct endianess and packing.  These functions do no validation
+ * of correct endianness and packing.  These functions do no validation
  * or sanity checking, they only pack/unpack the fields correctly.
  *
  * NB!  This file must be usable both in kernel and userland.

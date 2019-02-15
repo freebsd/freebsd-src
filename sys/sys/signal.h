@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -44,6 +46,23 @@
 
 #include <machine/_limits.h>	/* __MINSIGSTKSZ */
 #include <machine/signal.h>	/* sig_atomic_t; trap codes; sigcontext */
+
+#if __POSIX_VISIBLE >= 200809
+
+#include <sys/_pthreadtypes.h>
+#include <sys/_timespec.h>
+
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
+#endif
+
+#ifndef _UID_T_DECLARED
+typedef	__uid_t		uid_t;
+#define	_UID_T_DECLARED
+#endif
+
+#endif /* __POSIX_VISIBLE >= 200809 */
 
 /*
  * System defined signals.
@@ -157,9 +176,22 @@ union sigval {
 	int     sigval_int;
 	void    *sigval_ptr;
 };
+
+#if defined(_WANT_LWPINFO32) || (defined(_KERNEL) && defined(__LP64__))
+union sigval32 {
+	int	sival_int;
+	uint32_t sival_ptr;
+	/* 6.0 compatibility */
+	int	sigval_int;
+	uint32_t sigval_ptr;
+};
+#endif
 #endif
 
 #if __POSIX_VISIBLE >= 199309
+
+struct pthread_attr;
+
 struct sigevent {
 	int	sigev_notify;		/* Notification type */
 	int	sigev_signo;		/* Signal number */
@@ -168,7 +200,7 @@ struct sigevent {
 		__lwpid_t	_threadid;
 		struct {
 			void (*_function)(union sigval);
-			void *_attribute; /* pthread_attr_t * */
+			struct pthread_attr **_attribute;
 		} _sigev_thread;
 		unsigned short _kevent_flags;
 		long __spare__[8];
@@ -190,6 +222,7 @@ struct sigevent {
 #define	SIGEV_KEVENT	3		/* Generate a kevent. */
 #define	SIGEV_THREAD_ID	4		/* Send signal to a kernel thread. */
 #endif
+
 #endif /* __POSIX_VISIBLE >= 199309 */
 
 #if __POSIX_VISIBLE >= 199309 || __XSI_VISIBLE
@@ -235,6 +268,38 @@ typedef	struct __siginfo {
 #define si_mqd		_reason._mesgq._mqd
 #define si_band		_reason._poll._band
 
+#if defined(_WANT_LWPINFO32) || (defined(_KERNEL) && defined(__LP64__))
+struct siginfo32 {
+	int	si_signo;		/* signal number */
+	int	si_errno;		/* errno association */
+	int	si_code;		/* signal code */
+	__pid_t	si_pid;			/* sending process */
+	__uid_t	si_uid;			/* sender's ruid */
+	int	si_status;		/* exit value */
+	uint32_t si_addr;		/* faulting instruction */
+	union sigval32 si_value;	/* signal value */
+	union	{
+		struct {
+			int	_trapno;/* machine specific trap code */
+		} _fault;
+		struct {
+			int	_timerid;
+			int	_overrun;
+		} _timer;
+		struct {
+			int	_mqd;
+		} _mesgq;
+		struct {
+			int32_t	_band;		/* band event for SIGPOLL */
+		} _poll;			/* was this ever used ? */
+		struct {
+			int32_t	__spare1__;
+			int	__spare2__[7];
+		} __spare__;
+	} _reason;
+};
+#endif
+
 /** si_code **/
 /* codes for SIGILL */
 #define ILL_ILLOPC 	1	/* Illegal opcode.			*/
@@ -270,6 +335,7 @@ typedef	struct __siginfo {
 #define TRAP_BRKPT	1	/* Process breakpoint.			*/
 #define TRAP_TRACE	2	/* Process trace trap.			*/
 #define	TRAP_DTRACE	3	/* DTrace induced trap.			*/
+#define	TRAP_CAP	4	/* Capabilities protective trap.	*/
 
 /* codes for SIGCHLD */
 #define CLD_EXITED	1	/* Child has exited			*/
@@ -354,24 +420,27 @@ typedef	void __siginfohandler_t(int, struct __siginfo *, void *);
 #endif
 
 #if __XSI_VISIBLE
-/*
- * Structure used in sigaltstack call.
- */
 #if __BSD_VISIBLE
-typedef	struct sigaltstack {
-#else
-typedef	struct {
+#define	__stack_t sigaltstack
 #endif
-	char	*ss_sp;			/* signal stack base */
-	__size_t ss_size;		/* signal stack length */
-	int	ss_flags;		/* SS_DISABLE and/or SS_ONSTACK */
-} stack_t;
+typedef	struct __stack_t stack_t;
 
 #define	SS_ONSTACK	0x0001	/* take signal on alternate stack */
 #define	SS_DISABLE	0x0004	/* disable taking signals on alternate stack */
 #define	MINSIGSTKSZ	__MINSIGSTKSZ		/* minimum stack size */
 #define	SIGSTKSZ	(MINSIGSTKSZ + 32768)	/* recommended stack size */
 #endif
+
+/*
+ * Structure used in sigaltstack call.  Its definition is always
+ * needed for __ucontext.  If __BSD_VISIBLE is defined, the structure
+ * tag is actually sigaltstack.
+ */
+struct __stack_t {
+	void	*ss_sp;			/* signal stack base */
+	__size_t ss_size;		/* signal stack length */
+	int	ss_flags;		/* SS_DISABLE and/or SS_ONSTACK */
+};
 
 #if __BSD_VISIBLE
 /*
@@ -406,8 +475,7 @@ struct osigcontext {
  * Structure used in sigstack call.
  */
 struct sigstack {
-	/* XXX ss_sp's type should be `void *'. */
-	char	*ss_sp;			/* signal stack pointer */
+	void	*ss_sp;			/* signal stack pointer */
 	int	ss_onstack;		/* current status */
 };
 #endif

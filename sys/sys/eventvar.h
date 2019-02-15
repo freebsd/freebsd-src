@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999,2000 Jonathan Lemon <jlemon@FreeBSD.org>
  * All rights reserved.
  *
@@ -30,7 +32,7 @@
 #define _SYS_EVENTVAR_H_
 
 #ifndef _KERNEL
-#error "no user-servicable parts inside"
+#error "no user-serviceable parts inside"
 #endif
 
 #include <sys/_task.h>

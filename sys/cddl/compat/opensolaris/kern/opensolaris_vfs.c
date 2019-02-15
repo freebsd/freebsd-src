@@ -121,34 +121,39 @@ mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
 	struct ucred *cr;
 	int error;
 
+	ASSERT_VOP_ELOCKED(*vpp, "mount_snapshot");
+
+	vp = *vpp;
+	*vpp = NULL;
+	error = 0;
+
 	/*
 	 * Be ultra-paranoid about making sure the type and fspath
 	 * variables will fit in our mp buffers, including the
 	 * terminating NUL.
 	 */
 	if (strlen(fstype) >= MFSNAMELEN || strlen(fspath) >= MNAMELEN)
-		return (ENAMETOOLONG);
-
-	vfsp = vfs_byname_kld(fstype, td, &error);
-	if (vfsp == NULL)
-		return (ENODEV);
-
-	vp = *vpp;
-	if (vp->v_type != VDIR)
-		return (ENOTDIR);
+		error = ENAMETOOLONG;
+	if (error == 0 && (vfsp = vfs_byname_kld(fstype, td, &error)) == NULL)
+		error = ENODEV;
+	if (error == 0 && vp->v_type != VDIR)
+		error = ENOTDIR;
 	/*
 	 * We need vnode lock to protect v_mountedhere and vnode interlock
 	 * to protect v_iflag.
 	 */
-	vn_lock(vp, LK_SHARED | LK_RETRY);
-	VI_LOCK(vp);
-	if ((vp->v_iflag & VI_MOUNT) != 0 || vp->v_mountedhere != NULL) {
+	if (error == 0) {
+		VI_LOCK(vp);
+		if ((vp->v_iflag & VI_MOUNT) == 0 && vp->v_mountedhere == NULL)
+			vp->v_iflag |= VI_MOUNT;
+		else
+			error = EBUSY;
 		VI_UNLOCK(vp);
-		VOP_UNLOCK(vp, 0);
-		return (EBUSY);
 	}
-	vp->v_iflag |= VI_MOUNT;
-	VI_UNLOCK(vp);
+	if (error != 0) {
+		vput(vp);
+		return (error);
+	}
 	VOP_UNLOCK(vp, 0);
 
 	/*
@@ -191,13 +196,21 @@ mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
 	td->td_ucred = cr;
 
 	if (error != 0) {
+		/*
+		 * Clear VI_MOUNT and decrement the use count "atomically",
+		 * under the vnode lock.  This is not strictly required,
+		 * but makes it easier to reason about the life-cycle and
+		 * ownership of the covered vnode.
+		 */
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		VI_LOCK(vp);
 		vp->v_iflag &= ~VI_MOUNT;
 		VI_UNLOCK(vp);
-		vrele(vp);
+		vput(vp);
 		vfs_unbusy(mp);
+		vfs_freeopts(mp->mnt_optnew);
+		mp->mnt_vnodecovered = NULL;
 		vfs_mount_destroy(mp);
-		*vpp = NULL;
 		return (error);
 	}
 
@@ -228,7 +241,7 @@ mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
 	vfs_event_signal(NULL, VQ_MOUNT, 0);
 	if (VFS_ROOT(mp, LK_EXCLUSIVE, &mvp))
 		panic("mount: lost mount");
-	vput(vp);
+	VOP_UNLOCK(vp, 0);
 	vfs_unbusy(mp);
 	*vpp = mvp;
 	return (0);

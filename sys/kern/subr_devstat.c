@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
  * All rights reserved.
  *
@@ -222,7 +224,7 @@ devstat_remove_entry(struct devstat *ds)
  * here.
  */
 void
-devstat_start_transaction(struct devstat *ds, struct bintime *now)
+devstat_start_transaction(struct devstat *ds, const struct bintime *now)
 {
 
 	mtx_assert(&devstat_mutex, MA_NOTOWNED);
@@ -292,7 +294,7 @@ devstat_start_transaction_bio(struct devstat *ds, struct bio *bp)
 void
 devstat_end_transaction(struct devstat *ds, uint32_t bytes, 
 			devstat_tag_type tag_type, devstat_trans_flags flags,
-			struct bintime *now, struct bintime *then)
+			const struct bintime *now, const struct bintime *then)
 {
 	struct bintime dt, lnow;
 
@@ -301,8 +303,8 @@ devstat_end_transaction(struct devstat *ds, uint32_t bytes,
 		return;
 
 	if (now == NULL) {
+		binuptime(&lnow);
 		now = &lnow;
-		binuptime(now);
 	}
 
 	atomic_add_acq_int(&ds->sequence1, 1);
@@ -336,15 +338,15 @@ devstat_end_transaction(struct devstat *ds, uint32_t bytes,
 }
 
 void
-devstat_end_transaction_bio(struct devstat *ds, struct bio *bp)
+devstat_end_transaction_bio(struct devstat *ds, const struct bio *bp)
 {
 
 	devstat_end_transaction_bio_bt(ds, bp, NULL);
 }
 
 void
-devstat_end_transaction_bio_bt(struct devstat *ds, struct bio *bp,
-    struct bintime *now)
+devstat_end_transaction_bio_bt(struct devstat *ds, const struct bio *bp,
+    const struct bintime *now)
 {
 	devstat_trans_flags flg;
 
@@ -354,7 +356,9 @@ devstat_end_transaction_bio_bt(struct devstat *ds, struct bio *bp,
 
 	if (bp->bio_cmd == BIO_DELETE)
 		flg = DEVSTAT_FREE;
-	else if (bp->bio_cmd == BIO_READ)
+	else if ((bp->bio_cmd == BIO_READ)
+	      || ((bp->bio_cmd == BIO_ZONE)
+	       && (bp->bio_zone.zone_cmd == DISK_ZONE_REPORT_ZONES)))
 		flg = DEVSTAT_READ;
 	else if (bp->bio_cmd == BIO_WRITE)
 		flg = DEVSTAT_WRITE;
@@ -389,7 +393,7 @@ sysctl_devstat(SYSCTL_HANDLER_ARGS)
 	 * XXX devstat_generation should really be "volatile" but that
 	 * XXX freaks out the sysctl macro below.  The places where we
 	 * XXX change it and inspect it are bracketed in the mutex which
-	 * XXX guarantees us proper write barriers.  I don't belive the
+	 * XXX guarantees us proper write barriers.  I don't believe the
 	 * XXX compiler is allowed to optimize mygen away across calls
 	 * XXX to other functions, so the following is belived to be safe.
 	 */
@@ -575,4 +579,4 @@ devstat_free(struct devstat *dsp)
 }
 
 SYSCTL_INT(_debug_sizeof, OID_AUTO, devstat, CTLFLAG_RD,
-    NULL, sizeof(struct devstat), "sizeof(struct devstat)");
+    SYSCTL_NULL_INT_PTR, sizeof(struct devstat), "sizeof(struct devstat)");

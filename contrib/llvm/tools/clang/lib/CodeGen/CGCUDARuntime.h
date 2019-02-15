@@ -13,8 +13,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_CODEGEN_CUDARUNTIME_H
-#define CLANG_CODEGEN_CUDARUNTIME_H
+#ifndef LLVM_CLANG_LIB_CODEGEN_CGCUDARUNTIME_H
+#define LLVM_CLANG_LIB_CODEGEN_CGCUDARUNTIME_H
+
+namespace llvm {
+class Function;
+class GlobalVariable;
+}
 
 namespace clang {
 
@@ -33,16 +38,30 @@ protected:
   CodeGenModule &CGM;
 
 public:
+  // Global variable properties that must be passed to CUDA runtime.
+  enum DeviceVarFlags {
+    ExternDeviceVar = 0x01,   // extern
+    ConstantDeviceVar = 0x02, // __constant__
+  };
+
   CGCUDARuntime(CodeGenModule &CGM) : CGM(CGM) {}
   virtual ~CGCUDARuntime();
 
   virtual RValue EmitCUDAKernelCallExpr(CodeGenFunction &CGF,
                                         const CUDAKernelCallExpr *E,
                                         ReturnValueSlot ReturnValue);
-  
-  virtual void EmitDeviceStubBody(CodeGenFunction &CGF,
-                                  FunctionArgList &Args) = 0;
 
+  /// Emits a kernel launch stub.
+  virtual void emitDeviceStub(CodeGenFunction &CGF, FunctionArgList &Args) = 0;
+  virtual void registerDeviceVar(llvm::GlobalVariable &Var, unsigned Flags) = 0;
+
+  /// Constructs and returns a module initialization function or nullptr if it's
+  /// not needed. Must be called after all kernels have been emitted.
+  virtual llvm::Function *makeModuleCtorFunction() = 0;
+
+  /// Returns a module cleanup function or nullptr if it's not needed.
+  /// Must be called after ModuleCtorFunction
+  virtual llvm::Function *makeModuleDtorFunction() = 0;
 };
 
 /// Creates an instance of a CUDA runtime class.

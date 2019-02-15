@@ -34,7 +34,7 @@ extern "C" {
  * \param[in] c the class to use
  * \param[in] flags give some optional flags to the query
  */
-ldns_rr_list *ldns_get_rr_list_addr_by_name(ldns_resolver *r, ldns_rdf *name, ldns_rr_class c, uint16_t flags);
+ldns_rr_list *ldns_get_rr_list_addr_by_name(ldns_resolver *r, const ldns_rdf *name, ldns_rr_class c, uint16_t flags);
 
 /**
  * ask the resolver about the address
@@ -44,7 +44,7 @@ ldns_rr_list *ldns_get_rr_list_addr_by_name(ldns_resolver *r, ldns_rdf *name, ld
  * \param[in] c the class to use
  * \param[in] flags give some optional flags to the query
  */
-ldns_rr_list *ldns_get_rr_list_name_by_addr(ldns_resolver *r, ldns_rdf *addr, ldns_rr_class c, uint16_t flags);
+ldns_rr_list *ldns_get_rr_list_name_by_addr(ldns_resolver *r, const ldns_rdf *addr, ldns_rr_class c, uint16_t flags);
 
 /**
  * wade through fp (a /etc/hosts like file)
@@ -86,7 +86,7 @@ ldns_rr_list *ldns_get_rr_list_hosts_frm_file(char *filename);
  * \param[out] list put the found RR's in this list
  * \return the number of RR found.
  */
-uint16_t ldns_getaddrinfo(ldns_resolver *res, ldns_rdf *node, ldns_rr_class c, ldns_rr_list **list);
+uint16_t ldns_getaddrinfo(ldns_resolver *res, const ldns_rdf *node, ldns_rr_class c, ldns_rr_list **list);
 
 /**
  * Check if t is enumerated in the nsec type rdata
@@ -94,7 +94,7 @@ uint16_t ldns_getaddrinfo(ldns_resolver *res, ldns_rdf *node, ldns_rr_class c, l
  * \param[in] t the type to check for
  * \return true when t is found, otherwise return false
  */
-bool ldns_nsec_type_check(ldns_rr *nsec, ldns_rr_type t);
+bool ldns_nsec_type_check(const ldns_rr *nsec, ldns_rr_type t);
 
 /**
  * Print a number of rdf's of the RR. The rdfnum-list must 

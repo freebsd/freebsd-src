@@ -1,4 +1,4 @@
-/*	$NetBSD: t_modcmd.c,v 1.9 2010/05/31 23:51:28 pooka Exp $	*/
+/*	$NetBSD: t_modcmd.c,v 1.10 2017/01/13 21:30:43 christos Exp $	*/
 
 /*
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -46,7 +46,7 @@
 #include <unistd.h>
 #include <util.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 /*
  * We verify that modules can be loaded and unloaded.
  * tmpfs was chosen because it does not depend on an image.

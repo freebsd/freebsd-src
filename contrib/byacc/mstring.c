@@ -1,4 +1,4 @@
-/* $Id: mstring.c,v 1.6 2014/04/22 23:36:31 tom Exp $ */
+/* $Id: mstring.c,v 1.7 2016/12/02 17:57:21 tom Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -157,20 +157,20 @@ strnscmp(const char *a, const char *b)
 {
     while (1)
     {
-	while (isspace(*a))
+	while (isspace(UCH(*a)))
 	    a++;
-	while (isspace(*b))
+	while (isspace(UCH(*b)))
 	    b++;
 	while (*a && *a == *b)
 	    a++, b++;
-	if (isspace(*a))
+	if (isspace(UCH(*a)))
 	{
-	    if (isalnum(a[-1]) && isalnum(*b))
+	    if (isalnum(UCH(a[-1])) && isalnum(UCH(*b)))
 		break;
 	}
-	else if (isspace(*b))
+	else if (isspace(UCH(*b)))
 	{
-	    if (isalnum(b[-1]) && isalnum(*a))
+	    if (isalnum(UCH(b[-1])) && isalnum(UCH(*a)))
 		break;
 	}
 	else
@@ -186,7 +186,7 @@ strnshash(const char *s)
 
     while (*s)
     {
-	if (!isspace(*s))
+	if (!isspace(UCH(*s)))
 	    h = (h << 5) - h + (unsigned char)*s;
 	s++;
     }

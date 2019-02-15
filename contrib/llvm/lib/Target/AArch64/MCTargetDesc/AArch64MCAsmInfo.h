@@ -1,4 +1,4 @@
-//==-- AArch64MCAsmInfo.h - AArch64 asm properties -------------*- C++ -*--===//
+//=====-- AArch64MCAsmInfo.h - AArch64 asm properties ---------*- C++ -*--====//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,17 +11,39 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_AARCH64TARGETASMINFO_H
-#define LLVM_AARCH64TARGETASMINFO_H
+#ifndef LLVM_LIB_TARGET_AARCH64_MCTARGETDESC_AARCH64MCASMINFO_H
+#define LLVM_LIB_TARGET_AARCH64_MCTARGETDESC_AARCH64MCASMINFO_H
 
+#include "llvm/MC/MCAsmInfoCOFF.h"
+#include "llvm/MC/MCAsmInfoDarwin.h"
 #include "llvm/MC/MCAsmInfoELF.h"
 
 namespace llvm {
+class MCStreamer;
+class Target;
+class Triple;
 
-struct AArch64ELFMCAsmInfo : public MCAsmInfoELF {
-  explicit AArch64ELFMCAsmInfo();
-private:
-  virtual void anchor();
+struct AArch64MCAsmInfoDarwin : public MCAsmInfoDarwin {
+  explicit AArch64MCAsmInfoDarwin();
+  const MCExpr *
+  getExprForPersonalitySymbol(const MCSymbol *Sym, unsigned Encoding,
+                              MCStreamer &Streamer) const override;
+};
+
+struct AArch64MCAsmInfoELF : public MCAsmInfoELF {
+  explicit AArch64MCAsmInfoELF(const Triple &T);
+};
+
+struct AArch64MCAsmInfoCOFF : public MCAsmInfoCOFF {
+  explicit AArch64MCAsmInfoCOFF();
+};
+
+struct AArch64MCAsmInfoMicrosoftCOFF : public AArch64MCAsmInfoCOFF {
+  explicit AArch64MCAsmInfoMicrosoftCOFF();
+};
+
+struct AArch64MCAsmInfoGNUCOFF : public AArch64MCAsmInfoCOFF {
+  explicit AArch64MCAsmInfoGNUCOFF();
 };
 
 } // namespace llvm

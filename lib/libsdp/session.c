@@ -1,5 +1,7 @@
-/*
+/*-
  * session.c
+ *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2001-2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
@@ -28,7 +30,7 @@
  * $Id: session.c,v 1.2 2003/09/04 22:12:13 max Exp $
  * $FreeBSD$
  */
-
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -62,6 +64,9 @@ sdp_open(bdaddr_t const *l, bdaddr_t const *r)
 	sa.l2cap_len = sizeof(sa);
 	sa.l2cap_family = AF_BLUETOOTH;
 	sa.l2cap_psm = 0;
+	sa.l2cap_cid = 0;
+	sa.l2cap_bdaddr_type = BDADDR_BREDR;
+	
 	memcpy(&sa.l2cap_bdaddr, l, sizeof(sa.l2cap_bdaddr));
 	if (bind(ss->s, (struct sockaddr *) &sa, sizeof(sa)) < 0) {
 		ss->error = errno;
@@ -174,4 +179,26 @@ sdp_error(void *xss)
 	sdp_session_p	ss = (sdp_session_p) xss;
 
 	return ((ss != NULL)? ss->error : EINVAL);
+}
+
+int32_t
+sdp_get_lcaddr(void *xss, bdaddr_t *l)
+{
+	sdp_session_p		ss = (sdp_session_p) xss;
+	struct sockaddr_l2cap	sa;
+	socklen_t		size;
+
+	if (l == NULL || ss == NULL || ss->flags & SDP_SESSION_LOCAL) {
+		ss->error = EINVAL;
+		goto fail;
+	}
+
+	size = sizeof(sa);
+	if (getsockname(ss->s, (struct sockaddr *)&sa, &size) == 0) {
+		bdaddr_copy(l, &sa.l2cap_bdaddr);
+		ss->error = 0;
+	} else
+		ss->error = errno;
+fail:
+	return ((ss->error == 0) ? 0 : -1);
 }

@@ -7,19 +7,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "armmcexpr"
 #include "ARMMCExpr.h"
-#include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCStreamer.h"
 using namespace llvm;
 
+#define DEBUG_TYPE "armmcexpr"
+
 const ARMMCExpr*
-ARMMCExpr::Create(VariantKind Kind, const MCExpr *Expr,
+ARMMCExpr::create(VariantKind Kind, const MCExpr *Expr,
                        MCContext &Ctx) {
   return new (Ctx) ARMMCExpr(Kind, Expr);
 }
 
-void ARMMCExpr::PrintImpl(raw_ostream &OS) const {
+void ARMMCExpr::printImpl(raw_ostream &OS, const MCAsmInfo *MAI) const {
   switch (Kind) {
   default: llvm_unreachable("Invalid kind!");
   case VK_ARM_HI16: OS << ":upper16:"; break;
@@ -29,44 +30,11 @@ void ARMMCExpr::PrintImpl(raw_ostream &OS) const {
   const MCExpr *Expr = getSubExpr();
   if (Expr->getKind() != MCExpr::SymbolRef)
     OS << '(';
-  Expr->print(OS);
+  Expr->print(OS, MAI);
   if (Expr->getKind() != MCExpr::SymbolRef)
     OS << ')';
 }
 
-bool
-ARMMCExpr::EvaluateAsRelocatableImpl(MCValue &Res,
-                                     const MCAsmLayout *Layout) const {
-  return false;
-}
-
-// FIXME: This basically copies MCObjectStreamer::AddValueSymbols. Perhaps
-// that method should be made public?
-static void AddValueSymbols_(const MCExpr *Value, MCAssembler *Asm) {
-  switch (Value->getKind()) {
-  case MCExpr::Target:
-    llvm_unreachable("Can't handle nested target expr!");
-
-  case MCExpr::Constant:
-    break;
-
-  case MCExpr::Binary: {
-    const MCBinaryExpr *BE = cast<MCBinaryExpr>(Value);
-    AddValueSymbols_(BE->getLHS(), Asm);
-    AddValueSymbols_(BE->getRHS(), Asm);
-    break;
-  }
-
-  case MCExpr::SymbolRef:
-    Asm->getOrCreateSymbolData(cast<MCSymbolRefExpr>(Value)->getSymbol());
-    break;
-
-  case MCExpr::Unary:
-    AddValueSymbols_(cast<MCUnaryExpr>(Value)->getSubExpr(), Asm);
-    break;
-  }
-}
-
-void ARMMCExpr::AddValueSymbols(MCAssembler *Asm) const {
-  AddValueSymbols_(getSubExpr(), Asm);
+void ARMMCExpr::visitUsedExpr(MCStreamer &Streamer) const {
+  Streamer.visitUsedExpr(*getSubExpr());
 }

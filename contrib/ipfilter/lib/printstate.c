@@ -11,10 +11,7 @@
 
 
 ipstate_t *
-printstate(sp, opts, now)
-	ipstate_t *sp;
-	int opts;
-	u_long now;
+printstate(ipstate_t *sp, int opts, u_long now)
 {
 	struct protoent *pr;
 	synclist_t ipsync;
@@ -210,7 +207,7 @@ printstate(sp, opts, now)
 		if (kmemcpy((char *)&ipsync, (u_long)sp->is_sync,
 			    sizeof(ipsync))) {
 			PRINTF("status could not be retrieved\n");
-			return NULL;
+			return (NULL);
 		}
 
 		PRINTF("idx %d num %d v %d pr %d rev %d\n",
@@ -220,5 +217,5 @@ printstate(sp, opts, now)
 		PRINTF("not synchronized\n");
 	}
 
-	return sp->is_next;
+	return (sp->is_next);
 }

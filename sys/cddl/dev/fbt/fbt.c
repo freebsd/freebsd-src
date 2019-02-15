@@ -95,21 +95,57 @@ static dtrace_pattr_t fbt_attr = {
 };
 
 static dtrace_pops_t fbt_pops = {
-	NULL,
-	fbt_provide_module,
-	fbt_enable,
-	fbt_disable,
-	fbt_suspend,
-	fbt_resume,
-	fbt_getargdesc,
-	NULL,
-	NULL,
-	fbt_destroy
+	.dtps_provide =		NULL,
+	.dtps_provide_module =	fbt_provide_module,
+	.dtps_enable =		fbt_enable,
+	.dtps_disable =		fbt_disable,
+	.dtps_suspend =		fbt_suspend,
+	.dtps_resume =		fbt_resume,
+	.dtps_getargdesc =	fbt_getargdesc,
+	.dtps_getargval =	NULL,
+	.dtps_usermode =	NULL,
+	.dtps_destroy =		fbt_destroy
 };
 
 static struct cdev		*fbt_cdev;
 static int			fbt_probetab_size;
 static int			fbt_verbose = 0;
+
+int
+fbt_excluded(const char *name)
+{
+
+	if (strncmp(name, "dtrace_", 7) == 0 &&
+	    strncmp(name, "dtrace_safe_", 12) != 0) {
+		/*
+		 * Anything beginning with "dtrace_" may be called
+		 * from probe context unless it explicitly indicates
+		 * that it won't be called from probe context by
+		 * using the prefix "dtrace_safe_".
+		 */
+		return (1);
+	}
+
+	/*
+	 * Lock owner methods may be called from probe context.
+	 */
+	if (strcmp(name, "owner_mtx") == 0 ||
+	    strcmp(name, "owner_rm") == 0 ||
+	    strcmp(name, "owner_rw") == 0 ||
+	    strcmp(name, "owner_sx") == 0)
+		return (1);
+
+	/*
+	 * When DTrace is built into the kernel we need to exclude
+	 * the FBT functions from instrumentation.
+	 */
+#ifndef _KLD_MODULE
+	if (strncmp(name, "fbt_", 4) == 0)
+		return (1);
+#endif
+
+	return (0);
+}
 
 static void
 fbt_doubletrap(void)
@@ -120,7 +156,7 @@ fbt_doubletrap(void)
 	for (i = 0; i < fbt_probetab_size; i++) {
 		fbt = fbt_probetab[i];
 
-		for (; fbt != NULL; fbt = fbt->fbtp_next)
+		for (; fbt != NULL; fbt = fbt->fbtp_probenext)
 			fbt_patch_tracepoint(fbt, fbt->fbtp_savedval);
 	}
 }
@@ -142,13 +178,6 @@ fbt_provide_module(void *arg, modctl_t *lf)
 	 * where prohibited.
 	 */
 	if (strcmp(modname, "dtrace") == 0)
-		return;
-
-	/*
-	 * The cyclic timer subsystem can be built as a module and DTrace
-	 * depends on that, so it is ineligible too.
-	 */
-	if (strcmp(modname, "cyclic") == 0)
 		return;
 
 	/*
@@ -176,39 +205,52 @@ fbt_provide_module(void *arg, modctl_t *lf)
 }
 
 static void
+fbt_destroy_one(fbt_probe_t *fbt)
+{
+	fbt_probe_t *hash, *hashprev, *next;
+	int ndx;
+
+	ndx = FBT_ADDR2NDX(fbt->fbtp_patchpoint);
+	for (hash = fbt_probetab[ndx], hashprev = NULL; hash != NULL;
+	    hashprev = hash, hash = hash->fbtp_hashnext) {
+		if (hash == fbt) {
+			if ((next = fbt->fbtp_tracenext) != NULL)
+				next->fbtp_hashnext = hash->fbtp_hashnext;
+			else
+				next = hash->fbtp_hashnext;
+			if (hashprev != NULL)
+				hashprev->fbtp_hashnext = next;
+			else
+				fbt_probetab[ndx] = next;
+			goto free;
+		} else if (hash->fbtp_patchpoint == fbt->fbtp_patchpoint) {
+			for (next = hash; next->fbtp_tracenext != NULL;
+			    next = next->fbtp_tracenext) {
+				if (fbt == next->fbtp_tracenext) {
+					next->fbtp_tracenext =
+					    fbt->fbtp_tracenext;
+					goto free;
+				}
+			}
+		}
+	}
+	panic("probe %p not found in hash table", fbt);
+free:
+	free(fbt, M_FBT);
+}
+
+static void
 fbt_destroy(void *arg, dtrace_id_t id, void *parg)
 {
-	fbt_probe_t *fbt = parg, *next, *hash, *last;
+	fbt_probe_t *fbt = parg, *next;
 	modctl_t *ctl;
-	int ndx;
 
 	do {
 		ctl = fbt->fbtp_ctl;
-
 		ctl->fbt_nentries--;
 
-		/*
-		 * Now we need to remove this probe from the fbt_probetab.
-		 */
-		ndx = FBT_ADDR2NDX(fbt->fbtp_patchpoint);
-		last = NULL;
-		hash = fbt_probetab[ndx];
-
-		while (hash != fbt) {
-			ASSERT(hash != NULL);
-			last = hash;
-			hash = hash->fbtp_hashnext;
-		}
-
-		if (last != NULL) {
-			last->fbtp_hashnext = fbt->fbtp_hashnext;
-		} else {
-			fbt_probetab[ndx] = fbt->fbtp_hashnext;
-		}
-
-		next = fbt->fbtp_next;
-		free(fbt, M_FBT);
-
+		next = fbt->fbtp_probenext;
+		fbt_destroy_one(fbt);
 		fbt = next;
 	} while (fbt != NULL);
 }
@@ -236,14 +278,16 @@ fbt_enable(void *arg, dtrace_id_t id, void *parg)
 		return;
 	}
 
-	for (; fbt != NULL; fbt = fbt->fbtp_next)
+	for (; fbt != NULL; fbt = fbt->fbtp_probenext) {
 		fbt_patch_tracepoint(fbt, fbt->fbtp_patchval);
+		fbt->fbtp_enabled++;
+	}
 }
 
 static void
 fbt_disable(void *arg, dtrace_id_t id, void *parg)
 {
-	fbt_probe_t *fbt = parg;
+	fbt_probe_t *fbt = parg, *hash;
 	modctl_t *ctl = fbt->fbtp_ctl;
 
 	ASSERT(ctl->nenabled > 0);
@@ -252,8 +296,21 @@ fbt_disable(void *arg, dtrace_id_t id, void *parg)
 	if ((ctl->loadcnt != fbt->fbtp_loadcnt))
 		return;
 
-	for (; fbt != NULL; fbt = fbt->fbtp_next)
-		fbt_patch_tracepoint(fbt, fbt->fbtp_savedval);
+	for (; fbt != NULL; fbt = fbt->fbtp_probenext) {
+		fbt->fbtp_enabled--;
+
+		for (hash = fbt_probetab[FBT_ADDR2NDX(fbt->fbtp_patchpoint)];
+		    hash != NULL; hash = hash->fbtp_hashnext) {
+			if (hash->fbtp_patchpoint == fbt->fbtp_patchpoint) {
+				for (; hash != NULL; hash = hash->fbtp_tracenext)
+					if (hash->fbtp_enabled > 0)
+						break;
+				break;
+			}
+		}
+		if (hash == NULL)
+			fbt_patch_tracepoint(fbt, fbt->fbtp_savedval);
+	}
 }
 
 static void
@@ -267,7 +324,7 @@ fbt_suspend(void *arg, dtrace_id_t id, void *parg)
 	if ((ctl->loadcnt != fbt->fbtp_loadcnt))
 		return;
 
-	for (; fbt != NULL; fbt = fbt->fbtp_next)
+	for (; fbt != NULL; fbt = fbt->fbtp_probenext)
 		fbt_patch_tracepoint(fbt, fbt->fbtp_savedval);
 }
 
@@ -282,7 +339,7 @@ fbt_resume(void *arg, dtrace_id_t id, void *parg)
 	if ((ctl->loadcnt != fbt->fbtp_loadcnt))
 		return;
 
-	for (; fbt != NULL; fbt = fbt->fbtp_next)
+	for (; fbt != NULL; fbt = fbt->fbtp_probenext)
 		fbt_patch_tracepoint(fbt, fbt->fbtp_patchval);
 }
 
@@ -310,9 +367,7 @@ fbt_ctfoff_init(modctl_t *lf, linker_ctf_t *lc)
 		return (EINVAL);
 	}
 
-	if ((ctfoff = malloc(sizeof(uint32_t) * lc->nsym, M_LINKER, M_WAITOK)) == NULL)
-		return (ENOMEM);
-
+	ctfoff = malloc(sizeof(uint32_t) * lc->nsym, M_LINKER, M_WAITOK);
 	*lc->ctfoffp = ctfoff;
 
 	for (i = 0; i < lc->nsym; i++, ctfoff++, symp++) {
@@ -491,8 +546,8 @@ fbt_typoff_init(linker_ctf_t *lc)
 	ctf_typemax++;
 	*lc->typlenp = ctf_typemax;
 
-	if ((xp = malloc(sizeof(uint32_t) * ctf_typemax, M_LINKER, M_ZERO | M_WAITOK)) == NULL)
-		return (ENOMEM);
+	xp = malloc(sizeof(uint32_t) * ctf_typemax, M_LINKER,
+	    M_ZERO | M_WAITOK);
 
 	*lc->typoffp = xp;
 
@@ -814,11 +869,7 @@ ctf_decl_push(ctf_decl_t *cd, linker_ctf_t *lc, ctf_id_t type)
 		prec = CTF_PREC_BASE;
 	}
 
-	if ((cdp = malloc(sizeof (ctf_decl_node_t), M_FBT, M_WAITOK)) == NULL) {
-		cd->cd_err = EAGAIN;
-		return;
-	}
-
+	cdp = malloc(sizeof(*cdp), M_FBT, M_WAITOK);
 	cdp->cd_type = type;
 	cdp->cd_kind = kind;
 	cdp->cd_n = n;

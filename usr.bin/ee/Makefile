@@ -1,15 +1,15 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../contrib/ee
+.PATH:	${SRCTOP}/contrib/ee
 
 CFLAGS+= -DHAS_NCURSES -DHAS_UNISTD -DHAS_STDARG -DHAS_STDLIB \
 	 -DHAS_SYS_WAIT
 
+PACKAGE=ee
 PROG=	ee
 LINKS=	${BINDIR}/ee ${BINDIR}/ree ${BINDIR}/ee ${BINDIR}/edit
 MLINKS=	ee.1 ree.1 ee.1 edit.1
-DPADD=	${LIBNCURSESW}
-LDADD=	-lncursesw
+LIBADD=	ncursesw
 
 WARNS?=	2
 
@@ -29,7 +29,7 @@ NLSSRCFILES=ee.msg
 . if exists(${.CURDIR}/nls/${lang}/ee.msg)
 NLSSRCDIR_${lang}= ${.CURDIR}/nls/${lang}
 . else
-NLSSRCDIR_${lang}= ${.CURDIR}/../../contrib/ee
+NLSSRCDIR_${lang}= ${SRCTOP}/contrib/ee
 . endif
 .endfor
 

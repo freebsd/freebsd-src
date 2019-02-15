@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999 Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
  * Copyright (c) 1992-1998 Søren Schmidt
  * All rights reserved.
@@ -345,7 +347,7 @@ static video_info_t bios_vmode[] = {
     { M_EGAMONO80x25, 0,          80, 25, 8, 14, 2, 1,
       MDA_BUF_BASE, MDA_BUF_SIZE, MDA_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
     /* EGA */
-    { M_ENH_B80x43, 0,            80, 43, 8,  8, 2, 1,
+    { M_ENH_B80x43, V_INFO_COLOR, 80, 43, 8,  8, 2, 1,
       CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
     { M_ENH_C80x43, V_INFO_COLOR, 80, 43, 8,  8, 4, 1,
       CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
@@ -375,7 +377,7 @@ static video_info_t bios_vmode[] = {
     { M_VGA_C90x30, V_INFO_COLOR, 90, 30, 8, 16, 4, 1,
       CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
     { M_VGA_M90x43, 0,            90, 43, 8,  8, 2, 1,
-      CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
+      MDA_BUF_BASE, MDA_BUF_SIZE, MDA_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
     { M_VGA_C90x43, V_INFO_COLOR, 90, 43, 8,  8, 4, 1,
       CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
     { M_VGA_M90x50, 0,            90, 50, 8,  8, 2, 1,
@@ -591,7 +593,7 @@ map_mode_num(int mode)
         { M_VGA_C90x25, M_VGA_C80x25 },
         { M_VGA_M90x30, M_VGA_M80x25 },
         { M_VGA_C90x30, M_VGA_C80x25 },
-        { M_VGA_M90x43, M_ENH_B80x25 },
+        { M_VGA_M90x43, M_VGA_M80x25 },
         { M_VGA_C90x43, M_ENH_C80x25 },
         { M_VGA_M90x50, M_VGA_M80x25 },
         { M_VGA_C90x50, M_VGA_C80x25 },
@@ -602,7 +604,7 @@ map_mode_num(int mode)
     };
     int i;
 
-    for (i = 0; i < sizeof(mode_map)/sizeof(mode_map[0]); ++i) {
+    for (i = 0; i < nitems(mode_map); ++i) {
         if (mode_map[i].from == mode)
             return mode_map[i].to;
     }
@@ -655,7 +657,7 @@ map_gen_mode_num(int type, int color, int mode)
 	}
     }
 
-    for (i = 0; i < sizeof(mode_map)/sizeof(mode_map[0]); ++i) {
+    for (i = 0; i < nitems(mode_map); ++i) {
         if (mode_map[i].from == mode)
             return ((color) ? mode_map[i].to_color : mode_map[i].to_mono);
     }
@@ -702,7 +704,7 @@ map_bios_mode_num(int type, int color, int bios_mode)
     switch (type) {
 
     case KD_VGA:
-	if (bios_mode < sizeof(vga_modes)/sizeof(vga_modes[0]))
+	if (bios_mode < nitems(vga_modes))
 	    return vga_modes[bios_mode];
 	else if (color)
 	    return M_VGA_C80x25;
@@ -711,7 +713,7 @@ map_bios_mode_num(int type, int color, int bios_mode)
 	break;
 
     case KD_EGA:
-	if (bios_mode < sizeof(ega_modes)/sizeof(ega_modes[0]))
+	if (bios_mode < nitems(ega_modes))
 	    return ega_modes[bios_mode];
 	else if (color)
 	    return M_ENH_C80x25;
@@ -720,7 +722,7 @@ map_bios_mode_num(int type, int color, int bios_mode)
 	break;
 
     case KD_CGA:
-	if (bios_mode < sizeof(cga_modes)/sizeof(cga_modes[0]))
+	if (bios_mode < nitems(cga_modes))
 	    return cga_modes[bios_mode];
 	else
 	    return M_C80x25;
@@ -772,7 +774,7 @@ fill_adapter_param(int code, video_adapter_t *adp)
 	{ DCC_EGAMONO, 			DCC_CGA80 },
     };
 
-    if ((code < 0) || (code >= sizeof(dcc)/sizeof(dcc[0]))) {
+    if ((code < 0) || (code >= nitems(dcc))) {
 	adp[V_ADP_PRIMARY] = adapter_init_value[DCC_MONO];
 	adp[V_ADP_SECONDARY] = adapter_init_value[DCC_CGA80];
     } else {
@@ -862,6 +864,9 @@ update_adapter_info(video_adapter_t *adp, video_info_t *info)
     /* XXX */
     adp->va_buffer = info->vi_buffer;
     adp->va_buffer_size = info->vi_buffer_size;
+    adp->va_flags &= ~V_ADP_CWIDTH9;
+    if (info->vi_flags & V_INFO_CWIDTH9)
+	adp->va_flags |= V_ADP_CWIDTH9;
     if (info->vi_mem_model == V_INFO_MM_VGAX) {
 	adp->va_line_width = info->vi_width/2;
     } else if (info->vi_flags & V_INFO_GRAPHICS) {
@@ -918,7 +923,7 @@ comp_adpregs(u_char *buf1, u_char *buf2)
     if ((buf1 == NULL) || (buf2 == NULL))
 	return COMP_DIFFERENT;
 
-    for (i = 0; i < sizeof(params)/sizeof(params[0]); ++i) {
+    for (i = 0; i < nitems(params); ++i) {
 	if (params[i].mask == 0)	/* don't care */
 	    continue;
 	if ((buf1[i] & params[i].mask) != (buf2[i] & params[i].mask))
@@ -939,7 +944,7 @@ probe_adapters(void)
 #if !defined(VGA_NO_BIOS) && !defined(VGA_NO_MODE_CHANGE)
     u_char *mp;
 #endif
-    int i;
+    int height, i, width;
 
     /* do this test only once */
     if (vga_init_done)
@@ -948,7 +953,7 @@ probe_adapters(void)
 
     /* 
      * Locate display adapters. 
-     * The AT architecture supports upto two adapters. `syscons' allows
+     * The AT architecture supports up to two adapters. `syscons' allows
      * the following combinations of adapters: 
      *     1) MDA + CGA
      *     2) MDA + EGA/VGA color 
@@ -1134,15 +1139,34 @@ probe_adapters(void)
 		case COMP_DIFFERENT:
 		default:
 		    /*
-		     * Don't use the paramter table in BIOS. It doesn't
-		     * look familiar to us. Video mode switching is allowed
-		     * only if the new mode is the same as or based on
-		     * the initial mode. 
+		     * Don't use the parameter table in the BIOS, since
+		     * even the BIOS doesn't use it for the initial mode.
+		     * Restrict the tweaked modes to (in practice) 80x50
+		     * from 80x25 with 400 scan lines, since the only safe
+		     * tweak is changing the characters from 8x16 to 8x8.
 		     */
 		    video_mode_ptr = NULL;
 		    bzero(mode_map, sizeof(mode_map));
 		    mode_map[adp->va_initial_mode] = adpstate.regs;
 		    rows_offset = 1;
+
+		    width = height = -1;
+		    for (i = 0; i < nitems(bios_vmode); ++i) {
+			if (bios_vmode[i].vi_mode == adp->va_initial_mode) {
+			    width = bios_vmode[i].vi_width;
+			    height = bios_vmode[i].vi_height;
+			    break;
+			}
+		    }
+		    for (i = 0; i < nitems(bios_vmode); ++i) {
+			if (bios_vmode[i].vi_mode != adp->va_initial_mode &&
+			    map_mode_num(bios_vmode[i].vi_mode) ==
+			     adp->va_initial_mode &&
+			    (bios_vmode[i].vi_width != width ||
+			     bios_vmode[i].vi_height != 2 * height)) {
+			    bios_vmode[i].vi_mode = NA;
+			}
+		    }
 		    break;
 		}
 	    }
@@ -1202,6 +1226,29 @@ probe_adapters(void)
 	}
     }
 
+#if !defined(VGA_NO_BIOS) && !defined(VGA_NO_MODE_CHANGE)
+    /*
+     * Attempt to determine the real character width for each mode.  9 wide
+     * is supposed to be standard for EGA mono mode and most VGA text modes,
+     * but some hardware doesn't support it, so dynamic configuration is
+     * needed.  Bit 0 in sequencer register 1 is supposed control the width
+     * (set = 8), but this is unreliable too.  Trust that 0 in the sequencer
+     * bit means 9 wide after verifying that 9 is consistent with some CRTC
+     * timing. The ratio (Horizontal Total) / (Horizontal Displayed) is
+     * about 1.2 in all standard 9-wide modes and should be about 9/8 larger
+     * again  in similar 8-wide modes; in practice it is usually about 1.4
+     * times larger.
+     */
+    for (i = 0; i < nitems(bios_vmode); ++i) {
+	if (bios_vmode[i].vi_mem_model == V_INFO_MM_TEXT &&
+	    bios_vmode[i].vi_width != 90) {
+	    mp = get_mode_param(map_mode_num(bios_vmode[i].vi_mode));
+	    if (mp != NULL && !(mp[5] & 1) && mp[10] <= mp[11] * 125 / 100)
+		bios_vmode[i].vi_flags |= V_INFO_CWIDTH9;
+	}
+    }
+#endif
+
     /* buffer address */
     vga_get_info(&biosadapter[V_ADP_PRIMARY],
 		 biosadapter[V_ADP_PRIMARY].va_initial_mode, &info);
@@ -1247,12 +1294,12 @@ set_line_length(video_adapter_t *adp, int pixel)
     switch (adp->va_info.vi_mem_model) {
     case V_INFO_MM_PLANAR:
 	ppw = 16/(adp->va_info.vi_depth/adp->va_info.vi_planes);
-	count = (pixel + ppw - 1)/ppw/2;
-	bpl = ((pixel + ppw - 1)/ppw/2)*4;
+	count = howmany(pixel, ppw)/2;
+	bpl = (howmany(pixel, ppw)/2)*4;
 	break;
     case V_INFO_MM_PACKED:
 	count = (pixel + 7)/8;
-	bpl = ((pixel + 7)/8)*8;
+	bpl = rounddown(pixel + 7, 8);
 	break;
     case V_INFO_MM_TEXT:
 	count = (pixel + 7)/8;			/* columns */

@@ -31,18 +31,15 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/missing/strsep.c,v 1.3 2003-03-25 08:33:48 guy Exp $ (LBL)";
-#endif /* LIBC_SCCS and not lint */
-
-#ifdef HAVE_CONFIG_H 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <string.h>
+
+#include "netdissect.h"
 
 /*
  * Get next token from string *stringp, where tokens are possibly-empty

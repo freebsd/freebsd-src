@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Diomidis Spinellis
  * All rights reserved.
  *
@@ -38,8 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 
-int	 readrec_forward(FILE *f, struct acctv2 *av2);
-int	 readrec_backward(FILE *f, struct acctv2 *av2);
+int	 readrec_forward(FILE *f, struct acctv3 *av2);
+int	 readrec_backward(FILE *f, struct acctv3 *av2);
 
 /*
  * Reverse offsetof: return the offset of field f
@@ -90,27 +92,27 @@ decode_comp(comp_t v)
  * Return EOF on error or end-of-file.
  */
 static int
-readrec_v1(FILE *f, struct acctv2 *av2)
+readrec_v1(FILE *f, struct acctv3 *av3)
 {
 	struct acctv1 av1;
 	int rv;
 
 	if ((rv = fread_record(&av1, sizeof(av1), f)) == EOF)
 		return (EOF);
-	av2->ac_zero = 0;
-	av2->ac_version = 2;
-	av2->ac_len = av2->ac_len2 = sizeof(*av2);
-	memcpy(av2->ac_comm, av1.ac_comm, AC_COMM_LEN);
-	av2->ac_utime = decode_comp(av1.ac_utime) * 1000000;
-	av2->ac_stime = decode_comp(av1.ac_stime) * 1000000;
-	av2->ac_etime = decode_comp(av1.ac_etime) * 1000000;
-	av2->ac_btime = av1.ac_btime;
-	av2->ac_uid = av1.ac_uid;
-	av2->ac_gid = av1.ac_gid;
-	av2->ac_mem = av1.ac_mem;
-	av2->ac_io = decode_comp(av1.ac_io);
-	av2->ac_tty = av1.ac_tty;
-	av2->ac_flagx = av1.ac_flag | ANVER;
+	av3->ac_zero = 0;
+	av3->ac_version = 3;
+	av3->ac_len = av3->ac_len2 = sizeof(*av3);
+	memcpy(av3->ac_comm, av1.ac_comm, AC_COMM_LEN);
+	av3->ac_utime = decode_comp(av1.ac_utime) * 1000000;
+	av3->ac_stime = decode_comp(av1.ac_stime) * 1000000;
+	av3->ac_etime = decode_comp(av1.ac_etime) * 1000000;
+	av3->ac_btime = av1.ac_btime;
+	av3->ac_uid = av1.ac_uid;
+	av3->ac_gid = av1.ac_gid;
+	av3->ac_mem = av1.ac_mem;
+	av3->ac_io = decode_comp(av1.ac_io);
+	av3->ac_tty = av1.ac_tty;
+	av3->ac_flagx = av1.ac_flag | ANVER;
 	return (0);
 }
 
@@ -120,9 +122,40 @@ readrec_v1(FILE *f, struct acctv2 *av2)
  * Return EOF on error or end-of-file.
  */
 static int
-readrec_v2(FILE *f, struct acctv2 *av2)
+readrec_v2(FILE *f, struct acctv3 *av3)
 {
-	return (fread_record(av2, sizeof(*av2), f));
+	struct acctv2 av2;
+	int rv;
+
+	if ((rv = fread_record(&av2, sizeof(av2), f)) == EOF)
+		return (EOF);
+	av3->ac_zero = 0;
+	av3->ac_version = 3;
+	av3->ac_len = av3->ac_len2 = sizeof(*av3);
+	memcpy(av3->ac_comm, av2.ac_comm, AC_COMM_LEN);
+	av3->ac_utime = av2.ac_utime;
+	av3->ac_stime = av2.ac_stime;
+	av3->ac_etime = av2.ac_etime;
+	av3->ac_btime = av2.ac_btime;
+	av3->ac_uid = av2.ac_uid;
+	av3->ac_gid = av2.ac_gid;
+	av3->ac_mem = av2.ac_mem;
+	av3->ac_io = av2.ac_io;
+	av3->ac_tty = av2.ac_tty;
+	av3->ac_flagx = av2.ac_flagx;
+	return (0);
+}
+
+/*
+ * Read an v2 accounting record stored at the current
+ * position of stream f.
+ * Return EOF on error or end-of-file.
+ */
+static int
+readrec_v3(FILE *f, struct acctv3 *av3)
+{
+
+	return (fread_record(av3, sizeof(*av3), f));
 }
 
 /*
@@ -132,7 +165,7 @@ readrec_v2(FILE *f, struct acctv2 *av2)
  * Return EOF on error or end-of-file.
  */
 static int
-readrec_vx(FILE *f, struct acctv2 *av2)
+readrec_vx(FILE *f, struct acctv3 *av3)
 {
 	uint8_t magic, version;
 
@@ -143,7 +176,9 @@ readrec_vx(FILE *f, struct acctv2 *av2)
 		return (EOF);
 	switch (version) {
 	case 2:
-		return (readrec_v2(f, av2));
+		return (readrec_v2(f, av3));
+	case 3:
+		return (readrec_v3(f, av3));
 
 	/* Add handling for more versions here. */
 
@@ -162,7 +197,7 @@ readrec_vx(FILE *f, struct acctv2 *av2)
  * or EOF on error.
  */
 int
-readrec_forward(FILE *f, struct acctv2 *av2)
+readrec_forward(FILE *f, struct acctv3 *av3)
 {
 	int magic, rv;
 
@@ -172,10 +207,10 @@ readrec_forward(FILE *f, struct acctv2 *av2)
 		return (EOF);
 	if (magic != 0)
 		/* Old record format. */
-		rv = readrec_v1(f, av2);
+		rv = readrec_v1(f, av3);
 	else
 		/* New record formats. */
-		rv = readrec_vx(f, av2);
+		rv = readrec_vx(f, av3);
 	return (rv == EOF ? EOF : 1);
 }
 
@@ -190,7 +225,7 @@ readrec_forward(FILE *f, struct acctv2 *av2)
  * or EOF on error.
  */
 int
-readrec_backward(FILE *f, struct acctv2 *av2)
+readrec_backward(FILE *f, struct acctv3 *av3)
 {
 	off_t pos;
 	int c;
@@ -200,17 +235,20 @@ readrec_backward(FILE *f, struct acctv2 *av2)
 		return (EOF);
 	if (pos == 0)
 		return (0);
-	if (fseek(f, -roffsetof(struct acctv2, ac_trailer),
+	if (fseek(f, -roffsetof(struct acctv3, ac_trailer),
 	    SEEK_CUR) == EOF ||
 	    (c = getc(f)) == EOF)
 		return (EOF);
 	if (c & ANVER) {
-		/* New record formats. */
+		/*
+		 * New record formats.  For v2 and v3 offset from the
+		 * end for ac_len2 should be same.
+		 */
 		if (fseeko(f, pos - roffsetof(struct acctv2, ac_len2),
 		    SEEK_SET) == EOF ||
 		    fread_record(&len, sizeof(len), f) == EOF ||
 		    fseeko(f, pos - len, SEEK_SET) == EOF ||
-		    readrec_vx(f, av2) == EOF ||
+		    readrec_vx(f, av3) == EOF ||
 		    fseeko(f, pos - len, SEEK_SET) == EOF)
 			return (EOF);
 		else
@@ -218,7 +256,7 @@ readrec_backward(FILE *f, struct acctv2 *av2)
 	} else {
 		/* Old record format. */
 		if (fseeko(f, pos - sizeof(struct acctv1), SEEK_SET) == EOF ||
-		    readrec_v1(f, av2) == EOF ||
+		    readrec_v1(f, av3) == EOF ||
 		    fseeko(f, pos - sizeof(struct acctv1), SEEK_SET) == EOF)
 			return (EOF);
 		else

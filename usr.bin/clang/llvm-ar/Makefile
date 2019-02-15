@@ -1,15 +1,12 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+PROG_CXX=	llvm-ar
 
-PROG_CXX=llvm-ar
+SRCDIR=		tools/llvm-ar
+SRCS+=		llvm-ar.cpp
 
-SRCDIR=	tools/llvm-ar
-SRCS=	llvm-ar.cpp
+LIBADD+=	z
 
-LIBDEPS=llvmobject \
-	llvmbitreader \
-	llvmcore \
-	llvmsupport
+LINKS+=		${BINDIR}/llvm-ar ${BINDIR}/llvm-ranlib
 
-.include "../clang.prog.mk"
+.include "../llvm.prog.mk"

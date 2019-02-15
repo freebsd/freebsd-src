@@ -5,11 +5,15 @@ MAN=	kimpersonate.8
 CFLAGS+=	-I${KRB5DIR}/lib/hx509 \
 		-I${KRB5DIR}/lib/asn1 \
 		-I${KRB5DIR}/lib/roken \
-		-I${KRB5DIR}/lib/sl -I.
-DPADD=	${LIBKAFS5} ${LIBKRB5} ${LIBHEIMNTLM} ${LIBROKEN} ${LIBASN1} ${LIBCRYPTO} \
-	${LIBCRYPT} ${LIBVERS}
-LDADD=	-lkafs5 -lkrb5 -lheimntlm -lroken -lasn1 -lcrypto -lcrypt \
-	${LIBVERS}
+		-I${KRB5DIR}/lib/sl \
+		-I${KRB5DIR}/lib/krb5 \
+		-I${KRB5DIR}/lib/kafs \
+		-I${.OBJDIR:H:H}/lib/libroken \
+		-I${.OBJDIR:H:H}/lib/libasn1 \
+		-I${.OBJDIR:H:H}/lib/libkrb5 \
+		-I${SRCTOP}/contrib/com_err \
+		-I.
+LIBADD=	krb5 roken asn1 vers
 
 .include <bsd.prog.mk>
 

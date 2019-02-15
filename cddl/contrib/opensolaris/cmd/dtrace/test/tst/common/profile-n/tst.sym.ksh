@@ -45,7 +45,7 @@ EOF
 spinny()
 {
 	while true; do
-		/usr/bin/date > /dev/null
+		/bin/date > /dev/null
 	done
 }
 
@@ -63,7 +63,7 @@ child=$!
 # This is the same gutsy test as that found in the func() test; see that
 # test for the rationale.
 #
-script | tee /dev/fd/2 | grep mutex_enter > /dev/null
+script | tee /dev/fd/2 | grep mtx_lock > /dev/null
 status=$?
 
 kill $child

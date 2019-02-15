@@ -25,12 +25,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 19, 2012
+.Dd March 11, 2017
 .Dt UIO 9
 .Os
 .Sh NAME
 .Nm uio ,
 .Nm uiomove ,
+.Nm uiomove_frombuf ,
 .Nm uiomove_nofault
 .Nd device driver I/O routines
 .Sh SYNOPSIS
@@ -50,10 +51,13 @@ struct uio {
 .Ft int
 .Fn uiomove "void *buf" "int howmuch" "struct uio *uiop"
 .Ft int
+.Fn uiomove_frombuf "void *buf" "int howmuch" "struct uio *uiop"
+.Ft int
 .Fn uiomove_nofault "void *buf" "int howmuch" "struct uio *uiop"
 .Sh DESCRIPTION
 The functions
-.Fn uiomove
+.Fn uiomove ,
+.Fn uiomove_frombuf ,
 and
 .Fn uiomove_nofault
 are used to transfer data between buffers and I/O vectors that might
@@ -129,9 +133,27 @@ Thus, the function
 .Fn uiomove_nofault
 can be called from contexts where acquiring virtual memory system
 locks or sleeping are prohibited.
+.Pp
+The
+.Fn uiomove_frombuf
+function is a convenience wrapper around
+.Fn uiomove
+for drivers that serve data which is wholly contained within an
+existing buffer in memory.
+It validates the
+.Va uio_offset
+and
+.Va uio_resid
+values against the size of the existing buffer, handling short
+transfers when the request partially overlaps the buffer.
+When
+.Va uio_offset
+is greater than or equal to the buffer size, the result is success
+with no bytes transferred, effectively signaling EOF.
 .Sh RETURN VALUES
 On success
-.Fn uiomove
+.Fn uiomove ,
+.Fn uiomove_frombuf ,
 and
 .Fn uiomove_nofault
 will return 0; on error they will return an appropriate error code.

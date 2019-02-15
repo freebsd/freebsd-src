@@ -124,26 +124,42 @@ DEFINE_TEST(test_format_newc)
 
 	/* Setup result message. */
 	memset(result, 0, sizeof(result));
-	if (is_LargeInode("file1"))
+	if (is_LargeInode("file1")) {
 		strncat(result,
-		    "bsdcpio: file1: large inode number truncated: "
-		    "Numerical result out of range\n",
+		    "bsdcpio: file1: large inode number truncated: ",
 		    sizeof(result) - strlen(result) -1);
-	if (canSymlink() && is_LargeInode("symlink"))
+		strncat(result, strerror(ERANGE),
+		    sizeof(result) - strlen(result) -1);
+		strncat(result, "\n",
+		    sizeof(result) - strlen(result) -1);
+	}
+	if (canSymlink() && is_LargeInode("symlink")) {
 		strncat(result,
-		    "bsdcpio: symlink: large inode number truncated: "
-			"Numerical result out of range\n",
+		    "bsdcpio: symlink: large inode number truncated: ",
 		    sizeof(result) - strlen(result) -1);
-	if (is_LargeInode("dir"))
+		strncat(result, strerror(ERANGE),
+		    sizeof(result) - strlen(result) -1);
+		strncat(result, "\n",
+		    sizeof(result) - strlen(result) -1);
+	}
+	if (is_LargeInode("dir")) {
 		strncat(result,
-		    "bsdcpio: dir: large inode number truncated: "
-		    "Numerical result out of range\n",
+		    "bsdcpio: dir: large inode number truncated: ",
 		    sizeof(result) - strlen(result) -1);
-	if (is_LargeInode("hardlink"))
+		strncat(result, strerror(ERANGE),
+		    sizeof(result) - strlen(result) -1);
+		strncat(result, "\n",
+		    sizeof(result) - strlen(result) -1);
+	}
+	if (is_LargeInode("hardlink")) {
 		strncat(result,
-		    "bsdcpio: hardlink: large inode number truncated: "
-		    "Numerical result out of range\n",
+		    "bsdcpio: hardlink: large inode number truncated: ",
 		    sizeof(result) - strlen(result) -1);
+		strncat(result, strerror(ERANGE),
+		    sizeof(result) - strlen(result) -1);
+		strncat(result, "\n",
+		    sizeof(result) - strlen(result) -1);
+	}
 
 	/* Record some facts about what we just created: */
 	now = time(NULL); /* They were all created w/in last two seconds. */

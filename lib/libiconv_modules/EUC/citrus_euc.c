@@ -28,6 +28,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -190,12 +192,12 @@ _citrus_EUC_unpack_state(_EUCEncodingInfo *ei __unused, _EUCState *s,
 #endif
 
 static int
-_citrus_EUC_mbrtowc_priv(_EUCEncodingInfo *ei, wchar_t *pwc, const char **s,
+_citrus_EUC_mbrtowc_priv(_EUCEncodingInfo *ei, wchar_t *pwc, char **s,
     size_t n, _EUCState *psenc, size_t *nresult)
 {
 	wchar_t wchar;
 	int c, chlenbak, cs, len;
-	const char *s0, *s1 = NULL;
+	char *s0, *s1 = NULL;
 
 	s0 = *s;
 

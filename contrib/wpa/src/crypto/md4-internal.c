@@ -31,6 +31,9 @@ int md4_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 	MD4_CTX ctx;
 	size_t i;
 
+	if (TEST_FAIL())
+		return -1;
+
 	MD4Init(&ctx);
 	for (i = 0; i < num_elem; i++)
 		MD4Update(&ctx, addr[i], len[i]);

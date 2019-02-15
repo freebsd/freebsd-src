@@ -1,8 +1,7 @@
 /* $FreeBSD$ */
-/* $NetBSD: locore.S,v 1.24 2000/05/31 05:09:17 thorpej Exp $ */
 
 /*-
- * Copyright (C) 2001 Benno Rice
+ * Copyright (C) 2010-2016 Nathan Whitehorn
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,7 +13,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY Benno Rice ``AS IS'' AND ANY EXPRESS OR
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
  * IN NO EVENT SHALL TOOLS GMBH BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
@@ -24,39 +23,11 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-/*-
- * Copyright (C) 1995, 1996 Wolfgang Solfrank.
- * Copyright (C) 1995, 1996 TooLs GmbH.
- * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by TooLs GmbH.
- * 4. The name of TooLs GmbH may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY TOOLS GMBH ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL TOOLS GMBH BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * $FreeBSD$
  */
 
-#include "assym.s"
+#include "assym.inc"
 
 #include <sys/syscall.h>
 
@@ -65,177 +36,175 @@
 #include <machine/spr.h>
 #include <machine/asm.h>
 
-/* Locate the per-CPU data structure */
-#define GET_CPUINFO(r)  \
-        mfsprg0  r
+#ifdef _CALL_ELF
+.abiversion _CALL_ELF
+#endif
 
-/*
- * Compiled KERNBASE location and the kernel load address
- */
-        .globl  kernbase
-        .set    kernbase, KERNBASE
-
-#define	TMPSTKSZ	16384		/* 16K temporary stack */
+/* Glue for linker script */
+.globl  kernbase
+.set    kernbase, KERNBASE
 
 /*
  * Globals
  */
 	.data
+	.align 3
+GLOBAL(__startkernel)
+	.llong	begin
+GLOBAL(__endkernel)
+	.llong	end
+GLOBAL(can_wakeup)
+	.llong	0x0
+
 	.align	4
+#define	TMPSTKSZ	16384		/* 16K temporary stack */
 GLOBAL(tmpstk)
 	.space	TMPSTKSZ
-GLOBAL(esym)
-	.llong	0			/* end of symbol table */
 
-#define	INTRCNT_COUNT	256		/* max(HROWPIC_IRQMAX,OPENPIC_IRQMAX) */
-GLOBAL(intrnames)
-	.space	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
-GLOBAL(sintrnames)
-	.quad	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
+TOC_ENTRY(tmpstk)
+TOC_ENTRY(can_wakeup)
 
-	.align 4
-GLOBAL(intrcnt)
-	.space	INTRCNT_COUNT * 4 * 2
-GLOBAL(sintrcnt)
-	.quad	INTRCNT_COUNT * 4 * 2
+/*
+ * Entry point for bootloaders that do not fully implement ELF and start
+ * at the beginning of the image (kexec, notably). In its own section so
+ * that it ends up before any linker-generated call stubs and actually at
+ * the beginning of the image. kexec on some systems also enters at
+ * (start of image) + 0x60, so put a spin loop there.
+ */
+	.section ".text.kboot", "x", @progbits
+kbootentry:
+	b __start
+. = kbootentry + 0x40	/* Magic address used in platform layer */
+	.global smp_spin_sem
+ap_kexec_spin_sem:
+	.long   -1
+. = kbootentry + 0x60	/* Entry point for kexec APs */
+ap_kexec_start:		/* At 0x60 past start, copied to 0x60 by kexec */
+	/* r3 set to CPU ID by kexec */
+
+	/* Invalidate icache for low-memory copy and jump there */
+	li	%r0,0x80
+	dcbst	0,%r0
+	sync
+	icbi	0,%r0
+	isync
+	ba	0x80			/* Absolute branch to next inst */
+
+. = kbootentry + 0x80			/* Aligned to cache line */
+1:	or	31,31,31		/* yield */
+	sync
+	lwz	%r1,0x40(0)		/* Spin on ap_kexec_spin_sem */
+	cmpw	%r1,%r3			/* Until it equals our CPU ID */
+	bne	1b
+	
+	/* Released */
+	or	2,2,2			/* unyield */
+
+	/* Make sure that it will be software reset. Clear SRR1 */
+	li	%r1,0
+	mtsrr1	%r1
+	ba	EXC_RST
+
+/*
+ * Now start the real text section
+ */
 
 	.text
 	.globl	btext
 btext:
 
 /*
- * This symbol is here for the benefit of kvm_mkdb, and is supposed to
- * mark the start of kernel text.
- */
-	.globl	kernel_text
-kernel_text:
-
-/*
- * Startup entry.  Note, this must be the first thing in the text
- * segment!
+ * Main kernel entry point.
+ *
+ * Calling convention:
+ * r3: Flattened Device Tree pointer (or zero)
+ * r4: ignored
+ * r5: OF client interface pointer (or zero)
+ * r6: Loader metadata pointer (or zero)
+ * r7: Magic cookie (0xfb5d104d) to indicate that r6 has loader metadata
  */
 	.text
 ASENTRY_NOPROF(__start)
-	li	8,0
-	li	9,0x100
-	mtctr	9
-1:
-	dcbf	0,8
-	icbi	0,8
-	addi	8,8,0x20
-	bdnz	1b
-	sync
+	/* Set 64-bit mode if not yet set before branching to C */
+	mfmsr	%r20
+	li	%r21,1
+	insrdi	%r20,%r21,1,0
+	mtmsrd	%r20
 	isync
-
-	/* Save the argument pointer and length */
-	mr	20,6
-	mr	21,7
-
-	lis	8,openfirmware_entry@ha
-	std	5,openfirmware_entry@l(8) /* save client interface handler */
-
-	/* Set up the stack pointer */
-	lis	1,(tmpstk+TMPSTKSZ-48)@ha
-	addi	1,1,(tmpstk+TMPSTKSZ-48)@l
+	nop	/* Make this block a multiple of 8 bytes */
 
 	/* Set up the TOC pointer */
-	lis	2,tocbase@ha
-	ld	2,tocbase@l(2)
+	b	0f
+	.align 3
+0:	nop
+	bl	1f
+	.llong	__tocbase + 0x8000 - .
+1:	mflr	%r2
+	ld	%r1,0(%r2)
+	add	%r2,%r1,%r2
 
-	mfmsr	0
-	lis	9,ofmsr@ha
-	stdu	0,ofmsr@l(9)
+	/* Get load offset */
+	ld	%r31,-0x8000(%r2) /* First TOC entry is TOC base */
+	subf    %r31,%r31,%r2	/* Subtract from real TOC base to get base */
 
-	mfsprg0	0			/* save SPRG0-3 */
-	std	0,8(9)			/* ofmsr[1] = sprg0 */
-	mfsprg1 0
-	std	0,16(9)			/* ofmsr[2] = sprg1 */
-	mfsprg2 0
-	std	0,24(9)			/* ofmsr[3] = sprg2 */
-	mfsprg3 0
-	std	0,32(9)			/* ofmsr[4] = sprg3 */
-
-	/* Switch to 64-bit mode */
-	mfmsr	9
-	li	8,1
-	insrdi	9,8,1,0
-	mtmsrd	9
-	isync
-	
-	bl	OF_initial_setup
+	/* Set up the stack pointer */
+	bl	1f
+	.llong	tmpstk + TMPSTKSZ - 96 - .
+1:	mflr	%r30
+	ld	%r1,0(%r30)
+	add	%r1,%r1,%r30
 	nop
 
-	lis	3,kernbase@ha
-	addi	3,3,kernbase@l
+	/* Relocate kernel */
+	std	%r3,48(%r1)
+	std	%r4,56(%r1)
+	std	%r5,64(%r1)
+	std	%r6,72(%r1)
+	std	%r7,80(%r1)
 
-	lis	4,end@ha
-	addi	4,4,end@l
-	add	4,4,3
-	mr	5,4
+	bl	1f
+	.llong _DYNAMIC-.
+1:	mflr	%r3
+	ld	%r4,0(%r3)
+	add	%r3,%r4,%r3
+	mr	%r4,%r31
+	bl	elf_reloc_self
+	nop
+	ld	%r3,48(%r1)
+	ld	%r4,56(%r1)
+	ld	%r5,64(%r1)
+	ld	%r6,72(%r1)
+	ld	%r7,80(%r1)
 
-	/* Restore the argument pointer and length */
-	mr	6,20
-	mr	7,21
-
+	/* Begin CPU init */
+	mr	%r4,%r2 /* Replace ignored r4 with tocbase for trap handlers */
 	bl	powerpc_init
 	nop
+
+	/* Set stack pointer to new value and branch to mi_startup */
 	mr	%r1, %r3
 	li	%r3, 0
 	std	%r3, 0(%r1)
 	bl	mi_startup
 	nop
-	b	OF_exit
+
+	/* Unreachable */
+	b	.
+
+ASENTRY_NOPROF(__restartkernel)
+	/*
+	 * r3-r7: arguments to go to __start
+	 * r8: offset from current kernel address to apply
+	 * r9: MSR to set when (atomically) jumping to __start + r8
+	 */
+	mtsrr1	%r9
+	bl	1f
+1:	mflr	%r25
+	add	%r25,%r8,%r25
+	addi	%r25,%r25,2f-1b
+	mtsrr0	%r25
+	rfid
+2:	bl	__start
 	nop
-
-/*
- * PPC64 ABI TOC base
- */
-
-        .align  3
-	.globl	tocbase
-tocbase:
-        .llong  .TOC.@tocbase
-
-/*
- * int setfault()
- *
- * Similar to setjmp to setup for handling faults on accesses to user memory.
- * Any routine using this may only call bcopy, either the form below,
- * or the (currently used) C code optimized, so it doesn't use any non-volatile
- * registers.
- */
-ASENTRY_NOPROF(setfault)
-	mflr	0
-	mfcr	12
-	mfsprg	4,0
-	ld	4,TD_PCB(13)	/* curthread = r13 */
-	std	3,PCB_ONFAULT(4)
-	std	0,0(3)
-	std	1,8(3)
-	std	2,16(3)
-
-	std	%r12,24(%r3)	/* Save the non-volatile GP regs. */
-	std	%r13,24+1*8(%r3)	
-	std	%r14,24+2*8(%r3)	
-	std	%r15,24+3*8(%r3)	
-	std	%r16,24+4*8(%r3)	
-	std	%r17,24+5*8(%r3)	
-	std	%r18,24+6*8(%r3)	
-	std	%r19,24+7*8(%r3)	
-	std	%r20,24+8*8(%r3)	
-	std	%r21,24+9*8(%r3)	
-	std	%r22,24+10*8(%r3)	
-	std	%r23,24+11*8(%r3)	
-	std	%r24,24+12*8(%r3)	
-	std	%r25,24+13*8(%r3)	
-	std	%r26,24+14*8(%r3)	
-	std	%r27,24+15*8(%r3)	
-	std	%r28,24+16*8(%r3)
-	std	%r29,24+17*8(%r3)	
-	std	%r30,24+18*8(%r3)	
-	std	%r31,24+19*8(%r3)	
-
-	xor	3,3,3
-	blr
 
 #include <powerpc/aim/trap_subr64.S>

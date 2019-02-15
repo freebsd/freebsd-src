@@ -7,13 +7,14 @@
 //
 //===----------------------------------------------------------------------===//
 /// \file
-/// \brief This file implements OMPThreadPrivateDecl class.
+/// \brief This file implements OMPThreadPrivateDecl, OMPCapturedExprDecl
+/// classes.
 ///
 //===----------------------------------------------------------------------===//
 
 #include "clang/AST/ASTContext.h"
-#include "clang/AST/DeclBase.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclOpenMP.h"
 #include "clang/AST/Expr.h"
 
@@ -29,12 +30,9 @@ OMPThreadPrivateDecl *OMPThreadPrivateDecl::Create(ASTContext &C,
                                                    DeclContext *DC,
                                                    SourceLocation L,
                                                    ArrayRef<Expr *> VL) {
-  unsigned Size = sizeof(OMPThreadPrivateDecl) +
-                  (VL.size() * sizeof(Expr *));
-
-  void *Mem = C.Allocate(Size, llvm::alignOf<OMPThreadPrivateDecl>());
-  OMPThreadPrivateDecl *D = new (Mem) OMPThreadPrivateDecl(OMPThreadPrivate,
-                                                           DC, L);
+  OMPThreadPrivateDecl *D =
+      new (C, DC, additionalSizeToAlloc<Expr *>(VL.size()))
+          OMPThreadPrivateDecl(OMPThreadPrivate, DC, L);
   D->NumVars = VL.size();
   D->setVars(VL);
   return D;
@@ -43,11 +41,8 @@ OMPThreadPrivateDecl *OMPThreadPrivateDecl::Create(ASTContext &C,
 OMPThreadPrivateDecl *OMPThreadPrivateDecl::CreateDeserialized(ASTContext &C,
                                                                unsigned ID,
                                                                unsigned N) {
-  unsigned Size = sizeof(OMPThreadPrivateDecl) + (N * sizeof(Expr *));
-
-  void *Mem = AllocateDeserializedDecl(C, ID, Size);
-  OMPThreadPrivateDecl *D = new (Mem) OMPThreadPrivateDecl(OMPThreadPrivate,
-                                                           0, SourceLocation());
+  OMPThreadPrivateDecl *D = new (C, ID, additionalSizeToAlloc<Expr *>(N))
+      OMPThreadPrivateDecl(OMPThreadPrivate, nullptr, SourceLocation());
   D->NumVars = N;
   return D;
 }
@@ -55,7 +50,58 @@ OMPThreadPrivateDecl *OMPThreadPrivateDecl::CreateDeserialized(ASTContext &C,
 void OMPThreadPrivateDecl::setVars(ArrayRef<Expr *> VL) {
   assert(VL.size() == NumVars &&
          "Number of variables is not the same as the preallocated buffer");
-  Expr **Vars = reinterpret_cast<Expr **>(this + 1);
-  std::copy(VL.begin(), VL.end(), Vars);
+  std::uninitialized_copy(VL.begin(), VL.end(), getTrailingObjects<Expr *>());
 }
 
+//===----------------------------------------------------------------------===//
+// OMPDeclareReductionDecl Implementation.
+//===----------------------------------------------------------------------===//
+
+void OMPDeclareReductionDecl::anchor() {}
+
+OMPDeclareReductionDecl *OMPDeclareReductionDecl::Create(
+    ASTContext &C, DeclContext *DC, SourceLocation L, DeclarationName Name,
+    QualType T, OMPDeclareReductionDecl *PrevDeclInScope) {
+  return new (C, DC) OMPDeclareReductionDecl(OMPDeclareReduction, DC, L, Name,
+                                             T, PrevDeclInScope);
+}
+
+OMPDeclareReductionDecl *
+OMPDeclareReductionDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
+  return new (C, ID) OMPDeclareReductionDecl(
+      OMPDeclareReduction, /*DC=*/nullptr, SourceLocation(), DeclarationName(),
+      QualType(), /*PrevDeclInScope=*/nullptr);
+}
+
+OMPDeclareReductionDecl *OMPDeclareReductionDecl::getPrevDeclInScope() {
+  return cast_or_null<OMPDeclareReductionDecl>(
+      PrevDeclInScope.get(getASTContext().getExternalSource()));
+}
+const OMPDeclareReductionDecl *
+OMPDeclareReductionDecl::getPrevDeclInScope() const {
+  return cast_or_null<OMPDeclareReductionDecl>(
+      PrevDeclInScope.get(getASTContext().getExternalSource()));
+}
+
+//===----------------------------------------------------------------------===//
+// OMPCapturedExprDecl Implementation.
+//===----------------------------------------------------------------------===//
+
+void OMPCapturedExprDecl::anchor() {}
+
+OMPCapturedExprDecl *OMPCapturedExprDecl::Create(ASTContext &C, DeclContext *DC,
+                                                 IdentifierInfo *Id, QualType T,
+                                                 SourceLocation StartLoc) {
+  return new (C, DC) OMPCapturedExprDecl(C, DC, Id, T, StartLoc);
+}
+
+OMPCapturedExprDecl *OMPCapturedExprDecl::CreateDeserialized(ASTContext &C,
+                                                             unsigned ID) {
+  return new (C, ID)
+      OMPCapturedExprDecl(C, nullptr, nullptr, QualType(), SourceLocation());
+}
+
+SourceRange OMPCapturedExprDecl::getSourceRange() const {
+  assert(hasInit());
+  return SourceRange(getInit()->getLocStart(), getInit()->getLocEnd());
+}

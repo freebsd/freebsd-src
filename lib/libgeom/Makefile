@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 LIB=	geom
 SHLIBDIR?= /lib
 SRCS+=	geom_getxml.c
@@ -13,8 +14,7 @@ CFLAGS += -I${.CURDIR}
 
 WARNS?=	3
 
-DPADD=	${LIBBSDXML} ${LIBSBUF}
-LDADD=	-lbsdxml -lsbuf
+LIBADD+=	bsdxml sbuf
 
 MAN=	libgeom.3
 
@@ -33,6 +33,10 @@ MLINKS+= \
 	libgeom.3 gctl_issue.3 \
 	libgeom.3 gctl_free.3 \
 	libgeom.3 gctl_dump.3 \
+	libgeom.3 geom_getxml.3 \
+	libgeom.3 geom_xml2tree.3 \
+	libgeom.3 geom_gettree.3 \
+	libgeom.3 geom_deletetree.3 \
 	libgeom.3 g_close.3 \
 	libgeom.3 g_delete.3 \
 	libgeom.3 g_device_path.3 \

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2011 Hiroki Sato <hrs@FreeBSD.org>
  * All rights reserved.
  *
@@ -92,9 +94,11 @@ cm_handler_client(int fd, int state, char *buf_orig)
 		case CM_STATE_MSG_DISPATCH:
 			cm->cm_version = CM_VERSION;
 			error = cm_send(fd, buf);
-			if (error)
+			if (error) {
 				syslog(LOG_WARNING,
 				    "<%s> cm_send()", __func__);
+				return (-1);
+			}
 			state = CM_STATE_ACK_WAIT;
 			break;
 		case CM_STATE_ACK_WAIT:

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Luoqi Chen <luoqi@freebsd.org>
  * All rights reserved.
  *
@@ -51,6 +53,7 @@ struct pmap;
 	struct	intr_request *pc_irfree;				\
 	struct	pmap *pc_pmap;						\
 	vm_offset_t pc_addr;						\
+	vm_offset_t pc_qmap_addr;					\
 	u_long	pc_tickref;						\
 	u_long	pc_tickadj;						\
 	u_long	pc_tickincrement;					\
@@ -61,7 +64,7 @@ struct pmap;
 	u_int	pc_tlb_ctx;						\
 	u_int	pc_tlb_ctx_max;						\
 	u_int	pc_tlb_ctx_min;						\
-	char	__pad[405]
+	char	__pad[653]
 
 #ifdef _KERNEL
 
@@ -73,6 +76,7 @@ struct pcpu;
 register struct pcb *curpcb __asm__(__XSTRING(PCB_REG));
 register struct pcpu *pcpup __asm__(__XSTRING(PCPU_REG));
 
+#define	get_pcpu()		(pcpup)
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)
 
 static __inline __pure2 struct thread *

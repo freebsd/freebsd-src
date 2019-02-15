@@ -22,13 +22,13 @@
 typedef struct pancakes {
 	int i;
 	string s;
-	timespec_t t;
+	struct timespec t;
 } pancakes_t;
 
 translator pancakes_t < void *V > {
 	i = 2 * 10;
 	s = strjoin("I like ", "pancakes");
-	t = *(timespec_t *)`dtrace_zero;
+	t = *(struct timespec *)`dtrace_zero;
 };
 
 BEGIN

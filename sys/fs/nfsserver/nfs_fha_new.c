@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Isilon Inc http://www.isilon.com/
  * Copyright (c) 2013 Spectra Logic Corporation
  *
@@ -93,7 +95,7 @@ fhanew_init(void *foo)
 	sysctl_ctx_init(&softc->sysctl_ctx);
 	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
 	    SYSCTL_STATIC_CHILDREN(_vfs_nfsd), OID_AUTO, "fha", CTLFLAG_RD,
-	    0, "fha node");
+	    0, "NFS File Handle Affinity (FHA)");
 	if (softc->sysctl_tree == NULL) {
 		printf("%s: unable to allocate sysctl tree\n", __func__);
 		return;

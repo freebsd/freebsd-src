@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Matthew N. Dodd <winter@jurai.net>
  * All rights reserved.
  *
@@ -80,7 +82,7 @@ static struct cdevsw smapi_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_ioctl =	smapi_ioctl,
 	.d_name =	"smapi",
-	.d_flags =	D_MEM | D_NEEDGIANT,
+	.d_flags =	D_NEEDGIANT,
 };
 
 static void	smapi_identify(driver_t *, device_t);

@@ -27,6 +27,7 @@
 #
 
 #include <sys/bus.h>
+#include <dev/pci/pcivar.h>
 
 INTERFACE pci;
 
@@ -36,7 +37,35 @@ CODE {
 	{
 		return (0);
 	}
+
+	static int
+	null_msix_bar(device_t dev, device_t child)
+	{
+		return (-1);
+	}
+
+	static device_t
+	null_create_iov_child(device_t bus, device_t pf, uint16_t rid,
+	    uint16_t vid, uint16_t did)
+	{
+		device_printf(bus, "PCI_IOV not implemented on this bus.\n");
+		return (NULL);
+	}
 };
+
+HEADER {
+	struct nvlist;
+
+	enum pci_id_type {
+	    PCI_ID_RID,
+	    PCI_ID_MSI,
+	};
+
+	enum pci_feature {
+	    PCI_FEATURE_HP,		/* Hot Plug feature */
+	    PCI_FEATURE_AER,		/* Advanced Error Reporting */
+	};
+}
 
 
 METHOD u_int32_t read_config {
@@ -112,6 +141,14 @@ METHOD int find_cap {
 	int		*capreg;
 };
 
+METHOD int find_next_cap {
+	device_t	dev;
+	device_t	child;
+	int		capability;
+	int		start;
+	int		*capreg;
+};
+
 METHOD int find_extcap {
 	device_t	dev;
 	device_t	child;
@@ -119,10 +156,26 @@ METHOD int find_extcap {
 	int		*capreg;
 };
 
+METHOD int find_next_extcap {
+	device_t	dev;
+	device_t	child;
+	int		capability;
+	int		start;
+	int		*capreg;
+};
+
 METHOD int find_htcap {
 	device_t	dev;
 	device_t	child;
 	int		capability;
+	int		*capreg;
+};
+
+METHOD int find_next_htcap {
+	device_t	dev;
+	device_t	child;
+	int		capability;
+	int		start;
 	int		*capreg;
 };
 
@@ -180,12 +233,49 @@ METHOD int msix_count {
 	device_t	child;
 } DEFAULT null_msi_count;
 
-METHOD uint16_t get_rid {
+METHOD int msix_pba_bar {
 	device_t	dev;
 	device_t	child;
+} DEFAULT null_msix_bar;
+
+METHOD int msix_table_bar {
+	device_t	dev;
+	device_t	child;
+} DEFAULT null_msix_bar;
+
+METHOD int get_id {
+	device_t	dev;
+	device_t	child;
+	enum pci_id_type type;
+	uintptr_t	*id;
+};
+
+METHOD struct pci_devinfo * alloc_devinfo {
+	device_t	dev;
 };
 
 METHOD void child_added {
 	device_t	dev;
 	device_t	child;
 };
+
+METHOD int iov_attach {
+	device_t	dev;
+	device_t	child;
+	struct nvlist	*pf_schema;
+	struct nvlist	*vf_schema;
+	const char	*name;
+};
+
+METHOD int iov_detach {
+	device_t	dev;
+	device_t	child;
+};
+
+METHOD device_t create_iov_child {
+	device_t bus;
+	device_t pf;
+	uint16_t rid;
+	uint16_t vid;
+	uint16_t did;
+} DEFAULT null_create_iov_child;

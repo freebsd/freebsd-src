@@ -12,13 +12,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "TableGenBackends.h" // Declares all backends.
-#include "SetTheory.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Signals.h"
-#include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Main.h"
 #include "llvm/TableGen/Record.h"
+#include "llvm/TableGen/SetTheory.h"
 
 using namespace llvm;
 
@@ -27,6 +27,7 @@ enum ActionType {
   GenEmitter,
   GenRegisterInfo,
   GenInstrInfo,
+  GenInstrDocs,
   GenAsmWriter,
   GenAsmMatcher,
   GenDisassembler,
@@ -41,7 +42,13 @@ enum ActionType {
   PrintEnums,
   PrintSets,
   GenOptParserDefs,
-  GenCTags
+  GenCTags,
+  GenAttributes,
+  GenSearchableTables,
+  GenGlobalISel,
+  GenX86EVEX2VEXTables,
+  GenX86FoldTables,
+  GenRegisterBank,
 };
 
 namespace {
@@ -55,6 +62,8 @@ namespace {
                                "Generate registers and register classes info"),
                     clEnumValN(GenInstrInfo, "gen-instr-info",
                                "Generate instruction descriptions"),
+                    clEnumValN(GenInstrDocs, "gen-instr-docs",
+                               "Generate instruction documentation"),
                     clEnumValN(GenCallingConv, "gen-callingconv",
                                "Generate calling convention descriptions"),
                     clEnumValN(GenAsmWriter, "gen-asm-writer",
@@ -85,11 +94,23 @@ namespace {
                                "Generate option definitions"),
                     clEnumValN(GenCTags, "gen-ctags",
                                "Generate ctags-compatible index"),
-                    clEnumValEnd));
+                    clEnumValN(GenAttributes, "gen-attrs",
+                               "Generate attributes"),
+                    clEnumValN(GenSearchableTables, "gen-searchable-tables",
+                               "Generate generic binary-searchable table"),
+                    clEnumValN(GenGlobalISel, "gen-global-isel",
+                               "Generate GlobalISel selector"),
+                    clEnumValN(GenX86EVEX2VEXTables, "gen-x86-EVEX2VEX-tables",
+                               "Generate X86 EVEX to VEX compress tables"),
+                    clEnumValN(GenX86FoldTables, "gen-x86-fold-tables",
+                               "Generate X86 fold tables"),
+                    clEnumValN(GenRegisterBank, "gen-register-bank",
+                               "Generate registers bank descriptions")));
 
+  cl::OptionCategory PrintEnumsCat("Options for -print-enums");
   cl::opt<std::string>
   Class("class", cl::desc("Print Enum list for this class"),
-          cl::value_desc("class name"));
+        cl::value_desc("class name"), cl::cat(PrintEnumsCat));
 
 bool LLVMTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   switch (Action) {
@@ -104,6 +125,9 @@ bool LLVMTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
     break;
   case GenInstrInfo:
     EmitInstrInfo(Records, OS);
+    break;
+  case GenInstrDocs:
+    EmitInstrDocs(Records, OS);
     break;
   case GenCallingConv:
     EmitCallingConv(Records, OS);
@@ -143,9 +167,8 @@ bool LLVMTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
     break;
   case PrintEnums:
   {
-    std::vector<Record*> Recs = Records.getAllDerivedDefinitions(Class);
-    for (unsigned i = 0, e = Recs.size(); i != e; ++i)
-      OS << Recs[i]->getName() << ", ";
+    for (Record *Rec : Records.getAllDerivedDefinitions(Class))
+      OS << Rec->getName() << ", ";
     OS << "\n";
     break;
   }
@@ -153,19 +176,36 @@ bool LLVMTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   {
     SetTheory Sets;
     Sets.addFieldExpander("Set", "Elements");
-    std::vector<Record*> Recs = Records.getAllDerivedDefinitions("Set");
-    for (unsigned i = 0, e = Recs.size(); i != e; ++i) {
-      OS << Recs[i]->getName() << " = [";
-      const std::vector<Record*> *Elts = Sets.expand(Recs[i]);
+    for (Record *Rec : Records.getAllDerivedDefinitions("Set")) {
+      OS << Rec->getName() << " = [";
+      const std::vector<Record*> *Elts = Sets.expand(Rec);
       assert(Elts && "Couldn't expand Set instance");
-      for (unsigned ei = 0, ee = Elts->size(); ei != ee; ++ei)
-        OS << ' ' << (*Elts)[ei]->getName();
+      for (Record *Elt : *Elts)
+        OS << ' ' << Elt->getName();
       OS << " ]\n";
     }
     break;
   }
   case GenCTags:
     EmitCTags(Records, OS);
+    break;
+  case GenAttributes:
+    EmitAttributes(Records, OS);
+    break;
+  case GenSearchableTables:
+    EmitSearchableTables(Records, OS);
+    break;
+  case GenGlobalISel:
+    EmitGlobalISel(Records, OS);
+    break;
+  case GenRegisterBank:
+    EmitRegisterBank(Records, OS);
+    break;
+  case GenX86EVEX2VEXTables:
+    EmitX86EVEX2VEXTables(Records, OS);
+    break;
+  case GenX86FoldTables:
+    EmitX86FoldTables(Records, OS);
     break;
   }
 
@@ -174,9 +214,20 @@ bool LLVMTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
 }
 
 int main(int argc, char **argv) {
-  sys::PrintStackTraceOnErrorSignal();
+  sys::PrintStackTraceOnErrorSignal(argv[0]);
   PrettyStackTraceProgram X(argc, argv);
   cl::ParseCommandLineOptions(argc, argv);
 
+  llvm_shutdown_obj Y;
+
   return TableGenMain(argv[0], &LLVMTableGenMain);
 }
+
+#ifdef __has_feature
+#if __has_feature(address_sanitizer)
+#include <sanitizer/lsan_interface.h>
+// Disable LeakSanitizer for this binary as it has too many leaks that are not
+// very interesting to fix. See compiler-rt/include/sanitizer/lsan_interface.h .
+LLVM_ATTRIBUTE_USED int __lsan_is_turned_off() { return 1; }
+#endif  // __has_feature(address_sanitizer)
+#endif  // defined(__has_feature)

@@ -29,7 +29,7 @@
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
-#if defined(sun)
+#ifdef illumos
 #pragma weak gmatch = _gmatch
 
 #include "gen_synonyms.h"
@@ -38,7 +38,7 @@
 #include <libgen.h>
 #include <stdlib.h>
 #include <limits.h>
-#if defined(sun)
+#ifdef illumos
 #include <widec.h>
 #include "_range.h"
 #else

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Stanislav Sedov <stas@FreeBSD.org>.
  * All rights reserved.
  *
@@ -85,7 +87,7 @@ static struct ae_dev {
 	{ VENDORID_ATTANSIC, DEVICEID_ATTANSIC_L2,
 		"Attansic Technology Corp, L2 FastEthernet" },
 };
-#define	AE_DEVS_COUNT (sizeof(ae_devs) / sizeof(*ae_devs))
+#define	AE_DEVS_COUNT nitems(ae_devs)
 
 static struct resource_spec ae_res_spec_mem[] = {
 	{ SYS_RES_MEMORY,       PCIR_BAR(0),    RF_ACTIVE },
@@ -175,6 +177,8 @@ static driver_t ae_driver = {
 static devclass_t ae_devclass;
 
 DRIVER_MODULE(ae, pci, ae_driver, ae_devclass, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, ae, ae_devs,
+    nitems(ae_devs));
 DRIVER_MODULE(miibus, ae, miibus_driver, miibus_devclass, 0, 0);
 MODULE_DEPEND(ae, pci, 1, 1, 1);
 MODULE_DEPEND(ae, ether, 1, 1, 1);
@@ -391,6 +395,8 @@ ae_attach(device_t dev)
 		ether_ifdetach(ifp);
 		goto fail;
 	}
+
+	gone_by_fcp101_dev(dev);
 
 fail:
 	if (error != 0)
@@ -1660,7 +1666,7 @@ ae_stop_rxmac(ae_softc_t *sc)
 	/*
 	 * Wait for IDLE state.
 	 */
-	for (i = 0; i < AE_IDLE_TIMEOUT; i--) {
+	for (i = 0; i < AE_IDLE_TIMEOUT; i++) {
 		val = AE_READ_4(sc, AE_IDLE_REG);
 		if ((val & (AE_IDLE_RXMAC | AE_IDLE_DMAWRITE)) == 0)
 			break;
@@ -1696,7 +1702,7 @@ ae_stop_txmac(ae_softc_t *sc)
 	/*
 	 * Wait for IDLE state.
 	 */
-	for (i = 0; i < AE_IDLE_TIMEOUT; i--) {
+	for (i = 0; i < AE_IDLE_TIMEOUT; i++) {
 		val = AE_READ_4(sc, AE_IDLE_REG);
 		if ((val & (AE_IDLE_TXMAC | AE_IDLE_DMAREAD)) == 0)
 			break;
@@ -2069,7 +2075,7 @@ ae_rxfilter(ae_softc_t *sc)
 	 */
 	bzero(mchash, sizeof(mchash));
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)

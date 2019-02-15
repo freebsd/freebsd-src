@@ -1,4 +1,5 @@
 #!/bin/sh
+# vim: filetype=sh noexpandtab ts=8 sw=8
 # $FreeBSD: head/tools/regression/pjdfstest/tests/chown/06.t 211410 2010-08-17 06:08:09Z pjd $
 
 desc="chown returns ELOOP if too many symbolic links were encountered in translating the pathname"

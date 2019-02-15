@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2008-2011 MARVELL INTERNATIONAL LTD.
  * Copyright (c) 2012, 2013 The FreeBSD Foundation
  * All rights reserved.
@@ -33,8 +35,6 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_global.h"
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -50,13 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/vmparam.h>
 
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
-
+#ifndef INTRNG
 static int
 fdt_intc_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
     int *pol)
@@ -73,3 +69,4 @@ fdt_pic_decode_t fdt_pic_table[] = {
 	&fdt_intc_decode_ic,
 	NULL
 };
+#endif /* INTRNG */

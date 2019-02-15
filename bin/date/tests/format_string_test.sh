@@ -48,6 +48,55 @@ ${desc}_test_body() {
 	atf_add_test_case ${desc}_test
 }
 
+iso8601_check()
+{
+	local arg flags exp_output_1 exp_output_2
+
+	arg="${1}"
+	flags="${2}"
+	exp_output_1="${3}"
+	exp_output_2="${4}"
+
+	atf_check -o "inline:${exp_output_1}\n" \
+	    date $flags -r ${TEST1} "-I${arg}"
+	atf_check -o "inline:${exp_output_2}\n" \
+	    date $flags -r ${TEST2} "-I${arg}"
+}
+
+iso8601_string_test()
+{
+	local desc arg exp_output_1 exp_output_2 flags
+
+	desc="${1}"
+	arg="${2}"
+	flags="${3}"
+	exp_output_1="${4}"
+	exp_output_2="${5}"
+
+	atf_test_case iso8601_${desc}_test
+	eval "
+iso8601_${desc}_test_body() {
+	iso8601_check '${arg}' '${flags}' '${exp_output_1}' '${exp_output_2}'
+}"
+	atf_add_test_case iso8601_${desc}_test
+
+	if [ -z "$flags" ]; then
+	    atf_test_case iso8601_${desc}_parity
+	    eval "
+iso8601_${desc}_parity_body() {
+	local exp1 exp2
+
+	atf_require_prog gdate
+
+	exp1=\"\$(gdate --date '@${TEST1}' '-I${arg}')\"
+	exp2=\"\$(gdate --date '@${TEST2}' '-I${arg}')\"
+
+	iso8601_check '${arg}' '' \"\${exp1}\" \"\${exp2}\"
+}"
+	    atf_add_test_case iso8601_${desc}_parity
+	fi
+}
+
 atf_init_test_cases()
 {
 	format_string_test A A Saturday Monday
@@ -89,4 +138,12 @@ atf_init_test_cases()
 	format_string_test z z +0000 +0000
 	format_string_test percent % % %
 	format_string_test plus + "Sat Feb  7 07:04:03 UTC 1970" "Mon Nov 12 21:20:00 UTC 2001"
+
+	iso8601_string_test default "" "" "1970-02-07" "2001-11-12"
+	iso8601_string_test date date "" "1970-02-07" "2001-11-12"
+	iso8601_string_test hours hours "" "1970-02-07T07+00:00" "2001-11-12T21+00:00"
+	iso8601_string_test minutes minutes "" "1970-02-07T07:04+00:00" "2001-11-12T21:20+00:00"
+	iso8601_string_test seconds seconds "" "1970-02-07T07:04:03+00:00" "2001-11-12T21:20:00+00:00"
+	# BSD date(1) does not support fractional seconds at this time.
+	#iso8601_string_test ns ns "" "1970-02-07T07:04:03,000000000+00:00" "2001-11-12T21:20:00,000000000+00:00"
 }

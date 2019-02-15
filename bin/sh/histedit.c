@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -338,8 +338,8 @@ histcmd(int argc, char **argv __unused)
 				out1fmt("%5d ", he.num);
 			out1str(he.str);
 		} else {
-			char *s = pat ?
-			   fc_replace(he.str, pat, repl) : (char *)he.str;
+			const char *s = pat ?
+			   fc_replace(he.str, pat, repl) : he.str;
 
 			if (sflg) {
 				if (displayhist) {
@@ -359,7 +359,7 @@ histcmd(int argc, char **argv __unused)
 					 * cursor, set it back to the current
 					 * entry.
 					 */
-					retval = history(hist, &he,
+					history(hist, &he,
 					    H_NEXT_EVENT, oldhistnum);
 				}
 			} else
@@ -376,10 +376,10 @@ histcmd(int argc, char **argv __unused)
 		char *editcmd;
 
 		fclose(efp);
+		INTON;
 		editcmd = stalloc(strlen(editor) + strlen(editfile) + 2);
 		sprintf(editcmd, "%s %s", editor, editfile);
 		evalstring(editcmd, 0);	/* XXX - should use no JC command */
-		INTON;
 		readcmdfile(editfile);	/* XXX - should read back - quick tst */
 		unlink(editfile);
 	}
@@ -477,7 +477,7 @@ bindcmd(int argc, char **argv)
 
 	if (el == NULL)
 		error("line editing is disabled");
-	return (el_parse(el, argc, (const char **)argv));
+	return (el_parse(el, argc, __DECONST(const char **, argv)));
 }
 
 #else

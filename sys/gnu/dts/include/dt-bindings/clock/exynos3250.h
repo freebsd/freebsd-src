@@ -31,6 +31,7 @@
 #define CLK_FOUT_VPLL			4
 #define CLK_FOUT_UPLL			5
 #define CLK_FOUT_MPLL			6
+#define CLK_ARM_CLK			7
 
 /* Muxes */
 #define CLK_MOUT_MPLL_USER_L		16
@@ -78,6 +79,8 @@
 #define CLK_MOUT_CORE			58
 #define CLK_MOUT_APLL			59
 #define CLK_MOUT_ACLK_266_SUB		60
+#define CLK_MOUT_UART2			61
+#define CLK_MOUT_MMC2			62
 
 /* Dividers */
 #define CLK_DIV_GPL			64
@@ -126,6 +129,9 @@
 #define CLK_DIV_CORE			107
 #define CLK_DIV_HPM			108
 #define CLK_DIV_COPY			109
+#define CLK_DIV_UART2			110
+#define CLK_DIV_MMC2_PRE		111
+#define CLK_DIV_MMC2			112
 
 /* Gates */
 #define CLK_ASYNC_G3D			128
@@ -222,6 +228,8 @@
 #define CLK_BLOCK_MFC			219
 #define CLK_BLOCK_CAM			220
 #define CLK_SMIES			221
+#define CLK_UART2			222
+#define CLK_SDMMC2			223
 
 /* Special clocks */
 #define CLK_SCLK_JPEG			224
@@ -248,11 +256,101 @@
 #define CLK_SCLK_SPI0			245
 #define CLK_SCLK_UART1			246
 #define CLK_SCLK_UART0			247
+#define CLK_SCLK_UART2			248
+#define CLK_SCLK_MMC2			249
 
 /*
  * Total number of clocks of main CMU.
  * NOTE: Must be equal to last clock ID increased by one.
  */
-#define CLK_NR_CLKS			248
+#define CLK_NR_CLKS			250
+
+/*
+ * CMU DMC
+ */
+
+#define CLK_FOUT_BPLL			1
+#define CLK_FOUT_EPLL			2
+
+/* Muxes */
+#define CLK_MOUT_MPLL_MIF		8
+#define CLK_MOUT_BPLL			9
+#define CLK_MOUT_DPHY			10
+#define CLK_MOUT_DMC_BUS		11
+#define CLK_MOUT_EPLL			12
+
+/* Dividers */
+#define CLK_DIV_DMC			16
+#define CLK_DIV_DPHY			17
+#define CLK_DIV_DMC_PRE			18
+#define CLK_DIV_DMCP			19
+#define CLK_DIV_DMCD			20
+
+/*
+ * Total number of clocks of main CMU.
+ * NOTE: Must be equal to last clock ID increased by one.
+ */
+#define NR_CLKS_DMC			21
+
+/*
+ * CMU ISP
+ */
+
+/* Dividers */
+
+#define CLK_DIV_ISP1			1
+#define CLK_DIV_ISP0			2
+#define CLK_DIV_MCUISP1			3
+#define CLK_DIV_MCUISP0			4
+#define CLK_DIV_MPWM			5
+
+/* Gates */
+
+#define CLK_UART_ISP			8
+#define CLK_WDT_ISP			9
+#define CLK_PWM_ISP			10
+#define CLK_I2C1_ISP			11
+#define CLK_I2C0_ISP			12
+#define CLK_MPWM_ISP			13
+#define CLK_MCUCTL_ISP			14
+#define CLK_PPMUISPX			15
+#define CLK_PPMUISPMX			16
+#define CLK_QE_LITE1			17
+#define CLK_QE_LITE0			18
+#define CLK_QE_FD			19
+#define CLK_QE_DRC			20
+#define CLK_QE_ISP			21
+#define CLK_CSIS1			22
+#define CLK_SMMU_LITE1			23
+#define CLK_SMMU_LITE0			24
+#define CLK_SMMU_FD			25
+#define CLK_SMMU_DRC			26
+#define CLK_SMMU_ISP			27
+#define CLK_GICISP			28
+#define CLK_CSIS0			29
+#define CLK_MCUISP			30
+#define CLK_LITE1			31
+#define CLK_LITE0			32
+#define CLK_FD				33
+#define CLK_DRC				34
+#define CLK_ISP				35
+#define CLK_QE_ISPCX			36
+#define CLK_QE_SCALERP			37
+#define CLK_QE_SCALERC			38
+#define CLK_SMMU_SCALERP		39
+#define CLK_SMMU_SCALERC		40
+#define CLK_SCALERP			41
+#define CLK_SCALERC			42
+#define CLK_SPI1_ISP			43
+#define CLK_SPI0_ISP			44
+#define CLK_SMMU_ISPCX			45
+#define CLK_ASYNCAXIM			46
+#define CLK_SCLK_MPWM_ISP		47
+
+/*
+ * Total number of clocks of CMU_ISP.
+ * NOTE: Must be equal to last clock ID increased by one.
+ */
+#define NR_CLKS_ISP			48
 
 #endif /* _DT_BINDINGS_CLOCK_SAMSUNG_EXYNOS3250_CLOCK_H */

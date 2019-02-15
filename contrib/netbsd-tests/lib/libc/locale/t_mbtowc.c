@@ -76,7 +76,14 @@ h_mbtowc(const char *locale, const char *illegal, const char *legal)
 	char *str;
 
 	ATF_REQUIRE_STREQ(setlocale(LC_ALL, "C"), "C");
+#ifdef __NetBSD__
 	ATF_REQUIRE(setlocale(LC_CTYPE, locale) != NULL);
+#else
+	if (setlocale(LC_CTYPE, locale) == NULL) {
+		fprintf(stderr, "Locale %s not found.\n", locale);
+		return;
+	}
+#endif
 
 	ATF_REQUIRE((str = setlocale(LC_ALL, NULL)) != NULL);
 	(void)printf("Using locale: %s\n", str);

@@ -1,6 +1,8 @@
 /*	$KAME: getnameinfo.c,v 1.61 2002/06/27 09:25:47 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * Copyright (c) 2000 Ben Harris.
  * All rights reserved.
@@ -49,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
@@ -62,92 +65,133 @@ __FBSDID("$FreeBSD$");
 #include <stddef.h>
 #include <errno.h>
 
-static int	getnameinfo_inet(const struct sockaddr *, socklen_t, char *,
+static const struct afd *find_afd(int);
+static int getnameinfo_inet(const struct afd *,
+    const struct sockaddr *, socklen_t, char *,
     size_t, char *, size_t, int);
 #ifdef INET6
 static int ip6_parsenumeric(const struct sockaddr *, const char *, char *,
     size_t, int);
 static int ip6_sa2str(const struct sockaddr_in6 *, char *, size_t, int);
 #endif
-static int	getnameinfo_link(const struct sockaddr *, socklen_t, char *,
+static int getnameinfo_link(const struct afd *,
+    const struct sockaddr *, socklen_t, char *,
     size_t, char *, size_t, int);
-static int	hexname(const u_int8_t *, size_t, char *, size_t);
-
-int
-getnameinfo(const struct sockaddr *sa, socklen_t salen,
-    char *host, size_t hostlen, char *serv, size_t servlen,
-    int flags)
-{
-
-	switch (sa->sa_family) {
-	case AF_INET:
-#ifdef INET6
-	case AF_INET6:
-#endif
-		return getnameinfo_inet(sa, salen, host, hostlen, serv,
-		    servlen, flags);
-	case AF_LINK:
-		return getnameinfo_link(sa, salen, host, hostlen, serv,
-		    servlen, flags);
-	default:
-		return EAI_FAMILY;
-	}
-}
+static int hexname(const u_int8_t *, size_t, char *, size_t);
+static int getnameinfo_un(const struct afd *,
+    const struct sockaddr *, socklen_t, char *,
+    size_t, char *, size_t, int);
 
 static const struct afd {
 	int a_af;
 	size_t a_addrlen;
 	socklen_t a_socklen;
 	int a_off;
+	int (*a_func)(const struct afd *,
+	    const struct sockaddr *, socklen_t, char *,
+	    size_t, char *, size_t, int);
 } afdl [] = {
 #ifdef INET6
 	{PF_INET6, sizeof(struct in6_addr), sizeof(struct sockaddr_in6),
-		offsetof(struct sockaddr_in6, sin6_addr)},
+	    offsetof(struct sockaddr_in6, sin6_addr),
+	    getnameinfo_inet},
 #endif
 	{PF_INET, sizeof(struct in_addr), sizeof(struct sockaddr_in),
-		offsetof(struct sockaddr_in, sin_addr)},
+	    offsetof(struct sockaddr_in, sin_addr),
+	    getnameinfo_inet},
+#define	sizeofmember(type, member)	(sizeof(((type *)0)->member))
+	{PF_LOCAL, sizeofmember(struct sockaddr_un, sun_path),
+	    sizeof(struct sockaddr_un),
+	    offsetof(struct sockaddr_un, sun_path),
+	    getnameinfo_un},
+	{PF_LINK, sizeofmember(struct sockaddr_dl, sdl_data),
+	    sizeof(struct sockaddr_dl),
+	    offsetof(struct sockaddr_dl, sdl_data),
+	    getnameinfo_link},
 	{0, 0, 0},
 };
 
-struct sockinet {
-	u_char	si_len;
-	u_char	si_family;
-	u_short	si_port;
-};
-
-static int
-getnameinfo_inet(const struct sockaddr *sa, socklen_t salen,
+int
+getnameinfo(const struct sockaddr *sa, socklen_t salen,
     char *host, size_t hostlen, char *serv, size_t servlen,
     int flags)
 {
 	const struct afd *afd;
+
+	if (sa == NULL)
+		return (EAI_FAIL);
+
+	afd = find_afd(sa->sa_family);
+	if (afd == NULL)
+		return (EAI_FAMILY);
+	/*
+	 * getnameinfo() accepts an salen of sizeof(struct sockaddr_storage)
+	 * at maximum as shown in RFC 4038 Sec.6.2.3.
+	 */
+	if (salen > sizeof(struct sockaddr_storage))
+		return (EAI_FAMILY);
+
+	switch (sa->sa_family) {
+	case PF_LOCAL:
+		/*
+		 * PF_LOCAL uses variable salen depending on the
+		 * content length of sun_path.  Require 1 byte in
+		 * sun_path at least.
+		 */
+		if (salen <= afd->a_socklen -
+			sizeofmember(struct sockaddr_un, sun_path))
+			return (EAI_FAMILY);
+		else if (salen > afd->a_socklen)
+			salen = afd->a_socklen;
+		break;
+	case PF_LINK:
+		if (salen <= afd->a_socklen -
+			sizeofmember(struct sockaddr_dl, sdl_data))
+			return (EAI_FAMILY);
+		break;
+	default:
+		if (salen < afd->a_socklen)
+			return (EAI_FAMILY);
+		else
+			salen = afd->a_socklen;
+		break;
+	}
+
+	return ((*afd->a_func)(afd, sa, salen, host, hostlen,
+	    serv, servlen, flags));
+}
+
+static const struct afd *
+find_afd(int af)
+{
+	const struct afd *afd;
+
+	if (af == PF_UNSPEC)
+		return (NULL);
+	for (afd = &afdl[0]; afd->a_af > 0; afd++) {
+		if (afd->a_af == af)
+			return (afd);
+	}
+	return (NULL);
+}
+
+static int
+getnameinfo_inet(const struct afd *afd,
+    const struct sockaddr *sa, socklen_t salen,
+    char *host, size_t hostlen, char *serv, size_t servlen,
+    int flags)
+{
 	struct servent *sp;
 	struct hostent *hp;
 	u_short port;
-	int family, i;
 	const char *addr;
 	u_int32_t v4a;
 	int h_error;
 	char numserv[512];
 	char numaddr[512];
 
-	if (sa == NULL)
-		return EAI_FAIL;
-
-	family = sa->sa_family;
-	for (i = 0; afdl[i].a_af; i++)
-		if (afdl[i].a_af == family) {
-			afd = &afdl[i];
-			goto found;
-		}
-	return EAI_FAMILY;
-
- found:
-	if (salen != afd->a_socklen)
-		return EAI_FAIL;
-
 	/* network byte order */
-	port = ((const struct sockinet *)sa)->si_port;
+	port = ((const struct sockaddr_in *)sa)->sin_port;
 	addr = (const char *)sa + afd->a_off;
 
 	if (serv == NULL || servlen == 0) {
@@ -346,7 +390,6 @@ ip6_sa2str(const struct sockaddr_in6 *sa6, char *buf, size_t bufsiz, int flags)
 	ifindex = (unsigned int)sa6->sin6_scope_id;
 	a6 = &sa6->sin6_addr;
 
-#ifdef NI_NUMERICSCOPE
 	if ((flags & NI_NUMERICSCOPE) != 0) {
 		n = snprintf(buf, bufsiz, "%u", sa6->sin6_scope_id);
 		if (n < 0 || n >= bufsiz)
@@ -354,7 +397,6 @@ ip6_sa2str(const struct sockaddr_in6 *sa6, char *buf, size_t bufsiz, int flags)
 		else
 			return n;
 	}
-#endif
 
 	/* if_indextoname() does not take buffer size.  not a good api... */
 	if ((IN6_IS_ADDR_LINKLOCAL(a6) || IN6_IS_ADDR_MC_LINKLOCAL(a6) ||
@@ -381,7 +423,8 @@ ip6_sa2str(const struct sockaddr_in6 *sa6, char *buf, size_t bufsiz, int flags)
  */
 /* ARGSUSED */
 static int
-getnameinfo_link(const struct sockaddr *sa, socklen_t salen,
+getnameinfo_link(const struct afd *afd,
+    const struct sockaddr *sa, socklen_t salen,
     char *host, size_t hostlen, char *serv, size_t servlen, int flags)
 {
 	const struct sockaddr_dl *sdl =
@@ -394,11 +437,22 @@ getnameinfo_link(const struct sockaddr *sa, socklen_t salen,
 
 	if (sdl->sdl_nlen == 0 && sdl->sdl_alen == 0 && sdl->sdl_slen == 0) {
 		n = snprintf(host, hostlen, "link#%d", sdl->sdl_index);
-		if (n > hostlen) {
+		if (n >= hostlen) {
 			*host = '\0';
-			return EAI_MEMORY;
+			return (EAI_MEMORY);
 		}
-		return 0;
+		return (0);
+	}
+
+	if (sdl->sdl_nlen > 0 && sdl->sdl_alen == 0) {
+		n = sdl->sdl_nlen;
+		if (n >= hostlen) {
+			*host = '\0';
+			return (EAI_MEMORY);
+		}
+		memcpy(host, sdl->sdl_data, sdl->sdl_nlen);
+		host[n] = '\0';
+		return (0);
 	}
 
 	switch (sdl->sdl_type) {
@@ -413,8 +467,6 @@ getnameinfo_link(const struct sockaddr *sa, socklen_t salen,
 		    host, hostlen);
 	/*
 	 * The following have zero-length addresses.
-	 * IFT_ATM	(net/if_atmsubr.c)
-	 * IFT_FAITH	(net/if_faith.c)
 	 * IFT_GIF	(net/if_gif.c)
 	 * IFT_LOOP	(net/if_loop.c)
 	 * IFT_PPP	(net/if_ppp.c, net/if_spppsubr.c)
@@ -429,7 +481,6 @@ getnameinfo_link(const struct sockaddr *sa, socklen_t salen,
 	 * IFT_OTHER	(netinet/ip_ipip.c)
 	 */
 	/* default below is believed correct for all these. */
-	case IFT_ARCNET:
 	case IFT_ETHER:
 	case IFT_FDDI:
 	case IFT_HIPPI:
@@ -441,10 +492,7 @@ getnameinfo_link(const struct sockaddr *sa, socklen_t salen,
 }
 
 static int
-hexname(cp, len, host, hostlen)
-	const u_int8_t *cp;
-	char *host;
-	size_t len, hostlen;
+hexname(const u_int8_t *cp, size_t len, char *host, size_t hostlen)
 {
 	int i, n;
 	char *outp = host;
@@ -461,4 +509,31 @@ hexname(cp, len, host, hostlen)
 		hostlen -= n;
 	}
 	return 0;
+}
+
+/*
+ * getnameinfo_un():
+ * Format a UNIX IPC domain address (pathname).
+ */
+/* ARGSUSED */
+static int
+getnameinfo_un(const struct afd *afd,
+    const struct sockaddr *sa, socklen_t salen,
+    char *host, size_t hostlen, char *serv, size_t servlen, int flags)
+{
+	size_t pathlen;
+
+	if (serv != NULL && servlen > 0)
+		*serv = '\0';
+	if (host != NULL && hostlen > 0) {
+		pathlen = salen - afd->a_off;
+
+		if (pathlen + 1 > hostlen) {
+			*host = '\0';
+			return (EAI_MEMORY);
+		}
+		strlcpy(host, (const char *)sa + afd->a_off, pathlen + 1);
+	}
+
+	return (0);
 }

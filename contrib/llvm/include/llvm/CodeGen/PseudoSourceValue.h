@@ -14,95 +14,185 @@
 #ifndef LLVM_CODEGEN_PSEUDOSOURCEVALUE_H
 #define LLVM_CODEGEN_PSEUDOSOURCEVALUE_H
 
+#include "llvm/ADT/StringMap.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Value.h"
+#include "llvm/IR/ValueMap.h"
+#include <map>
 
 namespace llvm {
-  class MachineFrameInfo;
-  class raw_ostream;
 
-  /// PseudoSourceValue - Special value supplied for machine level alias
-  /// analysis. It indicates that a memory access references the functions
-  /// stack frame (e.g., a spill slot), below the stack frame (e.g., argument
-  /// space), or constant pool.
-  class PseudoSourceValue : public Value {
-  private:
-    /// printCustom - Implement printing for PseudoSourceValue. This is called
-    /// from Value::print or Value's operator<<.
-    ///
-    virtual void printCustom(raw_ostream &O) const;
+class MachineFrameInfo;
+class MachineMemOperand;
+class raw_ostream;
+class TargetInstrInfo;
 
-  public:
-    explicit PseudoSourceValue(enum ValueTy Subclass = PseudoSourceValueVal);
+raw_ostream &operator<<(raw_ostream &OS, const MachineMemOperand &MMO);
+class PseudoSourceValue;
+raw_ostream &operator<<(raw_ostream &OS, const PseudoSourceValue* PSV);
 
-    /// isConstant - Test whether the memory pointed to by this
-    /// PseudoSourceValue has a constant value.
-    ///
-    virtual bool isConstant(const MachineFrameInfo *) const;
-
-    /// isAliased - Test whether the memory pointed to by this
-    /// PseudoSourceValue may also be pointed to by an LLVM IR Value.
-    virtual bool isAliased(const MachineFrameInfo *) const;
-
-    /// mayAlias - Return true if the memory pointed to by this
-    /// PseudoSourceValue can ever alias an LLVM IR Value.
-    virtual bool mayAlias(const MachineFrameInfo *) const;
-
-    /// classof - Methods for support type inquiry through isa, cast, and
-    /// dyn_cast:
-    ///
-    static inline bool classof(const Value *V) {
-      return V->getValueID() == PseudoSourceValueVal ||
-             V->getValueID() == FixedStackPseudoSourceValueVal;
-    }
-
-    /// A pseudo source value referencing a fixed stack frame entry,
-    /// e.g., a spill slot.
-    static const PseudoSourceValue *getFixedStack(int FI);
-
-    /// A pseudo source value referencing the area below the stack frame of
-    /// a function, e.g., the argument space.
-    static const PseudoSourceValue *getStack();
-
-    /// A pseudo source value referencing the global offset table
-    /// (or something the like).
-    static const PseudoSourceValue *getGOT();
-
-    /// A pseudo source value referencing the constant pool. Since constant
-    /// pools are constant, this doesn't need to identify a specific constant
-    /// pool entry.
-    static const PseudoSourceValue *getConstantPool();
-
-    /// A pseudo source value referencing a jump table. Since jump tables are
-    /// constant, this doesn't need to identify a specific jump table.
-    static const PseudoSourceValue *getJumpTable();
+/// Special value supplied for machine level alias analysis. It indicates that
+/// a memory access references the functions stack frame (e.g., a spill slot),
+/// below the stack frame (e.g., argument space), or constant pool.
+class PseudoSourceValue {
+public:
+  enum PSVKind {
+    Stack,
+    GOT,
+    JumpTable,
+    ConstantPool,
+    FixedStack,
+    GlobalValueCallEntry,
+    ExternalSymbolCallEntry,
+    TargetCustom
   };
 
-  /// FixedStackPseudoSourceValue - A specialized PseudoSourceValue
-  /// for holding FixedStack values, which must include a frame
-  /// index.
-  class FixedStackPseudoSourceValue : public PseudoSourceValue {
-    const int FI;
-  public:
-    explicit FixedStackPseudoSourceValue(int fi) :
-        PseudoSourceValue(FixedStackPseudoSourceValueVal), FI(fi) {}
+private:
+  PSVKind Kind;
+  unsigned AddressSpace;
+  friend raw_ostream &llvm::operator<<(raw_ostream &OS,
+                                       const PseudoSourceValue* PSV);
 
-    /// classof - Methods for support type inquiry through isa, cast, and
-    /// dyn_cast:
-    ///
-    static inline bool classof(const Value *V) {
-      return V->getValueID() == FixedStackPseudoSourceValueVal;
-    }
+  friend class MachineMemOperand; // For printCustom().
 
-    virtual bool isConstant(const MachineFrameInfo *MFI) const;
+  /// Implement printing for PseudoSourceValue. This is called from
+  /// Value::print or Value's operator<<.
+  virtual void printCustom(raw_ostream &O) const;
 
-    virtual bool isAliased(const MachineFrameInfo *MFI) const;
+public:
+  explicit PseudoSourceValue(PSVKind Kind, const TargetInstrInfo &TII);
 
-    virtual bool mayAlias(const MachineFrameInfo *) const;
+  virtual ~PseudoSourceValue();
 
-    virtual void printCustom(raw_ostream &OS) const;
+  PSVKind kind() const { return Kind; }
 
-    int getFrameIndex() const { return FI; }
-  };
-} // End llvm namespace
+  bool isStack() const { return Kind == Stack; }
+  bool isGOT() const { return Kind == GOT; }
+  bool isConstantPool() const { return Kind == ConstantPool; }
+  bool isJumpTable() const { return Kind == JumpTable; }
+
+  unsigned getAddressSpace() const { return AddressSpace; }
+
+  unsigned getTargetCustom() const {
+    return (Kind >= TargetCustom) ? ((Kind+1) - TargetCustom) : 0;
+  }
+
+  /// Test whether the memory pointed to by this PseudoSourceValue has a
+  /// constant value.
+  virtual bool isConstant(const MachineFrameInfo *) const;
+
+  /// Test whether the memory pointed to by this PseudoSourceValue may also be
+  /// pointed to by an LLVM IR Value.
+  virtual bool isAliased(const MachineFrameInfo *) const;
+
+  /// Return true if the memory pointed to by this PseudoSourceValue can ever
+  /// alias an LLVM IR Value.
+  virtual bool mayAlias(const MachineFrameInfo *) const;
+};
+
+/// A specialized PseudoSourceValue for holding FixedStack values, which must
+/// include a frame index.
+class FixedStackPseudoSourceValue : public PseudoSourceValue {
+  const int FI;
+
+public:
+  explicit FixedStackPseudoSourceValue(int FI, const TargetInstrInfo &TII)
+      : PseudoSourceValue(FixedStack, TII), FI(FI) {}
+
+  static bool classof(const PseudoSourceValue *V) {
+    return V->kind() == FixedStack;
+  }
+
+  bool isConstant(const MachineFrameInfo *MFI) const override;
+
+  bool isAliased(const MachineFrameInfo *MFI) const override;
+
+  bool mayAlias(const MachineFrameInfo *) const override;
+
+  void printCustom(raw_ostream &OS) const override;
+
+  int getFrameIndex() const { return FI; }
+};
+
+class CallEntryPseudoSourceValue : public PseudoSourceValue {
+protected:
+  CallEntryPseudoSourceValue(PSVKind Kind, const TargetInstrInfo &TII);
+
+public:
+  bool isConstant(const MachineFrameInfo *) const override;
+  bool isAliased(const MachineFrameInfo *) const override;
+  bool mayAlias(const MachineFrameInfo *) const override;
+};
+
+/// A specialized pseudo soruce value for holding GlobalValue values.
+class GlobalValuePseudoSourceValue : public CallEntryPseudoSourceValue {
+  const GlobalValue *GV;
+
+public:
+  GlobalValuePseudoSourceValue(const GlobalValue *GV,
+                               const TargetInstrInfo &TII);
+
+  static bool classof(const PseudoSourceValue *V) {
+    return V->kind() == GlobalValueCallEntry;
+  }
+
+  const GlobalValue *getValue() const { return GV; }
+};
+
+/// A specialized pseudo source value for holding external symbol values.
+class ExternalSymbolPseudoSourceValue : public CallEntryPseudoSourceValue {
+  const char *ES;
+
+public:
+  ExternalSymbolPseudoSourceValue(const char *ES, const TargetInstrInfo &TII);
+
+  static bool classof(const PseudoSourceValue *V) {
+    return V->kind() == ExternalSymbolCallEntry;
+  }
+
+  const char *getSymbol() const { return ES; }
+};
+
+/// Manages creation of pseudo source values.
+class PseudoSourceValueManager {
+  const TargetInstrInfo &TII;
+  const PseudoSourceValue StackPSV, GOTPSV, JumpTablePSV, ConstantPoolPSV;
+  std::map<int, std::unique_ptr<FixedStackPseudoSourceValue>> FSValues;
+  StringMap<std::unique_ptr<const ExternalSymbolPseudoSourceValue>>
+      ExternalCallEntries;
+  ValueMap<const GlobalValue *,
+           std::unique_ptr<const GlobalValuePseudoSourceValue>>
+      GlobalCallEntries;
+
+public:
+  PseudoSourceValueManager(const TargetInstrInfo &TII);
+
+  /// Return a pseudo source value referencing the area below the stack frame of
+  /// a function, e.g., the argument space.
+  const PseudoSourceValue *getStack();
+
+  /// Return a pseudo source value referencing the global offset table
+  /// (or something the like).
+  const PseudoSourceValue *getGOT();
+
+  /// Return a pseudo source value referencing the constant pool. Since constant
+  /// pools are constant, this doesn't need to identify a specific constant
+  /// pool entry.
+  const PseudoSourceValue *getConstantPool();
+
+  /// Return a pseudo source value referencing a jump table. Since jump tables
+  /// are constant, this doesn't need to identify a specific jump table.
+  const PseudoSourceValue *getJumpTable();
+
+  /// Return a pseudo source value referencing a fixed stack frame entry,
+  /// e.g., a spill slot.
+  const PseudoSourceValue *getFixedStack(int FI);
+
+  const PseudoSourceValue *getGlobalValueCallEntry(const GlobalValue *GV);
+
+  const PseudoSourceValue *getExternalSymbolCallEntry(const char *ES);
+};
+
+} // end namespace llvm
 
 #endif

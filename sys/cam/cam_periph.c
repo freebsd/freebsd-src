@@ -1,6 +1,8 @@
 /*-
  * Common functions for CAM "type" (peripheral) drivers.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, 1998 Justin T. Gibbs.
  * Copyright (c) 1997, 1998, 1999, 2000 Kenneth D. Merry.
  * All rights reserved.
@@ -36,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/bio.h>
+#include <sys/conf.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/buf.h>
@@ -86,6 +89,7 @@ static	int		camperiphscsisenseerror(union ccb *ccb,
 					        u_int32_t *timeout,
 					        u_int32_t *action,
 					        const char **action_string);
+static void		cam_periph_devctl_notify(union ccb *ccb);
 
 static int nperiph_drivers;
 static int initialized = 0;
@@ -108,9 +112,19 @@ periphdriver_register(void *data)
 	struct periph_driver **newdrivers, **old;
 	int ndrivers;
 
+again:
 	ndrivers = nperiph_drivers + 2;
 	newdrivers = malloc(sizeof(*newdrivers) * ndrivers, M_CAMPERIPH,
 			    M_WAITOK);
+	xpt_lock_buses();
+	if (ndrivers != nperiph_drivers + 2) {
+		/*
+		 * Lost race against itself; go around.
+		 */
+		xpt_unlock_buses();
+		free(newdrivers, M_CAMPERIPH);
+		goto again;
+	}
 	if (periph_drivers)
 		bcopy(periph_drivers, newdrivers,
 		      sizeof(*newdrivers) * nperiph_drivers);
@@ -118,13 +132,46 @@ periphdriver_register(void *data)
 	newdrivers[nperiph_drivers + 1] = NULL;
 	old = periph_drivers;
 	periph_drivers = newdrivers;
+	nperiph_drivers++;
+	xpt_unlock_buses();
 	if (old)
 		free(old, M_CAMPERIPH);
-	nperiph_drivers++;
 	/* If driver marked as early or it is late now, initialize it. */
 	if (((drv->flags & CAM_PERIPH_DRV_EARLY) != 0 && initialized > 0) ||
 	    initialized > 1)
 		(*drv->init)();
+}
+
+int
+periphdriver_unregister(void *data)
+{
+	struct periph_driver *drv = (struct periph_driver *)data;
+	int error, n;
+
+	/* If driver marked as early or it is late now, deinitialize it. */
+	if (((drv->flags & CAM_PERIPH_DRV_EARLY) != 0 && initialized > 0) ||
+	    initialized > 1) {
+		if (drv->deinit == NULL) {
+			printf("CAM periph driver '%s' doesn't have deinit.\n",
+			    drv->driver_name);
+			return (EOPNOTSUPP);
+		}
+		error = drv->deinit();
+		if (error != 0)
+			return (error);
+	}
+
+	xpt_lock_buses();
+	for (n = 0; n < nperiph_drivers && periph_drivers[n] != drv; n++)
+		;
+	KASSERT(n < nperiph_drivers,
+	    ("Periph driver '%s' was not registered", drv->driver_name));
+	for (; n + 1 < nperiph_drivers; n++)
+		periph_drivers[n] = periph_drivers[n + 1];
+	periph_drivers[n + 1] = NULL;
+	nperiph_drivers--;
+	xpt_unlock_buses();
+	return (0);
 }
 
 void
@@ -356,19 +403,19 @@ retry:
 	return (count);
 }
 
-cam_status
+int
 cam_periph_acquire(struct cam_periph *periph)
 {
-	cam_status status;
+	int status;
 
-	status = CAM_REQ_CMP_ERR;
 	if (periph == NULL)
-		return (status);
+		return (EINVAL);
 
+	status = ENOENT;
 	xpt_lock_buses();
 	if ((periph->flags & CAM_PERIPH_INVALID) == 0) {
 		periph->refcount++;
-		status = CAM_REQ_CMP;
+		status = 0;
 	}
 	xpt_unlock_buses();
 
@@ -423,6 +470,12 @@ cam_periph_release(struct cam_periph *periph)
 	mtx_unlock(mtx);
 }
 
+/*
+ * hold/unhold act as mutual exclusion for sections of the code that
+ * need to sleep and want to make sure that other sections that
+ * will interfere are held off. This only protects exclusive sections
+ * from each other.
+ */
 int
 cam_periph_hold(struct cam_periph *periph, int priority)
 {
@@ -435,7 +488,7 @@ cam_periph_hold(struct cam_periph *periph, int priority)
 	 * from user us while we sleep.
 	 */
 
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+	if (cam_periph_acquire(periph) != 0)
 		return (ENXIO);
 
 	cam_periph_assert(periph, MA_OWNED);
@@ -597,8 +650,15 @@ cam_periph_invalidate(struct cam_periph *periph)
 		return;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph invalidated\n"));
-	if ((periph->flags & CAM_PERIPH_ANNOUNCED) && !rebooting)
-		xpt_denounce_periph(periph);
+	if ((periph->flags & CAM_PERIPH_ANNOUNCED) && !rebooting) {
+		struct sbuf sb;
+		char buffer[160];
+
+		sbuf_new(&sb, buffer, 160, SBUF_FIXEDLEN);
+		xpt_denounce_periph_sbuf(periph, &sb);
+		sbuf_finish(&sb);
+		sbuf_putbuf(&sb);
+	}
 	periph->flags |= CAM_PERIPH_INVALID;
 	periph->flags &= ~CAM_PERIPH_NEW_DEV_FOUND;
 	if (periph->periph_oninval != NULL)
@@ -610,6 +670,7 @@ static void
 camperiphfree(struct cam_periph *periph)
 {
 	struct periph_driver **p_drv;
+	struct periph_driver *drv;
 
 	cam_periph_assert(periph, MA_OWNED);
 	KASSERT(periph->periph_allocating == 0, ("%s%d: freed while allocating",
@@ -622,6 +683,15 @@ camperiphfree(struct cam_periph *periph)
 		printf("camperiphfree: attempt to free non-existant periph\n");
 		return;
 	}
+	/*
+	 * Cache a pointer to the periph_driver structure.  If a
+	 * periph_driver is added or removed from the array (see
+	 * periphdriver_register()) while we drop the toplogy lock
+	 * below, p_drv may change.  This doesn't protect against this
+	 * particular periph_driver going away.  That will require full
+	 * reference counting in the periph_driver infrastructure.
+	 */
+	drv = *p_drv;
 
 	/*
 	 * We need to set this flag before dropping the topology lock, to
@@ -657,8 +727,8 @@ camperiphfree(struct cam_periph *periph)
 	 */
 	xpt_lock_buses();
 
-	TAILQ_REMOVE(&(*p_drv)->units, periph, unit_links);
-	(*p_drv)->generation++;
+	TAILQ_REMOVE(&drv->units, periph, unit_links);
+	drv->generation++;
 
 	xpt_remove_periph(periph);
 
@@ -680,9 +750,7 @@ camperiphfree(struct cam_periph *periph)
 			arg = &ccb;
 			break;
 		case AC_PATH_REGISTERED:
-			ccb.ccb_h.func_code = XPT_PATH_INQ;
-			xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-			xpt_action(&ccb);
+			xpt_path_inq(&ccb.cpi, periph->path);
 			arg = &ccb;
 			break;
 		default:
@@ -705,16 +773,19 @@ camperiphfree(struct cam_periph *periph)
  * buffers to map stuff in and out, we're limited to the buffer size.
  */
 int
-cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
+cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
+    u_int maxmap)
 {
 	int numbufs, i, j;
 	int flags[CAM_PERIPH_MAXMAPS];
 	u_int8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
 	u_int32_t lengths[CAM_PERIPH_MAXMAPS];
 	u_int32_t dirs[CAM_PERIPH_MAXMAPS];
-	/* Some controllers may not be able to handle more data. */
-	size_t maxmap = DFLTPHYS;
 
+	if (maxmap == 0)
+		maxmap = DFLTPHYS;	/* traditional default */
+	else if (maxmap > MAXPHYS)
+		maxmap = MAXPHYS;	/* for safety */
 	switch(ccb->ccb_h.func_code) {
 	case XPT_DEV_MATCH:
 		if (ccb->cdm.match_buf_len == 0) {
@@ -763,6 +834,18 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
 		numbufs = 1;
 		break;
+	case XPT_MMC_IO:
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
+			return(0);
+		/* Two mappings: one for cmd->data and one for cmd->data->data */
+		data_ptrs[0] = (unsigned char **)&ccb->mmcio.cmd.data;
+		lengths[0] = sizeof(struct mmc_data *);
+		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
+		data_ptrs[1] = (unsigned char **)&ccb->mmcio.cmd.data->data;
+		lengths[1] = ccb->mmcio.cmd.data->len;
+		dirs[1] = ccb->ccb_h.flags & CAM_DIR_MASK;
+		numbufs = 2;
+		break;
 	case XPT_SMP_IO:
 		data_ptrs[0] = &ccb->smpio.smp_request;
 		lengths[0] = ccb->smpio.smp_request_len;
@@ -771,6 +854,17 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		lengths[1] = ccb->smpio.smp_response_len;
 		dirs[1] = CAM_DIR_IN;
 		numbufs = 2;
+		break;
+	case XPT_NVME_IO:
+	case XPT_NVME_ADMIN:
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
+			return (0);
+		if ((ccb->ccb_h.flags & CAM_DATA_MASK) != CAM_DATA_VADDR)
+			return (EINVAL);
+		data_ptrs[0] = &ccb->nvmeio.data_ptr;
+		lengths[0] = ccb->nvmeio.dxfer_len;
+		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
+		numbufs = 1;
 		break;
 	case XPT_DEV_ADVINFO:
 		if (ccb->cdai.bufsiz == 0)
@@ -829,7 +923,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	}
 
 	/*
-	 * This keeps the the kernel stack of current thread from getting
+	 * This keeps the kernel stack of current thread from getting
 	 * swapped.  In low-memory situations where the kernel stack might
 	 * otherwise get swapped out, this holds it and allows the thread
 	 * to make progress and release the kernel mapped pages sooner.
@@ -844,11 +938,11 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		 */
 		mapinfo->bp[i] = getpbuf(NULL);
 
-		/* save the buffer's data address */
-		mapinfo->bp[i]->b_saveaddr = mapinfo->bp[i]->b_data;
-
 		/* put our pointer in the data slot */
 		mapinfo->bp[i]->b_data = *data_ptrs[i];
+
+		/* save the user's data address */
+		mapinfo->bp[i]->b_caller1 = *data_ptrs[i];
 
 		/* set the transfer length, we know it's < MAXPHYS */
 		mapinfo->bp[i]->b_bufsize = lengths[i];
@@ -866,7 +960,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		 */
 		if (vmapbuf(mapinfo->bp[i], 1) < 0) {
 			for (j = 0; j < i; ++j) {
-				*data_ptrs[j] = mapinfo->bp[j]->b_saveaddr;
+				*data_ptrs[j] = mapinfo->bp[j]->b_caller1;
 				vunmapbuf(mapinfo->bp[j]);
 				relpbuf(mapinfo->bp[j], NULL);
 			}
@@ -938,6 +1032,11 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		numbufs = min(mapinfo->num_bufs_used, 1);
 		data_ptrs[0] = (uint8_t **)&ccb->cdai.buf;
 		break;
+	case XPT_NVME_IO:
+	case XPT_NVME_ADMIN:
+		data_ptrs[0] = &ccb->nvmeio.data_ptr;
+		numbufs = min(mapinfo->num_bufs_used, 1);
+		break;
 	default:
 		/* allow ourselves to be swapped once again */
 		PRELE(curproc);
@@ -947,7 +1046,7 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 
 	for (i = 0; i < numbufs; i++) {
 		/* Set the user's pointer back to the original value */
-		*data_ptrs[i] = mapinfo->bp[i]->b_saveaddr;
+		*data_ptrs[i] = mapinfo->bp[i]->b_caller1;
 
 		/* unmap the buffer */
 		vunmapbuf(mapinfo->bp[i]);
@@ -958,16 +1057,6 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 
 	/* allow ourselves to be swapped once again */
 	PRELE(curproc);
-}
-
-void
-cam_periph_ccbwait(union ccb *ccb)
-{
-
-	if ((ccb->ccb_h.pinfo.index != CAM_UNQUEUED_INDEX)
-	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG))
-		xpt_path_sleep(ccb->ccb_h.path, &ccb->ccb_h.cbfcnp, PRIBIO,
-		    "cbwait", 0);
 }
 
 int
@@ -1033,13 +1122,42 @@ cam_periph_ioctl(struct cam_periph *periph, u_long cmd, caddr_t addr,
 }
 
 static void
+cam_periph_done_panic(struct cam_periph *periph, union ccb *done_ccb)
+{
+
+	panic("%s: already done with ccb %p", __func__, done_ccb);
+}
+
+static void
 cam_periph_done(struct cam_periph *periph, union ccb *done_ccb)
 {
 
 	/* Caller will release the CCB */
+	xpt_path_assert(done_ccb->ccb_h.path, MA_OWNED);
+	done_ccb->ccb_h.cbfcnp = cam_periph_done_panic;
 	wakeup(&done_ccb->ccb_h.cbfcnp);
 }
 
+static void
+cam_periph_ccbwait(union ccb *ccb)
+{
+
+	if ((ccb->ccb_h.func_code & XPT_FC_QUEUED) != 0) {
+		while (ccb->ccb_h.cbfcnp != cam_periph_done_panic)
+			xpt_path_sleep(ccb->ccb_h.path, &ccb->ccb_h.cbfcnp,
+			    PRIBIO, "cbwait", 0);
+	}
+	KASSERT(ccb->ccb_h.pinfo.index == CAM_UNQUEUED_INDEX &&
+	    (ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_INPROG,
+	    ("%s: proceeding with incomplete ccb: ccb=%p, func_code=%#x, "
+	     "status=%#x, index=%d", __func__, ccb, ccb->ccb_h.func_code,
+	     ccb->ccb_h.status, ccb->ccb_h.pinfo.index));
+}
+
+/*
+ * Dispatch a CCB and wait for it to complete.  If the CCB has set a
+ * callback function (ccb->ccb_h.cbfcnp), it will be overwritten and lost.
+ */
 int
 cam_periph_runccb(union ccb *ccb,
 		  int (*error_routine)(union ccb *ccb,
@@ -1048,32 +1166,81 @@ cam_periph_runccb(union ccb *ccb,
 		  cam_flags camflags, u_int32_t sense_flags,
 		  struct devstat *ds)
 {
+	struct bintime *starttime;
+	struct bintime ltime;
 	int error;
- 
+	bool must_poll;
+	uint32_t timeout = 1;
+
+	starttime = NULL;
 	xpt_path_assert(ccb->ccb_h.path, MA_OWNED);
+	KASSERT((ccb->ccb_h.flags & CAM_UNLOCKED) == 0,
+	    ("%s: ccb=%p, func_code=%#x, flags=%#x", __func__, ccb,
+	     ccb->ccb_h.func_code, ccb->ccb_h.flags));
 
 	/*
 	 * If the user has supplied a stats structure, and if we understand
 	 * this particular type of ccb, record the transaction start.
 	 */
-	if ((ds != NULL) && (ccb->ccb_h.func_code == XPT_SCSI_IO ||
-	    ccb->ccb_h.func_code == XPT_ATA_IO))
-		devstat_start_transaction(ds, NULL);
+	if (ds != NULL &&
+	    (ccb->ccb_h.func_code == XPT_SCSI_IO ||
+	    ccb->ccb_h.func_code == XPT_ATA_IO ||
+	    ccb->ccb_h.func_code == XPT_NVME_IO)) {
+		starttime = &ltime;
+		binuptime(starttime);
+		devstat_start_transaction(ds, starttime);
+	}
 
+	/*
+	 * We must poll the I/O while we're dumping. The scheduler is normally
+	 * stopped for dumping, except when we call doadump from ddb. While the
+	 * scheduler is running in this case, we still need to poll the I/O to
+	 * avoid sleeping waiting for the ccb to complete.
+	 *
+	 * A panic triggered dump stops the scheduler, any callback from the
+	 * shutdown_post_sync event will run with the scheduler stopped, but
+	 * before we're officially dumping. To avoid hanging in adashutdown
+	 * initiated commands (or other similar situations), we have to test for
+	 * either SCHEDULER_STOPPED() here as well.
+	 *
+	 * To avoid locking problems, dumping/polling callers must call
+	 * without a periph lock held.
+	 */
+	must_poll = dumping || SCHEDULER_STOPPED();
 	ccb->ccb_h.cbfcnp = cam_periph_done;
-	xpt_action(ccb);
- 
-	do {
-		cam_periph_ccbwait(ccb);
-		if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)
-			error = 0;
-		else if (error_routine != NULL)
-			error = (*error_routine)(ccb, camflags, sense_flags);
-		else
-			error = 0;
 
-	} while (error == ERESTART);
-          
+	/*
+	 * If we're polling, then we need to ensure that we have ample resources
+	 * in the periph.  cam_periph_error can reschedule the ccb by calling
+	 * xpt_action and returning ERESTART, so we have to effect the polling
+	 * in the do loop below.
+	 */
+	if (must_poll) {
+		timeout = xpt_poll_setup(ccb);
+	}
+
+	if (timeout == 0) {
+		ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+		error = EBUSY;
+	} else {
+		xpt_action(ccb);
+		do {
+			if (must_poll) {
+				xpt_pollwait(ccb, timeout);
+				timeout = ccb->ccb_h.timeout * 10;
+			} else {
+				cam_periph_ccbwait(ccb);
+			}
+			if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)
+				error = 0;
+			else if (error_routine != NULL) {
+				ccb->ccb_h.cbfcnp = cam_periph_done;
+				error = (*error_routine)(ccb, camflags, sense_flags);
+			} else
+				error = 0;
+		} while (error == ERESTART);
+	}
+
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 		cam_release_devq(ccb->ccb_h.path,
 				 /* relsim_flags */0,
@@ -1084,25 +1251,27 @@ cam_periph_runccb(union ccb *ccb,
 	}
 
 	if (ds != NULL) {
+		uint32_t bytes;
+		devstat_tag_type tag;
+		bool valid = true;
+
 		if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
-			devstat_end_transaction(ds,
-					ccb->csio.dxfer_len,
-					ccb->csio.tag_action & 0x3,
-					((ccb->ccb_h.flags & CAM_DIR_MASK) ==
-					CAM_DIR_NONE) ?  DEVSTAT_NO_DATA : 
-					(ccb->ccb_h.flags & CAM_DIR_OUT) ?
-					DEVSTAT_WRITE : 
-					DEVSTAT_READ, NULL, NULL);
+			bytes = ccb->csio.dxfer_len - ccb->csio.resid;
+			tag = (devstat_tag_type)(ccb->csio.tag_action & 0x3);
 		} else if (ccb->ccb_h.func_code == XPT_ATA_IO) {
-			devstat_end_transaction(ds,
-					ccb->ataio.dxfer_len,
-					ccb->ataio.tag_action & 0x3,
-					((ccb->ccb_h.flags & CAM_DIR_MASK) ==
-					CAM_DIR_NONE) ?  DEVSTAT_NO_DATA : 
-					(ccb->ccb_h.flags & CAM_DIR_OUT) ?
-					DEVSTAT_WRITE : 
-					DEVSTAT_READ, NULL, NULL);
+			bytes = ccb->ataio.dxfer_len - ccb->ataio.resid;
+			tag = (devstat_tag_type)0;
+		} else if (ccb->ccb_h.func_code == XPT_NVME_IO) {
+			bytes = ccb->nvmeio.dxfer_len; /* NB: resid no possible */
+			tag = (devstat_tag_type)0;
+		} else {
+			valid = false;
 		}
+		if (valid)
+			devstat_end_transaction(ds, bytes, tag,
+			    ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE) ?
+			    DEVSTAT_NO_DATA : (ccb->ccb_h.flags & CAM_DIR_OUT) ?
+			    DEVSTAT_WRITE : DEVSTAT_READ, NULL, starttime);
 	}
 
 	return(error);
@@ -1146,7 +1315,7 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 	union ccb      *saved_ccb;
 	cam_status	status;
 	struct scsi_start_stop_unit *scsi_cmd;
-	int    error_code, sense_key, asc, ascq;
+	int		error = 0, error_code, sense_key, asc, ascq;
 
 	scsi_cmd = (struct scsi_start_stop_unit *)
 	    &done_ccb->csio.cdb_io.cdb_bytes;
@@ -1178,8 +1347,9 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 				goto out;
 			}
 		}
-		if (cam_periph_error(done_ccb,
-		    0, SF_RETRY_UA | SF_NO_PRINT, NULL) == ERESTART)
+		error = cam_periph_error(done_ccb, 0,
+		    SF_RETRY_UA | SF_NO_PRINT);
+		if (error == ERESTART)
 			goto out;
 		if (done_ccb->ccb_h.status & CAM_DEV_QFRZN) {
 			cam_release_devq(done_ccb->ccb_h.path, 0, 0, 0, 0);
@@ -1198,14 +1368,21 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 	}
 
 	/*
-	 * Perform the final retry with the original CCB so that final
-	 * error processing is performed by the owner of the CCB.
+	 * After recovery action(s) completed, return to the original CCB.
+	 * If the recovery CCB has failed, considering its own possible
+	 * retries and recovery, assume we are back in state where we have
+	 * been originally, but without recovery hopes left.  In such case,
+	 * after the final attempt below, we cancel any further retries,
+	 * blocking by that also any new recovery attempts for this CCB,
+	 * and the result will be the final one returned to the CCB owher.
 	 */
 	saved_ccb = (union ccb *)done_ccb->ccb_h.saved_ccb_ptr;
 	bcopy(saved_ccb, done_ccb, sizeof(*done_ccb));
 	xpt_free_ccb(saved_ccb);
 	if (done_ccb->ccb_h.cbfcnp != camperiphdone)
 		periph->flags &= ~CAM_PERIPH_RECOVERY_INPROG;
+	if (error != 0)
+		done_ccb->ccb_h.retry_count = 0;
 	xpt_action(done_ccb);
 
 out:
@@ -1359,8 +1536,8 @@ camperiphscsistatuserror(union ccb *ccb, union ccb **orig_ccb,
 		 * Restart the queue after either another
 		 * command completes or a 1 second timeout.
 		 */
-	 	if (ccb->ccb_h.retry_count > 0) {
-	 		ccb->ccb_h.retry_count--;
+		if ((sense_flags & SF_RETRY_BUSY) != 0 ||
+		    (ccb->ccb_h.retry_count--) > 0) {
 			error = ERESTART;
 			*relsim_flags = RELSIM_RELEASE_AFTER_TIMEOUT
 				      | RELSIM_RELEASE_AFTER_CMDCMPLT;
@@ -1386,6 +1563,11 @@ camperiphscsisenseerror(union ccb *ccb, union ccb **orig,
 	struct cam_periph *periph;
 	union ccb *orig_ccb = ccb;
 	int error, recoveryccb;
+
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	if (ccb->ccb_h.func_code == XPT_SCSI_IO && ccb->csio.bio != NULL)
+		biotrack(ccb->csio.bio, __func__);
+#endif
 
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	recoveryccb = (ccb->ccb_h.cbfcnp == camperiphdone);
@@ -1583,19 +1765,19 @@ sense_error_done:
 
 /*
  * Generic error handler.  Peripheral drivers usually filter
- * out the errors that they handle in a unique mannor, then
+ * out the errors that they handle in a unique manner, then
  * call this function.
  */
 int
 cam_periph_error(union ccb *ccb, cam_flags camflags,
-		 u_int32_t sense_flags, union ccb *save_ccb)
+		 u_int32_t sense_flags)
 {
 	struct cam_path *newpath;
 	union ccb  *orig_ccb, *scan_ccb;
 	struct cam_periph *periph;
 	const char *action_string;
 	cam_status  status;
-	int	    frozen, error, openings;
+	int	    frozen, error, openings, devctl_err;
 	u_int32_t   action, relsim_flags, timeout;
 
 	action = SSQ_PRINT_SENSE;
@@ -1604,8 +1786,25 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	status = ccb->ccb_h.status;
 	frozen = (status & CAM_DEV_QFRZN) != 0;
 	status &= CAM_STATUS_MASK;
-	openings = relsim_flags = timeout = 0;
+	devctl_err = openings = relsim_flags = timeout = 0;
 	orig_ccb = ccb;
+
+	/* Filter the errors that should be reported via devctl */
+	switch (ccb->ccb_h.status & CAM_STATUS_MASK) {
+	case CAM_CMD_TIMEOUT:
+	case CAM_REQ_ABORTED:
+	case CAM_REQ_CMP_ERR:
+	case CAM_REQ_TERMIO:
+	case CAM_UNREC_HBA_ERROR:
+	case CAM_DATA_RUN_ERR:
+	case CAM_SCSI_STATUS_ERROR:
+	case CAM_ATA_STATUS_ERROR:
+	case CAM_SMP_STATUS_ERROR:
+		devctl_err++;
+		break;
+	default:
+		break;
+	}
 
 	switch (status) {
 	case CAM_REQ_CMP:
@@ -1730,9 +1929,15 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 			    error, action_string);
 		} else if (action_string != NULL)
 			xpt_print(ccb->ccb_h.path, "%s\n", action_string);
-		else
-			xpt_print(ccb->ccb_h.path, "Retrying command\n");
+		else {
+			xpt_print(ccb->ccb_h.path,
+			    "Retrying command, %d more tries remain\n",
+			    ccb->ccb_h.retry_count);
+		}
 	}
+
+	if (devctl_err && (error != 0 || (action & SSQ_PRINT_SENSE) != 0))
+		cam_periph_devctl_notify(orig_ccb);
 
 	if ((action & SSQ_LOST) != 0) {
 		lun_id_t lun_id;
@@ -1803,4 +2008,101 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	}
 
 	return (error);
+}
+
+#define CAM_PERIPH_DEVD_MSG_SIZE	256
+
+static void
+cam_periph_devctl_notify(union ccb *ccb)
+{
+	struct cam_periph *periph;
+	struct ccb_getdev *cgd;
+	struct sbuf sb;
+	int serr, sk, asc, ascq;
+	char *sbmsg, *type;
+
+	sbmsg = malloc(CAM_PERIPH_DEVD_MSG_SIZE, M_CAMPERIPH, M_NOWAIT);
+	if (sbmsg == NULL)
+		return;
+
+	sbuf_new(&sb, sbmsg, CAM_PERIPH_DEVD_MSG_SIZE, SBUF_FIXEDLEN);
+
+	periph = xpt_path_periph(ccb->ccb_h.path);
+	sbuf_printf(&sb, "device=%s%d ", periph->periph_name,
+	    periph->unit_number);
+
+	sbuf_printf(&sb, "serial=\"");
+	if ((cgd = (struct ccb_getdev *)xpt_alloc_ccb_nowait()) != NULL) {
+		xpt_setup_ccb(&cgd->ccb_h, ccb->ccb_h.path,
+		    CAM_PRIORITY_NORMAL);
+		cgd->ccb_h.func_code = XPT_GDEV_TYPE;
+		xpt_action((union ccb *)cgd);
+
+		if (cgd->ccb_h.status == CAM_REQ_CMP)
+			sbuf_bcat(&sb, cgd->serial_num, cgd->serial_num_len);
+		xpt_free_ccb((union ccb *)cgd);
+	}
+	sbuf_printf(&sb, "\" ");
+	sbuf_printf(&sb, "cam_status=\"0x%x\" ", ccb->ccb_h.status);
+
+	switch (ccb->ccb_h.status & CAM_STATUS_MASK) {
+	case CAM_CMD_TIMEOUT:
+		sbuf_printf(&sb, "timeout=%d ", ccb->ccb_h.timeout);
+		type = "timeout";
+		break;
+	case CAM_SCSI_STATUS_ERROR:
+		sbuf_printf(&sb, "scsi_status=%d ", ccb->csio.scsi_status);
+		if (scsi_extract_sense_ccb(ccb, &serr, &sk, &asc, &ascq))
+			sbuf_printf(&sb, "scsi_sense=\"%02x %02x %02x %02x\" ",
+			    serr, sk, asc, ascq);
+		type = "error";
+		break;
+	case CAM_ATA_STATUS_ERROR:
+		sbuf_printf(&sb, "RES=\"");
+		ata_res_sbuf(&ccb->ataio.res, &sb);
+		sbuf_printf(&sb, "\" ");
+		type = "error";
+		break;
+	default:
+		type = "error";
+		break;
+	}
+
+	if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
+		sbuf_printf(&sb, "CDB=\"");
+		scsi_cdb_sbuf(scsiio_cdb_ptr(&ccb->csio), &sb);
+		sbuf_printf(&sb, "\" ");
+	} else if (ccb->ccb_h.func_code == XPT_ATA_IO) {
+		sbuf_printf(&sb, "ACB=\"");
+		ata_cmd_sbuf(&ccb->ataio.cmd, &sb);
+		sbuf_printf(&sb, "\" ");
+	}
+
+	if (sbuf_finish(&sb) == 0)
+		devctl_notify("CAM", "periph", type, sbuf_data(&sb));
+	sbuf_delete(&sb);
+	free(sbmsg, M_CAMPERIPH);
+}
+
+/*
+ * Sysctl to force an invalidation of the drive right now. Can be
+ * called with CTLFLAG_MPSAFE since we take periph lock.
+ */
+int
+cam_periph_invalidate_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct cam_periph *periph;
+	int error, value;
+
+	periph = arg1;
+	value = 0;
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if (error != 0 || req->newptr == NULL || value != 1)
+		return (error);
+
+	cam_periph_lock(periph);
+	cam_periph_invalidate(periph);
+	cam_periph_unlock(periph);
+
+	return (0);
 }

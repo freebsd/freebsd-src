@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2010
+.Dd October 12, 2018
 .Dt SENDFILE 2
 .Os
 .Sh NAME
@@ -46,7 +46,7 @@
 The
 .Fn sendfile
 system call
-sends a regular file specified by descriptor
+sends a regular file or shared memory object specified by descriptor
 .Fa fd
 out a stream socket specified by descriptor
 .Fa s .
@@ -101,37 +101,70 @@ the system will write the total number of bytes sent on the socket to the
 variable pointed to by
 .Fa sbytes .
 .Pp
-The
+The least significant 16 bits of
 .Fa flags
 argument is a bitmap of these values:
-.Bl -item -offset indent
-.It
-.Dv SF_NODISKIO .
-This flag causes any
-.Fn sendfile
-call which would block on disk I/O to instead
-return
-.Er EBUSY .
-Busy servers may benefit by transferring requests that would
-block to a separate I/O worker thread.
-.It
-.Dv SF_MNOWAIT .
-Do not wait for some kernel resource to become available,
-in particular,
-.Vt mbuf
-and
-.Vt sf_buf .
-The flag does not make the
-.Fn sendfile
-syscall truly non-blocking, since other resources are still allocated
-in a blocking fashion.
-.It
-.Dv SF_SYNC .
+.Bl -tag -offset indent
+.It Dv SF_NODISKIO
+This flag causes
+.Nm
+to return
+.Er EBUSY
+instead of blocking when a busy page is encountered.
+This rare situation can happen if some other process is now working
+with the same region of the file.
+It is advised to retry the operation after a short period.
+.Pp
+Note that in older
+.Fx
+versions the
+.Dv SF_NODISKIO
+had slightly different notion.
+The flag prevented
+.Nm
+to run I/O operations in case if an invalid (not cached) page is encountered,
+thus avoiding blocking on I/O.
+Starting with
+.Fx 11
+.Nm
+sending files off the
+.Xr ffs 7
+filesystem does not block on I/O
+(see
+.Sx IMPLEMENTATION NOTES
+), so the condition no longer applies.
+However, it is safe if an application utilizes
+.Dv SF_NODISKIO
+and on
+.Er EBUSY
+performs the same action as it did in
+older
+.Fx
+versions, e.g.,
+.Xr aio_read 2 ,
+.Xr read 2
+or
+.Nm
+in a different context.
+.It Dv SF_NOCACHE
+The data sent to socket will not be cached by the virtual memory system,
+and will be freed directly to the pool of free pages.
+.It Dv SF_SYNC
 .Nm
 sleeps until the network stack no longer references the VM pages
 of the file, making subsequent modifications to it safe.
 Please note that this is not a guarantee that the data has actually
 been sent.
+.It Dv SF_USER_READAHEAD
+.Nm
+has some internal heuristics to do readahead when sending data.
+This flag forces
+.Nm
+to override any heuristically calculated readahead and use exactly the
+application specified readahead.
+See
+.Sx SETTING READAHEAD
+for more details on readahead.
 .El
 .Pp
 When using a socket marked for non-blocking I/O,
@@ -144,7 +177,47 @@ written is returned in
 and the error
 .Er EAGAIN
 is returned.
+.Sh SETTING READAHEAD
+.Nm
+uses internal heuristics based on request size and file system layout
+to do readahead.
+Additionally application may request extra readahead.
+The most significant 16 bits of
+.Fa flags
+specify amount of pages that
+.Nm
+may read ahead when reading the file.
+A macro
+.Fn SF_FLAGS
+is provided to combine readahead amount and flags.
+An example showing specifying readahead of 16 pages and
+.Dv SF_NOCACHE
+flag:
+.Pp
+.Bd -literal -offset indent -compact
+	SF_FLAGS(16, SF_NOCACHE)
+.Ed
+.Pp
+.Nm
+will use either application specified readahead or internally calculated,
+whichever is bigger.
+Setting flag
+.Dv SF_USER_READAHEAD
+would turn off any heuristics and set maximum possible readahead length to
+the number of pages specified via flags.
 .Sh IMPLEMENTATION NOTES
+The
+.Fx
+implementation of
+.Fn sendfile
+does not block on disk I/O when it sends a file off the
+.Xr ffs 7
+filesystem.
+The syscall returns success before the actual I/O completes, and data
+is put into the socket later unattended.
+However, the order of data in the socket is preserved, so it is safe
+to do further writes to the socket.
+.Pp
 The
 .Fx
 implementation of
@@ -232,12 +305,10 @@ The
 argument
 is not a valid socket descriptor.
 .It Bq Er EBUSY
-Completing the entire transfer would have required disk I/O, so
-it was aborted.
-Partial data may have been sent.
-(This error can only occur when
+A busy page was encountered and
 .Dv SF_NODISKIO
-is specified.)
+had been specified.
+Partial data may have been sent.
 .It Bq Er EFAULT
 An invalid address was specified for an argument.
 .It Bq Er EINTR
@@ -265,6 +336,12 @@ is negative.
 .It Bq Er EIO
 An error occurred while reading from
 .Fa fd .
+.It Bq Er ENOTCAPABLE
+The
+.Fa fd
+or the
+.Fa s
+argument has insufficient rights.
 .It Bq Er ENOBUFS
 The system was unable to allocate an internal buffer.
 .It Bq Er ENOTCONN
@@ -310,9 +387,19 @@ first appeared in
 .Fx 3.0 .
 This manual page first appeared in
 .Fx 3.1 .
+In
+.Fx 10
+support for sending shared memory descriptors had been introduced.
+In
+.Fx 11
+a non-blocking implementation had been introduced.
 .Sh AUTHORS
-The
+The initial implementation of
 .Fn sendfile
 system call
 and this manual page were written by
 .An David G. Lawrence Aq Mt dg@dglawrence.com .
+The
+.Fx 11
+implementation was written by
+.An Gleb Smirnoff Aq Mt glebius@FreeBSD.org .

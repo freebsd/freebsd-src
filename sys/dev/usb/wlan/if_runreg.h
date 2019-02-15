@@ -274,7 +274,6 @@
 #define	RT2860_USB_TXOP_HALT		(1 << 20)
 #define	RT2860_USB_TX_CLEAR		(1 << 19)
 #define	RT2860_USB_PHY_WD_EN		(1 << 16)
-#define	RT2860_USB_PHY_MAN_RST		(1 << 15)
 #define	RT2860_USB_RX_AGG_LMT(x)	((x) << 8)	/* in unit of 1KB */
 #define	RT2860_USB_RX_AGG_TO(x)		((x) & 0xff)	/* in unit of 33ns */
 
@@ -1083,6 +1082,18 @@ struct rt2860_rxwi {
 	{ 134, 0xd0 },	\
 	{ 135, 0xf6 },	\
 	{ 137, 0x0f }
+
+/*
+ * Channel map for run(4) driver; taken from the table below.
+ */
+static const uint8_t run_chan_2ghz[] =
+	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+
+static const uint8_t run_chan_5ghz[] =
+	{ 36, 38, 40, 44, 46, 48, 52, 54, 56, 60, 62, 64, 100, 102, 104,
+	  108, 110, 112, 116, 118, 120, 124, 126, 128, 132, 134, 136, 140,
+	  149, 151, 153, 157, 159, 161, 165, 167, 169, 171, 173,
+	  184, 188, 192, 196, 208, 212, 216 };
 
 /*
  * Default settings for RF registers; values derived from the reference driver.

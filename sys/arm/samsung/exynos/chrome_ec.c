@@ -176,7 +176,7 @@ ec_command(uint8_t cmd, uint8_t *dout, uint8_t dout_len,
 
 	for (i = 0; i < dout_len; i++) {
 		msg_dout[i + 3] = dout[i];
-	};
+	}
 
 	fill_checksum(msg_dout, dout_len + 3);
 
@@ -195,7 +195,7 @@ ec_command(uint8_t cmd, uint8_t *dout, uint8_t dout_len,
 
 	for (i = 0; i < dinp_len; i++) {
 		dinp[i] = msg_dinp[i + 2];
-	};
+	}
 
 	free(msg_dout, M_DEVBUF);
 	free(msg_dinp, M_DEVBUF);
@@ -225,7 +225,7 @@ configure_i2c_arbitrator(struct ec_softc *sc)
 
 	/* TODO: look for compatible entry instead of hard-coded path */
 	arbitrator = OF_finddevice("/i2c-arbitrator");
-	if (arbitrator > 0 &&
+	if (arbitrator != -1 &&
 	    OF_hasprop(arbitrator, "freebsd,our-gpio") &&
 	    OF_hasprop(arbitrator, "freebsd,ec-gpio")) {
 		sc->have_arbitrator = 1;

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
@@ -31,7 +33,8 @@
 
 void tpc_done(union ctl_io *io);
 
-uint64_t tpcl_resolve(int init_port, struct scsi_ec_cscd *cscd, uint32_t *ss);
+uint64_t tpcl_resolve(struct ctl_softc *softc, int init_port,
+    struct scsi_ec_cscd *cscd, uint32_t *ss, uint32_t *ps, uint32_t *pso);
 union ctl_io * tpcl_alloc_io(void);
 int tpcl_queue(union ctl_io *io, uint64_t lun);
 

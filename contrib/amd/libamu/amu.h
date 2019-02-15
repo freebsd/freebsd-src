@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -47,11 +43,14 @@
 /*
  * Decide what maximum level of NFS server to try and mount with.
  */
-#ifdef HAVE_FS_NFS3
+#if defined(HAVE_FS_NFS4)
+# define NFS_VERS_MAX NFS_VERSION4
+#elif defined(HAVE_FS_NFS3)
 # define NFS_VERS_MAX NFS_VERSION3
 #else /* not HAVE_FS_NFS3 */
 # define NFS_VERS_MAX NFS_VERSION
 #endif /* not HAVE_FS_NFS3 */
+# define NFS_VERS_MIN NFS_VERSION
 
 /* some systems like ncr2 do not define this in <rpcsvc/mount.h> */
 #ifndef MNTPATHLEN

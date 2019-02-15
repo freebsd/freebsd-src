@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005  - Garance Alistair Drosehn <gad@FreeBSD.org>.
  * All rights reserved.
  *
@@ -372,9 +374,9 @@ str_done:
 	*nextarg = NULL;
 
 	/* Update optind/argc/argv in the calling routine */
-	*origind = 1;
-	*origc += addcount;
+	*origc += addcount - *origind + 1;
 	*origv = newargv;
+	*origind = 1;
 }
 
 /**

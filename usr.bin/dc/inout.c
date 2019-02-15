@@ -1,4 +1,4 @@
-/*	$OpenBSD: inout.c,v 1.17 2012/11/07 11:06:14 otto Exp $	*/
+/*	$OpenBSD: inout.c,v 1.18 2014/12/01 13:13:00 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2003, Otto Moerbeek <otto@drijf.net>
@@ -183,12 +183,12 @@ printwrap(FILE *f, const char *p)
 }
 
 struct number *
-readnumber(struct source *src, u_int base)
+readnumber(struct source *src, u_int base, u_int bscale)
 {
 	struct number *n;
 	BN_ULONG v;
-	u_int i;
 	int ch;
+	u_int iscale = 0;
 	bool dot = false, sign = false;
 
 	n = new_number();
@@ -213,20 +213,48 @@ readnumber(struct source *src, u_int base)
 			break;
 		}
 		if (dot)
-			n->scale++;
+			iscale++;
 
 		bn_check(BN_mul_word(n->number, base));
-
-#if 0
-		/* work around a bug in BN_add_word: 0 += 0 is buggy.... */
-		if (v > 0)
-#endif
-			bn_check(BN_add_word(n->number, v));
+		bn_check(BN_add_word(n->number, v));
 	}
-	if (base != 10) {
-		scale_number(n->number, n->scale);
-		for (i = 0; i < n->scale; i++)
-			BN_div_word(n->number, base);
+	if (base == 10) {
+		n->scale = iscale;
+	} else {
+		/* At this point, the desired result is n->number / base^iscale*/
+		struct number *quotient, *divisor, *_n;
+		BIGNUM *base_n, *exponent;
+		BN_CTX *ctx;
+
+		ctx = BN_CTX_new();
+		base_n = BN_new();
+		exponent = BN_new();
+		divisor = new_number();
+		bn_check(BN_zero(base_n));
+		bn_check(BN_zero(exponent));
+
+		bn_check(BN_add_word(base_n, base));
+		bn_check(BN_add_word(exponent, iscale));
+		bn_check(BN_exp(divisor->number, base_n, exponent, ctx));
+		divisor->scale = 0;
+		quotient = div_number(n, divisor, bscale);
+		_n = n;
+		n = quotient;
+
+		/* 
+		 * Trim off trailing zeros to yield the smallest scale without
+		 * loss of accuracy
+		 */
+		while ( n->scale > 0 &&
+			BN_mod_word(n->number, 10) == 0) {
+			normalize(n, n->scale - 1);
+		}
+
+		free_number(_n);
+		free_number(divisor);
+		BN_CTX_free(ctx);
+		BN_free(base_n);
+		BN_free(exponent);
 	}
 	if (sign)
 		negate(n);
@@ -261,7 +289,7 @@ read_string(struct source *src)
 			escape = false;
 			if (i == sz) {
 				new_sz = sz * 2;
-				p = brealloc(p, new_sz + 1);
+				p = breallocarray(p, 1, new_sz + 1);
 				sz = new_sz;
 			}
 			p[i++] = ch;
@@ -334,19 +362,21 @@ printnumber(FILE *f, const struct number *b, u_int base)
 	stack_clear(&stack);
 	if (b->scale > 0) {
 		struct number *num_base;
-		BIGNUM mult, stop;
+		BIGNUM *mult, *stop;
 
 		putcharwrap(f, '.');
 		num_base = new_number();
 		bn_check(BN_set_word(num_base->number, base));
-		BN_init(&mult);
-		bn_check(BN_one(&mult));
-		BN_init(&stop);
-		bn_check(BN_one(&stop));
-		scale_number(&stop, b->scale);
+		mult = BN_new();
+		bn_checkp(mult);
+		bn_check(BN_one(mult));
+		stop = BN_new();
+		bn_checkp(stop);
+		bn_check(BN_one(stop));
+		scale_number(stop, b->scale);
 
 		i = 0;
-		while (BN_cmp(&mult, &stop) < 0) {
+		while (BN_cmp(mult, stop) < 0) {
 			u_long rem;
 
 			if (i && base > 16)
@@ -364,11 +394,11 @@ printnumber(FILE *f, const struct number *b, u_int base)
 			    int_part->number));
 			printwrap(f, p);
 			free(p);
-			bn_check(BN_mul_word(&mult, base));
+			bn_check(BN_mul_word(mult, base));
 		}
 		free_number(num_base);
-		BN_free(&mult);
-		BN_free(&stop);
+		BN_free(mult);
+		BN_free(stop);
 	}
 	flushwrap(f);
 	free_number(int_part);

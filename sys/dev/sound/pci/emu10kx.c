@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>
  * Copyright (c) 2003-2007 Yuriy Tsibizov <yuriy.tsibizov@gfk.ru>
  * All rights reserved.
@@ -564,16 +566,14 @@ emu_getcard(device_t dev)
 {
 	uint16_t device;
 	uint16_t subdevice;
-	int n_cards;
 	unsigned int thiscard;
 	int i;
 
 	device = pci_read_config(dev, PCIR_DEVICE, /* bytes */ 2);
 	subdevice = pci_read_config(dev, PCIR_SUBDEV_0, /* bytes */ 2);
 
-	n_cards = sizeof(emu_cards) / sizeof(struct emu_hwinfo);
 	thiscard = 0;
-	for (i = 1; i < n_cards; i++) {
+	for (i = 1; i < nitems(emu_cards); i++) {
 		if (device == emu_cards[i].device) {
 			if (subdevice == emu_cards[i].subdevice) {
 				thiscard = i;
@@ -589,8 +589,7 @@ emu_getcard(device_t dev)
 		}
 	}
 
-	n_cards = sizeof(emu_bad_cards) / sizeof(struct emu_hwinfo);
-	for (i = 0; i < n_cards; i++) {
+	for (i = 0; i < nitems(emu_bad_cards); i++) {
 		if (device == emu_bad_cards[i].device) {
 			if (subdevice == emu_bad_cards[i].subdevice) {
 				thiscard = 0;
@@ -2316,7 +2315,7 @@ emu10kx_prepare(struct emu_sc_info *sc, struct sbuf *s)
 		}
 	if (sc->midi[0] != NULL)
 		if (device_is_attached(sc->midi[0])) {
-			sbuf_printf(s, "\tIR reciever MIDI events %s\n", sc->enable_ir ? "enabled" : "disabled");
+			sbuf_printf(s, "\tIR receiver MIDI events %s\n", sc->enable_ir ? "enabled" : "disabled");
 		}
 	sbuf_printf(s, "Card is in %s mode\n", (sc->mode == MODE_ANALOG) ? "analog" : "digital");
 
@@ -2351,7 +2350,7 @@ emu10kx_dev_uninit(struct emu_sc_info *sc)
 	}
 	if (sc->cdev)
 		destroy_dev(sc->cdev);
-	sc->cdev = 0;
+	sc->cdev = NULL;
 
 	mtx_destroy(&sc->emu10kx_lock);
 	return (0);
@@ -3203,9 +3202,7 @@ emu_pci_attach(device_t dev)
 	i = 0;
 	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &i, RF_ACTIVE | RF_SHAREABLE);
 	if ((sc->irq == NULL) || bus_setup_intr(dev, sc->irq, INTR_MPSAFE | INTR_TYPE_AV,
-#if __FreeBSD_version >= 700031
 	    NULL,
-#endif
 	    emu_intr, sc, &sc->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
@@ -3227,7 +3224,7 @@ emu_pci_attach(device_t dev)
 		device_printf(dev, "unable to create control device\n");
 		goto bad;
 	}
-	snprintf(status, 255, "rev %d at io 0x%lx irq %ld", sc->rev, rman_get_start(sc->reg), rman_get_start(sc->irq));
+	snprintf(status, 255, "rev %d at io 0x%jx irq %jd", sc->rev, rman_get_start(sc->reg), rman_get_start(sc->irq));
 
 	/* Voices */
 	for (i = 0; i < NUM_G; i++) {

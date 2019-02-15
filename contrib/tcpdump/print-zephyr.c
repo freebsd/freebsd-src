@@ -20,41 +20,38 @@
  * PURPOSE.
  */
 
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-zephyr.c,v 1.10 2007-08-09 18:47:27 hannes Exp $";
-#endif
+/* \summary: Zephyr printer */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
-#include "interface.h"
+#include "netdissect.h"
 
 struct z_packet {
-    char *version;
+    const char *version;
     int numfields;
     int kind;
-    char *uid;
+    const char *uid;
     int port;
     int auth;
     int authlen;
-    char *authdata;
-    char *class;
-    char *inst;
-    char *opcode;
-    char *sender;
+    const char *authdata;
+    const char *class;
+    const char *inst;
+    const char *opcode;
+    const char *sender;
     const char *recipient;
-    char *format;
+    const char *format;
     int cksum;
     int multi;
-    char *multi_uid;
+    const char *multi_uid;
     /* Other fields follow here.. */
 };
 
@@ -70,7 +67,7 @@ enum z_packet_type {
     Z_PACKET_STAT
 };
 
-static struct tok z_types[] = {
+static const struct tok z_types[] = {
     { Z_PACKET_UNSAFE,		"unsafe" },
     { Z_PACKET_UNACKED,		"unacked" },
     { Z_PACKET_ACKED,		"acked" },
@@ -79,35 +76,46 @@ static struct tok z_types[] = {
     { Z_PACKET_SERVACK,		"serv-ack" },
     { Z_PACKET_SERVNAK,		"serv-nak" },
     { Z_PACKET_CLIENTACK,	"client-ack" },
-    { Z_PACKET_STAT,		"stat" }
+    { Z_PACKET_STAT,		"stat" },
+    { 0,			NULL }
 };
 
-char z_buf[256];
+static char z_buf[256];
 
-static char *
-parse_field(char **pptr, int *len)
+static const char *
+parse_field(netdissect_options *ndo, const char **pptr, int *len, int *truncated)
 {
-    char *s;
+    const char *s;
 
-    if (*len <= 0 || !pptr || !*pptr)
-	return NULL;
-    if (*pptr > (char *) snapend)
-	return NULL;
-
+    /* Start of string */
     s = *pptr;
-    while (*pptr <= (char *) snapend && *len >= 0 && **pptr) {
+    /* Scan for the NUL terminator */
+    for (;;) {
+	if (*len == 0) {
+	    /* Ran out of packet data without finding it */
+	    return NULL;
+	}
+	if (!ND_TTEST(**pptr)) {
+	    /* Ran out of captured data without finding it */
+	    *truncated = 1;
+	    return NULL;
+	}
+	if (**pptr == '\0') {
+	    /* Found it */
+	    break;
+	}
+	/* Keep scanning */
 	(*pptr)++;
 	(*len)--;
     }
+    /* Skip the NUL terminator */
     (*pptr)++;
     (*len)--;
-    if (*len < 0 || *pptr > (char *) snapend)
-	return NULL;
     return s;
 }
 
 static const char *
-z_triple(char *class, char *inst, const char *recipient)
+z_triple(const char *class, const char *inst, const char *recipient)
 {
     if (!*recipient)
 	recipient = "*";
@@ -117,28 +125,31 @@ z_triple(char *class, char *inst, const char *recipient)
 }
 
 static const char *
-str_to_lower(char *string)
+str_to_lower(const char *string)
 {
+    char *zb_string;
+
     strncpy(z_buf, string, sizeof(z_buf));
     z_buf[sizeof(z_buf)-1] = '\0';
 
-    string = z_buf;
-    while (*string) {
-	*string = tolower((unsigned char)(*string));
-	string++;
+    zb_string = z_buf;
+    while (*zb_string) {
+	*zb_string = tolower((unsigned char)(*zb_string));
+	zb_string++;
     }
 
     return z_buf;
 }
 
 void
-zephyr_print(const u_char *cp, int length)
+zephyr_print(netdissect_options *ndo, const u_char *cp, int length)
 {
     struct z_packet z;
-    char *parse = (char *) cp;
+    const char *parse = (const char *) cp;
     int parselen = length;
-    char *s;
+    const char *s;
     int lose = 0;
+    int truncated = 0;
 
     /* squelch compiler warnings */
 
@@ -149,8 +160,9 @@ zephyr_print(const u_char *cp, int length)
     z.sender = 0;
     z.recipient = 0;
 
-#define PARSE_STRING				\
-	s = parse_field(&parse, &parselen);	\
+#define PARSE_STRING						\
+	s = parse_field(ndo, &parse, &parselen, &truncated);	\
+	if (truncated) goto trunc;				\
 	if (!s) lose = 1;
 
 #define PARSE_FIELD_INT(field)			\
@@ -183,39 +195,37 @@ zephyr_print(const u_char *cp, int length)
     PARSE_FIELD_INT(z.multi);
     PARSE_FIELD_STR(z.multi_uid);
 
-    if (lose) {
-	printf(" [|zephyr] (%d)", length);
-	return;
-    }
+    if (lose)
+        goto trunc;
 
-    printf(" zephyr");
+    ND_PRINT((ndo, " zephyr"));
     if (strncmp(z.version+4, "0.2", 3)) {
-	printf(" v%s", z.version+4);
+	ND_PRINT((ndo, " v%s", z.version+4));
 	return;
     }
 
-    printf(" %s", tok2str(z_types, "type %d", z.kind));
+    ND_PRINT((ndo, " %s", tok2str(z_types, "type %d", z.kind)));
     if (z.kind == Z_PACKET_SERVACK) {
 	/* Initialization to silence warnings */
-	char *ackdata = NULL;
+	const char *ackdata = NULL;
 	PARSE_FIELD_STR(ackdata);
 	if (!lose && strcmp(ackdata, "SENT"))
-	    printf("/%s", str_to_lower(ackdata));
+	    ND_PRINT((ndo, "/%s", str_to_lower(ackdata)));
     }
-    if (*z.sender) printf(" %s", z.sender);
+    if (*z.sender) ND_PRINT((ndo, " %s", z.sender));
 
     if (!strcmp(z.class, "USER_LOCATE")) {
 	if (!strcmp(z.opcode, "USER_HIDE"))
-	    printf(" hide");
+	    ND_PRINT((ndo, " hide"));
 	else if (!strcmp(z.opcode, "USER_UNHIDE"))
-	    printf(" unhide");
+	    ND_PRINT((ndo, " unhide"));
 	else
-	    printf(" locate %s", z.inst);
+	    ND_PRINT((ndo, " locate %s", z.inst));
 	return;
     }
 
     if (!strcmp(z.class, "ZEPHYR_ADMIN")) {
-	printf(" zephyr-admin %s", str_to_lower(z.opcode));
+	ND_PRINT((ndo, " zephyr-admin %s", str_to_lower(z.opcode)));
 	return;
     }
 
@@ -225,79 +235,79 @@ zephyr_print(const u_char *cp, int length)
 		!strcmp(z.opcode, "SUBSCRIBE_NODEFS") ||
 		!strcmp(z.opcode, "UNSUBSCRIBE")) {
 
-		printf(" %ssub%s", strcmp(z.opcode, "SUBSCRIBE") ? "un" : "",
+		ND_PRINT((ndo, " %ssub%s", strcmp(z.opcode, "SUBSCRIBE") ? "un" : "",
 				   strcmp(z.opcode, "SUBSCRIBE_NODEFS") ? "" :
-								   "-nodefs");
+								   "-nodefs"));
 		if (z.kind != Z_PACKET_SERVACK) {
 		    /* Initialization to silence warnings */
-		    char *c = NULL, *i = NULL, *r = NULL;
+		    const char *c = NULL, *i = NULL, *r = NULL;
 		    PARSE_FIELD_STR(c);
 		    PARSE_FIELD_STR(i);
 		    PARSE_FIELD_STR(r);
-		    if (!lose) printf(" %s", z_triple(c, i, r));
+		    if (!lose) ND_PRINT((ndo, " %s", z_triple(c, i, r)));
 		}
 		return;
 	    }
 
 	    if (!strcmp(z.opcode, "GIMME")) {
-		printf(" ret");
+		ND_PRINT((ndo, " ret"));
 		return;
 	    }
 
 	    if (!strcmp(z.opcode, "GIMMEDEFS")) {
-		printf(" gimme-defs");
+		ND_PRINT((ndo, " gimme-defs"));
 		return;
 	    }
 
 	    if (!strcmp(z.opcode, "CLEARSUB")) {
-		printf(" clear-subs");
+		ND_PRINT((ndo, " clear-subs"));
 		return;
 	    }
 
-	    printf(" %s", str_to_lower(z.opcode));
+	    ND_PRINT((ndo, " %s", str_to_lower(z.opcode)));
 	    return;
 	}
 
 	if (!strcmp(z.inst, "HM")) {
-	    printf(" %s", str_to_lower(z.opcode));
+	    ND_PRINT((ndo, " %s", str_to_lower(z.opcode)));
 	    return;
 	}
 
 	if (!strcmp(z.inst, "REALM")) {
 	    if (!strcmp(z.opcode, "ADD_SUBSCRIBE"))
-		printf(" realm add-subs");
+		ND_PRINT((ndo, " realm add-subs"));
 	    if (!strcmp(z.opcode, "REQ_SUBSCRIBE"))
-		printf(" realm req-subs");
+		ND_PRINT((ndo, " realm req-subs"));
 	    if (!strcmp(z.opcode, "RLM_SUBSCRIBE"))
-		printf(" realm rlm-sub");
+		ND_PRINT((ndo, " realm rlm-sub"));
 	    if (!strcmp(z.opcode, "RLM_UNSUBSCRIBE"))
-		printf(" realm rlm-unsub");
+		ND_PRINT((ndo, " realm rlm-unsub"));
 	    return;
 	}
     }
 
     if (!strcmp(z.class, "HM_CTL")) {
-	printf(" hm_ctl %s", str_to_lower(z.inst));
-	printf(" %s", str_to_lower(z.opcode));
+	ND_PRINT((ndo, " hm_ctl %s", str_to_lower(z.inst)));
+	ND_PRINT((ndo, " %s", str_to_lower(z.opcode)));
 	return;
     }
 
     if (!strcmp(z.class, "HM_STAT")) {
 	if (!strcmp(z.inst, "HMST_CLIENT") && !strcmp(z.opcode, "GIMMESTATS")) {
-	    printf(" get-client-stats");
+	    ND_PRINT((ndo, " get-client-stats"));
 	    return;
 	}
     }
 
     if (!strcmp(z.class, "WG_CTL")) {
-	printf(" wg_ctl %s", str_to_lower(z.inst));
-	printf(" %s", str_to_lower(z.opcode));
+	ND_PRINT((ndo, " wg_ctl %s", str_to_lower(z.inst)));
+	ND_PRINT((ndo, " %s", str_to_lower(z.opcode)));
 	return;
     }
 
     if (!strcmp(z.class, "LOGIN")) {
 	if (!strcmp(z.opcode, "USER_FLUSH")) {
-	    printf(" flush_locs");
+	    ND_PRINT((ndo, " flush_locs"));
 	    return;
 	}
 
@@ -307,7 +317,7 @@ zephyr_print(const u_char *cp, int length)
 	    !strcmp(z.opcode, "REALM-ANNOUNCED") ||
 	    !strcmp(z.opcode, "NET-VISIBLE") ||
 	    !strcmp(z.opcode, "NET-ANNOUNCED")) {
-	    printf(" set-exposure %s", str_to_lower(z.opcode));
+	    ND_PRINT((ndo, " set-exposure %s", str_to_lower(z.opcode)));
 	    return;
 	}
     }
@@ -315,8 +325,12 @@ zephyr_print(const u_char *cp, int length)
     if (!*z.recipient)
 	z.recipient = "*";
 
-    printf(" to %s", z_triple(z.class, z.inst, z.recipient));
+    ND_PRINT((ndo, " to %s", z_triple(z.class, z.inst, z.recipient)));
     if (*z.opcode)
-	printf(" op %s", z.opcode);
+	ND_PRINT((ndo, " op %s", z.opcode));
+    return;
+
+trunc:
+    ND_PRINT((ndo, " [|zephyr] (%d)", length));
     return;
 }

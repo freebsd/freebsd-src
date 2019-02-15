@@ -232,7 +232,7 @@ static const struct radeon_tv_mode_constants available_tv_modes[] = {
 	},
 };
 
-#define N_AVAILABLE_MODES DRM_ARRAY_SIZE(available_tv_modes)
+#define N_AVAILABLE_MODES ARRAY_SIZE(available_tv_modes)
 
 static const struct radeon_tv_mode_constants *radeon_legacy_tv_get_std_mode(struct radeon_encoder *radeon_encoder,
 									    uint16_t *pll_ref_freq)
@@ -647,7 +647,7 @@ void radeon_legacy_tv_mode_set(struct drm_encoder *encoder,
 
 	if (flicker_removal < 3)
 		flicker_removal = 3;
-	for (i = 0; i < DRM_ARRAY_SIZE(SLOPE_limit); ++i) {
+	for (i = 0; i < ARRAY_SIZE(SLOPE_limit); ++i) {
 		if (flicker_removal == SLOPE_limit[i])
 			break;
 	}

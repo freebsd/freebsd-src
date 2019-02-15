@@ -21,7 +21,8 @@ using namespace clang;
 //than a page, almost certainly enough for anything. :)
 static const unsigned ScratchBufSize = 4060;
 
-ScratchBuffer::ScratchBuffer(SourceManager &SM) : SourceMgr(SM), CurBuffer(0) {
+ScratchBuffer::ScratchBuffer(SourceManager &SM)
+    : SourceMgr(SM), CurBuffer(nullptr) {
   // Set BytesUsed so that the first call to getToken will require an alloc.
   BytesUsed = ScratchBufSize;
 }
@@ -34,6 +35,14 @@ SourceLocation ScratchBuffer::getToken(const char *Buf, unsigned Len,
                                        const char *&DestPtr) {
   if (BytesUsed+Len+2 > ScratchBufSize)
     AllocScratchBuffer(Len+2);
+  else {
+    // Clear out the source line cache if it's already been computed.
+    // FIXME: Allow this to be incrementally extended.
+    auto *ContentCache = const_cast<SrcMgr::ContentCache *>(
+        SourceMgr.getSLocEntry(SourceMgr.getFileID(BufferStartLoc))
+                 .getFile().getContentCache());
+    ContentCache->SourceLineCache = nullptr;
+  }
 
   // Prefix the token with a \n, so that it looks like it is the first thing on
   // its own virtual line in caret diagnostics.
@@ -63,11 +72,13 @@ void ScratchBuffer::AllocScratchBuffer(unsigned RequestLen) {
   if (RequestLen < ScratchBufSize)
     RequestLen = ScratchBufSize;
 
-  llvm::MemoryBuffer *Buf =
-    llvm::MemoryBuffer::getNewMemBuffer(RequestLen, "<scratch space>");
-  FileID FID = SourceMgr.createFileIDForMemBuffer(Buf);
+  // Get scratch buffer. Zero-initialize it so it can be dumped into a PCH file
+  // deterministically.
+  std::unique_ptr<llvm::MemoryBuffer> OwnBuf =
+      llvm::MemoryBuffer::getNewMemBuffer(RequestLen, "<scratch space>");
+  llvm::MemoryBuffer &Buf = *OwnBuf;
+  FileID FID = SourceMgr.createFileID(std::move(OwnBuf));
   BufferStartLoc = SourceMgr.getLocForStartOfFile(FID);
-  CurBuffer = const_cast<char*>(Buf->getBufferStart());
-  BytesUsed = 1;
-  CurBuffer[0] = '0';  // Start out with a \0 for cleanliness.
+  CurBuffer = const_cast<char*>(Buf.getBufferStart());
+  BytesUsed = 0;
 }

@@ -15,25 +15,26 @@
 #define LLVM_TRANSFORMS_INSTRUMENTATION_H
 
 #include "llvm/ADT/StringRef.h"
-
-#if defined(__GNUC__) && defined(__linux__)
-inline void *getDFSanArgTLSPtrForJIT() {
-  extern __thread __attribute__((tls_model("initial-exec")))
-    void *__dfsan_arg_tls;
-  return (void *)&__dfsan_arg_tls;
-}
-
-inline void *getDFSanRetValTLSPtrForJIT() {
-  extern __thread __attribute__((tls_model("initial-exec")))
-    void *__dfsan_retval_tls;
-  return (void *)&__dfsan_retval_tls;
-}
-#endif
+#include "llvm/IR/BasicBlock.h"
+#include <cassert>
+#include <cstdint>
+#include <limits>
+#include <string>
+#include <vector>
 
 namespace llvm {
 
-class ModulePass;
 class FunctionPass;
+class ModulePass;
+class OptimizationRemarkEmitter;
+
+/// Instrumentation passes often insert conditional checks into entry blocks.
+/// Call this function before splitting the entry block to move instructions
+/// that must remain in the entry block up before the split point. Static
+/// allocas and llvm.localescape calls, for example, must remain in the entry
+/// block.
+BasicBlock::iterator PrepareToSplitEntryBlock(BasicBlock &BB,
+                                              BasicBlock::iterator IP);
 
 // Insert GCOV profiling instrumentation
 struct GCOVOptions {
@@ -59,74 +60,152 @@ struct GCOVOptions {
   // Emit the name of the function in the .gcda files. This is redundant, as
   // the function identifier can be used to find the name from the .gcno file.
   bool FunctionNamesInData;
+
+  // Emit the exit block immediately after the start block, rather than after
+  // all of the function body's blocks.
+  bool ExitBlockBeforeBody;
 };
+
 ModulePass *createGCOVProfilerPass(const GCOVOptions &Options =
                                    GCOVOptions::getDefault());
 
+// PGO Instrumention
+ModulePass *createPGOInstrumentationGenLegacyPass();
+ModulePass *
+createPGOInstrumentationUseLegacyPass(StringRef Filename = StringRef(""));
+ModulePass *createPGOIndirectCallPromotionLegacyPass(bool InLTO = false,
+                                                     bool SamplePGO = false);
+FunctionPass *createPGOMemOPSizeOptLegacyPass();
+
+// The pgo-specific indirect call promotion function declared below is used by
+// the pgo-driven indirect call promotion and sample profile passes. It's a
+// wrapper around llvm::promoteCall, et al. that additionally computes !prof
+// metadata. We place it in a pgo namespace so it's not confused with the
+// generic utilities.
+namespace pgo {
+
+// Helper function that transforms Inst (either an indirect-call instruction, or
+// an invoke instruction , to a conditional call to F. This is like:
+//     if (Inst.CalledValue == F)
+//        F(...);
+//     else
+//        Inst(...);
+//     end
+// TotalCount is the profile count value that the instruction executes.
+// Count is the profile count value that F is the target function.
+// These two values are used to update the branch weight.
+// If \p AttachProfToDirectCall is true, a prof metadata is attached to the
+// new direct call to contain \p Count.
+// Returns the promoted direct call instruction.
+Instruction *promoteIndirectCall(Instruction *Inst, Function *F, uint64_t Count,
+                                 uint64_t TotalCount,
+                                 bool AttachProfToDirectCall,
+                                 OptimizationRemarkEmitter *ORE);
+} // namespace pgo
+
+/// Options for the frontend instrumentation based profiling pass.
+struct InstrProfOptions {
+  // Add the 'noredzone' attribute to added runtime library calls.
+  bool NoRedZone = false;
+
+  // Do counter register promotion
+  bool DoCounterPromotion = false;
+
+  // Name of the profile file to use as output
+  std::string InstrProfileOutput;
+
+  InstrProfOptions() = default;
+};
+
+/// Insert frontend instrumentation based profiling.
+ModulePass *createInstrProfilingLegacyPass(
+    const InstrProfOptions &Options = InstrProfOptions());
+
 // Insert AddressSanitizer (address sanity checking) instrumentation
-FunctionPass *createAddressSanitizerFunctionPass(
-    bool CheckInitOrder = true, bool CheckUseAfterReturn = false,
-    bool CheckLifetime = false, StringRef BlacklistFile = StringRef(),
-    bool ZeroBaseShadow = false);
-ModulePass *createAddressSanitizerModulePass(
-    bool CheckInitOrder = true, StringRef BlacklistFile = StringRef(),
-    bool ZeroBaseShadow = false);
+FunctionPass *createAddressSanitizerFunctionPass(bool CompileKernel = false,
+                                                 bool Recover = false,
+                                                 bool UseAfterScope = false);
+ModulePass *createAddressSanitizerModulePass(bool CompileKernel = false,
+                                             bool Recover = false,
+                                             bool UseGlobalsGC = true);
 
 // Insert MemorySanitizer instrumentation (detection of uninitialized reads)
-FunctionPass *createMemorySanitizerPass(bool TrackOrigins = false,
-                                        StringRef BlacklistFile = StringRef());
+FunctionPass *createMemorySanitizerPass(int TrackOrigins = 0,
+                                        bool Recover = false);
+
+FunctionPass *createHWAddressSanitizerPass(bool Recover = false);
 
 // Insert ThreadSanitizer (race detection) instrumentation
-FunctionPass *createThreadSanitizerPass(StringRef BlacklistFile = StringRef());
+FunctionPass *createThreadSanitizerPass();
 
 // Insert DataFlowSanitizer (dynamic data flow analysis) instrumentation
-ModulePass *createDataFlowSanitizerPass(StringRef ABIListFile = StringRef(),
-                                        void *(*getArgTLS)() = 0,
-                                        void *(*getRetValTLS)() = 0);
+ModulePass *createDataFlowSanitizerPass(
+    const std::vector<std::string> &ABIListFiles = std::vector<std::string>(),
+    void *(*getArgTLS)() = nullptr, void *(*getRetValTLS)() = nullptr);
 
-#if defined(__GNUC__) && defined(__linux__)
-inline ModulePass *createDataFlowSanitizerPassForJIT(StringRef ABIListFile =
-                                                         StringRef()) {
-  return createDataFlowSanitizerPass(ABIListFile, getDFSanArgTLSPtrForJIT,
-                                     getDFSanRetValTLSPtrForJIT);
+// Options for EfficiencySanitizer sub-tools.
+struct EfficiencySanitizerOptions {
+  enum Type {
+    ESAN_None = 0,
+    ESAN_CacheFrag,
+    ESAN_WorkingSet,
+  } ToolType = ESAN_None;
+
+  EfficiencySanitizerOptions() = default;
+};
+
+// Insert EfficiencySanitizer instrumentation.
+ModulePass *createEfficiencySanitizerPass(
+    const EfficiencySanitizerOptions &Options = EfficiencySanitizerOptions());
+
+// Options for sanitizer coverage instrumentation.
+struct SanitizerCoverageOptions {
+  enum Type {
+    SCK_None = 0,
+    SCK_Function,
+    SCK_BB,
+    SCK_Edge
+  } CoverageType = SCK_None;
+  bool IndirectCalls = false;
+  bool TraceBB = false;
+  bool TraceCmp = false;
+  bool TraceDiv = false;
+  bool TraceGep = false;
+  bool Use8bitCounters = false;
+  bool TracePC = false;
+  bool TracePCGuard = false;
+  bool Inline8bitCounters = false;
+  bool PCTable = false;
+  bool NoPrune = false;
+  bool StackDepth = false;
+
+  SanitizerCoverageOptions() = default;
+};
+
+// Insert SanitizerCoverage instrumentation.
+ModulePass *createSanitizerCoverageModulePass(
+    const SanitizerCoverageOptions &Options = SanitizerCoverageOptions());
+
+/// \brief Calculate what to divide by to scale counts.
+///
+/// Given the maximum count, calculate a divisor that will scale all the
+/// weights to strictly less than std::numeric_limits<uint32_t>::max().
+static inline uint64_t calculateCountScale(uint64_t MaxCount) {
+  return MaxCount < std::numeric_limits<uint32_t>::max()
+             ? 1
+             : MaxCount / std::numeric_limits<uint32_t>::max() + 1;
 }
-#endif
 
-// BoundsChecking - This pass instruments the code to perform run-time bounds
-// checking on loads, stores, and other memory intrinsics.
-FunctionPass *createBoundsCheckingPass();
-
-/// createDebugIRPass - Enable interactive stepping through LLVM IR in LLDB (or
-///                     GDB) and generate a file with the LLVM IR to be
-///                     displayed in the debugger.
+/// \brief Scale an individual branch count.
 ///
-/// Existing debug metadata is preserved (but may be modified) in order to allow
-/// accessing variables in the original source. The line table and file
-/// information is modified to correspond to the lines in the LLVM IR. If
-/// Filename and Directory are empty, a file name is generated based on existing
-/// debug information. If no debug information is available, a temporary file
-/// name is generated.
+/// Scale a 64-bit weight down to 32-bits using \c Scale.
 ///
-/// @param HideDebugIntrinsics  Omit debug intrinsics in emitted IR source file.
-/// @param HideDebugMetadata    Omit debug metadata in emitted IR source file.
-/// @param Directory            Embed this directory in the debug information.
-/// @param Filename             Embed this file name in the debug information.
-ModulePass *createDebugIRPass(bool HideDebugIntrinsics,
-                              bool HideDebugMetadata,
-                              StringRef Directory = StringRef(),
-                              StringRef Filename = StringRef());
+static inline uint32_t scaleBranchCount(uint64_t Count, uint64_t Scale) {
+  uint64_t Scaled = Count / Scale;
+  assert(Scaled <= std::numeric_limits<uint32_t>::max() && "overflow 32-bits");
+  return Scaled;
+}
 
-/// createDebugIRPass - Enable interactive stepping through LLVM IR in LLDB
-///                     (or GDB) with an existing IR file on disk. When creating
-///                     a DebugIR pass with this function, no source file is
-///                     output to disk and the existing one is unmodified. Debug
-///                     metadata in the Module is created/updated to point to
-///                     the existing textual IR file on disk.
-/// NOTE: If the IR file to be debugged is not on disk, use the version of this
-///       function with parameters in order to generate the file that will be
-///       seen by the debugger.
-ModulePass *createDebugIRPass();
+} // end namespace llvm
 
-} // End llvm namespace
-
-#endif
+#endif // LLVM_TRANSFORMS_INSTRUMENTATION_H

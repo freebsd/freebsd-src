@@ -274,14 +274,33 @@ FBSD_1.3 {
 	log1pl;
 	log2l;
 	logl;
+	powl;
 	sinhl;
 	tanhl;
 	/* Implemented as weak aliases for imprecise versions */
-	powl;
 	tgammal;
 };
 
 /* First added in 11.0-CURRENT */
 FBSD_1.4 {
 	lgammal_r;
+};
+
+/* First added in 12.0-CURRENT */
+FBSD_1.5 {
+	cacoshl;
+	cacosl;
+	casinhl;
+	casinl;
+	catanl;
+	catanhl;
+	clog;
+	clogf;
+	clogl;
+	cpow;
+	cpowf;
+	cpowl;
+	sincos;
+	sincosf;
+	sincosl;
 };

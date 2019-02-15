@@ -1,13 +1,7 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/sbin/mdconfig
+ATF_TESTS_SH=	mdconfig_test
 
-TAP_TESTS_SH=			legacy_test
-TAP_TESTS_SH_SED_legacy_test=   's,__PERL__,${TAP_PERL_INTERPRETER},g'
-TEST_METADATA.legacy_test+=	required_programs="${TAP_PERL_INTERPRETER}"
-
-FILESDIR=	${TESTSDIR}
-FILES=		mdconfig.test
-FILES+=		run.pl
+TEST_METADATA.mdconfig_test+=	required_user="root"
 
 .include <bsd.test.mk>

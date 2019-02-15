@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003
  * 	Hidetoshi Shimokawa. All rights reserved.
  *
@@ -160,10 +162,6 @@ fwdma_malloc_multiseg(struct firewire_comm *fc, int alignment,
 	}
 	am = (struct fwdma_alloc_multi *)malloc(sizeof(struct fwdma_alloc_multi)
 			+ sizeof(struct fwdma_seg)*nseg, M_FW, M_WAITOK);
-	if (am == NULL) {
-		printf("fwdma_malloc_multiseg: malloc failed\n");
-		return (NULL);
-	}
 	am->ssize = ssize;
 	am->esize = esize;
 	am->nseg = 0;

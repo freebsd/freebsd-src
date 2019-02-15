@@ -35,6 +35,33 @@ __FBSDID("$FreeBSD$");
 
 #if defined(__APPLE__) && defined(UF_COMPRESSED) && defined(HAVE_SYS_XATTR_H)\
 	&& defined(HAVE_ZLIB_H)
+
+//
+// The test ACL used here is sometimes assigned to the 'Guest' user
+// This changes the text and breaks the test.  This function simply
+// strips the 'Guest' information from the string to help ensure
+// consistent results on different machines.
+//
+static char _acl_temp[256];
+static const char *
+clean_acl(const char *acl) {
+	char *p, *q;
+	if (strlen(acl) >= sizeof(_acl_temp))
+		return acl;
+
+	strcpy(_acl_temp, acl);
+	p = strstr(_acl_temp, ":Guest:");
+	if (p != NULL) {
+		fprintf(stderr, "Shortening: %s\n", p + 1);
+		memmove(p + 1, p + 6, strlen(p + 6) + 1);
+		q = strstr(p + 2, ":");
+		fprintf(stderr, "Shortening: %s\n", q);
+		memmove(p + 2, q, strlen(q) + 1);
+		return _acl_temp;
+	}
+	return _acl_temp;
+}
+
 static int
 has_xattr(const char *filename, const char *xattrname)
 {
@@ -48,8 +75,8 @@ has_xattr(const char *filename, const char *xattrname)
 	if (r == 0)
 		return (0);
 
-	nl = malloc(r);
-	if (!assert(nl != NULL))
+	assert((nl = malloc(r)) != NULL);
+	if (nl == NULL)
 		return (0);
 
 	r = listxattr(filename, nl, r, XATTR_SHOWCOMPRESSION);
@@ -117,7 +144,7 @@ DEFINE_TEST(test_write_disk_appledouble)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("./file3", archive_entry_pathname(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_extract2(a, ae, ad));
-	/* Extract ._file3 which will be merged into file3 as medtadata. */
+	/* Extract ._file3 which will be merged into file3 as metadata. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("./._file3", archive_entry_pathname(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_extract2(a, ae, ad));
@@ -136,9 +163,9 @@ DEFINE_TEST(test_write_disk_appledouble)
 	failure("'%s' should have decompfs xattr", "file3");
 	assertEqualInt(1, has_xattr("file3", "com.apple.decmpfs"));
 	assert(NULL != (acl = acl_get_file("file3", ACL_TYPE_EXTENDED)));
-	assertEqualString(acl_to_text(acl, NULL),
+	assertEqualString(clean_acl(acl_to_text(acl, NULL)),
 	    "!#acl 1\n"
-	    "user:FFFFEEEE-DDDD-CCCC-BBBB-AAAA000000C9:Guest:201:deny:read\n"
+	    "user:FFFFEEEE-DDDD-CCCC-BBBB-AAAA000000C9:::deny:read\n"
 	    "group:ABCDEFAB-CDEF-ABCD-EFAB-CDEF00000050:admin:80:allow:write\n"
 	);
 	if (acl) acl_free(acl);
@@ -176,7 +203,7 @@ DEFINE_TEST(test_write_disk_appledouble)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("./file3", archive_entry_pathname(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_extract2(a, ae, ad));
-	/* Extract ._file3 which will be merged into file3 as medtadata. */
+	/* Extract ._file3 which will be merged into file3 as metadata. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("./._file3", archive_entry_pathname(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_extract2(a, ae, ad));
@@ -195,9 +222,9 @@ DEFINE_TEST(test_write_disk_appledouble)
 	failure("'%s' should not have decmpfs", "file3");
 	assertEqualInt(0, has_xattr("file3", "com.apple.decmpfs"));
 	assert(NULL != (acl = acl_get_file("file3", ACL_TYPE_EXTENDED)));
-	assertEqualString(acl_to_text(acl, NULL),
+	assertEqualString(clean_acl(acl_to_text(acl, NULL)),
 	    "!#acl 1\n"
-	    "user:FFFFEEEE-DDDD-CCCC-BBBB-AAAA000000C9:Guest:201:deny:read\n"
+	    "user:FFFFEEEE-DDDD-CCCC-BBBB-AAAA000000C9:::deny:read\n"
 	    "group:ABCDEFAB-CDEF-ABCD-EFAB-CDEF00000050:admin:80:allow:write\n"
 	);
 	if (acl) acl_free(acl);

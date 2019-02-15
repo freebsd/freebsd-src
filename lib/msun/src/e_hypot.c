@@ -70,7 +70,7 @@ __ieee754_hypot(double x, double y)
 	   if(ha >= 0x7ff00000) {	/* Inf or NaN */
 	       u_int32_t low;
 	       /* Use original arg order iff result is NaN; quieten sNaNs. */
-	       w = fabs(x+0.0)-fabs(y+0.0);
+	       w = fabsl(x+0.0L)-fabs(y+0);
 	       GET_LOW_WORD(low,a);
 	       if(((ha&0xfffff)|low)==0) w = a;
 	       GET_LOW_WORD(low,b);

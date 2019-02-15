@@ -6,8 +6,7 @@
 PROG=	basename
 MLINKS=	basename.1 dirname.1
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

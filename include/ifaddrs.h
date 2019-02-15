@@ -1,6 +1,8 @@
 /*	$FreeBSD$	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-1-Clause
+ *
  * Copyright (c) 1995, 1999
  *	Berkeley Software Design, Inc.  All rights reserved.
  *

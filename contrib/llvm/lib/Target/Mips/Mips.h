@@ -12,22 +12,27 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TARGET_MIPS_H
-#define TARGET_MIPS_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPS_H
+#define LLVM_LIB_TARGET_MIPS_MIPS_H
 
 #include "MCTargetDesc/MipsMCTargetDesc.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
   class MipsTargetMachine;
+  class ModulePass;
   class FunctionPass;
 
-  FunctionPass *createMipsISelDag(MipsTargetMachine &TM);
-  FunctionPass *createMipsDelaySlotFillerPass(MipsTargetMachine &TM);
-  FunctionPass *createMipsLongBranchPass(MipsTargetMachine &TM);
-  FunctionPass *createMipsJITCodeEmitterPass(MipsTargetMachine &TM,
-                                             JITCodeEmitter &JCE);
-  FunctionPass *createMipsConstantIslandPass(MipsTargetMachine &tm);
+  ModulePass *createMipsOs16Pass();
+  ModulePass *createMips16HardFloatPass();
+
+  FunctionPass *createMipsModuleISelDagPass();
+  FunctionPass *createMipsOptimizePICCallPass();
+  FunctionPass *createMipsDelaySlotFillerPass();
+  FunctionPass *createMipsHazardSchedule();
+  FunctionPass *createMipsLongBranchPass();
+  FunctionPass *createMipsConstantIslandPass();
+  FunctionPass *createMicroMipsSizeReductionPass();
 } // end namespace llvm;
 
 #endif

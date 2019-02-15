@@ -20,11 +20,11 @@
 #include "clang/StaticAnalyzer/Core/CheckerOptInfo.h"
 #include "clang/StaticAnalyzer/Core/CheckerRegistry.h"
 #include "clang/StaticAnalyzer/Frontend/FrontendActions.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
+#include <memory>
 
 using namespace clang;
 using namespace ento;
@@ -40,9 +40,9 @@ class ClangCheckerRegistry : public CheckerRegistry {
 
 public:
   ClangCheckerRegistry(ArrayRef<std::string> plugins,
-                       DiagnosticsEngine *diags = 0);
+                       DiagnosticsEngine *diags = nullptr);
 };
-  
+
 } // end anonymous namespace
 
 ClangCheckerRegistry::ClangCheckerRegistry(ArrayRef<std::string> plugins,
@@ -52,7 +52,12 @@ ClangCheckerRegistry::ClangCheckerRegistry(ArrayRef<std::string> plugins,
   for (ArrayRef<std::string>::iterator i = plugins.begin(), e = plugins.end();
        i != e; ++i) {
     // Get access to the plugin.
-    DynamicLibrary lib = DynamicLibrary::getPermanentLibrary(i->c_str());
+    std::string err;
+    DynamicLibrary lib = DynamicLibrary::getPermanentLibrary(i->c_str(), &err);
+    if (!lib.isValid()) {
+      diags->Report(diag::err_fe_unable_to_load_plugin) << *i << err;
+      continue;
+    }
 
     // See if it's compatible with this build of clang.
     const char *pluginAPIVersion =
@@ -73,15 +78,12 @@ ClangCheckerRegistry::ClangCheckerRegistry(ArrayRef<std::string> plugins,
 
 bool ClangCheckerRegistry::isCompatibleAPIVersion(const char *versionString) {
   // If the version string is null, it's not an analyzer plugin.
-  if (versionString == 0)
+  if (!versionString)
     return false;
 
   // For now, none of the static analyzer API is considered stable.
   // Versions must match exactly.
-  if (strcmp(versionString, CLANG_ANALYZER_API_VERSION_STRING) == 0)
-    return true;
-
-  return false;
+  return strcmp(versionString, CLANG_ANALYZER_API_VERSION_STRING) == 0;
 }
 
 void ClangCheckerRegistry::warnIncompatible(DiagnosticsEngine *diags,
@@ -99,31 +101,40 @@ void ClangCheckerRegistry::warnIncompatible(DiagnosticsEngine *diags,
       << pluginAPIVersion;
 }
 
-
-CheckerManager *ento::createCheckerManager(AnalyzerOptions &opts,
-                                           const LangOptions &langOpts,
-                                           ArrayRef<std::string> plugins,
-                                           DiagnosticsEngine &diags) {
-  OwningPtr<CheckerManager> checkerMgr(new CheckerManager(langOpts,
-                                                          &opts));
-
+static SmallVector<CheckerOptInfo, 8>
+getCheckerOptList(const AnalyzerOptions &opts) {
   SmallVector<CheckerOptInfo, 8> checkerOpts;
   for (unsigned i = 0, e = opts.CheckersControlList.size(); i != e; ++i) {
     const std::pair<std::string, bool> &opt = opts.CheckersControlList[i];
-    checkerOpts.push_back(CheckerOptInfo(opt.first.c_str(), opt.second));
+    checkerOpts.push_back(CheckerOptInfo(opt.first, opt.second));
   }
+  return checkerOpts;
+}
+
+std::unique_ptr<CheckerManager>
+ento::createCheckerManager(AnalyzerOptions &opts, const LangOptions &langOpts,
+                           ArrayRef<std::string> plugins,
+                           DiagnosticsEngine &diags) {
+  std::unique_ptr<CheckerManager> checkerMgr(
+      new CheckerManager(langOpts, opts));
+
+  SmallVector<CheckerOptInfo, 8> checkerOpts = getCheckerOptList(opts);
 
   ClangCheckerRegistry allCheckers(plugins, &diags);
   allCheckers.initializeManager(*checkerMgr, checkerOpts);
+  allCheckers.validateCheckerOptions(opts, diags);
   checkerMgr->finishedCheckerRegistration();
 
   for (unsigned i = 0, e = checkerOpts.size(); i != e; ++i) {
-    if (checkerOpts[i].isUnclaimed())
+    if (checkerOpts[i].isUnclaimed()) {
       diags.Report(diag::err_unknown_analyzer_checker)
           << checkerOpts[i].getName();
+      diags.Report(diag::note_suggest_disabling_all_checkers);
+    }
+
   }
 
-  return checkerMgr.take();
+  return checkerMgr;
 }
 
 void ento::printCheckerHelp(raw_ostream &out, ArrayRef<std::string> plugins) {
@@ -131,4 +142,13 @@ void ento::printCheckerHelp(raw_ostream &out, ArrayRef<std::string> plugins) {
   out << "USAGE: -analyzer-checker <CHECKER or PACKAGE,...>\n\n";
 
   ClangCheckerRegistry(plugins).printHelp(out);
+}
+
+void ento::printEnabledCheckerList(raw_ostream &out,
+                                   ArrayRef<std::string> plugins,
+                                   const AnalyzerOptions &opts) {
+  out << "OVERVIEW: Clang Static Analyzer Enabled Checkers List\n\n";
+
+  SmallVector<CheckerOptInfo, 8> checkerOpts = getCheckerOptList(opts);
+  ClangCheckerRegistry(plugins).printList(out, checkerOpts);
 }

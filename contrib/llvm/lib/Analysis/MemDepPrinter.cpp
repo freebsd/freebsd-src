@@ -10,14 +10,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Analysis/Passes.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
-#include "llvm/Assembly/Writer.h"
+#include "llvm/Analysis/Passes.h"
+#include "llvm/IR/CallSite.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/Support/CallSite.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/InstIterator.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
@@ -45,19 +44,19 @@ namespace {
       initializeMemDepPrinterPass(*PassRegistry::getPassRegistry());
     }
 
-    virtual bool runOnFunction(Function &F);
+    bool runOnFunction(Function &F) override;
 
-    void print(raw_ostream &OS, const Module * = 0) const;
+    void print(raw_ostream &OS, const Module * = nullptr) const override;
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-      AU.addRequiredTransitive<AliasAnalysis>();
-      AU.addRequiredTransitive<MemoryDependenceAnalysis>();
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
+      AU.addRequiredTransitive<AAResultsWrapperPass>();
+      AU.addRequiredTransitive<MemoryDependenceWrapperPass>();
       AU.setPreservesAll();
     }
 
-    virtual void releaseMemory() {
+    void releaseMemory() override {
       Deps.clear();
-      F = 0;
+      F = nullptr;
     }
 
   private:
@@ -68,7 +67,7 @@ namespace {
         return InstTypePair(dep.getInst(), Def);
       if (dep.isNonFuncLocal())
         return InstTypePair(dep.getInst(), NonFuncLocal);
-      assert(dep.isUnknown() && "unexptected dependence type");
+      assert(dep.isUnknown() && "unexpected dependence type");
       return InstTypePair(dep.getInst(), Unknown);
     }
     static InstTypePair getInstTypePair(const Instruction* inst, DepType type) {
@@ -80,7 +79,7 @@ namespace {
 char MemDepPrinter::ID = 0;
 INITIALIZE_PASS_BEGIN(MemDepPrinter, "print-memdeps",
                       "Print MemDeps of function", false, true)
-INITIALIZE_PASS_DEPENDENCY(MemoryDependenceAnalysis)
+INITIALIZE_PASS_DEPENDENCY(MemoryDependenceWrapperPass)
 INITIALIZE_PASS_END(MemDepPrinter, "print-memdeps",
                       "Print MemDeps of function", false, true)
 
@@ -93,13 +92,12 @@ const char *const MemDepPrinter::DepTypeStr[]
 
 bool MemDepPrinter::runOnFunction(Function &F) {
   this->F = &F;
-  AliasAnalysis &AA = getAnalysis<AliasAnalysis>();
-  MemoryDependenceAnalysis &MDA = getAnalysis<MemoryDependenceAnalysis>();
+  MemoryDependenceResults &MDA = getAnalysis<MemoryDependenceWrapperPass>().getMemDep();
 
   // All this code uses non-const interfaces because MemDep is not
   // const-friendly, though nothing is actually modified.
-  for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I) {
-    Instruction *Inst = &*I;
+  for (auto &I : instructions(F)) {
+    Instruction *Inst = &I;
 
     if (!Inst->mayReadFromMemory() && !Inst->mayWriteToMemory())
       continue;
@@ -107,49 +105,26 @@ bool MemDepPrinter::runOnFunction(Function &F) {
     MemDepResult Res = MDA.getDependency(Inst);
     if (!Res.isNonLocal()) {
       Deps[Inst].insert(std::make_pair(getInstTypePair(Res),
-                                       static_cast<BasicBlock *>(0)));
-    } else if (CallSite CS = cast<Value>(Inst)) {
-      const MemoryDependenceAnalysis::NonLocalDepInfo &NLDI =
+                                       static_cast<BasicBlock *>(nullptr)));
+    } else if (auto CS = CallSite(Inst)) {
+      const MemoryDependenceResults::NonLocalDepInfo &NLDI =
         MDA.getNonLocalCallDependency(CS);
 
       DepSet &InstDeps = Deps[Inst];
-      for (MemoryDependenceAnalysis::NonLocalDepInfo::const_iterator
-           I = NLDI.begin(), E = NLDI.end(); I != E; ++I) {
-        const MemDepResult &Res = I->getResult();
-        InstDeps.insert(std::make_pair(getInstTypePair(Res), I->getBB()));
+      for (const NonLocalDepEntry &I : NLDI) {
+        const MemDepResult &Res = I.getResult();
+        InstDeps.insert(std::make_pair(getInstTypePair(Res), I.getBB()));
       }
     } else {
       SmallVector<NonLocalDepResult, 4> NLDI;
-      if (LoadInst *LI = dyn_cast<LoadInst>(Inst)) {
-        if (!LI->isUnordered()) {
-          // FIXME: Handle atomic/volatile loads.
-          Deps[Inst].insert(std::make_pair(getInstTypePair(0, Unknown),
-                                           static_cast<BasicBlock *>(0)));
-          continue;
-        }
-        AliasAnalysis::Location Loc = AA.getLocation(LI);
-        MDA.getNonLocalPointerDependency(Loc, true, LI->getParent(), NLDI);
-      } else if (StoreInst *SI = dyn_cast<StoreInst>(Inst)) {
-        if (!SI->isUnordered()) {
-          // FIXME: Handle atomic/volatile stores.
-          Deps[Inst].insert(std::make_pair(getInstTypePair(0, Unknown),
-                                           static_cast<BasicBlock *>(0)));
-          continue;
-        }
-        AliasAnalysis::Location Loc = AA.getLocation(SI);
-        MDA.getNonLocalPointerDependency(Loc, false, SI->getParent(), NLDI);
-      } else if (VAArgInst *VI = dyn_cast<VAArgInst>(Inst)) {
-        AliasAnalysis::Location Loc = AA.getLocation(VI);
-        MDA.getNonLocalPointerDependency(Loc, false, VI->getParent(), NLDI);
-      } else {
-        llvm_unreachable("Unknown memory instruction!");
-      }
+      assert( (isa<LoadInst>(Inst) || isa<StoreInst>(Inst) ||
+               isa<VAArgInst>(Inst)) && "Unknown memory instruction!"); 
+      MDA.getNonLocalPointerDependency(Inst, NLDI);
 
       DepSet &InstDeps = Deps[Inst];
-      for (SmallVectorImpl<NonLocalDepResult>::const_iterator
-           I = NLDI.begin(), E = NLDI.end(); I != E; ++I) {
-        const MemDepResult &Res = I->getResult();
-        InstDeps.insert(std::make_pair(getInstTypePair(Res), I->getBB()));
+      for (const NonLocalDepResult &I : NLDI) {
+        const MemDepResult &Res = I.getResult();
+        InstDeps.insert(std::make_pair(getInstTypePair(Res), I.getBB()));
       }
     }
   }
@@ -158,8 +133,8 @@ bool MemDepPrinter::runOnFunction(Function &F) {
 }
 
 void MemDepPrinter::print(raw_ostream &OS, const Module *M) const {
-  for (const_inst_iterator I = inst_begin(*F), E = inst_end(*F); I != E; ++I) {
-    const Instruction *Inst = &*I;
+  for (const auto &I : instructions(*F)) {
+    const Instruction *Inst = &I;
 
     DepSetMap::const_iterator DI = Deps.find(Inst);
     if (DI == Deps.end())
@@ -167,17 +142,16 @@ void MemDepPrinter::print(raw_ostream &OS, const Module *M) const {
 
     const DepSet &InstDeps = DI->second;
 
-    for (DepSet::const_iterator I = InstDeps.begin(), E = InstDeps.end();
-         I != E; ++I) {
-      const Instruction *DepInst = I->first.getPointer();
-      DepType type = I->first.getInt();
-      const BasicBlock *DepBB = I->second;
+    for (const auto &I : InstDeps) {
+      const Instruction *DepInst = I.first.getPointer();
+      DepType type = I.first.getInt();
+      const BasicBlock *DepBB = I.second;
 
       OS << "    ";
       OS << DepTypeStr[type];
       if (DepBB) {
         OS << " in block ";
-        WriteAsOperand(OS, DepBB, /*PrintType=*/false, M);
+        DepBB->printAsOperand(OS, /*PrintType=*/false, M);
       }
       if (DepInst) {
         OS << " from: ";

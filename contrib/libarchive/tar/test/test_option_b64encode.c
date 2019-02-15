@@ -42,6 +42,7 @@ DEFINE_TEST(test_option_b64encode)
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);
 	assertEqualMem(p, "begin-base64 644", 16);
+	free(p);
 
 	/* Archive it with uuencode only. */
 	assertEqualInt(0,
@@ -51,4 +52,5 @@ DEFINE_TEST(test_option_b64encode)
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);
 	assertEqualMem(p, "begin-base64 644", 16);
+	free(p);
 }

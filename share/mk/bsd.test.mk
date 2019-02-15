@@ -10,6 +10,18 @@
 
 __<bsd.test.mk>__:
 
+# Third-party software (kyua, etc) prefix.
+LOCALBASE?=	/usr/local
+
+# Tests install directory
+TESTSDIR?=	${TESTSBASE}/${RELDIR:H}
+
+PACKAGE?=	tests
+
+FILESGROUPS+=	${PACKAGE}FILES
+${PACKAGE}FILESPACKAGE=	${PACKAGE}
+${PACKAGE}FILESDIR=	${TESTSDIR}
+
 # List of subdirectories containing tests into which to recurse.  This has the
 # same semantics as SUBDIR at build-time.  However, the directories listed here
 # get registered into the run-time test suite definitions so that the test
@@ -30,7 +42,7 @@ TESTS_ENV?=
 # Force all tests in a separate distribution file.
 #
 # We want this to be the case even when the distribution name is already
-# overriden.  For example: we want the tests for programs in the 'games'
+# overridden.  For example: we want the tests for programs in the 'games'
 # distribution to end up in the 'tests' distribution; the test programs
 # themselves have all the necessary logic to detect that the games are not
 # installed and thus won't cause false negatives.
@@ -54,8 +66,19 @@ _TESTS=
 .include <plain.test.mk>
 .include <tap.test.mk>
 
-.if !empty(TESTS_SUBDIRS)
-SUBDIR+= ${TESTS_SUBDIRS}
+# Sort the tests alphabetically, so the results are deterministically formed
+# across runs.
+_TESTS:=	${_TESTS:O}
+
+# kyua automatically descends directories; only run make check on the
+# top-level directory
+.if !make(check)
+.for ts in ${TESTS_SUBDIRS}
+.if empty(SUBDIR:M${ts})
+SUBDIR+= ${ts}
+.endif
+.endfor
+SUBDIR_PARALLEL= t
 .endif
 
 # it is rare for test cases to have man pages
@@ -63,35 +86,17 @@ SUBDIR+= ${TESTS_SUBDIRS}
 MAN=
 .endif
 
-# tell progs.mk we might want to install things
-PROG_VARS+= BINDIR
-PROGS_TARGETS+= install
-
 .if !defined(NOT_FOR_TEST_SUITE)
 .include <suite.test.mk>
 .endif
 
-.if !target(realtest)
-realtest: .PHONY
+.if !target(realcheck)
+realcheck: .PHONY
 	@echo "$@ not defined; skipping"
 .endif
 
-test: .PHONY
-.ORDER: beforetest realtest
-test: beforetest realtest
+beforecheck realcheck aftercheck check: .PHONY
+.ORDER: beforecheck realcheck aftercheck
+check: beforecheck realcheck aftercheck
 
-.if target(aftertest)
-.ORDER: realtest aftertest
-test: aftertest
-.endif
-
-.if !empty(SUBDIR)
-.include <bsd.subdir.mk>
-.endif
-
-.if !empty(PROGS) || !empty(PROGS_CXX) || !empty(SCRIPTS)
 .include <bsd.progs.mk>
-.endif
-.include <bsd.files.mk>
-
-.include <bsd.obj.mk>

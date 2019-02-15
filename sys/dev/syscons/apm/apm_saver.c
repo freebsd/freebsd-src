@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999 Nick Sayer (who stole shamelessly from blank_saver)
  * All rights reserved.
  *

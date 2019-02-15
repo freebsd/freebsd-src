@@ -1,6 +1,8 @@
 /*	$FreeBSD$	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 SRI International
  * All rights reserved.
  *
@@ -34,6 +36,7 @@
 #define _SHA2_H_
 
 #include <sha256.h>
+#include <sha384.h>
 #include <sha512.h>
 
 #endif /* _SHA2_H_ */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -52,6 +54,10 @@
 #define IEEE80211_DUR_SLOT	20	/* DS/CCK slottime, ERP long slottime */
 #define IEEE80211_DUR_SHSLOT	9	/* ERP short slottime */
 #define IEEE80211_DUR_OFDM_SLOT	9	/* OFDM slottime */
+
+#define IEEE80211_GET_SLOTTIME(ic) \
+	((ic->ic_flags & IEEE80211_F_SHSLOT) ? \
+	    IEEE80211_DUR_SHSLOT : IEEE80211_DUR_SLOT)
 
 /*
  * DIFS (microseconds).
@@ -189,6 +195,14 @@ uint8_t		ieee80211_plcp2rate(uint8_t, enum ieee80211_phytype);
  * Convert 802.11 rate code to PLCP signal.
  */
 uint8_t		ieee80211_rate2plcp(int, enum ieee80211_phytype);
+
+/*
+ * 802.11n rate manipulation.
+ */
+
+#define	IEEE80211_HT_RC_2_MCS(_rc)	((_rc) & 0x1f)
+#define	IEEE80211_HT_RC_2_STREAMS(_rc)	((((_rc) & 0x78) >> 3) + 1)
+#define	IEEE80211_IS_HT_RATE(_rc)		( (_rc) & IEEE80211_RATE_MCS)
 
 uint32_t	ieee80211_compute_duration_ht(uint32_t frameLen,
 			uint16_t rate, int streams, int isht40,

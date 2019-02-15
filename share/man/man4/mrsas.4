@@ -27,7 +27,7 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
-.\" 
+.\"
 .\" The views and conclusions contained in the software and documentation
 .\" are those of the authors and should not be interpreted as representing
 .\" official policies, either expressed or implied, of the FreeBSD Project.
@@ -57,15 +57,15 @@ mrsas_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
-.Nm 
+.Nm
 driver will detect LSI's next generation (6Gb/s and 12Gb/s) PCI Express
 SAS/SATA RAID controllers.
 See the
 .Nm HARDWARE
 section for the supported devices list.
-A disk (virtual disk/physical disk) attached to the 
+A disk (virtual disk/physical disk) attached to the
 .Nm
-driver will be visible to the user through 
+driver will be visible to the user through
 .Xr camcontrol 8
 as
 .Pa /dev/da?
@@ -79,11 +79,11 @@ The
 name is derived from the phrase "MegaRAID SAS HBA", which is
 substantially different than the old "MegaRAID" Driver
 .Xr mfi 4
-which does not connect targets 
-to the 
+which does not connect targets
+to the
 .Xr cam 4
-layer and thus requires a new driver which attaches targets to the 
-.Xr cam 4 
+layer and thus requires a new driver which attaches targets to the
+.Xr cam 4
 layer.
 Older MegaRAID controllers are supported by
 .Xr mfi 4
@@ -91,7 +91,7 @@ and will not work with
 .Nm ,
 but both the
 .Xr mfi 4
-and 
+and
 .Nm
 drivers can detect and manage the LSI MegaRAID SAS 2208/2308/3008/3108 series of
 controllers.
@@ -104,8 +104,8 @@ driver's behavior for LSI MegaRAID SAS 2208/2308/3008/3108 controllers.
 By default, the
 .Xr mfi 4
 driver will detect these controllers.
-See the 
-.Nm PRIORITY 
+See the
+.Nm PRIORITY
 section to know more about driver priority for MR-Fusion devices.
 .Pp
 .Nm
@@ -164,16 +164,16 @@ DELL PERC H330
 .Sh CONFIGURATION
 To disable Online Controller Reset(OCR) for a specific
 .Nm
-driver instance, set the 
+driver instance, set the
 following tunable value in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-dev.mrsas.X.disable_ocr=1 
+dev.mrsas.X.disable_ocr=1
 .Ed
 .Pp
 where X is the adapter number.
 .Pp
-To change the I/O timeout value for a specific 
+To change the I/O timeout value for a specific
 .Nm
 driver instance, set the following tunable value in
 .Xr loader.conf 5 :
@@ -230,12 +230,12 @@ and
 .Dv BUS_PROBE_LOW_PRIORITY ) .
 MR-Fusion Controllers include all cards with the
 Device IDs -
-0x005B, 
+0x005B,
 0x005D,
 0x005F.
 .Pp
 The
-.Xr mfi 4 
+.Xr mfi 4
 driver will set a priority of either
 .Dv BUS_PROBE_DEFAULT
 or
@@ -254,13 +254,13 @@ for the
 .Nm
 driver to detect a MR-Fusion card instead of the
 .Xr mfi 4
-driver. 
+driver.
 .Bd -ragged -offset indent
 .Cd hw.mfi.mrsas_enable="1"
 .Ed
 .Pp
 At boot time, the
-.Xr mfi 4 
+.Xr mfi 4
 driver will get priority to detect MR-Fusion controllers by default.
 Before
 changing this default driver selection policy, LSI advises users to understand
@@ -273,9 +273,9 @@ driver to detect MR-Fusion cards, but allow for the ability to choose the
 driver to detect MR-Fusion cards.
 .Pp
 LSI recommends setting hw.mfi.mrsas_enable="0" for customers who are using the
-older 
-.Xr mfi 4 
-driver and do not want to switch to 
+older
+.Xr mfi 4
+driver and do not want to switch to
 .Nm .
 For those customers who are using a MR-Fusion controller for the first time, LSI
 recommends using the
@@ -286,8 +286,8 @@ Changing the default behavior is well tested under most conditions, but
 unexpected behavior may pop up if more complex and unrealistic operations are
 executed by switching between the
 .Xr mfi 4
-and 
-.Nm 
+and
+.Nm
 drivers for MR-Fusion.
 Switching drivers is designed to happen only one time.
 Although multiple
@@ -296,16 +296,16 @@ The user should decide from
 .Nm Start of Day
 which driver they want to use for the MR-Fusion card.
 .Pp
-The user may see different device names when switching from 
-.Xr mfi 4 
-to 
+The user may see different device names when switching from
+.Xr mfi 4
+to
 .Nm .
 This behavior is
 .Nm Functions As Designed
 and the user needs to change the
 .Xr fstab 5
-entry manually if they are doing any experiments with 
-.Xr mfi 4 
+entry manually if they are doing any experiments with
+.Xr mfi 4
 and
 .Nm
 interoperability.
@@ -342,7 +342,7 @@ is the new driver reworked by LSI which supports Thunderbolt and onward
 products.
 The SAS+SATA RAID controller with device id 0x005b is referred to as
 the Thunderbolt controller throughout this man page.
-.Ed 
+.Ed
 .Bd -ragged
 .Nm cam aware HBA drivers:
 .Fx
@@ -351,12 +351,12 @@ has a
 layer which attaches storage devices and provides a common access mechanism to
 storage controllers and attached devices.
 The
-.Nm 
+.Nm
 driver is
 .Xr cam 4
-aware and devices associated with 
-.Nm 
-can be seen using 
+aware and devices associated with
+.Nm
+can be seen using
 .Xr camcontrol 8 .
 The
 .Xr mfi 4
@@ -364,13 +364,13 @@ driver does not understand the
 .Xr cam 4
 layer and it directly associates storage disks to the block layer.
 .Pp
-.Nm Thunderbolt Controller: 
+.Nm Thunderbolt Controller:
 This is the 6Gb/s MegaRAID HBA card which has device id 0x005B.
 .Pp
-.Nm Invader Controller: 
+.Nm Invader Controller:
 This is 12Gb/s MegaRAID HBA card which has device id 0x005D.
 .Pp
-.Nm Fury Controller: 
+.Nm Fury Controller:
 This is the 12Gb/s MegaRAID HBA card which has device id 0x005F.
 .Ed
 .Sh AUTHORS
@@ -387,11 +387,11 @@ switches between two drivers and does not want to edit
 manually).
 .Pp
 The
-.Nm 
+.Nm
 driver exposes devices as
 .Pa /dev/da? ,
-whereas 
-.Xr mfi 4 
+whereas
+.Xr mfi 4
 exposes devices as
 .Pa /dev/mfid? .
 .Pp

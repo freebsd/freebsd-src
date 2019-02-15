@@ -11,9 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86MCTARGETDESC_H
-#define X86MCTARGETDESC_H
+#ifndef LLVM_LIB_TARGET_X86_MCTARGETDESC_X86MCTARGETDESC_H
+#define LLVM_LIB_TARGET_X86_MCTARGETDESC_X86MCTARGETDESC_H
 
+#include "llvm/MC/MCStreamer.h"
 #include "llvm/Support/DataTypes.h"
 #include <string>
 
@@ -26,21 +27,25 @@ class MCObjectWriter;
 class MCRegisterInfo;
 class MCSubtargetInfo;
 class MCRelocationInfo;
+class MCTargetOptions;
 class Target;
+class Triple;
 class StringRef;
 class raw_ostream;
+class raw_pwrite_stream;
 
-extern Target TheX86_32Target, TheX86_64Target;
+Target &getTheX86_32Target();
+Target &getTheX86_64Target();
 
-/// DWARFFlavour - Flavour of dwarf regnumbers
+/// Flavour of dwarf regnumbers
 ///
 namespace DWARFFlavour {
   enum {
     X86_64 = 0, X86_32_DarwinEH = 1, X86_32_Generic = 2
   };
-} 
-  
-/// N86 namespace - Native X86 register numbers
+}
+
+///  Native X86 register numbers
 ///
 namespace N86 {
   enum {
@@ -49,60 +54,77 @@ namespace N86 {
 }
 
 namespace X86_MC {
-  std::string ParseX86Triple(StringRef TT);
+std::string ParseX86Triple(const Triple &TT);
 
-  /// GetCpuIDAndInfo - Execute the specified cpuid and return the 4 values in
-  /// the specified arguments.  If we can't run cpuid on the host, return true.
-  bool GetCpuIDAndInfo(unsigned value, unsigned *rEAX,
-                       unsigned *rEBX, unsigned *rECX, unsigned *rEDX);
-  /// GetCpuIDAndInfoEx - Execute the specified cpuid with subleaf and return
-  /// the 4 values in the specified arguments.  If we can't run cpuid on the
-  /// host, return true.
-  bool GetCpuIDAndInfoEx(unsigned value, unsigned subleaf, unsigned *rEAX,
-                       unsigned *rEBX, unsigned *rECX, unsigned *rEDX);
+unsigned getDwarfRegFlavour(const Triple &TT, bool isEH);
 
-  void DetectFamilyModel(unsigned EAX, unsigned &Family, unsigned &Model);
+void initLLVMToSEHAndCVRegMapping(MCRegisterInfo *MRI);
 
-  unsigned getDwarfRegFlavour(StringRef TT, bool isEH);
-
-  void InitLLVM2SEHRegisterMapping(MCRegisterInfo *MRI);
-
-  /// createX86MCSubtargetInfo - Create a X86 MCSubtargetInfo instance.
-  /// This is exposed so Asm parser, etc. do not need to go through
-  /// TargetRegistry.
-  MCSubtargetInfo *createX86MCSubtargetInfo(StringRef TT, StringRef CPU,
-                                            StringRef FS);
+/// Create a X86 MCSubtargetInfo instance. This is exposed so Asm parser, etc.
+/// do not need to go through TargetRegistry.
+MCSubtargetInfo *createX86MCSubtargetInfo(const Triple &TT, StringRef CPU,
+                                          StringRef FS);
 }
 
 MCCodeEmitter *createX86MCCodeEmitter(const MCInstrInfo &MCII,
                                       const MCRegisterInfo &MRI,
-                                      const MCSubtargetInfo &STI,
                                       MCContext &Ctx);
 
-MCAsmBackend *createX86_32AsmBackend(const Target &T, const MCRegisterInfo &MRI,
-                                     StringRef TT, StringRef CPU);
-MCAsmBackend *createX86_64AsmBackend(const Target &T, const MCRegisterInfo &MRI,
-                                     StringRef TT, StringRef CPU);
+MCAsmBackend *createX86_32AsmBackend(const Target &T,
+                                     const MCSubtargetInfo &STI,
+                                     const MCRegisterInfo &MRI,
+                                     const MCTargetOptions &Options);
+MCAsmBackend *createX86_64AsmBackend(const Target &T,
+                                     const MCSubtargetInfo &STI,
+                                     const MCRegisterInfo &MRI,
+                                     const MCTargetOptions &Options);
 
-/// createX86MachObjectWriter - Construct an X86 Mach-O object writer.
-MCObjectWriter *createX86MachObjectWriter(raw_ostream &OS,
-                                          bool Is64Bit,
-                                          uint32_t CPUType,
-                                          uint32_t CPUSubtype);
+/// Implements X86-only directives for assembly emission.
+MCTargetStreamer *createX86AsmTargetStreamer(MCStreamer &S,
+                                             formatted_raw_ostream &OS,
+                                             MCInstPrinter *InstPrint,
+                                             bool isVerboseAsm);
 
-/// createX86ELFObjectWriter - Construct an X86 ELF object writer.
-MCObjectWriter *createX86ELFObjectWriter(raw_ostream &OS,
-                                         bool IsELF64,
-                                         uint8_t OSABI,
-                                         uint16_t EMachine);
-/// createX86WinCOFFObjectWriter - Construct an X86 Win COFF object writer.
-MCObjectWriter *createX86WinCOFFObjectWriter(raw_ostream &OS, bool Is64Bit);
+/// Implements X86-only directives for object files.
+MCTargetStreamer *createX86ObjectTargetStreamer(MCStreamer &OS,
+                                                const MCSubtargetInfo &STI);
 
-/// createX86_64MachORelocationInfo - Construct X86-64 Mach-O relocation info.
-MCRelocationInfo *createX86_64MachORelocationInfo(MCContext &Ctx);
+/// Construct an X86 Windows COFF machine code streamer which will generate
+/// PE/COFF format object files.
+///
+/// Takes ownership of \p AB and \p CE.
+MCStreamer *createX86WinCOFFStreamer(MCContext &C,
+                                     std::unique_ptr<MCAsmBackend> &&AB,
+                                     raw_pwrite_stream &OS,
+                                     std::unique_ptr<MCCodeEmitter> &&CE,
+                                     bool RelaxAll,
+                                     bool IncrementalLinkerCompatible);
 
-/// createX86_64ELFORelocationInfo - Construct X86-64 ELF relocation info.
-MCRelocationInfo *createX86_64ELFRelocationInfo(MCContext &Ctx);
+/// Construct an X86 Mach-O object writer.
+std::unique_ptr<MCObjectWriter> createX86MachObjectWriter(raw_pwrite_stream &OS,
+                                                          bool Is64Bit,
+                                                          uint32_t CPUType,
+                                                          uint32_t CPUSubtype);
+
+/// Construct an X86 ELF object writer.
+std::unique_ptr<MCObjectWriter> createX86ELFObjectWriter(raw_pwrite_stream &OS,
+                                                         bool IsELF64,
+                                                         uint8_t OSABI,
+                                                         uint16_t EMachine);
+/// Construct an X86 Win COFF object writer.
+std::unique_ptr<MCObjectWriter>
+createX86WinCOFFObjectWriter(raw_pwrite_stream &OS, bool Is64Bit);
+
+/// Returns the sub or super register of a specific X86 register.
+/// e.g. getX86SubSuperRegister(X86::EAX, 16) returns X86::AX.
+/// Aborts on error.
+unsigned getX86SubSuperRegister(unsigned, unsigned, bool High=false);
+
+/// Returns the sub or super register of a specific X86 register.
+/// Like getX86SubSuperRegister() but returns 0 on error.
+unsigned getX86SubSuperRegisterOrZero(unsigned, unsigned,
+                                      bool High = false);
+
 } // End llvm namespace
 
 

@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/cp/cpddk.h>
 #include <machine/cserial.h>
 #include <machine/resource.h>
-#include <machine/pmap.h>
 
 /* If we don't have Cronyx's sppp version, we don't have fr support via sppp */
 #ifndef PP_FR
@@ -191,8 +190,7 @@ static struct mbuf *makembuf (void *buf, unsigned len)
 	MGETHDR (m, M_NOWAIT, MT_DATA);
 	if (! m)
 		return 0;
-	MCLGET (m, M_NOWAIT);
-	if (! (m->m_flags & M_EXT)) {
+	if (!(MCLGET (m, M_NOWAIT))) {
 		m_freem (m);
 		return 0;
 	}
@@ -446,7 +444,7 @@ static int cp_attach (device_t dev)
 		splx (s);
 		return (ENXIO);
 	}
-	callout_init (&led_timo[unit], CALLOUT_MPSAFE);
+	callout_init (&led_timo[unit], 1);
 	error  = bus_setup_intr (dev, bd->cp_irq,
 				INTR_TYPE_NET|INTR_MPSAFE,
 				NULL, cp_intr, bd, &bd->cp_intrhand);
@@ -475,7 +473,7 @@ static int cp_attach (device_t dev)
 		d->board = b;
 		d->chan = c;
 		c->sys = d;
-		callout_init (&d->timeout_handle, CALLOUT_MPSAFE);
+		callout_init (&d->timeout_handle, 1);
 #ifdef NETGRAPH
 		if (ng_make_node_common (&typestruct, &d->node) != 0) {
 			printf ("%s: cannot make common node\n", d->name);
@@ -630,11 +628,11 @@ static int cp_detach (device_t dev)
 		if (! d || ! d->chan->type)
 			continue;
 		callout_drain (&d->timeout_handle);
-		channel [b->num*NCHAN + c->num] = 0;
+		channel [b->num*NCHAN + c->num] = NULL;
 		/* Deallocate buffers. */
 		cp_bus_dma_mem_free (&d->dmamem);
 	}
-	adapter [b->num] = 0;
+	adapter [b->num] = NULL;
 	cp_bus_dma_mem_free (&bd->dmamem);
 	free (b, M_DEVBUF);
 	mtx_destroy (&bd->cp_mtx);
@@ -2173,7 +2171,7 @@ static int ng_cp_rmnode (node_p node)
 		NG_NODE_SET_PRIVATE (node, NULL);
 		NG_NODE_UNREF (node);
 	}
-	NG_NODE_REVIVE(node);		/* Persistant node */
+	NG_NODE_REVIVE(node);		/* Persistent node */
 #endif
 	return 0;
 }
@@ -2224,7 +2222,7 @@ static int cp_modevent (module_t mod, int type, void *unused)
 			printf ("Failed to register ng_cp\n");
 #endif
 		++load_count;
-		callout_init (&timeout_handle, CALLOUT_MPSAFE);
+		callout_init (&timeout_handle, 1);
 		callout_reset (&timeout_handle, hz*5, cp_timeout, 0);
 		break;
 	case MOD_UNLOAD:

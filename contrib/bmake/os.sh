@@ -17,7 +17,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: os.sh,v 1.46 2014/05/19 16:38:09 sjg Exp $
+#	$Id: os.sh,v 1.55 2017/12/11 20:31:41 sjg Exp $
 #
 #	@(#) Copyright (c) 1994 Simon J. Gerraty
 #
@@ -44,7 +44,7 @@ MACHINE_ARCH=`uname -p 2>/dev/null || echo $MACHINE`
 # there is at least one case of `uname -p` outputting
 # a bunch of usless drivel
 case "$MACHINE_ARCH" in
-*[!A-Za-z0-9_-]*) MACHINE_ARCH="$MACHINE";;
+unknown|*[!A-Za-z0-9_-]*) MACHINE_ARCH="$MACHINE";;
 esac
         
 # we need this here, and it is not always available...
@@ -56,10 +56,10 @@ Which() {
 	case "$1" in
 	/*)	test $t $1 && echo $1;;
 	*)
-        	# some shells cannot correctly handle `IFS`
-        	# in conjunction with the for loop.
-        	_dirs=`IFS=:; echo ${2:-$PATH}`
-        	for d in $_dirs
+		# some shells cannot correctly handle `IFS`
+		# in conjunction with the for loop.
+		_dirs=`IFS=:; echo ${2:-$PATH}`
+		for d in $_dirs
 		do
 			test $t $d/$1 && { echo $d/$1; break; }
 		done
@@ -70,11 +70,11 @@ Which() {
 # tr is insanely non-portable wrt char classes, so we need to
 # spell out the alphabet. sed y/// would work too.
 toUpper() {
-        ${TR:-tr} abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ
+	${TR:-tr} abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ
 }
 
 toLower() {
-        ${TR:-tr} ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz
+	${TR:-tr} ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz
 }
 
 K=
@@ -91,7 +91,7 @@ SunOS)
 	export CHOWN
 	
 	# Great! Solaris keeps moving arch(1)
-        # should just bite the bullet and use uname -p
+	# should just bite the bullet and use uname -p
 	arch=`Which arch /usr/bin:/usr/ucb`
 	
 	MAILER=/usr/ucb/Mail
@@ -105,8 +105,8 @@ SunOS)
 		MACHINE=$MACHINE_ARCH
 		;;
 	4*)
-                MACHINE_ARCH=`arch`
-                ;;
+		MACHINE_ARCH=`arch`
+		;;
 	5*)
 		K=-k
 		LOCAL_FS=ufs
@@ -116,8 +116,8 @@ SunOS)
 		# overwriting an existing file!!!!! We want one that works!
 		test -x /usr/xpg4/bin/ln && LN=${LN:-/usr/xpg4/bin/ln}
 		# wonderful, 5.8's tr again require's []'s
-                # but /usr/xpg4/bin/tr causes problems if LC_COLLATE is set!
-                # use toUpper/toLower instead.
+		# but /usr/xpg4/bin/tr causes problems if LC_COLLATE is set!
+		# use toUpper/toLower instead.
 		;;
 	esac
 	case "$OS/$MACHINE_ARCH" in
@@ -137,11 +137,15 @@ SunOS)
 	# NetBSD at least has good backward compatibility
 	# so NetBSD/i386 is good enough
 	case $OS in
-	NetBSD) SHARE_ARCH=$OS/${MACHINE_ARCH:-$MACHINE};;
+	NetBSD)
+	        LOCALBASE=/usr/pkg
+		HOST_ARCH=$MACHINE
+		SHARE_ARCH=$OS/$HOST_ARCH
+		;;
 	OpenBSD)
-	        arch=`Which arch /usr/bin:/usr/ucb:$PATH`
-                MACHINE_ARCH=`$arch -s`
-                ;;
+		arch=`Which arch /usr/bin:/usr/ucb:$PATH`
+		MACHINE_ARCH=`$arch -s`
+		;;
 	esac
 	NAWK=awk
 	export NAWK
@@ -193,6 +197,7 @@ Haiku)
 	esac
 	;;
 esac
+LOCALBASE=${LOCALBASE:-/usr/local}
 
 HOSTNAME=${HOSTNAME:-`( hostname ) 2>/dev/null`}
 HOSTNAME=${HOSTNAME:-`( uname -n ) 2>/dev/null`}
@@ -203,28 +208,48 @@ esac
 
 TMP_DIRS=${TMP_DIRS:-"/tmp /var/tmp"}
 MACHINE_ARCH=${MACHINE_ARCH:-$MACHINE}
+case "$MACHINE_ARCH" in
+x86*64|amd64) MACHINE32_ARCH=i386;;
+*64) MACHINE32_ARCH=`echo $MACHINE_ARCH | sed 's,64,32,'`;;
+*) MACHINE32_ARCH=$MACHINE_ARCH;;
+esac
+HOST_ARCH=${HOST_ARCH:-$MACHINE_ARCH}
+HOST_ARCH32=${HOST_ARCH32:-$MACHINE32_ARCH}
 # we mount server:/share/arch/$SHARE_ARCH as /usr/local
-SHARE_ARCH=${SHARE_ARCH:-$OS/$OSMAJOR.X/$MACHINE_ARCH}
+SHARE_ARCH_DEFAULT=$OS/$OSMAJOR.X/$HOST_ARCH
+SHARE_ARCH=${SHARE_ARCH:-$SHARE_ARCH_DEFAULT}
 LN=${LN:-ln}
 TR=${TR:-tr}
 
 # Some people like have /share/$HOST_TARGET/bin etc.
-HOST_TARGET=`echo ${OS}${OSMAJOR}-${MACHINE_ARCH} | toLower`
-export HOST_TARGET
+HOST_TARGET=`echo ${OS}${OSMAJOR}-$HOST_ARCH | tr -d / | toLower`
+HOST_TARGET32=`echo ${OS}${OSMAJOR}-$HOST_ARCH32 | tr -d / | toLower`
+export HOST_TARGET HOST_TARGET32
 
 case `echo -n .` in -n*) N=; C="\c";; *) N=-n; C=;; esac
 
-export HOSTNAME HOST        
+Echo() {
+	case "$1" in
+	-n) _n=$N _c=$C; shift;;
+	*) _n= _c=;;
+	esac
+	echo $_n "$@" $_c
+}
+
+export HOSTNAME HOST	    
 export OS MACHINE MACHINE_ARCH OSREL OSMAJOR LOCAL_FS TMP_DIRS MAILER N C K PS_AXC
 export LN SHARE_ARCH TR
+export LOCALBASE
 
 case /$0 in
 */os.sh)
-        for v in $*
+	for v in $*
 	do
-                eval vv=\$$v
-                echo "$v='$vv'"
+		eval vv=\$$v
+		echo "$v='$vv'"
 	done
-        ;;
+	;;
+*/host_target32) echo $HOST_TARGET32;;
+*/host_target) echo $HOST_TARGET;;
 esac
 

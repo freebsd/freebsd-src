@@ -1,4 +1,4 @@
-/* 
+/*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code
  * distributions retain the above copyright notice and this paragraph
@@ -12,15 +12,18 @@
  *
  * Functions for signature and digest verification.
  *
- * Original code by Hannes Gredler (hannes@juniper.net)
+ * Original code by Hannes Gredler (hannes@gredler.at)
  */
 
-/* @(#) $Header: /tcpdump/master/tcpdump/signature.h,v 1.1 2008-08-16 11:36:20 hannes Exp $ (LBL) */
+/* for netdissect_options */
+#include "netdissect.h"
 
 /* signature checking result codes */
 #define SIGNATURE_VALID		0
 #define SIGNATURE_INVALID	1
-#define CANT_CHECK_SIGNATURE	2
+#define CANT_ALLOCATE_COPY	2
+#define CANT_CHECK_SIGNATURE	3
 
 extern const struct tok signature_check_values[];
-extern int signature_verify (const u_char *, u_int, u_char *);
+extern int signature_verify(netdissect_options *, const u_char *, u_int,
+                            const u_char *, void (*)(void *), const void *);

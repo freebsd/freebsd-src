@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007-2009 Google Inc. and Amit Singh
  * All rights reserved.
  * 
@@ -137,6 +139,7 @@ fuse_filehandle_xlate_to_oflags(fufh_type_t type)
 }
 
 int fuse_filehandle_valid(struct vnode *vp, fufh_type_t fufh_type);
+fufh_type_t fuse_filehandle_validrw(struct vnode *vp, fufh_type_t fufh_type);
 int fuse_filehandle_get(struct vnode *vp, fufh_type_t fufh_type,
                         struct fuse_filehandle **fufhp);
 int fuse_filehandle_getrw(struct vnode *vp, fufh_type_t fufh_type,

@@ -90,6 +90,14 @@
 #ifndef LLVM_SUPPORT_CONVERTUTF_H
 #define LLVM_SUPPORT_CONVERTUTF_H
 
+#include <cstddef>
+#include <string>
+
+// Wrap everything in namespace llvm so that programs can link with llvm and
+// their own version of the unicode libraries.
+
+namespace llvm {
+
 /* ---------------------------------------------------------------------
     The following 4 definitions are compiler-specific.
     The C standard does not guarantee that wchar_t has at least
@@ -127,16 +135,23 @@ typedef enum {
   lenientConversion
 } ConversionFlags;
 
-/* This is for C++ and does no harm in C */
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 ConversionResult ConvertUTF8toUTF16 (
   const UTF8** sourceStart, const UTF8* sourceEnd,
   UTF16** targetStart, UTF16* targetEnd, ConversionFlags flags);
 
-ConversionResult ConvertUTF8toUTF32 (
+/**
+ * Convert a partial UTF8 sequence to UTF32.  If the sequence ends in an
+ * incomplete code unit sequence, returns \c sourceExhausted.
+ */
+ConversionResult ConvertUTF8toUTF32Partial(
+  const UTF8** sourceStart, const UTF8* sourceEnd,
+  UTF32** targetStart, UTF32* targetEnd, ConversionFlags flags);
+
+/**
+ * Convert a partial UTF8 sequence to UTF32.  If the sequence ends in an
+ * incomplete code unit sequence, returns \c sourceIllegal.
+ */
+ConversionResult ConvertUTF8toUTF32(
   const UTF8** sourceStart, const UTF8* sourceEnd,
   UTF32** targetStart, UTF32* targetEnd, ConversionFlags flags);
 
@@ -162,16 +177,12 @@ Boolean isLegalUTF8String(const UTF8 **source, const UTF8 *sourceEnd);
 
 unsigned getNumBytesForUTF8(UTF8 firstByte);
 
-#ifdef __cplusplus
-}
-
 /*************************************************************************/
 /* Below are LLVM-specific wrappers of the functions above. */
 
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/StringRef.h"
-
-namespace llvm {
+template <typename T> class ArrayRef;
+template <typename T> class SmallVectorImpl;
+class StringRef;
 
 /**
  * Convert an UTF8 StringRef to UTF8, UTF16, or UTF32 depending on
@@ -184,6 +195,25 @@ namespace llvm {
  */
 bool ConvertUTF8toWide(unsigned WideCharWidth, llvm::StringRef Source,
                        char *&ResultPtr, const UTF8 *&ErrorPtr);
+
+/**
+* Converts a UTF-8 StringRef to a std::wstring.
+* \return true on success.
+*/
+bool ConvertUTF8toWide(llvm::StringRef Source, std::wstring &Result);
+
+/**
+* Converts a UTF-8 C-string to a std::wstring.
+* \return true on success.
+*/
+bool ConvertUTF8toWide(const char *Source, std::wstring &Result);
+
+/**
+* Converts a std::wstring to a UTF-8 encoded std::string.
+* \return true on success.
+*/
+bool convertWideToUTF8(const std::wstring &Source, std::string &Result);
+
 
 /**
  * Convert an Unicode code point to UTF8 sequence.
@@ -212,10 +242,10 @@ bool ConvertCodePointToUTF8(unsigned Source, char *&ResultPtr);
  *
  * \sa ConvertUTF8toUTF32
  */
-static inline ConversionResult convertUTF8Sequence(const UTF8 **source,
-                                                   const UTF8 *sourceEnd,
-                                                   UTF32 *target,
-                                                   ConversionFlags flags) {
+inline ConversionResult convertUTF8Sequence(const UTF8 **source,
+                                            const UTF8 *sourceEnd,
+                                            UTF32 *target,
+                                            ConversionFlags flags) {
   if (*source == sourceEnd)
     return sourceExhausted;
   unsigned size = getNumBytesForUTF8(**source);
@@ -239,10 +269,23 @@ bool hasUTF16ByteOrderMark(ArrayRef<char> SrcBytes);
  */
 bool convertUTF16ToUTF8String(ArrayRef<char> SrcBytes, std::string &Out);
 
+/**
+* Converts a UTF16 string into a UTF8 std::string.
+*
+* \param [in] Src A buffer of UTF-16 encoded text.
+* \param [out] Out Converted UTF-8 is stored here on success.
+* \returns true on success
+*/
+bool convertUTF16ToUTF8String(ArrayRef<UTF16> Src, std::string &Out);
+
+/**
+ * Converts a UTF-8 string into a UTF-16 string with native endianness.
+ *
+ * \returns true on success
+ */
+bool convertUTF8ToUTF16String(StringRef SrcUTF8,
+                              SmallVectorImpl<UTF16> &DstUTF16);
+
 } /* end namespace llvm */
-
-#endif
-
-/* --------------------------------------------------------------------- */
 
 #endif

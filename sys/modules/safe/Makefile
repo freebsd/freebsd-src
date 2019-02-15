@@ -26,7 +26,7 @@
 # $FreeBSD$
 #
 
-.PATH:	${.CURDIR}/../../dev/safe
+.PATH:	${SRCTOP}/sys/dev/safe
 KMOD	= safe
 SRCS	= safe.c opt_safe.h
 SRCS   += device_if.h bus_if.h pci_if.h

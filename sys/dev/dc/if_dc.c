@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997, 1998, 1999
  *	Bill Paul <wpaul@ee.columbia.edu>.  All rights reserved.
  *
@@ -357,6 +359,8 @@ static devclass_t dc_devclass;
 
 DRIVER_MODULE_ORDERED(dc, pci, dc_driver, dc_devclass, NULL, NULL,
     SI_ORDER_ANY);
+MODULE_PNP_INFO("W32:vendor/device;U8:revision;D:#", pci, dc, dc_devs,
+    nitems(dc_devs) - 1);
 DRIVER_MODULE(miibus, dc, miibus_driver, miibus_devclass, NULL, NULL);
 
 #define	DC_SETBIT(sc, reg, x)				\
@@ -671,20 +675,16 @@ dc_miibus_readreg(device_t dev, int phy, int reg)
 			 * code think there's a PHY here.
 			 */
 				return (BMSR_MEDIAMASK);
-				break;
 			case MII_PHYIDR1:
 				if (DC_IS_PNIC(sc))
 					return (DC_VENDORID_LO);
 				return (DC_VENDORID_DEC);
-				break;
 			case MII_PHYIDR2:
 				if (DC_IS_PNIC(sc))
 					return (DC_DEVICEID_82C168);
 				return (DC_DEVICEID_21143);
-				break;
 			default:
 				return (0);
-				break;
 			}
 		} else
 			return (0);
@@ -748,7 +748,6 @@ dc_miibus_readreg(device_t dev, int phy, int reg)
 			device_printf(dev, "phy_read: bad phy register %x\n",
 			    reg);
 			return (0);
-			break;
 		}
 
 		rval = CSR_READ_4(sc, phy_reg) & 0x0000FFFF;
@@ -1000,7 +999,7 @@ dc_setfilt_21143(struct dc_softc *sc)
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = dc_mchash_le(sc,
@@ -1078,7 +1077,7 @@ dc_setfilt_admtek(struct dc_softc *sc)
 
 	/* Now program new ones. */
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		if (DC_IS_CENTAUR(sc))
@@ -1151,7 +1150,7 @@ dc_setfilt_asix(struct dc_softc *sc)
 
 	/* now program new ones */
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = dc_mchash_be(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
@@ -1212,7 +1211,7 @@ dc_setfilt_uli(struct dc_softc *sc)
 	/* Now build perfect filters. */
 	mcnt = 0;
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		if (mcnt >= DC_ULI_FILTER_NPERF) {
@@ -1297,7 +1296,7 @@ dc_setfilt_xircom(struct dc_softc *sc)
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = dc_mchash_le(sc,

@@ -1,12 +1,10 @@
 # $FreeBSD$
 
-TESTSRC=	${.CURDIR}/../../../contrib/netbsd-tests/usr.bin/cmp
-.PATH: ${TESTSRC}
-
 .include <bsd.own.mk>
 
-TESTSDIR=	${TESTSBASE}/usr.bin/cmp
-ATF_TESTS_SH=	cmp_test
-ATF_TESTS_SH_SRC_cmp_test=	t_cmp.sh
+ATF_TESTS_SH+=		cmp_test2
+NETBSD_ATF_TESTS_SH=	cmp_test
+
+.include <netbsd-tests.test.mk>
 
 .include <bsd.test.mk>

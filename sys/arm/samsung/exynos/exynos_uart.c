@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
+#include <dev/uart/uart_cpu_fdt.h>
 #include <dev/uart/uart_bus.h>
 
 #include <arm/samsung/exynos/exynos_uart.h>
@@ -50,17 +51,17 @@ __FBSDID("$FreeBSD$");
 #define	DEF_CLK		100000000
 
 static int sscomspeed(long, long);
-static int s3c24x0_uart_param(struct uart_bas *, int, int, int, int);
+static int exynos4210_uart_param(struct uart_bas *, int, int, int, int);
 
 /*
  * Low-level UART interface.
  */
-static int s3c2410_probe(struct uart_bas *bas);
-static void s3c2410_init(struct uart_bas *bas, int, int, int, int);
-static void s3c2410_term(struct uart_bas *bas);
-static void s3c2410_putc(struct uart_bas *bas, int);
-static int s3c2410_rxready(struct uart_bas *bas);
-static int s3c2410_getc(struct uart_bas *bas, struct mtx *mtx);
+static int exynos4210_probe(struct uart_bas *bas);
+static void exynos4210_init(struct uart_bas *bas, int, int, int, int);
+static void exynos4210_term(struct uart_bas *bas);
+static void exynos4210_putc(struct uart_bas *bas, int);
+static int exynos4210_rxready(struct uart_bas *bas);
+static int exynos4210_getc(struct uart_bas *bas, struct mtx *mtx);
 
 extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
 
@@ -76,7 +77,7 @@ sscomspeed(long speed, long frequency)
 }
 
 static int
-s3c24x0_uart_param(struct uart_bas *bas, int baudrate, int databits,
+exynos4210_uart_param(struct uart_bas *bas, int baudrate, int databits,
     int stopbits, int parity)
 {
 	int brd, ulcon;
@@ -127,38 +128,38 @@ s3c24x0_uart_param(struct uart_bas *bas, int baudrate, int databits,
 	return (0);
 }
 
-struct uart_ops uart_s3c2410_ops = {
-	.probe = s3c2410_probe,
-	.init = s3c2410_init,
-	.term = s3c2410_term,
-	.putc = s3c2410_putc,
-	.rxready = s3c2410_rxready,
-	.getc = s3c2410_getc,
+struct uart_ops uart_exynos4210_ops = {
+	.probe = exynos4210_probe,
+	.init = exynos4210_init,
+	.term = exynos4210_term,
+	.putc = exynos4210_putc,
+	.rxready = exynos4210_rxready,
+	.getc = exynos4210_getc,
 };
 
 static int
-s3c2410_probe(struct uart_bas *bas)
+exynos4210_probe(struct uart_bas *bas)
 {
 
 	return (0);
 }
 
 static void
-s3c2410_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
+exynos4210_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
     int parity)
 {
 
 	if (bas->rclk == 0)
 		bas->rclk = DEF_CLK;
 
-	KASSERT(bas->rclk != 0, ("s3c2410_init: Invalid rclk"));
+	KASSERT(bas->rclk != 0, ("exynos4210_init: Invalid rclk"));
 
 	uart_setreg(bas, SSCOM_UCON, 0);
 	uart_setreg(bas, SSCOM_UFCON,
 	    UFCON_TXTRIGGER_8 | UFCON_RXTRIGGER_8 |
 	    UFCON_TXFIFO_RESET | UFCON_RXFIFO_RESET |
 	    UFCON_FIFO_ENABLE);
-	s3c24x0_uart_param(bas, baudrate, databits, stopbits, parity);
+	exynos4210_uart_param(bas, baudrate, databits, stopbits, parity);
 
 	/* Enable UART. */
 	uart_setreg(bas, SSCOM_UCON, UCON_TXMODE_INT | UCON_RXMODE_INT |
@@ -167,13 +168,13 @@ s3c2410_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 }
 
 static void
-s3c2410_term(struct uart_bas *bas)
+exynos4210_term(struct uart_bas *bas)
 {
 	/* XXX */
 }
 
 static void
-s3c2410_putc(struct uart_bas *bas, int c)
+exynos4210_putc(struct uart_bas *bas, int c)
 {
 
 	while ((bus_space_read_4(bas->bst, bas->bsh, SSCOM_UFSTAT) &
@@ -184,7 +185,7 @@ s3c2410_putc(struct uart_bas *bas, int c)
 }
 
 static int
-s3c2410_rxready(struct uart_bas *bas)
+exynos4210_rxready(struct uart_bas *bas)
 {
 
 	return ((uart_getreg(bas, SSCOM_UTRSTAT) & UTRSTAT_RXREADY) ==
@@ -192,7 +193,7 @@ s3c2410_rxready(struct uart_bas *bas)
 }
 
 static int
-s3c2410_getc(struct uart_bas *bas, struct mtx *mtx)
+exynos4210_getc(struct uart_bas *bas, struct mtx *mtx)
 {
 	int utrstat;
 
@@ -205,34 +206,34 @@ s3c2410_getc(struct uart_bas *bas, struct mtx *mtx)
 	return (bus_space_read_1(bas->bst, bas->bsh, SSCOM_URXH));
 }
 
-static int s3c2410_bus_probe(struct uart_softc *sc);
-static int s3c2410_bus_attach(struct uart_softc *sc);
-static int s3c2410_bus_flush(struct uart_softc *, int);
-static int s3c2410_bus_getsig(struct uart_softc *);
-static int s3c2410_bus_ioctl(struct uart_softc *, int, intptr_t);
-static int s3c2410_bus_ipend(struct uart_softc *);
-static int s3c2410_bus_param(struct uart_softc *, int, int, int, int);
-static int s3c2410_bus_receive(struct uart_softc *);
-static int s3c2410_bus_setsig(struct uart_softc *, int);
-static int s3c2410_bus_transmit(struct uart_softc *);
+static int exynos4210_bus_probe(struct uart_softc *sc);
+static int exynos4210_bus_attach(struct uart_softc *sc);
+static int exynos4210_bus_flush(struct uart_softc *, int);
+static int exynos4210_bus_getsig(struct uart_softc *);
+static int exynos4210_bus_ioctl(struct uart_softc *, int, intptr_t);
+static int exynos4210_bus_ipend(struct uart_softc *);
+static int exynos4210_bus_param(struct uart_softc *, int, int, int, int);
+static int exynos4210_bus_receive(struct uart_softc *);
+static int exynos4210_bus_setsig(struct uart_softc *, int);
+static int exynos4210_bus_transmit(struct uart_softc *);
 
-static kobj_method_t s3c2410_methods[] = {
-	KOBJMETHOD(uart_probe,		s3c2410_bus_probe),
-	KOBJMETHOD(uart_attach, 	s3c2410_bus_attach),
-	KOBJMETHOD(uart_flush,		s3c2410_bus_flush),
-	KOBJMETHOD(uart_getsig,		s3c2410_bus_getsig),
-	KOBJMETHOD(uart_ioctl,		s3c2410_bus_ioctl),
-	KOBJMETHOD(uart_ipend,		s3c2410_bus_ipend),
-	KOBJMETHOD(uart_param,		s3c2410_bus_param),
-	KOBJMETHOD(uart_receive,	s3c2410_bus_receive),
-	KOBJMETHOD(uart_setsig,		s3c2410_bus_setsig),
-	KOBJMETHOD(uart_transmit,	s3c2410_bus_transmit),
+static kobj_method_t exynos4210_methods[] = {
+	KOBJMETHOD(uart_probe,		exynos4210_bus_probe),
+	KOBJMETHOD(uart_attach, 	exynos4210_bus_attach),
+	KOBJMETHOD(uart_flush,		exynos4210_bus_flush),
+	KOBJMETHOD(uart_getsig,		exynos4210_bus_getsig),
+	KOBJMETHOD(uart_ioctl,		exynos4210_bus_ioctl),
+	KOBJMETHOD(uart_ipend,		exynos4210_bus_ipend),
+	KOBJMETHOD(uart_param,		exynos4210_bus_param),
+	KOBJMETHOD(uart_receive,	exynos4210_bus_receive),
+	KOBJMETHOD(uart_setsig,		exynos4210_bus_setsig),
+	KOBJMETHOD(uart_transmit,	exynos4210_bus_transmit),
 
 	{0, 0 }
 };
 
 int
-s3c2410_bus_probe(struct uart_softc *sc)
+exynos4210_bus_probe(struct uart_softc *sc)
 {
 
 	sc->sc_txfifosz = 16;
@@ -242,7 +243,7 @@ s3c2410_bus_probe(struct uart_softc *sc)
 }
 
 static int
-s3c2410_bus_attach(struct uart_softc *sc)
+exynos4210_bus_attach(struct uart_softc *sc)
 {
 
 	sc->sc_hwiflow = 0;
@@ -252,7 +253,7 @@ s3c2410_bus_attach(struct uart_softc *sc)
 }
 
 static int
-s3c2410_bus_transmit(struct uart_softc *sc)
+exynos4210_bus_transmit(struct uart_softc *sc)
 {
 	int i;
 	int reg;
@@ -260,7 +261,7 @@ s3c2410_bus_transmit(struct uart_softc *sc)
 	uart_lock(sc->sc_hwmtx);
 
 	for (i = 0; i < sc->sc_txdatasz; i++) {
-		s3c2410_putc(&sc->sc_bas, sc->sc_txbuf[i]);
+		exynos4210_putc(&sc->sc_bas, sc->sc_txbuf[i]);
 		uart_barrier(&sc->sc_bas);
 	}
 
@@ -277,14 +278,14 @@ s3c2410_bus_transmit(struct uart_softc *sc)
 }
 
 static int
-s3c2410_bus_setsig(struct uart_softc *sc, int sig)
+exynos4210_bus_setsig(struct uart_softc *sc, int sig)
 {
 
 	return (0);
 }
 
 static int
-s3c2410_bus_receive(struct uart_softc *sc)
+exynos4210_bus_receive(struct uart_softc *sc)
 {
 	struct uart_bas *bas;
 
@@ -297,7 +298,7 @@ s3c2410_bus_receive(struct uart_softc *sc)
 }
 
 static int
-s3c2410_bus_param(struct uart_softc *sc, int baudrate, int databits,
+exynos4210_bus_param(struct uart_softc *sc, int baudrate, int databits,
     int stopbits, int parity)
 {
 	int error;
@@ -305,10 +306,10 @@ s3c2410_bus_param(struct uart_softc *sc, int baudrate, int databits,
 	if (sc->sc_bas.rclk == 0)
 		sc->sc_bas.rclk = DEF_CLK;
 
-	KASSERT(sc->sc_bas.rclk != 0, ("s3c2410_init: Invalid rclk"));
+	KASSERT(sc->sc_bas.rclk != 0, ("exynos4210_init: Invalid rclk"));
 
 	uart_lock(sc->sc_hwmtx);
-	error = s3c24x0_uart_param(&sc->sc_bas, baudrate, databits, stopbits,
+	error = exynos4210_uart_param(&sc->sc_bas, baudrate, databits, stopbits,
 	    parity);
 	uart_unlock(sc->sc_hwmtx);
 
@@ -316,7 +317,7 @@ s3c2410_bus_param(struct uart_softc *sc, int baudrate, int databits,
 }
 
 static int
-s3c2410_bus_ipend(struct uart_softc *sc)
+exynos4210_bus_ipend(struct uart_softc *sc)
 {
 	uint32_t ints;
 	uint32_t txempty, rxready;
@@ -352,31 +353,38 @@ s3c2410_bus_ipend(struct uart_softc *sc)
 }
 
 static int
-s3c2410_bus_flush(struct uart_softc *sc, int what)
+exynos4210_bus_flush(struct uart_softc *sc, int what)
 {
 
 	return (0);
 }
 
 static int
-s3c2410_bus_getsig(struct uart_softc *sc)
+exynos4210_bus_getsig(struct uart_softc *sc)
 {
 
 	return (0);
 }
 
 static int
-s3c2410_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
+exynos4210_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 {
 
 	return (EINVAL);
 }
 
-struct uart_class uart_s3c2410_class = {
-	"s3c2410 class",
-	s3c2410_methods,
+static struct uart_class uart_exynos4210_class = {
+	"exynos4210 class",
+	exynos4210_methods,
 	1,
-	.uc_ops = &uart_s3c2410_ops,
+	.uc_ops = &uart_exynos4210_ops,
 	.uc_range = 8,
 	.uc_rclk = 0,
+	.uc_rshift = 0
 };
+
+static struct ofw_compat_data compat_data[] = {
+	{"exynos",		(uintptr_t)&uart_exynos4210_class},
+	{NULL,			(uintptr_t)NULL},
+};
+UART_FDT_CLASS_AND_DEVICE(compat_data);

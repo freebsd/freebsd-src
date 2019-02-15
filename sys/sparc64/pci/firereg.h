@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
@@ -30,7 +32,6 @@
 #define	_SPARC64_PCI_FIREREG_H_
 
 #define	FIRE_NINTR				3	/* 2 OFW + 1 MSIq */
-#define	FIRE_NRANGE				4
 #define	FIRE_NREG				2
 
 #define	FIRE_PCI				0

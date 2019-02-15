@@ -8,6 +8,10 @@
 #	picobsd [options] image_type [site_name]
 #
 # CWARNFLAGS can be used to pass -Wall or similar options
+#export CWARNFLAGS=-D______________sxasxa__________________________
+#export WARNS=2
+# EFIABI... unused attributes ?
+export NO_WERROR=1
 #
 # Where image_type is a directory with the picobsd config info,
 # and ${image_type}/floppy.tree.${site_name} contains
@@ -165,7 +169,7 @@ create_includes_and_libraries2() { # opt_dir opt_target
     local no
     log "create_includes_and_libraries2() for ${SRC} $1"
 
-    no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R" # WITHOUT_CDDL=1"
+    no="-DNO_CLEAN -DMK_PROFILE=no -DNO_GAMES -DNO_LIBC_R" # WITHOUT_CDDL=1"
     no="$no -DWITHOUT_CASPER"
     no="$no -DMALLOC_PRODUCTION"
 
@@ -363,7 +367,7 @@ do_install() {
 	return
     fi
     dialog --title "Build ${THETYPE} completed" --inputbox \
-"\nThe build process was completed successfuly.\n\
+"\nThe build process was completed successfully.\n\
 `cat .build.reply` \n\n\
 Now we are going to install the image on the floppy.\n\
 Please insert a blank floppy in /dev/fd0.\\n
@@ -532,7 +536,11 @@ do_links() {	# rootdir varname
 # if no argument default to objdir/SHLIBDIRPREFIX for both
 find_progs() {	# programs
 	# logverbose "find_progs: called with $*"
-	local i=`realpath ${o_objdir:-${_SHLIBDIRPREFIX}/..}`
+	# rev.284898 removed _SHLIBDIRPREFIX so we need to reconstruct
+	# its value in i1
+	local i1=${_SHLIBDIRPREFIX:-${l_objtree}/${SRC}/tmp}
+	local i=`realpath ${o_objdir:-${i1}/..}`
+
 	# default values for -L and -P
 	local dir="-P $i"
 	local ldir="-L $i"
@@ -670,7 +678,7 @@ populate_mfs_tree() {
     ) || fail $? crunch
 
     log "Setting up host key for sshd:"
-    for K in rsa1 rsa dsa ; do
+    for K in rsa dsa ; do
 	if [ $K = rsa1 ] ; then
 	    i=ssh_host_key
 	else
@@ -725,17 +733,17 @@ populate_mfs_tree() {
     # /stand/crunch is our main binary, we extract its libs
     find_progs ${dst}/stand/crunch
     if [ -n "${u_libs}" ] ; then
-	mkdir -p ${dst}/lib && cp -p ${u_libs} ${dst}/lib
+	mkdir -p ${dst}/lib && (cp -p ${u_libs} ${dst}/lib || log "copy libs ${u_libs} failed" )
 	mkdir -p ${dst}/libexec
         create_includes_and_libraries2 libexec/rtld-elf
-        find_progs ld-elf.so.1 && cp -p ${u_progs} ${dst}/libexec
+        find_progs ld-elf.so.1 && ( cp -p ${u_progs} ${dst}/libexec || log "copy ${u_progs} failed" )
     fi
 
     [ -n "${copy_files}" ] && do_copyfiles ${dst} copy_files
     do_copyfiles_user ${dst} || true
     [ -n "${links}" ] && do_links ${dst} links
-    strip ${dst}/libexec/* ${dst}/lib/* ${dst}/stand/* 2> /dev/null || true
-
+    strip ${dst}/libexec/* ${dst}/lib/* 2> /dev/null || true
+    # strip ${dst}/stand/* 2> /dev/null || true
     # The 'import_files' mechanism is deprecated, as it requires
     # root permissions to follow the symlinks, and also does
     # not let you rename the entries.
@@ -756,7 +764,7 @@ populate_mfs_tree() {
 	# override the owner
 	echo "/set uid=0 gid=0" > mtree.out
 	mtree -ic -p ${dst} -k "" >> mtree.out
-	log "mtre.out at ${BUILDDIR}/mtree.out"
+	log "mtree.out at ${BUILDDIR}/mtree.out size  ${MFS_SIZE}k"
 	makefs -t ffs -o bsize=4096 -o fsize=512 \
 		-s ${MFS_SIZE}k -f 1000 -F mtree.out ${c_fs} ${dst}
 	ls -l ${c_fs} )
@@ -840,6 +848,7 @@ fill_floppy_image() {
     mkdir -p ${dst}
     (
     cd ${BUILDDIR}
+    # old style mfs lookup, find markers in kernel
     set 0 0 # reset variables
     # $1 takes the offset of the MFS filesystem
     set `strings -at d kernel | grep "MFS Filesystem goes here"`
@@ -848,6 +857,16 @@ fill_floppy_image() {
     set `strings -at d kernel | grep "MFS Filesystem had better"`
     mfs_end=$1
     mfs_size="$((${mfs_end} - ${mfs_start}))"
+    if [ ${mfs_start} = 0 -o ${mfs_end} = 0 ] ; then
+	# similar to sys/tools/embed_mfs.sh
+	local x="`objdump -h kernel | grep oldmfs`"
+	mfs_size=`echo ${x} | awk '{printf("%d", "0x" $3)}' 2> /dev/null`
+	mfs_start=`echo ${x} | awk '{printf("%d", "0x" $6)}' 2> /dev/null`
+	if [ ${mfs_start} = 0 -o ${mfs_size} = 0 ] ; then
+	    log "-- old style mfs location not found, have"
+	    logverbose "$x"
+	fi
+    fi
     set -- `ls -l ${c_fs}`; imgsize="$5"
     if [ ${mfs_start} -gt 0 -a ${mfs_size} -ge ${imgsize} ] ; then
 	mfs_ofs=$((${mfs_start} + 8192))
@@ -949,9 +968,15 @@ set_build_parameters() {
     OSVERSION=$3
     log "OSVERSION is ${OSVERSION}"
 
-	export MAKEOBJDIRPREFIX=${l_objtree}
-	export TARGET_ARCH=${o_arch} TARGET=${o_arch}
-	# XXX 20131001 see if CLANG fixes the build
+    export MAKEOBJDIRPREFIX=${l_objtree}
+    export TARGET_ARCH=${o_arch} TARGET=${o_arch}
+    # XXX 20131001 see if CLANG fixes the build
+    if true; then
+	echo "--- build with clang"
+	export WITHOUT_CLANG=yes
+	export WITHOUT_CLANG_BOOTSTRAP=yes
+	# export WITH_CLANG_BOOTSTRAP=yes
+    else
 	export WITHOUT_CLANG_IS_CC=yes
 	export WITHOUT_CLANG_BOOTSTRAP=yes
 	export WITH_GCC=yes
@@ -959,14 +984,16 @@ set_build_parameters() {
 	export WITH_GNUCXX=yes
 	export WITHOUT_CLANG=yes
 	export WITHOUT_ICONV=yes
+	export WITHOUT_TESTS=yes
+    fi
 
-	# XXX why change machine_arch ?
-	#-- export MACHINE_ARCH=`uname -m` MACHINE=`uname -m`
-	# export CWARNFLAGS="-Wextra -Wno-sign-compare -Wno-missing-field-initializers"
-	# XXX BINMAKE does not really exist anymore
-	eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V BINMAKE`\""
-	[ "$BINMAKE" = "" ] && \
-	   eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V SUB_MAKE`\""
+    # XXX why change machine_arch ?
+    #-- export MACHINE_ARCH=`uname -m` MACHINE=`uname -m`
+    # export CWARNFLAGS="-Wextra -Wno-sign-compare -Wno-missing-field-initializers"
+    # XXX BINMAKE does not really exist anymore
+    eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V BINMAKE`\""
+    [ "$BINMAKE" = "" ] && \
+       eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V SUB_MAKE`\""
 
     if [ "${o_init_src}" != "" ] ; then
 	create_includes_and_libraries2

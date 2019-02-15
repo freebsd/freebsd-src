@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -39,7 +41,9 @@
 /*
  * Testing against Clang-specific extensions.
  */
-
+#ifndef	__has_attribute
+#define	__has_attribute(x)	0
+#endif
 #ifndef	__has_extension
 #define	__has_extension		__has_feature
 #endif
@@ -70,33 +74,33 @@
 #if defined(__GNUC__) || defined(__INTEL_COMPILER)
 
 #if __GNUC__ >= 3 || defined(__INTEL_COMPILER)
-#define __GNUCLIKE_ASM 3
-#define __GNUCLIKE_MATH_BUILTIN_CONSTANTS
+#define	__GNUCLIKE_ASM 3
+#define	__GNUCLIKE_MATH_BUILTIN_CONSTANTS
 #else
-#define __GNUCLIKE_ASM 2
+#define	__GNUCLIKE_ASM 2
 #endif
-#define __GNUCLIKE___TYPEOF 1
-#define __GNUCLIKE___OFFSETOF 1
-#define __GNUCLIKE___SECTION 1
+#define	__GNUCLIKE___TYPEOF 1
+#define	__GNUCLIKE___OFFSETOF 1
+#define	__GNUCLIKE___SECTION 1
 
 #ifndef __INTEL_COMPILER
-# define __GNUCLIKE_CTOR_SECTION_HANDLING 1
+#define	__GNUCLIKE_CTOR_SECTION_HANDLING 1
 #endif
 
-#define __GNUCLIKE_BUILTIN_CONSTANT_P 1
-# if defined(__INTEL_COMPILER) && defined(__cplusplus) \
-    && __INTEL_COMPILER < 800
-#  undef __GNUCLIKE_BUILTIN_CONSTANT_P
-# endif
+#define	__GNUCLIKE_BUILTIN_CONSTANT_P 1
+#if defined(__INTEL_COMPILER) && defined(__cplusplus) && \
+   __INTEL_COMPILER < 800
+#undef __GNUCLIKE_BUILTIN_CONSTANT_P
+#endif
 
-#if (__GNUC_MINOR__ > 95 || __GNUC__ >= 3) && !defined(__INTEL_COMPILER)
-# define __GNUCLIKE_BUILTIN_VARARGS 1
-# define __GNUCLIKE_BUILTIN_STDARG 1
-# define __GNUCLIKE_BUILTIN_VAALIST 1
+#if (__GNUC_MINOR__ > 95 || __GNUC__ >= 3)
+#define	__GNUCLIKE_BUILTIN_VARARGS 1
+#define	__GNUCLIKE_BUILTIN_STDARG 1
+#define	__GNUCLIKE_BUILTIN_VAALIST 1
 #endif
 
 #if defined(__GNUC__)
-# define __GNUC_VA_LIST_COMPATIBILITY 1
+#define	__GNUC_VA_LIST_COMPATIBILITY 1
 #endif
 
 /*
@@ -107,23 +111,23 @@
 #endif
 
 #ifndef __INTEL_COMPILER
-# define __GNUCLIKE_BUILTIN_NEXT_ARG 1
-# define __GNUCLIKE_MATH_BUILTIN_RELOPS
+#define	__GNUCLIKE_BUILTIN_NEXT_ARG 1
+#define	__GNUCLIKE_MATH_BUILTIN_RELOPS
 #endif
 
-#define __GNUCLIKE_BUILTIN_MEMCPY 1
+#define	__GNUCLIKE_BUILTIN_MEMCPY 1
 
 /* XXX: if __GNUC__ >= 2: not tested everywhere originally, where replaced */
-#define __CC_SUPPORTS_INLINE 1
-#define __CC_SUPPORTS___INLINE 1
-#define __CC_SUPPORTS___INLINE__ 1
+#define	__CC_SUPPORTS_INLINE 1
+#define	__CC_SUPPORTS___INLINE 1
+#define	__CC_SUPPORTS___INLINE__ 1
 
-#define __CC_SUPPORTS___FUNC__ 1
-#define __CC_SUPPORTS_WARNING 1
+#define	__CC_SUPPORTS___FUNC__ 1
+#define	__CC_SUPPORTS_WARNING 1
 
-#define __CC_SUPPORTS_VARADIC_XXX 1 /* see varargs.h */
+#define	__CC_SUPPORTS_VARADIC_XXX 1 /* see varargs.h */
 
-#define __CC_SUPPORTS_DYNAMIC_ARRAY_INIT 1
+#define	__CC_SUPPORTS_DYNAMIC_ARRAY_INIT 1
 
 #endif /* __GNUC__ || __INTEL_COMPILER */
 
@@ -203,16 +207,7 @@
  * for a given compiler, let the compile fail if it is told to use
  * a feature that we cannot live without.
  */
-#ifdef lint
-#define	__dead2
-#define	__pure2
-#define	__unused
-#define	__packed
-#define	__aligned(x)
-#define	__section(x)
-#define	__weak
-#else
-#define	__weak		__attribute__((__weak__))
+#define	__weak_symbol	__attribute__((__weak__))
 #if !__GNUC_PREREQ__(2, 5) && !defined(__INTEL_COMPILER)
 #define	__dead2
 #define	__pure2
@@ -224,7 +219,7 @@
 #define	__unused
 /* XXX Find out what to do for __packed, __aligned and __section */
 #endif
-#if __GNUC_PREREQ__(2, 7)
+#if __GNUC_PREREQ__(2, 7) || defined(__INTEL_COMPILER)
 #define	__dead2		__attribute__((__noreturn__))
 #define	__pure2		__attribute__((__const__))
 #define	__unused	__attribute__((__unused__))
@@ -233,15 +228,17 @@
 #define	__aligned(x)	__attribute__((__aligned__(x)))
 #define	__section(x)	__attribute__((__section__(x)))
 #endif
-#if defined(__INTEL_COMPILER)
-#define __dead2		__attribute__((__noreturn__))
-#define __pure2		__attribute__((__const__))
-#define __unused	__attribute__((__unused__))
-#define __used		__attribute__((__used__))
-#define __packed	__attribute__((__packed__))
-#define __aligned(x)	__attribute__((__aligned__(x)))
-#define __section(x)	__attribute__((__section__(x)))
+#if __GNUC_PREREQ__(4, 3) || __has_attribute(__alloc_size__)
+#define	__alloc_size(x)	__attribute__((__alloc_size__(x)))
+#define	__alloc_size2(n, x)	__attribute__((__alloc_size__(n, x)))
+#else
+#define	__alloc_size(x)
+#define	__alloc_size2(n, x)
 #endif
+#if __GNUC_PREREQ__(4, 9) || __has_attribute(__alloc_align__)
+#define	__alloc_align(x)	__attribute__((__alloc_align__(x)))
+#else
+#define	__alloc_align(x)
 #endif
 
 #if !__GNUC_PREREQ__(2, 95)
@@ -270,7 +267,8 @@
 #define	_Alignof(x)		__alignof(x)
 #endif
 
-#if !__has_extension(c_atomic) && !__has_extension(cxx_atomic)
+#if !defined(__cplusplus) && !__has_extension(c_atomic) && \
+	!__has_extension(cxx_atomic) && !__GNUC_PREREQ__(4, 7)
 /*
  * No native support for _Atomic(). Place object in structure to prevent
  * most forms of direct non-atomic access.
@@ -288,10 +286,13 @@
 #if (defined(__cplusplus) && __cplusplus >= 201103L) || \
     __has_extension(cxx_static_assert)
 #define	_Static_assert(x, y)	static_assert(x, y)
+#elif __GNUC_PREREQ__(4,6) && !defined(__cplusplus)
+/* Nothing, gcc 4.6 and higher has _Static_assert built-in */
 #elif defined(__COUNTER__)
 #define	_Static_assert(x, y)	__Static_assert(x, __COUNTER__)
 #define	__Static_assert(x, y)	___Static_assert(x, y)
-#define	___Static_assert(x, y)	typedef char __assert_ ## y[(x) ? 1 : -1]
+#define	___Static_assert(x, y)	typedef char __assert_ ## y[(x) ? 1 : -1] \
+				__unused
 #else
 #define	_Static_assert(x, y)	struct __hack
 #endif
@@ -332,6 +333,21 @@
 	    __builtin_types_compatible_p(__typeof(expr), t), yes, no)
 #endif
 
+/*
+ * C99 Static array indices in function parameter declarations.  Syntax such as:
+ * void bar(int myArray[static 10]);
+ * is allowed in C99 but not in C++.  Define __min_size appropriately so
+ * headers using it can be compiled in either language.  Use like this:
+ * void bar(int myArray[__min_size(10)]);
+ */
+#if !defined(__cplusplus) && \
+    (defined(__clang__) || __GNUC_PREREQ__(4, 6)) && \
+    (!defined(__STDC_VERSION__) || (__STDC_VERSION__ >= 199901))
+#define __min_size(x)	static (x)
+#else
+#define __min_size(x)	(x)
+#endif
+
 #if __GNUC_PREREQ__(2, 96)
 #define	__malloc_like	__attribute__((__malloc__))
 #define	__pure		__attribute__((__pure__))
@@ -352,22 +368,24 @@
 #define	__noinline
 #endif
 
-#if __GNUC_PREREQ__(3, 3)
-#define __nonnull(x)	__attribute__((__nonnull__(x)))
-#else
-#define __nonnull(x)
-#endif
-
 #if __GNUC_PREREQ__(3, 4)
 #define	__fastcall	__attribute__((__fastcall__))
+#define	__result_use_check	__attribute__((__warn_unused_result__))
 #else
 #define	__fastcall
+#define	__result_use_check
 #endif
 
 #if __GNUC_PREREQ__(4, 1)
 #define	__returns_twice	__attribute__((__returns_twice__))
 #else
 #define	__returns_twice
+#endif
+
+#if __GNUC_PREREQ__(4, 6) || __has_builtin(__builtin_unreachable)
+#define	__unreachable()	__builtin_unreachable()
+#else
+#define	__unreachable()	((void)0)
 #endif
 
 /* XXX: should use `#if __STDC_VERSION__ < 199901'. */
@@ -397,7 +415,7 @@
  * software that is unaware of C99 keywords.
  */
 #if !(__GNUC__ == 2 && __GNUC_MINOR__ == 95)
-#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 199901 || defined(lint)
+#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 199901
 #define	__restrict
 #else
 #define	__restrict	restrict
@@ -433,19 +451,21 @@
  *	  larger code.
  */
 #if __GNUC_PREREQ__(2, 96)
-#define __predict_true(exp)     __builtin_expect((exp), 1)
-#define __predict_false(exp)    __builtin_expect((exp), 0)
+#define	__predict_true(exp)     __builtin_expect((exp), 1)
+#define	__predict_false(exp)    __builtin_expect((exp), 0)
 #else
-#define __predict_true(exp)     (exp)
-#define __predict_false(exp)    (exp)
+#define	__predict_true(exp)     (exp)
+#define	__predict_false(exp)    (exp)
 #endif
 
-#if __GNUC_PREREQ__(4, 2)
-#define	__hidden	__attribute__((__visibility__("hidden")))
+#if __GNUC_PREREQ__(4, 0)
+#define	__null_sentinel	__attribute__((__sentinel__))
 #define	__exported	__attribute__((__visibility__("default")))
+#define	__hidden	__attribute__((__visibility__("hidden")))
 #else
-#define	__hidden
+#define	__null_sentinel
 #define	__exported
+#define	__hidden
 #endif
 
 /*
@@ -453,13 +473,13 @@
  * require it.
  */
 #if __GNUC_PREREQ__(4, 1)
-#define __offsetof(type, field)	 __builtin_offsetof(type, field)
+#define	__offsetof(type, field)	 __builtin_offsetof(type, field)
 #else
 #ifndef __cplusplus
 #define	__offsetof(type, field) \
 	((__size_t)(__uintptr_t)((const volatile void *)&((type *)0)->field))
 #else
-#define __offsetof(type, field)					\
+#define	__offsetof(type, field)					\
   (__offsetof__ (reinterpret_cast <__size_t>			\
                  (&reinterpret_cast <const volatile char &>	\
                   (static_cast<type *> (0)->field))))
@@ -533,7 +553,7 @@
 #define	__sym_compat(sym,impl,verid)	\
 	__asm__(".symver " #impl ", " #sym "@" #verid)
 #define	__sym_default(sym,impl,verid)	\
-	__asm__(".symver " #impl ", " #sym "@@" #verid)
+	__asm__(".symver " #impl ", " #sym "@@@" #verid)
 #else
 #define	__weak_reference(sym,alias)	\
 	__asm__(".weak alias");		\
@@ -545,7 +565,7 @@
 #define	__sym_compat(sym,impl,verid)	\
 	__asm__(".symver impl, sym@verid")
 #define	__sym_default(impl,sym,verid)	\
-	__asm__(".symver impl, sym@@verid")
+	__asm__(".symver impl, sym@@@verid")
 #endif	/* __STDC__ */
 #endif	/* __GNUC__ || __INTEL_COMPILER */
 
@@ -559,7 +579,7 @@
  * The following definition might not work well if used in header files,
  * but it should be better than nothing.  If you want a "do nothing"
  * version, then it should generate some harmless declaration, such as:
- *    #define __IDSTRING(name,string)	struct __hack
+ *    #define	__IDSTRING(name,string)	struct __hack
  */
 #define	__IDSTRING(name,string)	static const char name[] __unused = string
 #endif
@@ -571,7 +591,7 @@
  *	__FBSDID("$FreeBSD$");
  */
 #ifndef	__FBSDID
-#if !defined(lint) && !defined(STRIP_FBSDID)
+#if !defined(STRIP_FBSDID)
 #define	__FBSDID(s)	__IDSTRING(__CONCAT(__rcsid_,__LINE__),s)
 #else
 #define	__FBSDID(s)	struct __hack
@@ -722,26 +742,81 @@
 #define	__XSI_VISIBLE		0
 #define	__BSD_VISIBLE		0
 #define	__ISO_C_VISIBLE		1990
+#define	__EXT1_VISIBLE		0
 #elif defined(_C99_SOURCE)	/* Localism to specify strict C99 env. */
 #define	__POSIX_VISIBLE		0
 #define	__XSI_VISIBLE		0
 #define	__BSD_VISIBLE		0
 #define	__ISO_C_VISIBLE		1999
+#define	__EXT1_VISIBLE		0
 #elif defined(_C11_SOURCE)	/* Localism to specify strict C11 env. */
 #define	__POSIX_VISIBLE		0
 #define	__XSI_VISIBLE		0
 #define	__BSD_VISIBLE		0
 #define	__ISO_C_VISIBLE		2011
+#define	__EXT1_VISIBLE		0
 #else				/* Default environment: show everything. */
 #define	__POSIX_VISIBLE		200809
 #define	__XSI_VISIBLE		700
 #define	__BSD_VISIBLE		1
 #define	__ISO_C_VISIBLE		2011
+#define	__EXT1_VISIBLE		1
 #endif
 #endif
 
-#if defined(__mips) || defined(__powerpc64__)
-#define __NO_TLS 1
+/* User override __EXT1_VISIBLE */
+#if defined(__STDC_WANT_LIB_EXT1__)
+#undef	__EXT1_VISIBLE
+#if __STDC_WANT_LIB_EXT1__
+#define	__EXT1_VISIBLE		1
+#else
+#define	__EXT1_VISIBLE		0
+#endif
+#endif /* __STDC_WANT_LIB_EXT1__ */
+
+#if defined(__mips) || defined(__powerpc64__) || defined(__riscv)
+#define	__NO_TLS 1
+#endif
+
+/*
+ * Old versions of GCC use non-standard ARM arch symbols; acle-compat.h
+ * translates them to __ARM_ARCH and the modern feature symbols defined by ARM.
+ */
+#if defined(__arm__) && !defined(__ARM_ARCH)
+#include <machine/acle-compat.h>
+#endif
+
+/*
+ * Nullability qualifiers: currently only supported by Clang.
+ */
+#if !(defined(__clang__) && __has_feature(nullability))
+#define	_Nonnull
+#define	_Nullable
+#define	_Null_unspecified
+#define	__NULLABILITY_PRAGMA_PUSH
+#define	__NULLABILITY_PRAGMA_POP
+#else
+#define	__NULLABILITY_PRAGMA_PUSH _Pragma("clang diagnostic push")	\
+	_Pragma("clang diagnostic ignored \"-Wnullability-completeness\"")
+#define	__NULLABILITY_PRAGMA_POP _Pragma("clang diagnostic pop")
+#endif
+
+/*
+ * Type Safety Checking
+ *
+ * Clang provides additional attributes to enable checking type safety
+ * properties that cannot be enforced by the C type system. 
+ */
+
+#if __has_attribute(__argument_with_type_tag__) && \
+    __has_attribute(__type_tag_for_datatype__)
+#define	__arg_type_tag(arg_kind, arg_idx, type_tag_idx) \
+	    __attribute__((__argument_with_type_tag__(arg_kind, arg_idx, type_tag_idx)))
+#define	__datatype_type_tag(kind, type) \
+	    __attribute__((__type_tag_for_datatype__(kind, type)))
+#else
+#define	__arg_type_tag(arg_kind, arg_idx, type_tag_idx)
+#define	__datatype_type_tag(kind, type)
 #endif
 
 /*

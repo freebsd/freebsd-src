@@ -180,14 +180,13 @@ To enable just slices 1 and 3 in the menu:
 .Dl "boot0cfg -m 0x5 ada0"
 .Pp
 To go back to non-interactive booting, use
-.Xr fdisk 8
+.Xr gpart 8
 to install the default MBR:
 .Pp
-.Dl "fdisk -B ada0"
+.Dl "gpart bootcode -b /boot/mbr ada0"
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr boot 8 ,
-.Xr fdisk 8 ,
 .Xr gpart 8
 .Sh AUTHORS
 .An Robert Nordier Aq Mt rnordier@FreeBSD.org

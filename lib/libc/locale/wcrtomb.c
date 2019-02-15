@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
@@ -41,7 +43,7 @@ wcrtomb_l(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps,
 {
 	FIX_LOCALE(locale);
 	if (ps == NULL)
-		ps = &locale->wcrtomb;
+		ps = &(XLOCALE_CTYPE(locale)->wcrtomb);
 	return (XLOCALE_CTYPE(locale)->__wcrtomb(s, wc, ps));
 }
 

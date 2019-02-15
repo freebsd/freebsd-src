@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_CODEGEN_CGVTABLE_H
-#define CLANG_CODEGEN_CGVTABLE_H
+#ifndef LLVM_CLANG_LIB_CODEGEN_CGVTABLES_H
+#define LLVM_CLANG_LIB_CODEGEN_CGVTABLES_H
 
 #include "clang/AST/BaseSubobject.h"
 #include "clang/AST/CharUnits.h"
@@ -27,17 +27,16 @@ namespace clang {
 
 namespace CodeGen {
   class CodeGenModule;
+  class ConstantArrayBuilder;
+  class ConstantStructBuilder;
 
 class CodeGenVTables {
   CodeGenModule &CGM;
 
-  // FIXME: Consider moving ItaniumVTContext and MicrosoftVTContext into
-  // respective CXXABI classes?
-  ItaniumVTableContext ItaniumVTContext;
-  OwningPtr<MicrosoftVTableContext> MicrosoftVTContext;
-  
+  VTableContextBase *VTContext;
+
   /// VTableAddressPointsMapTy - Address points for a single vtable.
-  typedef llvm::DenseMap<BaseSubobject, uint64_t> VTableAddressPointsMapTy;
+  typedef VTableLayout::AddressPointsMapTy VTableAddressPointsMapTy;
 
   typedef std::pair<const CXXRecordDecl *, BaseSubobject> BaseSubobjectPairTy;
   typedef llvm::DenseMap<BaseSubobjectPairTy, uint64_t> SubVTTIndiciesMapTy;
@@ -52,6 +51,12 @@ class CodeGenVTables {
   /// indices.
   SecondaryVirtualPointerIndicesMapTy SecondaryVirtualPointerIndices;
 
+  /// Cache for the pure virtual member call function.
+  llvm::Constant *PureVirtualFn = nullptr;
+
+  /// Cache for the deleted virtual member call function.
+  llvm::Constant *DeletedVirtualFn = nullptr;
+
   /// emitThunk - Emit a single thunk.
   void emitThunk(GlobalDecl GD, const ThunkInfo &Thunk, bool ForVTable);
 
@@ -59,23 +64,26 @@ class CodeGenVTables {
   /// the ABI.
   void maybeEmitThunkForVTable(GlobalDecl GD, const ThunkInfo &Thunk);
 
+  void addVTableComponent(ConstantArrayBuilder &builder,
+                          const VTableLayout &layout, unsigned idx,
+                          llvm::Constant *rtti,
+                          unsigned &nextVTableThunkIndex);
+
 public:
-  /// CreateVTableInitializer - Create a vtable initializer for the given record
-  /// decl.
-  /// \param Components - The vtable components; this is really an array of
-  /// VTableComponents.
-  llvm::Constant *CreateVTableInitializer(const CXXRecordDecl *RD,
-                                          const VTableComponent *Components, 
-                                          unsigned NumComponents,
-                                const VTableLayout::VTableThunkTy *VTableThunks,
-                                          unsigned NumVTableThunks);
+  /// Add vtable components for the given vtable layout to the given
+  /// global initializer.
+  void createVTableInitializer(ConstantStructBuilder &builder,
+                               const VTableLayout &layout,
+                               llvm::Constant *rtti);
 
   CodeGenVTables(CodeGenModule &CGM);
 
-  ItaniumVTableContext &getItaniumVTableContext() { return ItaniumVTContext; }
+  ItaniumVTableContext &getItaniumVTableContext() {
+    return *cast<ItaniumVTableContext>(VTContext);
+  }
 
   MicrosoftVTableContext &getMicrosoftVTableContext() {
-    return *MicrosoftVTContext.get();
+    return *cast<MicrosoftVTableContext>(VTContext);
   }
 
   /// getSubVTTIndex - Return the index of the sub-VTT for the base class of the
@@ -87,10 +95,6 @@ public:
   uint64_t getSecondaryVirtualPointerIndex(const CXXRecordDecl *RD,
                                            BaseSubobject Base);
 
-  /// getAddressPoint - Get the address point of the given subobject in the
-  /// class decl.
-  uint64_t getAddressPoint(BaseSubobject Base, const CXXRecordDecl *RD);
-  
   /// GenerateConstructionVTable - Generate a construction vtable for the given 
   /// base subobject.
   llvm::GlobalVariable *
@@ -100,7 +104,7 @@ public:
                              VTableAddressPointsMapTy& AddressPoints);
 
     
-  /// GetAddrOfVTable - Get the address of the VTT for the given record decl.
+  /// GetAddrOfVTT - Get the address of the VTT for the given record decl.
   llvm::GlobalVariable *GetAddrOfVTT(const CXXRecordDecl *RD);
 
   /// EmitVTTDefinition - Emit the definition of the given vtable.
@@ -118,6 +122,11 @@ public:
   void GenerateClassData(const CXXRecordDecl *RD);
 
   bool isVTableExternal(const CXXRecordDecl *RD);
+
+  /// Returns the type of a vtable with the given layout. Normally a struct of
+  /// arrays of pointers, with one struct element for each vtable in the vtable
+  /// group.
+  llvm::Type *getVTableType(const VTableLayout &layout);
 };
 
 } // end namespace CodeGen

@@ -45,7 +45,7 @@ EOF
 spinny()
 {
 	while true; do
-		/usr/bin/date > /dev/null
+		/bin/date > /dev/null
 	done
 }
 
@@ -63,7 +63,7 @@ child=$!
 # The only thing we can be sure of is that some module named "unix" (or
 # "genunix") did some work -- so that's all we'll check.
 #
-script | tee /dev/fd/2 | grep unix > /dev/null
+script | tee /dev/fd/2 | grep kernel > /dev/null
 status=$? 
 
 kill $child

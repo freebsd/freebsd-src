@@ -13,7 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,7 +32,7 @@
 .\"	@(#)chmod.1	8.4 (Berkeley) 3/31/94
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2009
+.Dd January 7, 2017
 .Dt CHMOD 1
 .Os
 .Sh NAME
@@ -63,9 +63,9 @@ nor modify the exit status to reflect such failures.
 .It Fl H
 If the
 .Fl R
-option is specified, symbolic links on the command line are followed.
-(Symbolic links encountered in the tree traversal are not followed by
-default.)
+option is specified, symbolic links on the command line are followed
+and hence unaffected by the command.
+(Symbolic links encountered during tree traversal are not followed.)
 .It Fl h
 If the file is a symbolic link, change the mode of the link itself
 rather than the file that the link points to.
@@ -79,8 +79,12 @@ If the
 option is specified, no symbolic links are followed.
 This is the default.
 .It Fl R
-Change the modes of the file hierarchies rooted in the files
+Change the modes of the file hierarchies rooted in the files,
 instead of just the files themselves.
+Beware of unintentionally matching the
+.Dq Pa ".."
+hard link to the parent directory when using wildcards like
+.Dq Li ".*" .
 .It Fl v
 Cause
 .Nm
@@ -101,6 +105,16 @@ options are ignored unless the
 option is specified.
 In addition, these options override each other and the
 command's actions are determined by the last one specified.
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+signal (see the
+.Cm status
+argument for
+.Xr stty 1 ) ,
+then the current filename as well as the old and new modes are displayed.
 .Pp
 Only the owner of a file or the super-user is permitted to change
 the mode of a file.

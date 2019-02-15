@@ -12,8 +12,8 @@
 // then forwards any diagnostics to the adapted diagnostic client.
 //
 //===----------------------------------------------------------------------===//
-#ifndef LLVM_CLANG_REWRITE_FIX_IT_REWRITER_H
-#define LLVM_CLANG_REWRITE_FIX_IT_REWRITER_H
+#ifndef LLVM_CLANG_REWRITE_FRONTEND_FIXITREWRITER_H
+#define LLVM_CLANG_REWRITE_FRONTEND_FIXITREWRITER_H
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceLocation.h"
@@ -27,7 +27,7 @@ class FileEntry;
 
 class FixItOptions {
 public:
-  FixItOptions() : FixWhatYouCan(false),
+  FixItOptions() : InPlace(false), FixWhatYouCan(false),
                    FixOnlyWarnings(false), Silent(false) { }
 
   virtual ~FixItOptions();
@@ -40,6 +40,10 @@ public:
   /// otherwise.
   ///
   virtual std::string RewriteFilename(const std::string &Filename, int &fd) = 0;
+
+  /// True if files should be updated in place. RewriteFilename is only called
+  /// if this is false.
+  bool InPlace;
 
   /// \brief Whether to abort fixing a file when not all errors could be fixed.
   bool FixWhatYouCan;
@@ -66,7 +70,7 @@ class FixItRewriter : public DiagnosticConsumer {
   /// \brief The diagnostic client that performs the actual formatting
   /// of error messages.
   DiagnosticConsumer *Client;
-  bool OwnsClient;
+  std::unique_ptr<DiagnosticConsumer> Owner;
 
   /// \brief Turn an input path into an output path. NULL implies overwriting
   /// the original.
@@ -86,11 +90,11 @@ public:
                 const LangOptions &LangOpts, FixItOptions *FixItOpts);
 
   /// \brief Destroy the fix-it rewriter.
-  ~FixItRewriter();
+  ~FixItRewriter() override;
 
   /// \brief Check whether there are modifications for a given file.
   bool IsModified(FileID ID) const {
-    return Rewrite.getRewriteBufferFor(ID) != NULL;
+    return Rewrite.getRewriteBufferFor(ID) != nullptr;
   }
 
   // Iteration over files with changes.
@@ -106,18 +110,18 @@ public:
   ///
   /// \returns true if there was an error, false otherwise.
   bool WriteFixedFiles(
-         std::vector<std::pair<std::string, std::string> > *RewrittenFiles = 0);
+     std::vector<std::pair<std::string, std::string> > *RewrittenFiles=nullptr);
 
   /// IncludeInDiagnosticCounts - This method (whose default implementation
   /// returns true) indicates whether the diagnostics handled by this
   /// DiagnosticConsumer should be included in the number of diagnostics
   /// reported by DiagnosticsEngine.
-  virtual bool IncludeInDiagnosticCounts() const;
+  bool IncludeInDiagnosticCounts() const override;
 
   /// HandleDiagnostic - Handle this diagnostic, reporting it to the user or
   /// capturing it to a log as needed.
-  virtual void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
-                                const Diagnostic &Info);
+  void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
+                        const Diagnostic &Info) override;
 
   /// \brief Emit a diagnostic via the adapted diagnostic client.
   void Diag(SourceLocation Loc, unsigned DiagID);
@@ -125,4 +129,4 @@ public:
 
 }
 
-#endif // LLVM_CLANG_REWRITE_FIX_IT_REWRITER_H
+#endif

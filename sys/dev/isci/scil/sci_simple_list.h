@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -305,7 +307,7 @@ static void sci_simple_list_insert_list_at_head(
       }
 
       // Wipe the source list to make sure the list elements can not be accessed
-      // from two seperate lists at the same time.
+      // from two separate lists at the same time.
       sci_simple_list_init(source_anchor);
    }
 }
@@ -342,7 +344,7 @@ static void sci_simple_list_insert_list_at_tail(
       }
 
       // Wipe the source list to make sure the list elements can not be accessed
-      // from two seperate lists at the same time.
+      // from two separate lists at the same time.
       sci_simple_list_init(source_anchor);
    }
 }

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2004, 2007 Lukas Ertl
  * Copyright (c) 2007, 2009 Ulf Lilleengen
  * Copyright (c) 1997, 1998, 1999
@@ -72,7 +74,7 @@ gv_parse_config(struct gv_softc *sc, char *buf, struct gv_drive *d)
 		bptr = aptr;
 		cptr = aptr;
 
-		/* Seperate input lines. */
+		/* Separate input lines. */
 		while (*bptr != '\n')
 			bptr++;
 		*bptr = '\0';

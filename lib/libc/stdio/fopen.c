@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -91,7 +93,9 @@ fopen(const char * __restrict file, const char * __restrict mode)
 	 * we can do about this.  (We could set __SAPP and check in
 	 * fseek and ftell.)
 	 */
-	if (oflags & O_APPEND)
+	if (oflags & O_APPEND) {
+		fp->_flags2 |= __S2OAP;
 		(void)_sseek(fp, (fpos_t)0, SEEK_END);
+	}
 	return (fp);
 }

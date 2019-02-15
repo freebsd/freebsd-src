@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -313,7 +315,7 @@ tr_repeat:
 		case UR_SET_INTERFACE:
 			/*
 			 * We assume that the endpoints are the same
-			 * accross the alternate settings.
+			 * across the alternate settings.
 			 *
 			 * Reset the endpoints, because re-attaching
 			 * only a part of the device is not possible.

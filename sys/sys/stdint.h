@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Mike Barcroft <mike@FreeBSD.org>
  * All rights reserved.
  *
@@ -55,15 +57,6 @@ typedef	__uint_fast16_t		uint_fast16_t;
 typedef	__uint_fast32_t		uint_fast32_t;
 typedef	__uint_fast64_t		uint_fast64_t;
 
-#ifndef _INTMAX_T_DECLARED
-typedef	__intmax_t		intmax_t;
-#define	_INTMAX_T_DECLARED
-#endif
-#ifndef _UINTMAX_T_DECLARED
-typedef	__uintmax_t		uintmax_t;
-#define	_UINTMAX_T_DECLARED
-#endif
-
 /* GNU and Darwin define this and people seem to think it's portable */
 #if defined(UINTPTR_MAX) && defined(UINT64_MAX) && (UINTPTR_MAX == UINT64_MAX)
 #define	__WORDSIZE		64
@@ -74,5 +67,12 @@ typedef	__uintmax_t		uintmax_t;
 /* Limits of wchar_t. */
 #define	WCHAR_MIN	__WCHAR_MIN
 #define	WCHAR_MAX	__WCHAR_MAX
+
+#if __EXT1_VISIBLE
+/* ISO/IEC 9899:2011 K.3.4.4 */
+#ifndef RSIZE_MAX
+#define RSIZE_MAX (SIZE_MAX >> 1)
+#endif
+#endif /* __EXT1_VISIBLE */
 
 #endif /* !_SYS_STDINT_H_ */

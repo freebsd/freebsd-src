@@ -45,6 +45,10 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/acpica/acpivar.h>
 
+#ifdef INTRNG
+#include "acpi_bus_if.h"
+#endif
+
 /* Hooks for the ACPI CA debugging infrastructure */
 #define _COMPONENT	ACPI_BUS
 ACPI_MODULE_NAME("RESOURCE")
@@ -298,28 +302,28 @@ acpi_parse_resource(ACPI_RESOURCE *res, void *context)
     case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
 	switch (res->Type) {
 	case ACPI_RESOURCE_TYPE_ADDRESS16:
-	    gran = res->Data.Address16.Granularity;
-	    min = res->Data.Address16.Minimum;
-	    max = res->Data.Address16.Maximum;
-	    length = res->Data.Address16.AddressLength;
+	    gran = res->Data.Address16.Address.Granularity;
+	    min = res->Data.Address16.Address.Minimum;
+	    max = res->Data.Address16.Address.Maximum;
+	    length = res->Data.Address16.Address.AddressLength;
 #ifdef ACPI_DEBUG
 	    name = "Address16";
 #endif
 	    break;
 	case ACPI_RESOURCE_TYPE_ADDRESS32:
-	    gran = res->Data.Address32.Granularity;
-	    min = res->Data.Address32.Minimum;
-	    max = res->Data.Address32.Maximum;
-	    length = res->Data.Address32.AddressLength;
+	    gran = res->Data.Address32.Address.Granularity;
+	    min = res->Data.Address32.Address.Minimum;
+	    max = res->Data.Address32.Address.Maximum;
+	    length = res->Data.Address32.Address.AddressLength;
 #ifdef ACPI_DEBUG
 	    name = "Address32";
 #endif
 	    break;
 	case ACPI_RESOURCE_TYPE_ADDRESS64:
-	    gran = res->Data.Address64.Granularity;
-	    min = res->Data.Address64.Minimum;
-	    max = res->Data.Address64.Maximum;
-	    length = res->Data.Address64.AddressLength;
+	    gran = res->Data.Address64.Address.Granularity;
+	    min = res->Data.Address64.Address.Minimum;
+	    max = res->Data.Address64.Address.Maximum;
+	    length = res->Data.Address64.Address.AddressLength;
 #ifdef ACPI_DEBUG
 	    name = "Address64";
 #endif
@@ -327,10 +331,10 @@ acpi_parse_resource(ACPI_RESOURCE *res, void *context)
 	default:
 	    KASSERT(res->Type == ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64,
 		("should never happen"));
-	    gran = res->Data.ExtAddress64.Granularity;
-	    min = res->Data.ExtAddress64.Minimum;
-	    max = res->Data.ExtAddress64.Maximum;
-	    length = res->Data.ExtAddress64.AddressLength;
+	    gran = res->Data.ExtAddress64.Address.Granularity;
+	    min = res->Data.ExtAddress64.Address.Minimum;
+	    max = res->Data.ExtAddress64.Address.Maximum;
+	    length = res->Data.ExtAddress64.Address.AddressLength;
 #ifdef ACPI_DEBUG
 	    name = "ExtAddress64";
 #endif
@@ -338,7 +342,8 @@ acpi_parse_resource(ACPI_RESOURCE *res, void *context)
 	}
 	if (length <= 0)
 	    break;
-	if (res->Data.Address.ProducerConsumer != ACPI_CONSUMER) {
+	if (res->Type == ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64 &&
+	    res->Data.Address.ProducerConsumer != ACPI_CONSUMER) {
 	    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
 		"ignored %s %s producer\n", name,
 		acpi_address_range_name(res->Data.Address.ResourceType)));
@@ -525,6 +530,24 @@ acpi_res_set_iorange(device_t dev, void *context, uint64_t low,
 
     if (cp == NULL)
 	return;
+
+    /*
+     * XXX: Some BIOSes contain buggy _CRS entries where fixed I/O
+     * ranges have the maximum base address (_MAX) to the end of the
+     * I/O range instead of the start.  These are then treated as a
+     * relocatable I/O range rather than a fixed I/O resource.  As a
+     * workaround, treat I/O resources encoded this way as fixed I/O
+     * ports.
+     */
+    if (high == (low + length)) {
+	if (bootverbose)
+	    device_printf(dev,
+		"_CRS has fixed I/O port range defined as relocatable\n");
+
+	bus_set_resource(dev, SYS_RES_IOPORT, cp->ar_nio++, low, length);
+	return;
+    }
+
     device_printf(dev, "I/O range not supported\n");
 }
 
@@ -536,6 +559,9 @@ acpi_res_set_memory(device_t dev, void *context, uint64_t base,
 
     if (cp == NULL)
 	return;
+
+    while (bus_get_resource_start(dev, SYS_RES_MEMORY, cp->ar_nmem))
+	cp->ar_nmem++;
 
     bus_set_resource(dev, SYS_RES_MEMORY, cp->ar_nmem++, base, length);
 }
@@ -556,6 +582,7 @@ acpi_res_set_irq(device_t dev, void *context, uint8_t *irq, int count,
     int trig, int pol)
 {
     struct acpi_res_context	*cp = (struct acpi_res_context *)context;
+    rman_res_t intr;
 
     if (cp == NULL || irq == NULL)
 	return;
@@ -564,7 +591,14 @@ acpi_res_set_irq(device_t dev, void *context, uint8_t *irq, int count,
     if (count != 1)
 	return;
 
-    bus_set_resource(dev, SYS_RES_IRQ, cp->ar_nirq++, *irq, 1);
+#ifdef INTRNG
+    intr = ACPI_BUS_MAP_INTR(device_get_parent(dev), dev, *irq,
+	(trig == ACPI_EDGE_SENSITIVE) ? INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL,
+	(pol == ACPI_ACTIVE_HIGH) ? INTR_POLARITY_HIGH : INTR_POLARITY_LOW);
+#else
+    intr = *irq;
+#endif
+    bus_set_resource(dev, SYS_RES_IRQ, cp->ar_nirq++, intr, 1);
 }
 
 static void
@@ -572,6 +606,7 @@ acpi_res_set_ext_irq(device_t dev, void *context, uint32_t *irq, int count,
     int trig, int pol)
 {
     struct acpi_res_context	*cp = (struct acpi_res_context *)context;
+    rman_res_t intr;
 
     if (cp == NULL || irq == NULL)
 	return;
@@ -580,7 +615,14 @@ acpi_res_set_ext_irq(device_t dev, void *context, uint32_t *irq, int count,
     if (count != 1)
 	return;
 
-    bus_set_resource(dev, SYS_RES_IRQ, cp->ar_nirq++, *irq, 1);
+#ifdef INTRNG
+    intr = ACPI_BUS_MAP_INTR(device_get_parent(dev), dev, *irq,
+	(trig == ACPI_EDGE_SENSITIVE) ? INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL,
+	(pol == ACPI_ACTIVE_HIGH) ? INTR_POLARITY_HIGH : INTR_POLARITY_LOW);
+#else
+    intr = *irq;
+#endif
+    bus_set_resource(dev, SYS_RES_IRQ, cp->ar_nirq++, intr, 1);
 }
 
 static void
@@ -654,14 +696,17 @@ static int
 acpi_sysres_probe(device_t dev)
 {
     static char *sysres_ids[] = { "PNP0C01", "PNP0C02", NULL };
+    int rv;
 
-    if (acpi_disabled("sysresource") ||
-	ACPI_ID_PROBE(device_get_parent(dev), dev, sysres_ids) == NULL)
+    if (acpi_disabled("sysresource"))
 	return (ENXIO);
-
+    rv = ACPI_ID_PROBE(device_get_parent(dev), dev, sysres_ids, NULL);
+    if (rv > 0){
+	return (rv);
+    }
     device_set_desc(dev, "System Resource");
     device_quiet(dev);
-    return (BUS_PROBE_DEFAULT);
+    return (rv);
 }
 
 static int
@@ -671,7 +716,7 @@ acpi_sysres_attach(device_t dev)
     struct resource_list_entry *bus_rle, *dev_rle;
     struct resource_list *bus_rl, *dev_rl;
     int done, type;
-    u_long start, end, count;
+    rman_res_t start, end, count;
 
     /*
      * Loop through all current resources to see if the new one overlaps

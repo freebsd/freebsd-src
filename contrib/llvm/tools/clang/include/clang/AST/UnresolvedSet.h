@@ -1,4 +1,4 @@
-//===-- UnresolvedSet.h - Unresolved sets of declarations  ------*- C++ -*-===//
+//===- UnresolvedSet.h - Unresolved sets of declarations --------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -17,94 +17,68 @@
 
 #include "clang/AST/DeclAccessPair.h"
 #include "clang/Basic/LLVM.h"
-#include "llvm/ADT/ArrayRef.h"
+#include "clang/Basic/Specifiers.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/iterator.h"
+#include <cstddef>
 #include <iterator>
 
 namespace clang {
 
+class NamedDecl;
+
 /// The iterator over UnresolvedSets.  Serves as both the const and
 /// non-const iterator.
-class UnresolvedSetIterator {
-private:
-  typedef llvm::MutableArrayRef<DeclAccessPair> DeclsTy;
-  typedef DeclsTy::iterator IteratorTy;
-
-  IteratorTy ir;
-
-  friend class UnresolvedSetImpl;
+class UnresolvedSetIterator : public llvm::iterator_adaptor_base<
+                                  UnresolvedSetIterator, DeclAccessPair *,
+                                  std::random_access_iterator_tag, NamedDecl *,
+                                  std::ptrdiff_t, NamedDecl *, NamedDecl *> {
   friend class ASTUnresolvedSet;
   friend class OverloadExpr;
-  explicit UnresolvedSetIterator(DeclsTy::iterator ir) : ir(ir) {}
-  explicit UnresolvedSetIterator(DeclsTy::const_iterator ir) :
-    ir(const_cast<DeclsTy::iterator>(ir)) {}
-  
-  IteratorTy getIterator() const { return ir; }
-  
+  friend class UnresolvedSetImpl;
+
+  explicit UnresolvedSetIterator(DeclAccessPair *Iter)
+      : iterator_adaptor_base(Iter) {}
+  explicit UnresolvedSetIterator(const DeclAccessPair *Iter)
+      : iterator_adaptor_base(const_cast<DeclAccessPair *>(Iter)) {}
+
 public:
-  UnresolvedSetIterator() {}
+  // Work around a bug in MSVC 2013 where explicitly default constructed
+  // temporaries with defaulted ctors are not zero initialized.
+  UnresolvedSetIterator() : iterator_adaptor_base(nullptr) {}
 
-  typedef std::iterator_traits<IteratorTy>::difference_type difference_type;
-  typedef NamedDecl *value_type;
-  typedef NamedDecl **pointer;
-  typedef NamedDecl *reference;
-  typedef std::iterator_traits<IteratorTy>::iterator_category iterator_category;
-
-  NamedDecl *getDecl() const { return ir->getDecl(); }
-  void setDecl(NamedDecl *ND) const { return ir->setDecl(ND); }
-  AccessSpecifier getAccess() const { return ir->getAccess(); }
-  void setAccess(AccessSpecifier AS) { ir->setAccess(AS); }
-  DeclAccessPair getPair() const { return *ir; }
+  NamedDecl *getDecl() const { return I->getDecl(); }
+  void setDecl(NamedDecl *ND) const { return I->setDecl(ND); }
+  AccessSpecifier getAccess() const { return I->getAccess(); }
+  void setAccess(AccessSpecifier AS) { I->setAccess(AS); }
+  const DeclAccessPair &getPair() const { return *I; }
 
   NamedDecl *operator*() const { return getDecl(); }
-  
-  UnresolvedSetIterator &operator++() { ++ir; return *this; }
-  UnresolvedSetIterator operator++(int) { return UnresolvedSetIterator(ir++); }
-  UnresolvedSetIterator &operator--() { --ir; return *this; }
-  UnresolvedSetIterator operator--(int) { return UnresolvedSetIterator(ir--); }
-
-  UnresolvedSetIterator &operator+=(difference_type d) {
-    ir += d; return *this;
-  }
-  UnresolvedSetIterator operator+(difference_type d) const {
-    return UnresolvedSetIterator(ir + d);
-  }
-  UnresolvedSetIterator &operator-=(difference_type d) {
-    ir -= d; return *this;
-  }
-  UnresolvedSetIterator operator-(difference_type d) const {
-    return UnresolvedSetIterator(ir - d);
-  }
-  value_type operator[](difference_type d) const { return *(*this + d); }
-
-  difference_type operator-(const UnresolvedSetIterator &o) const {
-    return ir - o.ir;
-  }
-
-  bool operator==(const UnresolvedSetIterator &o) const { return ir == o.ir; }
-  bool operator!=(const UnresolvedSetIterator &o) const { return ir != o.ir; }
-  bool operator<(const UnresolvedSetIterator &o) const { return ir < o.ir; }
-  bool operator<=(const UnresolvedSetIterator &o) const { return ir <= o.ir; }
-  bool operator>=(const UnresolvedSetIterator &o) const { return ir >= o.ir; }
-  bool operator>(const UnresolvedSetIterator &o) const { return ir > o.ir; }
+  NamedDecl *operator->() const { return **this; }
 };
 
 /// \brief A set of unresolved declarations.
 class UnresolvedSetImpl {
-  typedef SmallVectorImpl<DeclAccessPair> DeclsTy;
+  using DeclsTy = SmallVectorImpl<DeclAccessPair>;
 
   // Don't allow direct construction, and only permit subclassing by
   // UnresolvedSet.
 private:
   template <unsigned N> friend class UnresolvedSet;
-  UnresolvedSetImpl() {}
-  UnresolvedSetImpl(const UnresolvedSetImpl &) LLVM_DELETED_FUNCTION;
+
+  UnresolvedSetImpl() = default;
+  UnresolvedSetImpl(const UnresolvedSetImpl &) = default;
+  UnresolvedSetImpl &operator=(const UnresolvedSetImpl &) = default;
+
+  // FIXME: Switch these to "= default" once MSVC supports generating move ops
+  UnresolvedSetImpl(UnresolvedSetImpl &&) {}
+  UnresolvedSetImpl &operator=(UnresolvedSetImpl &&) { return *this; }
 
 public:
   // We don't currently support assignment through this iterator, so we might
   // as well use the same implementation twice.
-  typedef UnresolvedSetIterator iterator;
-  typedef UnresolvedSetIterator const_iterator;
+  using iterator = UnresolvedSetIterator;
+  using const_iterator = UnresolvedSetIterator;
 
   iterator begin() { return iterator(decls().begin()); }
   iterator end() { return iterator(decls().end()); }
@@ -132,21 +106,17 @@ public:
 
   /// Replaces the declaration at the given iterator with the new one,
   /// preserving the original access bits.
-  void replace(iterator I, NamedDecl *New) {
-    I.ir->setDecl(New);
-  }
+  void replace(iterator I, NamedDecl *New) { I.I->setDecl(New); }
 
   void replace(iterator I, NamedDecl *New, AccessSpecifier AS) {
-    I.ir->set(New, AS);
+    I.I->set(New, AS);
   }
 
   void erase(unsigned I) { decls()[I] = decls().pop_back_val(); }
 
-  void erase(iterator I) { *I.ir = decls().pop_back_val(); }
+  void erase(iterator I) { *I.I = decls().pop_back_val(); }
 
-  void setAccess(iterator I, AccessSpecifier AS) {
-    I.ir->setAccess(AS);
-  }
+  void setAccess(iterator I, AccessSpecifier AS) { I.I->setAccess(AS); }
 
   void clear() { decls().clear(); }
   void set_size(unsigned N) { decls().set_size(N); }
@@ -154,9 +124,7 @@ public:
   bool empty() const { return decls().empty(); }
   unsigned size() const { return decls().size(); }
 
-  void append(iterator I, iterator E) {
-    decls().append(I.ir, E.ir);
-  }
+  void append(iterator I, iterator E) { decls().append(I.I, E.I); }
 
   DeclAccessPair &operator[](unsigned I) { return decls()[I]; }
   const DeclAccessPair &operator[](unsigned I) const { return decls()[I]; }
@@ -178,7 +146,7 @@ template <unsigned InlineCapacity> class UnresolvedSet :
   SmallVector<DeclAccessPair, InlineCapacity> Decls;
 };
 
-  
+ 
 } // namespace clang
 
-#endif
+#endif // LLVM_CLANG_AST_UNRESOLVEDSET_H

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008-2009 Fredrik Lindberg
  * All rights reserved.
  *
@@ -37,7 +39,6 @@
 
 #include <arpa/inet.h>
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <netinet/in.h>
@@ -359,7 +360,7 @@ logger(int pri, const char *fmt, ...)
 
 /* Add/remove IP address from an interface */
 static int
-ifaddr_ad(int d, const char *ifnam, struct sockaddr *sa, struct sockaddr *mask)
+ifaddr_ad(unsigned long d, const char *ifnam, struct sockaddr *sa, struct sockaddr *mask)
 {
 	struct ifaliasreq req;
 	int fd, error;
@@ -453,6 +454,7 @@ set_nameservers(struct ctx *ctx, const char *respath, int ns, ...)
 			free(ctx->ns[i]);
 		}
 		free(ctx->ns);
+		ctx->ns = NULL;
 	}
 
 	fd = open(respath, O_RDWR | O_CREAT | O_NOFOLLOW, 0666);

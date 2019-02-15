@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-4-Clause
+ *
  * Copyright (C) 2002 Benno Rice
  * All rights reserved.
  *
@@ -67,116 +69,14 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 
 #include <machine/pcb.h>
-#include <machine/sr.h>
-#include <machine/slb.h>
 #include <machine/vmparam.h>
-
-int	setfault(faultbuf);	/* defined in locore.S */
-
-#ifdef AIM
-/*
- * Makes sure that the right segment of userspace is mapped in.
- */
-
-#ifdef __powerpc64__
-static __inline void
-set_user_sr(pmap_t pm, const void *addr)
-{
-	struct slb *slb;
-	register_t slbv;
-
-	/* Try lockless look-up first */
-	slb = user_va_to_slb_entry(pm, (vm_offset_t)addr);
-
-	if (slb == NULL) {
-		/* If it isn't there, we need to pre-fault the VSID */
-		PMAP_LOCK(pm);
-		slbv = va_to_vsid(pm, (vm_offset_t)addr) << SLBV_VSID_SHIFT;
-		PMAP_UNLOCK(pm);
-	} else {
-		slbv = slb->slbv;
-	}
-
-	/* Mark segment no-execute */
-	slbv |= SLBV_N;
-
-	/* If we have already set this VSID, we can just return */
-	if (curthread->td_pcb->pcb_cpu.aim.usr_vsid == slbv) 
-		return;
-
-	__asm __volatile("isync");
-	curthread->td_pcb->pcb_cpu.aim.usr_segm =
-	    (uintptr_t)addr >> ADDR_SR_SHFT;
-	curthread->td_pcb->pcb_cpu.aim.usr_vsid = slbv;
-	__asm __volatile ("slbie %0; slbmte %1, %2; isync" ::
-	    "r"(USER_ADDR), "r"(slbv), "r"(USER_SLB_SLBE));
-}
-#else
-static __inline void
-set_user_sr(pmap_t pm, const void *addr)
-{
-	register_t vsid;
-
-	vsid = va_to_vsid(pm, (vm_offset_t)addr);
-
-	/* Mark segment no-execute */
-	vsid |= SR_N;
-
-	/* If we have already set this VSID, we can just return */
-	if (curthread->td_pcb->pcb_cpu.aim.usr_vsid == vsid)
-		return;
-
-	__asm __volatile("isync");
-	curthread->td_pcb->pcb_cpu.aim.usr_segm =
-	    (uintptr_t)addr >> ADDR_SR_SHFT;
-	curthread->td_pcb->pcb_cpu.aim.usr_vsid = vsid;
-	__asm __volatile("mtsr %0,%1; isync" :: "n"(USER_SR), "r"(vsid));
-}
-#endif
-
-static __inline int
-map_user_ptr(pmap_t pm, const void *uaddr, void **kaddr, size_t ulen,
-    size_t *klen)
-{
-	size_t l;
-
-	*kaddr = (char *)USER_ADDR + ((uintptr_t)uaddr & ~SEGMENT_MASK);
-
-	l = ((char *)USER_ADDR + SEGMENT_LENGTH) - (char *)(*kaddr);
-	if (l > ulen)
-		l = ulen;
-	if (klen)
-		*klen = l;
-	else if (l != ulen)
-		return (EFAULT);
-
-	set_user_sr(pm, uaddr);
-
-	return (0);
-}
-#else /* Book-E uses a combined kernel/user mapping */
-static __inline int
-map_user_ptr(pmap_t pm, const void *uaddr, void **kaddr, size_t ulen,
-    size_t *klen)
-{
-
-	if ((uintptr_t)uaddr + ulen > VM_MAXUSER_ADDRESS + PAGE_SIZE)
-		return (EFAULT);
-
-	*kaddr = (void *)(uintptr_t)uaddr;
-	if (klen)
-		*klen = ulen;
-
-	return (0);
-}
-#endif
 
 int
 copyout(const void *kaddr, void *udaddr, size_t len)
 {
 	struct		thread *td;
 	pmap_t		pm;
-	faultbuf	env;
+	jmp_buf		env;
 	const char	*kp;
 	char		*up, *p;
 	size_t		l;
@@ -184,7 +84,8 @@ copyout(const void *kaddr, void *udaddr, size_t len)
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 
-	if (setfault(env)) {
+	td->td_pcb->pcb_onfault = &env;
+	if (setjmp(env)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (EFAULT);
 	}
@@ -193,7 +94,7 @@ copyout(const void *kaddr, void *udaddr, size_t len)
 	up = udaddr;
 
 	while (len > 0) {
-		if (map_user_ptr(pm, udaddr, (void **)&p, len, &l)) {
+		if (pmap_map_user_ptr(pm, up, (void **)&p, len, &l)) {
 			td->td_pcb->pcb_onfault = NULL;
 			return (EFAULT);
 		}
@@ -214,7 +115,7 @@ copyin(const void *udaddr, void *kaddr, size_t len)
 {
 	struct		thread *td;
 	pmap_t		pm;
-	faultbuf	env;
+	jmp_buf		env;
 	const char	*up;
 	char		*kp, *p;
 	size_t		l;
@@ -222,7 +123,8 @@ copyin(const void *udaddr, void *kaddr, size_t len)
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 
-	if (setfault(env)) {
+	td->td_pcb->pcb_onfault = &env;
+	if (setjmp(env)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (EFAULT);
 	}
@@ -231,7 +133,7 @@ copyin(const void *udaddr, void *kaddr, size_t len)
 	up = udaddr;
 
 	while (len > 0) {
-		if (map_user_ptr(pm, udaddr, (void **)&p, len, &l)) {
+		if (pmap_map_user_ptr(pm, up, (void **)&p, len, &l)) {
 			td->td_pcb->pcb_onfault = NULL;
 			return (EFAULT);
 		}
@@ -281,22 +183,23 @@ copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *done)
 }
 
 int
-subyte(void *addr, int byte)
+subyte(volatile void *addr, int byte)
 {
 	struct		thread *td;
 	pmap_t		pm;
-	faultbuf	env;
+	jmp_buf		env;
 	char		*p;
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 
-	if (setfault(env)) {
+	td->td_pcb->pcb_onfault = &env;
+	if (setjmp(env)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
 
-	if (map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
+	if (pmap_map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
@@ -309,22 +212,23 @@ subyte(void *addr, int byte)
 
 #ifdef __powerpc64__
 int
-suword32(void *addr, int word)
+suword32(volatile void *addr, int word)
 {
 	struct		thread *td;
 	pmap_t		pm;
-	faultbuf	env;
+	jmp_buf		env;
 	int		*p;
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 
-	if (setfault(env)) {
+	td->td_pcb->pcb_onfault = &env;
+	if (setjmp(env)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
 
-	if (map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
+	if (pmap_map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
@@ -337,22 +241,23 @@ suword32(void *addr, int word)
 #endif
 
 int
-suword(void *addr, long word)
+suword(volatile void *addr, long word)
 {
 	struct		thread *td;
 	pmap_t		pm;
-	faultbuf	env;
+	jmp_buf		env;
 	long		*p;
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 
-	if (setfault(env)) {
+	td->td_pcb->pcb_onfault = &env;
+	if (setjmp(env)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
 
-	if (map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
+	if (pmap_map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
@@ -365,36 +270,37 @@ suword(void *addr, long word)
 
 #ifdef __powerpc64__
 int
-suword64(void *addr, int64_t word)
+suword64(volatile void *addr, int64_t word)
 {
 	return (suword(addr, (long)word));
 }
 #else
 int
-suword32(void *addr, int32_t word)
+suword32(volatile void *addr, int32_t word)
 {
 	return (suword(addr, (long)word));
 }
 #endif
 
 int
-fubyte(const void *addr)
+fubyte(volatile const void *addr)
 {
 	struct		thread *td;
 	pmap_t		pm;
-	faultbuf	env;
+	jmp_buf		env;
 	u_char		*p;
 	int		val;
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 
-	if (setfault(env)) {
+	td->td_pcb->pcb_onfault = &env;
+	if (setjmp(env)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
 
-	if (map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
+	if (pmap_map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
@@ -403,90 +309,142 @@ fubyte(const void *addr)
 
 	td->td_pcb->pcb_onfault = NULL;
 	return (val);
+}
+
+int
+fuword16(volatile const void *addr)
+{
+	struct		thread *td;
+	pmap_t		pm;
+	jmp_buf		env;
+	uint16_t	*p, val;
+
+	td = curthread;
+	pm = &td->td_proc->p_vmspace->vm_pmap;
+
+	td->td_pcb->pcb_onfault = &env;
+	if (setjmp(env)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
+
+	if (pmap_map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
+
+	val = *p;
+
+	td->td_pcb->pcb_onfault = NULL;
+	return (val);
+}
+
+int
+fueword32(volatile const void *addr, int32_t *val)
+{
+	struct		thread *td;
+	pmap_t		pm;
+	jmp_buf		env;
+	int32_t		*p;
+
+	td = curthread;
+	pm = &td->td_proc->p_vmspace->vm_pmap;
+
+	td->td_pcb->pcb_onfault = &env;
+	if (setjmp(env)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
+
+	if (pmap_map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
+
+	*val = *p;
+
+	td->td_pcb->pcb_onfault = NULL;
+	return (0);
 }
 
 #ifdef __powerpc64__
-int32_t
-fuword32(const void *addr)
+int
+fueword64(volatile const void *addr, int64_t *val)
 {
 	struct		thread *td;
 	pmap_t		pm;
-	faultbuf	env;
-	int32_t		*p, val;
+	jmp_buf		env;
+	int64_t		*p;
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 
-	if (setfault(env)) {
+	td->td_pcb->pcb_onfault = &env;
+	if (setjmp(env)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
 
-	if (map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
+	if (pmap_map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
 
-	val = *p;
+	*val = *p;
 
 	td->td_pcb->pcb_onfault = NULL;
-	return (val);
+	return (0);
 }
 #endif
 
-long
-fuword(const void *addr)
+int
+fueword(volatile const void *addr, long *val)
 {
 	struct		thread *td;
 	pmap_t		pm;
-	faultbuf	env;
-	long		*p, val;
+	jmp_buf		env;
+	long		*p;
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 
-	if (setfault(env)) {
+	td->td_pcb->pcb_onfault = &env;
+	if (setjmp(env)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
 
-	if (map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
+	if (pmap_map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
 
-	val = *p;
+	*val = *p;
 
 	td->td_pcb->pcb_onfault = NULL;
-	return (val);
+	return (0);
 }
 
-#ifndef __powerpc64__
-int32_t
-fuword32(const void *addr)
-{
-	return ((int32_t)fuword(addr));
-}
-#endif
-
-uint32_t
-casuword32(volatile uint32_t *addr, uint32_t old, uint32_t new)
+int
+casueword32(volatile uint32_t *addr, uint32_t old, uint32_t *oldvalp,
+    uint32_t new)
 {
 	struct thread *td;
 	pmap_t pm;
-	faultbuf env;
+	jmp_buf		env;
 	uint32_t *p, val;
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 
-	if (setfault(env)) {
+	td->td_pcb->pcb_onfault = &env;
+	if (setjmp(env)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
 
-	if (map_user_ptr(pm, (void *)(uintptr_t)addr, (void **)&p, sizeof(*p),
-	    NULL)) {
+	if (pmap_map_user_ptr(pm, (void *)(uintptr_t)addr, (void **)&p,
+	    sizeof(*p), NULL)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
@@ -507,34 +465,38 @@ casuword32(volatile uint32_t *addr, uint32_t old, uint32_t new)
 
 	td->td_pcb->pcb_onfault = NULL;
 
-	return (val);
+	*oldvalp = val;
+	return (0);
 }
 
 #ifndef __powerpc64__
-u_long
-casuword(volatile u_long *addr, u_long old, u_long new)
+int
+casueword(volatile u_long *addr, u_long old, u_long *oldvalp, u_long new)
 {
-	return (casuword32((volatile uint32_t *)addr, old, new));
+
+	return (casueword32((volatile uint32_t *)addr, old,
+	    (uint32_t *)oldvalp, new));
 }
 #else
-u_long
-casuword(volatile u_long *addr, u_long old, u_long new)
+int
+casueword(volatile u_long *addr, u_long old, u_long *oldvalp, u_long new)
 {
 	struct thread *td;
 	pmap_t pm;
-	faultbuf env;
+	jmp_buf		env;
 	u_long *p, val;
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 
-	if (setfault(env)) {
+	td->td_pcb->pcb_onfault = &env;
+	if (setjmp(env)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
 
-	if (map_user_ptr(pm, (void *)(uintptr_t)addr, (void **)&p, sizeof(*p),
-	    NULL)) {
+	if (pmap_map_user_ptr(pm, (void *)(uintptr_t)addr, (void **)&p,
+	    sizeof(*p), NULL)) {
 		td->td_pcb->pcb_onfault = NULL;
 		return (-1);
 	}
@@ -555,7 +517,7 @@ casuword(volatile u_long *addr, u_long old, u_long new)
 
 	td->td_pcb->pcb_onfault = NULL;
 
-	return (val);
+	*oldvalp = val;
+	return (0);
 }
 #endif
-

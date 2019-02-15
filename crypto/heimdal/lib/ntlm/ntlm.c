@@ -1011,12 +1011,12 @@ out:
  *
  */
 
-static void
+static int
 splitandenc(unsigned char *hash,
 	    unsigned char *challenge,
 	    unsigned char *answer)
 {
-    EVP_CIPHER_CTX ctx;
+    EVP_CIPHER_CTX *ctx;
     unsigned char key[8];
 
     key[0] =  hash[0];
@@ -1028,12 +1028,15 @@ splitandenc(unsigned char *hash,
     key[6] = (hash[5] << 2) | (hash[6] >> 6);
     key[7] = (hash[6] << 1);
 
-    EVP_CIPHER_CTX_init(&ctx);
+    ctx = EVP_CIPHER_CTX_new();
+    if (ctx == NULL)
+	return ENOMEM;
 
-    EVP_CipherInit_ex(&ctx, EVP_des_cbc(), NULL, key, NULL, 1);
-    EVP_Cipher(&ctx, answer, challenge, 8);
-    EVP_CIPHER_CTX_cleanup(&ctx);
+    EVP_CipherInit_ex(ctx, EVP_des_cbc(), NULL, key, NULL, 1);
+    EVP_Cipher(ctx, answer, challenge, 8);
+    EVP_CIPHER_CTX_free(ctx);
     memset(key, 0, sizeof(key));
+    return 0;
 }
 
 /**
@@ -1102,6 +1105,7 @@ heim_ntlm_calculate_ntlm1(void *key, size_t len,
 			  struct ntlm_buf *answer)
 {
     unsigned char res[21];
+    int ret;
 
     if (len != MD4_DIGEST_LENGTH)
 	return HNTLM_ERR_INVALID_LENGTH;
@@ -1114,11 +1118,21 @@ heim_ntlm_calculate_ntlm1(void *key, size_t len,
 	return ENOMEM;
     answer->length = 24;
 
-    splitandenc(&res[0],  challenge, ((unsigned char *)answer->data) + 0);
-    splitandenc(&res[7],  challenge, ((unsigned char *)answer->data) + 8);
-    splitandenc(&res[14], challenge, ((unsigned char *)answer->data) + 16);
+    ret = splitandenc(&res[0],  challenge, ((unsigned char *)answer->data) + 0);
+    if (ret)
+	goto out;
+    ret = splitandenc(&res[7],  challenge, ((unsigned char *)answer->data) + 8);
+    if (ret)
+	goto out;
+    ret = splitandenc(&res[14], challenge, ((unsigned char *)answer->data) + 16);
+    if (ret)
+	goto out;
 
     return 0;
+
+out:
+    heim_ntlm_free_buf(answer);
+    return ret;
 }
 
 int
@@ -1153,7 +1167,7 @@ heim_ntlm_v2_base_session(void *key, size_t len,
 			  struct ntlm_buf *session)
 {
     unsigned int hmaclen;
-    HMAC_CTX c;
+    HMAC_CTX *c;
 
     if (ntlmResponse->length <= 16)
         return HNTLM_ERR_INVALID_LENGTH;
@@ -1164,11 +1178,15 @@ heim_ntlm_v2_base_session(void *key, size_t len,
     session->length = 16;
 
     /* Note: key is the NTLMv2 key */
-    HMAC_CTX_init(&c);
-    HMAC_Init_ex(&c, key, len, EVP_md5(), NULL);
-    HMAC_Update(&c, ntlmResponse->data, 16);
-    HMAC_Final(&c, session->data, &hmaclen);
-    HMAC_CTX_cleanup(&c);
+    c = HMAC_CTX_new();
+    if (c == NULL) {
+	heim_ntlm_free_buf(session);
+	return ENOMEM;
+    }
+    HMAC_Init_ex(c, key, len, EVP_md5(), NULL);
+    HMAC_Update(c, ntlmResponse->data, 16);
+    HMAC_Final(c, session->data, &hmaclen);
+    HMAC_CTX_free(c);
 
     return 0;
 }
@@ -1179,7 +1197,7 @@ heim_ntlm_keyex_wrap(struct ntlm_buf *base_session,
 		     struct ntlm_buf *session,
 		     struct ntlm_buf *encryptedSession)
 {
-    EVP_CIPHER_CTX c;
+    EVP_CIPHER_CTX *c;
     int ret;
 
     session->length = MD4_DIGEST_LENGTH;
@@ -1196,25 +1214,30 @@ heim_ntlm_keyex_wrap(struct ntlm_buf *base_session,
 	return ENOMEM;
     }
 
-    EVP_CIPHER_CTX_init(&c);
+    c = EVP_CIPHER_CTX_new();
+    if (c == NULL) {
+	heim_ntlm_free_buf(encryptedSession);
+	heim_ntlm_free_buf(session);
+	return ENOMEM;
+    }
 
-    ret = EVP_CipherInit_ex(&c, EVP_rc4(), NULL, base_session->data, NULL, 1);
+    ret = EVP_CipherInit_ex(c, EVP_rc4(), NULL, base_session->data, NULL, 1);
     if (ret != 1) {
-	EVP_CIPHER_CTX_cleanup(&c);
+	EVP_CIPHER_CTX_free(c);
 	heim_ntlm_free_buf(encryptedSession);
 	heim_ntlm_free_buf(session);
 	return HNTLM_ERR_CRYPTO;
     }
 
     if (RAND_bytes(session->data, session->length) != 1) {
-	EVP_CIPHER_CTX_cleanup(&c);
+	EVP_CIPHER_CTX_free(c);
 	heim_ntlm_free_buf(encryptedSession);
 	heim_ntlm_free_buf(session);
 	return HNTLM_ERR_RAND;
     }
 
-    EVP_Cipher(&c, encryptedSession->data, session->data, encryptedSession->length);
-    EVP_CIPHER_CTX_cleanup(&c);
+    EVP_Cipher(c, encryptedSession->data, session->data, encryptedSession->length);
+    EVP_CIPHER_CTX_free(c);
 
     return 0;
 
@@ -1309,7 +1332,7 @@ heim_ntlm_keyex_unwrap(struct ntlm_buf *baseKey,
 		       struct ntlm_buf *encryptedSession,
 		       struct ntlm_buf *session)
 {
-    EVP_CIPHER_CTX c;
+    EVP_CIPHER_CTX *c;
 
     memset(session, 0, sizeof(*session));
 
@@ -1322,16 +1345,20 @@ heim_ntlm_keyex_unwrap(struct ntlm_buf *baseKey,
 	session->length = 0;
 	return ENOMEM;
     }
-    EVP_CIPHER_CTX_init(&c);
+    c = EVP_CIPHER_CTX_new();
+    if (c == NULL) {
+	heim_ntlm_free_buf(session);
+	return ENOMEM;
+    }
 
-    if (EVP_CipherInit_ex(&c, EVP_rc4(), NULL, baseKey->data, NULL, 0) != 1) {
-	EVP_CIPHER_CTX_cleanup(&c);
+    if (EVP_CipherInit_ex(c, EVP_rc4(), NULL, baseKey->data, NULL, 0) != 1) {
+	EVP_CIPHER_CTX_free(c);
 	heim_ntlm_free_buf(session);
 	return HNTLM_ERR_CRYPTO;
     }
 
-    EVP_Cipher(&c, session->data, encryptedSession->data, session->length);
-    EVP_CIPHER_CTX_cleanup(&c);
+    EVP_Cipher(c, session->data, encryptedSession->data, session->length);
+    EVP_CIPHER_CTX_free(c);
 
     return 0;
 }
@@ -1359,28 +1386,30 @@ heim_ntlm_ntlmv2_key(const void *key, size_t len,
 {
     int ret;
     unsigned int hmaclen;
-    HMAC_CTX c;
+    HMAC_CTX *c;
 
-    HMAC_CTX_init(&c);
-    HMAC_Init_ex(&c, key, len, EVP_md5(), NULL);
+    c = HMAC_CTX_new();
+    if (c == NULL)
+	return ENOMEM;
+    HMAC_Init_ex(c, key, len, EVP_md5(), NULL);
     {
 	struct ntlm_buf buf;
 	/* uppercase username and turn it into ucs2-le */
 	ret = ascii2ucs2le(username, 1, &buf);
 	if (ret)
 	    goto out;
-	HMAC_Update(&c, buf.data, buf.length);
+	HMAC_Update(c, buf.data, buf.length);
 	free(buf.data);
 	/* uppercase target and turn into ucs2-le */
 	ret = ascii2ucs2le(target, 1, &buf);
 	if (ret)
 	    goto out;
-	HMAC_Update(&c, buf.data, buf.length);
+	HMAC_Update(c, buf.data, buf.length);
 	free(buf.data);
     }
-    HMAC_Final(&c, ntlmv2, &hmaclen);
+    HMAC_Final(c, ntlmv2, &hmaclen);
  out:
-    HMAC_CTX_cleanup(&c);
+    HMAC_CTX_free(c);
 
     return ret;
 }
@@ -1434,6 +1463,7 @@ heim_ntlm_calculate_lm2(const void *key, size_t len,
 			struct ntlm_buf *answer)
 {
     unsigned char clientchallenge[8];
+    int ret;
 
     if (RAND_bytes(clientchallenge, sizeof(clientchallenge)) != 1)
 	return HNTLM_ERR_RAND;
@@ -1447,8 +1477,10 @@ heim_ntlm_calculate_lm2(const void *key, size_t len,
         return ENOMEM;
     answer->length = 24;
 
-    heim_ntlm_derive_ntlm2_sess(ntlmv2, clientchallenge, 8,
+    ret = heim_ntlm_derive_ntlm2_sess(ntlmv2, clientchallenge, 8,
 				serverchallenge, answer->data);
+    if (ret)
+	return ret;
 
     memcpy(((uint8_t *)answer->data) + 16, clientchallenge, 8);
 
@@ -1489,6 +1521,7 @@ heim_ntlm_calculate_ntlm2(const void *key, size_t len,
     krb5_storage *sp;
     unsigned char clientchallenge[8];
     uint64_t t;
+    int code;
 
     t = unix2nttime(time(NULL));
 
@@ -1523,7 +1556,11 @@ heim_ntlm_calculate_ntlm2(const void *key, size_t len,
     krb5_storage_free(sp);
     sp = NULL;
 
-    heim_ntlm_derive_ntlm2_sess(ntlmv2, data.data, data.length, serverchallenge, ntlmv2answer);
+    code = heim_ntlm_derive_ntlm2_sess(ntlmv2, data.data, data.length, serverchallenge, ntlmv2answer);
+    if (code) {
+	krb5_data_free(&data);
+	return code;
+    }
 
     sp = krb5_storage_emem();
     if (sp == NULL) {
@@ -1588,6 +1625,7 @@ heim_ntlm_verify_ntlm2(const void *key, size_t len,
     time_t authtime;
     uint32_t temp;
     uint64_t t;
+    int code;
 
     infotarget->length = 0;
     infotarget->data = NULL;
@@ -1651,10 +1689,12 @@ heim_ntlm_verify_ntlm2(const void *key, size_t len,
 	goto out;
     }
 
-    heim_ntlm_derive_ntlm2_sess(ntlmv2,
+    ret = heim_ntlm_derive_ntlm2_sess(ntlmv2,
 				((unsigned char *)answer->data) + 16, answer->length - 16,
 				serverchallenge,
 				serveranswer);
+    if (ret)
+	goto out;
 
     if (memcmp(serveranswer, clientanswer, 16) != 0) {
 	heim_ntlm_free_buf(infotarget);
@@ -1724,11 +1764,22 @@ heim_ntlm_calculate_ntlm2_sess(const unsigned char clnt_nonce[8],
     memcpy(res, ntlm_hash, 16);
 
     resp = ntlm->data;
-    splitandenc(&res[0], ntlm2_sess_hash, resp + 0);
-    splitandenc(&res[7], ntlm2_sess_hash, resp + 8);
-    splitandenc(&res[14], ntlm2_sess_hash, resp + 16);
+    code = splitandenc(&res[0], ntlm2_sess_hash, resp + 0);
+    if (code)
+	goto out;
+    code = splitandenc(&res[7], ntlm2_sess_hash, resp + 8);
+    if (code)
+	goto out;
+    code = splitandenc(&res[14], ntlm2_sess_hash, resp + 16);
+    if (code)
+	goto out;
 
     return 0;
+
+out:
+    heim_ntlm_free_buf(ntlm);
+    heim_ntlm_free_buf(lm);
+    return code;
 }
 
 
@@ -1783,21 +1834,24 @@ heim_ntlm_calculate_ntlm2_sess_hash(const unsigned char clnt_nonce[8],
  * @ingroup ntlm_core
  */
 
-void
+int
 heim_ntlm_derive_ntlm2_sess(const unsigned char sessionkey[16],
 			    const unsigned char *clnt_nonce, size_t clnt_nonce_length,
 			    const unsigned char svr_chal[8],
 			    unsigned char derivedkey[16])
 {
     unsigned int hmaclen;
-    HMAC_CTX c;
+    HMAC_CTX *c;
 
     /* HMAC(Ksession, serverchallenge || clientchallenge) */
-    HMAC_CTX_init(&c);
-    HMAC_Init_ex(&c, sessionkey, 16, EVP_md5(), NULL);
-    HMAC_Update(&c, svr_chal, 8);
-    HMAC_Update(&c, clnt_nonce, clnt_nonce_length);
-    HMAC_Final(&c, derivedkey, &hmaclen);
-    HMAC_CTX_cleanup(&c);
+    c = HMAC_CTX_new();
+    if (c == NULL)
+	return ENOMEM;
+    HMAC_Init_ex(c, sessionkey, 16, EVP_md5(), NULL);
+    HMAC_Update(c, svr_chal, 8);
+    HMAC_Update(c, clnt_nonce, clnt_nonce_length);
+    HMAC_Final(c, derivedkey, &hmaclen);
+    HMAC_CTX_free(c);
+    return 0;
 }
 

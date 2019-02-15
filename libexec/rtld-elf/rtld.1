@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2014
+.Dd May 20, 2017
 .Dt RTLD 1
 .Os
 .Sh NAME
@@ -60,10 +60,11 @@ This is useful for C++ libraries that contain static constructors.
 .Pp
 When resolving dependencies for the loaded objects,
 .Nm
-may be allowed to translate dynamic token strings in rpath and soname
-by setting
+translates dynamic token strings in rpath and soname.
+If the
 .Fl "z origin"
-option of the static linker
+option of the static linker was set when linking the binary,
+the token expansion is performed at the object load time, see
 .Xr ld 1 .
 The following strings are recognized now:
 .Bl -tag -width ".Pa $PLATFORM"
@@ -192,12 +193,19 @@ the directories specified by
 will be searched first
 followed by the set of built-in standard directories.
 This variable is unset for set-user-ID and set-group-ID programs.
-.Ev LD_LIBRARY_PATH_FDS
+.It Ev LD_LIBRARY_PATH_FDS
 A colon separated list of file descriptor numbers for library directories.
 This is intended for use within
 .Xr capsicum 4
 sandboxes, when global namespaces such as the filesystem are unavailable.
 It is consulted just after LD_LIBRARY_PATH.
+This variable is unset for set-user-ID and set-group-ID programs.
+.It Ev LD_BIND_NOT
+When set to a nonempty string, prevents modifications of the PLT slots when
+doing bindings.
+As result, each call of the PLT-resolved function is resolved.
+In combination with debug output, this provides complete account of
+all bind actions at runtime.
 This variable is unset for set-user-ID and set-group-ID programs.
 .It Ev LD_BIND_NOW
 When set to a nonempty string, causes
@@ -275,6 +283,78 @@ instead of postponing it until required.
 Normally, the filtees are opened at the time of the first symbol resolution
 from the filter object.
 .El
+.Sh DIRECT EXECUTION MODE
+.Nm
+is typically used implicitly, loaded by the kernel as requested by the
+.Dv PT_INTERP
+program header of the executed binary.
+.Fx
+also supports a direct execution mode for the dynamic linker.
+In this mode, the user explicitly executes
+.Nm
+and provides the path of the program to be linked and executed as
+an argument.
+This mode allows use of a non-standard dynamic linker for a program
+activation without changing the binary or without changing
+the installed dynamic linker.
+Execution options may be specified.
+.Pp
+The syntax of the direct invocation is
+.Bd -ragged -offset indent
+.Pa /libexec/ld-elf.so.1
+.Op Fl f Ar fd
+.Op Fl p
+.Op Fl -
+.Pa image_path
+.Op Ar image arguments
+.Ed
+.Pp
+The options are:
+.Bl -tag -width indent
+.It Fl f Ar fd
+File descriptor
+.Ar fd
+references the binary to be activated by
+.Nm .
+It must already be opened in the process when executing
+.Nm .
+If this option is specified,
+.Ar image_path
+is only used to provide the
+.Va argv[0]
+value to the program.
+.It Fl p
+If the
+.Pa image_path
+argument specifies a name which does not contain a slash
+.Dq Li /
+character,
+.Nm
+uses the search path provided by the environment variable
+.Dv PATH
+to find the binary to execute.
+.It Fl -
+Ends the
+.Nm
+options.
+The argument following
+.Fl -
+is interpreted as the path of the binary to execute.
+.El
+.Pp
+In the direct execution mode,
+.Nm
+emulates verification of the binary execute permission for the
+current user.
+This is done to avoid breaking user expectations in naively restricted 
+execution environments.
+The verification only uses Unix
+.Dv DACs ,
+ignores
+.Dv ACLs ,
+and is naturally prone to race conditions.
+Environments which rely on such restrictions are weak
+and breakable on their own.
 .Sh FILES
 .Bl -tag -width ".Pa /var/run/ld-elf32.so.hints" -compact
 .It Pa /var/run/ld-elf.so.hints

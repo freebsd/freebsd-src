@@ -1,8 +1,0 @@
-PROG=xtotroff$(EXEEXT)
-MAN1=xtotroff.n
-MLIB=$(LIBM)
-XLIBS=$(LIBXUTIL) $(LIBGROFF)
-EXTRA_CFLAGS=$(X_CFLAGS)
-EXTRA_LDFLAGS=$(X_LIBS) $(X_PRE_LIBS) -lXaw -lXt -lX11 $(X_EXTRA_LIBS)
-OBJS=xtotroff.$(OBJEXT)
-CSRCS=$(srcdir)/xtotroff.c

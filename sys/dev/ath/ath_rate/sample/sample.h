@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2005 John Bicket
  * All rights reserved.
  *
@@ -113,7 +115,7 @@ struct sample_node {
 #ifdef	_KERNEL
 
 #define	ATH_NODE_SAMPLE(an)	((struct sample_node *)&(an)[1])
-#define	IS_RATE_DEFINED(sn, rix)	(((sn)->ratemask & (1<<(rix))) != 0)
+#define	IS_RATE_DEFINED(sn, rix)	(((uint64_t) (sn)->ratemask & (1ULL<<((uint64_t) rix))) != 0)
 
 #ifndef MIN
 #define	MIN(a,b)	((a) < (b) ? (a) : (b))
@@ -134,8 +136,7 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 				int long_retries, int is_ht40)
 {
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	int rts, cts;
 	
 	unsigned t_slot = 20;
@@ -213,9 +214,9 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 		if (rts)		/* SIFS + CTS */
 			ctsduration += rt->info[cix].spAckDuration;
 
-		/* XXX assumes short preamble */
+		/* XXX assumes short preamble, include SIFS */
 		ctsduration += ath_hal_pkt_txtime(sc->sc_ah, rt, length, rix,
-		    is_ht40, 0);
+		    is_ht40, 0, 1);
 
 		if (cts)	/* SIFS + ACK */
 			ctsduration += rt->info[cix].spAckDuration;
@@ -224,9 +225,9 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 	}
 	tt += t_difs;
 
-	/* XXX assumes short preamble */
+	/* XXX assumes short preamble, include SIFS */
 	tt += (long_retries+1)*ath_hal_pkt_txtime(sc->sc_ah, rt, length, rix,
-	    is_ht40, 0);
+	    is_ht40, 0, 1);
 
 	tt += (long_retries+1)*(t_sifs + rt->info[rix].spAckDuration);
 

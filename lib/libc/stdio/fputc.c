@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -46,10 +48,10 @@ int
 fputc(int c, FILE *fp)
 {
 	int retval;
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	/* Orientation set by __sputc() when buffer is full. */
 	/* ORIENT(fp, -1); */
 	retval = __sputc(c, fp);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 	return (retval);
 }

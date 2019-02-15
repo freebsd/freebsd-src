@@ -26,7 +26,7 @@
 #include <solaris.h>
 #include <inttypes.h>
 #include <unistd.h>
-#include <strings.h>
+#include <string.h>
 #include <libintl.h>
 #include <stdarg.h>
 #include "libnvpair.h"
@@ -793,6 +793,7 @@ dump_nvlist(nvlist_t *list, int indent)
 {
 	nvpair_t	*elem = NULL;
 	boolean_t	bool_value;
+	boolean_t	*bool_array_value;
 	nvlist_t	*nvlist_value;
 	nvlist_t	**nvlist_array_value;
 	uint_t		i, count;
@@ -851,6 +852,16 @@ dump_nvlist(nvlist_t *list, int indent)
 
 		case DATA_TYPE_STRING:
 			NVP(elem, string, char *, char *, "'%s'");
+			break;
+
+		case DATA_TYPE_BOOLEAN_ARRAY:
+			(void) nvpair_value_boolean_array(elem,
+			    &bool_array_value, &count);
+			for (i = 0; i < count; i++) {
+				(void) printf("%*s%s[%d]: %s\n", indent, "",
+				    nvpair_name(elem), i,
+				    bool_array_value[i] ? "true" : "false");
+			}
 			break;
 
 		case DATA_TYPE_BYTE_ARRAY:
@@ -1217,7 +1228,8 @@ nvpair_value_match_regex(nvpair_t *nvp, int ai,
 		break;
 	}
 	case DATA_TYPE_BOOLEAN_VALUE: {
-		boolean_t val, val_arg;
+		int32_t val_arg;
+		boolean_t val;
 
 		/* scanf boolean_t from value and check for match */
 		sr = sscanf(value, "%"SCNi32, &val_arg);
@@ -1228,7 +1240,8 @@ nvpair_value_match_regex(nvpair_t *nvp, int ai,
 		break;
 	}
 	case DATA_TYPE_BOOLEAN_ARRAY: {
-		boolean_t *val_array, val_arg;
+		boolean_t *val_array;
+		int32_t val_arg;
 
 		/* check indexed value of array for match */
 		sr = sscanf(value, "%"SCNi32, &val_arg);

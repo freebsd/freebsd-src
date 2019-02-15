@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Ed Schouten <ed@FreeBSD.org>
  * All rights reserved.
  *
@@ -96,7 +98,7 @@ int
 mtx_trylock(mtx_t *mtx)
 {
 
-	switch (pthread_mutex_lock(mtx)) {
+	switch (pthread_mutex_trylock(mtx)) {
 	case 0:
 		return (thrd_success);
 	case EBUSY:

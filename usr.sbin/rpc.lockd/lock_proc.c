@@ -1,6 +1,8 @@
 /*	$NetBSD: lock_proc.c,v 1.7 2000/10/11 20:23:56 is Exp $	*/
 /*	$FreeBSD$ */
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1995
  *	A.R. Gordon (andrew.gordon@net-tel.co.uk).  All rights reserved.
  *
@@ -112,7 +114,7 @@ log_netobj(netobj *obj)
 	}
 	/* Prevent the security hazard from the buffer overflow */
 	maxlen = (obj->n_len < MAX_NETOBJ_SZ ? obj->n_len : MAX_NETOBJ_SZ);
-	for (i=0, tmp1 = objvalbuffer, tmp2 = objascbuffer; i < obj->n_len;
+	for (i=0, tmp1 = objvalbuffer, tmp2 = objascbuffer; i < maxlen;
 	    i++, tmp1 +=2, tmp2 +=1) {
 		sprintf(tmp1,"%02X",*(obj->n_bytes+i));
 		sprintf(tmp2,"%c",*(obj->n_bytes+i));
@@ -276,7 +278,10 @@ get_client(struct sockaddr *host_addr, rpcvers_t vers)
 
 	/* Regain root privileges, for bindresvport. */
 	old_euid = geteuid();
-	seteuid(0);
+	if (seteuid(0) != 0) {
+		syslog(LOG_ERR, "seteuid(0) failed");
+		return NULL;
+	}
 
 	/*
 	 * Bind the client FD to a reserved port.
@@ -285,7 +290,10 @@ get_client(struct sockaddr *host_addr, rpcvers_t vers)
 	bindresvport(clnt_fd, NULL);
 
 	/* Drop root privileges again. */
-	seteuid(old_euid);
+	if (seteuid(old_euid) != 0) {
+		syslog(LOG_ERR, "seteuid(%d) failed", old_euid);
+		return NULL;
+	}
 
 	/* Success - update the cache entry */
 	clnt_cache_ptr[clnt_cache_next_to_use] = client;

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000-2001 Boris Popov
  * All rights reserved.
  *
@@ -65,7 +67,7 @@ struct iconv_cspair_info {
 };
 
 /*
- * Paramters for 'add' sysctl
+ * Parameters for 'add' sysctl
  */
 #define	ICONV_ADD_VER	1
 

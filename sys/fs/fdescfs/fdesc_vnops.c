@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -53,6 +55,8 @@
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
+#include <sys/syscallsubr.h>
+#include <sys/unistd.h>
 #include <sys/vnode.h>
 
 #include <fs/fdescfs/fdesc.h>
@@ -68,7 +72,9 @@ struct mtx fdesc_hashmtx;
 static vop_getattr_t	fdesc_getattr;
 static vop_lookup_t	fdesc_lookup;
 static vop_open_t	fdesc_open;
+static vop_pathconf_t	fdesc_pathconf;
 static vop_readdir_t	fdesc_readdir;
+static vop_readlink_t	fdesc_readlink;
 static vop_reclaim_t	fdesc_reclaim;
 static vop_setattr_t	fdesc_setattr;
 
@@ -79,8 +85,9 @@ static struct vop_vector fdesc_vnodeops = {
 	.vop_getattr =		fdesc_getattr,
 	.vop_lookup =		fdesc_lookup,
 	.vop_open =		fdesc_open,
-	.vop_pathconf =		vop_stdpathconf,
+	.vop_pathconf =		fdesc_pathconf,
 	.vop_readdir =		fdesc_readdir,
+	.vop_readlink =		fdesc_readlink,
 	.vop_reclaim =		fdesc_reclaim,
 	.vop_setattr =		fdesc_setattr,
 };
@@ -92,8 +99,7 @@ static void fdesc_remove_entry(struct fdescnode *);
  * Initialise cache headers
  */
 int
-fdesc_init(vfsp)
-	struct vfsconf *vfsp;
+fdesc_init(struct vfsconf *vfsp)
 {
 
 	mtx_init(&fdesc_hashmtx, "fdescfs_hash", NULL, MTX_DEF);
@@ -105,8 +111,7 @@ fdesc_init(vfsp)
  * Uninit ready for unload.
  */
 int
-fdesc_uninit(vfsp)
-	struct vfsconf *vfsp;
+fdesc_uninit(struct vfsconf *vfsp)
 {
 
 	hashdestroy(fdhashtbl, M_CACHE, fdhash);
@@ -146,19 +151,15 @@ fdesc_remove_entry(struct fdescnode *fd)
 }
 
 int
-fdesc_allocvp(ftype, fd_fd, ix, mp, vpp)
-	fdntype ftype;
-	unsigned fd_fd;
-	int ix;
-	struct mount *mp;
-	struct vnode **vpp;
+fdesc_allocvp(fdntype ftype, unsigned fd_fd, int ix, struct mount *mp,
+    struct vnode **vpp)
 {
 	struct fdescmount *fmp;
 	struct fdhashhead *fc;
 	struct fdescnode *fd, *fd2;
 	struct vnode *vp, *vp2;
 	struct thread *td;
-	int error = 0;
+	int error;
 
 	td = curthread;
 	fc = FD_NHASH(ix);
@@ -168,7 +169,7 @@ loop:
 	 * If a forced unmount is progressing, we need to drop it. The flags are
 	 * protected by the hashmtx.
 	 */
-	fmp = (struct fdescmount *)mp->mnt_data;
+	fmp = mp->mnt_data;
 	if (fmp == NULL || fmp->flags & FMNT_UNMOUNTF) {
 		mtx_unlock(&fdesc_hashmtx);
 		return (-1);
@@ -201,6 +202,8 @@ loop:
 	fd->fd_type = ftype;
 	fd->fd_fd = fd_fd;
 	fd->fd_ix = ix;
+	if (ftype == Fdesc && fmp->flags & FMNT_LINRDLNKF)
+		vp->v_vflag |= VV_READLINK;
 	error = insmntque1(vp, mp, fdesc_insmntque_dtr, NULL);
 	if (error != 0) {
 		*vpp = NULLVP;
@@ -213,7 +216,7 @@ loop:
 	 * If a forced unmount is progressing, we need to drop it. The flags are
 	 * protected by the hashmtx.
 	 */
-	fmp = (struct fdescmount *)mp->mnt_data;
+	fmp = mp->mnt_data;
 	if (fmp == NULL || fmp->flags & FMNT_UNMOUNTF) {
 		mtx_unlock(&fdesc_hashmtx);
 		vgone(vp);
@@ -247,17 +250,34 @@ loop:
 	return (0);
 }
 
+struct fdesc_get_ino_args {
+	fdntype ftype;
+	unsigned fd_fd;
+	int ix;
+	struct file *fp;
+	struct thread *td;
+};
+
+static int
+fdesc_get_ino_alloc(struct mount *mp, void *arg, int lkflags,
+    struct vnode **rvp)
+{
+	struct fdesc_get_ino_args *a;
+	int error;
+
+	a = arg;
+	error = fdesc_allocvp(a->ftype, a->fd_fd, a->ix, mp, rvp);
+	fdrop(a->fp, a->td);
+	return (error);
+}
+
+
 /*
  * vp is the current namei directory
  * ndp is the name to locate in that directory...
  */
 static int
-fdesc_lookup(ap)
-	struct vop_lookup_args /* {
-		struct vnode * a_dvp;
-		struct vnode ** a_vpp;
-		struct componentname * a_cnp;
-	} */ *ap;
+fdesc_lookup(struct vop_lookup_args *ap)
 {
 	struct vnode **vpp = ap->a_vpp;
 	struct vnode *dvp = ap->a_dvp;
@@ -265,6 +285,7 @@ fdesc_lookup(ap)
 	char *pname = cnp->cn_nameptr;
 	struct thread *td = cnp->cn_thread;
 	struct file *fp;
+	struct fdesc_get_ino_args arg;
 	int nlen = cnp->cn_namelen;
 	u_int fd, fd1;
 	int error;
@@ -309,7 +330,7 @@ fdesc_lookup(ap)
 	/*
 	 * No rights to check since 'fp' isn't actually used.
 	 */
-	if ((error = fget(td, fd, NULL, &fp)) != 0)
+	if ((error = fget(td, fd, &cap_no_rights, &fp)) != 0)
 		goto bad;
 
 	/* Check if we're looking up ourselves. */
@@ -326,6 +347,8 @@ fdesc_lookup(ap)
 		vn_lock(dvp, LK_RETRY | LK_EXCLUSIVE);
 		vdrop(dvp);
 		fvp = dvp;
+		if ((dvp->v_iflag & VI_DOOMED) != 0)
+			error = ENOENT;
 	} else {
 		/*
 		 * Unlock our root node (dvp) when doing this, since we might
@@ -335,18 +358,15 @@ fdesc_lookup(ap)
 		 * opposite lock order. Vhold the root vnode first so we don't
 		 * lose it.
 		 */
-		vhold(dvp);
-		VOP_UNLOCK(dvp, 0);
-		error = fdesc_allocvp(Fdesc, fd, FD_DESC + fd, dvp->v_mount,
-		    &fvp);
-		fdrop(fp, td);
-		/*
-		 * The root vnode must be locked last to prevent deadlock condition.
-		 */
-		vn_lock(dvp, LK_RETRY | LK_EXCLUSIVE);
-		vdrop(dvp);
+		arg.ftype = Fdesc;
+		arg.fd_fd = fd;
+		arg.ix = FD_DESC + fd;
+		arg.fp = fp;
+		arg.td = td;
+		error = vn_vget_ino_gen(dvp, fdesc_get_ino_alloc, &arg,
+		    LK_EXCLUSIVE, &fvp);
 	}
-	
+
 	if (error)
 		goto bad;
 	*vpp = fvp;
@@ -358,13 +378,7 @@ bad:
 }
 
 static int
-fdesc_open(ap)
-	struct vop_open_args /* {
-		struct vnode *a_vp;
-		int  a_mode;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
+fdesc_open(struct vop_open_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 
@@ -384,16 +398,42 @@ fdesc_open(ap)
 }
 
 static int
-fdesc_getattr(ap)
-	struct vop_getattr_args /* {
-		struct vnode *a_vp;
-		struct vattr *a_vap;
-		struct ucred *a_cred;
-	} */ *ap;
+fdesc_pathconf(struct vop_pathconf_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	int error;
+
+	switch (ap->a_name) {
+	case _PC_NAME_MAX:
+		*ap->a_retval = NAME_MAX;
+		return (0);
+	case _PC_LINK_MAX:
+		if (VTOFDESC(vp)->fd_type == Froot)
+			*ap->a_retval = 2;
+		else
+			*ap->a_retval = 1;
+		return (0);
+	default:
+		if (VTOFDESC(vp)->fd_type == Froot)
+			return (vop_stdpathconf(ap));
+		vref(vp);
+		VOP_UNLOCK(vp, 0);
+		error = kern_fpathconf(curthread, VTOFDESC(vp)->fd_fd,
+		    ap->a_name, ap->a_retval);
+		vn_lock(vp, LK_SHARED | LK_RETRY);
+		vunref(vp);
+		return (error);
+	}
+}
+
+static int
+fdesc_getattr(struct vop_getattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
+	struct timeval boottime;
 
+	getboottime(&boottime);
 	vap->va_mode = S_IRUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 	vap->va_fileid = VTOFDESC(vp)->fd_ix;
 	vap->va_uid = 0;
@@ -417,7 +457,7 @@ fdesc_getattr(ap)
 		break;
 
 	case Fdesc:
-		vap->va_type = VCHR;
+		vap->va_type = (vp->v_vflag & VV_READLINK) == 0 ? VCHR : VLNK;
 		vap->va_nlink = 1;
 		vap->va_size = 0;
 		vap->va_rdev = makedev(0, vap->va_fileid);
@@ -433,12 +473,7 @@ fdesc_getattr(ap)
 }
 
 static int
-fdesc_setattr(ap)
-	struct vop_setattr_args /* {
-		struct vnode *a_vp;
-		struct vattr *a_vap;
-		struct ucred *a_cred;
-	} */ *ap;
+fdesc_setattr(struct vop_setattr_args *ap)
 {
 	struct vattr *vap = ap->a_vap;
 	struct vnode *vp;
@@ -460,7 +495,7 @@ fdesc_setattr(ap)
 	/*
 	 * Allow setattr where there is an underlying vnode.
 	 */
-	error = getvnode(td->td_proc->p_fd, fd,
+	error = getvnode(td, fd,
 	    cap_rights_init(&rights, CAP_EXTATTR_SET), &fp);
 	if (error) {
 		/*
@@ -487,19 +522,12 @@ fdesc_setattr(ap)
 	return (error);
 }
 
-#define UIO_MX 16
+#define UIO_MX _GENERIC_DIRLEN(10) /* number of symbols in INT_MAX printout */
 
 static int
-fdesc_readdir(ap)
-	struct vop_readdir_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		struct ucred *a_cred;
-		int *a_eofflag;
-		u_long *a_cookies;
-		int a_ncookies;
-	} */ *ap;
+fdesc_readdir(struct vop_readdir_args *ap)
 {
+	struct fdescmount *fmp;
 	struct uio *uio = ap->a_uio;
 	struct filedesc *fdp;
 	struct dirent d;
@@ -509,6 +537,7 @@ fdesc_readdir(ap)
 	if (VTOFDESC(ap->a_vp)->fd_type != Froot)
 		panic("fdesc_readdir: not dir");
 
+	fmp = VFSTOFDESC(ap->a_vp->v_mount);
 	if (ap->a_ncookies != NULL)
 		*ap->a_ncookies = 0;
 
@@ -540,7 +569,8 @@ fdesc_readdir(ap)
 				break;
 			dp->d_namlen = sprintf(dp->d_name, "%d", fcnt);
 			dp->d_reclen = UIO_MX;
-			dp->d_type = DT_CHR;
+			dp->d_type = (fmp->flags & FMNT_LINRDLNKF) == 0 ?
+			    DT_CHR : DT_LNK;
 			dp->d_fileno = i + FD_DESC;
 			break;
 		}
@@ -565,10 +595,7 @@ done:
 }
 
 static int
-fdesc_reclaim(ap)
-	struct vop_reclaim_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+fdesc_reclaim(struct vop_reclaim_args *ap)
 {
 	struct vnode *vp;
 	struct fdescnode *fd;
@@ -579,4 +606,52 @@ fdesc_reclaim(ap)
 	free(vp->v_data, M_TEMP);
 	vp->v_data = NULL;
 	return (0);
+}
+
+static int
+fdesc_readlink(struct vop_readlink_args *va)
+{
+	struct vnode *vp, *vn;
+	struct thread *td;
+	struct uio *uio;
+	struct file *fp;
+	char *freepath, *fullpath;
+	size_t pathlen;
+	int lockflags, fd_fd;
+	int error;
+
+	freepath = NULL;
+	vn = va->a_vp;
+	if (VTOFDESC(vn)->fd_type != Fdesc)
+		panic("fdesc_readlink: not fdescfs link");
+	fd_fd = ((struct fdescnode *)vn->v_data)->fd_fd;
+	lockflags = VOP_ISLOCKED(vn);
+	VOP_UNLOCK(vn, 0);
+
+	td = curthread;
+	error = fget_cap(td, fd_fd, &cap_no_rights, &fp, NULL);
+	if (error != 0)
+		goto out;
+
+	switch (fp->f_type) {
+	case DTYPE_VNODE:
+		vp = fp->f_vnode;
+		error = vn_fullpath(td, vp, &fullpath, &freepath);
+		break;
+	default:
+		fullpath = "anon_inode:[unknown]";
+		break;
+	}
+	if (error == 0) {
+		uio = va->a_uio;
+		pathlen = strlen(fullpath);
+		error = uiomove(fullpath, pathlen, uio);
+	}
+	if (freepath != NULL)
+		free(freepath, M_TEMP);
+	fdrop(fp, td);
+
+out:
+	vn_lock(vn, lockflags | LK_RETRY);
+	return (error);
 }

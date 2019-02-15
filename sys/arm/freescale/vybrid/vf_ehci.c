@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
@@ -54,8 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/controller/ehci.h>
 #include <dev/usb/controller/ehcireg.h>
-
-#include <dev/fdt/fdt_common.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -166,8 +166,20 @@ static driver_t ehci_driver = {
 
 static devclass_t ehci_devclass;
 
-DRIVER_MODULE(ehci, simplebus, ehci_driver, ehci_devclass, 0, 0);
-MODULE_DEPEND(ehci, usb, 1, 1, 1);
+DRIVER_MODULE(vybrid_ehci, simplebus, ehci_driver, ehci_devclass, 0, 0);
+MODULE_DEPEND(vybrid_ehci, usb, 1, 1, 1);
+
+static void
+vybrid_ehci_post_reset(struct ehci_softc *ehci_softc)
+{
+	uint32_t usbmode;
+
+	/* Force HOST mode */
+	usbmode = EOREAD4(ehci_softc, EHCI_USBMODE_NOLPM);
+	usbmode &= ~EHCI_UM_CM;
+	usbmode |= EHCI_UM_CM_HOST;
+	EOWRITE4(ehci_softc, EHCI_USBMODE_NOLPM, usbmode);
+}
 
 /*
  * Public methods
@@ -259,6 +271,7 @@ vybrid_ehci_attach(device_t dev)
 	sc->sc_bus.parent = dev;
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = EHCI_MAX_DEVICES;
+	sc->sc_bus.dma_bits = 32;
 
 	if (bus_alloc_resources(dev, vybrid_ehci_spec, esc->res)) {
 		device_printf(dev, "could not allocate resources\n");
@@ -342,8 +355,10 @@ vybrid_ehci_attach(device_t dev)
 	reg |= 0x3;
 	bus_space_write_4(sc->sc_io_tag, sc->sc_io_hdl, 0xA8, reg);
 
-	/* Set flags */
-	sc->sc_flags |= EHCI_SCFLG_SETMODE | EHCI_SCFLG_NORESTERM;
+	/* Set flags  and callbacks*/
+	sc->sc_flags |= EHCI_SCFLG_TT | EHCI_SCFLG_NORESTERM;
+	sc->sc_vendor_post_reset = vybrid_ehci_post_reset;
+	sc->sc_vendor_get_port_speed = ehci_get_port_speed_portsc;
 
 	err = ehci_init(sc);
 	if (!err) {
@@ -375,8 +390,9 @@ vybrid_ehci_detach(device_t dev)
 	esc = device_get_softc(dev);
 	sc = &esc->base;
 
-	if (sc->sc_flags & EHCI_SCFLG_DONEINIT)
-		return (0);
+	/* First detach all children; we can't detach if that fails. */
+	if ((err = device_delete_children(dev)) != 0)
+		return (err);
 
 	/*
 	 * only call ehci_detach() after ehci_init()
@@ -405,13 +421,7 @@ vybrid_ehci_detach(device_t dev)
 		sc->sc_intr_hdl = NULL;
 	}
 
-	if (sc->sc_bus.bdev) {
-		device_delete_child(dev, sc->sc_bus.bdev);
-		sc->sc_bus.bdev = NULL;
-	}
-
-	/* During module unload there are lots of children leftover */
-	device_delete_children(dev);
+	usb_bus_mem_free_all(&sc->sc_bus, &ehci_iterate_hw_softc);
 
 	bus_release_resources(dev, vybrid_ehci_spec, esc->res);
 

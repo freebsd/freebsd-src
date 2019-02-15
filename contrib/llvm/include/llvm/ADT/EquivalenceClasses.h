@@ -1,4 +1,4 @@
-//===-- llvm/ADT/EquivalenceClasses.h - Generic Equiv. Classes --*- C++ -*-===//
+//===- llvm/ADT/EquivalenceClasses.h - Generic Equiv. Classes ---*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -15,8 +15,10 @@
 #ifndef LLVM_ADT_EQUIVALENCECLASSES_H
 #define LLVM_ADT_EQUIVALENCECLASSES_H
 
-#include "llvm/Support/DataTypes.h"
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
 #include <set>
 
 namespace llvm {
@@ -67,8 +69,10 @@ class EquivalenceClasses {
   /// leader is determined by a bit stolen from one of the pointers.
   class ECValue {
     friend class EquivalenceClasses;
+
     mutable const ECValue *Leader, *Next;
     ElemTy Data;
+
     // ECValue ctor - Start out with EndOfList pointing to this node, Next is
     // Null, isLeader = true.
     ECValue(const ElemTy &Elt)
@@ -80,20 +84,22 @@ class EquivalenceClasses {
       // Path compression.
       return Leader = Leader->getLeader();
     }
+
     const ECValue *getEndOfList() const {
       assert(isLeader() && "Cannot get the end of a list for a non-leader!");
       return Leader;
     }
 
     void setNext(const ECValue *NewNext) const {
-      assert(getNext() == 0 && "Already has a next pointer!");
+      assert(getNext() == nullptr && "Already has a next pointer!");
       Next = (const ECValue*)((intptr_t)NewNext | (intptr_t)isLeader());
     }
+
   public:
     ECValue(const ECValue &RHS) : Leader(this), Next((ECValue*)(intptr_t)1),
                                   Data(RHS.Data) {
       // Only support copying of singleton nodes.
-      assert(RHS.isLeader() && RHS.getNext() == 0 && "Not a singleton!");
+      assert(RHS.isLeader() && RHS.getNext() == nullptr && "Not a singleton!");
     }
 
     bool operator<(const ECValue &UFN) const { return Data < UFN.Data; }
@@ -114,7 +120,7 @@ class EquivalenceClasses {
   std::set<ECValue> TheMapping;
 
 public:
-  EquivalenceClasses() {}
+  EquivalenceClasses() = default;
   EquivalenceClasses(const EquivalenceClasses &RHS) {
     operator=(RHS);
   }
@@ -136,21 +142,21 @@ public:
   //
 
   /// iterator* - Provides a way to iterate over all values in the set.
-  typedef typename std::set<ECValue>::const_iterator iterator;
+  using iterator = typename std::set<ECValue>::const_iterator;
+
   iterator begin() const { return TheMapping.begin(); }
   iterator end() const { return TheMapping.end(); }
 
   bool empty() const { return TheMapping.empty(); }
 
   /// member_* Iterate over the members of an equivalence class.
-  ///
   class member_iterator;
   member_iterator member_begin(iterator I) const {
     // Only leaders provide anything to iterate over.
-    return member_iterator(I->isLeader() ? &*I : 0);
+    return member_iterator(I->isLeader() ? &*I : nullptr);
   }
   member_iterator member_end() const {
-    return member_iterator(0);
+    return member_iterator(nullptr);
   }
 
   /// findValue - Return an iterator to the specified value.  If it does not
@@ -186,7 +192,6 @@ public:
     return NC;
   }
 
-
   //===--------------------------------------------------------------------===//
   // Mutation methods
 
@@ -200,7 +205,6 @@ public:
   /// equivalence class it is in.  This does the path-compression part that
   /// makes union-find "union findy".  This returns an end iterator if the value
   /// is not in the equivalence class.
-  ///
   member_iterator findLeader(iterator I) const {
     if (I == TheMapping.end()) return member_end();
     return member_iterator(I->getLeader());
@@ -208,7 +212,6 @@ public:
   member_iterator findLeader(const ElemTy &V) const {
     return findLeader(TheMapping.find(V));
   }
-
 
   /// union - Merge the two equivalence sets for the specified values, inserting
   /// them if they do not already exist in the equivalence set.
@@ -236,29 +239,41 @@ public:
     return L1;
   }
 
+  // isEquivalent - Return true if V1 is equivalent to V2. This can happen if
+  // V1 is equal to V2 or if they belong to one equivalence class.
+  bool isEquivalent(const ElemTy &V1, const ElemTy &V2) const {
+    // Fast path: any element is equivalent to itself.
+    if (V1 == V2)
+      return true;
+    auto It = findLeader(V1);
+    return It != member_end() && It == findLeader(V2);
+  }
+
   class member_iterator : public std::iterator<std::forward_iterator_tag,
                                                const ElemTy, ptrdiff_t> {
-    typedef std::iterator<std::forward_iterator_tag,
-                          const ElemTy, ptrdiff_t> super;
-    const ECValue *Node;
     friend class EquivalenceClasses;
-  public:
-    typedef size_t size_type;
-    typedef typename super::pointer pointer;
-    typedef typename super::reference reference;
 
-    explicit member_iterator() {}
+    using super = std::iterator<std::forward_iterator_tag,
+                                const ElemTy, ptrdiff_t>;
+
+    const ECValue *Node;
+
+  public:
+    using size_type = size_t;
+    using pointer = typename super::pointer;
+    using reference = typename super::reference;
+
+    explicit member_iterator() = default;
     explicit member_iterator(const ECValue *N) : Node(N) {}
-    member_iterator(const member_iterator &I) : Node(I.Node) {}
 
     reference operator*() const {
-      assert(Node != 0 && "Dereferencing end()!");
+      assert(Node != nullptr && "Dereferencing end()!");
       return Node->getData();
     }
-    reference operator->() const { return operator*(); }
+    pointer operator->() const { return &operator*(); }
 
     member_iterator &operator++() {
-      assert(Node != 0 && "++'d off the end of the list!");
+      assert(Node != nullptr && "++'d off the end of the list!");
       Node = Node->getNext();
       return *this;
     }
@@ -278,6 +293,6 @@ public:
   };
 };
 
-} // End llvm namespace
+} // end namespace llvm
 
-#endif
+#endif // LLVM_ADT_EQUIVALENCECLASSES_H

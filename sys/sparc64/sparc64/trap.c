@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001, Jake Burkholder
  * Copyright (C) 1994, David Greenman
  * Copyright (c) 1990, 1993
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -98,8 +100,6 @@ extern char copy_nofault_end[];
 extern char fs_fault[];
 extern char fs_nofault_begin[];
 extern char fs_nofault_end[];
-extern char fs_nofault_intr_begin[];
-extern char fs_nofault_intr_end[];
 
 extern char fas_fault[];
 extern char fas_nofault_begin[];
@@ -215,8 +215,8 @@ static const int trap_sig[] = {
 	-1,			/* kernel stack fault */
 };
 
-CTASSERT(sizeof(trap_msg) / sizeof(*trap_msg) == T_MAX);
-CTASSERT(sizeof(trap_sig) / sizeof(*trap_sig) == T_MAX);
+CTASSERT(nitems(trap_msg) == T_MAX);
+CTASSERT(nitems(trap_sig) == T_MAX);
 
 CTASSERT(sizeof(struct trapframe) == 256);
 
@@ -257,7 +257,7 @@ trap(struct trapframe *tf)
 	struct thread *td;
 	struct proc *p;
 	int error;
-	int sig;
+	int sig, ucode;
 	register_t addr;
 	ksiginfo_t ksi;
 
@@ -267,7 +267,7 @@ trap(struct trapframe *tf)
 	    trap_msg[tf->tf_type & ~T_KERNEL],
 	    (TRAPF_USERMODE(tf) ? "user" : "kernel"), rdpr(pil));
 
-	PCPU_INC(cnt.v_trap);
+	VM_CNT_INC(v_trap);
 
 	if ((tf->tf_tstate & TSTATE_PRIV) == 0) {
 		KASSERT(td != NULL, ("trap: curthread NULL"));
@@ -277,8 +277,9 @@ trap(struct trapframe *tf)
 		td->td_pticks = 0;
 		td->td_frame = tf;
 		addr = tf->tf_tpc;
-		if (td->td_ucred != p->p_ucred)
-			cred_update_thread(td);
+		ucode = (int)tf->tf_type; /* XXX not POSIX */
+		if (td->td_cowgen != p->p_cowgen)
+			thread_cow_update(td);
 
 		switch (tf->tf_type) {
 		case T_DATA_MISS:
@@ -299,6 +300,10 @@ trap(struct trapframe *tf)
 			break;
 		case T_CORRECTED_ECC_ERROR:
 			sig = trap_cecc();
+			break;
+		case T_BREAKPOINT:
+			sig = SIGTRAP;
+			ucode = TRAP_BRKPT;
 			break;
 		default:
 			if (tf->tf_type > T_MAX)
@@ -322,7 +327,7 @@ trap(struct trapframe *tf)
 				kdb_enter(KDB_WHY_TRAPSIG, "trapsig");
 			ksiginfo_init_trap(&ksi);
 			ksi.ksi_signo = sig;
-			ksi.ksi_code = (int)tf->tf_type; /* XXX not POSIX */
+			ksi.ksi_code = ucode;
 			ksi.ksi_addr = (void *)addr;
 			ksi.ksi_trapno = (int)tf->tf_type;
 			trapsignal(td, &ksi);
@@ -441,7 +446,7 @@ trap_cecc(void)
 static int
 trap_pfault(struct thread *td, struct trapframe *tf)
 {
-	struct vmspace *vm;
+	vm_map_t map;
 	struct proc *p;
 	vm_offset_t va;
 	vm_prot_t prot;
@@ -476,36 +481,8 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 	}
 
 	if (ctx != TLB_CTX_KERNEL) {
-		if ((tf->tf_tstate & TSTATE_PRIV) != 0 &&
-		    (tf->tf_tpc >= (u_long)fs_nofault_intr_begin &&
-		    tf->tf_tpc <= (u_long)fs_nofault_intr_end)) {
-			tf->tf_tpc = (u_long)fs_fault;
-			tf->tf_tnpc = tf->tf_tpc + 4;
-			return (0);
-		}
-
-		/*
-		 * This is a fault on non-kernel virtual memory.
-		 */
-		vm = p->p_vmspace;
-
-		/*
-		 * Keep swapout from messing with us during this
-		 * critical time.
-		 */
-		PROC_LOCK(p);
-		++p->p_lock;
-		PROC_UNLOCK(p);
-
-		/* Fault in the user page. */
-		rv = vm_fault(&vm->vm_map, va, prot, VM_FAULT_NORMAL);
-
-		/*
-		 * Now the process can be swapped again.
-		 */
-		PROC_LOCK(p);
-		--p->p_lock;
-		PROC_UNLOCK(p);
+		/* This is a fault on non-kernel virtual memory. */
+		map = &p->p_vmspace->vm_map;
 	} else {
 		/*
 		 * This is a fault on kernel virtual memory.  Attempts to
@@ -527,13 +504,11 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 			}
 			vm_map_unlock_read(kernel_map);
 		}
-
-		/*
-		 * We don't have to worry about process locking or stacks in
-		 * the kernel.
-		 */
-		rv = vm_fault(kernel_map, va, prot, VM_FAULT_NORMAL);
+		map = kernel_map;
 	}
+
+	/* Fault in the page. */
+	rv = vm_fault(map, va, prot, VM_FAULT_NORMAL);
 
 	CTR3(KTR_TRAP, "trap_pfault: return td=%p va=%#lx rv=%d",
 	    td, va, rv);
@@ -560,17 +535,19 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 #define	REG_MAXARGS	6
 
 int
-cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+cpu_fetch_syscall_args(struct thread *td)
 {
 	struct trapframe *tf;
 	struct proc *p;
 	register_t *argp;
+	struct syscall_args *sa;
 	int reg;
 	int regcnt;
 	int error;
 
 	p = td->td_proc;
 	tf = td->td_frame;
+	sa = &td->td_sa;
 	reg = 0;
 	regcnt = REG_MAXARGS;
 
@@ -618,7 +595,6 @@ void
 syscall(struct trapframe *tf)
 {
 	struct thread *td;
-	struct syscall_args sa;
 	int error;
 
 	td = curthread;
@@ -634,6 +610,6 @@ syscall(struct trapframe *tf)
 	td->td_pcb->pcb_tpc = tf->tf_tpc;
 	TF_DONE(tf);
 
-	error = syscallenter(td, &sa);
-	syscallret(td, error, &sa);
+	error = syscallenter(td);
+	syscallret(td, error);
 }

@@ -1,4 +1,4 @@
-#	$OpenBSD: stderr-after-eof.sh,v 1.2 2013/05/17 04:29:14 dtucker Exp $
+#	$OpenBSD: stderr-after-eof.sh,v 1.3 2017/04/30 23:34:55 djm Exp $
 #	Placed in the Public Domain.
 
 tid="stderr data after eof"
@@ -10,7 +10,7 @@ for i in 1 2 3 4 5 6; do
 	(date;echo $i) | md5 >> ${DATA}
 done
 
-${SSH} -2 -F $OBJ/ssh_proxy otherhost \
+${SSH} -F $OBJ/ssh_proxy otherhost \
 	exec sh -c \'"exec > /dev/null; sleep 2; cat ${DATA} 1>&2 $s"\' \
 	2> ${COPY}
 r=$?

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 M. Warner Losh
  * All rights reserved.
  *
@@ -115,13 +117,14 @@ static driver_t ufm_driver = {
 	.size = sizeof(struct ufm_softc),
 };
 
-DRIVER_MODULE(ufm, uhub, ufm_driver, ufm_devclass, NULL, 0);
-MODULE_DEPEND(ufm, usb, 1, 1, 1);
-MODULE_VERSION(ufm, 1);
-
 static const STRUCT_USB_HOST_ID ufm_devs[] = {
 	{USB_VPI(USB_VENDOR_CYPRESS, USB_PRODUCT_CYPRESS_FMRADIO, 0)},
 };
+
+DRIVER_MODULE(ufm, uhub, ufm_driver, ufm_devclass, NULL, 0);
+MODULE_DEPEND(ufm, usb, 1, 1, 1);
+MODULE_VERSION(ufm, 1);
+USB_PNP_HOST_INFO(ufm_devs);
 
 static int
 ufm_probe(device_t dev)

@@ -1,4 +1,4 @@
-//===- NVPTXSection.h - NVPTX-specific section representation -*- C++ -*-===//
+//===- NVPTXSection.h - NVPTX-specific section representation ---*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,38 +11,35 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_NVPTXSECTION_H
-#define LLVM_NVPTXSECTION_H
+#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXSECTION_H
+#define LLVM_LIB_TARGET_NVPTX_NVPTXSECTION_H
 
-#include "llvm/IR/GlobalVariable.h"
 #include "llvm/MC/MCSection.h"
-#include <vector>
+#include "llvm/MC/SectionKind.h"
 
 namespace llvm {
-/// NVPTXSection - Represents a section in PTX
-/// PTX does not have sections. We create this class in order to use
-/// the ASMPrint interface.
+
+/// Represents a section in PTX PTX does not have sections. We create this class
+/// in order to use the ASMPrint interface.
 ///
-class NVPTXSection : public MCSection {
+class NVPTXSection final : public MCSection {
   virtual void anchor();
+
 public:
-  NVPTXSection(SectionVariant V, SectionKind K) : MCSection(V, K) {}
-  virtual ~NVPTXSection() {}
+  NVPTXSection(SectionVariant V, SectionKind K) : MCSection(V, K, nullptr) {}
+  ~NVPTXSection() = default;
 
   /// Override this as NVPTX has its own way of printing switching
   /// to a section.
-  virtual void PrintSwitchToSection(const MCAsmInfo &MAI,
-                                    raw_ostream &OS,
-                                    const MCExpr *Subsection) const {}
+  void PrintSwitchToSection(const MCAsmInfo &MAI, const Triple &T,
+                            raw_ostream &OS,
+                            const MCExpr *Subsection) const override {}
 
   /// Base address of PTX sections is zero.
-  virtual bool isBaseAddressKnownZero() const { return true; }
-  virtual bool UseCodeAlign() const { return false; }
-  virtual bool isVirtualSection() const { return false; }
-  virtual std::string getLabelBeginName() const { return ""; }
-  virtual std::string getLabelEndName() const { return ""; }
+  bool UseCodeAlign() const override { return false; }
+  bool isVirtualSection() const override { return false; }
 };
 
 } // end namespace llvm
 
-#endif
+#endif // LLVM_LIB_TARGET_NVPTX_NVPTXSECTION_H

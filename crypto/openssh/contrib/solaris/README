@@ -5,7 +5,7 @@ SVR4 style package tools.
 
 The build process is called a 'dummy install'.. Which means the software does
 a  "make install-nokeys DESTDIR=[fakeroot]".  This way all manpages should
-be handled correctly and key are defered until the first time the sshd
+be handled correctly and key are deferred until the first time the sshd
 is started.
 
 Directions:

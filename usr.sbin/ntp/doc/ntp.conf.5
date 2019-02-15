@@ -1,14 +1,23 @@
+.Dd August 14 2018
+.Dt NTP_CONF 5 File Formats
+.Os
+.\"  EDIT THIS FILE WITH CAUTION  (ntp.mdoc)
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 21, 2006
-.Dt NTP.CONF 5
-.Os
+.\"  It has been AutoGen-ed  August 14, 2018 at 08:29:15 AM by AutoGen 5.18.5
+.\"  From the definitions    ntp.conf.def
+.\"  and the template file   agmdoc-cmd.tpl
 .Sh NAME
 .Nm ntp.conf
-.Nd Network Time Protocol (NTP) daemon configuration file
+.Nd Network Time Protocol (NTP) daemon configuration file format
 .Sh SYNOPSIS
-.Nm /etc/ntp.conf
+.Nm
+.Op Fl \-option\-name
+.Op Fl \-option\-name Ar value
+.Pp
+All arguments must be options.
+.Pp
 .Sh DESCRIPTION
 The
 .Nm
@@ -24,16 +33,6 @@ but could be installed elsewhere
 .Fl c
 command line option).
 .Pp
-The
-.Pa /etc/rc.d/ntpdate
-script reads this file to get a list of NTP servers to use if the
-variable
-.Dq Li ntpdate_hosts
-was not declared.
-Refer to the
-.Xr rc.conf 5
-man page for further info about this.
-.Pp
 The file format is similar to other
 .Ux
 configuration files.
@@ -46,13 +45,13 @@ followed by a list of arguments,
 some of which may be optional, separated by whitespace.
 Commands may not be continued over multiple lines.
 Arguments may be host names,
-host addresses written in numeric, dotted-quad form,
+host addresses written in numeric, dotted\-quad form,
 integers, floating point numbers (when specifying times in seconds)
 and text strings.
 .Pp
 The rest of this page describes the configuration and control options.
 The
-.Qq Notes on Configuring NTP and Setting up a NTP Subnet
+.Qq Notes on Configuring NTP and Setting up an NTP Subnet
 page
 (available as part of the HTML documentation
 provided in
@@ -81,6 +80,7 @@ Following these is a section describing
 .Sx Miscellaneous Options .
 While there is a rich set of options available,
 the only required option is one or more
+.Ic pool ,
 .Ic server ,
 .Ic peer ,
 .Ic broadcast
@@ -110,11 +110,17 @@ Use
 of options not listed may not be caught as an error, but may result
 in some weird and even destructive behavior.
 .Pp
-If the Basic Socket Interface Extensions for IPv6 (RFC-2553)
+If the Basic Socket Interface Extensions for IPv6 (RFC\-2553)
 is detected, support for the IPv6 address family is generated
 in addition to the default support of the IPv4 address family.
-In a few cases, including the reslist billboard generated
-by ntpdc, IPv6 addresses are automatically generated.
+In a few cases, including the
+.Cm reslist
+billboard generated
+by
+.Xr ntpq 8
+or
+.Xr ntpdc 8 ,
+IPv6 addresses are automatically generated.
 IPv6 addresses can be identified by the presence of colons
 .Dq \&:
 in the address field.
@@ -133,6 +139,14 @@ qualifier forces DNS resolution to the IPv6 namespace.
 See IPv6 references for the
 equivalent classes for that address family.
 .Bl -tag -width indent
+.It Xo Ic pool Ar address
+.Op Cm burst
+.Op Cm iburst
+.Op Cm version Ar version
+.Op Cm prefer
+.Op Cm minpoll Ar minpoll
+.Op Cm maxpoll Ar maxpoll
+.Xc
 .It Xo Ic server Ar address
 .Op Cm key Ar key \&| Cm autokey
 .Op Cm burst
@@ -141,6 +155,7 @@ equivalent classes for that address family.
 .Op Cm prefer
 .Op Cm minpoll Ar minpoll
 .Op Cm maxpoll Ar maxpoll
+.Op Cm true
 .Xc
 .It Xo Ic peer Ar address
 .Op Cm key Ar key \&| Cm autokey
@@ -148,6 +163,8 @@ equivalent classes for that address family.
 .Op Cm prefer
 .Op Cm minpoll Ar minpoll
 .Op Cm maxpoll Ar maxpoll
+.Op Cm true
+.Op Cm xleave
 .Xc
 .It Xo Ic broadcast Ar address
 .Op Cm key Ar key \&| Cm autokey
@@ -155,6 +172,7 @@ equivalent classes for that address family.
 .Op Cm prefer
 .Op Cm minpoll Ar minpoll
 .Op Cm ttl Ar ttl
+.Op Cm xleave
 .Xc
 .It Xo Ic manycastclient Ar address
 .Op Cm key Ar key \&| Cm autokey
@@ -166,12 +184,12 @@ equivalent classes for that address family.
 .Xc
 .El
 .Pp
-These four commands specify the time server name or address to
+These five commands specify the time server name or address to
 be used and the mode in which to operate.
 The
 .Ar address
 can be
-either a DNS name or an IP address in dotted-quad notation.
+either a DNS name or an IP address in dotted\-quad notation.
 Additional information on association behavior can be found in the
 .Qq Association Management
 page
@@ -179,6 +197,12 @@ page
 provided in
 .Pa /usr/share/doc/ntp ) .
 .Bl -tag -width indent
+.It Ic pool
+For type s addresses, this command mobilizes a persistent
+client mode association with a number of remote servers.
+In this mode the local clock can synchronized to the
+remote server, but the remote server can never be synchronized to
+the local clock.
 .It Ic server
 For type s and r addresses, this command mobilizes a persistent
 client mode association with the specified remote server or local
@@ -192,7 +216,7 @@ be used for type
 b or m addresses.
 .It Ic peer
 For type s addresses (only), this command mobilizes a
-persistent symmetric-active mode association with the specified
+persistent symmetric\-active mode association with the specified
 remote peer.
 In this mode the local clock can be synchronized to
 the remote peer or the remote peer can be synchronized to the local
@@ -268,13 +292,15 @@ Options:
 All packets sent to and received from the server or peer are to
 include authentication fields encrypted using the autokey scheme
 described in
-.Sx Authentication Commands .
+.Sx Authentication Options .
 .It Cm burst
 when the server is reachable, send a burst of eight packets
 instead of the usual one.
 The packet spacing is normally 2 s;
 however, the spacing between the first and second packets
-can be changed with the calldelay command to allow
+can be changed with the
+.Ic calldelay
+command to allow
 additional time for a modem or ISDN call to complete.
 This is designed to improve timekeeping quality
 with the
@@ -285,7 +311,9 @@ When the server is unreachable, send a burst of eight packets
 instead of the usual one.
 The packet spacing is normally 2 s;
 however, the spacing between the first two packets can be
-changed with the calldelay command to allow
+changed with the
+.Ic calldelay
+command to allow
 additional time for a modem or ISDN call to complete.
 This is designed to speed the initial synchronization
 acquisition with the
@@ -299,13 +327,13 @@ option.
 All packets sent to and received from the server or peer are to
 include authentication fields encrypted using the specified
 .Ar key
-identifier with values from 1 to 65534, inclusive.
+identifier with values from 1 to 65535, inclusive.
 The
 default is to include no encryption field.
 .It Cm minpoll Ar minpoll
 .It Cm maxpoll Ar maxpoll
 These options specify the minimum and maximum poll intervals
-for NTP messages, as a power of 2 in seconds.
+for NTP messages, as a power of 2 in seconds
 The maximum poll
 interval defaults to 10 (1,024 s), but can be increased by the
 .Cm maxpoll
@@ -317,7 +345,12 @@ the
 option to a lower limit of 4 (16 s).
 .It Cm noselect
 Marks the server as unused, except for display purposes.
-The server is discarded by the selection algorithm.
+The server is discarded by the selection algroithm.
+.It Cm preempt
+Says the association can be preempted.
+.It Cm true
+Marks the server as a truechimer.
+Use this option only for testing.
 .It Cm prefer
 Marks the server as preferred.
 All other things being equal,
@@ -330,10 +363,15 @@ page
 provided in
 .Pa /usr/share/doc/ntp )
 for further information.
+.It Cm true
+Forces the association to always survive the selection and clustering algorithms.
+This option should almost certainly
+.Em only
+be used while testing an association.
 .It Cm ttl Ar ttl
 This option is used only with broadcast server and manycast
 client modes.
-It specifies the time-to-live
+It specifies the time\-to\-live
 .Ar ttl
 to
 use on broadcast server and multicast server and the maximum
@@ -346,8 +384,14 @@ network administrator.
 .It Cm version Ar version
 Specifies the version number to be used for outgoing NTP
 packets.
-Versions 1-4 are the choices, with version 4 the
+Versions 1\-4 are the choices, with version 4 the
 default.
+.It Cm xleave
+Valid in
+.Cm peer
+and
+.Cm broadcast
+modes only, this flag enables interleave mode.
 .El
 .Ss Auxiliary Commands
 .Bl -tag -width indent
@@ -361,9 +405,9 @@ server, then enters the broadcast client mode, in which it
 synchronizes to succeeding broadcast messages.
 Note that, in order
 to avoid accidental or malicious disruption in this mode, both the
-server and client should operate using symmetric-key or public-key
+server and client should operate using symmetric\-key or public\-key
 authentication as described in
-.Sx Authentication Commands .
+.Sx Authentication Options .
 .It Ic manycastserver Ar address ...
 This command enables reception of manycast client messages to
 the multicast group address(es) (type m) specified.
@@ -374,9 +418,9 @@ taken to limit the span of the reply and avoid a possibly massive
 implosion at the original sender.
 Note that, in order to avoid
 accidental or malicious disruption in this mode, both the server
-and client should operate using symmetric-key or public-key
+and client should operate using symmetric\-key or public\-key
 authentication as described in
-.Sx Authentication Commands .
+.Sx Authentication Options .
 .It Ic multicastclient Ar address ...
 This command enables reception of multicast server messages to
 the multicast group address(es) (type m) specified.
@@ -387,24 +431,38 @@ exchange with the server, then enters the broadcast client mode, in
 which it synchronizes to succeeding multicast messages.
 Note that,
 in order to avoid accidental or malicious disruption in this mode,
-both the server and client should operate using symmetric-key or
-public-key authentication as described in
-.Sx Authentication Commands .
+both the server and client should operate using symmetric\-key or
+public\-key authentication as described in
+.Sx Authentication Options .
+.It Ic mdnstries Ar number
+If we are participating in mDNS,
+after we have synched for the first time
+we attempt to register with the mDNS system.
+If that registration attempt fails,
+we try again at one minute intervals for up to
+.Ic mdnstries
+times.
+After all,
+.Ic ntpd
+may be starting before mDNS.
+The default value for
+.Ic mdnstries
+is 5.
 .El
 .Sh Authentication Support
 Authentication support allows the NTP client to verify that the
 server is in fact known and trusted and not an intruder intending
 accidentally or on purpose to masquerade as that server.
 The NTPv3
-specification RFC-1305 defines a scheme which provides
+specification RFC\-1305 defines a scheme which provides
 cryptographic authentication of received NTP packets.
 Originally,
 this was done using the Data Encryption Standard (DES) algorithm
 operating in Cipher Block Chaining (CBC) mode, commonly called
-DES-CBC.
+DES\-CBC.
 Subsequently, this was replaced by the RSA Message Digest
-5 (MD5) algorithm using a private key, commonly called keyed-MD5.
-Either algorithm computes a message digest, or one-way hash, which
+5 (MD5) algorithm using a private key, commonly called keyed\-MD5.
+Either algorithm computes a message digest, or one\-way hash, which
 can be used to verify the server has the correct private key and
 key identifier.
 .Pp
@@ -466,7 +524,7 @@ of these checks and be discarded.
 Furthermore, the Autokey scheme requires a
 preliminary protocol exchange to obtain
 the server certificate, verify its
-credentials and initialize the protocol.
+credentials and initialize the protocol
 .Pp
 The
 .Cm auth
@@ -479,7 +537,7 @@ and
 commands and also by remote
 configuration commands sent by a
 .Xr ntpdc 8
-program running in
+program running on
 another machine.
 If this flag is enabled, which is the default
 case, new broadcast client and symmetric passive associations and
@@ -525,9 +583,9 @@ cryptography are summarized below;
 further details are in the briefings, papers
 and reports at the NTP project page linked from
 .Li http://www.ntp.org/ .
-.Ss Symmetric-Key Cryptography
-The original RFC-1305 specification allows any one of possibly
-65,534 keys, each distinguished by a 32-bit key identifier, to
+.Ss Symmetric\-Key Cryptography
+The original RFC\-1305 specification allows any one of possibly
+65,535 keys, each distinguished by a 32\-bit key identifier, to
 authenticate an association.
 The servers and clients involved must
 agree on the key and key identifier to
@@ -575,7 +633,7 @@ command selects the key used as the password for the
 utility.
 .Ss Public Key Cryptography
 NTPv4 supports the original NTPv3 symmetric key scheme
-described in RFC-1305 and in addition the Autokey protocol,
+described in RFC\-1305 and in addition the Autokey protocol,
 which is based on public key cryptography.
 The Autokey Version 2 protocol described on the Autokey Protocol
 page verifies packet integrity using MD5 message digests
@@ -603,8 +661,8 @@ corresponding to the various NTP modes supported.
 Most modes use a special cookie which can be
 computed independently by the client and server,
 but encrypted in transmission.
-All modes use in addition a variant of the S-KEY scheme,
-in which a pseudo-random key list is generated and used
+All modes use in addition a variant of the S\-KEY scheme,
+in which a pseudo\-random key list is generated and used
 in reverse order.
 These schemes are described along with an executive summary,
 current status, briefing slides and reading list on the
@@ -614,7 +672,7 @@ page.
 The specific cryptographic environment used by Autokey servers
 and clients is determined by a set of files
 and soft links generated by the
-.Xr ntp-keygen 8
+.Xr ntp\-keygen 1ntpkeygenmdoc
 program.
 This includes a required host key file,
 required certificate file and optional sign key file,
@@ -744,9 +802,11 @@ If it's the
 same key and the message is verified, Bob sends Cathy a reply
 authenticated with that key.
 If verification fails,
-Bob sends Cathy a thing called a crypto-NAK, which tells her
+Bob sends Cathy a thing called a crypto\-NAK, which tells her
 something broke.
-She can see the evidence using the ntpq program.
+She can see the evidence using the
+.Xr ntpq 8
+program.
 .Pp
 Denise has rolled her own host key and certificate.
 She also uses one of the identity schemes as Bob.
@@ -766,7 +826,7 @@ with one server and no authentication with another might not be wise.
 .Ss Key Management
 The cryptographic values used by the Autokey protocol are
 incorporated as a set of files generated by the
-.Xr ntp-keygen 8
+.Xr ntp\-keygen 1ntpkeygenmdoc
 utility program, including symmetric key, host key and
 public certificate files, as well as sign key, identity parameters
 and leapseconds files.
@@ -783,7 +843,7 @@ The remaining files are necessary only for the
 Autokey protocol.
 .Pp
 Certificates imported from OpenSSL or public certificate
-authorities have certain limitations.
+authorities have certian limitations.
 The certificate should be in ASN.1 syntax, X.509 Version 3
 format and encoded in PEM, which is the same format
 used by OpenSSL.
@@ -796,7 +856,7 @@ The certificate extension fields must not contain either
 a subject key identifier or a issuer key identifier field;
 however, an extended key usage field for a trusted host must
 contain the value
-.Cm trustRoot .
+.Cm trustRoot ; .
 Other extension fields are ignored.
 .Ss Authentication Commands
 .Bl -tag -width indent
@@ -814,12 +874,12 @@ sent.
 Specifies the key identifier to use with the
 .Xr ntpq 8
 utility, which uses the standard
-protocol defined in RFC-1305.
+protocol defined in RFC\-1305.
 The
 .Ar key
 argument is
 the key identifier for a trusted key, where the value can be in the
-range 1 to 65,534, inclusive.
+range 1 to 65,535, inclusive.
 .It Xo Ic crypto
 .Op Cm cert Ar file
 .Op Cm leap Ar file
@@ -865,8 +925,8 @@ the link
 .Pa ntpkey_key_ Ns Ar hostname
 in the keys directory.
 .It Cm iffpar Ar file
-Specifies the location of the optional IFF parameters file.This
-overrides the link
+Specifies the location of the optional IFF parameters file.
+This overrides the link
 .Pa ntpkey_iff_ Ns Ar hostname
 in the keys directory.
 .It Cm leap Ar file
@@ -876,8 +936,7 @@ This overrides the link
 in the keys directory.
 .It Cm mvpar Ar file
 Specifies the location of the optional MV parameters file.
-This
-overrides the link
+This overrides the link
 .Pa ntpkey_mv_ Ns Ar hostname
 in the keys directory.
 .It Cm pw Ar password
@@ -904,7 +963,7 @@ containing the keys and key identifiers used by
 .Xr ntpd 8 ,
 .Xr ntpq 8
 and
-.Xr ntpdc
+.Xr ntpdc 8
 when operating with symmetric key cryptography.
 This is the same operation as the
 .Fl k
@@ -924,13 +983,13 @@ The
 .Ar key
 argument is a key identifier
 for the trusted key, where the value can be in the range 1 to
-65,534, inclusive.
+65,535, inclusive.
 .It Ic revoke Ar logsec
-Specifies the interval between re-randomization of certain
+Specifies the interval between re\-randomization of certain
 cryptographic values used by the Autokey scheme, as a power of 2 in
 seconds.
 These values need to be updated frequently in order to
-deflect brute-force attacks on the algorithms of the scheme;
+deflect brute\-force attacks on the algorithms of the scheme;
 however, updating some values is a relatively expensive operation.
 The default interval is 16 (65,536 s or about 18 hours).
 For poll
@@ -950,8 +1009,8 @@ purpose, although different keys can be used with different
 servers.
 The
 .Ar key
-arguments are 32-bit unsigned
-integers with values from 1 to 65,534.
+arguments are 32\-bit unsigned
+integers with values from 1 to 65,535.
 .El
 .Ss Error Codes
 The following error codes are reported via the NTP control
@@ -1018,7 +1077,7 @@ supported.
 Statistic files are managed using file generation sets
 and scripts in the
 .Pa ./scripts
-directory of this distribution.
+directory of the source code distribution.
 Using
 these facilities and
 .Ux
@@ -1029,7 +1088,7 @@ automatically summarized and archived for retrospective analysis.
 .Bl -tag -width indent
 .It Ic statistics Ar name ...
 Enables writing of statistics records.
-Currently, four kinds of
+Currently, eight kinds of
 .Ar name
 statistics are supported.
 .Bl -tag -width indent
@@ -1046,7 +1105,7 @@ the file generation set named
 The first two fields show the date (Modified Julian Day) and time
 (seconds and fraction past UTC midnight).
 The next field shows the
-clock address in dotted-quad notation.
+clock address in dotted\-quad notation.
 The final field shows the last
 timecode received from the clock in decoded ASCII format, where
 meaningful.
@@ -1068,11 +1127,10 @@ following form to the file generation set named
 The first two fields show the date (Modified Julian Day) and time
 (seconds and fraction past UTC midnight).
 The next field shows the peer
-address in dotted-quad notation.
-The final message field includes the
+address in dotted\-quad notation, The final message field includes the
 message type and certain ancillary information.
 See the
-.Sx Authentication Commands
+.Sx Authentication Options
 section for further information.
 .It Cm loopstats
 Enables recording of loop filter statistics information.
@@ -1087,7 +1145,7 @@ the file generation set named
 The first two fields show the date (Modified Julian Day) and
 time (seconds and fraction past UTC midnight).
 The next five fields
-show time offset (seconds), frequency offset (parts per million -
+show time offset (seconds), frequency offset (parts per million \-
 PPM), RMS jitter (seconds), Allan deviation (PPM) and clock
 discipline time constant.
 .It Cm peerstats
@@ -1100,20 +1158,20 @@ line of the following form to the current element of a file
 generation set named
 .Cm peerstats :
 .Bd -literal
-48773 10847.650 127.127.4.1 9714 -0.001605376 0.000000000 0.001424877 0.000958674
+48773 10847.650 127.127.4.1 9714 \-0.001605376 0.000000000 0.001424877 0.000958674
 .Ed
 .Pp
 The first two fields show the date (Modified Julian Day) and
 time (seconds and fraction past UTC midnight).
 The next two fields
-show the peer address in dotted-quad notation and status,
+show the peer address in dotted\-quad notation and status,
 respectively.
 The status field is encoded in hex in the format
 described in Appendix A of the NTP specification RFC 1305.
 The final four fields show the offset,
 delay, dispersion and RMS jitter, all in seconds.
 .It Cm rawstats
-Enables recording of raw-timestamp statistics information.
+Enables recording of raw\-timestamp statistics information.
 This
 includes statistics records of all peers of a NTP server and of
 special signals, where present and configured.
@@ -1129,7 +1187,7 @@ The first two fields show the date (Modified Julian Day) and
 time (seconds and fraction past UTC midnight).
 The next two fields
 show the remote peer or clock address followed by the local address
-in dotted-quad notation.
+in dotted\-quad notation.
 The final four fields show the originate,
 receive, transmit and final NTP timestamps in order.
 The timestamp
@@ -1156,7 +1214,7 @@ Time in hours since the system was last rebooted.
 .It Packets received Cm 81965
 Total number of packets received.
 .It Packets processed Cm 0
-Number of packets received in response to previous packets sent.
+Number of packets received in response to previous packets sent
 .It Current version Cm 9546
 Number of packets matching the current NTP version.
 .It Previous version Cm 56
@@ -1227,7 +1285,7 @@ modifications via the
 .Ar filegen
 option.
 It is defined by the
-server, usually specified as a compile-time constant.
+server, usually specified as a compile\-time constant.
 It may,
 however, be configurable for individual file generation sets
 via other commands.
@@ -1293,7 +1351,7 @@ and a day specification in
 the form
 .Cm YYYYMMdd .
 .Cm YYYY
-is a 4-digit year number (e.g., 1992).
+is a 4\-digit year number (e.g., 1992).
 .Cm MM
 is a two digit month number.
 .Cm dd
@@ -1305,21 +1363,21 @@ in a file named
 .It Cm week
 Any file set member contains data related to a certain week of
 a year.
-The term week is defined by computing day-of-year
+The term week is defined by computing day\-of\-year
 modulo 7.
 Elements of such a file generation set are
 distinguished by appending the following suffix to the file set
-filename base: A dot, a 4-digit year number, the letter
+filename base: A dot, a 4\-digit year number, the letter
 .Cm W ,
-and a 2-digit week number.
+and a 2\-digit week number.
 For example, information from January,
 10th 1992 would end up in a file with suffix
 .No . Ns Ar 1992W1 .
 .It Cm month
 One generation file set element is generated per month.
 The
-file name suffix consists of a dot, a 4-digit year number, and
-a 2-digit month.
+file name suffix consists of a dot, a 4\-digit year number, and
+a 2\-digit month.
 .It Cm year
 One generation file element is generated per year.
 The filename
@@ -1330,9 +1388,9 @@ the file set every 24 hours of server operation.
 The filename
 suffix consists of a dot, the letter
 .Cm a ,
-and an 8-digit number.
+and an 8\-digit number.
 This number is taken to be the number of seconds the server is
-running at the start of the corresponding 24-hour period.
+running at the start of the corresponding 24\-hour period.
 Information is only written to a file generation by specifying
 .Cm enable ;
 output is prevented by specifying
@@ -1353,7 +1411,9 @@ When there is already a file with this name and
 the number of links of this file is one, it is renamed appending a
 dot, the letter
 .Cm C ,
-and the pid of the ntpd server process.
+and the pid of the
+.Xr ntpd 8
+server process.
 When the
 number of links is greater than one, the file is unlinked.
 This
@@ -1369,7 +1429,7 @@ The
 daemon implements a general purpose address/mask based restriction
 list.
 The list contains address/match entries sorted first
-by increasing address values and then by increasing mask values.
+by increasing address values and and then by increasing mask values.
 A match occurs when the bitwise AND of the mask and the packet
 source address is equal to the bitwise AND of the mask and
 address in the list.
@@ -1396,7 +1456,9 @@ Source address based restrictions are easily circumvented
 by a determined cracker.
 .Pp
 Clients can be denied service because they are explicitly
-included in the restrict list created by the restrict command
+included in the restrict list created by the
+.Ic restrict
+command
 or implicitly as the result of cryptographic or rate limit
 violations.
 Cryptographic violations include certificate
@@ -1410,7 +1472,7 @@ an indefinite period.
 When a client or network is denied access
 for an indefinite period, the only way at present to remove
 the restrictions is by restarting the server.
-.Ss The Kiss-of-Death Packet
+.Ss The Kiss\-of\-Death Packet
 Ordinarily, packets denied service are simply dropped with no
 further action except incrementing statistics counters.
 Sometimes a
@@ -1418,9 +1480,9 @@ more proactive response is needed, such as a server message that
 explicitly requests the client to stop sending and leave a message
 for the system operator.
 A special packet format has been created
-for this purpose called the "kiss-of-death" (KoD) packet.
+for this purpose called the "kiss\-of\-death" (KoD) packet.
 KoD packets have the leap bits set unsynchronized and stratum set
-to zero and the reference identifier field set to a four-byte
+to zero and the reference identifier field set to a four\-byte
 ASCII code.
 If the
 .Cm noserve
@@ -1462,26 +1524,29 @@ subcommand specifies the minimum average packet
 spacing, while the
 .Cm minimum
 subcommand specifies the minimum packet spacing.
-Packets that violate these minimum are discarded
-and a kiss-o'-death packet returned if enabled.
+Packets that violate these minima are discarded
+and a kiss\-o'\-death packet returned if enabled.
 The default
 minimum average and minimum are 5 and 2, respectively.
-The monitor subcommand specifies the probability of discard
-for packets that overflow the rate-control window.
+The
+.Ic monitor
+subcommand specifies the probability of discard
+for packets that overflow the rate\-control window.
 .It Xo Ic restrict address
 .Op Cm mask Ar mask
+.Op Cm ippeerlimit Ar int
 .Op Ar flag ...
 .Xc
 The
 .Ar address
 argument expressed in
-dotted-quad form is the address of a host or network.
+dotted\-quad form is the address of a host or network.
 Alternatively, the
 .Ar address
 argument can be a valid host DNS name.
 The
 .Ar mask
-argument expressed in dotted-quad form defaults to
+argument expressed in dotted\-quad form defaults to
 .Cm 255.255.255.255 ,
 meaning that the
 .Ar address
@@ -1495,6 +1560,15 @@ Note that text string
 .Cm default ,
 with no mask option, may
 be used to indicate the default entry.
+The
+.Cm ippeerlimit
+directive limits the number of peer requests for each IP to
+.Ar int ,
+where a value of \-1 means "unlimited", the current default.
+A value of 0 means "none".
+There would usually be at most 1 peering request per IP,
+but if the remote peering requests are behind a proxy
+there could well be more than 1 per IP.
 In the current implementation,
 .Cm flag
 always
@@ -1505,7 +1579,7 @@ in that more restrictive flags will often make less restrictive
 ones redundant.
 The flags can generally be classed into two
 categories, those which restrict time service and those which
-restrict informational queries and attempts to do run-time
+restrict informational queries and attempts to do run\-time
 reconfiguration of the server.
 One or more of the following flags
 may be specified:
@@ -1517,7 +1591,7 @@ and
 .Xr ntpdc 8
 queries.
 .It Cm kod
-If this flag is set when an access violation occurs, a kiss-o'-death
+If this flag is set when an access violation occurs, a kiss\-o'\-death
 (KoD) packet is sent.
 KoD packets are rate limited to no more than one
 per second.
@@ -1525,7 +1599,9 @@ If another KoD packet occurs within one second after the
 last one, the packet is dropped.
 .It Cm limited
 Deny service if the packet spacing violates the lower limits specified
-in the discard command.
+in the
+.Ic discard
+command.
 A history of clients is kept using the
 monitoring capability of
 .Xr ntpd 8 .
@@ -1543,6 +1619,18 @@ basis, with later trap requestors being denied service.
 This flag
 modifies the assignment algorithm by allowing low priority traps to
 be overridden by later requests for normal priority traps.
+.It Cm noepeer
+Deny ephemeral peer requests,
+even if they come from an authenticated source.
+Note that the ability to use a symmetric key for authentication may be restricted to
+one or more IPs or subnets via the third field of the
+.Pa ntp.keys
+file.
+This restriction is not enabled by default,
+to maintain backward compatability.
+Expect
+.Cm noepeer
+to become the default in ntp\-4.4.
 .It Cm nomodify
 Deny
 .Xr ntpq 8
@@ -1560,10 +1648,23 @@ and
 queries.
 Time service is not affected.
 .It Cm nopeer
-Deny packets which would result in mobilizing a new association.
-This
-includes broadcast and symmetric active packets when a configured
-association does not exist.
+Deny unauthenticated packets which would result in mobilizing a new association.
+This includes
+broadcast and symmetric active packets
+when a configured association does not exist.
+It also includes
+.Cm pool
+associations, so if you want to use servers from a 
+.Cm pool
+directive and also want to use
+.Cm nopeer
+by default, you'll want a
+.Cm "restrict source ..."
+line as well that does
+.Em not
+include the
+.Cm nopeer
+directive.
 .It Cm noserve
 Deny all packets except
 .Xr ntpq 8
@@ -1573,7 +1674,9 @@ queries.
 .It Cm notrap
 Decline to provide mode 6 control message trap service to matching
 hosts.
-The trap service is a subsystem of the ntpdq control message
+The trap service is a subsystem of the
+.Xr ntpq 8
+control message
 protocol which is intended for use by remote event logging programs.
 .It Cm notrust
 Deny service unless the packet is cryptographically authenticated.
@@ -1586,7 +1689,7 @@ UDP port (123).
 Both
 .Cm ntpport
 and
-.Cm non-ntpport
+.Cm non\-ntpport
 may
 be specified.
 The
@@ -1621,7 +1724,7 @@ of the nearby manycast servers, yet automatically reconfigures
 to sustain this number of servers should one or another fail.
 .Pp
 Note that the manycasting paradigm does not coincide
-with the anycast paradigm described in RFC-1546,
+with the anycast paradigm described in RFC\-1546,
 which is designed to find a single server from a clique
 of servers providing the same service.
 The manycast paradigm is designed to find a plurality
@@ -1640,8 +1743,11 @@ The library can also be used with other NTPv4 modes
 as well and is highly recommended, especially for broadcast modes.
 .Pp
 A persistent manycast client association is configured
-using the manycastclient command, which is similar to the
-server command but with a multicast (IPv4 class
+using the
+.Ic manycastclient
+command, which is similar to the
+.Ic server
+command but with a multicast (IPv4 class
 .Cm D
 or IPv6 prefix
 .Cm FF )
@@ -1650,7 +1756,7 @@ The IANA has designated IPv4 address 224.1.1.1
 and IPv6 address FF05::101 (site local) for NTP.
 When more servers are needed, it broadcasts manycast
 client messages to this address at the minimum feasible rate
-and minimum feasible time-to-live (TTL) hops, depending
+and minimum feasible time\-to\-live (TTL) hops, depending
 on how many servers have already been found.
 There can be as many manycast client associations
 as different group address, each one serving as a template
@@ -1680,7 +1786,7 @@ Then, the client polls the server at its unicast address
 in burst mode in order to reliably set the host clock
 and validate the source.
 This normally results
-in a volley of eight client/server at 2-s intervals
+in a volley of eight client/server at 2\-s intervals
 during which both the synchronization and cryptographic
 protocols run concurrently.
 Following the volley,
@@ -1693,7 +1799,7 @@ in ordinary client/server mode.
 .Pp
 The manycast client polling strategy is designed to reduce
 as much as possible the volume of manycast client messages
-and the effects of implosion due to near-simultaneous
+and the effects of implosion due to near\-simultaneous
 arrival of manycast server messages.
 The strategy is determined by the
 .Ic manycastclient ,
@@ -1711,7 +1817,9 @@ command and, under normal circumstances, increments to the
 .Cm maxpolll
 value specified in this command.
 Initially, the TTL is
-set at the minimum hops specified by the ttl command.
+set at the minimum hops specified by the
+.Ic ttl
+command.
 At each retransmission the TTL is increased until reaching
 the maximum hops specified by this command or a sufficient
 number client associations have been found.
@@ -1776,7 +1884,7 @@ It is often useful to narrow the range of acceptable
 servers which can be found by manycast client associations.
 Because manycast servers respond only when the client
 stratum is equal to or greater than the server stratum,
-primary (stratum 1) servers will find only primary servers
+primary (stratum 1) servers fill find only primary servers
 in TTL range, which is probably the most common objective.
 However, unless configured otherwise, all manycast clients
 in TTL range will eventually find all primary servers
@@ -1859,12 +1967,12 @@ servers will find the servers at the same stratum level.
 If one of the primary servers loses its GPS receiver,
 it will continue to operate as a client and other clients
 will time out the corresponding association and
-re-associate accordingly.
+re\-associate accordingly.
 .Pp
 Some administrators prefer to avoid running
 .Xr ntpd 8
 continuously and run either
-.Xr ntpdate 8
+.Xr sntp 8
 or
 .Xr ntpd 8
 .Fl q
@@ -1912,6 +2020,26 @@ At the same time, the manycast
 scheme starts all over from the beginning and
 the expanding ring shrinks to the minimum and increments
 from there while collecting all servers in scope.
+.Ss Broadcast Options
+.Bl -tag -width indent
+.It Xo Ic tos
+.Oo
+.Cm bcpollbstep Ar gate
+.Oc
+.Xc
+This command provides a way to delay,
+by the specified number of broadcast poll intervals,
+believing backward time steps from a broadcast server.
+Broadcast time networks are expected to be trusted.
+In the event a broadcast server's time is stepped backwards,
+there is clear benefit to having the clients notice this change
+as soon as possible.
+Attacks such as replay attacks can happen, however,
+and even though there are a number of protections built in to
+broadcast mode, attempts to perform a replay attack are possible.
+This value defaults to 0, but can be changed
+to any number of poll intervals between 0 and 4.
+.El
 .Ss Manycast Options
 .Bl -tag -width indent
 .It Xo Ic tos
@@ -1956,7 +2084,7 @@ peers remaining.
 This value defaults to 1, but can be changed
 to any number from 1 to 15.
 .It Cm minclock Ar minclock
-The clustering algorithm repeatedly casts out outerlayer
+The clustering algorithm repeatedly casts out outlier
 associations until no more than
 .Cm minclock
 associations remain.
@@ -1966,7 +2094,7 @@ configured sources.
 .It Cm minsane Ar minsane
 This is the minimum number of candidates available
 to the clock selection algorithm in order to produce
-one or more true chimers for the clustering algorithm.
+one or more truechimers for the clustering algorithm.
 If fewer than this number are available, the clock is
 undisciplined and allowed to run free.
 The default is 1
@@ -1981,13 +2109,13 @@ a single falseticker.
 This command specifies a list of TTL values in increasing
 order, up to 8 values can be specified.
 In manycast mode these values are used in turn
-in an expanding-ring search.
+in an expanding\-ring search.
 The default is eight
 multiples of 32 starting at 31.
 .El
 .Sh Reference Clock Support
 The NTP Version 4 daemon supports some three dozen different radio,
-satellite and modem reference clocks plus a special pseudo-clock
+satellite and modem reference clocks plus a special pseudo\-clock
 used for backup or when no other clock source is available.
 Detailed descriptions of individual device drivers and options can
 be found in the
@@ -2007,7 +2135,7 @@ provided in
 .Pa /usr/share/doc/ntp ) .
 In addition, support for a PPS
 signal is available as described in the
-.Qq Pulse-per-second (PPS) Signal Interfacing
+.Qq Pulse\-per\-second (PPS) Signal Interfacing
 page
 (available as part of the HTML documentation
 provided in
@@ -2057,7 +2185,7 @@ is an integer
 denoting the clock type and
 .Ar u
 indicates the unit
-number in the range 0-3.
+number in the range 0\-3.
 While it may seem overkill, it is in fact
 sometimes useful to configure multiple reference clocks of the same
 type, in which case the unit numbers must be unique.
@@ -2117,7 +2245,7 @@ and
 options can be used to
 override the defaults for the device.
 There are two optional
-device-dependent time offsets and four flags that can be included
+device\-dependent time offsets and four flags that can be included
 in the
 .Ic fudge
 command as well.
@@ -2134,7 +2262,7 @@ The
 .Cm stratum
 option is used for this purpose.
 Also, in cases
-involving both a reference clock and a pulse-per-second (PPS)
+involving both a reference clock and a pulse\-per\-second (PPS)
 discipline signal, it is useful to specify the reference clock
 identifier as other than the default, depending on the driver.
 The
@@ -2171,7 +2299,7 @@ provided in
 for further information.
 .It Cm mode Ar int
 Specifies a mode number which is interpreted in a
-device-specific fashion.
+device\-specific fashion.
 For instance, it selects a dialing
 protocol in the ACTS driver and a device subtype in the
 parse
@@ -2221,7 +2349,7 @@ follows:
 .Bl -tag -width indent
 .It Cm time1 Ar sec
 Specifies a constant to be added to the time offset produced by
-the driver, a fixed-point decimal number in seconds.
+the driver, a fixed\-point decimal number in seconds.
 This is used
 as a calibration constant to adjust the nominal time offset of a
 particular clock to agree with an external standard, such as a
@@ -2249,15 +2377,15 @@ page
 provided in
 .Pa /usr/share/doc/ntp ) .
 .It Cm time2 Ar secs
-Specifies a fixed-point decimal number in seconds, which is
-interpreted in a driver-dependent way.
+Specifies a fixed\-point decimal number in seconds, which is
+interpreted in a driver\-dependent way.
 See the descriptions of
 specific drivers in the
 .Qq Reference Clock Drivers
 page
 (available as part of the HTML documentation
 provided in
-.Pa /usr/share/doc/ntp ) .
+.Pa /usr/share/doc/ntp ).
 .It Cm stratum Ar int
 Specifies the stratum number assigned to the driver, an integer
 between 0 and 15.
@@ -2271,7 +2399,7 @@ overrides the default identifier ordinarily assigned by the driver
 itself.
 .It Cm mode Ar int
 Specifies a mode number which is interpreted in a
-device-specific fashion.
+device\-specific fashion.
 For instance, it selects a dialing
 protocol in the ACTS driver and a device subtype in the
 parse
@@ -2338,7 +2466,7 @@ frequency of zero.
 .Pp
 The file format consists of a single line containing a single
 floating point number, which records the frequency offset measured
-in parts-per-million (PPM).
+in parts\-per\-million (PPM).
 The file is updated by first writing
 the current drift value into a temporary file and then renaming
 this file to replace the old version.
@@ -2347,20 +2475,28 @@ This implies that
 must have write permission for the directory the
 drift file is located in, and that file system links, symbolic or
 otherwise, should be avoided.
+.It Ic dscp Ar value
+This option specifies the Differentiated Services Control Point (DSCP) value,
+a 6\-bit code.
+The default value is 46, signifying Expedited Forwarding.
 .It Xo Ic enable
 .Oo
 .Cm auth | Cm bclient |
 .Cm calibrate | Cm kernel |
-.Cm monitor | Cm ntp |
-.Cm pps | Cm stats
+.Cm mode7 | Cm monitor |
+.Cm ntp | Cm stats |
+.Cm peer_clear_digest_early |
+.Cm unpeer_crypto_early | Cm unpeer_crypto_nak_early | Cm unpeer_digest_early
 .Oc
 .Xc
 .It Xo Ic disable
 .Oo
 .Cm auth | Cm bclient |
 .Cm calibrate | Cm kernel |
-.Cm monitor | Cm ntp |
-.Cm pps | Cm stats
+.Cm mode7 | Cm monitor |
+.Cm ntp | Cm stats |
+.Cm peer_clear_digest_early |
+.Cm unpeer_crypto_early | Cm unpeer_crypto_nak_early | Cm unpeer_digest_early
 .Oc
 .Xc
 Provides a way to enable or disable various server options.
@@ -2396,6 +2532,19 @@ flag is
 .Ic enable
 if support is available, otherwise
 .Ic disable .
+.It Cm mode7
+Enables processing of NTP mode 7 implementation\-specific requests
+which are used by the deprecated
+.Xr ntpdc 8
+program.
+The default for this flag is disable.
+This flag is excluded from runtime configuration using
+.Xr ntpq 8 .
+The
+.Xr ntpq 8
+program provides the same capabilities as
+.Xr ntpdc 8
+using standard mode 6 requests.
 .It Cm monitor
 Enables the monitoring facility.
 See the
@@ -2414,17 +2563,26 @@ closes the feedback loop, which is useful for testing.
 The default for
 this flag is
 .Ic enable .
-.It Cm pps
-Enables the pulse-per-second (PPS) signal when frequency and time is
-disciplined by the precision time kernel modifications.
-See the
-.Qq A Kernel Model for Precision Timekeeping
-(available as part of the HTML documentation
-provided in
-.Pa /usr/share/doc/ntp )
-page for further information.
-The default for this flag is
-.Ic disable .
+.It Cm peer_clear_digest_early
+By default, if
+.Xr ntpd 8
+is using autokey and it
+receives a crypto\-NAK packet that
+passes the duplicate packet and origin timestamp checks
+the peer variables are immediately cleared.
+While this is generally a feature
+as it allows for quick recovery if a server key has changed,
+a properly forged and appropriately delivered crypto\-NAK packet
+can be used in a DoS attack.
+If you have active noticable problems with this type of DoS attack
+then you should consider
+disabling this option.
+You can check your
+.Cm peerstats
+file for evidence of any of these attacks.
+The
+default for this flag is
+.Ic enable .
 .It Cm stats
 Enables the statistics facility.
 See the
@@ -2432,6 +2590,67 @@ See the
 section for further information.
 The default for this flag is
 .Ic disable .
+.It Cm unpeer_crypto_early
+By default, if
+.Xr ntpd 8
+receives an autokey packet that fails TEST9,
+a crypto failure,
+the association is immediately cleared.
+This is almost certainly a feature,
+but if, in spite of the current recommendation of not using autokey,
+you are
+.B still
+using autokey
+.B and
+you are seeing this sort of DoS attack
+disabling this flag will delay
+tearing down the association until the reachability counter
+becomes zero.
+You can check your
+.Cm peerstats
+file for evidence of any of these attacks.
+The
+default for this flag is
+.Ic enable .
+.It Cm unpeer_crypto_nak_early
+By default, if
+.Xr ntpd 8
+receives a crypto\-NAK packet that
+passes the duplicate packet and origin timestamp checks
+the association is immediately cleared.
+While this is generally a feature
+as it allows for quick recovery if a server key has changed,
+a properly forged and appropriately delivered crypto\-NAK packet
+can be used in a DoS attack.
+If you have active noticable problems with this type of DoS attack
+then you should consider
+disabling this option.
+You can check your
+.Cm peerstats
+file for evidence of any of these attacks.
+The
+default for this flag is
+.Ic enable .
+.It Cm unpeer_digest_early
+By default, if
+.Xr ntpd 8
+receives what should be an authenticated packet
+that passes other packet sanity checks but
+contains an invalid digest
+the association is immediately cleared.
+While this is generally a feature
+as it allows for quick recovery,
+if this type of packet is carefully forged and sent
+during an appropriate window it can be used for a DoS attack.
+If you have active noticable problems with this type of DoS attack
+then you should consider
+disabling this option.
+You can check your
+.Cm peerstats
+file for evidence of any of these attacks.
+The
+default for this flag is
+.Ic enable .
 .El
 .It Ic includefile Ar includefile
 This command allows additional configuration commands
@@ -2444,6 +2663,92 @@ This option is useful for sites that run
 .Xr ntpd 8
 on multiple hosts, with (mostly) common options (e.g., a
 restriction list).
+.It Xo Ic interface
+.Oo
+.Cm listen | Cm ignore | Cm drop
+.Oc
+.Oo
+.Cm all | Cm ipv4 | Cm ipv6 | Cm wildcard
+.Ar name | Ar address
+.Oo Cm / Ar prefixlen
+.Oc
+.Oc
+.Xc
+The
+.Cm interface
+directive controls which network addresses
+.Xr ntpd 8
+opens, and whether input is dropped without processing.
+The first parameter determines the action for addresses
+which match the second parameter.
+The second parameter specifies a class of addresses,
+or a specific interface name,
+or an address.
+In the address case,
+.Ar prefixlen
+determines how many bits must match for this rule to apply.
+.Cm ignore
+prevents opening matching addresses,
+.Cm drop
+causes
+.Xr ntpd 8
+to open the address and drop all received packets without examination.
+Multiple
+.Cm interface
+directives can be used.
+The last rule which matches a particular address determines the action for it.
+.Cm interface
+directives are disabled if any
+.Fl I ,
+.Fl \-interface ,
+.Fl L ,
+or
+.Fl \-novirtualips
+command\-line options are specified in the configuration file,
+all available network addresses are opened.
+The
+.Cm nic
+directive is an alias for
+.Cm interface .
+.It Ic leapfile Ar leapfile
+This command loads the IERS leapseconds file and initializes the
+leapsecond values for the next leapsecond event, leapfile expiration
+time, and TAI offset.
+The file can be obtained directly from the IERS at
+.Li https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap\-seconds.list
+or
+.Li ftp://hpiers.obspm.fr/iers/bul/bulc/ntp/leap\-seconds.list .
+The
+.Cm leapfile
+is scanned when
+.Xr ntpd 8
+processes the
+.Cm leapfile directive or when
+.Cm ntpd detects that the
+.Ar leapfile
+has changed.
+.Cm ntpd
+checks once a day to see if the
+.Ar leapfile
+has changed.
+The
+.Xr update\-leap 1update_leapmdoc
+script can be run to see if the
+.Ar leapfile
+should be updated.
+.It Ic leapsmearinterval Ar seconds
+This EXPERIMENTAL option is only available if
+.Xr ntpd 8
+was built with the
+.Cm \-\-enable\-leap\-smear
+option to the
+.Cm configure
+script.
+It specifies the interval over which a leap second correction will be applied.
+Recommended values for this option are between
+7200 (2 hours) and 86400 (24 hours).
+.Sy DO NOT USE THIS OPTION ON PUBLIC\-ACCESS SERVERS!
+See http://bugs.ntp.org/2855 for more information.
 .It Ic logconfig Ar configkeyword
 This command controls the amount and type of output written to
 the system
@@ -2458,7 +2763,7 @@ keywords can be prefixed with
 .Ql = ,
 .Ql +
 and
-.Ql - ,
+.Ql \- ,
 where
 .Ql =
 sets the
@@ -2466,7 +2771,7 @@ sets the
 priority mask,
 .Ql +
 adds and
-.Ql -
+.Ql \-
 removes
 messages.
 .Xr syslog 3
@@ -2507,7 +2812,8 @@ A
 message class may also be followed by the
 .Cm all
 keyword to enable/disable all
-messages of the respective message class.Thus, a minimal log configuration
+messages of the respective message class.
+Thus, a minimal log configuration
 could look like this:
 .Bd -literal
 logconfig =syncstatus +sysevents
@@ -2531,7 +2837,184 @@ This command specifies the location of an alternate log file to
 be used instead of the default system
 .Xr syslog 3
 facility.
-This is the same operation as the -l command line option.
+This is the same operation as the
+.Fl l
+command line option.
+.It Xo Ic mru
+.Oo
+.Cm maxdepth Ar count | Cm maxmem Ar kilobytes |
+.Cm mindepth Ar count | Cm maxage Ar seconds |
+.Cm initialloc Ar count | Cm initmem Ar kilobytes |
+.Cm incalloc Ar count | Cm incmem Ar kilobytes
+.Oc
+.Xc
+Controls size limite of the monitoring facility's Most Recently Used
+(MRU) list
+of client addresses, which is also used by the
+rate control facility.
+.Bl -tag -width indent
+.It Ic maxdepth Ar count
+.It Ic maxmem Ar kilobytes
+Equivalent upper limits on the size of the MRU list, in terms of entries or kilobytes.
+The acutal limit will be up to
+.Cm incalloc
+entries or
+.Cm incmem
+kilobytes larger.
+As with all of the
+.Cm mru
+options offered in units of entries or kilobytes, if both
+.Cm maxdepth
+and
+.Cm maxmem are used, the last one used controls.
+The default is 1024 kilobytes.
+.It Cm mindepth Ar count
+Lower limit on the MRU list size.
+When the MRU list has fewer than
+.Cm mindepth
+entries, existing entries are never removed to make room for newer ones,
+regardless of their age.
+The default is 600 entries.
+.It Cm maxage Ar seconds
+Once the MRU list has
+.Cm mindepth
+entries and an additional client is to ba added to the list,
+if the oldest entry was updated more than
+.Cm maxage
+seconds ago, that entry is removed and its storage is reused.
+If the oldest entry was updated more recently the MRU list is grown,
+subject to 
+.Cm maxdepth / moxmem .
+The default is 64 seconds.
+.It Cm initalloc Ar count
+.It Cm initmem Ar kilobytes
+Initial memory allocation at the time the monitoringfacility is first enabled,
+in terms of the number of entries or kilobytes.
+The default is 4 kilobytes.
+.It Cm incalloc Ar count
+.It Cm incmem Ar kilobytes
+Size of additional memory allocations when growing the MRU list, in entries or kilobytes.
+The default is 4 kilobytes.
+.El
+.It Ic nonvolatile Ar threshold
+Specify the
+.Ar threshold
+delta in seconds before an hourly change to the
+.Cm driftfile
+(frequency file) will be written, with a default value of 1e\-7 (0.1 PPM).
+The frequency file is inspected each hour.
+If the difference between the current frequency and the last value written
+exceeds the threshold, the file is written and the
+.Cm threshold
+becomes the new threshold value.
+If the threshold is not exceeeded, it is reduced by half.
+This is intended to reduce the number of file writes 
+for embedded systems with nonvolatile memory.
+.It Ic phone Ar dial ...
+This command is used in conjunction with
+the ACTS modem driver (type 18)
+or the JJY driver (type 40, mode 100 \- 180).
+For the ACTS modem driver (type 18), the arguments consist of
+a maximum of 10 telephone numbers used to dial USNO, NIST, or European
+time service.
+For the JJY driver (type 40 mode 100 \- 180), the argument is 
+one telephone number used to dial the telephone JJY service.
+The Hayes command ATDT is normally prepended to the number.
+The number can contain other modem control codes as well.
+.It Xo Ic reset
+.Oo
+.Ic allpeers
+.Oc
+.Oo
+.Ic auth
+.Oc
+.Oo
+.Ic ctl
+.Oc
+.Oo
+.Ic io
+.Oc
+.Oo
+.Ic mem
+.Oc
+.Oo
+.Ic sys
+.Oc
+.Oo
+.Ic timer
+.Oc
+.Xc
+Reset one or more groups of counters maintained by
+.Cm ntpd
+and exposed by
+.Cm ntpq
+and
+.Cm ntpdc .
+.It Xo Ic rlimit
+.Oo
+.Cm memlock Ar Nmegabytes |
+.Cm stacksize Ar N4kPages
+.Cm filenum Ar Nfiledescriptors
+.Oc
+.Xc
+.Bl -tag -width indent
+.It Cm memlock Ar Nmegabytes
+Specify the number of megabytes of memory that should be
+allocated and locked.
+Probably only available under Linux, this option may be useful
+when dropping root (the
+.Fl i
+option).
+The default is 32 megabytes on non\-Linux machines, and \-1 under Linux.
+-1 means "do not lock the process into memory".
+0 means "lock whatever memory the process wants into memory".
+.It Cm stacksize Ar N4kPages
+Specifies the maximum size of the process stack on systems with the
+.Fn mlockall
+function.
+Defaults to 50 4k pages (200 4k pages in OpenBSD).
+.It Cm filenum Ar Nfiledescriptors
+Specifies the maximum number of file descriptors ntpd may have open at once.
+Defaults to the system default.
+.El
+.It Ic saveconfigdir Ar directory_path
+Specify the directory in which to write configuration snapshots
+requested with
+.Cm ntpq 's
+.Cm saveconfig
+command.
+If
+.Cm saveconfigdir
+does not appear in the configuration file,
+.Cm saveconfig
+requests are rejected by
+.Cm ntpd .
+.It Ic saveconfig Ar filename
+Write the current configuration, including any runtime
+modifications given with
+.Cm :config
+or
+.Cm config\-from\-file 
+to the
+.Cm ntpd
+host's
+.Ar filename
+in the
+.Cm saveconfigdir .
+This command will be rejected unless the
+.Cm saveconfigdir
+directive appears in
+.Cm ntpd 's
+configuration file.
+.Ar filename
+can use
+.Xr strftime 3
+format directives to substitute the current date and time,
+for example,
+.Cm saveconfig\ ntp\-%Y%m%d\-%H%M%S.conf .
+The filename used is stored in the system variable
+.Cm savedconfig .
+Authentication is required.
 .It Ic setvar Ar variable Op Cm default
 This command adds an additional system variable.
 These
@@ -2570,6 +3053,10 @@ holds
 the names of all peer variables and the
 .Va clock_var_list
 holds the names of the reference clock variables.
+.It Cm sysinfo
+Display operational summary.
+.It Cm sysstats
+Show statistics counters maintained in the protocol module.
 .It Xo Ic tinker
 .Oo
 .Cm allan Ar allan |
@@ -2577,7 +3064,9 @@ holds the names of the reference clock variables.
 .Cm freq Ar freq |
 .Cm huffpuff Ar huffpuff |
 .Cm panic Ar panic |
-.Cm step Ar srep |
+.Cm step Ar step |
+.Cm stepback Ar stepback |
+.Cm stepfwd Ar stepfwd |
 .Cm stepout Ar stepout
 .Oc
 .Xc
@@ -2611,12 +3100,12 @@ The argument becomes the new value for the dispersion increase rate,
 normally .000015 s/s.
 .It Cm freq Ar freq
 The argument becomes the initial value of the frequency offset in
-parts-per-million.
+parts\-per\-million.
 This overrides the value in the frequency file, if
 present, and avoids the initial training state if it is not.
 .It Cm huffpuff Ar huffpuff
 The argument becomes the new value for the experimental
-huff-n'-puff filter span, which determines the most recent interval
+huff\-n'\-puff filter span, which determines the most recent interval
 the algorithm will search for a minimum delay.
 The lower limit is
 900 s (15 m), but a more reasonable value is 7200 (2 hours).
@@ -2637,6 +3126,19 @@ adjustments will never occur.
 Note: The kernel time discipline is
 disabled if the step threshold is set to zero or greater than the
 default.
+.It Cm stepback Ar stepback
+The argument is the step threshold for the backward direction,
+which by default is 0.128 s.
+It can
+be set to any positive number in seconds.
+If both the forward and backward step thresholds are set to zero, step
+adjustments will never occur.
+Note: The kernel time discipline is
+disabled if
+each direction of step threshold are either
+set to zero or greater than .5 second.
+.It Cm stepfwd Ar stepfwd
+As for stepback, but for the forward direction.
 .It Cm stepout Ar stepout
 The argument is the stepout timeout, which by default is 900 s.
 It can
@@ -2644,6 +3146,18 @@ be set to any positive number in seconds.
 If set to zero, the stepout
 pulses will not be suppressed.
 .El
+.It Cm writevar Ar assocID\ name = value [,...]
+Write (create or update) the specified variables.
+If the
+.Cm assocID
+is zero, the variablea re from the
+system variables
+name space, otherwise they are from the
+peer variables
+name space.
+The
+.Cm assocID
+is required, as the same name can occur in both name spaces.
 .It Xo Ic trap Ar host_address
 .Op Cm port Ar port_number
 .Op Cm interface Ar interface_address
@@ -2658,6 +3172,13 @@ message is sent with a source address of the local interface the
 message is sent through.
 Note that on a multihomed host the
 interface used may vary from time to time with routing changes.
+.It Cm ttl Ar hop ...
+This command specifies a list of TTL values in increasing order.
+Up to 8 values can be specified.
+In
+.Cm manycast
+mode these values are used in\-turn in an expanding\-ring search.
+The default is eight multiples of 32 starting at 31.
 .Pp
 The trap receiver will generally log event messages and other
 information from the server in a log file.
@@ -2669,10 +3190,30 @@ is started.
 This command specifies a list of TTL values in increasing order, up to 8
 values can be specified.
 In manycast mode these values are used in turn in
-an expanding-ring search.
+an expanding\-ring search.
 The default is eight multiples of 32 starting at
 31.
 .El
+.Sh "OPTIONS"
+.Bl -tag
+.It Fl \-help
+Display usage information and exit.
+.It Fl \-more\-help
+Pass the extended usage information through a pager.
+.It Fl \-version Op Brq Ar v|c|n
+Output version of program and exit.  The default mode is `v', a simple
+version.  The `c' mode will print copyright information and `n' will
+print the full copyright notice.
+.El
+.Sh "OPTION PRESETS"
+Any option that is not marked as \fInot presettable\fP may be preset
+by loading values from environment variables named:
+.nf
+  \fBNTP_CONF_<option\-name>\fP or \fBNTP_CONF\fP
+.fi
+.ad
+.Sh "ENVIRONMENT"
+See \fBOPTION PRESETS\fP for configuration environment variables.
 .Sh FILES
 .Bl -tag -width /etc/ntp.drift -compact
 .It Pa /etc/ntp.conf
@@ -2684,10 +3225,20 @@ RSA private key
 .It Pa ntpkey_ Ns Ar host
 RSA public key
 .It Pa ntp_dh
-Diffie-Hellman agreement parameters
+Diffie\-Hellman agreement parameters
 .El
-.Sh SEE ALSO
-.Xr rc.conf 5 ,
+.Sh "EXIT STATUS"
+One of the following exit values will be returned:
+.Bl -tag
+.It 0 " (EXIT_SUCCESS)"
+Successful program execution.
+.It 1 " (EXIT_FAILURE)"
+The operation failed or the command syntax was not valid.
+.It 70 " (EX_SOFTWARE)"
+libopts had an internal operational error.  Please report
+it to autogen\-users@lists.sourceforge.net.  Thank you.
+.El
+.Sh "SEE ALSO"
 .Xr ntpd 8 ,
 .Xr ntpdc 8 ,
 .Xr ntpq 8
@@ -2700,9 +3251,14 @@ A snapshot of this documentation is available in HTML format in
 .Pa /usr/share/doc/ntp .
 .Rs
 .%A David L. Mills
-.%T Network Time Protocol (Version 3)
-.%O RFC1305
+.%T Network Time Protocol (Version 4)
+.%O RFC5905
 .Re
+.Sh "AUTHORS"
+The University of Delaware and Network Time Foundation
+.Sh "COPYRIGHT"
+Copyright (C) 1992\-2017 The University of Delaware and Network Time Foundation all rights reserved.
+This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .Sh BUGS
 The syntax checking is not picky; some combinations of
 ridiculous and even hilarious options and modes may not be
@@ -2714,3 +3270,10 @@ files are really digital
 certificates.
 These should be obtained via secure directory
 services when they become universally available.
+.Pp
+Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org
+.Sh NOTES
+This document was derived from FreeBSD.
+.Pp
+This manual page was \fIAutoGen\fP\-erated from the \fBntp.conf\fP
+option definitions.

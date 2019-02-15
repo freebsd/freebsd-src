@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2010
+.Dd February 3, 2018
 .Dt PTHREAD_JOIN 3
 .Os
 .Sh NAME
@@ -43,6 +43,7 @@
 .In pthread.h
 .Ft int
 .Fn pthread_join "pthread_t thread" "void **value_ptr"
+.In pthread_np.h
 .Ft int
 .Fn pthread_timedjoin_np "pthread_t thread" "void **value_ptr" "const struct timespec *abstime"
 .Sh DESCRIPTION
@@ -134,7 +135,7 @@ function conforms to
 .St -p1003.1-96 .
 The
 .Fn pthread_timedjoin_np
-is a
+function is a
 .Fx
 extension which first appeared in
 .Fx 6.1 .

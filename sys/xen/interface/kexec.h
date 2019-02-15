@@ -97,9 +97,6 @@ typedef struct xen_kexec_image {
 #if defined(__i386__) || defined(__x86_64__)
     unsigned long page_list[KEXEC_XEN_NO_PAGES];
 #endif
-#if defined(__ia64__)
-    unsigned long reboot_code_buffer;
-#endif
     unsigned long indirection_page;
     unsigned long start_address;
 } xen_kexec_image_t;
@@ -108,6 +105,20 @@ typedef struct xen_kexec_image {
  * Perform kexec having previously loaded a kexec or kdump kernel
  * as appropriate.
  * type == KEXEC_TYPE_DEFAULT or KEXEC_TYPE_CRASH [in]
+ *
+ * Control is transferred to the image entry point with the host in
+ * the following state.
+ *
+ * - The image may be executed on any PCPU and all other PCPUs are
+ *   stopped.
+ *
+ * - Local interrupts are disabled.
+ *
+ * - Register values are undefined.
+ *
+ * - The image segments have writeable 1:1 virtual to machine
+ *   mappings.  The location of any page tables is undefined and these
+ *   page table frames are not be mapped.
  */
 #define KEXEC_CMD_kexec                 0
 typedef struct xen_kexec_exec {
@@ -119,12 +130,12 @@ typedef struct xen_kexec_exec {
  * type  == KEXEC_TYPE_DEFAULT or KEXEC_TYPE_CRASH [in]
  * image == relocation information for kexec (ignored for unload) [in]
  */
-#define KEXEC_CMD_kexec_load            1
-#define KEXEC_CMD_kexec_unload          2
-typedef struct xen_kexec_load {
+#define KEXEC_CMD_kexec_load_v1         1 /* obsolete since 0x00040400 */
+#define KEXEC_CMD_kexec_unload_v1       2 /* obsolete since 0x00040400 */
+typedef struct xen_kexec_load_v1 {
     int type;
     xen_kexec_image_t image;
-} xen_kexec_load_t;
+} xen_kexec_load_v1_t;
 
 #define KEXEC_RANGE_MA_CRASH      0 /* machine address and size of crash area */
 #define KEXEC_RANGE_MA_XEN        1 /* machine address and size of Xen itself */
@@ -134,7 +145,7 @@ typedef struct xen_kexec_load {
                                      * to Xen it exists in a separate EFI
                                      * region on ia64, and thus needs to be
                                      * inserted into iomem_machine separately */
-#define KEXEC_RANGE_MA_BOOT_PARAM 4 /* machine address and size of
+#define KEXEC_RANGE_MA_BOOT_PARAM 4 /* Obsolete: machine address and size of
                                      * the ia64_boot_param */
 #define KEXEC_RANGE_MA_EFI_MEMMAP 5 /* machine address and size of
                                      * of the EFI Memory Map */
@@ -155,12 +166,82 @@ typedef struct xen_kexec_range {
     unsigned long start;
 } xen_kexec_range_t;
 
+#if __XEN_INTERFACE_VERSION__ >= 0x00040400
+/*
+ * A contiguous chunk of a kexec image and it's destination machine
+ * address.
+ */
+typedef struct xen_kexec_segment {
+    union {
+        XEN_GUEST_HANDLE(const_void) h;
+        uint64_t _pad;
+    } buf;
+    uint64_t buf_size;
+    uint64_t dest_maddr;
+    uint64_t dest_size;
+} xen_kexec_segment_t;
+DEFINE_XEN_GUEST_HANDLE(xen_kexec_segment_t);
+
+/*
+ * Load a kexec image into memory.
+ *
+ * For KEXEC_TYPE_DEFAULT images, the segments may be anywhere in RAM.
+ * The image is relocated prior to being executed.
+ *
+ * For KEXEC_TYPE_CRASH images, each segment of the image must reside
+ * in the memory region reserved for kexec (KEXEC_RANGE_MA_CRASH) and
+ * the entry point must be within the image. The caller is responsible
+ * for ensuring that multiple images do not overlap.
+ *
+ * All image segments will be loaded to their destination machine
+ * addresses prior to being executed.  The trailing portion of any
+ * segments with a source buffer (from dest_maddr + buf_size to
+ * dest_maddr + dest_size) will be zeroed.
+ *
+ * Segments with no source buffer will be accessible to the image when
+ * it is executed.
+ */
+
+#define KEXEC_CMD_kexec_load 4
+typedef struct xen_kexec_load {
+    uint8_t  type;        /* One of KEXEC_TYPE_* */
+    uint8_t  _pad;
+    uint16_t arch;        /* ELF machine type (EM_*). */
+    uint32_t nr_segments;
+    union {
+        XEN_GUEST_HANDLE(xen_kexec_segment_t) h;
+        uint64_t _pad;
+    } segments;
+    uint64_t entry_maddr; /* image entry point machine address. */
+} xen_kexec_load_t;
+DEFINE_XEN_GUEST_HANDLE(xen_kexec_load_t);
+
+/*
+ * Unload a kexec image.
+ *
+ * Type must be one of KEXEC_TYPE_DEFAULT or KEXEC_TYPE_CRASH.
+ */
+#define KEXEC_CMD_kexec_unload 5
+typedef struct xen_kexec_unload {
+    uint8_t type;
+} xen_kexec_unload_t;
+DEFINE_XEN_GUEST_HANDLE(xen_kexec_unload_t);
+
+#else /* __XEN_INTERFACE_VERSION__ < 0x00040400 */
+
+#define KEXEC_CMD_kexec_load KEXEC_CMD_kexec_load_v1
+#define KEXEC_CMD_kexec_unload KEXEC_CMD_kexec_unload_v1
+#define xen_kexec_load xen_kexec_load_v1
+#define xen_kexec_load_t xen_kexec_load_v1_t
+
+#endif
+
 #endif /* _XEN_PUBLIC_KEXEC_H */
 
 /*
  * Local variables:
  * mode: C
- * c-set-style: "BSD"
+ * c-file-style: "BSD"
  * c-basic-offset: 4
  * tab-width: 4
  * indent-tabs-mode: nil

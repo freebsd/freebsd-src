@@ -49,6 +49,7 @@ extern "C" {
 /** Currently-defined capabilities. */
 #define SVN_RA_SVN_CAP_EDIT_PIPELINE "edit-pipeline"
 #define SVN_RA_SVN_CAP_SVNDIFF1 "svndiff1"
+#define SVN_RA_SVN_CAP_SVNDIFF2_ACCEPTED "accepts-svndiff2"
 #define SVN_RA_SVN_CAP_ABSENT_ENTRIES "absent-entries"
 /* maps to SVN_RA_CAPABILITY_COMMIT_REVPROPS: */
 #define SVN_RA_SVN_CAP_COMMIT_REVPROPS "commit-revprops"
@@ -68,6 +69,8 @@ extern "C" {
 #define SVN_RA_SVN_CAP_EPHEMERAL_TXNPROPS "ephemeral-txnprops"
 /* maps to SVN_RA_CAPABILITY_GET_FILE_REVS_REVERSE */
 #define SVN_RA_SVN_CAP_GET_FILE_REVS_REVERSE "file-revs-reverse"
+/* maps to SVN_RA_CAPABILITY_LIST */
+#define SVN_RA_SVN_CAP_LIST "list"
 
 
 /** ra_svn passes @c svn_dirent_t fields over the wire as a list of
@@ -141,16 +144,23 @@ typedef struct svn_ra_svn_cmd_entry_t
   svn_boolean_t terminate;
 } svn_ra_svn_cmd_entry_t;
 
+/** Data types defined by the svn:// protocol.
+ *
+ * @since The typedef name is new in 1.10; the enumerators are not. */
+typedef enum
+{
+  SVN_RA_SVN_NUMBER,
+  SVN_RA_SVN_STRING,
+  SVN_RA_SVN_WORD,
+  SVN_RA_SVN_LIST
+} svn_ra_svn_item_kind_t;
+
 /** Memory representation of an on-the-wire data item. */
 typedef struct svn_ra_svn_item_t
 {
   /** Variant indicator. */
-  enum {
-    SVN_RA_SVN_NUMBER,
-    SVN_RA_SVN_STRING,
-    SVN_RA_SVN_WORD,
-    SVN_RA_SVN_LIST
-  } kind;
+  svn_ra_svn_item_kind_t kind;
+
   /** Variant data. */
   union {
     apr_uint64_t number;
@@ -165,11 +175,13 @@ typedef struct svn_ra_svn_item_t
 typedef svn_error_t *(*svn_ra_svn_edit_callback)(void *baton);
 
 /** Initialize a connection structure for the given socket or
- * input/output files.
+ * input/output streams.
  *
- * Either @a sock or @a in_file/@a out_file must be set, not both.
+ * Either @a sock or @a in_stream/@a out_stream must be set, not both.
  * @a compression_level specifies the desired network data compression
- * level (zlib) from 0 (no compression) to 9 (best but slowest).
+ * level from 0 (no compression) to 9 (best but slowest). The effect
+ * of the parameter depends on the compression algorithm; for example,
+ * it is used verbatim by zlib/deflate but ignored by LZ4.
  *
  * If @a zero_copy_limit is not 0, cached file contents smaller than the
  * given limit may be sent directly to the network socket.  Otherwise,
@@ -184,10 +196,54 @@ typedef svn_error_t *(*svn_ra_svn_edit_callback)(void *baton);
  * It defines the number of bytes that must have been sent since the last
  * check before the next check will be made.
  *
+ * If @a max_in is not 0, error out and close the connection whenever more
+ * than @a max_in bytes are received for a command (e.g. a client request).
+ * If @a max_out is not 0, error out and close the connection whenever more
+ * than @a max_out bytes have been send as response to some command.
+ *
+ * @note The limits enforced may vary slightly by +/- the I/O buffer size. 
+ *
+ * @note If @a out_stream is an wrapped apr_file_t* the backing file will be
+ * used for some operations.
+ *
  * Allocate the result in @a pool.
  *
- * @since New in 1.8
+ * @since New in 1.10
  */
+svn_ra_svn_conn_t *svn_ra_svn_create_conn5(apr_socket_t *sock,
+                                           svn_stream_t *in_stream,
+                                           svn_stream_t *out_stream,
+                                           int compression_level,
+                                           apr_size_t zero_copy_limit,
+                                           apr_size_t error_check_interval,
+                                           apr_uint64_t max_in,
+                                           apr_uint64_t max_out,
+                                           apr_pool_t *result_pool);
+
+
+/** Similar to svn_ra_svn_create_conn5() but with @a max_in and @a max_out
+ * set to 0.
+ *
+ * @since New in 1.9
+ * @deprecated Provided for backward compatibility with the 1.9 API.
+ */
+SVN_DEPRECATED
+svn_ra_svn_conn_t *svn_ra_svn_create_conn4(apr_socket_t *sock,
+                                           svn_stream_t *in_stream,
+                                           svn_stream_t *out_stream,
+                                           int compression_level,
+                                           apr_size_t zero_copy_limit,
+                                           apr_size_t error_check_interval,
+                                           apr_pool_t *result_pool);
+
+
+/** Similar to svn_ra_svn_create_conn4() but only supports apr_file_t handles
+ * instead of the more generic streams.
+ *
+ * @since New in 1.8
+ * @deprecated Provided for backward compatibility with the 1.8 API.
+ */
+SVN_DEPRECATED
 svn_ra_svn_conn_t *svn_ra_svn_create_conn3(apr_socket_t *sock,
                                            apr_file_t *in_file,
                                            apr_file_t *out_file,
@@ -268,6 +324,12 @@ svn_ra_svn_conn_remote_host(svn_ra_svn_conn_t *conn);
  *
  * Upon successful completion of the edit, the editor will invoke @a callback
  * with @a callback_baton as an argument.
+ *
+ * @note The @c copyfrom_path parameter passed to the @c add_file and
+ * @c add_directory methods of the returned editor may be either a URL or a
+ * relative path, and is transferred verbatim to the receiving end of the
+ * connection. See svn_ra_svn_drive_editor2() for information on the
+ * receiving end of the connection.
  */
 void
 svn_ra_svn_get_editor(const svn_delta_editor_t **editor,
@@ -283,6 +345,13 @@ svn_ra_svn_get_editor(const svn_delta_editor_t **editor,
  * if @a for_replay is TRUE.
  *
  * @since New in 1.4.
+ *
+ * @note The @c copyfrom_path parameter passed to the @c add_file and
+ * @c add_directory methods of the receiving editor will be canonicalized
+ * either as a URL or as a relative path (starting with a slash) according
+ * to which kind was sent by the driving end of the connection. See
+ * svn_ra_svn_get_editor() for information on the driving end of the
+ * connection.
  */
 svn_error_t *
 svn_ra_svn_drive_editor2(svn_ra_svn_conn_t *conn,

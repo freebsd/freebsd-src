@@ -38,6 +38,17 @@
 extern "C" {
 #endif
 
+/* Prototype of most recent version of svn_ra_openX() api, optionally
+   handed to the ra api to allow opening other ra sessions. */
+typedef svn_error_t * (*svn_ra__open_func_t)(svn_ra_session_t **session_p,
+                                              const char **corrected_url,
+                                              const char *repos_URL,
+                                              const char *uuid,
+                                              const svn_ra_callbacks2_t *callbacks,
+                                              void *callback_baton,
+                                              apr_hash_t *config,
+                                              apr_pool_t *pool);
+
 /* The RA layer vtable. */
 typedef struct svn_ra__vtable_t {
   /* This field should always remain first in the vtable. */
@@ -61,8 +72,16 @@ typedef struct svn_ra__vtable_t {
                                const char *session_URL,
                                const svn_ra_callbacks2_t *callbacks,
                                void *callback_baton,
+                               svn_auth_baton_t *auth_baton,
                                apr_hash_t *config,
-                               apr_pool_t *pool);
+                               apr_pool_t *result_pool,
+                               apr_pool_t *scratch_pool);
+  /* Backs svn_ra_dup_session */
+  svn_error_t * (*dup_session)(svn_ra_session_t *new_session,
+                               svn_ra_session_t *old_session,
+                               const char *new_session_url,
+                               apr_pool_t *result_pool,
+                               apr_pool_t *scratch_pool);
   /* See svn_ra_reparent(). */
   /* URL is guaranteed to have what get_repos_root() returns as a prefix. */
   svn_error_t *(*reparent)(svn_ra_session_t *session,
@@ -300,10 +319,6 @@ typedef struct svn_ra__vtable_t {
                                   svn_revnum_t end_revision,
                                   svn_revnum_t *revision_deleted,
                                   apr_pool_t *pool);
-
-  /* See svn_ra__register_editor_shim_callbacks() */
-  svn_error_t *(*register_editor_shim_callbacks)(svn_ra_session_t *session,
-                                    svn_delta_shim_callbacks_t *callbacks);
   /* See svn_ra_get_inherited_props(). */
   svn_error_t *(*get_inherited_props)(svn_ra_session_t *session,
                                       apr_array_header_t **iprops,
@@ -311,6 +326,28 @@ typedef struct svn_ra__vtable_t {
                                       svn_revnum_t revision,
                                       apr_pool_t *result_pool,
                                       apr_pool_t *scratch_pool);
+  /* If not NULL, receives a pointer to svn_ra_open, to alllow opening
+     a new ra session from inside the ra layer without a circular
+     library dependency*/
+  svn_error_t *(*set_svn_ra_open)(svn_ra_session_t *session,
+                                  svn_ra__open_func_t func);
+
+  /* See svn_ra_list(). */
+  svn_error_t *(*list)(svn_ra_session_t *session,
+                       const char *path,
+                       svn_revnum_t revision,
+                       const apr_array_header_t *patterns,
+                       svn_depth_t depth,
+                       apr_uint32_t dirent_fields,
+                       svn_ra_dirent_receiver_t receiver,
+                       void *receiver_baton,
+                       apr_pool_t *scratch_pool);
+
+  /* Experimental support below here */
+
+  /* See svn_ra__register_editor_shim_callbacks() */
+  svn_error_t *(*register_editor_shim_callbacks)(svn_ra_session_t *session,
+                                                 svn_delta_shim_callbacks_t *callbacks);
   /* See svn_ra__get_commit_ev2()  */
   svn_error_t *(*get_commit_ev2)(
     svn_editor_t **editor,

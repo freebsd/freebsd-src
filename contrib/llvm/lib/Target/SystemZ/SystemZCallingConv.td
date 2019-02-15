@@ -12,12 +12,29 @@
 class CCIfExtend<CCAction A>
   : CCIf<"ArgFlags.isSExt() || ArgFlags.isZExt()", A>;
 
+class CCIfSubtarget<string F, CCAction A>
+  : CCIf<!strconcat("static_cast<const SystemZSubtarget&>"
+                    "(State.getMachineFunction().getSubtarget()).", F),
+         A>;
+
+// Match if this specific argument is a fixed (i.e. named) argument.
+class CCIfFixed<CCAction A>
+    : CCIf<"static_cast<SystemZCCState *>(&State)->IsFixed(ValNo)", A>;
+
+// Match if this specific argument was widened from a short vector type.
+class CCIfShortVector<CCAction A>
+    : CCIf<"static_cast<SystemZCCState *>(&State)->IsShortVector(ValNo)", A>;
+
+
 //===----------------------------------------------------------------------===//
-// SVR4 return value calling convention
+// z/Linux return value calling convention
 //===----------------------------------------------------------------------===//
 def RetCC_SystemZ : CallingConv<[
   // Promote i32 to i64 if it has an explicit extension type.
   CCIfType<[i32], CCIfExtend<CCPromoteToType<i64>>>,
+
+  // A SwiftError is returned in R9.
+  CCIfSwiftError<CCIfType<[i64], CCAssignToReg<[R9D]>>>,
 
   // ABI-compliant code returns 64-bit integers in R2.  Make the other
   // call-clobbered argument registers available for code that doesn't
@@ -31,15 +48,18 @@ def RetCC_SystemZ : CallingConv<[
   // doesn't care about the ABI.  All floating-point argument registers
   // are call-clobbered, so we can use all of them here.
   CCIfType<[f32], CCAssignToReg<[F0S, F2S, F4S, F6S]>>,
-  CCIfType<[f64], CCAssignToReg<[F0D, F2D, F4D, F6D]>>
+  CCIfType<[f64], CCAssignToReg<[F0D, F2D, F4D, F6D]>>,
 
-  // ABI-compliant code returns long double by reference, but that conversion
-  // is left to higher-level code.  Perhaps we could add an f128 definition
-  // here for code that doesn't care about the ABI?
+  // Similarly for vectors, with V24 being the ABI-compliant choice.
+  // Sub-128 vectors are returned in the same way, but they're widened
+  // to one of these types during type legalization.
+  CCIfSubtarget<"hasVector()",
+    CCIfType<[v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
+             CCAssignToReg<[V24, V26, V28, V30, V25, V27, V29, V31]>>>
 ]>;
 
 //===----------------------------------------------------------------------===//
-// SVR4 argument calling conventions
+// z/Linux argument calling conventions
 //===----------------------------------------------------------------------===//
 def CC_SystemZ : CallingConv<[
   // Promote i32 to i64 if it has an explicit extension type.
@@ -48,8 +68,17 @@ def CC_SystemZ : CallingConv<[
   // are smaller than 64 bits shouldn't.
   CCIfType<[i32], CCIfExtend<CCPromoteToType<i64>>>,
 
+  // A SwiftSelf is passed in callee-saved R10.
+  CCIfSwiftSelf<CCIfType<[i64], CCAssignToReg<[R10D]>>>,
+
+  // A SwiftError is passed in callee-saved R9.
+  CCIfSwiftError<CCIfType<[i64], CCAssignToReg<[R9D]>>>,
+
   // Force long double values to the stack and pass i64 pointers to them.
   CCIfType<[f128], CCPassIndirect<i64>>,
+  // Same for i128 values.  These are already split into two i64 here,
+  // so we have to use a custom handler.
+  CCIfType<[i64], CCCustom<"CC_SystemZ_I128Indirect">>,
 
   // The first 5 integer arguments are passed in R2-R6.  Note that R6
   // is call-saved.
@@ -60,6 +89,34 @@ def CC_SystemZ : CallingConv<[
   CCIfType<[f32], CCAssignToReg<[F0S, F2S, F4S, F6S]>>,
   CCIfType<[f64], CCAssignToReg<[F0D, F2D, F4D, F6D]>>,
 
+  // The first 8 named vector arguments are passed in V24-V31.  Sub-128 vectors
+  // are passed in the same way, but they're widened to one of these types
+  // during type legalization.
+  CCIfSubtarget<"hasVector()",
+    CCIfType<[v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
+             CCIfFixed<CCAssignToReg<[V24, V26, V28, V30,
+                                      V25, V27, V29, V31]>>>>,
+
+  // However, sub-128 vectors which need to go on the stack occupy just a
+  // single 8-byte-aligned 8-byte stack slot.  Pass as i64.
+  CCIfSubtarget<"hasVector()",
+    CCIfType<[v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
+             CCIfShortVector<CCBitConvertToType<i64>>>>,
+
+  // Other vector arguments are passed in 8-byte-aligned 16-byte stack slots.
+  CCIfSubtarget<"hasVector()",
+    CCIfType<[v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
+             CCAssignToStack<16, 8>>>,
+
   // Other arguments are passed in 8-byte-aligned 8-byte stack slots.
   CCIfType<[i32, i64, f32, f64], CCAssignToStack<8, 8>>
 ]>;
+
+//===----------------------------------------------------------------------===//
+// z/Linux callee-saved registers
+//===----------------------------------------------------------------------===//
+def CSR_SystemZ : CalleeSavedRegs<(add (sequence "R%dD", 6, 15),
+                                       (sequence "F%dD", 8, 15))>;
+
+// R9 is used to return SwiftError; remove it from CSR.
+def CSR_SystemZ_SwiftError : CalleeSavedRegs<(sub CSR_SystemZ, R9D)>;

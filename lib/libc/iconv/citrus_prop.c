@@ -2,6 +2,8 @@
 /* $NetBSD: citrus_prop.c,v 1.4 2011/03/30 08:22:01 jruoho Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2006 Citrus Project,
  * All rights reserved.
  *
@@ -293,8 +295,10 @@ done:
 		}
 		_memstream_ungetc(ms, ch);
 		errnum = _citrus_prop_read_character_common(ms, &ch);
-		if (errnum != 0)
+		if (errnum != 0) {
+			free(s);
 			return (errnum);
+		}
 		s[n] = ch;
 		++n, --m;
 	}

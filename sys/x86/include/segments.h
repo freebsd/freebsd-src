@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1990 William F. Jolitz
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -14,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -46,11 +48,7 @@
  */
 #define	SEL_RPL_MASK	3		/* requester priv level */
 #define	ISPL(s)		((s)&3)		/* priority level of a selector */
-#ifdef XEN
-#define	SEL_KPL		1		/* kernel priority level */
-#else
 #define	SEL_KPL		0		/* kernel priority level */
-#endif
 #define	SEL_UPL		3		/* user priority level */
 #define	ISLDT(s)	((s)&SEL_LDT)	/* is it local or global */
 #define	SEL_LDT		4		/* local descriptor table */
@@ -244,25 +242,16 @@ union descriptor {
 #define	GBIOSUTIL_SEL	16	/* BIOS interface (Utility) */
 #define	GBIOSARGS_SEL	17	/* BIOS interface (Arguments) */
 #define	GNDIS_SEL	18	/* For the NDIS layer */
-#ifdef XEN
-#define	NGDT		9
-#else
 #define	NGDT		19
-#endif
 
 /*
  * Entries in the Local Descriptor Table (LDT)
  */
 #define	LSYS5CALLS_SEL	0	/* forced by intel BCS */
 #define	LSYS5SIGR_SEL	1
-#define	L43BSDCALLS_SEL	2	/* notyet */
 #define	LUCODE_SEL	3
-#define	LSOL26CALLS_SEL	4	/* Solaris >= 2.6 system call gate */
 #define	LUDATA_SEL	5
-/* separate stack, es,fs,gs sels ? */
-/* #define	LPOSIXCALLS_SEL	5*/	/* notyet */
-#define	LBSDICALLS_SEL	16	/* BSDI system call gate */
-#define	NLDT		(LBSDICALLS_SEL + 1)
+#define	NLDT		(LUDATA_SEL + 1)
 
 #else /* !__i386__ */
 /*

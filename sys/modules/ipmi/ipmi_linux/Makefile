@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../dev/ipmi
+.PATH: ${SRCTOP}/sys/dev/ipmi
 
 KMOD=	ipmi_linux
 SRCS=	ipmi_linux.c

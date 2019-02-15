@@ -10,7 +10,6 @@
 #include "DAGISelMatcher.h"
 #include "CodeGenDAGPatterns.h"
 #include "CodeGenTarget.h"
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TableGen/Record.h"
 using namespace llvm;
@@ -43,7 +42,7 @@ Matcher *Matcher::unlinkNode(Matcher *Other) {
   for (; Cur && Cur->getNext() != Other; Cur = Cur->getNext())
     /*empty*/;
 
-  if (Cur == 0) return 0;
+  if (!Cur) return nullptr;
   Cur->takeNext();
   Cur->setNext(Other->takeNext());
   return this;
@@ -80,10 +79,19 @@ bool Matcher::canMoveBeforeNode(const Matcher *Other) const {
 
 
 ScopeMatcher::~ScopeMatcher() {
-  for (unsigned i = 0, e = Children.size(); i != e; ++i)
-    delete Children[i];
+  for (Matcher *C : Children)
+    delete C;
 }
 
+SwitchOpcodeMatcher::~SwitchOpcodeMatcher() {
+  for (auto &C : Cases)
+    delete C.second;
+}
+
+SwitchTypeMatcher::~SwitchTypeMatcher() {
+  for (auto &C : Cases)
+    delete C.second;
+}
 
 CheckPredicateMatcher::CheckPredicateMatcher(const TreePredicateFn &pred)
   : Matcher(CheckPredicate), Pred(pred.getOrigPatFragRecord()) {}
@@ -98,11 +106,11 @@ TreePredicateFn CheckPredicateMatcher::getPredicate() const {
 
 void ScopeMatcher::printImpl(raw_ostream &OS, unsigned indent) const {
   OS.indent(indent) << "Scope\n";
-  for (unsigned i = 0, e = getNumChildren(); i != e; ++i) {
-    if (getChild(i) == 0)
+  for (const Matcher *C : Children) {
+    if (!C)
       OS.indent(indent+1) << "NULL POINTER\n";
     else
-      getChild(i)->print(OS, indent+2);
+      C->print(OS, indent+2);
   }
 }
 
@@ -153,9 +161,9 @@ void CheckOpcodeMatcher::printImpl(raw_ostream &OS, unsigned indent) const {
 
 void SwitchOpcodeMatcher::printImpl(raw_ostream &OS, unsigned indent) const {
   OS.indent(indent) << "SwitchOpcode: {\n";
-  for (unsigned i = 0, e = Cases.size(); i != e; ++i) {
-    OS.indent(indent) << "case " << Cases[i].first->getEnumName() << ":\n";
-    Cases[i].second->print(OS, indent+2);
+  for (const auto &C : Cases) {
+    OS.indent(indent) << "case " << C.first->getEnumName() << ":\n";
+    C.second->print(OS, indent+2);
   }
   OS.indent(indent) << "}\n";
 }
@@ -168,9 +176,9 @@ void CheckTypeMatcher::printImpl(raw_ostream &OS, unsigned indent) const {
 
 void SwitchTypeMatcher::printImpl(raw_ostream &OS, unsigned indent) const {
   OS.indent(indent) << "SwitchType: {\n";
-  for (unsigned i = 0, e = Cases.size(); i != e; ++i) {
-    OS.indent(indent) << "case " << getEnumName(Cases[i].first) << ":\n";
-    Cases[i].second->print(OS, indent+2);
+  for (const auto &C : Cases) {
+    OS.indent(indent) << "case " << getEnumName(C.first) << ":\n";
+    C.second->print(OS, indent+2);
   }
   OS.indent(indent) << "}\n";
 }
@@ -183,6 +191,11 @@ void CheckChildTypeMatcher::printImpl(raw_ostream &OS, unsigned indent) const {
 
 void CheckIntegerMatcher::printImpl(raw_ostream &OS, unsigned indent) const {
   OS.indent(indent) << "CheckInteger " << Value << '\n';
+}
+
+void CheckChildIntegerMatcher::printImpl(raw_ostream &OS,
+                                         unsigned indent) const {
+  OS.indent(indent) << "CheckChildInteger " << ChildNo << " " << Value << '\n';
 }
 
 void CheckCondCodeMatcher::printImpl(raw_ostream &OS, unsigned indent) const {
@@ -211,12 +224,14 @@ void CheckFoldableChainNodeMatcher::printImpl(raw_ostream &OS,
 }
 
 void EmitIntegerMatcher::printImpl(raw_ostream &OS, unsigned indent) const {
-  OS.indent(indent) << "EmitInteger " << Val << " VT=" << VT << '\n';
+  OS.indent(indent) << "EmitInteger " << Val << " VT=" << getEnumName(VT)
+                    << '\n';
 }
 
 void EmitStringIntegerMatcher::
 printImpl(raw_ostream &OS, unsigned indent) const {
-  OS.indent(indent) << "EmitStringInteger " << Val << " VT=" << VT << '\n';
+  OS.indent(indent) << "EmitStringInteger " << Val << " VT=" << getEnumName(VT)
+                    << '\n';
 }
 
 void EmitRegisterMatcher::printImpl(raw_ostream &OS, unsigned indent) const {
@@ -225,7 +240,7 @@ void EmitRegisterMatcher::printImpl(raw_ostream &OS, unsigned indent) const {
     OS << Reg->getName();
   else
     OS << "zero_reg";
-  OS << " VT=" << VT << '\n';
+  OS << " VT=" << getEnumName(VT) << '\n';
 }
 
 void EmitConvertToTargetMatcher::
@@ -261,52 +276,10 @@ void EmitNodeMatcherCommon::printImpl(raw_ostream &OS, unsigned indent) const {
   OS << ")\n";
 }
 
-void MarkGlueResultsMatcher::printImpl(raw_ostream &OS, unsigned indent) const {
-  OS.indent(indent) << "MarkGlueResults <todo: args>\n";
-}
-
 void CompleteMatchMatcher::printImpl(raw_ostream &OS, unsigned indent) const {
   OS.indent(indent) << "CompleteMatch <todo args>\n";
   OS.indent(indent) << "Src = " << *Pattern.getSrcPattern() << "\n";
   OS.indent(indent) << "Dst = " << *Pattern.getDstPattern() << "\n";
-}
-
-// getHashImpl Implementation.
-
-unsigned CheckPatternPredicateMatcher::getHashImpl() const {
-  return HashString(Predicate);
-}
-
-unsigned CheckPredicateMatcher::getHashImpl() const {
-  return HashString(getPredicate().getFnName());
-}
-
-unsigned CheckOpcodeMatcher::getHashImpl() const {
-  return HashString(Opcode.getEnumName());
-}
-
-unsigned CheckCondCodeMatcher::getHashImpl() const {
-  return HashString(CondCodeName);
-}
-
-unsigned CheckValueTypeMatcher::getHashImpl() const {
-  return HashString(TypeName);
-}
-
-unsigned EmitStringIntegerMatcher::getHashImpl() const {
-  return HashString(Val) ^ VT;
-}
-
-template<typename It>
-static unsigned HashUnsigneds(It I, It E) {
-  unsigned Result = 0;
-  for (; I != E; ++I)
-    Result = (Result<<3) ^ *I;
-  return Result;
-}
-
-unsigned EmitMergeInputChainsMatcher::getHashImpl() const {
-  return HashUnsigneds(ChainNodes.begin(), ChainNodes.end());
 }
 
 bool CheckOpcodeMatcher::isEqualImpl(const Matcher *M) const {
@@ -325,23 +298,9 @@ bool EmitNodeMatcherCommon::isEqualImpl(const Matcher *m) const {
          M->NumFixedArityOperands == NumFixedArityOperands;
 }
 
-unsigned EmitNodeMatcherCommon::getHashImpl() const {
-  return (HashString(OpcodeName) << 4) | Operands.size();
-}
-
-
 void EmitNodeMatcher::anchor() { }
 
 void MorphNodeToMatcher::anchor() { }
-
-unsigned MarkGlueResultsMatcher::getHashImpl() const {
-  return HashUnsigneds(GlueResultNodes.begin(), GlueResultNodes.end());
-}
-
-unsigned CompleteMatchMatcher::getHashImpl() const {
-  return HashUnsigneds(Results.begin(), Results.end()) ^
-          ((unsigned)(intptr_t)&Pattern << 8);
-}
 
 // isContradictoryImpl Implementations.
 
@@ -408,6 +367,18 @@ bool CheckChildTypeMatcher::isContradictoryImpl(const Matcher *M) const {
 bool CheckIntegerMatcher::isContradictoryImpl(const Matcher *M) const {
   if (const CheckIntegerMatcher *CIM = dyn_cast<CheckIntegerMatcher>(M))
     return CIM->getValue() != getValue();
+  return false;
+}
+
+bool CheckChildIntegerMatcher::isContradictoryImpl(const Matcher *M) const {
+  if (const CheckChildIntegerMatcher *CCIM = dyn_cast<CheckChildIntegerMatcher>(M)) {
+    // If the two checks are about different nodes, we don't know if they
+    // conflict!
+    if (CCIM->getChildNo() != getChildNo())
+      return false;
+
+    return CCIM->getValue() != getValue();
+  }
   return false;
 }
 

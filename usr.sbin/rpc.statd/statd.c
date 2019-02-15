@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1995
  *	A.R. Gordon (andrew.gordon@net-tel.co.uk).  All rights reserved.
  *
@@ -72,9 +74,9 @@ static int	create_service(struct netconfig *nconf);
 static void	complete_service(struct netconfig *nconf, char *port_str);
 static void	clearout_service(void);
 static void handle_sigchld(int sig);
-void out_of_mem(void);
+void out_of_mem(void) __dead2;
 
-static void usage(void);
+static void usage(void) __dead2;
 
 int
 main(int argc, char **argv)
@@ -150,7 +152,7 @@ main(int argc, char **argv)
    * list.
    */
   if (nhosts == 0) {
-	  hosts = malloc(sizeof(char**));
+	  hosts = malloc(sizeof(char *));
 	  if (hosts == NULL)
 		  out_of_mem();
 
@@ -343,7 +345,6 @@ create_service(struct netconfig *nconf)
 
 	/* Get rpc.statd's address on this transport */
 	memset(&hints, 0, sizeof hints);
-	hints.ai_flags = AI_PASSIVE;
 	hints.ai_family = si.si_af;
 	hints.ai_socktype = si.si_socktype;
 	hints.ai_protocol = si.si_proto;
@@ -359,6 +360,7 @@ create_service(struct netconfig *nconf)
 			out_of_mem();
 		sock_fd[sock_fdcnt++] = -1;	/* Set invalid for now. */
 		mallocd_res = 0;
+		hints.ai_flags = AI_PASSIVE;
 
 		/*	
 		 * XXX - using RPC library internal functions.
@@ -613,7 +615,7 @@ clearout_service(void)
 }
 
 static void
-usage()
+usage(void)
 {
       fprintf(stderr, "usage: rpc.statd [-d] [-h <bindip>] [-p <port>]\n");
       exit(1);
@@ -647,7 +649,7 @@ static void handle_sigchld(int sig __unused)
  * Out of memory, fatal
  */
 void
-out_of_mem()
+out_of_mem(void)
 {
 
 	syslog(LOG_ERR, "out of memory");

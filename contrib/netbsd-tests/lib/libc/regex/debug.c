@@ -1,4 +1,4 @@
-/*	$NetBSD: debug.c,v 1.2 2011/10/10 04:32:41 christos Exp $	*/
+/*	$NetBSD: debug.c,v 1.3 2017/01/14 00:50:56 christos Exp $	*/
 
 /*-
  * Copyright (c) 1993 The NetBSD Foundation, Inc.
@@ -26,14 +26,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/types.h>
 #include <ctype.h>
 #include <limits.h>
 #include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <sys/types.h>
+#include <wchar.h>
+#include <wctype.h>
 
 /* Don't sort these! */
 #include "utils.h"
@@ -41,6 +42,7 @@
 
 #include "test_regex.h"
 
+#ifdef __NetBSD__
 static void s_print(struct re_guts *, FILE *);
 static char *regchar(int);
 
@@ -264,3 +266,10 @@ regchar(int ch)
 		sprintf(buf, "\\%o", ch);
 	return(buf);
 }
+#else
+void
+regprint(regex_t *r, FILE *d)
+{
+
+}
+#endif

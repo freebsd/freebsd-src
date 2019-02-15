@@ -1,5 +1,7 @@
 :
 #
+# SPDX-License-Identifier: Beerware
+#
 # ----------------------------------------------------------------------------
 # "THE BEER-WARE LICENSE" (Revision 42):
 # <phk@FreeBSD.org> wrote this file.  As long as you retain this notice you

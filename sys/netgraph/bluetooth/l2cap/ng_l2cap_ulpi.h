@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -74,6 +76,6 @@ int ng_l2cap_l2ca_get_info_rsp (ng_l2cap_con_p, u_int32_t, u_int16_t,
 					struct mbuf *);
 
 int ng_l2cap_l2ca_enable_clt   (ng_l2cap_p, struct ng_mesg *);
-
+int ng_l2cap_l2ca_encryption_change(ng_l2cap_chan_p , uint16_t );
 #endif /* ndef _NETGRAPH_L2CAP_ULPI_H_ */
 

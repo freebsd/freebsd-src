@@ -11,8 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Config/config.h"
 #include "llvm/Support/Mutex.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Config/config.h"
 
 //===----------------------------------------------------------------------===//
 //=== WARNING: Implementation here must contain only TRULY operating system
@@ -42,11 +43,15 @@ using namespace sys;
 
 // Construct a Mutex using pthread calls
 MutexImpl::MutexImpl( bool recursive)
-  : data_(0)
+  : data_(nullptr)
 {
   // Declare the pthread_mutex data structures
   pthread_mutex_t* mutex =
     static_cast<pthread_mutex_t*>(malloc(sizeof(pthread_mutex_t)));
+
+  if (mutex == nullptr)
+    report_bad_alloc_error("Mutex allocation failed");
+
   pthread_mutexattr_t attr;
 
   // Initialize the mutex attributes
@@ -58,13 +63,6 @@ MutexImpl::MutexImpl( bool recursive)
   int kind = ( recursive  ? PTHREAD_MUTEX_RECURSIVE : PTHREAD_MUTEX_NORMAL );
   errorcode = pthread_mutexattr_settype(&attr, kind);
   assert(errorcode == 0);
-
-#if !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__NetBSD__) && \
-    !defined(__DragonFly__) && !defined(__Bitrig__)
-  // Make it a process local mutex
-  errorcode = pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_PRIVATE);
-  assert(errorcode == 0);
-#endif
 
   // Initialize the mutex
   errorcode = pthread_mutex_init(mutex, &attr);
@@ -82,7 +80,7 @@ MutexImpl::MutexImpl( bool recursive)
 MutexImpl::~MutexImpl()
 {
   pthread_mutex_t* mutex = static_cast<pthread_mutex_t*>(data_);
-  assert(mutex != 0);
+  assert(mutex != nullptr);
   pthread_mutex_destroy(mutex);
   free(mutex);
 }
@@ -91,7 +89,7 @@ bool
 MutexImpl::acquire()
 {
   pthread_mutex_t* mutex = static_cast<pthread_mutex_t*>(data_);
-  assert(mutex != 0);
+  assert(mutex != nullptr);
 
   int errorcode = pthread_mutex_lock(mutex);
   return errorcode == 0;
@@ -101,7 +99,7 @@ bool
 MutexImpl::release()
 {
   pthread_mutex_t* mutex = static_cast<pthread_mutex_t*>(data_);
-  assert(mutex != 0);
+  assert(mutex != nullptr);
 
   int errorcode = pthread_mutex_unlock(mutex);
   return errorcode == 0;
@@ -111,7 +109,7 @@ bool
 MutexImpl::tryacquire()
 {
   pthread_mutex_t* mutex = static_cast<pthread_mutex_t*>(data_);
-  assert(mutex != 0);
+  assert(mutex != nullptr);
 
   int errorcode = pthread_mutex_trylock(mutex);
   return errorcode == 0;

@@ -12,18 +12,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Sparc.h"
 #include "MCTargetDesc/SparcMCExpr.h"
+#include "Sparc.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineOperand.h"
-#include "llvm/MC/MCContext.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
-#include "llvm/Target/Mangler.h"
-#include "llvm/ADT/SmallString.h"
 
 using namespace llvm;
 
@@ -34,7 +33,7 @@ static MCOperand LowerSymbolOperand(const MachineInstr *MI,
 
   SparcMCExpr::VariantKind Kind =
     (SparcMCExpr::VariantKind)MO.getTargetFlags();
-  const MCSymbol *Symbol = 0;
+  const MCSymbol *Symbol = nullptr;
 
   switch(MO.getType()) {
   default: llvm_unreachable("Unknown type in LowerSymbolOperand");
@@ -59,11 +58,11 @@ static MCOperand LowerSymbolOperand(const MachineInstr *MI,
     break;
   }
 
-  const MCSymbolRefExpr *MCSym = MCSymbolRefExpr::Create(Symbol,
+  const MCSymbolRefExpr *MCSym = MCSymbolRefExpr::create(Symbol,
                                                          AP.OutContext);
-  const SparcMCExpr *expr = SparcMCExpr::Create(Kind, MCSym,
+  const SparcMCExpr *expr = SparcMCExpr::create(Kind, MCSym,
                                                 AP.OutContext);
-  return MCOperand::CreateExpr(expr);
+  return MCOperand::createExpr(expr);
 }
 
 static MCOperand LowerOperand(const MachineInstr *MI,
@@ -74,10 +73,10 @@ static MCOperand LowerOperand(const MachineInstr *MI,
   case MachineOperand::MO_Register:
     if (MO.isImplicit())
       break;
-    return MCOperand::CreateReg(MO.getReg());
+    return MCOperand::createReg(MO.getReg());
 
   case MachineOperand::MO_Immediate:
-    return MCOperand::CreateImm(MO.getImm());
+    return MCOperand::createImm(MO.getImm());
 
   case MachineOperand::MO_MachineBasicBlock:
   case MachineOperand::MO_GlobalAddress:

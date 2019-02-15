@@ -68,6 +68,7 @@ ar9300_proc_rx_desc_fast(struct ath_hal *ah, struct ath_desc *ds,
 
     rxs->rs_status = 0;
     rxs->rs_flags =  0;
+    rxs->rs_phyerr = 0;
 
     rxs->rs_datalen = rxsp->status2 & AR_data_len;
     rxs->rs_tstamp =  rxsp->status3;
@@ -93,8 +94,15 @@ ar9300_proc_rx_desc_fast(struct ath_hal *ah, struct ath_desc *ds,
     rxs->rs_moreaggr = (rxsp->status11 & AR_rx_more_aggr) ? 1 : 0;
     rxs->rs_antenna = (MS(rxsp->status4, AR_rx_antenna) & 0x7);
     rxs->rs_flags = (rxsp->status11 & AR_apsd_trig) ? HAL_RX_IS_APSD : 0;
-    rxs->rs_flags  |= (rxsp->status4 & AR_gi) ? HAL_RX_GI : 0;
-    rxs->rs_flags  |= (rxsp->status4 & AR_2040) ? HAL_RX_2040 : 0;
+    rxs->rs_flags |= (rxsp->status4 & AR_gi) ? HAL_RX_GI : 0;
+    rxs->rs_flags |= (rxsp->status4 & AR_2040) ? HAL_RX_2040 : 0;
+
+    /* TX beamforming; CSI for locationing */
+    rxs->rs_flags |= (rxsp->status2 & AR_hw_upload_data) ? HAL_RX_HW_UPLOAD_DATA : 0;
+    rxs->rs_flags |= (rxsp->status4 & AR_rx_not_sounding) ? 0 : HAL_RX_HW_SOUNDING;
+    rxs->rs_ness = MS(rxsp->status4, AR_rx_ness);
+    rxs->rs_flags |= (rxsp->status4 & AR_hw_upload_data_valid) ? HAL_RX_UPLOAD_VALID : 0;
+    rxs->rs_hw_upload_data_type = MS(rxsp->status11, AR_hw_upload_data_type);
 
     /* Copy EVM information */
     rxs->rs_evm0 = rxsp->status6;
@@ -129,17 +137,16 @@ ar9300_proc_rx_desc_fast(struct ath_hal *ah, struct ath_desc *ds,
          * Consequently we filter them out here so we don't
          * confuse and/or complicate drivers.
          */
+
         if (rxsp->status11 & AR_crc_err) {
             rxs->rs_status |= HAL_RXERR_CRC;
-            /* 
-			 * ignore CRC flag for spectral phy reports
-			 */
+            /*
+             * ignore CRC flag for phy reports
+             */
             if (rxsp->status11 & AR_phyerr) {
                 u_int phyerr = MS(rxsp->status11, AR_phy_err_code);
-                if (phyerr == HAL_PHYERR_SPECTRAL) {
-                    rxs->rs_status |= HAL_RXERR_PHY;
-                    rxs->rs_phyerr = phyerr;
-                }
+                rxs->rs_status |= HAL_RXERR_PHY;
+                rxs->rs_phyerr = phyerr;
             }
         } else if (rxsp->status11 & AR_phyerr) {
             u_int phyerr;
@@ -164,8 +171,27 @@ ar9300_proc_rx_desc_fast(struct ath_hal *ah, struct ath_desc *ds,
         } else if (rxsp->status11 & AR_michael_err) {
             rxs->rs_status |= HAL_RXERR_MIC;
         }
+    } else {
+        if (rxsp->status11 & AR_position_bit) {
+#if 1
+            rxs->rs_flags |= HAL_RX_LOC_INFO;
+#else
+            /*
+             * If the locationing counter is enabled, Osprey always
+             * seems to put AR_position_bit in each frame.
+             * So, only do this if we also have a valid upload
+             * and it's type "1" (which I'm guessing is CSI.)
+             */
+            if ((rxs->rs_flags & HAL_RX_UPLOAD_VALID) &&
+                (rxs->rs_hw_upload_data_type == 1)) {
+                    rxs->rs_flags |= HAL_RX_LOC_INFO;
+            }
+#endif
+        }
     }
-
+#if 0
+    rxs->rs_channel = AH_PRIVATE(ah)->ah_curchan->channel;
+#endif
     return HAL_OK;
 }
 

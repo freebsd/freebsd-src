@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Peter Grehan
  * Copyright (c) 2009 Nathan Whitehorn
  * All rights reserved.
@@ -39,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/ktr.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
@@ -86,8 +89,8 @@ static void
 memr_merge(struct mem_region *from, struct mem_region *to)
 {
 	vm_offset_t end;
-	end = ulmax(to->mr_start + to->mr_size, from->mr_start + from->mr_size);
-	to->mr_start = ulmin(from->mr_start, to->mr_start);
+	end = uqmax(to->mr_start + to->mr_size, from->mr_start + from->mr_size);
+	to->mr_start = uqmin(from->mr_start, to->mr_start);
 	to->mr_size = end - to->mr_start;
 }
 
@@ -153,10 +156,14 @@ mem_regions(struct mem_region **phys, int *physsz, struct mem_region **avail,
 		}
 	}
 
-	*phys = pregions;
-	*avail = aregions;
-	*physsz = npregions;
-	*availsz = naregions;
+	if (phys != NULL)
+		*phys = pregions;
+	if (avail != NULL)
+		*avail = aregions;
+	if (physsz != NULL)
+		*physsz = npregions;
+	if (availsz != NULL)
+		*availsz = naregions;
 }
 
 int
@@ -250,6 +257,12 @@ void
 cpu_reset()
 {
         PLATFORM_RESET(plat_obj);
+}
+
+void platform_smp_timebase_sync(u_long tb, int ap)
+{
+
+	PLATFORM_SMP_TIMEBASE_SYNC(plat_obj, tb, ap);
 }
 
 /*

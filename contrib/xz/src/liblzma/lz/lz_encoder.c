@@ -20,8 +20,10 @@
 #	include "lz_encoder_hash_table.h"
 #endif
 
+#include "memcmplen.h"
 
-struct lzma_coder_s {
+
+typedef struct {
 	/// LZ-based encoder e.g. LZMA
 	lzma_lz_encoder lz;
 
@@ -30,7 +32,7 @@ struct lzma_coder_s {
 
 	/// Next coder in the chain
 	lzma_next_coder next;
-};
+} lzma_coder;
 
 
 /// \brief      Moves the data in the input window to free space for new data
@@ -76,8 +78,9 @@ move_window(lzma_mf *mf)
 /// This function must not be called once it has returned LZMA_STREAM_END.
 ///
 static lzma_ret
-fill_window(lzma_coder *coder, lzma_allocator *allocator, const uint8_t *in,
-		size_t *in_pos, size_t in_size, lzma_action action)
+fill_window(lzma_coder *coder, const lzma_allocator *allocator,
+		const uint8_t *in, size_t *in_pos, size_t in_size,
+		lzma_action action)
 {
 	assert(coder->mf.read_pos <= coder->mf.write_pos);
 
@@ -107,6 +110,12 @@ fill_window(lzma_coder *coder, lzma_allocator *allocator, const uint8_t *in,
 
 	coder->mf.write_pos = write_pos;
 
+	// Silence Valgrind. lzma_memcmplen() can read extra bytes
+	// and Valgrind will give warnings if those bytes are uninitialized
+	// because Valgrind cannot see that the values of the uninitialized
+	// bytes are eventually ignored.
+	memzero(coder->mf.buffer + write_pos, LZMA_MEMCMPLEN_EXTRA);
+
 	// If end of stream has been reached or flushing completed, we allow
 	// the encoder to process all the input (that is, read_pos is allowed
 	// to reach write_pos). Otherwise we keep keep_size_after bytes
@@ -130,7 +139,7 @@ fill_window(lzma_coder *coder, lzma_allocator *allocator, const uint8_t *in,
 			&& coder->mf.read_pos < coder->mf.read_limit) {
 		// Match finder may update coder->pending and expects it to
 		// start from zero, so use a temporary variable.
-		const size_t pending = coder->mf.pending;
+		const uint32_t pending = coder->mf.pending;
 		coder->mf.pending = 0;
 
 		// Rewind read_pos so that the match finder can hash
@@ -148,12 +157,14 @@ fill_window(lzma_coder *coder, lzma_allocator *allocator, const uint8_t *in,
 
 
 static lzma_ret
-lz_encode(lzma_coder *coder, lzma_allocator *allocator,
+lz_encode(void *coder_ptr, const lzma_allocator *allocator,
 		const uint8_t *restrict in, size_t *restrict in_pos,
 		size_t in_size,
 		uint8_t *restrict out, size_t *restrict out_pos,
 		size_t out_size, lzma_action action)
 {
+	lzma_coder *coder = coder_ptr;
+
 	while (*out_pos < out_size
 			&& (*in_pos < in_size || action != LZMA_RUN)) {
 		// Read more data to coder->mf.buffer if needed.
@@ -179,7 +190,7 @@ lz_encode(lzma_coder *coder, lzma_allocator *allocator,
 
 
 static bool
-lz_encoder_prepare(lzma_mf *mf, lzma_allocator *allocator,
+lz_encoder_prepare(lzma_mf *mf, const lzma_allocator *allocator,
 		const lzma_lz_options *lz_options)
 {
 	// For now, the dictionary size is limited to 1.5 GiB. This may grow
@@ -325,25 +336,22 @@ lz_encoder_prepare(lzma_mf *mf, lzma_allocator *allocator,
 		hs += HASH_4_SIZE;
 */
 
-	// If the above code calculating hs is modified, make sure that
-	// this assertion stays valid (UINT32_MAX / 5 is not strictly the
-	// exact limit). If it doesn't, you need to calculate that
-	// hash_size_sum + sons_count cannot overflow.
-	assert(hs < UINT32_MAX / 5);
-
-	const uint32_t old_count = mf->hash_size_sum + mf->sons_count;
-	mf->hash_size_sum = hs;
+	const uint32_t old_hash_count = mf->hash_count;
+	const uint32_t old_sons_count = mf->sons_count;
+	mf->hash_count = hs;
 	mf->sons_count = mf->cyclic_size;
 	if (is_bt)
 		mf->sons_count *= 2;
 
-	const uint32_t new_count = mf->hash_size_sum + mf->sons_count;
-
 	// Deallocate the old hash array if it exists and has different size
 	// than what is needed now.
-	if (old_count != new_count) {
+	if (old_hash_count != mf->hash_count
+			|| old_sons_count != mf->sons_count) {
 		lzma_free(mf->hash, allocator);
 		mf->hash = NULL;
+
+		lzma_free(mf->son, allocator);
+		mf->son = NULL;
 	}
 
 	// Maximum number of match finder cycles
@@ -360,14 +368,23 @@ lz_encoder_prepare(lzma_mf *mf, lzma_allocator *allocator,
 
 
 static bool
-lz_encoder_init(lzma_mf *mf, lzma_allocator *allocator,
+lz_encoder_init(lzma_mf *mf, const lzma_allocator *allocator,
 		const lzma_lz_options *lz_options)
 {
 	// Allocate the history buffer.
 	if (mf->buffer == NULL) {
-		mf->buffer = lzma_alloc(mf->size, allocator);
+		// lzma_memcmplen() is used for the dictionary buffer
+		// so we need to allocate a few extra bytes to prevent
+		// it from reading past the end of the buffer.
+		mf->buffer = lzma_alloc(mf->size + LZMA_MEMCMPLEN_EXTRA,
+				allocator);
 		if (mf->buffer == NULL)
 			return true;
+
+		// Keep Valgrind happy with lzma_memcmplen() and initialize
+		// the extra bytes whose value may get read but which will
+		// effectively get ignored.
+		memzero(mf->buffer + mf->size, LZMA_MEMCMPLEN_EXTRA);
 	}
 
 	// Use cyclic_size as initial mf->offset. This allows
@@ -381,43 +398,48 @@ lz_encoder_init(lzma_mf *mf, lzma_allocator *allocator,
 	mf->write_pos = 0;
 	mf->pending = 0;
 
-	// Allocate match finder's hash array.
-	const size_t alloc_count = mf->hash_size_sum + mf->sons_count;
-
 #if UINT32_MAX >= SIZE_MAX / 4
 	// Check for integer overflow. (Huge dictionaries are not
 	// possible on 32-bit CPU.)
-	if (alloc_count > SIZE_MAX / sizeof(uint32_t))
+	if (mf->hash_count > SIZE_MAX / sizeof(uint32_t)
+			|| mf->sons_count > SIZE_MAX / sizeof(uint32_t))
 		return true;
 #endif
 
+	// Allocate and initialize the hash table. Since EMPTY_HASH_VALUE
+	// is zero, we can use lzma_alloc_zero() or memzero() for mf->hash.
+	//
+	// We don't need to initialize mf->son, but not doing that may
+	// make Valgrind complain in normalization (see normalize() in
+	// lz_encoder_mf.c). Skipping the initialization is *very* good
+	// when big dictionary is used but only small amount of data gets
+	// actually compressed: most of the mf->son won't get actually
+	// allocated by the kernel, so we avoid wasting RAM and improve
+	// initialization speed a lot.
 	if (mf->hash == NULL) {
-		mf->hash = lzma_alloc(alloc_count * sizeof(uint32_t),
+		mf->hash = lzma_alloc_zero(mf->hash_count * sizeof(uint32_t),
 				allocator);
-		if (mf->hash == NULL)
+		mf->son = lzma_alloc(mf->sons_count * sizeof(uint32_t),
+				allocator);
+
+		if (mf->hash == NULL || mf->son == NULL) {
+			lzma_free(mf->hash, allocator);
+			mf->hash = NULL;
+
+			lzma_free(mf->son, allocator);
+			mf->son = NULL;
+
 			return true;
+		}
+	} else {
+/*
+		for (uint32_t i = 0; i < mf->hash_count; ++i)
+			mf->hash[i] = EMPTY_HASH_VALUE;
+*/
+		memzero(mf->hash, mf->hash_count * sizeof(uint32_t));
 	}
 
-	mf->son = mf->hash + mf->hash_size_sum;
 	mf->cyclic_pos = 0;
-
-	// Initialize the hash table. Since EMPTY_HASH_VALUE is zero, we
-	// can use memset().
-/*
-	for (uint32_t i = 0; i < hash_size_sum; ++i)
-		mf->hash[i] = EMPTY_HASH_VALUE;
-*/
-	memzero(mf->hash, (size_t)(mf->hash_size_sum) * sizeof(uint32_t));
-
-	// We don't need to initialize mf->son, but not doing that will
-	// make Valgrind complain in normalization (see normalize() in
-	// lz_encoder_mf.c).
-	//
-	// Skipping this initialization is *very* good when big dictionary is
-	// used but only small amount of data gets actually compressed: most
-	// of the mf->hash won't get actually allocated by the kernel, so
-	// we avoid wasting RAM and improve initialization speed a lot.
-	//memzero(mf->son, (size_t)(mf->sons_count) * sizeof(uint32_t));
 
 	// Handle preset dictionary.
 	if (lz_options->preset_dict != NULL
@@ -445,7 +467,8 @@ lzma_lz_encoder_memusage(const lzma_lz_options *lz_options)
 	lzma_mf mf = {
 		.buffer = NULL,
 		.hash = NULL,
-		.hash_size_sum = 0,
+		.son = NULL,
+		.hash_count = 0,
 		.sons_count = 0,
 	};
 
@@ -454,17 +477,19 @@ lzma_lz_encoder_memusage(const lzma_lz_options *lz_options)
 		return UINT64_MAX;
 
 	// Calculate the memory usage.
-	return (uint64_t)(mf.hash_size_sum + mf.sons_count)
-				* sizeof(uint32_t)
-			+ (uint64_t)(mf.size) + sizeof(lzma_coder);
+	return ((uint64_t)(mf.hash_count) + mf.sons_count) * sizeof(uint32_t)
+			+ mf.size + sizeof(lzma_coder);
 }
 
 
 static void
-lz_encoder_end(lzma_coder *coder, lzma_allocator *allocator)
+lz_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
 {
+	lzma_coder *coder = coder_ptr;
+
 	lzma_next_end(&coder->next, allocator);
 
+	lzma_free(coder->mf.son, allocator);
 	lzma_free(coder->mf.hash, allocator);
 	lzma_free(coder->mf.buffer, allocator);
 
@@ -479,10 +504,12 @@ lz_encoder_end(lzma_coder *coder, lzma_allocator *allocator)
 
 
 static lzma_ret
-lz_encoder_update(lzma_coder *coder, lzma_allocator *allocator,
+lz_encoder_update(void *coder_ptr, const lzma_allocator *allocator,
 		const lzma_filter *filters_null lzma_attribute((__unused__)),
 		const lzma_filter *reversed_filters)
 {
+	lzma_coder *coder = coder_ptr;
+
 	if (coder->lz.options_update == NULL)
 		return LZMA_PROG_ERROR;
 
@@ -495,10 +522,10 @@ lz_encoder_update(lzma_coder *coder, lzma_allocator *allocator,
 
 
 extern lzma_ret
-lzma_lz_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+lzma_lz_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter_info *filters,
 		lzma_ret (*lz_init)(lzma_lz_encoder *lz,
-			lzma_allocator *allocator, const void *options,
+			const lzma_allocator *allocator, const void *options,
 			lzma_lz_options *lz_options))
 {
 #ifdef HAVE_SMALL
@@ -507,45 +534,51 @@ lzma_lz_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
 #endif
 
 	// Allocate and initialize the base data structure.
-	if (next->coder == NULL) {
-		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
-		if (next->coder == NULL)
+	lzma_coder *coder = next->coder;
+	if (coder == NULL) {
+		coder = lzma_alloc(sizeof(lzma_coder), allocator);
+		if (coder == NULL)
 			return LZMA_MEM_ERROR;
 
+		next->coder = coder;
 		next->code = &lz_encode;
 		next->end = &lz_encoder_end;
 		next->update = &lz_encoder_update;
 
-		next->coder->lz.coder = NULL;
-		next->coder->lz.code = NULL;
-		next->coder->lz.end = NULL;
+		coder->lz.coder = NULL;
+		coder->lz.code = NULL;
+		coder->lz.end = NULL;
 
-		next->coder->mf.buffer = NULL;
-		next->coder->mf.hash = NULL;
-		next->coder->mf.hash_size_sum = 0;
-		next->coder->mf.sons_count = 0;
+		// mf.size is initialized to silence Valgrind
+		// when used on optimized binaries (GCC may reorder
+		// code in a way that Valgrind gets unhappy).
+		coder->mf.buffer = NULL;
+		coder->mf.size = 0;
+		coder->mf.hash = NULL;
+		coder->mf.son = NULL;
+		coder->mf.hash_count = 0;
+		coder->mf.sons_count = 0;
 
-		next->coder->next = LZMA_NEXT_CODER_INIT;
+		coder->next = LZMA_NEXT_CODER_INIT;
 	}
 
 	// Initialize the LZ-based encoder.
 	lzma_lz_options lz_options;
-	return_if_error(lz_init(&next->coder->lz, allocator,
+	return_if_error(lz_init(&coder->lz, allocator,
 			filters[0].options, &lz_options));
 
-	// Setup the size information into next->coder->mf and deallocate
+	// Setup the size information into coder->mf and deallocate
 	// old buffers if they have wrong size.
-	if (lz_encoder_prepare(&next->coder->mf, allocator, &lz_options))
+	if (lz_encoder_prepare(&coder->mf, allocator, &lz_options))
 		return LZMA_OPTIONS_ERROR;
 
 	// Allocate new buffers if needed, and do the rest of
 	// the initialization.
-	if (lz_encoder_init(&next->coder->mf, allocator, &lz_options))
+	if (lz_encoder_init(&coder->mf, allocator, &lz_options))
 		return LZMA_MEM_ERROR;
 
 	// Initialize the next filter in the chain, if any.
-	return lzma_next_filter_init(&next->coder->next, allocator,
-			filters + 1);
+	return lzma_next_filter_init(&coder->next, allocator, filters + 1);
 }
 
 

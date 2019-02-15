@@ -1,7 +1,9 @@
 /*      $NetBSD: usbhidaction.c,v 1.8 2002/06/11 06:06:21 itojun Exp $ */
 /*	$FreeBSD$ */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2000, 2002 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -166,17 +168,15 @@ main(int argc, char **argv)
 
 	if (demon) {
 		fp = open(pidfile, O_WRONLY|O_CREAT, S_IRUSR|S_IRGRP|S_IROTH);
-		if (fp >= 0) {
-			sz1 = snprintf(buf, sizeof buf, "%ld\n", 
-			    (long)getpid());
-			if (sz1 > sizeof buf)
-				sz1 = sizeof buf;
-			write(fp, buf, sz1);
-			close(fp);
-		} else
+		if (fp < 0)
 			err(1, "%s", pidfile);
 		if (daemon(0, 0) < 0)
 			err(1, "daemon()");
+		snprintf(buf, sizeof(buf), "%ld\n", (long)getpid());
+		sz1 = strlen(buf);
+		if (write(fp, buf, sz1) < 0)
+			err(1, "%s", pidfile);
+		close(fp);
 		isdemon = 1;
 	}
 

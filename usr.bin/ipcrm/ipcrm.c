@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994 Adam Glass
  * All rights reserved.
  *
@@ -34,11 +36,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#define _KERNEL
-#include <sys/sem.h>
-#include <sys/shm.h>
+#define	_WANT_SYSVMSG_INTERNALS
 #include <sys/msg.h>
-#undef _KERNEL
+#define	_WANT_SYSVSEM_INTERNALS
+#define	_WANT_SEMUN
+#include <sys/sem.h>
+#define	_WANT_SYSVSHM_INTERNALS
+#include <sys/shm.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -50,18 +54,11 @@ __FBSDID("$FreeBSD$");
 
 #include "ipc.h"
 
-int	signaled;
-int	errflg;
-int	rmverbose = 0;
+static int	signaled;
+static int	errflg;
+static int	rmverbose = 0;
 
-void	usage(void);
-
-int	msgrm(key_t, int);
-int	shmrm(key_t, int);
-int	semrm(key_t, int);
-void	not_configured(int);
-
-void
+static void
 usage(void)
 {
 
@@ -72,7 +69,7 @@ usage(void)
 	exit(1);
 }
 
-int
+static int
 msgrm(key_t key, int id)
 {
 
@@ -113,7 +110,7 @@ msgrm(key_t key, int id)
 	return msgctl(id, IPC_RMID, NULL);
 }
 
-int
+static int
 shmrm(key_t key, int id)
 {
 
@@ -154,7 +151,7 @@ shmrm(key_t key, int id)
 	return shmctl(id, IPC_RMID, NULL);
 }
 
-int
+static int
 semrm(key_t key, int id)
 {
 	union semun arg;
@@ -173,7 +170,7 @@ semrm(key_t key, int id)
 			if ((kxsema[num].u.sem_perm.mode & SEM_ALLOC) != 0) {
 				id = IXSEQ_TO_IPCID(num,
 					kxsema[num].u.sem_perm);
-				if (semctl(id, IPC_RMID, NULL) < 0) {
+				if (semctl(id, 0, IPC_RMID, NULL) < 0) {
 					if (rmverbose > 1)
 						warn("semid(%d): ", id);
 					errflg++;
@@ -196,7 +193,7 @@ semrm(key_t key, int id)
 	return semctl(id, 0, IPC_RMID, arg);
 }
 
-void
+static void
 not_configured(int signo __unused)
 {
 

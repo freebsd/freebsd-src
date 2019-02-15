@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -465,7 +467,7 @@ typedef struct SMP_REQUEST_CONFIGURE_ROUTE_INFORMATION
 
 /**
  * @struct SMP_REQUEST_PHY_CONTROL
- * @brief  This structure defines the contents of an SMP Phy Controler
+ * @brief  This structure defines the contents of an SMP Phy Controller
  *         request.
  *         @note For specific information on each of these
  *               individual fields please reference the SAS specification.

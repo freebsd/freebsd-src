@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -147,7 +149,7 @@ void sati_move_small_udma_translate_command(
  *        please reference sati_translate_command()
  *
  * @param[in] sector_count This parameter specifies the number of sectors
- *            to be transfered.
+ *            to be transferred.
  * @param[in] write_opcode This parameter specifies the value to be written
  *            to the ATA command register for a write (data out) operation.
  * @param[in] read_opcode This parameter specifies the value to be written
@@ -220,7 +222,7 @@ void sati_move_ncq_translate_8_bit_sector_count(
  * @note This method should only be called for CDB sizes of 10-bytes or larger.
  *
  * @param[in] sector_count This parameter specifies the number of sectors
- *            to be transfered.
+ *            to be transferred.
  * @param[in] is_fpdma_command This parameter indicates if the supplied
  *            ata_io is a first party DMA request (NCQ).
  *
@@ -491,7 +493,7 @@ SATI_STATUS sati_move_small_translate_command(
  *        please reference sati_translate_command().
  *
  * @param[in] sector_count This parameter specifies the number of sectors
- *            to be transfered.
+ *            to be transferred.
  * @param[in] device_head This parameter specifies the contents to be
  *            written to the device head register.
  *

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Konstantin Belousov <kib@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,45 +36,57 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 #include "libc_private.h"
 
-static u_int
-tc_delta(const struct vdso_timehands *th)
+static int
+tc_delta(const struct vdso_timehands *th, u_int *delta)
 {
+	int error;
+	u_int tc;
 
-	return ((__vdso_gettc(th) - th->th_offset_count) &
-	    th->th_counter_mask);
+	error = __vdso_gettc(th, &tc);
+	if (error == 0)
+		*delta = (tc - th->th_offset_count) & th->th_counter_mask;
+	return (error);
 }
 
+/*
+ * Calculate the absolute or boot-relative time from the
+ * machine-specific fast timecounter and the published timehands
+ * structure read from the shared page.
+ *
+ * The lockless reading scheme is similar to the one used to read the
+ * in-kernel timehands, see sys/kern/kern_tc.c:binuptime().  This code
+ * is based on the kernel implementation.
+ */
 static int
 binuptime(struct bintime *bt, struct vdso_timekeep *tk, int abs)
 {
 	struct vdso_timehands *th;
 	uint32_t curr, gen;
+	u_int delta;
+	int error;
 
 	do {
 		if (!tk->tk_enabled)
 			return (ENOSYS);
 
-		/*
-		 * XXXKIB. The load of tk->tk_current should use
-		 * atomic_load_acq_32 to provide load barrier. But
-		 * since tk points to r/o mapped page, x86
-		 * implementation of atomic_load_acq faults.
-		 */
-		curr = tk->tk_current;
-		rmb();
+		curr = atomic_load_acq_32(&tk->tk_current);
 		th = &tk->tk_th[curr];
-		if (th->th_algo != VDSO_TH_ALGO_1)
-			return (ENOSYS);
-		gen = th->th_gen;
+		gen = atomic_load_acq_32(&th->th_gen);
 		*bt = th->th_offset;
-		bintime_addx(bt, th->th_scale * tc_delta(th));
+		error = tc_delta(th, &delta);
+		if (error == EAGAIN)
+			continue;
+		if (error != 0)
+			return (error);
+		bintime_addx(bt, th->th_scale * delta);
 		if (abs)
 			bintime_add(bt, &th->th_boottime);
 
 		/*
-		 * Barrier for load of both tk->tk_current and th->th_gen.
+		 * Ensure that the load of th_offset is completed
+		 * before the load of th_gen.
 		 */
-		rmb();
+		atomic_thread_fence_acq();
 	} while (curr != tk->tk_current || gen == 0 || gen != th->th_gen);
 	return (0);
 }

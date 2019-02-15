@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2012 Broadcom Corporation
  * All Rights Reserved
  *
@@ -12,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -77,9 +79,6 @@
 #define	XLP_SEC_MAX_AUTH_KEY_LENGTH	XLP_SEC_SHA512_BLOCK_SIZE
 #define	XLP_SEC_MAX_RC4_STATE_SIZE	264	/* char s[256], int i, int j */
 
-#define	XLP_SEC_SESSION(sid)	((sid) & 0x000007ff)
-#define	XLP_SEC_SID(crd,ses)	(((crd) << 28) | ((ses) & 0x7ff))
-
 #define	CRYPTO_ERROR(msg1)	((unsigned int)msg1)
 
 #define	NLM_CRYPTO_LEFT_REQS (CMS_DEFAULT_CREDIT/2)
@@ -91,7 +90,6 @@
 extern unsigned int creditleft;
 
 struct xlp_sec_command {
-	uint16_t session_num;
 	struct cryptop *crp;
 	struct cryptodesc *enccrd, *maccrd;
 	struct xlp_sec_session *ses;
@@ -105,20 +103,18 @@ struct xlp_sec_command {
 	uint32_t hashoff;
 	uint32_t hashlen;
 	uint32_t cipheroff;
-	uint32_t cipherlen;	
+	uint32_t cipherlen;
 	uint32_t ivoff;
 	uint32_t ivlen;
 	uint32_t hashalg;
 	uint32_t hashmode;
 	uint32_t cipheralg;
-	uint32_t ciphermode;	
+	uint32_t ciphermode;
 	uint32_t nsegs;
 	uint32_t hash_dst_len; /* used to store hash alg dst size */
 };
 
 struct xlp_sec_session {
-	uint32_t sessionid;
-	int hs_used;
 	int hs_mlen;
 	uint8_t ses_iv[EALG_MAX_BLOCK_LEN];
 	struct xlp_sec_command cmd;
@@ -131,8 +127,6 @@ struct xlp_sec_softc {
 	device_t sc_dev;	/* device backpointer */
 	uint64_t sec_base;
 	int32_t sc_cid;
-	struct xlp_sec_session *sc_sessions;
-	int sc_nsessions;
 	int sc_needwakeup;
 	uint32_t sec_vc_start;
 	uint32_t sec_vc_end;

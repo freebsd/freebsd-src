@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause AND BSD-2-Clause
+ *
  * Copyright 2001 The Aerospace Corporation.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,7 +72,7 @@
  *
  * Packets received on the "gif" hook have their type header removed
  * and are passed to the appropriate hook protocol hook.  Packets
- * recieved on a protocol hook have a type header added back and are
+ * received on a protocol hook have a type header added back and are
  * passed out the gif hook. The currently supported protocol hooks are:
  */
 
@@ -111,7 +113,7 @@ const static struct iffam gFamilies[] = {
 	{ AF_ATM,	NG_GIF_DEMUX_HOOK_ATM	},
 	{ AF_NATM,	NG_GIF_DEMUX_HOOK_NATM	},
 };
-#define NUM_FAMILIES		(sizeof(gFamilies) / sizeof(*gFamilies))
+#define	NUM_FAMILIES		nitems(gFamilies)
 
 /* Per-node private data */
 struct ng_gif_demux_private {

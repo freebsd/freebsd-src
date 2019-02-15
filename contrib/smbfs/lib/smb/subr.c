@@ -232,6 +232,8 @@ smb_simplecrypt(char *dst, const char *src)
 			  islower(ch) ? ('a' + (ch - 'a' + 13) % 26) : ch);
 		ch ^= pos;
 		pos += 13;
+		if (pos > 256)
+			pos -= 256;
 		sprintf(dst, "%02x", ch);
 		dst += 2;
 	}
@@ -262,6 +264,8 @@ smb_simpledecrypt(char *dst, const char *src)
 			return EINVAL;
 		ch ^= pos;
 		pos += 13;
+		if (pos > 256)
+			pos -= 256;
 		if (isascii(ch))
 		    ch = (isupper(ch) ? ('A' + (ch - 'A' + 13) % 26) :
 			  islower(ch) ? ('a' + (ch - 'a' + 13) % 26) : ch);

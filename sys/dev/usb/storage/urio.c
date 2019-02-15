@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Iwasa Kazmi
  * All rights reserved.
  *
@@ -81,7 +83,7 @@ __FBSDID("$FreeBSD$");
 static int urio_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, urio, CTLFLAG_RW, 0, "USB urio");
-SYSCTL_INT(_hw_usb_urio, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_urio, OID_AUTO, debug, CTLFLAG_RWTUN,
     &urio_debug, 0, "urio debug level");
 #endif
 
@@ -195,15 +197,16 @@ static driver_t urio_driver = {
 	.size = sizeof(struct urio_softc),
 };
 
-DRIVER_MODULE(urio, uhub, urio_driver, urio_devclass, NULL, 0);
-MODULE_DEPEND(urio, usb, 1, 1, 1);
-MODULE_VERSION(urio, 1);
-
 static const STRUCT_USB_HOST_ID urio_devs[] = {
 	{USB_VPI(USB_VENDOR_DIAMOND, USB_PRODUCT_DIAMOND_RIO500USB, 0)},
 	{USB_VPI(USB_VENDOR_DIAMOND2, USB_PRODUCT_DIAMOND2_RIO600USB, 0)},
 	{USB_VPI(USB_VENDOR_DIAMOND2, USB_PRODUCT_DIAMOND2_RIO800USB, 0)},
 };
+
+DRIVER_MODULE(urio, uhub, urio_driver, urio_devclass, NULL, 0);
+MODULE_DEPEND(urio, usb, 1, 1, 1);
+MODULE_VERSION(urio, 1);
+USB_PNP_HOST_INFO(urio_devs);
 
 static int
 urio_probe(device_t dev)

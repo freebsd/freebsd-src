@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Orion Hodson <oho@acm.org>
  * All rights reserved.
  *
@@ -736,15 +738,15 @@ als_resource_free(device_t dev, struct sc_info *sc)
 {
 	if (sc->reg) {
 		bus_release_resource(dev, SYS_RES_IOPORT, sc->regid, sc->reg);
-		sc->reg = 0;
+		sc->reg = NULL;
 	}
 	if (sc->ih) {
 		bus_teardown_intr(dev, sc->irq, sc->ih);
-		sc->ih = 0;
+		sc->ih = NULL;
 	}
 	if (sc->irq) {
 		bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
-		sc->irq = 0;
+		sc->irq = NULL;
 	}
 	if (sc->parent_dmat) {
 		bus_dma_tag_destroy(sc->parent_dmat);
@@ -760,9 +762,9 @@ static int
 als_resource_grab(device_t dev, struct sc_info *sc)
 {
 	sc->regid = PCIR_BAR(0);
-	sc->reg = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->regid, 0, ~0,
-				     ALS_CONFIG_SPACE_BYTES, RF_ACTIVE);
-	if (sc->reg == 0) {
+	sc->reg = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &sc->regid,
+					 RF_ACTIVE);
+	if (sc->reg == NULL) {
 		device_printf(dev, "unable to allocate register space\n");
 		goto bad;
 	}
@@ -771,7 +773,7 @@ als_resource_grab(device_t dev, struct sc_info *sc)
 
 	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqid,
 					 RF_ACTIVE | RF_SHAREABLE);
-	if (sc->irq == 0) {
+	if (sc->irq == NULL) {
 		device_printf(dev, "unable to allocate interrupt\n");
 		goto bad;
 	}
@@ -818,22 +820,12 @@ als_pci_attach(device_t dev)
          * ALS4000 is entirely controlled by the pci powerstate.  We
          * could attempt finer grained control by setting GCR6.31.
 	 */
-#if __FreeBSD_version > 500000
 	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
 		/* Reset the power state. */
 		device_printf(dev, "chip is in D%d power mode "
 			      "-- setting to D0\n", pci_get_powerstate(dev));
 		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 	}
-#else
-	data = pci_read_config(dev, ALS_PCI_POWERREG, 2);
-	if ((data & 0x03) != 0) {
-		device_printf(dev, "chip is in D%d power mode "
-			      "-- setting to D0\n", data & 0x03);
-		data &= ~0x03;
-		pci_write_config(dev, ALS_PCI_POWERREG, data, 2);
-	}
-#endif
 
 	if (als_resource_grab(dev, sc)) {
 		device_printf(dev, "failed to allocate resources\n");
@@ -858,7 +850,7 @@ als_pci_attach(device_t dev)
 	pcm_addchan(dev, PCMDIR_PLAY, &alspchan_class, sc);
 	pcm_addchan(dev, PCMDIR_REC,  &alsrchan_class, sc);
 
-	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld %s",
+	snprintf(status, SND_STATUSLEN, "at io 0x%jx irq %jd %s",
 		 rman_get_start(sc->reg), rman_get_start(sc->irq),PCM_KLDSTRING(snd_als4000));
 	pcm_setstatus(dev, status);
 	return 0;

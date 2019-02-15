@@ -27,6 +27,8 @@ __FBSDID("$FreeBSD$");
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * (C)Copyright 1995-2001 Tekram Technology Co.,Ltd.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -473,10 +475,6 @@ trm_ExecuteSRB(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		return;
 	}
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
-#if 0
-	/* XXX Need a timeout handler */
-	ccb->ccb_h.timeout_ch = timeout(trmtimeout, (caddr_t)srb, (ccb->ccb_h.timeout * hz) / 1000);
-#endif
 	trm_SendSRB(pACB, pSRB);
 	splx(flags);
 	return;
@@ -547,11 +545,6 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 	target_lun = pccb->ccb_h.target_lun;
 
 	switch (pccb->ccb_h.func_code) {
-		case XPT_NOOP:	        	
-			TRM_DPRINTF(" XPT_NOOP \n");
-			pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
 		/*
 		 * Execute the requested I/O operation 
 	 	 */
@@ -627,16 +620,6 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 			}
 			break;
 		}
-		case XPT_GDEV_TYPE:		    
-			TRM_DPRINTF(" XPT_GDEV_TYPE \n");
-	    		pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
-		case XPT_GDEVLIST:		    
-			TRM_DPRINTF(" XPT_GDEVLIST \n");
-			pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
 		/*
 		 * Path routing inquiry 
 	       	 * Path Inquiry CCB 
@@ -655,9 +638,9 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 			cpi->initiator_id = pACB->AdaptSCSIID;
 			cpi->bus_id = cam_sim_bus(psim);
 			cpi->base_transfer_speed = 3300;
-			strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-			strncpy(cpi->hba_vid, "Tekram_TRM", HBA_IDLEN);
-			strncpy(cpi->dev_name, cam_sim_name(psim), DEV_IDLEN);
+			strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+			strlcpy(cpi->hba_vid, "Tekram_TRM", HBA_IDLEN);
+			strlcpy(cpi->dev_name, cam_sim_name(psim), DEV_IDLEN);
 			cpi->unit_number = cam_sim_unit(psim);
 			cpi->transport = XPORT_SPI;
 			cpi->transport_version = 2;
@@ -665,76 +648,33 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 			cpi->protocol_version = SCSI_REV_2;
 			cpi->ccb_h.status = CAM_REQ_CMP;
 			xpt_done(pccb);
-				   }
 			break;
+		}
 		/*
-		 * Release a frozen SIM queue 
-		 * Release SIM Queue 
+		 * XPT_ABORT = 0x10, Abort the specified CCB
+		 * Abort XPT request CCB
 		 */
-		case XPT_REL_SIMQ:		    
-			TRM_DPRINTF(" XPT_REL_SIMQ \n");
-			pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
-		/*
-		 * Set Asynchronous Callback Parameters 
-		 * Set Asynchronous Callback CCB
- 		 */
-		case XPT_SASYNC_CB:		    
-			TRM_DPRINTF(" XPT_SASYNC_CB \n");
-			pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
-		/*
-		 * Set device type information 
-		 * Set Device Type CCB 
- 		 */
-		case XPT_SDEV_TYPE:		    
-			TRM_DPRINTF(" XPT_SDEV_TYPE \n");
-			pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
-		/*
-		 * Get EDT entries matching the given pattern 
- 		 */
-		case XPT_DEV_MATCH:	    	
-			TRM_DPRINTF(" XPT_DEV_MATCH \n");
-	    		pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
-		/*
-		 * Turn on debugging for a bus, target or lun 
-      		 */
-		case XPT_DEBUG:	    	    
-			TRM_DPRINTF(" XPT_DEBUG \n");
-			pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
-			/*
-			 * XPT_ABORT = 0x10, Abort the specified CCB 
-			 * Abort XPT request CCB 
-			 */
 		case XPT_ABORT:             
 			TRM_DPRINTF(" XPT_ABORT \n");
 			pccb->ccb_h.status = CAM_REQ_INVALID;
 			xpt_done(pccb);
 			break;
 		/*
-		 * Reset the specified SCSI bus 
-		 * Reset SCSI Bus CCB 
- 		 */
-		case XPT_RESET_BUS: {		
+		 * Reset the specified SCSI bus
+		 * Reset SCSI Bus CCB
+		 */
+		case XPT_RESET_BUS: {
 			int i;
 
 			TRM_DPRINTF(" XPT_RESET_BUS \n");
-	    		trm_reset(pACB);
+			trm_reset(pACB);
 			pACB->ACBFlag=0;
 			for (i=0; i<500; i++)
 				DELAY(1000);
 			pccb->ccb_h.status = CAM_REQ_CMP;
 			xpt_done(pccb);
-				    }
 			break;
+		}
 		/*
 		 * Bus Device Reset the specified SCSI device 
 		 * Reset SCSI Device CCB 
@@ -933,92 +873,6 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 			cam_calc_geometry(&pccb->ccg, /*extended*/1);
 			xpt_done(pccb);
 			break;
-		case XPT_ENG_INQ:           
-			TRM_DPRINTF(" XPT_ENG_INQ \n");
-	    		pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
-		/*
-		 * HBA execute engine request 
-		 * This structure must match SCSIIO size 
-		 */
-		case XPT_ENG_EXEC:		    
-			TRM_DPRINTF(" XPT_ENG_EXEC \n");
-	    		pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
-		/*
-		 * XPT_EN_LUN = 0x30, Enable LUN as a target 
-		 * Target mode structures. 
-	 	 */
-		case XPT_EN_LUN:            
-		/*
-		 * Don't (yet?) support vendor
-		 * specific commands.
-		 */
-			TRM_DPRINTF(" XPT_EN_LUN \n");
-			pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
-		/*
-		* Execute target I/O request 
-		*/
-		case XPT_TARGET_IO:		    
-		/*
-		 * Don't (yet?) support vendor
-		 * specific commands.
-		 */
-			TRM_DPRINTF(" XPT_TARGET_IO \n");
-			pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
-		/*
-		 * Accept Host Target Mode CDB 
-       		 */
-		case XPT_ACCEPT_TARGET_IO:	
-		/*
-		 * Don't (yet?) support vendor
-		 * specific commands.
-		 */
-			TRM_DPRINTF(" XPT_ACCEPT_TARGET_IO \n");
-			pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
-		/*
-		 * Continue Host Target I/O Connection 
- 		 */
-		case XPT_CONT_TARGET_IO:  	
-		/*
-		 * Don't (yet?) support vendor
-		 * specific commands.
-		 */
-			TRM_DPRINTF(" XPT_CONT_TARGET_IO \n");
-			pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
-		/*
-		 * Notify Host Target driver of event 
- 		 */
-		case XPT_IMMED_NOTIFY:	    
-			TRM_DPRINTF(" XPT_IMMED_NOTIFY \n");
-	    		pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
-		/*
-		 * Acknowledgement of event
-       		 */
-		case XPT_NOTIFY_ACK:	    
-			TRM_DPRINTF(" XPT_NOTIFY_ACK \n");
-	    		pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
-		/*
-		 * XPT_VUNIQUE = 0x80
-		 */
-		case XPT_VUNIQUE:   
-			pccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(pccb);
-			break;
 		default:
 			pccb->ccb_h.status = CAM_REQ_INVALID;
 			xpt_done(pccb);
@@ -1125,7 +979,7 @@ trm_reset(PACB pACB)
 	pACB->pActiveDCB = NULL;
 	pACB->ACBFlag = 0;/* RESET_DETECT, RESET_DONE ,RESET_DEV */
 	trm_DoWaitingSRB(pACB);
-	/* Tell the XPT layer that a bus reset occured    */
+	/* Tell the XPT layer that a bus reset occurred    */
 	if (pACB->ppath != NULL)
 		xpt_async(AC_BUS_RESET, pACB->ppath, NULL);
 	splx(intflag);
@@ -1894,7 +1748,7 @@ trm_MsgInPhase0(PACB pACB, PSRB pSRB, u_int16_t *pscsi_status)
 		}
 	} else {	
 	  /* 
-   	   * Parsing incomming extented messages 
+   	   * Parsing incoming extented messages 
 	   */
 		*pSRB->pMsgPtr = message_in_code;
 		pSRB->MsgCnt++;
@@ -3385,7 +3239,7 @@ trm_init(u_int16_t unit, device_t dev)
 	/*highaddr*/	BUS_SPACE_MAXADDR,
 	/*filter*/	NULL, 
 	/*filterarg*/	NULL,
-	/*maxsize*/	MAXBSIZE,
+	/*maxsize*/	TRM_MAXPHYS,
 	/*nsegments*/	TRM_NSEG,
 	/*maxsegsz*/	TRM_MAXTRANSFER_SIZE,
 	/*flags*/	BUS_DMA_ALLOCNOW,

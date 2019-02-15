@@ -76,7 +76,7 @@ compat_init_setproctitle(int argc, char *argv[])
 
 	/*
 	 * NB: This assumes that argv has already been copied out of the
-	 * way. This is true for sshd, but may not be true for other 
+	 * way. This is true for sshd, but may not be true for other
 	 * programs. Beware.
 	 */
 
@@ -92,7 +92,7 @@ compat_init_setproctitle(int argc, char *argv[])
 	}
 
 	/*
-	 * Find the last argv string or environment variable within 
+	 * Find the last argv string or environment variable within
 	 * our process memory area.
 	 */
 	for (i = 0; i < argc; i++) {
@@ -108,8 +108,8 @@ compat_init_setproctitle(int argc, char *argv[])
 	argv_start = argv[0];
 	argv_env_len = lastargv - argv[0] - 1;
 
-	/* 
-	 * Copy environment 
+	/*
+	 * Copy environment
 	 * XXX - will truncate env on strdup fail
 	 */
 	for (i = 0; envp[i] != NULL; i++)
@@ -156,7 +156,7 @@ setproctitle(const char *fmt, ...)
 	pst.pst_command = ptitle;
 	pstat(PSTAT_SETCMD, pst, strlen(ptitle), 0, 0);
 #elif SPT_TYPE == SPT_REUSEARGV
-/*	debug("setproctitle: copy \"%s\" into len %d", 
+/*	debug("setproctitle: copy \"%s\" into len %d",
 	    buf, argv_env_len); */
 	len = strlcpy(argv_start, ptitle, argv_env_len);
 	for(; len < argv_env_len; len++)

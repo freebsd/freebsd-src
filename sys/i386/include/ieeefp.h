@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003 Peter Wemm.
  * Copyright (c) 1990 Andrew Moore, Talke Studio
  * All rights reserved.
@@ -114,6 +116,8 @@ typedef enum {
 #define	__fnstcw(addr)	__asm __volatile("fnstcw %0" : "=m" (*(addr)))
 #define	__fnstenv(addr)	__asm __volatile("fnstenv %0" : "=m" (*(addr)))
 #define	__fnstsw(addr)	__asm __volatile("fnstsw %0" : "=m" (*(addr)))
+#define	__ldmxcsr(addr)	__asm __volatile("ldmxcsr %0" : : "m" (*(addr)))
+#define	__stmxcsr(addr)	__asm __volatile("stmxcsr %0" : "=m" (*(addr)))
 
 /*
  * Load the control word.  Be careful not to trap if there is a currently

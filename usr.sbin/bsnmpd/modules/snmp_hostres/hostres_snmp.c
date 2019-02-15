@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause AND Beerware)
+ *
  * Copyright (c) 2005-2006 The FreeBSD Project
  * All rights reserved.
  *
@@ -163,7 +165,7 @@ hostres_start(void)
 	start_processor_tbl(hostres_module);
 	start_network_tbl();
 
-        HRDBG("done.");
+	HRDBG("done.");
 }
 
 /* this identifies the HOST RESOURCES mib module */
@@ -175,8 +177,8 @@ const struct snmp_module config = {
 	NULL,
 	NULL,
 	hostres_start,
-	NULL,                   /* proxy a PDU */
-	hostres_ctree,          /* see the generated hostres_tree.h */
+	NULL,		   /* proxy a PDU */
+	hostres_ctree,	  /* see the generated hostres_tree.h */
 	hostres_CTREE_SIZE,     /* see the generated hostres_tree.h */
 	NULL
 };
@@ -201,8 +203,8 @@ make_date_time(u_char *str, const struct tm *tm, u_int decisecs)
 	else
 		str[8] = '+';
 
-	str[9] = (u_char)(abs(tm->tm_gmtoff) / 3600);
-	str[10] = (u_char)((abs(tm->tm_gmtoff) % 3600) / 60);
+	str[9] = (u_char)(labs(tm->tm_gmtoff) / 3600);
+	str[10] = (u_char)((labs(tm->tm_gmtoff) % 3600) / 60);
 
 	return (11);
 }

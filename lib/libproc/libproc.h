@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 The FreeBSD Foundation
  * Copyright (c) 2008 John Birrell (jb@freebsd.org)
  * All rights reserved.
@@ -49,6 +51,11 @@ typedef void (*proc_child_func)(void *);
 #define PS_UNDEAD	4
 #define PS_DEAD		5
 #define PS_LOST		6
+
+/* Flags for proc_attach(). */
+#define	PATTACH_FORCE	0x01
+#define	PATTACH_RDONLY	0x02
+#define	PATTACH_NOSTOP	0x04
 
 /* Reason values for proc_detach(). */
 #define PRELEASE_HANG	1
@@ -113,22 +120,30 @@ typedef struct lwpstatus {
 #define FLTBPT		-1
 } lwpstatus_t;
 
+#define	PR_MODEL_ILP32	1
+#define	PR_MODEL_LP64	2
+
+struct proc_handle_public {
+	pid_t		pid;
+};
+
+#define	proc_getpid(phdl)	(((struct proc_handle_public *)(phdl))->pid)
+
 /* Function prototype definitions. */
 __BEGIN_DECLS
 
 prmap_t *proc_addr2map(struct proc_handle *, uintptr_t);
 prmap_t *proc_name2map(struct proc_handle *, const char *);
 char	*proc_objname(struct proc_handle *, uintptr_t, char *, size_t);
-prmap_t *proc_obj2map(struct proc_handle *, const char *);
 int	proc_iter_objs(struct proc_handle *, proc_map_f *, void *);
 int	proc_iter_symbyaddr(struct proc_handle *, const char *, int,
-	     int, proc_sym_f *, void *);
+	    int, proc_sym_f *, void *);
 int	proc_addr2sym(struct proc_handle *, uintptr_t, char *, size_t, GElf_Sym *);
 int	proc_attach(pid_t pid, int flags, struct proc_handle **pphdl);
 int	proc_continue(struct proc_handle *);
 int	proc_clearflags(struct proc_handle *, int);
-int	proc_create(const char *, char * const *, proc_child_func *, void *,
-	    struct proc_handle **);
+int	proc_create(const char *, char * const *, char * const *,
+	    proc_child_func *, void *, struct proc_handle **);
 int	proc_detach(struct proc_handle *, int);
 int	proc_getflags(struct proc_handle *);
 int	proc_name2sym(struct proc_handle *, const char *, const char *,
@@ -136,7 +151,7 @@ int	proc_name2sym(struct proc_handle *, const char *, const char *,
 struct ctf_file *proc_name2ctf(struct proc_handle *, const char *);
 int	proc_setflags(struct proc_handle *, int);
 int	proc_state(struct proc_handle *);
-pid_t	proc_getpid(struct proc_handle *);
+int	proc_getmodel(struct proc_handle *);
 int	proc_wstatus(struct proc_handle *);
 int	proc_getwstat(struct proc_handle *);
 char *	proc_signame(int, char *, size_t);
@@ -154,4 +169,4 @@ int	proc_regset(struct proc_handle *, proc_reg_t, unsigned long);
 
 __END_DECLS
 
-#endif /* !_LIBPROC_H_ */
+#endif /* _LIBPROC_H_ */

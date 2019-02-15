@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2000, Boris Popov
  * Copyright (c) 1998-2000 Doug Rabson
  * Copyright (c) 2004 Peter Wemm
@@ -36,16 +38,16 @@
 
 #include <sys/param.h>
 #include <sys/linker.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <machine/elf.h>
-#define FREEBSD_ELF
 
 #include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <machine/elf.h>
+#define FREEBSD_ELF
 
 #include "ef.h"
 
@@ -99,36 +101,41 @@ struct ef_file {
 	int		ef_verbose;
 };
 
-static int ef_obj_get_type(elf_file_t ef);
-static int ef_obj_close(elf_file_t ef);
-static int ef_obj_read(elf_file_t ef, Elf_Off offset, size_t len, void* dest);
-static int ef_obj_read_entry(elf_file_t ef, Elf_Off offset, size_t len,
-    void **ptr);
-static int ef_obj_seg_read(elf_file_t ef, Elf_Off offset, size_t len,
-    void *dest);
-static int ef_obj_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len,
-    void *dest);
-static int ef_obj_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len,
-    void **ptr);
-static int ef_obj_seg_read_entry_rel(elf_file_t ef, Elf_Off offset, size_t len,
-    void **ptr);
-static Elf_Addr ef_obj_symaddr(elf_file_t ef, Elf_Size symidx);
-static int ef_obj_lookup_set(elf_file_t ef, const char *name, long *startp,
-    long *stopp, long *countp);
-static int ef_obj_lookup_symbol(elf_file_t ef, const char* name, Elf_Sym** sym);
+static int	ef_obj_get_type(elf_file_t ef);
+static int	ef_obj_close(elf_file_t ef);
+static int	ef_obj_read(elf_file_t ef, Elf_Off offset, size_t len,
+		    void* dest);
+static int	ef_obj_read_entry(elf_file_t ef, Elf_Off offset, size_t len,
+		    void **ptr);
+static int	ef_obj_seg_read(elf_file_t ef, Elf_Off offset, size_t len,
+		    void *dest);
+static int	ef_obj_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len,
+		    void *dest);
+static int	ef_obj_seg_read_string(elf_file_t ef, Elf_Off offset,
+		    size_t len, char *dest);
+static int	ef_obj_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len,
+		    void **ptr);
+static int	ef_obj_seg_read_entry_rel(elf_file_t ef, Elf_Off offset,
+		    size_t len, void **ptr);
+static Elf_Addr	ef_obj_symaddr(elf_file_t ef, Elf_Size symidx);
+static int	ef_obj_lookup_set(elf_file_t ef, const char *name, long *startp,
+		    long *stopp, long *countp);
+static int	ef_obj_lookup_symbol(elf_file_t ef, const char* name,
+		    Elf_Sym** sym);
 
 static struct elf_file_ops ef_obj_file_ops = {
-	ef_obj_get_type,
-	ef_obj_close,
-	ef_obj_read,
-	ef_obj_read_entry,
-	ef_obj_seg_read,
-	ef_obj_seg_read_rel,
-	ef_obj_seg_read_entry,
-	ef_obj_seg_read_entry_rel,
-	ef_obj_symaddr,
-	ef_obj_lookup_set,
-	ef_obj_lookup_symbol
+	.get_type		= ef_obj_get_type,
+	.close			= ef_obj_close,
+	.read			= ef_obj_read,
+	.read_entry		= ef_obj_read_entry,
+	.seg_read		= ef_obj_seg_read,
+	.seg_read_rel		= ef_obj_seg_read_rel,
+	.seg_read_string	= ef_obj_seg_read_string,
+	.seg_read_entry		= ef_obj_seg_read_entry,
+	.seg_read_entry_rel	= ef_obj_seg_read_entry_rel,
+	.symaddr		= ef_obj_symaddr,
+	.lookup_set		= ef_obj_lookup_set,
+	.lookup_symbol		= ef_obj_lookup_symbol
 };
 
 static int
@@ -149,10 +156,10 @@ ef_obj_lookup_symbol(elf_file_t ef, const char* name, Elf_Sym** sym)
 		strp = ef->ddbstrtab + symp->st_name;
 		if (symp->st_shndx != SHN_UNDEF && strcmp(name, strp) == 0) {
 			*sym = symp;
-			return 0;
+			return (0);
 		}
 	}
-	return ENOENT;
+	return (ENOENT);
 }
 
 static int
@@ -195,14 +202,14 @@ ef_obj_read(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 
 	if (offset != (Elf_Off)-1) {
 		if (lseek(ef->ef_fd, offset, SEEK_SET) == -1)
-			return EIO;
+			return (EIO);
 	}
 
 	r = read(ef->ef_fd, dest, len);
 	if (r != -1 && (size_t)r == len)
-		return 0;
+		return (0);
 	else
-		return EIO;
+		return (EIO);
 }
 
 static int
@@ -212,11 +219,11 @@ ef_obj_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void **ptr)
 
 	*ptr = malloc(len);
 	if (*ptr == NULL)
-		return ENOMEM;
+		return (errno);
 	error = ef_obj_read(ef, offset, len, *ptr);
-	if (error)
+	if (error != 0)
 		free(*ptr);
-	return error;
+	return (error);
 }
 
 static int
@@ -225,7 +232,7 @@ ef_obj_seg_read(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 
 	if (offset + len > ef->size) {
 		if (ef->ef_verbose)
-			warnx("ef_seg_read_rel(%s): bad offset/len (%lx:%ld)",
+			warnx("ef_obj_seg_read(%s): bad offset/len (%lx:%ld)",
 			    ef->ef_name, (long)offset, (long)len);
 		return (EFAULT);
 	}
@@ -244,7 +251,7 @@ ef_obj_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 
 	if (offset + len > ef->size) {
 		if (ef->ef_verbose)
-			warnx("ef_seg_read_rel(%s): bad offset/len (%lx:%ld)",
+			warnx("ef_obj_seg_read_rel(%s): bad offset/len (%lx:%ld)",
 			    ef->ef_name, (long)offset, (long)len);
 		return (EFAULT);
 	}
@@ -297,17 +304,38 @@ ef_obj_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 }
 
 static int
+ef_obj_seg_read_string(elf_file_t ef, Elf_Off offset, size_t len, char *dest)
+{
+
+	if (offset >= ef->size) {
+		if (ef->ef_verbose)
+			warnx("ef_obj_seg_read_string(%s): bad offset (%lx)",
+			    ef->ef_name, (long)offset);
+		return (EFAULT);
+	}
+
+	if (ef->size - offset < len)
+		len = ef->size - offset;
+
+	if (strnlen(ef->address + offset, len) == len)
+		return (EFAULT);
+
+	memcpy(dest, ef->address + offset, len);
+	return (0);
+}
+
+static int
 ef_obj_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void **ptr)
 {
 	int error;
 
 	*ptr = malloc(len);
 	if (*ptr == NULL)
-		return ENOMEM;
+		return (errno);
 	error = ef_obj_seg_read(ef, offset, len, *ptr);
-	if (error)
+	if (error != 0)
 		free(*ptr);
-	return error;
+	return (error);
 }
 
 static int
@@ -318,11 +346,11 @@ ef_obj_seg_read_entry_rel(elf_file_t ef, Elf_Off offset, size_t len,
 
 	*ptr = malloc(len);
 	if (*ptr == NULL)
-		return ENOMEM;
+		return (errno);
 	error = ef_obj_seg_read_rel(ef, offset, len, *ptr);
-	if (error)
+	if (error != 0)
 		free(*ptr);
-	return error;
+	return (error);
 }
 
 int
@@ -339,14 +367,14 @@ ef_obj_open(const char *filename, struct elf_file *efile, int verbose)
 	int i, j, nbytes, nsym, shstrindex, symstrindex, symtabindex;
 
 	if (filename == NULL)
-		return EFTYPE;
+		return (EINVAL);
 	if ((fd = open(filename, O_RDONLY)) == -1)
-		return errno;
+		return (errno);
 
 	ef = calloc(1, sizeof(*ef));
 	if (ef == NULL) {
 		close(fd);
-		return (ENOMEM);
+		return (errno);
 	}
 
 	efile->ef_ef = ef;
@@ -561,9 +589,9 @@ ef_obj_open(const char *filename, struct elf_file *efile, int verbose)
 	}
 	error = 0;
 out:
-	if (error)
+	if (error != 0)
 		ef_obj_close(ef);
-	return error;
+	return (error);
 }
 
 static int
@@ -602,5 +630,5 @@ ef_obj_close(elf_file_t ef)
 	ef->ef_efile->ef_ef = NULL;
 	free(ef);
 
-	return 0;
+	return (0);
 }

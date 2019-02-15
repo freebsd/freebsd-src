@@ -907,69 +907,6 @@ SOURCE=.\include\apr_version.h
 # Begin Source File
 
 SOURCE=.\include\apr_want.h
-
-!IF  "$(CFG)" == "apr - Win32 Release"
-
-# Begin Custom Build
-InputPath=.\include\apr_want.h
-
-".\LibR\gen_test_char.exe" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	type .\include\apr.hw > .\include\apr.h
-
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "apr - Win32 Debug"
-
-# Begin Custom Build
-InputPath=.\include\apr_want.h
-
-".\LibD\gen_test_char.exe" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	type .\include\apr.hw > .\include\apr.h
-
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "apr - Win32 Release9x"
-
-# Begin Custom Build
-InputPath=.\include\apr_want.h
-
-".\9x\LibR\gen_test_char.exe" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	type .\include\apr.hw > .\include\apr.h
-
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "apr - Win32 Debug9x"
-
-# Begin Custom Build
-InputPath=.\include\apr_want.h
-
-".\9x\LibD\gen_test_char.exe" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	type .\include\apr.hw > .\include\apr.h
-
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "apr - x64 Release"
-
-# Begin Custom Build
-InputPath=.\include\apr_want.h
-
-".\x64\LibR\gen_test_char.exe" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	type .\include\apr.hw > .\include\apr.h
-
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "apr - x64 Debug"
-
-# Begin Custom Build
-InputPath=.\include\apr_want.h
-
-".\x64\LibD\gen_test_char.exe" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	type .\include\apr.hw > .\include\apr.h
-
-# End Custom Build
-
-!ENDIF 
-
 # End Source File
 # End Group
 # End Target

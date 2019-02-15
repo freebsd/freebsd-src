@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003
  *	Bill Paul <wpaul@windriver.com>.  All rights reserved.
  *
@@ -722,7 +724,7 @@ IoGetDriverObjectExtension(drv, clid)
 
 	/*
 	 * Sanity check. Our dummy bus drivers don't have
-	 * any driver extentions.
+	 * any driver extensions.
 	 */
 
 	if (drv->dro_driverext == NULL)
@@ -2489,8 +2491,8 @@ MmAllocateContiguousMemorySpecifyCache(size, lowest, highest,
 		break;
 	}
 
-	ret = (void *)kmem_alloc_contig(kernel_arena, size, M_ZERO | M_NOWAIT,
-	    lowest, highest, PAGE_SIZE, boundary, memattr);
+	ret = (void *)kmem_alloc_contig(size, M_ZERO | M_NOWAIT, lowest,
+	    highest, PAGE_SIZE, boundary, memattr);
 	if (ret != NULL)
 		malloc_type_allocated(M_DEVBUF, round_page(size));
 	return (ret);
@@ -3188,17 +3190,14 @@ atol(str)
 static int
 rand(void)
 {
-	struct timeval		tv;
 
-	microtime(&tv);
-	srandom(tv.tv_usec);
-	return ((int)random());
+	return (random());
 }
 
 static void
-srand(seed)
-	unsigned int		seed;
+srand(unsigned int seed)
 {
+
 	srandom(seed);
 }
 
@@ -3749,7 +3748,7 @@ ntoskrnl_insert_timer(timer, ticks)
 
 	timer->k_callout = c;
 
-	callout_init(c, CALLOUT_MPSAFE);
+	callout_init(c, 1);
 	callout_reset(c, ticks, ntoskrnl_timercall, timer);
 }
 
@@ -4207,7 +4206,7 @@ KeQueryInterruptTime(void)
 
 	ticks = tvtohz(&tv);
 
-	return ticks * ((10000000 + hz - 1) / hz);
+	return ticks * howmany(10000000, hz);
 }
 
 static struct thread *

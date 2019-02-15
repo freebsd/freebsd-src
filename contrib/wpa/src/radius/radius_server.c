@@ -1,6 +1,6 @@
 /*
  * RADIUS authentication server
- * Copyright (c) 2005-2009, 2011, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2005-2009, 2011-2014, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -8,11 +8,16 @@
 
 #include "includes.h"
 #include <net/if.h>
+#ifdef CONFIG_SQLITE
+#include <sqlite3.h>
+#endif /* CONFIG_SQLITE */
 
 #include "common.h"
 #include "radius.h"
 #include "eloop.h"
 #include "eap_server/eap.h"
+#include "ap/ap_config.h"
+#include "crypto/tls.h"
 #include "radius_server.h"
 
 /**
@@ -30,7 +35,7 @@
  */
 #define RADIUS_MAX_MSG_LEN 3000
 
-static struct eapol_callbacks radius_server_eapol_cb;
+static const struct eapol_callbacks radius_server_eapol_cb;
 
 struct radius_client;
 struct radius_server_data;
@@ -49,6 +54,13 @@ struct radius_server_counters {
 	u32 bad_authenticators;
 	u32 packets_dropped;
 	u32 unknown_types;
+
+	u32 acct_requests;
+	u32 invalid_acct_requests;
+	u32 acct_responses;
+	u32 malformed_acct_requests;
+	u32 acct_bad_authenticators;
+	u32 unknown_acct_types;
 };
 
 /**
@@ -61,6 +73,8 @@ struct radius_session {
 	unsigned int sess_id;
 	struct eap_sm *eap;
 	struct eap_eapol_interface *eap_if;
+	char *username; /* from User-Name attribute */
+	char *nas_ip;
 
 	struct radius_msg *last_msg;
 	char *last_from_addr;
@@ -70,6 +84,11 @@ struct radius_session {
 	u8 last_identifier;
 	struct radius_msg *last_reply;
 	u8 last_authenticator[16];
+
+	unsigned int remediation:1;
+	unsigned int macacl:1;
+
+	struct hostapd_radius_attr *accept_attr;
 };
 
 /**
@@ -97,6 +116,11 @@ struct radius_server_data {
 	 * auth_sock - Socket for RADIUS authentication messages
 	 */
 	int auth_sock;
+
+	/**
+	 * acct_sock - Socket for RADIUS accounting messages
+	 */
+	int acct_sock;
 
 	/**
 	 * clients - List of authorized RADIUS clients
@@ -223,6 +247,27 @@ struct radius_server_data {
 	u16 pwd_group;
 
 	/**
+	 * server_id - Server identity
+	 */
+	const char *server_id;
+
+	/**
+	 * erp - Whether EAP Re-authentication Protocol (ERP) is enabled
+	 *
+	 * This controls whether the authentication server derives ERP key
+	 * hierarchy (rRK and rIK) from full EAP authentication and allows
+	 * these keys to be used to perform ERP to derive rMSK instead of full
+	 * EAP authentication to derive MSK.
+	 */
+	int erp;
+
+	const char *erp_domain;
+
+	struct dl_list erp_keys; /* struct eap_server_erp_key */
+
+	unsigned int tls_session_lifetime;
+
+	/**
 	 * wps - Wi-Fi Protected Setup context
 	 *
 	 * If WPS is used with an external RADIUS server (which is quite
@@ -239,7 +284,7 @@ struct radius_server_data {
 	/**
 	 * start_time - Timestamp of server start
 	 */
-	struct os_time start_time;
+	struct os_reltime start_time;
 
 	/**
 	 * counters - Statistics counters for server operations
@@ -290,10 +335,15 @@ struct radius_server_data {
 #ifdef CONFIG_RADIUS_TEST
 	char *dump_msk_file;
 #endif /* CONFIG_RADIUS_TEST */
+
+	char *subscr_remediation_url;
+	u8 subscr_remediation_method;
+
+#ifdef CONFIG_SQLITE
+	sqlite3 *db;
+#endif /* CONFIG_SQLITE */
 };
 
-
-extern int wpa_debug_level;
 
 #define RADIUS_DEBUG(args...) \
 wpa_printf(MSG_DEBUG, "RADIUS SRV: " args)
@@ -308,6 +358,52 @@ wpa_hexdump_ascii(MSG_MSGDUMP, "RADIUS SRV: " args)
 static void radius_server_session_timeout(void *eloop_ctx, void *timeout_ctx);
 static void radius_server_session_remove_timeout(void *eloop_ctx,
 						 void *timeout_ctx);
+
+void srv_log(struct radius_session *sess, const char *fmt, ...)
+PRINTF_FORMAT(2, 3);
+
+void srv_log(struct radius_session *sess, const char *fmt, ...)
+{
+	va_list ap;
+	char *buf;
+	int buflen;
+
+	va_start(ap, fmt);
+	buflen = vsnprintf(NULL, 0, fmt, ap) + 1;
+	va_end(ap);
+
+	buf = os_malloc(buflen);
+	if (buf == NULL)
+		return;
+	va_start(ap, fmt);
+	vsnprintf(buf, buflen, fmt, ap);
+	va_end(ap);
+
+	RADIUS_DEBUG("[0x%x %s] %s", sess->sess_id, sess->nas_ip, buf);
+
+#ifdef CONFIG_SQLITE
+	if (sess->server->db) {
+		char *sql;
+		sql = sqlite3_mprintf("INSERT INTO authlog"
+				      "(timestamp,session,nas_ip,username,note)"
+				      " VALUES ("
+				      "strftime('%%Y-%%m-%%d %%H:%%M:%%f',"
+				      "'now'),%u,%Q,%Q,%Q)",
+				      sess->sess_id, sess->nas_ip,
+				      sess->username, buf);
+		if (sql) {
+			if (sqlite3_exec(sess->server->db, sql, NULL, NULL,
+					 NULL) != SQLITE_OK) {
+				RADIUS_ERROR("Failed to add authlog entry into sqlite database: %s",
+					     sqlite3_errmsg(sess->server->db));
+			}
+			sqlite3_free(sql);
+		}
+	}
+#endif /* CONFIG_SQLITE */
+
+	os_free(buf);
+}
 
 
 static struct radius_client *
@@ -374,6 +470,8 @@ static void radius_server_session_free(struct radius_server_data *data,
 	radius_msg_free(sess->last_msg);
 	os_free(sess->last_from_addr);
 	radius_msg_free(sess->last_reply);
+	os_free(sess->username);
+	os_free(sess->nas_ip);
 	os_free(sess);
 	data->num_sess--;
 }
@@ -453,46 +551,124 @@ radius_server_new_session(struct radius_server_data *data,
 }
 
 
+#ifdef CONFIG_TESTING_OPTIONS
+static void radius_server_testing_options_tls(struct radius_session *sess,
+					      const char *tls,
+					      struct eap_config *eap_conf)
+{
+	int test = atoi(tls);
+
+	switch (test) {
+	case 1:
+		srv_log(sess, "TLS test - break VerifyData");
+		eap_conf->tls_test_flags = TLS_BREAK_VERIFY_DATA;
+		break;
+	case 2:
+		srv_log(sess, "TLS test - break ServerKeyExchange ServerParams hash");
+		eap_conf->tls_test_flags = TLS_BREAK_SRV_KEY_X_HASH;
+		break;
+	case 3:
+		srv_log(sess, "TLS test - break ServerKeyExchange ServerParams Signature");
+		eap_conf->tls_test_flags = TLS_BREAK_SRV_KEY_X_SIGNATURE;
+		break;
+	case 4:
+		srv_log(sess, "TLS test - RSA-DHE using a short 511-bit prime");
+		eap_conf->tls_test_flags = TLS_DHE_PRIME_511B;
+		break;
+	case 5:
+		srv_log(sess, "TLS test - RSA-DHE using a short 767-bit prime");
+		eap_conf->tls_test_flags = TLS_DHE_PRIME_767B;
+		break;
+	case 6:
+		srv_log(sess, "TLS test - RSA-DHE using a bogus 15 \"prime\"");
+		eap_conf->tls_test_flags = TLS_DHE_PRIME_15;
+		break;
+	case 7:
+		srv_log(sess, "TLS test - RSA-DHE using a short 58-bit prime in long container");
+		eap_conf->tls_test_flags = TLS_DHE_PRIME_58B;
+		break;
+	case 8:
+		srv_log(sess, "TLS test - RSA-DHE using a non-prime");
+		eap_conf->tls_test_flags = TLS_DHE_NON_PRIME;
+		break;
+	default:
+		srv_log(sess, "Unrecognized TLS test");
+		break;
+	}
+}
+#endif /* CONFIG_TESTING_OPTIONS */
+
+static void radius_server_testing_options(struct radius_session *sess,
+					  struct eap_config *eap_conf)
+{
+#ifdef CONFIG_TESTING_OPTIONS
+	const char *pos;
+
+	pos = os_strstr(sess->username, "@test-");
+	if (pos == NULL)
+		return;
+	pos += 6;
+	if (os_strncmp(pos, "tls-", 4) == 0)
+		radius_server_testing_options_tls(sess, pos + 4, eap_conf);
+	else
+		srv_log(sess, "Unrecognized test: %s", pos);
+#endif /* CONFIG_TESTING_OPTIONS */
+}
+
+
 static struct radius_session *
 radius_server_get_new_session(struct radius_server_data *data,
 			      struct radius_client *client,
-			      struct radius_msg *msg)
+			      struct radius_msg *msg, const char *from_addr)
 {
 	u8 *user;
 	size_t user_len;
 	int res;
 	struct radius_session *sess;
 	struct eap_config eap_conf;
+	struct eap_user tmp;
 
 	RADIUS_DEBUG("Creating a new session");
 
-	user = os_malloc(256);
-	if (user == NULL) {
-		return NULL;
-	}
-	res = radius_msg_get_attr(msg, RADIUS_ATTR_USER_NAME, user, 256);
-	if (res < 0 || res > 256) {
+	if (radius_msg_get_attr_ptr(msg, RADIUS_ATTR_USER_NAME, &user,
+				    &user_len, NULL) < 0) {
 		RADIUS_DEBUG("Could not get User-Name");
-		os_free(user);
 		return NULL;
 	}
-	user_len = res;
 	RADIUS_DUMP_ASCII("User-Name", user, user_len);
 
-	res = data->get_eap_user(data->conf_ctx, user, user_len, 0, NULL);
-	os_free(user);
+	os_memset(&tmp, 0, sizeof(tmp));
+	res = data->get_eap_user(data->conf_ctx, user, user_len, 0, &tmp);
+	bin_clear_free(tmp.password, tmp.password_len);
 
-	if (res == 0) {
-		RADIUS_DEBUG("Matching user entry found");
-		sess = radius_server_new_session(data, client);
-		if (sess == NULL) {
-			RADIUS_DEBUG("Failed to create a new session");
-			return NULL;
-		}
-	} else {
+	if (res != 0) {
 		RADIUS_DEBUG("User-Name not found from user database");
 		return NULL;
 	}
+
+	RADIUS_DEBUG("Matching user entry found");
+	sess = radius_server_new_session(data, client);
+	if (sess == NULL) {
+		RADIUS_DEBUG("Failed to create a new session");
+		return NULL;
+	}
+	sess->accept_attr = tmp.accept_attr;
+	sess->macacl = tmp.macacl;
+
+	sess->username = os_malloc(user_len * 4 + 1);
+	if (sess->username == NULL) {
+		radius_server_session_free(data, sess);
+		return NULL;
+	}
+	printf_encode(sess->username, user_len * 4 + 1, user, user_len);
+
+	sess->nas_ip = os_strdup(from_addr);
+	if (sess->nas_ip == NULL) {
+		radius_server_session_free(data, sess);
+		return NULL;
+	}
+
+	srv_log(sess, "New session created");
 
 	os_memset(&eap_conf, 0, sizeof(eap_conf));
 	eap_conf.ssl_ctx = data->ssl_ctx;
@@ -511,6 +687,11 @@ radius_server_get_new_session(struct radius_server_data *data,
 	eap_conf.tnc = data->tnc;
 	eap_conf.wps = data->wps;
 	eap_conf.pwd_group = data->pwd_group;
+	eap_conf.server_id = (const u8 *) data->server_id;
+	eap_conf.server_id_len = os_strlen(data->server_id);
+	eap_conf.erp = data->erp;
+	eap_conf.tls_session_lifetime = data->tls_session_lifetime;
+	radius_server_testing_options(sess, &eap_conf);
 	sess->eap = eap_server_sm_init(sess, &radius_server_eapol_cb,
 				       &eap_conf);
 	if (sess->eap == NULL) {
@@ -605,10 +786,132 @@ radius_server_encapsulate_eap(struct radius_server_data *data,
 		}
 	}
 
+#ifdef CONFIG_HS20
+	if (code == RADIUS_CODE_ACCESS_ACCEPT && sess->remediation &&
+	    data->subscr_remediation_url) {
+		u8 *buf;
+		size_t url_len = os_strlen(data->subscr_remediation_url);
+		buf = os_malloc(1 + url_len);
+		if (buf == NULL) {
+			radius_msg_free(msg);
+			return NULL;
+		}
+		buf[0] = data->subscr_remediation_method;
+		os_memcpy(&buf[1], data->subscr_remediation_url, url_len);
+		if (!radius_msg_add_wfa(
+			    msg, RADIUS_VENDOR_ATTR_WFA_HS20_SUBSCR_REMEDIATION,
+			    buf, 1 + url_len)) {
+			RADIUS_DEBUG("Failed to add WFA-HS20-SubscrRem");
+		}
+		os_free(buf);
+	} else if (code == RADIUS_CODE_ACCESS_ACCEPT && sess->remediation) {
+		u8 buf[1];
+		if (!radius_msg_add_wfa(
+			    msg, RADIUS_VENDOR_ATTR_WFA_HS20_SUBSCR_REMEDIATION,
+			    buf, 0)) {
+			RADIUS_DEBUG("Failed to add WFA-HS20-SubscrRem");
+		}
+	}
+#endif /* CONFIG_HS20 */
+
 	if (radius_msg_copy_attr(msg, request, RADIUS_ATTR_PROXY_STATE) < 0) {
 		RADIUS_DEBUG("Failed to copy Proxy-State attribute(s)");
 		radius_msg_free(msg);
 		return NULL;
+	}
+
+	if (code == RADIUS_CODE_ACCESS_ACCEPT) {
+		struct hostapd_radius_attr *attr;
+		for (attr = sess->accept_attr; attr; attr = attr->next) {
+			if (!radius_msg_add_attr(msg, attr->type,
+						 wpabuf_head(attr->val),
+						 wpabuf_len(attr->val))) {
+				wpa_printf(MSG_ERROR, "Could not add RADIUS attribute");
+				radius_msg_free(msg);
+				return NULL;
+			}
+		}
+	}
+
+	if (radius_msg_finish_srv(msg, (u8 *) client->shared_secret,
+				  client->shared_secret_len,
+				  hdr->authenticator) < 0) {
+		RADIUS_DEBUG("Failed to add Message-Authenticator attribute");
+	}
+
+	return msg;
+}
+
+
+static struct radius_msg *
+radius_server_macacl(struct radius_server_data *data,
+		     struct radius_client *client,
+		     struct radius_session *sess,
+		     struct radius_msg *request)
+{
+	struct radius_msg *msg;
+	int code;
+	struct radius_hdr *hdr = radius_msg_get_hdr(request);
+	u8 *pw;
+	size_t pw_len;
+
+	code = RADIUS_CODE_ACCESS_ACCEPT;
+
+	if (radius_msg_get_attr_ptr(request, RADIUS_ATTR_USER_PASSWORD, &pw,
+				    &pw_len, NULL) < 0) {
+		RADIUS_DEBUG("Could not get User-Password");
+		code = RADIUS_CODE_ACCESS_REJECT;
+	} else {
+		int res;
+		struct eap_user tmp;
+
+		os_memset(&tmp, 0, sizeof(tmp));
+		res = data->get_eap_user(data->conf_ctx, (u8 *) sess->username,
+					 os_strlen(sess->username), 0, &tmp);
+		if (res || !tmp.macacl || tmp.password == NULL) {
+			RADIUS_DEBUG("No MAC ACL user entry");
+			bin_clear_free(tmp.password, tmp.password_len);
+			code = RADIUS_CODE_ACCESS_REJECT;
+		} else {
+			u8 buf[128];
+			res = radius_user_password_hide(
+				request, tmp.password, tmp.password_len,
+				(u8 *) client->shared_secret,
+				client->shared_secret_len,
+				buf, sizeof(buf));
+			bin_clear_free(tmp.password, tmp.password_len);
+
+			if (res < 0 || pw_len != (size_t) res ||
+			    os_memcmp_const(pw, buf, res) != 0) {
+				RADIUS_DEBUG("Incorrect User-Password");
+				code = RADIUS_CODE_ACCESS_REJECT;
+			}
+		}
+	}
+
+	msg = radius_msg_new(code, hdr->identifier);
+	if (msg == NULL) {
+		RADIUS_DEBUG("Failed to allocate reply message");
+		return NULL;
+	}
+
+	if (radius_msg_copy_attr(msg, request, RADIUS_ATTR_PROXY_STATE) < 0) {
+		RADIUS_DEBUG("Failed to copy Proxy-State attribute(s)");
+		radius_msg_free(msg);
+		return NULL;
+	}
+
+	if (code == RADIUS_CODE_ACCESS_ACCEPT) {
+		struct hostapd_radius_attr *attr;
+		for (attr = sess->accept_attr; attr; attr = attr->next) {
+			if (!radius_msg_add_attr(msg, attr->type,
+						 wpabuf_head(attr->val),
+						 wpabuf_len(attr->val))) {
+				wpa_printf(MSG_ERROR, "Could not add RADIUS attribute");
+				radius_msg_free(msg);
+				return NULL;
+			}
+		}
 	}
 
 	if (radius_msg_finish_srv(msg, (u8 *) client->shared_secret,
@@ -672,7 +975,7 @@ static int radius_server_reject(struct radius_server_data *data,
 	buf = radius_msg_get_buf(msg);
 	if (sendto(data->auth_sock, wpabuf_head(buf), wpabuf_len(buf), 0,
 		   (struct sockaddr *) from, sizeof(*from)) < 0) {
-		perror("sendto[RADIUS SRV]");
+		wpa_printf(MSG_INFO, "sendto[RADIUS SRV]: %s", strerror(errno));
 		ret = -1;
 	}
 
@@ -719,7 +1022,8 @@ static int radius_server_request(struct radius_server_data *data,
 				     from_addr, from_port);
 		return -1;
 	} else {
-		sess = radius_server_get_new_session(data, client, msg);
+		sess = radius_server_get_new_session(data, client, msg,
+						     from_addr);
 		if (sess == NULL) {
 			RADIUS_DEBUG("Could not create a new session");
 			radius_server_reject(data, client, msg, from, fromlen,
@@ -743,7 +1047,8 @@ static int radius_server_request(struct radius_server_data *data,
 				     wpabuf_len(buf), 0,
 				     (struct sockaddr *) from, fromlen);
 			if (res < 0) {
-				perror("sendto[RADIUS SRV]");
+				wpa_printf(MSG_INFO, "sendto[RADIUS SRV]: %s",
+					   strerror(errno));
 			}
 			return 0;
 		}
@@ -754,6 +1059,12 @@ static int radius_server_request(struct radius_server_data *data,
 	}
 		      
 	eap = radius_msg_get_eap(msg);
+	if (eap == NULL && sess->macacl) {
+		reply = radius_server_macacl(data, client, sess, msg);
+		if (reply == NULL)
+			return -1;
+		goto send_reply;
+	}
 	if (eap == NULL) {
 		RADIUS_DEBUG("No EAP-Message in RADIUS packet from %s",
 			     from_addr);
@@ -804,9 +1115,14 @@ static int radius_server_request(struct radius_server_data *data,
 
 	if (sess->eap_if->eapSuccess || sess->eap_if->eapFail)
 		is_complete = 1;
+	if (sess->eap_if->eapFail)
+		srv_log(sess, "EAP authentication failed");
+	else if (sess->eap_if->eapSuccess)
+		srv_log(sess, "EAP authentication succeeded");
 
 	reply = radius_server_encapsulate_eap(data, client, sess, msg);
 
+send_reply:
 	if (reply) {
 		struct wpabuf *buf;
 		struct radius_hdr *hdr;
@@ -818,10 +1134,12 @@ static int radius_server_request(struct radius_server_data *data,
 
 		switch (radius_msg_get_hdr(reply)->code) {
 		case RADIUS_CODE_ACCESS_ACCEPT:
+			srv_log(sess, "Sending Access-Accept");
 			data->counters.access_accepts++;
 			client->counters.access_accepts++;
 			break;
 		case RADIUS_CODE_ACCESS_REJECT:
+			srv_log(sess, "Sending Access-Reject");
 			data->counters.access_rejects++;
 			client->counters.access_rejects++;
 			break;
@@ -835,7 +1153,8 @@ static int radius_server_request(struct radius_server_data *data,
 			     wpabuf_len(buf), 0,
 			     (struct sockaddr *) from, fromlen);
 		if (res < 0) {
-			perror("sendto[RADIUS SRV]");
+			wpa_printf(MSG_INFO, "sendto[RADIUS SRV]: %s",
+				   strerror(errno));
 		}
 		radius_msg_free(sess->last_reply);
 		sess->last_reply = reply;
@@ -890,7 +1209,8 @@ static void radius_server_receive_auth(int sock, void *eloop_ctx,
 	len = recvfrom(sock, buf, RADIUS_MAX_MSG_LEN, 0,
 		       (struct sockaddr *) &from.ss, &fromlen);
 	if (len < 0) {
-		perror("recvfrom[radius_server]");
+		wpa_printf(MSG_INFO, "recvfrom[radius_server]: %s",
+			   strerror(errno));
 		goto fail;
 	}
 
@@ -971,6 +1291,140 @@ fail:
 }
 
 
+static void radius_server_receive_acct(int sock, void *eloop_ctx,
+				       void *sock_ctx)
+{
+	struct radius_server_data *data = eloop_ctx;
+	u8 *buf = NULL;
+	union {
+		struct sockaddr_storage ss;
+		struct sockaddr_in sin;
+#ifdef CONFIG_IPV6
+		struct sockaddr_in6 sin6;
+#endif /* CONFIG_IPV6 */
+	} from;
+	socklen_t fromlen;
+	int len, res;
+	struct radius_client *client = NULL;
+	struct radius_msg *msg = NULL, *resp = NULL;
+	char abuf[50];
+	int from_port = 0;
+	struct radius_hdr *hdr;
+	struct wpabuf *rbuf;
+
+	buf = os_malloc(RADIUS_MAX_MSG_LEN);
+	if (buf == NULL) {
+		goto fail;
+	}
+
+	fromlen = sizeof(from);
+	len = recvfrom(sock, buf, RADIUS_MAX_MSG_LEN, 0,
+		       (struct sockaddr *) &from.ss, &fromlen);
+	if (len < 0) {
+		wpa_printf(MSG_INFO, "recvfrom[radius_server]: %s",
+			   strerror(errno));
+		goto fail;
+	}
+
+#ifdef CONFIG_IPV6
+	if (data->ipv6) {
+		if (inet_ntop(AF_INET6, &from.sin6.sin6_addr, abuf,
+			      sizeof(abuf)) == NULL)
+			abuf[0] = '\0';
+		from_port = ntohs(from.sin6.sin6_port);
+		RADIUS_DEBUG("Received %d bytes from %s:%d",
+			     len, abuf, from_port);
+
+		client = radius_server_get_client(data,
+						  (struct in_addr *)
+						  &from.sin6.sin6_addr, 1);
+	}
+#endif /* CONFIG_IPV6 */
+
+	if (!data->ipv6) {
+		os_strlcpy(abuf, inet_ntoa(from.sin.sin_addr), sizeof(abuf));
+		from_port = ntohs(from.sin.sin_port);
+		RADIUS_DEBUG("Received %d bytes from %s:%d",
+			     len, abuf, from_port);
+
+		client = radius_server_get_client(data, &from.sin.sin_addr, 0);
+	}
+
+	RADIUS_DUMP("Received data", buf, len);
+
+	if (client == NULL) {
+		RADIUS_DEBUG("Unknown client %s - packet ignored", abuf);
+		data->counters.invalid_acct_requests++;
+		goto fail;
+	}
+
+	msg = radius_msg_parse(buf, len);
+	if (msg == NULL) {
+		RADIUS_DEBUG("Parsing incoming RADIUS frame failed");
+		data->counters.malformed_acct_requests++;
+		client->counters.malformed_acct_requests++;
+		goto fail;
+	}
+
+	os_free(buf);
+	buf = NULL;
+
+	if (wpa_debug_level <= MSG_MSGDUMP) {
+		radius_msg_dump(msg);
+	}
+
+	if (radius_msg_get_hdr(msg)->code != RADIUS_CODE_ACCOUNTING_REQUEST) {
+		RADIUS_DEBUG("Unexpected RADIUS code %d",
+			     radius_msg_get_hdr(msg)->code);
+		data->counters.unknown_acct_types++;
+		client->counters.unknown_acct_types++;
+		goto fail;
+	}
+
+	data->counters.acct_requests++;
+	client->counters.acct_requests++;
+
+	if (radius_msg_verify_acct_req(msg, (u8 *) client->shared_secret,
+				       client->shared_secret_len)) {
+		RADIUS_DEBUG("Invalid Authenticator from %s", abuf);
+		data->counters.acct_bad_authenticators++;
+		client->counters.acct_bad_authenticators++;
+		goto fail;
+	}
+
+	/* TODO: Write accounting information to a file or database */
+
+	hdr = radius_msg_get_hdr(msg);
+
+	resp = radius_msg_new(RADIUS_CODE_ACCOUNTING_RESPONSE, hdr->identifier);
+	if (resp == NULL)
+		goto fail;
+
+	radius_msg_finish_acct_resp(resp, (u8 *) client->shared_secret,
+				    client->shared_secret_len,
+				    hdr->authenticator);
+
+	RADIUS_DEBUG("Reply to %s:%d", abuf, from_port);
+	if (wpa_debug_level <= MSG_MSGDUMP) {
+		radius_msg_dump(resp);
+	}
+	rbuf = radius_msg_get_buf(resp);
+	data->counters.acct_responses++;
+	client->counters.acct_responses++;
+	res = sendto(data->acct_sock, wpabuf_head(rbuf), wpabuf_len(rbuf), 0,
+		     (struct sockaddr *) &from.ss, fromlen);
+	if (res < 0) {
+		wpa_printf(MSG_INFO, "sendto[RADIUS SRV]: %s",
+			   strerror(errno));
+	}
+
+fail:
+	radius_msg_free(resp);
+	radius_msg_free(msg);
+	os_free(buf);
+}
+
+
 static int radius_server_disable_pmtu_discovery(int s)
 {
 	int r = -1;
@@ -994,7 +1448,7 @@ static int radius_server_open_socket(int port)
 
 	s = socket(PF_INET, SOCK_DGRAM, 0);
 	if (s < 0) {
-		perror("socket");
+		wpa_printf(MSG_INFO, "RADIUS: socket: %s", strerror(errno));
 		return -1;
 	}
 
@@ -1004,7 +1458,7 @@ static int radius_server_open_socket(int port)
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
 	if (bind(s, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-		perror("bind");
+		wpa_printf(MSG_INFO, "RADIUS: bind: %s", strerror(errno));
 		close(s);
 		return -1;
 	}
@@ -1021,7 +1475,8 @@ static int radius_server_open_socket6(int port)
 
 	s = socket(PF_INET6, SOCK_DGRAM, 0);
 	if (s < 0) {
-		perror("socket[IPv6]");
+		wpa_printf(MSG_INFO, "RADIUS: socket[IPv6]: %s",
+			   strerror(errno));
 		return -1;
 	}
 
@@ -1030,7 +1485,7 @@ static int radius_server_open_socket6(int port)
 	os_memcpy(&addr.sin6_addr, &in6addr_any, sizeof(in6addr_any));
 	addr.sin6_port = htons(port);
 	if (bind(s, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-		perror("bind");
+		wpa_printf(MSG_INFO, "RADIUS: bind: %s", strerror(errno));
 		close(s);
 		return -1;
 	}
@@ -1183,8 +1638,8 @@ radius_server_read_clients(const char *client_file, int ipv6)
 			break;
 		}
 		entry->shared_secret_len = os_strlen(entry->shared_secret);
-		entry->addr.s_addr = addr.s_addr;
 		if (!ipv6) {
+			entry->addr.s_addr = addr.s_addr;
 			val = 0;
 			for (i = 0; i < mask; i++)
 				val |= 1 << (31 - i);
@@ -1241,8 +1696,7 @@ radius_server_init(struct radius_server_conf *conf)
 
 #ifndef CONFIG_IPV6
 	if (conf->ipv6) {
-		fprintf(stderr, "RADIUS server compiled without IPv6 "
-			"support.\n");
+		wpa_printf(MSG_ERROR, "RADIUS server compiled without IPv6 support");
 		return NULL;
 	}
 #endif /* CONFIG_IPV6 */
@@ -1251,7 +1705,8 @@ radius_server_init(struct radius_server_conf *conf)
 	if (data == NULL)
 		return NULL;
 
-	os_get_time(&data->start_time);
+	dl_list_init(&data->erp_keys);
+	os_get_reltime(&data->start_time);
 	data->conf_ctx = conf->conf_ctx;
 	data->eap_sim_db_priv = conf->eap_sim_db_priv;
 	data->ssl_ctx = conf->ssl_ctx;
@@ -1259,8 +1714,10 @@ radius_server_init(struct radius_server_conf *conf)
 	data->ipv6 = conf->ipv6;
 	if (conf->pac_opaque_encr_key) {
 		data->pac_opaque_encr_key = os_malloc(16);
-		os_memcpy(data->pac_opaque_encr_key, conf->pac_opaque_encr_key,
-			  16);
+		if (data->pac_opaque_encr_key) {
+			os_memcpy(data->pac_opaque_encr_key,
+				  conf->pac_opaque_encr_key, 16);
+		}
 	}
 	if (conf->eap_fast_a_id) {
 		data->eap_fast_a_id = os_malloc(conf->eap_fast_a_id_len);
@@ -1280,6 +1737,7 @@ radius_server_init(struct radius_server_conf *conf)
 	data->tnc = conf->tnc;
 	data->wps = conf->wps;
 	data->pwd_group = conf->pwd_group;
+	data->server_id = conf->server_id;
 	if (conf->eap_req_id_text) {
 		data->eap_req_id_text = os_malloc(conf->eap_req_id_text_len);
 		if (data->eap_req_id_text) {
@@ -1288,6 +1746,26 @@ radius_server_init(struct radius_server_conf *conf)
 			data->eap_req_id_text_len = conf->eap_req_id_text_len;
 		}
 	}
+	data->erp = conf->erp;
+	data->erp_domain = conf->erp_domain;
+	data->tls_session_lifetime = conf->tls_session_lifetime;
+
+	if (conf->subscr_remediation_url) {
+		data->subscr_remediation_url =
+			os_strdup(conf->subscr_remediation_url);
+	}
+	data->subscr_remediation_method = conf->subscr_remediation_method;
+
+#ifdef CONFIG_SQLITE
+	if (conf->sqlite_file) {
+		if (sqlite3_open(conf->sqlite_file, &data->db)) {
+			RADIUS_ERROR("Could not open SQLite file '%s'",
+				     conf->sqlite_file);
+			radius_server_deinit(data);
+			return NULL;
+		}
+	}
+#endif /* CONFIG_SQLITE */
 
 #ifdef CONFIG_RADIUS_TEST
 	if (conf->dump_msk_file)
@@ -1297,7 +1775,7 @@ radius_server_init(struct radius_server_conf *conf)
 	data->clients = radius_server_read_clients(conf->client_file,
 						   conf->ipv6);
 	if (data->clients == NULL) {
-		printf("No RADIUS clients configured.\n");
+		wpa_printf(MSG_ERROR, "No RADIUS clients configured");
 		radius_server_deinit(data);
 		return NULL;
 	}
@@ -1309,8 +1787,7 @@ radius_server_init(struct radius_server_conf *conf)
 #endif /* CONFIG_IPV6 */
 	data->auth_sock = radius_server_open_socket(conf->auth_port);
 	if (data->auth_sock < 0) {
-		printf("Failed to open UDP socket for RADIUS authentication "
-		       "server\n");
+		wpa_printf(MSG_ERROR, "Failed to open UDP socket for RADIUS authentication server");
 		radius_server_deinit(data);
 		return NULL;
 	}
@@ -1321,7 +1798,48 @@ radius_server_init(struct radius_server_conf *conf)
 		return NULL;
 	}
 
+	if (conf->acct_port) {
+#ifdef CONFIG_IPV6
+		if (conf->ipv6)
+			data->acct_sock = radius_server_open_socket6(
+				conf->acct_port);
+		else
+#endif /* CONFIG_IPV6 */
+		data->acct_sock = radius_server_open_socket(conf->acct_port);
+		if (data->acct_sock < 0) {
+			wpa_printf(MSG_ERROR, "Failed to open UDP socket for RADIUS accounting server");
+			radius_server_deinit(data);
+			return NULL;
+		}
+		if (eloop_register_read_sock(data->acct_sock,
+					     radius_server_receive_acct,
+					     data, NULL)) {
+			radius_server_deinit(data);
+			return NULL;
+		}
+	} else {
+		data->acct_sock = -1;
+	}
+
 	return data;
+}
+
+
+/**
+ * radius_server_erp_flush - Flush all ERP keys
+ * @data: RADIUS server context from radius_server_init()
+ */
+void radius_server_erp_flush(struct radius_server_data *data)
+{
+	struct eap_server_erp_key *erp;
+
+	if (data == NULL)
+		return;
+	while ((erp = dl_list_first(&data->erp_keys, struct eap_server_erp_key,
+				    list)) != NULL) {
+		dl_list_del(&erp->list);
+		bin_clear_free(erp, sizeof(*erp));
+	}
 }
 
 
@@ -1339,6 +1857,11 @@ void radius_server_deinit(struct radius_server_data *data)
 		close(data->auth_sock);
 	}
 
+	if (data->acct_sock >= 0) {
+		eloop_unregister_read_sock(data->acct_sock);
+		close(data->acct_sock);
+	}
+
 	radius_server_free_clients(data, data->clients);
 
 	os_free(data->pac_opaque_encr_key);
@@ -1348,6 +1871,15 @@ void radius_server_deinit(struct radius_server_data *data)
 #ifdef CONFIG_RADIUS_TEST
 	os_free(data->dump_msk_file);
 #endif /* CONFIG_RADIUS_TEST */
+	os_free(data->subscr_remediation_url);
+
+#ifdef CONFIG_SQLITE
+	if (data->db)
+		sqlite3_close(data->db);
+#endif /* CONFIG_SQLITE */
+
+	radius_server_erp_flush(data);
+
 	os_free(data);
 }
 
@@ -1365,7 +1897,7 @@ int radius_server_get_mib(struct radius_server_data *data, char *buf,
 	int ret, uptime;
 	unsigned int idx;
 	char *end, *pos;
-	struct os_time now;
+	struct os_reltime now;
 	struct radius_client *cli;
 
 	/* RFC 2619 - RADIUS Authentication Server MIB */
@@ -1376,7 +1908,7 @@ int radius_server_get_mib(struct radius_server_data *data, char *buf,
 	pos = buf;
 	end = buf + buflen;
 
-	os_get_time(&now);
+	os_get_reltime(&now);
 	uptime = (now.sec - data->start_time.sec) * 100 +
 		((now.usec - data->start_time.usec) / 10000) % 100;
 	ret = os_snprintf(pos, end - pos,
@@ -1386,7 +1918,7 @@ int radius_server_get_mib(struct radius_server_data *data, char *buf,
 			  "radiusAuthServResetTime=0\n"
 			  "radiusAuthServConfigReset=4\n",
 			  uptime);
-	if (ret < 0 || ret >= end - pos) {
+	if (os_snprintf_error(end - pos, ret)) {
 		*pos = '\0';
 		return pos - buf;
 	}
@@ -1402,7 +1934,13 @@ int radius_server_get_mib(struct radius_server_data *data, char *buf,
 			  "radiusAuthServTotalMalformedAccessRequests=%u\n"
 			  "radiusAuthServTotalBadAuthenticators=%u\n"
 			  "radiusAuthServTotalPacketsDropped=%u\n"
-			  "radiusAuthServTotalUnknownTypes=%u\n",
+			  "radiusAuthServTotalUnknownTypes=%u\n"
+			  "radiusAccServTotalRequests=%u\n"
+			  "radiusAccServTotalInvalidRequests=%u\n"
+			  "radiusAccServTotalResponses=%u\n"
+			  "radiusAccServTotalMalformedRequests=%u\n"
+			  "radiusAccServTotalBadAuthenticators=%u\n"
+			  "radiusAccServTotalUnknownTypes=%u\n",
 			  data->counters.access_requests,
 			  data->counters.invalid_requests,
 			  data->counters.dup_access_requests,
@@ -1412,8 +1950,14 @@ int radius_server_get_mib(struct radius_server_data *data, char *buf,
 			  data->counters.malformed_access_requests,
 			  data->counters.bad_authenticators,
 			  data->counters.packets_dropped,
-			  data->counters.unknown_types);
-	if (ret < 0 || ret >= end - pos) {
+			  data->counters.unknown_types,
+			  data->counters.acct_requests,
+			  data->counters.invalid_acct_requests,
+			  data->counters.acct_responses,
+			  data->counters.malformed_acct_requests,
+			  data->counters.acct_bad_authenticators,
+			  data->counters.unknown_acct_types);
+	if (os_snprintf_error(end - pos, ret)) {
 		*pos = '\0';
 		return pos - buf;
 	}
@@ -1426,7 +1970,7 @@ int radius_server_get_mib(struct radius_server_data *data, char *buf,
 			if (inet_ntop(AF_INET6, &cli->addr6, abuf,
 				      sizeof(abuf)) == NULL)
 				abuf[0] = '\0';
-			if (inet_ntop(AF_INET6, &cli->mask6, abuf,
+			if (inet_ntop(AF_INET6, &cli->mask6, mbuf,
 				      sizeof(mbuf)) == NULL)
 				mbuf[0] = '\0';
 		}
@@ -1447,7 +1991,13 @@ int radius_server_get_mib(struct radius_server_data *data, char *buf,
 				  "radiusAuthServMalformedAccessRequests=%u\n"
 				  "radiusAuthServBadAuthenticators=%u\n"
 				  "radiusAuthServPacketsDropped=%u\n"
-				  "radiusAuthServUnknownTypes=%u\n",
+				  "radiusAuthServUnknownTypes=%u\n"
+				  "radiusAccServTotalRequests=%u\n"
+				  "radiusAccServTotalInvalidRequests=%u\n"
+				  "radiusAccServTotalResponses=%u\n"
+				  "radiusAccServTotalMalformedRequests=%u\n"
+				  "radiusAccServTotalBadAuthenticators=%u\n"
+				  "radiusAccServTotalUnknownTypes=%u\n",
 				  idx,
 				  abuf, mbuf,
 				  cli->counters.access_requests,
@@ -1458,8 +2008,14 @@ int radius_server_get_mib(struct radius_server_data *data, char *buf,
 				  cli->counters.malformed_access_requests,
 				  cli->counters.bad_authenticators,
 				  cli->counters.packets_dropped,
-				  cli->counters.unknown_types);
-		if (ret < 0 || ret >= end - pos) {
+				  cli->counters.unknown_types,
+				  cli->counters.acct_requests,
+				  cli->counters.invalid_acct_requests,
+				  cli->counters.acct_responses,
+				  cli->counters.malformed_acct_requests,
+				  cli->counters.acct_bad_authenticators,
+				  cli->counters.unknown_acct_types);
+		if (os_snprintf_error(end - pos, ret)) {
 			*pos = '\0';
 			return pos - buf;
 		}
@@ -1476,9 +2032,22 @@ static int radius_server_get_eap_user(void *ctx, const u8 *identity,
 {
 	struct radius_session *sess = ctx;
 	struct radius_server_data *data = sess->server;
+	int ret;
 
-	return data->get_eap_user(data->conf_ctx, identity, identity_len,
-				  phase2, user);
+	ret = data->get_eap_user(data->conf_ctx, identity, identity_len,
+				 phase2, user);
+	if (ret == 0 && user) {
+		sess->accept_attr = user->accept_attr;
+		sess->remediation = user->remediation;
+		sess->macacl = user->macacl;
+	}
+
+	if (ret) {
+		RADIUS_DEBUG("%s: User-Name not found from user database",
+			     __func__);
+	}
+
+	return ret;
 }
 
 
@@ -1491,10 +2060,64 @@ static const char * radius_server_get_eap_req_id_text(void *ctx, size_t *len)
 }
 
 
-static struct eapol_callbacks radius_server_eapol_cb =
+static void radius_server_log_msg(void *ctx, const char *msg)
+{
+	struct radius_session *sess = ctx;
+	srv_log(sess, "EAP: %s", msg);
+}
+
+
+#ifdef CONFIG_ERP
+
+static const char * radius_server_get_erp_domain(void *ctx)
+{
+	struct radius_session *sess = ctx;
+	struct radius_server_data *data = sess->server;
+
+	return data->erp_domain;
+}
+
+
+static struct eap_server_erp_key *
+radius_server_erp_get_key(void *ctx, const char *keyname)
+{
+	struct radius_session *sess = ctx;
+	struct radius_server_data *data = sess->server;
+	struct eap_server_erp_key *erp;
+
+	dl_list_for_each(erp, &data->erp_keys, struct eap_server_erp_key,
+			 list) {
+		if (os_strcmp(erp->keyname_nai, keyname) == 0)
+			return erp;
+	}
+
+	return NULL;
+}
+
+
+static int radius_server_erp_add_key(void *ctx, struct eap_server_erp_key *erp)
+{
+	struct radius_session *sess = ctx;
+	struct radius_server_data *data = sess->server;
+
+	dl_list_add(&data->erp_keys, &erp->list);
+	return 0;
+}
+
+#endif /* CONFIG_ERP */
+
+
+static const struct eapol_callbacks radius_server_eapol_cb =
 {
 	.get_eap_user = radius_server_get_eap_user,
 	.get_eap_req_id_text = radius_server_get_eap_req_id_text,
+	.log_msg = radius_server_log_msg,
+#ifdef CONFIG_ERP
+	.get_erp_send_reauth_start = NULL,
+	.get_erp_domain = radius_server_get_erp_domain,
+	.erp_get_key = radius_server_erp_get_key,
+	.erp_add_key = radius_server_erp_add_key,
+#endif /* CONFIG_ERP */
 };
 
 
@@ -1521,8 +2144,6 @@ void radius_server_eap_pending_cb(struct radius_server_data *data, void *ctx)
 				sess = s;
 				break;
 			}
-			if (sess)
-				break;
 		}
 		if (sess)
 			break;

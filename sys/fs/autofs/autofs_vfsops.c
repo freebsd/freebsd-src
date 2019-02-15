@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -39,8 +41,10 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/mount.h>
+#include <sys/stat.h>
 #include <sys/sx.h>
 #include <sys/taskqueue.h>
+#include <sys/tree.h>
 #include <sys/vnode.h>
 
 #include <fs/autofs/autofs.h>
@@ -61,8 +65,10 @@ autofs_mount(struct mount *mp)
 	if (vfs_filteropt(mp->mnt_optnew, autofs_opts))
 		return (EINVAL);
 
-	if (mp->mnt_flag & MNT_UPDATE)
+	if (mp->mnt_flag & MNT_UPDATE) {
+		autofs_flush(VFSTOAUTOFS(mp));
 		return (0);
+	}
 
 	if (vfs_getopt(mp->mnt_optnew, "from", (void **)&from, NULL))
 		return (EINVAL);
@@ -155,10 +161,10 @@ autofs_unmount(struct mount *mp, int mntflags)
 	/*
 	 * Not terribly efficient, but at least not recursive.
 	 */
-	while (!TAILQ_EMPTY(&amp->am_root->an_children)) {
-		anp = TAILQ_FIRST(&amp->am_root->an_children);
-		while (!TAILQ_EMPTY(&anp->an_children))
-			anp = TAILQ_FIRST(&anp->an_children);
+	while (!RB_EMPTY(&amp->am_root->an_children)) {
+		anp = RB_MIN(autofs_node_tree, &amp->am_root->an_children);
+		while (!RB_EMPTY(&anp->an_children))
+			anp = RB_MIN(autofs_node_tree, &anp->an_children);
 		autofs_node_delete(anp);
 	}
 	autofs_node_delete(amp->am_root);
@@ -190,7 +196,7 @@ static int
 autofs_statfs(struct mount *mp, struct statfs *sbp)
 {
 
-	sbp->f_bsize = 512;
+	sbp->f_bsize = S_BLKSIZE;
 	sbp->f_iosize = 0;
 	sbp->f_blocks = 0;
 	sbp->f_bfree = 0;

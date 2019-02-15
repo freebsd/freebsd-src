@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -46,15 +48,26 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <fts.h>
 #include <limits.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+static volatile sig_atomic_t siginfo;
+
 static void usage(void);
 static int may_have_nfs4acl(const FTSENT *ent, int hflag);
+
+static void
+siginfo_handler(int sig __unused)
+{
+
+	siginfo = 1;
+}
 
 int
 main(int argc, char *argv[])
@@ -62,7 +75,7 @@ main(int argc, char *argv[])
 	FTS *ftsp;
 	FTSENT *p;
 	mode_t *set;
-	int Hflag, Lflag, Rflag, ch, error, fflag, fts_options, hflag, rval;
+	int Hflag, Lflag, Rflag, ch, fflag, fts_options, hflag, rval;
 	int vflag;
 	char *mode;
 	mode_t newmode;
@@ -90,12 +103,11 @@ main(int argc, char *argv[])
 			break;
 		case 'h':
 			/*
-			 * In System V (and probably POSIX.2) the -h option
-			 * causes chmod to change the mode of the symbolic
-			 * link.  4.4BSD's symbolic links didn't have modes,
-			 * so it was an undocumented noop.  In FreeBSD 3.0,
-			 * lchmod(2) is introduced and this option does real
-			 * work.
+			 * In System V the -h option causes chmod to change
+			 * the mode of the symbolic link. 4.4BSD's symbolic
+			 * links didn't have modes, so it was an undocumented
+			 * noop.  In FreeBSD 3.0, lchmod(2) is introduced and
+			 * this option does real work.
 			 */
 			hflag = 1;
 			break;
@@ -125,19 +137,26 @@ done:	argv += optind;
 	if (argc < 2)
 		usage();
 
+	(void)signal(SIGINFO, siginfo_handler);
+
 	if (Rflag) {
-		fts_options = FTS_PHYSICAL;
 		if (hflag)
-			errx(1,
-		"the -R and -h options may not be specified together.");
-		if (Hflag)
-			fts_options |= FTS_COMFOLLOW;
+			errx(1, "the -R and -h options may not be "
+			    "specified together.");
 		if (Lflag) {
-			fts_options &= ~FTS_PHYSICAL;
-			fts_options |= FTS_LOGICAL;
+			fts_options = FTS_LOGICAL;
+		} else {
+			fts_options = FTS_PHYSICAL;
+
+			if (Hflag) {
+				fts_options |= FTS_COMFOLLOW;
+			}
 		}
-	} else
-		fts_options = hflag ? FTS_PHYSICAL : FTS_LOGICAL;
+	} else if (hflag) {
+		fts_options = FTS_PHYSICAL;
+	} else {
+		fts_options = FTS_LOGICAL;
+	}
 
 	mode = *argv;
 	if ((set = setmode(mode)) == NULL)
@@ -146,30 +165,31 @@ done:	argv += optind;
 	if ((ftsp = fts_open(++argv, fts_options, 0)) == NULL)
 		err(1, "fts_open");
 	for (rval = 0; (p = fts_read(ftsp)) != NULL;) {
+		int atflag;
+
+		if ((fts_options & FTS_LOGICAL) ||
+		    ((fts_options & FTS_COMFOLLOW) &&
+		    p->fts_level == FTS_ROOTLEVEL))
+			atflag = 0;
+		else
+			atflag = AT_SYMLINK_NOFOLLOW;
+
 		switch (p->fts_info) {
-		case FTS_D:			/* Change it at FTS_DP. */
+		case FTS_D:
 			if (!Rflag)
 				fts_set(ftsp, p, FTS_SKIP);
-			continue;
-		case FTS_DNR:			/* Warn, chmod, continue. */
+			break;
+		case FTS_DNR:			/* Warn, chmod. */
 			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			rval = 1;
 			break;
+		case FTS_DP:			/* Already changed at FTS_D. */
+			continue;
 		case FTS_ERR:			/* Warn, continue. */
 		case FTS_NS:
 			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			rval = 1;
 			continue;
-		case FTS_SL:			/* Ignore. */
-		case FTS_SLNONE:
-			/*
-			 * The only symlinks that end up here are ones that
-			 * don't point to anything and ones that we found
-			 * doing a physical walk.
-			 */
-			if (!hflag)
-				continue;
-			/* FALLTHROUGH */
 		default:
 			break;
 		}
@@ -182,32 +202,26 @@ done:	argv += optind;
 		if (may_have_nfs4acl(p, hflag) == 0 &&
 		    (newmode & ALLPERMS) == (p->fts_statp->st_mode & ALLPERMS))
 				continue;
-		if (hflag)
-			error = lchmod(p->fts_accpath, newmode);
-		else
-			error = chmod(p->fts_accpath, newmode);
-		if (error) {
-			if (!fflag) {
-				warn("%s", p->fts_path);
-				rval = 1;
-			}
-		} else {
-			if (vflag) {
-				(void)printf("%s", p->fts_path);
+		if (fchmodat(AT_FDCWD, p->fts_accpath, newmode, atflag) == -1
+		    && !fflag) {
+			warn("%s", p->fts_path);
+			rval = 1;
+		} else if (vflag || siginfo) {
+			(void)printf("%s", p->fts_path);
 
-				if (vflag > 1) {
-					char m1[12], m2[12];
+			if (vflag > 1 || siginfo) {
+				char m1[12], m2[12];
 
-					strmode(p->fts_statp->st_mode, m1);
-					strmode((p->fts_statp->st_mode &
-					    S_IFMT) | newmode, m2);
-					(void)printf(": 0%o [%s] -> 0%o [%s]",
-					    p->fts_statp->st_mode, m1,
-					    (p->fts_statp->st_mode & S_IFMT) |
-					    newmode, m2);
-				}
-				(void)printf("\n");
+				strmode(p->fts_statp->st_mode, m1);
+				strmode((p->fts_statp->st_mode &
+				    S_IFMT) | newmode, m2);
+				(void)printf(": 0%o [%s] -> 0%o [%s]",
+				    p->fts_statp->st_mode, m1,
+				    (p->fts_statp->st_mode & S_IFMT) |
+				    newmode, m2);
 			}
+			(void)printf("\n");
+			siginfo = 0;
 		}
 	}
 	if (errno)

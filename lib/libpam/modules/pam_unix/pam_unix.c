@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 1998 Juniper Networks, Inc.
  * All rights reserved.
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
@@ -111,6 +113,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 			if (!(flags & PAM_DISALLOW_NULL_AUTHTOK) &&
 			    openpam_get_option(pamh, PAM_OPT_NULLOK))
 				return (PAM_SUCCESS);
+			PAM_LOG("Password is empty, using fake password");
 			realpw = "*";
 		}
 		lc = login_getpwclass(pwd);
@@ -125,6 +128,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	if (retval != PAM_SUCCESS)
 		return (retval);
 	PAM_LOG("Got password");
+	if (strnlen(pass, _PASSWORD_LEN + 1) > _PASSWORD_LEN) {
+		PAM_LOG("Password is too long, using fake password");
+		realpw = "*";
+	}
 	if (strcmp(crypt(pass, realpw), realpw) == 0)
 		return (PAM_SUCCESS);
 
@@ -278,13 +285,13 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 	int pfd, tfd, retval;
 
 	if (openpam_get_option(pamh, PAM_OPT_AUTH_AS_SELF))
-		pwd = getpwnam(getlogin());
+		user = getlogin();
 	else {
 		retval = pam_get_user(pamh, &user, NULL);
 		if (retval != PAM_SUCCESS)
 			return (retval);
-		pwd = getpwnam(user);
 	}
+	pwd = getpwnam(user);
 
 	if (pwd == NULL)
 		return (PAM_AUTHTOK_RECOVERY_ERR);
@@ -332,6 +339,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			 * XXX check PAM_DISALLOW_NULL_AUTHTOK
 			 */
 			old_pass = "";
+			retval = PAM_SUCCESS;
 		} else {
 			retval = pam_get_authtok(pamh,
 			    PAM_OLDAUTHTOK, &old_pass, NULL);

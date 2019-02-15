@@ -1,6 +1,8 @@
 /*	$NetBSD: svc_run.c,v 1.17 2000/07/06 03:10:35 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -54,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #include "mt_misc.h"
 
 void
-svc_run()
+svc_run(void)
 {
 	fd_set readfds, cleanfds;
 	struct timeval timeout;
@@ -89,7 +91,7 @@ svc_run()
  *      more work to do.
  */
 void
-svc_exit()
+svc_exit(void)
 {
 	rwlock_wrlock(&svc_fd_lock);
 	FD_ZERO(&svc_fdset);

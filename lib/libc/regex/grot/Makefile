@@ -5,10 +5,10 @@
 # Do not take -DPOSIX_MISTAKE out.  REGCFLAGS isn't important to you (it's
 # for my use in some special contexts).
 
-PATHS= ${.CURDIR}/.. ${.CURDIR}/../../locale ${.CURDIR}/../../../../include
+PATHS= ${LIBC_SRCTOP}/regex ${LIBC_SRCTOP}/locale ${SRCTOP}/include
 .PATH: ${PATHS}
 
-CFLAGS+= -DPOSIX_MISTAKE -DREDEBUG $(REGCFLAGS)
+CFLAGS+= -static -DPOSIX_MISTAKE -DREDEBUG $(REGCFLAGS)
 .for incpath in ${PATHS}
 CFLAGS+= -I${incpath}
 .endfor
@@ -62,7 +62,8 @@ regexec.o:	engine.c engine.ih
 regerror.o:	regerror.ih
 regerror.o:	utils.h
 debug.o:	debug.ih
-main.o:	main.ih
+main.o:	debug.ih main.ih split.ih
+split.o:	split.ih
 
 r:	re tests
 	./re <tests

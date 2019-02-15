@@ -884,7 +884,11 @@ svn_auth_get_platform_specific_client_providers(
  * @note An administrative password reset may invalidate the account's
  * secret key. This function will detect that situation and behave as
  * if the password were not cached at all.
+ * @deprecated Provided for backwards compatibility with the 1.8 API.  Use
+ * svn_auth_get_platform_specific_provider with provider_name of "windows"
+ * and provider_type of "simple".
  */
+SVN_DEPRECATED
 void
 svn_auth_get_windows_simple_provider(svn_auth_provider_object_t **provider,
                                      apr_pool_t *pool);
@@ -906,7 +910,11 @@ svn_auth_get_windows_simple_provider(svn_auth_provider_object_t **provider,
  * @note An administrative password reset may invalidate the account's
  * secret key. This function will detect that situation and behave as
  * if the password were not cached at all.
+ * @deprecated Provided for backwards compatibility with the 1.8 API.
+ * Use svn_auth_get_platform_specific_provider with provider_name
+ * of "windows" and provider_type of "ssl_client_cert_pw".
  */
+SVN_DEPRECATED
 void
 svn_auth_get_windows_ssl_client_cert_pw_provider(
   svn_auth_provider_object_t **provider,
@@ -923,7 +931,11 @@ svn_auth_get_windows_ssl_client_cert_pw_provider(
  *
  * @since New in 1.5.
  * @note This function is only available on Windows.
+ * @deprecated Provided for backwards compatibility with the 1.8 API.
+ * Use svn_auth_get_platform_specific_provider with provider_name
+ * of "windows" and provider_type of "ssl_server_trust".
  */
+SVN_DEPRECATED
 void
 svn_auth_get_windows_ssl_server_trust_provider(
   svn_auth_provider_object_t **provider,
@@ -943,7 +955,11 @@ svn_auth_get_windows_ssl_server_trust_provider(
  *
  * @since New in 1.4
  * @note This function is only available on Mac OS 10.2 and higher.
+ * @deprecated Provided for backwards compatibility with the 1.8 API.
+ * Use svn_auth_get_platform_specific_provider with provider_name
+ * of "keychain" and provider_type of "simple".
  */
+SVN_DEPRECATED
 void
 svn_auth_get_keychain_simple_provider(svn_auth_provider_object_t **provider,
                                       apr_pool_t *pool);
@@ -959,7 +975,11 @@ svn_auth_get_keychain_simple_provider(svn_auth_provider_object_t **provider,
  *
  * @since New in 1.6
  * @note This function is only available on Mac OS 10.2 and higher.
+ * @deprecated Provided for backwards compatibility with the 1.8 API.
+ * Use svn_auth_get_platform_specific_provider with provider_name
+ * of "keychain" and provider_type of "ssl_client_cert_pw".
  */
+SVN_DEPRECATED
 void
 svn_auth_get_keychain_ssl_client_cert_pw_provider(
   svn_auth_provider_object_t **provider,
@@ -992,11 +1012,13 @@ typedef svn_error_t *(*svn_auth_gnome_keyring_unlock_prompt_func_t)(
 
 /** @brief The pointer to function which prompts user for GNOME Keyring
  * password.
- * The type of this pointer should be svn_auth_gnome_keyring_unlock_prompt_func_t. */
+ * The type of this pointer should be svn_auth_gnome_keyring_unlock_prompt_func_t.
+ * @deprecated Only used by old libgnome-keyring implementation. */
 #define SVN_AUTH_PARAM_GNOME_KEYRING_UNLOCK_PROMPT_FUNC "gnome-keyring-unlock-prompt-func"
 
 /** @brief The baton which is passed to
- * @c *SVN_AUTH_PARAM_GNOME_KEYRING_UNLOCK_PROMPT_FUNC. */
+ * @c *SVN_AUTH_PARAM_GNOME_KEYRING_UNLOCK_PROMPT_FUNC.
+ * @deprecated Only used by old libgnome-keyring implementation. */
 #define SVN_AUTH_PARAM_GNOME_KEYRING_UNLOCK_PROMPT_BATON "gnome-keyring-unlock-prompt-baton"
 
 #if (!defined(DARWIN) && !defined(WIN32)) || defined(DOXYGEN)
@@ -1017,7 +1039,7 @@ svn_auth_gnome_keyring_version(void);
  * This is like svn_client_get_simple_provider(), except that the
  * password is stored in GNOME Keyring.
  *
- * If the GNOME Keyring is locked the provider calls
+ * If the GNOME Keyring is locked the old libgnome-keyring provider calls
  * @c *SVN_AUTH_PARAM_GNOME_KEYRING_UNLOCK_PROMPT_FUNC in order to unlock
  * the keyring.
  *
@@ -1029,7 +1051,11 @@ svn_auth_gnome_keyring_version(void);
  * @since New in 1.6
  * @note This function actually works only on systems with
  * libsvn_auth_gnome_keyring and GNOME Keyring installed.
+ * @deprecated Provided for backwards compatibility with the 1.8 API.
+ * Use svn_auth_get_platform_specific_provider with provider_name
+ * of "gnome_keyring" and provider_type of "simple".
  */
+SVN_DEPRECATED
 void
 svn_auth_get_gnome_keyring_simple_provider(
   svn_auth_provider_object_t **provider,
@@ -1056,7 +1082,11 @@ svn_auth_get_gnome_keyring_simple_provider(
  * @since New in 1.6
  * @note This function actually works only on systems with
  * libsvn_auth_gnome_keyring and GNOME Keyring installed.
+ * @deprecated Provided for backwards compatibility with the 1.8 API.
+ * Use svn_auth_get_platform_specific_provider with provider_name
+ * of "gnome_keyring" and provider_type of "ssl_client_cert_pw".
  */
+SVN_DEPRECATED
 void
 svn_auth_get_gnome_keyring_ssl_client_cert_pw_provider(
   svn_auth_provider_object_t **provider,
@@ -1084,7 +1114,11 @@ svn_auth_kwallet_version(void);
  * @since New in 1.6
  * @note This function actually works only on systems with libsvn_auth_kwallet
  * and KWallet installed.
+ * @deprecated Provided for backwards compatibility with the 1.8 API.
+ * Use svn_auth_get_platform_specific_provider with provider_name
+ * of "kwallet" and provider_type of "simple".
  */
+SVN_DEPRECATED
 void
 svn_auth_get_kwallet_simple_provider(svn_auth_provider_object_t **provider,
                                      apr_pool_t *pool);
@@ -1102,7 +1136,11 @@ svn_auth_get_kwallet_simple_provider(svn_auth_provider_object_t **provider,
  * @since New in 1.6
  * @note This function actually works only on systems with libsvn_auth_kwallet
  * and KWallet installed.
+ * @deprecated Provided for backwards compatibility with the 1.8 API.
+ * Use svn_auth_get_platform_specific_provider with provider_name
+ * of "kwallet" and provider_type of "ssl_client_cert_pw".
  */
+SVN_DEPRECATED
 void
 svn_auth_get_kwallet_ssl_client_cert_pw_provider(
   svn_auth_provider_object_t **provider,
@@ -1124,7 +1162,11 @@ svn_auth_get_kwallet_ssl_client_cert_pw_provider(
  * @since New in 1.8
  * @note This function actually works only on systems with
  * GNU Privacy Guard installed.
+ * @deprecated Provided for backwards compatibility with the 1.8 API.
+ * Use svn_auth_get_platform_specific_provider with provider_name
+ * of "gpg_agent" and provider_type of "simple".
  */
+SVN_DEPRECATED
 void
 svn_auth_get_gpg_agent_simple_provider
     (svn_auth_provider_object_t **provider,

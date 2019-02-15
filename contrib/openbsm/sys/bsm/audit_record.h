@@ -25,8 +25,6 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_record.h#12 $
  */
 
 #ifndef _BSM_AUDIT_RECORD_H_
@@ -185,6 +183,13 @@ struct sockaddr_in6;
 struct sockaddr_un;
 #if defined(_KERNEL) || defined(KERNEL)
 struct vnode_au_info;
+#endif
+
+#ifndef	_CAP_RIGHTS_T_DECLARED
+#define	_CAP_RIGHTS_T_DECLARED
+struct cap_rights;
+
+typedef	struct cap_rights	cap_rights_t;
 #endif
 
 int	 au_open(void);

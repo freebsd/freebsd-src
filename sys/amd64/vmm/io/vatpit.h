@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 Tycho Nightingale <tycho.nightingale@pluribusnetworks.com>
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
@@ -37,9 +39,9 @@
 struct vatpit *vatpit_init(struct vm *vm);
 void vatpit_cleanup(struct vatpit *vatpit);
 
-int vatpit_handler(void *vm, int vcpuid, bool in, int port, int bytes,
+int vatpit_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
     uint32_t *eax);
-int vatpit_nmisc_handler(void *vm, int vcpuid, bool in, int port, int bytes,
-    uint32_t *eax);
+int vatpit_nmisc_handler(struct vm *vm, int vcpuid, bool in, int port,
+    int bytes, uint32_t *eax);
 
 #endif	/* _VATPIT_H_ */

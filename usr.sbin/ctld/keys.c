@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -32,10 +34,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <assert.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "ctld.h"
 
 struct keys *
@@ -43,7 +45,7 @@ keys_new(void)
 {
 	struct keys *keys;
 
-	keys = calloc(sizeof(*keys), 1);
+	keys = calloc(1, sizeof(*keys));
 	if (keys == NULL)
 		log_err(1, "calloc");
 
@@ -116,7 +118,7 @@ keys_save(struct keys *keys, struct pdu *pdu)
 	for (i = 0; i < KEYS_MAX; i++) {
 		if (keys->keys_names[i] == NULL)
 			break;
- 		/*
+		/*
 		 * +1 for '=', +1 for '\0'.
 		 */
 		len += strlen(keys->keys_names[i]) +
@@ -137,7 +139,7 @@ keys_save(struct keys *keys, struct pdu *pdu)
 		if (keys->keys_names[i] == NULL)
 			break;
 		data += sprintf(data, "%s=%s",
-		        keys->keys_names[i], keys->keys_values[i]);
+		    keys->keys_names[i], keys->keys_values[i]);
 		data += 1; /* for '\0'. */
 	}
 }
@@ -159,26 +161,6 @@ keys_find(struct keys *keys, const char *name)
 			return (keys->keys_values[i]);
 	}
 	return (NULL);
-}
-
-int
-keys_find_int(struct keys *keys, const char *name)
-{
-	const char *str;
-	char *endptr;
-	int num;
-
-	str = keys_find(keys, name);
-	if (str == NULL)
-		return (-1);
-
-	num = strtoul(str, &endptr, 10);
-	if (*endptr != '\0') {
-		log_debugx("invalid numeric value \"%s\"", str);
-		return (-1);
-	}
-
-	return (num);
 }
 
 void

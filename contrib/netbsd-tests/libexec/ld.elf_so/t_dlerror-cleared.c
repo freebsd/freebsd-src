@@ -1,4 +1,4 @@
-/*	$NetBSD: t_dlerror-cleared.c,v 1.1 2010/12/14 05:57:32 skrll Exp $	*/
+/*	$NetBSD: t_dlerror-cleared.c,v 1.2 2017/01/13 21:30:42 christos Exp $	*/
 
 /*
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -33,7 +33,7 @@
 #include <dlfcn.h>
 #include <link_elf.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(rtld_dlerror_cleared);
 ATF_TC_HEAD(rtld_dlerror_cleared, tc)

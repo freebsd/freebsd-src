@@ -19,7 +19,7 @@ If you need the compatibility with original PPMd var.H, you can use external Ran
 #define PPMD7_MAX_ORDER 64
 
 #define PPMD7_MIN_MEM_SIZE (1 << 11)
-#define PPMD7_MAX_MEM_SIZE (0xFFFFFFFF - 12 * 3)
+#define PPMD7_MAX_MEM_SIZE (0xFFFFFFFFu - 12 * 3)
 
 struct CPpmd7_Context_;
 
@@ -95,8 +95,8 @@ typedef struct
 {
   /* Base Functions */
   void (*Ppmd7_Construct)(CPpmd7 *p);
-  Bool (*Ppmd7_Alloc)(CPpmd7 *p, UInt32 size, ISzAlloc *alloc);
-  void (*Ppmd7_Free)(CPpmd7 *p, ISzAlloc *alloc);
+  Bool (*Ppmd7_Alloc)(CPpmd7 *p, UInt32 size);
+  void (*Ppmd7_Free)(CPpmd7 *p);
   void (*Ppmd7_Init)(CPpmd7 *p, unsigned maxOrder);
   #define Ppmd7_WasAllocated(p) ((p)->Base != NULL)
 

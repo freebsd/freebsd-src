@@ -34,7 +34,7 @@
  * Copyright (C) 1986 Sun Microsystems, Inc.
  *
  * protocol used between the UNIX kernel (the "client") and the
- * local lock manager.  The local lock manager is a deamon running
+ * local lock manager.  The local lock manager is a daemon running
  * above the kernel.
  */
 

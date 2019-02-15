@@ -1,4 +1,4 @@
-/* $OpenBSD: moduli.c,v 1.28 2013/10/24 00:49:49 dtucker Exp $ */
+/* $OpenBSD: moduli.c,v 1.32 2017/12/08 03:45:52 deraadt Exp $ */
 /*
  * Copyright 1994 Phil Karn <karn@qualcomm.com>
  * Copyright 1996-1998, 2003 William Allen Simpson <wsimpson@greendragon.com>
@@ -39,7 +39,8 @@
 
 #include "includes.h"
 
-#include <sys/param.h>
+#ifdef WITH_OPENSSL
+
 #include <sys/types.h>
 
 #include <openssl/bn.h>
@@ -52,6 +53,7 @@
 #include <stdarg.h>
 #include <time.h>
 #include <unistd.h>
+#include <limits.h>
 
 #include "xmalloc.h"
 #include "dh.h"
@@ -410,8 +412,8 @@ gen_candidates(FILE *out, u_int32_t memory, u_int32_t power, BIGNUM *start)
 
 	time(&time_stop);
 
-	logit("%.24s Sieved with %u small primes in %ld seconds",
-	    ctime(&time_stop), largetries, (long) (time_stop - time_start));
+	logit("%.24s Sieved with %u small primes in %lld seconds",
+	    ctime(&time_stop), largetries, (long long)(time_stop - time_start));
 
 	for (j = r = 0; j < largebits; j++) {
 		if (BIT_TEST(LargeSieve, j))
@@ -447,11 +449,11 @@ static void
 write_checkpoint(char *cpfile, u_int32_t lineno)
 {
 	FILE *fp;
-	char tmp[MAXPATHLEN];
+	char tmp[PATH_MAX];
 	int r;
 
 	r = snprintf(tmp, sizeof(tmp), "%s.XXXXXXXXXX", cpfile);
-	if (r == -1 || r >= MAXPATHLEN) {
+	if (r == -1 || r >= PATH_MAX) {
 		logit("write_checkpoint: temp pathname too long");
 		return;
 	}
@@ -461,6 +463,7 @@ write_checkpoint(char *cpfile, u_int32_t lineno)
 	}
 	if ((fp = fdopen(r, "w")) == NULL) {
 		logit("write_checkpoint: fdopen: %s", strerror(errno));
+		unlink(tmp);
 		close(r);
 		return;
 	}
@@ -605,7 +608,7 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
 
 	if (checkpoint_file != NULL)
 		last_processed = read_checkpoint(checkpoint_file);
-	last_processed = start_lineno = MAX(last_processed, start_lineno);
+	last_processed = start_lineno = MAXIMUM(last_processed, start_lineno);
 	if (end_lineno == ULONG_MAX)
 		debug("process from line %lu from pipe", last_processed);
 	else
@@ -801,3 +804,5 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
 
 	return (res);
 }
+
+#endif /* WITH_OPENSSL */

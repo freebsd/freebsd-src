@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
@@ -32,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <math.h>
 #include <stdlib.h>
+#include "../stdio/floatio.h"
 #include "fpmath.h"
 #include "gdtoaimp.h"
 

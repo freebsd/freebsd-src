@@ -523,10 +523,8 @@ RIPEMD160_CTX *c;
 	l=c->D; l2c(l,cp);
 	l=c->E; l2c(l,cp);
 
-	/* clear stuff, ripemd160_block may be leaving some stuff on the stack
-	 * but I'm not worried :-) */
-	c->num=0;
-/*	memset((char *)&c,0,sizeof(c));*/
+	/* Clear the context state */
+	explicit_bzero(&c, sizeof(c));
 	}
 
 #ifdef undef
@@ -544,4 +542,23 @@ unsigned long *l;
 		fprintf(stderr,"\n");
 		}
 	}
+#endif
+
+#ifdef WEAK_REFS
+/* When building libmd, provide weak references. Note: this is not
+   activated in the context of compiling these sources for internal
+   use in libcrypt.
+ */
+#undef RIPEMD160_Init
+__weak_reference(_libmd_RIPEMD160_Init, RIPEMD160_Init);
+#undef RIPEMD160_Update
+__weak_reference(_libmd_RIPEMD160_Update, RIPEMD160_Update);
+#undef RIPEMD160_Final
+__weak_reference(_libmd_RIPEMD160_Final, RIPEMD160_Final);
+#undef RIPEMD160_Transform
+__weak_reference(_libmd_RIPEMD160_Transform, RIPEMD160_Transform);
+#undef RMD160_version
+__weak_reference(_libmd_RMD160_version, RMD160_version);
+#undef ripemd160_block
+__weak_reference(_libmd_ripemd160_block, ripemd160_block);
 #endif

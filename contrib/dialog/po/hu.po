@@ -1,19 +1,23 @@
-# Dialog
-# Copyright 2003, # Thomas Dickey
-# Arpad Biro <biro_arpad@yahoo.com>, 2003
+# Hungarian translation of dialog
+# Copyright (C) 2003, 2014 Free Software Foundation, Inc.
+# This file is distributed under the same license as the dialog package.
 #
+# Árpad Biró <biro_arpad@yahoo.com>, 2003.
+# Balázs Úr <urbalazs@gmail.com>, 2014.
 msgid ""
 msgstr ""
-"Project-Id-Version: dialog 1.0-rel20041222\n"
+"Project-Id-Version: dialog 1.1.20080819\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2008-06-18 18:26-0400\n"
-"PO-Revision-Date: 2005-02-02 08:21+0100\n"
-"Last-Translator: Németh Csaba <csaba@sopron.hu>\n"
+"PO-Revision-Date: 2014-03-20 23:07+0100\n"
+"Last-Translator: Balázs Úr <urbalazs@gmail.com>\n"
 "Language-Team: Hungarian <translation-team-hu@lists.sourceforge.net>\n"
+"Language: hu\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: KBabel 1.0.1\n"
+"X-Generator: Lokalize 1.2\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: buttons.c:385
 msgid "Yes"
@@ -29,7 +33,7 @@ msgstr "OK"
 
 #: buttons.c:409
 msgid "Cancel"
-msgstr "Mégsem"
+msgstr "Mégse"
 
 #: buttons.c:417
 msgid "EXIT"
@@ -67,44 +71,43 @@ msgstr "Fájlok"
 
 #: mixedgauge.c:58
 msgid "Succeeded"
-msgstr ""
+msgstr "Sikerült"
 
 #: mixedgauge.c:61
-#, fuzzy
 msgid "Failed"
-msgstr "Fájlok"
+msgstr "Meghiúsult"
 
 #: mixedgauge.c:64
 msgid "Passed"
-msgstr ""
+msgstr "Teljesült"
 
 #: mixedgauge.c:67
 msgid "Completed"
-msgstr ""
+msgstr "Befejezve"
 
 #: mixedgauge.c:70
 msgid "Checked"
-msgstr ""
+msgstr "Bejelölve"
 
 #: mixedgauge.c:73
 msgid "Done"
-msgstr ""
+msgstr "Kész"
 
 #: mixedgauge.c:76
 msgid "Skipped"
-msgstr ""
+msgstr "Kihagyva"
 
 #: mixedgauge.c:79
 msgid "In Progress"
-msgstr ""
+msgstr "Folyamatban"
 
 #: mixedgauge.c:85
 msgid "N/A"
-msgstr ""
+msgstr "N/A"
 
 #: mixedgauge.c:193
 msgid "Overall Progress"
-msgstr ""
+msgstr "Teljes folyamat"
 
 #: textbox.c:489
 msgid "Search"

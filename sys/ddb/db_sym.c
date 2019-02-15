@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: MIT-CMU
+ *
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
@@ -31,6 +33,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kstack_pages.h"
+
 #include <sys/param.h>
 #include <sys/pcpu.h>
 #include <sys/smp.h>
@@ -42,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
 
-#include <opt_ddb.h>
+#include "opt_ddb.h"
 
 /*
  * Multiple symbol tables
@@ -58,8 +62,8 @@ static db_symtab_t	*db_last_symtab; /* where last symbol was found */
 
 static c_db_sym_t	db_lookup( const char *symstr);
 static char		*db_qualify(c_db_sym_t sym, char *symtabname);
-static boolean_t	db_symbol_is_ambiguous(c_db_sym_t sym);
-static boolean_t	db_line_at_pc(c_db_sym_t, char **, int *, db_expr_t);
+static bool		db_symbol_is_ambiguous(c_db_sym_t sym);
+static bool		db_line_at_pc(c_db_sym_t, char **, int *, db_expr_t);
 
 static int db_cpu = -1;
 
@@ -81,8 +85,8 @@ db_var_db_cpu(struct db_variable *vp, db_expr_t *valuep, int op)
 		return (1);
 
 	case DB_VAR_SET:
-		if (*(int *)valuep < -1 && *(int *)valuep > mp_maxid) {
-			db_printf("Invalid value: %d", *(int*)valuep);
+		if (*(int *)valuep < -1 || *(int *)valuep > mp_maxid) {
+			db_printf("Invalid value: %d\n", *(int*)valuep);
 			return (0);
 		}
 		db_cpu = *(int *)valuep;
@@ -160,7 +164,7 @@ db_var_curvnet(struct db_variable *vp, db_expr_t *valuep, int op)
 		return (0);
 
 	default:
-		db_printf("db_var_curcpu: unknown operation\n");
+		db_printf("db_var_curvnet: unknown operation\n");
 		return (0);
 	}
 }
@@ -170,11 +174,7 @@ db_var_curvnet(struct db_variable *vp, db_expr_t *valuep, int op)
  * Add symbol table, with given name, to list of symbol tables.
  */
 void
-db_add_symbol_table(start, end, name, ref)
-	char *start;
-	char *end;
-	char *name;
-	char *ref;
+db_add_symbol_table(char *start, char *end, char *name, char *ref)
 {
 	if (db_nsymtab >= MAXNOSYMTABS) {
 		printf ("No slots left for %s symbol table", name);
@@ -195,9 +195,7 @@ db_add_symbol_table(start, end, name, ref)
  *  overwritten by each call... but in practice this seems okay.
  */
 static char *
-db_qualify(sym, symtabname)
-	c_db_sym_t	sym;
-	register char	*symtabname;
+db_qualify(c_db_sym_t sym, char *symtabname)
 {
 	const char	*symname;
 	static char     tmp[256];
@@ -208,37 +206,30 @@ db_qualify(sym, symtabname)
 }
 
 
-boolean_t
-db_eqname(src, dst, c)
-	const char *src;
-	const char *dst;
-	int c;
+bool
+db_eqname(const char *src, const char *dst, int c)
 {
 	if (!strcmp(src, dst))
-	    return (TRUE);
+	    return (true);
 	if (src[0] == c)
 	    return (!strcmp(src+1,dst));
-	return (FALSE);
+	return (false);
 }
 
-boolean_t
-db_value_of_name(name, valuep)
-	const char	*name;
-	db_expr_t	*valuep;
+bool
+db_value_of_name(const char *name, db_expr_t *valuep)
 {
 	c_db_sym_t	sym;
 
 	sym = db_lookup(name);
 	if (sym == C_DB_SYM_NULL)
-	    return (FALSE);
+	    return (false);
 	db_symbol_values(sym, &name, valuep);
-	return (TRUE);
+	return (true);
 }
 
-boolean_t
-db_value_of_name_pcpu(name, valuep)
-	const char	*name;
-	db_expr_t	*valuep;
+bool
+db_value_of_name_pcpu(const char *name, db_expr_t *valuep)
 {
 	static char     tmp[256];
 	db_expr_t	value;
@@ -252,18 +243,16 @@ db_value_of_name_pcpu(name, valuep)
 	snprintf(tmp, sizeof(tmp), "pcpu_entry_%s", name);
 	sym = db_lookup(tmp);
 	if (sym == C_DB_SYM_NULL)
-		return (FALSE);
+		return (false);
 	db_symbol_values(sym, &name, &value);
 	if (value < DPCPU_START || value >= DPCPU_STOP)
-		return (FALSE);
+		return (false);
 	*valuep = (db_expr_t)((uintptr_t)value + dpcpu_off[cpu]);
-	return (TRUE);
+	return (true);
 }
 
-boolean_t
-db_value_of_name_vnet(name, valuep)
-	const char	*name;
-	db_expr_t	*valuep;
+bool
+db_value_of_name_vnet(const char *name, db_expr_t *valuep)
 {
 #ifdef VIMAGE
 	static char     tmp[256];
@@ -278,14 +267,14 @@ db_value_of_name_vnet(name, valuep)
 	snprintf(tmp, sizeof(tmp), "vnet_entry_%s", name);
 	sym = db_lookup(tmp);
 	if (sym == C_DB_SYM_NULL)
-		return (FALSE);
+		return (false);
 	db_symbol_values(sym, &name, &value);
 	if (value < VNET_START || value >= VNET_STOP)
-		return (FALSE);
+		return (false);
 	*valuep = (db_expr_t)((uintptr_t)value + vnet->vnet_data_base);
-	return (TRUE);
+	return (true);
 #else
-	return (FALSE);
+	return (false);
 #endif
 }
 
@@ -296,14 +285,13 @@ db_value_of_name_vnet(name, valuep)
  * otherwise, all symbol tables will be searched.
  */
 static c_db_sym_t
-db_lookup(symstr)
-	const char *symstr;
+db_lookup(const char *symstr)
 {
 	c_db_sym_t sp;
-	register int i;
+	int i;
 	int symtab_start = 0;
 	int symtab_end = db_nsymtab;
-	register const char *cp;
+	const char *cp;
 
 	/*
 	 * Look for, remove, and remember any symbol table specifier.
@@ -344,36 +332,34 @@ db_lookup(symstr)
 }
 
 /*
- * If TRUE, check across symbol tables for multiple occurrences
+ * If true, check across symbol tables for multiple occurrences
  * of a name.  Might slow things down quite a bit.
  */
-static volatile boolean_t db_qualify_ambiguous_names = FALSE;
+static volatile bool db_qualify_ambiguous_names = false;
 
 /*
  * Does this symbol name appear in more than one symbol table?
  * Used by db_symbol_values to decide whether to qualify a symbol.
  */
-static boolean_t
-db_symbol_is_ambiguous(sym)
-	c_db_sym_t	sym;
+static bool
+db_symbol_is_ambiguous(c_db_sym_t sym)
 {
 	const char	*sym_name;
-	register int	i;
-	register
-	boolean_t	found_once = FALSE;
+	int		i;
+	bool		found_once = false;
 
 	if (!db_qualify_ambiguous_names)
-		return FALSE;
+		return (false);
 
 	db_symbol_values(sym, &sym_name, 0);
 	for (i = 0; i < db_nsymtab; i++) {
 		if (X_db_lookup(&db_symtabs[i], sym_name)) {
 			if (found_once)
-				return TRUE;
-			found_once = TRUE;
+				return (true);
+			found_once = true;
 		}
 	}
-	return FALSE;
+	return (false);
 }
 
 /*
@@ -381,21 +367,17 @@ db_symbol_is_ambiguous(sym)
  * and the difference between val and the symbol found.
  */
 c_db_sym_t
-db_search_symbol( val, strategy, offp)
-	register db_addr_t	val;
-	db_strategy_t		strategy;
-	db_expr_t		*offp;
+db_search_symbol(db_addr_t val, db_strategy_t strategy, db_expr_t *offp)
 {
-	register
 	unsigned int	diff;
 	size_t		newdiff;
-	register int	i;
+	int		i;
 	c_db_sym_t	ret = C_DB_SYM_NULL, sym;
 
-	newdiff = diff = ~0;
+	newdiff = diff = val;
 	for (i = 0; i < db_nsymtab; i++) {
 	    sym = X_db_search_symbol(&db_symtabs[i], val, strategy, &newdiff);
-	    if (newdiff < diff) {
+	    if ((uintmax_t)newdiff < (uintmax_t)diff) {
 		db_last_symtab = &db_symtabs[i];
 		diff = newdiff;
 		ret = sym;
@@ -409,15 +391,12 @@ db_search_symbol( val, strategy, offp)
  * Return name and value of a symbol
  */
 void
-db_symbol_values(sym, namep, valuep)
-	c_db_sym_t	sym;
-	const char	**namep;
-	db_expr_t	*valuep;
+db_symbol_values(c_db_sym_t sym, const char **namep, db_expr_t *valuep)
 {
 	db_expr_t	value;
 
 	if (sym == DB_SYM_NULL) {
-		*namep = 0;
+		*namep = NULL;
 		return;
 	}
 
@@ -449,26 +428,21 @@ db_symbol_values(sym, namep, valuep)
 db_expr_t	db_maxoff = 0x10000;
 
 void
-db_printsym(off, strategy)
-	db_expr_t	off;
-	db_strategy_t	strategy;
+db_printsym(db_expr_t off, db_strategy_t strategy)
 {
 	db_expr_t	d;
 	char 		*filename;
 	const char	*name;
-	db_expr_t	value;
 	int 		linenum;
 	c_db_sym_t	cursym;
 
-	cursym = db_search_symbol(off, strategy, &d);
-	db_symbol_values(cursym, &name, &value);
-	if (name == 0)
-		value = off;
-	if (value >= DB_SMALL_VALUE_MIN && value <= DB_SMALL_VALUE_MAX) {
+	if (off < 0 && off >= -db_maxoff) {
 		db_printf("%+#lr", (long)off);
 		return;
 	}
-	if (name == 0 || d >= (unsigned long)db_maxoff) {
+	cursym = db_search_symbol(off, strategy, &d);
+	db_symbol_values(cursym, &name, NULL);
+	if (name == NULL || d >= (db_addr_t)db_maxoff) {
 		db_printf("%#lr", (unsigned long)off);
 		return;
 	}
@@ -485,21 +459,14 @@ db_printsym(off, strategy)
 	}
 }
 
-static boolean_t
-db_line_at_pc( sym, filename, linenum, pc)
-	c_db_sym_t	sym;
-	char		**filename;
-	int		*linenum;
-	db_expr_t	pc;
+static bool
+db_line_at_pc(c_db_sym_t sym, char **filename, int *linenum, db_expr_t pc)
 {
-	return X_db_line_at_pc( db_last_symtab, sym, filename, linenum, pc);
+	return (X_db_line_at_pc(db_last_symtab, sym, filename, linenum, pc));
 }
 
-int
-db_sym_numargs(sym, nargp, argnames)
-	c_db_sym_t	sym;
-	int		*nargp;
-	char		**argnames;
+bool
+db_sym_numargs(c_db_sym_t sym, int *nargp, char **argnames)
 {
-	return X_db_sym_numargs(db_last_symtab, sym, nargp, argnames);
+	return (X_db_sym_numargs(db_last_symtab, sym, nargp, argnames));
 }

@@ -152,7 +152,7 @@ extern pid_t childpid;
  * rpc_util routines
  */
 void reinitialize(void);
-void crash(void);
+void crash(void) __dead2;
 void add_type(int len, const char *type);
 void storeval(list **lstp, definition *val);
 void *xmalloc(size_t size);

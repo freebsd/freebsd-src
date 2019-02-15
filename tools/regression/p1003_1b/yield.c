@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1996-1999
  *	HD Associates, Inc.  All rights reserved.
  *
@@ -89,7 +91,7 @@ int yield(int argc, char *argv[])
 		n = nslaves = atoi(argv[1]);
 
 	p = (int *)mmap(0, sizeof(int),
-	PROT_READ|PROT_WRITE, MAP_ANON|MAP_SHARED|MAP_INHERIT, -1, 0);
+	PROT_READ|PROT_WRITE, MAP_ANON|MAP_SHARED, -1, 0);
 
 	if (p == (int *)-1)
 		err(errno, "mmap");

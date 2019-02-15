@@ -26,11 +26,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 8, 2006
+.Dd November 18, 2015
 .Dt PRINTF 9
 .Os
 .Sh NAME
-.Nm printf , uprintf , tprintf, log
+.Nm printf ,
+.Nm uprintf ,
+.Nm tprintf ,
+.Nm log
 .Nd formatted output conversion
 .Sh SYNOPSIS
 .In sys/types.h
@@ -41,9 +44,13 @@
 .Fn tprintf "struct proc *p" "int pri" "const char *fmt" ...
 .Ft int
 .Fn uprintf "const char *fmt" ...
+.Ft int
+.Fn vprintf "const char *fmt" "va_list ap"
 .In sys/syslog.h
 .Ft void
 .Fn log "int pri" "const char *fmt" ...
+.Ft void
+.Fn vlog "int pri" "const char *fmt" "va_list ap"
 .Sh DESCRIPTION
 The
 .Xr printf 9
@@ -67,7 +74,8 @@ The
 .Fn log
 function sends the message to the kernel logging facility, using
 the log level as indicated by
-.Fa pri .
+.Fa pri ,
+and to the console if no process is yet reading the log.
 .Pp
 Each of these related functions use the
 .Fa fmt
@@ -106,7 +114,7 @@ It requires two arguments: a
 pointer and a
 .Vt "char *"
 string.
-The memory pointed to be the pointer is output in hexadecimal one byte at
+The memory pointed to by the pointer is output in hexadecimal one byte at
 a time.
 The string is used as a delimiter between individual bytes.
 If present, a width directive will specify the number of bytes to display.
@@ -151,7 +159,7 @@ void
 printf_test(void)
 {
 
-	printf("reg=%b\en", 3, "\e10\e2BITTWO\e1BITONE\en");
+	printf("reg=%b\en", 3, "\e10\e2BITTWO\e1BITONE");
 	printf("out: %4D\en", "AAAA", ":");
 }
 .Ed

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999-2001 Robert N. M. Watson
  * All rights reserved.
  *
@@ -57,10 +59,11 @@
 	EXTATTR_NAMESPACE_USER_STRING, \
 	EXTATTR_NAMESPACE_SYSTEM_STRING }
 
+#define	EXTATTR_MAXNAMELEN	NAME_MAX
+
 #ifdef _KERNEL
 #include <sys/types.h>
 
-#define	EXTATTR_MAXNAMELEN	NAME_MAX
 struct thread;
 struct ucred;
 struct vnode;

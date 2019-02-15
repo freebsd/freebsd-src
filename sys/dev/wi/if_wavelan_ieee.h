@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997, 1998, 1999
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -431,7 +433,7 @@ struct wi_apinfo {
  */
 
 /*
- * standard hermes recieve frame used by wavelan/prism2 cards
+ * standard hermes receive frame used by wavelan/prism2 cards
  */
 struct wi_rx_frame {
 	/*

@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016 by Delphix. All rights reserved.
  */
 
 #include <assert.h>
@@ -31,37 +32,11 @@
 #include <sys/spa.h>
 #include <sys/fs/zfs.h>
 #include <sys/refcount.h>
+#include <dlfcn.h>
 
 /*
  * Routines needed by more than one client of libzpool.
  */
-
-void
-nicenum(uint64_t num, char *buf)
-{
-	uint64_t n = num;
-	int index = 0;
-	char u;
-
-	while (n >= 1024) {
-		n = (n + (1024 / 2)) / 1024; /* Round up or down */
-		index++;
-	}
-
-	u = " KMGTPE"[index];
-
-	if (index == 0) {
-		(void) sprintf(buf, "%llu", (u_longlong_t)n);
-	} else if (n < 10 && (num & (num - 1)) != 0) {
-		(void) sprintf(buf, "%.2f%c",
-		    (double)num / (1ULL << 10 * index), u);
-	} else if (n < 100 && (num & (num - 1)) != 0) {
-		(void) sprintf(buf, "%.1f%c",
-		    (double)num / (1ULL << 10 * index), u);
-	} else {
-		(void) sprintf(buf, "%llu%c", (u_longlong_t)n, u);
-	}
-}
 
 static void
 show_vdev_stats(const char *desc, const char *ctype, nvlist_t *nv, int indent)
@@ -95,20 +70,22 @@ show_vdev_stats(const char *desc, const char *ctype, nvlist_t *nv, int indent)
 
 		sec = MAX(1, vs->vs_timestamp / NANOSEC);
 
-		nicenum(vs->vs_alloc, used);
-		nicenum(vs->vs_space - vs->vs_alloc, avail);
-		nicenum(vs->vs_ops[ZIO_TYPE_READ] / sec, rops);
-		nicenum(vs->vs_ops[ZIO_TYPE_WRITE] / sec, wops);
-		nicenum(vs->vs_bytes[ZIO_TYPE_READ] / sec, rbytes);
-		nicenum(vs->vs_bytes[ZIO_TYPE_WRITE] / sec, wbytes);
-		nicenum(vs->vs_read_errors, rerr);
-		nicenum(vs->vs_write_errors, werr);
-		nicenum(vs->vs_checksum_errors, cerr);
+		nicenum(vs->vs_alloc, used, sizeof (used));
+		nicenum(vs->vs_space - vs->vs_alloc, avail, sizeof (avail));
+		nicenum(vs->vs_ops[ZIO_TYPE_READ] / sec, rops, sizeof (rops));
+		nicenum(vs->vs_ops[ZIO_TYPE_WRITE] / sec, wops, sizeof (wops));
+		nicenum(vs->vs_bytes[ZIO_TYPE_READ] / sec, rbytes,
+		    sizeof (rbytes));
+		nicenum(vs->vs_bytes[ZIO_TYPE_WRITE] / sec, wbytes,
+		    sizeof (wbytes));
+		nicenum(vs->vs_read_errors, rerr, sizeof (rerr));
+		nicenum(vs->vs_write_errors, werr, sizeof (werr));
+		nicenum(vs->vs_checksum_errors, cerr, sizeof (cerr));
 
 		(void) printf("%*s%s%*s%*s%*s %5s %5s %5s %5s %5s %5s %5s\n",
 		    indent, "",
 		    prefix,
-		    indent + strlen(prefix) - 25 - (vs->vs_space ? 0 : 12),
+		    (int)(indent + strlen(prefix) - 25 - (vs->vs_space ? 0 : 12)),
 		    desc,
 		    vs->vs_space ? 6 : 0, vs->vs_space ? used : "",
 		    vs->vs_space ? 6 : 0, vs->vs_space ? avail : "",
@@ -152,4 +129,59 @@ show_pool_stats(spa_t *spa)
 	show_vdev_stats(NULL, ZPOOL_CONFIG_SPARES, nvroot, 0);
 
 	nvlist_free(config);
+}
+
+/*
+ * Sets given global variable in libzpool to given unsigned 32-bit value.
+ * arg: "<variable>=<value>"
+ */
+int
+set_global_var(char *arg)
+{
+	void *zpoolhdl;
+	char *varname = arg, *varval;
+	u_longlong_t val;
+
+#ifndef _LITTLE_ENDIAN
+	/*
+	 * On big endian systems changing a 64-bit variable would set the high
+	 * 32 bits instead of the low 32 bits, which could cause unexpected
+	 * results.
+	 */
+	fprintf(stderr, "Setting global variables is only supported on "
+	    "little-endian systems\n", varname);
+	return (ENOTSUP);
+#endif
+	if ((varval = strchr(arg, '=')) != NULL) {
+		*varval = '\0';
+		varval++;
+		val = strtoull(varval, NULL, 0);
+		if (val > UINT32_MAX) {
+			fprintf(stderr, "Value for global variable '%s' must "
+			    "be a 32-bit unsigned integer\n", varname);
+			return (EOVERFLOW);
+		}
+	} else {
+		return (EINVAL);
+	}
+
+	zpoolhdl = dlopen("libzpool.so", RTLD_LAZY);
+	if (zpoolhdl != NULL) {
+		uint32_t *var;
+		var = dlsym(zpoolhdl, varname);
+		if (var == NULL) {
+			fprintf(stderr, "Global variable '%s' does not exist "
+			    "in libzpool.so\n", varname);
+			return (EINVAL);
+		}
+		*var = (uint32_t)val;
+
+		dlclose(zpoolhdl);
+	} else {
+		fprintf(stderr, "Failed to open libzpool.so to set global "
+		    "variable\n");
+		return (EIO);
+	}
+
+	return (0);
 }

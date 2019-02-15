@@ -1,4 +1,4 @@
-//===-- MCInstPrinter.cpp - Convert an MCInst to target assembly syntax ---===//
+//===- MCInstPrinter.cpp - Convert an MCInst to target assembly syntax ----===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -8,16 +8,28 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCInstPrinter.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
+#include <cinttypes>
+#include <cstdint>
+
 using namespace llvm;
 
-MCInstPrinter::~MCInstPrinter() {
+void llvm::dumpBytes(ArrayRef<uint8_t> bytes, raw_ostream &OS) {
+  static const char hex_rep[] = "0123456789abcdef";
+  for (char i: bytes) {
+    OS << hex_rep[(i & 0xF0) >> 4];
+    OS << hex_rep[i & 0xF];
+    OS << ' ';
+  }
 }
+
+MCInstPrinter::~MCInstPrinter() = default;
 
 /// getOpcodeName - Return the name of the specified opcode enum (e.g.
 /// "MOV32ri") or empty if we can't resolve it.
@@ -59,7 +71,7 @@ StringRef MCInstPrinter::markup(StringRef a, StringRef b) const {
 // For asm-style hex (e.g. 0ffh) the first digit always has to be a number.
 static bool needsLeadingZero(uint64_t Value)
 {
-  while(Value)
+  while (Value)
   {
     uint64_t digit = (Value >> 60) & 0xf;
     if (digit != 0)
@@ -69,11 +81,11 @@ static bool needsLeadingZero(uint64_t Value)
   return false;
 }
 
-format_object1<int64_t> MCInstPrinter::formatDec(const int64_t Value) const {
+format_object<int64_t> MCInstPrinter::formatDec(int64_t Value) const {
   return format("%" PRId64, Value);
 }
 
-format_object1<int64_t> MCInstPrinter::formatHex(const int64_t Value) const {
+format_object<int64_t> MCInstPrinter::formatHex(int64_t Value) const {
   switch(PrintHexStyle) {
   case HexStyle::C:
     if (Value < 0)
@@ -96,7 +108,7 @@ format_object1<int64_t> MCInstPrinter::formatHex(const int64_t Value) const {
   llvm_unreachable("unsupported print style");
 }
 
-format_object1<uint64_t> MCInstPrinter::formatHex(const uint64_t Value) const {
+format_object<uint64_t> MCInstPrinter::formatHex(uint64_t Value) const {
   switch(PrintHexStyle) {
   case HexStyle::C:
      return format("0x%" PRIx64, Value);

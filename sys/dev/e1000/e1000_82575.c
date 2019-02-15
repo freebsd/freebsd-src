@@ -1,6 +1,7 @@
 /******************************************************************************
+  SPDX-License-Identifier: BSD-3-Clause
 
-  Copyright (c) 2001-2014, Intel Corporation 
+  Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -79,11 +80,9 @@ static s32  e1000_valid_led_default_82575(struct e1000_hw *hw, u16 *data);
 static s32  e1000_write_phy_reg_sgmii_82575(struct e1000_hw *hw,
 					    u32 offset, u16 data);
 static void e1000_clear_hw_cntrs_82575(struct e1000_hw *hw);
-static s32  e1000_acquire_swfw_sync_82575(struct e1000_hw *hw, u16 mask);
 static s32  e1000_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw,
 						 u16 *speed, u16 *duplex);
 static s32  e1000_get_phy_id_82575(struct e1000_hw *hw);
-static void e1000_release_swfw_sync_82575(struct e1000_hw *hw, u16 mask);
 static bool e1000_sgmii_active_82575(struct e1000_hw *hw);
 static s32  e1000_reset_init_script_82575(struct e1000_hw *hw);
 static s32  e1000_read_mac_addr_82575(struct e1000_hw *hw);
@@ -101,7 +100,6 @@ static s32 e1000_validate_nvm_checksum_with_offset(struct e1000_hw *hw,
 						   u16 offset);
 static s32 e1000_validate_nvm_checksum_i350(struct e1000_hw *hw);
 static s32 e1000_update_nvm_checksum_i350(struct e1000_hw *hw);
-static void e1000_write_vfta_i350(struct e1000_hw *hw, u32 offset, u32 value);
 static void e1000_clear_vfta_i350(struct e1000_hw *hw);
 
 static void e1000_i2c_start(struct e1000_hw *hw);
@@ -275,6 +273,11 @@ static s32 e1000_init_phy_params_82575(struct e1000_hw *hw)
 		}
 		if (phy->id == M88E1512_E_PHY_ID) {
 			ret_val = e1000_initialize_M88E1512_phy(hw);
+			if (ret_val)
+				goto out;
+		}
+		if (phy->id == M88E1543_E_PHY_ID) {
+			ret_val = e1000_initialize_M88E1543_phy(hw);
 			if (ret_val)
 				goto out;
 		}
@@ -507,12 +510,8 @@ static s32 e1000_init_mac_params_82575(struct e1000_hw *hw)
 	/* link info */
 	mac->ops.get_link_up_info = e1000_get_link_up_info_82575;
 	/* acquire SW_FW sync */
-	mac->ops.acquire_swfw_sync = e1000_acquire_swfw_sync_82575;
-	mac->ops.release_swfw_sync = e1000_release_swfw_sync_82575;
-	if (mac->type >= e1000_i210) {
-		mac->ops.acquire_swfw_sync = e1000_acquire_swfw_sync_i210;
-		mac->ops.release_swfw_sync = e1000_release_swfw_sync_i210;
-	}
+	mac->ops.acquire_swfw_sync = e1000_acquire_swfw_sync;
+	mac->ops.release_swfw_sync = e1000_release_swfw_sync;
 
 	/* set lan id for port to determine which phy lock to use */
 	hw->mac.ops.set_lan_id(hw);
@@ -984,7 +983,7 @@ static s32 e1000_acquire_nvm_82575(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_acquire_nvm_82575");
 
-	ret_val = e1000_acquire_swfw_sync_82575(hw, E1000_SWFW_EEP_SM);
+	ret_val = e1000_acquire_swfw_sync(hw, E1000_SWFW_EEP_SM);
 	if (ret_val)
 		goto out;
 
@@ -1015,7 +1014,7 @@ static s32 e1000_acquire_nvm_82575(struct e1000_hw *hw)
 
 	ret_val = e1000_acquire_nvm_generic(hw);
 	if (ret_val)
-		e1000_release_swfw_sync_82575(hw, E1000_SWFW_EEP_SM);
+		e1000_release_swfw_sync(hw, E1000_SWFW_EEP_SM);
 
 out:
 	return ret_val;
@@ -1034,83 +1033,7 @@ static void e1000_release_nvm_82575(struct e1000_hw *hw)
 
 	e1000_release_nvm_generic(hw);
 
-	e1000_release_swfw_sync_82575(hw, E1000_SWFW_EEP_SM);
-}
-
-/**
- *  e1000_acquire_swfw_sync_82575 - Acquire SW/FW semaphore
- *  @hw: pointer to the HW structure
- *  @mask: specifies which semaphore to acquire
- *
- *  Acquire the SW/FW semaphore to access the PHY or NVM.  The mask
- *  will also specify which port we're acquiring the lock for.
- **/
-static s32 e1000_acquire_swfw_sync_82575(struct e1000_hw *hw, u16 mask)
-{
-	u32 swfw_sync;
-	u32 swmask = mask;
-	u32 fwmask = mask << 16;
-	s32 ret_val = E1000_SUCCESS;
-	s32 i = 0, timeout = 200; /* FIXME: find real value to use here */
-
-	DEBUGFUNC("e1000_acquire_swfw_sync_82575");
-
-	while (i < timeout) {
-		if (e1000_get_hw_semaphore_generic(hw)) {
-			ret_val = -E1000_ERR_SWFW_SYNC;
-			goto out;
-		}
-
-		swfw_sync = E1000_READ_REG(hw, E1000_SW_FW_SYNC);
-		if (!(swfw_sync & (fwmask | swmask)))
-			break;
-
-		/*
-		 * Firmware currently using resource (fwmask)
-		 * or other software thread using resource (swmask)
-		 */
-		e1000_put_hw_semaphore_generic(hw);
-		msec_delay_irq(5);
-		i++;
-	}
-
-	if (i == timeout) {
-		DEBUGOUT("Driver can't access resource, SW_FW_SYNC timeout.\n");
-		ret_val = -E1000_ERR_SWFW_SYNC;
-		goto out;
-	}
-
-	swfw_sync |= swmask;
-	E1000_WRITE_REG(hw, E1000_SW_FW_SYNC, swfw_sync);
-
-	e1000_put_hw_semaphore_generic(hw);
-
-out:
-	return ret_val;
-}
-
-/**
- *  e1000_release_swfw_sync_82575 - Release SW/FW semaphore
- *  @hw: pointer to the HW structure
- *  @mask: specifies which semaphore to acquire
- *
- *  Release the SW/FW semaphore used to access the PHY or NVM.  The mask
- *  will also specify which port we're releasing the lock for.
- **/
-static void e1000_release_swfw_sync_82575(struct e1000_hw *hw, u16 mask)
-{
-	u32 swfw_sync;
-
-	DEBUGFUNC("e1000_release_swfw_sync_82575");
-
-	while (e1000_get_hw_semaphore_generic(hw) != E1000_SUCCESS)
-		; /* Empty */
-
-	swfw_sync = E1000_READ_REG(hw, E1000_SW_FW_SYNC);
-	swfw_sync &= ~mask;
-	E1000_WRITE_REG(hw, E1000_SW_FW_SYNC, swfw_sync);
-
-	e1000_put_hw_semaphore_generic(hw);
+	e1000_release_swfw_sync(hw, E1000_SWFW_EEP_SM);
 }
 
 /**
@@ -1235,7 +1158,7 @@ static s32 e1000_check_for_link_media_swap(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_check_for_link_media_swap");
 
-	/* Check the copper medium. */
+	/* Check for copper. */
 	ret_val = phy->ops.write_reg(hw, E1000_M88E1112_PAGE_ADDR, 0);
 	if (ret_val)
 		return ret_val;
@@ -1247,17 +1170,12 @@ static s32 e1000_check_for_link_media_swap(struct e1000_hw *hw)
 	if (data & E1000_M88E1112_STATUS_LINK)
 		port = E1000_MEDIA_PORT_COPPER;
 
-	/* Check the other medium. */
+	/* Check for other. */
 	ret_val = phy->ops.write_reg(hw, E1000_M88E1112_PAGE_ADDR, 1);
 	if (ret_val)
 		return ret_val;
 
 	ret_val = phy->ops.read_reg(hw, E1000_M88E1112_STATUS, &data);
-	if (ret_val)
-		return ret_val;
-
-	/* reset page to 0 */
-	ret_val = phy->ops.write_reg(hw, E1000_M88E1112_PAGE_ADDR, 0);
 	if (ret_val)
 		return ret_val;
 
@@ -1268,8 +1186,20 @@ static s32 e1000_check_for_link_media_swap(struct e1000_hw *hw)
 	if (port && (hw->dev_spec._82575.media_port != port)) {
 		hw->dev_spec._82575.media_port = port;
 		hw->dev_spec._82575.media_changed = TRUE;
+	}
+
+	if (port == E1000_MEDIA_PORT_COPPER) {
+		/* reset page to 0 */
+		ret_val = phy->ops.write_reg(hw, E1000_M88E1112_PAGE_ADDR, 0);
+		if (ret_val)
+			return ret_val;
+		e1000_check_for_link_82575(hw);
 	} else {
-		ret_val = e1000_check_for_link_82575(hw);
+		e1000_check_for_link_82575(hw);
+		/* reset page to 0 */
+		ret_val = phy->ops.write_reg(hw, E1000_M88E1112_PAGE_ADDR, 0);
+		if (ret_val)
+			return ret_val;
 	}
 
 	return E1000_SUCCESS;
@@ -1667,7 +1597,7 @@ static s32 e1000_setup_serdes_link_82575(struct e1000_hw *hw)
 	case E1000_CTRL_EXT_LINK_MODE_1000BASE_KX:
 		/* disable PCS autoneg and support parallel detect only */
 		pcs_autoneg = FALSE;
-		/* fall through to default case */
+		/* FALLTHROUGH */
 	default:
 		if (hw->mac.type == e1000_82575 ||
 		    hw->mac.type == e1000_82576) {
@@ -1794,6 +1724,7 @@ static s32 e1000_get_media_type_82575(struct e1000_hw *hw)
 			break;
 		}
 		/* fall through for I2C based SGMII */
+		/* FALLTHROUGH */
 	case E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES:
 		/* read media type from SFP EEPROM */
 		ret_val = e1000_set_sfp_media_type_82575(hw);
@@ -2126,7 +2057,7 @@ static void e1000_clear_hw_cntrs_82575(struct e1000_hw *hw)
  *  e1000_rx_fifo_flush_82575 - Clean rx fifo after Rx enable
  *  @hw: pointer to the HW structure
  *
- *  After rx enable if managability is enabled then there is likely some
+ *  After Rx enable, if manageability is enabled then there is likely some
  *  bad data at the start of the fifo and possibly in the DMA fifo.  This
  *  function clears the fifos and flushes any packets that came in as rx was
  *  being enabled.
@@ -2136,7 +2067,13 @@ void e1000_rx_fifo_flush_82575(struct e1000_hw *hw)
 	u32 rctl, rlpml, rxdctl[4], rfctl, temp_rctl, rx_enabled;
 	int i, ms_wait;
 
-	DEBUGFUNC("e1000_rx_fifo_workaround_82575");
+	DEBUGFUNC("e1000_rx_fifo_flush_82575");
+
+	/* disable IPv6 options as per hardware errata */
+	rfctl = E1000_READ_REG(hw, E1000_RFCTL);
+	rfctl |= E1000_RFCTL_IPV6_EX_DIS;
+	E1000_WRITE_REG(hw, E1000_RFCTL, rfctl);
+
 	if (hw->mac.type != e1000_82575 ||
 	    !(E1000_READ_REG(hw, E1000_MANC) & E1000_MANC_RCV_TCO_EN))
 		return;
@@ -2164,7 +2101,6 @@ void e1000_rx_fifo_flush_82575(struct e1000_hw *hw)
 	 * incoming packets are rejected.  Set enable and wait 2ms so that
 	 * any packet that was coming in as RCTL.EN was set is flushed
 	 */
-	rfctl = E1000_READ_REG(hw, E1000_RFCTL);
 	E1000_WRITE_REG(hw, E1000_RFCTL, rfctl & ~E1000_RFCTL_LEF);
 
 	rlpml = E1000_READ_REG(hw, E1000_RLPML);
@@ -2399,7 +2335,7 @@ out:
  *  e1000_reset_mdicnfg_82580 - Reset MDICNFG destination and com_mdio bits
  *  @hw: pointer to the HW structure
  *
- *  This resets the the MDICNFG.Destination and MDICNFG.Com_MDIO bits based on
+ *  This resets the MDICNFG.Destination and MDICNFG.Com_MDIO bits based on
  *  the values found in the EEPROM.  This addresses an issue in which these
  *  bits are not restored from EEPROM after reset.
  **/
@@ -2806,7 +2742,7 @@ s32 e1000_read_emi_reg(struct e1000_hw *hw, u16 addr, u16 *data)
  *  e1000_initialize_M88E1512_phy - Initialize M88E1512 PHY
  *  @hw: pointer to the HW structure
  *
- *  Initialize Marverl 1512 to work correctly with Avoton.
+ *  Initialize Marvell 1512 to work correctly with Avoton.
  **/
 s32 e1000_initialize_M88E1512_phy(struct e1000_hw *hw)
 {
@@ -2892,13 +2828,114 @@ out:
 }
 
 /**
+ *  e1000_initialize_M88E1543_phy - Initialize M88E1543 PHY
+ *  @hw: pointer to the HW structure
+ *
+ *  Initialize Marvell 1543 to work correctly with Avoton.
+ **/
+s32 e1000_initialize_M88E1543_phy(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val = E1000_SUCCESS;
+
+	DEBUGFUNC("e1000_initialize_M88E1543_phy");
+
+	/* Check if this is correct PHY. */
+	if (phy->id != M88E1543_E_PHY_ID)
+		goto out;
+
+	/* Switch to PHY page 0xFF. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0x00FF);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_2, 0x214B);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_1, 0x2144);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_2, 0x0C28);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_1, 0x2146);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_2, 0xB233);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_1, 0x214D);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_2, 0xDC0C);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_1, 0x2159);
+	if (ret_val)
+		goto out;
+
+	/* Switch to PHY page 0xFB. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0x00FB);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_CFG_REG_3, 0xC00D);
+	if (ret_val)
+		goto out;
+
+	/* Switch to PHY page 0x12. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0x12);
+	if (ret_val)
+		goto out;
+
+	/* Change mode to SGMII-to-Copper */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1512_MODE, 0x8001);
+	if (ret_val)
+		goto out;
+
+	/* Switch to PHY page 1. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0x1);
+	if (ret_val)
+		goto out;
+
+	/* Change mode to 1000BASE-X/SGMII and autoneg enable; reset */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_FIBER_CTRL, 0x9140);
+	if (ret_val)
+		goto out;
+
+	/* Return the PHY to page 0. */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.commit(hw);
+	if (ret_val) {
+		DEBUGOUT("Error committing the PHY changes\n");
+		return ret_val;
+	}
+
+	msec_delay(1000);
+out:
+	return ret_val;
+}
+
+/**
  *  e1000_set_eee_i350 - Enable/disable EEE support
  *  @hw: pointer to the HW structure
+ *  @adv1g: boolean flag enabling 1G EEE advertisement
+ *  @adv100m: boolean flag enabling 100M EEE advertisement
  *
  *  Enable/disable EEE based on setting in dev_spec structure.
  *
  **/
-s32 e1000_set_eee_i350(struct e1000_hw *hw)
+s32 e1000_set_eee_i350(struct e1000_hw *hw, bool adv1G, bool adv100M)
 {
 	u32 ipcnfg, eeer;
 
@@ -2914,7 +2951,16 @@ s32 e1000_set_eee_i350(struct e1000_hw *hw)
 	if (!(hw->dev_spec._82575.eee_disable)) {
 		u32 eee_su = E1000_READ_REG(hw, E1000_EEE_SU);
 
-		ipcnfg |= (E1000_IPCNFG_EEE_1G_AN | E1000_IPCNFG_EEE_100M_AN);
+		if (adv100M)
+			ipcnfg |= E1000_IPCNFG_EEE_100M_AN;
+		else
+			ipcnfg &= ~E1000_IPCNFG_EEE_100M_AN;
+
+		if (adv1G)
+			ipcnfg |= E1000_IPCNFG_EEE_1G_AN;
+		else
+			ipcnfg &= ~E1000_IPCNFG_EEE_1G_AN;
+
 		eeer |= (E1000_EEER_TX_LPI_EN | E1000_EEER_RX_LPI_EN |
 			 E1000_EEER_LPI_FC);
 
@@ -2938,11 +2984,13 @@ out:
 /**
  *  e1000_set_eee_i354 - Enable/disable EEE support
  *  @hw: pointer to the HW structure
+ *  @adv1g: boolean flag enabling 1G EEE advertisement
+ *  @adv100m: boolean flag enabling 100M EEE advertisement
  *
  *  Enable/disable EEE legacy mode based on setting in dev_spec structure.
  *
  **/
-s32 e1000_set_eee_i354(struct e1000_hw *hw)
+s32 e1000_set_eee_i354(struct e1000_hw *hw, bool adv1G, bool adv100M)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val = E1000_SUCCESS;
@@ -2984,8 +3032,16 @@ s32 e1000_set_eee_i354(struct e1000_hw *hw)
 		if (ret_val)
 			goto out;
 
-		phy_data |= E1000_EEE_ADV_100_SUPPORTED |
-			    E1000_EEE_ADV_1000_SUPPORTED;
+		if (adv100M)
+			phy_data |= E1000_EEE_ADV_100_SUPPORTED;
+		else
+			phy_data &= ~E1000_EEE_ADV_100_SUPPORTED;
+
+		if (adv1G)
+			phy_data |= E1000_EEE_ADV_1000_SUPPORTED;
+		else
+			phy_data &= ~E1000_EEE_ADV_1000_SUPPORTED;
+
 		ret_val = e1000_write_xmdio_reg(hw, E1000_EEE_ADV_ADDR_I354,
 						E1000_EEE_ADV_DEV_I354,
 						phy_data);

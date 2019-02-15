@@ -12,20 +12,18 @@
 //===----------------------------------------------------------------------===//
 
 #include "ARMMCAsmInfo.h"
-#include "llvm/Support/CommandLine.h"
+#include "llvm/ADT/Triple.h"
 
 using namespace llvm;
 
-cl::opt<bool>
-EnableARMEHABI("arm-enable-ehabi", cl::Hidden,
-  cl::desc("Generate ARM EHABI tables"),
-  cl::init(false));
-
-
 void ARMMCAsmInfoDarwin::anchor() { }
 
-ARMMCAsmInfoDarwin::ARMMCAsmInfoDarwin() {
-  Data64bitsDirective = 0;
+ARMMCAsmInfoDarwin::ARMMCAsmInfoDarwin(const Triple &TheTriple) {
+  if ((TheTriple.getArch() == Triple::armeb) ||
+      (TheTriple.getArch() == Triple::thumbeb))
+    IsLittleEndian = false;
+
+  Data64bitsDirective = nullptr;
   CommentString = "@";
   Code16Directive = ".code\t16";
   Code32Directive = ".code\t32";
@@ -34,25 +32,83 @@ ARMMCAsmInfoDarwin::ARMMCAsmInfoDarwin() {
   SupportsDebugInformation = true;
 
   // Exceptions handling
-  ExceptionsType = ExceptionHandling::SjLj;
+  ExceptionsType = (TheTriple.isOSDarwin() && !TheTriple.isWatchABI())
+                       ? ExceptionHandling::SjLj
+                       : ExceptionHandling::DwarfCFI;
+
+  UseIntegratedAssembler = true;
 }
 
 void ARMELFMCAsmInfo::anchor() { }
 
-ARMELFMCAsmInfo::ARMELFMCAsmInfo() {
+ARMELFMCAsmInfo::ARMELFMCAsmInfo(const Triple &TheTriple) {
+  if ((TheTriple.getArch() == Triple::armeb) ||
+      (TheTriple.getArch() == Triple::thumbeb))
+    IsLittleEndian = false;
+
   // ".comm align is in bytes but .align is pow-2."
   AlignmentIsInBytes = false;
 
-  Data64bitsDirective = 0;
+  Data64bitsDirective = nullptr;
   CommentString = "@";
-  PrivateGlobalPrefix = ".L";
   Code16Directive = ".code\t16";
   Code32Directive = ".code\t32";
 
-  HasLEB128 = true;
   SupportsDebugInformation = true;
 
   // Exceptions handling
-  if (EnableARMEHABI)
+  switch (TheTriple.getOS()) {
+  case Triple::NetBSD:
+    ExceptionsType = ExceptionHandling::DwarfCFI;
+    break;
+  default:
     ExceptionsType = ExceptionHandling::ARM;
+    break;
+  }
+
+  // foo(plt) instead of foo@plt
+  UseParensForSymbolVariant = true;
+
+  UseIntegratedAssembler = true;
 }
+
+void ARMELFMCAsmInfo::setUseIntegratedAssembler(bool Value) {
+  UseIntegratedAssembler = Value;
+  if (!UseIntegratedAssembler) {
+    // gas doesn't handle VFP register names in cfi directives,
+    // so don't use register names with external assembler.
+    // See https://sourceware.org/bugzilla/show_bug.cgi?id=16694
+    DwarfRegNumForCFI = true;
+  }
+}
+
+void ARMCOFFMCAsmInfoMicrosoft::anchor() { }
+
+ARMCOFFMCAsmInfoMicrosoft::ARMCOFFMCAsmInfoMicrosoft() {
+  AlignmentIsInBytes = false;
+  ExceptionsType = ExceptionHandling::WinEH;
+  PrivateGlobalPrefix = "$M";
+  PrivateLabelPrefix = "$M";
+  CommentString = ";";
+}
+
+void ARMCOFFMCAsmInfoGNU::anchor() { }
+
+ARMCOFFMCAsmInfoGNU::ARMCOFFMCAsmInfoGNU() {
+  AlignmentIsInBytes = false;
+  HasSingleParameterDotFile = true;
+
+  CommentString = "@";
+  Code16Directive = ".code\t16";
+  Code32Directive = ".code\t32";
+  PrivateGlobalPrefix = ".L";
+  PrivateLabelPrefix = ".L";
+
+  SupportsDebugInformation = true;
+  ExceptionsType = ExceptionHandling::DwarfCFI;
+  UseParensForSymbolVariant = true;
+
+  UseIntegratedAssembler = true;
+  DwarfRegNumForCFI = false;
+}
+

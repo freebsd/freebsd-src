@@ -4,9 +4,117 @@
  *
  ******************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2014, Intel Corp.
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights. You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code. No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision. In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change. Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee. Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution. In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE. ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT, ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES. INTEL WILL NOT PROVIDE ANY
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS. INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government. In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
+ * following license:
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,39 +131,35 @@
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/amlcode.h>
-#include <contrib/dev/acpica/include/acdisasm.h>
 #include <contrib/dev/acpica/include/acdebug.h>
+#include <contrib/dev/acpica/include/acconvert.h>
 
-
-#ifdef ACPI_DISASSEMBLER
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dmwalk")
 
-
-#define DB_FULL_OP_INFO     "[%4.4s] @%5.5X #%4.4X:  "
 
 /* Stub for non-compiler code */
 
@@ -63,6 +167,14 @@
 void
 AcpiDmEmitExternals (
     void)
+{
+    return;
+}
+
+void
+AcpiDmEmitExternal (
+    ACPI_PARSE_OBJECT       *NameOp,
+    ACPI_PARSE_OBJECT       *TypeOp)
 {
     return;
 }
@@ -81,10 +193,6 @@ AcpiDmAscendingOp (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  Level,
     void                    *Context);
-
-static UINT32
-AcpiDmBlockType (
-    ACPI_PARSE_OBJECT       *Op);
 
 
 /*******************************************************************************
@@ -117,10 +225,11 @@ AcpiDmDisassemble (
         return;
     }
 
-    Info.Flags = 0;
-    Info.Level = 0;
-    Info.Count = 0;
+    memset (&Info, 0, sizeof (ACPI_OP_WALK_INFO));
     Info.WalkState = WalkState;
+    Info.StartAml = Op->Common.Aml - sizeof (ACPI_TABLE_HEADER);
+    Info.AmlOffset = Op->Common.Aml - Info.StartAml;
+
     AcpiDmWalkParseTree (Op, AcpiDmDescendingOp, AcpiDmAscendingOp, &Info);
     return;
 }
@@ -250,7 +359,7 @@ AcpiDmWalkParseTree (
  *
  ******************************************************************************/
 
-static UINT32
+UINT32
 AcpiDmBlockType (
     ACPI_PARSE_OBJECT       *Op)
 {
@@ -272,7 +381,7 @@ AcpiDmBlockType (
     case AML_DEVICE_OP:
     case AML_SCOPE_OP:
     case AML_PROCESSOR_OP:
-    case AML_POWER_RES_OP:
+    case AML_POWER_RESOURCE_OP:
     case AML_THERMAL_ZONE_OP:
     case AML_IF_OP:
     case AML_WHILE_OP:
@@ -285,7 +394,8 @@ AcpiDmBlockType (
     case AML_BUFFER_OP:
 
         if ((Op->Common.DisasmOpcode == ACPI_DASM_UNICODE) ||
-            (Op->Common.DisasmOpcode == ACPI_DASM_UUID))
+            (Op->Common.DisasmOpcode == ACPI_DASM_UUID) ||
+            (Op->Common.DisasmOpcode == ACPI_DASM_PLD_METHOD))
         {
             return (BLOCK_NONE);
         }
@@ -293,13 +403,26 @@ AcpiDmBlockType (
         /*lint -fallthrough */
 
     case AML_PACKAGE_OP:
-    case AML_VAR_PACKAGE_OP:
+    case AML_VARIABLE_PACKAGE_OP:
 
         return (BLOCK_PAREN | BLOCK_BRACE);
 
     case AML_EVENT_OP:
 
         return (BLOCK_PAREN);
+
+    case AML_INT_METHODCALL_OP:
+
+        if (Op->Common.Parent &&
+            ((Op->Common.Parent->Common.AmlOpcode == AML_PACKAGE_OP) ||
+             (Op->Common.Parent->Common.AmlOpcode == AML_VARIABLE_PACKAGE_OP)))
+        {
+            /* This is a reference to a method, not an invocation */
+
+            return (BLOCK_NONE);
+        }
+
+        /*lint -fallthrough */
 
     default:
 
@@ -345,7 +468,7 @@ AcpiDmListType (
     case AML_METHOD_OP:
     case AML_DEVICE_OP:
     case AML_SCOPE_OP:
-    case AML_POWER_RES_OP:
+    case AML_POWER_RESOURCE_OP:
     case AML_PROCESSOR_OP:
     case AML_THERMAL_ZONE_OP:
     case AML_IF_OP:
@@ -358,7 +481,7 @@ AcpiDmListType (
 
     case AML_BUFFER_OP:
     case AML_PACKAGE_OP:
-    case AML_VAR_PACKAGE_OP:
+    case AML_VARIABLE_PACKAGE_OP:
 
         return (BLOCK_COMMA_LIST);
 
@@ -398,13 +521,104 @@ AcpiDmDescendingOp (
     const ACPI_OPCODE_INFO  *OpInfo;
     UINT32                  Name;
     ACPI_PARSE_OBJECT       *NextOp;
+    ACPI_PARSE_OBJECT       *NextOp2;
+    UINT32                  AmlOffset;
 
+
+    /* Determine which file this parse node is contained in. */
+
+    if (AcpiGbl_CaptureComments)
+    {
+        ASL_CV_LABEL_FILENODE (Op);
+
+        if (Level != 0 && ASL_CV_FILE_HAS_SWITCHED (Op))
+        {
+            ASL_CV_SWITCH_FILES (Level, Op);
+        }
+
+        /* If this parse node has regular comments, print them here. */
+
+        ASL_CV_PRINT_ONE_COMMENT (Op, AML_COMMENT_STANDARD, NULL, Level);
+    }
+
+    OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
+
+    /* Listing support to dump the AML code after the ASL statement */
+
+    if (AcpiGbl_DmOpt_Listing)
+    {
+        /* We only care about these classes of objects */
+
+        if ((OpInfo->Class == AML_CLASS_NAMED_OBJECT) ||
+            (OpInfo->Class == AML_CLASS_CONTROL) ||
+            (OpInfo->Class == AML_CLASS_CREATE) ||
+            ((OpInfo->Class == AML_CLASS_EXECUTE) && (!Op->Common.Next)))
+        {
+            if (AcpiGbl_DmOpt_Listing && Info->PreviousAml)
+            {
+                /* Dump the AML byte code for the previous Op */
+
+                if (Op->Common.Aml > Info->PreviousAml)
+                {
+                    AcpiOsPrintf ("\n");
+                    AcpiUtDumpBuffer (
+                        (Info->StartAml + Info->AmlOffset),
+                        (Op->Common.Aml - Info->PreviousAml),
+                        DB_BYTE_DISPLAY, Info->AmlOffset);
+                    AcpiOsPrintf ("\n");
+                }
+
+                Info->AmlOffset = (Op->Common.Aml - Info->StartAml);
+            }
+
+            Info->PreviousAml = Op->Common.Aml;
+        }
+    }
 
     if (Op->Common.DisasmFlags & ACPI_PARSEOP_IGNORE)
     {
         /* Ignore this op -- it was handled elsewhere */
 
         return (AE_CTRL_DEPTH);
+    }
+
+    if (Op->Common.DisasmOpcode == ACPI_DASM_IGNORE_SINGLE)
+    {
+        /* Ignore this op, but not it's children */
+
+        return (AE_OK);
+    }
+
+    if (Op->Common.AmlOpcode == AML_IF_OP)
+    {
+        NextOp = AcpiPsGetDepthNext (NULL, Op);
+        if (NextOp)
+        {
+            NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
+
+            /* Don't emit the actual embedded externals unless asked */
+
+            if (!AcpiGbl_DmEmitExternalOpcodes)
+            {
+                /*
+                 * A Zero predicate indicates the possibility of one or more
+                 * External() opcodes within the If() block.
+                 */
+                if (NextOp->Common.AmlOpcode == AML_ZERO_OP)
+                {
+                    NextOp2 = NextOp->Common.Next;
+
+                    if (NextOp2 &&
+                        (NextOp2->Common.AmlOpcode == AML_EXTERNAL_OP))
+                    {
+                        /* Ignore the If 0 block and all children */
+
+                        Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
+                        return (AE_CTRL_DEPTH);
+                    }
+                }
+            }
+        }
     }
 
     /* Level 0 is at the Definition Block level */
@@ -415,10 +629,21 @@ AcpiDmDescendingOp (
 
         if (Info->WalkState)
         {
-            VERBOSE_PRINT ((DB_FULL_OP_INFO,
-                (Info->WalkState->MethodNode ?
-                    Info->WalkState->MethodNode->Name.Ascii : "   "),
-                Op->Common.AmlOffset, (UINT32) Op->Common.AmlOpcode));
+            AmlOffset = (UINT32) ACPI_PTR_DIFF (Op->Common.Aml,
+                Info->WalkState->ParserState.AmlStart);
+            if (AcpiGbl_DmOpt_Verbose)
+            {
+                if (AcpiGbl_CmSingleStep)
+                {
+                    AcpiOsPrintf ("%5.5X/%4.4X: ",
+                        AmlOffset, (UINT32) Op->Common.AmlOpcode);
+                }
+                else
+                {
+                    AcpiOsPrintf ("AML Offset %5.5X, Opcode %4.4X: ",
+                        AmlOffset, (UINT32) Op->Common.AmlOpcode);
+                }
+            }
         }
 
         if (Op->Common.AmlOpcode == AML_SCOPE_OP)
@@ -429,45 +654,50 @@ AcpiDmDescendingOp (
 
             /* Emit all External() declarations here */
 
-            AcpiDmEmitExternals ();
+            if (!AcpiGbl_DmEmitExternalOpcodes)
+            {
+                AcpiDmEmitExternals ();
+            }
+
             return (AE_OK);
         }
     }
     else if ((AcpiDmBlockType (Op->Common.Parent) & BLOCK_BRACE) &&
-             (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST)) &&
-             (Op->Common.AmlOpcode != AML_INT_BYTELIST_OP))
+         (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST)) &&
+         (!(Op->Common.DisasmFlags & ACPI_PARSEOP_ELSEIF)) &&
+         (Op->Common.AmlOpcode != AML_INT_BYTELIST_OP))
     {
+        /*
+         * This is a first-level element of a term list,
+         * indent a new line
+         */
+        switch (Op->Common.AmlOpcode)
+        {
+        case AML_NOOP_OP:
             /*
-             * This is a first-level element of a term list,
-             * indent a new line
+             * Optionally just ignore this opcode. Some tables use
+             * NoOp opcodes for "padding" out packages that the BIOS
+             * changes dynamically. This can leave hundreds or
+             * thousands of NoOp opcodes that if disassembled,
+             * cannot be compiled because they are syntactically
+             * incorrect.
              */
-            switch (Op->Common.AmlOpcode)
+            if (AcpiGbl_IgnoreNoopOperator)
             {
-            case AML_NOOP_OP:
-                /*
-                 * Optionally just ignore this opcode. Some tables use
-                 * NoOp opcodes for "padding" out packages that the BIOS
-                 * changes dynamically. This can leave hundreds or
-                 * thousands of NoOp opcodes that if disassembled,
-                 * cannot be compiled because they are syntactically
-                 * incorrect.
-                 */
-                if (AcpiGbl_IgnoreNoopOperator)
-                {
-                    Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
-                    return (AE_OK);
-                }
-
-                /* Fallthrough */
-
-            default:
-
-                AcpiDmIndent (Level);
-                break;
+                Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
+                return (AE_OK);
             }
 
-            Info->LastLevel = Level;
-            Info->Count = 0;
+            /* Fallthrough */
+
+        default:
+
+            AcpiDmIndent (Level);
+            break;
+        }
+
+        Info->LastLevel = Level;
+        Info->Count = 0;
     }
 
     /*
@@ -477,11 +707,18 @@ AcpiDmDescendingOp (
      * keep track of the current column.
      */
     Info->Count++;
-    if (Info->Count /* +Info->LastLevel */ > 10)
+    if (Info->Count /* +Info->LastLevel */ > 12)
     {
         Info->Count = 0;
         AcpiOsPrintf ("\n");
         AcpiDmIndent (Info->LastLevel + 1);
+    }
+
+    /* If ASL+ is enabled, check for a C-style operator */
+
+    if (AcpiDmCheckForSymbolicOpcode (Op, Info))
+    {
+        return (AE_OK);
     }
 
     /* Print the opcode name */
@@ -500,9 +737,13 @@ AcpiDmDescendingOp (
         Info->Level--;
     }
 
-    /* Start the opcode argument list if necessary */
+    if (Op->Common.AmlOpcode == AML_EXTERNAL_OP)
+    {
+        Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
+        return (AE_CTRL_DEPTH);
+    }
 
-    OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
+    /* Start the opcode argument list if necessary */
 
     if ((OpInfo->Flags & AML_HAS_ARGS) ||
         (Op->Common.AmlOpcode == AML_EVENT_OP))
@@ -512,6 +753,10 @@ AcpiDmDescendingOp (
         if (AcpiDmBlockType (Op) & BLOCK_PAREN)
         {
             AcpiOsPrintf (" (");
+            if (!(AcpiDmBlockType (Op) & BLOCK_BRACE))
+            {
+                ASL_CV_PRINT_ONE_COMMENT (Op, AMLCOMMENT_INLINE, " ", 0);
+            }
         }
 
         /* If this is a named opcode, print the associated name value */
@@ -534,7 +779,7 @@ AcpiDmDescendingOp (
                 Name = AcpiPsGetName (Op);
                 if (Op->Named.Path)
                 {
-                    AcpiDmNamestring ((char *) Op->Named.Path);
+                    AcpiDmNamestring (Op->Named.Path);
                 }
                 else
                 {
@@ -543,7 +788,7 @@ AcpiDmDescendingOp (
 
                 if (Op->Common.AmlOpcode != AML_INT_NAMEDFIELD_OP)
                 {
-                    if (AcpiGbl_DbOpt_verbose)
+                    if (AcpiGbl_DmOpt_Verbose)
                     {
                         (void) AcpiPsDisplayObjectPathname (NULL, Op);
                     }
@@ -556,13 +801,12 @@ AcpiDmDescendingOp (
             case AML_METHOD_OP:
 
                 AcpiDmMethodFlags (Op);
-                AcpiOsPrintf (")");
+                ASL_CV_CLOSE_PAREN (Op, Level);
 
                 /* Emit description comment for Method() with a predefined ACPI name */
 
                 AcpiDmPredefinedDescription (Op);
                 break;
-
 
             case AML_NAME_OP:
 
@@ -570,27 +814,25 @@ AcpiDmDescendingOp (
 
                 AcpiDmCheckForHardwareId (Op);
                 AcpiOsPrintf (", ");
+                ASL_CV_PRINT_ONE_COMMENT (Op, AML_NAMECOMMENT, NULL, 0);
                 break;
-
 
             case AML_REGION_OP:
 
                 AcpiDmRegionFlags (Op);
                 break;
 
-
-            case AML_POWER_RES_OP:
+            case AML_POWER_RESOURCE_OP:
 
                 /* Mark the next two Ops as part of the parameter list */
 
                 AcpiOsPrintf (", ");
                 NextOp = AcpiPsGetDepthNext (NULL, Op);
-                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMLIST;
+                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
 
                 NextOp = NextOp->Common.Next;
-                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMLIST;
+                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
                 return (AE_OK);
-
 
             case AML_PROCESSOR_OP:
 
@@ -598,15 +840,14 @@ AcpiDmDescendingOp (
 
                 AcpiOsPrintf (", ");
                 NextOp = AcpiPsGetDepthNext (NULL, Op);
-                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMLIST;
+                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
 
                 NextOp = NextOp->Common.Next;
-                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMLIST;
+                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
 
                 NextOp = NextOp->Common.Next;
-                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMLIST;
+                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
                 return (AE_OK);
-
 
             case AML_MUTEX_OP:
             case AML_DATA_REGION_OP:
@@ -614,20 +855,17 @@ AcpiDmDescendingOp (
                 AcpiOsPrintf (", ");
                 return (AE_OK);
 
-
             case AML_EVENT_OP:
             case AML_ALIAS_OP:
 
                 return (AE_OK);
 
-
             case AML_SCOPE_OP:
             case AML_DEVICE_OP:
             case AML_THERMAL_ZONE_OP:
 
-                AcpiOsPrintf (")");
+                ASL_CV_CLOSE_PAREN (Op, Level);
                 break;
-
 
             default:
 
@@ -667,12 +905,12 @@ AcpiDmDescendingOp (
                  * Bank Value. This is a TermArg in the middle of the parameter
                  * list, must handle it here.
                  *
-                 * Disassemble the TermArg parse tree. ACPI_PARSEOP_PARAMLIST
+                 * Disassemble the TermArg parse tree. ACPI_PARSEOP_PARAMETER_LIST
                  * eliminates newline in the output.
                  */
                 NextOp = NextOp->Common.Next;
 
-                Info->Flags = ACPI_PARSEOP_PARAMLIST;
+                Info->Flags = ACPI_PARSEOP_PARAMETER_LIST;
                 AcpiDmWalkParseTree (NextOp, AcpiDmDescendingOp,
                     AcpiDmAscendingOp, Info);
                 Info->Flags = 0;
@@ -720,7 +958,7 @@ AcpiDmDescendingOp (
                  */
                 NextOp->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
                 NextOp = NextOp->Common.Next;
-                AcpiOsPrintf (")");
+                ASL_CV_CLOSE_PAREN (Op, Level);
 
                 /* Emit description comment for Name() with a predefined ACPI name */
 
@@ -734,11 +972,11 @@ AcpiDmDescendingOp (
 
             /* Normal Buffer, mark size as in the parameter list */
 
-            NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMLIST;
+            NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
             return (AE_OK);
 
-        case AML_VAR_PACKAGE_OP:
         case AML_IF_OP:
+        case AML_VARIABLE_PACKAGE_OP:
         case AML_WHILE_OP:
 
             /* The next op is the size or predicate parameter */
@@ -746,7 +984,7 @@ AcpiDmDescendingOp (
             NextOp = AcpiPsGetDepthNext (NULL, Op);
             if (NextOp)
             {
-                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMLIST;
+                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
             }
             return (AE_OK);
 
@@ -757,7 +995,7 @@ AcpiDmDescendingOp (
             NextOp = AcpiPsGetDepthNext (NULL, Op);
             if (NextOp)
             {
-                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMLIST;
+                NextOp->Common.DisasmFlags |= ACPI_PARSEOP_PARAMETER_LIST;
             }
             return (AE_OK);
 
@@ -806,7 +1044,22 @@ AcpiDmAscendingOp (
     ACPI_PARSE_OBJECT       *ParentOp;
 
 
-    if (Op->Common.DisasmFlags & ACPI_PARSEOP_IGNORE)
+    /* Point the Op's filename pointer to the proper file */
+
+    if (AcpiGbl_CaptureComments)
+    {
+        ASL_CV_LABEL_FILENODE (Op);
+
+        /* Switch the output of these files if necessary */
+
+        if (ASL_CV_FILE_HAS_SWITCHED (Op))
+        {
+            ASL_CV_SWITCH_FILES (Level, Op);
+        }
+    }
+
+    if (Op->Common.DisasmFlags & ACPI_PARSEOP_IGNORE ||
+        Op->Common.DisasmOpcode == ACPI_DASM_IGNORE_SINGLE)
     {
         /* Ignore this op -- it was handled elsewhere */
 
@@ -817,7 +1070,17 @@ AcpiDmAscendingOp (
     {
         /* Indicates the end of the current descriptor block (table) */
 
-        AcpiOsPrintf ("}\n\n");
+        ASL_CV_CLOSE_BRACE (Op, Level);
+
+        /* Print any comments that are at the end of the file here */
+
+        if (AcpiGbl_CaptureComments && AcpiGbl_LastListHead)
+        {
+            AcpiOsPrintf ("\n");
+            ASL_CV_PRINT_ONE_COMMENT_LIST (AcpiGbl_LastListHead, 0);
+        }
+        AcpiOsPrintf ("\n\n");
+
         return (AE_OK);
     }
 
@@ -825,9 +1088,9 @@ AcpiDmAscendingOp (
     {
     case BLOCK_PAREN:
 
-        /* Completed an op that has arguments, add closing paren */
+        /* Completed an op that has arguments, add closing paren if needed */
 
-        AcpiOsPrintf (")");
+        AcpiDmCloseOperator (Op);
 
         if (Op->Common.AmlOpcode == AML_NAME_OP)
         {
@@ -856,14 +1119,14 @@ AcpiDmAscendingOp (
         if (!AcpiDmCommaIfListMember (Op))
         {
             if ((AcpiDmBlockType (Op->Common.Parent) & BLOCK_BRACE) &&
-                     (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST)) &&
-                     (Op->Common.AmlOpcode != AML_INT_BYTELIST_OP))
+                 (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST)) &&
+                 (Op->Common.AmlOpcode != AML_INT_BYTELIST_OP))
             {
                 /*
                  * This is a first-level element of a term list
                  * start a new line
                  */
-                if (!(Info->Flags & ACPI_PARSEOP_PARAMLIST))
+                if (!(Info->Flags & ACPI_PARSEOP_PARAMETER_LIST))
                 {
                     AcpiOsPrintf ("\n");
                 }
@@ -878,12 +1141,12 @@ AcpiDmAscendingOp (
 
         if (Op->Common.DisasmFlags & ACPI_PARSEOP_EMPTY_TERMLIST)
         {
-            AcpiOsPrintf ("}");
+            ASL_CV_CLOSE_BRACE (Op, Level);
         }
         else
         {
             AcpiDmIndent (Level);
-            AcpiOsPrintf ("}");
+            ASL_CV_CLOSE_BRACE (Op, Level);
         }
 
         AcpiDmCommaIfListMember (Op);
@@ -918,8 +1181,8 @@ AcpiDmAscendingOp (
         if (!AcpiDmCommaIfListMember (Op))
         {
             if ((AcpiDmBlockType (Op->Common.Parent) & BLOCK_BRACE) &&
-                     (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST)) &&
-                     (Op->Common.AmlOpcode != AML_INT_BYTELIST_OP))
+                 (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST)) &&
+                 (Op->Common.AmlOpcode != AML_INT_BYTELIST_OP))
             {
                 /*
                  * This is a first-level element of a term list
@@ -933,9 +1196,9 @@ AcpiDmAscendingOp (
             switch (Op->Common.Parent->Common.AmlOpcode)
             {
             case AML_PACKAGE_OP:
-            case AML_VAR_PACKAGE_OP:
+            case AML_VARIABLE_PACKAGE_OP:
 
-                if (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST))
+                if (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST))
                 {
                     AcpiOsPrintf ("\n");
                 }
@@ -949,28 +1212,31 @@ AcpiDmAscendingOp (
         break;
     }
 
-    if (Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST)
+    if (Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST)
     {
         if ((Op->Common.Next) &&
-            (Op->Common.Next->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST))
+            (Op->Common.Next->Common.DisasmFlags & ACPI_PARSEOP_PARAMETER_LIST))
         {
             return (AE_OK);
         }
 
         /*
          * The parent Op is guaranteed to be valid because of the flag
-         * ACPI_PARSEOP_PARAMLIST -- which means that this op is part of
+         * ACPI_PARSEOP_PARAMETER_LIST -- which means that this op is part of
          * a parameter list and thus has a valid parent.
          */
         ParentOp = Op->Common.Parent;
 
         /*
          * Just completed a parameter node for something like "Buffer (param)".
-         * Close the paren and open up the term list block with a brace
+         * Close the paren and open up the term list block with a brace.
+         *
+         * Switch predicates don't have a Next node but require a closing paren
+         * and opening brace.
          */
-        if (Op->Common.Next)
+        if (Op->Common.Next || Op->Common.DisasmOpcode == ACPI_DASM_SWITCH_PREDICATE)
         {
-            AcpiOsPrintf (")");
+            ASL_CV_CLOSE_PAREN (Op, Level);
 
             /*
              * Emit a description comment for a Name() operator that is a
@@ -983,6 +1249,13 @@ AcpiDmAscendingOp (
                 AcpiDmPredefinedDescription (ParentOp);
             }
 
+            /* Correct the indentation level for Switch and Case predicates */
+
+            if (Op->Common.DisasmOpcode == ACPI_DASM_SWITCH_PREDICATE)
+            {
+                --Level;
+            }
+
             AcpiOsPrintf ("\n");
             AcpiDmIndent (Level - 1);
             AcpiOsPrintf ("{\n");
@@ -990,7 +1263,8 @@ AcpiDmAscendingOp (
         else
         {
             ParentOp->Common.DisasmFlags |= ACPI_PARSEOP_EMPTY_TERMLIST;
-            AcpiOsPrintf (") {");
+            ASL_CV_CLOSE_PAREN (Op, Level);
+            AcpiOsPrintf ("{");
         }
     }
 
@@ -999,8 +1273,19 @@ AcpiDmAscendingOp (
     {
         Info->Level++;
     }
+
+    /*
+     * For ASL+, check for and emit a C-style symbol. If valid, the
+     * symbol string has been deferred until after the first operand
+     */
+    if (AcpiGbl_CstyleDisassembly)
+    {
+        if (Op->Asl.OperatorSymbol)
+        {
+            AcpiOsPrintf ("%s", Op->Asl.OperatorSymbol);
+            Op->Asl.OperatorSymbol = NULL;
+        }
+    }
+
     return (AE_OK);
 }
-
-
-#endif  /* ACPI_DISASSEMBLER */

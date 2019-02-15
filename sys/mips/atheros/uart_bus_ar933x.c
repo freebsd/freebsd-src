@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012, Adrian Chadd <adrian@FreeBSD.org>
  * All rights reserved.
  *
@@ -44,6 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <mips/atheros/ar71xx_cpudef.h>
 
 #include <mips/atheros/uart_dev_ar933x.h>
+#ifdef	EARLY_PRINTF
+#include <mips/atheros/ar933x_uart.h>
+#endif
 
 #include "uart_if.h"
 
@@ -85,7 +90,28 @@ uart_ar933x_probe(device_t dev)
 	sc->sc_bas.bst = mips_bus_space_generic;
 	sc->sc_bas.bsh = MIPS_PHYS_TO_KSEG1(AR71XX_UART_ADDR);
 
-	return (uart_bus_probe(dev, 2, freq, 0, 0));
+	return (uart_bus_probe(dev, 2, 0, freq, 0, 0, 0));
 }
+
+/*
+ * Assume the UART is setup by the bootloader and just echo that.
+ */
+#if	defined(EARLY_PRINTF)
+static void
+ar933x_early_putc(int c)
+{
+	int i = 1000;
+
+	/* Wait until FIFO is clear */
+	while ((i > 0) && (ATH_READ_REG(AR71XX_UART_ADDR + AR933X_UART_CS_REG) &
+	     AR933X_UART_CS_TX_BUSY))
+		i--;
+
+	/* Write it out */
+	ATH_WRITE_REG(AR71XX_UART_ADDR + AR933X_UART_DATA_REG,
+	    (c  & 0xff)| AR933X_UART_DATA_TX_CSR);
+}
+early_putc_t *early_putc = ar933x_early_putc;
+#endif	/* EARLY_PRINTF */
 
 DRIVER_MODULE(uart, apb, uart_ar933x_driver, uart_devclass, 0, 0);

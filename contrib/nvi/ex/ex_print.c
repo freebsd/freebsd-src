@@ -26,15 +26,15 @@ static const char sccsid[] = "$Id: ex_print.c,v 10.26 2013/11/02 02:11:07 zy Exp
 
 #include "../common/common.h"
 
-static int ex_prchars __P((SCR *, const CHAR_T *, size_t *, size_t, 
-                           u_int, int));
+static int ex_prchars(SCR *,
+    const CHAR_T *, size_t *, size_t, u_int, int);
 
 /*
  * ex_list -- :[line [,line]] l[ist] [count] [flags]
  *
  *	Display the addressed lines such that the output is unambiguous.
  *
- * PUBLIC: int ex_list __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_list(SCR *, EXCMD *);
  */
 int
 ex_list(SCR *sp, EXCMD *cmdp)
@@ -52,7 +52,7 @@ ex_list(SCR *sp, EXCMD *cmdp)
  *
  *	Display the addressed lines with a leading line number.
  *
- * PUBLIC: int ex_number __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_number(SCR *, EXCMD *);
  */
 int
 ex_number(SCR *sp, EXCMD *cmdp)
@@ -70,7 +70,7 @@ ex_number(SCR *sp, EXCMD *cmdp)
  *
  *	Display the addressed lines.
  *
- * PUBLIC: int ex_pr __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_pr(SCR *, EXCMD *);
  */
 int
 ex_pr(SCR *sp, EXCMD *cmdp)
@@ -86,7 +86,7 @@ ex_pr(SCR *sp, EXCMD *cmdp)
  * ex_print --
  *	Print the selected lines.
  *
- * PUBLIC: int ex_print __P((SCR *, EXCMD *, MARK *, MARK *, u_int32_t));
+ * PUBLIC: int ex_print(SCR *, EXCMD *, MARK *, MARK *, u_int32_t);
  */
 int
 ex_print(SCR *sp, EXCMD *cmdp, MARK *fp, MARK *tp, u_int32_t flags)
@@ -141,7 +141,7 @@ ex_print(SCR *sp, EXCMD *cmdp, MARK *fp, MARK *tp, u_int32_t flags)
  * ex_ldisplay --
  *	Display a line without any preceding number.
  *
- * PUBLIC: int ex_ldisplay __P((SCR *, const CHAR_T *, size_t, size_t, u_int));
+ * PUBLIC: int ex_ldisplay(SCR *, const CHAR_T *, size_t, size_t, u_int);
  */
 int
 ex_ldisplay(SCR *sp, const CHAR_T *p, size_t len, size_t col, u_int flags)
@@ -162,7 +162,7 @@ ex_ldisplay(SCR *sp, const CHAR_T *p, size_t len, size_t col, u_int flags)
  * ex_scprint --
  *	Display a line for the substitute with confirmation routine.
  *
- * PUBLIC: int ex_scprint __P((SCR *, MARK *, MARK *));
+ * PUBLIC: int ex_scprint(SCR *, MARK *, MARK *);
  */
 int
 ex_scprint(SCR *sp, MARK *fp, MARK *tp)
@@ -258,7 +258,7 @@ intr:	*colp = col;
  * ex_printf --
  *	Ex's version of printf.
  *
- * PUBLIC: int ex_printf __P((SCR *, const char *, ...));
+ * PUBLIC: int ex_printf(SCR *, const char *, ...);
  */
 int
 ex_printf(
@@ -288,7 +288,7 @@ ex_printf(
  * ex_puts --
  *	Ex's version of puts.
  *
- * PUBLIC: int ex_puts __P((SCR *, const char *));
+ * PUBLIC: int ex_puts(SCR *, const char *);
  */
 int
 ex_puts(SCR *sp, const char *str)
@@ -314,7 +314,7 @@ ex_puts(SCR *sp, const char *str)
  * ex_fflush --
  *	Ex's version of fflush.
  *
- * PUBLIC: int ex_fflush __P((SCR *sp));
+ * PUBLIC: int ex_fflush(SCR *sp);
  */
 int
 ex_fflush(SCR *sp)

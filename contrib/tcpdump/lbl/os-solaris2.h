@@ -17,8 +17,6 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @(#) $Header: /tcpdump/master/tcpdump/lbl/os-solaris2.h,v 1.19 2000-10-11 04:02:15 guy Exp $ (LBL)
  */
 
 /* Prototypes missing in SunOS 5 */
@@ -27,4 +25,3 @@ int	setlinebuf(FILE *);
 #endif
 char    *strerror(int);
 int	snprintf(char *, size_t, const char *, ...);
-int	strcasecmp(const char *, const char *);

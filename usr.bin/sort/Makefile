@@ -7,16 +7,16 @@ PROG=	sort
 SRCS=	bwstring.c coll.c file.c mem.c radixsort.c sort.c vsort.c
 
 sort.1: sort.1.in
-	/usr/bin/sed ${MAN_SUB} ${.ALLSRC} >${.TARGET}
+	sed ${MAN_SUB} ${.ALLSRC} >${.TARGET}
 
 CLEANFILES+= sort.1
 
 .if ${MK_SORT_THREADS} != "no"
 CFLAGS+= -DSORT_THREADS
-LDFLAGS+= -lpthread -lmd
+LIBADD=	pthread md
 MAN_SUB+= -e 's|%%THREADS%%||g'
 .else
-LDFLAGS+= -lmd
+LIBADD=	md
 MAN_SUB+= -e 's|%%THREADS%%|\.\\"|g'
 .endif
 
@@ -31,5 +31,8 @@ NLSSRCDIR_${lang}= ${.CURDIR}/nls
 CFLAGS+= -DWITHOUT_NLS
 MAN_SUB+= -e 's|%%NLS%%|\.\\"|g'
 .endif
+
+#HAS_TESTS=
+#SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

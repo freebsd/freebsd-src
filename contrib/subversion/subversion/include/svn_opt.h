@@ -24,8 +24,8 @@
  * @brief Option and argument parsing for Subversion command lines
  */
 
-#ifndef SVN_OPTS_H
-#define SVN_OPTS_H
+#ifndef SVN_OPT_H
+#define SVN_OPT_H
 
 #include <apr.h>
 #include <apr_pools.h>
@@ -656,6 +656,10 @@ svn_opt_parse_all_args(apr_array_header_t **args_p,
  * canonical form if @a path is in canonical form.
  *
  * @since New in 1.1.
+ * @since Since 1.6.5, this returns an error if @a path contains a peg
+ * specifier with no path before it, such as "@abc".
+ * @since Since 1.9.0, this no longer returns an error if @a path contains a peg
+ * specifier with no path before it, such as "@abc".
  */
 svn_error_t *
 svn_opt_parse_path(svn_opt_revision_t *rev,
@@ -776,4 +780,4 @@ svn_opt_print_help(apr_getopt_t *os,
 }
 #endif /* __cplusplus */
 
-#endif /* SVN_OPTS_H */
+#endif /* SVN_OPT_H */

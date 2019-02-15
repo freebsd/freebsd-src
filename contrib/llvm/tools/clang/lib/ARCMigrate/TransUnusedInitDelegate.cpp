@@ -39,7 +39,7 @@ class UnusedInitRewriter : public RecursiveASTVisitor<UnusedInitRewriter> {
 
 public:
   UnusedInitRewriter(MigrationPass &pass)
-    : Body(0), Pass(pass) { }
+    : Body(nullptr), Pass(pass) { }
 
   void transformBody(Stmt *body, Decl *ParentD) {
     Body = body;
@@ -58,7 +58,7 @@ public:
       SourceRange ExprRange = ME->getSourceRange();
       Pass.TA.insert(ExprRange.getBegin(), "if (!(self = ");
       std::string retStr = ")) return ";
-      retStr += getNilString(Pass.Ctx);
+      retStr += getNilString(Pass);
       Pass.TA.insertAfterToken(ExprRange.getEnd(), retStr);
     }
     return true;

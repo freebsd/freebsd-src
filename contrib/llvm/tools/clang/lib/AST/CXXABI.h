@@ -12,14 +12,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_CXXABI_H
-#define LLVM_CLANG_AST_CXXABI_H
+#ifndef LLVM_CLANG_LIB_AST_CXXABI_H
+#define LLVM_CLANG_LIB_AST_CXXABI_H
 
 #include "clang/AST/Type.h"
 
 namespace clang {
 
 class ASTContext;
+class CXXConstructorDecl;
+class DeclaratorDecl;
+class Expr;
 class MemberPointerType;
 class MangleNumberingContext;
 
@@ -28,9 +31,16 @@ class CXXABI {
 public:
   virtual ~CXXABI();
 
-  /// Returns the width and alignment of a member pointer in bits.
-  virtual std::pair<uint64_t, unsigned>
-  getMemberPointerWidthAndAlign(const MemberPointerType *MPT) const = 0;
+  struct MemberPointerInfo {
+    uint64_t Width;
+    unsigned Align;
+    bool HasPadding;
+  };
+
+  /// Returns the width and alignment of a member pointer in bits, as well as
+  /// whether it has padding.
+  virtual MemberPointerInfo
+  getMemberPointerInfo(const MemberPointerType *MPT) const = 0;
 
   /// Returns the default calling convention for C++ methods.
   virtual CallingConv getDefaultMethodCallConv(bool isVariadic) const = 0;
@@ -40,11 +50,30 @@ public:
   virtual bool isNearlyEmpty(const CXXRecordDecl *RD) const = 0;
 
   /// Returns a new mangling number context for this C++ ABI.
-  virtual MangleNumberingContext *createMangleNumberingContext() const = 0;
+  virtual std::unique_ptr<MangleNumberingContext>
+  createMangleNumberingContext() const = 0;
+
+  /// Adds a mapping from class to copy constructor for this C++ ABI.
+  virtual void addCopyConstructorForExceptionObject(CXXRecordDecl *,
+                                                    CXXConstructorDecl *) = 0;
+
+  /// Retrieves the mapping from class to copy constructor for this C++ ABI.
+  virtual const CXXConstructorDecl *
+  getCopyConstructorForExceptionObject(CXXRecordDecl *) = 0;
+
+  virtual void addTypedefNameForUnnamedTagDecl(TagDecl *TD,
+                                               TypedefNameDecl *DD) = 0;
+
+  virtual TypedefNameDecl *
+  getTypedefNameForUnnamedTagDecl(const TagDecl *TD) = 0;
+
+  virtual void addDeclaratorForUnnamedTagDecl(TagDecl *TD,
+                                              DeclaratorDecl *DD) = 0;
+
+  virtual DeclaratorDecl *getDeclaratorForUnnamedTagDecl(const TagDecl *TD) = 0;
 };
 
 /// Creates an instance of a C++ ABI class.
-CXXABI *CreateARMCXXABI(ASTContext &Ctx);
 CXXABI *CreateItaniumCXXABI(ASTContext &Ctx);
 CXXABI *CreateMicrosoftCXXABI(ASTContext &Ctx);
 }

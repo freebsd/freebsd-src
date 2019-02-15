@@ -28,6 +28,7 @@
 
 #include "svn_user.h"
 #include "svn_utf.h"
+#include "svn_dirent_uri.h"
 
 /* Get the current user's name from the OS */
 static const char *
@@ -68,8 +69,11 @@ svn_user_get_name(apr_pool_t *pool)
   return utf8_or_nothing(username, pool);
 }
 
-const char *
-svn_user_get_homedir(apr_pool_t *pool)
+/* Most of the guts of svn_user_get_homedir(): everything except
+ * canonicalizing the path.
+ */
+static const char *
+user_get_homedir(apr_pool_t *pool)
 {
   const char *username;
   char *homedir;
@@ -81,6 +85,17 @@ svn_user_get_homedir(apr_pool_t *pool)
   if (username != NULL &&
       apr_uid_homepath_get(&homedir, username, pool) == APR_SUCCESS)
     return utf8_or_nothing(homedir, pool);
+
+  return NULL;
+}
+
+const char *
+svn_user_get_homedir(apr_pool_t *pool)
+{
+  const char *homedir = user_get_homedir(pool);
+
+  if (homedir)
+    return svn_dirent_canonicalize(homedir, pool);
 
   return NULL;
 }

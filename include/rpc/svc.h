@@ -1,6 +1,8 @@
 /*	$NetBSD: svc.h,v 1.17 2000/06/02 22:57:56 fvdl Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -89,6 +91,7 @@ enum xprt_stat {
  */
 typedef struct __rpc_svcxprt {
 	int		xp_fd;
+#define	xp_sock		xp_fd
 	u_short		xp_port;	 /* associated port number */
 	const struct xp_ops {
 	    /* receive incoming requests */

@@ -147,7 +147,7 @@ static void handle_timeouts(struct event_base* base, struct timeval* now,
 	wait->tv_sec = (time_t)-1;
 #endif
 
-	while((rbnode_t*)(p = (struct event*)rbtree_first(base->times))
+	while((rbnode_type*)(p = (struct event*)rbtree_first(base->times))
 		!=RBTREE_NULL) {
 #ifndef S_SPLINT_S
 		if(p->ev_timeout.tv_sec > now->tv_sec ||
@@ -261,12 +261,9 @@ void event_base_free(struct event_base* base)
 {
 	if(!base)
 		return;
-	if(base->times)
-		free(base->times);
-	if(base->fds)
-		free(base->fds);
-	if(base->signals)
-		free(base->signals);
+	free(base->times);
+	free(base->fds);
+	free(base->signals);
 	free(base);
 }
 

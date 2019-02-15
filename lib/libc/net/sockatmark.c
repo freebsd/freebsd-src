@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 William C. Fenner.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,13 +26,16 @@
  *
  * $FreeBSD$
  */
+#include "namespace.h"
 #include <sys/ioctl.h>
+#include <sys/socket.h>
+#include "un-namespace.h"
 
 int sockatmark(int s)
 {
 	int atmark;
 
-	if (ioctl(s, SIOCATMARK, &atmark) == -1)
+	if (_ioctl(s, SIOCATMARK, &atmark) == -1)
 		return -1;
 	return atmark;
 }

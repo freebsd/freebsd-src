@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
  * All rights reserved.
@@ -74,6 +76,20 @@
 #define	EXC_DLMISS	0x1100		/* Data load translation miss */
 #define	EXC_DSMISS	0x1200		/* Data store translation miss */
 
+/* Power ISA 2.06+: */
+#define	EXC_HDSI	0x0e00		/* Hypervisor Data Storage */
+#define	EXC_HISI	0x0e20		/* Hypervisor Instruction Storage */
+#define	EXC_HEA		0x0e40		/* Hypervisor Emulation Assistance */
+#define	EXC_HMI		0x0e60		/* Hypervisor Maintenance */
+#define	EXC_VSX		0x0f40		/* VSX Unavailable */
+
+/* Power ISA 2.07+: */
+#define	EXC_FAC		0x0f60		/* Facility Unavailable */
+#define	EXC_HFAC	0x0f80		/* Hypervisor Facility Unavailable */
+
+/* Power ISA 3.0+: */
+#define	EXC_HVI		0x0ea0		/* Hypervisor Virtualization */
+
 /* The following are available on 4xx and 85xx */
 #define	EXC_CRIT	0x0100		/* Critical Input Interrupt */
 #define	EXC_PIT		0x1000		/* Programmable Interval Timer */
@@ -82,7 +98,10 @@
 #define	EXC_DTMISS	0x1100		/* Data TLB Miss */
 #define	EXC_ITMISS	0x1200		/* Instruction TLB Miss */
 #define	EXC_APU		0x1300		/* Auxiliary Processing Unit */
-#define	EXC_DEBUG	0x2000		/* Debug trap */
+#define	EXC_DEBUG	0x2f10		/* Debug trap */
+#define	EXC_VECAST_E	0x2f20		/* Altivec Assist (Book-E) */
+#define	EXC_SPFPD	0x2f30		/* SPE Floating-point Data */
+#define	EXC_SPFPR	0x2f40		/* SPE Floating-point Round */
 
 #define	EXC_LAST	0x2f00		/* Last possible exception vector */
 
@@ -108,6 +127,7 @@
 /* Macros to extract register information */
 #define EXC_ALI_RST(dsisr) ((dsisr >> 5) & 0x1f)   /* source or target */
 #define EXC_ALI_RA(dsisr) (dsisr & 0x1f)
+#define	EXC_ALI_SPE_REG(instr)	((instr >> 21) & 0x1f)
 
 /*
  * SRR1 bits for program exception traps. These identify what caused
@@ -119,6 +139,13 @@
 #define	EXC_PGM_ILLEGAL		(1UL << 19)
 #define	EXC_PGM_PRIV		(1UL << 18)
 #define	EXC_PGM_TRAP		(1UL << 17)
+
+/* DTrace trap opcode. */
+#define EXC_DTRACE	0x7ffff808
+
+/* Magic pointer to store TOC base and other info for trap handlers on ppc64 */
+#define TRAP_GENTRAP	0x1f0
+#define TRAP_TOCBASE	0x1f8
 
 #ifndef LOCORE
 struct	trapframe;

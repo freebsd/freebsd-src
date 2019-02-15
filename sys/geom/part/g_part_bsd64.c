@@ -58,7 +58,7 @@ FEATURE(geom_part_bsd64, "GEOM partitioning class for 64-bit BSD disklabels");
 struct disklabel64 {
 	char	  d_reserved0[512];	/* reserved or unused */
 	u_int32_t d_magic;		/* the magic number */
-	u_int32_t d_crc;		/* crc32() d_magic thru last part */
+	u_int32_t d_crc;		/* crc32() d_magic through last part */
 	u_int32_t d_align;		/* partition alignment requirement */
 	u_int32_t d_npartitions;	/* number of partitions */
 	struct uuid d_stor_uuid;	/* unique uuid for label */
@@ -127,7 +127,7 @@ static int g_part_bsd64_destroy(struct g_part_table *, struct g_part_parms *);
 static void g_part_bsd64_dumpconf(struct g_part_table *, struct g_part_entry *,
     struct sbuf *, const char *);
 static int g_part_bsd64_dumpto(struct g_part_table *, struct g_part_entry *);
-static int g_part_bsd64_modify(struct g_part_table *, struct g_part_entry *,  
+static int g_part_bsd64_modify(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
 static const char *g_part_bsd64_name(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
@@ -165,6 +165,7 @@ static struct g_part_scheme g_part_bsd64_scheme = {
 	.gps_maxent = MAXPARTITIONS64
 };
 G_PART_SCHEME_DECLARE(g_part_bsd64);
+MODULE_VERSION(geom_part_bsd64, 0);
 
 #define	EQUUID(a, b)	(memcmp(a, b, sizeof(struct uuid)) == 0)
 static struct uuid bsd64_uuid_unused = GPT_ENT_TYPE_UNUSED;
@@ -409,7 +410,7 @@ g_part_bsd64_dumpconf(struct g_part_table *basetable,
 }
 
 static int
-g_part_bsd64_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)  
+g_part_bsd64_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 {
 	struct g_part_bsd64_entry *entry;
 
@@ -447,9 +448,9 @@ g_part_bsd64_resize(struct g_part_table *basetable,
 	if (baseentry == NULL) {
 		pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
 		table = (struct g_part_bsd64_table *)basetable;
-		table->d_abase = ((pp->mediasize -
-		    table->d_bbase * pp->sectorsize) & ~(table->d_align - 1)) /
-		    pp->sectorsize;
+		table->d_abase =
+		    rounddown2(pp->mediasize - table->d_bbase * pp->sectorsize,
+		        table->d_align) / pp->sectorsize;
 		basetable->gpt_last = table->d_abase - 1;
 		return (0);
 	}
@@ -477,8 +478,8 @@ g_part_bsd64_probe(struct g_part_table *table, struct g_consumer *cp)
 	pp = cp->provider;
 	if (pp->mediasize < 2 * PALIGN_SIZE)
 		return (ENOSPC);
-	v = (pp->sectorsize +
-	    offsetof(struct disklabel64, d_magic)) & ~(pp->sectorsize - 1);
+	v = rounddown2(pp->sectorsize + offsetof(struct disklabel64, d_magic),
+		       pp->sectorsize);
 	buf = g_read_data(cp, 0, v, &error);
 	if (buf == NULL)
 		return (error);
@@ -502,15 +503,15 @@ g_part_bsd64_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	pp = cp->provider;
 	table = (struct g_part_bsd64_table *)basetable;
-	v32 = (pp->sectorsize +
-	    sizeof(struct disklabel64) - 1) & ~(pp->sectorsize - 1);
+	v32 = roundup2(sizeof(struct disklabel64), pp->sectorsize);
 	buf = g_read_data(cp, 0, v32, &error);
 	if (buf == NULL)
 		return (error);
 
 	dlp = (struct disklabel64 *)buf;
 	basetable->gpt_entries = le32toh(dlp->d_npartitions);
-	if (basetable->gpt_entries > MAXPARTITIONS64)
+	if (basetable->gpt_entries > MAXPARTITIONS64 ||
+	    basetable->gpt_entries < 1)
 		goto invalid_label;
 	v32 = le32toh(dlp->d_crc);
 	dlp->d_crc = 0;
@@ -563,8 +564,6 @@ g_part_bsd64_read(struct g_part_table *basetable, struct g_consumer *cp)
 		le_uuid_dec(&dlp->d_partitions[index].p_stor_uuid,
 		    &entry->stor_uuid);
 		entry->fstype = dlp->d_partitions[index].p_fstype;
-		if (index == RAW_PART)
-			baseentry->gpe_internal = 1;
 	}
 	bcopy(dlp->d_reserved0, table->d_reserved0,
 	    sizeof(table->d_reserved0));
@@ -579,7 +578,7 @@ invalid_label:
 }
 
 static const char *
-g_part_bsd64_type(struct g_part_table *basetable, struct g_part_entry *baseentry, 
+g_part_bsd64_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
 {
 	struct g_part_bsd64_entry *entry;
@@ -620,8 +619,7 @@ g_part_bsd64_write(struct g_part_table *basetable, struct g_consumer *cp)
 
 	pp = cp->provider;
 	table = (struct g_part_bsd64_table *)basetable;
-	sz = (pp->sectorsize +
-	    sizeof(struct disklabel64) - 1) & ~(pp->sectorsize - 1);
+	sz = roundup2(sizeof(struct disklabel64), pp->sectorsize);
 	dlp = g_malloc(sz, M_WAITOK | M_ZERO);
 
 	memcpy(dlp->d_reserved0, table->d_reserved0,

@@ -1,5 +1,3 @@
-/* $Id: openssl-compat.h,v 1.26 2014/02/13 05:38:33 dtucker Exp $ */
-
 /*
  * Copyright (c) 2005 Darren Tucker <dtucker@zip.com.au>
  *
@@ -16,28 +14,23 @@
  * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#ifndef _OPENSSL_COMPAT_H
+#define _OPENSSL_COMPAT_H
+
 #include "includes.h"
+#ifdef WITH_OPENSSL
+
 #include <openssl/opensslv.h>
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
 #include <openssl/dsa.h>
+#include <openssl/ecdsa.h>
+#include <openssl/dh.h>
 
-/* Only in 0.9.8 */
-#ifndef OPENSSL_DSA_MAX_MODULUS_BITS
-# define OPENSSL_DSA_MAX_MODULUS_BITS        10000
-#endif
-#ifndef OPENSSL_RSA_MAX_MODULUS_BITS
-# define OPENSSL_RSA_MAX_MODULUS_BITS        16384
-#endif
+int ssh_compatible_openssl(long, long);
 
-/* OPENSSL_free() is Free() in versions before OpenSSL 0.9.6 */
-#if !defined(OPENSSL_VERSION_NUMBER) || (OPENSSL_VERSION_NUMBER < 0x0090600f)
-# define OPENSSL_free(x) Free(x)
-#endif
-
-#if OPENSSL_VERSION_NUMBER < 0x00906000L
-# define SSH_OLD_EVP
-# define EVP_CIPHER_CTX_get_app_data(e)		((e)->app_data)
+#if (OPENSSL_VERSION_NUMBER <= 0x0090805fL)
+# error OpenSSL 0.9.8f or greater is required
 #endif
 
 #if OPENSSL_VERSION_NUMBER < 0x10000001L
@@ -46,27 +39,17 @@
 # define LIBCRYPTO_EVP_INL_TYPE size_t
 #endif
 
-#if (OPENSSL_VERSION_NUMBER < 0x00907000L) || defined(OPENSSL_LOBOTOMISED_AES)
-# define USE_BUILTIN_RIJNDAEL
+#ifndef OPENSSL_RSA_MAX_MODULUS_BITS
+# define OPENSSL_RSA_MAX_MODULUS_BITS	16384
 #endif
-
-#ifdef USE_BUILTIN_RIJNDAEL
-# include "rijndael.h"
-# define AES_KEY rijndael_ctx
-# define AES_BLOCK_SIZE 16
-# define AES_encrypt(a, b, c)		rijndael_encrypt(c, a, b)
-# define AES_set_encrypt_key(a, b, c)	rijndael_set_key(c, (char *)a, b, 1)
-# define EVP_aes_128_cbc evp_rijndael
-# define EVP_aes_192_cbc evp_rijndael
-# define EVP_aes_256_cbc evp_rijndael
-const EVP_CIPHER *evp_rijndael(void);
-void ssh_rijndael_iv(EVP_CIPHER_CTX *, int, u_char *, u_int);
+#ifndef OPENSSL_DSA_MAX_MODULUS_BITS
+# define OPENSSL_DSA_MAX_MODULUS_BITS	10000
 #endif
 
 #ifndef OPENSSL_HAVE_EVPCTR
-#define EVP_aes_128_ctr evp_aes_128_ctr
-#define EVP_aes_192_ctr evp_aes_128_ctr
-#define EVP_aes_256_ctr evp_aes_128_ctr
+# define EVP_aes_128_ctr evp_aes_128_ctr
+# define EVP_aes_192_ctr evp_aes_128_ctr
+# define EVP_aes_256_ctr evp_aes_128_ctr
 const EVP_CIPHER *evp_aes_128_ctr(void);
 void ssh_aes_ctr_iv(EVP_CIPHER_CTX *, int, u_char *, size_t);
 #endif
@@ -88,45 +71,21 @@ void ssh_aes_ctr_iv(EVP_CIPHER_CTX *, int, u_char *, size_t);
 # endif
 #endif
 
-#if OPENSSL_VERSION_NUMBER < 0x00907000L
-#define EVP_X_STATE(evp)	&(evp).c
-#define EVP_X_STATE_LEN(evp)	sizeof((evp).c)
-#else
-#define EVP_X_STATE(evp)	(evp).cipher_data
-#define EVP_X_STATE_LEN(evp)	(evp).cipher->ctx_size
-#endif
-
-/* OpenSSL 0.9.8e returns cipher key len not context key len */
-#if (OPENSSL_VERSION_NUMBER == 0x0090805fL)
-# define EVP_CIPHER_CTX_key_length(c) ((c)->key_len)
-#endif
-
-#ifndef HAVE_RSA_GET_DEFAULT_METHOD
-RSA_METHOD *RSA_get_default_method(void);
+#if defined(HAVE_EVP_RIPEMD160)
+# if defined(OPENSSL_NO_RIPEMD) || defined(OPENSSL_NO_RMD160)
+#  undef HAVE_EVP_RIPEMD160
+# endif
 #endif
 
 /*
  * We overload some of the OpenSSL crypto functions with ssh_* equivalents
- * which cater for older and/or less featureful OpenSSL version.
+ * to automatically handle OpenSSL engine initialisation.
  *
  * In order for the compat library to call the real functions, it must
  * define SSH_DONT_OVERLOAD_OPENSSL_FUNCS before including this file and
  * implement the ssh_* equivalents.
  */
 #ifndef SSH_DONT_OVERLOAD_OPENSSL_FUNCS
-
-# ifdef SSH_OLD_EVP
-#  ifdef EVP_Cipher
-#   undef EVP_Cipher
-#  endif
-#  define EVP_CipherInit(a,b,c,d,e)	ssh_EVP_CipherInit((a),(b),(c),(d),(e))
-#  define EVP_Cipher(a,b,c,d)		ssh_EVP_Cipher((a),(b),(c),(d))
-#  define EVP_CIPHER_CTX_cleanup(a)	ssh_EVP_CIPHER_CTX_cleanup((a))
-# endif /* SSH_OLD_EVP */
-
-# ifdef OPENSSL_EVP_DIGESTUPDATE_VOID
-#  define EVP_DigestUpdate(a,b,c)	ssh_EVP_DigestUpdate((a),(b),(c))
-#  endif
 
 # ifdef USE_OPENSSL_ENGINE
 #  ifdef OpenSSL_add_all_algorithms
@@ -135,48 +94,143 @@ RSA_METHOD *RSA_get_default_method(void);
 #  define OpenSSL_add_all_algorithms()  ssh_OpenSSL_add_all_algorithms()
 # endif
 
-# ifndef HAVE_BN_IS_PRIME_EX
-int BN_is_prime_ex(const BIGNUM *, int, BN_CTX *, void *);
-# endif
-
-# ifndef HAVE_DSA_GENERATE_PARAMETERS_EX
-int DSA_generate_parameters_ex(DSA *, int, const unsigned char *, int, int *,
-    unsigned long *, void *);
-# endif
-
-# ifndef HAVE_RSA_GENERATE_KEY_EX
-int RSA_generate_key_ex(RSA *, int, BIGNUM *, void *);
-# endif
-
-# ifndef HAVE_EVP_DIGESTINIT_EX
-int EVP_DigestInit_ex(EVP_MD_CTX *, const EVP_MD *, void *);
-# endif
-
-# ifndef HAVE_EVP_DISESTFINAL_EX
-int EVP_DigestFinal_ex(EVP_MD_CTX *, unsigned char *, unsigned int *);
-# endif
-
-# ifndef EVP_MD_CTX_COPY_EX
-int EVP_MD_CTX_copy_ex(EVP_MD_CTX *, const EVP_MD_CTX *);
-# endif
-
-int ssh_EVP_CipherInit(EVP_CIPHER_CTX *, const EVP_CIPHER *, unsigned char *,
-    unsigned char *, int);
-int ssh_EVP_Cipher(EVP_CIPHER_CTX *, char *, char *, int);
-int ssh_EVP_CIPHER_CTX_cleanup(EVP_CIPHER_CTX *);
 void ssh_OpenSSL_add_all_algorithms(void);
-
-# ifndef HAVE_HMAC_CTX_INIT
-#  define HMAC_CTX_init(a)
-# endif
-
-# ifndef HAVE_EVP_MD_CTX_INIT
-#  define EVP_MD_CTX_init(a)
-# endif
-
-# ifndef HAVE_EVP_MD_CTX_CLEANUP
-#  define EVP_MD_CTX_cleanup(a)
-# endif
 
 #endif	/* SSH_DONT_OVERLOAD_OPENSSL_FUNCS */
 
+/* LibreSSL/OpenSSL 1.1x API compat */
+#ifndef HAVE_DSA_GET0_PQG
+void DSA_get0_pqg(const DSA *d, const BIGNUM **p, const BIGNUM **q,
+    const BIGNUM **g);
+#endif /* HAVE_DSA_GET0_PQG */
+
+#ifndef HAVE_DSA_SET0_PQG
+int DSA_set0_pqg(DSA *d, BIGNUM *p, BIGNUM *q, BIGNUM *g);
+#endif /* HAVE_DSA_SET0_PQG */
+
+#ifndef HAVE_DSA_GET0_KEY
+void DSA_get0_key(const DSA *d, const BIGNUM **pub_key,
+    const BIGNUM **priv_key);
+#endif /* HAVE_DSA_GET0_KEY */
+
+#ifndef HAVE_DSA_SET0_KEY
+int DSA_set0_key(DSA *d, BIGNUM *pub_key, BIGNUM *priv_key);
+#endif /* HAVE_DSA_SET0_KEY */
+
+#ifndef HAVE_EVP_CIPHER_CTX_GET_IV
+int EVP_CIPHER_CTX_get_iv(const EVP_CIPHER_CTX *ctx,
+    unsigned char *iv, size_t len);
+#endif /* HAVE_EVP_CIPHER_CTX_GET_IV */
+
+#ifndef HAVE_EVP_CIPHER_CTX_SET_IV
+int EVP_CIPHER_CTX_set_iv(EVP_CIPHER_CTX *ctx,
+    const unsigned char *iv, size_t len);
+#endif /* HAVE_EVP_CIPHER_CTX_SET_IV */
+
+#ifndef HAVE_RSA_GET0_KEY
+void RSA_get0_key(const RSA *r, const BIGNUM **n, const BIGNUM **e,
+    const BIGNUM **d);
+#endif /* HAVE_RSA_GET0_KEY */
+
+#ifndef HAVE_RSA_SET0_KEY
+int RSA_set0_key(RSA *r, BIGNUM *n, BIGNUM *e, BIGNUM *d);
+#endif /* HAVE_RSA_SET0_KEY */
+
+#ifndef HAVE_RSA_GET0_CRT_PARAMS
+void RSA_get0_crt_params(const RSA *r, const BIGNUM **dmp1, const BIGNUM **dmq1,
+    const BIGNUM **iqmp);
+#endif /* HAVE_RSA_GET0_CRT_PARAMS */
+
+#ifndef HAVE_RSA_SET0_CRT_PARAMS
+int RSA_set0_crt_params(RSA *r, BIGNUM *dmp1, BIGNUM *dmq1, BIGNUM *iqmp);
+#endif /* HAVE_RSA_SET0_CRT_PARAMS */
+
+#ifndef HAVE_RSA_GET0_FACTORS
+void RSA_get0_factors(const RSA *r, const BIGNUM **p, const BIGNUM **q);
+#endif /* HAVE_RSA_GET0_FACTORS */
+
+#ifndef HAVE_RSA_SET0_FACTORS
+int RSA_set0_factors(RSA *r, BIGNUM *p, BIGNUM *q);
+#endif /* HAVE_RSA_SET0_FACTORS */
+
+#ifndef DSA_SIG_GET0
+void DSA_SIG_get0(const DSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps);
+#endif /* DSA_SIG_GET0 */
+
+#ifndef DSA_SIG_SET0
+int DSA_SIG_set0(DSA_SIG *sig, BIGNUM *r, BIGNUM *s);
+#endif /* DSA_SIG_SET0 */
+
+#ifndef HAVE_ECDSA_SIG_GET0
+void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps);
+#endif /* HAVE_ECDSA_SIG_GET0 */
+
+#ifndef HAVE_ECDSA_SIG_SET0
+int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s);
+#endif /* HAVE_ECDSA_SIG_SET0 */
+
+#ifndef HAVE_DH_GET0_PQG
+void DH_get0_pqg(const DH *dh, const BIGNUM **p, const BIGNUM **q,
+    const BIGNUM **g);
+#endif /* HAVE_DH_GET0_PQG */
+
+#ifndef HAVE_DH_SET0_PQG
+int DH_set0_pqg(DH *dh, BIGNUM *p, BIGNUM *q, BIGNUM *g);
+#endif /* HAVE_DH_SET0_PQG */
+
+#ifndef HAVE_DH_GET0_KEY
+void DH_get0_key(const DH *dh, const BIGNUM **pub_key, const BIGNUM **priv_key);
+#endif /* HAVE_DH_GET0_KEY */
+
+#ifndef HAVE_DH_SET0_KEY
+int DH_set0_key(DH *dh, BIGNUM *pub_key, BIGNUM *priv_key);
+#endif /* HAVE_DH_SET0_KEY */
+
+#ifndef HAVE_DH_SET_LENGTH
+int DH_set_length(DH *dh, long length);
+#endif /* HAVE_DH_SET_LENGTH */
+
+#ifndef HAVE_RSA_METH_FREE
+void RSA_meth_free(RSA_METHOD *meth);
+#endif /* HAVE_RSA_METH_FREE */
+
+#ifndef HAVE_RSA_METH_DUP
+RSA_METHOD *RSA_meth_dup(const RSA_METHOD *meth);
+#endif /* HAVE_RSA_METH_DUP */
+
+#ifndef HAVE_RSA_METH_SET1_NAME
+int RSA_meth_set1_name(RSA_METHOD *meth, const char *name);
+#endif /* HAVE_RSA_METH_SET1_NAME */
+
+#ifndef HAVE_RSA_METH_GET_FINISH
+int (*RSA_meth_get_finish(const RSA_METHOD *meth))(RSA *rsa);
+#endif /* HAVE_RSA_METH_GET_FINISH */
+
+#ifndef HAVE_RSA_METH_SET_PRIV_ENC
+int RSA_meth_set_priv_enc(RSA_METHOD *meth, int (*priv_enc)(int flen,
+    const unsigned char *from, unsigned char *to, RSA *rsa, int padding));
+#endif /* HAVE_RSA_METH_SET_PRIV_ENC */
+
+#ifndef HAVE_RSA_METH_SET_PRIV_DEC
+int RSA_meth_set_priv_dec(RSA_METHOD *meth, int (*priv_dec)(int flen,
+    const unsigned char *from, unsigned char *to, RSA *rsa, int padding));
+#endif /* HAVE_RSA_METH_SET_PRIV_DEC */
+
+#ifndef HAVE_RSA_METH_SET_FINISH
+int RSA_meth_set_finish(RSA_METHOD *meth, int (*finish)(RSA *rsa));
+#endif /* HAVE_RSA_METH_SET_FINISH */
+
+#ifndef HAVE_EVP_PKEY_GET0_RSA
+RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey);
+#endif /* HAVE_EVP_PKEY_GET0_RSA */
+
+#ifndef HAVE_EVP_MD_CTX_new
+EVP_MD_CTX *EVP_MD_CTX_new(void);
+#endif /* HAVE_EVP_MD_CTX_new */
+
+#ifndef HAVE_EVP_MD_CTX_free
+void EVP_MD_CTX_free(EVP_MD_CTX *ctx);
+#endif /* HAVE_EVP_MD_CTX_free */
+
+#endif /* WITH_OPENSSL */
+#endif /* _OPENSSL_COMPAT_H */

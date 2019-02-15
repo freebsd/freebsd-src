@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Luiz Otavio O Souza.
  * Copyright (c) 2011-2012 Stefan Bethke.
  * All rights reserved.
@@ -34,5 +36,14 @@ int ar8xxx_getvgroup(struct arswitch_softc *, etherswitch_vlangroup_t *);
 int ar8xxx_setvgroup(struct arswitch_softc *, etherswitch_vlangroup_t *);
 int ar8xxx_get_pvid(struct arswitch_softc *, int, int *);
 int ar8xxx_set_pvid(struct arswitch_softc *, int, int);
+
+int ar8xxx_flush_dot1q_vlan(struct arswitch_softc *sc);
+int ar8xxx_purge_dot1q_vlan(struct arswitch_softc *sc, int vid);
+int ar8xxx_get_dot1q_vlan(struct arswitch_softc *sc, uint32_t *ports,
+    uint32_t *untagged_ports, int vid);
+int ar8xxx_set_dot1q_vlan(struct arswitch_softc *sc, uint32_t ports,
+    uint32_t untagged_ports, int vid);
+int ar8xxx_get_port_vlan(struct arswitch_softc *sc, uint32_t *ports, int vid);
+int ar8xxx_set_port_vlan(struct arswitch_softc *sc, uint32_t ports, int vid);
 
 #endif	/* __ARSWITCH_VLANS_H__ */

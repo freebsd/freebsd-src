@@ -1,6 +1,3 @@
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -25,7 +22,6 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
 # TODO: Bring in the checks in the bootstrap testsuite for atf_check.
 
@@ -168,18 +164,22 @@ equal_body()
         grep '^failed: \${x} != \${y} (a != b)$' resfile
 }
 
-atf_test_case flush_stdout_on_timeout
-flush_stdout_on_timeout_body()
+atf_test_case flush_stdout_on_death
+flush_stdout_on_death_body()
 {
-    "$(atf_get_srcdir)/misc_helpers" -s "$(atf_get_srcdir)" atf_check_timeout \
-        >out 2>err &
+    CONTROL_FILE="$(pwd)/done" "$(atf_get_srcdir)/misc_helpers" \
+        -s "$(atf_get_srcdir)" atf_check_flush_stdout >out 2>err &
     pid="${!}"
-    sleep 1
-    kill "${pid}"
+    while [ ! -f ./done ]; do
+        echo "Still waiting for helper to create control file"
+        ls
+        sleep 1
+    done
+    kill -9 "${pid}"
 
     grep 'Executing command.*true' out \
         || atf_fail 'First command not in output'
-    grep 'Executing command.*sleep 42' out \
+    grep 'Executing command.*false' out \
         || atf_fail 'Second command not in output'
 }
 
@@ -191,7 +191,7 @@ atf_init_test_cases()
     atf_add_test_case null_stdout
     atf_add_test_case null_stderr
     atf_add_test_case equal
-    atf_add_test_case flush_stdout_on_timeout
+    atf_add_test_case flush_stdout_on_death
 }
 
 # vim: syntax=sh:expandtab:shiftwidth=4:softtabstop=4

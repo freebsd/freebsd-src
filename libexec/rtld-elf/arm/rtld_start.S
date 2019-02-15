@@ -97,3 +97,4 @@ _rtld_bind_start:
 	ldmia	sp!,{r0-r5,sl,fp,lr}	/* restore the stack */
 	mov	pc, ip			/* jump to the new address */
 
+	.section .note.GNU-stack,"",%progbits

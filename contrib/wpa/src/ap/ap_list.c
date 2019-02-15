@@ -14,7 +14,6 @@
 #include "utils/eloop.h"
 #include "common/ieee802_11_defs.h"
 #include "common/ieee802_11_common.h"
-#include "drivers/driver.h"
 #include "hostapd.h"
 #include "ap_config.h"
 #include "ieee802_11.h"
@@ -33,7 +32,8 @@ static int ap_list_beacon_olbc(struct hostapd_iface *iface, struct ap_info *ap)
 {
 	int i;
 
-	if (iface->current_mode->mode != HOSTAPD_MODE_IEEE80211G ||
+	if (iface->current_mode == NULL ||
+	    iface->current_mode->mode != HOSTAPD_MODE_IEEE80211G ||
 	    iface->conf->channel != ap->channel)
 		return 0;
 
@@ -50,7 +50,7 @@ static int ap_list_beacon_olbc(struct hostapd_iface *iface, struct ap_info *ap)
 }
 
 
-struct ap_info * ap_get_ap(struct hostapd_iface *iface, const u8 *ap)
+static struct ap_info * ap_get_ap(struct hostapd_iface *iface, const u8 *ap)
 {
 	struct ap_info *s;
 
@@ -87,34 +87,6 @@ static void ap_ap_list_del(struct hostapd_iface *iface, struct ap_info *ap)
 }
 
 
-static void ap_ap_iter_list_add(struct hostapd_iface *iface,
-				struct ap_info *ap)
-{
-	if (iface->ap_iter_list) {
-		ap->iter_prev = iface->ap_iter_list->iter_prev;
-		iface->ap_iter_list->iter_prev = ap;
-	} else
-		ap->iter_prev = ap;
-	ap->iter_next = iface->ap_iter_list;
-	iface->ap_iter_list = ap;
-}
-
-
-static void ap_ap_iter_list_del(struct hostapd_iface *iface,
-				struct ap_info *ap)
-{
-	if (iface->ap_iter_list == ap)
-		iface->ap_iter_list = ap->iter_next;
-	else
-		ap->iter_prev->iter_next = ap->iter_next;
-
-	if (ap->iter_next)
-		ap->iter_next->iter_prev = ap->iter_prev;
-	else if (iface->ap_iter_list)
-		iface->ap_iter_list->iter_prev = ap->iter_prev;
-}
-
-
 static void ap_ap_hash_add(struct hostapd_iface *iface, struct ap_info *ap)
 {
 	ap->hnext = iface->ap_hash[STA_HASH(ap->addr)];
@@ -139,8 +111,8 @@ static void ap_ap_hash_del(struct hostapd_iface *iface, struct ap_info *ap)
 	if (s->hnext != NULL)
 		s->hnext = s->hnext->hnext;
 	else
-		printf("AP: could not remove AP " MACSTR " from hash table\n",
-		       MAC2STR(ap->addr));
+		wpa_printf(MSG_INFO, "AP: could not remove AP " MACSTR
+			   " from hash table",  MAC2STR(ap->addr));
 }
 
 
@@ -148,7 +120,6 @@ static void ap_free_ap(struct hostapd_iface *iface, struct ap_info *ap)
 {
 	ap_ap_hash_del(iface, ap);
 	ap_ap_list_del(iface, ap);
-	ap_ap_iter_list_del(iface, ap);
 
 	iface->num_ap--;
 	os_free(ap);
@@ -171,25 +142,6 @@ static void hostapd_free_aps(struct hostapd_iface *iface)
 }
 
 
-int ap_ap_for_each(struct hostapd_iface *iface,
-		   int (*func)(struct ap_info *s, void *data), void *data)
-{
-	struct ap_info *s;
-	int ret = 0;
-
-	s = iface->ap_list;
-
-	while (s) {
-		ret = func(s, data);
-		if (ret)
-			break;
-		s = s->next;
-	}
-
-	return ret;
-}
-
-
 static struct ap_info * ap_ap_add(struct hostapd_iface *iface, const u8 *addr)
 {
 	struct ap_info *ap;
@@ -203,7 +155,6 @@ static struct ap_info * ap_ap_add(struct hostapd_iface *iface, const u8 *addr)
 	ap_ap_list_add(iface, ap);
 	iface->num_ap++;
 	ap_ap_hash_add(iface, ap);
-	ap_ap_iter_list_add(iface, ap);
 
 	if (iface->num_ap > iface->conf->ap_table_max_size && ap != ap->prev) {
 		wpa_printf(MSG_DEBUG, "Removing the least recently used AP "
@@ -221,9 +172,7 @@ void ap_list_process_beacon(struct hostapd_iface *iface,
 			    struct hostapd_frame_info *fi)
 {
 	struct ap_info *ap;
-	struct os_time now;
 	int new_ap = 0;
-	size_t len;
 	int set_beacon = 0;
 
 	if (iface->conf->ap_table_max_size < 1)
@@ -233,37 +182,26 @@ void ap_list_process_beacon(struct hostapd_iface *iface,
 	if (!ap) {
 		ap = ap_ap_add(iface, mgmt->bssid);
 		if (!ap) {
-			printf("Failed to allocate AP information entry\n");
+			wpa_printf(MSG_INFO,
+				   "Failed to allocate AP information entry");
 			return;
 		}
 		new_ap = 1;
-	}
-
-	ap->beacon_int = le_to_host16(mgmt->u.beacon.beacon_int);
-	ap->capability = le_to_host16(mgmt->u.beacon.capab_info);
-
-	if (elems->ssid) {
-		len = elems->ssid_len;
-		if (len >= sizeof(ap->ssid))
-			len = sizeof(ap->ssid) - 1;
-		os_memcpy(ap->ssid, elems->ssid, len);
-		ap->ssid[len] = '\0';
-		ap->ssid_len = len;
 	}
 
 	merge_byte_arrays(ap->supported_rates, WLAN_SUPP_RATES_MAX,
 			  elems->supp_rates, elems->supp_rates_len,
 			  elems->ext_supp_rates, elems->ext_supp_rates_len);
 
-	ap->wpa = elems->wpa_ie != NULL;
-
-	if (elems->erp_info && elems->erp_info_len == 1)
+	if (elems->erp_info)
 		ap->erp = elems->erp_info[0];
 	else
 		ap->erp = -1;
 
-	if (elems->ds_params && elems->ds_params_len == 1)
+	if (elems->ds_params)
 		ap->channel = elems->ds_params[0];
+	else if (elems->ht_operation)
+		ap->channel = elems->ht_operation[0];
 	else if (fi)
 		ap->channel = fi->channel;
 
@@ -272,11 +210,7 @@ void ap_list_process_beacon(struct hostapd_iface *iface,
 	else
 		ap->ht_support = 0;
 
-	ap->num_beacons++;
-	os_get_time(&now);
-	ap->last_beacon = now.sec;
-	if (fi)
-		ap->datarate = fi->datarate;
+	os_get_reltime(&ap->last_beacon);
 
 	if (!new_ap && ap != iface->ap_list) {
 		/* move AP entry into the beginning of the list so that the
@@ -288,17 +222,23 @@ void ap_list_process_beacon(struct hostapd_iface *iface,
 	if (!iface->olbc &&
 	    ap_list_beacon_olbc(iface, ap)) {
 		iface->olbc = 1;
-		wpa_printf(MSG_DEBUG, "OLBC AP detected: " MACSTR " - enable "
-			   "protection", MAC2STR(ap->addr));
+		wpa_printf(MSG_DEBUG, "OLBC AP detected: " MACSTR
+			   " (channel %d) - enable protection",
+			   MAC2STR(ap->addr), ap->channel);
 		set_beacon++;
 	}
 
 #ifdef CONFIG_IEEE80211N
-	if (!iface->olbc_ht && !ap->ht_support) {
+	if (!iface->olbc_ht && !ap->ht_support &&
+	    (ap->channel == 0 ||
+	     ap->channel == iface->conf->channel ||
+	     ap->channel == iface->conf->channel +
+	     iface->conf->secondary_channel * 4)) {
 		iface->olbc_ht = 1;
 		hostapd_ht_operation_update(iface);
 		wpa_printf(MSG_DEBUG, "OLBC HT AP detected: " MACSTR
-			   " - enable protection", MAC2STR(ap->addr));
+			   " (channel %d) - enable protection",
+			   MAC2STR(ap->addr), ap->channel);
 		set_beacon++;
 	}
 #endif /* CONFIG_IEEE80211N */
@@ -308,24 +248,21 @@ void ap_list_process_beacon(struct hostapd_iface *iface,
 }
 
 
-static void ap_list_timer(void *eloop_ctx, void *timeout_ctx)
+void ap_list_timer(struct hostapd_iface *iface)
 {
-	struct hostapd_iface *iface = eloop_ctx;
-	struct os_time now;
+	struct os_reltime now;
 	struct ap_info *ap;
 	int set_beacon = 0;
-
-	eloop_register_timeout(10, 0, ap_list_timer, iface, NULL);
 
 	if (!iface->ap_list)
 		return;
 
-	os_get_time(&now);
+	os_get_reltime(&now);
 
 	while (iface->ap_list) {
 		ap = iface->ap_list->prev;
-		if (ap->last_beacon + iface->conf->ap_table_expiration_time >=
-		    now.sec)
+		if (!os_reltime_expired(&now, &ap->last_beacon,
+					iface->conf->ap_table_expiration_time))
 			break;
 
 		ap_free_ap(iface, ap);
@@ -365,13 +302,11 @@ static void ap_list_timer(void *eloop_ctx, void *timeout_ctx)
 
 int ap_list_init(struct hostapd_iface *iface)
 {
-	eloop_register_timeout(10, 0, ap_list_timer, iface, NULL);
 	return 0;
 }
 
 
 void ap_list_deinit(struct hostapd_iface *iface)
 {
-	eloop_cancel_timeout(ap_list_timer, iface, NULL);
 	hostapd_free_aps(iface);
 }

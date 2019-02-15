@@ -14,14 +14,12 @@
 #ifndef LLVM_CLANG_AST_ASTCONSUMER_H
 #define LLVM_CLANG_AST_ASTCONSUMER_H
 
-#include "llvm/ADT/StringRef.h"
-
 namespace clang {
   class ASTContext;
+  class CXXMethodDecl;
   class CXXRecordDecl;
   class Decl;
   class DeclGroupRef;
-  class HandleTagDeclDefinition;
   class ASTMutationListener;
   class ASTDeserializationListener; // layering violation because void* is ugly
   class SemaConsumer; // layering violation required for safe SemaConsumer
@@ -50,12 +48,14 @@ public:
   virtual void Initialize(ASTContext &Context) {}
 
   /// HandleTopLevelDecl - Handle the specified top-level declaration.  This is
-  /// called by the parser to process every top-level Decl*. Note that D can be
-  /// the head of a chain of Decls (e.g. for `int a, b` the chain will have two
-  /// elements). Use Decl::getNextDeclarator() to walk the chain.
+  /// called by the parser to process every top-level Decl*.
   ///
   /// \returns true to continue parsing, or false to abort parsing.
   virtual bool HandleTopLevelDecl(DeclGroupRef D);
+
+  /// \brief This callback is invoked each time an inline (method or friend)
+  /// function definition in a class is completed.
+  virtual void HandleInlineFunctionDefinition(FunctionDecl *D) {}
 
   /// HandleInterestingDecl - Handle the specified interesting declaration. This
   /// is called by the AST reader when deserializing things that might interest
@@ -92,21 +92,6 @@ public:
   /// The default implementation passes it to HandleTopLevelDecl.
   virtual void HandleImplicitImportDecl(ImportDecl *D);
 
-  /// \brief Handle a pragma that appends to Linker Options.  Currently this
-  /// only exists to support Microsoft's #pragma comment(linker, "/foo").
-  virtual void HandleLinkerOptionPragma(llvm::StringRef Opts) {}
-
-  /// \brief Handle a pragma that emits a mismatch identifier and value to the
-  /// object file for the linker to work with.  Currently, this only exists to
-  /// support Microsoft's #pragma detect_mismatch.
-  virtual void HandleDetectMismatch(llvm::StringRef Name,
-                                    llvm::StringRef Value) {}
-
-  /// \brief Handle a dependent library created by a pragma in the source.
-  /// Currently this only exists to support Microsoft's
-  /// #pragma comment(lib, "/foo").
-  virtual void HandleDependentLibrary(llvm::StringRef Lib) {}
-
   /// CompleteTentativeDefinition - Callback invoked at the end of a translation
   /// unit to notify the consumer that the given tentative definition should be
   /// completed.
@@ -118,6 +103,10 @@ public:
   /// modified by the introduction of an implicit zero initializer.
   virtual void CompleteTentativeDefinition(VarDecl *D) {}
 
+  /// \brief Callback invoked when an MSInheritanceAttr has been attached to a
+  /// CXXRecordDecl.
+  virtual void AssignInheritanceModel(CXXRecordDecl *RD) {}
+
   /// HandleCXXStaticMemberVarInstantiation - Tell the consumer that this
   // variable has been instantiated.
   virtual void HandleCXXStaticMemberVarInstantiation(VarDecl *D) {}
@@ -127,21 +116,17 @@ public:
   /// required.
   ///
   /// \param RD The class whose vtable was used.
-  ///
-  /// \param DefinitionRequired Whether a definition of this vtable is
-  /// required in this translation unit; otherwise, it is only needed if
-  /// it was actually used.
-  virtual void HandleVTable(CXXRecordDecl *RD, bool DefinitionRequired) {}
+  virtual void HandleVTable(CXXRecordDecl *RD) {}
 
   /// \brief If the consumer is interested in entities getting modified after
   /// their initial creation, it should return a pointer to
   /// an ASTMutationListener here.
-  virtual ASTMutationListener *GetASTMutationListener() { return 0; }
+  virtual ASTMutationListener *GetASTMutationListener() { return nullptr; }
 
   /// \brief If the consumer is interested in entities being deserialized from
   /// AST files, it should return a pointer to a ASTDeserializationListener here
   virtual ASTDeserializationListener *GetASTDeserializationListener() {
-    return 0;
+    return nullptr;
   }
 
   /// PrintStats - If desired, print any statistics.

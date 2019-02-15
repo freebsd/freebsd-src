@@ -18,6 +18,9 @@ namespace llvm {
 
   class Value;
   class Use;
+  class Instruction;
+  class DominatorTree;
+  class OrderedBasicBlock;
 
   /// PointerMayBeCaptured - Return true if this pointer value may be captured
   /// by the enclosing function (which is required to exist).  This routine can
@@ -29,6 +32,22 @@ namespace llvm {
   bool PointerMayBeCaptured(const Value *V,
                             bool ReturnCaptures,
                             bool StoreCaptures);
+
+  /// PointerMayBeCapturedBefore - Return true if this pointer value may be
+  /// captured by the enclosing function (which is required to exist). If a
+  /// DominatorTree is provided, only captures which happen before the given
+  /// instruction are considered. This routine can be expensive, so consider
+  /// caching the results.  The boolean ReturnCaptures specifies whether
+  /// returning the value (or part of it) from the function counts as capturing
+  /// it or not.  The boolean StoreCaptures specified whether storing the value
+  /// (or part of it) into memory anywhere automatically counts as capturing it
+  /// or not. Captures by the provided instruction are considered if the
+  /// final parameter is true. An ordered basic block in \p OBB could be used
+  /// to speed up capture-tracker queries.
+  bool PointerMayBeCapturedBefore(const Value *V, bool ReturnCaptures,
+                                  bool StoreCaptures, const Instruction *I,
+                                  DominatorTree *DT, bool IncludeI = false,
+                                  OrderedBasicBlock *OBB = nullptr);
 
   /// This callback is used in conjunction with PointerMayBeCaptured. In
   /// addition to the interface here, you'll need to provide your own getters
@@ -45,12 +64,12 @@ namespace llvm {
     /// capture) return false. To search it, return true.
     ///
     /// U->getUser() is always an Instruction.
-    virtual bool shouldExplore(Use *U);
+    virtual bool shouldExplore(const Use *U);
 
     /// captured - Information about the pointer was captured by the user of
     /// use U. Return true to stop the traversal or false to continue looking
     /// for more capturing instructions.
-    virtual bool captured(Use *U) = 0;
+    virtual bool captured(const Use *U) = 0;
   };
 
   /// PointerMayBeCaptured - Visit the value and the values derived from it and

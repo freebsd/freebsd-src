@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_iface.c 267384 2014-06-12 09:59:11Z melifaro $");
+__FBSDID("$FreeBSD$");
 
 /*
  * Kernel interface tracking API.
@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_iface.c 267384 2014-06-
 #include <sys/eventhandler.h>
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/pfil.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -249,13 +250,14 @@ vnet_ipfw_iface_init(struct ip_fw_chain *ch)
 	}
 }
 
-static void
+static int
 destroy_iface(struct namedobj_instance *ii, struct named_object *no,
     void *arg)
 {
 
 	/* Assume all consumers have been already detached */
 	free(no, M_IPFW);
+	return (0);
 }
 
 /*
@@ -397,20 +399,20 @@ ipfw_iface_del_notify(struct ip_fw_chain *ch, struct ipfw_ifc *ic)
 
 /*
  * Unreference interface specified by @ic.
- * Must be called without holding any locks.
+ * Must be called while holding UH lock.
  */
 void
 ipfw_iface_unref(struct ip_fw_chain *ch, struct ipfw_ifc *ic)
 {
 	struct ipfw_iface *iif;
 
+	IPFW_UH_WLOCK_ASSERT(ch);
+
 	iif = ic->iface;
 	ic->iface = NULL;
 
-	IPFW_UH_WLOCK(ch);
 	iif->no.refcnt--;
 	/* TODO: check for references & delete */
-	IPFW_UH_WUNLOCK(ch);
 }
 
 /*
@@ -460,7 +462,7 @@ struct dump_iface_args {
 	struct sockopt_data *sd;
 };
 
-static void
+static int
 export_iface_internal(struct namedobj_instance *ii, struct named_object *no,
     void *arg)
 {
@@ -471,7 +473,7 @@ export_iface_internal(struct namedobj_instance *ii, struct named_object *no,
 	da = (struct dump_iface_args *)arg;
 
 	i = (ipfw_iface_info *)ipfw_get_sopt_space(da->sd, sizeof(*i));
-	KASSERT(i != 0, ("previously checked buffer is not enough"));
+	KASSERT(i != NULL, ("previously checked buffer is not enough"));
 
 	iif = (struct ipfw_iface *)no;
 
@@ -481,6 +483,7 @@ export_iface_internal(struct namedobj_instance *ii, struct named_object *no,
 	i->ifindex = iif->ifindex;
 	i->refcnt = iif->no.refcnt;
 	i->gencnt = iif->gencnt;
+	return (0);
 }
 
 /*

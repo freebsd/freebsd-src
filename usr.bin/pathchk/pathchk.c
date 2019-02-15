@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Tim J. Robbins.
  * All rights reserved.
  *
@@ -89,7 +91,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: pathchk [-p] pathname ...\n");
+	fprintf(stderr, "usage: pathchk [-Pp] pathname ...\n");
 	exit(1);
 }
 

@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_REWRITE_DELTATREE_H
-#define CLANG_REWRITE_DELTATREE_H
+#ifndef LLVM_CLANG_REWRITE_CORE_DELTATREE_H
+#define LLVM_CLANG_REWRITE_CORE_DELTATREE_H
 
 #include "llvm/Support/Compiler.h"
 
@@ -27,7 +27,7 @@ namespace clang {
   /// as well, without traversing the whole tree.
   class DeltaTree {
     void *Root;    // "DeltaTreeNode *"
-    void operator=(const DeltaTree &) LLVM_DELETED_FUNCTION;
+    void operator=(const DeltaTree &) = delete;
   public:
     DeltaTree();
 

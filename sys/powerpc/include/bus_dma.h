@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Scott Long
  * All rights reserved.
  *
@@ -29,6 +31,7 @@
 #define _POWERPC_BUS_DMA_H_
 
 #include <sys/bus_dma.h>
+#include <sys/bus_dma_internal.h>
 
 struct device;
 

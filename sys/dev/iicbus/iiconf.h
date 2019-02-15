@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998, 2001 Nicolas Souchu
  * All rights reserved.
  *
@@ -37,12 +39,14 @@
 #define LSB 0x1
 
 /*
- * How tsleep() is called in iic_request_bus().
+ * Options affecting iicbus_request_bus()
  */
 #define IIC_DONTWAIT	0
 #define IIC_NOINTR	0
 #define IIC_WAIT	0x1
 #define IIC_INTR	0x2
+#define IIC_INTRWAIT	(IIC_INTR | IIC_WAIT)
+#define IIC_RECURSIVE	0x4
 
 /*
  * i2c modes
@@ -81,17 +85,23 @@
 /*
  * adapter layer errors
  */
-#define IIC_NOERR	0x0	/* no error occured */
-#define IIC_EBUSERR	0x1	/* bus error */
+#define	IIC_NOERR	0x0	/* no error occurred */
+#define IIC_EBUSERR	0x1	/* bus error (hardware not in expected state) */
 #define IIC_ENOACK	0x2	/* ack not received until timeout */
 #define IIC_ETIMEOUT	0x3	/* timeout */
-#define IIC_EBUSBSY	0x4	/* bus busy */
+#define IIC_EBUSBSY	0x4	/* bus busy (reserved by another client) */
 #define IIC_ESTATUS	0x5	/* status error */
 #define IIC_EUNDERFLOW	0x6	/* slave ready for more data */
 #define IIC_EOVERFLOW	0x7	/* too much data */
 #define IIC_ENOTSUPP	0x8	/* request not supported */
 #define IIC_ENOADDR	0x9	/* no address assigned to the interface */
+#define IIC_ERESOURCE	0xa	/* resources (memory, whatever) unavailable */
 
+/*
+ * Note that all iicbus functions return IIC_Exxxxx status values,
+ * except iic2errno() (obviously) and iicbus_started() (returns bool).
+ */
+extern int iic2errno(int);
 extern int iicbus_request_bus(device_t, device_t, int);
 extern int iicbus_release_bus(device_t, device_t);
 extern device_t iicbus_alloc_bus(device_t);
@@ -122,7 +132,19 @@ extern int iicbus_block_read(device_t, u_char, char *, int, int *);
 
 /* vectors of iic operations to pass to bridge */
 int iicbus_transfer(device_t bus, struct iic_msg *msgs, uint32_t nmsgs);
+int iicbus_transfer_excl(device_t bus, struct iic_msg *msgs, uint32_t nmsgs,
+    int how);
 int iicbus_transfer_gen(device_t bus, struct iic_msg *msgs, uint32_t nmsgs);
+
+/*
+ * Simple register read/write routines, but the "register" can be any size.
+ * The transfers are done with iicbus_transfer_excl().  Reads use a repeat-start
+ * between sending the address and reading; writes use a single start/stop.
+ */
+int iicdev_readfrom(device_t _slavedev, uint8_t _regaddr, void *_buffer,
+    uint16_t _buflen, int _waithow);
+int iicdev_writeto(device_t _slavedev, uint8_t _regaddr, void *_buffer,
+    uint16_t _buflen, int _waithow);
 
 #define IICBUS_MODVER	1
 #define IICBUS_MINVER	1

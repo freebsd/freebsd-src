@@ -1,5 +1,7 @@
 %{
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -34,7 +36,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "ctld.h"
 #include "y.tab.h"
 
 int lineno;
@@ -55,36 +56,43 @@ backend			{ return BACKEND; }
 blocksize		{ return BLOCKSIZE; }
 chap			{ return CHAP; }
 chap-mutual		{ return CHAP_MUTUAL; }
+ctl-lun			{ return CTL_LUN; }
 debug			{ return DEBUG; }
 device-id		{ return DEVICE_ID; }
+device-type		{ return DEVICE_TYPE; }
 discovery-auth-group	{ return DISCOVERY_AUTH_GROUP; }
+discovery-filter	{ return DISCOVERY_FILTER; }
+foreign			{ return FOREIGN; }
 initiator-name		{ return INITIATOR_NAME; }
 initiator-portal	{ return INITIATOR_PORTAL; }
 listen			{ return LISTEN; }
 listen-iser		{ return LISTEN_ISER; }
 lun			{ return LUN; }
 maxproc			{ return MAXPROC; }
+offload			{ return OFFLOAD; }
 option			{ return OPTION; }
 path			{ return PATH; }
 pidfile			{ return PIDFILE; }
+isns-server		{ return ISNS_SERVER; }
+isns-period		{ return ISNS_PERIOD; }
+isns-timeout		{ return ISNS_TIMEOUT; }
+port			{ return PORT; }
 portal-group		{ return PORTAL_GROUP; }
+redirect		{ return REDIRECT; }
 serial			{ return SERIAL; }
 size			{ return SIZE; }
+tag			{ return TAG; }
 target			{ return TARGET; }
 timeout			{ return TIMEOUT; }
-[0-9]+[kKmMgGtTpPeE]?	{ if (expand_number(yytext, &yylval.num) == 0)
-				return NUM;
-			  else {
-				yylval.str = strdup(yytext); return STR;
-			  }
-			}
 \"[^"]+\"		{ yylval.str = strndup(yytext + 1,
 			    strlen(yytext) - 2); return STR; }
-[a-zA-Z0-9\.\-_/\:\[\]]+ { yylval.str = strdup(yytext); return STR; }
+[a-zA-Z0-9\.\-@_/\:\[\]]+ { yylval.str = strdup(yytext); return STR; }
 \{			{ return OPENING_BRACKET; }
 \}			{ return CLOSING_BRACKET; }
 #.*$			/* ignore comments */;
+\r\n			{ lineno++; }
 \n			{ lineno++; }
+;			{ return SEMICOLON; }
 [ \t]+			/* ignore whitespace */;
 .			{ yylval.str = strdup(yytext); return STR; }
 %%

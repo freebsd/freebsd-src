@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -40,7 +42,7 @@
 #if defined(CPU_RMI) || defined(CPU_NLM)
 #define fdtbus_bs_tag	rmi_uart_bus_space
 #else
-#define fdtbus_bs_tag	mips_bus_space_fdt
+#define fdtbus_bs_tag	mips_bus_space_generic
 #endif
 
 #endif /* _MACHINE_FDT_H_ */

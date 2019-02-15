@@ -1,5 +1,6 @@
 # $FreeBSD$
 
-SUBDIR+=	mount_smbfs
+.if ${MACHINE_ARCH} != "powerpcspe"
 SUBDIR+=	nvram
+.endif
 SUBDIR+=	ofwdump

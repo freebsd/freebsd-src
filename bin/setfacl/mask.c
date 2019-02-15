@@ -61,7 +61,7 @@ set_acl_mask(acl_t *prev_acl, const char *filename)
 	if (acl == NULL)
 		err(1, "%s: acl_dup() failed", filename);
 
-	if (n_flag == 0) {
+	if (!n_flag) {
 		/*
 		 * If no mask entry is specified and the -n option is not
 		 * specified, then the permissions of the resulting ACL mask

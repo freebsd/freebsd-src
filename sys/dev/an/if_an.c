@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997, 1998, 1999
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -304,23 +306,6 @@ SYSCTL_PROC(_hw_an, OID_AUTO, an_cache_mode, CTLTYPE_STRING | CTLFLAG_RW,
 	    0, sizeof(an_conf_cache), sysctl_an_cache_mode, "A", "");
 
 /*
- * Setup the lock for PCI attachment since it skips the an_probe
- * function.  We need to setup the lock in an_probe since some
- * operations need the lock.  So we might as well create the
- * lock in the probe.
- */
-int
-an_pci_probe(device_t dev)
-{
-	struct an_softc *sc = device_get_softc(dev);
-
-	mtx_init(&sc->an_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF);
-
-	return(0);
-}
-
-/*
  * We probe for an Aironet 4500/4800 card by attempting to
  * read the default SSID list. On reset, the first entry in
  * the SSID list will contain the name "tsunami." If we don't
@@ -394,8 +379,8 @@ an_alloc_port(device_t dev, int rid, int size)
 	struct an_softc *sc = device_get_softc(dev);
 	struct resource *res;
 
-	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				 0ul, ~0ul, size, RF_ACTIVE);
+	res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
+					  size, RF_ACTIVE);
 	if (res) {
 		sc->port_rid = rid;
 		sc->port_res = res;
@@ -413,8 +398,8 @@ int an_alloc_memory(device_t dev, int rid, int size)
 	struct an_softc *sc = device_get_softc(dev);
 	struct resource *res;
 
-	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-				 0ul, ~0ul, size, RF_ACTIVE);
+	res = bus_alloc_resource_anywhere(dev, SYS_RES_MEMORY, &rid,
+					  size, RF_ACTIVE);
 	if (res) {
 		sc->mem_rid = rid;
 		sc->mem_res = res;
@@ -426,15 +411,15 @@ int an_alloc_memory(device_t dev, int rid, int size)
 }
 
 /*
- * Allocate a auxilary memory resource with the given resource id.
+ * Allocate a auxiliary memory resource with the given resource id.
  */
 int an_alloc_aux_memory(device_t dev, int rid, int size)
 {
 	struct an_softc *sc = device_get_softc(dev);
 	struct resource *res;
 
-	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-				 0ul, ~0ul, size, RF_ACTIVE);
+	res = bus_alloc_resource_anywhere(dev, SYS_RES_MEMORY, &rid,
+					  size, RF_ACTIVE);
 	if (res) {
 		sc->mem_aux_rid = rid;
 		sc->mem_aux_res = res;
@@ -943,8 +928,7 @@ an_rxeof(struct an_softc *sc)
 				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				return;
 			}
-			MCLGET(m, M_NOWAIT);
-			if (!(m->m_flags & M_EXT)) {
+			if (!(MCLGET(m, M_NOWAIT))) {
 				m_freem(m);
 				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				return;
@@ -1034,8 +1018,7 @@ an_rxeof(struct an_softc *sc)
 					if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 					return;
 				}
-				MCLGET(m, M_NOWAIT);
-				if (!(m->m_flags & M_EXT)) {
+				if (!(MCLGET(m, M_NOWAIT))) {
 					m_freem(m);
 					if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 					return;
@@ -1951,7 +1934,8 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = 0;
 		break;
 	case SIOCGAIRONET:
-		error = copyin(ifr->ifr_data, &sc->areq, sizeof(sc->areq));
+		error = copyin(ifr_data_get_ptr(ifr), &sc->areq,
+		    sizeof(sc->areq));
 		if (error != 0)
 			break;
 		AN_LOCK(sc);
@@ -1980,13 +1964,15 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			break;
 		}
 		AN_UNLOCK(sc);
-		error = copyout(&sc->areq, ifr->ifr_data, sizeof(sc->areq));
+		error = copyout(&sc->areq, ifr_data_get_ptr(ifr),
+		    sizeof(sc->areq));
 		break;
 	case SIOCSAIRONET:
 		if ((error = priv_check(td, PRIV_DRIVER)))
 			goto out;
 		AN_LOCK(sc);
-		error = copyin(ifr->ifr_data, &sc->areq, sizeof(sc->areq));
+		error = copyin(ifr_data_get_ptr(ifr), &sc->areq,
+		    sizeof(sc->areq));
 		if (error != 0)
 			break;
 		an_setdef(sc, &sc->areq);
@@ -1995,7 +1981,8 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCGPRIVATE_0:		/* used by Cisco client utility */
 		if ((error = priv_check(td, PRIV_DRIVER)))
 			goto out;
-		error = copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
+		error = copyin(ifr_data_get_ptr(ifr), &l_ioctl,
+		    sizeof(l_ioctl));
 		if (error)
 			goto out;
 		mode = l_ioctl.command;
@@ -2013,13 +2000,15 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		AN_UNLOCK(sc);
 		if (!error) {
 			/* copy out the updated command info */
-			error = copyout(&l_ioctl, ifr->ifr_data, sizeof(l_ioctl));
+			error = copyout(&l_ioctl, ifr_data_get_ptr(ifr),
+			    sizeof(l_ioctl));
 		}
 		break;
 	case SIOCGPRIVATE_1:		/* used by Cisco client utility */
 		if ((error = priv_check(td, PRIV_DRIVER)))
 			goto out;
-		error = copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
+		error = copyin(ifr_data_get_ptr(ifr), &l_ioctl,
+		    sizeof(l_ioctl));
 		if (error)
 			goto out;
 		l_ioctl.command = 0;
@@ -3076,7 +3065,7 @@ static void
 an_cache_store(struct an_softc *sc, struct ether_header *eh, struct mbuf *m,
     u_int8_t rx_rssi, u_int8_t rx_quality)
 {
-	struct ip *ip = 0;
+	struct ip *ip = NULL;
 	int i;
 	static int cache_slot = 0; 	/* use this cache entry */
 	static int wrapindex = 0;	/* next "free" cache entry */
@@ -3768,6 +3757,9 @@ flashcard(struct ifnet *ifp, struct aironet_ioctl *l_ioctl)
 			return ENOBUFS;
 		break;
 	case AIROFLSHGCHR:	/* Get char from aux */
+		if (l_ioctl->len > sizeof(sc->areq)) {
+			return -EINVAL;
+		}
 		AN_UNLOCK(sc);
 		status = copyin(l_ioctl->data, &sc->areq, l_ioctl->len);
 		AN_LOCK(sc);
@@ -3779,6 +3771,9 @@ flashcard(struct ifnet *ifp, struct aironet_ioctl *l_ioctl)
 		else
 			return -1;
 	case AIROFLSHPCHR:	/* Send char to card. */
+		if (l_ioctl->len > sizeof(sc->areq)) {
+			return -EINVAL;
+		}
 		AN_UNLOCK(sc);
 		status = copyin(l_ioctl->data, &sc->areq, l_ioctl->len);
 		AN_LOCK(sc);

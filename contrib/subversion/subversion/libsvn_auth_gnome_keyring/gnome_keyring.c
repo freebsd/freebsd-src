@@ -23,146 +23,183 @@
 
 /* ==================================================================== */
 
-
 
 /*** Includes. ***/
-
 #include <apr_pools.h>
 #include <apr_strings.h>
-#include <glib.h>
-#include <gnome-keyring.h>
-
 #include "svn_auth.h"
-#include "svn_config.h"
-#include "svn_error.h"
 #include "svn_hash.h"
-#include "svn_pools.h"
-
+#include "svn_version.h"
 #include "private/svn_auth_private.h"
-
 #include "svn_private_config.h"
 
+#ifdef SVN_HAVE_LIBSECRET
 
-
-/*-----------------------------------------------------------------------*/
-/* GNOME Keyring simple provider, puts passwords in GNOME Keyring        */
-/*-----------------------------------------------------------------------*/
+#include <libsecret/secret.h>
 
+/* Return TRUE if the default collection is available and FALSE
+   otherwise.  In interactive mode the collection only has to exist to
+   be available, it can be locked or unlocked.  The default collection
+   will be created if necessary.
 
-struct gnome_keyring_baton
+   In non-interactive mode the collection is only available if it
+   already exists and is unlocked.  Such an available collection can
+   be used without prompting.  Strictly this is racy: nothing ensures
+   the collection remains unlocked.  A similar issue affects the
+   KWallet and original GNOME Keyring providers.
+
+   As a non-racy alternative one could override prompt_async in the
+   _SecretServiceClass vtable, the get/set would still fail but there
+   would be no prompt and no race.  This "works" but it is not clear
+   to me whether it is legitimate since the SecretService is a
+   singleton and the effect would be application-wide.
+ */
+static svn_boolean_t
+available_collection(svn_boolean_t non_interactive,
+                     apr_pool_t *pool)
 {
-  const char *keyring_name;
-  GnomeKeyringInfo *info;
-  GMainLoop *loop;
-};
+  GError *gerror = NULL;
+  SecretService *service = NULL;
+  SecretCollection *collection = NULL;
 
+  service = secret_service_get_sync(SECRET_SERVICE_NONE, NULL, &gerror);
+  if (gerror || !service)
+    goto error_return;
 
-/* Callback function to destroy gnome_keyring_baton. */
-static void
-callback_destroy_data_keyring(void *data)
-{
-  struct gnome_keyring_baton *key_info = data;
+  collection = secret_collection_for_alias_sync(service,
+                                                SECRET_COLLECTION_DEFAULT,
+                                                SECRET_COLLECTION_NONE,
+                                                NULL, &gerror);
+  if (gerror)
+    goto error_return;
 
-  if (data == NULL)
-    return;
-
-  free((void*)key_info->keyring_name);
-  key_info->keyring_name = NULL;
-
-  if (key_info->info)
+  if (!collection)
     {
-      gnome_keyring_info_free(key_info->info);
-      key_info->info = NULL;
+      if (non_interactive)
+        goto error_return;
+
+      /* "Default" is the label used by the old libgnome-keyring. */
+      collection = secret_collection_create_sync(service, "Default",
+                                                 SECRET_COLLECTION_DEFAULT,
+                                                 0, NULL, &gerror);
+      if (gerror || !collection)
+        goto error_return;
     }
 
-  return;
+  if (non_interactive && secret_collection_get_locked(collection))
+    goto error_return;
+
+  g_object_unref(collection);
+  g_object_unref(service);
+
+  return TRUE;
+
+ error_return:
+  if (gerror)
+    g_error_free(gerror);
+  if (collection)
+    g_object_unref(collection);
+  if (service)
+    g_object_unref(service);
+  return FALSE;
 }
 
-
-/* Callback function to complete the keyring operation. */
-static void
-callback_done(GnomeKeyringResult result,
-              gpointer data)
+/* Implementation of svn_auth__password_get_t that retrieves the password
+   using libsecret. */
+static svn_error_t *
+password_get_gnome_keyring(svn_boolean_t *done,
+                           const char **password,
+                           apr_hash_t *creds,
+                           const char *realmstring,
+                           const char *username,
+                           apr_hash_t *parameters,
+                           svn_boolean_t non_interactive,
+                           apr_pool_t *pool)
 {
-  struct gnome_keyring_baton *key_info = data;
-
-  g_main_loop_quit(key_info->loop);
-  return;
+  GError *gerror = NULL;
+  gchar *gpassword;
+  
+  if (!available_collection(non_interactive, pool))
+    return SVN_NO_ERROR;
+  
+  gpassword = secret_password_lookup_sync(SECRET_SCHEMA_COMPAT_NETWORK, NULL,
+                                          &gerror,
+                                          "domain", realmstring,
+                                          "user", username,
+                                          NULL);
+  if (gerror)
+    {
+      g_error_free(gerror);
+    }
+  else if (gpassword)
+    {
+      *password = apr_pstrdup(pool, gpassword);
+      g_free(gpassword);
+      *done = TRUE;
+    }
+  
+  return SVN_NO_ERROR;
 }
 
-
-/* Callback function to get the keyring info. */
-static void
-callback_get_info_keyring(GnomeKeyringResult result,
-                          GnomeKeyringInfo *info,
-                          void *data)
+/* Implementation of svn_auth__password_set_t that stores the password
+   using libsecret. */
+static svn_error_t *
+password_set_gnome_keyring(svn_boolean_t *done,
+                           apr_hash_t *creds,
+                           const char *realmstring,
+                           const char *username,
+                           const char *password,
+                           apr_hash_t *parameters,
+                           svn_boolean_t non_interactive,
+                           apr_pool_t *pool)
 {
-  struct gnome_keyring_baton *key_info = data;
+  GError *gerror = NULL;
+  gboolean gstatus;
+  
+  if (!available_collection(non_interactive, pool))
+    return SVN_NO_ERROR;
 
-  if (result == GNOME_KEYRING_RESULT_OK && info != NULL)
+  /* "network password" is the label used by the old libgnome-keyring. */
+  gstatus = secret_password_store_sync(SECRET_SCHEMA_COMPAT_NETWORK,
+                                       SECRET_COLLECTION_DEFAULT,
+                                       "network password",
+                                       password,
+                                       NULL, &gerror,
+                                       "domain", realmstring,
+                                       "user", username,
+                                       NULL);
+  if (gerror)
     {
-      key_info->info = gnome_keyring_info_copy(info);
+      g_error_free(gerror);
     }
-  else
+  else if (gstatus)
     {
-      if (key_info->info != NULL)
-        gnome_keyring_info_free(key_info->info);
-
-      key_info->info = NULL;
+      *done = TRUE;
     }
-
-  g_main_loop_quit(key_info->loop);
-
-  return;
+  
+  return SVN_NO_ERROR;
 }
 
+#endif /* SVN_HAVE_LIBSECRET */
 
-/* Callback function to get the default keyring string name. */
-static void
-callback_default_keyring(GnomeKeyringResult result,
-                         const char *string,
-                         void *data)
-{
-  struct gnome_keyring_baton *key_info = data;
+#ifdef SVN_HAVE_GNOME_KEYRING
 
-  if (result == GNOME_KEYRING_RESULT_OK && string != NULL)
-    {
-      key_info->keyring_name = strdup(string);
-    }
-  else
-    {
-      free((void*)key_info->keyring_name);
-      key_info->keyring_name = NULL;
-    }
-
-  g_main_loop_quit(key_info->loop);
-
-  return;
-}
+#include <glib.h>
+#include <gnome-keyring.h>
 
 /* Returns the default keyring name, allocated in RESULT_POOL. */
 static char*
 get_default_keyring_name(apr_pool_t *result_pool)
 {
-  char *def = NULL;
-  struct gnome_keyring_baton key_info;
+  char *name, *def;
+  GnomeKeyringResult gkr;
 
-  key_info.info = NULL;
-  key_info.keyring_name = NULL;
+  gkr = gnome_keyring_get_default_keyring_sync(&name);
+  if (gkr != GNOME_KEYRING_RESULT_OK)
+    return NULL;
 
-  /* Finds default keyring. */
-  key_info.loop = g_main_loop_new(NULL, FALSE);
-  gnome_keyring_get_default_keyring(callback_default_keyring, &key_info, NULL);
-  g_main_loop_run(key_info.loop);
-
-  if (key_info.keyring_name == NULL)
-    {
-      callback_destroy_data_keyring(&key_info);
-      return NULL;
-    }
-
-  def = apr_pstrdup(result_pool, key_info.keyring_name);
-  callback_destroy_data_keyring(&key_info);
+  def = apr_pstrdup(result_pool, name);
+  g_free(name);
 
   return def;
 }
@@ -171,28 +208,22 @@ get_default_keyring_name(apr_pool_t *result_pool)
 static svn_boolean_t
 check_keyring_is_locked(const char *keyring_name)
 {
-  struct gnome_keyring_baton key_info;
+  GnomeKeyringInfo *info;
+  svn_boolean_t locked;
+  GnomeKeyringResult gkr;
 
-  key_info.info = NULL;
-  key_info.keyring_name = NULL;
-
-  /* Get details about the default keyring. */
-  key_info.loop = g_main_loop_new(NULL, FALSE);
-  gnome_keyring_get_info(keyring_name, callback_get_info_keyring, &key_info,
-                         NULL);
-  g_main_loop_run(key_info.loop);
-
-  if (key_info.info == NULL)
-    {
-      callback_destroy_data_keyring(&key_info);
-      return FALSE;
-    }
-
-  /* Check if keyring is locked. */
-  if (gnome_keyring_info_get_is_locked(key_info.info))
-    return TRUE;
-  else
+  gkr = gnome_keyring_get_info_sync(keyring_name, &info);
+  if (gkr != GNOME_KEYRING_RESULT_OK)
     return FALSE;
+
+  if (gnome_keyring_info_get_is_locked(info))
+    locked = TRUE;
+  else
+    locked = FALSE;
+
+  gnome_keyring_info_free(info);
+
+  return locked;
 }
 
 /* Unlock the KEYRING_NAME with the KEYRING_PASSWORD. If KEYRING was
@@ -202,34 +233,19 @@ unlock_gnome_keyring(const char *keyring_name,
                      const char *keyring_password,
                      apr_pool_t *pool)
 {
-  struct gnome_keyring_baton key_info;
+  GnomeKeyringInfo *info;
+  GnomeKeyringResult gkr;
 
-  key_info.info = NULL;
-  key_info.keyring_name = NULL;
-
-  /* Get details about the default keyring. */
-  key_info.loop = g_main_loop_new(NULL, FALSE);
-  gnome_keyring_get_info(keyring_name, callback_get_info_keyring,
-                         &key_info, NULL);
-  g_main_loop_run(key_info.loop);
-
-  if (key_info.info == NULL)
-    {
-      callback_destroy_data_keyring(&key_info);
-      return FALSE;
-    }
-  else
-    {
-      key_info.loop = g_main_loop_new(NULL, FALSE);
-      gnome_keyring_unlock(keyring_name, keyring_password,
-                           callback_done, &key_info, NULL);
-      g_main_loop_run(key_info.loop);
-    }
-  callback_destroy_data_keyring(&key_info);
-  if (check_keyring_is_locked(keyring_name))
+  gkr = gnome_keyring_get_info_sync(keyring_name, &info);
+  if (gkr != GNOME_KEYRING_RESULT_OK)
     return FALSE;
 
-  return TRUE;
+  gkr = gnome_keyring_unlock_sync(keyring_name, keyring_password);
+  gnome_keyring_info_free(info);
+  if (gkr != GNOME_KEYRING_RESULT_OK)
+    return FALSE;
+
+  return check_keyring_is_locked(keyring_name);
 }
 
 
@@ -374,6 +390,41 @@ password_set_gnome_keyring(svn_boolean_t *done,
   return SVN_NO_ERROR;
 }
 
+#if GLIB_CHECK_VERSION(2,6,0)
+static void
+log_noop(const gchar *log_domain, GLogLevelFlags log_level,
+         const gchar *message, gpointer user_data)
+{
+  /* do nothing */
+}
+#endif
+
+static void
+init_gnome_keyring(void)
+{
+  const char *application_name = NULL;
+  application_name = g_get_application_name();
+  if (!application_name)
+    g_set_application_name("Subversion");
+
+  /* Ideally we call g_log_set_handler() with a log_domain specific to
+     libgnome-keyring.  Unfortunately, at least as of gnome-keyring
+     2.22.3, it doesn't have its own log_domain.  As a result, we
+     suppress stderr spam for not only libgnome-keyring, but for
+     anything else the app is linked to that uses glib logging and
+     doesn't specify a log_domain. */
+#if GLIB_CHECK_VERSION(2,6,0)
+  g_log_set_default_handler(log_noop, NULL);
+#endif
+}
+
+#endif /* SVN_HAVE_GNOME_KEYRING */
+
+
+/*-----------------------------------------------------------------------*/
+/* GNOME Keyring simple provider, puts passwords in GNOME Keyring        */
+/*-----------------------------------------------------------------------*/
+
 /* Get cached encrypted credentials from the simple provider's cache. */
 static svn_error_t *
 simple_gnome_keyring_first_creds(void **credentials,
@@ -408,34 +459,6 @@ simple_gnome_keyring_save_creds(svn_boolean_t *saved,
                                           pool);
 }
 
-#if GLIB_CHECK_VERSION(2,6,0)
-static void
-log_noop(const gchar *log_domain, GLogLevelFlags log_level,
-         const gchar *message, gpointer user_data)
-{
-  /* do nothing */
-}
-#endif
-
-static void
-init_gnome_keyring(void)
-{
-  const char *application_name = NULL;
-  application_name = g_get_application_name();
-  if (!application_name)
-    g_set_application_name("Subversion");
-
-  /* Ideally we call g_log_set_handler() with a log_domain specific to
-     libgnome-keyring.  Unfortunately, at least as of gnome-keyring
-     2.22.3, it doesn't have its own log_domain.  As a result, we
-     suppress stderr spam for not only libgnome-keyring, but for
-     anything else the app is linked to that uses glib logging and
-     doesn't specify a log_domain. */
-#if GLIB_CHECK_VERSION(2,6,0)
-  g_log_set_default_handler(log_noop, NULL);
-#endif
-}
-
 static const svn_auth_provider_t gnome_keyring_simple_provider = {
   SVN_AUTH_CRED_SIMPLE,
   simple_gnome_keyring_first_creds,
@@ -454,8 +477,11 @@ svn_auth_get_gnome_keyring_simple_provider
   po->vtable = &gnome_keyring_simple_provider;
   *provider = po;
 
+#ifdef SVN_HAVE_GNOME_KEYRING
   init_gnome_keyring();
+#endif
 }
+
 
 
 /*-----------------------------------------------------------------------*/
@@ -513,5 +539,7 @@ svn_auth_get_gnome_keyring_ssl_client_cert_pw_provider
   po->vtable = &gnome_keyring_ssl_client_cert_pw_provider;
   *provider = po;
 
+#ifdef SVN_HAVE_GNOME_KEYRING
   init_gnome_keyring();
+#endif
 }

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -51,18 +53,20 @@ __FBSDID("$FreeBSD$");
 #ifndef NO_UDOM_SUPPORT
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <errno.h>
+#include <netdb.h>
 #endif
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <locale.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
 static int bflag, eflag, lflag, nflag, sflag, tflag, vflag;
 static int rval;
@@ -167,6 +171,7 @@ scanfiles(char *argv[], int cooked)
 	FILE *fp;
 
 	i = 0;
+	fd = -1;
 	while ((path = argv[i]) != NULL || i == 0) {
 		if (path == NULL || strcmp(path, "-") == 0) {
 			filename = "stdin";
@@ -205,6 +210,7 @@ static void
 cook_cat(FILE *fp)
 {
 	int ch, gobble, line, prev;
+	wint_t wch;
 
 	/* Reset EOF condition on stdin. */
 	if (fp == stdin && feof(stdin))
@@ -221,10 +227,16 @@ cook_cat(FILE *fp)
 				} else
 					gobble = 0;
 			}
-			if (nflag && (!bflag || ch != '\n')) {
-				(void)fprintf(stdout, "%6d\t", ++line);
-				if (ferror(stdout))
-					break;
+			if (nflag) {
+				if (!bflag || ch != '\n') {
+					(void)fprintf(stdout, "%6d\t", ++line);
+					if (ferror(stdout))
+						break;
+				} else if (eflag) {
+					(void)fprintf(stdout, "%6s\t", "");
+					if (ferror(stdout))
+						break;
+				}
 			}
 		}
 		if (ch == '\n') {
@@ -237,18 +249,40 @@ cook_cat(FILE *fp)
 				continue;
 			}
 		} else if (vflag) {
-			if (!isascii(ch) && !isprint(ch)) {
+			(void)ungetc(ch, fp);
+			/*
+			 * Our getwc(3) doesn't change file position
+			 * on error.
+			 */
+			if ((wch = getwc(fp)) == WEOF) {
+				if (ferror(fp) && errno == EILSEQ) {
+					clearerr(fp);
+					/* Resync attempt. */
+					memset(&fp->_mbstate, 0, sizeof(mbstate_t));
+					if ((ch = getc(fp)) == EOF)
+						break;
+					wch = ch;
+					goto ilseq;
+				} else
+					break;
+			}
+			if (!iswascii(wch) && !iswprint(wch)) {
+ilseq:
 				if (putchar('M') == EOF || putchar('-') == EOF)
 					break;
-				ch = toascii(ch);
+				wch = toascii(wch);
 			}
-			if (iscntrl(ch)) {
-				if (putchar('^') == EOF ||
-				    putchar(ch == '\177' ? '?' :
-				    ch | 0100) == EOF)
+			if (iswcntrl(wch)) {
+				ch = toascii(wch);
+				ch = (ch == '\177') ? '?' : (ch | 0100);
+				if (putchar('^') == EOF || putchar(ch) == EOF)
 					break;
 				continue;
 			}
+			if (putwchar(wch) == WEOF)
+				break;
+			ch = -1;
+			continue;
 		}
 		if (putchar(ch) == EOF)
 			break;
@@ -265,6 +299,7 @@ cook_cat(FILE *fp)
 static void
 raw_cat(int rfd)
 {
+	long pagesize;
 	int off, wfd;
 	ssize_t nr, nw;
 	static size_t bsize;
@@ -281,9 +316,12 @@ raw_cat(int rfd)
 				bsize = MIN(BUFSIZE_MAX, MAXPHYS * 8);
 			else
 				bsize = BUFSIZE_SMALL;
-		} else
-			bsize = MAX(sbuf.st_blksize,
-			    (blksize_t)sysconf(_SC_PAGESIZE));
+		} else {
+			bsize = sbuf.st_blksize;
+			pagesize = sysconf(_SC_PAGESIZE);
+			if (pagesize > 0)
+				bsize = MAX(bsize, (size_t)pagesize);
+		}
 		if ((buf = malloc(bsize)) == NULL)
 			err(1, "malloc() failure of IO buffer");
 	}
@@ -302,31 +340,40 @@ raw_cat(int rfd)
 static int
 udom_open(const char *path, int flags)
 {
-	struct sockaddr_un sou;
-	int fd;
-	unsigned int len;
-
-	bzero(&sou, sizeof(sou));
+	struct addrinfo hints, *res, *res0;
+	char rpath[PATH_MAX];
+	int fd = -1;
+	int error;
 
 	/*
-	 * Construct the unix domain socket address and attempt to connect
+	 * Construct the unix domain socket address and attempt to connect.
 	 */
-	fd = socket(AF_UNIX, SOCK_STREAM, 0);
-	if (fd >= 0) {
-		sou.sun_family = AF_UNIX;
-		if ((len = strlcpy(sou.sun_path, path,
-		    sizeof(sou.sun_path))) >= sizeof(sou.sun_path)) {
-			close(fd);
-			errno = ENAMETOOLONG;
+	bzero(&hints, sizeof(hints));
+	hints.ai_family = AF_LOCAL;
+	if (realpath(path, rpath) == NULL)
+		return (-1);
+	error = getaddrinfo(rpath, NULL, &hints, &res0);
+	if (error) {
+		warn("%s", gai_strerror(error));
+		errno = EINVAL;
+		return (-1);
+	}
+	for (res = res0; res != NULL; res = res->ai_next) {
+		fd = socket(res->ai_family, res->ai_socktype,
+		    res->ai_protocol);
+		if (fd < 0) {
+			freeaddrinfo(res0);
 			return (-1);
 		}
-		len = offsetof(struct sockaddr_un, sun_path[len+1]);
-
-		if (connect(fd, (void *)&sou, len) < 0) {
+		error = connect(fd, res->ai_addr, res->ai_addrlen);
+		if (error == 0)
+			break;
+		else {
 			close(fd);
 			fd = -1;
 		}
 	}
+	freeaddrinfo(res0);
 
 	/*
 	 * handle the open flags by shutting down appropriate directions

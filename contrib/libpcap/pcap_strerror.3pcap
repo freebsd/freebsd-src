@@ -1,5 +1,3 @@
-.\" @(#) $Header: /tcpdump/master/libpcap/pcap_strerror.3pcap,v 1.2 2008-04-05 20:26:56 guy Exp $
-.\"
 .\" Copyright (c) 1994, 1996, 1997
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -19,7 +17,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH PCAP_STRERROR 3PCAP "4 April 2008"
+.TH PCAP_STRERROR 3PCAP "3 January 2014"
 .SH NAME
 pcap_strerror \- convert an errno value to a string
 .SH SYNOPSIS

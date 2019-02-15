@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 21, 2013
+.Dd November 25, 2014
 .Dt GETIFADDRS 3
 .Os
 .Sh NAME
@@ -110,19 +110,17 @@ if one exists, otherwise it is NULL.
 .Pp
 The
 .Li ifa_data
-field references address family specific data.
-For
-.Dv AF_LINK
-addresses it contains a pointer to the
+field references address family specific data
+in a pointer to the
 .Fa struct if_data
 (as defined in include file
-.In net/if.h )
-which contains various interface attributes and statistics.
-For all other address families, it contains a pointer to the
-.Fa struct ifa_data
-(as defined in include file
-.In net/if.h )
-which contains per-address interface statistics.
+.In net/if.h ) .
+For
+.Dv AF_LINK
+addresses,
+it contains various interface attributes and statistics.
+For all other address families,
+it contains per-address interface statistics.
 .Pp
 The data returned by
 .Fn getifaddrs

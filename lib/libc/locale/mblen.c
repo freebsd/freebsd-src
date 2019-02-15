@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
@@ -45,10 +47,11 @@ mblen_l(const char *s, size_t n, locale_t locale)
 
 	if (s == NULL) {
 		/* No support for state dependent encodings. */
-		locale->mblen = initial;
+		XLOCALE_CTYPE(locale)->mblen = initial;
 		return (0);
 	}
-	rval = XLOCALE_CTYPE(locale)->__mbrtowc(NULL, s, n, &locale->mblen);
+	rval = XLOCALE_CTYPE(locale)->__mbrtowc(NULL, s, n,
+	    &(XLOCALE_CTYPE(locale)->mblen));
 	if (rval == (size_t)-1 || rval == (size_t)-2)
 		return (-1);
 	return ((int)rval);

@@ -28,13 +28,14 @@
 
 #include <stdio.h>
 #include <sys/syscall.h>
+#include <unistd.h>
 
 /*ARGSUSED*/
 int
 main(int argc, char **argv)
 {
 	for (;;) {
-		(void) syscall(SYS_mmap, NULL, 1, 2, 3, -1, 0x12345678);
+		(void) __syscall(SYS_mmap, NULL, 1, 2, 3, -1, 0x12345678);
 	}
 
 	return (0);

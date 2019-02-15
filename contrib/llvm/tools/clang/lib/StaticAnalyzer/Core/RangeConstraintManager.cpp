@@ -12,13 +12,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "SimpleConstraintManager.h"
+#include "RangedConstraintManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/APSIntType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/ImmutableSet.h"
-#include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
@@ -28,24 +27,19 @@ using namespace ento;
 /// guarantee that from <= to.  Note that Range is immutable, so as not
 /// to subvert RangeSet's immutability.
 namespace {
-class Range : public std::pair<const llvm::APSInt*,
-                                                const llvm::APSInt*> {
+class Range : public std::pair<const llvm::APSInt *, const llvm::APSInt *> {
 public:
   Range(const llvm::APSInt &from, const llvm::APSInt &to)
-    : std::pair<const llvm::APSInt*, const llvm::APSInt*>(&from, &to) {
+      : std::pair<const llvm::APSInt *, const llvm::APSInt *>(&from, &to) {
     assert(from <= to);
   }
   bool Includes(const llvm::APSInt &v) const {
     return *first <= v && v <= *second;
   }
-  const llvm::APSInt &From() const {
-    return *first;
-  }
-  const llvm::APSInt &To() const {
-    return *second;
-  }
+  const llvm::APSInt &From() const { return *first; }
+  const llvm::APSInt &To() const { return *second; }
   const llvm::APSInt *getConcreteValue() const {
-    return &From() == &To() ? &From() : NULL;
+    return &From() == &To() ? &From() : nullptr;
   }
 
   void Profile(llvm::FoldingSetNodeID &ID) const {
@@ -54,7 +48,6 @@ public:
   }
 };
 
-
 class RangeTrait : public llvm::ImutContainerInfo<Range> {
 public:
   // When comparing if one Range is less than another, we should compare
@@ -62,8 +55,8 @@ public:
   // consistent (instead of comparing by pointer values) and can potentially
   // be used to speed up some of the operations in RangeSet.
   static inline bool isLess(key_type_ref lhs, key_type_ref rhs) {
-    return *lhs.first < *rhs.first || (!(*rhs.first < *lhs.first) &&
-                                       *lhs.second < *rhs.second);
+    return *lhs.first < *rhs.first ||
+           (!(*rhs.first < *lhs.first) && *lhs.second < *rhs.second);
   }
 };
 
@@ -81,6 +74,15 @@ public:
 
   RangeSet(PrimRangeSet RS) : ranges(RS) {}
 
+  /// Create a new set with all ranges of this set and RS.
+  /// Possible intersections are not checked here.
+  RangeSet addRange(Factory &F, const RangeSet &RS) {
+    PrimRangeSet Ranges(RS.ranges);
+    for (const auto &range : ranges)
+      Ranges = F.add(Ranges, range);
+    return RangeSet(Ranges);
+  }
+
   iterator begin() const { return ranges.begin(); }
   iterator end() const { return ranges.end(); }
 
@@ -88,7 +90,7 @@ public:
 
   /// Construct a new RangeSet representing '{ [from, to] }'.
   RangeSet(Factory &F, const llvm::APSInt &from, const llvm::APSInt &to)
-    : ranges(F.add(F.getEmptySet(), Range(from, to))) {}
+      : ranges(F.add(F.getEmptySet(), Range(from, to))) {}
 
   /// Profile - Generates a hash profile of this RangeSet for use
   ///  by FoldingSet.
@@ -97,16 +99,14 @@ public:
   /// getConcreteValue - If a symbol is contrained to equal a specific integer
   ///  constant then this method returns that value.  Otherwise, it returns
   ///  NULL.
-  const llvm::APSInt* getConcreteValue() const {
-    return ranges.isSingleton() ? ranges.begin()->getConcreteValue() : 0;
+  const llvm::APSInt *getConcreteValue() const {
+    return ranges.isSingleton() ? ranges.begin()->getConcreteValue() : nullptr;
   }
 
 private:
   void IntersectInRange(BasicValueFactory &BV, Factory &F,
-                        const llvm::APSInt &Lower,
-                        const llvm::APSInt &Upper,
-                        PrimRangeSet &newRanges,
-                        PrimRangeSet::iterator &i,
+                        const llvm::APSInt &Lower, const llvm::APSInt &Upper,
+                        PrimRangeSet &newRanges, PrimRangeSet::iterator &i,
                         PrimRangeSet::iterator &e) const {
     // There are six cases for each range R in the set:
     //   1. R is entirely before the intersection range.
@@ -126,8 +126,8 @@ private:
 
       if (i->Includes(Lower)) {
         if (i->Includes(Upper)) {
-          newRanges = F.add(newRanges, Range(BV.getValue(Lower),
-                                             BV.getValue(Upper)));
+          newRanges =
+              F.add(newRanges, Range(BV.getValue(Lower), BV.getValue(Upper)));
           break;
         } else
           newRanges = F.add(newRanges, Range(BV.getValue(Lower), i->To()));
@@ -162,7 +162,7 @@ private:
       case APSIntType::RTR_Below:
         // The entire range is outside the symbol's set of possible values.
         // If this is a conventionally-ordered range, the state is infeasible.
-        if (Lower < Upper)
+        if (Lower <= Upper)
           return false;
 
         // However, if the range wraps around, it spans all possible values.
@@ -213,7 +213,7 @@ private:
       case APSIntType::RTR_Above:
         // The entire range is outside the symbol's set of possible values.
         // If this is a conventionally-ordered range, the state is infeasible.
-        if (Lower < Upper)
+        if (Lower <= Upper)
           return false;
 
         // However, if the range wraps around, it spans all possible values.
@@ -235,8 +235,8 @@ public:
   // range is taken to wrap around. This is equivalent to taking the
   // intersection with the two ranges [Min, Upper] and [Lower, Max],
   // or, alternatively, /removing/ all integers between Upper and Lower.
-  RangeSet Intersect(BasicValueFactory &BV, Factory &F,
-                     llvm::APSInt Lower, llvm::APSInt Upper) const {
+  RangeSet Intersect(BasicValueFactory &BV, Factory &F, llvm::APSInt Lower,
+                     llvm::APSInt Upper) const {
     if (!pin(Lower, Upper))
       return F.getEmptySet();
 
@@ -282,59 +282,135 @@ REGISTER_TRAIT_WITH_PROGRAMSTATE(ConstraintRange,
                                                              RangeSet))
 
 namespace {
-class RangeConstraintManager : public SimpleConstraintManager{
-  RangeSet GetRange(ProgramStateRef state, SymbolRef sym);
+class RangeConstraintManager : public RangedConstraintManager {
 public:
-  RangeConstraintManager(SubEngine *subengine, SValBuilder &SVB)
-    : SimpleConstraintManager(subengine, SVB) {}
+  RangeConstraintManager(SubEngine *SE, SValBuilder &SVB)
+      : RangedConstraintManager(SE, SVB) {}
 
-  ProgramStateRef assumeSymNE(ProgramStateRef state, SymbolRef sym,
-                             const llvm::APSInt& Int,
-                             const llvm::APSInt& Adjustment);
+  //===------------------------------------------------------------------===//
+  // Implementation for interface from ConstraintManager.
+  //===------------------------------------------------------------------===//
 
-  ProgramStateRef assumeSymEQ(ProgramStateRef state, SymbolRef sym,
-                             const llvm::APSInt& Int,
-                             const llvm::APSInt& Adjustment);
+  bool canReasonAbout(SVal X) const override;
 
-  ProgramStateRef assumeSymLT(ProgramStateRef state, SymbolRef sym,
-                             const llvm::APSInt& Int,
-                             const llvm::APSInt& Adjustment);
+  ConditionTruthVal checkNull(ProgramStateRef State, SymbolRef Sym) override;
 
-  ProgramStateRef assumeSymGT(ProgramStateRef state, SymbolRef sym,
-                             const llvm::APSInt& Int,
-                             const llvm::APSInt& Adjustment);
+  const llvm::APSInt *getSymVal(ProgramStateRef State,
+                                SymbolRef Sym) const override;
 
-  ProgramStateRef assumeSymGE(ProgramStateRef state, SymbolRef sym,
-                             const llvm::APSInt& Int,
-                             const llvm::APSInt& Adjustment);
+  ProgramStateRef removeDeadBindings(ProgramStateRef State,
+                                     SymbolReaper &SymReaper) override;
 
-  ProgramStateRef assumeSymLE(ProgramStateRef state, SymbolRef sym,
-                             const llvm::APSInt& Int,
-                             const llvm::APSInt& Adjustment);
+  void print(ProgramStateRef State, raw_ostream &Out, const char *nl,
+             const char *sep) override;
 
-  const llvm::APSInt* getSymVal(ProgramStateRef St, SymbolRef sym) const;
-  ConditionTruthVal checkNull(ProgramStateRef State, SymbolRef Sym);
+  //===------------------------------------------------------------------===//
+  // Implementation for interface from RangedConstraintManager.
+  //===------------------------------------------------------------------===//
 
-  ProgramStateRef removeDeadBindings(ProgramStateRef St, SymbolReaper& SymReaper);
+  ProgramStateRef assumeSymNE(ProgramStateRef State, SymbolRef Sym,
+                              const llvm::APSInt &V,
+                              const llvm::APSInt &Adjustment) override;
 
-  void print(ProgramStateRef St, raw_ostream &Out,
-             const char* nl, const char *sep);
+  ProgramStateRef assumeSymEQ(ProgramStateRef State, SymbolRef Sym,
+                              const llvm::APSInt &V,
+                              const llvm::APSInt &Adjustment) override;
+
+  ProgramStateRef assumeSymLT(ProgramStateRef State, SymbolRef Sym,
+                              const llvm::APSInt &V,
+                              const llvm::APSInt &Adjustment) override;
+
+  ProgramStateRef assumeSymGT(ProgramStateRef State, SymbolRef Sym,
+                              const llvm::APSInt &V,
+                              const llvm::APSInt &Adjustment) override;
+
+  ProgramStateRef assumeSymLE(ProgramStateRef State, SymbolRef Sym,
+                              const llvm::APSInt &V,
+                              const llvm::APSInt &Adjustment) override;
+
+  ProgramStateRef assumeSymGE(ProgramStateRef State, SymbolRef Sym,
+                              const llvm::APSInt &V,
+                              const llvm::APSInt &Adjustment) override;
+
+  ProgramStateRef assumeSymWithinInclusiveRange(
+      ProgramStateRef State, SymbolRef Sym, const llvm::APSInt &From,
+      const llvm::APSInt &To, const llvm::APSInt &Adjustment) override;
+
+  ProgramStateRef assumeSymOutsideInclusiveRange(
+      ProgramStateRef State, SymbolRef Sym, const llvm::APSInt &From,
+      const llvm::APSInt &To, const llvm::APSInt &Adjustment) override;
 
 private:
   RangeSet::Factory F;
+
+  RangeSet getRange(ProgramStateRef State, SymbolRef Sym);
+
+  RangeSet getSymLTRange(ProgramStateRef St, SymbolRef Sym,
+                         const llvm::APSInt &Int,
+                         const llvm::APSInt &Adjustment);
+  RangeSet getSymGTRange(ProgramStateRef St, SymbolRef Sym,
+                         const llvm::APSInt &Int,
+                         const llvm::APSInt &Adjustment);
+  RangeSet getSymLERange(ProgramStateRef St, SymbolRef Sym,
+                         const llvm::APSInt &Int,
+                         const llvm::APSInt &Adjustment);
+  RangeSet getSymLERange(llvm::function_ref<RangeSet()> RS,
+                         const llvm::APSInt &Int,
+                         const llvm::APSInt &Adjustment);
+  RangeSet getSymGERange(ProgramStateRef St, SymbolRef Sym,
+                         const llvm::APSInt &Int,
+                         const llvm::APSInt &Adjustment);
 };
 
 } // end anonymous namespace
 
-ConstraintManager *
+std::unique_ptr<ConstraintManager>
 ento::CreateRangeConstraintManager(ProgramStateManager &StMgr, SubEngine *Eng) {
-  return new RangeConstraintManager(Eng, StMgr.getSValBuilder());
+  return llvm::make_unique<RangeConstraintManager>(Eng, StMgr.getSValBuilder());
 }
 
-const llvm::APSInt* RangeConstraintManager::getSymVal(ProgramStateRef St,
-                                                      SymbolRef sym) const {
-  const ConstraintRangeTy::data_type *T = St->get<ConstraintRange>(sym);
-  return T ? T->getConcreteValue() : NULL;
+bool RangeConstraintManager::canReasonAbout(SVal X) const {
+  Optional<nonloc::SymbolVal> SymVal = X.getAs<nonloc::SymbolVal>();
+  if (SymVal && SymVal->isExpression()) {
+    const SymExpr *SE = SymVal->getSymbol();
+
+    if (const SymIntExpr *SIE = dyn_cast<SymIntExpr>(SE)) {
+      switch (SIE->getOpcode()) {
+      // We don't reason yet about bitwise-constraints on symbolic values.
+      case BO_And:
+      case BO_Or:
+      case BO_Xor:
+        return false;
+      // We don't reason yet about these arithmetic constraints on
+      // symbolic values.
+      case BO_Mul:
+      case BO_Div:
+      case BO_Rem:
+      case BO_Shl:
+      case BO_Shr:
+        return false;
+      // All other cases.
+      default:
+        return true;
+      }
+    }
+
+    if (const SymSymExpr *SSE = dyn_cast<SymSymExpr>(SE)) {
+      // FIXME: Handle <=> here.
+      if (BinaryOperator::isEqualityOp(SSE->getOpcode()) ||
+          BinaryOperator::isRelationalOp(SSE->getOpcode())) {
+        // We handle Loc <> Loc comparisons, but not (yet) NonLoc <> NonLoc.
+        if (Loc::isLocType(SSE->getLHS()->getType())) {
+          assert(Loc::isLocType(SSE->getRHS()->getType()));
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  return true;
 }
 
 ConditionTruthVal RangeConstraintManager::checkNull(ProgramStateRef State,
@@ -361,48 +437,104 @@ ConditionTruthVal RangeConstraintManager::checkNull(ProgramStateRef State,
   return ConditionTruthVal();
 }
 
-/// Scan all symbols referenced by the constraints. If the symbol is not alive
-/// as marked in LSymbols, mark it as dead in DSymbols.
-ProgramStateRef 
-RangeConstraintManager::removeDeadBindings(ProgramStateRef state,
-                                           SymbolReaper& SymReaper) {
-
-  ConstraintRangeTy CR = state->get<ConstraintRange>();
-  ConstraintRangeTy::Factory& CRFactory = state->get_context<ConstraintRange>();
-
-  for (ConstraintRangeTy::iterator I = CR.begin(), E = CR.end(); I != E; ++I) {
-    SymbolRef sym = I.getKey();
-    if (SymReaper.maybeDead(sym))
-      CR = CRFactory.remove(CR, sym);
-  }
-
-  return state->set<ConstraintRange>(CR);
+const llvm::APSInt *RangeConstraintManager::getSymVal(ProgramStateRef St,
+                                                      SymbolRef Sym) const {
+  const ConstraintRangeTy::data_type *T = St->get<ConstraintRange>(Sym);
+  return T ? T->getConcreteValue() : nullptr;
 }
 
-RangeSet
-RangeConstraintManager::GetRange(ProgramStateRef state, SymbolRef sym) {
-  if (ConstraintRangeTy::data_type* V = state->get<ConstraintRange>(sym))
+/// Scan all symbols referenced by the constraints. If the symbol is not alive
+/// as marked in LSymbols, mark it as dead in DSymbols.
+ProgramStateRef
+RangeConstraintManager::removeDeadBindings(ProgramStateRef State,
+                                           SymbolReaper &SymReaper) {
+  bool Changed = false;
+  ConstraintRangeTy CR = State->get<ConstraintRange>();
+  ConstraintRangeTy::Factory &CRFactory = State->get_context<ConstraintRange>();
+
+  for (ConstraintRangeTy::iterator I = CR.begin(), E = CR.end(); I != E; ++I) {
+    SymbolRef Sym = I.getKey();
+    if (SymReaper.maybeDead(Sym)) {
+      Changed = true;
+      CR = CRFactory.remove(CR, Sym);
+    }
+  }
+
+  return Changed ? State->set<ConstraintRange>(CR) : State;
+}
+
+/// Return a range set subtracting zero from \p Domain.
+static RangeSet assumeNonZero(
+    BasicValueFactory &BV,
+    RangeSet::Factory &F,
+    SymbolRef Sym,
+    RangeSet Domain) {
+  APSIntType IntType = BV.getAPSIntType(Sym->getType());
+  return Domain.Intersect(BV, F, ++IntType.getZeroValue(),
+      --IntType.getZeroValue());
+}
+
+/// \brief Apply implicit constraints for bitwise OR- and AND-.
+/// For unsigned types, bitwise OR with a constant always returns
+/// a value greater-or-equal than the constant, and bitwise AND
+/// returns a value less-or-equal then the constant.
+///
+/// Pattern matches the expression \p Sym against those rule,
+/// and applies the required constraints.
+/// \p Input Previously established expression range set
+static RangeSet applyBitwiseConstraints(
+    BasicValueFactory &BV,
+    RangeSet::Factory &F,
+    RangeSet Input,
+    const SymIntExpr* SIE) {
+  QualType T = SIE->getType();
+  bool IsUnsigned = T->isUnsignedIntegerType();
+  const llvm::APSInt &RHS = SIE->getRHS();
+  const llvm::APSInt &Zero = BV.getAPSIntType(T).getZeroValue();
+  BinaryOperator::Opcode Operator = SIE->getOpcode();
+
+  // For unsigned types, the output of bitwise-or is bigger-or-equal than RHS.
+  if (Operator == BO_Or && IsUnsigned)
+    return Input.Intersect(BV, F, RHS, BV.getMaxValue(T));
+
+  // Bitwise-or with a non-zero constant is always non-zero.
+  if (Operator == BO_Or && RHS != Zero)
+    return assumeNonZero(BV, F, SIE, Input);
+
+  // For unsigned types, or positive RHS,
+  // bitwise-and output is always smaller-or-equal than RHS (assuming two's
+  // complement representation of signed types).
+  if (Operator == BO_And && (IsUnsigned || RHS >= Zero))
+    return Input.Intersect(BV, F, BV.getMinValue(T), RHS);
+
+  return Input;
+}
+
+RangeSet RangeConstraintManager::getRange(ProgramStateRef State,
+                                          SymbolRef Sym) {
+  if (ConstraintRangeTy::data_type *V = State->get<ConstraintRange>(Sym))
     return *V;
 
   // Lazily generate a new RangeSet representing all possible values for the
   // given symbol type.
   BasicValueFactory &BV = getBasicVals();
-  QualType T = sym->getType();
+  QualType T = Sym->getType();
 
   RangeSet Result(F, BV.getMinValue(T), BV.getMaxValue(T));
 
-  // Special case: references are known to be non-zero.
-  if (T->isReferenceType()) {
-    APSIntType IntType = BV.getAPSIntType(T);
-    Result = Result.Intersect(BV, F, ++IntType.getZeroValue(),
-                                     --IntType.getZeroValue());
-  }
+  // References are known to be non-zero.
+  if (T->isReferenceType())
+    return assumeNonZero(BV, F, Sym, Result);
+
+  // Known constraints on ranges of bitwise expressions.
+  if (const SymIntExpr* SIE = dyn_cast<SymIntExpr>(Sym))
+    return applyBitwiseConstraints(BV, F, Result, SIE);
 
   return Result;
 }
 
 //===------------------------------------------------------------------------===
-// assumeSymX methods: public interface for RangeConstraintManager.
+// assumeSymX methods: protected interface for RangeConstraintManager.
 //===------------------------------------------------------------------------===/
 
 // The syntax for ranges below is mathematical, using [x, y] for closed ranges
@@ -413,7 +545,7 @@ RangeConstraintManager::GetRange(ProgramStateRef state, SymbolRef sym) {
 // As an example, the range [UINT_MAX-1, 3) contains five values: UINT_MAX-1,
 // UINT_MAX, 0, 1, and 2.
 
-ProgramStateRef 
+ProgramStateRef
 RangeConstraintManager::assumeSymNE(ProgramStateRef St, SymbolRef Sym,
                                     const llvm::APSInt &Int,
                                     const llvm::APSInt &Adjustment) {
@@ -429,139 +561,193 @@ RangeConstraintManager::assumeSymNE(ProgramStateRef St, SymbolRef Sym,
 
   // [Int-Adjustment+1, Int-Adjustment-1]
   // Notice that the lower bound is greater than the upper bound.
-  RangeSet New = GetRange(St, Sym).Intersect(getBasicVals(), F, Upper, Lower);
-  return New.isEmpty() ? NULL : St->set<ConstraintRange>(Sym, New);
+  RangeSet New = getRange(St, Sym).Intersect(getBasicVals(), F, Upper, Lower);
+  return New.isEmpty() ? nullptr : St->set<ConstraintRange>(Sym, New);
 }
 
-ProgramStateRef 
+ProgramStateRef
 RangeConstraintManager::assumeSymEQ(ProgramStateRef St, SymbolRef Sym,
                                     const llvm::APSInt &Int,
                                     const llvm::APSInt &Adjustment) {
   // Before we do any real work, see if the value can even show up.
   APSIntType AdjustmentType(Adjustment);
   if (AdjustmentType.testInRange(Int, true) != APSIntType::RTR_Within)
-    return NULL;
+    return nullptr;
 
   // [Int-Adjustment, Int-Adjustment]
   llvm::APSInt AdjInt = AdjustmentType.convert(Int) - Adjustment;
-  RangeSet New = GetRange(St, Sym).Intersect(getBasicVals(), F, AdjInt, AdjInt);
-  return New.isEmpty() ? NULL : St->set<ConstraintRange>(Sym, New);
+  RangeSet New = getRange(St, Sym).Intersect(getBasicVals(), F, AdjInt, AdjInt);
+  return New.isEmpty() ? nullptr : St->set<ConstraintRange>(Sym, New);
 }
 
-ProgramStateRef 
-RangeConstraintManager::assumeSymLT(ProgramStateRef St, SymbolRef Sym,
-                                    const llvm::APSInt &Int,
-                                    const llvm::APSInt &Adjustment) {
+RangeSet RangeConstraintManager::getSymLTRange(ProgramStateRef St,
+                                               SymbolRef Sym,
+                                               const llvm::APSInt &Int,
+                                               const llvm::APSInt &Adjustment) {
   // Before we do any real work, see if the value can even show up.
   APSIntType AdjustmentType(Adjustment);
   switch (AdjustmentType.testInRange(Int, true)) {
   case APSIntType::RTR_Below:
-    return NULL;
+    return F.getEmptySet();
   case APSIntType::RTR_Within:
     break;
   case APSIntType::RTR_Above:
-    return St;
+    return getRange(St, Sym);
   }
 
   // Special case for Int == Min. This is always false.
   llvm::APSInt ComparisonVal = AdjustmentType.convert(Int);
   llvm::APSInt Min = AdjustmentType.getMinValue();
   if (ComparisonVal == Min)
-    return NULL;
+    return F.getEmptySet();
 
-  llvm::APSInt Lower = Min-Adjustment;
-  llvm::APSInt Upper = ComparisonVal-Adjustment;
+  llvm::APSInt Lower = Min - Adjustment;
+  llvm::APSInt Upper = ComparisonVal - Adjustment;
   --Upper;
 
-  RangeSet New = GetRange(St, Sym).Intersect(getBasicVals(), F, Lower, Upper);
-  return New.isEmpty() ? NULL : St->set<ConstraintRange>(Sym, New);
+  return getRange(St, Sym).Intersect(getBasicVals(), F, Lower, Upper);
 }
 
-ProgramStateRef 
-RangeConstraintManager::assumeSymGT(ProgramStateRef St, SymbolRef Sym,
+ProgramStateRef
+RangeConstraintManager::assumeSymLT(ProgramStateRef St, SymbolRef Sym,
                                     const llvm::APSInt &Int,
                                     const llvm::APSInt &Adjustment) {
+  RangeSet New = getSymLTRange(St, Sym, Int, Adjustment);
+  return New.isEmpty() ? nullptr : St->set<ConstraintRange>(Sym, New);
+}
+
+RangeSet RangeConstraintManager::getSymGTRange(ProgramStateRef St,
+                                               SymbolRef Sym,
+                                               const llvm::APSInt &Int,
+                                               const llvm::APSInt &Adjustment) {
   // Before we do any real work, see if the value can even show up.
   APSIntType AdjustmentType(Adjustment);
   switch (AdjustmentType.testInRange(Int, true)) {
   case APSIntType::RTR_Below:
-    return St;
+    return getRange(St, Sym);
   case APSIntType::RTR_Within:
     break;
   case APSIntType::RTR_Above:
-    return NULL;
+    return F.getEmptySet();
   }
 
   // Special case for Int == Max. This is always false.
   llvm::APSInt ComparisonVal = AdjustmentType.convert(Int);
   llvm::APSInt Max = AdjustmentType.getMaxValue();
   if (ComparisonVal == Max)
-    return NULL;
+    return F.getEmptySet();
 
-  llvm::APSInt Lower = ComparisonVal-Adjustment;
-  llvm::APSInt Upper = Max-Adjustment;
+  llvm::APSInt Lower = ComparisonVal - Adjustment;
+  llvm::APSInt Upper = Max - Adjustment;
   ++Lower;
 
-  RangeSet New = GetRange(St, Sym).Intersect(getBasicVals(), F, Lower, Upper);
-  return New.isEmpty() ? NULL : St->set<ConstraintRange>(Sym, New);
+  return getRange(St, Sym).Intersect(getBasicVals(), F, Lower, Upper);
 }
 
-ProgramStateRef 
-RangeConstraintManager::assumeSymGE(ProgramStateRef St, SymbolRef Sym,
+ProgramStateRef
+RangeConstraintManager::assumeSymGT(ProgramStateRef St, SymbolRef Sym,
                                     const llvm::APSInt &Int,
                                     const llvm::APSInt &Adjustment) {
+  RangeSet New = getSymGTRange(St, Sym, Int, Adjustment);
+  return New.isEmpty() ? nullptr : St->set<ConstraintRange>(Sym, New);
+}
+
+RangeSet RangeConstraintManager::getSymGERange(ProgramStateRef St,
+                                               SymbolRef Sym,
+                                               const llvm::APSInt &Int,
+                                               const llvm::APSInt &Adjustment) {
   // Before we do any real work, see if the value can even show up.
   APSIntType AdjustmentType(Adjustment);
   switch (AdjustmentType.testInRange(Int, true)) {
   case APSIntType::RTR_Below:
-    return St;
+    return getRange(St, Sym);
   case APSIntType::RTR_Within:
     break;
   case APSIntType::RTR_Above:
-    return NULL;
+    return F.getEmptySet();
   }
 
   // Special case for Int == Min. This is always feasible.
   llvm::APSInt ComparisonVal = AdjustmentType.convert(Int);
   llvm::APSInt Min = AdjustmentType.getMinValue();
   if (ComparisonVal == Min)
-    return St;
+    return getRange(St, Sym);
 
   llvm::APSInt Max = AdjustmentType.getMaxValue();
-  llvm::APSInt Lower = ComparisonVal-Adjustment;
-  llvm::APSInt Upper = Max-Adjustment;
+  llvm::APSInt Lower = ComparisonVal - Adjustment;
+  llvm::APSInt Upper = Max - Adjustment;
 
-  RangeSet New = GetRange(St, Sym).Intersect(getBasicVals(), F, Lower, Upper);
-  return New.isEmpty() ? NULL : St->set<ConstraintRange>(Sym, New);
+  return getRange(St, Sym).Intersect(getBasicVals(), F, Lower, Upper);
 }
 
-ProgramStateRef 
-RangeConstraintManager::assumeSymLE(ProgramStateRef St, SymbolRef Sym,
+ProgramStateRef
+RangeConstraintManager::assumeSymGE(ProgramStateRef St, SymbolRef Sym,
                                     const llvm::APSInt &Int,
                                     const llvm::APSInt &Adjustment) {
+  RangeSet New = getSymGERange(St, Sym, Int, Adjustment);
+  return New.isEmpty() ? nullptr : St->set<ConstraintRange>(Sym, New);
+}
+
+RangeSet RangeConstraintManager::getSymLERange(
+      llvm::function_ref<RangeSet()> RS,
+      const llvm::APSInt &Int,
+      const llvm::APSInt &Adjustment) {
   // Before we do any real work, see if the value can even show up.
   APSIntType AdjustmentType(Adjustment);
   switch (AdjustmentType.testInRange(Int, true)) {
   case APSIntType::RTR_Below:
-    return NULL;
+    return F.getEmptySet();
   case APSIntType::RTR_Within:
     break;
   case APSIntType::RTR_Above:
-    return St;
+    return RS();
   }
 
   // Special case for Int == Max. This is always feasible.
   llvm::APSInt ComparisonVal = AdjustmentType.convert(Int);
   llvm::APSInt Max = AdjustmentType.getMaxValue();
   if (ComparisonVal == Max)
-    return St;
+    return RS();
 
   llvm::APSInt Min = AdjustmentType.getMinValue();
-  llvm::APSInt Lower = Min-Adjustment;
-  llvm::APSInt Upper = ComparisonVal-Adjustment;
+  llvm::APSInt Lower = Min - Adjustment;
+  llvm::APSInt Upper = ComparisonVal - Adjustment;
 
-  RangeSet New = GetRange(St, Sym).Intersect(getBasicVals(), F, Lower, Upper);
-  return New.isEmpty() ? NULL : St->set<ConstraintRange>(Sym, New);
+  return RS().Intersect(getBasicVals(), F, Lower, Upper);
+}
+
+RangeSet RangeConstraintManager::getSymLERange(ProgramStateRef St,
+                                               SymbolRef Sym,
+                                               const llvm::APSInt &Int,
+                                               const llvm::APSInt &Adjustment) {
+  return getSymLERange([&] { return getRange(St, Sym); }, Int, Adjustment);
+}
+
+ProgramStateRef
+RangeConstraintManager::assumeSymLE(ProgramStateRef St, SymbolRef Sym,
+                                    const llvm::APSInt &Int,
+                                    const llvm::APSInt &Adjustment) {
+  RangeSet New = getSymLERange(St, Sym, Int, Adjustment);
+  return New.isEmpty() ? nullptr : St->set<ConstraintRange>(Sym, New);
+}
+
+ProgramStateRef RangeConstraintManager::assumeSymWithinInclusiveRange(
+    ProgramStateRef State, SymbolRef Sym, const llvm::APSInt &From,
+    const llvm::APSInt &To, const llvm::APSInt &Adjustment) {
+  RangeSet New = getSymGERange(State, Sym, From, Adjustment);
+  if (New.isEmpty())
+    return nullptr;
+  RangeSet Out = getSymLERange([&] { return New; }, To, Adjustment);
+  return Out.isEmpty() ? nullptr : State->set<ConstraintRange>(Sym, Out);
+}
+
+ProgramStateRef RangeConstraintManager::assumeSymOutsideInclusiveRange(
+    ProgramStateRef State, SymbolRef Sym, const llvm::APSInt &From,
+    const llvm::APSInt &To, const llvm::APSInt &Adjustment) {
+  RangeSet RangeLT = getSymLTRange(State, Sym, From, Adjustment);
+  RangeSet RangeGT = getSymGTRange(State, Sym, To, Adjustment);
+  RangeSet New(RangeLT.addRange(F, RangeGT));
+  return New.isEmpty() ? nullptr : State->set<ConstraintRange>(Sym, New);
 }
 
 //===------------------------------------------------------------------------===
@@ -569,7 +755,7 @@ RangeConstraintManager::assumeSymLE(ProgramStateRef St, SymbolRef Sym,
 //===------------------------------------------------------------------------===/
 
 void RangeConstraintManager::print(ProgramStateRef St, raw_ostream &Out,
-                                   const char* nl, const char *sep) {
+                                   const char *nl, const char *sep) {
 
   ConstraintRangeTy Ranges = St->get<ConstraintRange>();
 
@@ -579,7 +765,8 @@ void RangeConstraintManager::print(ProgramStateRef St, raw_ostream &Out,
   }
 
   Out << nl << sep << "Ranges of symbol values:";
-  for (ConstraintRangeTy::iterator I=Ranges.begin(), E=Ranges.end(); I!=E; ++I){
+  for (ConstraintRangeTy::iterator I = Ranges.begin(), E = Ranges.end(); I != E;
+       ++I) {
     Out << nl << ' ' << I.getKey() << " : ";
     I.getData().print(Out);
   }

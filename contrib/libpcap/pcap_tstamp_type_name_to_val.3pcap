@@ -18,7 +18,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH PCAP_TSTAMP_TYPE_NAME_TO_VAL 3PCAP "21 August 2010"
+.TH PCAP_TSTAMP_TYPE_NAME_TO_VAL 3PCAP "5 December 2014"
 .SH NAME
 pcap_tstamp_type_name_to_val \- get the time stamp type value
 corresponding to a time stamp type name
@@ -38,7 +38,7 @@ translates a time stamp type name to the corresponding time stamp type
 value.  The translation is case-insensitive.
 .SH RETURN VALUE
 .B pcap_tstamp_type_name_to_val()
-returns 0 on success and
+returns time stamp type value on success and
 .B PCAP_ERROR
 on failure.
 .SH SEE ALSO

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 270407 2014-08-23 12:41:39Z melifaro $");
+__FBSDID("$FreeBSD$");
 
 /*
  * Multi-field value support for ipfw tables.
@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 270407 2014-08-
 #include <sys/socketvar.h>
 #include <sys/queue.h>
 #include <net/if.h>	/* ip_fw.h requires IFNAMSIZ */
+#include <net/pfil.h>
 
 #include <netinet/in.h>
 #include <netinet/ip_var.h>	/* struct ipfw_rule_ref */
@@ -58,9 +59,10 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 270407 2014-08-
 #include <netpfil/ipfw/ip_fw_private.h>
 #include <netpfil/ipfw/ip_fw_table.h>
 
-static uint32_t hash_table_value(struct namedobj_instance *ni, void *key,
+static uint32_t hash_table_value(struct namedobj_instance *ni, const void *key,
     uint32_t kopt);
-static int cmp_table_value(struct named_object *no, void *key, uint32_t kopt);
+static int cmp_table_value(struct named_object *no, const void *key,
+    uint32_t kopt);
 
 static int list_table_values(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
@@ -87,14 +89,14 @@ struct vdump_args {
 
 
 static uint32_t
-hash_table_value(struct namedobj_instance *ni, void *key, uint32_t kopt)
+hash_table_value(struct namedobj_instance *ni, const void *key, uint32_t kopt)
 {
 
 	return (hash32_buf(key, 56, 0));
 }
 
 static int
-cmp_table_value(struct named_object *no, void *key, uint32_t kopt)
+cmp_table_value(struct named_object *no, const void *key, uint32_t kopt)
 {
 
 	return (memcmp(((struct table_val_link *)no)->pval, key, 56));
@@ -117,6 +119,7 @@ mask_table_value(struct table_value *src, struct table_value *dst,
 	_MCPY(dscp, IPFW_VTYPE_DSCP);
 	_MCPY(nh4, IPFW_VTYPE_NH4);
 	_MCPY(nh6, IPFW_VTYPE_NH6);
+	_MCPY(zoneid, IPFW_VTYPE_NH6);
 #undef	_MCPY
 }
 
@@ -145,7 +148,7 @@ get_value_ptrs(struct ip_fw_chain *ch, struct table_config *tc, int vshared,
 /*
  * Update pointers to real vaues after @pval change.
  */
-static void
+static int
 update_tvalue(struct namedobj_instance *ni, struct named_object *no, void *arg)
 {
 	struct vdump_args *da;
@@ -157,7 +160,8 @@ update_tvalue(struct namedobj_instance *ni, struct named_object *no, void *arg)
 
 	pval = da->pval;
 	ptv->pval = &pval[ptv->no.kidx];
-
+	ptv->no.name = (char *)&pval[ptv->no.kidx];
+	return (0);
 }
 
 /*
@@ -497,7 +501,7 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts)
 	count = ts->count;
 	for (i = 0; i < count; i++) {
 		ptei = &tei[i];
-		ptei->value = 0; /* Ensure value is always 0 in the beginnig */
+		ptei->value = 0; /* Ensure value is always 0 in the beginning */
 		mask_table_value(ptei->pvalue, &tval, ts->vmask);
 		ptv = (struct table_val_link *)ipfw_objhash_lookup_name(vi, 0,
 		    (char *)&tval);
@@ -557,22 +561,11 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts)
 		return (0);
 	}
 
-	KASSERT(pval == ch->tablestate, ("resize_storage() notify failure"));
+	KASSERT(pval == ch->valuestate, ("resize_storage() notify failure"));
 
 	/* Let's try to link values */
 	for (i = 0; i < count; i++) {
 		ptei = &tei[i];
-		if (ptei->value != 0) {
-
-			/*
-			 * We may be here after several process restarts,
-			 * so we need to update all fields that might
-			 * have changed.
-			 */
-			ptv = (struct table_val_link *)ptei->ptv;
-			ptv->pval = &pval[i];
-			continue;
-		}
 
 		/* Check if record has appeared */
 		mask_table_value(ptei->pvalue, &tval, ts->vmask);
@@ -611,7 +604,7 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts)
 }
 
 /*
- * Compability function used to import data from old
+ * Compatibility function used to import data from old
  * IP_FW_TABLE_ADD / IP_FW_TABLE_XADD opcodes.
  */
 void
@@ -666,6 +659,7 @@ ipfw_import_table_value_v1(ipfw_table_value *iv)
 	v.nh4 = iv->nh4;
 	v.nh6 = iv->nh6;
 	v.limit = iv->limit;
+	v.zoneid = iv->zoneid;
 
 	memcpy(iv, &v, sizeof(ipfw_table_value));
 }
@@ -691,6 +685,7 @@ ipfw_export_table_value_v1(struct table_value *v, ipfw_table_value *piv)
 	iv.limit = v->limit;
 	iv.nh4 = v->nh4;
 	iv.nh6 = v->nh6;
+	iv.zoneid = v->zoneid;
 
 	memcpy(piv, &iv, sizeof(iv));
 }
@@ -699,7 +694,7 @@ ipfw_export_table_value_v1(struct table_value *v, ipfw_table_value *piv)
  * Exports real value data into ipfw_table_value structure.
  * Utilizes "spare1" field to store kernel index.
  */
-static void
+static int
 dump_tvalue(struct namedobj_instance *ni, struct named_object *no, void *arg)
 {
 	struct vdump_args *da;
@@ -713,11 +708,12 @@ dump_tvalue(struct namedobj_instance *ni, struct named_object *no, void *arg)
 	/* Out of memory, returning */
 	if (v == NULL) {
 		da->error = ENOMEM;
-		return;
+		return (ENOMEM);
 	}
 
 	memcpy(v, ptv->pval, sizeof(*v));
 	v->spare1 = ptv->no.kidx;
+	return (0);
 }
 
 /*
@@ -791,12 +787,13 @@ ipfw_table_value_init(struct ip_fw_chain *ch, int first)
 	IPFW_ADD_SOPT_HANDLER(first, scodes);
 }
 
-static void
+static int
 destroy_value(struct namedobj_instance *ni, struct named_object *no,
     void *arg)
 {
 
 	free(no, M_IPFW);
+	return (0);
 }
 
 void

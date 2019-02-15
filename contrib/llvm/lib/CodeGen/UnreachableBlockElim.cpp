@@ -20,60 +20,39 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/UnreachableBlockElim.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/Analysis/Dominators.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/Constant.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Type.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/CFG.h"
-#include "llvm/Target/TargetInstrInfo.h"
 using namespace llvm;
 
-namespace {
-  class UnreachableBlockElim : public FunctionPass {
-    virtual bool runOnFunction(Function &F);
-  public:
-    static char ID; // Pass identification, replacement for typeid
-    UnreachableBlockElim() : FunctionPass(ID) {
-      initializeUnreachableBlockElimPass(*PassRegistry::getPassRegistry());
-    }
-
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-      AU.addPreserved<DominatorTree>();
-    }
-  };
-}
-char UnreachableBlockElim::ID = 0;
-INITIALIZE_PASS(UnreachableBlockElim, "unreachableblockelim",
-                "Remove unreachable blocks from the CFG", false, false)
-
-FunctionPass *llvm::createUnreachableBlockEliminationPass() {
-  return new UnreachableBlockElim();
-}
-
-bool UnreachableBlockElim::runOnFunction(Function &F) {
-  SmallPtrSet<BasicBlock*, 8> Reachable;
+static bool eliminateUnreachableBlock(Function &F) {
+  df_iterator_default_set<BasicBlock*> Reachable;
 
   // Mark all reachable blocks.
-  for (df_ext_iterator<Function*, SmallPtrSet<BasicBlock*, 8> > I =
-       df_ext_begin(&F, Reachable), E = df_ext_end(&F, Reachable); I != E; ++I)
-    /* Mark all reachable blocks */;
+  for (BasicBlock *BB : depth_first_ext(&F, Reachable))
+    (void)BB/* Mark all reachable blocks */;
 
   // Loop over all dead blocks, remembering them and deleting all instructions
   // in them.
   std::vector<BasicBlock*> DeadBlocks;
   for (Function::iterator I = F.begin(), E = F.end(); I != E; ++I)
-    if (!Reachable.count(I)) {
-      BasicBlock *BB = I;
+    if (!Reachable.count(&*I)) {
+      BasicBlock *BB = &*I;
       DeadBlocks.push_back(BB);
       while (PHINode *PN = dyn_cast<PHINode>(BB->begin())) {
         PN->replaceAllUsesWith(Constant::getNullValue(PN->getType()));
@@ -89,14 +68,49 @@ bool UnreachableBlockElim::runOnFunction(Function &F) {
     DeadBlocks[i]->eraseFromParent();
   }
 
-  return DeadBlocks.size();
+  return !DeadBlocks.empty();
 }
 
+namespace {
+class UnreachableBlockElimLegacyPass : public FunctionPass {
+  bool runOnFunction(Function &F) override {
+    return eliminateUnreachableBlock(F);
+  }
+
+public:
+  static char ID; // Pass identification, replacement for typeid
+  UnreachableBlockElimLegacyPass() : FunctionPass(ID) {
+    initializeUnreachableBlockElimLegacyPassPass(
+        *PassRegistry::getPassRegistry());
+  }
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addPreserved<DominatorTreeWrapperPass>();
+  }
+};
+}
+char UnreachableBlockElimLegacyPass::ID = 0;
+INITIALIZE_PASS(UnreachableBlockElimLegacyPass, "unreachableblockelim",
+                "Remove unreachable blocks from the CFG", false, false)
+
+FunctionPass *llvm::createUnreachableBlockEliminationPass() {
+  return new UnreachableBlockElimLegacyPass();
+}
+
+PreservedAnalyses UnreachableBlockElimPass::run(Function &F,
+                                                FunctionAnalysisManager &AM) {
+  bool Changed = eliminateUnreachableBlock(F);
+  if (!Changed)
+    return PreservedAnalyses::all();
+  PreservedAnalyses PA;
+  PA.preserve<DominatorTreeAnalysis>();
+  return PA;
+}
 
 namespace {
   class UnreachableMachineBlockElim : public MachineFunctionPass {
-    virtual bool runOnMachineFunction(MachineFunction &F);
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const;
+    bool runOnMachineFunction(MachineFunction &F) override;
+    void getAnalysisUsage(AnalysisUsage &AU) const override;
     MachineModuleInfo *MMI;
   public:
     static char ID; // Pass identification, replacement for typeid
@@ -117,7 +131,7 @@ void UnreachableMachineBlockElim::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 bool UnreachableMachineBlockElim::runOnMachineFunction(MachineFunction &F) {
-  SmallPtrSet<MachineBasicBlock*, 8> Reachable;
+  df_iterator_default_set<MachineBasicBlock*> Reachable;
   bool ModifiedPHI = false;
 
   MMI = getAnalysisIfAvailable<MachineModuleInfo>();
@@ -125,16 +139,14 @@ bool UnreachableMachineBlockElim::runOnMachineFunction(MachineFunction &F) {
   MachineLoopInfo *MLI = getAnalysisIfAvailable<MachineLoopInfo>();
 
   // Mark all reachable blocks.
-  for (df_ext_iterator<MachineFunction*, SmallPtrSet<MachineBasicBlock*, 8> >
-       I = df_ext_begin(&F, Reachable), E = df_ext_end(&F, Reachable);
-       I != E; ++I)
-    /* Mark all reachable blocks */;
+  for (MachineBasicBlock *BB : depth_first_ext(&F, Reachable))
+    (void)BB/* Mark all reachable blocks */;
 
   // Loop over all dead blocks, remembering them and deleting all instructions
   // in them.
   std::vector<MachineBasicBlock*> DeadBlocks;
   for (MachineFunction::iterator I = F.begin(), E = F.end(); I != E; ++I) {
-    MachineBasicBlock *BB = I;
+    MachineBasicBlock *BB = &*I;
 
     // Test for deadness.
     if (!Reachable.count(BB)) {
@@ -170,7 +182,7 @@ bool UnreachableMachineBlockElim::runOnMachineFunction(MachineFunction &F) {
 
   // Cleanup PHI nodes.
   for (MachineFunction::iterator I = F.begin(), E = F.end(); I != E; ++I) {
-    MachineBasicBlock *BB = I;
+    MachineBasicBlock *BB = &*I;
     // Prune unneeded PHI entries.
     SmallPtrSet<MachineBasicBlock*, 8> preds(BB->pred_begin(),
                                              BB->pred_end());
@@ -184,20 +196,32 @@ bool UnreachableMachineBlockElim::runOnMachineFunction(MachineFunction &F) {
         }
 
       if (phi->getNumOperands() == 3) {
-        unsigned Input = phi->getOperand(1).getReg();
-        unsigned Output = phi->getOperand(0).getReg();
-
-        MachineInstr* temp = phi;
-        ++phi;
-        temp->eraseFromParent();
+        const MachineOperand &Input = phi->getOperand(1);
+        const MachineOperand &Output = phi->getOperand(0);
+        unsigned InputReg = Input.getReg();
+        unsigned OutputReg = Output.getReg();
+        assert(Output.getSubReg() == 0 && "Cannot have output subregister");
         ModifiedPHI = true;
 
-        if (Input != Output) {
+        if (InputReg != OutputReg) {
           MachineRegisterInfo &MRI = F.getRegInfo();
-          MRI.constrainRegClass(Input, MRI.getRegClass(Output));
-          MRI.replaceRegWith(Output, Input);
+          unsigned InputSub = Input.getSubReg();
+          if (InputSub == 0 &&
+              MRI.constrainRegClass(InputReg, MRI.getRegClass(OutputReg)) &&
+              !Input.isUndef()) {
+            MRI.replaceRegWith(OutputReg, InputReg);
+          } else {
+            // The input register to the PHI has a subregister or it can't be
+            // constrained to the proper register class or it is undef:
+            // insert a COPY instead of simply replacing the output
+            // with the input.
+            const TargetInstrInfo *TII = F.getSubtarget().getInstrInfo();
+            BuildMI(*BB, BB->getFirstNonPHI(), phi->getDebugLoc(),
+                    TII->get(TargetOpcode::COPY), OutputReg)
+                .addReg(InputReg, getRegState(Input), InputSub);
+          }
+          phi++->eraseFromParent();
         }
-
         continue;
       }
 
@@ -207,5 +231,5 @@ bool UnreachableMachineBlockElim::runOnMachineFunction(MachineFunction &F) {
 
   F.RenumberBlocks();
 
-  return (DeadBlocks.size() || ModifiedPHI);
+  return (!DeadBlocks.empty() || ModifiedPHI);
 }

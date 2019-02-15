@@ -1,6 +1,8 @@
 /*	$NetBSD: bus.h,v 1.11 2003/07/28 17:35:54 thorpej Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-4-Clause
+ *
  * Copyright (c) 1996, 1997, 1998, 2001 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -79,8 +81,13 @@
 #define BUS_SPACE_MAXADDR 	0xFFFFFFFFFFFFFFFFUL
 #define BUS_SPACE_MAXSIZE 	0xFFFFFFFFFFFFFFFFUL
 #else
+#ifdef BOOKE
+#define BUS_SPACE_MAXADDR 	0xFFFFFFFFFULL
+#define BUS_SPACE_MAXSIZE 	0xFFFFFFFFUL
+#else
 #define BUS_SPACE_MAXADDR 	0xFFFFFFFFUL
 #define BUS_SPACE_MAXSIZE 	0xFFFFFFFFUL
+#endif
 #endif
 
 #define	BUS_SPACE_MAP_CACHEABLE		0x01

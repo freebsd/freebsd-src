@@ -1,6 +1,8 @@
 /*-
  * Aic7xxx SCSI host adapter firmware asssembler
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1997, 1998, 2000, 2001 Justin T. Gibbs.
  * Copyright (c) 2001, 2002 Adaptec Inc.
  * All rights reserved.
@@ -668,7 +670,7 @@ check_patch(patch_t **start_patch, unsigned int start_instr,
 				cur_patch = STAILQ_NEXT(cur_patch, links);
 		} else {
 			/* Accepted this patch.  Advance to the next
-			 * one and wait for our intruction pointer to
+			 * one and wait for our instruction pointer to
 			 * hit this point.
 			 */
 			cur_patch = STAILQ_NEXT(cur_patch, links);

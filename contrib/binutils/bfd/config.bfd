@@ -875,11 +875,11 @@ case "${targ}" in
     ;;
   mips*el-*-freebsd*)
     targ_defvec=bfd_elf32_tradlittlemips_vec
-    targ_selvecs="bfd_elf32_tradbigmips_vec bfd_elf32_ntradbigmisp_vec bfd_elf32_ntradlittlemips_vec bfd_elf64_tradbigmips_vec bfd_elf64_tradlittlemips_vec ecoff_big_vec ecoff_little_vec"
+    targ_selvecs="bfd_elf32_tradbigmips_vec bfd_elf32_ntradbigmips_vec bfd_elf32_ntradlittlemips_vec bfd_elf64_tradbigmips_vec bfd_elf64_tradlittlemips_vec ecoff_big_vec ecoff_little_vec"
     ;;
   mips*-*-freebsd*)
     targ_defvec=bfd_elf32_tradbigmips_vec
-    targ_selvecs="bfd_elf32_tradlittlemips_vec bfd_elf32_ntradbigmisp_vec bfd_elf32_ntradlittlemips_vec bfd_elf64_tradbigmips_vec bfd_elf64_tradlittlemips_vec ecoff_big_vec ecoff_little_vec"
+    targ_selvecs="bfd_elf32_tradlittlemips_vec bfd_elf32_ntradbigmips_vec bfd_elf32_ntradlittlemips_vec bfd_elf64_tradbigmips_vec bfd_elf64_tradlittlemips_vec ecoff_big_vec ecoff_little_vec"
     ;;
   mips*-dec-* | mips*el-*-ecoff*)
     targ_defvec=ecoff_little_vec
@@ -1103,7 +1103,7 @@ case "${targ}" in
     want64=true
     ;;
 #endif
-  powerpc-*-*bsd* | powerpc-*-elf* | powerpc-*-sysv4* | powerpc-*-eabi* | \
+  powerpc-*-*bsd* | powerpcspe-*-*bsd* | powerpc-*-elf* | powerpc-*-sysv4* | powerpc-*-eabi* | \
   powerpc-*-solaris2* | powerpc-*-linux-* | powerpc-*-rtems* | \
   powerpc-*-chorus*)
     targ_defvec=bfd_elf32_powerpc_vec
@@ -1156,13 +1156,13 @@ case "${targ}" in
     targ_selvecs="bfd_powerpcle_pei_vec bfd_powerpc_pei_vec bfd_powerpcle_pe_vec bfd_powerpc_pe_vec"
     ;;
 
-  s390-*-linux*)
+  s390-*-freebsd* | s390-*-linux*)
     targ_defvec=bfd_elf32_s390_vec
     targ64_selvecs=bfd_elf64_s390_vec
     want64=true
     ;;
 #ifdef BFD64
-  s390x-*-linux*)
+  s390x-*-freebsd* | s390x-*-linux*)
     targ_defvec=bfd_elf64_s390_vec
     targ_selvecs=bfd_elf32_s390_vec
     want64=true

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999,2000 Jonathan Lemon
  * All rights reserved.
  *
@@ -265,8 +267,8 @@ ida_pci_attach(device_t dev)
 		/* highaddr	*/ BUS_SPACE_MAXADDR,
 		/* filter	*/ NULL,
 		/* filterarg	*/ NULL,
-		/* maxsize	*/ MAXBSIZE,
-		/* nsegments	*/ IDA_NSEG,
+		/* maxsize	*/ BUS_SPACE_MAXSIZE_32BIT,
+		/* nsegments	*/ BUS_SPACE_UNRESTRICTED,
 		/* maxsegsize	*/ BUS_SPACE_MAXSIZE_32BIT,
 		/* flags	*/ BUS_DMA_ALLOCNOW,
 		/* lockfunc	*/ NULL,
@@ -294,7 +296,7 @@ ida_pci_attach(device_t dev)
 		return (ENOMEM);
 	}
 
-	error = ida_init(ida);
+	error = ida_setup(ida);
 	if (error) {
 	        ida_free(ida);
 	        return (error);
@@ -304,3 +306,5 @@ ida_pci_attach(device_t dev)
 }
 
 DRIVER_MODULE(ida, pci, ida_pci_driver, ida_devclass, 0, 0);
+MODULE_PNP_INFO("W32:vendor/device;D:#", pci, ida, board_id,
+    nitems(board_id) - 1);

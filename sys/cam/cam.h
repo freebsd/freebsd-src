@@ -1,6 +1,8 @@
 /*-
  * Data structures and definitions for the CAM system.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Justin T. Gibbs.
  * All rights reserved.
  *
@@ -32,7 +34,7 @@
 #define _CAM_CAM_H 1
 
 #ifdef _KERNEL
-#include <opt_cam.h>
+#include "opt_cam.h"
 #endif
 
 #include <sys/cdefs.h>
@@ -77,7 +79,7 @@ typedef enum {
     CAM_RL_VALUES
 } cam_rl;
 /*
- * The generation number is incremented everytime a new entry is entered into
+ * The generation number is incremented every time a new entry is entered into
  * the queue giving round robin per priority level scheduling.
  */
 typedef struct {
@@ -118,10 +120,11 @@ typedef enum {
 enum {
 	SF_RETRY_UA		= 0x01,	/* Retry UNIT ATTENTION conditions. */
 	SF_NO_PRINT		= 0x02,	/* Never print error status. */
-	SF_QUIET_IR		= 0x04,	/* Be quiet about Illegal Request reponses */
+	SF_QUIET_IR		= 0x04,	/* Be quiet about Illegal Request responses */
 	SF_PRINT_ALWAYS		= 0x08,	/* Always print error status. */
 	SF_NO_RECOVERY		= 0x10,	/* Don't do active error recovery. */
-	SF_NO_RETRY		= 0x20	/* Don't do any retries. */
+	SF_NO_RETRY		= 0x20,	/* Don't do any retries. */
+	SF_RETRY_BUSY		= 0x40	/* Retry BUSY status. */
 };
 
 /* CAM  Status field values */
@@ -289,7 +292,7 @@ typedef enum {
 	/* SIM ready to take more commands */
 	CAM_RELEASE_SIMQ	= 0x100,
 
-	/* SIM has this command in it's queue */
+	/* SIM has this command in its queue */
 	CAM_SIM_QUEUED		= 0x200,
 
 	/* Quality of service data is valid */
@@ -341,6 +344,15 @@ typedef enum {
 	CAM_EAF_PRINT_RESULT	= 0x20
 } cam_error_ata_flags;
 
+typedef enum {
+	CAM_STRVIS_FLAG_NONE		= 0x00,
+	CAM_STRVIS_FLAG_NONASCII_MASK	= 0x03,
+	CAM_STRVIS_FLAG_NONASCII_TRIM	= 0x00,
+	CAM_STRVIS_FLAG_NONASCII_RAW	= 0x01,
+	CAM_STRVIS_FLAG_NONASCII_SPC	= 0x02,
+	CAM_STRVIS_FLAG_NONASCII_ESC	= 0x03
+} cam_strvis_flags;
+
 struct cam_status_entry
 {
 	cam_status  status_code;
@@ -353,6 +365,7 @@ extern const int num_cam_status_entries;
 extern int cam_sort_io_queues;
 #endif
 union ccb;
+struct sbuf;
 
 #ifdef SYSCTL_DECL	/* from sysctl.h */
 SYSCTL_DECL(_kern_cam);
@@ -365,6 +378,8 @@ caddr_t	cam_quirkmatch(caddr_t target, caddr_t quirk_table, int num_entries,
 		       int entry_size, cam_quirkmatch_t *comp_func);
 
 void	cam_strvis(u_int8_t *dst, const u_int8_t *src, int srclen, int dstlen);
+void	cam_strvis_sbuf(struct sbuf *sb, const u_int8_t *src, int srclen,
+			uint32_t flags);
 
 int	cam_strmatch(const u_int8_t *str, const u_int8_t *pattern, int str_len);
 const struct cam_status_entry*

@@ -16,19 +16,21 @@ SRCS=	add.c \
 	remove.c \
 	rename.c
 
-CFLAGS+=-I${KRB5DIR}/lib/roken -I${KRB5DIR}/lib/sl -I.
-DPADD=	${LIBKADM5CLNT} ${LIBKRB5} ${LIBSL} ${LIBROKEN} ${LIBVERS} \
-	${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBEDIT}
-LDADD=	-lkadm5clnt -lkrb5 ${LIBSL} -lroken ${LIBVERS} \
-	-lasn1 -lcrypto -lcrypt -ledit
+CFLAGS+=-I${KRB5DIR}/lib/roken -I${KRB5DIR}/lib/sl \
+	-I${KRB5DIR}/lib/krb5 \
+	-I${.OBJDIR:H:H}/lib/libroken \
+	-I${.OBJDIR:H:H}/lib/libkrb5 \
+	-I${.OBJDIR:H:H}/lib/libasn1 \
+	-I.
+LIBADD=	kadm5clnt krb5 roken crypto edit sl vers
+
+CLEANFILES=	ktutil-commands.h ktutil-commands.c
 
 .include <bsd.prog.mk>
 
 ktutil-commands.h: ${KRB5DIR}/admin/ktutil-commands.in
 	${SLC} ${.ALLSRC:M*.in}
 
-.for ext in c o
-ktutil-commands.${ext}: ktutil-commands.h
-.endfor
+ktutil-commands.c: ktutil-commands.h
 
 .PATH: ${KRB5DIR}/admin

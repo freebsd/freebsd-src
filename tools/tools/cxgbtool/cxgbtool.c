@@ -1,4 +1,5 @@
 /**************************************************************************
+SPDX-License-Identifier: BSD-3-Clause
 
 Copyright (c) 2007-2010, Chelsio Inc.
 All rights reserved.
@@ -52,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <arpa/inet.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_types.h>
 #include <sys/endian.h>
 

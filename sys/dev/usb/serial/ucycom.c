@@ -2,6 +2,8 @@
 __FBSDID("$FreeBSD$");
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Dag-Erling Coïdan Smørgrav
  * All rights reserved.
  *
@@ -174,17 +176,18 @@ static driver_t ucycom_driver = {
 	.size = sizeof(struct ucycom_softc),
 };
 
-DRIVER_MODULE(ucycom, uhub, ucycom_driver, ucycom_devclass, NULL, 0);
-MODULE_DEPEND(ucycom, ucom, 1, 1, 1);
-MODULE_DEPEND(ucycom, usb, 1, 1, 1);
-MODULE_VERSION(ucycom, 1);
-
 /*
  * Supported devices
  */
 static const STRUCT_USB_HOST_ID ucycom_devs[] = {
 	{USB_VPI(USB_VENDOR_DELORME, USB_PRODUCT_DELORME_EARTHMATE, MODEL_CY7C64013)},
 };
+
+DRIVER_MODULE(ucycom, uhub, ucycom_driver, ucycom_devclass, NULL, 0);
+MODULE_DEPEND(ucycom, ucom, 1, 1, 1);
+MODULE_DEPEND(ucycom, usb, 1, 1, 1);
+MODULE_VERSION(ucycom, 1);
+USB_PNP_HOST_INFO(ucycom_devs);
 
 #define	UCYCOM_DEFAULT_RATE	 4800
 #define	UCYCOM_DEFAULT_CFG	 0x03	/* N-8-1 */

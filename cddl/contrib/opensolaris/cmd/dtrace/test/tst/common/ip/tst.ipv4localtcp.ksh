@@ -1,4 +1,4 @@
-#!/usr/bin/ksh
+#!/usr/bin/env ksh
 #
 # CDDL HEADER START
 #
@@ -32,23 +32,19 @@
 # 1. A change to the ip stack breaking expected probe behavior,
 #    which is the reason we are testing.
 # 2. The lo0 interface missing or not up.
-# 3. The local ssh service is not online.
-# 4. An unlikely race causes the unlocked global send/receive
+# 3. An unlikely race causes the unlocked global send/receive
 #    variables to be corrupted.
 #
 # This test performs a TCP connection and checks that at least the
 # following packet counts were traced:
 #
-# 3 x ip:::send (2 during the TCP handshake, then a FIN)
-# 3 x tcp:::send (2 during the TCP handshake, then a FIN)
-# 2 x ip:::receive (1 during the TCP handshake, then the FIN ACK)
-# 2 x tcp:::receive (1 during the TCP handshake, then the FIN ACK)
+# 7 x ip:::send (3 during the setup, 4 during the teardown)
+# 7 x tcp:::send (3 during the setup, 4 during the teardown)
+# 7 x ip:::receive (3 during the setup, 4 during the teardown)
+# 7 x tcp:::receive (3 during the setup, 4 during the teardown)
 
-# The actual count tested is 5 each way, since we are tracing both
+# The actual count tested is 7 each way, since we are tracing both
 # source and destination events.
-#
-# For this test to work, we are assuming that the TCP handshake and
-# TCP close will enter the IP code path and not use tcp fusion.
 #
 
 if (( $# != 1 )); then
@@ -58,11 +54,24 @@ fi
 
 dtrace=$1
 local=127.0.0.1
-tcpport=22
 DIR=/var/tmp/dtest.$$
+
+tcpport=1024
+bound=5000
+while [ $tcpport -lt $bound ]; do
+	nc -z $local $tcpport >/dev/null || break
+	tcpport=$(($tcpport + 1))
+done
+if [ $tcpport -eq $bound ]; then
+	echo "couldn't find an available TCP port"
+	exit 1
+fi
 
 mkdir $DIR
 cd $DIR
+
+# nc will exit when the connection is closed.
+nc -l $local $tcpport &
 
 cat > test.pl <<-EOPERL
 	use IO::Socket;
@@ -73,9 +82,10 @@ cat > test.pl <<-EOPERL
 	    Timeout => 3);
 	die "Could not connect to host $local port $tcpport" unless \$s;
 	close \$s;
+	sleep(2);
 EOPERL
 
-$dtrace -c '/usr/bin/perl test.pl' -qs /dev/stdin <<EODTRACE
+$dtrace -c 'perl test.pl' -qs /dev/stdin <<EODTRACE
 BEGIN
 {
 	ipsend = tcpsend = ipreceive = tcpreceive = 0;
@@ -110,10 +120,10 @@ tcp:::receive
 END
 {
 	printf("Minimum TCP events seen\n\n");
-	printf("ip:::send - %s\n", ipsend >= 5 ? "yes" : "no");
-	printf("ip:::receive - %s\n", ipreceive >= 5 ? "yes" : "no");
-	printf("tcp:::send - %s\n", tcpsend >= 5 ? "yes" : "no");
-	printf("tcp:::receive - %s\n", tcpreceive >= 5 ? "yes" : "no");
+	printf("ip:::send - %s\n", ipsend >= 7 ? "yes" : "no");
+	printf("ip:::receive - %s\n", ipreceive >= 7 ? "yes" : "no");
+	printf("tcp:::send - %s\n", tcpsend >= 7 ? "yes" : "no");
+	printf("tcp:::receive - %s\n", tcpreceive >= 7 ? "yes" : "no");
 }
 EODTRACE
 

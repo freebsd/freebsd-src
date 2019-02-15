@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2008-2010 Nathan Whitehorn
  * All rights reserved.
  *
@@ -51,12 +53,13 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <powerpc/ofw/ofw_pci.h>
+#include <dev/ofw/ofwpci.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include "pcib_if.h"
+#include <dev/pci/pcib_private.h>
 #include "pic_if.h"
 
 /*
@@ -103,6 +106,7 @@ static device_method_t	cpcht_methods[] = {
 	DEVMETHOD(pcib_alloc_msix,	cpcht_alloc_msix),
 	DEVMETHOD(pcib_release_msix,	cpcht_release_msix),
 	DEVMETHOD(pcib_map_msi,		cpcht_map_msi),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	DEVMETHOD_END
 };
@@ -176,7 +180,7 @@ cpcht_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
 
-	if (OF_getprop(node, "reg", reg, sizeof(reg)) < 12)
+	if (OF_getencprop(node, "reg", reg, sizeof(reg)) < 12)
 		return (ENXIO);
 
 	if (OF_getproplen(node, "ranges") <= 0)
@@ -219,7 +223,7 @@ cpcht_configure_htbridge(device_t dev, phandle_t child)
 	u_int b, f, s;
 
 	sc = device_get_softc(dev);
-	if (OF_getprop(child, "reg", &pcir, sizeof(pcir)) == -1)
+	if (OF_getencprop(child, "reg", (pcell_t *)&pcir, sizeof(pcir)) == -1)
 		return;
 
 	b = OFW_PCI_PHYS_HI_BUS(pcir.phys_hi);

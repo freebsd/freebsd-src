@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_PARENTMAP_H
-#define LLVM_CLANG_PARENTMAP_H
+#ifndef LLVM_CLANG_AST_PARENTMAP_H
+#define LLVM_CLANG_AST_PARENTMAP_H
 
 namespace clang {
 class Stmt;
@@ -53,7 +53,7 @@ public:
   }
 
   bool hasParent(Stmt* S) const {
-    return getParent(S) != 0;
+    return getParent(S) != nullptr;
   }
 
   bool isConsumedExpr(Expr *E) const;

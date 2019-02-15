@@ -28,7 +28,7 @@
 .\"     @(#)resolver.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2013
+.Dd August 16, 2018
 .Dt RESOLVER 5
 .Os
 .Sh NAME
@@ -127,6 +127,10 @@ is one of the following:
 sets
 .Dv RES_DEBUG
 in _res.options.
+.It Sy usevc
+sets
+.Dv RES_USEVC
+to use TCP instead of UDP for queries.
 .It Sy ndots: Ns Ar n
 sets a threshold for the number of dots which must appear in a name given to
 .Fn res_query
@@ -175,6 +179,19 @@ the resolver from obeying the standard
 and
 .Sy search
 rules with the given name.
+.It Sy reload-period: Ns Ar n
+The resolver checks the modification time of
+.Pa /etc/resolv.conf
+every
+.Ar n
+seconds.
+If
+.Pa /etc/resolv.conf
+has changed, it is automatically reloaded.
+The default for
+.Ar n
+is two seconds.
+Setting it to zero disables the file check.
 .El
 .Pp
 Options may also be specified as a space or tab separated list using the
@@ -191,8 +208,7 @@ If more than one instance of these keywords is present,
 the last instance will override.
 .Pp
 The keyword and value must appear on a single line, and the keyword
-(e.g.\&
-.Sy nameserver )
+.Pq for example, Sy nameserver
 must start the line.
 The value follows the keyword, separated by white space.
 .Sh FILES
@@ -206,7 +222,8 @@ resides in
 .Sh SEE ALSO
 .Xr gethostbyname 3 ,
 .Xr resolver 3 ,
-.Xr hostname 7
+.Xr hostname 7 ,
+.Xr resolvconf 8
 .Rs
 .%T "Name Server Operations Guide for BIND"
 .Re

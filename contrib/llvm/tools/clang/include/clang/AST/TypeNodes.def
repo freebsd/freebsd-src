@@ -11,7 +11,7 @@
 //  enumerated by providing its name (e.g., "Builtin" or "Enum") and
 //  base class (e.g., "Type" or "TagType"). Depending on where in the
 //  abstract syntax tree the type will show up, the enumeration uses
-//  one of four different macros:
+//  one of five different macros:
 //
 //    TYPE(Class, Base) - A type that can show up anywhere in the AST,
 //    and might be dependent, canonical, or non-canonical. All clients
@@ -23,7 +23,7 @@
 //    NON_CANONICAL_TYPE(Class, Base) - A type that can show up
 //    anywhere in the AST but will never be a part of a canonical
 //    type. Clients that only need to deal with canonical types
-//    (ignoring, e.g., typedefs and other type alises used for
+//    (ignoring, e.g., typedefs and other type aliases used for
 //    pretty-printing) can ignore these types.
 //
 //    DEPENDENT_TYPE(Class, Base) - A type that will only show up
@@ -73,6 +73,7 @@ TYPE(IncompleteArray, ArrayType)
 TYPE(VariableArray, ArrayType)
 DEPENDENT_TYPE(DependentSizedArray, ArrayType)
 DEPENDENT_TYPE(DependentSizedExtVector, Type)
+DEPENDENT_TYPE(DependentAddressSpace, Type)
 TYPE(Vector, Type)
 TYPE(ExtVector, VectorType)
 ABSTRACT_TYPE(Function, Type)
@@ -81,7 +82,8 @@ TYPE(FunctionNoProto, FunctionType)
 DEPENDENT_TYPE(UnresolvedUsing, Type)
 NON_CANONICAL_TYPE(Paren, Type)
 NON_CANONICAL_TYPE(Typedef, Type)
-NON_CANONICAL_TYPE(Decayed, Type)
+NON_CANONICAL_TYPE(Adjusted, Type)
+NON_CANONICAL_TYPE(Decayed, AdjustedType)
 NON_CANONICAL_UNLESS_DEPENDENT_TYPE(TypeOfExpr, Type)
 NON_CANONICAL_UNLESS_DEPENDENT_TYPE(TypeOf, Type)
 NON_CANONICAL_UNLESS_DEPENDENT_TYPE(Decltype, Type)
@@ -95,14 +97,18 @@ DEPENDENT_TYPE(TemplateTypeParm, Type)
 NON_CANONICAL_TYPE(SubstTemplateTypeParm, Type)
 DEPENDENT_TYPE(SubstTemplateTypeParmPack, Type)
 NON_CANONICAL_UNLESS_DEPENDENT_TYPE(TemplateSpecialization, Type)
-TYPE(Auto, Type)
+ABSTRACT_TYPE(Deduced, Type)
+TYPE(Auto, DeducedType)
+TYPE(DeducedTemplateSpecialization, DeducedType)
 DEPENDENT_TYPE(InjectedClassName, Type)
 DEPENDENT_TYPE(DependentName, Type)
 DEPENDENT_TYPE(DependentTemplateSpecialization, Type)
 NON_CANONICAL_UNLESS_DEPENDENT_TYPE(PackExpansion, Type)
+NON_CANONICAL_TYPE(ObjCTypeParam, Type)
 TYPE(ObjCObject, Type)
 TYPE(ObjCInterface, ObjCObjectType)
 TYPE(ObjCObjectPointer, Type)
+TYPE(Pipe, Type)
 TYPE(Atomic, Type)
 
 #ifdef LAST_TYPE

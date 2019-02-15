@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Nathan Whitehorn
  * All rights reserved.
  *
@@ -44,7 +46,6 @@
 
 #include <machine/md_var.h>
 #include <machine/platform.h>
-#include <machine/pmap.h>
 #include <machine/vmparam.h>
 
 uintptr_t moea64_get_unique_vsid(void);
@@ -140,7 +141,7 @@ make_new_leaf(uint64_t esid, uint64_t slbv, struct slbtnode *parent)
 	 * that a lockless searcher always sees a valid path through
 	 * the tree.
 	 */
-	mb();
+	powerpc_lwsync();
 
 	idx = esid2idx(esid, parent->ua_level);
 	parent->u.ua_child[idx] = child;
@@ -188,7 +189,7 @@ make_intermediate(uint64_t esid, struct slbtnode *parent)
 	idx = esid2idx(child->ua_base, inter->ua_level);
 	inter->u.ua_child[idx] = child;
 	setbit(&inter->ua_alloc, idx);
-	mb();
+	powerpc_lwsync();
 
 	/* Set up parent to point to intermediate node ... */
 	idx = esid2idx(inter->ua_base, parent->ua_level);
@@ -206,13 +207,16 @@ kernel_va_to_slbv(vm_offset_t va)
 	/* Set kernel VSID to deterministic value */
 	slbv = (KERNEL_VSID((uintptr_t)va >> ADDR_SR_SHFT)) << SLBV_VSID_SHIFT;
 
-	/* Figure out if this is a large-page mapping */
-	if (hw_direct_map && va < VM_MIN_KERNEL_ADDRESS) {
+	/* 
+	 * Figure out if this is a large-page mapping.
+	 */
+	if (hw_direct_map && va > DMAP_BASE_ADDRESS && va < DMAP_MAX_ADDRESS) {
 		/*
 		 * XXX: If we have set up a direct map, assumes
 		 * all physical memory is mapped with large pages.
 		 */
-		if (mem_valid(va, 0) == 0)
+
+		if (mem_valid(DMAP_TO_PHYS(va), 0) == 0)
 			slbv |= SLBV_L;
 	}
 		
@@ -241,6 +245,12 @@ user_va_to_slb_entry(pmap_t pm, vm_offset_t va)
 			return ((ua->u.slb_entries[idx].slbe & SLBE_VALID) ?
 			    &ua->u.slb_entries[idx] : NULL);
 
+		/*
+		 * The following accesses are implicitly ordered under the POWER
+		 * ISA by load dependencies (the store ordering is provided by
+		 * the powerpc_lwsync() calls elsewhere) and so are run without
+		 * barriers.
+		 */
 		ua = ua->u.ua_child[idx];
 		if (ua == NULL ||
 		    esid2base(esid, ua->ua_level) != ua->ua_base)
@@ -419,7 +429,7 @@ slb_insert_kernel(uint64_t slbe, uint64_t slbv)
 	/* We don't want to be preempted while modifying the kernel map */
 	critical_enter();
 
-	slbcache = PCPU_GET(slb);
+	slbcache = PCPU_GET(aim.slb);
 
 	/* Check for an unused slot, abusing the user slot as a full flag */
 	if (slbcache[USER_SLB_SLOT].slbe == 0) {
@@ -473,31 +483,24 @@ slb_insert_user(pmap_t pm, struct slb *slb)
 }
 
 static void *
-slb_uma_real_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+slb_uma_real_alloc(uma_zone_t zone, vm_size_t bytes, int domain,
+    u_int8_t *flags, int wait)
 {
 	static vm_offset_t realmax = 0;
 	void *va;
 	vm_page_t m;
-	int pflags;
 
 	if (realmax == 0)
 		realmax = platform_real_maxaddr();
 
 	*flags = UMA_SLAB_PRIV;
-	pflags = malloc2vm_flags(wait) | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED;
+	m = vm_page_alloc_contig_domain(NULL, 0, domain,
+	    malloc2vm_flags(wait) | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED,
+	    1, 0, realmax, PAGE_SIZE, PAGE_SIZE, VM_MEMATTR_DEFAULT);
+	if (m == NULL)
+		return (NULL);
 
-	for (;;) {
-		m = vm_page_alloc_contig(NULL, 0, pflags, 1, 0, realmax,
-		    PAGE_SIZE, PAGE_SIZE, VM_MEMATTR_DEFAULT);
-		if (m == NULL) {
-			if (wait & M_NOWAIT)
-				return (NULL);
-			VM_WAIT;
-		} else
-                        break;
-        }
-
-	va = (void *) VM_PAGE_TO_PHYS(m);
+	va = (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
 
 	if (!hw_direct_map)
 		pmap_kenter((vm_offset_t)va, VM_PAGE_TO_PHYS(m));

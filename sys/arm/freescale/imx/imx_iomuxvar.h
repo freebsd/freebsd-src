@@ -42,8 +42,8 @@ u_int    iomux_get_pad_config(u_int pin);
  * with IO pin assignments or pad control.  These functions let other soc level
  * code manipulate these values.
  */
-uint32_t imx_iomux_gpr_get(u_int regnum);
-void     imx_iomux_gpr_set(u_int regnum, uint32_t val);
-void     imx_iomux_gpr_set_masked(u_int regnum, uint32_t clrbits, uint32_t setbits);
+uint32_t imx_iomux_gpr_get(u_int regaddr);
+void     imx_iomux_gpr_set(u_int regaddr, uint32_t val);
+void     imx_iomux_gpr_set_masked(u_int regaddr, uint32_t clrbits, uint32_t setbits);
 
 #endif

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -37,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <x86/apicreg.h>
 
 #include <machine/vmm.h>
-#include "vmm_ipi.h"
 #include "vmm_ktr.h"
 #include "vmm_lapic.h"
 #include "vlapic.h"
@@ -58,7 +59,11 @@ lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
 	if (cpu < 0 || cpu >= VM_MAXCPU)
 		return (EINVAL);
 
-	if (vector < 32 || vector > 255)
+	/*
+	 * According to section "Maskable Hardware Interrupts" in Intel SDM
+	 * vectors 16 through 255 can be delivered through the local APIC.
+	 */
+	if (vector < 16 || vector > 255)
 		return (EINVAL);
 
 	vlapic = vm_lapic(vm, cpu);

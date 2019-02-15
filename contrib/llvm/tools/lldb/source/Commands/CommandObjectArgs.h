@@ -16,57 +16,37 @@
 // Project includes
 #include "lldb/Interpreter/CommandObject.h"
 #include "lldb/Interpreter/Options.h"
-#include "lldb/Core/Language.h"
 
 namespace lldb_private {
-    
-    class CommandObjectArgs : public CommandObjectParsed
-    {
-    public:
-        
-        class CommandOptions : public Options
-        {
-        public:
-            
-            CommandOptions (CommandInterpreter &interpreter);
-            
-            virtual
-            ~CommandOptions ();
-            
-            virtual Error
-            SetOptionValue (uint32_t option_idx, const char *option_arg);
-            
-            void
-            OptionParsingStarting ();
-            
-            const OptionDefinition*
-            GetDefinitions ();
-            
-            // Options table: Required for subclasses of Options.
-            
-            static OptionDefinition g_option_table[];
-        };
-        
-        CommandObjectArgs (CommandInterpreter &interpreter);
-        
-        virtual
-        ~CommandObjectArgs ();
-        
-        virtual
-        Options *
-        GetOptions ();
-        
-        
-    protected:
-        
-        CommandOptions m_options;
 
-        virtual bool
-        DoExecute (    Args& command,
-                 CommandReturnObject &result);
-        
-    };
-    
+class CommandObjectArgs : public CommandObjectParsed {
+public:
+  class CommandOptions : public Options {
+  public:
+    CommandOptions(CommandInterpreter &interpreter);
+
+    ~CommandOptions() override;
+
+    Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_arg,
+                          ExecutionContext *execution_context) override;
+
+    void OptionParsingStarting(ExecutionContext *execution_context) override;
+
+    llvm::ArrayRef<OptionDefinition> GetDefinitions() override;
+  };
+
+  CommandObjectArgs(CommandInterpreter &interpreter);
+
+  ~CommandObjectArgs() override;
+
+  Options *GetOptions() override;
+
+protected:
+  CommandOptions m_options;
+
+  bool DoExecute(Args &command, CommandReturnObject &result) override;
+};
+
 } // namespace lldb_private
 
-#endif  // liblldb_CommandObjectArgs_h_
+#endif // liblldb_CommandObjectArgs_h_

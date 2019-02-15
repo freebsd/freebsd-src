@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-LIBEXECINFO=	${.CURDIR}/../../contrib/libexecinfo
+PACKAGE=lib${LIB}
+LIBEXECINFO=	${SRCTOP}/contrib/libexecinfo
 
 LIB=		execinfo
 SHLIB_MAJOR=	1
@@ -10,8 +11,7 @@ SHLIB_MAJOR=	1
 INCS=		execinfo.h
 SRCS=		backtrace.c symtab.c unwind.c
 
-DPADD=		${LIBELF}
-LDADD=		-lelf
+LIBADD=		elf
 
 MAN=		backtrace.3
 

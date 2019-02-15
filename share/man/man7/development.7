@@ -1,4 +1,5 @@
-.\" Copyright (C) 1998 Matthew Dillon. All rights reserved.
+.\" Copyright (c) 2018 Edward Tomasz Napierala <trasz@FreeBSD.org>
+.\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -9,10 +10,10 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
 .\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 .\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 .\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -23,446 +24,109 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 7, 2013
+.Dd August 22, 2018
 .Dt DEVELOPMENT 7
 .Os
 .Sh NAME
 .Nm development
-.Nd "introduction to development with the FreeBSD codebase"
+.Nd introduction to
+.Fx
+development process
 .Sh DESCRIPTION
-This manual page describes how an ordinary system operator,
-.Ux
-administrator, or developer
-can, without any special permission, obtain, maintain, and modify the
 .Fx
-codebase as well as how to maintain a master build which can
-then be exported to other machines in your network.
-This manual page
-is targeted to system operators, programmers, and developers.
-.Pp
-Please note that what is being described here is based on a complete
+development is split into three major suprojects: doc, ports, and src.
+Doc is the documentation, such as the
 .Fx
-environment, not just the
+Handbook.
+To read more, see:
+.Pp
+.Lk https://www.FreeBSD.org/doc/en/books/fdp-primer/
+.Pp
+Ports, described further in
+.Xr ports 7 ,
+are the way to build, package, and install third party software.
+To read more, see:
+.Pp
+.Lk https://www.FreeBSD.org/doc/en/books/porters-handbook/
+.Pp
+The last one, src, revolves around the source code for the base system,
+consisting of the kernel, and the libraries and utilities commonly called
+the world.
+.Pp
+The Committer's Guide, describing topics relevant to all committers,
+can be found at:
+.Pp
+.Lk https://www.FreeBSD.org/doc/en/articles/committers-guide/
+.Pp
 .Fx
-kernel.
-The methods described
-here are as applicable to production installations as it is to development
-environments.
-.Sh SETTING UP THE ENVIRONMENT ON THE MASTER SERVER
-Your master server should always run a stable, production version of the
-.Fx
-operating system.
-This does not prevent you from doing -CURRENT
-builds or development.
-The last thing you want to do is to run an
-unstable environment on your master server which could lead to a situation
-where you lose the environment and/or cannot recover from a mistake.
+src development takes place in the CURRENT branch in Subversion,
+located at:
 .Pp
-Create a partition called
-.Pa /FreeBSD .
-Approximately 20GB is recommended.
-This partition will contain nearly all the development environment,
-including the subversion tree, broken-out source, and possibly even object files.
-You are going to export this partition to your other machines via a
-READ-ONLY NFS export so do not mix it with other more security-sensitive
-partitions.
+.Lk https://svn.FreeBSD.org/base/head
 .Pp
-You have to make a choice in regards to
-.Pa /usr/obj .
-You can put
-.Pa /usr/obj
-in
-.Pa /FreeBSD
-or you can make
-.Pa /usr/obj
-its own partition.
-I recommend making it a separate partition for several reasons.
-First,
-as a safety measure since this partition is written to a great deal.
-Second, because you typically do not have to back it up.
-Third, because it makes it far easier to mix and match the development
-environments which are described later in this document.
-I recommend a
-.Pa /usr/obj
-partition of at least 12GB.
+There is also a read-only GitHub mirror at:
 .Pp
-On the master server, use
-.Xr svn 1
-to pull down and maintain
-the
-.Fx
-source.
-The first pull will take a long time,
-it is several gigabytes, but once you have it,
-the updates will be quite small.
-Run all
-.Xr svn 1
-operations as
-.Dq Li root
+.Lk https://github.com/freebsd/freebsd
 .Pp
-Keeping the broken-out source and ports in
-.Pa /FreeBSD
-allows you to export
-it to other machines via read-only NFS.
-This also means you only need to edit/maintain files in one place and all
-your clients automatically pick up the changes.
-.Bd -literal -offset 4n
-mkdir /FreeBSD
-cd /FreeBSD
-svn co https://svn.freebsd.org/ports/head ports
-svn co https://svn.freebsd.org/doc/head doc
-svn co https://svn.freebsd.org/base/head src
-cd /usr
-rm -rf src
-ln -s /FreeBSD/src src
-.Ed
+Changes are first committed to CURRENT and then usually merged back
+to STABLE.
+Every few years the CURRENT branch is renamed to STABLE, and a new
+CURRENT is branched, with an incremented major version number.
+Releases are then branched off STABLE and numbered with consecutive minor
+numbers.
 .Pp
-Note that exporting
-.Pa /usr/obj
-via read-only NFS to your other boxes will
-allow you to build on your main server and install from your other boxes.
-If you also want to do builds on some or all of the clients you can simply
-have
-.Pa /usr/obj
-be a local directory on those clients.
-You should never export
-.Pa /usr/obj
-read-write, it will lead to all sorts of
-problems and issues down the line and presents a security problem as well.
-It is far easier to do builds on the master server and then only do installs
-on the clients.
-.Pp
-I usually maintain my ports tree via svn or portsnap.
-With some fancy softlinks you can make the ports tree available both on your
-master server and on all of your other machines.
-Note that the ports tree exists only on the HEAD ports branch, so its always
-usable even on a -STABLE box.
-This is what you do:
-.Bd -literal -offset 4n
-(THESE COMMANDS ON THE MASTER SERVER AND ON ALL CLIENTS)
-cd /usr
-rm -rf ports
-ln -s /FreeBSD/ports ports
-
-cd /usr/ports   			(this pushes into the softlink)
-rm -rf distfiles			(ON MASTER SERVER ONLY)
-ln -s /usr/ports.distfiles distfiles	(ON MASTER SERVER ONLY)
-
-mkdir /usr/ports.distfiles
-mkdir /usr/ports.workdir
-.Ed
-.Pp
-Since
-.Pa /usr/ports
-is softlinked into what will be read-only on all of your
-clients, you have to tell the ports system to use a different working
-directory to hold ports builds.
-You want to add a line to your
-.Xr make.conf 5
-file on the master server
-and on all your clients:
-.Bd -literal -offset 4n
-WRKDIRPREFIX=/usr/ports.workdir
-.Ed
-.Pp
-You should try to make the directory you use for the ports working directory
-as well as the directory used to hold distfiles consistent across all of your
-machines.
-If there is not enough room in
-.Pa /usr/ports.distfiles
+Layout of the source tree is described in
+.Xr hier 7 .
+Build instructions can be found in
+.Xr build 7
 and
-.Pa /usr/ports.workdir
-I usually make those softlinks (since this is on
-.Pa /usr
-these are per-machine) to
-where the distfiles and working space really are.
-.Sh EXPORTING VIA NFS FROM THE MASTER SERVER
-The master server needs to export
-.Pa /FreeBSD
-and
-.Pa /usr/obj
-via NFS so all the
-rest of your machines can get at them.
-I strongly recommend using a read-only export for both security and safety.
-The environment I am describing in this manual page is designed primarily
-around read-only NFS exports.
-Your exports file on the master server should contain the following lines:
-.Bd -literal -offset 4n
-/FreeBSD -ro -alldirs -maproot=root: -network YOURLAN -mask YOURLANMASK
-/usr/obj -ro -alldirs -maproot=root: -network YOURLAN -mask YOURLANMASK
-.Ed
+.Xr release 7 .
+Kernel programming interfaces (KPIs) are documented in section 9
+manual pages; use
+.Ql "apropos -s 9 ''"
+for a list.
+Regression test suite is described in
+.Xr tests 7 .
+For coding conventions, see
+.Xr style 9 .
 .Pp
-Of course, NFS server operations must also be configured on that machine.
-This is typically done via your
-.Pa /etc/rc.conf :
-.Bd -literal -offset 4n
-nfs_server_enable="YES"
-nfs_server_flags="-u -t -n 4"
-.Ed
-.Sh THE CLIENT ENVIRONMENT
-All of your client machines can import the development/build environment
-directory simply by NFS mounting
-.Pa /FreeBSD
-and
-.Pa /usr/obj
-from the master server.
-A typical
-.Pa /etc/fstab
-entry on your client machines will be something like this:
-.Bd -literal -offset 4n
-masterserver:/FreeBSD     /FreeBSD        nfs     ro,bg    0       0
-masterserver:/usr/obj     /usr/obj        nfs     ro,bg    0       0
-.Ed
+To ask questions regarding development, use the mailing lists,
+such as freebsd-arch@ and freebsd-hackers@:
 .Pp
-And, of course, you should configure the client for NFS client operations
-via
-.Pa /etc/rc.conf .
-In particular, this will turn on
-.Xr nfsiod 8
-which will improve client-side NFS
-performance:
-.Bd -literal -offset 4n
-nfs_client_enable="YES"
-.Ed
+.Lk https://lists.FreeBSD.org/
 .Pp
-Each client should create softlinks for
-.Pa /usr/ports
-and
-.Pa /usr/src
-that point
-into the NFS-mounted environment.
-If a particular client is running -CURRENT,
-.Pa /usr/src
-should be a softlink to
-.Pa /FreeBSD/src .
-If it is running -STABLE,
-.Pa /usr/src
-should be a softlink to
-.Pa /FreeBSD/FreeBSD-4.x/src .
-I do not usually create a
-.Pa /usr/src2
-softlink on
-clients, that is used as a convenient shortcut when working on the source
-code on the master server only and could create massive confusion (of the
-human variety) on a client.
-.Bd -literal -offset 4n
-(ON EACH CLIENT)
-cd /usr
-rm -rf ports src
-ln -s /FreeBSD/ports ports
-ln -s /FreeBSD/src src
-.Ed
-.Pp
-Do not forget to create the working directories so you can build ports, as
-previously described.
-If these are not good locations, make them softlinks to the correct location.
-Remember that
-.Pa /usr/ports/distfiles
-is exported by
-the master server and is therefore going to point to the same place
-(typically
-.Pa /usr/ports.distfiles )
-on every machine.
-.Bd -literal -offset 4n
-mkdir /usr/ports.distfiles
-mkdir /usr/ports.workdir
-.Ed
-.Sh BUILDING KERNELS
-Here is how you build a -STABLE kernel (on your main development box).
-If you want to create a custom kernel, copy
-.Pa GENERIC
-to
-.Pa KERNELNAME
-and then edit it before configuring and building.
-The kernel configuration file lives in
-.Pa /usr/src/sys/i386/conf/KERNELNAME .
-.Bd -literal -offset 4n
-cd /usr/src
-make buildkernel KERNCONF=KERNELNAME
-.Ed
-.Pp
-.Sy WARNING!
-If you are familiar with the old config/cd/make method of building
-a -STABLE kernel, note that the
-.Xr config 8
-method will put the build environment in
-.Pa /usr/src/sys/i386/compile/KERNELNAME
-instead of in
-.Pa /usr/obj .
-.Pp
-Building a -CURRENT kernel
-.Bd -literal -offset 4n
-cd /usr/src2		(on the master server)
-make buildkernel KERNCONF=KERNELNAME
-.Ed
-.Sh INSTALLING KERNELS
-Installing a -STABLE kernel (typically done on a client,
-only do this on your main development server if you want to install a new
-kernel for your main development server):
-.Bd -literal -offset 4n
-cd /usr/src
-make installkernel KERNCONF=KERNELNAME
-.Ed
-.Pp
-If you are using the older config/cd/make build mechanism for -STABLE, you
-would install using:
-.Bd -literal -offset 4n
-cd /usr/src/sys/i386/compile/KERNELNAME
-make install
-.Ed
-.Pp
-Installing a -CURRENT kernel (typically done only on a client)
-.Bd -literal -offset 4n
-(remember /usr/src is pointing to the client's specific environment)
-cd /usr/src
-make installkernel KERNCONF=KERNELNAME
-.Ed
-.Sh BUILDING THE WORLD
-This environment is designed such that you do all builds on the master server,
-and then install from each client.
-You can do builds on a client only if
-.Pa /usr/obj
-is local to that client.
-Building the world is easy:
-.Bd -literal -offset 4n
-cd /usr/src
-make buildworld
-.Ed
-.Pp
-If you are on the master server you are running in a -STABLE environment, but
-that does not prevent you from building the -CURRENT world.
-Just
-.Xr cd 1
-into the appropriate source directory and you are set.
-Do not
-accidentally install it on your master server though!
-.Bd -literal -offset 4n
-cd /usr/src2
-make buildworld
-.Ed
-.Sh INSTALLING THE WORLD
-You can build on your main development server and install on clients.
-The main development server must export
-.Pa /FreeBSD
-and
-.Pa /usr/obj
-via read-only NFS to the clients.
-.Pp
-.Em NOTE!!!
-If
-.Pa /usr/obj
-is a softlink on the master server, it must also be the EXACT
-SAME softlink on each client.
-If
-.Pa /usr/obj
-is a directory in
-.Pa /usr
-or a mount point on the master server,
-then it must be (interchangeably) a directory in
-.Pa /usr
-or a mount point on
-each client.
-This is because the
-absolute paths are expected to be the same when building the world as when
-installing it, and you generally build it on your main development box
-and install it from a client.
-If you do not set up
-.Pa /usr/obj
-properly you will not be able to build on
-machine and install on another.
-.Bd -literal -offset 4n
-(ON THE CLIENT)
-(remember /usr/src is pointing to the client's specific environment)
-cd /usr/src
-make installworld
-.Ed
-.Pp
-.Sy WARNING!
-If builds work on the master server but installs do not work from the
-clients, for example you try to install and the client complains that
-the install tried to write into the read-only
-.Pa /usr/obj ,
-then it is likely
-that the
-.Xr make.conf 5
-file on the client does not match the one on the
-master server closely enough and the install is trying to install something
-that was not built.
-.Sh DOING DEVELOPMENT ON A CLIENT (NOT JUST INSTALLING)
-Developers often want to run buildkernel's or buildworld's on client
-boxes simply to life-test the box.
-You do this in the same manner that you buildkernel and buildworld on your
-master server.
-All you have to do is make sure that
-.Pa /usr/obj
-is pointing to local storage.
-If you followed my advise and made
-.Pa /usr/obj
-its own partition on the master
-server,
-then it is typically going to be an NFS mount on the client.
-Simply unmounting
-.Pa /usr/obj
-will leave you with a
-.Pa /usr/obj
-that is a
-subdirectory in
-.Pa /usr
-which is typically local to the client.
-You can then do builds to your heart's content!
-.Sh MAINTAINING A LOCAL BRANCH
-There is absolutely nothing preventing you
-from breaking out other versions of the source tree
-into
-.Pa /FreeBSD/XXX .
-In fact, my
-.Pa /FreeBSD
-partition also contains
-.Ox ,
-.Nx ,
-and various flavors of
-.Tn Linux .
-You may not necessarily be able to build
-.Pf non- Fx
-operating systems on
-your master server, but being able
-to collect and manage source distributions from a central server is a very
-useful thing to be able to do and you can certainly export to machines
-which can build those other operating systems.
-.Pp
-Many developers choose to maintain a local branch of
+To get your patches integrated into the main
 .Fx
-to test patches or build a custom distribution.
-This can be done with svn or another source code management system
-(git, mercurial, Perforce, BitKeeper) with its own repository.
-.Sh "UPDATING VIA SVN"
-By using a
-.Xr cron 8
-job to maintain an updated svn repository,
-the source tree can be
-updated at any time as follows:
-.Bd -literal -offset 4n
-(on the main development server)
-cd /usr
-svn update src doc ports
+repository use Phabricator;
+it is a code review tool that allows other developers to review the changes,
+suggest improvements, and, eventually, allows them to pick up the change and
+commit it:
+.Pp
+.Lk https://reviews.FreeBSD.org/
+.Sh EXAMPLES
+Check out the CURRENT branch, build it, and install, overwriting the current
+system:
+.Bd -literal -offset indent
+svnlite co https://svn.FreeBSD.org/base/head src
+cd src
+make -j8 buildworld buildkernel installkernel
+reboot
 .Ed
 .Pp
-It is that simple, and since you are exporting the whole lot to your
-clients, your clients have immediate visibility into the updated
-source.
-This is a good time to also remind you that most of the
-.Xr svn 1
-operations you do will be done as
-.Dq Li root .
+After reboot:
+.Bd -literal -offset indent
+cd src
+make -j8 installworld
+reboot
+.Ed
 .Sh SEE ALSO
-.Xr crontab 1 ,
-.Xr crontab 5 ,
-.Xr make.conf 5 ,
+.Xr svnlite 1 ,
+.Xr witness 4 ,
 .Xr build 7 ,
-.Xr firewall 7 ,
+.Xr hier 7 ,
 .Xr release 7 ,
-.Xr tuning 7 ,
-.Xr diskless 8
+.Xr locking 9 ,
+.Xr style 9
 .Sh HISTORY
 The
 .Nm
@@ -478,3 +142,7 @@ to reflect the repository conversion from
 .Xr cvs 1
 to
 .Xr svn 1 .
+It was rewritten from scratch by
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
+for
+.Fx 12.0 .

@@ -1,7 +1,14 @@
-#!/usr/bin/env perl
+#! /usr/bin/env perl
+# Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. Rights for redistribution and usage in source and binary
 # forms are granted according to the OpenSSL license.
 # ====================================================================
@@ -16,7 +23,7 @@
 # table]. I stick to value of 2 for two reasons: 1. smaller table
 # minimizes cache trashing and thus mitigates the hazard of side-
 # channel leakage similar to AES cache-timing one; 2. performance
-# gap among different µ-archs is smaller.
+# gap among different Âµ-archs is smaller.
 #
 # Performance table lists rounded amounts of CPU cycles spent by
 # whirlpool_block_mmx routine on single 64 byte input block, i.e.
@@ -24,7 +31,7 @@
 # multiplying 64 by CPU clock frequency and dividing by relevant
 # value from the given table:
 #
-#		$SCALE=2/8	icc8	gcc3	
+#		$SCALE=2/8	icc8	gcc3
 # Intel P4	3200/4600	4600(*)	6400
 # Intel PIII	2900/3000	4900	5400
 # AMD K[78]	2500/1800	9900	8200(**)
@@ -49,7 +56,10 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
 require "x86asm.pl";
 
-&asm_init($ARGV[0],"wp-mmx.pl");
+$output=pop;
+open STDOUT,">$output";
+
+&asm_init($ARGV[0]);
 
 sub L()  { &data_byte(@_); }
 sub LL()
@@ -118,34 +128,36 @@ $tbl="ebp";
 	&movq	(@mm[0],&QWP(2048*$SCALE,$tbl,"esi",8));	# rc[r]
 	&mov	("eax",&DWP(0,"esp"));
 	&mov	("ebx",&DWP(4,"esp"));
+	&movz	("ecx",&LB("eax"));
+	&movz	("edx",&HB("eax"));
 for($i=0;$i<8;$i++) {
     my $func = ($i==0)? \&movq : \&pxor;
-	&movb	(&LB("ecx"),&LB("eax"));
-	&movb	(&LB("edx"),&HB("eax"));
-	&scale	("esi","ecx");
-	&scale	("edi","edx");
 	&shr	("eax",16);
+	&scale	("esi","ecx");
+	&movz	("ecx",&LB("eax"));
+	&scale	("edi","edx");
+	&movz	("edx",&HB("eax"));
 	&pxor	(@mm[0],&QWP(&row(0),$tbl,"esi",8));
 	&$func	(@mm[1],&QWP(&row(1),$tbl,"edi",8));
-	&movb	(&LB("ecx"),&LB("eax"));
-	&movb	(&LB("edx"),&HB("eax"));
 	&mov	("eax",&DWP(($i+1)*8,"esp"));
 	&scale	("esi","ecx");
+	&movz	("ecx",&LB("ebx"));
 	&scale	("edi","edx");
+	&movz	("edx",&HB("ebx"));
 	&$func	(@mm[2],&QWP(&row(2),$tbl,"esi",8));
 	&$func	(@mm[3],&QWP(&row(3),$tbl,"edi",8));
-	&movb	(&LB("ecx"),&LB("ebx"));
-	&movb	(&LB("edx"),&HB("ebx"));
-	&scale	("esi","ecx");
-	&scale	("edi","edx");
 	&shr	("ebx",16);
+	&scale	("esi","ecx");
+	&movz	("ecx",&LB("ebx"));
+	&scale	("edi","edx");
+	&movz	("edx",&HB("ebx"));
 	&$func	(@mm[4],&QWP(&row(4),$tbl,"esi",8));
 	&$func	(@mm[5],&QWP(&row(5),$tbl,"edi",8));
-	&movb	(&LB("ecx"),&LB("ebx"));
-	&movb	(&LB("edx"),&HB("ebx"));
 	&mov	("ebx",&DWP(($i+1)*8+4,"esp"));
 	&scale	("esi","ecx");
+	&movz	("ecx",&LB("eax"));
 	&scale	("edi","edx");
+	&movz	("edx",&HB("eax"));
 	&$func	(@mm[6],&QWP(&row(6),$tbl,"esi",8));
 	&$func	(@mm[7],&QWP(&row(7),$tbl,"edi",8));
     push(@mm,shift(@mm));
@@ -154,32 +166,32 @@ for($i=0;$i<8;$i++) {
 	for($i=0;$i<8;$i++) { &movq(&QWP($i*8,"esp"),@mm[$i]); }    # K=L
 
 for($i=0;$i<8;$i++) {
-	&movb	(&LB("ecx"),&LB("eax"));
-	&movb	(&LB("edx"),&HB("eax"));
-	&scale	("esi","ecx");
-	&scale	("edi","edx");
 	&shr	("eax",16);
+	&scale	("esi","ecx");
+	&movz	("ecx",&LB("eax"));
+	&scale	("edi","edx");
+	&movz	("edx",&HB("eax"));
 	&pxor	(@mm[0],&QWP(&row(0),$tbl,"esi",8));
 	&pxor	(@mm[1],&QWP(&row(1),$tbl,"edi",8));
-	&movb	(&LB("ecx"),&LB("eax"));
-	&movb	(&LB("edx"),&HB("eax"));
 	&mov	("eax",&DWP(64+($i+1)*8,"esp"))		if ($i<7);
 	&scale	("esi","ecx");
+	&movz	("ecx",&LB("ebx"));
 	&scale	("edi","edx");
+	&movz	("edx",&HB("ebx"));
 	&pxor	(@mm[2],&QWP(&row(2),$tbl,"esi",8));
 	&pxor	(@mm[3],&QWP(&row(3),$tbl,"edi",8));
-	&movb	(&LB("ecx"),&LB("ebx"));
-	&movb	(&LB("edx"),&HB("ebx"));
-	&scale	("esi","ecx");
-	&scale	("edi","edx");
 	&shr	("ebx",16);
+	&scale	("esi","ecx");
+	&movz	("ecx",&LB("ebx"));
+	&scale	("edi","edx");
+	&movz	("edx",&HB("ebx"));
 	&pxor	(@mm[4],&QWP(&row(4),$tbl,"esi",8));
 	&pxor	(@mm[5],&QWP(&row(5),$tbl,"edi",8));
-	&movb	(&LB("ecx"),&LB("ebx"));
-	&movb	(&LB("edx"),&HB("ebx"));
 	&mov	("ebx",&DWP(64+($i+1)*8+4,"esp"))	if ($i<7);
 	&scale	("esi","ecx");
+	&movz	("ecx",&LB("eax"));
 	&scale	("edi","edx");
+	&movz	("edx",&HB("eax"));
 	&pxor	(@mm[6],&QWP(&row(6),$tbl,"esi",8));
 	&pxor	(@mm[7],&QWP(&row(7),$tbl,"edi",8));
     push(@mm,shift(@mm));
@@ -490,4 +502,6 @@ for($i=0;$i<8;$i++) {
 	&L(0xca,0x2d,0xbf,0x07,0xad,0x5a,0x83,0x33);
 
 &function_end_B("whirlpool_block_mmx");
-&asm_finish(); 
+&asm_finish();
+
+close STDOUT;

@@ -1,6 +1,8 @@
 /*	$NetBSD: getrpcport.c,v 1.16 2000/01/22 22:19:18 mycroft Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -53,9 +55,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 int
-getrpcport(host, prognum, versnum, proto)
-	char *host;
-	int prognum, versnum, proto;
+getrpcport(char *host, int prognum, int versnum, int proto)
 {
 	struct sockaddr_in addr;
 	struct hostent *hp;

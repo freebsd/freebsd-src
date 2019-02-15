@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Sheldon Hearn <sheldonh@FreeBSD.org>.
  * All rights reserved.
  *
@@ -25,10 +27,8 @@
  *
  */
 
-#ifndef lint
 static const char rcsid[] =
     "$FreeBSD$";
-#endif
 
 #include <sys/stat.h>
 
@@ -44,23 +44,24 @@ static const char rcsid[] =
 
 static void	usage(void);
 
-static int	no_create;
-static int	do_relative;
-static int	do_refer;
-static int	got_size;
-
 int
 main(int argc, char **argv)
 {
-	struct stat	sb;
-	mode_t	omode;
-	off_t	oflow, rsize, sz, tsize;
+	struct stat sb;
+	mode_t omode;
+	off_t oflow, rsize, sz, tsize, round;
 	uint64_t usz;
-	int	ch, error, fd, oflags;
-	char   *fname, *rname;
+	int ch, error, fd, oflags;
+	int no_create;
+	int do_relative;
+	int do_round;
+	int do_refer;
+	int got_size;
+	char *fname, *rname;
 
 	fd = -1;
 	rsize = tsize = sz = 0;
+	no_create = do_relative = do_round = do_refer = got_size = 0;
 	error = 0;
 	rname = NULL;
 	while ((ch = getopt(argc, argv, "cr:s:")) != -1)
@@ -73,13 +74,19 @@ main(int argc, char **argv)
 			rname = optarg;
 			break;
 		case 's':
-			do_relative = *optarg == '+' || *optarg == '-';
-			if (expand_number(do_relative ? optarg + 1 : optarg,
+			if (*optarg == '+' || *optarg == '-') {
+				do_relative = 1;
+			} else if (*optarg == '%' || *optarg == '/') {
+				do_round = 1;
+			}
+			if (expand_number(do_relative || do_round ?
+			    optarg + 1 : optarg,
 			    &usz) == -1 || (off_t)usz < 0)
 				errx(EXIT_FAILURE,
 				    "invalid size argument `%s'", optarg);
 
-			sz = (*optarg == '-') ? -(off_t)usz : (off_t)usz;
+			sz = (*optarg == '-' || *optarg == '/') ?
+				-(off_t)usz : (off_t)usz;
 			got_size = 1;
 			break;
 		default:
@@ -101,7 +108,7 @@ main(int argc, char **argv)
 		if (stat(rname, &sb) == -1)
 			err(EXIT_FAILURE, "%s", rname);
 		tsize = sb.st_size;
-	} else if (do_relative)
+	} else if (do_relative || do_round)
 		rsize = sz;
 	else
 		tsize = sz;
@@ -137,6 +144,25 @@ main(int argc, char **argv)
 			}
 			tsize = oflow;
 		}
+		if (do_round) {
+			if (fstat(fd, &sb) == -1) {
+				warn("%s", fname);
+				error++;
+				continue;
+			}
+			sz = rsize;
+			if (sz < 0)
+				sz = -sz;
+			if (sb.st_size % sz) {
+				round = sb.st_size / sz;
+				if (round != sz && rsize < 0)
+					round--;
+				else if (rsize > 0)
+					round++;
+				tsize = (round < 0 ? 0 : round) * sz;
+			} else
+				tsize = sb.st_size;
+		}
 		if (tsize < 0)
 			tsize = 0;
 
@@ -156,7 +182,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
-	    "usage: truncate [-c] -s [+|-]size[K|k|M|m|G|g|T|t] file ...",
+	    "usage: truncate [-c] -s [+|-|%|/]size[K|k|M|m|G|g|T|t] file ...",
 	    "       truncate [-c] -r rfile file ...");
 	exit(EXIT_FAILURE);
 }

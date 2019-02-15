@@ -1,4 +1,4 @@
-//==- SystemZMachineFuctionInfo.h - SystemZ machine function info -*- C++ -*-=//
+//=== SystemZMachineFunctionInfo.h - SystemZ machine function info -*- C++ -*-//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef SYSTEMZMACHINEFUNCTIONINFO_H
-#define SYSTEMZMACHINEFUNCTIONINFO_H
+#ifndef LLVM_LIB_TARGET_SYSTEMZ_SYSTEMZMACHINEFUNCTIONINFO_H
+#define LLVM_LIB_TARGET_SYSTEMZ_SYSTEMZMACHINEFUNCTIONINFO_H
 
 #include "llvm/CodeGen/MachineFunction.h"
 
@@ -22,12 +22,15 @@ class SystemZMachineFunctionInfo : public MachineFunctionInfo {
   unsigned VarArgsFirstFPR;
   unsigned VarArgsFrameIndex;
   unsigned RegSaveFrameIndex;
+  int FramePointerSaveIndex;
   bool ManipulatesSP;
+  unsigned NumLocalDynamics;
 
 public:
   explicit SystemZMachineFunctionInfo(MachineFunction &MF)
     : LowSavedGPR(0), HighSavedGPR(0), VarArgsFirstGPR(0), VarArgsFirstFPR(0),
-      VarArgsFrameIndex(0), RegSaveFrameIndex(0), ManipulatesSP(false) {}
+      VarArgsFrameIndex(0), RegSaveFrameIndex(0), FramePointerSaveIndex(0),
+      ManipulatesSP(false), NumLocalDynamics(0) {}
 
   // Get and set the first call-saved GPR that should be saved and restored
   // by this function.  This is 0 if no GPRs need to be saved or restored.
@@ -57,12 +60,20 @@ public:
   unsigned getRegSaveFrameIndex() const { return RegSaveFrameIndex; }
   void setRegSaveFrameIndex(unsigned FI) { RegSaveFrameIndex = FI; }
 
+  // Get and set the frame index of where the old frame pointer is stored.
+  int getFramePointerSaveIndex() const { return FramePointerSaveIndex; }
+  void setFramePointerSaveIndex(int Idx) { FramePointerSaveIndex = Idx; }
+
   // Get and set whether the function directly manipulates the stack pointer,
   // e.g. through STACKSAVE or STACKRESTORE.
   bool getManipulatesSP() const { return ManipulatesSP; }
   void setManipulatesSP(bool MSP) { ManipulatesSP = MSP; }
+
+  // Count number of local-dynamic TLS symbols used.
+  unsigned getNumLocalDynamicTLSAccesses() const { return NumLocalDynamics; }
+  void incNumLocalDynamicTLSAccesses() { ++NumLocalDynamics; }
 };
 
-} // end llvm namespace
+} // end namespace llvm
 
 #endif

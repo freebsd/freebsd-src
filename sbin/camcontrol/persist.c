@@ -241,9 +241,11 @@ persist_print_cap(struct scsi_per_res_cap *cap, uint32_t valid_len)
 {
 	uint32_t length;
 	int check_type_mask = 0;
+	uint32_t type_mask;
 
 	length = scsi_2btoul(cap->length);
 	length = MIN(length, valid_len);
+	type_mask = scsi_2btoul(cap->type_mask);
 
 	if (length < __offsetof(struct scsi_per_res_cap, type_mask)) {
 		fprintf(stdout, "Insufficient data (%u bytes) to report "
@@ -345,20 +347,20 @@ persist_print_cap(struct scsi_per_res_cap *cap, uint32_t valid_len)
 		fprintf(stdout, "Supported Persistent Reservation Types:\n");
 		fprintf(stdout, "    Write Exclusive - All Registrants "
 			"(WR_EX_AR): %d\n",
-			(cap->type_mask[0] & SPRI_TM_WR_EX_AR)? 1 : 0);
+			(type_mask & SPRI_TM_WR_EX_AR)? 1 : 0);
 		fprintf(stdout, "    Exclusive Access - Registrants Only "
 			"(EX_AC_RO): %d\n",
-			(cap->type_mask[0] & SPRI_TM_EX_AC_RO) ? 1 : 0);
+			(type_mask & SPRI_TM_EX_AC_RO) ? 1 : 0);
 		fprintf(stdout, "    Write Exclusive - Registrants Only "
 			"(WR_EX_RO): %d\n",
-			(cap->type_mask[0] & SPRI_TM_WR_EX_RO)? 1 : 0);
+			(type_mask & SPRI_TM_WR_EX_RO)? 1 : 0);
 		fprintf(stdout, "    Exclusive Access (EX_AC): %d\n",
-			(cap->type_mask[0] & SPRI_TM_EX_AC) ? 1 : 0);
+			(type_mask & SPRI_TM_EX_AC) ? 1 : 0);
 		fprintf(stdout, "    Write Exclusive (WR_EX): %d\n",
-			(cap->type_mask[0] & SPRI_TM_WR_EX) ? 1 : 0);
+			(type_mask & SPRI_TM_WR_EX) ? 1 : 0);
 		fprintf(stdout, "    Exclusive Access - All Registrants "
 			"(EX_AC_AR): %d\n",
-			(cap->type_mask[1] & SPRI_TM_EX_AC_AR) ? 1 : 0);
+			(type_mask & SPRI_TM_EX_AC_AR) ? 1 : 0);
 	} else {
 		fprintf(stdout, "Persistent Reservation Type Mask is NOT "
 			"valid\n");
@@ -423,7 +425,8 @@ persist_print_full(struct scsi_per_res_in_header *hdr, uint32_t valid_len)
 
 int
 scsipersist(struct cam_device *device, int argc, char **argv, char *combinedopt,
-	    int retry_count, int timeout, int verbosemode, int err_recover)
+	    int task_attr, int retry_count, int timeout, int verbosemode,
+	    int err_recover)
 {
 	union ccb *ccb = NULL;
 	int c, in = 0, out = 0;
@@ -432,7 +435,7 @@ scsipersist(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	uint32_t res_len = 0;
 	unsigned long rel_tgt_port = 0;
 	uint8_t *res_buf = NULL;
-	int scope = SPR_LU_SCOPE, res_type = 0, key_set = 0, sa_key_set = 0;
+	int scope = SPR_LU_SCOPE, res_type = 0;
 	struct persist_transport_id *id, *id2;
 	STAILQ_HEAD(, persist_transport_id) transport_id_list;
 	uint64_t key = 0, sa_key = 0;
@@ -450,8 +453,7 @@ scsipersist(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		goto bailout;
 	}
 
-	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(union ccb) - sizeof(struct ccb_hdr));
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
@@ -510,10 +512,8 @@ scsipersist(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			}
 			if (c == 'k') {
 				key = tmpval;
-				key_set = 1;
 			} else {
 				sa_key = tmpval;
-				sa_key_set = 1;
 			}
 			break;
 		}
@@ -757,7 +757,7 @@ retry:
 		scsi_persistent_reserve_in(&ccb->csio,
 					   /*retries*/ retry_count,
 					   /*cbfcnp*/ NULL,
-					   /*tag_action*/ MSG_SIMPLE_Q_TAG,
+					   /*tag_action*/ task_attr,
 					   /*service_action*/ action,
 					   /*data_ptr*/ res_buf,
 					   /*dxfer_len*/ res_len,
@@ -839,7 +839,7 @@ retry:
 		scsi_persistent_reserve_out(&ccb->csio,
 					    /*retries*/ retry_count,
 					    /*cbfcnp*/ NULL,
-					    /*tag_action*/ MSG_SIMPLE_Q_TAG,
+					    /*tag_action*/ task_attr,
 					    /*service_action*/ action,
 					    /*scope*/ scope,
 					    /*res_type*/ res_type,

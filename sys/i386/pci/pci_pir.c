@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * Copyright (c) 2000, Michael Smith <msmith@freebsd.org>
  * Copyright (c) 2000, BSDi
@@ -108,13 +110,8 @@ static int pir_interrupt_weight[NUM_ISA_INTERRUPTS];
 SYSCTL_DECL(_hw_pci);
 
 /* XXX this likely should live in a header file */
-#ifdef PC98
-/* IRQs 3, 5, 7, 9, 10, 11, 12, 13 */
-#define PCI_IRQ_OVERRIDE_MASK 0x3e68
-#else
 /* IRQs 3, 4, 5, 6, 7, 9, 10, 11, 12, 14, 15 */
 #define PCI_IRQ_OVERRIDE_MASK 0xdef8
-#endif
 
 static uint32_t pci_irq_override_mask = PCI_IRQ_OVERRIDE_MASK;
 SYSCTL_INT(_hw_pci, OID_AUTO, irq_override_mask, CTLFLAG_RDTUN,
@@ -137,9 +134,6 @@ pci_pir_open(void)
 	int i;
 	uint8_t ck, *cv;
 
-#ifdef XEN
-	return;
-#else	
 	/* Don't try if we've already found a table. */
 	if (pci_route_table != NULL)
 		return;
@@ -150,7 +144,7 @@ pci_pir_open(void)
 		sigaddr = bios_sigsearch(0, "_PIR", 4, 16, 0);
 	if (sigaddr == 0)
 		return;
-#endif
+
 	/* If we found something, check the checksum and length. */
 	/* XXX - Use pmap_mapdev()? */
 	pt = (struct PIR_table *)(uintptr_t)BIOS_PADDRTOVADDR(sigaddr);
@@ -481,11 +475,7 @@ pci_pir_biosroute(int bus, int device, int func, int pin, int irq)
 	args.eax = PCIBIOS_ROUTE_INTERRUPT;
 	args.ebx = (bus << 8) | (device << 3) | func;
 	args.ecx = (irq << 8) | (0xa + pin);
-#ifdef XEN
-	return (0);
-#else	
 	return (bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL)));
-#endif
 }
 
 
@@ -658,7 +648,7 @@ pci_pir_probe(int bus, int require_parse)
 }
 
 /*
- * The driver for the new-bus psuedo device pir0 for the $PIR table.
+ * The driver for the new-bus pseudo device pir0 for the $PIR table.
  */
 
 static int

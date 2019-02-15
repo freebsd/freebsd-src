@@ -201,7 +201,7 @@ playinit()
 static void
 playtone(int pitch, int value, int sustain)
 {
-	register int sound, silence, snum = 1, sdenom = 1;
+	int sound, silence, snum = 1, sdenom = 1;
 
 	/* this weirdness avoids floating-point arithmetic */
 	for (; sustain; sustain--) {
@@ -243,7 +243,7 @@ playstring(char *cp, size_t slen)
 				{v = v * 10 + (*++cp - '0'); slen--;}
 	for (; slen--; cp++) {
 		int sustain, timeval, tempo;
-		register char c = toupper(*cp);
+		char c = toupper(*cp);
 
 #ifdef DEBUG
 		(void) printf("playstring: %c (%x)\n", c, c);
@@ -327,15 +327,13 @@ playstring(char *cp, size_t slen)
 				slen--;
 			} else {
 				GETNUM(cp, octave);
-				if (octave >= sizeof(pitchtab) / sizeof(pitchtab[0]) /
-					OCTAVE_NOTES)
+				if (octave >= nitems(pitchtab) / OCTAVE_NOTES)
 					octave = DFLT_OCTAVE;
 				octprefix = TRUE;
 			}
 			break;
 		case '>':
-			if (octave < sizeof(pitchtab) / sizeof(pitchtab[0]) / 
-				OCTAVE_NOTES - 1)
+			if (octave < nitems(pitchtab) / OCTAVE_NOTES - 1)
 				octave++;
 			octprefix = TRUE;
 			break;

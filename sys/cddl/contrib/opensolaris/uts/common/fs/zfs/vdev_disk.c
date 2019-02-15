@@ -20,8 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
- * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
+ * Copyright 2016 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2013 Joyent, Inc.  All rights reserved.
  */
 
@@ -30,6 +30,7 @@
 #include <sys/refcount.h>
 #include <sys/vdev_disk.h>
 #include <sys/vdev_impl.h>
+#include <sys/abd.h>
 #include <sys/fs/zfs.h>
 #include <sys/zio.h>
 #include <sys/sunldi.h>
@@ -241,34 +242,6 @@ vdev_disk_rele(vdev_t *vd)
 	}
 }
 
-static uint64_t
-vdev_disk_get_space(vdev_t *vd, uint64_t capacity, uint_t blksz)
-{
-	ASSERT(vd->vdev_wholedisk);
-
-	vdev_disk_t *dvd = vd->vdev_tsd;
-	dk_efi_t dk_ioc;
-	efi_gpt_t *efi;
-	uint64_t avail_space = 0;
-	int efisize = EFI_LABEL_SIZE * 2;
-
-	dk_ioc.dki_data = kmem_alloc(efisize, KM_SLEEP);
-	dk_ioc.dki_lba = 1;
-	dk_ioc.dki_length = efisize;
-	dk_ioc.dki_data_64 = (uint64_t)(uintptr_t)dk_ioc.dki_data;
-	efi = dk_ioc.dki_data;
-
-	if (ldi_ioctl(dvd->vd_lh, DKIOCGETEFI, (intptr_t)&dk_ioc,
-	    FKIOCTL, kcred, NULL) == 0) {
-		uint64_t efi_altern_lba = LE_64(efi->efi_gpt_AlternateLBA);
-
-		if (capacity > efi_altern_lba)
-			avail_space = (capacity - efi_altern_lba) * blksz;
-	}
-	kmem_free(dk_ioc.dki_data, efisize);
-	return (avail_space);
-}
-
 /*
  * We want to be loud in DEBUG kernels when DKIOCGMEDIAINFOEXT fails, or when
  * even a fallback to DKIOCGMEDIAINFO fails.
@@ -352,6 +325,8 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 		if (ddi_devid_str_decode(vd->vdev_devid, &dvd->vd_devid,
 		    &dvd->vd_minor) != 0) {
 			vd->vdev_stat.vs_aux = VDEV_AUX_BAD_LABEL;
+			vdev_dbgmsg(vd, "vdev_disk_open: invalid "
+			    "vdev_devid '%s'", vd->vdev_devid);
 			return (SET_ERROR(EINVAL));
 		}
 	}
@@ -444,6 +419,8 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 
 	if (error) {
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
+		vdev_dbgmsg(vd, "vdev_disk_open: failed to open [error=%d]",
+		    error);
 		return (error);
 	}
 
@@ -457,8 +434,8 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 			char *vd_devid;
 
 			vd_devid = ddi_devid_str_encode(devid, dvd->vd_minor);
-			zfs_dbgmsg("vdev %s: update devid from %s, "
-			    "to %s", vd->vdev_path, vd->vdev_devid, vd_devid);
+			vdev_dbgmsg(vd, "vdev_disk_open: update devid from "
+			    "'%s' to '%s'", vd->vdev_devid, vd_devid);
 			spa_strfree(vd->vdev_devid);
 			vd->vdev_devid = spa_strdup(vd_devid);
 			ddi_devid_str_free(vd_devid);
@@ -518,6 +495,7 @@ skip_open:
 	 */
 	if (ldi_get_size(dvd->vd_lh, psize) != 0) {
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
+		vdev_dbgmsg(vd, "vdev_disk_open: failed to get size");
 		return (SET_ERROR(EINVAL));
 	}
 
@@ -559,10 +537,7 @@ skip_open:
 			 * Adjust max_psize upward accordingly since we know
 			 * we own the whole disk now.
 			 */
-			*max_psize += vdev_disk_get_space(vd, capacity, blksz);
-			zfs_dbgmsg("capacity change: vdev %s, psize %llu, "
-			    "max_psize %llu", vd->vdev_path, *psize,
-			    *max_psize);
+			*max_psize = capacity * blksz;
 		}
 
 		/*
@@ -689,9 +664,15 @@ vdev_disk_io_intr(buf_t *bp)
 	if (zio->io_error == 0 && bp->b_resid != 0)
 		zio->io_error = SET_ERROR(EIO);
 
+	if (zio->io_type == ZIO_TYPE_READ) {
+		abd_return_buf_copy(zio->io_abd, bp->b_un.b_addr, zio->io_size);
+	} else {
+		abd_return_buf(zio->io_abd, bp->b_un.b_addr, zio->io_size);
+	}
+
 	kmem_free(vb, sizeof (vdev_buf_t));
 
-	zio_interrupt(zio);
+	zio_delay_interrupt(zio);
 }
 
 static void
@@ -715,7 +696,7 @@ vdev_disk_ioctl_done(void *zio_arg, int error)
 	zio_interrupt(zio);
 }
 
-static int
+static void
 vdev_disk_io_start(zio_t *zio)
 {
 	vdev_t *vd = zio->io_vd;
@@ -732,7 +713,7 @@ vdev_disk_io_start(zio_t *zio)
 	if (dvd == NULL || (dvd->vd_ldi_offline && dvd->vd_lh == NULL)) {
 		zio->io_error = SET_ERROR(ENXIO);
 		zio_interrupt(zio);
-		return (ZIO_PIPELINE_STOP);
+		return;
 	}
 
 	if (zio->io_type == ZIO_TYPE_IOCTL) {
@@ -740,7 +721,7 @@ vdev_disk_io_start(zio_t *zio)
 		if (!vdev_readable(vd)) {
 			zio->io_error = SET_ERROR(ENXIO);
 			zio_interrupt(zio);
-			return (ZIO_PIPELINE_STOP);
+			return;
 		}
 
 		switch (zio->io_cmd) {
@@ -771,19 +752,9 @@ vdev_disk_io_start(zio_t *zio)
 				 * and will call vdev_disk_ioctl_done()
 				 * upon completion.
 				 */
-				return (ZIO_PIPELINE_STOP);
+				return;
 			}
 
-			if (error == ENOTSUP || error == ENOTTY) {
-				/*
-				 * If we get ENOTSUP or ENOTTY, we know that
-				 * no future attempts will ever succeed.
-				 * In this case we set a persistent bit so
-				 * that we don't bother with the ioctl in the
-				 * future.
-				 */
-				vd->vdev_nowritecache = B_TRUE;
-			}
 			zio->io_error = error;
 
 			break;
@@ -792,9 +763,12 @@ vdev_disk_io_start(zio_t *zio)
 			zio->io_error = SET_ERROR(ENOTSUP);
 		}
 
-		zio_interrupt(zio);
-		return (ZIO_PIPELINE_STOP);
+		zio_execute(zio);
+		return;
 	}
+
+	ASSERT(zio->io_type == ZIO_TYPE_READ || zio->io_type == ZIO_TYPE_WRITE);
+	zio->io_target_timestamp = zio_handle_io_delay(zio);
 
 	vb = kmem_alloc(sizeof (vdev_buf_t), KM_SLEEP);
 
@@ -807,15 +781,21 @@ vdev_disk_io_start(zio_t *zio)
 	if (!(zio->io_flags & (ZIO_FLAG_IO_RETRY | ZIO_FLAG_TRYHARD)))
 		bp->b_flags |= B_FAILFAST;
 	bp->b_bcount = zio->io_size;
-	bp->b_un.b_addr = zio->io_data;
+
+	if (zio->io_type == ZIO_TYPE_READ) {
+		bp->b_un.b_addr =
+		    abd_borrow_buf(zio->io_abd, zio->io_size);
+	} else {
+		bp->b_un.b_addr =
+		    abd_borrow_buf_copy(zio->io_abd, zio->io_size);
+	}
+
 	bp->b_lblkno = lbtodb(zio->io_offset);
 	bp->b_bufsize = zio->io_size;
 	bp->b_iodone = (int (*)())vdev_disk_io_intr;
 
 	/* ldi_strategy() will return non-zero only on programming errors */
 	VERIFY(ldi_strategy(dvd->vd_lh, bp) == 0);
-
-	return (ZIO_PIPELINE_STOP);
 }
 
 static void
@@ -857,8 +837,11 @@ vdev_ops_t vdev_disk_ops = {
 	vdev_disk_io_start,
 	vdev_disk_io_done,
 	NULL,
+	NULL,
 	vdev_disk_hold,
 	vdev_disk_rele,
+	NULL,
+	vdev_default_xlate,
 	VDEV_TYPE_DISK,		/* name of this vdev type */
 	B_TRUE			/* leaf vdev */
 };

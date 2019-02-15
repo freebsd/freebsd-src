@@ -1,4 +1,4 @@
-/* $Id: lr0.c,v 1.16 2014/04/07 21:53:50 tom Exp $ */
+/* $Id: lr0.c,v 1.19 2016/06/07 00:21:53 tom Exp $ */
 
 #include "defs.h"
 
@@ -29,6 +29,8 @@ static reductions *last_reduction;
 
 static int nshifts;
 static Value_t *shift_symbol;
+
+static Value_t *rules;
 
 static Value_t *redset;
 static Value_t *shiftset;
@@ -234,7 +236,7 @@ initialize_states(void)
     p->link = 0;
     p->number = 0;
     p->accessing_symbol = 0;
-    p->nitems = (Value_t) i;
+    p->nitems = (Value_t)i;
 
     for (i = 0; start_derives[i] >= 0; ++i)
 	p->items[i] = rrhs[start_derives[i]];
@@ -270,7 +272,7 @@ new_itemsets(void)
 		ksp = kernel_base[symbol];
 	    }
 
-	    *ksp++ = (Value_t) (i + 1);
+	    *ksp++ = (Value_t)(i + 1);
 	    kernel_end[symbol] = ksp;
 	}
     }
@@ -299,9 +301,9 @@ new_state(int symbol)
     n = (unsigned)(iend - isp1);
 
     p = (core *)allocate((sizeof(core) + (n - 1) * sizeof(Value_t)));
-    p->accessing_symbol = (Value_t) symbol;
-    p->number = (Value_t) nstates;
-    p->nitems = (Value_t) n;
+    p->accessing_symbol = (Value_t)symbol;
+    p->number = (Value_t)nstates;
+    p->nitems = (Value_t)n;
 
     isp2 = p->items;
     while (isp1 < iend)
@@ -407,7 +409,7 @@ save_shifts(void)
 			      (unsigned)(nshifts - 1) * sizeof(Value_t)));
 
     p->number = this_state->number;
-    p->nshifts = (Value_t) nshifts;
+    p->nshifts = (Value_t)nshifts;
 
     sp1 = shiftset;
     sp2 = p->shift;
@@ -445,7 +447,7 @@ save_reductions(void)
 	item = ritem[*isp];
 	if (item < 0)
 	{
-	    redset[count++] = (Value_t) - item;
+	    redset[count++] = (Value_t)-item;
 	}
     }
 
@@ -483,7 +485,6 @@ set_derives(void)
 {
     Value_t i, k;
     int lhs;
-    Value_t *rules;
 
     derives = NEW2(nsyms, Value_t *);
     rules = NEW2(nvars + nrules, Value_t);
@@ -595,8 +596,12 @@ lr0_leaks(void)
 {
     if (derives)
     {
-	DO_FREE(derives[start_symbol]);
+	if (derives[start_symbol] != rules)
+	{
+	    DO_FREE(derives[start_symbol]);
+	}
 	DO_FREE(derives);
+	DO_FREE(rules);
     }
     DO_FREE(nullable);
 }

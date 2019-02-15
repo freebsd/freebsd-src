@@ -87,7 +87,7 @@ heim_ntlm_decode_type3 (
 	int /*ucs2*/,
 	struct ntlm_type3 */*type3*/);
 
-void
+int
 heim_ntlm_derive_ntlm2_sess (
 	const unsigned char sessionkey[16],
 	const unsigned char */*clnt_nonce*/,

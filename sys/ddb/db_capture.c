@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
@@ -331,8 +333,7 @@ db_capture_usage(void)
 }
 
 void
-db_capture_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
-    char *modif)
+db_capture_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 {
 	int t;
 

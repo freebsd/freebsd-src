@@ -17,29 +17,25 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * $FreeBSD$
  */
 
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-arp.c,v 1.66 2006-03-03 22:53:21 hannes Exp $ (LBL)";
-#endif
+/* \summary: Address Resolution Protocol (ARP) printer */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include <stdio.h>
 #include <string.h>
 
 #include "netdissect.h"
 #include "addrtoname.h"
 #include "ether.h"
 #include "ethertype.h"
-#include "extract.h"			/* must come after interface.h */
+#include "extract.h"
+
+static const char tstr[] = "[|ARP]";
 
 /*
  * Address Resolution Protocol.
@@ -82,7 +78,7 @@ struct  arp_pkthdr {
 	u_char	ar_tha[];	/* target hardware address */
 	u_char	ar_tpa[];	/* target protocol address */
 #endif
-#define ar_sha(ap)	(((const u_char *)((ap)+1))+0)
+#define ar_sha(ap)	(((const u_char *)((ap)+1))+  0)
 #define ar_spa(ap)	(((const u_char *)((ap)+1))+  (ap)->ar_hln)
 #define ar_tha(ap)	(((const u_char *)((ap)+1))+  (ap)->ar_hln+(ap)->ar_pln)
 #define ar_tpa(ap)	(((const u_char *)((ap)+1))+2*(ap)->ar_hln+(ap)->ar_pln)
@@ -101,7 +97,7 @@ struct  arp_pkthdr {
 #define TPA(ap) (ar_tpa(ap))
 
 
-struct tok arpop_values[] = {
+static const struct tok arpop_values[] = {
     { ARPOP_REQUEST, "Request" },
     { ARPOP_REPLY, "Reply" },
     { ARPOP_REVREQUEST, "Reverse Request" },
@@ -112,7 +108,7 @@ struct tok arpop_values[] = {
     { 0, NULL }
 };
 
-struct tok arphrd_values[] = {
+static const struct tok arphrd_values[] = {
     { ARPHRD_ETHER, "Ethernet" },
     { ARPHRD_IEEE802, "TokenRing" },
     { ARPHRD_ARCNET, "ArcNet" },
@@ -181,7 +177,41 @@ struct  atmarp_pkthdr {
 #define ATMTSA(ap) (aar_tsa(ap))
 #define ATMTPA(ap) (aar_tpa(ap))
 
-static u_char ezero[6];
+static int
+isnonzero(const u_char *a, size_t len)
+{
+	while (len > 0) {
+		if (*a != 0)
+			return (1);
+		a++;
+		len--;
+	}
+	return (0);
+}
+
+static void
+tpaddr_print_ip(netdissect_options *ndo,
+	        const struct arp_pkthdr *ap, u_short pro)
+{
+	if (pro != ETHERTYPE_IP && pro != ETHERTYPE_TRAIL)
+		ND_PRINT((ndo, "<wrong proto type>"));
+	else if (PROTO_LEN(ap) != 4)
+		ND_PRINT((ndo, "<wrong len>"));
+	else
+		ND_PRINT((ndo, "%s", ipaddr_string(ndo, TPA(ap))));
+}
+
+static void
+spaddr_print_ip(netdissect_options *ndo,
+	        const struct arp_pkthdr *ap, u_short pro)
+{
+	if (pro != ETHERTYPE_IP && pro != ETHERTYPE_TRAIL)
+		ND_PRINT((ndo, "<wrong proto type>"));
+	else if (PROTO_LEN(ap) != 4)
+		ND_PRINT((ndo, "<wrong len>"));
+	else
+		ND_PRINT((ndo, "%s", ipaddr_string(ndo, SPA(ap))));
+}
 
 static void
 atmarp_addr_print(netdissect_options *ndo,
@@ -191,11 +221,35 @@ atmarp_addr_print(netdissect_options *ndo,
 	if (ha_len == 0)
 		ND_PRINT((ndo, "<No address>"));
 	else {
-		ND_PRINT((ndo, "%s", linkaddr_string(ha, LINKADDR_ATM, ha_len)));
-		if (srca_len != 0) 
+		ND_PRINT((ndo, "%s", linkaddr_string(ndo, ha, LINKADDR_ATM, ha_len)));
+		if (srca_len != 0)
 			ND_PRINT((ndo, ",%s",
-				  linkaddr_string(srca, LINKADDR_ATM, srca_len)));
+				  linkaddr_string(ndo, srca, LINKADDR_ATM, srca_len)));
 	}
+}
+
+static void
+atmarp_tpaddr_print(netdissect_options *ndo,
+		    const struct atmarp_pkthdr *ap, u_short pro)
+{
+	if (pro != ETHERTYPE_IP && pro != ETHERTYPE_TRAIL)
+		ND_PRINT((ndo, "<wrong proto type>"));
+	else if (ATMTPROTO_LEN(ap) != 4)
+		ND_PRINT((ndo, "<wrong tplen>"));
+	else
+		ND_PRINT((ndo, "%s", ipaddr_string(ndo, ATMTPA(ap))));
+}
+
+static void
+atmarp_spaddr_print(netdissect_options *ndo,
+		    const struct atmarp_pkthdr *ap, u_short pro)
+{
+	if (pro != ETHERTYPE_IP && pro != ETHERTYPE_TRAIL)
+		ND_PRINT((ndo, "<wrong proto type>"));
+	else if (ATMSPROTO_LEN(ap) != 4)
+		ND_PRINT((ndo, "<wrong splen>"));
+	else
+		ND_PRINT((ndo, "%s", ipaddr_string(ndo, ATMSPA(ap))));
 }
 
 static void
@@ -213,7 +267,7 @@ atmarp_print(netdissect_options *ndo,
 	op = ATMOP(ap);
 
 	if (!ND_TTEST2(*aar_tpa(ap), ATMTPROTO_LEN(ap))) {
-		ND_PRINT((ndo, "[|ARP]"));
+		ND_PRINT((ndo, "%s", tstr));
 		ND_DEFAULTPRINT((const u_char *)ap, length);
 		return;
 	}
@@ -239,25 +293,28 @@ atmarp_print(netdissect_options *ndo,
 	}
 
         /* print operation */
-        printf("%s%s ",
-               ndo->ndo_vflag ? ", " : "", 
-               tok2str(arpop_values, "Unknown (%u)", op));
+        ND_PRINT((ndo, "%s%s ",
+               ndo->ndo_vflag ? ", " : "",
+               tok2str(arpop_values, "Unknown (%u)", op)));
 
 	switch (op) {
 
 	case ARPOP_REQUEST:
-		ND_PRINT((ndo, "who-has %s", ipaddr_string(ATMTPA(ap))));
+		ND_PRINT((ndo, "who-has "));
+		atmarp_tpaddr_print(ndo, ap, pro);
 		if (ATMTHRD_LEN(ap) != 0) {
 			ND_PRINT((ndo, " ("));
 			atmarp_addr_print(ndo, ATMTHA(ap), ATMTHRD_LEN(ap),
 			    ATMTSA(ap), ATMTSLN(ap));
 			ND_PRINT((ndo, ")"));
 		}
-		ND_PRINT((ndo, "tell %s", ipaddr_string(ATMSPA(ap))));
+		ND_PRINT((ndo, " tell "));
+		atmarp_spaddr_print(ndo, ap, pro);
 		break;
 
 	case ARPOP_REPLY:
-		ND_PRINT((ndo, "%s is-at ", ipaddr_string(ATMSPA(ap))));
+		atmarp_spaddr_print(ndo, ap, pro);
+		ND_PRINT((ndo, " is-at "));
 		atmarp_addr_print(ndo, ATMSHA(ap), ATMSHRD_LEN(ap), ATMSSA(ap),
                                   ATMSSLN(ap));
 		break;
@@ -274,11 +331,13 @@ atmarp_print(netdissect_options *ndo,
 	case ARPOP_INVREPLY:
 		atmarp_addr_print(ndo, ATMSHA(ap), ATMSHRD_LEN(ap), ATMSSA(ap),
 		    ATMSSLN(ap));
-		ND_PRINT((ndo, "at %s", ipaddr_string(ATMSPA(ap))));
+		ND_PRINT((ndo, "at "));
+		atmarp_spaddr_print(ndo, ap, pro);
 		break;
 
 	case ARPOP_NAK:
-		ND_PRINT((ndo, "for %s", ipaddr_string(ATMSPA(ap))));
+		ND_PRINT((ndo, "for "));
+		atmarp_spaddr_print(ndo, ap, pro);
 		break;
 
 	default:
@@ -291,7 +350,7 @@ atmarp_print(netdissect_options *ndo,
         return;
 
 trunc:
-	ND_PRINT((ndo, "[|ARP]"));
+	ND_PRINT((ndo, "%s", tstr));
 }
 
 void
@@ -308,11 +367,11 @@ arp_print(netdissect_options *ndo,
 	pro = PRO(ap);
 	op = OP(ap);
 
-        
+
         /* if its ATM then call the ATM ARP printer
            for Frame-relay ARP most of the fields
            are similar to Ethernet so overload the Ethernet Printer
-           and set the linkaddr type for linkaddr_string() accordingly */
+           and set the linkaddr type for linkaddr_string(ndo, ) accordingly */
 
         switch(hrd) {
         case ARPHRD_ATM2225:
@@ -326,8 +385,8 @@ arp_print(netdissect_options *ndo,
             break;
 	}
 
-	if (!ND_TTEST2(*ar_tpa(ap), PROTO_LEN(ap))) {
-		ND_PRINT((ndo, "[|ARP]"));
+	if (!ND_TTEST2(*TPA(ap), PROTO_LEN(ap))) {
+		ND_PRINT((ndo, "%s", tstr));
 		ND_DEFAULTPRINT((const u_char *)ap, length);
 		return;
 	}
@@ -354,48 +413,50 @@ arp_print(netdissect_options *ndo,
 	}
 
         /* print operation */
-        printf("%s%s ",
-               ndo->ndo_vflag ? ", " : "", 
-               tok2str(arpop_values, "Unknown (%u)", op));
+        ND_PRINT((ndo, "%s%s ",
+               ndo->ndo_vflag ? ", " : "",
+               tok2str(arpop_values, "Unknown (%u)", op)));
 
 	switch (op) {
 
 	case ARPOP_REQUEST:
-		ND_PRINT((ndo, "who-has %s", ipaddr_string(TPA(ap))));
-		if (memcmp((const char *)ezero, (const char *)THA(ap), HRD_LEN(ap)) != 0)
+		ND_PRINT((ndo, "who-has "));
+		tpaddr_print_ip(ndo, ap, pro);
+		if (isnonzero((const u_char *)THA(ap), HRD_LEN(ap)))
 			ND_PRINT((ndo, " (%s)",
-				  linkaddr_string(THA(ap), linkaddr, HRD_LEN(ap))));
-		ND_PRINT((ndo, " tell %s", ipaddr_string(SPA(ap))));
+				  linkaddr_string(ndo, THA(ap), linkaddr, HRD_LEN(ap))));
+		ND_PRINT((ndo, " tell "));
+		spaddr_print_ip(ndo, ap, pro);
 		break;
 
 	case ARPOP_REPLY:
-		ND_PRINT((ndo, "%s is-at %s",
-                          ipaddr_string(SPA(ap)),
-                          linkaddr_string(SHA(ap), linkaddr, HRD_LEN(ap))));
+		spaddr_print_ip(ndo, ap, pro);
+		ND_PRINT((ndo, " is-at %s",
+                          linkaddr_string(ndo, SHA(ap), linkaddr, HRD_LEN(ap))));
 		break;
 
 	case ARPOP_REVREQUEST:
 		ND_PRINT((ndo, "who-is %s tell %s",
-			  linkaddr_string(THA(ap), linkaddr, HRD_LEN(ap)),
-			  linkaddr_string(SHA(ap), linkaddr, HRD_LEN(ap))));
+			  linkaddr_string(ndo, THA(ap), linkaddr, HRD_LEN(ap)),
+			  linkaddr_string(ndo, SHA(ap), linkaddr, HRD_LEN(ap))));
 		break;
 
 	case ARPOP_REVREPLY:
-		ND_PRINT((ndo, "%s at %s",
-			  linkaddr_string(THA(ap), linkaddr, HRD_LEN(ap)),
-			  ipaddr_string(TPA(ap))));
+		ND_PRINT((ndo, "%s at ",
+			  linkaddr_string(ndo, THA(ap), linkaddr, HRD_LEN(ap))));
+		tpaddr_print_ip(ndo, ap, pro);
 		break;
 
 	case ARPOP_INVREQUEST:
 		ND_PRINT((ndo, "who-is %s tell %s",
-			  linkaddr_string(THA(ap), linkaddr, HRD_LEN(ap)),
-			  linkaddr_string(SHA(ap), linkaddr, HRD_LEN(ap))));
+			  linkaddr_string(ndo, THA(ap), linkaddr, HRD_LEN(ap)),
+			  linkaddr_string(ndo, SHA(ap), linkaddr, HRD_LEN(ap))));
 		break;
 
 	case ARPOP_INVREPLY:
-		ND_PRINT((ndo,"%s at %s",
-			  linkaddr_string(THA(ap), linkaddr, HRD_LEN(ap)),
-			  ipaddr_string(TPA(ap))));
+		ND_PRINT((ndo,"%s at ",
+			  linkaddr_string(ndo, SHA(ap), linkaddr, HRD_LEN(ap))));
+		spaddr_print_ip(ndo, ap, pro);
 		break;
 
 	default:
@@ -408,7 +469,7 @@ arp_print(netdissect_options *ndo,
 
 	return;
 trunc:
-	ND_PRINT((ndo, "[|ARP]"));
+	ND_PRINT((ndo, "%s", tstr));
 }
 
 /*

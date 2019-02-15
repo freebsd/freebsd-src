@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -201,7 +203,7 @@ enum SCIC_SDS_PHY_PROTOCOL
  * @struct SCIC_SDS_PHY
  *
  * @brief This structure  contains or references all of the data necessary to
- *        represent the core phy object and SCU harware protocol engine.
+ *        represent the core phy object and SCU hardware protocol engine.
  */
 typedef struct SCIC_SDS_PHY
 {

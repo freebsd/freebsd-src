@@ -19,7 +19,6 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SymbolManager.h"
-#include "llvm/ADT/ImmutableMap.h"
 
 using namespace clang;
 using namespace ento;
@@ -43,8 +42,8 @@ struct StreamState {
 
   static StreamState getOpened(const Stmt *s) { return StreamState(Opened, s); }
   static StreamState getClosed(const Stmt *s) { return StreamState(Closed, s); }
-  static StreamState getOpenFailed(const Stmt *s) { 
-    return StreamState(OpenFailed, s); 
+  static StreamState getOpenFailed(const Stmt *s) {
+    return StreamState(OpenFailed, s);
   }
   static StreamState getEscaped(const Stmt *s) {
     return StreamState(Escaped, s);
@@ -59,17 +58,19 @@ struct StreamState {
 class StreamChecker : public Checker<eval::Call,
                                      check::DeadSymbols > {
   mutable IdentifierInfo *II_fopen, *II_tmpfile, *II_fclose, *II_fread,
-                 *II_fwrite, 
-                 *II_fseek, *II_ftell, *II_rewind, *II_fgetpos, *II_fsetpos,  
+                 *II_fwrite,
+                 *II_fseek, *II_ftell, *II_rewind, *II_fgetpos, *II_fsetpos,
                  *II_clearerr, *II_feof, *II_ferror, *II_fileno;
-  mutable OwningPtr<BuiltinBug> BT_nullfp, BT_illegalwhence,
-                                      BT_doubleclose, BT_ResourceLeak;
+  mutable std::unique_ptr<BuiltinBug> BT_nullfp, BT_illegalwhence,
+      BT_doubleclose, BT_ResourceLeak;
 
 public:
-  StreamChecker() 
-    : II_fopen(0), II_tmpfile(0) ,II_fclose(0), II_fread(0), II_fwrite(0), 
-      II_fseek(0), II_ftell(0), II_rewind(0), II_fgetpos(0), II_fsetpos(0), 
-      II_clearerr(0), II_feof(0), II_ferror(0), II_fileno(0) {}
+  StreamChecker()
+    : II_fopen(nullptr), II_tmpfile(nullptr), II_fclose(nullptr),
+      II_fread(nullptr), II_fwrite(nullptr), II_fseek(nullptr),
+      II_ftell(nullptr), II_rewind(nullptr), II_fgetpos(nullptr),
+      II_fsetpos(nullptr), II_clearerr(nullptr), II_feof(nullptr),
+      II_ferror(nullptr), II_fileno(nullptr) {}
 
   bool evalCall(const CallExpr *CE, CheckerContext &C) const;
   void checkDeadSymbols(SymbolReaper &SymReaper, CheckerContext &C) const;
@@ -91,10 +92,10 @@ private:
   void Fileno(CheckerContext &C, const CallExpr *CE) const;
 
   void OpenFileAux(CheckerContext &C, const CallExpr *CE) const;
-  
-  ProgramStateRef CheckNullStream(SVal SV, ProgramStateRef state, 
+
+  ProgramStateRef CheckNullStream(SVal SV, ProgramStateRef state,
                                  CheckerContext &C) const;
-  ProgramStateRef CheckDoubleClose(const CallExpr *CE, ProgramStateRef state, 
+  ProgramStateRef CheckDoubleClose(const CallExpr *CE, ProgramStateRef state,
                                  CheckerContext &C) const;
 };
 
@@ -210,16 +211,17 @@ void StreamChecker::OpenFileAux(CheckerContext &C, const CallExpr *CE) const {
   ProgramStateRef state = C.getState();
   SValBuilder &svalBuilder = C.getSValBuilder();
   const LocationContext *LCtx = C.getPredecessor()->getLocationContext();
-  DefinedSVal RetVal = svalBuilder.conjureSymbolVal(0, CE, LCtx, C.blockCount())
+  DefinedSVal RetVal = svalBuilder.conjureSymbolVal(nullptr, CE, LCtx,
+                                                    C.blockCount())
       .castAs<DefinedSVal>();
   state = state->BindExpr(CE, C.getLocationContext(), RetVal);
-  
+
   ConstraintManager &CM = C.getConstraintManager();
   // Bifurcate the state into two: one with a valid FILE* pointer, the other
   // with a NULL.
   ProgramStateRef stateNotNull, stateNull;
-  llvm::tie(stateNotNull, stateNull) = CM.assumeDual(state, RetVal);
-  
+  std::tie(stateNotNull, stateNull) = CM.assumeDual(state, RetVal);
+
   if (SymbolRef Sym = RetVal.getAsSymbol()) {
     // if RetVal is not NULL, set the symbol's state to Opened.
     stateNotNull =
@@ -268,14 +270,14 @@ void StreamChecker::Fseek(CheckerContext &C, const CallExpr *CE) const {
   if (x >= 0 && x <= 2)
     return;
 
-  if (ExplodedNode *N = C.addTransition(state)) {
+  if (ExplodedNode *N = C.generateNonFatalErrorNode(state)) {
     if (!BT_illegalwhence)
-      BT_illegalwhence.reset(new BuiltinBug("Illegal whence argument",
-					"The whence argument to fseek() should be "
-					"SEEK_SET, SEEK_END, or SEEK_CUR."));
-    BugReport *R = new BugReport(*BT_illegalwhence, 
-				 BT_illegalwhence->getDescription(), N);
-    C.emitReport(R);
+      BT_illegalwhence.reset(
+          new BuiltinBug(this, "Illegal whence argument",
+                         "The whence argument to fseek() should be "
+                         "SEEK_SET, SEEK_END, or SEEK_CUR."));
+    C.emitReport(llvm::make_unique<BugReport>(
+        *BT_illegalwhence, BT_illegalwhence->getDescription(), N));
   }
 }
 
@@ -339,21 +341,21 @@ ProgramStateRef StreamChecker::CheckNullStream(SVal SV, ProgramStateRef state,
                                     CheckerContext &C) const {
   Optional<DefinedSVal> DV = SV.getAs<DefinedSVal>();
   if (!DV)
-    return 0;
+    return nullptr;
 
   ConstraintManager &CM = C.getConstraintManager();
   ProgramStateRef stateNotNull, stateNull;
-  llvm::tie(stateNotNull, stateNull) = CM.assumeDual(state, *DV);
+  std::tie(stateNotNull, stateNull) = CM.assumeDual(state, *DV);
 
   if (!stateNotNull && stateNull) {
-    if (ExplodedNode *N = C.generateSink(stateNull)) {
+    if (ExplodedNode *N = C.generateErrorNode(stateNull)) {
       if (!BT_nullfp)
-        BT_nullfp.reset(new BuiltinBug("NULL stream pointer",
-                                     "Stream pointer might be NULL."));
-      BugReport *R =new BugReport(*BT_nullfp, BT_nullfp->getDescription(), N);
-      C.emitReport(R);
+        BT_nullfp.reset(new BuiltinBug(this, "NULL stream pointer",
+                                       "Stream pointer might be NULL."));
+      C.emitReport(llvm::make_unique<BugReport>(
+          *BT_nullfp, BT_nullfp->getDescription(), N));
     }
-    return 0;
+    return nullptr;
   }
   return stateNotNull;
 }
@@ -365,29 +367,28 @@ ProgramStateRef StreamChecker::CheckDoubleClose(const CallExpr *CE,
     state->getSVal(CE->getArg(0), C.getLocationContext()).getAsSymbol();
   if (!Sym)
     return state;
-  
+
   const StreamState *SS = state->get<StreamMap>(Sym);
 
   // If the file stream is not tracked, return.
   if (!SS)
     return state;
-  
+
   // Check: Double close a File Descriptor could cause undefined behaviour.
   // Conforming to man-pages
   if (SS->isClosed()) {
-    ExplodedNode *N = C.generateSink();
+    ExplodedNode *N = C.generateErrorNode();
     if (N) {
       if (!BT_doubleclose)
-        BT_doubleclose.reset(new BuiltinBug("Double fclose",
-                                        "Try to close a file Descriptor already"
-                                        " closed. Cause undefined behaviour."));
-      BugReport *R = new BugReport(*BT_doubleclose,
-                                   BT_doubleclose->getDescription(), N);
-      C.emitReport(R);
+        BT_doubleclose.reset(new BuiltinBug(
+            this, "Double fclose", "Try to close a file Descriptor already"
+                                   " closed. Cause undefined behaviour."));
+      C.emitReport(llvm::make_unique<BugReport>(
+          *BT_doubleclose, BT_doubleclose->getDescription(), N));
     }
-    return NULL;
+    return nullptr;
   }
-  
+
   // Close the File Descriptor.
   return state->set<StreamMap>(Sym, StreamState::getClosed(CE));
 }
@@ -404,14 +405,14 @@ void StreamChecker::checkDeadSymbols(SymbolReaper &SymReaper,
       continue;
 
     if (SS->isOpened()) {
-      ExplodedNode *N = C.generateSink();
+      ExplodedNode *N = C.generateErrorNode();
       if (N) {
         if (!BT_ResourceLeak)
-          BT_ResourceLeak.reset(new BuiltinBug("Resource Leak", 
-                         "Opened File never closed. Potential Resource leak."));
-        BugReport *R = new BugReport(*BT_ResourceLeak, 
-                                     BT_ResourceLeak->getDescription(), N);
-        C.emitReport(R);
+          BT_ResourceLeak.reset(new BuiltinBug(
+              this, "Resource Leak",
+              "Opened File never closed. Potential Resource leak."));
+        C.emitReport(llvm::make_unique<BugReport>(
+            *BT_ResourceLeak, BT_ResourceLeak->getDescription(), N));
       }
     }
   }

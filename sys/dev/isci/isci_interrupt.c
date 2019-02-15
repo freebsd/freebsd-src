@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * BSD LICENSE
  *
  * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
@@ -136,8 +138,8 @@ isci_interrupt_setup(struct isci_softc *isci)
 	    pci_msix_count(isci->device) >= max_msix_messages) {
 
 		isci->num_interrupts = max_msix_messages;
-		pci_alloc_msix(isci->device, &isci->num_interrupts);
-		if (isci->num_interrupts == max_msix_messages)
+		if (pci_alloc_msix(isci->device, &isci->num_interrupts) == 0 &&
+		    isci->num_interrupts == max_msix_messages)
 			use_msix = TRUE;
 	}
 

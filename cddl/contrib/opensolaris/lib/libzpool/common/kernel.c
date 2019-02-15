@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
  */
 
@@ -32,6 +32,7 @@
 #include <string.h>
 #include <zlib.h>
 #include <libgen.h>
+#include <sys/assfail.h>
 #include <sys/spa.h>
 #include <sys/stat.h>
 #include <sys/processor.h>
@@ -45,7 +46,9 @@
  * Emulation of kernel services in userland.
  */
 
+#ifndef __FreeBSD__
 int aok;
+#endif
 uint64_t physmem;
 vnode_t *rootdir = (vnode_t *)0xabcd1234;
 char hw_serial[HW_HOSTID_LEN];
@@ -92,6 +95,11 @@ kstat_create(char *module, int instance, char *name, char *class,
 {
 	return (NULL);
 }
+
+/*ARGSUSED*/
+void
+kstat_named_init(kstat_named_t *knp, const char *name, uchar_t type)
+{}
 
 /*ARGSUSED*/
 void
@@ -361,18 +369,26 @@ cv_timedwait_hires(kcondvar_t *cv, kmutex_t *mp, hrtime_t tim, hrtime_t res,
     int flag)
 {
 	int error;
-	timestruc_t ts;
+	timespec_t ts;
 	hrtime_t delta;
 
-	ASSERT(flag == 0);
+	ASSERT(flag == 0 || flag == CALLOUT_FLAG_ABSOLUTE);
 
 top:
-	delta = tim - gethrtime();
+	delta = tim;
+	if (flag & CALLOUT_FLAG_ABSOLUTE)
+		delta -= gethrtime();
+
 	if (delta <= 0)
 		return (-1);
 
-	ts.tv_sec = delta / NANOSEC;
-	ts.tv_nsec = delta % NANOSEC;
+	clock_gettime(CLOCK_REALTIME, &ts);
+	ts.tv_sec += delta / NANOSEC;
+	ts.tv_nsec += delta % NANOSEC;
+	if (ts.tv_nsec >= NANOSEC) {
+		ts.tv_sec++;
+		ts.tv_nsec -= NANOSEC;
+	}
 
 	ASSERT(mutex_owner(mp) == curthread);
 	mp->m_owner = NULL;
@@ -521,7 +537,7 @@ vn_openat(char *path, int x1, int flags, int mode, vnode_t **vpp, int x2,
 /*ARGSUSED*/
 int
 vn_rdwr(int uio, vnode_t *vp, void *addr, ssize_t len, offset_t offset,
-	int x1, int x2, rlim64_t x3, void *x4, ssize_t *residp)
+    int x1, int x2, rlim64_t x3, void *x4, ssize_t *residp)
 {
 	ssize_t iolen, split;
 
@@ -720,11 +736,10 @@ static char ce_suffix[CE_IGNORE][2] = { "", "\n", "\n", "" };
 void
 vpanic(const char *fmt, va_list adx)
 {
-	(void) fprintf(stderr, "error: ");
-	(void) vfprintf(stderr, fmt, adx);
-	(void) fprintf(stderr, "\n");
-
-	abort();	/* think of it as a "user-level crash dump" */
+	char buf[512];
+	(void) vsnprintf(buf, 512, fmt, adx);
+	assfail(buf, NULL, 0);
+	abort(); /* necessary to make vpanic meet noreturn requirements */
 }
 
 void
@@ -991,6 +1006,16 @@ kernel_fini(void)
 
 	random_fd = -1;
 	urandom_fd = -1;
+}
+
+/* ARGSUSED */
+uint32_t
+zone_get_hostid(void *zonep)
+{
+	/*
+	 * We're emulating the system's hostid in userland.
+	 */
+	return (strtoul(hw_serial, NULL, 10));
 }
 
 int

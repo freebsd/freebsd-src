@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Sam Leffler.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -120,6 +122,8 @@ ad7418_attach(device_t dev)
 	int conf;
 
 	sc->sc_dev = dev;
+	sc->sc_lastupdate = ticks - hz;
+
 	sx_init(&sc->sc_lock, "ad7418");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,

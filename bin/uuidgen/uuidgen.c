@@ -28,6 +28,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/capsicum.h>
+
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,7 +50,7 @@ main(int argc, char *argv[])
 	FILE *fp;
 	uuid_t *store, *uuid;
 	char *p;
-	int ch, count, i, iterate;
+	int ch, count, i, iterate, status;
 
 	count = -1;	/* no count yet */
 	fp = stdout;	/* default output file */
@@ -80,6 +83,12 @@ main(int argc, char *argv[])
 	if (argc)
 		usage();
 
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0)
+		err(1, "Unable to limit stdio");
+	if (caph_enter() < 0)
+		err(1, "Unable to enter capability mode");
+
 	if (count == -1)
 		count = 1;
 
@@ -101,7 +110,9 @@ main(int argc, char *argv[])
 
 	uuid = store;
 	while (count--) {
-		uuid_to_string(uuid++, &p, NULL);
+		uuid_to_string(uuid++, &p, &status);
+		if (status != uuid_s_ok)
+		     err(1, "cannot stringify a UUID");
 		fprintf(fp, "%s\n", p);
 		free(p);
 	}

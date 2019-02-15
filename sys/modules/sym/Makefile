@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/sym
+.PATH: ${SRCTOP}/sys/dev/sym
 
 KMOD=	sym
 SRCS=	sym_hipd.c opt_sym.h opt_cam.h opt_scsi.h

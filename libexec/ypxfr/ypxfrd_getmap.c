@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1995, 1996
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -47,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include "ypxfr_extern.h"
 
-int fp = 0;
+static int fp = 0;
 
 static bool_t
 xdr_my_xfr(register XDR *xdrs, xfr *objp)

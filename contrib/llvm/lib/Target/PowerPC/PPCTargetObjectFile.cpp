@@ -8,10 +8,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "PPCTargetObjectFile.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCSectionELF.h"
-#include "llvm/Target/Mangler.h"
 
 using namespace llvm;
 
@@ -22,16 +22,8 @@ Initialize(MCContext &Ctx, const TargetMachine &TM) {
   InitializeELF(TM.Options.UseInitArray);
 }
 
-const MCSection * PPC64LinuxTargetObjectFile::
-SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
-                       Mangler *Mang, const TargetMachine &TM) const {
-
-  const MCSection *DefaultSection = 
-    TargetLoweringObjectFileELF::SelectSectionForGlobal(GV, Kind, Mang, TM);
-
-  if (DefaultSection != ReadOnlySection)
-    return DefaultSection;
-
+MCSection *PPC64LinuxTargetObjectFile::SelectSectionForGlobal(
+    const GlobalObject *GO, SectionKind Kind, const TargetMachine &TM) const {
   // Here override ReadOnlySection to DataRelROSection for PPC64 SVR4 ABI
   // when we have a constant that contains global relocations.  This is
   // necessary because of this ABI's handling of pointers to functions in
@@ -46,22 +38,22 @@ SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
   // linker, so we must use DataRelROSection instead of ReadOnlySection.
   // For more information, see the description of ELIMINATE_COPY_RELOCS in
   // GNU ld.
-  const GlobalVariable *GVar = dyn_cast<GlobalVariable>(GV);
+  if (Kind.isReadOnly()) {
+    const auto *GVar = dyn_cast<GlobalVariable>(GO);
 
-  if (GVar && GVar->isConstant() &&
-      (GVar->getInitializer()->getRelocationInfo() ==
-       Constant::GlobalRelocations))
-    return DataRelROSection;
+    if (GVar && GVar->isConstant() && GVar->getInitializer()->needsRelocation())
+      Kind = SectionKind::getReadOnlyWithRel();
+  }
 
-  return DefaultSection;
+  return TargetLoweringObjectFileELF::SelectSectionForGlobal(GO, Kind, TM);
 }
 
 const MCExpr *PPC64LinuxTargetObjectFile::
 getDebugThreadLocalSymbol(const MCSymbol *Sym) const {
   const MCExpr *Expr =
-    MCSymbolRefExpr::Create(Sym, MCSymbolRefExpr::VK_PPC_DTPREL, getContext());
-  return MCBinaryExpr::CreateAdd(Expr,
-                                 MCConstantExpr::Create(0x8000, getContext()),
+    MCSymbolRefExpr::create(Sym, MCSymbolRefExpr::VK_DTPREL, getContext());
+  return MCBinaryExpr::createAdd(Expr,
+                                 MCConstantExpr::create(0x8000, getContext()),
                                  getContext());
 }
 

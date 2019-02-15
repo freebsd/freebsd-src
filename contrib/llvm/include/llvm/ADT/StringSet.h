@@ -1,4 +1,4 @@
-//===--- StringSet.h - The LLVM Compiler Driver -----------------*- C++ -*-===//
+//===- StringSet.h - The LLVM Compiler Driver -------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -15,31 +15,38 @@
 #define LLVM_ADT_STRINGSET_H
 
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Allocator.h"
+#include <cassert>
+#include <initializer_list>
+#include <utility>
 
 namespace llvm {
 
   /// StringSet - A wrapper for StringMap that provides set-like functionality.
-  template <class AllocatorTy = llvm::MallocAllocator>
-  class StringSet : public llvm::StringMap<char, AllocatorTy> {
-    typedef llvm::StringMap<char, AllocatorTy> base;
-  public:
+  template <class AllocatorTy = MallocAllocator>
+  class StringSet : public StringMap<char, AllocatorTy> {
+    using base = StringMap<char, AllocatorTy>;
 
-    /// insert - Insert the specified key into the set.  If the key already
-    /// exists in the set, return false and ignore the request, otherwise insert
-    /// it and return true.
-    bool insert(StringRef Key) {
-      // Get or create the map entry for the key; if it doesn't exist the value
-      // type will be default constructed which we use to detect insert.
-      //
-      // We use '+' as the sentinel value in the map.
+  public:
+    StringSet() = default;
+    StringSet(std::initializer_list<StringRef> S) {
+      for (StringRef X : S)
+        insert(X);
+    }
+
+    std::pair<typename base::iterator, bool> insert(StringRef Key) {
       assert(!Key.empty());
-      StringMapEntry<char> &Entry = this->GetOrCreateValue(Key);
-      if (Entry.getValue() == '+')
-        return false;
-      Entry.setValue('+');
-      return true;
+      return base::insert(std::make_pair(Key, '\0'));
+    }
+
+    template <typename InputIt>
+    void insert(const InputIt &Begin, const InputIt &End) {
+      for (auto It = Begin; It != End; ++It)
+        base::insert(std::make_pair(*It, '\0'));
     }
   };
-}
+
+} // end namespace llvm
 
 #endif // LLVM_ADT_STRINGSET_H

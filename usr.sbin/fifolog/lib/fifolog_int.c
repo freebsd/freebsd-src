@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2008 Poul-Henning Kamp
  * All rights reserved.
  *
@@ -125,7 +127,7 @@ fifolog_int_open_i(struct fifolog_file *f, const char *fname, int mode)
 
 	/* Initialize zlib handling */
 
-	f->zs = calloc(sizeof *f->zs, 1);
+	f->zs = calloc(1, sizeof(*f->zs));
 	if (f->zs == NULL)
 		return ("cannot malloc");
 

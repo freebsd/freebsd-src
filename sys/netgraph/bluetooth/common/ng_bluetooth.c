@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -57,7 +59,7 @@ static u_int32_t	bluetooth_sco_rtx_timeout_value      = 60;  /* sec */
 
 SYSCTL_NODE(_net, OID_AUTO, bluetooth, CTLFLAG_RW, 0, "Bluetooth family");
 SYSCTL_INT(_net_bluetooth, OID_AUTO, version,
-	CTLFLAG_RD, 0, NG_BLUETOOTH_VERSION, "Version of the stack");
+	CTLFLAG_RD, SYSCTL_NULL_INT_PTR, NG_BLUETOOTH_VERSION, "Version of the stack");
 
 /* 
  * HCI

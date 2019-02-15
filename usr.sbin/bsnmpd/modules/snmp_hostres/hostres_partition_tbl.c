@@ -50,11 +50,7 @@
 #include "hostres_oid.h"
 #include "hostres_tree.h"
 
-#ifdef PC98
-#define	HR_FREEBSD_PART_TYPE	0xc494
-#else
 #define	HR_FREEBSD_PART_TYPE	165
-#endif
 
 /* Maximum length for label and id including \0 */
 #define	PART_STR_MLEN	(128 + 1)
@@ -177,7 +173,7 @@ partition_entry_create(int32_t ds_index, const char *chunk_name)
 
 		if (next_partition_index > INT_MAX) {
 			/* Unrecoverable error - die clean and quicly*/
-		        syslog(LOG_ERR, "%s: hrPartitionTable index wrap",
+			syslog(LOG_ERR, "%s: hrPartitionTable index wrap",
 			    __func__);
 			errx(EX_SOFTWARE, "hrPartitionTable index wrap");
 		}

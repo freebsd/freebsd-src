@@ -18,9 +18,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/CallGraph.h"
+#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/CallSite.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
@@ -32,19 +32,18 @@ namespace {
   struct ExternalFunctionsPassedConstants : public ModulePass {
     static char ID; // Pass ID, replacement for typeid
     ExternalFunctionsPassedConstants() : ModulePass(ID) {}
-    virtual bool runOnModule(Module &M) {
+    bool runOnModule(Module &M) override {
       for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
         if (!I->isDeclaration()) continue;
-        
+
         bool PrintedFn = false;
-        for (Value::use_iterator UI = I->use_begin(), E = I->use_end();
-             UI != E; ++UI) {
-          Instruction *User = dyn_cast<Instruction>(*UI);
-          if (!User) continue;
-          
-          CallSite CS(cast<Value>(User));
+        for (User *U : I->users()) {
+          Instruction *UI = dyn_cast<Instruction>(U);
+          if (!UI) continue;
+
+          CallSite CS(cast<Value>(UI));
           if (!CS) continue;
-          
+
           for (CallSite::arg_iterator AI = CS.arg_begin(),
                E = CS.arg_end(); AI != E; ++AI) {
             if (!isa<Constant>(*AI)) continue;
@@ -53,7 +52,7 @@ namespace {
               errs() << "Function '" << I->getName() << "':\n";
               PrintedFn = true;
             }
-            errs() << *User;
+            errs() << *UI;
             break;
           }
         }
@@ -62,7 +61,7 @@ namespace {
       return false;
     }
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesAll();
     }
   };
@@ -72,23 +71,3 @@ char ExternalFunctionsPassedConstants::ID = 0;
 static RegisterPass<ExternalFunctionsPassedConstants>
   P1("print-externalfnconstants",
      "Print external fn callsites passed constants");
-
-namespace {
-  struct CallGraphPrinter : public ModulePass {
-    static char ID; // Pass ID, replacement for typeid
-    CallGraphPrinter() : ModulePass(ID) {}
-
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-      AU.setPreservesAll();
-      AU.addRequiredTransitive<CallGraph>();
-    }
-    virtual bool runOnModule(Module &M) {
-      getAnalysis<CallGraph>().print(errs(), &M);
-      return false;
-    }
-  };
-}
-
-char CallGraphPrinter::ID = 0;
-static RegisterPass<CallGraphPrinter>
-  P2("print-callgraph", "Print a call graph");

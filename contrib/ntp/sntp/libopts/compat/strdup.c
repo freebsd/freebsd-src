@@ -3,6 +3,9 @@
  */
 
 static char *
+strdup( char const *s );
+
+static char *
 strdup( char const *s )
 {
     char *cp;

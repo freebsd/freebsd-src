@@ -79,7 +79,7 @@ extern "C" {
  * until it exits.
  */
 
-#if !defined(sun)
+#ifndef illumos
 typedef struct fasttrap_scrblock {
 	vm_offset_t ftsb_addr;			/* address of a scratch block */
 	LIST_ENTRY(fasttrap_scrblock) ftsb_next;/* next block in list */
@@ -99,7 +99,7 @@ typedef struct fasttrap_proc {
 	uint64_t ftpc_rcount;			/* count of extant providers */
 	kmutex_t ftpc_mtx;			/* lock on all but acount */
 	struct fasttrap_proc *ftpc_next;	/* next proc in hash chain */
-#if !defined(sun)
+#ifndef illumos
 	LIST_HEAD(, fasttrap_scrblock) ftpc_scrblks; /* mapped scratch blocks */
 	LIST_HEAD(, fasttrap_scrspace) ftpc_fscr; /* free scratch space */
 	LIST_HEAD(, fasttrap_scrspace) ftpc_ascr; /* used scratch space */
@@ -198,13 +198,17 @@ typedef struct fasttrap_hash {
 #endif
 
 extern void fasttrap_sigtrap(proc_t *, kthread_t *, uintptr_t);
-#if !defined(sun)
+#ifndef illumos
 extern fasttrap_scrspace_t *fasttrap_scraddr(struct thread *,
     fasttrap_proc_t *);
 #endif
 
 extern dtrace_id_t 		fasttrap_probe_id;
 extern fasttrap_hash_t		fasttrap_tpoints;
+
+#ifndef illumos
+extern struct rmlock		fasttrap_tp_lock;
+#endif
 
 #define	FASTTRAP_TPOINTS_INDEX(pid, pc) \
 	(((pc) / sizeof (fasttrap_instr_t) + (pid)) & fasttrap_tpoints.fth_mask)
@@ -217,9 +221,9 @@ extern int fasttrap_tracepoint_init(proc_t *, fasttrap_tracepoint_t *,
 extern int fasttrap_tracepoint_install(proc_t *, fasttrap_tracepoint_t *);
 extern int fasttrap_tracepoint_remove(proc_t *, fasttrap_tracepoint_t *);
 
-struct reg;
-extern int fasttrap_pid_probe(struct reg *);
-extern int fasttrap_return_probe(struct reg *);
+struct trapframe;
+extern int fasttrap_pid_probe(struct trapframe *);
+extern int fasttrap_return_probe(struct trapframe *);
 
 extern uint64_t fasttrap_pid_getarg(void *, dtrace_id_t, void *, int, int);
 extern uint64_t fasttrap_usdt_getarg(void *, dtrace_id_t, void *, int, int);

@@ -1951,10 +1951,6 @@ ipf_p_ftp_epsv(softf, fin, ip, nat, ftp, dlen)
 		ap += *s++ - '0';
 	}
 
-	if (!s) {
-		return 0;
-}
-
 	if (*s == '|')
 		s++;
 	if (*s == ')')
@@ -2140,7 +2136,7 @@ ipf_p_ftp_eprt6(softf, fin, ip, nat, ftp, dlen)
 	SNPRINTF(s, left, "%x:%x", a >> 16, a & 0xffff);
 	left -= strlen(s);
 	s += strlen(s);
-	sprintf(s, "|%d|\r\n", port);
+	SNPRINTF(s, left, "|%d|\r\n", port);
 #else
 	(void) sprintf(s, "EPRT %c2%c", delim, delim);
 	s += strlen(s);

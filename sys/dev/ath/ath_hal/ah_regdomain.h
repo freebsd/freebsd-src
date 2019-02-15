@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2005-2006 Atheros Communications, Inc.
  * All rights reserved.
@@ -157,7 +159,8 @@ typedef struct regDomain {
 } REG_DOMAIN;
 
 struct cmode {
-	u_int	mode;
-	u_int	flags;
+	u_int		mode;
+	u_int		flags;
+	REG_DMN_FREQ_BAND *freqs;
 };
 #endif

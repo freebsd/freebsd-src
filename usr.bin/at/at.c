@@ -1,5 +1,8 @@
-/* 
+/*-
  *  at.c : Put file into atrun queue
+ *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  *  Copyright (C) 1993, 1994 Thomas Koenig
  *
  *  Atrun & Atq modifications
@@ -351,12 +354,12 @@ writefile(time_t runtimer, char queue)
 	char *eqp;
 
 	eqp = strchr(*atenv, '=');
-	if (ap == NULL)
+	if (eqp == NULL)
 	    eqp = *atenv;
 	else
 	{
 	    size_t i;
-	    for (i=0; i<sizeof(no_export)/sizeof(no_export[0]); i++)
+	    for (i = 0; i < nitems(no_export); i++)
 	    {
 		export = export
 		    && (strncmp(*atenv, no_export[i], 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Konstantin Dimitrov <kosio.dimitrov@gmail.com>
  * Copyright (c) 2001 Katsurajima Naoto <raven@katsurajima.seya.yokohama.jp>
  * All rights reserved.
@@ -2212,7 +2214,7 @@ envy24ht_putcfg(struct sc_info *sc)
 		printf("reserved\n");
 		break;
 	default:
-		printf("illeagal system setting\n");
+		printf("illegal system setting\n");
 	}
 	printf("  MPU-401 UART(s) #: ");
 	if (sc->cfg->scfg & ENVY24HT_CCSM_SCFG_MPU)
@@ -2400,11 +2402,11 @@ envy24ht_alloc_resource(struct sc_info *sc)
 {
 	/* allocate I/O port resource */
 	sc->csid = PCIR_CCS;
-	sc->cs = bus_alloc_resource(sc->dev, SYS_RES_IOPORT,
-	    &sc->csid, 0, ~0, 1, RF_ACTIVE);
+	sc->cs = bus_alloc_resource_any(sc->dev, SYS_RES_IOPORT,
+	    &sc->csid, RF_ACTIVE);
 	sc->mtid = ENVY24HT_PCIR_MT;
-	sc->mt = bus_alloc_resource(sc->dev, SYS_RES_IOPORT,
-	    &sc->mtid, 0, ~0, 1, RF_ACTIVE);
+	sc->mt = bus_alloc_resource_any(sc->dev, SYS_RES_IOPORT,
+	    &sc->mtid, RF_ACTIVE);
 	if (!sc->cs || !sc->mt) {
 		device_printf(sc->dev, "unable to map IO port space\n");
 		return ENXIO;
@@ -2422,8 +2424,8 @@ envy24ht_alloc_resource(struct sc_info *sc)
 
 	/* allocate interrupt resource */
 	sc->irqid = 0;
-	sc->irq = bus_alloc_resource(sc->dev, SYS_RES_IRQ, &sc->irqid,
-				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	sc->irq = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ, &sc->irqid,
+				 RF_ACTIVE | RF_SHAREABLE);
 	if (!sc->irq ||
 	    snd_setup_intr(sc->dev, sc->irq, INTR_MPSAFE, envy24ht_intr, sc, &sc->ih)) {
 		device_printf(sc->dev, "unable to map interrupt\n");
@@ -2507,7 +2509,7 @@ envy24ht_pci_attach(device_t dev)
 
 	/* set status iformation */
 	snprintf(status, SND_STATUSLEN,
-	    "at io 0x%lx:%ld,0x%lx:%ld irq %ld",
+	    "at io 0x%jx:%jd,0x%jx:%jd irq %jd",
 	    rman_get_start(sc->cs),
 	    rman_get_end(sc->cs) - rman_get_start(sc->cs) + 1,
 	    rman_get_start(sc->mt),
@@ -2588,11 +2590,7 @@ static device_method_t envy24ht_methods[] = {
 static driver_t envy24ht_driver = {
 	"pcm",
 	envy24ht_methods,
-#if __FreeBSD_version > 500000
 	PCM_SOFTC_SIZE,
-#else
-	sizeof(struct snddev_info),
-#endif
 };
 
 DRIVER_MODULE(snd_envy24ht, pci, envy24ht_driver, pcm_devclass, 0, 0);

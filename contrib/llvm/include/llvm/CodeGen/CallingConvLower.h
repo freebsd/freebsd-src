@@ -1,4 +1,4 @@
-//===-- llvm/CallingConvLower.h - Calling Conventions -----------*- C++ -*-===//
+//===- llvm/CallingConvLower.h - Calling Conventions ------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -18,30 +18,40 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/CodeGen/TargetCallingConv.h"
 #include "llvm/IR/CallingConv.h"
-#include "llvm/Target/TargetCallingConv.h"
+#include "llvm/MC/MCRegisterInfo.h"
 
 namespace llvm {
-  class TargetRegisterInfo;
-  class TargetMachine;
-  class CCState;
+
+class CCState;
+class MVT;
+class TargetMachine;
+class TargetRegisterInfo;
 
 /// CCValAssign - Represent assignment of one arg/retval to a location.
 class CCValAssign {
 public:
   enum LocInfo {
-    Full,   // The value fills the full location.
-    SExt,   // The value is sign extended in the location.
-    ZExt,   // The value is zero extended in the location.
-    AExt,   // The value is extended with undefined upper bits.
-    BCvt,   // The value is bit-converted in the location.
-    VExt,   // The value is vector-widened in the location.
-            // FIXME: Not implemented yet. Code that uses AExt to mean
-            // vector-widen should be fixed to use VExt instead.
-    Indirect // The location contains pointer to the value.
+    Full,      // The value fills the full location.
+    SExt,      // The value is sign extended in the location.
+    ZExt,      // The value is zero extended in the location.
+    AExt,      // The value is extended with undefined upper bits.
+    SExtUpper, // The value is in the upper bits of the location and should be
+               // sign extended when retrieved.
+    ZExtUpper, // The value is in the upper bits of the location and should be
+               // zero extended when retrieved.
+    AExtUpper, // The value is in the upper bits of the location and should be
+               // extended with undefined upper bits when retrieved.
+    BCvt,      // The value is bit-converted in the location.
+    VExt,      // The value is vector-widened in the location.
+               // FIXME: Not implemented yet. Code that uses AExt to mean
+               // vector-widen should be fixed to use VExt instead.
+    FPExt,     // The floating-point value is fp-extended in the location.
+    Indirect   // The location contains pointer to the value.
     // TODO: a subset of the value is in the location.
   };
+
 private:
   /// ValNo - This is the value number begin assigned (e.g. an argument number).
   unsigned ValNo;
@@ -111,6 +121,23 @@ public:
     return Ret;
   }
 
+  // There is no need to differentiate between a pending CCValAssign and other
+  // kinds, as they are stored in a different list.
+  static CCValAssign getPending(unsigned ValNo, MVT ValVT, MVT LocVT,
+                                LocInfo HTP, unsigned ExtraInfo = 0) {
+    return getReg(ValNo, ValVT, ExtraInfo, LocVT, HTP);
+  }
+
+  void convertToReg(unsigned RegNo) {
+    Loc = RegNo;
+    isMem = false;
+  }
+
+  void convertToMem(unsigned Offset) {
+    Loc = Offset;
+    isMem = true;
+  }
+
   unsigned getValNo() const { return ValNo; }
   MVT getValVT() const { return ValVT; }
 
@@ -121,6 +148,7 @@ public:
 
   unsigned getLocReg() const { assert(isRegLoc()); return Loc; }
   unsigned getLocMemOffset() const { assert(isMemLoc()); return Loc; }
+  unsigned getExtraInfo() const { return Loc; }
   MVT getLocVT() const { return LocVT; }
 
   LocInfo getLocInfo() const { return HTP; }
@@ -128,6 +156,19 @@ public:
     return (HTP == AExt || HTP == SExt || HTP == ZExt);
   }
 
+  bool isUpperBitsInLoc() const {
+    return HTP == AExtUpper || HTP == SExtUpper || HTP == ZExtUpper;
+  }
+};
+
+/// Describes a register that needs to be forwarded from the prologue to a
+/// musttail call.
+struct ForwardedRegister {
+  ForwardedRegister(unsigned VReg, MCPhysReg PReg, MVT VT)
+      : VReg(VReg), PReg(PReg), VT(VT) {}
+  unsigned VReg;
+  MCPhysReg PReg;
+  MVT VT;
 };
 
 /// CCAssignFn - This function assigns a location for Val, updating State to
@@ -143,11 +184,6 @@ typedef bool CCCustomFn(unsigned &ValNo, MVT &ValVT,
                         MVT &LocVT, CCValAssign::LocInfo &LocInfo,
                         ISD::ArgFlagsTy &ArgFlags, CCState &State);
 
-/// ParmContext - This enum tracks whether calling convention lowering is in
-/// the context of prologue or call generation. Not all backends make use of
-/// this information.
-typedef enum { Unknown, Prologue, Call } ParmContext;
-
 /// CCState - This class holds information needed while lowering arguments and
 /// return values.  It captures which registers are already assigned and which
 /// stack slots are used.  It provides accessors to allocate these values.
@@ -155,14 +191,17 @@ class CCState {
 private:
   CallingConv::ID CallingConv;
   bool IsVarArg;
+  bool AnalyzingMustTailForwardedRegs = false;
   MachineFunction &MF;
-  const TargetMachine &TM;
   const TargetRegisterInfo &TRI;
   SmallVectorImpl<CCValAssign> &Locs;
   LLVMContext &Context;
 
   unsigned StackOffset;
+  unsigned MaxStackArgAlign;
   SmallVector<uint32_t, 16> UsedRegs;
+  SmallVector<CCValAssign, 4> PendingLocs;
+  SmallVector<ISD::ArgFlagsTy, 4> PendingArgFlags;
 
   // ByValInfo and SmallVector<ByValInfo, 4> ByValRegs:
   //
@@ -189,10 +228,10 @@ private:
   // while "%t" goes to the stack: it wouldn't be described in ByValRegs.
   //
   // Supposed use-case for this collection:
-  // 1. Initially ByValRegs is empty, InRegsParamsProceed is 0.
+  // 1. Initially ByValRegs is empty, InRegsParamsProcessed is 0.
   // 2. HandleByVal fillups ByValRegs.
   // 3. Argument analysis (LowerFormatArguments, for example). After
-  // some byval argument was analyzed, InRegsParamsProceed is increased.
+  // some byval argument was analyzed, InRegsParamsProcessed is increased.
   struct ByValInfo {
     ByValInfo(unsigned B, unsigned E, bool IsWaste = false) :
       Begin(B), End(E), Waste(IsWaste) {}
@@ -210,29 +249,35 @@ private:
   };
   SmallVector<ByValInfo, 4 > ByValRegs;
 
-  // InRegsParamsProceed - shows how many instances of ByValRegs was proceed
+  // InRegsParamsProcessed - shows how many instances of ByValRegs was proceed
   // during argument analysis.
-  unsigned InRegsParamsProceed;
-
-protected:
-  ParmContext CallOrPrologue;
+  unsigned InRegsParamsProcessed;
 
 public:
   CCState(CallingConv::ID CC, bool isVarArg, MachineFunction &MF,
-          const TargetMachine &TM, SmallVectorImpl<CCValAssign> &locs,
-          LLVMContext &C);
+          SmallVectorImpl<CCValAssign> &locs, LLVMContext &C);
 
   void addLoc(const CCValAssign &V) {
     Locs.push_back(V);
   }
 
   LLVMContext &getContext() const { return Context; }
-  const TargetMachine &getTarget() const { return TM; }
   MachineFunction &getMachineFunction() const { return MF; }
   CallingConv::ID getCallingConv() const { return CallingConv; }
   bool isVarArg() const { return IsVarArg; }
 
-  unsigned getNextStackOffset() const { return StackOffset; }
+  /// getNextStackOffset - Return the next stack offset such that all stack
+  /// slots satisfy their alignment requirements.
+  unsigned getNextStackOffset() const {
+    return StackOffset;
+  }
+
+  /// getAlignedCallFrameSize - Return the size of the call frame needed to
+  /// be able to store all arguments and such that the alignment requirement
+  /// of each of the arguments is satisfied.
+  unsigned getAlignedCallFrameSize() const {
+    return alignTo(StackOffset, MaxStackArgAlign);
+  }
 
   /// isAllocated - Return true if the specified register (or an alias) is
   /// allocated.
@@ -244,6 +289,12 @@ public:
   /// incorporating info about the formals into this state.
   void AnalyzeFormalArguments(const SmallVectorImpl<ISD::InputArg> &Ins,
                               CCAssignFn Fn);
+
+  /// The function will invoke AnalyzeFormalArguments.
+  void AnalyzeArguments(const SmallVectorImpl<ISD::InputArg> &Ins,
+                        CCAssignFn Fn) {
+    AnalyzeFormalArguments(Ins, Fn);
+  }
 
   /// AnalyzeReturn - Analyze the returned values of a return,
   /// incorporating info about the result values into this state.
@@ -267,22 +318,33 @@ public:
                            SmallVectorImpl<ISD::ArgFlagsTy> &Flags,
                            CCAssignFn Fn);
 
+  /// The function will invoke AnalyzeCallOperands.
+  void AnalyzeArguments(const SmallVectorImpl<ISD::OutputArg> &Outs,
+                        CCAssignFn Fn) {
+    AnalyzeCallOperands(Outs, Fn);
+  }
+
   /// AnalyzeCallResult - Analyze the return values of a call,
   /// incorporating info about the passed values into this state.
   void AnalyzeCallResult(const SmallVectorImpl<ISD::InputArg> &Ins,
                          CCAssignFn Fn);
 
+  /// A shadow allocated register is a register that was allocated
+  /// but wasn't added to the location list (Locs).
+  /// \returns true if the register was allocated as shadow or false otherwise.
+  bool IsShadowAllocatedReg(unsigned Reg) const;
+
   /// AnalyzeCallResult - Same as above except it's specialized for calls which
   /// produce a single value.
   void AnalyzeCallResult(MVT VT, CCAssignFn Fn);
 
-  /// getFirstUnallocated - Return the first unallocated register in the set, or
-  /// NumRegs if they are all allocated.
-  unsigned getFirstUnallocated(const uint16_t *Regs, unsigned NumRegs) const {
-    for (unsigned i = 0; i != NumRegs; ++i)
+  /// getFirstUnallocated - Return the index of the first unallocated register
+  /// in the set, or Regs.size() if they are all allocated.
+  unsigned getFirstUnallocated(ArrayRef<MCPhysReg> Regs) const {
+    for (unsigned i = 0; i < Regs.size(); ++i)
       if (!isAllocated(Regs[i]))
         return i;
-    return NumRegs;
+    return Regs.size();
   }
 
   /// AllocateReg - Attempt to allocate one register.  If it is not available,
@@ -305,9 +367,9 @@ public:
   /// AllocateReg - Attempt to allocate one of the specified registers.  If none
   /// are available, return zero.  Otherwise, return the first one available,
   /// marking it and any aliases as allocated.
-  unsigned AllocateReg(const uint16_t *Regs, unsigned NumRegs) {
-    unsigned FirstUnalloc = getFirstUnallocated(Regs, NumRegs);
-    if (FirstUnalloc == NumRegs)
+  unsigned AllocateReg(ArrayRef<MCPhysReg> Regs) {
+    unsigned FirstUnalloc = getFirstUnallocated(Regs);
+    if (FirstUnalloc == Regs.size())
       return 0;    // Didn't find the reg.
 
     // Mark the register and any aliases as allocated.
@@ -316,11 +378,39 @@ public:
     return Reg;
   }
 
+  /// AllocateRegBlock - Attempt to allocate a block of RegsRequired consecutive
+  /// registers. If this is not possible, return zero. Otherwise, return the first
+  /// register of the block that were allocated, marking the entire block as allocated.
+  unsigned AllocateRegBlock(ArrayRef<MCPhysReg> Regs, unsigned RegsRequired) {
+    if (RegsRequired > Regs.size())
+      return 0;
+
+    for (unsigned StartIdx = 0; StartIdx <= Regs.size() - RegsRequired;
+         ++StartIdx) {
+      bool BlockAvailable = true;
+      // Check for already-allocated regs in this block
+      for (unsigned BlockIdx = 0; BlockIdx < RegsRequired; ++BlockIdx) {
+        if (isAllocated(Regs[StartIdx + BlockIdx])) {
+          BlockAvailable = false;
+          break;
+        }
+      }
+      if (BlockAvailable) {
+        // Mark the entire block as allocated
+        for (unsigned BlockIdx = 0; BlockIdx < RegsRequired; ++BlockIdx) {
+          MarkAllocated(Regs[StartIdx + BlockIdx]);
+        }
+        return Regs[StartIdx];
+      }
+    }
+    // No block was available
+    return 0;
+  }
+
   /// Version of AllocateReg with list of registers to be shadowed.
-  unsigned AllocateReg(const uint16_t *Regs, const uint16_t *ShadowRegs,
-                       unsigned NumRegs) {
-    unsigned FirstUnalloc = getFirstUnallocated(Regs, NumRegs);
-    if (FirstUnalloc == NumRegs)
+  unsigned AllocateReg(ArrayRef<MCPhysReg> Regs, const MCPhysReg *ShadowRegs) {
+    unsigned FirstUnalloc = getFirstUnallocated(Regs);
+    if (FirstUnalloc == Regs.size())
       return 0;    // Didn't find the reg.
 
     // Mark the register and any aliases as allocated.
@@ -333,17 +423,32 @@ public:
   /// AllocateStack - Allocate a chunk of stack space with the specified size
   /// and alignment.
   unsigned AllocateStack(unsigned Size, unsigned Align) {
-    assert(Align && ((Align-1) & Align) == 0); // Align is power of 2.
-    StackOffset = ((StackOffset + Align-1) & ~(Align-1));
+    assert(Align && ((Align - 1) & Align) == 0); // Align is power of 2.
+    StackOffset = alignTo(StackOffset, Align);
     unsigned Result = StackOffset;
     StackOffset += Size;
-    MF.getFrameInfo()->ensureMaxAlignment(Align);
+    MaxStackArgAlign = std::max(Align, MaxStackArgAlign);
+    ensureMaxAlignment(Align);
     return Result;
+  }
+
+  void ensureMaxAlignment(unsigned Align) {
+    if (!AnalyzingMustTailForwardedRegs)
+      MF.getFrameInfo().ensureMaxAlignment(Align);
   }
 
   /// Version of AllocateStack with extra register to be shadowed.
   unsigned AllocateStack(unsigned Size, unsigned Align, unsigned ShadowReg) {
     MarkAllocated(ShadowReg);
+    return AllocateStack(Size, Align);
+  }
+
+  /// Version of AllocateStack with list of extra registers to be shadowed.
+  /// Note that, unlike AllocateReg, this shadows ALL of the shadow registers.
+  unsigned AllocateStack(unsigned Size, unsigned Align,
+                         ArrayRef<MCPhysReg> ShadowRegs) {
+    for (unsigned i = 0; i < ShadowRegs.size(); ++i)
+      MarkAllocated(ShadowRegs[i]);
     return AllocateStack(Size, Align);
   }
 
@@ -359,7 +464,7 @@ public:
   unsigned getInRegsParamsCount() const { return ByValRegs.size(); }
 
   // Returns count of byval in-regs arguments proceed.
-  unsigned getInRegsParamsProceed() const { return InRegsParamsProceed; }
+  unsigned getInRegsParamsProcessed() const { return InRegsParamsProcessed; }
 
   // Get information about N-th byval parameter that is stored in registers.
   // Here "ByValParamIndex" is N.
@@ -383,26 +488,89 @@ public:
   // Returns false, if end is reached.
   bool nextInRegsParam() {
     unsigned e = ByValRegs.size();
-    if (InRegsParamsProceed < e)
-      ++InRegsParamsProceed;
-    return InRegsParamsProceed < e;
+    if (InRegsParamsProcessed < e)
+      ++InRegsParamsProcessed;
+    return InRegsParamsProcessed < e;
   }
 
   // Clear byval registers tracking info.
   void clearByValRegsInfo() {
-    InRegsParamsProceed = 0;
+    InRegsParamsProcessed = 0;
     ByValRegs.clear();
   }
 
-  ParmContext getCallOrPrologue() const { return CallOrPrologue; }
+  // Rewind byval registers tracking info.
+  void rewindByValRegsInfo() {
+    InRegsParamsProcessed = 0;
+  }
+
+  // Get list of pending assignments
+  SmallVectorImpl<CCValAssign> &getPendingLocs() {
+    return PendingLocs;
+  }
+
+  // Get a list of argflags for pending assignments.
+  SmallVectorImpl<ISD::ArgFlagsTy> &getPendingArgFlags() {
+    return PendingArgFlags;
+  }
+
+  /// Compute the remaining unused register parameters that would be used for
+  /// the given value type. This is useful when varargs are passed in the
+  /// registers that normal prototyped parameters would be passed in, or for
+  /// implementing perfect forwarding.
+  void getRemainingRegParmsForType(SmallVectorImpl<MCPhysReg> &Regs, MVT VT,
+                                   CCAssignFn Fn);
+
+  /// Compute the set of registers that need to be preserved and forwarded to
+  /// any musttail calls.
+  void analyzeMustTailForwardedRegisters(
+      SmallVectorImpl<ForwardedRegister> &Forwards, ArrayRef<MVT> RegParmTypes,
+      CCAssignFn Fn);
+
+  /// Returns true if the results of the two calling conventions are compatible.
+  /// This is usually part of the check for tailcall eligibility.
+  static bool resultsCompatible(CallingConv::ID CalleeCC,
+                                CallingConv::ID CallerCC, MachineFunction &MF,
+                                LLVMContext &C,
+                                const SmallVectorImpl<ISD::InputArg> &Ins,
+                                CCAssignFn CalleeFn, CCAssignFn CallerFn);
+
+  /// The function runs an additional analysis pass over function arguments.
+  /// It will mark each argument with the attribute flag SecArgPass.
+  /// After running, it will sort the locs list.
+  template <class T>
+  void AnalyzeArgumentsSecondPass(const SmallVectorImpl<T> &Args,
+                                  CCAssignFn Fn) {
+    unsigned NumFirstPassLocs = Locs.size();
+
+    /// Creates similar argument list to \p Args in which each argument is
+    /// marked using SecArgPass flag.
+    SmallVector<T, 16> SecPassArg;
+    // SmallVector<ISD::InputArg, 16> SecPassArg;
+    for (auto Arg : Args) {
+      Arg.Flags.setSecArgPass();
+      SecPassArg.push_back(Arg);
+    }
+
+    // Run the second argument pass
+    AnalyzeArguments(SecPassArg, Fn);
+
+    // Sort the locations of the arguments according to their original position.
+    SmallVector<CCValAssign, 16> TmpArgLocs;
+    std::swap(TmpArgLocs, Locs);
+    auto B = TmpArgLocs.begin(), E = TmpArgLocs.end();
+    std::merge(B, B + NumFirstPassLocs, B + NumFirstPassLocs, E,
+               std::back_inserter(Locs),
+               [](const CCValAssign &A, const CCValAssign &B) -> bool {
+                 return A.getValNo() < B.getValNo();
+               });
+  }
 
 private:
   /// MarkAllocated - Mark a register and all of its aliases as allocated.
   void MarkAllocated(unsigned Reg);
 };
 
-
-
 } // end namespace llvm
 
-#endif
+#endif // LLVM_CODEGEN_CALLINGCONVLOWER_H

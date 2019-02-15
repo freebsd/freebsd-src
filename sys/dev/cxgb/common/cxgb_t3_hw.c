@@ -1,4 +1,5 @@
 /**************************************************************************
+SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 
 Copyright (c) 2007-2009, Chelsio Inc.
 All rights reserved.
@@ -651,7 +652,7 @@ struct t3_vpd {
  *
  *	Read a 32-bit word from a location in VPD EEPROM using the card's PCI
  *	VPD ROM capability.  A zero is written to the flag bit when the
- *	addres is written to the control register.  The hardware device will
+ *	address is written to the control register.  The hardware device will
  *	set the flag to 1 when 4 bytes have been read into the data register.
  */
 int t3_seeprom_read(adapter_t *adapter, u32 addr, u32 *data)
@@ -1031,7 +1032,7 @@ static int flash_wait_op(adapter_t *adapter, int attempts, int delay)
  *	Read the specified number of 32-bit words from the serial flash.
  *	If @byte_oriented is set the read data is stored as a byte array
  *	(i.e., big-endian), otherwise as 32-bit words in the platform's
- *	natural endianess.
+ *	natural endianness.
  */
 int t3_read_flash(adapter_t *adapter, unsigned int addr, unsigned int nwords,
 		  u32 *data, int byte_oriented)
@@ -1068,7 +1069,7 @@ int t3_read_flash(adapter_t *adapter, unsigned int addr, unsigned int nwords,
  *	Writes up to a page of data (256 bytes) to the serial flash starting
  *	at the given address.
  *	If @byte_oriented is set the write data is stored as a 32-bit
- *	big-endian array, otherwise in the processor's native endianess.
+ *	big-endian array, otherwise in the processor's native endianness.
  *
  */
 static int t3_write_flash(adapter_t *adapter, unsigned int addr,
@@ -1520,7 +1521,7 @@ static void t3_clear_faults(adapter_t *adapter, int port_id)
  */
 void t3_link_changed(adapter_t *adapter, int port_id)
 {
-	int link_ok, speed, duplex, fc, link_fault;
+	int link_ok, speed, duplex, fc, link_fault, link_state;
 	struct port_info *pi = adap2pinfo(adapter, port_id);
 	struct cphy *phy = &pi->phy;
 	struct cmac *mac = &pi->mac;
@@ -1532,7 +1533,14 @@ void t3_link_changed(adapter_t *adapter, int port_id)
 	fc = lc->fc;
 	link_fault = 0;
 
-	phy->ops->get_link_status(phy, &link_ok, &speed, &duplex, &fc);
+	phy->ops->get_link_status(phy, &link_state, &speed, &duplex, &fc);
+	link_ok = (link_state == PHY_LINK_UP);
+	if (link_state != PHY_LINK_PARTIAL)
+		phy->rst = 0;
+	else if (++phy->rst == 3) {
+		phy->ops->reset(phy, 0);
+		phy->rst = 0;
+	}
 
 	if (link_ok == 0)
 		pi->link_fault = LF_NO;
@@ -1731,7 +1739,7 @@ struct intr_info {
  *
  *	A table driven interrupt handler that applies a set of masks to an
  *	interrupt status word and performs the corresponding actions if the
- *	interrupts described by the mask have occured.  The actions include
+ *	interrupts described by the mask have occurred.  The actions include
  *	optionally printing a warning or alert message, and optionally
  *	incrementing a stat counter.  The table is terminated by an entry
  *	specifying mask 0.  Returns the number of fatal interrupt conditions.
@@ -3331,7 +3339,7 @@ static void __devinit init_mtus(unsigned short mtus[])
 {
 	/*
 	 * See draft-mathis-plpmtud-00.txt for the values.  The min is 88 so
-	 * it can accomodate max size TCP/IP headers when SACK and timestamps
+	 * it can accommodate max size TCP/IP headers when SACK and timestamps
 	 * are enabled and still have at least 8 bytes of payload.
 	 */
 	mtus[0] = 88;

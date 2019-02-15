@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Sean C. Farley <scf@FreeBSD.org>
  * All rights reserved.
  *
@@ -141,7 +143,7 @@ gr_tmp(int mfd)
 		errno = ENAMETOOLONG;
 		return (-1);
 	}
-	if ((tfd = mkstemp(tempname)) == -1)
+	if ((tfd = mkostemp(tempname, 0)) == -1)
 		return (-1);
 	if (mfd != -1) {
 		while ((nr = read(mfd, buf, sizeof(buf))) > 0)
@@ -164,20 +166,32 @@ gr_tmp(int mfd)
 int
 gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 {
-	char buf[8192], *end, *line, *p, *q, *r, t;
+	char *buf, *end, *line, *p, *q, *r, *tmp;
 	struct group *fgr;
 	const struct group *sgr;
-	size_t len;
+	size_t len, size;
 	int eof, readlen;
+	char t;
 
-	sgr = gr;
+	if (old_gr == NULL && gr == NULL)
+		return(-1);
+
+	sgr = old_gr;
+	/* deleting a group */
 	if (gr == NULL) {
 		line = NULL;
-		if (old_gr == NULL)
+	} else {
+		if ((line = gr_make(gr)) == NULL)
 			return (-1);
-		sgr = old_gr;
-	} else if ((line = gr_make(gr)) == NULL)
-		return (-1);
+	}
+
+	/* adding a group */
+	if (sgr == NULL)
+		sgr = gr;
+
+	/* initialize the buffer */
+	if ((buf = malloc(size = 1024)) == NULL)
+		goto err;
 
 	eof = 0;
 	len = 0;
@@ -192,10 +206,16 @@ gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 		if (q >= end) {
 			if (eof)
 				break;
-			if ((size_t)(q - p) >= sizeof(buf)) {
-				warnx("group line too long");
-				errno = EINVAL; /* hack */
-				goto err;
+			while ((size_t)(q - p) >= size) {
+				if ((tmp = reallocarray(buf, 2, size)) == NULL) {
+					warnx("group line too long");
+					goto err;
+				}
+				p = tmp + (p - buf);
+				q = tmp + (q - buf);
+				end = tmp + (end - buf);
+				buf = tmp;
+				size = size * 2;
 			}
 			if (p < end) {
 				q = memmove(buf, p, end -p);
@@ -203,7 +223,7 @@ gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 			} else {
 				p = q = end = buf;
 			}
-			readlen = read(ffd, end, sizeof(buf) - (end -buf));
+			readlen = read(ffd, end, size - (end - buf));
 			if (readlen == -1)
 				goto err;
 			else
@@ -212,7 +232,7 @@ gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 				break;
 			end += len;
 			len = end - buf;
-			if (len < (ssize_t)sizeof(buf)) {
+			if (len < size) {
 				eof = 1;
 				if (len > 0 && buf[len -1] != '\n')
 					++len, *end++ = '\n';
@@ -274,7 +294,7 @@ gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 			if (write(tfd, q, end - q) != end - q)
 				goto err;
 			q = buf;
-			readlen = read(ffd, buf, sizeof(buf));
+			readlen = read(ffd, buf, size);
 			if (readlen == 0)
 				break;
 			else
@@ -296,12 +316,12 @@ gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 	   write(tfd, "\n", 1) != 1)
 		goto err;
  done:
-	if (line != NULL)
-		free(line);
+	free(line);
+	free(buf);
 	return (0);
  err:
-	if (line != NULL)
-		free(line);
+	free(line);
+	free(buf);
 	return (-1);
 }
 
@@ -311,10 +331,28 @@ gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 int
 gr_mkdb(void)
 {
+	int fd;
+
 	if (chmod(tempname, 0644) != 0)
 		return (-1);
 
-	return (rename(tempname, group_file));
+	if (rename(tempname, group_file) != 0)
+		return (-1);
+
+	/*
+	 * Make sure new group file is safe on disk. To improve performance we
+	 * will call fsync() to the directory where file lies
+	 */
+	if ((fd = open(group_dir, O_RDONLY|O_DIRECTORY)) == -1)
+		return (-1);
+
+	if (fsync(fd) != 0) {
+		close(fd);
+		return (-1);
+	}
+
+	close(fd);
+	return(0);
 }
 
 /*
@@ -344,8 +382,6 @@ gr_fini(void)
 int
 gr_equal(const struct group *gr1, const struct group *gr2)
 {
-	int gr1_ndx;
-	int gr2_ndx;
 
 	/* Check that the non-member information is the same. */
 	if (gr1->gr_name == NULL || gr2->gr_name == NULL) {
@@ -361,7 +397,8 @@ gr_equal(const struct group *gr1, const struct group *gr2)
 	if (gr1->gr_gid != gr2->gr_gid)
 		return (false);
 
-	/* Check all members in both groups.
+	/*
+	 * Check all members in both groups.
 	 * getgrnam can return gr_mem with a pointer to NULL.
 	 * gr_dup and gr_add strip out this superfluous NULL, setting
 	 * gr_mem to NULL for no members.
@@ -369,22 +406,18 @@ gr_equal(const struct group *gr1, const struct group *gr2)
 	if (gr1->gr_mem != NULL && gr2->gr_mem != NULL) {
 		int i;
 
-		for (i = 0; gr1->gr_mem[i] != NULL; i++) {
+		for (i = 0;
+		    gr1->gr_mem[i] != NULL && gr2->gr_mem[i] != NULL; i++) {
 			if (strcmp(gr1->gr_mem[i], gr2->gr_mem[i]) != 0)
 				return (false);
 		}
-	}
-	/* Count number of members in both structs */
-	gr2_ndx = 0;
-	if (gr2->gr_mem != NULL)
-		for(; gr2->gr_mem[gr2_ndx] != NULL; gr2_ndx++)
-			/* empty */;
-	gr1_ndx = 0;
-	if (gr1->gr_mem != NULL)
-		for(; gr1->gr_mem[gr1_ndx] != NULL; gr1_ndx++)
-			/* empty */;
-	if (gr1_ndx != gr2_ndx)
+		if (gr1->gr_mem[i] != NULL || gr2->gr_mem[i] != NULL)
+			return (false);
+	} else if (gr1->gr_mem != NULL && gr1->gr_mem[0] != NULL) {
 		return (false);
+	} else if (gr2->gr_mem != NULL && gr2->gr_mem[0] != NULL) {
+		return (false);
+	}
 
 	return (true);
 }

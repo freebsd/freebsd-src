@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000-2008 Poul-Henning Kamp
  * Copyright (c) 2000-2008 Dag-Erling Coïdan Smørgrav
  * All rights reserved.
@@ -35,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ctype.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
@@ -42,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #else /* _KERNEL */
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,6 +74,9 @@ static MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 #define	SBUF_FREESPACE(s)	((s)->s_size - ((s)->s_len + 1))
 #define	SBUF_CANEXTEND(s)	((s)->s_flags & SBUF_AUTOEXTEND)
 #define	SBUF_ISSECTION(s)	((s)->s_flags & SBUF_INSECTION)
+#define	SBUF_NULINCLUDED(s)	((s)->s_flags & SBUF_INCLUDENUL)
+#define	SBUF_ISDRAINTOEOR(s)	((s)->s_flags & SBUF_DRAINTOEOR)
+#define	SBUF_DODRAINTOEOR(s)	(SBUF_ISSECTION(s) && SBUF_ISDRAINTOEOR(s))
 
 /*
  * Set / clear flags
@@ -77,6 +84,7 @@ static MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 #define	SBUF_SETFLAG(s, f)	do { (s)->s_flags |= (f); } while (0)
 #define	SBUF_CLEARFLAG(s, f)	do { (s)->s_flags &= ~(f); } while (0)
 
+#define	SBUF_MINSIZE		 2		/* Min is 1 byte + nulterm. */
 #define	SBUF_MINEXTENDSIZE	16		/* Should be power of 2. */
 
 #ifdef PAGE_SIZE
@@ -100,9 +108,15 @@ _assert_sbuf_integrity(const char *fun, struct sbuf *s)
 	    ("%s called with a NULL sbuf pointer", fun));
 	KASSERT(s->s_buf != NULL,
 	    ("%s called with uninitialized or corrupt sbuf", fun));
-	KASSERT(s->s_len < s->s_size,
-	    ("wrote past end of sbuf (%jd >= %jd)",
-	    (intmax_t)s->s_len, (intmax_t)s->s_size));
+	if (SBUF_ISFINISHED(s) && SBUF_NULINCLUDED(s)) {
+		KASSERT(s->s_len <= s->s_size,
+		    ("wrote past end of sbuf (%jd >= %jd)",
+		    (intmax_t)s->s_len, (intmax_t)s->s_size));
+	} else {
+		KASSERT(s->s_len < s->s_size,
+		    ("wrote past end of sbuf (%jd >= %jd)",
+		    (intmax_t)s->s_len, (intmax_t)s->s_size));
+	}
 }
 
 static void
@@ -185,8 +199,9 @@ sbuf_newbuf(struct sbuf *s, char *buf, int length, int flags)
 	s->s_buf = buf;
 
 	if ((s->s_flags & SBUF_AUTOEXTEND) == 0) {
-		KASSERT(s->s_size >= 0,
-		    ("attempt to create a too small sbuf"));
+		KASSERT(s->s_size >= SBUF_MINSIZE,
+		    ("attempt to create an sbuf smaller than %d bytes",
+		    SBUF_MINSIZE));
 	}
 
 	if (s->s_buf != NULL)
@@ -262,6 +277,28 @@ sbuf_uionew(struct sbuf *s, struct uio *uio, int *error)
 }
 #endif
 
+int
+sbuf_get_flags(struct sbuf *s)
+{
+
+	return (s->s_flags & SBUF_USRFLAGMSK);
+}
+
+void
+sbuf_clear_flags(struct sbuf *s, int flags)
+{
+
+	s->s_flags &= ~(flags & SBUF_USRFLAGMSK);
+}
+
+void
+sbuf_set_flags(struct sbuf *s, int flags)
+{
+
+
+	s->s_flags |= (flags & SBUF_USRFLAGMSK);
+}
+
 /*
  * Clear an sbuf and reset its position.
  */
@@ -275,6 +312,7 @@ sbuf_clear(struct sbuf *s)
 	SBUF_CLEARFLAG(s, SBUF_FINISHED);
 	s->s_error = 0;
 	s->s_len = 0;
+	s->s_rec_off = 0;
 	s->s_sect_len = 0;
 }
 
@@ -329,14 +367,18 @@ sbuf_drain(struct sbuf *s)
 
 	KASSERT(s->s_len > 0, ("Shouldn't drain empty sbuf %p", s));
 	KASSERT(s->s_error == 0, ("Called %s with error on %p", __func__, s));
-	len = s->s_drain_func(s->s_drain_arg, s->s_buf, s->s_len);
-	if (len < 0) {
-		s->s_error = -len;
+	if (SBUF_DODRAINTOEOR(s) && s->s_rec_off == 0)
+		return (s->s_error = EDEADLK);
+	len = s->s_drain_func(s->s_drain_arg, s->s_buf,
+	    SBUF_DODRAINTOEOR(s) ? s->s_rec_off : s->s_len);
+	if (len <= 0) {
+		s->s_error = len ? -len : EDEADLK;
 		return (s->s_error);
 	}
 	KASSERT(len > 0 && len <= s->s_len,
 	    ("Bad drain amount %d for sbuf %p", len, s));
 	s->s_len -= len;
+	s->s_rec_off -= len;
 	/*
 	 * Fast path for the expected case where all the data was
 	 * drained.
@@ -352,34 +394,51 @@ sbuf_drain(struct sbuf *s)
 }
 
 /*
- * Append a byte to an sbuf.  This is the core function for appending
+ * Append bytes to an sbuf.  This is the core function for appending
  * to an sbuf and is the main place that deals with extending the
  * buffer and marking overflow.
  */
 static void
-sbuf_put_byte(struct sbuf *s, int c)
+sbuf_put_bytes(struct sbuf *s, const char *buf, size_t len)
 {
+	size_t n;
 
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
 	if (s->s_error != 0)
 		return;
-	if (SBUF_FREESPACE(s) <= 0) {
-		/*
-		 * If there is a drain, use it, otherwise extend the
-		 * buffer.
-		 */
-		if (s->s_drain_func != NULL)
-			(void)sbuf_drain(s);
-		else if (sbuf_extend(s, 1) < 0)
-			s->s_error = ENOMEM;
-		if (s->s_error != 0)
-			return;
+	while (len > 0) {
+		if (SBUF_FREESPACE(s) <= 0) {
+			/*
+			 * If there is a drain, use it, otherwise extend the
+			 * buffer.
+			 */
+			if (s->s_drain_func != NULL)
+				(void)sbuf_drain(s);
+			else if (sbuf_extend(s, len > INT_MAX ? INT_MAX : len)
+			    < 0)
+				s->s_error = ENOMEM;
+			if (s->s_error != 0)
+				return;
+		}
+		n = SBUF_FREESPACE(s);
+		if (len < n)
+			n = len;
+		memcpy(&s->s_buf[s->s_len], buf, n);
+		s->s_len += n;
+		if (SBUF_ISSECTION(s))
+			s->s_sect_len += n;
+		len -= n;
+		buf += n;
 	}
-	s->s_buf[s->s_len++] = c;
-	if (SBUF_ISSECTION(s))
-		s->s_sect_len++;
+}
+
+static void
+sbuf_put_byte(struct sbuf *s, char c)
+{
+
+	sbuf_put_bytes(s, &c, 1);
 }
 
 /*
@@ -388,19 +447,10 @@ sbuf_put_byte(struct sbuf *s, int c)
 int
 sbuf_bcat(struct sbuf *s, const void *buf, size_t len)
 {
-	const char *str = buf;
-	const char *end = str + len;
 
-	assert_sbuf_integrity(s);
-	assert_sbuf_state(s, 0);
-
+	sbuf_put_bytes(s, buf, len);
 	if (s->s_error != 0)
 		return (-1);
-	for (; str < end; str++) {
-		sbuf_put_byte(s, *str);
-		if (s->s_error != 0)
-			return (-1);
-	}
 	return (0);
 }
 
@@ -454,18 +504,12 @@ sbuf_bcpy(struct sbuf *s, const void *buf, size_t len)
 int
 sbuf_cat(struct sbuf *s, const char *str)
 {
+	size_t n;
 
-	assert_sbuf_integrity(s);
-	assert_sbuf_state(s, 0);
-
+	n = strlen(str);
+	sbuf_put_bytes(s, str, n);
 	if (s->s_error != 0)
 		return (-1);
-
-	while (*str != '\0') {
-		sbuf_put_byte(s, *str++);
-		if (s->s_error != 0)
-			return (-1);
-	}
 	return (0);
 }
 
@@ -588,15 +632,19 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 		va_copy(ap_copy, ap);
 		len = vsnprintf(&s->s_buf[s->s_len], SBUF_FREESPACE(s) + 1,
 		    fmt, ap_copy);
+		if (len < 0) {
+			s->s_error = errno;
+			return (-1);
+		}
 		va_end(ap_copy);
 
 		if (SBUF_FREESPACE(s) >= len)
 			break;
 		/* Cannot print with the current available space. */
 		if (s->s_drain_func != NULL && s->s_len > 0)
-			error = sbuf_drain(s);
-		else
-			error = sbuf_extend(s, len - SBUF_FREESPACE(s));
+			error = sbuf_drain(s); /* sbuf_drain() sets s_error. */
+		else if (sbuf_extend(s, len - SBUF_FREESPACE(s)) != 0)
+			s->s_error = error = ENOMEM;
 	} while (error == 0);
 
 	/*
@@ -613,8 +661,6 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 	s->s_len += len;
 	if (SBUF_ISSECTION(s))
 		s->s_sect_len += len;
-	if (!SBUF_HASROOM(s) && !SBUF_CANEXTEND(s))
-		s->s_error = ENOMEM;
 
 	KASSERT(s->s_len < s->s_size,
 	    ("wrote past end of sbuf (%d >= %d)", s->s_len, s->s_size));
@@ -697,11 +743,13 @@ sbuf_finish(struct sbuf *s)
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
+	s->s_buf[s->s_len] = '\0';
+	if (SBUF_NULINCLUDED(s))
+		s->s_len++;
 	if (s->s_drain_func != NULL) {
 		while (s->s_len > 0 && s->s_error == 0)
 			s->s_error = sbuf_drain(s);
 	}
-	s->s_buf[s->s_len] = '\0';
 	SBUF_SETFLAG(s, SBUF_FINISHED);
 #ifdef _KERNEL
 	return (s->s_error);
@@ -743,6 +791,10 @@ sbuf_len(struct sbuf *s)
 
 	if (s->s_error != 0)
 		return (-1);
+
+	/* If finished, nulterm is already in len, else add one. */
+	if (SBUF_NULINCLUDED(s) && !SBUF_ISFINISHED(s))
+		return (s->s_len + 1);
 	return (s->s_len);
 }
 
@@ -790,6 +842,7 @@ sbuf_start_section(struct sbuf *s, ssize_t *old_lenp)
 		    ("s_sect_len != 0 when starting a section"));
 		if (old_lenp != NULL)
 			*old_lenp = -1;
+		s->s_rec_off = s->s_len;
 		SBUF_SETFLAG(s, SBUF_INSECTION);
 	} else {
 		KASSERT(old_lenp != NULL,
@@ -820,7 +873,7 @@ sbuf_end_section(struct sbuf *s, ssize_t old_len, size_t pad, int c)
 	}
 	len = s->s_sect_len;
 	if (old_len == -1) {
-		s->s_sect_len = 0;
+		s->s_rec_off = s->s_sect_len = 0;
 		SBUF_CLEARFLAG(s, SBUF_INSECTION);
 	} else {
 		s->s_sect_len += old_len;

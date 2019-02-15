@@ -2,6 +2,8 @@
  * PCI specific probe and attach routines for LSI Fusion Adapters
  * FreeBSD Version.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-3-Clause
+ *
  * Copyright (c) 2000, 2001 by Greg Ansley
  * Partially derived from Matt Jacob's ISP driver.
  * Copyright (c) 1997, 1998, 1999, 2000, 2001, 2002 by Matthew Jacob
@@ -654,10 +656,6 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 
 	len = sizeof (request_t) * MPT_MAX_REQUESTS(mpt);
 	mpt->request_pool = (request_t *)malloc(len, M_DEVBUF, M_WAITOK|M_ZERO);
-	if (mpt->request_pool == NULL) {
-		mpt_prt(mpt, "cannot allocate request pool\n");
-		return (1);
-	}
 
 	/*
 	 * Create a parent dma tag for this device.

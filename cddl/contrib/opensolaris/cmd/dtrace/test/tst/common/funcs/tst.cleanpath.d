@@ -27,6 +27,7 @@
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #pragma D option quiet
+#pragma D option dynvarsize=2m
 
 BEGIN
 {

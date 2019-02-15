@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Henrik Brix Andersen <brix@FreeBSD.org>
  * All rights reserved.
  *
@@ -408,11 +410,10 @@ glxiic_attach(device_t dev)
 	glxiic_gpio_enable(sc);
 	glxiic_smb_enable(sc, IIC_FASTEST, 0);
 
-	error = bus_generic_attach(dev);
-	if (error != 0) {
-		device_printf(dev, "Could not probe and attach children\n");
-		error = ENXIO;
-	}
+	/* Probe and attach the iicbus when interrupts are available. */
+	config_intrhook_oneshot((ich_func_t)bus_generic_attach, dev);
+	error = 0;
+
 out:
 	if (error != 0) {
 		callout_drain(&sc->callout);
@@ -559,8 +560,8 @@ glxiic_start_timeout_locked(struct glxiic_softc *sc)
 
 	GLXIIC_ASSERT_LOCKED(sc);
 
-	callout_reset(&sc->callout, sc->timeout * 1000 / hz, glxiic_timeout,
-	    sc);
+	callout_reset_sbt(&sc->callout, SBT_1MS * sc->timeout, 0,
+	    glxiic_timeout, sc, 0);
 }
 
 static void

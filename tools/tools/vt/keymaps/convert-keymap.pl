@@ -60,9 +60,6 @@ sub local_to_UCS_code
     $ucs_char = 0xa5	# replace with Jap. Yen character on PC kbd
 	if $ucs_char == ord('\\') and $use_yen and $current_scancode == 125;
 
-#    $ucs_char = 0xa5	# replace with Jap. Yen character on PC98x1 kbd
-#	if $ucs_char == ord('\\') and $use_yen and $current_scancode == 13;
-
     return prettyprint_token($ucs_char);
 }
 

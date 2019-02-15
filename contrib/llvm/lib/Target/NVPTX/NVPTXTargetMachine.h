@@ -11,106 +11,81 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef NVPTX_TARGETMACHINE_H
-#define NVPTX_TARGETMACHINE_H
+#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXTARGETMACHINE_H
+#define LLVM_LIB_TARGET_NVPTX_NVPTXTARGETMACHINE_H
 
 #include "ManagedStringPool.h"
-#include "NVPTXFrameLowering.h"
-#include "NVPTXISelLowering.h"
-#include "NVPTXInstrInfo.h"
-#include "NVPTXRegisterInfo.h"
 #include "NVPTXSubtarget.h"
-#include "llvm/IR/DataLayout.h"
-#include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/CodeGen/SelectionDAGTargetInfo.h"
+#include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetSelectionDAGInfo.h"
 
 namespace llvm {
 
 /// NVPTXTargetMachine
 ///
 class NVPTXTargetMachine : public LLVMTargetMachine {
+  bool is64bit;
+  std::unique_ptr<TargetLoweringObjectFile> TLOF;
+  NVPTX::DrvInterface drvInterface;
   NVPTXSubtarget Subtarget;
-  const DataLayout DL; // Calculates type size & alignment
-  NVPTXInstrInfo InstrInfo;
-  NVPTXTargetLowering TLInfo;
-  TargetSelectionDAGInfo TSInfo;
-
-  // NVPTX does not have any call stack frame, but need a NVPTX specific
-  // FrameLowering class because TargetFrameLowering is abstract.
-  NVPTXFrameLowering FrameLowering;
 
   // Hold Strings that can be free'd all together with NVPTXTargetMachine
   ManagedStringPool ManagedStrPool;
 
-  //bool addCommonCodeGenPasses(PassManagerBase &, CodeGenOpt::Level,
-  //                            bool DisableVerify, MCContext *&OutCtx);
-
 public:
-  NVPTXTargetMachine(const Target &T, StringRef TT, StringRef CPU, StringRef FS,
-                     const TargetOptions &Options, Reloc::Model RM,
-                     CodeModel::Model CM, CodeGenOpt::Level OP, bool is64bit);
+  NVPTXTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+                     StringRef FS, const TargetOptions &Options,
+                     Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
+                     CodeGenOpt::Level OP, bool is64bit);
 
-  virtual const TargetFrameLowering *getFrameLowering() const {
-    return &FrameLowering;
+  ~NVPTXTargetMachine() override;
+  const NVPTXSubtarget *getSubtargetImpl(const Function &) const override {
+    return &Subtarget;
   }
-  virtual const NVPTXInstrInfo *getInstrInfo() const { return &InstrInfo; }
-  virtual const DataLayout *getDataLayout() const { return &DL; }
-  virtual const NVPTXSubtarget *getSubtargetImpl() const { return &Subtarget; }
-
-  virtual const NVPTXRegisterInfo *getRegisterInfo() const {
-    return &(InstrInfo.getRegisterInfo());
-  }
-
-  virtual NVPTXTargetLowering *getTargetLowering() const {
-    return const_cast<NVPTXTargetLowering *>(&TLInfo);
-  }
-
-  virtual const TargetSelectionDAGInfo *getSelectionDAGInfo() const {
-    return &TSInfo;
-  }
-
-  //virtual bool addInstSelector(PassManagerBase &PM,
-  //                             CodeGenOpt::Level OptLevel);
-
-  //virtual bool addPreRegAlloc(PassManagerBase &, CodeGenOpt::Level);
-
+  const NVPTXSubtarget *getSubtargetImpl() const { return &Subtarget; }
+  bool is64Bit() const { return is64bit; }
+  NVPTX::DrvInterface getDrvInterface() const { return drvInterface; }
   ManagedStringPool *getManagedStrPool() const {
     return const_cast<ManagedStringPool *>(&ManagedStrPool);
   }
 
-  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
-
-  // Emission of machine code through JITCodeEmitter is not supported.
-  virtual bool addPassesToEmitMachineCode(PassManagerBase &, JITCodeEmitter &,
-                                          bool = true) {
-    return true;
-  }
+  TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
 
   // Emission of machine code through MCJIT is not supported.
-  virtual bool addPassesToEmitMC(PassManagerBase &, MCContext *&, raw_ostream &,
-                                 bool = true) {
+  bool addPassesToEmitMC(PassManagerBase &, MCContext *&, raw_pwrite_stream &,
+                         bool = true) override {
     return true;
   }
+  TargetLoweringObjectFile *getObjFileLowering() const override {
+    return TLOF.get();
+  }
 
+  void adjustPassManager(PassManagerBuilder &) override;
+
+  TargetTransformInfo getTargetTransformInfo(const Function &F) override;
+
+  bool isMachineVerifierClean() const override {
+    return false;
+  }
 }; // NVPTXTargetMachine.
 
 class NVPTXTargetMachine32 : public NVPTXTargetMachine {
   virtual void anchor();
 public:
-  NVPTXTargetMachine32(const Target &T, StringRef TT, StringRef CPU,
+  NVPTXTargetMachine32(const Target &T, const Triple &TT, StringRef CPU,
                        StringRef FS, const TargetOptions &Options,
-                       Reloc::Model RM, CodeModel::Model CM,
-                       CodeGenOpt::Level OL);
+                       Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
+                       CodeGenOpt::Level OL, bool JIT);
 };
 
 class NVPTXTargetMachine64 : public NVPTXTargetMachine {
   virtual void anchor();
 public:
-  NVPTXTargetMachine64(const Target &T, StringRef TT, StringRef CPU,
+  NVPTXTargetMachine64(const Target &T, const Triple &TT, StringRef CPU,
                        StringRef FS, const TargetOptions &Options,
-                       Reloc::Model RM, CodeModel::Model CM,
-                       CodeGenOpt::Level OL);
+                       Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
+                       CodeGenOpt::Level OL, bool JIT);
 };
 
 } // end namespace llvm

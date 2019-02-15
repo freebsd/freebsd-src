@@ -1,4 +1,4 @@
-/* $NetBSD: t_detach.c,v 1.1 2011/03/24 13:52:04 jruoho Exp $ */
+/* $NetBSD: t_detach.c,v 1.2 2017/01/16 16:29:54 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,10 +29,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_detach.c,v 1.1 2011/03/24 13:52:04 jruoho Exp $");
+__RCSID("$NetBSD: t_detach.c,v 1.2 2017/01/16 16:29:54 christos Exp $");
 
-#include <pthread.h>
 #include <errno.h>
+#include <pthread.h>
+#include <time.h>
 
 #include <atf-c.h>
 
@@ -43,6 +44,7 @@ static void	*func(void *);
 static void *
 func(void *arg)
 {
+	sleep(2);
 	return NULL;
 }
 
@@ -72,14 +74,17 @@ ATF_TC_BODY(pthread_detach, tc)
 	 */
 	PTHREAD_REQUIRE(pthread_detach(t));
 
+	sleep(1);
 	rv = pthread_join(t, NULL);
 	ATF_REQUIRE(rv == EINVAL);
+
+	sleep(3);
 
 	/*
 	 * As usual, ESRCH should follow if
 	 * we try to detach an invalid thread.
 	 */
-	rv = pthread_cancel(NULL);
+	rv = pthread_cancel(t);
 	ATF_REQUIRE(rv == ESRCH);
 }
 

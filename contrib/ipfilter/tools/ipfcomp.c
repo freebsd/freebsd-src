@@ -965,7 +965,7 @@ void printC(dir)
 	frgroup_t *g;
 
 	if (m == NULL)
-		m = (mc_t *)calloc(1, sizeof(*m) * FRC_MAX);
+		m = (mc_t *)calloc(FRC_MAX, sizeof(*m));
 
 	for (g = groups; g != NULL; g = g->fg_next) {
 		if ((dir == 0) && ((g->fg_flags & FR_INQUE) != 0))

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
@@ -408,8 +410,8 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 	struct cryptodesc *crde, *crda;
 	u_int i, lsec, nsec, data_secsize, decr_secsize, encr_secsize;
 	off_t dstoff;
-	int err, error;
 	u_char *p, *data, *auth, *authkey, *plaindata;
+	int error;
 
 	G_ELI_LOGREQ(3, bp, "%s", __func__);
 
@@ -444,6 +446,7 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		size += sizeof(*crde) * nsec;
 		size += sizeof(*crda) * nsec;
 		size += G_ELI_AUTH_SECKEYLEN * nsec;
+		size += sizeof(uintptr_t);	/* Space for alignment. */
 		data = malloc(size, M_ELI, M_WAITOK);
 		bp->bio_driver2 = data;
 		p = data + encr_secsize * nsec;
@@ -451,7 +454,10 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 	bp->bio_inbed = 0;
 	bp->bio_children = nsec;
 
-	error = 0;
+#if defined(__mips_n64) || defined(__mips_o64)
+	p = (char *)roundup((uintptr_t)p, sizeof(uintptr_t));
+#endif
+
 	for (i = 1; i <= nsec; i++, dstoff += encr_secsize) {
 		crp = (struct cryptop *)p;	p += sizeof(*crp);
 		crde = (struct cryptodesc *)p;	p += sizeof(*crde);
@@ -459,8 +465,16 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		authkey = (u_char *)p;		p += G_ELI_AUTH_SECKEYLEN;
 
 		data_secsize = sc->sc_data_per_sector;
-		if ((i % lsec) == 0)
+		if ((i % lsec) == 0) {
 			data_secsize = decr_secsize % data_secsize;
+			/*
+			 * Last encrypted sector of each decrypted sector is
+			 * only partially filled.
+			 */
+			if (bp->bio_cmd == BIO_WRITE)
+				memset(data + sc->sc_alen + data_secsize, 0,
+				    encr_secsize - sc->sc_alen - data_secsize);
+		}
 
 		if (bp->bio_cmd == BIO_READ) {
 			/* Remember read HMAC. */
@@ -473,13 +487,13 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 			plaindata += data_secsize;
 		}
 
-		crp->crp_sid = wr->w_sid;
+		crp->crp_session = wr->w_sid;
 		crp->crp_ilen = sc->sc_alen + data_secsize;
 		crp->crp_olen = data_secsize;
 		crp->crp_opaque = (void *)bp;
 		crp->crp_buf = (void *)data;
 		data += encr_secsize;
-		crp->crp_flags = CRYPTO_F_CBIFSYNC | CRYPTO_F_REL;
+		crp->crp_flags = CRYPTO_F_CBIFSYNC;
 		if (g_eli_batch)
 			crp->crp_flags |= CRYPTO_F_BATCH;
 		if (bp->bio_cmd == BIO_WRITE) {
@@ -519,10 +533,8 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		crda->crd_klen = G_ELI_AUTH_SECKEYLEN * 8;
 
 		crp->crp_etype = 0;
-		err = crypto_dispatch(crp);
-		if (err != 0 && error == 0)
-			error = err;
+		error = crypto_dispatch(crp);
+		KASSERT(error == 0, ("crypto_dispatch() failed (error=%d)",
+		    error));
 	}
-	if (bp->bio_error == 0)
-		bp->bio_error = error;
 }

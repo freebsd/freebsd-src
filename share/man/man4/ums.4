@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 27, 2006
+.Dd April 24, 2018
 .Dt UMS 4
 .Os
 .Sh NAME
@@ -64,6 +64,17 @@ type device.
 See
 .Xr moused 8
 for an explanation of these mouse types.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.ums.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
 .Sh FILES
 .Bl -tag -width /dev/ums0 -compact
 .It Pa /dev/ums0

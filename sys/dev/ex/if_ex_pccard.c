@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Mitsuru IWASAKI
  * All rights reserved.
  *
@@ -228,3 +230,4 @@ static driver_t ex_pccard_driver = {
 
 DRIVER_MODULE(ex, pccard, ex_pccard_driver, ex_devclass, 0, 0);
 MODULE_DEPEND(ex, pccard, 1, 1, 1);
+PCCARD_PNP_INFO(ex_pccard_products);

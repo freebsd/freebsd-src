@@ -1,4 +1,4 @@
-/*	$NetBSD: t_select.c,v 1.3 2012/03/18 07:00:52 jruoho Exp $ */
+/*	$NetBSD: t_select.c,v 1.4 2017/01/13 21:18:33 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -47,13 +47,13 @@
 static sig_atomic_t keep_going = 1;
 
 static void
-sig_handler(int signum)
+sig_handler(int signum __unused)
 {
 	keep_going = 0;
 }
 
 static void
-sigchld(int signum)
+sigchld(int signum __unused)
 {
 }
 
@@ -82,7 +82,7 @@ prmask(const sigset_t *m, char *buf, size_t len)
 	return buf;
 }
 
-static void
+static __dead void
 child(const struct timespec *ts)
 {
 	struct sigaction sa;
@@ -127,6 +127,7 @@ child(const struct timespec *ts)
 		    "after timeout %s != %s",
 		    prmask(&nset, nbuf, sizeof(nbuf)),
 		    prmask(&oset, obuf, sizeof(obuf)));
+	_exit(0);
 }
 
 ATF_TC(pselect_sigmask);
@@ -146,6 +147,7 @@ ATF_TC_BODY(pselect_sigmask, tc)
 	switch (pid = fork()) {
 	case 0:
 		child(NULL);
+		/*NOTREACHED*/
 	case -1:
 		err(1, "fork");
 	default:

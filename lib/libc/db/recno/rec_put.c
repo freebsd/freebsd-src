@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -140,8 +142,7 @@ einval:		errno = EINVAL;
 			return (RET_ERROR);
 		if (nrec > t->bt_nrecs + 1) {
 			if (F_ISSET(t, R_FIXLEN)) {
-				if ((tdata.data =
-				    (void *)malloc(t->bt_reclen)) == NULL)
+				if ((tdata.data = malloc(t->bt_reclen)) == NULL)
 					return (RET_ERROR);
 				tdata.size = t->bt_reclen;
 				memset(tdata.data, t->bt_bval, tdata.size);
@@ -208,7 +209,7 @@ __rec_iput(BTREE *t, recno_t nrec, const DBT *data, u_int flags)
 			return (RET_ERROR);
 		tdata.data = db;
 		tdata.size = NOVFLSIZE;
-		*(pgno_t *)db = pg;
+		memcpy(db, &pg, sizeof(pg));
 		*(u_int32_t *)(db + sizeof(pgno_t)) = data->size;
 		dflags = P_BIGDATA;
 		data = &tdata;

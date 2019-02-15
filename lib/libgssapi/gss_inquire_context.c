@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Doug Rabson
  * All rights reserved.
  *
@@ -99,7 +101,7 @@ gss_inquire_context(OM_uint32 *minor_status,
 			if (src_name)
 				gss_release_name(minor_status, src_name);
 			m->gm_release_name(minor_status, &src_mn);
-			minor_status = 0;
+			minor_status = NULL;
 			return (GSS_S_FAILURE);
 		}
 		*targ_name = (gss_name_t) name;

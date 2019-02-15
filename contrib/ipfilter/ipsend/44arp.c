@@ -8,9 +8,6 @@
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <net/if.h>
-#if __FreeBSD_version >= 300000
-# include <net/if_var.h>
-#endif
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #ifndef __osf__

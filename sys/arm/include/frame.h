@@ -1,6 +1,8 @@
 /*	$NetBSD: frame.h,v 1.5 2002/10/19 00:10:54 bjh21 Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994-1997 Mark Brinicombe.
  * Copyright (c) 1994 Brini.
  * All rights reserved.
@@ -86,57 +88,17 @@ struct trapframe {
 #define tf_r13 tf_usr_sp
 #define tf_r14 tf_usr_lr
 #define tf_r15 tf_pc
-/*
- *  * Scheduler activations upcall frame.  Pushed onto user stack before
- *   * calling an SA upcall.
- *    */
-
-struct saframe {
-#if 0 /* in registers on entry to upcall */
-	int             sa_type;
-	struct sa_t **  sa_sas;
-	int             sa_events;
-	int             sa_interrupted;
-#endif
-	void *          sa_arg;
-};
 
 /*
- *  * Signal frame.  Pushed onto user stack before calling sigcode.
- *   */
-
-/* the pointers are use in the trampoline code to locate the ucontext */
-struct sigframe {
-       	siginfo_t       sf_si;          /* actual saved siginfo */
-	ucontext_t      sf_uc;          /* actual saved ucontext */
-};
-
-/*
- * System stack frames.
+ * Signal frame.  Pushed onto user stack before calling sigcode.
+ * The pointers are used in the trampoline code to locate the ucontext.
  */
+struct sigframe {
+	siginfo_t       sf_si;          /* actual saved siginfo */
+	ucontext_t      sf_uc;          /* actual saved ucontext */
+	mcontext_vfp_t	sf_vfp;         /* actual saved VFP context */
+};
 
-
-typedef struct irqframe {
-	unsigned int if_spsr;
-	unsigned int if_r0;
-	unsigned int if_r1;
-	unsigned int if_r2;
-	unsigned int if_r3;
-	unsigned int if_r4;
-	unsigned int if_r5;
-	unsigned int if_r6;
-	unsigned int if_r7;
-	unsigned int if_r8;
-	unsigned int if_r9;
-	unsigned int if_r10;
-	unsigned int if_r11;
-	unsigned int if_r12;
-	unsigned int if_usr_sp;
-	unsigned int if_usr_lr;
-	unsigned int if_svc_sp;
-	unsigned int if_svc_lr;
-	unsigned int if_pc;
-} irqframe_t;
 
 /*
  * Switch frame.
@@ -144,15 +106,26 @@ typedef struct irqframe {
  * It is important this is a multiple of 8 bytes so the stack is correctly
  * aligned when we create new threads.
  */
-
-struct switchframe {
-	u_int	pad;	/* Used to pad the struct to a multiple of 8-bytes */
-	u_int	sf_r4;
-	u_int	sf_r5;
-	u_int	sf_r6;
-	u_int	sf_r7;
-	u_int	sf_pc;
+struct switchframe
+{
+        register_t sf_r4;
+        register_t sf_r5;
+        register_t sf_r6;
+        register_t sf_r7;
+        register_t sf_r8;
+        register_t sf_r9;
+        register_t sf_r10;
+        register_t sf_r11;
+        register_t sf_r12;
+        register_t sf_sp;
+        register_t sf_lr;
+        register_t sf_pc;
+#if __ARM_ARCH >= 6
+        register_t sf_tpidrurw;
+        register_t sf_spare0;
+#endif
 };
+
 
 /*
  * Stack frame. Used during stack traces (db_trace.c)

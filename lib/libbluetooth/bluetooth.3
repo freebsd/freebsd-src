@@ -25,7 +25,7 @@
 .\" $Id: bluetooth.3,v 1.5 2003/05/20 23:04:30 max Exp $
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2009
+.Dd May 1, 2018
 .Dt BLUETOOTH 3
 .Os
 .Sh NAME
@@ -58,6 +58,8 @@
 .Nm bt_devfilter_evt_clr ,
 .Nm bt_devfilter_evt_tst ,
 .Nm bt_devinquiry ,
+.Nm bt_devremote_name ,
+.Nm bt_devremote_name_gen ,
 .Nm bdaddr_same ,
 .Nm bdaddr_any ,
 .Nm bdaddr_copy
@@ -126,6 +128,11 @@
 .Fn bt_devfilter_evt_tst "struct bt_devfilter const *filter" "uint8_t event"
 .Ft int
 .Fn bt_devinquiry "char const *devname" "time_t length" "int num_rsp" "struct bt_devinquiry **ii"
+.Ft char *
+.Fn bt_devremote_name "char const *devname" "const bdaddr_t *remote" \
+"time_t to" "uint16_t clk_off" "uint8_t ps_rep_mode" "uint8_t ps_mode"
+.Ft char *
+.Fn bt_devremote_name_gen "char const *btooth_devname" "const bdaddr_t *remote"
 .Ft int
 .Fn bdaddr_same "const bdaddr_t *a" "const bdaddr_t *b"
 .Ft int
@@ -589,8 +596,54 @@ struct bt_devinquiry {
 .Ed
 .Pp
 The
+.Fn bt_devremote_name
+function performs Bluetooth Remote Name Request procedure to obtain the
+user-friendly name of another Bluetooth unit.
+The
+.Fa devname
+parameter specifies which local Bluetooth device should perform the request.
+If not specified
+.Dv ( NULL ) ,
+the first available device is used.
+The
+.Fa remote
+parameter specifies the Bluetooth BD_ADDR of the remote device to query.
+The
+.Fa to
+parameter specifies response timeout in seconds.
+If not specified (0), the default value is taken from the
+net.bluetooth.hci.command_timeout
+.Xr sysctl 8
+value.
+The
+.Fa clk_off ,
+.Fa ps_rep_mode ,
+and
+.Fa ps_mode
+parameters specify Clock_Offset, Page_Scan_Repetition_Mode, and Page_Scan_Mode
+fields of HCI_Remote_Name_Request respectively.
+On success, the function returns a pointer to dynamically allocated
+NUL-terminated string or
+.Dv NULL
+if an error occurred.
+It is up to the caller to release returned string using
+.Xr free 3 .
+.Pp
+The
+.Fn bt_devremote_name_gen
+function is a shortcut to
+.Fn bt_devremote_name
+that passes generic defaults for
+.Fa to ,
+.Fa clk_off ,
+.Fa ps_rep_mode ,
+and
+.Fa ps_mode
+parameters.
+.Pp
+The
 .Fn bdaddr_same ,
-.Fn bdaddr_any
+.Fn bdaddr_any ,
 and
 .Fn bdaddr_copy
 are handy shorthand Bluetooth address utility functions.

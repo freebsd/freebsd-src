@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: fsav,v 1.13 2013/03/25 17:18:47 christos Exp $
+# $File: fsav,v 1.15 2018/07/16 12:30:41 christos Exp $
 # fsav:  file(1) magic for datafellows fsav virus definition files
 # Anthon van der Neut (anthon@mnt.org)
 
@@ -29,11 +29,11 @@
 #>>>>10	byte		11		\b12-
 #>>>>9	ubyte		>0		\b%02d)
 # ftp://ftp.f-prot.com/pub/sign2.zip
-#0	ubyte		0x62		
-#>1	ubyte		0xF5		
-#>>2	ubyte		0x1		
-#>>>3	ubyte		0x1		
-#>>>>4	ubyte		0x0e		
+#0	ubyte		0x62
+#>1	ubyte		0xF5
+#>>2	ubyte		0x1
+#>>>3	ubyte		0x1
+#>>>>4	ubyte		0x0e
 #>>>>>13		ubyte	>0		fsav virus signatures
 #>>>>>>11	ubyte	x		size 0x%02x
 #>>>>>>12	ubyte	x		\b%02x
@@ -44,17 +44,19 @@
 # .cvd files start with a 512 bytes colon separated header
 # ClamAV-VDB:buildDate:version:signaturesNumbers:functionalityLevelRequired:MD5:Signature:builder:buildTime
 # + gzipped tarball files
-0	string		ClamAV-VDB:	
+0	string		ClamAV-VDB:
 >11	string		>\0		Clam AntiVirus database %-.23s
->>34	string		:		
->>>35		string		!:	\b, version 
->>>>35		string		x 	\b%-.1s
->>>>>36		string 		!:	
+>>34	string		:
+>>>35		string		!:	\b, version
+>>>>35		string		x 	\b %-.1s
+>>>>>36		string		!:
 >>>>>>36	string		x 	\b%-.1s
->>>>>>>37	string		!:	
+>>>>>>>37	string		!:
 >>>>>>>>37	string		x 	\b%-.1s
->>>>>>>>>38	string		!:	
+>>>>>>>>>38	string		!:
 >>>>>>>>>>38	string		x 	\b%-.1s
+>>>>>>>>>>>39	string		!:
+>>>>>>>>>>>>39	string		x 	\b%-.1s
 >512	string		\037\213	\b, gzipped
 >769	string		ustar\0		\b, tarred
 

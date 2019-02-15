@@ -33,7 +33,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: magic.c,v 1.84 2014/05/14 23:15:42 christos Exp $")
+FILE_RCSID("@(#)$File: magic.c,v 1.102 2017/08/28 13:39:18 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -83,6 +83,94 @@ private const char *file_or_fd(struct magic_set *, const char *, int);
 #define	STDIN_FILENO	0
 #endif
 
+#ifdef WIN32
+/* HINSTANCE of this shared library. Needed for get_default_magic() */
+static HINSTANCE _w32_dll_instance = NULL;
+
+static void
+_w32_append_path(char **hmagicpath, const char *fmt, ...)
+{
+	char *tmppath;
+        char *newpath;
+	va_list ap;
+
+	va_start(ap, fmt);
+	if (vasprintf(&tmppath, fmt, ap) < 0) {
+		va_end(ap);
+		return;
+	}
+	va_end(ap);
+
+	if (access(tmppath, R_OK) == -1)
+		goto out;
+
+	if (*hmagicpath == NULL) {
+		*hmagicpath = tmppath;
+		return;
+	}
+
+	if (asprintf(&newpath, "%s%c%s", *hmagicpath, PATHSEP, tmppath) < 0)
+		goto out;
+
+	free(*hmagicpath);
+	free(tmppath);
+	*hmagicpath = newpath;
+	return;
+out:
+	free(tmppath);
+}
+
+static void
+_w32_get_magic_relative_to(char **hmagicpath, HINSTANCE module)
+{
+	static const char *trypaths[] = {
+		"%s/share/misc/magic.mgc",
+		"%s/magic.mgc",
+	};
+	LPSTR dllpath;
+	size_t sp;
+
+	dllpath = calloc(MAX_PATH + 1, sizeof(*dllpath));
+
+	if (!GetModuleFileNameA(module, dllpath, MAX_PATH))
+		goto out;
+
+	PathRemoveFileSpecA(dllpath);
+
+	if (module) {
+		char exepath[MAX_PATH];
+		GetModuleFileNameA(NULL, exepath, MAX_PATH);
+		PathRemoveFileSpecA(exepath);
+		if (stricmp(exepath, dllpath) == 0)
+			goto out;
+	}
+
+	sp = strlen(dllpath);
+	if (sp > 3 && stricmp(&dllpath[sp - 3], "bin") == 0) {
+		_w32_append_path(hmagicpath,
+		    "%s/../share/misc/magic.mgc", dllpath);
+		goto out;
+	}
+
+	for (sp = 0; sp < __arraycount(trypaths); sp++)
+		_w32_append_path(hmagicpath, trypaths[sp], dllpath);
+out:
+	free(dllpath);
+}
+
+/* Placate GCC by offering a sacrificial previous prototype */
+BOOL WINAPI DllMain(HINSTANCE, DWORD, LPVOID);
+
+BOOL WINAPI
+DllMain(HINSTANCE hinstDLL, DWORD fdwReason,
+    LPVOID lpvReserved __attribute__((__unused__)))
+{
+	if (fdwReason == DLL_PROCESS_ATTACH)
+		_w32_dll_instance = hinstDLL;
+	return 1;
+}
+#endif
+
 private const char *
 get_default_magic(void)
 {
@@ -126,74 +214,33 @@ out:
 	free(hmagicpath);
 	return MAGIC;
 #else
-	char *hmagicp;
-	char *tmppath = NULL;
 	hmagicpath = NULL;
 
-#define APPENDPATH() \
-	do { \
-		if (tmppath && access(tmppath, R_OK) != -1) { \
-			if (hmagicpath == NULL) \
-				hmagicpath = tmppath; \
-			else { \
-				if (asprintf(&hmagicp, "%s%c%s", hmagicpath, \
-				    PATHSEP, tmppath) >= 0) { \
-					free(hmagicpath); \
-					hmagicpath = hmagicp; \
-				} \
-				free(tmppath); \
-			} \
-			tmppath = NULL; \
-		} \
-	} while (/*CONSTCOND*/0)
-				
 	if (default_magic) {
 		free(default_magic);
 		default_magic = NULL;
 	}
 
-	/* First, try to get user-specific magic file */
-	if ((home = getenv("LOCALAPPDATA")) == NULL) {
-		if ((home = getenv("USERPROFILE")) != NULL)
-			if (asprintf(&tmppath,
-			    "%s/Local Settings/Application Data%s", home,
-			    hmagic) < 0)
-				tmppath = NULL;
-	} else {
-		if (asprintf(&tmppath, "%s%s", home, hmagic) < 0)
-			tmppath = NULL;
-	}
+	/* First, try to get a magic file from user-application data */
+	if ((home = getenv("LOCALAPPDATA")) != NULL)
+		_w32_append_path(&hmagicpath, "%s%s", home, hmagic);
 
-	APPENDPATH();
+	/* Second, try to get a magic file from the user profile data */
+	if ((home = getenv("USERPROFILE")) != NULL)
+		_w32_append_path(&hmagicpath,
+		    "%s/Local Settings/Application Data%s", home, hmagic);
 
-	/* Second, try to get a magic file from Common Files */
-	if ((home = getenv("COMMONPROGRAMFILES")) != NULL) {
-		if (asprintf(&tmppath, "%s%s", home, hmagic) >= 0)
-			APPENDPATH();
-	}
+	/* Third, try to get a magic file from Common Files */
+	if ((home = getenv("COMMONPROGRAMFILES")) != NULL)
+		_w32_append_path(&hmagicpath, "%s%s", home, hmagic);
 
-	/* Third, try to get magic file relative to dll location */
-	LPTSTR dllpath = malloc(sizeof(*dllpath) * (MAX_PATH + 1));
-	dllpath[MAX_PATH] = 0;	/* just in case long path gets truncated and not null terminated */
-	if (GetModuleFileNameA(NULL, dllpath, MAX_PATH)){
-		PathRemoveFileSpecA(dllpath);
-		if (strlen(dllpath) > 3 &&
-		    stricmp(&dllpath[strlen(dllpath) - 3], "bin") == 0) {
-			if (asprintf(&tmppath,
-			    "%s/../share/misc/magic.mgc", dllpath) >= 0)
-				APPENDPATH();
-		} else {
-			if (asprintf(&tmppath,
-			    "%s/share/misc/magic.mgc", dllpath) >= 0)
-				APPENDPATH();
-			else if (asprintf(&tmppath,
-			    "%s/magic.mgc", dllpath) >= 0)
-				APPENDPATH();
-		}
-	}
+	/* Fourth, try to get magic file relative to exe location */
+        _w32_get_magic_relative_to(&hmagicpath, NULL);
 
-	/* Don't put MAGIC constant - it likely points to a file within MSys
-	tree */
+	/* Fifth, try to get magic file relative to dll location */
+        _w32_get_magic_relative_to(&hmagicpath, _w32_dll_instance);
+
+	/* Avoid MAGIC constant - it likely points to a file within MSys tree */
 	default_magic = hmagicpath;
 	return default_magic;
 #endif
@@ -256,6 +303,20 @@ magic_load(struct magic_set *ms, const char *magicfile)
 		return -1;
 	return file_apprentice(ms, magicfile, FILE_LOAD);
 }
+
+#ifndef COMPILE_ONLY
+/*
+ * Install a set of compiled magic buffers.
+ */
+public int
+magic_load_buffers(struct magic_set *ms, void **bufs, size_t *sizes,
+    size_t nbufs)
+{
+	if (ms == NULL)
+		return -1;
+	return buffer_apprentice(ms, (struct magic **)bufs, sizes, nbufs);
+}
+#endif
 
 public int
 magic_compile(struct magic_set *ms, const char *magicfile)
@@ -348,7 +409,7 @@ file_or_fd(struct magic_set *ms, const char *inname, int fd)
 	int	ispipe = 0;
 	off_t	pos = (off_t)-1;
 
-	if (file_reset(ms) == -1)
+	if (file_reset(ms, 1) == -1)
 		goto out;
 
 	/*
@@ -356,7 +417,7 @@ file_or_fd(struct magic_set *ms, const char *inname, int fd)
 	 * some overlapping space for matches near EOF
 	 */
 #define SLOP (1 + sizeof(union VALUETYPE))
-	if ((buf = CAST(unsigned char *, malloc(HOWMANY + SLOP))) == NULL)
+	if ((buf = CAST(unsigned char *, malloc(ms->bytes_max + SLOP))) == NULL)
 		return NULL;
 
 	switch (file_fsmagic(ms, inname, &sb)) {
@@ -420,18 +481,18 @@ file_or_fd(struct magic_set *ms, const char *inname, int fd)
 	}
 
 	/*
-	 * try looking at the first HOWMANY bytes
+	 * try looking at the first ms->bytes_max bytes
 	 */
 	if (ispipe) {
 		ssize_t r = 0;
 
 		while ((r = sread(fd, (void *)&buf[nbytes],
-		    (size_t)(HOWMANY - nbytes), 1)) > 0) {
+		    (size_t)(ms->bytes_max - nbytes), 1)) > 0) {
 			nbytes += r;
 			if (r < PIPE_BUF) break;
 		}
 
-		if (nbytes == 0) {
+		if (nbytes == 0 && inname) {
 			/* We can not read it, but we were able to stat it. */
 			if (unreadable_info(ms, sb.st_mode, inname) == -1)
 				goto done;
@@ -442,10 +503,10 @@ file_or_fd(struct magic_set *ms, const char *inname, int fd)
 	} else {
 		/* Windows refuses to read from a big console buffer. */
 		size_t howmany =
-#if defined(WIN32) && HOWMANY > 8 * 1024
+#if defined(WIN32)
 				_isatty(fd) ? 8 * 1024 :
 #endif
-				HOWMANY;
+				ms->bytes_max;
 		if ((nbytes = read(fd, (char *)buf, howmany)) == -1) {
 			if (inname == NULL && fd != STDIN_FILENO)
 				file_error(ms, errno, "cannot read fd %d", fd);
@@ -462,9 +523,11 @@ file_or_fd(struct magic_set *ms, const char *inname, int fd)
 	rv = 0;
 done:
 	free(buf);
-	if (pos != (off_t)-1)
-		(void)lseek(fd, pos, SEEK_SET);
-	close_and_restore(ms, inname, fd, &sb);
+	if (fd != -1) {
+		if (pos != (off_t)-1)
+			(void)lseek(fd, pos, SEEK_SET);
+		close_and_restore(ms, inname, fd, &sb);
+	}
 out:
 	return rv == 0 ? file_getbuffer(ms) : NULL;
 }
@@ -475,7 +538,7 @@ magic_buffer(struct magic_set *ms, const void *buf, size_t nb)
 {
 	if (ms == NULL)
 		return NULL;
-	if (file_reset(ms) == -1)
+	if (file_reset(ms, 1) == -1)
 		return NULL;
 	/*
 	 * The main work is done here!
@@ -505,6 +568,15 @@ magic_errno(struct magic_set *ms)
 }
 
 public int
+magic_getflags(struct magic_set *ms)
+{
+	if (ms == NULL)
+		return -1;
+
+	return ms->flags;
+}
+
+public int
 magic_setflags(struct magic_set *ms, int flags)
 {
 	if (ms == NULL)
@@ -521,4 +593,66 @@ public int
 magic_version(void)
 {
 	return MAGIC_VERSION;
+}
+
+public int
+magic_setparam(struct magic_set *ms, int param, const void *val)
+{
+	switch (param) {
+	case MAGIC_PARAM_INDIR_MAX:
+		ms->indir_max = (uint16_t)*(const size_t *)val;
+		return 0;
+	case MAGIC_PARAM_NAME_MAX:
+		ms->name_max = (uint16_t)*(const size_t *)val;
+		return 0;
+	case MAGIC_PARAM_ELF_PHNUM_MAX:
+		ms->elf_phnum_max = (uint16_t)*(const size_t *)val;
+		return 0;
+	case MAGIC_PARAM_ELF_SHNUM_MAX:
+		ms->elf_shnum_max = (uint16_t)*(const size_t *)val;
+		return 0;
+	case MAGIC_PARAM_ELF_NOTES_MAX:
+		ms->elf_notes_max = (uint16_t)*(const size_t *)val;
+		return 0;
+	case MAGIC_PARAM_REGEX_MAX:
+		ms->elf_notes_max = (uint16_t)*(const size_t *)val;
+		return 0;
+	case MAGIC_PARAM_BYTES_MAX:
+		ms->bytes_max = *(const size_t *)val;
+		return 0;
+	default:
+		errno = EINVAL;
+		return -1;
+	}
+}
+
+public int
+magic_getparam(struct magic_set *ms, int param, void *val)
+{
+	switch (param) {
+	case MAGIC_PARAM_INDIR_MAX:
+		*(size_t *)val = ms->indir_max;
+		return 0;
+	case MAGIC_PARAM_NAME_MAX:
+		*(size_t *)val = ms->name_max;
+		return 0;
+	case MAGIC_PARAM_ELF_PHNUM_MAX:
+		*(size_t *)val = ms->elf_phnum_max;
+		return 0;
+	case MAGIC_PARAM_ELF_SHNUM_MAX:
+		*(size_t *)val = ms->elf_shnum_max;
+		return 0;
+	case MAGIC_PARAM_ELF_NOTES_MAX:
+		*(size_t *)val = ms->elf_notes_max;
+		return 0;
+	case MAGIC_PARAM_REGEX_MAX:
+		*(size_t *)val = ms->regex_max;
+		return 0;
+	case MAGIC_PARAM_BYTES_MAX:
+		*(size_t *)val = ms->bytes_max;
+		return 0;
+	default:
+		errno = EINVAL;
+		return -1;
+	}
 }

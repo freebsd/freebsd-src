@@ -1,4 +1,4 @@
-/* $NetBSD: t_revoke.c,v 1.1 2011/07/07 06:57:54 jruoho Exp $ */
+/* $NetBSD: t_revoke.c,v 1.2 2017/01/13 21:15:57 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_revoke.c,v 1.1 2011/07/07 06:57:54 jruoho Exp $");
+__RCSID("$NetBSD: t_revoke.c,v 1.2 2017/01/13 21:15:57 christos Exp $");
 
 #include <sys/resource.h>
 #include <sys/wait.h>
@@ -58,6 +58,9 @@ ATF_TC_BODY(revoke_basic, tc)
 	size_t i, n;
 	int *buf;
 
+#ifdef __FreeBSD__
+	atf_tc_skip("revoke(2) is only implemented for devfs(5).");
+#endif
 	(void)memset(&res, 0, sizeof(struct rlimit));
 	(void)getrlimit(RLIMIT_NOFILE, &res);
 
@@ -113,6 +116,9 @@ ATF_TC_BODY(revoke_err, tc)
 	errno = 0;
 	ATF_REQUIRE_ERRNO(ENAMETOOLONG, revoke(buf) == -1);
 
+#ifdef __FreeBSD__
+	atf_tc_skip("revoke(2) is only implemented for devfs(5).");
+#endif
 	errno = 0;
 	ATF_REQUIRE_ERRNO(EPERM, revoke("/etc/passwd") == -1);
 
@@ -133,6 +139,9 @@ ATF_TC_BODY(revoke_perm, tc)
 	int fd, sta;
 	pid_t pid;
 
+#ifdef __FreeBSD__
+	atf_tc_skip("revoke(2) is only implemented for devfs(5).");
+#endif
 	pw = getpwnam("nobody");
 	fd = open(path, O_RDWR | O_CREAT, 0600);
 
@@ -167,6 +176,7 @@ ATF_TC_BODY(revoke_perm, tc)
 	if (WIFEXITED(sta) == 0 || WEXITSTATUS(sta) != EXIT_SUCCESS)
 		atf_tc_fail("revoke(2) did not obey permissions");
 
+	(void)close(fd);
 	ATF_REQUIRE(unlink(path) == 0);
 }
 

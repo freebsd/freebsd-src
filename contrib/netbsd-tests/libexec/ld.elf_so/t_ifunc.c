@@ -1,4 +1,4 @@
-/*	$NetBSD: t_ifunc.c,v 1.1 2014/08/25 20:40:53 joerg Exp $	*/
+/*	$NetBSD: t_ifunc.c,v 1.2 2017/01/13 21:30:42 christos Exp $	*/
 
 /*
  * Copyright (c) 2014 The NetBSD Foundation, Inc.
@@ -33,7 +33,7 @@
 #include <dlfcn.h>
 #include <util.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(rtld_ifunc);
 

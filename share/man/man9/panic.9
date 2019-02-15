@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 11, 1995
+.Dd April 23, 2015
 .Dt PANIC 9
 .Os
 .Sh NAME
@@ -42,10 +42,14 @@
 .In sys/systm.h
 .Ft void
 .Fn panic "const char *fmt" ...
+.Ft void
+.Fn vpanic "const char *fmt" "va_list ap"
 .Sh DESCRIPTION
 The
 .Fn panic
-function terminates the running system.
+and
+.Fn vpanic
+functions terminate the running system.
 The message
 .Fa fmt
 is a

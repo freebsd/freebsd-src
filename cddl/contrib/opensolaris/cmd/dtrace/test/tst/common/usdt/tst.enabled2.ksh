@@ -77,12 +77,12 @@ main(int argc, char **argv)
 }
 EOF
 
-cc -c -xO2 test.c
+cc -c -O2 test.c
 if [ $? -ne 0 ]; then
 	print -u2 "failed to compile test.c"
 	exit 1
 fi
-$dtrace -G -32 -s prov.d test.o
+$dtrace -G -s prov.d test.o
 if [ $? -ne 0 ]; then
 	print -u2 "failed to create DOF"
 	exit 1

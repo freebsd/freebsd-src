@@ -2,6 +2,8 @@
  * cyclades cyclom-y serial driver
  *	Andrew Herbert <andrew@werple.apana.org.au>, 17 August 1993
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993 Andrew Herbert.
  * All rights reserved.
  *
@@ -80,8 +82,8 @@ cy_isa_probe(device_t dev)
 		return (ENXIO);
 
 	mem_rid = 0;
-	mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &mem_rid,
-	    0ul, ~0ul, 0ul, RF_ACTIVE);
+	mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &mem_rid,
+	    RF_ACTIVE);
 	if (mem_res == NULL) {
 		device_printf(dev, "ioport resource allocation failed\n");
 		return (ENXIO);
@@ -112,8 +114,8 @@ cy_isa_attach(device_t dev)
 	mem_res = NULL;
 
 	mem_rid = 0;
-	mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &mem_rid,
-	    0ul, ~0ul, 0ul, RF_ACTIVE);
+	mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &mem_rid,
+	    RF_ACTIVE);
 	if (mem_res == NULL) {
 		device_printf(dev, "memory resource allocation failed\n");
 		goto fail;
@@ -127,7 +129,7 @@ cy_isa_attach(device_t dev)
 	}
 
 	irq_rid = 0;
-	irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &irq_rid, 0ul, ~0ul, 0ul,
+	irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &irq_rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (irq_res == NULL) {
 		device_printf(dev, "interrupt resource allocation failed\n");

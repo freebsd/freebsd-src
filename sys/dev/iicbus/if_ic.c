@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998, 2001 Nicolas Souchu
  * All rights reserved.
  *
@@ -251,7 +253,7 @@ icioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		if (ifr == 0)
+		if (ifr == NULL)
 			return (EAFNOSUPPORT);		/* XXX */
 		switch (ifr->ifr_addr.sa_family) {
 		case AF_INET:
@@ -289,7 +291,7 @@ icintr(device_t dev, int event, char *ptr)
 
 	case INTR_STOP:
 
-		/* if any error occured during transfert,
+		/* if any error occurred during transfert,
 		 * drop the packet */
 		sc->ic_flags &= ~IC_IFBUF_BUSY;
 		if ((sc->ic_flags & (IC_BUFFERS_BUSY | IC_BUFFER_WAITER)) ==

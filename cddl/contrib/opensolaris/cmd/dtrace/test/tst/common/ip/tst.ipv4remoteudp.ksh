@@ -1,4 +1,4 @@
-#!/usr/bin/ksh
+#!/usr/bin/env ksh93
 #
 # CDDL HEADER START
 #
@@ -36,7 +36,7 @@
 # 4. An unlikely race causes the unlocked global send/receive
 #    variables to be corrupted.
 #
-# This test sends a UDP message using ping and checks that at least the
+# This test sends a UDP message using perl and checks that at least the
 # following counts were traced:
 #
 # 1 x ip:::send (UDP sent to ping's base UDP port)
@@ -50,6 +50,8 @@ fi
 
 dtrace=$1
 getaddr=./get.ipv4remote.pl
+port=33434
+DIR=/var/tmp/dtest.$$
 
 if [[ ! -x $getaddr ]]; then
 	print -u2 "could not find or execute sub program: $getaddr"
@@ -60,7 +62,22 @@ if (( $? != 0 )); then
 	exit 4
 fi
 
-$dtrace -c "/sbin/ping -U $dest" -qs /dev/stdin <<EOF | grep -v 'is alive'
+mkdir $DIR
+cd $DIR
+
+cat > test.pl <<-EOPERL
+	use IO::Socket;
+	my \$s = IO::Socket::INET->new(
+	    Proto => "udp",
+	    PeerAddr => "$dest",
+	    PeerPort => $port);
+	die "Could not create UDP socket $dest port $port" unless \$s;
+	send \$s, "Hello", 0;
+	close \$s;
+	sleep(2);
+EOPERL
+
+$dtrace -c 'perl test.pl' -qs /dev/stdin <<EODTRACE
 BEGIN
 {
 	ipsend = udpsend = 0;
@@ -85,4 +102,11 @@ END
 	printf("ip:::send - %s\n", ipsend >= 1 ? "yes" : "no");
 	printf("udp:::send - %s\n", udpsend >= 1 ? "yes" : "no");
 }
-EOF
+EODTRACE
+
+status=$?
+
+cd /
+/bin/rm -rf $DIR
+
+exit $status

@@ -1,4 +1,4 @@
-//===-- llvm/ADT/UniqueVector.h ---------------------------------*- C++ -*-===//
+//===- llvm/ADT/UniqueVector.h ----------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,6 +11,7 @@
 #define LLVM_ADT_UNIQUEVECTOR_H
 
 #include <cassert>
+#include <cstddef>
 #include <map>
 #include <vector>
 
@@ -22,13 +23,17 @@ namespace llvm {
 /// class should have an implementation of operator== and of operator<.
 /// Entries can be fetched using operator[] with the entry ID.
 template<class T> class UniqueVector {
+public:
+  using VectorType = typename std::vector<T>;
+  using iterator = typename VectorType::iterator;
+  using const_iterator = typename VectorType::const_iterator;
+
 private:
   // Map - Used to handle the correspondence of entry to ID.
   std::map<T, unsigned> Map;
 
   // Vector - ID ordered vector of entries. Entries can be indexed by ID - 1.
-  //
-  std::vector<T> Vector;
+  VectorType Vector;
 
 public:
   /// insert - Append entry to the vector if it doesn't already exist.  Returns
@@ -62,28 +67,36 @@ public:
   }
 
   /// operator[] - Returns a reference to the entry with the specified ID.
-  ///
   const T &operator[](unsigned ID) const {
     assert(ID-1 < size() && "ID is 0 or out of range!");
     return Vector[ID - 1];
   }
 
+  /// \brief Return an iterator to the start of the vector.
+  iterator begin() { return Vector.begin(); }
+
+  /// \brief Return an iterator to the start of the vector.
+  const_iterator begin() const { return Vector.begin(); }
+
+  /// \brief Return an iterator to the end of the vector.
+  iterator end() { return Vector.end(); }
+
+  /// \brief Return an iterator to the end of the vector.
+  const_iterator end() const { return Vector.end(); }
+
   /// size - Returns the number of entries in the vector.
-  ///
   size_t size() const { return Vector.size(); }
 
   /// empty - Returns true if the vector is empty.
-  ///
   bool empty() const { return Vector.empty(); }
 
   /// reset - Clears all the entries.
-  ///
   void reset() {
     Map.clear();
     Vector.resize(0, 0);
   }
 };
 
-} // End of namespace llvm
+} // end namespace llvm
 
 #endif // LLVM_ADT_UNIQUEVECTOR_H

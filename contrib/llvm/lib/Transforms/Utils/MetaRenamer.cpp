@@ -13,16 +13,31 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Transforms/IPO.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Twine.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
+#include "llvm/IR/Argument.h"
+#include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalAlias.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/Pass.h"
+#include "llvm/Transforms/IPO.h"
+
 using namespace llvm;
+
+static const char *const metaNames[] = {
+  // See http://en.wikipedia.org/wiki/Metasyntactic_variable
+  "foo", "bar", "baz", "quux", "barney", "snork", "zot", "blam", "hoge",
+  "wibble", "wobble", "widget", "wombat", "ham", "eggs", "pluto", "spam"
+};
 
 namespace {
 
@@ -42,47 +57,52 @@ namespace {
     }
   };
 
+  struct Renamer {
+    Renamer(unsigned int seed) {
+      prng.srand(seed);
+    }
+
+    const char *newName() {
+      return metaNames[prng.rand() % array_lengthof(metaNames)];
+    }
+
+    PRNG prng;
+  };
+  
   struct MetaRenamer : public ModulePass {
-    static char ID; // Pass identification, replacement for typeid
+    // Pass identification, replacement for typeid
+    static char ID;
+
     MetaRenamer() : ModulePass(ID) {
       initializeMetaRenamerPass(*PassRegistry::getPassRegistry());
     }
 
-    void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
+      AU.addRequired<TargetLibraryInfoWrapperPass>();
       AU.setPreservesAll();
     }
 
-    bool runOnModule(Module &M) {
-      static const char *const metaNames[] = {
-        // See http://en.wikipedia.org/wiki/Metasyntactic_variable
-        "foo", "bar", "baz", "quux", "barney", "snork", "zot", "blam", "hoge",
-        "wibble", "wobble", "widget", "wombat", "ham", "eggs", "pluto", "spam"
-      };
-
+    bool runOnModule(Module &M) override {
       // Seed our PRNG with simple additive sum of ModuleID. We're looking to
       // simply avoid always having the same function names, and we need to
       // remain deterministic.
       unsigned int randSeed = 0;
-      for (std::string::const_iterator I = M.getModuleIdentifier().begin(),
-           E = M.getModuleIdentifier().end(); I != E; ++I)
-        randSeed += *I;
+      for (auto C : M.getModuleIdentifier())
+        randSeed += C;
 
-      PRNG prng;
-      prng.srand(randSeed);
+      Renamer renamer(randSeed);
 
       // Rename all aliases
-      for (Module::alias_iterator AI = M.alias_begin(), AE = M.alias_end();
-           AI != AE; ++AI) {
+      for (auto AI = M.alias_begin(), AE = M.alias_end(); AI != AE; ++AI) {
         StringRef Name = AI->getName();
         if (Name.startswith("llvm.") || (!Name.empty() && Name[0] == 1))
           continue;
 
         AI->setName("alias");
       }
-      
+
       // Rename all global variables
-      for (Module::global_iterator GI = M.global_begin(), GE = M.global_end();
-           GI != GE; ++GI) {
+      for (auto GI = M.global_begin(), GE = M.global_end(); GI != GE; ++GI) {
         StringRef Name = GI->getName();
         if (Name.startswith("llvm.") || (!Name.empty() && Name[0] == 1))
           continue;
@@ -93,49 +113,62 @@ namespace {
       // Rename all struct types
       TypeFinder StructTypes;
       StructTypes.run(M, true);
-      for (unsigned i = 0, e = StructTypes.size(); i != e; ++i) {
-        StructType *STy = StructTypes[i];
+      for (StructType *STy : StructTypes) {
         if (STy->isLiteral() || STy->getName().empty()) continue;
 
         SmallString<128> NameStorage;
-        STy->setName((Twine("struct.") + metaNames[prng.rand() %
-                     array_lengthof(metaNames)]).toStringRef(NameStorage));
+        STy->setName((Twine("struct.") +
+          renamer.newName()).toStringRef(NameStorage));
       }
 
       // Rename all functions
-      for (Module::iterator FI = M.begin(), FE = M.end();
-           FI != FE; ++FI) {
-        StringRef Name = FI->getName();
-        if (Name.startswith("llvm.") || (!Name.empty() && Name[0] == 1))
+      const TargetLibraryInfo &TLI =
+          getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+      for (auto &F : M) {
+        StringRef Name = F.getName();
+        LibFunc Tmp;
+        // Leave library functions alone because their presence or absence could
+        // affect the behavior of other passes.
+        if (Name.startswith("llvm.") || (!Name.empty() && Name[0] == 1) ||
+            TLI.getLibFunc(F, Tmp))
           continue;
 
-        FI->setName(metaNames[prng.rand() % array_lengthof(metaNames)]);
-        runOnFunction(*FI);
+        // Leave @main alone. The output of -metarenamer might be passed to
+        // lli for execution and the latter needs a main entry point.
+        if (Name != "main")
+          F.setName(renamer.newName());
+
+        runOnFunction(F);
       }
       return true;
     }
 
     bool runOnFunction(Function &F) {
-      for (Function::arg_iterator AI = F.arg_begin(), AE = F.arg_end();
-           AI != AE; ++AI)
+      for (auto AI = F.arg_begin(), AE = F.arg_end(); AI != AE; ++AI)
         if (!AI->getType()->isVoidTy())
           AI->setName("arg");
 
-      for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
-        BB->setName("bb");
+      for (auto &BB : F) {
+        BB.setName("bb");
 
-        for (BasicBlock::iterator I = BB->begin(), E = BB->end(); I != E; ++I)
-          if (!I->getType()->isVoidTy())
-            I->setName("tmp");
+        for (auto &I : BB)
+          if (!I.getType()->isVoidTy())
+            I.setName("tmp");
       }
       return true;
     }
   };
-}
+
+} // end anonymous namespace
 
 char MetaRenamer::ID = 0;
-INITIALIZE_PASS(MetaRenamer, "metarenamer", 
-                "Assign new names to everything", false, false)
+
+INITIALIZE_PASS_BEGIN(MetaRenamer, "metarenamer",
+                      "Assign new names to everything", false, false)
+INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
+INITIALIZE_PASS_END(MetaRenamer, "metarenamer",
+                    "Assign new names to everything", false, false)
+
 //===----------------------------------------------------------------------===//
 //
 // MetaRenamer - Rename everything with metasyntactic names.

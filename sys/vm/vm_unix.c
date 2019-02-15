@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,8 +38,6 @@
  *	@(#)vm_unix.c	8.1 (Berkeley) 6/11/93
  */
 
-#include "opt_compat.h"
-
 /*
  * Traditional sbrk/grow interface to VM
  */
@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/systm.h>
@@ -61,19 +62,29 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 
 #ifndef _SYS_SYSPROTO_H_
-struct obreak_args {
+struct break_args {
 	char *nsize;
 };
 #endif
-
-/*
- * MPSAFE
- */
-/* ARGSUSED */
 int
-sys_obreak(td, uap)
-	struct thread *td;
-	struct obreak_args *uap;
+sys_break(struct thread *td, struct break_args *uap)
+{
+#if !defined(__aarch64__) && !defined(__riscv)
+	uintptr_t addr;
+	int error;
+
+	addr = (uintptr_t)uap->nsize;
+	error = kern_break(td, &addr);
+	if (error == 0)
+		td->td_retval[0] = addr;
+	return (error);
+#else /* defined(__aarch64__) || defined(__riscv) */
+	return (ENOSYS);
+#endif /* defined(__aarch64__) || defined(__riscv) */
+}
+
+int
+kern_break(struct thread *td, uintptr_t *addr)
 {
 	struct vmspace *vm = td->td_proc->p_vmspace;
 	vm_map_t map = &vm->vm_map;
@@ -83,14 +94,12 @@ sys_obreak(td, uap)
 	int error = 0;
 	boolean_t do_map_wirefuture;
 
-	PROC_LOCK(td->td_proc);
-	datalim = lim_cur(td->td_proc, RLIMIT_DATA);
-	lmemlim = lim_cur(td->td_proc, RLIMIT_MEMLOCK);
-	vmemlim = lim_cur(td->td_proc, RLIMIT_VMEM);
-	PROC_UNLOCK(td->td_proc);
+	datalim = lim_cur(td, RLIMIT_DATA);
+	lmemlim = lim_cur(td, RLIMIT_MEMLOCK);
+	vmemlim = lim_cur(td, RLIMIT_VMEM);
 
 	do_map_wirefuture = FALSE;
-	new = round_page((vm_offset_t)uap->nsize);
+	new = round_page(*addr);
 	vm_map_lock(map);
 
 	base = round_page((vm_offset_t) vm->vm_daddr);
@@ -110,13 +119,16 @@ sys_obreak(td, uap)
 		}
 	} else if (new < base) {
 		/*
-		 * This is simply an invalid value.  If someone wants to
-		 * do fancy address space manipulations, mmap and munmap
-		 * can do most of what the user would want.
+		 * Simply return the current break address without
+		 * modifying any state.  This is an ad-hoc interface
+		 * used by libc to determine the initial break address,
+		 * avoiding a dependency on magic features in the system
+		 * linker.
 		 */
-		error = EINVAL;
+		new = old;
 		goto done;
 	}
+
 	if (new > old) {
 		if (!old_mlock && map->flags & MAP_WIREFUTURE) {
 			if (ptoa(pmap_wired_count(map->pmap)) +
@@ -130,35 +142,39 @@ sys_obreak(td, uap)
 			goto done;
 		}
 #ifdef RACCT
-		PROC_LOCK(td->td_proc);
-		error = racct_set(td->td_proc, RACCT_DATA, new - base);
-		if (error != 0) {
-			PROC_UNLOCK(td->td_proc);
-			error = ENOMEM;
-			goto done;
-		}
-		error = racct_set(td->td_proc, RACCT_VMEM,
-		    map->size + (new - old));
-		if (error != 0) {
-			racct_set_force(td->td_proc, RACCT_DATA, old - base);
-			PROC_UNLOCK(td->td_proc);
-			error = ENOMEM;
-			goto done;
-		}
-		if (!old_mlock && map->flags & MAP_WIREFUTURE) {
-			error = racct_set(td->td_proc, RACCT_MEMLOCK,
-			    ptoa(pmap_wired_count(map->pmap)) + (new - old));
+		if (racct_enable) {
+			PROC_LOCK(td->td_proc);
+			error = racct_set(td->td_proc, RACCT_DATA, new - base);
 			if (error != 0) {
-				racct_set_force(td->td_proc, RACCT_DATA,
-				    old - base);
-				racct_set_force(td->td_proc, RACCT_VMEM,
-				    map->size);
 				PROC_UNLOCK(td->td_proc);
 				error = ENOMEM;
 				goto done;
 			}
+			error = racct_set(td->td_proc, RACCT_VMEM,
+			    map->size + (new - old));
+			if (error != 0) {
+				racct_set_force(td->td_proc, RACCT_DATA,
+				    old - base);
+				PROC_UNLOCK(td->td_proc);
+				error = ENOMEM;
+				goto done;
+			}
+			if (!old_mlock && map->flags & MAP_WIREFUTURE) {
+				error = racct_set(td->td_proc, RACCT_MEMLOCK,
+				    ptoa(pmap_wired_count(map->pmap)) +
+				    (new - old));
+				if (error != 0) {
+					racct_set_force(td->td_proc, RACCT_DATA,
+					    old - base);
+					racct_set_force(td->td_proc, RACCT_VMEM,
+					    map->size);
+					PROC_UNLOCK(td->td_proc);
+					error = ENOMEM;
+					goto done;
+				}
+			}
+			PROC_UNLOCK(td->td_proc);
 		}
-		PROC_UNLOCK(td->td_proc);
 #endif
 		prot = VM_PROT_RW;
 #ifdef COMPAT_FREEBSD32
@@ -170,14 +186,19 @@ sys_obreak(td, uap)
 		rv = vm_map_insert(map, NULL, 0, old, new, prot, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
 #ifdef RACCT
-			PROC_LOCK(td->td_proc);
-			racct_set_force(td->td_proc, RACCT_DATA, old - base);
-			racct_set_force(td->td_proc, RACCT_VMEM, map->size);
-			if (!old_mlock && map->flags & MAP_WIREFUTURE) {
-				racct_set_force(td->td_proc, RACCT_MEMLOCK,
-				    ptoa(pmap_wired_count(map->pmap)));
+			if (racct_enable) {
+				PROC_LOCK(td->td_proc);
+				racct_set_force(td->td_proc,
+				    RACCT_DATA, old - base);
+				racct_set_force(td->td_proc,
+				    RACCT_VMEM, map->size);
+				if (!old_mlock && map->flags & MAP_WIREFUTURE) {
+					racct_set_force(td->td_proc,
+					    RACCT_MEMLOCK,
+					    ptoa(pmap_wired_count(map->pmap)));
+				}
+				PROC_UNLOCK(td->td_proc);
 			}
-			PROC_UNLOCK(td->td_proc);
 #endif
 			error = ENOMEM;
 			goto done;
@@ -192,11 +213,8 @@ sys_obreak(td, uap)
 		 *
 		 * XXX If the pages cannot be wired, no error is returned.
 		 */
-		if ((map->flags & MAP_WIREFUTURE) == MAP_WIREFUTURE) {
-			if (bootverbose)
-				printf("obreak: MAP_WIREFUTURE set\n");
+		if ((map->flags & MAP_WIREFUTURE) == MAP_WIREFUTURE)
 			do_map_wirefuture = TRUE;
-		}
 	} else if (new < old) {
 		rv = vm_map_delete(map, new, old);
 		if (rv != KERN_SUCCESS) {
@@ -205,14 +223,16 @@ sys_obreak(td, uap)
 		}
 		vm->vm_dsize -= btoc(old - new);
 #ifdef RACCT
-		PROC_LOCK(td->td_proc);
-		racct_set_force(td->td_proc, RACCT_DATA, new - base);
-		racct_set_force(td->td_proc, RACCT_VMEM, map->size);
-		if (!old_mlock && map->flags & MAP_WIREFUTURE) {
-			racct_set_force(td->td_proc, RACCT_MEMLOCK,
-			    ptoa(pmap_wired_count(map->pmap)));
+		if (racct_enable) {
+			PROC_LOCK(td->td_proc);
+			racct_set_force(td->td_proc, RACCT_DATA, new - base);
+			racct_set_force(td->td_proc, RACCT_VMEM, map->size);
+			if (!old_mlock && map->flags & MAP_WIREFUTURE) {
+				racct_set_force(td->td_proc, RACCT_MEMLOCK,
+				    ptoa(pmap_wired_count(map->pmap)));
+			}
+			PROC_UNLOCK(td->td_proc);
 		}
-		PROC_UNLOCK(td->td_proc);
 #endif
 	}
 done:
@@ -222,25 +242,17 @@ done:
 		(void) vm_map_wire(map, old, new,
 		    VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
 
+	if (error == 0)
+		*addr = new;
+
 	return (error);
 }
 
-#ifndef _SYS_SYSPROTO_H_
-struct ovadvise_args {
-	int anom;
-};
-#endif
-
-/*
- * MPSAFE
- */
-/* ARGSUSED */
+#ifdef COMPAT_FREEBSD11
 int
-sys_ovadvise(td, uap)
-	struct thread *td;
-	struct ovadvise_args *uap;
+freebsd11_vadvise(struct thread *td, struct freebsd11_vadvise_args *uap)
 {
-	/* START_GIANT_OPTIONAL */
-	/* END_GIANT_OPTIONAL */
+
 	return (EINVAL);
 }
+#endif

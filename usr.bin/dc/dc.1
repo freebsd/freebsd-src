@@ -35,7 +35,7 @@
 .\"
 .\"	@(#)dc.1	8.1 (Berkeley) 6/6/93
 .\"
-.Dd April 16, 2014
+.Dd December 5, 2017
 .Dt DC 1
 .Os
 .Sh NAME
@@ -139,8 +139,8 @@ The two entries are popped off the stack;
 the result is pushed on the stack in their place.
 Any fractional part of an exponent is ignored.
 .Pp
-For addition and subtraction, the scale of the result is the maximum
-of scales of the operands.
+For addition, subtraction, and remainder, the scale of the result is the
+maximum of scales of the operands.
 For division the scale of the result is defined
 by the scale set by the
 .Ic k
@@ -196,6 +196,10 @@ operator is a non-portable extension.
 All values on the stack are popped.
 .It Ic d
 The top value on the stack is duplicated.
+.It Ic e
+Equivalent to
+.Ic p ,
+except that the output is written to the standard error stream.
 .It Ic f
 All values on the stack are printed, separated by newlines.
 .It Ic G

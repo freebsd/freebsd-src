@@ -21,9 +21,9 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elf.3 2885 2013-01-11 02:11:28Z jkoshy $
+.\" $Id: elf.3 3195 2015-05-12 17:22:19Z emaste $
 .\"
-.Dd August 14, 2011
+.Dd July 28, 2014
 .Os
 .Dt ELF 3
 .Sh NAME
@@ -367,6 +367,11 @@ section entries.
 .Xc
 .It Dv SHT_DYNSYM Ta Dv ELF_T_SYM Ta Symbols for dynamic linking.
 .It Dv SHT_FINI_ARRAY Ta Dv ELF_T_ADDR Ta Termination function pointers.
+.It Dv SHT_GNU_HASH Ta Dv ELF_T_GNUHASH Ta GNU hash sections.
+.It Dv SHT_GNU_LIBLIST Ta Dv ELF_T_WORD Ta List of libraries to be pre-linked.
+.It Dv SHT_GNU_verdef Ta Dv ELF_T_VDEF Ta Symbol version definitions.
+.It Dv SHT_GNU_verneed Ta Dv ELF_T_VNEED Ta Symbol versioning requirements.
+.It Dv SHT_GNU_versym Ta Dv ELF_T_HALF Ta Version symbols.
 .It Dv SHT_GROUP Ta Dv ELF_T_WORD Ta Section group marker.
 .It Dv SHT_HASH Ta Dv ELF_T_HASH Ta Symbol hashes.
 .It Dv SHT_INIT_ARRAY Ta Dv ELF_T_ADDR Ta Initialization function pointers.
@@ -383,13 +388,31 @@ See
 .It Dv SHT_STRTAB Ta Dv ELF_T_BYTE Ta String tables.
 .It Dv SHT_SYMTAB Ta Dv ELF_T_SYM Ta Symbol tables.
 .It Dv SHT_SYMTAB_SHNDX Ta Dv ELF_T_WORD Ta Used with extended section numbering.
-.It Dv SHT_GNU_verdef Ta Dv ELF_T_VDEF Ta Symbol version definitions.
-.It Dv SHT_GNU_verneed Ta Dv ELF_T_VNEED Ta Symbol versioning requirements.
-.It Dv SHT_GNU_versym Ta Dv ELF_T_HALF Ta Version symbols.
+.It Dv SHT_SUNW_dof Ta Dv ELF_T_BYTE Ta Xo
+Used by
+.Xr dtrace 1 .
+.Xc
 .It Dv SHT_SUNW_move Ta Dv ELF_T_MOVE Ta ELF move records.
 .It Dv SHT_SUNW_syminfo Ta Dv ELF_T_SYMINFO Ta Additional symbol flags.
+.It Dv SHT_SUNW_verdef Ta Dv ELF_T_VDEF Ta Xo
+Same as
+.Dv SHT_GNU_verdef .
+.Xc
+.It Dv SHT_SUNW_verneed Ta Dv ELF_T_VNEED Ta Xo
+Same as
+.Dv SHT_GNU_verneed .
+.Xc
+.It Dv SHT_SUNW_versym Ta Dv ELF_T_HALF Ta Xo
+Same as
+.Dv SHT_GNU_versym .
+.Xc
 .El
-.TE
+.Pp
+Section types in the range
+.Ns [ Dv SHT_LOOS ,
+.Dv SHT_HIUSER ]
+are otherwise considered to be of type
+.Dv ELF_T_BYTE .
 .Ss Functional Grouping
 This section contains a brief overview of the available functionality
 in the ELF library.
@@ -532,7 +555,7 @@ flag on an ELF descriptor using
 .Xr elf_flagelf 3 ,
 following which the library will use the data offsets and alignments
 specified by the application when laying out the file.
-Application control of file layout is described further in the 
+Application control of file layout is described further in the
 .Xr elf_update 3
 manual page.
 .Pp
@@ -585,5 +608,4 @@ The current implementation of the ELF(3) API appeared in
 .Fx 7.0 .
 .Sh AUTHORS
 The ELF library was written by
-.An "Joseph Koshy"
-.Aq jkoshy@FreeBSD.org .
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org .

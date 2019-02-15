@@ -49,8 +49,8 @@ xenpvcpu_identify(driver_t *driver, device_t parent)
 {
 	int i;
 
-	/* Only attach to PV guests, HVM guests use the ACPI CPU devices */
-	if (!xen_pv_domain())
+	/* Only attach in case the per-CPU device is not set. */
+	if (!xen_domain() || PCPU_GET(device) != NULL)
 		return;
 
 	CPU_FOREACH(i) {

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
  *
@@ -29,42 +31,23 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <err.h>
 #include <grp.h>
 #include <libutil.h>
-#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
-#include <stdarg.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/param.h>
 
 #include "pwupd.h"
-
-static char * grpath = _PATH_PWD;
-
-int
-setgrdir(const char * dir)
-{
-	if (dir == NULL)
-		return -1;
-	else
-		grpath = strdup(dir);
-	if (grpath == NULL)
-		return -1;
-
-	return 0;
-}
 
 char *
 getgrpath(const char * file)
 {
 	static char pathbuf[MAXPATHLEN];
 
-	snprintf(pathbuf, sizeof pathbuf, "%s/%s", grpath, file);
-	return pathbuf;
+	snprintf(pathbuf, sizeof pathbuf, "%s/%s", conf.etcpath, file);
+
+	return (pathbuf);
 }
 
 static int
@@ -80,7 +63,7 @@ gr_update(struct group * grp, char const * group)
 	if (group != NULL)
 		old_gr = GETGRNAM(group);
 
-	if (gr_init(grpath, NULL))
+	if (gr_init(conf.etcpath, NULL))
 		err(1, "gr_init()");
 
 	if ((pfd = gr_lock()) == -1) {
@@ -93,8 +76,11 @@ gr_update(struct group * grp, char const * group)
 	}
 	if (gr_copy(pfd, tfd, gr, old_gr) == -1) {
 		gr_fini();
+		close(tfd);
 		err(1, "gr_copy()");
 	}
+	fsync(tfd);
+	close(tfd);
 	if (gr_mkdb() == -1) {
 		gr_fini();
 		err(1, "gr_mkdb()");
@@ -120,9 +106,6 @@ chggrent(char const * login, struct group * grp)
 int
 delgrent(struct group * grp)
 {
-	char group[MAXLOGNAME];
 
-	strlcpy(group, grp->gr_name, MAXLOGNAME);
-
-	return gr_update(NULL, group);
+	return (gr_update(NULL, grp->gr_name));
 }

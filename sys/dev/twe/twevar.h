@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Michael Smith
  * Copyright (c) 2000 BSDi
  * All rights reserved.
@@ -143,7 +145,7 @@ struct twe_softc
 };
 
 /*
- * Interface betwen driver core and platform-dependant code.
+ * Interface between driver core and platform-dependant code.
  */
 extern int	twe_setup(struct twe_softc *sc);		/* do early driver/controller setup */
 extern void	twe_init(struct twe_softc *sc);			/* init controller */

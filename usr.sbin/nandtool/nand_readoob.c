@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010-2012 Semihalf.
  * All rights reserved.
  *
@@ -57,7 +59,7 @@ int nand_read_oob(struct cmd_param *params)
 	}
 
 	if ((out = param_get_string(params, "out"))) {
-		if ((fd_out = open(out, O_WRONLY | O_CREAT)) == -1) {
+		if ((fd_out = open(out, O_WRONLY | O_CREAT, 0666)) == -1) {
 			perrorf("Cannot open %s", out);
 			ret = 1;
 			goto out;

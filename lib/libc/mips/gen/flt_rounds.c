@@ -11,7 +11,14 @@ __FBSDID("$FreeBSD$");
 __RCSID("$NetBSD: flt_rounds.c,v 1.5 2005/12/24 23:10:08 perry Exp $");
 #endif /* LIBC_SCCS and not lint */
 
-#include <machine/float.h>
+#include <fenv.h>
+#include <float.h>
+
+#ifdef	__mips_soft_float
+#include "softfloat-for-gcc.h"
+#include "milieu.h"
+#include "softfloat.h"
+#endif
 
 static const int map[] = {
 	1,	/* round to nearest */
@@ -23,8 +30,13 @@ static const int map[] = {
 int
 __flt_rounds()
 {
-	int x;
+	int mode;
 
-	__asm("cfc1 %0,$31" : "=r" (x));
-	return map[x & 0x03];
+#ifdef __mips_soft_float
+	mode = __softfloat_float_rounding_mode;
+#else
+	__asm __volatile("cfc1 %0,$31" : "=r" (mode));
+#endif
+
+	return map[mode & 0x03];
 }

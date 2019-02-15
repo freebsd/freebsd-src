@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -68,7 +70,7 @@ freopen(const char * __restrict file, const char * __restrict mode,
 		return (NULL);
 	}
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 
 	if (!__sdidinit)
 		__sinit();
@@ -81,24 +83,24 @@ freopen(const char * __restrict file, const char * __restrict mode,
 	if (file == NULL) {
 		/* See comment below regarding freopen() of closed files. */
 		if (fp->_flags == 0) {
-			FUNLOCKFILE(fp);
 			errno = EINVAL;
-			return (NULL);
+			fp = NULL;
+			goto end;
 		}
 		if ((dflags = _fcntl(fp->_file, F_GETFL)) < 0) {
 			sverrno = errno;
 			fclose(fp);
-			FUNLOCKFILE(fp);
 			errno = sverrno;
-			return (NULL);
+			fp = NULL;
+			goto end;
 		}
 		/* Work around incorrect O_ACCMODE. */
 		if ((dflags & O_ACCMODE) != O_RDWR &&
 		    (dflags & (O_ACCMODE | O_EXEC)) != (oflags & O_ACCMODE)) {
 			fclose(fp);
-			FUNLOCKFILE(fp);
 			errno = EBADF;
-			return (NULL);
+			fp = NULL;
+			goto end;
 		}
 		if (fp->_flags & __SWR)
 			(void) __sflush(fp);
@@ -108,9 +110,9 @@ freopen(const char * __restrict file, const char * __restrict mode,
 			if (_fcntl(fp->_file, F_SETFL, dflags) < 0) {
 				sverrno = errno;
 				fclose(fp);
-				FUNLOCKFILE(fp);
 				errno = sverrno;
-				return (NULL);
+				fp = NULL;
+				goto end;
 			}
 		}
 		if (oflags & O_TRUNC)
@@ -187,14 +189,15 @@ finish:
 	fp->_lb._size = 0;
 	fp->_orientation = 0;
 	memset(&fp->_mbstate, 0, sizeof(mbstate_t));
+	fp->_flags2 = 0;
 
 	if (f < 0) {			/* did not get it after all */
 		if (isopen)
 			(void) (*fp->_close)(fp->_cookie);
 		fp->_flags = 0;		/* set it free */
-		FUNLOCKFILE(fp);
 		errno = sverrno;	/* restore in case _close clobbered */
-		return (NULL);
+		fp = NULL;
+		goto end;
 	}
 
 	/*
@@ -220,9 +223,9 @@ finish:
 	 */
 	if (f > SHRT_MAX) {
 		fp->_flags = 0;		/* set it free */
-		FUNLOCKFILE(fp);
 		errno = EMFILE;
-		return (NULL);
+		fp = NULL;
+		goto end;
 	}
 
 	fp->_flags = flags;
@@ -240,8 +243,11 @@ finish:
 	 * we can do about this.  (We could set __SAPP and check in
 	 * fseek and ftell.)
 	 */
-	if (oflags & O_APPEND)
+	if (oflags & O_APPEND) {
+		fp->_flags2 |= __S2OAP;
 		(void) _sseek(fp, (fpos_t)0, SEEK_END);
-	FUNLOCKFILE(fp);
+	}
+end:
+	FUNLOCKFILE_CANCELSAFE();
 	return (fp);
 }

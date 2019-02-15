@@ -153,8 +153,7 @@ static const struct ng_ksocket_alias ng_ksocket_protos[] = {
 };
 
 /* Helper functions */
-static int	ng_ksocket_check_accept(priv_p);
-static void	ng_ksocket_finish_accept(priv_p);
+static int	ng_ksocket_accept(priv_p);
 static int	ng_ksocket_incoming(struct socket *so, void *arg, int waitflag);
 static int	ng_ksocket_parse(const struct ng_ksocket_alias *aliases,
 			const char *s, int family);
@@ -632,7 +631,7 @@ ng_ksocket_connect(hook_p hook)
 	 * first created and now (on another processesor) will
 	 * be earlier on the queue than the request to finalise the hook.
 	 * By the time the hook is finalised,
-	 * The queued upcalls will have happenned and the code
+	 * The queued upcalls will have happened and the code
 	 * will have discarded them because of a lack of a hook.
 	 * (socket not open).
 	 *
@@ -642,9 +641,9 @@ ng_ksocket_connect(hook_p hook)
 	 * Since we are a netgraph operation
 	 * We know that we hold a lock on this node. This forces the
 	 * request we make below to be queued rather than implemented
-	 * immediatly which will cause the upcall function to be called a bit
+	 * immediately which will cause the upcall function to be called a bit
 	 * later.
-	 * However, as we will run any waiting queued operations immediatly
+	 * However, as we will run any waiting queued operations immediately
 	 * after doing this one, if we have not finalised the other end
 	 * of the hook, those queued operations will fail.
 	 */
@@ -698,6 +697,7 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				ERROUT(ENXIO);
 
 			/* Listen */
+			so->so_state |= SS_NBIO;
 			error = solisten(so, *((int32_t *)msg->data), td);
 			break;
 		    }
@@ -716,21 +716,16 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (priv->flags & KSF_ACCEPTING)
 				ERROUT(EALREADY);
 
-			error = ng_ksocket_check_accept(priv);
-			if (error != 0 && error != EWOULDBLOCK)
-				ERROUT(error);
-
 			/*
 			 * If a connection is already complete, take it.
 			 * Otherwise let the upcall function deal with
 			 * the connection when it comes in.
 			 */
+			error = ng_ksocket_accept(priv);
+			if (error != 0 && error != EWOULDBLOCK)
+				ERROUT(error);
 			priv->response_token = msg->header.token;
 			raddr = priv->response_addr = NGI_RETADDR(item);
-			if (error == 0) {
-				ng_ksocket_finish_accept(priv);
-			} else
-				priv->flags |= KSF_ACCEPTING;
 			break;
 		    }
 
@@ -1068,13 +1063,8 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 	}
 
 	/* Check whether a pending accept operation has completed */
-	if (priv->flags & KSF_ACCEPTING) {
-		error = ng_ksocket_check_accept(priv);
-		if (error != EWOULDBLOCK)
-			priv->flags &= ~KSF_ACCEPTING;
-		if (error == 0)
-			ng_ksocket_finish_accept(priv);
-	}
+	if (priv->flags & KSF_ACCEPTING)
+		(void )ng_ksocket_accept(priv);
 
 	/*
 	 * If we don't have a hook, we must handle data events later.  When
@@ -1171,35 +1161,8 @@ sendit:		/* Forward data with optional peer sockaddr as packet tag */
 	}
 }
 
-/*
- * Check for a completed incoming connection and return 0 if one is found.
- * Otherwise return the appropriate error code.
- */
 static int
-ng_ksocket_check_accept(priv_p priv)
-{
-	struct socket *const head = priv->so;
-	int error;
-
-	if ((error = head->so_error) != 0) {
-		head->so_error = 0;
-		return error;
-	}
-	/* Unlocked read. */
-	if (TAILQ_EMPTY(&head->so_comp)) {
-		if (head->so_rcv.sb_state & SBS_CANTRCVMORE)
-			return ECONNABORTED;
-		return EWOULDBLOCK;
-	}
-	return 0;
-}
-
-/*
- * Handle the first completed incoming connection, assumed to be already
- * on the socket's so_comp queue.
- */
-static void
-ng_ksocket_finish_accept(priv_p priv)
+ng_ksocket_accept(priv_p priv)
 {
 	struct socket *const head = priv->so;
 	struct socket *so;
@@ -1211,25 +1174,18 @@ ng_ksocket_finish_accept(priv_p priv)
 	int len;
 	int error;
 
-	ACCEPT_LOCK();
-	so = TAILQ_FIRST(&head->so_comp);
-	if (so == NULL) {	/* Should never happen */
-		ACCEPT_UNLOCK();
-		return;
+	SOLISTEN_LOCK(head);
+	error = solisten_dequeue(head, &so, SOCK_NONBLOCK);
+	if (error == EWOULDBLOCK) {
+		priv->flags |= KSF_ACCEPTING;
+		return (error);
 	}
-	TAILQ_REMOVE(&head->so_comp, so, so_list);
-	head->so_qlen--;
-	so->so_qstate &= ~SQ_COMP;
-	so->so_head = NULL;
-	SOCK_LOCK(so);
-	soref(so);
-	so->so_state |= SS_NBIO;
-	SOCK_UNLOCK(so);
-	ACCEPT_UNLOCK();
+	priv->flags &= ~KSF_ACCEPTING;
+	if (error)
+		return (error);
 
-	/* XXX KNOTE_UNLOCKED(&head->so_rcv.sb_sel.si_note, 0); */
-
-	soaccept(so, &sa);
+	if ((error = soaccept(so, &sa)) != 0)
+		return (error);
 
 	len = OFFSETOF(struct ng_ksocket_accept, addr);
 	if (sa != NULL)
@@ -1288,6 +1244,8 @@ ng_ksocket_finish_accept(priv_p priv)
 out:
 	if (sa != NULL)
 		free(sa, M_SONAME);
+
+	return (0);
 }
 
 /*

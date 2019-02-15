@@ -33,17 +33,15 @@
 #ifndef _XEN_INTR_H_
 #define _XEN_INTR_H_
 
-#ifndef __XEN_EVTCHN_PORT_DEFINED__
-typedef uint32_t evtchn_port_t;
-DEFINE_XEN_GUEST_HANDLE(evtchn_port_t);
-#define __XEN_EVTCHN_PORT_DEFINED__ 1
-#endif
+#include <xen/interface/event_channel.h>
 
 /** Registered Xen interrupt callback handle. */
 typedef void * xen_intr_handle_t;
 
 /** If non-zero, the hypervisor has been configured to use a direct vector */
 extern int xen_vector_callback_enabled;
+
+void xen_intr_handle_upcall(struct trapframe *trap_frame);
 
 /**
  * Associate an already allocated local event channel port an interrupt
@@ -145,7 +143,6 @@ int xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
  * interupts and, if successful, associate the port with the specified
  * interrupt handler.
  *
- * \param dev       The device making this bind request.
  * \param cpu       The cpu receiving the IPI.
  * \param filter    The interrupt filter servicing this IPI.
  * \param irqflags  Interrupt handler flags.  See sys/bus.h.
@@ -154,7 +151,7 @@ int xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
  *
  * \returns  0 on success, otherwise an errno.
  */
-int xen_intr_alloc_and_bind_ipi(device_t dev, u_int cpu,
+int xen_intr_alloc_and_bind_ipi(u_int cpu,
 	driver_filter_t filter, enum intr_type irqflags,
 	xen_intr_handle_t *handlep);
 
@@ -245,5 +242,46 @@ int xen_register_msi(device_t dev, int vector, int count);
  * \returns  0 on success, otherwise an errno.
  */
 int xen_release_msi(int vector);
+
+/**
+ * Bind an event channel port with a handler
+ *
+ * \param dev       The device making this bind request.
+ * \param filter    An interrupt filter handler.  Specify NULL
+ *                  to always dispatch to the ithread handler.
+ * \param handler   An interrupt ithread handler.  Optional (can
+ *                  specify NULL) if all necessary event actions
+ *                  are performed by filter.
+ * \param arg       Argument to present to both filter and handler.
+ * \param irqflags  Interrupt handler flags.  See sys/bus.h.
+ * \param handle    Opaque handle used to manage this registration.
+ *
+ * \returns  0 on success, otherwise an errno.
+ */
+int xen_intr_add_handler(const char *name, driver_filter_t filter,
+	driver_intr_t handler, void *arg, enum intr_type flags,
+	xen_intr_handle_t handle);
+
+/**
+ * Get a reference to an event channel port
+ *
+ * \param port	    Event channel port to which we get a reference.
+ * \param handlep   Pointer to an opaque handle used to manage this
+ *                  registration.
+ *
+ * \returns  0 on success, otherwise an errno.
+ */
+int xen_intr_get_evtchn_from_port(evtchn_port_t port,
+	xen_intr_handle_t *handlep);
+
+/**
+ * Register the IO-APIC PIRQs when running in legacy PVH Dom0 mode.
+ *
+ * \param pic	    PIC instance.
+ *
+ * NB: this should be removed together with the support for legacy PVH mode.
+ */
+struct pic;
+void xenpv_register_pirqs(struct pic *pic);
 
 #endif /* _XEN_INTR_H_ */

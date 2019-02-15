@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2006-2014 QLogic Corporation
  *
  * Redistribution and use in source and binary forms, with or without
@@ -527,7 +529,8 @@ MODULE_DEPEND(bce, miibus, 1, 1, 1);
 
 DRIVER_MODULE(bce, pci, bce_driver, bce_devclass, NULL, NULL);
 DRIVER_MODULE(miibus, bce, miibus_driver, miibus_devclass, NULL, NULL);
-
+MODULE_PNP_INFO("U16:vendor;U16:device;U16:#;U16:#;D:#", pci, bce,
+    bce_devs, nitems(bce_devs) - 1);
 
 /****************************************************************************/
 /* Tunable device values                                                    */
@@ -2361,7 +2364,7 @@ bce_nvram_erase_page(struct bce_softc *sc, u32 offset)
 	    BCE_NVM_COMMAND_DOIT;
 
 	/*
-	 * Clear the DONE bit separately, set the NVRAM adress to erase,
+	 * Clear the DONE bit separately, set the NVRAM address to erase,
 	 * and issue the erase command.
 	 */
 	REG_WR(sc, BCE_NVM_COMMAND, BCE_NVM_COMMAND_DONE);
@@ -2800,7 +2803,7 @@ bce_nvram_write(struct bce_softc *sc, u32 offset, u8 *data_buf,
 
 	if (align_start || align_end) {
 		buf = malloc(len32, M_DEVBUF, M_NOWAIT);
-		if (buf == 0) {
+		if (buf == NULL) {
 			rc = ENOMEM;
 			goto bce_nvram_write_exit;
 		}
@@ -3047,7 +3050,7 @@ bce_get_rx_buffer_sizes(struct bce_softc *sc, int mtu)
 		sc->rx_bd_mbuf_alloc_size = MHLEN;
 		/* Make sure offset is 16 byte aligned for hardware. */
 		sc->rx_bd_mbuf_align_pad =
-			roundup2((MSIZE - MHLEN), 16) - (MSIZE - MHLEN);
+			roundup2(MSIZE - MHLEN, 16) - (MSIZE - MHLEN);
 		sc->rx_bd_mbuf_data_len = sc->rx_bd_mbuf_alloc_size -
 			sc->rx_bd_mbuf_align_pad;
 	} else {
@@ -7957,7 +7960,7 @@ bce_intr(void *xsc)
 		goto bce_intr_exit;
 	}
 
-	/* Ack the interrupt and stop others from occuring. */
+	/* Ack the interrupt and stop others from occurring. */
 	REG_WR(sc, BCE_PCICFG_INT_ACK_CMD,
 	    BCE_PCICFG_INT_ACK_CMD_USE_INT_HC_PARAM |
 	    BCE_PCICFG_INT_ACK_CMD_MASK_INT);
@@ -8114,7 +8117,7 @@ bce_set_rx_mode(struct bce_softc *sc)
 		DBPRINT(sc, BCE_INFO_MISC, "Enabling selective multicast mode.\n");
 
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			h = ether_crc32_le(LLADDR((struct sockaddr_dl *)

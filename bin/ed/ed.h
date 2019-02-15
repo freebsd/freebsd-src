@@ -115,7 +115,7 @@ if (--mutex == 0) { \
 /* REALLOC: assure at least a minimum size for buffer b */
 #define REALLOC(b,n,i,err) \
 if ((i) > (n)) { \
-	int ti = (n); \
+	size_t ti = (n); \
 	char *ts; \
 	SPL1(); \
 	if ((b) != NULL) { \
@@ -141,7 +141,7 @@ if ((i) > (n)) { \
 /* REALLOC: assure at least a minimum size for buffer b */
 #define REALLOC(b,n,i,err) \
 if ((i) > (n)) { \
-	int ti = (n); \
+	size_t ti = (n); \
 	char *ts; \
 	SPL1(); \
 	if ((ts = (char *) realloc((b), ti += max((i), MINBUFSZ))) == NULL) { \
@@ -175,17 +175,6 @@ if ((i) > (n)) { \
 /* NEWLINE_TO_NUL: overwrite newlines with ASCII NULs */
 #define NEWLINE_TO_NUL(s, l) translit_text(s, l, '\n', '\0')
 
-#ifdef ED_DES_INCLUDES
-void des_error(const char *);
-void expand_des_key(char *, char *);
-void set_des_key(DES_cblock *);
-#endif
-
-/* Other DES support stuff */
-void init_des_cipher(void);
-int flush_des_file(FILE *);
-int get_des_char(FILE *);
-int put_des_char(int, FILE *);
 
 /* Local Function Declarations */
 void add_line_node(line_t *);
@@ -280,6 +269,5 @@ extern long u_current_addr;
 extern long rows;
 extern int cols;
 extern int newline_added;
-extern int des;
 extern int scripted;
 extern int patlock;

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1995
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -72,13 +74,11 @@ __FBSDID("$FreeBSD$");
 
 #define	_RPCSVC_CLOSEDOWN 120
 int _rpcpmstart;		/* Started by a port monitor ? */
-static int _rpcfdtype;
-		 /* Whether Stream or Datagram ? */
+static int _rpcfdtype;  /* Whether Stream or Datagram? */
 static int _rpcaf;
 static int _rpcfd;
 
-	/* States a server can be in wrt request */
-
+/* States a server can be in wrt request */
 #define	_IDLE 0
 #define	_SERVED 1
 #define	_SERVING 2

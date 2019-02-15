@@ -1,7 +1,9 @@
 /*	$OpenBSD: courier.c,v 1.15 2006/03/17 19:17:13 moritz Exp $	*/
 /*	$NetBSD: courier.c,v 1.7 1997/02/11 09:24:16 mrg Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Jake Burkholder.
  * All rights reserved.
  *
@@ -78,9 +80,6 @@ sc_get_softc(int unit, int flags)
 void
 sc_get_bios_values(bios_values_t *values)
 {
-	values->cursor_start = 0;
-	values->cursor_end = 32;
-	values->shift_state = 0;
 }
 
 int

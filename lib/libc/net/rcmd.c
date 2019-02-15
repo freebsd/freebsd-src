@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -58,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <arpa/nameser.h>
 #include "un-namespace.h"
+#include "libc_private.h"
 
 extern int innetgr( const char *, const char *, const char *, const char * );
 
@@ -72,22 +75,15 @@ static int __icheckhost(const struct sockaddr *, socklen_t, const char *);
 char paddr[NI_MAXHOST];
 
 int
-rcmd(ahost, rport, locuser, remuser, cmd, fd2p)
-	char **ahost;
-	u_short rport;
-	const char *locuser, *remuser, *cmd;
-	int *fd2p;
+rcmd(char **ahost, int rport, const char *locuser, const char *remuser,
+    const char *cmd, int *fd2p)
 {
 	return rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, AF_INET);
 }
 
 int
-rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
-	char **ahost;
-	u_short rport;
-	const char *locuser, *remuser, *cmd;
-	int *fd2p;
-	int af;
+rcmd_af(char **ahost, int rport, const char *locuser, const char *remuser,
+    const char *cmd, int *fd2p, int af)
 {
 	struct addrinfo hints, *res, *ai;
 	struct sockaddr_storage from;
@@ -148,7 +144,7 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 	refused = 0;
 	sigemptyset(&newmask);
 	sigaddset(&newmask, SIGURG);
-	_sigprocmask(SIG_BLOCK, (const sigset_t *)&newmask, &oldmask);
+	__libc_sigprocmask(SIG_BLOCK, (const sigset_t *)&newmask, &oldmask);
 	for (timo = 1, lport = IPPORT_RESERVED - 1;;) {
 		s = rresvport_af(&lport, ai->ai_family);
 		if (s < 0) {
@@ -163,7 +159,7 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 				(void)fprintf(stderr, "rcmd: socket: %s\n",
 				    strerror(errno));
 			freeaddrinfo(res);
-			_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask,
+			__libc_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask,
 			    NULL);
 			return (-1);
 		}
@@ -181,7 +177,7 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 			(void)fprintf(stderr, "%s: %s\n",
 				      *ahost, strerror(errno));
 			freeaddrinfo(res);
-			_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask,
+			__libc_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask,
 			    NULL);
 			return (-1);
 		}
@@ -213,7 +209,7 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 		}
 	}
 	lport--;
-	if (fd2p == 0) {
+	if (fd2p == NULL) {
 		_write(s, "", 1);
 		lport = 0;
 	} else {
@@ -306,7 +302,7 @@ again:
 		}
 		goto bad2;
 	}
-	_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask, NULL);
+	__libc_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask, NULL);
 	freeaddrinfo(res);
 	return (s);
 bad2:
@@ -314,21 +310,19 @@ bad2:
 		(void)_close(*fd2p);
 bad:
 	(void)_close(s);
-	_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask, NULL);
+	__libc_sigprocmask(SIG_SETMASK, (const sigset_t *)&oldmask, NULL);
 	freeaddrinfo(res);
 	return (-1);
 }
 
 int
-rresvport(port)
-	int *port;
+rresvport(int *port)
 {
 	return rresvport_af(port, AF_INET);
 }
 
 int
-rresvport_af(alport, family)
-	int *alport, family;
+rresvport_af(int *alport, int family)
 {
 	int s;
 	struct sockaddr_storage ss;
@@ -379,9 +373,7 @@ int	__check_rhosts_file = 1;
 char	*__rcmd_errstr;
 
 int
-ruserok(rhost, superuser, ruser, luser)
-	const char *rhost, *ruser, *luser;
-	int superuser;
+ruserok(const char *rhost, int superuser, const char *ruser, const char *luser)
 {
 	struct addrinfo hints, *res, *r;
 	int error;
@@ -414,10 +406,7 @@ ruserok(rhost, superuser, ruser, luser)
  * Returns 0 if ok, -1 if not ok.
  */
 int
-iruserok(raddr, superuser, ruser, luser)
-	unsigned long raddr;
-	int superuser;
-	const char *ruser, *luser;
+iruserok(unsigned long raddr, int superuser, const char *ruser, const char *luser)
 {
 	struct sockaddr_in sin;
 
@@ -435,11 +424,8 @@ iruserok(raddr, superuser, ruser, luser)
  * Returns 0 if ok, -1 if not ok.
  */
 int
-iruserok_sa(ra, rlen, superuser, ruser, luser)
-	const void *ra;
-	int rlen;
-	int superuser;
-	const char *ruser, *luser;
+iruserok_sa(const void *ra, int rlen, int superuser, const char *ruser,
+    const char *luser)
 {
 	char *cp;
 	struct stat sbuf;
@@ -471,8 +457,8 @@ again:
 		first = 0;
 		if ((pwd = getpwnam(luser)) == NULL)
 			return (-1);
-		(void)strcpy(pbuf, pwd->pw_dir);
-		(void)strcat(pbuf, "/.rhosts");
+		(void)strlcpy(pbuf, pwd->pw_dir, sizeof(pbuf));
+		(void)strlcat(pbuf, "/.rhosts", sizeof(pbuf));
 
 		/*
 		 * Change effective uid while opening .rhosts.  If root and
@@ -519,10 +505,7 @@ again:
  * Returns 0 if ok, -1 if not ok.
  */
 int
-__ivaliduser(hostf, raddr, luser, ruser)
-	FILE *hostf;
-	u_int32_t raddr;
-	const char *luser, *ruser;
+__ivaliduser(FILE *hostf, u_int32_t raddr, const char *luser, const char *ruser)
 {
 	struct sockaddr_in sin;
 
@@ -540,11 +523,8 @@ __ivaliduser(hostf, raddr, luser, ruser)
  * XXX obsolete API.
  */
 int
-__ivaliduser_af(hostf, raddr, luser, ruser, af, len)
-	FILE *hostf;
-	const void *raddr;
-	const char *luser, *ruser;
-	int af, len;
+__ivaliduser_af(FILE *hostf, const void *raddr, const char *luser,
+    const char *ruser, int af, int len)
 {
 	struct sockaddr *sa = NULL;
 	struct sockaddr_in *sin = NULL;
@@ -583,11 +563,8 @@ __ivaliduser_af(hostf, raddr, luser, ruser, af, len)
 }
 
 int
-__ivaliduser_sa(hostf, raddr, salen, luser, ruser)
-	FILE *hostf;
-	const struct sockaddr *raddr;
-	socklen_t salen;
-	const char *luser, *ruser;
+__ivaliduser_sa(FILE *hostf, const struct sockaddr *raddr, socklen_t salen,
+    const char *luser, const char *ruser)
 {
 	char *user, *p;
 	int ch;
@@ -706,10 +683,7 @@ __ivaliduser_sa(hostf, raddr, salen, luser, ruser)
  * Returns "true" if match, 0 if no match.
  */
 static int
-__icheckhost(raddr, salen, lhost)
-	const struct sockaddr *raddr;
-	socklen_t salen;
-        const char *lhost;
+__icheckhost(const struct sockaddr *raddr, socklen_t salen, const char *lhost)
 {
 	struct sockaddr_in sin;
 	struct sockaddr_in6 *sin6;

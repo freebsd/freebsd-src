@@ -1,6 +1,7 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Niclas Zeising
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 __weak_reference(__strchrnul, strchrnul);
+
+char *__strchrnul(const char *, int);
 
 char *
 __strchrnul(const char *p, int ch)

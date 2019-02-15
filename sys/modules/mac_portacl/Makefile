@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../security/mac_portacl
+.PATH: ${SRCTOP}/sys/security/mac_portacl
 
 KMOD=	mac_portacl
 SRCS=	mac_portacl.c

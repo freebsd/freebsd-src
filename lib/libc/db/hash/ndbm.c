@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -56,9 +58,7 @@ __FBSDID("$FreeBSD$");
  *	 NULL on failure
  */
 extern DBM *
-dbm_open(file, flags, mode)
-	const char *file;
-	int flags, mode;
+dbm_open(const char *file, int flags, mode_t mode)
 {
 	HASHINFO info;
 	char path[MAXPATHLEN];
@@ -80,8 +80,7 @@ dbm_open(file, flags, mode)
 }
 
 extern void
-dbm_close(db)
-	DBM *db;
+dbm_close(DBM *db)
 {
 	(void)(db->close)(db);
 }
@@ -92,9 +91,7 @@ dbm_close(db)
  *	NULL on failure
  */
 extern datum
-dbm_fetch(db, key)
-	DBM *db;
-	datum key;
+dbm_fetch(DBM *db, datum key)
 {
 	datum retdata;
 	int status;
@@ -118,8 +115,7 @@ dbm_fetch(db, key)
  *	NULL on failure
  */
 extern datum
-dbm_firstkey(db)
-	DBM *db;
+dbm_firstkey(DBM *db)
 {
 	int status;
 	datum retkey;
@@ -139,8 +135,7 @@ dbm_firstkey(db)
  *	NULL on failure
  */
 extern datum
-dbm_nextkey(db)
-	DBM *db;
+dbm_nextkey(DBM *db)
 {
 	int status;
 	datum retkey;
@@ -160,9 +155,7 @@ dbm_nextkey(db)
  *	<0 failure
  */
 extern int
-dbm_delete(db, key)
-	DBM *db;
-	datum key;
+dbm_delete(DBM *db, datum key)
 {
 	int status;
 	DBT dbtkey;
@@ -183,10 +176,7 @@ dbm_delete(db, key)
  *	 1 if DBM_INSERT and entry exists
  */
 extern int
-dbm_store(db, key, data, flags)
-	DBM *db;
-	datum key, data;
-	int flags;
+dbm_store(DBM *db, datum key, datum data, int flags)
 {
 	DBT dbtkey, dbtdata;
 
@@ -199,8 +189,7 @@ dbm_store(db, key, data, flags)
 }
 
 extern int
-dbm_error(db)
-	DBM *db;
+dbm_error(DBM *db)
 {
 	HTAB *hp;
 
@@ -209,8 +198,7 @@ dbm_error(db)
 }
 
 extern int
-dbm_clearerr(db)
-	DBM *db;
+dbm_clearerr(DBM *db)
 {
 	HTAB *hp;
 
@@ -220,8 +208,7 @@ dbm_clearerr(db)
 }
 
 extern int
-dbm_dirfno(db)
-	DBM *db;
+dbm_dirfno(DBM *db)
 {
 	return(((HTAB *)db->internal)->fp);
 }

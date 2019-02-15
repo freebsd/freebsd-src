@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Sylvestre Gallon. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,23 +38,27 @@
 #define	CTX_LOCK(ctx) pthread_mutex_lock(&(ctx)->ctx_lock)
 #define	CTX_TRYLOCK(ctx) pthread_mutex_trylock(&(ctx)->ctx_lock)
 #define	CTX_UNLOCK(ctx) pthread_mutex_unlock(&(ctx)->ctx_lock)
+#define	HOTPLUG_LOCK(ctx) pthread_mutex_lock(&(ctx)->hotplug_lock)
+#define	HOTPLUG_UNLOCK(ctx) pthread_mutex_unlock(&(ctx)->hotplug_lock)
 
-#define	DPRINTF(ctx, dbg, format, args...) do {	\
-    if ((ctx)->debug == dbg) {			\
-	switch (dbg) {				\
-	case LIBUSB_DEBUG_FUNCTION:		\
-		printf("LIBUSB_FUNCTION: "	\
-		    format "\n", ## args);	\
-		break;				\
-	case LIBUSB_DEBUG_TRANSFER:		\
-		printf("LIBUSB_TRANSFER: "	\
-		    format "\n", ## args);	\
-		break;				\
-	default:				\
-		break;				\
-	}					\
-    }						\
-} while(0)
+#define	DPRINTF(ctx, dbg, format, ...) do {			\
+	switch (dbg) {						\
+	case LIBUSB_DEBUG_FUNCTION:				\
+		if ((ctx)->debug & LIBUSB_DEBUG_FUNCTION) {	\
+			printf("LIBUSB_FUNCTION: "		\
+			       format "\n", ## __VA_ARGS__);	\
+		}						\
+		break;						\
+	case LIBUSB_DEBUG_TRANSFER:				\
+		if ((ctx)->debug & LIBUSB_DEBUG_TRANSFER) { 	\
+			printf("LIBUSB_TRANSFER: "		\
+			       format "\n", ## __VA_ARGS__);	\
+		}						\
+		break;						\
+	default:						\
+		break;						\
+	}							\
+} while (0)
 
 /* internal structures */
 
@@ -67,9 +73,20 @@ struct libusb_super_transfer {
 	uint8_t *curr_data;
 	uint32_t rem_len;
 	uint32_t last_len;
+	uint32_t stream_id;
 	uint8_t	state;
 #define	LIBUSB_SUPER_XFER_ST_NONE 0
 #define	LIBUSB_SUPER_XFER_ST_PEND 1
+};
+
+struct libusb_hotplug_callback_handle_struct {
+	TAILQ_ENTRY(libusb_hotplug_callback_handle_struct) entry;
+	int events;
+	int vendor;
+	int product;
+	int devclass;
+	libusb_hotplug_callback_fn fn;
+	void *user_data;
 };
 
 struct libusb_context {
@@ -80,12 +97,16 @@ struct libusb_context {
 	int	tr_done_gen;
 
 	pthread_mutex_t ctx_lock;
+  	pthread_mutex_t hotplug_lock;
 	pthread_cond_t ctx_cond;
+	pthread_t hotplug_handler;
 	pthread_t ctx_handler;
 #define	NO_THREAD ((pthread_t)-1)
 
 	TAILQ_HEAD(, libusb_super_pollfd) pollfds;
 	TAILQ_HEAD(, libusb_super_transfer) tr_done;
+	TAILQ_HEAD(, libusb_hotplug_callback_handle_struct) hotplug_cbh;
+  	TAILQ_HEAD(, libusb_device) hotplug_devs;
 
 	struct libusb_super_pollfd ctx_poll;
 
@@ -97,11 +118,15 @@ struct libusb_context {
 struct libusb_device {
 	int	refcnt;
 
+	int	device_is_gone;
+
 	uint32_t claimed_interfaces;
 
 	struct libusb_super_pollfd dev_poll;
 
 	struct libusb_context *ctx;
+
+	TAILQ_ENTRY(libusb_device) hotplug_entry;
 
 	TAILQ_HEAD(, libusb_super_transfer) tr_head;
 
@@ -113,5 +138,6 @@ extern struct libusb_context *usbi_default_context;
 void	libusb10_add_pollfd(libusb_context *ctx, struct libusb_super_pollfd *pollfd, struct libusb20_device *pdev, int fd, short events);
 void	libusb10_remove_pollfd(libusb_context *ctx, struct libusb_super_pollfd *pollfd);
 void	libusb10_cancel_all_transfer(libusb_device *dev);
+void	libusb10_cancel_all_transfer_locked(struct libusb20_device *pdev, struct libusb_device *dev);
 
 #endif					/* __LIBUSB10_H__ */

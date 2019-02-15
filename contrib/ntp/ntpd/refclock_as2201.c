@@ -129,10 +129,10 @@ static char stat_command[][30] = {
 /*
  * Function prototypes
  */
-static	int	as2201_start	P((int, struct peer *));
-static	void	as2201_shutdown	P((int, struct peer *));
-static	void	as2201_receive	P((struct recvbuf *));
-static	void	as2201_poll	P((int, struct peer *));
+static	int	as2201_start	(int, struct peer *);
+static	void	as2201_shutdown	(int, struct peer *);
+static	void	as2201_receive	(struct recvbuf *);
+static	void	as2201_poll	(int, struct peer *);
 
 /*
  * Transfer vector
@@ -165,36 +165,32 @@ as2201_start(
 	/*
 	 * Open serial port. Use CLK line discipline, if available.
 	 */
-	(void)sprintf(gpsdev, DEVICE, unit);
-	if (!(fd = refclock_open(gpsdev, SPEED232, LDISC_CLK)))
+	snprintf(gpsdev, sizeof(gpsdev), DEVICE, unit);
+	fd = refclock_open(gpsdev, SPEED232, LDISC_CLK);
+	if (fd <= 0)
 		return (0);
 
 	/*
 	 * Allocate and initialize unit structure
 	 */
-	if (!(up = (struct as2201unit *)
-	      emalloc(sizeof(struct as2201unit)))) {
-		(void) close(fd);
-		return (0);
-	}
-	memset((char *)up, 0, sizeof(struct as2201unit));
+	up = emalloc_zero(sizeof(*up));
 	pp = peer->procptr;
 	pp->io.clock_recv = as2201_receive;
-	pp->io.srcclock = (caddr_t)peer;
+	pp->io.srcclock = peer;
 	pp->io.datalen = 0;
 	pp->io.fd = fd;
 	if (!io_addclock(&pp->io)) {
-		(void) close(fd);
+		close(fd);
+		pp->io.fd = -1;
 		free(up);
 		return (0);
 	}
-	pp->unitptr = (caddr_t)up;
+	pp->unitptr = up;
 
 	/*
 	 * Initialize miscellaneous variables
 	 */
 	peer->precision = PRECISION;
-	peer->burst = NSTAGE;
 	pp->clockdesc = DESCRIPTION;
 	memcpy((char *)&pp->refid, REFID, 4);
 	up->lastptr = up->stats;
@@ -216,9 +212,11 @@ as2201_shutdown(
 	struct refclockproc *pp;
 
 	pp = peer->procptr;
-	up = (struct as2201unit *)pp->unitptr;
-	io_closeclock(&pp->io);
-	free(up);
+	up = pp->unitptr;
+	if (-1 != pp->io.fd)
+		io_closeclock(&pp->io);
+	if (NULL != up)
+		free(up);
 }
 
 
@@ -234,13 +232,14 @@ as2201_receive(
 	struct refclockproc *pp;
 	struct peer *peer;
 	l_fp trtmp;
+	size_t octets;
 
 	/*
 	 * Initialize pointers and read the timecode and timestamp.
 	 */
-	peer = (struct peer *)rbufp->recv_srcclock;
+	peer = rbufp->recv_peer;
 	pp = peer->procptr;
-	up = (struct as2201unit *)pp->unitptr;
+	up = pp->unitptr;
 	pp->lencode = refclock_gtlin(rbufp, pp->a_lastcode, BMAX, &trtmp);
 #ifdef DEBUG
 	if (debug)
@@ -268,7 +267,7 @@ as2201_receive(
 		if ((int)(up->lastptr - up->stats + pp->lencode) > SMAX - 2)
 		    return;
 		*up->lastptr++ = ' ';
-		(void)strcpy(up->lastptr, pp->a_lastcode);
+		memcpy(up->lastptr, pp->a_lastcode, 1 + pp->lencode);
 		up->lastptr += pp->lencode;
 		return;
 	} else {
@@ -329,13 +328,17 @@ as2201_receive(
 	 * send the next command. If not, simply write the timecode to
 	 * the clockstats file.
 	 */
-	(void)strcpy(up->lastptr, pp->a_lastcode);
+	if ((int)(up->lastptr - up->stats + pp->lencode) > SMAX - 2)
+	    return;
+	memcpy(up->lastptr, pp->a_lastcode, pp->lencode);
 	up->lastptr += pp->lencode;
 	if (pp->sloppyclockflag & CLK_FLAG4) {
+		octets = strlen(stat_command[up->index]);
+		if ((int)(up->lastptr - up->stats + 1 + octets) > SMAX - 2)
+		    return;
 		*up->lastptr++ = ' ';
-		(void)strcpy(up->lastptr, stat_command[up->index]);
-		up->lastptr += strlen(stat_command[up->index]);
-		up->lastptr--;
+		memcpy(up->lastptr, stat_command[up->index], octets);
+		up->lastptr += octets - 1;
 		*up->lastptr = '\0';
 		(void)write(pp->io.fd, stat_command[up->index],
 		    strlen(stat_command[up->index]));
@@ -373,14 +376,11 @@ as2201_poll(
 		if (!(pp->sloppyclockflag & CLK_FLAG2))
 			get_systime(&pp->lastrec);
 	}
-	if (peer->burst > 0)
-                return;
         if (pp->coderecv == pp->codeproc) {
                 refclock_report(peer, CEVNT_TIMEOUT);
                 return;
         }
         refclock_receive(peer);
-	peer->burst = NSTAGE;
 }
 
 #else

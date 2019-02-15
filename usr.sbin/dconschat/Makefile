@@ -3,10 +3,9 @@
 PROG=	dconschat
 MAN=	dconschat.8
 
-CFLAGS+= -I${.CURDIR}/../../sys
+CFLAGS+= -I${SRCTOP}/sys
 
-DPADD=  ${LIBKVM}
-LDADD=  -lkvm
+LIBADD=	kvm
 
 WARNS?=	1
 

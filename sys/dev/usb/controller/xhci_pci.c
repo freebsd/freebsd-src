@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,9 +88,8 @@ static driver_t xhci_driver = {
 
 static devclass_t xhci_devclass;
 
-DRIVER_MODULE(xhci, pci, xhci_driver, xhci_devclass, 0, 0);
+DRIVER_MODULE(xhci, pci, xhci_driver, xhci_devclass, NULL, NULL);
 MODULE_DEPEND(xhci, usb, 1, 1, 1);
-
 
 static const char *
 xhci_pci_match(device_t self)
@@ -96,17 +97,61 @@ xhci_pci_match(device_t self)
 	uint32_t device_id = pci_get_devid(self);
 
 	switch (device_id) {
+	case 0x145c1022:
+		return ("AMD KERNCZ USB 3.0 controller");
+	case 0x43ba1022:
+		return ("AMD X399 USB 3.0 controller");
+	case 0x43b91022: /* X370 */
+	case 0x43bb1022: /* B350 */
+		return ("AMD 300 Series USB 3.0 controller");
+	case 0x78141022:
+		return ("AMD FCH USB 3.0 controller");
+
 	case 0x01941033:
 		return ("NEC uPD720200 USB 3.0 controller");
+	case 0x00151912:
+		return ("NEC uPD720202 USB 3.0 controller");
+
+	case 0x10001b73:
+		return ("Fresco Logic FL1000G USB 3.0 controller");
+	case 0x11001b73:
+		return ("Fresco Logic FL1100 USB 3.0 controller");
 
 	case 0x10421b21:
 		return ("ASMedia ASM1042 USB 3.0 controller");
+	case 0x11421b21:
+		return ("ASMedia ASM1042A USB 3.0 controller");
 
+	case 0x0f358086:
+		return ("Intel BayTrail USB 3.0 controller");
+	case 0x19d08086:
+		return ("Intel Denverton USB 3.0 controller");
 	case 0x9c318086:
 	case 0x1e318086:
 		return ("Intel Panther Point USB 3.0 controller");
+	case 0x22b58086:
+		return ("Intel Braswell USB 3.0 controller");
+	case 0x5aa88086:
+		return ("Intel Apollo Lake USB 3.0 controller");
 	case 0x8c318086:
 		return ("Intel Lynx Point USB 3.0 controller");
+	case 0x8cb18086:
+		return ("Intel Wildcat Point USB 3.0 controller");
+	case 0x8d318086:
+		return ("Intel Wellsburg USB 3.0 controller");
+	case 0x9cb18086:
+		return ("Broadwell Integrated PCH-LP chipset USB 3.0 controller");
+	case 0x9d2f8086:
+		return ("Intel Sunrise Point-LP USB 3.0 controller");
+	case 0xa12f8086:
+		return ("Intel Sunrise Point USB 3.0 controller");
+	case 0xa1af8086:
+		return ("Intel Lewisburg USB 3.0 controller");
+	case 0xa2af8086:
+		return ("Intel Union Point USB 3.0 controller");
+
+	case 0xa01b177d:
+		return ("Cavium ThunderX USB 3.0 controller");
 
 	default:
 		break;
@@ -127,7 +172,7 @@ xhci_pci_probe(device_t self)
 
 	if (desc) {
 		device_set_desc(self, desc);
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	} else {
 		return (ENXIO);
 	}
@@ -135,6 +180,8 @@ xhci_pci_probe(device_t self)
 
 static int xhci_use_msi = 1;
 TUNABLE_INT("hw.usb.xhci.msi", &xhci_use_msi);
+static int xhci_use_msix = 1;
+TUNABLE_INT("hw.usb.xhci.msix", &xhci_use_msix);
 
 static void
 xhci_interrupt_poll(void *_sc)
@@ -175,45 +222,91 @@ static int
 xhci_pci_attach(device_t self)
 {
 	struct xhci_softc *sc = device_get_softc(self);
-	int count, err, rid;
-
-	/* XXX check for 64-bit capability */
-
-	if (xhci_init(sc, self)) {
-		device_printf(self, "Could not initialize softc\n");
-		goto error;
-	}
-
-	pci_enable_busmaster(self);
+	int count, err, msix_table, rid;
+	uint8_t usemsi = 1;
+	uint8_t usedma32 = 0;
 
 	rid = PCI_XHCI_CBMEM;
 	sc->sc_io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (!sc->sc_io_res) {
 		device_printf(self, "Could not map memory\n");
-		goto error;
+		return (ENOMEM);
 	}
 	sc->sc_io_tag = rman_get_bustag(sc->sc_io_res);
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
 
+	switch (pci_get_devid(self)) {
+	case 0x01941033:	/* NEC uPD720200 USB 3.0 controller */
+	case 0x00141912:	/* NEC uPD720201 USB 3.0 controller */
+		/* Don't use 64-bit DMA on these controllers. */
+		usedma32 = 1;
+		break;
+	case 0x10001b73:	/* FL1000G */
+		/* Fresco Logic host doesn't support MSI. */
+		usemsi = 0;
+		break;
+	case 0x0f358086:	/* BayTrail */
+	case 0x9c318086:	/* Panther Point */
+	case 0x1e318086:	/* Panther Point */
+	case 0x8c318086:	/* Lynx Point */
+	case 0x8cb18086:	/* Wildcat Point */
+	case 0x9cb18086:	/* Broadwell Mobile Integrated */
+		/*
+		 * On Intel chipsets, reroute ports from EHCI to XHCI
+		 * controller and use a different IMOD value.
+		 */
+		sc->sc_port_route = &xhci_pci_port_route;
+		sc->sc_imod_default = XHCI_IMOD_DEFAULT_LP;
+		sc->sc_ctlstep = 1;
+		break;
+	}
+
+	if (xhci_init(sc, self, usedma32)) {
+		device_printf(self, "Could not initialize softc\n");
+		bus_release_resource(self, SYS_RES_MEMORY, PCI_XHCI_CBMEM,
+		    sc->sc_io_res);
+		return (ENXIO);
+	}
+
+	pci_enable_busmaster(self);
+
 	usb_callout_init_mtx(&sc->sc_callout, &sc->sc_bus.bus_mtx, 0);
 
-	sc->sc_irq_rid = 0;
-	if (xhci_use_msi) {
-		count = pci_msi_count(self);
-		if (count >= 1) {
+	rid = 0;
+	if (xhci_use_msix && (msix_table = pci_msix_table_bar(self)) >= 0) {
+		sc->sc_msix_res = bus_alloc_resource_any(self, SYS_RES_MEMORY,
+		    &msix_table, RF_ACTIVE);
+		if (sc->sc_msix_res == NULL) {
+			/* May not be enabled */
+			device_printf(self,
+			    "Unable to map MSI-X table \n");
+		} else {
 			count = 1;
-			if (pci_alloc_msi(self, &count) == 0) {
+			if (pci_alloc_msix(self, &count) == 0) {
 				if (bootverbose)
-					device_printf(self, "MSI enabled\n");
-				sc->sc_irq_rid = 1;
+					device_printf(self, "MSI-X enabled\n");
+				rid = 1;
+			} else {
+				bus_release_resource(self, SYS_RES_MEMORY,
+				    msix_table, sc->sc_msix_res);
+				sc->sc_msix_res = NULL;
 			}
 		}
 	}
-	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ,
-	    &sc->sc_irq_rid, RF_SHAREABLE | RF_ACTIVE);
+	if (rid == 0 && xhci_use_msi && usemsi) {
+		count = 1;
+		if (pci_alloc_msi(self, &count) == 0) {
+			if (bootverbose)
+				device_printf(self, "MSI enabled\n");
+			rid = 1;
+		}
+	}
+	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE | (rid != 0 ? 0 : RF_SHAREABLE));
 	if (sc->sc_irq_res == NULL) {
+		pci_release_msi(self);
 		device_printf(self, "Could not allocate IRQ\n");
 		/* goto error; FALLTHROUGH - use polling */
 	}
@@ -230,28 +323,22 @@ xhci_pci_attach(device_t self)
 		err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 		    NULL, (driver_intr_t *)xhci_interrupt, sc, &sc->sc_intr_hdl);
 		if (err != 0) {
+			bus_release_resource(self, SYS_RES_IRQ,
+			    rman_get_rid(sc->sc_irq_res), sc->sc_irq_res);
+			sc->sc_irq_res = NULL;
+			pci_release_msi(self);
 			device_printf(self, "Could not setup IRQ, err=%d\n", err);
 			sc->sc_intr_hdl = NULL;
 		}
 	}
-	if (sc->sc_irq_res == NULL || sc->sc_intr_hdl == NULL ||
-	    xhci_use_polling() != 0) {
-		device_printf(self, "Interrupt polling at %dHz\n", hz);
-		USB_BUS_LOCK(&sc->sc_bus);
-		xhci_interrupt_poll(sc);
-		USB_BUS_UNLOCK(&sc->sc_bus);
-	}
-
-	/* On Intel chipsets reroute ports from EHCI to XHCI controller. */
-	switch (pci_get_devid(self)) {
-	case 0x9c318086:	/* Panther Point */
-	case 0x1e318086:	/* Panther Point */
-	case 0x8c318086:	/* Lynx Point */
-		sc->sc_port_route = &xhci_pci_port_route;
-		sc->sc_imod_default = XHCI_IMOD_DEFAULT_LP;
-		break;
-	default:
-		break;
+	if (sc->sc_irq_res == NULL || sc->sc_intr_hdl == NULL) {
+		if (xhci_use_polling() != 0) {
+			device_printf(self, "Interrupt polling at %dHz\n", hz);
+			USB_BUS_LOCK(&sc->sc_bus);
+			xhci_interrupt_poll(sc);
+			USB_BUS_UNLOCK(&sc->sc_bus);
+		} else
+			goto error;
 	}
 
 	xhci_pci_take_controller(self);
@@ -279,20 +366,13 @@ static int
 xhci_pci_detach(device_t self)
 {
 	struct xhci_softc *sc = device_get_softc(self);
-	device_t bdev;
 
-	if (sc->sc_bus.bdev != NULL) {
-		bdev = sc->sc_bus.bdev;
-		device_detach(bdev);
-		device_delete_child(self, bdev);
-	}
 	/* during module unload there are lots of children leftover */
 	device_delete_children(self);
 
-	if (sc->sc_io_res) {
-		usb_callout_drain(&sc->sc_callout);
-		xhci_halt_controller(sc);
-	}
+	usb_callout_drain(&sc->sc_callout);
+	xhci_halt_controller(sc);
+	xhci_reset_controller(sc);
 
 	pci_disable_busmaster(self);
 
@@ -301,16 +381,20 @@ xhci_pci_detach(device_t self)
 		sc->sc_intr_hdl = NULL;
 	}
 	if (sc->sc_irq_res) {
-		if (sc->sc_irq_rid == 1)
-			pci_release_msi(self);
-		bus_release_resource(self, SYS_RES_IRQ, sc->sc_irq_rid,
-		    sc->sc_irq_res);
+		bus_release_resource(self, SYS_RES_IRQ,
+		    rman_get_rid(sc->sc_irq_res), sc->sc_irq_res);
 		sc->sc_irq_res = NULL;
+		pci_release_msi(self);
 	}
 	if (sc->sc_io_res) {
 		bus_release_resource(self, SYS_RES_MEMORY, PCI_XHCI_CBMEM,
 		    sc->sc_io_res);
 		sc->sc_io_res = NULL;
+	}
+	if (sc->sc_msix_res) {
+		bus_release_resource(self, SYS_RES_MEMORY,
+		    rman_get_rid(sc->sc_msix_res), sc->sc_msix_res);
+		sc->sc_msix_res = NULL;
 	}
 
 	xhci_uninit(sc);

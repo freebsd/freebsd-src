@@ -1,6 +1,8 @@
 /*	$NetBSD: sdp.c,v 1.2 2008/12/06 20:01:14 plunky Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2008 Iain Hibbert
  * All rights reserved.
  *
@@ -32,6 +34,7 @@ __RCSID("$NetBSD: sdp.c,v 1.2 2008/12/06 20:01:14 plunky Exp $");
 
 #include <string.h>
 
+#define L2CAP_SOCKET_CHECKED
 #include "sdp.h"
 
 /*

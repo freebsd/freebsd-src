@@ -17,13 +17,21 @@
  * This software is provided ``AS IS'' without any warranties of any kind.
  */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2005 McAfee, Inc.
+ * Copyright (c) 2016-2017 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by McAfee
  * Research, the Security Research Division of McAfee, Inc under DARPA/SPAWAR
  * contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS research
  * program.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,7 +58,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_sysvipc.h"
 
 #include <sys/param.h>
@@ -62,8 +69,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/module.h>
+#include <sys/mount.h>
 #include <sys/msg.h>
 #include <sys/racct.h>
+#include <sys/sx.h>
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
@@ -71,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/jail.h>
 
+#include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
 FEATURE(sysv_msg, "System V message queues support");
@@ -80,6 +90,14 @@ static MALLOC_DEFINE(M_MSG, "msg", "SVID compatible message queues");
 static int msginit(void);
 static int msgunload(void);
 static int sysvmsg_modload(struct module *, int, void *);
+static void msq_remove(struct msqid_kernel *);
+static struct prison *msg_find_prison(struct ucred *);
+static int msq_prison_cansee(struct prison *, struct msqid_kernel *);
+static int msg_prison_check(void *, void *);
+static int msg_prison_set(void *, void *);
+static int msg_prison_get(void *, void *);
+static int msg_prison_remove(void *, void *);
+static void msg_prison_cleanup(struct prison *);
 
 
 #ifdef MSG_DEBUG
@@ -155,6 +173,7 @@ static struct msgmap *msgmaps;	/* MSGSEG msgmap structures */
 static struct msg *msghdrs;	/* MSGTQL msg headers */
 static struct msqid_kernel *msqids;	/* MSGMNI msqid_kernel struct's */
 static struct mtx msq_mtx;	/* global mutex for message queues. */
+static unsigned msg_prison_slot;/* prison OSD slot */
 
 static struct syscall_helper_data msg_syscalls[] = {
 	SYSCALL_INIT_HELPER(msgctl),
@@ -194,14 +213,22 @@ static struct syscall_helper_data msg32_syscalls[] = {
 static int
 msginit()
 {
+	struct prison *pr;
+	void **rsv;
 	int i, error;
+	osd_method_t methods[PR_MAXMETHOD] = {
+	    [PR_METHOD_CHECK] =		msg_prison_check,
+	    [PR_METHOD_SET] =		msg_prison_set,
+	    [PR_METHOD_GET] =		msg_prison_get,
+	    [PR_METHOD_REMOVE] =	msg_prison_remove,
+	};
 
 	msginfo.msgmax = msginfo.msgseg * msginfo.msgssz;
 	msgpool = malloc(msginfo.msgmax, M_MSG, M_WAITOK);
 	msgmaps = malloc(sizeof(struct msgmap) * msginfo.msgseg, M_MSG, M_WAITOK);
 	msghdrs = malloc(sizeof(struct msg) * msginfo.msgtql, M_MSG, M_WAITOK);
 	msqids = malloc(sizeof(struct msqid_kernel) * msginfo.msgmni, M_MSG,
-	    M_WAITOK);
+	    M_WAITOK | M_ZERO);
 
 	/*
 	 * msginfo.msgssz should be a power of two for efficiency reasons.
@@ -252,11 +279,34 @@ msginit()
 	}
 	mtx_init(&msq_mtx, "msq", NULL, MTX_DEF);
 
-	error = syscall_helper_register(msg_syscalls);
+	/* Set current prisons according to their allow.sysvipc. */
+	msg_prison_slot = osd_jail_register(NULL, methods);
+	rsv = osd_reserve(msg_prison_slot);
+	prison_lock(&prison0);
+	(void)osd_jail_set_reserved(&prison0, msg_prison_slot, rsv, &prison0);
+	prison_unlock(&prison0);
+	rsv = NULL;
+	sx_slock(&allprison_lock);
+	TAILQ_FOREACH(pr, &allprison, pr_list) {
+		if (rsv == NULL)
+			rsv = osd_reserve(msg_prison_slot);
+		prison_lock(pr);
+		if ((pr->pr_allow & PR_ALLOW_SYSVIPC) && pr->pr_ref > 0) {
+			(void)osd_jail_set_reserved(pr, msg_prison_slot, rsv,
+			    &prison0);
+			rsv = NULL;
+		}
+		prison_unlock(pr);
+	}
+	if (rsv != NULL)
+		osd_free_reserved(rsv);
+	sx_sunlock(&allprison_lock);
+
+	error = syscall_helper_register(msg_syscalls, SY_THR_STATIC_KLD);
 	if (error != 0)
 		return (error);
 #ifdef COMPAT_FREEBSD32
-	error = syscall32_helper_register(msg32_syscalls);
+	error = syscall32_helper_register(msg32_syscalls, SY_THR_STATIC_KLD);
 	if (error != 0)
 		return (error);
 #endif
@@ -278,12 +328,6 @@ msgunload()
 #endif
 
 	for (msqid = 0; msqid < msginfo.msgmni; msqid++) {
-		/*
-		 * Look for an unallocated and unlocked msqid_ds.
-		 * msqid_ds's can be locked by msgsnd or msgrcv while
-		 * they are copying the message in/out.  We can't
-		 * re-use the entry until they release it.
-		 */
 		msqkptr = &msqids[msqid];
 		if (msqkptr->u.msg_qbytes != 0 ||
 		    (msqkptr->u.msg_perm.mode & MSG_LOCKED) != 0)
@@ -292,6 +336,8 @@ msgunload()
 	if (msqid != msginfo.msgmni)
 		return (EBUSY);
 
+	if (msg_prison_slot != 0)
+		osd_jail_deregister(msg_prison_slot);
 #ifdef MAC
 	for (i = 0; i < msginfo.msgtql; i++)
 		mac_sysvmsg_destroy(&msghdrs[i]);
@@ -340,8 +386,7 @@ DECLARE_MODULE(sysvmsg, sysvmsg_mod, SI_SUB_SYSV_MSG, SI_ORDER_FIRST);
 MODULE_VERSION(sysvmsg, 1);
 
 static void
-msg_freehdr(msghdr)
-	struct msg *msghdr;
+msg_freehdr(struct msg *msghdr)
 {
 	while (msghdr->msg_ts > 0) {
 		short next;
@@ -366,6 +411,67 @@ msg_freehdr(msghdr)
 #endif
 }
 
+static void
+msq_remove(struct msqid_kernel *msqkptr)
+{
+	struct msg *msghdr;
+
+	racct_sub_cred(msqkptr->cred, RACCT_NMSGQ, 1);
+	racct_sub_cred(msqkptr->cred, RACCT_MSGQQUEUED, msqkptr->u.msg_qnum);
+	racct_sub_cred(msqkptr->cred, RACCT_MSGQSIZE, msqkptr->u.msg_cbytes);
+	crfree(msqkptr->cred);
+	msqkptr->cred = NULL;
+
+	/* Free the message headers */
+	msghdr = msqkptr->u.__msg_first;
+	while (msghdr != NULL) {
+		struct msg *msghdr_tmp;
+
+		/* Free the segments of each message */
+		msqkptr->u.msg_cbytes -= msghdr->msg_ts;
+		msqkptr->u.msg_qnum--;
+		msghdr_tmp = msghdr;
+		msghdr = msghdr->msg_next;
+		msg_freehdr(msghdr_tmp);
+	}
+
+	if (msqkptr->u.msg_cbytes != 0)
+		panic("msg_cbytes is screwed up");
+	if (msqkptr->u.msg_qnum != 0)
+		panic("msg_qnum is screwed up");
+
+	msqkptr->u.msg_qbytes = 0;	/* Mark it as free */
+
+#ifdef MAC
+	mac_sysvmsq_cleanup(msqkptr);
+#endif
+
+	wakeup(msqkptr);
+}
+
+static struct prison *
+msg_find_prison(struct ucred *cred)
+{
+	struct prison *pr, *rpr;
+
+	pr = cred->cr_prison;
+	prison_lock(pr);
+	rpr = osd_jail_get(pr, msg_prison_slot);
+	prison_unlock(pr);
+	return rpr;
+}
+
+static int
+msq_prison_cansee(struct prison *rpr, struct msqid_kernel *msqkptr)
+{
+
+	if (msqkptr->cred == NULL ||
+	    !(rpr == msqkptr->cred->cr_prison ||
+	      prison_ischild(rpr, msqkptr->cred->cr_prison)))
+		return (EINVAL);
+	return (0);
+}
+
 #ifndef _SYS_SYSPROTO_H_
 struct msgctl_args {
 	int	msqid;
@@ -374,9 +480,7 @@ struct msgctl_args {
 };
 #endif
 int
-sys_msgctl(td, uap)
-	struct thread *td;
-	register struct msgctl_args *uap;
+sys_msgctl(struct thread *td, struct msgctl_args *uap)
 {
 	int msqid = uap->msqid;
 	int cmd = uap->cmd;
@@ -394,18 +498,18 @@ sys_msgctl(td, uap)
 }
 
 int
-kern_msgctl(td, msqid, cmd, msqbuf)
-	struct thread *td;
-	int msqid;
-	int cmd;
-	struct msqid_ds *msqbuf;
+kern_msgctl(struct thread *td, int msqid, int cmd, struct msqid_ds *msqbuf)
 {
 	int rval, error, msqix;
-	register struct msqid_kernel *msqkptr;
+	struct msqid_kernel *msqkptr;
+	struct prison *rpr;
 
-	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
+	rpr = msg_find_prison(td->td_ucred);
+	if (rpr == NULL)
 		return (ENOSYS);
 
+	AUDIT_ARG_SVIPC_CMD(cmd);
+	AUDIT_ARG_SVIPC_ID(msqid);
 	msqix = IPCID_TO_IX(msqid);
 
 	if (msqix < 0 || msqix >= msginfo.msgmni) {
@@ -427,6 +531,13 @@ kern_msgctl(td, msqid, cmd, msqbuf)
 		error = EINVAL;
 		goto done2;
 	}
+
+	error = msq_prison_cansee(rpr, msqkptr);
+	if (error != 0) {
+		DPRINTF(("requester can't see prison\n"));
+		goto done2;
+	}
+
 #ifdef MAC
 	error = mac_sysvmsq_check_msqctl(td->td_ucred, msqkptr, cmd);
 	if (error != 0)
@@ -440,7 +551,9 @@ kern_msgctl(td, msqid, cmd, msqbuf)
 
 	case IPC_RMID:
 	{
+#ifdef MAC
 		struct msg *msghdr;
+#endif
 		if ((error = ipcperm(td, &msqkptr->u.msg_perm, IPC_M)))
 			goto done2;
 
@@ -454,7 +567,7 @@ kern_msgctl(td, msqid, cmd, msqbuf)
 		 * thread cannot free a certain msghdr.  The msq will get
 		 * into an inconsistent state.
 		 */
-		for (msghdr = msqkptr->u.msg_first; msghdr != NULL;
+		for (msghdr = msqkptr->u.__msg_first; msghdr != NULL;
 		    msghdr = msghdr->msg_next) {
 			error = mac_sysvmsq_check_msgrmid(td->td_ucred, msghdr);
 			if (error != 0)
@@ -462,42 +575,13 @@ kern_msgctl(td, msqid, cmd, msqbuf)
 		}
 #endif
 
-		racct_sub_cred(msqkptr->cred, RACCT_NMSGQ, 1);
-		racct_sub_cred(msqkptr->cred, RACCT_MSGQQUEUED, msqkptr->u.msg_qnum);
-		racct_sub_cred(msqkptr->cred, RACCT_MSGQSIZE, msqkptr->u.msg_cbytes);
-		crfree(msqkptr->cred);
-		msqkptr->cred = NULL;
-
-		/* Free the message headers */
-		msghdr = msqkptr->u.msg_first;
-		while (msghdr != NULL) {
-			struct msg *msghdr_tmp;
-
-			/* Free the segments of each message */
-			msqkptr->u.msg_cbytes -= msghdr->msg_ts;
-			msqkptr->u.msg_qnum--;
-			msghdr_tmp = msghdr;
-			msghdr = msghdr->msg_next;
-			msg_freehdr(msghdr_tmp);
-		}
-
-		if (msqkptr->u.msg_cbytes != 0)
-			panic("msg_cbytes is screwed up");
-		if (msqkptr->u.msg_qnum != 0)
-			panic("msg_qnum is screwed up");
-
-		msqkptr->u.msg_qbytes = 0;	/* Mark it as free */
-
-#ifdef MAC
-		mac_sysvmsq_cleanup(msqkptr);
-#endif
-
-		wakeup(msqkptr);
+		msq_remove(msqkptr);
 	}
 
 		break;
 
 	case IPC_SET:
+		AUDIT_ARG_SVIPC_PERM(&msqbuf->msg_perm);
 		if ((error = ipcperm(td, &msqkptr->u.msg_perm, IPC_M)))
 			goto done2;
 		if (msqbuf->msg_qbytes > msqkptr->u.msg_qbytes) {
@@ -529,6 +613,8 @@ kern_msgctl(td, msqid, cmd, msqbuf)
 			goto done2;
 		}
 		*msqbuf = msqkptr->u;
+		if (td->td_ucred->cr_prison != msqkptr->cred->cr_prison)
+			msqbuf->msg_perm.key = IPC_PRIVATE;
 		break;
 
 	default:
@@ -552,19 +638,17 @@ struct msgget_args {
 #endif
 
 int
-sys_msgget(td, uap)
-	struct thread *td;
-	register struct msgget_args *uap;
+sys_msgget(struct thread *td, struct msgget_args *uap)
 {
 	int msqid, error = 0;
 	int key = uap->key;
 	int msgflg = uap->msgflg;
 	struct ucred *cred = td->td_ucred;
-	register struct msqid_kernel *msqkptr = NULL;
+	struct msqid_kernel *msqkptr = NULL;
 
 	DPRINTF(("msgget(0x%x, 0%o)\n", key, msgflg));
 
-	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
+	if (msg_find_prison(cred) == NULL)
 		return (ENOSYS);
 
 	mtx_lock(&msq_mtx);
@@ -572,6 +656,8 @@ sys_msgget(td, uap)
 		for (msqid = 0; msqid < msginfo.msgmni; msqid++) {
 			msqkptr = &msqids[msqid];
 			if (msqkptr->u.msg_qbytes != 0 &&
+			    msqkptr->cred != NULL &&
+			    msqkptr->cred->cr_prison == cred->cr_prison &&
 			    msqkptr->u.msg_perm.key == key)
 				break;
 		}
@@ -582,6 +668,8 @@ sys_msgget(td, uap)
 				error = EEXIST;
 				goto done2;
 			}
+			AUDIT_ARG_SVIPC_ID(IXSEQ_TO_IPCID(msqid,
+			    msqkptr->u.msg_perm));
 			if ((error = ipcperm(td, &msqkptr->u.msg_perm,
 			    msgflg & 0700))) {
 				DPRINTF(("requester doesn't have 0%o access\n",
@@ -617,12 +705,14 @@ sys_msgget(td, uap)
 			goto done2;
 		}
 #ifdef RACCT
-		PROC_LOCK(td->td_proc);
-		error = racct_add(td->td_proc, RACCT_NMSGQ, 1);
-		PROC_UNLOCK(td->td_proc);
-		if (error != 0) {
-			error = ENOSPC;
-			goto done2;
+		if (racct_enable) {
+			PROC_LOCK(td->td_proc);
+			error = racct_add(td->td_proc, RACCT_NMSGQ, 1);
+			PROC_UNLOCK(td->td_proc);
+			if (error != 0) {
+				error = ENOSPC;
+				goto done2;
+			}
 		}
 #endif
 		DPRINTF(("msqid %d is available\n", msqid));
@@ -635,8 +725,8 @@ sys_msgget(td, uap)
 		msqkptr->cred = crhold(cred);
 		/* Make sure that the returned msqid is unique */
 		msqkptr->u.msg_perm.seq = (msqkptr->u.msg_perm.seq + 1) & 0x7fff;
-		msqkptr->u.msg_first = NULL;
-		msqkptr->u.msg_last = NULL;
+		msqkptr->u.__msg_first = NULL;
+		msqkptr->u.__msg_last = NULL;
 		msqkptr->u.msg_cbytes = 0;
 		msqkptr->u.msg_qnum = 0;
 		msqkptr->u.msg_qbytes = msginfo.msgmnb;
@@ -648,6 +738,7 @@ sys_msgget(td, uap)
 #ifdef MAC
 		mac_sysvmsq_create(cred, msqkptr);
 #endif
+		AUDIT_ARG_SVIPC_PERM(&msqkptr->u.msg_perm);
 	} else {
 		DPRINTF(("didn't find it and wasn't asked to create it\n"));
 		error = ENOENT;
@@ -665,32 +756,30 @@ done2:
 #ifndef _SYS_SYSPROTO_H_
 struct msgsnd_args {
 	int	msqid;
-	const void	*msgp;
+	const void	*msgp;	/* XXX msgp is actually mtext. */
 	size_t	msgsz;
 	int	msgflg;
 };
 #endif
 int
-kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
-	struct thread *td;
-	int msqid;
-	const void *msgp;	/* XXX msgp is actually mtext. */
-	size_t msgsz;
-	int msgflg;
-	long mtype;
+kern_msgsnd(struct thread *td, int msqid, const void *msgp,
+    size_t msgsz, int msgflg, long mtype)
 {
 	int msqix, segs_needed, error = 0;
-	register struct msqid_kernel *msqkptr;
-	register struct msg *msghdr;
+	struct msqid_kernel *msqkptr;
+	struct msg *msghdr;
+	struct prison *rpr;
 	short next;
 #ifdef RACCT
-	size_t saved_msgsz;
+	size_t saved_msgsz = 0;
 #endif
 
-	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
+	rpr = msg_find_prison(td->td_ucred);
+	if (rpr == NULL)
 		return (ENOSYS);
 
 	mtx_lock(&msq_mtx);
+	AUDIT_ARG_SVIPC_ID(msqid);
 	msqix = IPCID_TO_IX(msqid);
 
 	if (msqix < 0 || msqix >= msginfo.msgmni) {
@@ -701,6 +790,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	}
 
 	msqkptr = &msqids[msqix];
+	AUDIT_ARG_SVIPC_PERM(&msqkptr->u.msg_perm);
 	if (msqkptr->u.msg_qbytes == 0) {
 		DPRINTF(("no such message queue id\n"));
 		error = EINVAL;
@@ -709,6 +799,11 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	if (msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(msqid)) {
 		DPRINTF(("wrong sequence number\n"));
 		error = EINVAL;
+		goto done2;
+	}
+
+	if ((error = msq_prison_cansee(rpr, msqkptr))) {
+		DPRINTF(("requester can't see prison\n"));
 		goto done2;
 	}
 
@@ -724,23 +819,25 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 #endif
 
 #ifdef RACCT
-	PROC_LOCK(td->td_proc);
-	if (racct_add(td->td_proc, RACCT_MSGQQUEUED, 1)) {
+	if (racct_enable) {
+		PROC_LOCK(td->td_proc);
+		if (racct_add(td->td_proc, RACCT_MSGQQUEUED, 1)) {
+			PROC_UNLOCK(td->td_proc);
+			error = EAGAIN;
+			goto done2;
+		}
+		saved_msgsz = msgsz;
+		if (racct_add(td->td_proc, RACCT_MSGQSIZE, msgsz)) {
+			racct_sub(td->td_proc, RACCT_MSGQQUEUED, 1);
+			PROC_UNLOCK(td->td_proc);
+			error = EAGAIN;
+			goto done2;
+		}
 		PROC_UNLOCK(td->td_proc);
-		error = EAGAIN;
-		goto done2;
 	}
-	saved_msgsz = msgsz;
-	if (racct_add(td->td_proc, RACCT_MSGQSIZE, msgsz)) {
-		racct_sub(td->td_proc, RACCT_MSGQQUEUED, 1);
-		PROC_UNLOCK(td->td_proc);
-		error = EAGAIN;
-		goto done2;
-	}
-	PROC_UNLOCK(td->td_proc);
 #endif
 
-	segs_needed = (msgsz + msginfo.msgssz - 1) / msginfo.msgssz;
+	segs_needed = howmany(msgsz, msginfo.msgssz);
 	DPRINTF(("msgsz=%zu, msgssz=%d, segs_needed=%d\n", msgsz,
 	    msginfo.msgssz, segs_needed));
 	for (;;) {
@@ -976,14 +1073,14 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	/*
 	 * Put the message into the queue
 	 */
-	if (msqkptr->u.msg_first == NULL) {
-		msqkptr->u.msg_first = msghdr;
-		msqkptr->u.msg_last = msghdr;
+	if (msqkptr->u.__msg_first == NULL) {
+		msqkptr->u.__msg_first = msghdr;
+		msqkptr->u.__msg_last = msghdr;
 	} else {
-		msqkptr->u.msg_last->msg_next = msghdr;
-		msqkptr->u.msg_last = msghdr;
+		msqkptr->u.__msg_last->msg_next = msghdr;
+		msqkptr->u.__msg_last = msghdr;
 	}
-	msqkptr->u.msg_last->msg_next = NULL;
+	msqkptr->u.__msg_last->msg_next = NULL;
 
 	msqkptr->u.msg_cbytes += msghdr->msg_ts;
 	msqkptr->u.msg_qnum++;
@@ -994,7 +1091,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	td->td_retval[0] = 0;
 done3:
 #ifdef RACCT
-	if (error != 0) {
+	if (racct_enable && error != 0) {
 		PROC_LOCK(td->td_proc);
 		racct_sub(td->td_proc, RACCT_MSGQQUEUED, 1);
 		racct_sub(td->td_proc, RACCT_MSGQSIZE, saved_msgsz);
@@ -1007,9 +1104,7 @@ done2:
 }
 
 int
-sys_msgsnd(td, uap)
-	struct thread *td;
-	register struct msgsnd_args *uap;
+sys_msgsnd(struct thread *td, struct msgsnd_args *uap)
 {
 	int error;
 	long mtype;
@@ -1035,25 +1130,23 @@ struct msgrcv_args {
 	int	msgflg;
 };
 #endif
+/* XXX msgp is actually mtext. */
 int
-kern_msgrcv(td, msqid, msgp, msgsz, msgtyp, msgflg, mtype)
-	struct thread *td;
-	int msqid;
-	void *msgp;	/* XXX msgp is actually mtext. */
-	size_t msgsz;
-	long msgtyp;
-	int msgflg;
-	long *mtype;
+kern_msgrcv(struct thread *td, int msqid, void *msgp, size_t msgsz, long msgtyp,
+    int msgflg, long *mtype)
 {
 	size_t len;
-	register struct msqid_kernel *msqkptr;
-	register struct msg *msghdr;
+	struct msqid_kernel *msqkptr;
+	struct msg *msghdr;
+	struct prison *rpr;
 	int msqix, error = 0;
 	short next;
 
-	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
+	rpr = msg_find_prison(td->td_ucred);
+	if (rpr == NULL)
 		return (ENOSYS);
 
+	AUDIT_ARG_SVIPC_ID(msqid);
 	msqix = IPCID_TO_IX(msqid);
 
 	if (msqix < 0 || msqix >= msginfo.msgmni) {
@@ -1064,6 +1157,7 @@ kern_msgrcv(td, msqid, msgp, msgsz, msgtyp, msgflg, mtype)
 
 	msqkptr = &msqids[msqix];
 	mtx_lock(&msq_mtx);
+	AUDIT_ARG_SVIPC_PERM(&msqkptr->u.msg_perm);
 	if (msqkptr->u.msg_qbytes == 0) {
 		DPRINTF(("no such message queue id\n"));
 		error = EINVAL;
@@ -1072,6 +1166,11 @@ kern_msgrcv(td, msqid, msgp, msgsz, msgtyp, msgflg, mtype)
 	if (msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(msqid)) {
 		DPRINTF(("wrong sequence number\n"));
 		error = EINVAL;
+		goto done2;
+	}
+
+	if ((error = msq_prison_cansee(rpr, msqkptr))) {
+		DPRINTF(("requester can't see prison\n"));
 		goto done2;
 	}
 
@@ -1089,7 +1188,7 @@ kern_msgrcv(td, msqid, msgp, msgsz, msgtyp, msgflg, mtype)
 	msghdr = NULL;
 	while (msghdr == NULL) {
 		if (msgtyp == 0) {
-			msghdr = msqkptr->u.msg_first;
+			msghdr = msqkptr->u.__msg_first;
 			if (msghdr != NULL) {
 				if (msgsz < msghdr->msg_ts &&
 				    (msgflg & MSG_NOERROR) == 0) {
@@ -1105,12 +1204,13 @@ kern_msgrcv(td, msqid, msgp, msgsz, msgtyp, msgflg, mtype)
 				if (error != 0)
 					goto done2;
 #endif
-				if (msqkptr->u.msg_first == msqkptr->u.msg_last) {
-					msqkptr->u.msg_first = NULL;
-					msqkptr->u.msg_last = NULL;
+				if (msqkptr->u.__msg_first ==
+				    msqkptr->u.__msg_last) {
+					msqkptr->u.__msg_first = NULL;
+					msqkptr->u.__msg_last = NULL;
 				} else {
-					msqkptr->u.msg_first = msghdr->msg_next;
-					if (msqkptr->u.msg_first == NULL)
+					msqkptr->u.__msg_first = msghdr->msg_next;
+					if (msqkptr->u.__msg_first == NULL)
 						panic("msg_first/last screwed up #1");
 				}
 			}
@@ -1119,7 +1219,7 @@ kern_msgrcv(td, msqid, msgp, msgsz, msgtyp, msgflg, mtype)
 			struct msg **prev;
 
 			previous = NULL;
-			prev = &(msqkptr->u.msg_first);
+			prev = &(msqkptr->u.__msg_first);
 			while ((msghdr = *prev) != NULL) {
 				/*
 				 * Is this message's type an exact match or is
@@ -1151,20 +1251,20 @@ kern_msgrcv(td, msqid, msgp, msgsz, msgtyp, msgflg, mtype)
 						goto done2;
 #endif
 					*prev = msghdr->msg_next;
-					if (msghdr == msqkptr->u.msg_last) {
+					if (msghdr == msqkptr->u.__msg_last) {
 						if (previous == NULL) {
 							if (prev !=
-							    &msqkptr->u.msg_first)
-								panic("msg_first/last screwed up #2");
-							msqkptr->u.msg_first =
+							    &msqkptr->u.__msg_first)
+								panic("__msg_first/last screwed up #2");
+							msqkptr->u.__msg_first =
 							    NULL;
-							msqkptr->u.msg_last =
+							msqkptr->u.__msg_last =
 							    NULL;
 						} else {
 							if (prev ==
-							    &msqkptr->u.msg_first)
-								panic("msg_first/last screwed up #3");
-							msqkptr->u.msg_last =
+							    &msqkptr->u.__msg_first)
+								panic("__msg_first/last screwed up #3");
+							msqkptr->u.__msg_last =
 							    previous;
 						}
 					}
@@ -1292,9 +1392,7 @@ done2:
 }
 
 int
-sys_msgrcv(td, uap)
-	struct thread *td;
-	register struct msgrcv_args *uap;
+sys_msgrcv(struct thread *td, struct msgrcv_args *uap)
 {
 	int error;
 	long mtype;
@@ -1314,9 +1412,67 @@ sys_msgrcv(td, uap)
 static int
 sysctl_msqids(SYSCTL_HANDLER_ARGS)
 {
+	struct msqid_kernel tmsqk;
+#ifdef COMPAT_FREEBSD32
+	struct msqid_kernel32 tmsqk32;
+#endif
+	struct prison *pr, *rpr;
+	void *outaddr;
+	size_t outsize;
+	int error, i;
 
-	return (SYSCTL_OUT(req, msqids,
-	    sizeof(struct msqid_kernel) * msginfo.msgmni));
+	pr = req->td->td_ucred->cr_prison;
+	rpr = msg_find_prison(req->td->td_ucred);
+	error = 0;
+	for (i = 0; i < msginfo.msgmni; i++) {
+		mtx_lock(&msq_mtx);
+		if (msqids[i].u.msg_qbytes == 0 || rpr == NULL ||
+		    msq_prison_cansee(rpr, &msqids[i]) != 0)
+			bzero(&tmsqk, sizeof(tmsqk));
+		else {
+			tmsqk = msqids[i];
+			if (tmsqk.cred->cr_prison != pr)
+				tmsqk.u.msg_perm.key = IPC_PRIVATE;
+		}
+		mtx_unlock(&msq_mtx);
+#ifdef COMPAT_FREEBSD32
+		if (SV_CURPROC_FLAG(SV_ILP32)) {
+			bzero(&tmsqk32, sizeof(tmsqk32));
+			freebsd32_ipcperm_out(&tmsqk.u.msg_perm,
+			    &tmsqk32.u.msg_perm);
+			/* Don't copy u.msg_first or u.msg_last */
+			CP(tmsqk, tmsqk32, u.msg_cbytes);
+			CP(tmsqk, tmsqk32, u.msg_qnum);
+			CP(tmsqk, tmsqk32, u.msg_qbytes);
+			CP(tmsqk, tmsqk32, u.msg_lspid);
+			CP(tmsqk, tmsqk32, u.msg_lrpid);
+			CP(tmsqk, tmsqk32, u.msg_stime);
+			CP(tmsqk, tmsqk32, u.msg_rtime);
+			CP(tmsqk, tmsqk32, u.msg_ctime);
+			/* Don't copy label or cred */
+			outaddr = &tmsqk32;
+			outsize = sizeof(tmsqk32);
+		} else
+#endif
+		{
+			/* Don't leak kernel pointers */
+			tmsqk.u.__msg_first = NULL;
+			tmsqk.u.__msg_last = NULL;
+			tmsqk.label = NULL;
+			tmsqk.cred = NULL;
+			/*
+			 * XXX: some padding also exists, but we take care to
+			 * allocate our pool of msqid_kernel structs with
+			 * zeroed memory so this should be OK.
+			 */
+			outaddr = &tmsqk;
+			outsize = sizeof(tmsqk);
+		}
+		error = SYSCTL_OUT(req, outaddr, outsize);
+		if (error != 0)
+			break;
+	}
+	return (error);
 }
 
 SYSCTL_INT(_kern_ipc, OID_AUTO, msgmax, CTLFLAG_RD, &msginfo.msgmax, 0,
@@ -1331,8 +1487,185 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, msgssz, CTLFLAG_RDTUN, &msginfo.msgssz, 0,
     "Size of a message segment");
 SYSCTL_INT(_kern_ipc, OID_AUTO, msgseg, CTLFLAG_RDTUN, &msginfo.msgseg, 0,
     "Number of message segments");
-SYSCTL_PROC(_kern_ipc, OID_AUTO, msqids, CTLTYPE_OPAQUE | CTLFLAG_RD,
-    NULL, 0, sysctl_msqids, "", "Message queue IDs");
+SYSCTL_PROC(_kern_ipc, OID_AUTO, msqids,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, 0, sysctl_msqids, "",
+    "Array of struct msqid_kernel for each potential message queue");
+
+static int
+msg_prison_check(void *obj, void *data)
+{
+	struct prison *pr = obj;
+	struct prison *prpr;
+	struct vfsoptlist *opts = data;
+	int error, jsys;
+
+	/*
+	 * sysvmsg is a jailsys integer.
+	 * It must be "disable" if the parent jail is disabled.
+	 */
+	error = vfs_copyopt(opts, "sysvmsg", &jsys, sizeof(jsys));
+	if (error != ENOENT) {
+		if (error != 0)
+			return (error);
+		switch (jsys) {
+		case JAIL_SYS_DISABLE:
+			break;
+		case JAIL_SYS_NEW:
+		case JAIL_SYS_INHERIT:
+			prison_lock(pr->pr_parent);
+			prpr = osd_jail_get(pr->pr_parent, msg_prison_slot);
+			prison_unlock(pr->pr_parent);
+			if (prpr == NULL)
+				return (EPERM);
+			break;
+		default:
+			return (EINVAL);
+		}
+	}
+
+	return (0);
+}
+
+static int
+msg_prison_set(void *obj, void *data)
+{
+	struct prison *pr = obj;
+	struct prison *tpr, *orpr, *nrpr, *trpr;
+	struct vfsoptlist *opts = data;
+	void *rsv;
+	int jsys, descend;
+
+	/*
+	 * sysvmsg controls which jail is the root of the associated msgs (this
+	 * jail or same as the parent), or if the feature is available at all.
+	 */
+	if (vfs_copyopt(opts, "sysvmsg", &jsys, sizeof(jsys)) == ENOENT)
+		jsys = vfs_flagopt(opts, "allow.sysvipc", NULL, 0)
+		    ? JAIL_SYS_INHERIT
+		    : vfs_flagopt(opts, "allow.nosysvipc", NULL, 0)
+		    ? JAIL_SYS_DISABLE
+		    : -1;
+	if (jsys == JAIL_SYS_DISABLE) {
+		prison_lock(pr);
+		orpr = osd_jail_get(pr, msg_prison_slot);
+		if (orpr != NULL)
+			osd_jail_del(pr, msg_prison_slot);
+		prison_unlock(pr);
+		if (orpr != NULL) {
+			if (orpr == pr)
+				msg_prison_cleanup(pr);
+			/* Disable all child jails as well. */
+			FOREACH_PRISON_DESCENDANT(pr, tpr, descend) {
+				prison_lock(tpr);
+				trpr = osd_jail_get(tpr, msg_prison_slot);
+				if (trpr != NULL) {
+					osd_jail_del(tpr, msg_prison_slot);
+					prison_unlock(tpr);
+					if (trpr == tpr)
+						msg_prison_cleanup(tpr);
+				} else {
+					prison_unlock(tpr);
+					descend = 0;
+				}
+			}
+		}
+	} else if (jsys != -1) {
+		if (jsys == JAIL_SYS_NEW)
+			nrpr = pr;
+		else {
+			prison_lock(pr->pr_parent);
+			nrpr = osd_jail_get(pr->pr_parent, msg_prison_slot);
+			prison_unlock(pr->pr_parent);
+		}
+		rsv = osd_reserve(msg_prison_slot);
+		prison_lock(pr);
+		orpr = osd_jail_get(pr, msg_prison_slot);
+		if (orpr != nrpr)
+			(void)osd_jail_set_reserved(pr, msg_prison_slot, rsv,
+			    nrpr);
+		else
+			osd_free_reserved(rsv);
+		prison_unlock(pr);
+		if (orpr != nrpr) {
+			if (orpr == pr)
+				msg_prison_cleanup(pr);
+			if (orpr != NULL) {
+				/* Change child jails matching the old root, */
+				FOREACH_PRISON_DESCENDANT(pr, tpr, descend) {
+					prison_lock(tpr);
+					trpr = osd_jail_get(tpr,
+					    msg_prison_slot);
+					if (trpr == orpr) {
+						(void)osd_jail_set(tpr,
+						    msg_prison_slot, nrpr);
+						prison_unlock(tpr);
+						if (trpr == tpr)
+							msg_prison_cleanup(tpr);
+					} else {
+						prison_unlock(tpr);
+						descend = 0;
+					}
+				}
+			}
+		}
+	}
+
+	return (0);
+}
+
+static int
+msg_prison_get(void *obj, void *data)
+{
+	struct prison *pr = obj;
+	struct prison *rpr;
+	struct vfsoptlist *opts = data;
+	int error, jsys;
+
+	/* Set sysvmsg based on the jail's root prison. */
+	prison_lock(pr);
+	rpr = osd_jail_get(pr, msg_prison_slot);
+	prison_unlock(pr);
+	jsys = rpr == NULL ? JAIL_SYS_DISABLE
+	    : rpr == pr ? JAIL_SYS_NEW : JAIL_SYS_INHERIT;
+	error = vfs_setopt(opts, "sysvmsg", &jsys, sizeof(jsys));
+	if (error == ENOENT)
+		error = 0;
+	return (error);
+}
+
+static int
+msg_prison_remove(void *obj, void *data __unused)
+{
+	struct prison *pr = obj;
+	struct prison *rpr;
+
+	prison_lock(pr);
+	rpr = osd_jail_get(pr, msg_prison_slot);
+	prison_unlock(pr);
+	if (rpr == pr)
+		msg_prison_cleanup(pr);
+	return (0);
+}
+
+static void
+msg_prison_cleanup(struct prison *pr)
+{
+	struct msqid_kernel *msqkptr;
+	int i;
+
+	/* Remove any msqs that belong to this jail. */
+	mtx_lock(&msq_mtx);
+	for (i = 0; i < msginfo.msgmni; i++) {
+		msqkptr = &msqids[i];
+		if (msqkptr->u.msg_qbytes != 0 &&
+		    msqkptr->cred != NULL && msqkptr->cred->cr_prison == pr)
+			msq_remove(msqkptr);
+	}
+	mtx_unlock(&msq_mtx);
+}
+
+SYSCTL_JAIL_PARAM_SYS_NODE(sysvmsg, CTLFLAG_RW, "SYSV message queues");
 
 #ifdef COMPAT_FREEBSD32
 int
@@ -1341,6 +1674,7 @@ freebsd32_msgsys(struct thread *td, struct freebsd32_msgsys_args *uap)
 
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+	AUDIT_ARG_SVIPC_WHICH(uap->which);
 	switch (uap->which) {
 	case 0:
 		return (freebsd7_freebsd32_msgctl(td,
@@ -1374,8 +1708,8 @@ freebsd7_freebsd32_msgctl(struct thread *td,
 		if (error)
 			return (error);
 		freebsd32_ipcperm_old_in(&msqbuf32.msg_perm, &msqbuf.msg_perm);
-		PTRIN_CP(msqbuf32, msqbuf, msg_first);
-		PTRIN_CP(msqbuf32, msqbuf, msg_last);
+		PTRIN_CP(msqbuf32, msqbuf, __msg_first);
+		PTRIN_CP(msqbuf32, msqbuf, __msg_last);
 		CP(msqbuf32, msqbuf, msg_cbytes);
 		CP(msqbuf32, msqbuf, msg_qnum);
 		CP(msqbuf32, msqbuf, msg_qbytes);
@@ -1391,8 +1725,8 @@ freebsd7_freebsd32_msgctl(struct thread *td,
 	if (uap->cmd == IPC_STAT) {
 		bzero(&msqbuf32, sizeof(msqbuf32));
 		freebsd32_ipcperm_old_out(&msqbuf.msg_perm, &msqbuf32.msg_perm);
-		PTROUT_CP(msqbuf, msqbuf32, msg_first);
-		PTROUT_CP(msqbuf, msqbuf32, msg_last);
+		PTROUT_CP(msqbuf, msqbuf32, __msg_first);
+		PTROUT_CP(msqbuf, msqbuf32, __msg_last);
 		CP(msqbuf, msqbuf32, msg_cbytes);
 		CP(msqbuf, msqbuf32, msg_qnum);
 		CP(msqbuf, msqbuf32, msg_qbytes);
@@ -1419,8 +1753,8 @@ freebsd32_msgctl(struct thread *td, struct freebsd32_msgctl_args *uap)
 		if (error)
 			return (error);
 		freebsd32_ipcperm_in(&msqbuf32.msg_perm, &msqbuf.msg_perm);
-		PTRIN_CP(msqbuf32, msqbuf, msg_first);
-		PTRIN_CP(msqbuf32, msqbuf, msg_last);
+		PTRIN_CP(msqbuf32, msqbuf, __msg_first);
+		PTRIN_CP(msqbuf32, msqbuf, __msg_last);
 		CP(msqbuf32, msqbuf, msg_cbytes);
 		CP(msqbuf32, msqbuf, msg_qnum);
 		CP(msqbuf32, msqbuf, msg_qbytes);
@@ -1435,8 +1769,8 @@ freebsd32_msgctl(struct thread *td, struct freebsd32_msgctl_args *uap)
 		return (error);
 	if (uap->cmd == IPC_STAT) {
 		freebsd32_ipcperm_out(&msqbuf.msg_perm, &msqbuf32.msg_perm);
-		PTROUT_CP(msqbuf, msqbuf32, msg_first);
-		PTROUT_CP(msqbuf, msqbuf32, msg_last);
+		PTROUT_CP(msqbuf, msqbuf32, __msg_first);
+		PTROUT_CP(msqbuf, msqbuf32, __msg_last);
 		CP(msqbuf, msqbuf32, msg_cbytes);
 		CP(msqbuf, msqbuf32, msg_qnum);
 		CP(msqbuf, msqbuf32, msg_qbytes);
@@ -1496,26 +1830,24 @@ static sy_call_t *msgcalls[] = {
 
 /*
  * Entry point for all MSG calls.
+ *
+ * XXX actually varargs.
+ * struct msgsys_args {
+ *		int	which;
+ *		int	a2;
+ *		int	a3;
+ *		int	a4;
+ *		int	a5;
+ *		int	a6;
+ *	} *uap;
  */
 int
-sys_msgsys(td, uap)
-	struct thread *td;
-	/* XXX actually varargs. */
-	struct msgsys_args /* {
-		int	which;
-		int	a2;
-		int	a3;
-		int	a4;
-		int	a5;
-		int	a6;
-	} */ *uap;
+sys_msgsys(struct thread *td, struct msgsys_args *uap)
 {
 	int error;
 
-	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
-		return (ENOSYS);
-	if (uap->which < 0 ||
-	    uap->which >= sizeof(msgcalls)/sizeof(msgcalls[0]))
+	AUDIT_ARG_SVIPC_WHICH(uap->which);
+	if (uap->which < 0 || uap->which >= nitems(msgcalls))
 		return (EINVAL);
 	error = (*msgcalls[uap->which])(td, &uap->a2);
 	return (error);
@@ -1533,9 +1865,7 @@ struct freebsd7_msgctl_args {
 };
 #endif
 int
-freebsd7_msgctl(td, uap)
-	struct thread *td;
-	struct freebsd7_msgctl_args *uap;
+freebsd7_msgctl(struct thread *td, struct freebsd7_msgctl_args *uap)
 {
 	struct msqid_ds_old msqold;
 	struct msqid_ds msqbuf;
@@ -1548,8 +1878,8 @@ freebsd7_msgctl(td, uap)
 		if (error)
 			return (error);
 		ipcperm_old2new(&msqold.msg_perm, &msqbuf.msg_perm);
-		CP(msqold, msqbuf, msg_first);
-		CP(msqold, msqbuf, msg_last);
+		CP(msqold, msqbuf, __msg_first);
+		CP(msqold, msqbuf, __msg_last);
 		CP(msqold, msqbuf, msg_cbytes);
 		CP(msqold, msqbuf, msg_qnum);
 		CP(msqold, msqbuf, msg_qbytes);
@@ -1565,8 +1895,8 @@ freebsd7_msgctl(td, uap)
 	if (uap->cmd == IPC_STAT) {
 		bzero(&msqold, sizeof(msqold));
 		ipcperm_new2old(&msqbuf.msg_perm, &msqold.msg_perm);
-		CP(msqbuf, msqold, msg_first);
-		CP(msqbuf, msqold, msg_last);
+		CP(msqbuf, msqold, __msg_first);
+		CP(msqbuf, msqold, __msg_last);
 		CP(msqbuf, msqold, msg_cbytes);
 		CP(msqbuf, msqold, msg_qnum);
 		CP(msqbuf, msqold, msg_qbytes);

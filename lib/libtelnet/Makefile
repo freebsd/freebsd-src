@@ -3,7 +3,13 @@
 
 .include <src.opts.mk>
 
-TELNETDIR=	${.CURDIR}/../../contrib/telnet
+# XXX Must be the same as in kerberos5/Makefile.inc
+# XXX There will be a better way to reduce duplication but
+# XXX for now this will do.
+KRB5DIR=	${SRCTOP}/crypto/heimdal
+
+PACKAGE=lib${LIB}
+TELNETDIR=	${SRCTOP}/contrib/telnet
 .PATH:		${TELNETDIR}/libtelnet
 
 LIB=		telnet
@@ -22,11 +28,10 @@ CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DSRA
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
 SRCS+=		kerberos5.c
-CFLAGS+=	-DKRB5 -I${KRB5DIR}/lib/krb5 -I${KRB5OBJDIR} -I${ASN1OBJDIR}
-CFLAGS+=	-DFORWARD -Dnet_write=telnet_net_write
+CFLAGS+=	-DKRB5 -DFORWARD -Dnet_write=telnet_net_write
+CFLAGS+= 	-I${SRCTOP}/kerberos5/include \
+		-I${KRB5DIR}/lib/krb5 -I${.OBJDIR:H:H}/kerberos5/lib/libkrb5 \
+		-I${KRB5DIR}/lib/asn1 -I${.OBJDIR:H:H}/kerberos5/lib/libasn1
 .endif
-
-INCS=		${TELNETDIR}/arpa/telnet.h
-INCSDIR=	${INCLUDEDIR}/arpa
 
 .include <bsd.lib.mk>

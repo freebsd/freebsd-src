@@ -29,7 +29,6 @@
 
 #include "private/svn_opt_private.h"
 #include "private/svn_cmdline_private.h"
-#include "private/svn_subr_private.h"
 
 #include "svn_private_config.h"
 
@@ -48,7 +47,6 @@ usage(apr_pool_t *pool)
 {
   svn_error_clear(svn_cmdline_fprintf
                   (stderr, pool, _("Type 'svnversion --help' for usage.\n")));
-  exit(1);
 }
 
 
@@ -58,7 +56,10 @@ help(const apr_getopt_option_t *options, apr_pool_t *pool)
   svn_error_clear
     (svn_cmdline_fprintf
      (stdout, pool,
-      _("usage: svnversion [OPTIONS] [WC_PATH [TRAIL_URL]]\n\n"
+      _("usage: svnversion [OPTIONS] [WC_PATH [TRAIL_URL]]\n"
+        "Subversion working copy identification tool.\n"
+        "Type 'svnversion --version' to see the program version.\n"
+        "\n"
         "  Produce a compact version identifier for the working copy path\n"
         "  WC_PATH.  TRAIL_URL is the trailing portion of the URL used to\n"
         "  determine if WC_PATH itself is switched (detection of switches\n"
@@ -95,7 +96,6 @@ help(const apr_getopt_option_t *options, apr_pool_t *pool)
       ++options;
     }
   svn_error_clear(svn_cmdline_fprintf(stdout, pool, "\n"));
-  exit(0);
 }
 
 
@@ -115,16 +115,19 @@ check_lib_versions(void)
 }
 
 /*
+ * On success, leave *EXIT_CODE untouched and return SVN_NO_ERROR. On error,
+ * either return an error to be displayed, or set *EXIT_CODE to non-zero and
+ * return SVN_NO_ERROR.
+ *
  * Why is this not an svn subcommand?  I have this vague idea that it could
  * be run as part of the build process, with the output embedded in the svn
  * program.  Obviously we don't want to have to run svn when building svn.
  */
-int
-main(int argc, const char *argv[])
+static svn_error_t *
+sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
 {
   const char *wc_path, *trail_url;
   const char *local_abspath;
-  apr_pool_t *pool;
   svn_wc_revision_status_t *res;
   svn_boolean_t no_newline = FALSE, committed = FALSE;
   svn_error_t *err;
@@ -144,33 +147,18 @@ main(int argc, const char *argv[])
       {0,             0,  0,  0}
     };
 
-  /* Initialize the app. */
-  if (svn_cmdline_init("svnversion", stderr) != EXIT_SUCCESS)
-    return EXIT_FAILURE;
-
-  /* Create our top-level pool.  Use a separate mutexless allocator,
-   * given this application is single threaded.
-   */
-  pool = apr_allocator_owner_get(svn_pool_create_allocator(FALSE));
-
   /* Check library versions */
-  err = check_lib_versions();
-  if (err)
-    return svn_cmdline_handle_exit_error(err, pool, "svnversion: ");
+  SVN_ERR(check_lib_versions());
 
 #if defined(WIN32) || defined(__CYGWIN__)
   /* Set the working copy administrative directory name. */
   if (getenv("SVN_ASP_DOT_NET_HACK"))
     {
-      err = svn_wc_set_adm_dir("_svn", pool);
-      if (err)
-        return svn_cmdline_handle_exit_error(err, pool, "svnversion: ");
+      SVN_ERR(svn_wc_set_adm_dir("_svn", pool));
     }
 #endif
 
-  err = svn_cmdline__getopt_init(&os, argc, argv, pool);
-  if (err)
-    return svn_cmdline_handle_exit_error(err, pool, "svnversion: ");
+  SVN_ERR(svn_cmdline__getopt_init(&os, argc, argv, pool));
 
   os->interleave = 1;
   while (1)
@@ -181,7 +169,11 @@ main(int argc, const char *argv[])
       if (APR_STATUS_IS_EOF(status))
         break;
       if (status != APR_SUCCESS)
-        usage(pool);  /* this will exit() */
+        {
+          *exit_code = EXIT_FAILURE;
+          usage(pool);
+          return SVN_NO_ERROR;
+        }
 
       switch (opt)
         {
@@ -196,35 +188,39 @@ main(int argc, const char *argv[])
           break;
         case 'h':
           help(options, pool);
-          break;
+          return SVN_NO_ERROR;
         case SVNVERSION_OPT_VERSION:
           is_version = TRUE;
           break;
         default:
-          usage(pool);  /* this will exit() */
+          *exit_code = EXIT_FAILURE;
+          usage(pool);
+          return SVN_NO_ERROR;
         }
     }
 
   if (is_version)
     {
-      SVN_INT_ERR(version(quiet, pool));
-      exit(0);
+      SVN_ERR(version(quiet, pool));
+      return SVN_NO_ERROR;
     }
   if (os->ind > argc || os->ind < argc - 2)
-    usage(pool);  /* this will exit() */
+    {
+      *exit_code = EXIT_FAILURE;
+      usage(pool);
+      return SVN_NO_ERROR;
+    }
 
-  SVN_INT_ERR(svn_utf_cstring_to_utf8(&wc_path,
-                                      (os->ind < argc) ? os->argv[os->ind]
-                                                       : ".",
-                                      pool));
+  SVN_ERR(svn_utf_cstring_to_utf8(&wc_path,
+                                  (os->ind < argc) ? os->argv[os->ind] : ".",
+                                  pool));
 
-  SVN_INT_ERR(svn_opt__arg_canonicalize_path(&wc_path, wc_path, pool));
-  SVN_INT_ERR(svn_dirent_get_absolute(&local_abspath, wc_path, pool));
-  SVN_INT_ERR(svn_wc_context_create(&wc_ctx, NULL, pool, pool));
+  SVN_ERR(svn_opt__arg_canonicalize_path(&wc_path, wc_path, pool));
+  SVN_ERR(svn_dirent_get_absolute(&local_abspath, wc_path, pool));
+  SVN_ERR(svn_wc_context_create(&wc_ctx, NULL, pool, pool));
 
   if (os->ind+1 < argc)
-    SVN_INT_ERR(svn_utf_cstring_to_utf8(&trail_url, os->argv[os->ind+1],
-                                        pool));
+    SVN_ERR(svn_utf_cstring_to_utf8(&trail_url, os->argv[os->ind+1], pool));
   else
     trail_url = NULL;
 
@@ -239,63 +235,87 @@ main(int argc, const char *argv[])
 
       svn_error_clear(err);
 
-      SVN_INT_ERR(svn_io_check_special_path(local_abspath, &kind, &special,
-                                            pool));
+      SVN_ERR(svn_io_check_special_path(local_abspath, &kind, &special, pool));
 
       if (special)
-        SVN_INT_ERR(svn_cmdline_printf(pool, _("Unversioned symlink%s"),
-                                       no_newline ? "" : "\n"));
+        SVN_ERR(svn_cmdline_printf(pool, _("Unversioned symlink%s"),
+                                   no_newline ? "" : "\n"));
       else if (kind == svn_node_dir)
-        SVN_INT_ERR(svn_cmdline_printf(pool, _("Unversioned directory%s"),
-                                       no_newline ? "" : "\n"));
+        SVN_ERR(svn_cmdline_printf(pool, _("Unversioned directory%s"),
+                                   no_newline ? "" : "\n"));
       else if (kind == svn_node_file)
-        SVN_INT_ERR(svn_cmdline_printf(pool, _("Unversioned file%s"),
-                                       no_newline ? "" : "\n"));
+        SVN_ERR(svn_cmdline_printf(pool, _("Unversioned file%s"),
+                                   no_newline ? "" : "\n"));
       else
         {
-          SVN_INT_ERR(svn_cmdline_fprintf(stderr, pool,
-                                          kind == svn_node_none
-                                           ? _("'%s' doesn't exist\n")
-                                           : _("'%s' is of unknown type\n"),
-                                          svn_dirent_local_style(local_abspath,
-                                                                 pool)));
-          svn_pool_destroy(pool);
-          return EXIT_FAILURE;
+          SVN_ERR(svn_cmdline_fprintf(stderr, pool,
+                                      kind == svn_node_none
+                                       ? _("'%s' doesn't exist\n")
+                                       : _("'%s' is of unknown type\n"),
+                                      svn_dirent_local_style(local_abspath,
+                                                             pool)));
+          *exit_code = EXIT_FAILURE;
+          return SVN_NO_ERROR;
         }
-      svn_pool_destroy(pool);
-      return EXIT_SUCCESS;
+      return SVN_NO_ERROR;
     }
 
-  SVN_INT_ERR(err);
+  SVN_ERR(err);
 
   if (! SVN_IS_VALID_REVNUM(res->min_rev))
     {
       /* Local uncommitted modifications, no revision info was found. */
-      SVN_INT_ERR(svn_cmdline_printf(pool, _("Uncommitted local addition, "
-                                             "copy or move%s"),
-                                             no_newline ? "" : "\n"));
-      svn_pool_destroy(pool);
-      return EXIT_SUCCESS;
+      SVN_ERR(svn_cmdline_printf(pool, _("Uncommitted local addition, "
+                                         "copy or move%s"),
+                                 no_newline ? "" : "\n"));
+      return SVN_NO_ERROR;
     }
 
   /* Build compact '123[:456]M?S?' string. */
-  SVN_INT_ERR(svn_cmdline_printf(pool, "%ld", res->min_rev));
+  SVN_ERR(svn_cmdline_printf(pool, "%ld", res->min_rev));
   if (res->min_rev != res->max_rev)
-    SVN_INT_ERR(svn_cmdline_printf(pool, ":%ld", res->max_rev));
+    SVN_ERR(svn_cmdline_printf(pool, ":%ld", res->max_rev));
   if (res->modified)
-    SVN_INT_ERR(svn_cmdline_fputs("M", stdout, pool));
+    SVN_ERR(svn_cmdline_fputs("M", stdout, pool));
   if (res->switched)
-    SVN_INT_ERR(svn_cmdline_fputs("S", stdout, pool));
+    SVN_ERR(svn_cmdline_fputs("S", stdout, pool));
   if (res->sparse_checkout)
-    SVN_INT_ERR(svn_cmdline_fputs("P", stdout, pool));
+    SVN_ERR(svn_cmdline_fputs("P", stdout, pool));
 
   if (! no_newline)
-    SVN_INT_ERR(svn_cmdline_fputs("\n", stdout, pool));
+    SVN_ERR(svn_cmdline_fputs("\n", stdout, pool));
+
+  return SVN_NO_ERROR;
+}
+
+int
+main(int argc, const char *argv[])
+{
+  apr_pool_t *pool;
+  int exit_code = EXIT_SUCCESS;
+  svn_error_t *err;
+
+  /* Initialize the app. */
+  if (svn_cmdline_init("svnversion", stderr) != EXIT_SUCCESS)
+    return EXIT_FAILURE;
+
+  /* Create our top-level pool.  Use a separate mutexless allocator,
+   * given this application is single threaded.
+   */
+  pool = apr_allocator_owner_get(svn_pool_create_allocator(FALSE));
+
+  err = sub_main(&exit_code, argc, argv, pool);
+
+  /* Flush stdout and report if it fails. It would be flushed on exit anyway
+     but this makes sure that output is not silently lost if it fails. */
+  err = svn_error_compose_create(err, svn_cmdline_fflush(stdout));
+
+  if (err)
+    {
+      exit_code = EXIT_FAILURE;
+      svn_cmdline_handle_exit_error(err, NULL, "svnversion: ");
+    }
 
   svn_pool_destroy(pool);
-
-  /* Flush stdout to make sure that the user will see any printing errors. */
-  SVN_INT_ERR(svn_cmdline_fflush(stdout));
-
-  return EXIT_SUCCESS;
+  return exit_code;
 }

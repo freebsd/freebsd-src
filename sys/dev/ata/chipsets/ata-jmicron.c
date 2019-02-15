@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
@@ -71,6 +73,7 @@ ata_jmicron_probe(device_t dev)
      { ATA_JMB365, 0, 1, 2, ATA_UDMA6, "JMB365" },
      { ATA_JMB366, 0, 2, 2, ATA_UDMA6, "JMB366" },
      { ATA_JMB368, 0, 0, 1, ATA_UDMA6, "JMB368" },
+     { ATA_JMB368_2, 0, 0, 1, ATA_UDMA6, "JMB368" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
@@ -85,7 +88,7 @@ ata_jmicron_probe(device_t dev)
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_jmicron_chipinit;
-    return (BUS_PROBE_DEFAULT);
+    return (BUS_PROBE_LOW_PRIORITY);
 }
 
 static int
@@ -99,11 +102,7 @@ ata_jmicron_chipinit(device_t dev)
 
     /* do we have multiple PCI functions ? */
     if (pci_read_config(dev, 0xdf, 1) & 0x40) {
-	/* are we on the AHCI part ? */
-	if (ata_ahci_chipinit(dev) != ENXIO)
-	    return 0;
-
-	/* otherwise we are on the PATA part */
+	/* If this was not claimed by AHCI, then we are on the PATA part */
 	ctlr->ch_attach = ata_jmicron_ch_attach;
 	ctlr->ch_detach = ata_pci_ch_detach;
 	ctlr->reset = ata_generic_reset;
@@ -145,12 +144,13 @@ ata_jmicron_ch_attach(device_t dev)
 static int
 ata_jmicron_setmode(device_t dev, int target, int mode)
 {
-	struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+	device_t parent = device_get_parent(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(parent);
 
 	mode = min(mode, ctlr->chip->max_dma);
 	/* check for 80pin cable present */
 	if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
-	    pci_read_config(dev, 0x40, 1) & 0x08) {
+	    pci_read_config(parent, 0x40, 1) & 0x08) {
 		ata_print_cable(dev, "controller");
 		mode = ATA_UDMA2;
 	}
@@ -159,4 +159,3 @@ ata_jmicron_setmode(device_t dev, int target, int mode)
 }
 
 ATA_DECLARE_DRIVER(ata_jmicron);
-MODULE_DEPEND(ata_jmicron, ata_ahci, 1, 1, 1);

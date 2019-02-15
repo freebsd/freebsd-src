@@ -38,8 +38,7 @@
  * Created      : 16/05/95
  */
 
-	
-#include "assym.s"
+#include "assym.inc"
 #include <machine/asm.h>
 #include <machine/armreg.h>
 __FBSDID("$FreeBSD$");
@@ -47,9 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 
 	.text
-	.align	0
+	.align	2
 
-#ifdef _ARM_ARCH_6
+#if __ARM_ARCH >= 6
 #define GET_PCB(tmp) \
 	mrc p15, 0, tmp, c13, c0, 4; \
 	add	tmp, tmp, #(TD_PCB)
@@ -113,6 +112,8 @@ ENTRY(copyinstr)
 	moveq	r0, #ENAMETOOLONG
 	beq	2f
 
+	ldr	r12, =VM_MAXUSER_ADDRESS
+
 	GET_PCB(r4)
 	ldr	r4, [r4]
 
@@ -124,7 +125,10 @@ ENTRY(copyinstr)
 	adr	r5, .Lcopystrfault
 	str	r5, [r4, #PCB_ONFAULT]
 
-1:	ldrbt	r5, [r0], #0x0001
+1:
+	cmp	r0, r12
+	bcs	.Lcopystrfault
+	ldrbt	r5, [r0], #0x0001
 	add	r6, r6, #0x00000001
 	teq	r5, #0x00000000
 	strb	r5, [r1], #0x0001
@@ -145,58 +149,11 @@ ENTRY(copyinstr)
 	RET
 END(copyinstr)
 
-/*
- * r0 - kernel space address
- * r1 - user space address
- * r2 - maxlens
- * r3 - lencopied
- *
- * Copy string from kernel space to user space
- */
-ENTRY(copyoutstr)
-	SAVE_REGS
-
-	teq	r2, #0x00000000
-	mov	r6, #0x00000000
-	moveq	r0, #ENAMETOOLONG
-	beq	2f
-
-	GET_PCB(r4)
-	ldr	r4, [r4]
-
-#ifdef DIAGNOSTIC
-	teq	r4, #0x00000000
-	beq	.Lcopystrpcbfault
-#endif
-
-	adr	r5, .Lcopystrfault
-	str	r5, [r4, #PCB_ONFAULT]
-
-1:	ldrb	r5, [r0], #0x0001
-	add	r6, r6, #0x00000001
-	teq	r5, #0x00000000
-	strbt	r5, [r1], #0x0001
-	teqne	r6, r2
-	bne	1b
-
-	mov	r0, #0x00000000
-	str	r0, [r4, #PCB_ONFAULT]
-
-	teq	r5, #0x00000000
-	moveq	r0, #0x00000000
-	movne	r0, #ENAMETOOLONG
-
-2:	teq	r3, #0x00000000
-	strne	r6, [r3]
-
-	RESTORE_REGS
-	RET
-END(copyoutstr)
-
 /* A fault occurred during the copy */
 .Lcopystrfault:
 	mov	r1, #0x00000000
 	str	r1, [r4, #PCB_ONFAULT]
+	mov	r0, #EFAULT
 	RESTORE_REGS
 	RET
 
@@ -210,5 +167,5 @@ END(copyoutstr)
 
 Lcopystrpcbfaulttext:
 	.asciz	"No valid PCB during copyinoutstr() addr1=%08x addr2=%08x\n"
-	.align	0
+	.align	2
 #endif

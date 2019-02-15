@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -48,6 +50,7 @@ void	loginclass_hold(struct loginclass *lc);
 void	loginclass_free(struct loginclass *lc);
 struct loginclass	*loginclass_find(const char *name);
 void	loginclass_racct_foreach(void (*callback)(struct racct *racct,
-	    void *arg2, void *arg3), void *arg2, void *arg3);
+	    void *arg2, void *arg3), void (*pre)(void), void (*post)(void),
+	    void *arg2, void *arg3);
 
 #endif /* !_SYS_LOGINCLASS_H_ */

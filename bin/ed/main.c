@@ -47,10 +47,6 @@ __FBSDID("$FreeBSD$");
  *	The buffering algorithm is attributed to Rodney Ruddock of
  *	the University of Guelph, Guelph, Ontario.
  *
- *	The cbc.c encryption code is adapted from
- *	the bdes program by Matt Bishop of Dartmouth College,
- *	Hanover, NH.
- *
  */
 
 #include <sys/types.h>
@@ -81,7 +77,6 @@ int ibufsz;			/* ed command-line buffer size */
 char *ibufp;			/* pointer to ed command-line buffer */
 
 /* global flags */
-int des = 0;			/* if set, use crypt(3) for i/o */
 static int garrulous = 0;	/* if set, print all error messages */
 int isbinary;			/* if set, buffer contains ASCII NULs */
 int isglobal;			/* if set, doing a global command */
@@ -121,11 +116,7 @@ top:
 			scripted = 1;
 			break;
 		case 'x':				/* use crypt */
-#ifdef DES
-			des = get_keyword();
-#else
 			fprintf(stderr, "crypt unavailable\n?\n");
-#endif
 			break;
 
 		default:
@@ -350,7 +341,8 @@ next_addr(void)
 				ibufp++;
 				addr_cnt++;
 				second_addr = (c == ';') ? current_addr : 1;
-				addr = addr_last;
+				if ((addr = next_addr()) < 0)
+					addr = addr_last;
 				break;
 			}
 			/* FALLTHROUGH */
@@ -505,7 +497,8 @@ exec_command(void)
 			return ERR;
 		else if (open_sbuf() < 0)
 			return FATAL;
-		if (*fnp && *fnp != '!') strcpy(old_filename, fnp);
+		if (*fnp && *fnp != '!')
+			 strlcpy(old_filename, fnp, PATH_MAX);
 #ifdef BACKWARDS
 		if (*fnp == '\0' && *old_filename == '\0') {
 			errmsg = "no current filename";
@@ -532,7 +525,8 @@ exec_command(void)
 			return ERR;
 		}
 		GET_COMMAND_SUFFIX();
-		if (*fnp) strcpy(old_filename, fnp);
+		if (*fnp)
+			strlcpy(old_filename, fnp, PATH_MAX);
 		printf("%s\n", strip_escapes(old_filename));
 		break;
 	case 'g':
@@ -663,7 +657,7 @@ exec_command(void)
 		GET_COMMAND_SUFFIX();
 		if (!isglobal) clear_undo_stack();
 		if (*old_filename == '\0' && *fnp != '!')
-			strcpy(old_filename, fnp);
+			strlcpy(old_filename, fnp, PATH_MAX);
 #ifdef BACKWARDS
 		if (*fnp == '\0' && *old_filename == '\0') {
 			errmsg = "no current filename";
@@ -797,7 +791,7 @@ exec_command(void)
 			return ERR;
 		GET_COMMAND_SUFFIX();
 		if (*old_filename == '\0' && *fnp != '!')
-			strcpy(old_filename, fnp);
+			strlcpy(old_filename, fnp, PATH_MAX);
 #ifdef BACKWARDS
 		if (*fnp == '\0' && *old_filename == '\0') {
 			errmsg = "no current filename";
@@ -807,7 +801,7 @@ exec_command(void)
 		if ((addr = write_file(*fnp ? fnp : old_filename,
 		    (c == 'W') ? "a" : "w", first_addr, second_addr)) < 0)
 			return ERR;
-		else if (addr == addr_last)
+		else if (addr == addr_last && *fnp != '!')
 			modified = 0;
 		else if (modified && !scripted && n == 'q')
 			gflag = EMOD;
@@ -818,13 +812,8 @@ exec_command(void)
 			return ERR;
 		}
 		GET_COMMAND_SUFFIX();
-#ifdef DES
-		des = get_keyword();
-		break;
-#else
 		errmsg = "crypt unavailable";
 		return ERR;
-#endif
 	case 'z':
 #ifdef BACKWARDS
 		if (check_addr_range(first_addr = 1, current_addr + 1) < 0)
@@ -1354,7 +1343,7 @@ handle_hup(int signo)
 	char *hup = NULL;		/* hup filename */
 	char *s;
 	char ed_hup[] = "ed.hup";
-	int n;
+	size_t n;
 
 	if (!sigactive)
 		quit(1);

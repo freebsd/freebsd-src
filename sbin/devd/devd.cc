@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause AND BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2010 M. Warner Losh.
  * All rights reserved.
  *
@@ -36,7 +38,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -95,6 +97,7 @@ __FBSDID("$FreeBSD$");
 #include <map>
 #include <string>
 #include <list>
+#include <stdexcept>
 #include <vector>
 
 #include "devd.h"		/* C compatible definitions */
@@ -108,15 +111,26 @@ __FBSDID("$FreeBSD$");
 /*
  * Since the client socket is nonblocking, we must increase its send buffer to
  * handle brief event storms.  On FreeBSD, AF_UNIX sockets don't have a receive
- * buffer, so the client can't increate the buffersize by itself.
+ * buffer, so the client can't increase the buffersize by itself.
  *
  * For example, when creating a ZFS pool, devd emits one 165 character
- * resource.fs.zfs.statechange message for each vdev in the pool.  A 64k
- * buffer has enough space for almost 400 drives, which would be very large but
- * not impossibly large pool.  A 128k buffer has enough space for 794 drives,
- * which is more than can fit in a rack with modern technology.
+ * resource.fs.zfs.statechange message for each vdev in the pool.  The kernel
+ * allocates a 4608B mbuf for each message.  Modern technology places a limit of
+ * roughly 450 drives/rack, and it's unlikely that a zpool will ever be larger
+ * than that.
+ *
+ * 450 drives * 165 bytes / drive = 74250B of data in the sockbuf
+ * 450 drives * 4608B / drive = 2073600B of mbufs in the sockbuf
+ *
+ * We can't directly set the sockbuf's mbuf limit, but we can do it indirectly.
+ * The kernel sets it to the minimum of a hard-coded maximum value and sbcc *
+ * kern.ipc.sockbuf_waste_factor, where sbcc is the socket buffer size set by
+ * the user.  The default value of kern.ipc.sockbuf_waste_factor is 8.  If we
+ * set the bufsize to 256k and use the kern.ipc.sockbuf_waste_factor, then the
+ * kernel will set the mbuf limit to 2MB, which is just large enough for 450
+ * drives.  It also happens to be the same as the hardcoded maximum value.
  */
-#define CLIENT_BUFSIZE 131072
+#define CLIENT_BUFSIZE 262144
 
 using namespace std;
 
@@ -126,7 +140,6 @@ typedef struct client {
 } client_t;
 
 extern FILE *yyin;
-extern int lineno;
 
 static const char notify = '!';
 static const char nomatch = '?';
@@ -147,7 +160,7 @@ static const char *configfile = CF;
 static void devdlog(int priority, const char* message, ...)
 	__printflike(2, 3);
 static void event_loop(void);
-static void usage(void);
+static void usage(void) __dead2;
 
 template <class T> void
 delete_and_clear(vector<T *> &v)
@@ -159,7 +172,7 @@ delete_and_clear(vector<T *> &v)
 	v.clear();
 }
 
-config cfg;
+static config cfg;
 
 event_proc::event_proc() : _prio(-1)
 {
@@ -319,8 +332,6 @@ media::media(config &, const char *var, const char *type)
 {
 	static struct ifmedia_description media_types[] = {
 		{ IFM_ETHER,		"Ethernet" },
-		{ IFM_TOKEN,		"Tokenring" },
-		{ IFM_FDDI,		"FDDI" },
 		{ IFM_IEEE80211,	"802.11" },
 		{ IFM_ATM,		"ATM" },
 		{ -1,			"unknown" },
@@ -361,7 +372,7 @@ media::do_match(config &c)
 	s = socket(PF_INET, SOCK_DGRAM, 0);
 	if (s >= 0) {
 		memset(&ifmr, 0, sizeof(ifmr));
-		strncpy(ifmr.ifm_name, value.c_str(), sizeof(ifmr.ifm_name));
+		strlcpy(ifmr.ifm_name, value.c_str(), sizeof(ifmr.ifm_name));
 
 		if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) >= 0 &&
 		    ifmr.ifm_status & IFM_AVALID) {
@@ -399,6 +410,24 @@ var_list::is_set(const string &var) const
 	return (_vars.find(var) != _vars.end());
 }
 
+/** fix_value
+ *
+ * Removes quoted characters that have made it this far. \" are
+ * converted to ". For all other characters, both \ and following
+ * character. So the string 'fre\:\"' is translated to 'fred\:"'.
+ */
+std::string
+var_list::fix_value(const std::string &val) const
+{
+        std::string rv(val);
+        std::string::size_type pos(0);
+
+        while ((pos = rv.find("\\\"", pos)) != rv.npos) {
+                rv.erase(pos, 1);
+        }
+        return (rv);
+}
+
 void
 var_list::set_variable(const string &var, const string &val)
 {
@@ -408,9 +437,9 @@ var_list::set_variable(const string &var, const string &val)
 	 * can consume excessive amounts of systime inside of connect().  Only
 	 * log when we're in -d mode.
 	 */
+	_vars[var] = fix_value(val);
 	if (no_daemon)
 		devdlog(LOG_DEBUG, "setting %s=%s\n", var.c_str(), val.c_str());
-	_vars[var] = val;
 }
 
 void
@@ -607,8 +636,37 @@ config::is_id_char(char ch) const
 	    ch == '-'));
 }
 
+string
+config::shell_quote(const string &s)
+{
+	string buffer;
+	const char *cs, *ce;
+	char c;
+
+	/*
+	 * Enclose the string in $' ' with escapes for ' and / characters making
+	 * it one argument and ensuring the shell won't be affected by its
+	 * usual list of candidates.
+	 */
+	buffer.reserve(s.length() * 3 / 2);
+	buffer += '$';
+	buffer += '\'';
+	cs = s.c_str();
+	ce = cs + strlen(cs);
+	for (; cs < ce; cs++) {
+		c = *cs;
+		if (c == '\'' || c == '\\') {
+			buffer += '\\';
+		}
+		buffer += c;
+	}
+	buffer += '\'';
+
+	return buffer;
+}
+
 void
-config::expand_one(const char *&src, string &dst)
+config::expand_one(const char *&src, string &dst, bool is_shell)
 {
 	int count;
 	string buffer;
@@ -621,8 +679,7 @@ config::expand_one(const char *&src, string &dst)
 	}
 
 	// $(foo) -> $(foo)
-	// Not sure if I want to support this or not, so for now we just pass
-	// it through.
+	// This is the escape hatch for passing down shell subcommands
 	if (*src == '(') {
 		dst += '$';
 		count = 1;
@@ -637,8 +694,8 @@ config::expand_one(const char *&src, string &dst)
 		return;
 	}
 
-	// $[^A-Za-z] -> $\1
-	if (!isalpha(*src)) {
+	// $[^-A-Za-z_*] -> $\1
+	if (!isalpha(*src) && *src != '_' && *src != '-' && *src != '*') {
 		dst += '$';
 		dst += *src++;
 		return;
@@ -648,7 +705,7 @@ config::expand_one(const char *&src, string &dst)
 	do {
 		buffer += *src++;
 	} while (is_id_char(*src));
-	dst.append(get_variable(buffer));
+	dst.append(is_shell ? shell_quote(get_variable(buffer)) : get_variable(buffer));
 }
 
 const string
@@ -674,7 +731,7 @@ config::expand_string(const char *src, const char *prepend, const char *append)
 		}
 		dst.append(src, var_at - src);
 		src = var_at;
-		expand_one(src, dst);
+		expand_one(src, dst, prepend == NULL);
 	}
 
 	if (append != NULL)
@@ -699,8 +756,13 @@ config::chop_var(char *&buffer, char *&lhs, char *&rhs) const
 	if (*walker == '"') {
 		walker++;	// skip "
 		rhs = walker;
-		while (*walker && *walker != '"')
+		while (*walker && *walker != '"') {
+			// Skip \" ... We leave it in the string and strip the \ later.
+			// due to the super simplistic parser that we have here.
+			if (*walker == '\\' && walker[1] == '"')
+				walker++;
 			walker++;
+		}
 		if (*walker != '"')
 			return (false);
 		rhs[-2] = '\0';
@@ -777,15 +839,30 @@ process_event(char *buffer)
 {
 	char type;
 	char *sp;
+	struct timeval tv;
+	char *timestr;
 
 	sp = buffer + 1;
 	devdlog(LOG_INFO, "Processing event '%s'\n", buffer);
 	type = *buffer++;
 	cfg.push_var_table();
-	// No match doesn't have a device, and the format is a little
+	// $* is the entire line
+	cfg.set_variable("*", buffer - 1);
+	// $_ is the entire line without the initial character
+	cfg.set_variable("_", buffer);
+
+	// Save the time this happened (as approximated by when we got
+	// around to processing it).
+	gettimeofday(&tv, NULL);
+	asprintf(&timestr, "%jd.%06ld", (uintmax_t)tv.tv_sec, tv.tv_usec);
+	cfg.set_variable("timestamp", timestr);
+	free(timestr);
+
+	// Match doesn't have a device, and the format is a little
 	// different, so handle it separately.
 	switch (type) {
 	case notify:
+		//! (k=v)*
 		sp = cfg.set_vars(sp);
 		break;
 	case nomatch:
@@ -827,7 +904,7 @@ process_event(char *buffer)
 	cfg.pop_var_table();
 }
 
-int
+static int
 create_socket(const char *name, int socktype)
 {
 	int fd, slen;
@@ -845,17 +922,19 @@ create_socket(const char *name, int socktype)
 	if (::bind(fd, (struct sockaddr *) & sun, slen) < 0)
 		err(1, "bind");
 	listen(fd, 4);
-	chown(name, 0, 0);	/* XXX - root.wheel */
-	chmod(name, 0666);
+	if (chown(name, 0, 0))	/* XXX - root.wheel */
+		err(1, "chown");
+	if (chmod(name, 0666))
+		err(1, "chmod");
 	return (fd);
 }
 
-unsigned int max_clients = 10;	/* Default, can be overriden on cmdline. */
-unsigned int num_clients;
+static unsigned int max_clients = 10;	/* Default, can be overridden on cmdline. */
+static unsigned int num_clients;
 
-list<client_t> clients;
+static list<client_t> clients;
 
-void
+static void
 notify_clients(const char *data, int len)
 {
 	list<client_t>::iterator i;
@@ -885,7 +964,7 @@ notify_clients(const char *data, int len)
 	}
 }
 
-void
+static void
 check_clients(void)
 {
 	int s;
@@ -915,7 +994,7 @@ check_clients(void)
 	}
 }
 
-void
+static void
 new_client(int fd, int socktype)
 {
 	client_t s;
@@ -967,7 +1046,7 @@ event_loop(void)
 			tv.tv_usec = 0;
 			FD_ZERO(&fds);
 			FD_SET(fd, &fds);
-			rv = select(fd + 1, &fds, &fds, &fds, &tv);
+			rv = select(fd + 1, &fds, NULL, NULL, &tv);
 			// No events -> we've processed all pending events
 			if (rv == 0) {
 				devdlog(LOG_DEBUG, "Calling daemon\n");
@@ -1032,7 +1111,13 @@ event_loop(void)
 				buffer[rv] = '\0';
 				while (buffer[--rv] == '\n')
 					buffer[rv] = '\0';
-				process_event(buffer);
+				try {
+					process_event(buffer);
+				}
+				catch (const std::length_error& e) {
+					devdlog(LOG_ERR, "Dropping event %s "
+					    "due to low memory", buffer);
+				}
 			} else if (rv < 0) {
 				if (errno != EINTR)
 					break;
@@ -1050,6 +1135,9 @@ event_loop(void)
 		if (FD_ISSET(seqpacket_fd, &fds))
 			new_client(seqpacket_fd, SOCK_SEQPACKET);
 	}
+	cfg.remove_pidfile();
+	close(seqpacket_fd);
+	close(stream_fd);
 	close(fd);
 }
 
@@ -1167,7 +1255,7 @@ devdlog(int priority, const char* fmt, ...)
 	va_start(argp, fmt);
 	if (no_daemon)
 		vfprintf(stderr, fmt, argp);
-	else if ((! quiet_mode) || (priority <= LOG_WARNING))
+	else if (quiet_mode == 0 || priority <= LOG_WARNING)
 		vsyslog(priority, fmt, argp);
 	va_end(argp);
 }
@@ -1192,7 +1280,8 @@ check_devd_enabled()
 	if (val == 0) {
 		warnx("Setting " SYSCTL " to 1000");
 		val = 1000;
-		sysctlbyname(SYSCTL, NULL, NULL, &val, sizeof(val));
+		if (sysctlbyname(SYSCTL, NULL, NULL, &val, sizeof(val)))
+			err(1, "sysctlbyname");
 	}
 }
 

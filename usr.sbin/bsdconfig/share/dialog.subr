@@ -1,6 +1,6 @@
 if [ ! "$_DIALOG_SUBR" ]; then _DIALOG_SUBR=1
 #
-# Copyright (c) 2006-2014 Devin Teske
+# Copyright (c) 2006-2015 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -79,7 +79,6 @@ unset XDIALOG_INFOBOX_TIMEOUT
 DIALOG_OK=${SUCCESS:-0}
 DIALOG_CANCEL=${FAILURE:-1}
 DIALOG_HELP=2
-DIALOG_ITEM_HELP=2
 DIALOG_EXTRA=3
 DIALOG_ITEM_HELP=4
 export DIALOG_ERROR=254 # sh(1) can't handle the default of `-1'
@@ -105,10 +104,10 @@ DIALOG_ESC=255
 #
 # When manually sizing Xdialog(1) widgets such as calendar and timebox, you'll
 # need to know the size of the embedded GUI objects because the height passed
-# to Xdialog(1) for these widgets has to be tall enough to accomodate them.
+# to Xdialog(1) for these widgets has to be tall enough to accommodate them.
 #
 # These values are helpful when manually sizing with dialog(1) too, but in a
-# different way. dialog(1) does not make you accomodate the custom items in the
+# different way. dialog(1) does not make you accommodate the custom items in the
 # height (but does for width) -- a height of 3 will display three lines and a
 # full calendar, for example (whereas Xdialog will truncate the calendar if
 # given a height of 3). For dialog(1), use these values for making sure that
@@ -647,7 +646,7 @@ f_dialog_infobox_size()
 		# Xdialog(1)).
 		#
 		if [ ! "$USE_XDIALOG" ]; then
-			__n=$(( ${#__hline} + 10 ))
+			__n=$(( ${#__hline} + 12 ))
 			[ $__n -gt $__width ] && __width=$__n
 		fi
 
@@ -703,7 +702,7 @@ f_dialog_buttonbox_size()
 
 	# Adjust height if desired
 	if [ "$__var_height" ]; then
-		# Add height to accomodate the buttons
+		# Add height to accommodate the buttons
 		__height_bbox_size=$(( $__height_bbox_size + 2 ))
 
 		# Adjust for clipping with Xdialog(1) on Linux/GTK2
@@ -1382,7 +1381,7 @@ f_dialog_calendar_size()
 		__height=$( echo "$__prompt" | f_number_of_lines )
 
 		if [ "$USE_XDIALOG" ]; then
-			# Add height to accomodate for embedded calendar widget
+			# Add height to accommodate for embedded calendar widget
 			__height=$(( $__height + $DIALOG_CALENDAR_HEIGHT - 1 ))
 
 			# Also, bump height if backtitle is enabled
@@ -1580,6 +1579,55 @@ f_xdialog_info()
 		-1 # timeout of -1 means abort when EOF on stdin
 }
 
+############################################################ PAUSE FUNCTIONS
+
+# f_dialog_pause $msg_text $duration [$hline]
+#
+# Display a message in a widget with a progress bar that runs backward for
+# $duration seconds.
+#
+f_dialog_pause()
+{
+	local pause_text="$1" duration="$2" hline="$3" height width
+	f_isinteger "$duration" || return $FAILURE
+	f_dialog_buttonbox_size height width \
+		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$pause_text" "$hline"
+	if [ "$USE_XDIALOG" ]; then
+		$DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--ok-label "$msg_skip"          \
+			--cancel-label "$msg_cancel"    \
+			${noCancel:+--no-cancel}        \
+			--timeout "$duration"           \
+			--yesno "$pause_text"           \
+			$height $width
+	else
+		[ $duration -gt 0 ] && duration=$(( $duration - 1 ))
+		height=$(( $height + 3 )) # Add height for progress bar
+		$DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--hline "$hline"                \
+			--ok-label "$msg_skip"          \
+			--cancel-label "$msg_cancel"    \
+			${noCancel:+--no-cancel}        \
+			--pause "$pause_text"           \
+			$height $width "$duration"
+	fi
+}
+
+# f_dialog_pause_no_cancel $msg_text $duration [$hline]
+#
+# Display a message in a widget with a progress bar that runs backward for
+# $duration seconds. No cancel button is provided. Always returns success.
+#
+f_dialog_pause_no_cancel()
+{
+	noCancel=1 f_dialog_pause "$@"
+	return $SUCCESS
+}
+
 ############################################################ MSGBOX FUNCTIONS
 
 # f_dialog_msgbox $msg_text [$hline]
@@ -1766,7 +1814,7 @@ f_dialog_inputstr_fetch()
 # f_dialog_input $var_to_set $prompt [$init [$hline]]
 #
 # Prompt the user with a dialog(1) inputbox to enter some value. The inputbox
-# remains until the the user presses ENTER or ESC, or otherwise ends the
+# remains until the user presses ENTER or ESC, or otherwise ends the
 # editing session (by selecting `Cancel' for example).
 #
 # If the user presses ENTER, the exit status is zero (success), otherwise if
@@ -2062,6 +2110,39 @@ f_dialog_menutag2index_with_help()
 			return $SUCCESS
 		fi
 		n=$(( $n + 1 ))
+	done
+	return $FAILURE
+}
+
+# f_dialog_menutag2help $tag_chosen $tag1 $item1 $help1 $tag2 $item2 $help2 ...
+#
+# To use the `--menu' option of dialog(1) with the `--item-help' option, you
+# must pass an ordered list of tag/item/help triplets on the command-line. When
+# the user selects a menu option the tag for that item is printed to stderr.
+#
+# This function allows you to dereference the tag chosen by the user back into
+# the help associated with said tag (item is discarded/ignored).
+#
+# Pass the tag chosen by the user as the first argument, followed by the
+# ordered list of tag/item/help triplets (HINT: use the same tag/item/help list
+# as was passed to dialog(1) for consistency).
+#
+# If the tag cannot be found, NULL is returned.
+#
+f_dialog_menutag2help()
+{
+	local tag="$1" tagn help
+	shift 1 # tag
+
+	while [ $# -gt 0 ]; do
+		tagn="$1"
+		help="$3"
+		shift 3 # tagn/item/help
+
+		if [ "$tag" = "$tagn" ]; then
+			echo "$help"
+			return $SUCCESS
+		fi
 	done
 	return $FAILURE
 }

@@ -9,7 +9,7 @@ CLEANFILES+=	yp.h yp_xdr.c
 
 SYM_MAPS+=	${LIBC_SRCTOP}/yp/Symbol.map
 
-RPCSRC=	${DESTDIR}/usr/include/rpcsvc/yp.x
+RPCSRC=	${SRCTOP}/include/rpcsvc/yp.x
 RPCGEN=	RPCGEN_CPP=${CPP:Q} rpcgen -C
 
 yp_xdr.c: ${RPCSRC}

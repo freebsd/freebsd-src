@@ -43,25 +43,25 @@ acl_t
 get_acl_from_file(const char *filename)
 {
 	FILE *file;
-	char buf[BUFSIZ];
+	size_t len;
+	char buf[BUFSIZ+1];
 
 	if (filename == NULL)
 		err(1, "(null) filename in get_acl_from_file()");
 
-	bzero(&buf, sizeof(buf));
-
 	if (strcmp(filename, "-") == 0) {
-		if (have_stdin != 0)
+		if (have_stdin)
 			err(1, "cannot specify more than one stdin");
 		file = stdin;
-		have_stdin = 1;
+		have_stdin = true;
 	} else {
 		file = fopen(filename, "r");
 		if (file == NULL)
 			err(1, "fopen() %s failed", filename);
 	}
 
-	fread(buf, sizeof(buf), (size_t)1, file);
+	len = fread(buf, (size_t)1, sizeof(buf) - 1, file);
+	buf[len] = '\0';
 	if (ferror(file) != 0) {
 		fclose(file);
 		err(1, "error reading from %s", filename);

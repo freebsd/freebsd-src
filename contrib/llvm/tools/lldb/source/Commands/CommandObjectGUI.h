@@ -22,22 +22,16 @@ namespace lldb_private {
 // CommandObjectGUI
 //-------------------------------------------------------------------------
 
-class CommandObjectGUI : public CommandObjectParsed
-{
+class CommandObjectGUI : public CommandObjectParsed {
 public:
+  CommandObjectGUI(CommandInterpreter &interpreter);
 
-    CommandObjectGUI (CommandInterpreter &interpreter);
-
-    virtual
-    ~CommandObjectGUI ();
+  ~CommandObjectGUI() override;
 
 protected:
-    virtual bool
-    DoExecute (Args& args,
-               CommandReturnObject &result);
-
+  bool DoExecute(Args &args, CommandReturnObject &result) override;
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_CommandObjectGUI_h_
+#endif // liblldb_CommandObjectGUI_h_

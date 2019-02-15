@@ -37,16 +37,16 @@
 
 #include "ra_svn.h"
 
-svn_boolean_t svn_ra_svn__find_mech(const apr_array_header_t *mechlist,
+svn_boolean_t svn_ra_svn__find_mech(const svn_ra_svn__list_t *mechlist,
                                     const char *mech)
 {
   int i;
-  svn_ra_svn_item_t *elt;
+  svn_ra_svn__item_t *elt;
 
   for (i = 0; i < mechlist->nelts; i++)
     {
-      elt = &APR_ARRAY_IDX(mechlist, i, svn_ra_svn_item_t);
-      if (elt->kind == SVN_RA_SVN_WORD && strcmp(elt->u.word, mech) == 0)
+      elt = &SVN_RA_SVN__LIST_ITEM(mechlist, i);
+      if (elt->kind == SVN_RA_SVN_WORD && strcmp(elt->u.word.data, mech) == 0)
         return TRUE;
     }
   return FALSE;
@@ -69,7 +69,7 @@ static svn_error_t *read_success(svn_ra_svn_conn_t *conn, apr_pool_t *pool)
 
 svn_error_t *
 svn_ra_svn__do_internal_auth(svn_ra_svn__session_baton_t *sess,
-                             const apr_array_header_t *mechlist,
+                             const svn_ra_svn__list_t *mechlist,
                              const char *realm, apr_pool_t *pool)
 {
   svn_ra_svn_conn_t *conn = sess->conn;
@@ -95,7 +95,7 @@ svn_ra_svn__do_internal_auth(svn_ra_svn__session_baton_t *sess,
     {
       SVN_ERR(svn_auth_first_credentials(&creds, &iterstate,
                                          SVN_AUTH_CRED_SIMPLE, realmstring,
-                                         sess->callbacks->auth_baton, pool));
+                                         sess->auth_baton, pool));
       if (!creds)
         return svn_error_create(SVN_ERR_RA_NOT_AUTHORIZED, NULL,
                                 _("Can't get password"));

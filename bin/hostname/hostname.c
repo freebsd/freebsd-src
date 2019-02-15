@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -54,11 +56,12 @@ static void usage(void) __dead2;
 int
 main(int argc, char *argv[])
 {
-	int ch, sflag;
+	int ch, sflag, dflag;
 	char *p, hostname[MAXHOSTNAMELEN];
 
 	sflag = 0;
-	while ((ch = getopt(argc, argv, "fs")) != -1)
+	dflag = 0;
+	while ((ch = getopt(argc, argv, "fsd")) != -1)
 		switch (ch) {
 		case 'f':
 			/*
@@ -70,6 +73,9 @@ main(int argc, char *argv[])
 		case 's':
 			sflag = 1;
 			break;
+		case 'd':
+			dflag = 1;
+			break;
 		case '?':
 		default:
 			usage();
@@ -77,7 +83,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc > 1)
+	if (argc > 1 || (sflag && dflag))
 		usage();
 
 	if (*argv) {
@@ -90,6 +96,10 @@ main(int argc, char *argv[])
 			p = strchr(hostname, '.');
 			if (p != NULL)
 				*p = '\0';
+		} else if (dflag) {
+			p = strchr(hostname, '.');
+			if (p != NULL)
+				strcpy(hostname, ++p);
 		}
 		(void)printf("%s\n", hostname);
 	}
@@ -100,6 +110,6 @@ static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: hostname [-fs] [name-of-host]\n");
+	(void)fprintf(stderr, "usage: hostname [-f] [-s | -d] [name-of-host]\n");
 	exit(1);
 }

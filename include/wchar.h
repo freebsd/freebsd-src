@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause AND BSD-2-Clause-NetBSD)
+ *
  * Copyright (c)1999 Citrus Project,
  * All rights reserved.
  *
@@ -74,6 +76,13 @@ typedef	__mbstate_t	mbstate_t;
 #ifndef _SIZE_T_DECLARED
 typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
+#endif
+
+#if __POSIX_VISIBLE >= 200809 || __XSI_VISIBLE
+#ifndef _VA_LIST_DECLARED
+typedef	__va_list	va_list;
+#define	_VA_LIST_DECLARED
+#endif
 #endif
 
 #ifndef	__cplusplus

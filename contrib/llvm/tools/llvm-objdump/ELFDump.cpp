@@ -24,24 +24,41 @@ using namespace llvm::object;
 template <class ELFT> void printProgramHeaders(const ELFFile<ELFT> *o) {
   typedef ELFFile<ELFT> ELFO;
   outs() << "Program Header:\n";
-  for (typename ELFO::Elf_Phdr_Iter pi = o->begin_program_headers(),
-                                    pe = o->end_program_headers();
-                                    pi != pe; ++pi) {
-    switch (pi->p_type) {
-    case ELF::PT_LOAD:
-      outs() << "    LOAD ";
-      break;
-    case ELF::PT_GNU_STACK:
-      outs() << "   STACK ";
+  auto ProgramHeaderOrError = o->program_headers();
+  if (!ProgramHeaderOrError)
+    report_fatal_error(
+        errorToErrorCode(ProgramHeaderOrError.takeError()).message());
+  for (const typename ELFO::Elf_Phdr &Phdr : *ProgramHeaderOrError) {
+    switch (Phdr.p_type) {
+    case ELF::PT_DYNAMIC:
+      outs() << " DYNAMIC ";
       break;
     case ELF::PT_GNU_EH_FRAME:
       outs() << "EH_FRAME ";
       break;
+    case ELF::PT_GNU_RELRO:
+      outs() << "   RELRO ";
+      break;
+    case ELF::PT_GNU_STACK:
+      outs() << "   STACK ";
+      break;
     case ELF::PT_INTERP:
       outs() << "  INTERP ";
       break;
-    case ELF::PT_DYNAMIC:
-      outs() << " DYNAMIC ";
+    case ELF::PT_LOAD:
+      outs() << "    LOAD ";
+      break;
+    case ELF::PT_NOTE:
+      outs() << "    NOTE ";
+      break;
+    case ELF::PT_OPENBSD_BOOTDATA:
+      outs() << "    OPENBSD_BOOTDATA ";
+      break;
+    case ELF::PT_OPENBSD_RANDOMIZE:
+      outs() << "    OPENBSD_RANDOMIZE ";
+      break;
+    case ELF::PT_OPENBSD_WXNEEDED:
+      outs() << "    OPENBSD_WXNEEDED ";
       break;
     case ELF::PT_PHDR:
       outs() << "    PHDR ";
@@ -55,22 +72,16 @@ template <class ELFT> void printProgramHeaders(const ELFFile<ELFT> *o) {
 
     const char *Fmt = ELFT::Is64Bits ? "0x%016" PRIx64 " " : "0x%08" PRIx64 " ";
 
-    outs() << "off    "
-           << format(Fmt, (uint64_t)pi->p_offset)
-           << "vaddr "
-           << format(Fmt, (uint64_t)pi->p_vaddr)
-           << "paddr "
-           << format(Fmt, (uint64_t)pi->p_paddr)
-           << format("align 2**%u\n", countTrailingZeros<uint64_t>(pi->p_align))
-           << "         filesz "
-           << format(Fmt, (uint64_t)pi->p_filesz)
-           << "memsz "
-           << format(Fmt, (uint64_t)pi->p_memsz)
-           << "flags "
-           << ((pi->p_flags & ELF::PF_R) ? "r" : "-")
-           << ((pi->p_flags & ELF::PF_W) ? "w" : "-")
-           << ((pi->p_flags & ELF::PF_X) ? "x" : "-")
-           << "\n";
+    outs() << "off    " << format(Fmt, (uint64_t)Phdr.p_offset) << "vaddr "
+           << format(Fmt, (uint64_t)Phdr.p_vaddr) << "paddr "
+           << format(Fmt, (uint64_t)Phdr.p_paddr)
+           << format("align 2**%u\n",
+                     countTrailingZeros<uint64_t>(Phdr.p_align))
+           << "         filesz " << format(Fmt, (uint64_t)Phdr.p_filesz)
+           << "memsz " << format(Fmt, (uint64_t)Phdr.p_memsz) << "flags "
+           << ((Phdr.p_flags & ELF::PF_R) ? "r" : "-")
+           << ((Phdr.p_flags & ELF::PF_W) ? "w" : "-")
+           << ((Phdr.p_flags & ELF::PF_X) ? "x" : "-") << "\n";
   }
   outs() << "\n";
 }

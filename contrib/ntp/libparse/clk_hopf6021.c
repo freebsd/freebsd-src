@@ -34,13 +34,13 @@
 #include <stdio.h>
 #else
 #include "sys/parsestreams.h"
-extern void printf P((const char *, ...));
+extern int printf (const char *, ...);
 #endif
 
-/* 
- * hopf Funkuhr 6021 
+/*
+ * hopf Funkuhr 6021
  *      used with 9600,8N1,
- *      UTC ueber serielle Schnittstelle 
+ *      UTC ueber serielle Schnittstelle
  *      Sekundenvorlauf ON
  *      ETX zum Sekundenvorlauf ON
  *      Datenstring 6021
@@ -71,7 +71,7 @@ extern void printf P((const char *, ...));
  *      x x 0 x  - Wintertime
  *      x x 1 x  - Summertime
  *      0 0 x x  - Time/Date invalid
- *      0 1 x x  - Internal clock used 
+ *      0 1 x x  - Internal clock used
  *      1 0 x x  - Radio clock
  *      1 1 x x  - Radio clock highprecision
  *
@@ -90,10 +90,10 @@ extern void printf P((const char *, ...));
 #define HOPF_DSTWARN	0x01	/* DST switch warning */
 #define HOPF_DST	0x02	/* DST in effect */
 
-#define HOPF_MODE	0x0C	/* operation mode mask */	
+#define HOPF_MODE	0x0C	/* operation mode mask */
 #define  HOPF_INVALID	0x00	/* no time code available */
 #define  HOPF_INTERNAL	0x04	/* internal clock */
-#define  HOPF_RADIO	0x08	/* radio clock */	
+#define  HOPF_RADIO	0x08	/* radio clock */
 #define  HOPF_RADIOHP	0x0C	/* high precision radio clock */
 
 #define HOPF_UTC	0x08	/* time code in UTC */
@@ -102,24 +102,21 @@ extern void printf P((const char *, ...));
 static struct format hopf6021_fmt =
 {
 	{
-		{  9, 2 }, {11, 2}, { 13, 2}, /* Day, Month, Year */ 
-		{  3, 2 }, { 5, 2}, {  7, 2}, /* Hour, Minute, Second */ 
+		{  9, 2 }, {11, 2}, { 13, 2}, /* Day, Month, Year */
+		{  3, 2 }, { 5, 2}, {  7, 2}, /* Hour, Minute, Second */
 		{  2, 1 }, { 1, 1}, {  0, 0}, /* Weekday, Flags, Zone */
 		/* ... */
 	},
 	(const unsigned char *)"\002              \n\r\003",
-	0 
+	0
 };
 
 #define OFFS(x) format->field_offsets[(x)].offset
 #define STOI(x, y) Stoi(&buffer[OFFS(x)], y, format->field_offsets[(x)].length)
-#define hexval(x) (('0' <= (x) && (x) <= '9') ? (x) - '0' : \
-		   ('a' <= (x) && (x) <= 'f') ? (x) - 'a' + 10 : \
-		   ('A' <= (x) && (x) <= 'F') ? (x) - 'A' + 10 : \
-		   -1)
 
-static unsigned long cvt_hopf6021 P((unsigned char *, int, struct format *, clocktime_t *, void *));
-static unsigned long inp_hopf6021 P((parse_t *, unsigned int, timestamp_t *));
+static parse_cvt_fnc_t cvt_hopf6021;
+static parse_inp_fnc_t inp_hopf6021;
+static unsigned char   hexval(unsigned char);
 
 clockformat_t clock_hopf6021 =
 {
@@ -132,7 +129,8 @@ clockformat_t clock_hopf6021 =
   0                            /* private data length, no private data */
 };
 
-static unsigned long
+/* parse_cvt_fnc_t cvt_hopf6021 */
+static u_long
 cvt_hopf6021(
 	     unsigned char *buffer,
 	     int            size,
@@ -159,40 +157,40 @@ cvt_hopf6021(
 		return CVT_FAIL|CVT_BADFMT;
 	}
 
-	clock_time->usecond   = 0;
-	clock_time->utcoffset = 0;
+	clock_time->usecond = 0;
+	clock_time->flags   = 0;
 
-	status = hexval(buffer[OFFS(O_FLAGS)]);
-	weekday= hexval(buffer[OFFS(O_WDAY)]);
+	status  = hexval(buffer[OFFS(O_FLAGS)]);
+	weekday = hexval(buffer[OFFS(O_WDAY)]);
 
 	if ((status == 0xFF) || (weekday == 0xFF))
 	{
 		return CVT_FAIL|CVT_BADFMT;
 	}
 
-	clock_time->flags  = 0;
-
 	if (weekday & HOPF_UTC)
 	{
-		clock_time->flags |= PARSEB_UTC;
+		clock_time->flags     |= PARSEB_UTC;
+		clock_time->utcoffset  = 0;
+	}
+	else if (status & HOPF_DST)
+	{
+		clock_time->flags     |= PARSEB_DST;
+		clock_time->utcoffset  = -2*60*60; /* MET DST */
 	}
 	else
 	{
-		if (status & HOPF_DST)
-		{
-			clock_time->flags     |= PARSEB_DST;
-			clock_time->utcoffset  = -2*60*60; /* MET DST */
-		}
-		else
-		{
-			clock_time->utcoffset  = -1*60*60; /* MET */
-		}
+		clock_time->utcoffset  = -1*60*60; /* MET */
 	}
 
-	clock_time->flags |= (status & HOPF_DSTWARN)  ? PARSEB_ANNOUNCE : 0;
-
+	if (status & HOPF_DSTWARN)
+	{
+		clock_time->flags |= PARSEB_ANNOUNCE;
+	}
+	
 	switch (status & HOPF_MODE)
 	{
+	    default:	/* dummy: we cover all 4 cases. */
 	    case HOPF_INVALID:  /* Time/Date invalid */
 		clock_time->flags |= PARSEB_POWERUP;
 		break;
@@ -204,30 +202,27 @@ cvt_hopf6021(
 	    case HOPF_RADIO:    /* Radio clock */
 	    case HOPF_RADIOHP:  /* Radio clock high precision */
 		break;
-
-	    default:
-		return CVT_FAIL|CVT_BADFMT;
 	}
 
 	return CVT_OK;
 }
 
 /*
- * inp_hopf6021
+ * parse_inp_fnc_t inp_hopf6021
  *
- * grep data from input stream
+ * grab data from input stream
  */
 static u_long
 inp_hopf6021(
 	     parse_t      *parseio,
-	     unsigned int  ch,
+	     char         ch,
 	     timestamp_t  *tstamp
 	  )
 {
 	unsigned int rtc;
-	
-	parseprintf(DD_PARSE, ("inp_hopf6021(0x%lx, 0x%x, ...)\n", (long)parseio, ch));
-	
+
+	parseprintf(DD_PARSE, ("inp_hopf6021(0x%p, 0x%x, ...)\n", (void*)parseio, ch));
+
 	switch (ch)
 	{
 	case ETX:
@@ -241,6 +236,30 @@ inp_hopf6021(
 	default:
 		return parse_addchar(parseio, ch);
 	}
+}
+
+/*
+ * convert a hex-digit to numeric value
+ */
+static unsigned char
+hexval(
+	unsigned char ch
+	)
+{
+	unsigned int dv;
+	
+	if ((dv = ch - '0') >= 10u)
+	{
+		if ((dv -= 'A'-'0') < 6u || (dv -= 'a'-'A') < 6u)
+		{
+			dv += 10;
+		}
+		else
+		{
+			dv = 0xFF;
+		}
+	}
+	return (unsigned char)dv;
 }
 
 #else /* not (REFCLOCK && CLOCK_PARSE && CLOCK_HOPF6021) */

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2013
+.Dd July 1, 2018
 .Dt PORTSNAP 8
 .Os FreeBSD
 .Sh NAME
@@ -224,7 +224,7 @@ However, running
 .Fl I
 .Cm update
 is probably safe, and can be used together with
-.Xr portversion 1
+.Xr pkg-version 8
 to identify installed software which is out of date.
 .It
 If you wish to use
@@ -268,10 +268,21 @@ Default location where compressed snapshots are stored.
 .It Pa /usr/ports
 Default location where the ports tree is extracted.
 .El
+.Sh EXAMPLES
+Fetch the snapshots and create the
+.Xr ports 7
+tree under
+.Pa /usr/ports :
+.Dl Nm Ar fetch Ar extract
+.Pp
+Update the ports tree:
+.Dl Nm Ar fetch Ar update
 .Sh SEE ALSO
 .Xr fetch 1 ,
 .Xr sha256 1 ,
 .Xr fetch 3 ,
-.Xr portsnap.conf 5
+.Xr portsnap.conf 5 ,
+.Xr pkg 7 ,
+.Xr pkg-version 8
 .Sh AUTHORS
 .An Colin Percival Aq Mt cperciva@FreeBSD.org

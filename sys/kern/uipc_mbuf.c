@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1988, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -47,6 +49,51 @@ __FBSDID("$FreeBSD$");
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/uio.h>
+#include <sys/sdt.h>
+
+SDT_PROBE_DEFINE5_XLATE(sdt, , , m__init,
+    "struct mbuf *", "mbufinfo_t *",
+    "uint32_t", "uint32_t",
+    "uint16_t", "uint16_t",
+    "uint32_t", "uint32_t",
+    "uint32_t", "uint32_t");
+
+SDT_PROBE_DEFINE3_XLATE(sdt, , , m__gethdr,
+    "uint32_t", "uint32_t",
+    "uint16_t", "uint16_t",
+    "struct mbuf *", "mbufinfo_t *");
+
+SDT_PROBE_DEFINE3_XLATE(sdt, , , m__get,
+    "uint32_t", "uint32_t",
+    "uint16_t", "uint16_t",
+    "struct mbuf *", "mbufinfo_t *");
+
+SDT_PROBE_DEFINE4_XLATE(sdt, , , m__getcl,
+    "uint32_t", "uint32_t",
+    "uint16_t", "uint16_t",
+    "uint32_t", "uint32_t",
+    "struct mbuf *", "mbufinfo_t *");
+
+SDT_PROBE_DEFINE3_XLATE(sdt, , , m__clget,
+    "struct mbuf *", "mbufinfo_t *",
+    "uint32_t", "uint32_t",
+    "uint32_t", "uint32_t");
+
+SDT_PROBE_DEFINE4_XLATE(sdt, , , m__cljget,
+    "struct mbuf *", "mbufinfo_t *",
+    "uint32_t", "uint32_t",
+    "uint32_t", "uint32_t",
+    "void*", "void*");
+
+SDT_PROBE_DEFINE(sdt, , , m__cljset);
+
+SDT_PROBE_DEFINE1_XLATE(sdt, , , m__free,
+        "struct mbuf *", "mbufinfo_t *");
+
+SDT_PROBE_DEFINE1_XLATE(sdt, , , m__freem,
+    "struct mbuf *", "mbufinfo_t *");
+
+#include <security/mac/mac_framework.h>
 
 int	max_linkhdr;
 int	max_protohdr;
@@ -88,298 +135,100 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragrandomfailures, CTLFLAG_RW,
  * Ensure the correct size of various mbuf parameters.  It could be off due
  * to compiler-induced padding and alignment artifacts.
  */
-CTASSERT(sizeof(struct mbuf) == MSIZE);
 CTASSERT(MSIZE - offsetof(struct mbuf, m_dat) == MLEN);
 CTASSERT(MSIZE - offsetof(struct mbuf, m_pktdat) == MHLEN);
 
 /*
- * m_get2() allocates minimum mbuf that would fit "size" argument.
+ * mbuf data storage should be 64-bit aligned regardless of architectural
+ * pointer size; check this is the case with and without a packet header.
  */
-struct mbuf *
-m_get2(int size, int how, short type, int flags)
-{
-	struct mb_args args;
-	struct mbuf *m, *n;
-
-	args.flags = flags;
-	args.type = type;
-
-	if (size <= MHLEN || (size <= MLEN && (flags & M_PKTHDR) == 0))
-		return (uma_zalloc_arg(zone_mbuf, &args, how));
-	if (size <= MCLBYTES)
-		return (uma_zalloc_arg(zone_pack, &args, how));
-
-	if (size > MJUMPAGESIZE)
-		return (NULL);
-
-	m = uma_zalloc_arg(zone_mbuf, &args, how);
-	if (m == NULL)
-		return (NULL);
-
-	n = uma_zalloc_arg(zone_jumbop, m, how);
-	if (n == NULL) {
-		uma_zfree(zone_mbuf, m);
-		return (NULL);
-	}
-
-	return (m);
-}
+CTASSERT(offsetof(struct mbuf, m_dat) % 8 == 0);
+CTASSERT(offsetof(struct mbuf, m_pktdat) % 8 == 0);
 
 /*
- * m_getjcl() returns an mbuf with a cluster of the specified size attached.
- * For size it takes MCLBYTES, MJUMPAGESIZE, MJUM9BYTES, MJUM16BYTES.
- */
-struct mbuf *
-m_getjcl(int how, short type, int flags, int size)
-{
-	struct mb_args args;
-	struct mbuf *m, *n;
-	uma_zone_t zone;
-
-	if (size == MCLBYTES)
-		return m_getcl(how, type, flags);
-
-	args.flags = flags;
-	args.type = type;
-
-	m = uma_zalloc_arg(zone_mbuf, &args, how);
-	if (m == NULL)
-		return (NULL);
-
-	zone = m_getzone(size);
-	n = uma_zalloc_arg(zone, m, how);
-	if (n == NULL) {
-		uma_zfree(zone_mbuf, m);
-		return (NULL);
-	}
-	return (m);
-}
-
-/*
- * Allocate a given length worth of mbufs and/or clusters (whatever fits
- * best) and return a pointer to the top of the allocated chain.  If an
- * existing mbuf chain is provided, then we will append the new chain
- * to the existing one but still return the top of the newly allocated
- * chain.
- */
-struct mbuf *
-m_getm2(struct mbuf *m, int len, int how, short type, int flags)
-{
-	struct mbuf *mb, *nm = NULL, *mtail = NULL;
-
-	KASSERT(len >= 0, ("%s: len is < 0", __func__));
-
-	/* Validate flags. */
-	flags &= (M_PKTHDR | M_EOR);
-
-	/* Packet header mbuf must be first in chain. */
-	if ((flags & M_PKTHDR) && m != NULL)
-		flags &= ~M_PKTHDR;
-
-	/* Loop and append maximum sized mbufs to the chain tail. */
-	while (len > 0) {
-		if (len > MCLBYTES)
-			mb = m_getjcl(how, type, (flags & M_PKTHDR),
-			    MJUMPAGESIZE);
-		else if (len >= MINCLSIZE)
-			mb = m_getcl(how, type, (flags & M_PKTHDR));
-		else if (flags & M_PKTHDR)
-			mb = m_gethdr(how, type);
-		else
-			mb = m_get(how, type);
-
-		/* Fail the whole operation if one mbuf can't be allocated. */
-		if (mb == NULL) {
-			if (nm != NULL)
-				m_freem(nm);
-			return (NULL);
-		}
-
-		/* Book keeping. */
-		len -= (mb->m_flags & M_EXT) ? mb->m_ext.ext_size :
-			((mb->m_flags & M_PKTHDR) ? MHLEN : MLEN);
-		if (mtail != NULL)
-			mtail->m_next = mb;
-		else
-			nm = mb;
-		mtail = mb;
-		flags &= ~M_PKTHDR;	/* Only valid on the first mbuf. */
-	}
-	if (flags & M_EOR)
-		mtail->m_flags |= M_EOR;  /* Only valid on the last mbuf. */
-
-	/* If mbuf was supplied, append new chain to the end of it. */
-	if (m != NULL) {
-		for (mtail = m; mtail->m_next != NULL; mtail = mtail->m_next)
-			;
-		mtail->m_next = nm;
-		mtail->m_flags &= ~M_EOR;
-	} else
-		m = nm;
-
-	return (m);
-}
-
-/*
- * Free an entire chain of mbufs and associated external buffers, if
- * applicable.
- */
-void
-m_freem(struct mbuf *mb)
-{
-
-	while (mb != NULL)
-		mb = m_free(mb);
-}
-
-/*-
- * Configure a provided mbuf to refer to the provided external storage
- * buffer and setup a reference count for said buffer.  If the setting
- * up of the reference count fails, the M_EXT bit will not be set.  If
- * successfull, the M_EXT bit is set in the mbuf's flags.
+ * While the specific values here don't matter too much (i.e., +/- a few
+ * words), we do want to ensure that changes to these values are carefully
+ * reasoned about and properly documented.  This is especially the case as
+ * network-protocol and device-driver modules encode these layouts, and must
+ * be recompiled if the structures change.  Check these values at compile time
+ * against the ones documented in comments in mbuf.h.
  *
- * Arguments:
- *    mb     The existing mbuf to which to attach the provided buffer.
- *    buf    The address of the provided external storage buffer.
- *    size   The size of the provided buffer.
- *    freef  A pointer to a routine that is responsible for freeing the
- *           provided external storage buffer.
- *    args   A pointer to an argument structure (of any type) to be passed
- *           to the provided freef routine (may be NULL).
- *    flags  Any other flags to be passed to the provided mbuf.
- *    type   The type that the external storage buffer should be
- *           labeled with.
- *
- * Returns:
- *    Nothing.
+ * NB: Possibly they should be documented there via #define's and not just
+ * comments.
  */
-int
-m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
-    void (*freef)(struct mbuf *, void *, void *), void *arg1, void *arg2,
-    int flags, int type, int wait)
-{
-	KASSERT(type != EXT_CLUSTER, ("%s: EXT_CLUSTER not allowed", __func__));
-
-	if (type != EXT_EXTREF)
-		mb->m_ext.ext_cnt = uma_zalloc(zone_ext_refcnt, wait);
-
-	if (mb->m_ext.ext_cnt == NULL)
-		return (ENOMEM);
-
-	*(mb->m_ext.ext_cnt) = 1;
-	mb->m_flags |= (M_EXT | flags);
-	mb->m_ext.ext_buf = buf;
-	mb->m_data = mb->m_ext.ext_buf;
-	mb->m_ext.ext_size = size;
-	mb->m_ext.ext_free = freef;
-	mb->m_ext.ext_arg1 = arg1;
-	mb->m_ext.ext_arg2 = arg2;
-	mb->m_ext.ext_type = type;
-	mb->m_ext.ext_flags = 0;
-
-	return (0);
-}
+#if defined(__LP64__)
+CTASSERT(offsetof(struct mbuf, m_dat) == 32);
+CTASSERT(sizeof(struct pkthdr) == 56);
+CTASSERT(sizeof(struct m_ext) == 48);
+#else
+CTASSERT(offsetof(struct mbuf, m_dat) == 24);
+CTASSERT(sizeof(struct pkthdr) == 48);
+CTASSERT(sizeof(struct m_ext) == 28);
+#endif
 
 /*
- * Non-directly-exported function to clean up after mbufs with M_EXT
- * storage attached to them if the reference count hits 1.
+ * Assert that the queue(3) macros produce code of the same size as an old
+ * plain pointer does.
  */
-void
-mb_free_ext(struct mbuf *m)
-{
-	int freembuf;
-
-	KASSERT(m->m_flags & M_EXT, ("%s: M_EXT not set on %p", __func__, m));
-
-	/*
-	 * Check if the header is embedded in the cluster.
-	 */
-	freembuf = (m->m_flags & M_NOFREE) ? 0 : 1;
-
-	switch (m->m_ext.ext_type) {
-	case EXT_SFBUF:
-		sf_ext_free(m->m_ext.ext_arg1, m->m_ext.ext_arg2);
-		break;
-	default:
-		KASSERT(m->m_ext.ext_cnt != NULL,
-		    ("%s: no refcounting pointer on %p", __func__, m));
-		/* 
-		 * Free attached storage if this mbuf is the only
-		 * reference to it.
-		 */
-		if (*(m->m_ext.ext_cnt) != 1) {
-			if (atomic_fetchadd_int(m->m_ext.ext_cnt, -1) != 1)
-				break;
-		}
-
-		switch (m->m_ext.ext_type) {
-		case EXT_PACKET:	/* The packet zone is special. */
-			if (*(m->m_ext.ext_cnt) == 0)
-				*(m->m_ext.ext_cnt) = 1;
-			uma_zfree(zone_pack, m);
-			return;		/* Job done. */
-		case EXT_CLUSTER:
-			uma_zfree(zone_clust, m->m_ext.ext_buf);
-			break;
-		case EXT_JUMBOP:
-			uma_zfree(zone_jumbop, m->m_ext.ext_buf);
-			break;
-		case EXT_JUMBO9:
-			uma_zfree(zone_jumbo9, m->m_ext.ext_buf);
-			break;
-		case EXT_JUMBO16:
-			uma_zfree(zone_jumbo16, m->m_ext.ext_buf);
-			break;
-		case EXT_NET_DRV:
-		case EXT_MOD_TYPE:
-		case EXT_DISPOSABLE:
-			*(m->m_ext.ext_cnt) = 0;
-			uma_zfree(zone_ext_refcnt, __DEVOLATILE(u_int *,
-				m->m_ext.ext_cnt));
-			/* FALLTHROUGH */
-		case EXT_EXTREF:
-			KASSERT(m->m_ext.ext_free != NULL,
-				("%s: ext_free not set", __func__));
-			(*(m->m_ext.ext_free))(m, m->m_ext.ext_arg1,
-			    m->m_ext.ext_arg2);
-			break;
-		default:
-			KASSERT(m->m_ext.ext_type == 0,
-				("%s: unknown ext_type", __func__));
-		}
-	}
-
-	if (freembuf)
-		uma_zfree(zone_mbuf, m);
-}
+#ifdef INVARIANTS
+static struct mbuf __used m_assertbuf;
+CTASSERT(sizeof(m_assertbuf.m_slist) == sizeof(m_assertbuf.m_next));
+CTASSERT(sizeof(m_assertbuf.m_stailq) == sizeof(m_assertbuf.m_next));
+CTASSERT(sizeof(m_assertbuf.m_slistpkt) == sizeof(m_assertbuf.m_nextpkt));
+CTASSERT(sizeof(m_assertbuf.m_stailqpkt) == sizeof(m_assertbuf.m_nextpkt));
+#endif
 
 /*
  * Attach the cluster from *m to *n, set up m_ext in *n
  * and bump the refcount of the cluster.
  */
-static void
+void
 mb_dupcl(struct mbuf *n, struct mbuf *m)
 {
+	volatile u_int *refcnt;
 
 	KASSERT(m->m_flags & M_EXT, ("%s: M_EXT not set on %p", __func__, m));
 	KASSERT(!(n->m_flags & M_EXT), ("%s: M_EXT set on %p", __func__, n));
 
-	switch (m->m_ext.ext_type) {
-	case EXT_SFBUF:
-		sf_ext_ref(m->m_ext.ext_arg1, m->m_ext.ext_arg2);
-		break;
-	default:
-		KASSERT(m->m_ext.ext_cnt != NULL,
-		    ("%s: no refcounting pointer on %p", __func__, m));
-		if (*(m->m_ext.ext_cnt) == 1)
-			*(m->m_ext.ext_cnt) += 1;
-		else
-			atomic_add_int(m->m_ext.ext_cnt, 1);
-	}
-
-	n->m_ext = m->m_ext;
+	/*
+	 * Cache access optimization.  For most kinds of external
+	 * storage we don't need full copy of m_ext, since the
+	 * holder of the 'ext_count' is responsible to carry the
+	 * free routine and its arguments.  Exclusion is EXT_EXTREF,
+	 * where 'ext_cnt' doesn't point into mbuf at all.
+	 */
+	if (m->m_ext.ext_type == EXT_EXTREF)
+		bcopy(&m->m_ext, &n->m_ext, sizeof(struct m_ext));
+	else
+		bcopy(&m->m_ext, &n->m_ext, m_ext_copylen);
 	n->m_flags |= M_EXT;
 	n->m_flags |= m->m_flags & M_RDONLY;
+
+	/* See if this is the mbuf that holds the embedded refcount. */
+	if (m->m_ext.ext_flags & EXT_FLAG_EMBREF) {
+		refcnt = n->m_ext.ext_cnt = &m->m_ext.ext_count;
+		n->m_ext.ext_flags &= ~EXT_FLAG_EMBREF;
+	} else {
+		KASSERT(m->m_ext.ext_cnt != NULL,
+		    ("%s: no refcounting pointer on %p", __func__, m));
+		refcnt = m->m_ext.ext_cnt;
+	}
+
+	if (*refcnt == 1)
+		*refcnt += 1;
+	else
+		atomic_add_int(refcnt, 1);
+}
+
+void
+m_demote_pkthdr(struct mbuf *m)
+{
+
+	M_ASSERTPKTHDR(m);
+
+	m_tag_delete_chain(m, NULL);
+	m->m_flags &= ~M_PKTHDR;
+	bzero(&m->m_pkthdr, sizeof(struct pkthdr));
 }
 
 /*
@@ -388,19 +237,16 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
  * cleaned too.
  */
 void
-m_demote(struct mbuf *m0, int all)
+m_demote(struct mbuf *m0, int all, int flags)
 {
 	struct mbuf *m;
 
 	for (m = all ? m0 : m0->m_next; m != NULL; m = m->m_next) {
 		KASSERT(m->m_nextpkt == NULL, ("%s: m_nextpkt in m %p, m0 %p",
 		    __func__, m, m0));
-		if (m->m_flags & M_PKTHDR) {
-			m_tag_delete_chain(m, NULL);
-			m->m_flags &= ~M_PKTHDR;
-			bzero(&m->m_pkthdr, sizeof(struct pkthdr));
-		}
-		m->m_flags = m->m_flags & (M_EXT|M_RDONLY|M_NOFREE);
+		if (m->m_flags & M_PKTHDR)
+			m_demote_pkthdr(m);
+		m->m_flags = m->m_flags & (M_EXT | M_RDONLY | M_NOFREE | flags);
 	}
 }
 
@@ -430,11 +276,8 @@ m_sanity(struct mbuf *m0, int sanitize)
 		 * unrelated kernel memory before or after us is trashed.
 		 * No way to recover from that.
 		 */
-		a = ((m->m_flags & M_EXT) ? m->m_ext.ext_buf :
-			((m->m_flags & M_PKTHDR) ? (caddr_t)(&m->m_pktdat) :
-			 (caddr_t)(&m->m_dat)) );
-		b = (caddr_t)(a + (m->m_flags & M_EXT ? m->m_ext.ext_size :
-			((m->m_flags & M_PKTHDR) ? MHLEN : MLEN)));
+		a = M_START(m);
+		b = a + M_SIZE(m);
 		if ((caddr_t)m->m_data < a)
 			M_SANITY_ACTION("m_data outside mbuf data range left");
 		if ((caddr_t)m->m_data > b)
@@ -487,6 +330,26 @@ m_sanity(struct mbuf *m0, int sanitize)
 #undef	M_SANITY_ACTION
 }
 
+/*
+ * Non-inlined part of m_init().
+ */
+int
+m_pkthdr_init(struct mbuf *m, int how)
+{
+#ifdef MAC
+	int error;
+#endif
+	m->m_data = m->m_pktdat;
+	bzero(&m->m_pkthdr, sizeof(m->m_pkthdr));
+#ifdef MAC
+	/* If the label init fails, fail the alloc */
+	error = mac_mbuf_init(m, how);
+	if (error)
+		return (error);
+#endif
+
+	return (0);
+}
 
 /*
  * "Move" mbuf pkthdr from "from" to "to".
@@ -524,7 +387,7 @@ m_move_pkthdr(struct mbuf *to, struct mbuf *from)
  * In particular, this does a deep copy of the packet tags.
  */
 int
-m_dup_pkthdr(struct mbuf *to, struct mbuf *from, int how)
+m_dup_pkthdr(struct mbuf *to, const struct mbuf *from, int how)
 {
 
 #if 0
@@ -574,13 +437,8 @@ m_prepend(struct mbuf *m, int len, int how)
 		m_move_pkthdr(mn, m);
 	mn->m_next = m;
 	m = mn;
-	if(m->m_flags & M_PKTHDR) {
-		if (len < MHLEN)
-			MH_ALIGN(m, len);
-	} else {
-		if (len < MLEN)
-			M_ALIGN(m, len);
-	}
+	if (len < M_SIZE(m))
+		M_ALIGN(m, len);
 	m->m_len = len;
 	return (m);
 }
@@ -613,7 +471,7 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 		m = m->m_next;
 	}
 	np = &top;
-	top = 0;
+	top = NULL;
 	while (len > 0) {
 		if (m == NULL) {
 			KASSERT(len == M_COPYALL,
@@ -654,152 +512,6 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 nospace:
 	m_freem(top);
 	return (NULL);
-}
-
-/*
- * Returns mbuf chain with new head for the prepending case.
- * Copies from mbuf (chain) n from off for len to mbuf (chain) m
- * either prepending or appending the data.
- * The resulting mbuf (chain) m is fully writeable.
- * m is destination (is made writeable)
- * n is source, off is offset in source, len is len from offset
- * dir, 0 append, 1 prepend
- * how, wait or nowait
- */
-
-static int
-m_bcopyxxx(void *s, void *t, u_int len)
-{
-	bcopy(s, t, (size_t)len);
-	return 0;
-}
-
-struct mbuf *
-m_copymdata(struct mbuf *m, struct mbuf *n, int off, int len,
-    int prep, int how)
-{
-	struct mbuf *mm, *x, *z, *prev = NULL;
-	caddr_t p;
-	int i, nlen = 0;
-	caddr_t buf[MLEN];
-
-	KASSERT(m != NULL && n != NULL, ("m_copymdata, no target or source"));
-	KASSERT(off >= 0, ("m_copymdata, negative off %d", off));
-	KASSERT(len >= 0, ("m_copymdata, negative len %d", len));
-	KASSERT(prep == 0 || prep == 1, ("m_copymdata, unknown direction %d", prep));
-
-	mm = m;
-	if (!prep) {
-		while(mm->m_next) {
-			prev = mm;
-			mm = mm->m_next;
-		}
-	}
-	for (z = n; z != NULL; z = z->m_next)
-		nlen += z->m_len;
-	if (len == M_COPYALL)
-		len = nlen - off;
-	if (off + len > nlen || len < 1)
-		return NULL;
-
-	if (!M_WRITABLE(mm)) {
-		/* XXX: Use proper m_xxx function instead. */
-		x = m_getcl(how, MT_DATA, mm->m_flags);
-		if (x == NULL)
-			return NULL;
-		bcopy(mm->m_ext.ext_buf, x->m_ext.ext_buf, x->m_ext.ext_size);
-		p = x->m_ext.ext_buf + (mm->m_data - mm->m_ext.ext_buf);
-		x->m_data = p;
-		mm->m_next = NULL;
-		if (mm != m)
-			prev->m_next = x;
-		m_free(mm);
-		mm = x;
-	}
-
-	/*
-	 * Append/prepend the data.  Allocating mbufs as necessary.
-	 */
-	/* Shortcut if enough free space in first/last mbuf. */
-	if (!prep && M_TRAILINGSPACE(mm) >= len) {
-		m_apply(n, off, len, m_bcopyxxx, mtod(mm, caddr_t) +
-			 mm->m_len);
-		mm->m_len += len;
-		mm->m_pkthdr.len += len;
-		return m;
-	}
-	if (prep && M_LEADINGSPACE(mm) >= len) {
-		mm->m_data = mtod(mm, caddr_t) - len;
-		m_apply(n, off, len, m_bcopyxxx, mtod(mm, caddr_t));
-		mm->m_len += len;
-		mm->m_pkthdr.len += len;
-		return mm;
-	}
-
-	/* Expand first/last mbuf to cluster if possible. */
-	if (!prep && !(mm->m_flags & M_EXT) && len > M_TRAILINGSPACE(mm)) {
-		bcopy(mm->m_data, &buf, mm->m_len);
-		m_clget(mm, how);
-		if (!(mm->m_flags & M_EXT))
-			return NULL;
-		bcopy(&buf, mm->m_ext.ext_buf, mm->m_len);
-		mm->m_data = mm->m_ext.ext_buf;
-	}
-	if (prep && !(mm->m_flags & M_EXT) && len > M_LEADINGSPACE(mm)) {
-		bcopy(mm->m_data, &buf, mm->m_len);
-		m_clget(mm, how);
-		if (!(mm->m_flags & M_EXT))
-			return NULL;
-		bcopy(&buf, (caddr_t *)mm->m_ext.ext_buf +
-		    mm->m_ext.ext_size - mm->m_len, mm->m_len);
-		mm->m_data = (caddr_t)mm->m_ext.ext_buf +
-		    mm->m_ext.ext_size - mm->m_len;
-	}
-
-	/* Append/prepend as many mbuf (clusters) as necessary to fit len. */
-	if (!prep && len > M_TRAILINGSPACE(mm)) {
-		if (!m_getm(mm, len - M_TRAILINGSPACE(mm), how, MT_DATA))
-			return NULL;
-	}
-	if (prep && len > M_LEADINGSPACE(mm)) {
-		if (!(z = m_getm(NULL, len - M_LEADINGSPACE(mm), how, MT_DATA)))
-			return NULL;
-		i = 0;
-		for (x = z; x != NULL; x = x->m_next) {
-			i += x->m_flags & M_EXT ? x->m_ext.ext_size :
-			    (x->m_flags & M_PKTHDR ? MHLEN : MLEN);
-			if (!x->m_next)
-				break;
-		}
-		z->m_data += i - len;
-		m_move_pkthdr(mm, z);
-		x->m_next = mm;
-		mm = z;
-	}
-
-	/* Seek to start position in source mbuf. Optimization for long chains. */
-	while (off > 0) {
-		if (off < n->m_len)
-			break;
-		off -= n->m_len;
-		n = n->m_next;
-	}
-
-	/* Copy data into target mbuf. */
-	z = mm;
-	while (len > 0) {
-		KASSERT(z != NULL, ("m_copymdata, falling off target edge"));
-		i = M_TRAILINGSPACE(z);
-		m_apply(n, off, i, m_bcopyxxx, mtod(z, caddr_t) + z->m_len);
-		z->m_len += i;
-		/* fixup pkthdr.len if necessary */
-		if ((prep ? mm : m)->m_flags & M_PKTHDR)
-			(prep ? mm : m)->m_pkthdr.len += i;
-		off += i;
-		len -= i;
-		z = z->m_next;
-	}
-	return (prep ? mm : m);
 }
 
 /*
@@ -893,7 +605,7 @@ m_copydata(const struct mbuf *m, int off, int len, caddr_t cp)
  * you need a writable copy of an mbuf chain.
  */
 struct mbuf *
-m_dup(struct mbuf *m, int how)
+m_dup(const struct mbuf *m, int how)
 {
 	struct mbuf **p, *top = NULL;
 	int remain, moff, nsize;
@@ -929,6 +641,7 @@ m_dup(struct mbuf *m, int how)
 			}
 			if ((n->m_flags & M_EXT) == 0)
 				nsize = MHLEN;
+			n->m_flags &= ~M_RDONLY;
 		}
 		n->m_len = 0;
 
@@ -997,7 +710,7 @@ m_catpkt(struct mbuf *m, struct mbuf *n)
 	M_ASSERTPKTHDR(n);
 
 	m->m_pkthdr.len += n->m_pkthdr.len;
-	m_demote(n, 1);
+	m_demote(n, 1, 0);
 
 	m_cat(m, n);
 }
@@ -1141,8 +854,6 @@ bad:
  * the amount of empty space before the data in the new mbuf to be specified
  * (in the event that the caller expects to prepend later).
  */
-int MSFail;
-
 struct mbuf *
 m_copyup(struct mbuf *n, int len, int dstoff)
 {
@@ -1179,7 +890,6 @@ m_copyup(struct mbuf *n, int len, int dstoff)
 	return (m);
  bad:
 	m_freem(n);
-	MSFail++;
 	return (NULL);
 }
 
@@ -1226,7 +936,7 @@ m_split(struct mbuf *m0, int len0, int wait)
 			goto extpacket;
 		if (remain > MHLEN) {
 			/* m can't be the lead packet */
-			MH_ALIGN(n, 0);
+			M_ALIGN(n, 0);
 			n->m_next = m_split(m, len, wait);
 			if (n->m_next == NULL) {
 				(void) m_free(n);
@@ -1236,7 +946,7 @@ m_split(struct mbuf *m0, int len0, int wait)
 				return (n);
 			}
 		} else
-			MH_ALIGN(n, remain);
+			M_ALIGN(n, remain);
 	} else if (remain == 0) {
 		n = m->m_next;
 		m->m_next = NULL;
@@ -1286,7 +996,7 @@ m_devget(char *buf, int totlen, int off, struct ifnet *ifp,
 				len = MHLEN;
 
 				/* Place initial small packet/header at end of mbuf */
-				if (m && totlen + off + max_linkhdr <= MLEN) {
+				if (m && totlen + off + max_linkhdr <= MHLEN) {
 					m->m_data += max_linkhdr;
 					len -= max_linkhdr;
 				}
@@ -1638,7 +1348,7 @@ nospace:
 /*
  * Defragment an mbuf chain, returning at most maxfrags separate
  * mbufs+clusters.  If this is not possible NULL is returned and
- * the original mbuf chain is left in it's present (potentially
+ * the original mbuf chain is left in its present (potentially
  * modified) state.  We use two techniques: collapsing consecutive
  * mbufs and replacing consecutive mbufs by a cluster.
  *
@@ -1741,62 +1451,59 @@ bad:
 struct mbuf *
 m_fragment(struct mbuf *m0, int how, int length)
 {
-	struct mbuf *m_new = NULL, *m_final = NULL;
-	int progress = 0;
+	struct mbuf *m_first, *m_last;
+	int divisor = 255, progress = 0, fraglen;
 
 	if (!(m0->m_flags & M_PKTHDR))
 		return (m0);
 
-	if ((length == 0) || (length < -2))
+	if (length == 0 || length < -2)
 		return (m0);
+	if (length > MCLBYTES)
+		length = MCLBYTES;
+	if (length < 0 && divisor > MCLBYTES)
+		divisor = MCLBYTES;
+	if (length == -1)
+		length = 1 + (arc4random() % divisor);
+	if (length > 0)
+		fraglen = length;
 
 	m_fixhdr(m0); /* Needed sanity check */
 
-	m_final = m_getcl(how, MT_DATA, M_PKTHDR);
-
-	if (m_final == NULL)
+	m_first = m_getcl(how, MT_DATA, M_PKTHDR);
+	if (m_first == NULL)
 		goto nospace;
 
-	if (m_dup_pkthdr(m_final, m0, how) == 0)
+	if (m_dup_pkthdr(m_first, m0, how) == 0)
 		goto nospace;
 
-	m_new = m_final;
-
-	if (length == -1)
-		length = 1 + (arc4random() & 255);
+	m_last = m_first;
 
 	while (progress < m0->m_pkthdr.len) {
-		int fraglen;
-
-		if (length > 0)
-			fraglen = length;
-		else
-			fraglen = 1 + (arc4random() & 255);
+		if (length == -2)
+			fraglen = 1 + (arc4random() % divisor);
 		if (fraglen > m0->m_pkthdr.len - progress)
 			fraglen = m0->m_pkthdr.len - progress;
 
-		if (fraglen > MCLBYTES)
-			fraglen = MCLBYTES;
-
-		if (m_new == NULL) {
-			m_new = m_getcl(how, MT_DATA, 0);
+		if (progress != 0) {
+			struct mbuf *m_new = m_getcl(how, MT_DATA, 0);
 			if (m_new == NULL)
 				goto nospace;
+
+			m_last->m_next = m_new;
+			m_last = m_new;
 		}
 
-		m_copydata(m0, progress, fraglen, mtod(m_new, caddr_t));
+		m_copydata(m0, progress, fraglen, mtod(m_last, caddr_t));
 		progress += fraglen;
-		m_new->m_len = fraglen;
-		if (m_new != m_final)
-			m_cat(m_final, m_new);
-		m_new = NULL;
+		m_last->m_len = fraglen;
 	}
 	m_freem(m0);
-	m0 = m_final;
+	m0 = m_first;
 	return (m0);
 nospace:
-	if (m_final)
-		m_freem(m_final);
+	if (m_first)
+		m_freem(m_first);
 	/* Return the original chain on failure */
 	return (m0);
 }
@@ -1819,7 +1526,7 @@ m_uiotombuf(struct uio *uio, int how, int len, int align, int flags)
 	 * the total data supplied by the uio.
 	 */
 	if (len > 0)
-		total = min(uio->uio_resid, len);
+		total = (uio->uio_resid < len) ? uio->uio_resid : len;
 	else
 		total = uio->uio_resid;
 
@@ -1863,7 +1570,7 @@ m_uiotombuf(struct uio *uio, int how, int len, int align, int flags)
  * Copy an mbuf chain into a uio limited by len if set.
  */
 int
-m_mbuftouio(struct uio *uio, struct mbuf *m, int len)
+m_mbuftouio(struct uio *uio, const struct mbuf *m, int len)
 {
 	int error, length, total;
 	int progress = 0;
@@ -1885,33 +1592,6 @@ m_mbuftouio(struct uio *uio, struct mbuf *m, int len)
 	}
 
 	return (0);
-}
-
-/*
- * Set the m_data pointer of a newly-allocated mbuf
- * to place an object of the specified size at the
- * end of the mbuf, longword aligned.
- */
-void
-m_align(struct mbuf *m, int len)
-{
-#ifdef INVARIANTS
-	const char *msg = "%s: not a virgin mbuf";
-#endif
-	int adjust;
-
-	if (m->m_flags & M_EXT) {
-		KASSERT(m->m_data == m->m_ext.ext_buf, (msg, __func__));
-		adjust = m->m_ext.ext_size - len;
-	} else if (m->m_flags & M_PKTHDR) {
-		KASSERT(m->m_data == m->m_pktdat, (msg, __func__));
-		adjust = MHLEN - len;
-	} else {
-		KASSERT(m->m_data == m->m_dat, (msg, __func__));
-		adjust = MLEN - len;
-	}
-
-	m->m_data += adjust &~ (sizeof(long)-1);
 }
 
 /*
@@ -1953,9 +1633,6 @@ m_unshare(struct mbuf *m0, int how)
 				mprev->m_len += m->m_len;
 				mprev->m_next = m->m_next;	/* unlink from chain */
 				m_free(m);			/* reclaim mbuf */
-#if 0
-				newipsecstat.ips_mbcoalesced++;
-#endif
 			} else {
 				mprev = m;
 			}
@@ -1985,9 +1662,6 @@ m_unshare(struct mbuf *m0, int how)
 			mprev->m_len += m->m_len;
 			mprev->m_next = m->m_next;	/* unlink from chain */
 			m_free(m);			/* reclaim mbuf */
-#if 0
-			newipsecstat.ips_clcoalesced++;
-#endif
 			continue;
 		}
 
@@ -1999,10 +1673,15 @@ m_unshare(struct mbuf *m0, int how)
 		 * don't know how to break up the non-contiguous memory when
 		 * doing DMA.
 		 */
-		n = m_getcl(how, m->m_type, m->m_flags);
+		n = m_getcl(how, m->m_type, m->m_flags & M_COPYFLAGS);
 		if (n == NULL) {
 			m_freem(m0);
 			return (NULL);
+		}
+		if (m->m_flags & M_PKTHDR) {
+			KASSERT(mprev == NULL, ("%s: m0 %p, m %p has M_PKTHDR",
+			    __func__, m0, m));
+			m_move_pkthdr(n, m);
 		}
 		len = m->m_len;
 		off = 0;
@@ -2024,7 +1703,7 @@ m_unshare(struct mbuf *m0, int how)
 				break;
 			off += cc;
 
-			n = m_getcl(how, m->m_type, m->m_flags);
+			n = m_getcl(how, m->m_type, m->m_flags & M_COPYFLAGS);
 			if (n == NULL) {
 				m_freem(mfirst);
 				m_freem(m0);

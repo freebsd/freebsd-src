@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
@@ -25,26 +27,25 @@
  * $FreeBSD$
  */
 
-/* FreeBSD 5.0 and later have ACL and extattr support. */
+#include <osreldate.h>
+
+/* FreeBSD 5.0 and later has ACL and extattr support. */
 #if __FreeBSD__ > 4
-#define HAVE_ACL_CREATE_ENTRY 1
-#define HAVE_ACL_GET_LINK_NP 1
+#define ARCHIVE_ACL_FREEBSD 1
+#define ARCHIVE_XATTR_FREEBSD 1
 #define HAVE_ACL_GET_PERM_NP 1
-#define HAVE_ACL_INIT 1
-#define HAVE_ACL_IS_TRIVIAL_NP 1
-#define HAVE_ACL_PERMSET_T 1
-#define HAVE_ACL_SET_FD 1
-#define HAVE_ACL_SET_FD_NP 1
-#define HAVE_ACL_SET_FILE 1
-#define HAVE_ACL_SET_LINK_NP 1
-#define HAVE_ACL_USER 1
-#define HAVE_EXTATTR_GET_FILE 1
-#define HAVE_EXTATTR_LIST_FILE 1
-#define HAVE_EXTATTR_SET_FD 1
-#define HAVE_EXTATTR_SET_FILE 1
+#define HAVE_ARC4RANDOM_BUF 1
+#define HAVE_STRUCT_XVFSCONF 1
 #define HAVE_SYS_ACL_H 1
 #define HAVE_SYS_EXTATTR_H 1
-#endif
+#if __FreeBSD__ > 7
+/* FreeBSD 8.0 and later has NFSv4 ACL support */
+#define ARCHIVE_ACL_FREEBSD_NFS4 1
+#define HAVE_ACL_GET_LINK_NP 1
+#define HAVE_ACL_IS_TRIVIAL_NP 1
+#define HAVE_ACL_SET_LINK_NP 1
+#endif /* __FreeBSD__ > 7 */
+#endif /* __FreeBSD__ > 4 */
 
 #ifdef WITH_OPENSSL
 #define HAVE_LIBCRYPTO 1
@@ -55,6 +56,7 @@
 #define HAVE_OPENSSL_SHA256_INIT 1
 #define HAVE_OPENSSL_SHA384_INIT 1
 #define HAVE_OPENSSL_SHA512_INIT 1
+#define HAVE_PKCS5_PBKDF2_HMAC_SHA1 1
 #define HAVE_SHA256 1
 #define HAVE_SHA384 1
 #define HAVE_SHA512 1
@@ -82,13 +84,18 @@
 #define HAVE_CTIME_R 1
 #define HAVE_CTYPE_H 1
 #define HAVE_DECL_EXTATTR_NAMESPACE_USER 1
+#define HAVE_DECL_INT32_MAX 1
+#define HAVE_DECL_INT32_MIN 1
 #define HAVE_DECL_INT64_MAX 1
 #define HAVE_DECL_INT64_MIN 1
+#define HAVE_DECL_INTMAX_MAX 1
+#define HAVE_DECL_INTMAX_MIN 1
 #define HAVE_DECL_SIZE_MAX 1
 #define HAVE_DECL_SSIZE_MAX 1
 #define HAVE_DECL_STRERROR_R 1
 #define HAVE_DECL_UINT32_MAX 1
 #define HAVE_DECL_UINT64_MAX 1
+#define HAVE_DECL_UINTMAX_MAX 1
 #define HAVE_DIRENT_H 1
 #define HAVE_DLFCN_H 1
 #define HAVE_D_MD_ORDER 1
@@ -149,10 +156,13 @@
 #define HAVE_POLL 1
 #define HAVE_POLL_H 1
 #define HAVE_POSIX_SPAWNP 1
+#define HAVE_PTHREAD_H 1
 #define HAVE_PWD_H 1
 #define HAVE_READDIR_R 1
 #define HAVE_READLINK 1
 #define HAVE_READLINKAT 1
+#define HAVE_READPASSPHRASE 1
+#define HAVE_READPASSPHRASE_H 1
 #define HAVE_REGEX_H 1
 #define HAVE_SELECT 1
 #define HAVE_SETENV 1
@@ -217,8 +227,14 @@
 #define HAVE_WCTYPE_H 1
 #define HAVE_WMEMCMP 1
 #define HAVE_WMEMCPY 1
+#define HAVE_WMEMMOVE 1
 #define HAVE_ZLIB_H 1
 #define TIME_WITH_SYS_TIME 1
+
+#if __FreeBSD_version >= 1100056
+#define HAVE_FUTIMENS 1
+#define HAVE_UTIMENSAT 1
+#endif
 
 /* FreeBSD 4 and earlier lack intmax_t/uintmax_t */
 #if __FreeBSD__ < 5

@@ -1,10 +1,13 @@
-#	$OpenBSD: Makefile,v 1.68 2014/01/25 04:35:32 dtucker Exp $
+#	$OpenBSD: Makefile,v 1.97 2018/06/07 04:46:34 djm Exp $
 
-REGRESS_TARGETS=	t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t-exec
-tests:		$(REGRESS_TARGETS)
+REGRESS_TARGETS=	unit t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12 t-exec
+tests:		prep $(REGRESS_TARGETS)
 
 # Interop tests are not run by default
 interop interop-tests: t-exec-interop
+
+prep:
+	test "x${USE_VALGRIND}" = "x" || mkdir -p $(OBJ)/valgrind-out
 
 clean:
 	for F in $(CLEANFILES); do rm -f $(OBJ)$$F; done
@@ -16,6 +19,7 @@ distclean:	clean
 LTESTS= 	connect \
 		proxy-connect \
 		connect-privsep \
+		connect-uri \
 		proto-version \
 		proto-mismatch \
 		exit-status \
@@ -36,8 +40,10 @@ LTESTS= 	connect \
 		keyscan \
 		keygen-change \
 		keygen-convert \
+		keygen-moduli \
 		key-options \
 		scp \
+		scp-uri \
 		sftp \
 		sftp-chroot \
 		sftp-cmds \
@@ -45,13 +51,17 @@ LTESTS= 	connect \
 		sftp-batch \
 		sftp-glob \
 		sftp-perm \
+		sftp-uri \
 		reconfigure \
 		dynamic-forward \
 		forwarding \
 		multiplex \
 		reexec \
 		brokenkeys \
+		sshcfgparse \
+		cfgparse \
 		cfgmatch \
+		cfgmatchlisten \
 		addrmatch \
 		localcommand \
 		forcecommand \
@@ -64,7 +74,19 @@ LTESTS= 	connect \
 		keys-command \
 		forward-control \
 		integrity \
-		krl
+		krl \
+		multipubkey \
+		limit-keytype \
+		hostkey-agent \
+		keygen-knownhosts \
+		hostkey-rotate \
+		principals-command \
+		cert-file \
+		cfginclude \
+		allow-deny-users \
+		authinfo
+
+
 #		dhgex \
 
 INTEROP_TESTS=	putty-transfer putty-ciphers putty-kex conch-ciphers
@@ -72,31 +94,38 @@ INTEROP_TESTS=	putty-transfer putty-ciphers putty-kex conch-ciphers
 
 #LTESTS= 	cipher-speed
 
-USER!=		id -un
-CLEANFILES=	t2.out t3.out t6.out1 t6.out2 t7.out t7.out.pub copy.1 copy.2 \
-		t8.out t8.out.pub t9.out t9.out.pub t10.out t10.out.pub \
-		authorized_keys_${USER} known_hosts pidfile testdata \
-		ssh_config sshd_config.orig ssh_proxy sshd_config sshd_proxy \
-		rsa.pub rsa rsa1.pub rsa1 host.rsa host.rsa1 \
-		rsa-agent rsa-agent.pub rsa1-agent rsa1-agent.pub \
-		ls.copy banner.in banner.out empty.in \
-		scp-ssh-wrapper.scp ssh_proxy_envpass remote_pid \
-		sshd_proxy_bak rsa_ssh2_cr.prv rsa_ssh2_crnl.prv \
-		known_hosts-cert host_ca_key* cert_host_key* cert_user_key* \
-		putty.rsa2 sshd_proxy_orig ssh_proxy_bak \
-		key.rsa-* key.dsa-* key.ecdsa-* \
-		authorized_principals_${USER} expect actual ready \
-		sshd_proxy.* authorized_keys_${USER}.* modpipe revoked-* krl-* \
-		ssh.log failed-ssh.log sshd.log failed-sshd.log \
-		regress.log failed-regress.log ssh-log-wrapper.sh \
-		sftp-server.sh sftp-server.log sftp.log setuid-allowed \
-		data ed25519-agent ed25519-agent.pub key.ed25519-512 \
-		key.ed25519-512.pub
+USERNAME=		${LOGNAME}
+CLEANFILES=	*.core actual agent-key.* authorized_keys_${USERNAME} \
+		authorized_keys_${USERNAME}.* \
+		authorized_principals_${USERNAME} \
+		banner.in banner.out cert_host_key* cert_user_key* \
+		copy.1 copy.2 data ed25519-agent ed25519-agent* \
+		ed25519-agent.pub ed25519 ed25519.pub empty.in \
+		expect failed-regress.log failed-ssh.log failed-sshd.log \
+		hkr.* host.ed25519 host.rsa host.rsa1 host_* \
+		host_ca_key* host_krl_* host_revoked_* key.* \
+		key.dsa-* key.ecdsa-* key.ed25519-512 \
+		key.ed25519-512.pub key.rsa-* keys-command-args kh.* \
+		known_hosts known_hosts-cert known_hosts.* krl-* ls.copy \
+		modpipe netcat no_identity_config \
+		pidfile putty.rsa2 ready regress.log \
+		remote_pid revoked-* rsa rsa-agent rsa-agent.pub rsa.pub \
+		rsa1 rsa1-agent rsa1-agent.pub rsa1.pub rsa_ssh2_cr.prv \
+		rsa_ssh2_crnl.prv scp-ssh-wrapper.exe \
+		scp-ssh-wrapper.scp setuid-allowed sftp-server.log \
+		sftp-server.sh sftp.log ssh-log-wrapper.sh ssh.log \
+		ssh_config ssh_config.* ssh_proxy ssh_proxy_bak \
+		ssh_proxy_envpass sshd.log sshd_config sshd_config_minimal \
+		sshd_config.orig sshd_proxy sshd_proxy.* sshd_proxy_bak \
+		sshd_proxy_orig t10.out t10.out.pub t12.out t12.out.pub \
+		t2.out t3.out t6.out1 t6.out2 t7.out t7.out.pub \
+		t8.out t8.out.pub t9.out t9.out.pub testdata \
+		user_*key* user_ca* user_key*
 
-SUDO_CLEAN+=	/var/run/testdata_${USER} /var/run/keycommand_${USER}
+SUDO_CLEAN+=	/var/run/testdata_${USERNAME} /var/run/keycommand_${USERNAME}
 
 # Enable all malloc(3) randomisations and checks
-TEST_ENV=      "MALLOC_OPTIONS=AFGJPRX"
+TEST_ENV=      "MALLOC_OPTIONS=CFGJRSUX"
 
 TEST_SSH_SSHKEYGEN?=ssh-keygen
 
@@ -119,7 +148,7 @@ t3:
 	${TEST_SSH_SSHKEYGEN} -if $(OBJ)/t3.out | diff - ${.CURDIR}/rsa_openssh.pub
 
 t4:
-	${TEST_SSH_SSHKEYGEN} -lf ${.CURDIR}/rsa_openssh.pub |\
+	${TEST_SSH_SSHKEYGEN} -E md5 -lf ${.CURDIR}/rsa_openssh.pub |\
 		awk '{print $$2}' | diff - ${.CURDIR}/t4.ok
 
 t5:
@@ -164,6 +193,16 @@ t10: $(OBJ)/t10.out
 	${TEST_SSH_SSHKEYGEN} -lf $(OBJ)/t10.out > /dev/null
 	${TEST_SSH_SSHKEYGEN} -Bf $(OBJ)/t10.out > /dev/null
 
+t11:
+	${TEST_SSH_SSHKEYGEN} -E sha256 -lf ${.CURDIR}/rsa_openssh.pub |\
+		awk '{print $$2}' | diff - ${.CURDIR}/t11.ok
+
+$(OBJ)/t12.out:
+	${TEST_SSH_SSHKEYGEN} -q -t ed25519 -N '' -C 'test-comment-1234' -f $@
+
+t12: $(OBJ)/t12.out
+	${TEST_SSH_SSHKEYGEN} -lf $(OBJ)/t12.out.pub | grep test-comment-1234 >/dev/null
+
 t-exec:	${LTESTS:=.sh}
 	@if [ "x$?" = "x" ]; then exit 0; fi; \
 	for TEST in ""$?; do \
@@ -180,3 +219,23 @@ t-exec-interop:	${INTEROP_TESTS:=.sh}
 
 # Not run by default
 interop: ${INTEROP_TARGETS}
+
+# Unit tests, built by top-level Makefile
+unit:
+	set -e ; if test -z "${SKIP_UNIT}" ; then \
+		V="" ; \
+		test "x${USE_VALGRIND}" = "x" || \
+		    V=${.CURDIR}/valgrind-unit.sh ; \
+		$$V ${.OBJDIR}/unittests/sshbuf/test_sshbuf ; \
+		$$V ${.OBJDIR}/unittests/sshkey/test_sshkey \
+			-d ${.CURDIR}/unittests/sshkey/testdata ; \
+		$$V ${.OBJDIR}/unittests/bitmap/test_bitmap ; \
+		$$V ${.OBJDIR}/unittests/conversion/test_conversion ; \
+		$$V ${.OBJDIR}/unittests/kex/test_kex ; \
+		$$V ${.OBJDIR}/unittests/hostkeys/test_hostkeys \
+			-d ${.CURDIR}/unittests/hostkeys/testdata ; \
+		$$V ${.OBJDIR}/unittests/match/test_match ; \
+		if test "x${TEST_SSH_UTF8}" = "xyes"  ; then \
+			$$V ${.OBJDIR}/unittests/utf8/test_utf8 ; \
+		fi \
+	fi

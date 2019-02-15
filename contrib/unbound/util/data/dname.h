@@ -127,7 +127,7 @@ int dname_pkt_compare(struct sldns_buffer* pkt, uint8_t* d1, uint8_t* d2);
  * @param h: initial hash value.
  * @return: result hash value.
  */
-hashvalue_t dname_query_hash(uint8_t* dname, hashvalue_t h);
+hashvalue_type dname_query_hash(uint8_t* dname, hashvalue_type h);
 
 /**
  * Hash dname, label by label, lowercasing, into hashvalue.
@@ -139,7 +139,8 @@ hashvalue_t dname_query_hash(uint8_t* dname, hashvalue_t h);
  * @return: result hash value.
  * 	Result is the same as dname_query_hash, even if compression is used.
  */
-hashvalue_t dname_pkt_hash(struct sldns_buffer* pkt, uint8_t* dname, hashvalue_t h);
+hashvalue_type dname_pkt_hash(struct sldns_buffer* pkt, uint8_t* dname,
+	hashvalue_type h);
 
 /**
  * Copy over a valid dname and decompress it.
@@ -183,6 +184,17 @@ int dname_count_size_labels(uint8_t* dname, size_t* size);
  * @return: 0 for equal, -1 smaller, or +1 d1 larger than d2.
  */
 int dname_lab_cmp(uint8_t* d1, int labs1, uint8_t* d2, int labs2, int* mlabs);
+
+/**
+ * Check if labels starts with given prefix 
+ * @param label: dname label
+ * @param prefix: the string to match label with, null terminated.
+ * @param endptr: pointer to location in label after prefix, only if return
+ * 	value is 1. NULL if nothing in the label after the prefix, i.e. prefix
+ * 	and label are the same.
+ * @return: 1 if label starts with prefix, else 0
+ */
+int dname_lab_startswith(uint8_t* label, char* prefix, char** endptr);
 
 /**
  * See if domain name d1 is a strict subdomain of d2.

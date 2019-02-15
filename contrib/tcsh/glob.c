@@ -59,6 +59,11 @@ static char sccsid[] = "@(#)glob.c	5.12 (Berkeley) 6/24/91";
 #include "sh.h"
 #include "glob.h"
 
+#ifndef HAVE_MBLEN
+#undef mblen
+#define mblen(_s,_n)	mbrlen((_s),(_n),NULL)
+#endif
+
 #undef Char
 #undef QUOTE
 #undef TILDE
@@ -142,12 +147,14 @@ globcharcoll(__Char c1, __Char c2, int cs)
 	c1 = towlower(c1);
 	c2 = towlower(c2);
     } else {
+#ifndef __FreeBSD__
 	/* This should not be here, but I'll rather leave it in than engage in
 	   a LC_COLLATE flamewar about a shell I don't use... */
 	if (iswlower(c1) && iswupper(c2))
 	    return (1);
 	if (iswupper(c1) && iswlower(c2))
 	    return (-1);
+#endif
     }
     s1[0] = c1;
     s2[0] = c2;
@@ -433,6 +440,7 @@ glob(const char *pattern, int flags, int (*errfunc) (const char *, int),
 	    dest = copy;
 	    src = pattern;
 	    while (*src != EOS) {
+		/* Don't interpret quotes. The spec does not say we should do */
 		if (*src == QUOTE) {
 		    if (*++src == EOS)
 			--src;

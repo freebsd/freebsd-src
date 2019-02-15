@@ -18,55 +18,90 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-require 5.003; # "never tested with any other version of Perl"
+package summary;
+use 5.006_000;
 use strict;
 
-use Getopt::Long;
+my ($log_date_pattern, $statsdir, $outputdir, $skip_time_steps, $startdate,
+    $enddate, $peer_dist_limit);
 
-my $log_date_pattern = '[12]\d{3}[01]\d[0-3]\d';
-my $statsdir = "/var/log/ntp";		# directory with input files
-my $outputdir = "/tmp";			# directory for output files
-my $skip_time_steps = 3600.0;		# ignore time offsets larger that this
-my $startdate = "19700101";		# first data file to use (YYYYMMDD)
-my $enddate=`date -u +%Y%m%d`; chomp $enddate; --$enddate;
-my $peer_dist_limit = 400.0;
+exit run(@ARGV) unless caller;
 
-my %options = ("directory|input-directory=s" => \$statsdir,
-	       "output-directory=s" => \$outputdir,
-	       "skip-time-steps:f" => \$skip_time_steps,
-	       "start-date=s" => \$startdate,
-	       "end-date=s" => \$enddate,
-	       "peer-dist-limit=f" => \$peer_dist_limit);
+sub run {
+    my $opts;
+    if (!processOptions(\@ARGV, $opts)) {
+        usage(1);
+    };
 
-if ( !GetOptions(%options) )
-{
-    print STDERR "valid options for $0 are:\n";
-    my $opt;
-    foreach $opt (sort(keys %options)) {
-	print STDERR "\t--$opt\t(default is ";
-	if ( ref($options{$opt}) eq "ARRAY" ) {
-	    print STDERR join(", ",  map { "'$_'" } @{$options{$opt}});
-	} else {
-	    print STDERR "'${$options{$opt}}'";
-	}
-	print STDERR ")\n";
+    $log_date_pattern = '[12]\d{3}[01]\d[0-3]\d';
+    $statsdir         = $opts->{directory};
+    $outputdir        = $opts->{'output-directory'};
+    $skip_time_steps  = $opts->{'skip-time-steps'};
+    $startdate        = $opts->{'start-date'};
+    $enddate          = $opts->{'end-date'};
+    if (!$enddate){
+        $enddate = `date -u +%Y%m%d`; 
+        chomp $enddate;
+        --$enddate;
     }
-    print STDERR "\n";
-    die;
+    $peer_dist_limit = $opts->{'peer-dist-limit'};
+
+    # check possibly current values of options
+    die "$statsdir: no such directory" unless (-d $statsdir);
+    die "$outputdir: no such directory" unless (-d $outputdir);
+    die "$skip_time_steps: skip-time-steps must be positive"
+        unless ($skip_time_steps >= 0.0);
+    die "$startdate: invalid start date|$`|$&|$'"
+        unless ($startdate =~ m/.*$log_date_pattern$/);
+    die "$enddate: invalid end date"
+        unless ($enddate =~ m/.*$log_date_pattern$/);
+
+    $skip_time_steps = 0.128 if ($skip_time_steps == 0);
+
+    my $loop_summary="$outputdir/loop_summary";
+    my $peer_summary="$outputdir/peer_summary";
+    my $clock_summary="$outputdir/clock_summary";
+    my (@loopfiles, @peerfiles, @clockfiles);
+
+    print STDERR "Creating summaries from $statsdir ($startdate to $enddate)\n";
+
+    opendir SDIR, $statsdir or die "directory ${statsdir}: $!";
+    rewinddir SDIR;
+    @loopfiles=sort grep /loop.*$log_date_pattern/, readdir SDIR;
+    rewinddir SDIR;
+    @peerfiles=sort grep /peer.*$log_date_pattern/, readdir SDIR;
+    rewinddir SDIR;
+    @clockfiles=sort grep /clock.*$log_date_pattern/, readdir SDIR;
+    closedir SDIR;
+
+    # remove old summary files
+    for ($loop_summary, $peer_summary, $clock_summary) { unlink $_ if -f $_ };
+
+    my $date;
+    for (@loopfiles) {
+        $date = $_; $date =~ s/.*($log_date_pattern)$/$1/;
+        if ($date ge $startdate && $date le $enddate) {
+            do_loop($statsdir, $_, $loop_summary);
+        }
+    }
+
+    for (@peerfiles) {
+        $date = $_; $date =~ s/.*($log_date_pattern)$/$1/;
+        if ($date ge $startdate && $date le $enddate) {
+            do_peer($statsdir, $_, $peer_summary);
+        }
+    }
+
+    for (@clockfiles) {
+        $date = $_; $date =~ s/.*($log_date_pattern)$/$1/;
+        if ($date ge $startdate && $date le $enddate) {
+            do_clock($statsdir, $_, $clock_summary);
+        }
+    }
+
+    print STDERR "Creating peer summary with limit $peer_dist_limit\n";
+    peer_summary($peer_summary) if (-f $peer_summary);
 }
-
-# check possibly current values of options
-die "$statsdir: no such directory" unless (-d $statsdir);
-die "$outputdir: no such directory" unless (-d $outputdir);
-die "$skip_time_steps: skip-time-steps must be positive"
-    unless ($skip_time_steps >= 0.0);
-die "$startdate: invalid start date|$`|$&|$'"
-    unless ($startdate =~ m/.*$log_date_pattern$/);
-die "$enddate: invalid end date"
-    unless ($enddate =~ m/.*$log_date_pattern$/);
-
-$skip_time_steps = 0.128 if ($skip_time_steps == 0);
 
 sub min
 {
@@ -328,46 +363,7 @@ sub peer_summary
     print sort @lines;
 }
 
-my $loop_summary="$outputdir/loop_summary";
-my $peer_summary="$outputdir/peer_summary";
-my $clock_summary="$outputdir/clock_summary";
-my (@loopfiles, @peerfiles, @clockfiles);
+@summary_opts@
 
-print STDERR "Creating summaries from $statsdir ($startdate to $enddate)\n";
-
-opendir SDIR, $statsdir or die "directory ${statsdir}: $!";
-rewinddir SDIR;
-@loopfiles=sort grep /loop.*$log_date_pattern/, readdir SDIR;
-rewinddir SDIR;
-@peerfiles=sort grep /peer.*$log_date_pattern/, readdir SDIR;
-rewinddir SDIR;
-@clockfiles=sort grep /clock.*$log_date_pattern/, readdir SDIR;
-closedir SDIR;
-
-# remove old summary files
-map { unlink $_ if -f $_ } ($loop_summary, $peer_summary, $clock_summary);
-
-my $date;
-map {
-    $date = $_; $date =~ s/.*($log_date_pattern)$/$1/;
-    if ($date ge $startdate && $date le $enddate) {
-	do_loop $statsdir, $_, $loop_summary;
-    }
-} @loopfiles;
-
-map {
-    $date = $_; $date =~ s/.*($log_date_pattern)$/$1/;
-    if ($date ge $startdate && $date le $enddate) {
-	do_peer $statsdir, $_, $peer_summary;
-    }
-} @peerfiles;
-
-map {
-    $date = $_; $date =~ s/.*($log_date_pattern)$/$1/;
-    if ($date ge $startdate && $date le $enddate) {
-	do_clock $statsdir, $_, $clock_summary;
-    }
-} @clockfiles;
-
-print STDERR "Creating peer summary with limit $peer_dist_limit\n";
-peer_summary $peer_summary if (-f $peer_summary);
+1;
+__END__

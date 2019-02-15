@@ -50,6 +50,7 @@
 #include <sys/linker.h>
 #include <sys/linker_set.h>
 #include <sys/lock.h>
+#include <sys/lockstat.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
@@ -75,6 +76,9 @@ static void	sdt_kld_unload_try(void *, struct linker_file *, int *);
 
 static MALLOC_DEFINE(M_SDT, "SDT", "DTrace SDT providers");
 
+static int sdt_probes_enabled_count;
+static int lockstat_enabled_count;
+
 static dtrace_pattr_t sdt_attr = {
 { DTRACE_STABILITY_EVOLVING, DTRACE_STABILITY_EVOLVING, DTRACE_CLASS_COMMON },
 { DTRACE_STABILITY_PRIVATE, DTRACE_STABILITY_PRIVATE, DTRACE_CLASS_UNKNOWN },
@@ -84,22 +88,22 @@ static dtrace_pattr_t sdt_attr = {
 };
 
 static dtrace_pops_t sdt_pops = {
-	sdt_provide_probes,
-	NULL,
-	sdt_enable,
-	sdt_disable,
-	NULL,
-	NULL,
-	sdt_getargdesc,
-	NULL,
-	NULL,
-	sdt_destroy,
+	.dtps_provide =		sdt_provide_probes,
+	.dtps_provide_module =	NULL,
+	.dtps_enable =		sdt_enable,
+	.dtps_disable =		sdt_disable,
+	.dtps_suspend =		NULL,
+	.dtps_resume =		NULL,
+	.dtps_getargdesc =	sdt_getargdesc,
+	.dtps_getargval =	NULL,
+	.dtps_usermode =	NULL,
+	.dtps_destroy =		sdt_destroy,
 };
 
 static TAILQ_HEAD(, sdt_provider) sdt_prov_list;
 
-eventhandler_tag	sdt_kld_load_tag;
-eventhandler_tag	sdt_kld_unload_try_tag;
+static eventhandler_tag	sdt_kld_load_tag;
+static eventhandler_tag	sdt_kld_unload_try_tag;
 
 static void
 sdt_create_provider(struct sdt_provider *prov)
@@ -140,6 +144,12 @@ sdt_create_probe(struct sdt_probe *probe)
 	char *to;
 	size_t len;
 
+	if (probe->version != (int)sizeof(*probe)) {
+		printf("ignoring probe %p, version %u expected %u\n",
+		    probe, probe->version, (int)sizeof(*probe));
+		return;
+	}
+
 	TAILQ_FOREACH(prov, &sdt_prov_list, prov_entry)
 		if (strcmp(prov->name, probe->prov->name) == 0)
 			break;
@@ -161,6 +171,8 @@ sdt_create_probe(struct sdt_probe *probe)
 	 * in the C compiler, so we have to respect const vs non-const.
 	 */
 	strlcpy(func, probe->func, sizeof(func));
+	if (func[0] == '\0')
+		strcpy(func, "none");
 
 	from = probe->name;
 	to = name;
@@ -197,6 +209,14 @@ sdt_enable(void *arg __unused, dtrace_id_t id, void *parg)
 
 	probe->id = id;
 	probe->sdtp_lf->nenabled++;
+	if (strcmp(probe->prov->name, "lockstat") == 0) {
+		lockstat_enabled_count++;
+		if (lockstat_enabled_count == 1)
+			lockstat_enabled = true;
+	}
+	sdt_probes_enabled_count++;
+	if (sdt_probes_enabled_count == 1)
+		sdt_probes_enabled = true;
 }
 
 static void
@@ -206,6 +226,14 @@ sdt_disable(void *arg __unused, dtrace_id_t id, void *parg)
 
 	KASSERT(probe->sdtp_lf->nenabled > 0, ("no probes enabled"));
 
+	sdt_probes_enabled_count--;
+	if (sdt_probes_enabled_count == 0)
+		sdt_probes_enabled = false;
+	if (strcmp(probe->prov->name, "lockstat") == 0) {
+		lockstat_enabled_count--;
+		if (lockstat_enabled_count == 0)
+			lockstat_enabled = false;
+	}
 	probe->id = 0;
 	probe->sdtp_lf->nenabled--;
 }
@@ -371,29 +399,20 @@ sdt_unload()
 static int
 sdt_modevent(module_t mod __unused, int type, void *data __unused)
 {
-	int error = 0;
 
 	switch (type) {
 	case MOD_LOAD:
-		sdt_load();
-		break;
-
 	case MOD_UNLOAD:
-		error = sdt_unload();
-		break;
-
 	case MOD_SHUTDOWN:
-		break;
-
+		return (0);
 	default:
-		error = EOPNOTSUPP;
-		break;
+		return (EOPNOTSUPP);
 	}
-
-	return (error);
 }
+
+SYSINIT(sdt_load, SI_SUB_DTRACE_PROVIDER, SI_ORDER_ANY, sdt_load, NULL);
+SYSUNINIT(sdt_unload, SI_SUB_DTRACE_PROVIDER, SI_ORDER_ANY, sdt_unload, NULL);
 
 DEV_MODULE(sdt, sdt_modevent, NULL);
 MODULE_VERSION(sdt, 1);
 MODULE_DEPEND(sdt, dtrace, 1, 1, 1);
-MODULE_DEPEND(sdt, opensolaris, 1, 1, 1);

@@ -8,7 +8,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 11, 1999
+.Dd July 20, 2018
 .Dt MDX 3
 .Os
 .Sh NAME
@@ -78,7 +78,9 @@ initialize it with
 run over the data with
 .Fn MDXUpdate ,
 and finally extract the result using
-.Fn MDXFinal .
+.Fn MDXFinal ,
+which will also erase the
+.Vt MDX_CTX .
 .Pp
 The
 .Fn MDXPad
@@ -145,7 +147,11 @@ argument is non-null it must point to at least 33 characters of buffer space.
 .Sh SEE ALSO
 .Xr md4 3 ,
 .Xr md5 3 ,
-.Xr sha 3
+.Xr ripemd 3 ,
+.Xr sha 3 ,
+.Xr sha256 3 ,
+.Xr sha512 3 ,
+.Xr skein 3
 .Rs
 .%A R. Rivest
 .%T The MD4 Message-Digest Algorithm

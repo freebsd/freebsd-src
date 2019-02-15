@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -91,7 +91,6 @@ struct tblentry {
 
 static struct tblentry *cmdtable[CMDTABLESIZE];
 static int cmdtable_cd = 0;	/* cmdtable contains cd-dependent entries */
-int exerrno = 0;			/* Last exec error */
 
 
 static void tryexec(char *, char **, char **);
@@ -113,6 +112,7 @@ void
 shellexec(char **argv, char **envp, const char *path, int idx)
 {
 	char *cmdname;
+	const char *opt;
 	int e;
 
 	if (strchr(argv[0], '/') != NULL) {
@@ -120,8 +120,8 @@ shellexec(char **argv, char **envp, const char *path, int idx)
 		e = errno;
 	} else {
 		e = ENOENT;
-		while ((cmdname = padvance(&path, argv[0])) != NULL) {
-			if (--idx < 0 && pathopt == NULL) {
+		while ((cmdname = padvance(&path, &opt, argv[0])) != NULL) {
+			if (--idx < 0 && opt == NULL) {
 				tryexec(cmdname, argv, envp);
 				if (errno != ENOENT && errno != ENOTDIR)
 					e = errno;
@@ -133,13 +133,10 @@ shellexec(char **argv, char **envp, const char *path, int idx)
 	}
 
 	/* Map to POSIX errors */
-	if (e == ENOENT || e == ENOTDIR) {
-		exerrno = 127;
-		exerror(EXEXEC, "%s: not found", argv[0]);
-	} else {
-		exerrno = 126;
-		exerror(EXEXEC, "%s: %s", argv[0], strerror(e));
-	}
+	if (e == ENOENT || e == ENOTDIR)
+		errorwithstatus(127, "%s: not found", argv[0]);
+	else
+		errorwithstatus(126, "%s: %s", argv[0], strerror(e));
 }
 
 
@@ -174,16 +171,14 @@ tryexec(char *cmd, char **argv, char **envp)
  * Do a path search.  The variable path (passed by reference) should be
  * set to the start of the path before the first call; padvance will update
  * this value as it proceeds.  Successive calls to padvance will return
- * the possible path expansions in sequence.  If an option (indicated by
- * a percent sign) appears in the path entry then the global variable
- * pathopt will be set to point to it; otherwise pathopt will be set to
- * NULL.
+ * the possible path expansions in sequence.  If popt is not NULL, options
+ * are processed: if an option (indicated by a percent sign) appears in
+ * the path entry then *popt will be set to point to it; else *popt will be
+ * set to NULL.  If popt is NULL, percent signs are not special.
  */
 
-const char *pathopt;
-
 char *
-padvance(const char **path, const char *name)
+padvance(const char **path, const char **popt, const char *name)
 {
 	const char *p, *start;
 	char *q;
@@ -192,8 +187,12 @@ padvance(const char **path, const char *name)
 	if (*path == NULL)
 		return NULL;
 	start = *path;
-	for (p = start; *p && *p != ':' && *p != '%'; p++)
-		; /* nothing */
+	if (popt != NULL)
+		for (p = start; *p && *p != ':' && *p != '%'; p++)
+			; /* nothing */
+	else
+		for (p = start; *p && *p != ':'; p++)
+			; /* nothing */
 	namelen = strlen(name);
 	len = p - start + namelen + 2;	/* "2" is for '/' and '\0' */
 	STARTSTACKSTR(q);
@@ -204,10 +203,12 @@ padvance(const char **path, const char *name)
 		*q++ = '/';
 	}
 	memcpy(q, name, namelen + 1);
-	pathopt = NULL;
-	if (*p == '%') {
-		pathopt = ++p;
-		while (*p && *p != ':')  p++;
+	if (popt != NULL) {
+		if (*p == '%') {
+			*popt = ++p;
+			while (*p && *p != ':')  p++;
+		} else
+			*popt = NULL;
 	}
 	if (*p == ':')
 		*path = p + 1;
@@ -277,14 +278,14 @@ static void
 printentry(struct tblentry *cmdp, int verbose)
 {
 	int idx;
-	const char *path;
+	const char *path, *opt;
 	char *name;
 
 	if (cmdp->cmdtype == CMDNORMAL) {
 		idx = cmdp->param.index;
 		path = pathval();
 		do {
-			name = padvance(&path, cmdp->cmdname);
+			name = padvance(&path, &opt, cmdp->cmdname);
 			stunalloc(name);
 		} while (--idx >= 0);
 		out1str(name);
@@ -321,6 +322,7 @@ find_command(const char *name, struct cmdentry *entry, int act,
 {
 	struct tblentry *cmdp, loc_cmd;
 	int idx;
+	const char *opt;
 	char *fullname;
 	struct stat statb;
 	int e;
@@ -332,12 +334,13 @@ find_command(const char *name, struct cmdentry *entry, int act,
 	if (strchr(name, '/') != NULL) {
 		entry->cmdtype = CMDNORMAL;
 		entry->u.index = 0;
+		entry->special = 0;
 		return;
 	}
 
 	cd = 0;
 
-	/* If name is in the table, and not invalidated by cd, we're done */
+	/* If name is in the table, we're done */
 	if ((cmdp = cmdlookup(name, 0)) != NULL) {
 		if (cmdp->cmdtype == CMDFUNCTION && act & DO_NOFUNC)
 			cmdp = NULL;
@@ -362,10 +365,11 @@ find_command(const char *name, struct cmdentry *entry, int act,
 
 	e = ENOENT;
 	idx = -1;
-	for (;(fullname = padvance(&path, name)) != NULL; stunalloc(fullname)) {
+	for (;(fullname = padvance(&path, &opt, name)) != NULL;
+	    stunalloc(fullname)) {
 		idx++;
-		if (pathopt) {
-			if (strncmp(pathopt, "func", 4) == 0) {
+		if (opt) {
+			if (strncmp(opt, "func", 4) == 0) {
 				/* handled below */
 			} else {
 				continue; /* ignore unimplemented options */
@@ -381,7 +385,7 @@ find_command(const char *name, struct cmdentry *entry, int act,
 		e = EACCES;	/* if we fail, this will be the error */
 		if (!S_ISREG(statb.st_mode))
 			continue;
-		if (pathopt) {		/* this is a %func directory */
+		if (opt) {		/* this is a %func directory */
 			readcmdfile(fullname);
 			if ((cmdp = cmdlookup(name, 0)) == NULL || cmdp->cmdtype != CMDFUNCTION)
 				error("%s not defined in %s", name, fullname);
@@ -408,6 +412,7 @@ find_command(const char *name, struct cmdentry *entry, int act,
 			cmdp = &loc_cmd;
 		cmdp->cmdtype = CMDNORMAL;
 		cmdp->param.index = idx;
+		cmdp->special = 0;
 		INTON;
 		goto success;
 	}
@@ -420,6 +425,7 @@ find_command(const char *name, struct cmdentry *entry, int act,
 	}
 	entry->cmdtype = CMDUNKNOWN;
 	entry->u.index = 0;
+	entry->special = 0;
 	return;
 
 success:
@@ -439,12 +445,14 @@ success:
 int
 find_builtin(const char *name, int *special)
 {
-	const struct builtincmd *bp;
+	const unsigned char *bp;
+	size_t len;
 
-	for (bp = builtincmd ; bp->name ; bp++) {
-		if (*bp->name == *name && equal(bp->name, name)) {
-			*special = bp->special;
-			return bp->code;
+	len = strlen(name);
+	for (bp = builtincmd ; *bp ; bp += 2 + bp[0]) {
+		if (bp[0] == len && memcmp(bp + 2, name, len) == 0) {
+			*special = (bp[1] & BUILTIN_SPECIAL) != 0;
+			return bp[1] & ~BUILTIN_SPECIAL;
 		}
 	}
 	return -1;
@@ -480,8 +488,7 @@ changepath(const char *newval __unused)
 
 
 /*
- * Clear out command entries.  The argument specifies the first entry in
- * PATH which has changed.
+ * Clear out cached utility locations.
  */
 
 void
@@ -522,17 +529,16 @@ static struct tblentry **lastcmdentry;
 static struct tblentry *
 cmdlookup(const char *name, int add)
 {
-	int hashval;
+	unsigned int hashval;
 	const char *p;
 	struct tblentry *cmdp;
 	struct tblentry **pp;
 	size_t len;
 
 	p = name;
-	hashval = *p << 4;
+	hashval = (unsigned char)*p << 4;
 	while (*p)
 		hashval += *p++;
-	hashval &= 0x7FFF;
 	pp = &cmdtable[hashval % CMDTABLESIZE];
 	for (cmdp = *pp ; cmdp ; cmdp = cmdp->next) {
 		if (equal(cmdp->cmdname, name))
@@ -587,6 +593,7 @@ addcmdentry(const char *name, struct cmdentry *entry)
 	}
 	cmdp->cmdtype = entry->cmdtype;
 	cmdp->param = entry->u;
+	cmdp->special = entry->special;
 	INTON;
 }
 
@@ -603,6 +610,7 @@ defun(const char *name, union node *func)
 	INTOFF;
 	entry.cmdtype = CMDFUNCTION;
 	entry.u.func = copyfunc(func);
+	entry.special = 0;
 	addcmdentry(name, &entry);
 	INTON;
 }
@@ -698,10 +706,11 @@ typecmd_impl(int argc, char **argv, int cmd, const char *path)
 		case CMDNORMAL: {
 			if (strchr(argv[i], '/') == NULL) {
 				const char *path2 = path;
+				const char *opt2;
 				char *name;
 				int j = entry.u.index;
 				do {
-					name = padvance(&path2, argv[i]);
+					name = padvance(&path2, &opt2, argv[i]);
 					stunalloc(name);
 				} while (--j >= 0);
 				if (cmd == TYPECMD_SMALLV)

@@ -17,6 +17,8 @@ struct dl_list {
 	struct dl_list *prev;
 };
 
+#define DL_LIST_HEAD_INIT(l) { &(l), &(l) }
+
 static inline void dl_list_init(struct dl_list *list)
 {
 	list->next = list;

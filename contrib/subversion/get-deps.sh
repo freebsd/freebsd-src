@@ -33,10 +33,13 @@
 
 APR_VERSION=${APR_VERSION:-"1.4.6"}
 APU_VERSION=${APU_VERSION:-"1.5.1"}
-SERF_VERSION=${SERF_VERSION:-"1.3.4"}
+SERF_VERSION=${SERF_VERSION:-"1.3.8"}
 ZLIB_VERSION=${ZLIB_VERSION:-"1.2.8"}
-SQLITE_VERSION=${SQLITE_VERSION:-"3.7.15.1"}
-GTEST_VERSION=${GTEST_VERSION:-"1.6.0"}
+SQLITE_VERSION=${SQLITE_VERSION:-"3.8.11.1"}
+# Used to construct the SQLite download URL.
+SQLITE_VERSION_REL_YEAR=2015
+GTEST_VERSION=${GMOCK_VERSION:-"1.7.0"}
+GMOCK_VERSION=${GMOCK_VERSION:-"1.7.0"}
 HTTPD_VERSION=${HTTPD_VERSION:-"2.4.10"}
 APR_ICONV_VERSION=${APR_ICONV_VERSION:-"1.2.1"}
 
@@ -46,8 +49,10 @@ SERF=serf-${SERF_VERSION}
 ZLIB=zlib-${ZLIB_VERSION}
 SQLITE_VERSION_LIST=`echo $SQLITE_VERSION | sed -e 's/\./ /g'`
 SQLITE=sqlite-amalgamation-`printf %d%02d%02d%02d $SQLITE_VERSION_LIST`
-GTEST=gtest-${GTEST_VERSION}
-GTEST_URL=http://googletest.googlecode.com/files/
+GTEST=release-${GTEST_VERSION}
+GTEST_URL=https://github.com/google/googletest/archive
+GMOCK=release-${GMOCK_VERSION}
+GMOCK_URL=https://github.com/google/googlemock/archive
 
 HTTPD=httpd-${HTTPD_VERSION}
 APR_ICONV=apr-iconv-${APR_ICONV_VERSION}
@@ -67,7 +72,7 @@ APACHE_MIRROR=http://archive.apache.org/dist
 # helpers
 usage() {
     echo "Usage: $0"
-    echo "Usage: $0 [ apr | serf | zlib | sqlite | gtest ] ..."
+    echo "Usage: $0 [ apr | serf | zlib | sqlite | googlemock ] ..."
     exit $1
 }
 
@@ -89,7 +94,7 @@ get_serf() {
     test -d $BASEDIR/serf && return
 
     cd $TEMPDIR
-    $HTTP_FETCH http://serf.googlecode.com/svn/src_releases/$SERF.tar.bz2
+    $HTTP_FETCH https://archive.apache.org/dist/serf/$SERF.tar.bz2
     cd $BASEDIR
 
     bzip2 -dc $TEMPDIR/$SERF.tar.bz2 | tar -xf -
@@ -113,7 +118,7 @@ get_sqlite() {
     test -d $BASEDIR/sqlite-amalgamation && return
 
     cd $TEMPDIR
-    $HTTP_FETCH http://www.sqlite.org/$SQLITE.zip
+    $HTTP_FETCH https://www.sqlite.org/$SQLITE_VERSION_REL_YEAR/$SQLITE.zip
     cd $BASEDIR
 
     unzip -q $TEMPDIR/$SQLITE.zip
@@ -122,23 +127,29 @@ get_sqlite() {
 
 }
 
-get_gtest() {
-    test -d $BASEDIR/gtest && return
+get_googlemock() {
+    test -d $BASEDIR/googlemock && return
 
     cd $TEMPDIR
     $HTTP_FETCH ${GTEST_URL}/${GTEST}.zip
+    unzip -q ${GTEST}.zip
+    rm -f ${GTEST}.zip
+
+    $HTTP_FETCH ${GMOCK_URL}/${GMOCK}.zip
+    unzip -q ${GMOCK}.zip
+    rm -f ${GMOCK}.zip
+
     cd $BASEDIR
-
-    unzip -q $TEMPDIR/$GTEST.zip
-
-    mv $GTEST gtest
+    mkdir googlemock
+    mv $TEMPDIR/googletest-release-${GTEST_VERSION} googlemock/googletest
+    mv $TEMPDIR/googlemock-release-${GMOCK_VERSION} googlemock/googlemock
 }
 
 # main()
 get_deps() {
     mkdir -p $TEMPDIR
 
-    for i in zlib serf sqlite-amalgamation apr apr-util gtest; do
+    for i in zlib serf sqlite-amalgamation apr apr-util gmock-fused; do
       if [ -d $i ]; then
         echo "Local directory '$i' already exists; the downloaded copy won't be used" >&2
       fi

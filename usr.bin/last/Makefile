@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	last
+LIBADD=	xo
 
 NO_WFORMAT=
 

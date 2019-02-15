@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 25, 2004
+.Dd March 20, 2018
 .Dt ALTQ 9
 .Os
 .\"
@@ -237,7 +237,7 @@ sets a flag to indicate that a driver was converted to use the new macros.
 .Nm
 can be enabled only on interfaces with this flag.
 .Sh COMPATIBILITY
-.Ss Vt ifaltq Ss structure
+.Ss Vt ifaltq structure
 In order to keep compatibility with the existing code, the new
 output queue structure
 .Vt ifaltq
@@ -595,4 +595,8 @@ is called immediately after
 .Sh HISTORY
 The
 .Nm
-system first appeared in March 1997.
+system first appeared in March 1997 and found home in the KAME project
+(http://www.kame.net).
+It was imported to
+.Fx
+in 5.3 .

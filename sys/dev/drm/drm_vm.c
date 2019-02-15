@@ -43,7 +43,7 @@ int drm_mmap(struct cdev *kdev, vm_ooffset_t offset, vm_paddr_t *paddr,
 
 	/* d_mmap gets called twice, we can only reference file_priv during
 	 * the first call.  We need to assume that if error is EBADF the
-	 * call was succesful and the client is authenticated.
+	 * call was successful and the client is authenticated.
 	 */
 	error = devfs_get_cdevpriv((void **)&file_priv);
 	if (error == ENOENT) {

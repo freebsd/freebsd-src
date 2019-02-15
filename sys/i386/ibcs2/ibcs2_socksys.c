@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1994, 1995 Scott Bartram
  * Copyright (c) 1994 Arne H Juul
  * All rights reserved.
@@ -58,9 +60,7 @@ static int ibcs2_setipdomainname(struct thread *,
  */
 
 int
-ibcs2_socksys(td, uap)
-	register struct thread *td;
-	register struct ibcs2_socksys_args *uap;
+ibcs2_socksys(struct thread *td, struct ibcs2_socksys_args *uap)
 {
 	int error;
 	int realargs[7]; /* 1 for command, 6 for recvfrom */
@@ -142,9 +142,7 @@ ibcs2_socksys(td, uap)
 
 /* ARGSUSED */
 static int
-ibcs2_getipdomainname(td, uap)
-        struct thread *td;
-        struct getipdomainname_args *uap;
+ibcs2_getipdomainname(struct thread *td, struct getipdomainname_args *uap)
 {
 	char hname[MAXHOSTNAMELEN], *dptr;
 	int len;
@@ -167,9 +165,7 @@ ibcs2_getipdomainname(td, uap)
 
 /* ARGSUSED */
 static int
-ibcs2_setipdomainname(td, uap)
-        struct thread *td;
-        struct setipdomainname_args *uap;
+ibcs2_setipdomainname(struct thread *td, struct setipdomainname_args *uap)
 {
 	char hname[MAXHOSTNAMELEN], *ptr;
 	int error, sctl[2], hlen;

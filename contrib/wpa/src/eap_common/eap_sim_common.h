@@ -211,7 +211,8 @@ u8 * eap_sim_parse_encr(const u8 *k_encr, const u8 *encr_data,
 struct eap_sim_msg;
 
 struct eap_sim_msg * eap_sim_msg_init(int code, int id, int type, int subtype);
-struct wpabuf * eap_sim_msg_finish(struct eap_sim_msg *msg, const u8 *k_aut,
+struct wpabuf * eap_sim_msg_finish(struct eap_sim_msg *msg, int type,
+				   const u8 *k_aut,
 				   const u8 *extra, size_t extra_len);
 void eap_sim_msg_free(struct eap_sim_msg *msg);
 u8 * eap_sim_msg_add_full(struct eap_sim_msg *msg, u8 attr,

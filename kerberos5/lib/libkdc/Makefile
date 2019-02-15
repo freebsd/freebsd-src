@@ -1,11 +1,10 @@
 #$FreeBSD$
 
 LIB=	kdc
+PRIVATELIB=	true
 LDFLAGS=	-Wl,--no-undefined
 VERSION_MAP= ${KRB5DIR}/kdc/version-script.map
-LDADD=	-lroken -lhdb -lhx509 -lkrb5 -lheimntlm -lasn1 -lcrypt -lcrypto
-DPADD=	${LIBROKEN} ${LIBHDB} ${LIBHX509} ${LIBKRB5} ${LIBHEIMNTLM} \
-	${LIBASN1} ${LIBCRYPT} ${LIBCRYPTO}
+LIBADD=	roken hdb hx509 krb5 heimntlm asn1 crypto
 
 INCS=	kdc.h \
 	kdc-protos.h
@@ -27,10 +26,16 @@ SRCS=	\
 	process.c \
 	windc.c
 
-CFLAGS+=	-I${KRB5DIR}/lib/roken \
-		-I${KRB5DIR}/lib/krb5 \
-		-I${KRB5DIR}/lib/hdb \
-		-I${KRB5DIR}/kdc
+CFLAGS+=	-I${KRB5DIR}/lib/roken -I${.OBJDIR:H}/libroken \
+		-I${KRB5DIR}/lib/asn1 -I${.OBJDIR:H}/libasn1 \
+		-I${KRB5DIR}/lib/krb5 -I${.OBJDIR:H}/libkrb5 \
+		-I${KRB5DIR}/lib/wind -I${.OBJDIR:H}/libwind \
+		-I${KRB5DIR}/lib/hx509 -I${.OBJDIR:H}/libhx509 \
+		-I${KRB5DIR}/lib/hdb -I${.OBJDIR:H}/libhdb \
+		-I${KRB5DIR}/lib/ntlm -I${.OBJDIR:H}/libheimntlm \
+		-I${KRB5DIR}/kdc \
+		-I${SRCTOP}/contrib/com_err \
+		-I${KRB5DIR}/base
 
 .include <bsd.lib.mk>
 

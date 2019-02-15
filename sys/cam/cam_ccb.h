@@ -1,6 +1,8 @@
 /*-
  * Data structures and definitions for CAM Control Blocks (CCBs).
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, 1998 Justin T. Gibbs.
  * All rights reserved.
  *
@@ -41,6 +43,8 @@
 #include <cam/cam_debug.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/ata/ata_all.h>
+#include <cam/nvme/nvme_all.h>
+#include <cam/mmc/mmc_all.h>
 
 /* General allocation length definitions for CCB structures */
 #define	IOCDBLEN	CAM_MAX_CDBLEN	/* Space for CDB bytes/pointer */
@@ -108,6 +112,12 @@ typedef enum {
 
 	CAM_UNLOCKED		= 0x80000000 /* Call callback without lock.   */
 } ccb_flags;
+
+typedef enum {
+	CAM_USER_DATA_ADDR	= 0x00000002,/* Userspace data pointers */
+	CAM_SG_FORMAT_IOVEC	= 0x00000004,/* iovec instead of busdma S/G*/
+	CAM_UNMAPPED_BUF	= 0x00000008 /* use unmapped I/O */
+} ccb_xflags;
 
 /* XPT Opcodes for xpt_action */
 typedef enum {
@@ -183,22 +193,33 @@ typedef enum {
 	XPT_ATA_IO		= 0x18 | XPT_FC_DEV_QUEUED,
 				/* Execute the requested ATA I/O operation */
 
-	XPT_GET_SIM_KNOB	= 0x18,
-				/*
-				 * Get SIM specific knob values.
-				 */
+	XPT_GET_SIM_KNOB_OLD	= 0x18, /* Compat only */
 
 	XPT_SET_SIM_KNOB	= 0x19,
 				/*
 				 * Set SIM specific knob values.
 				 */
 
+	XPT_GET_SIM_KNOB	= 0x1a,
+				/*
+				 * Get SIM specific knob values.
+				 */
+
 	XPT_SMP_IO		= 0x1b | XPT_FC_DEV_QUEUED,
 				/* Serial Management Protocol */
 
-	XPT_SCAN_TGT		= 0x1E | XPT_FC_QUEUED | XPT_FC_USER_CCB
+	XPT_NVME_IO		= 0x1c | XPT_FC_DEV_QUEUED,
+				/* Execute the requested NVMe I/O operation */
+
+	XPT_MMC_IO		= 0x1d | XPT_FC_DEV_QUEUED,
+				/* Placeholder for MMC / SD / SDIO I/O stuff */
+
+	XPT_SCAN_TGT		= 0x1e | XPT_FC_QUEUED | XPT_FC_USER_CCB
 				       | XPT_FC_XPT_ONLY,
 				/* Scan Target */
+
+	XPT_NVME_ADMIN		= 0x1f | XPT_FC_DEV_QUEUED,
+				/* Execute the requested NVMe Admin operation */
 
 /* HBA engine commands 0x20->0x2F */
 	XPT_ENG_INQ		= 0x20 | XPT_FC_XPT_ONLY,
@@ -223,6 +244,8 @@ typedef enum {
 				/* Notify Host Target driver of event */
 	XPT_NOTIFY_ACKNOWLEDGE	= 0x37 | XPT_FC_QUEUED | XPT_FC_USER_CCB,
 				/* Acknowledgement of event */
+	XPT_REPROBE_LUN		= 0x38 | XPT_FC_QUEUED | XPT_FC_USER_CCB,
+				/* Query device capacity and notify GEOM */
 
 /* Vendor Unique codes: 0x80->0x8F */
 	XPT_VUNIQUE		= 0x80
@@ -249,6 +272,8 @@ typedef enum {
 	PROTO_ATAPI,	/* AT Attachment Packetized Interface */
 	PROTO_SATAPM,	/* SATA Port Multiplier */
 	PROTO_SEMB,	/* SATA Enclosure Management Bridge */
+	PROTO_NVME,	/* NVME */
+	PROTO_MMCSD,	/* MMC, SD, SDIO */
 } cam_proto;
 
 typedef enum {
@@ -264,12 +289,15 @@ typedef enum {
 	XPORT_SATA,	/* Serial AT Attachment */
 	XPORT_ISCSI,	/* iSCSI */
 	XPORT_SRP,	/* SCSI RDMA Protocol */
+	XPORT_NVME,	/* NVMe over PCIe */
+	XPORT_MMCSD,	/* MMC, SD, SDIO card */
 } cam_xport;
 
+#define XPORT_IS_NVME(t)	((t) == XPORT_NVME)
 #define XPORT_IS_ATA(t)		((t) == XPORT_ATA || (t) == XPORT_SATA)
 #define XPORT_IS_SCSI(t)	((t) != XPORT_UNKNOWN && \
 				 (t) != XPORT_UNSPECIFIED && \
-				 !XPORT_IS_ATA(t))
+				 !XPORT_IS_ATA(t) && !XPORT_IS_NVME(t))
 #define XPORT_DEVSTAT_TYPE(t)	(XPORT_IS_ATA(t) ? DEVSTAT_TYPE_IF_IDE : \
 				 XPORT_IS_SCSI(t) ? DEVSTAT_TYPE_IF_SCSI : \
 				 DEVSTAT_TYPE_IF_OTHER)
@@ -310,8 +338,8 @@ typedef struct {
 
 struct ccb_hdr {
 	cam_pinfo	pinfo;		/* Info for priority scheduling */
-	camq_entry	xpt_links;	/* For chaining in the XPT layer */	
-	camq_entry	sim_links;	/* For chaining in the SIM layer */	
+	camq_entry	xpt_links;	/* For chaining in the XPT layer */
+	camq_entry	sim_links;	/* For chaining in the SIM layer */
 	camq_entry	periph_links;	/* For chaining in the type driver */
 	u_int32_t	retry_count;
 	void		(*cbfcnp)(struct cam_periph *, union ccb *);
@@ -340,12 +368,13 @@ struct ccb_getdev {
 	u_int8_t  serial_num[252];
 	u_int8_t  inq_flags;
 	u_int8_t  serial_num_len;
+	void *padding[2];
 };
 
 /* Device Statistics CCB */
 struct ccb_getdevstats {
 	struct	ccb_hdr	ccb_h;
-	int	dev_openings;	/* Space left for more work on device*/	
+	int	dev_openings;	/* Space left for more work on device*/
 	int	dev_active;	/* Transactions running on the device */
 	int	allocated;	/* CCBs allocated for the device */
 	int	queued;		/* CCBs queued to be sent to the device */
@@ -419,7 +448,7 @@ struct device_match_pattern {
 	union {
 		struct scsi_static_inquiry_pattern	inq_pat;
 		struct device_id_match_pattern		devid_pat;
-	} data;	
+	} data;
 };
 
 typedef enum {
@@ -519,7 +548,7 @@ typedef enum {
 
 struct ccb_dm_cookie {
 	void 	*bus;
-	void	*target;	
+	void	*target;
 	void	*device;
 	void	*periph;
 	void	*pdrv;
@@ -573,6 +602,7 @@ typedef enum {
 } pi_tmflag;
 
 typedef enum {
+	PIM_ATA_EXT	= 0x200,/* ATA requests can understand ata_ext requests */
 	PIM_EXTLUNS	= 0x100,/* 64bit extended LUNs supported */
 	PIM_SCANHILO	= 0x80,	/* Bus scans from high ID to low ID */
 	PIM_NOREMOVE	= 0x40,	/* Removeable devices not included in scan */
@@ -599,6 +629,16 @@ struct ccb_pathinq_settings_fc {
 struct ccb_pathinq_settings_sas {
 	u_int32_t bitrate;	/* Mbps */
 };
+
+struct ccb_pathinq_settings_nvme {
+	uint32_t nsid;		/* Namespace ID for this path */
+	uint32_t domain;
+	uint8_t  bus;
+	uint8_t  slot;
+	uint8_t  function;
+	uint8_t  extra;
+};
+
 #define	PATHINQ_SETTINGS_SIZE	128
 
 struct ccb_pathinq {
@@ -629,6 +669,7 @@ struct ccb_pathinq {
 		struct ccb_pathinq_settings_spi spi;
 		struct ccb_pathinq_settings_fc fc;
 		struct ccb_pathinq_settings_sas sas;
+		struct ccb_pathinq_settings_nvme nvme;
 		char ccb_pathinq_settings_opaque[PATHINQ_SETTINGS_SIZE];
 	} xport_specific;
 	u_int		maxio;		/* Max supported I/O size, in bytes. */
@@ -695,7 +736,7 @@ struct ccb_scsiio {
 	u_int8_t   *req_map;		/* Ptr to mapping info */
 	u_int8_t   *data_ptr;		/* Ptr to the data buf/SG list */
 	u_int32_t  dxfer_len;		/* Data transfer length */
-					/* Autosense storage */	
+					/* Autosense storage */
 	struct     scsi_sense_data sense_data;
 	u_int8_t   sense_len;		/* Number of bytes to autosense */
 	u_int8_t   cdb_len;		/* Number of bytes for the CDB */
@@ -715,7 +756,17 @@ struct ccb_scsiio {
 #define		CAM_TAG_ACTION_NONE	0x00
 	u_int	   tag_id;		/* tag id from initator (target mode) */
 	u_int	   init_id;		/* initiator id of who selected */
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	struct bio *bio;		/* Associated bio */
+#endif
 };
+
+static __inline uint8_t *
+scsiio_cdb_ptr(struct ccb_scsiio *ccb)
+{
+	return ((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
+	    ccb->cdb_io.cdb_ptr : ccb->cdb_io.cdb_bytes);
+}
 
 /*
  * ATA I/O Request CCB used for the XPT_ATA_IO function code.
@@ -728,15 +779,20 @@ struct ccb_ataio {
 	u_int8_t   *data_ptr;		/* Ptr to the data buf/SG list */
 	u_int32_t  dxfer_len;		/* Data transfer length */
 	u_int32_t  resid;		/* Transfer residual length: 2's comp */
-	u_int8_t   tag_action;		/* What to do for tag queueing */
-	/*
-	 * The tag action should be either the define below (to send a
-	 * non-tagged transaction) or one of the defined scsi tag messages
-	 * from scsi_message.h.
-	 */
-#define		CAM_TAG_ACTION_NONE	0x00
-	u_int	   tag_id;		/* tag id from initator (target mode) */
-	u_int	   init_id;		/* initiator id of who selected */
+	u_int8_t   ata_flags;		/* Flags for the rest of the buffer */
+#define ATA_FLAG_AUX 0x1
+	uint32_t   aux;
+	uint32_t   unused;
+};
+
+/*
+ * MMC I/O Request CCB used for the XPT_MMC_IO function code.
+ */
+struct ccb_mmcio {
+	struct	   ccb_hdr ccb_h;
+	union	   ccb *next_ccb;	/* Ptr for next CCB for action */
+	struct mmc_command cmd;
+        struct mmc_command stop;
 };
 
 struct ccb_accept_tio {
@@ -750,6 +806,13 @@ struct ccb_accept_tio {
 	struct     scsi_sense_data sense_data;
 };
 
+static __inline uint8_t *
+atio_cdb_ptr(struct ccb_accept_tio *ccb)
+{
+	return ((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
+	    ccb->cdb_io.cdb_ptr : ccb->cdb_io.cdb_bytes);
+}
+
 /* Release SIM Queue */
 struct ccb_relsim {
 	struct ccb_hdr ccb_h;
@@ -761,6 +824,20 @@ struct ccb_relsim {
 	u_int32_t      openings;
 	u_int32_t      release_timeout;	/* Abstract argument. */
 	u_int32_t      qfrozen_cnt;
+};
+
+/*
+ * NVMe I/O Request CCB used for the XPT_NVME_IO and XPT_NVME_ADMIN function codes.
+ */
+struct ccb_nvmeio {
+	struct	   ccb_hdr ccb_h;
+	union	   ccb *next_ccb;	/* Ptr for next CCB for action */
+	struct nvme_command cmd;	/* NVME command, per NVME standard */
+	struct nvme_completion cpl;	/* NVME completion, per NVME standard */
+	uint8_t   *data_ptr;		/* Ptr to the data buf/SG list */
+	uint32_t  dxfer_len;		/* Data transfer length */
+	uint16_t  sglist_cnt;		/* Number of SG list entries */
+	uint16_t  unused;		/* padding for removed uint32_t */
 };
 
 /*
@@ -809,7 +886,7 @@ struct ac_device_changed {
 /* Set Asynchronous Callback CCB */
 struct ccb_setasync {
 	struct ccb_hdr	 ccb_h;
-	u_int32_t	 event_enable;	/* Async Event enables */	
+	u_int32_t	 event_enable;	/* Async Event enables */
 	ac_callback_t	*callback;
 	void		*callback_arg;
 };
@@ -940,6 +1017,42 @@ struct ccb_trans_settings_sata {
 #define	CTS_SATA_CAPS_D_APST		0x00020000
 };
 
+struct ccb_trans_settings_nvme 
+{
+	u_int     	valid;		/* Which fields to honor */
+#define CTS_NVME_VALID_SPEC	0x01
+#define CTS_NVME_VALID_CAPS	0x02
+#define CTS_NVME_VALID_LINK	0x04
+	uint32_t	spec;		/* NVMe spec implemented -- same as vs register */
+	uint32_t	max_xfer;	/* Max transfer size (0 -> unlimited */
+	uint32_t	caps;
+	uint8_t		lanes;		/* Number of PCIe lanes */
+	uint8_t		speed;		/* PCIe generation for each lane */
+	uint8_t		max_lanes;	/* Number of PCIe lanes */
+	uint8_t		max_speed;	/* PCIe generation for each lane */
+};
+
+#include <cam/mmc/mmc_bus.h>
+struct ccb_trans_settings_mmc {
+	struct mmc_ios ios;
+#define MMC_CLK		(1 << 1)
+#define MMC_VDD		(1 << 2)
+#define MMC_CS		(1 << 3)
+#define MMC_BW		(1 << 4)
+#define MMC_PM		(1 << 5)
+#define MMC_BT		(1 << 6)
+#define MMC_BM		(1 << 7)
+	uint32_t ios_valid;
+/* The folowing is used only for GET_TRAN_SETTINGS */
+	uint32_t	host_ocr;
+	int host_f_min;
+	int host_f_max;
+#define MMC_CAP_4_BIT_DATA	(1 << 0) /* Can do 4-bit data transfers */
+#define MMC_CAP_8_BIT_DATA	(1 << 1) /* Can do 8-bit data transfers */
+#define MMC_CAP_HSPEED		(1 << 2) /* Can do High Speed transfers */
+	uint32_t host_caps;
+};
+
 /* Get/Set transfer rate/width/disconnection/tag queueing settings */
 struct ccb_trans_settings {
 	struct	  ccb_hdr ccb_h;
@@ -952,6 +1065,8 @@ struct ccb_trans_settings {
 		u_int  valid;	/* Which fields to honor */
 		struct ccb_trans_settings_ata ata;
 		struct ccb_trans_settings_scsi scsi;
+		struct ccb_trans_settings_nvme nvme;
+		struct ccb_trans_settings_mmc mmc;
 	} proto_specific;
 	union {
 		u_int  valid;	/* Which fields to honor */
@@ -960,6 +1075,7 @@ struct ccb_trans_settings {
 		struct ccb_trans_settings_sas sas;
 		struct ccb_trans_settings_pata ata;
 		struct ccb_trans_settings_sata sata;
+		struct ccb_trans_settings_nvme nvme;
 	} xport_specific;
 };
 
@@ -972,7 +1088,7 @@ struct ccb_calc_geometry {
 	struct	  ccb_hdr ccb_h;
 	u_int32_t block_size;
 	u_int64_t volume_size;
-	u_int32_t cylinders;		
+	u_int32_t cylinders;
 	u_int8_t  heads;
 	u_int8_t  secs_per_track;
 };
@@ -1074,7 +1190,17 @@ struct ccb_notify_acknowledge {
 	u_int     tag_id;		/* Tag for immediate notify */
 	u_int     seq_id;		/* Tar for target of notify */
 	u_int     initiator_id;		/* Initiator Identifier */
-	u_int     arg;			/* Function specific */
+	u_int     arg;			/* Response information */
+	/*
+	 * Lower byte of arg is one of RESPONSE CODE values defined below
+	 * (subset of response codes from SPL-4 and FCP-4 specifications),
+	 * upper 3 bytes is code-specific ADDITIONAL RESPONSE INFORMATION.
+	 */
+#define	CAM_RSP_TMF_COMPLETE		0x00
+#define	CAM_RSP_TMF_REJECTED		0x04
+#define	CAM_RSP_TMF_FAILED		0x05
+#define	CAM_RSP_TMF_SUCCEEDED		0x08
+#define	CAM_RSP_TMF_INCORRECT_LUN	0x09
 };
 
 /* HBA engine structures. */
@@ -1140,6 +1266,7 @@ struct ccb_eng_exec {	/* This structure must match SCSIIO size */
 struct ccb_dev_advinfo {
 	struct ccb_hdr ccb_h;
 	uint32_t flags;
+#define	CDAI_FLAG_NONE		0x0	/* No flags set */
 #define	CDAI_FLAG_STORE		0x1	/* If set, action becomes store */
 	uint32_t buftype;		/* IN: Type of data being requested */
 	/* NB: buftype is interpreted on a per-transport basis */
@@ -1147,6 +1274,10 @@ struct ccb_dev_advinfo {
 #define	CDAI_TYPE_SERIAL_NUM	2
 #define	CDAI_TYPE_PHYS_PATH	3
 #define	CDAI_TYPE_RCAPLONG	4
+#define	CDAI_TYPE_EXT_INQ	5
+#define	CDAI_TYPE_NVME_CNTRL	6	/* NVMe Identify Controller data */
+#define	CDAI_TYPE_NVME_NS	7	/* NVMe Identify Namespace data */
+#define	CDAI_TYPE_MMC_PARAMS	8	/* MMC/SD ident */
 	off_t bufsiz;			/* IN: Size of external buffer */
 #define	CAM_SCSI_DEVID_MAXLEN	65536	/* length in buffer is an uint16_t */
 	off_t provsiz;			/* OUT: Size required/used */
@@ -1182,8 +1313,8 @@ union ccb {
 	struct	ccb_getdevstats		cgds;
 	struct	ccb_dev_match		cdm;
 	struct	ccb_trans_settings	cts;
-	struct	ccb_calc_geometry	ccg;	
-	struct	ccb_sim_knob		knob;	
+	struct	ccb_calc_geometry	ccg;
+	struct	ccb_sim_knob		knob;
 	struct	ccb_abort		cab;
 	struct	ccb_resetbus		crb;
 	struct	ccb_resetdev		crd;
@@ -1203,38 +1334,15 @@ union ccb {
 	struct	ccb_ataio		ataio;
 	struct	ccb_dev_advinfo		cdai;
 	struct	ccb_async		casync;
+	struct	ccb_nvmeio		nvmeio;
+	struct	ccb_mmcio		mmcio;
 };
 
+#define CCB_CLEAR_ALL_EXCEPT_HDR(ccbp)			\
+	bzero((char *)(ccbp) + sizeof((ccbp)->ccb_h),	\
+	    sizeof(*(ccbp)) - sizeof((ccbp)->ccb_h))
+
 __BEGIN_DECLS
-static __inline void
-cam_fill_csio(struct ccb_scsiio *csio, u_int32_t retries,
-	      void (*cbfcnp)(struct cam_periph *, union ccb *),
-	      u_int32_t flags, u_int8_t tag_action,
-	      u_int8_t *data_ptr, u_int32_t dxfer_len,
-	      u_int8_t sense_len, u_int8_t cdb_len,
-	      u_int32_t timeout);
-
-static __inline void
-cam_fill_ctio(struct ccb_scsiio *csio, u_int32_t retries,
-	      void (*cbfcnp)(struct cam_periph *, union ccb *),
-	      u_int32_t flags, u_int tag_action, u_int tag_id,
-	      u_int init_id, u_int scsi_status, u_int8_t *data_ptr,
-	      u_int32_t dxfer_len, u_int32_t timeout);
-
-static __inline void
-cam_fill_ataio(struct ccb_ataio *ataio, u_int32_t retries,
-	      void (*cbfcnp)(struct cam_periph *, union ccb *),
-	      u_int32_t flags, u_int tag_action,
-	      u_int8_t *data_ptr, u_int32_t dxfer_len,
-	      u_int32_t timeout);
-
-static __inline void
-cam_fill_smpio(struct ccb_smpio *smpio, uint32_t retries, 
-	       void (*cbfcnp)(struct cam_periph *, union ccb *), uint32_t flags,
-	       uint8_t *smp_request, int smp_request_len,
-	       uint8_t *smp_response, int smp_response_len,
-	       uint32_t timeout);
-
 static __inline void
 cam_fill_csio(struct ccb_scsiio *csio, u_int32_t retries,
 	      void (*cbfcnp)(struct cam_periph *, union ccb *),
@@ -1246,7 +1354,7 @@ cam_fill_csio(struct ccb_scsiio *csio, u_int32_t retries,
 	csio->ccb_h.func_code = XPT_SCSI_IO;
 	csio->ccb_h.flags = flags;
 	csio->ccb_h.xflags = 0;
-	csio->ccb_h.retry_count = retries;	
+	csio->ccb_h.retry_count = retries;
 	csio->ccb_h.cbfcnp = cbfcnp;
 	csio->ccb_h.timeout = timeout;
 	csio->data_ptr = data_ptr;
@@ -1254,6 +1362,9 @@ cam_fill_csio(struct ccb_scsiio *csio, u_int32_t retries,
 	csio->sense_len = sense_len;
 	csio->cdb_len = cdb_len;
 	csio->tag_action = tag_action;
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	csio->bio = NULL;
+#endif
 }
 
 static __inline void
@@ -1266,7 +1377,7 @@ cam_fill_ctio(struct ccb_scsiio *csio, u_int32_t retries,
 	csio->ccb_h.func_code = XPT_CONT_TARGET_IO;
 	csio->ccb_h.flags = flags;
 	csio->ccb_h.xflags = 0;
-	csio->ccb_h.retry_count = retries;	
+	csio->ccb_h.retry_count = retries;
 	csio->ccb_h.cbfcnp = cbfcnp;
 	csio->ccb_h.timeout = timeout;
 	csio->data_ptr = data_ptr;
@@ -1280,7 +1391,7 @@ cam_fill_ctio(struct ccb_scsiio *csio, u_int32_t retries,
 static __inline void
 cam_fill_ataio(struct ccb_ataio *ataio, u_int32_t retries,
 	      void (*cbfcnp)(struct cam_periph *, union ccb *),
-	      u_int32_t flags, u_int tag_action,
+	      u_int32_t flags, u_int tag_action __unused,
 	      u_int8_t *data_ptr, u_int32_t dxfer_len,
 	      u_int32_t timeout)
 {
@@ -1291,11 +1402,11 @@ cam_fill_ataio(struct ccb_ataio *ataio, u_int32_t retries,
 	ataio->ccb_h.timeout = timeout;
 	ataio->data_ptr = data_ptr;
 	ataio->dxfer_len = dxfer_len;
-	ataio->tag_action = tag_action;
+	ataio->ata_flags = 0;
 }
 
 static __inline void
-cam_fill_smpio(struct ccb_smpio *smpio, uint32_t retries, 
+cam_fill_smpio(struct ccb_smpio *smpio, uint32_t retries,
 	       void (*cbfcnp)(struct cam_periph *, union ccb *), uint32_t flags,
 	       uint8_t *smp_request, int smp_request_len,
 	       uint8_t *smp_response, int smp_response_len,
@@ -1321,6 +1432,34 @@ cam_fill_smpio(struct ccb_smpio *smpio, uint32_t retries,
 }
 
 static __inline void
+cam_fill_mmcio(struct ccb_mmcio *mmcio, uint32_t retries,
+	       void (*cbfcnp)(struct cam_periph *, union ccb *), uint32_t flags,
+	       uint32_t mmc_opcode, uint32_t mmc_arg, uint32_t mmc_flags,
+	       struct mmc_data *mmc_d,
+	       uint32_t timeout)
+{
+	mmcio->ccb_h.func_code = XPT_MMC_IO;
+	mmcio->ccb_h.flags = flags;
+	mmcio->ccb_h.retry_count = retries;
+	mmcio->ccb_h.cbfcnp = cbfcnp;
+	mmcio->ccb_h.timeout = timeout;
+	mmcio->cmd.opcode = mmc_opcode;
+	mmcio->cmd.arg = mmc_arg;
+	mmcio->cmd.flags = mmc_flags;
+	mmcio->stop.opcode = 0;
+	mmcio->stop.arg = 0;
+	mmcio->stop.flags = 0;
+	if (mmc_d != NULL) {
+		mmcio->cmd.data = mmc_d;
+	} else
+		mmcio->cmd.data = NULL;
+	mmcio->cmd.resp[0] = 0;
+	mmcio->cmd.resp[1] = 0;
+	mmcio->cmd.resp[2] = 0;
+	mmcio->cmd.resp[3] = 0;
+}
+
+static __inline void
 cam_set_ccbstatus(union ccb *ccb, cam_status status)
 {
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
@@ -1335,6 +1474,35 @@ cam_ccb_status(union ccb *ccb)
 
 void cam_calc_geometry(struct ccb_calc_geometry *ccg, int extended);
 
+static __inline void
+cam_fill_nvmeio(struct ccb_nvmeio *nvmeio, u_int32_t retries,
+	      void (*cbfcnp)(struct cam_periph *, union ccb *),
+	      u_int32_t flags, u_int8_t *data_ptr, u_int32_t dxfer_len,
+	      u_int32_t timeout)
+{
+	nvmeio->ccb_h.func_code = XPT_NVME_IO;
+	nvmeio->ccb_h.flags = flags;
+	nvmeio->ccb_h.retry_count = retries;
+	nvmeio->ccb_h.cbfcnp = cbfcnp;
+	nvmeio->ccb_h.timeout = timeout;
+	nvmeio->data_ptr = data_ptr;
+	nvmeio->dxfer_len = dxfer_len;
+}
+
+static __inline void
+cam_fill_nvmeadmin(struct ccb_nvmeio *nvmeio, u_int32_t retries,
+	      void (*cbfcnp)(struct cam_periph *, union ccb *),
+	      u_int32_t flags, u_int8_t *data_ptr, u_int32_t dxfer_len,
+	      u_int32_t timeout)
+{
+	nvmeio->ccb_h.func_code = XPT_NVME_ADMIN;
+	nvmeio->ccb_h.flags = flags;
+	nvmeio->ccb_h.retry_count = retries;
+	nvmeio->ccb_h.cbfcnp = cbfcnp;
+	nvmeio->ccb_h.timeout = timeout;
+	nvmeio->data_ptr = data_ptr;
+	nvmeio->dxfer_len = dxfer_len;
+}
 __END_DECLS
 
 #endif /* _CAM_CAM_CCB_H */

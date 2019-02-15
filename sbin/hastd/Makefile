@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=hast
 PROG=	hastd
 SRCS=	activemap.c
 SRCS+=	control.c crc32.c
@@ -30,13 +31,7 @@ CFLAGS+=-DINET
 CFLAGS+=-DINET6
 .endif
 
-DPADD=	${LIBGEOM} ${LIBBSDXML} ${LIBSBUF} ${LIBPTHREAD} ${LIBUTIL}
-LDADD=	-lgeom -lbsdxml -lsbuf -lpthread -lutil
-.if ${MK_OPENSSL} != "no"
-DPADD+=	${LIBCRYPTO}
-LDADD+=	-lcrypto
-CFLAGS+=-DHAVE_CRYPTO
-.endif
+LIBADD=	geom md pthread util
 
 YFLAGS+=-v
 

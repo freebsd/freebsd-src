@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Marcel Moolenaar
  * All rights reserved.
  *
@@ -65,6 +67,7 @@ int snprintf_uuid(char *, size_t, struct uuid *);
 int printf_uuid(struct uuid *);
 int sbuf_printf_uuid(struct sbuf *, struct uuid *);
 int parse_uuid(const char *, struct uuid *);
+int uuidcmp(const struct uuid *, const struct uuid *);
 
 void be_uuid_dec(void const *buf, struct uuid *uuid);
 void be_uuid_enc(void *buf, struct uuid const *uuid);

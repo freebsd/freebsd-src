@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Marcel Moolenaar
  * Copyright (c) 2009 Nathan Whitehorn
  * All rights reserved.
@@ -44,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/fpu.h>	/* For save_fpu() */
 #include <machine/hid.h>
 #include <machine/platformvar.h>
-#include <machine/pmap.h>
 #include <machine/setjmp.h>
 #include <machine/smp.h>
 #include <machine/spr.h>
@@ -65,6 +66,7 @@ static int powermac_smp_first_cpu(platform_t, struct cpuref *cpuref);
 static int powermac_smp_next_cpu(platform_t, struct cpuref *cpuref);
 static int powermac_smp_get_bsp(platform_t, struct cpuref *cpuref);
 static int powermac_smp_start_cpu(platform_t, struct pcpu *cpu);
+static void powermac_smp_timebase_sync(platform_t, u_long tb, int ap);
 static void powermac_reset(platform_t);
 static void powermac_sleep(platform_t);
 
@@ -78,6 +80,7 @@ static platform_method_t powermac_methods[] = {
 	PLATFORMMETHOD(platform_smp_next_cpu,	powermac_smp_next_cpu),
 	PLATFORMMETHOD(platform_smp_get_bsp,	powermac_smp_get_bsp),
 	PLATFORMMETHOD(platform_smp_start_cpu,	powermac_smp_start_cpu),
+	PLATFORMMETHOD(platform_smp_timebase_sync, powermac_smp_timebase_sync),
 
 	PLATFORMMETHOD(platform_reset,		powermac_reset),
 	PLATFORMMETHOD(platform_sleep,		powermac_sleep),
@@ -126,6 +129,8 @@ powermac_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
 	int physacells = 1;
 
 	memory = OF_finddevice("/memory");
+	if (memory == -1)
+		memory = OF_finddevice("/memory@0");
 
 	/* "reg" has variable #address-cells, but #size-cells is always 1 */
 	OF_getprop(OF_parent(memory), "#address-cells", &physacells,
@@ -154,23 +159,32 @@ powermac_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
 	/* "available" always has #address-cells = 1 */
 	propsize = OF_getprop(memory, "available", memoryprop,
 	    sizeof(memoryprop));
-	propsize /= sizeof(cell_t);
-	for (i = 0, j = 0; i < propsize; i += 2, j++) {
-		avail[j].mr_start = memoryprop[i];
-		avail[j].mr_size = memoryprop[i + 1];
-	}
+	if (propsize <= 0) {
+		for (i = 0; i < *physsz; i++) {
+			avail[i].mr_start = phys[i].mr_start;
+			avail[i].mr_size = phys[i].mr_size;
+		}
+
+		*availsz = *physsz;
+	} else {
+		propsize /= sizeof(cell_t);
+		for (i = 0, j = 0; i < propsize; i += 2, j++) {
+			avail[j].mr_start = memoryprop[i];
+			avail[j].mr_size = memoryprop[i + 1];
+		}
 
 #ifdef __powerpc64__
-	/* Add in regions above 4 GB to the available list */
-	for (i = 0; i < *physsz; i++) {
-		if (phys[i].mr_start > BUS_SPACE_MAXADDR_32BIT) {
-			avail[j].mr_start = phys[i].mr_start;
-			avail[j].mr_size = phys[i].mr_size;
-			j++;
+		/* Add in regions above 4 GB to the available list */
+		for (i = 0; i < *physsz; i++) {
+			if (phys[i].mr_start > BUS_SPACE_MAXADDR_32BIT) {
+				avail[j].mr_start = phys[i].mr_start;
+				avail[j].mr_size = phys[i].mr_size;
+				j++;
+			}
 		}
-	}
 #endif
-	*availsz = j;
+		*availsz = j;
+	}
 }
 
 static int
@@ -377,6 +391,13 @@ powermac_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	/* No SMP support */
 	return (ENXIO);
 #endif
+}
+
+static void
+powermac_smp_timebase_sync(platform_t plat, u_long tb, int ap)
+{
+
+	mttb(tb);
 }
 
 static void

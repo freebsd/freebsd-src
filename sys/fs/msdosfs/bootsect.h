@@ -25,13 +25,13 @@
  * first sector of a partitioned hard disk.
  */
 struct bootsector33 {
-	u_int8_t	bsJump[3];		/* jump inst E9xxxx or EBxx90 */
+	uint8_t		bsJump[3];		/* jump inst E9xxxx or EBxx90 */
 	int8_t		bsOemName[8];		/* OEM name and version */
 	int8_t		bsBPB[19];		/* BIOS parameter block */
 	int8_t		bsDriveNumber;		/* drive number (0x80) */
 	int8_t		bsBootCode[479];	/* pad so struct is 512b */
-	u_int8_t	bsBootSectSig0;
-	u_int8_t	bsBootSectSig1;
+	uint8_t		bsBootSectSig0;
+	uint8_t		bsBootSectSig1;
 #define	BOOTSIG0	0x55
 #define	BOOTSIG1	0xaa
 };
@@ -47,25 +47,25 @@ struct extboot {
 };
 
 struct bootsector50 {
-	u_int8_t	bsJump[3];		/* jump inst E9xxxx or EBxx90 */
+	uint8_t		bsJump[3];		/* jump inst E9xxxx or EBxx90 */
 	int8_t		bsOemName[8];		/* OEM name and version */
 	int8_t		bsBPB[25];		/* BIOS parameter block */
 	int8_t		bsExt[26];		/* Bootsector Extension */
 	int8_t		bsBootCode[448];	/* pad so structure is 512b */
-	u_int8_t	bsBootSectSig0;
-	u_int8_t	bsBootSectSig1;
+	uint8_t		bsBootSectSig0;
+	uint8_t		bsBootSectSig1;
 #define	BOOTSIG0	0x55
 #define	BOOTSIG1	0xaa
 };
 
 struct bootsector710 {
-	u_int8_t	bsJump[3];		/* jump inst E9xxxx or EBxx90 */
+	uint8_t		bsJump[3];		/* jump inst E9xxxx or EBxx90 */
 	int8_t		bsOEMName[8];		/* OEM name and version */
 	int8_t		bsBPB[53];		/* BIOS parameter block */
 	int8_t		bsExt[26];		/* Bootsector Extension */
 	int8_t		bsBootCode[420];	/* pad so structure is 512b */
-	u_int8_t	bsBootSectSig0;
-	u_int8_t	bsBootSectSig1;
+	uint8_t		bsBootSectSig0;
+	uint8_t		bsBootSectSig1;
 #define	BOOTSIG0	0x55
 #define	BOOTSIG1	0xaa
 };

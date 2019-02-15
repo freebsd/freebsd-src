@@ -47,7 +47,7 @@ static const char rcsid[] =
 #define WANT_GLOBBING 0
 
 /*
- * Special version of popen which avoids call to shell.  This insures noone
+ * Special version of popen which avoids call to shell.  This insures no one
  * may create a pipe to a hidden program as a side effect of a list or dir
  * command.
  */
@@ -82,9 +82,8 @@ cron_popen(program, type, e)
 	if (!pids) {
 		if ((fds = getdtablesize()) <= 0)
 			return(NULL);
-		if (!(pids = (PID_T *)malloc((u_int)(fds * sizeof(PID_T)))))
+		if (!(pids = calloc(fds, sizeof(PID_T))))
 			return(NULL);
-		bzero((char *)pids, fds * sizeof(PID_T));
 	}
 	if (pipe(pdes) < 0)
 		return(NULL);

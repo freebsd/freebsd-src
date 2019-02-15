@@ -1,22 +1,57 @@
 $FreeBSD: head/tools/regression/pjdfstest/README 211354 2010-08-15 21:29:03Z pjd $
 
-Few notes on how to use pjdfstest in short steps:
+============
+Introduction
+============
 
-	# cd pjdfstest
-	# vi tests/conf
-	Change 'fs' to file system type you want to test (UFS or ZFS).
-	# vi Makefile
-	You need to manually tweak few things by editing CFLAGS lines
-	at the top of the file.
-	# make
-	It will compile pjdfstest utility which is used by regression tests.
-	# cd /path/to/file/system/you/want/to/test/
-	# prove -r /path/to/pjdfstest/tests
+pjdfstest is a test suite that helps exercise POSIX system calls.
 
-That's all. Enjoy.
+pjdfstest supports the following operating systems/filesystems:
 
-Currently supported operating systems: FreeBSD, Solaris.
-Currently supported file system types: UFS, ZFS.
+- Supported Operating Systems: FreeBSD, Linux, Solaris
+- Supported Filesystems: ext4, UFS, ZFS
 
--- 
-Pawel Jakub Dawidek <pawel@dawidek.net>
+==================
+Building pjdfstest
+==================
+
+-------------
+Prerequisites
+-------------
+
+- autoconf 2.69 or newer
+- automake 1.15 or newer
+- cc (clang or gcc)
+- make
+- appropriate system headers (please install your distribution appropriate
+  header package)
+
+---------
+Procedure
+---------
+
+  $ autoreconf -ifs
+  $ ./configure
+  $ make pjdfstest
+
+=================
+Running pjdfstest
+=================
+
+-------------
+Prerequisites
+-------------
+- You must be root when running these testcases.
+
+----------------------
+Software Prerequisites
+----------------------
+- perl
+- TAP-Harness (perl package)
+
+---------
+Procedure
+---------
+
+  # cd /path/to/filesystem/under/test
+  # prove -rv /path/to/pjdfstest/tests

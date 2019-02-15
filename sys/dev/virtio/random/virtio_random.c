@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
@@ -129,7 +131,7 @@ vtrnd_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->vtrnd_dev = dev;
 
-	callout_init(&sc->vtrnd_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->vtrnd_callout, 1);
 
 	virtio_set_feature_desc(dev, vtrnd_feature_desc);
 	vtrnd_negotiate_features(sc);
@@ -215,8 +217,7 @@ vtrnd_harvest(struct vtrnd_softc *sc)
 	virtqueue_notify(vq);
 	virtqueue_poll(vq, NULL);
 
-	random_harvest(&value, sizeof(value), sizeof(value) * NBBY / 2,
-	    RANDOM_PURE_VIRTIO);
+	random_harvest_queue(&value, sizeof(value), RANDOM_PURE_VIRTIO);
 }
 
 static void

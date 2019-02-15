@@ -1,6 +1,8 @@
 /*-
  * Core definitions and data structures shareable across OS platforms.
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994-2001 Justin T. Gibbs.
  * Copyright (c) 2000-2001 Adaptec Inc.
  * All rights reserved.
@@ -207,7 +209,7 @@ typedef enum {
 	AHC_AIC7892	= 0x000c,
 	AHC_AIC7899	= 0x000d,
 	AHC_VL		= 0x0100,	/* Bus type VL */
-	AHC_EISA	= 0x0200,	/* Bus type EISA */
+	AHC_EISA	= 0x0200,	/* Bus type EISA/ISA */
 	AHC_PCI		= 0x0400,	/* Bus type PCI */
 	AHC_BUS_MASK	= 0x0F00
 } ahc_chip;
@@ -448,7 +450,7 @@ struct hardware_scb {
  * each S/G element is expired, its datacnt field is checked to see
  * if the LAST_SEG flag is set.  If so, SG_LIST_NULL is set in the
  * residual sg ptr and the transfer is considered complete.  If the
- * sequencer determines that there is a residual in the tranfer, it
+ * sequencer determines that there is a residual in the transfer, it
  * will set the SG_RESID_VALID flag in sgptr and dma the scb back into
  * host memory.  To sumarize:
  *
@@ -456,7 +458,7 @@ struct hardware_scb {
  *	o A residual has occurred if SG_FULL_RESID is set in sgptr,
  *	  or residual_sgptr does not have SG_LIST_NULL set.
  *
- *	o We are transfering the last segment if residual_datacnt has
+ *	o We are transferring the last segment if residual_datacnt has
  *	  the SG_LAST_SEG flag set.
  *
  * Host:
@@ -510,7 +512,7 @@ struct hardware_scb {
  */
 
 /*
- * Definition of a scatter/gather element as transfered to the controller.
+ * Definition of a scatter/gather element as transferred to the controller.
  * The aic7xxx chips only support a 24bit length.  We use the top byte of
  * the length to store additional address bits and a flag to indicate
  * that a given segment terminates the transfer.  This gives us an
@@ -1170,7 +1172,7 @@ struct ahc_pci_identity {
 extern struct ahc_pci_identity ahc_pci_ident_table[];
 extern const u_int ahc_num_pci_devs;
 
-/***************************** VL/EISA Declarations ***************************/
+/*************************** VL/EISA/ISA Declarations *************************/
 struct aic7770_identity {
 	uint32_t		 full_id;
 	uint32_t		 id_mask;
@@ -1197,7 +1199,7 @@ int			 ahc_pci_config(struct ahc_softc *,
 					struct ahc_pci_identity *);
 int			 ahc_pci_test_register_access(struct ahc_softc *);
 
-/*************************** EISA/VL Front End ********************************/
+/*************************** ISA/EISA/VL Front End ****************************/
 struct aic7770_identity *aic7770_find_device(uint32_t);
 int			 aic7770_config(struct ahc_softc *ahc,
 					struct aic7770_identity *,

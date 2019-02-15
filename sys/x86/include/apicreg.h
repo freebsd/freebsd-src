@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1996, by Peter Wemm and Steve Passe
  * All rights reserved.
  *
@@ -193,6 +195,81 @@ struct LAPIC {
 
 typedef struct LAPIC lapic_t;
 
+enum LAPIC_REGISTERS {
+	LAPIC_ID	= 0x2,
+	LAPIC_VERSION	= 0x3,
+	LAPIC_TPR	= 0x8,
+	LAPIC_APR	= 0x9,
+	LAPIC_PPR	= 0xa,
+	LAPIC_EOI	= 0xb,
+	LAPIC_LDR	= 0xd,
+	LAPIC_DFR	= 0xe, /* Not in x2APIC */
+	LAPIC_SVR	= 0xf,
+	LAPIC_ISR0	= 0x10,
+	LAPIC_ISR1	= 0x11,
+	LAPIC_ISR2	= 0x12,
+	LAPIC_ISR3	= 0x13,
+	LAPIC_ISR4	= 0x14,
+	LAPIC_ISR5	= 0x15,
+	LAPIC_ISR6	= 0x16,
+	LAPIC_ISR7	= 0x17,
+	LAPIC_TMR0	= 0x18,
+	LAPIC_TMR1	= 0x19,
+	LAPIC_TMR2	= 0x1a,
+	LAPIC_TMR3	= 0x1b,
+	LAPIC_TMR4	= 0x1c,
+	LAPIC_TMR5	= 0x1d,
+	LAPIC_TMR6	= 0x1e,
+	LAPIC_TMR7	= 0x1f,
+	LAPIC_IRR0	= 0x20,
+	LAPIC_IRR1	= 0x21,
+	LAPIC_IRR2	= 0x22,
+	LAPIC_IRR3	= 0x23,
+	LAPIC_IRR4	= 0x24,
+	LAPIC_IRR5	= 0x25,
+	LAPIC_IRR6	= 0x26,
+	LAPIC_IRR7	= 0x27,
+	LAPIC_ESR	= 0x28,
+	LAPIC_LVT_CMCI	= 0x2f,
+	LAPIC_ICR_LO	= 0x30,
+	LAPIC_ICR_HI	= 0x31, /* Not in x2APIC */
+	LAPIC_LVT_TIMER	= 0x32,
+	LAPIC_LVT_THERMAL = 0x33,
+	LAPIC_LVT_PCINT	= 0x34,
+	LAPIC_LVT_LINT0	= 0x35,
+	LAPIC_LVT_LINT1	= 0x36,
+	LAPIC_LVT_ERROR	= 0x37,
+	LAPIC_ICR_TIMER	= 0x38,
+	LAPIC_CCR_TIMER	= 0x39,
+	LAPIC_DCR_TIMER	= 0x3e,
+	LAPIC_SELF_IPI	= 0x3f, /* Only in x2APIC */
+	LAPIC_EXT_FEATURES = 0x40, /* AMD */
+	LAPIC_EXT_CTRL	= 0x41, /* AMD */
+	LAPIC_EXT_SEOI	= 0x42, /* AMD */
+	LAPIC_EXT_IER0	= 0x48, /* AMD */
+	LAPIC_EXT_IER1	= 0x49, /* AMD */
+	LAPIC_EXT_IER2	= 0x4a, /* AMD */
+	LAPIC_EXT_IER3	= 0x4b, /* AMD */
+	LAPIC_EXT_IER4	= 0x4c, /* AMD */
+	LAPIC_EXT_IER5	= 0x4d, /* AMD */
+	LAPIC_EXT_IER6	= 0x4e, /* AMD */
+	LAPIC_EXT_IER7	= 0x4f, /* AMD */
+	LAPIC_EXT_LVT0	= 0x50, /* AMD */
+	LAPIC_EXT_LVT1	= 0x51, /* AMD */
+	LAPIC_EXT_LVT2	= 0x52, /* AMD */
+	LAPIC_EXT_LVT3	= 0x53, /* AMD */
+};
+
+#define	LAPIC_MEM_MUL	0x10
+
+/*
+ * Although some registers are available on AMD processors only,
+ * it's not a big waste to reserve them on all platforms.
+ * However, we need to watch out for this space being assigned for
+ * non-APIC purposes in the future processor models.
+ */
+#define	LAPIC_MEM_REGION ((LAPIC_EXT_LVT3 + 1) * LAPIC_MEM_MUL)
+
 /******************************************************************************
  * I/O APIC structure
  */
@@ -235,6 +312,7 @@ typedef struct IOAPIC ioapic_t;
 #define APIC_VER_MAXLVT		0x00ff0000
 #define MAXLVTSHIFT		16
 #define APIC_VER_EOI_SUPPRESSION 0x01000000
+#define APIC_VER_AMD_EXT_SPACE	0x80000000
 
 /* fields in LDR */
 #define	APIC_LDR_RESERVED	0x00ffffff
@@ -339,10 +417,11 @@ typedef struct IOAPIC ioapic_t;
 #define APIC_LVTT_VECTOR	0x000000ff
 #define APIC_LVTT_DS		0x00001000
 #define APIC_LVTT_M		0x00010000
-#define APIC_LVTT_TM		0x00020000
+#define APIC_LVTT_TM		0x00060000
 # define APIC_LVTT_TM_ONE_SHOT	0x00000000
 # define APIC_LVTT_TM_PERIODIC	0x00020000
-
+# define APIC_LVTT_TM_TSCDLT	0x00040000
+# define APIC_LVTT_TM_RSRV	0x00060000
 
 /* APIC timer current count */
 #define	APIC_TIMER_MAX_COUNT	0xffffffff
@@ -357,6 +436,13 @@ typedef struct IOAPIC ioapic_t;
 #define APIC_TDCR_128		0x0a
 #define APIC_TDCR_1		0x0b
 
+/* Constants related to AMD Extended APIC Features Register */
+#define	APIC_EXTF_ELVT_MASK	0x00ff0000
+#define	APIC_EXTF_ELVT_SHIFT	16
+#define	APIC_EXTF_EXTID_CAP	0x00000004
+#define	APIC_EXTF_SEIO_CAP	0x00000002
+#define	APIC_EXTF_IER_CAP	0x00000001
+
 /* LVT table indices */
 #define	APIC_LVT_LINT0		0
 #define	APIC_LVT_LINT1		1
@@ -366,6 +452,13 @@ typedef struct IOAPIC ioapic_t;
 #define	APIC_LVT_THERMAL	5
 #define	APIC_LVT_CMCI		6
 #define	APIC_LVT_MAX		APIC_LVT_CMCI
+
+/* AMD extended LVT constants, seem to be assigned by fiat */
+#define	APIC_ELVT_IBS		0 /* Instruction based sampling */
+#define	APIC_ELVT_MCA		1 /* MCE thresholding */
+#define	APIC_ELVT_DEI		2 /* Deferred error interrupt */
+#define	APIC_ELVT_SBI		3 /* Sideband interface */
+#define	APIC_ELVT_MAX		APIC_ELVT_SBI
 
 /******************************************************************************
  * I/O APIC defines
@@ -377,6 +470,8 @@ typedef struct IOAPIC ioapic_t;
 /* window register offset */
 #define IOAPIC_WINDOW		0x10
 #define IOAPIC_EOIR		0x40
+
+#define	IOAPIC_WND_SIZE		0x50
 
 /* indexes into IO APIC */
 #define IOAPIC_ID		0x00

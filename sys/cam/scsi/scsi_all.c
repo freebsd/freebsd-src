@@ -1,6 +1,8 @@
 /*-
  * Implementation of Utility functions for all SCSI device types.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, 1998, 1999 Justin T. Gibbs.
  * Copyright (c) 1997, 1998, 2003 Kenneth D. Merry.
  * All rights reserved.
@@ -35,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stdint.h>
 
 #ifdef _KERNEL
-#include <opt_scsi.h>
+#include "opt_scsi.h"
 
 #include <sys/systm.h>
 #include <sys/libkern.h>
@@ -111,6 +113,7 @@ static void	fetchtableentries(int sense_key, int asc, int ascq,
 				  struct scsi_inquiry_data *,
 				  const struct sense_key_table_entry **,
 				  const struct asc_table_entry **);
+
 #ifdef _KERNEL
 static void	init_scsi_delay(void);
 static int	sysctl_scsi_delay(SYSCTL_HANDLER_ARGS);
@@ -154,7 +157,7 @@ static struct scsi_op_quirk_entry scsi_op_quirk_table[] = {
 		 * feel free to change this quirk entry.
 		 */
 		{T_CDROM, SIP_MEDIA_REMOVABLE, "PLEXTOR", "CD-ROM PX*", "*"},
-		sizeof(plextor_cd_ops)/sizeof(struct op_table_entry),
+		nitems(plextor_cd_ops),
 		plextor_cd_ops
 	}
 };
@@ -175,7 +178,7 @@ static struct op_table_entry scsi_op_codes[] = {
 	 *
 	 * SCSI Operation Codes
 	 * Numeric Sorted Listing
-	 * as of  3/11/08
+	 * as of  5/26/15
 	 *
 	 *     D - DIRECT ACCESS DEVICE (SBC-2)                device column key
 	 *     .T - SEQUENTIAL ACCESS DEVICE (SSC-2)           -----------------
@@ -467,10 +470,6 @@ static struct op_table_entry scsi_op_codes[] = {
 	{ 0x86,	ALL & ~(L | R | F), "ACCESS CONTROL IN" },
 	/* 87  OO OO OOOOOOO   ACCESS CONTROL OUT */
 	{ 0x87,	ALL & ~(L | R | F), "ACCESS CONTROL OUT" },
-	/*
-	 * XXX READ(16)/WRITE(16) were not listed for CD/DVE in op-num.txt
-	 * but we had it since r1.40.  Do we really want them?
-	 */
 	/* 88  MM  O O   O     READ(16) */
 	{ 0x88,	D | T | W | O | B, "READ(16)" },
 	/* 89  O               COMPARE AND WRITE*/
@@ -501,20 +500,25 @@ static struct op_table_entry scsi_op_codes[] = {
 	{ 0x93,	D, "WRITE SAME(16)" },
 	/* 93   M              ERASE(16) */
 	{ 0x93,	T, "ERASE(16)" },
-	/* 94 [usage proposed by SCSI Socket Services project] */
-	/* 95 [usage proposed by SCSI Socket Services project] */
-	/* 96 [usage proposed by SCSI Socket Services project] */
-	/* 97 [usage proposed by SCSI Socket Services project] */
+	/* 94  O               ZBC OUT */
+	{ 0x94,	ALL, "ZBC OUT" },
+	/* 95  O               ZBC IN */
+	{ 0x95,	ALL, "ZBC IN" },
+	/* 96 */
+	/* 97 */
 	/* 98 */
 	/* 99 */
-	/* 9A */
-	/* 9B */
-	/* 9C */
-	/* 9D */
+	/* 9A  O               WRITE STREAM(16) */
+	{ 0x9A,	D, "WRITE STREAM(16)" },
+	/* 9B  OOOOOOOOOO OOO  READ BUFFER(16) */
+	{ 0x9B,	ALL & ~(B) , "READ BUFFER(16)" },
+	/* 9C  O              WRITE ATOMIC(16) */
+	{ 0x9C, D, "WRITE ATOMIC(16)" },
+	/* 9D                  SERVICE ACTION BIDIRECTIONAL */
+	{ 0x9D, ALL, "SERVICE ACTION BIDIRECTIONAL" },
 	/* XXX KDM ALL for this?  op-num.txt defines it for none.. */
 	/* 9E                  SERVICE ACTION IN(16) */
 	{ 0x9E, ALL, "SERVICE ACTION IN(16)" },
-	/* XXX KDM ALL for this?  op-num.txt defines it for ADC.. */
 	/* 9F              M   SERVICE ACTION OUT(16) */
 	{ 0x9F,	ALL, "SERVICE ACTION OUT(16)" },
 	/* A0  MMOOO OMMM OMO  REPORT LUNS */
@@ -639,8 +643,7 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 
 		match = cam_quirkmatch((caddr_t)inq_data,
 				       (caddr_t)scsi_op_quirk_table,
-				       sizeof(scsi_op_quirk_table)/
-				       sizeof(*scsi_op_quirk_table),
+				       nitems(scsi_op_quirk_table),
 				       sizeof(*scsi_op_quirk_table),
 				       scsi_inquiry_match);
 	}
@@ -649,7 +652,7 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 		table[0] = ((struct scsi_op_quirk_entry *)match)->op_table;
 		num_ops[0] = ((struct scsi_op_quirk_entry *)match)->num_ops;
 		table[1] = scsi_op_codes;
-		num_ops[1] = sizeof(scsi_op_codes)/sizeof(scsi_op_codes[0]);
+		num_ops[1] = nitems(scsi_op_codes);
 		num_tables = 2;
 	} else {
 		/*	
@@ -660,12 +663,18 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 			return("Vendor Specific Command");
 
 		table[0] = scsi_op_codes;
-		num_ops[0] = sizeof(scsi_op_codes)/sizeof(scsi_op_codes[0]);
+		num_ops[0] = nitems(scsi_op_codes);
 		num_tables = 1;
 	}
 
 	/* RBC is 'Simplified' Direct Access Device */
 	if (pd_type == T_RBC)
+		pd_type = T_DIRECT;
+
+	/*
+	 * Host managed drives are direct access for the most part.
+	 */
+	if (pd_type == T_ZBC_HM)
 		pd_type = T_DIRECT;
 
 	/* Map NODEVICE to Direct Access Device to handle REPORT LUNS, etc. */
@@ -730,9 +739,6 @@ const struct sense_key_table_entry sense_key_table[] =
 	{ SSD_KEY_MISCOMPARE, SS_NOP, "MISCOMPARE" },
 	{ SSD_KEY_COMPLETED, SS_NOP, "COMPLETED" }
 };
-
-const int sense_key_table_size =
-    sizeof(sense_key_table)/sizeof(sense_key_table[0]);
 
 static struct asc_table_entry quantum_fireball_entries[] = {
 	{ SST(0x04, 0x0b, SS_START | SSQ_DECREMENT_COUNT | ENXIO, 
@@ -918,7 +924,7 @@ static struct scsi_sense_quirk_entry sense_quirk_table[] = {
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, "QUANTUM", "FIREBALL S*", "*"},
 		/*num_sense_keys*/0,
-		sizeof(quantum_fireball_entries)/sizeof(struct asc_table_entry),
+		nitems(quantum_fireball_entries),
 		/*sense key entries*/NULL,
 		quantum_fireball_entries
 	},
@@ -929,7 +935,7 @@ static struct scsi_sense_quirk_entry sense_quirk_table[] = {
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "SONY", "SMO-*", "*"},
 		/*num_sense_keys*/0,
-		sizeof(sony_mo_entries)/sizeof(struct asc_table_entry),
+		nitems(sony_mo_entries),
 		/*sense key entries*/NULL,
 		sony_mo_entries
 	},
@@ -939,7 +945,7 @@ static struct scsi_sense_quirk_entry sense_quirk_table[] = {
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, "HGST", "*", "*"},
 		/*num_sense_keys*/0,
-		sizeof(hgst_entries)/sizeof(struct asc_table_entry),
+		nitems(hgst_entries),
 		/*sense key entries*/NULL,
 		hgst_entries
 	},
@@ -949,14 +955,13 @@ static struct scsi_sense_quirk_entry sense_quirk_table[] = {
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, "SEAGATE", "*", "*"},
 		/*num_sense_keys*/0,
-		sizeof(seagate_entries)/sizeof(struct asc_table_entry),
+		nitems(seagate_entries),
 		/*sense key entries*/NULL,
 		seagate_entries
 	}
 };
 
-const int sense_quirk_table_size =
-    sizeof(sense_quirk_table)/sizeof(sense_quirk_table[0]);
+const u_int sense_quirk_table_size = nitems(sense_quirk_table);
 
 static struct asc_table_entry asc_table[] = {
 	/*
@@ -968,7 +973,7 @@ static struct asc_table_entry asc_table[] = {
 	 *
 	 * SCSI ASC/ASCQ Assignments
 	 * Numeric Sorted Listing
-	 * as of  5/20/12
+	 * as of  8/12/15
 	 *
 	 * D - DIRECT ACCESS DEVICE (SBC-2)                   device column key
 	 * .T - SEQUENTIAL ACCESS DEVICE (SSC)               -------------------
@@ -1049,7 +1054,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x00, 0x1C, SS_RDEF,	/* XXX TBD */
 	    "Verify operation in progress") },
 	/* DT        B    */
-	{ SST(0x00, 0x1D, SS_RDEF,	/* XXX TBD */
+	{ SST(0x00, 0x1D, SS_NOP,
 	    "ATA pass through information available") },
 	/* DT   R MAEBKV  */
 	{ SST(0x00, 0x1E, SS_RDEF,	/* XXX TBD */
@@ -1058,8 +1063,11 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x00, 0x1F, SS_RDEF,	/* XXX TBD */
 	    "Logical unit transitioning to another power condition") },
 	/* DT P      B    */
-	{ SST(0x00, 0x20, SS_RDEF,	/* XXX TBD */
+	{ SST(0x00, 0x20, SS_NOP,
 	    "Extended copy information available") },
+	/* D              */
+	{ SST(0x00, 0x21, SS_RDEF,	/* XXX TBD */
+	    "Atomic command aborted due to ACA") },
 	/* D   W O   BK   */
 	{ SST(0x01, 0x00, SS_RDEF,
 	    "No index/sector signal") },
@@ -1079,7 +1087,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x04, 0x00, SS_RDEF,
 	    "Logical unit not ready, cause not reportable") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x04, 0x01, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | EBUSY,
+	{ SST(0x04, 0x01, SS_WAIT | EBUSY,
 	    "Logical unit is in process of becoming ready") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x04, 0x02, SS_START | SSQ_DECREMENT_COUNT | ENXIO,
@@ -1106,22 +1114,25 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x04, 0x09, SS_RDEF,	/* XXX TBD */
 	    "Logical unit not ready, self-test in progress") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x04, 0x0A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x0A, SS_WAIT | ENXIO,
 	    "Logical unit not accessible, asymmetric access state transition")},
 	/* DTLPWROMAEBKVF */
-	{ SST(0x04, 0x0B, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x0B, SS_FATAL | ENXIO,
 	    "Logical unit not accessible, target port in standby state") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x04, 0x0C, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x0C, SS_FATAL | ENXIO,
 	    "Logical unit not accessible, target port in unavailable state") },
 	/*              F */
 	{ SST(0x04, 0x0D, SS_RDEF,	/* XXX TBD */
 	    "Logical unit not ready, structure check required") },
+	/* DTL WR MAEBKVF */
+	{ SST(0x04, 0x0E, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, security session in progress") },
 	/* DT  WROM  B    */
 	{ SST(0x04, 0x10, SS_RDEF,	/* XXX TBD */
 	    "Logical unit not ready, auxiliary memory not accessible") },
 	/* DT  WRO AEB VF */
-	{ SST(0x04, 0x11, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | EBUSY,
+	{ SST(0x04, 0x11, SS_WAIT | EBUSY,
 	    "Logical unit not ready, notify (enable spinup) required") },
 	/*        M    V  */
 	{ SST(0x04, 0x12, SS_RDEF,	/* XXX TBD */
@@ -1156,6 +1167,24 @@ static struct asc_table_entry asc_table[] = {
 	/* DT     MAEB    */
 	{ SST(0x04, 0x1C, SS_RDEF,	/* XXX TBD */
 	    "Logical unit not ready, additional power use not yet granted") },
+	/* D              */
+	{ SST(0x04, 0x1D, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, configuration in progress") },
+	/* D              */
+	{ SST(0x04, 0x1E, SS_FATAL | ENXIO,
+	    "Logical unit not ready, microcode activation required") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x04, 0x1F, SS_FATAL | ENXIO,
+	    "Logical unit not ready, microcode download required") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x04, 0x20, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, logical unit reset required") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x04, 0x21, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, hard reset required") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x04, 0x22, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, power cycle required") },
 	/* DTL WROMAEBKVF */
 	{ SST(0x05, 0x00, SS_RDEF,
 	    "Logical unit does not respond to selection") },
@@ -1195,39 +1224,66 @@ static struct asc_table_entry asc_table[] = {
 	/* DT  WRO   B    */
 	{ SST(0x09, 0x04, SS_RDEF,
 	    "Head select fault") },
+	/* DT   RO   B    */
+	{ SST(0x09, 0x05, SS_RDEF,
+	    "Vibration induced tracking error") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x0A, 0x00, SS_FATAL | ENOSPC,
 	    "Error log overflow") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x00, SS_RDEF,
+	{ SST(0x0B, 0x00, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x01, SS_RDEF,
+	{ SST(0x0B, 0x01, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - specified temperature exceeded") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x02, SS_RDEF,
+	{ SST(0x0B, 0x02, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - enclosure degraded") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x03, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x03, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - background self-test failed") },
 	/* DTLPWRO AEBKVF */
-	{ SST(0x0B, 0x04, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x04, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - background pre-scan detected medium error") },
 	/* DTLPWRO AEBKVF */
-	{ SST(0x0B, 0x05, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x05, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - background medium scan detected medium error") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x06, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x06, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - non-volatile cache now volatile") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x07, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x07, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - degraded power to non-volatile cache") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x0B, 0x08, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x08, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - power loss expected") },
 	/* D              */
-	{ SST(0x0B, 0x09, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0B, 0x09, SS_NOP | SSQ_PRINT_SENSE,
 	    "Warning - device statistics notification available") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x0A, SS_NOP | SSQ_PRINT_SENSE,
+	    "Warning - High critical temperature limit exceeded") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x0B, SS_NOP | SSQ_PRINT_SENSE,
+	    "Warning - Low critical temperature limit exceeded") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x0C, SS_NOP | SSQ_PRINT_SENSE,
+	    "Warning - High operating temperature limit exceeded") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x0D, SS_NOP | SSQ_PRINT_SENSE,
+	    "Warning - Low operating temperature limit exceeded") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x0E, SS_NOP | SSQ_PRINT_SENSE,
+	    "Warning - High citical humidity limit exceeded") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x0F, SS_NOP | SSQ_PRINT_SENSE,
+	    "Warning - Low citical humidity limit exceeded") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x10, SS_NOP | SSQ_PRINT_SENSE,
+	    "Warning - High operating humidity limit exceeded") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x11, SS_NOP | SSQ_PRINT_SENSE,
+	    "Warning - Low operating humidity limit exceeded") },
 	/*  T   R         */
 	{ SST(0x0C, 0x00, SS_RDEF,
 	    "Write error") },
@@ -1276,6 +1332,15 @@ static struct asc_table_entry asc_table[] = {
 	/*      R         */
 	{ SST(0x0C, 0x0F, SS_RDEF,	/* XXX TBD */
 	    "Defects in error window") },
+	/* D              */
+	{ SST(0x0C, 0x10, SS_RDEF,	/* XXX TBD */
+	    "Incomplete multiple atomic write operations") },
+	/* D              */
+	{ SST(0x0C, 0x11, SS_RDEF,	/* XXX TBD */
+	    "Write error - recovery scan needed") },
+	/* D              */
+	{ SST(0x0C, 0x12, SS_RDEF,	/* XXX TBD */
+	    "Write error - insufficient zone resources") },
 	/* DTLPWRO A  K   */
 	{ SST(0x0D, 0x00, SS_RDEF,	/* XXX TBD */
 	    "Error detected by third party temporary initiator") },
@@ -1304,7 +1369,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x0E, 0x02, SS_RDEF,	/* XXX TBD */
 	    "Information unit too long") },
 	/* DT P R MAEBK F */
-	{ SST(0x0E, 0x03, SS_RDEF,	/* XXX TBD */
+	{ SST(0x0E, 0x03, SS_FATAL | EINVAL,
 	    "Invalid field in command information unit") },
 	/* D   W O   BK   */
 	{ SST(0x10, 0x00, SS_RDEF,
@@ -1387,6 +1452,9 @@ static struct asc_table_entry asc_table[] = {
 	/* D              */
 	{ SST(0x11, 0x14, SS_RDEF,	/* XXX TBD */
 	    "Read error - LBA marked bad by application client") },
+	/* D              */
+	{ SST(0x11, 0x15, SS_RDEF,	/* XXX TBD */
+	    "Write after sanitize required") },
 	/* D   W O   BK   */
 	{ SST(0x12, 0x00, SS_RDEF,
 	    "Address mark not found for ID field") },
@@ -1544,7 +1612,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x20, 0x01, SS_RDEF,	/* XXX TBD */
 	    "Access denied - initiator pending-enrolled") },
 	/* DT PWROMAEBK   */
-	{ SST(0x20, 0x02, SS_RDEF,	/* XXX TBD */
+	{ SST(0x20, 0x02, SS_FATAL | EPERM,
 	    "Access denied - no access rights") },
 	/* DT PWROMAEBK   */
 	{ SST(0x20, 0x03, SS_RDEF,	/* XXX TBD */
@@ -1588,6 +1656,18 @@ static struct asc_table_entry asc_table[] = {
 	/*      R         */
 	{ SST(0x21, 0x03, SS_RDEF,	/* XXX TBD */
 	    "Invalid write crossing layer jump") },
+	/* D              */
+	{ SST(0x21, 0x04, SS_RDEF,	/* XXX TBD */
+	    "Unaligned write command") },
+	/* D              */
+	{ SST(0x21, 0x05, SS_RDEF,	/* XXX TBD */
+	    "Write boundary violation") },
+	/* D              */
+	{ SST(0x21, 0x06, SS_RDEF,	/* XXX TBD */
+	    "Attempt to read invalid data") },
+	/* D              */
+	{ SST(0x21, 0x07, SS_RDEF,	/* XXX TBD */
+	    "Read boundary violation") },
 	/* D              */
 	{ SST(0x22, 0x00, SS_FATAL | EINVAL,
 	    "Illegal function (use 20 00, 24 00, or 26 00)") },
@@ -1711,6 +1791,9 @@ static struct asc_table_entry asc_table[] = {
 	/*  T             */
 	{ SST(0x26, 0x12, SS_RDEF,	/* XXX TBD */
 	    "Vendor specific key reference not found") },
+	/* D              */
+	{ SST(0x26, 0x13, SS_RDEF,	/* XXX TBD */
+	    "Application tag mode page is invalid") },
 	/* DT  WRO   BK   */
 	{ SST(0x27, 0x00, SS_FATAL | EACCES,
 	    "Write protected") },
@@ -1733,8 +1816,11 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x27, 0x06, SS_RDEF,	/* XXX TBD */
 	    "Conditional write protect") },
 	/* D         B    */
-	{ SST(0x27, 0x07, SS_RDEF,	/* XXX TBD */
+	{ SST(0x27, 0x07, SS_FATAL | ENOSPC,
 	    "Space allocation failed write protect") },
+	/* D              */
+	{ SST(0x27, 0x08, SS_FATAL | EACCES,
+	    "Zone is read only") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x28, 0x00, SS_FATAL | ENXIO,
 	    "Not ready to ready change, medium may have changed") },
@@ -1878,12 +1964,33 @@ static struct asc_table_entry asc_table[] = {
 	/* D              */
 	{ SST(0x2C, 0x0C, SS_RDEF,	/* XXX TBD */
 	    "ORWRITE generation does not match") },
+	/* D              */
+	{ SST(0x2C, 0x0D, SS_RDEF,	/* XXX TBD */
+	    "Reset write pointer not allowed") },
+	/* D              */
+	{ SST(0x2C, 0x0E, SS_RDEF,	/* XXX TBD */
+	    "Zone is offline") },
+	/* D              */
+	{ SST(0x2C, 0x0F, SS_RDEF,	/* XXX TBD */
+	    "Stream not open") },
+	/* D              */
+	{ SST(0x2C, 0x10, SS_RDEF,	/* XXX TBD */
+	    "Unwritten data in zone") },
 	/*  T             */
 	{ SST(0x2D, 0x00, SS_RDEF,
 	    "Overwrite error on update in place") },
 	/*      R         */
 	{ SST(0x2E, 0x00, SS_RDEF,	/* XXX TBD */
 	    "Insufficient time for operation") },
+	/* D              */
+	{ SST(0x2E, 0x01, SS_RDEF,	/* XXX TBD */
+	    "Command timeout before processing") },
+	/* D              */
+	{ SST(0x2E, 0x02, SS_RDEF,	/* XXX TBD */
+	    "Command timeout during processing") },
+	/* D              */
+	{ SST(0x2E, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Command timeout during processing due to error recovery") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x2F, 0x00, SS_RDEF,
 	    "Commands cleared by another initiator") },
@@ -1893,6 +2000,9 @@ static struct asc_table_entry asc_table[] = {
 	/* DTLPWROMAEBKVF */
 	{ SST(0x2F, 0x02, SS_RDEF,	/* XXX TBD */
 	    "Commands cleared by device server") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x2F, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Some commands cleared by queuing layer event") },
 	/* DT  WROM  BK   */
 	{ SST(0x30, 0x00, SS_RDEF,
 	    "Incompatible medium installed") },
@@ -2190,6 +2300,15 @@ static struct asc_table_entry asc_table[] = {
 	/* DTLPWR MAEBK F */
 	{ SST(0x3F, 0x14, SS_RDEF,	/* XXX TBD */
 	    "iSCSI IP address changed") },
+	/* DTLPWR MAEBK   */
+	{ SST(0x3F, 0x15, SS_RDEF,	/* XXX TBD */
+	    "Inspect referrals sense descriptors") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x3F, 0x16, SS_RDEF,	/* XXX TBD */
+	    "Microcode has been changed without reset") },
+	/* D              */
+	{ SST(0x3F, 0x17, SS_RDEF,	/* XXX TBD */
+	    "Zone transition to full") },
 	/* D              */
 	{ SST(0x40, 0x00, SS_RDEF,
 	    "RAM failure") },		/* deprecated - use 40 NN instead */
@@ -2210,7 +2329,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x43, 0x00, SS_RDEF,
 	    "Message error") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x44, 0x00, SS_RDEF,
+	{ SST(0x44, 0x00, SS_FATAL | EIO,
 	    "Internal target failure") },
 	/* DT P   MAEBKVF */
 	{ SST(0x44, 0x01, SS_RDEF,	/* XXX TBD */
@@ -2299,6 +2418,30 @@ static struct asc_table_entry asc_table[] = {
 	/* DT PWROMAEBK F */
 	{ SST(0x4B, 0x0D, SS_RDEF,	/* XXX TBD */
 	    "Data-out buffer error") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x0E, SS_RDEF,	/* XXX TBD */
+	    "PCIe fabric error") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x0F, SS_RDEF,	/* XXX TBD */
+	    "PCIe completion timeout") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x10, SS_RDEF,	/* XXX TBD */
+	    "PCIe completer abort") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x11, SS_RDEF,	/* XXX TBD */
+	    "PCIe poisoned TLP received") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x12, SS_RDEF,	/* XXX TBD */
+	    "PCIe ECRC check failed") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x13, SS_RDEF,	/* XXX TBD */
+	    "PCIe unsupported request") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x14, SS_RDEF,	/* XXX TBD */
+	    "PCIe ACS violation") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x15, SS_RDEF,	/* XXX TBD */
+	    "PCIe TLP prefix blocket") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x4C, 0x00, SS_RDEF,
 	    "Logical unit failed self-configuration") },
@@ -2356,6 +2499,21 @@ static struct asc_table_entry asc_table[] = {
 	/*        M       */
 	{ SST(0x53, 0x08, SS_RDEF,	/* XXX TBD */
 	    "Element status unknown") },
+	/*        M       */
+	{ SST(0x53, 0x09, SS_RDEF,	/* XXX TBD */
+	    "Data transfer device error - load failed") },
+	/*        M       */
+	{ SST(0x53, 0x0A, SS_RDEF,	/* XXX TBD */
+	    "Data transfer device error - unload failed") },
+	/*        M       */
+	{ SST(0x53, 0x0B, SS_RDEF,	/* XXX TBD */
+	    "Data transfer device error - unload missing") },
+	/*        M       */
+	{ SST(0x53, 0x0C, SS_RDEF,	/* XXX TBD */
+	    "Data transfer device error - eject failed") },
+	/*        M       */
+	{ SST(0x53, 0x0D, SS_RDEF,	/* XXX TBD */
+	    "Data transfer device error - library communication failed") },
 	/*    P           */
 	{ SST(0x54, 0x00, SS_RDEF,
 	    "SCSI to host system interface failure") },
@@ -2401,6 +2559,15 @@ static struct asc_table_entry asc_table[] = {
 	/* DT P      B    */
 	{ SST(0x55, 0x0D, SS_RDEF,	/* XXX TBD */
 	    "Insufficient resources to create ROD token") },
+	/* D              */
+	{ SST(0x55, 0x0E, SS_RDEF,	/* XXX TBD */
+	    "Insufficient zone resources") },
+	/* D              */
+	{ SST(0x55, 0x0F, SS_RDEF,	/* XXX TBD */
+	    "Insufficient zone resources to complete write") },
+	/* D              */
+	{ SST(0x55, 0x10, SS_RDEF,	/* XXX TBD */
+	    "Maximum number of streams open") },
 	/*      R         */
 	{ SST(0x57, 0x00, SS_RDEF,
 	    "Unable to recover table-of-contents") },
@@ -2444,253 +2611,259 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x5C, 0x02, SS_RDEF,
 	    "Spindles not synchronized") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x5D, 0x00, SS_RDEF,
+	{ SST(0x5D, 0x00, SS_NOP | SSQ_PRINT_SENSE,
 	    "Failure prediction threshold exceeded") },
 	/*      R    B    */
-	{ SST(0x5D, 0x01, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x01, SS_NOP | SSQ_PRINT_SENSE,
 	    "Media failure prediction threshold exceeded") },
 	/*      R         */
-	{ SST(0x5D, 0x02, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x02, SS_NOP | SSQ_PRINT_SENSE,
 	    "Logical unit failure prediction threshold exceeded") },
 	/*      R         */
-	{ SST(0x5D, 0x03, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x03, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spare area exhaustion prediction threshold exceeded") },
 	/* D         B    */
-	{ SST(0x5D, 0x10, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x10, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure general hard drive failure") },
 	/* D         B    */
-	{ SST(0x5D, 0x11, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x11, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure drive error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x12, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x12, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure data error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x13, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x13, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure seek error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x14, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x14, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure too many block reassigns") },
 	/* D         B    */
-	{ SST(0x5D, 0x15, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x15, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure access times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x16, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x16, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure start unit times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x17, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x17, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure channel parametrics") },
 	/* D         B    */
-	{ SST(0x5D, 0x18, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x18, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure controller detected") },
 	/* D         B    */
-	{ SST(0x5D, 0x19, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x19, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure throughput performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x1A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x1A, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure seek time performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x1B, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x1B, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure spin-up retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x1C, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x1C, SS_NOP | SSQ_PRINT_SENSE,
 	    "Hardware impending failure drive calibration retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x20, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x1D, SS_NOP | SSQ_PRINT_SENSE,
+	    "Hardware impending failure power loss protection circuit") },
+	/* D         B    */
+	{ SST(0x5D, 0x20, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure general hard drive failure") },
 	/* D         B    */
-	{ SST(0x5D, 0x21, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x21, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure drive error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x22, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x22, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure data error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x23, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x23, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure seek error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x24, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x24, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure too many block reassigns") },
 	/* D         B    */
-	{ SST(0x5D, 0x25, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x25, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure access times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x26, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x26, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure start unit times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x27, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x27, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure channel parametrics") },
 	/* D         B    */
-	{ SST(0x5D, 0x28, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x28, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure controller detected") },
 	/* D         B    */
-	{ SST(0x5D, 0x29, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x29, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure throughput performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x2A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x2A, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure seek time performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x2B, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x2B, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure spin-up retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x2C, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x2C, SS_NOP | SSQ_PRINT_SENSE,
 	    "Controller impending failure drive calibration retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x30, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x30, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure general hard drive failure") },
 	/* D         B    */
-	{ SST(0x5D, 0x31, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x31, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure drive error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x32, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x32, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure data error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x33, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x33, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure seek error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x34, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x34, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure too many block reassigns") },
 	/* D         B    */
-	{ SST(0x5D, 0x35, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x35, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure access times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x36, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x36, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure start unit times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x37, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x37, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure channel parametrics") },
 	/* D         B    */
-	{ SST(0x5D, 0x38, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x38, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure controller detected") },
 	/* D         B    */
-	{ SST(0x5D, 0x39, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x39, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure throughput performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x3A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x3A, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure seek time performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x3B, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x3B, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure spin-up retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x3C, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x3C, SS_NOP | SSQ_PRINT_SENSE,
 	    "Data channel impending failure drive calibration retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x40, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x40, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure general hard drive failure") },
 	/* D         B    */
-	{ SST(0x5D, 0x41, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x41, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure drive error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x42, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x42, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure data error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x43, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x43, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure seek error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x44, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x44, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure too many block reassigns") },
 	/* D         B    */
-	{ SST(0x5D, 0x45, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x45, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure access times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x46, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x46, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure start unit times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x47, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x47, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure channel parametrics") },
 	/* D         B    */
-	{ SST(0x5D, 0x48, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x48, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure controller detected") },
 	/* D         B    */
-	{ SST(0x5D, 0x49, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x49, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure throughput performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x4A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x4A, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure seek time performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x4B, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x4B, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure spin-up retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x4C, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x4C, SS_NOP | SSQ_PRINT_SENSE,
 	    "Servo impending failure drive calibration retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x50, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x50, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure general hard drive failure") },
 	/* D         B    */
-	{ SST(0x5D, 0x51, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x51, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure drive error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x52, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x52, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure data error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x53, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x53, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure seek error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x54, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x54, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure too many block reassigns") },
 	/* D         B    */
-	{ SST(0x5D, 0x55, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x55, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure access times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x56, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x56, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure start unit times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x57, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x57, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure channel parametrics") },
 	/* D         B    */
-	{ SST(0x5D, 0x58, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x58, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure controller detected") },
 	/* D         B    */
-	{ SST(0x5D, 0x59, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x59, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure throughput performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x5A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x5A, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure seek time performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x5B, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x5B, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure spin-up retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x5C, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x5C, SS_NOP | SSQ_PRINT_SENSE,
 	    "Spindle impending failure drive calibration retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x60, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x60, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure general hard drive failure") },
 	/* D         B    */
-	{ SST(0x5D, 0x61, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x61, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure drive error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x62, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x62, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure data error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x63, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x63, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure seek error rate too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x64, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x64, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure too many block reassigns") },
 	/* D         B    */
-	{ SST(0x5D, 0x65, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x65, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure access times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x66, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x66, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure start unit times too high") },
 	/* D         B    */
-	{ SST(0x5D, 0x67, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x67, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure channel parametrics") },
 	/* D         B    */
-	{ SST(0x5D, 0x68, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x68, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure controller detected") },
 	/* D         B    */
-	{ SST(0x5D, 0x69, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x69, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure throughput performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x6A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x6A, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure seek time performance") },
 	/* D         B    */
-	{ SST(0x5D, 0x6B, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x6B, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure spin-up retry count") },
 	/* D         B    */
-	{ SST(0x5D, 0x6C, SS_RDEF,	/* XXX TBD */
+	{ SST(0x5D, 0x6C, SS_NOP | SSQ_PRINT_SENSE,
 	    "Firmware impending failure drive calibration retry count") },
+	/* D         B    */
+	{ SST(0x5D, 0x73, SS_NOP | SSQ_PRINT_SENSE,
+	    "Media impending failure endurance limit met") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x5D, 0xFF, SS_RDEF,
+	{ SST(0x5D, 0xFF, SS_NOP | SSQ_PRINT_SENSE,
 	    "Failure prediction threshold exceeded (false)") },
 	/* DTLPWRO A  K   */
 	{ SST(0x5E, 0x00, SS_RDEF,
@@ -2821,6 +2994,9 @@ static struct asc_table_entry asc_table[] = {
 	/*         A      */
 	{ SST(0x68, 0x00, SS_RDEF,
 	    "Logical unit not configured") },
+	/* D              */
+	{ SST(0x68, 0x01, SS_RDEF,
+	    "Subsidiary logical unit not configured") },
 	/*         A      */
 	{ SST(0x69, 0x00, SS_RDEF,
 	    "Data loss on logical unit") },
@@ -3020,14 +3196,14 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x74, 0x6F, SS_RDEF,	/* XXX TBD */
 	    "External data encryption control error") },
 	/* DT   R M E  V  */
-	{ SST(0x74, 0x71, SS_RDEF,	/* XXX TBD */
+	{ SST(0x74, 0x71, SS_FATAL | EACCES,
 	    "Logical unit access not authorized") },
 	/* D              */
-	{ SST(0x74, 0x79, SS_RDEF,	/* XXX TBD */
+	{ SST(0x74, 0x79, SS_FATAL | EACCES,
 	    "Security conflict in translated device") }
 };
 
-const int asc_table_size = sizeof(asc_table)/sizeof(asc_table[0]);
+const u_int asc_table_size = nitems(asc_table);
 
 struct asc_key
 {
@@ -3120,14 +3296,14 @@ fetchtableentries(int sense_key, int asc, int ascq,
 		sense_tables[0] = quirk->sense_key_info;
 		sense_tables_size[0] = quirk->num_sense_keys;
 		sense_tables[1] = sense_key_table;
-		sense_tables_size[1] = sense_key_table_size;
+		sense_tables_size[1] = nitems(sense_key_table);
 		num_sense_tables = 2;
 	} else {
 		asc_tables[0] = asc_table;
 		asc_tables_size[0] = asc_table_size;
 		num_asc_tables = 1;
 		sense_tables[0] = sense_key_table;
-		sense_tables_size[0] = sense_key_table_size;
+		sense_tables_size[0] = nitems(sense_key_table);
 		num_sense_tables = 1;
 	}
 
@@ -3293,14 +3469,32 @@ scsi_error_action(struct ccb_scsiio *csio, struct scsi_inquiry_data *inq_data,
 char *
 scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string, size_t len)
 {
+	struct sbuf sb;
+	int error;
+
+	if (len == 0)
+		return ("");
+
+	sbuf_new(&sb, cdb_string, len, SBUF_FIXEDLEN);
+
+	scsi_cdb_sbuf(cdb_ptr, &sb);
+
+	/* ENOMEM just means that the fixed buffer is full, OK to ignore */
+	error = sbuf_finish(&sb);
+	if (error != 0 && error != ENOMEM)
+		return ("");
+
+	return(sbuf_data(&sb));
+}
+
+void
+scsi_cdb_sbuf(u_int8_t *cdb_ptr, struct sbuf *sb)
+{
 	u_int8_t cdb_len;
 	int i;
 
 	if (cdb_ptr == NULL)
-		return("");
-
-	/* Silence warnings */
-	cdb_len = 0;
+		return;
 
 	/*
 	 * This is taken from the SCSI-3 draft spec.
@@ -3337,12 +3531,11 @@ scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string, size_t len)
 			cdb_len = 12;
 			break;
 	}
-	*cdb_string = '\0';
-	for (i = 0; i < cdb_len; i++)
-		snprintf(cdb_string + strlen(cdb_string),
-			 len - strlen(cdb_string), "%02hhx ", cdb_ptr[i]);
 
-	return(cdb_string);
+	for (i = 0; i < cdb_len; i++)
+		sbuf_printf(sb, "%02hhx ", cdb_ptr[i]);
+
+	return;
 }
 
 const char *
@@ -3391,7 +3584,6 @@ scsi_command_string(struct cam_device *device, struct ccb_scsiio *csio,
 #endif /* _KERNEL/!_KERNEL */
 {
 	struct scsi_inquiry_data *inq_data;
-	char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
 #ifdef _KERNEL
 	struct	  ccb_getdev *cgd;
 #endif /* _KERNEL */
@@ -3423,17 +3615,9 @@ scsi_command_string(struct cam_device *device, struct ccb_scsiio *csio,
 
 #endif /* _KERNEL/!_KERNEL */
 
-	if ((csio->ccb_h.flags & CAM_CDB_POINTER) != 0) {
-		sbuf_printf(sb, "%s. CDB: %s", 
-			    scsi_op_desc(csio->cdb_io.cdb_ptr[0], inq_data),
-			    scsi_cdb_string(csio->cdb_io.cdb_ptr, cdb_str,
-					    sizeof(cdb_str)));
-	} else {
-		sbuf_printf(sb, "%s. CDB: %s",
-			    scsi_op_desc(csio->cdb_io.cdb_bytes[0], inq_data),
-			    scsi_cdb_string(csio->cdb_io.cdb_bytes, cdb_str,
-					    sizeof(cdb_str)));
-	}
+	sbuf_printf(sb, "%s. CDB: ",
+		    scsi_op_desc(scsiio_cdb_ptr(csio)[0], inq_data));
+	scsi_cdb_sbuf(scsiio_cdb_ptr(csio), sb);
 
 #ifdef _KERNEL
 	xpt_free_ccb((union ccb *)cgd);
@@ -3464,7 +3648,7 @@ scsi_desc_iterate(struct scsi_sense_data_desc *sense, u_int sense_len,
 
 	/*
 	 * The length of data actually returned may be different than the
-	 * extra_len recorded in the sturcture.
+	 * extra_len recorded in the structure.
 	 */
 	desc_len = sense_len -offsetof(struct scsi_sense_data_desc, sense_desc);
 
@@ -3550,333 +3734,300 @@ scsi_find_desc(struct scsi_sense_data_desc *sense, u_int sense_len,
 }
 
 /*
+ * Fill in SCSI descriptor sense data with the specified parameters.
+ */
+static void
+scsi_set_sense_data_desc_va(struct scsi_sense_data *sense_data,
+    u_int *sense_len, scsi_sense_data_type sense_format, int current_error,
+    int sense_key, int asc, int ascq, va_list ap)
+{
+	struct scsi_sense_data_desc *sense;
+	scsi_sense_elem_type elem_type;
+	int space, len;
+	uint8_t *desc, *data;
+
+	memset(sense_data, 0, sizeof(*sense_data));
+	sense = (struct scsi_sense_data_desc *)sense_data;
+	if (current_error != 0)
+		sense->error_code = SSD_DESC_CURRENT_ERROR;
+	else
+		sense->error_code = SSD_DESC_DEFERRED_ERROR;
+	sense->sense_key = sense_key;
+	sense->add_sense_code = asc;
+	sense->add_sense_code_qual = ascq;
+	sense->flags = 0;
+
+	desc = &sense->sense_desc[0];
+	space = *sense_len - offsetof(struct scsi_sense_data_desc, sense_desc);
+	while ((elem_type = va_arg(ap, scsi_sense_elem_type)) !=
+	    SSD_ELEM_NONE) {
+		if (elem_type >= SSD_ELEM_MAX) {
+			printf("%s: invalid sense type %d\n", __func__,
+			       elem_type);
+			break;
+		}
+		len = va_arg(ap, int);
+		data = va_arg(ap, uint8_t *);
+
+		switch (elem_type) {
+		case SSD_ELEM_SKIP:
+			break;
+		case SSD_ELEM_DESC:
+			if (space < len) {
+				sense->flags |= SSDD_SDAT_OVFL;
+				break;
+			}
+			bcopy(data, desc, len);
+			desc += len;
+			space -= len;
+			break;
+		case SSD_ELEM_SKS: {
+			struct scsi_sense_sks *sks = (void *)desc;
+
+			if (len > sizeof(sks->sense_key_spec))
+				break;
+			if (space < sizeof(*sks)) {
+				sense->flags |= SSDD_SDAT_OVFL;
+				break;
+			}
+			sks->desc_type = SSD_DESC_SKS;
+			sks->length = sizeof(*sks) -
+			    (offsetof(struct scsi_sense_sks, length) + 1);
+			bcopy(data, &sks->sense_key_spec, len);
+			desc += sizeof(*sks);
+			space -= sizeof(*sks);
+			break;
+		}
+		case SSD_ELEM_COMMAND: {
+			struct scsi_sense_command *cmd = (void *)desc;
+
+			if (len > sizeof(cmd->command_info))
+				break;
+			if (space < sizeof(*cmd)) {
+				sense->flags |= SSDD_SDAT_OVFL;
+				break;
+			}
+			cmd->desc_type = SSD_DESC_COMMAND;
+			cmd->length = sizeof(*cmd) -
+			    (offsetof(struct scsi_sense_command, length) + 1);
+			bcopy(data, &cmd->command_info[
+			    sizeof(cmd->command_info) - len], len);
+			desc += sizeof(*cmd);
+			space -= sizeof(*cmd);
+			break;
+		}
+		case SSD_ELEM_INFO: {
+			struct scsi_sense_info *info = (void *)desc;
+
+			if (len > sizeof(info->info))
+				break;
+			if (space < sizeof(*info)) {
+				sense->flags |= SSDD_SDAT_OVFL;
+				break;
+			}
+			info->desc_type = SSD_DESC_INFO;
+			info->length = sizeof(*info) -
+			    (offsetof(struct scsi_sense_info, length) + 1);
+			info->byte2 = SSD_INFO_VALID;
+			bcopy(data, &info->info[sizeof(info->info) - len], len);
+			desc += sizeof(*info);
+			space -= sizeof(*info);
+			break;
+		}
+		case SSD_ELEM_FRU: {
+			struct scsi_sense_fru *fru = (void *)desc;
+
+			if (len > sizeof(fru->fru))
+				break;
+			if (space < sizeof(*fru)) {
+				sense->flags |= SSDD_SDAT_OVFL;
+				break;
+			}
+			fru->desc_type = SSD_DESC_FRU;
+			fru->length = sizeof(*fru) -
+			    (offsetof(struct scsi_sense_fru, length) + 1);
+			fru->fru = *data;
+			desc += sizeof(*fru);
+			space -= sizeof(*fru);
+			break;
+		}
+		case SSD_ELEM_STREAM: {
+			struct scsi_sense_stream *stream = (void *)desc;
+
+			if (len > sizeof(stream->byte3))
+				break;
+			if (space < sizeof(*stream)) {
+				sense->flags |= SSDD_SDAT_OVFL;
+				break;
+			}
+			stream->desc_type = SSD_DESC_STREAM;
+			stream->length = sizeof(*stream) -
+			    (offsetof(struct scsi_sense_stream, length) + 1);
+			stream->byte3 = *data;
+			desc += sizeof(*stream);
+			space -= sizeof(*stream);
+			break;
+		}
+		default:
+			/*
+			 * We shouldn't get here, but if we do, do nothing.
+			 * We've already consumed the arguments above.
+			 */
+			break;
+		}
+	}
+	sense->extra_len = desc - &sense->sense_desc[0];
+	*sense_len = offsetof(struct scsi_sense_data_desc, extra_len) + 1 +
+	    sense->extra_len;
+}
+
+/*
+ * Fill in SCSI fixed sense data with the specified parameters.
+ */
+static void
+scsi_set_sense_data_fixed_va(struct scsi_sense_data *sense_data,
+    u_int *sense_len, scsi_sense_data_type sense_format, int current_error,
+    int sense_key, int asc, int ascq, va_list ap)
+{
+	struct scsi_sense_data_fixed *sense;
+	scsi_sense_elem_type elem_type;
+	uint8_t *data;
+	int len;
+
+	memset(sense_data, 0, sizeof(*sense_data));
+	sense = (struct scsi_sense_data_fixed *)sense_data;
+	if (current_error != 0)
+		sense->error_code = SSD_CURRENT_ERROR;
+	else
+		sense->error_code = SSD_DEFERRED_ERROR;
+	sense->flags = sense_key & SSD_KEY;
+	sense->extra_len = 0;
+	if (*sense_len >= 13) {
+		sense->add_sense_code = asc;
+		sense->extra_len = MAX(sense->extra_len, 5);
+	} else
+		sense->flags |= SSD_SDAT_OVFL;
+	if (*sense_len >= 14) {
+		sense->add_sense_code_qual = ascq;
+		sense->extra_len = MAX(sense->extra_len, 6);
+	} else
+		sense->flags |= SSD_SDAT_OVFL;
+
+	while ((elem_type = va_arg(ap, scsi_sense_elem_type)) !=
+	    SSD_ELEM_NONE) {
+		if (elem_type >= SSD_ELEM_MAX) {
+			printf("%s: invalid sense type %d\n", __func__,
+			       elem_type);
+			break;
+		}
+		len = va_arg(ap, int);
+		data = va_arg(ap, uint8_t *);
+
+		switch (elem_type) {
+		case SSD_ELEM_SKIP:
+			break;
+		case SSD_ELEM_SKS:
+			if (len > sizeof(sense->sense_key_spec))
+				break;
+			if (*sense_len < 18) {
+				sense->flags |= SSD_SDAT_OVFL;
+				break;
+			}
+			bcopy(data, &sense->sense_key_spec[0], len);
+			sense->extra_len = MAX(sense->extra_len, 10);
+			break;
+		case SSD_ELEM_COMMAND:
+			if (*sense_len < 12) {
+				sense->flags |= SSD_SDAT_OVFL;
+				break;
+			}
+			if (len > sizeof(sense->cmd_spec_info)) {
+				data += len - sizeof(sense->cmd_spec_info);
+				len -= len - sizeof(sense->cmd_spec_info);
+			}
+			bcopy(data, &sense->cmd_spec_info[
+			    sizeof(sense->cmd_spec_info) - len], len);
+			sense->extra_len = MAX(sense->extra_len, 4);
+			break;
+		case SSD_ELEM_INFO:
+			/* Set VALID bit only if no overflow. */
+			sense->error_code |= SSD_ERRCODE_VALID;
+			while (len > sizeof(sense->info)) {
+				if (data[0] != 0)
+					sense->error_code &= ~SSD_ERRCODE_VALID;
+				data ++;
+				len --;
+			}
+			bcopy(data, &sense->info[sizeof(sense->info) - len], len);
+			break;
+		case SSD_ELEM_FRU:
+			if (*sense_len < 15) {
+				sense->flags |= SSD_SDAT_OVFL;
+				break;
+			}
+			sense->fru = *data;
+			sense->extra_len = MAX(sense->extra_len, 7);
+			break;
+		case SSD_ELEM_STREAM:
+			sense->flags |= *data &
+			    (SSD_ILI | SSD_EOM | SSD_FILEMARK);
+			break;
+		default:
+
+			/*
+			 * We can't handle that in fixed format.  Skip it.
+			 */
+			break;
+		}
+	}
+	*sense_len = offsetof(struct scsi_sense_data_fixed, extra_len) + 1 +
+	    sense->extra_len;
+}
+
+/*
  * Fill in SCSI sense data with the specified parameters.  This routine can
  * fill in either fixed or descriptor type sense data.
  */
 void
-scsi_set_sense_data_va(struct scsi_sense_data *sense_data,
+scsi_set_sense_data_va(struct scsi_sense_data *sense_data, u_int *sense_len,
 		      scsi_sense_data_type sense_format, int current_error,
-		      int sense_key, int asc, int ascq, va_list ap) 
+		      int sense_key, int asc, int ascq, va_list ap)
 {
-	int descriptor_sense;
-	scsi_sense_elem_type elem_type;
 
-	/*
-	 * Determine whether to return fixed or descriptor format sense
-	 * data.  If the user specifies SSD_TYPE_NONE for some reason,
-	 * they'll just get fixed sense data.
-	 */
+	if (*sense_len > SSD_FULL_SIZE)
+		*sense_len = SSD_FULL_SIZE;
 	if (sense_format == SSD_TYPE_DESC)
-		descriptor_sense = 1;
+		scsi_set_sense_data_desc_va(sense_data, sense_len,
+		    sense_format, current_error, sense_key, asc, ascq, ap);
 	else
-		descriptor_sense = 0;
-
-	/*
-	 * Zero the sense data, so that we don't pass back any garbage data
-	 * to the user.
-	 */
-	memset(sense_data, 0, sizeof(*sense_data));
-
-	if (descriptor_sense != 0) {
-		struct scsi_sense_data_desc *sense;
-
-		sense = (struct scsi_sense_data_desc *)sense_data;
-		/*
-		 * The descriptor sense format eliminates the use of the
-		 * valid bit.
-		 */
-		if (current_error != 0)
-			sense->error_code = SSD_DESC_CURRENT_ERROR;
-		else
-			sense->error_code = SSD_DESC_DEFERRED_ERROR;
-		sense->sense_key = sense_key;
-		sense->add_sense_code = asc;
-		sense->add_sense_code_qual = ascq;
-		/*
-		 * Start off with no extra length, since the above data
-		 * fits in the standard descriptor sense information.
-		 */
-		sense->extra_len = 0;
-		while ((elem_type = (scsi_sense_elem_type)va_arg(ap,
-			scsi_sense_elem_type)) != SSD_ELEM_NONE) {
-			int sense_len, len_to_copy;
-			uint8_t *data;
-
-			if (elem_type >= SSD_ELEM_MAX) {
-				printf("%s: invalid sense type %d\n", __func__,
-				       elem_type);
-				break;
-			}
-
-			sense_len = (int)va_arg(ap, int);
-			len_to_copy = MIN(sense_len, SSD_EXTRA_MAX -
-					  sense->extra_len);
-			data = (uint8_t *)va_arg(ap, uint8_t *);
-
-			/*
-			 * We've already consumed the arguments for this one.
-			 */
-			if (elem_type == SSD_ELEM_SKIP)
-				continue;
-
-			switch (elem_type) {
-			case SSD_ELEM_DESC: {
-
-				/*
-				 * This is a straight descriptor.  All we
-				 * need to do is copy the data in.
-				 */
-				bcopy(data, &sense->sense_desc[
-				      sense->extra_len], len_to_copy);
-				sense->extra_len += len_to_copy;
-				break;
-			}
-			case SSD_ELEM_SKS: {
-				struct scsi_sense_sks sks;
-
-				bzero(&sks, sizeof(sks));
-
-				/*
-				 * This is already-formatted sense key
-				 * specific data.  We just need to fill out
-				 * the header and copy everything in.
-				 */
-				bcopy(data, &sks.sense_key_spec,
-				      MIN(len_to_copy,
-				          sizeof(sks.sense_key_spec)));
-
-				sks.desc_type = SSD_DESC_SKS;
-				sks.length = sizeof(sks) -
-				    offsetof(struct scsi_sense_sks, reserved1);
-				bcopy(&sks,&sense->sense_desc[sense->extra_len],
-				      sizeof(sks));
-				sense->extra_len += sizeof(sks);
-				break;
-			}
-			case SSD_ELEM_INFO:
-			case SSD_ELEM_COMMAND: {
-				struct scsi_sense_command cmd;
-				struct scsi_sense_info info;
-				uint8_t *data_dest;
-				uint8_t *descriptor;
-				int descriptor_size, i, copy_len;
-
-				bzero(&cmd, sizeof(cmd));
-				bzero(&info, sizeof(info));
-
-				/*
-				 * Command or information data.  The
-				 * operate in pretty much the same way.
-				 */
-				if (elem_type == SSD_ELEM_COMMAND) {
-					len_to_copy = MIN(len_to_copy,
-					    sizeof(cmd.command_info));
-					descriptor = (uint8_t *)&cmd;
-					descriptor_size  = sizeof(cmd);
-					data_dest =(uint8_t *)&cmd.command_info;
-					cmd.desc_type = SSD_DESC_COMMAND;
-					cmd.length = sizeof(cmd) -
-					    offsetof(struct scsi_sense_command,
-						     reserved);
-				} else {
-					len_to_copy = MIN(len_to_copy,
-					    sizeof(info.info));
-					descriptor = (uint8_t *)&info;
-					descriptor_size = sizeof(cmd);
-					data_dest = (uint8_t *)&info.info;
-					info.desc_type = SSD_DESC_INFO;
-					info.byte2 = SSD_INFO_VALID;
-					info.length = sizeof(info) -
-					    offsetof(struct scsi_sense_info,
-						     byte2);
-				}
-
-				/*
-				 * Copy this in reverse because the spec
-				 * (SPC-4) says that when 4 byte quantities
-				 * are stored in this 8 byte field, the
-				 * first four bytes shall be 0.
-				 *
-				 * So we fill the bytes in from the end, and
-				 * if we have less than 8 bytes to copy,
-				 * the initial, most significant bytes will
-				 * be 0.
-				 */
-				for (i = sense_len - 1; i >= 0 &&
-				     len_to_copy > 0; i--, len_to_copy--)
-					data_dest[len_to_copy - 1] = data[i];
-
-				/*
-				 * This calculation looks much like the
-				 * initial len_to_copy calculation, but
-				 * we have to do it again here, because
-				 * we're looking at a larger amount that
-				 * may or may not fit.  It's not only the
-				 * data the user passed in, but also the
-				 * rest of the descriptor.
-				 */
-				copy_len = MIN(descriptor_size,
-				    SSD_EXTRA_MAX - sense->extra_len);
-				bcopy(descriptor, &sense->sense_desc[
-				      sense->extra_len], copy_len);
-				sense->extra_len += copy_len;
-				break;
-			}
-			case SSD_ELEM_FRU: {
-				struct scsi_sense_fru fru;
-				int copy_len;
-
-				bzero(&fru, sizeof(fru));
-
-				fru.desc_type = SSD_DESC_FRU;
-				fru.length = sizeof(fru) -
-				    offsetof(struct scsi_sense_fru, reserved);
-				fru.fru = *data;
-
-				copy_len = MIN(sizeof(fru), SSD_EXTRA_MAX -
-					       sense->extra_len);
-				bcopy(&fru, &sense->sense_desc[
-				      sense->extra_len], copy_len);
-				sense->extra_len += copy_len;
-				break;
-			}
-			case SSD_ELEM_STREAM: {
-				struct scsi_sense_stream stream_sense;
-				int copy_len;
-
-				bzero(&stream_sense, sizeof(stream_sense));
-				stream_sense.desc_type = SSD_DESC_STREAM;
-				stream_sense.length = sizeof(stream_sense) -
-				   offsetof(struct scsi_sense_stream, reserved);
-				stream_sense.byte3 = *data;
-
-				copy_len = MIN(sizeof(stream_sense),
-				    SSD_EXTRA_MAX - sense->extra_len);
-				bcopy(&stream_sense, &sense->sense_desc[
-				      sense->extra_len], copy_len);
-				sense->extra_len += copy_len;
-				break;
-			}
-			default:
-				/*
-				 * We shouldn't get here, but if we do, do
-				 * nothing.  We've already consumed the
-				 * arguments above.
-				 */
-				break;
-			}
-		}
-	} else {
-		struct scsi_sense_data_fixed *sense;
-
-		sense = (struct scsi_sense_data_fixed *)sense_data;
-
-		if (current_error != 0)
-			sense->error_code = SSD_CURRENT_ERROR;
-		else
-			sense->error_code = SSD_DEFERRED_ERROR;
-
-		sense->flags = sense_key;
-		sense->add_sense_code = asc;
-		sense->add_sense_code_qual = ascq;
-		/*
-		 * We've set the ASC and ASCQ, so we have 6 more bytes of
-		 * valid data.  If we wind up setting any of the other
-		 * fields, we'll bump this to 10 extra bytes.
-		 */
-		sense->extra_len = 6;
-
-		while ((elem_type = (scsi_sense_elem_type)va_arg(ap,
-			scsi_sense_elem_type)) != SSD_ELEM_NONE) {
-			int sense_len, len_to_copy;
-			uint8_t *data;
-
-			if (elem_type >= SSD_ELEM_MAX) {
-				printf("%s: invalid sense type %d\n", __func__,
-				       elem_type);
-				break;
-			}
-			/*
-			 * If we get in here, just bump the extra length to
-			 * 10 bytes.  That will encompass anything we're
-			 * going to set here.
-			 */
-			sense->extra_len = 10;
-			sense_len = (int)va_arg(ap, int);
-			len_to_copy = MIN(sense_len, SSD_EXTRA_MAX -
-					  sense->extra_len);
-			data = (uint8_t *)va_arg(ap, uint8_t *);
-
-			switch (elem_type) {
-			case SSD_ELEM_SKS:
-				/*
-				 * The user passed in pre-formatted sense
-				 * key specific data.
-				 */
-				bcopy(data, &sense->sense_key_spec[0],
-				      MIN(sizeof(sense->sense_key_spec),
-				      sense_len));
-				break;
-			case SSD_ELEM_INFO:
-			case SSD_ELEM_COMMAND: {
-				uint8_t *data_dest;
-				int i;
-
-				if (elem_type == SSD_ELEM_COMMAND)
-					data_dest = &sense->cmd_spec_info[0];
-				else {
-					data_dest = &sense->info[0];
-					/*
-					 * We're setting the info field, so
-					 * set the valid bit.
-					 */
-					sense->error_code |= SSD_ERRCODE_VALID;
-				}
-
-				/*
-			 	 * Copy this in reverse so that if we have
-				 * less than 4 bytes to fill, the least
-				 * significant bytes will be at the end.
-				 * If we have more than 4 bytes, only the
-				 * least significant bytes will be included.
-				 */
-				for (i = sense_len - 1; i >= 0 &&
-				     len_to_copy > 0; i--, len_to_copy--)
-					data_dest[len_to_copy - 1] = data[i];
-
-				break;
-			}
-			case SSD_ELEM_FRU:
-				sense->fru = *data;
-				break;
-			case SSD_ELEM_STREAM:
-				sense->flags |= *data;
-				break;
-			case SSD_ELEM_DESC:
-			default:
-
-				/*
-				 * If the user passes in descriptor sense,
-				 * we can't handle that in fixed format.
-				 * So just skip it, and any unknown argument
-				 * types.
-				 */
-				break;
-			}
-		}
-	}
+		scsi_set_sense_data_fixed_va(sense_data, sense_len,
+		    sense_format, current_error, sense_key, asc, ascq, ap);
 }
 
 void
-scsi_set_sense_data(struct scsi_sense_data *sense_data, 
+scsi_set_sense_data(struct scsi_sense_data *sense_data,
 		    scsi_sense_data_type sense_format, int current_error,
-		    int sense_key, int asc, int ascq, ...) 
+		    int sense_key, int asc, int ascq, ...)
+{
+	va_list ap;
+	u_int	sense_len = SSD_FULL_SIZE;
+
+	va_start(ap, ascq);
+	scsi_set_sense_data_va(sense_data, &sense_len, sense_format,
+	    current_error, sense_key, asc, ascq, ap);
+	va_end(ap);
+}
+
+void
+scsi_set_sense_data_len(struct scsi_sense_data *sense_data, u_int *sense_len,
+		    scsi_sense_data_type sense_format, int current_error,
+		    int sense_key, int asc, int ascq, ...)
 {
 	va_list ap;
 
 	va_start(ap, ascq);
-	scsi_set_sense_data_va(sense_data, sense_format, current_error,
-			       sense_key, asc, ascq, ap);
+	scsi_set_sense_data_va(sense_data, sense_len, sense_format,
+	    current_error, sense_key, asc, ascq, ap);
 	va_end(ap);
 }
 
@@ -4077,6 +4228,7 @@ scsi_get_block_info(struct scsi_sense_data *sense_data, u_int sense_len,
 		switch (SID_TYPE(inq_data)) {
 		case T_DIRECT:
 		case T_RBC:
+		case T_ZBC_HM:
 			break;
 		default:
 			goto bailout;
@@ -4463,6 +4615,73 @@ scsi_sense_progress_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 	scsi_progress_sbuf(sb, progress_val);
 }
 
+void
+scsi_sense_ata_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			 u_int sense_len, uint8_t *cdb, int cdb_len,
+			 struct scsi_inquiry_data *inq_data,
+			 struct scsi_sense_desc_header *header)
+{
+	struct scsi_sense_ata_ret_desc *res;
+
+	res = (struct scsi_sense_ata_ret_desc *)header;
+
+	sbuf_printf(sb, "ATA status: %02x (%s%s%s%s%s%s%s%s), ",
+	    res->status,
+	    (res->status & 0x80) ? "BSY " : "",
+	    (res->status & 0x40) ? "DRDY " : "",
+	    (res->status & 0x20) ? "DF " : "",
+	    (res->status & 0x10) ? "SERV " : "",
+	    (res->status & 0x08) ? "DRQ " : "",
+	    (res->status & 0x04) ? "CORR " : "",
+	    (res->status & 0x02) ? "IDX " : "",
+	    (res->status & 0x01) ? "ERR" : "");
+	if (res->status & 1) {
+	    sbuf_printf(sb, "error: %02x (%s%s%s%s%s%s%s%s), ",
+		res->error,
+		(res->error & 0x80) ? "ICRC " : "",
+		(res->error & 0x40) ? "UNC " : "",
+		(res->error & 0x20) ? "MC " : "",
+		(res->error & 0x10) ? "IDNF " : "",
+		(res->error & 0x08) ? "MCR " : "",
+		(res->error & 0x04) ? "ABRT " : "",
+		(res->error & 0x02) ? "NM " : "",
+		(res->error & 0x01) ? "ILI" : "");
+	}
+
+	if (res->flags & SSD_DESC_ATA_FLAG_EXTEND) {
+		sbuf_printf(sb, "count: %02x%02x, ",
+		    res->count_15_8, res->count_7_0);
+		sbuf_printf(sb, "LBA: %02x%02x%02x%02x%02x%02x, ",
+		    res->lba_47_40, res->lba_39_32, res->lba_31_24,
+		    res->lba_23_16, res->lba_15_8, res->lba_7_0);
+	} else {
+		sbuf_printf(sb, "count: %02x, ", res->count_7_0);
+		sbuf_printf(sb, "LBA: %02x%02x%02x, ",
+		    res->lba_23_16, res->lba_15_8, res->lba_7_0);
+	}
+	sbuf_printf(sb, "device: %02x, ", res->device);
+}
+
+void
+scsi_sense_forwarded_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
+			 u_int sense_len, uint8_t *cdb, int cdb_len,
+			 struct scsi_inquiry_data *inq_data,
+			 struct scsi_sense_desc_header *header)
+{
+	struct scsi_sense_forwarded *forwarded;
+	const char *sense_key_desc;
+	const char *asc_desc;
+	int error_code, sense_key, asc, ascq;
+
+	forwarded = (struct scsi_sense_forwarded *)header;
+	scsi_extract_sense_len((struct scsi_sense_data *)forwarded->sense_data,
+	    forwarded->length - 2, &error_code, &sense_key, &asc, &ascq, 1);
+	scsi_sense_desc(sense_key, asc, ascq, NULL, &sense_key_desc, &asc_desc);
+
+	sbuf_printf(sb, "Forwarded sense: %s asc:%x,%x (%s): ",
+	    sense_key_desc, asc, ascq, asc_desc);
+}
+
 /*
  * Generic sense descriptor printing routine.  This is used when we have
  * not yet implemented a specific printing routine for this descriptor.
@@ -4509,7 +4728,9 @@ struct scsi_sense_desc_printer {
 	{SSD_DESC_FRU, scsi_sense_fru_sbuf},
 	{SSD_DESC_STREAM, scsi_sense_stream_sbuf},
 	{SSD_DESC_BLOCK, scsi_sense_block_sbuf},
-	{SSD_DESC_PROGRESS, scsi_sense_progress_sbuf}
+	{SSD_DESC_ATA, scsi_sense_ata_sbuf},
+	{SSD_DESC_PROGRESS, scsi_sense_progress_sbuf},
+	{SSD_DESC_FORWARDED, scsi_sense_forwarded_sbuf}
 };
 
 void
@@ -4518,10 +4739,9 @@ scsi_sense_desc_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 		     struct scsi_inquiry_data *inq_data,
 		     struct scsi_sense_desc_header *header)
 {
-	int i;
+	u_int i;
 
-	for (i = 0; i < (sizeof(scsi_sense_printers) /
-	     sizeof(scsi_sense_printers[0])); i++) {
+	for (i = 0; i < nitems(scsi_sense_printers); i++) {
 		struct scsi_sense_desc_printer *printer;
 
 		printer = &scsi_sense_printers[i];
@@ -4802,7 +5022,6 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 	struct	  ccb_getdev *cgd;
 #endif /* _KERNEL */
 	char	  path_str[64];
-	uint8_t	  *cdb;
 
 #ifndef _KERNEL
 	if (device == NULL)
@@ -4879,8 +5098,8 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 			 * errors on finicky architectures.  We don't
 			 * ensure that the sense data is pointer aligned.
 			 */
-			bcopy(&csio->sense_data, &sense, 
-			      sizeof(struct scsi_sense_data *));
+			bcopy((struct scsi_sense_data **)&csio->sense_data,
+			    &sense, sizeof(struct scsi_sense_data *));
 		}
 	} else {
 		/*
@@ -4900,14 +5119,9 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 			sense = &csio->sense_data;
 	}
 
-	if (csio->ccb_h.flags & CAM_CDB_POINTER)
-		cdb = csio->cdb_io.cdb_ptr;
-	else
-		cdb = csio->cdb_io.cdb_bytes;
-
 	scsi_sense_only_sbuf(sense, csio->sense_len - csio->sense_resid, sb,
-			     path_str, inq_data, cdb, csio->cdb_len);
-			 
+	    path_str, inq_data, scsiio_cdb_ptr(csio), csio->cdb_len);
+
 #ifdef _KERNEL
 	xpt_free_ccb((union ccb*)cgd);
 #endif /* _KERNEL/!_KERNEL */
@@ -4953,7 +5167,7 @@ scsi_sense_print(struct ccb_scsiio *csio)
 
 	sbuf_finish(&sb);
 
-	printf("%s", sbuf_data(&sb));
+	sbuf_putbuf(&sb);
 }
 
 #else /* !_KERNEL */
@@ -5009,8 +5223,8 @@ scsi_extract_sense_ccb(union ccb *ccb,
 		return (0);
 
 	if (ccb->ccb_h.flags & CAM_SENSE_PTR)
-		bcopy(&ccb->csio.sense_data, &sense_data,
-		    sizeof(struct scsi_sense_data *));
+		bcopy((struct scsi_sense_data **)&ccb->csio.sense_data,
+		    &sense_data, sizeof(struct scsi_sense_data *));
 	else
 		sense_data = &ccb->csio.sense_data;
 	scsi_extract_sense_len(sense_data,
@@ -5145,11 +5359,10 @@ scsi_get_ascq(struct scsi_sense_data *sense_data, u_int sense_len,
  * for this routine to function properly.
  */
 void
-scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
+scsi_print_inquiry_sbuf(struct sbuf *sb, struct scsi_inquiry_data *inq_data)
 {
 	u_int8_t type;
 	char *dtype, *qtype;
-	char vendor[16], product[48], revision[16], rstr[4];
 
 	type = SID_TYPE(inq_data);
 
@@ -5157,7 +5370,7 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 	 * Figure out basic device type and qualifier.
 	 */
 	if (SID_QUAL_IS_VENDOR_UNIQUE(inq_data)) {
-		qtype = "(vendor-unique qualifier)";
+		qtype = " (vendor-unique qualifier)";
 	} else {
 		switch (SID_QUAL(inq_data)) {
 		case SID_QUAL_LU_CONNECTED:
@@ -5165,15 +5378,15 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 			break;
 
 		case SID_QUAL_LU_OFFLINE:
-			qtype = "(offline)";
+			qtype = " (offline)";
 			break;
 
 		case SID_QUAL_RSVD:
-			qtype = "(reserved qualifier)";
+			qtype = " (reserved qualifier)";
 			break;
 		default:
 		case SID_QUAL_BAD_LU:
-			qtype = "(LUN not supported)";
+			qtype = " (LUN not supported)";
 			break;
 		}
 	}
@@ -5227,6 +5440,9 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 	case T_ADC:
 		dtype = "Automation/Drive Interface";
 		break;
+	case T_ZBC_HM:
+		dtype = "Host Managed Zoned Block";
+		break;
 	case T_NODEVICE:
 		dtype = "Uninstalled";
 		break;
@@ -5235,36 +5451,55 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 		break;
 	}
 
-	cam_strvis(vendor, inq_data->vendor, sizeof(inq_data->vendor),
-		   sizeof(vendor));
-	cam_strvis(product, inq_data->product, sizeof(inq_data->product),
-		   sizeof(product));
-	cam_strvis(revision, inq_data->revision, sizeof(inq_data->revision),
-		   sizeof(revision));
+	scsi_print_inquiry_short_sbuf(sb, inq_data);
 
-	if (SID_ANSI_REV(inq_data) == SCSI_REV_CCS)
-		bcopy("CCS", rstr, 4);
-	else
-		snprintf(rstr, sizeof (rstr), "%d", SID_ANSI_REV(inq_data));
-	printf("<%s %s %s> %s %s SCSI-%s device %s\n",
-	       vendor, product, revision,
-	       SID_IS_REMOVABLE(inq_data) ? "Removable" : "Fixed",
-	       dtype, rstr, qtype);
+	sbuf_printf(sb, "%s %s ", SID_IS_REMOVABLE(inq_data) ? "Removable" : "Fixed", dtype);
+
+	if (SID_ANSI_REV(inq_data) == SCSI_REV_0)
+		sbuf_printf(sb, "SCSI ");
+	else if (SID_ANSI_REV(inq_data) <= SCSI_REV_SPC) {
+		sbuf_printf(sb, "SCSI-%d ", SID_ANSI_REV(inq_data));
+	} else {
+		sbuf_printf(sb, "SPC-%d SCSI ", SID_ANSI_REV(inq_data) - 2);
+	}
+	sbuf_printf(sb, "device%s\n", qtype);
+}
+
+void
+scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
+{
+	struct sbuf	sb;
+	char		buffer[120];
+
+	sbuf_new(&sb, buffer, 120, SBUF_FIXEDLEN);
+	scsi_print_inquiry_sbuf(&sb, inq_data);
+	sbuf_finish(&sb);
+	sbuf_putbuf(&sb);
+}
+
+void
+scsi_print_inquiry_short_sbuf(struct sbuf *sb, struct scsi_inquiry_data *inq_data)
+{
+
+	sbuf_printf(sb, "<");
+	cam_strvis_sbuf(sb, inq_data->vendor, sizeof(inq_data->vendor), 0);
+	sbuf_printf(sb, " ");
+	cam_strvis_sbuf(sb, inq_data->product, sizeof(inq_data->product), 0);
+	sbuf_printf(sb, " ");
+	cam_strvis_sbuf(sb, inq_data->revision, sizeof(inq_data->revision), 0);
+	sbuf_printf(sb, "> ");
 }
 
 void
 scsi_print_inquiry_short(struct scsi_inquiry_data *inq_data)
 {
-	char vendor[16], product[48], revision[16];
+	struct sbuf	sb;
+	char		buffer[84];
 
-	cam_strvis(vendor, inq_data->vendor, sizeof(inq_data->vendor),
-		   sizeof(vendor));
-	cam_strvis(product, inq_data->product, sizeof(inq_data->product),
-		   sizeof(product));
-	cam_strvis(revision, inq_data->revision, sizeof(inq_data->revision),
-		   sizeof(revision));
-
-	printf("<%s %s %s>", vendor, product, revision);
+	sbuf_new(&sb, buffer, 84, SBUF_FIXEDLEN);
+	scsi_print_inquiry_short_sbuf(&sb, inq_data);
+	sbuf_finish(&sb);
+	sbuf_putbuf(&sb);
 }
 
 /*
@@ -5289,8 +5524,8 @@ static struct {
 u_int
 scsi_calc_syncsrate(u_int period_factor)
 {
-	int i;
-	int num_syncrates;
+	u_int i;
+	u_int num_syncrates;
 
 	/*
 	 * It's a bug if period is zero, but if it is anyway, don't
@@ -5301,7 +5536,7 @@ scsi_calc_syncsrate(u_int period_factor)
 		return (3300);
 	}
 
-	num_syncrates = sizeof(scsi_syncrates) / sizeof(scsi_syncrates[0]);
+	num_syncrates = nitems(scsi_syncrates);
 	/* See if the period is in the "exception" table */
 	for (i = 0; i < num_syncrates; i++) {
 
@@ -5319,21 +5554,21 @@ scsi_calc_syncsrate(u_int period_factor)
 }
 
 /*
- * Return the SCSI sync parameter that corresponsd to
+ * Return the SCSI sync parameter that corresponds to
  * the passed in period in 10ths of ns.
  */
 u_int
 scsi_calc_syncparam(u_int period)
 {
-	int i;
-	int num_syncrates;
+	u_int i;
+	u_int num_syncrates;
 
 	if (period == 0)
 		return (~0);	/* Async */
 
 	/* Adjust for exception table being in 100ths. */
 	period *= 10;
-	num_syncrates = sizeof(scsi_syncrates) / sizeof(scsi_syncrates[0]);
+	num_syncrates = nitems(scsi_syncrates);
 	/* See if the period is in the "exception" table */
 	for (i = 0; i < num_syncrates; i++) {
 
@@ -5430,6 +5665,45 @@ scsi_devid_is_lun_name(uint8_t *bufp)
 	if ((descr->id_type & SVPD_ID_ASSOC_MASK) != SVPD_ID_ASSOC_LUN)
 		return 0;
 	if ((descr->id_type & SVPD_ID_TYPE_MASK) != SVPD_ID_TYPE_SCSI_NAME)
+		return 0;
+	return 1;
+}
+
+int
+scsi_devid_is_lun_md5(uint8_t *bufp)
+{
+	struct scsi_vpd_id_descriptor *descr;
+
+	descr = (struct scsi_vpd_id_descriptor *)bufp;
+	if ((descr->id_type & SVPD_ID_ASSOC_MASK) != SVPD_ID_ASSOC_LUN)
+		return 0;
+	if ((descr->id_type & SVPD_ID_TYPE_MASK) != SVPD_ID_TYPE_MD5_LUN_ID)
+		return 0;
+	return 1;
+}
+
+int
+scsi_devid_is_lun_uuid(uint8_t *bufp)
+{
+	struct scsi_vpd_id_descriptor *descr;
+
+	descr = (struct scsi_vpd_id_descriptor *)bufp;
+	if ((descr->id_type & SVPD_ID_ASSOC_MASK) != SVPD_ID_ASSOC_LUN)
+		return 0;
+	if ((descr->id_type & SVPD_ID_TYPE_MASK) != SVPD_ID_TYPE_UUID)
+		return 0;
+	return 1;
+}
+
+int
+scsi_devid_is_port_naa(uint8_t *bufp)
+{
+	struct scsi_vpd_id_descriptor *descr;
+
+	descr = (struct scsi_vpd_id_descriptor *)bufp;
+	if ((descr->id_type & SVPD_ID_ASSOC_MASK) != SVPD_ID_ASSOC_PORT)
+		return 0;
+	if ((descr->id_type & SVPD_ID_TYPE_MASK) != SVPD_ID_TYPE_NAA)
 		return 0;
 	return 1;
 }
@@ -5757,7 +6031,7 @@ scsi_parse_transportid_64bit(int proto_id, char *id_str,
 		break;
 	default:
 		if (error_str != NULL) {
-			snprintf(error_str, error_str_len, "%s: unsupoprted "
+			snprintf(error_str, error_str_len, "%s: unsupported "
 				 "protocol %d", __func__, proto_id);
 		}
 		retval = 1;
@@ -6034,7 +6308,7 @@ scsi_parse_transportid_rdma(char *id_str, struct scsi_transportid_header **hdr,
 		goto bailout;
 	}
 	*alloc_len = sizeof(*rdma);
-	bzero(rdma, sizeof(rdma));
+	bzero(rdma, *alloc_len);
 
 	rdma->format_protocol = SCSI_PROTO_RDMA | SCSI_TRN_RDMA_FORMAT_DEFAULT;
 	bcopy(rdma_id, rdma->initiator_port_id, SCSI_TRN_RDMA_PORT_LEN);
@@ -6346,7 +6620,8 @@ scsi_parse_transportid(char *transportid_str,
 {
 	char *tmpstr;
 	scsi_nv_status status;
-	int retval, num_proto_entries, table_entry;
+	u_int num_proto_entries;
+	int retval, table_entry;
 
 	retval = 0;
 	table_entry = 0;
@@ -6366,8 +6641,7 @@ scsi_parse_transportid(char *transportid_str,
 		goto bailout;
 	}
 
-	num_proto_entries = sizeof(scsi_proto_map) /
-			    sizeof(scsi_proto_map[0]);
+	num_proto_entries = nitems(scsi_proto_map);
 	status = scsi_get_nv(scsi_proto_map, num_proto_entries, tmpstr,
 			     &table_entry, SCSI_NV_FLAG_IG_CASE);
 	if (status != SCSI_NV_FOUND) {
@@ -6445,6 +6719,826 @@ scsi_parse_transportid(char *transportid_str,
 		break;	/* NOTREACHED */
 	}
 bailout:
+	return (retval);
+}
+
+struct scsi_attrib_table_entry scsi_mam_attr_table[] = {
+	{ SMA_ATTR_REM_CAP_PARTITION, SCSI_ATTR_FLAG_NONE,
+	  "Remaining Capacity in Partition",
+	  /*suffix*/ "MB", /*to_str*/ scsi_attrib_int_sbuf,/*parse_str*/ NULL },
+	{ SMA_ATTR_MAX_CAP_PARTITION, SCSI_ATTR_FLAG_NONE,
+	  "Maximum Capacity in Partition",
+	  /*suffix*/"MB", /*to_str*/ scsi_attrib_int_sbuf, /*parse_str*/ NULL },
+	{ SMA_ATTR_TAPEALERT_FLAGS, SCSI_ATTR_FLAG_HEX,
+	  "TapeAlert Flags",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_int_sbuf, /*parse_str*/ NULL },
+	{ SMA_ATTR_LOAD_COUNT, SCSI_ATTR_FLAG_NONE,
+	  "Load Count",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_int_sbuf, /*parse_str*/ NULL },
+	{ SMA_ATTR_MAM_SPACE_REMAINING, SCSI_ATTR_FLAG_NONE,
+	  "MAM Space Remaining",
+	  /*suffix*/"bytes", /*to_str*/ scsi_attrib_int_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_DEV_ASSIGNING_ORG, SCSI_ATTR_FLAG_NONE,
+	  "Assigning Organization",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_ascii_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_FORMAT_DENSITY_CODE, SCSI_ATTR_FLAG_HEX,
+	  "Format Density Code",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_int_sbuf, /*parse_str*/ NULL },
+	{ SMA_ATTR_INITIALIZATION_COUNT, SCSI_ATTR_FLAG_NONE,
+	  "Initialization Count",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_int_sbuf, /*parse_str*/ NULL },
+	{ SMA_ATTR_VOLUME_ID, SCSI_ATTR_FLAG_NONE,
+	  "Volume Identifier",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_ascii_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_VOLUME_CHANGE_REF, SCSI_ATTR_FLAG_HEX,
+	  "Volume Change Reference",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_int_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_DEV_SERIAL_LAST_LOAD, SCSI_ATTR_FLAG_NONE,
+	  "Device Vendor/Serial at Last Load",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_vendser_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_DEV_SERIAL_LAST_LOAD_1, SCSI_ATTR_FLAG_NONE,
+	  "Device Vendor/Serial at Last Load - 1",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_vendser_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_DEV_SERIAL_LAST_LOAD_2, SCSI_ATTR_FLAG_NONE,
+	  "Device Vendor/Serial at Last Load - 2",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_vendser_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_DEV_SERIAL_LAST_LOAD_3, SCSI_ATTR_FLAG_NONE,
+	  "Device Vendor/Serial at Last Load - 3",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_vendser_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_TOTAL_MB_WRITTEN_LT, SCSI_ATTR_FLAG_NONE,
+	  "Total MB Written in Medium Life",
+	  /*suffix*/ "MB", /*to_str*/ scsi_attrib_int_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_TOTAL_MB_READ_LT, SCSI_ATTR_FLAG_NONE,
+	  "Total MB Read in Medium Life",
+	  /*suffix*/ "MB", /*to_str*/ scsi_attrib_int_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_TOTAL_MB_WRITTEN_CUR, SCSI_ATTR_FLAG_NONE,
+	  "Total MB Written in Current/Last Load",
+	  /*suffix*/ "MB", /*to_str*/ scsi_attrib_int_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_TOTAL_MB_READ_CUR, SCSI_ATTR_FLAG_NONE,
+	  "Total MB Read in Current/Last Load",
+	  /*suffix*/ "MB", /*to_str*/ scsi_attrib_int_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_FIRST_ENC_BLOCK, SCSI_ATTR_FLAG_NONE,
+	  "Logical Position of First Encrypted Block",
+	  /*suffix*/ NULL, /*to_str*/ scsi_attrib_int_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_NEXT_UNENC_BLOCK, SCSI_ATTR_FLAG_NONE,
+	  "Logical Position of First Unencrypted Block after First "
+	  "Encrypted Block",
+	  /*suffix*/ NULL, /*to_str*/ scsi_attrib_int_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_MEDIUM_USAGE_HIST, SCSI_ATTR_FLAG_NONE,
+	  "Medium Usage History",
+	  /*suffix*/ NULL, /*to_str*/ NULL,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_PART_USAGE_HIST, SCSI_ATTR_FLAG_NONE,
+	  "Partition Usage History",
+	  /*suffix*/ NULL, /*to_str*/ NULL,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_MED_MANUF, SCSI_ATTR_FLAG_NONE,
+	  "Medium Manufacturer",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_ascii_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_MED_SERIAL, SCSI_ATTR_FLAG_NONE,
+	  "Medium Serial Number",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_ascii_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_MED_LENGTH, SCSI_ATTR_FLAG_NONE,
+	  "Medium Length",
+	  /*suffix*/"m", /*to_str*/ scsi_attrib_int_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_MED_WIDTH, SCSI_ATTR_FLAG_FP | SCSI_ATTR_FLAG_DIV_10 |
+	  SCSI_ATTR_FLAG_FP_1DIGIT,
+	  "Medium Width",
+	  /*suffix*/"mm", /*to_str*/ scsi_attrib_int_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_MED_ASSIGNING_ORG, SCSI_ATTR_FLAG_NONE,
+	  "Assigning Organization",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_ascii_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_MED_DENSITY_CODE, SCSI_ATTR_FLAG_HEX,
+	  "Medium Density Code",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_int_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_MED_MANUF_DATE, SCSI_ATTR_FLAG_NONE,
+	  "Medium Manufacture Date",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_ascii_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_MAM_CAPACITY, SCSI_ATTR_FLAG_NONE,
+	  "MAM Capacity",
+	  /*suffix*/"bytes", /*to_str*/ scsi_attrib_int_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_MED_TYPE, SCSI_ATTR_FLAG_HEX,
+	  "Medium Type",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_int_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_MED_TYPE_INFO, SCSI_ATTR_FLAG_HEX,
+	  "Medium Type Information",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_int_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_MED_SERIAL_NUM, SCSI_ATTR_FLAG_NONE,
+	  "Medium Serial Number",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_int_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_APP_VENDOR, SCSI_ATTR_FLAG_NONE,
+	  "Application Vendor",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_ascii_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_APP_NAME, SCSI_ATTR_FLAG_NONE,
+	  "Application Name",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_ascii_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_APP_VERSION, SCSI_ATTR_FLAG_NONE,
+	  "Application Version",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_ascii_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_USER_MED_TEXT_LABEL, SCSI_ATTR_FLAG_NONE,
+	  "User Medium Text Label",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_text_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_LAST_WRITTEN_TIME, SCSI_ATTR_FLAG_NONE,
+	  "Date and Time Last Written",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_ascii_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_TEXT_LOCAL_ID, SCSI_ATTR_FLAG_HEX,
+	  "Text Localization Identifier",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_int_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_BARCODE, SCSI_ATTR_FLAG_NONE,
+	  "Barcode",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_ascii_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_HOST_OWNER_NAME, SCSI_ATTR_FLAG_NONE,
+	  "Owning Host Textual Name",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_text_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_MEDIA_POOL, SCSI_ATTR_FLAG_NONE,
+	  "Media Pool",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_text_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_PART_USER_LABEL, SCSI_ATTR_FLAG_NONE,
+	  "Partition User Text Label",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_ascii_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_LOAD_UNLOAD_AT_PART, SCSI_ATTR_FLAG_NONE,
+	  "Load/Unload at Partition",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_int_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_APP_FORMAT_VERSION, SCSI_ATTR_FLAG_NONE,
+	  "Application Format Version",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_ascii_sbuf,
+	  /*parse_str*/ NULL },
+	{ SMA_ATTR_VOL_COHERENCY_INFO, SCSI_ATTR_FLAG_NONE,
+	  "Volume Coherency Information",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_volcoh_sbuf,
+	  /*parse_str*/ NULL },
+	{ 0x0ff1, SCSI_ATTR_FLAG_NONE,
+	  "Spectra MLM Creation",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_hexdump_sbuf,
+	  /*parse_str*/ NULL },
+	{ 0x0ff2, SCSI_ATTR_FLAG_NONE,
+	  "Spectra MLM C3",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_hexdump_sbuf,
+	  /*parse_str*/ NULL },
+	{ 0x0ff3, SCSI_ATTR_FLAG_NONE,
+	  "Spectra MLM RW",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_hexdump_sbuf,
+	  /*parse_str*/ NULL },
+	{ 0x0ff4, SCSI_ATTR_FLAG_NONE,
+	  "Spectra MLM SDC List",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_hexdump_sbuf,
+	  /*parse_str*/ NULL },
+	{ 0x0ff7, SCSI_ATTR_FLAG_NONE,
+	  "Spectra MLM Post Scan",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_hexdump_sbuf,
+	  /*parse_str*/ NULL },
+	{ 0x0ffe, SCSI_ATTR_FLAG_NONE,
+	  "Spectra MLM Checksum",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_hexdump_sbuf,
+	  /*parse_str*/ NULL },
+	{ 0x17f1, SCSI_ATTR_FLAG_NONE,
+	  "Spectra MLM Creation",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_hexdump_sbuf,
+	  /*parse_str*/ NULL },
+	{ 0x17f2, SCSI_ATTR_FLAG_NONE,
+	  "Spectra MLM C3",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_hexdump_sbuf,
+	  /*parse_str*/ NULL },
+	{ 0x17f3, SCSI_ATTR_FLAG_NONE,
+	  "Spectra MLM RW",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_hexdump_sbuf,
+	  /*parse_str*/ NULL },
+	{ 0x17f4, SCSI_ATTR_FLAG_NONE,
+	  "Spectra MLM SDC List",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_hexdump_sbuf,
+	  /*parse_str*/ NULL },
+	{ 0x17f7, SCSI_ATTR_FLAG_NONE,
+	  "Spectra MLM Post Scan",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_hexdump_sbuf,
+	  /*parse_str*/ NULL },
+	{ 0x17ff, SCSI_ATTR_FLAG_NONE,
+	  "Spectra MLM Checksum",
+	  /*suffix*/NULL, /*to_str*/ scsi_attrib_hexdump_sbuf,
+	  /*parse_str*/ NULL },
+};
+
+/*
+ * Print out Volume Coherency Information (Attribute 0x080c).
+ * This field has two variable length members, including one at the
+ * beginning, so it isn't practical to have a fixed structure definition.
+ * This is current as of SSC4r03 (see section 4.2.21.3), dated March 25,
+ * 2013.
+ */
+int
+scsi_attrib_volcoh_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
+			 uint32_t valid_len, uint32_t flags,
+			 uint32_t output_flags, char *error_str,
+			 int error_str_len)
+{
+	size_t avail_len;
+	uint32_t field_size;
+	uint64_t tmp_val;
+	uint8_t *cur_ptr;
+	int retval;
+	int vcr_len, as_len;
+
+	retval = 0;
+	tmp_val = 0;
+
+	field_size = scsi_2btoul(hdr->length);
+	avail_len = valid_len - sizeof(*hdr);
+	if (field_size > avail_len) {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "Available "
+				 "length of attribute ID 0x%.4x %zu < field "
+				 "length %u", scsi_2btoul(hdr->id), avail_len,
+				 field_size);
+		}
+		retval = 1;
+		goto bailout;
+	} else if (field_size == 0) {
+		/*
+		 * It isn't clear from the spec whether a field length of
+		 * 0 is invalid here.  It probably is, but be lenient here
+		 * to avoid inconveniencing the user.
+		 */
+		goto bailout;
+	}
+	cur_ptr = hdr->attribute;
+	vcr_len = *cur_ptr;
+	cur_ptr++;
+
+	sbuf_printf(sb, "\n\tVolume Change Reference Value:");
+
+	switch (vcr_len) {
+	case 0:
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "Volume Change "
+				 "Reference value has length of 0");
+		}
+		retval = 1;
+		goto bailout;
+		break; /*NOTREACHED*/
+	case 1:
+		tmp_val = *cur_ptr;
+		break;
+	case 2:
+		tmp_val = scsi_2btoul(cur_ptr);
+		break;
+	case 3:
+		tmp_val = scsi_3btoul(cur_ptr);
+		break;
+	case 4:
+		tmp_val = scsi_4btoul(cur_ptr);
+		break;
+	case 8:
+		tmp_val = scsi_8btou64(cur_ptr);
+		break;
+	default:
+		sbuf_printf(sb, "\n");
+		sbuf_hexdump(sb, cur_ptr, vcr_len, NULL, 0);
+		break;
+	}
+	if (vcr_len <= 8)
+		sbuf_printf(sb, " 0x%jx\n", (uintmax_t)tmp_val);
+
+	cur_ptr += vcr_len;
+	tmp_val = scsi_8btou64(cur_ptr);
+	sbuf_printf(sb, "\tVolume Coherency Count: %ju\n", (uintmax_t)tmp_val);
+
+	cur_ptr += sizeof(tmp_val);
+	tmp_val = scsi_8btou64(cur_ptr);
+	sbuf_printf(sb, "\tVolume Coherency Set Identifier: 0x%jx\n",
+		    (uintmax_t)tmp_val);
+
+	/*
+	 * Figure out how long the Application Client Specific Information
+	 * is and produce a hexdump.
+	 */
+	cur_ptr += sizeof(tmp_val);
+	as_len = scsi_2btoul(cur_ptr);
+	cur_ptr += sizeof(uint16_t);
+	sbuf_printf(sb, "\tApplication Client Specific Information: ");
+	if (((as_len == SCSI_LTFS_VER0_LEN)
+	  || (as_len == SCSI_LTFS_VER1_LEN))
+	 && (strncmp(cur_ptr, SCSI_LTFS_STR_NAME, SCSI_LTFS_STR_LEN) == 0)) {
+		sbuf_printf(sb, "LTFS\n");
+		cur_ptr += SCSI_LTFS_STR_LEN + 1;
+		if (cur_ptr[SCSI_LTFS_UUID_LEN] != '\0')
+			cur_ptr[SCSI_LTFS_UUID_LEN] = '\0';
+		sbuf_printf(sb, "\tLTFS UUID: %s\n", cur_ptr);
+		cur_ptr += SCSI_LTFS_UUID_LEN + 1;
+		/* XXX KDM check the length */
+		sbuf_printf(sb, "\tLTFS Version: %d\n", *cur_ptr);
+	} else {
+		sbuf_printf(sb, "Unknown\n");
+		sbuf_hexdump(sb, cur_ptr, as_len, NULL, 0);
+	}
+
+bailout:
+	return (retval);
+}
+
+int
+scsi_attrib_vendser_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
+			 uint32_t valid_len, uint32_t flags, 
+			 uint32_t output_flags, char *error_str,
+			 int error_str_len)
+{
+	size_t avail_len;
+	uint32_t field_size;
+	struct scsi_attrib_vendser *vendser;
+	cam_strvis_flags strvis_flags;
+	int retval = 0;
+
+	field_size = scsi_2btoul(hdr->length);
+	avail_len = valid_len - sizeof(*hdr);
+	if (field_size > avail_len) {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "Available "
+				 "length of attribute ID 0x%.4x %zu < field "
+				 "length %u", scsi_2btoul(hdr->id), avail_len,
+				 field_size);
+		}
+		retval = 1;
+		goto bailout;
+	} else if (field_size == 0) {
+		/*
+		 * A field size of 0 doesn't make sense here.  The device
+		 * can at least give you the vendor ID, even if it can't
+		 * give you the serial number.
+		 */
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "The length of "
+				 "attribute ID 0x%.4x is 0",
+				 scsi_2btoul(hdr->id));
+		}
+		retval = 1;
+		goto bailout;
+	}
+	vendser = (struct scsi_attrib_vendser *)hdr->attribute;
+
+	switch (output_flags & SCSI_ATTR_OUTPUT_NONASCII_MASK) {
+	case SCSI_ATTR_OUTPUT_NONASCII_TRIM:
+		strvis_flags = CAM_STRVIS_FLAG_NONASCII_TRIM;
+		break;
+	case SCSI_ATTR_OUTPUT_NONASCII_RAW:
+		strvis_flags = CAM_STRVIS_FLAG_NONASCII_RAW;
+		break;
+	case SCSI_ATTR_OUTPUT_NONASCII_ESC:
+	default:
+		strvis_flags = CAM_STRVIS_FLAG_NONASCII_ESC;
+		break;;
+	}
+	cam_strvis_sbuf(sb, vendser->vendor, sizeof(vendser->vendor),
+	    strvis_flags);
+	sbuf_putc(sb, ' ');
+	cam_strvis_sbuf(sb, vendser->serial_num, sizeof(vendser->serial_num),
+	    strvis_flags);
+bailout:
+	return (retval);
+}
+
+int
+scsi_attrib_hexdump_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
+			 uint32_t valid_len, uint32_t flags,
+			 uint32_t output_flags, char *error_str,
+			 int error_str_len)
+{
+	uint32_t field_size;
+	ssize_t avail_len;
+	uint32_t print_len;
+	uint8_t *num_ptr;
+	int retval = 0;
+
+	field_size = scsi_2btoul(hdr->length);
+	avail_len = valid_len - sizeof(*hdr);
+	print_len = MIN(avail_len, field_size);
+	num_ptr = hdr->attribute;
+
+	if (print_len > 0) {
+		sbuf_printf(sb, "\n");
+		sbuf_hexdump(sb, num_ptr, print_len, NULL, 0);
+	}
+
+	return (retval);
+}
+
+int
+scsi_attrib_int_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
+		     uint32_t valid_len, uint32_t flags,
+		     uint32_t output_flags, char *error_str,
+		     int error_str_len)
+{
+	uint64_t print_number;
+	size_t avail_len;
+	uint32_t number_size;
+	int retval = 0;
+
+	number_size = scsi_2btoul(hdr->length);
+
+	avail_len = valid_len - sizeof(*hdr);
+	if (avail_len < number_size) { 
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "Available "
+				 "length of attribute ID 0x%.4x %zu < field "
+				 "length %u", scsi_2btoul(hdr->id), avail_len,
+				 number_size);
+		}
+		retval = 1;
+		goto bailout;
+	}
+
+	switch (number_size) {
+	case 0:
+		/*
+		 * We don't treat this as an error, since there may be
+		 * scenarios where a device reports a field but then gives
+		 * a length of 0.  See the note in scsi_attrib_ascii_sbuf().
+		 */
+		goto bailout;
+		break; /*NOTREACHED*/
+	case 1:
+		print_number = hdr->attribute[0];
+		break;
+	case 2:
+		print_number = scsi_2btoul(hdr->attribute);
+		break;
+	case 3:
+		print_number = scsi_3btoul(hdr->attribute);
+		break;
+	case 4:
+		print_number = scsi_4btoul(hdr->attribute);
+		break;
+	case 8:
+		print_number = scsi_8btou64(hdr->attribute);
+		break;
+	default:
+		/*
+		 * If we wind up here, the number is too big to print
+		 * normally, so just do a hexdump.
+		 */
+		retval = scsi_attrib_hexdump_sbuf(sb, hdr, valid_len,
+						  flags, output_flags,
+						  error_str, error_str_len);
+		goto bailout;
+		break;
+	}
+
+	if (flags & SCSI_ATTR_FLAG_FP) {
+#ifndef _KERNEL
+		long double num_float;
+
+		num_float = (long double)print_number;
+
+		if (flags & SCSI_ATTR_FLAG_DIV_10)
+			num_float /= 10;
+
+		sbuf_printf(sb, "%.*Lf", (flags & SCSI_ATTR_FLAG_FP_1DIGIT) ?
+			    1 : 0, num_float);
+#else /* _KERNEL */
+		sbuf_printf(sb, "%ju", (flags & SCSI_ATTR_FLAG_DIV_10) ?
+			    (print_number / 10) : print_number);
+#endif /* _KERNEL */
+	} else if (flags & SCSI_ATTR_FLAG_HEX) {
+		sbuf_printf(sb, "0x%jx", (uintmax_t)print_number);
+	} else
+		sbuf_printf(sb, "%ju", (uintmax_t)print_number);
+
+bailout:
+	return (retval);
+}
+
+int
+scsi_attrib_ascii_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
+		       uint32_t valid_len, uint32_t flags,
+		       uint32_t output_flags, char *error_str,
+		       int error_str_len)
+{
+	size_t avail_len;
+	uint32_t field_size, print_size;
+	int retval = 0;
+
+	avail_len = valid_len - sizeof(*hdr);
+	field_size = scsi_2btoul(hdr->length);
+	print_size = MIN(avail_len, field_size);
+
+	if (print_size > 0) {
+		cam_strvis_flags strvis_flags;
+
+		switch (output_flags & SCSI_ATTR_OUTPUT_NONASCII_MASK) {
+		case SCSI_ATTR_OUTPUT_NONASCII_TRIM:
+			strvis_flags = CAM_STRVIS_FLAG_NONASCII_TRIM;
+			break;
+		case SCSI_ATTR_OUTPUT_NONASCII_RAW:
+			strvis_flags = CAM_STRVIS_FLAG_NONASCII_RAW;
+			break;
+		case SCSI_ATTR_OUTPUT_NONASCII_ESC:
+		default:
+			strvis_flags = CAM_STRVIS_FLAG_NONASCII_ESC;
+			break;
+		}
+		cam_strvis_sbuf(sb, hdr->attribute, print_size, strvis_flags);
+	} else if (avail_len < field_size) {
+		/*
+		 * We only report an error if the user didn't allocate
+		 * enough space to hold the full value of this field.  If
+		 * the field length is 0, that is allowed by the spec.
+		 * e.g. in SPC-4r37, section 7.4.2.2.5, VOLUME IDENTIFIER
+		 * "This attribute indicates the current volume identifier
+		 * (see SMC-3) of the medium. If the device server supports
+		 * this attribute but does not have access to the volume
+		 * identifier, the device server shall report this attribute
+		 * with an attribute length value of zero."
+		 */
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "Available "
+				 "length of attribute ID 0x%.4x %zu < field "
+				 "length %u", scsi_2btoul(hdr->id), avail_len,
+				 field_size);
+		}
+		retval = 1;
+	}
+
+	return (retval);
+}
+
+int
+scsi_attrib_text_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
+		      uint32_t valid_len, uint32_t flags, 
+		      uint32_t output_flags, char *error_str,
+		      int error_str_len)
+{
+	size_t avail_len;
+	uint32_t field_size, print_size;
+	int retval = 0;
+	int esc_text = 1;
+
+	avail_len = valid_len - sizeof(*hdr);
+	field_size = scsi_2btoul(hdr->length);
+	print_size = MIN(avail_len, field_size);
+
+	if ((output_flags & SCSI_ATTR_OUTPUT_TEXT_MASK) ==
+	     SCSI_ATTR_OUTPUT_TEXT_RAW)
+		esc_text = 0;
+
+	if (print_size > 0) {
+		uint32_t i;
+
+		for (i = 0; i < print_size; i++) {
+			if (hdr->attribute[i] == '\0')
+				continue;
+			else if (((unsigned char)hdr->attribute[i] < 0x80)
+			      || (esc_text == 0))
+				sbuf_putc(sb, hdr->attribute[i]);
+			else
+				sbuf_printf(sb, "%%%02x",
+				    (unsigned char)hdr->attribute[i]);
+		}
+	} else if (avail_len < field_size) {
+		/*
+		 * We only report an error if the user didn't allocate
+		 * enough space to hold the full value of this field.
+		 */
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "Available "
+				 "length of attribute ID 0x%.4x %zu < field "
+				 "length %u", scsi_2btoul(hdr->id), avail_len,
+				 field_size);
+		}
+		retval = 1;
+	}
+
+	return (retval);
+}
+
+struct scsi_attrib_table_entry *
+scsi_find_attrib_entry(struct scsi_attrib_table_entry *table,
+		       size_t num_table_entries, uint32_t id)
+{
+	uint32_t i;
+
+	for (i = 0; i < num_table_entries; i++) {
+		if (table[i].id == id)
+			return (&table[i]);
+	}
+
+	return (NULL);
+}
+
+struct scsi_attrib_table_entry *
+scsi_get_attrib_entry(uint32_t id)
+{
+	return (scsi_find_attrib_entry(scsi_mam_attr_table,
+	    nitems(scsi_mam_attr_table), id));
+}
+
+int
+scsi_attrib_value_sbuf(struct sbuf *sb, uint32_t valid_len,
+   struct scsi_mam_attribute_header *hdr, uint32_t output_flags,
+   char *error_str, size_t error_str_len)
+{
+	int retval;
+
+	switch (hdr->byte2 & SMA_FORMAT_MASK) {
+	case SMA_FORMAT_ASCII:
+		retval = scsi_attrib_ascii_sbuf(sb, hdr, valid_len,
+		    SCSI_ATTR_FLAG_NONE, output_flags, error_str,error_str_len);
+		break;
+	case SMA_FORMAT_BINARY:
+		if (scsi_2btoul(hdr->length) <= 8)
+			retval = scsi_attrib_int_sbuf(sb, hdr, valid_len,
+			    SCSI_ATTR_FLAG_NONE, output_flags, error_str,
+			    error_str_len);
+		else
+			retval = scsi_attrib_hexdump_sbuf(sb, hdr, valid_len,
+			    SCSI_ATTR_FLAG_NONE, output_flags, error_str,
+			    error_str_len);
+		break;
+	case SMA_FORMAT_TEXT:
+		retval = scsi_attrib_text_sbuf(sb, hdr, valid_len,
+		    SCSI_ATTR_FLAG_NONE, output_flags, error_str,
+		    error_str_len);
+		break;
+	default:
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "Unknown attribute "
+			    "format 0x%x", hdr->byte2 & SMA_FORMAT_MASK);
+		}
+		retval = 1;
+		goto bailout;
+		break; /*NOTREACHED*/
+	}
+
+	sbuf_trim(sb);
+
+bailout:
+
+	return (retval);
+}
+
+void
+scsi_attrib_prefix_sbuf(struct sbuf *sb, uint32_t output_flags,
+			struct scsi_mam_attribute_header *hdr,
+			uint32_t valid_len, const char *desc)
+{
+	int need_space = 0;
+	uint32_t len;
+	uint32_t id;
+
+	/*
+	 * We can't do anything if we don't have enough valid data for the
+	 * header.
+	 */
+	if (valid_len < sizeof(*hdr))
+		return;
+
+	id = scsi_2btoul(hdr->id);
+	/*
+	 * Note that we print out the value of the attribute listed in the
+	 * header, regardless of whether we actually got that many bytes
+	 * back from the device through the controller.  A truncated result
+	 * could be the result of a failure to ask for enough data; the
+	 * header indicates how many bytes are allocated for this attribute
+	 * in the MAM.
+	 */
+	len = scsi_2btoul(hdr->length);
+
+	if ((output_flags & SCSI_ATTR_OUTPUT_FIELD_MASK) ==
+	    SCSI_ATTR_OUTPUT_FIELD_NONE)
+		return;
+
+	if ((output_flags & SCSI_ATTR_OUTPUT_FIELD_DESC)
+	 && (desc != NULL)) {
+		sbuf_printf(sb, "%s", desc);
+		need_space = 1;
+	}
+
+	if (output_flags & SCSI_ATTR_OUTPUT_FIELD_NUM) {
+		sbuf_printf(sb, "%s(0x%.4x)", (need_space) ? " " : "", id);
+		need_space = 0;
+	}
+
+	if (output_flags & SCSI_ATTR_OUTPUT_FIELD_SIZE) {
+		sbuf_printf(sb, "%s[%d]", (need_space) ? " " : "", len);
+		need_space = 0;
+	}
+	if (output_flags & SCSI_ATTR_OUTPUT_FIELD_RW) {
+		sbuf_printf(sb, "%s(%s)", (need_space) ? " " : "",
+			    (hdr->byte2 & SMA_READ_ONLY) ? "RO" : "RW");
+	}
+	sbuf_printf(sb, ": ");
+}
+
+int
+scsi_attrib_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
+		 uint32_t valid_len, struct scsi_attrib_table_entry *user_table,
+		 size_t num_user_entries, int prefer_user_table,
+		 uint32_t output_flags, char *error_str, int error_str_len)
+{
+	int retval;
+	struct scsi_attrib_table_entry *table1 = NULL, *table2 = NULL;
+	struct scsi_attrib_table_entry *entry = NULL;
+	size_t table1_size = 0, table2_size = 0;
+	uint32_t id;
+
+	retval = 0;
+
+	if (valid_len < sizeof(*hdr)) {
+		retval = 1;
+		goto bailout;
+	}
+
+	id = scsi_2btoul(hdr->id);
+
+	if (user_table != NULL) {
+		if (prefer_user_table != 0) {
+			table1 = user_table;
+			table1_size = num_user_entries;
+			table2 = scsi_mam_attr_table;
+			table2_size = nitems(scsi_mam_attr_table);
+		} else {
+			table1 = scsi_mam_attr_table;
+			table1_size = nitems(scsi_mam_attr_table);
+			table2 = user_table;
+			table2_size = num_user_entries;
+		}
+	} else {
+		table1 = scsi_mam_attr_table;
+		table1_size = nitems(scsi_mam_attr_table);
+	}
+
+	entry = scsi_find_attrib_entry(table1, table1_size, id);
+	if (entry != NULL) {
+		scsi_attrib_prefix_sbuf(sb, output_flags, hdr, valid_len,
+					entry->desc);
+		if (entry->to_str == NULL)
+			goto print_default;
+		retval = entry->to_str(sb, hdr, valid_len, entry->flags,
+				       output_flags, error_str, error_str_len);
+		goto bailout;
+	}
+	if (table2 != NULL) {
+		entry = scsi_find_attrib_entry(table2, table2_size, id);
+		if (entry != NULL) {
+			if (entry->to_str == NULL)
+				goto print_default;
+
+			scsi_attrib_prefix_sbuf(sb, output_flags, hdr,
+						valid_len, entry->desc);
+			retval = entry->to_str(sb, hdr, valid_len, entry->flags,
+					       output_flags, error_str,
+					       error_str_len);
+			goto bailout;
+		}
+	}
+
+	scsi_attrib_prefix_sbuf(sb, output_flags, hdr, valid_len, NULL);
+
+print_default:
+	retval = scsi_attrib_value_sbuf(sb, valid_len, hdr, output_flags,
+	    error_str, error_str_len);
+bailout:
+	if (retval == 0) {
+	 	if ((entry != NULL)
+		 && (entry->suffix != NULL))
+			sbuf_printf(sb, " %s", entry->suffix);
+
+		sbuf_trim(sb);
+		sbuf_printf(sb, "\n");
+	}
+
 	return (retval);
 }
 
@@ -6527,24 +7621,34 @@ scsi_inquiry(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_mode_sense(struct ccb_scsiio *csio, u_int32_t retries,
-		void (*cbfcnp)(struct cam_periph *, union ccb *),
-		u_int8_t tag_action, int dbd, u_int8_t page_code,
-		u_int8_t page, u_int8_t *param_buf, u_int32_t param_len,
-		u_int8_t sense_len, u_int32_t timeout)
+scsi_mode_sense(struct ccb_scsiio *csio, uint32_t retries,
+    void (*cbfcnp)(struct cam_periph *, union ccb *), uint8_t tag_action,
+    int dbd, uint8_t pc, uint8_t page, uint8_t *param_buf, uint32_t param_len,
+    uint8_t sense_len, uint32_t timeout)
 {
 
-	scsi_mode_sense_len(csio, retries, cbfcnp, tag_action, dbd,
-			    page_code, page, param_buf, param_len, 0,
-			    sense_len, timeout);
+	scsi_mode_sense_subpage(csio, retries, cbfcnp, tag_action, dbd,
+	    pc, page, 0, param_buf, param_len, 0, sense_len, timeout);
 }
 
 void
-scsi_mode_sense_len(struct ccb_scsiio *csio, u_int32_t retries,
-		    void (*cbfcnp)(struct cam_periph *, union ccb *),
-		    u_int8_t tag_action, int dbd, u_int8_t page_code,
-		    u_int8_t page, u_int8_t *param_buf, u_int32_t param_len,
-		    int minimum_cmd_size, u_int8_t sense_len, u_int32_t timeout)
+scsi_mode_sense_len(struct ccb_scsiio *csio, uint32_t retries,
+    void (*cbfcnp)(struct cam_periph *, union ccb *), uint8_t tag_action,
+    int dbd, uint8_t pc, uint8_t page, uint8_t *param_buf, uint32_t param_len,
+    int minimum_cmd_size, uint8_t sense_len, uint32_t timeout)
+{
+
+	scsi_mode_sense_subpage(csio, retries, cbfcnp, tag_action, dbd,
+	    pc, page, 0, param_buf, param_len, minimum_cmd_size,
+	    sense_len, timeout);
+}
+
+void
+scsi_mode_sense_subpage(struct ccb_scsiio *csio, uint32_t retries,
+    void (*cbfcnp)(struct cam_periph *, union ccb *), uint8_t tag_action,
+    int dbd, uint8_t pc, uint8_t page, uint8_t subpage, uint8_t *param_buf,
+    uint32_t param_len, int minimum_cmd_size, uint8_t sense_len,
+    uint32_t timeout)
 {
 	u_int8_t cdb_len;
 
@@ -6563,7 +7667,8 @@ scsi_mode_sense_len(struct ccb_scsiio *csio, u_int32_t retries,
 		scsi_cmd->opcode = MODE_SENSE_6;
 		if (dbd != 0)
 			scsi_cmd->byte2 |= SMS_DBD;
-		scsi_cmd->page = page_code | page;
+		scsi_cmd->page = pc | page;
+		scsi_cmd->subpage = subpage;
 		scsi_cmd->length = param_len;
 		cdb_len = sizeof(*scsi_cmd);
 	} else {
@@ -6577,7 +7682,8 @@ scsi_mode_sense_len(struct ccb_scsiio *csio, u_int32_t retries,
 		scsi_cmd->opcode = MODE_SENSE_10;
 		if (dbd != 0)
 			scsi_cmd->byte2 |= SMS_DBD;
-		scsi_cmd->page = page_code | page;
+		scsi_cmd->page = pc | page;
+		scsi_cmd->subpage = subpage;
 		scsi_ulto2b(param_len, scsi_cmd->length);
 		cdb_len = sizeof(*scsi_cmd);
 	}
@@ -6870,6 +7976,32 @@ scsi_report_target_group(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
+scsi_report_timestamp(struct ccb_scsiio *csio, u_int32_t retries,
+		 void (*cbfcnp)(struct cam_periph *, union ccb *),
+		 u_int8_t tag_action, u_int8_t pdf,
+		 void *buf, u_int32_t alloc_len,
+		 u_int8_t sense_len, u_int32_t timeout)
+{
+	struct scsi_timestamp *scsi_cmd;
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      /*data_ptr*/(u_int8_t *)buf,
+		      /*dxfer_len*/alloc_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+	scsi_cmd = (struct scsi_timestamp *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = MAINTENANCE_IN;
+	scsi_cmd->service_action = REPORT_TIMESTAMP | pdf;
+	scsi_ulto4b(alloc_len, scsi_cmd->length);
+}
+
+void
 scsi_set_target_group(struct ccb_scsiio *csio, u_int32_t retries,
 		 void (*cbfcnp)(struct cam_periph *, union ccb *),
 		 u_int8_t tag_action, void *buf, u_int32_t alloc_len,
@@ -6891,6 +8023,45 @@ scsi_set_target_group(struct ccb_scsiio *csio, u_int32_t retries,
 	bzero(scsi_cmd, sizeof(*scsi_cmd));
 	scsi_cmd->opcode = MAINTENANCE_OUT;
 	scsi_cmd->service_action = SET_TARGET_PORT_GROUPS;
+	scsi_ulto4b(alloc_len, scsi_cmd->length);
+}
+
+void
+scsi_create_timestamp(uint8_t *timestamp_6b_buf,
+		      uint64_t timestamp)
+{
+	uint8_t buf[8];
+	scsi_u64to8b(timestamp, buf);
+	/*
+	 * Using memcopy starting at buf[2] because the set timestamp parameters
+	 * only has six bytes for the timestamp to fit into, and we don't have a
+	 * scsi_u64to6b function.
+	 */
+	memcpy(timestamp_6b_buf, &buf[2], 6);
+}
+
+void
+scsi_set_timestamp(struct ccb_scsiio *csio, u_int32_t retries,
+		   void (*cbfcnp)(struct cam_periph *, union ccb *),
+		   u_int8_t tag_action, void *buf, u_int32_t alloc_len,
+		   u_int8_t sense_len, u_int32_t timeout)
+{
+	struct scsi_timestamp *scsi_cmd;
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_OUT,
+		      tag_action,
+		      /*data_ptr*/(u_int8_t *) buf,
+		      /*dxfer_len*/alloc_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+	scsi_cmd = (struct scsi_timestamp *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = MAINTENANCE_OUT;
+	scsi_cmd->service_action = SET_TIMESTAMP;
 	scsi_ulto4b(alloc_len, scsi_cmd->length);
 }
 
@@ -7116,23 +8287,30 @@ scsi_ata_identify(struct ccb_scsiio *csio, u_int32_t retries,
 		  u_int16_t dxfer_len, u_int8_t sense_len,
 		  u_int32_t timeout)
 {
-	scsi_ata_pass_16(csio,
-			 retries,
-			 cbfcnp,
-			 /*flags*/CAM_DIR_IN,
-			 tag_action,
-			 /*protocol*/AP_PROTO_PIO_IN,
-			 /*ata_flags*/AP_FLAG_TDIR_FROM_DEV|
-				AP_FLAG_BYT_BLOK_BYTES|AP_FLAG_TLEN_SECT_CNT,
-			 /*features*/0,
-			 /*sector_count*/dxfer_len,
-			 /*lba*/0,
-			 /*command*/ATA_ATA_IDENTIFY,
-			 /*control*/0,
-			 data_ptr,
-			 dxfer_len,
-			 sense_len,
-			 timeout);
+	scsi_ata_pass(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      /*protocol*/AP_PROTO_PIO_IN,
+		      /*ata_flags*/AP_FLAG_TDIR_FROM_DEV |
+				   AP_FLAG_BYT_BLOK_BYTES |
+				   AP_FLAG_TLEN_SECT_CNT,
+		      /*features*/0,
+		      /*sector_count*/dxfer_len,
+		      /*lba*/0,
+		      /*command*/ATA_ATA_IDENTIFY,
+		      /*device*/ 0,
+		      /*icc*/ 0,
+		      /*auxiliary*/ 0,
+		      /*control*/0,
+		      data_ptr,
+		      dxfer_len,
+		      /*cdb_storage*/ NULL,
+		      /*cdb_storage_len*/ 0,
+		      /*minimum_cmd_size*/ 0,
+		      sense_len,
+		      timeout);
 }
 
 void
@@ -7158,6 +8336,248 @@ scsi_ata_trim(struct ccb_scsiio *csio, u_int32_t retries,
 			 dxfer_len,
 			 sense_len,
 			 timeout);
+}
+
+int
+scsi_ata_read_log(struct ccb_scsiio *csio, uint32_t retries,
+		  void (*cbfcnp)(struct cam_periph *, union ccb *),
+		  uint8_t tag_action, uint32_t log_address,
+		  uint32_t page_number, uint16_t block_count,
+		  uint8_t protocol, uint8_t *data_ptr, uint32_t dxfer_len,
+		  uint8_t sense_len, uint32_t timeout)
+{
+	uint8_t command, protocol_out;
+	uint16_t count_out;
+	uint64_t lba;
+	int retval;
+
+	retval = 0;
+
+	switch (protocol) {
+	case AP_PROTO_DMA:
+		count_out = block_count;
+		command = ATA_READ_LOG_DMA_EXT;
+		protocol_out = AP_PROTO_DMA;
+		break;
+	case AP_PROTO_PIO_IN:
+	default:
+		count_out = block_count;
+		command = ATA_READ_LOG_EXT;
+		protocol_out = AP_PROTO_PIO_IN;
+		break;
+	}
+
+	lba = (((uint64_t)page_number & 0xff00) << 32) |
+	      ((page_number & 0x00ff) << 8) |
+	      (log_address & 0xff);
+
+	protocol_out |= AP_EXTEND;
+
+	retval = scsi_ata_pass(csio,
+			       retries,
+			       cbfcnp,
+			       /*flags*/CAM_DIR_IN,
+			       tag_action,
+			       /*protocol*/ protocol_out,
+			       /*ata_flags*/AP_FLAG_TLEN_SECT_CNT |
+					    AP_FLAG_BYT_BLOK_BLOCKS |
+					    AP_FLAG_TDIR_FROM_DEV,
+			       /*feature*/ 0,
+			       /*sector_count*/ count_out,
+			       /*lba*/ lba,
+			       /*command*/ command,
+			       /*device*/ 0,
+			       /*icc*/ 0,
+			       /*auxiliary*/ 0,
+			       /*control*/0,
+			       data_ptr,
+			       dxfer_len,
+			       /*cdb_storage*/ NULL,
+			       /*cdb_storage_len*/ 0,
+			       /*minimum_cmd_size*/ 0,
+			       sense_len,
+			       timeout);
+
+	return (retval);
+}
+
+/*
+ * Note! This is an unusual CDB building function because it can return
+ * an error in the event that the command in question requires a variable
+ * length CDB, but the caller has not given storage space for one or has not
+ * given enough storage space.  If there is enough space available in the
+ * standard SCSI CCB CDB bytes, we'll prefer that over passed in storage.
+ */
+int
+scsi_ata_pass(struct ccb_scsiio *csio, uint32_t retries,
+	      void (*cbfcnp)(struct cam_periph *, union ccb *),
+	      uint32_t flags, uint8_t tag_action,
+	      uint8_t protocol, uint8_t ata_flags, uint16_t features,
+	      uint16_t sector_count, uint64_t lba, uint8_t command,
+	      uint8_t device, uint8_t icc, uint32_t auxiliary,
+	      uint8_t control, u_int8_t *data_ptr, uint32_t dxfer_len,
+	      uint8_t *cdb_storage, size_t cdb_storage_len,
+	      int minimum_cmd_size, u_int8_t sense_len, u_int32_t timeout)
+{
+	uint32_t cam_flags;
+	uint8_t *cdb_ptr;
+	int cmd_size;
+	int retval;
+	uint8_t cdb_len;
+
+	retval = 0;
+	cam_flags = flags;
+
+	/*
+	 * Round the user's request to the nearest command size that is at
+	 * least as big as what he requested.
+	 */
+	if (minimum_cmd_size <= 12)
+		cmd_size = 12;
+	else if (minimum_cmd_size > 16)
+		cmd_size = 32;
+	else
+		cmd_size = 16;
+
+	/*
+	 * If we have parameters that require a 48-bit ATA command, we have to
+	 * use the 16 byte ATA PASS-THROUGH command at least.
+	 */
+	if (((lba > ATA_MAX_28BIT_LBA) 
+	  || (sector_count > 255)
+	  || (features > 255)
+	  || (protocol & AP_EXTEND))
+	 && ((cmd_size < 16)
+	  || ((protocol & AP_EXTEND) == 0))) {
+		if (cmd_size < 16)
+			cmd_size = 16;
+		protocol |= AP_EXTEND;
+	}
+
+	/*
+	 * The icc and auxiliary ATA registers are only supported in the
+	 * 32-byte version of the ATA PASS-THROUGH command.
+	 */
+	if ((icc != 0)
+	 || (auxiliary != 0)) {
+		cmd_size = 32;
+		protocol |= AP_EXTEND;
+	}
+
+
+	if ((cmd_size > sizeof(csio->cdb_io.cdb_bytes))
+	 && ((cdb_storage == NULL)
+	  || (cdb_storage_len < cmd_size))) {
+		retval = 1;
+		goto bailout;
+	}
+
+	/*
+	 * At this point we know we have enough space to store the command
+	 * in one place or another.  We prefer the built-in array, but used
+	 * the passed in storage if necessary.
+	 */
+	if (cmd_size <= sizeof(csio->cdb_io.cdb_bytes))
+		cdb_ptr = csio->cdb_io.cdb_bytes;
+	else {
+		cdb_ptr = cdb_storage;
+		cam_flags |= CAM_CDB_POINTER;
+	}
+
+	if (cmd_size <= 12) {
+		struct ata_pass_12 *cdb;
+
+		cdb = (struct ata_pass_12 *)cdb_ptr;
+		cdb_len = sizeof(*cdb);
+		bzero(cdb, cdb_len);
+
+		cdb->opcode = ATA_PASS_12;
+		cdb->protocol = protocol;
+		cdb->flags = ata_flags;
+		cdb->features = features;
+		cdb->sector_count = sector_count;
+		cdb->lba_low = lba & 0xff;
+		cdb->lba_mid = (lba >> 8) & 0xff;
+		cdb->lba_high = (lba >> 16) & 0xff;
+		cdb->device = ((lba >> 24) & 0xf) | ATA_DEV_LBA;
+		cdb->command = command;
+		cdb->control = control;
+	} else if (cmd_size <= 16) {
+		struct ata_pass_16 *cdb;
+
+		cdb = (struct ata_pass_16 *)cdb_ptr;
+		cdb_len = sizeof(*cdb);
+		bzero(cdb, cdb_len);
+
+		cdb->opcode = ATA_PASS_16;
+		cdb->protocol = protocol;
+		cdb->flags = ata_flags;
+		cdb->features = features & 0xff;
+		cdb->sector_count = sector_count & 0xff;
+		cdb->lba_low = lba & 0xff;
+		cdb->lba_mid = (lba >> 8) & 0xff;
+		cdb->lba_high = (lba >> 16) & 0xff;
+		/*
+		 * If AP_EXTEND is set, we're sending a 48-bit command.
+		 * Otherwise it's a 28-bit command.
+		 */
+		if (protocol & AP_EXTEND) {
+			cdb->lba_low_ext = (lba >> 24) & 0xff;
+			cdb->lba_mid_ext = (lba >> 32) & 0xff;
+			cdb->lba_high_ext = (lba >> 40) & 0xff;
+			cdb->features_ext = (features >> 8) & 0xff;
+			cdb->sector_count_ext = (sector_count >> 8) & 0xff;
+			cdb->device = device | ATA_DEV_LBA;
+		} else {
+			cdb->lba_low_ext = (lba >> 24) & 0xf;
+			cdb->device = ((lba >> 24) & 0xf) | ATA_DEV_LBA;
+		}
+		cdb->command = command;
+		cdb->control = control;
+	} else {
+		struct ata_pass_32 *cdb;
+		uint8_t tmp_lba[8];
+
+		cdb = (struct ata_pass_32 *)cdb_ptr;
+		cdb_len = sizeof(*cdb);
+		bzero(cdb, cdb_len);
+		cdb->opcode = VARIABLE_LEN_CDB;
+		cdb->control = control;
+		cdb->length = sizeof(*cdb) - __offsetof(struct ata_pass_32,
+							service_action);
+		scsi_ulto2b(ATA_PASS_32_SA, cdb->service_action);
+		cdb->protocol = protocol;
+		cdb->flags = ata_flags;
+
+		if ((protocol & AP_EXTEND) == 0) {
+			lba &= 0x0fffffff;
+			cdb->device = ((lba >> 24) & 0xf) | ATA_DEV_LBA;
+			features &= 0xff;
+			sector_count &= 0xff;
+		} else {
+			cdb->device = device | ATA_DEV_LBA;
+		}
+		scsi_u64to8b(lba, tmp_lba);
+		bcopy(&tmp_lba[2], cdb->lba, sizeof(cdb->lba));
+		scsi_ulto2b(features, cdb->features);
+		scsi_ulto2b(sector_count, cdb->count);
+		cdb->command = command;
+		cdb->icc = icc;
+		scsi_ulto4b(auxiliary, cdb->auxiliary);
+	}
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      cam_flags,
+		      tag_action,
+		      data_ptr,
+		      dxfer_len,
+		      sense_len,
+		      cmd_size,
+		      timeout);
+bailout:
+	return (retval);
 }
 
 void
@@ -7398,6 +8818,74 @@ scsi_start_stop(struct ccb_scsiio *csio, u_int32_t retries,
 		      timeout);
 }
 
+void
+scsi_read_attribute(struct ccb_scsiio *csio, u_int32_t retries, 
+		    void (*cbfcnp)(struct cam_periph *, union ccb *),
+		    u_int8_t tag_action, u_int8_t service_action,
+		    uint32_t element, u_int8_t elem_type, int logical_volume,
+		    int partition, u_int32_t first_attribute, int cache,
+		    u_int8_t *data_ptr, u_int32_t length, int sense_len,
+		    u_int32_t timeout)
+{
+	struct scsi_read_attribute *scsi_cmd;
+
+	scsi_cmd = (struct scsi_read_attribute *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+
+	scsi_cmd->opcode = READ_ATTRIBUTE;
+	scsi_cmd->service_action = service_action;
+	scsi_ulto2b(element, scsi_cmd->element);
+	scsi_cmd->elem_type = elem_type;
+	scsi_cmd->logical_volume = logical_volume;
+	scsi_cmd->partition = partition;
+	scsi_ulto2b(first_attribute, scsi_cmd->first_attribute);
+	scsi_ulto4b(length, scsi_cmd->length);
+	if (cache != 0)
+		scsi_cmd->cache |= SRA_CACHE;
+	
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      /*data_ptr*/data_ptr,
+		      /*dxfer_len*/length,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
+scsi_write_attribute(struct ccb_scsiio *csio, u_int32_t retries, 
+		    void (*cbfcnp)(struct cam_periph *, union ccb *),
+		    u_int8_t tag_action, uint32_t element, int logical_volume,
+		    int partition, int wtc, u_int8_t *data_ptr,
+		    u_int32_t length, int sense_len, u_int32_t timeout)
+{
+	struct scsi_write_attribute *scsi_cmd;
+
+	scsi_cmd = (struct scsi_write_attribute *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+
+	scsi_cmd->opcode = WRITE_ATTRIBUTE;
+	if (wtc != 0)
+		scsi_cmd->byte2 = SWA_WTC;
+	scsi_ulto3b(element, scsi_cmd->element);
+	scsi_cmd->logical_volume = logical_volume;
+	scsi_cmd->partition = partition;
+	scsi_ulto4b(length, scsi_cmd->length);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_OUT,
+		      tag_action,
+		      /*data_ptr*/data_ptr,
+		      /*dxfer_len*/length,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
 
 void
 scsi_persistent_reserve_in(struct ccb_scsiio *csio, uint32_t retries, 
@@ -7448,6 +8936,104 @@ scsi_persistent_reserve_out(struct ccb_scsiio *csio, uint32_t retries,
 		      retries,
 		      cbfcnp,
 		      /*flags*/CAM_DIR_OUT,
+		      tag_action,
+		      /*data_ptr*/data_ptr,
+		      /*dxfer_len*/dxfer_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
+scsi_security_protocol_in(struct ccb_scsiio *csio, uint32_t retries, 
+			  void (*cbfcnp)(struct cam_periph *, union ccb *),
+			  uint8_t tag_action, uint32_t security_protocol,
+			  uint32_t security_protocol_specific, int byte4,
+			  uint8_t *data_ptr, uint32_t dxfer_len, int sense_len,
+			  int timeout)
+{
+	struct scsi_security_protocol_in *scsi_cmd;
+
+	scsi_cmd = (struct scsi_security_protocol_in *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+
+	scsi_cmd->opcode = SECURITY_PROTOCOL_IN;
+
+	scsi_cmd->security_protocol = security_protocol;
+	scsi_ulto2b(security_protocol_specific,
+		    scsi_cmd->security_protocol_specific); 
+	scsi_cmd->byte4 = byte4;
+	scsi_ulto4b(dxfer_len, scsi_cmd->length);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      data_ptr,
+		      dxfer_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
+scsi_security_protocol_out(struct ccb_scsiio *csio, uint32_t retries, 
+			   void (*cbfcnp)(struct cam_periph *, union ccb *),
+			   uint8_t tag_action, uint32_t security_protocol,
+			   uint32_t security_protocol_specific, int byte4,
+			   uint8_t *data_ptr, uint32_t dxfer_len, int sense_len,
+			   int timeout)
+{
+	struct scsi_security_protocol_out *scsi_cmd;
+
+	scsi_cmd = (struct scsi_security_protocol_out *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+
+	scsi_cmd->opcode = SECURITY_PROTOCOL_OUT;
+
+	scsi_cmd->security_protocol = security_protocol;
+	scsi_ulto2b(security_protocol_specific,
+		    scsi_cmd->security_protocol_specific); 
+	scsi_cmd->byte4 = byte4;
+	scsi_ulto4b(dxfer_len, scsi_cmd->length);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_OUT,
+		      tag_action,
+		      data_ptr,
+		      dxfer_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
+scsi_report_supported_opcodes(struct ccb_scsiio *csio, uint32_t retries, 
+			      void (*cbfcnp)(struct cam_periph *, union ccb *),
+			      uint8_t tag_action, int options, int req_opcode,
+			      int req_service_action, uint8_t *data_ptr,
+			      uint32_t dxfer_len, int sense_len, int timeout)
+{
+	struct scsi_report_supported_opcodes *scsi_cmd;
+
+	scsi_cmd = (struct scsi_report_supported_opcodes *)
+	    &csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+
+	scsi_cmd->opcode = MAINTENANCE_IN;
+	scsi_cmd->service_action = REPORT_SUPPORTED_OPERATION_CODES;
+	scsi_cmd->options = options;
+	scsi_cmd->requested_opcode = req_opcode;
+	scsi_ulto2b(req_service_action, scsi_cmd->requested_service_action);
+	scsi_ulto4b(dxfer_len, scsi_cmd->length);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
 		      tag_action,
 		      data_ptr,
 		      dxfer_len,
@@ -7521,7 +9107,7 @@ scsi_static_inquiry_match(caddr_t inqbuffer, caddr_t table_entry)
  * \return  0 on a match, -1 otherwise.
  *
  * Treat rhs and lhs as arrays of vpd device id descriptors.  Walk lhs matching
- * agains each element in rhs until all data are exhausted or we have found
+ * against each element in rhs until all data are exhausted or we have found
  * a match.
  */
 int

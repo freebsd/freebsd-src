@@ -1,4 +1,4 @@
-/*	$NetBSD: t_pr.c,v 1.6 2011/02/22 18:41:05 pooka Exp $	*/
+/*	$NetBSD: t_pr.c,v 1.7 2017/01/13 21:30:40 christos Exp $	*/
 
 #include <sys/types.h>
 #include <sys/mount.h>
@@ -17,7 +17,7 @@
 
 #include <ufs/ufs/ufsmount.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(mknod);
 ATF_TC_HEAD(mknod, tc)

@@ -1,4 +1,4 @@
-//===--- IdentifierTable.cpp - Hash table for identifier lookup -----------===//
+//===- IdentifierTable.cpp - Hash table for identifier lookup -------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,13 +13,23 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Basic/IdentifierTable.h"
-#include "clang/Basic/LangOptions.h"
 #include "clang/Basic/CharInfo.h"
-#include "llvm/ADT/DenseMap.h"
+#include "clang/Basic/LangOptions.h"
+#include "clang/Basic/OperatorKinds.h"
+#include "clang/Basic/Specifiers.h"
+#include "clang/Basic/TokenKinds.h"
+#include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/ADT/FoldingSet.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Allocator.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include <cassert>
 #include <cstdio>
+#include <cstring>
+#include <string>
 
 using namespace clang;
 
@@ -33,52 +43,49 @@ IdentifierInfo::IdentifierInfo() {
   HasMacro = false;
   HadMacro = false;
   IsExtension = false;
-  IsCXX11CompatKeyword = false;
+  IsFutureCompatKeyword = false;
   IsPoisoned = false;
   IsCPPOperatorKeyword = false;
   NeedsHandleIdentifier = false;
   IsFromAST = false;
   ChangedAfterLoad = false;
+  FEChangedAfterLoad = false;
   RevertedTokenID = false;
   OutOfDate = false;
   IsModulesImport = false;
-  FETokenInfo = 0;
-  Entry = 0;
 }
 
 //===----------------------------------------------------------------------===//
 // IdentifierTable Implementation
 //===----------------------------------------------------------------------===//
 
-IdentifierIterator::~IdentifierIterator() { }
+IdentifierIterator::~IdentifierIterator() = default;
 
-IdentifierInfoLookup::~IdentifierInfoLookup() {}
+IdentifierInfoLookup::~IdentifierInfoLookup() = default;
 
 namespace {
-  /// \brief A simple identifier lookup iterator that represents an
-  /// empty sequence of identifiers.
-  class EmptyLookupIterator : public IdentifierIterator
-  {
-  public:
-    virtual StringRef Next() { return StringRef(); }
-  };
-}
+
+/// \brief A simple identifier lookup iterator that represents an
+/// empty sequence of identifiers.
+class EmptyLookupIterator : public IdentifierIterator
+{
+public:
+  StringRef Next() override { return StringRef(); }
+};
+
+} // namespace
 
 IdentifierIterator *IdentifierInfoLookup::getIdentifiers() {
   return new EmptyLookupIterator();
 }
 
-ExternalIdentifierLookup::~ExternalIdentifierLookup() {}
-
 IdentifierTable::IdentifierTable(const LangOptions &LangOpts,
                                  IdentifierInfoLookup* externalLookup)
   : HashTable(8192), // Start with space for 8K identifiers.
     ExternalLookup(externalLookup) {
-
   // Populate the identifier table with info about keywords for the current
   // language.
   AddKeywords(LangOpts);
-      
 
   // Add the '_experimental_modules_import' contextual keyword.
   get("import").setModulesImport(true);
@@ -90,6 +97,7 @@ IdentifierTable::IdentifierTable(const LangOptions &LangOpts,
 
 // Constants for TokenKinds.def
 namespace {
+
   enum {
     KEYC99 = 0x1,
     KEYCXX = 0x2,
@@ -103,52 +111,85 @@ namespace {
     KEYOPENCL = 0x200,
     KEYC11 = 0x400,
     KEYARC = 0x800,
-    KEYNOMS = 0x01000,
-    WCHARSUPPORT = 0x02000,
-    KEYALL = (0xffff & ~KEYNOMS) // Because KEYNOMS is used to exclude.
+    KEYNOMS18 = 0x01000,
+    KEYNOOPENCL = 0x02000,
+    WCHARSUPPORT = 0x04000,
+    HALFSUPPORT = 0x08000,
+    KEYCONCEPTS = 0x10000,
+    KEYOBJC2    = 0x20000,
+    KEYZVECTOR  = 0x40000,
+    KEYCOROUTINES = 0x80000,
+    KEYMODULES = 0x100000,
+    KEYCXX2A = 0x200000,
+    KEYALLCXX = KEYCXX | KEYCXX11 | KEYCXX2A,
+    KEYALL = (0x3fffff & ~KEYNOMS18 &
+              ~KEYNOOPENCL) // KEYNOMS18 and KEYNOOPENCL are used to exclude.
   };
+
+  /// \brief How a keyword is treated in the selected standard.
+  enum KeywordStatus {
+    KS_Disabled,    // Disabled
+    KS_Extension,   // Is an extension
+    KS_Enabled,     // Enabled
+    KS_Future       // Is a keyword in future standard
+  };
+
+} // namespace
+
+/// \brief Translates flags as specified in TokenKinds.def into keyword status
+/// in the given language standard.
+static KeywordStatus getKeywordStatus(const LangOptions &LangOpts,
+                                      unsigned Flags) {
+  if (Flags == KEYALL) return KS_Enabled;
+  if (LangOpts.CPlusPlus && (Flags & KEYCXX)) return KS_Enabled;
+  if (LangOpts.CPlusPlus11 && (Flags & KEYCXX11)) return KS_Enabled;
+  if (LangOpts.CPlusPlus2a && (Flags & KEYCXX2A)) return KS_Enabled;
+  if (LangOpts.C99 && (Flags & KEYC99)) return KS_Enabled;
+  if (LangOpts.GNUKeywords && (Flags & KEYGNU)) return KS_Extension;
+  if (LangOpts.MicrosoftExt && (Flags & KEYMS)) return KS_Extension;
+  if (LangOpts.Borland && (Flags & KEYBORLAND)) return KS_Extension;
+  if (LangOpts.Bool && (Flags & BOOLSUPPORT)) return KS_Enabled;
+  if (LangOpts.Half && (Flags & HALFSUPPORT)) return KS_Enabled;
+  if (LangOpts.WChar && (Flags & WCHARSUPPORT)) return KS_Enabled;
+  if (LangOpts.AltiVec && (Flags & KEYALTIVEC)) return KS_Enabled;
+  if (LangOpts.OpenCL && (Flags & KEYOPENCL)) return KS_Enabled;
+  if (!LangOpts.CPlusPlus && (Flags & KEYNOCXX)) return KS_Enabled;
+  if (LangOpts.C11 && (Flags & KEYC11)) return KS_Enabled;
+  // We treat bridge casts as objective-C keywords so we can warn on them
+  // in non-arc mode.
+  if (LangOpts.ObjC2 && (Flags & KEYARC)) return KS_Enabled;
+  if (LangOpts.ObjC2 && (Flags & KEYOBJC2)) return KS_Enabled;
+  if (LangOpts.ConceptsTS && (Flags & KEYCONCEPTS)) return KS_Enabled;
+  if (LangOpts.CoroutinesTS && (Flags & KEYCOROUTINES)) return KS_Enabled;
+  if (LangOpts.ModulesTS && (Flags & KEYMODULES)) return KS_Enabled;
+  if (LangOpts.CPlusPlus && (Flags & KEYALLCXX)) return KS_Future;
+  return KS_Disabled;
 }
 
 /// AddKeyword - This method is used to associate a token ID with specific
 /// identifiers because they are language keywords.  This causes the lexer to
 /// automatically map matching identifiers to specialized token codes.
-///
-/// The C90/C99/CPP/CPP0x flags are set to 3 if the token is a keyword in a
-/// future language standard, set to 2 if the token should be enabled in the
-/// specified language, set to 1 if it is an extension in the specified
-/// language, and set to 0 if disabled in the specified language.
 static void AddKeyword(StringRef Keyword,
                        tok::TokenKind TokenCode, unsigned Flags,
                        const LangOptions &LangOpts, IdentifierTable &Table) {
-  unsigned AddResult = 0;
-  if (Flags == KEYALL) AddResult = 2;
-  else if (LangOpts.CPlusPlus && (Flags & KEYCXX)) AddResult = 2;
-  else if (LangOpts.CPlusPlus11 && (Flags & KEYCXX11)) AddResult = 2;
-  else if (LangOpts.C99 && (Flags & KEYC99)) AddResult = 2;
-  else if (LangOpts.GNUKeywords && (Flags & KEYGNU)) AddResult = 1;
-  else if (LangOpts.MicrosoftExt && (Flags & KEYMS)) AddResult = 1;
-  else if (LangOpts.Borland && (Flags & KEYBORLAND)) AddResult = 1;
-  else if (LangOpts.Bool && (Flags & BOOLSUPPORT)) AddResult = 2;
-  else if (LangOpts.WChar && (Flags & WCHARSUPPORT)) AddResult = 2;
-  else if (LangOpts.AltiVec && (Flags & KEYALTIVEC)) AddResult = 2;
-  else if (LangOpts.OpenCL && (Flags & KEYOPENCL)) AddResult = 2;
-  else if (!LangOpts.CPlusPlus && (Flags & KEYNOCXX)) AddResult = 2;
-  else if (LangOpts.C11 && (Flags & KEYC11)) AddResult = 2;
-  // We treat bridge casts as objective-C keywords so we can warn on them
-  // in non-arc mode.
-  else if (LangOpts.ObjC2 && (Flags & KEYARC)) AddResult = 2;
-  else if (LangOpts.CPlusPlus && (Flags & KEYCXX11)) AddResult = 3;
+  KeywordStatus AddResult = getKeywordStatus(LangOpts, Flags);
 
-  // Don't add this keyword under MicrosoftMode.
-  if (LangOpts.MicrosoftMode && (Flags & KEYNOMS))
-     return;
+  // Don't add this keyword under MSVCCompat.
+  if (LangOpts.MSVCCompat && (Flags & KEYNOMS18) &&
+      !LangOpts.isCompatibleWithMSVC(LangOptions::MSVC2015))
+    return;
+
+  // Don't add this keyword under OpenCL.
+  if (LangOpts.OpenCL && (Flags & KEYNOOPENCL))
+    return;
+
   // Don't add this keyword if disabled in this language.
-  if (AddResult == 0) return;
+  if (AddResult == KS_Disabled) return;
 
   IdentifierInfo &Info =
-      Table.get(Keyword, AddResult == 3 ? tok::identifier : TokenCode);
-  Info.setIsExtensionToken(AddResult == 1);
-  Info.setIsCXX11CompatKeyword(AddResult == 3);
+      Table.get(Keyword, AddResult == KS_Future ? tok::identifier : TokenCode);
+  Info.setIsExtensionToken(AddResult == KS_Extension);
+  Info.setIsFutureCompatKeyword(AddResult == KS_Future);
 }
 
 /// AddCXXOperatorKeyword - Register a C++ operator keyword alternative
@@ -193,6 +234,48 @@ void IdentifierTable::AddKeywords(const LangOptions &LangOpts) {
   if (LangOpts.ParseUnknownAnytype)
     AddKeyword("__unknown_anytype", tok::kw___unknown_anytype, KEYALL,
                LangOpts, *this);
+
+  if (LangOpts.DeclSpecKeyword)
+    AddKeyword("__declspec", tok::kw___declspec, KEYALL, LangOpts, *this);
+}
+
+/// \brief Checks if the specified token kind represents a keyword in the
+/// specified language.
+/// \returns Status of the keyword in the language.
+static KeywordStatus getTokenKwStatus(const LangOptions &LangOpts,
+                                      tok::TokenKind K) {
+  switch (K) {
+#define KEYWORD(NAME, FLAGS) \
+  case tok::kw_##NAME: return getKeywordStatus(LangOpts, FLAGS);
+#include "clang/Basic/TokenKinds.def"
+  default: return KS_Disabled;
+  }
+}
+
+/// \brief Returns true if the identifier represents a keyword in the
+/// specified language.
+bool IdentifierInfo::isKeyword(const LangOptions &LangOpts) const {
+  switch (getTokenKwStatus(LangOpts, getTokenID())) {
+  case KS_Enabled:
+  case KS_Extension:
+    return true;
+  default:
+    return false;
+  }
+}
+
+/// \brief Returns true if the identifier represents a C++ keyword in the
+/// specified language.
+bool IdentifierInfo::isCPlusPlusKeyword(const LangOptions &LangOpts) const {
+  if (!LangOpts.CPlusPlus || !isKeyword(LangOpts))
+    return false;
+  // This is a C++ keyword if this identifier is not a keyword when checked
+  // using LangOptions without C++ support.
+  LangOptions LangOptsNoCPP = LangOpts;
+  LangOptsNoCPP.CPlusPlus = false;
+  LangOptsNoCPP.CPlusPlus11 = false;
+  LangOptsNoCPP.CPlusPlus2a = false;
+  return !isKeyword(LangOptsNoCPP);
 }
 
 tok::PPKeywordKind IdentifierInfo::getPPKeywordID() const {
@@ -290,6 +373,7 @@ unsigned llvm::DenseMapInfo<clang::Selector>::getHashValue(clang::Selector S) {
 }
 
 namespace clang {
+
 /// MultiKeywordSelector - One of these variable length records is kept for each
 /// selector containing more than one keyword. We use a folding set
 /// to unique aggregate names (keyword selectors in ObjC parlance). Access to
@@ -299,6 +383,7 @@ class MultiKeywordSelector
   MultiKeywordSelector(unsigned nKeys) {
     ExtraKindOrNumArgs = NUM_EXTRA_KINDS + nKeys;
   }
+
 public:
   // Constructor for keyword selectors.
   MultiKeywordSelector(unsigned nKeys, IdentifierInfo **IIV) {
@@ -316,28 +401,34 @@ public:
 
   unsigned getNumArgs() const { return ExtraKindOrNumArgs - NUM_EXTRA_KINDS; }
 
-  typedef IdentifierInfo *const *keyword_iterator;
+  using keyword_iterator = IdentifierInfo *const *;
+
   keyword_iterator keyword_begin() const {
     return reinterpret_cast<keyword_iterator>(this+1);
   }
+
   keyword_iterator keyword_end() const {
     return keyword_begin()+getNumArgs();
   }
+
   IdentifierInfo *getIdentifierInfoForSlot(unsigned i) const {
     assert(i < getNumArgs() && "getIdentifierInfoForSlot(): illegal index");
     return keyword_begin()[i];
   }
+
   static void Profile(llvm::FoldingSetNodeID &ID,
                       keyword_iterator ArgTys, unsigned NumArgs) {
     ID.AddInteger(NumArgs);
     for (unsigned i = 0; i != NumArgs; ++i)
       ID.AddPointer(ArgTys[i]);
   }
+
   void Profile(llvm::FoldingSetNodeID &ID) {
     Profile(ID, keyword_begin(), getNumArgs());
   }
 };
-} // end namespace clang.
+
+} // namespace clang.
 
 unsigned Selector::getNumArgs() const {
   unsigned IIF = getIdentifierInfoFlag();
@@ -355,6 +446,7 @@ IdentifierInfo *Selector::getIdentifierInfoForSlot(unsigned argIndex) const {
     assert(argIndex == 0 && "illegal keyword index");
     return getAsIdentifierInfo();
   }
+
   // We point to a MultiKeywordSelector.
   MultiKeywordSelector *SI = getMultiKeywordSelector();
   return SI->getIdentifierInfoForSlot(argIndex);
@@ -384,9 +476,11 @@ std::string Selector::getAsString() const {
   if (getIdentifierInfoFlag() < MultiArg) {
     IdentifierInfo *II = getAsIdentifierInfo();
 
-    // If the number of arguments is 0 then II is guaranteed to not be null.
-    if (getNumArgs() == 0)
+    if (getNumArgs() == 0) {
+      assert(II && "If the number of arguments is 0 then II is guaranteed to "
+                   "not be null.");
       return II->getName();
+    }
 
     if (!II)
       return ":";
@@ -396,6 +490,10 @@ std::string Selector::getAsString() const {
 
   // We have a multiple keyword selector.
   return getMultiKeywordSelector()->getName();
+}
+
+void Selector::print(llvm::raw_ostream &OS) const {
+  OS << getAsString();
 }
 
 /// Interpreting the given string using the normal CamelCase
@@ -420,9 +518,12 @@ ObjCMethodFamily Selector::getMethodFamilyImpl(Selector sel) {
     if (name == "retain") return OMF_retain;
     if (name == "retainCount") return OMF_retainCount;
     if (name == "self") return OMF_self;
+    if (name == "initialize") return OMF_initialize;
   }
- 
-  if (name == "performSelector") return OMF_performSelector;
+
+  if (name == "performSelector" || name == "performSelectorInBackground" ||
+      name == "performSelectorOnMainThread")
+    return OMF_performSelector;
 
   // The other method families may begin with a prefix of underscores.
   while (!name.empty() && name.front() == '_')
@@ -470,6 +571,7 @@ ObjCInstanceTypeFamily Selector::getInstTypeMethodFamily(Selector sel) {
     case 's':
       if (startsWithWord(name, "shared")) return OIT_ReturnsSelf;
       if (startsWithWord(name, "standard")) return OIT_Singleton;
+      break;
     case 'i':
       if (startsWithWord(name, "init")) return OIT_Init;
     default:
@@ -478,12 +580,41 @@ ObjCInstanceTypeFamily Selector::getInstTypeMethodFamily(Selector sel) {
   return OIT_None;
 }
 
+ObjCStringFormatFamily Selector::getStringFormatFamilyImpl(Selector sel) {
+  IdentifierInfo *first = sel.getIdentifierInfoForSlot(0);
+  if (!first) return SFF_None;
+  
+  StringRef name = first->getName();
+  
+  switch (name.front()) {
+    case 'a':
+      if (name == "appendFormat") return SFF_NSString;
+      break;
+      
+    case 'i':
+      if (name == "initWithFormat") return SFF_NSString;
+      break;
+      
+    case 'l':
+      if (name == "localizedStringWithFormat") return SFF_NSString;
+      break;
+      
+    case 's':
+      if (name == "stringByAppendingFormat" ||
+          name == "stringWithFormat") return SFF_NSString;
+      break;
+  }
+  return SFF_None;
+}
+
 namespace {
-  struct SelectorTableImpl {
-    llvm::FoldingSet<MultiKeywordSelector> Table;
-    llvm::BumpPtrAllocator Allocator;
-  };
-} // end anonymous namespace.
+
+struct SelectorTableImpl {
+  llvm::FoldingSet<MultiKeywordSelector> Table;
+  llvm::BumpPtrAllocator Allocator;
+};
+
+} // namespace
 
 static SelectorTableImpl &getSelectorTableImpl(void *P) {
   return *static_cast<SelectorTableImpl*>(P);
@@ -521,7 +652,7 @@ Selector SelectorTable::getSelector(unsigned nKeys, IdentifierInfo **IIV) {
   llvm::FoldingSetNodeID ID;
   MultiKeywordSelector::Profile(ID, IIV, nKeys);
 
-  void *InsertPos = 0;
+  void *InsertPos = nullptr;
   if (MultiKeywordSelector *SI =
         SelTabImpl.Table.FindNodeOrInsertPos(ID, InsertPos))
     return Selector(SI);
@@ -530,8 +661,8 @@ Selector SelectorTable::getSelector(unsigned nKeys, IdentifierInfo **IIV) {
   // variable size array (for parameter types) at the end of them.
   unsigned Size = sizeof(MultiKeywordSelector) + nKeys*sizeof(IdentifierInfo *);
   MultiKeywordSelector *SI =
-    (MultiKeywordSelector*)SelTabImpl.Allocator.Allocate(Size,
-                                         llvm::alignOf<MultiKeywordSelector>());
+      (MultiKeywordSelector *)SelTabImpl.Allocator.Allocate(
+          Size, alignof(MultiKeywordSelector));
   new (SI) MultiKeywordSelector(nKeys, IIV);
   SelTabImpl.Table.InsertNode(SI, InsertPos);
   return Selector(SI);
@@ -549,7 +680,7 @@ const char *clang::getOperatorSpelling(OverloadedOperatorKind Operator) {
   switch (Operator) {
   case OO_None:
   case NUM_OVERLOADED_OPERATORS:
-    return 0;
+    return nullptr;
 
 #define OVERLOADED_OPERATOR(Name,Spelling,Token,Unary,Binary,MemberOnly) \
   case OO_##Name: return Spelling;
@@ -557,4 +688,19 @@ const char *clang::getOperatorSpelling(OverloadedOperatorKind Operator) {
   }
 
   llvm_unreachable("Invalid OverloadedOperatorKind!");
+}
+
+StringRef clang::getNullabilitySpelling(NullabilityKind kind,
+                                        bool isContextSensitive) {
+  switch (kind) {
+  case NullabilityKind::NonNull:
+    return isContextSensitive ? "nonnull" : "_Nonnull";
+
+  case NullabilityKind::Nullable:
+    return isContextSensitive ? "nullable" : "_Nullable";
+
+  case NullabilityKind::Unspecified:
+    return isContextSensitive ? "null_unspecified" : "_Null_unspecified";
+  }
+  llvm_unreachable("Unknown nullability kind.");
 }

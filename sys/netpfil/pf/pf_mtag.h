@@ -1,5 +1,7 @@
 /*	$FreeBSD$	*/
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Daniel Hartmeier
  * All rights reserved.
  *
@@ -39,10 +41,12 @@
 #define	PF_TAG_TRANSLATE_LOCALHOST	0x04
 #define	PF_PACKET_LOOPED		0x08
 #define	PF_FASTFWD_OURS_PRESENT		0x10
+#define	PF_REASSEMBLED			0x20
 
 struct pf_mtag {
 	void		*hdr;		/* saved hdr pos in mbuf, for ECN */
 	u_int32_t	 qid;		/* queue id */
+	u_int32_t	 qid_hash;	/* queue hashid used by WFQ like algos */
 	u_int16_t	 tag;		/* tag id */
 	u_int8_t	 flags;
 	u_int8_t	 routed;

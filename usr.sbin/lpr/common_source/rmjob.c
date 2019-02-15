@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -163,7 +165,7 @@ lockchk(struct printer *pp, char *slockf)
 			return(0);
 	}
 	PRIV_END
-	if (!getline(fp)) {
+	if (!get_line(fp)) {
 		(void) fclose(fp);
 		return(0);		/* no daemon present */
 	}
@@ -198,7 +200,7 @@ process(const struct printer *pp, char *file)
 	if ((cfp = fopen(file, "r")) == NULL)
 		fatal(pp, "cannot open %s", file);
 	PRIV_END
-	while (getline(cfp)) {
+	while (get_line(cfp)) {
 		switch (line[0]) {
 		case 'U':  /* unlink associated files */
 			if (strchr(line+1, '/') || strncmp(line+1, "df", 2))
@@ -251,7 +253,7 @@ chk(char *file)
 	if ((cfp = fopen(file, "r")) == NULL)
 		return(0);
 	PRIV_END
-	while (getline(cfp)) {
+	while (get_line(cfp)) {
 		if (line[0] == 'P')
 			break;
 	}
@@ -332,7 +334,7 @@ rmremote(const struct printer *pp)
 	else
 		niov = 4 + requests + 1;
 	iov = malloc(niov * sizeof *iov);
-	if (iov == 0)
+	if (iov == NULL)
 		fatal(pp, "out of memory in rmremote()");
 	iov[0].iov_base = "\5";
 	iov[1].iov_base = pp->remote_queue;

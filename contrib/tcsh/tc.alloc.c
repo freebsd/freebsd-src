@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.alloc.c,v 3.50 2011/12/30 20:55:24 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.alloc.c,v 3.56 2016/03/08 12:47:43 christos Exp $ */
 /*
  * tc.alloc.c (Caltech) 2/21/82
  * Chris Kingsley, kingsley@cit-20.
@@ -42,8 +42,11 @@
 #ifdef HAVE_MALLINFO
 #include <malloc.h>
 #endif
+#if defined(HAVE_SBRK) && !defined(__APPLE__)
+#define USE_SBRK
+#endif
 
-RCSID("$tcsh: tc.alloc.c,v 3.50 2011/12/30 20:55:24 christos Exp $")
+RCSID("$tcsh: tc.alloc.c,v 3.56 2016/03/08 12:47:43 christos Exp $")
 
 #define RCHECK
 #define DEBUG
@@ -66,7 +69,7 @@ out_of_memory (void)
 {
     static const char msg[] = "Out of memory\n";
 
-    write(didfds ? 2 : SHDIAG, msg, strlen(msg));
+    TCSH_IGNORE(write(didfds ? 2 : SHDIAG, msg, strlen(msg)));
     _exit(1);
 }
 #endif
@@ -131,7 +134,11 @@ union overhead {
 #endif
 
 
+#ifdef _LP64
+#define ROUNDUP	15
+#else
 #define ROUNDUP	7
+#endif
 
 /*
  * nextf[i] is the pointer to the next free block of size 2^(i+3).  The
@@ -345,10 +352,13 @@ calloc(size_t i, size_t j)
 {
 #ifndef lint
     char *cp;
+    volatile size_t k;
 
     i *= j;
     cp = xmalloc(i);
-    memset(cp, 0, i);
+    /* Stop gcc 5.x from optimizing malloc+memset = calloc */
+    k = i;
+    memset(cp, 0, k);
 
     return ((memalign_t) cp);
 #else
@@ -459,7 +469,7 @@ malloc_usable_size(M_U_S_CONST void *ptr)
     const union overhead *op = (const union overhead *)
 	(((const char *) ptr) - MEMALIGN(sizeof(*op)));
     if (op->ov_magic == MAGIC)
-	    return 1 << (op->ov_index + 2);
+	    return 1 << (op->ov_index + 3);
     else
 	    return 0;
 }
@@ -513,19 +523,19 @@ smalloc(size_t n)
 
     n = n ? n : 1;
 
-#ifdef HAVE_SBRK
+#ifdef USE_SBRK
     if (membot == NULL)
 	membot = sbrk(0);
-#endif /* HAVE_SBRK */
+#endif /* USE_SBRK */
 
     if ((ptr = malloc(n)) == NULL)
 	out_of_memory();
-#ifndef HAVE_SBRK
+#ifndef USE_SBRK
     if (memtop < ((char *) ptr) + n)
 	memtop = ((char *) ptr) + n;
     if (membot == NULL)
 	membot = ptr;
-#endif /* !HAVE_SBRK */
+#endif /* !USE_SBRK */
     return ((memalign_t) ptr);
 }
 
@@ -536,19 +546,19 @@ srealloc(ptr_t p, size_t n)
 
     n = n ? n : 1;
 
-#ifdef HAVE_SBRK
+#ifdef USE_SBRK
     if (membot == NULL)
 	membot = sbrk(0);
-#endif /* HAVE_SBRK */
+#endif /* USE_SBRK */
 
     if ((ptr = (p ? realloc(p, n) : malloc(n))) == NULL)
 	out_of_memory();
-#ifndef HAVE_SBRK
+#ifndef USE_SBRK
     if (memtop < ((char *) ptr) + n)
 	memtop = ((char *) ptr) + n;
     if (membot == NULL)
 	membot = ptr;
-#endif /* !HAVE_SBRK */
+#endif /* !USE_SBRK */
     return ((memalign_t) ptr);
 }
 
@@ -560,22 +570,22 @@ scalloc(size_t s, size_t n)
     n *= s;
     n = n ? n : 1;
 
-#ifdef HAVE_SBRK
+#ifdef USE_SBRK
     if (membot == NULL)
 	membot = sbrk(0);
-#endif /* HAVE_SBRK */
+#endif /* USE_SBRK */
 
     if ((ptr = malloc(n)) == NULL)
 	out_of_memory();
 
     memset (ptr, 0, n);
 
-#ifndef HAVE_SBRK
+#ifndef USE_SBRK
     if (memtop < ((char *) ptr) + n)
 	memtop = ((char *) ptr) + n;
     if (membot == NULL)
 	membot = ptr;
-#endif /* !HAVE_SBRK */
+#endif /* !USE_SBRK */
 
     return ((memalign_t) ptr);
 }
@@ -625,9 +635,9 @@ showall(Char **v, struct command *c)
 	    (unsigned long) sbrk(0));
 #else /* SYSMALLOC */
 #ifndef HAVE_MALLINFO
-#ifdef HAVE_SBRK
+#ifdef USE_SBRK
     memtop = sbrk(0);
-#endif /* HAVE_SBRK */
+#endif /* USE_SBRK */
     xprintf(CGETS(19, 12, "Allocated memory from 0x%lx to 0x%lx (%ld).\n"),
 	    (unsigned long) membot, (unsigned long) memtop, 
 	    (unsigned long) (memtop - membot));

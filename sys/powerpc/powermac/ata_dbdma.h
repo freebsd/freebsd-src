@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 2008 by Nathan Whitehorn. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

@@ -62,7 +62,7 @@ errmsg(const char *m)
 	}
 }
 
-static void
+static __LA_DEAD void
 diediedie(void)
 {
 #if defined(_WIN32) && !defined(__CYGWIN__) && defined(_DEBUG)

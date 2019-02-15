@@ -1,5 +1,7 @@
 %{
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -14,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -123,7 +125,7 @@ entry	:	ENCODING STRING
 		      strcmp($2, "BIG5") &&
 		      strcmp($2, "MSKanji"))
 			warnx("ENCODING %s is not supported by libc", $2);
-		strncpy(new_locale.encoding, $2,
+		strlcpy(new_locale.encoding, $2,
 		    sizeof(new_locale.encoding)); }
 	|	VARIABLE
 		{ new_locale.variable_len = strlen($1) + 1;

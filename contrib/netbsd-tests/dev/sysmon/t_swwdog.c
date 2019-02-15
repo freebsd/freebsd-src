@@ -1,4 +1,4 @@
-/*	$NetBSD: t_swwdog.c,v 1.5 2011/06/26 12:14:59 christos Exp $	*/
+/*	$NetBSD: t_swwdog.c,v 1.7 2017/01/13 21:30:39 christos Exp $	*/
 
 /*
  * Copyright (c) 2010 Antti Kantee.  All Rights Reserved.
@@ -43,7 +43,7 @@
 #include <rump/rump.h>
 #include <rump/rump_syscalls.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 static volatile sig_atomic_t tcount;
 
@@ -121,6 +121,7 @@ testbody(int max)
 		_exit(2);
 	}
 	/* fail */
+	printf("no watchdog registered!\n");
 	_exit(1);
 }
 

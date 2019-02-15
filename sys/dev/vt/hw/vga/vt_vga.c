@@ -30,24 +30,28 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_acpi.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/module.h>
+#include <sys/rman.h>
 
 #include <dev/vt/vt.h>
+#include <dev/vt/colors/vt_termcolors.h>
 #include <dev/vt/hw/vga/vt_vga_reg.h>
+#include <dev/pci/pcivar.h>
 
 #include <machine/bus.h>
-
 #if defined(__amd64__) || defined(__i386__)
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <machine/pmap.h>
-#include <machine/vmparam.h>
-#endif /* __amd64__ || __i386__ */
+#include <contrib/dev/acpica/include/acpi.h>
+#include <machine/md_var.h>
+#endif
 
 struct vga_softc {
 	bus_space_tag_t		 vga_fb_tag;
@@ -56,6 +60,7 @@ struct vga_softc {
 	bus_space_handle_t	 vga_reg_handle;
 	int			 vga_wmode;
 	term_color_t		 vga_curfg, vga_curbg;
+	boolean_t		 vga_enabled;
 };
 
 /* Convenience macros. */
@@ -63,6 +68,8 @@ struct vga_softc {
 	bus_space_read_1(sc->vga_fb_tag, sc->vga_fb_handle, ofs)
 #define	MEM_WRITE1(sc, ofs, val) \
 	bus_space_write_1(sc->vga_fb_tag, sc->vga_fb_handle, ofs, val)
+#define	MEM_WRITE2(sc, ofs, val) \
+	bus_space_write_2(sc->vga_fb_tag, sc->vga_fb_handle, ofs, val)
 #define	REG_READ1(sc, reg) \
 	bus_space_read_1(sc->vga_reg_tag, sc->vga_reg_handle, reg)
 #define	REG_WRITE1(sc, reg, val) \
@@ -90,6 +97,7 @@ static vd_probe_t	vga_probe;
 static vd_init_t	vga_init;
 static vd_blank_t	vga_blank;
 static vd_bitblt_text_t	vga_bitblt_text;
+static vd_invalidate_text_t	vga_invalidate_text;
 static vd_bitblt_bmp_t	vga_bitblt_bitmap;
 static vd_drawrect_t	vga_drawrect;
 static vd_setpixel_t	vga_setpixel;
@@ -101,6 +109,7 @@ static const struct vt_driver vt_vga_driver = {
 	.vd_init	= vga_init,
 	.vd_blank	= vga_blank,
 	.vd_bitblt_text	= vga_bitblt_text,
+	.vd_invalidate_text = vga_invalidate_text,
 	.vd_bitblt_bmp	= vga_bitblt_bitmap,
 	.vd_drawrect	= vga_drawrect,
 	.vd_setpixel	= vga_setpixel,
@@ -148,7 +157,7 @@ vga_setfg(struct vt_device *vd, term_color_t color)
 		return;
 
 	REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_SET_RESET);
-	REG_WRITE1(sc, VGA_GC_DATA, color);
+	REG_WRITE1(sc, VGA_GC_DATA, cons_to_vga_colors[color]);
 	sc->vga_curfg = color;
 }
 
@@ -163,7 +172,7 @@ vga_setbg(struct vt_device *vd, term_color_t color)
 		return;
 
 	REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_SET_RESET);
-	REG_WRITE1(sc, VGA_GC_DATA, color);
+	REG_WRITE1(sc, VGA_GC_DATA, cons_to_vga_colors[color]);
 
 	/*
 	 * Write 8 pixels using the background color to an off-screen
@@ -200,6 +209,7 @@ static const struct unicp437 cp437table[] = {
 	{ 0x0020, 0x20, 0x5e }, { 0x00a0, 0x20, 0x00 },
 	{ 0x00a1, 0xad, 0x00 }, { 0x00a2, 0x9b, 0x00 },
 	{ 0x00a3, 0x9c, 0x00 }, { 0x00a5, 0x9d, 0x00 },
+	{ 0x00a6, 0x7c, 0x00 },
 	{ 0x00a7, 0x15, 0x00 }, { 0x00aa, 0xa6, 0x00 },
 	{ 0x00ab, 0xae, 0x00 }, { 0x00ac, 0xaa, 0x00 },
 	{ 0x00b0, 0xf8, 0x00 }, { 0x00b1, 0xf1, 0x00 },
@@ -233,6 +243,7 @@ static const struct unicp437 cp437table[] = {
 	{ 0x03c0, 0xe3, 0x00 }, { 0x03c3, 0xe5, 0x00 },
 	{ 0x03c4, 0xe7, 0x00 }, { 0x03c6, 0xed, 0x00 },
 	{ 0x03d5, 0xed, 0x00 }, { 0x2010, 0x2d, 0x00 },
+	{ 0x2013, 0x2d, 0x00 },
 	{ 0x2014, 0x2d, 0x00 }, { 0x2018, 0x60, 0x00 },
 	{ 0x2019, 0x27, 0x00 }, { 0x201c, 0x22, 0x00 },
 	{ 0x201d, 0x22, 0x00 }, { 0x2022, 0x07, 0x00 },
@@ -281,7 +292,8 @@ static const struct unicp437 cp437table[] = {
 	{ 0x2640, 0x0c, 0x00 }, { 0x2642, 0x0b, 0x00 },
 	{ 0x2660, 0x06, 0x00 }, { 0x2663, 0x05, 0x00 },
 	{ 0x2665, 0x03, 0x01 }, { 0x266a, 0x0d, 0x00 },
-	{ 0x266c, 0x0e, 0x00 },
+	{ 0x266c, 0x0e, 0x00 }, { 0x2713, 0xfb, 0x00 },
+	{ 0x27e8, 0x3c, 0x00 }, { 0x27e9, 0x3e, 0x00 },
 };
 
 static uint8_t
@@ -290,7 +302,7 @@ vga_get_cp437(term_char_t c)
 	int min, mid, max;
 
 	min = 0;
-	max = (sizeof(cp437table) / sizeof(struct unicp437)) - 1;
+	max = nitems(cp437table) - 1;
 
 	if (c < cp437table[0].unicode_base ||
 	    c > cp437table[max].unicode_base + cp437table[max].length)
@@ -817,9 +829,8 @@ vga_bitblt_text_gfxmode(struct vt_device *vd, const struct vt_window *vw,
 
 	col = area->tr_end.tp_col;
 	row = area->tr_end.tp_row;
-	x2 = (int)((col * vf->vf_width + vw->vw_draw_area.tr_begin.tp_col
-	      + VT_VGA_PIXELS_BLOCK - 1)
-	     / VT_VGA_PIXELS_BLOCK)
+	x2 = (int)howmany(col * vf->vf_width + vw->vw_draw_area.tr_begin.tp_col,
+	    VT_VGA_PIXELS_BLOCK)
 	    * VT_VGA_PIXELS_BLOCK;
 	y2 = row * vf->vf_height + vw->vw_draw_area.tr_begin.tp_row;
 
@@ -859,6 +870,7 @@ vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_window *vw,
 	term_char_t c;
 	term_color_t fg, bg;
 	uint8_t ch, attr;
+	size_t z;
 
 	sc = vd->vd_softc;
 	vb = &vw->vw_buf;
@@ -875,6 +887,12 @@ vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_window *vw,
 			vt_determine_colors(c, VTBUF_ISCURSOR(vb, row, col),
 			    &fg, &bg);
 
+			z = row * PIXEL_WIDTH(VT_FB_MAX_WIDTH) + col;
+			if (vd->vd_drawn && (vd->vd_drawn[z] == c) &&
+			    vd->vd_drawnfg && (vd->vd_drawnfg[z] == fg) &&
+			    vd->vd_drawnbg && (vd->vd_drawnbg[z] == bg))
+				continue;
+
 			/*
 			 * Convert character to CP437, which is the
 			 * character set used by the VGA hardware by
@@ -883,12 +901,19 @@ vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_window *vw,
 			ch = vga_get_cp437(TCHAR_CHARACTER(c));
 
 			/* Convert colors to VGA attributes. */
-			attr = bg << 4 | fg;
+			attr =
+			    cons_to_vga_colors[bg] << 4 |
+			    cons_to_vga_colors[fg];
 
-			MEM_WRITE1(sc, 0x18000 + (row * 80 + col) * 2 + 0,
-			    ch);
-			MEM_WRITE1(sc, 0x18000 + (row * 80 + col) * 2 + 1,
-			    attr);
+			MEM_WRITE2(sc, (row * 80 + col) * 2 + 0,
+			    ch + ((uint16_t)(attr) << 8));
+
+			if (vd->vd_drawn)
+				vd->vd_drawn[z] = c;
+			if (vd->vd_drawnfg)
+				vd->vd_drawnfg[z] = fg;
+			if (vd->vd_drawnbg)
+				vd->vd_drawnbg[z] = bg;
 		}
 	}
 }
@@ -905,6 +930,27 @@ vga_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
 	}
 }
 
+void
+vga_invalidate_text(struct vt_device *vd, const term_rect_t *area)
+{
+	unsigned int col, row;
+	size_t z;
+
+	for (row = area->tr_begin.tp_row; row < area->tr_end.tp_row; ++row) {
+		for (col = area->tr_begin.tp_col;
+		    col < area->tr_end.tp_col;
+		    ++col) {
+			z = row * PIXEL_WIDTH(VT_FB_MAX_WIDTH) + col;
+			if (vd->vd_drawn)
+				vd->vd_drawn[z] = 0;
+			if (vd->vd_drawnfg)
+				vd->vd_drawnfg[z] = 0;
+			if (vd->vd_drawnbg)
+				vd->vd_drawnbg[z] = 0;
+		}
+	}
+}
+
 static void
 vga_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
     const uint8_t *pattern, const uint8_t *mask,
@@ -915,11 +961,10 @@ vga_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 	uint8_t pattern_2colors;
 
 	/* Align coordinates with the 8-pxels grid. */
-	x1 = x / VT_VGA_PIXELS_BLOCK * VT_VGA_PIXELS_BLOCK;
+	x1 = rounddown(x, VT_VGA_PIXELS_BLOCK);
 	y1 = y;
 
-	x2 = (x + width + VT_VGA_PIXELS_BLOCK - 1) /
-	    VT_VGA_PIXELS_BLOCK * VT_VGA_PIXELS_BLOCK;
+	x2 = roundup(x + width, VT_VGA_PIXELS_BLOCK);
 	y2 = y + height;
 	x2 = min(x2, vd->vd_width - 1);
 	y2 = min(y2, vd->vd_height - 1);
@@ -1030,11 +1075,12 @@ vga_initialize_graphics(struct vt_device *vd)
 	REG_WRITE1(sc, VGA_GC_DATA, 0xff);
 }
 
-static void
+static int
 vga_initialize(struct vt_device *vd, int textmode)
 {
 	struct vga_softc *sc = vd->vd_softc;
 	uint8_t x;
+	int timeout;
 
 	/* Make sure the VGA adapter is not in monochrome emulation mode. */
 	x = REG_READ1(sc, VGA_GEN_MISC_OUTPUT_R);
@@ -1055,10 +1101,16 @@ vga_initialize(struct vt_device *vd, int textmode)
 	 * code therefore also removes that guarantee and appropriate measures
 	 * need to be taken.
 	 */
+	timeout = 10000;
 	do {
+		DELAY(10);
 		x = REG_READ1(sc, VGA_GEN_INPUT_STAT_1);
 		x &= VGA_GEN_IS1_VR | VGA_GEN_IS1_DE;
-	} while (x != (VGA_GEN_IS1_VR | VGA_GEN_IS1_DE));
+	} while (x != (VGA_GEN_IS1_VR | VGA_GEN_IS1_DE) && --timeout != 0);
+	if (timeout == 0) {
+		printf("Timeout initializing vt_vga\n");
+		return (ENXIO);
+	}
 
 	/* Now, disable the sync. signals. */
 	REG_WRITE1(sc, VGA_CRTC_ADDRESS, VGA_CRTC_MODE_CONTROL);
@@ -1103,43 +1155,45 @@ vga_initialize(struct vt_device *vd, int textmode)
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(0));
 	REG_WRITE1(sc, VGA_AC_WRITE, 0);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(1));
-	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_R);
+	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_B);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(2));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_G);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(3));
-	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SG | VGA_AC_PAL_R);
+	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_G | VGA_AC_PAL_B);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(4));
-	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_B);
+	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_R);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(5));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_R | VGA_AC_PAL_B);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(6));
-	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_G | VGA_AC_PAL_B);
+	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SG | VGA_AC_PAL_R);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(7));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_R | VGA_AC_PAL_G | VGA_AC_PAL_B);
+
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(8));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
 	    VGA_AC_PAL_SB);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(9));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
-	    VGA_AC_PAL_SB | VGA_AC_PAL_R);
+	    VGA_AC_PAL_SB | VGA_AC_PAL_B);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(10));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
 	    VGA_AC_PAL_SB | VGA_AC_PAL_G);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(11));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
-	    VGA_AC_PAL_SB | VGA_AC_PAL_R | VGA_AC_PAL_G);
+	    VGA_AC_PAL_SB | VGA_AC_PAL_G | VGA_AC_PAL_B);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(12));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
-	    VGA_AC_PAL_SB | VGA_AC_PAL_B);
+	    VGA_AC_PAL_SB | VGA_AC_PAL_R);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(13));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
 	    VGA_AC_PAL_SB | VGA_AC_PAL_R | VGA_AC_PAL_B);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(14));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
-	    VGA_AC_PAL_SB | VGA_AC_PAL_G | VGA_AC_PAL_B);
+	    VGA_AC_PAL_SB | VGA_AC_PAL_R | VGA_AC_PAL_G);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PALETTE(15));
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_PAL_SR | VGA_AC_PAL_SG |
 	    VGA_AC_PAL_SB | VGA_AC_PAL_R | VGA_AC_PAL_G | VGA_AC_PAL_B);
+
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_OVERSCAN_COLOR);
 	REG_WRITE1(sc, VGA_AC_WRITE, 0);
 	REG_WRITE1(sc, VGA_AC_WRITE, VGA_AC_COLOR_PLANE_ENABLE);
@@ -1189,13 +1243,32 @@ vga_initialize(struct vt_device *vd, int textmode)
 		 */
 		sc->vga_curfg = sc->vga_curbg = 0xff;
 	}
+
+	return (0);
+}
+
+static bool
+vga_acpi_disabled(void)
+{
+#if defined(__amd64__) || defined(__i386__)
+	uint16_t flags;
+	int ignore;
+
+	ignore = 0;
+	TUNABLE_INT_FETCH("hw.vga.acpi_ignore_no_vga", &ignore);
+	if (ignore || !acpi_get_fadt_bootflags(&flags))
+ 		return (false);
+	return ((flags & ACPI_FADT_NO_VGA) != 0);
+#else
+	return (false);
+#endif
 }
 
 static int
 vga_probe(struct vt_device *vd)
 {
 
-	return (CN_INTERNAL);
+	return (vga_acpi_disabled() ? CN_DEAD : CN_INTERNAL);
 }
 
 static int
@@ -1207,27 +1280,43 @@ vga_init(struct vt_device *vd)
 	if (vd->vd_softc == NULL)
 		vd->vd_softc = (void *)&vga_conssoftc;
 	sc = vd->vd_softc;
-	textmode = 0;
+
+	if (vd->vd_flags & VDF_DOWNGRADE && vd->vd_video_dev != NULL)
+		vga_pci_repost(vd->vd_video_dev);
 
 #if defined(__amd64__) || defined(__i386__)
 	sc->vga_fb_tag = X86_BUS_SPACE_MEM;
-	sc->vga_fb_handle = KERNBASE + VGA_MEM_BASE;
 	sc->vga_reg_tag = X86_BUS_SPACE_IO;
-	sc->vga_reg_handle = VGA_REG_BASE;
 #else
 # error "Architecture not yet supported!"
 #endif
 
+	bus_space_map(sc->vga_reg_tag, VGA_REG_BASE, VGA_REG_SIZE, 0,
+	    &sc->vga_reg_handle);
+
+	/*
+	 * If "hw.vga.textmode" is not set and we're running on hypervisor,
+	 * we use text mode by default, this is because when we're on
+	 * hypervisor, vt(4) is usually much slower in graphics mode than
+	 * in text mode, especially when we're on Hyper-V.
+	 */
+	textmode = vm_guest != VM_GUEST_NO;
 	TUNABLE_INT_FETCH("hw.vga.textmode", &textmode);
 	if (textmode) {
 		vd->vd_flags |= VDF_TEXTMODE;
 		vd->vd_width = 80;
 		vd->vd_height = 25;
+		bus_space_map(sc->vga_fb_tag, VGA_TXT_BASE, VGA_TXT_SIZE, 0,
+		    &sc->vga_fb_handle);
 	} else {
 		vd->vd_width = VT_VGA_WIDTH;
 		vd->vd_height = VT_VGA_HEIGHT;
+		bus_space_map(sc->vga_fb_tag, VGA_MEM_BASE, VGA_MEM_SIZE, 0,
+		    &sc->vga_fb_handle);
 	}
-	vga_initialize(vd, textmode);
+	if (vga_initialize(vd, textmode) != 0)
+		return (CN_DEAD);
+	sc->vga_enabled = true;
 
 	return (CN_INTERNAL);
 }
@@ -1241,3 +1330,54 @@ vga_postswitch(struct vt_device *vd)
 	/* Ask vt(9) to update chars on visible area. */
 	vd->vd_flags |= VDF_INVALID;
 }
+
+/* Dummy NewBus functions to reserve the resources used by the vt_vga driver */
+static void
+vtvga_identify(driver_t *driver, device_t parent)
+{
+
+	if (!vga_conssoftc.vga_enabled)
+		return;
+
+	if (BUS_ADD_CHILD(parent, 0, driver->name, 0) == NULL)
+		panic("Unable to attach vt_vga console");
+}
+
+static int
+vtvga_probe(device_t dev)
+{
+
+	device_set_desc(dev, "VT VGA driver");
+
+	return (BUS_PROBE_NOWILDCARD);
+}
+
+static int
+vtvga_attach(device_t dev)
+{
+	struct resource *pseudo_phys_res;
+	int res_id;
+
+	res_id = 0;
+	pseudo_phys_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
+	    &res_id, VGA_MEM_BASE, VGA_MEM_BASE + VGA_MEM_SIZE - 1,
+	    VGA_MEM_SIZE, RF_ACTIVE);
+	if (pseudo_phys_res == NULL)
+		panic("Unable to reserve vt_vga memory");
+	return (0);
+}
+
+/*-------------------- Private Device Attachment Data  -----------------------*/
+static device_method_t vtvga_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_identify,	vtvga_identify),
+	DEVMETHOD(device_probe,         vtvga_probe),
+	DEVMETHOD(device_attach,        vtvga_attach),
+
+	DEVMETHOD_END
+};
+
+DEFINE_CLASS_0(vtvga, vtvga_driver, vtvga_methods, 0);
+devclass_t vtvga_devclass;
+
+DRIVER_MODULE(vtvga, nexus, vtvga_driver, vtvga_devclass, NULL, NULL);

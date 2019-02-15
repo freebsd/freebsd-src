@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: mail.news,v 1.22 2013/01/04 14:22:07 christos Exp $
+# $File: mail.news,v 1.23 2015/06/29 14:44:26 christos Exp $
 # mail.news:  file(1) magic for mail and news
 #
 # Unfortunately, saved netnews also has From line added in some news software.
@@ -41,6 +41,7 @@
 
 # From: Simon Matter <simon.matter@invoca.ch>
 0	string		\241\002\213\015skiplist\ file\0\0\0	Cyrus skiplist DB
+0	string		\241\002\213\015twoskip\ file\0\0\0\0	Cyrus twoskip DB
 
 # JAM(mbp) Fidonet message area databases
 # JHR file

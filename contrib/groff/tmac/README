@@ -1,9 +1,0 @@
-The file `hyphen.us' is identical to the file `hyphen.tex', part of the TeX
-system written by Donald E. Knuth; the master file can be found at
-
-  ftp://labrea.stanford.edu/pub/tex/dist/lib/hyphen.tex    .
-
-It has been renamed for consistency, i.e., to make patterns available under
-the filenames `hyphen.<language>', e.g. `hyphen.de' or `hyphen.uk'.
-
-See the file itself for a copyright notice.

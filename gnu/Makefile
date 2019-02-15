@@ -3,10 +3,11 @@
 
 .include <src.opts.mk>
 
-SUBDIR= lib ${_tests} usr.bin
+SUBDIR= lib .WAIT \
+	usr.bin
 
-.if ${MK_TESTS} != "no"
-_tests=	tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

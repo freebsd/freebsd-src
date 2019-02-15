@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -41,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
+#include <sys/vmem.h>
 #include <machine/bus.h>
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -178,7 +181,7 @@ done:
 	}
 
 	if (enqueue) {
-		taskqueue_enqueue_fast(unit->fault_taskqueue,
+		taskqueue_enqueue(unit->fault_taskqueue,
 		    &unit->fault_task);
 	}
 	return (FILTER_HANDLED);
@@ -230,8 +233,9 @@ dmar_fault_task(void *arg, int pending __unused)
 		}
 		DMAR_UNLOCK(unit);
 		printf(
-		    "pci%d:%d:%d fault acc %x adt 0x%x reason 0x%x addr %jx\n",
-		    bus, slot, func, DMAR_FRCD2_T(fault_rec[1]),
+		    "pci%d:%d:%d sid %x fault acc %x adt 0x%x reason 0x%x "
+		    "addr %jx\n",
+		    bus, slot, func, sid, DMAR_FRCD2_T(fault_rec[1]),
 		    DMAR_FRCD2_AT(fault_rec[1]), DMAR_FRCD2_FR(fault_rec[1]),
 		    (uintmax_t)fault_rec[0]);
 		DMAR_FAULT_LOCK(unit);
@@ -269,7 +273,7 @@ dmar_init_fault_log(struct dmar_unit *unit)
 	    M_DEVBUF, M_WAITOK | M_ZERO);
 
 	TASK_INIT(&unit->fault_task, 0, dmar_fault_task, unit);
-	unit->fault_taskqueue = taskqueue_create_fast("dmar", M_WAITOK,
+	unit->fault_taskqueue = taskqueue_create_fast("dmarff", M_WAITOK,
 	    taskqueue_thread_enqueue, &unit->fault_taskqueue);
 	taskqueue_start_threads(&unit->fault_taskqueue, 1, PI_AV,
 	    "dmar%d fault taskq", unit->unit);

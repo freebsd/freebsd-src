@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001 David E. O'Brien
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -46,23 +48,18 @@
  */
 
 #include <machine/_align.h>
-#include <machine/acle-compat.h>
 
 #define STACKALIGNBYTES	(8 - 1)
 #define STACKALIGN(p)	((u_int)(p) & ~STACKALIGNBYTES)
 
 #define __PCI_REROUTE_INTERRUPT
 
-#if __ARM_ARCH >= 6
-#define	_V6_SUFFIX "v6"
+#if __ARM_ARCH >= 7
+#define	_V_SUFFIX "v7"
+#elif __ARM_ARCH >= 6
+#define	_V_SUFFIX "v6"
 #else
-#define	_V6_SUFFIX ""
-#endif
-
-#ifdef __ARM_PCS_VFP
-#define	_HF_SUFFIX "hf"
-#else
-#define	_HF_SUFFIX ""
+#define	_V_SUFFIX ""
 #endif
 
 #ifdef __ARM_BIG_ENDIAN
@@ -75,7 +72,7 @@
 #define	MACHINE		"arm"
 #endif
 #ifndef MACHINE_ARCH
-#define	MACHINE_ARCH	"arm" _V6_SUFFIX _HF_SUFFIX _EB_SUFFIX
+#define	MACHINE_ARCH	"arm" _V_SUFFIX _EB_SUFFIX
 #endif
 
 #if defined(SMP) || defined(KLD_MODULE)
@@ -97,6 +94,14 @@
  * is valid to fetch data elements of type t from on this architecture.
  * This does not reflect the optimal alignment, just the possibility
  * (within reasonable limits).
+ *
+ * armv4 and v5 require alignment to the type's size.  armv6 requires 8-byte
+ * alignment for the ldrd/strd instructions, but otherwise follows armv7 rules.
+ * armv7 requires that an 8-byte type be aligned to at least a 4-byte boundary;
+ * access to smaller types can be unaligned, except that the compiler may
+ * optimize access to adjacent uint32_t values into a single load/store-multiple
+ * instruction which requires 4-byte alignment, so we must provide the most-
+ * pessimistic answer possible even on armv7.
  */
 #define	ALIGNED_POINTER(p, t)	((((unsigned)(p)) & (sizeof(t)-1)) == 0)
 
@@ -110,7 +115,6 @@
 #define	PAGE_SHIFT	12
 #define	PAGE_SIZE	(1 << PAGE_SHIFT)	/* Page size */
 #define	PAGE_MASK	(PAGE_SIZE - 1)
-#define	NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 
 #define PDR_SHIFT	20 /* log2(NBPDR) */
 #define NBPDR		(1 << PDR_SHIFT)
@@ -131,7 +135,7 @@
 #define KSTACK_GUARD_PAGES	1
 #endif /* !KSTACK_GUARD_PAGES */
 
-#define USPACE_SVC_STACK_TOP		(KSTACK_PAGES * PAGE_SIZE)
+#define USPACE_SVC_STACK_TOP		(kstack_pages * PAGE_SIZE)
 
 /*
  * Mach derived conversion macros

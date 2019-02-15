@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	@(#)getfsstat.2	8.3 (Berkeley) 5/25/95
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2003
+.Dd December 27, 2016
 .Dt GETFSSTAT 2
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 .In sys/ucred.h
 .In sys/mount.h
 .Ft int
-.Fn getfsstat "struct statfs *buf" "long bufsize" "int flags"
+.Fn getfsstat "struct statfs *buf" "long bufsize" "int mode"
 .Sh DESCRIPTION
 The
 .Fn getfsstat
@@ -74,11 +74,11 @@ is given as NULL,
 returns just the number of mounted file systems.
 .Pp
 Normally
-.Fa flags
+.Fa mode
 should be specified as
 .Dv MNT_WAIT .
 If
-.Fa flags
+.Fa mode
 is set to
 .Dv MNT_NOWAIT ,
 .Fn getfsstat
@@ -88,6 +88,8 @@ Thus, some of the information will be out of date, but
 .Fn getfsstat
 will not block waiting for information from a file system that is
 unable to respond.
+It will also skip any file system that is in the process of being
+unmounted, even if the unmount would eventually fail.
 .Sh RETURN VALUES
 Upon successful completion, the number of
 .Fa statfs
@@ -106,6 +108,12 @@ The
 .Fa buf
 argument
 points to an invalid address.
+.It Bq Er EINVAL
+.Fa mode
+is set to a value other than
+.Dv MNT_WAIT
+or
+.Dv MNT_NOWAIT .
 .It Bq Er EIO
 An
 .Tn I/O

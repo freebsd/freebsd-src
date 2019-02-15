@@ -14,48 +14,35 @@
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
-#include "lldb/Interpreter/Options.h"
 #include "lldb/Interpreter/OptionValueUUID.h"
+#include "lldb/Interpreter/Options.h"
 
 namespace lldb_private {
+
 //-------------------------------------------------------------------------
 // OptionGroupUUID
 //-------------------------------------------------------------------------
 
-class OptionGroupUUID : public OptionGroup
-{
+class OptionGroupUUID : public OptionGroup {
 public:
-    
-    OptionGroupUUID ();
-    
-    virtual
-    ~OptionGroupUUID ();
+  OptionGroupUUID();
 
-    
-    virtual uint32_t
-    GetNumDefinitions ();
-    
-    virtual const OptionDefinition*
-    GetDefinitions ();
-    
-    virtual Error
-    SetOptionValue (CommandInterpreter &interpreter,
-                    uint32_t option_idx,
-                    const char *option_value);
-    
-    virtual void
-    OptionParsingStarting (CommandInterpreter &interpreter);
-    
-    const OptionValueUUID &
-    GetOptionValue () const
-    {
-        return m_uuid;
-    }
+  ~OptionGroupUUID() override;
+
+  llvm::ArrayRef<OptionDefinition> GetDefinitions() override;
+
+  Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_value,
+                        ExecutionContext *execution_context) override;
+  Status SetOptionValue(uint32_t, const char *, ExecutionContext *) = delete;
+
+  void OptionParsingStarting(ExecutionContext *execution_context) override;
+
+  const OptionValueUUID &GetOptionValue() const { return m_uuid; }
 
 protected:
-    OptionValueUUID m_uuid;
+  OptionValueUUID m_uuid;
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_OptionGroupUUID_h_
+#endif // liblldb_OptionGroupUUID_h_

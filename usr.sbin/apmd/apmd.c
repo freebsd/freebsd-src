@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * APM (Advanced Power Management) Event Dispatcher
  *
  * Copyright (c) 1999 Mitsuru IWASAKI <iwasaki@FreeBSD.org>
@@ -32,6 +34,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/types.h>
 #include <assert.h>
 #include <bitstring.h>
 #include <err.h>
@@ -45,7 +48,6 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
-#include <sys/types.h>
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <machine/apm_bios.h>

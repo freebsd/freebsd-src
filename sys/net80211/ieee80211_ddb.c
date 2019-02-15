@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -36,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h> 
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/socket.h>
 
 #include <net/if.h>
@@ -67,6 +70,8 @@ static void _db_show_sta(const struct ieee80211_node *);
 static void _db_show_vap(const struct ieee80211vap *, int, int);
 static void _db_show_com(const struct ieee80211com *,
 	int showvaps, int showsta, int showmesh, int showprocs);
+
+static void _db_show_all_vaps(void *, struct ieee80211com *);
 
 static void _db_show_node_table(const char *tag,
 	const struct ieee80211_node_table *);
@@ -160,8 +165,6 @@ DB_SHOW_COMMAND(com, db_show_com)
 
 DB_SHOW_ALL_COMMAND(vaps, db_show_all_vaps)
 {
-	VNET_ITERATOR_DECL(vnet_iter);
-	const struct ifnet *ifp;
 	int i, showall = 0;
 
 	for (i = 0; modif[i] != '\0'; i++)
@@ -171,24 +174,7 @@ DB_SHOW_ALL_COMMAND(vaps, db_show_all_vaps)
 			break;
 		}
 
-	VNET_FOREACH(vnet_iter) {
-		TAILQ_FOREACH(ifp, &V_ifnet, if_list)
-			if (ifp->if_type == IFT_IEEE80211) {
-				const struct ieee80211com *ic = ifp->if_l2com;
-
-				if (!showall) {
-					const struct ieee80211vap *vap;
-					db_printf("%s: com %p vaps:",
-					    ifp->if_xname, ic);
-					TAILQ_FOREACH(vap, &ic->ic_vaps,
-					    iv_next)
-						db_printf(" %s(%p)",
-						    vap->iv_ifp->if_xname, vap);
-					db_printf("\n");
-				} else
-					_db_show_com(ic, 1, 1, 1, 1);
-			}
-	}
+	ieee80211_iterate_coms(_db_show_all_vaps, &showall);
 }
 
 #ifdef IEEE80211_SUPPORT_MESH
@@ -249,9 +235,8 @@ _db_show_sta(const struct ieee80211_node *ni)
 	db_printf("\tvap %p wdsvap %p ic %p table %p\n",
 		ni->ni_vap, ni->ni_wdsvap, ni->ni_ic, ni->ni_table);
 	db_printf("\tflags=%b\n", ni->ni_flags, IEEE80211_NODE_BITS);
-	db_printf("\tscangen %u authmode %u ath_flags 0x%x ath_defkeyix %u\n",
-		ni->ni_scangen, ni->ni_authmode,
-		ni->ni_ath_flags, ni->ni_ath_defkeyix);
+	db_printf("\tauthmode %u ath_flags 0x%x ath_defkeyix %u\n",
+		ni->ni_authmode, ni->ni_ath_flags, ni->ni_ath_defkeyix);
 	db_printf("\tassocid 0x%x txpower %u vlan %u\n",
 		ni->ni_associd, ni->ni_txpower, ni->ni_vlan);
 	db_printf("\tjointime %d (%lu secs) challenge %p\n",
@@ -520,14 +505,16 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta,
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
 		db_printf(" %s(%p)", vap->iv_ifp->if_xname, vap);
 	db_printf("\n");
-	db_printf("\tifp %p(%s)", ic->ic_ifp, ic->ic_ifp->if_xname);
+	db_printf("\tsoftc %p", ic->ic_softc);
+	db_printf("\tname %s", ic->ic_name);
 	db_printf(" comlock %p", &ic->ic_comlock);
+	db_printf(" txlock %p", &ic->ic_txlock);
+	db_printf(" fflock %p", &ic->ic_fflock);
 	db_printf("\n");
 	db_printf("\theadroom %d", ic->ic_headroom);
 	db_printf(" phytype %d", ic->ic_phytype);
 	db_printf(" opmode %s", ieee80211_opmode_name[ic->ic_opmode]);
 	db_printf("\n");
-	db_printf("\tmedia %p", &ic->ic_media);
 	db_printf(" inact %p", &ic->ic_inact);
 	db_printf("\n");
 
@@ -682,6 +669,21 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta,
 }
 
 static void
+_db_show_all_vaps(void *arg, struct ieee80211com *ic)
+{
+	int showall = *(int *)arg;
+
+	if (!showall) {
+		const struct ieee80211vap *vap;
+		db_printf("%s: com %p vaps:", ic->ic_name, ic);
+		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+			db_printf(" %s(%p)", vap->iv_ifp->if_xname, vap);
+		db_printf("\n");
+	} else
+		_db_show_com(ic, 1, 1, 1, 1);
+}
+
+static void
 _db_show_node_table(const char *tag, const struct ieee80211_node_table *nt)
 {
 	int i;
@@ -689,8 +691,6 @@ _db_show_node_table(const char *tag, const struct ieee80211_node_table *nt)
 	db_printf("%s%s@%p:\n", tag, nt->nt_name, nt);
 	db_printf("%s nodelock %p", tag, &nt->nt_nodelock);
 	db_printf(" inact_init %d", nt->nt_inact_init);
-	db_printf(" scanlock %p", &nt->nt_scanlock);
-	db_printf(" scangen %u\n", nt->nt_scangen);
 	db_printf("%s keyixmax %d keyixmap %p\n",
 	    tag, nt->nt_keyixmax, nt->nt_keyixmap);
 	for (i = 0; i < nt->nt_keyixmax; i++) {

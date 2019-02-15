@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Marvell Semiconductor, Inc.
  * Copyright (c) 2007 Sam Leffler, Errno Consulting
  * Copyright (c) 2008 Weongyo Jeong <weongyo@freebsd.org>
@@ -520,8 +522,9 @@ struct malo_vap {
 #define	MALO_VAP(vap)	((struct malo_vap *)(vap))
 
 struct malo_softc {
+	struct ieee80211com	malo_ic;
+	struct mbufq		malo_snd;
 	device_t		malo_dev;
-	struct ifnet		*malo_ifp;	/* interface common */
 	struct mtx		malo_mtx;	/* master lock (recursive) */
 	struct taskqueue	*malo_tq;	/* private task queue */
 
@@ -531,9 +534,10 @@ struct malo_softc {
 	bus_space_handle_t	malo_io1h;	/* BAR 1 */
 	bus_space_tag_t		malo_io1t;
 
-	unsigned int		malo_invalid : 1,/* disable hardware accesses */
-				malo_recvsetup : 1,	/* recv setup */
-				malo_fixedrate: 1;	/* use fixed tx rate */
+	unsigned int		malo_invalid: 1,/* disable hardware accesses */
+				malo_recvsetup: 1,	/* recv setup */
+				malo_fixedrate: 1,	/* use fixed tx rate */
+				malo_running: 1;
 
 	struct malo_hal		*malo_mh;	/* h/w access layer */
 	struct malo_hal_hwspec	malo_hwspecs;	/* h/w capabilities */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 David E. O'Brien <obrien@FreeBSD.org>
  * Copyright (c) 2001 Mike Barcroft <mike@FreeBSD.org>
  * All rights reserved.
@@ -77,6 +79,14 @@ typedef	__intptr_t		intptr_t;
 #ifndef _UINTPTR_T_DECLARED
 typedef	__uintptr_t		uintptr_t;
 #define	_UINTPTR_T_DECLARED
+#endif
+#ifndef _INTMAX_T_DECLARED
+typedef	__intmax_t		intmax_t;
+#define	_INTMAX_T_DECLARED
+#endif
+#ifndef _UINTMAX_T_DECLARED
+typedef	__uintmax_t		uintmax_t;
+#define	_UINTMAX_T_DECLARED
 #endif
 
 #endif /* !_SYS__STDINT_H_ */

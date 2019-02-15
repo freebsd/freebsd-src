@@ -10,11 +10,13 @@
 #ifndef liblldb_State_h_
 #define liblldb_State_h_
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
-#include "lldb/lldb-private.h"
+#include "llvm/Support/FormatProviders.h"
+
+#include "lldb/lldb-enumerations.h"   // for StateType
+#include "llvm/ADT/StringRef.h"       // for StringRef
+#include "llvm/Support/raw_ostream.h" // for raw_ostream
+
+#include <stdint.h> // for uint32_t
 
 namespace lldb_private {
 
@@ -29,8 +31,7 @@ namespace lldb_private {
 ///     returned string comes from constant string buffers and does
 ///     not need to be freed.
 //------------------------------------------------------------------
-const char *
-StateAsCString (lldb::StateType state);
+const char *StateAsCString(lldb::StateType state);
 
 //------------------------------------------------------------------
 /// Check if a state represents a state where the process or thread
@@ -43,13 +44,12 @@ StateAsCString (lldb::StateType state);
 ///     \b true if the state represents a process or thread state
 ///     where the process or thread is running, \b false otherwise.
 //------------------------------------------------------------------
-bool
-StateIsRunningState (lldb::StateType state);
+bool StateIsRunningState(lldb::StateType state);
 
 //------------------------------------------------------------------
 /// Check if a state represents a state where the process or thread
 /// is stopped. Stopped can mean stopped when the process is still
-/// around, or stopped when the process has exited or doesn't exist 
+/// around, or stopped when the process has exited or doesn't exist
 /// yet. The \a must_exist argument tells us which of these cases is
 /// desired.
 ///
@@ -62,17 +62,24 @@ StateIsRunningState (lldb::StateType state);
 ///
 /// @return
 ///     \b true if the state represents a process or thread state
-///     where the process or thread is stopped. If \a must_exist is 
+///     where the process or thread is stopped. If \a must_exist is
 ///     \b true, then the process can't be exited or unloaded,
 ///     otherwise exited and unloaded or other states where the
-///     process no longer exists are considered to be stopped. 
+///     process no longer exists are considered to be stopped.
 //------------------------------------------------------------------
-bool
-StateIsStoppedState (lldb::StateType state, bool must_exist);
+bool StateIsStoppedState(lldb::StateType state, bool must_exist);
 
-const char *
-GetPermissionsAsCString (uint32_t permissions);
-    
+const char *GetPermissionsAsCString(uint32_t permissions);
+
 } // namespace lldb_private
 
-#endif  // liblldb_State_h_
+namespace llvm {
+template <> struct format_provider<lldb::StateType> {
+  static void format(const lldb::StateType &state, raw_ostream &Stream,
+                     StringRef Style) {
+    Stream << lldb_private::StateAsCString(state);
+  }
+};
+}
+
+#endif // liblldb_State_h_

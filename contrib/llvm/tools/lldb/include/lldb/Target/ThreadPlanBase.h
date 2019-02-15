@@ -20,52 +20,43 @@
 
 namespace lldb_private {
 
-
 //------------------------------------------------------------------
 //  Base thread plans:
-//  This is the generic version of the bottom most plan on the plan stack.  It should
+//  This is the generic version of the bottom most plan on the plan stack.  It
+//  should
 //  be able to handle generic breakpoint hitting, and signals and exceptions.
 //------------------------------------------------------------------
 
-class ThreadPlanBase : public ThreadPlan
-{
-friend class Process;  // RunThreadPlan manages "stopper" base plans.
+class ThreadPlanBase : public ThreadPlan {
+  friend class Process; // RunThreadPlan manages "stopper" base plans.
 public:
-    virtual ~ThreadPlanBase ();
+  ~ThreadPlanBase() override;
 
-    virtual void GetDescription (Stream *s, lldb::DescriptionLevel level);
-    virtual bool ValidatePlan (Stream *error);
-    virtual bool ShouldStop (Event *event_ptr);
-    virtual Vote ShouldReportStop (Event *event_ptr);
-    virtual bool StopOthers ();
-    virtual lldb::StateType GetPlanRunState ();
-    virtual bool WillStop ();
-    virtual bool MischiefManaged ();
+  void GetDescription(Stream *s, lldb::DescriptionLevel level) override;
+  bool ValidatePlan(Stream *error) override;
+  bool ShouldStop(Event *event_ptr) override;
+  Vote ShouldReportStop(Event *event_ptr) override;
+  bool StopOthers() override;
+  lldb::StateType GetPlanRunState() override;
+  bool WillStop() override;
+  bool MischiefManaged() override;
 
-    virtual bool OkayToDiscard()
-    {
-        return false;
-    }
+  bool OkayToDiscard() override { return false; }
 
-    virtual bool
-    IsBasePlan()
-    {
-        return true;
-    }
-    
+  bool IsBasePlan() override { return true; }
+
 protected:
-    virtual bool DoWillResume (lldb::StateType resume_state, bool current_plan);
-    virtual bool DoPlanExplainsStop (Event *event_ptr);
-    ThreadPlanBase (Thread &thread);
+  bool DoWillResume(lldb::StateType resume_state, bool current_plan) override;
+  bool DoPlanExplainsStop(Event *event_ptr) override;
+  ThreadPlanBase(Thread &thread);
 
 private:
-    friend lldb::ThreadPlanSP
-    Thread::QueueFundamentalPlan(bool abort_other_plans);
+  friend lldb::ThreadPlanSP
+  Thread::QueueFundamentalPlan(bool abort_other_plans);
 
-    DISALLOW_COPY_AND_ASSIGN (ThreadPlanBase);
+  DISALLOW_COPY_AND_ASSIGN(ThreadPlanBase);
 };
-
 
 } // namespace lldb_private
 
-#endif  // liblldb_ThreadPlanFundamental_h_
+#endif // liblldb_ThreadPlanFundamental_h_

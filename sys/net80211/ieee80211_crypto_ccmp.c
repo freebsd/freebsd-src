@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -63,7 +65,8 @@ struct ccmp_ctx {
 static	void *ccmp_attach(struct ieee80211vap *, struct ieee80211_key *);
 static	void ccmp_detach(struct ieee80211_key *);
 static	int ccmp_setkey(struct ieee80211_key *);
-static	int ccmp_encap(struct ieee80211_key *k, struct mbuf *, uint8_t keyid);
+static	void ccmp_setiv(struct ieee80211_key *, uint8_t *);
+static	int ccmp_encap(struct ieee80211_key *, struct mbuf *);
 static	int ccmp_decap(struct ieee80211_key *, struct mbuf *, int);
 static	int ccmp_enmic(struct ieee80211_key *, struct mbuf *, int);
 static	int ccmp_demic(struct ieee80211_key *, struct mbuf *, int);
@@ -78,6 +81,7 @@ static const struct ieee80211_cipher ccmp = {
 	.ic_attach	= ccmp_attach,
 	.ic_detach	= ccmp_detach,
 	.ic_setkey	= ccmp_setkey,
+	.ic_setiv	= ccmp_setiv,
 	.ic_encap	= ccmp_encap,
 	.ic_decap	= ccmp_decap,
 	.ic_enmic	= ccmp_enmic,
@@ -96,8 +100,8 @@ ccmp_attach(struct ieee80211vap *vap, struct ieee80211_key *k)
 {
 	struct ccmp_ctx *ctx;
 
-	ctx = (struct ccmp_ctx *) malloc(sizeof(struct ccmp_ctx),
-		M_80211_CRYPTO, M_NOWAIT | M_ZERO);
+	ctx = (struct ccmp_ctx *) IEEE80211_MALLOC(sizeof(struct ccmp_ctx),
+		M_80211_CRYPTO, IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (ctx == NULL) {
 		vap->iv_stats.is_crypto_nomem++;
 		return NULL;
@@ -113,7 +117,7 @@ ccmp_detach(struct ieee80211_key *k)
 {
 	struct ccmp_ctx *ctx = k->wk_private;
 
-	free(ctx, M_80211_CRYPTO);
+	IEEE80211_FREE(ctx, M_80211_CRYPTO);
 	KASSERT(nrefs > 0, ("imbalanced attach/detach"));
 	nrefs--;			/* NB: we assume caller locking */
 }
@@ -134,18 +138,53 @@ ccmp_setkey(struct ieee80211_key *k)
 	return 1;
 }
 
+static void
+ccmp_setiv(struct ieee80211_key *k, uint8_t *ivp)
+{
+	struct ccmp_ctx *ctx = k->wk_private;
+	struct ieee80211vap *vap = ctx->cc_vap;
+	uint8_t keyid;
+
+	keyid = ieee80211_crypto_get_keyid(vap, k) << 6;
+
+	k->wk_keytsc++;
+	ivp[0] = k->wk_keytsc >> 0;		/* PN0 */
+	ivp[1] = k->wk_keytsc >> 8;		/* PN1 */
+	ivp[2] = 0;				/* Reserved */
+	ivp[3] = keyid | IEEE80211_WEP_EXTIV;	/* KeyID | ExtID */
+	ivp[4] = k->wk_keytsc >> 16;		/* PN2 */
+	ivp[5] = k->wk_keytsc >> 24;		/* PN3 */
+	ivp[6] = k->wk_keytsc >> 32;		/* PN4 */
+	ivp[7] = k->wk_keytsc >> 40;		/* PN5 */
+}
+
 /*
  * Add privacy headers appropriate for the specified key.
  */
 static int
-ccmp_encap(struct ieee80211_key *k, struct mbuf *m, uint8_t keyid)
+ccmp_encap(struct ieee80211_key *k, struct mbuf *m)
 {
+	const struct ieee80211_frame *wh;
 	struct ccmp_ctx *ctx = k->wk_private;
 	struct ieee80211com *ic = ctx->cc_ic;
 	uint8_t *ivp;
 	int hdrlen;
+	int is_mgmt;
 
 	hdrlen = ieee80211_hdrspace(ic, mtod(m, void *));
+	wh = mtod(m, const struct ieee80211_frame *);
+	is_mgmt = IEEE80211_IS_MGMT(wh);
+
+	/*
+	 * Check to see if we need to insert IV/MIC.
+	 *
+	 * Some offload devices don't require the IV to be inserted
+	 * as part of the hardware encryption.
+	 */
+	if (is_mgmt && (k->wk_flags & IEEE80211_KEY_NOIVMGT))
+		return 1;
+	if ((! is_mgmt) && (k->wk_flags & IEEE80211_KEY_NOIV))
+		return 1;
 
 	/*
 	 * Copy down 802.11 header and add the IV, KeyID, and ExtIV.
@@ -157,18 +196,10 @@ ccmp_encap(struct ieee80211_key *k, struct mbuf *m, uint8_t keyid)
 	ovbcopy(ivp + ccmp.ic_header, ivp, hdrlen);
 	ivp += hdrlen;
 
-	k->wk_keytsc++;		/* XXX wrap at 48 bits */
-	ivp[0] = k->wk_keytsc >> 0;		/* PN0 */
-	ivp[1] = k->wk_keytsc >> 8;		/* PN1 */
-	ivp[2] = 0;				/* Reserved */
-	ivp[3] = keyid | IEEE80211_WEP_EXTIV;	/* KeyID | ExtID */
-	ivp[4] = k->wk_keytsc >> 16;		/* PN2 */
-	ivp[5] = k->wk_keytsc >> 24;		/* PN3 */
-	ivp[6] = k->wk_keytsc >> 32;		/* PN4 */
-	ivp[7] = k->wk_keytsc >> 40;		/* PN5 */
+	ccmp_setiv(k, ivp);
 
 	/*
-	 * Finally, do software encrypt if neeed.
+	 * Finally, do software encrypt if needed.
 	 */
 	if ((k->wk_flags & IEEE80211_KEY_SWENCRYPT) &&
 	    !ccmp_encrypt(k, m, hdrlen))
@@ -203,11 +234,17 @@ READ_6(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5)
 static int
 ccmp_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 {
+	const struct ieee80211_rx_stats *rxs;
 	struct ccmp_ctx *ctx = k->wk_private;
 	struct ieee80211vap *vap = ctx->cc_vap;
 	struct ieee80211_frame *wh;
 	uint8_t *ivp, tid;
 	uint64_t pn;
+
+	rxs = ieee80211_get_rx_params_ptr(m);
+
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))
+		goto finish;
 
 	/*
 	 * Header should have extended IV and sequence number;
@@ -247,17 +284,28 @@ ccmp_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 	    !ccmp_decrypt(k, pn, m, hdrlen))
 		return 0;
 
+finish:
 	/*
 	 * Copy up 802.11 header and strip crypto bits.
 	 */
-	ovbcopy(mtod(m, void *), mtod(m, uint8_t *) + ccmp.ic_header, hdrlen);
-	m_adj(m, ccmp.ic_header);
-	m_adj(m, -ccmp.ic_trailer);
+	if (! ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))) {
+		ovbcopy(mtod(m, void *), mtod(m, uint8_t *) + ccmp.ic_header,
+		    hdrlen);
+		m_adj(m, ccmp.ic_header);
+	}
+
+	/*
+	 * XXX TODO: see if MMIC_STRIP also covers CCMP MIC trailer.
+	 */
+	if (! ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_MMIC_STRIP)))
+		m_adj(m, -ccmp.ic_trailer);
 
 	/*
 	 * Ok to update rsc now.
 	 */
-	k->wk_keyrsc[tid] = pn;
+	if (! ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))) {
+		k->wk_keyrsc[tid] = pn;
+	}
 
 	return 1;
 }

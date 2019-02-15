@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2011
+.Dd March 19, 2018
 .Dt MOD_CC 4
 .Os
 .Sh NAME
@@ -49,7 +49,9 @@ using the
 facility.
 .Pp
 The default algorithm is NewReno, and all connections use the default unless
-explicitly overridden using the TCP_CONGESTION socket option (see
+explicitly overridden using the
+.Dv TCP_CONGESTION
+socket option (see
 .Xr tcp 4
 for details).
 The default can be changed using a
@@ -57,13 +59,21 @@ The default can be changed using a
 MIB variable detailed in the
 .Sx MIB Variables
 section below.
+.Pp
+Algorithm specific parameters can be set or queried using the
+.Dv TCP_CCALGOOPT
+socket option (see
+.Xr tcp 4
+for details).
+Callers must pass a pointer to an algorithm specific data, and specify
+its size.
 .Sh MIB Variables
 The framework exposes the following variables in the
 .Va net.inet.tcp.cc
 branch of the
 .Xr sysctl 3
 MIB:
-.Bl -tag -width ".Va available"
+.Bl -tag -width ".Va abe_frlossreduce"
 .It Va available
 Read-only list of currently available congestion control algorithms by name.
 .It Va algorithm
@@ -73,10 +83,21 @@ When attempting to change the default algorithm, this variable should be set to
 one of the names listed by the
 .Va net.inet.tcp.cc.available
 MIB variable.
+.It Va abe
+Enable support for draft-ietf-tcpm-alternativebackoff-ecn,
+which alters the window decrease factor applied to the congestion window in
+response to an ECN congestion signal.
+Refer to individual congestion control man pages to determine if they implement
+support for ABE and for configuration details.
+.It Va abe_frlossreduce
+If non-zero, apply standard beta instead of ABE-beta during ECN-signalled
+congestion recovery episodes if loss also needs to be repaired.
 .El
 .Sh SEE ALSO
+.Xr cc_cdg 4 ,
 .Xr cc_chd 4 ,
 .Xr cc_cubic 4 ,
+.Xr cc_dctcp 4 ,
 .Xr cc_hd 4 ,
 .Xr cc_htcp 4 ,
 .Xr cc_newreno 4 ,

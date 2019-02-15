@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
  * All rights reserved.
  *
@@ -28,6 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_evdev.h"
 #include "opt_syscons.h"
 
 #include <sys/param.h>
@@ -43,12 +46,83 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/syscons/syscons.h>
 
+#ifdef EVDEV_SUPPORT
+#include <dev/evdev/input.h>
+#include <dev/evdev/evdev.h>
+#endif
+
 #ifndef SC_NO_SYSMOUSE
 
 /* local variables */
 static struct tty	*sysmouse_tty;
 static int		mouse_level;	/* sysmouse protocol level */
 static mousestatus_t	mouse_status;
+
+#ifdef EVDEV_SUPPORT
+static struct evdev_dev	*sysmouse_evdev;
+
+static void
+smdev_evdev_init(void)
+{
+	int i;
+
+	sysmouse_evdev = evdev_alloc();
+	evdev_set_name(sysmouse_evdev, "System mouse");
+	evdev_set_phys(sysmouse_evdev, "sysmouse");
+	evdev_set_id(sysmouse_evdev, BUS_VIRTUAL, 0, 0, 0);
+	evdev_support_prop(sysmouse_evdev, INPUT_PROP_POINTER);
+	evdev_support_event(sysmouse_evdev, EV_SYN);
+	evdev_support_event(sysmouse_evdev, EV_REL);
+	evdev_support_event(sysmouse_evdev, EV_KEY);
+	evdev_support_rel(sysmouse_evdev, REL_X);
+	evdev_support_rel(sysmouse_evdev, REL_Y);
+	evdev_support_rel(sysmouse_evdev, REL_WHEEL);
+	evdev_support_rel(sysmouse_evdev, REL_HWHEEL);
+	for (i = 0; i < 8; i++)
+		evdev_support_key(sysmouse_evdev, BTN_MOUSE + i);
+	if (evdev_register(sysmouse_evdev)) {
+		evdev_free(sysmouse_evdev);
+		sysmouse_evdev = NULL;
+	}
+}
+
+static void
+smdev_evdev_write(int x, int y, int z, int buttons)
+{
+
+	if (sysmouse_evdev == NULL || !(evdev_rcpt_mask & EVDEV_RCPT_SYSMOUSE))
+		return;
+
+	evdev_push_event(sysmouse_evdev, EV_REL, REL_X, x);
+	evdev_push_event(sysmouse_evdev, EV_REL, REL_Y, y);
+	switch (evdev_sysmouse_t_axis) {
+	case EVDEV_SYSMOUSE_T_AXIS_PSM:
+		switch (z) {
+		case 1:
+		case -1:
+			evdev_push_rel(sysmouse_evdev, REL_WHEEL, -z);
+			break;
+		case 2:
+		case -2:
+			evdev_push_rel(sysmouse_evdev, REL_HWHEEL, z / 2);
+			break;
+		}
+		break;
+	case EVDEV_SYSMOUSE_T_AXIS_UMS:
+		if (buttons & (1 << 6))
+			evdev_push_rel(sysmouse_evdev, REL_HWHEEL, 1);
+		else if (buttons & (1 << 5))
+			evdev_push_rel(sysmouse_evdev, REL_HWHEEL, -1);
+		buttons &= ~((1 << 5)|(1 << 6));
+		/* PASSTHROUGH */
+	case EVDEV_SYSMOUSE_T_AXIS_NONE:
+	default:
+		evdev_push_rel(sysmouse_evdev, REL_WHEEL, -z);
+	}
+	evdev_push_mouse_btn(sysmouse_evdev, buttons);
+	evdev_sync(sysmouse_evdev);
+}
+#endif
 
 static void
 smdev_close(struct tty *tp)
@@ -128,12 +202,6 @@ smdev_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 		mouse_status.dz = 0;
 		return 0;
 
-#ifdef notyet
-	case MOUSE_GETVARS:	/* get internal mouse variables */
-	case MOUSE_SETVARS:	/* set internal mouse variables */
-		return ENODEV;
-#endif
-
 	case MOUSE_READSTATE:	/* read status from the device */
 	case MOUSE_READDATA:	/* read data from the device */
 		return ENODEV;
@@ -170,6 +238,9 @@ sm_attach_mouse(void *unused)
 		return;
 	sysmouse_tty = tty_alloc(&smdev_ttydevsw, NULL);
 	tty_makedev(sysmouse_tty, NULL, "sysmouse");
+#ifdef EVDEV_SUPPORT
+	smdev_evdev_init();
+#endif
 }
 
 SYSINIT(sysmouse, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, sm_attach_mouse, NULL);
@@ -220,7 +291,14 @@ sysmouse_event(mouse_info_t *info)
 	mouse_status.flags |= ((x || y || z) ? MOUSE_POSCHANGED : 0)
 			      | (mouse_status.obutton ^ mouse_status.button);
 	flags = mouse_status.flags;
-	if (flags == 0 || !tty_opened(sysmouse_tty))
+	if (flags == 0)
+		goto done;
+
+#ifdef EVDEV_SUPPORT
+	smdev_evdev_write(x, y, z, mouse_status.button);
+#endif
+
+	if (!tty_opened(sysmouse_tty))
 		goto done;
 
 	/* the first five bytes are compatible with MouseSystems' */

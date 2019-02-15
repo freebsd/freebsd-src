@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 31, 2012
+.Dd April 9, 2016
 .Dt NEXTBOOT 8
 .Os
 .Sh NAME
@@ -32,8 +32,8 @@
 .Nd "specify an alternate kernel and boot flags for the next reboot"
 .Sh SYNOPSIS
 .Nm
+.Op Fl af
 .Op Fl e Ar variable=value
-.Op Fl f
 .Op Fl k Ar kernel
 .Op Fl o Ar options
 .Nm
@@ -53,6 +53,12 @@ configuration.
 .Pp
 The options are as follows:
 .Bl -tag -width ".Fl o Ar options"
+.It Fl a
+This option causes
+.Nm
+to append to an existing configuration in
+.Pa /boot/nextboot.conf .
+By default any existing configuration is overwritten.
 .It Fl D
 Invoking
 .Nm
@@ -130,3 +136,8 @@ It is also my first attempt to write in Forth.
 Finally, it does some evil things like writing to the file system before it
 has been checked.
 If it scrambles your file system, do not blame me.
+.Pp
+.Xr loader 8
+is only able to read ZFS, not write to it.
+.Pa nextboot.conf
+will NOT be reset in case of a kernel boot failure.

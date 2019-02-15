@@ -125,7 +125,7 @@ ugidfw_rule_valid(struct mac_bsdextended_rule *rule)
 		return (EINVAL);
 	if ((rule->mbr_object.mbo_neg | MBO_ALL_FLAGS) != MBO_ALL_FLAGS)
 		return (EINVAL);
-	if ((rule->mbr_object.mbo_neg | MBO_TYPE_DEFINED) &&
+	if (((rule->mbr_object.mbo_flags & MBO_TYPE_DEFINED) != 0) &&
 	    (rule->mbr_object.mbo_type | MBO_ALL_TYPE) != MBO_ALL_TYPE)
 		return (EINVAL);
 	if ((rule->mbr_mode | MBI_ALLPERM) != MBI_ALLPERM)

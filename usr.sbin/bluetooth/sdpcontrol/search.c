@@ -1,5 +1,7 @@
-/*
+/*-
  * search.c
+ *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2001-2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
@@ -30,6 +32,7 @@
  */
 
 #include <netinet/in.h>
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <ctype.h>
 #include <sdp.h>
@@ -100,6 +103,12 @@ print_service_class_id_list(uint8_t const *start, uint8_t const *end)
 				"Not a sequence, type=%#x\n", type);
 		return;
 		/* NOT REACHED */
+	}
+
+	if (len > (end - start)) {
+		fprintf(stderr, "Invalid Service Class ID List. " \
+				"Too long len=%d\n", len);
+		return;
 	}
 
 	while (start < end) {
@@ -258,28 +267,31 @@ print_protocol_descriptor(uint8_t const *start, uint8_t const *end)
 		case SDP_DATA_STR8:
 		case SDP_DATA_URL8:
 			SDP_GET8(len, start);
-			fprintf(stdout, "%*.*s\n", len, len, (char *) start);
-			start += len;
+			for (; start < end && len > 0; start ++, len --)
+				fprintf(stdout, "%c", *start);
+			fprintf(stdout, "\n");
 			break;
 
 		case SDP_DATA_STR16:
 		case SDP_DATA_URL16:
 			SDP_GET16(len, start);
-			fprintf(stdout, "%*.*s\n", len, len, (char *) start);
-			start += len;
+			for (; start < end && len > 0; start ++, len --)
+				fprintf(stdout, "%c", *start);
+			fprintf(stdout, "\n");
 			break;
 
 		case SDP_DATA_STR32:
 		case SDP_DATA_URL32:
 			SDP_GET32(len, start);
-			fprintf(stdout, "%*.*s\n", len, len, (char *) start);
-			start += len;
+			for (; start < end && len > 0; start ++, len --)
+				fprintf(stdout, "%c", *start);
+			fprintf(stdout, "\n");
 			break;
 
 		case SDP_DATA_SEQ8:
 		case SDP_DATA_ALT8:
 			SDP_GET8(len, start);
-			for (; len > 0; start ++, len --)
+			for (; start < end && len > 0; start ++, len --)
 				fprintf(stdout, "%#2.2x ", *start);
 			fprintf(stdout, "\n");
 			break;
@@ -287,7 +299,7 @@ print_protocol_descriptor(uint8_t const *start, uint8_t const *end)
 		case SDP_DATA_SEQ16:
 		case SDP_DATA_ALT16:
 			SDP_GET16(len, start);
-			for (; len > 0; start ++, len --)
+			for (; start < end && len > 0; start ++, len --)
 				fprintf(stdout, "%#2.2x ", *start);
 			fprintf(stdout, "\n");
 			break;
@@ -295,7 +307,7 @@ print_protocol_descriptor(uint8_t const *start, uint8_t const *end)
 		case SDP_DATA_SEQ32:
 		case SDP_DATA_ALT32:
 			SDP_GET32(len, start);
-			for (; len > 0; start ++, len --)
+			for (; start < end && len > 0; start ++, len --)
 				fprintf(stdout, "%#2.2x ", *start);
 			fprintf(stdout, "\n");
 			break;
@@ -341,6 +353,12 @@ print_protocol_descriptor_list(uint8_t const *start, uint8_t const *end)
 		/* NOT REACHED */
 	}
 
+	if (len > (end - start)) {
+		fprintf(stderr, "Invalid Protocol Descriptor List. " \
+				"Too long, len=%d\n", len);
+		return;
+	}
+
 	while (start < end) {
 		SDP_GET8(type, start);
 		switch (type) {
@@ -361,6 +379,12 @@ print_protocol_descriptor_list(uint8_t const *start, uint8_t const *end)
 					"Not a sequence, type=%#x\n", type);
 			return;
 			/* NOT REACHED */
+		}
+
+		if (len > (end - start)) {
+			fprintf(stderr, "Invalid Protocol Descriptor List. " \
+					"Too long, len=%d\n", len);
+			return;
 		}
 
 		print_protocol_descriptor(start, start + len);
@@ -415,6 +439,12 @@ print_bluetooth_profile_descriptor_list(uint8_t const *start, uint8_t const *end
 		/* NOT REACHED */
 	}
 
+	if (len > (end - start)) {
+		fprintf(stderr, "Invalid Bluetooth Profile Descriptor List. " \
+				"Too long, len=%d\n", len);
+		return;
+	}
+
 	while (start < end) {
 		SDP_GET8(type, start);
 		switch (type) {
@@ -436,6 +466,13 @@ print_bluetooth_profile_descriptor_list(uint8_t const *start, uint8_t const *end
 					"Not a sequence, type=%#x\n", type);
 			return;
 			/* NOT REACHED */
+		}
+
+		if (len > (end - start)) {
+			fprintf(stderr, "Invalid Bluetooth Profile " \
+					"Descriptor List. " \
+					"Too long, len=%d\n", len);
+			return;
 		}
 
 		/* Get UUID */

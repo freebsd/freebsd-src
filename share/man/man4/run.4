@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 3, 2014
+.Dd November 8, 2018
 .Dt RUN 4
 .Os
 .Sh NAME
@@ -133,6 +133,7 @@ driver supports the following wireless adapters:
 .It Belkin F6D4050 ver 1
 .It Belkin F9L1103
 .It Buffalo WLI-UC-AG300N
+.It Buffalo WLI-UC-G300HP
 .It Buffalo WLI-UC-G300N
 .It Buffalo WLI-UC-G301N
 .It Buffalo WLI-UC-GN
@@ -163,6 +164,7 @@ driver supports the following wireless adapters:
 .It Linksys WUSB600N
 .It Logitec LAN-W150N/U2
 .It Mvix Nubbin MS-811N
+.It Panda Wireless PAU06
 .It Planex GW-USMicroN
 .It Planex GW-US300MiniS
 .It Sitecom WL-182
@@ -174,6 +176,7 @@ driver supports the following wireless adapters:
 .It Sweex LW303
 .It Sweex LW313
 .It TP-LINK TL-WDN3200
+.It TP-LINK TL-WN321G v4
 .It TP-LINK TL-WN727N v3
 .It Unex DNUR-81
 .It Unex DNUR-82
@@ -219,9 +222,9 @@ The driver will reset the hardware.
 This should not happen.
 .El
 .Sh SEE ALSO
-.Xr runfw 4 ,
 .Xr intro 4 ,
 .Xr netintro 4 ,
+.Xr runfw 4 ,
 .Xr usb 4 ,
 .Xr wlan 4 ,
 .Xr wlan_amrr 4 ,
@@ -229,8 +232,8 @@ This should not happen.
 .Xr wlan_tkip 4 ,
 .Xr wlan_wep 4 ,
 .Xr wlan_xauth 4 ,
-.Xr ifconfig 8 ,
 .Xr hostapd 8 ,
+.Xr ifconfig 8 ,
 .Xr wpa_supplicant 8
 .Pp
 Ralink Technology:

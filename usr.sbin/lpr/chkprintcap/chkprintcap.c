@@ -113,8 +113,13 @@ main(int argc, char **argv)
 	 * the printcap file.
 	*/
 	skres = skim_printcap(pcap_fname, verbosity);
-	if (skres->fatalerr)
-		return (skres->fatalerr);
+	if (skres == NULL) {
+		problems = 1;
+		goto main_ret;
+	} else if (skres->fatalerr) {
+		problems = skres->fatalerr;
+		goto main_ret;
+	}
 
 	/*
 	 * Now use the standard capability-db routines to check the values
@@ -156,6 +161,9 @@ next:
 		warnx("WARNING:  but only found %d queues to process!",
 		    queuecnt);
 	}
+
+main_ret:
+	free(pcap_fname);
 	return (problems);
 }
 
@@ -222,7 +230,7 @@ note_spool_dir(const struct printer *pp, const struct stat *st)
 	struct dirlist *dp, *dp2, *last;
 
 	dp = malloc(sizeof *dp);
-	if (dp == 0)
+	if (dp == NULL)
 		err(++problems, "malloc(%lu)", (u_long)sizeof *dp);
 	
 	dp->stab = *st;
@@ -233,7 +241,7 @@ note_spool_dir(const struct printer *pp, const struct stat *st)
 	if (dp->path == 0)
 		err(++problems, "malloc(%lu)", strlen(pp->spool_dir) + 1UL);
 	
-	last = 0;
+	last = NULL;
 	LIST_FOREACH(dp2, &dirlist, link) {
 		if(!lessp(dp, dp2))
 			break;
@@ -255,7 +263,7 @@ check_spool_dirs(void)
 	for (dp = LIST_FIRST(&dirlist); dp; dp = dp2) {
 		dp2 = LIST_NEXT(dp, link);
 
-		if (dp2 != 0 && equal(dp, dp2)) {
+		if (dp2 != NULL && equal(dp, dp2)) {
 			++problems;
 			if (strcmp(dp->path, dp2->path) == 0) {
 				warnx("%s and %s share the same spool, %s",
@@ -289,7 +297,7 @@ make_spool_dir(const struct printer *pp)
 		return;
 	}
 	gr = getgrnam("daemon");
-	if (gr == 0)
+	if (gr == NULL)
 		errx(++problems, "cannot locate daemon group");
 
 	if (chown(sd, pp->daemon_user, gr->gr_gid) < 0) {

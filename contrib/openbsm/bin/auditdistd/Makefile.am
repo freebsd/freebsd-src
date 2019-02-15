@@ -1,7 +1,3 @@
-##
-## $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/Makefile.am#1 $
-##
-
 if USE_NATIVE_INCLUDES
 INCLUDES = -I$(top_builddir) -I$(top_srcdir)
 else
@@ -11,8 +7,8 @@ endif
 sbin_PROGRAMS = auditdistd
 man5_MANS = auditdistd.conf.5
 man8_MANS = auditdistd.8
-CFLAGS = -Wno-format
 YFLAGS = -d
+auditdistd_CFLAGS = -Wno-format
 auditdistd_LDFLAGS = -lcrypto
 
 auditdistd_SOURCES =		\

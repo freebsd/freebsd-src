@@ -1,6 +1,7 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 M. Warner Losh.
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -64,7 +65,7 @@ struct arm_lbabi_core
 	uint32_t pagesize;
 	uint32_t rootdev;
 };
-		
+
 /*
  * ATAG_MEM data -- Can be more than one to describe different
  * banks.
@@ -75,7 +76,7 @@ struct arm_lbabi_mem32
 	uint32_t start;			/* start of physical memory */
 };
 
-/* 
+/*
  * ATAG_INITRD2 - Compressed ramdisk image details
  */
 struct arm_lbabi_initrd
@@ -92,7 +93,7 @@ struct arm_lbabi_serial_number
 	uint32_t low;
 	uint32_t high;
 };
-	
+
 /*
  * ATAG_REVISION - board revision
  */
@@ -100,7 +101,7 @@ struct arm_lbabi_revision
 {
 	uint32_t rev;
 };
-	
+
 /*
  * ATAG_CMDLINE - Command line from uboot
  */
@@ -109,7 +110,7 @@ struct arm_lbabi_command_line
 	char command[1];		/* Minimum command length */
 };
 
-struct arm_lbabi_tag 
+struct arm_lbabi_tag
 {
 	struct arm_lbabi_header tag_hdr;
 	union {
@@ -123,7 +124,7 @@ struct arm_lbabi_tag
 };
 
 #define	ATAG_TAG(a)  (a)->tag_hdr.tag
-#define ATAG_SIZE(a) (a)->tag_hdr.size
+#define ATAG_SIZE(a) ((a)->tag_hdr.size * sizeof(uint32_t))
 #define ATAG_NEXT(a) (struct arm_lbabi_tag *)((char *)(a) + ATAG_SIZE(a))
 
 #endif /* __MACHINE_ATAGS_H__ */

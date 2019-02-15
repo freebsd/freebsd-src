@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -2375,7 +2377,7 @@ SCIC_SDS_REMOTE_DEVICE_STATE_HANDLER_T
 
 /**
  * This is the enter method for the SCI_BASE_REMOTE_DEVICE_STATE_INITIAL it
- * immediatly transitions the remote device object to the stopped state.
+ * immediately transitions the remote device object to the stopped state.
  *
  * @param[in] object This is the SCI_BASE_OBJECT that is cast into a
  *            SCIC_SDS_REMOTE_DEVICE.

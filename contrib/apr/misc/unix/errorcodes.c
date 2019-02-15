@@ -39,6 +39,8 @@ static char *stuffbuffer(char *buf, apr_size_t bufsize, const char *s)
 static char *apr_error_string(apr_status_t statcode)
 {
     switch (statcode) {
+    case APR_ENOSTAT:
+        return "Could not perform a stat on the file.";
     case APR_ENOPOOL:
         return "A new pool could not be created.";
     case APR_EBADDATE:
@@ -73,7 +75,10 @@ static char *apr_error_string(apr_status_t statcode)
         return "The specified IP address is invalid.";
     case APR_EBADMASK:
         return "The specified network mask is invalid.";
-
+    case APR_ESYMNOTFOUND:
+        return "Could not find the requested symbol.";
+    case APR_ENOTENOUGHENTROPY:
+        return "Not enough entropy to continue.";
     case APR_INCHILD:
         return
 	    "Your code just forked, and you are currently executing in the "
@@ -128,10 +133,12 @@ static char *apr_error_string(apr_status_t statcode)
         return "The given path is misformatted or contained invalid characters";
     case APR_EPATHWILD:
         return "The given path contained wildcard characters";
+    case APR_EBUSY:
+        return "The given lock was busy.";
     case APR_EPROC_UNKNOWN:
         return "The process is not recognized.";
     case APR_EGENERAL:
-        return "Internal error";
+        return "Internal error (specific information not available)";
     default:
         return "Error string not specified yet";
     }

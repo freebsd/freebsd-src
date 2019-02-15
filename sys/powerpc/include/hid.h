@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2000 Tsubai Masanari.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +33,7 @@
 #define _POWERPC_HID_H_
 
 /* Hardware Implementation Dependent registers for the PowerPC */
+#define	HID0_RADIX	0x0080000000000000	/* Enable Radix page tables (POWER9) */
 
 #define HID0_EMCP	0x80000000  /* Enable machine check pin */
 #define HID0_DBP	0x40000000  /* Disable 60x bus parity generation */
@@ -208,7 +211,8 @@
 #define HID1_E500_ASTME	0x00002000  /* Address bus streaming mode enable */
 #define HID1_E500_RFXE	0x00020000  /* Read fault exception enable */
 
-#define HID0_E500_DEFAULT_SET	(HID0_EMCP | HID0_E500_TBEN)
+#define HID0_E500_DEFAULT_SET	(HID0_EMCP | HID0_E500_TBEN | \
+				 HID0_E500_MAS7UPDEN)
 #define HID1_E500_DEFAULT_SET	(HID1_E500_ABE | HID1_E500_ASTME)
 #define HID0_E500MC_DEFAULT_SET	(HID0_EMCP | HID0_E500MC_L2MMU_MHD | \
 				 HID0_E500_MAS7UPDEN)

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Isilon Inc http://www.isilon.com/
  * Authors: Doug Rabson <dfr@rabson.org>
  * Developed with Red Inc: Alfred Perlstein <alfred@freebsd.org>
@@ -202,8 +204,7 @@ krb5_derive_key(struct krb5_key_state *inkey,
 	 * Generate enough bytes for keybits rounded up to a multiple
 	 * of blocklen.
 	 */
-	randomlen = ((ec->ec_keybits/8 + ec->ec_blocklen - 1) / ec->ec_blocklen)
-		* ec->ec_blocklen;
+	randomlen = roundup(ec->ec_keybits / 8, ec->ec_blocklen);
 	bytes = malloc(randomlen, M_GSSAPI, M_WAITOK);
 	MGET(m, M_WAITOK, MT_DATA);
 	m->m_len = ec->ec_blocklen;

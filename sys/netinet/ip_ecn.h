@@ -2,6 +2,8 @@
 /*	$KAME: ip_ecn.h,v 1.8 2002/01/07 11:34:47 kjc Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1999 WIDE Project.
  * All rights reserved.
  *
@@ -37,10 +39,6 @@
 
 #ifndef _NETINET_IP_ECN_H_
 #define _NETINET_IP_ECN_H_
-
-#if defined(_KERNEL) && !defined(_LKM)
-#include "opt_inet.h"
-#endif
 
 #define ECN_ALLOWED	1	/* ECN allowed */
 #define ECN_FORBIDDEN	0	/* ECN forbidden */

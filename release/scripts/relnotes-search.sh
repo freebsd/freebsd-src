@@ -125,7 +125,7 @@ main() {
 	# All tests passed.  Let's see what can possibly go wrong
 	# from here.  The search string specified should match this
 	# in PCRE speak: ':[\t ]*'
-	${svn} log ${rev} --search 'Relnotes:?[^ ]*' ${1} > ${where}
+	${svn} log ${rev} --search 'Relnotes:*[A-Za-z0-9]*' ${1} > ${where}
 	return $?
 }
 

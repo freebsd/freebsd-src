@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
  * Copyright (c) 1995 Christopher G. Demetriou
@@ -35,10 +37,6 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#ifndef __GNUC__
-#error "GCC is needed to compile this file"
-#endif
 
 #include <stdlib.h>
 #include "libc_private.h"

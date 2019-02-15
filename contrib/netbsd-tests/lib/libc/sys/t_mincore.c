@@ -1,4 +1,4 @@
-/* $NetBSD: t_mincore.c,v 1.8 2012/06/08 07:18:58 martin Exp $ */
+/* $NetBSD: t_mincore.c,v 1.10 2017/01/14 20:51:13 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -59,9 +59,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_mincore.c,v 1.8 2012/06/08 07:18:58 martin Exp $");
+__RCSID("$NetBSD: t_mincore.c,v 1.10 2017/01/14 20:51:13 christos Exp $");
 
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/shm.h>
 
 #include <atf-c.h>
@@ -121,8 +122,10 @@ ATF_TC_BODY(mincore_err, tc)
 	ATF_REQUIRE(vec != NULL);
 	ATF_REQUIRE(map != MAP_FAILED);
 
+#ifdef __NetBSD__
 	errno = 0;
 	ATF_REQUIRE_ERRNO(EINVAL, mincore(map, 0, vec) == -1);
+#endif
 
 	errno = 0;
 	ATF_REQUIRE_ERRNO(ENOMEM, mincore(0, page, vec) == -1);
@@ -138,6 +141,7 @@ ATF_TC_WITH_CLEANUP(mincore_resid);
 ATF_TC_HEAD(mincore_resid, tc)
 {
 	atf_tc_set_md_var(tc, "descr", "Test page residency with mincore(2)");
+	atf_tc_set_md_var(tc, "require.user", "root");
 }
 
 ATF_TC_BODY(mincore_resid, tc)
@@ -149,6 +153,11 @@ ATF_TC_BODY(mincore_resid, tc)
 	struct rlimit rlim;
 
 	ATF_REQUIRE(getrlimit(RLIMIT_MEMLOCK, &rlim) == 0);
+	/*
+	 * Bump the mlock limit to unlimited so the rest of the testcase
+	 * passes instead of failing on the mlock call.
+	 */
+	rlim.rlim_max = RLIM_INFINITY;
 	rlim.rlim_cur = rlim.rlim_max;
 	ATF_REQUIRE(setrlimit(RLIMIT_MEMLOCK, &rlim) == 0);
 
@@ -187,13 +196,23 @@ ATF_TC_BODY(mincore_resid, tc)
 
 	npgs = 128;
 
+#ifdef __FreeBSD__
+	addr = mmap(NULL, npgs * page, PROT_READ | PROT_WRITE,
+	    MAP_ANON | MAP_PRIVATE, -1, (off_t)0);
+#else
 	addr = mmap(NULL, npgs * page, PROT_READ | PROT_WRITE,
 	    MAP_ANON | MAP_PRIVATE | MAP_WIRED, -1, (off_t)0);
+#endif
 
 	if (addr == MAP_FAILED)
 		atf_tc_skip("could not mmap wired anonymous test area, system "
 		    "might be low on memory");
 
+#ifdef __FreeBSD__
+	if (mlock(addr, npgs * page) == -1 && errno != ENOMEM)
+		atf_tc_skip("could not wire anonymous test area, system might "
+		    "be low on memory");
+#endif
 	ATF_REQUIRE(check_residency(addr, npgs) == npgs);
 	ATF_REQUIRE(munmap(addr, npgs * page) == 0);
 
@@ -238,17 +257,22 @@ ATF_TC_BODY(mincore_resid, tc)
 	(void)munlockall();
 
 	ATF_REQUIRE(madvise(addr2, npgs * page, MADV_FREE) == 0);
+#ifdef __NetBSD__
 	ATF_REQUIRE(check_residency(addr2, npgs) == 0);
+#endif
 
 	(void)memset(addr, 0, npgs * page);
 
 	ATF_REQUIRE(madvise(addr, npgs * page, MADV_FREE) == 0);
+#ifdef __NetBSD__
 	ATF_REQUIRE(check_residency(addr, npgs) == 0);
+#endif
 
 	(void)munmap(addr, npgs * page);
 	(void)munmap(addr2, npgs * page);
 	(void)munmap(addr3, npgs * page);
 	(void)unlink(path);
+	free(buf);
 }
 
 ATF_TC_CLEANUP(mincore_resid, tc)

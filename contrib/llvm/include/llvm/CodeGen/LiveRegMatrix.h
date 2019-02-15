@@ -1,4 +1,4 @@
-//===-- LiveRegMatrix.h - Track register interference ---------*- C++ -*---===//
+//===- LiveRegMatrix.h - Track register interference ----------*- C++ -*---===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -25,45 +25,47 @@
 #define LLVM_CODEGEN_LIVEREGMATRIX_H
 
 #include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/CodeGen/LiveIntervalUnion.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include <memory>
 
 namespace llvm {
 
+class AnalysisUsage;
 class LiveInterval;
-class LiveIntervalAnalysis;
-class MachineRegisterInfo;
+class LiveIntervals;
+class MachineFunction;
 class TargetRegisterInfo;
 class VirtRegMap;
 
 class LiveRegMatrix : public MachineFunctionPass {
   const TargetRegisterInfo *TRI;
-  MachineRegisterInfo *MRI;
   LiveIntervals *LIS;
   VirtRegMap *VRM;
 
   // UserTag changes whenever virtual registers have been modified.
-  unsigned UserTag;
+  unsigned UserTag = 0;
 
   // The matrix is represented as a LiveIntervalUnion per register unit.
   LiveIntervalUnion::Allocator LIUAlloc;
   LiveIntervalUnion::Array Matrix;
 
   // Cached queries per register unit.
-  OwningArrayPtr<LiveIntervalUnion::Query> Queries;
+  std::unique_ptr<LiveIntervalUnion::Query[]> Queries;
 
   // Cached register mask interference info.
-  unsigned RegMaskTag;
-  unsigned RegMaskVirtReg;
+  unsigned RegMaskTag = 0;
+  unsigned RegMaskVirtReg = 0;
   BitVector RegMaskUsable;
 
   // MachineFunctionPass boilerplate.
-  virtual void getAnalysisUsage(AnalysisUsage&) const;
-  virtual bool runOnMachineFunction(MachineFunction&);
-  virtual void releaseMemory();
+  void getAnalysisUsage(AnalysisUsage &) const override;
+  bool runOnMachineFunction(MachineFunction &) override;
+  void releaseMemory() override;
+
 public:
   static char ID;
+
   LiveRegMatrix();
 
   //===--------------------------------------------------------------------===//
@@ -115,6 +117,9 @@ public:
   /// the assignment and updates VirtRegMap accordingly.
   void unassign(LiveInterval &VirtReg);
 
+  /// Returns true if the given \p PhysReg has any live intervals assigned.
+  bool isPhysRegUsed(unsigned PhysReg) const;
+
   //===--------------------------------------------------------------------===//
   // Low-level interface.
   //===--------------------------------------------------------------------===//
@@ -136,7 +141,7 @@ public:
   /// Use MCRegUnitIterator to enumerate all regunits in the desired PhysReg.
   /// This returns a reference to an internal Query data structure that is only
   /// valid until the next query() call.
-  LiveIntervalUnion::Query &query(LiveInterval &VirtReg, unsigned RegUnit);
+  LiveIntervalUnion::Query &query(const LiveRange &LR, unsigned RegUnit);
 
   /// Directly access the live interval unions per regunit.
   /// This returns an array indexed by the regunit number.

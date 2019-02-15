@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2009 Ariff Abdullah <ariff@FreeBSD.org>
  * Copyright (c) 1999 Cameron Grant <cg@FreeBSD.org>
  * Copyright (c) 1995 Hannu Savolainen
@@ -53,9 +55,6 @@
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
-#if __FreeBSD_version < 500000
-#include <sys/buf.h>
-#endif
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -120,11 +119,7 @@ struct snd_mixer;
 #define PCMCHAN(x)		(snd_unit2c(dev2unit(x)))
 
 /* XXX unit2minor compat */
-#if __FreeBSD_version >= 800062
 #define PCMMINOR(x)	(x)
-#else
-#define PCMMINOR(x)	unit2minor(x)
-#endif
 
 /*
  * By design, limit possible channels for each direction.
@@ -220,10 +215,12 @@ struct snd_mixer;
  * ~(0xb00ff7ff)
  */
 #define AFMT_ENCODING_MASK	0xf00fffff
-#define AFMT_CHANNEL_MASK	0x01f00000
+#define AFMT_CHANNEL_MASK	0x07f00000
 #define AFMT_CHANNEL_SHIFT	20
-#define AFMT_EXTCHANNEL_MASK	0x0e000000
-#define AFMT_EXTCHANNEL_SHIFT	25
+#define AFMT_CHANNEL_MAX	0x7f
+#define AFMT_EXTCHANNEL_MASK	0x08000000
+#define AFMT_EXTCHANNEL_SHIFT	27
+#define AFMT_EXTCHANNEL_MAX	1
 
 #define AFMT_ENCODING(v)	((v) & AFMT_ENCODING_MASK)
 
@@ -355,8 +352,6 @@ void snd_mtxassert(void *m);
 #define	snd_mtxunlock(m) mtx_unlock(m)
 
 typedef int (*sndstat_handler)(struct sbuf *s, device_t dev, int verbose);
-int sndstat_acquire(struct thread *td);
-int sndstat_release(struct thread *td);
 int sndstat_register(device_t dev, char *str, sndstat_handler handler);
 int sndstat_registerfile(char *str);
 int sndstat_unregister(device_t dev);

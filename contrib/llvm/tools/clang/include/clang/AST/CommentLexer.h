@@ -11,13 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_COMMENT_LEXER_H
-#define LLVM_CLANG_AST_COMMENT_LEXER_H
+#ifndef LLVM_CLANG_AST_COMMENTLEXER_H
+#define LLVM_CLANG_AST_COMMENTLEXER_H
 
-#include "clang/Basic/SourceManager.h"
 #include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/raw_ostream.h"
@@ -221,8 +220,8 @@ public:
 /// \brief Comment lexer.
 class Lexer {
 private:
-  Lexer(const Lexer &) LLVM_DELETED_FUNCTION;
-  void operator=(const Lexer &) LLVM_DELETED_FUNCTION;
+  Lexer(const Lexer &) = delete;
+  void operator=(const Lexer &) = delete;
 
   /// Allocator for strings that are semantic values of tokens and have to be
   /// computed (for example, resolved decimal character references).
@@ -293,17 +292,7 @@ private:
   StringRef resolveHTMLHexCharacterReference(StringRef Name) const;
 
   void formTokenWithChars(Token &Result, const char *TokEnd,
-                          tok::TokenKind Kind) {
-    const unsigned TokLen = TokEnd - BufferPtr;
-    Result.setLocation(getSourceLocation(BufferPtr));
-    Result.setKind(Kind);
-    Result.setLength(TokLen);
-#ifndef NDEBUG
-    Result.TextPtr = "<UNSET>";
-    Result.IntVal = 7;
-#endif
-    BufferPtr = TokEnd;
-  }
+                          tok::TokenKind Kind);
 
   void formTextToken(Token &Result, const char *TokEnd) {
     StringRef Text(BufferPtr, TokEnd - BufferPtr);
@@ -362,7 +351,7 @@ public:
 
   StringRef getSpelling(const Token &Tok,
                         const SourceManager &SourceMgr,
-                        bool *Invalid = NULL) const;
+                        bool *Invalid = nullptr) const;
 };
 
 } // end namespace comments

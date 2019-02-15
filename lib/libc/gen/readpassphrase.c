@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <readpassphrase.h>
 #include "un-namespace.h"
+#include "libc_private.h"
 
 static volatile sig_atomic_t signo[NSIG];
 
@@ -45,7 +46,7 @@ char *
 readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 {
 	ssize_t nr;
-	int input, output, save_errno, i, need_restart;
+	int input, output, save_errno, i, need_restart, input_is_tty;
 	char ch, *p, *end;
 	struct termios term, oterm;
 	struct sigaction sa, savealrm, saveint, savehup, savequit, saveterm;
@@ -67,12 +68,20 @@ restart:
 	 * Read and write to /dev/tty if available.  If not, read from
 	 * stdin and write to stderr unless a tty is required.
 	 */
-	if ((flags & RPP_STDIN) ||
-	    (input = output = _open(_PATH_TTY, O_RDWR | O_CLOEXEC)) == -1) {
-		if (flags & RPP_REQUIRE_TTY) {
-			errno = ENOTTY;
-			return(NULL);
+	input_is_tty = 0;
+	if (!(flags & RPP_STDIN)) {
+        	input = output = _open(_PATH_TTY, O_RDWR | O_CLOEXEC);
+		if (input == -1) {
+			if (flags & RPP_REQUIRE_TTY) {
+				errno = ENOTTY;
+				return(NULL);
+			}
+			input = STDIN_FILENO;
+			output = STDERR_FILENO;
+		} else {
+			input_is_tty = 1;
 		}
+	} else {
 		input = STDIN_FILENO;
 		output = STDERR_FILENO;
 	}
@@ -82,7 +91,7 @@ restart:
 	 * If we are using a tty but are not the foreground pgrp this will
 	 * generate SIGTTOU, so do it *before* installing the signal handlers.
 	 */
-	if (input != STDIN_FILENO && tcgetattr(input, &oterm) == 0) {
+	if (input_is_tty && tcgetattr(input, &oterm) == 0) {
 		memcpy(&term, &oterm, sizeof(term));
 		if (!(flags & RPP_ECHO_ON))
 			term.c_lflag &= ~(ECHO | ECHONL);
@@ -104,15 +113,15 @@ restart:
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;		/* don't restart system calls */
 	sa.sa_handler = handler;
-	(void)_sigaction(SIGALRM, &sa, &savealrm);
-	(void)_sigaction(SIGHUP, &sa, &savehup);
-	(void)_sigaction(SIGINT, &sa, &saveint);
-	(void)_sigaction(SIGPIPE, &sa, &savepipe);
-	(void)_sigaction(SIGQUIT, &sa, &savequit);
-	(void)_sigaction(SIGTERM, &sa, &saveterm);
-	(void)_sigaction(SIGTSTP, &sa, &savetstp);
-	(void)_sigaction(SIGTTIN, &sa, &savettin);
-	(void)_sigaction(SIGTTOU, &sa, &savettou);
+	(void)__libc_sigaction(SIGALRM, &sa, &savealrm);
+	(void)__libc_sigaction(SIGHUP, &sa, &savehup);
+	(void)__libc_sigaction(SIGINT, &sa, &saveint);
+	(void)__libc_sigaction(SIGPIPE, &sa, &savepipe);
+	(void)__libc_sigaction(SIGQUIT, &sa, &savequit);
+	(void)__libc_sigaction(SIGTERM, &sa, &saveterm);
+	(void)__libc_sigaction(SIGTSTP, &sa, &savetstp);
+	(void)__libc_sigaction(SIGTTIN, &sa, &savettin);
+	(void)__libc_sigaction(SIGTTOU, &sa, &savettou);
 
 	if (!(flags & RPP_STDIN))
 		(void)_write(output, prompt, strlen(prompt));
@@ -142,16 +151,16 @@ restart:
 		    errno == EINTR && !signo[SIGTTOU])
 			continue;
 	}
-	(void)_sigaction(SIGALRM, &savealrm, NULL);
-	(void)_sigaction(SIGHUP, &savehup, NULL);
-	(void)_sigaction(SIGINT, &saveint, NULL);
-	(void)_sigaction(SIGQUIT, &savequit, NULL);
-	(void)_sigaction(SIGPIPE, &savepipe, NULL);
-	(void)_sigaction(SIGTERM, &saveterm, NULL);
-	(void)_sigaction(SIGTSTP, &savetstp, NULL);
-	(void)_sigaction(SIGTTIN, &savettin, NULL);
-	(void)_sigaction(SIGTTOU, &savettou, NULL);
-	if (input != STDIN_FILENO)
+	(void)__libc_sigaction(SIGALRM, &savealrm, NULL);
+	(void)__libc_sigaction(SIGHUP, &savehup, NULL);
+	(void)__libc_sigaction(SIGINT, &saveint, NULL);
+	(void)__libc_sigaction(SIGQUIT, &savequit, NULL);
+	(void)__libc_sigaction(SIGPIPE, &savepipe, NULL);
+	(void)__libc_sigaction(SIGTERM, &saveterm, NULL);
+	(void)__libc_sigaction(SIGTSTP, &savetstp, NULL);
+	(void)__libc_sigaction(SIGTTIN, &savettin, NULL);
+	(void)__libc_sigaction(SIGTTOU, &savettou, NULL);
+	if (input_is_tty)
 		(void)_close(input);
 
 	/*

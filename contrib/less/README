@@ -7,9 +7,9 @@
 **************************************************************************
 **************************************************************************
 
-                            Less, version 458
+                            Less, version 530
 
-    This is the distribution of less, version 458, released 04 Apr 2013.
+    This is the distribution of less, version 530, released 05 Dec 2017.
     This program is part of the GNU project (http://www.gnu.org).
 
     This program is free software.  You may redistribute it and/or
@@ -23,6 +23,7 @@
 
     Please report any problems to bug-less@gnu.org.
     See http://www.greenwoodsoftware.com/less for the latest info.
+    Source repository is at https://github.com/gwsw/less.git.
 
 =========================================================================
 
@@ -53,8 +54,9 @@ INSTALLATION (Unix systems only):
      Specifies the regular expression library used by less for pattern
      matching.  The default is "auto", which means the configure program 
      finds a regular expression library automatically.  Other values are:
-        posix          Use the POSIX-compatible regcomp.
+        gnu            Use the GNU regex library.
         pcre           Use the PCRE library.
+        posix          Use the POSIX-compatible regcomp.
         regcmp         Use the regcmp library.
         re_comp        Use the re_comp library.
         regcomp        Use the V8-compatible regcomp.

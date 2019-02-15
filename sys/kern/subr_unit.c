@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Poul-Henning Kamp
  * All rights reserved.
  *
@@ -67,13 +69,13 @@
  *	N is the number of the highest unit allocated.
  */
 
+#include <sys/param.h>
 #include <sys/types.h>
-#include <sys/bitstring.h>
 #include <sys/_unrhdr.h>
 
 #ifdef _KERNEL
 
-#include <sys/param.h>
+#include <sys/bitstring.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -98,6 +100,11 @@ MTX_SYSINIT(unit, &unitmtx, "unit# allocation", MTX_DEF);
 
 #else /* ...USERLAND */
 
+#include <bitstring.h>
+#include <err.h>
+#include <errno.h>
+#include <getopt.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -164,7 +171,7 @@ mtx_assert(struct mtx *mp, int flag)
  * element:
  *     If ptr is NULL, it represents a run of free items.
  *     If ptr points to the unrhdr it represents a run of allocated items.
- *     Otherwise it points to an bitstring of allocated items.
+ *     Otherwise it points to a bitstring of allocated items.
  *
  * For runs the len field is the length of the run.
  * For bitmaps the len field represents the number of allocated items.
@@ -178,21 +185,40 @@ struct unr {
 };
 
 struct unrb {
-	u_char			busy;
-	bitstr_t		map[sizeof(struct unr) - 1];
+	bitstr_t		map[sizeof(struct unr) / sizeof(bitstr_t)];
 };
 
-CTASSERT(sizeof(struct unr) == sizeof(struct unrb));
+CTASSERT((sizeof(struct unr) % sizeof(bitstr_t)) == 0);
 
-/* Number of bits in the bitmap */
-#define NBITS	((int)sizeof(((struct unrb *)NULL)->map) * 8)
+/* Number of bits we can store in the bitmap */
+#define NBITS (8 * sizeof(((struct unrb*)NULL)->map))
+
+/* Is the unrb empty in at least the first len bits? */
+static inline bool
+ub_empty(struct unrb *ub, int len) {
+	int first_set;
+
+	bit_ffs(ub->map, len, &first_set);
+	return (first_set == -1);
+}
+
+/* Is the unrb full?  That is, is the number of set elements equal to len? */
+static inline bool
+ub_full(struct unrb *ub, int len)
+{
+	int first_clear;
+
+	bit_ffc(ub->map, len, &first_clear);
+	return (first_clear == -1);
+}
+
 
 #if defined(DIAGNOSTIC) || !defined(_KERNEL)
 /*
  * Consistency check function.
  *
  * Checks the internal consistency as well as we can.
- * 
+ *
  * Called at all boundaries of this API.
  */
 static void
@@ -200,7 +226,8 @@ check_unrhdr(struct unrhdr *uh, int line)
 {
 	struct unr *up;
 	struct unrb *ub;
-	u_int x, y, z, w;
+	int w;
+	u_int y, z;
 
 	y = uh->first;
 	z = 0;
@@ -209,18 +236,13 @@ check_unrhdr(struct unrhdr *uh, int line)
 		if (up->ptr != uh && up->ptr != NULL) {
 			ub = up->ptr;
 			KASSERT (up->len <= NBITS,
-			    ("UNR inconsistency: len %u max %d (line %d)\n",
+			    ("UNR inconsistency: len %u max %zd (line %d)\n",
 			    up->len, NBITS, line));
 			z++;
 			w = 0;
-			for (x = 0; x < up->len; x++)
-				if (bit_test(ub->map, x))
-					w++;
-			KASSERT (w == ub->busy,
-			    ("UNR inconsistency: busy %u found %u (line %d)\n",
-			    ub->busy, w, line));
+			bit_count(ub->map, 0, up->len, &w);
 			y += w;
-		} else if (up->ptr != NULL) 
+		} else if (up->ptr != NULL)
 			y += up->len;
 	}
 	KASSERT (y == uh->busy,
@@ -234,7 +256,7 @@ check_unrhdr(struct unrhdr *uh, int line)
 #else
 
 static __inline void
-check_unrhdr(struct unrhdr *uh, int line)
+check_unrhdr(struct unrhdr *uh __unused, int line __unused)
 {
 
 }
@@ -346,6 +368,26 @@ delete_unrhdr(struct unrhdr *uh)
 	Free(uh);
 }
 
+void
+clear_unrhdr(struct unrhdr *uh)
+{
+	struct unr *up, *uq;
+
+	KASSERT(TAILQ_EMPTY(&uh->ppfree),
+	    ("unrhdr has postponed item for free"));
+	TAILQ_FOREACH_SAFE(up, &uh->head, list, uq) {
+		if (up->ptr != uh) {
+			Free(up->ptr);
+		}
+		Free(up);
+	}
+	uh->busy = 0;
+	uh->alloc = 0;
+	init_unrhdr(uh, uh->low, uh->high, uh->mtx);
+
+	check_unrhdr(uh, __LINE__);
+}
+
 static __inline int
 is_bitmap(struct unrhdr *uh, struct unr *up)
 {
@@ -355,7 +397,7 @@ is_bitmap(struct unrhdr *uh, struct unr *up)
 /*
  * Look for sequence of items which can be combined into a bitmap, if
  * multiple are present, take the one which saves most memory.
- * 
+ *
  * Return (1) if a sequence was found to indicate that another call
  * might be able to do more.  Return (0) if we found no suitable sequence.
  *
@@ -412,32 +454,24 @@ optimize_unr(struct unrhdr *uh)
 		a = us->len;
 		l = us->ptr == uh ? 1 : 0;
 		ub = (void *)us;
-		ub->busy = 0;
-		if (l) {
+		bit_nclear(ub->map, 0, NBITS - 1);
+		if (l)
 			bit_nset(ub->map, 0, a);
-			ub->busy += a;
-		} else {
-			bit_nclear(ub->map, 0, a);
-		}
 		if (!is_bitmap(uh, uf)) {
-			if (uf->ptr == NULL) {
+			if (uf->ptr == NULL)
 				bit_nclear(ub->map, a, a + uf->len - 1);
-			} else {
+			else
 				bit_nset(ub->map, a, a + uf->len - 1);
-				ub->busy += uf->len;
-			}
 			uf->ptr = ub;
 			uf->len += a;
 			us = uf;
 		} else {
 			ubf = uf->ptr;
 			for (l = 0; l < uf->len; l++, a++) {
-				if (bit_test(ubf->map, l)) {
+				if (bit_test(ubf->map, l))
 					bit_set(ub->map, a);
-					ub->busy++;
-				} else {
+				else
 					bit_clear(ub->map, a);
-				}
 			}
 			uf->len = a;
 			delete_unr(uh, uf->ptr);
@@ -459,19 +493,16 @@ optimize_unr(struct unrhdr *uh)
 			delete_unr(uh, uf);
 		} else if (uf->ptr == uh) {
 			bit_nset(ub->map, us->len, us->len + uf->len - 1);
-			ub->busy += uf->len;
 			us->len += uf->len;
 			TAILQ_REMOVE(&uh->head, uf, list);
 			delete_unr(uh, uf);
 		} else {
 			ubf = uf->ptr;
 			for (l = 0; l < uf->len; l++, us->len++) {
-				if (bit_test(ubf->map, l)) {
+				if (bit_test(ubf->map, l))
 					bit_set(ub->map, us->len);
-					ub->busy++;
-				} else {
+				else
 					bit_clear(ub->map, us->len);
-				}
 			}
 			TAILQ_REMOVE(&uh->head, uf, list);
 			delete_unr(uh, ubf);
@@ -494,10 +525,10 @@ collapse_unr(struct unrhdr *uh, struct unr *up)
 	/* If bitmap is all set or clear, change it to runlength */
 	if (is_bitmap(uh, up)) {
 		ub = up->ptr;
-		if (ub->busy == up->len) {
+		if (ub_full(ub, up->len)) {
 			delete_unr(uh, up->ptr);
 			up->ptr = uh;
-		} else if (ub->busy == 0) {
+		} else if (ub_empty(ub, up->len)) {
 			delete_unr(uh, up->ptr);
 			up->ptr = NULL;
 		}
@@ -582,7 +613,7 @@ alloc_unrl(struct unrhdr *uh)
 	}
 
 	/*
-	 * We can always allocate from the first list element, so if we have 
+	 * We can always allocate from the first list element, so if we have
 	 * nothing on the list, we must have run out of unit numbers.
 	 */
 	if (up == NULL)
@@ -595,11 +626,9 @@ alloc_unrl(struct unrhdr *uh)
 		up->len--;
 	} else {		/* bitmap */
 		ub = up->ptr;
-		KASSERT(ub->busy < up->len, ("UNR bitmap confusion"));
 		bit_ffc(ub->map, up->len, &y);
 		KASSERT(y != -1, ("UNR corruption: No clear bit in bitmap."));
 		bit_set(ub->map, y);
-		ub->busy++;
 		x += y;
 	}
 	uh->busy++;
@@ -683,7 +712,6 @@ alloc_unr_specificl(struct unrhdr *uh, u_int item, void **p1, void **p2)
 		ub = up->ptr;
 		if (bit_test(ub->map, i) == 0) {
 			bit_set(ub->map, i);
-			ub->busy++;
 			goto done;
 		} else
 			return (-1);
@@ -797,12 +825,11 @@ free_unrl(struct unrhdr *uh, u_int item, void **p1, void **p2)
 	/* Handle bitmap items */
 	if (is_bitmap(uh, up)) {
 		ub = up->ptr;
-		
+
 		KASSERT(bit_test(ub->map, item) != 0,
 		    ("UNR: Freeing free item %d (bitmap)\n", item));
 		bit_clear(ub->map, item);
 		uh->busy--;
-		ub->busy--;
 		collapse_unr(uh, up);
 		return;
 	}
@@ -880,8 +907,12 @@ free_unr(struct unrhdr *uh, u_int item)
 #ifndef _KERNEL	/* USERLAND test driver */
 
 /*
- * Simple stochastic test driver for the above functions
+ * Simple stochastic test driver for the above functions.  The code resides
+ * here so that it can access static functions and structures.
  */
+
+static bool verbose;
+#define VPRINTF(...)	{if (verbose) printf(__VA_ARGS__);}
 
 static void
 print_unr(struct unrhdr *uh, struct unr *up)
@@ -896,11 +927,11 @@ print_unr(struct unrhdr *uh, struct unr *up)
 		printf("alloc\n");
 	else {
 		ub = up->ptr;
-		printf("bitmap(%d) [", ub->busy);
+		printf("bitmap [");
 		for (x = 0; x < up->len; x++) {
 			if (bit_test(ub->map, x))
 				printf("#");
-			else 
+			else
 				printf(" ");
 		}
 		printf("]\n");
@@ -933,7 +964,7 @@ test_alloc_unr(struct unrhdr *uh, u_int i, char a[])
 	int j;
 
 	if (a[i]) {
-		printf("F %u\n", i);
+		VPRINTF("F %u\n", i);
 		free_unr(uh, i);
 		a[i] = 0;
 	} else {
@@ -941,7 +972,7 @@ test_alloc_unr(struct unrhdr *uh, u_int i, char a[])
 		j = alloc_unr(uh);
 		if (j != -1) {
 			a[j] = 1;
-			printf("A %d\n", j);
+			VPRINTF("A %d\n", j);
 		}
 		no_alloc = 0;
 	}
@@ -954,40 +985,72 @@ test_alloc_unr_specific(struct unrhdr *uh, u_int i, char a[])
 
 	j = alloc_unr_specific(uh, i);
 	if (j == -1) {
-		printf("F %u\n", i);
+		VPRINTF("F %u\n", i);
 		a[i] = 0;
 		free_unr(uh, i);
 	} else {
 		a[i] = 1;
-		printf("A %d\n", j);
+		VPRINTF("A %d\n", j);
 	}
 }
 
-/* Number of unrs to test */
-#define NN	10000
+static void
+usage(char** argv)
+{
+	printf("%s [-h] [-r REPETITIONS] [-v]\n", argv[0]);
+}
 
 int
-main(int argc __unused, const char **argv __unused)
+main(int argc, char **argv)
 {
 	struct unrhdr *uh;
-	u_int i, x, m, j;
-	char a[NN];
+	char *a;
+	long count = 10000;	/* Number of unrs to test */
+	long reps = 1, m;
+	int ch;
+	u_int i, j;
+
+	verbose = false;
+
+	while ((ch = getopt(argc, argv, "hr:v")) != -1) {
+		switch (ch) {
+		case 'r':
+			errno = 0;
+			reps = strtol(optarg, NULL, 0);
+			if (errno == ERANGE || errno == EINVAL) {
+				usage(argv);
+				exit(2);
+			}
+
+			break;
+		case 'v':
+			verbose = true;
+			break;
+		case 'h':
+		default:
+			usage(argv);
+			exit(2);
+		}
+
+
+	}
 
 	setbuf(stdout, NULL);
-	uh = new_unrhdr(0, NN - 1, NULL);
+	uh = new_unrhdr(0, count - 1, NULL);
 	print_unrhdr(uh);
 
-	memset(a, 0, sizeof a);
+	a = calloc(count, sizeof(char));
+	if (a == NULL)
+		err(1, "calloc failed");
 	srandomdev();
 
-	fprintf(stderr, "sizeof(struct unr) %zu\n", sizeof(struct unr));
-	fprintf(stderr, "sizeof(struct unrb) %zu\n", sizeof(struct unrb));
-	fprintf(stderr, "sizeof(struct unrhdr) %zu\n", sizeof(struct unrhdr));
-	fprintf(stderr, "NBITS %d\n", NBITS);
-	x = 1;
-	for (m = 0; m < NN * 100; m++) {
+	printf("sizeof(struct unr) %zu\n", sizeof(struct unr));
+	printf("sizeof(struct unrb) %zu\n", sizeof(struct unrb));
+	printf("sizeof(struct unrhdr) %zu\n", sizeof(struct unrhdr));
+	printf("NBITS %lu\n", (unsigned long)NBITS);
+	for (m = 0; m < count * reps; m++) {
 		j = random();
-		i = (j >> 1) % NN;
+		i = (j >> 1) % count;
 #if 0
 		if (a[i] && (j & 1))
 			continue;
@@ -997,19 +1060,22 @@ main(int argc __unused, const char **argv __unused)
 		else
 			test_alloc_unr_specific(uh, i, a);
 
-		if (1)	/* XXX: change this for detailed debug printout */
+		if (verbose)
 			print_unrhdr(uh);
 		check_unrhdr(uh, __LINE__);
 	}
-	for (i = 0; i < NN; i++) {
+	for (i = 0; i < (u_int)count; i++) {
 		if (a[i]) {
-			printf("C %u\n", i);
+			if (verbose) {
+				printf("C %u\n", i);
+				print_unrhdr(uh);
+			}
 			free_unr(uh, i);
-			print_unrhdr(uh);
 		}
 	}
 	print_unrhdr(uh);
 	delete_unrhdr(uh);
+	free(a);
 	return (0);
 }
 #endif

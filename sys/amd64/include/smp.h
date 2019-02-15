@@ -19,73 +19,46 @@
 
 #ifndef LOCORE
 
-#include <sys/bus.h>
-#include <machine/frame.h>
-#include <machine/intr_machdep.h>
-#include <x86/apicvar.h>
-#include <machine/pcb.h>
+#include <x86/x86_smp.h>
 
 /* global symbols in mpboot.S */
 extern char			mptramp_start[];
-extern char			mptramp_end[];
 extern u_int32_t		mptramp_pagetables;
-
-/* global data in mp_machdep.c */
-extern int			mp_naps;
-extern int			boot_cpu_id;
-extern struct pcb		stoppcbs[];
-extern int			cpu_apic_ids[];
-#ifdef COUNT_IPIS
-extern u_long *ipi_invltlb_counts[MAXCPU];
-extern u_long *ipi_invlrng_counts[MAXCPU];
-extern u_long *ipi_invlpg_counts[MAXCPU];
-extern u_long *ipi_invlcache_counts[MAXCPU];
-extern u_long *ipi_rendezvous_counts[MAXCPU];
-#endif
 
 /* IPI handlers */
 inthand_t
-	IDTVEC(invltlb_pcid),	/* TLB shootdowns - global, pcid enabled */
-	IDTVEC(invltlb),	/* TLB shootdowns - global */
-	IDTVEC(invlpg_pcid),	/* TLB shootdowns - 1 page, pcid enabled */
-	IDTVEC(invlpg),		/* TLB shootdowns - 1 page */
-	IDTVEC(invlrng),	/* TLB shootdowns - page range */
-	IDTVEC(invlcache),	/* Write back and invalidate cache */
-	IDTVEC(ipi_intr_bitmap_handler), /* Bitmap based IPIs */ 
-	IDTVEC(cpustop),	/* CPU stops & waits to be restarted */
-	IDTVEC(cpususpend),	/* CPU suspends & waits to be resumed */
-	IDTVEC(rendezvous);	/* handle CPU rendezvous */
+	IDTVEC(justreturn),	/* interrupt CPU with minimum overhead */
+	IDTVEC(justreturn1_pti),
+	IDTVEC(invltlb_pti),
+	IDTVEC(invltlb_pcid_pti),
+	IDTVEC(invltlb_pcid),	/* TLB shootdowns - global, pcid */
+	IDTVEC(invltlb_invpcid_pti_pti),
+	IDTVEC(invltlb_invpcid_nopti),
+	IDTVEC(invlpg_pti),
+	IDTVEC(invlpg_invpcid_pti),
+	IDTVEC(invlpg_invpcid),
+	IDTVEC(invlpg_pcid_pti),
+	IDTVEC(invlpg_pcid),
+	IDTVEC(invlrng_pti),
+	IDTVEC(invlrng_invpcid_pti),
+	IDTVEC(invlrng_invpcid),
+	IDTVEC(invlrng_pcid_pti),
+	IDTVEC(invlrng_pcid),
+	IDTVEC(invlcache_pti),
+	IDTVEC(ipi_intr_bitmap_handler_pti),
+	IDTVEC(cpustop_pti),
+	IDTVEC(cpususpend_pti),
+	IDTVEC(rendezvous_pti);
 
-struct pmap;
-
-/* functions in mp_machdep.c */
-void	cpu_add(u_int apic_id, char boot_cpu);
-void	cpustop_handler(void);
-void	cpususpend_handler(void);
-void	invltlb_handler(void);
 void	invltlb_pcid_handler(void);
-void	invlpg_handler(void);
+void	invltlb_invpcid_handler(void);
+void	invltlb_invpcid_pti_handler(void);
+void	invlpg_invpcid_handler(void);
 void	invlpg_pcid_handler(void);
-void	invlrng_handler(void);
-void	invlcache_handler(void);
-void	init_secondary(void);
-void	ipi_startup(int apic_id, int vector);
-void	ipi_all_but_self(u_int ipi);
-void 	ipi_bitmap_handler(struct trapframe frame);
-void	ipi_cpu(int cpu, u_int ipi);
-int	ipi_nmi_handler(void);
-void	ipi_selected(cpuset_t cpus, u_int ipi);
-u_int	mp_bootaddress(u_int);
-void	smp_cache_flush(void);
-void	smp_invlpg(struct pmap *pmap, vm_offset_t addr);
-void	smp_masked_invlpg(cpuset_t mask, struct pmap *pmap, vm_offset_t addr);
-void	smp_invlpg_range(struct pmap *pmap, vm_offset_t startva,
-	    vm_offset_t endva);
-void	smp_masked_invlpg_range(cpuset_t mask, struct pmap *pmap,
-	    vm_offset_t startva, vm_offset_t endva);
-void	smp_invltlb(struct pmap *pmap);
-void	smp_masked_invltlb(cpuset_t mask, struct pmap *pmap);
+void	invlrng_invpcid_handler(void);
+void	invlrng_pcid_handler(void);
 int	native_start_all_aps(void);
+void	mp_bootaddress(vm_paddr_t *, unsigned int *);
 
 #endif /* !LOCORE */
 #endif /* SMP */

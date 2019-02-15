@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Marcel Moolenaar
  * All rights reserved.
  *
@@ -41,14 +43,49 @@ struct uart_bas {
 	u_int	chan;
 	u_int	rclk;
 	u_int	regshft;
+	u_int	regiowidth;
+	u_int	busy_detect;
 };
 
 #define	uart_regofs(bas, reg)		((reg) << (bas)->regshft)
+#define	uart_regiowidth(bas)		((bas)->regiowidth)
 
-#define	uart_getreg(bas, reg)		\
-	bus_space_read_1((bas)->bst, (bas)->bsh, uart_regofs(bas, reg))
-#define	uart_setreg(bas, reg, value)	\
-	bus_space_write_1((bas)->bst, (bas)->bsh, uart_regofs(bas, reg), value)
+static inline uint32_t
+uart_getreg(struct uart_bas *bas, int reg)
+{
+	uint32_t ret;
+
+	switch (uart_regiowidth(bas)) {
+	case 4:
+		ret = bus_space_read_4(bas->bst, bas->bsh, uart_regofs(bas, reg));
+		break;
+	case 2:
+		ret = bus_space_read_2(bas->bst, bas->bsh, uart_regofs(bas, reg));
+		break;
+	default:
+		ret = bus_space_read_1(bas->bst, bas->bsh, uart_regofs(bas, reg));
+		break;
+	}
+
+	return (ret);
+}
+
+static inline void
+uart_setreg(struct uart_bas *bas, int reg, int value)
+{
+
+	switch (uart_regiowidth(bas)) {
+	case 4:
+		bus_space_write_4(bas->bst, bas->bsh, uart_regofs(bas, reg), value);
+		break;
+	case 2:
+		bus_space_write_2(bas->bst, bas->bsh, uart_regofs(bas, reg), value);
+		break;
+	default:
+		bus_space_write_1(bas->bst, bas->bsh, uart_regofs(bas, reg), value);
+		break;
+	}
+}
 
 /*
  * XXX we don't know the length of the bus space address range in use by
@@ -64,29 +101,12 @@ struct uart_bas {
  */
 struct uart_class;
 
-extern struct uart_class uart_imx_class __attribute__((weak));
-extern struct uart_class uart_msm_class __attribute__((weak));
 extern struct uart_class uart_ns8250_class __attribute__((weak));
 extern struct uart_class uart_quicc_class __attribute__((weak));
 extern struct uart_class uart_s3c2410_class __attribute__((weak));
 extern struct uart_class uart_sab82532_class __attribute__((weak));
 extern struct uart_class uart_sbbc_class __attribute__((weak));
 extern struct uart_class uart_z8530_class __attribute__((weak));
-extern struct uart_class uart_lpc_class __attribute__((weak));
-extern struct uart_class uart_pl011_class __attribute__((weak));
-extern struct uart_class uart_cdnc_class __attribute__((weak));
-extern struct uart_class uart_ti8250_class __attribute__((weak));
-extern struct uart_class uart_vybrid_class __attribute__((weak));
-extern struct uart_class at91_usart_class __attribute__((weak));
-
-#ifdef FDT
-struct ofw_compat_data;
-extern const struct ofw_compat_data *uart_fdt_compat_data;
-#endif
-
-#ifdef PC98
-struct uart_class *uart_pc98_getdev(u_long port);
-#endif
 
 /*
  * Device flags.

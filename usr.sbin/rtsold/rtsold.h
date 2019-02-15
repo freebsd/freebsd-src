@@ -1,6 +1,8 @@
 /*	$KAME: rtsold.h,v 1.19 2003/04/16 09:48:15 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  * 
@@ -67,7 +69,7 @@ struct ifinfo {
 	int active;		/* interface status */
 	int probeinterval;	/* interval of probe timer (if necessary) */
 	int probetimer;		/* rest of probe timer */
-	int mediareqok;		/* wheter the IF supports SIOCGIFMEDIA */
+	int mediareqok;		/* whether the IF supports SIOCGIFMEDIA */
 	int otherconfig;	/* need a separate protocol for the "other"
 				 * configuration */
 	int state;
@@ -155,14 +157,11 @@ extern int Fflag;
 extern int uflag;
 extern const char *otherconf_script;
 extern const char *resolvconf_script;
-extern int ifconfig(char *);
-extern void iflist_init(void);
 struct ifinfo *find_ifinfo(int);
 struct rainfo *find_rainfo(struct ifinfo *, struct sockaddr_in6 *);
 void rtsol_timer_update(struct ifinfo *);
 extern void warnmsg(int, const char *, const char *, ...)
      __attribute__((__format__(__printf__, 3, 4)));
-extern char **autoifprobe(void);
 extern int ra_opt_handler(struct ifinfo *);
 
 /* if.c */
@@ -172,8 +171,6 @@ extern int interface_status(struct ifinfo *);
 extern int lladdropt_length(struct sockaddr_dl *);
 extern void lladdropt_fill(struct sockaddr_dl *, struct nd_opt_hdr *);
 extern struct sockaddr_dl *if_nametosdl(char *);
-extern int getinet6sysctl(int);
-extern int setinet6sysctl(int, int);
 
 /* rtsol.c */
 extern int rssock;

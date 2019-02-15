@@ -20,7 +20,6 @@ SUBDIR=	title \
 	05.sysman \
 	06.Clang \
 	12.make \
-	13.rcs \
 	15.yacc \
 	16.lex \
 	17.m4 \
@@ -36,5 +35,7 @@ SUBDIR+=22.rpcgen \
 	25.xdrrfc \
 	26.rpcrfc \
 	27.nfsrpc
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

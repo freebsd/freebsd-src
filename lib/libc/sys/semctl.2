@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 12, 1995
+.Dd February 23, 2018
 .Dt SEMCTL 2
 .Os
 .Sh NAME
@@ -55,10 +55,7 @@ For the commands that use the
 .Fa arg
 argument,
 .Fa "union semun"
-is defined as follows:
-.\"
-.\" From <sys/sem.h>:
-.\"
+must be defined as follows:
 .Bd -literal
 union semun {
         int     val;            /* value for SETVAL */
@@ -66,6 +63,12 @@ union semun {
         u_short *array;         /* array for GETALL & SETALL */
 };
 .Ed
+Non-portable software may define
+.Dv _WANT_SEMUN
+before including
+.Pa sys/sem.h
+to use the system definition of
+.Fa "union semun" .
 .Pp
 Commands are performed as follows:
 .\"
@@ -145,7 +148,7 @@ is defined as follows:
 .Bd -literal
 struct semid_ds {
         struct  ipc_perm sem_perm;      /* operation permission struct */
-        struct  sem *sem_base;  /* pointer to first semaphore in set */
+        struct  sem *__sem_base;  /* kernel data, don't use */
         u_short sem_nsems;      /* number of sems in set */
         time_t  sem_otime;      /* last operation time */
         time_t  sem_ctime;      /* last change time */

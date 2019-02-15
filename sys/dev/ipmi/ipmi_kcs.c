@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 IronPort Systems Inc. <ambrisko@ironport.com>
  * All rights reserved.
  *
@@ -148,7 +150,7 @@ kcs_error(struct ipmi_softc *sc)
 
 			/* Read error status */
 			data = INB(sc, KCS_DATA);
-			if (data != 0)
+			if (data != 0 && (data != 0xff || bootverbose))
 				device_printf(sc->ipmi_dev, "KCS error: %02x\n",
 				    data);
 
@@ -184,6 +186,8 @@ kcs_start_write(struct ipmi_softc *sc)
 	for (retry = 0; retry < 10; retry++) {
 		/* Wait for IBF = 0 */
 		status = kcs_wait_for_ibf(sc, 0);
+		if (status & KCS_STATUS_IBF)
+			return (0);
 
 		/* Clear OBF */
 		kcs_clear_obf(sc, status);
@@ -193,6 +197,9 @@ kcs_start_write(struct ipmi_softc *sc)
 
 		/* Wait for IBF = 0 */
 		status = kcs_wait_for_ibf(sc, 0);
+		if (status & KCS_STATUS_IBF)
+			return (0);
+
 		if (KCS_STATUS_STATE(status) == KCS_STATUS_STATE_WRITE)
 			break;
 		DELAY(1000000);
@@ -222,6 +229,8 @@ kcs_write_byte(struct ipmi_softc *sc, u_char data)
 
 	/* Wait for IBF = 0 */
 	status = kcs_wait_for_ibf(sc, 0);
+	if (status & KCS_STATUS_IBF)
+		return (0);
 
 	if (KCS_STATUS_STATE(status) != KCS_STATUS_STATE_WRITE)
 		return (0);
@@ -244,6 +253,8 @@ kcs_write_last_byte(struct ipmi_softc *sc, u_char data)
 
 	/* Wait for IBF = 0 */
 	status = kcs_wait_for_ibf(sc, 0);
+	if (status & KCS_STATUS_IBF)
+		return (0);
 
 	if (KCS_STATUS_STATE(status) != KCS_STATUS_STATE_WRITE)
 		/* error state */
@@ -274,6 +285,8 @@ kcs_read_byte(struct ipmi_softc *sc, u_char *data)
 
 		/* Wait for OBF = 1 */
 		status = kcs_wait_for_obf(sc, 1);
+		if ((status & KCS_STATUS_OBF) == 0)
+			return (0);
 
 		/* Read Data_out */
 		*data = INB(sc, KCS_DATA);
@@ -288,6 +301,8 @@ kcs_read_byte(struct ipmi_softc *sc, u_char *data)
 
 		/* Wait for OBF = 1*/
 		status = kcs_wait_for_obf(sc, 1);
+		if ((status & KCS_STATUS_OBF) == 0)
+			return (0);
 
 		/* Read Dummy */
 		dummy = INB(sc, KCS_DATA);
@@ -307,6 +322,8 @@ kcs_polled_request(struct ipmi_softc *sc, struct ipmi_request *req)
 {
 	u_char *cp, data;
 	int i, state;
+
+	IPMI_IO_LOCK(sc);
 
 	/* Send the request. */
 	if (!kcs_start_write(sc)) {
@@ -399,8 +416,10 @@ kcs_polled_request(struct ipmi_softc *sc, struct ipmi_request *req)
 
 	/* Next we read the completion code. */
 	if (kcs_read_byte(sc, &req->ir_compcode) != 1) {
-		device_printf(sc->ipmi_dev,
-		    "KCS: Failed to read completion code\n");
+		if (bootverbose) {
+			device_printf(sc->ipmi_dev,
+			    "KCS: Failed to read completion code\n");
+		}
 		goto fail;
 	}
 #ifdef KCS_DEBUG
@@ -431,6 +450,7 @@ kcs_polled_request(struct ipmi_softc *sc, struct ipmi_request *req)
 		}
 		i++;
 	}
+	IPMI_IO_UNLOCK(sc);
 	req->ir_replylen = i;
 #ifdef KCS_DEBUG
 	device_printf(sc->ipmi_dev, "KCS: READ finished (%d bytes)\n", i);
@@ -444,6 +464,7 @@ kcs_polled_request(struct ipmi_softc *sc, struct ipmi_request *req)
 	return (1);
 fail:
 	kcs_error(sc);
+	IPMI_IO_UNLOCK(sc);
 	return (0);
 }
 
@@ -479,6 +500,21 @@ kcs_startup(struct ipmi_softc *sc)
 	    device_get_nameunit(sc->ipmi_dev)));
 }
 
+static int
+kcs_driver_request(struct ipmi_softc *sc, struct ipmi_request *req, int timo)
+{
+	int i, ok;
+
+	ok = 0;
+	for (i = 0; i < 3 && !ok; i++)
+		ok = kcs_polled_request(sc, req);
+	if (ok)
+		req->ir_error = 0;
+	else
+		req->ir_error = EIO;
+	return (req->ir_error);
+}
+
 int
 ipmi_kcs_attach(struct ipmi_softc *sc)
 {
@@ -487,6 +523,8 @@ ipmi_kcs_attach(struct ipmi_softc *sc)
 	/* Setup function pointers. */
 	sc->ipmi_startup = kcs_startup;
 	sc->ipmi_enqueue_request = ipmi_polled_enqueue_request;
+	sc->ipmi_driver_request = kcs_driver_request;
+	sc->ipmi_driver_requests_polled = 1;
 
 	/* See if we can talk to the controller. */
 	status = INB(sc, KCS_CTL_STS);

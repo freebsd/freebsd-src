@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Nathan Whitehorn
  * All rights reserved.
  *
@@ -27,15 +29,15 @@
  */
 
 #include <sys/param.h>
-#include <libgen.h>
-#include <libutil.h>
-#include <inttypes.h>
-#include <errno.h>
 
-#include <fstab.h>
-#include <libgeom.h>
 #include <dialog.h>
 #include <dlg_keys.h>
+#include <errno.h>
+#include <fstab.h>
+#include <inttypes.h>
+#include <libgeom.h>
+#include <libutil.h>
+#include <stdlib.h>
 
 #include "diskeditor.h"
 #include "partedit.h"
@@ -44,6 +46,7 @@ struct pmetadata_head part_metadata;
 static int sade_mode = 0;
 
 static int apply_changes(struct gmesh *mesh);
+static void apply_workaround(struct gmesh *mesh);
 static struct partedit_item *read_geom_mesh(struct gmesh *mesh, int *nitems);
 static void add_geom_children(struct ggeom *gp, int recurse,
     struct partedit_item **items, int *nitems);
@@ -70,13 +73,14 @@ int
 main(int argc, const char **argv)
 {
 	struct partition_metadata *md;
-	const char *prompt;
+	const char *progname, *prompt;
 	struct partedit_item *items = NULL;
 	struct gmesh mesh;
 	int i, op, nitems, nscroll;
 	int error;
 
-	if (strcmp(basename(argv[0]), "sade") == 0)
+	progname = getprogname();
+	if (strcmp(progname, "sade") == 0)
 		sade_mode = 1;
 
 	TAILQ_INIT(&part_metadata);
@@ -92,7 +96,7 @@ main(int argc, const char **argv)
 	/* Revert changes on SIGINT */
 	signal(SIGINT, sigint_handler);
 
-	if (strcmp(basename(argv[0]), "autopart") == 0) { /* Guided */
+	if (strcmp(progname, "autopart") == 0) { /* Guided */
 		prompt = "Please review the disk setup. When complete, press "
 		    "the Finish button.";
 		/* Experimental ZFS autopartition support */
@@ -101,7 +105,7 @@ main(int argc, const char **argv)
 		} else {
 			part_wizard("ufs");
 		}
-	} else if (strcmp(basename(argv[0]), "scriptedpart") == 0) {
+	} else if (strcmp(progname, "scriptedpart") == 0) {
 		error = scripted_editor(argc, argv);
 		prompt = NULL;
 		if (error != 0) {
@@ -189,6 +193,8 @@ main(int argc, const char **argv)
 
 			if (op == 0 && validate_setup()) { /* Save */
 				error = apply_changes(&mesh);
+				if (!error)
+					apply_workaround(&mesh);
 				break;
 			} else if (op == 3) { /* Quit */
 				gpart_revert_all(&mesh);
@@ -388,6 +394,43 @@ apply_changes(struct gmesh *mesh)
 	fclose(fstab);
 
 	return (0);
+}
+
+static void
+apply_workaround(struct gmesh *mesh)
+{
+	struct gclass *classp;
+	struct ggeom *gp;
+	struct gconfig *gc;
+	const char *scheme = NULL, *modified = NULL;
+
+	LIST_FOREACH(classp, &mesh->lg_class, lg_class) {
+		if (strcmp(classp->lg_name, "PART") == 0)
+			break;
+	}
+
+	if (strcmp(classp->lg_name, "PART") != 0) {
+		dialog_msgbox("Error", "gpart not found!", 0, 0, TRUE);
+		return;
+	}
+
+	LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
+		LIST_FOREACH(gc, &gp->lg_config, lg_config) {
+			if (strcmp(gc->lg_name, "scheme") == 0) {
+				scheme = gc->lg_val;
+			} else if (strcmp(gc->lg_name, "modified") == 0) {
+				modified = gc->lg_val;
+			}
+		}
+
+		if (scheme && strcmp(scheme, "GPT") == 0 &&
+		    modified && strcmp(modified, "true") == 0) {
+			if (getenv("WORKAROUND_LENOVO"))
+				gpart_set_root(gp->lg_name, "lenovofix");
+			if (getenv("WORKAROUND_GPTACTIVE"))
+				gpart_set_root(gp->lg_name, "active");
+		}
+	}
 }
 
 static struct partedit_item *

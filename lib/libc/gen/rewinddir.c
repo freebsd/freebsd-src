@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,10 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)rewinddir.c	8.1 (Berkeley) 6/8/93";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
+__SCCSID("@(#)rewinddir.c	8.1 (Berkeley) 6/8/93");
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
@@ -45,12 +45,12 @@ __FBSDID("$FreeBSD$");
 #include "telldir.h"
 
 void
-rewinddir(dirp)
-	DIR *dirp;
+rewinddir(DIR *dirp)
 {
 
 	if (__isthreaded)
 		_pthread_mutex_lock(&dirp->dd_lock);
+	dirp->dd_flags &= ~__DTF_SKIPREAD; /* current contents are invalid */
 	if (dirp->dd_flags & __DTF_READALL)
 		_filldir(dirp, false);
 	else {

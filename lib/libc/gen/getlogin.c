@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,10 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)getlogin.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
+__SCCSID("@(#)getlogin.c	8.1 (Berkeley) 6/4/93");
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
@@ -45,62 +45,33 @@ __FBSDID("$FreeBSD$");
 
 #include "libc_private.h"
 
-#define	THREAD_LOCK()	if (__isthreaded) _pthread_mutex_lock(&logname_mutex)
-#define	THREAD_UNLOCK()	if (__isthreaded) _pthread_mutex_unlock(&logname_mutex)
-
 extern int		_getlogin(char *, int);
-
-int			_logname_valid __hidden; /* known to setlogin() */
-static pthread_mutex_t	logname_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-static char *
-getlogin_basic(int *status)
-{
-	static char logname[MAXLOGNAME];
-
-	if (_logname_valid == 0) {
-		if (_getlogin(logname, sizeof(logname)) < 0) {
-			*status = errno;
-			return (NULL);
-		}
-		_logname_valid = 1;
-	}
-	*status = 0;
-	return (*logname ? logname : NULL);
-}
 
 char *
 getlogin(void)
 {
-	char	*result;
-	int	status;
+	static char logname[MAXLOGNAME];
 
-	THREAD_LOCK();
-	result = getlogin_basic(&status);
-	THREAD_UNLOCK();
-	return (result);
+	if (_getlogin(logname, sizeof(logname)) < 0)
+		return (NULL);
+	return (logname[0] != '\0' ? logname : NULL);
 }
 
 int
 getlogin_r(char *logname, int namelen)
 {
-	char	*result;
+	char tmpname[MAXLOGNAME];
 	int	len;
-	int	status;
 
 	if (namelen < 1)
 		return (ERANGE);
 	logname[0] = '\0';
 
-	THREAD_LOCK();
-	result = getlogin_basic(&status);
-	if (status == 0 && result != NULL) {
-		len = strlen(result) + 1;
-		if (len > namelen)
-			status = ERANGE;
-		else
-			strncpy(logname, result, len);
-	}
-	THREAD_UNLOCK();
-	return (status);
+	if (_getlogin(tmpname, sizeof(tmpname)) < 0)
+		return (errno);
+	len = strlen(tmpname) + 1;
+	if (len > namelen)
+		return (ERANGE);
+	strlcpy(logname, tmpname, len);
+	return (0);
 }

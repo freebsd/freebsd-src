@@ -36,7 +36,7 @@
 /**
  * \file
  *
- * This file contains a module that performs recusive iterative DNS query
+ * This file contains a module that performs recursive iterative DNS query
  * processing.
  */
 
@@ -51,13 +51,33 @@ struct iter_forwards;
 struct iter_donotq;
 struct iter_prep_list;
 struct iter_priv;
+struct rbtree_type;
 
+/** max number of targets spawned for a query and its subqueries */
+#define MAX_TARGET_COUNT	64
 /** max number of query restarts. Determines max number of CNAME chain. */
 #define MAX_RESTART_COUNT       8
 /** max number of referrals. Makes sure resolver does not run away */
 #define MAX_REFERRAL_COUNT	130
 /** max number of queries-sent-out.  Make sure large NS set does not loop */
-#define MAX_SENT_COUNT		16
+#define MAX_SENT_COUNT		32
+/** max number of queries for which to perform dnsseclameness detection,
+ * (rrsigs missing detection) after that, just pick up that response */
+#define DNSSEC_LAME_DETECT_COUNT 4
+/**
+ * max number of QNAME minimisation iterations. Limits number of queries for
+ * QNAMEs with a lot of labels.
+*/
+#define MAX_MINIMISE_COUNT	10
+/* max number of time-outs for minimised query. Prevents resolving failures
+ * when the QNAME minimisation QTYPE is blocked. */
+#define MAX_MINIMISE_TIMEOUT_COUNT 3
+/**
+ * number of labels from QNAME that are always send individually when using
+ * QNAME minimisation, even when the number of labels of the QNAME is bigger
+ * tham MAX_MINIMISE_COUNT */
+#define MINIMISE_ONE_LAB	4
+#define MINIMISE_MULTIPLE_LABS	(MAX_MINIMISE_COUNT - MINIMISE_ONE_LAB)
 /** at what query-sent-count to stop target fetch policy */
 #define TARGET_FETCH_STOP	3
 /** how nice is a server without further information, in msec 
@@ -69,10 +89,6 @@ struct iter_priv;
  * Equals RTT_MAX_TIMEOUT
  */
 #define USEFUL_SERVER_TOP_TIMEOUT	120000
-/** Number of lost messages in a row that get a host blacklisted.
- * With 16, a couple different queries have to time out and no working
- * queries are happening */
-#define USEFUL_SERVER_MAX_LOST	16
 /** number of retries on outgoing queries */
 #define OUTBOUND_MSG_RETRY 5
 /** RTT band, within this amount from the best, servers are chosen randomly.
@@ -98,6 +114,9 @@ struct iter_env {
 	/** private address space and private domains */
 	struct iter_priv* priv;
 
+	/** whitelist for capsforid names */
+	struct rbtree_type* caps_white;
+
 	/** The maximum dependency depth that this resolver will pursue. */
 	int max_dependency_depth;
 
@@ -110,6 +129,34 @@ struct iter_env {
 	 * array of max_dependency_depth+1 size.
 	 */
 	int* target_fetch_policy;
+
+	/** lock on ratelimit counter */
+	lock_basic_type queries_ratelimit_lock;
+	/** number of queries that have been ratelimited */
+	size_t num_queries_ratelimited;
+};
+
+/**
+ * QNAME minimisation state
+ */
+enum minimisation_state {
+	/**
+	 * (Re)start minimisation. Outgoing QNAME should be set to dp->name.
+	 * State entered on new query or after following referral or CNAME.
+	 */
+	INIT_MINIMISE_STATE = 0,
+	/**
+	 * QNAME minimisation ongoing. Increase QNAME on every iteration.
+	 */
+	MINIMISE_STATE,
+	/**
+	 * Don't increment QNAME this iteration
+	 */
+	SKIP_MINIMISE_STATE,
+	/**
+	 * Send out full QNAME + original QTYPE
+	 */
+	DONOT_MINIMISE_STATE,
 };
 
 /**
@@ -137,7 +184,7 @@ enum iter_state {
 	/**
 	 * Each time a delegation point changes for a given query or a 
 	 * query times out and/or wakes up, this state is (re)visited. 
-	 * This state is reponsible for iterating through a list of 
+	 * This state is responsible for iterating through a list of 
 	 * nameserver targets.
 	 */
 	QUERYTARGETS_STATE,
@@ -234,8 +281,10 @@ struct iter_qstate {
 	int caps_fallback;
 	/** state for capsfail: current server number to try */
 	size_t caps_server;
-	/** state for capsfail: stored query for comparisons */
+	/** state for capsfail: stored query for comparisons. Can be NULL if
+	 * no response had been seen prior to starting the fallback. */
 	struct reply_info* caps_reply;
+	struct dns_msg* caps_response;
 
 	/** Current delegation message - returned for non-RD queries */
 	struct dns_msg* deleg_msg;
@@ -254,6 +303,13 @@ struct iter_qstate {
 
 	/** number of queries fired off */
 	int sent_count;
+	
+	/** number of target queries spawned in [1], for this query and its
+	 * subqueries, the malloced-array is shared, [0] refcount. */
+	int* target_count;
+
+	/** if true, already tested for ratelimiting and passed the test */
+	int ratelimit_ok;
 
 	/**
 	 * The query must store NS records from referrals as parentside RRs
@@ -311,6 +367,34 @@ struct iter_qstate {
 
 	/** list of pending queries to authoritative servers. */
 	struct outbound_list outlist;
+
+	/** QNAME minimisation state, RFC7816 */
+	enum minimisation_state minimisation_state;
+
+	/** State for capsfail: QNAME minimisation state for comparisons. */
+	enum minimisation_state caps_minimisation_state;
+
+	/**
+	 * The query info that is sent upstream. Will be a subset of qchase
+	 * when qname minimisation is enabled.
+	 */
+	struct query_info qinfo_out;
+
+	/**
+	 * Count number of QNAME minimisation iterations. Used to limit number of
+	 * outgoing queries when QNAME minimisation is enabled.
+	 */
+	int minimise_count;
+
+	/**
+	 * Count number of time-outs. Used to prevent resolving failures when
+	 * the QNAME minimisation QTYPE is blocked. */
+	int minimise_timeout_count;
+
+	/** True if the current response is from auth_zone */
+	int auth_zone_response;
+	/** True if the auth_zones should not be consulted for the query */
+	int auth_zone_avoid;
 };
 
 /**
@@ -354,7 +438,7 @@ void iter_operate(struct module_qstate* qstate, enum module_ev event, int id,
 	struct outbound_entry* outbound);
 
 /**
- * Return priming query results to interestes super querystates.
+ * Return priming query results to interested super querystates.
  * 
  * Sets the delegation point and delegation message (not nonRD queries).
  * This is a callback from walk_supers.

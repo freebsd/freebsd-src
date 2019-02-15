@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2012  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -33,12 +33,6 @@
 #include <values.h>
 #endif
 
-#if HAVE_TIME_T
-#define time_type	time_t
-#else
-#define	time_type	long
-#endif
-
 /*
  * BSD setjmp() saves (and longjmp() restores) the signal mask.
  * This costs a system call or two per setjmp(), so if possible we clear the
@@ -68,10 +62,10 @@ extern int sigs;
 	public int
 iread(fd, buf, len)
 	int fd;
-	char *buf;
+	unsigned char *buf;
 	unsigned int len;
 {
-	register int n;
+	int n;
 
 start:
 #if MSDOS_COMPILER==WIN32C
@@ -191,7 +185,7 @@ intread()
  * Return the current time.
  */
 #if HAVE_TIME
-	public long
+	public time_type
 get_time()
 {
 	time_type t;
@@ -232,8 +226,8 @@ strerror(err)
 errno_message(filename)
 	char *filename;
 {
-	register char *p;
-	register char *m;
+	char *p;
+	char *m;
 	int len;
 #if HAVE_ERRNO
 #if MUST_DEFINE_ERRNO
@@ -243,7 +237,7 @@ errno_message(filename)
 #else
 	p = "cannot open";
 #endif
-	len = strlen(filename) + strlen(p) + 3;
+	len = (int) (strlen(filename) + strlen(p) + 3);
 	m = (char *) ecalloc(len, sizeof(char));
 	SNPRINTF2(m, len, "%s: %s", filename, p);
 	return (m);
@@ -277,7 +271,8 @@ muldiv(val, num, den)
  */
 	public int
 percentage(num, den)
-	POSITION num, den;
+	POSITION num;
+	POSITION den;
 {
 	return (int) muldiv(num,  (POSITION) 100, den);
 }

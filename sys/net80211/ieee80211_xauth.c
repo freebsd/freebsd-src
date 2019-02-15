@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Video54 Technologies, Inc.
  * Copyright (c) 2004-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
@@ -44,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h> 
+#include <sys/malloc.h>   
 #include <sys/mbuf.h>   
 #include <sys/module.h>
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -99,7 +101,7 @@ struct icmp {
 		struct id_ts {			/* ICMP Timestamp */
 			/*
 			 * The next 3 fields are in network format,
-			 * milliseconds since 00:00 GMT
+			 * milliseconds since 00:00 UTC
 			 */
 			uint32_t its_otime;	/* Originate */
 			uint32_t its_rtime;	/* Receive */
@@ -136,6 +138,14 @@ struct icmp {
 #define	ICMP_ADVLENMIN	(8 + sizeof (struct ip) + 8)	/* min */
 #define	ICMP_ADVLEN(p)	(8 + ((p)->icmp_ip.ip_hl << 2) + 8)
 	/* N.B.: must separately check that ip_hl >= 5 */
+	/* This is the minimum length required by RFC 792. */
+/*
+ * ICMP_ADVLENPREF is the preferred number of bytes which should be contiguous.
+ * SCTP needs additional 12 bytes to be able to access the initiate tag
+ * in packets containing an INIT chunk. For also supporting SCTP/UDP,
+ * additional 8 bytes are needed.
+ */
+#define	ICMP_ADVLENPREF(p)	(8 + ((p)->icmp_ip.ip_hl << 2) + 8 + 8 + 12)
 
 /*
  * Definition of type and code field values.

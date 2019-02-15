@@ -91,7 +91,9 @@ static svn_error_t *compat_open(void **session_baton,
   callbacks2->progress_baton = NULL;
 
   SVN_ERR(VTBL.open_session(sess, &session_url, repos_URL,
-                            callbacks2, callback_baton, config, sesspool));
+                            callbacks2, callback_baton,
+                            callbacks ? callbacks->auth_baton : NULL,
+                            config, sesspool, sesspool));
 
   if (strcmp(repos_URL, session_url) != 0)
     {

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000,2003 Doug Rabson
  * All rights reserved.
  *
@@ -213,19 +215,11 @@ kobj_lookup_method(kobj_class_t cls,
 {
 	kobj_method_t *ce;
 
-#ifdef KOBJ_STATS
-	/*
-	 * Correct for the 'hit' assumption in KOBJOPLOOKUP and record
-	 * a 'miss'.
-	 */
-	kobj_lookup_hits--;
-	kobj_lookup_misses++;
-#endif
-
 	ce = kobj_lookup_method_mi(cls, desc);
 	if (!ce)
 		ce = &desc->deflt;
-	*cep = ce;
+	if (cep)
+		*cep = ce;
 	return ce;
 }
 

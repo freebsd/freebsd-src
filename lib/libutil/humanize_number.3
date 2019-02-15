@@ -200,3 +200,9 @@ The
 .Dv HN_IEC_PREFIXES
 flag was introduced in
 .Fx 9.0 .
+.Sh CAVEATS
+For numbers greater than 999 using buffer length of 4 and less can cause
+rounding errors.
+When using
+.Dv HN_IEC_PREFIXES
+the same error occurs for buffer length of 5 or less.

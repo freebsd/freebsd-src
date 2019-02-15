@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Doug Rabson
  * All rights reserved.
  *
@@ -83,7 +85,6 @@ struct agp_gatt {
 	vm_offset_t	ag_physical;
 };
 
-void			agp_flush_cache(void);
 u_int8_t		agp_find_caps(device_t dev);
 struct agp_gatt	       *agp_alloc_gatt(device_t dev);
 void			agp_set_aperture_resource(device_t dev, int rid);

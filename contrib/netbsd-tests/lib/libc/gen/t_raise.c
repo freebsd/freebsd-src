@@ -1,4 +1,4 @@
-/*	$NetBSD: t_raise.c,v 1.5 2011/05/10 12:43:42 jruoho Exp $ */
+/*	$NetBSD: t_raise.c,v 1.6 2016/11/03 22:08:31 kamil Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_raise.c,v 1.5 2011/05/10 12:43:42 jruoho Exp $");
+__RCSID("$NetBSD: t_raise.c,v 1.6 2016/11/03 22:08:31 kamil Exp $");
 
 #include <atf-c.h>
 
@@ -43,7 +43,11 @@ static int	count;
 static void	handler_err(int);
 static void	handler_ret(int);
 static void	handler_stress(int);
+#ifdef __FreeBSD__
+static int	sig[] = { SIGALRM, SIGIO, SIGUSR1, SIGUSR2 };
+#else
 static int	sig[] = { SIGALRM, SIGIO, SIGUSR1, SIGUSR2, SIGPWR };
+#endif
 
 static void
 handler_stress(int signo)
@@ -176,7 +180,7 @@ ATF_TC_BODY(raise_stress, tc)
 		(void)raise(SIGUSR1);
 
 	if (count != maxiter)
-		atf_tc_fail("not all signals were catched");
+		atf_tc_fail("not all signals were caught");
 }
 
 ATF_TP_ADD_TCS(tp)

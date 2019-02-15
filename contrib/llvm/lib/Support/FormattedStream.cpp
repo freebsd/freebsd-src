@@ -11,8 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Support/Debug.h"
 #include "llvm/Support/FormattedStream.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 
 using namespace llvm;
@@ -31,6 +32,7 @@ static void UpdatePosition(std::pair<unsigned, unsigned> &Position, const char *
     switch (*Ptr) {
     case '\n':
       Line += 1;
+      LLVM_FALLTHROUGH;
     case '\r':
       Column = 0;
       break;
@@ -81,7 +83,7 @@ void formatted_raw_ostream::write_impl(const char *Ptr, size_t Size) {
   TheStream->write(Ptr, Size);
 
   // Reset the scanning pointer.
-  Scanned = 0;
+  Scanned = nullptr;
 }
 
 /// fouts() - This returns a reference to a formatted_raw_ostream for

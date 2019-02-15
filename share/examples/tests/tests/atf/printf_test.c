@@ -1,5 +1,7 @@
 /* $FreeBSD$
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 2013 Google Inc.
  * All rights reserved.
  *
@@ -152,4 +154,6 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, snprintf__two_formatters);
 	ATF_TP_ADD_TC(tp, snprintf__overflow);
 	ATF_TP_ADD_TC(tp, fprintf__simple_string);
+
+	return (atf_no_error());
 }

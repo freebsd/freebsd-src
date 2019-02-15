@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -29,6 +31,8 @@
 
 #ifdef _KERNEL
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/counter.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
@@ -63,7 +67,7 @@ typedef struct {
  * transmission operations throughout the stack.
  */
 typedef struct {
-	char		name[16];		/* e.g. "ath0_com_lock" */
+	char		name[16];		/* e.g. "ath0_tx_lock" */
 	struct mtx	mtx;
 } ieee80211_tx_lock_t;
 #define	IEEE80211_TX_LOCK_INIT(_ic, _name) do {				\
@@ -79,6 +83,25 @@ typedef struct {
 	mtx_assert(IEEE80211_TX_LOCK_OBJ(_ic), MA_OWNED)
 #define	IEEE80211_TX_UNLOCK_ASSERT(_ic) \
 	mtx_assert(IEEE80211_TX_LOCK_OBJ(_ic), MA_NOTOWNED)
+
+/*
+ * Stageq / ni_tx_superg lock
+ */
+typedef struct {
+	char		name[16];		/* e.g. "ath0_ff_lock" */
+	struct mtx	mtx;
+} ieee80211_ff_lock_t;
+#define IEEE80211_FF_LOCK_INIT(_ic, _name) do {				\
+	ieee80211_ff_lock_t *fl = &(_ic)->ic_fflock;			\
+	snprintf(fl->name, sizeof(fl->name), "%s_ff_lock", _name);	\
+	mtx_init(&fl->mtx, fl->name, NULL, MTX_DEF);			\
+} while (0)
+#define IEEE80211_FF_LOCK_OBJ(_ic)	(&(_ic)->ic_fflock.mtx)
+#define IEEE80211_FF_LOCK_DESTROY(_ic)	mtx_destroy(IEEE80211_FF_LOCK_OBJ(_ic))
+#define IEEE80211_FF_LOCK(_ic)		mtx_lock(IEEE80211_FF_LOCK_OBJ(_ic))
+#define IEEE80211_FF_UNLOCK(_ic)	mtx_unlock(IEEE80211_FF_LOCK_OBJ(_ic))
+#define IEEE80211_FF_LOCK_ASSERT(_ic) \
+	mtx_assert(IEEE80211_FF_LOCK_OBJ(_ic), MA_OWNED)
 
 /*
  * Node locking definitions.
@@ -103,28 +126,6 @@ typedef struct {
 	mtx_unlock(IEEE80211_NODE_LOCK_OBJ(_nt))
 #define	IEEE80211_NODE_LOCK_ASSERT(_nt)	\
 	mtx_assert(IEEE80211_NODE_LOCK_OBJ(_nt), MA_OWNED)
-
-/*
- * Node table iteration locking definitions; this protects the
- * scan generation # used to iterate over the station table
- * while grabbing+releasing the node lock.
- */
-typedef struct {
-	char		name[16];		/* e.g. "ath0_scan_lock" */
-	struct mtx	mtx;
-} ieee80211_scan_lock_t;
-#define	IEEE80211_NODE_ITERATE_LOCK_INIT(_nt, _name) do {		\
-	ieee80211_scan_lock_t *sl = &(_nt)->nt_scanlock;		\
-	snprintf(sl->name, sizeof(sl->name), "%s_scan_lock", _name);	\
-	mtx_init(&sl->mtx, sl->name, NULL, MTX_DEF);			\
-} while (0)
-#define	IEEE80211_NODE_ITERATE_LOCK_OBJ(_nt)	(&(_nt)->nt_scanlock.mtx)
-#define	IEEE80211_NODE_ITERATE_LOCK_DESTROY(_nt) \
-	mtx_destroy(IEEE80211_NODE_ITERATE_LOCK_OBJ(_nt))
-#define	IEEE80211_NODE_ITERATE_LOCK(_nt) \
-	mtx_lock(IEEE80211_NODE_ITERATE_LOCK_OBJ(_nt))
-#define	IEEE80211_NODE_ITERATE_UNLOCK(_nt) \
-	mtx_unlock(IEEE80211_NODE_ITERATE_LOCK_OBJ(_nt))
 
 /*
  * Power-save queue definitions. 
@@ -183,6 +184,34 @@ typedef struct mtx ieee80211_scan_table_lock_t;
 #define	IEEE80211_SCAN_TABLE_LOCK(_st)		mtx_lock(&(_st)->st_lock)
 #define	IEEE80211_SCAN_TABLE_UNLOCK(_st)	mtx_unlock(&(_st)->st_lock)
 
+typedef struct mtx ieee80211_scan_iter_lock_t;
+#define	IEEE80211_SCAN_ITER_LOCK_INIT(_st, _name) \
+	mtx_init(&(_st)->st_scanlock, _name, "802.11 scangen", MTX_DEF)
+#define	IEEE80211_SCAN_ITER_LOCK_DESTROY(_st)	mtx_destroy(&(_st)->st_scanlock)
+#define	IEEE80211_SCAN_ITER_LOCK(_st)		mtx_lock(&(_st)->st_scanlock)
+#define	IEEE80211_SCAN_ITER_UNLOCK(_st)	mtx_unlock(&(_st)->st_scanlock)
+
+/*
+ * Mesh node/routing definitions.
+ */
+typedef struct mtx ieee80211_rte_lock_t;
+#define	MESH_RT_ENTRY_LOCK_INIT(_rt, _name) \
+	mtx_init(&(rt)->rt_lock, _name, "802.11s route entry", MTX_DEF)
+#define	MESH_RT_ENTRY_LOCK_DESTROY(_rt) \
+	mtx_destroy(&(_rt)->rt_lock)
+#define	MESH_RT_ENTRY_LOCK(rt)	mtx_lock(&(rt)->rt_lock)
+#define	MESH_RT_ENTRY_LOCK_ASSERT(rt) mtx_assert(&(rt)->rt_lock, MA_OWNED)
+#define	MESH_RT_ENTRY_UNLOCK(rt)	mtx_unlock(&(rt)->rt_lock)
+
+typedef struct mtx ieee80211_rt_lock_t;
+#define	MESH_RT_LOCK(ms)	mtx_lock(&(ms)->ms_rt_lock)
+#define	MESH_RT_LOCK_ASSERT(ms)	mtx_assert(&(ms)->ms_rt_lock, MA_OWNED)
+#define	MESH_RT_UNLOCK(ms)	mtx_unlock(&(ms)->ms_rt_lock)
+#define	MESH_RT_LOCK_INIT(ms, name) \
+	mtx_init(&(ms)->ms_rt_lock, name, "802.11s routing table", MTX_DEF)
+#define	MESH_RT_LOCK_DESTROY(ms) \
+	mtx_destroy(&(ms)->ms_rt_lock)
+
 /*
  * Node reference counting definitions.
  *
@@ -216,13 +245,15 @@ void	ieee80211_vap_destroy(struct ieee80211vap *);
 	(((_ifp)->if_flags & IFF_UP) && \
 	 ((_ifp)->if_drv_flags & IFF_DRV_RUNNING))
 
+/* XXX TODO: cap these at 1, as hz may not be 1000 */
 #define	msecs_to_ticks(ms)	(((ms)*hz)/1000)
 #define	ticks_to_msecs(t)	(1000*(t) / hz)
 #define	ticks_to_secs(t)	((t) / hz)
-#define time_after(a,b) 	((long)(b) - (long)(a) < 0)
-#define time_before(a,b)	time_after(b,a)
-#define time_after_eq(a,b)	((long)(a) - (long)(b) >= 0)
-#define time_before_eq(a,b)	time_after_eq(b,a)
+
+#define ieee80211_time_after(a,b) 	((long)(b) - (long)(a) < 0)
+#define ieee80211_time_before(a,b)	ieee80211_time_after(b,a)
+#define ieee80211_time_after_eq(a,b)	((long)(a) - (long)(b) >= 0)
+#define ieee80211_time_before_eq(a,b)	ieee80211_time_after_eq(b,a)
 
 struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 
@@ -231,24 +262,12 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 #define	M_EAPOL		M_PROTO3		/* PAE/EAPOL frame */
 #define	M_PWR_SAV	M_PROTO4		/* bypass PS handling */
 #define	M_MORE_DATA	M_PROTO5		/* more data frames to follow */
-#define	M_FF		M_PROTO6		/* fast frame */
+#define	M_FF		M_PROTO6		/* fast frame / A-MSDU */
 #define	M_TXCB		M_PROTO7		/* do tx complete callback */
 #define	M_AMPDU_MPDU	M_PROTO8		/* ok for A-MPDU aggregation */
-
-/*
- * FreeBSD-HEAD from 1000046 retired M_*FRAG* flags and turned them
- * into header flags instead.  So, we use the new protocol-specific
- * flags.
- *
- * Earlier FreeBSD versions overload M_FRAG, M_FIRSTFRAG and M_LASTFRAG.
- *
- * XXX TODO: rename these fields so there are no namespace clashes!
- */
-#if __FreeBSD_version >= 1000046
 #define	M_FRAG		M_PROTO9		/* frame fragmentation */
 #define	M_FIRSTFRAG	M_PROTO10		/* first frame fragment */
 #define	M_LASTFRAG	M_PROTO11		/* last frame fragment */
-#endif
 
 #define	M_80211_TX \
 	(M_ENCAP|M_EAPOL|M_PWR_SAV|M_MORE_DATA|M_FF|M_TXCB| \
@@ -262,18 +281,10 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 #endif
 #define	M_80211_RX	(M_AMPDU|M_WEP|M_AMPDU_MPDU)
 
-#if __FreeBSD_version >= 1000046
 #define	IEEE80211_MBUF_TX_FLAG_BITS \
 	M_FLAG_BITS \
 	"\15M_ENCAP\17M_EAPOL\20M_PWR_SAV\21M_MORE_DATA\22M_FF\23M_TXCB" \
 	"\24M_AMPDU_MPDU\25M_FRAG\26M_FIRSTFRAG\27M_LASTFRAG"
-#else
-/* There aren't any flag bits available for versions before this */
-/* XXX TODO: implement M_FLAG_BITS for this! */
-#define	IEEE80211_MBUF_TX_FLAG_BITS \
-	"\15M_ENCAP\17M_EAPOL\20M_PWR_SAV\21M_MORE_DATA\22M_FF\23M_TXCB" \
-	"\24M_AMPDU_MPDU"
-#endif
 
 #define	IEEE80211_MBUF_RX_FLAG_BITS \
 	M_FLAG_BITS \
@@ -317,6 +328,13 @@ int	ieee80211_add_callback(struct mbuf *m,
 		void (*func)(struct ieee80211_node *, void *, int), void *arg);
 void	ieee80211_process_callback(struct ieee80211_node *, struct mbuf *, int);
 
+#define	NET80211_TAG_XMIT_PARAMS	1
+/* See below; this is after the bpf_params definition */
+
+#define	NET80211_TAG_RECV_PARAMS	2
+
+#define	NET80211_TAG_TOA_PARAMS		3
+
 struct ieee80211com;
 int	ieee80211_parent_xmitpkt(struct ieee80211com *, struct mbuf *);
 int	ieee80211_vap_xmitpkt(struct ieee80211vap *, struct mbuf *);
@@ -355,8 +373,8 @@ wlan_##name##_modevent(module_t mod, int type, void *unused)		\
 	case MOD_UNLOAD:						\
 	case MOD_QUIESCE:						\
 		if (nrefs) {						\
-			printf("wlan_##name: still in use (%u dynamic refs)\n",\
-				nrefs);					\
+			printf("wlan_" #name ": still in use "		\
+				"(%u dynamic refs)\n", nrefs);		\
 			return EBUSY;					\
 		}							\
 		if (type == MOD_UNLOAD) {				\
@@ -596,4 +614,59 @@ struct ieee80211_bpf_params {
 	uint8_t		ibp_try3;	/* series 4 try count */
 	uint8_t		ibp_rate3;	/* series 4 IEEE tx rate */
 };
+
+#ifdef _KERNEL
+struct ieee80211_tx_params {
+	struct ieee80211_bpf_params params;
+};
+int	ieee80211_add_xmit_params(struct mbuf *m,
+	    const struct ieee80211_bpf_params *);
+int	ieee80211_get_xmit_params(struct mbuf *m,
+	    struct ieee80211_bpf_params *);
+
+struct ieee80211_rx_params;
+struct ieee80211_rx_stats;
+
+int	ieee80211_add_rx_params(struct mbuf *m,
+	    const struct ieee80211_rx_stats *rxs);
+int	ieee80211_get_rx_params(struct mbuf *m,
+	    struct ieee80211_rx_stats *rxs);
+const struct ieee80211_rx_stats * ieee80211_get_rx_params_ptr(struct mbuf *m);
+
+struct ieee80211_toa_params {
+	int request_id;
+};
+int	ieee80211_add_toa_params(struct mbuf *m,
+	    const struct ieee80211_toa_params *p);
+int	ieee80211_get_toa_params(struct mbuf *m,
+	    struct ieee80211_toa_params *p);
+
+#define	IEEE80211_F_SURVEY_TIME		0x00000001
+#define	IEEE80211_F_SURVEY_TIME_BUSY	0x00000002
+#define	IEEE80211_F_SURVEY_NOISE_DBM	0x00000004
+#define	IEEE80211_F_SURVEY_TSC		0x00000008
+struct ieee80211_channel_survey {
+	uint32_t s_flags;
+	uint32_t s_time;
+	uint32_t s_time_busy;
+	int32_t s_noise;
+	uint64_t s_tsc;
+};
+
+#endif /* _KERNEL */
+
+/*
+ * Malloc API.  Other BSD operating systems have slightly
+ * different malloc/free namings (eg DragonflyBSD.)
+ */
+#define	IEEE80211_MALLOC	malloc
+#define	IEEE80211_FREE		free
+
+/* XXX TODO: get rid of WAITOK, fix all the users of it? */
+#define	IEEE80211_M_NOWAIT	M_NOWAIT
+#define	IEEE80211_M_WAITOK	M_WAITOK
+#define	IEEE80211_M_ZERO	M_ZERO
+
+/* XXX TODO: the type fields */
+
 #endif /* _NET80211_IEEE80211_FREEBSD_H_ */

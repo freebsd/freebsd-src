@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2000, 2001 David O'Brien
  * Copyright (c) 1996 Søren Schmidt
  * All rights reserved.

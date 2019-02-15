@@ -33,10 +33,11 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DEV_NETMAP
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/eventhandler.h>
 #include <sys/lock.h>
-#include <sys/types.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/selinfo.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -55,191 +56,76 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_regs_values.h"
 
 extern int fl_pad;	/* XXXNM */
-extern int spg_len;	/* XXXNM */
-extern int fl_pktshift;	/* XXXNM */
 
-/* netmap ifnet routines */
-static void cxgbe_nm_init(void *);
-static int cxgbe_nm_ioctl(struct ifnet *, unsigned long, caddr_t);
-static int cxgbe_nm_transmit(struct ifnet *, struct mbuf *);
-static void cxgbe_nm_qflush(struct ifnet *);
+SYSCTL_NODE(_hw, OID_AUTO, cxgbe, CTLFLAG_RD, 0, "cxgbe netmap parameters");
 
-static int cxgbe_nm_init_synchronized(struct port_info *);
-static int cxgbe_nm_uninit_synchronized(struct port_info *);
+/*
+ * 0 = normal netmap rx
+ * 1 = black hole
+ * 2 = supermassive black hole (buffer packing enabled)
+ */
+int black_hole = 0;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_black_hole, CTLFLAG_RDTUN, &black_hole, 0,
+    "Sink incoming packets.");
 
-static void
-cxgbe_nm_init(void *arg)
-{
-	struct port_info *pi = arg;
-	struct adapter *sc = pi->adapter;
+int rx_ndesc = 256;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_rx_ndesc, CTLFLAG_RWTUN,
+    &rx_ndesc, 0, "# of rx descriptors after which the hw cidx is updated.");
 
-	if (begin_synchronized_op(sc, pi, SLEEP_OK | INTR_OK, "t4nminit") != 0)
-		return;
-	cxgbe_nm_init_synchronized(pi);
-	end_synchronized_op(sc, 0);
+int rx_nframes = 64;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_rx_nframes, CTLFLAG_RWTUN,
+    &rx_nframes, 0, "max # of frames received before waking up netmap rx.");
 
-	return;
-}
+int holdoff_tmr_idx = 2;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_holdoff_tmr_idx, CTLFLAG_RWTUN,
+    &holdoff_tmr_idx, 0, "Holdoff timer index for netmap rx queues.");
 
-static int
-cxgbe_nm_init_synchronized(struct port_info *pi)
-{
-	struct adapter *sc = pi->adapter;
-	struct ifnet *ifp = pi->nm_ifp;
-	int rc = 0;
+/*
+ * Congestion drops.
+ * -1: no congestion feedback (not recommended).
+ *  0: backpressure the channel instead of dropping packets right away.
+ *  1: no backpressure, drop packets for the congested queue immediately.
+ */
+static int nm_cong_drop = 1;
+TUNABLE_INT("hw.cxgbe.nm_cong_drop", &nm_cong_drop);
 
-	ASSERT_SYNCHRONIZED_OP(sc);
+int starve_fl = 0;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, starve_fl, CTLFLAG_RWTUN,
+    &starve_fl, 0, "Don't ring fl db for netmap rx queues.");
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		return (0);	/* already running */
+/*
+ * Try to process tx credits in bulk.  This may cause a delay in the return of
+ * tx credits and is suitable for bursty or non-stop tx only.
+ */
+int lazy_tx_credit_flush = 1;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, lazy_tx_credit_flush, CTLFLAG_RWTUN,
+    &lazy_tx_credit_flush, 0, "lazy credit flush for netmap tx queues.");
 
-	if (!(sc->flags & FULL_INIT_DONE) &&
-	    ((rc = adapter_full_init(sc)) != 0))
-		return (rc);	/* error message displayed already */
-
-	if (!(pi->flags & PORT_INIT_DONE) &&
-	    ((rc = port_full_init(pi)) != 0))
-		return (rc);	/* error message displayed already */
-
-	rc = update_mac_settings(ifp, XGMAC_ALL);
-	if (rc)
-		return (rc);	/* error message displayed already */
-
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-
-	return (rc);
-}
-
-static int
-cxgbe_nm_uninit_synchronized(struct port_info *pi)
-{
-#ifdef INVARIANTS
-	struct adapter *sc = pi->adapter;
-#endif
-	struct ifnet *ifp = pi->nm_ifp;
-
-	ASSERT_SYNCHRONIZED_OP(sc);
-
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-
-	return (0);
-}
+/*
+ * Split the netmap rx queues into two groups that populate separate halves of
+ * the RSS indirection table.  This allows filters with hashmask to steer to a
+ * particular group of queues.
+ */
+static int nm_split_rss = 0;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_split_rss, CTLFLAG_RWTUN,
+    &nm_split_rss, 0, "Split the netmap rx queues into two groups.");
 
 static int
-cxgbe_nm_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
+alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 {
-	int rc = 0, mtu, flags;
-	struct port_info *pi = ifp->if_softc;
-	struct adapter *sc = pi->adapter;
-	struct ifreq *ifr = (struct ifreq *)data;
-	uint32_t mask;
-
-	MPASS(pi->nm_ifp == ifp);
-
-	switch (cmd) {
-	case SIOCSIFMTU:
-		mtu = ifr->ifr_mtu;
-		if ((mtu < ETHERMIN) || (mtu > ETHERMTU_JUMBO))
-			return (EINVAL);
-
-		rc = begin_synchronized_op(sc, pi, SLEEP_OK | INTR_OK, "t4nmtu");
-		if (rc)
-			return (rc);
-		ifp->if_mtu = mtu;
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			rc = update_mac_settings(ifp, XGMAC_MTU);
-		end_synchronized_op(sc, 0);
-		break;
-
-	case SIOCSIFFLAGS:
-		rc = begin_synchronized_op(sc, pi, SLEEP_OK | INTR_OK, "t4nflg");
-		if (rc)
-			return (rc);
-
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				flags = pi->nmif_flags;
-				if ((ifp->if_flags ^ flags) &
-				    (IFF_PROMISC | IFF_ALLMULTI)) {
-					rc = update_mac_settings(ifp,
-					    XGMAC_PROMISC | XGMAC_ALLMULTI);
-				}
-			} else
-				rc = cxgbe_nm_init_synchronized(pi);
-			pi->nmif_flags = ifp->if_flags;
-		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			rc = cxgbe_nm_uninit_synchronized(pi);
-		end_synchronized_op(sc, 0);
-		break;
-
-	case SIOCADDMULTI:
-	case SIOCDELMULTI: /* these two are called with a mutex held :-( */
-		rc = begin_synchronized_op(sc, pi, HOLD_LOCK, "t4nmulti");
-		if (rc)
-			return (rc);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			rc = update_mac_settings(ifp, XGMAC_MCADDRS);
-		end_synchronized_op(sc, LOCK_HELD);
-		break;
-
-	case SIOCSIFCAP:
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-		if (mask & IFCAP_TXCSUM) {
-			ifp->if_capenable ^= IFCAP_TXCSUM;
-			ifp->if_hwassist ^= (CSUM_TCP | CSUM_UDP | CSUM_IP);
-		}
-		if (mask & IFCAP_TXCSUM_IPV6) {
-			ifp->if_capenable ^= IFCAP_TXCSUM_IPV6;
-			ifp->if_hwassist ^= (CSUM_UDP_IPV6 | CSUM_TCP_IPV6);
-		}
-		if (mask & IFCAP_RXCSUM)
-			ifp->if_capenable ^= IFCAP_RXCSUM;
-		if (mask & IFCAP_RXCSUM_IPV6)
-			ifp->if_capenable ^= IFCAP_RXCSUM_IPV6;
-		break;
-
-	case SIOCSIFMEDIA:
-	case SIOCGIFMEDIA:
-		ifmedia_ioctl(ifp, ifr, &pi->nm_media, cmd);
-		break;
-
-	default:
-		rc = ether_ioctl(ifp, cmd, data);
-	}
-
-	return (rc);
-}
-
-static int
-cxgbe_nm_transmit(struct ifnet *ifp, struct mbuf *m)
-{
-
-	m_freem(m);
-	return (0);
-}
-
-static void
-cxgbe_nm_qflush(struct ifnet *ifp)
-{
-
-	return;
-}
-
-static int
-alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq)
-{
-	int rc, cntxt_id;
+	int rc, cntxt_id, i;
 	__be32 v;
-	struct adapter *sc = pi->adapter;
-	struct netmap_adapter *na = NA(pi->nm_ifp);
+	struct adapter *sc = vi->pi->adapter;
+	struct sge_params *sp = &sc->params.sge;
+	struct netmap_adapter *na = NA(vi->ifp);
 	struct fw_iq_cmd c;
 
 	MPASS(na != NULL);
 	MPASS(nm_rxq->iq_desc != NULL);
 	MPASS(nm_rxq->fl_desc != NULL);
 
-	bzero(nm_rxq->iq_desc, pi->qsize_rxq * IQ_ESIZE);
-	bzero(nm_rxq->fl_desc, na->num_rx_desc * EQ_ESIZE + spg_len);
+	bzero(nm_rxq->iq_desc, vi->qsize_rxq * IQ_ESIZE);
+	bzero(nm_rxq->fl_desc, na->num_rx_desc * EQ_ESIZE + sp->spg_len);
 
 	bzero(&c, sizeof(c));
 	c.op_to_vfn = htobe32(V_FW_CMD_OP(FW_IQ_CMD) | F_FW_CMD_REQUEST |
@@ -247,34 +133,36 @@ alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq)
 	    V_FW_IQ_CMD_VFN(0));
 	c.alloc_to_len16 = htobe32(F_FW_IQ_CMD_ALLOC | F_FW_IQ_CMD_IQSTART |
 	    FW_LEN16(c));
-	if (pi->flags & INTR_NM_RXQ) {
-		KASSERT(nm_rxq->intr_idx < sc->intr_count,
-		    ("%s: invalid direct intr_idx %d", __func__,
-		    nm_rxq->intr_idx));
-		v = V_FW_IQ_CMD_IQANDSTINDEX(nm_rxq->intr_idx);
-	} else {
-		CXGBE_UNIMPLEMENTED(__func__);	/* XXXNM: needs review */
-		v = V_FW_IQ_CMD_IQANDSTINDEX(nm_rxq->intr_idx) |
-		    F_FW_IQ_CMD_IQANDST;
-	}
+	MPASS(!forwarding_intr_to_fwq(sc));
+	KASSERT(nm_rxq->intr_idx < sc->intr_count,
+	    ("%s: invalid direct intr_idx %d", __func__, nm_rxq->intr_idx));
+	v = V_FW_IQ_CMD_IQANDSTINDEX(nm_rxq->intr_idx);
 	c.type_to_iqandstindex = htobe32(v |
 	    V_FW_IQ_CMD_TYPE(FW_IQ_TYPE_FL_INT_CAP) |
-	    V_FW_IQ_CMD_VIID(pi->nm_viid) |
+	    V_FW_IQ_CMD_VIID(vi->viid) |
 	    V_FW_IQ_CMD_IQANUD(X_UPDATEDELIVERY_INTERRUPT));
-	c.iqdroprss_to_iqesize = htobe16(V_FW_IQ_CMD_IQPCIECH(pi->tx_chan) |
+	c.iqdroprss_to_iqesize = htobe16(V_FW_IQ_CMD_IQPCIECH(vi->pi->tx_chan) |
 	    F_FW_IQ_CMD_IQGTSMODE |
 	    V_FW_IQ_CMD_IQINTCNTTHRESH(0) |
 	    V_FW_IQ_CMD_IQESIZE(ilog2(IQ_ESIZE) - 4));
-	c.iqsize = htobe16(pi->qsize_rxq);
+	c.iqsize = htobe16(vi->qsize_rxq);
 	c.iqaddr = htobe64(nm_rxq->iq_ba);
+	if (cong >= 0) {
+		c.iqns_to_fl0congen = htobe32(F_FW_IQ_CMD_IQFLINTCONGEN |
+		    V_FW_IQ_CMD_FL0CNGCHMAP(cong) | F_FW_IQ_CMD_FL0CONGCIF |
+		    F_FW_IQ_CMD_FL0CONGEN);
+	}
 	c.iqns_to_fl0congen |=
 	    htobe32(V_FW_IQ_CMD_FL0HOSTFCMODE(X_HOSTFCMODE_NONE) |
 		F_FW_IQ_CMD_FL0FETCHRO | F_FW_IQ_CMD_FL0DATARO |
-		(fl_pad ? F_FW_IQ_CMD_FL0PADEN : 0));
+		(fl_pad ? F_FW_IQ_CMD_FL0PADEN : 0) |
+		(black_hole == 2 ? F_FW_IQ_CMD_FL0PACKEN : 0));
 	c.fl0dcaen_to_fl0cidxfthresh =
-	    htobe16(V_FW_IQ_CMD_FL0FBMIN(X_FETCHBURSTMIN_64B) |
-		V_FW_IQ_CMD_FL0FBMAX(X_FETCHBURSTMAX_512B));
-	c.fl0size = htobe16(na->num_rx_desc + spg_len / EQ_ESIZE);
+	    htobe16(V_FW_IQ_CMD_FL0FBMIN(chip_id(sc) <= CHELSIO_T5 ?
+		X_FETCHBURSTMIN_128B : X_FETCHBURSTMIN_64B) |
+		V_FW_IQ_CMD_FL0FBMAX(chip_id(sc) <= CHELSIO_T5 ?
+		X_FETCHBURSTMAX_512B : X_FETCHBURSTMAX_256B));
+	c.fl0size = htobe16(na->num_rx_desc / 8 + sp->spg_len / EQ_ESIZE);
 	c.fl0addr = htobe64(nm_rxq->fl_ba);
 
 	rc = -t4_wr_mbox(sc, sc->mbox, &c, sizeof(c), &c);
@@ -285,7 +173,7 @@ alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq)
 	}
 
 	nm_rxq->iq_cidx = 0;
-	MPASS(nm_rxq->iq_sidx == pi->qsize_rxq - spg_len / IQ_ESIZE);
+	MPASS(nm_rxq->iq_sidx == vi->qsize_rxq - sp->spg_len / IQ_ESIZE);
 	nm_rxq->iq_gen = F_RSPD_GEN;
 	nm_rxq->iq_cntxt_id = be16toh(c.iqid);
 	nm_rxq->iq_abs_id = be16toh(c.physiqid);
@@ -306,20 +194,48 @@ alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq)
 	}
 	sc->sge.eqmap[cntxt_id] = (void *)nm_rxq;
 
-	nm_rxq->fl_db_val = F_DBPRIO | V_QID(nm_rxq->fl_cntxt_id) | V_PIDX(0);
-	if (is_t5(sc))
-		nm_rxq->fl_db_val |= F_DBTYPE;
+	nm_rxq->fl_db_val = V_QID(nm_rxq->fl_cntxt_id) |
+	    sc->chip_params->sge_fl_db;
 
-	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_SEINTARM(F_QINTR_CNT_EN) |
-	    V_INGRESSQID(nm_rxq->iq_cntxt_id));
+	if (chip_id(sc) >= CHELSIO_T5 && cong >= 0) {
+		uint32_t param, val;
+
+		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
+		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
+		    V_FW_PARAMS_PARAM_YZ(nm_rxq->iq_cntxt_id);
+		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
+		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
+		    V_FW_PARAMS_PARAM_YZ(nm_rxq->iq_cntxt_id);
+		if (cong == 0)
+			val = 1 << 19;
+		else {
+			val = 2 << 19;
+			for (i = 0; i < 4; i++) {
+				if (cong & (1 << i))
+					val |= 1 << (i << 2);
+			}
+		}
+
+		rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
+		if (rc != 0) {
+			/* report error but carry on */
+			device_printf(sc->dev,
+			    "failed to set congestion manager context for "
+			    "ingress queue %d: %d\n", nm_rxq->iq_cntxt_id, rc);
+		}
+	}
+
+	t4_write_reg(sc, sc->sge_gts_reg,
+	    V_INGRESSQID(nm_rxq->iq_cntxt_id) |
+	    V_SEINTARM(V_QINTR_TIMER_IDX(holdoff_tmr_idx)));
 
 	return (rc);
 }
 
 static int
-free_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq)
+free_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq)
 {
-	struct adapter *sc = pi->adapter;
+	struct adapter *sc = vi->pi->adapter;
 	int rc;
 
 	rc = -t4_iq_free(sc, sc->mbox, sc->pf, 0, FW_IQ_TYPE_FL_INT_CAP,
@@ -327,22 +243,23 @@ free_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq)
 	if (rc != 0)
 		device_printf(sc->dev, "%s: failed for iq %d, fl %d: %d\n",
 		    __func__, nm_rxq->iq_cntxt_id, nm_rxq->fl_cntxt_id, rc);
+	nm_rxq->iq_cntxt_id = INVALID_NM_RXQ_CNTXT_ID;
 	return (rc);
 }
 
 static int
-alloc_nm_txq_hwq(struct port_info *pi, struct sge_nm_txq *nm_txq)
+alloc_nm_txq_hwq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
 {
 	int rc, cntxt_id;
 	size_t len;
-	struct adapter *sc = pi->adapter;
-	struct netmap_adapter *na = NA(pi->nm_ifp);
+	struct adapter *sc = vi->pi->adapter;
+	struct netmap_adapter *na = NA(vi->ifp);
 	struct fw_eq_eth_cmd c;
 
 	MPASS(na != NULL);
 	MPASS(nm_txq->desc != NULL);
 
-	len = na->num_tx_desc * EQ_ESIZE + spg_len;
+	len = na->num_tx_desc * EQ_ESIZE + sc->params.sge.spg_len;
 	bzero(nm_txq->desc, len);
 
 	bzero(&c, sizeof(c));
@@ -351,10 +268,11 @@ alloc_nm_txq_hwq(struct port_info *pi, struct sge_nm_txq *nm_txq)
 	    V_FW_EQ_ETH_CMD_VFN(0));
 	c.alloc_to_len16 = htobe32(F_FW_EQ_ETH_CMD_ALLOC |
 	    F_FW_EQ_ETH_CMD_EQSTART | FW_LEN16(c));
-	c.autoequiqe_to_viid = htobe32(V_FW_EQ_ETH_CMD_VIID(pi->nm_viid));
+	c.autoequiqe_to_viid = htobe32(F_FW_EQ_ETH_CMD_AUTOEQUIQE |
+	    F_FW_EQ_ETH_CMD_AUTOEQUEQE | V_FW_EQ_ETH_CMD_VIID(vi->viid));
 	c.fetchszm_to_iqid =
 	    htobe32(V_FW_EQ_ETH_CMD_HOSTFCMODE(X_HOSTFCMODE_NONE) |
-		V_FW_EQ_ETH_CMD_PCIECHN(pi->tx_chan) | F_FW_EQ_ETH_CMD_FETCHRO |
+		V_FW_EQ_ETH_CMD_PCIECHN(vi->pi->tx_chan) | F_FW_EQ_ETH_CMD_FETCHRO |
 		V_FW_EQ_ETH_CMD_IQID(sc->sge.nm_rxq[nm_txq->iqidx].iq_cntxt_id));
 	c.dcaen_to_eqsize = htobe32(V_FW_EQ_ETH_CMD_FBMIN(X_FETCHBURSTMIN_64B) |
 		      V_FW_EQ_ETH_CMD_FBMAX(X_FETCHBURSTMAX_512B) |
@@ -363,7 +281,7 @@ alloc_nm_txq_hwq(struct port_info *pi, struct sge_nm_txq *nm_txq)
 
 	rc = -t4_wr_mbox(sc, sc->mbox, &c, sizeof(c), &c);
 	if (rc != 0) {
-		device_printf(pi->dev,
+		device_printf(vi->dev,
 		    "failed to create netmap egress queue: %d\n", rc);
 		return (rc);
 	}
@@ -383,7 +301,7 @@ alloc_nm_txq_hwq(struct port_info *pi, struct sge_nm_txq *nm_txq)
 	if (isset(&nm_txq->doorbells, DOORBELL_UDB) ||
 	    isset(&nm_txq->doorbells, DOORBELL_UDBWC) ||
 	    isset(&nm_txq->doorbells, DOORBELL_WCWR)) {
-		uint32_t s_qpp = sc->sge.eq_s_qpp;
+		uint32_t s_qpp = sc->params.sge.eq_s_qpp;
 		uint32_t mask = (1 << s_qpp) - 1;
 		volatile uint8_t *udb;
 
@@ -403,32 +321,33 @@ alloc_nm_txq_hwq(struct port_info *pi, struct sge_nm_txq *nm_txq)
 }
 
 static int
-free_nm_txq_hwq(struct port_info *pi, struct sge_nm_txq *nm_txq)
+free_nm_txq_hwq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
 {
-	struct adapter *sc = pi->adapter;
+	struct adapter *sc = vi->pi->adapter;
 	int rc;
 
 	rc = -t4_eth_eq_free(sc, sc->mbox, sc->pf, 0, nm_txq->cntxt_id);
 	if (rc != 0)
 		device_printf(sc->dev, "%s: failed for eq %d: %d\n", __func__,
 		    nm_txq->cntxt_id, rc);
+	nm_txq->cntxt_id = INVALID_NM_TXQ_CNTXT_ID;
 	return (rc);
 }
 
 static int
-cxgbe_netmap_on(struct adapter *sc, struct port_info *pi, struct ifnet *ifp,
+cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
     struct netmap_adapter *na)
 {
 	struct netmap_slot *slot;
+	struct netmap_kring *kring;
 	struct sge_nm_rxq *nm_rxq;
 	struct sge_nm_txq *nm_txq;
-	int rc, i, j, hwidx;
+	int rc, i, j, hwidx, defq, nrssq;
 	struct hw_buf_info *hwb;
-	uint16_t *rss;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
-	if ((pi->flags & PORT_INIT_DONE) == 0 ||
+	if ((vi->flags & VI_INIT_DONE) == 0 ||
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return (EAGAIN);
 
@@ -447,8 +366,13 @@ cxgbe_netmap_on(struct adapter *sc, struct port_info *pi, struct ifnet *ifp,
 	/* Must set caps before calling netmap_reset */
 	nm_set_native_flags(na);
 
-	for_each_nm_rxq(pi, i, nm_rxq) {
-		alloc_nm_rxq_hwq(pi, nm_rxq);
+	for_each_nm_rxq(vi, i, nm_rxq) {
+		kring = na->rx_rings[nm_rxq->nid];
+		if (!nm_kring_pending_on(kring) ||
+		    nm_rxq->iq_cntxt_id != INVALID_NM_RXQ_CNTXT_ID)
+			continue;
+
+		alloc_nm_rxq_hwq(vi, nm_rxq, tnl_cong(vi->pi, nm_cong_drop));
 		nm_rxq->fl_hwidx = hwidx;
 		slot = netmap_reset(na, NR_RX, i, 0);
 		MPASS(slot != NULL);	/* XXXNM: error check, not assert */
@@ -456,73 +380,158 @@ cxgbe_netmap_on(struct adapter *sc, struct port_info *pi, struct ifnet *ifp,
 		/* We deal with 8 bufs at a time */
 		MPASS((na->num_rx_desc & 7) == 0);
 		MPASS(na->num_rx_desc == nm_rxq->fl_sidx);
-		for (j = 0; j < nm_rxq->fl_sidx - 8; j++) {
+		for (j = 0; j < nm_rxq->fl_sidx; j++) {
 			uint64_t ba;
 
 			PNMB(na, &slot[j], &ba);
+			MPASS(ba != 0);
 			nm_rxq->fl_desc[j] = htobe64(ba | hwidx);
 		}
-		nm_rxq->fl_pidx = j;
+		j = nm_rxq->fl_pidx = nm_rxq->fl_sidx - 8;
 		MPASS((j & 7) == 0);
 		j /= 8;	/* driver pidx to hardware pidx */
 		wmb();
-		t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL),
+		t4_write_reg(sc, sc->sge_kdoorbell_reg,
 		    nm_rxq->fl_db_val | V_PIDX(j));
+
+		(void) atomic_cmpset_int(&nm_rxq->nm_state, NM_OFF, NM_ON);
 	}
 
-	for_each_nm_txq(pi, i, nm_txq) {
-		alloc_nm_txq_hwq(pi, nm_txq);
+	for_each_nm_txq(vi, i, nm_txq) {
+		kring = na->tx_rings[nm_txq->nid];
+		if (!nm_kring_pending_on(kring) ||
+		    nm_txq->cntxt_id != INVALID_NM_TXQ_CNTXT_ID)
+			continue;
+
+		alloc_nm_txq_hwq(vi, nm_txq);
 		slot = netmap_reset(na, NR_TX, i, 0);
 		MPASS(slot != NULL);	/* XXXNM: error check, not assert */
 	}
 
-	rss = malloc(pi->nm_rss_size * sizeof (*rss), M_CXGBE, M_ZERO |
-	    M_WAITOK);
-	for (i = 0; i < pi->nm_rss_size;) {
-		for_each_nm_rxq(pi, j, nm_rxq) {
-			rss[i++] = nm_rxq->iq_abs_id;
-			if (i == pi->nm_rss_size)
-				break;
+	if (vi->nm_rss == NULL) {
+		vi->nm_rss = malloc(vi->rss_size * sizeof(uint16_t), M_CXGBE,
+		    M_ZERO | M_WAITOK);
+	}
+
+	MPASS(vi->nnmrxq > 0);
+	if (nm_split_rss == 0 || vi->nnmrxq == 1) {
+		for (i = 0; i < vi->rss_size;) {
+			for_each_nm_rxq(vi, j, nm_rxq) {
+				vi->nm_rss[i++] = nm_rxq->iq_abs_id;
+				if (i == vi->rss_size)
+					break;
+			}
+		}
+		defq = vi->nm_rss[0];
+	} else {
+		/* We have multiple queues and we want to split the table. */
+		MPASS(nm_split_rss != 0);
+		MPASS(vi->nnmrxq > 1);
+
+		nm_rxq = &sc->sge.nm_rxq[vi->first_nm_rxq];
+		nrssq = vi->nnmrxq;
+		if (vi->nnmrxq & 1) {
+			/*
+			 * Odd number of queues. The first rxq is designated the
+			 * default queue, the rest are split evenly.
+			 */
+			defq = nm_rxq->iq_abs_id;
+			nm_rxq++;
+			nrssq--;
+		} else {
+			/*
+			 * Even number of queues split into two halves.  The
+			 * first rxq in one of the halves is designated the
+			 * default queue.
+			 */
+#if 1
+			/* First rxq in the first half. */
+			defq = nm_rxq->iq_abs_id;
+#else
+			/* First rxq in the second half. */
+			defq = nm_rxq[vi->nnmrxq / 2].iq_abs_id;
+#endif
+		}
+
+		i = 0;
+		while (i < vi->rss_size / 2) {
+			for (j = 0; j < nrssq / 2; j++) {
+				vi->nm_rss[i++] = nm_rxq[j].iq_abs_id;
+				if (i == vi->rss_size / 2)
+					break;
+			}
+		}
+		while (i < vi->rss_size) {
+			for (j = nrssq / 2; j < nrssq; j++) {
+				vi->nm_rss[i++] = nm_rxq[j].iq_abs_id;
+				if (i == vi->rss_size)
+					break;
+			}
 		}
 	}
-	rc = -t4_config_rss_range(sc, sc->mbox, pi->nm_viid, 0, pi->nm_rss_size,
-	    rss, pi->nm_rss_size);
+	rc = -t4_config_rss_range(sc, sc->mbox, vi->viid, 0, vi->rss_size,
+	    vi->nm_rss, vi->rss_size);
 	if (rc != 0)
 		if_printf(ifp, "netmap rss_config failed: %d\n", rc);
-	free(rss, M_CXGBE);
 
-	rc = -t4_enable_vi(sc, sc->mbox, pi->nm_viid, true, true);
+	rc = -t4_config_vi_rss(sc, sc->mbox, vi->viid, vi->hashen, defq, 0, 0);
 	if (rc != 0)
-		if_printf(ifp, "netmap enable_vi failed: %d\n", rc);
+		if_printf(ifp, "netmap rss hash/defaultq config failed: %d\n", rc);
 
 	return (rc);
 }
 
 static int
-cxgbe_netmap_off(struct adapter *sc, struct port_info *pi, struct ifnet *ifp,
+cxgbe_netmap_off(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
     struct netmap_adapter *na)
 {
+	struct netmap_kring *kring;
 	int rc, i;
 	struct sge_nm_txq *nm_txq;
 	struct sge_nm_rxq *nm_rxq;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
-	rc = -t4_enable_vi(sc, sc->mbox, pi->nm_viid, false, false);
+	if ((vi->flags & VI_INIT_DONE) == 0)
+		return (0);
+
+	rc = -t4_config_rss_range(sc, sc->mbox, vi->viid, 0, vi->rss_size,
+	    vi->rss, vi->rss_size);
 	if (rc != 0)
-		if_printf(ifp, "netmap disable_vi failed: %d\n", rc);
+		if_printf(ifp, "failed to restore RSS config: %d\n", rc);
+	rc = -t4_config_vi_rss(sc, sc->mbox, vi->viid, vi->hashen, vi->rss[0], 0, 0);
+	if (rc != 0)
+		if_printf(ifp, "failed to restore RSS hash/defaultq: %d\n", rc);
 	nm_clear_native_flags(na);
 
-	/*
-	 * XXXNM: We need to make sure that the tx queues are quiet and won't
-	 * request any more SGE_EGR_UPDATEs.
-	 */
+	for_each_nm_txq(vi, i, nm_txq) {
+		struct sge_qstat *spg = (void *)&nm_txq->desc[nm_txq->sidx];
 
-	for_each_nm_txq(pi, i, nm_txq) {
-		free_nm_txq_hwq(pi, nm_txq);
+		kring = na->tx_rings[nm_txq->nid];
+		if (!nm_kring_pending_off(kring) ||
+		    nm_txq->cntxt_id == INVALID_NM_TXQ_CNTXT_ID)
+			continue;
+
+		/* Wait for hw pidx to catch up ... */
+		while (be16toh(nm_txq->pidx) != spg->pidx)
+			pause("nmpidx", 1);
+
+		/* ... and then for the cidx. */
+		while (spg->pidx != spg->cidx)
+			pause("nmcidx", 1);
+
+		free_nm_txq_hwq(vi, nm_txq);
 	}
-	for_each_nm_rxq(pi, i, nm_rxq) {
-		free_nm_rxq_hwq(pi, nm_rxq);
+	for_each_nm_rxq(vi, i, nm_rxq) {
+		kring = na->rx_rings[nm_rxq->nid];
+		if (!nm_kring_pending_off(kring) ||
+		    nm_rxq->iq_cntxt_id == INVALID_NM_RXQ_CNTXT_ID)
+			continue;
+
+		while (!atomic_cmpset_int(&nm_rxq->nm_state, NM_ON, NM_OFF))
+			pause("nmst", 1);
+
+		free_nm_rxq_hwq(vi, nm_rxq);
 	}
 
 	return (rc);
@@ -532,17 +541,17 @@ static int
 cxgbe_netmap_reg(struct netmap_adapter *na, int on)
 {
 	struct ifnet *ifp = na->ifp;
-	struct port_info *pi = ifp->if_softc;
-	struct adapter *sc = pi->adapter;
+	struct vi_info *vi = ifp->if_softc;
+	struct adapter *sc = vi->pi->adapter;
 	int rc;
 
-	rc = begin_synchronized_op(sc, pi, SLEEP_OK | INTR_OK, "t4nmreg");
+	rc = begin_synchronized_op(sc, vi, SLEEP_OK | INTR_OK, "t4nmreg");
 	if (rc != 0)
 		return (rc);
 	if (on)
-		rc = cxgbe_netmap_on(sc, pi, ifp, na);
+		rc = cxgbe_netmap_on(sc, vi, ifp, na);
 	else
-		rc = cxgbe_netmap_off(sc, pi, ifp, na);
+		rc = cxgbe_netmap_off(sc, vi, ifp, na);
 	end_synchronized_op(sc, 0);
 
 	return (rc);
@@ -626,14 +635,12 @@ ring_nm_txq_db(struct adapter *sc, struct sge_nm_txq *nm_txq)
 		break;
 
 	case DOORBELL_KDB:
-		t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL),
+		t4_write_reg(sc, sc->sge_kdoorbell_reg,
 		    V_QID(nm_txq->cntxt_id) | V_PIDX(n));
 		break;
 	}
 	nm_txq->dbidx = nm_txq->pidx;
 }
-
-int lazy_tx_credit_flush = 1;
 
 /*
  * Write work requests to send 'npkt' frames and ring the doorbell to send them
@@ -641,7 +648,7 @@ int lazy_tx_credit_flush = 1;
  */
 static void
 cxgbe_nm_tx(struct adapter *sc, struct sge_nm_txq *nm_txq,
-    struct netmap_kring *kring, int npkt, int npkt_remaining)
+    struct netmap_kring *kring, int npkt, int npkt_remaining, int txcsum)
 {
 	struct netmap_ring *ring = kring->ring;
 	struct netmap_slot *slot;
@@ -668,6 +675,7 @@ cxgbe_nm_tx(struct adapter *sc, struct sge_nm_txq *nm_txq,
 		for (i = 0; i < n; i++) {
 			slot = &ring->slot[kring->nr_hwcur];
 			PNMB(kring->na, slot, &ba);
+			MPASS(ba != 0);
 
 			cpl->ctrl0 = nm_txq->cpl_ctrl0;
 			cpl->pack = 0;
@@ -677,10 +685,12 @@ cxgbe_nm_tx(struct adapter *sc, struct sge_nm_txq *nm_txq,
 			 * checksum offloading, TCP segmentation offloading,
 			 * encryption, VLAN encapsulation/decapsulation, etc."
 			 *
-			 * XXXNM: it makes sense to enable checksum offload.
+			 * So the ncxl interfaces have tx hardware checksumming
+			 * disabled by default.  But you can override netmap by
+			 * enabling IFCAP_TXCSUM on the interface manully.
 			 */
-			cpl->ctrl1 = htobe64(F_TXPKT_IPCSUM_DIS |
-			    F_TXPKT_L4CSUM_DIS);
+			cpl->ctrl1 = txcsum ? 0 :
+			    htobe64(F_TXPKT_IPCSUM_DIS | F_TXPKT_L4CSUM_DIS);
 
 			usgl = (void *)(cpl + 1);
 			usgl->cmd_nsge = htobe32(V_ULPTX_CMD(ULP_TX_SC_DSGL) |
@@ -788,12 +798,12 @@ cxgbe_netmap_txsync(struct netmap_kring *kring, int flags)
 {
 	struct netmap_adapter *na = kring->na;
 	struct ifnet *ifp = na->ifp;
-	struct port_info *pi = ifp->if_softc;
-	struct adapter *sc = pi->adapter;
-	struct sge_nm_txq *nm_txq = &sc->sge.nm_txq[pi->first_nm_txq + kring->ring_id];
+	struct vi_info *vi = ifp->if_softc;
+	struct adapter *sc = vi->pi->adapter;
+	struct sge_nm_txq *nm_txq = &sc->sge.nm_txq[vi->first_nm_txq + kring->ring_id];
 	const u_int head = kring->rhead;
 	u_int reclaimed = 0;
-	int n, d, npkt_remaining, ndesc_remaining;
+	int n, d, npkt_remaining, ndesc_remaining, txcsum;
 
 	/*
 	 * Tx was at kring->nr_hwcur last time around and now we need to advance
@@ -804,6 +814,7 @@ cxgbe_netmap_txsync(struct netmap_kring *kring, int flags)
 
 	npkt_remaining = head >= kring->nr_hwcur ? head - kring->nr_hwcur :
 	    kring->nkr_num_slots - kring->nr_hwcur + head;
+	txcsum = ifp->if_capenable & (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
 	while (npkt_remaining) {
 		reclaimed += reclaim_nm_tx_desc(nm_txq);
 		ndesc_remaining = contiguous_ndesc_available(nm_txq);
@@ -827,7 +838,7 @@ cxgbe_netmap_txsync(struct netmap_kring *kring, int flags)
 
 		/* Send n packets and update nm_txq->pidx and kring->nr_hwcur */
 		npkt_remaining -= n;
-		cxgbe_nm_tx(sc, nm_txq, kring, n, npkt_remaining);
+		cxgbe_nm_tx(sc, nm_txq, kring, n, npkt_remaining, txcsum);
 	}
 	MPASS(npkt_remaining == 0);
 	MPASS(kring->nr_hwcur == head);
@@ -843,8 +854,6 @@ cxgbe_netmap_txsync(struct netmap_kring *kring, int flags)
 			kring->nr_hwtail -= kring->nkr_num_slots;
 	}
 
-	nm_txsync_finalize(kring);
-
 	return (0);
 }
 
@@ -854,16 +863,26 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 	struct netmap_adapter *na = kring->na;
 	struct netmap_ring *ring = kring->ring;
 	struct ifnet *ifp = na->ifp;
-	struct port_info *pi = ifp->if_softc;
-	struct adapter *sc = pi->adapter;
-	struct sge_nm_rxq *nm_rxq = &sc->sge.nm_rxq[pi->first_nm_rxq + kring->ring_id];
-	u_int const head = nm_rxsync_prologue(kring);
+	struct vi_info *vi = ifp->if_softc;
+	struct adapter *sc = vi->pi->adapter;
+	struct sge_nm_rxq *nm_rxq = &sc->sge.nm_rxq[vi->first_nm_rxq + kring->ring_id];
+	u_int const head = kring->rhead;
 	u_int n;
 	int force_update = (flags & NAF_FORCE_READ) || kring->nr_kflags & NKR_PENDINTR;
+
+	if (black_hole)
+		return (0);	/* No updates ever. */
 
 	if (netmap_no_pendintr || force_update) {
 		kring->nr_hwtail = atomic_load_acq_32(&nm_rxq->fl_cidx);
 		kring->nr_kflags &= ~NKR_PENDINTR;
+	}
+
+	if (nm_rxq->fl_db_saved > 0 && starve_fl == 0) {
+		wmb();
+		t4_write_reg(sc, sc->sge_kdoorbell_reg,
+		    nm_rxq->fl_db_val | V_PIDX(nm_rxq->fl_db_saved));
+		nm_rxq->fl_db_saved = 0;
 	}
 
 	/* Userspace done with buffers from kring->nr_hwcur to head */
@@ -890,6 +909,7 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 		while (n > 0) {
 			for (i = 0; i < 8; i++, fl_pidx++, slot++) {
 				PNMB(na, slot, &ba);
+				MPASS(ba != 0);
 				nm_rxq->fl_desc[fl_pidx] = htobe64(ba | hwidx);
 				slot->flags &= ~NS_BUF_CHANGED;
 				MPASS(fl_pidx <= nm_rxq->fl_sidx);
@@ -901,8 +921,12 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 			}
 			if (++dbinc == 8 && n >= 32) {
 				wmb();
-				t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL),
-				    nm_rxq->fl_db_val | V_PIDX(dbinc));
+				if (starve_fl)
+					nm_rxq->fl_db_saved += dbinc;
+				else {
+					t4_write_reg(sc, sc->sge_kdoorbell_reg,
+					    nm_rxq->fl_db_val | V_PIDX(dbinc));
+				}
 				dbinc = 0;
 			}
 		}
@@ -910,93 +934,38 @@ cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 
 		if (dbinc > 0) {
 			wmb();
-			t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL),
-			    nm_rxq->fl_db_val | V_PIDX(dbinc));
+			if (starve_fl)
+				nm_rxq->fl_db_saved += dbinc;
+			else {
+				t4_write_reg(sc, sc->sge_kdoorbell_reg,
+				    nm_rxq->fl_db_val | V_PIDX(dbinc));
+			}
 		}
 	}
-
-	nm_rxsync_finalize(kring);
 
 	return (0);
 }
 
-/*
- * Create an ifnet solely for netmap use and register it with the kernel.
- */
-int
-create_netmap_ifnet(struct port_info *pi)
+void
+cxgbe_nm_attach(struct vi_info *vi)
 {
-	struct adapter *sc = pi->adapter;
+	struct port_info *pi;
+	struct adapter *sc;
 	struct netmap_adapter na;
-	struct ifnet *ifp;
-	device_t dev = pi->dev;
-	uint8_t mac[ETHER_ADDR_LEN];
-	int rc;
 
-	if (pi->nnmtxq <= 0 || pi->nnmrxq <= 0)
-		return (0);
-	MPASS(pi->nm_ifp == NULL);
+	MPASS(vi->nnmrxq > 0);
+	MPASS(vi->ifp != NULL);
 
-	/*
-	 * Allocate a virtual interface exclusively for netmap use.  Give it the
-	 * MAC address normally reserved for use by a TOE interface.  (The TOE
-	 * driver on FreeBSD doesn't use it).
-	 */
-	rc = t4_alloc_vi_func(sc, sc->mbox, pi->tx_chan, sc->pf, 0, 1, &mac[0],
-	    &pi->nm_rss_size, FW_VI_FUNC_OFLD, 0);
-	if (rc < 0) {
-		device_printf(dev, "unable to allocate netmap virtual "
-		    "interface for port %d: %d\n", pi->port_id, -rc);
-		return (-rc);
-	}
-	pi->nm_viid = rc;
-	pi->nm_xact_addr_filt = -1;
+	pi = vi->pi;
+	sc = pi->adapter;
 
-	ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "Cannot allocate netmap ifnet\n");
-		return (ENOMEM);
-	}
-	pi->nm_ifp = ifp;
-	ifp->if_softc = pi;
-
-	if_initname(ifp, is_t4(pi->adapter) ? "ncxgbe" : "ncxl",
-	    device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-
-	ifp->if_init = cxgbe_nm_init;
-	ifp->if_ioctl = cxgbe_nm_ioctl;
-	ifp->if_transmit = cxgbe_nm_transmit;
-	ifp->if_qflush = cxgbe_nm_qflush;
-
-	/*
-	 * netmap(4) says "netmap does not use features such as checksum
-	 * offloading, TCP segmentation offloading, encryption, VLAN
-	 * encapsulation/decapsulation, etc."
-	 *
-	 * By default we comply with the statement above.  But we do declare the
-	 * ifnet capable of L3/L4 checksumming so that a user can override
-	 * netmap and have the hardware do the L3/L4 checksums.
-	 */
-	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_JUMBO_MTU |
-	    IFCAP_HWCSUM_IPV6;
-	ifp->if_capenable = 0;
-	ifp->if_hwassist = 0;
-
-	/* nm_media has already been setup by the caller */
-
-	ether_ifattach(ifp, mac);
-
-	/*
-	 * Register with netmap in the kernel.
-	 */
 	bzero(&na, sizeof(na));
 
-	na.ifp = pi->nm_ifp;
+	na.ifp = vi->ifp;
 	na.na_flags = NAF_BDG_MAYSLEEP;
 
 	/* Netmap doesn't know about the space reserved for the status page. */
-	na.num_tx_desc = pi->qsize_txq - spg_len / EQ_ESIZE;
+	na.num_tx_desc = vi->qsize_txq - sc->params.sge.spg_len / EQ_ESIZE;
 
 	/*
 	 * The freelist's cidx/pidx drives netmap's rx cidx/pidx.  So
@@ -1004,47 +973,42 @@ create_netmap_ifnet(struct port_info *pi)
 	 * freelist, and not the number of entries in the iq.  (These two are
 	 * not exactly the same due to the space taken up by the status page).
 	 */
-	na.num_rx_desc = (pi->qsize_rxq / 8) * 8;
+	na.num_rx_desc = rounddown(vi->qsize_rxq, 8);
 	na.nm_txsync = cxgbe_netmap_txsync;
 	na.nm_rxsync = cxgbe_netmap_rxsync;
 	na.nm_register = cxgbe_netmap_reg;
-	na.num_tx_rings = pi->nnmtxq;
-	na.num_rx_rings = pi->nnmrxq;
-	netmap_attach(&na);	/* This adds IFCAP_NETMAP to if_capabilities */
-
-	return (0);
+	na.num_tx_rings = vi->nnmtxq;
+	na.num_rx_rings = vi->nnmrxq;
+	netmap_attach(&na);
 }
 
-int
-destroy_netmap_ifnet(struct port_info *pi)
+void
+cxgbe_nm_detach(struct vi_info *vi)
 {
-	struct adapter *sc = pi->adapter;
 
-	if (pi->nm_ifp == NULL)
-		return (0);
+	MPASS(vi->nnmrxq > 0);
+	MPASS(vi->ifp != NULL);
 
-	netmap_detach(pi->nm_ifp);
-	ifmedia_removeall(&pi->nm_media);
-	ether_ifdetach(pi->nm_ifp);
-	if_free(pi->nm_ifp);
-	t4_free_vi(sc, sc->mbox, sc->pf, 0, pi->nm_viid);
+	netmap_detach(vi->ifp);
+}
 
-	return (0);
+static inline const void *
+unwrap_nm_fw6_msg(const struct cpl_fw6_msg *cpl)
+{
+
+	MPASS(cpl->type == FW_TYPE_RSSCPL || cpl->type == FW6_TYPE_RSSCPL);
+
+	/* data[0] is RSS header */
+	return (&cpl->data[1]);
 }
 
 static void
-handle_nm_fw6_msg(struct adapter *sc, struct ifnet *ifp,
-    const struct cpl_fw6_msg *cpl)
+handle_nm_sge_egr_update(struct adapter *sc, struct ifnet *ifp,
+    const struct cpl_sge_egr_update *egr)
 {
-	const struct cpl_sge_egr_update *egr;
 	uint32_t oq;
 	struct sge_nm_txq *nm_txq;
 
-	if (cpl->type != FW_TYPE_RSSCPL && cpl->type != FW6_TYPE_RSSCPL)
-		panic("%s: FW_TYPE 0x%x on nm_rxq.", __func__, cpl->type);
-
-	/* data[0] is RSS header */
-	egr = (const void *)&cpl->data[1];
 	oq = be32toh(egr->opcode_qid);
 	MPASS(G_CPL_OPCODE(oq) == CPL_SGE_EGR_UPDATE);
 	nm_txq = (void *)sc->sge.eqmap[G_EGR_QID(oq) - sc->sge.eq_start];
@@ -1053,21 +1017,23 @@ handle_nm_fw6_msg(struct adapter *sc, struct ifnet *ifp,
 }
 
 void
-t4_nm_intr(void *arg)
+service_nm_rxq(struct sge_nm_rxq *nm_rxq)
 {
-	struct sge_nm_rxq *nm_rxq = arg;
-	struct port_info *pi = nm_rxq->pi;
-	struct adapter *sc = pi->adapter;
-	struct ifnet *ifp = pi->nm_ifp;
+	struct vi_info *vi = nm_rxq->vi;
+	struct adapter *sc = vi->pi->adapter;
+	struct ifnet *ifp = vi->ifp;
 	struct netmap_adapter *na = NA(ifp);
-	struct netmap_kring *kring = &na->rx_rings[nm_rxq->nid];
+	struct netmap_kring *kring = na->rx_rings[nm_rxq->nid];
 	struct netmap_ring *ring = kring->ring;
 	struct iq_desc *d = &nm_rxq->iq_desc[nm_rxq->iq_cidx];
+	const void *cpl;
 	uint32_t lq;
-	u_int n = 0;
-	int processed = 0;
+	u_int work = 0;
 	uint8_t opcode;
 	uint32_t fl_cidx = atomic_load_acq_32(&nm_rxq->fl_cidx);
+	u_int fl_credits = fl_cidx & 7;
+	u_int ndesc = 0;	/* desc processed since last cidx update */
+	u_int nframes = 0;	/* frames processed since last netmap wakeup */
 
 	while ((d->rsp.u.type_gen & F_RSPD_GEN) == nm_rxq->iq_gen) {
 
@@ -1075,11 +1041,10 @@ t4_nm_intr(void *arg)
 
 		lq = be32toh(d->rsp.pldbuflen_qid);
 		opcode = d->rss.opcode;
+		cpl = &d->cpl[0];
 
 		switch (G_RSPD_TYPE(d->rsp.u.type_gen)) {
 		case X_RSPD_TYPE_FLBUF:
-			/* No buffer packing so new buf every time */
-			MPASS(lq & F_RSPD_NEWBUF);
 
 			/* fall through */
 
@@ -1089,12 +1054,21 @@ t4_nm_intr(void *arg)
 			switch (opcode) {
 			case CPL_FW4_MSG:
 			case CPL_FW6_MSG:
-				handle_nm_fw6_msg(sc, ifp,
-				    (const void *)&d->cpl[0]);
+				cpl = unwrap_nm_fw6_msg(cpl);
+				/* fall through */
+			case CPL_SGE_EGR_UPDATE:
+				handle_nm_sge_egr_update(sc, ifp, cpl);
 				break;
 			case CPL_RX_PKT:
-				ring->slot[fl_cidx].len = G_RSPD_LEN(lq) - fl_pktshift;
-				ring->slot[fl_cidx].flags = kring->nkr_slot_flags;
+				ring->slot[fl_cidx].len = G_RSPD_LEN(lq) -
+				    sc->params.sge.fl_pktshift;
+				ring->slot[fl_cidx].flags = 0;
+				nframes++;
+				if (!(lq & F_RSPD_NEWBUF)) {
+					MPASS(black_hole == 2);
+					break;
+				}
+				fl_credits++;
 				if (__predict_false(++fl_cidx == nm_rxq->fl_sidx))
 					fl_cidx = 0;
 				break;
@@ -1121,18 +1095,40 @@ t4_nm_intr(void *arg)
 			nm_rxq->iq_gen ^= F_RSPD_GEN;
 		}
 
-		if (__predict_false(++n == 64)) {	/* XXXNM: tune */
-			t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
-			    V_CIDXINC(n) | V_INGRESSQID(nm_rxq->iq_cntxt_id) |
+		if (__predict_false(++nframes == rx_nframes) && !black_hole) {
+			atomic_store_rel_32(&nm_rxq->fl_cidx, fl_cidx);
+			netmap_rx_irq(ifp, nm_rxq->nid, &work);
+			nframes = 0;
+		}
+
+		if (__predict_false(++ndesc == rx_ndesc)) {
+			if (black_hole && fl_credits >= 8) {
+				fl_credits /= 8;
+				IDXINCR(nm_rxq->fl_pidx, fl_credits * 8,
+				    nm_rxq->fl_sidx);
+				t4_write_reg(sc, sc->sge_kdoorbell_reg,
+				    nm_rxq->fl_db_val | V_PIDX(fl_credits));
+				fl_credits = fl_cidx & 7;
+			}
+			t4_write_reg(sc, sc->sge_gts_reg,
+			    V_CIDXINC(ndesc) |
+			    V_INGRESSQID(nm_rxq->iq_cntxt_id) |
 			    V_SEINTARM(V_QINTR_TIMER_IDX(X_TIMERREG_UPDATE_CIDX)));
-			n = 0;
+			ndesc = 0;
 		}
 	}
-	if (fl_cidx != nm_rxq->fl_cidx) {
-		atomic_store_rel_32(&nm_rxq->fl_cidx, fl_cidx);
-		netmap_rx_irq(ifp, nm_rxq->nid, &processed);
-	}
-	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_CIDXINC(n) |
-	    V_INGRESSQID((u32)nm_rxq->iq_cntxt_id) | V_SEINTARM(F_QINTR_CNT_EN));
+
+	atomic_store_rel_32(&nm_rxq->fl_cidx, fl_cidx);
+	if (black_hole) {
+		fl_credits /= 8;
+		IDXINCR(nm_rxq->fl_pidx, fl_credits * 8, nm_rxq->fl_sidx);
+		t4_write_reg(sc, sc->sge_kdoorbell_reg,
+		    nm_rxq->fl_db_val | V_PIDX(fl_credits));
+	} else if (nframes > 0)
+		netmap_rx_irq(ifp, nm_rxq->nid, &work);
+
+    	t4_write_reg(sc, sc->sge_gts_reg, V_CIDXINC(ndesc) |
+	    V_INGRESSQID((u32)nm_rxq->iq_cntxt_id) |
+	    V_SEINTARM(V_QINTR_TIMER_IDX(holdoff_tmr_idx)));
 }
 #endif

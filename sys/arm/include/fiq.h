@@ -1,6 +1,8 @@
 /*	$NetBSD: fiq.h,v 1.1 2001/12/20 01:20:23 thorpej Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001 Wasabi Systems, Inc.
  * All rights reserved.
  *

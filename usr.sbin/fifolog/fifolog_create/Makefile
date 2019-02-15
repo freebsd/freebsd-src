@@ -2,10 +2,9 @@
 
 PROG=	fifolog_create
 
-CFLAGS+= -I${.CURDIR}/../lib
+CFLAGS+= -I${.CURDIR:H}/lib
 
-DPADD=	${LIBFIFOLOG} ${LIBUTIL}
-LDADD=	${LIBFIFOLOG} -lutil
+LIBADD=	util fifolog
 
 MAN=	fifolog.1
 MLINKS=	fifolog.1 fifolog_create.1 \

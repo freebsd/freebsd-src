@@ -1,5 +1,3 @@
-/* $Id: audit.c,v 1.6 2011/01/17 10:15:30 dtucker Exp $ */
-
 /*
  * Copyright (c) 2004, 2005 Darren Tucker.  All rights reserved.
  *
@@ -28,12 +26,12 @@
 
 #include <stdarg.h>
 #include <string.h>
+#include <unistd.h>
 
 #ifdef SSH_AUDIT_EVENTS
 
 #include "audit.h"
 #include "log.h"
-#include "key.h"
 #include "hostfile.h"
 #include "auth.h"
 

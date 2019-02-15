@@ -83,6 +83,10 @@ using selected addresses 'a:b:c'. This option is available only when "-s" is
 used.
 .It Fl o Ar offset
 offset within the device for data transfer (hex).
+The default is zero.
+Use
+.Dq -w 0
+to disable writing of the offset to the slave.
 .It Fl r
 reset the controller.
 .It Fl s
@@ -91,6 +95,12 @@ scan the bus for devices.
 be verbose.
 .It Fl w Ar 0|8|16
 device addressing width (in bits).
+This is used to determine how to pass
+.Ar offset
+specified with
+.Fl o
+to the slave.
+Zero means that the offset is ignored and not passed to the slave at all.
 .El
 .Sh WARNINGS
 Great care must be taken when manipulating slave I2C devices with the

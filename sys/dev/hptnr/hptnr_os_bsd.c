@@ -1,5 +1,7 @@
 /* $Id: os_bsd.c,v 1.13 2010/05/11 03:12:11 lcn Exp $ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * HighPoint RAID Driver for FreeBSD
  * Copyright (C) 2005-2011 HighPoint Technologies, Inc. All Rights Reserved.
  * All rights reserved.
@@ -106,13 +108,13 @@ void *os_map_pci_bar(
 
 	if (base & 1) {
 		hba->pcibar[index].type = SYS_RES_IOPORT;
-		hba->pcibar[index].res = bus_alloc_resource(hba->pcidev,
-			hba->pcibar[index].type, &hba->pcibar[index].rid, 0, ~0, length, RF_ACTIVE);
+		hba->pcibar[index].res = bus_alloc_resource_any(hba->pcidev,
+			hba->pcibar[index].type, &hba->pcibar[index].rid, RF_ACTIVE);
 		hba->pcibar[index].base = (void *)(unsigned long)(base & ~0x1);
 	} else {
 		hba->pcibar[index].type = SYS_RES_MEMORY;
-		hba->pcibar[index].res = bus_alloc_resource(hba->pcidev,
-			hba->pcibar[index].type, &hba->pcibar[index].rid, 0, ~0, length, RF_ACTIVE);
+		hba->pcibar[index].res = bus_alloc_resource_any(hba->pcidev,
+			hba->pcibar[index].type, &hba->pcibar[index].rid, RF_ACTIVE);
 		hba->pcibar[index].base = (char *)rman_get_virtual(hba->pcibar[index].res) + offset;
 	}
 
@@ -235,8 +237,8 @@ void  os_request_timer(void * osext, HPT_U32 interval)
 
 	HPT_ASSERT(vbus_ext->ext_type==EXT_TYPE_VBUS);
 
-	callout_reset(&vbus_ext->timer, interval * hz / 1000000,
-	    os_timer_for_ldm, vbus_ext);
+	callout_reset_sbt(&vbus_ext->timer, SBT_1US * interval, 0,
+	    os_timer_for_ldm, vbus_ext, 0);
 }
 
 HPT_TIME os_query_time(void)

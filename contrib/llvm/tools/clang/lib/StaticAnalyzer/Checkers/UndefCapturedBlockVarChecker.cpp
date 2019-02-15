@@ -27,7 +27,7 @@ using namespace ento;
 namespace {
 class UndefCapturedBlockVarChecker
   : public Checker< check::PostStmt<BlockExpr> > {
- mutable OwningPtr<BugType> BT;
+  mutable std::unique_ptr<BugType> BT;
 
 public:
   void checkPostStmt(const BlockExpr *BE, CheckerContext &C) const;
@@ -40,15 +40,12 @@ static const DeclRefExpr *FindBlockDeclRefExpr(const Stmt *S,
     if (BR->getDecl() == VD)
       return BR;
 
-  for (Stmt::const_child_iterator I = S->child_begin(), E = S->child_end();
-       I!=E; ++I)
-    if (const Stmt *child = *I) {
-      const DeclRefExpr *BR = FindBlockDeclRefExpr(child, VD);
-      if (BR)
+  for (const Stmt *Child : S->children())
+    if (Child)
+      if (const DeclRefExpr *BR = FindBlockDeclRefExpr(Child, VD))
         return BR;
-    }
 
-  return NULL;
+  return nullptr;
 }
 
 void
@@ -71,31 +68,32 @@ UndefCapturedBlockVarChecker::checkPostStmt(const BlockExpr *BE,
     const VarRegion *VR = I.getCapturedRegion();
     const VarDecl *VD = VR->getDecl();
 
-    if (VD->getAttr<BlocksAttr>() || !VD->hasLocalStorage())
+    if (VD->hasAttr<BlocksAttr>() || !VD->hasLocalStorage())
       continue;
 
     // Get the VarRegion associated with VD in the local stack frame.
     if (Optional<UndefinedVal> V =
           state->getSVal(I.getOriginalRegion()).getAs<UndefinedVal>()) {
-      if (ExplodedNode *N = C.generateSink()) {
+      if (ExplodedNode *N = C.generateErrorNode()) {
         if (!BT)
-          BT.reset(new BuiltinBug("uninitialized variable captured by block"));
+          BT.reset(
+              new BuiltinBug(this, "uninitialized variable captured by block"));
 
         // Generate a bug report.
         SmallString<128> buf;
         llvm::raw_svector_ostream os(buf);
 
-        os << "Variable '" << VD->getName() 
+        os << "Variable '" << VD->getName()
            << "' is uninitialized when captured by block";
 
-        BugReport *R = new BugReport(*BT, os.str(), N);
+        auto R = llvm::make_unique<BugReport>(*BT, os.str(), N);
         if (const Expr *Ex = FindBlockDeclRefExpr(BE->getBody(), VD))
           R->addRange(Ex->getSourceRange());
-        R->addVisitor(new FindLastStoreBRVisitor(*V, VR,
-                                             /*EnableNullFPSuppression*/false));
+        R->addVisitor(llvm::make_unique<FindLastStoreBRVisitor>(
+            *V, VR, /*EnableNullFPSuppression*/ false));
         R->disablePathPruning();
         // need location of block
-        C.emitReport(R);
+        C.emitReport(std::move(R));
       }
     }
   }

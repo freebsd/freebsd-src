@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2003 Peter Wemm
  * Copyright (c) 1982, 1987, 1990 The Regents of the University of California.
  * All rights reserved.
@@ -14,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -33,8 +35,6 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/exec.h>
@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/cpufunc.h>
+#include <machine/trap.h>
 
 #ifdef COMPAT_FREEBSD4
 static void freebsd4_ia32_sendsig(sig_t, ksiginfo_t *, sigset_t *);
@@ -118,7 +119,7 @@ ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp,
 }
 
 static int
-ia32_set_fpcontext(struct thread *td, const struct ia32_mcontext *mcp,
+ia32_set_fpcontext(struct thread *td, struct ia32_mcontext *mcp,
     char *xfpustate, size_t xfpustate_len)
 {
 	int error;
@@ -197,7 +198,7 @@ ia32_get_mcontext(struct thread *td, struct ia32_mcontext *mcp, int flags)
  * touch the cs selector.
  */
 static int
-ia32_set_mcontext(struct thread *td, const struct ia32_mcontext *mcp)
+ia32_set_mcontext(struct thread *td, struct ia32_mcontext *mcp)
 {
 	struct trapframe *tp;
 	char *xfpustate;
@@ -354,15 +355,11 @@ ia32_osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct ia32_sigframe3 *)(td->td_sigstk.ss_sp +
+		fp = (struct ia32_sigframe3 *)((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size - sizeof(sf));
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	} else
 		fp = (struct ia32_sigframe3 *)regs->tf_rsp - 1;
-
-	/* Translate the signal if appropriate. */
-	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
-		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
 
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
@@ -492,15 +489,11 @@ freebsd4_ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sfp = (struct ia32_sigframe4 *)(td->td_sigstk.ss_sp +
+		sfp = (struct ia32_sigframe4 *)((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size - sizeof(sf));
 	} else
 		sfp = (struct ia32_sigframe4 *)regs->tf_rsp - 1;
 	PROC_UNLOCK(p);
-
-	/* Translate the signal if appropriate. */
-	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
-		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
 
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
@@ -630,7 +623,7 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig))
-		sp = td->td_sigstk.ss_sp + td->td_sigstk.ss_size;
+		sp = (char *)td->td_sigstk.ss_sp + td->td_sigstk.ss_size;
 	else
 		sp = (char *)regs->tf_rsp;
 	if (xfpusave != NULL) {
@@ -642,10 +635,6 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Align to 16 bytes. */
 	sfp = (struct ia32_sigframe *)((uintptr_t)sp & ~0xF);
 	PROC_UNLOCK(p);
-
-	/* Translate the signal if appropriate. */
-	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
-		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
 
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
@@ -947,14 +936,15 @@ freebsd32_sigreturn(td, uap)
 void
 ia32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
-	struct trapframe *regs = td->td_frame;
-	struct pcb *pcb = td->td_pcb;
-	
-	mtx_lock(&dt_lock);
+	struct trapframe *regs;
+	struct pcb *pcb;
+	register_t saved_rflags;
+
+	regs = td->td_frame;
+	pcb = td->td_pcb;
+
 	if (td->td_proc->p_md.md_ldt != NULL)
 		user_ldt_free(td);
-	else
-		mtx_unlock(&dt_lock);
 #ifdef COMPAT_43
 	setup_lcall_gate();
 #endif
@@ -963,10 +953,11 @@ ia32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	pcb->pcb_gsbase = 0;
 	pcb->pcb_initial_fpucw = __INITIAL_FPUCW_I386__;
 
+	saved_rflags = regs->tf_rflags & PSL_T;
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = imgp->entry_addr;
 	regs->tf_rsp = stack;
-	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
+	regs->tf_rflags = PSL_USER | saved_rflags;
 	regs->tf_ss = _udatasel;
 	regs->tf_cs = _ucode32sel;
 	regs->tf_rbx = imgp->ps_strings;
@@ -980,5 +971,4 @@ ia32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 
 	/* Return via doreti so that we can change to a different %cs */
 	set_pcb_flags(pcb, PCB_32BIT | PCB_FULL_IRET);
-	td->td_retval[1] = 0;
 }

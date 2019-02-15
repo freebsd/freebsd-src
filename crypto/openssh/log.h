@@ -1,4 +1,4 @@
-/* $OpenBSD: log.h,v 1.20 2013/04/07 02:10:33 dtucker Exp $ */
+/* $OpenBSD: log.h,v 1.23 2018/07/27 12:03:17 markus Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -49,7 +49,8 @@ typedef enum {
 typedef void (log_handler_fn)(LogLevel, const char *, void *);
 
 void     log_init(char *, LogLevel, SyslogFacility, int);
-void     log_change_level(LogLevel);
+LogLevel log_level_get(void);
+int      log_change_level(LogLevel);
 int      log_is_on_stderr(void);
 void     log_redirect_stderr_to(const char *);
 
@@ -62,6 +63,8 @@ void     fatal(const char *, ...) __attribute__((noreturn))
     __attribute__((format(printf, 1, 2)));
 void     error(const char *, ...) __attribute__((format(printf, 1, 2)));
 void     sigdie(const char *, ...)  __attribute__((noreturn))
+    __attribute__((format(printf, 1, 2)));
+void     logdie(const char *, ...) __attribute__((noreturn))
     __attribute__((format(printf, 1, 2)));
 void     logit(const char *, ...) __attribute__((format(printf, 1, 2)));
 void     verbose(const char *, ...) __attribute__((format(printf, 1, 2)));

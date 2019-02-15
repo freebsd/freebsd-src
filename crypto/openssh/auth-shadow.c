@@ -30,10 +30,10 @@
 #include <string.h>
 #include <time.h>
 
-#include "key.h"
 #include "hostfile.h"
 #include "auth.h"
-#include "buffer.h"
+#include "sshbuf.h"
+#include "ssherr.h"
 #include "log.h"
 
 #ifdef DAY
@@ -41,7 +41,7 @@
 #endif
 #define DAY	(24L * 60 * 60) /* 1 day in seconds */
 
-extern Buffer loginmsg;
+extern struct sshbuf *loginmsg;
 
 /*
  * For the account and password expiration functions, we assume the expiry
@@ -57,7 +57,7 @@ auth_shadow_acctexpired(struct spwd *spw)
 {
 	time_t today;
 	int daysleft;
-	char buf[256];
+	int r;
 
 	today = time(NULL) / DAY;
 	daysleft = spw->sp_expire - today;
@@ -71,10 +71,10 @@ auth_shadow_acctexpired(struct spwd *spw)
 		return 1;
 	} else if (daysleft <= spw->sp_warn) {
 		debug3("account will expire in %d days", daysleft);
-		snprintf(buf, sizeof(buf),
+		if ((r = sshbuf_putf(loginmsg, 
 		    "Your account will expire in %d day%s.\n", daysleft,
-		    daysleft == 1 ? "" : "s");
-		buffer_append(&loginmsg, buf, strlen(buf));
+		    daysleft == 1 ? "" : "s")) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	}
 
 	return 0;
@@ -89,9 +89,8 @@ auth_shadow_pwexpired(Authctxt *ctxt)
 {
 	struct spwd *spw = NULL;
 	const char *user = ctxt->pw->pw_name;
-	char buf[256];
 	time_t today;
-	int daysleft, disabled = 0;
+	int r, daysleft, disabled = 0;
 
 	if ((spw = getspnam((char *)user)) == NULL) {
 		error("Could not get shadow information for %.100s", user);
@@ -131,10 +130,10 @@ auth_shadow_pwexpired(Authctxt *ctxt)
 		return 1;
 	} else if (daysleft <= spw->sp_warn) {
 		debug3("password will expire in %d days", daysleft);
-		snprintf(buf, sizeof(buf),
+		if ((r = sshbuf_putf(loginmsg, 
 		    "Your password will expire in %d day%s.\n", daysleft,
-		    daysleft == 1 ? "" : "s");
-		buffer_append(&loginmsg, buf, strlen(buf));
+		    daysleft == 1 ? "" : "s")) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	}
 
 	return 0;

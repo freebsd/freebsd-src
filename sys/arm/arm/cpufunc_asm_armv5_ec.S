@@ -39,6 +39,7 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+#ifndef ELF_TRAMPOLINE
 /*
  * Functions to set the MMU Translation Table Base register
  *
@@ -58,7 +59,7 @@ ENTRY(armv5_ec_setttb)
 	 * do it directly and entirely avoid the problem.
 	 */
 	mcr	p15, 0, r0, c7, c5, 0	/* Invalidate ICache */
-1:	mrc	p15, 0, r15, c7, c14, 3	/* Test, clean and invalidate DCache */
+1:	mrc	p15, 0, APSR_nzcv, c7, c14, 3	/* Test, clean and invalidate DCache */
 	bne	1b			/* More to do? */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 
@@ -91,9 +92,7 @@ ENTRY_NP(armv5_ec_icache_sync_range)
 	bpl	1b
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
-END(armv5_ec_icache_sync_range)
 
-ENTRY_NP(armv5_ec_icache_sync_all)
 .Larmv5_ec_icache_sync_all:
 	/*
 	 * We assume that the code here can never be out of sync with the
@@ -105,11 +104,11 @@ ENTRY_NP(armv5_ec_icache_sync_all)
 
 .Larmv5_ec_dcache_wb:
 1:
-	mrc	p15, 0, r15, c7, c10, 3	/* Test and clean (don't invalidate) */
+	mrc	p15, 0, APSR_nzcv, c7, c10, 3	/* Test and clean (don't invalidate) */
 	bne	1b			/* More to do? */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
-END(armv5_ec_icache_sync_all)
+END(armv5_ec_icache_sync_range)
 
 .Larmv5_ec_line_size:
 	.word	_C_LABEL(arm_pdcache_line_size)
@@ -194,6 +193,7 @@ ENTRY(armv5_ec_idcache_wbinv_range)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
 END(armv5_ec_idcache_wbinv_range)
+#endif /* !ELF_TRAMPOLINE */
 
 ENTRY_NP(armv5_ec_idcache_wbinv_all)
 .Larmv5_ec_idcache_wbinv_all:
@@ -206,11 +206,12 @@ ENTRY_NP(armv5_ec_idcache_wbinv_all)
 	/* Fall through to purge Dcache. */
 END(armv5_ec_idcache_wbinv_all)
 
+#ifndef ELF_TRAMPOLINE
 ENTRY(armv5_ec_dcache_wbinv_all)
 .Larmv5_ec_dcache_wbinv_all:
-1:	mrc	p15, 0, r15, c7, c14, 3	/* Test, clean and invalidate DCache */
+1:	mrc	p15, 0, APSR_nzcv, c7, c14, 3	/* Test, clean and invalidate DCache */
 	bne	1b			/* More to do? */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
 END(armv5_ec_dcache_wbinv_all)
-
+#endif

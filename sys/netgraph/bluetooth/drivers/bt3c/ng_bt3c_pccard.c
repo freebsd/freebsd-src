@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -584,14 +586,14 @@ out:
  * PC Card (PCMCIA) probe routine
  */
 
+static struct pccard_product const	bt3c_pccard_products[] = {
+	PCMCIA_CARD(3COM, 3CRWB609),
+	{ NULL, }
+};
+
 static int
 bt3c_pccard_probe(device_t dev)
 {
-	static struct pccard_product const	bt3c_pccard_products[] = {
-		PCMCIA_CARD(3COM, 3CRWB609),
-		{ NULL, }
-	};
-
 	struct pccard_product const	*pp = NULL;
 
 	pp = pccard_product_lookup(dev, bt3c_pccard_products,
@@ -615,8 +617,8 @@ bt3c_pccard_attach(device_t dev)
 
 	/* Allocate I/O ports */
 	sc->iobase_rid = 0;
-	sc->iobase = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->iobase_rid, 
-			0, ~0, 8, RF_ACTIVE);
+	sc->iobase = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+			&sc->iobase_rid, 8, RF_ACTIVE);
 	if (sc->iobase == NULL) {
 		device_printf(dev, "Could not allocate I/O ports\n");
 		goto bad;
@@ -814,8 +816,7 @@ bt3c_receive(bt3c_softc_p sc)
 				break; /* XXX lost of sync */
 			}
 
-			MCLGET(sc->m, M_NOWAIT);
-			if (!(sc->m->m_flags & M_EXT)) {
+			if (!(MCLGET(sc->m, M_NOWAIT))) {
 				NG_FREE_M(sc->m);
 
 				NG_BT3C_ERR(sc->dev, "Could not get cluster\n");
@@ -1223,4 +1224,4 @@ bt3c_modevent(module_t mod, int event, void *data)
 DRIVER_MODULE(bt3c, pccard, bt3c_pccard_driver, bt3c_devclass, bt3c_modevent,0);
 MODULE_VERSION(ng_bt3c, NG_BLUETOOTH_VERSION);
 MODULE_DEPEND(ng_bt3c, netgraph, NG_ABI_VERSION, NG_ABI_VERSION,NG_ABI_VERSION);
-
+PCCARD_PNP_INFO(bt3c_pccard_products);

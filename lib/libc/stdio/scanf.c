@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -56,9 +58,9 @@ scanf(char const * __restrict fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	FLOCKFILE(stdin);
+	FLOCKFILE_CANCELSAFE(stdin);
 	ret = __svfscanf(stdin, __get_locale(), fmt, ap);
-	FUNLOCKFILE(stdin);
+	FUNLOCKFILE_CANCELSAFE();
 	va_end(ap);
 	return (ret);
 }
@@ -70,9 +72,9 @@ scanf_l(locale_t locale, char const * __restrict fmt, ...)
 	FIX_LOCALE(locale);
 
 	va_start(ap, fmt);
-	FLOCKFILE(stdin);
+	FLOCKFILE_CANCELSAFE(stdin);
 	ret = __svfscanf(stdin, locale, fmt, ap);
-	FUNLOCKFILE(stdin);
+	FUNLOCKFILE_CANCELSAFE();
 	va_end(ap);
 	return (ret);
 }

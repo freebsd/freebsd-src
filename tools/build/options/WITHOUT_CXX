@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 Set to not build
-.Xr g++ 1
+.Xr c++ 1
 and related libraries.
 It will also prevent building of
 .Xr gperf 1

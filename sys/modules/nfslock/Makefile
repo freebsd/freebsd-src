@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../nfs
+.PATH: ${SRCTOP}/sys/nfs
 KMOD=	nfslock
 SRCS=	vnode_if.h \
 	nfs_lock.c \

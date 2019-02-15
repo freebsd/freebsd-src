@@ -1,6 +1,8 @@
 /*	$NetBSD: fmtcheck.c,v 1.8 2008/04/28 20:22:59 martin Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -36,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 
 __weak_reference(__fmtcheck, fmtcheck);
+const char * __fmtcheck(const char *, const char *);
 
 enum __e_fmtcheck_types {
 	FMTCHECK_START,

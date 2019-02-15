@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1992, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 2000
@@ -80,9 +82,6 @@ devfs_mount(struct mount *mp)
 
 	if (mp->mnt_flag & MNT_ROOTFS)
 		return (EOPNOTSUPP);
-
-	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_DEVFS))
-		return (EPERM);
 
 	rsnum = 0;
 	injail = jailed(td->td_ucred);
@@ -182,6 +181,8 @@ devfs_unmount(struct mount *mp, int mntflags)
 	fmp = VFSTODEVFS(mp);
 	KASSERT(fmp->dm_mount != NULL,
 		("devfs_unmount unmounted devfs_mount"));
+	if (mntflags & MNT_FORCE)
+		flags |= FORCECLOSE;
 	/* There is 1 extra root vnode reference from devfs_mount(). */
 	error = vflush(mp, 1, flags, curthread);
 	if (error)

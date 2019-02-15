@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008-2010 Edward Tomasz Napierała <trasz@FreeBSD.org>
  * All rights reserved.
  *
@@ -1068,6 +1070,7 @@ acl_nfs4_inherit_entries(const struct acl *parent_aclp,
 		child_aclp->acl_cnt++;
 
 		entry->ae_flags &= ~ACL_ENTRY_INHERIT_ONLY;
+		entry->ae_flags |= ACL_ENTRY_INHERITED;
 
 		/*
 		 * If the type of the ACE is neither ALLOW nor DENY,

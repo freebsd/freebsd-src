@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Tobias Weingartner
  * All rights reserved.
  *
@@ -125,6 +127,10 @@ hash32_strne(const void *buf, size_t len, int end, const char **ep,
  */
 uint32_t jenkins_hash(const void *, size_t, uint32_t);
 uint32_t jenkins_hash32(const uint32_t *, size_t, uint32_t);
+
+uint32_t murmur3_32_hash(const void *, size_t, uint32_t);
+uint32_t murmur3_32_hash32(const uint32_t *, size_t, uint32_t);
+
 #endif /* _KERNEL */
 
 #endif /* !_SYS_HASH_H_ */

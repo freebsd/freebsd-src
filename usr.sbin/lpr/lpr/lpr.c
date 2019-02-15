@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1983, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -387,8 +389,8 @@ main(int argc, char *argv[])
 			continue;	/* file unreasonable */
 
 		if (sflag && (cp = linked(arg)) != NULL) {
-			(void)snprintf(buf, sizeof(buf), "%u %ju",
-			    statb.st_dev, (uintmax_t)statb.st_ino);
+			(void)snprintf(buf, sizeof(buf), "%ju %ju",
+			    (uintmax_t)statb.st_dev, (uintmax_t)statb.st_ino);
 			card('S', buf);
 			if (format == 'p')
 				card('T', title ? title : arg);

@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -92,7 +92,7 @@ by freeing each pointer in the array and then the array itself.
 .Pp
 The
 .Fn scandir_b
-function behaves in the same way as 
+function behaves in the same way as
 .Fn scandir ,
 but takes blocks as arguments instead of function pointers and calls
 .Fn qsort_b
@@ -106,8 +106,8 @@ cannot allocate enough memory to hold all the data structures.
 .Xr directory 3 ,
 .Xr malloc 3 ,
 .Xr qsort 3 ,
-.Xr dir 5 ,
-.Xr strcoll 3
+.Xr strcoll 3 ,
+.Xr dir 5
 .Sh HISTORY
 The
 .Fn scandir

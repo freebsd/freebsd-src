@@ -64,6 +64,15 @@ struct file;
 # include <sys/queue.h>
 #endif
 #include <net/if.h>
+#if defined(__FreeBSD_version) && (__FreeBSD_version >= 800000) && defined(_KERNEL)
+#include <net/vnet.h>
+#else
+#define CURVNET_SET(arg)
+#define CURVNET_RESTORE()
+#define	VNET_DEFINE(_t, _v)	_t _v
+#define	VNET_DECLARE(_t, _v)	extern _t _v
+#define	VNET(arg)	arg
+#endif
 #ifdef sun
 # include <net/af.h>
 #endif

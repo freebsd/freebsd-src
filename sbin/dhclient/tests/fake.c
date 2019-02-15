@@ -9,12 +9,12 @@
 extern jmp_buf env;
 
 void
-error(char *fmt, ...)
+error(const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
-	vfprintf(stderr, fmt, ap);
+	(void)vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	fprintf(stderr, "\n");
 
@@ -22,13 +22,12 @@ error(char *fmt, ...)
 }
 
 int
-warning(char *fmt, ...)
+warning(const char *fmt, ...)
 {
-	int ret;
 	va_list ap;
 
 	va_start(ap, fmt);
-	ret = vfprintf(stderr, fmt, ap);
+	(void)vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	fprintf(stderr, "\n");
 
@@ -40,7 +39,7 @@ warning(char *fmt, ...)
 }
 
 int
-note(char *fmt, ...)
+note(const char *fmt, ...)
 {
 	int ret;
 	va_list ap;

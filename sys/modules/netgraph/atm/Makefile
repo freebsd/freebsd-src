@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 SUBDIR=			\
-	atm 		\
 	atmbase		\
 	ccatm		\
 	sscfu		\

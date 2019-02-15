@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010,2013 Lawrence Stewart <lstewart@freebsd.org>
  * Copyright (c) 2010 The FreeBSD Foundation
  * All rights reserved.
@@ -65,6 +67,8 @@
 /* Helper hook types. */
 #define	HHOOK_TYPE_TCP		1
 #define	HHOOK_TYPE_SOCKET	2
+#define	HHOOK_TYPE_IPSEC_IN	3
+#define	HHOOK_TYPE_IPSEC_OUT	4
 
 struct helper;
 struct osd;

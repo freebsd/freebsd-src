@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)getsockopt.2	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd April 5, 2013
+.Dd August 21, 2018
 .Dt GETSOCKOPT 2
 .Os
 .Sh NAME
@@ -152,6 +152,7 @@ and set with
 .It Dv SO_DEBUG Ta "enables recording of debugging information"
 .It Dv SO_REUSEADDR Ta "enables local address reuse"
 .It Dv SO_REUSEPORT Ta "enables duplicate address and port bindings"
+.It Dv SO_REUSEPORT_LB Ta "enables duplicate address and port bindings with load balancing"
 .It Dv SO_KEEPALIVE Ta "enables keep connections alive"
 .It Dv SO_DONTROUTE Ta "enables routing bypass for outgoing messages"
 .It Dv SO_LINGER  Ta "linger on close if data present"
@@ -171,6 +172,7 @@ for the socket
 .It Dv SO_TIMESTAMP Ta "enables reception of a timestamp with datagrams"
 .It Dv SO_BINTIME Ta "enables reception of a timestamp with datagrams"
 .It Dv SO_ACCEPTCONN Ta "get listening status of the socket (get only)"
+.It Dv SO_DOMAIN Ta "get the domain of the socket (get only)"
 .It Dv SO_TYPE Ta "get the type of the socket (get only)"
 .It Dv SO_PROTOCOL Ta "get the protocol number for the socket (get only)"
 .It Dv SO_PROTOTYPE Ta "SunOS alias for the Linux SO_PROTOCOL (get only)"
@@ -187,6 +189,8 @@ The following options are recognized in
 .It Dv SO_LISTENQLEN Ta "get complete queue length of the socket (get only)"
 .It Dv SO_LISTENINCQLEN Ta "get incomplete queue length of the socket (get only)"
 .It Dv SO_USER_COOKIE Ta "set the 'so_user_cookie' value for the socket (uint32_t, set only)"
+.It Dv SO_TS_CLOCK Ta "set specific format of timestamp returned by SO_TIMESTAMP"
+.It Dv SO_MAX_PACING_RATE Ta "set the maximum transmit rate in bytes per second for the socket"
 .El
 .Pp
 .Dv SO_DEBUG
@@ -205,6 +209,15 @@ if they all set
 before binding the port.
 This option permits multiple instances of a program to each
 receive UDP/IP multicast or broadcast datagrams destined for the bound port.
+.Pp
+.Dv SO_REUSEPORT_LB
+allows completely duplicate bindings by multiple processes
+if they all set
+.Dv SO_REUSEPORT_LB
+before binding the port.
+Incoming TCP and UDP connections are distributed among the sharing
+processes based on a hash function of local port number, foreign IP
+address and port number. A maximum of 256 processes can share one socket.
 .Pp
 .Dv SO_KEEPALIVE
 enables the
@@ -435,7 +448,7 @@ for
 .Dv SO_BINTIME .
 The
 .Vt cmsghdr
-fields have the following values for TIMESTAMP:
+fields have the following values for TIMESTAMP by default:
 .Bd -literal
      cmsg_len = CMSG_LEN(sizeof(struct timeval));
      cmsg_level = SOL_SOCKET;
@@ -449,6 +462,24 @@ and for
      cmsg_level = SOL_SOCKET;
      cmsg_type = SCM_BINTIME;
 .Ed
+.Pp
+Additional timestamp types are available by following
+.Dv SO_TIMESTAMP
+with
+.Dv SO_TS_CLOCK ,
+which requests a specific timestamp format to be returned instead of
+.Dv SCM_TIMESTAMP when
+.Dv SO_TIMESTAMP is enabled.
+These
+.Dv SO_TS_CLOCK
+values are recognized in
+.Fx :
+.Bl -column SO_TS_CLOCK -offset indent
+.It Dv SO_TS_REALTIME_MICRO Ta "realtime (SCM_TIMESTAMP, struct timeval), default"
+.It Dv SO_TS_BINTIME Ta "realtime (SCM_BINTIME, struct bintime)"
+.It Dv SO_TS_REALTIME Ta "realtime (SCM_REALTIME, struct timespec)"
+.It Dv SO_TS_MONOTONIC Ta "monotonic time (SCM_MONOTONIC, struct timespec)"
+.El
 .Pp
 .Dv SO_ACCEPTCONN ,
 .Dv SO_TYPE ,
@@ -496,6 +527,10 @@ returns the maximal number of queued connections, as set by
 returns the number of unaccepted complete connections.
 .Dv SO_LISTENINCQLEN
 returns the number of unaccepted incomplete connections.
+.Pp
+.Dv SO_MAX_PACING_RATE
+instruct the socket and underlying network adapter layers to limit the
+transfer rate to the given unsigned 32-bit value in bytes per second.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
@@ -524,6 +559,8 @@ is not in a valid part of the process address space.
 Installing an
 .Xr accept_filter 9
 on a non-listening socket was attempted.
+.It Bq Er ENOMEM
+A memory allocation failed that was required to service the request.
 .El
 .Sh SEE ALSO
 .Xr ioctl 2 ,

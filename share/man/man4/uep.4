@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 25, 2010
+.Dd August 5, 2018
 .Dt UEP 4
 .Os
 .Sh NAME
@@ -44,28 +44,46 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 uep_load="YES"
 .Ed
+.Pp
+To compile this driver with evdev support enabled, place the
+following lines into the kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options EVDEV_SUPPORT"
+.Cd "device evdev"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for the eGalax onscreen touch panels.
 .Pp
-The driver is stub.
-It just probes and attaches to USB device, creates device entry
+The driver is a stub.
+It just probes and attaches to USB device, creates a device entry
 and feeds reassembled packets from the hardware to it.
+Depending on compile-time kernel options it supports either native
+or evdev operation modes.
 .Pp
-To get mouse working in
-.Xr X 7 ,
-one needs to install
+To get the mouse working in
+.Xr X 7
+in native mode, install
 .Pa ports/x11-drivers/xf86-input-egalax .
+.Pp
+To get the mouse working in
+.Xr X 7
+in evdev mode, install
+.Pa ports/x11-drivers/xf86-input-evdev .
 .Sh FILES
 .Nm
-creates a blocking pseudo\-device file,
-.Pa /dev/uep0 .
+creates a blocking pseudo-device file,
+.Pa /dev/uep0
+in native mode or
+.Pa /dev/input/eventN
+in evdev mode.
 .Sh SEE ALSO
 .Xr usb 4 ,
 .Xr loader.conf 5 ,
 .Xr xorg.conf 5 Pq Pa ports/x11/xorg ,
-.Xr egalax 4 Pq Pa ports/x11-drivers/xf86-input-egalax .
+.Xr egalax 4 Pq Pa ports/x11-drivers/xf86-input-egalax ,
+.Xr evdev 4 Pq Pa ports/x11-drivers/xf86-input-evdev .
 .Sh AUTHORS
 .An -nosplit
 The
@@ -74,6 +92,8 @@ driver was written by
 .An Gleb Smirnoff Aq Mt glebius@FreeBSD.org .
 .Sh BUGS
 .Nm
-can't act like
+cannot act like
 .Xr sysmouse 4 ,
-since the latter does not support absolute motion events.
+as
+.Xr sysmouse 4
+does not support absolute motion events.

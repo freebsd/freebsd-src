@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -87,16 +89,13 @@ main(int argc, char *argv[])
 
 	pflags = 0;
 	corefile = NULL;
-        while ((ch = getopt(argc, argv, "c:fs")) != -1) {
+        while ((ch = getopt(argc, argv, "c:f")) != -1) {
                 switch (ch) {
                 case 'c':
 			corefile = optarg;
                         break;
 		case 'f':
 			pflags |= PFLAGS_FULL;
-			break;
-		case 's':
-			pflags |= PFLAGS_RESUME;
 			break;
 		default:
 			usage();
@@ -146,21 +145,6 @@ main(int argc, char *argv[])
 	fd = open(corefile, O_RDWR|O_CREAT|O_TRUNC, DEFFILEMODE);
 	if (fd < 0)
 		err(1, "%s", corefile);
-	/*
-	 * The semantics of the 's' flag is to stop the target process.
-	 * Previous versions of gcore would manage this by trapping SIGHUP,
-	 * SIGINT and SIGTERM (to be passed to the target pid), and then
-	 * signal the child to stop.
-	 *
-	 * However, this messes up if the selected dumper uses ptrace calls
-	 * that leave the child already stopped. The waitpid call in elfcore
-	 * never returns.
-	 *
-	 * The best thing to do here is to externalize the 's' flag and let
-	 * each dumper dispose of what that means, if anything. For the elfcore
-	 * dumper, the 's' flag is a no-op since the ptrace attach stops the
-	 * process in question already.
-	 */
 
 	dumper->dump(efd, fd, pid);
 	(void)close(fd);
@@ -172,6 +156,6 @@ void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: gcore [-s] [-c core] [executable] pid\n");
+	(void)fprintf(stderr, "usage: gcore [-c core] [executable] pid\n");
 	exit(1);
 }

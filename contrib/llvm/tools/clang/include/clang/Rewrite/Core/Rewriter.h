@@ -12,114 +12,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_REWRITER_H
-#define LLVM_CLANG_REWRITER_H
+#ifndef LLVM_CLANG_REWRITE_CORE_REWRITER_H
+#define LLVM_CLANG_REWRITE_CORE_REWRITER_H
 
 #include "clang/Basic/SourceLocation.h"
-#include "clang/Rewrite/Core/DeltaTree.h"
-#include "clang/Rewrite/Core/RewriteRope.h"
-#include "llvm/ADT/StringRef.h"
+#include "clang/Rewrite/Core/RewriteBuffer.h"
 #include <cstring>
 #include <map>
 #include <string>
 
 namespace clang {
   class LangOptions;
-  class Rewriter;
   class SourceManager;
-  class Stmt;
-
-/// RewriteBuffer - As code is rewritten, SourceBuffer's from the original
-/// input with modifications get a new RewriteBuffer associated with them.  The
-/// RewriteBuffer captures the modified text itself as well as information used
-/// to map between SourceLocation's in the original input and offsets in the
-/// RewriteBuffer.  For example, if text is inserted into the buffer, any
-/// locations after the insertion point have to be mapped.
-class RewriteBuffer {
-  friend class Rewriter;
-  /// Deltas - Keep track of all the deltas in the source code due to insertions
-  /// and deletions.
-  DeltaTree Deltas;
-  RewriteRope Buffer;
-public:
-  typedef RewriteRope::const_iterator iterator;
-  iterator begin() const { return Buffer.begin(); }
-  iterator end() const { return Buffer.end(); }
-  unsigned size() const { return Buffer.size(); }
-
-  /// \brief Write to \p Stream the result of applying all changes to the
-  /// original buffer.
-  /// Note that it isn't safe to use this function to overwrite memory mapped
-  /// files in-place (PR17960). Consider using a higher-level utility such as
-  /// Rewriter::overwriteChangedFiles() instead.
-  ///
-  /// The original buffer is not actually changed.
-  raw_ostream &write(raw_ostream &Stream) const;
-
-  /// RemoveText - Remove the specified text.
-  void RemoveText(unsigned OrigOffset, unsigned Size,
-                  bool removeLineIfEmpty = false);
-
-  /// InsertText - Insert some text at the specified point, where the offset in
-  /// the buffer is specified relative to the original SourceBuffer.  The
-  /// text is inserted after the specified location.
-  ///
-  void InsertText(unsigned OrigOffset, StringRef Str,
-                  bool InsertAfter = true);
-
-
-  /// InsertTextBefore - Insert some text before the specified point, where the
-  /// offset in the buffer is specified relative to the original
-  /// SourceBuffer. The text is inserted before the specified location.  This is
-  /// method is the same as InsertText with "InsertAfter == false".
-  void InsertTextBefore(unsigned OrigOffset, StringRef Str) {
-    InsertText(OrigOffset, Str, false);
-  }
-
-  /// InsertTextAfter - Insert some text at the specified point, where the
-  /// offset in the buffer is specified relative to the original SourceBuffer.
-  /// The text is inserted after the specified location.
-  void InsertTextAfter(unsigned OrigOffset, StringRef Str) {
-    InsertText(OrigOffset, Str);
-  }
-
-  /// ReplaceText - This method replaces a range of characters in the input
-  /// buffer with a new string.  This is effectively a combined "remove/insert"
-  /// operation.
-  void ReplaceText(unsigned OrigOffset, unsigned OrigLength,
-                   StringRef NewStr);
-
-private:  // Methods only usable by Rewriter.
-
-  /// Initialize - Start this rewrite buffer out with a copy of the unmodified
-  /// input buffer.
-  void Initialize(const char *BufStart, const char *BufEnd) {
-    Buffer.assign(BufStart, BufEnd);
-  }
-
-  /// getMappedOffset - Given an offset into the original SourceBuffer that this
-  /// RewriteBuffer is based on, map it into the offset space of the
-  /// RewriteBuffer.  If AfterInserts is true and if the OrigOffset indicates a
-  /// position where text is inserted, the location returned will be after any
-  /// inserted text at the position.
-  unsigned getMappedOffset(unsigned OrigOffset,
-                           bool AfterInserts = false) const{
-    return Deltas.getDeltaAt(2*OrigOffset+AfterInserts)+OrigOffset;
-  }
-
-  /// AddInsertDelta - When an insertion is made at a position, this
-  /// method is used to record that information.
-  void AddInsertDelta(unsigned OrigOffset, int Change) {
-    return Deltas.AddDelta(2*OrigOffset, Change);
-  }
-
-  /// AddReplaceDelta - When a replacement/deletion is made at a position, this
-  /// method is used to record that information.
-  void AddReplaceDelta(unsigned OrigOffset, int Change) {
-    return Deltas.AddDelta(2*OrigOffset+1, Change);
-  }
-};
-
 
 /// Rewriter - This is the main interface to the rewrite buffers.  Its primary
 /// job is to dispatch high-level requests to the low-level RewriteBuffers that
@@ -151,7 +55,7 @@ public:
 
   explicit Rewriter(SourceManager &SM, const LangOptions &LO)
     : SourceMgr(&SM), LangOpts(&LO) {}
-  explicit Rewriter() : SourceMgr(0), LangOpts(0) {}
+  explicit Rewriter() : SourceMgr(nullptr), LangOpts(nullptr) {}
 
   void setSourceMgr(SourceManager &SM, const LangOptions &LO) {
     SourceMgr = &SM;
@@ -245,11 +149,6 @@ public:
   /// operation.
   bool ReplaceText(SourceRange range, SourceRange replacementRange);
 
-  /// ReplaceStmt - This replaces a Stmt/Expr with another, using the pretty
-  /// printer to generate the replacement code.  This returns true if the input
-  /// could not be rewritten, or false if successful.
-  bool ReplaceStmt(Stmt *From, Stmt *To);
-
   /// \brief Increase indentation for the lines between the given source range.
   /// To determine what the indentation should be, 'parentIndent' is used
   /// that should be at a source location with an indentation one degree
@@ -259,10 +158,6 @@ public:
     return IncreaseIndentation(CharSourceRange::getTokenRange(range),
                                parentIndent);
   }
-
-  /// ConvertToString converts statement 'From' to a string using the
-  /// pretty printer.
-  std::string ConvertToString(Stmt *From);
 
   /// getEditBuffer - This is like getRewriteBufferFor, but always returns a
   /// buffer, and allows you to write on it directly.  This is useful if you
@@ -275,7 +170,7 @@ public:
   const RewriteBuffer *getRewriteBufferFor(FileID FID) const {
     std::map<FileID, RewriteBuffer>::const_iterator I =
       RewriteBuffers.find(FID);
-    return I == RewriteBuffers.end() ? 0 : &I->second;
+    return I == RewriteBuffers.end() ? nullptr : &I->second;
   }
 
   // Iterators over rewrite buffers.

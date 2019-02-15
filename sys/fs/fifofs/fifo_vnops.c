@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993, 1995
  *	The Regents of the University of California.
  * Copyright (c) 2005 Robert N. M. Watson
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -64,12 +66,13 @@ struct fifoinfo {
 	struct pipe *fi_pipe;
 	long	fi_readers;
 	long	fi_writers;
+	u_int	fi_rgen;
+	u_int	fi_wgen;
 };
 
 static vop_print_t	fifo_print;
 static vop_open_t	fifo_open;
 static vop_close_t	fifo_close;
-static vop_pathconf_t	fifo_pathconf;
 static vop_advlock_t	fifo_advlock;
 
 struct vop_vector fifo_specops = {
@@ -85,7 +88,7 @@ struct vop_vector fifo_specops = {
 	.vop_mkdir =		VOP_PANIC,
 	.vop_mknod =		VOP_PANIC,
 	.vop_open =		fifo_open,
-	.vop_pathconf =		fifo_pathconf,
+	.vop_pathconf =		VOP_PANIC,
 	.vop_print =		fifo_print,
 	.vop_read =		VOP_PANIC,
 	.vop_readdir =		VOP_PANIC,
@@ -137,7 +140,8 @@ fifo_open(ap)
 	struct thread *td;
 	struct fifoinfo *fip;
 	struct pipe *fpipe;
-	int error;
+	u_int gen;
+	int error, stops_deferred;
 
 	vp = ap->a_vp;
 	fp = ap->a_fp;
@@ -164,6 +168,7 @@ fifo_open(ap)
 	PIPE_LOCK(fpipe);
 	if (ap->a_mode & FREAD) {
 		fip->fi_readers++;
+		fip->fi_rgen++;
 		if (fip->fi_readers == 1) {
 			fpipe->pipe_state &= ~PIPE_EOF;
 			if (fip->fi_writers > 0)
@@ -179,6 +184,7 @@ fifo_open(ap)
 			return (ENXIO);
 		}
 		fip->fi_writers++;
+		fip->fi_wgen++;
 		if (fip->fi_writers == 1) {
 			fpipe->pipe_state &= ~PIPE_EOF;
 			if (fip->fi_readers > 0)
@@ -187,11 +193,14 @@ fifo_open(ap)
 	}
 	if ((ap->a_mode & O_NONBLOCK) == 0) {
 		if ((ap->a_mode & FREAD) && fip->fi_writers == 0) {
+			gen = fip->fi_wgen;
 			VOP_UNLOCK(vp, 0);
+			stops_deferred = sigdeferstop(SIGDEFERSTOP_OFF);
 			error = msleep(&fip->fi_readers, PIPE_MTX(fpipe),
 			    PDROP | PCATCH | PSOCK, "fifoor", 0);
+			sigallowstop(stops_deferred);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-			if (error) {
+			if (error != 0 && gen == fip->fi_wgen) {
 				fip->fi_readers--;
 				if (fip->fi_readers == 0) {
 					PIPE_LOCK(fpipe);
@@ -211,11 +220,14 @@ fifo_open(ap)
 			 */
 		}
 		if ((ap->a_mode & FWRITE) && fip->fi_readers == 0) {
+			gen = fip->fi_rgen;
 			VOP_UNLOCK(vp, 0);
+			stops_deferred = sigdeferstop(SIGDEFERSTOP_OFF);
 			error = msleep(&fip->fi_writers, PIPE_MTX(fpipe),
 			    PDROP | PCATCH | PSOCK, "fifoow", 0);
+			sigallowstop(stops_deferred);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-			if (error) {
+			if (error != 0 && gen == fip->fi_rgen) {
 				fip->fi_writers--;
 				if (fip->fi_writers == 0) {
 					PIPE_LOCK(fpipe);
@@ -302,7 +314,7 @@ int
 fifo_printinfo(vp)
 	struct vnode *vp;
 {
-	register struct fifoinfo *fip = vp->v_fifoinfo;
+	struct fifoinfo *fip = vp->v_fifoinfo;
 
 	if (fip == NULL){
 		printf(", NULL v_fifoinfo");
@@ -326,34 +338,6 @@ fifo_print(ap)
 	fifo_printinfo(ap->a_vp);
 	printf("\n");
 	return (0);
-}
-
-/*
- * Return POSIX pathconf information applicable to fifo's.
- */
-static int
-fifo_pathconf(ap)
-	struct vop_pathconf_args /* {
-		struct vnode *a_vp;
-		int a_name;
-		int *a_retval;
-	} */ *ap;
-{
-
-	switch (ap->a_name) {
-	case _PC_LINK_MAX:
-		*ap->a_retval = LINK_MAX;
-		return (0);
-	case _PC_PIPE_BUF:
-		*ap->a_retval = PIPE_BUF;
-		return (0);
-	case _PC_CHOWN_RESTRICTED:
-		*ap->a_retval = 1;
-		return (0);
-	default:
-		return (EINVAL);
-	}
-	/* NOTREACHED */
 }
 
 /*

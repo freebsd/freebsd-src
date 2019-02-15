@@ -11,49 +11,82 @@
 //===----------------------------------------------------------------------===//
 
 #include "XCoreTargetMachine.h"
+#include "MCTargetDesc/XCoreMCTargetDesc.h"
 #include "XCore.h"
+#include "XCoreTargetObjectFile.h"
+#include "XCoreTargetTransformInfo.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/IR/Module.h"
-#include "llvm/PassManager.h"
+#include "llvm/CodeGen/TargetPassConfig.h"
+#include "llvm/Support/CodeGen.h"
 #include "llvm/Support/TargetRegistry.h"
+
 using namespace llvm;
 
-/// XCoreTargetMachine ctor - Create an ILP32 architecture model
+static Reloc::Model getEffectiveRelocModel(Optional<Reloc::Model> RM) {
+  if (!RM.hasValue())
+    return Reloc::Static;
+  return *RM;
+}
+
+static CodeModel::Model getEffectiveCodeModel(Optional<CodeModel::Model> CM) {
+  if (CM) {
+    if (*CM != CodeModel::Small && *CM != CodeModel::Large)
+      report_fatal_error("Target only supports CodeModel Small or Large");
+    return *CM;
+  }
+  return CodeModel::Small;
+}
+
+/// Create an ILP32 architecture model
 ///
-XCoreTargetMachine::XCoreTargetMachine(const Target &T, StringRef TT,
+XCoreTargetMachine::XCoreTargetMachine(const Target &T, const Triple &TT,
                                        StringRef CPU, StringRef FS,
                                        const TargetOptions &Options,
-                                       Reloc::Model RM, CodeModel::Model CM,
-                                       CodeGenOpt::Level OL)
-  : LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
-    Subtarget(TT, CPU, FS),
-    DL("e-p:32:32:32-a0:0:32-f32:32:32-f64:32:32-i1:8:32-i8:8:32-"
-               "i16:16:32-i32:32:32-i64:32:32-n32"),
-    InstrInfo(),
-    FrameLowering(Subtarget),
-    TLInfo(*this),
-    TSInfo(*this) {
+                                       Optional<Reloc::Model> RM,
+                                       Optional<CodeModel::Model> CM,
+                                       CodeGenOpt::Level OL, bool JIT)
+    : LLVMTargetMachine(
+          T, "e-m:e-p:32:32-i1:8:32-i8:8:32-i16:16:32-i64:32-f64:32-a:0:32-n32",
+          TT, CPU, FS, Options, getEffectiveRelocModel(RM),
+          getEffectiveCodeModel(CM), OL),
+      TLOF(llvm::make_unique<XCoreTargetObjectFile>()),
+      Subtarget(TT, CPU, FS, *this) {
   initAsmInfo();
 }
 
+XCoreTargetMachine::~XCoreTargetMachine() = default;
+
 namespace {
+
 /// XCore Code Generator Pass Configuration Options.
 class XCorePassConfig : public TargetPassConfig {
 public:
-  XCorePassConfig(XCoreTargetMachine *TM, PassManagerBase &PM)
+  XCorePassConfig(XCoreTargetMachine &TM, PassManagerBase &PM)
     : TargetPassConfig(TM, PM) {}
 
   XCoreTargetMachine &getXCoreTargetMachine() const {
     return getTM<XCoreTargetMachine>();
   }
 
-  virtual bool addPreISel();
-  virtual bool addInstSelector();
+  void addIRPasses() override;
+  bool addPreISel() override;
+  bool addInstSelector() override;
+  void addPreEmitPass() override;
 };
-} // namespace
+
+} // end anonymous namespace
 
 TargetPassConfig *XCoreTargetMachine::createPassConfig(PassManagerBase &PM) {
-  return new XCorePassConfig(this, PM);
+  return new XCorePassConfig(*this, PM);
+}
+
+void XCorePassConfig::addIRPasses() {
+  addPass(createAtomicExpandPass());
+
+  TargetPassConfig::addIRPasses();
 }
 
 bool XCorePassConfig::addPreISel() {
@@ -66,15 +99,16 @@ bool XCorePassConfig::addInstSelector() {
   return false;
 }
 
-// Force static initialization.
-extern "C" void LLVMInitializeXCoreTarget() {
-  RegisterTargetMachine<XCoreTargetMachine> X(TheXCoreTarget);
+void XCorePassConfig::addPreEmitPass() {
+  addPass(createXCoreFrameToArgsOffsetEliminationPass(), false);
 }
 
-void XCoreTargetMachine::addAnalysisPasses(PassManagerBase &PM) {
-  // Add first the target-independent BasicTTI pass, then our XCore pass. This
-  // allows the XCore pass to delegate to the target independent layer when
-  // appropriate.
-  PM.add(createBasicTargetTransformInfoPass(this));
-  PM.add(createXCoreTargetTransformInfoPass(this));
+// Force static initialization.
+extern "C" void LLVMInitializeXCoreTarget() {
+  RegisterTargetMachine<XCoreTargetMachine> X(getTheXCoreTarget());
+}
+
+TargetTransformInfo
+XCoreTargetMachine::getTargetTransformInfo(const Function &F) {
+  return TargetTransformInfo(XCoreTTIImpl(this, F));
 }

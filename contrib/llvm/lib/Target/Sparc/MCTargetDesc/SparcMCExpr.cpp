@@ -12,32 +12,29 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "sparcmcexpr"
 #include "SparcMCExpr.h"
-#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCAssembler.h"
-#include "llvm/MC/MCELF.h"
-#include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCObjectStreamer.h"
+#include "llvm/MC/MCSymbolELF.h"
 #include "llvm/Object/ELF.h"
-
 
 using namespace llvm;
 
+#define DEBUG_TYPE "sparcmcexpr"
+
 const SparcMCExpr*
-SparcMCExpr::Create(VariantKind Kind, const MCExpr *Expr,
+SparcMCExpr::create(VariantKind Kind, const MCExpr *Expr,
                       MCContext &Ctx) {
     return new (Ctx) SparcMCExpr(Kind, Expr);
 }
 
-
-
-void SparcMCExpr::PrintImpl(raw_ostream &OS) const
-{
+void SparcMCExpr::printImpl(raw_ostream &OS, const MCAsmInfo *MAI) const {
 
   bool closeParen = printVariantKind(OS, Kind);
 
   const MCExpr *Expr = getSubExpr();
-  Expr->print(OS);
+  Expr->print(OS, MAI);
 
   if (closeParen)
     OS << ')';
@@ -123,7 +120,7 @@ SparcMCExpr::VariantKind SparcMCExpr::parseVariantKind(StringRef name)
 
 Sparc::Fixups SparcMCExpr::getFixupKind(SparcMCExpr::VariantKind Kind) {
   switch (Kind) {
-  default:           assert(0 && "Unhandled SparcMCExpr::VariantKind");
+  default: llvm_unreachable("Unhandled SparcMCExpr::VariantKind");
   case VK_Sparc_LO:       return Sparc::fixup_sparc_lo10;
   case VK_Sparc_HI:       return Sparc::fixup_sparc_hi22;
   case VK_Sparc_H44:      return Sparc::fixup_sparc_h44;
@@ -158,11 +155,10 @@ Sparc::Fixups SparcMCExpr::getFixupKind(SparcMCExpr::VariantKind Kind) {
 }
 
 bool
-SparcMCExpr::EvaluateAsRelocatableImpl(MCValue &Res,
-                                       const MCAsmLayout *Layout) const {
-  if (!Layout)
-    return false;
-  return getSubExpr()->EvaluateAsRelocatable(Res, *Layout);
+SparcMCExpr::evaluateAsRelocatableImpl(MCValue &Res,
+                                       const MCAsmLayout *Layout,
+                                       const MCFixup *Fixup) const {
+  return getSubExpr()->evaluateAsRelocatable(Res, Layout, Fixup);
 }
 
 static void fixELFSymbolsInTLSFixupsImpl(const MCExpr *Expr, MCAssembler &Asm) {
@@ -183,8 +179,7 @@ static void fixELFSymbolsInTLSFixupsImpl(const MCExpr *Expr, MCAssembler &Asm) {
 
   case MCExpr::SymbolRef: {
     const MCSymbolRefExpr &SymRef = *cast<MCSymbolRefExpr>(Expr);
-    MCSymbolData &SD = Asm.getOrCreateSymbolData(SymRef.getSymbol());
-    MCELF::SetType(SD, ELF::STT_TLS);
+    cast<MCSymbolELF>(SymRef.getSymbol()).setType(ELF::STT_TLS);
     break;
   }
 
@@ -220,35 +215,6 @@ void SparcMCExpr::fixELFSymbolsInTLSFixups(MCAssembler &Asm) const {
   fixELFSymbolsInTLSFixupsImpl(getSubExpr(), Asm);
 }
 
-// FIXME: This basically copies MCObjectStreamer::AddValueSymbols. Perhaps
-// that method should be made public?
-// FIXME: really do above: now that at least three other backends are using it.
-static void AddValueSymbolsImpl(const MCExpr *Value, MCAssembler *Asm) {
-  switch (Value->getKind()) {
-  case MCExpr::Target:
-    llvm_unreachable("Can't handle nested target expr!");
-    break;
-
-  case MCExpr::Constant:
-    break;
-
-  case MCExpr::Binary: {
-    const MCBinaryExpr *BE = cast<MCBinaryExpr>(Value);
-    AddValueSymbolsImpl(BE->getLHS(), Asm);
-    AddValueSymbolsImpl(BE->getRHS(), Asm);
-    break;
-  }
-
-  case MCExpr::SymbolRef:
-    Asm->getOrCreateSymbolData(cast<MCSymbolRefExpr>(Value)->getSymbol());
-    break;
-
-  case MCExpr::Unary:
-    AddValueSymbolsImpl(cast<MCUnaryExpr>(Value)->getSubExpr(), Asm);
-    break;
-  }
-}
-
-void SparcMCExpr::AddValueSymbols(MCAssembler *Asm) const {
-  AddValueSymbolsImpl(getSubExpr(), Asm);
+void SparcMCExpr::visitUsedExpr(MCStreamer &Streamer) const {
+  Streamer.visitUsedExpr(*getSubExpr());
 }

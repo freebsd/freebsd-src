@@ -12,13 +12,23 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef SCHEDULEDAGSDNODES_H
-#define SCHEDULEDAGSDNODES_H
+#ifndef LLVM_LIB_CODEGEN_SELECTIONDAG_SCHEDULEDAGSDNODES_H
+#define LLVM_LIB_CODEGEN_SELECTIONDAG_SCHEDULEDAGSDNODES_H
 
+#include "llvm/CodeGen/ISDOpcodes.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineValueType.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
+#include "llvm/CodeGen/SelectionDAGNodes.h"
+#include "llvm/Support/Casting.h"
+#include <cassert>
+#include <string>
+#include <vector>
 
 namespace llvm {
+
+class InstrItineraryData;
+
   /// ScheduleDAGSDNodes - A ScheduleDAG for scheduling SDNode-based DAGs.
   ///
   /// Edges between SUnits are initially based on edges in the SelectionDAG,
@@ -44,7 +54,7 @@ namespace llvm {
 
     explicit ScheduleDAGSDNodes(MachineFunction &mf);
 
-    virtual ~ScheduleDAGSDNodes() {}
+    ~ScheduleDAGSDNodes() override = default;
 
     /// Run - perform scheduling.
     ///
@@ -64,6 +74,7 @@ namespace llvm {
       if (isa<TargetIndexSDNode>(Node))    return true;
       if (isa<JumpTableSDNode>(Node))      return true;
       if (isa<ExternalSymbolSDNode>(Node)) return true;
+      if (isa<MCSymbolSDNode>(Node))       return true;
       if (isa<BlockAddressSDNode>(Node))   return true;
       if (Node->getOpcode() == ISD::EntryToken ||
           isa<MDNodeSDNode>(Node)) return true;
@@ -84,12 +95,6 @@ namespace llvm {
     /// excludes nodes that aren't interesting to scheduling, and represents
     /// flagged together nodes with a single SUnit.
     void BuildSchedGraph(AliasAnalysis *AA);
-
-    /// InitVRegCycleFlag - Set isVRegCycle if this node's single use is
-    /// CopyToReg and its only active data operands are CopyFromReg within a
-    /// single block loop.
-    ///
-    void InitVRegCycleFlag(SUnit *SU);
 
     /// InitNumRegDefsLeft - Determine the # of regs defined by this node.
     ///
@@ -117,13 +122,13 @@ namespace llvm {
     virtual MachineBasicBlock*
     EmitSchedule(MachineBasicBlock::iterator &InsertPos);
 
-    virtual void dumpNode(const SUnit *SU) const;
+    void dumpNode(const SUnit *SU) const override;
 
     void dumpSchedule() const;
 
-    virtual std::string getGraphNodeLabel(const SUnit *SU) const;
+    std::string getGraphNodeLabel(const SUnit *SU) const override;
 
-    virtual std::string getDAGName() const;
+    std::string getDAGName() const override;
 
     virtual void getCustomGraphFeatures(GraphWriter<ScheduleDAG*> &GW) const;
 
@@ -136,10 +141,11 @@ namespace llvm {
       unsigned DefIdx;
       unsigned NodeNumDefs;
       MVT ValueType;
+
     public:
       RegDefIter(const SUnit *SU, const ScheduleDAGSDNodes *SD);
 
-      bool IsValid() const { return Node != NULL; }
+      bool IsValid() const { return Node != nullptr; }
 
       MVT GetValue() const {
         assert(IsValid() && "bad iterator");
@@ -155,6 +161,7 @@ namespace llvm {
       }
 
       void Advance();
+
     private:
       void InitNodeNumDefs();
     };
@@ -180,6 +187,7 @@ namespace llvm {
     void EmitPhysRegCopy(SUnit *SU, DenseMap<SUnit*, unsigned> &VRBaseMap,
                          MachineBasicBlock::iterator InsertPos);
   };
-}
 
-#endif
+} // end namespace llvm
+
+#endif // LLVM_LIB_CODEGEN_SELECTIONDAG_SCHEDULEDAGSDNODES_H

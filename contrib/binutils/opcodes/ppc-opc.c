@@ -2789,6 +2789,7 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 { "crnor",   XL(19,33),	XL_MASK,	COM,		{ BT, BA, BB } },
 { "rfmci",    X(19,38), 0xffffffff,	PPCRFMCI,	{ 0 } },
 
+{ "rfdi",    XL(19,39),	0xffffffff,     BOOKE,          { 0 } },
 { "rfi",     XL(19,50),	0xffffffff,	COM,		{ 0 } },
 { "rfci",    XL(19,51),	0xffffffff,	PPC403 | BOOKE,	{ 0 } },
 
@@ -4267,6 +4268,11 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 { "stvewx",  X(31, 199), X_MASK,	PPCVEC,		{ VS, RA, RB } },
 { "stvx",    X(31, 231), X_MASK,	PPCVEC,		{ VS, RA, RB } },
 { "stvxl",   X(31, 487), X_MASK,	PPCVEC,		{ VS, RA, RB } },
+
+/* New VSX opcodes in POWER ISA 2.06 */
+/* XXX: only enough opcodes for FreeBSD kernel, remove and replace with real info */
+{ "stxvw4x", X(31, 908), X_MASK,	PPCVEC,		{ FRS, RA0, RB } },
+{ "lxvw4x",  X(31, 780), X_MASK,	PPCVEC,		{ FRT, RA0, RB } },
 
 /* New load/store left/right index vector instructions that are in the Cell only.  */
 { "lvlx",    X(31, 519), X_MASK,	CELL,		{ VD, RA0, RB } },

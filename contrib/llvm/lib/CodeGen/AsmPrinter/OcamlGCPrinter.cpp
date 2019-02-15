@@ -1,4 +1,4 @@
-//===-- OcamlGCPrinter.cpp - Ocaml frametable emitter ---------------------===//
+//===- OcamlGCPrinter.cpp - Ocaml frametable emitter ----------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,38 +11,43 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/CodeGen/GCs.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/CodeGen/AsmPrinter.h"
+#include "llvm/CodeGen/GCMetadata.h"
 #include "llvm/CodeGen/GCMetadataPrinter.h"
+#include "llvm/CodeGen/GCs.h"
+#include "llvm/CodeGen/TargetLoweringObjectFile.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/IR/Module.h"
-#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCDirectives.h"
 #include "llvm/MC/MCStreamer.h"
-#include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/FormattedStream.h"
-#include "llvm/Target/Mangler.h"
-#include "llvm/Target/TargetLoweringObjectFile.h"
-#include "llvm/Target/TargetMachine.h"
 #include <cctype>
+#include <cstddef>
+#include <cstdint>
+#include <string>
+
 using namespace llvm;
 
 namespace {
 
-  class OcamlGCMetadataPrinter : public GCMetadataPrinter {
-  public:
-    void beginAssembly(AsmPrinter &AP);
-    void finishAssembly(AsmPrinter &AP);
-  };
+class OcamlGCMetadataPrinter : public GCMetadataPrinter {
+public:
+  void beginAssembly(Module &M, GCModuleInfo &Info, AsmPrinter &AP) override;
+  void finishAssembly(Module &M, GCModuleInfo &Info, AsmPrinter &AP) override;
+};
 
-}
+} // end anonymous namespace
 
 static GCMetadataPrinterRegistry::Add<OcamlGCMetadataPrinter>
-Y("ocaml", "ocaml 3.10-compatible collector");
+    Y("ocaml", "ocaml 3.10-compatible collector");
 
-void llvm::linkOcamlGCPrinter() { }
+void llvm::linkOcamlGCPrinter() {}
 
 static void EmitCamlGlobal(const Module &M, AsmPrinter &AP, const char *Id) {
   const std::string &MId = M.getModuleIdentifier();
@@ -50,7 +55,7 @@ static void EmitCamlGlobal(const Module &M, AsmPrinter &AP, const char *Id) {
   std::string SymName;
   SymName += "caml";
   size_t Letter = SymName.size();
-  SymName.append(MId.begin(), std::find(MId.begin(), MId.end(), '.'));
+  SymName.append(MId.begin(), llvm::find(MId, '.'));
   SymName += "__";
   SymName += Id;
 
@@ -58,20 +63,21 @@ static void EmitCamlGlobal(const Module &M, AsmPrinter &AP, const char *Id) {
   SymName[Letter] = toupper(SymName[Letter]);
 
   SmallString<128> TmpStr;
-  AP.Mang->getNameWithPrefix(TmpStr, SymName);
+  Mangler::getNameWithPrefix(TmpStr, SymName, M.getDataLayout());
 
-  MCSymbol *Sym = AP.OutContext.GetOrCreateSymbol(TmpStr);
+  MCSymbol *Sym = AP.OutContext.getOrCreateSymbol(TmpStr);
 
-  AP.OutStreamer.EmitSymbolAttribute(Sym, MCSA_Global);
-  AP.OutStreamer.EmitLabel(Sym);
+  AP.OutStreamer->EmitSymbolAttribute(Sym, MCSA_Global);
+  AP.OutStreamer->EmitLabel(Sym);
 }
 
-void OcamlGCMetadataPrinter::beginAssembly(AsmPrinter &AP) {
-  AP.OutStreamer.SwitchSection(AP.getObjFileLowering().getTextSection());
-  EmitCamlGlobal(getModule(), AP, "code_begin");
+void OcamlGCMetadataPrinter::beginAssembly(Module &M, GCModuleInfo &Info,
+                                           AsmPrinter &AP) {
+  AP.OutStreamer->SwitchSection(AP.getObjFileLowering().getTextSection());
+  EmitCamlGlobal(M, AP, "code_begin");
 
-  AP.OutStreamer.SwitchSection(AP.getObjFileLowering().getDataSection());
-  EmitCamlGlobal(getModule(), AP, "data_begin");
+  AP.OutStreamer->SwitchSection(AP.getObjFileLowering().getDataSection());
+  EmitCamlGlobal(M, AP, "data_begin");
 }
 
 /// emitAssembly - Print the frametable. The ocaml frametable format is thus:
@@ -90,72 +96,87 @@ void OcamlGCMetadataPrinter::beginAssembly(AsmPrinter &AP) {
 /// (FrameSize and LiveOffsets would overflow). FrameTablePrinter will abort if
 /// either condition is detected in a function which uses the GC.
 ///
-void OcamlGCMetadataPrinter::finishAssembly(AsmPrinter &AP) {
-  unsigned IntPtrSize = AP.TM.getDataLayout()->getPointerSize();
+void OcamlGCMetadataPrinter::finishAssembly(Module &M, GCModuleInfo &Info,
+                                            AsmPrinter &AP) {
+  unsigned IntPtrSize = M.getDataLayout().getPointerSize();
 
-  AP.OutStreamer.SwitchSection(AP.getObjFileLowering().getTextSection());
-  EmitCamlGlobal(getModule(), AP, "code_end");
+  AP.OutStreamer->SwitchSection(AP.getObjFileLowering().getTextSection());
+  EmitCamlGlobal(M, AP, "code_end");
 
-  AP.OutStreamer.SwitchSection(AP.getObjFileLowering().getDataSection());
-  EmitCamlGlobal(getModule(), AP, "data_end");
+  AP.OutStreamer->SwitchSection(AP.getObjFileLowering().getDataSection());
+  EmitCamlGlobal(M, AP, "data_end");
 
   // FIXME: Why does ocaml emit this??
-  AP.OutStreamer.EmitIntValue(0, IntPtrSize);
+  AP.OutStreamer->EmitIntValue(0, IntPtrSize);
 
-  AP.OutStreamer.SwitchSection(AP.getObjFileLowering().getDataSection());
-  EmitCamlGlobal(getModule(), AP, "frametable");
+  AP.OutStreamer->SwitchSection(AP.getObjFileLowering().getDataSection());
+  EmitCamlGlobal(M, AP, "frametable");
 
   int NumDescriptors = 0;
-  for (iterator I = begin(), IE = end(); I != IE; ++I) {
+  for (GCModuleInfo::FuncInfoVec::iterator I = Info.funcinfo_begin(),
+                                           IE = Info.funcinfo_end();
+       I != IE; ++I) {
     GCFunctionInfo &FI = **I;
+    if (FI.getStrategy().getName() != getStrategy().getName())
+      // this function is managed by some other GC
+      continue;
     for (GCFunctionInfo::iterator J = FI.begin(), JE = FI.end(); J != JE; ++J) {
       NumDescriptors++;
     }
   }
 
-  if (NumDescriptors >= 1<<16) {
+  if (NumDescriptors >= 1 << 16) {
     // Very rude!
     report_fatal_error(" Too much descriptor for ocaml GC");
   }
   AP.EmitInt16(NumDescriptors);
   AP.EmitAlignment(IntPtrSize == 4 ? 2 : 3);
 
-  for (iterator I = begin(), IE = end(); I != IE; ++I) {
+  for (GCModuleInfo::FuncInfoVec::iterator I = Info.funcinfo_begin(),
+                                           IE = Info.funcinfo_end();
+       I != IE; ++I) {
     GCFunctionInfo &FI = **I;
+    if (FI.getStrategy().getName() != getStrategy().getName())
+      // this function is managed by some other GC
+      continue;
 
     uint64_t FrameSize = FI.getFrameSize();
-    if (FrameSize >= 1<<16) {
+    if (FrameSize >= 1 << 16) {
       // Very rude!
       report_fatal_error("Function '" + FI.getFunction().getName() +
                          "' is too large for the ocaml GC! "
-                         "Frame size " + Twine(FrameSize) + ">= 65536.\n"
-                         "(" + Twine(uintptr_t(&FI)) + ")");
+                         "Frame size " +
+                         Twine(FrameSize) + ">= 65536.\n"
+                                            "(" +
+                         Twine(uintptr_t(&FI)) + ")");
     }
 
-    AP.OutStreamer.AddComment("live roots for " +
-                              Twine(FI.getFunction().getName()));
-    AP.OutStreamer.AddBlankLine();
+    AP.OutStreamer->AddComment("live roots for " +
+                               Twine(FI.getFunction().getName()));
+    AP.OutStreamer->AddBlankLine();
 
     for (GCFunctionInfo::iterator J = FI.begin(), JE = FI.end(); J != JE; ++J) {
       size_t LiveCount = FI.live_size(J);
-      if (LiveCount >= 1<<16) {
+      if (LiveCount >= 1 << 16) {
         // Very rude!
         report_fatal_error("Function '" + FI.getFunction().getName() +
                            "' is too large for the ocaml GC! "
-                           "Live root count "+Twine(LiveCount)+" >= 65536.");
+                           "Live root count " +
+                           Twine(LiveCount) + " >= 65536.");
       }
 
-      AP.OutStreamer.EmitSymbolValue(J->Label, IntPtrSize);
+      AP.OutStreamer->EmitSymbolValue(J->Label, IntPtrSize);
       AP.EmitInt16(FrameSize);
       AP.EmitInt16(LiveCount);
 
       for (GCFunctionInfo::live_iterator K = FI.live_begin(J),
-                                         KE = FI.live_end(J); K != KE; ++K) {
-        if (K->StackOffset >= 1<<16) {
+                                         KE = FI.live_end(J);
+           K != KE; ++K) {
+        if (K->StackOffset >= 1 << 16) {
           // Very rude!
           report_fatal_error(
-                 "GC root stack offset is outside of fixed stack frame and out "
-                 "of range for ocaml GC!");
+              "GC root stack offset is outside of fixed stack frame and out "
+              "of range for ocaml GC!");
         }
         AP.EmitInt16(K->StackOffset);
       }

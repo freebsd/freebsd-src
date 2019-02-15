@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2007-2014 QLogic Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -218,6 +220,9 @@ struct bxe_eth_stats {
     uint32_t rx_calls;
     uint32_t rx_pkts;
     uint32_t rx_tpa_pkts;
+    uint32_t rx_erroneous_jumbo_sge_pkts;
+    uint32_t rx_bxe_service_rxsgl;
+    uint32_t rx_jumbo_sge_pkts;
     uint32_t rx_soft_errors;
     uint32_t rx_hw_csum_errors;
     uint32_t rx_ofld_frames_csum_ip;
@@ -260,6 +265,17 @@ struct bxe_eth_stats {
     uint32_t mbuf_alloc_rx;
     uint32_t mbuf_alloc_sge;
     uint32_t mbuf_alloc_tpa;
+
+    /* num. of times tx queue full occurred */
+    uint32_t tx_queue_full_return;
+    /* debug stats */
+    uint32_t bxe_tx_mq_sc_state_failures;
+    uint32_t tx_request_link_down_failures;
+    uint32_t bd_avail_too_less_failures;
+    uint32_t tx_mq_not_empty;
+    uint32_t nsegs_path1_errors;
+    uint32_t nsegs_path2_errors;
+
 };
 
 
@@ -318,6 +334,9 @@ struct bxe_eth_q_stats {
     uint32_t rx_calls;
     uint32_t rx_pkts;
     uint32_t rx_tpa_pkts;
+    uint32_t rx_erroneous_jumbo_sge_pkts;
+    uint32_t rx_bxe_service_rxsgl;
+    uint32_t rx_jumbo_sge_pkts;
     uint32_t rx_soft_errors;
     uint32_t rx_hw_csum_errors;
     uint32_t rx_ofld_frames_csum_ip;
@@ -360,6 +379,18 @@ struct bxe_eth_q_stats {
     uint32_t mbuf_alloc_rx;
     uint32_t mbuf_alloc_sge;
     uint32_t mbuf_alloc_tpa;
+
+    /* num. of times tx queue full occurred */
+    uint32_t tx_queue_full_return;
+
+    /* debug stats */
+    uint32_t bxe_tx_mq_sc_state_failures;
+    uint32_t tx_request_link_down_failures;
+    uint32_t bd_avail_too_less_failures;
+    uint32_t tx_mq_not_empty;
+    uint32_t nsegs_path1_errors;
+    uint32_t nsegs_path2_errors;
+
 };
 
 struct bxe_eth_stats_old {
@@ -411,6 +442,9 @@ struct bxe_eth_q_stats_old {
     uint32_t rx_calls_old;
     uint32_t rx_pkts_old;
     uint32_t rx_tpa_pkts_old;
+    uint32_t rx_erroneous_jumbo_sge_pkts_old;
+    uint32_t rx_bxe_service_rxsgl_old;
+    uint32_t rx_jumbo_sge_pkts_old;
     uint32_t rx_soft_errors_old;
     uint32_t rx_hw_csum_errors_old;
     uint32_t rx_ofld_frames_csum_ip_old;

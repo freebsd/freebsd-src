@@ -1,19 +1,23 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/usr.bin/mkimg
+.PATH:	${.CURDIR}
 
-ATF_TESTS_SH=	mkimg
+PACKAGE=	tests
+
+_REBASE_SCRIPT=	mkimg_test
+ATF_TESTS_SH=	${_REBASE_SCRIPT}
 
 SOURCES!=	cd ${.CURDIR}; echo *.uu
-FILES=		${SOURCES:S,.gz.uu,,g}
-FILESDIR=	${TESTSDIR}
+${PACKAGE}FILES+=		${SOURCES:S,.gz.uu,,g}
 
-${FILES}:
-	uudecode -p ${.CURDIR}/${.TARGET}.gz.uu | gunzip -c > ${.TARGET}
+.for f in ${${PACKAGE}FILES}
+$f: $f.gz.uu
+	uudecode -p ${.ALLSRC} | gunzip -c > ${.TARGET}
+.endfor
 
-CLEANFILES+=	${FILES}
+CLEANFILES+=	${${PACKAGE}FILES}}
 
-rebase:
-	(cd ${.CURDIR}; atf-sh mkimg.sh rebase)
+rebase: .PHONY
+	(cd ${.CURDIR}; atf-sh ${_REBASE_SCRIPT}.sh rebase)
 
 .include <bsd.test.mk>

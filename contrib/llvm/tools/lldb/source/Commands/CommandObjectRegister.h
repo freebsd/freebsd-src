@@ -22,24 +22,22 @@ namespace lldb_private {
 // CommandObjectRegister
 //-------------------------------------------------------------------------
 
-class CommandObjectRegister : public CommandObjectMultiword
-{
+class CommandObjectRegister : public CommandObjectMultiword {
 public:
-    //------------------------------------------------------------------
-    // Constructors and Destructors
-    //------------------------------------------------------------------
-    CommandObjectRegister(CommandInterpreter &interpreter);
+  //------------------------------------------------------------------
+  // Constructors and Destructors
+  //------------------------------------------------------------------
+  CommandObjectRegister(CommandInterpreter &interpreter);
 
-    virtual
-    ~CommandObjectRegister();
+  ~CommandObjectRegister() override;
 
 private:
-    //------------------------------------------------------------------
-    // For CommandObjectRegister only
-    //------------------------------------------------------------------
-    DISALLOW_COPY_AND_ASSIGN (CommandObjectRegister);
+  //------------------------------------------------------------------
+  // For CommandObjectRegister only
+  //------------------------------------------------------------------
+  DISALLOW_COPY_AND_ASSIGN(CommandObjectRegister);
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_CommandObjectRegister_h_
+#endif // liblldb_CommandObjectRegister_h_

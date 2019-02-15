@@ -22,16 +22,13 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $Id: entropy.h,v 1.6 2011/09/09 01:29:41 dtucker Exp $ */
-
 #ifndef _RANDOMS_H
 #define _RANDOMS_H
 
-#include "buffer.h"
+struct sshbuf;
 
 void seed_rng(void);
-
-void rexec_send_rng_seed(Buffer *);
-void rexec_recv_rng_seed(Buffer *);
+void rexec_send_rng_seed(struct sshbuf *);
+void rexec_recv_rng_seed(struct sshbuf *);
 
 #endif /* _RANDOMS_H */

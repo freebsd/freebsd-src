@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../lib/libc/iconv
+.PATH: ${SRCTOP}/lib/libc/iconv
 
 PROG=	mkcsmapper
-LDFLAGS+= -L${.CURDIR}/../../lib/libc
+LDFLAGS+= -L${SRCTOP}/lib/libc
 
 NO_WMISSING_VARIABLE_DECLARATIONS=
 

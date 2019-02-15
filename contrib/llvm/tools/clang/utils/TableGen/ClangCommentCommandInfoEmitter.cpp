@@ -66,13 +66,13 @@ void EmitClangCommentCommandInfo(RecordKeeper &Records, raw_ostream &OS) {
     std::string Name = Tag.getValueAsString("Name");
     std::string Return;
     raw_string_ostream(Return) << "return &Commands[" << i << "];";
-    Matches.push_back(StringMatcher::StringPair(Name, Return));
+    Matches.emplace_back(std::move(Name), std::move(Return));
   }
 
   OS << "const CommandInfo *CommandTraits::getBuiltinCommandInfo(\n"
      << "                                         StringRef Name) {\n";
   StringMatcher("Name", Matches, OS).Emit();
-  OS << "  return NULL;\n"
+  OS << "  return nullptr;\n"
      << "}\n\n";
 }
 
@@ -123,4 +123,3 @@ void EmitClangCommentCommandList(RecordKeeper &Records, raw_ostream &OS) {
   }
 }
 } // end namespace clang
-

@@ -440,13 +440,20 @@ svn_prop_name_is_valid(const char *prop_name);
  * @verbatim
      /trunk: 1-6,9,37-38
      /trunk/foo: 10 @endverbatim
+ * @since New in 1.5.
  */
 #define SVN_PROP_MERGEINFO SVN_PROP_PREFIX "mergeinfo"
 
-/** Property used to record inheritable configuration auto-props. */
+/** Property used to record inheritable configuration auto-props.
+ *
+ * @since New in 1.8.
+ */
 #define SVN_PROP_INHERITABLE_AUTO_PROPS SVN_PROP_PREFIX "auto-props"
 
-/** Property used to record inheritable configuration ignores. */
+/** Property used to record inheritable configuration ignores.
+ *
+ * @since New in 1.8.
+ */
 #define SVN_PROP_INHERITABLE_IGNORES SVN_PROP_PREFIX "global-ignores"
 
 /** Meta-data properties.
@@ -468,22 +475,42 @@ svn_prop_name_is_valid(const char *prop_name);
 /** The files' last modification time.
  * This is stored as string in the form @c "2008-08-07T07:38:51.008782Z", to
  * be converted by the functions @c svn_time_to_cstring() and
- * @c svn_time_from_cstring(). */
+ * @c svn_time_from_cstring().
+ *
+ * @note This property name is reserved for future usage, but currently unused.
+ *
+ * @since New in 1.6.
+ */
 #define SVN_PROP_TEXT_TIME  SVN_PROP_PREFIX "text-time"
 
 /** The files' owner.
  * Stored as numeric ID, optionally followed by whitespace and the string:
  * @c "1000 pmarek". Parsers @b should accept any number of whitespace,
- * and writers @b should put exactly a single space. */
+ * and writers @b should put exactly a single space.
+ *
+ * @note This property name is reserved for future usage, but currently unused.
+ *
+ * @since New in 1.6.
+ */
 #define SVN_PROP_OWNER SVN_PROP_PREFIX "owner"
 
 /** The files' group.
- * The same format as for @c SVN_PROP_OWNER, the owner-property. */
+ * The same format as for @c SVN_PROP_OWNER, the owner-property.
+ *
+ * @note This property name is reserved for future usage, but currently unused.
+ *
+ * @since New in 1.6.
+ */
 #define SVN_PROP_GROUP  SVN_PROP_PREFIX "group"
 
 /** The files' unix-mode.
  * Stored in octal, with a leading @c 0; may have 5 digits if any of @c setuid,
- * @c setgid or @c sticky are set; an example is @c "0644". */
+ * @c setgid or @c sticky are set; an example is @c "0644".
+ *
+ * @note This property name is reserved for future usage, but currently unused.
+ *
+ * @since New in 1.6.
+ */
 #define SVN_PROP_UNIX_MODE  SVN_PROP_PREFIX "unix-mode"
 
 /** @} */ /* Meta-data properties */
@@ -671,7 +698,7 @@ svn_prop_name_is_valid(const char *prop_name);
  */
 #define SVN_PROP_TXN_PREFIX  SVN_PROP_PREFIX "txn-"
 
-/** Identifies the client version compability level.  For clients
+/** Identifies the client version compatibility level.  For clients
  * compiled against Subversion libraries, this is @c SVN_VER_NUMBER.
  * Third-party implementations are advised to use similar formatting
  * for values of this property.

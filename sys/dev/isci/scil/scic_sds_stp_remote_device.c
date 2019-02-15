@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -424,7 +426,7 @@ SCI_STATUS scic_sds_stp_remote_device_ready_ncq_substate_event_handler(
          this_device, event_code, sci_base_state_machine_get_state(&this_device->ready_substate_machine)
       ));
 
-      // Since we didnt expect to get here start the device again.
+      // Since we didn't expect to get here start the device again.
       status = scic_sds_remote_device_resume(this_device);
       break;
 

@@ -285,7 +285,10 @@ extern const struct mips_rtx_cost_data *mips_cost;
 								\
       macro = concat ((PREFIX), "_", (INFO)->name, NULL);	\
       for (p = macro; *p != 0; p++)				\
-	*p = TOUPPER (*p);					\
+	if (*p == '+')						\
+	  *p = 'P';						\
+	else							\
+	  *p = TOUPPER (*p);					\
 								\
       builtin_define (macro);					\
       builtin_define_with_value ((PREFIX), (INFO)->name, 1);	\
@@ -2718,6 +2721,7 @@ while (0)
 	nop\n\
 1:	.cpload $31\n\
 	.set reorder\n\
+	.local " USER_LABEL_PREFIX #FUNC "\n\
 	jal " USER_LABEL_PREFIX #FUNC "\n\
 	" TEXT_SECTION_ASM_OP);
 #endif /* Switch to #elif when we're no longer limited by K&R C.  */
@@ -2730,6 +2734,7 @@ while (0)
 	nop\n\
 1:	.set reorder\n\
 	.cpsetup $31, $2, 1b\n\
+	.local " USER_LABEL_PREFIX #FUNC "\n\
 	jal " USER_LABEL_PREFIX #FUNC "\n\
 	" TEXT_SECTION_ASM_OP);
 #endif

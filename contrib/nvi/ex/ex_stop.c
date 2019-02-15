@@ -31,7 +31,7 @@ static const char sccsid[] = "$Id: ex_stop.c,v 10.11 2001/06/25 15:19:20 skimo E
  *	      :suspend[!]
  *	Suspend execution.
  *
- * PUBLIC: int ex_stop __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_stop(SCR *, EXCMD *);
  */
 int
 ex_stop(SCR *sp, EXCMD *cmdp)

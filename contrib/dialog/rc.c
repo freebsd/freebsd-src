@@ -1,9 +1,9 @@
 /*
- *  $Id: rc.c,v 1.51 2012/11/30 21:32:39 tom Exp $
+ *  $Id: rc.c,v 1.53 2018/05/31 20:32:15 tom Exp $
  *
  *  rc.c -- routines for processing the configuration file
  *
- *  Copyright 2000-2011,2012	Thomas E. Dickey
+ *  Copyright 2000-2012,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -69,11 +69,8 @@ typedef enum {
 /* number of configuration variables */
 #define VAR_COUNT        (sizeof(vars) / sizeof(vars_st))
 
-/* check if character is white space */
-#define whitespace(c)    (c == ' ' || c == TAB)
-
 /* check if character is string quoting characters */
-#define isquote(c)       (c == '"' || c == '\'')
+#define isquote(c)       ((c) == '"' || (c) == '\'')
 
 /* get last character of string */
 #define lastch(str)      str[strlen(str)-1]
@@ -130,7 +127,7 @@ static const vars_st vars[] =
 static int
 skip_whitespace(char *str, int n)
 {
-    while (whitespace(str[n]) && str[n] != '\0')
+    while (isblank(UCH(str[n])) && str[n] != '\0')
 	n++;
     return n;
 }
@@ -246,13 +243,13 @@ str_to_attr(char *str, int *fg, int *bg, int *hl)
 	part = tempstr + i;	/* set 'part' to start of fg/bg string */
 
 	/* find end of fg/bg string */
-	while (!whitespace(tempstr[i]) && tempstr[i] != ','
+	while (!isblank(UCH(tempstr[i])) && tempstr[i] != ','
 	       && tempstr[i] != '\0')
 	    i++;
 
 	if (tempstr[i] == '\0')
 	    return -1;		/* invalid representation */
-	else if (whitespace(tempstr[i])) {	/* not yet ',' */
+	else if (isblank(UCH(tempstr[i]))) {	/* not yet ',' */
 	    tempstr[i++] = '\0';
 
 	    /* skip white space before ',' */
@@ -284,7 +281,7 @@ str_to_attr(char *str, int *fg, int *bg, int *hl)
 
     /* trim trailing white space from highlight string */
     i = (int) strlen(part) - 1;
-    while (whitespace(part[i]) && i > 0)
+    while (isblank(UCH(part[i])) && i > 0)
 	i--;
     part[i + 1] = '\0';
 
@@ -353,7 +350,7 @@ parse_line(char *line, char **var, char **value)
     *var = line + i++;		/* skip to next character */
 
     /* find end of variable name */
-    while (!whitespace(line[i]) && line[i] != '=' && line[i] != '\0')
+    while (!isblank(UCH(line[i])) && line[i] != '=' && line[i] != '\0')
 	i++;
 
     if (line[i] == '\0')	/* syntax error */
@@ -382,7 +379,7 @@ parse_line(char *line, char **var, char **value)
 
     /* trim trailing white space from 'value' */
     i = (int) strlen(*value) - 1;
-    while (whitespace((*value)[i]) && i > 0)
+    while (isblank(UCH((*value)[i])) && i > 0)
 	i--;
     (*value)[i + 1] = '\0';
 
@@ -524,10 +521,10 @@ dlg_parse_rc(void)
 	    return 0;		/* step (c) failed, use default values */
     }
 
-    DLG_TRACE(("opened rc file \"%s\"\n", tempptr));
+    DLG_TRACE(("# opened rc file \"%s\"\n", tempptr));
     /* Scan each line and set variables */
     while ((result == 0) && (fgets(str, MAX_LEN, rc_file) != NULL)) {
-	DLG_TRACE(("rc:%s", str));
+	DLG_TRACE(("#\t%s", str));
 	if (*str == '\0' || lastch(str) != '\n') {
 	    /* ignore rest of file if line too long */
 	    fprintf(stderr, "\nParse error: line %d of configuration"

@@ -2,12 +2,11 @@
 
 PROG=	fifolog_reader
 
-CFLAGS+= -I${.CURDIR}/../lib
+CFLAGS+= -I${.CURDIR:H}/lib
 
 MAN=
 
-DPADD=	${LIBFIFOLOG} ${LIBUTIL} ${LIBZ}
-LDADD=	${LIBFIFOLOG} -lutil -lz
+LIBADD=	fifolog
 
 regress:
 	./${PROG} /tmp/fifolog.0

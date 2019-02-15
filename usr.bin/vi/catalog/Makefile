@@ -3,10 +3,15 @@
 
 .include <bsd.own.mk>
 
+PACKAGE=vi
 V=	${.CURDIR}/../../../contrib/nvi
 
+FILESGROUPS+=VICAT
 CAT=	dutch english french german polish ru_RU.KOI8-R spanish swedish \
 	uk_UA.KOI8-U zh_CN.GB2312
+VICAT=		${CAT}
+VICATDIR=	${FILESDIR}
+VICATPACKAGE=	${PACKAGE}
 
 SCAN=	${V}/cl/*.c ${V}/common/*.c ${V}/ex/*.c ${V}/vi/*.c
 
@@ -32,9 +37,9 @@ CAT+=	$c.UTF-8
 
 .for c in ${CAT}
 ${c}:	${c}.base 
-	@echo "... $c";							\
+	echo "... $c";							\
 	rm -f $c;							\
-	sort -u ${.ALLSRC} |						\
+	env LC_ALL=C sort -u ${.ALLSRC} |				\
 	awk '{								\
 		if ($$1 == 1) {						\
 			print "\nMESSAGE NUMBER 1 IS NOT LEGAL";	\
@@ -44,7 +49,7 @@ ${c}:	${c}.base
 			print "DUPLICATE MESSAGE NUMBER " $$1;		\
 			exit 1;						\
 		}							\
-		print $0;						\
+		print $$0;						\
 	}' |								\
 	sed -e '1s/^/$$set 1~$$quote "~/; 1y/~/\n/' |			\
 	gencat $c /dev/stdin;						\
@@ -81,27 +86,27 @@ ${c}.check: ${c}.base
 	echo =========================;					\
 	echo "MESSAGES WITH THE SAME MESSAGE ID's (FIX!):";		\
 	for j in							\
-	    `sed '/^$$/d' < $$f.base | LANG=C sort -u |			\
+	    `sed '/^$$/d' < $$f.base | LC_ALL=C sort -u |		\
 	    awk '{print $$1}' | uniq -d`; do				\
 		egrep $$j $$f.base;					\
 	done;								\
 	echo =========================;					\
 	echo "Duplicate messages, both id and message (this is okay):";	\
-	sed '/^$$/d' < $$f.base | LANG=C sort | uniq -c |			\
+	sed '/^$$/d' < $$f.base | LC_ALL=C sort | uniq -c |		\
 	awk '$$1 != 1 { print $$0 }' | sort -n;				\
 	echo =========================) > $c
 .endfor
 
 english.base: dump ${SCAN} #Makefile
-	./dump ${SCAN} |\
+	${BTOOLSPATH:U.}/dump ${SCAN} |\
 	sed -e '/|/!d' \
 	    -e 's/|/ "/' \
 	    -e 's/^"//' |\
 	sort -nu > $@
 
 
-dump: dump.c
-	${CC} -o dump ${.ALLSRC}
+dump: dump.c ${BUILD_TOOLS_META}
+	${CC:N${CCACHE_BIN}} -o ${.TARGET} ${.ALLSRC}
 
 CLEANFILES+= dump ${CAT} english.base *.check __ck1 __ck2
 
@@ -115,7 +120,7 @@ SVLINKS= sv_SE
 PLLINKS= pl_PL
 
 FILES=	${CATALOGS}
-FILESDIR= /usr/share/vi/catalog
+FILESDIR= ${SHAREDIR}/vi/catalog
 SYMLINKS=
 .for l in ${NLLINKS}
 SYMLINKS+= dutch ${FILESDIR}/$l.ISO8859-1

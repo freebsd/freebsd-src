@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 by Thomas Moestl <tmm@FreeBSD.org>.
  * All rights reserved.
  *
@@ -29,9 +31,9 @@
 #define	_MACHINE_KERNELDUMP_H_
 
 struct sparc64_dump_reg {
-	vm_paddr_t	dr_pa;
-	vm_offset_t	dr_size;
-	vm_offset_t	dr_offs;
+	uint64_t	dr_pa;
+	uint64_t	dr_size;
+	uint64_t	dr_offs;
 };
 
 /*
@@ -40,11 +42,12 @@ struct sparc64_dump_reg {
  * would require some ugly hacks.
  */
 struct sparc64_dump_hdr {
-	vm_offset_t	dh_hdr_size;
-	vm_paddr_t	dh_tsb_pa;
-	vm_size_t	dh_tsb_size;
-	vm_size_t	dh_tsb_mask;
-	int		dh_nregions;
+	uint64_t	dh_hdr_size;
+	uint64_t	dh_tsb_pa;
+	uint64_t	dh_tsb_size;
+	uint64_t	dh_tsb_mask;
+	int32_t		dh_nregions;
+	int32_t		dh_pad;
 	struct sparc64_dump_reg	dh_regions[];
 };
 

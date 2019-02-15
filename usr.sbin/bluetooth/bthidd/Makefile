@@ -4,14 +4,12 @@
 PROG=		bthidd
 MAN=		bthidd.8
 #		bthidd.conf.5
-SRCS=		bthidd.c client.c hid.c kbd.c lexer.l parser.y server.c \
-		session.c
+SRCS=		bthidd.c btuinput.c client.c hid.c kbd.c lexer.l parser.y \
+		server.c session.c
 
 CFLAGS+=	-I${.CURDIR}
-DEBUG_FLAGS=	-g
 
-DPADD=          ${LIBBLUETOOTH} ${LIBUSBHID}
-LDADD=		-lbluetooth -lusbhid
+LIBADD+=	bluetooth usbhid
 
 NO_WMISSING_VARIABLE_DECLARATIONS=
 

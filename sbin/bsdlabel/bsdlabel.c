@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994, 1995 Gordon W. Ross
  * Copyright (c) 1994 Theo de Raadt
  * All rights reserved.
@@ -164,8 +166,7 @@ main(int argc, char *argv[])
 				break;
 			case 'm':
 				if (!strcmp(optarg, "i386") ||
-				    !strcmp(optarg, "amd64") ||
-				    !strcmp(optarg, "pc98")) {
+				    !strcmp(optarg, "amd64")) {
 					labelsoffset = 1;
 					labeloffset = 0;
 					bbsize = 8192;
@@ -781,7 +782,7 @@ getasciilabel(FILE *f, struct disklabel *lp)
 	lp->d_sbsize = 0;				/* XXX */
 	while (fgets(line, sizeof(line) - 1, f)) {
 		lineno++;
-		if ((cp = strchr(line,'\n')) != 0)
+		if ((cp = strchr(line,'\n')) != NULL)
 			*cp = '\0';
 		cp = skip(line);
 		if (cp == NULL)

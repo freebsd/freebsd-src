@@ -30,6 +30,7 @@
 #define	_MACHINE_DB_MACHDEP_H_
 
 #include <machine/frame.h>
+#include <machine/reg.h>
 #include <machine/trap.h>
 
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
@@ -56,39 +57,30 @@ do {						\
 #define	db_clear_single_step	kdb_cpu_clear_singlestep
 #define	db_set_single_step	kdb_cpu_set_singlestep
 
-#define	IS_BREAKPOINT_TRAP(type, code)	((type) == T_BPTFLT)
 /*
- * Watchpoints are not supported.  The debug exception type is in %dr6
- * and not yet in the args to this macro.
+ * The debug exception type is copied from %dr6 to 'code' and used to
+ * disambiguate single step traps.  Watchpoints have no special support.
+ * Our hardware breakpoints are not well integrated with ddb and are too
+ * different from watchpoints.  ddb treats them as unknown traps with
+ * unknown addresses and doesn't turn them off while it is running.
  */
-#define IS_WATCHPOINT_TRAP(type, code)	0
+#define	IS_BREAKPOINT_TRAP(type, code)	((type) == T_BPTFLT)
+#define	IS_SSTEP_TRAP(type, code)					\
+	((type) == T_TRCTRAP && (code) & DBREG_DR6_BS)
+#define	IS_WATCHPOINT_TRAP(type, code)	0
 
 #define	I_CALL		0xe8
 #define	I_CALLI		0xff
+#define	i_calli(ins)	(((ins)&0xff) == I_CALLI && ((ins)&0x3800) == 0x1000)
 #define	I_RET		0xc3
 #define	I_IRET		0xcf
+#define	i_rex(ins)	(((ins) & 0xff) == 0x41 || ((ins) & 0xff) == 0x43)
 
 #define	inst_trap_return(ins)	(((ins)&0xff) == I_IRET)
 #define	inst_return(ins)	(((ins)&0xff) == I_RET)
-#define	inst_call(ins)		(((ins)&0xff) == I_CALL || \
-				 (((ins)&0xff) == I_CALLI && \
-				  ((ins)&0x3800) == 0x1000))
+#define	inst_call(ins)		(((ins)&0xff) == I_CALL || i_calli(ins) || \
+				 (i_calli((ins) >> 8) && i_rex(ins)))
 #define inst_load(ins)		0
 #define inst_store(ins)		0
-
-/*
- * There no interesting addresses below _kstack = 0xefbfe000.  There
- * are small absolute values for GUPROF, but we don't want to see them.
- * Treat "negative" addresses below _kstack as non-small to allow for
- * future reductions of _kstack and to avoid sign extension problems.
- *
- * There is one interesting symbol above -db_maxoff = 0xffff0000,
- * namely _APTD = 0xfffff000.  Accepting this would mess up the
- * printing of small negative offsets.  The next largest symbol is
- * _APTmap = 0xffc00000.  Accepting this is OK (unless db_maxoff is
- * set to >= 0x400000 - (max stack offset)).
- */
-#define	DB_SMALL_VALUE_MAX	0x7fffffff
-#define	DB_SMALL_VALUE_MIN	(-0x400001)
 
 #endif /* !_MACHINE_DB_MACHDEP_H_ */

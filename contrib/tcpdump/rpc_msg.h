@@ -1,4 +1,3 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/rpc_msg.h,v 1.2 2005-04-27 21:43:48 guy Exp $ (LBL) */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -29,8 +28,7 @@
  *
  *	from: @(#)rpc_msg.h 1.7 86/07/16 SMI
  *	from: @(#)rpc_msg.h	2.1 88/07/29 4.0 RPCSRC
- * $FreeBSD$
- * FreeBSD: src/include/rpc/rpc_msg.h,v 1.11.2.1 1999/08/29 14:39:07 peter Exp 
+ * $FreeBSD: projects/clang400-import/contrib/tcpdump/rpc_msg.h 276788 2015-01-07 19:55:18Z delphij $
  */
 
 /*
@@ -40,7 +38,7 @@
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
-#define SUNRPC_MSG_VERSION	((u_int32_t) 2)
+#define SUNRPC_MSG_VERSION	((uint32_t) 2)
 
 /*
  * Bottom up definition of an rpc message.
@@ -80,13 +78,13 @@ enum sunrpc_reject_stat {
  * Reply to an rpc request that was rejected by the server.
  */
 struct sunrpc_rejected_reply {
-	u_int32_t		 rj_stat;	/* enum reject_stat */
+	uint32_t		 rj_stat;	/* enum reject_stat */
 	union {
 		struct {
-			u_int32_t low;
-			u_int32_t high;
+			uint32_t low;
+			uint32_t high;
 		} RJ_versions;
-		u_int32_t RJ_why;  /* enum auth_stat - why authentication did not work */
+		uint32_t RJ_why;  /* enum auth_stat - why authentication did not work */
 	} ru;
 #define	rj_vers	ru.RJ_versions
 #define	rj_why	ru.RJ_why
@@ -96,7 +94,7 @@ struct sunrpc_rejected_reply {
  * Body of a reply to an rpc request.
  */
 struct sunrpc_reply_body {
-	u_int32_t	rp_stat;		/* enum reply_stat */
+	uint32_t	rp_stat;		/* enum reply_stat */
 	struct sunrpc_rejected_reply rp_reject;	/* if rejected */
 };
 
@@ -104,10 +102,10 @@ struct sunrpc_reply_body {
  * Body of an rpc request call.
  */
 struct sunrpc_call_body {
-	u_int32_t cb_rpcvers;	/* must be equal to two */
-	u_int32_t cb_prog;
-	u_int32_t cb_vers;
-	u_int32_t cb_proc;
+	uint32_t cb_rpcvers;	/* must be equal to two */
+	uint32_t cb_prog;
+	uint32_t cb_vers;
+	uint32_t cb_proc;
 	struct sunrpc_opaque_auth cb_cred;
 	/* followed by opaque verifier */
 };
@@ -116,8 +114,8 @@ struct sunrpc_call_body {
  * The rpc message
  */
 struct sunrpc_msg {
-	u_int32_t		rm_xid;
-	u_int32_t		rm_direction;	/* enum msg_type */
+	uint32_t		rm_xid;
+	uint32_t		rm_direction;	/* enum msg_type */
 	union {
 		struct sunrpc_call_body RM_cmb;
 		struct sunrpc_reply_body RM_rmb;

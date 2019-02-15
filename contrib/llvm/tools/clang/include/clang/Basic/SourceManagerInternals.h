@@ -1,4 +1,4 @@
-//===--- SourceManagerInternals.h - SourceManager Internals -----*- C++ -*-===//
+//===- SourceManagerInternals.h - SourceManager Internals -------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -6,19 +6,23 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-///
+//
 /// \file
 /// \brief Defines implementation details of the clang::SourceManager class.
-///
+//
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SOURCEMANAGER_INTERNALS_H
-#define LLVM_CLANG_SOURCEMANAGER_INTERNALS_H
+#ifndef LLVM_CLANG_BASIC_SOURCEMANAGERINTERNALS_H
+#define LLVM_CLANG_BASIC_SOURCEMANAGERINTERNALS_H
 
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Allocator.h"
+#include <cassert>
 #include <map>
+#include <vector>
 
 namespace clang {
 
@@ -86,28 +90,24 @@ class LineTableInfo {
 
   /// \brief Map from FileIDs to a list of line entries (sorted by the offset
   /// at which they occur in the file).
-  std::map<FileID, std::vector<LineEntry> > LineEntries;
-public:
-  LineTableInfo() {
-  }
+  std::map<FileID, std::vector<LineEntry>> LineEntries;
 
+public:
   void clear() {
     FilenameIDs.clear();
     FilenamesByID.clear();
     LineEntries.clear();
   }
 
-  ~LineTableInfo() {}
-
   unsigned getLineTableFilenameID(StringRef Str);
-  const char *getFilename(unsigned ID) const {
+
+  StringRef getFilename(unsigned ID) const {
     assert(ID < FilenamesByID.size() && "Invalid FilenameID");
-    return FilenamesByID[ID]->getKeyData();
+    return FilenamesByID[ID]->getKey();
   }
+
   unsigned getNumFilenames() const { return FilenamesByID.size(); }
 
-  void AddLineNote(FileID FID, unsigned Offset,
-                   unsigned LineNo, int FilenameID);
   void AddLineNote(FileID FID, unsigned Offset,
                    unsigned LineNo, int FilenameID,
                    unsigned EntryExit, SrcMgr::CharacteristicKind FileKind);
@@ -119,7 +119,8 @@ public:
   const LineEntry *FindNearestLineEntry(FileID FID, unsigned Offset);
 
   // Low-level access
-  typedef std::map<FileID, std::vector<LineEntry> >::iterator iterator;
+  using iterator = std::map<FileID, std::vector<LineEntry>>::iterator;
+
   iterator begin() { return LineEntries.begin(); }
   iterator end() { return LineEntries.end(); }
 
@@ -128,6 +129,6 @@ public:
   void AddEntry(FileID FID, const std::vector<LineEntry> &Entries);
 };
 
-} // end namespace clang
+} // namespace clang
 
-#endif
+#endif // LLVM_CLANG_BASIC_SOURCEMANAGERINTERNALS_H

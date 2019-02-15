@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2009
  * 	Swinburne University of Technology, Melbourne, Australia.
  * Copyright (c) 2009-2010, The FreeBSD Foundation
@@ -75,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
+#include <sys/sdt.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -86,6 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <net/pfil.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
@@ -227,6 +231,10 @@ struct pkt_node {
 	u_int			sent_inflight_bytes;
 	/* Number of segments currently in the reassembly queue. */
 	int			t_segqlen;
+	/* Flowid for the connection. */
+	u_int			flowid;	
+	/* Flow type for the connection. */
+	u_int			flowtype;	
 	/* Link to next pkt_node in the list. */
 	STAILQ_ENTRY(pkt_node)	nodes;
 };
@@ -260,7 +268,7 @@ struct siftr_stats
 	uint32_t nskip_out_dejavu;
 };
 
-static DPCPU_DEFINE(struct siftr_stats, ss);
+DPCPU_DEFINE_STATIC(struct siftr_stats, ss);
 
 static volatile unsigned int siftr_exit_pkt_manager_thread = 0;
 static unsigned int siftr_enabled = 0;
@@ -268,6 +276,7 @@ static unsigned int siftr_pkts_per_log = 1;
 static unsigned int siftr_generate_hashes = 0;
 /* static unsigned int siftr_binary_log = 0; */
 static char siftr_logfile[PATH_MAX] = "/var/log/siftr.log";
+static char siftr_logfile_shadow[PATH_MAX] = "/var/log/siftr.log";
 static u_long siftr_hashmask;
 STAILQ_HEAD(pkthead, pkt_node) pkt_queue = STAILQ_HEAD_INITIALIZER(pkt_queue);
 LIST_HEAD(listhead, flow_hash_node) *counter_hash;
@@ -299,7 +308,7 @@ SYSCTL_PROC(_net_inet_siftr, OID_AUTO, enabled, CTLTYPE_UINT|CTLFLAG_RW,
     "switch siftr module operations on/off");
 
 SYSCTL_PROC(_net_inet_siftr, OID_AUTO, logfile, CTLTYPE_STRING|CTLFLAG_RW,
-    &siftr_logfile, sizeof(siftr_logfile), &siftr_sysctl_logfile_name_handler,
+    &siftr_logfile_shadow, sizeof(siftr_logfile_shadow), &siftr_sysctl_logfile_name_handler,
     "A", "file to save siftr log messages to");
 
 SYSCTL_UINT(_net_inet_siftr, OID_AUTO, ppl, CTLFLAG_RW,
@@ -443,7 +452,7 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		    MAX_LOG_MSG_LEN,
 		    "%c,0x%08x,%zd.%06ld,%x:%x:%x:%x:%x:%x:%x:%x,%u,%x:%x:%x:"
 		    "%x:%x:%x:%x:%x,%u,%ld,%ld,%ld,%ld,%ld,%u,%u,%u,%u,%u,%u,"
-		    "%u,%d,%u,%u,%u,%u,%u,%u\n",
+		    "%u,%d,%u,%u,%u,%u,%u,%u,%u,%u\n",
 		    direction[pkt_node->direction],
 		    pkt_node->hash,
 		    pkt_node->tval.tv_sec,
@@ -484,7 +493,9 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		    pkt_node->rcv_buf_hiwater,
 		    pkt_node->rcv_buf_cc,
 		    pkt_node->sent_inflight_bytes,
-		    pkt_node->t_segqlen);
+		    pkt_node->t_segqlen,
+		    pkt_node->flowid,
+		    pkt_node->flowtype);
 	} else { /* IPv4 packet */
 		pkt_node->ip_laddr[0] = FIRST_OCTET(pkt_node->ip_laddr[3]);
 		pkt_node->ip_laddr[1] = SECOND_OCTET(pkt_node->ip_laddr[3]);
@@ -500,7 +511,7 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		log_buf->ae_bytesused = snprintf(log_buf->ae_data,
 		    MAX_LOG_MSG_LEN,
 		    "%c,0x%08x,%jd.%06ld,%u.%u.%u.%u,%u,%u.%u.%u.%u,%u,%ld,%ld,"
-		    "%ld,%ld,%ld,%u,%u,%u,%u,%u,%u,%u,%d,%u,%u,%u,%u,%u,%u\n",
+		    "%ld,%ld,%ld,%u,%u,%u,%u,%u,%u,%u,%d,%u,%u,%u,%u,%u,%u,%u,%u\n",
 		    direction[pkt_node->direction],
 		    pkt_node->hash,
 		    (intmax_t)pkt_node->tval.tv_sec,
@@ -533,7 +544,9 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		    pkt_node->rcv_buf_hiwater,
 		    pkt_node->rcv_buf_cc,
 		    pkt_node->sent_inflight_bytes,
-		    pkt_node->t_segqlen);
+		    pkt_node->t_segqlen,
+		    pkt_node->flowid,
+		    pkt_node->flowtype);
 #ifdef SIFTR_IPV6
 	}
 #endif
@@ -697,7 +710,7 @@ siftr_findinpcb(int ipver, struct ip *ip, struct mbuf *m, uint16_t sport,
 	struct inpcb *inp;
 
 	/* We need the tcbinfo lock. */
-	INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_WUNLOCK_ASSERT(&V_tcbinfo);
 
 	if (dir == PFIL_IN)
 		inp = (ipver == INP_IPV4 ?
@@ -781,11 +794,13 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 	pn->flags = tp->t_flags;
 	pn->rxt_length = tp->t_rxtcur;
 	pn->snd_buf_hiwater = inp->inp_socket->so_snd.sb_hiwat;
-	pn->snd_buf_cc = inp->inp_socket->so_snd.sb_cc;
+	pn->snd_buf_cc = sbused(&inp->inp_socket->so_snd);
 	pn->rcv_buf_hiwater = inp->inp_socket->so_rcv.sb_hiwat;
-	pn->rcv_buf_cc = inp->inp_socket->so_rcv.sb_cc;
+	pn->rcv_buf_cc = sbused(&inp->inp_socket->so_rcv);
 	pn->sent_inflight_bytes = tp->snd_max - tp->snd_una;
 	pn->t_segqlen = tp->t_segqlen;
+	pn->flowid = inp->inp_flowid;
+	pn->flowtype = inp->inp_flowtype;
 
 	/* We've finished accessing the tcb so release the lock. */
 	if (inp_locally_locked)
@@ -800,6 +815,8 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 	 * maximum pps throughput processing when SIFTR is loaded and enabled.
 	 */
 	microtime(&pn->tval);
+	TCP_PROBE1(siftr, &pn);
+
 }
 
 
@@ -1145,37 +1162,37 @@ siftr_sysctl_logfile_name_handler(SYSCTL_HANDLER_ARGS)
 	struct alq *new_alq;
 	int error;
 
-	if (req->newptr == NULL)
-		goto skip;
+	error = sysctl_handle_string(oidp, arg1, arg2, req);
 
-	/* If old filename and new filename are different. */
-	if (strncmp(siftr_logfile, (char *)req->newptr, PATH_MAX)) {
+	/* Check for error or same filename */
+	if (error != 0 || req->newptr == NULL ||
+	    strncmp(siftr_logfile, arg1, arg2) == 0)
+		goto done;
 
-		error = alq_open(&new_alq, req->newptr, curthread->td_ucred,
-		    SIFTR_LOG_FILE_MODE, SIFTR_ALQ_BUFLEN, 0);
+	/* Filname changed */
+	error = alq_open(&new_alq, arg1, curthread->td_ucred,
+	    SIFTR_LOG_FILE_MODE, SIFTR_ALQ_BUFLEN, 0);
+	if (error != 0)
+		goto done;
 
-		/* Bail if unable to create new alq. */
-		if (error)
-			return (1);
-
-		/*
-		 * If disabled, siftr_alq == NULL so we simply close
-		 * the alq as we've proved it can be opened.
-		 * If enabled, close the existing alq and switch the old
-		 * for the new.
-		 */
-		if (siftr_alq == NULL)
-			alq_close(new_alq);
-		else {
-			alq_close(siftr_alq);
-			siftr_alq = new_alq;
-		}
+	/*
+	 * If disabled, siftr_alq == NULL so we simply close
+	 * the alq as we've proved it can be opened.
+	 * If enabled, close the existing alq and switch the old
+	 * for the new.
+	 */
+	if (siftr_alq == NULL) {
+		alq_close(new_alq);
+	} else {
+		alq_close(siftr_alq);
+		siftr_alq = new_alq;
 	}
 
-skip:
-	return (sysctl_handle_string(oidp, arg1, arg2, req));
+	/* Update filename upon success */
+	strlcpy(siftr_logfile, arg1, arg2);
+done:
+	return (error);
 }
-
 
 static int
 siftr_manage_ops(uint8_t action)
@@ -1184,10 +1201,10 @@ siftr_manage_ops(uint8_t action)
 	struct timeval tval;
 	struct flow_hash_node *counter, *tmp_counter;
 	struct sbuf *s;
-	int i, key_index, ret, error;
+	int i, key_index, error;
 	uint32_t bytes_to_write, total_skipped_pkts;
 	uint16_t lport, fport;
-	uint8_t *key, ipver;
+	uint8_t *key, ipver __unused;
 
 #ifdef SIFTR_IPV6
 	uint32_t laddr[4];
@@ -1218,7 +1235,7 @@ siftr_manage_ops(uint8_t action)
 
 		siftr_exit_pkt_manager_thread = 0;
 
-		ret = kthread_add(&siftr_pkt_manager_thread, NULL, NULL,
+		kthread_add(&siftr_pkt_manager_thread, NULL, NULL,
 		    &siftr_pkt_manager_thr, RFNOWAIT, 0,
 		    "siftr_pkt_manager_thr");
 
@@ -1546,6 +1563,6 @@ static moduledata_t siftr_mod = {
  *          Defines the initialisation order of this kld relative to others
  *          within the same subsystem as defined by param 3
  */
-DECLARE_MODULE(siftr, siftr_mod, SI_SUB_SMP, SI_ORDER_ANY);
+DECLARE_MODULE(siftr, siftr_mod, SI_SUB_LAST, SI_ORDER_ANY);
 MODULE_DEPEND(siftr, alq, 1, 1, 1);
 MODULE_VERSION(siftr, MODVERSION);

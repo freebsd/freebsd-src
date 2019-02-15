@@ -34,13 +34,26 @@ if [ "$CMD" = "P2P-GROUP-STARTED" ]; then
 	    # start with -z to avoid that
 	    dnsmasq -x /var/run/dnsmasq.pid-$GIFNAME \
 		-i $GIFNAME \
-		-F192.168.42.11,192.168.42.99 --listen-address 192.168.42.1 -z
+		-F192.168.42.11,192.168.42.99 --listen-address 192.168.42.1 -z -p 0
 	fi
     fi
     if [ "$4" = "client" ]; then
 	kill_daemon dhclient /var/run/dhclient-$GIFNAME.pid
 	rm /var/run/dhclient.leases-$GIFNAME
 	kill_daemon dnsmasq /var/run/dnsmasq.pid-$GIFNAME
+	ipaddr=`echo "$*" | sed 's/.* ip_addr=\([^ ]*\).*/\1/'`
+	ipmask=`echo "$*" | sed 's/.* ip_mask=\([^ ]*\).*/\1/'`
+	goipaddr=`echo "$*" | sed 's/.* go_ip_addr=\([^ ]*\).*/\1/'`
+	if echo "$ipaddr$ipmask$goipaddr" | grep -q ' '; then
+	    ipaddr=""
+	    ipmask=""
+	    goipaddr=""
+	fi
+	if [ -n "$ipaddr" ]; then
+	    sudo ifconfig $GIFNAME "$ipaddr" netmask "$ipmask"
+	    sudo ip ro re default via "$goipaddr"
+	    exit 0
+	fi
 	dhclient -pf /var/run/dhclient-$GIFNAME.pid \
 	    -lf /var/run/dhclient.leases-$GIFNAME \
 	    -nw \

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 Juergen Weiss <weiss@uni-mainz.de>
  * Copyright (c) 2014 Ian Lepore <ian@freebsd.org>
  * All rights reserved.
@@ -34,9 +36,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/smp.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
+#include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
+#include <machine/platform.h>
+#include <machine/platformvar.h>
+
+#include <arm/freescale/imx/imx6_machdep.h>
 
 #define	SCU_PHYSBASE			0x00a00000
 #define	SCU_SIZE			0x00001000
@@ -63,14 +73,7 @@ __FBSDID("$FreeBSD$");
 #define	SRC_GPR1_C1ARG			0x24	/* Register for Core 1 entry arg */
 
 void
-platform_mp_init_secondary(void)
-{
-
-	gic_init_secondary();
-}
-
-void
-platform_mp_setmaxid(void)
+imx6_mp_setmaxid(platform_t plat)
 {
 	bus_space_handle_t scu;
 	int hwcpu, ncpu;
@@ -95,19 +98,8 @@ platform_mp_setmaxid(void)
 	mp_maxid = ncpu - 1;
 }
 
-int
-platform_mp_probe(void)
-{
-
-	/* I think platform_mp_setmaxid must get called first, but be safe. */
-	if (mp_ncpus == 0)
-		platform_mp_setmaxid();
-
-	return (mp_ncpus > 1);
-}
-
-void    
-platform_mp_start_ap(void)
+void
+imx6_mp_start_ap(platform_t plat)
 {
 	bus_space_handle_t scu;
 	bus_space_handle_t src;
@@ -146,7 +138,7 @@ platform_mp_start_ap(void)
 	val = bus_space_read_4(fdtbus_bs_tag, scu, SCU_CONTROL_REG);
 	bus_space_write_4(fdtbus_bs_tag, scu, SCU_CONTROL_REG, 
 	    val | SCU_CONTROL_ENABLE);
-	cpu_idcache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	/*
 	 * For each AP core, set the entry point address and argument registers,
@@ -164,15 +156,9 @@ platform_mp_start_ap(void)
 	}
 	bus_space_write_4(fdtbus_bs_tag, src, SRC_CONTROL_REG, val);
 
-	armv7_sev();
+	dsb();
+	sev();
 
 	bus_space_unmap(fdtbus_bs_tag, scu, SCU_SIZE);
 	bus_space_unmap(fdtbus_bs_tag, src, SRC_SIZE);
-}
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
 }

@@ -56,7 +56,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "assym.s"
+#include "assym.inc"
 #include "opt_sched.h"
 
 #include <sys/syscall.h>
@@ -71,6 +71,8 @@
  */
 ENTRY(cpu_throw)
 	mr	%r2, %r4
+	li	%r14,0	/* Tell cpu_switchin not to release a thread */
+
 	b	cpu_switchin
 
 /*
@@ -89,10 +91,6 @@ ENTRY(cpu_switch)
 	stw	%r16,PCB_CR(%r6)
 	mflr	%r16			/* Save the link register */
 	stw	%r16,PCB_LR(%r6)
-#ifdef BOOKE
-	mfspr	%r16,SPR_DBCR0
-	stw	%r16,PCB_BOOKE_DBCR0(%r6)
-#endif
 	stw	%r1,PCB_SP(%r6)		/* Save the stack pointer */
 
 	mr	%r14,%r3		/* Copy the old thread ptr... */
@@ -115,17 +113,21 @@ ENTRY(cpu_switch)
 	bl	save_vec
 	
 .L2:
+#if defined(__SPE__)
+	mfspr	%r3,SPR_SPEFSCR
+	stw	%r3,PCB_VSCR(%r17)
+#endif
 	mr	%r3,%r14		/* restore old thread ptr */
 	bl	pmap_deactivate		/* Deactivate the current pmap */
 
 	sync				/* Make sure all of that finished */
-	stw	%r16,TD_LOCK(%r14)	/* ULE:	update old thread's lock */
 
 cpu_switchin:
 #if defined(SMP) && defined(SCHED_ULE)
 	/* Wait for the new thread to become unblocked */
-	lis	%r6,blocked_lock@ha
-	addi	%r6,%r6,blocked_lock@l
+	bl	_GLOBAL_OFFSET_TABLE_@local-4
+	mflr	%r6
+	lwz	%r6,blocked_lock@got(%r6)
 blocked_loop:
 	lwz	%r7,TD_LOCK(%r2)
 	cmpw	%r6,%r7 
@@ -133,7 +135,15 @@ blocked_loop:
 	isync
 #endif
 
-	mfsprg	%r7,0			/* Get the pcpu pointer */
+	lwz	%r17,TD_PCB(%r2)	/* Get new current PCB */
+	lwz	%r1,PCB_SP(%r17)	/* Load new stack pointer */
+
+	/* Release old thread now that we have a stack pointer set up */
+	cmpwi	%r14,0
+	beq-	1f
+	stw	%r16,TD_LOCK(%r14)	/* ULE:	update old thread's lock */
+
+1:	mfsprg	%r7,0			/* Get the pcpu pointer */
 	stw	%r2,PC_CURTHREAD(%r7)	/* Store new current thread */
 	lwz	%r17,TD_PCB(%r2)	/* Store new current PCB */
 	stw	%r17,PC_CURPCB(%r7)
@@ -157,6 +167,10 @@ blocked_loop:
 	bl	enable_vec
 
 .L4:
+#if defined(__SPE__)
+	lwz	%r3,PCB_VSCR(%r17)
+	mtspr	SPR_SPEFSCR,%r3
+#endif
 	/* thread to restore is in r3 */
 	mr	%r3,%r17		/* Recover PCB ptr */
 	lmw	%r12,PCB_CONTEXT(%r3)	/* Load the non-volatile GP regs */
@@ -164,16 +178,6 @@ blocked_loop:
 	mtcr	%r5
 	lwz	%r5,PCB_LR(%r3)		/* Load the link register */
 	mtlr	%r5
-#ifdef AIM
-	lwz	%r5,PCB_AIM_USR_VSID(%r3) /* Load the USER_SR segment reg */
-	isync
-	mtsr	USER_SR,%r5
-	isync
-#endif
-#ifdef BOOKE
-	lwz	%r5,PCB_BOOKE_DBCR0(%r3)
-	mtspr	SPR_DBCR0,%r5
-#endif
 	lwz	%r1,PCB_SP(%r3)		/* Load the stack pointer */
 	/*
 	 * Perform a dummy stwcx. to clear any reservations we may have
@@ -191,6 +195,8 @@ ENTRY(savectx)
 	stmw	%r12,PCB_CONTEXT(%r3)	/* Save the non-volatile GP regs */
 	mfcr	%r4			/* Save the condition register */
 	stw	%r4,PCB_CR(%r3)
+	mflr	%r4			/* Save the link register */
+	stw	%r4,PCB_LR(%r3)
 	blr
 
 /*
@@ -206,4 +212,8 @@ ENTRY(fork_trampoline)
 					   trapframe to simulate FRAME_SETUP
 					   does when allocating space for
 					   a frame pointer/saved LR */
+#ifdef __SPE__
+	li	%r3,SPEFSCR_FINVE|SPEFSCR_FDBZE|SPEFSCR_FUNFE|SPEFSCR_FOVFE
+	mtspr	SPR_SPEFSCR, %r3
+#endif
 	b	trapexit

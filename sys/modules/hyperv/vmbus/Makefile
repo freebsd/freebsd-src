@@ -1,20 +1,35 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/hyperv/vmbus \
-	${.CURDIR}/../../../dev/hyperv/utilities
+.PATH:	${SRCTOP}/sys/dev/hyperv/vmbus \
+	${SRCTOP}/sys/dev/hyperv/vmbus/${MACHINE_CPUARCH}
 
 KMOD=	hv_vmbus
-SRCS=	hv_channel.c \
-	hv_channel_mgmt.c \
-	hv_connection.c \
-	hv_hv.c \
-	hv_ring_buffer.c \
-	hv_vmbus_drv_freebsd.c \
-	hv_vmbus_priv.h
-SRCS+=	bus_if.h device_if.h
+SRCS=	hyperv.c \
+	hyperv_busdma.c \
+	hyperv_machdep.c \
+	vmbus.c \
+	vmbus_br.c \
+	vmbus_chan.c \
+	vmbus_et.c \
+	vmbus_if.c \
+	vmbus_res.c \
+	vmbus_vector.S \
+	vmbus_xact.c
+SRCS+=	acpi_if.h bus_if.h device_if.h opt_acpi.h pci_if.h pcib_if.h vmbus_if.h
 
-CFLAGS+= -I${.CURDIR}/../../../dev/hyperv/include \
-	 -I${.CURDIR}/../../../dev/hyperv/vmbus \
-	 -I${.CURDIR}/../../../dev/hyperv/utilities
+# XXX: for assym.inc
+SRCS+=  opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h
+.if ${MACHINE_CPUARCH} == "i386"
+SRCS+=	opt_apic.h
+.endif
+
+DPSRCS=	assym.inc
+
+vmbus_vector.o:
+	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
+            ${.IMPSRC} -o ${.TARGET}
+
+CFLAGS+= -I${SRCTOP}/sys/dev/hyperv/include \
+	 -I${SRCTOP}/sys/dev/hyperv/vmbus
 
 .include <bsd.kmod.mk>

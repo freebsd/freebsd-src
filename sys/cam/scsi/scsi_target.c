@@ -1,6 +1,8 @@
 /*-
  * Generic SCSI Target Kernel Mode Driver
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Nate Lawson.
  * Copyright (c) 1998, 1999, 2001, 2002 Justin T. Gibbs.
  * All rights reserved.
@@ -94,6 +96,7 @@ struct targ_softc {
 	struct cam_periph	*periph;
 	struct cam_path		*path;
 	targ_state		 state;
+	u_int			 maxio;
 	struct selinfo		 read_select;
 	struct devstat		 device_stats;
 };
@@ -390,9 +393,7 @@ targenable(struct targ_softc *softc, struct cam_path *path, int grp6_len,
 		return (CAM_LUN_ALRDY_ENA);
 
 	/* Make sure SIM supports target mode */
-	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NORMAL);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, path);
 	status = cpi.ccb_h.status & CAM_STATUS_MASK;
 	if (status != CAM_REQ_CMP) {
 		printf("pathinq failed, status %#x\n", status);
@@ -403,6 +404,12 @@ targenable(struct targ_softc *softc, struct cam_path *path, int grp6_len,
 		status = CAM_FUNC_NOTAVAIL;
 		goto enable_fail;
 	}
+	if (cpi.maxio == 0)
+		softc->maxio = DFLTPHYS;	/* traditional default */
+	else if (cpi.maxio > MAXPHYS)
+		softc->maxio = MAXPHYS;		/* for safety */
+	else
+		softc->maxio = cpi.maxio;	/* real value */
 
 	/* Destroy any periph on our path if it is disabled */
 	periph = cam_periph_find(path, "targ");
@@ -725,7 +732,7 @@ targsendccb(struct targ_softc *softc, union ccb *ccb,
 	if ((ccb_h->func_code == XPT_CONT_TARGET_IO) ||
 	    (ccb_h->func_code == XPT_DEV_MATCH)) {
 
-		error = cam_periph_mapmem(ccb, mapinfo);
+		error = cam_periph_mapmem(ccb, mapinfo, softc->maxio);
 
 		/*
 		 * cam_periph_mapmem returned an error, we can't continue.

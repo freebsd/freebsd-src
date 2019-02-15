@@ -15,7 +15,7 @@ typedef struct {
 	char **arg_names;
 
 	/// Number of filenames from command line
-	size_t arg_count;
+	unsigned int arg_count;
 
 	/// Name of the file from which to read filenames. This is NULL
 	/// if --files or --files0 was not used.
@@ -36,7 +36,9 @@ extern bool opt_force;
 extern bool opt_keep_original;
 // extern bool opt_recursive;
 extern bool opt_robot;
+extern bool opt_ignore_check;
 
 extern const char stdin_filename[];
 
 extern void args_parse(args_info *args, int argc, char **argv);
+extern void args_free(void);

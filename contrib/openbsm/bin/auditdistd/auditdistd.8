@@ -41,7 +41,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-daemon is responsible for distributing audit trail files over TCP/IP network in
+daemon is responsible for distributing audit trail files over a TCP/IP network in
 a secure and reliable way.
 .Pp
 The
@@ -49,7 +49,7 @@ The
 daemon can be started with the following command line arguments:
 .Bl -tag -width ".Fl P Ar pidfile"
 .It Fl c Ar config
-Specify alternative location of the configuration file.
+Specify an alternative location of the configuration file.
 The default location is
 .Pa /etc/security/auditdistd.conf .
 Note: the configuration file may contain passwords.
@@ -74,7 +74,7 @@ usage message.
 Start in a launchd-friendly mode, ie. do not use
 .Xr daemon 3 .
 .It Fl P Ar pidfile
-Specify alternative location of a file where main process PID will be
+Specify an alternative location of a file where main process PID will be
 stored.
 The default location is
 .Pa /var/run/auditdistd.pid .

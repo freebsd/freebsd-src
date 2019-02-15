@@ -7,11 +7,11 @@
 PROG=	objcopy
 SRCS=	objcopy.c not-strip.c
 CFLAGS+= -D_GNU_SOURCE
-CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils
+CFLAGS+= -I${.CURDIR}/${GNURELTOP}/libbinutils
 CFLAGS+= -I${SRCDIR}/binutils -I${SRCDIR}/bfd
-DPADD=	${RELTOP}/libbinutils/libbinutils.a
-DPADD+=	${RELTOP}/libbfd/libbfd.a
-DPADD+=	${RELTOP}/libiberty/libiberty.a
+DPADD=	${GNURELTOP}/libbinutils/libbinutils.a
+DPADD+=	${GNURELTOP}/libbfd/libbfd.a
+DPADD+=	${GNURELTOP}/libiberty/libiberty.a
 LDADD=	${DPADD}
 
 .include <bsd.prog.mk>

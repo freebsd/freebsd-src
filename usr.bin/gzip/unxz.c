@@ -1,6 +1,8 @@
-/*	$NetBSD: unxz.c,v 1.5 2011/09/30 01:32:21 christos Exp $	*/
+/*	$NetBSD: unxz.c,v 1.7 2017/08/04 07:27:08 mrg Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -56,6 +58,7 @@ unxz(int i, int o, char *pre, size_t prelen, off_t *bytes_in)
 	strm.avail_in = read(i, ibuf + prelen, sizeof(ibuf) - prelen);
 	if (strm.avail_in == (size_t)-1)
 		maybe_err("read failed");
+	infile_newdata(strm.avail_in);
 	strm.avail_in += prelen;
 	*bytes_in = strm.avail_in;
 
@@ -72,6 +75,7 @@ unxz(int i, int o, char *pre, size_t prelen, off_t *bytes_in)
 	strm.avail_out = sizeof(obuf);
 
 	for (;;) {
+		check_siginfo();
 		if (strm.avail_in == 0) {
 			strm.next_in = ibuf;
 			strm.avail_in = read(i, ibuf, sizeof(ibuf));
@@ -83,6 +87,7 @@ unxz(int i, int o, char *pre, size_t prelen, off_t *bytes_in)
 				action = LZMA_FINISH;
 				break;
 			default:
+				infile_newdata(strm.avail_in);
 				*bytes_in += strm.avail_in;
 				break;
 			}

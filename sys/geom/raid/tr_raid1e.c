@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
@@ -1096,7 +1098,7 @@ rebuild_round_done:
 	if ((mask & (1U << 31)) != 0) {
 		/*
 		 * We're done with a recovery, mark the range as unlocked.
-		 * For any write errors, we agressively fail the disk since
+		 * For any write errors, we aggressively fail the disk since
 		 * there was both a READ and a WRITE error at this location.
 		 * Both types of errors generally indicates the drive is on
 		 * the verge of total failure anyway.  Better to stop trusting

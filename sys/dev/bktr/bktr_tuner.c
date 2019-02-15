@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * 1. Redistributions of source code must retain the
  * Copyright (c) 1997 Amancio Hasty, 1999 Roger Hardiman
  * All rights reserved.
@@ -299,6 +301,16 @@ static const struct TUNER tuners[] = {
 	     0x00 },
 	   { 0x00, 0x00 },                      /* band-switch crosspoints */
 	   { 0xa0, 0x90, 0x30, 0x8e } },        /* the band-switch values */
+
+	 /* PHILIPS FI1216 */
+	 { "PHILIPS_FI1216",                    /* the 'name' */
+	   TTYPE_PAL,                           /* input type */
+	   { TSBH1_FCONTROL,                    /* control byte for Tuner PLL */
+	     TSBH1_FCONTROL,
+	     TSBH1_FCONTROL,
+	     0x00 },
+	   { 0x00, 0x00 },                      /* band-switch crosspoints */
+	   { 0x01, 0x02, 0x04, 0x00 } },        /* the band-switch values */
 };
 
 
@@ -564,12 +576,10 @@ static int weurope[] = {
  *  8: 193.25MHz - 12: 217.25MHz  (VHF)
  * 13: 471.25MHz - 62: 765.25MHz  (UHF)
  *
- * IF freq: 45.75 mHz
- *  OR
  * IF freq: 58.75 mHz
  */
 #define OFFSET  6.00
-#define IF_FREQ 45.75
+#define IF_FREQ 58.75
 static int jpnbcst[] = {
 	62,     (int)(IF_FREQ * FREQFACTOR),    0,
 	13,     (int)(471.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),
@@ -591,10 +601,10 @@ static int jpnbcst[] = {
  * 22: 165.25MHz
  * 23: 223.25MHz - 63: 463.25MHz
  *
- * IF freq: 45.75 mHz
+ * IF freq: 58.75 mHz
  */
 #define OFFSET  6.00
-#define IF_FREQ 45.75
+#define IF_FREQ 58.75
 static int jpncable[] = {
 	63,     (int)(IF_FREQ * FREQFACTOR),    0,
 	23,     (int)(223.25 * FREQFACTOR),     (int)(OFFSET * FREQFACTOR),

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -80,6 +82,39 @@ struct ieee80211_scan_ssid {
 #define	IEEE80211_SCAN_MAX_SSID	1		/* max # ssid's to probe */
 
 /*
+ * High-level implementation visible to ieee80211_scan.[ch].
+ *
+ * The default scanner (ieee80211_scan_sw.[ch]) implements a software
+ * driven scanner.  Firmware driven scanning needs a different set of
+ * behaviours.
+ */
+struct ieee80211_scan_methods {
+	void (*sc_attach)(struct ieee80211com *);
+	void (*sc_detach)(struct ieee80211com *);
+	void (*sc_vattach)(struct ieee80211vap *);
+	void (*sc_vdetach)(struct ieee80211vap *);
+	void (*sc_set_scan_duration)(struct ieee80211vap *, u_int);
+	int (*sc_start_scan)(const struct ieee80211_scanner *,
+	    struct ieee80211vap *, int, u_int, u_int, u_int, u_int,
+	    const struct ieee80211_scan_ssid ssids[]);
+	int (*sc_check_scan)(const struct ieee80211_scanner *,
+	    struct ieee80211vap *, int, u_int, u_int, u_int, u_int,
+	    const struct ieee80211_scan_ssid ssids[]);
+	int (*sc_bg_scan)(const struct ieee80211_scanner *,
+	    struct ieee80211vap *, int);
+	void (*sc_cancel_scan)(struct ieee80211vap *);
+	void (*sc_cancel_anyscan)(struct ieee80211vap *);
+	void (*sc_scan_next)(struct ieee80211vap *);
+	void (*sc_scan_done)(struct ieee80211vap *);
+	void (*sc_scan_probe_curchan)(struct ieee80211vap *, int);
+	void (*sc_add_scan)(struct ieee80211vap *,
+	    struct ieee80211_channel *,
+	    const struct ieee80211_scanparams *,
+	    const struct ieee80211_frame *,
+	    int, int, int);
+};
+
+/*
  * Scan state visible to the 802.11 layer.  Scan parameters and
  * results are stored in this data structure.  The ieee80211_scan_state
  * structure is extended with space that is maintained private to
@@ -148,6 +183,7 @@ struct ieee80211_channel *ieee80211_scan_pickchannel(struct ieee80211com *, int)
 
 struct ieee80211_scanparams;
 void	ieee80211_add_scan(struct ieee80211vap *,
+		struct ieee80211_channel *,
 		const struct ieee80211_scanparams *,
 		const struct ieee80211_frame *,
 		int subtype, int rssi, int noise);
@@ -216,7 +252,9 @@ struct ieee80211_scanparams {
 	uint8_t		*quiet;
 	uint8_t		*meshid;
 	uint8_t		*meshconf;
-	uint8_t		*spare[3];
+	uint8_t		*vhtcap;
+	uint8_t		*vhtopmode;
+	uint8_t		*spare[1];
 };
 
 /*
@@ -273,6 +311,7 @@ struct ieee80211_scanner {
 			struct ieee80211_scan_state *, int);
 	/* add an entry to the cache */
 	int	(*scan_add)(struct ieee80211_scan_state *,
+			struct ieee80211_channel *,
 			const struct ieee80211_scanparams *,
 			const struct ieee80211_frame *,
 			int subtype, int rssi, int noise);
@@ -299,4 +338,14 @@ void	ieee80211_scanner_unregister(enum ieee80211_opmode,
 		const struct ieee80211_scanner *);
 void	ieee80211_scanner_unregister_all(const struct ieee80211_scanner *);
 const struct ieee80211_scanner *ieee80211_scanner_get(enum ieee80211_opmode);
+void	ieee80211_scan_update_locked(struct ieee80211vap *vap,
+		const struct ieee80211_scanner *scan);
+void	ieee80211_scan_copy_ssid(struct ieee80211vap *vap,
+		struct ieee80211_scan_state *ss,
+		int nssid, const struct ieee80211_scan_ssid ssids[]);
+void	ieee80211_scan_dump_probe_beacon(uint8_t subtype, int isnew,
+		const uint8_t mac[IEEE80211_ADDR_LEN],
+		const struct ieee80211_scanparams *sp, int rssi);
+void	ieee80211_scan_dump(struct ieee80211_scan_state *ss);
+
 #endif /* _NET80211_IEEE80211_SCAN_H_ */

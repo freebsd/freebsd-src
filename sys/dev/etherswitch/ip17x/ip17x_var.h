@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Luiz Otavio O Souza.
  * Copyright (c) 2011-2012 Stefan Bethke.
  * Copyright (c) 2012 Adrian Chadd.
@@ -53,6 +55,7 @@ struct ip17x_softc {
 	int		numports;	/* number of ports */
 	int		*portphy;
 	device_t	**miibus;
+	int		miipoll;
 	etherswitch_info_t	info;
 	ip17x_switch_type	sc_switchtype;
 	struct callout	callout_tick;

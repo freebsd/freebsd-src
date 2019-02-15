@@ -20,13 +20,13 @@ ConstraintManager::~ConstraintManager() {}
 
 static DefinedSVal getLocFromSymbol(const ProgramStateRef &State,
                                     SymbolRef Sym) {
-  const MemRegion *R = State->getStateManager().getRegionManager()
-                                               .getSymbolicRegion(Sym);
+  const MemRegion *R =
+      State->getStateManager().getRegionManager().getSymbolicRegion(Sym);
   return loc::MemRegionVal(R);
 }
 
 ConditionTruthVal ConstraintManager::checkNull(ProgramStateRef State,
-                                               SymbolRef Sym) {  
+                                               SymbolRef Sym) {
   QualType Ty = Sym->getType();
   DefinedSVal V = Loc::isLocType(Ty) ? getLocFromSymbol(State, Sym)
                                      : nonloc::SymbolVal(Sym);

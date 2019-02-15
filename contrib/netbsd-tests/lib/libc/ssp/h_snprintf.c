@@ -39,7 +39,13 @@ main(int argc, char *argv[])
 {
 	char b[10];
 	size_t len = atoi(argv[1]);
+#ifdef __FreeBSD__
+	char c[] = "01234567890123456789";
+	c[len] = 0;
+	(void)snprintf(b, len, "%s", c);
+#else
 	(void)snprintf(b, len, "%s", "0123456789");
+#endif
 	(void)printf("%s\n", b);
 	return 0;
 }

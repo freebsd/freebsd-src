@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008, 2009 Edward Tomasz Napierała <trasz@FreeBSD.org>
  * All rights reserved.
  *
@@ -71,7 +73,7 @@ acl_clear_flags_np(acl_flagset_t flagset_d)
 		return (-1);
 	}
 
-	*flagset_d |= 0;
+	*flagset_d = 0;
 
 	return (0);
 }

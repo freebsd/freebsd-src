@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../net
+.PATH: ${SRCTOP}/sys/net
 
 KMOD=	sppp
 SRCS=	if_spppfr.c if_spppsubr.c slcompress.c

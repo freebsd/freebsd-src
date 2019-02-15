@@ -1,3 +1,4 @@
+.\" Licensed under the OpenIB.org BSD license (FreeBSD Variant) - See COPYING.md
 .TH "RDMA_REJECT" 3 "2007-05-15" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
 .SH NAME
 rdma_reject \- Called to reject a connection request.
@@ -20,6 +21,9 @@ be larger than that requested.
 .SH "DESCRIPTION"
 Called from the listening side to reject a connection or datagram
 service lookup request.
+.SH "RETURN VALUE"
+Returns 0 on success, or -1 on error.  If an error occurs, errno will be
+set to indicate the failure reason.
 .SH "NOTES"
 After receiving a connection request event, a user may call rdma_reject
 to reject the request.  If the underlying RDMA transport supports

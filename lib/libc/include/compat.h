@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2009 Advanced Computing Technologies LLC
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2009 Hudson River Trading LLC
  * Written by: John H. Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
@@ -28,7 +30,7 @@
  */
 
 /*
- * This file defines compatiblity symbol versions for old system calls.  It
+ * This file defines compatibility symbol versions for old system calls.  It
  * is included in all generated system call files.
  */
 
@@ -38,11 +40,43 @@
 #define	__sym_compat(sym,impl,verid)	\
 	.symver impl, sym@verid
 
+#ifndef NO_COMPAT7
 __sym_compat(__semctl, freebsd7___semctl, FBSD_1.0);
 __sym_compat(msgctl, freebsd7_msgctl, FBSD_1.0);
 __sym_compat(shmctl, freebsd7_shmctl, FBSD_1.0);
+#endif
+
+__sym_compat(nfstat, freebsd11_nfstat, FBSD_1.0);
+__sym_compat(nlstat, freebsd11_nlstat, FBSD_1.0);
+__sym_compat(nstat, freebsd11_nstat, FBSD_1.0);
+
+__sym_compat(fhstat, freebsd11_fhstat, FBSD_1.0);
+__sym_compat(fstat, freebsd11_fstat, FBSD_1.0);
+__sym_compat(fstatat, freebsd11_fstatat, FBSD_1.1);
+__sym_compat(lstat, freebsd11_lstat, FBSD_1.0);
+__sym_compat(stat, freebsd11_stat, FBSD_1.0);
+
+__sym_compat(getdents, freebsd11_getdents, FBSD_1.0);
+__sym_compat(getdirentries, freebsd11_getdirentries, FBSD_1.0);
+
+__sym_compat(getfsstat, freebsd11_getfsstat, FBSD_1.0);
+__sym_compat(fhstatfs, freebsd11_fhstatfs, FBSD_1.0);
+__sym_compat(fstatfs, freebsd11_fstatfs, FBSD_1.0);
+__sym_compat(statfs, freebsd11_statfs, FBSD_1.0);
+
+__sym_compat(mknod, freebsd11_mknod, FBSD_1.0);
+__sym_compat(mknodat, freebsd11_mknodat, FBSD_1.1);
+
+__sym_compat(kevent, freebsd11_kevent, FBSD_1.0);
 
 #undef __sym_compat
+
+#define	__weak_reference(sym,alias)	\
+	.weak	alias;.equ	alias,sym
+
+__weak_reference(__sys_fcntl,__fcntl_compat)
+
+#undef __weak_reference
 
 #endif	/* __LIBC_COMPAT_H__ */
 

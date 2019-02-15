@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 Brian Somers <brian@Awfulhak.org>
  * All rights reserved.
  *
@@ -209,7 +211,7 @@ static struct protostatheader {
   { PROTO_LQR, "LQR" },
   { PROTO_CHAP, "CHAP" },
   { PROTO_MP, "MULTILINK" },
-  { 0, "Others" }
+  { 0, "Others" }	/* must be last */
 };
 
 void
@@ -218,13 +220,13 @@ link_ProtocolRecord(struct link *l, u_short proto, int type)
   int i;
 
   for (i = 0; i < NPROTOSTAT; i++)
-    if (ProtocolStat[i].number == proto)
+    if (ProtocolStat[i].number == proto || ProtocolStat[i].number == 0) {
+      if (type == PROTO_IN)
+        l->proto_in[i]++;
+      else
+        l->proto_out[i]++;
       break;
-
-  if (type == PROTO_IN)
-    l->proto_in[i]++;
-  else
-    l->proto_out[i]++;
+    }
 }
 
 void

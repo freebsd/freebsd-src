@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2012 Olivier Houchard <cognet@FreeBSD.org>
  * Copyright (c) 2011
  *	Ben Gray <ben.r.gray@gmail.com>.
@@ -42,19 +44,25 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/pl310.h>
+#ifdef PLATFORM
+#include <machine/platformvar.h>
+#endif
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#ifdef PLATFORM
+#include "platform_pl310_if.h"
+#endif
+
 /*
  * Define this if you need to disable PL310 for debugging purpose
- * Spec: 
+ * Spec:
  * http://infocenter.arm.com/help/topic/com.arm.doc.ddi0246e/DDI0246E_l2c310_r3p1_trm.pdf
  */
 
-/* 
+/*
  * Hardcode errata for now
  * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0246b/pr01s02s02.html
  */
@@ -84,7 +92,36 @@ static uint32_t g_ways_assoc;
 
 static struct pl310_softc *pl310_softc;
 
-void
+static struct ofw_compat_data compat_data[] = {
+	{"arm,pl310",		true}, /* Non-standard, FreeBSD. */
+	{"arm,pl310-cache",	true},
+	{NULL,			false}
+};
+
+#ifdef PLATFORM
+static void
+platform_pl310_init(struct pl310_softc *sc)
+{
+
+	PLATFORM_PL310_INIT(platform_obj(), sc);
+}
+
+static void
+platform_pl310_write_ctrl(struct pl310_softc *sc, uint32_t val)
+{
+
+	PLATFORM_PL310_WRITE_CTRL(platform_obj(), sc, val);
+}
+
+static void
+platform_pl310_write_debug(struct pl310_softc *sc, uint32_t val)
+{
+
+	PLATFORM_PL310_WRITE_DEBUG(platform_obj(), sc, val);
+}
+#endif
+
+static void
 pl310_print_config(struct pl310_softc *sc)
 {
 	uint32_t aux, prefetch;
@@ -131,7 +168,7 @@ pl310_set_ram_latency(struct pl310_softc *sc, uint32_t which_reg,
 {
 	uint32_t v;
 
-	KASSERT(which_reg == PL310_TAG_RAM_CTRL || 
+	KASSERT(which_reg == PL310_TAG_RAM_CTRL ||
 	    which_reg == PL310_DATA_RAM_CTRL,
 	    ("bad pl310 ram latency register address"));
 
@@ -185,7 +222,7 @@ pl310_wait_background_op(uint32_t off, uint32_t mask)
 
 /**
  *	pl310_cache_sync - performs a cache sync operation
- * 
+ *
  *	According to the TRM:
  *
  *  "Before writing to any other register you must perform an explicit
@@ -199,6 +236,10 @@ pl310_cache_sync(void)
 {
 
 	if ((pl310_softc == NULL) || !pl310_softc->sc_enabled)
+		return;
+
+	/* Do not sync outer cache on IO coherent platform */
+	if (pl310_softc->sc_io_coherent)
 		return;
 
 #ifdef PL310_ERRATA_753970
@@ -225,7 +266,7 @@ pl310_wbinv_all(void)
 
 		for (i = 0; i < g_ways_assoc; i++) {
 			for (j = 0; j < g_way_size / g_l2cache_line_size; j++) {
-				pl310_write4(pl310_softc, 
+				pl310_write4(pl310_softc,
 				    PL310_CLEAN_INV_LINE_IDX,
 				    (i << 28 | j << 5));
 			}
@@ -267,13 +308,15 @@ pl310_wbinv_range(vm_paddr_t start, vm_size_t size)
 
 
 #ifdef PL310_ERRATA_727915
-	platform_pl310_write_debug(pl310_softc, 3);
+	if (pl310_softc->sc_rtl_revision >= CACHE_ID_RELEASE_r2p0 &&
+	    pl310_softc->sc_rtl_revision < CACHE_ID_RELEASE_r3p1)
+		platform_pl310_write_debug(pl310_softc, 3);
 #endif
 	while (size > 0) {
 #ifdef PL310_ERRATA_588369
 		if (pl310_softc->sc_rtl_revision <= CACHE_ID_RELEASE_r1p0) {
-			/* 
-			 * Errata 588369 says that clean + inv may keep the 
+			/*
+			 * Errata 588369 says that clean + inv may keep the
 			 * cache line if it was clean, the recommanded
 			 * workaround is to clean then invalidate the cache
 			 * line, with write-back and cache linefill disabled.
@@ -288,7 +331,9 @@ pl310_wbinv_range(vm_paddr_t start, vm_size_t size)
 		size -= g_l2cache_line_size;
 	}
 #ifdef PL310_ERRATA_727915
-	platform_pl310_write_debug(pl310_softc, 0);
+	if (pl310_softc->sc_rtl_revision >= CACHE_ID_RELEASE_r2p0 &&
+	    pl310_softc->sc_rtl_revision < CACHE_ID_RELEASE_r3p1)
+		platform_pl310_write_debug(pl310_softc, 0);
 #endif
 
 	pl310_cache_sync();
@@ -396,10 +441,10 @@ pl310_config_intr(void *arg)
 	    pl310_filter, NULL, sc, &sc->sc_irq_h);
 
 	/* Cache Line Eviction for Counter 0 */
-	pl310_write4(sc, PL310_EVENT_COUNTER0_CONF, 
+	pl310_write4(sc, PL310_EVENT_COUNTER0_CONF,
 	    EVENT_COUNTER_CONF_INCR | EVENT_COUNTER_CONF_CO);
 	/* Data Read Request for Counter 1 */
-	pl310_write4(sc, PL310_EVENT_COUNTER1_CONF, 
+	pl310_write4(sc, PL310_EVENT_COUNTER1_CONF,
 	    EVENT_COUNTER_CONF_INCR | EVENT_COUNTER_CONF_DRREQ);
 
 	/* Enable and clear pending interrupts */
@@ -407,23 +452,23 @@ pl310_config_intr(void *arg)
 	pl310_write4(sc, PL310_INTR_MASK, INTR_MASK_ALL);
 
 	/* Enable counters and reset C0 and C1 */
-	pl310_write4(sc, PL310_EVENT_COUNTER_CTRL, 
-	    EVENT_COUNTER_CTRL_ENABLED | 
-	    EVENT_COUNTER_CTRL_C0_RESET | 
+	pl310_write4(sc, PL310_EVENT_COUNTER_CTRL,
+	    EVENT_COUNTER_CTRL_ENABLED |
+	    EVENT_COUNTER_CTRL_C0_RESET |
 	    EVENT_COUNTER_CTRL_C1_RESET);
 
 	config_intrhook_disestablish(sc->sc_ich);
 	free(sc->sc_ich, M_DEVBUF);
+	sc->sc_ich = NULL;
 }
 
 static int
 pl310_probe(device_t dev)
 {
-	
+
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
-
-	if (!ofw_bus_is_compatible(dev, "arm,pl310"))
+	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
 	device_set_desc(dev, "PL310 L2 cache controller");
 	return (0);
@@ -435,10 +480,11 @@ pl310_attach(device_t dev)
 	struct pl310_softc *sc = device_get_softc(dev);
 	int rid;
 	uint32_t cache_id, debug_ctrl;
+	phandle_t node;
 
 	sc->sc_dev = dev;
 	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 
+	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (sc->sc_mem_res == NULL)
 		panic("%s: Cannot map registers", device_get_name(dev));
@@ -448,7 +494,7 @@ pl310_attach(device_t dev)
 	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	                                        RF_ACTIVE | RF_SHAREABLE);
 	if (sc->sc_irq_res == NULL) {
-		panic("Cannot allocate IRQ\n");
+		device_printf(dev, "cannot allocate IRQ, not using interrupt\n");
 	}
 
 	pl310_softc = sc;
@@ -460,6 +506,15 @@ pl310_attach(device_t dev)
 	device_printf(dev, "Part number: 0x%x, release: 0x%x\n",
 	    (cache_id >> CACHE_ID_PARTNUM_SHIFT) & CACHE_ID_PARTNUM_MASK,
 	    (cache_id >> CACHE_ID_RELEASE_SHIFT) & CACHE_ID_RELEASE_MASK);
+
+	/*
+	 * Test for "arm,io-coherent" property and disable sync operation if
+	 * platform is I/O coherent. Outer sync operations are not needed
+	 * on coherent platform and may be harmful in certain situations.
+	 */
+	node = ofw_bus_get_node(dev);
+	if (OF_hasprop(node, "arm,io-coherent"))
+		sc->sc_io_coherent = true;
 
 	/*
 	 * If L2 cache is already enabled then something has violated the rules,
@@ -495,19 +550,23 @@ pl310_attach(device_t dev)
 		pl310_write4(pl310_softc, PL310_INV_WAY, 0xffff);
 		pl310_wait_background_op(PL310_INV_WAY, 0xffff);
 		platform_pl310_write_ctrl(sc, CTRL_ENABLED);
-		device_printf(dev, "L2 Cache enabled: %uKB/%dB %d ways\n", 
+		device_printf(dev, "L2 Cache enabled: %uKB/%dB %d ways\n",
 		    (g_l2cache_size / 1024), g_l2cache_line_size, g_ways_assoc);
 		if (bootverbose)
 			pl310_print_config(sc);
 	} else {
-		malloc(sizeof(*sc->sc_ich), M_DEVBUF, M_WAITOK);
-		sc->sc_ich->ich_func = pl310_config_intr;
-		sc->sc_ich->ich_arg = sc;
-		if (config_intrhook_establish(sc->sc_ich) != 0) {
-			device_printf(dev,
-			    "config_intrhook_establish failed\n");
-			return(ENXIO);
+		if (sc->sc_irq_res != NULL) {
+			sc->sc_ich = malloc(sizeof(*sc->sc_ich), M_DEVBUF, M_WAITOK);
+			sc->sc_ich->ich_func = pl310_config_intr;
+			sc->sc_ich->ich_arg = sc;
+			if (config_intrhook_establish(sc->sc_ich) != 0) {
+				device_printf(dev,
+				    "config_intrhook_establish failed\n");
+				free(sc->sc_ich, M_DEVBUF);
+				return(ENXIO);
+			}
 		}
+
 		device_printf(dev, "L2 Cache disabled\n");
 	}
 

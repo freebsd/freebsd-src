@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,7 +88,7 @@
 static int avr32dci_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, avr32dci, CTLFLAG_RW, 0, "USB AVR32 DCI");
-SYSCTL_INT(_hw_usb_avr32dci, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_avr32dci, OID_AUTO, debug, CTLFLAG_RWTUN,
     &avr32dci_debug, 0, "AVR32 DCI debug level");
 #endif
 

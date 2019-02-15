@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd April 4, 2006
+.Dd March 11, 2016
 .Dt PING 8
 .Os
 .Sh NAME
@@ -201,10 +201,17 @@ print the netmask of the remote machine.
 Set the
 .Va net.inet.icmp.maskrepl
 MIB variable to enable
-.Dv ICMP_MASKREPLY .
+.Dv ICMP_MASKREPLY
+and
+.Va net.inet.icmp.maskfake
+if you want to override the netmask in the response.
 For
 .Cm time ,
 print the origination, reception and transmission timestamps.
+Set the
+.Va net.inet.icmp.tstamprepl
+MIB variable to enable or disable
+.Dv ICMP_TSTAMPREPLY .
 .It Fl m Ar ttl
 Set the IP Time To Live for outgoing packets.
 If not specified, the kernel uses the value of the
@@ -520,6 +527,7 @@ These values are defined in
 .El
 .Sh SEE ALSO
 .Xr netstat 1 ,
+.Xr icmp 4 ,
 .Xr ifconfig 8 ,
 .Xr routed 8 ,
 .Xr traceroute 8

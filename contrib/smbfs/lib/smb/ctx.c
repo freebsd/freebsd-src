@@ -549,7 +549,9 @@ smb_ctx_resolve(struct smb_ctx *ctx)
 	}
 	nn.nn_scope = ctx->ct_nb->nb_scope;
 	nn.nn_type = NBT_SERVER;
-	strcpy(nn.nn_name, ssn->ioc_srvname);
+	if (strlen(ssn->ioc_srvname) > NB_NAMELEN)
+		return NBERROR(NBERR_NAMETOOLONG);
+	strlcpy(nn.nn_name, ssn->ioc_srvname, sizeof(nn.nn_name));
 	error = nb_sockaddr(sap, &nn, &saserver);
 	nb_snbfree(sap);
 	if (error) {
@@ -565,7 +567,11 @@ smb_ctx_resolve(struct smb_ctx *ctx)
 		}
 		nls_str_upper(ctx->ct_locname, ctx->ct_locname);
 	}
-	strcpy(nn.nn_name, ctx->ct_locname);
+	/*
+	 * Truncate the local host name to NB_NAMELEN-1 which gives a
+	 * suffix of 0 which is "workstation name".
+	 */
+	strlcpy(nn.nn_name, ctx->ct_locname, NB_NAMELEN);
 	nn.nn_type = NBT_WKSTA;
 	nn.nn_scope = ctx->ct_nb->nb_scope;
 	error = nb_sockaddr(NULL, &nn, &salocal);

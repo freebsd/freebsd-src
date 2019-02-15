@@ -187,7 +187,7 @@ DotCmd(int ac, char **av)
 		free(hlresp);
 	}
 
-	fprintf(f, "};\n");
+	fprintf(f, "}\n");
 
 	free(nlresp);
 	if (f != stdout)

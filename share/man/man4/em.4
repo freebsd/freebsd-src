@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 11, 2011
+.Dd September 20, 2018
 .Dt EM 4
 .Os
 .Sh NAME
@@ -58,8 +58,15 @@ driver provides support for PCI Gigabit Ethernet adapters based on
 the Intel 82540, 82541ER, 82541PI, 82542, 82543, 82544, 82545, 82546,
 82546EB, 82546GB, 82547, 82571, 81572, 82573, and 82574 Ethernet
 controller chips.
-The driver supports Transmit/Receive checksum offload
-and Jumbo Frames on all but 82542-based adapters.
+.Pp
+The
+.Nm
+driver also provides support for PCI Express Gigabit Ethernet adapters
+based on the Intel 82575, 82576, 82580, i21x and i35x.
+.Pp
+The driver supports Transmit/Receive checksum offload and Jumbo Frames
+on all but 82542-based adapters.
+.Pp
 Furthermore it supports TCP segmentation offload (TSO) on all adapters but
 those based on the 82543, 82544 and 82547 controller chips.
 The identification LEDs of the adapters supported by the
@@ -71,8 +78,8 @@ For further hardware information, see the
 .Pa README
 included with the driver.
 .Pp
-For questions related to hardware requirements,
-refer to the documentation supplied with your Intel PRO/1000 adapter.
+For questions related to hardware requirements, refer to the
+documentation supplied with your Intel PRO/1000 adapter.
 All hardware requirements listed apply to use with
 .Fx .
 .Pp
@@ -82,7 +89,7 @@ Selecting an MTU larger than 1500 bytes with the
 utility configures the adapter to receive and transmit Jumbo Frames.
 The maximum MTU size for Jumbo Frames is 16114.
 .Pp
-This driver version supports VLANs.
+This driver supports hardware assisted VLANs.
 The
 .Nm
 driver supports the following media types:
@@ -141,9 +148,20 @@ The
 .Nm
 driver supports Gigabit Ethernet adapters based on the Intel
 82540, 82541ER, 82541PI, 82542, 82543, 82544, 82545, 82546, 82546EB,
-82546GB, 82547, 82571, 82572, 82573, and 82574 controller chips:
+82546GB, 82547, 82571, 82572, 82573, 82574, 82575, 82576, and 82580
+controller chips:
 .Pp
 .Bl -bullet -compact
+.It
+Intel Gigabit ET Dual Port Server Adapter (82576)
+.It
+Intel Gigabit VT Quad Port Server Adapter (82575)
+.It
+Intel Single, Dual and Quad Gigabit Ethernet Controller (82580)
+.It
+Intel i210 and i211 Gigabit Ethernet Controller
+.It
+Intel i350 and i354 Gigabit Ethernet Controller
 .It
 Intel PRO/1000 CT Network Connection (82547)
 .It
@@ -197,6 +215,23 @@ Tunables can be set at the
 prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
 .Bl -tag -width indent
+.It Va hw.em.disable_crc_stripping
+Disable or enable hardware stripping of CRC field.
+This is mostly useful on BMC/IPMI shared interfaces where stripping the CRC
+causes remote access over IPMI to fail.
+Default 0 (enabled).
+.It Va hw.em.eee_setting
+Disable or enable Energy Efficient Ethernet.
+Default 1 (disabled).
+.It Va hw.em.msix
+Enable or disable MSI-X style interrupts.
+Default 1 (enabled).
+.It Va hw.em.smart_pwr_down
+Enable or disable smart power down features on newer adapters.
+Default 0 (disabled).
+.It Va hw.em.sbp
+Show bad packets when in promiscuous mode.
+Default 0 (off).
 .It Va hw.em.rxd
 Number of receive descriptors allocated by the driver.
 The default value is 1024 for adapters newer than 82547,
@@ -228,7 +263,6 @@ If
 .Va hw.em.tx_int_delay
 is non-zero, this tunable limits the maximum delay in which a transmit
 interrupt is generated.
-.El
 .Sh FILES
 .Bl -tag -width /dev/led/em*
 .It Pa /dev/led/em*
@@ -264,7 +298,7 @@ issue to
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr arp 4 ,
-.Xr igb 4 ,
+.Xr iflib 4 ,
 .Xr led 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
@@ -276,14 +310,16 @@ The
 .Nm
 device driver first appeared in
 .Fx 4.4 .
+.Nm
+was merged with the igb device driver and converted to the iflib framework in
+.Fx 12.0 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
-driver was written by
+driver was originally written by
 .An Intel Corporation Aq Mt freebsd@intel.com .
-.Sh BUGS
-Hardware-assisted VLAN processing is disabled by default.
-You can enable it on an
-.Nm
-interface using
-.Xr ifconfig 8 .
+It was merged with igb driver and converted to the iflib framework by
+.An Matthew Macy Aq Mt mmacy@mattmacy.io
+and
+.An Sean Bruno Aq Mt sbruno@FreeBSD.org .

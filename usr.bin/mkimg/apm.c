@@ -27,24 +27,18 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/apm.h>
-#include <sys/endian.h>
 #include <sys/errno.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#include <apm.h>
+
+#include "endian.h"
 #include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
-
-#ifndef APM_ENT_TYPE_APPLE_BOOT
-#define	APM_ENT_TYPE_APPLE_BOOT		"Apple_Bootstrap"
-#endif
-#ifndef APM_ENT_TYPE_FREEBSD_NANDFS
-#define	APM_ENT_TYPE_FREEBSD_NANDFS	"FreeBSD-nandfs"
-#endif
 
 static struct mkimg_alias apm_aliases[] = {
     {	ALIAS_FREEBSD, ALIAS_PTR2TYPE(APM_ENT_TYPE_FREEBSD) },
@@ -91,7 +85,7 @@ apm_write(lba_t imgsz, void *bootcode __unused)
 	strncpy(ent->ent_type, APM_ENT_TYPE_SELF, sizeof(ent->ent_type));
 	strncpy(ent->ent_name, "Apple", sizeof(ent->ent_name));
 
-	STAILQ_FOREACH(part, &partlist, link) {
+	TAILQ_FOREACH(part, &partlist, link) {
 		ent = (void *)(buf + (part->index + 2) * secsz);
 		be16enc(&ent->ent_sig, APM_ENT_SIG);
 		be32enc(&ent->ent_pmblkcnt, nparts + 1);

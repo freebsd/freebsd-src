@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 NetApp, Inc.
  * Copyright (c) 2013 Neel Natu <neel@freebsd.org>
  * All rights reserved.
@@ -32,24 +34,31 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <dev/ic/ns16550.h>
+#ifndef WITHOUT_CAPSICUM
+#include <sys/capsicum.h>
+#include <capsicum_helpers.h>
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <termios.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <string.h>
 #include <pthread.h>
+#include <sysexits.h>
 
 #include "mevent.h"
 #include "uart_emul.h"
 
 #define	COM1_BASE      	0x3F8
-#define COM1_IRQ	4
+#define	COM1_IRQ	4
 #define	COM2_BASE      	0x2F8
-#define COM2_IRQ	3
+#define	COM2_IRQ	3
 
 #define	DEFAULT_RCLK	1843200
 #define	DEFAULT_BAUD	9600
@@ -62,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #define	MSR_DELTA_MASK	0x0f
 
 #ifndef REG_SCR
-#define REG_SCR		com_scr
+#define	REG_SCR		com_scr
 #endif
 
 #define	FIFOSZ	16
@@ -272,6 +281,37 @@ uart_opentty(struct uart_softc *sc)
 	assert(sc->mev != NULL);
 }
 
+static uint8_t
+modem_status(uint8_t mcr)
+{
+	uint8_t msr;
+
+	if (mcr & MCR_LOOPBACK) {
+		/*
+		 * In the loopback mode certain bits from the MCR are
+		 * reflected back into MSR.
+		 */
+		msr = 0;
+		if (mcr & MCR_RTS)
+			msr |= MSR_CTS;
+		if (mcr & MCR_DTR)
+			msr |= MSR_DSR;
+		if (mcr & MCR_OUT1)
+			msr |= MSR_RI;
+		if (mcr & MCR_OUT2)
+			msr |= MSR_DCD;
+	} else {
+		/*
+		 * Always assert DCD and DSR so tty open doesn't block
+		 * even if CLOCAL is turned off.
+		 */
+		msr = MSR_DCD | MSR_DSR;
+	}
+	assert((msr & MSR_DELTA_MASK) == 0);
+
+	return (msr);
+}
+
 /*
  * The IIR returns a prioritized interrupt reason:
  * - receive data available
@@ -304,6 +344,7 @@ uart_reset(struct uart_softc *sc)
 	divisor = DEFAULT_RCLK / DEFAULT_BAUD / 16;
 	sc->dll = divisor;
 	sc->dlh = divisor >> 16;
+	sc->msr = modem_status(sc->mcr);
 
 	rxfifo_reset(sc, 1);	/* no fifo until enabled by software */
 }
@@ -363,7 +404,7 @@ uart_write(struct uart_softc *sc, int offset, uint8_t value)
 	uint8_t msr;
 
 	pthread_mutex_lock(&sc->mtx);
-	
+
 	/*
 	 * Take care of the special case DLAB accesses first
 	 */
@@ -426,22 +467,7 @@ uart_write(struct uart_softc *sc, int offset, uint8_t value)
 		case REG_MCR:
 			/* Apply mask so that bits 5-7 are 0 */
 			sc->mcr = value & 0x1F;
-
-			msr = 0;
-			if (sc->mcr & MCR_LOOPBACK) {
-				/*
-				 * In the loopback mode certain bits from the
-				 * MCR are reflected back into MSR
-				 */
-				if (sc->mcr & MCR_RTS)
-					msr |= MSR_CTS;
-				if (sc->mcr & MCR_DTR)
-					msr |= MSR_DSR;
-				if (sc->mcr & MCR_OUT1)
-					msr |= MSR_RI;
-				if (sc->mcr & MCR_OUT2)
-					msr |= MSR_DCD;
-			}
+			msr = modem_status(sc->mcr);
 
 			/*
 			 * Detect if there has been any change between the
@@ -621,7 +647,7 @@ uart_tty_backend(struct uart_softc *sc, const char *opts)
 		sc->tty.opened = true;
 		retval = 0;
 	}
-	    
+
 	return (retval);
 }
 
@@ -629,6 +655,10 @@ int
 uart_set_backend(struct uart_softc *sc, const char *opts)
 {
 	int retval;
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+	cap_ioctl_t cmds[] = { TIOCGETA, TIOCSETA, TIOCGWINSZ };
+#endif
 
 	retval = -1;
 
@@ -650,8 +680,24 @@ uart_set_backend(struct uart_softc *sc, const char *opts)
 	if (retval == 0)
 		retval = fcntl(sc->tty.fd, F_SETFL, O_NONBLOCK);
 
-	if (retval == 0)
+	if (retval == 0) {
+#ifndef WITHOUT_CAPSICUM
+		cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ,
+		    CAP_WRITE);
+		if (cap_rights_limit(sc->tty.fd, &rights) == -1 &&
+		    errno != ENOSYS)
+			errx(EX_OSERR, "Unable to apply rights for sandbox");
+		if (cap_ioctls_limit(sc->tty.fd, cmds, nitems(cmds)) == -1 &&
+		    errno != ENOSYS)
+			errx(EX_OSERR, "Unable to apply rights for sandbox");
+		if (!uart_stdio) {
+			if (caph_limit_stdin() == -1 && errno != ENOSYS)
+				errx(EX_OSERR,
+				    "Unable to apply rights for sandbox");
+		}
+#endif
 		uart_opentty(sc);
+	}
 
 	return (retval);
 }

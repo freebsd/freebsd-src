@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-07 Applied Micro Circuits Corporation.
  * Copyright (c) 2004-05 Vinod Kashyap.
  * All rights reserved.
@@ -424,14 +426,14 @@ twa_action(struct cam_sim *sim, union ccb *ccb)
 		path_inq->bus_id = cam_sim_bus(sim);
 		path_inq->initiator_id = TW_CL_MAX_NUM_UNITS;
 		path_inq->base_transfer_speed = 100000;
-		strncpy(path_inq->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(path_inq->hba_vid, "3ware", HBA_IDLEN);
-		strncpy(path_inq->dev_name, cam_sim_name(sim), DEV_IDLEN);
-                path_inq->transport = XPORT_SPI;
-                path_inq->transport_version = 2;
-                path_inq->protocol = PROTO_SCSI;
-                path_inq->protocol_version = SCSI_REV_2;
-                path_inq->maxio = TW_CL_MAX_IO_SIZE;
+		strlcpy(path_inq->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(path_inq->hba_vid, "3ware", HBA_IDLEN);
+		strlcpy(path_inq->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		path_inq->transport = XPORT_SPI;
+		path_inq->transport_version = 2;
+		path_inq->protocol = PROTO_SCSI;
+		path_inq->protocol_version = SCSI_REV_2;
+		path_inq->maxio = TW_CL_MAX_IO_SIZE;
 		ccb_h->status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;

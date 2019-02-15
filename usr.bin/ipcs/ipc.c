@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994 SigmaSoft, Th. Lockert <tholo@sigmasoft.com>
  * All rights reserved.
  *
@@ -33,18 +35,18 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
-#define _KERNEL
-#include <sys/sem.h>
-#include <sys/shm.h>
+#define	_WANT_SYSVMSG_INTERNALS
 #include <sys/msg.h>
-#undef _KERNEL
+#define	_WANT_SYSVSEM_INTERNALS
+#include <sys/sem.h>
+#define	_WANT_SYSVSHM_INTERNALS
+#include <sys/shm.h>
 
 #include <assert.h>
 #include <err.h>
 #include <kvm.h>
 #include <nlist.h>
 #include <stddef.h>
-#include <stdio.h>
 
 #include "ipc.h"
 
@@ -55,16 +57,15 @@ struct msginfo		msginfo;
 struct msqid_kernel	*msqids;
 struct shminfo		shminfo;
 struct shmid_kernel	*shmsegs;
-void	kget(int idx, void *addr, size_t size);
 
 struct nlist symbols[] = {
-	{"sema"},
-	{"seminfo"},
-	{"msginfo"},
-	{"msqids"},
-	{"shminfo"},
-	{"shmsegs"},
-	{NULL}
+	{ .n_name = "sema" },
+	{ .n_name = "seminfo" },
+	{ .n_name = "msginfo" },
+	{ .n_name = "msqids" },
+	{ .n_name = "shminfo" },
+	{ .n_name = "shmsegs" },
+	{ .n_name = NULL }
 };
 
 #define	SHMINFO_XVEC	X(shmmax, sizeof(u_long))			\
@@ -92,13 +93,13 @@ struct nlist symbols[] = {
 
 #define	X(a, b)	{ "kern.ipc." #a, offsetof(TYPEC, a), (b) },
 #define	TYPEC	struct shminfo
-struct scgs_vector shminfo_scgsv[] = { SHMINFO_XVEC { NULL } };
+static struct scgs_vector shminfo_scgsv[] = { SHMINFO_XVEC { .sysctl=NULL } };
 #undef	TYPEC
 #define	TYPEC	struct seminfo
-struct scgs_vector seminfo_scgsv[] = { SEMINFO_XVEC { NULL } };
+static struct scgs_vector seminfo_scgsv[] = { SEMINFO_XVEC { .sysctl=NULL } };
 #undef	TYPEC
 #define	TYPEC	struct msginfo
-struct scgs_vector msginfo_scgsv[] = { MSGINFO_XVEC { NULL } };
+static struct scgs_vector msginfo_scgsv[] = { MSGINFO_XVEC { .sysctl=NULL } };
 #undef	TYPEC
 #undef	X
 

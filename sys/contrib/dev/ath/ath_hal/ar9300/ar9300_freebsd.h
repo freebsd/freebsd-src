@@ -4,7 +4,7 @@
 extern	void ar9300_attach_freebsd_ops(struct ath_hal *ah);
 extern	HAL_BOOL ar9300_reset_freebsd(struct ath_hal *ah, HAL_OPMODE opmode,
 	    struct ieee80211_channel *chan, HAL_BOOL bChannelChange,
-	    HAL_STATUS *status);
+	    HAL_RESET_TYPE resetType, HAL_STATUS *status);
 extern	void ar9300_config_pcie_freebsd(struct ath_hal *, HAL_BOOL, HAL_BOOL);
 extern	HAL_STATUS ar9300_eeprom_get_freebsd(struct ath_hal *, int param,
 	    void *val);

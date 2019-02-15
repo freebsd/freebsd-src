@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Spectra Logic Corporation
  * All rights reserved.
  *
@@ -118,8 +120,7 @@ smp_error_desc(int function_result)
 {
 	int i;
 
-	for (i = 0; i < (sizeof(smp_error_table)/sizeof(smp_error_table[0]));
-	     i++){
+	for (i = 0; i < nitems(smp_error_table); i++){
 		if (function_result == smp_error_table[i].function_result)
 			return (smp_error_table[i].desc);
 	}
@@ -164,7 +165,7 @@ smp_command_desc(uint8_t cmd_num)
 {
 	int i;
 
-	for (i = 0; i < (sizeof(smp_cmd_table)/sizeof(smp_cmd_table[0])) &&
+	for (i = 0; i < nitems(smp_cmd_table) &&
 	     smp_cmd_table[i].cmd_num <= cmd_num; i++) {
 		if (cmd_num == smp_cmd_table[i].cmd_num)
 			return (smp_cmd_table[i].desc);

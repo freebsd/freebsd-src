@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -44,6 +46,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
+#include <capsicum_helpers.h>
+#include <err.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -65,6 +69,9 @@ main(int argc, char *argv[])
 	size_t len;
 	int ch;
 
+	if (caph_limit_stdio() < 0 || caph_enter() < 0)
+		err(1, "capsicum");
+
 	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
 		case '?':
@@ -83,8 +90,8 @@ main(int argc, char *argv[])
 	for (ep = environ; *ep; ep++)
 		if (!memcmp(*ep, *argv, len)) {
 			cp = *ep + len;
-			if (!*cp || *cp == '=') {
-				(void)printf("%s\n", *cp ? cp + 1 : cp);
+			if (*cp == '=') {
+				(void)printf("%s\n", cp + 1);
 				exit(0);
 			}
 		}

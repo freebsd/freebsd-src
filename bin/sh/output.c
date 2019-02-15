@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -54,6 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <wchar.h>
+#include <wctype.h>
 
 #include "shell.h"
 #include "syntax.h"
@@ -69,9 +73,9 @@ __FBSDID("$FreeBSD$");
 
 static int doformat_wr(void *, const char *, int);
 
-struct output output = {NULL, 0, NULL, OUTBUFSIZ, 1, 0};
-struct output errout = {NULL, 0, NULL, 256, 2, 0};
-struct output memout = {NULL, 0, NULL, 0, MEM_OUT, 0};
+struct output output = {NULL, NULL, NULL, OUTBUFSIZ, 1, 0};
+struct output errout = {NULL, NULL, NULL, 256, 2, 0};
+struct output memout = {NULL, NULL, NULL, 64, MEM_OUT, 0};
 struct output *out1 = &output;
 struct output *out2 = &errout;
 
@@ -111,43 +115,86 @@ outstr(const char *p, struct output *file)
 	outbin(p, strlen(p), file);
 }
 
+static void
+byteseq(int ch, struct output *file)
+{
+	char seq[4];
+
+	seq[0] = '\\';
+	seq[1] = (ch >> 6 & 0x3) + '0';
+	seq[2] = (ch >> 3 & 0x7) + '0';
+	seq[3] = (ch & 0x7) + '0';
+	outbin(seq, 4, file);
+}
+
+static void
+outdqstr(const char *p, struct output *file)
+{
+	const char *end;
+	mbstate_t mbs;
+	size_t clen;
+	wchar_t wc;
+
+	memset(&mbs, '\0', sizeof(mbs));
+	end = p + strlen(p);
+	outstr("$'", file);
+	while ((clen = mbrtowc(&wc, p, end - p + 1, &mbs)) != 0) {
+		if (clen == (size_t)-2) {
+			while (p < end)
+				byteseq(*p++, file);
+			break;
+		}
+		if (clen == (size_t)-1) {
+			memset(&mbs, '\0', sizeof(mbs));
+			byteseq(*p++, file);
+			continue;
+		}
+		if (wc == L'\n')
+			outcslow('\n', file), p++;
+		else if (wc == L'\r')
+			outstr("\\r", file), p++;
+		else if (wc == L'\t')
+			outstr("\\t", file), p++;
+		else if (!iswprint(wc)) {
+			for (; clen > 0; clen--)
+				byteseq(*p++, file);
+		} else {
+			if (wc == L'\'' || wc == L'\\')
+				outcslow('\\', file);
+			outbin(p, clen, file);
+			p += clen;
+		}
+	}
+	outcslow('\'', file);
+}
+
 /* Like outstr(), but quote for re-input into the shell. */
 void
 outqstr(const char *p, struct output *file)
 {
-	char ch;
-	int inquotes;
+	int i;
 
 	if (p[0] == '\0') {
 		outstr("''", file);
 		return;
 	}
-	/* Caller will handle '=' if necessary */
-	if (p[strcspn(p, "|&;<>()$`\\\"' \t\n*?[~#")] == '\0' ||
+	for (i = 0; p[i] != '\0'; i++) {
+		if ((p[i] > '\0' && p[i] < ' ' && p[i] != '\n') ||
+		    (p[i] & 0x80) != 0 || p[i] == '\'') {
+			outdqstr(p, file);
+			return;
+		}
+	}
+
+	if (p[strcspn(p, "|&;<>()$`\\\" \n*?[~#=")] == '\0' ||
 			strcmp(p, "[") == 0) {
 		outstr(p, file);
 		return;
 	}
 
-	inquotes = 0;
-	while ((ch = *p++) != '\0') {
-		switch (ch) {
-		case '\'':
-			/* Can't quote single quotes inside single quotes. */
-			if (inquotes)
-				outcslow('\'', file);
-			inquotes = 0;
-			outstr("\\'", file);
-			break;
-		default:
-			if (!inquotes)
-				outcslow('\'', file);
-			inquotes = 1;
-			outc(ch, file);
-		}
-	}
-	if (inquotes)
-		outcslow('\'', file);
+	outcslow('\'', file);
+	outstr(p, file);
+	outcslow('\'', file);
 }
 
 void
@@ -163,26 +210,26 @@ outbin(const void *data, size_t len, struct output *file)
 void
 emptyoutbuf(struct output *dest)
 {
-	int offset;
+	int offset, newsize;
 
 	if (dest->buf == NULL) {
 		INTOFF;
 		dest->buf = ckmalloc(dest->bufsize);
 		dest->nextc = dest->buf;
-		dest->nleft = dest->bufsize;
+		dest->bufend = dest->buf + dest->bufsize;
 		INTON;
 	} else if (dest->fd == MEM_OUT) {
-		offset = dest->bufsize;
+		offset = dest->nextc - dest->buf;
+		newsize = dest->bufsize << 1;
 		INTOFF;
-		dest->bufsize <<= 1;
-		dest->buf = ckrealloc(dest->buf, dest->bufsize);
-		dest->nleft = dest->bufsize - offset;
+		dest->buf = ckrealloc(dest->buf, newsize);
+		dest->bufsize = newsize;
+		dest->bufend = dest->buf + newsize;
 		dest->nextc = dest->buf + offset;
 		INTON;
 	} else {
 		flushout(dest);
 	}
-	dest->nleft--;
 }
 
 
@@ -203,20 +250,13 @@ flushout(struct output *dest)
 	if (xwrite(dest->fd, dest->buf, dest->nextc - dest->buf) < 0)
 		dest->flags |= OUTPUT_ERR;
 	dest->nextc = dest->buf;
-	dest->nleft = dest->bufsize;
 }
 
 
 void
 freestdout(void)
 {
-	INTOFF;
-	if (output.buf) {
-		ckfree(output.buf);
-		output.buf = NULL;
-		output.nleft = 0;
-	}
-	INTON;
+	output.nextc = output.buf;
 }
 
 

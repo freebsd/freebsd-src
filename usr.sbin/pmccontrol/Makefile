@@ -2,11 +2,10 @@
 # $FreeBSD$
 #
 
-PROG=	pmccontrol
+PROG_CXX=	pmccontrol
 MAN=	pmccontrol.8
 
-DPADD=	${LIBPMC}
-LDADD=	-lpmc
+LIBADD+=	pmc
 
 SRCS=	pmccontrol.c
 

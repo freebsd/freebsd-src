@@ -27,11 +27,13 @@
 #include "includes.h"
 
 #include "xmalloc.h"
-#include "buffer.h"
-#include "key.h"
+#include "sshbuf.h"
+#include "ssherr.h"
+#include "sshkey.h"
 #include "hostfile.h"
 #include "auth.h"
 #include "ssh.h"
+#include "ssh_api.h"
 #include "log.h"
 
 #ifdef _AIX
@@ -171,15 +173,16 @@ aix_valid_authentications(const char *user)
  * returns 0.
  */
 int
-sys_auth_passwd(Authctxt *ctxt, const char *password)
+sys_auth_passwd(struct ssh *ssh, const char *password)
 {
+	Authctxt *ctxt = ssh->authctxt;
 	char *authmsg = NULL, *msg = NULL, *name = ctxt->pw->pw_name;
-	int authsuccess = 0, expired, reenter, result;
+	int r, authsuccess = 0, expired, reenter, result;
 
 	do {
 		result = authenticate((char *)name, (char *)password, &reenter,
 		    &authmsg);
-		aix_remove_embedded_newlines(authmsg);	
+		aix_remove_embedded_newlines(authmsg);
 		debug3("AIX/authenticate result %d, authmsg %.100s", result,
 		    authmsg);
 	} while (reenter);
@@ -201,7 +204,10 @@ sys_auth_passwd(Authctxt *ctxt, const char *password)
 		 */
 		expired = passwdexpired(name, &msg);
 		if (msg && *msg) {
-			buffer_append(ctxt->loginmsg, msg, strlen(msg));
+			if ((r = sshbuf_put(ctxt->loginmsg,
+			    msg, strlen(msg))) != 0)
+				fatal("%s: buffer error: %s",
+				    __func__, ssh_err(r));
 			aix_remove_embedded_newlines(msg);
 		}
 		debug3("AIX/passwdexpired returned %d msg %.100s", expired, msg);
@@ -232,10 +238,10 @@ sys_auth_passwd(Authctxt *ctxt, const char *password)
  * Returns 1 if login is allowed, 0 if not allowed.
  */
 int
-sys_auth_allowed_user(struct passwd *pw, Buffer *loginmsg)
+sys_auth_allowed_user(struct passwd *pw, struct sshbuf *loginmsg)
 {
 	char *msg = NULL;
-	int result, permitted = 0;
+	int r, result, permitted = 0;
 	struct stat st;
 
 	/*
@@ -258,8 +264,10 @@ sys_auth_allowed_user(struct passwd *pw, Buffer *loginmsg)
 	 */
 	if (result == -1 && errno == EPERM && stat(_PATH_NOLOGIN, &st) == 0)
 		permitted = 1;
-	else if (msg != NULL)
-		buffer_append(loginmsg, msg, strlen(msg));
+	else if (msg != NULL) {
+		if ((r = sshbuf_put(loginmsg, msg, strlen(msg))) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+	}
 	if (msg == NULL)
 		msg = xstrdup("(none)");
 	aix_remove_embedded_newlines(msg);
@@ -273,7 +281,7 @@ sys_auth_allowed_user(struct passwd *pw, Buffer *loginmsg)
 
 int
 sys_auth_record_login(const char *user, const char *host, const char *ttynm,
-    Buffer *loginmsg)
+    struct sshbuf *loginmsg)
 {
 	char *msg = NULL;
 	int success = 0;
@@ -337,11 +345,11 @@ aix_setauthdb(const char *user)
 		debug3("%s: Could not open userdb to read", __func__);
 		return;
 	}
-	
+
 	if (getuserattr((char *)user, S_REGISTRY, &registry, SEC_CHAR) == 0) {
 		if (setauthdb(registry, old_registry) == 0)
 			debug3("AIX/setauthdb set registry '%s'", registry);
-		else 
+		else
 			debug3("AIX/setauthdb set registry '%s' failed: %s",
 			    registry, strerror(errno));
 	} else

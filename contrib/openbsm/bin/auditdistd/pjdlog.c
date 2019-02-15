@@ -26,8 +26,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/pjdlog.c#1 $
  */
 
 #include <sys/types.h>
@@ -37,10 +35,6 @@
 
 #include <assert.h>
 #include <errno.h>
-#ifdef __FreeBSD__
-#include <libutil.h>
-#include <printf.h>
-#endif
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -48,6 +42,11 @@
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+
+#ifdef __FreeBSD__
+#include <libutil.h>
+#include <printf.h>
+#endif
 
 #include "pjdlog.h"
 

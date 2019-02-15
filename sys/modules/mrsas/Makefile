@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 KMOD=mrsas
-.PATH: ${.CURDIR}/../../dev/${KMOD}
+.PATH: ${SRCTOP}/sys/dev/${KMOD}
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
 SUBDIR+= mrsas_linux
@@ -27,4 +27,3 @@ cscope:	clean_cscope
 	/usr/local/bin/cscope -b *.[ch]
 
 cleanall:	clean clean_cscope
-	rm -f '@' machine

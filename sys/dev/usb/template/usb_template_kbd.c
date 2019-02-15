@@ -1,6 +1,13 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2010 Hans Petter Selasky
+ * Copyright (c) 2018 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Portions of this software were developed by Edward Tomasz Napierala
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -54,27 +61,34 @@
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_cdc.h>
+#include <dev/usb/usb_ioctl.h>
+#include <dev/usb/usb_util.h>
 
 #include <dev/usb/template/usb_template.h>
 #endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 enum {
-	INDEX_LANG,
-	INDEX_KEYBOARD,
-	INDEX_PRODUCT,
-	INDEX_MAX,
+	KBD_LANG_INDEX,
+	KBD_INTERFACE_INDEX,
+	KBD_MANUFACTURER_INDEX,
+	KBD_PRODUCT_INDEX,
+	KBD_SERIAL_NUMBER_INDEX,
+	KBD_MAX_INDEX,
 };
 
-#define	STRING_PRODUCT \
-  "K\0e\0y\0b\0o\0a\0r\0d\0 \0T\0e\0s\0t\0 \0D\0e\0v\0i\0c\0e"
+#define	KBD_DEFAULT_VENDOR_ID		USB_TEMPLATE_VENDOR
+#define	KBD_DEFAULT_PRODUCT_ID		0x27db
+#define	KBD_DEFAULT_INTERFACE		"Keyboard Interface"
+#define	KBD_DEFAULT_MANUFACTURER	USB_TEMPLATE_MANUFACTURER
+#define	KBD_DEFAULT_PRODUCT		"Keyboard Test Device"
+#define	KBD_DEFAULT_SERIAL_NUMBER	"March 2008"
 
-#define	STRING_KEYBOARD \
-  "K\0e\0y\0b\0o\0a\0r\0d\0 \0i\0n\0t\0e\0r\0f\0a\0c\0e"
+static struct usb_string_descriptor	kbd_interface;
+static struct usb_string_descriptor	kbd_manufacturer;
+static struct usb_string_descriptor	kbd_product;
+static struct usb_string_descriptor	kbd_serial_number;
 
-/* make the real string descriptors */
-
-USB_MAKE_STRING_DESC(STRING_KEYBOARD, string_keyboard);
-USB_MAKE_STRING_DESC(STRING_PRODUCT, string_product);
+static struct sysctl_ctx_list		kbd_ctx_list;
 
 /* prototypes */
 
@@ -130,10 +144,10 @@ static const void *keyboard_iface_0_desc[] = {
 static const struct usb_temp_interface_desc keyboard_iface_0 = {
 	.ppRawDesc = keyboard_iface_0_desc,
 	.ppEndpoints = keyboard_endpoints,
-	.bInterfaceClass = 3,
-	.bInterfaceSubClass = 1,
-	.bInterfaceProtocol = 1,
-	.iInterface = INDEX_KEYBOARD,
+	.bInterfaceClass = UICLASS_HID,
+	.bInterfaceSubClass = UISUBCLASS_BOOT,
+	.bInterfaceProtocol = UIPROTO_BOOT_KEYBOARD,
+	.iInterface = KBD_INTERFACE_INDEX,
 };
 
 static const struct usb_temp_interface_desc *keyboard_interfaces[] = {
@@ -143,9 +157,9 @@ static const struct usb_temp_interface_desc *keyboard_interfaces[] = {
 
 static const struct usb_temp_config_desc keyboard_config_desc = {
 	.ppIfaceDesc = keyboard_interfaces,
-	.bmAttributes = UC_BUS_POWERED,
-	.bMaxPower = 25,		/* 50 mA */
-	.iConfiguration = INDEX_PRODUCT,
+	.bmAttributes = 0,
+	.bMaxPower = 0,
+	.iConfiguration = KBD_PRODUCT_INDEX,
 };
 
 static const struct usb_temp_config_desc *keyboard_configs[] = {
@@ -156,19 +170,19 @@ static const struct usb_temp_config_desc *keyboard_configs[] = {
 static usb_temp_get_string_desc_t keyboard_get_string_desc;
 static usb_temp_get_vendor_desc_t keyboard_get_vendor_desc;
 
-const struct usb_temp_device_desc usb_template_kbd = {
+struct usb_temp_device_desc usb_template_kbd = {
 	.getStringDesc = &keyboard_get_string_desc,
 	.getVendorDesc = &keyboard_get_vendor_desc,
 	.ppConfigDesc = keyboard_configs,
-	.idVendor = USB_TEMPLATE_VENDOR,
-	.idProduct = 0x00CB,
+	.idVendor = KBD_DEFAULT_VENDOR_ID,
+	.idProduct = KBD_DEFAULT_PRODUCT_ID,
 	.bcdDevice = 0x0100,
 	.bDeviceClass = UDCLASS_COMM,
 	.bDeviceSubClass = 0,
 	.bDeviceProtocol = 0,
-	.iManufacturer = 0,
-	.iProduct = INDEX_PRODUCT,
-	.iSerialNumber = 0,
+	.iManufacturer = KBD_MANUFACTURER_INDEX,
+	.iProduct = KBD_PRODUCT_INDEX,
+	.iSerialNumber = KBD_SERIAL_NUMBER_INDEX,
 };
 
 /*------------------------------------------------------------------------*
@@ -201,10 +215,12 @@ keyboard_get_vendor_desc(const struct usb_device_request *req, uint16_t *plen)
 static const void *
 keyboard_get_string_desc(uint16_t lang_id, uint8_t string_index)
 {
-	static const void *ptr[INDEX_MAX] = {
-		[INDEX_LANG] = &usb_string_lang_en,
-		[INDEX_KEYBOARD] = &string_keyboard,
-		[INDEX_PRODUCT] = &string_product,
+	static const void *ptr[KBD_MAX_INDEX] = {
+		[KBD_LANG_INDEX] = &usb_string_lang_en,
+		[KBD_INTERFACE_INDEX] = &kbd_interface,
+		[KBD_MANUFACTURER_INDEX] = &kbd_manufacturer,
+		[KBD_PRODUCT_INDEX] = &kbd_product,
+		[KBD_SERIAL_NUMBER_INDEX] = &kbd_serial_number,
 	};
 
 	if (string_index == 0) {
@@ -213,8 +229,66 @@ keyboard_get_string_desc(uint16_t lang_id, uint8_t string_index)
 	if (lang_id != 0x0409) {
 		return (NULL);
 	}
-	if (string_index < INDEX_MAX) {
+	if (string_index < KBD_MAX_INDEX) {
 		return (ptr[string_index]);
 	}
 	return (NULL);
 }
+
+static void
+kbd_init(void *arg __unused)
+{
+	struct sysctl_oid *parent;
+	char parent_name[3];
+
+	usb_make_str_desc(&kbd_interface, sizeof(kbd_interface),
+	    KBD_DEFAULT_INTERFACE);
+	usb_make_str_desc(&kbd_manufacturer, sizeof(kbd_manufacturer),
+	    KBD_DEFAULT_MANUFACTURER);
+	usb_make_str_desc(&kbd_product, sizeof(kbd_product),
+	    KBD_DEFAULT_PRODUCT);
+	usb_make_str_desc(&kbd_serial_number, sizeof(kbd_serial_number),
+	    KBD_DEFAULT_SERIAL_NUMBER);
+
+	snprintf(parent_name, sizeof(parent_name), "%d", USB_TEMP_KBD);
+	sysctl_ctx_init(&kbd_ctx_list);
+
+	parent = SYSCTL_ADD_NODE(&kbd_ctx_list,
+	    SYSCTL_STATIC_CHILDREN(_hw_usb_templates), OID_AUTO,
+	    parent_name, CTLFLAG_RW,
+	    0, "USB Keyboard device side template");
+	SYSCTL_ADD_U16(&kbd_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "vendor_id", CTLFLAG_RWTUN,
+	    &usb_template_kbd.idVendor, 1, "Vendor identifier");
+	SYSCTL_ADD_U16(&kbd_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "product_id", CTLFLAG_RWTUN,
+	    &usb_template_kbd.idProduct, 1, "Product identifier");
+#if 0
+	SYSCTL_ADD_PROC(&kbd_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "interface", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &kbd_interface, sizeof(kbd_interface), usb_temp_sysctl,
+	    "A", "Interface string");
+#endif
+	SYSCTL_ADD_PROC(&kbd_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "manufacturer", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &kbd_manufacturer, sizeof(kbd_manufacturer), usb_temp_sysctl,
+	    "A", "Manufacturer string");
+	SYSCTL_ADD_PROC(&kbd_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "product", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &kbd_product, sizeof(kbd_product), usb_temp_sysctl,
+	    "A", "Product string");
+	SYSCTL_ADD_PROC(&kbd_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "serial_number", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &kbd_serial_number, sizeof(kbd_serial_number), usb_temp_sysctl,
+	    "A", "Serial number string");
+}
+
+static void
+kbd_uninit(void *arg __unused)
+{
+
+	sysctl_ctx_free(&kbd_ctx_list);
+}
+
+SYSINIT(kbd_init, SI_SUB_LOCK, SI_ORDER_FIRST, kbd_init, NULL);
+SYSUNINIT(kbd_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, kbd_uninit, NULL);

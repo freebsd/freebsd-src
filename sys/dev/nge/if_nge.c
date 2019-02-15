@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001 Wind River Systems
  * Copyright (c) 1997, 1998, 1999, 2000, 2001
  *	Bill Paul <wpaul@bsdi.com>.  All rights reserved.
@@ -725,7 +727,7 @@ nge_rxfilter(struct nge_softc *sc)
 	 * which bit within that byte needs to be set.
 	 */
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
@@ -2102,27 +2104,6 @@ nge_init_locked(struct nge_softc *sc)
 	 */
 	nge_list_tx_init(sc);
 
-	/*
-	 * For the NatSemi chip, we have to explicitly enable the
-	 * reception of ARP frames, as well as turn on the 'perfect
-	 * match' filter where we store the station address, otherwise
-	 * we won't receive unicasts meant for this host.
-	 */
-	NGE_SETBIT(sc, NGE_RXFILT_CTL, NGE_RXFILTCTL_ARP);
-	NGE_SETBIT(sc, NGE_RXFILT_CTL, NGE_RXFILTCTL_PERFECT);
-
-	/*
-	 * Set the capture broadcast bit to capture broadcast frames.
-	 */
-	if (ifp->if_flags & IFF_BROADCAST) {
-		NGE_SETBIT(sc, NGE_RXFILT_CTL, NGE_RXFILTCTL_BROAD);
-	} else {
-		NGE_CLRBIT(sc, NGE_RXFILT_CTL, NGE_RXFILTCTL_BROAD);
-	}
-
-	/* Turn the receive filter on. */
-	NGE_SETBIT(sc, NGE_RXFILT_CTL, NGE_RXFILTCTL_ENABLE);
-
 	/* Set Rx filter. */
 	nge_rxfilter(sc);
 
@@ -2130,7 +2111,7 @@ nge_init_locked(struct nge_softc *sc)
 	CSR_WRITE_4(sc, NGE_PRIOQCTL, 0);
 
 	/*
-	 * Set pause frames paramters.
+	 * Set pause frames parameters.
 	 *  Rx stat FIFO hi-threshold : 2 or more packets
 	 *  Rx stat FIFO lo-threshold : less than 2 packets
 	 *  Rx data FIFO hi-threshold : 2K or more bytes
@@ -2335,9 +2316,9 @@ nge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		NGE_LOCK(sc);
-		nge_rxfilter(sc);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			nge_rxfilter(sc);
 		NGE_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:

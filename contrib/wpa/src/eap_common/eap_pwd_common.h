@@ -56,10 +56,15 @@ struct eap_pwd_id {
 } STRUCT_PACKED;
 
 /* common routines */
-int compute_password_element(EAP_PWD_group *, u16, u8 *, int, u8 *, int, u8 *,
-			     int, u8 *);
-int compute_keys(EAP_PWD_group *, BN_CTX *, BIGNUM *, BIGNUM *, BIGNUM *,
-		 u8 *, u8 *, u32 *, u8 *, u8 *);
+int compute_password_element(EAP_PWD_group *grp, u16 num,
+			     const u8 *password, size_t password_len,
+			     const u8 *id_server, size_t id_server_len,
+			     const u8 *id_peer, size_t id_peer_len,
+			     const u8 *token);
+int compute_keys(EAP_PWD_group *grp, BN_CTX *bnctx, const BIGNUM *k,
+		 const BIGNUM *peer_scalar, const BIGNUM *server_scalar,
+		 const u8 *confirm_peer, const u8 *confirm_server,
+		 const u32 *ciphersuite, u8 *msk, u8 *emsk, u8 *session_id);
 struct crypto_hash * eap_pwd_h_init(void);
 void eap_pwd_h_update(struct crypto_hash *hash, const u8 *data, size_t len);
 void eap_pwd_h_final(struct crypto_hash *hash, u8 *digest);

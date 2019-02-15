@@ -812,7 +812,7 @@ struct drm_fence_arg {
  */
 #define DRM_BO_HINT_WAIT_LAZY   0x00000008
 /*
- * The client has compute relocations refering to this buffer using the
+ * The client has compute relocations referring to this buffer using the
  * offset in the presumed_offset field. If that offset ends up matching
  * where this buffer lands, the kernel is free to skip executing those
  * relocations
@@ -1144,5 +1144,16 @@ typedef struct drm_mm_type_arg drm_mm_type_arg_t;
 typedef struct drm_mm_init_arg drm_mm_init_arg_t;
 typedef enum drm_bo_type drm_bo_type_t;
 #endif
+
+#define DRM_PORT "graphics/drm-legacy-kmod"
+
+#define DRM_OBSOLETE(dev)							\
+    do {									\
+	device_printf(dev, "=======================================================\n"); \
+	device_printf(dev, "This code is obsolete abandonware. Install the " DRM_PORT " pkg\n"); \
+	device_printf(dev, "=======================================================\n"); \
+	gone_in_dev(dev, 13, "drm drivers");					\
+    } while (0)
+
 
 #endif

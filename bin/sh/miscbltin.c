@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -100,6 +102,7 @@ readcmd(int argc __unused, char **argv __unused)
 	int i;
 	int is_ifs;
 	int saveall = 0;
+	ptrdiff_t lastnonifs, lastnonifsws;
 	struct timeval tv;
 	char *tvptr;
 	fd_set ifds;
@@ -169,6 +172,7 @@ readcmd(int argc __unused, char **argv __unused)
 	startword = 2;
 	backslash = 0;
 	STARTSTACKSTR(p);
+	lastnonifs = lastnonifsws = -1;
 	for (;;) {
 		nread = read(STDIN_FILENO, &c, 1);
 		if (nread == -1) {
@@ -191,9 +195,11 @@ readcmd(int argc __unused, char **argv __unused)
 		CHECKSTRSPACE(1, p);
 		if (backslash) {
 			backslash = 0;
-			startword = 0;
-			if (c != '\n')
+			if (c != '\n') {
+				startword = 0;
+				lastnonifs = lastnonifsws = p - stackblock();
 				USTPUTC(c, p);
+			}
 			continue;
 		}
 		if (!rflag && c == '\\') {
@@ -217,8 +223,10 @@ readcmd(int argc __unused, char **argv __unused)
 			if (is_ifs == 2 && startword == 1) {
 				/* Only one non-whitespace IFS per word */
 				startword = 2;
-				if (saveall)
+				if (saveall) {
+					lastnonifsws = p - stackblock();
 					USTPUTC(c, p);
+				}
 				continue;
 			}
 		}
@@ -229,6 +237,7 @@ readcmd(int argc __unused, char **argv __unused)
 			if (saveall)
 				/* Not just a spare terminator */
 				saveall++;
+			lastnonifs = lastnonifsws = p - stackblock();
 			USTPUTC(c, p);
 			continue;
 		}
@@ -239,6 +248,8 @@ readcmd(int argc __unused, char **argv __unused)
 		if (ap[1] == NULL) {
 			/* Last variable needs all IFS chars */
 			saveall++;
+			if (is_ifs == 2)
+				lastnonifsws = p - stackblock();
 			USTPUTC(c, p);
 			continue;
 		}
@@ -247,25 +258,22 @@ readcmd(int argc __unused, char **argv __unused)
 		setvar(*ap, stackblock(), 0);
 		ap++;
 		STARTSTACKSTR(p);
+		lastnonifs = lastnonifsws = -1;
 	}
 	STACKSTRNUL(p);
 
-	/* Remove trailing IFS chars */
-	for (; stackblock() <= --p; *p = 0) {
-		if (!strchr(ifs, *p))
-			break;
-		if (strchr(" \t\n", *p))
-			/* Always remove whitespace */
-			continue;
-		if (saveall > 1)
-			/* Don't remove non-whitespace unless it was naked */
-			break;
-	}
+	/*
+	 * Remove trailing IFS chars: always remove whitespace, don't remove
+	 * non-whitespace unless it was naked
+	 */
+	if (saveall <= 1)
+		lastnonifsws = lastnonifs;
+	stackblock()[lastnonifsws + 1] = '\0';
 	setvar(*ap, stackblock(), 0);
 
 	/* Set any remaining args to "" */
 	while (*++ap != NULL)
-		setvar(*ap, nullstr, 0);
+		setvar(*ap, "", 0);
 	return status;
 }
 
@@ -335,7 +343,7 @@ umaskcmd(int argc __unused, char **argv __unused)
 		} else {
 			void *set;
 			INTOFF;
-			if ((set = setmode (ap)) == 0)
+			if ((set = setmode (ap)) == NULL)
 				error("Illegal number: %s", ap);
 
 			mask = getmode (set, ~mask & 0777);
@@ -361,7 +369,7 @@ struct limits {
 	const char *name;
 	const char *units;
 	int	cmd;
-	int	factor;	/* multiply by to get rlim_{cur,max} values */
+	short	factor;	/* multiply by to get rlim_{cur,max} values */
 	char	option;
 };
 
@@ -400,13 +408,16 @@ static const struct limits limits[] = {
 	{ "swap limit",		"kbytes",	RLIMIT_SWAP,	1024, 'w' },
 #endif
 #ifdef RLIMIT_SBSIZE
-	{ "sbsize",		"bytes",	RLIMIT_SBSIZE,	   1, 'b' },
+	{ "socket buffer size",	"bytes",	RLIMIT_SBSIZE,	   1, 'b' },
 #endif
 #ifdef RLIMIT_NPTS
 	{ "pseudo-terminals",	(char *)0,	RLIMIT_NPTS,	   1, 'p' },
 #endif
 #ifdef RLIMIT_KQUEUES
 	{ "kqueues",		(char *)0,	RLIMIT_KQUEUES,	   1, 'k' },
+#endif
+#ifdef RLIMIT_UMTXP
+	{ "umtx shared locks",	(char *)0,	RLIMIT_UMTXP,	   1, 'o' },
 #endif
 	{ (char *) 0,		(char *)0,	0,		   0, '\0' }
 };
@@ -443,7 +454,7 @@ ulimitcmd(int argc __unused, char **argv __unused)
 	struct rlimit	limit;
 
 	what = 'f';
-	while ((optc = nextopt("HSatfdsmcnuvlbpwk")) != '\0')
+	while ((optc = nextopt("HSatfdsmcnuvlbpwko")) != '\0')
 		switch (optc) {
 		case 'H':
 			how = HARD;

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003, 2005 Ryuichiro Imura
  * All rights reserved.
  *
@@ -523,14 +525,14 @@ ucs4_to_utf8(uint32_t ucs4, char *dst, size_t *utf8width, size_t dstlen)
 }
 
 static uint32_t
-encode_surrogate(register uint32_t code)
+encode_surrogate(uint32_t code)
 {
 	return ((((code - 0x10000) << 6) & 0x3ff0000) |
 	    ((code - 0x10000) & 0x3ff) | 0xd800dc00);
 }
 
 static uint32_t
-decode_surrogate(register const u_char *ucs)
+decode_surrogate(const u_char *ucs)
 {
 	return ((((ucs[0] & 0x3) << 18) | (ucs[1] << 10) |
 	    ((ucs[2] & 0x3) << 8) | ucs[3]) + 0x10000);

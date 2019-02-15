@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-3-Clause
+ *
  * Copyright (c) 1999, 2000 Matthew R. Green
  * Copyright (c) 2009 by Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
@@ -69,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-
 #include <sys/rman.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -291,10 +292,10 @@ ebus_nexus_attach(device_t dev)
 	}
 #endif
 
-	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
+	sc->sc_nrange = OF_getprop_alloc_multi(node, "ranges",
 	    sizeof(struct ebus_nexus_ranges), &sc->sc_range);
 	if (sc->sc_nrange == -1) {
-		printf("%s: could not get ranges property\n", __func__);
+		device_printf(dev, "could not get ranges property\n");
 		return (ENXIO);
 	}
 	return (ebus_attach(dev, sc, node));
@@ -306,6 +307,7 @@ ebus_pci_attach(device_t dev)
 	struct ebus_softc *sc;
 	struct ebus_rinfo *eri;
 	struct resource *res;
+	struct isa_ranges *range;
 	phandle_t node;
 	int i, rnum, rid;
 
@@ -319,10 +321,10 @@ ebus_pci_attach(device_t dev)
 	pci_write_config(dev, PCIR_LATTIMER, 64 /* 64 PCI cycles */, 1);
 
 	node = ofw_bus_get_node(dev);
-	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
+	sc->sc_nrange = OF_getprop_alloc_multi(node, "ranges",
 	    sizeof(struct isa_ranges), &sc->sc_range);
 	if (sc->sc_nrange == -1) {
-		printf("%s: could not get ranges property\n", __func__);
+		device_printf(dev, "could not get ranges property\n");
 		return (ENXIO);
 	}
 
@@ -332,21 +334,34 @@ ebus_pci_attach(device_t dev)
 	/* For every range, there must be a matching resource. */
 	for (rnum = 0; rnum < sc->sc_nrange; rnum++) {
 		eri = &sc->sc_rinfo[rnum];
-		eri->eri_rtype = ofw_isa_range_restype(
-		    &((struct isa_ranges *)sc->sc_range)[rnum]);
+		range = &((struct isa_ranges *)sc->sc_range)[rnum];
+		eri->eri_rtype = ofw_isa_range_restype(range);
 		rid = PCIR_BAR(rnum);
 		res = bus_alloc_resource_any(dev, eri->eri_rtype, &rid,
 		    RF_ACTIVE);
 		if (res == NULL) {
-			printf("%s: failed to allocate range resource!\n",
-			    __func__);
+			device_printf(dev,
+			    "could not allocate range resource %d\n", rnum);
+			goto fail;
+		}
+		if (rman_get_start(res) != ISA_RANGE_PHYS(range)) {
+			device_printf(dev,
+			    "mismatch in start of range %d (0x%lx/0x%lx)\n",
+			    rnum, rman_get_start(res), ISA_RANGE_PHYS(range));
+			goto fail;
+		}
+		if (rman_get_size(res) != range->size) {
+			device_printf(dev,
+			    "mismatch in size of range %d (0x%lx/0x%x)\n",
+			    rnum, rman_get_size(res), range->size);
 			goto fail;
 		}
 		eri->eri_res = res;
 		eri->eri_rman.rm_type = RMAN_ARRAY;
 		eri->eri_rman.rm_descr = "EBus range";
 		if (rman_init_from_resource(&eri->eri_rman, res) != 0) {
-			printf("%s: failed to initialize rman!", __func__);
+			device_printf(dev,
+			    "could not initialize rman for range %d", rnum);
 			goto fail;
 		}
 	}
@@ -357,13 +372,13 @@ ebus_pci_attach(device_t dev)
 		eri = &sc->sc_rinfo[i];
 		if (i < rnum)
 			rman_fini(&eri->eri_rman);
-		if (eri->eri_res != 0) {
+		if (eri->eri_res != NULL) {
 			bus_release_resource(dev, eri->eri_rtype,
 			    PCIR_BAR(rnum), eri->eri_res);
 		}
 	}
 	free(sc->sc_rinfo, M_DEVBUF);
-	free(sc->sc_range, M_OFWPROP);
+	OF_prop_free(sc->sc_range);
 	return (ENXIO);
 }
 
@@ -414,7 +429,7 @@ ebus_probe_nomatch(device_t dev, device_t child)
 
 static struct resource *
 ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct ebus_softc *sc;
 	struct resource_list *rl;
@@ -425,7 +440,7 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	uint64_t cend, cstart, offset;
 	int i, isdefault, passthrough, ridx;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != bus);
 	sc = device_get_softc(bus);
 	rl = BUS_GET_RESOURCE_LIST(bus, child);
@@ -452,7 +467,7 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			 * Map EBus ranges to PCI ranges.  This may include
 			 * changing the allocation type.
 			 */
-			(void)ofw_isa_range_map(sc->sc_range, sc->sc_nrange,
+			type = ofw_isa_range_map(sc->sc_range, sc->sc_nrange,
 			    &start, &end, &ridx);
 			eri = &sc->sc_rinfo[ridx];
 			res = rman_reserve_resource(&eri->eri_rman, start,
@@ -507,7 +522,7 @@ ebus_activate_resource(device_t bus, device_t child, int type, int rid,
 	int i, rv;
 
 	sc = device_get_softc(bus);
-	if ((sc->sc_flags & EBUS_PCI) != 0 && type == SYS_RES_MEMORY) {
+	if ((sc->sc_flags & EBUS_PCI) != 0 && type != SYS_RES_IRQ) {
 		for (i = 0; i < sc->sc_nrange; i++) {
 			eri = &sc->sc_rinfo[i];
 			if (rman_is_region_manager(res, &eri->eri_rman) != 0) {
@@ -531,8 +546,8 @@ ebus_activate_resource(device_t bus, device_t child, int type, int rid,
 
 static int
 ebus_adjust_resource(device_t bus __unused, device_t child __unused,
-    int type __unused, struct resource *res __unused, u_long start __unused,
-    u_long end __unused)
+    int type __unused, struct resource *res __unused, rman_res_t start __unused,
+    rman_res_t end __unused)
 {
 
 	return (ENXIO);
@@ -550,7 +565,7 @@ ebus_release_resource(device_t bus, device_t child, int type, int rid,
 	passthrough = (device_get_parent(child) != bus);
 	rl = BUS_GET_RESOURCE_LIST(bus, child);
 	sc = device_get_softc(bus);
-	if ((sc->sc_flags & EBUS_PCI) != 0 && type == SYS_RES_MEMORY) {
+	if ((sc->sc_flags & EBUS_PCI) != 0 && type != SYS_RES_IRQ) {
 		if ((rman_get_flags(res) & RF_ACTIVE) != 0 ){
 			rv = bus_deactivate_resource(child, type, rid, res);
 			if (rv != 0)
@@ -645,7 +660,7 @@ ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node)
 		return (NULL);
 	}
 	resource_list_init(&edi->edi_rl);
-	nreg = OF_getprop_alloc(node, "reg", sizeof(*regs), (void **)&regs);
+	nreg = OF_getprop_alloc_multi(node, "reg", sizeof(*regs), (void **)&regs);
 	if (nreg == -1) {
 		device_printf(dev, "<%s>: incomplete\n",
 		    edi->edi_obdinfo.obd_name);
@@ -657,9 +672,9 @@ ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node)
 		(void)resource_list_add(&edi->edi_rl, SYS_RES_MEMORY, i,
 		    start, start + regs[i].size - 1, regs[i].size);
 	}
-	free(regs, M_OFWPROP);
+	OF_prop_free(regs);
 
-	nintr = OF_getprop_alloc(node, "interrupts",  sizeof(*intrs),
+	nintr = OF_getprop_alloc_multi(node, "interrupts",  sizeof(*intrs),
 	    (void **)&intrs);
 	if (nintr == -1)
 		return (edi);
@@ -688,7 +703,7 @@ ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node)
 		(void)resource_list_add(&edi->edi_rl, SYS_RES_IRQ, i, rintr,
 		    rintr, 1);
 	}
-	free(intrs, M_OFWPROP);
+	OF_prop_free(intrs);
 	return (edi);
 }
 
@@ -708,8 +723,8 @@ ebus_print_res(struct ebus_devinfo *edi)
 
 	retval = 0;
 	retval += resource_list_print_type(&edi->edi_rl, "addr", SYS_RES_MEMORY,
-	    "%#lx");
+	    "%#jx");
 	retval += resource_list_print_type(&edi->edi_rl, "irq", SYS_RES_IRQ,
-	    "%ld");
+	    "%jd");
 	return (retval);
 }

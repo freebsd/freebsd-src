@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 2003 Alexander Kabaev.
  * All rights reserved.
  *
@@ -44,9 +46,9 @@ struct RtldLockInfo
 	void  (*at_fork)(void);
 };
 
-extern void _rtld_thread_init(struct RtldLockInfo *);
-extern void _rtld_atfork_pre(int *);
-extern void _rtld_atfork_post(int *);
+extern void _rtld_thread_init(struct RtldLockInfo *) __exported;
+extern void _rtld_atfork_pre(int *) __exported;
+extern void _rtld_atfork_post(int *) __exported;
 
 #ifdef IN_RTLD
 

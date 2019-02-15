@@ -7,65 +7,317 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements the top level handling of macro expasion for the
+// This file implements the top level handling of macro expansion for the
 // preprocessor.
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Lex/Preprocessor.h"
-#include "clang/Lex/MacroArgs.h"
+#include "clang/Basic/Attributes.h"
 #include "clang/Basic/FileManager.h"
-#include "clang/Basic/SourceManager.h"
+#include "clang/Basic/IdentifierTable.h"
+#include "clang/Basic/LLVM.h"
+#include "clang/Basic/LangOptions.h"
+#include "clang/Basic/ObjCRuntime.h"
+#include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Lex/CodeCompletionHandler.h"
+#include "clang/Lex/DirectoryLookup.h"
 #include "clang/Lex/ExternalPreprocessorSource.h"
 #include "clang/Lex/LexDiagnostic.h"
+#include "clang/Lex/MacroArgs.h"
 #include "clang/Lex/MacroInfo.h"
-#include "llvm/ADT/STLExtras.h"
+#include "clang/Lex/Preprocessor.h"
+#include "clang/Lex/PreprocessorLexer.h"
+#include "clang/Lex/PTHLexer.h"
+#include "clang/Lex/Token.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/FoldingSet.h"
+#include "llvm/ADT/None.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Config/llvm-config.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
-#include <cstdio>
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstring>
 #include <ctime>
+#include <string>
+#include <tuple>
+#include <utility>
+
 using namespace clang;
 
 MacroDirective *
-Preprocessor::getMacroDirectiveHistory(const IdentifierInfo *II) const {
-  assert(II->hadMacroDefinition() && "Identifier has not been not a macro!");
-
-  macro_iterator Pos = Macros.find(II);
-  assert(Pos != Macros.end() && "Identifier macro info is missing!");
-  return Pos->second;
+Preprocessor::getLocalMacroDirectiveHistory(const IdentifierInfo *II) const {
+  if (!II->hadMacroDefinition())
+    return nullptr;
+  auto Pos = CurSubmoduleState->Macros.find(II);
+  return Pos == CurSubmoduleState->Macros.end() ? nullptr
+                                                : Pos->second.getLatest();
 }
 
 void Preprocessor::appendMacroDirective(IdentifierInfo *II, MacroDirective *MD){
   assert(MD && "MacroDirective should be non-zero!");
   assert(!MD->getPrevious() && "Already attached to a MacroDirective history.");
 
-  MacroDirective *&StoredMD = Macros[II];
-  MD->setPrevious(StoredMD);
-  StoredMD = MD;
-  II->setHasMacroDefinition(MD->isDefined());
-  bool isImportedMacro = isa<DefMacroDirective>(MD) &&
-                         cast<DefMacroDirective>(MD)->isImported();
-  if (II->isFromAST() && !isImportedMacro)
+  MacroState &StoredMD = CurSubmoduleState->Macros[II];
+  auto *OldMD = StoredMD.getLatest();
+  MD->setPrevious(OldMD);
+  StoredMD.setLatest(MD);
+  StoredMD.overrideActiveModuleMacros(*this, II);
+
+  if (needModuleMacros()) {
+    // Track that we created a new macro directive, so we know we should
+    // consider building a ModuleMacro for it when we get to the end of
+    // the module.
+    PendingModuleMacroNames.push_back(II);
+  }
+
+  // Set up the identifier as having associated macro history.
+  II->setHasMacroDefinition(true);
+  if (!MD->isDefined() && LeafModuleMacros.find(II) == LeafModuleMacros.end())
+    II->setHasMacroDefinition(false);
+  if (II->isFromAST())
     II->setChangedSinceDeserialization();
 }
 
 void Preprocessor::setLoadedMacroDirective(IdentifierInfo *II,
+                                           MacroDirective *ED,
                                            MacroDirective *MD) {
+  // Normally, when a macro is defined, it goes through appendMacroDirective()
+  // above, which chains a macro to previous defines, undefs, etc.
+  // However, in a pch, the whole macro history up to the end of the pch is
+  // stored, so ASTReader goes through this function instead.
+  // However, built-in macros are already registered in the Preprocessor
+  // ctor, and ASTWriter stops writing the macro chain at built-in macros,
+  // so in that case the chain from the pch needs to be spliced to the existing
+  // built-in.
+
   assert(II && MD);
-  MacroDirective *&StoredMD = Macros[II];
-  assert(!StoredMD &&
-         "the macro history was modified before initializing it from a pch");
-  StoredMD = MD;
+  MacroState &StoredMD = CurSubmoduleState->Macros[II];
+
+  if (auto *OldMD = StoredMD.getLatest()) {
+    // shouldIgnoreMacro() in ASTWriter also stops at macros from the
+    // predefines buffer in module builds. However, in module builds, modules
+    // are loaded completely before predefines are processed, so StoredMD
+    // will be nullptr for them when they're loaded. StoredMD should only be
+    // non-nullptr for builtins read from a pch file.
+    assert(OldMD->getMacroInfo()->isBuiltinMacro() &&
+           "only built-ins should have an entry here");
+    assert(!OldMD->getPrevious() && "builtin should only have a single entry");
+    ED->setPrevious(OldMD);
+    StoredMD.setLatest(MD);
+  } else {
+    StoredMD = MD;
+  }
+
   // Setup the identifier as having associated macro history.
   II->setHasMacroDefinition(true);
-  if (!MD->isDefined())
+  if (!MD->isDefined() && LeafModuleMacros.find(II) == LeafModuleMacros.end())
     II->setHasMacroDefinition(false);
+}
+
+ModuleMacro *Preprocessor::addModuleMacro(Module *Mod, IdentifierInfo *II,
+                                          MacroInfo *Macro,
+                                          ArrayRef<ModuleMacro *> Overrides,
+                                          bool &New) {
+  llvm::FoldingSetNodeID ID;
+  ModuleMacro::Profile(ID, Mod, II);
+
+  void *InsertPos;
+  if (auto *MM = ModuleMacros.FindNodeOrInsertPos(ID, InsertPos)) {
+    New = false;
+    return MM;
+  }
+
+  auto *MM = ModuleMacro::create(*this, Mod, II, Macro, Overrides);
+  ModuleMacros.InsertNode(MM, InsertPos);
+
+  // Each overridden macro is now overridden by one more macro.
+  bool HidAny = false;
+  for (auto *O : Overrides) {
+    HidAny |= (O->NumOverriddenBy == 0);
+    ++O->NumOverriddenBy;
+  }
+
+  // If we were the first overrider for any macro, it's no longer a leaf.
+  auto &LeafMacros = LeafModuleMacros[II];
+  if (HidAny) {
+    LeafMacros.erase(std::remove_if(LeafMacros.begin(), LeafMacros.end(),
+                                    [](ModuleMacro *MM) {
+                                      return MM->NumOverriddenBy != 0;
+                                    }),
+                     LeafMacros.end());
+  }
+
+  // The new macro is always a leaf macro.
+  LeafMacros.push_back(MM);
+  // The identifier now has defined macros (that may or may not be visible).
+  II->setHasMacroDefinition(true);
+
+  New = true;
+  return MM;
+}
+
+ModuleMacro *Preprocessor::getModuleMacro(Module *Mod, IdentifierInfo *II) {
+  llvm::FoldingSetNodeID ID;
+  ModuleMacro::Profile(ID, Mod, II);
+
+  void *InsertPos;
+  return ModuleMacros.FindNodeOrInsertPos(ID, InsertPos);
+}
+
+void Preprocessor::updateModuleMacroInfo(const IdentifierInfo *II,
+                                         ModuleMacroInfo &Info) {
+  assert(Info.ActiveModuleMacrosGeneration !=
+             CurSubmoduleState->VisibleModules.getGeneration() &&
+         "don't need to update this macro name info");
+  Info.ActiveModuleMacrosGeneration =
+      CurSubmoduleState->VisibleModules.getGeneration();
+
+  auto Leaf = LeafModuleMacros.find(II);
+  if (Leaf == LeafModuleMacros.end()) {
+    // No imported macros at all: nothing to do.
+    return;
+  }
+
+  Info.ActiveModuleMacros.clear();
+
+  // Every macro that's locally overridden is overridden by a visible macro.
+  llvm::DenseMap<ModuleMacro *, int> NumHiddenOverrides;
+  for (auto *O : Info.OverriddenMacros)
+    NumHiddenOverrides[O] = -1;
+
+  // Collect all macros that are not overridden by a visible macro.
+  llvm::SmallVector<ModuleMacro *, 16> Worklist;
+  for (auto *LeafMM : Leaf->second) {
+    assert(LeafMM->getNumOverridingMacros() == 0 && "leaf macro overridden");
+    if (NumHiddenOverrides.lookup(LeafMM) == 0)
+      Worklist.push_back(LeafMM);
+  }
+  while (!Worklist.empty()) {
+    auto *MM = Worklist.pop_back_val();
+    if (CurSubmoduleState->VisibleModules.isVisible(MM->getOwningModule())) {
+      // We only care about collecting definitions; undefinitions only act
+      // to override other definitions.
+      if (MM->getMacroInfo())
+        Info.ActiveModuleMacros.push_back(MM);
+    } else {
+      for (auto *O : MM->overrides())
+        if ((unsigned)++NumHiddenOverrides[O] == O->getNumOverridingMacros())
+          Worklist.push_back(O);
+    }
+  }
+  // Our reverse postorder walk found the macros in reverse order.
+  std::reverse(Info.ActiveModuleMacros.begin(), Info.ActiveModuleMacros.end());
+
+  // Determine whether the macro name is ambiguous.
+  MacroInfo *MI = nullptr;
+  bool IsSystemMacro = true;
+  bool IsAmbiguous = false;
+  if (auto *MD = Info.MD) {
+    while (MD && isa<VisibilityMacroDirective>(MD))
+      MD = MD->getPrevious();
+    if (auto *DMD = dyn_cast_or_null<DefMacroDirective>(MD)) {
+      MI = DMD->getInfo();
+      IsSystemMacro &= SourceMgr.isInSystemHeader(DMD->getLocation());
+    }
+  }
+  for (auto *Active : Info.ActiveModuleMacros) {
+    auto *NewMI = Active->getMacroInfo();
+
+    // Before marking the macro as ambiguous, check if this is a case where
+    // both macros are in system headers. If so, we trust that the system
+    // did not get it wrong. This also handles cases where Clang's own
+    // headers have a different spelling of certain system macros:
+    //   #define LONG_MAX __LONG_MAX__ (clang's limits.h)
+    //   #define LONG_MAX 0x7fffffffffffffffL (system's limits.h)
+    //
+    // FIXME: Remove the defined-in-system-headers check. clang's limits.h
+    // overrides the system limits.h's macros, so there's no conflict here.
+    if (MI && NewMI != MI &&
+        !MI->isIdenticalTo(*NewMI, *this, /*Syntactically=*/true))
+      IsAmbiguous = true;
+    IsSystemMacro &= Active->getOwningModule()->IsSystem ||
+                     SourceMgr.isInSystemHeader(NewMI->getDefinitionLoc());
+    MI = NewMI;
+  }
+  Info.IsAmbiguous = IsAmbiguous && !IsSystemMacro;
+}
+
+void Preprocessor::dumpMacroInfo(const IdentifierInfo *II) {
+  ArrayRef<ModuleMacro*> Leaf;
+  auto LeafIt = LeafModuleMacros.find(II);
+  if (LeafIt != LeafModuleMacros.end())
+    Leaf = LeafIt->second;
+  const MacroState *State = nullptr;
+  auto Pos = CurSubmoduleState->Macros.find(II);
+  if (Pos != CurSubmoduleState->Macros.end())
+    State = &Pos->second;
+
+  llvm::errs() << "MacroState " << State << " " << II->getNameStart();
+  if (State && State->isAmbiguous(*this, II))
+    llvm::errs() << " ambiguous";
+  if (State && !State->getOverriddenMacros().empty()) {
+    llvm::errs() << " overrides";
+    for (auto *O : State->getOverriddenMacros())
+      llvm::errs() << " " << O->getOwningModule()->getFullModuleName();
+  }
+  llvm::errs() << "\n";
+
+  // Dump local macro directives.
+  for (auto *MD = State ? State->getLatest() : nullptr; MD;
+       MD = MD->getPrevious()) {
+    llvm::errs() << " ";
+    MD->dump();
+  }
+
+  // Dump module macros.
+  llvm::DenseSet<ModuleMacro*> Active;
+  for (auto *MM : State ? State->getActiveModuleMacros(*this, II) : None)
+    Active.insert(MM);
+  llvm::DenseSet<ModuleMacro*> Visited;
+  llvm::SmallVector<ModuleMacro *, 16> Worklist(Leaf.begin(), Leaf.end());
+  while (!Worklist.empty()) {
+    auto *MM = Worklist.pop_back_val();
+    llvm::errs() << " ModuleMacro " << MM << " "
+                 << MM->getOwningModule()->getFullModuleName();
+    if (!MM->getMacroInfo())
+      llvm::errs() << " undef";
+
+    if (Active.count(MM))
+      llvm::errs() << " active";
+    else if (!CurSubmoduleState->VisibleModules.isVisible(
+                 MM->getOwningModule()))
+      llvm::errs() << " hidden";
+    else if (MM->getMacroInfo())
+      llvm::errs() << " overridden";
+
+    if (!MM->overrides().empty()) {
+      llvm::errs() << " overrides";
+      for (auto *O : MM->overrides()) {
+        llvm::errs() << " " << O->getOwningModule()->getFullModuleName();
+        if (Visited.insert(O).second)
+          Worklist.push_back(O);
+      }
+    }
+    llvm::errs() << "\n";
+    if (auto *MI = MM->getMacroInfo()) {
+      llvm::errs() << "  ";
+      MI->dump();
+      llvm::errs() << "\n";
+    }
+  }
 }
 
 /// RegisterBuiltinMacro - Register the specified identifier in the identifier
@@ -81,7 +333,6 @@ static IdentifierInfo *RegisterBuiltinMacro(Preprocessor &PP, const char *Name){
   return Id;
 }
 
-
 /// RegisterBuiltinMacros - Register builtin macros, such as __LINE__ with the
 /// identifier table.
 void Preprocessor::RegisterBuiltinMacros() {
@@ -92,39 +343,50 @@ void Preprocessor::RegisterBuiltinMacros() {
   Ident__COUNTER__ = RegisterBuiltinMacro(*this, "__COUNTER__");
   Ident_Pragma  = RegisterBuiltinMacro(*this, "_Pragma");
 
+  // C++ Standing Document Extensions.
+  if (LangOpts.CPlusPlus)
+    Ident__has_cpp_attribute =
+        RegisterBuiltinMacro(*this, "__has_cpp_attribute");
+  else
+    Ident__has_cpp_attribute = nullptr;
+
   // GCC Extensions.
   Ident__BASE_FILE__     = RegisterBuiltinMacro(*this, "__BASE_FILE__");
   Ident__INCLUDE_LEVEL__ = RegisterBuiltinMacro(*this, "__INCLUDE_LEVEL__");
   Ident__TIMESTAMP__     = RegisterBuiltinMacro(*this, "__TIMESTAMP__");
+
+  // Microsoft Extensions.
+  if (LangOpts.MicrosoftExt) {
+    Ident__identifier = RegisterBuiltinMacro(*this, "__identifier");
+    Ident__pragma = RegisterBuiltinMacro(*this, "__pragma");
+  } else {
+    Ident__identifier = nullptr;
+    Ident__pragma = nullptr;
+  }
 
   // Clang Extensions.
   Ident__has_feature      = RegisterBuiltinMacro(*this, "__has_feature");
   Ident__has_extension    = RegisterBuiltinMacro(*this, "__has_extension");
   Ident__has_builtin      = RegisterBuiltinMacro(*this, "__has_builtin");
   Ident__has_attribute    = RegisterBuiltinMacro(*this, "__has_attribute");
+  Ident__has_c_attribute  = RegisterBuiltinMacro(*this, "__has_c_attribute");
+  Ident__has_declspec = RegisterBuiltinMacro(*this, "__has_declspec_attribute");
   Ident__has_include      = RegisterBuiltinMacro(*this, "__has_include");
   Ident__has_include_next = RegisterBuiltinMacro(*this, "__has_include_next");
   Ident__has_warning      = RegisterBuiltinMacro(*this, "__has_warning");
+  Ident__is_identifier    = RegisterBuiltinMacro(*this, "__is_identifier");
+  Ident__is_target_arch   = RegisterBuiltinMacro(*this, "__is_target_arch");
+  Ident__is_target_vendor = RegisterBuiltinMacro(*this, "__is_target_vendor");
+  Ident__is_target_os     = RegisterBuiltinMacro(*this, "__is_target_os");
+  Ident__is_target_environment =
+      RegisterBuiltinMacro(*this, "__is_target_environment");
 
   // Modules.
-  if (LangOpts.Modules) {
-    Ident__building_module  = RegisterBuiltinMacro(*this, "__building_module");
-
-    // __MODULE__
-    if (!LangOpts.CurrentModule.empty())
-      Ident__MODULE__ = RegisterBuiltinMacro(*this, "__MODULE__");
-    else
-      Ident__MODULE__ = 0;
-  } else {
-    Ident__building_module = 0;
-    Ident__MODULE__ = 0;
-  }
-  
-  // Microsoft Extensions.
-  if (LangOpts.MicrosoftExt) 
-    Ident__pragma = RegisterBuiltinMacro(*this, "__pragma");
+  Ident__building_module  = RegisterBuiltinMacro(*this, "__building_module");
+  if (!LangOpts.CurrentModule.empty())
+    Ident__MODULE__ = RegisterBuiltinMacro(*this, "__MODULE__");
   else
-    Ident__pragma = 0;
+    Ident__MODULE__ = nullptr;
 }
 
 /// isTrivialSingleTokenExpansion - Return true if MI, which has a single token
@@ -135,7 +397,7 @@ static bool isTrivialSingleTokenExpansion(const MacroInfo *MI,
   IdentifierInfo *II = MI->getReplacementToken(0).getIdentifierInfo();
 
   // If the token isn't an identifier, it's always literally expanded.
-  if (II == 0) return true;
+  if (!II) return true;
 
   // If the information about this identifier is out of date, update it from
   // the external source.
@@ -144,10 +406,11 @@ static bool isTrivialSingleTokenExpansion(const MacroInfo *MI,
 
   // If the identifier is a macro, and if that macro is enabled, it may be
   // expanded so it's not a trivial expansion.
-  if (II->hasMacroDefinition() && PP.getMacroInfo(II)->isEnabled() &&
-      // Fast expanding "#define X X" is ok, because X would be disabled.
-      II != MacroIdent)
-    return false;
+  if (auto *ExpansionMI = PP.getMacroInfo(II))
+    if (ExpansionMI->isEnabled() &&
+        // Fast expanding "#define X X" is ok, because X would be disabled.
+        II != MacroIdent)
+      return false;
 
   // If this is an object-like macro invocation, it is safe to trivially expand
   // it.
@@ -155,14 +418,8 @@ static bool isTrivialSingleTokenExpansion(const MacroInfo *MI,
 
   // If this is a function-like macro invocation, it's safe to trivially expand
   // as long as the identifier is not a macro argument.
-  for (MacroInfo::arg_iterator I = MI->arg_begin(), E = MI->arg_end();
-       I != E; ++I)
-    if (*I == II)
-      return false;   // Identifier is a macro argument.
-
-  return true;
+  return std::find(MI->param_begin(), MI->param_end(), II) == MI->param_end();
 }
-
 
 /// isNextPPTokenLParen - Determine whether the next preprocessor token to be
 /// lexed is a '('.  If so, consume the token and return true, if not, this
@@ -183,8 +440,7 @@ bool Preprocessor::isNextPPTokenLParen() {
     // macro stack.
     if (CurPPLexer)
       return false;
-    for (unsigned i = IncludeMacroStack.size(); i != 0; --i) {
-      IncludeStackInfo &Entry = IncludeMacroStack[i-1];
+    for (const IncludeStackInfo &Entry : llvm::reverse(IncludeMacroStack)) {
       if (Entry.TheLexer)
         Val = Entry.TheLexer->isNextPPTokenLParen();
       else if (Entry.ThePTHLexer)
@@ -210,10 +466,8 @@ bool Preprocessor::isNextPPTokenLParen() {
 /// HandleMacroExpandedIdentifier - If an identifier token is read that is to be
 /// expanded as a macro, handle it and return the next token as 'Identifier'.
 bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
-                                                 MacroDirective *MD) {
-  MacroDirective::DefInfo Def = MD->getDefinition();
-  assert(Def.isValid());
-  MacroInfo *MI = Def.getMacroInfo();
+                                                 const MacroDefinition &M) {
+  MacroInfo *MI = M.getMacroInfo();
 
   // If this is a macro expansion in the "#if !defined(x)" line for the file,
   // then the macro could expand to different things in other contexts, we need
@@ -222,8 +476,9 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
 
   // If this is a builtin macro, like __LINE__ or _Pragma, handle it specially.
   if (MI->isBuiltinMacro()) {
-    if (Callbacks) Callbacks->MacroExpands(Identifier, MD,
-                                           Identifier.getLocation(),/*Args=*/0);
+    if (Callbacks)
+      Callbacks->MacroExpands(Identifier, M, Identifier.getLocation(),
+                              /*Args=*/nullptr);
     ExpandBuiltinMacro(Identifier);
     return true;
   }
@@ -231,7 +486,7 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
   /// Args - If this is a function-like macro expansion, this contains,
   /// for each macro argument, the list of tokens that were provided to the
   /// invocation.
-  MacroArgs *Args = 0;
+  MacroArgs *Args = nullptr;
 
   // Remember where the end of the expansion occurred.  For an object-like
   // macro, this is the identifier.  For a function-like macro, this is the ')'.
@@ -243,13 +498,13 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
     // Preprocessor directives used inside macro arguments are not portable, and
     // this enables the warning.
     InMacroArgs = true;
-    Args = ReadFunctionLikeMacroArgs(Identifier, MI, ExpansionEnd);
+    Args = ReadMacroCallArgumentList(Identifier, MI, ExpansionEnd);
 
     // Finished parsing args.
     InMacroArgs = false;
 
     // If there was an error parsing the arguments, bail out.
-    if (Args == 0) return true;
+    if (!Args) return true;
 
     ++NumFnMacroExpanded;
   } else {
@@ -270,14 +525,14 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
       // MacroExpands callbacks still happen in source order, queue this
       // callback to have it happen after the function macro callback.
       DelayedMacroExpandsCallbacks.push_back(
-                              MacroExpandsInfo(Identifier, MD, ExpansionRange));
+          MacroExpandsInfo(Identifier, M, ExpansionRange));
     } else {
-      Callbacks->MacroExpands(Identifier, MD, ExpansionRange, Args);
+      Callbacks->MacroExpands(Identifier, M, ExpansionRange, Args);
       if (!DelayedMacroExpandsCallbacks.empty()) {
-        for (unsigned i=0, e = DelayedMacroExpandsCallbacks.size(); i!=e; ++i) {
-          MacroExpandsInfo &Info = DelayedMacroExpandsCallbacks[i];
+        for (const MacroExpandsInfo &Info : DelayedMacroExpandsCallbacks) {
           // FIXME: We lose macro args info with delayed callback.
-          Callbacks->MacroExpands(Info.Tok, Info.MD, Info.Range, /*Args=*/0);
+          Callbacks->MacroExpands(Info.Tok, Info.MD, Info.Range,
+                                  /*Args=*/nullptr);
         }
         DelayedMacroExpandsCallbacks.clear();
       }
@@ -285,20 +540,16 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
   }
 
   // If the macro definition is ambiguous, complain.
-  if (Def.getDirective()->isAmbiguous()) {
+  if (M.isAmbiguous()) {
     Diag(Identifier, diag::warn_pp_ambiguous_macro)
       << Identifier.getIdentifierInfo();
     Diag(MI->getDefinitionLoc(), diag::note_pp_ambiguous_macro_chosen)
       << Identifier.getIdentifierInfo();
-    for (MacroDirective::DefInfo PrevDef = Def.getPreviousDefinition();
-         PrevDef && !PrevDef.isUndefined();
-         PrevDef = PrevDef.getPreviousDefinition()) {
-      if (PrevDef.getDirective()->isAmbiguous()) {
-        Diag(PrevDef.getMacroInfo()->getDefinitionLoc(),
-             diag::note_pp_ambiguous_macro_other)
+    M.forAllDefinitions([&](const MacroInfo *OtherMI) {
+      if (OtherMI != MI)
+        Diag(OtherMI->getDefinitionLoc(), diag::note_pp_ambiguous_macro_other)
           << Identifier.getIdentifierInfo();
-      }
-    }
+    });
   }
 
   // If we started lexing a macro, enter the macro expansion body.
@@ -394,9 +645,7 @@ static bool CheckMatchedBrackets(const SmallVectorImpl<Token> &Tokens) {
       Brackets.pop_back();
     }
   }
-  if (!Brackets.empty())
-    return false;
-  return true;
+  return Brackets.empty();
 }
 
 /// GenerateNewArgTokens - Returns true if OldTokens can be converted to a new
@@ -502,11 +751,11 @@ static bool GenerateNewArgTokens(Preprocessor &PP,
 /// token is the '(' of the macro, this method is invoked to read all of the
 /// actual arguments specified for the macro invocation.  This returns null on
 /// error.
-MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
+MacroArgs *Preprocessor::ReadMacroCallArgumentList(Token &MacroName,
                                                    MacroInfo *MI,
                                                    SourceLocation &MacroEnd) {
   // The number of fixed arguments to parse.
-  unsigned NumFixedArgsLeft = MI->getNumArgs();
+  unsigned NumFixedArgsLeft = MI->getNumParams();
   bool isVariadic = MI->isVariadic();
 
   // Outer loop, while there are more arguments, keep reading them.
@@ -522,48 +771,52 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
   // heap allocations in the common case.
   SmallVector<Token, 64> ArgTokens;
   bool ContainsCodeCompletionTok = false;
+  bool FoundElidedComma = false;
 
   SourceLocation TooManyArgsLoc;
 
   unsigned NumActuals = 0;
   while (Tok.isNot(tok::r_paren)) {
-    if (ContainsCodeCompletionTok && (Tok.is(tok::eof) || Tok.is(tok::eod)))
+    if (ContainsCodeCompletionTok && Tok.isOneOf(tok::eof, tok::eod))
       break;
 
-    assert((Tok.is(tok::l_paren) || Tok.is(tok::comma)) &&
+    assert(Tok.isOneOf(tok::l_paren, tok::comma) &&
            "only expect argument separators here");
 
-    unsigned ArgTokenStart = ArgTokens.size();
+    size_t ArgTokenStart = ArgTokens.size();
     SourceLocation ArgStartLoc = Tok.getLocation();
 
     // C99 6.10.3p11: Keep track of the number of l_parens we have seen.  Note
     // that we already consumed the first one.
     unsigned NumParens = 0;
 
-    while (1) {
+    while (true) {
       // Read arguments as unexpanded tokens.  This avoids issues, e.g., where
       // an argument value in a macro could expand to ',' or '(' or ')'.
       LexUnexpandedToken(Tok);
 
-      if (Tok.is(tok::eof) || Tok.is(tok::eod)) { // "#if f(<eof>" & "#if f(\n"
+      if (Tok.isOneOf(tok::eof, tok::eod)) { // "#if f(<eof>" & "#if f(\n"
         if (!ContainsCodeCompletionTok) {
           Diag(MacroName, diag::err_unterm_macro_invoc);
           Diag(MI->getDefinitionLoc(), diag::note_macro_here)
             << MacroName.getIdentifierInfo();
           // Do not lose the EOF/EOD.  Return it to the client.
           MacroName = Tok;
-          return 0;
-        } else {
-          // Do not lose the EOF/EOD.
-          Token *Toks = new Token[1];
-          Toks[0] = Tok;
-          EnterTokenStream(Toks, 1, true, true);
-          break;
+          return nullptr;
         }
+        // Do not lose the EOF/EOD.
+        auto Toks = llvm::make_unique<Token[]>(1);
+        Toks[0] = Tok;
+        EnterTokenStream(std::move(Toks), 1, true);
+        break;
       } else if (Tok.is(tok::r_paren)) {
         // If we found the ) token, the macro arg list is done.
         if (NumParens-- == 0) {
           MacroEnd = Tok.getLocation();
+          if (!ArgTokens.empty() &&
+              ArgTokens.back().commaAfterElided()) {
+            FoundElidedComma = true;
+          }
           break;
         }
       } else if (Tok.is(tok::l_paren)) {
@@ -584,7 +837,7 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
         // If this is a comment token in the argument list and we're just in
         // -C mode (not -CC mode), discard the comment.
         continue;
-      } else if (Tok.getIdentifierInfo() != 0) {
+      } else if (!Tok.isAnnotation() && Tok.getIdentifierInfo() != nullptr) {
         // Reading macro arguments can cause macros that we are currently
         // expanding from to be popped off the expansion stack.  Doing so causes
         // them to be reenabled for expansion.  Here we record whether any
@@ -642,7 +895,7 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
 
   // Okay, we either found the r_paren.  Check to see if we parsed too few
   // arguments.
-  unsigned MinArgsExpected = MI->getNumArgs();
+  unsigned MinArgsExpected = MI->getNumParams();
 
   // If this is not a variadic macro, and too many args were specified, emit
   // an error.
@@ -668,29 +921,18 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
         DiagnosticBuilder DB =
             Diag(MacroName,
                  diag::note_init_list_at_beginning_of_macro_argument);
-        for (SmallVector<SourceRange, 4>::iterator
-                 Range = InitLists.begin(), RangeEnd = InitLists.end();
-                 Range != RangeEnd; ++Range) {
-          if (DB.hasMaxRanges())
-            break;
-          DB << *Range;
-        }
+        for (SourceRange Range : InitLists)
+          DB << Range;
       }
-      return 0;
+      return nullptr;
     }
     if (FixedNumArgs != MinArgsExpected)
-      return 0;
+      return nullptr;
 
     DiagnosticBuilder DB = Diag(MacroName, diag::note_suggest_parens_for_macro);
-    for (SmallVector<SourceRange, 4>::iterator
-             ParenLocation = ParenHints.begin(), ParenEnd = ParenHints.end();
-         ParenLocation != ParenEnd; ++ParenLocation) {
-      if (DB.hasMaxFixItHints())
-        break;
-      DB << FixItHint::CreateInsertion(ParenLocation->getBegin(), "(");
-      if (DB.hasMaxFixItHints())
-        break;
-      DB << FixItHint::CreateInsertion(ParenLocation->getEnd(), ")");
+    for (SourceRange ParenLocation : ParenHints) {
+      DB << FixItHint::CreateInsertion(ParenLocation.getBegin(), "(");
+      DB << FixItHint::CreateInsertion(ParenLocation.getEnd(), ")");
     }
     ArgTokens.swap(FixedArgTokens);
     NumActuals = FixedNumArgs;
@@ -719,7 +961,7 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
       // then we have an empty "()" argument empty list.  This is fine, even if
       // the macro expects one argument (the argument is just empty).
       isVarargsElided = MI->isVariadic();
-    } else if (MI->isVariadic() &&
+    } else if ((FoundElidedComma || MI->isVariadic()) &&
                (NumActuals+1 == MinArgsExpected ||  // A(x, ...) -> A(X)
                 (NumActuals == 0 && MinArgsExpected == 2))) {// A(x,...) -> A()
       // Varargs where the named vararg parameter is missing: OK as extension.
@@ -746,7 +988,7 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
       Diag(Tok, diag::err_too_few_args_in_macro_invoc);
       Diag(MI->getDefinitionLoc(), diag::note_macro_here)
         << MacroName.getIdentifierInfo();
-      return 0;
+      return nullptr;
     }
 
     // Add a marker EOF token to the end of the token list for this argument.
@@ -768,7 +1010,7 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
     Diag(MacroName, diag::err_too_many_args_in_macro_invoc);
     Diag(MI->getDefinitionLoc(), diag::note_macro_here)
       << MacroName.getIdentifierInfo();
-    return 0;
+    return nullptr;
   }
 
   return MacroArgs::create(MI, ArgTokens, isVarargsElided, *this);
@@ -783,20 +1025,20 @@ Token *Preprocessor::cacheMacroExpandedTokens(TokenLexer *tokLexer,
                                               ArrayRef<Token> tokens) {
   assert(tokLexer);
   if (tokens.empty())
-    return 0;
+    return nullptr;
 
   size_t newIndex = MacroExpandedTokens.size();
   bool cacheNeedsToGrow = tokens.size() >
-                      MacroExpandedTokens.capacity()-MacroExpandedTokens.size(); 
+                      MacroExpandedTokens.capacity()-MacroExpandedTokens.size();
   MacroExpandedTokens.append(tokens.begin(), tokens.end());
 
   if (cacheNeedsToGrow) {
     // Go through all the TokenLexers whose 'Tokens' pointer points in the
     // buffer and update the pointers to the (potential) new buffer array.
-    for (unsigned i = 0, e = MacroExpandingLexersStack.size(); i != e; ++i) {
+    for (const auto &Lexer : MacroExpandingLexersStack) {
       TokenLexer *prevLexer;
       size_t tokIndex;
-      llvm::tie(prevLexer, tokIndex) = MacroExpandingLexersStack[i];
+      std::tie(prevLexer, tokIndex) = Lexer;
       prevLexer->Tokens = MacroExpandedTokens.data() + tokIndex;
     }
   }
@@ -819,7 +1061,7 @@ void Preprocessor::removeCachedMacroExpandedTokensOfLastLexer() {
 /// the identifier tokens inserted.
 static void ComputeDATE_TIME(SourceLocation &DATELoc, SourceLocation &TIMELoc,
                              Preprocessor &PP) {
-  time_t TT = time(0);
+  time_t TT = time(nullptr);
   struct tm *TM = localtime(&TT);
 
   static const char * const Months[] = {
@@ -849,167 +1091,208 @@ static void ComputeDATE_TIME(SourceLocation &DATELoc, SourceLocation &TIMELoc,
   }
 }
 
-
 /// HasFeature - Return true if we recognize and implement the feature
 /// specified by the identifier as a standard language feature.
-static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
+static bool HasFeature(const Preprocessor &PP, StringRef Feature) {
   const LangOptions &LangOpts = PP.getLangOpts();
-  StringRef Feature = II->getName();
 
   // Normalize the feature name, __foo__ becomes foo.
   if (Feature.startswith("__") && Feature.endswith("__") && Feature.size() >= 4)
     Feature = Feature.substr(2, Feature.size() - 4);
 
   return llvm::StringSwitch<bool>(Feature)
-           .Case("address_sanitizer", LangOpts.Sanitize.Address)
-           .Case("attribute_analyzer_noreturn", true)
-           .Case("attribute_availability", true)
-           .Case("attribute_availability_with_message", true)
-           .Case("attribute_cf_returns_not_retained", true)
-           .Case("attribute_cf_returns_retained", true)
-           .Case("attribute_deprecated_with_message", true)
-           .Case("attribute_ext_vector_type", true)
-           .Case("attribute_ns_returns_not_retained", true)
-           .Case("attribute_ns_returns_retained", true)
-           .Case("attribute_ns_consumes_self", true)
-           .Case("attribute_ns_consumed", true)
-           .Case("attribute_cf_consumed", true)
-           .Case("attribute_objc_ivar_unused", true)
-           .Case("attribute_objc_method_family", true)
-           .Case("attribute_overloadable", true)
-           .Case("attribute_unavailable_with_message", true)
-           .Case("attribute_unused_on_fields", true)
-           .Case("blocks", LangOpts.Blocks)
-           .Case("c_thread_safety_attributes", true)
-           .Case("cxx_exceptions", LangOpts.Exceptions)
-           .Case("cxx_rtti", LangOpts.RTTI)
-           .Case("enumerator_attributes", true)
-           .Case("memory_sanitizer", LangOpts.Sanitize.Memory)
-           .Case("thread_sanitizer", LangOpts.Sanitize.Thread)
-           .Case("dataflow_sanitizer", LangOpts.Sanitize.DataFlow)
-           // Objective-C features
-           .Case("objc_arr", LangOpts.ObjCAutoRefCount) // FIXME: REMOVE?
-           .Case("objc_arc", LangOpts.ObjCAutoRefCount)
-           .Case("objc_arc_weak", LangOpts.ObjCARCWeak)
-           .Case("objc_default_synthesize_properties", LangOpts.ObjC2)
-           .Case("objc_fixed_enum", LangOpts.ObjC2)
-           .Case("objc_instancetype", LangOpts.ObjC2)
-           .Case("objc_modules", LangOpts.ObjC2 && LangOpts.Modules)
-           .Case("objc_nonfragile_abi", LangOpts.ObjCRuntime.isNonFragile())
-           .Case("objc_property_explicit_atomic", true) // Does clang support explicit "atomic" keyword?
-           .Case("objc_protocol_qualifier_mangling", true)
-           .Case("objc_weak_class", LangOpts.ObjCRuntime.hasWeakClassImport())
-           .Case("ownership_holds", true)
-           .Case("ownership_returns", true)
-           .Case("ownership_takes", true)
-           .Case("objc_bool", true)
-           .Case("objc_subscripting", LangOpts.ObjCRuntime.isNonFragile())
-           .Case("objc_array_literals", LangOpts.ObjC2)
-           .Case("objc_dictionary_literals", LangOpts.ObjC2)
-           .Case("objc_boxed_expressions", LangOpts.ObjC2)
-           .Case("arc_cf_code_audited", true)
-           // C11 features
-           .Case("c_alignas", LangOpts.C11)
-           .Case("c_atomic", LangOpts.C11)
-           .Case("c_generic_selections", LangOpts.C11)
-           .Case("c_static_assert", LangOpts.C11)
-           .Case("c_thread_local", 
-                 LangOpts.C11 && PP.getTargetInfo().isTLSSupported())
-           // C++11 features
-           .Case("cxx_access_control_sfinae", LangOpts.CPlusPlus11)
-           .Case("cxx_alias_templates", LangOpts.CPlusPlus11)
-           .Case("cxx_alignas", LangOpts.CPlusPlus11)
-           .Case("cxx_atomic", LangOpts.CPlusPlus11)
-           .Case("cxx_attributes", LangOpts.CPlusPlus11)
-           .Case("cxx_auto_type", LangOpts.CPlusPlus11)
-           .Case("cxx_constexpr", LangOpts.CPlusPlus11)
-           .Case("cxx_decltype", LangOpts.CPlusPlus11)
-           .Case("cxx_decltype_incomplete_return_types", LangOpts.CPlusPlus11)
-           .Case("cxx_default_function_template_args", LangOpts.CPlusPlus11)
-           .Case("cxx_defaulted_functions", LangOpts.CPlusPlus11)
-           .Case("cxx_delegating_constructors", LangOpts.CPlusPlus11)
-           .Case("cxx_deleted_functions", LangOpts.CPlusPlus11)
-           .Case("cxx_explicit_conversions", LangOpts.CPlusPlus11)
-           .Case("cxx_generalized_initializers", LangOpts.CPlusPlus11)
-           .Case("cxx_implicit_moves", LangOpts.CPlusPlus11)
-           .Case("cxx_inheriting_constructors", LangOpts.CPlusPlus11)
-           .Case("cxx_inline_namespaces", LangOpts.CPlusPlus11)
-           .Case("cxx_lambdas", LangOpts.CPlusPlus11)
-           .Case("cxx_local_type_template_args", LangOpts.CPlusPlus11)
-           .Case("cxx_nonstatic_member_init", LangOpts.CPlusPlus11)
-           .Case("cxx_noexcept", LangOpts.CPlusPlus11)
-           .Case("cxx_nullptr", LangOpts.CPlusPlus11)
-           .Case("cxx_override_control", LangOpts.CPlusPlus11)
-           .Case("cxx_range_for", LangOpts.CPlusPlus11)
-           .Case("cxx_raw_string_literals", LangOpts.CPlusPlus11)
-           .Case("cxx_reference_qualified_functions", LangOpts.CPlusPlus11)
-           .Case("cxx_rvalue_references", LangOpts.CPlusPlus11)
-           .Case("cxx_strong_enums", LangOpts.CPlusPlus11)
-           .Case("cxx_static_assert", LangOpts.CPlusPlus11)
-           .Case("cxx_thread_local",
-                 LangOpts.CPlusPlus11 && PP.getTargetInfo().isTLSSupported())
-           .Case("cxx_trailing_return", LangOpts.CPlusPlus11)
-           .Case("cxx_unicode_literals", LangOpts.CPlusPlus11)
-           .Case("cxx_unrestricted_unions", LangOpts.CPlusPlus11)
-           .Case("cxx_user_literals", LangOpts.CPlusPlus11)
-           .Case("cxx_variadic_templates", LangOpts.CPlusPlus11)
-           // C++1y features
-           .Case("cxx_aggregate_nsdmi", LangOpts.CPlusPlus1y)
-           .Case("cxx_binary_literals", LangOpts.CPlusPlus1y)
-           .Case("cxx_contextual_conversions", LangOpts.CPlusPlus1y)
-           //.Case("cxx_generic_lambdas", LangOpts.CPlusPlus1y)
-           .Case("cxx_init_captures", LangOpts.CPlusPlus1y)
-           .Case("cxx_relaxed_constexpr", LangOpts.CPlusPlus1y)
-           .Case("cxx_return_type_deduction", LangOpts.CPlusPlus1y)
-           //.Case("cxx_runtime_arrays", LangOpts.CPlusPlus1y)
-           .Case("cxx_variable_templates", LangOpts.CPlusPlus1y)
-           // Type traits
-           .Case("has_nothrow_assign", LangOpts.CPlusPlus)
-           .Case("has_nothrow_copy", LangOpts.CPlusPlus)
-           .Case("has_nothrow_constructor", LangOpts.CPlusPlus)
-           .Case("has_trivial_assign", LangOpts.CPlusPlus)
-           .Case("has_trivial_copy", LangOpts.CPlusPlus)
-           .Case("has_trivial_constructor", LangOpts.CPlusPlus)
-           .Case("has_trivial_destructor", LangOpts.CPlusPlus)
-           .Case("has_virtual_destructor", LangOpts.CPlusPlus)
-           .Case("is_abstract", LangOpts.CPlusPlus)
-           .Case("is_base_of", LangOpts.CPlusPlus)
-           .Case("is_class", LangOpts.CPlusPlus)
-           .Case("is_convertible_to", LangOpts.CPlusPlus)
-           .Case("is_empty", LangOpts.CPlusPlus)
-           .Case("is_enum", LangOpts.CPlusPlus)
-           .Case("is_final", LangOpts.CPlusPlus)
-           .Case("is_literal", LangOpts.CPlusPlus)
-           .Case("is_standard_layout", LangOpts.CPlusPlus)
-           .Case("is_pod", LangOpts.CPlusPlus)
-           .Case("is_polymorphic", LangOpts.CPlusPlus)
-           .Case("is_sealed", LangOpts.MicrosoftExt)
-           .Case("is_trivial", LangOpts.CPlusPlus)
-           .Case("is_trivially_assignable", LangOpts.CPlusPlus)
-           .Case("is_trivially_constructible", LangOpts.CPlusPlus)
-           .Case("is_trivially_copyable", LangOpts.CPlusPlus)
-           .Case("is_union", LangOpts.CPlusPlus)
-           .Case("modules", LangOpts.Modules)
-           .Case("tls", PP.getTargetInfo().isTLSSupported())
-           .Case("underlying_type", LangOpts.CPlusPlus)
-           .Default(false);
+      .Case("address_sanitizer",
+            LangOpts.Sanitize.hasOneOf(SanitizerKind::Address |
+                                       SanitizerKind::KernelAddress))
+      .Case("hwaddress_sanitizer",
+            LangOpts.Sanitize.hasOneOf(SanitizerKind::HWAddress))
+      .Case("assume_nonnull", true)
+      .Case("attribute_analyzer_noreturn", true)
+      .Case("attribute_availability", true)
+      .Case("attribute_availability_with_message", true)
+      .Case("attribute_availability_app_extension", true)
+      .Case("attribute_availability_with_version_underscores", true)
+      .Case("attribute_availability_tvos", true)
+      .Case("attribute_availability_watchos", true)
+      .Case("attribute_availability_with_strict", true)
+      .Case("attribute_availability_with_replacement", true)
+      .Case("attribute_availability_in_templates", true)
+      .Case("attribute_cf_returns_not_retained", true)
+      .Case("attribute_cf_returns_retained", true)
+      .Case("attribute_cf_returns_on_parameters", true)
+      .Case("attribute_deprecated_with_message", true)
+      .Case("attribute_deprecated_with_replacement", true)
+      .Case("attribute_ext_vector_type", true)
+      .Case("attribute_ns_returns_not_retained", true)
+      .Case("attribute_ns_returns_retained", true)
+      .Case("attribute_ns_consumes_self", true)
+      .Case("attribute_ns_consumed", true)
+      .Case("attribute_cf_consumed", true)
+      .Case("attribute_objc_ivar_unused", true)
+      .Case("attribute_objc_method_family", true)
+      .Case("attribute_overloadable", true)
+      .Case("attribute_unavailable_with_message", true)
+      .Case("attribute_unused_on_fields", true)
+      .Case("attribute_diagnose_if_objc", true)
+      .Case("blocks", LangOpts.Blocks)
+      .Case("c_thread_safety_attributes", true)
+      .Case("cxx_exceptions", LangOpts.CXXExceptions)
+      .Case("cxx_rtti", LangOpts.RTTI && LangOpts.RTTIData)
+      .Case("enumerator_attributes", true)
+      .Case("nullability", true)
+      .Case("nullability_on_arrays", true)
+      .Case("memory_sanitizer", LangOpts.Sanitize.has(SanitizerKind::Memory))
+      .Case("thread_sanitizer", LangOpts.Sanitize.has(SanitizerKind::Thread))
+      .Case("dataflow_sanitizer",
+            LangOpts.Sanitize.has(SanitizerKind::DataFlow))
+      .Case("efficiency_sanitizer",
+            LangOpts.Sanitize.hasOneOf(SanitizerKind::Efficiency))
+      .Case("scudo", LangOpts.Sanitize.hasOneOf(SanitizerKind::Scudo))
+      // Objective-C features
+      .Case("objc_arr", LangOpts.ObjCAutoRefCount) // FIXME: REMOVE?
+      .Case("objc_arc", LangOpts.ObjCAutoRefCount)
+      .Case("objc_arc_weak", LangOpts.ObjCWeak)
+      .Case("objc_default_synthesize_properties", LangOpts.ObjC2)
+      .Case("objc_fixed_enum", LangOpts.ObjC2)
+      .Case("objc_instancetype", LangOpts.ObjC2)
+      .Case("objc_kindof", LangOpts.ObjC2)
+      .Case("objc_modules", LangOpts.ObjC2 && LangOpts.Modules)
+      .Case("objc_nonfragile_abi", LangOpts.ObjCRuntime.isNonFragile())
+      .Case("objc_property_explicit_atomic",
+            true) // Does clang support explicit "atomic" keyword?
+      .Case("objc_protocol_qualifier_mangling", true)
+      .Case("objc_weak_class", LangOpts.ObjCRuntime.hasWeakClassImport())
+      .Case("ownership_holds", true)
+      .Case("ownership_returns", true)
+      .Case("ownership_takes", true)
+      .Case("objc_bool", true)
+      .Case("objc_subscripting", LangOpts.ObjCRuntime.isNonFragile())
+      .Case("objc_array_literals", LangOpts.ObjC2)
+      .Case("objc_dictionary_literals", LangOpts.ObjC2)
+      .Case("objc_boxed_expressions", LangOpts.ObjC2)
+      .Case("objc_boxed_nsvalue_expressions", LangOpts.ObjC2)
+      .Case("arc_cf_code_audited", true)
+      .Case("objc_bridge_id", true)
+      .Case("objc_bridge_id_on_typedefs", true)
+      .Case("objc_generics", LangOpts.ObjC2)
+      .Case("objc_generics_variance", LangOpts.ObjC2)
+      .Case("objc_class_property", LangOpts.ObjC2)
+      // C11 features
+      .Case("c_alignas", LangOpts.C11)
+      .Case("c_alignof", LangOpts.C11)
+      .Case("c_atomic", LangOpts.C11)
+      .Case("c_generic_selections", LangOpts.C11)
+      .Case("c_static_assert", LangOpts.C11)
+      .Case("c_thread_local",
+            LangOpts.C11 && PP.getTargetInfo().isTLSSupported())
+      // C++11 features
+      .Case("cxx_access_control_sfinae", LangOpts.CPlusPlus11)
+      .Case("cxx_alias_templates", LangOpts.CPlusPlus11)
+      .Case("cxx_alignas", LangOpts.CPlusPlus11)
+      .Case("cxx_alignof", LangOpts.CPlusPlus11)
+      .Case("cxx_atomic", LangOpts.CPlusPlus11)
+      .Case("cxx_attributes", LangOpts.CPlusPlus11)
+      .Case("cxx_auto_type", LangOpts.CPlusPlus11)
+      .Case("cxx_constexpr", LangOpts.CPlusPlus11)
+      .Case("cxx_constexpr_string_builtins", LangOpts.CPlusPlus11)
+      .Case("cxx_decltype", LangOpts.CPlusPlus11)
+      .Case("cxx_decltype_incomplete_return_types", LangOpts.CPlusPlus11)
+      .Case("cxx_default_function_template_args", LangOpts.CPlusPlus11)
+      .Case("cxx_defaulted_functions", LangOpts.CPlusPlus11)
+      .Case("cxx_delegating_constructors", LangOpts.CPlusPlus11)
+      .Case("cxx_deleted_functions", LangOpts.CPlusPlus11)
+      .Case("cxx_explicit_conversions", LangOpts.CPlusPlus11)
+      .Case("cxx_generalized_initializers", LangOpts.CPlusPlus11)
+      .Case("cxx_implicit_moves", LangOpts.CPlusPlus11)
+      .Case("cxx_inheriting_constructors", LangOpts.CPlusPlus11)
+      .Case("cxx_inline_namespaces", LangOpts.CPlusPlus11)
+      .Case("cxx_lambdas", LangOpts.CPlusPlus11)
+      .Case("cxx_local_type_template_args", LangOpts.CPlusPlus11)
+      .Case("cxx_nonstatic_member_init", LangOpts.CPlusPlus11)
+      .Case("cxx_noexcept", LangOpts.CPlusPlus11)
+      .Case("cxx_nullptr", LangOpts.CPlusPlus11)
+      .Case("cxx_override_control", LangOpts.CPlusPlus11)
+      .Case("cxx_range_for", LangOpts.CPlusPlus11)
+      .Case("cxx_raw_string_literals", LangOpts.CPlusPlus11)
+      .Case("cxx_reference_qualified_functions", LangOpts.CPlusPlus11)
+      .Case("cxx_rvalue_references", LangOpts.CPlusPlus11)
+      .Case("cxx_strong_enums", LangOpts.CPlusPlus11)
+      .Case("cxx_static_assert", LangOpts.CPlusPlus11)
+      .Case("cxx_thread_local",
+            LangOpts.CPlusPlus11 && PP.getTargetInfo().isTLSSupported())
+      .Case("cxx_trailing_return", LangOpts.CPlusPlus11)
+      .Case("cxx_unicode_literals", LangOpts.CPlusPlus11)
+      .Case("cxx_unrestricted_unions", LangOpts.CPlusPlus11)
+      .Case("cxx_user_literals", LangOpts.CPlusPlus11)
+      .Case("cxx_variadic_templates", LangOpts.CPlusPlus11)
+      // C++14 features
+      .Case("cxx_aggregate_nsdmi", LangOpts.CPlusPlus14)
+      .Case("cxx_binary_literals", LangOpts.CPlusPlus14)
+      .Case("cxx_contextual_conversions", LangOpts.CPlusPlus14)
+      .Case("cxx_decltype_auto", LangOpts.CPlusPlus14)
+      .Case("cxx_generic_lambdas", LangOpts.CPlusPlus14)
+      .Case("cxx_init_captures", LangOpts.CPlusPlus14)
+      .Case("cxx_relaxed_constexpr", LangOpts.CPlusPlus14)
+      .Case("cxx_return_type_deduction", LangOpts.CPlusPlus14)
+      .Case("cxx_variable_templates", LangOpts.CPlusPlus14)
+      // NOTE: For features covered by SD-6, it is preferable to provide *only*
+      // the SD-6 macro and not a __has_feature check.
+
+      // C++ TSes
+      //.Case("cxx_runtime_arrays", LangOpts.CPlusPlusTSArrays)
+      //.Case("cxx_concepts", LangOpts.CPlusPlusTSConcepts)
+      // FIXME: Should this be __has_feature or __has_extension?
+      //.Case("raw_invocation_type", LangOpts.CPlusPlus)
+      // Type traits
+      // N.B. Additional type traits should not be added to the following list.
+      // Instead, they should be detected by has_extension.
+      .Case("has_nothrow_assign", LangOpts.CPlusPlus)
+      .Case("has_nothrow_copy", LangOpts.CPlusPlus)
+      .Case("has_nothrow_constructor", LangOpts.CPlusPlus)
+      .Case("has_trivial_assign", LangOpts.CPlusPlus)
+      .Case("has_trivial_copy", LangOpts.CPlusPlus)
+      .Case("has_trivial_constructor", LangOpts.CPlusPlus)
+      .Case("has_trivial_destructor", LangOpts.CPlusPlus)
+      .Case("has_virtual_destructor", LangOpts.CPlusPlus)
+      .Case("is_abstract", LangOpts.CPlusPlus)
+      .Case("is_base_of", LangOpts.CPlusPlus)
+      .Case("is_class", LangOpts.CPlusPlus)
+      .Case("is_constructible", LangOpts.CPlusPlus)
+      .Case("is_convertible_to", LangOpts.CPlusPlus)
+      .Case("is_empty", LangOpts.CPlusPlus)
+      .Case("is_enum", LangOpts.CPlusPlus)
+      .Case("is_final", LangOpts.CPlusPlus)
+      .Case("is_literal", LangOpts.CPlusPlus)
+      .Case("is_standard_layout", LangOpts.CPlusPlus)
+      .Case("is_pod", LangOpts.CPlusPlus)
+      .Case("is_polymorphic", LangOpts.CPlusPlus)
+      .Case("is_sealed", LangOpts.CPlusPlus && LangOpts.MicrosoftExt)
+      .Case("is_trivial", LangOpts.CPlusPlus)
+      .Case("is_trivially_assignable", LangOpts.CPlusPlus)
+      .Case("is_trivially_constructible", LangOpts.CPlusPlus)
+      .Case("is_trivially_copyable", LangOpts.CPlusPlus)
+      .Case("is_union", LangOpts.CPlusPlus)
+      .Case("modules", LangOpts.Modules)
+      .Case("safe_stack", LangOpts.Sanitize.has(SanitizerKind::SafeStack))
+      .Case("tls", PP.getTargetInfo().isTLSSupported())
+      .Case("underlying_type", LangOpts.CPlusPlus)
+      .Default(false);
 }
 
 /// HasExtension - Return true if we recognize and implement the feature
 /// specified by the identifier, either as an extension or a standard language
 /// feature.
-static bool HasExtension(const Preprocessor &PP, const IdentifierInfo *II) {
-  if (HasFeature(PP, II))
+static bool HasExtension(const Preprocessor &PP, StringRef Extension) {
+  if (HasFeature(PP, Extension))
     return true;
 
   // If the use of an extension results in an error diagnostic, extensions are
   // effectively unavailable, so just return false here.
-  if (PP.getDiagnostics().getExtensionHandlingBehavior() ==
-      DiagnosticsEngine::Ext_Error)
+  if (PP.getDiagnostics().getExtensionHandlingBehavior() >=
+      diag::Severity::Error)
     return false;
 
   const LangOptions &LangOpts = PP.getLangOpts();
-  StringRef Extension = II->getName();
 
   // Normalize the extension name, __foo__ becomes foo.
   if (Extension.startswith("__") && Extension.endswith("__") &&
@@ -1021,6 +1304,7 @@ static bool HasExtension(const Preprocessor &PP, const IdentifierInfo *II) {
   return llvm::StringSwitch<bool>(Extension)
            // C11 features supported by other languages as extensions.
            .Case("c_alignas", true)
+           .Case("c_alignof", true)
            .Case("c_atomic", true)
            .Case("c_generic_selections", true)
            .Case("c_static_assert", true)
@@ -1036,25 +1320,14 @@ static bool HasExtension(const Preprocessor &PP, const IdentifierInfo *II) {
            .Case("cxx_range_for", LangOpts.CPlusPlus)
            .Case("cxx_reference_qualified_functions", LangOpts.CPlusPlus)
            .Case("cxx_rvalue_references", LangOpts.CPlusPlus)
-           // C++1y features supported by other languages as extensions.
+           .Case("cxx_variadic_templates", LangOpts.CPlusPlus)
+           // C++14 features supported by other languages as extensions.
            .Case("cxx_binary_literals", true)
            .Case("cxx_init_captures", LangOpts.CPlusPlus11)
-           .Case("cxx_variable_templates", true)
+           .Case("cxx_variable_templates", LangOpts.CPlusPlus)
+           // Miscellaneous language extensions
+           .Case("overloadable_unmarked", true)
            .Default(false);
-}
-
-/// HasAttribute -  Return true if we recognize and implement the attribute
-/// specified by the given identifier.
-static bool HasAttribute(const IdentifierInfo *II) {
-  StringRef Name = II->getName();
-  // Normalize the attribute name, __foo__ becomes foo.
-  if (Name.startswith("__") && Name.endswith("__") && Name.size() >= 4)
-    Name = Name.substr(2, Name.size() - 4);
-
-  // FIXME: Do we need to handle namespaces here?
-  return llvm::StringSwitch<bool>(Name)
-#include "clang/Lex/AttrSpellings.inc"
-        .Default(false);
 }
 
 /// EvaluateHasIncludeCommon - Process a '__has_include("path")'
@@ -1062,7 +1335,8 @@ static bool HasAttribute(const IdentifierInfo *II) {
 /// Returns true if successful.
 static bool EvaluateHasIncludeCommon(Token &Tok,
                                      IdentifierInfo *II, Preprocessor &PP,
-                                     const DirectoryLookup *LookupFrom) {
+                                     const DirectoryLookup *LookupFrom,
+                                     const FileEntry *LookupFromFile) {
   // Save the location of the current token.  If a '(' is later found, use
   // that location.  If not, use the end of this location instead.
   SourceLocation LParenLoc = Tok.getLocation();
@@ -1070,6 +1344,9 @@ static bool EvaluateHasIncludeCommon(Token &Tok,
   // These expressions are only allowed within a preprocessor directive.
   if (!PP.isParsingIfOrElifDirective()) {
     PP.Diag(LParenLoc, diag::err_pp_directive_required) << II->getName();
+    // Return a valid identifier token.
+    assert(Tok.is(tok::identifier));
+    Tok.setIdentifierInfo(II);
     return false;
   }
 
@@ -1080,7 +1357,7 @@ static bool EvaluateHasIncludeCommon(Token &Tok,
   if (Tok.isNot(tok::l_paren)) {
     // No '(', use end of last token.
     LParenLoc = PP.getLocForEndOfToken(LParenLoc);
-    PP.Diag(LParenLoc, diag::err_pp_missing_lparen) << II->getName();
+    PP.Diag(LParenLoc, diag::err_pp_expected_after) << II << tok::l_paren;
     // If the next token looks like a filename or the start of one,
     // assume it is and process it as such.
     if (!Tok.is(tok::angle_string_literal) && !Tok.is(tok::string_literal) &&
@@ -1128,7 +1405,7 @@ static bool EvaluateHasIncludeCommon(Token &Tok,
       Tok.setKind(tok::eod);
       return false;   // Found <eod> but no ">"?  Diagnostic already emitted.
     }
-    Filename = FilenameBuffer.str();
+    Filename = FilenameBuffer;
     break;
   default:
     PP.Diag(Tok.getLocation(), diag::err_pp_expects_filename);
@@ -1142,9 +1419,9 @@ static bool EvaluateHasIncludeCommon(Token &Tok,
 
   // Ensure we have a trailing ).
   if (Tok.isNot(tok::r_paren)) {
-    PP.Diag(PP.getLocForEndOfToken(FilenameLoc), diag::err_pp_missing_rparen)
-        << II->getName();
-    PP.Diag(LParenLoc, diag::note_matching) << "(";
+    PP.Diag(PP.getLocForEndOfToken(FilenameLoc), diag::err_pp_expected_after)
+        << II << tok::r_paren;
+    PP.Diag(LParenLoc, diag::note_matching) << tok::l_paren;
     return false;
   }
 
@@ -1157,18 +1434,18 @@ static bool EvaluateHasIncludeCommon(Token &Tok,
   // Search include directories.
   const DirectoryLookup *CurDir;
   const FileEntry *File =
-      PP.LookupFile(FilenameLoc, Filename, isAngled, LookupFrom, CurDir, NULL,
-                    NULL, NULL);
+      PP.LookupFile(FilenameLoc, Filename, isAngled, LookupFrom, LookupFromFile,
+                    CurDir, nullptr, nullptr, nullptr, nullptr);
 
   // Get the result value.  A result of true means the file exists.
-  return File != 0;
+  return File != nullptr;
 }
 
 /// EvaluateHasInclude - Process a '__has_include("path")' expression.
 /// Returns true if successful.
 static bool EvaluateHasInclude(Token &Tok, IdentifierInfo *II,
                                Preprocessor &PP) {
-  return EvaluateHasIncludeCommon(Tok, II, PP, NULL);
+  return EvaluateHasIncludeCommon(Tok, II, PP, nullptr, nullptr);
 }
 
 /// EvaluateHasIncludeNext - Process '__has_include_next("path")' expression.
@@ -1178,59 +1455,197 @@ static bool EvaluateHasIncludeNext(Token &Tok,
   // __has_include_next is like __has_include, except that we start
   // searching after the current found directory.  If we can't do this,
   // issue a diagnostic.
+  // FIXME: Factor out duplication with 
+  // Preprocessor::HandleIncludeNextDirective.
   const DirectoryLookup *Lookup = PP.GetCurDirLookup();
-  if (PP.isInPrimaryFile()) {
-    Lookup = 0;
+  const FileEntry *LookupFromFile = nullptr;
+  if (PP.isInPrimaryFile() && PP.getLangOpts().IsHeaderFile) {
+    // If the main file is a header, then it's either for PCH/AST generation,
+    // or libclang opened it. Either way, handle it as a normal include below
+    // and do not complain about __has_include_next.
+  } else if (PP.isInPrimaryFile()) {
+    Lookup = nullptr;
     PP.Diag(Tok, diag::pp_include_next_in_primary);
-  } else if (Lookup == 0) {
+  } else if (PP.getCurrentLexerSubmodule()) {
+    // Start looking up in the directory *after* the one in which the current
+    // file would be found, if any.
+    assert(PP.getCurrentLexer() && "#include_next directive in macro?");
+    LookupFromFile = PP.getCurrentLexer()->getFileEntry();
+    Lookup = nullptr;
+  } else if (!Lookup) {
     PP.Diag(Tok, diag::pp_include_next_absolute_path);
   } else {
     // Start looking up in the next directory.
     ++Lookup;
   }
 
-  return EvaluateHasIncludeCommon(Tok, II, PP, Lookup);
+  return EvaluateHasIncludeCommon(Tok, II, PP, Lookup, LookupFromFile);
 }
 
-/// \brief Process __building_module(identifier) expression.
-/// \returns true if we are building the named module, false otherwise.
-static bool EvaluateBuildingModule(Token &Tok,
-                                   IdentifierInfo *II, Preprocessor &PP) {
-  // Get '('.
-  PP.LexNonComment(Tok);
-
-  // Ensure we have a '('.
+/// \brief Process single-argument builtin feature-like macros that return
+/// integer values.
+static void EvaluateFeatureLikeBuiltinMacro(llvm::raw_svector_ostream& OS,
+                                            Token &Tok, IdentifierInfo *II,
+                                            Preprocessor &PP,
+                                            llvm::function_ref<
+                                              int(Token &Tok,
+                                                  bool &HasLexedNextTok)> Op) {
+  // Parse the initial '('.
+  PP.LexUnexpandedToken(Tok);
   if (Tok.isNot(tok::l_paren)) {
-    PP.Diag(Tok.getLocation(), diag::err_pp_missing_lparen) << II->getName();
-    return false;
+    PP.Diag(Tok.getLocation(), diag::err_pp_expected_after) << II
+                                                            << tok::l_paren;
+
+    // Provide a dummy '0' value on output stream to elide further errors.
+    if (!Tok.isOneOf(tok::eof, tok::eod)) {
+      OS << 0;
+      Tok.setKind(tok::numeric_constant);
+    }
+    return;
   }
 
-  // Save '(' location for possible missing ')' message.
+  unsigned ParenDepth = 1;
   SourceLocation LParenLoc = Tok.getLocation();
+  llvm::Optional<int> Result;
 
-  // Get the module name.
-  PP.LexNonComment(Tok);
+  Token ResultTok;
+  bool SuppressDiagnostic = false;
+  while (true) {
+    // Parse next token.
+    PP.LexUnexpandedToken(Tok);
 
-  // Ensure that we have an identifier.
-  if (Tok.isNot(tok::identifier)) {
-    PP.Diag(Tok.getLocation(), diag::err_expected_id_building_module);
-    return false;
+already_lexed:
+    switch (Tok.getKind()) {
+      case tok::eof:
+      case tok::eod:
+        // Don't provide even a dummy value if the eod or eof marker is
+        // reached.  Simply provide a diagnostic.
+        PP.Diag(Tok.getLocation(), diag::err_unterm_macro_invoc);
+        return;
+
+      case tok::comma:
+        if (!SuppressDiagnostic) {
+          PP.Diag(Tok.getLocation(), diag::err_too_many_args_in_macro_invoc);
+          SuppressDiagnostic = true;
+        }
+        continue;
+
+      case tok::l_paren:
+        ++ParenDepth;
+        if (Result.hasValue())
+          break;
+        if (!SuppressDiagnostic) {
+          PP.Diag(Tok.getLocation(), diag::err_pp_nested_paren) << II;
+          SuppressDiagnostic = true;
+        }
+        continue;
+
+      case tok::r_paren:
+        if (--ParenDepth > 0)
+          continue;
+
+        // The last ')' has been reached; return the value if one found or
+        // a diagnostic and a dummy value.
+        if (Result.hasValue())
+          OS << Result.getValue();
+        else {
+          OS << 0;
+          if (!SuppressDiagnostic)
+            PP.Diag(Tok.getLocation(), diag::err_too_few_args_in_macro_invoc);
+        }
+        Tok.setKind(tok::numeric_constant);
+        return;
+
+      default: {
+        // Parse the macro argument, if one not found so far.
+        if (Result.hasValue())
+          break;
+
+        bool HasLexedNextToken = false;
+        Result = Op(Tok, HasLexedNextToken);
+        ResultTok = Tok;
+        if (HasLexedNextToken)
+          goto already_lexed;
+        continue;
+      }
+    }
+
+    // Diagnose missing ')'.
+    if (!SuppressDiagnostic) {
+      if (auto Diag = PP.Diag(Tok.getLocation(), diag::err_pp_expected_after)) {
+        if (IdentifierInfo *LastII = ResultTok.getIdentifierInfo())
+          Diag << LastII;
+        else
+          Diag << ResultTok.getKind();
+        Diag << tok::r_paren << ResultTok.getLocation();
+      }
+      PP.Diag(LParenLoc, diag::note_matching) << tok::l_paren;
+      SuppressDiagnostic = true;
+    }
   }
+}
 
-  bool Result
-    = Tok.getIdentifierInfo()->getName() == PP.getLangOpts().CurrentModule;
+/// \brief Helper function to return the IdentifierInfo structure of a Token
+/// or generate a diagnostic if none available.
+static IdentifierInfo *ExpectFeatureIdentifierInfo(Token &Tok,
+                                                   Preprocessor &PP,
+                                                   signed DiagID) {
+  IdentifierInfo *II;
+  if (!Tok.isAnnotation() && (II = Tok.getIdentifierInfo()))
+    return II;
 
-  // Get ')'.
-  PP.LexNonComment(Tok);
+  PP.Diag(Tok.getLocation(), DiagID);
+  return nullptr;
+}
 
-  // Ensure we have a trailing ).
-  if (Tok.isNot(tok::r_paren)) {
-    PP.Diag(Tok.getLocation(), diag::err_pp_missing_rparen) << II->getName();
-    PP.Diag(LParenLoc, diag::note_matching) << "(";
-    return false;
+/// Implements the __is_target_arch builtin macro.
+static bool isTargetArch(const TargetInfo &TI, const IdentifierInfo *II) {
+  std::string ArchName = II->getName().lower() + "--";
+  llvm::Triple Arch(ArchName);
+  const llvm::Triple &TT = TI.getTriple();
+  if (TT.isThumb()) {
+    // arm matches thumb or thumbv7. armv7 matches thumbv7.
+    if ((Arch.getSubArch() == llvm::Triple::NoSubArch ||
+         Arch.getSubArch() == TT.getSubArch()) &&
+        ((TT.getArch() == llvm::Triple::thumb &&
+          Arch.getArch() == llvm::Triple::arm) ||
+         (TT.getArch() == llvm::Triple::thumbeb &&
+          Arch.getArch() == llvm::Triple::armeb)))
+      return true;
   }
+  // Check the parsed arch when it has no sub arch to allow Clang to
+  // match thumb to thumbv7 but to prohibit matching thumbv6 to thumbv7.
+  return (Arch.getSubArch() == llvm::Triple::NoSubArch ||
+          Arch.getSubArch() == TT.getSubArch()) &&
+         Arch.getArch() == TT.getArch();
+}
 
-  return Result;
+/// Implements the __is_target_vendor builtin macro.
+static bool isTargetVendor(const TargetInfo &TI, const IdentifierInfo *II) {
+  StringRef VendorName = TI.getTriple().getVendorName();
+  if (VendorName.empty())
+    VendorName = "unknown";
+  return VendorName.equals_lower(II->getName());
+}
+
+/// Implements the __is_target_os builtin macro.
+static bool isTargetOS(const TargetInfo &TI, const IdentifierInfo *II) {
+  std::string OSName =
+      (llvm::Twine("unknown-unknown-") + II->getName().lower()).str();
+  llvm::Triple OS(OSName);
+  if (OS.getOS() == llvm::Triple::Darwin) {
+    // Darwin matches macos, ios, etc.
+    return TI.getTriple().isOSDarwin();
+  }
+  return TI.getTriple().getOS() == OS.getOS();
+}
+
+/// Implements the __is_target_environment builtin macro.
+static bool isTargetEnvironment(const TargetInfo &TI,
+                                const IdentifierInfo *II) {
+  std::string EnvName = (llvm::Twine("---") + II->getName().lower()).str();
+  llvm::Triple Env(EnvName);
+  return TI.getTriple().getEnvironment() == Env.getEnvironment();
 }
 
 /// ExpandBuiltinMacro - If an identifier token is read that is to be expanded
@@ -1253,7 +1668,7 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
   llvm::raw_svector_ostream OS(TmpBuffer);
 
   // Set up the return result.
-  Tok.setIdentifierInfo(0);
+  Tok.setIdentifierInfo(nullptr);
   Tok.clearFlag(Token::NeedsCleaning);
 
   if (II == Ident__LINE__) {
@@ -1300,10 +1715,11 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     if (PLoc.isValid()) {
       FN += PLoc.getFilename();
       Lexer::Stringify(FN);
-      OS << '"' << FN.str() << '"';
+      OS << '"' << FN << '"';
     }
     Tok.setKind(tok::string_literal);
   } else if (II == Ident__DATE__) {
+    Diag(Tok.getLocation(), diag::warn_pp_date_time);
     if (!DATELoc.isValid())
       ComputeDATE_TIME(DATELoc, TIMELoc, *this);
     Tok.setKind(tok::string_literal);
@@ -1313,6 +1729,7 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
                                                  Tok.getLength()));
     return;
   } else if (II == Ident__TIME__) {
+    Diag(Tok.getLocation(), diag::warn_pp_date_time);
     if (!TIMELoc.isValid())
       ComputeDATE_TIME(DATELoc, TIMELoc, *this);
     Tok.setKind(tok::string_literal);
@@ -1337,12 +1754,13 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     OS << Depth;
     Tok.setKind(tok::numeric_constant);
   } else if (II == Ident__TIMESTAMP__) {
+    Diag(Tok.getLocation(), diag::warn_pp_date_time);
     // MSVC, ICC, GCC, VisualAge C++ extension.  The generated string should be
     // of the form "Ddd Mmm dd hh::mm::ss yyyy", which is returned by asctime.
 
     // Get the file that we are lexing out of.  If we're currently lexing from
     // a macro, dig into the include stack.
-    const FileEntry *CurFile = 0;
+    const FileEntry *CurFile = nullptr;
     PreprocessorLexer *TheLexer = getCurrentFileLexer();
 
     if (TheLexer)
@@ -1357,53 +1775,97 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
       Result = "??? ??? ?? ??:??:?? ????\n";
     }
     // Surround the string with " and strip the trailing newline.
-    OS << '"' << StringRef(Result, strlen(Result)-1) << '"';
+    OS << '"' << StringRef(Result).drop_back() << '"';
     Tok.setKind(tok::string_literal);
   } else if (II == Ident__COUNTER__) {
     // __COUNTER__ expands to a simple numeric value.
     OS << CounterValue++;
     Tok.setKind(tok::numeric_constant);
-  } else if (II == Ident__has_feature   ||
-             II == Ident__has_extension ||
-             II == Ident__has_builtin   ||
-             II == Ident__has_attribute) {
-    // The argument to these builtins should be a parenthesized identifier.
-    SourceLocation StartLoc = Tok.getLocation();
+  } else if (II == Ident__has_feature) {
+    EvaluateFeatureLikeBuiltinMacro(OS, Tok, II, *this,
+      [this](Token &Tok, bool &HasLexedNextToken) -> int {
+        IdentifierInfo *II = ExpectFeatureIdentifierInfo(Tok, *this,
+                                           diag::err_feature_check_malformed);
+        return II && HasFeature(*this, II->getName());
+      });
+  } else if (II == Ident__has_extension) {
+    EvaluateFeatureLikeBuiltinMacro(OS, Tok, II, *this,
+      [this](Token &Tok, bool &HasLexedNextToken) -> int {
+        IdentifierInfo *II = ExpectFeatureIdentifierInfo(Tok, *this,
+                                           diag::err_feature_check_malformed);
+        return II && HasExtension(*this, II->getName());
+      });
+  } else if (II == Ident__has_builtin) {
+    EvaluateFeatureLikeBuiltinMacro(OS, Tok, II, *this,
+      [this](Token &Tok, bool &HasLexedNextToken) -> int {
+        IdentifierInfo *II = ExpectFeatureIdentifierInfo(Tok, *this,
+                                           diag::err_feature_check_malformed);
+        if (!II)
+          return false;
+        else if (II->getBuiltinID() != 0)
+          return true;
+        else {
+          const LangOptions &LangOpts = getLangOpts();
+          return llvm::StringSwitch<bool>(II->getName())
+                      .Case("__make_integer_seq", LangOpts.CPlusPlus)
+                      .Case("__type_pack_element", LangOpts.CPlusPlus)
+                      .Case("__builtin_available", true)
+                      .Case("__is_target_arch", true)
+                      .Case("__is_target_vendor", true)
+                      .Case("__is_target_os", true)
+                      .Case("__is_target_environment", true)
+                      .Default(false);
+        }
+      });
+  } else if (II == Ident__is_identifier) {
+    EvaluateFeatureLikeBuiltinMacro(OS, Tok, II, *this,
+      [](Token &Tok, bool &HasLexedNextToken) -> int {
+        return Tok.is(tok::identifier);
+      });
+  } else if (II == Ident__has_attribute) {
+    EvaluateFeatureLikeBuiltinMacro(OS, Tok, II, *this,
+      [this](Token &Tok, bool &HasLexedNextToken) -> int {
+        IdentifierInfo *II = ExpectFeatureIdentifierInfo(Tok, *this,
+                                           diag::err_feature_check_malformed);
+        return II ? hasAttribute(AttrSyntax::GNU, nullptr, II,
+                                 getTargetInfo(), getLangOpts()) : 0;
+      });
+  } else if (II == Ident__has_declspec) {
+    EvaluateFeatureLikeBuiltinMacro(OS, Tok, II, *this,
+      [this](Token &Tok, bool &HasLexedNextToken) -> int {
+        IdentifierInfo *II = ExpectFeatureIdentifierInfo(Tok, *this,
+                                           diag::err_feature_check_malformed);
+        return II ? hasAttribute(AttrSyntax::Declspec, nullptr, II,
+                                 getTargetInfo(), getLangOpts()) : 0;
+      });
+  } else if (II == Ident__has_cpp_attribute ||
+             II == Ident__has_c_attribute) {
+    bool IsCXX = II == Ident__has_cpp_attribute;
+    EvaluateFeatureLikeBuiltinMacro(
+        OS, Tok, II, *this, [&](Token &Tok, bool &HasLexedNextToken) -> int {
+          IdentifierInfo *ScopeII = nullptr;
+          IdentifierInfo *II = ExpectFeatureIdentifierInfo(
+              Tok, *this, diag::err_feature_check_malformed);
+          if (!II)
+            return false;
 
-    bool IsValid = false;
-    IdentifierInfo *FeatureII = 0;
+          // It is possible to receive a scope token.  Read the "::", if it is
+          // available, and the subsequent identifier.
+          LexUnexpandedToken(Tok);
+          if (Tok.isNot(tok::coloncolon))
+            HasLexedNextToken = true;
+          else {
+            ScopeII = II;
+            LexUnexpandedToken(Tok);
+            II = ExpectFeatureIdentifierInfo(Tok, *this,
+                                             diag::err_feature_check_malformed);
+          }
 
-    // Read the '('.
-    LexUnexpandedToken(Tok);
-    if (Tok.is(tok::l_paren)) {
-      // Read the identifier
-      LexUnexpandedToken(Tok);
-      if ((FeatureII = Tok.getIdentifierInfo())) {
-        // Read the ')'.
-        LexUnexpandedToken(Tok);
-        if (Tok.is(tok::r_paren))
-          IsValid = true;
-      }
-    }
-
-    bool Value = false;
-    if (!IsValid)
-      Diag(StartLoc, diag::err_feature_check_malformed);
-    else if (II == Ident__has_builtin) {
-      // Check for a builtin is trivial.
-      Value = FeatureII->getBuiltinID() != 0;
-    } else if (II == Ident__has_attribute)
-      Value = HasAttribute(FeatureII);
-    else if (II == Ident__has_extension)
-      Value = HasExtension(*this, FeatureII);
-    else {
-      assert(II == Ident__has_feature && "Must be feature check");
-      Value = HasFeature(*this, FeatureII);
-    }
-
-    OS << (int)Value;
-    if (IsValid)
-      Tok.setKind(tok::numeric_constant);
+          AttrSyntax Syntax = IsCXX ? AttrSyntax::CXX : AttrSyntax::C;
+          return II ? hasAttribute(Syntax, ScopeII, II, getTargetInfo(),
+                                   getLangOpts())
+                    : 0;
+        });
   } else if (II == Ident__has_include ||
              II == Ident__has_include_next) {
     // The argument to these two builtins should be a parenthesized
@@ -1414,71 +1876,123 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
       Value = EvaluateHasInclude(Tok, II, *this);
     else
       Value = EvaluateHasIncludeNext(Tok, II, *this);
+
+    if (Tok.isNot(tok::r_paren))
+      return;
     OS << (int)Value;
-    if (Tok.is(tok::r_paren))
-      Tok.setKind(tok::numeric_constant);
+    Tok.setKind(tok::numeric_constant);
   } else if (II == Ident__has_warning) {
     // The argument should be a parenthesized string literal.
-    // The argument to these builtins should be a parenthesized identifier.
-    SourceLocation StartLoc = Tok.getLocation();    
-    bool IsValid = false;
-    bool Value = false;
-    // Read the '('.
-    LexUnexpandedToken(Tok);
-    do {
-      if (Tok.isNot(tok::l_paren)) {
-        Diag(StartLoc, diag::err_warning_check_malformed);
-        break;
-      }
+    EvaluateFeatureLikeBuiltinMacro(OS, Tok, II, *this,
+      [this](Token &Tok, bool &HasLexedNextToken) -> int {
+        std::string WarningName;
+        SourceLocation StrStartLoc = Tok.getLocation();
 
-      LexUnexpandedToken(Tok);
-      std::string WarningName;
-      SourceLocation StrStartLoc = Tok.getLocation();
-      if (!FinishLexStringLiteral(Tok, WarningName, "'__has_warning'",
-                                  /*MacroExpansion=*/false)) {
-        // Eat tokens until ')'.
-        while (Tok.isNot(tok::r_paren) && Tok.isNot(tok::eod) &&
-               Tok.isNot(tok::eof))
-          LexUnexpandedToken(Tok);
-        break;
-      }
+        HasLexedNextToken = Tok.is(tok::string_literal);
+        if (!FinishLexStringLiteral(Tok, WarningName, "'__has_warning'",
+                                    /*MacroExpansion=*/false))
+          return false;
 
-      // Is the end a ')'?
-      if (!(IsValid = Tok.is(tok::r_paren))) {
-        Diag(StartLoc, diag::err_warning_check_malformed);
-        break;
-      }
+        // FIXME: Should we accept "-R..." flags here, or should that be
+        // handled by a separate __has_remark?
+        if (WarningName.size() < 3 || WarningName[0] != '-' ||
+            WarningName[1] != 'W') {
+          Diag(StrStartLoc, diag::warn_has_warning_invalid_option);
+          return false;
+        }
 
-      if (WarningName.size() < 3 || WarningName[0] != '-' ||
-          WarningName[1] != 'W') {
-        Diag(StrStartLoc, diag::warn_has_warning_invalid_option);
-        break;
-      }
-
-      // Finally, check if the warning flags maps to a diagnostic group.
-      // We construct a SmallVector here to talk to getDiagnosticIDs().
-      // Although we don't use the result, this isn't a hot path, and not
-      // worth special casing.
-      SmallVector<diag::kind, 10> Diags;
-      Value = !getDiagnostics().getDiagnosticIDs()->
-        getDiagnosticsInGroup(WarningName.substr(2), Diags);
-    } while (false);
-
-    OS << (int)Value;
-    if (IsValid)
-      Tok.setKind(tok::numeric_constant);
+        // Finally, check if the warning flags maps to a diagnostic group.
+        // We construct a SmallVector here to talk to getDiagnosticIDs().
+        // Although we don't use the result, this isn't a hot path, and not
+        // worth special casing.
+        SmallVector<diag::kind, 10> Diags;
+        return !getDiagnostics().getDiagnosticIDs()->
+                getDiagnosticsInGroup(diag::Flavor::WarningOrError,
+                                      WarningName.substr(2), Diags);
+      });
   } else if (II == Ident__building_module) {
     // The argument to this builtin should be an identifier. The
     // builtin evaluates to 1 when that identifier names the module we are
     // currently building.
-    OS << (int)EvaluateBuildingModule(Tok, II, *this);
-    Tok.setKind(tok::numeric_constant);
+    EvaluateFeatureLikeBuiltinMacro(OS, Tok, II, *this,
+      [this](Token &Tok, bool &HasLexedNextToken) -> int {
+        IdentifierInfo *II = ExpectFeatureIdentifierInfo(Tok, *this,
+                                       diag::err_expected_id_building_module);
+        return getLangOpts().isCompilingModule() && II &&
+               (II->getName() == getLangOpts().CurrentModule);
+      });
   } else if (II == Ident__MODULE__) {
     // The current module as an identifier.
     OS << getLangOpts().CurrentModule;
     IdentifierInfo *ModuleII = getIdentifierInfo(getLangOpts().CurrentModule);
     Tok.setIdentifierInfo(ModuleII);
     Tok.setKind(ModuleII->getTokenID());
+  } else if (II == Ident__identifier) {
+    SourceLocation Loc = Tok.getLocation();
+
+    // We're expecting '__identifier' '(' identifier ')'. Try to recover
+    // if the parens are missing.
+    LexNonComment(Tok);
+    if (Tok.isNot(tok::l_paren)) {
+      // No '(', use end of last token.
+      Diag(getLocForEndOfToken(Loc), diag::err_pp_expected_after)
+        << II << tok::l_paren;
+      // If the next token isn't valid as our argument, we can't recover.
+      if (!Tok.isAnnotation() && Tok.getIdentifierInfo())
+        Tok.setKind(tok::identifier);
+      return;
+    }
+
+    SourceLocation LParenLoc = Tok.getLocation();
+    LexNonComment(Tok);
+
+    if (!Tok.isAnnotation() && Tok.getIdentifierInfo())
+      Tok.setKind(tok::identifier);
+    else {
+      Diag(Tok.getLocation(), diag::err_pp_identifier_arg_not_identifier)
+        << Tok.getKind();
+      // Don't walk past anything that's not a real token.
+      if (Tok.isOneOf(tok::eof, tok::eod) || Tok.isAnnotation())
+        return;
+    }
+
+    // Discard the ')', preserving 'Tok' as our result.
+    Token RParen;
+    LexNonComment(RParen);
+    if (RParen.isNot(tok::r_paren)) {
+      Diag(getLocForEndOfToken(Tok.getLocation()), diag::err_pp_expected_after)
+        << Tok.getKind() << tok::r_paren;
+      Diag(LParenLoc, diag::note_matching) << tok::l_paren;
+    }
+    return;
+  } else if (II == Ident__is_target_arch) {
+    EvaluateFeatureLikeBuiltinMacro(
+        OS, Tok, II, *this, [this](Token &Tok, bool &HasLexedNextToken) -> int {
+          IdentifierInfo *II = ExpectFeatureIdentifierInfo(
+              Tok, *this, diag::err_feature_check_malformed);
+          return II && isTargetArch(getTargetInfo(), II);
+        });
+  } else if (II == Ident__is_target_vendor) {
+    EvaluateFeatureLikeBuiltinMacro(
+        OS, Tok, II, *this, [this](Token &Tok, bool &HasLexedNextToken) -> int {
+          IdentifierInfo *II = ExpectFeatureIdentifierInfo(
+              Tok, *this, diag::err_feature_check_malformed);
+          return II && isTargetVendor(getTargetInfo(), II);
+        });
+  } else if (II == Ident__is_target_os) {
+    EvaluateFeatureLikeBuiltinMacro(
+        OS, Tok, II, *this, [this](Token &Tok, bool &HasLexedNextToken) -> int {
+          IdentifierInfo *II = ExpectFeatureIdentifierInfo(
+              Tok, *this, diag::err_feature_check_malformed);
+          return II && isTargetOS(getTargetInfo(), II);
+        });
+  } else if (II == Ident__is_target_environment) {
+    EvaluateFeatureLikeBuiltinMacro(
+        OS, Tok, II, *this, [this](Token &Tok, bool &HasLexedNextToken) -> int {
+          IdentifierInfo *II = ExpectFeatureIdentifierInfo(
+              Tok, *this, diag::err_feature_check_malformed);
+          return II && isTargetEnvironment(getTargetInfo(), II);
+        });
   } else {
     llvm_unreachable("Unknown identifier!");
   }

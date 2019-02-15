@@ -60,7 +60,6 @@ driver interface:
 
 CONFIG_DRIVER_NL80211=y
 CONFIG_WPS=y
-CONFIG_WPS2=y
 
 If you want to enable WPS external registrar (ER) functionality, you
 will also need to add following line:
@@ -259,16 +258,16 @@ wps_er_start [IP address]
 wps_er_stop
 - stop WPS ER functionality
 
-wps_er_learn <UUID> <AP PIN>
+wps_er_learn <UUID|BSSID> <AP PIN>
 - learn AP configuration
 
-wps_er_set_config <UUID> <network id>
+wps_er_set_config <UUID|BSSID> <network id>
 - use AP configuration from a locally configured network (e.g., from
   wps_reg command); this does not change the AP's configuration, but
   only prepares a configuration to be used when enrolling a new device
   to the AP
 
-wps_er_config <UUID> <AP PIN> <new SSID> <auth> <encr> <new key>
+wps_er_config <UUID|BSSID> <AP PIN> <new SSID> <auth> <encr> <new key>
 - examples:
   wps_er_config 87654321-9abc-def0-1234-56789abc0002 12345670 testing WPA2PSK CCMP 12345678
   wpa_er_config 87654321-9abc-def0-1234-56789abc0002 12345670 clear OPEN NONE ""
@@ -277,10 +276,10 @@ wps_er_config <UUID> <AP PIN> <new SSID> <auth> <encr> <new key>
 <encr> must be one of the following: NONE WEP TKIP CCMP
 
 
-wps_er_pbc <Enrollee UUID>
+wps_er_pbc <Enrollee UUID|MAC address>
 - accept an Enrollee PBC using External Registrar
 
-wps_er_pin <Enrollee UUID> <PIN> [Enrollee MAC address]
+wps_er_pin <Enrollee UUID|"any"|MAC address> <PIN> [Enrollee MAC address]
 - add an Enrollee PIN to External Registrar
 - if Enrollee UUID is not known, "any" can be used to add a wildcard PIN
 - if the MAC address of the enrollee is known, it should be configured
@@ -336,6 +335,20 @@ wps_nfc_dh_privkey, wps_nfc_dev_pw) or generated dynamically with
 tokens during manufacturing (each station needs to have its own random
 keys).
 
+The "wps_nfc_config_token <WPS/NDEF>" command can be used to build an
+NFC configuration token when wpa_supplicant is controlling an AP
+interface (AP or P2P GO). The output value from this command is a
+hexdump of the current AP configuration (WPS parameter requests this to
+include only the WPS attributes; NDEF parameter requests additional NDEF
+encapsulation to be included). This data needs to be written to an NFC
+tag with an external program. Once written, the NFC configuration token
+can be used to touch an NFC interface on a station to provision the
+credentials needed to access the network.
+
+The "wps_nfc_config_token <WPS/NDEF> <network id>" command can be used
+to build an NFC configuration token based on a locally configured
+network.
+
 If the station includes NFC interface and reads an NFC tag with a MIME
 media type "application/vnd.wfa.wsc", the NDEF message payload (with or
 without NDEF encapsulation) can be delivered to wpa_supplicant using the
@@ -352,26 +365,35 @@ the ER functionality has been started (wps_er_start), the NFC password
 token is used to enable enrollment of a new station (that was the source
 of the NFC password token).
 
-"nfc_get_handover_req <NDEF> <WPS>" command can be used to build the
-contents of a Handover Request Message for connection handover. The
-first argument selects the format of the output data and the second
-argument selects which type of connection handover is requested (WPS =
-Wi-Fi handover as specified in WSC 2.0).
+"nfc_get_handover_req <NDEF> <WPS-CR>" command can be used to build the
+WPS carrier record for a Handover Request Message for connection
+handover. The first argument selects the format of the output data and
+the second argument selects which type of connection handover is
+requested (WPS-CR = Wi-Fi handover as specified in WSC 2.0).
 
-"nfc_get_handover_sel <NDEF> <WPS>" command can be used to build the
-contents of a Handover Select Message for connection handover when this
-does not depend on the contents of the Handover Request Message. The
-first argument selects the format of the output data and the second
-argument selects which type of connection handover is requested (WPS =
-Wi-Fi handover as specified in WSC 2.0).
+"nfc_get_handover_sel <NDEF> <WPS> [UUID|BSSID]" command can be used to
+build the contents of a Handover Select Message for connection handover
+when this does not depend on the contents of the Handover Request
+Message. The first argument selects the format of the output data and
+the second argument selects which type of connection handover is
+requested (WPS = Wi-Fi handover as specified in WSC 2.0). If the options
+UUID|BSSID argument is included, this is a request to build the handover
+message for the specified AP when wpa_supplicant is operating as a WPS
+ER.
 
-"nfc_rx_handover_req <hexdump of payload>" is used to indicate receipt
-of NFC connection handover request. The payload may include multiple
-carriers the the applicable ones are matched based on the media
-type. The reply data is contents for the Handover Select Message
-(hexdump).
+"nfc_report_handover <INIT/RESP> WPS <carrier from handover request>
+<carrier from handover select>" can be used as an alternative way for
+reporting completed NFC connection handover. The first parameter
+indicates whether the local device initiated or responded to the
+connection handover and the carrier records are the selected carrier
+from the handover request and select messages as a hexdump.
 
-"nfc_rx_handover_sel <hexdump of payload>" is used to indicate receipt
-of NFC connection handover select. The payload may include multiple
-carriers the the applicable ones are matched based on the media
-type.
+The "wps_er_nfc_config_token <WPS/NDEF> <UUID|BSSID>" command can be
+used to build an NFC configuration token for the specified AP when
+wpa_supplicant is operating as a WPS ER. The output value from this
+command is a hexdump of the selected AP configuration (WPS parameter
+requests this to include only the WPS attributes; NDEF parameter
+requests additional NDEF encapsulation to be included). This data needs
+to be written to an NFC tag with an external program. Once written, the
+NFC configuration token can be used to touch an NFC interface on a
+station to provision the credentials needed to access the network.

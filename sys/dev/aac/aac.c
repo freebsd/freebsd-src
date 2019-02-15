@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Michael Smith
  * Copyright (c) 2001 Scott Long
  * Copyright (c) 2000 BSDi
@@ -43,7 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/proc.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
 #include <sys/poll.h>
 #include <sys/ioccom.h>
 
@@ -55,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <sys/bus_dma.h>
 #include <machine/resource.h>
 
 #include <dev/pci/pcireg.h>
@@ -419,9 +422,6 @@ aac_startup(void *arg)
 	sc = (struct aac_softc *)arg;
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	/* disconnect ourselves from the intrhook chain */
-	config_intrhook_disestablish(&sc->aac_ich);
-
 	mtx_lock(&sc->aac_io_lock);
 	aac_alloc_sync_fib(sc, &fib);
 
@@ -438,12 +438,15 @@ aac_startup(void *arg)
 	aac_release_sync_fib(sc);
 	mtx_unlock(&sc->aac_io_lock);
 
+	/* mark the controller up */
+	sc->aac_state &= ~AAC_STATE_SUSPEND;
+
 	/* poke the bus to actually attach the child devices */
 	if (bus_generic_attach(sc->aac_dev))
 		device_printf(sc->aac_dev, "bus_generic_attach failed\n");
 
-	/* mark the controller up */
-	sc->aac_state &= ~AAC_STATE_SUSPEND;
+	/* disconnect ourselves from the intrhook chain */
+	config_intrhook_disestablish(&sc->aac_ich);
 
 	/* enable interrupts now */
 	AAC_UNMASK_INTERRUPTS(sc);
@@ -507,9 +510,9 @@ aac_alloc(struct aac_softc *sc)
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
-			       MAXBSIZE,		/* maxsize */
+			       sc->aac_max_sectors << 9, /* maxsize */
 			       sc->aac_sg_tablesize,	/* nsegments */
-			       MAXBSIZE,		/* maxsegsize */
+			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
 			       busdma_lock_mutex,	/* lockfunc */
 			       &sc->aac_io_lock,	/* lockfuncarg */
@@ -915,7 +918,7 @@ aac_filter(void *arg)
 
 	/* handle completion processing */
 	if (reason & AAC_DB_RESPONSE_READY)
-		taskqueue_enqueue_fast(taskqueue_fast, &sc->aac_task_complete);
+		taskqueue_enqueue(taskqueue_fast, &sc->aac_task_complete);
 
 	/* controller wants to talk to us */
 	if (reason & (AAC_DB_PRINTF | AAC_DB_COMMAND_READY)) {
@@ -1780,8 +1783,8 @@ aac_check_firmware(struct aac_softc *sc)
 		rid = rman_get_rid(sc->aac_regs_res1);
 		bus_release_resource(sc->aac_dev, SYS_RES_MEMORY, rid,
 		    sc->aac_regs_res1);
-		sc->aac_regs_res1 = bus_alloc_resource(sc->aac_dev,
-		    SYS_RES_MEMORY, &rid, 0ul, ~0ul, atu_size, RF_ACTIVE);
+		sc->aac_regs_res1 = bus_alloc_resource_anywhere(sc->aac_dev,
+		    SYS_RES_MEMORY, &rid, atu_size, RF_ACTIVE);
 		if (sc->aac_regs_res1 == NULL) {
 			sc->aac_regs_res1 = bus_alloc_resource_any(
 			    sc->aac_dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
@@ -3103,18 +3106,30 @@ aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 	/* Retrieve correct SG entries. */
 	if (fibsize == (sizeof(struct aac_srb) +
 	    srbcmd->sg_map.SgCount * sizeof(struct aac_sg_entry))) {
+		struct aac_sg_entry sg;
+
 		sge = srbcmd->sg_map.SgEntry;
 		sge64 = NULL;
-		srb_sg_bytecount = sge->SgByteCount;
-		srb_sg_address = (void *)(uintptr_t)sge->SgAddress;
+
+		if ((error = copyin(sge, &sg, sizeof(sg))) != 0)
+			goto out;
+
+		srb_sg_bytecount = sg.SgByteCount;
+		srb_sg_address = (void *)(uintptr_t)sg.SgAddress;
 	}
 #ifdef __amd64__
 	else if (fibsize == (sizeof(struct aac_srb) +
 	    srbcmd->sg_map.SgCount * sizeof(struct aac_sg_entry64))) {
+		struct aac_sg_entry64 sg;
+
 		sge = NULL;
 		sge64 = (struct aac_sg_entry64 *)srbcmd->sg_map.SgEntry;
-		srb_sg_bytecount = sge64->SgByteCount;
-		srb_sg_address = (void *)sge64->SgAddress;
+
+		if ((error = copyin(sge64, &sg, sizeof(sg))) != 0)
+			goto out;
+
+		srb_sg_bytecount = sg.SgByteCount;
+		srb_sg_address = (void *)sg.SgAddress;
 		if (sge64->SgAddress > 0xffffffffull &&
 		    (sc->flags & AAC_FLAGS_SG_64BIT) == 0) {
 			error = EINVAL;
@@ -3508,7 +3523,19 @@ aac_getnext_aif(struct aac_softc *sc, caddr_t arg)
 
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	if ((error = copyin(arg, &agf, sizeof(agf))) == 0) {
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32)) {
+		struct get_adapter_fib_ioctl32 agf32;
+		error = copyin(arg, &agf32, sizeof(agf32));
+		if (error == 0) {
+			agf.AdapterFibContext = agf32.AdapterFibContext;
+			agf.Wait = agf32.Wait;
+			agf.AifFib = (caddr_t)(uintptr_t)agf32.AifFib;
+		}
+	} else
+#endif
+		error = copyin(arg, &agf, sizeof(agf));
+	if (error == 0) {
 		for (ctx = sc->fibctx; ctx; ctx = ctx->next) {
 			if (agf.AdapterFibContext == ctx->unique)
 				break;
@@ -3762,7 +3789,7 @@ aac_get_bus_info(struct aac_softc *sc)
 			device_printf(sc->aac_dev,
 			    "No memory to add passthrough bus %d\n", i);
 			break;
-		};
+		}
 
 		child = device_add_child(sc->aac_dev, "aacp", -1);
 		if (child == NULL) {

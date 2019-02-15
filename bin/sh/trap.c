@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -74,8 +76,8 @@ __FBSDID("$FreeBSD$");
 
 static char sigmode[NSIG];	/* current value of signal */
 volatile sig_atomic_t pendingsig;	/* indicates some signal received */
-volatile sig_atomic_t pendingsig_waitcmd;	/* indicates SIGINT/SIGQUIT received */
-int in_dotrap;			/* do we execute in a trap handler? */
+volatile sig_atomic_t pendingsig_waitcmd;	/* indicates wait builtin should be interrupted */
+static int in_dotrap;			/* do we execute in a trap handler? */
 static char *volatile trap[NSIG];	/* trap handler commands */
 static volatile sig_atomic_t gotsig[NSIG];
 				/* indicates specified signal received */
@@ -183,7 +185,7 @@ trapcmd(int argc __unused, char **argv)
 		return 0;
 	}
 	action = NULL;
-	if (*argv && sigstring_to_signum(*argv) == -1) {
+	if (*argv && !is_number(*argv)) {
 		if (strcmp(*argv, "-") == 0)
 			argv++;
 		else {
@@ -380,7 +382,15 @@ onsig(int signo)
 {
 
 	if (signo == SIGINT && trap[SIGINT] == NULL) {
-		onint();
+		/*
+		 * The !in_dotrap here is safe.  The only way we can arrive
+		 * here with in_dotrap set is that a trap handler set SIGINT to
+		 * SIG_DFL and killed itself.
+		 */
+		if (suppressint && !in_dotrap)
+			SET_PENDING_INT;
+		else
+			onint();
 		return;
 	}
 
@@ -392,6 +402,7 @@ onsig(int signo)
 	    (signo != SIGCHLD || !ignore_sigchld)) {
 		gotsig[signo] = 1;
 		pendingsig = signo;
+		pendingsig_waitcmd = signo;
 	}
 }
 
@@ -403,6 +414,7 @@ onsig(int signo)
 void
 dotrap(void)
 {
+	struct stackmark smark;
 	int i;
 	int savestatus, prev_evalskip, prev_skipcount;
 
@@ -436,7 +448,9 @@ dotrap(void)
 
 					last_trapsig = i;
 					savestatus = exitstatus;
-					evalstring(trap[i], 0);
+					setstackmark(&smark);
+					evalstring(stsavestr(trap[i]), 0);
+					popstackmark(&smark);
 
 					/*
 					 * If such a command was not
@@ -466,19 +480,14 @@ dotrap(void)
 
 
 /*
- * Controls whether the shell is interactive or not.
+ * Controls whether the shell is interactive or not based on iflag.
  */
 void
-setinteractive(int on)
+setinteractive(void)
 {
-	static int is_interactive = -1;
-
-	if (on == is_interactive)
-		return;
 	setsignal(SIGINT);
 	setsignal(SIGQUIT);
 	setsignal(SIGTERM);
-	is_interactive = on;
 }
 
 
@@ -519,11 +528,13 @@ exitshell_savedstatus(void)
 			 */
 			evalskip = 0;
 			trap[0] = NULL;
+			FORCEINTON;
 			evalstring(p, 0);
 		}
 	}
 	if (!setjmp(loc2.loc)) {
 		handler = &loc2;		/* probably unnecessary */
+		FORCEINTON;
 		flushall();
 #if JOBS
 		setjobctl(0);

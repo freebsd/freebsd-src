@@ -7,35 +7,56 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "thumb2-it"
 #include "ARM.h"
 #include "ARMMachineFunctionInfo.h"
+#include "ARMSubtarget.h"
+#include "MCTargetDesc/ARMBaseInfo.h"
 #include "Thumb2InstrInfo.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineInstrBundle.h"
+#include "llvm/CodeGen/MachineOperand.h"
+#include "llvm/IR/DebugLoc.h"
+#include "llvm/MC/MCInstrDesc.h"
+#include "llvm/MC/MCRegisterInfo.h"
+#include <cassert>
+#include <new>
+
 using namespace llvm;
+
+#define DEBUG_TYPE "thumb2-it"
 
 STATISTIC(NumITs,        "Number of IT blocks inserted");
 STATISTIC(NumMovedInsts, "Number of predicated instructions moved");
 
 namespace {
+
   class Thumb2ITBlockPass : public MachineFunctionPass {
   public:
     static char ID;
-    Thumb2ITBlockPass() : MachineFunctionPass(ID) {}
 
     bool restrictIT;
     const Thumb2InstrInfo *TII;
     const TargetRegisterInfo *TRI;
     ARMFunctionInfo *AFI;
 
-    virtual bool runOnMachineFunction(MachineFunction &Fn);
+    Thumb2ITBlockPass() : MachineFunctionPass(ID) {}
 
-    virtual const char *getPassName() const {
+    bool runOnMachineFunction(MachineFunction &Fn) override;
+
+    MachineFunctionProperties getRequiredProperties() const override {
+      return MachineFunctionProperties().set(
+          MachineFunctionProperties::Property::NoVRegs);
+    }
+
+    StringRef getPassName() const override {
       return "Thumb IT blocks insertion pass";
     }
 
@@ -46,8 +67,10 @@ namespace {
                               SmallSet<unsigned, 4> &Uses);
     bool InsertITInstructions(MachineBasicBlock &MBB);
   };
+
   char Thumb2ITBlockPass::ID = 0;
-}
+
+} // end anonymous namespace
 
 /// TrackDefUses - Tracking what registers are being defined and used by
 /// instructions in the IT block. This also tracks "dependencies", i.e. uses
@@ -86,6 +109,19 @@ static void TrackDefUses(MachineInstr *MI,
       Defs.insert(*Subreg);
     if (Reg == ARM::CPSR)
       continue;
+  }
+}
+
+/// Clear kill flags for any uses in the given set.  This will likely
+/// conservatively remove more kill flags than are necessary, but removing them
+/// is safer than incorrect kill flags remaining on instructions.
+static void ClearKillFlags(MachineInstr *MI, SmallSet<unsigned, 4> &Uses) {
+  for (MachineOperand &MO : MI->operands()) {
+    if (!MO.isReg() || MO.isDef() || !MO.isKill())
+      continue;
+    if (!Uses.count(MO.getReg()))
+      continue;
+    MO.setIsKill(false);
   }
 }
 
@@ -151,7 +187,7 @@ Thumb2ITBlockPass::MoveCopyOutOfITBlock(MachineInstr *MI,
     ++I;
   if (I != E) {
     unsigned NPredReg = 0;
-    ARMCC::CondCodes NCC = getITInstrPredicate(I, NPredReg);
+    ARMCC::CondCodes NCC = getITInstrPredicate(*I, NPredReg);
     if (NCC == CC || NCC == OCC)
       return true;
   }
@@ -168,7 +204,7 @@ bool Thumb2ITBlockPass::InsertITInstructions(MachineBasicBlock &MBB) {
     MachineInstr *MI = &*MBBI;
     DebugLoc dl = MI->getDebugLoc();
     unsigned PredReg = 0;
-    ARMCC::CondCodes CC = getITInstrPredicate(MI, PredReg);
+    ARMCC::CondCodes CC = getITInstrPredicate(*MI, PredReg);
     if (CC == ARMCC::AL) {
       ++MBBI;
       continue;
@@ -187,7 +223,7 @@ bool Thumb2ITBlockPass::InsertITInstructions(MachineBasicBlock &MBB) {
                                              true/*isImp*/, false/*isKill*/));
 
     MachineInstr *LastITMI = MI;
-    MachineBasicBlock::iterator InsertPos = MIB;
+    MachineBasicBlock::iterator InsertPos = MIB.getInstr();
     ++MBBI;
 
     // Form IT block.
@@ -208,7 +244,7 @@ bool Thumb2ITBlockPass::InsertITInstructions(MachineBasicBlock &MBB) {
         MI = NMI;
 
         unsigned NPredReg = 0;
-        ARMCC::CondCodes NCC = getITInstrPredicate(NMI, NPredReg);
+        ARMCC::CondCodes NCC = getITInstrPredicate(*NMI, NPredReg);
         if (NCC == CC || NCC == OCC) {
           Mask |= (NCC & 1) << Pos;
           // Add implicit use of ITSTATE.
@@ -221,6 +257,7 @@ bool Thumb2ITBlockPass::InsertITInstructions(MachineBasicBlock &MBB) {
             --MBBI;
             MBB.remove(NMI);
             MBB.insert(InsertPos, NMI);
+            ClearKillFlags(MI, Uses);
             ++NumMovedInsts;
             continue;
           }
@@ -241,8 +278,8 @@ bool Thumb2ITBlockPass::InsertITInstructions(MachineBasicBlock &MBB) {
     LastITMI->findRegisterUseOperand(ARM::ITSTATE)->setIsKill();
 
     // Finalize the bundle.
-    MachineBasicBlock::instr_iterator LI = LastITMI;
-    finalizeBundle(MBB, InsertPos.getInstrIterator(), llvm::next(LI));
+    finalizeBundle(MBB, InsertPos.getInstrIterator(),
+                   ++LastITMI->getIterator());
 
     Modified = true;
     ++NumITs;
@@ -252,11 +289,14 @@ bool Thumb2ITBlockPass::InsertITInstructions(MachineBasicBlock &MBB) {
 }
 
 bool Thumb2ITBlockPass::runOnMachineFunction(MachineFunction &Fn) {
-  const TargetMachine &TM = Fn.getTarget();
+  const ARMSubtarget &STI =
+      static_cast<const ARMSubtarget &>(Fn.getSubtarget());
+  if (!STI.isThumb2())
+    return false;
   AFI = Fn.getInfo<ARMFunctionInfo>();
-  TII = static_cast<const Thumb2InstrInfo*>(TM.getInstrInfo());
-  TRI = TM.getRegisterInfo();
-  restrictIT = TM.getSubtarget<ARMSubtarget>().restrictIT();
+  TII = static_cast<const Thumb2InstrInfo *>(STI.getInstrInfo());
+  TRI = STI.getRegisterInfo();
+  restrictIT = STI.restrictIT();
 
   if (!AFI->isThumbFunction())
     return false;

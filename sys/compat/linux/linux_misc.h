@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Roman Divacky
  * All rights reserved.
  *
@@ -6,30 +8,33 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
  * $FreeBSD$
  */
 
 #ifndef _LINUX_MISC_H_
 #define	_LINUX_MISC_H_
+
+#include <sys/sysctl.h>
+
+				/* bits per mask */
+#define	LINUX_NFDBITS		sizeof(l_fd_mask) * 8
 
 /*
  * Miscellaneous
@@ -55,7 +60,9 @@
 #define	LINUX_MREMAP_MAYMOVE	1
 #define	LINUX_MREMAP_FIXED	2
 
-extern const char *linux_platform;
+#define	LINUX_PATH_MAX		4096
+
+extern const char *linux_kplatform;
 
 /*
  * Non-standard aux entry types used in Linux ELF binaries.
@@ -68,7 +75,12 @@ extern const char *linux_platform;
 #define	LINUX_AT_BASE_PLATFORM	24	/* string identifying real platform, may
 					 * differ from AT_PLATFORM.
 					 */
+#define	LINUX_AT_RANDOM		25	/* address of random bytes */
 #define	LINUX_AT_EXECFN		31	/* filename of program */
+#define	LINUX_AT_SYSINFO	32	/* vsyscall */
+#define	LINUX_AT_SYSINFO_EHDR	33	/* vdso header */
+
+#define	LINUX_AT_RANDOM_LEN	16	/* size of random bytes */
 
 /* Linux sets the i387 to extended precision. */
 #if defined(__i386__) || defined(__amd64__)
@@ -88,10 +100,6 @@ extern const char *linux_platform;
 #define	LINUX_CLONE_CHILD_CLEARTID	0x00200000
 #define	LINUX_CLONE_CHILD_SETTID	0x01000000
 
-#define	LINUX_THREADING_FLAGS					\
-	(LINUX_CLONE_VM | LINUX_CLONE_FS | LINUX_CLONE_FILES |	\
-	LINUX_CLONE_SIGHAND | LINUX_CLONE_THREAD)
-
 /* Scheduling policies */
 #define	LINUX_SCHED_OTHER	0
 #define	LINUX_SCHED_FIFO	1
@@ -106,20 +114,48 @@ struct l_new_utsname {
 	char	domainname[LINUX_MAX_UTSNAME];
 };
 
-#define	LINUX_CLOCK_REALTIME		0
-#define	LINUX_CLOCK_MONOTONIC		1
-#define	LINUX_CLOCK_PROCESS_CPUTIME_ID	2
-#define	LINUX_CLOCK_THREAD_CPUTIME_ID	3
-#define	LINUX_CLOCK_REALTIME_HR		4
-#define	LINUX_CLOCK_MONOTONIC_HR	5
+#define LINUX_UTIME_NOW			0x3FFFFFFF
+#define LINUX_UTIME_OMIT		0x3FFFFFFE
 
 extern int stclohz;
 
-#define __WCLONE 0x80000000
+#define	LINUX_WNOHANG		0x00000001
+#define	LINUX_WUNTRACED		0x00000002
+#define	LINUX_WSTOPPED		LINUX_WUNTRACED
+#define	LINUX_WEXITED		0x00000004
+#define	LINUX_WCONTINUED	0x00000008
+#define	LINUX_WNOWAIT		0x01000000
+
+
+#define	__WNOTHREAD		0x20000000
+#define	__WALL			0x40000000
+#define	__WCLONE		0x80000000
+
+/* Linux waitid idtype  */
+#define	LINUX_P_ALL		0
+#define	LINUX_P_PID		1
+#define	LINUX_P_PGID		2
+
+#define	LINUX_RLIMIT_LOCKS	RLIM_NLIMITS + 1
+#define	LINUX_RLIMIT_SIGPENDING	RLIM_NLIMITS + 2
+#define	LINUX_RLIMIT_MSGQUEUE	RLIM_NLIMITS + 3
+#define	LINUX_RLIMIT_NICE	RLIM_NLIMITS + 4
+#define	LINUX_RLIMIT_RTPRIO	RLIM_NLIMITS + 5
+#define	LINUX_RLIMIT_RTTIME	RLIM_NLIMITS + 6
+
+#define	LINUX_RLIM_INFINITY	(~0UL)
+
+/* Linux getrandom flags */
+#define	LINUX_GRND_NONBLOCK	0x0001
+#define	LINUX_GRND_RANDOM	0x0002
 
 int linux_common_wait(struct thread *td, int pid, int *status,
 			int options, struct rusage *ru);
+void linux_to_bsd_waitopts(int options, int *bsdopts);
 int linux_set_upcall_kse(struct thread *td, register_t stack);
 int linux_set_cloned_tls(struct thread *td, void *desc);
+struct thread	*linux_tdfind(struct thread *, lwpid_t, pid_t);
+
+int linux_sysctl_debug(SYSCTL_HANDLER_ARGS);
 
 #endif	/* _LINUX_MISC_H_ */

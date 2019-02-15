@@ -1,11 +1,40 @@
 /* Miniature re-implementation of the "check" library.
- *
- * This is intended to support just enough of check to run the Expat
- * tests.  This interface is based entirely on the portion of the
- * check library being used.
- *
- * This is *source* compatible, but not necessary *link* compatible.
- */
+
+   This is intended to support just enough of check to run the Expat
+   tests.  This interface is based entirely on the portion of the
+   check library being used.
+
+   This is *source* compatible, but not necessary *link* compatible.
+                            __  __            _
+                         ___\ \/ /_ __   __ _| |_
+                        / _ \\  /| '_ \ / _` | __|
+                       |  __//  \| |_) | (_| | |_
+                        \___/_/\_\ .__/ \__,_|\__|
+                                 |_| XML parser
+
+   Copyright (c) 1997-2000 Thai Open Source Software Center Ltd
+   Copyright (c) 2000-2017 Expat development team
+   Licensed under the MIT license:
+
+   Permission is  hereby granted,  free of charge,  to any  person obtaining
+   a  copy  of  this  software   and  associated  documentation  files  (the
+   "Software"),  to  deal in  the  Software  without restriction,  including
+   without  limitation the  rights  to use,  copy,  modify, merge,  publish,
+   distribute, sublicense, and/or sell copies of the Software, and to permit
+   persons  to whom  the Software  is  furnished to  do so,  subject to  the
+   following conditions:
+
+   The above copyright  notice and this permission notice  shall be included
+   in all copies or substantial portions of the Software.
+
+   THE  SOFTWARE  IS  PROVIDED  "AS  IS",  WITHOUT  WARRANTY  OF  ANY  KIND,
+   EXPRESS  OR IMPLIED,  INCLUDING  BUT  NOT LIMITED  TO  THE WARRANTIES  OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+   NO EVENT SHALL THE AUTHORS OR  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+   DAMAGES OR  OTHER LIABILITY, WHETHER  IN AN  ACTION OF CONTRACT,  TORT OR
+   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+   USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,12 +77,12 @@ struct SRunner {
 };
 
 struct Suite {
-    char *name;
+    const char *name;
     TCase *tests;
 };
 
 struct TCase {
-    char *name;
+    const char *name;
     tcase_setup_function setup;
     tcase_teardown_function teardown;
     tcase_test_function *tests;
@@ -72,9 +101,9 @@ void _check_set_test_info(char const *function,
  * Prototypes for the actual implementation.
  */
 
-void _fail_unless(int condition, const char *file, int line, char *msg);
-Suite *suite_create(char *name);
-TCase *tcase_create(char *name);
+void _fail_unless(int condition, const char *file, int line, const char *msg);
+Suite *suite_create(const char *name);
+TCase *tcase_create(const char *name);
 void suite_add_tcase(Suite *suite, TCase *tc);
 void tcase_add_checked_fixture(TCase *,
                                tcase_setup_function,

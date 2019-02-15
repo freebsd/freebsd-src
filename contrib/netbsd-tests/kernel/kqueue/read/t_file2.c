@@ -1,4 +1,4 @@
-/* $NetBSD: t_file2.c,v 1.3 2010/11/07 17:51:20 jmmv Exp $ */
+/* $NetBSD: t_file2.c,v 1.4 2017/01/13 21:30:41 christos Exp $ */
 
 /*-
  * Copyright (c) 2002, 2008 The NetBSD Foundation, Inc.
@@ -32,7 +32,7 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_file2.c,v 1.3 2010/11/07 17:51:20 jmmv Exp $");
+__RCSID("$NetBSD: t_file2.c,v 1.4 2017/01/13 21:30:41 christos Exp $");
 
 #include <sys/event.h>
 
@@ -41,7 +41,7 @@ __RCSID("$NetBSD: t_file2.c,v 1.3 2010/11/07 17:51:20 jmmv Exp $");
 
 #include <atf-c.h>
 
-#include "../../../h_macros.h"
+#include "h_macros.h"
 
 ATF_TC(file2);
 ATF_TC_HEAD(file2, tc)

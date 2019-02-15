@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-3-Clause
+ *
  * Copyright (c) 1996, 1997, 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -43,7 +45,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -518,14 +520,14 @@ nexus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
 
 	/*
 	 * XXX:
-	 * (dmat->dt_alignment < dmat->dt_maxsize) is just a quick hack; the
+	 * (dmat->dt_alignment <= dmat->dt_maxsize) is just a quick hack; the
 	 * exact alignment guarantees of malloc need to be nailed down, and
 	 * the code below should be rewritten to take that into account.
 	 *
 	 * In the meantime, we'll warn the user if malloc gets it wrong.
 	 */
 	if (dmat->dt_maxsize <= PAGE_SIZE &&
-	    dmat->dt_alignment < dmat->dt_maxsize)
+	    dmat->dt_alignment <= dmat->dt_maxsize)
 		*vaddr = malloc(dmat->dt_maxsize, M_DEVBUF, mflags);
 	else {
 		/*

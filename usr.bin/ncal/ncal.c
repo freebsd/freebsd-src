@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Wolfgang Helbig
  * All rights reserved.
  *
@@ -76,7 +78,7 @@ static struct djswitch {
 	{"AT", "Austria",       {1583, 10,  5}},
 	{"AU", "Australia",     {1752,  9,  2}},
 	{"BE", "Belgium",       {1582, 12, 14}},
-	{"BG", "Bulgaria",      {1916,  3, 18}},
+	{"BG", "Bulgaria",      {1916,  3, 31}},
 	{"CA", "Canada",        {1752,  9,  2}},
 	{"CH", "Switzerland",   {1655,  2, 28}},
 	{"CN", "China",         {1911, 12, 18}},
@@ -642,8 +644,8 @@ monthrangeb(int y, int m, int jd_flag, int before, int after)
 				wprintf(L"%-*ls  ",
 				    mw, wcenter(ws, year[i].name, mw));
 			else {
-				swprintf(ws, sizeof(ws), L"%-ls %d",
-				    year[i].name, M2Y(m + i));
+				swprintf(ws, sizeof(ws)/sizeof(ws[0]),
+				    L"%-ls %d", year[i].name, M2Y(m + i));
 				wprintf(L"%-*ls  ", mw, wcenter(ws1, ws, mw));
 			}
 		printf("\n");
@@ -958,7 +960,7 @@ mkweekdays(struct weekdays *wds)
 
 	for (i = 0; i != 7; i++) {
 		tm.tm_wday = (i+1) % 7;
-		wcsftime(buf, sizeof(buf), L"%a", &tm);
+		wcsftime(buf, sizeof(buf)/sizeof(buf[0]), L"%a", &tm);
 		for (len = 2; len > 0; --len) {
 			if ((width = wcswidth(buf, len)) <= 2)
 				break;
@@ -1110,7 +1112,8 @@ highlight(char *dst, char *src, int len, int *extralen)
 	static const char *term_so, *term_se;
 
 	if (first) {
-		char tbuf[1024], cbuf[512], *b;
+		static char cbuf[512];
+		char tbuf[1024], *b;
 
 		term_se = term_so = NULL;
 

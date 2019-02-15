@@ -9,10 +9,11 @@ SUBDIR+=	acpi
 .if ${MK_APM} != "no"
 SUBDIR+=	apm
 .endif
-SUBDIR+=	asf
+.if ${MK_BHYVE} != "no"
 SUBDIR+=	bhyve
 SUBDIR+=	bhyvectl
 SUBDIR+=	bhyveload
+.endif
 SUBDIR+=	boot0cfg
 .if ${MK_TOOLCHAIN} != "no"
 SUBDIR+=	btxld
@@ -23,11 +24,9 @@ SUBDIR+=	hyperv
 .endif
 SUBDIR+=	kgmon
 SUBDIR+=	lptcontrol
-SUBDIR+=	mount_smbfs
 SUBDIR+=	mptable
 .if ${MK_NDIS} != "no"
 SUBDIR+=	ndiscvt
 .endif
-SUBDIR+=	sicontrol
 SUBDIR+=	spkrtest
 SUBDIR+=	zzz

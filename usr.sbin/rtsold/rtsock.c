@@ -1,7 +1,9 @@
 /*	$KAME: rtsock.c,v 1.3 2000/10/10 08:46:45 itojun Exp $	*/
 /*	$FreeBSD$	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2000 WIDE Project.
  * All rights reserved.
  * 
@@ -55,27 +57,15 @@
 #include <syslog.h>
 #include "rtsold.h"
 
-#define ROUNDUP(a, size) \
-	(((a) & ((size)-1)) ? (1 + ((a) | ((size)-1))) : (a))
-
-#define NEXT_SA(ap) (ap) = (struct sockaddr *) \
-	((caddr_t)(ap) + \
-	 ((ap)->sa_len ? ROUNDUP((ap)->sa_len, sizeof(u_long)) \
-		       : sizeof(u_long)))
-
-#ifdef RTM_IFANNOUNCE	/*NetBSD 1.5 or later*/
 static int rtsock_input_ifannounce(int, struct rt_msghdr *, char *);
-#endif
 
 static struct {
 	u_char type;
 	size_t minlen;
 	int (*func)(int, struct rt_msghdr *, char *);
 } rtsock_dispatch[] = {
-#ifdef RTM_IFANNOUNCE	/*NetBSD 1.5 or later*/
 	{ RTM_IFANNOUNCE, sizeof(struct if_announcemsghdr),
 	  rtsock_input_ifannounce },
-#endif
 	{ 0, 0, NULL },
 };
 
@@ -133,7 +123,6 @@ rtsock_input(int s)
 	return (ret);
 }
 
-#ifdef RTM_IFANNOUNCE	/*NetBSD 1.5 or later*/
 static int
 rtsock_input_ifannounce(int s __unused, struct rt_msghdr *rtm, char *lim)
 {
@@ -172,4 +161,3 @@ rtsock_input_ifannounce(int s __unused, struct rt_msghdr *rtm, char *lim)
 
 	return (0);
 }
-#endif

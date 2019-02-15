@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -33,7 +35,8 @@
 
 extern	u_int32_t ath_calcrxfilter(struct ath_softc *sc);
 extern	void ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
-	    int subtype, int rssi, int nf);
+	    int subtype, const struct ieee80211_rx_stats *rxs,
+	    int rssi, int nf);
 
 #define	ath_stoprecv(_sc, _dodelay)		\
 	    (_sc)->sc_rx.recv_stop((_sc), (_dodelay))

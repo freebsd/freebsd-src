@@ -168,14 +168,15 @@ static driver_t uark_driver = {
 	.size = sizeof(struct uark_softc),
 };
 
+static const STRUCT_USB_HOST_ID uark_devs[] = {
+	{USB_VPI(USB_VENDOR_ARKMICRO, USB_PRODUCT_ARKMICRO_ARK3116, 0)},
+};
+
 DRIVER_MODULE(uark, uhub, uark_driver, uark_devclass, NULL, 0);
 MODULE_DEPEND(uark, ucom, 1, 1, 1);
 MODULE_DEPEND(uark, usb, 1, 1, 1);
 MODULE_VERSION(uark, 1);
-
-static const STRUCT_USB_HOST_ID uark_devs[] = {
-	{USB_VPI(USB_VENDOR_ARKMICRO, USB_PRODUCT_ARKMICRO_ARK3116, 0)},
-};
+USB_PNP_HOST_INFO(uark_devs);
 
 static int
 uark_probe(device_t dev)
@@ -426,6 +427,7 @@ uark_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 {
 	struct uark_softc *sc = ucom->sc_parent;
 
+	/* XXX Note: sc_lsr is always zero */
 	*lsr = sc->sc_lsr;
 	*msr = sc->sc_msr;
 }

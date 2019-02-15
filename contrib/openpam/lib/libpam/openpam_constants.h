@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Dag-Erling Smørgrav
+ * Copyright (c) 2011-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,13 +26,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_constants.h 659 2013-03-11 14:10:13Z des $
+ * $OpenPAM: openpam_constants.h 938 2017-04-30 21:34:42Z des $
  */
 
 #ifndef OPENPAM_CONSTANTS_H_INCLUDED
 #define OPENPAM_CONSTANTS_H_INCLUDED
 
 extern const char *pam_err_name[PAM_NUM_ERRORS];
+extern const char *pam_err_text[PAM_NUM_ERRORS];
 extern const char *pam_item_name[PAM_NUM_ITEMS];
 extern const char *pam_facility_name[PAM_NUM_FACILITIES];
 extern const char *pam_control_flag_name[PAM_NUM_CONTROL_FLAGS];

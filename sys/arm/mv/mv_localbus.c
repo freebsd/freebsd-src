@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Semihalf.
  * All rights reserved.
  *
@@ -36,10 +38,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 #include <sys/malloc.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 
-#include <machine/devmap.h>
 #include <machine/fdt.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -49,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include "dev/fdt/fdt_common.h"
 #include "ofw_bus_if.h"
 
+#include <arm/mv/mvvar.h>
 #include <arm/mv/mvwin.h>
 
 #ifdef DEBUG
@@ -99,7 +102,7 @@ static int localbus_attach(device_t);
 static int localbus_print_child(device_t, device_t);
 
 static struct resource *localbus_alloc_resource(device_t, device_t, int,
-    int *, u_long, u_long, u_long, u_int);
+    int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static struct resource_list *localbus_get_resource_list(device_t, device_t);
 
 static ofw_bus_get_devinfo_t localbus_get_devinfo;
@@ -172,7 +175,7 @@ fdt_localbus_reg_decode(phandle_t node, struct localbus_softc *sc,
 		return (ENXIO);
 
 	tuple_size = sizeof(pcell_t) * (addr_cells + size_cells);
-	tuples = OF_getprop_alloc(node, "reg", tuple_size, (void **)&reg);
+	tuples = OF_getprop_alloc_multi(node, "reg", tuple_size, (void **)&reg);
 	debugf("addr_cells = %d, size_cells = %d\n", addr_cells, size_cells);
 	debugf("tuples = %d, tuple size = %d\n", tuples, tuple_size);
 	if (tuples <= 0)
@@ -233,7 +236,7 @@ fdt_localbus_reg_decode(phandle_t node, struct localbus_softc *sc,
 	}
 	rv = 0;
 out:
-	free(reg, M_OFWPROP);
+	OF_prop_free(reg);
 	return (rv);
 }
 
@@ -269,10 +272,10 @@ localbus_attach(device_t dev)
 	    dt_child = OF_peer(dt_child)) {
 
 		/* Check and process 'status' property. */
-		if (!(fdt_is_enabled(dt_child)))
+		if (!(ofw_bus_node_status_okay(dt_child)))
 			continue;
 
-		if (!(fdt_pm_is_enabled(dt_child)))
+		if (!(mv_fdt_pm(dt_child)))
 			continue;
 
 		di = malloc(sizeof(*di), M_LOCALBUS, M_WAITOK | M_ZERO);
@@ -322,8 +325,8 @@ localbus_print_child(device_t dev, device_t child)
 
 	rv = 0;
 	rv += bus_print_child_header(dev, child);
-	rv += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-	rv += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	rv += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+	rv += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 	rv += bus_print_child_footer(dev, child);
 
 	return (rv);
@@ -331,7 +334,7 @@ localbus_print_child(device_t dev, device_t child)
 
 static struct resource *
 localbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct localbus_devinfo *di;
 	struct resource_list_entry *rle;
@@ -340,7 +343,7 @@ localbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 * Request for the default allocation with a given rid: use resource
 	 * list stored in the local device info.
 	 */
-	if ((start == 0UL) && (end == ~0UL)) {
+	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
 		if ((di = device_get_ivars(child)) == NULL)
 			return (NULL);
 
@@ -383,7 +386,7 @@ localbus_get_devinfo(device_t bus, device_t child)
 }
 
 int
-fdt_localbus_devmap(phandle_t dt_node, struct arm_devmap_entry *fdt_devmap,
+fdt_localbus_devmap(phandle_t dt_node, struct devmap_entry *fdt_devmap,
     int banks_max_num, int *banks_added)
 {
 	pcell_t ranges[MV_LOCALBUS_MAX_BANKS * MV_LOCALBUS_MAX_BANK_CELLS];
@@ -476,8 +479,6 @@ fdt_localbus_devmap(phandle_t dt_node, struct arm_devmap_entry *fdt_devmap,
 		fdt_devmap[j].pd_va = localbus_virtmap[va_index].va;
 		fdt_devmap[j].pd_pa = offset;
 		fdt_devmap[j].pd_size = size;
-		fdt_devmap[j].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-		fdt_devmap[j].pd_cache = PTE_DEVICE;
 
 		/* Copy data to structure used by localbus driver */
 		localbus_banks[bank].va = fdt_devmap[j].pd_va;

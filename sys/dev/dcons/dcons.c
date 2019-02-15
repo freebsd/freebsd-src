@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 2003,2004
  * 	Hidetoshi Shimokawa. All rights reserved.
  * 
@@ -37,11 +39,9 @@
 
 #include <sys/param.h>
 
-#if defined(__DragonFly__) || defined(_BOOT)
-#include "dcons.h"
 #if defined(_BOOT)
+#include "dcons.h"
 #include "stand.h"
-#endif
 #else
 #include <dev/dcons/dcons.h>
 #endif

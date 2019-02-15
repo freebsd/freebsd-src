@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -43,10 +45,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
+#define	_WANT_SOCKET
 #include <sys/socketvar.h>
 #include <sys/mbuf.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
+#define	_WANT_UNPCB
 #include <sys/unpcb.h>
 
 #include <netinet/in.h>
@@ -57,8 +61,10 @@ __FBSDID("$FreeBSD$");
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <strings.h>
 #include <kvm.h>
+#include <libxo/xo.h>
 #include "netstat.h"
 
 static	void unixdomainpr(struct xunpcb *, struct xsocket *);
@@ -73,20 +79,20 @@ pcblist_sysctl(int type, char **bufp)
 	size_t	len;
 	char mibvar[sizeof "net.local.seqpacket.pcblist"];
 
-	sprintf(mibvar, "net.local.%s.pcblist", socktype[type]);
+	snprintf(mibvar, sizeof(mibvar), "net.local.%s.pcblist", socktype[type]);
 
 	len = 0;
 	if (sysctlbyname(mibvar, 0, &len, 0, 0) < 0) {
 		if (errno != ENOENT)
-			warn("sysctl: %s", mibvar);
+			xo_warn("sysctl: %s", mibvar);
 		return (-1);
 	}
-	if ((buf = malloc(len)) == 0) {
-		warnx("malloc %lu bytes", (u_long)len);
+	if ((buf = malloc(len)) == NULL) {
+		xo_warnx("malloc %lu bytes", (u_long)len);
 		return (-2);
 	}
 	if (sysctlbyname(mibvar, buf, &len, 0, 0) < 0) {
-		warn("sysctl: %s", mibvar);
+		xo_warn("sysctl: %s", mibvar);
 		free(buf);
 		return (-2);
 	}
@@ -98,7 +104,7 @@ static int
 pcblist_kvm(u_long count_off, u_long gencnt_off, u_long head_off, char **bufp)
 {
 	struct unp_head head;
-	struct unpcb *unp, unp_conn;
+	struct unpcb *unp, unp0, unp_conn;
 	u_char sun_len;
 	struct socket so;
 	struct xunpgen xug;
@@ -114,15 +120,15 @@ pcblist_kvm(u_long count_off, u_long gencnt_off, u_long head_off, char **bufp)
 		return (-1);
 	kread(count_off, &unp_count, sizeof(unp_count));
 	len = 2 * sizeof(xug) + (unp_count + unp_count / 8) * sizeof(xu);
-	if ((buf = malloc(len)) == 0) {
-		warnx("malloc %lu bytes", (u_long)len);
+	if ((buf = malloc(len)) == NULL) {
+		xo_warnx("malloc %lu bytes", (u_long)len);
 		return (-2);
 	}
 	p = buf;
 
 #define	COPYOUT(obj, size) do {						\
 	if (len < (size)) {						\
-		warnx("buffer size exceeded");				\
+		xo_warnx("buffer size exceeded");			\
 		goto fail;						\
 	}								\
 	bcopy((obj), p, (size));					\
@@ -147,9 +153,9 @@ pcblist_kvm(u_long count_off, u_long gencnt_off, u_long head_off, char **bufp)
 	xu.xu_len = sizeof xu;
 	KREAD(head_off, &head, sizeof(head));
 	LIST_FOREACH(unp, &head, unp_link) {
-		xu.xu_unpp = unp;
-		KREAD(unp, &xu.xu_unp, sizeof (*unp));
-		unp = &xu.xu_unp;
+		xu.xu_unpp = (uintptr_t)unp;
+		KREAD(unp, &unp0, sizeof (*unp));
+		unp = &unp0;
 
 		if (unp->unp_gencnt > unp_gencnt)
 			continue;
@@ -190,7 +196,7 @@ fail:
 
 void
 unixpr(u_long count_off, u_long gencnt_off, u_long dhead_off, u_long shead_off,
-    u_long sphead_off)
+    u_long sphead_off, bool *first)
 {
 	char 	*buf;
 	int	ret, type;
@@ -228,26 +234,35 @@ unixpr(u_long count_off, u_long gencnt_off, u_long dhead_off, u_long shead_off,
 
 		oxug = xug = (struct xunpgen *)buf;
 		for (xug = (struct xunpgen *)((char *)xug + xug->xug_len);
-		     xug->xug_len > sizeof(struct xunpgen);
-		     xug = (struct xunpgen *)((char *)xug + xug->xug_len)) {
+		    xug->xug_len > sizeof(struct xunpgen);
+		    xug = (struct xunpgen *)((char *)xug + xug->xug_len)) {
 			xunp = (struct xunpcb *)xug;
 			so = &xunp->xu_socket;
 
 			/* Ignore PCBs which were freed during copyout. */
-			if (xunp->xu_unp.unp_gencnt > oxug->xug_gen)
+			if (xunp->unp_gencnt > oxug->xug_gen)
 				continue;
+			if (*first) {
+				xo_open_list("socket");
+				*first = false;
+			}
+			xo_open_instance("socket");
 			unixdomainpr(xunp, so);
+			xo_close_instance("socket");
 		}
 		if (xug != oxug && xug->xug_gen != oxug->xug_gen) {
 			if (oxug->xug_count > xug->xug_count) {
-				printf("Some %s sockets may have been deleted.\n",
-				       socktype[type]);
+				xo_emit("Some {:type/%s} sockets may have "
+				    "been {:action/deleted}.\n",
+				    socktype[type]);
 			} else if (oxug->xug_count < xug->xug_count) {
-				printf("Some %s sockets may have been created.\n",
-			       socktype[type]);
+				xo_emit("Some {:type/%s} sockets may have "
+				    "been {:action/created}.\n",
+				    socktype[type]);
 			} else {
-				printf("Some %s sockets may have been created or deleted",
-			       socktype[type]);
+				xo_emit("Some {:type/%s} sockets may have "
+				    "been {:action/created or deleted}",
+				    socktype[type]);
 			}
 		}
 		free(buf);
@@ -257,21 +272,34 @@ unixpr(u_long count_off, u_long gencnt_off, u_long dhead_off, u_long shead_off,
 static void
 unixdomainpr(struct xunpcb *xunp, struct xsocket *so)
 {
-	struct unpcb *unp;
 	struct sockaddr_un *sa;
 	static int first = 1;
-	char buf1[15];
+	char buf1[33];
+	static const char *titles[2] = {
+	    "{T:/%-8.8s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s} {T:/%8.8s} "
+	    "{T:/%8.8s} {T:/%8.8s} {T:/%8.8s} {T:Addr}\n",
+	    "{T:/%-16.16s} {T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s} {T:/%16.16s} "
+	    "{T:/%16.16s} {T:/%16.16s} {T:/%16.16s} {T:Addr}\n"
+	};
+	static const char *format[2] = {
+	    "{q:address/%8lx} {t:type/%-6.6s} "
+	    "{:receive-bytes-waiting/%6u} "
+	    "{:send-bytes-waiting/%6u} "
+	    "{q:vnode/%8lx} {q:connection/%8lx} "
+	    "{q:first-reference/%8lx} {q:next-reference/%8lx}",
+	    "{q:address/%16lx} {t:type/%-6.6s} "
+	    "{:receive-bytes-waiting/%6u} "
+	    "{:send-bytes-waiting/%6u} "
+	    "{q:vnode/%16lx} {q:connection/%16lx} "
+	    "{q:first-reference/%16lx} {q:next-reference/%16lx}"
+	};
+	int fmt = (sizeof(void *) == 8) ? 1 : 0;
 
-	unp = &xunp->xu_unp;
-	if (unp->unp_addr)
-		sa = &xunp->xu_addr;
-	else
-		sa = (struct sockaddr_un *)0;
+	sa = (xunp->xu_addr.sun_family == AF_UNIX) ? &xunp->xu_addr : NULL;
 
 	if (first && !Lflag) {
-		printf("Active UNIX domain sockets\n");
-		printf(
-"%-8.8s %-6.6s %-6.6s %-6.6s %8.8s %8.8s %8.8s %8.8s Addr\n",
+		xo_emit("{T:Active UNIX domain sockets}\n");
+		xo_emit(titles[fmt],
 		    "Address", "Type", "Recv-Q", "Send-Q",
 		    "Inode", "Conn", "Refs", "Nextref");
 		first = 0;
@@ -281,19 +309,21 @@ unixdomainpr(struct xunpcb *xunp, struct xsocket *so)
 		return;
 
 	if (Lflag) {
-		snprintf(buf1, 15, "%d/%d/%d", so->so_qlen,
+		snprintf(buf1, sizeof buf1, "%u/%u/%u", so->so_qlen,
 		    so->so_incqlen, so->so_qlimit);
-		printf("unix  %-14.14s", buf1);
+		xo_emit("unix  {d:socket/%-32.32s}{e:queue-length/%u}"
+		    "{e:incomplete-queue-length/%u}{e:queue-limit/%u}",
+		    buf1, so->so_qlen, so->so_incqlen, so->so_qlimit);
 	} else {
-		printf("%8lx %-6.6s %6u %6u %8lx %8lx %8lx %8lx",
+		xo_emit(format[fmt],
 		    (long)so->so_pcb, socktype[so->so_type], so->so_rcv.sb_cc,
-		    so->so_snd.sb_cc, (long)unp->unp_vnode, (long)unp->unp_conn,
-		    (long)LIST_FIRST(&unp->unp_refs),
-		    (long)LIST_NEXT(unp, unp_reflink));
+		    so->so_snd.sb_cc, (long)xunp->unp_vnode,
+		    (long)xunp->unp_conn, (long)xunp->xu_firstref,
+		    (long)xunp->xu_nextref);
 	}
 	if (sa)
-		printf(" %.*s",
+		xo_emit(" {:path/%.*s}",
 		    (int)(sa->sun_len - offsetof(struct sockaddr_un, sun_path)),
 		    sa->sun_path);
-	putchar('\n');
+	xo_emit("\n");
 }

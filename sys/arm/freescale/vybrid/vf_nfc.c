@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
@@ -51,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/nand/nandbus.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include "nfc_if.h"
 

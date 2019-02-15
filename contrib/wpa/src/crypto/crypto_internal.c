@@ -11,6 +11,8 @@
 #include "common.h"
 #include "crypto.h"
 #include "sha256_i.h"
+#include "sha384_i.h"
+#include "sha512_i.h"
 #include "sha1_i.h"
 #include "md5_i.h"
 
@@ -22,6 +24,12 @@ struct crypto_hash {
 #ifdef CONFIG_SHA256
 		struct sha256_state sha256;
 #endif /* CONFIG_SHA256 */
+#ifdef CONFIG_INTERNAL_SHA384
+		struct sha384_state sha384;
+#endif /* CONFIG_INTERNAL_SHA384 */
+#ifdef CONFIG_INTERNAL_SHA512
+		struct sha512_state sha512;
+#endif /* CONFIG_INTERNAL_SHA512 */
 	} u;
 	u8 key[64];
 	size_t key_len;
@@ -54,6 +62,16 @@ struct crypto_hash * crypto_hash_init(enum crypto_hash_alg alg, const u8 *key,
 		sha256_init(&ctx->u.sha256);
 		break;
 #endif /* CONFIG_SHA256 */
+#ifdef CONFIG_INTERNAL_SHA384
+	case CRYPTO_HASH_ALG_SHA384:
+		sha384_init(&ctx->u.sha384);
+		break;
+#endif /* CONFIG_INTERNAL_SHA384 */
+#ifdef CONFIG_INTERNAL_SHA512
+	case CRYPTO_HASH_ALG_SHA512:
+		sha512_init(&ctx->u.sha512);
+		break;
+#endif /* CONFIG_INTERNAL_SHA512 */
 	case CRYPTO_HASH_ALG_HMAC_MD5:
 		if (key_len > sizeof(k_pad)) {
 			MD5Init(&ctx->u.md5);
@@ -142,6 +160,16 @@ void crypto_hash_update(struct crypto_hash *ctx, const u8 *data, size_t len)
 		sha256_process(&ctx->u.sha256, data, len);
 		break;
 #endif /* CONFIG_SHA256 */
+#ifdef CONFIG_INTERNAL_SHA384
+	case CRYPTO_HASH_ALG_SHA384:
+		sha384_process(&ctx->u.sha384, data, len);
+		break;
+#endif /* CONFIG_INTERNAL_SHA384 */
+#ifdef CONFIG_INTERNAL_SHA512
+	case CRYPTO_HASH_ALG_SHA512:
+		sha512_process(&ctx->u.sha512, data, len);
+		break;
+#endif /* CONFIG_INTERNAL_SHA512 */
 	default:
 		break;
 	}
@@ -191,6 +219,28 @@ int crypto_hash_finish(struct crypto_hash *ctx, u8 *mac, size_t *len)
 		sha256_done(&ctx->u.sha256, mac);
 		break;
 #endif /* CONFIG_SHA256 */
+#ifdef CONFIG_INTERNAL_SHA384
+	case CRYPTO_HASH_ALG_SHA384:
+		if (*len < 48) {
+			*len = 48;
+			os_free(ctx);
+			return -1;
+		}
+		*len = 48;
+		sha384_done(&ctx->u.sha384, mac);
+		break;
+#endif /* CONFIG_INTERNAL_SHA384 */
+#ifdef CONFIG_INTERNAL_SHA512
+	case CRYPTO_HASH_ALG_SHA512:
+		if (*len < 64) {
+			*len = 64;
+			os_free(ctx);
+			return -1;
+		}
+		*len = 64;
+		sha512_done(&ctx->u.sha512, mac);
+		break;
+#endif /* CONFIG_INTERNAL_SHA512 */
 	case CRYPTO_HASH_ALG_HMAC_MD5:
 		if (*len < 16) {
 			*len = 16;

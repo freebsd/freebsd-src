@@ -13,7 +13,7 @@
  *
  * in-kernel ipfw tables support.
  *
- * $FreeBSD: projects/ipfw/sbin/ipfw/ipfw2.c 267467 2014-06-14 10:58:39Z melifaro $
+ * $FreeBSD$
  */
 
 
@@ -35,6 +35,7 @@
 #include <netinet/in.h>
 #include <netinet/ip_fw.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
 #include "ipfw2.h"
 
@@ -52,9 +53,8 @@ static void table_lock(ipfw_obj_header *oh, int lock);
 static int table_swap(ipfw_obj_header *oh, char *second);
 static int table_get_info(ipfw_obj_header *oh, ipfw_xtable_info *i);
 static int table_show_info(ipfw_xtable_info *i, void *arg);
-static void table_fill_ntlv(ipfw_obj_ntlv *ntlv, char *name, uint32_t set,
-    uint16_t uidx);
 
+static int table_destroy_one(ipfw_xtable_info *i, void *arg);
 static int table_flush_one(ipfw_xtable_info *i, void *arg);
 static int table_show_one(ipfw_xtable_info *i, void *arg);
 static int table_do_get_list(ipfw_xtable_info *i, ipfw_obj_header **poh);
@@ -129,23 +129,11 @@ lookup_host (char *host, struct in_addr *ipaddr)
 	return(0);
 }
 
-static int
-get_token(struct _s_x *table, char *string, char *errbase)
-{
-	int tcmd;
-
-	if ((tcmd = match_token_relaxed(table, string)) < 0)
-		errx(EX_USAGE, "%s %s %s",
-		    (tcmd == 0) ? "invalid" : "ambiguous", errbase, string);
-
-	return (tcmd);
-}
-
 /*
  * This one handles all table-related commands
  * 	ipfw table NAME create ...
  * 	ipfw table NAME modify ...
- * 	ipfw table NAME destroy
+ * 	ipfw table {NAME | all} destroy
  * 	ipfw table NAME swap NAME
  * 	ipfw table NAME lock
  * 	ipfw table NAME unlock
@@ -166,7 +154,7 @@ ipfw_table_handler(int ac, char *av[])
 	ipfw_xtable_info i;
 	ipfw_obj_header oh;
 	char *tablename;
-	uint32_t set;
+	uint8_t set;
 	void *arg;
 
 	memset(&oh, 0, sizeof(oh));
@@ -213,6 +201,7 @@ ipfw_table_handler(int ac, char *av[])
 	case TOK_INFO:
 	case TOK_DETAIL:
 	case TOK_FLUSH:
+	case TOK_DESTROY:
 		break;
 	default:
 		if (is_all != 0)
@@ -236,18 +225,38 @@ ipfw_table_handler(int ac, char *av[])
 		table_modify(&oh, ac, av);
 		break;
 	case TOK_DESTROY:
-		if (table_destroy(&oh) != 0)
-			err(EX_OSERR, "failed to destroy table %s", tablename);
+		if (is_all == 0) {
+			if (table_destroy(&oh) == 0)
+				break;
+			if (errno != ESRCH)
+				err(EX_OSERR, "failed to destroy table %s",
+				    tablename);
+			/* ESRCH isn't fatal, warn if not quiet mode */
+			if (co.do_quiet == 0)
+				warn("failed to destroy table %s", tablename);
+		} else {
+			error = tables_foreach(table_destroy_one, &oh, 1);
+			if (error != 0)
+				err(EX_OSERR,
+				    "failed to destroy tables list");
+		}
 		break;
 	case TOK_FLUSH:
 		if (is_all == 0) {
-			if ((error = table_flush(&oh)) != 0)
+			if ((error = table_flush(&oh)) == 0)
+				break;
+			if (errno != ESRCH)
 				err(EX_OSERR, "failed to flush table %s info",
+				    tablename);
+			/* ESRCH isn't fatal, warn if not quiet mode */
+			if (co.do_quiet == 0)
+				warn("failed to flush table %s info",
 				    tablename);
 		} else {
 			error = tables_foreach(table_flush_one, &oh, 1);
 			if (error != 0)
 				err(EX_OSERR, "failed to flush tables list");
+			/* XXX: we ignore errors here */
 		}
 		break;
 	case TOK_SWAP:
@@ -291,8 +300,9 @@ ipfw_table_handler(int ac, char *av[])
 	}
 }
 
-static void
-table_fill_ntlv(ipfw_obj_ntlv *ntlv, char *name, uint32_t set, uint16_t uidx)
+void
+table_fill_ntlv(ipfw_obj_ntlv *ntlv, const char *name, uint8_t set,
+    uint16_t uidx)
 {
 
 	ntlv->head.type = IPFW_TLV_TBL_NAME;
@@ -386,11 +396,9 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 	ipfw_xtable_info xi;
 	int error, tcmd, val;
 	uint32_t fset, fclear;
-	size_t sz;
 	char *e, *p;
 	char tbuf[128];
 
-	sz = sizeof(tbuf);
 	memset(&xi, 0, sizeof(xi));
 
 	while (ac > 0) {
@@ -451,7 +459,7 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 		}
 	}
 
-	/* Set some defaults to preserve compability */
+	/* Set some defaults to preserve compatibility. */
 	if (xi.algoname[0] == '\0' && xi.type == 0)
 		xi.type = IPFW_TABLE_ADDR;
 	if (xi.vmask == 0)
@@ -493,10 +501,7 @@ table_modify(ipfw_obj_header *oh, int ac, char *av[])
 {
 	ipfw_xtable_info xi;
 	int tcmd;
-	size_t sz;
-	char tbuf[128];
 
-	sz = sizeof(tbuf);
 	memset(&xi, 0, sizeof(xi));
 
 	while (ac > 0) {
@@ -511,7 +516,7 @@ table_modify(ipfw_obj_header *oh, int ac, char *av[])
 			ac--; av++;
 			break;
 		default:
-			errx(EX_USAGE, "cmd is not supported for modificatiob");
+			errx(EX_USAGE, "cmd is not supported for modification");
 		}
 	}
 
@@ -572,6 +577,22 @@ table_destroy(ipfw_obj_header *oh)
 	return (0);
 }
 
+static int
+table_destroy_one(ipfw_xtable_info *i, void *arg)
+{
+	ipfw_obj_header *oh;
+
+	oh = (ipfw_obj_header *)arg;
+	table_fill_ntlv(&oh->ntlv, i->tablename, i->set, 1);
+	if (table_destroy(oh) != 0) {
+		if (co.do_quiet == 0)
+			warn("failed to destroy table(%s) in set %u",
+			    i->tablename, i->set);
+		return (-1);
+	}
+	return (0);
+}
+
 /*
  * Flushes given table specified by @oh->ntlv.
  * Returns 0 on success.
@@ -608,14 +629,14 @@ table_do_swap(ipfw_obj_header *oh, char *second)
 static int
 table_swap(ipfw_obj_header *oh, char *second)
 {
-	int error;
 
 	if (table_check_name(second) != 0)
 		errx(EX_USAGE, "table name %s is invalid", second);
 
-	error = table_do_swap(oh, second);
+	if (table_do_swap(oh, second) == 0)
+		return (0);
 
-	switch (error) {
+	switch (errno) {
 	case EINVAL:
 		errx(EX_USAGE, "Unable to swap table: check types");
 	case EFBIG:
@@ -714,6 +735,7 @@ table_print_valheader(char *buf, size_t bufsize, uint32_t vmask)
 		return;
 	}
 
+	memset(buf, 0, bufsize);
 	print_flags_buffer(buf, bufsize, tablevaltypes, vmask);
 }
 
@@ -863,6 +885,8 @@ table_do_modify_record(int cmd, ipfw_obj_header *oh,
 
 	sz += sizeof(*oh);
 	error = do_get3(cmd, &oh->opheader, &sz);
+	if (error != 0)
+		error = errno;
 	tent = (ipfw_obj_tentry *)(ctlv + 1);
 	/* Copy result back to provided buffer */
 	memcpy(tent_base, ctlv + 1, sizeof(*tent) * count);
@@ -921,16 +945,17 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
 		tentry_fill_key(oh, ptent, *av, add, &type, &vmask, &xi);
 
 		/*
-		 * compability layer: auto-create table if not exists
+		 * Compatibility layer: auto-create table if not exists.
 		 */
 		if (xi.tablename[0] == '\0') {
 			xi.type = type;
 			xi.vmask = vmask;
 			strlcpy(xi.tablename, oh->ntlv.name,
 			    sizeof(xi.tablename));
-			fprintf(stderr, "DEPRECATED: inserting data info "
-			    "non-existent table %s. (auto-created)\n",
-			    xi.tablename);
+			if (quiet == 0)
+				warnx("DEPRECATED: inserting data into "
+				    "non-existent table %s. (auto-created)",
+				    xi.tablename);
 			table_do_create(oh, &xi);
 		}
 	
@@ -950,8 +975,6 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
 	}
 
 	error = table_do_modify_record(cmd, oh, tent_buf, count, atomic);
-
-	quiet = 0;
 
 	/*
 	 * Compatibility stuff: do not yell on duplicate keys or
@@ -1239,16 +1262,14 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 			if ((p = strchr(arg, ',')) != NULL)
 				*p++ = '\0';
 
-			if ((port = htons(strtol(arg, NULL, 10))) == 0) {
+			port = htons(strtol(arg, &pp, 10));
+			if (*pp != '\0') {
 				if ((sent = getservbyname(arg, NULL)) == NULL)
 					errx(EX_DATAERR, "Unknown service: %s",
 					    arg);
-				else
-					key = sent->s_port;
+				port = sent->s_port;
 			}
-			
 			tfe->sport = port;
-
 			arg = p;
 		}
 
@@ -1283,16 +1304,14 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 			if ((p = strchr(arg, ',')) != NULL)
 				*p++ = '\0';
 
-			if ((port = htons(strtol(arg, NULL, 10))) == 0) {
+			port = htons(strtol(arg, &pp, 10));
+			if (*pp != '\0') {
 				if ((sent = getservbyname(arg, NULL)) == NULL)
 					errx(EX_DATAERR, "Unknown service: %s",
 					    arg);
-				else
-					key = sent->s_port;
+				port = sent->s_port;
 			}
-			
 			tfe->dport = port;
-
 			arg = p;
 		}
 
@@ -1308,6 +1327,63 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 	tentry->masklen = masklen;
 }
 
+/*
+ * Tries to guess table key type.
+ * This procedure is used in legacy table auto-create
+ * code AND in `ipfw -n` ruleset checking.
+ *
+ * Imported from old table_fill_xentry() parse code.
+ */
+static int
+guess_key_type(char *key, uint8_t *ptype)
+{
+	char *p;
+	struct in6_addr addr;
+	uint32_t kv;
+
+	if (ishexnumber(*key) != 0 || *key == ':') {
+		/* Remove / if exists */
+		if ((p = strchr(key, '/')) != NULL)
+			*p = '\0';
+
+		if ((inet_pton(AF_INET, key, &addr) == 1) ||
+		    (inet_pton(AF_INET6, key, &addr) == 1)) {
+			*ptype = IPFW_TABLE_CIDR;
+			if (p != NULL)
+				*p = '/';
+			return (0);
+		} else {
+			/* Port or any other key */
+			/* Skip non-base 10 entries like 'fa1' */
+			kv = strtol(key, &p, 10);
+			if (*p == '\0') {
+				*ptype = IPFW_TABLE_NUMBER;
+				return (0);
+			} else if ((p != key) && (*p == '.')) {
+				/*
+				 * Warn on IPv4 address strings
+				 * which are "valid" for inet_aton() but not
+				 * in inet_pton().
+				 *
+				 * Typical examples: '10.5' or '10.0.0.05'
+				 */
+				return (1);
+			}
+		}
+	}
+
+	if (strchr(key, '.') == NULL) {
+		*ptype = IPFW_TABLE_INTERFACE;
+		return (0);
+	}
+
+	if (lookup_host(key, (struct in_addr *)&addr) != 0)
+		return (1);
+
+	*ptype = IPFW_TABLE_CIDR;
+	return (0);
+}
+
 static void
 tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
     int add, uint8_t *ptype, uint32_t *pvmask, ipfw_xtable_info *xi)
@@ -1315,7 +1391,6 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 	uint8_t type, tflags;
 	uint32_t vmask;
 	int error;
-	char *del;
 
 	type = 0;
 	tflags = 0;
@@ -1327,10 +1402,24 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 		error = 0;
 
 	if (error == 0) {
-		/* Table found. */
-		type = xi->type;
-		tflags = xi->tflags;
-		vmask = xi->vmask;
+		if (co.test_only == 0) {
+			/* Table found */
+			type = xi->type;
+			tflags = xi->tflags;
+			vmask = xi->vmask;
+		} else {
+			/*
+			 * We're running `ipfw -n`
+			 * Compatibility layer: try to guess key type
+			 * before failing.
+			 */
+			if (guess_key_type(key, &type) != 0) {
+				/* Inknown key */
+				errx(EX_USAGE, "Cannot guess "
+				    "key '%s' type", key);
+			}
+			vmask = IPFW_VTYPE_LEGACY;
+		}
 	} else {
 		if (error != ESRCH)
 			errx(EX_OSERR, "Error requesting table %s info",
@@ -1339,24 +1428,16 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 			errx(EX_DATAERR, "Table %s does not exist",
 			    oh->ntlv.name);
 		/*
-		 * Table does not exist.
-		 * Compability layer: try to interpret data as ADDR
-		 * before failing.
+		 * Table does not exist
+		 * Compatibility layer: try to guess key type before failing.
 		 */
-		if ((del = strchr(key, '/')) != NULL)
-			*del = '\0';
-		if (inet_pton(AF_INET, key, &tent->k.addr6) == 1 ||
-		    inet_pton(AF_INET6, key, &tent->k.addr6) == 1) {
-			/* OK Prepare and send */
-			type = IPFW_TABLE_ADDR;
-			vmask = IPFW_VTYPE_LEGACY;
-		} else {
+		if (guess_key_type(key, &type) != 0) {
 			/* Inknown key */
 			errx(EX_USAGE, "Table %s does not exist, cannot guess "
 			    "key '%s' type", oh->ntlv.name, key);
 		}
-		if (del != NULL)
-			*del = '/';
+
+		vmask = IPFW_VTYPE_LEGACY;
 	}
 
 	tentry_fill_key_type(key, tent, type, tflags);
@@ -1384,14 +1465,15 @@ static void
 tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
     uint8_t type, uint32_t vmask)
 {
-	uint32_t a4, flag, val, vm;
+	struct addrinfo hints, *res;
+	uint32_t a4, flag, val;
 	ipfw_table_value *v;
 	uint32_t i;
 	int dval;
 	char *comma, *e, *etype, *n, *p;
+	struct in_addr ipaddr;
 
 	v = &tent->v.value;
-	vm = vmask;
 
 	/* Compat layer: keep old behavior for legacy value types */
 	if (vmask == IPFW_VTYPE_LEGACY) {
@@ -1406,8 +1488,8 @@ tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
 			return;
 		}
 		/* Try hostname */
-		if (lookup_host(arg, (struct in_addr *)&val) == 0) {
-			set_legacy_value(val, v);
+		if (lookup_host(arg, &ipaddr) == 0) {
+			set_legacy_value(ntohl(ipaddr.s_addr), v);
 			return;
 		}
 		errx(EX_OSERR, "Unable to parse value %s", arg);
@@ -1476,8 +1558,10 @@ tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
 				v->nh4 = ntohl(a4);
 				break;
 			}
-			if (lookup_host(n, (struct in_addr *)&v->nh4) == 0)
+			if (lookup_host(n, &ipaddr) == 0) {
+				v->nh4 = ntohl(ipaddr.s_addr);
 				break;
+			}
 			etype = "ipv4";
 			break;
 		case IPFW_VTYPE_DSCP:
@@ -1494,9 +1578,19 @@ tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
 			}
 			break;
 		case IPFW_VTYPE_NH6:
-			if (strchr(n, ':') != NULL &&
-			    inet_pton(AF_INET6, n, &v->nh6) == 1)
-				break;
+			if (strchr(n, ':') != NULL) {
+				memset(&hints, 0, sizeof(hints));
+				hints.ai_family = AF_INET6;
+				hints.ai_flags = AI_NUMERICHOST;
+				if (getaddrinfo(n, NULL, &hints, &res) == 0) {
+					v->nh6 = ((struct sockaddr_in6 *)
+					    res->ai_addr)->sin6_addr;
+					v->zoneid = ((struct sockaddr_in6 *)
+					    res->ai_addr)->sin6_scope_id;
+					freeaddrinfo(res);
+					break;
+				}
+			}
 			etype = "ipv6";
 			break;
 		}
@@ -1561,18 +1655,19 @@ tables_foreach(table_cb_t *f, void *arg, int sort)
 		}
 
 		if (sort != 0)
-			qsort(olh + 1, olh->count, olh->objsize, tablename_cmp);
+			qsort(olh + 1, olh->count, olh->objsize,
+			    tablename_cmp);
 
 		info = (ipfw_xtable_info *)(olh + 1);
 		for (i = 0; i < olh->count; i++) {
-			error = f(info, arg); /* Ignore errors for now */
-			info = (ipfw_xtable_info *)((caddr_t)info + olh->objsize);
+			if (co.use_set == 0 || info->set == co.use_set - 1)
+				error = f(info, arg);
+			info = (ipfw_xtable_info *)((caddr_t)info +
+			    olh->objsize);
 		}
-
 		free(olh);
 		break;
 	}
-
 	return (0);
 }
 
@@ -1643,10 +1738,11 @@ static void
 table_show_value(char *buf, size_t bufsize, ipfw_table_value *v,
     uint32_t vmask, int print_ip)
 {
+	char abuf[INET6_ADDRSTRLEN + IF_NAMESIZE + 2];
+	struct sockaddr_in6 sa6;
 	uint32_t flag, i, l;
 	size_t sz;
 	struct in_addr a4;
-	char abuf[INET6_ADDRSTRLEN];
 
 	sz = bufsize;
 
@@ -1702,8 +1798,15 @@ table_show_value(char *buf, size_t bufsize, ipfw_table_value *v,
 			l = snprintf(buf, sz, "%d,", v->dscp);
 			break;
 		case IPFW_VTYPE_NH6:
-			inet_ntop(AF_INET6, &v->nh6, abuf, sizeof(abuf));
-			l = snprintf(buf, sz, "%s,", abuf);
+			sa6.sin6_family = AF_INET6;
+			sa6.sin6_len = sizeof(sa6);
+			sa6.sin6_addr = v->nh6;
+			sa6.sin6_port = 0;
+			sa6.sin6_scope_id = v->zoneid;
+			if (getnameinfo((const struct sockaddr *)&sa6,
+			    sa6.sin6_len, abuf, sizeof(abuf), NULL, 0,
+			    NI_NUMERICHOST) == 0)
+				l = snprintf(buf, sz, "%s,", abuf);
 			break;
 		}
 
@@ -1862,11 +1965,12 @@ struct _table_value {
 	uint32_t	nat;		/* O_NAT */
 	uint32_t	nh4;
 	uint8_t		dscp;
-	uint8_t		spare0[3];
+	uint8_t		spare0;
+	uint16_t	spare1;
 	/* -- 32 bytes -- */
 	struct in6_addr	nh6;
 	uint32_t	limit;		/* O_LIMIT */
-	uint32_t	spare1;
+	uint32_t	zoneid;
 	uint64_t	refcnt;		/* Number of references */
 };
 
@@ -1908,7 +2012,7 @@ ipfw_list_values(int ac, char *av[])
 	for (i = 0; i < olh->count; i++) {
 		table_show_value(buf, sizeof(buf), (ipfw_table_value *)v,
 		    vmask, 0);
-		printf("[%u] refs=%lu %s\n", v->spare1, v->refcnt, buf);
+		printf("[%u] refs=%lu %s\n", v->spare1, (u_long)v->refcnt, buf);
 		v = (struct _table_value *)((caddr_t)v + olh->objsize);
 	}
 
@@ -1916,97 +2020,14 @@ ipfw_list_values(int ac, char *av[])
 }
 
 int
-compare_ntlv(const void *_a, const void *_b)
-{
-	ipfw_obj_ntlv *a, *b;
-
-	a = (ipfw_obj_ntlv *)_a;
-	b = (ipfw_obj_ntlv *)_b;
-
-	if (a->set < b->set)
-		return (-1);
-	else if (a->set > b->set)
-		return (1);
-
-	if (a->idx < b->idx)
-		return (-1);
-	else if (a->idx > b->idx)
-		return (1);
-
-	return (0);
-}
-
-int
-compare_kntlv(const void *k, const void *v)
-{
-	ipfw_obj_ntlv *ntlv;
-	uint16_t key;
-
-	key = *((uint16_t *)k);
-	ntlv = (ipfw_obj_ntlv *)v;
-
-	if (key < ntlv->idx)
-		return (-1);
-	else if (key > ntlv->idx)
-		return (1);
-	
-	return (0);
-}
-
-/*
- * Finds table name in @ctlv by @idx.
- * Uses the following facts:
- * 1) All TLVs are the same size
- * 2) Kernel implementation provides already sorted list.
- *
- * Returns table name or NULL.
- */
-char *
-table_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx)
-{
-	ipfw_obj_ntlv *ntlv;
-
-	ntlv = bsearch(&idx, (ctlv + 1), ctlv->count, ctlv->objsize,
-	    compare_kntlv);
-
-	if (ntlv != 0)
-		return (ntlv->name);
-
-	return (NULL);
-}
-
-void
-table_sort_ctlv(ipfw_obj_ctlv *ctlv)
+table_check_name(const char *tablename)
 {
 
-	qsort(ctlv + 1, ctlv->count, ctlv->objsize, compare_ntlv);
-}
-
-int
-table_check_name(char *tablename)
-{
-	int c, i, l;
-
-	/*
-	 * Check if tablename is null-terminated and contains
-	 * valid symbols only. Valid mask is:
-	 * [a-zA-Z0-9\-_\.]{1,63}
-	 */
-	l = strlen(tablename);
-	if (l == 0 || l >= 64)
+	if (ipfw_check_object_name(tablename) != 0)
 		return (EINVAL);
-	for (i = 0; i < l; i++) {
-		c = tablename[i];
-		if (isalpha(c) || isdigit(c) || c == '_' ||
-		    c == '-' || c == '.')
-			continue;
-		return (EINVAL);	
-	}
-
 	/* Restrict some 'special' names */
 	if (strcmp(tablename, "all") == 0)
 		return (EINVAL);
-
 	return (0);
 }
 

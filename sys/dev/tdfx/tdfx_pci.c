@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2000-2001 by Coleman Kane <cokane@FreeBSD.org>
  * All rights reserved.
  *
@@ -127,7 +129,7 @@ tdfx_probe(device_t dev)
 	case PCI_DEVICE_3DFX_VOODOO1:
 		device_set_desc(dev, "3DFX Voodoo Graphics 3D Accelerator");
 		return BUS_PROBE_DEFAULT;
-	};
+	}
 
 	return ENXIO;
 }

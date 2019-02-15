@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1995 Bill Paul <wpaul@ctr.columbia.edu>.
  * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
@@ -40,7 +42,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 

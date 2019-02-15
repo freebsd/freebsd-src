@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Tycho Nightingale <tycho.nightingale@pluribusnetworks.com>
  * Copyright (c) 2013 Neel Natu <neel@freebsd.org>
  * All rights reserved.
@@ -32,7 +34,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/queue.h>
-#include <sys/cpuset.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
@@ -50,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #define	IOREGSEL	0x00
 #define	IOWIN		0x10
 
-#define	REDIR_ENTRIES	24
+#define	REDIR_ENTRIES	32
 #define	RTBL_RO_BITS	((uint64_t)(IOART_REM_IRR | IOART_DELIVS))
 
 struct vioapic {

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD AND BSD-4-Clause) 
+ *
  * Copyright (c) 1997, 1998 Kenneth D. Merry.
  * All rights reserved.
  *
@@ -70,20 +72,20 @@
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 
-#define CAM_ERRBUF_SIZE 2048	/* sizeof the CAM libarary error string  */
+#define	CAM_ERRBUF_SIZE 2048	/* CAM library error string size */
 
 /*
  * Right now we hard code the transport layer device, but this will change
  * if we ever get more than one transport layer.
  */
-#define XPT_DEVICE	"/dev/xpt0"
+#define	XPT_DEVICE	"/dev/xpt0"
 
 
 extern char cam_errbuf[];
 
 struct cam_device {
 	char 		device_path[MAXPATHLEN];/*
-						   * Pathname of the device 
+						   * Pathname of the device
 						   * given by the user. This
 						   * may be null if the
 						   * user states the device
@@ -98,15 +100,15 @@ struct cam_device {
 						     * Unit number given by
 						     * the user.
 						     */
-	char		device_name[DEV_IDLEN+1];/* 
-						  * Name of the device, 
-						  * e.g. 'pass' 
+	char		device_name[DEV_IDLEN+1];/*
+						  * Name of the device,
+						  * e.g. 'pass'
 						  */
 	u_int32_t	dev_unit_num;	/* Unit number of the passthrough
 					 * device associated with this
 					 * particular device.
 					 */
-	
+
 	char		sim_name[SIM_IDLEN+1]; /* Controller name, e.g. 'ahc' */
 	u_int32_t	sim_unit_number; /* Controller unit number */
 	u_int32_t	bus_id;		 /* Controller bus number */
@@ -142,7 +144,7 @@ int			cam_send_ccb(struct cam_device *device, union ccb *ccb);
 char *			cam_path_string(struct cam_device *dev, char *str,
 					int len);
 struct cam_device *	cam_device_dup(struct cam_device *device);
-void			cam_device_copy(struct cam_device *src, 
+void			cam_device_copy(struct cam_device *src,
 					struct cam_device *dst);
 int			cam_get_device(const char *path, char *dev_name,
 				       int devnamelen, int *unit);

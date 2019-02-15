@@ -64,15 +64,19 @@ struct eap_ssl_data {
 
 /* dummy type used as a flag for UNAUTH-TLS */
 #define EAP_UNAUTH_TLS_TYPE 255
+#define EAP_WFA_UNAUTH_TLS_TYPE 254
 
 
 struct wpabuf * eap_tls_msg_alloc(EapType type, size_t payload_len,
 				  u8 code, u8 identifier);
 int eap_server_tls_ssl_init(struct eap_sm *sm, struct eap_ssl_data *data,
-			    int verify_peer);
+			    int verify_peer, int eap_type);
 void eap_server_tls_ssl_deinit(struct eap_sm *sm, struct eap_ssl_data *data);
 u8 * eap_server_tls_derive_key(struct eap_sm *sm, struct eap_ssl_data *data,
 			       char *label, size_t len);
+u8 * eap_server_tls_derive_session_id(struct eap_sm *sm,
+				      struct eap_ssl_data *data, u8 eap_type,
+				      size_t *len);
 struct wpabuf * eap_server_tls_build_msg(struct eap_ssl_data *data,
 					 int eap_type, int version, u8 id);
 struct wpabuf * eap_server_tls_build_ack(u8 id, int eap_type, int version);

@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 1, 2010
+.Dd September 8, 2016
 .Dt HASTD 8
 .Os
 .Sh NAME
@@ -44,8 +44,8 @@ The
 daemon is responsible for managing highly available GEOM providers.
 .Pp
 .Nm
-allows to transparently store data on two physically separated machines
-connected over the TCP/IP network.
+allows the transpaent storage of data on two physically separated machines
+connected over a TCP/IP network.
 Only one machine (cluster node) can actively use storage provided by
 .Nm .
 This machine is called primary.
@@ -224,6 +224,11 @@ nodeA# mount -o noatime /dev/hast/shared /shared
 .Xr mount 8 ,
 .Xr newfs 8 ,
 .Xr g_bio 9
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 8.1 .
 .Sh AUTHORS
 The
 .Nm

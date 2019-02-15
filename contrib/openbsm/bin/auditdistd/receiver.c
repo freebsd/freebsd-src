@@ -25,8 +25,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/receiver.c#3 $
  */
 
 #include <config/config.h>
@@ -142,7 +140,7 @@ static void
 adreq_decode_and_validate_header(struct adreq *adreq)
 {
 
-	/* Byte-swap only is the sender is using different byte order. */
+	/* Byte-swap only if the sender is using different byte order. */
 	if (adreq->adr_byteorder != ADIST_BYTEORDER) {
 		adreq->adr_byteorder = ADIST_BYTEORDER;
 		adreq->adr_seq = bswap64(adreq->adr_seq);

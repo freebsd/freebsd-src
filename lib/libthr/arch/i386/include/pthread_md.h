@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Daniel Eischen <deischen@freebsd.org>.
  * Copyright (c) 2005 David Xu <davidxu@freebsd.org>.
  * All rights reserved.
@@ -75,12 +77,6 @@ struct tcb {
 								\
 	__result;						\
 })
-
-/*
- * The constructors.
- */
-struct tcb	*_tcb_ctor(struct pthread *, int);
-void		_tcb_dtor(struct tcb *tcb);
 
 /* Called from the thread to set its private data. */
 static __inline void

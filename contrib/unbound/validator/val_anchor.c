@@ -48,9 +48,10 @@
 #include "util/log.h"
 #include "util/net_help.h"
 #include "util/config_file.h"
-#include "ldns/sbuffer.h"
-#include "ldns/rrdef.h"
-#include "ldns/str2wire.h"
+#include "util/as112.h"
+#include "sldns/sbuffer.h"
+#include "sldns/rrdef.h"
+#include "sldns/str2wire.h"
 #ifdef HAVE_GLOB_H
 #include <glob.h>
 #endif
@@ -112,7 +113,7 @@ assembled_rrset_delete(struct ub_packed_rrset_key* pkey)
 
 /** destroy locks in tree and delete autotrust anchors */
 static void
-anchors_delfunc(rbnode_t* elem, void* ATTR_UNUSED(arg))
+anchors_delfunc(rbnode_type* elem, void* ATTR_UNUSED(arg))
 {
 	struct trust_anchor* ta = (struct trust_anchor*)elem;
 	if(!ta) return;
@@ -197,7 +198,7 @@ anchor_find(struct val_anchors* anchors, uint8_t* name, int namelabs,
 	size_t namelen, uint16_t dclass)
 {
 	struct trust_anchor key;
-	rbnode_t* n;
+	rbnode_type* n;
 	if(!name) return NULL;
 	key.node.key = &key;
 	key.name = name;
@@ -221,7 +222,7 @@ anchor_new_ta(struct val_anchors* anchors, uint8_t* name, int namelabs,
 	size_t namelen, uint16_t dclass, int lockit)
 {
 #ifdef UNBOUND_DEBUG
-	rbnode_t* r;
+	rbnode_type* r;
 #endif
 	struct trust_anchor* ta = (struct trust_anchor*)malloc(
 		sizeof(struct trust_anchor));
@@ -563,7 +564,7 @@ readkeyword_bindfile(FILE* in, sldns_buffer* buf, int* line, int comments)
 		/* not a comment, complete the keyword */
 		if(numdone > 0) {
 			/* check same type */
-			if(isspace(c)) {
+			if(isspace((unsigned char)c)) {
 				ungetc(c, in);
 				return numdone;
 			}
@@ -582,12 +583,12 @@ readkeyword_bindfile(FILE* in, sldns_buffer* buf, int* line, int comments)
 		}
 		sldns_buffer_write_u8(buf, (uint8_t)c);
 		numdone++;
-		if(isspace(c)) {
+		if(isspace((unsigned char)c)) {
 			/* collate whitespace into ' ' */
 			while((c = getc(in)) != EOF ) {
 				if(c == '\n')
 					(*line)++;
-				if(!isspace(c)) {
+				if(!isspace((unsigned char)c)) {
 					ungetc(c, in);
 					break;
 				}
@@ -607,7 +608,7 @@ skip_to_special(FILE* in, sldns_buffer* buf, int* line, int spec)
 	int rdlen;
 	sldns_buffer_clear(buf);
 	while((rdlen=readkeyword_bindfile(in, buf, line, 1))) {
-		if(rdlen == 1 && isspace((int)*sldns_buffer_begin(buf))) {
+		if(rdlen == 1 && isspace((unsigned char)*sldns_buffer_begin(buf))) {
 			sldns_buffer_clear(buf);
 			continue;
 		}
@@ -648,7 +649,7 @@ process_bind_contents(struct val_anchors* anchors, sldns_buffer* buf,
 	sldns_buffer_clear(buf);
 	while((rdlen=readkeyword_bindfile(in, buf, line, comments))) {
 		if(rdlen == 1 && sldns_buffer_position(buf) == 1
-			&& isspace((int)*sldns_buffer_begin(buf))) {
+			&& isspace((unsigned char)*sldns_buffer_begin(buf))) {
 			/* starting whitespace is removed */
 			sldns_buffer_clear(buf);
 			continue;
@@ -703,7 +704,7 @@ process_bind_contents(struct val_anchors* anchors, sldns_buffer* buf,
 			}
 			return 1;
 		} else if(rdlen == 1 && 
-			isspace((int)sldns_buffer_current(buf)[-1])) {
+			isspace((unsigned char)sldns_buffer_current(buf)[-1])) {
 			/* leave whitespace here */
 		} else {
 			/* not space or whatnot, so actual content */
@@ -882,14 +883,14 @@ assemble_it(struct trust_anchor* ta, size_t num, uint16_t type)
 	memset(pd, 0, sizeof(*pd));
 	pd->count = num;
 	pd->trust = rrset_trust_ultimate;
-	pd->rr_len = (size_t*)malloc(num*sizeof(size_t));
+	pd->rr_len = (size_t*)reallocarray(NULL, num, sizeof(size_t));
 	if(!pd->rr_len) {
 		free(pd);
 		free(pkey->rk.dname);
 		free(pkey);
 		return NULL;
 	}
-	pd->rr_ttl = (time_t*)malloc(num*sizeof(time_t));
+	pd->rr_ttl = (time_t*)reallocarray(NULL, num, sizeof(time_t));
 	if(!pd->rr_ttl) {
 		free(pd->rr_len);
 		free(pd);
@@ -897,7 +898,7 @@ assemble_it(struct trust_anchor* ta, size_t num, uint16_t type)
 		free(pkey);
 		return NULL;
 	}
-	pd->rr_data = (uint8_t**)malloc(num*sizeof(uint8_t*));
+	pd->rr_data = (uint8_t**)reallocarray(NULL, num, sizeof(uint8_t*));
 	if(!pd->rr_data) {
 		free(pd->rr_ttl);
 		free(pd->rr_len);
@@ -989,7 +990,7 @@ anchors_assemble_rrsets(struct val_anchors* anchors)
 	size_t nods, nokey;
 	lock_basic_lock(&anchors->lock);
 	ta=(struct trust_anchor*)rbtree_first(anchors->tree);
-	while((rbnode_t*)ta != RBTREE_NULL) {
+	while((rbnode_type*)ta != RBTREE_NULL) {
 		next = (struct trust_anchor*)rbtree_next(&ta->node);
 		lock_basic_lock(&ta->lock);
 		if(ta->autr || (ta->numDS == 0 && ta->numDNSKEY == 0)) {
@@ -1020,9 +1021,17 @@ anchors_assemble_rrsets(struct val_anchors* anchors)
 			dname_str(ta->name, b);
 			log_warn("trust anchor %s has no supported algorithms,"
 				" the anchor is ignored (check if you need to"
-				" upgrade unbound and openssl)", b);
+				" upgrade unbound and "
+#ifdef HAVE_LIBRESSL
+				"libressl"
+#else
+				"openssl"
+#endif
+				")", b);
 			(void)rbtree_delete(anchors->tree, &ta->node);
 			lock_basic_unlock(&ta->lock);
+			if(anchors->dlv_anchor == ta)
+				anchors->dlv_anchor = NULL;
 			anchors_delfunc(&ta->node, NULL);
 			ta = next;
 			continue;
@@ -1038,8 +1047,18 @@ int
 anchors_apply_cfg(struct val_anchors* anchors, struct config_file* cfg)
 {
 	struct config_strlist* f;
+	const char** zstr;
 	char* nm;
 	sldns_buffer* parsebuf = sldns_buffer_new(65535);
+	if(cfg->insecure_lan_zones) {
+		for(zstr = as112_zones; *zstr; zstr++) {
+			if(!anchor_insert_insecure(anchors, *zstr)) {
+				log_err("error in insecure-lan-zones: %s", *zstr);
+				sldns_buffer_free(parsebuf);
+				return 0;
+			}
+		}
+	}
 	for(f = cfg->domain_insecure; f; f = f->next) {
 		if(!f->str || f->str[0] == 0) /* empty "" */
 			continue;
@@ -1145,7 +1164,7 @@ anchors_lookup(struct val_anchors* anchors,
 {
 	struct trust_anchor key;
 	struct trust_anchor* result;
-	rbnode_t* res = NULL;
+	rbnode_type* res = NULL;
 	key.node.key = &key;
 	key.name = qname;
 	key.namelabs = dname_count_labels(qname);
@@ -1254,3 +1273,80 @@ anchors_delete_insecure(struct val_anchors* anchors, uint16_t c,
 	anchors_delfunc(&ta->node, NULL);
 }
 
+/** compare two keytags, return -1, 0 or 1 */
+static int
+keytag_compare(const void* x, const void* y)
+{
+	if(*(uint16_t*)x == *(uint16_t*)y)
+		return 0;
+	if(*(uint16_t*)x > *(uint16_t*)y)
+		return 1;
+	return -1;
+}
+
+size_t
+anchor_list_keytags(struct trust_anchor* ta, uint16_t* list, size_t num)
+{
+	size_t i, ret = 0;
+	if(ta->numDS == 0 && ta->numDNSKEY == 0)
+		return 0; /* insecure point */
+	if(ta->numDS != 0 && ta->ds_rrset) {
+		struct packed_rrset_data* d=(struct packed_rrset_data*)
+			ta->ds_rrset->entry.data;
+		for(i=0; i<d->count; i++) {
+			if(ret == num) continue;
+			list[ret++] = ds_get_keytag(ta->ds_rrset, i);
+		}
+	}
+	if(ta->numDNSKEY != 0 && ta->dnskey_rrset) {
+		struct packed_rrset_data* d=(struct packed_rrset_data*)
+			ta->dnskey_rrset->entry.data;
+		for(i=0; i<d->count; i++) {
+			if(ret == num) continue;
+			list[ret++] = dnskey_calc_keytag(ta->dnskey_rrset, i);
+		}
+	}
+	qsort(list, ret, sizeof(*list), keytag_compare);
+	return ret;
+}
+
+int
+anchor_has_keytag(struct val_anchors* anchors, uint8_t* name, int namelabs,
+	size_t namelen, uint16_t dclass, uint16_t keytag)
+{
+	uint16_t* taglist;
+	uint16_t* tl;
+	size_t numtag, i;
+	struct trust_anchor* anchor = anchor_find(anchors,
+		name, namelabs, namelen, dclass);
+	if(!anchor)
+		return 0;
+	if(!anchor->numDS && !anchor->numDNSKEY) {
+		lock_basic_unlock(&anchor->lock);
+		return 0;
+	}
+
+	taglist = calloc(anchor->numDS + anchor->numDNSKEY, sizeof(*taglist));
+	if(!taglist) {
+		lock_basic_unlock(&anchor->lock);
+		return 0;
+	}
+
+	numtag = anchor_list_keytags(anchor, taglist,
+		anchor->numDS+anchor->numDNSKEY);
+	lock_basic_unlock(&anchor->lock);
+	if(!numtag) {
+		free(taglist);
+		return 0;
+	}
+	tl = taglist;
+	for(i=0; i<numtag; i++) {
+		if(*tl == keytag) {
+			free(taglist);
+			return 1;
+		}
+		tl++;
+	}
+	free(taglist);
+	return 0;
+}

@@ -1,6 +1,8 @@
 /*	$KAME: radix_mpath.h,v 1.10 2004/11/06 15:44:28 itojun Exp $	*/
 
 /*
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2001 WIDE Project.
  * All rights reserved.
  *
@@ -44,16 +46,16 @@
 struct route;
 struct rtentry;
 struct sockaddr;
-int	rn_mpath_capable(struct radix_node_head *);
+struct rib_head;
+int	rt_mpath_capable(struct rib_head *);
+int	rn_mpath_capable(struct radix_head *);
 struct radix_node *rn_mpath_next(struct radix_node *);
 u_int32_t rn_mpath_count(struct radix_node *);
 struct rtentry *rt_mpath_matchgate(struct rtentry *, struct sockaddr *);
-int rt_mpath_conflict(struct radix_node_head *, struct rtentry *,
+int rt_mpath_conflict(struct rib_head *, struct rtentry *,
     struct sockaddr *);
 void rtalloc_mpath_fib(struct route *, u_int32_t, u_int);
-#define rtalloc_mpath(_route, _hash) rtalloc_mpath_fib((_route), (_hash), 0)
-struct radix_node *rn_mpath_lookup(void *, void *,
-    struct radix_node_head *);
+struct rtentry *rt_mpath_select(struct rtentry *, uint32_t);
 int rt_mpath_deldup(struct rtentry *, struct rtentry *);
 int	rn4_mpath_inithead(void **, int);
 int	rn6_mpath_inithead(void **, int);

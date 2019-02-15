@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998-2002,2010 Luigi Rizzo, Universita` di Pisa
  * All rights reserved
  *
@@ -52,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include  "dn_heap.h"
 #define log(x, arg...)	fprintf(stderr, ## arg)
 #define panic(x...)	fprintf(stderr, ## x), exit(1)
-#define MALLOC_DEFINE(a, b, c)
+#define MALLOC_DEFINE(a, b, c)	volatile int __dummy__ ## a __attribute__((__unused__))
 static void *my_malloc(int s) {	return malloc(s); }
 static void my_free(void *p) {	free(p); }
 #define malloc(s, t, w)	my_malloc(s)
@@ -81,7 +83,7 @@ heap_resize(struct dn_heap *h, unsigned int new_size)
 {
 	struct dn_heap_entry *p;
 
-	if (h->size >= new_size )	/* have enough room */
+	if ((unsigned int)h->size >= new_size )	/* have enough room */
 		return 0;
 #if 1  /* round to the next power of 2 */
 	new_size |= new_size >> 1;
@@ -92,7 +94,7 @@ heap_resize(struct dn_heap *h, unsigned int new_size)
 #else
 	new_size = (new_size + HEAP_INCREMENT ) & ~HEAP_INCREMENT;
 #endif
-	p = malloc(new_size * sizeof(*p), M_DN_HEAP, M_NOWAIT);
+	p = mallocarray(new_size, sizeof(*p), M_DN_HEAP, M_NOWAIT);
 	if (p == NULL) {
 		printf("--- %s, resize %d failed\n", __func__, new_size );
 		return 1; /* error */
@@ -419,6 +421,8 @@ dn_ht_init(struct dn_ht *ht, int buckets, int ofs,
 static int
 do_del(void *obj, void *arg)
 {
+	(void)obj;
+	(void)arg;
 	return DNHT_SCAN_DEL;
 }
 

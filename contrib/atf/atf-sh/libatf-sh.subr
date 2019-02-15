@@ -1,6 +1,3 @@
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -25,9 +22,6 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-
-set -e
 
 # ------------------------------------------------------------------------
 # GLOBAL VARIABLES
@@ -90,12 +84,13 @@ atf_check()
 }
 
 #
-# atf_check_equal expr1 expr2
+# atf_check_equal expected_expression actual_expression
 #
-#   Checks that expr1's value matches expr2's and, if not, raises an
-#   error.  Ideally expr1 and expr2 should be provided quoted (not
-#   expanded) so that the error message is helpful; otherwise it will
-#   only show the values, not the expressions themselves.
+#   Checks that expected_expression's value matches actual_expression's
+#   and, if not, raises an error.  Ideally expected_expression and
+#   actual_expression should be provided quoted (not expanded) so that
+#   the error message is helpful; otherwise it will only show the values,
+#   not the expressions themselves.
 #
 atf_check_equal()
 {
@@ -595,7 +590,7 @@ _atf_run_tc()
     _atf_has_tc "${_tcname}" || _atf_syntax_error "Unknown test case \`${1}'"
 
     if [ "${__RUNNING_INSIDE_ATF_RUN}" != "internal-yes-value" ]; then
-        _atf_warning "Running test cases without atf-run(1) is unsupported"
+        _atf_warning "Running test cases outside of kyua(1) is unsupported"
         _atf_warning "No isolation nor timeout control is being applied;" \
             "you may get unexpected failures; see atf-test-case(4)"
     fi
@@ -741,10 +736,6 @@ main()
     done
     shift `expr ${OPTIND} - 1`
 
-    # First of all, make sure that the source directory is correct.  It
-    # doesn't matter if the user did not change it, because the default
-    # value may not work.  (TODO: It possibly should, even though it is
-    # not a big deal because atf-run deals with this.)
     case ${Source_Dir} in
         /*)
             ;;

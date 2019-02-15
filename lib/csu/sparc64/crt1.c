@@ -1,5 +1,7 @@
 /* LINTLIBRARY */
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 2001 David E. O'Brien.
  * All rights reserved.
  * Copyright (c) 1995, 1998 Berkeley Software Design, Inc.
@@ -32,12 +34,6 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#ifndef lint
-#ifndef __GNUC__
-#error "GCC is needed to compile this file"
-#endif
-#endif /* lint */
 
 #include <stdlib.h>
 

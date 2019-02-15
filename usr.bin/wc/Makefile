@@ -2,4 +2,6 @@
 # $FreeBSD$
 
 PROG=	wc
+LIBADD=	xo
+
 .include <bsd.prog.mk>

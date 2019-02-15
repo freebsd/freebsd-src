@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2014 Advanced Computing Technologies LLC
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2014 Hudson River Trading LLC
  * Written by: John H. Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
@@ -30,10 +32,12 @@
 #ifndef _IOAPIC_H_
 #define	_IOAPIC_H_
 
+struct pci_devinst;
+
 /*
  * Allocate a PCI IRQ from the I/O APIC.
  */
 void	ioapic_init(struct vmctx *ctx);
-int	ioapic_pci_alloc_irq(void);
+int	ioapic_pci_alloc_irq(struct pci_devinst *pi);
 
 #endif

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -82,7 +84,7 @@ fwrite(const void * __restrict buf, size_t size, size_t count, FILE * __restrict
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
 
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	ORIENT(fp, -1);
 	/*
 	 * The usual case is success (__sfvwrite returns 0);
@@ -91,6 +93,6 @@ fwrite(const void * __restrict buf, size_t size, size_t count, FILE * __restrict
 	 */
 	if (__sfvwrite(fp, &uio) != 0)
 	    count = (n - uio.uio_resid) / size;
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 	return (count);
 }

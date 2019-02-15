@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010-2011 Aleksandr Rybalko <ray@dlink.ua>
  *   based on geom_redboot.c
  * Copyright (c) 2009 Sam Leffler, Errno Consulting
@@ -147,8 +149,13 @@ find_marker(struct g_consumer *cp, const char *line, off_t *offset)
 	bzero(search_key, MAP_MAX_MARKER_LEN);
 	sectorsize = cp->provider->sectorsize;
 
+#ifdef __LP64__
+	ret = sscanf(line, "search:%li:%li:%63c",
+	    &search_start, &search_step, search_key);
+#else
 	ret = sscanf(line, "search:%qi:%qi:%63c",
 	    &search_start, &search_step, search_key);
+#endif
 	if (ret < 3)
 		return (1);
 
@@ -171,6 +178,13 @@ find_marker(struct g_consumer *cp, const char *line, off_t *offset)
 		    roundup(strlen(search_key), sectorsize), NULL);
 		g_topology_lock();
 
+		/*
+		 * Don't bother doing the rest if buf==NULL; eg derefencing
+		 * to assemble 'key'.
+		 */
+		if (buf == NULL)
+			continue;
+
 		/* Wildcard, replace '.' with byte from data */
 		/* TODO: add support wildcard escape '\.' */
 
@@ -183,7 +197,8 @@ find_marker(struct g_consumer *cp, const char *line, off_t *offset)
 			}
 		}
 
-		if (buf != NULL && strncmp(buf + search_offset % sectorsize,
+		/* Assume buf != NULL here */
+		if (memcmp(buf + search_offset % sectorsize,
 		    key, strlen(search_key)) == 0) {
 			g_free(buf);
 			/* Marker found, so return their offset */
@@ -251,7 +266,7 @@ g_map_parse_part(struct g_class *mp, struct g_provider *pp,
 	}
 	if (find_marker(cp, value, &end) != 0) {
 		if (bootverbose) {
-			printf("MAP: \"%s\" can't parse/use start value\n",
+			printf("MAP: \"%s\" can't parse/use end value\n",
 			    name);
 		}
 		return (1);
@@ -392,3 +407,4 @@ static struct g_class g_map_class = {
 	.ctlreq = g_map_config,
 };
 DECLARE_GEOM_CLASS(g_map_class, g_map);
+MODULE_VERSION(geom_map, 0);

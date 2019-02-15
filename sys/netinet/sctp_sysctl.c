@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007, by Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
  * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
@@ -63,7 +65,6 @@ sctp_init_sysctls()
 	SCTP_BASE_SYSCTL(sctp_reconfig_enable) = SCTPCTL_RECONFIG_ENABLE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_nrsack_enable) = SCTPCTL_NRSACK_ENABLE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_pktdrop_enable) = SCTPCTL_PKTDROP_ENABLE_DEFAULT;
-	SCTP_BASE_SYSCTL(sctp_strict_sacks) = SCTPCTL_STRICT_SACKS_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_peer_chunk_oh) = SCTPCTL_PEER_CHKOH_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_max_burst_default) = SCTPCTL_MAXBURST_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_fr_max_burst_default) = SCTPCTL_FRMAXBURST_DEFAULT;
@@ -101,7 +102,6 @@ sctp_init_sysctls()
 	SCTP_BASE_SYSCTL(sctp_do_drain) = SCTPCTL_DO_SCTP_DRAIN_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_hb_maxburst) = SCTPCTL_HB_MAX_BURST_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_abort_if_one_2_one_hits_limit) = SCTPCTL_ABORT_AT_LIMIT_DEFAULT;
-	SCTP_BASE_SYSCTL(sctp_strict_data_order) = SCTPCTL_STRICT_DATA_ORDER_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_min_residual) = SCTPCTL_MIN_RESIDUAL_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_max_retran_chunk) = SCTPCTL_MAX_RETRAN_CHUNK_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_logging_level) = SCTPCTL_LOGGING_LEVEL_DEFAULT;
@@ -281,15 +281,6 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 						if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
 							if (local_scope == 0)
 								continue;
-							if (sin6->sin6_scope_id == 0) {
-								/*
-								 * bad link
-								 * local
-								 * address
-								 */
-								if (sa6_recoverscope(sin6) != 0)
-									continue;
-							}
 						}
 						if ((site_scope == 0) && (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr)))
 							continue;
@@ -321,8 +312,8 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 				continue;
 			memset((void *)&xladdr, 0, sizeof(struct xsctp_laddr));
 			memcpy((void *)&xladdr.address, (const void *)&laddr->ifa->address, sizeof(union sctp_sockstore));
-			xladdr.start_time.tv_sec = (uint32_t) laddr->start_time.tv_sec;
-			xladdr.start_time.tv_usec = (uint32_t) laddr->start_time.tv_usec;
+			xladdr.start_time.tv_sec = (uint32_t)laddr->start_time.tv_sec;
+			xladdr.start_time.tv_usec = (uint32_t)laddr->start_time.tv_usec;
 			SCTP_INP_RUNLOCK(inp);
 			SCTP_INP_INFO_RUNLOCK();
 			error = SYSCTL_OUT(req, &xladdr, sizeof(struct xsctp_laddr));
@@ -418,14 +409,20 @@ sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 		xinpcb.total_recvs = inp->total_recvs;
 		xinpcb.total_nospaces = inp->total_nospaces;
 		xinpcb.fragmentation_point = inp->sctp_frag_point;
+		xinpcb.socket = (uintptr_t)inp->sctp_socket;
 		so = inp->sctp_socket;
 		if ((so == NULL) ||
+		    (!SCTP_IS_LISTENING(inp)) ||
 		    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE)) {
 			xinpcb.qlen = 0;
 			xinpcb.maxqlen = 0;
 		} else {
-			xinpcb.qlen = so->so_qlen;
-			xinpcb.maxqlen = so->so_qlimit;
+			xinpcb.qlen = so->sol_qlen;
+			xinpcb.qlen_old = so->sol_qlen > USHRT_MAX ?
+			    USHRT_MAX : (uint16_t)so->sol_qlen;
+			xinpcb.maxqlen = so->sol_qlimit;
+			xinpcb.maxqlen_old = so->sol_qlimit > USHRT_MAX ?
+			    USHRT_MAX : (uint16_t)so->sol_qlimit;
 		}
 		SCTP_INP_INCR_REF(inp);
 		SCTP_INP_RUNLOCK(inp);
@@ -452,7 +449,7 @@ sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 			if (stcb->asoc.primary_destination != NULL)
 				xstcb.primary_addr = stcb->asoc.primary_destination->ro._l_addr;
 			xstcb.heartbeat_interval = stcb->asoc.heart_beat_delay;
-			xstcb.state = SCTP_GET_STATE(&stcb->asoc);	/* FIXME */
+			xstcb.state = (uint32_t)sctp_map_assoc_state(stcb->asoc.state);
 			/* 7.0 does not support these */
 			xstcb.assoc_id = sctp_get_associd(stcb);
 			xstcb.peers_rwnd = stcb->asoc.peers_rwnd;
@@ -464,10 +461,10 @@ sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 			xstcb.T1_expireries = stcb->asoc.timoinit + stcb->asoc.timocookie;
 			xstcb.T2_expireries = stcb->asoc.timoshutdown + stcb->asoc.timoshutdownack;
 			xstcb.retransmitted_tsns = stcb->asoc.marked_retrans;
-			xstcb.start_time.tv_sec = (uint32_t) stcb->asoc.start_time.tv_sec;
-			xstcb.start_time.tv_usec = (uint32_t) stcb->asoc.start_time.tv_usec;
-			xstcb.discontinuity_time.tv_sec = (uint32_t) stcb->asoc.discontinuity_time.tv_sec;
-			xstcb.discontinuity_time.tv_usec = (uint32_t) stcb->asoc.discontinuity_time.tv_usec;
+			xstcb.start_time.tv_sec = (uint32_t)stcb->asoc.start_time.tv_sec;
+			xstcb.start_time.tv_usec = (uint32_t)stcb->asoc.start_time.tv_usec;
+			xstcb.discontinuity_time.tv_sec = (uint32_t)stcb->asoc.discontinuity_time.tv_sec;
+			xstcb.discontinuity_time.tv_usec = (uint32_t)stcb->asoc.discontinuity_time.tv_usec;
 			xstcb.total_sends = stcb->total_sends;
 			xstcb.total_recvs = stcb->total_recvs;
 			xstcb.local_tag = stcb->asoc.my_vtag;
@@ -510,8 +507,17 @@ sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 				xraddr.mtu = net->mtu;
 				xraddr.rtt = net->rtt / 1000;
 				xraddr.heartbeat_interval = net->heart_beat_delay;
-				xraddr.start_time.tv_sec = (uint32_t) net->start_time.tv_sec;
-				xraddr.start_time.tv_usec = (uint32_t) net->start_time.tv_usec;
+				xraddr.ssthresh = net->ssthresh;
+				xraddr.encaps_port = net->port;
+				if (net->dest_state & SCTP_ADDR_UNCONFIRMED) {
+					xraddr.state = SCTP_UNCONFIRMED;
+				} else if (net->dest_state & SCTP_ADDR_REACHABLE) {
+					xraddr.state = SCTP_ACTIVE;
+				} else {
+					xraddr.state = SCTP_INACTIVE;
+				}
+				xraddr.start_time.tv_sec = (uint32_t)net->start_time.tv_sec;
+				xraddr.start_time.tv_usec = (uint32_t)net->start_time.tv_usec;
 				SCTP_INP_RUNLOCK(inp);
 				SCTP_INP_INFO_RUNLOCK();
 				error = SYSCTL_OUT(req, &xraddr, sizeof(struct xsctp_raddr));
@@ -569,8 +575,12 @@ sctp_sysctl_handle_udp_tunneling(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if ((error == 0) &&
 	    (req->newptr != NULL)) {
+#if (SCTPCTL_UDP_TUNNELING_PORT_MIN == 0)
+		if (new > SCTPCTL_UDP_TUNNELING_PORT_MAX) {
+#else
 		if ((new < SCTPCTL_UDP_TUNNELING_PORT_MIN) ||
 		    (new > SCTPCTL_UDP_TUNNELING_PORT_MAX)) {
+#endif
 			error = EINVAL;
 		} else {
 			SCTP_INP_INFO_WLOCK();
@@ -598,9 +608,14 @@ sctp_sysctl_handle_auth(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if ((error == 0) &&
 	    (req->newptr != NULL)) {
+#if (SCTPCTL_AUTH_ENABLE_MIN == 0)
+		if ((new > SCTPCTL_AUTH_ENABLE_MAX) ||
+		    ((new == 0) && (SCTP_BASE_SYSCTL(sctp_asconf_enable) == 1))) {
+#else
 		if ((new < SCTPCTL_AUTH_ENABLE_MIN) ||
 		    (new > SCTPCTL_AUTH_ENABLE_MAX) ||
 		    ((new == 0) && (SCTP_BASE_SYSCTL(sctp_asconf_enable) == 1))) {
+#endif
 			error = EINVAL;
 		} else {
 			SCTP_BASE_SYSCTL(sctp_auth_enable) = new;
@@ -619,9 +634,14 @@ sctp_sysctl_handle_asconf(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if ((error == 0) &&
 	    (req->newptr != NULL)) {
+#if (SCTPCTL_ASCONF_ENABLE_MIN == 0)
+		if ((new > SCTPCTL_ASCONF_ENABLE_MAX) ||
+		    ((new == 1) && (SCTP_BASE_SYSCTL(sctp_auth_enable) == 0))) {
+#else
 		if ((new < SCTPCTL_ASCONF_ENABLE_MIN) ||
 		    (new > SCTPCTL_ASCONF_ENABLE_MAX) ||
 		    ((new == 1) && (SCTP_BASE_SYSCTL(sctp_auth_enable) == 0))) {
+#endif
 			error = EINVAL;
 		} else {
 			SCTP_BASE_SYSCTL(sctp_asconf_enable) = new;
@@ -634,19 +654,27 @@ static int
 sctp_sysctl_handle_stats(SYSCTL_HANDLER_ARGS)
 {
 	int error;
-
 #if defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
+	struct sctpstat *sarry;
+	struct sctpstat sb;
 	int cpu;
-	struct sctpstat sb, *sarry;
-
 #endif
+	struct sctpstat sb_temp;
 
 	if ((req->newptr != NULL) &&
 	    (req->newlen != sizeof(struct sctpstat))) {
 		return (EINVAL);
 	}
+	memset(&sb_temp, 0, sizeof(struct sctpstat));
+
+	if (req->newptr != NULL) {
+		error = SYSCTL_IN(req, &sb_temp, sizeof(struct sctpstat));
+		if (error != 0) {
+			return (error);
+		}
+	}
 #if defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
-	memset(&sb, 0, sizeof(struct sctpstat));
+	memset(&sb, 0, sizeof(sb));
 	for (cpu = 0; cpu < mp_maxid; cpu++) {
 		sarry = &SCTP_BASE_STATS[cpu];
 		if (sarry->sctps_discontinuitytime.tv_sec > sb.sctps_discontinuitytime.tv_sec) {
@@ -688,7 +716,6 @@ sctp_sysctl_handle_stats(SYSCTL_HANDLER_ARGS)
 		sb.sctps_recvauthfailed += sarry->sctps_recvauthfailed;
 		sb.sctps_recvexpress += sarry->sctps_recvexpress;
 		sb.sctps_recvexpressm += sarry->sctps_recvexpressm;
-		sb.sctps_recvnocrc += sarry->sctps_recvnocrc;
 		sb.sctps_recvswcrc += sarry->sctps_recvswcrc;
 		sb.sctps_recvhwcrc += sarry->sctps_recvhwcrc;
 		sb.sctps_sendpackets += sarry->sctps_sendpackets;
@@ -701,7 +728,6 @@ sctp_sysctl_handle_stats(SYSCTL_HANDLER_ARGS)
 		sb.sctps_sendecne += sarry->sctps_sendecne;
 		sb.sctps_sendauth += sarry->sctps_sendauth;
 		sb.sctps_senderrors += sarry->sctps_senderrors;
-		sb.sctps_sendnocrc += sarry->sctps_sendnocrc;
 		sb.sctps_sendswcrc += sarry->sctps_sendswcrc;
 		sb.sctps_sendhwcrc += sarry->sctps_sendhwcrc;
 		sb.sctps_pdrpfmbox += sarry->sctps_pdrpfmbox;
@@ -775,12 +801,18 @@ sctp_sysctl_handle_stats(SYSCTL_HANDLER_ARGS)
 		sb.sctps_send_cwnd_avoid += sarry->sctps_send_cwnd_avoid;
 		sb.sctps_fwdtsn_map_over += sarry->sctps_fwdtsn_map_over;
 		if (req->newptr != NULL) {
-			memcpy(sarry, req->newptr, sizeof(struct sctpstat));
+			memcpy(sarry, &sb_temp, sizeof(struct sctpstat));
 		}
 	}
 	error = SYSCTL_OUT(req, &sb, sizeof(struct sctpstat));
 #else
 	error = SYSCTL_OUT(req, &SCTP_BASE_STATS, sizeof(struct sctpstat));
+	if (error != 0) {
+		return (error);
+	}
+	if (req->newptr != NULL) {
+		memcpy(&SCTP_BASE_STATS, &sb_temp, sizeof(struct sctpstat));
+	}
 #endif
 	return (error);
 }
@@ -803,7 +835,6 @@ sctp_sysctl_handle_trace_log_clear(SYSCTL_HANDLER_ARGS)
 	memset(&SCTP_BASE_SYSCTL(sctp_log), 0, sizeof(struct sctp_log));
 	return (error);
 }
-
 #endif
 
 #define SCTP_UINT_SYSCTL(mib_name, var_name, prefix)			\
@@ -845,7 +876,6 @@ SYSCTL_PROC(_net_inet_sctp, OID_AUTO, asconf_enable, CTLFLAG_VNET | CTLTYPE_UINT
 SCTP_UINT_SYSCTL(reconfig_enable, sctp_reconfig_enable, SCTPCTL_RECONFIG_ENABLE)
 SCTP_UINT_SYSCTL(nrsack_enable, sctp_nrsack_enable, SCTPCTL_NRSACK_ENABLE)
 SCTP_UINT_SYSCTL(pktdrop_enable, sctp_pktdrop_enable, SCTPCTL_PKTDROP_ENABLE)
-SCTP_UINT_SYSCTL(strict_sacks, sctp_strict_sacks, SCTPCTL_STRICT_SACKS)
 SCTP_UINT_SYSCTL(peer_chkoh, sctp_peer_chunk_oh, SCTPCTL_PEER_CHKOH)
 SCTP_UINT_SYSCTL(maxburst, sctp_max_burst_default, SCTPCTL_MAXBURST)
 SCTP_UINT_SYSCTL(fr_maxburst, sctp_fr_max_burst_default, SCTPCTL_FRMAXBURST)
@@ -883,7 +913,6 @@ SCTP_UINT_SYSCTL(max_chained_mbufs, sctp_mbuf_threshold_count, SCTPCTL_MAX_CHAIN
 SCTP_UINT_SYSCTL(do_sctp_drain, sctp_do_drain, SCTPCTL_DO_SCTP_DRAIN)
 SCTP_UINT_SYSCTL(hb_max_burst, sctp_hb_maxburst, SCTPCTL_HB_MAX_BURST)
 SCTP_UINT_SYSCTL(abort_at_limit, sctp_abort_if_one_2_one_hits_limit, SCTPCTL_ABORT_AT_LIMIT)
-SCTP_UINT_SYSCTL(strict_data_order, sctp_strict_data_order, SCTPCTL_STRICT_DATA_ORDER)
 SCTP_UINT_SYSCTL(min_residual, sctp_min_residual, SCTPCTL_MIN_RESIDUAL)
 SCTP_UINT_SYSCTL(max_retran_chunk, sctp_max_retran_chunk, SCTPCTL_MAX_RETRAN_CHUNK)
 SCTP_UINT_SYSCTL(log_level, sctp_logging_level, SCTPCTL_LOGGING_LEVEL)

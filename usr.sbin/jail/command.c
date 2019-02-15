@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 James Gritton
  * All rights reserved.
  *
@@ -47,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <vis.h>
 
 #include "jailp.h"
 
@@ -91,9 +94,13 @@ next_command(struct cfjail *j)
 	int create_failed, stopping;
 
 	if (paralimit == 0) {
-		requeue(j, &runnable);
+		if (j->flags & JF_FROM_RUNQ)
+			requeue_head(j, &runnable);
+		else
+			requeue(j, &runnable);
 		return 1;
 	}
+	j->flags &= ~JF_FROM_RUNQ;
 	create_failed = (j->flags & (JF_STOP | JF_FAILED)) == JF_FAILED;
 	stopping = (j->flags & JF_STOP) != 0;
 	comparam = *j->comparam;
@@ -112,6 +119,12 @@ next_command(struct cfjail *j)
 				if (!bool_param(j->intparams[IP_MOUNT_FDESCFS]))
 					continue;
 				j->comstring = &dummystring;
+				break;
+			case IP_MOUNT_PROCFS:
+				if (!bool_param(j->intparams[IP_MOUNT_PROCFS]))
+					continue;
+				j->comstring = &dummystring;
+				break;
 			case IP__OP:
 			case IP_STOP_TIMEOUT:
 				j->comstring = &dummystring;
@@ -134,8 +147,8 @@ next_command(struct cfjail *j)
 		}
 		if (j->comstring == NULL || j->comstring->len == 0 ||
 		    (create_failed && (comparam == IP_EXEC_PRESTART ||
-		    comparam == IP_EXEC_START || comparam == IP_COMMAND ||
-		    comparam == IP_EXEC_POSTSTART)))
+		    comparam == IP_EXEC_CREATED || comparam == IP_EXEC_START ||
+		    comparam == IP_COMMAND || comparam == IP_EXEC_POSTSTART)))
 			continue;
 		switch (run_command(j)) {
 		case -1:
@@ -153,20 +166,23 @@ next_command(struct cfjail *j)
 int
 finish_command(struct cfjail *j)
 {
+	struct cfjail *rj;
 	int error;
 
 	if (!(j->flags & JF_SLEEPQ))
 		return 0;
 	j->flags &= ~JF_SLEEPQ;
-	if (*j->comparam == IP_STOP_TIMEOUT)
-	{
+	if (*j->comparam == IP_STOP_TIMEOUT) {
 		j->flags &= ~JF_TIMEOUT;
 		j->pstatus = 0;
 		return 0;
 	}
 	paralimit++;
-	if (!TAILQ_EMPTY(&runnable))
-		requeue(TAILQ_FIRST(&runnable), &ready);
+	if (!TAILQ_EMPTY(&runnable)) {
+		rj = TAILQ_FIRST(&runnable);
+		rj->flags |= JF_FROM_RUNQ;
+		requeue(rj, &ready);
+	}
 	error = 0;
 	if (j->flags & JF_TIMEOUT) {
 		j->flags &= ~JF_TIMEOUT;
@@ -252,7 +268,7 @@ next_proc(int nonblock)
 }
 
 /*
- * Run a single command for a jail, possible inside the jail.
+ * Run a single command for a jail, possibly inside the jail.
  */
 static int
 run_command(struct cfjail *j)
@@ -260,8 +276,8 @@ run_command(struct cfjail *j)
 	const struct passwd *pwd;
 	const struct cfstring *comstring, *s;
 	login_cap_t *lcap;
-	char **argv;
-	char *cs, *comcs, *devpath;
+	const char **argv;
+	char *acs, *cs, *comcs, *devpath;
 	const char *jidstr, *conslog, *path, *ruleset, *term, *username;
 	enum intparam comparam;
 	size_t comlen;
@@ -332,27 +348,26 @@ run_command(struct cfjail *j)
 		}
 
 		argv = alloca((8 + argc) * sizeof(char *));
-		*(const char **)&argv[0] = _PATH_IFCONFIG;
+		argv[0] = _PATH_IFCONFIG;
 		if ((cs = strchr(val, '|'))) {
-			argv[1] = alloca(cs - val + 1);
-			strlcpy(argv[1], val, cs - val + 1);
+			argv[1] = acs = alloca(cs - val + 1);
+			strlcpy(acs, val, cs - val + 1);
 			addr = cs + 1;
 		} else {
-			*(const char **)&argv[1] =
-			    string_param(j->intparams[IP_INTERFACE]);
+			argv[1] = string_param(j->intparams[IP_INTERFACE]);
 			addr = val;
 		}
-		*(const char **)&argv[2] = "inet";
+		argv[2] = "inet";
 		if (!(cs = strchr(addr, '/'))) {
 			argv[3] = addr;
-			*(const char **)&argv[4] = "netmask";
-			*(const char **)&argv[5] = "255.255.255.255";
+			argv[4] = "netmask";
+			argv[5] = "255.255.255.255";
 			argc = 6;
 		} else if (strchr(cs + 1, '.')) {
-			argv[3] = alloca(cs - addr + 1);
-			strlcpy(argv[3], addr, cs - addr + 1);
-			*(const char **)&argv[4] = "netmask";
-			*(const char **)&argv[5] = cs + 1;
+			argv[3] = acs = alloca(cs - addr + 1);
+			strlcpy(acs, addr, cs - addr + 1);
+			argv[4] = "netmask";
+			argv[5] = cs + 1;
 			argc = 6;
 		} else {
 			argv[3] = addr;
@@ -360,14 +375,15 @@ run_command(struct cfjail *j)
 		}
 
 		if (!down) {
-			for (cs = strtok(extrap, " "); cs; cs = strtok(NULL, " ")) {
+			for (cs = strtok(extrap, " "); cs;
+			     cs = strtok(NULL, " ")) {
 				size_t len = strlen(cs) + 1;
-				argv[argc] = alloca(len);
-				strlcpy(argv[argc++], cs, len);
+				argv[argc++] = acs = alloca(len);
+				strlcpy(acs, cs, len);
 			}
 		}
 
-		*(const char **)&argv[argc] = down ? "-alias" : "alias";
+		argv[argc] = down ? "-alias" : "alias";
 		argv[argc + 1] = NULL;
 		break;
 #endif
@@ -389,46 +405,45 @@ run_command(struct cfjail *j)
 		}
 
 		argv = alloca((8 + argc) * sizeof(char *));
-		*(const char **)&argv[0] = _PATH_IFCONFIG;
+		argv[0] = _PATH_IFCONFIG;
 		if ((cs = strchr(val, '|'))) {
-			argv[1] = alloca(cs - val + 1);
-			strlcpy(argv[1], val, cs - val + 1);
+			argv[1] = acs = alloca(cs - val + 1);
+			strlcpy(acs, val, cs - val + 1);
 			addr = cs + 1;
 		} else {
-			*(const char **)&argv[1] =
-			    string_param(j->intparams[IP_INTERFACE]);
+			argv[1] = string_param(j->intparams[IP_INTERFACE]);
 			addr = val;
 		}
-		*(const char **)&argv[2] = "inet6";
+		argv[2] = "inet6";
 		argv[3] = addr;
 		if (!(cs = strchr(addr, '/'))) {
-			*(const char **)&argv[4] = "prefixlen";
-			*(const char **)&argv[5] = "128";
+			argv[4] = "prefixlen";
+			argv[5] = "128";
 			argc = 6;
 		} else
 			argc = 4;
 
 		if (!down) {
-			for (cs = strtok(extrap, " "); cs; cs = strtok(NULL, " ")) {
+			for (cs = strtok(extrap, " "); cs;
+			     cs = strtok(NULL, " ")) {
 				size_t len = strlen(cs) + 1;
-				argv[argc] = alloca(len);
-				strlcpy(argv[argc++], cs, len);
+				argv[argc++] = acs = alloca(len);
+				strlcpy(acs, cs, len);
 			}
 		}
 
-		*(const char **)&argv[argc] = down ? "-alias" : "alias";
+		argv[argc] = down ? "-alias" : "alias";
 		argv[argc + 1] = NULL;
-		break;	
+		break;
 #endif
 
 	case IP_VNET_INTERFACE:
 		argv = alloca(5 * sizeof(char *));
-		*(const char **)&argv[0] = _PATH_IFCONFIG;
+		argv[0] = _PATH_IFCONFIG;
 		argv[1] = comstring->s;
-		*(const char **)&argv[2] = down ? "-vnet" : "vnet";
+		argv[2] = down ? "-vnet" : "vnet";
 		jidstr = string_param(j->intparams[KP_JID]);
-		*(const char **)&argv[3] =
-			jidstr ? jidstr : string_param(j->intparams[KP_NAME]);
+		argv[3] = jidstr ? jidstr : string_param(j->intparams[KP_NAME]);
 		argv[4] = NULL;
 		break;
 
@@ -439,8 +454,14 @@ run_command(struct cfjail *j)
 		strcpy(comcs, comstring->s);
 		argc = 0;
 		for (cs = strtok(comcs, " \t\f\v\r\n"); cs && argc < 4;
-		     cs = strtok(NULL, " \t\f\v\r\n"))
+		     cs = strtok(NULL, " \t\f\v\r\n")) {
+			if (argc <= 1 && strunvis(cs, cs) < 0) {
+				jail_warnx(j, "%s: %s: fstab parse error",
+				    j->intparams[comparam]->name, comstring->s);
+				return -1;
+			}
 			argv[argc++] = cs;
+		}
 		if (argc == 0)
 			return 0;
 		if (argc < 3) {
@@ -454,22 +475,22 @@ run_command(struct cfjail *j)
 		if (down) {
 			argv[4] = NULL;
 			argv[3] = argv[1];
-			*(const char **)&argv[0] = "/sbin/umount";
+			argv[0] = "/sbin/umount";
 		} else {
 			if (argc == 4) {
 				argv[7] = NULL;
 				argv[6] = argv[1];
 				argv[5] = argv[0];
 				argv[4] = argv[3];
-				*(const char **)&argv[3] = "-o";
+				argv[3] = "-o";
 			} else {
 				argv[5] = NULL;
 				argv[4] = argv[1];
 				argv[3] = argv[0];
 			}
-			*(const char **)&argv[0] = _PATH_MOUNT;
+			argv[0] = _PATH_MOUNT;
 		}
-		*(const char **)&argv[1] = "-t";
+		argv[1] = "-t";
 		break;
 
 	case IP_MOUNT_DEVFS:
@@ -485,19 +506,19 @@ run_command(struct cfjail *j)
 		    down ? "devfs" : NULL) < 0)
 			return -1;
 		if (down) {
-			*(const char **)&argv[0] = "/sbin/umount";
+			argv[0] = "/sbin/umount";
 			argv[1] = devpath;
 			argv[2] = NULL;
 		} else {
-			*(const char **)&argv[0] = _PATH_MOUNT;
-			*(const char **)&argv[1] = "-t";
-			*(const char **)&argv[2] = "devfs";
+			argv[0] = _PATH_MOUNT;
+			argv[1] = "-t";
+			argv[2] = "devfs";
 			ruleset = string_param(j->intparams[KP_DEVFS_RULESET]);
 			if (!ruleset)
 			    ruleset = "4";	/* devfsrules_jail */
-			argv[3] = alloca(11 + strlen(ruleset));
-			sprintf(argv[3], "-oruleset=%s", ruleset);
-			*(const char **)&argv[4] = ".";
+			argv[3] = acs = alloca(11 + strlen(ruleset));
+			sprintf(acs, "-oruleset=%s", ruleset);
+			argv[4] = ".";
 			argv[5] = devpath;
 			argv[6] = NULL;
 		}
@@ -516,14 +537,40 @@ run_command(struct cfjail *j)
 		    down ? "fdescfs" : NULL) < 0)
 			return -1;
 		if (down) {
-			*(const char **)&argv[0] = "/sbin/umount";
+			argv[0] = "/sbin/umount";
 			argv[1] = devpath;
 			argv[2] = NULL;
 		} else {
-			*(const char **)&argv[0] = _PATH_MOUNT;
-			*(const char **)&argv[1] = "-t";
-			*(const char **)&argv[2] = "fdescfs";
-			*(const char **)&argv[3] = ".";
+			argv[0] = _PATH_MOUNT;
+			argv[1] = "-t";
+			argv[2] = "fdescfs";
+			argv[3] = ".";
+			argv[4] = devpath;
+			argv[5] = NULL;
+		}
+		break;
+
+	case IP_MOUNT_PROCFS:
+		argv = alloca(7 * sizeof(char *));
+		path = string_param(j->intparams[KP_PATH]);
+		if (path == NULL) {
+			jail_warnx(j, "mount.procfs: no path");
+			return -1;
+		}
+		devpath = alloca(strlen(path) + 6);
+		sprintf(devpath, "%s/proc", path);
+		if (check_path(j, "mount.procfs", devpath, 0,
+		    down ? "procfs" : NULL) < 0)
+			return -1;
+		if (down) {
+			argv[0] = "/sbin/umount";
+			argv[1] = devpath;
+			argv[2] = NULL;
+		} else {
+			argv[0] = _PATH_MOUNT;
+			argv[1] = "-t";
+			argv[2] = "procfs";
+			argv[3] = ".";
 			argv[4] = devpath;
 			argv[5] = NULL;
 		}
@@ -548,8 +595,8 @@ run_command(struct cfjail *j)
 		if ((cs = strpbrk(comstring->s, "!\"$&'()*;<>?[\\]`{|}~")) &&
 		    !(cs[0] == '&' && cs[1] == '\0')) {
 			argv = alloca(4 * sizeof(char *));
-			*(const char **)&argv[0] = _PATH_BSHELL;
-			*(const char **)&argv[1] = "-c";
+			argv[0] = _PATH_BSHELL;
+			argv[1] = "-c";
 			argv[2] = comstring->s;
 			argv[3] = NULL;
 		} else {
@@ -558,13 +605,13 @@ run_command(struct cfjail *j)
 				bg = 1;
 			}
 			comcs = alloca(comstring->len + 1);
-			strcpy(comcs, comstring->s);	
+			strcpy(comcs, comstring->s);
 			argc = 0;
 			for (cs = strtok(comcs, " \t\f\v\r\n"); cs;
 			     cs = strtok(NULL, " \t\f\v\r\n"))
 				argc++;
 			argv = alloca((argc + 1) * sizeof(char *));
-			strcpy(comcs, comstring->s);	
+			strcpy(comcs, comstring->s);
 			argc = 0;
 			for (cs = strtok(comcs, " \t\f\v\r\n"); cs;
 			     cs = strtok(NULL, " \t\f\v\r\n"))
@@ -668,6 +715,11 @@ run_command(struct cfjail *j)
 			if (term != NULL)
 				setenv("TERM", term, 1);
 		}
+		if (setgid(pwd->pw_gid) < 0) {
+			jail_warnx(j, "setgid %d: %s", pwd->pw_gid,
+			    strerror(errno));
+			exit(1);
+		}
 		if (setusercontext(lcap, pwd, pwd->pw_uid, username
 		    ? LOGIN_SETALL & ~LOGIN_SETGROUP & ~LOGIN_SETLOGIN
 		    : LOGIN_SETPATH | LOGIN_SETENV) < 0) {
@@ -693,7 +745,7 @@ run_command(struct cfjail *j)
 		exit(1);
 	}
 	closefrom(3);
-	execvp(argv[0], argv);
+	execvp(argv[0], __DECONST(char *const*, argv));
 	jail_warnx(j, "exec %s: %s", argv[0], strerror(errno));
 	exit(1);
 }
@@ -725,7 +777,7 @@ add_proc(struct cfjail *j, pid_t pid)
 	if (j->timeout.tv_sec == 0)
 		requeue(j, &sleeping);
 	else {
-		/* File the jail in the sleep queue acording to its timeout. */
+		/* File the jail in the sleep queue according to its timeout. */
 		TAILQ_REMOVE(j->queue, j, tq);
 		TAILQ_FOREACH(tj, &sleeping, tq) {
 			if (!tj->timeout.tv_sec ||
@@ -841,6 +893,7 @@ get_user_info(struct cfjail *j, const char *username,
 {
 	const struct passwd *pwd;
 
+	errno = 0;
 	*pwdp = pwd = username ? getpwnam(username) : getpwuid(getuid());
 	if (pwd == NULL) {
 		if (errno)

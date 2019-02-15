@@ -1,6 +1,8 @@
 /*	$NetBSD: disassem.h,v 1.4 2001/03/04 04:15:58 matt Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997 Mark Brinicombe.
  * Copyright (c) 1997 Causality Limited.
  *
@@ -42,7 +44,7 @@
 #define _MACHINE_DISASSEM_H_
 typedef struct {
 	u_int	(*di_readword)(u_int);
-	void	(*di_printaddr)(u_int);	
+	void	(*di_printaddr)(u_int);
 	int	(*di_printf)(const char *, ...) __printflike(1, 2);
 } disasm_interface_t;
 

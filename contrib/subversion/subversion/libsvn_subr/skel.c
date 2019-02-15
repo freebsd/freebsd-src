@@ -380,7 +380,7 @@ explicit_atom(const char *data,
   data++;
 
   /* Check the length.  */
-  if (data + size > end)
+  if (end - data < size)
     return NULL;
 
   /* Allocate the skel representing this string.  */

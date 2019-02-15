@@ -235,7 +235,14 @@ ar9300_enable_dfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
     int reg_writes = 0;
 
     val = OS_REG_READ(ah, AR_PHY_RADAR_0);
-    val |= AR_PHY_RADAR_0_FFT_ENA | AR_PHY_RADAR_0_ENA;
+    val |= AR_PHY_RADAR_0_FFT_ENA;
+
+
+    if (pe->pe_enabled != HAL_PHYERR_PARAM_NOVAL) {
+        val &= ~AR_PHY_RADAR_0_ENA;
+        val |= SM(pe->pe_enabled, AR_PHY_RADAR_0_ENA);
+    }
+
     if (pe->pe_firpwr != HAL_PHYERR_PARAM_NOVAL) {
         val &= ~AR_PHY_RADAR_0_FIRPWR;
         val |= SM(pe->pe_firpwr, AR_PHY_RADAR_0_FIRPWR);
@@ -328,6 +335,7 @@ ar9300_get_dfs_thresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
     pe->pe_height = MS(val, AR_PHY_RADAR_0_HEIGHT);
     pe->pe_prssi = MS(val, AR_PHY_RADAR_0_PRSSI);
     pe->pe_inband = MS(val, AR_PHY_RADAR_0_INBAND);
+    pe->pe_enabled = !! MS(val, AR_PHY_RADAR_0_ENA);
 
     val = OS_REG_READ(ah, AR_PHY_RADAR_1);
 
@@ -423,6 +431,23 @@ ar9300_get_dfs_radars(
     pe->pe_relstep = AR9300_DFS_RELSTEP;
     pe->pe_maxlen = AR9300_DFS_MAXLEN;
     return dfs_radars;
+}
+
+HAL_BOOL
+ar9300_get_default_dfs_thresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
+{
+
+    pe->pe_firpwr = AR9300_DFS_FIRPWR;
+    pe->pe_rrssi = AR9300_DFS_RRSSI;
+    pe->pe_height = AR9300_DFS_HEIGHT;
+    pe->pe_prssi = AR9300_DFS_PRSSI;
+    /* see prssi comment above */
+
+    pe->pe_inband = AR9300_DFS_INBAND;
+    pe->pe_relpwr = AR9300_DFS_RELPWR;
+    pe->pe_relstep = AR9300_DFS_RELSTEP;
+    pe->pe_maxlen = AR9300_DFS_MAXLEN;
+    return (AH_TRUE);
 }
 
 void ar9300_adjust_difs(struct ath_hal *ah, u_int32_t val)
@@ -578,7 +603,7 @@ ar9300_handle_radar_bb_panic(struct ath_hal *ah)
         /* EV92527: we do not need a reset if we see this signature */
         HALDEBUG(ah, HAL_DEBUG_DFS, "%s: BB Panic -- 0x1300000a\n", __func__);
         return AH_TRUE;
-    } else if (AR_SREV_WASP(ah) && (status == 0x04000409)) {
+    } else if ((AR_SREV_WASP(ah) || AR_SREV_HONEYBEE(ah)) && (status == 0x04000409)) {
         return AH_TRUE;
     } else {
         if (ar9300_get_capability(ah, HAL_CAP_LDPCWAR, 0, AH_NULL) == HAL_OK &&

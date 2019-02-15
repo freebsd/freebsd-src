@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1995, 1996
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -51,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include "ypxfr_extern.h"
 
 char *yp_dir = "";	/* No particular default needed. */
-int _rpcpmstart = 0;
 int debug = 1;
 
 static void
@@ -66,7 +67,6 @@ usage(void)
 }
 
 #define PERM_SECURE (S_IRUSR|S_IWUSR)
-
 static DB *
 open_db(char *path, int flags)
 {
@@ -185,7 +185,6 @@ main(int argc, char *argv[])
 	 * write to stdout; the db library doesn't let you
 	 * write to a file stream like that.
 	 */
-
 	if (!strcmp(infile, "-")) {
 		ifp = stdin;
 	} else {
@@ -327,7 +326,6 @@ main(int argc, char *argv[])
 	(void)(dbp->close)(dbp);
 
 doclear:
-
 	if (clear) {
 		char in = 0;
 		char *out = NULL;

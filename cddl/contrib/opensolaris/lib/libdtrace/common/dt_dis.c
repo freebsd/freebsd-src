@@ -434,7 +434,7 @@ dt_dis(const dtrace_difo_t *dp, FILE *fp)
 	ulong_t i = 0;
 	char type[DT_TYPE_NAMELEN];
 
-	(void) fprintf(fp, "\nDIFO 0x%p returns %s\n", (void *)dp,
+	(void) fprintf(fp, "\nDIFO %p returns %s\n", (void *)dp,
 	    dt_dis_typestr(&dp->dtdo_rtype, type, sizeof (type)));
 
 	(void) fprintf(fp, "%-3s %-8s    %s\n",
@@ -499,7 +499,7 @@ dt_dis(const dtrace_difo_t *dp, FILE *fp)
 		if (v->dtdv_flags & DIFV_F_MOD)
 			(void) strcat(flags, "/w");
 
-		(void) fprintf(fp, "%-16s %-4x %-3s %-3s %-4s %s\n",
+		(void) fprintf(fp, "%-16s %-4u %-3s %-3s %-4s %s\n",
 		    &dp->dtdo_strtab[v->dtdv_name],
 		    v->dtdv_id, kind, scope, flags + 1,
 		    dt_dis_typestr(&v->dtdv_type, type, sizeof (type)));

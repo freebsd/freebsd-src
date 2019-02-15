@@ -81,8 +81,8 @@ _krb5_des_checksum(krb5_context context,
     EVP_DigestFinal_ex (m, p + 8, NULL);
     EVP_MD_CTX_destroy(m);
     memset (&ivec, 0, sizeof(ivec));
-    EVP_CipherInit_ex(&ctx->ectx, NULL, NULL, NULL, (void *)&ivec, -1);
-    EVP_Cipher(&ctx->ectx, p, p, 24);
+    EVP_CipherInit_ex(ctx->ectx, NULL, NULL, NULL, (void *)&ivec, -1);
+    EVP_Cipher(ctx->ectx, p, p, 24);
 
     return 0;
 }
@@ -109,8 +109,8 @@ _krb5_des_verify(krb5_context context,
     }
 
     memset(&ivec, 0, sizeof(ivec));
-    EVP_CipherInit_ex(&ctx->dctx, NULL, NULL, NULL, (void *)&ivec, -1);
-    EVP_Cipher(&ctx->dctx, tmp, C->checksum.data, 24);
+    EVP_CipherInit_ex(ctx->dctx, NULL, NULL, NULL, (void *)&ivec, -1);
+    EVP_Cipher(ctx->dctx, tmp, C->checksum.data, 24);
 
     EVP_DigestInit_ex(m, evp_md, NULL);
     EVP_DigestUpdate(m, tmp, 8); /* confounder */

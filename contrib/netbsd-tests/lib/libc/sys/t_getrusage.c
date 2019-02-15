@@ -1,4 +1,4 @@
-/* $NetBSD: t_getrusage.c,v 1.3 2014/09/03 19:24:12 matt Exp $ */
+/* $NetBSD: t_getrusage.c,v 1.5 2017/01/13 20:31:06 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_getrusage.c,v 1.3 2014/09/03 19:24:12 matt Exp $");
+__RCSID("$NetBSD: t_getrusage.c,v 1.5 2017/01/13 20:31:06 christos Exp $");
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -47,10 +47,14 @@ static void		sighandler(int);
 static const size_t	maxiter = 2000;
 
 static void
-sighandler(int signo)
+sighandler(int signo __unused)
 {
 	/* Nothing. */
 }
+
+#ifdef __FreeBSD__
+#define	asm __asm
+#endif
 
 static void
 work(void)
@@ -60,6 +64,8 @@ work(void)
 	while (n > 0) {
 #ifdef __or1k__
 		 asm volatile("l.nop");	/* Do something. */
+#elif defined(__ia64__)
+		 asm volatile("nop 0"); /* Do something. */
 #else
 		 asm volatile("nop");	/* Do something. */
 #endif
@@ -129,7 +135,9 @@ ATF_TC_BODY(getrusage_utime_back, tc)
 	/*
 	 * Test that two consecutive calls are sane.
 	 */
+#ifdef __NetBSD__
 	atf_tc_expect_fail("PR kern/30115");
+#endif
 
 	for (i = 0; i < maxiter; i++) {
 
@@ -148,7 +156,9 @@ ATF_TC_BODY(getrusage_utime_back, tc)
 			atf_tc_fail("user time went backwards");
 	}
 
+#ifdef __NetBSD__
 	atf_tc_fail("anticipated error did not occur");
+#endif
 }
 
 ATF_TC(getrusage_utime_zero);
@@ -161,6 +171,11 @@ ATF_TC_BODY(getrusage_utime_zero, tc)
 {
 	struct rusage ru;
 	size_t i;
+
+#ifdef __FreeBSD__
+	atf_tc_skip("this testcase passes/fails sporadically on FreeBSD/i386 "
+	    "@ r273153 (at least)");
+#endif
 
 	/*
 	 * Test that getrusage(2) does not return

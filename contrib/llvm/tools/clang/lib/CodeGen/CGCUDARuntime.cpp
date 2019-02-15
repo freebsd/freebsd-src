@@ -31,25 +31,16 @@ RValue CGCUDARuntime::EmitCUDAKernelCallExpr(CodeGenFunction &CGF,
   llvm::BasicBlock *ContBlock = CGF.createBasicBlock("kcall.end");
 
   CodeGenFunction::ConditionalEvaluation eval(CGF);
-  CGF.EmitBranchOnBoolExpr(E->getConfig(), ContBlock, ConfigOKBlock);
+  CGF.EmitBranchOnBoolExpr(E->getConfig(), ContBlock, ConfigOKBlock,
+                           /*TrueCount=*/0);
 
   eval.begin(CGF);
   CGF.EmitBlock(ConfigOKBlock);
-
-  const Decl *TargetDecl = 0;
-  if (const ImplicitCastExpr *CE = dyn_cast<ImplicitCastExpr>(E->getCallee())) {
-    if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CE->getSubExpr())) {
-      TargetDecl = DRE->getDecl();
-    }
-  }
-
-  llvm::Value *Callee = CGF.EmitScalarExpr(E->getCallee());
-  CGF.EmitCall(E->getCallee()->getType(), Callee, E->getLocStart(),
-               ReturnValue, E->arg_begin(), E->arg_end(), TargetDecl);
+  CGF.EmitSimpleCallExpr(E, ReturnValue);
   CGF.EmitBranch(ContBlock);
 
   CGF.EmitBlock(ContBlock);
   eval.end(CGF);
 
-  return RValue::get(0);
+  return RValue::get(nullptr);
 }

@@ -11,7 +11,7 @@
 //  about subpar uses of NSAutoreleasePool.  Note that while the check itself
 //  (in its current form) could be written as a flow-insensitive check, in
 //  can be potentially enhanced in the future with flow-sensitive information.
-//  It is also a good example of the CheckerVisitor interface. 
+//  It is also a good example of the CheckerVisitor interface.
 //
 //===----------------------------------------------------------------------===//
 
@@ -32,7 +32,7 @@ using namespace ento;
 namespace {
 class NSAutoreleasePoolChecker
   : public Checker<check::PreObjCMessage> {
-  mutable OwningPtr<BugType> BT;
+  mutable std::unique_ptr<BugType> BT;
   mutable Selector releaseS;
 
 public:
@@ -48,7 +48,7 @@ void NSAutoreleasePoolChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
 
   const ObjCInterfaceDecl *OD = msg.getReceiverInterface();
   if (!OD)
-    return;  
+    return;
   if (!OD->getIdentifier()->isStr("NSAutoreleasePool"))
     return;
 
@@ -59,19 +59,20 @@ void NSAutoreleasePoolChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
     return;
 
   if (!BT)
-    BT.reset(new BugType("Use -drain instead of -release",
+    BT.reset(new BugType(this, "Use -drain instead of -release",
                          "API Upgrade (Apple)"));
 
-  ExplodedNode *N = C.addTransition();
+  ExplodedNode *N = C.generateNonFatalErrorNode();
   if (!N) {
     assert(0);
     return;
   }
 
-  BugReport *Report = new BugReport(*BT, "Use -drain instead of -release when "
-    "using NSAutoreleasePool and garbage collection", N);
+  auto Report = llvm::make_unique<BugReport>(
+      *BT, "Use -drain instead of -release when using NSAutoreleasePool and "
+           "garbage collection", N);
   Report->addRange(msg.getSourceRange());
-  C.emitReport(Report);
+  C.emitReport(std::move(Report));
 }
 
 void ento::registerNSAutoreleasePoolChecker(CheckerManager &mgr) {

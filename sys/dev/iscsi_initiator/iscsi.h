@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2010 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
@@ -356,7 +358,7 @@ typedef struct text_req {
 
 typedef struct logout_req {
      char	cmd;	// 0x06
-     char	reason;	// 0 - close session
+     u_char	reason;	// 0 - close session
      			// 1 - close connection
      			// 2 - remove the connection for recovery
      char	_2[2];

@@ -1,5 +1,7 @@
 /*	$NetBSD: if_de.c,v 1.86 1999/06/01 19:17:59 thorpej Exp $	*/
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
  * All rights reserved.
  *
@@ -419,7 +421,7 @@ tulip_linkup(tulip_softc_t * const sc, tulip_media_t media)
      * We could set probe_timeout to 0 but setting to 3000 puts this
      * in one central place and the only matters is tulip_link is
      * followed by a tulip_timeout.  Therefore setting it should not
-     * result in aberrant behavour.
+     * result in aberrant behaviour.
      */
     sc->tulip_probe_timeout = 3000;
     sc->tulip_probe_state = TULIP_PROBE_INACTIVE;
@@ -3051,7 +3053,7 @@ tulip_addr_filter(tulip_softc_t * const sc)
     else
 	bcopy(sc->tulip_enaddr, eaddr, ETHER_ADDR_LEN);
 
-    TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+    CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 
 	    if (ifma->ifma_addr->sa_family == AF_LINK)
 		multicnt++;
@@ -3078,7 +3080,7 @@ tulip_addr_filter(tulip_softc_t * const sc)
 	 */
 	bzero(sc->tulip_setupdata, sizeof(sc->tulip_setupdata));
 
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -3110,7 +3112,7 @@ tulip_addr_filter(tulip_softc_t * const sc)
 	    /*
 	     * Else can get perfect filtering for 16 addresses.
 	     */
-	    TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	    CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		    if (ifma->ifma_addr->sa_family != AF_LINK)
 			    continue;
 		    addrp = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
@@ -3918,7 +3920,7 @@ tulip_txput(tulip_softc_t * const sc, struct mbuf *m)
      * a bit reminiscent of going on the Ark two by two
      * since each descriptor for the TULIP can describe
      * two buffers.  So we advance through packet filling
-     * each of the two entries at a time to to fill each
+     * each of the two entries at a time to fill each
      * descriptor.  Clear the first and last segment bits
      * in each descriptor (actually just clear everything
      * but the end-of-ring or chain bits) to make sure
@@ -3937,8 +3939,8 @@ tulip_txput(tulip_softc_t * const sc, struct mbuf *m)
 	    segcnt++;
 	    m0 = m0->m_next;
     }
-#endif
     CTR2(KTR_TULIP, "tulip_txput: sending packet %p (%d chunks)", m, segcnt);
+#endif
     d_status = 0;
     eop = nextout = ri->ri_nextout;
     segcnt = 0;
@@ -4264,18 +4266,6 @@ tulip_ifioctl(struct ifnet * ifp, u_long cmd, caddr_t data)
 	    break;
 	}
 
-#ifdef SIOCGADDRROM
-	case SIOCGADDRROM: {
-	    error = copyout(sc->tulip_rombuf, ifr->ifr_data, sizeof(sc->tulip_rombuf));
-	    break;
-	}
-#endif
-#ifdef SIOCGCHIPID
-	case SIOCGCHIPID: {
-	    ifr->ifr_metric = (int) sc->tulip_chipid;
-	    break;
-	}
-#endif
 	default: {
 	    error = ether_ioctl(ifp, cmd, data);
 	    break;
@@ -4442,6 +4432,8 @@ tulip_attach(tulip_softc_t * const sc)
     TULIP_LOCK(sc);
     sc->tulip_flags &= ~TULIP_DEVICEPROBE;
     TULIP_UNLOCK(sc);
+
+    gone_by_fcp101_dev(sc->tulip_dev);
 }
 
 /* Release memory for a single descriptor ring. */
@@ -4887,8 +4879,8 @@ tulip_pci_attach(device_t dev)
 	    rid = 0;
 	    res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 					 RF_SHAREABLE | RF_ACTIVE);
-	    if (res == 0 || bus_setup_intr(dev, res, INTR_TYPE_NET |
-		    INTR_MPSAFE, NULL, intr_rtn, sc, &ih)) {
+	    if (res == NULL || bus_setup_intr(dev, res, INTR_TYPE_NET |
+                                              INTR_MPSAFE, NULL, intr_rtn, sc, &ih)) {
 		device_printf(dev, "couldn't map interrupt\n");
 		tulip_busdma_cleanup(sc);
 		ether_ifdetach(sc->tulip_ifp);

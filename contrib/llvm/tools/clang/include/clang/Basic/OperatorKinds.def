@@ -89,6 +89,7 @@ OVERLOADED_OPERATOR(EqualEqual           , "=="  , equalequal         , false, t
 OVERLOADED_OPERATOR(ExclaimEqual         , "!="  , exclaimequal       , false, true , false)
 OVERLOADED_OPERATOR(LessEqual            , "<="  , lessequal          , false, true , false)
 OVERLOADED_OPERATOR(GreaterEqual         , ">="  , greaterequal       , false, true , false)
+OVERLOADED_OPERATOR(Spaceship            , "<=>" , spaceship          , false, true , false)
 OVERLOADED_OPERATOR(AmpAmp               , "&&"  , ampamp             , false, true , false)
 OVERLOADED_OPERATOR(PipePipe             , "||"  , pipepipe           , false, true , false)
 OVERLOADED_OPERATOR(PlusPlus             , "++"  , plusplus           , true , true , false)
@@ -101,6 +102,7 @@ OVERLOADED_OPERATOR_MULTI(Subscript      , "[]"                       , false, t
 // ?: can *not* be overloaded, but we need the overload
 // resolution machinery for it.
 OVERLOADED_OPERATOR_MULTI(Conditional    , "?"                        , false, true , false)
+OVERLOADED_OPERATOR(Coawait              , "co_await", kw_co_await    , true , false, false)
 
 #undef OVERLOADED_OPERATOR_MULTI
 #undef OVERLOADED_OPERATOR

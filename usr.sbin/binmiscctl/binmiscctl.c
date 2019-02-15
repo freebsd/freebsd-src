@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/imgact_binmisc.h>
 #include <sys/linker.h>
+#include <sys/module.h>
 #include <sys/sysctl.h>
 
 enum cmd {
@@ -298,10 +299,12 @@ add_cmd(__unused int argc, char *argv[], ximgact_binmisc_entry_t *xbe)
 			break;
 
 		case 'm':
+			free(magic);
 			magic = strdup(optarg);
 			break;
 
 		case 'M':
+			free(mask);
 			mask = strdup(optarg);
 			xbe->xbe_flags |= IBF_USE_MASK;
 			break;
@@ -363,7 +366,7 @@ add_cmd(__unused int argc, char *argv[], ximgact_binmisc_entry_t *xbe)
 		usage("Error: Missing magic argument");
 	}
 
-	if (!xbe->xbe_interpreter) {
+	if (!strnlen(xbe->xbe_interpreter, IBE_INTERP_LEN_MAX)) {
 		usage("Error: Missing 'interpreter' argument");
 	}
 
@@ -371,8 +374,10 @@ add_cmd(__unused int argc, char *argv[], ximgact_binmisc_entry_t *xbe)
 }
 
 int
-name_cmd(__unused int argc, char *argv[], ximgact_binmisc_entry_t *xbe)
+name_cmd(int argc, char *argv[], ximgact_binmisc_entry_t *xbe)
 {
+	if (argc == 0)
+		usage("Required argument missing\n");
 	if (strlen(argv[0]) > IBE_NAME_MAX)
 		usage("'%s' string length longer than IBE_NAME_MAX (%d)",
 		    IBE_NAME_MAX);
@@ -399,7 +404,7 @@ main(int argc, char **argv)
 	size_t xbe_out_sz = 0, *xbe_out_szp = NULL;
 	uint32_t i;
 
-	if (kldfind(KMOD_NAME) == -1) {
+	if (modfind(KMOD_NAME) == -1) {
 		if (kldload(KMOD_NAME) == -1)
 			fatal("Can't load %s kernel module: %s",
 			    KMOD_NAME, strerror(errno));
@@ -414,7 +419,7 @@ main(int argc, char **argv)
 
 	argc--, argv++;
 	cmd = demux_cmd(argc, argv);
-	if (cmd == -1)
+	if (cmd < 0)
 		usage("Error: Unknown command \"%s\"", argv[0]);
 	argc--, argv++;
 

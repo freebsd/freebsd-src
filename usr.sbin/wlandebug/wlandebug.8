@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 17, 2009
+.Dd August 17, 2015
 .Dt WLANDEBUG 8
 .Os
 .Sh NAME
@@ -45,7 +45,7 @@ Running
 .Nm
 without any options will display the current messages
 enabled for the specified network interface
-(by default, ``ath0').
+(by default, ``wlan0').
 The default debugging level for new interfaces can be set
 by specifying the
 .Fl d
@@ -148,7 +148,7 @@ trace transmit rate control operation.
 .Sh EXAMPLES
 The following might be used to debug basic station mode operation:
 .Pp
-.Dl "wlandebug -i ral0 scan+auth+assoc"
+.Dl "wlandebug -i wlan1 scan+auth+assoc"
 .Pp
 it enables debug messages while scanning, authenticating to
 an access point, and associating to an access point.

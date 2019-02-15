@@ -1,5 +1,8 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Silicon Graphics International Corp.
+ * Copyright (c) 2014-2017 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,19 +42,20 @@
 #ifndef	_CTL_FRONTEND_H_
 #define	_CTL_FRONTEND_H_
 
+#include <cam/ctl/ctl_ioctl.h>
+#include <sys/nv.h>
+
 typedef enum {
 	CTL_PORT_STATUS_NONE		= 0x00,
 	CTL_PORT_STATUS_ONLINE		= 0x01,
-	CTL_PORT_STATUS_TARG_ONLINE	= 0x02,
-	CTL_PORT_STATUS_LUN_ONLINE	= 0x04
+	CTL_PORT_STATUS_HA_SHARED	= 0x02
 } ctl_port_status;
 
 typedef int (*fe_init_t)(void);
-typedef void (*fe_shutdown_t)(void);
+typedef int (*fe_shutdown_t)(void);
 typedef void (*port_func_t)(void *onoff_arg);
 typedef int (*port_info_func_t)(void *onoff_arg, struct sbuf *sb);
-typedef	int (*lun_func_t)(void *arg, struct ctl_id targ_id, int lun_id);
-typedef	uint32_t (*lun_map_func_t)(void *arg, uint32_t lun_id);
+typedef	int (*lun_func_t)(void *arg, int lun_id);
 typedef int (*fe_ioctl_t)(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			  struct thread *td);
 
@@ -60,12 +64,13 @@ typedef int (*fe_ioctl_t)(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	{ \
 		switch (type) { \
 		case MOD_LOAD: \
-			ctl_frontend_register( \
-				(struct ctl_frontend *)data); \
+			return (ctl_frontend_register( \
+				(struct ctl_frontend *)data)); \
 			break; \
 		case MOD_UNLOAD: \
-			printf(#name " module unload - not possible for this module type\n"); \
-			return EINVAL; \
+			return (ctl_frontend_deregister( \
+				(struct ctl_frontend *)data)); \
+			break; \
 		default: \
 			return EOPNOTSUPP; \
 		} \
@@ -118,7 +123,6 @@ struct ctl_wwpn_iid {
  * port_name:		  A string describing the FETD.  e.g. "LSI 1030T U320"
  *			  or whatever you want to use to describe the driver.
  *
- *
  * physical_port:	  This is the physical port number of this
  * 			  particular port within the driver/hardware.  This
  * 			  number is hardware/driver specific.
@@ -128,12 +132,12 @@ struct ctl_wwpn_iid {
  * port_online():	  This function is called, with onoff_arg as its
  *			  argument, by the CTL layer when it wants the FETD
  *			  to start responding to selections on the specified
- * 			  target ID.  (targ_target)
+ * 			  target ID.
  *
  * port_offline():	  This function is called, with onoff_arg as its
  *			  argument, by the CTL layer when it wants the FETD
  * 			  to stop responding to selection on the specified
- * 			  target ID.  (targ_target)
+ * 			  target ID.
  *
  * onoff_arg:		  This is supplied as an argument to port_online()
  *			  and port_offline().  This is specified by the
@@ -177,11 +181,6 @@ struct ctl_wwpn_iid {
  *			  to request a dump of any debugging information or
  *			  state to the console.
  *
- * max_targets:		  The maximum number of targets that we can create
- *			  per-port.
- *
- * max_target_id:	  The highest target ID that we can use.
- *
  * targ_port:		  The CTL layer assigns a "port number" to every
  *			  FETD.  This port number should be passed back in
  *			  in the header of every ctl_io that is queued to
@@ -214,6 +213,7 @@ struct ctl_wwpn_iid {
  *			  shouldn't touch this field.
  */
 struct ctl_port {
+	struct ctl_softc *ctl_softc;
 	struct ctl_frontend *frontend;
 	ctl_port_type	port_type;		/* passed to CTL */
 	int		num_requested_ctl_io;	/* passed to CTL */
@@ -226,12 +226,11 @@ struct ctl_port {
 	void		*onoff_arg;		/* passed to CTL */
 	lun_func_t	lun_enable;		/* passed to CTL */
 	lun_func_t	lun_disable;		/* passed to CTL */
-	lun_map_func_t	lun_map;		/* passed to CTL */
+	int		lun_map_size;		/* passed to CTL */
+	uint32_t	*lun_map;		/* passed to CTL */
 	void		*targ_lun_arg;		/* passed to CTL */
 	void		(*fe_datamove)(union ctl_io *io); /* passed to CTL */
 	void		(*fe_done)(union ctl_io *io); /* passed to CTL */
-	int		max_targets;		/* passed to CTL */
-	int		max_target_id;		/* passed to CTL */
 	int32_t		targ_port;		/* passed back to FETD */
 	void		*ctl_pool_ref;		/* passed back to FETD */
 	uint32_t	max_initiators;		/* passed back to FETD */
@@ -239,10 +238,12 @@ struct ctl_port {
 	uint64_t	wwnn;			/* set by CTL before online */
 	uint64_t	wwpn;			/* set by CTL before online */
 	ctl_port_status	status;			/* used by CTL */
-	ctl_options_t	options;		/* passed to CTL */
+	nvlist_t	*options;		/* passed to CTL */
 	struct ctl_devid *port_devid;		/* passed to CTL */
 	struct ctl_devid *target_devid;		/* passed to CTL */
 	struct ctl_devid *init_devid;		/* passed to CTL */
+	struct ctl_io_stats stats;		/* used by CTL */
+	struct mtx	port_lock;		/* used by CTL */
 	STAILQ_ENTRY(ctl_port) fe_links;	/* used by CTL */
 	STAILQ_ENTRY(ctl_port) links;		/* used by CTL */
 };
@@ -278,7 +279,7 @@ struct ctl_frontend * ctl_frontend_find(char *frontend_name);
  * This may block until resources are allocated.  Called at FETD module load
  * time. Returns 0 for success, non-zero for failure.
  */
-int ctl_port_register(struct ctl_port *port, int master_SC);
+int ctl_port_register(struct ctl_port *port);
 
 /*
  * Called at FETD module unload time.

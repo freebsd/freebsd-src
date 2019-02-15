@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 M. Warner Losh
  * Copyright (c) 2011-2012 Ian Lepore
  * Copyright (c) 2012 Marius Strobl <marius@FreeBSD.org>
@@ -197,8 +199,10 @@ at45d_attach(device_t dev)
 	/* We'll see what kind of flash we have later... */
 	sc->config_intrhook.ich_func = at45d_delayed_attach;
 	sc->config_intrhook.ich_arg = sc;
-	if (config_intrhook_establish(&sc->config_intrhook) != 0)
+	if (config_intrhook_establish(&sc->config_intrhook) != 0) {
 		device_printf(dev, "config_intrhook_establish failed\n");
+		return (ENOMEM);
+	}
 	return (0);
 }
 
@@ -446,3 +450,4 @@ static driver_t at45d_driver = {
 };
 
 DRIVER_MODULE(at45d, spibus, at45d_driver, at45d_devclass, NULL, NULL);
+MODULE_DEPEND(at45d, spibus, 1, 1, 1);

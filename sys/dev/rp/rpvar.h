@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) Comtrol Corporation <support@comtrol.com>
  * All rights reserved.
  *
@@ -43,6 +45,7 @@
 
 struct rp_port {
 	struct tty *		rp_tty; /* cross reference */
+	struct callout		rp_timer;
 
 	unsigned char		state;	/* state of dtr */
 

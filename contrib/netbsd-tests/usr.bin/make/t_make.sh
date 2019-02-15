@@ -1,4 +1,4 @@
-# $NetBSD: t_make.sh,v 1.6 2014/08/23 16:26:13 apb Exp $
+# $NetBSD: t_make.sh,v 1.7 2015/01/27 12:57:14 martin Exp $
 #
 # Copyright (c) 2008, 2010, 2014 The NetBSD Foundation, Inc.
 # All rights reserved.
@@ -30,6 +30,17 @@ run_and_check()
 {
 	local atfname="${1}"; shift
 	local makename="${1}"; shift
+
+	# these tests fail since the backout of the patch in PR
+	# 49085 - adjust for more concrete PR if there is one
+	case ${makename} in
+	escape)		atf_expect_fail "see PR toolchain/49085";;
+	impsrc)		atf_expect_fail "see PR toolchain/49085";;
+	phony*)		atf_expect_fail "see PR toolchain/49085";;
+	posix1)		atf_expect_fail "see PR toolchain/49085";;
+	suffixes)	atf_expect_fail "see PR toolchain/49085"
+			atf_fail "this uses up all memory and then fails";;
+	esac
 
 	local srcdir="$(atf_get_srcdir)"
 

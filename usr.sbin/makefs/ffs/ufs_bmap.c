@@ -1,7 +1,9 @@
 /*	$NetBSD: ufs_bmap.c,v 1.14 2004/06/20 22:20:18 jmc Exp $	*/
 /* From: NetBSD: ufs_bmap.c,v 1.14 2001/11/08 05:00:51 chs Exp */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -82,17 +84,17 @@ ufs_getlbns(struct inode *ip, daddr_t bn, struct indir *ap, int *nump)
 	if ((long)bn < 0)
 		bn = -(long)bn;
 
-	assert (bn >= NDADDR);
+	assert (bn >= UFS_NDADDR);
 
 	/* 
 	 * Determine the number of levels of indirection.  After this loop
 	 * is done, blockcnt indicates the number of data blocks possible
-	 * at the given level of indirection, and NIADDR - i is the number
+	 * at the given level of indirection, and UFS_NIADDR - i is the number
 	 * of levels of indirection needed to locate the requested block.
 	 */
 
-	bn -= NDADDR;
-	for (lbc = 0, i = NIADDR;; i--, bn -= blockcnt) {
+	bn -= UFS_NDADDR;
+	for (lbc = 0, i = UFS_NIADDR;; i--, bn -= blockcnt) {
 		if (i == 0)
 			return (EFBIG);
 
@@ -105,9 +107,9 @@ ufs_getlbns(struct inode *ip, daddr_t bn, struct indir *ap, int *nump)
 
 	/* Calculate the address of the first meta-block. */
 	if (realbn >= 0)
-		metalbn = -(realbn - bn + NIADDR - i);
+		metalbn = -(realbn - bn + UFS_NIADDR - i);
 	else
-		metalbn = -(-realbn - bn + NIADDR - i);
+		metalbn = -(-realbn - bn + UFS_NIADDR - i);
 
 	/* 
 	 * At each iteration, off is the offset into the bap array which is
@@ -116,9 +118,9 @@ ufs_getlbns(struct inode *ip, daddr_t bn, struct indir *ap, int *nump)
 	 * into the argument array.
 	 */
 	ap->in_lbn = metalbn;
-	ap->in_off = off = NIADDR - i;
+	ap->in_off = off = UFS_NIADDR - i;
 	ap++;
-	for (++numlevels; i <= NIADDR; i++) {
+	for (++numlevels; i <= UFS_NIADDR; i++) {
 		/* If searching for a meta-data block, quit when found. */
 		if (metalbn == realbn)
 			break;

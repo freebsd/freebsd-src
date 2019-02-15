@@ -1,15 +1,16 @@
 # $FreeBSD$
 
-SYSDIR?=	${.CURDIR}/../../..
+SYSDIR?=	${SRCTOP}/sys
 
 .PATH:		${SYSDIR}/cddl/contrib/opensolaris/uts/common/dtrace
 
 KMOD=		fasttrap
-SRCS=		fasttrap.c fasttrap_isa.c opt_compat.h
+SRCS=		fasttrap.c fasttrap_isa.c
 SRCS+=		vnode_if.h
 
 CFLAGS+=	-I${SYSDIR}/cddl/compat/opensolaris \
 		-I${SYSDIR}/cddl/contrib/opensolaris/uts/common \
+		-I${SYSDIR}/cddl/contrib/opensolaris/uts/common/dtrace \
 		-I${SYSDIR}
 
 .if ${MACHINE_CPUARCH} == "amd64" ||  ${MACHINE_CPUARCH} == "i386"
@@ -28,5 +29,6 @@ CFLAGS+=	-DSMP
 .include <bsd.kmod.mk>
 
 CFLAGS+=	-include ${SYSDIR}/cddl/compat/opensolaris/sys/debug_compat.h
+
 CWARNFLAGS+=	-Wno-cast-qual
 CWARNFLAGS+=	-Wno-unused

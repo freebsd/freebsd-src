@@ -1,9 +1,9 @@
 /*
- *  $Id: rangebox.c,v 1.17 2013/03/17 16:02:00 tom Exp $
+ *  $Id: rangebox.c,v 1.24 2018/06/19 22:57:01 tom Exp $
  *
  *  rangebox.c -- implements the rangebox dialog
  *
- *  Copyright 2012,2013	Thomas E. Dickey
+ *  Copyright 2012-2017,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -128,7 +128,7 @@ draw_value(VALUE * data, int value)
 	    scaled = offset;
 	}
 
-	(void) wattrset(win, gauge_attr);
+	dlg_attrset(win, gauge_attr);
 	wmove(win, data->slide_y, data->slide_x);
 	for (n = 0; n < data->slide_len; ++n) {
 	    (void) waddch(win, ' ');
@@ -136,9 +136,9 @@ draw_value(VALUE * data, int value)
 	wmove(win, data->slide_y, data->value_x);
 	wprintw(win, "%*d", data->value_len, value);
 	if ((gauge_attr & A_REVERSE) != 0) {
-	    wattroff(win, A_REVERSE);
+	    dlg_attroff(win, A_REVERSE);
 	} else {
-	    (void) wattrset(win, A_REVERSE);
+	    dlg_attrset(win, A_REVERSE);
 	}
 	wmove(win, data->slide_y, data->slide_x);
 	for (n = 0; n < scaled; ++n) {
@@ -148,17 +148,17 @@ draw_value(VALUE * data, int value)
 	    }
 	    (void) waddch(win, ch2);
 	}
-	(void) wattrset(win, dialog_attr);
+	dlg_attrset(win, dialog_attr);
 
 	wmove(win, y, x);
 	data->current = value;
 
-	dlg_trace_msg("drew %d offset %d scaled %d limit %d inc %d\n",
-		      value,
-		      offset,
-		      scaled,
-		      data->slide_len,
-		      data->slide_inc);
+	DLG_TRACE(("# drew %d offset %d scaled %d limit %d inc %d\n",
+		   value,
+		   offset,
+		   scaled,
+		   data->slide_len,
+		   data->slide_inc));
 
 	dlg_trace_win(win);
     }
@@ -181,7 +181,7 @@ dialog_rangebox(const char *title,
 	DLG_KEYS_DATA( DLGK_DELETE_RIGHT,KEY_DC ),
 	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
-	DLG_KEYS_DATA( DLGK_ENTER,	' ' ),
+	TOGGLEKEY_BINDINGS,
 	DLG_KEYS_DATA( DLGK_FIELD_NEXT, CHR_NEXT ),
 	DLG_KEYS_DATA( DLGK_FIELD_NEXT, KEY_RIGHT ),
 	DLG_KEYS_DATA( DLGK_FIELD_NEXT, TAB ),
@@ -215,12 +215,21 @@ dialog_rangebox(const char *title,
     WINDOW *dialog;
     int state = dlg_default_button();
     const char **buttons = dlg_ok_labels();
-    char *prompt = dlg_strclone(cprompt);
+    char *prompt;
     char buffer[MAX_LEN];
     int cur_value = default_value;
     int usable;
     int ranges;
     int yorg, xorg;
+
+    DLG_TRACE(("# tailbox args:\n"));
+    DLG_TRACE2S("title", title);
+    DLG_TRACE2S("message", cprompt);
+    DLG_TRACE2N("height", height);
+    DLG_TRACE2N("width", width);
+    DLG_TRACE2N("minval", min_value);
+    DLG_TRACE2N("maxval", max_value);
+    DLG_TRACE2N("default", default_value);
 
     if (max_value < min_value)
 	max_value = min_value;
@@ -235,7 +244,9 @@ dialog_rangebox(const char *title,
   retry:
 #endif
 
+    prompt = dlg_strclone(cprompt);
     dlg_auto_size(title, prompt, &height, &width, 0, 0);
+
     height += MIN_HIGH;
     if (width < MIN_WIDE)
 	width = MIN_WIDE;
@@ -298,7 +309,7 @@ dialog_rangebox(const char *title,
     dlg_draw_title(dialog, title);
     dlg_draw_helpline(dialog, FALSE);
 
-    (void) wattrset(dialog, dialog_attr);
+    dlg_attrset(dialog, dialog_attr);
     dlg_print_autowrap(dialog, prompt, height, width);
 
     dlg_trace_win(dialog);
@@ -321,6 +332,7 @@ dialog_rangebox(const char *title,
 	    /* handle function-keys */
 	    if (fkey) {
 		switch (key) {
+		case DLGK_TOGGLE:
 		case DLGK_ENTER:
 		    result = dlg_ok_buttoncode(button);
 		    break;
@@ -374,13 +386,14 @@ dialog_rangebox(const char *title,
 		    break;
 #ifdef KEY_RESIZE
 		case KEY_RESIZE:
+		    dlg_will_resize(dialog);
 		    /* reset data */
 		    height = old_height;
 		    width = old_width;
 		    /* repaint */
+		    free(prompt);
 		    dlg_clear();
 		    dlg_del_window(dialog);
-		    refresh();
 		    dlg_mouse_free_regions();
 		    goto retry;
 #endif

@@ -252,7 +252,7 @@ static const	struct	optlist	ipopts[20] = {
 };
 
 #ifdef USE_INET6
-static struct optlist ip6exthdr[] = {
+static const struct optlist ip6exthdr[] = {
 	{ IPPROTO_HOPOPTS,		0x000001 },
 	{ IPPROTO_IPV6,			0x000002 },
 	{ IPPROTO_ROUTING,		0x000004 },
@@ -421,7 +421,7 @@ static ipftuneable_t ipf_main_tuneables[] = {
 
 
 /*
- * The next section of code is a a collection of small routines that set
+ * The next section of code is a collection of small routines that set
  * fields in the fr_info_t structure passed based on properties of the
  * current packet.  There are different routines for the same protocol
  * for each of IPv4 and IPv6.  Adding a new protocol, for which there
@@ -629,6 +629,7 @@ ipf_pr_ipv6hdr(fin)
 		ipf_main_softc_t *softc = fin->fin_main_soft;
 
 		fin->fin_flx |= FI_BAD;
+		DT2(ipf_fi_bad_ipv6_frag_1, fr_info_t *, fin, int, go);
 		LBUMPD(ipf_stats[fin->fin_out], fr_v6_badfrag);
 		LBUMP(ipf_stats[fin->fin_out].fr_v6_bad);
 	}
@@ -687,6 +688,7 @@ ipf_pr_ipv6exthdr(fin, multiple, proto)
 
 	if (shift > fin->fin_dlen) {	/* Nasty extension header length? */
 		fin->fin_flx |= FI_BAD;
+		DT3(ipf_fi_bad_pr_ipv6exthdr_len, fr_info_t *, fin, u_short, shift, u_short, fin->fin_dlen);
 		LBUMPD(ipf_stats[fin->fin_out], fr_v6_ext_hlen);
 		return NULL;
 	}
@@ -708,9 +710,10 @@ ipf_pr_ipv6exthdr(fin, multiple, proto)
 			 * Most IPv6 extension headers are only allowed once.
 			 */
 			if ((multiple == 0) &&
-			    ((fin->fin_optmsk & ip6exthdr[i].ol_bit) != 0))
+			    ((fin->fin_optmsk & ip6exthdr[i].ol_bit) != 0)) {
 				fin->fin_flx |= FI_BAD;
-			else
+				DT2(ipf_fi_bad_ipv6exthdr_once, fr_info_t *, fin, u_int, (fin->fin_optmsk & ip6exthdr[i].ol_bit));
+			} else
 				fin->fin_optmsk |= ip6exthdr[i].ol_bit;
 			break;
 		}
@@ -790,6 +793,7 @@ ipf_pr_routing6(fin)
 			ipf_main_softc_t *softc = fin->fin_main_soft;
 
 			fin->fin_flx |= FI_BAD;
+			DT1(ipf_fi_bad_routing6, fr_info_t *, fin);
 			LBUMPD(ipf_stats[fin->fin_out], fr_v6_rh_bad);
 			return IPPROTO_NONE;
 		}
@@ -852,8 +856,10 @@ ipf_pr_fragment6(fin)
 		 * Any fragment that isn't the last fragment must have its
 		 * length as a multiple of 8.
 		 */
-		if ((fin->fin_plen & 7) != 0)
+		if ((fin->fin_plen & 7) != 0) {
 			fin->fin_flx |= FI_BAD;
+			DT2(ipf_fi_bad_frag_not_8, fr_info_t *, fin, u_int, (fin->fin_plen & 7));
+		}
 	}
 
 	fin->fin_fraghdr = frag;
@@ -865,8 +871,10 @@ ipf_pr_fragment6(fin)
 	/*
 	 * Jumbograms aren't handled, so the max. length is 64k
 	 */
-	if ((fin->fin_off << 3) + fin->fin_dlen > 65535)
+	if ((fin->fin_off << 3) + fin->fin_dlen > 65535) {
 		  fin->fin_flx |= FI_BAD;
+		  DT2(ipf_fi_bad_jumbogram, fr_info_t *, fin, u_int, ((fin->fin_off << 3) + fin->fin_dlen));
+	}
 
 	/*
 	 * We don't know where the transport layer header (or whatever is next
@@ -970,8 +978,10 @@ ipf_pr_icmp6(fin)
 			icmp6 = fin->fin_dp;
 			ip6 = (ip6_t *)((char *)icmp6 + ICMPERR_ICMPHLEN);
 			if (IP6_NEQ(&fin->fin_fi.fi_dst,
-				    (i6addr_t *)&ip6->ip6_src))
+				    (i6addr_t *)&ip6->ip6_src)) {
 				fin->fin_flx |= FI_BAD;
+				DT1(ipf_fi_bad_icmp6, fr_info_t *, fin);
+			}
 			break;
 		default :
 			break;
@@ -1283,10 +1293,13 @@ ipf_pr_icmp(fin)
 	case ICMP_UNREACH :
 #ifdef icmp_nextmtu
 		if (icmp->icmp_code == ICMP_UNREACH_NEEDFRAG) {
-			if (icmp->icmp_nextmtu < softc->ipf_icmpminfragmtu)
+			if (icmp->icmp_nextmtu < softc->ipf_icmpminfragmtu) {
 				fin->fin_flx |= FI_BAD;
+				DT3(ipf_fi_bad_icmp_nextmtu, fr_info_t *, fin, u_int, icmp->icmp_nextmtu, u_int, softc->ipf_icmpminfragmtu);
+			}
 		}
 #endif
+		/* FALLTHROUGH */
 	case ICMP_SOURCEQUENCH :
 	case ICMP_REDIRECT :
 	case ICMP_TIMXCEED :
@@ -1303,16 +1316,20 @@ ipf_pr_icmp(fin)
 		 * fragment.
 		 */
 		oip = (ip_t *)((char *)fin->fin_dp + ICMPERR_ICMPHLEN);
-		if ((ntohs(oip->ip_off) & IP_OFFMASK) != 0)
+		if ((ntohs(oip->ip_off) & IP_OFFMASK) != 0) {
 			fin->fin_flx |= FI_BAD;
+			DT2(ipf_fi_bad_icmp_err, fr_info_t, fin, u_int, (ntohs(oip->ip_off) & IP_OFFMASK));
+		}
 
 		/*
 		 * If the destination of this packet doesn't match the
 		 * source of the original packet then this packet is
 		 * not correct.
 		 */
-		if (oip->ip_src.s_addr != fin->fin_daddr)
+		if (oip->ip_src.s_addr != fin->fin_daddr) {
 			fin->fin_flx |= FI_BAD;
+			DT1(ipf_fi_bad_src_ne_dst, fr_info_t *, fin);
+		}
 		break;
 	default :
 		break;
@@ -1372,6 +1389,7 @@ ipf_pr_tcpcommon(fin)
 	if (tlen < sizeof(tcphdr_t)) {
 		LBUMPD(ipf_stats[fin->fin_out], fr_tcp_small);
 		fin->fin_flx |= FI_BAD;
+		DT3(ipf_fi_bad_tlen, fr_info_t, fin, u_int, tlen, u_int, sizeof(tcphdr_t));
 		return 1;
 	}
 
@@ -1385,6 +1403,7 @@ ipf_pr_tcpcommon(fin)
 	 */
 	if ((flags & TH_URG) != 0 && (tcp->th_urp == 0)) {
 		fin->fin_flx |= FI_BAD;
+		DT3(ipf_fi_bad_th_urg, fr_info_t*, fin, u_int, (flags & TH_URG), u_int, tcp->th_urp);
 #if 0
 	} else if ((flags & TH_URG) == 0 && (tcp->th_urp != 0)) {
 		/*
@@ -1392,11 +1411,13 @@ ipf_pr_tcpcommon(fin)
 		 * traffic with bogus values in the urgent pointer field.
 		 */
 		fin->fin_flx |= FI_BAD;
+		DT3(ipf_fi_bad_th_urg0, fr_info_t *, fin, u_int, (flags & TH_URG), u_int, tcp->th_urp);
 #endif
 	} else if (((flags & (TH_SYN|TH_FIN)) != 0) &&
 		   ((flags & (TH_RST|TH_ACK)) == TH_RST)) {
 		/* TH_FIN|TH_RST|TH_ACK seems to appear "naturally" */
 		fin->fin_flx |= FI_BAD;
+		DT1(ipf_fi_bad_th_fin_rst_ack, fr_info_t, fin);
 #if 1
 	} else if (((flags & TH_SYN) != 0) &&
 		   ((flags & (TH_URG|TH_PUSH)) != 0)) {
@@ -1405,6 +1426,7 @@ ipf_pr_tcpcommon(fin)
 		 * possible(?) with T/TCP...but who uses T/TCP?
 		 */
 		fin->fin_flx |= FI_BAD;
+		DT1(ipf_fi_bad_th_syn_urg_psh, fr_info_t *, fin);
 #endif
 	} else if (!(flags & TH_ACK)) {
 		/*
@@ -1423,10 +1445,13 @@ ipf_pr_tcpcommon(fin)
 			 * achieved.
 			 */
 			/*fin->fin_flx |= FI_BAD*/;
+			/*DT1(ipf_fi_bad_th_syn_ack, fr_info_t *, fin);*/
 		} else if (!(flags & (TH_RST|TH_SYN))) {
 			fin->fin_flx |= FI_BAD;
+			DT1(ipf_fi_bad_th_rst_syn, fr_info_t *, fin);
 		} else if ((flags & (TH_URG|TH_PUSH|TH_FIN)) != 0) {
 			fin->fin_flx |= FI_BAD;
+			DT1(ipf_fi_bad_th_urg_push_fin, fr_info_t *, fin);
 		}
 	}
 	if (fin->fin_flx & FI_BAD) {
@@ -1757,6 +1782,7 @@ ipf_pr_ipv4hdr(fin)
 				 * must be an even multiple of 8.
 				 */
 				fi->fi_flx |= FI_BAD;
+				DT1(ipf_fi_bad_fragbody_gt_65535, fr_info_t *, fin);
 			}
 		}
 	}
@@ -1840,6 +1866,7 @@ ipf_pr_ipv4hdr(fin)
 				case IPOPT_SECURITY :
 					if (optmsk & op->ol_bit) {
 						fin->fin_flx |= FI_BAD;
+						DT2(ipf_fi_bad_ipopt_security, fr_info_t *, fin, u_short, (optmsk & op->ol_bit));
 					} else {
 						doi = ipf_checkripso(s);
 						secmsk = doi >> 16;
@@ -1851,6 +1878,7 @@ ipf_pr_ipv4hdr(fin)
 
 					if (optmsk & op->ol_bit) {
 						fin->fin_flx |= FI_BAD;
+						DT2(ipf_fi_bad_ipopt_cipso, fr_info_t *, fin, u_short, (optmsk & op->ol_bit));
 					} else {
 						doi = ipf_checkcipso(fin,
 								     s, ol);
@@ -1949,6 +1977,7 @@ ipf_checkcipso(fin, s, ol)
 	if (ol < 6 || ol > 40) {
 		LBUMPD(ipf_stats[fin->fin_out], fr_v4_cipso_bad);
 		fin->fin_flx |= FI_BAD;
+		DT2(ipf_fi_bad_checkcipso_ol, fr_info_t *, fin, u_int, ol);
 		return 0;
 	}
 
@@ -1966,6 +1995,7 @@ ipf_checkcipso(fin, s, ol)
 		if (tlen > len || tlen < 4 || tlen > 34) {
 			LBUMPD(ipf_stats[fin->fin_out], fr_v4_cipso_tlen);
 			fin->fin_flx |= FI_BAD;
+			DT2(ipf_fi_bad_checkcipso_tlen, fr_info_t *, fin, u_int, tlen);
 			return 0;
 		}
 
@@ -1976,10 +2006,12 @@ ipf_checkcipso(fin, s, ol)
 		 */
 		if (tag == 0) {
 			fin->fin_flx |= FI_BAD;
+			DT2(ipf_fi_bad_checkcipso_tag, fr_info_t *, fin, u_int, tag);
 			continue;
 		} else if (tag == 1) {
 			if (*(t + 2) != 0) {
 				fin->fin_flx |= FI_BAD;
+				DT2(ipf_fi_bad_checkcipso_tag1_t2, fr_info_t *, fin, u_int, (*t + 2));
 				continue;
 			}
 			sensitivity = *(t + 3);
@@ -1988,6 +2020,7 @@ ipf_checkcipso(fin, s, ol)
 		} else if (tag == 4) {
 			if (*(t + 2) != 0) {
 				fin->fin_flx |= FI_BAD;
+				DT2(ipf_fi_bad_checkcipso_tag4_t2, fr_info_t *, fin, u_int, (*t + 2));
 				continue;
 			}
 			sensitivity = *(t + 3);
@@ -1996,6 +2029,7 @@ ipf_checkcipso(fin, s, ol)
 		} else if (tag == 5) {
 			if (*(t + 2) != 0) {
 				fin->fin_flx |= FI_BAD;
+				DT2(ipf_fi_bad_checkcipso_tag5_t2, fr_info_t *, fin, u_int, (*t + 2));
 				continue;
 			}
 			sensitivity = *(t + 3);
@@ -2006,6 +2040,7 @@ ipf_checkcipso(fin, s, ol)
 			;
 		} else {
 			fin->fin_flx |= FI_BAD;
+			DT2(ipf_fi_bad_checkcipso_tag127, fr_info_t *, fin, u_int, tag);
 			continue;
 		}
 
@@ -2752,7 +2787,7 @@ ipf_firewall(fin, passp)
 	 * If the rule has "keep frag" and the packet is actually a fragment,
 	 * then create a fragment state entry.
 	 */
-	if ((pass & (FR_KEEPFRAG|FR_KEEPSTATE)) == FR_KEEPFRAG) {
+	if (pass & FR_KEEPFRAG) {
 		if (fin->fin_flx & FI_FRAG) {
 			if (ipf_frag_new(softc, fin, pass) == -1) {
 				LBUMP(ipf_stats[out].fr_bnfr);
@@ -6086,23 +6121,24 @@ ipf_updateipid(fin)
 	u_32_t sumd, sum;
 	ip_t *ip;
 
+	ip = fin->fin_ip;
+	ido = ntohs(ip->ip_id);
 	if (fin->fin_off != 0) {
 		sum = ipf_frag_ipidknown(fin);
 		if (sum == 0xffffffff)
 			return -1;
 		sum &= 0xffff;
 		id = (u_short)sum;
+		ip->ip_id = htons(id);
 	} else {
-		id = ipf_nextipid(fin);
-		if (fin->fin_off == 0 && (fin->fin_flx & FI_FRAG) != 0)
+		ip_fillid(ip);
+		id = ntohs(ip->ip_id);
+		if ((fin->fin_flx & FI_FRAG) != 0)
 			(void) ipf_frag_ipidnew(fin, (u_32_t)id);
 	}
 
-	ip = fin->fin_ip;
-	ido = ntohs(ip->ip_id);
 	if (id == ido)
 		return 0;
-	ip->ip_id = htons(id);
 	CALC_SUMD(ido, id, sumd);	/* DESTRUCTIVE MACRO! id,ido change */
 	sum = (~ntohs(ip->ip_sum)) & 0xffff;
 	sum += sumd;

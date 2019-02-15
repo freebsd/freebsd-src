@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002, 2003 Gordon Tetlow
  * All rights reserved.
  *
@@ -48,6 +50,7 @@ FEATURE(geom_vol, "GEOM support for volume names from UFS superblock");
 #define VOL_FFS_CLASS_NAME "VOL_FFS"
 
 static int superblocks[] = SBLOCKSEARCH;
+static int g_vol_ffs_once;
 
 struct g_vol_ffs_softc {
 	char *	vol;
@@ -145,6 +148,12 @@ g_vol_ffs_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		g_slice_spoiled(cp);
 		return (NULL);
 	}
+	if (!g_vol_ffs_once) {
+		g_vol_ffs_once = 1;
+		printf(
+		    "WARNING: geom_vol_Ffs (geom %s) is deprecated, "
+		    "use glabel instead.\n", gp->name);
+	}
 	return (gp);
 }
 
@@ -155,3 +164,4 @@ static struct g_class g_vol_ffs_class	= {
 };
 
 DECLARE_GEOM_CLASS(g_vol_ffs_class, g_vol_ffs);
+MODULE_VERSION(geom_vol_ffs, 0);

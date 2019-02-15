@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007 Seccuris Inc.
  * All rights reserved.
  *
@@ -42,7 +44,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -78,8 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/bpf_buffer.h>
 #include <net/bpfdesc.h>
-
-#define PRINET  26			/* interruptible */
 
 /*
  * Implement historical kernel memory buffering model for BPF: two malloc(9)
@@ -191,9 +191,6 @@ bpf_buffer_ioctl_sblen(struct bpf_d *d, u_int *i)
 		return (EINVAL);
 	}
 
-	while (d->bd_hbuf_in_use)
-		mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
-		    PRINET, "bd_hbuf", 0);
 	/* Free old buffers if set */
 	if (d->bd_fbuf != NULL)
 		free(d->bd_fbuf, M_BPF);

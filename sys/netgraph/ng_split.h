@@ -1,4 +1,5 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 1999-2000, Vitaly V Belekhov
  * All rights reserved.
@@ -40,6 +41,6 @@
 /* My hook names */
 #define NG_SPLIT_HOOK_MIXED	"mixed"	/* Mixed stream (in/out) */
 #define NG_SPLIT_HOOK_OUT	"out"	/* Output to outhook (sending out) */
-#define NG_SPLIT_HOOK_IN	"in"	/* Input from inhook (recieving) */
+#define NG_SPLIT_HOOK_IN	"in"	/* Input from inhook (receiving) */
 
 #endif /* _NETGRAPH_NG_SPLIT_H_ */

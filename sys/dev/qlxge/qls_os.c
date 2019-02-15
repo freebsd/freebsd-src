@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013-2014 Qlogic Corporation
  * All rights reserved.
  *
@@ -453,7 +455,7 @@ qls_pci_attach(device_t dev)
 	taskqueue_start_threads(&ha->tx_tq, 1, PI_NET, "%s txq",
 		device_get_nameunit(ha->pci_dev));
 	
-	callout_init(&ha->tx_callout, TRUE);
+	callout_init(&ha->tx_callout, 1);
 	ha->flags.qla_callout_init = 1;
 
         /* create ioctl device interface */
@@ -843,7 +845,7 @@ qls_set_multi(qla_host_t *ha, uint32_t add_multi)
 
 	if_maddr_rlock(ifp);
 
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1136,7 +1138,8 @@ qls_send(qla_host_t *ha, struct mbuf **m_headp)
 
 	QL_DPRINT8((ha->pci_dev, "%s: enter\n", __func__));
 
-	if (m_head->m_flags & M_FLOWID)
+	/* check if flowid is set */
+	if (M_HASHTYPE_GET(m_head) != M_HASHTYPE_NONE)
 		txr_idx = m_head->m_pkthdr.flowid & (ha->num_tx_rings - 1);
 
 	tx_idx = ha->tx_ring[txr_idx].txr_next;
@@ -1395,7 +1398,7 @@ qls_alloc_rcv_bufs(qla_host_t *ha)
 int
 qls_get_mbuf(qla_host_t *ha, qla_rx_buf_t *rxb, struct mbuf *nmp)
 {
-	register struct mbuf *mp = nmp;
+	struct mbuf *mp = nmp;
 	struct ifnet   		*ifp;
 	int            		ret = 0;
 	uint32_t		offset;

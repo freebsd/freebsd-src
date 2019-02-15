@@ -1,4 +1,4 @@
-//===-- MCAsmInfoCOFF.cpp - COFF asm properties -----------------*- C++ -*-===//
+//===- MCAsmInfoCOFF.cpp - COFF asm properties ----------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,19 +13,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCAsmInfoCOFF.h"
+#include "llvm/MC/MCDirectives.h"
+
 using namespace llvm;
 
-void MCAsmInfoCOFF::anchor() { }
+void MCAsmInfoCOFF::anchor() {}
 
 MCAsmInfoCOFF::MCAsmInfoCOFF() {
-  GlobalPrefix = "_";
   // MingW 4.5 and later support .comm with log2 alignment, but .lcomm uses byte
   // alignment.
   COMMDirectiveAlignmentIsInBytes = false;
   LCOMMDirectiveAlignmentType = LCOMM::ByteAlignment;
   HasDotTypeDotSizeDirective = false;
   HasSingleParameterDotFile = false;
-  PrivateGlobalPrefix = "L";  // Prefix for private global symbols
   WeakRefDirective = "\t.weak\t";
   HasLinkOnceDirective = true;
 
@@ -34,19 +34,19 @@ MCAsmInfoCOFF::MCAsmInfoCOFF() {
   ProtectedVisibilityAttr = MCSA_Invalid;
 
   // Set up DWARF directives
-  HasLEB128 = true;  // Target asm supports leb128 directives (little-endian)
   SupportsDebugInformation = true;
-  HasMicrosoftFastStdCallMangling = true;
   NeedsDwarfSectionOffsetDirective = true;
+
+  UseIntegratedAssembler = true;
+
+  // At least MSVC inline-asm does AShr.
+  UseLogicalShr = false;
 }
 
-void MCAsmInfoMicrosoft::anchor() { }
+void MCAsmInfoMicrosoft::anchor() {}
 
-MCAsmInfoMicrosoft::MCAsmInfoMicrosoft() {
-}
+MCAsmInfoMicrosoft::MCAsmInfoMicrosoft() = default;
 
-void MCAsmInfoGNUCOFF::anchor() { }
+void MCAsmInfoGNUCOFF::anchor() {}
 
-MCAsmInfoGNUCOFF::MCAsmInfoGNUCOFF() {
-
-}
+MCAsmInfoGNUCOFF::MCAsmInfoGNUCOFF() = default;

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Peter Grehan
  * All rights reserved.
  *
@@ -342,7 +344,7 @@ ofwfb_configure(int flags)
 		if (fb_phys == sc->sc_num_pciaddrs)
 			return (0);
 
-		OF_decode_addr(node, fb_phys, &sc->sc_tag, &sc->sc_addr);
+		OF_decode_addr(node, fb_phys, &sc->sc_tag, &sc->sc_addr, NULL);
 	}
 
 	ofwfb_init(0, &sc->sc_va, 0);
@@ -412,7 +414,7 @@ ofwfb_init(int unit, video_adapter_t *adp, int flags)
 	adp->va_window = (vm_offset_t) ofwfb_static_window;
 
 	/*
-	 * Enable future font-loading and flag color support, as well as 
+	 * Enable future font-loading and flag color support, as well as
 	 * adding V_ADP_MODECHANGE so that we ofwfb_set_mode() gets called
 	 * when the X server shuts down. This enables us to get the console
 	 * back when X disappears.
@@ -874,7 +876,7 @@ ofwfb_putc32(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 	addr = (uint32_t *)sc->sc_addr
 		+ (row + sc->sc_ymargin)*(sc->sc_stride/4)
 		+ col + sc->sc_xmargin;
-	
+
 	fg = ofwfb_pix32(sc, ofwfb_foreground(a));
 	bg = ofwfb_pix32(sc, ofwfb_background(a));
 
@@ -1000,12 +1002,6 @@ ofwfb_scidentify(driver_t *driver, device_t parent)
 	device_t child;
 
 	/*
-	 * The Nintendo Wii doesn't have open firmware, so don't probe ofwfb
-	 * because otherwise we will crash.
-	 */
-	if (strcmp(installed_platform(), "wii") == 0)
-		return;
-	/*
 	 * Add with a priority guaranteed to make it last on
 	 * the device list
 	 */
@@ -1019,7 +1015,7 @@ ofwfb_scprobe(device_t dev)
 
 	device_set_desc(dev, "System console");
 
-	error = sc_probe_unit(device_get_unit(dev), 
+	error = sc_probe_unit(device_get_unit(dev),
 	    device_get_flags(dev) | SC_AUTODETECT_KBD);
 	if (error != 0)
 		return (error);

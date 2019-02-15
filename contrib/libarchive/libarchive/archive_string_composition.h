@@ -1009,7 +1009,7 @@ static const char u_decomposable_blocks[0x1D2+1] = {
 	(((uc) > 0x1D244)?0:\
 	ccc_val[ccc_val_index[ccc_index[(uc)>>8]][((uc)>>4)&0x0F]][(uc)&0x0F])
 
-/* The table of the value of Canonical Cimbining Class */
+/* The table of the value of Canonical Combining Class */
 static const unsigned char ccc_val[][16] = {
  /* idx=0: XXXX0 - XXXXF */
  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },

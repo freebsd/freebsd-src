@@ -25,7 +25,7 @@
 .\" $Id: sdp.3,v 1.1 2003/09/07 20:34:19 max Exp $
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2005
+.Dd April 30, 2018
 .Dt SDP 3
 .Os
 .Sh NAME
@@ -45,6 +45,7 @@
 .Nm sdp_open_local ,
 .Nm sdp_close ,
 .Nm sdp_error ,
+.Nm sdp_get_lcaddr ,
 .Nm sdp_search ,
 .Nm sdp_attr2desc ,
 .Nm sdp_uuid2desc
@@ -74,6 +75,8 @@
 .Fn sdp_close "void *xs"
 .Ft int32_t
 .Fn sdp_error "void *xs"
+.Ft int32_t
+.Fn sdp_get_lcaddr "void *xs" "bdaddr_t *l"
 .Ft int32_t
 .Fo sdp_search
 .Fa "void *xs" "uint32_t plen" "uint16_t const *pp" "uint32_t alen"
@@ -186,6 +189,22 @@ The error value returned can be converted to a human readable message by
 calling
 .Xr strerror 3
 function.
+.Pp
+The
+.Fn sdp_get_lcaddr
+function returns the SDP session actual source BD_ADDR.
+The
+.Fa xs
+parameter should point to a valid SDP session object created with
+.Fn sdp_open .
+The
+.Fa l
+parameter should point to a buffer in which the value for the requested BD_ADDR
+is to be returned.
+.Fn sdp_get_lcaddr
+function is useful if the current SDP session has been opened with the
+.Dv NG_HCI_BDADDR_ANY
+value passed as a source address.
 .Pp
 The
 .Fn sdp_search
@@ -394,9 +413,10 @@ If the new SDP object was created then caller is still expected to call
 to check if there was connection error.
 .Pp
 The
+.Fn sdp_get_lcaddr ,
 .Fn sdp_search ,
 .Fn sdp_register_service ,
-.Fn sdp_unregister_service
+.Fn sdp_unregister_service ,
 and
 .Fn sdp_change_service
 functions return non-zero value on error.

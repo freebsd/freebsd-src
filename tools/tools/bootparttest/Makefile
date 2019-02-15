@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:		${.CURDIR}/../../../sys/boot/common
+.PATH:		${SRCTOP}/stand/common
 
 BINDIR?=	/usr/bin
 
@@ -9,12 +9,10 @@ MAN=
 
 SRCS=		bootparttest.c crc32.c stub.c part.c disk.c
 
-CFLAGS=		-I${.CURDIR}/../../../sys/boot/common \
+CFLAGS=		-I${SRCTOP}/stand/common \
 		-DLOADER_GPT_SUPPORT -DLOADER_MBR_SUPPORT -DPART_DEBUG \
 		-DDISK_DEBUG
 
-DPADD+=		${LIBGEOM}
-LDADD+=		${LIBGEOM}
-LDFLAGS+=	-lgeom
+LIBADD+=	geom
 
 .include <bsd.prog.mk>

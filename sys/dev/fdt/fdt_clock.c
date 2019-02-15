@@ -58,7 +58,7 @@ enable_disable_all(device_t consumer, boolean_t enable)
 	boolean_t anyerrors;
 
 	cnode = ofw_bus_get_node(consumer);
-	ncells = OF_getencprop_alloc(cnode, "clocks", sizeof(*clks),
+	ncells = OF_getencprop_alloc_multi(cnode, "clocks", sizeof(*clks),
 	    (void **)&clks);
 	if (enable && ncells < 2) {
 		device_printf(consumer, "Warning: No clocks specified in fdt "
@@ -89,7 +89,7 @@ enable_disable_all(device_t consumer, boolean_t enable)
 			anyerrors = true;
 		}
 	}
-	free(clks, M_OFWPROP);
+	OF_prop_free(clks);
 	return (anyerrors ? ENXIO : 0);
 }
 
@@ -102,7 +102,7 @@ fdt_clock_get_info(device_t consumer, int n, struct fdt_clock_info *info)
 	uint32_t *clks;
 
 	cnode = ofw_bus_get_node(consumer);
-	ncells = OF_getencprop_alloc(cnode, "clocks", sizeof(*clks),
+	ncells = OF_getencprop_alloc_multi(cnode, "clocks", sizeof(*clks),
 	    (void **)&clks);
 	if (ncells <= 0)
 		return (ENXIO);
@@ -127,7 +127,7 @@ fdt_clock_get_info(device_t consumer, int n, struct fdt_clock_info *info)
 			err = FDT_CLOCK_GET_INFO(clockdev, clocknum, info);
 		}
 	}
-	free(clks, M_OFWPROP);
+	OF_prop_free(clks);
 	return (err);
 }
 
@@ -149,7 +149,8 @@ void
 fdt_clock_register_provider(device_t provider)
 {
 
-	OF_device_register_xref(OF_xref_from_device(provider), provider);
+	OF_device_register_xref(
+	    OF_xref_from_node(ofw_bus_get_node(provider)), provider);
 }
 
 void

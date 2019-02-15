@@ -12,186 +12,155 @@
 
 #include "lldb/API/SBDefines.h"
 
+#include <functional>
+
 struct PlatformConnectOptions;
 struct PlatformShellCommand;
 
 namespace lldb {
 
-    class SBPlatformConnectOptions
-    {
-    public:
-        SBPlatformConnectOptions (const char *url);
+class SBLaunchInfo;
 
-        SBPlatformConnectOptions (const SBPlatformConnectOptions &rhs);
+class LLDB_API SBPlatformConnectOptions {
+public:
+  SBPlatformConnectOptions(const char *url);
 
-        ~SBPlatformConnectOptions ();
-        
-        void
-        operator=(const SBPlatformConnectOptions &rhs);
+  SBPlatformConnectOptions(const SBPlatformConnectOptions &rhs);
 
-        const char *
-        GetURL();
-        
-        void
-        SetURL(const char *url);
-        
-        bool
-        GetRsyncEnabled();
-        
-        void
-        EnableRsync (const char *options,
-                     const char *remote_path_prefix,
-                     bool omit_remote_hostname);
-                     
-        void
-        DisableRsync ();
-        
-        const char *
-        GetLocalCacheDirectory();
+  ~SBPlatformConnectOptions();
 
-        void
-        SetLocalCacheDirectory(const char *path);
-    protected:
-        PlatformConnectOptions *m_opaque_ptr;
-    };
+  void operator=(const SBPlatformConnectOptions &rhs);
 
-    class SBPlatformShellCommand
-    {
-    public:
-        SBPlatformShellCommand (const char *shell_command);
-        
-        SBPlatformShellCommand (const SBPlatformShellCommand &rhs);
-        
-        ~SBPlatformShellCommand();
-        
-        void
-        Clear();
+  const char *GetURL();
 
-        const char *
-        GetCommand();
+  void SetURL(const char *url);
 
-        void
-        SetCommand(const char *shell_command);
-        
-        const char *
-        GetWorkingDirectory ();
+  bool GetRsyncEnabled();
 
-        void
-        SetWorkingDirectory (const char *path);
+  void EnableRsync(const char *options, const char *remote_path_prefix,
+                   bool omit_remote_hostname);
 
-        uint32_t
-        GetTimeoutSeconds ();
-        
-        void
-        SetTimeoutSeconds (uint32_t sec);
-        
-        int
-        GetSignal ();
-        
-        int
-        GetStatus ();
-        
-        const char *
-        GetOutput ();
+  void DisableRsync();
 
-    protected:
-        friend class SBPlatform;
+  const char *GetLocalCacheDirectory();
 
-        PlatformShellCommand *m_opaque_ptr;
-    };
+  void SetLocalCacheDirectory(const char *path);
 
-    class SBPlatform
-    {
-    public:
-        
-        SBPlatform ();
-        
-        SBPlatform (const char *platform_name);
-        
-        ~SBPlatform();
-        
-        bool
-        IsValid () const;
-        
-        void
-        Clear ();
+protected:
+  PlatformConnectOptions *m_opaque_ptr;
+};
 
-        const char *
-        GetWorkingDirectory();
+class LLDB_API SBPlatformShellCommand {
+public:
+  SBPlatformShellCommand(const char *shell_command);
 
-        bool
-        SetWorkingDirectory(const char *path);
+  SBPlatformShellCommand(const SBPlatformShellCommand &rhs);
 
-        const char *
-        GetName ();
+  ~SBPlatformShellCommand();
 
-        SBError
-        ConnectRemote (SBPlatformConnectOptions &connect_options);
+  void Clear();
 
-        void
-        DisconnectRemote ();
-        
-        bool
-        IsConnected();
+  const char *GetCommand();
 
-        //----------------------------------------------------------------------
-        // The following functions will work if the platform is connected
-        //----------------------------------------------------------------------
-        const char *
-        GetTriple();
+  void SetCommand(const char *shell_command);
 
-        const char *
-        GetHostname ();
-        
-        const char *
-        GetOSBuild ();
-        
-        const char *
-        GetOSDescription ();
+  const char *GetWorkingDirectory();
 
-        uint32_t
-        GetOSMajorVersion ();
+  void SetWorkingDirectory(const char *path);
 
-        uint32_t
-        GetOSMinorVersion ();
+  uint32_t GetTimeoutSeconds();
 
-        uint32_t
-        GetOSUpdateVersion ();
+  void SetTimeoutSeconds(uint32_t sec);
 
-        SBError
-        Put (SBFileSpec &src, SBFileSpec &dst);
-        
-        SBError
-        Get (SBFileSpec &src, SBFileSpec &dst);
+  int GetSignal();
 
-        SBError
-        Install (SBFileSpec& src, SBFileSpec& dst);
+  int GetStatus();
 
-        SBError
-        Run (SBPlatformShellCommand &shell_command);
+  const char *GetOutput();
 
-        SBError
-        MakeDirectory (const char *path, uint32_t file_permissions = eFilePermissionsDirectoryDefault);
+protected:
+  friend class SBPlatform;
 
-        uint32_t
-        GetFilePermissions (const char *path);
-        
-        SBError
-        SetFilePermissions (const char *path, uint32_t file_permissions);
+  PlatformShellCommand *m_opaque_ptr;
+};
 
-    protected:
-        
-        friend class SBDebugger;
-        friend class SBTarget;
+class LLDB_API SBPlatform {
+public:
+  SBPlatform();
 
-        lldb::PlatformSP
-        GetSP () const;
-        
-        void
-        SetSP (const lldb::PlatformSP& platform_sp);
+  SBPlatform(const char *platform_name);
 
-        lldb::PlatformSP m_opaque_sp;
-    };
+  ~SBPlatform();
+
+  bool IsValid() const;
+
+  void Clear();
+
+  const char *GetWorkingDirectory();
+
+  bool SetWorkingDirectory(const char *path);
+
+  const char *GetName();
+
+  SBError ConnectRemote(SBPlatformConnectOptions &connect_options);
+
+  void DisconnectRemote();
+
+  bool IsConnected();
+
+  //----------------------------------------------------------------------
+  // The following functions will work if the platform is connected
+  //----------------------------------------------------------------------
+  const char *GetTriple();
+
+  const char *GetHostname();
+
+  const char *GetOSBuild();
+
+  const char *GetOSDescription();
+
+  uint32_t GetOSMajorVersion();
+
+  uint32_t GetOSMinorVersion();
+
+  uint32_t GetOSUpdateVersion();
+
+  SBError Put(SBFileSpec &src, SBFileSpec &dst);
+
+  SBError Get(SBFileSpec &src, SBFileSpec &dst);
+
+  SBError Install(SBFileSpec &src, SBFileSpec &dst);
+
+  SBError Run(SBPlatformShellCommand &shell_command);
+
+  SBError Launch(SBLaunchInfo &launch_info);
+
+  SBError Kill(const lldb::pid_t pid);
+
+  SBError
+  MakeDirectory(const char *path,
+                uint32_t file_permissions = eFilePermissionsDirectoryDefault);
+
+  uint32_t GetFilePermissions(const char *path);
+
+  SBError SetFilePermissions(const char *path, uint32_t file_permissions);
+
+  SBUnixSignals GetUnixSignals() const;
+
+protected:
+  friend class SBDebugger;
+  friend class SBTarget;
+
+  lldb::PlatformSP GetSP() const;
+
+  void SetSP(const lldb::PlatformSP &platform_sp);
+
+  SBError ExecuteConnected(
+      const std::function<lldb_private::Status(const lldb::PlatformSP &)>
+          &func);
+
+  lldb::PlatformSP m_opaque_sp;
+};
 
 } // namespace lldb
 

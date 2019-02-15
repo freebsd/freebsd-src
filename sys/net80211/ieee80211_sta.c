@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -64,15 +66,17 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <net80211/ieee80211_ratectl.h>
 #include <net80211/ieee80211_sta.h>
+#include <net80211/ieee80211_vht.h>
 
 #define	IEEE80211_RATE2MBS(r)	(((r) & IEEE80211_RATE_VAL) / 2)
 
 static	void sta_vattach(struct ieee80211vap *);
 static	void sta_beacon_miss(struct ieee80211vap *);
 static	int sta_newstate(struct ieee80211vap *, enum ieee80211_state, int);
-static	int sta_input(struct ieee80211_node *, struct mbuf *, int, int);
+static	int sta_input(struct ieee80211_node *, struct mbuf *,
+	    const struct ieee80211_rx_stats *, int, int);
 static void sta_recv_mgmt(struct ieee80211_node *, struct mbuf *,
-	    int subtype, int rssi, int nf);
+	    int subtype, const struct ieee80211_rx_stats *, int rssi, int nf);
 static void sta_recv_ctl(struct ieee80211_node *, struct mbuf *, int subtype);
 
 void
@@ -153,7 +157,6 @@ sta_beacon_miss(struct ieee80211vap *vap)
 	vap->iv_stats.is_beacon_miss++;
 	if (vap->iv_roaming == IEEE80211_ROAMING_AUTO) {
 #ifdef IEEE80211_SUPPORT_SUPERG
-		struct ieee80211com *ic = vap->iv_ic;
 
 		/*
 		 * If we receive a beacon miss interrupt when using
@@ -205,6 +208,24 @@ sta_authretry(struct ieee80211vap *vap, struct ieee80211_node *ni, int reason)
 	}
 }
 
+static void
+sta_swbmiss_start(struct ieee80211vap *vap)
+{
+
+	if (vap->iv_flags_ext & IEEE80211_FEXT_SWBMISS) {
+		/*
+		 * Start s/w beacon miss timer for devices w/o
+		 * hardware support.  We fudge a bit here since
+		 * we're doing this in software.
+		 */
+		vap->iv_swbmiss_period = IEEE80211_TU_TO_TICKS(
+		    2 * vap->iv_bmissthreshold * vap->iv_bss->ni_intval);
+		vap->iv_swbmiss_count = 0;
+		callout_reset(&vap->iv_swbmiss, vap->iv_swbmiss_period,
+		    ieee80211_swbmiss, vap);
+	}
+}
+
 /*
  * IEEE80211_M_STA vap state machine handler.
  * This routine handles the main states in the 802.11 protocol.
@@ -250,7 +271,7 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			ieee80211_cancel_scan(vap);
 			break;
 		default:
-			goto invalid;
+			break;
 		}
 		if (ostate != IEEE80211_S_INIT) {
 			/* NB: optimize INIT -> INIT case */
@@ -340,12 +361,13 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				break;
 			}
 			break;
+		case IEEE80211_S_SLEEP:
 		case IEEE80211_S_RUN:
 			switch (arg & 0xff) {
 			case IEEE80211_FC0_SUBTYPE_AUTH:
 				IEEE80211_SEND_MGMT(ni,
 				    IEEE80211_FC0_SUBTYPE_AUTH, 2);
-				vap->iv_state = ostate;	/* stay RUN */
+				vap->iv_state = IEEE80211_S_RUN; /* stay RUN */
 				break;
 			case IEEE80211_FC0_SUBTYPE_DEAUTH:
 				ieee80211_sta_leave(ni);
@@ -417,19 +439,8 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			goto invalid;
 		}
 		ieee80211_sync_curchan(ic);
-		if (ostate != IEEE80211_S_RUN &&
-		    (vap->iv_flags_ext & IEEE80211_FEXT_SWBMISS)) {
-			/*
-			 * Start s/w beacon miss timer for devices w/o
-			 * hardware support.  We fudge a bit here since
-			 * we're doing this in software.
-			 */
-			vap->iv_swbmiss_period = IEEE80211_TU_TO_TICKS(
-				2 * vap->iv_bmissthreshold * ni->ni_intval);
-			vap->iv_swbmiss_count = 0;
-			callout_reset(&vap->iv_swbmiss, vap->iv_swbmiss_period,
-				ieee80211_swbmiss, vap);
-		}
+		if (ostate != IEEE80211_S_RUN)
+			sta_swbmiss_start(vap);
 		/*
 		 * When 802.1x is not in use mark the port authorized
 		 * at this point so traffic can flow.
@@ -449,6 +460,7 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			goto invalid;
 		break;
 	case IEEE80211_S_SLEEP:
+		sta_swbmiss_start(vap);
 		vap->iv_sta_ps(vap, 1);
 		break;
 	default:
@@ -525,9 +537,9 @@ doprint(struct ieee80211vap *vap, int subtype)
  * by the 802.11 layer.
  */
 static int
-sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
+sta_input(struct ieee80211_node *ni, struct mbuf *m,
+    const struct ieee80211_rx_stats *rxs, int rssi, int nf)
 {
-#define	HAS_SEQ(type)	((type & 0x4) == 0)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = vap->iv_ifp;
@@ -537,7 +549,16 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 	int hdrspace, need_tap = 1;	/* mbuf need to be tapped. */
 	uint8_t dir, type, subtype, qos;
 	uint8_t *bssid;
-	uint16_t rxseq;
+	int is_hw_decrypted = 0;
+	int has_decrypted = 0;
+
+	/*
+	 * Some devices do hardware decryption all the way through
+	 * to pretending the frame wasn't encrypted in the first place.
+	 * So, tag it appropriately so it isn't discarded inappropriately.
+	 */
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_DECRYPTED))
+		is_hw_decrypted = 1;
 
 	if (m->m_flags & M_AMPDU_MPDU) {
 		/*
@@ -623,29 +644,14 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 
 		IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
 		ni->ni_noise = nf;
-		if (HAS_SEQ(type) && !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+		if ( IEEE80211_HAS_SEQ(type, subtype) &&
+		    !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 			uint8_t tid = ieee80211_gettid(wh);
 			if (IEEE80211_QOS_HAS_SEQ(wh) &&
 			    TID_TO_WME_AC(tid) >= WME_AC_VI)
 				ic->ic_wme.wme_hipri_traffic++;
-			rxseq = le16toh(*(uint16_t *)wh->i_seq);
-			if (! ieee80211_check_rxseq(ni, wh)) {
-				/* duplicate, discard */
-				IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
-				    bssid, "duplicate",
-				    "seqno <%u,%u> fragno <%u,%u> tid %u",
-				    rxseq >> IEEE80211_SEQ_SEQ_SHIFT,
-				    ni->ni_rxseqs[tid] >>
-					IEEE80211_SEQ_SEQ_SHIFT,
-				    rxseq & IEEE80211_SEQ_FRAG_MASK,
-				    ni->ni_rxseqs[tid] &
-					IEEE80211_SEQ_FRAG_MASK,
-				    tid);
-				vap->iv_stats.is_rx_dup++;
-				IEEE80211_NODE_STAT(ni, rx_dup);
+			if (! ieee80211_check_rxseq(ni, wh, bssid, rxs))
 				goto out;
-			}
-			ni->ni_rxseqs[tid] = rxseq;
 		}
 	}
 
@@ -669,7 +675,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		if ((m->m_flags & M_AMPDU) &&
 		    (dir == IEEE80211_FC1_DIR_FROMDS ||
 		     dir == IEEE80211_FC1_DIR_DSTODS) &&
-		    ieee80211_ampdu_reorder(ni, m) != 0) {
+		    ieee80211_ampdu_reorder(ni, m, rxs) != 0) {
 			m = NULL;
 			goto out;
 		}
@@ -731,6 +737,21 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		}
 
 		/*
+		 * Handle privacy requirements for hardware decryption
+		 * devices.
+		 *
+		 * For those devices, a handful of things happen.
+		 *
+		 * + If IV has been stripped, then we can't run
+		 *   ieee80211_crypto_decap() - none of the key
+		 * + If MIC has been stripped, we can't validate
+		 *   MIC here.
+		 * + If MIC fails, then we need to communicate a
+		 *   MIC failure up to the stack - but we don't know
+		 *   which key was used.
+		 */
+
+		/*
 		 * Handle privacy requirements.  Note that we
 		 * must not be preempted from here until after
 		 * we (potentially) call ieee80211_crypto_demic;
@@ -738,7 +759,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		 * crypto cipher modules used to do delayed update
 		 * of replay sequence numbers.
 		 */
-		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
+		if (is_hw_decrypted || wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			if ((vap->iv_flags & IEEE80211_F_PRIVACY) == 0) {
 				/*
 				 * Discard encrypted frames when privacy is off.
@@ -749,14 +770,14 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 				IEEE80211_NODE_STAT(ni, rx_noprivacy);
 				goto out;
 			}
-			key = ieee80211_crypto_decap(ni, m, hdrspace);
-			if (key == NULL) {
+			if (ieee80211_crypto_decap(ni, m, hdrspace, &key) == 0) {
 				/* NB: stats+msgs handled in crypto_decap */
 				IEEE80211_NODE_STAT(ni, rx_wepfail);
 				goto out;
 			}
 			wh = mtod(m, struct ieee80211_frame *);
 			wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
+			has_decrypted = 1;
 		} else {
 			/* XXX M_WEP and IEEE80211_F_PRIVACY */
 			key = NULL;
@@ -786,8 +807,13 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 
 		/*
 		 * Next strip any MSDU crypto bits.
+		 *
+		 * Note: we can't do MIC stripping/verification if the
+		 * upper layer has stripped it.  We have to check MIC
+		 * ourselves.  So, key may be NULL, but we have to check
+		 * the RX status.
 		 */
-		if (key != NULL && !ieee80211_crypto_demic(vap, key, m, 0)) {
+		if (!ieee80211_crypto_demic(vap, key, m, 0)) {
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
 			    ni->ni_macaddr, "data", "%s", "demic error");
 			vap->iv_stats.is_rx_demicfail++;
@@ -841,7 +867,8 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			 * any non-PAE frames received without encryption.
 			 */
 			if ((vap->iv_flags & IEEE80211_F_DROPUNENC) &&
-			    (key == NULL && (m->m_flags & M_WEP) == 0) &&
+			    ((has_decrypted == 0) && (m->m_flags & M_WEP) == 0) &&
+			    (is_hw_decrypted == 0) &&
 			    eh->ether_type != htons(ETHERTYPE_PAE)) {
 				/*
 				 * Drop unencrypted frames.
@@ -886,11 +913,20 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		if ((ieee80211_msg_debug(vap) && doprint(vap, subtype)) ||
 		    ieee80211_msg_dumppkts(vap)) {
 			if_printf(ifp, "received %s from %s rssi %d\n",
-			    ieee80211_mgt_subtype_name[subtype >>
-				IEEE80211_FC0_SUBTYPE_SHIFT],
+			    ieee80211_mgt_subtype_name(subtype),
 			    ether_sprintf(wh->i_addr2), rssi);
 		}
 #endif
+
+		/*
+		 * Note: See above for hardware offload privacy requirements.
+		 *       It also applies here.
+		 */
+
+		/*
+		 * Again, having encrypted flag set check would be good, but
+		 * then we have to also handle crypto_decap() like above.
+		 */
 		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			if (subtype != IEEE80211_FC0_SUBTYPE_AUTH) {
 				/*
@@ -898,8 +934,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 				 * should be encrypted, discard all others.
 				 */
 				IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
-				    wh, ieee80211_mgt_subtype_name[subtype >>
-					IEEE80211_FC0_SUBTYPE_SHIFT],
+				    wh, ieee80211_mgt_subtype_name(subtype),
 				    "%s", "WEP set but not permitted");
 				vap->iv_stats.is_rx_mgtdiscard++; /* XXX */
 				goto out;
@@ -914,15 +949,20 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 				goto out;
 			}
 			hdrspace = ieee80211_hdrspace(ic, wh);
-			key = ieee80211_crypto_decap(ni, m, hdrspace);
-			if (key == NULL) {
+
+			/*
+			 * Again, if IV/MIC was stripped, then this whole
+			 * setup will fail.  That's going to need some poking.
+			 */
+			if (ieee80211_crypto_decap(ni, m, hdrspace, &key) == 0) {
 				/* NB: stats+msgs handled in crypto_decap */
 				goto out;
 			}
+			has_decrypted = 1;
 			wh = mtod(m, struct ieee80211_frame *);
 			wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
 		}
-		vap->iv_recv_mgmt(ni, m, subtype, rssi, nf);
+		vap->iv_recv_mgmt(ni, m, subtype, rxs, rssi, nf);
 		goto out;
 
 	case IEEE80211_FC0_TYPE_CTL:
@@ -984,7 +1024,6 @@ sta_auth_shared(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	uint8_t *challenge;
-	int estatus;
 
 	/*
 	 * NB: this can happen as we allow pre-shared key
@@ -998,7 +1037,6 @@ sta_auth_shared(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_AUTH,
 		    ni->ni_macaddr, "shared key auth",
 		    "%s", " PRIVACY is disabled");
-		estatus = IEEE80211_STATUS_ALG;
 		goto bad;
 	}
 	/*
@@ -1012,7 +1050,6 @@ sta_auth_shared(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 		    ni->ni_macaddr, "shared key auth",
 		    "bad sta auth mode %u", ni->ni_authmode);
 		vap->iv_stats.is_rx_bad_auth++;	/* XXX maybe a unique error? */
-		estatus = IEEE80211_STATUS_ALG;
 		goto bad;
 	}
 
@@ -1024,7 +1061,6 @@ sta_auth_shared(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 			    "ie %d/%d too long",
 			    frm[0], (frm[1] + 2) - (efrm - frm));
 			vap->iv_stats.is_rx_bad_auth++;
-			estatus = IEEE80211_STATUS_CHALLENGE;
 			goto bad;
 		}
 		if (*frm == IEEE80211_ELEMID_CHALLENGE)
@@ -1039,7 +1075,6 @@ sta_auth_shared(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 			    ni->ni_macaddr, "shared key auth",
 			    "%s", "no challenge");
 			vap->iv_stats.is_rx_bad_auth++;
-			estatus = IEEE80211_STATUS_CHALLENGE;
 			goto bad;
 		}
 		if (challenge[1] != IEEE80211_CHALLENGE_LEN) {
@@ -1047,7 +1082,6 @@ sta_auth_shared(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 			    ni->ni_macaddr, "shared key auth",
 			    "bad challenge len %d", challenge[1]);
 			vap->iv_stats.is_rx_bad_auth++;
-			estatus = IEEE80211_STATUS_CHALLENGE;
 			goto bad;
 		}
 	default:
@@ -1058,7 +1092,7 @@ sta_auth_shared(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 	switch (seq) {
 	case IEEE80211_AUTH_SHARED_PASS:
 		if (ni->ni_challenge != NULL) {
-			free(ni->ni_challenge, M_80211_NODE);
+			IEEE80211_FREE(ni->ni_challenge, M_80211_NODE);
 			ni->ni_challenge = NULL;
 		}
 		if (status != 0) {
@@ -1126,7 +1160,7 @@ ieee80211_parse_wmeparams(struct ieee80211vap *vap, uint8_t *frm,
 		wmep->wmep_aifsn = MS(frm[0], WME_PARAM_AIFSN);
 		wmep->wmep_logcwmin = MS(frm[1], WME_PARAM_LOGCWMIN);
 		wmep->wmep_logcwmax = MS(frm[1], WME_PARAM_LOGCWMAX);
-		wmep->wmep_txopLimit = LE_READ_2(frm+2);
+		wmep->wmep_txopLimit = le16dec(frm+2);
 		frm += 4;
 	}
 	wme->wme_wmeChanParams.cap_info = qosinfo;
@@ -1245,6 +1279,7 @@ done:
  * o bg scan is active
  * o no channel switch is pending
  * o there has not been any traffic recently
+ * o no full-offload scan support (no need for explicitly continuing scan then)
  *
  * Note we do not check if there is an administrative enable;
  * this is only done to start the scan.  We assume that any
@@ -1258,8 +1293,9 @@ contbgscan(struct ieee80211vap *vap)
 
 	return ((ic->ic_flags_ext & IEEE80211_FEXT_BGSCAN) &&
 	    (ic->ic_flags & IEEE80211_F_CSAPENDING) == 0 &&
+	    !(vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) &&
 	    vap->iv_state == IEEE80211_S_RUN &&		/* XXX? */
-	    time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle));
+	    ieee80211_time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle));
 }
 
 /*
@@ -1268,7 +1304,7 @@ contbgscan(struct ieee80211vap *vap)
  * o no channel switch is pending
  * o we are not boosted on a dynamic turbo channel
  * o there has not been a scan recently
- * o there has not been any traffic recently
+ * o there has not been any traffic recently (don't check if full-offload scan)
  */
 static __inline int
 startbgscan(struct ieee80211vap *vap)
@@ -1280,23 +1316,47 @@ startbgscan(struct ieee80211vap *vap)
 #ifdef IEEE80211_SUPPORT_SUPERG
 	    !IEEE80211_IS_CHAN_DTURBO(ic->ic_curchan) &&
 #endif
-	    time_after(ticks, ic->ic_lastscan + vap->iv_bgscanintvl) &&
-	    time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle));
+	    ieee80211_time_after(ticks, ic->ic_lastscan + vap->iv_bgscanintvl) &&
+	    ((vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) ||
+	     ieee80211_time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle)));
 }
 
-static void
-sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
-	int subtype, int rssi, int nf)
+#ifdef	notyet
+/*
+ * Compare two quiet IEs and return if they are equivalent.
+ *
+ * The tbttcount isnt checked - that's not part of the configuration.
+ */
+static int
+compare_quiet_ie(const struct ieee80211_quiet_ie *q1,
+    const struct ieee80211_quiet_ie *q2)
 {
-#define	ISPROBE(_st)	((_st) == IEEE80211_FC0_SUBTYPE_PROBE_RESP)
+
+	if (q1->period != q2->period)
+		return (0);
+	if (le16dec(&q1->duration) != le16dec(&q2->duration))
+		return (0);
+	if (le16dec(&q1->offset) != le16dec(&q2->offset))
+		return (0);
+	return (1);
+}
+#endif
+
+static void
+sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
+    const struct ieee80211_rx_stats *rxs,
+    int rssi, int nf)
+{
 #define	ISREASSOC(_st)	((_st) == IEEE80211_FC0_SUBTYPE_REASSOC_RESP)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211_channel *rxchan = ic->ic_curchan;
 	struct ieee80211_frame *wh;
 	uint8_t *frm, *efrm;
 	uint8_t *rates, *xrates, *wme, *htcap, *htinfo;
+	uint8_t *vhtcap, *vhtopmode;
 	uint8_t rate;
-	int ht_state_change = 0;
+	int ht_state_change = 0, do_ht = 0;
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	frm = (uint8_t *)&wh[1];
@@ -1305,6 +1365,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
 	case IEEE80211_FC0_SUBTYPE_BEACON: {
 		struct ieee80211_scanparams scan;
+		struct ieee80211_channel *c;
 		/*
 		 * We process beacon/probe response frames:
 		 *    o when scanning, or
@@ -1316,8 +1377,16 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			vap->iv_stats.is_rx_mgtdiscard++;
 			return;
 		}
+
+		/* Override RX channel as appropriate */
+		if (rxs != NULL) {
+			c = ieee80211_lookup_channel_rxstatus(vap, rxs);
+			if (c != NULL)
+				rxchan = c;
+		}
+
 		/* XXX probe response in sta mode when !scanning? */
-		if (ieee80211_parse_beacon(ni, m0, &scan) != 0) {
+		if (ieee80211_parse_beacon(ni, m0, rxchan, &scan) != 0) {
 			if (! (ic->ic_flags & IEEE80211_F_SCAN))
 				vap->iv_stats.is_beacon_bad++;
 			return;
@@ -1386,12 +1455,43 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			if (scan.htcap != NULL && scan.htinfo != NULL &&
 			    (vap->iv_flags_ht & IEEE80211_FHT_HT)) {
 				/* XXX state changes? */
-				if (ieee80211_ht_updateparams(ni,
+				ieee80211_ht_updateparams(ni,
+				    scan.htcap, scan.htinfo);
+				do_ht = 1;
+			}
+			if (scan.vhtcap != NULL && scan.vhtopmode != NULL &&
+			    (vap->iv_flags_vht & IEEE80211_FVHT_VHT)) {
+				/* XXX state changes? */
+				ieee80211_vht_updateparams(ni,
+				    scan.vhtcap, scan.vhtopmode);
+				do_ht = 1;
+			}
+			if (do_ht) {
+				if (ieee80211_ht_updateparams_final(ni,
 				    scan.htcap, scan.htinfo))
 					ht_state_change = 1;
 			}
-			if (scan.quiet)
+
+			/*
+			 * If we have a quiet time IE then report it up to
+			 * the driver.
+			 *
+			 * Otherwise, inform the driver that the quiet time
+			 * IE has disappeared - only do that once rather than
+			 * spamming it each time.
+			 */
+			if (scan.quiet) {
 				ic->ic_set_quiet(ni, scan.quiet);
+				ni->ni_quiet_ie_set = 1;
+				memcpy(&ni->ni_quiet_ie, scan.quiet,
+				    sizeof(struct ieee80211_quiet_ie));
+			} else {
+				if (ni->ni_quiet_ie_set == 1)
+					ic->ic_set_quiet(ni, NULL);
+				ni->ni_quiet_ie_set = 0;
+				bzero(&ni->ni_quiet_ie,
+				    sizeof(struct ieee80211_quiet_ie));
+			}
 
 			if (scan.tim != NULL) {
 				struct ieee80211_tim_ie *tim =
@@ -1405,6 +1505,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				int ix = aid / NBBY;
 				int min = tim->tim_bitctl &~ 1;
 				int max = tim->tim_len + min - 4;
+				int tim_ucast = 0, tim_mcast = 0;
 
 				/*
 				 * Only do this for unicast traffic in the TIM
@@ -1414,20 +1515,42 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				 */
 				if (min <= ix && ix <= max &&
 				     isset(tim->tim_bitmap - min, aid)) {
-					ieee80211_sta_tim_notify(vap, 1);
-					ic->ic_lastdata = ticks;
+					tim_ucast = 1;
 				}
 
 				/*
-				 * XXX TODO: do a separate notification
+				 * Do a separate notification
 				 * for the multicast bit being set.
 				 */
-#if 0
 				if (tim->tim_bitctl & 1) {
+					tim_mcast = 1;
+				}
+
+				/*
+				 * If the TIM indicates there's traffic for
+				 * us then get us out of STA mode powersave.
+				 */
+				if (tim_ucast == 1) {
+
+					/*
+					 * Wake us out of SLEEP state if we're
+					 * in it; and if we're doing bgscan
+					 * then wake us out of STA powersave.
+					 */
 					ieee80211_sta_tim_notify(vap, 1);
+
+					/*
+					 * This is preventing us from
+					 * continuing a bgscan; because it
+					 * tricks the contbgscan()
+					 * routine to think there's always
+					 * traffic for us.
+					 *
+					 * I think we need both an RX and
+					 * TX ic_lastdata field.
+					 */
 					ic->ic_lastdata = ticks;
 				}
-#endif
 
 				ni->ni_dtim_count = tim->tim_count;
 				ni->ni_dtim_period = tim->tim_period;
@@ -1461,8 +1584,8 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			 * our ap.
 			 */
 			if (ic->ic_flags & IEEE80211_F_SCAN) {
-				ieee80211_add_scan(vap, &scan, wh,
-					subtype, rssi, nf);
+				ieee80211_add_scan(vap, rxchan,
+				    &scan, wh, subtype, rssi, nf);
 			} else if (contbgscan(vap)) {
 				ieee80211_bg_scan(vap, 0);
 			} else if (startbgscan(vap)) {
@@ -1506,7 +1629,8 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				ieee80211_probe_curchan(vap, 1);
 				ic->ic_flags_ext &= ~IEEE80211_FEXT_PROBECHAN;
 			}
-			ieee80211_add_scan(vap, &scan, wh, subtype, rssi, nf);
+			ieee80211_add_scan(vap, rxchan, &scan, wh,
+			    subtype, rssi, nf);
 			return;
 		}
 		break;
@@ -1592,6 +1716,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		frm += 2;
 
 		rates = xrates = wme = htcap = htinfo = NULL;
+		vhtcap = vhtopmode = NULL;
 		while (efrm - frm > 1) {
 			IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1] + 2, return);
 			switch (*frm) {
@@ -1624,6 +1749,12 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 					}
 				}
 				/* XXX Atheros OUI support */
+				break;
+			case IEEE80211_ELEMID_VHT_CAP:
+				vhtcap = frm;
+				break;
+			case IEEE80211_ELEMID_VHT_OPMODE:
+				vhtopmode = frm;
 				break;
 			}
 			frm += frm[1] + 2;
@@ -1669,17 +1800,42 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		    (vap->iv_flags_ht & IEEE80211_FHT_HT)) {
 			ieee80211_ht_node_init(ni);
 			ieee80211_ht_updateparams(ni, htcap, htinfo);
+
+			if ((vhtcap != NULL) && (vhtopmode != NULL) &
+			    (vap->iv_flags_vht & IEEE80211_FVHT_VHT)) {
+				/*
+				 * Log if we get a VHT assoc/reassoc response.
+				 * We aren't ready for 2GHz VHT support.
+				 */
+				if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan)) {
+					printf("%s: peer %6D: VHT on 2GHz, ignoring\n",
+					    __func__,
+					    ni->ni_macaddr,
+					    ":");
+				} else {
+					ieee80211_vht_node_init(ni);
+					ieee80211_vht_updateparams(ni, vhtcap, vhtopmode);
+					ieee80211_setup_vht_rates(ni, vhtcap, vhtopmode);
+				}
+			}
+
+			ieee80211_ht_updateparams_final(ni, htcap, htinfo);
 			ieee80211_setup_htrates(ni, htcap,
 			     IEEE80211_F_JOIN | IEEE80211_F_DOBRS);
 			ieee80211_setup_basic_htrates(ni, htinfo);
+
 			ieee80211_node_setuptxparms(ni);
 			ieee80211_ratectl_node_init(ni);
-		} else {
-#ifdef IEEE80211_SUPPORT_SUPERG
-			if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_ATH))
-				ieee80211_ff_node_init(ni);
-#endif
 		}
+
+		/*
+		 * Always initialise FF/superg state; we can use this
+		 * for doing A-MSDU encapsulation as well.
+		 */
+#ifdef	IEEE80211_SUPPORT_SUPERG
+		ieee80211_ff_node_init(ni);
+#endif
+
 		/*
 		 * Configure state now that we are associated.
 		 *
@@ -1755,7 +1911,8 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		IEEE80211_NODE_STAT(ni, rx_deauth);
 
 		IEEE80211_NOTE(vap, IEEE80211_MSG_AUTH, ni,
-		    "recv deauthenticate (reason %d)", reason);
+		    "recv deauthenticate (reason: %d (%s))", reason,
+		    ieee80211_reason_to_string(reason));
 		ieee80211_new_state(vap, IEEE80211_S_AUTH,
 		    (reason << 8) | IEEE80211_FC0_SUBTYPE_DEAUTH);
 		break;
@@ -1788,7 +1945,8 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		IEEE80211_NODE_STAT(ni, rx_disassoc);
 
 		IEEE80211_NOTE(vap, IEEE80211_MSG_ASSOC, ni,
-		    "recv disassociate (reason %d)", reason);
+		    "recv disassociate (reason: %d (%s))", reason,
+		    ieee80211_reason_to_string(reason));
 		ieee80211_new_state(vap, IEEE80211_S_ASSOC, 0);
 		break;
 	}
@@ -1814,6 +1972,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	case IEEE80211_FC0_SUBTYPE_ASSOC_REQ:
 	case IEEE80211_FC0_SUBTYPE_REASSOC_REQ:
 	case IEEE80211_FC0_SUBTYPE_PROBE_REQ:
+	case IEEE80211_FC0_SUBTYPE_TIMING_ADV:
 	case IEEE80211_FC0_SUBTYPE_ATIM:
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
 		    wh, NULL, "%s", "not handled");
@@ -1827,7 +1986,6 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		break;
 	}
 #undef ISREASSOC
-#undef ISPROBE
 }
 
 static void

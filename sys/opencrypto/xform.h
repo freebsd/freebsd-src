@@ -9,6 +9,12 @@
  * supported the development of this code.
  *
  * Copyright (c) 2000 Angelos D. Keromytis
+ * Copyright (c) 2014 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Portions of this software were developed by John-Mark Gurney
+ * under sponsorship of the FreeBSD Foundation and
+ * Rubicon Communications, LLC (Netgate).
  *
  * Permission to use, copy, and modify this software without fee
  * is hereby granted, provided that this entire notice is included in
@@ -27,76 +33,15 @@
 
 #include <sys/md5.h>
 #include <crypto/sha1.h>
-#include <crypto/sha2/sha2.h>
+#include <crypto/sha2/sha256.h>
+#include <crypto/sha2/sha384.h>
+#include <crypto/sha2/sha512.h>
 #include <opencrypto/rmd160.h>
+#include <opencrypto/gmac.h>
 
-/* Declarations */
-struct auth_hash {
-	int type;
-	char *name;
-	u_int16_t keysize;
-	u_int16_t hashsize; 
-	u_int16_t blocksize;
-	u_int16_t ctxsize;
-	void (*Init) (void *);
-	int  (*Update) (void *, u_int8_t *, u_int16_t);
-	void (*Final) (u_int8_t *, void *);
-};
-
-/* XXX use a define common with other hash stuff ! */
-#define	AH_ALEN_MAX	64	/* max authenticator hash length */
-
-struct enc_xform {
-	int type;
-	char *name;
-	u_int16_t blocksize;
-	u_int16_t minkey, maxkey;
-	void (*encrypt) (caddr_t, u_int8_t *);
-	void (*decrypt) (caddr_t, u_int8_t *);
-	int (*setkey) (u_int8_t **, u_int8_t *, int len);
-	void (*zerokey) (u_int8_t **);
-	void (*reinit) (caddr_t, u_int8_t *);
-};
-
-struct comp_algo {
-	int type;
-	char *name;
-	size_t minlen;
-	u_int32_t (*compress) (u_int8_t *, u_int32_t, u_int8_t **);
-	u_int32_t (*decompress) (u_int8_t *, u_int32_t, u_int8_t **);
-};
-
-union authctx {
-	MD5_CTX md5ctx;
-	SHA1_CTX sha1ctx;
-	RMD160_CTX rmd160ctx;
-	SHA256_CTX sha256ctx;
-	SHA384_CTX sha384ctx;
-	SHA512_CTX sha512ctx;
-};
-
-extern struct enc_xform enc_xform_null;
-extern struct enc_xform enc_xform_des;
-extern struct enc_xform enc_xform_3des;
-extern struct enc_xform enc_xform_blf;
-extern struct enc_xform enc_xform_cast5;
-extern struct enc_xform enc_xform_skipjack;
-extern struct enc_xform enc_xform_rijndael128;
-extern struct enc_xform enc_xform_aes_xts;
-extern struct enc_xform enc_xform_arc4;
-extern struct enc_xform enc_xform_camellia;
-
-extern struct auth_hash auth_hash_null;
-extern struct auth_hash auth_hash_key_md5;
-extern struct auth_hash auth_hash_key_sha1;
-extern struct auth_hash auth_hash_hmac_md5;
-extern struct auth_hash auth_hash_hmac_sha1;
-extern struct auth_hash auth_hash_hmac_ripemd_160;
-extern struct auth_hash auth_hash_hmac_sha2_256;
-extern struct auth_hash auth_hash_hmac_sha2_384;
-extern struct auth_hash auth_hash_hmac_sha2_512;
-
-extern struct comp_algo comp_algo_deflate;
+#include <opencrypto/xform_auth.h>
+#include <opencrypto/xform_comp.h>
+#include <opencrypto/xform_enc.h>
 
 #ifdef _KERNEL
 #include <sys/malloc.h>

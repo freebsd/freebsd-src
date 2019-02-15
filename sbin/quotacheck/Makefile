@@ -1,13 +1,13 @@
 # $FreeBSD$
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
 
+PACKAGE=quotacheck
 PROG=	quotacheck
 SRCS=	quotacheck.c preen.c fsutil.c utilities.c
-WARNS?=	2
+WARNS?=	3
 MAN=	quotacheck.8
-DPADD=  ${LIBUTIL}
-LDADD=  -lutil
+LIBADD=	util ufs
 
-.PATH:	${.CURDIR}/../fsck ${.CURDIR}/../fsck_ffs
+.PATH:	${.CURDIR:H}/fsck ${.CURDIR:H}/fsck_ffs
 
 .include <bsd.prog.mk>

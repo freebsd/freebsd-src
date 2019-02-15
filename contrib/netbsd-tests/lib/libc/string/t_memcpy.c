@@ -1,4 +1,4 @@
-/* $NetBSD: t_memcpy.c,v 1.5 2013/03/17 02:23:31 christos Exp $ */
+/* $NetBSD: t_memcpy.c,v 1.6 2017/01/11 18:05:54 christos Exp $ */
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -51,7 +51,11 @@ unsigned char *start[BLOCKTYPES] = {
 };
 
 char result[100];
+#ifdef __NetBSD__
 const char goodResult[] = "7b405d24bc03195474c70ddae9e1f8fb";
+#else
+const char goodResult[] = "5ab4443f0e3e058d94087d9f2a11ef5e";
+#endif
 
 static void
 runTest(unsigned char *b1, unsigned char *b2)
@@ -89,14 +93,23 @@ ATF_TC_BODY(memcpy_basic, tc)
 	start[2] = auto1;
 	start[3] = auto2;
 
+#ifdef __NetBSD__
 	srandom(0L);
+#else
+	/*
+	 * random() shall produce by default a sequence of numbers that can be
+	 * duplicated by calling srandom() with 1 as the seed.
+	 */
+	srandom(1);
+#endif
 	MD5Init(mc);
 	for (i = 0; i < BLOCKTYPES; ++i)
 		for (j = 0; j < BLOCKTYPES; ++j)
 			if (i != j)
 				runTest(start[i], start[j]);
 	MD5End(mc, result);
-	ATF_REQUIRE_EQ(strcmp(result, goodResult), 0);
+	ATF_REQUIRE_EQ_MSG(strcmp(result, goodResult), 0, "%s != %s",
+	    result, goodResult);
 }
 
 ATF_TC(memccpy_simple);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002,2005 Marcel Moolenaar
  * Copyright (c) 2002 Hiten Mahesh Pandya
  * All rights reserved.
@@ -49,7 +51,7 @@ uuid_to_string(const uuid_t *u, char **s, uint32_t *status)
 		*status = uuid_s_ok;
 
 	/* Why allow a NULL-pointer here? */
-	if (s == 0)
+	if (s == NULL)
 		return;
 
 	if (u == NULL) {

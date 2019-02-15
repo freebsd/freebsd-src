@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2010 Nathan Whitehorn
  * Copyright (C) 2011 glevand (geoffrey.levand@mail.ru)
  * All rights reserved.
@@ -43,7 +45,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/platform.h>
-#include <machine/pmap.h>
 #include <machine/resource.h>
 
 #include "ps3bus.h"
@@ -58,8 +59,8 @@ static int	ps3bus_print_child(device_t dev, device_t child);
 static int	ps3bus_read_ivar(device_t bus, device_t child, int which,
 		    uintptr_t *result);
 static struct resource *ps3bus_alloc_resource(device_t bus, device_t child,
-		    int type, int *rid, u_long start, u_long end,
-		    u_long count, u_int flags);
+		    int type, int *rid, rman_res_t start, rman_res_t end,
+		    rman_res_t count, u_int flags);
 static int	ps3bus_activate_resource(device_t bus, device_t child, int type,
 		    int rid, struct resource *res);
 static bus_dma_tag_t ps3bus_get_dma_tag(device_t dev, device_t child);
@@ -336,7 +337,7 @@ ps3bus_attach(device_t self)
 	rman_manage_region(&sc->sc_intr_rman, 0, ~0);
 
 	/* Get memory regions for DMA */
-	mem_regions(&sc->regions, &sc->rcount, &sc->regions, &sc->rcount);
+	mem_regions(&sc->regions, &sc->rcount, NULL, NULL);
 
 	/*
 	 * Probe all the PS3's buses.
@@ -481,9 +482,9 @@ ps3bus_print_child(device_t dev, device_t child)
 
 	retval += bus_print_child_header(dev, child);
 	retval += resource_list_print_type(&dinfo->resources, "mem",
-	    SYS_RES_MEMORY, "%#lx");
+	    SYS_RES_MEMORY, "%#jx");
 	retval += resource_list_print_type(&dinfo->resources, "irq",
-	    SYS_RES_IRQ, "%ld");
+	    SYS_RES_IRQ, "%jd");
 
 	retval += bus_print_child_footer(dev, child);
 
@@ -523,14 +524,14 @@ ps3bus_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 
 static struct resource *
 ps3bus_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct	ps3bus_devinfo *dinfo;
 	struct	ps3bus_softc *sc;
 	int	needactivate;
         struct	resource *rv;
         struct	rman *rm;
-        u_long	adjstart, adjend, adjcount;
+        rman_res_t	adjstart, adjend, adjcount;
         struct	resource_list_entry *rle;
 
 	sc = device_get_softc(bus);
@@ -628,7 +629,7 @@ ps3bus_activate_resource(device_t bus, device_t child, int type, int rid,
 			return (ENOMEM);
 		rman_set_virtual(res, p);
 		rman_set_bustag(res, &bs_be_tag);
-		rman_set_bushandle(res, (u_long)p);
+		rman_set_bushandle(res, (rman_res_t)p);
 	}
 
 	return (rman_activate_resource(res));

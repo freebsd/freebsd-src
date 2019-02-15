@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001-2002 Chris D. Faulhaber
  * All rights reserved.
  *
@@ -111,7 +113,7 @@ acl_delete_entry(acl_t acl, acl_entry_t entry_d)
 			    sizeof(struct acl_entry));
 			acl->ats_cur_entry = 0;
 			
-			/* Continue with the loop to remove all maching entries. */
+			/* Continue with the loop to remove all matching entries. */
 			found = 1;
 		} else
 			i++;

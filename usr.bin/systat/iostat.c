@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1998 Kenneth D. Merry.
  * All rights reserved.
  *
@@ -37,7 +39,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -112,10 +114,8 @@ initiostat(void)
 	if ((num_devices = devstat_getnumdevs(NULL)) < 0)
 		return(0);
 
-	cur.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
-	last.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
-	bzero(cur.dinfo, sizeof(struct devinfo));
-	bzero(last.dinfo, sizeof(struct devinfo));
+	cur.dinfo = calloc(1, sizeof(struct devinfo));
+	last.dinfo = calloc(1, sizeof(struct devinfo));
 
 	/*
 	 * This value for maxshowdevs (100) is bogus.  I'm not sure exactly
@@ -196,7 +196,7 @@ numlabels(int row)
 	char tmpstr[10];
 
 #define COLWIDTH	17
-#define DRIVESPERLINE	((wnd->_maxx - INSET) / COLWIDTH)
+#define DRIVESPERLINE	((getmaxx(wnd) - 1 - INSET) / COLWIDTH)
 	for (ndrives = 0, i = 0; i < num_devices; i++)
 		if (dev_select[i].selected)
 			ndrives++;
@@ -204,7 +204,7 @@ numlabels(int row)
 	/*
 	 * Deduct -regions for blank line after each scrolling region.
 	 */
-	linesperregion = (wnd->_maxy - row - regions) / regions;
+	linesperregion = (getmaxy(wnd) - 1 - row - regions) / regions;
 	/*
 	 * Minimum region contains space for two
 	 * label lines and one line of statistics.
@@ -214,9 +214,9 @@ numlabels(int row)
 	_col = INSET;
 	for (i = 0; i < num_devices; i++)
 		if (dev_select[i].selected) {
-			if (_col + COLWIDTH >= wnd->_maxx - INSET) {
+			if (_col + COLWIDTH >= getmaxx(wnd) - 1 - INSET) {
 				_col = INSET, row += linesperregion + 1;
-				if (row > wnd->_maxy - (linesperregion + 1))
+				if (row > getmaxy(wnd) - 1 - (linesperregion + 1))
 					break;
 			}
 			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
@@ -241,7 +241,7 @@ barlabels(int row)
 	linesperregion = 2 + kbpt;
 	for (i = 0; i < num_devices; i++)
 		if (dev_select[i].selected) {
-			if (row > wnd->_maxy - linesperregion)
+			if (row > getmaxy(wnd) - 1 - linesperregion)
 				break;
 			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
 				dev_select[i].unit_number);
@@ -276,7 +276,7 @@ showiostat(void)
 		row += 2;
 		for (i = 0; i < num_devices; i++)
 			if (dev_select[i].selected) {
-				if (row > wnd->_maxy - linesperregion)
+				if (row > getmaxy(wnd) - linesperregion)
 					break;
 				row = devstats(row, INSET, i);
 			}
@@ -289,9 +289,9 @@ showiostat(void)
 	winsertln(wnd);
 	for (i = 0; i < num_devices; i++)
 		if (dev_select[i].selected) {
-			if (_col + COLWIDTH >= wnd->_maxx - INSET) {
+			if (_col + COLWIDTH >= getmaxx(wnd) - 1 - INSET) {
 				_col = INSET, row += linesperregion + 1;
-				if (row > wnd->_maxy - (linesperregion + 1))
+				if (row > getmaxy(wnd) - 1 - (linesperregion + 1))
 					break;
 				wmove(wnd, row + linesperregion, 0);
 				wdeleteln(wnd);

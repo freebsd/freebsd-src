@@ -1,4 +1,4 @@
-/*	$NetBSD: t_mqueue.c,v 1.4 2014/03/02 19:56:48 jmmv Exp $ */
+/*	$NetBSD: t_mqueue.c,v 1.6 2017/01/14 20:57:24 christos Exp $ */
 
 /*
  * Test for POSIX message queue priority handling.
@@ -6,15 +6,20 @@
  * This file is in the Public Domain.
  */
 
-#include <atf-c.h>
+#include <sys/stat.h>
 
+#include <atf-c.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <mqueue.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <unistd.h>
 
-#include <mqueue.h>
+#ifdef __FreeBSD__
+#include "freebsd_test_suite/macros.h"
+#endif
 
 #define	MQ_PRIO_BASE	24
 
@@ -111,16 +116,28 @@ ATF_TC_BODY(mqueue, tc)
 	char template[32];
 	char mq_name[64];
 
+#ifdef __FreeBSD__
+	ATF_REQUIRE_KERNEL_MODULE("mqueuefs");
+#endif
+
 	strlcpy(template, "./t_mqueue.XXXXXX", sizeof(template));
 	tmpdir = mkdtemp(template);
 	ATF_REQUIRE_MSG(tmpdir != NULL, "mkdtemp failed: %d", errno);
+#ifdef __FreeBSD__
+	snprintf(mq_name, sizeof(mq_name), "/t_mqueue");
+#else
 	snprintf(mq_name, sizeof(mq_name), "%s/mq", tmpdir);
+#endif
 
 	mqd_t mqfd;
 
 	mqfd = mq_open(mq_name, O_RDWR | O_CREAT,
 	    S_IRUSR | S_IRWXG | S_IROTH, NULL);
+#ifdef __FreeBSD__
+	ATF_REQUIRE_MSG(mqfd != (mqd_t)-1, "mq_open failed: %d", errno);
+#else
 	ATF_REQUIRE_MSG(mqfd != -1, "mq_open failed: %d", errno);
+#endif
 
 	send_msgs(mqfd);
 	receive_msgs(mqfd);

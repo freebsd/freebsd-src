@@ -169,7 +169,15 @@ typedef void (*svn_xml_char_data)(void *baton,
                                   apr_size_t len);
 
 
-/** Create a general Subversion XML parser */
+/** Create a general Subversion XML parser.
+ *
+ * The @c svn_xml_parser_t object itself will be allocated from @a pool,
+ * but some internal structures may be allocated out of pool.  Use
+ * svn_xml_free_parser() to free all memory used by the parser.
+ *
+ * @since Since Subversion 1.10 parser will be freed automatically on pool
+ * cleanup or by svn_xml_free_parser() call.
+ */
 svn_xml_parser_t *
 svn_xml_make_parser(void *baton,
                     svn_xml_start_elem start_handler,
@@ -312,7 +320,7 @@ svn_xml_make_header(svn_stringbuf_t **str,
  * If @a *str is @c NULL, set @a *str to a new stringbuf allocated
  * in @a pool, else append to the existing stringbuf there.
  *
- * Take the tag's attributes from varargs, a NULL-terminated list of
+ * Take the tag's attributes from varargs, a SVN_VA_NULL-terminated list of
  * alternating <tt>char *</tt> key and <tt>char *</tt> val.  Do xml-escaping
  * on each val.
  *
@@ -323,7 +331,7 @@ svn_xml_make_open_tag(svn_stringbuf_t **str,
                       apr_pool_t *pool,
                       enum svn_xml_open_tag_style style,
                       const char *tagname,
-                      ...);
+                      ...) SVN_NEEDS_SENTINEL_NULL;
 
 
 /** Like svn_xml_make_open_tag(), but takes a @c va_list instead of being

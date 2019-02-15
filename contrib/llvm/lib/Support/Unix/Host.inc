@@ -1,4 +1,4 @@
- //===- llvm/Support/Unix/Host.inc -------------------------------*- C++ -*-===//
+//===- llvm/Support/Unix/Host.inc -------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -16,21 +16,15 @@
 //===          is guaranteed to work on *all* UNIX variants.
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Config/config.h"
-#include "llvm/ADT/StringRef.h"
 #include "Unix.h"
-#include <sys/utsname.h>
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Config/config.h"
 #include <cctype>
 #include <string>
-#include <cstdlib> // ::getenv
+#include <sys/utsname.h>
 
 using namespace llvm;
 
-#ifdef __FreeBSD__
-std::string sys::getDefaultTargetTriple() {
-  return LLVM_DEFAULT_TARGET_TRIPLE;
-}
-#else // __FreeBSD__
 static std::string getOSVersion() {
   struct utsname info;
 
@@ -40,30 +34,35 @@ static std::string getOSVersion() {
   return info.release;
 }
 
-std::string sys::getDefaultTargetTriple() {
-  StringRef TargetTripleString(LLVM_DEFAULT_TARGET_TRIPLE);
-  std::pair<StringRef, StringRef> ArchSplit = TargetTripleString.split('-');
-
-  // Normalize the arch, since the target triple may not actually match the target.
-  std::string Arch = ArchSplit.first;
-
-  std::string Triple(Arch);
-  Triple += '-';
-  Triple += ArchSplit.second;
-
-  // Force i<N>86 to i386.
-  if (Triple[0] == 'i' && isdigit(Triple[1]) &&
-      Triple[2] == '8' && Triple[3] == '6')
-    Triple[1] = '3';
-
-  // On darwin, we want to update the version to match that of the
-  // target.
-  std::string::size_type DarwinDashIdx = Triple.find("-darwin");
+static std::string updateTripleOSVersion(std::string TargetTripleString) {
+  // On darwin, we want to update the version to match that of the target.
+  std::string::size_type DarwinDashIdx = TargetTripleString.find("-darwin");
   if (DarwinDashIdx != std::string::npos) {
-    Triple.resize(DarwinDashIdx + strlen("-darwin"));
-    Triple += getOSVersion();
+    TargetTripleString.resize(DarwinDashIdx + strlen("-darwin"));
+    TargetTripleString += getOSVersion();
+    return TargetTripleString;
   }
-
-  return Triple;
+  std::string::size_type MacOSDashIdx = TargetTripleString.find("-macos");
+  if (MacOSDashIdx != std::string::npos) {
+    TargetTripleString.resize(MacOSDashIdx);
+    // Reset the OS to darwin as the OS version from `uname` doesn't use the
+    // macOS version scheme.
+    TargetTripleString += "-darwin";
+    TargetTripleString += getOSVersion();
+  }
+  return TargetTripleString;
 }
-#endif // __FreeBSD__
+
+std::string sys::getDefaultTargetTriple() {
+  std::string TargetTripleString =
+      updateTripleOSVersion(LLVM_DEFAULT_TARGET_TRIPLE);
+
+  // Override the default target with an environment variable named by
+  // LLVM_TARGET_TRIPLE_ENV.
+#if defined(LLVM_TARGET_TRIPLE_ENV)
+  if (const char *EnvTriple = std::getenv(LLVM_TARGET_TRIPLE_ENV))
+    TargetTripleString = EnvTriple;
+#endif
+
+  return Triple::normalize(TargetTripleString);
+}

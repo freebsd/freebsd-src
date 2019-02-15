@@ -25,6 +25,8 @@
  * SUCH DAMAGE.
  */
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Eric Moore
  * Copyright (c) 2002, 2004 LSI Logic Corporation
  * All rights reserved.
@@ -114,15 +116,10 @@ static driver_t amr_pci_driver = {
 	sizeof(struct amr_softc)
 };
 
-static devclass_t	amr_devclass;
-DRIVER_MODULE(amr, pci, amr_pci_driver, amr_devclass, 0, 0);
-MODULE_DEPEND(amr, pci, 1, 1, 1);
-MODULE_DEPEND(amr, cam, 1, 1, 1);
-
 static struct amr_ident
 {
-    int		vendor;
-    int		device;
+    uint16_t		vendor;
+    uint16_t		device;
     int		flags;
 #define AMR_ID_PROBE_SIG	(1<<0)	/* generic i960RD, check signature */
 #define AMR_ID_DO_SG64		(1<<1)
@@ -141,6 +138,13 @@ static struct amr_ident
     {0x1028, 0x0013, AMR_ID_QUARTZ | AMR_ID_DO_SG64}, /* perc4/di */
     {0, 0, 0}
 };
+
+static devclass_t	amr_devclass;
+DRIVER_MODULE(amr, pci, amr_pci_driver, amr_devclass, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device", pci, amr, amr_device_ids,
+    nitems(amr_device_ids) - 1);
+MODULE_DEPEND(amr, pci, 1, 1, 1);
+MODULE_DEPEND(amr, cam, 1, 1, 1);
 
 static struct amr_ident *
 amr_find_ident(device_t dev)
@@ -260,7 +264,8 @@ amr_pci_attach(device_t dev)
 			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
-			   MAXBSIZE, AMR_NSEG,		/* maxsize, nsegments */
+			   BUS_SPACE_MAXSIZE,		/* maxsize */
+			   BUS_SPACE_UNRESTRICTED,	/* nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
 			   NULL, NULL,			/* lockfunc, lockarg */
@@ -277,8 +282,9 @@ amr_pci_attach(device_t dev)
 			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			   BUS_SPACE_MAXADDR,		/* highaddr */
 			   NULL, NULL,			/* filter, filterarg */
-			   MAXBSIZE, AMR_NSEG,		/* maxsize, nsegments */
-			   MAXBSIZE,			/* maxsegsize */
+			   DFLTPHYS,			/* maxsize */
+			   AMR_NSEG,			/* nsegments */
+			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,		/* flags */
 			   busdma_lock_mutex,		/* lockfunc */
 			   &sc->amr_list_lock,		/* lockarg */
@@ -292,8 +298,9 @@ amr_pci_attach(device_t dev)
 			   BUS_SPACE_MAXADDR,		/* lowaddr */
 			   BUS_SPACE_MAXADDR,		/* highaddr */
 			   NULL, NULL,			/* filter, filterarg */
-			   MAXBSIZE, AMR_NSEG,		/* maxsize, nsegments */
-			   MAXBSIZE,			/* maxsegsize */
+			   DFLTPHYS,			/* maxsize */
+			   AMR_NSEG,			/* nsegments */
+			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,		/* flags */
 			   busdma_lock_mutex,		/* lockfunc */
 			   &sc->amr_list_lock,		/* lockarg */

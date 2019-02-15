@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Jake Burkholder
  * Copyright (c) 2003 Poul-Henning Kamp
  * Copyright (c) 2004,2005 Joerg Wunsch
@@ -26,7 +28,7 @@
  * SUCH DAMAGE.
  */
 /* Functions to encode or decode struct sun_disklabel into a bytestream
- * of correct endianess and packing.
+ * of correct endianness and packing.
  *
  * NB!  This file must be usable both in kernel and userland.
  */

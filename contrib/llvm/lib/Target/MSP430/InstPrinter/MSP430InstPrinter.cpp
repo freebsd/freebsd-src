@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "asm-printer"
 #include "MSP430InstPrinter.h"
 #include "MSP430.h"
 #include "llvm/MC/MCAsmInfo.h"
@@ -21,12 +20,14 @@
 #include "llvm/Support/FormattedStream.h"
 using namespace llvm;
 
+#define DEBUG_TYPE "asm-printer"
+
 
 // Include the auto-generated portion of the assembly writer.
 #include "MSP430GenAsmWriter.inc"
 
 void MSP430InstPrinter::printInst(const MCInst *MI, raw_ostream &O,
-                                  StringRef Annot) {
+                                  StringRef Annot, const MCSubtargetInfo &STI) {
   printInstruction(MI, O);
   printAnnotation(O, Annot);
 }
@@ -38,13 +39,13 @@ void MSP430InstPrinter::printPCRelImmOperand(const MCInst *MI, unsigned OpNo,
     O << Op.getImm();
   else {
     assert(Op.isExpr() && "unknown pcrel immediate operand");
-    O << *Op.getExpr();
+    Op.getExpr()->print(O, &MAI);
   }
 }
 
 void MSP430InstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
                                      raw_ostream &O, const char *Modifier) {
-  assert((Modifier == 0 || Modifier[0] == 0) && "No modifiers supported");
+  assert((Modifier == nullptr || Modifier[0] == 0) && "No modifiers supported");
   const MCOperand &Op = MI->getOperand(OpNo);
   if (Op.isReg()) {
     O << getRegisterName(Op.getReg());
@@ -52,7 +53,8 @@ void MSP430InstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
     O << '#' << Op.getImm();
   } else {
     assert(Op.isExpr() && "unknown operand kind in printOperand");
-    O << '#' << *Op.getExpr();
+    O << '#';
+    Op.getExpr()->print(O, &MAI);
   }
 }
 
@@ -74,7 +76,7 @@ void MSP430InstPrinter::printSrcMemOperand(const MCInst *MI, unsigned OpNo,
     O << '&';
 
   if (Disp.isExpr())
-    O << *Disp.getExpr();
+    Disp.getExpr()->print(O, &MAI);
   else {
     assert(Disp.isImm() && "Expected immediate in displacement field");
     O << Disp.getImm();

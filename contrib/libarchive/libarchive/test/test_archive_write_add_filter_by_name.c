@@ -38,7 +38,7 @@ test_filter_by_name(const char *filter_name, int filter_code,
 	char *buff;
 	int r;
 
-	assert((buff = malloc(buffsize)) != NULL);
+	assert((buff = calloc(1, buffsize)) != NULL);
 	if (buff == NULL)
 		return;
 
@@ -69,6 +69,16 @@ test_filter_by_name(const char *filter_name, int filter_code,
 			free(buff);
 			return;
 		}
+	}
+	if (filter_code == ARCHIVE_FILTER_LRZIP)
+	{
+		/*
+		 * There's a bug in lrzip (as of release 0.612) where 2nd stage
+		 * compression can't be performed on smaller files. Set lrzip to
+		 * use no 2nd stage compression.
+		 */
+		assertEqualIntA(a, ARCHIVE_OK,
+			archive_write_set_options(a, "lrzip:compression=none"));
 	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_per_block(a, 10));
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -168,6 +178,11 @@ DEFINE_TEST(test_archive_write_add_filter_by_name_lrzip)
 	test_filter_by_name("lrzip", ARCHIVE_FILTER_LRZIP, canLrzip);
 }
 
+DEFINE_TEST(test_archive_write_add_filter_by_name_lz4)
+{
+	test_filter_by_name("lz4", ARCHIVE_FILTER_LZ4, canLz4);
+}
+
 DEFINE_TEST(test_archive_write_add_filter_by_name_lzip)
 {
 	test_filter_by_name("lzip", ARCHIVE_FILTER_LZIP, cannot);
@@ -191,4 +206,9 @@ DEFINE_TEST(test_archive_write_add_filter_by_name_uuencode)
 DEFINE_TEST(test_archive_write_add_filter_by_name_xz)
 {
 	test_filter_by_name("xz", ARCHIVE_FILTER_XZ, cannot);
+}
+
+DEFINE_TEST(test_archive_write_add_filter_by_name_zstd)
+{
+	test_filter_by_name("zstd", ARCHIVE_FILTER_ZSTD, canZstd);
 }

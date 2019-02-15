@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Chelsio Communications, Inc.
  * All rights reserved.
  * Written by: Navdeep Parhar <np@FreeBSD.org>
@@ -34,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/types.h>
@@ -70,7 +73,6 @@ static TAILQ_HEAD(, toedev) toedev_list;
 static eventhandler_tag listen_start_eh;
 static eventhandler_tag listen_stop_eh;
 static eventhandler_tag lle_event_eh;
-static eventhandler_tag route_redirect_eh;
 
 static int
 toedev_connect(struct toedev *tod __unused, struct socket *so __unused,
@@ -180,6 +182,14 @@ toedev_ctloutput(struct toedev *tod __unused, struct tcpcb *tp __unused,
 	return;
 }
 
+static void
+toedev_tcp_info(struct toedev *tod __unused, struct tcpcb *tp __unused,
+    struct tcp_info *ti __unused)
+{
+
+	return;
+}
+
 /*
  * Inform one or more TOE devices about a listening socket.
  */
@@ -269,6 +279,7 @@ init_toedev(struct toedev *tod)
 	tod->tod_syncache_respond = toedev_syncache_respond;
 	tod->tod_offload_socket = toedev_offload_socket;
 	tod->tod_ctloutput = toedev_ctloutput;
+	tod->tod_tcp_info = toedev_tcp_info;
 }
 
 /*
@@ -339,7 +350,7 @@ toe_syncache_expand(struct in_conninfo *inc, struct tcpopt *to,
     struct tcphdr *th, struct socket **lsop)
 {
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 
 	return (syncache_expand(inc, to, th, lsop, NULL));
 }
@@ -370,7 +381,7 @@ toe_4tuple_check(struct in_conninfo *inc, struct tcphdr *th, struct ifnet *ifp)
 
 		if ((inp->inp_flags & INP_TIMEWAIT) && th != NULL) {
 
-			INP_INFO_WLOCK_ASSERT(&V_tcbinfo); /* for twcheck */
+			INP_INFO_RLOCK_ASSERT(&V_tcbinfo); /* for twcheck */
 			if (!tcp_twcheck(inp, NULL, th, NULL, 0))
 				return (EADDRINUSE);
 		} else {
@@ -389,29 +400,33 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 	struct ifnet *ifp;
 	struct sockaddr *sa;
 	uint8_t *lladdr;
-	uint16_t vtag;
+	uint16_t vid, pcp;
+	int family;
+	struct sockaddr_in6 sin6;
 
 	LLE_WLOCK_ASSERT(lle);
 
-	ifp = lle->lle_tbl->llt_ifp;
-	sa = L3_ADDR(lle);
+	ifp = lltable_get_ifp(lle->lle_tbl);
+	family = lltable_get_af(lle->lle_tbl);
 
-	KASSERT(sa->sa_family == AF_INET || sa->sa_family == AF_INET6,
-	    ("%s: lle_event %d for lle %p but sa %p !INET && !INET6",
-	    __func__, evt, lle, sa));
-
+	if (family != AF_INET && family != AF_INET6)
+		return;
 	/*
 	 * Not interested if the interface's TOE capability is not enabled.
 	 */
-	if ((sa->sa_family == AF_INET && !(ifp->if_capenable & IFCAP_TOE4)) ||
-	    (sa->sa_family == AF_INET6 && !(ifp->if_capenable & IFCAP_TOE6)))
+	if ((family == AF_INET && !(ifp->if_capenable & IFCAP_TOE4)) ||
+	    (family == AF_INET6 && !(ifp->if_capenable & IFCAP_TOE6)))
 		return;
 
 	tod = TOEDEV(ifp);
 	if (tod == NULL)
 		return;
 
-	vtag = 0xfff;
+	sa = (struct sockaddr *)&sin6;
+	lltable_fill_sa_entry(lle, sa);
+
+	vid = 0xfff;
+	pcp = 0;
 	if (evt != LLENTRY_RESOLVED) {
 
 		/*
@@ -425,87 +440,13 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 		KASSERT(lle->la_flags & LLE_VALID,
 		    ("%s: %p resolved but not valid?", __func__, lle));
 
-		lladdr = (uint8_t *)&lle->ll_addr;
-#ifdef VLAN_TAG
-		VLAN_TAG(ifp, &vtag);
-#endif
+		lladdr = (uint8_t *)lle->ll_addr;
+		VLAN_TAG(ifp, &vid);
+		VLAN_PCP(ifp, &pcp);
 	}
 
-	tod->tod_l2_update(tod, ifp, sa, lladdr, vtag);
+	tod->tod_l2_update(tod, ifp, sa, lladdr, EVL_MAKETAG(vid, pcp, 0));
 }
-
-/*
- * XXX: implement.
- */
-static void
-toe_route_redirect_event(void *arg __unused, struct rtentry *rt0,
-    struct rtentry *rt1, struct sockaddr *sa)
-{
-
-	return;
-}
-
-#ifdef INET6
-/*
- * XXX: no checks to verify that sa is really a neighbor because we assume it is
- * the result of a route lookup and is on-link on the given ifp.
- */
-static int
-toe_nd6_resolve(struct ifnet *ifp, struct sockaddr *sa, uint8_t *lladdr)
-{
-	struct llentry *lle;
-	struct sockaddr_in6 *sin6 = (void *)sa;
-	int rc, flags = 0;
-
-restart:
-	IF_AFDATA_RLOCK(ifp);
-	lle = lla_lookup(LLTABLE6(ifp), flags, sa);
-	IF_AFDATA_RUNLOCK(ifp);
-	if (lle == NULL) {
-		IF_AFDATA_LOCK(ifp);
-		lle = nd6_lookup(&sin6->sin6_addr, ND6_CREATE | ND6_EXCLUSIVE,
-		    ifp);
-		IF_AFDATA_UNLOCK(ifp);
-		if (lle == NULL)
-			return (ENOMEM); /* Couldn't create entry in cache. */
-		lle->ln_state = ND6_LLINFO_INCOMPLETE;
-		nd6_llinfo_settimer_locked(lle,
-		    (long)ND_IFINFO(ifp)->retrans * hz / 1000);
-		LLE_WUNLOCK(lle);
-
-		nd6_ns_output(ifp, NULL, &sin6->sin6_addr, NULL, 0);
-
-		return (EWOULDBLOCK);
-	}
-
-	if (lle->ln_state == ND6_LLINFO_STALE) {
-		if ((flags & LLE_EXCLUSIVE) == 0) {
-			LLE_RUNLOCK(lle);
-			flags |= LLE_EXCLUSIVE;
-			goto restart;
-		}
-
-		LLE_WLOCK_ASSERT(lle);
-
-		lle->la_asked = 0;
-		lle->ln_state = ND6_LLINFO_DELAY;
-		nd6_llinfo_settimer_locked(lle, (long)V_nd6_delay * hz);
-	}
-
-	if (lle->la_flags & LLE_VALID) {
-		memcpy(lladdr, &lle->ll_addr, ifp->if_addrlen);
-		rc = 0;
-	} else
-		rc = EWOULDBLOCK;
-
-	if (flags & LLE_EXCLUSIVE)
-		LLE_WUNLOCK(lle);
-	else
-		LLE_RUNLOCK(lle);
-
-	return (rc);
-}
-#endif
 
 /*
  * Returns 0 or EWOULDBLOCK on success (any other value is an error).  0 means
@@ -516,20 +457,18 @@ int
 toe_l2_resolve(struct toedev *tod, struct ifnet *ifp, struct sockaddr *sa,
     uint8_t *lladdr, uint16_t *vtag)
 {
-#ifdef INET
-	struct llentry *lle;
-#endif
 	int rc;
+	uint16_t vid, pcp;
 
 	switch (sa->sa_family) {
 #ifdef INET
 	case AF_INET:
-		rc = arpresolve(ifp, NULL, NULL, sa, lladdr, &lle);
+		rc = arpresolve(ifp, 0, NULL, sa, lladdr, NULL, NULL);
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		rc = toe_nd6_resolve(ifp, sa, lladdr);
+		rc = nd6_resolve(ifp, 0, NULL, sa, lladdr, NULL, NULL);
 		break;
 #endif
 	default:
@@ -537,10 +476,16 @@ toe_l2_resolve(struct toedev *tod, struct ifnet *ifp, struct sockaddr *sa,
 	}
 
 	if (rc == 0) {
-#ifdef VLAN_TAG
-		if (VLAN_TAG(ifp, vtag) != 0)
-#endif
-			*vtag = 0xfff;
+		vid = 0xfff;
+		pcp = 0;
+		if (ifp->if_type == IFT_L2VLAN) {
+			VLAN_TAG(ifp, &vid);
+			VLAN_PCP(ifp, &pcp);
+		} else if (ifp->if_pcp != IFNET_PCP_NONE) {
+			vid = 0;
+			pcp = ifp->if_pcp;
+		}
+		*vtag = EVL_MAKETAG(vid, pcp, 0);
 	}
 
 	return (rc);
@@ -571,10 +516,10 @@ toe_connect_failed(struct toedev *tod, struct inpcb *inp, int err)
 			KASSERT(!(tp->t_flags & TF_TOE),
 			    ("%s: tp %p still offloaded.", __func__, tp));
 			tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
-			(void) tcp_output(tp);
+			(void) tp->t_fb->tfb_tcp_output(tp);
 		} else {
 
-			INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+			INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 			tp = tcp_drop(tp, err);
 			if (tp == NULL)
 				INP_WLOCK(inp);	/* re-acquire */
@@ -596,8 +541,6 @@ toecore_load(void)
 	    toe_listen_stop_event, NULL, EVENTHANDLER_PRI_ANY);
 	lle_event_eh = EVENTHANDLER_REGISTER(lle_event, toe_lle_event, NULL,
 	    EVENTHANDLER_PRI_ANY);
-	route_redirect_eh = EVENTHANDLER_REGISTER(route_redirect_event,
-	    toe_route_redirect_event, NULL, EVENTHANDLER_PRI_ANY);
 
 	return (0);
 }
@@ -615,7 +558,6 @@ toecore_unload(void)
 	EVENTHANDLER_DEREGISTER(tcp_offload_listen_start, listen_start_eh);
 	EVENTHANDLER_DEREGISTER(tcp_offload_listen_stop, listen_stop_eh);
 	EVENTHANDLER_DEREGISTER(lle_event, lle_event_eh);
-	EVENTHANDLER_DEREGISTER(route_redirect_event, route_redirect_eh);
 
 	mtx_unlock(&toedev_lock);
 	mtx_destroy(&toedev_lock);

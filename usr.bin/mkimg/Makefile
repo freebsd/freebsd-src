@@ -3,14 +3,15 @@
 .include <src.opts.mk>
 
 PROG=	mkimg
-SRCS=	format.c image.c mkimg.c scheme.c
+SRCS+=	format.c image.c mkimg.c scheme.c uuid.c
 MAN=	mkimg.1
 
-MKIMG_VERSION=20141003
+MKIMG_VERSION=20161016
 mkimg.o: Makefile
 
 CFLAGS+=-DMKIMG_VERSION=${MKIMG_VERSION}
 CFLAGS+=-DSPARSE_WRITE
+CFLAGS+=-I${SRCTOP}/sys/sys/disk
 
 # List of formats to support
 SRCS+= \
@@ -26,18 +27,15 @@ SRCS+=	\
 	ebr.c \
 	gpt.c \
 	mbr.c \
-	pc98.c \
 	vtoc8.c
 
 BINDIR?=/usr/bin
 
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 
 WARNS?=	6
 
-.if ${MK_TESTS} != "no"
-SUBDIR+= tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

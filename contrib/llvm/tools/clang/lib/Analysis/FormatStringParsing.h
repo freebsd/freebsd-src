@@ -1,10 +1,9 @@
-#ifndef LLVM_CLANG_FORMAT_PARSING_H
-#define LLVM_CLANG_FORMAT_PARSING_H
+#ifndef LLVM_CLANG_LIB_ANALYSIS_FORMATSTRINGPARSING_H
+#define LLVM_CLANG_LIB_ANALYSIS_FORMATSTRINGPARSING_H
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Type.h"
 #include "clang/Analysis/Analyses/FormatString.h"
-#include "llvm/Support/raw_ostream.h"
 
 namespace clang {
 
@@ -46,21 +45,27 @@ bool ParseArgPosition(FormatStringHandler &H,
 /// FormatSpecifier& argument, and false otherwise.
 bool ParseLengthModifier(FormatSpecifier &FS, const char *&Beg, const char *E,
                          const LangOptions &LO, bool IsScanf = false);
-  
+
+/// Returns true if the invalid specifier in \p SpecifierBegin is a UTF-8
+/// string; check that it won't go further than \p FmtStrEnd and write
+/// up the total size in \p Len.
+bool ParseUTF8InvalidSpecifier(const char *SpecifierBegin,
+                               const char *FmtStrEnd, unsigned &Len);
+
 template <typename T> class SpecifierResult {
   T FS;
   const char *Start;
   bool Stop;
 public:
   SpecifierResult(bool stop = false)
-  : Start(0), Stop(stop) {}
+  : Start(nullptr), Stop(stop) {}
   SpecifierResult(const char *start,
                   const T &fs)
   : FS(fs), Start(start), Stop(false) {}
   
   const char *getStart() const { return Start; }
   bool shouldStop() const { return Stop; }
-  bool hasValue() const { return Start != 0; }
+  bool hasValue() const { return Start != nullptr; }
   const T &getValue() const {
     assert(hasValue());
     return FS;

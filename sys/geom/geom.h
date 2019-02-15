@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -56,6 +58,7 @@ struct bio;
 struct sbuf;
 struct gctl_req;
 struct g_configargs;
+struct disk_zone_args;
 
 typedef int g_config_t (struct g_configargs *ca);
 typedef void g_ctl_req_t (struct gctl_req *, struct g_class *cp, char const *verb);
@@ -119,6 +122,15 @@ struct g_class {
 	LIST_HEAD(,g_geom)	geom;
 };
 
+/*
+ * The g_geom_alias is a list node for aliases for the geom name
+ * for device node creation.
+ */
+struct g_geom_alias {
+	LIST_ENTRY(g_geom_alias) ga_next;
+	const char		*ga_alias;
+};
+
 #define G_VERSION_00	0x19950323
 #define G_VERSION_01	0x20041207	/* add fflag to g_ioctl_t */
 #define G_VERSION	G_VERSION_01
@@ -147,8 +159,11 @@ struct g_geom {
 	void			*spare1;
 	void			*softc;
 	unsigned		flags;
-#define	G_GEOM_WITHER		1
-#define	G_GEOM_VOLATILE_BIO	2
+#define	G_GEOM_WITHER		0x01
+#define	G_GEOM_VOLATILE_BIO	0x02
+#define	G_GEOM_IN_ACCESS	0x04
+#define	G_GEOM_ACCESS_WAIT	0x08
+	LIST_HEAD(,g_geom_alias) aliases;
 };
 
 /*
@@ -200,8 +215,8 @@ struct g_provider {
 	TAILQ_ENTRY(g_provider)	orphan;
 	off_t			mediasize;
 	u_int			sectorsize;
-	u_int			stripesize;
-	u_int			stripeoffset;
+	off_t			stripesize;
+	off_t			stripeoffset;
 	struct devstat		*stat;
 	u_int			nstart, nend;
 	u_int			flags;
@@ -268,6 +283,7 @@ void g_destroy_provider(struct g_provider *pp);
 void g_detach(struct g_consumer *cp);
 void g_error_provider(struct g_provider *pp, int error);
 struct g_provider *g_provider_by_name(char const *arg);
+void g_geom_add_alias(struct g_geom *gp, const char *alias);
 int g_getattr__(const char *attr, struct g_consumer *cp, void *var, int len);
 #define g_getattr(a, c, v) g_getattr__((a), (c), (v), sizeof *(v))
 int g_handleattr(struct bio *bp, const char *attribute, const void *val,
@@ -318,16 +334,20 @@ struct bio * g_duplicate_bio(struct bio *);
 void g_destroy_bio(struct bio *);
 void g_io_deliver(struct bio *bp, int error);
 int g_io_getattr(const char *attr, struct g_consumer *cp, int *len, void *ptr);
+int g_io_zonecmd(struct disk_zone_args *zone_args, struct g_consumer *cp);
 int g_io_flush(struct g_consumer *cp);
 int g_register_classifier(struct g_classifier_hook *hook);
 void g_unregister_classifier(struct g_classifier_hook *hook);
 void g_io_request(struct bio *bp, struct g_consumer *cp);
 struct bio *g_new_bio(void);
 struct bio *g_alloc_bio(void);
+void g_reset_bio(struct bio *);
 void * g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error);
 int g_write_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length);
 int g_delete_data(struct g_consumer *cp, off_t offset, off_t length);
 void g_print_bio(struct bio *bp);
+int g_use_g_read_data(void *, off_t, void **, int);
+int g_use_g_write_data(void *, off_t, void *, int);
 
 /* geom_kern.c / geom_kernsim.c */
 
@@ -368,7 +388,6 @@ g_free(void *ptr)
 
 #define g_topology_lock() 					\
 	do {							\
-		mtx_assert(&Giant, MA_NOTOWNED);		\
 		sx_xlock(&topology_lock);			\
 	} while (0)
 

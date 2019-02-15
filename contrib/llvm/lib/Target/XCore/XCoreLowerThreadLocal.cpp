@@ -17,13 +17,13 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/GlobalVariable.h"
-#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/NoFolder.h"
+#include "llvm/IR/ValueHandle.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/NoFolder.h"
-#include "llvm/Support/ValueHandle.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 #define DEBUG_TYPE "xcore-lower-thread-local"
@@ -48,7 +48,7 @@ namespace {
 
     bool lowerGlobal(GlobalVariable *GV);
 
-    bool runOnModule(Module &M);
+    bool runOnModule(Module &M) override;
   };
 }
 
@@ -76,14 +76,15 @@ createLoweredInitializer(ArrayType *NewType, Constant *OriginalInitializer) {
 
 static Instruction *
 createReplacementInstr(ConstantExpr *CE, Instruction *Instr) {
-  IRBuilder<true,NoFolder> Builder(Instr);
+  IRBuilder<NoFolder> Builder(Instr);
   unsigned OpCode = CE->getOpcode();
   switch (OpCode) {
     case Instruction::GetElementPtr: {
       SmallVector<Value *,4> CEOpVec(CE->op_begin(), CE->op_end());
       ArrayRef<Value *> CEOps(CEOpVec);
-      return dyn_cast<Instruction>(Builder.CreateInBoundsGEP(CEOps[0],
-                                                             CEOps.slice(1)));
+      return dyn_cast<Instruction>(Builder.CreateInBoundsGEP(
+          cast<GEPOperator>(CE)->getSourceElementType(), CEOps[0],
+          CEOps.slice(1)));
     }
     case Instruction::Add:
     case Instruction::Sub:
@@ -127,20 +128,17 @@ createReplacementInstr(ConstantExpr *CE, Instruction *Instr) {
 
 static bool replaceConstantExprOp(ConstantExpr *CE, Pass *P) {
   do {
-    SmallVector<WeakVH,8> WUsers;
-    for (Value::use_iterator I = CE->use_begin(), E = CE->use_end();
-         I != E; ++I)
-      WUsers.push_back(WeakVH(*I));
+    SmallVector<WeakTrackingVH, 8> WUsers(CE->user_begin(), CE->user_end());
     std::sort(WUsers.begin(), WUsers.end());
     WUsers.erase(std::unique(WUsers.begin(), WUsers.end()), WUsers.end());
     while (!WUsers.empty())
-      if (WeakVH WU = WUsers.pop_back_val()) {
+      if (WeakTrackingVH WU = WUsers.pop_back_val()) {
         if (PHINode *PN = dyn_cast<PHINode>(WU)) {
           for (int I = 0, E = PN->getNumIncomingValues(); I < E; ++I)
             if (PN->getIncomingValue(I) == CE) {
               BasicBlock *PredBB = PN->getIncomingBlock(I);
               if (PredBB->getTerminator()->getNumSuccessors() > 1)
-                PredBB = SplitEdge(PredBB, PN->getParent(), P);
+                PredBB = SplitEdge(PredBB, PN->getParent());
               Instruction *InsertPos = PredBB->getTerminator();
               Instruction *NewInst = createReplacementInstr(CE, InsertPos);
               PN->setOperand(I, NewInst);
@@ -154,19 +152,19 @@ static bool replaceConstantExprOp(ConstantExpr *CE, Pass *P) {
             return false;
         }
       }
-  } while (CE->hasNUsesOrMore(1)); // We need to check becasue a recursive
-  // sibbling may have used 'CE' when createReplacementInstr was called.
+  } while (CE->hasNUsesOrMore(1)); // We need to check because a recursive
+  // sibling may have used 'CE' when createReplacementInstr was called.
   CE->destroyConstant();
   return true;
 }
 
 static bool rewriteNonInstructionUses(GlobalVariable *GV, Pass *P) {
-  SmallVector<WeakVH,8> WUsers;
-  for (Value::use_iterator I = GV->use_begin(), E = GV->use_end(); I != E; ++I)
-    if (!isa<Instruction>(*I))
-      WUsers.push_back(WeakVH(*I));
+  SmallVector<WeakTrackingVH, 8> WUsers;
+  for (User *U : GV->users())
+    if (!isa<Instruction>(U))
+      WUsers.push_back(WeakTrackingVH(U));
   while (!WUsers.empty())
-    if (WeakVH WU = WUsers.pop_back_val()) {
+    if (WeakTrackingVH WU = WUsers.pop_back_val()) {
       ConstantExpr *CE = dyn_cast<ConstantExpr>(WU);
       if (!CE || !replaceConstantExprOp(CE, P))
         return false;
@@ -181,7 +179,6 @@ static bool isZeroLengthArray(Type *Ty) {
 
 bool XCoreLowerThreadLocal::lowerGlobal(GlobalVariable *GV) {
   Module *M = GV->getParent();
-  LLVMContext &Ctx = M->getContext();
   if (!GV->isThreadLocal())
     return false;
 
@@ -191,30 +188,29 @@ bool XCoreLowerThreadLocal::lowerGlobal(GlobalVariable *GV) {
     return false;
 
   // Create replacement global.
-  ArrayType *NewType = createLoweredType(GV->getType()->getElementType());
-  Constant *NewInitializer = 0;
+  ArrayType *NewType = createLoweredType(GV->getValueType());
+  Constant *NewInitializer = nullptr;
   if (GV->hasInitializer())
     NewInitializer = createLoweredInitializer(NewType,
                                               GV->getInitializer());
   GlobalVariable *NewGV =
     new GlobalVariable(*M, NewType, GV->isConstant(), GV->getLinkage(),
-                       NewInitializer, "", 0, GlobalVariable::NotThreadLocal,
+                       NewInitializer, "", nullptr,
+                       GlobalVariable::NotThreadLocal,
                        GV->getType()->getAddressSpace(),
                        GV->isExternallyInitialized());
 
   // Update uses.
-  SmallVector<User *, 16> Users(GV->use_begin(), GV->use_end());
+  SmallVector<User *, 16> Users(GV->user_begin(), GV->user_end());
   for (unsigned I = 0, E = Users.size(); I != E; ++I) {
     User *U = Users[I];
     Instruction *Inst = cast<Instruction>(U);
     IRBuilder<> Builder(Inst);
     Function *GetID = Intrinsic::getDeclaration(GV->getParent(),
                                                 Intrinsic::xcore_getid);
-    Value *ThreadID = Builder.CreateCall(GetID);
-    SmallVector<Value *, 2> Indices;
-    Indices.push_back(Constant::getNullValue(Type::getInt64Ty(Ctx)));
-    Indices.push_back(ThreadID);
-    Value *Addr = Builder.CreateInBoundsGEP(NewGV, Indices);
+    Value *ThreadID = Builder.CreateCall(GetID, {});
+    Value *Addr = Builder.CreateInBoundsGEP(NewGV->getValueType(), NewGV,
+                                            {Builder.getInt64(0), ThreadID});
     U->replaceUsesOfWith(GV, Addr);
   }
 
@@ -228,12 +224,9 @@ bool XCoreLowerThreadLocal::runOnModule(Module &M) {
   // Find thread local globals.
   bool MadeChange = false;
   SmallVector<GlobalVariable *, 16> ThreadLocalGlobals;
-  for (Module::global_iterator GVI = M.global_begin(), E = M.global_end();
-       GVI != E; ++GVI) {
-    GlobalVariable *GV = GVI;
-    if (GV->isThreadLocal())
-      ThreadLocalGlobals.push_back(GV);
-  }
+  for (GlobalVariable &GV : M.globals())
+    if (GV.isThreadLocal())
+      ThreadLocalGlobals.push_back(&GV);
   for (unsigned I = 0, E = ThreadLocalGlobals.size(); I != E; ++I) {
     MadeChange |= lowerGlobal(ThreadLocalGlobals[I]);
   }

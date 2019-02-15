@@ -49,9 +49,17 @@ extern int errno;
 #define E_SM_WRFILE	(E_PSEUDOBASE + 11)	/* o readable file */
 #define E_DNSBASE	(E_PSEUDOBASE + 20)	/* base for DNS h_errno */
 #define E_SMDBBASE	(E_PSEUDOBASE + 40)	/* base for libsmdb errors */
-#define E_LDAPBASE	(E_PSEUDOBASE + 70)	/* base for LDAP errors */
-#define E_LDAPURLBASE	(E_PSEUDOBASE + 200)	/* base for LDAP URL errors */
+#define E_LDAPREALBASE	(E_PSEUDOBASE + 70)	/* start of range for LDAP */
+#define E_LDAPBASE	(E_LDAPREALBASE + E_LDAP_SHIM)	/* LDAP error zero */
+#define E_LDAPURLBASE	(E_PSEUDOBASE + 230)	/* base for LDAP URL errors */
 
+/*
+**  OpenLDAP uses small negative errors for internal (non-protocol)
+**  errors.  We expect them to be between zero and -E_LDAP_SHIM
+**  (and then offset by E_LDAPBASE).
+*/
+
+#define E_LDAP_SHIM	30
 
 /* libsmdb */
 #define SMDBE_OK			0

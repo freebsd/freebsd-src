@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2011 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
@@ -54,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/mbuf.h>
 #include <sys/libkern.h>
+#include <vm/uma.h>
 
 #include <dev/iscsi_initiator/iscsi.h>
 #include <dev/iscsi_initiator/iscsivar.h>

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000,2003 Doug Rabson
  * All rights reserved.
  *
@@ -146,13 +148,13 @@ struct kobj_class classvar = {				\
  * DEFINE_CLASS_2(foo, foo_class, foo_methods, sizeof(foo_softc),
  *			  bar, baz);
  */
-#define DEFINE_CLASS_2(name, methods, size,		\
+#define DEFINE_CLASS_2(name, classvar, methods, size,	\
 	               base1, base2)			\
 							\
 static kobj_class_t name ## _baseclasses[] =		\
 	{ &base1,					\
 	  &base2, NULL };				\
-struct kobj_class name ## _class = {			\
+struct kobj_class classvar = {				\
 	#name, methods, size, name ## _baseclasses	\
 }
 
@@ -162,14 +164,14 @@ struct kobj_class name ## _class = {			\
  * DEFINE_CLASS_3(foo, foo_class, foo_methods, sizeof(foo_softc),
  *			  bar, baz, foobar);
  */
-#define DEFINE_CLASS_3(name, methods, size,		\
+#define DEFINE_CLASS_3(name, classvar, methods, size,	\
 		       base1, base2, base3)		\
 							\
 static kobj_class_t name ## _baseclasses[] =		\
 	{ &base1,					\
 	  &base2,					\
 	  &base3, NULL };				\
-struct kobj_class name ## _class = {			\
+struct kobj_class classvar = {				\
 	#name, methods, size, name ## _baseclasses	\
 }
 
@@ -226,10 +228,12 @@ extern u_int kobj_lookup_misses;
 	kobj_method_t **_cep =					\
 	    &OPS->cache[_desc->id & (KOBJ_CACHE_SIZE-1)];	\
 	kobj_method_t *_ce = *_cep;				\
-	kobj_lookup_hits++; /* assume hit */			\
-	if (_ce->desc != _desc)					\
+	if (_ce->desc != _desc) {				\
 		_ce = kobj_lookup_method(OPS->cls,		\
 					 _cep, _desc);		\
+		kobj_lookup_misses++;				\
+	} else							\
+		kobj_lookup_hits++;				\
 	_m = _ce->func;						\
 } while(0)
 #else

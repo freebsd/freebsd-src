@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2007 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,7 +22,8 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
+
+#include "atf-c++/detail/auto_array.hpp"
 
 extern "C" {
 #include <sys/types.h>
@@ -33,11 +31,11 @@ extern "C" {
 
 #include <iostream>
 
+#include <atf-c++.hpp>
+
+extern "C" {
 #include "atf-c/defs.h"
-
-#include "../macros.hpp"
-
-#include "auto_array.hpp"
+}
 
 // ------------------------------------------------------------------------
 // Tests for the "auto_array" class.

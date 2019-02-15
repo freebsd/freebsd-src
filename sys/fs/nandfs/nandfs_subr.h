@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010-2012 Semihalf
  * Copyright (c) 2008, 2009 Reinoud Zandijk
  * All rights reserved.
@@ -114,7 +116,7 @@ int  nandfs_free_entry(struct nandfs_mdt *, struct nandfs_alloc_request *);
 int nandfs_get_entry_block(struct nandfs_mdt *, struct nandfs_node *,
     struct nandfs_alloc_request *, uint32_t *, int);
 
-/* inode managment */
+/* Inode management. */
 int  nandfs_node_create(struct nandfsmount *, struct nandfs_node **, uint16_t);
 int nandfs_node_destroy(struct nandfs_node *);
 int nandfs_node_update(struct nandfs_node *);

@@ -1,6 +1,8 @@
 /*	$KAME: ifmcstat.c,v 1.48 2006/11/15 05:13:59 itojun Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007-2009 Bruce Simpson.
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -41,8 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/tree.h>
 
 #include <net/if.h>
-#define	_WANT_IFADDR
-#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/route.h>
@@ -52,20 +52,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/igmp.h>
-#define KERNEL
-# include <netinet/if_ether.h>
-#undef KERNEL
-#define _KERNEL
-#define SYSCTL_DECL(x)
-# include <netinet/igmp_var.h>
-#undef SYSCTL_DECL
-#undef _KERNEL
+#include <netinet/if_ether.h>
+#include <netinet/igmp_var.h>
 
 #ifdef INET6
 #include <netinet/icmp6.h>
-#define _KERNEL
-# include <netinet6/mld6_var.h>
-#undef _KERNEL
+#include <netinet6/mld6_var.h>
 #endif /* INET6 */
 
 #include <arpa/inet.h>
@@ -82,14 +74,23 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <kvm.h>
 #include <limits.h>
 #include <ifaddrs.h>
-#include <nlist.h>
 #include <sysexits.h>
 #include <unistd.h>
 
-/* XXX: This file currently assumes INET and KVM support in the base system. */
+#ifdef KVM
+/*
+ * Currently the KVM build is broken. To be fixed it requires uncovering
+ * large amount of _KERNEL code in include files, and it is also very
+ * tentative to internal kernel ABI changes. If anyone wishes to restore
+ * it, please move it out of src/usr.sbin to src/tools/tools.
+ */
+#include <kvm.h>
+#include <nlist.h>
+#endif
+
+/* XXX: This file currently assumes INET support in the base system. */
 #ifndef INET
 #define INET
 #endif
@@ -806,7 +807,7 @@ inm_print_sources_sysctl(uint32_t ifindex, struct in_addr gina)
 	uint32_t fmode;
 	const char *modestr;
 
-	mibsize = sizeof(mib) / sizeof(mib[0]);
+	mibsize = nitems(mib);
 	if (sysctlnametomib("net.inet.ip.mcast.filters", mib, &mibsize) == -1) {
 		perror("sysctlnametomib");
 		return;
@@ -815,7 +816,7 @@ inm_print_sources_sysctl(uint32_t ifindex, struct in_addr gina)
 	needed = 0;
 	mib[5] = ifindex;
 	mib[6] = gina.s_addr;	/* 32 bits wide */
-	mibsize = sizeof(mib) / sizeof(mib[0]);
+	mibsize = nitems(mib);
 	do {
 		if (sysctl(mib, mibsize, NULL, &needed, NULL, 0) == -1) {
 			perror("sysctl net.inet.ip.mcast.filters");
@@ -906,7 +907,7 @@ in6m_print_sources_sysctl(uint32_t ifindex, struct in6_addr *pgroup)
 	uint32_t fmode;
 	const char *modestr;
 
-	mibsize = sizeof(mib) / sizeof(mib[0]);
+	mibsize = nitems(mib);
 	if (sysctlnametomib("net.inet6.ip6.mcast.filters", mib,
 	    &mibsize) == -1) {
 		perror("sysctlnametomib");
@@ -919,7 +920,7 @@ in6m_print_sources_sysctl(uint32_t ifindex, struct in6_addr *pgroup)
 	for (i = 0; i < 4; i++)
 		mib[6 + i] = *pi++;
 
-	mibsize = sizeof(mib) / sizeof(mib[0]);
+	mibsize = nitems(mib);
 	do {
 		if (sysctl(mib, mibsize, NULL, &needed, NULL, 0) == -1) {
 			perror("sysctl net.inet6.ip6.mcast.filters");
@@ -1146,7 +1147,7 @@ ifmcstat_getifmaddrs(void)
 				size_t mibsize, len;
 				int mib[5];
 
-				mibsize = sizeof(mib) / sizeof(mib[0]);
+				mibsize = nitems(mib);
 				if (sysctlnametomib("net.inet.igmp.ifinfo",
 				    mib, &mibsize) == -1) {
 					perror("sysctlnametomib");
@@ -1171,7 +1172,7 @@ ifmcstat_getifmaddrs(void)
 				size_t mibsize, len;
 				int mib[5];
 
-				mibsize = sizeof(mib) / sizeof(mib[0]);
+				mibsize = nitems(mib);
 				if (sysctlnametomib("net.inet6.mld.ifinfo",
 				    mib, &mibsize) == -1) {
 					perror("sysctlnametomib");

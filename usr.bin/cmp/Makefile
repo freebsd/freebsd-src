@@ -6,8 +6,7 @@
 PROG=	cmp
 SRCS=	cmp.c link.c misc.c regular.c special.c
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

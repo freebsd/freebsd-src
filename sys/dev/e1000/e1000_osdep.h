@@ -1,6 +1,7 @@
 /******************************************************************************
+  SPDX-License-Identifier: BSD-3-Clause
 
-  Copyright (c) 2001-2014, Intel Corporation 
+  Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -39,6 +40,7 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/mbuf.h>
@@ -47,6 +49,14 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
+
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_var.h>
+#include <net/iflib.h>
+
+
+
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
@@ -58,38 +68,57 @@
 
 
 #define ASSERT(x) if(!(x)) panic("EM: x")
+#define us_scale(x)  max(1, (x/(1000000/hz)))
+static inline int
+ms_scale(int x) {
+	if (hz == 1000) {
+		return (x);
+	} else if (hz > 1000) {
+		return (x*(hz/1000));
+	} else {
+		return (max(1, x/(1000/hz)));
+	}
+}
 
-#define usec_delay(x) DELAY(x)
-#define usec_delay_irq(x) DELAY(x)
-#define msec_delay(x) DELAY(1000*(x))
-#define msec_delay_irq(x) DELAY(1000*(x))
+static inline void
+safe_pause_us(int x) {
+	if (cold) {
+		DELAY(x);
+	} else {
+		pause("e1000_delay", max(1,  x/(1000000/hz)));
+	}
+}
 
-#define DEBUGFUNC(F)        DEBUGOUT(F);
-#define DEBUGOUT(S)			do {} while (0)
-#define DEBUGOUT1(S,A)			do {} while (0)
-#define DEBUGOUT2(S,A,B)		do {} while (0)
-#define DEBUGOUT3(S,A,B,C)		do {} while (0)
-#define DEBUGOUT7(S,A,B,C,D,E,F,G)	do {} while (0)
+static inline void
+safe_pause_ms(int x) {
+	if (cold) {
+		DELAY(x*1000);
+	} else {
+		pause("e1000_delay", ms_scale(x));
+	}
+}
+
+#define usec_delay(x) safe_pause_us(x)
+#define usec_delay_irq(x) usec_delay(x)
+#define msec_delay(x) safe_pause_ms(x)
+#define msec_delay_irq(x) msec_delay(x)
+
+/* Enable/disable debugging statements in shared code */
+#define DBG		0
+
+#define DEBUGOUT(...) \
+    do { if (DBG) printf(__VA_ARGS__); } while (0)
+#define DEBUGOUT1(...)			DEBUGOUT(__VA_ARGS__)
+#define DEBUGOUT2(...)			DEBUGOUT(__VA_ARGS__)
+#define DEBUGOUT3(...)			DEBUGOUT(__VA_ARGS__)
+#define DEBUGOUT7(...)			DEBUGOUT(__VA_ARGS__)
+#define DEBUGFUNC(F)			DEBUGOUT(F "\n")
 
 #define STATIC			static
 #define FALSE			0
 #define TRUE			1
-#ifndef __bool_true_false_are_defined
-#define false			FALSE 
-#define true			TRUE
-#endif
 #define CMD_MEM_WRT_INVALIDATE	0x0010  /* BIT_4 */
 #define PCI_COMMAND_REGISTER	PCIR_COMMAND
-
-/* Mutex used in the shared code */
-#define E1000_MUTEX                     struct mtx
-#define E1000_MUTEX_INIT(mutex)         mtx_init((mutex), #mutex, \
-                                            MTX_NETWORK_LOCK, \
-					    MTX_DEF | MTX_DUPOK)
-#define E1000_MUTEX_DESTROY(mutex)      mtx_destroy(mutex)
-#define E1000_MUTEX_LOCK(mutex)         mtx_lock(mutex)
-#define E1000_MUTEX_TRYLOCK(mutex)      mtx_trylock(mutex)
-#define E1000_MUTEX_UNLOCK(mutex)       mtx_unlock(mutex)
 
 typedef uint64_t	u64;
 typedef uint32_t	u32;
@@ -99,9 +128,6 @@ typedef int64_t		s64;
 typedef int32_t		s32;
 typedef int16_t		s16;
 typedef int8_t		s8;
-#ifndef __bool_true_false_are_defined
-typedef boolean_t	bool;
-#endif
 
 #define __le16		u16
 #define __le32		u32
@@ -118,6 +144,12 @@ typedef boolean_t	bool;
 #define wmb()
 #endif
 #endif /*__FreeBSD_version < 800000 */
+
+#ifdef INVARIANTS
+#define ASSERT_CTX_LOCK_HELD(hw) (sx_assert(iflib_ctx_lock_get(((struct e1000_osdep *)hw->back)->ctx), SX_XLOCKED))
+#else
+#define ASSERT_CTX_LOCK_HELD(hw)
+#endif
 
 #if defined(__i386__) || defined(__amd64__)
 static __inline
@@ -137,7 +169,8 @@ struct e1000_osdep
 	bus_space_handle_t io_bus_space_handle;
 	bus_space_tag_t    flash_bus_space_tag;
 	bus_space_handle_t flash_bus_space_handle;
-	struct device     *dev;
+	device_t	   dev;
+	if_ctx_t	   ctx;
 };
 
 #define E1000_REGISTER(hw, reg) (((hw)->mac.type >= e1000_82543) \
@@ -218,6 +251,23 @@ struct e1000_osdep
 #define E1000_WRITE_FLASH_REG16(hw, reg, value) \
     bus_space_write_2(((struct e1000_osdep *)(hw)->back)->flash_bus_space_tag, \
         ((struct e1000_osdep *)(hw)->back)->flash_bus_space_handle, reg, value)
+
+
+#if defined(INVARIANTS)
+#include <sys/proc.h>
+
+#define ASSERT_NO_LOCKS()				\
+	do {						\
+	     int unknown_locks = curthread->td_locks - mtx_owned(&Giant);	\
+	     if (unknown_locks > 0) {					\
+		     WITNESS_WARN(WARN_GIANTOK|WARN_SLEEPOK|WARN_PANIC, NULL, "unexpected non-sleepable lock"); \
+	     }								\
+	     MPASS(curthread->td_rw_rlocks == 0);			\
+	     MPASS(curthread->td_lk_slocks == 0);			\
+	} while (0)
+#else
+#define ASSERT_NO_LOCKS()
+#endif
 
 #endif  /* _FREEBSD_OS_H_ */
 

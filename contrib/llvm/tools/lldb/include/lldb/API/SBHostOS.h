@@ -15,42 +15,30 @@
 
 namespace lldb {
 
-class SBHostOS
-{
+class LLDB_API SBHostOS {
 public:
+  static lldb::SBFileSpec GetProgramFileSpec();
 
-    static lldb::SBFileSpec
-    GetProgramFileSpec ();
-    
-    static lldb::SBFileSpec
-    GetLLDBPythonPath ();
+  static lldb::SBFileSpec GetLLDBPythonPath();
 
-    static void
-    ThreadCreated (const char *name);
+  static lldb::SBFileSpec GetLLDBPath(lldb::PathType path_type);
 
-    static lldb::thread_t
-    ThreadCreate (const char *name,
-                  thread_func_t thread_function,
-                  void *thread_arg,
-                  lldb::SBError *err);
+  static lldb::SBFileSpec GetUserHomeDirectory();
 
-    static bool
-    ThreadCancel (lldb::thread_t thread,
-                  lldb::SBError *err);
+  static void ThreadCreated(const char *name);
 
-    static bool
-    ThreadDetach (lldb::thread_t thread,
-                  lldb::SBError *err);
-    static bool
-    ThreadJoin (lldb::thread_t thread,
-                thread_result_t *result,
-                lldb::SBError *err);
+  static lldb::thread_t ThreadCreate(const char *name,
+                                     lldb::thread_func_t thread_function,
+                                     void *thread_arg, lldb::SBError *err);
 
+  static bool ThreadCancel(lldb::thread_t thread, lldb::SBError *err);
+
+  static bool ThreadDetach(lldb::thread_t thread, lldb::SBError *err);
+  static bool ThreadJoin(lldb::thread_t thread, lldb::thread_result_t *result,
+                         lldb::SBError *err);
 
 private:
-
 };
-
 
 } // namespace lldb
 

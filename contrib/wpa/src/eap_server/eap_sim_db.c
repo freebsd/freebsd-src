@@ -38,7 +38,6 @@ struct eap_sim_db_pending {
 	char imsi[20];
 	enum { PENDING, SUCCESS, FAILURE } state;
 	void *cb_session_ctx;
-	struct os_time timestamp;
 	int aka;
 	union {
 		struct {
@@ -67,6 +66,7 @@ struct eap_sim_db_data {
 	struct eap_sim_pseudonym *pseudonyms;
 	struct eap_sim_reauth *reauths;
 	struct eap_sim_db_pending *pending;
+	unsigned int eap_sim_db_timeout;
 #ifdef CONFIG_SQLITE
 	sqlite3 *sqlite_db;
 	char db_tmp_identity[100];
@@ -75,6 +75,10 @@ struct eap_sim_db_data {
 	struct eap_sim_reauth db_tmp_reauth;
 #endif /* CONFIG_SQLITE */
 };
+
+
+static void eap_sim_db_del_timeout(void *eloop_ctx, void *user_ctx);
+static void eap_sim_db_query_timeout(void *eloop_ctx, void *user_ctx);
 
 
 #ifdef CONFIG_SQLITE
@@ -398,6 +402,57 @@ static void eap_sim_db_add_pending(struct eap_sim_db_data *data,
 }
 
 
+static void eap_sim_db_free_pending(struct eap_sim_db_data *data,
+				    struct eap_sim_db_pending *entry)
+{
+	eloop_cancel_timeout(eap_sim_db_query_timeout, data, entry);
+	eloop_cancel_timeout(eap_sim_db_del_timeout, data, entry);
+	os_free(entry);
+}
+
+
+static void eap_sim_db_del_pending(struct eap_sim_db_data *data,
+				   struct eap_sim_db_pending *entry)
+{
+	struct eap_sim_db_pending **pp = &data->pending;
+
+	while (*pp != NULL) {
+		if (*pp == entry) {
+			*pp = entry->next;
+			eap_sim_db_free_pending(data, entry);
+			return;
+		}
+		pp = &(*pp)->next;
+	}
+}
+
+
+static void eap_sim_db_del_timeout(void *eloop_ctx, void *user_ctx)
+{
+	struct eap_sim_db_data *data = eloop_ctx;
+	struct eap_sim_db_pending *entry = user_ctx;
+
+	wpa_printf(MSG_DEBUG, "EAP-SIM DB: Delete query timeout for %p", entry);
+	eap_sim_db_del_pending(data, entry);
+}
+
+
+static void eap_sim_db_query_timeout(void *eloop_ctx, void *user_ctx)
+{
+	struct eap_sim_db_data *data = eloop_ctx;
+	struct eap_sim_db_pending *entry = user_ctx;
+
+	/*
+	 * Report failure and allow some time for EAP server to process it
+	 * before deleting the query.
+	 */
+	wpa_printf(MSG_DEBUG, "EAP-SIM DB: Query timeout for %p", entry);
+	entry->state = FAILURE;
+	data->get_complete_cb(data->ctx, entry->cb_session_ctx);
+	eloop_register_timeout(1, 0, eap_sim_db_del_timeout, data, entry);
+}
+
+
 static void eap_sim_db_sim_resp_auth(struct eap_sim_db_data *data,
 				     const char *imsi, char *buf)
 {
@@ -473,7 +528,7 @@ static void eap_sim_db_sim_resp_auth(struct eap_sim_db_data *data,
 
 parse_fail:
 	wpa_printf(MSG_DEBUG, "EAP-SIM DB: Failed to parse response string");
-	os_free(entry);
+	eap_sim_db_free_pending(data, entry);
 }
 
 
@@ -564,7 +619,7 @@ static void eap_sim_db_aka_resp_auth(struct eap_sim_db_data *data,
 
 parse_fail:
 	wpa_printf(MSG_DEBUG, "EAP-SIM DB: Failed to parse response string");
-	os_free(entry);
+	eap_sim_db_free_pending(data, entry);
 }
 
 
@@ -574,16 +629,14 @@ static void eap_sim_db_receive(int sock, void *eloop_ctx, void *sock_ctx)
 	char buf[1000], *pos, *cmd, *imsi;
 	int res;
 
-	res = recv(sock, buf, sizeof(buf), 0);
+	res = recv(sock, buf, sizeof(buf) - 1, 0);
 	if (res < 0)
 		return;
+	buf[res] = '\0';
 	wpa_hexdump_ascii_key(MSG_MSGDUMP, "EAP-SIM DB: Received from an "
 			      "external source", (u8 *) buf, res);
 	if (res == 0)
 		return;
-	if (res >= (int) sizeof(buf))
-		res = sizeof(buf) - 1;
-	buf[res] = '\0';
 
 	if (data->get_complete_cb == NULL) {
 		wpa_printf(MSG_DEBUG, "EAP-SIM DB: No get_complete_cb "
@@ -630,7 +683,7 @@ static int eap_sim_db_open_socket(struct eap_sim_db_data *data)
 
 	data->sock = socket(PF_UNIX, SOCK_DGRAM, 0);
 	if (data->sock < 0) {
-		perror("socket(eap_sim_db)");
+		wpa_printf(MSG_INFO, "socket(eap_sim_db): %s", strerror(errno));
 		return -1;
 	}
 
@@ -640,8 +693,13 @@ static int eap_sim_db_open_socket(struct eap_sim_db_data *data)
 		    "/tmp/eap_sim_db_%d-%d", getpid(), counter++);
 	os_free(data->local_sock);
 	data->local_sock = os_strdup(addr.sun_path);
+	if (data->local_sock == NULL) {
+		close(data->sock);
+		data->sock = -1;
+		return -1;
+	}
 	if (bind(data->sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-		perror("bind(eap_sim_db)");
+		wpa_printf(MSG_INFO, "bind(eap_sim_db): %s", strerror(errno));
 		close(data->sock);
 		data->sock = -1;
 		return -1;
@@ -651,12 +709,16 @@ static int eap_sim_db_open_socket(struct eap_sim_db_data *data)
 	addr.sun_family = AF_UNIX;
 	os_strlcpy(addr.sun_path, data->fname + 5, sizeof(addr.sun_path));
 	if (connect(data->sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-		perror("connect(eap_sim_db)");
+		wpa_printf(MSG_INFO, "connect(eap_sim_db): %s",
+			   strerror(errno));
 		wpa_hexdump_ascii(MSG_INFO, "HLR/AuC GW socket",
 				  (u8 *) addr.sun_path,
 				  os_strlen(addr.sun_path));
 		close(data->sock);
 		data->sock = -1;
+		unlink(data->local_sock);
+		os_free(data->local_sock);
+		data->local_sock = NULL;
 		return -1;
 	}
 
@@ -684,12 +746,13 @@ static void eap_sim_db_close_socket(struct eap_sim_db_data *data)
 /**
  * eap_sim_db_init - Initialize EAP-SIM DB / authentication gateway interface
  * @config: Configuration data (e.g., file name)
+ * @db_timeout: Database lookup timeout
  * @get_complete_cb: Callback function for reporting availability of triplets
  * @ctx: Context pointer for get_complete_cb
  * Returns: Pointer to a private data structure or %NULL on failure
  */
 struct eap_sim_db_data *
-eap_sim_db_init(const char *config,
+eap_sim_db_init(const char *config, unsigned int db_timeout,
 		void (*get_complete_cb)(void *ctx, void *session_ctx),
 		void *ctx)
 {
@@ -703,6 +766,7 @@ eap_sim_db_init(const char *config,
 	data->sock = -1;
 	data->get_complete_cb = get_complete_cb;
 	data->ctx = ctx;
+	data->eap_sim_db_timeout = db_timeout;
 	data->fname = os_strdup(config);
 	if (data->fname == NULL)
 		goto fail;
@@ -790,7 +854,7 @@ void eap_sim_db_deinit(void *priv)
 	while (pending) {
 		prev_pending = pending;
 		pending = pending->next;
-		os_free(prev_pending);
+		eap_sim_db_free_pending(data, prev_pending);
 	}
 
 	os_free(data);
@@ -804,7 +868,8 @@ static int eap_sim_db_send(struct eap_sim_db_data *data, const char *msg,
 
 	if (send(data->sock, msg, len, 0) < 0) {
 		_errno = errno;
-		perror("send[EAP-SIM DB UNIX]");
+		wpa_printf(MSG_INFO, "send[EAP-SIM DB UNIX]: %s",
+			   strerror(errno));
 	}
 
 	if (_errno == ENOTCONN || _errno == EDESTADDRREQ || _errno == EINVAL ||
@@ -816,7 +881,8 @@ static int eap_sim_db_send(struct eap_sim_db_data *data, const char *msg,
 		wpa_printf(MSG_DEBUG, "EAP-SIM DB: Reconnected to the "
 			   "external server");
 		if (send(data->sock, msg, len, 0) < 0) {
-			perror("send[EAP-SIM DB UNIX]");
+			wpa_printf(MSG_INFO, "send[EAP-SIM DB UNIX]: %s",
+				   strerror(errno));
 			return -1;
 		}
 	}
@@ -825,11 +891,11 @@ static int eap_sim_db_send(struct eap_sim_db_data *data, const char *msg,
 }
 
 
-static void eap_sim_db_expire_pending(struct eap_sim_db_data *data)
+static void eap_sim_db_expire_pending(struct eap_sim_db_data *data,
+				      struct eap_sim_db_pending *entry)
 {
-	/* TODO: add limit for maximum length for pending list; remove latest
-	 * (i.e., last) entry from the list if the limit is reached; could also
-	 * use timeout to expire pending entries */
+	eloop_register_timeout(data->eap_sim_db_timeout, 0,
+			       eap_sim_db_query_timeout, data, entry);
 }
 
 
@@ -883,7 +949,7 @@ int eap_sim_db_get_gsm_triplets(struct eap_sim_db_data *data,
 		if (entry->state == FAILURE) {
 			wpa_printf(MSG_DEBUG, "EAP-SIM DB: Pending entry -> "
 				   "failure");
-			os_free(entry);
+			eap_sim_db_free_pending(data, entry);
 			return EAP_SIM_DB_FAILURE;
 		}
 
@@ -903,7 +969,7 @@ int eap_sim_db_get_gsm_triplets(struct eap_sim_db_data *data,
 		os_memcpy(sres, entry->u.sim.sres,
 			  num_chal * EAP_SIM_SRES_LEN);
 		os_memcpy(kc, entry->u.sim.kc, num_chal * EAP_SIM_KC_LEN);
-		os_free(entry);
+		eap_sim_db_free_pending(data, entry);
 		return num_chal;
 	}
 
@@ -914,12 +980,13 @@ int eap_sim_db_get_gsm_triplets(struct eap_sim_db_data *data,
 
 	imsi_len = os_strlen(imsi);
 	len = os_snprintf(msg, sizeof(msg), "SIM-REQ-AUTH ");
-	if (len < 0 || len + imsi_len >= sizeof(msg))
+	if (os_snprintf_error(sizeof(msg), len) ||
+	    len + imsi_len >= sizeof(msg))
 		return EAP_SIM_DB_FAILURE;
 	os_memcpy(msg + len, imsi, imsi_len);
 	len += imsi_len;
 	ret = os_snprintf(msg + len, sizeof(msg) - len, " %d", max_chal);
-	if (ret < 0 || (size_t) ret >= sizeof(msg) - len)
+	if (os_snprintf_error(sizeof(msg) - len, ret))
 		return EAP_SIM_DB_FAILURE;
 	len += ret;
 
@@ -932,12 +999,12 @@ int eap_sim_db_get_gsm_triplets(struct eap_sim_db_data *data,
 	if (entry == NULL)
 		return EAP_SIM_DB_FAILURE;
 
-	os_get_time(&entry->timestamp);
 	os_strlcpy(entry->imsi, imsi, sizeof(entry->imsi));
 	entry->cb_session_ctx = cb_session_ctx;
 	entry->state = PENDING;
 	eap_sim_db_add_pending(data, entry);
-	eap_sim_db_expire_pending(data);
+	eap_sim_db_expire_pending(data, entry);
+	wpa_printf(MSG_DEBUG, "EAP-SIM DB: Added query %p", entry);
 
 	return EAP_SIM_DB_PENDING;
 }
@@ -957,7 +1024,7 @@ static char * eap_sim_db_get_next(struct eap_sim_db_data *data, char prefix)
 	pos = id;
 	end = id + sizeof(buf) * 2 + 2;
 	*pos++ = prefix;
-	pos += wpa_snprintf_hex(pos, end - pos, buf, sizeof(buf));
+	wpa_snprintf_hex(pos, end - pos, buf, sizeof(buf));
 	
 	return id;
 }
@@ -1348,7 +1415,7 @@ int eap_sim_db_get_aka_auth(struct eap_sim_db_data *data, const char *username,
 	entry = eap_sim_db_get_pending(data, imsi, 1);
 	if (entry) {
 		if (entry->state == FAILURE) {
-			os_free(entry);
+			eap_sim_db_free_pending(data, entry);
 			wpa_printf(MSG_DEBUG, "EAP-SIM DB: Failure");
 			return EAP_SIM_DB_FAILURE;
 		}
@@ -1367,7 +1434,7 @@ int eap_sim_db_get_aka_auth(struct eap_sim_db_data *data, const char *username,
 		os_memcpy(ck, entry->u.aka.ck, EAP_AKA_CK_LEN);
 		os_memcpy(res, entry->u.aka.res, EAP_AKA_RES_MAX_LEN);
 		*res_len = entry->u.aka.res_len;
-		os_free(entry);
+		eap_sim_db_free_pending(data, entry);
 		return 0;
 	}
 
@@ -1378,7 +1445,8 @@ int eap_sim_db_get_aka_auth(struct eap_sim_db_data *data, const char *username,
 
 	imsi_len = os_strlen(imsi);
 	len = os_snprintf(msg, sizeof(msg), "AKA-REQ-AUTH ");
-	if (len < 0 || len + imsi_len >= sizeof(msg))
+	if (os_snprintf_error(sizeof(msg), len) ||
+	    len + imsi_len >= sizeof(msg))
 		return EAP_SIM_DB_FAILURE;
 	os_memcpy(msg + len, imsi, imsi_len);
 	len += imsi_len;
@@ -1392,13 +1460,13 @@ int eap_sim_db_get_aka_auth(struct eap_sim_db_data *data, const char *username,
 	if (entry == NULL)
 		return EAP_SIM_DB_FAILURE;
 
-	os_get_time(&entry->timestamp);
 	entry->aka = 1;
 	os_strlcpy(entry->imsi, imsi, sizeof(entry->imsi));
 	entry->cb_session_ctx = cb_session_ctx;
 	entry->state = PENDING;
 	eap_sim_db_add_pending(data, entry);
-	eap_sim_db_expire_pending(data);
+	eap_sim_db_expire_pending(data, entry);
+	wpa_printf(MSG_DEBUG, "EAP-SIM DB: Added query %p", entry);
 
 	return EAP_SIM_DB_PENDING;
 }
@@ -1443,19 +1511,20 @@ int eap_sim_db_resynchronize(struct eap_sim_db_data *data,
 
 		imsi_len = os_strlen(imsi);
 		len = os_snprintf(msg, sizeof(msg), "AKA-AUTS ");
-		if (len < 0 || len + imsi_len >= sizeof(msg))
+		if (os_snprintf_error(sizeof(msg), len) ||
+		    len + imsi_len >= sizeof(msg))
 			return -1;
 		os_memcpy(msg + len, imsi, imsi_len);
 		len += imsi_len;
 
 		ret = os_snprintf(msg + len, sizeof(msg) - len, " ");
-		if (ret < 0 || (size_t) ret >= sizeof(msg) - len)
+		if (os_snprintf_error(sizeof(msg) - len, ret))
 			return -1;
 		len += ret;
 		len += wpa_snprintf_hex(msg + len, sizeof(msg) - len,
 					auts, EAP_AKA_AUTS_LEN);
 		ret = os_snprintf(msg + len, sizeof(msg) - len, " ");
-		if (ret < 0 || (size_t) ret >= sizeof(msg) - len)
+		if (os_snprintf_error(sizeof(msg) - len, ret))
 			return -1;
 		len += ret;
 		len += wpa_snprintf_hex(msg + len, sizeof(msg) - len,
@@ -1480,7 +1549,6 @@ int eap_sim_db_resynchronize(struct eap_sim_db_data *data,
  */
 char * sim_get_username(const u8 *identity, size_t identity_len)
 {
-	char *username;
 	size_t pos;
 
 	if (identity == NULL)
@@ -1491,11 +1559,5 @@ char * sim_get_username(const u8 *identity, size_t identity_len)
 			break;
 	}
 
-	username = os_malloc(pos + 1);
-	if (username == NULL)
-		return NULL;
-	os_memcpy(username, identity, pos);
-	username[pos] = '\0';
-
-	return username;
+	return dup_binstr(identity, pos);
 }

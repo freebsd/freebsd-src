@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Daniel Eischen <deischen@FreeBSD.org>.
  * All rights reserved.
  *
@@ -37,6 +39,7 @@
 #undef		bind
 #undef		__cap_get_fd
 #undef		__cap_set_fd
+#undef		clock_nanosleep
 #undef		close
 #undef		connect
 #undef		dup
@@ -112,6 +115,7 @@
 #undef		pthread_detach
 #undef		pthread_equal
 #undef		pthread_exit
+#undef		pthread_get_name_np
 #undef		pthread_getaffinity_np
 #undef		pthread_getconcurrency
 #undef		pthread_getcpuclockid
@@ -189,6 +193,7 @@
 #undef		readv
 #undef		recvfrom
 #undef		recvmsg
+#undef		recvmmsg
 #undef		select
 #undef		sem_close
 #undef		sem_destroy
@@ -197,10 +202,12 @@
 #undef		sem_open
 #undef		sem_post
 #undef		sem_timedwait
+#undef		sem_clockwait_np
 #undef		sem_trywait
 #undef		sem_unlink
 #undef		sem_wait
 #undef		sendmsg
+#undef		sendmmsg
 #undef		sendto
 #undef		setsockopt
 #undef		sigaction

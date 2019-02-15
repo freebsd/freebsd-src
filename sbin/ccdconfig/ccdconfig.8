@@ -1,7 +1,8 @@
-.\"	$NetBSD: ccdconfig.8,v 1.1.2.1 1995/11/11 02:43:33 thorpej Exp $
-.\"
-.\" Copyright (c) 1995 Jason R. Thorpe.
+.\" Copyright (c) 1996 The NetBSD Foundation, Inc.
 .\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -11,8 +12,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. The name of the author may not be used to endorse or promote products
-.\"    derived from this software without specific prior written permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
 .\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -26,9 +25,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+.\" $NetBSD: ccdconfig.8,v 1.4 1996/02/28 01:01:17 thorpej Exp $
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2013
+.Dd October 3, 2016
 .Dt CCDCONFIG 8
 .Os
 .Sh NAME
@@ -159,7 +159,7 @@ It reads as a two disk stripe of da4 and da5 which is mirrored
 to a two disk stripe of da6 and da7.
 The last example is a simple
 mirror.
-The 2nd slice of /dev/da8 is mirrored with the 3rd slice of /dev/da9
+The second slice of /dev/da8 is mirrored with the third slice of /dev/da9
 and assigned to ccd0.
 .Bd -literal
 # ccdconfig ccd0 64 none /dev/da0s1 /dev/da1s1 /dev/da2s1 /dev/da3s1
@@ -246,7 +246,7 @@ and
 The
 .Nm
 utility first appeared in
-.Nx 1.0a .
+.Nx 1.1 .
 .Sh BUGS
 The initial disklabel returned by
 .Xr ccd 4

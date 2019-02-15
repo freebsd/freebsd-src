@@ -1,4 +1,4 @@
-//===-- Module.cpp - Implement the Module class ---------------------------===//
+//===- Module.cpp - Implement the Module class ----------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,19 +13,45 @@
 
 #include "llvm/IR/Module.h"
 #include "SymbolTableListTraitsImpl.h"
-#include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringExtras.h"
-#include "llvm/GVMaterializer.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Twine.h"
+#include "llvm/IR/Attributes.h"
+#include "llvm/IR/Comdat.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/InstrTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GVMaterializer.h"
+#include "llvm/IR/GlobalAlias.h"
+#include "llvm/IR/GlobalIFunc.h"
+#include "llvm/IR/GlobalValue.h"
+#include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/Support/LeakDetector.h"
+#include "llvm/IR/Metadata.h"
+#include "llvm/IR/SymbolTableListTraits.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/TypeFinder.h"
+#include "llvm/IR/Value.h"
+#include "llvm/IR/ValueSymbolTable.h"
+#include "llvm/Pass.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/CodeGen.h"
+#include "llvm/Support/Error.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/RandomNumberGenerator.h"
 #include <algorithm>
-#include <cstdarg>
-#include <cstdlib>
+#include <cassert>
+#include <cstdint>
+#include <memory>
+#include <utility>
+#include <vector>
+
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -34,16 +60,17 @@ using namespace llvm;
 
 // Explicit instantiations of SymbolTableListTraits since some of the methods
 // are not in the public header file.
-template class llvm::SymbolTableListTraits<Function, Module>;
-template class llvm::SymbolTableListTraits<GlobalVariable, Module>;
-template class llvm::SymbolTableListTraits<GlobalAlias, Module>;
+template class llvm::SymbolTableListTraits<Function>;
+template class llvm::SymbolTableListTraits<GlobalVariable>;
+template class llvm::SymbolTableListTraits<GlobalAlias>;
+template class llvm::SymbolTableListTraits<GlobalIFunc>;
 
 //===----------------------------------------------------------------------===//
 // Primitive Module methods.
 //
 
-Module::Module(StringRef MID, LLVMContext& C)
-  : Context(C), Materializer(NULL), ModuleID(MID) {
+Module::Module(StringRef MID, LLVMContext &C)
+    : Context(C), Materializer(), ModuleID(MID), SourceFileName(MID), DL("") {
   ValSymTab = new ValueSymbolTable();
   NamedMDSymTab = new StringMap<NamedMDNode *>();
   Context.addModule(this);
@@ -55,54 +82,28 @@ Module::~Module() {
   GlobalList.clear();
   FunctionList.clear();
   AliasList.clear();
+  IFuncList.clear();
   NamedMDList.clear();
   delete ValSymTab;
   delete static_cast<StringMap<NamedMDNode *> *>(NamedMDSymTab);
 }
 
-/// Target endian information.
-Module::Endianness Module::getEndianness() const {
-  StringRef temp = DataLayout;
-  Module::Endianness ret = AnyEndianness;
+std::unique_ptr<RandomNumberGenerator> Module::createRNG(const Pass* P) const {
+  SmallString<32> Salt(P->getPassName());
 
-  while (!temp.empty()) {
-    std::pair<StringRef, StringRef> P = getToken(temp, "-");
+  // This RNG is guaranteed to produce the same random stream only
+  // when the Module ID and thus the input filename is the same. This
+  // might be problematic if the input filename extension changes
+  // (e.g. from .c to .bc or .ll).
+  //
+  // We could store this salt in NamedMetadata, but this would make
+  // the parameter non-const. This would unfortunately make this
+  // interface unusable by any Machine passes, since they only have a
+  // const reference to their IR Module. Alternatively we can always
+  // store salt metadata from the Module constructor.
+  Salt += sys::path::filename(getModuleIdentifier());
 
-    StringRef token = P.first;
-    temp = P.second;
-
-    if (token[0] == 'e') {
-      ret = LittleEndian;
-    } else if (token[0] == 'E') {
-      ret = BigEndian;
-    }
-  }
-
-  return ret;
-}
-
-/// Target Pointer Size information.
-Module::PointerSize Module::getPointerSize() const {
-  StringRef temp = DataLayout;
-  Module::PointerSize ret = AnyPointerSize;
-
-  while (!temp.empty()) {
-    std::pair<StringRef, StringRef> TmpP = getToken(temp, "-");
-    temp = TmpP.second;
-    TmpP = getToken(TmpP.first, ":");
-    StringRef token = TmpP.second, signalToken = TmpP.first;
-
-    if (signalToken[0] == 'p') {
-      int size = 0;
-      getToken(token, ":").first.getAsInteger(10, size);
-      if (size == 32)
-        ret = Pointer32;
-      else if (size == 64)
-        ret = Pointer64;
-    }
-  }
-
-  return ret;
+  return std::unique_ptr<RandomNumberGenerator>(new RandomNumberGenerator(Salt));
 }
 
 /// getNamedValue - Return the first global value in the module with
@@ -125,6 +126,9 @@ void Module::getMDKindNames(SmallVectorImpl<StringRef> &Result) const {
   return Context.getMDKindNames(Result);
 }
 
+void Module::getOperandBundleTags(SmallVectorImpl<StringRef> &Result) const {
+  return Context.getOperandBundleTags(Result);
+}
 
 //===----------------------------------------------------------------------===//
 // Methods for easy access to the functions in the module.
@@ -135,28 +139,17 @@ void Module::getMDKindNames(SmallVectorImpl<StringRef> &Result) const {
 // it.  This is nice because it allows most passes to get away with not handling
 // the symbol table directly for this common task.
 //
-Constant *Module::getOrInsertFunction(StringRef Name,
-                                      FunctionType *Ty,
-                                      AttributeSet AttributeList) {
+Constant *Module::getOrInsertFunction(StringRef Name, FunctionType *Ty,
+                                      AttributeList AttributeList) {
   // See if we have a definition for the specified function already.
   GlobalValue *F = getNamedValue(Name);
-  if (F == 0) {
+  if (!F) {
     // Nope, add it
     Function *New = Function::Create(Ty, GlobalVariable::ExternalLinkage, Name);
     if (!New->isIntrinsic())       // Intrinsics get attrs set on construction
       New->setAttributes(AttributeList);
     FunctionList.push_back(New);
     return New;                    // Return the new prototype.
-  }
-
-  // Okay, the function exists.  Does it have externally visible linkage?
-  if (F->hasLocalLinkage()) {
-    // Clear the function's name.
-    F->setName("");
-    // Retry, now there won't be a conflict.
-    Constant *NewF = getOrInsertFunction(Name, Ty);
-    F->setName(Name);
-    return NewF;
   }
 
   // If the function exists but has the wrong type, return a bitcast to the
@@ -170,49 +163,7 @@ Constant *Module::getOrInsertFunction(StringRef Name,
 
 Constant *Module::getOrInsertFunction(StringRef Name,
                                       FunctionType *Ty) {
-  return getOrInsertFunction(Name, Ty, AttributeSet());
-}
-
-// getOrInsertFunction - Look up the specified function in the module symbol
-// table.  If it does not exist, add a prototype for the function and return it.
-// This version of the method takes a null terminated list of function
-// arguments, which makes it easier for clients to use.
-//
-Constant *Module::getOrInsertFunction(StringRef Name,
-                                      AttributeSet AttributeList,
-                                      Type *RetTy, ...) {
-  va_list Args;
-  va_start(Args, RetTy);
-
-  // Build the list of argument types...
-  std::vector<Type*> ArgTys;
-  while (Type *ArgTy = va_arg(Args, Type*))
-    ArgTys.push_back(ArgTy);
-
-  va_end(Args);
-
-  // Build the function type and chain to the other getOrInsertFunction...
-  return getOrInsertFunction(Name,
-                             FunctionType::get(RetTy, ArgTys, false),
-                             AttributeList);
-}
-
-Constant *Module::getOrInsertFunction(StringRef Name,
-                                      Type *RetTy, ...) {
-  va_list Args;
-  va_start(Args, RetTy);
-
-  // Build the list of argument types...
-  std::vector<Type*> ArgTys;
-  while (Type *ArgTy = va_arg(Args, Type*))
-    ArgTys.push_back(ArgTy);
-
-  va_end(Args);
-
-  // Build the function type and chain to the other getOrInsertFunction...
-  return getOrInsertFunction(Name,
-                             FunctionType::get(RetTy, ArgTys, false),
-                             AttributeSet());
+  return getOrInsertFunction(Name, Ty, AttributeList());
 }
 
 // getFunction - Look up the specified function in the module symbol table.
@@ -233,12 +184,13 @@ Function *Module::getFunction(StringRef Name) const {
 /// If AllowLocal is set to true, this function will return types that
 /// have an local. By default, these types are not returned.
 ///
-GlobalVariable *Module::getGlobalVariable(StringRef Name, bool AllowLocal) {
+GlobalVariable *Module::getGlobalVariable(StringRef Name,
+                                          bool AllowLocal) const {
   if (GlobalVariable *Result =
       dyn_cast_or_null<GlobalVariable>(getNamedValue(Name)))
     if (AllowLocal || !Result->hasLocalLinkage())
       return Result;
-  return 0;
+  return nullptr;
 }
 
 /// getOrInsertGlobal - Look up the specified global in the module symbol table.
@@ -250,11 +202,11 @@ GlobalVariable *Module::getGlobalVariable(StringRef Name, bool AllowLocal) {
 Constant *Module::getOrInsertGlobal(StringRef Name, Type *Ty) {
   // See if we have a definition for the specified global already.
   GlobalVariable *GV = dyn_cast_or_null<GlobalVariable>(getNamedValue(Name));
-  if (GV == 0) {
+  if (!GV) {
     // Nope, add it
     GlobalVariable *New =
       new GlobalVariable(*this, Ty, false, GlobalVariable::ExternalLinkage,
-                         0, Name);
+                         nullptr, Name);
      return New;                    // Return the new declaration.
   }
 
@@ -278,6 +230,10 @@ Constant *Module::getOrInsertGlobal(StringRef Name, Type *Ty) {
 //
 GlobalAlias *Module::getNamedAlias(StringRef Name) const {
   return dyn_cast_or_null<GlobalAlias>(getNamedValue(Name));
+}
+
+GlobalIFunc *Module::getNamedIFunc(StringRef Name) const {
+  return dyn_cast_or_null<GlobalIFunc>(getNamedValue(Name));
 }
 
 /// getNamedMetadata - Return the first NamedMDNode in the module with the
@@ -307,7 +263,18 @@ NamedMDNode *Module::getOrInsertNamedMetadata(StringRef Name) {
 /// delete it.
 void Module::eraseNamedMetadata(NamedMDNode *NMD) {
   static_cast<StringMap<NamedMDNode *> *>(NamedMDSymTab)->erase(NMD->getName());
-  NamedMDList.erase(NMD);
+  NamedMDList.erase(NMD->getIterator());
+}
+
+bool Module::isValidModFlagBehavior(Metadata *MD, ModFlagBehavior &MFB) {
+  if (ConstantInt *Behavior = mdconst::dyn_extract_or_null<ConstantInt>(MD)) {
+    uint64_t Val = Behavior->getLimitedValue();
+    if (Val >= ModFlagBehaviorFirstVal && Val <= ModFlagBehaviorLastVal) {
+      MFB = static_cast<ModFlagBehavior>(Val);
+      return true;
+    }
+  }
+  return false;
 }
 
 /// getModuleFlagsMetadata - Returns the module flags in the provided vector.
@@ -316,32 +283,30 @@ getModuleFlagsMetadata(SmallVectorImpl<ModuleFlagEntry> &Flags) const {
   const NamedMDNode *ModFlags = getModuleFlagsMetadata();
   if (!ModFlags) return;
 
-  for (unsigned i = 0, e = ModFlags->getNumOperands(); i != e; ++i) {
-    MDNode *Flag = ModFlags->getOperand(i);
-    if (Flag->getNumOperands() >= 3 && isa<ConstantInt>(Flag->getOperand(0)) &&
-        isa<MDString>(Flag->getOperand(1))) {
+  for (const MDNode *Flag : ModFlags->operands()) {
+    ModFlagBehavior MFB;
+    if (Flag->getNumOperands() >= 3 &&
+        isValidModFlagBehavior(Flag->getOperand(0), MFB) &&
+        dyn_cast_or_null<MDString>(Flag->getOperand(1))) {
       // Check the operands of the MDNode before accessing the operands.
       // The verifier will actually catch these failures.
-      ConstantInt *Behavior = cast<ConstantInt>(Flag->getOperand(0));
       MDString *Key = cast<MDString>(Flag->getOperand(1));
-      Value *Val = Flag->getOperand(2);
-      Flags.push_back(ModuleFlagEntry(ModFlagBehavior(Behavior->getZExtValue()),
-                                      Key, Val));
+      Metadata *Val = Flag->getOperand(2);
+      Flags.push_back(ModuleFlagEntry(MFB, Key, Val));
     }
   }
 }
 
 /// Return the corresponding value if Key appears in module flags, otherwise
 /// return null.
-Value *Module::getModuleFlag(StringRef Key) const {
+Metadata *Module::getModuleFlag(StringRef Key) const {
   SmallVector<Module::ModuleFlagEntry, 8> ModuleFlags;
   getModuleFlagsMetadata(ModuleFlags);
-  for (unsigned I = 0, E = ModuleFlags.size(); I < E; ++I) {
-    const ModuleFlagEntry &MFE = ModuleFlags[I];
+  for (const ModuleFlagEntry &MFE : ModuleFlags) {
     if (Key == MFE.Key->getString())
       return MFE.Val;
   }
-  return 0;
+  return nullptr;
 }
 
 /// getModuleFlagsMetadata - Returns the NamedMDNode in the module that
@@ -362,12 +327,16 @@ NamedMDNode *Module::getOrInsertModuleFlagsMetadata() {
 /// metadata. It will create the module-level flags named metadata if it doesn't
 /// already exist.
 void Module::addModuleFlag(ModFlagBehavior Behavior, StringRef Key,
-                           Value *Val) {
+                           Metadata *Val) {
   Type *Int32Ty = Type::getInt32Ty(Context);
-  Value *Ops[3] = {
-    ConstantInt::get(Int32Ty, Behavior), MDString::get(Context, Key), Val
-  };
+  Metadata *Ops[3] = {
+      ConstantAsMetadata::get(ConstantInt::get(Int32Ty, Behavior)),
+      MDString::get(Context, Key), Val};
   getOrInsertModuleFlagsMetadata()->addOperand(MDNode::get(Context, Ops));
+}
+void Module::addModuleFlag(ModFlagBehavior Behavior, StringRef Key,
+                           Constant *Val) {
+  addModuleFlag(Behavior, Key, ConstantAsMetadata::get(Val));
 }
 void Module::addModuleFlag(ModFlagBehavior Behavior, StringRef Key,
                            uint32_t Val) {
@@ -377,10 +346,31 @@ void Module::addModuleFlag(ModFlagBehavior Behavior, StringRef Key,
 void Module::addModuleFlag(MDNode *Node) {
   assert(Node->getNumOperands() == 3 &&
          "Invalid number of operands for module flag!");
-  assert(isa<ConstantInt>(Node->getOperand(0)) &&
+  assert(mdconst::hasa<ConstantInt>(Node->getOperand(0)) &&
          isa<MDString>(Node->getOperand(1)) &&
          "Invalid operand types for module flag!");
   getOrInsertModuleFlagsMetadata()->addOperand(Node);
+}
+
+void Module::setDataLayout(StringRef Desc) {
+  DL.reset(Desc);
+}
+
+void Module::setDataLayout(const DataLayout &Other) { DL = Other; }
+
+const DataLayout &Module::getDataLayout() const { return DL; }
+
+DICompileUnit *Module::debug_compile_units_iterator::operator*() const {
+  return cast<DICompileUnit>(CUs->getOperand(Idx));
+}
+DICompileUnit *Module::debug_compile_units_iterator::operator->() const {
+  return cast<DICompileUnit>(CUs->getOperand(Idx));
+}
+
+void Module::debug_compile_units_iterator::SkipNoDebugCUs() {
+  while (CUs && (Idx < CUs->getNumOperands()) &&
+         ((*this)->getEmissionKind() == DICompileUnit::NoDebug))
+    ++Idx;
 }
 
 //===----------------------------------------------------------------------===//
@@ -388,62 +378,48 @@ void Module::addModuleFlag(MDNode *Node) {
 //
 void Module::setMaterializer(GVMaterializer *GVM) {
   assert(!Materializer &&
-         "Module already has a GVMaterializer.  Call MaterializeAllPermanently"
+         "Module already has a GVMaterializer.  Call materializeAll"
          " to clear it out before setting another one.");
   Materializer.reset(GVM);
 }
 
-bool Module::isMaterializable(const GlobalValue *GV) const {
-  if (Materializer)
-    return Materializer->isMaterializable(GV);
-  return false;
-}
-
-bool Module::isDematerializable(const GlobalValue *GV) const {
-  if (Materializer)
-    return Materializer->isDematerializable(GV);
-  return false;
-}
-
-bool Module::Materialize(GlobalValue *GV, std::string *ErrInfo) {
+Error Module::materialize(GlobalValue *GV) {
   if (!Materializer)
-    return false;
+    return Error::success();
 
-  error_code EC = Materializer->Materialize(GV);
-  if (!EC)
-    return false;
-  if (ErrInfo)
-    *ErrInfo = EC.message();
-  return true;
+  return Materializer->materialize(GV);
 }
 
-void Module::Dematerialize(GlobalValue *GV) {
-  if (Materializer)
-    return Materializer->Dematerialize(GV);
-}
-
-bool Module::MaterializeAll(std::string *ErrInfo) {
+Error Module::materializeAll() {
   if (!Materializer)
-    return false;
-  error_code EC = Materializer->MaterializeModule(this);
-  if (!EC)
-    return false;
-  if (ErrInfo)
-    *ErrInfo = EC.message();
-  return true;
+    return Error::success();
+  std::unique_ptr<GVMaterializer> M = std::move(Materializer);
+  return M->materializeModule();
 }
 
-bool Module::MaterializeAllPermanently(std::string *ErrInfo) {
-  if (MaterializeAll(ErrInfo))
-    return true;
-  Materializer.reset();
-  return false;
+Error Module::materializeMetadata() {
+  if (!Materializer)
+    return Error::success();
+  return Materializer->materializeMetadata();
 }
 
 //===----------------------------------------------------------------------===//
 // Other module related stuff.
 //
 
+std::vector<StructType *> Module::getIdentifiedStructTypes() const {
+  // If we have a materializer, it is possible that some unread function
+  // uses a type that is currently not visible to a TypeFinder, so ask
+  // the materializer which types it created.
+  if (Materializer)
+    return Materializer->getIdentifiedStructTypes();
+
+  std::vector<StructType *> Ret;
+  TypeFinder SrcStructTypes;
+  SrcStructTypes.run(*this, true);
+  Ret.assign(SrcStructTypes.begin(), SrcStructTypes.end());
+  return Ret;
+}
 
 // dropAllReferences() - This function causes all the subelements to "let go"
 // of all references that they are maintaining.  This allows one to 'delete' a
@@ -453,12 +429,98 @@ bool Module::MaterializeAllPermanently(std::string *ErrInfo) {
 // has "dropped all references", except operator delete.
 //
 void Module::dropAllReferences() {
-  for(Module::iterator I = begin(), E = end(); I != E; ++I)
-    I->dropAllReferences();
+  for (Function &F : *this)
+    F.dropAllReferences();
 
-  for(Module::global_iterator I = global_begin(), E = global_end(); I != E; ++I)
-    I->dropAllReferences();
+  for (GlobalVariable &GV : globals())
+    GV.dropAllReferences();
 
-  for(Module::alias_iterator I = alias_begin(), E = alias_end(); I != E; ++I)
-    I->dropAllReferences();
+  for (GlobalAlias &GA : aliases())
+    GA.dropAllReferences();
+
+  for (GlobalIFunc &GIF : ifuncs())
+    GIF.dropAllReferences();
+}
+
+unsigned Module::getNumberRegisterParameters() const {
+  auto *Val =
+      cast_or_null<ConstantAsMetadata>(getModuleFlag("NumRegisterParameters"));
+  if (!Val)
+    return 0;
+  return cast<ConstantInt>(Val->getValue())->getZExtValue();
+}
+
+unsigned Module::getDwarfVersion() const {
+  auto *Val = cast_or_null<ConstantAsMetadata>(getModuleFlag("Dwarf Version"));
+  if (!Val)
+    return 0;
+  return cast<ConstantInt>(Val->getValue())->getZExtValue();
+}
+
+unsigned Module::getCodeViewFlag() const {
+  auto *Val = cast_or_null<ConstantAsMetadata>(getModuleFlag("CodeView"));
+  if (!Val)
+    return 0;
+  return cast<ConstantInt>(Val->getValue())->getZExtValue();
+}
+
+Comdat *Module::getOrInsertComdat(StringRef Name) {
+  auto &Entry = *ComdatSymTab.insert(std::make_pair(Name, Comdat())).first;
+  Entry.second.Name = &Entry;
+  return &Entry.second;
+}
+
+PICLevel::Level Module::getPICLevel() const {
+  auto *Val = cast_or_null<ConstantAsMetadata>(getModuleFlag("PIC Level"));
+
+  if (!Val)
+    return PICLevel::NotPIC;
+
+  return static_cast<PICLevel::Level>(
+      cast<ConstantInt>(Val->getValue())->getZExtValue());
+}
+
+void Module::setPICLevel(PICLevel::Level PL) {
+  addModuleFlag(ModFlagBehavior::Max, "PIC Level", PL);
+}
+
+PIELevel::Level Module::getPIELevel() const {
+  auto *Val = cast_or_null<ConstantAsMetadata>(getModuleFlag("PIE Level"));
+
+  if (!Val)
+    return PIELevel::Default;
+
+  return static_cast<PIELevel::Level>(
+      cast<ConstantInt>(Val->getValue())->getZExtValue());
+}
+
+void Module::setPIELevel(PIELevel::Level PL) {
+  addModuleFlag(ModFlagBehavior::Max, "PIE Level", PL);
+}
+
+void Module::setProfileSummary(Metadata *M) {
+  addModuleFlag(ModFlagBehavior::Error, "ProfileSummary", M);
+}
+
+Metadata *Module::getProfileSummary() {
+  return getModuleFlag("ProfileSummary");
+}
+
+void Module::setOwnedMemoryBuffer(std::unique_ptr<MemoryBuffer> MB) {
+  OwnedMemoryBuffer = std::move(MB);
+}
+
+GlobalVariable *llvm::collectUsedGlobalVariables(
+    const Module &M, SmallPtrSetImpl<GlobalValue *> &Set, bool CompilerUsed) {
+  const char *Name = CompilerUsed ? "llvm.compiler.used" : "llvm.used";
+  GlobalVariable *GV = M.getGlobalVariable(Name);
+  if (!GV || !GV->hasInitializer())
+    return GV;
+
+  const ConstantArray *Init = cast<ConstantArray>(GV->getInitializer());
+  for (Value *Op : Init->operands()) {
+    GlobalValue *G = cast<GlobalValue>(Op->stripPointerCastsNoFollowAliases());
+    Set.insert(G);
+  }
+  return GV;
 }

@@ -1,6 +1,8 @@
 /*	$NetBSD: Locore.c,v 1.7 2000/08/20 07:04:59 tsubai Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
  * All rights reserved.
@@ -154,16 +156,16 @@ xrefinfo_init(void *unsed)
 SYSINIT(xrefinfo, SI_SUB_KMEM, SI_ORDER_ANY, xrefinfo_init, NULL);
 
 static struct xrefinfo *
-xrefinfo_find(phandle_t phandle, int find_by)
+xrefinfo_find(uintptr_t key, int find_by)
 {
 	struct xrefinfo *rv, *xi;
 
 	rv = NULL;
 	mtx_lock(&xreflist_lock);
 	SLIST_FOREACH(xi, &xreflist, next_entry) {
-		if ((find_by == FIND_BY_XREF && phandle == xi->xref) ||
-		    (find_by == FIND_BY_NODE && phandle == xi->node) ||
-		    (find_by == FIND_BY_DEV && phandle == (uintptr_t)xi->dev)) {
+		if ((find_by == FIND_BY_XREF && (phandle_t)key == xi->xref) ||
+		    (find_by == FIND_BY_NODE && (phandle_t)key == xi->node) ||
+		    (find_by == FIND_BY_DEV && key == (uintptr_t)xi->dev)) {
 			rv = xi;
 			break;
 		}
@@ -198,6 +200,12 @@ OF_install(char *name, int prio)
 {
 	ofw_def_t *ofwp, **ofwpp;
 	static int curr_prio = 0;
+
+	/* Allow OF layer to be uninstalled */
+	if (name == NULL) {
+		ofw_def_impl = NULL;
+		return (FALSE);
+	}
 
 	/*
 	 * Try and locate the OFW kobj corresponding to the name.
@@ -394,6 +402,9 @@ OF_getencprop(phandle_t node, const char *propname, pcell_t *buf, size_t len)
 	KASSERT(len % 4 == 0, ("Need a multiple of 4 bytes"));
 
 	retval = OF_getprop(node, propname, buf, len);
+	if (retval <= 0)
+		return (retval);
+
 	for (i = 0; i < len/4; i++)
 		buf[i] = be32toh(buf[i]);
 
@@ -417,7 +428,7 @@ OF_searchprop(phandle_t node, const char *propname, void *buf, size_t len)
 }
 
 ssize_t
-OF_searchencprop(phandle_t node, const char *propname, void *buf, size_t len)
+OF_searchencprop(phandle_t node, const char *propname, pcell_t *buf, size_t len)
 {
 	ssize_t rv;
 
@@ -429,11 +440,35 @@ OF_searchencprop(phandle_t node, const char *propname, void *buf, size_t len)
 
 /*
  * Store the value of a property of a package into newly allocated memory
+ * (using the M_OFWPROP malloc pool and M_WAITOK).
+ */
+ssize_t
+OF_getprop_alloc(phandle_t package, const char *propname, void **buf)
+{
+	int len;
+
+	*buf = NULL;
+	if ((len = OF_getproplen(package, propname)) == -1)
+		return (-1);
+
+	if (len > 0) {
+		*buf = malloc(len, M_OFWPROP, M_WAITOK);
+		if (OF_getprop(package, propname, *buf, len) == -1) {
+			free(*buf, M_OFWPROP);
+			*buf = NULL;
+			return (-1);
+		}
+	}
+	return (len);
+}
+
+/*
+ * Store the value of a property of a package into newly allocated memory
  * (using the M_OFWPROP malloc pool and M_WAITOK).  elsz is the size of a
  * single element, the number of elements is return in number.
  */
 ssize_t
-OF_getprop_alloc(phandle_t package, const char *propname, int elsz, void **buf)
+OF_getprop_alloc_multi(phandle_t package, const char *propname, int elsz, void **buf)
 {
 	int len;
 
@@ -442,31 +477,54 @@ OF_getprop_alloc(phandle_t package, const char *propname, int elsz, void **buf)
 	    len % elsz != 0)
 		return (-1);
 
-	*buf = malloc(len, M_OFWPROP, M_WAITOK);
-	if (OF_getprop(package, propname, *buf, len) == -1) {
-		free(*buf, M_OFWPROP);
-		*buf = NULL;
-		return (-1);
+	if (len > 0) {
+		*buf = malloc(len, M_OFWPROP, M_WAITOK);
+		if (OF_getprop(package, propname, *buf, len) == -1) {
+			free(*buf, M_OFWPROP);
+			*buf = NULL;
+			return (-1);
+		}
 	}
 	return (len / elsz);
 }
 
 ssize_t
-OF_getencprop_alloc(phandle_t package, const char *name, int elsz, void **buf)
+OF_getencprop_alloc(phandle_t package, const char *name, void **buf)
+{
+	ssize_t ret;
+
+	ret = OF_getencprop_alloc_multi(package, name, sizeof(pcell_t),
+	    buf);
+	if (ret < 0)
+		return (ret);
+	else
+		return (ret * sizeof(pcell_t));
+}
+
+ssize_t
+OF_getencprop_alloc_multi(phandle_t package, const char *name, int elsz,
+    void **buf)
 {
 	ssize_t retval;
 	pcell_t *cell;
 	int i;
 
-	retval = OF_getprop_alloc(package, name, elsz, buf);
-	if (retval == -1 || retval*elsz % 4 != 0)
+	retval = OF_getprop_alloc_multi(package, name, elsz, buf);
+	if (retval == -1)
 		return (-1);
 
 	cell = *buf;
-	for (i = 0; i < retval*elsz/4; i++)
+	for (i = 0; i < retval * elsz / 4; i++)
 		cell[i] = be32toh(cell[i]);
 
 	return (retval);
+}
+
+/* Free buffer allocated by OF_getencprop_alloc or OF_getprop_alloc */
+void OF_prop_free(void *buf)
+{
+
+	free(buf, M_OFWPROP);
 }
 
 /* Get the next property of a package. */
@@ -594,10 +652,9 @@ OF_xref_from_node(phandle_t node)
 		return (xi->xref);
 	}
 
-	if (OF_getencprop(node, "phandle", &xref, sizeof(xref)) ==
-	    -1 && OF_getencprop(node, "ibm,phandle", &xref,
-	    sizeof(xref)) == -1 && OF_getencprop(node,
-	    "linux,phandle", &xref, sizeof(xref)) == -1)
+	if (OF_getencprop(node, "phandle", &xref, sizeof(xref)) == -1 &&
+	    OF_getencprop(node, "ibm,phandle", &xref, sizeof(xref)) == -1 &&
+	    OF_getencprop(node, "linux,phandle", &xref, sizeof(xref)) == -1)
 		return (node);
 	return (xref);
 }

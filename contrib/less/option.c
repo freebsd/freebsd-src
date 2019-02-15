@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2012  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -69,8 +69,8 @@ propt(c)
 scan_option(s)
 	char *s;
 {
-	register struct loption *o;
-	register int optc;
+	struct loption *o;
+	int optc;
 	char *optname;
 	char *printopt;
 	char *str;
@@ -152,7 +152,10 @@ scan_option(s)
 			if (*str == '+')
 				every_first_cmd = save(str+1);
 			else
+			{
+				ungetcc(CHAR_END_COMMAND);
 				ungetsc(str);
+			}
 			free(str);
 			continue;
 		case '0':  case '1':  case '2':  case '3':  case '4':
@@ -302,7 +305,7 @@ toggle_option(o, lower, s, how_toggle)
 	char *s;
 	int how_toggle;
 {
-	register int num;
+	int num;
 	int no_prompt;
 	int err;
 	PARG parg;
@@ -565,8 +568,8 @@ optstring(s, p_str, printopt, validchars)
 	char *printopt;
 	char *validchars;
 {
-	register char *p;
-	register char *out;
+	char *p;
+	char *out;
 
 	if (*s == '\0')
 	{
@@ -629,9 +632,9 @@ getnum(sp, printopt, errp)
 	char *printopt;
 	int *errp;
 {
-	register char *s;
-	register int n;
-	register int neg;
+	char *s;
+	int n;
+	int neg;
 
 	s = skipsp(*sp);
 	neg = FALSE;
@@ -666,7 +669,7 @@ getfraction(sp, printopt, errp)
 	char *printopt;
 	int *errp;
 {
-	register char *s;
+	char *s;
 	long frac = 0;
 	int fraclen = 0;
 
@@ -701,5 +704,5 @@ get_quit_at_eof()
 	if (!less_is_more)
 		return quit_at_eof;
 	/* When less_is_more is set, the -e flag semantics are different. */
-	return quit_at_eof ? OPT_ON : OPT_ONPLUS;
+	return quit_at_eof ? OPT_ONPLUS : OPT_ON;
 }

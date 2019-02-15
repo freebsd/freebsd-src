@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"	from: @(#)math.3	6.10 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd December 5, 2010
+.Dd December 7, 2017
 .Dt MATH 3
 .Os
 .Sh NAME
@@ -235,12 +235,6 @@ and
 .Vt long double
 values, were written for or imported into subsequent versions of FreeBSD.
 .Sh BUGS
-Some of the
-.Vt "long double"
-math functions in
-.St -isoC-99
-are not available.
-.Pp
 Many of the routines to compute transcendental functions produce
 inaccurate results in other than the default rounding mode.
 .Pp

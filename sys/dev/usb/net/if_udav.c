@@ -2,6 +2,8 @@
 /*	$nabe: if_udav.c,v 1.3 2003/08/21 16:57:19 nabe Exp $	*/
 /*	$FreeBSD$	*/
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2003
  *     Shingo WATANABE <nabe@nabechan.org>.  All rights reserved.
  *
@@ -165,6 +167,21 @@ static driver_t udav_driver = {
 
 static devclass_t udav_devclass;
 
+static const STRUCT_USB_HOST_ID udav_devs[] = {
+	/* ShanTou DM9601 USB NIC */
+	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_DM9601, 0)},
+	/* ShanTou ST268 USB NIC */
+	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_ST268, 0)},
+	/* Corega USB-TXC */
+	{USB_VPI(USB_VENDOR_COREGA, USB_PRODUCT_COREGA_FETHER_USB_TXC, 0)},
+	/* ShanTou AMD8515 USB NIC */
+	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_ADM8515, 0)},
+	/* Kontron AG USB Ethernet */
+	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_DM9601, 0)},
+	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_JP1082,
+	    UDAV_FLAG_NO_PHY)},
+};
+
 DRIVER_MODULE(udav, uhub, udav_driver, udav_devclass, NULL, 0);
 DRIVER_MODULE(miibus, udav, miibus_driver, miibus_devclass, 0, 0);
 MODULE_DEPEND(udav, uether, 1, 1, 1);
@@ -172,6 +189,7 @@ MODULE_DEPEND(udav, usb, 1, 1, 1);
 MODULE_DEPEND(udav, ether, 1, 1, 1);
 MODULE_DEPEND(udav, miibus, 1, 1, 1);
 MODULE_VERSION(udav, 1);
+USB_PNP_HOST_INFO(udav_devs);
 
 static const struct usb_ether_methods udav_ue_methods = {
 	.ue_attach_post = udav_attach_post,
@@ -198,7 +216,7 @@ static const struct usb_ether_methods udav_ue_methods_nophy = {
 static int udav_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, udav, CTLFLAG_RW, 0, "USB udav");
-SYSCTL_INT(_hw_usb_udav, OID_AUTO, debug, CTLFLAG_RW, &udav_debug, 0,
+SYSCTL_INT(_hw_usb_udav, OID_AUTO, debug, CTLFLAG_RWTUN, &udav_debug, 0,
     "Debug level");
 #endif
 
@@ -207,21 +225,6 @@ SYSCTL_INT(_hw_usb_udav, OID_AUTO, debug, CTLFLAG_RW, &udav_debug, 0,
 
 #define	UDAV_CLRBIT(sc, reg, x)	\
 	udav_csr_write1(sc, reg, udav_csr_read1(sc, reg) & ~(x))
-
-static const STRUCT_USB_HOST_ID udav_devs[] = {
-	/* ShanTou DM9601 USB NIC */
-	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_DM9601, 0)},
-	/* ShanTou ST268 USB NIC */
-	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_ST268, 0)},
-	/* Corega USB-TXC */
-	{USB_VPI(USB_VENDOR_COREGA, USB_PRODUCT_COREGA_FETHER_USB_TXC, 0)},
-	/* ShanTou AMD8515 USB NIC */
-	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_ADM8515, 0)},
-	/* Kontron AG USB Ethernet */
-	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_DM9601, 0)},
-	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_JP1082,
-	    UDAV_FLAG_NO_PHY)},
-};
 
 static void
 udav_attach_post(struct usb_ether *ue)
@@ -519,7 +522,7 @@ udav_setmulti(struct usb_ether *ue)
 
 	/* now program new ones */
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 	{
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;

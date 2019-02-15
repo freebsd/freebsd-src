@@ -314,7 +314,7 @@ adjtime (struct timeval *delta, struct timeval *olddelta)
 	/*
 	 * Get the current clock period (nanoseconds)
 	 */
-	if (ClockPeriod (CLOCK_REALTIME, 0, &period, 0) < 0)
+	if (ClockPeriod (CLOCK_REALTIME, 0, &period, 0) == -1)
 	    return -1;
 
 	/*
@@ -354,7 +354,7 @@ adjtime (struct timeval *delta, struct timeval *olddelta)
 	adj.tick_count = 0;
     }
 
-    if (ClockAdjust (CLOCK_REALTIME, &adj, &oldadj) < 0)
+    if (ClockAdjust (CLOCK_REALTIME, &adj, &oldadj) == -1)
 	return -1;
 
     /*

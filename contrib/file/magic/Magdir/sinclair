@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sinclair,v 1.5 2009/09/19 16:28:12 christos Exp $
+# $File: sinclair,v 1.6 2015/11/14 13:38:35 christos Exp $
 # sinclair:  file(1) sinclair QL
 
 # additions to /etc/magic by Thomas M. Ott (ThMO)
@@ -13,20 +13,13 @@
 >4	string	>\0		label:%.10s
 
 # Sinclair QL OS dump (ThMO)
-# (NOTE: if `file' would be able to use indirect references in a endian format
-#	 differing from the natural host format, this could be written more
-#	 reliably and faster...)
-#
-# we *can't* lookup QL OS code dumps, because `file' is UNABLE to read more
-# than the first 8K of a file... #-(
-#
-#0		belong	=0x30000
-#>49124		belong	<47104
-#>>49128		belong	<47104
-#>>>49132	belong	<47104
-#>>>>49136	belong	<47104	QL OS dump data,
-#>>>>>49148	string	>\0	type %.3s,
-#>>>>>49142	string	>\0	version %.4s
+0		belong	=0x30000
+>49124		belong	<47104
+>>49128		belong	<47104
+>>>49132	belong	<47104
+>>>>49136	belong	<47104	QL OS dump data,
+>>>>>49148	string	>\0	type %.3s,
+>>>>>49142	string	>\0	version %.4s
 
 # Sinclair QL firmware executables (ThMO)
 0	string	NqNqNq`\004	QL firmware executable (BCPL)

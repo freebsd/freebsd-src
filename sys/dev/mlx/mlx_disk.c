@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Jonathan Lemon
  * Copyright (c) 1999 Michael Smith
  * All rights reserved.
@@ -170,7 +172,7 @@ mlxd_strategy(struct bio *bp)
 
  bad:
     /*
-     * Correctly set the bio to indicate a failed tranfer.
+     * Correctly set the bio to indicate a failed transfer.
      */
     bp->bio_resid = bp->bio_bcount;
     biodone(bp);

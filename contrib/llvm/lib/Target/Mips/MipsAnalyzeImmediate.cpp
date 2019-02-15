@@ -1,4 +1,4 @@
-//===-- MipsAnalyzeImmediate.cpp - Analyze Immediates ---------------------===//
+//===- MipsAnalyzeImmediate.cpp - Analyze Immediates ----------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -6,9 +6,13 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
+
 #include "MipsAnalyzeImmediate.h"
 #include "Mips.h"
 #include "llvm/Support/MathExtras.h"
+#include <cassert>
+#include <cstdint>
+#include <iterator>
 
 using namespace llvm;
 
@@ -72,7 +76,8 @@ void MipsAnalyzeImmediate::GetInstSeqLs(uint64_t Imm, unsigned RemSize,
   if (Imm & 0x8000) {
     InstSeqLs SeqLsORi;
     GetInstSeqLsORi(Imm, RemSize, SeqLsORi);
-    SeqLs.insert(SeqLs.end(), SeqLsORi.begin(), SeqLsORi.end());
+    SeqLs.append(std::make_move_iterator(SeqLsORi.begin()),
+                 std::make_move_iterator(SeqLsORi.end()));
   }
 }
 

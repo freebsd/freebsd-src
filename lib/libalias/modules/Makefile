@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include "${.CURDIR}/../../../sys/modules/libalias/modules/modules.inc"
+.include "${SRCTOP}/sys/modules/libalias/modules/modules.inc"
 
 SUBDIR=	${MODULES}
 

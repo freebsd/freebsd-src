@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -34,6 +36,7 @@
 #define _SYS_PROTOSW_H_
 
 /* Forward declare these structures referenced from prototypes below. */
+struct kaiocb;
 struct mbuf;
 struct thread;
 struct sockaddr;
@@ -69,7 +72,6 @@ typedef int	pr_output_t (struct mbuf *, struct socket *, ...);
 typedef void	pr_ctlinput_t (int, struct sockaddr *, void *);
 typedef int	pr_ctloutput_t (struct socket *, struct sockopt *);
 typedef	void	pr_init_t (void);
-typedef	void	pr_destroy_t (void);
 typedef	void	pr_fasttimo_t (void);
 typedef	void	pr_slowtimo_t (void);
 typedef	void	pr_drain_t (void);
@@ -86,7 +88,6 @@ struct protosw {
 	pr_ctloutput_t *pr_ctloutput;	/* control output (from above) */
 /* utility hooks */
 	pr_init_t *pr_init;
-	pr_destroy_t *pr_destroy;
 	pr_fasttimo_t *pr_fasttimo;	/* fast timeout (200ms) */
 	pr_slowtimo_t *pr_slowtimo;	/* slow timeout (500ms) */
 	pr_drain_t *pr_drain;		/* flush any excess space possible */
@@ -208,6 +209,8 @@ struct pr_usrreqs {
 #define	PRUS_OOB	0x1
 #define	PRUS_EOF	0x2
 #define	PRUS_MORETOCOME	0x4
+#define	PRUS_NOTREADY	0x8
+	int	(*pru_ready)(struct socket *so, struct mbuf *m, int count);
 	int	(*pru_sense)(struct socket *so, struct stat *sb);
 	int	(*pru_shutdown)(struct socket *so);
 	int	(*pru_flush)(struct socket *so, int direction);
@@ -226,12 +229,14 @@ struct pr_usrreqs {
 		    struct thread *td);
 	int	(*pru_connectat)(int fd, struct socket *so,
 		    struct sockaddr *nam, struct thread *td);
+	int	(*pru_aio_queue)(struct socket *so, struct kaiocb *job);
 };
 
 /*
  * All nonvoid pru_*() functions below return EOPNOTSUPP.
  */
 int	pru_accept_notsupp(struct socket *so, struct sockaddr **nam);
+int	pru_aio_queue_notsupp(struct socket *so, struct kaiocb *job);
 int	pru_attach_notsupp(struct socket *so, int proto, struct thread *td);
 int	pru_bind_notsupp(struct socket *so, struct sockaddr *nam,
 	    struct thread *td);
@@ -251,6 +256,7 @@ int	pru_rcvd_notsupp(struct socket *so, int flags);
 int	pru_rcvoob_notsupp(struct socket *so, struct mbuf *m, int flags);
 int	pru_send_notsupp(struct socket *so, int flags, struct mbuf *m,
 	    struct sockaddr *addr, struct mbuf *control, struct thread *td);
+int	pru_ready_notsupp(struct socket *so, struct mbuf *m, int count);
 int	pru_sense_null(struct socket *so, struct stat *sb);
 int	pru_shutdown_notsupp(struct socket *so);
 int	pru_sockaddr_notsupp(struct socket *so, struct sockaddr **nam);
@@ -274,8 +280,8 @@ int	pru_sopoll_notsupp(struct socket *so, int events, struct ucred *cred,
 #define	PRC_IFDOWN		0	/* interface transition */
 #define	PRC_ROUTEDEAD		1	/* select new route if possible ??? */
 #define	PRC_IFUP		2	/* interface has come back up */
-#define	PRC_QUENCH2		3	/* DEC congestion bit says slow down */
-#define	PRC_QUENCH		4	/* some one said to slow down */
+/* was	PRC_QUENCH2		3	DEC congestion bit says slow down */
+/* was	PRC_QUENCH		4	Deprecated by RFC 6633 */
 #define	PRC_MSGSIZE		5	/* message size forced drop */
 #define	PRC_HOSTDEAD		6	/* host appears to be down */
 #define	PRC_HOSTUNREACH		7	/* deprecated (use PRC_UNREACH_HOST) */

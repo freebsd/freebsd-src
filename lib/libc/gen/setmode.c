@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -30,17 +32,18 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)setmode.c	8.2 (Berkeley) 3/25/94";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
+__SCCSID("@(#)setmode.c	8.2 (Berkeley) 3/25/94");
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 
 #include <ctype.h>
+#include <errno.h>
+#include <limits.h>
 #include <signal.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -50,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #endif
 #include "un-namespace.h"
+#include "libc_private.h"
 
 #define	SET_LEN	6		/* initial # of bitcmd struct to malloc */
 #define	SET_LEN_INCR 4		/* # of bitcmd structs to add as needed */
@@ -66,7 +70,8 @@ typedef struct bitcmd {
 #define	CMD2_OBITS	0x08
 #define	CMD2_UBITS	0x10
 
-static BITCMD	*addcmd(BITCMD *, int, int, int, u_int);
+static mode_t	 getumask(void);
+static BITCMD	*addcmd(BITCMD *, mode_t, mode_t, mode_t, mode_t);
 static void	 compress_mode(BITCMD *);
 #ifdef SETMODE_DEBUG
 static void	 dumpmode(BITCMD *);
@@ -150,50 +155,42 @@ common:			if (set->cmd2 & CMD2_CLR) {
 	if (set >= endset) {						\
 		BITCMD *newset;						\
 		setlen += SET_LEN_INCR;					\
-		newset = realloc(saveset, sizeof(BITCMD) * setlen);	\
-		if (!newset) {						\
-			if (saveset)					\
-				free(saveset);				\
-			saveset = NULL;					\
-			return (NULL);					\
-		}							\
+		newset = reallocarray(saveset, setlen, sizeof(BITCMD));	\
+		if (newset == NULL)					\
+			goto out;					\
 		set = newset + (set - saveset);				\
 		saveset = newset;					\
 		endset = newset + (setlen - 2);				\
 	}								\
-	set = addcmd(set, (a), (b), (c), (d))
+	set = addcmd(set, (mode_t)(a), (mode_t)(b), (mode_t)(c), (d))
 
 #define	STANDARD_BITS	(S_ISUID|S_ISGID|S_IRWXU|S_IRWXG|S_IRWXO)
 
 void *
 setmode(const char *p)
 {
-	int perm, who;
+	int serrno;
 	char op, *ep;
 	BITCMD *set, *saveset, *endset;
-	sigset_t sigset, sigoset;
-	mode_t mask;
-	int equalopdone=0, permXbits, setlen;
+	mode_t mask, perm, permXbits, who;
 	long perml;
+	int equalopdone;
+	u_int setlen;
 
-	if (!*p)
+	if (!*p) {
+		errno = EINVAL;
 		return (NULL);
+	}
 
 	/*
 	 * Get a copy of the mask for the permissions that are mask relative.
-	 * Flip the bits, we want what's not set.  Since it's possible that
-	 * the caller is opening files inside a signal handler, protect them
-	 * as best we can.
+	 * Flip the bits, we want what's not set.
 	 */
-	sigfillset(&sigset);
-        (void)_sigprocmask(SIG_BLOCK, &sigset, &sigoset);
-	(void)umask(mask = umask(0));
-	mask = ~mask;
-        (void)_sigprocmask(SIG_SETMASK, &sigoset, NULL);
+	mask = ~getumask();
 
 	setlen = SET_LEN + 2;
 
-	if ((set = malloc((u_int)(sizeof(BITCMD) * setlen))) == NULL)
+	if ((set = malloc(setlen * sizeof(BITCMD))) == NULL)
 		return (NULL);
 	saveset = set;
 	endset = set + (setlen - 2);
@@ -203,10 +200,17 @@ setmode(const char *p)
 	 * or illegal bits.
 	 */
 	if (isdigit((unsigned char)*p)) {
+		errno = 0;
 		perml = strtol(p, &ep, 8);
-		if (*ep || perml < 0 || perml & ~(STANDARD_BITS|S_ISTXT)) {
-			free(saveset);
-			return (NULL);
+		if (*ep) {
+			errno = EINVAL;
+			goto out;
+		}
+		if (errno == ERANGE && (perml == LONG_MAX || perml == LONG_MIN))
+			goto out;
+		if (perml & ~(STANDARD_BITS|S_ISTXT)) {
+			errno = EINVAL;
+			goto out;
 		}
 		perm = (mode_t)perml;
 		ADDCMD('=', (STANDARD_BITS|S_ISTXT), perm, mask);
@@ -218,6 +222,7 @@ setmode(const char *p)
 	 * Build list of structures to set/clear/copy bits as described by
 	 * each clause of the symbolic mode.
 	 */
+	equalopdone = 0;
 	for (;;) {
 		/* First, find out which bits might be modified. */
 		for (who = 0;; ++p) {
@@ -240,8 +245,8 @@ setmode(const char *p)
 		}
 
 getop:		if ((op = *p++) != '+' && op != '-' && op != '=') {
-			free(saveset);
-			return (NULL);
+			errno = EINVAL;
+			goto out;
 		}
 		if (op == '=')
 			equalopdone = 0;
@@ -330,10 +335,44 @@ apply:		if (!*p)
 	dumpmode(saveset);
 #endif
 	return (saveset);
+out:
+	serrno = errno;
+	free(saveset);
+	errno = serrno;
+	return NULL;
+}
+
+static mode_t
+getumask(void)
+{
+	sigset_t sigset, sigoset;
+	size_t len;
+	mode_t mask;
+	u_short smask;
+
+	/*
+	 * First try requesting the umask without temporarily modifying it.
+	 * Note that this does not work if the sysctl
+	 * security.bsd.unprivileged_proc_debug is set to 0.
+	 */
+	len = sizeof(smask);
+	if (sysctl((int[4]){ CTL_KERN, KERN_PROC, KERN_PROC_UMASK, 0 },
+	    4, &smask, &len, NULL, 0) == 0)
+		return (smask);
+
+	/*
+	 * Since it's possible that the caller is opening files inside a signal
+	 * handler, protect them as best we can.
+	 */
+	sigfillset(&sigset);
+	(void)__libc_sigprocmask(SIG_BLOCK, &sigset, &sigoset);
+	(void)umask(mask = umask(0));
+	(void)__libc_sigprocmask(SIG_SETMASK, &sigoset, NULL);
+	return (mask);
 }
 
 static BITCMD *
-addcmd(BITCMD *set, int op, int who, int oparg, u_int mask)
+addcmd(BITCMD *set, mode_t op, mode_t who, mode_t oparg, mode_t mask)
 {
 	switch (op) {
 	case '=':

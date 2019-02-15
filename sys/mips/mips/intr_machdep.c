@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Oleksandr Tymoshenko
  * Copyright (c) 2002-2004 Juli Mallett <jmallett@FreeBSD.org>
  * All rights reserved.
@@ -255,7 +257,7 @@ cpu_intr(struct trapframe *tf)
 			break;
 		}
 
-		if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
+		if (!event || CK_SLIST_EMPTY(&event->ie_handlers)) {
 			printf("stray %s interrupt %d\n",
 			    hard ? "hard" : "soft", i);
 			continue;

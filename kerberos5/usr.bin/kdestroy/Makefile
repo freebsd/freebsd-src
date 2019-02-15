@@ -1,11 +1,13 @@
 # $FreeBSD$
 
 PROG=	kdestroy
-CFLAGS+=-I${KRB5DIR}/lib/roken
-DPADD=	${LIBKAFS5} ${LIBKRB5} ${LIBHEIMNTLM} ${LIBROKEN} ${LIBVERS} \
-	${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT}
-LDADD=	-lkafs5 -lkrb5 -lheimntlm -lroken ${LIBVERS} \
-	-lasn1 -lcrypto -lcrypt
+CFLAGS+=-I${KRB5DIR}/lib/roken \
+	-I${KRB5DIR}/lib/krb5 \
+	-I${KRB5DIR}/lib/kafs \
+	-I${.OBJDIR:H:H}/lib/libroken \
+	-I${.OBJDIR:H:H}/lib/libkrb5 \
+	-I${.OBJDIR:H:H}/lib/libasn1
+LIBADD=	kafs5 krb5 roken vers
 MAN=	kdestroy.1
 
 .include <bsd.prog.mk>

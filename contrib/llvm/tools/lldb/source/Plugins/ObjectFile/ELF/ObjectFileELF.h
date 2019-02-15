@@ -10,42 +10,46 @@
 #ifndef liblldb_ObjectFileELF_h_
 #define liblldb_ObjectFileELF_h_
 
+// C Includes
 #include <stdint.h>
+
+// C++ Includes
 #include <vector>
 
-#include "lldb/lldb-private.h"
-#include "lldb/Host/FileSpec.h"
 #include "lldb/Symbol/ObjectFile.h"
-#include "lldb/Core/UUID.h"
+#include "lldb/Utility/ArchSpec.h"
+#include "lldb/Utility/FileSpec.h"
+#include "lldb/Utility/UUID.h"
+#include "lldb/lldb-private.h"
 
 #include "ELFHeader.h"
 
-struct ELFNote
-{
-    elf::elf_word n_namesz;
-    elf::elf_word n_descsz;
-    elf::elf_word n_type;
+struct ELFNote {
+  elf::elf_word n_namesz;
+  elf::elf_word n_descsz;
+  elf::elf_word n_type;
 
-    std::string n_name;
+  std::string n_name;
 
-    ELFNote() : n_namesz(0), n_descsz(0), n_type(0)
-    {
-    }
+  ELFNote() : n_namesz(0), n_descsz(0), n_type(0) {}
 
-    /// Parse an ELFNote entry from the given DataExtractor starting at position
-    /// \p offset.
-    ///
-    /// @param[in] data
-    ///    The DataExtractor to read from.
-    ///
-    /// @param[in,out] offset
-    ///    Pointer to an offset in the data.  On return the offset will be
-    ///    advanced by the number of bytes read.
-    ///
-    /// @return
-    ///    True if the ELFRel entry was successfully read and false otherwise.
-    bool
-    Parse(const lldb_private::DataExtractor &data, lldb::offset_t *offset);
+  /// Parse an ELFNote entry from the given DataExtractor starting at position
+  /// \p offset.
+  ///
+  /// @param[in] data
+  ///    The DataExtractor to read from.
+  ///
+  /// @param[in,out] offset
+  ///    Pointer to an offset in the data.  On return the offset will be
+  ///    advanced by the number of bytes read.
+  ///
+  /// @return
+  ///    True if the ELFRel entry was successfully read and false otherwise.
+  bool Parse(const lldb_private::DataExtractor &data, lldb::offset_t *offset);
+
+  size_t GetByteSize() const {
+    return 12 + llvm::alignTo(n_namesz, 4) + llvm::alignTo(n_descsz, 4);
+  }
 };
 
 //------------------------------------------------------------------------------
@@ -54,316 +58,331 @@ struct ELFNote
 ///
 /// This class provides a generic ELF (32/64 bit) reader plugin implementing the
 /// ObjectFile protocol.
-class ObjectFileELF :
-    public lldb_private::ObjectFile
-{
+class ObjectFileELF : public lldb_private::ObjectFile {
 public:
-    //------------------------------------------------------------------
-    // Static Functions
-    //------------------------------------------------------------------
-    static void
-    Initialize();
+  ~ObjectFileELF() override;
 
-    static void
-    Terminate();
+  //------------------------------------------------------------------
+  // Static Functions
+  //------------------------------------------------------------------
+  static void Initialize();
 
-    static lldb_private::ConstString
-    GetPluginNameStatic();
+  static void Terminate();
 
-    static const char *
-    GetPluginDescriptionStatic();
+  static lldb_private::ConstString GetPluginNameStatic();
 
-    static lldb_private::ObjectFile *
-    CreateInstance(const lldb::ModuleSP &module_sp,
-                   lldb::DataBufferSP& data_sp,
-                   lldb::offset_t data_offset,
-                   const lldb_private::FileSpec* file,
-                   lldb::offset_t file_offset,
-                   lldb::offset_t length);
+  static const char *GetPluginDescriptionStatic();
 
-    static lldb_private::ObjectFile *
-    CreateMemoryInstance (const lldb::ModuleSP &module_sp, 
-                          lldb::DataBufferSP& data_sp, 
-                          const lldb::ProcessSP &process_sp, 
-                          lldb::addr_t header_addr);
+  static lldb_private::ObjectFile *
+  CreateInstance(const lldb::ModuleSP &module_sp, lldb::DataBufferSP &data_sp,
+                 lldb::offset_t data_offset, const lldb_private::FileSpec *file,
+                 lldb::offset_t file_offset, lldb::offset_t length);
 
-    static size_t
-    GetModuleSpecifications (const lldb_private::FileSpec& file,
-                             lldb::DataBufferSP& data_sp,
-                             lldb::offset_t data_offset,
-                             lldb::offset_t file_offset,
-                             lldb::offset_t length,
-                             lldb_private::ModuleSpecList &specs);
+  static lldb_private::ObjectFile *CreateMemoryInstance(
+      const lldb::ModuleSP &module_sp, lldb::DataBufferSP &data_sp,
+      const lldb::ProcessSP &process_sp, lldb::addr_t header_addr);
 
-    static bool
-    MagicBytesMatch (lldb::DataBufferSP& data_sp,
-                     lldb::addr_t offset, 
-                     lldb::addr_t length);
+  static size_t GetModuleSpecifications(const lldb_private::FileSpec &file,
+                                        lldb::DataBufferSP &data_sp,
+                                        lldb::offset_t data_offset,
+                                        lldb::offset_t file_offset,
+                                        lldb::offset_t length,
+                                        lldb_private::ModuleSpecList &specs);
 
-    //------------------------------------------------------------------
-    // PluginInterface protocol
-    //------------------------------------------------------------------
-    virtual lldb_private::ConstString
-    GetPluginName();
+  static bool MagicBytesMatch(lldb::DataBufferSP &data_sp, lldb::addr_t offset,
+                              lldb::addr_t length);
 
-    virtual uint32_t
-    GetPluginVersion();
+  //------------------------------------------------------------------
+  // PluginInterface protocol
+  //------------------------------------------------------------------
+  lldb_private::ConstString GetPluginName() override;
 
-    //------------------------------------------------------------------
-    // ObjectFile Protocol.
-    //------------------------------------------------------------------
-    virtual
-    ~ObjectFileELF();
+  uint32_t GetPluginVersion() override;
 
-    virtual bool
-    ParseHeader();
+  //------------------------------------------------------------------
+  // ObjectFile Protocol.
+  //------------------------------------------------------------------
+  bool ParseHeader() override;
 
-    virtual bool
-    SetLoadAddress (lldb_private::Target &target,
-                    lldb::addr_t value,
-                    bool value_is_offset);
+  bool SetLoadAddress(lldb_private::Target &target, lldb::addr_t value,
+                      bool value_is_offset) override;
 
-    virtual lldb::ByteOrder
-    GetByteOrder() const;
+  lldb::ByteOrder GetByteOrder() const override;
 
-    virtual bool
-    IsExecutable () const;
+  bool IsExecutable() const override;
 
-    virtual uint32_t
-    GetAddressByteSize() const;
+  uint32_t GetAddressByteSize() const override;
 
-    virtual lldb_private::Symtab *
-    GetSymtab();
+  lldb::AddressClass GetAddressClass(lldb::addr_t file_addr) override;
 
-    virtual lldb_private::Symbol *
-    ResolveSymbolForAddress(const lldb_private::Address& so_addr, bool verify_unique);
+  lldb_private::Symtab *GetSymtab() override;
 
-    virtual bool
-    IsStripped ();
+  bool IsStripped() override;
 
-    virtual void
-    CreateSections (lldb_private::SectionList &unified_section_list);
+  void CreateSections(lldb_private::SectionList &unified_section_list) override;
 
-    virtual void
-    Dump(lldb_private::Stream *s);
+  void Dump(lldb_private::Stream *s) override;
 
-    virtual bool
-    GetArchitecture (lldb_private::ArchSpec &arch);
+  bool GetArchitecture(lldb_private::ArchSpec &arch) override;
 
-    virtual bool
-    GetUUID(lldb_private::UUID* uuid);
+  bool GetUUID(lldb_private::UUID *uuid) override;
 
-    virtual lldb_private::FileSpecList
-    GetDebugSymbolFilePaths();
+  lldb_private::FileSpecList GetDebugSymbolFilePaths() override;
 
-    virtual uint32_t
-    GetDependentModules(lldb_private::FileSpecList& files);
+  uint32_t GetDependentModules(lldb_private::FileSpecList &files) override;
 
-    virtual lldb_private::Address
-    GetImageInfoAddress(lldb_private::Target *target);
-    
-    virtual lldb_private::Address
-    GetEntryPointAddress ();
-    
-    virtual ObjectFile::Type
-    CalculateType();
-    
-    virtual ObjectFile::Strata
-    CalculateStrata();
+  lldb_private::Address
+  GetImageInfoAddress(lldb_private::Target *target) override;
 
-    // Returns number of program headers found in the ELF file.
-    size_t
-    GetProgramHeaderCount();
+  lldb_private::Address GetEntryPointAddress() override;
 
-    // Returns the program header with the given index.
-    const elf::ELFProgramHeader *
-    GetProgramHeaderByIndex(lldb::user_id_t id);
+  ObjectFile::Type CalculateType() override;
 
-    // Returns segment data for the given index.
-    lldb_private::DataExtractor
-    GetSegmentDataByIndex(lldb::user_id_t id);
+  ObjectFile::Strata CalculateStrata() override;
+
+  size_t ReadSectionData(lldb_private::Section *section,
+                         lldb::offset_t section_offset, void *dst,
+                         size_t dst_len) override;
+
+  size_t ReadSectionData(lldb_private::Section *section,
+                         lldb_private::DataExtractor &section_data) override;
+
+  // Returns number of program headers found in the ELF file.
+  size_t GetProgramHeaderCount();
+
+  // Returns the program header with the given index.
+  const elf::ELFProgramHeader *GetProgramHeaderByIndex(lldb::user_id_t id);
+
+  // Returns segment data for the given index.
+  lldb_private::DataExtractor GetSegmentDataByIndex(lldb::user_id_t id);
+
+  llvm::StringRef
+  StripLinkerSymbolAnnotations(llvm::StringRef symbol_name) const override;
+
+  void RelocateSection(lldb_private::Section *section) override;
 
 private:
-    ObjectFileELF(const lldb::ModuleSP &module_sp,
-                  lldb::DataBufferSP& data_sp,
-                  lldb::offset_t data_offset,
-                  const lldb_private::FileSpec* file,
-                  lldb::offset_t offset,
-                  lldb::offset_t length);
+  ObjectFileELF(const lldb::ModuleSP &module_sp, lldb::DataBufferSP &data_sp,
+                lldb::offset_t data_offset, const lldb_private::FileSpec *file,
+                lldb::offset_t offset, lldb::offset_t length);
 
-    typedef std::vector<elf::ELFProgramHeader>  ProgramHeaderColl;
-    typedef ProgramHeaderColl::iterator         ProgramHeaderCollIter;
-    typedef ProgramHeaderColl::const_iterator   ProgramHeaderCollConstIter;
+  ObjectFileELF(const lldb::ModuleSP &module_sp,
+                lldb::DataBufferSP &header_data_sp,
+                const lldb::ProcessSP &process_sp, lldb::addr_t header_addr);
 
-    struct ELFSectionHeaderInfo : public elf::ELFSectionHeader
-    {
-        lldb_private::ConstString section_name;
-    };
-    typedef std::vector<ELFSectionHeaderInfo>   SectionHeaderColl;
-    typedef SectionHeaderColl::iterator         SectionHeaderCollIter;
-    typedef SectionHeaderColl::const_iterator   SectionHeaderCollConstIter;
+  typedef std::vector<elf::ELFProgramHeader> ProgramHeaderColl;
+  typedef ProgramHeaderColl::iterator ProgramHeaderCollIter;
+  typedef ProgramHeaderColl::const_iterator ProgramHeaderCollConstIter;
 
-    typedef std::vector<elf::ELFDynamic>        DynamicSymbolColl;
-    typedef DynamicSymbolColl::iterator         DynamicSymbolCollIter;
-    typedef DynamicSymbolColl::const_iterator   DynamicSymbolCollConstIter;
+  struct ELFSectionHeaderInfo : public elf::ELFSectionHeader {
+    lldb_private::ConstString section_name;
+  };
 
-    /// Version of this reader common to all plugins based on this class.
-    static const uint32_t m_plugin_version = 1;
+  typedef std::vector<ELFSectionHeaderInfo> SectionHeaderColl;
+  typedef SectionHeaderColl::iterator SectionHeaderCollIter;
+  typedef SectionHeaderColl::const_iterator SectionHeaderCollConstIter;
 
-    /// ELF file header.
-    elf::ELFHeader m_header;
+  typedef std::vector<elf::ELFDynamic> DynamicSymbolColl;
+  typedef DynamicSymbolColl::iterator DynamicSymbolCollIter;
+  typedef DynamicSymbolColl::const_iterator DynamicSymbolCollConstIter;
 
-    /// ELF build ID.
-    lldb_private::UUID m_uuid;
+  typedef std::map<lldb::addr_t, lldb::AddressClass>
+      FileAddressToAddressClassMap;
 
-    /// ELF .gnu_debuglink file and crc data if available.
-    std::string m_gnu_debuglink_file;
-    uint32_t m_gnu_debuglink_crc;
+  /// Version of this reader common to all plugins based on this class.
+  static const uint32_t m_plugin_version = 1;
+  static const uint32_t g_core_uuid_magic;
 
-    /// Collection of program headers.
-    ProgramHeaderColl m_program_headers;
+  /// ELF file header.
+  elf::ELFHeader m_header;
 
-    /// Collection of section headers.
-    SectionHeaderColl m_section_headers;
+  /// ELF build ID.
+  lldb_private::UUID m_uuid;
 
-    /// Collection of symbols from the dynamic table.
-    DynamicSymbolColl m_dynamic_symbols;
+  /// ELF .gnu_debuglink file and crc data if available.
+  std::string m_gnu_debuglink_file;
+  uint32_t m_gnu_debuglink_crc;
 
-    /// List of file specifications corresponding to the modules (shared
-    /// libraries) on which this object file depends.
-    mutable std::unique_ptr<lldb_private::FileSpecList> m_filespec_ap;
+  /// Collection of program headers.
+  ProgramHeaderColl m_program_headers;
 
-    /// Cached value of the entry point for this module.
-    lldb_private::Address  m_entry_point_address;
+  /// Collection of section headers.
+  SectionHeaderColl m_section_headers;
 
-    /// Returns a 1 based index of the given section header.
-    size_t
-    SectionIndex(const SectionHeaderCollIter &I);
+  /// Collection of symbols from the dynamic table.
+  DynamicSymbolColl m_dynamic_symbols;
 
-    /// Returns a 1 based index of the given section header.
-    size_t
-    SectionIndex(const SectionHeaderCollConstIter &I) const;
+  /// List of file specifications corresponding to the modules (shared
+  /// libraries) on which this object file depends.
+  mutable std::unique_ptr<lldb_private::FileSpecList> m_filespec_ap;
 
-    /// Parses all section headers present in this object file and populates
-    /// m_program_headers.  This method will compute the header list only once.
-    /// Returns the number of headers parsed.
-    size_t
-    ParseProgramHeaders();
+  /// Cached value of the entry point for this module.
+  lldb_private::Address m_entry_point_address;
 
-    /// Parses all section headers present in this object file and populates
-    /// m_section_headers.  This method will compute the header list only once.
-    /// Returns the number of headers parsed.
-    size_t
-    ParseSectionHeaders();
+  /// The architecture detected from parsing elf file contents.
+  lldb_private::ArchSpec m_arch_spec;
 
-    /// Parses the elf section headers and returns the uuid, debug link name, crc.
-    static size_t
-    GetSectionHeaderInfo(SectionHeaderColl &section_headers,
-                         lldb_private::DataExtractor &data,
-                         const elf::ELFHeader &header,
-                         lldb_private::UUID &uuid,
-                         std::string &gnu_debuglink_file,
-                         uint32_t &gnu_debuglink_crc);
+  /// The address class for each symbol in the elf file
+  FileAddressToAddressClassMap m_address_class_map;
 
-    /// Scans the dynamic section and locates all dependent modules (shared
-    /// libraries) populating m_filespec_ap.  This method will compute the
-    /// dependent module list only once.  Returns the number of dependent
-    /// modules parsed.
-    size_t
-    ParseDependentModules();
+  /// Returns a 1 based index of the given section header.
+  size_t SectionIndex(const SectionHeaderCollIter &I);
 
-    /// Parses the dynamic symbol table and populates m_dynamic_symbols.  The
-    /// vector retains the order as found in the object file.  Returns the
-    /// number of dynamic symbols parsed.
-    size_t
-    ParseDynamicSymbols();
+  /// Returns a 1 based index of the given section header.
+  size_t SectionIndex(const SectionHeaderCollConstIter &I) const;
 
-    /// Populates m_symtab_ap will all non-dynamic linker symbols.  This method
-    /// will parse the symbols only once.  Returns the number of symbols parsed.
-    unsigned
-    ParseSymbolTable(lldb_private::Symtab *symbol_table,
-                     lldb::user_id_t start_id,
-                     lldb_private::Section *symtab);
+  // Parses the ELF program headers.
+  static size_t GetProgramHeaderInfo(ProgramHeaderColl &program_headers,
+                                     lldb_private::DataExtractor &object_data,
+                                     const elf::ELFHeader &header);
 
-    /// Helper routine for ParseSymbolTable().
-    unsigned
-    ParseSymbols(lldb_private::Symtab *symbol_table, 
-                 lldb::user_id_t start_id,
-                 lldb_private::SectionList *section_list,
-                 const size_t num_symbols,
-                 const lldb_private::DataExtractor &symtab_data,
-                 const lldb_private::DataExtractor &strtab_data);
+  // Finds PT_NOTE segments and calculates their crc sum.
+  static uint32_t
+  CalculateELFNotesSegmentsCRC32(const ProgramHeaderColl &program_headers,
+                                 lldb_private::DataExtractor &data);
 
-    /// Scans the relocation entries and adds a set of artificial symbols to the
-    /// given symbol table for each PLT slot.  Returns the number of symbols
-    /// added.
-    unsigned
-    ParseTrampolineSymbols(lldb_private::Symtab *symbol_table, 
-                           lldb::user_id_t start_id,
-                           const ELFSectionHeaderInfo *rela_hdr,
-                           lldb::user_id_t section_id);
+  /// Parses all section headers present in this object file and populates
+  /// m_program_headers.  This method will compute the header list only once.
+  /// Returns the number of headers parsed.
+  size_t ParseProgramHeaders();
 
-    /// Returns the section header with the given id or NULL.
-    const ELFSectionHeaderInfo *
-    GetSectionHeaderByIndex(lldb::user_id_t id);
+  /// Parses all section headers present in this object file and populates
+  /// m_section_headers.  This method will compute the header list only once.
+  /// Returns the number of headers parsed.
+  size_t ParseSectionHeaders();
 
-    /// @name  ELF header dump routines
-    //@{
-    static void
-    DumpELFHeader(lldb_private::Stream *s, const elf::ELFHeader& header);
+  static void ParseARMAttributes(lldb_private::DataExtractor &data,
+                                 uint64_t length,
+                                 lldb_private::ArchSpec &arch_spec);
 
-    static void
-    DumpELFHeader_e_ident_EI_DATA(lldb_private::Stream *s,
-                                  unsigned char ei_data);
+  /// Parses the elf section headers and returns the uuid, debug link name, crc,
+  /// archspec.
+  static size_t GetSectionHeaderInfo(SectionHeaderColl &section_headers,
+                                     lldb_private::DataExtractor &object_data,
+                                     const elf::ELFHeader &header,
+                                     lldb_private::UUID &uuid,
+                                     std::string &gnu_debuglink_file,
+                                     uint32_t &gnu_debuglink_crc,
+                                     lldb_private::ArchSpec &arch_spec);
 
-    static void
-    DumpELFHeader_e_type(lldb_private::Stream *s, elf::elf_half e_type);
-    //@}
+  /// Scans the dynamic section and locates all dependent modules (shared
+  /// libraries) populating m_filespec_ap.  This method will compute the
+  /// dependent module list only once.  Returns the number of dependent
+  /// modules parsed.
+  size_t ParseDependentModules();
 
-    /// @name ELF program header dump routines
-    //@{
-    void
-    DumpELFProgramHeaders(lldb_private::Stream *s);
+  /// Parses the dynamic symbol table and populates m_dynamic_symbols.  The
+  /// vector retains the order as found in the object file.  Returns the
+  /// number of dynamic symbols parsed.
+  size_t ParseDynamicSymbols();
 
-    static void
-    DumpELFProgramHeader(lldb_private::Stream *s, 
-                         const elf::ELFProgramHeader &ph);
+  /// Populates m_symtab_ap will all non-dynamic linker symbols.  This method
+  /// will parse the symbols only once.  Returns the number of symbols parsed.
+  unsigned ParseSymbolTable(lldb_private::Symtab *symbol_table,
+                            lldb::user_id_t start_id,
+                            lldb_private::Section *symtab);
 
-    static void
-    DumpELFProgramHeader_p_type(lldb_private::Stream *s, elf::elf_word p_type);
+  /// Helper routine for ParseSymbolTable().
+  unsigned ParseSymbols(lldb_private::Symtab *symbol_table,
+                        lldb::user_id_t start_id,
+                        lldb_private::SectionList *section_list,
+                        const size_t num_symbols,
+                        const lldb_private::DataExtractor &symtab_data,
+                        const lldb_private::DataExtractor &strtab_data);
 
-    static void
-    DumpELFProgramHeader_p_flags(lldb_private::Stream *s, 
-                                 elf::elf_word p_flags);
-    //@}
+  /// Scans the relocation entries and adds a set of artificial symbols to the
+  /// given symbol table for each PLT slot.  Returns the number of symbols
+  /// added.
+  unsigned ParseTrampolineSymbols(lldb_private::Symtab *symbol_table,
+                                  lldb::user_id_t start_id,
+                                  const ELFSectionHeaderInfo *rela_hdr,
+                                  lldb::user_id_t section_id);
 
-    /// @name ELF section header dump routines
-    //@{
-    void
-    DumpELFSectionHeaders(lldb_private::Stream *s);
+  void ParseUnwindSymbols(lldb_private::Symtab *symbol_table,
+                          lldb_private::DWARFCallFrameInfo *eh_frame);
 
-    static void
-    DumpELFSectionHeader(lldb_private::Stream *s, 
-                         const ELFSectionHeaderInfo& sh);
+  /// Relocates debug sections
+  unsigned RelocateDebugSections(const elf::ELFSectionHeader *rel_hdr,
+                                 lldb::user_id_t rel_id,
+                                 lldb_private::Symtab *thetab);
 
-    static void
-    DumpELFSectionHeader_sh_type(lldb_private::Stream *s, 
-                                 elf::elf_word sh_type);
+  unsigned ApplyRelocations(lldb_private::Symtab *symtab,
+                            const elf::ELFHeader *hdr,
+                            const elf::ELFSectionHeader *rel_hdr,
+                            const elf::ELFSectionHeader *symtab_hdr,
+                            const elf::ELFSectionHeader *debug_hdr,
+                            lldb_private::DataExtractor &rel_data,
+                            lldb_private::DataExtractor &symtab_data,
+                            lldb_private::DataExtractor &debug_data,
+                            lldb_private::Section *rel_section);
 
-    static void
-    DumpELFSectionHeader_sh_flags(lldb_private::Stream *s, 
-                                  elf::elf_xword sh_flags);
-    //@}
+  /// Loads the section name string table into m_shstr_data.  Returns the
+  /// number of bytes constituting the table.
+  size_t GetSectionHeaderStringTable();
 
-    /// ELF dependent module dump routine.
-    void
-    DumpDependentModules(lldb_private::Stream *s);
+  /// Utility method for looking up a section given its name.  Returns the
+  /// index of the corresponding section or zero if no section with the given
+  /// name can be found (note that section indices are always 1 based, and so
+  /// section index 0 is never valid).
+  lldb::user_id_t GetSectionIndexByName(const char *name);
 
-    const elf::ELFDynamic *
-    FindDynamicSymbol(unsigned tag);
-        
-    unsigned
-    PLTRelocationType();
+  // Returns the ID of the first section that has the given type.
+  lldb::user_id_t GetSectionIndexByType(unsigned type);
+
+  /// Returns the section header with the given id or NULL.
+  const ELFSectionHeaderInfo *GetSectionHeaderByIndex(lldb::user_id_t id);
+
+  /// @name  ELF header dump routines
+  //@{
+  static void DumpELFHeader(lldb_private::Stream *s,
+                            const elf::ELFHeader &header);
+
+  static void DumpELFHeader_e_ident_EI_DATA(lldb_private::Stream *s,
+                                            unsigned char ei_data);
+
+  static void DumpELFHeader_e_type(lldb_private::Stream *s,
+                                   elf::elf_half e_type);
+  //@}
+
+  /// @name ELF program header dump routines
+  //@{
+  void DumpELFProgramHeaders(lldb_private::Stream *s);
+
+  static void DumpELFProgramHeader(lldb_private::Stream *s,
+                                   const elf::ELFProgramHeader &ph);
+
+  static void DumpELFProgramHeader_p_type(lldb_private::Stream *s,
+                                          elf::elf_word p_type);
+
+  static void DumpELFProgramHeader_p_flags(lldb_private::Stream *s,
+                                           elf::elf_word p_flags);
+  //@}
+
+  /// @name ELF section header dump routines
+  //@{
+  void DumpELFSectionHeaders(lldb_private::Stream *s);
+
+  static void DumpELFSectionHeader(lldb_private::Stream *s,
+                                   const ELFSectionHeaderInfo &sh);
+
+  static void DumpELFSectionHeader_sh_type(lldb_private::Stream *s,
+                                           elf::elf_word sh_type);
+
+  static void DumpELFSectionHeader_sh_flags(lldb_private::Stream *s,
+                                            elf::elf_xword sh_flags);
+  //@}
+
+  /// ELF dependent module dump routine.
+  void DumpDependentModules(lldb_private::Stream *s);
+
+  const elf::ELFDynamic *FindDynamicSymbol(unsigned tag);
+
+  unsigned PLTRelocationType();
+
+  static lldb_private::Status
+  RefineModuleDetailsFromNote(lldb_private::DataExtractor &data,
+                              lldb_private::ArchSpec &arch_spec,
+                              lldb_private::UUID &uuid);
 };
 
-#endif // #ifndef liblldb_ObjectFileELF_h_
+#endif // liblldb_ObjectFileELF_h_

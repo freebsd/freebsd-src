@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2011
+.Dd April 24, 2018
 .Dt XHCI 4
 .Os
 .Sh NAME
@@ -56,6 +56,17 @@ driver supports
 .Tn XHCI
 compatible controllers having PCI class 12 (serial bus),
 subclass 3 (USB) and programming interface 48 (XHCI).
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.xhci.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
 .Sh SEE ALSO
 .Xr ehci 4 ,
 .Xr ohci 4 ,

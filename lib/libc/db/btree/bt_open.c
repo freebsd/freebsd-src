@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -57,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include "un-namespace.h"
+#include "libc_private.h"
 
 #include <db.h>
 #include "btree.h"
@@ -276,7 +279,7 @@ __bt_open(const char *fname, int flags, int mode, const BTREEINFO *openinfo, int
 		b.cachesize = b.psize * MINCACHE;
 
 	/* Calculate number of pages to cache. */
-	ncache = (b.cachesize + t->bt_psize - 1) / t->bt_psize;
+	ncache = howmany(b.cachesize, t->bt_psize);
 
 	/*
 	 * The btree data structure requires that at least two keys can fit on
@@ -401,10 +404,10 @@ tmp(void)
 	}
 
 	(void)sigfillset(&set);
-	(void)_sigprocmask(SIG_BLOCK, &set, &oset);
+	(void)__libc_sigprocmask(SIG_BLOCK, &set, &oset);
 	if ((fd = mkostemp(path, O_CLOEXEC)) != -1)
 		(void)unlink(path);
-	(void)_sigprocmask(SIG_SETMASK, &oset, NULL);
+	(void)__libc_sigprocmask(SIG_SETMASK, &oset, NULL);
 	return(fd);
 }
 

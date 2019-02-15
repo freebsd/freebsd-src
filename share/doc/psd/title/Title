@@ -9,11 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -120,12 +116,6 @@ copyright 1992 by the Free Software Foundation, Inc.
 Permission is granted to make and distribute verbatim copies of
 this document provided the copyright notice and this permission notice
 are preserved on all copies.
-.sp 2
-Document PSD:13 is part of the user contributed software and is
-copyright 1983 by Walter F. Tichy.
-Permission to copy the RCS documentation or any portion thereof as
-necessary for licensed use of the software is granted to licensees
-of this software, provided this copyright notice is included.
 .sp 2
 The views and conclusions contained in this manual are those of the
 authors and should not be interpreted as representing official policies,

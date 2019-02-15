@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Michael Smith
  * All rights reserved.
  *
@@ -399,7 +401,8 @@ mlx_attach(struct mlx_softc *sc)
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
-			       MAXBSIZE, MLX_NSEG,	/* maxsize, nsegments */
+			       MLX_MAXPHYS,		/* maxsize */
+			       MLX_NSEG,		/* nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       0,			/* flags */
 			       busdma_lock_mutex,	/* lockfunc */
@@ -449,7 +452,7 @@ mlx_attach(struct mlx_softc *sc)
 	}
 	sc->mlx_enq2->me_firmware_id = ('0' << 24) | (0 << 16) | (meo->me_fwminor << 8) | meo->me_fwmajor;
 	
-	/* XXX require 2.42 or better (PCI) or 2.14 or better (EISA) */
+	/* XXX require 2.42 or better (PCI) */
 	if (meo->me_fwminor < 42) {
 	    device_printf(sc->mlx_dev, " *** WARNING *** This firmware revision is not recommended\n");
 	    device_printf(sc->mlx_dev, " *** WARNING *** Use revision 2.42 or later\n");
@@ -1363,7 +1366,7 @@ mlx_periodic_eventlog_respond(struct mlx_command *mc)
 	    /* Mylex vendor-specific message indicating a drive was killed? */
 	    if ((el->el_sensekey == 9) &&
 		(el->el_asc == 0x80)) {
-		if (el->el_asq < (sizeof(mlx_sense_messages) / sizeof(mlx_sense_messages[0]))) {
+		if (el->el_asq < nitems(mlx_sense_messages)) {
 		    reason = mlx_sense_messages[el->el_asq];
 		} else {
 		    reason = "for unknown reason";
@@ -1867,7 +1870,7 @@ mlx_startio_cb(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
     /* build a suitable I/O command (assumes 512-byte rounded transfers) */
     mlxd = bp->bio_disk->d_drv1;
     driveno = mlxd->mlxd_drive - sc->mlx_sysdrive;
-    blkcount = (bp->bio_bcount + MLX_BLKSIZE - 1) / MLX_BLKSIZE;
+    blkcount = howmany(bp->bio_bcount, MLX_BLKSIZE);
 
     if ((bp->bio_pblkno + blkcount) > sc->mlx_sysdrive[driveno].ms_size)
 	device_printf(sc->mlx_dev,

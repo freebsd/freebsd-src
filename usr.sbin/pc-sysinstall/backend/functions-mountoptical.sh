@@ -1,5 +1,7 @@
 #!/bin/sh
 #-
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
 # Copyright (c) 2010 iXsystems, Inc.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -82,7 +84,7 @@ opt_mount()
   do
 
     # Loop though and look for an installation disk
-    for i in `ls -1 /dev/acd* /dev/cd* /dev/scd* /dev/rscd* 2>/dev/null`
+    for i in `ls -1 /dev/cd* 2>/dev/null`
     do
       # Find the CD Device
       /sbin/mount_cd9660 $i ${CDMNT}

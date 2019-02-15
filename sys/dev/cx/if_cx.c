@@ -405,13 +405,12 @@ static short porttab [] = {
 static char dmatab [] = { 7, 6, 5, 0 };
 static char irqtab [] = { 5, 10, 11, 7, 3, 15, 12, 0 };
 
-static int cx_is_free_res (device_t dev, int rid, int type, u_long start,
-	u_long end, u_long count)
+static int cx_is_free_res (device_t dev, int rid, int type, rman_res_t start,
+	rman_res_t end, rman_res_t count)
 {
 	struct resource *res;
 	
-	if (!(res = bus_alloc_resource (dev, type, &rid, start, end, count,
-	    RF_ALLOCATED)))
+	if (!(res = bus_alloc_resource (dev, type, &rid, start, end, count, 0)))
 		return 0;
 		
 	bus_release_resource (dev, type, rid, res);
@@ -421,7 +420,7 @@ static int cx_is_free_res (device_t dev, int rid, int type, u_long start,
 
 static void cx_identify (driver_t *driver, device_t dev)
 {
-	u_long iobase, rescount;
+	rman_res_t iobase, rescount;
 	int devcount;
 	device_t *devices;
 	device_t child;
@@ -531,7 +530,7 @@ static int cx_probe (device_t dev)
 {
 	int unit = device_get_unit (dev);
 	int i;
-	u_long iobase, rescount;
+	rman_res_t iobase, rescount;
 
 	if (!device_get_desc (dev) ||
 	    strcmp (device_get_desc (dev), "Cronyx Sigma"))
@@ -630,7 +629,7 @@ cx_bus_dma_mem_free (cx_dma_mem_t *dmem)
 static int cx_attach (device_t dev)
 {
 	bdrv_t *bd = device_get_softc (dev);
-	u_long iobase, drq, irq, rescount;
+	rman_res_t iobase, drq, irq, rescount;
 	int unit = device_get_unit (dev);
 	char *cx_ln = CX_LOCK_NAME;
 	cx_board_t *b;
@@ -747,7 +746,7 @@ static int cx_attach (device_t dev)
  		return ENXIO;
 	}
 	b->sys = bd;
-	callout_init (&led_timo[b->num], CALLOUT_MPSAFE);
+	callout_init (&led_timo[b->num], 1);
 	s = splhigh ();
 	if (bus_setup_intr (dev, bd->irq_res,
 			   INTR_TYPE_NET|INTR_MPSAFE,
@@ -797,7 +796,7 @@ static int cx_attach (device_t dev)
 		case T_UNIV_RS232:
 		case T_UNIV_RS449:
 		case T_UNIV_V35:
-		callout_init (&d->timeout_handle, CALLOUT_MPSAFE);
+		callout_init (&d->timeout_handle, 1);
 #ifdef NETGRAPH
 		if (ng_make_node_common (&typestruct, &d->node) != 0) {
 			printf ("%s: cannot make common node\n", d->name);
@@ -868,7 +867,7 @@ static int cx_attach (device_t dev)
 		ttycreate(d->tty, TS_CALLOUT, "x%r%r", b->num, c->num);
 		d->devt = make_dev (&cx_cdevsw, b->num*NCHAN + c->num + 64, UID_ROOT, GID_WHEEL, 0600, "cx%d", b->num*NCHAN + c->num);
 		d->devt->si_drv1 = d;
-		callout_init (&d->dcd_timeout_handle, CALLOUT_MPSAFE);
+		callout_init (&d->dcd_timeout_handle, 1);
 	}
 	splx (s);
 
@@ -992,8 +991,8 @@ static int cx_detach (device_t dev)
 		/* Deallocate buffers. */
 		cx_bus_dma_mem_free (&d->dmamem);
 	}
-	bd->board = 0;
-	adapter [b->num] = 0;
+	bd->board = NULL;
+	adapter [b->num] = NULL;
 	free (b, M_DEVBUF);
 	splx (s);
 
@@ -2454,7 +2453,7 @@ static int ng_cx_rmnode (node_p node)
 		NG_NODE_SET_PRIVATE (node, NULL);
 		NG_NODE_UNREF (node);
 	}
-	NG_NODE_REVIVE(node);		/* Persistant node */
+	NG_NODE_REVIVE(node);		/* Persistent node */
 #endif
 	return 0;
 }
@@ -2498,7 +2497,7 @@ static int cx_modevent (module_t mod, int type, void *unused)
 #endif
 		++load_count;
 
-		callout_init (&timeout_handle, CALLOUT_MPSAFE);
+		callout_init (&timeout_handle, 1);
 		callout_reset (&timeout_handle, hz*5, cx_timeout, 0);
 		/* Software interrupt. */
 		swi_add(&tty_intr_event, "cx", cx_softintr, NULL, SWI_TTY,

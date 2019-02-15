@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_private.h 267467 2014-06-14 10:58:39Z melifaro $
+ * $FreeBSD$
  */
 
 #ifndef _IPFW2_TABLE_H
@@ -51,16 +51,6 @@ struct table_info {
 	void		*state;		/* Lookup radix/other structure */
 	void		*xstate;	/* eXtended state */
 	u_long		data;		/* Hints for given func */
-};
-
-/* Internal structures for handling sockopt data */
-struct tid_info {
-	uint32_t	set;	/* table set */
-	uint16_t	uidx;	/* table index */
-	uint8_t		type;	/* table type */
-	uint8_t		atype;
-	void		*tlvs;	/* Pointer to first TLV */
-	int		tlen;	/* Total TLV size block */
 };
 
 struct table_value;
@@ -161,9 +151,6 @@ void ipfw_del_table_algo(struct ip_fw_chain *ch, int idx);
 void ipfw_table_algo_init(struct ip_fw_chain *chain);
 void ipfw_table_algo_destroy(struct ip_fw_chain *chain);
 
-/* external algos */
-extern struct table_algo addr_dxr;
-
 MALLOC_DECLARE(M_IPFW_TBL);
 /* Exported to support legacy opcodes */
 int add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
@@ -192,16 +179,14 @@ void rollback_table_values(struct tableop_state *ts);
 
 int ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
     struct rule_check_info *ci);
-int ipfw_rewrite_table_kidx(struct ip_fw_chain *chain,
-    struct ip_fw_rule0 *rule);
 int ipfw_mark_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule,
     uint32_t *bmask);
 int ipfw_export_table_ntlv(struct ip_fw_chain *ch, uint16_t kidx,
     struct sockopt_data *sd);
 void ipfw_unref_rule_tables(struct ip_fw_chain *chain, struct ip_fw *rule);
+struct namedobj_instance *ipfw_get_table_objhash(struct ip_fw_chain *ch);
 
 /* utility functions  */
-int ipfw_check_table_name(char *name);
 int ipfw_move_tables_sets(struct ip_fw_chain *ch, ipfw_range_tlv *rt,
     uint32_t new_set);
 void ipfw_swap_tables_sets(struct ip_fw_chain *ch, uint32_t old_set,

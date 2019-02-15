@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997, 1998, 1999
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -75,7 +77,7 @@ __FBSDID("$FreeBSD$");
  * Columbia University, New York City
  */
 /*
- * The 3c90x series chips use a bus-master DMA interface for transfering
+ * The 3c90x series chips use a bus-master DMA interface for transferring
  * packets to and from the controller chip. Some of the "vortex" cards
  * (3c59x) also supported a bus master mode, however for those chips
  * you could only DMA packets to/from a contiguous memory buffer. For
@@ -106,8 +108,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sockio.h>
 #include <sys/endian.h>
-#include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/taskqueue.h>
@@ -331,6 +334,8 @@ static devclass_t xl_devclass;
 DRIVER_MODULE_ORDERED(xl, pci, xl_driver, xl_devclass, NULL, NULL,
     SI_ORDER_ANY);
 DRIVER_MODULE(miibus, xl, miibus_driver, miibus_devclass, NULL, NULL);
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, xl, xl_devs,
+    nitems(xl_devs) - 1);
 
 static void
 xl_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
@@ -352,7 +357,7 @@ xl_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static void
 xl_wait(struct xl_softc *sc)
 {
-	register int		i;
+	int			i;
 
 	for (i = 0; i < XL_TIMEOUT; i++) {
 		if ((CSR_READ_2(sc, XL_STATUS) & XL_STAT_CMDBUSY) == 0)
@@ -631,7 +636,7 @@ xl_rxfilter_90x(struct xl_softc *sc)
 			rxfilt |= XL_RXFILTER_ALLMULTI;
 	} else {
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			rxfilt |= XL_RXFILTER_ALLMULTI;
@@ -686,7 +691,7 @@ xl_rxfilter_90xB(struct xl_softc *sc)
 		/* Now program new ones. */
 		mcnt = 0;
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			/*
@@ -835,7 +840,7 @@ xl_setmode(struct xl_softc *sc, int media)
 static void
 xl_reset(struct xl_softc *sc)
 {
-	register int		i;
+	int			i;
 
 	XL_LOCK_ASSERT(sc);
 
@@ -3152,7 +3157,7 @@ xl_watchdog(struct xl_softc *sc)
 static void
 xl_stop(struct xl_softc *sc)
 {
-	register int		i;
+	int			i;
 	struct ifnet		*ifp = sc->xl_ifp;
 
 	XL_LOCK_ASSERT(sc);

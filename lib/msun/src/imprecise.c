@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 David Chisnall
  * All rights reserved.
  *
@@ -47,14 +49,6 @@
 #define	DECLARE_WEAK(x)\
 	__weak_reference(imprecise_## x, x);\
 	WARN_IMPRECISE(x)
-
-long double
-imprecise_powl(long double x, long double y)
-{
-
-	return pow(x, y);
-}
-DECLARE_WEAK(powl);
 
 #define DECLARE_IMPRECISE(f) \
 	long double imprecise_ ## f ## l(long double v) { return f(v); }\

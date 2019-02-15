@@ -50,7 +50,7 @@ mic_des
   EVP_MD_CTX *md5;
   u_char hash[16];
   DES_key_schedule schedule;
-  EVP_CIPHER_CTX des_ctx;
+  EVP_CIPHER_CTX *des_ctx;
   DES_cblock deskey;
   DES_cblock zero;
   int32_t seq_number;
@@ -96,6 +96,17 @@ mic_des
 		 &schedule, &zero);
   memcpy (p - 8, hash, 8);	/* SGN_CKSUM */
 
+  des_ctx = EVP_CIPHER_CTX_new();
+  if (des_ctx == NULL) {
+      memset (deskey, 0, sizeof(deskey));
+      memset (&schedule, 0, sizeof(schedule));
+      free (message_token->value);
+      message_token->value = NULL;
+      message_token->length = 0;
+      *minor_status = ENOMEM;
+      return GSS_S_FAILURE;
+  }
+
   HEIMDAL_MUTEX_lock(&ctx->ctx_id_mutex);
   /* sequence number */
   krb5_auth_con_getlocalseqnumber (context,
@@ -111,10 +122,9 @@ mic_des
 	  (ctx->more_flags & LOCAL) ? 0 : 0xFF,
 	  4);
 
-  EVP_CIPHER_CTX_init(&des_ctx);
-  EVP_CipherInit_ex(&des_ctx, EVP_des_cbc(), NULL, key->keyvalue.data, p + 8, 1);
-  EVP_Cipher(&des_ctx, p, p, 8);
-  EVP_CIPHER_CTX_cleanup(&des_ctx);
+  EVP_CipherInit_ex(des_ctx, EVP_des_cbc(), NULL, key->keyvalue.data, p + 8, 1);
+  EVP_Cipher(des_ctx, p, p, 8);
+  EVP_CIPHER_CTX_free(des_ctx);
 
   krb5_auth_con_setlocalseqnumber (context,
 			       ctx->auth_context,

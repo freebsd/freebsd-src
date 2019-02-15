@@ -5,15 +5,14 @@
 #
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../contrib/amd/hlfsd
+.PATH:	${SRCTOP}/contrib/amd/hlfsd
 
 PROG=	hlfsd
 MAN=	hlfsd.8
 SRCS=	hlfsd.c homedir.c nfs_prot_svc.c stubs.c
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/amd/hlfsd
+CFLAGS+= -I${SRCTOP}/contrib/amd/hlfsd
 
-DPADD=	${LIBAMU}
-LDADD=	${LIBAMU}
+LIBADD=	amu
 
 .include <bsd.prog.mk>

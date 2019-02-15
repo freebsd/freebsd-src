@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2003 David Xu <davidxu@freebsd.org>
  * Copyright (c) 2001 Daniel Eischen <deischen@freebsd.org>
  * All rights reserved.
@@ -76,9 +78,6 @@ struct tcb {
 								\
 	__result;						\
 })
-
-struct tcb	*_tcb_ctor(struct pthread *, int);
-void		_tcb_dtor(struct tcb *tcb);
 
 static __inline void
 _tcb_set(struct tcb *tcb)

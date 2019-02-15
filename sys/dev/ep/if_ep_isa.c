@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994 Herb Peyerl <hpeyerl@novatel.ca>
  * All rights reserved.
  *
@@ -52,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ep/if_epvar.h>
 
 #ifdef __i386__
-#include <i386/isa/elink.h>
+#include <dev/ep/elink.h>
 #endif
 
 #ifdef __i386__
@@ -76,10 +78,6 @@ const char *ep_isa_match_id(uint32_t, struct isa_ident *);
 #define ISA_ID_3C509_COMBO 0x506d5094
 #define ISA_ID_3C509_TPO   0x506d5095
 #define ISA_ID_3C509_TPC   0x506d5098
-#ifdef PC98
-#define ISA_ID_3C569B_COMBO 0x506d5694
-#define ISA_ID_3C569B_TPO   0x506d5695
-#endif
 
 #ifdef __i386__
 static struct isa_ident ep_isa_devs[] = {
@@ -88,10 +86,6 @@ static struct isa_ident ep_isa_devs[] = {
 	{ISA_ID_3C509_COMBO, "3Com 3C509-Combo EtherLink III"},
 	{ISA_ID_3C509_TPO, "3Com 3C509-TPO EtherLink III"},
 	{ISA_ID_3C509_TPC, "3Com 3C509-TPC EtherLink III"},
-#ifdef PC98
-	{ISA_ID_3C569B_COMBO, "3Com 3C569B-J-Combo EtherLink III"},
-	{ISA_ID_3C569B_TPO, "3Com 3C569B-J-TPO EtherLink III"},
-#endif
 	{0, NULL},
 };
 #endif
@@ -202,8 +196,7 @@ ep_isa_identify(driver_t * driver, device_t parent)
 			(void)get_eeprom_data(ELINK_ID_PORT, j);
 
 		/*
-		 * Construct an 'isa_id' in 'EISA'
-		 * format.
+		 * Construct an 'isa_id' in 'EISA' format.
 		 */
 		data = get_eeprom_data(ELINK_ID_PORT, EEPROM_MFG_ID);
 		isa_id = (htons(data) << 16);
@@ -224,15 +217,11 @@ ep_isa_identify(driver_t * driver, device_t parent)
 
 		/* Retreive IOPORT */
 		data = get_eeprom_data(ELINK_ID_PORT, EEPROM_ADDR_CFG);
-#ifdef PC98
-		ioport = (((data & ADDR_CFG_MASK) * 0x100) + 0x40d0);
-#else
 		ioport = (((data & ADDR_CFG_MASK) << 4) + 0x200);
-#endif
 
 		if ((data & ADDR_CFG_MASK) == ADDR_CFG_EISA) {
 			device_printf(parent,
-			    "<%s> at port 0x%03x in EISA mode!\n",
+			    "<%s> at port 0x%03x in EISA mode, ignoring!\n",
 			    desc, ioport);
 			/*
 			 * Set the adaptor tag so that the next card can be
@@ -406,3 +395,4 @@ DRIVER_MODULE(ep, isa, ep_isa_driver, ep_devclass, 0, 0);
 #ifdef __i386__
 MODULE_DEPEND(ep, elink, 1, 1, 1);
 #endif
+ISA_PNP_INFO(ep_ids);

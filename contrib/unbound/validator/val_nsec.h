@@ -1,5 +1,5 @@
 /*
- * validator/val_nsec.h - validator NSEC denial of existance functions.
+ * validator/val_nsec.h - validator NSEC denial of existence functions.
  *
  * Copyright (c) 2007, NLnet Labs. All rights reserved.
  *
@@ -38,7 +38,7 @@
  *
  * This file contains helper functions for the validator module.
  * The functions help with NSEC checking, the different NSEC proofs
- * for denial of existance, and proofs for presence of types.
+ * for denial of existence, and proofs for presence of types.
  */
 
 #ifndef VALIDATOR_VAL_NSEC_H
@@ -46,6 +46,7 @@
 #include "util/data/packed_rrset.h"
 struct val_env;
 struct module_env;
+struct module_qstate;
 struct ub_packed_rrset_key;
 struct reply_info;
 struct query_info;
@@ -54,7 +55,7 @@ struct key_entry_key;
 /**
  * Check DS absence.
  * There is a NODATA reply to a DS that needs checking.
- * NSECs can prove this is not a delegation point, or sucessfully prove
+ * NSECs can prove this is not a delegation point, or successfully prove
  * that there is no DS. Or this fails.
  *
  * @param env: module env for rrsig verification routines.
@@ -64,6 +65,7 @@ struct key_entry_key;
  * @param kkey: key entry to use for verification of signatures.
  * @param proof_ttl: if secure, the TTL of how long this proof lasts.
  * @param reason: string explaining why bogus.
+ * @param qstate: qstate with region.
  * @return security status.
  *	SECURE: proved absence of DS.
  *	INSECURE: proved that this was not a delegation point.
@@ -73,7 +75,7 @@ struct key_entry_key;
 enum sec_status val_nsec_prove_nodata_dsreply(struct module_env* env,
 	struct val_env* ve, struct query_info* qinfo, 
 	struct reply_info* rep, struct key_entry_key* kkey,
-	time_t* proof_ttl, char** reason);
+	time_t* proof_ttl, char** reason, struct module_qstate* qstate);
 
 /** 
  * nsec typemap check, takes an NSEC-type bitmap as argument, checks for type.

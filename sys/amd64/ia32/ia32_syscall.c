@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1994, David Greenman
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -43,7 +45,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_clock.h"
-#include "opt_compat.h"
 #include "opt_cpu.h"
 #include "opt_isa.h"
 
@@ -93,7 +94,8 @@ __FBSDID("$FreeBSD$");
 
 #define	IDTVEC(name)	__CONCAT(X,name)
 
-extern inthand_t IDTVEC(int0x80_syscall), IDTVEC(rsvd);
+extern inthand_t IDTVEC(int0x80_syscall), IDTVEC(int0x80_syscall_pti),
+    IDTVEC(rsvd), IDTVEC(rsvd_pti);
 
 void ia32_syscall(struct trapframe *frame);	/* Called from asm code */
 
@@ -105,16 +107,47 @@ ia32_set_syscall_retval(struct thread *td, int error)
 }
 
 int
-ia32_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+ia32_fetch_syscall_args(struct thread *td)
 {
 	struct proc *p;
 	struct trapframe *frame;
+	struct syscall_args *sa;
 	caddr_t params;
-	u_int32_t args[8];
+	u_int32_t args[8], tmp;
 	int error, i;
+#ifdef COMPAT_43
+	u_int32_t eip;
+	int cs;
+#endif
 
 	p = td->td_proc;
 	frame = td->td_frame;
+	sa = &td->td_sa;
+
+#ifdef COMPAT_43
+	if (__predict_false(frame->tf_cs == 7 && frame->tf_rip == 2)) {
+		/*
+		 * In lcall $7,$0 after int $0x80.  Convert the user
+		 * frame to what it would be for a direct int 0x80 instead
+		 * of lcall $7,$0, by popping the lcall return address.
+		 */
+		error = fueword32((void *)frame->tf_rsp, &eip);
+		if (error == -1)
+			return (EFAULT);
+		cs = fuword16((void *)(frame->tf_rsp + sizeof(u_int32_t)));
+		if (cs == -1)
+			return (EFAULT);
+
+		/*
+		 * Unwind in-kernel frame after all stack frame pieces
+		 * were successfully read.
+		 */
+		frame->tf_rip = eip;
+		frame->tf_cs = cs;
+		frame->tf_rsp += 2 * sizeof(u_int32_t);
+		frame->tf_err = 7;		/* size of lcall $7,$0 */
+	}
+#endif
 
 	params = (caddr_t)frame->tf_rsp + sizeof(u_int32_t);
 	sa->code = frame->tf_rax;
@@ -126,7 +159,10 @@ ia32_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 		/*
 		 * Code is first argument, followed by actual args.
 		 */
-		sa->code = fuword32(params);
+		error = fueword32(params, &tmp);
+		if (error == -1)
+			return (EFAULT);
+		sa->code = tmp;
 		params += sizeof(int);
 	} else if (sa->code == SYS___syscall) {
 		/*
@@ -135,7 +171,10 @@ ia32_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 		 * We use a 32-bit fetch in case params is not
 		 * aligned.
 		 */
-		sa->code = fuword32(params);
+		error = fueword32(params, &tmp);
+		if (error == -1)
+			return (EFAULT);
+		sa->code = tmp;
 		params += sizeof(quad_t);
 	}
  	if (p->p_sysent->sv_mask)
@@ -169,7 +208,6 @@ void
 ia32_syscall(struct trapframe *frame)
 {
 	struct thread *td;
-	struct syscall_args sa;
 	register_t orig_tf_rflags;
 	int error;
 	ksiginfo_t ksi;
@@ -178,7 +216,7 @@ ia32_syscall(struct trapframe *frame)
 	td = curthread;
 	td->td_frame = frame;
 
-	error = syscallenter(td, &sa);
+	error = syscallenter(td);
 
 	/*
 	 * Traced syscall.
@@ -192,21 +230,24 @@ ia32_syscall(struct trapframe *frame)
 		trapsignal(td, &ksi);
 	}
 
-	syscallret(td, error, &sa);
+	syscallret(td, error);
+	amd64_syscall_ret_flush_l1d(error);
 }
 
 static void
 ia32_syscall_enable(void *dummy)
 {
 
- 	setidt(IDT_SYSCALL, &IDTVEC(int0x80_syscall), SDT_SYSIGT, SEL_UPL, 0);
+ 	setidt(IDT_SYSCALL, pti ? &IDTVEC(int0x80_syscall_pti) :
+	    &IDTVEC(int0x80_syscall), SDT_SYSIGT, SEL_UPL, 0);
 }
 
 static void
 ia32_syscall_disable(void *dummy)
 {
 
- 	setidt(IDT_SYSCALL, &IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
+ 	setidt(IDT_SYSCALL, pti ? &IDTVEC(rsvd_pti) : &IDTVEC(rsvd),
+	    SDT_SYSIGT, SEL_KPL, 0);
 }
 
 SYSINIT(ia32_syscall, SI_SUB_EXEC, SI_ORDER_ANY, ia32_syscall_enable, NULL);
@@ -217,38 +258,27 @@ int
 setup_lcall_gate(void)
 {
 	struct i386_ldt_args uap;
-	struct user_segment_descriptor descs[2];
-	struct gate_descriptor *ssd;
+	struct user_segment_descriptor desc;
 	uint32_t lcall_addr;
 	int error;
 
 	bzero(&uap, sizeof(uap));
 	uap.start = 0;
-	uap.num = 2;
-
-	/*
-	 * This is the easiest way to cut the space for system
-	 * descriptor in ldt.  Manually adjust the descriptor type to
-	 * the call gate later.
-	 */
-	bzero(&descs[0], sizeof(descs));
-	descs[0].sd_type = SDT_SYSNULL;
-	descs[1].sd_type = SDT_SYSNULL;
-	error = amd64_set_ldt(curthread, &uap, descs);
+	uap.num = 1;
+	lcall_addr = curproc->p_sysent->sv_psstrings - sz_lcall_tramp;
+	bzero(&desc, sizeof(desc));
+	desc.sd_type = SDT_MEMERA;
+	desc.sd_dpl = SEL_UPL;
+	desc.sd_p = 1;
+	desc.sd_def32 = 1;
+	desc.sd_gran = 1;
+	desc.sd_lolimit = 0xffff;
+	desc.sd_hilimit = 0xf;
+	desc.sd_lobase = lcall_addr;
+	desc.sd_hibase = lcall_addr >> 24;
+	error = amd64_set_ldt(curthread, &uap, &desc);
 	if (error != 0)
 		return (error);
-
-	lcall_addr = curproc->p_sysent->sv_psstrings - sz_lcall_tramp;
-	mtx_lock(&dt_lock);
-	ssd = (struct gate_descriptor *)(curproc->p_md.md_ldt->ldt_base);
-	bzero(ssd, sizeof(*ssd));
-	ssd->gd_looffset = lcall_addr;
-	ssd->gd_hioffset = lcall_addr >> 16;
-	ssd->gd_selector = _ucodesel;
-	ssd->gd_type = SDT_SYSCGT;
-	ssd->gd_dpl = SEL_UPL;
-	ssd->gd_p = 1;
-	mtx_unlock(&dt_lock);
 
 	return (0);
 }

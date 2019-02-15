@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Orion Hodson <orion@freebsd.org>
  * Portions of this code derived from via82c686.c:
  * 	Copyright (c) 2000 David Jones <dej@ox.org>
@@ -1164,7 +1166,7 @@ via_chip_init(device_t dev)
 static int
 via_attach(device_t dev)
 {
-	struct via_info *via = 0;
+	struct via_info *via = NULL;
 	char status[SND_STATUSLEN];
 	int i, via_dxs_disabled, via_dxs_src, via_dxs_chnum, via_sgd_chnum;
 	int nsegs;
@@ -1175,7 +1177,7 @@ via_attach(device_t dev)
 	    "snd_via8233 softc");
 	via->dev = dev;
 
-	callout_init(&via->poll_timer, CALLOUT_MPSAFE);
+	callout_init(&via->poll_timer, 1);
 	via->poll_ticks = 1;
 
 	if (resource_int_value(device_get_name(dev),
@@ -1348,7 +1350,7 @@ via_attach(device_t dev)
 		ac97_setextmode(via->codec, ext);
 	}
 
-	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld %s",
+	snprintf(status, SND_STATUSLEN, "at io 0x%jx irq %jd %s",
 	    rman_get_start(via->reg), rman_get_start(via->irq),
 	    PCM_KLDSTRING(snd_via8233));
 

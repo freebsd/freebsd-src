@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011-2013 Alexander Motin <mav@FreeBSD.org>
  * Copyright (c) 2006-2007 Matthew Jacob <mjacob@FreeBSD.org>
  * All rights reserved.
@@ -107,8 +109,9 @@ struct g_class g_multipath_class = {
 #define	MP_NEW		0x00000004
 #define	MP_POSTED	0x00000008
 #define	MP_BAD		(MP_FAIL | MP_LOST | MP_NEW)
-#define MP_IDLE		0x00000010
-#define MP_IDLE_MASK	0xfffffff0
+#define	MP_WITHER	0x00000010
+#define	MP_IDLE		0x00000020
+#define	MP_IDLE_MASK	0xffffffe0
 
 static int
 g_multipath_good(struct g_geom *gp)
@@ -204,6 +207,7 @@ g_mpd(void *arg, int flags __unused)
 		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
 		if (w > 0 && cp->provider != NULL &&
 		    (cp->provider->geom->flags & G_GEOM_WITHER) == 0) {
+			cp->index |= MP_WITHER;
 			g_post_event(g_mpd, cp, M_WAITOK, NULL);
 			return;
 		}
@@ -369,9 +373,9 @@ g_multipath_done(struct bio *bp)
 		mtx_lock(&sc->sc_mtx);
 		(*cnt)--;
 		if (*cnt == 0 && (cp->index & MP_LOST)) {
-			cp->index |= MP_POSTED;
+			if (g_post_event(g_mpd, cp, M_NOWAIT, NULL) == 0)
+				cp->index |= MP_POSTED;
 			mtx_unlock(&sc->sc_mtx);
-			g_post_event(g_mpd, cp, M_WAITOK, NULL);
 		} else
 			mtx_unlock(&sc->sc_mtx);
 		g_std_done(bp);
@@ -467,23 +471,37 @@ g_multipath_access(struct g_provider *pp, int dr, int dw, int de)
 
 	gp = pp->geom;
 
+	/* Error used if we have no valid consumers. */
+	error = (dr > 0 || dw > 0 || de > 0) ? ENXIO : 0;
+
 	LIST_FOREACH(cp, &gp->consumer, consumer) {
+		if (cp->index & MP_WITHER)
+			continue;
+
 		error = g_access(cp, dr, dw, de);
 		if (error) {
 			badcp = cp;
 			goto fail;
 		}
 	}
+
+	if (error != 0)
+		return (error);
+
 	sc = gp->softc;
 	sc->sc_opened += dr + dw + de;
 	if (sc->sc_stopping && sc->sc_opened == 0)
 		g_multipath_destroy(gp);
+
 	return (0);
 
 fail:
 	LIST_FOREACH(cp, &gp->consumer, consumer) {
 		if (cp == badcp)
 			break;
+		if (cp->index & MP_WITHER)
+			continue;
+
 		(void) g_access(cp, -dr, -dw, -de);
 	}
 	return (error);
@@ -907,6 +925,7 @@ g_multipath_ctl_add_name(struct gctl_req *req, struct g_class *mp,
 	struct g_provider *pp;
 	const char *mpname;
 	static const char devpf[6] = "/dev/";
+	int error;
 
 	g_topology_assert();
 
@@ -956,10 +975,9 @@ g_multipath_ctl_add_name(struct gctl_req *req, struct g_class *mp,
 		return;
 	}
 
-	/*
-	 * Now add....
-	 */
-	(void) g_multipath_add_disk(gp, pp);
+	error = g_multipath_add_disk(gp, pp);
+	if (error != 0)
+		gctl_error(req, "Provider addition error: %d", error);
 }
 
 static void
@@ -1514,3 +1532,4 @@ g_multipath_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 }
 
 DECLARE_GEOM_CLASS(g_multipath_class, g_multipath);
+MODULE_VERSION(geom_multipath, 0);

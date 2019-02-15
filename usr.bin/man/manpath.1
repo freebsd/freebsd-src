@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 1, 2010
+.Dd March 11, 2017
 .Dt MANPATH 1
 .Os
 .Sh NAME
@@ -66,15 +66,10 @@ for the first of:
 .Pa pathname/MAN
 .It
 If pathname ends with /bin:
+.Pa pathname/../share/man
+and
 .Pa pathname/../man
 .El
-Note: Special logic exists to make
-.Pa /bin
-and
-.Pa /usr/bin
-look in
-.Pa /usr/share/man
-for manual files.
 .It
 The configuration files listed in the
 .Sx FILES

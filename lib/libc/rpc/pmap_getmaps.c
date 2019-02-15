@@ -1,6 +1,8 @@
 /*	$NetBSD: pmap_getmaps.c,v 1.16 2000/07/06 03:10:34 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -70,8 +72,7 @@ __FBSDID("$FreeBSD$");
  * Calls the pmap service remotely to do get the maps.
  */
 struct pmaplist *
-pmap_getmaps(address)
-	 struct sockaddr_in *address;
+pmap_getmaps(struct sockaddr_in *address)
 {
 	struct pmaplist *head = NULL;
 	int sock = -1;

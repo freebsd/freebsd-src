@@ -131,6 +131,7 @@ static void
 ioctl_tests_1(int fd)
 {
 	unsigned long cmds[2];
+	cap_rights_t rights;
 
 	cmds[0] = FIOCLEX;
 	CHECK(cap_ioctls_limit(fd, cmds, 1) == 0);
@@ -139,7 +140,10 @@ ioctl_tests_1(int fd)
 	CHECK(cmds[0] == FIOCLEX);
 	CHECK(cmds[1] == 0);
 
-	CHECK(cap_rights_limit(fd, CAP_ALL & ~CAP_IOCTL) == 0);
+	CAP_ALL(&rights);
+	cap_rights_clear(&rights, CAP_IOCTL);
+
+	CHECK(cap_rights_limit(fd, &rights) == 0);
 	CHECK(cap_ioctls_get(fd, cmds, nitems(cmds)) == 0);
 
 	cmds[0] = FIOCLEX;
@@ -173,8 +177,12 @@ static void
 ioctl_tests_2(int fd)
 {
 	unsigned long cmds[2];
+	cap_rights_t rights;
 
-	CHECK(cap_rights_limit(fd, CAP_ALL & ~CAP_IOCTL) == 0);
+	CAP_ALL(&rights);
+	cap_rights_clear(&rights, CAP_IOCTL);
+
+	CHECK(cap_rights_limit(fd, &rights) == 0);
 	CHECK(cap_ioctls_get(fd, cmds, nitems(cmds)) == 0);
 
 	cmds[0] = FIOCLEX;

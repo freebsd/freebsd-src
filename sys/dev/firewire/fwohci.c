@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2003 Hidetoshi Shimokawa
  * Copyright (c) 1998-2002 Katsushi Kobayashi and Hidetoshi Shimokawa
  * All rights reserved.
@@ -48,6 +50,7 @@
 #include <sys/kdb.h>
 
 #include <machine/bus.h>
+#include <machine/md_var.h>
 
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
@@ -188,6 +191,7 @@ static void fwohci_task_dma(void *, int);
 #define	OHCI_PREQLO		0x118
 #define	OHCI_PREQLOCLR		0x11c
 #define	OHCI_PREQUPPER		0x120
+#define OHCI_PREQUPPER_MAX	0xffff0000
 
 #define	OHCI_SID_BUF		0x64
 #define	OHCI_SID_CNT		0x68
@@ -509,7 +513,7 @@ fwohci_reset(struct fwohci_softc *sc, device_t dev)
 		OWRITE(sc, OHCI_ITCTLCLR(i), OHCI_CNTL_DMA_RUN);
 	}
 
-	/* FLUSH FIFO and reset Transmitter/Reciever */
+	/* FLUSH FIFO and reset Transmitter/Receiver */
 	OWRITE(sc, OHCI_HCCCTL, OHCI_HCC_RESET);
 	if (firewire_debug)
 		device_printf(dev, "resetting OHCI...");
@@ -690,7 +694,7 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 	sc->fc.config_rom[0] |= fw_crc16(&sc->fc.config_rom[1], 5*4);
 #endif
 
-/* SID recieve buffer must align 2^11 */
+/* SID receive buffer must align 2^11 */
 #define	OHCI_SIDSIZE	(1 << 11)
 	sc->sid_buf = fwdma_malloc(&sc->fc, OHCI_SIDSIZE, OHCI_SIDSIZE,
 	    &sc->sid_dma, BUS_DMA_WAITOK | BUS_DMA_COHERENT);
@@ -854,7 +858,7 @@ fwohci_execute_db2(void *arg, bus_dma_segment_t *segs, int nseg,
 static void
 fwohci_start(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 {
-	int i, s;
+	int i;
 	int tcode, hdr_len, pl_off;
 	int fsegment = -1;
 	uint32_t off;
@@ -880,7 +884,6 @@ fwohci_start(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 	if (dbch->flags & FWOHCI_DBCH_FULL)
 		return;
 
-	s = splfw();
 	db_tr = dbch->top;
 txloop:
 	xfer = STAILQ_FIRST(&dbch->xferq.q);
@@ -928,7 +931,7 @@ txloop:
 			OHCI_OUTPUT_MORE | OHCI_KEY_ST2 | hdr_len);
  	FWOHCI_DMA_WRITE(db->db.desc.addr, 0);
  	FWOHCI_DMA_WRITE(db->db.desc.res, 0);
-/* Specify bound timer of asy. responce */
+/* Specify bound timer of asy. response */
 	if (&sc->atrs == dbch) {
  		FWOHCI_DMA_WRITE(db->db.desc.res,
 			 (OREAD(sc, OHCI_CYCLETIMER) >> 12) + (1 << 13));
@@ -1030,7 +1033,6 @@ kick:
 	}
 
 	dbch->top = db_tr;
-	splx(s);
 	return;
 }
 
@@ -1247,10 +1249,6 @@ fwohci_db_init(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 	db_tr = (struct fwohcidb_tr *)
 		malloc(sizeof(struct fwohcidb_tr) * dbch->ndb,
 		M_FW, M_WAITOK | M_ZERO);
-	if (db_tr == NULL) {
-		printf("fwohci_db_init: malloc(1) failed\n");
-		return;
-	}
 
 #define DB_SIZE(x) (sizeof(struct fwohcidb) * (x)->ndesc)
 	dbch->am = fwdma_malloc_multiseg(&sc->fc, sizeof(struct fwohcidb),
@@ -1748,7 +1746,7 @@ fwohci_stop(struct fwohci_softc *sc, device_t dev)
 			| OHCI_INT_DMA_ARRQ | OHCI_INT_DMA_ARRS
 			| OHCI_INT_PHY_BUS_R);
 
-/* FLUSH FIFO and reset Transmitter/Reciever */
+/* FLUSH FIFO and reset Transmitter/Receiver */
 	OWRITE(sc, OHCI_HCCCTL, OHCI_HCC_RESET);
 #endif
 
@@ -1821,6 +1819,7 @@ static void
 fwohci_intr_core(struct fwohci_softc *sc, uint32_t stat, int count)
 {
 	struct firewire_comm *fc = (struct firewire_comm *)sc;
+	uintmax_t prequpper;
 	uint32_t node_id, plen;
 
 	FW_GLOCK_ASSERT(fc);
@@ -1852,8 +1851,27 @@ fwohci_intr_core(struct fwohci_softc *sc, uint32_t stat, int count)
 			/* allow from all nodes */
 			OWRITE(sc, OHCI_PREQHI, 0x7fffffff);
 			OWRITE(sc, OHCI_PREQLO, 0xffffffff);
-			/* 0 to 4GB region */
-			OWRITE(sc, OHCI_PREQUPPER, 0x10000);
+			prequpper = ((uintmax_t)Maxmem << PAGE_SHIFT) >> 16;
+			if (prequpper > OHCI_PREQUPPER_MAX) {
+				device_printf(fc->dev,
+				    "Physical memory size of 0x%jx exceeds "
+				    "fire wire address space.  Limiting dma "
+				    "to memory below 0x%jx\n",
+				    (uintmax_t)Maxmem << PAGE_SHIFT,
+				    (uintmax_t)OHCI_PREQUPPER_MAX << 16);
+				prequpper = OHCI_PREQUPPER_MAX;
+			}
+			OWRITE(sc, OHCI_PREQUPPER, prequpper & 0xffffffff);
+			if (OREAD(sc, OHCI_PREQUPPER) !=
+			    (prequpper & 0xffffffff)) {
+				device_printf(fc->dev,
+				   "PhysicalUpperBound register is not "
+				   "implemented.  Physical memory access "
+				   "is limited to the first 4GB\n");
+				device_printf(fc->dev,
+				   "PhysicalUpperBound = 0x%08x\n",
+				    OREAD(sc, OHCI_PREQUPPER));
+			}
 		}
 		/* Set ATRetries register */
 		OWRITE(sc, OHCI_ATRETRY, 1<<(13 + 16) | 0xfff);
@@ -2171,7 +2189,7 @@ fwohci_rbuf_update(struct fwohci_softc *sc, int dmach)
 	struct fw_bulkxfer *chunk;
 	struct fw_xferq *ir;
 	uint32_t stat;
-	int s, w = 0, ldesc;
+	int w = 0, ldesc;
 
 	ir = fc->ir[dmach];
 	ldesc = sc->ir[dmach].ndesc - 1;
@@ -2179,7 +2197,6 @@ fwohci_rbuf_update(struct fwohci_softc *sc, int dmach)
 #if 0
 	dump_db(sc, dmach);
 #endif
-	s = splfw();
 	if ((ir->flag & FWXFERQ_HANDLER) == 0)
 		FW_GLOCK(fc);
 	fwdma_sync_multiseg_all(sc->ir[dmach].am, BUS_DMASYNC_POSTREAD);
@@ -2199,7 +2216,7 @@ fwohci_rbuf_update(struct fwohci_softc *sc, int dmach)
 				ir->bnpacket, BUS_DMASYNC_POSTREAD);
 		} else {
 			/* XXX */
-			printf("fwohci_rbuf_update: this shouldn't happend\n");
+			printf("fwohci_rbuf_update: this shouldn't happened\n");
 		}
 
 		STAILQ_REMOVE_HEAD(&ir->stdma, link);
@@ -2218,7 +2235,6 @@ fwohci_rbuf_update(struct fwohci_softc *sc, int dmach)
 	}
 	if ((ir->flag & FWXFERQ_HANDLER) == 0)
 		FW_GUNLOCK(fc);
-	splx(s);
 	if (w == 0)
 		return;
 

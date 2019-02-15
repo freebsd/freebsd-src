@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2010 Juli Mallett <jmallett@FreeBSD.org>
  * All rights reserved.
  *
@@ -132,8 +134,10 @@ typedef	pt_entry_t *pd_entry_t;
  * 		it is matched.
  */
 #define	PTE_C(attr)		((attr & 0x07) << 3)
+#define	PTE_C_MASK		(PTE_C(0x07))
 #define	PTE_C_UNCACHED		(PTE_C(MIPS_CCA_UNCACHED))
 #define	PTE_C_CACHE		(PTE_C(MIPS_CCA_CACHED))
+#define	PTE_C_WC		(PTE_C(MIPS_CCA_WC))
 #define	PTE_D			0x04
 #define	PTE_V			0x02
 #define	PTE_G			0x01
@@ -158,6 +162,7 @@ typedef	pt_entry_t *pd_entry_t;
 #define	pte_clear(pte, bit)	(*(pte) &= ~(bit))
 #define	pte_set(pte, bit)	(*(pte) |= (bit))
 #define	pte_test(pte, bit)	((*(pte) & (bit)) == (bit))
+#define	pte_cache_bits(pte)	((*(pte) >> 3) & 0x07)
 
 /* Assembly support for PTE access*/
 #ifdef LOCORE
@@ -188,4 +193,17 @@ typedef	pt_entry_t *pd_entry_t;
 #endif
 
 #endif /* LOCORE */
+
+/* PageMask Register (CP0 Register 5, Select 0) Values */
+#define	MIPS3_PGMASK_MASKX	0x00001800
+#define	MIPS3_PGMASK_4K		0x00000000
+#define	MIPS3_PGMASK_16K	0x00006000
+#define	MIPS3_PGMASK_64K	0x0001e000
+#define	MIPS3_PGMASK_256K	0x0007e000
+#define	MIPS3_PGMASK_1M		0x001fe000
+#define	MIPS3_PGMASK_4M		0x007fe000
+#define	MIPS3_PGMASK_16M	0x01ffe000
+#define	MIPS3_PGMASK_64M	0x07ffe000
+#define	MIPS3_PGMASK_256M	0x1fffe000
+
 #endif /* !_MACHINE_PTE_H_ */

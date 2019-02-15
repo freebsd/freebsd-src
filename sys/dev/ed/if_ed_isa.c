@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1995, David Greenman
  * All rights reserved.
  *
@@ -201,3 +203,4 @@ static driver_t ed_isa_driver = {
 DRIVER_MODULE(ed, isa, ed_isa_driver, ed_devclass, 0, 0);
 MODULE_DEPEND(ed, isa, 1, 1, 1);
 MODULE_DEPEND(ed, ether, 1, 1, 1);
+ISA_PNP_INFO(ed_ids);

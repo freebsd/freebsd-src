@@ -1,5 +1,9 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Core definitions and data structures shareable across OS platforms.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2010 Spectra Logic Corporation
  * Copyright (C) 2008 Doug Rabson
@@ -39,7 +43,7 @@
  * \file xenbusb.h
  *
  * Datastructures and function declarations for use in implementing
- * bus attachements (e.g. frontend and backend device busses) for XenBus.
+ * bus attachements (e.g. frontend and backend device buses) for XenBus.
  */
 
 /**

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: (ISC AND BSD-3-Clause)
+ *
  * Portions Copyright (C) 2004, 2005, 2008, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1996-2003  Internet Software Consortium.
  *
@@ -15,7 +17,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
+/*-
  * Copyright (c) 1983, 1989, 1993
  *    The Regents of the University of California.  All rights reserved.
  *
@@ -106,7 +108,7 @@ typedef enum __ns_sect {
 } ns_sect;
 
 /*%
- * Network name (compressed or not) type.  Equivilent to a pointer when used
+ * Network name (compressed or not) type.  Equivalent to a pointer when used
  * in a function prototype.  Can be const'd.
  */
 typedef u_char ns_nname[NS_MAXNNAME];

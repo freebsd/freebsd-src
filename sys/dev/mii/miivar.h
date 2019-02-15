@@ -1,6 +1,8 @@
 /*	$NetBSD: miivar.h,v 1.8 1999/04/23 04:24:32 thorpej Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1998, 1999 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -45,13 +47,6 @@
 struct mii_softc;
 
 /*
- * Callbacks from MII layer into network interface device driver.
- */
-typedef	int (*mii_readreg_t)(struct device *, int, int);
-typedef	void (*mii_writereg_t)(struct device *, int, int, int);
-typedef	void (*mii_statchg_t)(struct device *);
-
-/*
  * A network interface driver has one of these structures in its softc.
  * It is the interface from the network interface driver to the MII
  * layer.
@@ -73,13 +68,6 @@ struct mii_data {
 	 */
 	u_int mii_media_status;
 	u_int mii_media_active;
-
-	/*
-	 * Calls from MII layer into network interface driver.
-	 */
-	mii_readreg_t mii_readreg;
-	mii_writereg_t mii_writereg;
-	mii_statchg_t mii_statchg;
 };
 typedef struct mii_data mii_data_t;
 
@@ -170,6 +158,42 @@ typedef struct mii_softc mii_softc_t;
 #define	MII_PHY_ANY		-1
 
 /*
+ * Constants used to describe the type of attachment between MAC and PHY.
+ */
+enum mii_contype {
+	MII_CONTYPE_UNKNOWN,	/* Must be have value 0. */
+
+	MII_CONTYPE_MII,
+	MII_CONTYPE_GMII,
+	MII_CONTYPE_SGMII,
+	MII_CONTYPE_QSGMII,
+	MII_CONTYPE_TBI,
+	MII_CONTYPE_REVMII,	/* Reverse MII */
+	MII_CONTYPE_RMII,
+	MII_CONTYPE_RGMII,	/* Delays provided by MAC or PCB */
+	MII_CONTYPE_RGMII_ID,	/* Rx and tx delays provided by PHY */
+	MII_CONTYPE_RGMII_RXID,	/* Only rx delay provided by PHY */
+	MII_CONTYPE_RGMII_TXID,	/* Only tx delay provided by PHY */
+	MII_CONTYPE_RTBI,
+	MII_CONTYPE_SMII,
+	MII_CONTYPE_XGMII,
+	MII_CONTYPE_TRGMII,
+	MII_CONTYPE_2000BX,
+	MII_CONTYPE_2500BX,
+	MII_CONTYPE_RXAUI,
+
+	MII_CONTYPE_COUNT	/* Add new types before this line. */
+};
+typedef enum mii_contype mii_contype_t;
+
+static inline bool
+mii_contype_is_rgmii(mii_contype_t con)
+{
+
+	return (con >= MII_CONTYPE_RGMII && con <= MII_CONTYPE_RGMII_TXID);
+}
+
+/*
  * Used to attach a PHY to a parent.
  */
 struct mii_attach_args {
@@ -193,27 +217,6 @@ struct mii_phydesc {
 #define MII_PHY_DESC(a, b) { MII_OUI_ ## a, MII_MODEL_ ## a ## _ ## b, \
 	MII_STR_ ## a ## _ ## b }
 #define MII_PHY_END	{ 0, 0, NULL }
-
-/*
- * An array of these structures map MII media types to BMCR/ANAR settings.
- */
-struct mii_media {
-	u_int	mm_bmcr;		/* BMCR settings for this media */
-	u_int	mm_anar;		/* ANAR settings for this media */
-	u_int	mm_gtcr;		/* 100base-T2 or 1000base-T CR */
-};
-
-#define	MII_MEDIA_NONE		0
-#define	MII_MEDIA_10_T		1
-#define	MII_MEDIA_10_T_FDX	2
-#define	MII_MEDIA_100_T4	3
-#define	MII_MEDIA_100_TX	4
-#define	MII_MEDIA_100_TX_FDX	5
-#define	MII_MEDIA_1000_X	6
-#define	MII_MEDIA_1000_X_FDX	7
-#define	MII_MEDIA_1000_T	8
-#define	MII_MEDIA_1000_T_FDX	9
-#define	MII_NMEDIA		10
 
 #ifdef _KERNEL
 
@@ -249,7 +252,6 @@ extern driver_t		miibus_driver;
 
 int	mii_attach(device_t, device_t *, if_t, ifm_change_cb_t,
 	    ifm_stat_cb_t, int, int, int, int);
-void	mii_down(struct mii_data *);
 int	mii_mediachg(struct mii_data *);
 void	mii_tick(struct mii_data *);
 void	mii_pollstat(struct mii_data *);
@@ -257,12 +259,15 @@ void	mii_phy_add_media(struct mii_softc *);
 
 int	mii_phy_auto(struct mii_softc *);
 int	mii_phy_detach(device_t dev);
-void	mii_phy_down(struct mii_softc *);
 u_int	mii_phy_flowstatus(struct mii_softc *);
 void	mii_phy_reset(struct mii_softc *);
 void	mii_phy_setmedia(struct mii_softc *sc);
 void	mii_phy_update(struct mii_softc *, int);
 int	mii_phy_tick(struct mii_softc *);
+int	mii_phy_mac_match(struct mii_softc *, const char *);
+int	mii_dev_mac_match(device_t, const char *);
+void	*mii_phy_mac_softc(struct mii_softc *);
+void	*mii_dev_mac_softc(device_t);
 
 const struct mii_phydesc * mii_phy_match(const struct mii_attach_args *ma,
     const struct mii_phydesc *mpd);

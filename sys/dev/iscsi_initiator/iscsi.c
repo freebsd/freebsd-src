@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2011 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
@@ -150,7 +152,7 @@ iscsi_close(struct cdev *dev, int flag, int otyp, struct thread *td)
 	  sdebug(3, "sp->flags=%x", sp->flags );
 	  /*
 	   | if still in full phase, this probably means
-	   | that something went realy bad.
+	   | that something went really bad.
 	   | it could be a result from 'shutdown', in which case
 	   | we will ignore it (so buffers can be flushed).
 	   | the problem is that there is no way of differentiating
@@ -388,20 +390,14 @@ i_setsoc(isc_session_t *sp, int fd, struct thread *td)
      if(sp->soc != NULL)
 	  isc_stop_receiver(sp);
 
-     error = fget(td, fd, cap_rights_init(&rights, CAP_SOCK_CLIENT), &sp->fp);
+     error = getsock_cap(td, fd, cap_rights_init(&rights, CAP_SOCK_CLIENT),
+	     &sp->fp, NULL, NULL);
      if(error)
 	  return error;
 
-     error = fgetsock(td, fd, cap_rights_init(&rights, CAP_SOCK_CLIENT),
-        &sp->soc, 0);
-     if(error == 0) {
-	  sp->td = td;
-	  isc_start_receiver(sp);
-     }
-     else {
-	  fdrop(sp->fp, td);
-	  sp->fp = NULL;
-     }
+     sp->soc = sp->fp->f_data;
+     sp->td = td;
+     isc_start_receiver(sp);
 
      return error;
 }
@@ -804,8 +800,6 @@ iscsi_stop(void)
      TAILQ_FOREACH_SAFE(sp, &isc->isc_sess, sp_link, sp_tmp) {
 	  //XXX: check for activity ...
 	  ism_stop(sp);
-	  if(sp->cam_sim != NULL)
-	       ic_destroy(sp);
      }
      mtx_destroy(&isc->isc_mtx);
      sx_destroy(&isc->unit_sx);

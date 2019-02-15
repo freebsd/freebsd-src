@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Chelsio Communications, Inc.
  * All rights reserved.
  * Written by: Navdeep Parhar <np@FreeBSD.org>
@@ -124,7 +126,8 @@ t4_cloner_match(struct if_clone *ifc, const char *name)
 {
 
 	if (strncmp(name, "t4nex", 5) != 0 &&
-	    strncmp(name, "t5nex", 5) != 0)
+	    strncmp(name, "t5nex", 5) != 0 &&
+	    strncmp(name, "t6nex", 5) != 0)
 		return (0);
 	if (name[5] < '0' || name[5] > '9')
 		return (0);
@@ -471,6 +474,7 @@ tracer_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
+	case SIOCGIFXMEDIA:
 		sx_xlock(&t4_trace_lock);
 		sc = ifp->if_softc;
 		if (sc == NULL)

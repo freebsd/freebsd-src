@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../fs/tmpfs
+.PATH: ${SRCTOP}/sys/fs/tmpfs
 
 KMOD=	tmpfs
 SRCS=	vnode_if.h \

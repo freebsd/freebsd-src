@@ -69,13 +69,6 @@ typedef struct
   void (*Write)(void *p, Byte b);
 } IByteOut;
 
-
-typedef struct
-{
-  void *(*Alloc)(void *p, size_t size);
-  void (*Free)(void *p, void *address); /* address can be 0 */
-} ISzAlloc;
-
 /*** End defined in Types.h ***/
 /*** Begin defined in CpuArch.h ***/
 

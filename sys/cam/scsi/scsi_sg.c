@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Scott Long
  * All rights reserved.
  *
@@ -99,6 +101,7 @@ struct sg_softc {
 	sg_state		state;
 	sg_flags		flags;
 	int			open_count;
+	u_int			maxio;
 	struct devstat		*device_stats;
 	TAILQ_HEAD(, sg_rdwr)	rdwr_done;
 	struct cdev		*dev;
@@ -299,7 +302,8 @@ sgregister(struct cam_periph *periph, void *arg)
 	struct sg_softc *softc;
 	struct ccb_getdev *cgd;
 	struct ccb_pathinq cpi;
-	int no_tags;
+	struct make_dev_args args;
+	int no_tags, error;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (cgd == NULL) {
@@ -320,10 +324,14 @@ sgregister(struct cam_periph *periph, void *arg)
 	TAILQ_INIT(&softc->rdwr_done);
 	periph->softc = softc;
 
-	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
+
+	if (cpi.maxio == 0)
+		softc->maxio = DFLTPHYS;	/* traditional default */
+	else if (cpi.maxio > MAXPHYS)
+		softc->maxio = MAXPHYS;		/* for safety */
+	else
+		softc->maxio = cpi.maxio;	/* real value */
 
 	/*
 	 * We pass in 0 for all blocksize, since we don't know what the
@@ -345,7 +353,7 @@ sgregister(struct cam_periph *periph, void *arg)
 	 * instance for it.  We'll release this reference once the devfs
 	 * instance has been freed.
 	 */
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -353,9 +361,20 @@ sgregister(struct cam_periph *periph, void *arg)
 	}
 
 	/* Register the device */
-	softc->dev = make_dev(&sg_cdevsw, periph->unit_number,
-			      UID_ROOT, GID_OPERATOR, 0600, "%s%d",
-			      periph->periph_name, periph->unit_number);
+	make_dev_args_init(&args);
+	args.mda_devsw = &sg_cdevsw;
+	args.mda_unit = periph->unit_number;
+	args.mda_uid = UID_ROOT;
+	args.mda_gid = GID_OPERATOR;
+	args.mda_mode = 0600;
+	args.mda_si_drv1 = periph;
+	error = make_dev_s(&args, &softc->dev, "%s%d",
+	    periph->periph_name, periph->unit_number);
+	if (error != 0) {
+		cam_periph_lock(periph);
+		cam_periph_release_locked(periph);
+		return (CAM_REQ_CMP_ERR);
+	}
 	if (periph->unit_number < 26) {
 		(void)make_dev_alias(softc->dev, "sg%c",
 		    periph->unit_number + 'a');
@@ -365,7 +384,6 @@ sgregister(struct cam_periph *periph, void *arg)
 		    (periph->unit_number % 26) + 'a');
 	}
 	cam_periph_lock(periph);
-	softc->dev->si_drv1 = periph;
 
 	/*
 	 * Add as async callback so that we get
@@ -421,10 +439,7 @@ sgopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	int error = 0;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return (ENXIO);
-
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+	if (cam_periph_acquire(periph) != 0)
 		return (ENXIO);
 
 	/*
@@ -460,8 +475,6 @@ sgclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	struct mtx *mtx;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return (ENXIO);
 	mtx = cam_periph_mtx(periph);
 	mtx_lock(mtx);
 
@@ -498,9 +511,6 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	int dir, error;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return (ENXIO);
-
 	cam_periph_lock(periph);
 
 	softc = (struct sg_softc *)periph->softc;
@@ -570,7 +580,7 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 
 		cam_fill_csio(csio,
 			      /*retries*/1,
-			      sgdone,
+			      /*cbfcnp*/NULL,
 			      dir|CAM_DEV_QFRZDIS,
 			      MSG_SIMPLE_Q_TAG,
 			      req->dxferp,
@@ -894,7 +904,7 @@ sgsendccb(struct cam_periph *periph, union ccb *ccb)
 	 * need for additional checks.
 	 */
 	cam_periph_unlock(periph);
-	error = cam_periph_mapmem(ccb, &mapinfo);
+	error = cam_periph_mapmem(ccb, &mapinfo, softc->maxio);
 	cam_periph_lock(periph);
 	if (error)
 		return (error);
@@ -930,8 +940,7 @@ sgerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct sg_softc *)periph->softc;
 
-	return (cam_periph_error(ccb, cam_flags, sense_flags,
-				 &softc->saved_ccb));
+	return (cam_periph_error(ccb, cam_flags, sense_flags));
 }
 
 static void

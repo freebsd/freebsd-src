@@ -6,9 +6,10 @@
 # Do not include `info' in the SUBDIR list, it is handled separately.
 
 SUBDIR=	${_colldef} \
+	${_ctypedef} \
 	${_dict} \
 	${_doc} \
-	dtrace \
+	${_dtrace} \
 	${_examples} \
 	${_i18n} \
 	keys \
@@ -16,7 +17,6 @@ SUBDIR=	${_colldef} \
 	${_me} \
 	misc \
 	${_mk} \
-	${_mklocale} \
 	${_monetdef} \
 	${_msgdef} \
 	${_numericdef} \
@@ -26,7 +26,6 @@ SUBDIR=	${_colldef} \
 	${_syscons} \
 	tabset \
 	termcap \
-	${_tests} \
 	${_timedef} \
 	${_vt} \
 	${_zoneinfo}
@@ -37,6 +36,10 @@ SUBDIR=	${_colldef} \
 _snmp=		snmp
 .endif
 
+.if ${MK_CDDL} != "no"
+_dtrace=	dtrace
+.endif
+
 .if ${MK_DICT} != "no"
 _dict=		dict
 .endif
@@ -45,21 +48,17 @@ _dict=		dict
 _examples=	examples
 .endif
 
-.if ${MK_GROFF} != "no"
-_me=		me
-.endif
-
 .if ${MK_ICONV} != "no"
 _i18n=		i18n
 .endif
 
 .if ${MK_LOCALES} != "no"
-_colldef =	colldef
-_mklocale =	mklocale
-_monetdef =	monetdef
-_msgdef =	msgdef
-_numericdef =	numericdef
-_timedef =	timedef
+_colldef=	colldef
+_ctypedef=	ctypedef
+_monetdef=	monetdef
+_msgdef=	msgdef
+_numericdef=	numericdef
+_timedef=	timedef
 .endif
 
 .if ${MK_MAKE} != "no"
@@ -82,9 +81,7 @@ _doc=		doc
 _syscons=	syscons
 .endif
 
-.if ${MK_TESTS} != "no"
-_tests=		tests
-.endif
+SUBDIR.${MK_TESTS}+= tests
 
 .if ${MK_VT} != "no"
 _vt=		vt
@@ -93,5 +90,7 @@ _vt=		vt
 .if ${MK_ZONEINFO} != "no"
 _zoneinfo=	zoneinfo
 .endif
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

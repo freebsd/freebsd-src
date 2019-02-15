@@ -36,15 +36,11 @@ enum imsg_code {
 	IMSG_SCRIPT_WRITE_PARAMS,
 	IMSG_SCRIPT_GO,
 	IMSG_SCRIPT_GO_RET,
-	IMSG_SEND_PACKET
+	IMSG_SEND_PACKET,
+	IMSG_SET_INTERFACE_MTU,
 };
 
 struct imsg_hdr {
 	enum imsg_code	code;
 	size_t		len;
 };
-
-struct buf	*buf_open(size_t);
-int		 buf_add(struct buf *, void *, size_t);
-int		 buf_close(int, struct buf *);
-ssize_t		 buf_read(int sock, void *, size_t);

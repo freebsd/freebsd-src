@@ -14,6 +14,7 @@
 
 #include "llvm/TableGen/Error.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/Support/Signals.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cstdlib>
 
@@ -36,6 +37,10 @@ static void PrintMessage(ArrayRef<SMLoc> Loc, SourceMgr::DiagKind Kind,
   for (unsigned i = 1; i < Loc.size(); ++i)
     SrcMgr.PrintMessage(Loc[i], SourceMgr::DK_Note,
                         "instantiated from multiclass");
+}
+
+void PrintNote(ArrayRef<SMLoc> NoteLoc, const Twine &Msg) {
+  PrintMessage(NoteLoc, SourceMgr::DK_Note, Msg);
 }
 
 void PrintWarning(ArrayRef<SMLoc> WarningLoc, const Twine &Msg) {
@@ -62,13 +67,17 @@ void PrintError(const Twine &Msg) {
   errs() << "error:" << Msg << "\n";
 }
 
-void PrintFatalError(const std::string &Msg) {
-  PrintError(Twine(Msg));
+void PrintFatalError(const Twine &Msg) {
+  PrintError(Msg);
+  // The following call runs the file cleanup handlers.
+  sys::RunInterruptHandlers();
   std::exit(1);
 }
 
-void PrintFatalError(ArrayRef<SMLoc> ErrorLoc, const std::string &Msg) {
+void PrintFatalError(ArrayRef<SMLoc> ErrorLoc, const Twine &Msg) {
   PrintError(ErrorLoc, Msg);
+  // The following call runs the file cleanup handlers.
+  sys::RunInterruptHandlers();
   std::exit(1);
 }
 

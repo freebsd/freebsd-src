@@ -1,6 +1,8 @@
 /*      $FreeBSD$	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2006
  *      Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
  *
@@ -87,7 +89,8 @@ struct ipw_vap {
 #define	IPW_VAP(vap)	((struct ipw_vap *)(vap))
 
 struct ipw_softc {
-	struct ifnet			*sc_ifp;
+	struct ieee80211com		sc_ic;
+	struct mbufq			sc_snd;
 	device_t			sc_dev;
 
 	struct mtx			sc_mtx;
@@ -104,6 +107,7 @@ struct ipw_softc {
 #define	IPW_FLAG_BUSY			0x0040
 #define	IPW_FLAG_ASSOCIATING		0x0080
 #define	IPW_FLAG_ASSOCIATED		0x0100
+#define	IPW_FLAG_RUNNING		0x0200
 
 	struct resource			*irq;
 	struct resource			*mem;
@@ -154,6 +158,8 @@ struct ipw_softc {
 	uint32_t			txold;
 	uint32_t			rxcur;
 	int				txfree;
+
+	uint16_t			chanmask;
 
 	struct ipw_rx_radiotap_header	sc_rxtap;
 	struct ipw_tx_radiotap_header	sc_txtap;

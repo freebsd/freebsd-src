@@ -18,12 +18,16 @@ SRCS=	acl.c \
 	renew.c
 
 CFLAGS+=-I${KRB5DIR}/lib/krb5 -I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/roken \
-	-I${KRB5DIR}/kcm -I${KRB5DIR}/lib/ipc ${LDAPCFLAGS}
-DPADD=	${LIBHDB} ${LIBKRB5} ${LIBROKEN} ${LIBASN1} ${LIBHEIMNTLM} \
-	${LIBHEIMIPCS} ${LIBCRYPTO} ${LIBCRYPT} ${LIBVERS} ${LDAPDPADD}
-LDADD=	-lhdb -lkrb5 -lroken -lasn1 -lheimntlm ${LDHEIMIPCS} \
-	-lcrypto -lcrypt ${LIBVERS} ${LDAPLDADD}
-USEPRIVATELIB= heimipcs
+	-I${KRB5DIR}/kcm -I${KRB5DIR}/lib/ipc \
+	-I${KRB5DIR}/lib/ntlm \
+	-I${.OBJDIR:H:H}/lib/libkrb5 \
+	-I${.OBJDIR:H:H}/lib/libroken \
+	-I${.OBJDIR:H:H}/lib/libasn1 \
+	-I${.OBJDIR:H:H}/lib/libheimntlm \
+	${LDAPCFLAGS}
+LIBADD=	krb5 roken heimntlm heimipcs crypto
+DPADD=	${LDAPDPADD}
+LDADD=	${LIBVERS} ${LDAPLDADD}
 LDFLAGS=${LDAPLDFLAGS}
 
 .include <bsd.prog.mk>

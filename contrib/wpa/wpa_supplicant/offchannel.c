@@ -12,6 +12,7 @@
 #include "common.h"
 #include "utils/eloop.h"
 #include "wpa_supplicant_i.h"
+#include "p2p_supplicant.h"
 #include "driver_i.h"
 #include "offchannel.h"
 
@@ -22,16 +23,36 @@ wpas_get_tx_interface(struct wpa_supplicant *wpa_s, const u8 *src)
 {
 	struct wpa_supplicant *iface;
 
-	if (os_memcmp(src, wpa_s->own_addr, ETH_ALEN) == 0)
+	if (os_memcmp(src, wpa_s->own_addr, ETH_ALEN) == 0) {
+#ifdef CONFIG_P2P
+		if (wpa_s->p2p_mgmt && wpa_s != wpa_s->parent &&
+		    wpa_s->parent->ap_iface &&
+		    os_memcmp(wpa_s->parent->own_addr,
+			      wpa_s->own_addr, ETH_ALEN) == 0 &&
+		    wpabuf_len(wpa_s->pending_action_tx) >= 2 &&
+		    *wpabuf_head_u8(wpa_s->pending_action_tx) !=
+		    WLAN_ACTION_PUBLIC) {
+			/*
+			 * When P2P Device interface has same MAC address as
+			 * the GO interface, make sure non-Public Action frames
+			 * are sent through the GO interface. The P2P Device
+			 * interface can only send Public Action frames.
+			 */
+			wpa_printf(MSG_DEBUG,
+				   "P2P: Use GO interface %s instead of interface %s for Action TX",
+				   wpa_s->parent->ifname, wpa_s->ifname);
+			return wpa_s->parent;
+		}
+#endif /* CONFIG_P2P */
 		return wpa_s;
+	}
 
 	/*
 	 * Try to find a group interface that matches with the source address.
 	 */
 	iface = wpa_s->global->ifaces;
 	while (iface) {
-		if (os_memcmp(wpa_s->pending_action_src,
-			      iface->own_addr, ETH_ALEN) == 0)
+		if (os_memcmp(src, iface->own_addr, ETH_ALEN) == 0)
 			break;
 		iface = iface->next;
 	}
@@ -55,11 +76,12 @@ static void wpas_send_action_cb(void *eloop_ctx, void *timeout_ctx)
 
 	without_roc = wpa_s->pending_action_without_roc;
 	wpa_s->pending_action_without_roc = 0;
-	wpa_printf(MSG_DEBUG, "Off-channel: Send Action callback "
-		   "(without_roc=%d pending_action_tx=%p)",
-		   without_roc, wpa_s->pending_action_tx);
+	wpa_printf(MSG_DEBUG,
+		   "Off-channel: Send Action callback (without_roc=%d pending_action_tx=%p pending_action_tx_done=%d)",
+		   without_roc, wpa_s->pending_action_tx,
+		   !!wpa_s->pending_action_tx_done);
 
-	if (wpa_s->pending_action_tx == NULL)
+	if (wpa_s->pending_action_tx == NULL || wpa_s->pending_action_tx_done)
 		return;
 
 	/*
@@ -83,6 +105,7 @@ static void wpas_send_action_cb(void *eloop_ctx, void *timeout_ctx)
 			   wpa_s->off_channel_freq,
 			   iface->assoc_freq);
 		if (without_roc && wpa_s->off_channel_freq == 0) {
+			unsigned int duration = 200;
 			/*
 			 * We may get here if wpas_send_action() found us to be
 			 * on the correct channel, but remain-on-channel cancel
@@ -90,9 +113,18 @@ static void wpas_send_action_cb(void *eloop_ctx, void *timeout_ctx)
 			 */
 			wpa_printf(MSG_DEBUG, "Off-channel: Schedule "
 				   "remain-on-channel to send Action frame");
+#ifdef CONFIG_TESTING_OPTIONS
+			if (wpa_s->extra_roc_dur) {
+				wpa_printf(MSG_DEBUG,
+					   "TESTING: Increase ROC duration %u -> %u",
+					   duration,
+					   duration + wpa_s->extra_roc_dur);
+				duration += wpa_s->extra_roc_dur;
+	}
+#endif /* CONFIG_TESTING_OPTIONS */
 			if (wpa_drv_remain_on_channel(
-				    wpa_s, wpa_s->pending_action_freq, 200) <
-			    0) {
+				    wpa_s, wpa_s->pending_action_freq,
+				    duration) < 0) {
 				wpa_printf(MSG_DEBUG, "Off-channel: Failed to "
 					   "request driver to remain on "
 					   "channel (%u MHz) for Action Frame "
@@ -107,8 +139,9 @@ static void wpas_send_action_cb(void *eloop_ctx, void *timeout_ctx)
 	}
 
 	wpa_printf(MSG_DEBUG, "Off-channel: Sending pending Action frame to "
-		   MACSTR " using interface %s",
-		   MAC2STR(wpa_s->pending_action_dst), iface->ifname);
+		   MACSTR " using interface %s (pending_action_tx=%p)",
+		   MAC2STR(wpa_s->pending_action_dst), iface->ifname,
+		   wpa_s->pending_action_tx);
 	res = wpa_drv_send_action(iface, wpa_s->pending_action_freq, 0,
 				  wpa_s->pending_action_dst,
 				  wpa_s->pending_action_src,
@@ -159,6 +192,25 @@ void offchannel_send_action_tx_status(
 		return;
 	}
 
+	/* Accept report only if the contents of the frame matches */
+	if (data_len - wpabuf_len(wpa_s->pending_action_tx) != 24 ||
+	    os_memcmp(data + 24, wpabuf_head(wpa_s->pending_action_tx),
+		      wpabuf_len(wpa_s->pending_action_tx)) != 0) {
+		wpa_printf(MSG_DEBUG, "Off-channel: Ignore Action TX status - "
+				   "mismatching contents with pending frame");
+		wpa_hexdump(MSG_MSGDUMP, "TX status frame data",
+			    data, data_len);
+		wpa_hexdump_buf(MSG_MSGDUMP, "Pending TX frame",
+				wpa_s->pending_action_tx);
+		return;
+	}
+
+	wpa_printf(MSG_DEBUG,
+		   "Off-channel: Delete matching pending action frame (dst="
+		   MACSTR " pending_action_tx=%p)", MAC2STR(dst),
+		   wpa_s->pending_action_tx);
+	wpa_hexdump_buf(MSG_MSGDUMP, "Pending TX frame",
+			wpa_s->pending_action_tx);
 	wpabuf_free(wpa_s->pending_action_tx);
 	wpa_s->pending_action_tx = NULL;
 
@@ -172,6 +224,14 @@ void offchannel_send_action_tx_status(
 			wpa_s->pending_action_bssid,
 			data, data_len, result);
 	}
+
+#ifdef CONFIG_P2P
+	if (wpa_s->p2p_long_listen > 0) {
+		/* Continue the listen */
+		wpa_printf(MSG_DEBUG, "P2P: Continuing long Listen state");
+		wpas_p2p_listen_start(wpa_s, wpa_s->p2p_long_listen);
+	}
+#endif /* CONFIG_P2P */
 }
 
 
@@ -216,10 +276,14 @@ int offchannel_send_action(struct wpa_supplicant *wpa_s, unsigned int freq,
 
 	if (wpa_s->pending_action_tx) {
 		wpa_printf(MSG_DEBUG, "Off-channel: Dropped pending Action "
-			   "frame TX to " MACSTR,
-			   MAC2STR(wpa_s->pending_action_dst));
+			   "frame TX to " MACSTR " (pending_action_tx=%p)",
+			   MAC2STR(wpa_s->pending_action_dst),
+			   wpa_s->pending_action_tx);
+		wpa_hexdump_buf(MSG_MSGDUMP, "Pending TX frame",
+				wpa_s->pending_action_tx);
 		wpabuf_free(wpa_s->pending_action_tx);
 	}
+	wpa_s->pending_action_tx_done = 0;
 	wpa_s->pending_action_tx = wpabuf_alloc(len);
 	if (wpa_s->pending_action_tx == NULL) {
 		wpa_printf(MSG_DEBUG, "Off-channel: Failed to allocate Action "
@@ -233,21 +297,30 @@ int offchannel_send_action(struct wpa_supplicant *wpa_s, unsigned int freq,
 	os_memcpy(wpa_s->pending_action_bssid, bssid, ETH_ALEN);
 	wpa_s->pending_action_freq = freq;
 	wpa_s->pending_action_no_cck = no_cck;
+	wpa_printf(MSG_DEBUG,
+		   "Off-channel: Stored pending action frame (dst=" MACSTR
+		   " pending_action_tx=%p)",
+		   MAC2STR(dst), wpa_s->pending_action_tx);
+	wpa_hexdump_buf(MSG_MSGDUMP, "Pending TX frame",
+			wpa_s->pending_action_tx);
 
 	if (freq != 0 && wpa_s->drv_flags & WPA_DRIVER_FLAGS_OFFCHANNEL_TX) {
 		struct wpa_supplicant *iface;
+		int ret;
 
-		iface = wpas_get_tx_interface(wpa_s,
-					      wpa_s->pending_action_src);
+		iface = wpas_get_tx_interface(wpa_s, src);
 		wpa_s->action_tx_wait_time = wait_time;
 
-		return wpa_drv_send_action(
+		ret = wpa_drv_send_action(
 			iface, wpa_s->pending_action_freq,
 			wait_time, wpa_s->pending_action_dst,
 			wpa_s->pending_action_src, wpa_s->pending_action_bssid,
 			wpabuf_head(wpa_s->pending_action_tx),
 			wpabuf_len(wpa_s->pending_action_tx),
 			wpa_s->pending_action_no_cck);
+		if (ret == 0)
+			wpa_s->pending_action_tx_done = 1;
+		return ret;
 	}
 
 	if (freq) {
@@ -285,6 +358,15 @@ int offchannel_send_action(struct wpa_supplicant *wpa_s, unsigned int freq,
 		   "channel");
 	if (wait_time > wpa_s->max_remain_on_chan)
 		wait_time = wpa_s->max_remain_on_chan;
+	else if (wait_time == 0)
+		wait_time = 20;
+#ifdef CONFIG_TESTING_OPTIONS
+	if (wpa_s->extra_roc_dur) {
+		wpa_printf(MSG_DEBUG, "TESTING: Increase ROC duration %u -> %u",
+			   wait_time, wait_time + wpa_s->extra_roc_dur);
+		wait_time += wpa_s->extra_roc_dur;
+	}
+#endif /* CONFIG_TESTING_OPTIONS */
 	if (wpa_drv_remain_on_channel(wpa_s, freq, wait_time) < 0) {
 		wpa_printf(MSG_DEBUG, "Off-channel: Failed to request driver "
 			   "to remain on channel (%u MHz) for Action "
@@ -307,15 +389,18 @@ int offchannel_send_action(struct wpa_supplicant *wpa_s, unsigned int freq,
  */
 void offchannel_send_action_done(struct wpa_supplicant *wpa_s)
 {
-	wpa_printf(MSG_DEBUG, "Off-channel: Action frame sequence done "
-		   "notification");
+	wpa_printf(MSG_DEBUG,
+		   "Off-channel: Action frame sequence done notification: pending_action_tx=%p drv_offchan_tx=%d action_tx_wait_time=%d off_channel_freq=%d roc_waiting_drv_freq=%d",
+		   wpa_s->pending_action_tx,
+		   !!(wpa_s->drv_flags & WPA_DRIVER_FLAGS_OFFCHANNEL_TX),
+		   wpa_s->action_tx_wait_time, wpa_s->off_channel_freq,
+		   wpa_s->roc_waiting_drv_freq);
 	wpabuf_free(wpa_s->pending_action_tx);
 	wpa_s->pending_action_tx = NULL;
 	if (wpa_s->drv_flags & WPA_DRIVER_FLAGS_OFFCHANNEL_TX &&
 	    wpa_s->action_tx_wait_time)
 		wpa_drv_send_action_cancel_wait(wpa_s);
-
-	if (wpa_s->off_channel_freq || wpa_s->roc_waiting_drv_freq) {
+	else if (wpa_s->off_channel_freq || wpa_s->roc_waiting_drv_freq) {
 		wpa_drv_cancel_remain_on_channel(wpa_s);
 		wpa_s->off_channel_freq = 0;
 		wpa_s->roc_waiting_drv_freq = 0;
@@ -378,6 +463,9 @@ const void * offchannel_pending_action_tx(struct wpa_supplicant *wpa_s)
  */
 void offchannel_clear_pending_action_tx(struct wpa_supplicant *wpa_s)
 {
+	wpa_printf(MSG_DEBUG,
+		   "Off-channel: Clear pending Action frame TX (pending_action_tx=%p",
+		   wpa_s->pending_action_tx);
 	wpabuf_free(wpa_s->pending_action_tx);
 	wpa_s->pending_action_tx = NULL;
 }

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -145,5 +147,9 @@
 #define sparc64_ptob(x)		((unsigned long)(x) << PAGE_SHIFT)
 
 #define	pgtok(x)		((unsigned long)(x) * (PAGE_SIZE / 1024))
+
+#ifdef _KERNEL
+#define	NO_FUEWORD	1
+#endif
 
 #endif /* !_SPARC64_INCLUDE_PARAM_H_ */

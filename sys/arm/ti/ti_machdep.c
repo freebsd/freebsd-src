@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994-1998 Mark Brinicombe.
  * Copyright (c) 1994 Brini.
  * All rights reserved.
@@ -40,31 +42,57 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/devmap.h>
 #include <machine/machdep.h>
 #include <machine/platformvar.h>
 
+#include <arm/ti/omap4/omap4_machdep.h>
 #include <arm/ti/omap4/omap4_reg.h>
+#include <arm/ti/ti_cpuid.h>
 
 #include "platform_if.h"
 
+#if defined(SOC_OMAP4)
+#include "platform_pl310_if.h"
+
+static platform_attach_t omap4_attach;
+static platform_devmap_init_t ti_omap4_devmap_init;
+#endif
+#if defined(SOC_TI_AM335X)
+static platform_attach_t ti_am335x_attach;
+static platform_devmap_init_t ti_am335x_devmap_init;
+#endif
+static platform_cpu_reset_t ti_plat_cpu_reset;
+
 void (*ti_cpu_reset)(void) = NULL;
 
-static vm_offset_t
-ti_lastaddr(platform_t plat)
-{
+int _ti_chip = -1;
 
-	return (arm_devmap_lastaddr());
+#if defined(SOC_OMAP4)
+static int
+omap4_attach(platform_t plat)
+{
+	_ti_chip = CHIP_OMAP_4;
+	return (0);
 }
+#endif
+
+#if defined(SOC_TI_AM335X)
+static int
+ti_am335x_attach(platform_t plat)
+{
+	_ti_chip = CHIP_AM335X;
+	return (0);
+}
+#endif
 
 /*
  * Construct static devmap entries to map out the most frequently used
@@ -74,8 +102,8 @@ ti_lastaddr(platform_t plat)
 static int
 ti_omap4_devmap_init(platform_t plat)
 {
-	arm_devmap_add_entry(0x48000000, 0x01000000); /*16mb L4_PER devices */
-	arm_devmap_add_entry(0x4A000000, 0x01000000); /*16mb L4_CFG devices */
+	devmap_add_entry(0x48000000, 0x01000000); /*16mb L4_PER devices */
+	devmap_add_entry(0x4A000000, 0x01000000); /*16mb L4_CFG devices */
 	return (0);
 }
 #endif
@@ -85,59 +113,54 @@ static int
 ti_am335x_devmap_init(platform_t plat)
 {
 
-	arm_devmap_add_entry(0x44C00000, 0x00400000); /* 4mb L4_WKUP devices*/
-	arm_devmap_add_entry(0x47400000, 0x00100000); /* 1mb USB            */
-	arm_devmap_add_entry(0x47800000, 0x00100000); /* 1mb mmchs2         */
-	arm_devmap_add_entry(0x48000000, 0x01000000); /*16mb L4_PER devices */
-	arm_devmap_add_entry(0x49000000, 0x00100000); /* 1mb edma3          */
-	arm_devmap_add_entry(0x49800000, 0x00300000); /* 3mb edma3          */
-	arm_devmap_add_entry(0x4A000000, 0x01000000); /*16mb L4_FAST devices*/
+	devmap_add_entry(0x44C00000, 0x00400000); /* 4mb L4_WKUP devices*/
+	devmap_add_entry(0x47400000, 0x00100000); /* 1mb USB            */
+	devmap_add_entry(0x47800000, 0x00100000); /* 1mb mmchs2         */
+	devmap_add_entry(0x48000000, 0x01000000); /*16mb L4_PER devices */
+	devmap_add_entry(0x49000000, 0x00100000); /* 1mb edma3          */
+	devmap_add_entry(0x49800000, 0x00300000); /* 3mb edma3          */
+	devmap_add_entry(0x4A000000, 0x01000000); /*16mb L4_FAST devices*/
 	return (0);
 }
 #endif
 
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
-
-	return (NULL);
-}
-
-int
-bus_dma_get_range_nb(void)
-{
-
-	return (0);
-}
-
-void
-cpu_reset()
+static void
+ti_plat_cpu_reset(platform_t plat)
 {
 	if (ti_cpu_reset)
 		(*ti_cpu_reset)();
 	else
 		printf("no cpu_reset implementation\n");
-	printf("Reset failed!\n");
-	while (1);
 }
 
 #if defined(SOC_OMAP4)
 static platform_method_t omap4_methods[] = {
+	PLATFORMMETHOD(platform_attach, 	omap4_attach),
 	PLATFORMMETHOD(platform_devmap_init,	ti_omap4_devmap_init),
-	PLATFORMMETHOD(platform_lastaddr,	ti_lastaddr),
+	PLATFORMMETHOD(platform_cpu_reset,	ti_plat_cpu_reset),
+
+#ifdef SMP
+	PLATFORMMETHOD(platform_mp_start_ap,	omap4_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid,	omap4_mp_setmaxid),
+#endif
+
+	PLATFORMMETHOD(platform_pl310_init,	omap4_pl310_init),
+	PLATFORMMETHOD(platform_pl310_write_ctrl, omap4_pl310_write_ctrl),
+	PLATFORMMETHOD(platform_pl310_write_debug, omap4_pl310_write_debug),
 
 	PLATFORMMETHOD_END,
 };
-FDT_PLATFORM_DEF(omap4, "omap4", 0, "ti,omap4430");
+FDT_PLATFORM_DEF(omap4, "omap4", 0, "ti,omap4430", 200);
 #endif
 
 #if defined(SOC_TI_AM335X)
 static platform_method_t am335x_methods[] = {
+	PLATFORMMETHOD(platform_attach, 	ti_am335x_attach),
 	PLATFORMMETHOD(platform_devmap_init,	ti_am335x_devmap_init),
-	PLATFORMMETHOD(platform_lastaddr,	ti_lastaddr),
+	PLATFORMMETHOD(platform_cpu_reset,	ti_plat_cpu_reset),
 
 	PLATFORMMETHOD_END,
 };
 
-FDT_PLATFORM_DEF(am335x, "am335x", 0, "ti,am335x");
+FDT_PLATFORM_DEF(am335x, "am335x", 0, "ti,am33xx", 200);
 #endif

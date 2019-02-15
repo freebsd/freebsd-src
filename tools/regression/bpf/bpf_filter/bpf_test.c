@@ -105,8 +105,8 @@ static const u_short	bpf_code_map[] = {
 	0x1013,	/* 0x60-0x6f: 1100100000001000 */
 	0x1010,	/* 0x70-0x7f: 0000100000001000 */
 	0x0093,	/* 0x80-0x8f: 1100100100000000 */
-	0x0000,	/* 0x90-0x9f: 0000000000000000 */
-	0x0000,	/* 0xa0-0xaf: 0000000000000000 */
+	0x1010,	/* 0x90-0x9f: 0000100000001000 */
+	0x1010,	/* 0xa0-0xaf: 0000100000001000 */
 	0x0002,	/* 0xb0-0xbf: 0100000000000000 */
 	0x0000,	/* 0xc0-0xcf: 0000000000000000 */
 	0x0000,	/* 0xd0-0xdf: 0000000000000000 */
@@ -149,7 +149,7 @@ bpf_validate(const struct bpf_insn *f, int len)
 		if (!BPF_VALIDATE_CODE(p->code))
 			return (0);
 		/*
-		 * Check that that jumps are forward, and within
+		 * Check that jumps are forward, and within
 		 * the code block.
 		 */
 		if (BPF_CLASS(p->code) == BPF_JMP) {
@@ -176,7 +176,8 @@ bpf_validate(const struct bpf_insn *f, int len)
 		/*
 		 * Check for constant division by 0.
 		 */
-		if (p->code == (BPF_ALU|BPF_DIV|BPF_K) && p->k == 0)
+		if ((p->code == (BPF_ALU|BPF_DIV|BPF_K) ||
+		    p->code == (BPF_ALU|BPF_MOD|BPF_K)) && p->k == 0)
 			return (0);
 	}
 	return (BPF_CLASS(f[len - 1].code) == BPF_RET);

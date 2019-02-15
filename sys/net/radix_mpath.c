@@ -1,6 +1,8 @@
 /*	$KAME: radix_mpath.c,v 1.17 2004/11/08 10:29:39 itojun Exp $	*/
 
 /*
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2001 WIDE Project.
  * All rights reserved.
  *
@@ -41,13 +43,17 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/domain.h>
 #include <sys/syslog.h>
 #include <net/radix.h>
 #include <net/radix_mpath.h>
+#include <sys/rmlock.h>
 #include <net/route.h>
+#include <net/route_var.h>
 #include <net/if.h>
 #include <net/if_var.h>
 
@@ -57,10 +63,17 @@ __FBSDID("$FreeBSD$");
 static uint32_t hashjitter;
 
 int
-rn_mpath_capable(struct radix_node_head *rnh)
+rt_mpath_capable(struct rib_head *rnh)
 {
 
 	return rnh->rnh_multipath;
+}
+
+int
+rn_mpath_capable(struct radix_head *rh)
+{
+
+	return (rt_mpath_capable((struct rib_head *)rh));
 }
 
 struct radix_node *
@@ -159,14 +172,14 @@ rt_mpath_deldup(struct rtentry *headrt, struct rtentry *rt)
  * Assume @rt rt_key host bits are cleared according to @netmask
  */
 int
-rt_mpath_conflict(struct radix_node_head *rnh, struct rtentry *rt,
+rt_mpath_conflict(struct rib_head *rnh, struct rtentry *rt,
     struct sockaddr *netmask)
 {
 	struct radix_node *rn, *rn1;
 	struct rtentry *rt1;
 
 	rn = (struct radix_node *)rt;
-	rn1 = rnh->rnh_lookup(rt_key(rt), netmask, rnh);
+	rn1 = rnh->rnh_lookup(rt_key(rt), netmask, &rnh->head);
 	if (!rn1 || rn1->rn_flags & RNF_ROOT)
 		return (0);
 
@@ -197,13 +210,49 @@ rt_mpath_conflict(struct radix_node_head *rnh, struct rtentry *rt,
 	return (0);
 }
 
+static struct rtentry *
+rt_mpath_selectrte(struct rtentry *rte, uint32_t hash)
+{
+	struct radix_node *rn0, *rn;
+	uint32_t total_weight;
+	struct rtentry *rt;
+	int64_t weight;
+
+	/* beyond here, we use rn as the master copy */
+	rn0 = rn = (struct radix_node *)rte;
+	rt = rte;
+
+	/* gw selection by Modulo-N Hash (RFC2991) XXX need improvement? */
+	total_weight = rn_mpath_count(rn0);
+	hash += hashjitter;
+	hash %= total_weight;
+	for (weight = abs((int32_t)hash);
+	     rt != NULL && weight >= rt->rt_weight; 
+	     weight -= (rt == NULL) ? 0 : rt->rt_weight) {
+		
+		/* stay within the multipath routes */
+		if (rn->rn_dupedkey && rn->rn_mask != rn->rn_dupedkey->rn_mask)
+			break;
+		rn = rn->rn_dupedkey;
+		rt = (struct rtentry *)rn;
+	}
+
+	return (rt);
+}
+
+struct rtentry *
+rt_mpath_select(struct rtentry *rte, uint32_t hash)
+{
+	if (rn_mpath_next((struct radix_node *)rte) == NULL)
+		return (rte);
+
+	return (rt_mpath_selectrte(rte, hash));
+}
+
 void
 rtalloc_mpath_fib(struct route *ro, uint32_t hash, u_int fibnum)
 {
-	struct radix_node *rn0, *rn;
-	u_int32_t n;
 	struct rtentry *rt;
-	int64_t weight;
 
 	/*
 	 * XXX we don't attempt to lookup cached route again; what should
@@ -222,34 +271,18 @@ rtalloc_mpath_fib(struct route *ro, uint32_t hash, u_int fibnum)
 		return;
 	}
 
-	/* beyond here, we use rn as the master copy */
-	rn0 = rn = (struct radix_node *)ro->ro_rt;
-	n = rn_mpath_count(rn0);
-
-	/* gw selection by Modulo-N Hash (RFC2991) XXX need improvement? */
-	hash += hashjitter;
-	hash %= n;
-	for (weight = abs((int32_t)hash), rt = ro->ro_rt;
-	     weight >= rt->rt_weight && rn; 
-	     weight -= rt->rt_weight) {
-		
-		/* stay within the multipath routes */
-		if (rn->rn_dupedkey && rn->rn_mask != rn->rn_dupedkey->rn_mask)
-			break;
-		rn = rn->rn_dupedkey;
-		rt = (struct rtentry *)rn;
-	}
+	rt = rt_mpath_selectrte(ro->ro_rt, hash);
 	/* XXX try filling rt_gwroute and avoid unreachable gw  */
 
 	/* gw selection has failed - there must be only zero weight routes */
-	if (!rn) {
+	if (!rt) {
 		RT_UNLOCK(ro->ro_rt);
 		ro->ro_rt = NULL;
 		return;
 	}
 	if (ro->ro_rt != rt) {
 		RTFREE_LOCKED(ro->ro_rt);
-		ro->ro_rt = (struct rtentry *)rn;
+		ro->ro_rt = rt;
 		RT_LOCK(ro->ro_rt);
 		RT_ADDREF(ro->ro_rt);
 
@@ -264,11 +297,11 @@ extern int	in_inithead(void **head, int off);
 int
 rn4_mpath_inithead(void **head, int off)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rnh;
 
 	hashjitter = arc4random();
 	if (in_inithead(head, off) == 1) {
-		rnh = (struct radix_node_head *)*head;
+		rnh = (struct rib_head *)*head;
 		rnh->rnh_multipath = 1;
 		return 1;
 	} else
@@ -280,11 +313,11 @@ rn4_mpath_inithead(void **head, int off)
 int
 rn6_mpath_inithead(void **head, int off)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rnh;
 
 	hashjitter = arc4random();
 	if (in6_inithead(head, off) == 1) {
-		rnh = (struct radix_node_head *)*head;
+		rnh = (struct rib_head *)*head;
 		rnh->rnh_multipath = 1;
 		return 1;
 	} else

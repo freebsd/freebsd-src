@@ -28,7 +28,7 @@
 #define HAVE_ATANF 1
 
 /* Define to 1 if you have the `atanl' function. */
-/* #undef HAVE_ATANL */
+#define HAVE_ATANL 1
 
 /* Define to 1 if you have the `ceilf' function. */
 #define HAVE_CEILF 1
@@ -55,10 +55,10 @@
 #define HAVE_COSHF 1
 
 /* Define to 1 if you have the `coshl' function. */
-/* #undef HAVE_COSHL */
+#define HAVE_COSHL 1
 
 /* Define to 1 if you have the `cosl' function. */
-/* #undef HAVE_COSL */
+#define HAVE_COSL 1
 
 /* Define to 1 if you have the <endian.h> header file. */
 /* #undef HAVE_ENDIAN_H */
@@ -137,13 +137,13 @@
 #define HAVE_HYPOTL 1
 
 /* Define to 1 if you have the `iconv' function. */
-/* #undef HAVE_ICONV */
+#define HAVE_ICONV 1
 
 /* Define to 1 if you have the `iconv_close' function. */
-/* #undef HAVE_ICONV_CLOSE */
+#define HAVE_ICONV_CLOSE 1
 
 /* Define to 1 if you have the `iconv_open' function. */
-/* #undef HAVE_ICONV_OPEN */
+#define HAVE_ICONV_OPEN 1
 
 /* Define to 1 if you have the <ieeefp.h> header file. */
 #define HAVE_IEEEFP_H 1
@@ -257,7 +257,7 @@
 #define HAVE_POWF 1
 
 /* Define to 1 if you have the `powl' function. */
-/* #undef HAVE_POWL */
+#define HAVE_POWL 1
 
 /* Define to 1 if you have the `qfpclass' function. */
 /* #undef HAVE_QFPCLASS */
@@ -269,13 +269,13 @@
 #define HAVE_SIGSETJMP 1
 
 /* Define to 1 if you have the `sincos' function. */
-/* #undef HAVE_SINCOS */
+#define HAVE_SINCOS 1
 
 /* Define to 1 if you have the `sincosf' function. */
-/* #undef HAVE_SINCOSF */
+#define HAVE_SINCOSF 1
 
 /* Define to 1 if you have the `sincosl' function. */
-/* #undef HAVE_SINCOSL */
+#define HAVE_SINCOSL 1
 
 /* Define to 1 if you have the `sinf' function. */
 #define HAVE_SINF 1
@@ -284,10 +284,10 @@
 #define HAVE_SINHF 1
 
 /* Define to 1 if you have the `sinhl' function. */
-/* #undef HAVE_SINHL */
+#define HAVE_SINHL 1
 
 /* Define to 1 if you have the `sinl' function. */
-/* #undef HAVE_SINL */
+#define HAVE_SINL 1
 
 /* Define to 1 if you have the `sqrtf' function. */
 #define HAVE_SQRTF 1
@@ -323,7 +323,7 @@
 #define HAVE_STRTOLD 1
 
 /* Define if strxfrm_l is available in <string.h>. */
-/* #undef HAVE_STRXFRM_L */
+#define HAVE_STRXFRM_L 1
 
 /* Define to 1 if you have the <sys/filio.h> header file. */
 #define HAVE_SYS_FILIO_H 1
@@ -341,7 +341,7 @@
 /* #undef HAVE_SYS_MACHINE_H */
 
 /* Define to 1 if you have the <sys/param.h> header file. */
-/* #undef HAVE_SYS_PARAM_H */
+#define HAVE_SYS_PARAM_H 1
 
 /* Define to 1 if you have the <sys/resource.h> header file. */
 #define HAVE_SYS_RESOURCE_H 1
@@ -362,9 +362,6 @@
 #define HAVE_SYS_UIO_H 1
 
 /* Define if S_IFREG is available in <sys/stat.h>. */
-/* #undef HAVE_S_IFREG */
-
-/* Define if S_IFREG is available in <sys/stat.h>. */
 #define HAVE_S_ISREG 1
 
 /* Define to 1 if you have the `tanf' function. */
@@ -374,10 +371,10 @@
 #define HAVE_TANHF 1
 
 /* Define to 1 if you have the `tanhl' function. */
-/* #undef HAVE_TANHL */
+#define HAVE_TANHL 1
 
 /* Define to 1 if you have the `tanl' function. */
-/* #undef HAVE_TANL */
+#define HAVE_TANL 1
 
 /* Define to 1 if the target supports thread-local storage. */
 #if !defined(__mips__)
@@ -731,7 +728,7 @@
 /* Define if C99 functions in <complex.h> should be used in <complex>. Using
    compiler builtins for these functions requires corresponding C99 library
    functions to be present. */
-/* #undef _GLIBCXX_USE_C99_COMPLEX */
+#define _GLIBCXX_USE_C99_COMPLEX 1
 
 /* Define if C99 functions in <complex.h> should be used in <tr1/complex>.
    Using compiler builtins for these functions requires corresponding C99

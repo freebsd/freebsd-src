@@ -443,7 +443,7 @@ svn_wc__serialize_file_external(const char **str,
       SVN_ERR(opt_revision_to_string(&s1, path, peg_rev, pool));
       SVN_ERR(opt_revision_to_string(&s2, path, rev, pool));
 
-      s = apr_pstrcat(pool, s1, ":", s2, ":", path, (char *)NULL);
+      s = apr_pstrcat(pool, s1, ":", s2, ":", path, SVN_VA_NULL);
     }
   else
     s = NULL;
@@ -1154,7 +1154,7 @@ resolve_to_defaults(apr_hash_t *entries,
   /* Then use it to fill in missing information in other entries. */
   for (hi = apr_hash_first(pool, entries); hi; hi = apr_hash_next(hi))
     {
-      svn_wc_entry_t *this_entry = svn__apr_hash_index_val(hi);
+      svn_wc_entry_t *this_entry = apr_hash_this_val(hi);
 
       if (this_entry == default_entry)
         /* THIS_DIR already has all the information it can possibly
@@ -1203,7 +1203,8 @@ svn_wc__read_entries_old(apr_hash_t **entries,
   /* Open the entries file. */
   SVN_ERR(svn_wc__open_adm_stream(&stream, dir_abspath, SVN_WC__ADM_ENTRIES,
                                   scratch_pool, scratch_pool));
-  SVN_ERR(svn_string_from_stream(&buf, stream, scratch_pool, scratch_pool));
+  SVN_ERR(svn_string_from_stream2(&buf, stream, SVN__STREAM_CHUNK_SIZE,
+                                  scratch_pool));
 
   /* We own the returned data; it is modifiable, so cast away... */
   curp = (char *)buf->data;

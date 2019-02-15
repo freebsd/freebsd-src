@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -32,9 +34,9 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#include <sys/queue.h>
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/ioctl.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
@@ -87,6 +89,7 @@ list_cloners(void)
 
 	putchar('\n');
 	free(buf);
+	close(s);
 }
 
 struct clone_defcb {
@@ -144,11 +147,12 @@ ifclonecreate(int s, void *arg)
 	}
 
 	/*
-	 * If we get a different name back than we put in, print it.
+	 * If we get a different name back than we put in, update record and
+	 * indicate it should be printed later.
 	 */
 	if (strncmp(name, ifr.ifr_name, sizeof(name)) != 0) {
 		strlcpy(name, ifr.ifr_name, sizeof(name));
-		printf("%s\n", name);
+		printifname = 1;
 	}
 }
 
@@ -161,7 +165,7 @@ DECL_CMD_FUNC(clone_create, arg, d)
 static
 DECL_CMD_FUNC(clone_destroy, arg, d)
 {
-	(void) strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	(void) strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	if (ioctl(s, SIOCIFDESTROY, &ifr) < 0)
 		err(1, "SIOCIFDESTROY");
 }
@@ -177,18 +181,16 @@ static void
 clone_Copt_cb(const char *optarg __unused)
 {
 	list_cloners();
-	exit(0);
+	exit(exit_code);
 }
 static struct option clone_Copt = { .opt = "C", .opt_usage = "[-C]", .cb = clone_Copt_cb };
 
 static __constructor void
 clone_ctor(void)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	size_t i;
 
-	for (i = 0; i < N(clone_cmds);  i++)
+	for (i = 0; i < nitems(clone_cmds);  i++)
 		cmd_register(&clone_cmds[i]);
 	opt_register(&clone_Copt);
-#undef N
 }

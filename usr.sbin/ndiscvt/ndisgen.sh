@@ -1,5 +1,7 @@
 #!/bin/sh
 #
+# SPDX-License-Identifier: BSD-4-Clause
+#
 # Copyright (c) 2005
 #	Bill Paul <wpaul@windriver.com>.  All rights reserved.
 #
@@ -432,11 +434,6 @@ fi
 echo -n "	Building kernel module... "
 echo "" > bus_if.h
 echo "" > device_if.h
-if ! ${MAKE} -f ${MAKEFILE} depend > /dev/null; then
-	echo "build failed. Exiting."
-	echo ""
-	exit
-fi
 if ! ${MAKE} -f ${MAKEFILE} all > /dev/null; then
 	echo "build failed. Exiting."
 	echo ""

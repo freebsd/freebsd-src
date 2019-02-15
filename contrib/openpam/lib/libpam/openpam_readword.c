@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Dag-Erling Smørgrav
+ * Copyright (c) 2012-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_readword.c 648 2013-03-05 17:54:27Z des $
+ * $OpenPAM: openpam_readword.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -55,18 +55,35 @@ openpam_readword(FILE *f, int *lineno, size_t *lenp)
 {
 	char *word;
 	size_t size, len;
-	int ch, comment, escape, quote;
+	int ch, escape, quote;
 	int serrno;
 
 	errno = 0;
 
 	/* skip initial whitespace */
-	comment = 0;
-	while ((ch = getc(f)) != EOF && ch != '\n') {
-		if (ch == '#')
-			comment = 1;
-		if (!is_lws(ch) && !comment)
+	escape = quote = 0;
+	while ((ch = getc(f)) != EOF) {
+		if (ch == '\n') {
+			/* either EOL or line continuation */
+			if (!escape)
+				break;
+			if (lineno != NULL)
+				++*lineno;
+			escape = 0;
+		} else if (escape) {
+			/* escaped something else */
 			break;
+		} else if (ch == '#') {
+			/* comment: until EOL, no continuation */
+			while ((ch = getc(f)) != EOF)
+				if (ch == '\n')
+					break;
+			break;
+		} else if (ch == '\\') {
+			escape = 1;
+		} else if (!is_ws(ch)) {
+			break;
+		}
 	}
 	if (ch == EOF)
 		return (NULL);
@@ -76,7 +93,6 @@ openpam_readword(FILE *f, int *lineno, size_t *lenp)
 
 	word = NULL;
 	size = len = 0;
-	escape = quote = 0;
 	while ((ch = fgetc(f)) != EOF && (!is_ws(ch) || quote || escape)) {
 		if (ch == '\\' && !escape && quote != '\'') {
 			/* escape next character */
@@ -90,7 +106,7 @@ openpam_readword(FILE *f, int *lineno, size_t *lenp)
 		} else if (ch == quote && !escape) {
 			/* end quote */
 			quote = 0;
-		} else if (ch == '\n' && escape && quote != '\'') {
+		} else if (ch == '\n' && escape) {
 			/* line continuation */
 			escape = 0;
 		} else {
@@ -118,7 +134,7 @@ openpam_readword(FILE *f, int *lineno, size_t *lenp)
 	}
 	if (ch == EOF && (escape || quote)) {
 		/* Missing escaped character or closing quote. */
-		openpam_log(PAM_LOG_ERROR, "unexpected end of file");
+		openpam_log(PAM_LOG_DEBUG, "unexpected end of file");
 		free(word);
 		errno = EINVAL;
 		return (NULL);

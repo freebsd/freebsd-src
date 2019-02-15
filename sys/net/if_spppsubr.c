@@ -28,7 +28,9 @@
 
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/rmlock.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
@@ -1005,7 +1007,7 @@ sppp_attach(struct ifnet *ifp)
 	mtx_init(&sp->mtx, "sppp", MTX_NETWORK_LOCK, MTX_DEF | MTX_RECURSE);
 	
 	/* Initialize keepalive handler. */
- 	callout_init(&sp->keepalive_callout, CALLOUT_MPSAFE);
+ 	callout_init(&sp->keepalive_callout, 1);
 	callout_reset(&sp->keepalive_callout, hz * 10, sppp_keepalive,
  		    (void *)sp); 
 
@@ -1037,7 +1039,7 @@ sppp_attach(struct ifnet *ifp)
 #ifdef INET6
 	sp->confflags |= CONF_ENABLE_IPV6;
 #endif
- 	callout_init(&sp->ifstart_callout, CALLOUT_MPSAFE);
+ 	callout_init(&sp->ifstart_callout, 1);
 	sp->if_start = ifp->if_start;
 	ifp->if_start = sppp_ifstart;
 	sp->pp_comp = malloc(sizeof(struct slcompress), M_TEMP, M_WAITOK);
@@ -2145,7 +2147,7 @@ sppp_lcp_init(struct sppp *sp)
 	sp->lcp.max_terminate = 2;
 	sp->lcp.max_configure = 10;
 	sp->lcp.max_failure = 10;
- 	callout_init(&sp->ch[IDX_LCP], CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_LCP], 1);
 }
 
 static void
@@ -2836,7 +2838,7 @@ sppp_ipcp_init(struct sppp *sp)
 	sp->fail_counter[IDX_IPCP] = 0;
 	sp->pp_seq[IDX_IPCP] = 0;
 	sp->pp_rseq[IDX_IPCP] = 0;
- 	callout_init(&sp->ch[IDX_IPCP], CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_IPCP], 1);
 }
 
 static void
@@ -2960,7 +2962,7 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			 * since our algorithm always uses the
 			 * original option to NAK it with new values,
 			 * things would become more complicated.  In
-			 * pratice, the only commonly implemented IP
+			 * practice, the only commonly implemented IP
 			 * compression option is VJ anyway, so the
 			 * difference is negligible.
 			 */
@@ -3395,7 +3397,7 @@ sppp_ipv6cp_init(struct sppp *sp)
 	sp->fail_counter[IDX_IPV6CP] = 0;
 	sp->pp_seq[IDX_IPV6CP] = 0;
 	sp->pp_rseq[IDX_IPV6CP] = 0;
- 	callout_init(&sp->ch[IDX_IPV6CP], CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_IPV6CP], 1);
 }
 
 static void
@@ -4200,7 +4202,7 @@ sppp_chap_init(struct sppp *sp)
 	sp->fail_counter[IDX_CHAP] = 0;
 	sp->pp_seq[IDX_CHAP] = 0;
 	sp->pp_rseq[IDX_CHAP] = 0;
- 	callout_init(&sp->ch[IDX_CHAP], CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_CHAP], 1);
 }
 
 static void
@@ -4293,7 +4295,7 @@ sppp_chap_tlu(struct sppp *sp)
 		if ((sp->hisauth.flags & AUTHFLAG_NORECHALLENGE) == 0)
 			log(-1, "next re-challenge in %d seconds\n", i);
 		else
-			log(-1, "re-challenging supressed\n");
+			log(-1, "re-challenging suppressed\n");
 	}
 
 	SPPP_LOCK(sp);
@@ -4522,8 +4524,8 @@ sppp_pap_init(struct sppp *sp)
 	sp->fail_counter[IDX_PAP] = 0;
 	sp->pp_seq[IDX_PAP] = 0;
 	sp->pp_rseq[IDX_PAP] = 0;
- 	callout_init(&sp->ch[IDX_PAP], CALLOUT_MPSAFE);
- 	callout_init(&sp->pap_my_to_ch, CALLOUT_MPSAFE);
+ 	callout_init(&sp->ch[IDX_PAP], 1);
+ 	callout_init(&sp->pap_my_to_ch, 1);
 }
 
 static void
@@ -4833,9 +4835,9 @@ sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 	 * Pick the first AF_INET address from the list,
 	 * aliases don't make any sense on a p2p link anyway.
 	 */
-	si = 0;
+	si = NULL;
 	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			si = (struct sockaddr_in *)ifa->ifa_addr;
 			sm = (struct sockaddr_in *)ifa->ifa_netmask;
@@ -4875,9 +4877,9 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 	 * Pick the first AF_INET address from the list,
 	 * aliases don't make any sense on a p2p link anyway.
 	 */
-	si = 0;
+	si = NULL;
 	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			si = (struct sockaddr_in *)ifa->ifa_addr;
 			if (si != NULL) {
@@ -4939,7 +4941,7 @@ sppp_get_ip6_addrs(struct sppp *sp, struct in6_addr *src, struct in6_addr *dst,
 	 */
 	si = NULL;
 	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET6) {
 			si = (struct sockaddr_in6 *)ifa->ifa_addr;
 			sm = (struct sockaddr_in6 *)ifa->ifa_netmask;
@@ -4994,7 +4996,7 @@ sppp_set_ip6_addr(struct sppp *sp, const struct in6_addr *src)
 
 	sin6 = NULL;
 	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family == AF_INET6) {
 			sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
 			if (sin6 && IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
@@ -5053,19 +5055,20 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 	struct spppreq *spr;
 	int rv = 0;
 
-	if ((spr = malloc(sizeof(struct spppreq), M_TEMP, M_NOWAIT)) == 0)
+	if ((spr = malloc(sizeof(struct spppreq), M_TEMP, M_NOWAIT)) == NULL)
 		return (EAGAIN);
 	/*
-	 * ifr->ifr_data is supposed to point to a struct spppreq.
+	 * ifr_data_get_ptr(ifr) is supposed to point to a struct spppreq.
 	 * Check the cmd word first before attempting to fetch all the
 	 * data.
 	 */
-	if ((subcmd = fuword(ifr->ifr_data)) == -1) {
+	rv = fueword(ifr_data_get_ptr(ifr), &subcmd);
+	if (rv == -1) {
 		rv = EFAULT;
 		goto quit;
 	}
 
-	if (copyin((caddr_t)ifr->ifr_data, spr, sizeof(struct spppreq)) != 0) {
+	if (copyin(ifr_data_get_ptr(ifr), spr, sizeof(struct spppreq)) != 0) {
 		rv = EFAULT;
 		goto quit;
 	}
@@ -5102,8 +5105,8 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 		 * setting it.
 		 */
 		spr->defs.lcp.timeout = sp->lcp.timeout * 1000 / hz;
-		rv = copyout(spr, (caddr_t)ifr->ifr_data,
-			     sizeof(struct spppreq));
+		rv = copyout(spr, ifr_data_get_ptr(ifr),
+		    sizeof(struct spppreq));
 		break;
 
 	case (u_long)SPPPIOSDEFS:

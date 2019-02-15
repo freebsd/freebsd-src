@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999,2000 Michael Smith
  * Copyright (c) 2000 BSDi
  * Copyright (c) 2005 Scott Long
@@ -302,11 +304,6 @@ amr_startup(void *arg)
     
     debug_called(1);
 
-    /* pull ourselves off the intrhook chain */
-    if (sc->amr_ich.ich_func)
-	config_intrhook_disestablish(&sc->amr_ich);
-    sc->amr_ich.ich_func = NULL;
-
     /* get up-to-date drive information */
     if (amr_query_controller(sc)) {
 	device_printf(sc->amr_dev, "can't scan controller for drives\n");
@@ -342,6 +339,11 @@ amr_startup(void *arg)
 
     /* interrupts will be enabled before we do anything more */
     sc->amr_state |= AMR_STATE_INTEN;
+
+    /* pull ourselves off the intrhook chain */
+    if (sc->amr_ich.ich_func)
+	config_intrhook_disestablish(&sc->amr_ich);
+    sc->amr_ich.ich_func = NULL;
 
     return;
 }
@@ -525,7 +527,7 @@ shutdown_out:
 /*
  * Bug-for-bug compatibility with Linux!
  * Some apps will send commands with inlen and outlen set to 0,
- * even though they expect data to be transfered to them from the
+ * even though they expect data to be transferred to them from the
  * card.  Linux accidentally allows this by allocating a 4KB
  * buffer for the transfer anyways, but it then throws it away
  * without copying it back to the app.
@@ -1316,10 +1318,10 @@ amr_bio_command(struct amr_softc *sc, struct amr_command **acp)
     }
     amrd = (struct amrd_softc *)bio->bio_disk->d_drv1;
     driveno = amrd->amrd_drive - sc->amr_drive;
-    blkcount = (bio->bio_bcount + AMR_BLKSIZE - 1) / AMR_BLKSIZE;
+    blkcount = howmany(bio->bio_bcount, AMR_BLKSIZE);
 
     ac->ac_mailbox.mb_command = cmd;
-    if (bio->bio_cmd & (BIO_READ|BIO_WRITE)) {
+    if (bio->bio_cmd == BIO_READ || bio->bio_cmd == BIO_WRITE) {
 	ac->ac_mailbox.mb_blkcount = blkcount;
 	ac->ac_mailbox.mb_lba = bio->bio_pblkno;
 	if ((bio->bio_pblkno + blkcount) > sc->amr_drive[driveno].al_size) {
@@ -1784,7 +1786,7 @@ amr_start(struct amr_command *ac)
     /* Now we have a slot, we can map the command (unmapped in amr_complete). */
     if ((error = amr_mapcmd(ac)) == ENOMEM) {
 	/*
-	 * Memroy resources are short, so free the slot and let this be tried
+	 * Memory resources are short, so free the slot and let this be tried
 	 * later.
 	 */
 	amr_freeslot(ac);

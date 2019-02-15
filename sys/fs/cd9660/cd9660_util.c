@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -16,7 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -80,7 +82,8 @@ isochar(isofn, isoend, joliet_level, c, clen, flags, handle)
               inbuf[2]='\0';
               inp = inbuf;
               outp = outbuf;
-              cd9660_iconv->convchr(handle, (const char **)&inp, &i, &outp, &j);
+              cd9660_iconv->convchr(handle, __DECONST(const char **, &inp), &i,
+                  &outp, &j);
               len -= j;
               if (clen) *clen = len;
               *c = '\0';
@@ -121,7 +124,8 @@ isofncmp(fn, fnlen, isofn, isolen, joliet_level, flags, handle, lhandle)
 	u_char *fnend = fn + fnlen, *isoend = isofn + isolen;
 
 	for (; fn < fnend; ) {
-		d = sgetrune(fn, fnend - fn, (char const **)&fn, flags, lhandle);
+		d = sgetrune(fn, fnend - fn, __DECONST(const char **, &fn),
+		    flags, lhandle);
 		if (isofn == isoend)
 			return d;
 		isofn += isochar(isofn, isoend, joliet_level, &c, NULL, flags, handle);

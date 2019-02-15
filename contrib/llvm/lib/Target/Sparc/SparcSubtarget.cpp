@@ -16,28 +16,43 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/TargetRegistry.h"
 
+using namespace llvm;
+
+#define DEBUG_TYPE "sparc-subtarget"
+
 #define GET_SUBTARGETINFO_TARGET_DESC
 #define GET_SUBTARGETINFO_CTOR
 #include "SparcGenSubtargetInfo.inc"
 
-using namespace llvm;
-
 void SparcSubtarget::anchor() { }
 
-SparcSubtarget::SparcSubtarget(const std::string &TT, const std::string &CPU,
-                               const std::string &FS,  bool is64Bit) :
-  SparcGenSubtargetInfo(TT, CPU, FS),
-  IsV9(false),
-  V8DeprecatedInsts(false),
-  IsVIS(false),
-  Is64Bit(is64Bit),
-  HasHardQuad(false),
-  UsePopc(false) {
+SparcSubtarget &SparcSubtarget::initializeSubtargetDependencies(StringRef CPU,
+                                                                StringRef FS) {
+  UseSoftMulDiv = false;
+  IsV9 = false;
+  IsLeon = false;
+  V8DeprecatedInsts = false;
+  IsVIS = false;
+  IsVIS2 = false;
+  IsVIS3 = false;
+  HasHardQuad = false;
+  UsePopc = false;
+  UseSoftFloat = false;
+  HasNoFSMULD = false;
+  HasNoFMULS = false;
+
+  // Leon features
+  HasLeonCasa = false;
+  HasUmacSmac = false;
+  PerformSDIVReplace = false;
+  InsertNOPLoad = false;
+  FixAllFDIVSQRT = false;
+  DetectRoundChange = false;
 
   // Determine default and user specified characteristics
   std::string CPUName = CPU;
   if (CPUName.empty())
-    CPUName = (is64Bit) ? "v9" : "v8";
+    CPUName = (Is64Bit) ? "v9" : "v8";
 
   // Parse features string.
   ParseSubtargetFeatures(CPUName, FS);
@@ -45,8 +60,16 @@ SparcSubtarget::SparcSubtarget(const std::string &TT, const std::string &CPU,
   // Popc is a v9-only instruction.
   if (!IsV9)
     UsePopc = false;
+
+  return *this;
 }
 
+SparcSubtarget::SparcSubtarget(const Triple &TT, const std::string &CPU,
+                               const std::string &FS, const TargetMachine &TM,
+                               bool is64Bit)
+    : SparcGenSubtargetInfo(TT, CPU, FS), TargetTriple(TT), Is64Bit(is64Bit),
+      InstrInfo(initializeSubtargetDependencies(CPU, FS)), TLInfo(TM, *this),
+      FrameLowering(*this) {}
 
 int SparcSubtarget::getAdjustedFrameSize(int frameSize) const {
 
@@ -56,7 +79,7 @@ int SparcSubtarget::getAdjustedFrameSize(int frameSize) const {
     frameSize += 128;
     // Frames with calls must also reserve space for 6 outgoing arguments
     // whether they are used or not. LowerCall_64 takes care of that.
-    assert(frameSize % 16 == 0 && "Stack size not 16-byte aligned");
+    frameSize = alignTo(frameSize, 16);
   } else {
     // Emit the correct save instruction based on the number of bytes in
     // the frame. Minimum stack frame size according to V8 ABI is:
@@ -69,7 +92,11 @@ int SparcSubtarget::getAdjustedFrameSize(int frameSize) const {
 
     // Round up to next doubleword boundary -- a double-word boundary
     // is required by the ABI.
-    frameSize = RoundUpToAlignment(frameSize, 8);
+    frameSize = alignTo(frameSize, 8);
   }
   return frameSize;
+}
+
+bool SparcSubtarget::enableMachineScheduler() const {
+  return true;
 }

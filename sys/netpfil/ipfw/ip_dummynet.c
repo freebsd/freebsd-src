@@ -1,4 +1,13 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Codel/FQ_Codel and PIE/FQ-PIE Code:
+ * Copyright (C) 2016 Centre for Advanced Internet Architectures,
+ *  Swinburne University of Technology, Melbourne, Australia.
+ * Portions of this code were made possible in part by a gift from 
+ *  The Comcast Innovation Fund.
+ * Implemented by Rasool Al-Saadi <ralsaadi@swin.edu.au>
+ * 
  * Copyright (c) 1998-2002,2010 Luigi Rizzo, Universita` di Pisa
  * Portions Copyright (c) 2000 Akamba Corp.
  * All rights reserved
@@ -58,6 +67,9 @@ __FBSDID("$FreeBSD$");
 #include <netpfil/ipfw/ip_fw_private.h>
 #include <netpfil/ipfw/dn_heap.h>
 #include <netpfil/ipfw/ip_dn_private.h>
+#ifdef NEW_AQM
+#include <netpfil/ipfw/dn_aqm.h>
+#endif
 #include <netpfil/ipfw/dn_sched.h>
 
 /* which objects to copy */
@@ -75,6 +87,7 @@ struct schk_new_arg {
 
 /*---- callout hooks. ----*/
 static struct callout dn_timeout;
+static int dn_gone;
 static struct task	dn_task;
 static struct taskqueue	*dn_tq = NULL;
 
@@ -83,17 +96,34 @@ dummynet(void *arg)
 {
 
 	(void)arg;	/* UNUSED */
-	taskqueue_enqueue_fast(dn_tq, &dn_task);
+	taskqueue_enqueue(dn_tq, &dn_task);
 }
 
 void
 dn_reschedule(void)
 {
 
+	if (dn_gone != 0)
+		return;
 	callout_reset_sbt(&dn_timeout, tick_sbt, 0, dummynet, NULL,
 	    C_HARDCLOCK | C_DIRECT_EXEC);
 }
 /*----- end of callout hooks -----*/
+
+#ifdef NEW_AQM
+/* Return AQM descriptor for given type or name. */
+static struct dn_aqm *
+find_aqm_type(int type, char *name)
+{
+	struct dn_aqm *d;
+
+	SLIST_FOREACH(d, &dn_cfg.aqmlist, next) {
+		if (d->type == type || (name && !strcasecmp(d->name, name)))
+			return d;
+	}
+	return NULL; /* not found */
+}
+#endif
 
 /* Return a scheduler descriptor given the type or name. */
 static struct dn_alg *
@@ -317,7 +347,15 @@ q_new(uintptr_t key, int flags, void *arg)
 
 	if (fs->sched->fp->new_queue)
 		fs->sched->fp->new_queue(q);
+
+#ifdef NEW_AQM
+	/* call AQM init function after creating a queue*/
+	if (fs->aqmfp && fs->aqmfp->init)
+		if(fs->aqmfp->init(q))
+			D("unable to init AQM for fs %d", fs->fs.fs_nr);
+#endif
 	dn_cfg.queue_count++;
+
 	return q;
 }
 
@@ -331,6 +369,13 @@ dn_delete_queue(struct dn_queue *q, int flags)
 {
 	struct dn_fsk *fs = q->fs;
 
+#ifdef NEW_AQM
+	/* clean up AQM status for queue 'q'
+	 * cleanup here is called just with MULTIQUEUE
+	 */
+	if (fs && fs->aqmfp && fs->aqmfp->cleanup)
+		fs->aqmfp->cleanup(q);
+#endif
 	// D("fs %p si %p\n", fs, q->_si);
 	/* notify the parent scheduler that the queue is going away */
 	if (fs && fs->sched->fp->free_queue)
@@ -472,6 +517,16 @@ si_new(uintptr_t key, int flags, void *arg)
 	if (s->sch.flags & DN_HAVE_MASK)
 		si->ni.fid = *(struct ipfw_flow_id *)key;
 
+#ifdef NEW_AQM
+	/* init AQM status for !DN_MULTIQUEUE sched*/
+	if (!(s->fp->flags & DN_MULTIQUEUE))
+		if (s->fs->aqmfp && s->fs->aqmfp->init)
+			if(s->fs->aqmfp->init((struct dn_queue *)(si + 1))) {
+				D("unable to init AQM for fs %d", s->fs->fs.fs_nr);
+				goto error;
+			}
+#endif
+
 	dn_cfg.si_count++;
 	return si;
 
@@ -501,6 +556,20 @@ si_destroy(void *_si, void *arg)
 	dn_free_pkts(dl->mq.head);	/* drain delay line */
 	if (si->kflags & DN_ACTIVE) /* remove si from event heap */
 		heap_extract(&dn_cfg.evheap, si);
+
+#ifdef NEW_AQM
+	/* clean up AQM status for !DN_MULTIQUEUE sched
+	 * Note that all queues belong to fs were cleaned up in fsk_detach.
+	 * When drain_scheduler is called s->fs and q->fs are pointing 
+	 * to a correct fs, so we can use fs in this case.
+	 */
+	if (!(s->fp->flags & DN_MULTIQUEUE)) {
+		struct dn_queue *q = (struct dn_queue *)(si + 1);
+		if (q->aqm_status && q->fs->aqmfp)
+			if (q->fs->aqmfp->cleanup)
+				q->fs->aqmfp->cleanup(q);
+	}
+#endif
 	if (s->fp->free_sched)
 		s->fp->free_sched(si);
 	bzero(si, sizeof(*si));	/* safety */
@@ -589,6 +658,67 @@ fsk_new(uintptr_t key, int flags, void *arg)
 	return fs;
 }
 
+#ifdef NEW_AQM
+/* callback function for cleaning up AQM queue status belongs to a flowset
+ * connected to scheduler instance '_si' (for !DN_MULTIQUEUE only).
+ */
+static int
+si_cleanup_q(void *_si, void *arg)
+{
+	struct dn_sch_inst *si = _si;
+
+	if (!(si->sched->fp->flags & DN_MULTIQUEUE)) {
+		if (si->sched->fs->aqmfp && si->sched->fs->aqmfp->cleanup)
+			si->sched->fs->aqmfp->cleanup((struct dn_queue *) (si+1));
+	}
+	return 0;
+}
+
+/* callback to clean up queue AQM status.*/
+static int
+q_cleanup_q(void *_q, void *arg)
+{
+	struct dn_queue *q = _q;
+	q->fs->aqmfp->cleanup(q);
+	return 0;
+}
+
+/* Clean up all AQM queues status belongs to flowset 'fs' and then
+ * deconfig AQM for flowset 'fs'
+ */
+static void 
+aqm_cleanup_deconfig_fs(struct dn_fsk *fs)
+{
+	struct dn_sch_inst *si;
+
+	/* clean up AQM status for all queues for !DN_MULTIQUEUE sched*/
+	if (fs->fs.fs_nr > DN_MAX_ID) {
+		if (fs->sched && !(fs->sched->fp->flags & DN_MULTIQUEUE)) {
+			if (fs->sched->sch.flags & DN_HAVE_MASK)
+				dn_ht_scan(fs->sched->siht, si_cleanup_q, NULL);
+			else {
+					/* single si i.e. no sched mask */
+					si = (struct dn_sch_inst *) fs->sched->siht;
+					if (si && fs->aqmfp && fs->aqmfp->cleanup)
+						fs->aqmfp->cleanup((struct dn_queue *) (si+1));
+			}
+		} 
+	}
+
+	/* clean up AQM status for all queues for DN_MULTIQUEUE sched*/
+	if (fs->sched && fs->sched->fp->flags & DN_MULTIQUEUE && fs->qht) {
+			if (fs->fs.flags & DN_QHT_HASH)
+				dn_ht_scan(fs->qht, q_cleanup_q, NULL);
+			else
+				fs->aqmfp->cleanup((struct dn_queue *)(fs->qht));
+	}
+
+	/* deconfig AQM */
+	if(fs->aqmcfg && fs->aqmfp && fs->aqmfp->deconfig)
+		fs->aqmfp->deconfig(fs);
+}
+#endif
+
 /*
  * detach flowset from its current scheduler. Flags as follows:
  * DN_DETACH removes from the fsk_list
@@ -617,6 +747,10 @@ fsk_detach(struct dn_fsk *fs, int flags)
 		free(fs->w_q_lookup, M_DUMMYNET);
 	fs->w_q_lookup = NULL;
 	qht_delete(fs, flags);
+#ifdef NEW_AQM
+	aqm_cleanup_deconfig_fs(fs);
+#endif
+
 	if (fs->sched && fs->sched->fp->free_fsk)
 		fs->sched->fp->free_fsk(fs);
 	fs->sched = NULL;
@@ -799,29 +933,35 @@ delete_schk(int i)
 static int
 copy_obj(char **start, char *end, void *_o, const char *msg, int i)
 {
-	struct dn_id *o = _o;
+	struct dn_id o;
+	union {
+		struct dn_link l;
+		struct dn_schk s;
+	} dn;
 	int have = end - *start;
 
-	if (have < o->len || o->len == 0 || o->type == 0) {
+	memcpy(&o, _o, sizeof(o));
+	if (have < o.len || o.len == 0 || o.type == 0) {
 		D("(WARN) type %d %s %d have %d need %d",
-			o->type, msg, i, have, o->len);
+		    o.type, msg, i, have, o.len);
 		return 1;
 	}
-	ND("type %d %s %d len %d", o->type, msg, i, o->len);
-	bcopy(_o, *start, o->len);
-	if (o->type == DN_LINK) {
+	ND("type %d %s %d len %d", o.type, msg, i, o.len);
+	if (o.type == DN_LINK) {
+		memcpy(&dn.l, _o, sizeof(dn.l));
 		/* Adjust burst parameter for link */
-		struct dn_link *l = (struct dn_link *)*start;
-		l->burst =  div64(l->burst, 8 * hz);
-		l->delay = l->delay * 1000 / hz;
-	} else if (o->type == DN_SCH) {
-		/* Set id->id to the number of instances */
-		struct dn_schk *s = _o;
-		struct dn_id *id = (struct dn_id *)(*start);
-		id->id = (s->sch.flags & DN_HAVE_MASK) ?
-			dn_ht_entries(s->siht) : (s->siht ? 1 : 0);
-	}
-	*start += o->len;
+		dn.l.burst = div64(dn.l.burst, 8 * hz);
+		dn.l.delay = dn.l.delay * 1000 / hz;
+		memcpy(*start, &dn.l, sizeof(dn.l));
+	} else if (o.type == DN_SCH) {
+		/* Set dn.s.sch.oid.id to the number of instances */
+		memcpy(&dn.s, _o, sizeof(dn.s));
+		dn.s.sch.oid.id = (dn.s.sch.flags & DN_HAVE_MASK) ?
+		    dn_ht_entries(dn.s.siht) : (dn.s.siht ? 1 : 0);
+		memcpy(*start, &dn.s, sizeof(dn.s));
+	} else
+		memcpy(*start, _o, o.len);
+	*start += o.len;
 	return 0;
 }
 
@@ -842,7 +982,7 @@ copy_obj_q(char **start, char *end, void *_o, const char *msg, int i)
 		return 1;
 	}
 	ND("type %d %s %d len %d", o->type, msg, i, len);
-	bcopy(_o, *start, len);
+	memcpy(*start, _o, len);
 	((struct dn_id*)(*start))->len = len;
 	*start += len;
 	return 0;
@@ -890,7 +1030,7 @@ copy_profile(struct copy_args *a, struct dn_profile *p)
 		D("error have %d need %d", have, profile_len);
 		return 1;
 	}
-	bcopy(p, *a->start, profile_len);
+	memcpy(*a->start, p, profile_len);
 	((struct dn_id *)(*a->start))->len = profile_len;
 	*a->start += profile_len;
 	return 0;
@@ -1188,6 +1328,183 @@ update_fs(struct dn_schk *s)
 	}
 }
 
+#ifdef NEW_AQM
+/* Retrieve AQM configurations to ipfw userland 
+ */
+static int
+get_aqm_parms(struct sockopt *sopt)
+{
+	struct dn_extra_parms  *ep;
+	struct dn_fsk *fs;
+	size_t sopt_valsize;
+	int l, err = 0;
+	
+	sopt_valsize = sopt->sopt_valsize;
+	l = sizeof(*ep);
+	if (sopt->sopt_valsize < l) {
+		D("bad len sopt->sopt_valsize %d len %d",
+			(int) sopt->sopt_valsize , l);
+		err = EINVAL;
+		return err;
+	}
+	ep = malloc(l, M_DUMMYNET, M_WAITOK);
+	if(!ep) {
+		err = ENOMEM ;
+		return err;
+	}
+	do {
+		err = sooptcopyin(sopt, ep, l, l);
+		if(err)
+			break;
+		sopt->sopt_valsize = sopt_valsize;
+		if (ep->oid.len < l) {
+			err = EINVAL;
+			break;
+		}
+
+		fs = dn_ht_find(dn_cfg.fshash, ep->nr, 0, NULL);
+		if (!fs) {
+			D("fs %d not found", ep->nr);
+			err = EINVAL;
+			break;
+		}
+
+		if (fs->aqmfp && fs->aqmfp->getconfig) {
+			if(fs->aqmfp->getconfig(fs, ep)) {
+				D("Error while trying to get AQM params");
+				err = EINVAL;
+				break;
+			}
+			ep->oid.len = l;
+			err = sooptcopyout(sopt, ep, l);
+		}
+	}while(0);
+
+	free(ep, M_DUMMYNET);
+	return err;
+}
+
+/* Retrieve AQM configurations to ipfw userland
+ */
+static int
+get_sched_parms(struct sockopt *sopt)
+{
+	struct dn_extra_parms  *ep;
+	struct dn_schk *schk;
+	size_t sopt_valsize;
+	int l, err = 0;
+	
+	sopt_valsize = sopt->sopt_valsize;
+	l = sizeof(*ep);
+	if (sopt->sopt_valsize < l) {
+		D("bad len sopt->sopt_valsize %d len %d",
+			(int) sopt->sopt_valsize , l);
+		err = EINVAL;
+		return err;
+	}
+	ep = malloc(l, M_DUMMYNET, M_WAITOK);
+	if(!ep) {
+		err = ENOMEM ;
+		return err;
+	}
+	do {
+		err = sooptcopyin(sopt, ep, l, l);
+		if(err)
+			break;
+		sopt->sopt_valsize = sopt_valsize;
+		if (ep->oid.len < l) {
+			err = EINVAL;
+			break;
+		}
+
+		schk = locate_scheduler(ep->nr);
+		if (!schk) {
+			D("sched %d not found", ep->nr);
+			err = EINVAL;
+			break;
+		}
+		
+		if (schk->fp && schk->fp->getconfig) {
+			if(schk->fp->getconfig(schk, ep)) {
+				D("Error while trying to get sched params");
+				err = EINVAL;
+				break;
+			}
+			ep->oid.len = l;
+			err = sooptcopyout(sopt, ep, l);
+		}
+	}while(0);
+	free(ep, M_DUMMYNET);
+
+	return err;
+}
+
+/* Configure AQM for flowset 'fs'.
+ * extra parameters are passed from userland.
+ */
+static int
+config_aqm(struct dn_fsk *fs, struct  dn_extra_parms *ep, int busy)
+{
+	int err = 0;
+
+	do {
+		/* no configurations */
+		if (!ep) {
+			err = 0;
+			break;
+		}
+
+		/* no AQM for this flowset*/
+		if (!strcmp(ep->name,"")) {
+			err = 0;
+			break;
+		}
+		if (ep->oid.len < sizeof(*ep)) {
+			D("short aqm len %d", ep->oid.len);
+				err = EINVAL;
+				break;
+		}
+
+		if (busy) {
+			D("Unable to configure flowset, flowset busy!");
+			err = EINVAL;
+			break;
+		}
+
+		/* deconfigure old aqm if exist */
+		if (fs->aqmcfg && fs->aqmfp && fs->aqmfp->deconfig) {
+			aqm_cleanup_deconfig_fs(fs);
+		}
+
+		if (!(fs->aqmfp = find_aqm_type(0, ep->name))) {
+			D("AQM functions not found for type %s!", ep->name);
+			fs->fs.flags &= ~DN_IS_AQM;
+			err = EINVAL;
+			break;
+		} else
+			fs->fs.flags |= DN_IS_AQM;
+
+		if (ep->oid.subtype != DN_AQM_PARAMS) {
+				D("Wrong subtype");
+				err = EINVAL;
+				break;
+		}
+
+		if (fs->aqmfp->config) {
+			err = fs->aqmfp->config(fs, ep, ep->oid.len);
+			if (err) {
+					D("Unable to configure AQM for FS %d", fs->fs.fs_nr );
+					fs->fs.flags &= ~DN_IS_AQM;
+					fs->aqmfp = NULL;
+					break;
+			}
+		}
+	} while(0);
+
+	return err;
+}
+#endif
+
 /*
  * Configuration -- to preserve backward compatibility we use
  * the following scheme (N is 65536)
@@ -1275,6 +1592,9 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 {
 	int i;
 	struct dn_fsk *fs;
+#ifdef NEW_AQM
+	struct dn_extra_parms *ep;
+#endif
 
 	if (nfs->oid.len != sizeof(*nfs)) {
 		D("invalid flowset len %d", nfs->oid.len);
@@ -1283,6 +1603,15 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 	i = nfs->fs_nr;
 	if (i <= 0 || i >= 3*DN_MAX_ID)
 		return NULL;
+#ifdef NEW_AQM
+	ep = NULL;
+	if (arg != NULL) {
+		ep = malloc(sizeof(*ep), M_TEMP, locked ? M_NOWAIT : M_WAITOK);
+		if (ep == NULL)
+			return (NULL);
+		memcpy(ep, arg, sizeof(*ep));
+	}
+#endif
 	ND("flowset %d", i);
 	/* XXX other sanity checks */
         if (nfs->flags & DN_QSIZE_BYTES) {
@@ -1320,6 +1649,17 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 	    }
 	    if (bcmp(&fs->fs, nfs, sizeof(*nfs)) == 0) {
 		ND("flowset %d unchanged", i);
+#ifdef NEW_AQM
+		if (ep != NULL) {
+			/*
+			 * Reconfigure AQM as the parameters can be changed.
+			 * We consider the flowset as busy if it has scheduler
+			 * instance(s).
+			 */ 
+			s = locate_scheduler(nfs->sched_nr);
+			config_aqm(fs, ep, s != NULL && s->siht != NULL);
+		}
+#endif
 		break; /* no change, nothing to do */
 	    }
 	    if (oldc != dn_cfg.fsk_count)	/* new item */
@@ -1338,11 +1678,21 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 		fsk_detach(fs, flags);
 	    }
 	    fs->fs = *nfs; /* copy configuration */
+#ifdef NEW_AQM
+			fs->aqmfp = NULL;
+			if (ep != NULL)
+				config_aqm(fs, ep, s != NULL &&
+				    s->siht != NULL);
+#endif
 	    if (s != NULL)
 		fsk_attach(fs, s);
 	} while (0);
 	if (!locked)
 		DN_BH_WUNLOCK();
+#ifdef NEW_AQM
+	if (ep != NULL)
+		free(ep, M_TEMP);
+#endif
 	return fs;
 }
 
@@ -1452,7 +1802,7 @@ again: /* run twice, for wfq and fifo */
 				D("cannot allocate profile");
 				goto error; //XXX
 			}
-			bcopy(pf, s->profile, sizeof(*pf));
+			memcpy(s->profile, pf, sizeof(*pf));
 		}
 	}
 	p.link_nr = 0;
@@ -1474,7 +1824,7 @@ again: /* run twice, for wfq and fifo */
 				pf = malloc(sizeof(*pf),
 				    M_DUMMYNET, M_NOWAIT | M_ZERO);
 			if (pf)	/* XXX should issue a warning otherwise */
-				bcopy(s->profile, pf, sizeof(*pf));
+				memcpy(pf, s->profile, sizeof(*pf));
 		}
 		/* remove from the hash */
 		dn_ht_find(dn_cfg.schedhash, i, DNHT_REMOVE, NULL);
@@ -1596,7 +1946,7 @@ config_profile(struct dn_profile *pf, struct dn_id *arg)
 		olen = s->profile->oid.len;
 		if (olen < pf->oid.len)
 			olen = pf->oid.len;
-		bcopy(pf, s->profile, pf->oid.len);
+		memcpy(s->profile, pf, pf->oid.len);
 		s->profile->oid.len = olen;
 	}
 	DN_BH_WUNLOCK();
@@ -1626,36 +1976,41 @@ dummynet_flush(void)
  * with an oid which is at least a dn_id.
  * - the first object is the command (config, delete, flush, ...)
  * - config_link must be issued after the corresponding config_sched
- * - parameters (DN_TXT) for an object must preceed the object
+ * - parameters (DN_TXT) for an object must precede the object
  *   processed on a config_sched.
  */
 int
 do_config(void *p, int l)
 {
-	struct dn_id *next, *o;
-	int err = 0, err2 = 0;
-	struct dn_id *arg = NULL;
-	uintptr_t *a;
+	struct dn_id o;
+	union {
+		struct dn_profile profile;
+		struct dn_fs fs;
+		struct dn_link link;
+		struct dn_sch sched;
+	} *dn;
+	struct dn_id *arg;
+	uintptr_t a;
+	int err, err2, off;
 
-	o = p;
-	if (o->id != DN_API_VERSION) {
-		D("invalid api version got %d need %d",
-			o->id, DN_API_VERSION);
+	memcpy(&o, p, sizeof(o));
+	if (o.id != DN_API_VERSION) {
+		D("invalid api version got %d need %d", o.id, DN_API_VERSION);
 		return EINVAL;
 	}
-	for (; l >= sizeof(*o); o = next) {
-		struct dn_id *prev = arg;
-		if (o->len < sizeof(*o) || l < o->len) {
-			D("bad len o->len %d len %d", o->len, l);
+	arg = NULL;
+	dn = NULL;
+	for (off = 0; l >= sizeof(o); memcpy(&o, (char *)p + off, sizeof(o))) {
+		if (o.len < sizeof(o) || l < o.len) {
+			D("bad len o.len %d len %d", o.len, l);
 			err = EINVAL;
 			break;
 		}
-		l -= o->len;
-		next = (struct dn_id *)((char *)o + o->len);
+		l -= o.len;
 		err = 0;
-		switch (o->type) {
+		switch (o.type) {
 		default:
-			D("cmd %d not implemented", o->type);
+			D("cmd %d not implemented", o.type);
 			break;
 
 #ifdef EMULATE_SYSCTL
@@ -1673,31 +2028,30 @@ do_config(void *p, int l)
 
 		case DN_CMD_DELETE:
 			/* the argument is in the first uintptr_t after o */
-			a = (uintptr_t *)(o+1);
-			if (o->len < sizeof(*o) + sizeof(*a)) {
+			if (o.len < sizeof(o) + sizeof(a)) {
 				err = EINVAL;
 				break;
 			}
-			switch (o->subtype) {
+			memcpy(&a, (char *)p + off + sizeof(o), sizeof(a));
+			switch (o.subtype) {
 			case DN_LINK:
 				/* delete base and derived schedulers */
 				DN_BH_WLOCK();
-				err = delete_schk(*a);
-				err2 = delete_schk(*a + DN_MAX_ID);
+				err = delete_schk(a);
+				err2 = delete_schk(a + DN_MAX_ID);
 				DN_BH_WUNLOCK();
 				if (!err)
 					err = err2;
 				break;
 
 			default:
-				D("invalid delete type %d",
-					o->subtype);
+				D("invalid delete type %d", o.subtype);
 				err = EINVAL;
 				break;
 
 			case DN_FS:
-				err = (*a <1 || *a >= DN_MAX_ID) ?
-					EINVAL : delete_fs(*a, 0) ;
+				err = (a < 1 || a >= DN_MAX_ID) ?
+				    EINVAL : delete_fs(a, 0) ;
 				break;
 			}
 			break;
@@ -1707,28 +2061,47 @@ do_config(void *p, int l)
 			dummynet_flush();
 			DN_BH_WUNLOCK();
 			break;
-		case DN_TEXT:	/* store argument the next block */
-			prev = NULL;
-			arg = o;
+		case DN_TEXT:	/* store argument of next block */
+			if (arg != NULL)
+				free(arg, M_TEMP);
+			arg = malloc(o.len, M_TEMP, M_WAITOK);
+			memcpy(arg, (char *)p + off, o.len);
 			break;
 		case DN_LINK:
-			err = config_link((struct dn_link *)o, arg);
+			if (dn == NULL)
+				dn = malloc(sizeof(*dn), M_TEMP, M_WAITOK);
+			memcpy(&dn->link, (char *)p + off, sizeof(dn->link));
+			err = config_link(&dn->link, arg);
 			break;
 		case DN_PROFILE:
-			err = config_profile((struct dn_profile *)o, arg);
+			if (dn == NULL)
+				dn = malloc(sizeof(*dn), M_TEMP, M_WAITOK);
+			memcpy(&dn->profile, (char *)p + off,
+			    sizeof(dn->profile));
+			err = config_profile(&dn->profile, arg);
 			break;
 		case DN_SCH:
-			err = config_sched((struct dn_sch *)o, arg);
+			if (dn == NULL)
+				dn = malloc(sizeof(*dn), M_TEMP, M_WAITOK);
+			memcpy(&dn->sched, (char *)p + off,
+			    sizeof(dn->sched));
+			err = config_sched(&dn->sched, arg);
 			break;
 		case DN_FS:
-			err = (NULL==config_fs((struct dn_fs *)o, arg, 0));
+			if (dn == NULL)
+				dn = malloc(sizeof(*dn), M_TEMP, M_WAITOK);
+			memcpy(&dn->fs, (char *)p + off, sizeof(dn->fs));
+			err = (NULL == config_fs(&dn->fs, arg, 0));
 			break;
 		}
-		if (prev)
-			arg = NULL;
 		if (err != 0)
 			break;
+		off += o.len;
 	}
+	if (arg != NULL)
+		free(arg, M_TEMP);
+	if (dn != NULL)
+		free(dn, M_TEMP);
 	return err;
 }
 
@@ -1863,6 +2236,19 @@ dummynet_get(struct sockopt *sopt, void **compat)
 		// cmd->id = sopt_valsize;
 		D("compatibility mode");
 	}
+
+#ifdef NEW_AQM
+	/* get AQM params */
+	if(cmd->subtype == DN_AQM_PARAMS) {
+		error = get_aqm_parms(sopt);
+		goto done;
+	/* get Scheduler params */
+	} else if (cmd->subtype == DN_SCH_PARAMS) {
+		error = get_sched_parms(sopt);
+		goto done;
+	}
+#endif
+
 	a.extra = (struct copy_range *)cmd;
 	if (cmd->len == sizeof(*cmd)) { /* no range, create a default */
 		uint32_t *rp = (uint32_t *)(cmd + 1);
@@ -1927,7 +2313,7 @@ dummynet_get(struct sockopt *sopt, void **compat)
 	a.type = cmd->subtype;
 
 	if (compat == NULL) {
-		bcopy(cmd, start, sizeof(*cmd));
+		memcpy(start, cmd, sizeof(*cmd));
 		((struct dn_id*)(start))->len = sizeof(struct dn_id);
 		buf = start + sizeof(*cmd);
 	} else
@@ -2169,7 +2555,7 @@ ip_dn_init(void)
 	    taskqueue_thread_enqueue, &dn_tq);
 	taskqueue_start_threads(&dn_tq, 1, PI_NET, "dummynet");
 
-	callout_init(&dn_timeout, CALLOUT_MPSAFE);
+	callout_init(&dn_timeout, 1);
 	dn_reschedule();
 
 	/* Initialize curr_time adjustment mechanics. */
@@ -2179,9 +2565,11 @@ ip_dn_init(void)
 static void
 ip_dn_destroy(int last)
 {
-	callout_drain(&dn_timeout);
-
 	DN_BH_WLOCK();
+	/* ensure no more callouts are started */
+	dn_gone = 1;
+
+	/* check for last */
 	if (last) {
 		ND("removing last instance\n");
 		ip_dn_ctl_ptr = NULL;
@@ -2190,6 +2578,8 @@ ip_dn_destroy(int last)
 
 	dummynet_flush();
 	DN_BH_WUNLOCK();
+
+	callout_drain(&dn_timeout);
 	taskqueue_drain(dn_tq, &dn_task);
 	taskqueue_free(dn_tq);
 
@@ -2291,7 +2681,7 @@ static moduledata_t dummynet_mod = {
 	"dummynet", dummynet_modevent, NULL
 };
 
-#define	DN_SI_SUB	SI_SUB_PROTO_IFATTACHDOMAIN
+#define	DN_SI_SUB	SI_SUB_PROTO_FIREWALL
 #define	DN_MODEV_ORD	(SI_ORDER_ANY - 128) /* after ipfw */
 DECLARE_MODULE(dummynet, dummynet_mod, DN_SI_SUB, DN_MODEV_ORD);
 MODULE_DEPEND(dummynet, ipfw, 3, 3, 3);
@@ -2311,4 +2701,98 @@ MODULE_VERSION(dummynet, 3);
  */
 //VNET_SYSUNINIT(vnet_dn_uninit, DN_SI_SUB, DN_MODEV_ORD+2, ip_dn_destroy, NULL);
 
+#ifdef NEW_AQM
+
+/* modevent helpers for the AQM modules */
+static int
+load_dn_aqm(struct dn_aqm *d)
+{
+	struct dn_aqm *aqm=NULL;
+
+	if (d == NULL)
+		return 1; /* error */
+	ip_dn_init();	/* just in case, we need the lock */
+
+	/* Check that mandatory funcs exists */
+	if (d->enqueue == NULL || d->dequeue == NULL) {
+		D("missing enqueue or dequeue for %s", d->name);
+		return 1;
+	}
+
+	/* Search if AQM already exists */
+	DN_BH_WLOCK();
+	SLIST_FOREACH(aqm, &dn_cfg.aqmlist, next) {
+		if (strcmp(aqm->name, d->name) == 0) {
+			D("%s already loaded", d->name);
+			break; /* AQM already exists */
+		}
+	}
+	if (aqm == NULL)
+		SLIST_INSERT_HEAD(&dn_cfg.aqmlist, d, next);
+	DN_BH_WUNLOCK();
+	D("dn_aqm %s %sloaded", d->name, aqm ? "not ":"");
+	return aqm ? 1 : 0;
+}
+
+
+/* Callback to clean up AQM status for queues connected to a flowset
+ * and then deconfigure the flowset.
+ * This function is called before an AQM module is unloaded
+ */
+static int
+fs_cleanup(void *_fs, void *arg)
+{
+	struct dn_fsk *fs = _fs;
+	uint32_t type = *(uint32_t *)arg;
+
+	if (fs->aqmfp && fs->aqmfp->type == type)
+		aqm_cleanup_deconfig_fs(fs);
+
+	return 0;
+}
+
+static int
+unload_dn_aqm(struct dn_aqm *aqm)
+{
+	struct dn_aqm *tmp, *r;
+	int err = EINVAL;
+	err = 0;
+	ND("called for %s", aqm->name);
+
+	DN_BH_WLOCK();
+
+	/* clean up AQM status and deconfig flowset */
+	dn_ht_scan(dn_cfg.fshash, fs_cleanup, &aqm->type);
+
+	SLIST_FOREACH_SAFE(r, &dn_cfg.aqmlist, next, tmp) {
+		if (strcmp(aqm->name, r->name) != 0)
+			continue;
+		ND("ref_count = %d", r->ref_count);
+		err = (r->ref_count != 0 || r->cfg_ref_count != 0) ? EBUSY : 0;
+		if (err == 0)
+			SLIST_REMOVE(&dn_cfg.aqmlist, r, dn_aqm, next);
+		break;
+	}
+	DN_BH_WUNLOCK();
+	D("%s %sunloaded", aqm->name, err ? "not ":"");
+	if (err)
+		D("ref_count=%d, cfg_ref_count=%d", r->ref_count, r->cfg_ref_count);
+	return err;
+}
+
+int
+dn_aqm_modevent(module_t mod, int cmd, void *arg)
+{
+	struct dn_aqm *aqm = arg;
+
+	if (cmd == MOD_LOAD)
+		return load_dn_aqm(aqm);
+	else if (cmd == MOD_UNLOAD)
+		return unload_dn_aqm(aqm);
+	else
+		return EINVAL;
+}
+#endif
+
 /* end of file */
+

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013-2014 Kevin Lo
  * All rights reserved.
  *
@@ -57,13 +59,14 @@
 /* Rx control register */
 #define	AXGE_RCR			0x0b
 #define	RCR_STOP			0x0000
-#define	RCR_PRO				0x0001
-#define	RCR_AMALL			0x0002
-#define	RCR_AB				0x0008
-#define	RCR_AM				0x0010
-#define	RCR_AP				0x0020
-#define	RCR_SO				0x0080
-#define	RCR_DROP_CRCE			0x0100
+#define	RCR_PROMISC			0x0001
+#define	RCR_ACPT_ALL_MCAST		0x0002
+#define	RCR_AUTOPAD_BNDRY		0x0004
+#define	RCR_ACPT_BCAST			0x0008
+#define	RCR_ACPT_MCAST			0x0010
+#define	RCR_ACPT_PHY_MCAST		0x0020
+#define	RCR_START			0x0080
+#define	RCR_DROP_CRCERR			0x0100
 #define	RCR_IPE				0x0200
 #define	RCR_TX_CRC_PAD			0x0400
 
@@ -141,14 +144,6 @@
 #define	AXGE_CONFIG_IDX			0	/* config number 1 */
 #define	AXGE_IFACE_IDX			0
 
-#define	AXGE_RXHDR_L4_TYPE_MASK		0x1c
-#define	AXGE_RXHDR_L4CSUM_ERR		1
-#define	AXGE_RXHDR_L3CSUM_ERR		2
-#define	AXGE_RXHDR_L4_TYPE_UDP		4
-#define	AXGE_RXHDR_L4_TYPE_TCP		16
-#define	AXGE_RXHDR_CRC_ERR		0x20000000
-#define	AXGE_RXHDR_DROP_ERR		0x80000000
-
 #define	GET_MII(sc)		uether_getmii(&(sc)->sc_ue)
 
 /* The interrupt endpoint is currently unused by the ASIX part. */
@@ -158,11 +153,54 @@ enum {
 	AXGE_N_TRANSFER,
 };
 
+#define	AXGE_N_FRAMES	16
+
+struct axge_frame_txhdr {
+	uint32_t		len;
+#define	AXGE_TXLEN_MASK		0x0001FFFF
+#define	AXGE_VLAN_INSERT	0x20000000
+#define	AXGE_CSUM_DISABLE	0x80000000
+	uint32_t		mss;
+#define	AXGE_MSS_MASK		0x00003FFF
+#define	AXGE_PADDING		0x80008000
+#define	AXGE_VLAN_TAG_MASK	0xFFFF0000
+} __packed;
+
+#define	AXGE_TXBYTES(x)		((x) & AXGE_TXLEN_MASK)
+
+#define	AXGE_PHY_ADDR		3
+
+struct axge_frame_rxhdr {
+	uint32_t		status;
+#define	AXGE_RX_L4_CSUM_ERR	0x00000001
+#define	AXGE_RX_L3_CSUM_ERR	0x00000002
+#define	AXGE_RX_L4_TYPE_UDP	0x00000004	
+#define	AXGE_RX_L4_TYPE_ICMP	0x00000008	
+#define	AXGE_RX_L4_TYPE_IGMP	0x0000000C	
+#define	AXGE_RX_L4_TYPE_TCP	0x00000010
+#define	AXGE_RX_L4_TYPE_MASK	0x0000001C
+#define	AXGE_RX_L3_TYPE_IPV4	0x00000020
+#define	AXGE_RX_L3_TYPE_IPV6	0x00000040
+#define	AXGE_RX_L3_TYPE_MASK	0x00000060
+#define	AXGE_RX_VLAN_IND_MASK	0x00000700
+#define	AXGE_RX_GOOD_PKT	0x00000800
+#define	AXGE_RX_VLAN_PRI_MASK	0x00007000
+#define	AXGE_RX_MBCAST		0x00008000		
+#define	AXGE_RX_LEN_MASK	0x1FFF0000
+#define	AXGE_RX_CRC_ERR		0x20000000
+#define	AXGE_RX_MII_ERR		0x40000000
+#define	AXGE_RX_DROP_PKT	0x80000000
+#define	AXGE_RX_LEN_SHIFT	16
+} __packed;
+
+#define	AXGE_RXBYTES(x)		(((x) & AXGE_RX_LEN_MASK) >> AXGE_RX_LEN_SHIFT)
+#define	AXGE_RX_ERR(x)		\
+	    ((x) & (AXGE_RX_CRC_ERR | AXGE_RX_MII_ERR | AXGE_RX_DROP_PKT))
+
 struct axge_softc {
 	struct usb_ether	sc_ue;
 	struct mtx		sc_mtx;
 	struct usb_xfer		*sc_xfer[AXGE_N_TRANSFER];
-	int			sc_phyno;
 
 	int			sc_flags;
 #define	AXGE_FLAG_LINK		0x0001	/* got a link */

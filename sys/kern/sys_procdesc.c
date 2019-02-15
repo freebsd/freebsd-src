@@ -1,9 +1,16 @@
 /*-
- * Copyright (c) 2009 Robert N. M. Watson
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2009, 2016 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed at the University of Cambridge Computer
  * Laboratory with support from a grant from Google, Inc.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -202,13 +209,11 @@ out:
 int
 sys_pdgetpid(struct thread *td, struct pdgetpid_args *uap)
 {
-	cap_rights_t rights;
 	pid_t pid;
 	int error;
 
 	AUDIT_ARG_FD(uap->fd);
-	error = kern_pdgetpid(td, uap->fd,
-	    cap_rights_init(&rights, CAP_PDGETPID), &pid);
+	error = kern_pdgetpid(td, uap->fd, &cap_pdgetpid_rights, &pid);
 	if (error == 0)
 		error = copyout(&pid, uap->pidp, sizeof(pid));
 	return (error);
@@ -240,6 +245,22 @@ procdesc_new(struct proc *p, int flags)
 	 * struct file, and the other from their struct proc.
 	 */
 	refcount_init(&pd->pd_refcount, 2);
+}
+
+/*
+ * Create a new process decriptor for the process that refers to it.
+ */
+int
+procdesc_falloc(struct thread *td, struct file **resultfp, int *resultfd,
+    int flags, struct filecaps *fcaps)
+{
+	int fflags;
+
+	fflags = 0;
+	if (flags & PD_CLOEXEC)
+		fflags = O_CLOEXEC;
+
+	return (falloc_caps(td, resultfp, resultfd, fflags, fcaps));
 }
 
 /*
@@ -291,11 +312,11 @@ procdesc_exit(struct proc *p)
 	pd = p->p_procdesc;
 
 	PROCDESC_LOCK(pd);
-	KASSERT((pd->pd_flags & PDF_CLOSED) == 0 || p->p_pptr == initproc,
-	    ("procdesc_exit: closed && parent not init"));
+	KASSERT((pd->pd_flags & PDF_CLOSED) == 0 || p->p_pptr == p->p_reaper,
+	    ("procdesc_exit: closed && parent not reaper"));
 
 	pd->pd_flags |= PDF_EXITED;
-	pd->pd_xstat = p->p_xstat;
+	pd->pd_xstat = KW_EXITCODE(p->p_xexit, p->p_xsig);
 
 	/*
 	 * If the process descriptor has been closed, then we have nothing
@@ -340,7 +361,8 @@ procdesc_reap(struct proc *p)
 /*
  * procdesc_close() - last close on a process descriptor.  If the process is
  * still running, terminate with SIGKILL (unless PDF_DAEMON is set) and let
- * init(8) clean up the mess; if not, we have to clean up the zombie ourselves.
+ * its reaper clean up the mess; if not, we have to clean up the zombie
+ * ourselves.
  */
 static int
 procdesc_close(struct file *fp, struct thread *td)
@@ -367,6 +389,7 @@ procdesc_close(struct file *fp, struct thread *td)
 		sx_xunlock(&proctree_lock);
 	} else {
 		PROC_LOCK(p);
+		AUDIT_ARG_PROCESS(p);
 		if (p->p_state == PRS_ZOMBIE) {
 			/*
 			 * If the process is already dead and just awaiting
@@ -374,7 +397,6 @@ procdesc_close(struct file *fp, struct thread *td)
 			 * process's reference to the process descriptor when it
 			 * calls back into procdesc_reap().
 			 */
-			PROC_SLOCK(p);
 			proc_reap(curthread, p, NULL, 0);
 		} else {
 			/*
@@ -389,12 +411,12 @@ procdesc_close(struct file *fp, struct thread *td)
 			procdesc_free(pd);
 
 			/*
-			 * Next, reparent it to init(8) so that there's someone
-			 * to pick up the pieces; finally, terminate with
-			 * prejudice.
+			 * Next, reparent it to its reaper (usually init(8)) so
+			 * that there's someone to pick up the pieces; finally,
+			 * terminate with prejudice.
 			 */
 			p->p_sigparent = SIGCHLD;
-			proc_reparent(p, initproc);
+			proc_reparent(p, p->p_reaper);
 			if ((pd->pd_flags & PDF_DAEMON) == 0)
 				kern_psignal(p, SIGKILL);
 			PROC_UNLOCK(p);
@@ -501,7 +523,7 @@ procdesc_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
     struct thread *td)
 {
 	struct procdesc *pd;
-	struct timeval pstart;
+	struct timeval pstart, boottime;
 
 	/*
 	 * XXXRW: Perhaps we should cache some more information from the
@@ -513,9 +535,11 @@ procdesc_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	sx_slock(&proctree_lock);
 	if (pd->pd_proc != NULL) {
 		PROC_LOCK(pd->pd_proc);
+		AUDIT_ARG_PROCESS(pd->pd_proc);
 
 		/* Set birth and [acm] times to process start time. */
 		pstart = pd->pd_proc->p_stats->p_start;
+		getboottime(&boottime);
 		timevaladd(&pstart, &boottime);
 		TIMEVAL_TO_TIMESPEC(&pstart, &sb->st_birthtim);
 		sb->st_atim = sb->st_birthtim;

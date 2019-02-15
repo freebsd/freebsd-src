@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_SEMA_IDENTIFIERRESOLVER_H
-#define LLVM_CLANG_AST_SEMA_IDENTIFIERRESOLVER_H
+#ifndef LLVM_CLANG_SEMA_IDENTIFIERRESOLVER_H
+#define LLVM_CLANG_SEMA_IDENTIFIERRESOLVER_H
 
 #include "clang/Basic/IdentifierTable.h"
 #include "llvm/ADT/SmallVector.h"
@@ -73,12 +73,10 @@ public:
     typedef std::input_iterator_tag iterator_category;
     typedef std::ptrdiff_t          difference_type;
 
-    /// Ptr - There are 3 forms that 'Ptr' represents:
+    /// Ptr - There are 2 forms that 'Ptr' represents:
     /// 1) A single NamedDecl. (Ptr & 0x1 == 0)
     /// 2) A IdDeclInfo::DeclsTy::iterator that traverses only the decls of the
-    ///    same declaration context. (Ptr & 0x3 == 0x1)
-    /// 3) A IdDeclInfo::DeclsTy::iterator that traverses the decls of parent
-    ///    declaration contexts too. (Ptr & 0x3 == 0x3)
+    ///    same declaration context. (Ptr & 0x1 == 0x1)
     uintptr_t Ptr;
     typedef IdDeclInfo::DeclsTy::iterator BaseIter;
 
@@ -97,7 +95,7 @@ public:
 
     BaseIter getIterator() const {
       assert(isIterator() && "Ptr not an iterator!");
-      return reinterpret_cast<BaseIter>(Ptr & ~0x3);
+      return reinterpret_cast<BaseIter>(Ptr & ~0x1);
     }
 
     friend class IdentifierResolver;
@@ -128,14 +126,6 @@ public:
         incrementSlowCase();
       return *this;
     }
-
-    uintptr_t getAsOpaqueValue() const { return Ptr; }
-
-    static iterator getFromOpaqueValue(uintptr_t P) {
-      iterator Result;
-      Result.Ptr = P;
-      return Result;
-    }
   };
 
   /// begin - Returns an iterator for decls with the name 'Name'.
@@ -150,11 +140,14 @@ public:
   /// if 'D' is in Scope 'S', otherwise 'S' is ignored and isDeclInScope returns
   /// true if 'D' belongs to the given declaration context.
   ///
-  /// \param ExplicitInstantiationOrSpecialization When true, we are checking
-  /// whether the declaration is in scope for the purposes of explicit template
-  /// instantiation or specialization. The default is false.
-  bool isDeclInScope(Decl *D, DeclContext *Ctx, Scope *S = 0,
-                     bool ExplicitInstantiationOrSpecialization = false) const;
+  /// \param AllowInlineNamespace If \c true, we are checking whether a prior
+  ///        declaration is in scope in a declaration that requires a prior
+  ///        declaration (because it is either explicitly qualified or is a
+  ///        template instantiation or specialization). In this case, a
+  ///        declaration is in scope if it's in the inline namespace set of the
+  ///        context.
+  bool isDeclInScope(Decl *D, DeclContext *Ctx, Scope *S = nullptr,
+                     bool AllowInlineNamespace = false) const;
 
   /// AddDecl - Link the decl to its shadowed decl chain.
   void AddDecl(NamedDecl *D);

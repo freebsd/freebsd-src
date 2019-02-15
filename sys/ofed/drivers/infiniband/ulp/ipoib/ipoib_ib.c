@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
@@ -32,6 +34,9 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "ipoib.h"
 
@@ -117,8 +122,7 @@ ipoib_alloc_map_mb(struct ipoib_dev_priv *priv, struct ipoib_rx_buf *rx_req,
 	if (mb == NULL)
 		return (NULL);
 	for (i = 0, m = mb; m != NULL; m = m->m_next, i++) {
-		m->m_len = (m->m_flags & M_EXT) ? m->m_ext.ext_size :
-		    ((m->m_flags & M_PKTHDR) ? MHLEN : MLEN);
+		m->m_len = M_SIZE(m);
 		mb->m_pkthdr.len += m->m_len;
 		rx_req->mapping[i] = ib_dma_map_single(priv->ca,
 		    mtod(m, void *), m->m_len, DMA_FROM_DEVICE);
@@ -257,7 +261,7 @@ ipoib_ib_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	eh = mtod(mb, struct ipoib_header *);
 	bzero(eh->hwaddr, 4);	/* Zero the queue pair, only dgid is in grh */
 
-	if (test_bit(IPOIB_FLAG_CSUM, &priv->flags) && likely(wc->csum_ok))
+	if (test_bit(IPOIB_FLAG_CSUM, &priv->flags) && likely(wc->wc_flags & IB_WC_IP_CSUM_OK))
 		mb->m_pkthdr.csum_flags = CSUM_IP_CHECKED | CSUM_IP_VALID;
 
 	dev->if_input(dev, mb);
@@ -384,9 +388,9 @@ ipoib_poll(struct ipoib_dev_priv *priv)
 	int n, i;
 
 poll_more:
+	spin_lock(&priv->drain_lock);
 	for (;;) {
 		n = ib_poll_cq(priv->recv_cq, IPOIB_NUM_WC, priv->ibwc);
-
 		for (i = 0; i < n; i++) {
 			struct ib_wc *wc = priv->ibwc + i;
 
@@ -402,6 +406,7 @@ poll_more:
 		if (n != IPOIB_NUM_WC)
 			break;
 	}
+	spin_unlock(&priv->drain_lock);
 
 	if (ib_req_notify_cq(priv->recv_cq,
 	    IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS))
@@ -451,21 +456,20 @@ post_send(struct ipoib_dev_priv *priv, unsigned int wr_id,
 		priv->tx_sge[i].addr         = mapping[i];
 		priv->tx_sge[i].length       = m->m_len;
 	}
-	priv->tx_wr.num_sge	     = i;
-	priv->tx_wr.wr_id 	     = wr_id;
-	priv->tx_wr.wr.ud.remote_qpn = qpn;
-	priv->tx_wr.wr.ud.ah 	     = address;
-
+	priv->tx_wr.wr.num_sge	= i;
+	priv->tx_wr.wr.wr_id	= wr_id;
+	priv->tx_wr.remote_qpn	= qpn;
+	priv->tx_wr.ah		= address;
 
 	if (head) {
-		priv->tx_wr.wr.ud.mss	 = 0; /* XXX mb_shinfo(mb)->gso_size; */
-		priv->tx_wr.wr.ud.header = head;
-		priv->tx_wr.wr.ud.hlen	 = hlen;
-		priv->tx_wr.opcode	 = IB_WR_LSO;
+		priv->tx_wr.mss		= 0; /* XXX mb_shinfo(mb)->gso_size; */
+		priv->tx_wr.header	= head;
+		priv->tx_wr.hlen	= hlen;
+		priv->tx_wr.wr.opcode	= IB_WR_LSO;
 	} else
-		priv->tx_wr.opcode	 = IB_WR_SEND;
+		priv->tx_wr.wr.opcode	= IB_WR_SEND;
 
-	return ib_post_send(priv->qp, &priv->tx_wr, &bad_wr);
+	return ib_post_send(priv->qp, &priv->tx_wr.wr, &bad_wr);
 }
 
 void
@@ -524,9 +528,9 @@ ipoib_send(struct ipoib_dev_priv *priv, struct mbuf *mb,
 	}
 
 	if (mb->m_pkthdr.csum_flags & (CSUM_IP|CSUM_TCP|CSUM_UDP))
-		priv->tx_wr.send_flags |= IB_SEND_IP_CSUM;
+		priv->tx_wr.wr.send_flags |= IB_SEND_IP_CSUM;
 	else
-		priv->tx_wr.send_flags &= ~IB_SEND_IP_CSUM;
+		priv->tx_wr.wr.send_flags &= ~IB_SEND_IP_CSUM;
 
 	if (++priv->tx_outstanding == ipoib_sendq_size) {
 		ipoib_dbg(priv, "TX ring full, stopping kernel net queue\n");
@@ -638,6 +642,8 @@ int ipoib_ib_dev_open(struct ipoib_dev_priv *priv)
 	clear_bit(IPOIB_STOP_REAPER, &priv->flags);
 	queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task, HZ);
 
+	set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
+
 	return 0;
 }
 
@@ -708,6 +714,7 @@ void ipoib_drain_cq(struct ipoib_dev_priv *priv)
 {
 	int i, n;
 
+	spin_lock(&priv->drain_lock);
 	do {
 		n = ib_poll_cq(priv->recv_cq, IPOIB_NUM_WC, priv->ibwc);
 		for (i = 0; i < n; ++i) {
@@ -728,6 +735,7 @@ void ipoib_drain_cq(struct ipoib_dev_priv *priv)
 				ipoib_ib_handle_rx_wc(priv, priv->ibwc + i);
 		}
 	} while (n == IPOIB_NUM_WC);
+	spin_unlock(&priv->drain_lock);
 
 	spin_lock(&priv->lock);
 	while (ipoib_poll_tx(priv))
@@ -742,6 +750,8 @@ int ipoib_ib_dev_stop(struct ipoib_dev_priv *priv, int flush)
 	unsigned long begin;
 	struct ipoib_tx_buf *tx_req;
 	int i;
+
+	clear_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
 
 	ipoib_cm_dev_stop(priv);
 

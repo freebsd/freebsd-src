@@ -1,6 +1,7 @@
 /*
+ * Copyright (c) 2015, AVAGO Tech. All rights reserved. Author: Kashyap Desai,
  * Copyright (c) 2014, LSI Corp. All rights reserved. Author: Kashyap Desai,
- * Sibananda Sahu Support: freebsdraid@lsi.com
+ * Sibananda Sahu Support: freebsdraid@avagotech.com
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -31,7 +32,7 @@
  * those of the authors and should not be interpreted as representing
  * official policies,either expressed or implied, of the FreeBSD Project.
  *
- * Send feedback to: <megaraidfbsd@lsi.com> Mail to: LSI Corporation, 1621
+ * Send feedback to: <megaraidfbsd@avagotech.com> Mail to: AVAGO TECHNOLOGIES, 1621
  * Barber Lane, Milpitas, CA 95035 ATTN: MegaRaid FreeBSD
  *
  */
@@ -42,7 +43,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#if (__FreeBSD_version > 900000)
+#if (__FreeBSD_version >= 1001511)
+#include <sys/capsicum.h>
+#elif (__FreeBSD_version > 900000)
 #include <sys/capability.h>
 #endif
 
@@ -64,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 
 #include <dev/mrsas/mrsas.h>
+#undef COMPAT_FREEBSD32
 #include <dev/mrsas/mrsas_ioctl.h>
 
 /* There are multiple ioctl number ranges that need to be handled */

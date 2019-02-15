@@ -52,6 +52,8 @@ struct acpi_lid_softc {
     int		lid_status;	/* open or closed */
 };
 
+ACPI_HANDLE acpi_lid_handle;
+
 ACPI_SERIAL_DECL(lid, "ACPI lid");
 
 static int	acpi_lid_probe(device_t dev);
@@ -86,13 +88,14 @@ static int
 acpi_lid_probe(device_t dev)
 {
     static char *lid_ids[] = { "PNP0C0D", NULL };
+    int rv;
 
-    if (acpi_disabled("lid") ||
-	ACPI_ID_PROBE(device_get_parent(dev), dev, lid_ids) == NULL)
+    if (acpi_disabled("lid"))
 	return (ENXIO);
-
-    device_set_desc(dev, "Control Method Lid Switch");
-    return (0);
+    rv = ACPI_ID_PROBE(device_get_parent(dev), dev, lid_ids, NULL);
+    if (rv <= 0)
+	device_set_desc(dev, "Control Method Lid Switch");
+    return (rv);
 }
 
 static int
@@ -105,7 +108,7 @@ acpi_lid_attach(device_t dev)
 
     sc = device_get_softc(dev);
     sc->lid_dev = dev;
-    sc->lid_handle = acpi_get_handle(dev);
+    acpi_lid_handle = sc->lid_handle = acpi_get_handle(dev);
 
     /*
      * If a system does not get lid events, it may make sense to change
@@ -119,6 +122,14 @@ acpi_lid_attach(device_t dev)
     acpi_wake_set_enable(dev, 1);
     if (acpi_parse_prw(sc->lid_handle, &prw) == 0)
 	AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit);
+
+    /*
+     * Export the lid status
+     */
+    SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	"state", CTLFLAG_RD, &sc->lid_status, 0,
+	"Device set to wake the system");
 
     return (0);
 }

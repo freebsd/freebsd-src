@@ -27,16 +27,15 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2014
+.Dd October 28, 2018
 .Dt NETMAP 4
 .Os
 .Sh NAME
 .Nm netmap
 .Nd a framework for fast packet I/O
-.br
 .Nm VALE
 .Nd a fast VirtuAl Local Ethernet using the netmap API
-.br
+.Pp
 .Nm netmap pipes
 .Nd a shared memory packet transport channel
 .Sh SYNOPSIS
@@ -44,26 +43,49 @@
 .Sh DESCRIPTION
 .Nm
 is a framework for extremely fast and efficient packet I/O
-for both userspace and kernel clients.
-It runs on FreeBSD and Linux,
-and includes
-.Nm VALE ,
-a very fast and modular in-kernel software switch/dataplane,
-and
-.Nm netmap pipes ,
-a shared memory packet transport channel.
-All these are accessed interchangeably with the same API.
+for userspace and kernel clients, and for Virtual Machines.
+It runs on
+.Fx
+Linux and some versions of Windows, and supports a variety of
+.Nm netmap ports ,
+including
+.Bl -tag -width XXXX
+.It Nm physical NIC ports
+to access individual queues of network interfaces;
+.It Nm host ports
+to inject packets into the host stack;
+.It Nm VALE ports
+implementing a very fast and modular in-kernel software switch/dataplane;
+.It Nm netmap pipes
+a shared memory packet transport channel;
+.It Nm netmap monitors
+a mechanism similar to
+.Xr bpf 4
+to capture traffic
+.El
 .Pp
-.Nm , VALE
-and
-.Nm netmap pipes
-are at least one order of magnitude faster than
+All these
+.Nm netmap ports
+are accessed interchangeably with the same API,
+and are at least one order of magnitude faster than
 standard OS mechanisms
-(sockets, bpf, tun/tap interfaces, native switches, pipes),
-reaching 14.88 million packets per second (Mpps)
-with much less than one core on a 10 Gbit NIC,
-about 20 Mpps per core for VALE ports,
-and over 100 Mpps for netmap pipes.
+(sockets, bpf, tun/tap interfaces, native switches, pipes).
+With suitably fast hardware (NICs, PCIe buses, CPUs),
+packet I/O using
+.Nm
+on supported NICs
+reaches 14.88 million packets per second (Mpps)
+with much less than one core on 10 Gbit/s NICs;
+35-40 Mpps on 40 Gbit/s NICs (limited by the hardware);
+about 20 Mpps per core for VALE ports;
+and over 100 Mpps for
+.Nm netmap pipes.
+NICs without native
+.Nm
+support can still use the API in emulated mode,
+which uses unmodified device drivers and is 3-5 times faster than
+.Xr bpf 4
+or raw sockets.
 .Pp
 Userspace clients can dynamically switch NICs into
 .Nm
@@ -71,32 +93,35 @@ mode and send and receive raw packets through
 memory mapped buffers.
 Similarly,
 .Nm VALE
-switch instances and ports, and
+switch instances and ports,
 .Nm netmap pipes
+and
+.Nm netmap monitors
 can be created dynamically,
 providing high speed packet I/O between processes,
 virtual machines, NICs and the host stack.
 .Pp
 .Nm
-suports both non-blocking I/O through
-.Xr ioctls() ,
+supports both non-blocking I/O through
+.Xr ioctl 2 ,
 synchronization and blocking I/O through a file descriptor
 and standard OS mechanisms such as
 .Xr select 2 ,
 .Xr poll 2 ,
 .Xr epoll 2 ,
-.Xr kqueue 2 .
-.Nm VALE
 and
-.Nm netmap pipes
+.Xr kqueue 2 .
+All types of
+.Nm netmap ports
+and the
+.Nm VALE switch
 are implemented by a single kernel module, which also emulates the
 .Nm
-API over standard drivers for devices without native
-.Nm
-support.
+API over standard drivers.
 For best performance,
 .Nm
-requires explicit support in device drivers.
+requires native support in device drivers.
+A list of such devices is at the end of this document.
 .Pp
 In the rest of this (long) manual page we document
 various aspects of the
@@ -104,7 +129,6 @@ various aspects of the
 and
 .Nm VALE
 architecture, features and usage.
-.Pp
 .Sh ARCHITECTURE
 .Nm
 supports raw packet I/O through a
@@ -114,7 +138,7 @@ which can be connected to a physical interface
 to the host stack,
 or to a
 .Nm VALE
-switch).
+switch.
 Ports use preallocated circular queues of buffers
 .Em ( rings )
 residing in an mmapped region.
@@ -132,7 +156,7 @@ All NICs operating in
 .Nm
 mode use the same memory region,
 accessible to all processes who own
-.Nm /dev/netmap
+.Pa /dev/netmap
 file descriptors bound to NICs.
 Independent
 .Nm VALE
@@ -141,18 +165,18 @@ and
 ports
 by default use separate memory regions,
 but can be independently configured to share memory.
-.Pp
 .Sh ENTERING AND EXITING NETMAP MODE
 The following section describes the system calls to create
 and control
-.Nm netmap 
+.Nm netmap
 ports (including
 .Nm VALE
 and
 .Nm netmap pipe
 ports).
-Simpler, higher level functions are described in section
-.Xr LIBRARIES .
+Simpler, higher level functions are described in the
+.Sx LIBRARIES
+section.
 .Pp
 Ports and rings are created and controlled through a file descriptor,
 created by opening a special device
@@ -165,16 +189,18 @@ has multiple modes of operation controlled by the
 .Vt struct nmreq
 argument.
 .Va arg.nr_name
-specifies the port name, as follows:
+specifies the netmap port name, as follows:
 .Bl -tag -width XXXX
-.It Dv OS network interface name (e.g. 'em0', 'eth1', ... )
+.It Dv OS network interface name (e.g., 'em0', 'eth1', ... )
 the data path of the NIC is disconnected from the host stack,
 and the file descriptor is bound to the NIC (one or all queues),
 or to the host stack;
-.It Dv valeXXX:YYY (arbitrary XXX and YYY)
-the file descriptor is bound to port YYY of a VALE switch called XXX,
-both dynamically created if necessary.
-The string cannot exceed IFNAMSIZ characters, and YYY cannot
+.It Dv valeSSS:PPP
+the file descriptor is bound to port PPP of VALE switch SSS.
+Switch instances and ports are dynamically created if necessary.
+.Pp
+Both SSS and PPP have the form [0-9a-zA-Z_]+ , the string
+cannot exceed IFNAMSIZ characters, and PPP cannot
 be the name of any existing OS network interface.
 .El
 .Pp
@@ -186,7 +212,7 @@ and the number, size and location of all the
 data structures, which can be accessed by mmapping the memory
 .Dl char *mem = mmap(0, arg.nr_memsize, fd);
 .Pp
-Non blocking I/O is done with special
+Non-blocking I/O is done with special
 .Xr ioctl 2
 .Xr select 2
 and
@@ -210,13 +236,13 @@ A
 on the file descriptor removes the binding,
 and returns the NIC to normal mode (reconnecting the data path
 to the host stack), or destroys the virtual port.
-.Pp
 .Sh DATA STRUCTURES
 The data structures in the mmapped memory region are detailed in
-.Xr sys/net/netmap.h ,
+.In sys/net/netmap.h ,
 which is the ultimate reference for the
 .Nm
-API. The main structures and fields are indicated below:
+API.
+The main structures and fields are indicated below:
 .Bl -tag -width XXX
 .It Dv struct netmap_if (one per interface)
 .Bd -literal
@@ -245,8 +271,9 @@ to be used as temporary storage for packets.
 contains the index of the first of these free rings,
 which are connected in a list (the first uint32_t of each
 buffer being the index of the next buffer in the list).
-A 0 indicates the end of the list.
-.Pp
+A
+.Dv 0
+indicates the end of the list.
 .It Dv struct netmap_ring (one per ring)
 .Bd -literal
 struct netmap_ring {
@@ -266,10 +293,9 @@ struct netmap_ring {
 .Ed
 .Pp
 Implements transmit and receive rings, with read/write
-pointers, metadata and and an array of
-.Pa slots
+pointers, metadata and an array of
+.Em slots
 describing the buffers.
-.Pp
 .It Dv struct netmap_slot (one per buffer)
 .Bd -literal
 struct netmap_slot {
@@ -291,10 +317,11 @@ The offset of the
 in the mmapped region is indicated by the
 .Pa nr_offset
 field in the structure returned by
-.Pa NIOCREGIF .
+.Dv NIOCREGIF .
 From there, all other objects are reachable through
 relative references (offsets or indexes).
-Macros and functions in <net/netmap_user.h>
+Macros and functions in
+.In net/netmap_user.h
 help converting them into actual pointers:
 .Pp
 .Dl struct netmap_if  *nifp = NETMAP_IF(mem, arg.nr_offset);
@@ -310,24 +337,23 @@ one slot is always kept empty.
 The ring size
 .Va ( num_slots )
 should not be assumed to be a power of two.
-.br
-(NOTE: older versions of netmap used head/count format to indicate
-the content of a ring).
 .Pp
 .Va head
 is the first slot available to userspace;
-.br
+.Pp
 .Va cur
 is the wakeup point:
 select/poll will unblock when
 .Va tail
 passes
 .Va cur ;
-.br
+.Pp
 .Va tail
 is the first slot reserved to the kernel.
 .Pp
-Slot indexes MUST only move forward;
+Slot indexes
+.Em must
+only move forward;
 for convenience, the function
 .Dl nm_ring_next(ring, index)
 returns the next index modulo the ring size.
@@ -370,7 +396,6 @@ are pushed to the port, and
 .Va tail
 may advance if further slots have become available.
 Below is an example of the evolution of a TX ring:
-.Pp
 .Bd -literal
     after the syscall, slots between cur and tail are (a)vailable
               head=cur   tail
@@ -391,7 +416,10 @@ Below is an example of the evolution of a TX ring:
      TX  [..........aaaaaaaaaaa........]
 .Ed
 .Pp
-select() and poll() wlll block if there is no space in the ring, i.e.
+.Fn select
+and
+.Fn poll
+will block if there is no space in the ring, i.e.,
 .Dl ring->cur == ring->tail
 and return when new slots have become available.
 .Pp
@@ -403,7 +431,6 @@ A transmit ring with pending transmissions has
 The function
 .Va int nm_tx_pending(ring)
 implements this test.
-.Pp
 .Ss RECEIVE RINGS
 On receive rings, after a
 .Nm
@@ -426,7 +453,7 @@ slots up to
 are returned to the kernel for further receives, and
 .Va tail
 may advance to report new incoming packets.
-.br
+.Pp
 Below is an example of the evolution of an RX ring:
 .Bd -literal
     after the syscall, there are some (h)eld and some (R)eceived slots
@@ -447,7 +474,6 @@ Below is an example of the evolution of an RX ring:
                  v  v           v
      RX  [.......hhhRRRRRRRRRRRR....]
 .Ed
-.Pp
 .Sh SLOTS AND PACKET BUFFERS
 Normally, packets should be stored in the netmap-allocated buffers
 assigned to slots when ports are bound to a file descriptor.
@@ -456,32 +482,35 @@ One packet is fully contained in a single buffer.
 The following flags affect slot and buffer processing:
 .Bl -tag -width XXX
 .It NS_BUF_CHANGED
-it MUST be used when the buf_idx in the slot is changed.
+.Em must
+be used when the
+.Va buf_idx
+in the slot is changed.
 This can be used to implement
 zero-copy forwarding, see
 .Sx ZERO-COPY FORWARDING .
-.Pp
 .It NS_REPORT
 reports when this buffer has been transmitted.
 Normally,
 .Nm
 notifies transmit completions in batches, hence signals
-can be delayed indefinitely. This flag helps detecting
-when packets have been send and a file descriptor can be closed.
+can be delayed indefinitely.
+This flag helps detect
+when packets have been sent and a file descriptor can be closed.
 .It NS_FORWARD
 When a ring is in 'transparent' mode (see
 .Sx TRANSPARENT MODE ) ,
-packets marked with this flags are forwarded to the other endpoint
+packets marked with this flag are forwarded to the other endpoint
 at the next system call, thus restoring (in a selective way)
 the connection between a NIC and the host stack.
 .It NS_NO_LEARN
-tells the forwarding code that the SRC MAC address for this
+tells the forwarding code that the source MAC address for this
 packet must not be used in the learning bridge code.
 .It NS_INDIRECT
-indicates that the packet's payload is in a user-supplied buffer,
+indicates that the packet's payload is in a user-supplied buffer
 whose user virtual address is in the 'ptr' field of the slot.
 The size can reach 65535 bytes.
-.br
+.Pp
 This is only supported on the transmit ring of
 .Nm VALE
 ports, and it helps reducing data copies in the interconnection
@@ -511,7 +540,8 @@ Slots with a value greater than 1 also have NS_MOREFRAG set.
 .Sh IOCTLS
 .Nm
 uses two ioctls (NIOCTXSYNC, NIOCRXSYNC)
-for non-blocking I/O. They take no argument.
+for non-blocking I/O.
+They take no argument.
 Two more ioctls (NIOCGINFO, NIOCREGIF) are used
 to query and configure ports, with the following argument:
 .Bd -literal
@@ -523,7 +553,7 @@ struct nmreq {
     uint32_t  nr_tx_slots;       /* (i/o) slots in tx rings        */
     uint32_t  nr_rx_slots;       /* (i/o) slots in rx rings        */
     uint16_t  nr_tx_rings;       /* (i/o) number of tx rings       */
-    uint16_t  nr_rx_rings;       /* (i/o) number of tx rings       */
+    uint16_t  nr_rx_rings;       /* (i/o) number of rx rings       */
     uint16_t  nr_ringid;         /* (i/o) ring(s) we care about    */
     uint16_t  nr_cmd;            /* (i) special command            */
     uint16_t  nr_arg1;           /* (i/o) extra arguments          */
@@ -538,7 +568,6 @@ A file descriptor obtained through
 .Pa /dev/netmap
 also supports the ioctl supported by network devices, see
 .Xr netintro 4 .
-.Pp
 .Bl -tag -width XXXX
 .It Dv NIOCGINFO
 returns EINVAL if the named port does not support netmap.
@@ -546,12 +575,12 @@ Otherwise, it returns 0 and (advisory) information
 about the port.
 Note that all the information below can change before the
 interface is actually put in netmap mode.
-.Pp
 .Bl -tag -width XX
 .It Pa nr_memsize
 indicates the size of the
 .Nm
-memory region. NICs in
+memory region.
+NICs in
 .Nm
 mode all share the same memory region,
 whereas
@@ -563,19 +592,29 @@ indicate the size of transmit and receive rings.
 indicate the number of transmit
 and receive rings.
 Both ring number and sizes may be configured at runtime
-using interface-specific functions (e.g.
-.Xr ethtool
+using interface-specific functions (e.g.,
+.Xr ethtool 8
 ).
 .El
 .It Dv NIOCREGIF
 binds the port named in
 .Va nr_name
-to the file descriptor. For a physical device this also switches it into
+to the file descriptor.
+For a physical device this also switches it into
 .Nm
 mode, disconnecting
 it from the host stack.
 Multiple file descriptors can be bound to the same port,
 with proper synchronization left to the user.
+.Pp
+The recommended way to bind a file descriptor to a port is
+to use function
+.Va nm_open(..)
+(see
+.Sx LIBRARIES )
+which parses names to access specific port types and
+enable features.
+In the following we document the main features.
 .Pp
 .Dv NIOCREGIF can also bind a file descriptor to one endpoint of a
 .Em netmap pipe ,
@@ -608,13 +647,12 @@ that application libraries (such as the
 .Nm nm_open
 indicated below) can use to indicate the specific set of rings.
 In the example below, "netmap:foo" is any valid netmap port name.
-.Pp
 .Bl -tag -width XXXXX
 .It NR_REG_ALL_NIC                         "netmap:foo"
 (default) all hardware ring pairs
 .It NR_REG_SW            "netmap:foo^"
 the ``host rings'', connecting to the host stack.
-.It NR_REG_NIC_SW        "netmap:foo+
+.It NR_REG_NIC_SW        "netmap:foo+"
 all hardware rings and the host rings
 .It NR_REG_ONE_NIC       "netmap:foo-i"
 only the i-th hardware ring pair, where the number is in
@@ -627,9 +665,11 @@ the slave side of the netmap pipe whose identifier (i) is in
 .Pa nr_ringid .
 .Pp
 The identifier of a pipe must be thought as part of the pipe name,
-and does not need to be sequential. On return the pipe
+and does not need to be sequential.
+On return the pipe
 will only have a single ring pair with index 0,
-irrespective of the value of i.
+irrespective of the value of
+.Va i.
 .El
 .Pp
 By default, a
@@ -679,13 +719,22 @@ are supported too.
 .Pp
 Packets in transmit rings are normally pushed out
 (and buffers reclaimed) even without
-requesting write events. Passing the NETMAP_NO_TX_POLL flag to
+requesting write events.
+Passing the
+.Dv NETMAP_NO_TX_POLL
+flag to
 .Em NIOCREGIF
 disables this feature.
 By default, receive rings are processed only if read
-events are requested. Passing the NETMAP_DO_RX_POLL flag to
+events are requested.
+Passing the
+.Dv NETMAP_DO_RX_POLL
+flag to
 .Em NIOCREGIF updates receive rings even without read events.
-Note that on epoll and kqueue, NETMAP_NO_TX_POLL and NETMAP_DO_RX_POLL
+Note that on epoll and kqueue,
+.Dv NETMAP_NO_TX_POLL
+and
+.Dv NETMAP_DO_RX_POLL
 only have an effect when some event is posted for the file descriptor.
 .Sh LIBRARIES
 The
@@ -693,12 +742,13 @@ The
 API is supposed to be used directly, both because of its simplicity and
 for efficient integration with applications.
 .Pp
-For conveniency, the
-.Va <net/netmap_user.h>
+For convenience, the
+.In net/netmap_user.h
 header provides a few macros and functions to ease creating
 a file descriptor and doing I/O with a
 .Nm
-port. These are loosely modeled after the
+port.
+These are loosely modeled after the
 .Xr pcap 3
 API, to ease porting of libpcap-based applications to
 .Nm .
@@ -711,11 +761,11 @@ The following functions are available:
 .Bl -tag -width XXXXX
 .It Va  struct nm_desc * nm_open(const char *ifname, const struct nmreq *req, uint64_t flags, const struct nm_desc *arg)
 similar to
-.Xr pcap_open ,
+.Xr pcap_open 3pcap ,
 binds a file descriptor to a port.
 .Bl -tag -width XX
 .It Va ifname
-is a port name, in the form "netmap:XXX" for a NIC and "valeXXX:YYY" for a
+is a port name, in the form "netmap:PPP" for a NIC and "valeSSS:PPP" for a
 .Nm VALE
 port.
 .It Va req
@@ -724,7 +774,7 @@ The nm_flags and nm_ringid values are overwritten by parsing
 ifname and flags, and other fields can be overridden through
 the other two arguments.
 .It Va arg
-points to a struct nm_desc containing arguments (e.g. from a previously
+points to a struct nm_desc containing arguments (e.g., from a previously
 open file descriptor) that should override the defaults.
 The fields are used as described below
 .It Va flags
@@ -749,34 +799,46 @@ of the packet is successful, or 0 on error;
 similar to pcap_dispatch(), applies a callback to incoming packets
 .It Va u_char * nm_nextpkt(struct nm_desc *d, struct nm_pkthdr *hdr)
 similar to pcap_next(), fetches the next packet
-.Pp
 .El
 .Sh SUPPORTED DEVICES
 .Nm
 natively supports the following devices:
 .Pp
 On FreeBSD:
+.Xr cxgbe 4 ,
 .Xr em 4 ,
 .Xr igb 4 ,
 .Xr ixgbe 4 ,
+.Xr ixl 4 ,
 .Xr lem 4 ,
 .Xr re 4 .
 .Pp
 On Linux
 .Xr e1000 4 ,
 .Xr e1000e 4 ,
+.Xr i40e 4 ,
 .Xr igb 4 ,
 .Xr ixgbe 4 ,
-.Xr mlx4 4 ,
-.Xr forcedeth 4 ,
 .Xr r8169 4 .
 .Pp
 NICs without native support can still be used in
 .Nm
-mode through emulation. Performance is inferior to native netmap
-mode but still significantly higher than sockets, and approaching
-that of in-kernel solutions such as Linux's
-.Xr pktgen .
+mode through emulation.
+Performance is inferior to native netmap
+mode but still significantly higher than various raw socket types
+(bpf, PF_PACKET, etc.).
+Note that for slow devices (such as 1 Gbit/s and slower NICs,
+or several 10 Gbit/s NICs whose hardware is unable to sustain line rate),
+emulated and native mode will likely have similar or same throughput.
+.Pp
+When emulation is in use, packet sniffer programs such as tcpdump
+could see received packets before they are diverted by netmap.
+This behaviour is not intentional, being just an artifact of the implementation
+of emulation.
+Note that in case the netmap application subsequently moves packets received
+from the emulated adapter onto the host RX ring, the sniffer will intercept
+those packets again, since the packets are injected to the host stack as they
+were received by the network interface.
 .Pp
 Emulation is also available for devices with native netmap support,
 which can be used for testing or performance comparison.
@@ -790,12 +852,15 @@ are controlled through sysctl variables on FreeBSD
 .Em ( dev.netmap.* )
 and module parameters on Linux
 .Em ( /sys/module/netmap_lin/parameters/* ) :
-.Pp
 .Bl -tag -width indent
 .It Va dev.netmap.admode: 0
 Controls the use of native or emulated adapter mode.
-0 uses the best available option, 1 forces native and
-fails if not available, 2 forces emulated hence never fails.
+.Pp
+0 uses the best available option;
+.Pp
+1 forces native mode and fails if not available;
+.Pp
+2 forces emulated hence never fails.
 .It Va dev.netmap.generic_ringsize: 1024
 Ring size used for emulated netmap mode
 .It Va dev.netmap.generic_mit: 100000
@@ -820,7 +885,8 @@ Verbose kernel messages
 .It Va dev.netmap.if_num: 100
 .It Va dev.netmap.if_size: 1024
 Sizes and number of objects (netmap_if, netmap_ring, buffers)
-for the global memory region. The only parameter worth modifying is
+for the global memory region.
+The only parameter worth modifying is
 .Va dev.netmap.buf_num
 as it impacts the total amount of memory used by netmap.
 .It Va dev.netmap.buf_curr_num: 0
@@ -833,7 +899,8 @@ Actual values in use.
 .It Va dev.netmap.bridge_batch: 1024
 Batch size used when moving packets across a
 .Nm VALE
-switch. Values above 64 generally guarantee good
+switch.
+Values above 64 generally guarantee good
 performance.
 .El
 .Sh SYSTEM CALLS
@@ -841,9 +908,9 @@ performance.
 uses
 .Xr select 2 ,
 .Xr poll 2 ,
-.Xr epoll
+.Xr epoll 2
 and
-.Xr kqueue
+.Xr kqueue 2
 to wake up processes when significant events occur, and
 .Xr mmap 2
 to map memory.
@@ -858,56 +925,22 @@ OS primitives, see
 In particular,
 .Xr pthread_setaffinity_np 3
 may be of use.
-.Sh CAVEATS
-No matter how fast the CPU and OS are,
-achieving line rate on 10G and faster interfaces
-requires hardware with sufficient performance.
-Several NICs are unable to sustain line rate with
-small packet sizes. Insufficient PCIe or memory bandwidth
-can also cause reduced performance.
-.Pp
-Another frequent reason for low performance is the use
-of flow control on the link: a slow receiver can limit
-the transmit speed.
-Be sure to disable flow control when running high
-speed experiments.
-.Pp
-.Ss SPECIAL NIC FEATURES
-.Nm
-is orthogonal to some NIC features such as
-multiqueue, schedulers, packet filters.
-.Pp
-Multiple transmit and receive rings are supported natively
-and can be configured with ordinary OS tools,
-such as
-.Xr ethtool
-or
-device-specific sysctl variables.
-The same goes for Receive Packet Steering (RPS)
-and filtering of incoming traffic.
-.Pp
-.Nm
-.Em does not use
-features such as
-.Em checksum offloading , TCP segmentation offloading ,
-.Em encryption , VLAN encapsulation/decapsulation ,
-etc. .
-When using netmap to exchange packets with the host stack,
-make sure to disable these features.
 .Sh EXAMPLES
 .Ss TEST PROGRAMS
 .Nm
 comes with a few programs that can be used for testing or
 simple applications.
 See the
-.Va examples/
+.Pa examples/
 directory in
 .Nm
 distributions, or
-.Va tools/tools/netmap/
-directory in FreeBSD distributions.
+.Pa tools/tools/netmap/
+directory in
+.Fx
+distributions.
 .Pp
-.Xr pkt-gen
+.Xr pkt-gen 8
 is a general purpose traffic source/sink.
 .Pp
 As an example
@@ -918,14 +951,15 @@ is a traffic sink.
 Both print traffic statistics, to help monitor
 how the system performs.
 .Pp
-.Xr pkt-gen
+.Xr pkt-gen 8
 has many options can be uses to set packet sizes, addresses,
 rates, and use multiple send/receive threads and cores.
 .Pp
-.Xr bridge
+.Xr bridge 4
 is another test program which interconnects two
 .Nm
-ports. It can be used for transparent forwarding between
+ports.
+It can be used for transparent forwarding between
 interfaces, as in
 .Dl bridge -i ix0 -i ix1
 or even connect the NIC to the host stack using netmap
@@ -935,7 +969,7 @@ The following code implements a traffic generator
 .Pp
 .Bd -literal -compact
 #include <net/netmap_user.h>
-...
+\&...
 void sender(void)
 {
     struct netmap_if *nifp;
@@ -970,7 +1004,7 @@ A simple receiver can be implemented using the helper functions
 .Bd -literal -compact
 #define NETMAP_WITH_LIBS
 #include <net/netmap_user.h>
-...
+\&...
 void receiver(void)
 {
     struct nm_desc *d;
@@ -992,7 +1026,8 @@ void receiver(void)
 .Ss ZERO-COPY FORWARDING
 Since physical interfaces share the same memory region,
 it is possible to do packet forwarding between ports
-swapping buffers. The buffer from the transmit ring is used
+swapping buffers.
+The buffer from the transmit ring is used
 to replenish the receive ring:
 .Bd -literal -compact
     uint32_t tmp;
@@ -1012,7 +1047,7 @@ to replenish the receive ring:
 .Ed
 .Ss ACCESSING THE HOST STACK
 The host stack is for all practical purposes just a regular ring pair,
-which you can access with the netmap API (e.g. with
+which you can access with the netmap API (e.g., with
 .Dl nm_open("netmap:eth0^", ... ) ;
 All packets that the host would send to an interface in
 .Nm
@@ -1022,13 +1057,13 @@ TX ring are send up to the host stack.
 A simple way to test the performance of a
 .Nm VALE
 switch is to attach a sender and a receiver to it,
-e.g. running the following in two different terminals:
+e.g., running the following in two different terminals:
 .Dl pkt-gen -i vale1:a -f rx # receiver
 .Dl pkt-gen -i vale1:b -f tx # sender
 The same example can be used to test netmap pipes, by simply
-changing port names, e.g.
-.Dl pkt-gen -i vale:x{3 -f rx # receiver on the master side
-.Dl pkt-gen -i vale:x}3 -f tx # sender on the slave side
+changing port names, e.g.,
+.Dl pkt-gen -i vale2:x{3 -f rx # receiver on the master side
+.Dl pkt-gen -i vale2:x}3 -f tx # sender on the slave side
 .Pp
 The following command attaches an interface and the host stack
 to a switch:
@@ -1037,10 +1072,14 @@ Other
 .Nm
 clients attached to the same switch can now communicate
 with the network card or the host.
-.Pp
 .Sh SEE ALSO
+.Xr vale 4 ,
+.Xr vale-ctl 4 ,
+.Xr bridge 8 ,
+.Xr lb 8 ,
+.Xr pkt-gen 8
 .Pp
-http://info.iet.unipi.it/~luigi/netmap/
+.Pa http://info.iet.unipi.it/~luigi/netmap/
 .Pp
 Luigi Rizzo, Revisiting network I/O APIs: the netmap framework,
 Communications of the ACM, 55 (3), pp.45-51, March 2012
@@ -1066,6 +1105,7 @@ and further extended with help from
 .An Matteo Landi ,
 .An Gaetano Catalli ,
 .An Giuseppe Lettieri ,
+and
 .An Vincenzo Maffione .
 .Pp
 .Nm
@@ -1073,3 +1113,39 @@ and
 .Nm VALE
 have been funded by the European Commission within FP7 Projects
 CHANGE (257422) and OPENLAB (287581).
+.Sh CAVEATS
+No matter how fast the CPU and OS are,
+achieving line rate on 10G and faster interfaces
+requires hardware with sufficient performance.
+Several NICs are unable to sustain line rate with
+small packet sizes.
+Insufficient PCIe or memory bandwidth
+can also cause reduced performance.
+.Pp
+Another frequent reason for low performance is the use
+of flow control on the link: a slow receiver can limit
+the transmit speed.
+Be sure to disable flow control when running high
+speed experiments.
+.Ss SPECIAL NIC FEATURES
+.Nm
+is orthogonal to some NIC features such as
+multiqueue, schedulers, packet filters.
+.Pp
+Multiple transmit and receive rings are supported natively
+and can be configured with ordinary OS tools,
+such as
+.Xr ethtool 8
+or
+device-specific sysctl variables.
+The same goes for Receive Packet Steering (RPS)
+and filtering of incoming traffic.
+.Pp
+.Nm
+.Em does not use
+features such as
+.Em checksum offloading , TCP segmentation offloading ,
+.Em encryption , VLAN encapsulation/decapsulation ,
+etc.
+When using netmap to exchange packets with the host stack,
+make sure to disable these features.

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001, 2002 Mike Barcroft <mike@FreeBSD.org>
  * Copyright (c) 2001 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -39,6 +41,8 @@
 
 #ifndef _MACHINE__STDINT_H_
 #define	_MACHINE__STDINT_H_
+
+#include <machine/_limits.h>
 
 #if !defined(__cplusplus) || defined(__STDC_CONSTANT_MACROS)
 
@@ -167,8 +171,8 @@
 #define	PTRDIFF_MAX	INT64_MAX
 
 /* Limits of sig_atomic_t. */
-#define	SIG_ATOMIC_MIN	LONG_MIN
-#define	SIG_ATOMIC_MAX	LONG_MAX
+#define	SIG_ATOMIC_MIN	__LONG_MIN
+#define	SIG_ATOMIC_MAX	__LONG_MAX
 
 /* Limit of size_t. */
 #define	SIZE_MAX	UINT64_MAX

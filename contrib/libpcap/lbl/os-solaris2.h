@@ -17,10 +17,8 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @(#) $Header: /tcpdump/master/libpcap/lbl/os-solaris2.h,v 1.19 2000-10-11 04:02:52 guy Exp $ (LBL)
  */
 
 /* Prototypes missing in SunOS 5 */
 char    *strerror(int);
-int	snprintf(char *, size_t, const char *, ...);
+int	pcap_snprintf(char *, size_t, const char *, ...);

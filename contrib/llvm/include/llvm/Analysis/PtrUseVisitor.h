@@ -6,6 +6,7 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
+//
 /// \file
 /// This file provides a collection of visitors which walk the (instruction)
 /// uses of a pointer. These visitors all provide the same essential behavior
@@ -16,23 +17,36 @@
 /// global variable, or function argument.
 ///
 /// FIXME: Provide a variant which doesn't track offsets and is cheaper.
-///
+//
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_ANALYSIS_PTRUSEVISITOR_H
 #define LLVM_ANALYSIS_PTRUSEVISITOR_H
 
 #include "llvm/ADT/APInt.h"
+#include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/IR/CallSite.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/InstVisitor.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/InstVisitor.h"
-#include "llvm/Support/Compiler.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Use.h"
+#include "llvm/IR/User.h"
+#include "llvm/Support/Casting.h"
+#include <algorithm>
+#include <cassert>
+#include <type_traits>
 
 namespace llvm {
 
 namespace detail {
+
 /// \brief Implementation of non-dependent functionality for \c PtrUseVisitor.
 ///
 /// See \c PtrUseVisitor for the public interface and detailed comments about
@@ -48,13 +62,13 @@ public:
   /// analysis and whether the visit completed or aborted early.
   class PtrInfo {
   public:
-    PtrInfo() : AbortedInfo(0, false), EscapedInfo(0, false) {}
+    PtrInfo() : AbortedInfo(nullptr, false), EscapedInfo(nullptr, false) {}
 
     /// \brief Reset the pointer info, clearing all state.
     void reset() {
-      AbortedInfo.setPointer(0);
+      AbortedInfo.setPointer(nullptr);
       AbortedInfo.setInt(false);
-      EscapedInfo.setPointer(0);
+      EscapedInfo.setPointer(nullptr);
       EscapedInfo.setInt(false);
     }
 
@@ -76,14 +90,14 @@ public:
 
     /// \brief Mark the visit as aborted. Intended for use in a void return.
     /// \param I The instruction which caused the visit to abort, if available.
-    void setAborted(Instruction *I = 0) {
+    void setAborted(Instruction *I = nullptr) {
       AbortedInfo.setInt(true);
       AbortedInfo.setPointer(I);
     }
 
     /// \brief Mark the pointer as escaped. Intended for use in a void return.
     /// \param I The instruction which escapes the pointer, if available.
-    void setEscaped(Instruction *I = 0) {
+    void setEscaped(Instruction *I = nullptr) {
       EscapedInfo.setInt(true);
       EscapedInfo.setPointer(I);
     }
@@ -92,7 +106,7 @@ public:
     /// for use in a void return.
     /// \param I The instruction which both escapes the pointer and aborts the
     /// visit, if available.
-    void setEscapedAndAborted(Instruction *I = 0) {
+    void setEscapedAndAborted(Instruction *I = nullptr) {
       setEscaped(I);
       setAborted(I);
     }
@@ -115,7 +129,8 @@ protected:
   /// This is used to maintain a worklist fo to-visit uses. This is used to
   /// make the visit be iterative rather than recursive.
   struct UseToVisit {
-    typedef PointerIntPair<Use *, 1, bool> UseAndIsOffsetKnownPair;
+    using UseAndIsOffsetKnownPair = PointerIntPair<Use *, 1, bool>;
+
     UseAndIsOffsetKnownPair UseAndIsOffsetKnown;
     APInt Offset;
   };
@@ -127,7 +142,6 @@ protected:
   SmallPtrSet<Use *, 8> VisitedUses;
 
   /// @}
-
 
   /// \name Per-visit state
   /// This state is reset for each instruction visited.
@@ -145,7 +159,6 @@ protected:
 
   /// @}
 
-
   /// Note that the constructor is protected because this class must be a base
   /// class, we can't create instances directly of this class.
   PtrUseVisitorBase(const DataLayout &DL) : DL(DL) {}
@@ -162,6 +175,7 @@ protected:
   /// offsets and looking through GEPs.
   bool adjustOffsetForGEP(GetElementPtrInst &GEPI);
 };
+
 } // end namespace detail
 
 /// \brief A base class for visitors over the uses of a pointer value.
@@ -193,10 +207,14 @@ template <typename DerivedT>
 class PtrUseVisitor : protected InstVisitor<DerivedT>,
                       public detail::PtrUseVisitorBase {
   friend class InstVisitor<DerivedT>;
-  typedef InstVisitor<DerivedT> Base;
+
+  using Base = InstVisitor<DerivedT>;
 
 public:
-  PtrUseVisitor(const DataLayout &DL) : PtrUseVisitorBase(DL) {}
+  PtrUseVisitor(const DataLayout &DL) : PtrUseVisitorBase(DL) {
+    static_assert(std::is_base_of<PtrUseVisitor, DerivedT>::value,
+                  "Must pass the derived type to this template!");
+  }
 
   /// \brief Recursively visit the uses of the given pointer.
   /// \returns An info struct about the pointer. See \c PtrInfo for details.
@@ -219,7 +237,7 @@ public:
       U = ToVisit.UseAndIsOffsetKnown.getPointer();
       IsOffsetKnown = ToVisit.UseAndIsOffsetKnown.getInt();
       if (IsOffsetKnown)
-        Offset = llvm_move(ToVisit.Offset);
+        Offset = std::move(ToVisit.Offset);
 
       Instruction *I = cast<Instruction>(U->getUser());
       static_cast<DerivedT*>(this)->visit(I);
@@ -280,6 +298,6 @@ protected:
   }
 };
 
-}
+} // end namespace llvm
 
-#endif
+#endif // LLVM_ANALYSIS_PTRUSEVISITOR_H

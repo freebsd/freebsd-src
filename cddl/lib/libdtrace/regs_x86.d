@@ -1,4 +1,4 @@
-/*                                                                              
+/*
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
@@ -27,8 +27,6 @@
  * Copyright 2004 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"@(#)regs.d.in	1.1	04/09/28 SMI"
 
 inline int R_GS = 0;
 #pragma D binding "1.0" R_GS
@@ -118,4 +116,3 @@ inline int R_R14 = 18 + 1 + 1;
 #pragma D binding "1.0" R_R14
 inline int R_R15 = 18 + 1 + 0;
 #pragma D binding "1.0" R_R15
-

@@ -34,28 +34,33 @@
 /*
  * ath statistics class.
  */
-#include <sys/types.h>
+
+#include <sys/param.h>
 #include <sys/file.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
+
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_var.h>
 
+#include <err.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <signal.h>
 #include <string.h>
 #include <unistd.h>
-#include <err.h>
 
 #include "ah.h"
 #include "ah_desc.h"
+#include "ah_diagcodes.h"
 #include "net80211/ieee80211_ioctl.h"
 #include "net80211/ieee80211_radiotap.h"
 #include "if_athioctl.h"
 
 #include "athstats.h"
+
+#include "ctrl.h"
 
 #ifdef ATH_SUPPORT_ANI
 #define HAL_EP_RND(x,mul) \
@@ -336,7 +341,7 @@ static const struct fmt athstats[] = {
 #define	S_ANI_LISTEN	AFTER(S_ANI_MAXSPUR)
 	{ 6,	"listen","LISTEN",	"listen time" },
 #define	S_ANI_NIUP	AFTER(S_ANI_LISTEN)
-	{ 4,	"ni+",	"NI-",		"ANI increased noise immunity" },
+	{ 4,	"ni+",	"NI+",		"ANI increased noise immunity" },
 #define	S_ANI_NIDOWN	AFTER(S_ANI_NIUP)
 	{ 4,	"ni-",	"NI-",		"ANI decrease noise immunity" },
 #define	S_ANI_SIUP	AFTER(S_ANI_NIDOWN)
@@ -428,48 +433,19 @@ static const struct fmt athstats[] = {
 #define	S_LAST		S_ANT_TX0
 #define	S_MAX		S_BMISSCOUNT+1
 
-/*
- * XXX fold this into the external HAL definitions! -adrian
- */
 struct _athstats {
 	struct ath_stats ath;
 #ifdef ATH_SUPPORT_ANI
-	struct {
-		uint32_t ast_ani_niup;		/* increased noise immunity */
-		uint32_t ast_ani_nidown;	/* decreased noise immunity */
-		uint32_t ast_ani_spurup;	/* increased spur immunity */
-		uint32_t ast_ani_spurdown;	/* descreased spur immunity */
-		uint32_t ast_ani_ofdmon;	/* OFDM weak signal detect on */
-		uint32_t ast_ani_ofdmoff;	/* OFDM weak signal detect off*/
-		uint32_t ast_ani_cckhigh;	/* CCK weak signal thr high */
-		uint32_t ast_ani_ccklow;	/* CCK weak signal thr low */
-		uint32_t ast_ani_stepup;	/* increased first step level */
-		uint32_t ast_ani_stepdown;	/* decreased first step level */
-		uint32_t ast_ani_ofdmerrs;	/* cumulative ofdm phy err cnt*/
-		uint32_t ast_ani_cckerrs;	/* cumulative cck phy err cnt */
-		uint32_t ast_ani_reset;	/* params zero'd for non-STA */
-		uint32_t ast_ani_lzero;	/* listen time forced to zero */
-		uint32_t ast_ani_lneg;		/* listen time calculated < 0 */
-		HAL_MIB_STATS ast_mibstats;	/* MIB counter stats */
-		HAL_NODE_STATS ast_nodestats;	/* latest rssi stats */
-	} ani_stats;
-	struct {
-		uint8_t	noiseImmunityLevel;
-		uint8_t	spurImmunityLevel;
-		uint8_t	firstepLevel;
-		uint8_t	ofdmWeakSigDetectOff;
-		uint8_t	cckWeakSigThreshold;
-		uint32_t listenTime;
-	} ani_state;
+	HAL_ANI_STATS ani_stats;
+	HAL_ANI_STATE ani_state;
 #endif
 };
 
 struct athstatfoo_p {
 	struct athstatfoo base;
-	int s;
 	int optstats;
+	struct ath_driver_req req;
 #define	ATHSTATS_ANI	0x0001
-	struct ifreq ifr;
 	struct ath_diag atd;
 	struct _athstats cur;
 	struct _athstats total;
@@ -480,7 +456,8 @@ ath_setifname(struct athstatfoo *wf0, const char *ifname)
 {
 	struct athstatfoo_p *wf = (struct athstatfoo_p *) wf0;
 
-	strncpy(wf->ifr.ifr_name, ifname, sizeof (wf->ifr.ifr_name));
+	ath_driver_req_close(&wf->req);
+	(void) ath_driver_req_open(&wf->req, ifname);
 #ifdef ATH_SUPPORT_ANI
 	strncpy(wf->atd.ad_name, ifname, sizeof (wf->atd.ad_name));
 	wf->optstats |= ATHSTATS_ANI;
@@ -492,30 +469,34 @@ ath_zerostats(struct athstatfoo *wf0)
 {
 	struct athstatfoo_p *wf = (struct athstatfoo_p *) wf0;
 
-	if (ioctl(wf->s, SIOCZATHSTATS, &wf->ifr) < 0)
-		err(-1, "ioctl: %s", wf->ifr.ifr_name);
+	if (ath_driver_req_zero_stats(&wf->req) < 0)
+		exit(-1);
 }
 
 static void
 ath_collect(struct athstatfoo_p *wf, struct _athstats *stats)
 {
-	wf->ifr.ifr_data = (caddr_t) &stats->ath;
-	if (ioctl(wf->s, SIOCGATHSTATS, &wf->ifr) < 0)
-		err(1, "ioctl: %s", wf->ifr.ifr_name);
+
+	if (ath_driver_req_fetch_stats(&wf->req, &stats->ath) < 0)
+		exit(1);
 #ifdef ATH_SUPPORT_ANI
 	if (wf->optstats & ATHSTATS_ANI) {
-		wf->atd.ad_id = 5;
+
+		/* XXX TODO: convert */
+		wf->atd.ad_id = HAL_DIAG_ANI_CURRENT; /* HAL_DIAG_ANI_CURRENT */
 		wf->atd.ad_out_data = (caddr_t) &stats->ani_state;
 		wf->atd.ad_out_size = sizeof(stats->ani_state);
-		if (ioctl(wf->s, SIOCGATHDIAG, &wf->atd) < 0) {
-			warn("ioctl: %s", wf->atd.ad_name);
+		if (ath_driver_req_fetch_diag(&wf->req, SIOCGATHDIAG,
+		    &wf->atd) < 0) {
 			wf->optstats &= ~ATHSTATS_ANI;
 		}
-		wf->atd.ad_id = 8;
+
+		/* XXX TODO: convert */
+		wf->atd.ad_id = HAL_DIAG_ANI_STATS; /* HAL_DIAG_ANI_STATS */
 		wf->atd.ad_out_data = (caddr_t) &stats->ani_stats;
 		wf->atd.ad_out_size = sizeof(stats->ani_stats);
-		if (ioctl(wf->s, SIOCGATHDIAG, &wf->atd) < 0)
-			warn("ioctl: %s", wf->atd.ad_name);
+		(void) ath_driver_req_fetch_diag(&wf->req, SIOCGATHDIAG,
+		    &wf->atd);
 	}
 #endif /* ATH_SUPPORT_ANI */
 }
@@ -823,10 +804,12 @@ ath_get_totstat(struct bsdstat *sf, int s, char b[], size_t bs)
 	switch (s) {
 	case S_INPUT:
 		snprintf(b, bs, "%lu",
-		    wf->total.ath.ast_rx_packets - wf->total.ath.ast_rx_mgt);
+		    (unsigned long) wf->total.ath.ast_rx_packets -
+		    (unsigned long) wf->total.ath.ast_rx_mgt);
 		return 1;
 	case S_OUTPUT:
-		snprintf(b, bs, "%lu", wf->total.ath.ast_tx_packets);
+		snprintf(b, bs, "%lu",
+		    (unsigned long) wf->total.ath.ast_tx_packets);
 		return 1;
 	case S_RATE:
 		snprintrate(b, bs, wf->total.ath.ast_tx_rate);
@@ -1083,12 +1066,13 @@ BSDSTAT_DEFINE_BOUNCE(athstatfoo)
 struct athstatfoo *
 athstats_new(const char *ifname, const char *fmtstring)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	struct athstatfoo_p *wf;
 
 	wf = calloc(1, sizeof(struct athstatfoo_p));
 	if (wf != NULL) {
-		bsdstat_init(&wf->base.base, "athstats", athstats, N(athstats));
+		ath_driver_req_init(&wf->req);
+		bsdstat_init(&wf->base.base, "athstats", athstats,
+		    nitems(athstats));
 		/* override base methods */
 		wf->base.base.collect_cur = ath_collect_cur;
 		wf->base.base.collect_tot = ath_collect_tot;
@@ -1106,13 +1090,8 @@ athstats_new(const char *ifname, const char *fmtstring)
 		wf->base.setstamac = wlan_setstamac;
 #endif
 		wf->base.zerostats = ath_zerostats;
-		wf->s = socket(AF_INET, SOCK_DGRAM, 0);
-		if (wf->s < 0)
-			err(1, "socket");
-
 		ath_setifname(&wf->base, ifname);
 		wf->base.setfmt(&wf->base, fmtstring);
 	}
 	return &wf->base;
-#undef N
 }

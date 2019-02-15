@@ -3,11 +3,12 @@
 PROG=	kfd
 MAN=	kfd.8
 CFLAGS+=	-I${KRB5DIR}/lib/asn1 \
-		-I${KRB5DIR}/lib/roken
-DPADD=	${LIBKRB5} ${LIBROKEN} ${LIBASN1} ${LIBCRYPTO} \
-	${LIBCRYPT} ${LIBVERS}
-LDADD=	-lkrb5 -lroken -lasn1 -lcrypto -lcrypt \
-	${LIBVERS}
+		-I${KRB5DIR}/lib/roken \
+		-I${KRB5DIR}/lib/krb5 \
+		-I${.OBJDIR:H:H}/lib/libroken \
+		-I${.OBJDIR:H:H}/lib/libasn1 \
+		-I${.OBJDIR:H:H}/lib/libkrb5
+LIBADD=	krb5 roken vers
 
 .include <bsd.prog.mk>
 

@@ -16,6 +16,7 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include <cstddef>
 
 namespace llvm {
 
@@ -25,7 +26,7 @@ template<unsigned InternalLen>
 class SmallString : public SmallVector<char, InternalLen> {
 public:
   /// Default ctor - Initialize to empty.
-  SmallString() {}
+  SmallString() = default;
 
   /// Initialize from a StringRef.
   SmallString(StringRef S) : SmallVector<char, InternalLen>(S.begin(), S.end()) {}
@@ -33,9 +34,6 @@ public:
   /// Initialize with a range.
   template<typename ItTy>
   SmallString(ItTy S, ItTy E) : SmallVector<char, InternalLen>(S, E) {}
-
-  /// Copy ctor.
-  SmallString(const SmallString &RHS) : SmallVector<char, InternalLen>(RHS) {}
 
   // Note that in order to add new overloads for append & assign, we have to
   // duplicate the inherited versions so as not to inadvertently hide them.
@@ -81,7 +79,6 @@ public:
   void append(size_t NumInputs, char Elt) {
     SmallVectorImpl<char>::append(NumInputs, Elt);
   }
-
 
   /// Append from a StringRef.
   void append(StringRef RHS) {
@@ -295,6 +292,6 @@ public:
   }
 };
 
-}
+} // end namespace llvm
 
-#endif
+#endif // LLVM_ADT_SMALLSTRING_H

@@ -34,8 +34,8 @@
 .Nm archive_entry_perm ,
 .Nm archive_entry_set_perm ,
 .Nm archive_entry_strmode ,
-.Nm archive_entry_uname
-.Nm archive_entry_uname_w
+.Nm archive_entry_uname ,
+.Nm archive_entry_uname_w ,
 .Nm archive_entry_set_uname ,
 .Nm archive_entry_copy_uname ,
 .Nm archive_entry_copy_uname_w ,
@@ -194,11 +194,11 @@ every name that is recognized.
 .Xr strtofflags 3 ,
 which stops parsing at the first unrecognized name.)
 .Sh SEE ALSO
-.Xr archive 3 ,
 .Xr archive_entry 3 ,
 .Xr archive_entry_acl 3 ,
 .Xr archive_read_disk 3 ,
 .Xr archive_write_disk 3
+.Xr libarchive 3 ,
 .Sh BUGS
 The platform types
 .Vt uid_t

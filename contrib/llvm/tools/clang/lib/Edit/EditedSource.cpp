@@ -23,6 +23,39 @@ void EditsReceiver::remove(CharSourceRange range) {
   replace(range, StringRef());
 }
 
+void EditedSource::deconstructMacroArgLoc(SourceLocation Loc,
+                                          SourceLocation &ExpansionLoc,
+                                          MacroArgUse &ArgUse) {
+  assert(SourceMgr.isMacroArgExpansion(Loc));
+  SourceLocation DefArgLoc = SourceMgr.getImmediateExpansionRange(Loc).first;
+  SourceLocation ImmediateExpansionLoc =
+      SourceMgr.getImmediateExpansionRange(DefArgLoc).first;
+  ExpansionLoc = ImmediateExpansionLoc;
+  while (SourceMgr.isMacroBodyExpansion(ExpansionLoc))
+    ExpansionLoc = SourceMgr.getImmediateExpansionRange(ExpansionLoc).first;
+  SmallString<20> Buf;
+  StringRef ArgName = Lexer::getSpelling(SourceMgr.getSpellingLoc(DefArgLoc),
+                                         Buf, SourceMgr, LangOpts);
+  ArgUse = MacroArgUse{nullptr, SourceLocation(), SourceLocation()};
+  if (!ArgName.empty())
+    ArgUse = {&IdentTable.get(ArgName), ImmediateExpansionLoc,
+              SourceMgr.getSpellingLoc(DefArgLoc)};
+}
+
+void EditedSource::startingCommit() {}
+
+void EditedSource::finishedCommit() {
+  for (auto &ExpArg : CurrCommitMacroArgExps) {
+    SourceLocation ExpLoc;
+    MacroArgUse ArgUse;
+    std::tie(ExpLoc, ArgUse) = ExpArg;
+    auto &ArgUses = ExpansionToArgMap[ExpLoc.getRawEncoding()];
+    if (std::find(ArgUses.begin(), ArgUses.end(), ArgUse) == ArgUses.end())
+      ArgUses.push_back(ArgUse);
+  }
+  CurrCommitMacroArgExps.clear();
+}
+
 StringRef EditedSource::copyString(const Twine &twine) {
   SmallString<128> Data;
   return copyString(twine.toStringRef(Data));
@@ -36,17 +69,32 @@ bool EditedSource::canInsertInOffset(SourceLocation OrigLoc, FileOffset Offs) {
   }
 
   if (SourceMgr.isMacroArgExpansion(OrigLoc)) {
-    SourceLocation
-      DefArgLoc = SourceMgr.getImmediateExpansionRange(OrigLoc).first;
-    SourceLocation
-      ExpLoc = SourceMgr.getImmediateExpansionRange(DefArgLoc).first;
-    llvm::DenseMap<unsigned, SourceLocation>::iterator
-      I = ExpansionToArgMap.find(ExpLoc.getRawEncoding());
-    if (I != ExpansionToArgMap.end() && I->second != DefArgLoc)
-      return false; // Trying to write in a macro argument input that has
-                 // already been written for another argument of the same macro. 
+    SourceLocation ExpLoc;
+    MacroArgUse ArgUse;
+    deconstructMacroArgLoc(OrigLoc, ExpLoc, ArgUse);
+    auto I = ExpansionToArgMap.find(ExpLoc.getRawEncoding());
+    if (I != ExpansionToArgMap.end() &&
+        find_if(I->second, [&](const MacroArgUse &U) {
+          return ArgUse.Identifier == U.Identifier &&
+                 std::tie(ArgUse.ImmediateExpansionLoc, ArgUse.UseLoc) !=
+                     std::tie(U.ImmediateExpansionLoc, U.UseLoc);
+        }) != I->second.end()) {
+      // Trying to write in a macro argument input that has already been
+      // written by a previous commit for another expansion of the same macro
+      // argument name. For example:
+      //
+      // \code
+      //   #define MAC(x) ((x)+(x))
+      //   MAC(a)
+      // \endcode
+      //
+      // A commit modified the macro argument 'a' due to the first '(x)'
+      // expansion inside the macro definition, and a subsequent commit tried
+      // to modify 'a' again for the second '(x)' expansion. The edits of the
+      // second commit will be rejected.
+      return false;
+    }
   }
-
   return true;
 }
 
@@ -59,26 +107,24 @@ bool EditedSource::commitInsert(SourceLocation OrigLoc,
     return true;
 
   if (SourceMgr.isMacroArgExpansion(OrigLoc)) {
-    SourceLocation
-      DefArgLoc = SourceMgr.getImmediateExpansionRange(OrigLoc).first;
-    SourceLocation
-      ExpLoc = SourceMgr.getImmediateExpansionRange(DefArgLoc).first;
-    ExpansionToArgMap[ExpLoc.getRawEncoding()] = DefArgLoc;
+    MacroArgUse ArgUse;
+    SourceLocation ExpLoc;
+    deconstructMacroArgLoc(OrigLoc, ExpLoc, ArgUse);
+    if (ArgUse.Identifier)
+      CurrCommitMacroArgExps.emplace_back(ExpLoc, ArgUse);
   }
-  
+
   FileEdit &FA = FileEdits[Offs];
   if (FA.Text.empty()) {
     FA.Text = copyString(text);
     return true;
   }
 
-  Twine concat;
   if (beforePreviousInsertions)
-    concat = Twine(text) + FA.Text;
+    FA.Text = copyString(Twine(text) + FA.Text);
   else
-    concat = Twine(FA.Text) +  text;
+    FA.Text = copyString(Twine(FA.Text) + text);
 
-  FA.Text = copyString(concat);
   return true;
 }
 
@@ -137,7 +183,7 @@ bool EditedSource::commitInsertFromRange(SourceLocation OrigLoc,
     StrVec += text;
   }
 
-  return commitInsert(OrigLoc, Offs, StrVec.str(), beforePreviousInsertions);
+  return commitInsert(OrigLoc, Offs, StrVec, beforePreviousInsertions);
 }
 
 void EditedSource::commitRemove(SourceLocation OrigLoc,
@@ -160,7 +206,7 @@ void EditedSource::commitRemove(SourceLocation OrigLoc,
   }
 
   FileOffset TopBegin, TopEnd;
-  FileEdit *TopFA = 0;
+  FileEdit *TopFA = nullptr;
 
   if (I == FileEdits.end()) {
     FileEditsTy::iterator
@@ -220,6 +266,16 @@ void EditedSource::commitRemove(SourceLocation OrigLoc,
 bool EditedSource::commit(const Commit &commit) {
   if (!commit.isCommitable())
     return false;
+
+  struct CommitRAII {
+    EditedSource &Editor;
+    CommitRAII(EditedSource &Editor) : Editor(Editor) {
+      Editor.startingCommit();
+    }
+    ~CommitRAII() {
+      Editor.finishedCommit();
+    }
+  } CommitRAII(*this);
 
   for (edit::Commit::edit_iterator
          I = commit.edit_begin(), E = commit.edit_end(); I != E; ++I) {
@@ -282,6 +338,12 @@ static void adjustRemoval(const SourceManager &SM, const LangOptions &LangOpts,
   unsigned begin = offs.getOffset();
   unsigned end = begin + len;
 
+  // Do not try to extend the removal if we're at the end of the buffer already.
+  if (end == buffer.size())
+    return;
+
+  assert(begin < buffer.size() && end < buffer.size() && "Invalid range!");
+
   // FIXME: Remove newline.
 
   if (begin == 0) {
@@ -291,9 +353,11 @@ static void adjustRemoval(const SourceManager &SM, const LangOptions &LangOpts,
   }
 
   if (buffer[end] == ' ') {
+    assert((end + 1 != buffer.size() || buffer.data()[end + 1] == 0) &&
+           "buffer not zero-terminated!");
     if (canRemoveWhitespace(/*left=*/buffer[begin-1],
                             /*beforeWSpace=*/buffer[end-1],
-                            /*right=*/buffer[end+1],
+                            /*right=*/buffer.data()[end + 1], // zero-terminated
                             LangOpts))
       ++len;
     return;
@@ -305,13 +369,14 @@ static void adjustRemoval(const SourceManager &SM, const LangOptions &LangOpts,
 
 static void applyRewrite(EditsReceiver &receiver,
                          StringRef text, FileOffset offs, unsigned len,
-                         const SourceManager &SM, const LangOptions &LangOpts) {
-  assert(!offs.getFID().isInvalid());
+                         const SourceManager &SM, const LangOptions &LangOpts,
+                         bool shouldAdjustRemovals) {
+  assert(offs.getFID().isValid());
   SourceLocation Loc = SM.getLocForStartOfFile(offs.getFID());
   Loc = Loc.getLocWithOffset(offs.getOffset());
   assert(Loc.isFileID());
 
-  if (text.empty())
+  if (text.empty() && shouldAdjustRemovals)
     adjustRemoval(SM, LangOpts, Loc, offs, len, text);
 
   CharSourceRange range = CharSourceRange::getCharRange(Loc,
@@ -329,7 +394,8 @@ static void applyRewrite(EditsReceiver &receiver,
     receiver.insert(Loc, text);
 }
 
-void EditedSource::applyRewrites(EditsReceiver &receiver) {
+void EditedSource::applyRewrites(EditsReceiver &receiver,
+                                 bool shouldAdjustRemovals) {
   SmallString<128> StrVec;
   FileOffset CurOffs, CurEnd;
   unsigned CurLen;
@@ -356,14 +422,16 @@ void EditedSource::applyRewrites(EditsReceiver &receiver) {
       continue;
     }
 
-    applyRewrite(receiver, StrVec.str(), CurOffs, CurLen, SourceMgr, LangOpts);
+    applyRewrite(receiver, StrVec, CurOffs, CurLen, SourceMgr, LangOpts,
+                 shouldAdjustRemovals);
     CurOffs = offs;
     StrVec = act.Text;
     CurLen = act.RemoveLen;
     CurEnd = CurOffs.getWithOffset(CurLen);
   }
 
-  applyRewrite(receiver, StrVec.str(), CurOffs, CurLen, SourceMgr, LangOpts);
+  applyRewrite(receiver, StrVec, CurOffs, CurLen, SourceMgr, LangOpts,
+               shouldAdjustRemovals);
 }
 
 void EditedSource::clearRewrites() {

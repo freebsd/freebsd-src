@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 1988, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2017 RackTop Systems.
  */
 
 /*	Copyright (c) 1983, 1984, 1985, 1986, 1987, 1988, 1989 AT&T	*/
@@ -268,27 +269,30 @@ typedef struct xvattr {
  * XVA_SET_REQ() sets an attribute bit in the proper element in the bitmap
  * of requested attributes (xva_reqattrmap[]).
  */
-#define	XVA_SET_REQ(xvap, attr)					\
+#define	XVA_SET_REQ(xvap, attr)	{				\
 	ASSERT((xvap)->xva_vattr.va_mask | AT_XVATTR);		\
 	ASSERT((xvap)->xva_magic == XVA_MAGIC);			\
-	(xvap)->xva_reqattrmap[XVA_INDEX(attr)] |= XVA_ATTRBIT(attr)
+	(xvap)->xva_reqattrmap[XVA_INDEX(attr)] |= XVA_ATTRBIT(attr); \
+}
 /*
  * XVA_CLR_REQ() clears an attribute bit in the proper element in the bitmap
  * of requested attributes (xva_reqattrmap[]).
  */
-#define	XVA_CLR_REQ(xvap, attr)					\
+#define	XVA_CLR_REQ(xvap, attr)	{				\
 	ASSERT((xvap)->xva_vattr.va_mask | AT_XVATTR);		\
 	ASSERT((xvap)->xva_magic == XVA_MAGIC);			\
-	(xvap)->xva_reqattrmap[XVA_INDEX(attr)] &= ~XVA_ATTRBIT(attr)
+	(xvap)->xva_reqattrmap[XVA_INDEX(attr)] &= ~XVA_ATTRBIT(attr); \
+}
 
 /*
  * XVA_SET_RTN() sets an attribute bit in the proper element in the bitmap
  * of returned attributes (xva_rtnattrmap[]).
  */
-#define	XVA_SET_RTN(xvap, attr)					\
+#define	XVA_SET_RTN(xvap, attr)	{				\
 	ASSERT((xvap)->xva_vattr.va_mask | AT_XVATTR);		\
 	ASSERT((xvap)->xva_magic == XVA_MAGIC);			\
-	(XVA_RTNATTRMAP(xvap))[XVA_INDEX(attr)] |= XVA_ATTRBIT(attr)
+	(XVA_RTNATTRMAP(xvap))[XVA_INDEX(attr)] |= XVA_ATTRBIT(attr); \
+}
 
 /*
  * XVA_ISSET_REQ() checks the requested attribute bitmap (xva_reqattrmap[])

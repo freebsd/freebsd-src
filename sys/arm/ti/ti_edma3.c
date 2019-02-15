@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com/
  * Copyright (c) 2012 Damjan Marion <dmarion@Freebsd.org>
  * All rights reserved.
@@ -48,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/resource.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -99,7 +100,11 @@ __FBSDID("$FreeBSD$");
 
 struct ti_edma3_softc {
 	device_t		sc_dev;
-	struct resource *	mem_res[TI_EDMA3_NUM_TCS+1];
+	/* 
+	 * We use one-element array in case if we need to add 
+	 * mem resources for transfer control windows
+	 */
+	struct resource *	mem_res[1];
 	struct resource *	irq_res[TI_EDMA3_NUM_IRQS];
 	void			*ih_cookie[TI_EDMA3_NUM_IRQS];
 };
@@ -108,9 +113,6 @@ static struct ti_edma3_softc *ti_edma3_sc = NULL;
 
 static struct resource_spec ti_edma3_mem_spec[] = {
 	{ SYS_RES_MEMORY,   0,  RF_ACTIVE },
-	{ SYS_RES_MEMORY,   1,  RF_ACTIVE },
-	{ SYS_RES_MEMORY,   2,  RF_ACTIVE },
-	{ SYS_RES_MEMORY,   3,  RF_ACTIVE },
 	{ -1,               0,  0 }
 };
 static struct resource_spec ti_edma3_irq_spec[] = {
@@ -123,8 +125,6 @@ static struct resource_spec ti_edma3_irq_spec[] = {
 /* Read/Write macros */
 #define ti_edma3_cc_rd_4(reg)		bus_read_4(ti_edma3_sc->mem_res[0], reg)
 #define ti_edma3_cc_wr_4(reg, val)	bus_write_4(ti_edma3_sc->mem_res[0], reg, val)
-#define ti_edma3_tc_rd_4(c, reg)	bus_read_4(ti_edma3_sc->mem_res[c+1], reg)
-#define ti_edma3_tc_wr_4(c, reg, val)	bus_write_4(ti_edma3_sc->mem_res[c+1], reg, val)
 
 static void ti_edma3_intr_comp(void *arg);
 static void ti_edma3_intr_mperr(void *arg);

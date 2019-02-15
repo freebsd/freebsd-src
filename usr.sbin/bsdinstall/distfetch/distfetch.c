@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Nathan Whitehorn
  * Copyright (c) 2014 Devin Teske <dteske@FreeBSD.org>
  * All rights reserved.
@@ -78,7 +80,7 @@ main(void)
 
 	if (chdir(getenv("BSDINSTALL_DISTDIR")) != 0) {
 		snprintf(error, sizeof(error),
-		    "Could could change to directory %s: %s\n",
+		    "Could not change to directory %s: %s\n",
 		    getenv("BSDINSTALL_DISTDIR"), strerror(errno));
 		dialog_msgbox("Error", error, 0, 0, TRUE);
 		end_dialog();

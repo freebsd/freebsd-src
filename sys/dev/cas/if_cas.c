@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2001 Eduardo Horvath.
  * Copyright (c) 2001-2003 Thomas Moestl
  * Copyright (c) 2007-2009 Marius Strobl <marius@FreeBSD.org>
@@ -133,7 +135,7 @@ static void	cas_detach(struct cas_softc *sc);
 static int	cas_disable_rx(struct cas_softc *sc);
 static int	cas_disable_tx(struct cas_softc *sc);
 static void	cas_eint(struct cas_softc *sc, u_int status);
-static void	cas_free(struct mbuf *m, void *arg1, void* arg2);
+static void	cas_free(struct mbuf *m);
 static void	cas_init(void *xsc);
 static void	cas_init_locked(struct cas_softc *sc);
 static void	cas_init_regs(struct cas_softc *sc);
@@ -1732,16 +1734,10 @@ cas_rint(struct cas_softc *sc)
 				refcount_acquire(&rxds->rxds_refcount);
 				bus_dmamap_sync(sc->sc_rdmatag,
 				    rxds->rxds_dmamap, BUS_DMASYNC_POSTREAD);
-#if __FreeBSD_version < 800016
-				MEXTADD(m, (caddr_t)rxds->rxds_buf +
-				    off * 256 + ETHER_ALIGN, len, cas_free,
-				    rxds, M_RDONLY, EXT_NET_DRV);
-#else
-				MEXTADD(m, (caddr_t)rxds->rxds_buf +
+				m_extadd(m, (char *)rxds->rxds_buf +
 				    off * 256 + ETHER_ALIGN, len, cas_free,
 				    sc, (void *)(uintptr_t)idx,
 				    M_RDONLY, EXT_NET_DRV);
-#endif
 				if ((m->m_flags & M_EXT) == 0) {
 					m_freem(m);
 					m = NULL;
@@ -1779,16 +1775,10 @@ cas_rint(struct cas_softc *sc)
 				m->m_len = min(CAS_PAGE_SIZE - off, len);
 				bus_dmamap_sync(sc->sc_rdmatag,
 				    rxds->rxds_dmamap, BUS_DMASYNC_POSTREAD);
-#if __FreeBSD_version < 800016
-				MEXTADD(m, (caddr_t)rxds->rxds_buf + off,
-				    m->m_len, cas_free, rxds, M_RDONLY,
-				    EXT_NET_DRV);
-#else
-				MEXTADD(m, (caddr_t)rxds->rxds_buf + off,
+				m_extadd(m, (char *)rxds->rxds_buf + off,
 				    m->m_len, cas_free, sc,
 				    (void *)(uintptr_t)idx, M_RDONLY,
 				    EXT_NET_DRV);
-#endif
 				if ((m->m_flags & M_EXT) == 0) {
 					m_freem(m);
 					m = NULL;
@@ -1818,19 +1808,11 @@ cas_rint(struct cas_softc *sc)
 						    sc->sc_rdmatag,
 						    rxds2->rxds_dmamap,
 						    BUS_DMASYNC_POSTREAD);
-#if __FreeBSD_version < 800016
-						MEXTADD(m2,
-						    (caddr_t)rxds2->rxds_buf,
-						    m2->m_len, cas_free,
-						    rxds2, M_RDONLY,
-						    EXT_NET_DRV);
-#else
-						MEXTADD(m2,
-						    (caddr_t)rxds2->rxds_buf,
+						m_extadd(m2,
+						    (char *)rxds2->rxds_buf,
 						    m2->m_len, cas_free, sc,
 						    (void *)(uintptr_t)idx2,
 						    M_RDONLY, EXT_NET_DRV);
-#endif
 						if ((m2->m_flags & M_EXT) ==
 						    0) {
 							m_freem(m2);
@@ -1889,21 +1871,15 @@ cas_rint(struct cas_softc *sc)
 }
 
 static void
-cas_free(struct mbuf *m, void *arg1, void *arg2)
+cas_free(struct mbuf *m)
 {
 	struct cas_rxdsoft *rxds;
 	struct cas_softc *sc;
 	u_int idx, locked;
 
-#if __FreeBSD_version < 800016
-	rxds = arg2;
-	sc = rxds->rxds_sc;
-	idx = rxds->rxds_idx;
-#else
-	sc = arg1;
-	idx = (uintptr_t)arg2;
+	sc = m->m_ext.ext_arg1;
+	idx = (uintptr_t)m->m_ext.ext_arg2;
 	rxds = &sc->sc_rxdsoft[idx];
-#endif
 	if (refcount_release(&rxds->rxds_refcount) == 0)
 		return;
 
@@ -2570,7 +2546,7 @@ cas_setladrf(struct cas_softc *sc)
 	memset(hash, 0, sizeof(hash));
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
 		if (inm->ifma_addr->sa_family != AF_LINK)
 			continue;
 		crc = ether_crc32_le(LLADDR((struct sockaddr_dl *)
@@ -2627,10 +2603,6 @@ static driver_t cas_pci_driver = {
 	sizeof(struct cas_softc)
 };
 
-DRIVER_MODULE(cas, pci, cas_pci_driver, cas_devclass, 0, 0);
-DRIVER_MODULE(miibus, cas, miibus_driver, miibus_devclass, 0, 0);
-MODULE_DEPEND(cas, pci, 1, 1, 1);
-
 static const struct cas_pci_dev {
 	uint32_t	cpd_devid;
 	uint8_t		cpd_revid;
@@ -2642,6 +2614,12 @@ static const struct cas_pci_dev {
 	{ 0xabba108e, 0x0, CAS_CAS, "Sun Cassini Gigabit Ethernet" },
 	{ 0, 0, 0, NULL }
 };
+
+DRIVER_MODULE(cas, pci, cas_pci_driver, cas_devclass, 0, 0);
+MODULE_PNP_INFO("W32:vendor/device", pci, cas, cas_pci_devlist,
+    nitems(cas_pci_devlist) - 1);
+DRIVER_MODULE(miibus, cas, miibus_driver, miibus_devclass, 0, 0);
+MODULE_DEPEND(cas, pci, 1, 1, 1);
 
 static int
 cas_pci_probe(device_t dev)

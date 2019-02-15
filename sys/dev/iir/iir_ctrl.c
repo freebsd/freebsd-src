@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  *       Copyright (c) 2000-03 ICP vortex GmbH
  *       Copyright (c) 2002-03 Intel Corporation
  *       Copyright (c) 2003    Adaptec Inc.
@@ -43,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
@@ -52,12 +55,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/disklabel.h>
 #include <sys/sysctl.h>
+#include <sys/sx.h>
 #include <machine/bus.h>
 
 #include <dev/iir/iir.h>
 
 /* Entry points and other prototypes */
-static struct gdt_softc *gdt_minor2softc(int minor_no);
+static struct gdt_softc *gdt_minor2softc(struct cdev *dev, int minor_no);
 
 static d_open_t		iir_open;
 static d_close_t	iir_close;
@@ -68,7 +72,6 @@ static d_ioctl_t	iir_ioctl;
 /* Normally, this is a static structure.  But we need it in pci/iir_pci.c */
 static struct cdevsw iir_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	iir_open,
 	.d_close =	iir_close,
 	.d_read =	iir_read,
@@ -77,11 +80,10 @@ static struct cdevsw iir_cdevsw = {
 	.d_name =	"iir",
 };
 
-/*
-static int iir_devsw_installed = 0;
-*/
 #ifndef SDEV_PER_HBA
 static int sdev_made = 0;
+static struct sx sdev_lock;
+SX_SYSINIT(iir_sdev_lock, &sdev_lock, "iir sdev");
 #endif
 extern int gdt_cnt;
 extern gdt_statist_t gdt_stat;
@@ -91,19 +93,22 @@ extern gdt_statist_t gdt_stat;
  * make a special device and return the dev_t
  */
 struct cdev *
-gdt_make_dev(int unit)
+gdt_make_dev(struct gdt_softc *gdt)
 {
     struct cdev *dev;
 
 #ifdef SDEV_PER_HBA
-    dev = make_dev(&iir_cdevsw, hba2minor(unit), UID_ROOT, GID_OPERATOR,
+    dev = make_dev(&iir_cdevsw, 0, UID_ROOT, GID_OPERATOR,
                    S_IRUSR | S_IWUSR, "iir%d", unit);
+    dev->si_drv1 = gdt;
 #else
+    sx_xlock(&sdev_lock);
     if (sdev_made)
-        return (0);
+        return (NULL);
     dev = make_dev(&iir_cdevsw, 0, UID_ROOT, GID_OPERATOR,
                    S_IRUSR | S_IWUSR, "iir");
     sdev_made = 1;
+    sx_xunlock(&sdev_lock);
 #endif
     return (dev);
 }
@@ -120,22 +125,23 @@ gdt_destroy_dev(struct cdev *dev)
  * return the pointer to its softc structure
  */
 static struct gdt_softc *
-gdt_minor2softc(int minor_no)
+gdt_minor2softc(struct cdev *dev, int minor_no)
 {
-    struct gdt_softc *gdt;
-    int hanum;
-
 #ifdef SDEV_PER_HBA
-    hanum = minor2hba(minor_no);
+
+    return (dev->si_drv1);
 #else
-    hanum = minor_no;
+    devclass_t dc;
+    device_t child;
+
+    dc = devclass_find("iir");
+    if (dc == NULL)
+	return (NULL);
+    child = devclass_get_device(dc, minor_no);
+    if (child == NULL)
+	return (NULL);
+    return (device_get_softc(child));
 #endif
-
-    for (gdt = TAILQ_FIRST(&gdt_softcs);
-         gdt != NULL && gdt->sc_hanum != hanum;
-         gdt = TAILQ_NEXT(gdt, links));
-
-    return (gdt);
 }
 
 static int
@@ -143,16 +149,6 @@ iir_open(struct cdev *dev, int flags, int fmt, struct thread * p)
 {
     GDT_DPRINTF(GDT_D_DEBUG, ("iir_open()\n"));
 
-#ifdef SDEV_PER_HBA
-    int minor_no;
-    struct gdt_softc *gdt;
-
-    minor_no = dev2unit(dev);
-    gdt = gdt_minor2softc(minor_no);
-    if (gdt == NULL)
-        return (ENXIO);
-#endif
-                
     return (0);
 }
 
@@ -161,16 +157,6 @@ iir_close(struct cdev *dev, int flags, int fmt, struct thread * p)
 {
     GDT_DPRINTF(GDT_D_DEBUG, ("iir_close()\n"));
                 
-#ifdef SDEV_PER_HBA
-    int minor_no;
-    struct gdt_softc *gdt;
-
-    minor_no = dev2unit(dev);
-    gdt = gdt_minor2softc(minor_no);
-    if (gdt == NULL)
-        return (ENXIO);
-#endif
-
     return (0);
 }
 
@@ -179,16 +165,6 @@ iir_write(struct cdev *dev, struct uio * uio, int ioflag)
 {
     GDT_DPRINTF(GDT_D_DEBUG, ("iir_write()\n"));
                 
-#ifdef SDEV_PER_HBA
-    int minor_no;
-    struct gdt_softc *gdt;
-
-    minor_no = dev2unit(dev);
-    gdt = gdt_minor2softc(minor_no);
-    if (gdt == NULL)
-        return (ENXIO);
-#endif
-
     return (0);
 }
 
@@ -197,16 +173,6 @@ iir_read(struct cdev *dev, struct uio * uio, int ioflag)
 {
     GDT_DPRINTF(GDT_D_DEBUG, ("iir_read()\n"));
                 
-#ifdef SDEV_PER_HBA
-    int minor_no;
-    struct gdt_softc *gdt;
-
-    minor_no = dev2unit(dev);
-    gdt = gdt_minor2softc(minor_no);
-    if (gdt == NULL)
-        return (ENXIO);
-#endif
-
     return (0);
 }
 
@@ -221,15 +187,6 @@ iir_ioctl(struct cdev *dev, u_long cmd, caddr_t cmdarg, int flags, struct thread
 {
     GDT_DPRINTF(GDT_D_DEBUG, ("iir_ioctl() cmd 0x%lx\n",cmd));
 
-#ifdef SDEV_PER_HBA
-    int minor_no;
-    struct gdt_softc *gdt;
-
-    minor_no = dev2unit(dev);
-    gdt = gdt_minor2softc(minor_no);
-    if (gdt == NULL)
-        return (ENXIO);
-#endif
     ++gdt_stat.io_count_act;
     if (gdt_stat.io_count_act > gdt_stat.io_count_max)
         gdt_stat.io_count_max = gdt_stat.io_count_act;
@@ -239,19 +196,19 @@ iir_ioctl(struct cdev *dev, u_long cmd, caddr_t cmdarg, int flags, struct thread
         {
             gdt_ucmd_t *ucmd;
             struct gdt_softc *gdt;
-            int lock;
 
             ucmd = (gdt_ucmd_t *)cmdarg;
-            gdt = gdt_minor2softc(ucmd->io_node);
+            gdt = gdt_minor2softc(dev, ucmd->io_node);
             if (gdt == NULL)
                 return (ENXIO);
-            lock = splcam();
+	    mtx_lock(&gdt->sc_lock);
             TAILQ_INSERT_TAIL(&gdt->sc_ucmd_queue, ucmd, links);
             ucmd->complete_flag = FALSE;
-            splx(lock);
             gdt_next(gdt);
             if (!ucmd->complete_flag)
-                (void) tsleep((void *)ucmd, PCATCH | PRIBIO, "iirucw", 0);
+                (void) mtx_sleep(ucmd, &gdt->sc_lock, PCATCH | PRIBIO, "iirucw",
+		    0);
+	    mtx_unlock(&gdt->sc_lock);
             break;
         }
 
@@ -268,7 +225,7 @@ iir_ioctl(struct cdev *dev, u_long cmd, caddr_t cmdarg, int flags, struct thread
             struct gdt_softc *gdt; 
             
             p = (gdt_ctrt_t *)cmdarg;
-            gdt = gdt_minor2softc(p->io_node);
+            gdt = gdt_minor2softc(dev, p->io_node);
             if (gdt == NULL)
                 return (ENXIO);
             /* only RP controllers */
@@ -298,15 +255,9 @@ iir_ioctl(struct cdev *dev, u_long cmd, caddr_t cmdarg, int flags, struct thread
 
             p = (gdt_osv_t *)cmdarg;
             p->oscode = 10;
-            p->version = osrelease[0] - '0';
-            if (osrelease[1] == '.')
-                p->subversion = osrelease[2] - '0';
-            else
-                p->subversion = 0;
-            if (osrelease[3] == '.')
-                p->revision = osrelease[4] - '0';
-            else
-                p->revision = 0;
+	    p->version = osreldate / 100000;
+	    p->subversion = osreldate / 1000 % 100;
+	    p->revision = 0;
             strcpy(p->name, ostype);
             break;
         }
@@ -318,7 +269,6 @@ iir_ioctl(struct cdev *dev, u_long cmd, caddr_t cmdarg, int flags, struct thread
       case GDT_IOCTL_EVENT:
         {
             gdt_event_t *p;
-            int lock;
 
             p = (gdt_event_t *)cmdarg;
             if (p->erase == 0xff) {
@@ -330,14 +280,10 @@ iir_ioctl(struct cdev *dev, u_long cmd, caddr_t cmdarg, int flags, struct thread
                     p->dvr.event_data.size = sizeof(p->dvr.event_data.eu.sync);
                 else
                     p->dvr.event_data.size = sizeof(p->dvr.event_data.eu.async);
-                lock = splcam();
                 gdt_store_event(p->dvr.event_source, p->dvr.event_idx,
                                 &p->dvr.event_data);
-                splx(lock);
             } else if (p->erase == 0xfe) {
-                lock = splcam();
                 gdt_clear_events();
-                splx(lock);
             } else if (p->erase == 0) {
                 p->handle = gdt_read_event(p->handle, &p->dvr);
             } else {
@@ -362,18 +308,3 @@ iir_ioctl(struct cdev *dev, u_long cmd, caddr_t cmdarg, int flags, struct thread
     --gdt_stat.io_count_act;
     return (0);
 }
-
-/*
-static void
-iir_drvinit(void *unused)
-{
-    GDT_DPRINTF(GDT_D_DEBUG, ("iir_drvinit()\n"));
-                
-    if (!iir_devsw_installed) {
-        cdevsw_add(&iir_cdevsw);
-        iir_devsw_installed = 1;
-    }
-}
-
-SYSINIT(iir_dev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, iir_drvinit, NULL)
-*/

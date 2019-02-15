@@ -29,7 +29,6 @@ SRCS=	pam_radius.c
 MAN=	pam_radius.8
 WARNS?=	3
 
-DPADD=	${LIBRADIUS}
-LDADD=	-lradius
+LIBADD+=	radius
 
 .include <bsd.lib.mk>

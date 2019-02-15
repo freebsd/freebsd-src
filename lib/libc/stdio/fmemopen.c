@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2013 Pietro Cerutti <gahr@FreeBSD.org>
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -148,6 +150,9 @@ fmemopen(void * __restrict buf, size_t size, const char * __restrict mode)
 		free(ck);
 		return (NULL);
 	}
+
+	if (mode[0] == 'a')
+		f->_flags |= __SAPP;
 
 	/*
 	 * Turn off buffering, so a write past the end of the buffer

@@ -4,7 +4,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* Copyright (C) 1990-2, RSA Data Security, Inc. All rights reserved.
+/*-
+   SPDX-License-Identifier: RSA-MD
+
+   Copyright (C) 1990-2, RSA Data Security, Inc. All rights reserved.
 
    License to copy and use this software is granted provided that it
    is identified as the "RSA Data Security, Inc. MD4 Message-Digest
@@ -180,7 +183,7 @@ MD4_CTX *context;                                        /* context */
 
   /* Zeroize sensitive information.
    */
-  memset ((POINTER)context, 0, sizeof (*context));
+  explicit_bzero(context, sizeof(*context));
 }
 
 /* MD4 basic transformation. Transforms state based on block.
@@ -290,3 +293,18 @@ unsigned int len;
     output[i] = ((UINT4)input[j]) | (((UINT4)input[j+1]) << 8) |
       (((UINT4)input[j+2]) << 16) | (((UINT4)input[j+3]) << 24);
 }
+
+#ifdef WEAK_REFS
+/* When building libmd, provide weak references. Note: this is not
+   activated in the context of compiling these sources for internal
+   use in libcrypt.
+ */
+#undef MD4Init
+__weak_reference(_libmd_MD4Init, MD4Init);
+#undef MD4Update
+__weak_reference(_libmd_MD4Update, MD4Update);
+#undef MD4Pad
+__weak_reference(_libmd_MD4Pad, MD4Pad);
+#undef MD4Final
+__weak_reference(_libmd_MD4Final, MD4Final);
+#endif

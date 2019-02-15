@@ -1,6 +1,8 @@
 /*	$NetBSD: svc.c,v 1.21 2000/07/06 03:10:35 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -73,8 +75,9 @@ static struct svc_callout *svc_find(SVCPOOL *pool, rpcprog_t, rpcvers_t,
     char *);
 static void svc_new_thread(SVCGROUP *grp);
 static void xprt_unregister_locked(SVCXPRT *xprt);
-static void svc_change_space_used(SVCPOOL *pool, int delta);
+static void svc_change_space_used(SVCPOOL *pool, long delta);
 static bool_t svc_request_space_available(SVCPOOL *pool);
+static void svcpool_cleanup(SVCPOOL *pool);
 
 /* ***************  SVCXPRT related stuff **************** */
 
@@ -113,13 +116,14 @@ svcpool_create(const char *name, struct sysctl_oid_list *sysctl_base)
 	}
 
 	/*
-	 * Don't use more than a quarter of mbuf clusters or more than
-	 * 45Mb buffering requests.
+	 * Don't use more than a quarter of mbuf clusters.  Nota bene:
+	 * nmbclusters is an int, but nmbclusters*MCLBYTES may overflow
+	 * on LP64 architectures, so cast to u_long to avoid undefined
+	 * behavior.  (ILP32 architectures cannot have nmbclusters
+	 * large enough to overflow for other reasons.)
 	 */
-	pool->sp_space_high = nmbclusters * MCLBYTES / 4;
-	if (pool->sp_space_high > 45 << 20)
-		pool->sp_space_high = 45 << 20;
-	pool->sp_space_low = 2 * pool->sp_space_high / 3;
+	pool->sp_space_high = (u_long)nmbclusters * MCLBYTES / 4;
+	pool->sp_space_low = (pool->sp_space_high / 3) * 2;
 
 	sysctl_ctx_init(&pool->sp_sysctl);
 	if (sysctl_base) {
@@ -139,24 +143,24 @@ svcpool_create(const char *name, struct sysctl_oid_list *sysctl_base)
 		    "groups", CTLFLAG_RD, &pool->sp_groupcount, 0,
 		    "Number of thread groups");
 
-		SYSCTL_ADD_UINT(&pool->sp_sysctl, sysctl_base, OID_AUTO,
+		SYSCTL_ADD_ULONG(&pool->sp_sysctl, sysctl_base, OID_AUTO,
 		    "request_space_used", CTLFLAG_RD,
-		    &pool->sp_space_used, 0,
+		    &pool->sp_space_used,
 		    "Space in parsed but not handled requests.");
 
-		SYSCTL_ADD_UINT(&pool->sp_sysctl, sysctl_base, OID_AUTO,
+		SYSCTL_ADD_ULONG(&pool->sp_sysctl, sysctl_base, OID_AUTO,
 		    "request_space_used_highest", CTLFLAG_RD,
-		    &pool->sp_space_used_highest, 0,
+		    &pool->sp_space_used_highest,
 		    "Highest space used since reboot.");
 
-		SYSCTL_ADD_UINT(&pool->sp_sysctl, sysctl_base, OID_AUTO,
+		SYSCTL_ADD_ULONG(&pool->sp_sysctl, sysctl_base, OID_AUTO,
 		    "request_space_high", CTLFLAG_RW,
-		    &pool->sp_space_high, 0,
+		    &pool->sp_space_high,
 		    "Maximum space in parsed but not handled requests.");
 
-		SYSCTL_ADD_UINT(&pool->sp_sysctl, sysctl_base, OID_AUTO,
+		SYSCTL_ADD_ULONG(&pool->sp_sysctl, sysctl_base, OID_AUTO,
 		    "request_space_low", CTLFLAG_RW,
-		    &pool->sp_space_low, 0,
+		    &pool->sp_space_low,
 		    "Low water mark for request space.");
 
 		SYSCTL_ADD_INT(&pool->sp_sysctl, sysctl_base, OID_AUTO,
@@ -173,8 +177,12 @@ svcpool_create(const char *name, struct sysctl_oid_list *sysctl_base)
 	return pool;
 }
 
-void
-svcpool_destroy(SVCPOOL *pool)
+/*
+ * Code common to svcpool_destroy() and svcpool_close(), which cleans up
+ * the pool data structures.
+ */
+static void
+svcpool_cleanup(SVCPOOL *pool)
 {
 	SVCGROUP *grp;
 	SVCXPRT *xprt, *nxprt;
@@ -210,6 +218,15 @@ svcpool_destroy(SVCPOOL *pool)
 		mtx_lock(&pool->sp_lock);
 	}
 	mtx_unlock(&pool->sp_lock);
+}
+
+void
+svcpool_destroy(SVCPOOL *pool)
+{
+	SVCGROUP *grp;
+	int g;
+
+	svcpool_cleanup(pool);
 
 	for (g = 0; g < SVC_MAXGROUPS; g++) {
 		grp = &pool->sp_groups[g];
@@ -222,6 +239,30 @@ svcpool_destroy(SVCPOOL *pool)
 
 	sysctl_ctx_free(&pool->sp_sysctl);
 	free(pool, M_RPC);
+}
+
+/*
+ * Similar to svcpool_destroy(), except that it does not destroy the actual
+ * data structures.  As such, "pool" may be used again.
+ */
+void
+svcpool_close(SVCPOOL *pool)
+{
+	SVCGROUP *grp;
+	int g;
+
+	svcpool_cleanup(pool);
+
+	/* Now, initialize the pool's state for a fresh svc_run() call. */
+	mtx_lock(&pool->sp_lock);
+	pool->sp_state = SVCPOOL_INIT;
+	mtx_unlock(&pool->sp_lock);
+	for (g = 0; g < SVC_MAXGROUPS; g++) {
+		grp = &pool->sp_groups[g];
+		mtx_lock(&grp->sg_lock);
+		grp->sg_state = SVCPOOL_ACTIVE;
+		mtx_unlock(&grp->sg_lock);
+	}
 }
 
 /*
@@ -439,7 +480,7 @@ xprt_inactive(SVCXPRT *xprt)
 
 /*
  * Variant of xprt_inactive() for use only when sure that port is
- * assigned to thread. For example, withing receive handlers.
+ * assigned to thread. For example, within receive handlers.
  */
 void
 xprt_inactive_self(SVCXPRT *xprt)
@@ -559,7 +600,7 @@ svc_loss_reg(SVCXPRT *xprt, void (*dispatch)(SVCXPRT *))
 		mtx_unlock(&pool->sp_lock);
 		return (TRUE);
 	}
-	s = malloc(sizeof (struct svc_callout), M_RPC, M_NOWAIT);
+	s = malloc(sizeof(struct svc_loss_callout), M_RPC, M_NOWAIT);
 	if (s == NULL) {
 		mtx_unlock(&pool->sp_lock);
 		return (FALSE);
@@ -840,15 +881,13 @@ svcerr_progvers(struct svc_req *rqstp, rpcvers_t low_vers, rpcvers_t high_vers)
  * parameters.
  */
 SVCXPRT *
-svc_xprt_alloc()
+svc_xprt_alloc(void)
 {
 	SVCXPRT *xprt;
 	SVCXPRT_EXT *ext;
 
 	xprt = mem_alloc(sizeof(SVCXPRT));
-	memset(xprt, 0, sizeof(SVCXPRT));
 	ext = mem_alloc(sizeof(SVCXPRT_EXT));
-	memset(ext, 0, sizeof(SVCXPRT_EXT));
 	xprt->xp_p3 = ext;
 	refcount_init(&xprt->xp_refs, 1);
 
@@ -859,8 +898,7 @@ svc_xprt_alloc()
  * Free a server transport structure.
  */
 void
-svc_xprt_free(xprt)
-	SVCXPRT *xprt;
+svc_xprt_free(SVCXPRT *xprt)
 {
 
 	mem_free(xprt->xp_p3, sizeof(SVCXPRT_EXT));
@@ -1064,11 +1102,11 @@ svc_assign_waiting_sockets(SVCPOOL *pool)
 }
 
 static void
-svc_change_space_used(SVCPOOL *pool, int delta)
+svc_change_space_used(SVCPOOL *pool, long delta)
 {
-	unsigned int value;
+	unsigned long value;
 
-	value = atomic_fetchadd_int(&pool->sp_space_used, delta) + delta;
+	value = atomic_fetchadd_long(&pool->sp_space_used, delta) + delta;
 	if (delta > 0) {
 		if (value >= pool->sp_space_high && !pool->sp_space_throttled) {
 			pool->sp_space_throttled = TRUE;
@@ -1101,7 +1139,8 @@ svc_run_internal(SVCGROUP *grp, bool_t ismaster)
 	SVCXPRT *xprt;
 	enum xprt_stat stat;
 	struct svc_req *rqstp;
-	size_t sz;
+	struct proc *p;
+	long sz;
 	int error;
 
 	st = mem_alloc(sizeof(*st));
@@ -1146,7 +1185,8 @@ svc_run_internal(SVCGROUP *grp, bool_t ismaster)
 			/*
 			 * Enforce maxthreads count.
 			 */
-			if (grp->sg_threadcount > grp->sg_maxthreads)
+			if (!ismaster && grp->sg_threadcount >
+			    grp->sg_maxthreads)
 				break;
 
 			/*
@@ -1183,11 +1223,23 @@ svc_run_internal(SVCGROUP *grp, bool_t ismaster)
 					> grp->sg_minthreads)
 					&& !st->st_xprt)
 					break;
-			} else if (error) {
+			} else if (error != 0) {
+				KASSERT(error == EINTR || error == ERESTART,
+				    ("non-signal error %d", error));
 				mtx_unlock(&grp->sg_lock);
-				svc_exit(pool);
-				mtx_lock(&grp->sg_lock);
-				break;
+				p = curproc;
+				PROC_LOCK(p);
+				if (P_SHOULDSTOP(p) ||
+				    (p->p_flag & P_TOTAL_STOP) != 0) {
+					thread_suspend_check(0);
+					PROC_UNLOCK(p);
+					mtx_lock(&grp->sg_lock);
+				} else {
+					PROC_UNLOCK(p);
+					svc_exit(pool);
+					mtx_lock(&grp->sg_lock);
+					break;
+				}
 			}
 			continue;
 		}
@@ -1246,17 +1298,16 @@ svc_run_internal(SVCGROUP *grp, bool_t ismaster)
 		/*
 		 * Execute what we have queued.
 		 */
-		sz = 0;
 		mtx_lock(&st->st_lock);
 		while ((rqstp = STAILQ_FIRST(&st->st_reqs)) != NULL) {
 			STAILQ_REMOVE_HEAD(&st->st_reqs, rq_link);
 			mtx_unlock(&st->st_lock);
-			sz += rqstp->rq_size;
+			sz = (long)rqstp->rq_size;
 			svc_executereq(rqstp);
+			svc_change_space_used(pool, -sz);
 			mtx_lock(&st->st_lock);
 		}
 		mtx_unlock(&st->st_lock);
-		svc_change_space_used(pool, -sz);
 		mtx_lock(&grp->sg_lock);
 	}
 
@@ -1290,7 +1341,9 @@ svc_new_thread(SVCGROUP *grp)
 	SVCPOOL *pool = grp->sg_pool;
 	struct thread *td;
 
+	mtx_lock(&grp->sg_lock);
 	grp->sg_threadcount++;
+	mtx_unlock(&grp->sg_lock);
 	kthread_add(svc_thread_start, grp, pool->sp_proc, &td, 0, 0,
 	    "%s: service", pool->sp_name);
 }
@@ -1323,12 +1376,12 @@ svc_run(SVCPOOL *pool)
 	}
 
 	/* Starting threads */
+	pool->sp_groups[0].sg_threadcount++;
 	for (g = 0; g < pool->sp_groupcount; g++) {
 		grp = &pool->sp_groups[g];
 		for (i = ((g == 0) ? 1 : 0); i < grp->sg_minthreads; i++)
 			svc_new_thread(grp);
 	}
-	pool->sp_groups[0].sg_threadcount++;
 	svc_run_internal(&pool->sp_groups[0], TRUE);
 
 	/* Waiting for threads to stop. */

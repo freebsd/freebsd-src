@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
@@ -28,17 +30,20 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#ifdef _KERNEL
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#endif /* _KERNEL */
+#include <sys/queue.h>
 #include <sys/tree.h>
 
 #include <geom/geom.h>
 
 #include <geom/eli/g_eli.h>
 
+#ifdef _KERNEL
 MALLOC_DECLARE(M_ELI);
 
 SYSCTL_DECL(_kern_geom_eli);
@@ -56,23 +61,6 @@ static uint64_t g_eli_key_cache_misses;
 SYSCTL_UQUAD(_kern_geom_eli, OID_AUTO, key_cache_misses, CTLFLAG_RW,
     &g_eli_key_cache_misses, 0, "Key cache misses");
 
-#define	G_ELI_KEY_MAGIC	0xe11341c
-
-struct g_eli_key {
-	/* Key value, must be first in the structure. */
-	uint8_t		gek_key[G_ELI_DATAKEYLEN];
-	/* Magic. */
-	int		gek_magic;
-	/* Key number. */
-	uint64_t	gek_keyno;
-	/* Reference counter. */
-	int		gek_count;
-	/* Keeps keys sorted by most recent use. */
-	TAILQ_ENTRY(g_eli_key) gek_next;
-	/* Keeps keys sorted by number. */
-	RB_ENTRY(g_eli_key) gek_link;
-};
-
 static int
 g_eli_key_cmp(const struct g_eli_key *a, const struct g_eli_key *b)
 {
@@ -83,11 +71,9 @@ g_eli_key_cmp(const struct g_eli_key *a, const struct g_eli_key *b)
 		return (-1);
 	return (0);
 }
+#endif /* _KERNEL */
 
-RB_PROTOTYPE(g_eli_key_tree, g_eli_key, gek_link, g_eli_key_cmp);
-RB_GENERATE(g_eli_key_tree, g_eli_key, gek_link, g_eli_key_cmp);
-
-static void
+void
 g_eli_key_fill(struct g_eli_softc *sc, struct g_eli_key *key, uint64_t keyno)
 {
 	const uint8_t *ekey;
@@ -110,6 +96,10 @@ g_eli_key_fill(struct g_eli_softc *sc, struct g_eli_key *key, uint64_t keyno)
 	key->gek_magic = G_ELI_KEY_MAGIC;
 }
 
+#ifdef _KERNEL
+RB_PROTOTYPE(g_eli_key_tree, g_eli_key, gek_link, g_eli_key_cmp);
+RB_GENERATE(g_eli_key_tree, g_eli_key, gek_link, g_eli_key_cmp);
+
 static struct g_eli_key *
 g_eli_key_allocate(struct g_eli_softc *sc, uint64_t keyno)
 {
@@ -128,7 +118,7 @@ g_eli_key_allocate(struct g_eli_softc *sc, uint64_t keyno)
 	keysearch.gek_keyno = keyno;
 	ekey = RB_FIND(g_eli_key_tree, &sc->sc_ekeys_tree, &keysearch);
 	if (ekey != NULL) {
-		bzero(key, sizeof(*key));
+		explicit_bzero(key, sizeof(*key));
 		free(key, M_ELI);
 		key = ekey;
 		TAILQ_REMOVE(&sc->sc_ekeys_queue, key, gek_next);
@@ -185,7 +175,7 @@ g_eli_key_remove(struct g_eli_softc *sc, struct g_eli_key *key)
 	RB_REMOVE(g_eli_key_tree, &sc->sc_ekeys_tree, key);
 	TAILQ_REMOVE(&sc->sc_ekeys_queue, key, gek_next);
 	sc->sc_ekeys_allocated--;
-	bzero(key, sizeof(*key));
+	explicit_bzero(key, sizeof(*key));
 	free(key, M_ELI);
 }
 
@@ -250,7 +240,7 @@ g_eli_key_destroy(struct g_eli_softc *sc)
 
 	mtx_lock(&sc->sc_ekeys_lock);
 	if ((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) != 0) {
-		bzero(sc->sc_ekey, sizeof(sc->sc_ekey));
+		explicit_bzero(sc->sc_ekey, sizeof(sc->sc_ekey));
 	} else {
 		struct g_eli_key *key;
 
@@ -350,3 +340,4 @@ g_eli_key_drop(struct g_eli_softc *sc, uint8_t *rawkey)
 	}
 	mtx_unlock(&sc->sc_ekeys_lock);
 }
+#endif /* _KERNEL */

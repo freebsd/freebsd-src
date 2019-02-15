@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -59,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "gpio_if.h"
 
 #include "opt_platform.h"
+#endif
 
 /* GPIO control */
 #define	GPIO_OUTPUT	1
@@ -122,13 +126,13 @@ static device_method_t ehci_methods[] = {
 static driver_t ehci_driver = {
 	"ehci",
 	ehci_methods,
-	sizeof(ehci_softc_t)
+	sizeof(struct exynos_ehci_softc)
 };
 
 static devclass_t ehci_devclass;
 
-DRIVER_MODULE(ehci, simplebus, ehci_driver, ehci_devclass, 0, 0);
-MODULE_DEPEND(ehci, usb, 1, 1, 1);
+DRIVER_MODULE(exynos_ehci, simplebus, ehci_driver, ehci_devclass, 0, 0);
+MODULE_DEPEND(exynos_ehci, usb, 1, 1, 1);
 
 /*
  * Public methods
@@ -236,7 +240,7 @@ phy_init(struct exynos_ehci_softc *esc)
 	reg &= ~(HOST_CTRL_RESET_LINK);
 	bus_space_write_4(esc->host_bst, esc->host_bsh, 0x0, reg);
 
-	if ((hub = OF_finddevice("/hsichub")) != 0) {
+	if ((hub = OF_finddevice("/hsichub")) != -1) {
 		reset_hsic_hub(esc, hub);
 	}
 
@@ -259,6 +263,7 @@ exynos_ehci_attach(device_t dev)
 	sc->sc_bus.parent = dev;
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = EHCI_MAX_DEVICES;
+	sc->sc_bus.dma_bits = 32;
 
 	if (bus_alloc_resources(dev, exynos_ehci_spec, esc->res)) {
 		device_printf(dev, "could not allocate resources\n");

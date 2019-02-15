@@ -52,8 +52,6 @@ static char *curfile;
 #define	CTF_BUF_CHUNK_SIZE	(64 * 1024)
 #define	RES_BUF_CHUNK_SIZE	(64 * 1024)
 
-static int ntypes = 0;		/* The number of types. */
-
 struct ctf_buf {
 	strtab_t ctb_strtab;	/* string table */
 	caddr_t ctb_base;	/* pointer to base of buffer */
@@ -169,11 +167,11 @@ write_objects(iidesc_t *idp, ctf_buf_t *b)
 {
 	ushort_t id = (idp ? idp->ii_dtype->t_id : 0);
 
-	ctf_buf_write(b, &id, sizeof (id));
-
 	if (target_requires_swap) {
 		SWAP_16(id);
 	}
+
+	ctf_buf_write(b, &id, sizeof (id));
 
 	debug(3, "Wrote object %s (%d)\n", (idp ? idp->ii_name : "(null)"), id);
 }
@@ -440,8 +438,6 @@ write_type(void *arg1, void *arg2)
 			i++; /* count up enum members */
 
 		if (i > CTF_MAX_VLEN) {
-			warning("enum %s has too many values: %d > %d\n",
-			    tdesc_name(tp), i, CTF_MAX_VLEN);
 			i = CTF_MAX_VLEN;
 		}
 
@@ -492,7 +488,7 @@ write_type(void *arg1, void *arg2)
 
 		if (i > CTF_MAX_VLEN) {
 			terminate("function %s has too many args: %d > %d\n",
-			    i, CTF_MAX_VLEN);
+			    tdesc_name(tp), i, CTF_MAX_VLEN);
 		}
 
 		ctt.ctt_info = CTF_TYPE_INFO(CTF_K_FUNCTION, isroot, i);
@@ -1145,10 +1141,6 @@ resurrect_types(ctf_header_t *h, tdata_t *td, tdesc_t **tdarr, int tdsize,
 					(*mpp)->ml_type = tdarr[ctm->ctm_type];
 					(*mpp)->ml_offset = ctm->ctm_offset;
 					(*mpp)->ml_size = 0;
-					if (ctm->ctm_type > ntypes) {
-						parseterminate("Invalid member type ctm_type=%d",
-						    ctm->ctm_type);
-					}
 				}
 			} else {
 				for (i = 0, mpp = &tdp->t_members; i < vlen;
@@ -1165,10 +1157,6 @@ resurrect_types(ctf_header_t *h, tdata_t *td, tdesc_t **tdarr, int tdsize,
 					(*mpp)->ml_offset =
 					    (int)CTF_LMEM_OFFSET(ctlm);
 					(*mpp)->ml_size = 0;
-					if (ctlm->ctlm_type > ntypes) {
-						parseterminate("Invalid lmember type ctlm_type=%d",
-						    ctlm->ctlm_type);
-					}
 				}
 			}
 
@@ -1282,9 +1270,8 @@ ctf_parse(ctf_header_t *h, caddr_t buf, symit_data_t *si, char *label)
 {
 	tdata_t *td = tdata_new();
 	tdesc_t **tdarr;
+	int ntypes = count_types(h, buf);
 	int idx, i;
-
-	ntypes = count_types(h, buf);
 
 	/* shudder */
 	tdarr = xcalloc(sizeof (tdesc_t *) * (ntypes + 1));

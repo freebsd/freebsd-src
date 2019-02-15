@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Jean-Sebastien Pedron
  * Copyright (c) 2005 Csaba Henk 
  * All rights reserved.
@@ -73,6 +75,13 @@ static struct mntopt mopts[] = {
 	{ "subtype=",            0, ALTF_SUBTYPE, 1 },
 	#define ALTF_SYNC_UNMOUNT 0x80
 	{ "sync_unmount",        0, ALTF_SYNC_UNMOUNT, 1 },
+	/*
+	 * MOPT_AUTOMOUNTED, included by MOPT_STDOPTS, does not fit into
+	 * the 'flags' argument to nmount(2).  We have to abuse altflags
+	 * to pass it, as string, via iovec.
+	 */
+	#define ALTF_AUTOMOUNTED 0x100
+	{ "automounted",	0, ALTF_AUTOMOUNTED, 1 },
 	/* Linux specific options, we silently ignore them */
 	{ "fsname=",             0, 0x00, 1 },
 	{ "fd=",                 0, 0x00, 1 },

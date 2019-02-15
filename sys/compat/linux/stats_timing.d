@@ -39,7 +39,6 @@
  *      possible for a given application
  *  - graph of longest running (CPU-time!) function in total
  *    - may help finding problem cases in the kernel code
- * - timing statistics for the emul_lock
  * - graph of longest held (CPU-time!) locks
  */
 
@@ -58,7 +57,7 @@ linuxulator*:::return
 
 	@stats[probeprov, execname, probefunc] = quantize(this->timediff);
 	@longest[probeprov, probefunc] = max(this->timediff);
-	
+
 	self->time[probefunc] = 0;
 }
 

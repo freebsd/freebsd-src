@@ -7,11 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_CODEGEN_CGRECORDLAYOUT_H
-#define CLANG_CODEGEN_CGRECORDLAYOUT_H
+#ifndef LLVM_CLANG_LIB_CODEGEN_CGRECORDLAYOUT_H
+#define LLVM_CLANG_LIB_CODEGEN_CGRECORDLAYOUT_H
 
 #include "clang/AST/CharUnits.h"
-#include "clang/AST/Decl.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -78,16 +78,16 @@ struct CGBitFieldInfo {
   /// bitfield.
   unsigned StorageSize;
 
-  /// The alignment which should be used when accessing the bitfield.
-  unsigned StorageAlignment;
+  /// The offset of the bitfield storage from the start of the struct.
+  CharUnits StorageOffset;
 
   CGBitFieldInfo()
-      : Offset(), Size(), IsSigned(), StorageSize(), StorageAlignment() {}
+      : Offset(), Size(), IsSigned(), StorageSize(), StorageOffset() {}
 
   CGBitFieldInfo(unsigned Offset, unsigned Size, bool IsSigned,
-                 unsigned StorageSize, unsigned StorageAlignment)
+                 unsigned StorageSize, CharUnits StorageOffset)
       : Offset(Offset), Size(Size), IsSigned(IsSigned),
-        StorageSize(StorageSize), StorageAlignment(StorageAlignment) {}
+        StorageSize(StorageSize), StorageOffset(StorageOffset) {}
 
   void print(raw_ostream &OS) const;
   void dump() const;
@@ -99,7 +99,7 @@ struct CGBitFieldInfo {
                                  const FieldDecl *FD,
                                  uint64_t Offset, uint64_t Size,
                                  uint64_t StorageSize,
-                                 uint64_t StorageAlignment);
+                                 CharUnits StorageOffset);
 };
 
 /// CGRecordLayout - This class handles struct and union layout info while
@@ -109,8 +109,8 @@ struct CGBitFieldInfo {
 class CGRecordLayout {
   friend class CodeGenTypes;
 
-  CGRecordLayout(const CGRecordLayout &) LLVM_DELETED_FUNCTION;
-  void operator=(const CGRecordLayout &) LLVM_DELETED_FUNCTION;
+  CGRecordLayout(const CGRecordLayout &) = delete;
+  void operator=(const CGRecordLayout &) = delete;
 
 private:
   /// The LLVM type corresponding to this record layout; used when
@@ -130,7 +130,7 @@ private:
   llvm::DenseMap<const FieldDecl *, CGBitFieldInfo> BitFields;
 
   // FIXME: Maybe we could use a CXXBaseSpecifier as the key and use a single
-  // map for both virtual and non virtual bases.
+  // map for both virtual and non-virtual bases.
   llvm::DenseMap<const CXXRecordDecl *, unsigned> NonVirtualBases;
 
   /// Map from virtual bases to their field index in the complete object.
@@ -183,6 +183,7 @@ public:
   /// \brief Return llvm::StructType element number that corresponds to the
   /// field FD.
   unsigned getLLVMFieldNo(const FieldDecl *FD) const {
+    FD = FD->getCanonicalDecl();
     assert(FieldInfo.count(FD) && "Invalid field for record!");
     return FieldInfo.lookup(FD);
   }
@@ -201,7 +202,8 @@ public:
 
   /// \brief Return the BitFieldInfo that corresponds to the field FD.
   const CGBitFieldInfo &getBitFieldInfo(const FieldDecl *FD) const {
-    assert(FD->isBitField() && "Invalid call for non bit-field decl!");
+    FD = FD->getCanonicalDecl();
+    assert(FD->isBitField() && "Invalid call for non-bit-field decl!");
     llvm::DenseMap<const FieldDecl *, CGBitFieldInfo>::const_iterator
       it = BitFields.find(FD);
     assert(it != BitFields.end() && "Unable to find bitfield info");

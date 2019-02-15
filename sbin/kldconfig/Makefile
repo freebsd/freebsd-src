@@ -26,6 +26,7 @@
 # $FreeBSD$
 #
 
+PACKAGE=runtime
 PROG=		kldconfig
 MAN=		kldconfig.8
 

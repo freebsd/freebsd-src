@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Doug Rabson
  * All rights reserved.
  *
@@ -29,6 +31,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <machine/sysarch.h>
+#include "libc_private.h"
 
 void
 _set_tp(void *tp)

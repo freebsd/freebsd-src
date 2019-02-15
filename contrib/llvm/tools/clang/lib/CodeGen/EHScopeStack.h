@@ -13,14 +13,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_CODEGEN_EHSCOPESTACK_H
-#define CLANG_CODEGEN_EHSCOPESTACK_H
+#ifndef LLVM_CLANG_LIB_CODEGEN_EHSCOPESTACK_H
+#define LLVM_CLANG_LIB_CODEGEN_EHSCOPESTACK_H
 
 #include "clang/Basic/LLVM.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/Value.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Value.h"
 
 namespace clang {
 namespace CodeGen {
@@ -65,30 +66,42 @@ template <class T> struct InvariantValue {
 template <class T> struct DominatingValue : InvariantValue<T> {};
 
 template <class T, bool mightBeInstruction =
-            llvm::is_base_of<llvm::Value, T>::value &&
-            !llvm::is_base_of<llvm::Constant, T>::value &&
-            !llvm::is_base_of<llvm::BasicBlock, T>::value>
+            std::is_base_of<llvm::Value, T>::value &&
+            !std::is_base_of<llvm::Constant, T>::value &&
+            !std::is_base_of<llvm::BasicBlock, T>::value>
 struct DominatingPointer;
 template <class T> struct DominatingPointer<T,false> : InvariantValue<T*> {};
 // template <class T> struct DominatingPointer<T,true> at end of file
 
 template <class T> struct DominatingValue<T*> : DominatingPointer<T> {};
 
-enum CleanupKind {
+enum CleanupKind : unsigned {
+  /// Denotes a cleanup that should run when a scope is exited using exceptional
+  /// control flow (a throw statement leading to stack unwinding, ).
   EHCleanup = 0x1,
+
+  /// Denotes a cleanup that should run when a scope is exited using normal
+  /// control flow (falling off the end of the scope, return, goto, ...).
   NormalCleanup = 0x2,
+
   NormalAndEHCleanup = EHCleanup | NormalCleanup,
 
   InactiveCleanup = 0x4,
   InactiveEHCleanup = EHCleanup | InactiveCleanup,
   InactiveNormalCleanup = NormalCleanup | InactiveCleanup,
-  InactiveNormalAndEHCleanup = NormalAndEHCleanup | InactiveCleanup
+  InactiveNormalAndEHCleanup = NormalAndEHCleanup | InactiveCleanup,
+
+  LifetimeMarker = 0x8,
+  NormalEHLifetimeMarker = LifetimeMarker | NormalAndEHCleanup,
 };
 
 /// A stack of scopes which respond to exceptions, including cleanups
 /// and catch blocks.
 class EHScopeStack {
 public:
+  /* Should switch to alignof(uint64_t) instead of 8, when EHCleanupScope can */
+  enum { ScopeStackAlignment = 8 };
+
   /// A saved depth on the scope stack.  This is necessary because
   /// pushing scopes onto the stack invalidates iterators.
   class stable_iterator {
@@ -134,7 +147,15 @@ public:
   class Cleanup {
     // Anchor the construction vtable.
     virtual void anchor();
+
+  protected:
+    ~Cleanup() = default;
+
   public:
+    Cleanup(const Cleanup &) = default;
+    Cleanup(Cleanup &&) {}
+    Cleanup() = default;
+
     /// Generation flags.
     class Flags {
       enum {
@@ -161,10 +182,6 @@ public:
       void setIsEHCleanupKind() { flags |= F_IsEHCleanupKind; }
     };
 
-    // Provide a virtual destructor to suppress a very common warning
-    // that unfortunately cannot be suppressed without this.  Cleanups
-    // should not rely on this destructor ever being called.
-    virtual ~Cleanup() {}
 
     /// Emit the cleanup.  For normal cleanups, this is run in the
     /// same EH context as when the cleanup was pushed, i.e. the
@@ -175,84 +192,29 @@ public:
     virtual void Emit(CodeGenFunction &CGF, Flags flags) = 0;
   };
 
-  /// ConditionalCleanupN stores the saved form of its N parameters,
+  /// ConditionalCleanup stores the saved form of its parameters,
   /// then restores them and performs the cleanup.
-  template <class T, class A0>
-  class ConditionalCleanup1 : public Cleanup {
-    typedef typename DominatingValue<A0>::saved_type A0_saved;
-    A0_saved a0_saved;
+  template <class T, class... As>
+  class ConditionalCleanup final : public Cleanup {
+    typedef std::tuple<typename DominatingValue<As>::saved_type...> SavedTuple;
+    SavedTuple Saved;
 
-    void Emit(CodeGenFunction &CGF, Flags flags) {
-      A0 a0 = DominatingValue<A0>::restore(CGF, a0_saved);
-      T(a0).Emit(CGF, flags);
+    template <std::size_t... Is>
+    T restore(CodeGenFunction &CGF, llvm::index_sequence<Is...>) {
+      // It's important that the restores are emitted in order. The braced init
+      // list guarantees that.
+      return T{DominatingValue<As>::restore(CGF, std::get<Is>(Saved))...};
+    }
+
+    void Emit(CodeGenFunction &CGF, Flags flags) override {
+      restore(CGF, llvm::index_sequence_for<As...>()).Emit(CGF, flags);
     }
 
   public:
-    ConditionalCleanup1(A0_saved a0)
-      : a0_saved(a0) {}
-  };
+    ConditionalCleanup(typename DominatingValue<As>::saved_type... A)
+        : Saved(A...) {}
 
-  template <class T, class A0, class A1>
-  class ConditionalCleanup2 : public Cleanup {
-    typedef typename DominatingValue<A0>::saved_type A0_saved;
-    typedef typename DominatingValue<A1>::saved_type A1_saved;
-    A0_saved a0_saved;
-    A1_saved a1_saved;
-
-    void Emit(CodeGenFunction &CGF, Flags flags) {
-      A0 a0 = DominatingValue<A0>::restore(CGF, a0_saved);
-      A1 a1 = DominatingValue<A1>::restore(CGF, a1_saved);
-      T(a0, a1).Emit(CGF, flags);
-    }
-
-  public:
-    ConditionalCleanup2(A0_saved a0, A1_saved a1)
-      : a0_saved(a0), a1_saved(a1) {}
-  };
-
-  template <class T, class A0, class A1, class A2>
-  class ConditionalCleanup3 : public Cleanup {
-    typedef typename DominatingValue<A0>::saved_type A0_saved;
-    typedef typename DominatingValue<A1>::saved_type A1_saved;
-    typedef typename DominatingValue<A2>::saved_type A2_saved;
-    A0_saved a0_saved;
-    A1_saved a1_saved;
-    A2_saved a2_saved;
-
-    void Emit(CodeGenFunction &CGF, Flags flags) {
-      A0 a0 = DominatingValue<A0>::restore(CGF, a0_saved);
-      A1 a1 = DominatingValue<A1>::restore(CGF, a1_saved);
-      A2 a2 = DominatingValue<A2>::restore(CGF, a2_saved);
-      T(a0, a1, a2).Emit(CGF, flags);
-    }
-
-  public:
-    ConditionalCleanup3(A0_saved a0, A1_saved a1, A2_saved a2)
-      : a0_saved(a0), a1_saved(a1), a2_saved(a2) {}
-  };
-
-  template <class T, class A0, class A1, class A2, class A3>
-  class ConditionalCleanup4 : public Cleanup {
-    typedef typename DominatingValue<A0>::saved_type A0_saved;
-    typedef typename DominatingValue<A1>::saved_type A1_saved;
-    typedef typename DominatingValue<A2>::saved_type A2_saved;
-    typedef typename DominatingValue<A3>::saved_type A3_saved;
-    A0_saved a0_saved;
-    A1_saved a1_saved;
-    A2_saved a2_saved;
-    A3_saved a3_saved;
-
-    void Emit(CodeGenFunction &CGF, Flags flags) {
-      A0 a0 = DominatingValue<A0>::restore(CGF, a0_saved);
-      A1 a1 = DominatingValue<A1>::restore(CGF, a1_saved);
-      A2 a2 = DominatingValue<A2>::restore(CGF, a2_saved);
-      A3 a3 = DominatingValue<A3>::restore(CGF, a3_saved);
-      T(a0, a1, a2, a3).Emit(CGF, flags);
-    }
-
-  public:
-    ConditionalCleanup4(A0_saved a0, A1_saved a1, A2_saved a2, A3_saved a3)
-      : a0_saved(a0), a1_saved(a1), a2_saved(a2), a3_saved(a3) {}
+    ConditionalCleanup(SavedTuple Tuple) : Saved(std::move(Tuple)) {}
   };
 
 private:
@@ -297,62 +259,32 @@ private:
   SmallVector<BranchFixup, 8> BranchFixups;
 
   char *allocate(size_t Size);
+  void deallocate(size_t Size);
 
   void *pushCleanup(CleanupKind K, size_t DataSize);
 
 public:
-  EHScopeStack() : StartOfBuffer(0), EndOfBuffer(0), StartOfData(0),
-                   InnermostNormalCleanup(stable_end()),
+  EHScopeStack() : StartOfBuffer(nullptr), EndOfBuffer(nullptr),
+                   StartOfData(nullptr), InnermostNormalCleanup(stable_end()),
                    InnermostEHScope(stable_end()) {}
   ~EHScopeStack() { delete[] StartOfBuffer; }
 
-  // Variadic templates would make this not terrible.
-
   /// Push a lazily-created cleanup on the stack.
-  template <class T>
-  void pushCleanup(CleanupKind Kind) {
+  template <class T, class... As> void pushCleanup(CleanupKind Kind, As... A) {
+    static_assert(alignof(T) <= ScopeStackAlignment,
+                  "Cleanup's alignment is too large.");
     void *Buffer = pushCleanup(Kind, sizeof(T));
-    Cleanup *Obj = new(Buffer) T();
+    Cleanup *Obj = new (Buffer) T(A...);
     (void) Obj;
   }
 
-  /// Push a lazily-created cleanup on the stack.
-  template <class T, class A0>
-  void pushCleanup(CleanupKind Kind, A0 a0) {
+  /// Push a lazily-created cleanup on the stack. Tuple version.
+  template <class T, class... As>
+  void pushCleanupTuple(CleanupKind Kind, std::tuple<As...> A) {
+    static_assert(alignof(T) <= ScopeStackAlignment,
+                  "Cleanup's alignment is too large.");
     void *Buffer = pushCleanup(Kind, sizeof(T));
-    Cleanup *Obj = new(Buffer) T(a0);
-    (void) Obj;
-  }
-
-  /// Push a lazily-created cleanup on the stack.
-  template <class T, class A0, class A1>
-  void pushCleanup(CleanupKind Kind, A0 a0, A1 a1) {
-    void *Buffer = pushCleanup(Kind, sizeof(T));
-    Cleanup *Obj = new(Buffer) T(a0, a1);
-    (void) Obj;
-  }
-
-  /// Push a lazily-created cleanup on the stack.
-  template <class T, class A0, class A1, class A2>
-  void pushCleanup(CleanupKind Kind, A0 a0, A1 a1, A2 a2) {
-    void *Buffer = pushCleanup(Kind, sizeof(T));
-    Cleanup *Obj = new(Buffer) T(a0, a1, a2);
-    (void) Obj;
-  }
-
-  /// Push a lazily-created cleanup on the stack.
-  template <class T, class A0, class A1, class A2, class A3>
-  void pushCleanup(CleanupKind Kind, A0 a0, A1 a1, A2 a2, A3 a3) {
-    void *Buffer = pushCleanup(Kind, sizeof(T));
-    Cleanup *Obj = new(Buffer) T(a0, a1, a2, a3);
-    (void) Obj;
-  }
-
-  /// Push a lazily-created cleanup on the stack.
-  template <class T, class A0, class A1, class A2, class A3, class A4>
-  void pushCleanup(CleanupKind Kind, A0 a0, A1 a1, A2 a2, A3 a3, A4 a4) {
-    void *Buffer = pushCleanup(Kind, sizeof(T));
-    Cleanup *Obj = new(Buffer) T(a0, a1, a2, a3, a4);
+    Cleanup *Obj = new (Buffer) T(std::move(A));
     (void) Obj;
   }
 
@@ -369,10 +301,12 @@ public:
   ///
   /// The pointer returned from this method is valid until the cleanup
   /// stack is modified.
-  template <class T, class A0, class A1, class A2>
-  T *pushCleanupWithExtra(CleanupKind Kind, size_t N, A0 a0, A1 a1, A2 a2) {
+  template <class T, class... As>
+  T *pushCleanupWithExtra(CleanupKind Kind, size_t N, As... A) {
+    static_assert(alignof(T) <= ScopeStackAlignment,
+                  "Cleanup's alignment is too large.");
     void *Buffer = pushCleanup(Kind, sizeof(T) + T::getExtraSize(N));
-    return new (Buffer) T(N, a0, a1, a2);
+    return new (Buffer) T(N, A...);
   }
 
   void pushCopyOfCleanup(CleanupKind Kind, const void *Cleanup, size_t Size) {
@@ -403,12 +337,14 @@ public:
   /// Pops a terminate handler off the stack.
   void popTerminate();
 
+  // Returns true iff the current scope is either empty or contains only
+  // lifetime markers, i.e. no real cleanup code
+  bool containsOnlyLifetimeMarkers(stable_iterator Old) const;
+
   /// Determines whether the exception-scopes stack is empty.
   bool empty() const { return StartOfData == EndOfBuffer; }
 
-  bool requiresLandingPad() const {
-    return InnermostEHScope != stable_end();
-  }
+  bool requiresLandingPad() const;
 
   /// Determines whether there are any normal cleanups on the stack.
   bool hasNormalCleanups() const {
@@ -426,7 +362,6 @@ public:
     return InnermostEHScope;
   }
 
-  stable_iterator getInnermostActiveEHScope() const;
 
   /// An unstable reference to a scope-stack depth.  Invalidated by
   /// pushes but not pops.
@@ -456,9 +391,6 @@ public:
   /// Turn a stable reference to a scope depth into a unstable pointer
   /// to the EH stack.
   iterator find(stable_iterator save) const;
-
-  /// Removes the cleanup pointed to by the given stable_iterator.
-  void removeCleanup(stable_iterator save);
 
   /// Add a branch fixup to the current cleanup scope.
   BranchFixup &addBranchFixup() {

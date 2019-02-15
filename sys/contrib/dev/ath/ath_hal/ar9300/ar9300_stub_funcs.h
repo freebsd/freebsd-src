@@ -128,6 +128,7 @@ extern	HAL_STATUS ar9300_Stub_ProcRxDesc(struct ath_hal *ah, struct ath_desc *,
 
 extern	HAL_BOOL ar9300_Stub_Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		struct ieee80211_channel *chan, HAL_BOOL bChannelChange,
+		HAL_RESET_TYPE resetType,
 		HAL_STATUS *status);
 extern	HAL_BOOL ar9300_Stub_SetChannel(struct ath_hal *,
 		const struct ieee80211_channel *);

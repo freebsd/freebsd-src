@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -33,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/smp.h>
 
 #include <machine/vmm.h>
 #include "vmm_util.h"
@@ -70,7 +71,7 @@ vmm_stat_register(void *arg)
 		return;
 
 	if (vst_num_elems + vst->nelems >= MAX_VMM_STAT_ELEMS) {
-		printf("Cannot accomodate vmm stat type \"%s\"!\n", vst->desc);
+		printf("Cannot accommodate vmm stat type \"%s\"!\n", vst->desc);
 		return;
 	}
 
@@ -165,6 +166,7 @@ VMM_STAT(VMEXIT_NESTED_FAULT, "vm exits due to nested page fault");
 VMM_STAT(VMEXIT_INST_EMUL, "vm exits for instruction emulation");
 VMM_STAT(VMEXIT_UNKNOWN, "number of vm exits for unknown reason");
 VMM_STAT(VMEXIT_ASTPENDING, "number of times astpending at exit");
+VMM_STAT(VMEXIT_REQIDLE, "number of times idle requested at exit");
 VMM_STAT(VMEXIT_USERSPACE, "number of vm exits handled in userspace");
 VMM_STAT(VMEXIT_RENDEZVOUS, "number of times rendezvous pending at exit");
 VMM_STAT(VMEXIT_EXCEPTION, "number of vm exits due to exceptions");

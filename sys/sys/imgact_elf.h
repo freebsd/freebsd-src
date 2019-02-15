@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1995-1996 Søren Schmidt
  * All rights reserved.
  *
@@ -35,12 +37,15 @@
 
 #ifdef _KERNEL
 
-#define	AUXARGS_ENTRY(pos, id, val) {suword(pos++, id); suword(pos++, val);}
+#define	AUXARGS_ENTRY(pos, id, val) \
+    {(pos)->a_type = (id); (pos)->a_un.a_val = (val); (pos)++;}
 
+struct image_params;
 struct thread;
+struct vnode;
 
 /*
- * Structure used to pass infomation from the loader to the
+ * Structure used to pass information from the loader to the
  * stack fixup routine.
  */
 typedef struct {
@@ -52,13 +57,14 @@ typedef struct {
 	Elf_Size	base;
 	Elf_Size	flags;
 	Elf_Size	entry;
+	Elf_Word	hdr_eflags;		/* e_flags field from ehdr */
 } __ElfN(Auxargs);
 
 typedef struct {
 	Elf_Note	hdr;
 	const char *	vendor;
 	int		flags;
-	boolean_t	(*trans_osrel)(const Elf_Note *, int32_t *);
+	bool		(*trans_osrel)(const Elf_Note *, int32_t *);
 #define	BN_CAN_FETCH_OSREL	0x0001	/* Deprecated. */
 #define	BN_TRANSLATE_OSREL	0x0002	/* Use trans_osrel to fetch osrel */
 		/* after checking the image ABI specification, if needed. */
@@ -78,6 +84,7 @@ typedef struct {
 #define	BI_CAN_EXEC_DYN		0x0001
 #define	BI_BRAND_NOTE		0x0002	/* May have note.ABI-tag section. */
 #define	BI_BRAND_NOTE_MANDATORY	0x0004	/* Must have note.ABI-tag section. */
+#define	BI_BRAND_ONLY_STATIC	0x0008	/* Match only interp-less binaries. */
 } __ElfN(Brandinfo);
 
 __ElfType(Auxargs);
@@ -90,6 +97,7 @@ int	__elfN(insert_brand_entry)(Elf_Brandinfo *entry);
 int	__elfN(remove_brand_entry)(Elf_Brandinfo *entry);
 int	__elfN(freebsd_fixup)(register_t **, struct image_params *);
 int	__elfN(coredump)(struct thread *, struct vnode *, off_t, int);
+size_t	__elfN(populate_note)(int, void *, void *, size_t, void **);
 
 /* Machine specific function to dump per-thread information. */
 void	__elfN(dump_thread)(struct thread *, void *, size_t *);

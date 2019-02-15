@@ -7,13 +7,13 @@
 |*                                                                            *|
 |*===----------------------------------------------------------------------===*|
 |*                                                                            *|
-|* This header provides a public inferface to use CompilationDatabase without *|
+|* This header provides a public interface to use CompilationDatabase without *|
 |* the full Clang C++ API.                                                    *|
 |*                                                                            *|
 \*===----------------------------------------------------------------------===*/
 
-#ifndef CLANG_CXCOMPILATIONDATABASE_H
-#define CLANG_CXCOMPILATIONDATABASE_H
+#ifndef LLVM_CLANG_C_CXCOMPILATIONDATABASE_H
+#define LLVM_CLANG_C_CXCOMPILATIONDATABASE_H
 
 #include "clang-c/Platform.h"
 #include "clang-c/CXString.h"
@@ -124,6 +124,12 @@ clang_CompileCommands_getCommand(CXCompileCommands, unsigned I);
  */
 CINDEX_LINKAGE CXString
 clang_CompileCommand_getDirectory(CXCompileCommand);
+
+/**
+ * \brief Get the filename associated with the CompileCommand.
+ */
+CINDEX_LINKAGE CXString
+clang_CompileCommand_getFilename(CXCompileCommand);
 
 /**
  * \brief Get the number of arguments in the compiler invocation.

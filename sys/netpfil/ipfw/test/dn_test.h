@@ -23,15 +23,19 @@ extern "C" {
 extern int debug;
 #define ND(fmt, args...) do {} while (0)
 #define D1(fmt, args...) do {} while (0)
-#define D(fmt, args...) fprintf(stderr, "%-8s " fmt "\n",      \
-        __FUNCTION__, ## args)
+#define D(fmt, args...) fprintf(stderr, "%-10s %4d %-8s " fmt "\n",      \
+        __FILE__, __LINE__, __FUNCTION__, ## args)
 #define DX(lev, fmt, args...) do {              \
         if (debug > lev) D(fmt, ## args); } while (0)
 
 
 #ifndef offsetof
-#define offsetof(t,m) (int)((&((t *)0L)->m))
+#define offsetof(t,m) (int)(intptr_t)((&((t *)0L)->m))
 #endif
+
+#if defined(__APPLE__) // XXX osx
+typedef unsigned int u_int;
+#endif /* osx */
 
 #include <mylist.h>
 
@@ -49,11 +53,24 @@ enum	{
 	DN_SCHED_WF2QP,
 };
 
+/* from ip_dummynet.h, fields used in ip_dn_private.h */
 struct dn_id {
-	int type, subtype, len, id;
+	uint16_t 	len; /* total len inc. this header */
+	uint8_t		type;
+	uint8_t		subtype;
+//	uint32_t	id;	/* generic id */
 };
 
+/* (from ip_dummynet.h)
+ * A flowset, which is a template for flows. Contains parameters
+ * from the command line: id, target scheduler, queue sizes, plr,
+ * flow masks, buckets for the flow hash, and possibly scheduler-
+ * specific parameters (weight, quantum and so on).
+ */
 struct dn_fs {
+        /* generic scheduler parameters. Leave them at -1 if unset.
+         * Now we use 0: weight, 1: lmax, 2: priority
+         */
 	int par[4];	/* flowset parameters */
 
 	/* simulation entries.
@@ -74,19 +91,38 @@ struct dn_fs {
 	int	cur;
 };
 
+/* (ip_dummynet.h)
+ * scheduler template, indicating nam, number, mask and buckets
+ */
 struct dn_sch {
 };
 
+/* (from ip_dummynet.h)
+ * dn_flow collects flow_id and stats for queues and scheduler
+ * instances, and is used to pass these info to userland.
+ * oid.type/oid.subtype describe the object, oid.id is number
+ * of the parent object.
+ */
 struct dn_flow {
 	struct dn_id oid;
-	int length;
-	int len_bytes;
-	int drops;
+	uint64_t tot_pkts;
 	uint64_t tot_bytes;
-	uint32_t flow_id;
+	uint32_t length;	/* Queue length, in packets */
+	uint32_t len_bytes;	/* Queue length, in bytes */
+	uint32_t drops;
+	//uint32_t flow_id;
+
+	/* the following fields are used by the traffic generator.
+	 */
 	struct list_head h;	/* used by the generator */
+
+	/* bytes served by the flow since the last backlog time */
+	uint64_t bytes;
+	/* bytes served by the system at the last backlog time  */
+	uint64_t sch_bytes;
 };
 
+/* the link */
 struct dn_link {
 };
 
@@ -98,12 +134,12 @@ struct mbuf {
                 int len;
         } m_pkthdr;
         struct mbuf *m_nextpkt;
-	int flow_id;	/* for testing, index of a flow */
+	uint32_t flow_id;	/* for testing, index of a flow */
 	//int flowset_id;	/* for testing, index of a flowset */
-	void *cfg;	/* config args */
+	//void *cfg;	/* config args */
 };
 
-#define MALLOC_DECLARE(x)
+#define MALLOC_DECLARE(x)	extern volatile int __dummy__ ## x
 #define KASSERT(x, y)	do { if (!(x)) printf y ; exit(0); } while (0)
 struct ipfw_flow_id {
 };
@@ -122,36 +158,9 @@ typedef struct _md_t moduledata_t;
 	moduledata_t *_g_##name = & b
 #define MODULE_DEPEND(a, b, c, d, e)
 
-#ifdef IPFW
 #include <dn_heap.h>
 #include <ip_dn_private.h>
 #include <dn_sched.h>
-#else
-struct dn_queue {
-        struct dn_fsk *fs;             /* parent flowset. */
-        struct dn_sch_inst *_si;	/* parent sched instance. */
-};
-struct dn_schk {
-};
-struct dn_fsk {
-	struct dn_fs fs;
-	struct dn_schk *sched;
-};
-struct dn_sch_inst {
-	struct dn_schk *sched;
-};
-struct dn_alg {
-	int type;
-	const char *name;
-	void *enqueue, *dequeue;
-	int q_datalen, si_datalen, schk_datalen;
-	int (*config)(struct dn_schk *);
-	int (*new_sched)(struct dn_sch_inst *);
-	int (*new_fsk)(struct dn_fsk *);
-        int (*new_queue)(struct dn_queue *q);
-};
-
-#endif
 
 #ifndef __FreeBSD__
 int fls(int);

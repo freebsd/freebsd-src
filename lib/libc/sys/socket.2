@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     From: @(#)socket.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2013
+.Dd August 19, 2018
 .Dt SOCKET 2
 .Os
 .Sh NAME
@@ -37,7 +37,6 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
 .In sys/socket.h
 .Ft int
 .Fn socket "int domain" "int type" "int protocol"
@@ -111,7 +110,7 @@ socket may provide a sequenced, reliable,
 two-way connection-based data transmission path for datagrams
 of fixed maximum length; a consumer may be required to read
 an entire packet with each read system call.
-This facility is protocol specific, and presently unimplemented.
+This facility may have protocol-specific properties.
 .Dv SOCK_RAW
 sockets provide access to internal network protocols and interfaces.
 The types
@@ -300,6 +299,7 @@ The socket type is not supported by the protocol.
 .Xr shutdown 2 ,
 .Xr socketpair 2 ,
 .Xr write 2 ,
+.Xr CMSG_DATA 3 ,
 .Xr getprotoent 3 ,
 .Xr netgraph 4 ,
 .Xr protocols 5

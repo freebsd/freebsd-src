@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: MIT-CMU
+ *
  * Mach Operating System
  * Copyright (c) 1991,1990 Carnegie Mellon University
  * All Rights Reserved.
@@ -53,8 +55,7 @@ static struct db_variable db_vars[] = {
 	{ "db_vnet",	NULL, db_var_db_vnet },
 #endif
 };
-static struct db_variable *db_evars =
-	db_vars + sizeof(db_vars)/sizeof(db_vars[0]);
+static struct db_variable *db_evars = db_vars + nitems(db_vars);
 
 static int
 db_find_variable(struct db_variable **varp)
@@ -128,13 +129,24 @@ db_write_variable(struct db_variable *vp, db_expr_t value)
 }
 
 void
-db_set_cmd(db_expr_t dummy1, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
+db_set_cmd(db_expr_t dummy1, bool dummy2, db_expr_t dummy3, char *dummy4)
 {
 	struct db_variable *vp;
 	db_expr_t value;
 	int t;
 
 	t = db_read_token();
+	if (t == tEOL) {
+		for (vp = db_vars; vp < db_evars; vp++) {
+			if (!db_read_variable(vp, &value)) {
+				db_printf("$%s\n", vp->name);
+				continue;
+			}
+			db_printf("$%-8s = %ld\n",
+			    vp->name, (unsigned long)value);
+		}
+		return;
+	}
 	if (t != tDOLLAR) {
 		db_error("Unknown variable\n");
 		return;

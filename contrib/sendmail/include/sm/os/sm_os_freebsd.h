@@ -34,7 +34,7 @@
 # define SM_CONF_SHM	1
 #endif /* SM_CONF_SHM */
 #ifndef SM_CONF_SEM
-# define SM_CONF_SEM	1
+# define SM_CONF_SEM	2
 #endif /* SM_CONF_SEM */
 #ifndef SM_CONF_MSG
 # define SM_CONF_MSG	1

@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.4 (Berkeley) 6/10/97
 # $FreeBSD$
 
-SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
+SENDMAIL_DIR=${SRCTOP}/contrib/sendmail
 .PATH: ${SENDMAIL_DIR}/makemap
 
 PROG=	makemap
@@ -13,17 +13,7 @@ CFLAGS+= -DNEWDB -DNOT_SENDMAIL
 
 WARNS?=	2
 
-LIBSMDIR=	${.OBJDIR}/../../lib/libsm
-LIBSM=		${LIBSMDIR}/libsm.a
-
-LIBSMDBDIR=	${.OBJDIR}/../../lib/libsmdb
-LIBSMDB=	${LIBSMDBDIR}/libsmdb.a
-
-LIBSMUTILDIR=	${.OBJDIR}/../../lib/libsmutil
-LIBSMUTIL=	${LIBSMUTILDIR}/libsmutil.a
-
-DPADD=	${LIBSMDB} ${LIBSMUTIL} ${LIBSM}
-LDADD=	${LIBSMDB} ${LIBSMUTIL} ${LIBSM}
+LIBADD=	sm smdb smutil
 
 SRCS+=	sm_os.h
 CLEANFILES+=sm_os.h
@@ -34,7 +24,7 @@ DPADD+=${SENDMAIL_DPADD}
 LDADD+=${SENDMAIL_LDADD}
 LDFLAGS+=${SENDMAIL_LDFLAGS}
 
-sm_os.h:
-	ln -sf ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h sm_os.h
+sm_os.h: ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>

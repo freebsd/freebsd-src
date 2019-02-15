@@ -63,7 +63,7 @@ kgdb_trgt_fetch_registers(int regno __unused)
 #ifndef CROSS_DEBUGGER
 	struct kthr *kt;
 	struct pcb pcb;
-	int i, reg;
+	int i;
 
 	kt = kgdb_thr_lookup_tid(ptid_get_pid(inferior_ptid));
 	if (kt == NULL)
@@ -72,24 +72,12 @@ kgdb_trgt_fetch_registers(int regno __unused)
 		warnx("kvm_read: %s", kvm_geterr(kvm));
 		memset(&pcb, 0, sizeof(pcb));
 	}
-	for (i = ARM_A1_REGNUM + 8; i <= ARM_SP_REGNUM; i++) {
-		supply_register(i, (char *)&pcb.un_32.pcb32_r8 +
-		    (i - (ARM_A1_REGNUM + 8 )) * 4);
+	for (i = ARM_A1_REGNUM + 4; i <= ARM_SP_REGNUM; i++) {
+		supply_register(i, (char *)&pcb.pcb_regs.sf_r4 +
+		    (i - (ARM_A1_REGNUM + 4 )) * 4);
 	}
-	if (pcb.un_32.pcb32_sp != 0) {
-		for (i = 0; i < 4; i++) {
-			if (kvm_read(kvm, pcb.un_32.pcb32_sp + (i) * 4,
-			    &reg, 4) != 4) {
-				warnx("kvm_read: %s", kvm_geterr(kvm));
-				break;
-			}
-			supply_register(ARM_A1_REGNUM + 4 + i, (char *)&reg);
-		}
-		if (kvm_read(kvm, pcb.un_32.pcb32_sp + 4 * 4, &reg, 4) != 4)
-			warnx("kvm_read :%s", kvm_geterr(kvm));
-		else
-			supply_register(ARM_PC_REGNUM, (char *)&reg);
-	}
+	supply_register(ARM_PC_REGNUM, (char *)&pcb.pcb_regs.sf_pc);
+	supply_register(ARM_LR_REGNUM, (char *)&pcb.pcb_regs.sf_lr);
 #endif
 }
 
@@ -108,6 +96,7 @@ kgdb_trgt_new_objfile(struct objfile *objfile)
 struct kgdb_frame_cache {
 	CORE_ADDR	fp;
 	CORE_ADDR	sp;
+	CORE_ADDR	pc;
 };
 
 static int kgdb_trgt_frame_offset[26] = {
@@ -147,6 +136,7 @@ kgdb_trgt_frame_cache(struct frame_info *next_frame, void **this_cache)
 		frame_unwind_register(next_frame, ARM_FP_REGNUM, buf);
 		cache->fp = extract_unsigned_integer(buf,
 		    register_size(current_gdbarch, ARM_FP_REGNUM));
+		cache->pc = frame_func_unwind(next_frame);
 	}
 	return (cache);
 }
@@ -160,7 +150,7 @@ kgdb_trgt_trapframe_this_id(struct frame_info *next_frame, void **this_cache,
 	struct kgdb_frame_cache *cache;
 
 	cache = kgdb_trgt_frame_cache(next_frame, this_cache);
-	*this_id = frame_id_build(cache->fp, 0);
+	*this_id = frame_id_build(cache->sp, cache->pc);
 }
 
 static void
@@ -171,7 +161,7 @@ kgdb_trgt_trapframe_prev_register(struct frame_info *next_frame,
 	char dummy_valuep[MAX_REGISTER_SIZE];
 	struct kgdb_frame_cache *cache;
 	int ofs, regsz;
-	int is_undefined = 0;
+	CORE_ADDR sp;
 
 	regsz = register_size(current_gdbarch, regnum);
 
@@ -189,24 +179,12 @@ kgdb_trgt_trapframe_prev_register(struct frame_info *next_frame,
 		return;
 
 	cache = kgdb_trgt_frame_cache(next_frame, this_cache);
+	sp = cache->sp;
 
-	if (is_undef && (regnum == ARM_SP_REGNUM || regnum == ARM_PC_REGNUM)) {
-		*addrp = cache->sp + offsetof(struct trapframe, tf_spsr);
-		target_read_memory(*addrp, valuep, regsz);
-		is_undefined = 1;
-		ofs = kgdb_trgt_frame_offset[ARM_SP_REGNUM];
-
-	}
-	*addrp = cache->sp + ofs;
+	ofs = kgdb_trgt_frame_offset[regnum];
+	*addrp = sp + ofs;
 	*lvalp = lval_memory;
 	target_read_memory(*addrp, valuep, regsz);
-
-	if (is_undefined) {
-		*addrp = *(unsigned int *)valuep + (regnum == ARM_SP_REGNUM ?
-		    0 : 8);
-		target_read_memory(*addrp, valuep, regsz);
-
-	}
 }
 
 static const struct frame_unwind kgdb_trgt_trapframe_unwind = {
@@ -244,4 +222,65 @@ kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame)
 		is_undef = 0;
 #endif
 	return (NULL);
+}
+
+/*
+ * This function ensures, that the PC is inside the
+ * function section which is understood by GDB.
+ *
+ * Return 0 when fixup is necessary, -1 otherwise.
+ */
+int
+kgdb_trgt_pc_fixup(CORE_ADDR *pc)
+{
+#ifndef CROSS_DEBUGGER
+	struct minimal_symbol *msymbol;
+	int valpc;
+
+	/*
+	 * exception_exit and swi_exit are special. These functions
+	 * are artificially injected into the stack to be executed
+	 * as the last entry in calling chain when all functions exit.
+	 * Treat them differently.
+	 */
+	msymbol = lookup_minimal_symbol_by_pc(*pc);
+	if (msymbol != NULL) {
+		if (strcmp(DEPRECATED_SYMBOL_NAME(msymbol), "exception_exit") == 0)
+			return (0);
+		if (strcmp(DEPRECATED_SYMBOL_NAME(msymbol), "swi_exit") == 0)
+			return (0);
+	}
+
+	/*
+	 * kdb_enter contains an invalid instruction which is supposed
+	 * to generate a trap. BFD does not understand it and treats
+	 * this part of function as a separate function. Move PC
+	 * two instruction earlier to be inside kdb_enter section.
+	 */
+	target_read_memory(*pc - 4, (char*)&valpc, 4);
+	if (valpc == 0xe7ffffff) {
+		*pc = *pc - 8;
+		return (0);
+	}
+
+	/*
+	 * When the panic/vpanic is the last (noreturn) function,
+	 * the bottom of the calling function looks as below.
+	 *   mov lr, pc
+	 *   b panic
+	 * Normally, GDB is not able to detect function boundaries,
+	 * so move the PC two instruction earlier where it can deal
+	 * with it.
+	 * Match this pair of instructions: mov lr, pc followed with
+	 * non-linked branch.
+	 */
+	if ((valpc & 0xff000000) == 0xea000000) {
+		target_read_memory(*pc - 8, (char*)&valpc, 4);
+		if (valpc == 0xe1a0e00f) {
+			*pc -= 8;
+			return (0);
+		}
+	}
+#endif
+	return (-1);
 }

@@ -11,90 +11,59 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef PPC_TARGETMACHINE_H
-#define PPC_TARGETMACHINE_H
+#ifndef LLVM_LIB_TARGET_POWERPC_PPCTARGETMACHINE_H
+#define LLVM_LIB_TARGET_POWERPC_PPCTARGETMACHINE_H
 
-#include "PPCFrameLowering.h"
-#include "PPCISelLowering.h"
 #include "PPCInstrInfo.h"
-#include "PPCJITInfo.h"
-#include "PPCSelectionDAGInfo.h"
 #include "PPCSubtarget.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
-/// PPCTargetMachine - Common code between 32-bit and 64-bit PowerPC targets.
+/// Common code between 32-bit and 64-bit PowerPC targets.
 ///
-class PPCTargetMachine : public LLVMTargetMachine {
-  PPCSubtarget        Subtarget;
-  const DataLayout    DL;       // Calculates type size & alignment
-  PPCInstrInfo        InstrInfo;
-  PPCFrameLowering    FrameLowering;
-  PPCJITInfo          JITInfo;
-  PPCTargetLowering   TLInfo;
-  PPCSelectionDAGInfo TSInfo;
-  InstrItineraryData  InstrItins;
+class PPCTargetMachine final : public LLVMTargetMachine {
+public:
+  enum PPCABI { PPC_ABI_UNKNOWN, PPC_ABI_ELFv1, PPC_ABI_ELFv2 };
+private:
+  std::unique_ptr<TargetLoweringObjectFile> TLOF;
+  PPCABI TargetABI;
+
+  mutable StringMap<std::unique_ptr<PPCSubtarget>> SubtargetMap;
 
 public:
-  PPCTargetMachine(const Target &T, StringRef TT,
-                   StringRef CPU, StringRef FS, const TargetOptions &Options,
-                   Reloc::Model RM, CodeModel::Model CM,
-                   CodeGenOpt::Level OL, bool is64Bit);
+  PPCTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+                   StringRef FS, const TargetOptions &Options,
+                   Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
+                   CodeGenOpt::Level OL, bool JIT);
 
-  virtual const PPCInstrInfo      *getInstrInfo() const { return &InstrInfo; }
-  virtual const PPCFrameLowering  *getFrameLowering() const {
-    return &FrameLowering;
-  }
-  virtual       PPCJITInfo        *getJITInfo()         { return &JITInfo; }
-  virtual const PPCTargetLowering *getTargetLowering() const {
-   return &TLInfo;
-  }
-  virtual const PPCSelectionDAGInfo* getSelectionDAGInfo() const {
-    return &TSInfo;
-  }
-  virtual const PPCRegisterInfo   *getRegisterInfo() const {
-    return &InstrInfo.getRegisterInfo();
-  }
+  ~PPCTargetMachine() override;
 
-  virtual const DataLayout    *getDataLayout() const    { return &DL; }
-  virtual const PPCSubtarget  *getSubtargetImpl() const { return &Subtarget; }
-  virtual const InstrItineraryData *getInstrItineraryData() const {
-    return &InstrItins;
-  }
+  const PPCSubtarget *getSubtargetImpl(const Function &F) const override;
+  // DO NOT IMPLEMENT: There is no such thing as a valid default subtarget,
+  // subtargets are per-function entities based on the target-specific
+  // attributes of each function.
+  const PPCSubtarget *getSubtargetImpl() const = delete;
 
   // Pass Pipeline Configuration
-  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
-  virtual bool addCodeEmitter(PassManagerBase &PM,
-                              JITCodeEmitter &JCE);
+  TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
 
-  /// \brief Register PPC analysis passes with a pass manager.
-  virtual void addAnalysisPasses(PassManagerBase &PM);
+  TargetTransformInfo getTargetTransformInfo(const Function &F) override;
+
+  TargetLoweringObjectFile *getObjFileLowering() const override {
+    return TLOF.get();
+  }
+  bool isELFv2ABI() const { return TargetABI == PPC_ABI_ELFv2; }
+  bool isPPC64() const {
+    const Triple &TT = getTargetTriple();
+    return (TT.getArch() == Triple::ppc64 || TT.getArch() == Triple::ppc64le);
+  };
+
+  bool isMachineVerifierClean() const override {
+    return false;
+  }
 };
-
-/// PPC32TargetMachine - PowerPC 32-bit target machine.
-///
-class PPC32TargetMachine : public PPCTargetMachine {
-  virtual void anchor();
-public:
-  PPC32TargetMachine(const Target &T, StringRef TT,
-                     StringRef CPU, StringRef FS, const TargetOptions &Options,
-                     Reloc::Model RM, CodeModel::Model CM,
-                     CodeGenOpt::Level OL);
-};
-
-/// PPC64TargetMachine - PowerPC 64-bit target machine.
-///
-class PPC64TargetMachine : public PPCTargetMachine {
-  virtual void anchor();
-public:
-  PPC64TargetMachine(const Target &T, StringRef TT,
-                     StringRef CPU, StringRef FS, const TargetOptions &Options,
-                     Reloc::Model RM, CodeModel::Model CM,
-                     CodeGenOpt::Level OL);
-};
-
 } // end namespace llvm
 
 #endif

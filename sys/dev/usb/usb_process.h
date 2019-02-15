@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,6 +36,7 @@
 #endif
 
 /* defines */
+#define	USB_PRI_HIGHEST	PI_SWI(SWI_TTY)
 #define	USB_PRI_HIGH	PI_SWI(SWI_NET)
 #define	USB_PRI_MED	PI_SWI(SWI_CAMBIO)
 

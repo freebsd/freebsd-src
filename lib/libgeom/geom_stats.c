@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Poul-Henning Kamp
  * All rights reserved.
  *
@@ -29,23 +31,21 @@
  * $FreeBSD$
  */
 
-#include <paths.h>
+#include <sys/types.h>
+#include <sys/devicestat.h>
+#include <sys/mman.h>
+#include <sys/time.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <libgeom.h>
 
-#include <sys/mman.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/devicestat.h>
-
-
 /************************************************************/
-static uint npages, pagesize, spp;
-static int statsfd = -1;
+static uint npages, spp;
+static int pagesize, statsfd = -1;
 static u_char *statp;
 
 void
@@ -67,7 +67,7 @@ geom_stats_resync(void)
 	if (statsfd == -1)
 		return;
 	for (;;) {
-		p = mmap(statp, (npages + 1) * pagesize, 
+		p = mmap(statp, (npages + 1) * pagesize,
 		    PROT_READ, MAP_SHARED, statsfd, 0);
 		if (p == MAP_FAILED)
 			break;

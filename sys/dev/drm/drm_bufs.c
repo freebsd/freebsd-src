@@ -668,7 +668,7 @@ static int drm_do_addbufs_pci(struct drm_device *dev, struct drm_buf_desc *reque
 		dma->buflist[i + dma->buf_count] = &entry->buflist[i];
 	}
 
-	/* No allocations failed, so now we can replace the orginal pagelist
+	/* No allocations failed, so now we can replace the original pagelist
 	 * with the new one.
 	 */
 	free(dma->pagelist, DRM_MEM_PAGES);
@@ -935,6 +935,7 @@ int drm_infobufs(struct drm_device *dev, void *data, struct drm_file *file_priv)
 			if (dma->bufs[i].buf_count) {
 				struct drm_buf_desc from;
 
+				memset(&from, 0, sizeof(from));
 				from.count = dma->bufs[i].buf_count;
 				from.size = dma->bufs[i].buf_size;
 				from.low_mark = dma->bufs[i].freelist.low_mark;
@@ -1066,15 +1067,9 @@ int drm_mapbufs(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	}
 
 	vaddr = round_page((vm_offset_t)vms->vm_daddr + MAXDSIZ);
-#if __FreeBSD_version >= 600023
-	retcode = vm_mmap(&vms->vm_map, &vaddr, size, PROT_READ | PROT_WRITE,
-	    VM_PROT_ALL, MAP_SHARED | MAP_NOSYNC, OBJT_DEVICE,
+	retcode = vm_mmap(&vms->vm_map, &vaddr, size, VM_PROT_READ |
+	    VM_PROT_WRITE, VM_PROT_ALL, MAP_SHARED | MAP_NOSYNC, OBJT_DEVICE,
 	    dev->devnode, foff);
-#else
-	retcode = vm_mmap(&vms->vm_map, &vaddr, size, PROT_READ | PROT_WRITE,
-	    VM_PROT_ALL, MAP_SHARED | MAP_NOSYNC,
-	    SLIST_FIRST(&dev->devnode->si_hlist), foff);
-#endif
 	if (retcode)
 		goto done;
 

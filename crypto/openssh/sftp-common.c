@@ -1,5 +1,4 @@
-/* $OpenBSD: sftp-common.c,v 1.26 2014/01/09 03:26:00 guenther Exp $ */
-/* $FreeBSD$ */
+/* $OpenBSD: sftp-common.c,v 1.30 2017/06/10 06:36:46 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2001 Damien Miller.  All rights reserved.
@@ -30,7 +29,6 @@ __RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/param.h>
 
 #include <grp.h>
 #include <pwd.h>
@@ -44,8 +42,10 @@ __RCSID("$FreeBSD$");
 #endif
 
 #include "xmalloc.h"
-#include "buffer.h"
+#include "ssherr.h"
+#include "sshbuf.h"
 #include "log.h"
+#include "misc.h"
 
 #include "sftp.h"
 #include "sftp-common.h"
@@ -102,59 +102,81 @@ attrib_to_stat(const Attrib *a, struct stat *st)
 }
 
 /* Decode attributes in buffer */
-Attrib *
-decode_attrib(Buffer *b)
+int
+decode_attrib(struct sshbuf *b, Attrib *a)
 {
-	static Attrib a;
+	int r;
 
-	attrib_clear(&a);
-	a.flags = buffer_get_int(b);
-	if (a.flags & SSH2_FILEXFER_ATTR_SIZE)
-		a.size = buffer_get_int64(b);
-	if (a.flags & SSH2_FILEXFER_ATTR_UIDGID) {
-		a.uid = buffer_get_int(b);
-		a.gid = buffer_get_int(b);
+	attrib_clear(a);
+	if ((r = sshbuf_get_u32(b, &a->flags)) != 0)
+		return r;
+	if (a->flags & SSH2_FILEXFER_ATTR_SIZE) {
+		if ((r = sshbuf_get_u64(b, &a->size)) != 0)
+			return r;
 	}
-	if (a.flags & SSH2_FILEXFER_ATTR_PERMISSIONS)
-		a.perm = buffer_get_int(b);
-	if (a.flags & SSH2_FILEXFER_ATTR_ACMODTIME) {
-		a.atime = buffer_get_int(b);
-		a.mtime = buffer_get_int(b);
+	if (a->flags & SSH2_FILEXFER_ATTR_UIDGID) {
+		if ((r = sshbuf_get_u32(b, &a->uid)) != 0 ||
+		    (r = sshbuf_get_u32(b, &a->gid)) != 0)
+			return r;
+	}
+	if (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) {
+		if ((r = sshbuf_get_u32(b, &a->perm)) != 0)
+			return r;
+	}
+	if (a->flags & SSH2_FILEXFER_ATTR_ACMODTIME) {
+		if ((r = sshbuf_get_u32(b, &a->atime)) != 0 ||
+		    (r = sshbuf_get_u32(b, &a->mtime)) != 0)
+			return r;
 	}
 	/* vendor-specific extensions */
-	if (a.flags & SSH2_FILEXFER_ATTR_EXTENDED) {
-		char *type, *data;
-		int i, count;
+	if (a->flags & SSH2_FILEXFER_ATTR_EXTENDED) {
+		char *type;
+		u_char *data;
+		size_t dlen;
+		u_int i, count;
 
-		count = buffer_get_int(b);
+		if ((r = sshbuf_get_u32(b, &count)) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 		for (i = 0; i < count; i++) {
-			type = buffer_get_string(b, NULL);
-			data = buffer_get_string(b, NULL);
-			debug3("Got file attribute \"%s\"", type);
+			if ((r = sshbuf_get_cstring(b, &type, NULL)) != 0 ||
+			    (r = sshbuf_get_string(b, &data, &dlen)) != 0)
+				return r;
+			debug3("Got file attribute \"%.100s\" len %zu",
+			    type, dlen);
 			free(type);
 			free(data);
 		}
 	}
-	return &a;
+	return 0;
 }
 
 /* Encode attributes to buffer */
-void
-encode_attrib(Buffer *b, const Attrib *a)
+int
+encode_attrib(struct sshbuf *b, const Attrib *a)
 {
-	buffer_put_int(b, a->flags);
-	if (a->flags & SSH2_FILEXFER_ATTR_SIZE)
-		buffer_put_int64(b, a->size);
+	int r;
+
+	if ((r = sshbuf_put_u32(b, a->flags)) != 0)
+		return r;
+	if (a->flags & SSH2_FILEXFER_ATTR_SIZE) {
+		if ((r = sshbuf_put_u64(b, a->size)) != 0)
+			return r;
+	}
 	if (a->flags & SSH2_FILEXFER_ATTR_UIDGID) {
-		buffer_put_int(b, a->uid);
-		buffer_put_int(b, a->gid);
+		if ((r = sshbuf_put_u32(b, a->uid)) != 0 ||
+		    (r = sshbuf_put_u32(b, a->gid)) != 0)
+			return r;
 	}
-	if (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS)
-		buffer_put_int(b, a->perm);
+	if (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) {
+		if ((r = sshbuf_put_u32(b, a->perm)) != 0)
+			return r;
+	}
 	if (a->flags & SSH2_FILEXFER_ATTR_ACMODTIME) {
-		buffer_put_int(b, a->atime);
-		buffer_put_int(b, a->mtime);
+		if ((r = sshbuf_put_u32(b, a->atime)) != 0 ||
+		    (r = sshbuf_put_u32(b, a->mtime)) != 0)
+			return r;
 	}
+	return 0;
 }
 
 /* Convert from SSH2_FX_ status to text error message */
@@ -195,22 +217,21 @@ ls_file(const char *name, const struct stat *st, int remote, int si_units)
 	int ulen, glen, sz = 0;
 	struct tm *ltime = localtime(&st->st_mtime);
 	const char *user, *group;
-	char buf[1024], mode[11+1], tbuf[12+1], ubuf[11+1], gbuf[11+1];
+	char buf[1024], lc[8], mode[11+1], tbuf[12+1], ubuf[11+1], gbuf[11+1];
 	char sbuf[FMT_SCALED_STRSIZE];
 	time_t now;
 
 	strmode(st->st_mode, mode);
-	if (!remote) {
-		user = user_from_uid(st->st_uid, 0);
-	} else {
+	if (remote) {
 		snprintf(ubuf, sizeof ubuf, "%u", (u_int)st->st_uid);
 		user = ubuf;
-	}
-	if (!remote) {
-		group = group_from_gid(st->st_gid, 0);
-	} else {
 		snprintf(gbuf, sizeof gbuf, "%u", (u_int)st->st_gid);
 		group = gbuf;
+		strlcpy(lc, "?", sizeof(lc));
+	} else {
+		user = user_from_uid(st->st_uid, 0);
+		group = group_from_gid(st->st_gid, 0);
+		snprintf(lc, sizeof(lc), "%u", (u_int)st->st_nlink);
 	}
 	if (ltime != NULL) {
 		now = time(NULL);
@@ -222,16 +243,16 @@ ls_file(const char *name, const struct stat *st, int remote, int si_units)
 	}
 	if (sz == 0)
 		tbuf[0] = '\0';
-	ulen = MAX(strlen(user), 8);
-	glen = MAX(strlen(group), 8);
+	ulen = MAXIMUM(strlen(user), 8);
+	glen = MAXIMUM(strlen(group), 8);
 	if (si_units) {
 		fmt_scaled((long long)st->st_size, sbuf);
-		snprintf(buf, sizeof buf, "%s %3u %-*s %-*s %8s %s %s", mode,
-		    (u_int)st->st_nlink, ulen, user, glen, group,
+		snprintf(buf, sizeof buf, "%s %3s %-*s %-*s %8s %s %s",
+		    mode, lc, ulen, user, glen, group,
 		    sbuf, tbuf, name);
 	} else {
-		snprintf(buf, sizeof buf, "%s %3u %-*s %-*s %8llu %s %s", mode,
-		    (u_int)st->st_nlink, ulen, user, glen, group,
+		snprintf(buf, sizeof buf, "%s %3s %-*s %-*s %8llu %s %s",
+		    mode, lc, ulen, user, glen, group,
 		    (unsigned long long)st->st_size, tbuf, name);
 	}
 	return xstrdup(buf);

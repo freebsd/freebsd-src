@@ -4,7 +4,7 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -663,7 +663,7 @@ gettoken()
 			printf("(EOL)");
 			break;
 		  case TOK_NUM:
-			printf("(NUM %llu)", numval);
+			printf("(NUM %ju)", (uintmax_t)numval);
 			break;
 		  case TOK_STR:
 			printf("(STR %.*s)", (int)strvallen, strval);
@@ -823,7 +823,8 @@ parse_oid(const char *varname, struct asn_oid *oid)
 	while (token == '.') {
 		if (gettoken() == TOK_NUM) {
 			if (numval > ASN_MAXID)
-				report("subid too large %#"QUADXFMT, numval);
+				report("subid too large %#jx",
+				    (uintmax_t)numval);
 			if (oid->len == ASN_MAXOIDLEN)
 				report("index too long");
 			if (gettoken() != ':')
@@ -878,7 +879,7 @@ parse_syntax_integer(struct snmp_value *value)
 	if (token != TOK_NUM)
 		report("bad INTEGER syntax");
 	if (numval > 0x7fffffff)
-		report("INTEGER too large %"QUADFMT, numval);
+		report("INTEGER too large %ju", (uintmax_t)numval);
 
 	value->v.integer = numval;
 	gettoken();
@@ -1150,7 +1151,8 @@ parse_define(const char *varname)
 			free(m->value);
 			m->value = string;
 			m->length = length;
-		}
+		} else
+			free(string);
 	}
 
 	token = TOK_EOL;

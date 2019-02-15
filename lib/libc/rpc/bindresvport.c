@@ -1,6 +1,8 @@
 /*	$NetBSD: bindresvport.c,v 1.19 2000/07/06 03:03:59 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -61,9 +63,7 @@ __FBSDID("$FreeBSD$");
  * Bind a socket to a privileged IP port
  */
 int
-bindresvport(sd, sin)
-	int sd;
-	struct sockaddr_in *sin;
+bindresvport(int sd, struct sockaddr_in *sin)
 {
 	return bindresvport_sa(sd, (struct sockaddr *)sin);
 }
@@ -72,9 +72,7 @@ bindresvport(sd, sin)
  * Bind a socket to a privileged IP port
  */
 int
-bindresvport_sa(sd, sa)
-	int sd;
-	struct sockaddr *sa;
+bindresvport_sa(int sd, struct sockaddr *sa)
 {
 	int old, error, af;
 	struct sockaddr_storage myaddr;

@@ -2,47 +2,54 @@
  * netof - return the net address part of an ip address in a sockaddr_storage structure
  *         (zero out host part)
  */
+#include <config.h>
 #include <stdio.h>
+#include <syslog.h>
 
 #include "ntp_fp.h"
+#include "ntp_net.h"
 #include "ntp_stdlib.h"
 #include "ntp.h"
 
-#define NUM_NETOF_BUFS	10
-static struct sockaddr_storage ssbuf[NUM_NETOF_BUFS];
-static int next_ssbuf = 0;
-
-struct sockaddr_storage*
+sockaddr_u *
 netof(
-        struct sockaddr_storage* hostaddr
+	sockaddr_u *hostaddr
 	)
 {
-	register u_int32 netnum;
-        struct sockaddr_storage *netaddr;
+	static sockaddr_u	netofbuf[8];
+	static int		next_netofbuf;
+	u_int32			netnum;
+	sockaddr_u *		netaddr;
 
-	netaddr = &ssbuf[next_ssbuf++];
-	if (next_ssbuf == NUM_NETOF_BUFS)
-		next_ssbuf = 0;
-        memcpy(netaddr, hostaddr, sizeof(struct sockaddr_storage));
+	netaddr = &netofbuf[next_netofbuf];
+	next_netofbuf = (next_netofbuf + 1) % COUNTOF(netofbuf);
 
-        if(netaddr->ss_family == AF_INET) {
-                netnum = ((struct sockaddr_in*)netaddr)->sin_addr.s_addr;
+	memcpy(netaddr, hostaddr, sizeof(*netaddr));
+
+	if (IS_IPV4(netaddr)) {
+		netnum = SRCADR(netaddr);
 
 		/*
 		 * We live in a modern CIDR world where the basement nets, which
 		 * used to be class A, are now probably associated with each
 		 * host address. So, for class-A nets, all bits are significant.
 		 */
-		if(IN_CLASSC(netnum))
-		    netnum &= IN_CLASSC_NET;
+		if (IN_CLASSC(netnum))
+			netnum &= IN_CLASSC_NET;
 		else if (IN_CLASSB(netnum))
-		    netnum &= IN_CLASSB_NET;
-			((struct sockaddr_in*)netaddr)->sin_addr.s_addr = netnum;
-		 }
-         else if(netaddr->ss_family == AF_INET6) {
-		/* Here we put 0 at the local link address so we get net address */
-		  memset(&((struct sockaddr_in6*)netaddr)->sin6_addr.s6_addr[8], 0, 8*sizeof(u_char));
-         }
+			netnum &= IN_CLASSB_NET;
 
-         return netaddr;
+		SET_ADDR4(netaddr, netnum);
+
+	} else if (IS_IPV6(netaddr))
+		/* assume the typical /64 subnet size */
+		zero_mem(&NSRCADR6(netaddr)[8], 8);
+#ifdef DEBUG
+	else {
+		msyslog(LOG_ERR, "netof unknown AF %d", AF(netaddr));
+		exit(1);
+	}
+#endif
+
+	return netaddr;
 }

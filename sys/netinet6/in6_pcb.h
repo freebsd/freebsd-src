@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
  *
@@ -41,7 +43,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -113,7 +115,7 @@ int	in6_mapped_sockaddr(struct socket *so, struct sockaddr **nam);
 int	in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam);
 int	in6_selecthlim(struct in6pcb *, struct ifnet *);
 int	in6_pcbsetport(struct in6_addr *, struct inpcb *, struct ucred *);
-void	init_sin6(struct sockaddr_in6 *sin6, struct mbuf *m);
+void	init_sin6(struct sockaddr_in6 *sin6, struct mbuf *m, int);
 #endif /* _KERNEL */
 
 #endif /* !_NETINET6_IN6_PCB_H_ */

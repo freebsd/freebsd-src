@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
@@ -47,13 +49,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/sound/chip.h>
 #include <mixer_if.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
@@ -425,19 +425,19 @@ find_edma_controller(struct sc_info *sc)
 	if ((len = OF_getproplen(node, "edma-mux-group")) <= 0)
 		return (ENXIO);
 
-	OF_getprop(node, "edma-src-transmit", &dts_value, len);
-	edma_src_transmit = fdt32_to_cpu(dts_value);
-	OF_getprop(node, "edma-mux-group", &dts_value, len);
-	edma_mux_group = fdt32_to_cpu(dts_value);
-	OF_getprop(node, "edma-controller", &dts_value, len);
-	edma_node = OF_node_from_xref(fdt32_to_cpu(dts_value));
+	OF_getencprop(node, "edma-src-transmit", &dts_value, len);
+	edma_src_transmit = dts_value;
+	OF_getencprop(node, "edma-mux-group", &dts_value, len);
+	edma_mux_group = dts_value;
+	OF_getencprop(node, "edma-controller", &dts_value, len);
+	edma_node = OF_node_from_xref(dts_value);
 
 	if ((len = OF_getproplen(edma_node, "device-id")) <= 0) {
 		return (ENXIO);
-	};
+	}
 
-	OF_getprop(edma_node, "device-id", &dts_value, len);
-	edma_device_id = fdt32_to_cpu(dts_value);
+	OF_getencprop(edma_node, "device-id", &dts_value, len);
+	edma_device_id = dts_value;
 
 	edma_sc = NULL;
 
@@ -448,16 +448,16 @@ find_edma_controller(struct sc_info *sc)
 			if (edma_sc->device_id == edma_device_id) {
 				/* found */
 				break;
-			};
+			}
 
 			edma_sc = NULL;
-		};
-	};
+		}
+	}
 
 	if (edma_sc == NULL) {
 		device_printf(sc->dev, "no eDMA. can't operate\n");
 		return (ENXIO);
-	};
+	}
 
 	sc->edma_sc = edma_sc;
 
@@ -466,7 +466,7 @@ find_edma_controller(struct sc_info *sc)
 	if (sc->edma_chnum < 0) {
 		/* cant setup eDMA */
 		return (ENXIO);
-	};
+	}
 
 	return (0);
 };

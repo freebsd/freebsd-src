@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2013 LSI Corp.
+ * Copyright (c) 2012-2015 LSI Corp.
+ * Copyright (c) 2013-2016 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,20 +27,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * LSI MPT-Fusion Host Adapter FreeBSD
+ * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
  *
  * $FreeBSD$
  */
 
 /*
- *  Copyright (c) 2000-2013 LSI Corporation.
+ *  Copyright (c) 2000-2015 LSI Corporation.
+ *  Copyright (c) 2013-2016 Avago Technologies
+ *  All rights reserved.
  *
  *
  *           Name:  mpi2_tool.h
  *          Title:  MPI diagnostic tool structures and definitions
  *  Creation Date:  March 26, 2007
  *
- *    mpi2_tool.h Version:  02.00.11
+ *    mpi2_tool.h Version:  02.00.14
  *
  *  Version History
  *  ---------------
@@ -66,6 +69,10 @@
  *  07-26-12  02.00.10  Modified MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST so that
  *                      it uses MPI Chain SGE as well as MPI Simple SGE.
  *  08-19-13  02.00.11  Added MPI2_TOOLBOX_TEXT_DISPLAY_TOOL and related info.
+ *  01-08-14  02.00.12  Added MPI2_TOOLBOX_CLEAN_BIT26_PRODUCT_SPECIFIC.
+ *  11-18-14  02.00.13  Updated copyright information.
+ *  08-25-16  02.00.14  Added new values for the Flags field of Toolbox Clean
+ *                      Tool Request Message.
  *  --------------------------------------------------------------------------
  */
 
@@ -137,8 +144,19 @@ typedef struct _MPI2_TOOLBOX_CLEAN_REQUEST
 #define MPI2_TOOLBOX_CLEAN_OTHER_PERSIST_PAGES      (0x20000000)
 #define MPI2_TOOLBOX_CLEAN_FW_CURRENT               (0x10000000)
 #define MPI2_TOOLBOX_CLEAN_FW_BACKUP                (0x08000000)
+#define MPI2_TOOLBOX_CLEAN_BIT26_PRODUCT_SPECIFIC   (0x04000000)
 #define MPI2_TOOLBOX_CLEAN_MEGARAID                 (0x02000000)
 #define MPI2_TOOLBOX_CLEAN_INITIALIZATION           (0x01000000)
+#define MPI2_TOOLBOX_CLEAN_SBR                      (0x00800000)
+#define MPI2_TOOLBOX_CLEAN_SBR_BACKUP               (0x00400000)
+#define MPI2_TOOLBOX_CLEAN_HIIM                     (0x00200000)
+#define MPI2_TOOLBOX_CLEAN_HIIA                     (0x00100000)
+#define MPI2_TOOLBOX_CLEAN_CTLR                     (0x00080000)
+#define MPI2_TOOLBOX_CLEAN_IMR_FIRMWARE             (0x00040000)
+#define MPI2_TOOLBOX_CLEAN_MR_NVDATA                (0x00020000)
+#define MPI2_TOOLBOX_CLEAN_RESERVED_5_16            (0x0001FFE0)
+#define MPI2_TOOLBOX_CLEAN_ALL_BUT_MPB              (0x00000010)
+#define MPI2_TOOLBOX_CLEAN_ENTIRE_FLASH             (0x00000008)
 #define MPI2_TOOLBOX_CLEAN_FLASH                    (0x00000004)
 #define MPI2_TOOLBOX_CLEAN_SEEPROM                  (0x00000002)
 #define MPI2_TOOLBOX_CLEAN_NVSRAM                   (0x00000001)

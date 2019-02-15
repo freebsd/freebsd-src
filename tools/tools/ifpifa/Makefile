@@ -4,7 +4,6 @@ PROG=	ifpifa
 MAN=
 WARNS?=6
 BINDIR?=/usr/local/bin
-DPADD=${LIBKVM}
-LDADD=-lkvm
+LIBADD=kvm
 
 .include <bsd.prog.mk>

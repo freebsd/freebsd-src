@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997 Peter Wemm.
  * All rights reserved.
  *
@@ -133,6 +135,8 @@ extern	int supmedia;
 extern	int printkeys;
 extern	int newaddr;
 extern	int verbose;
+extern	int printifname;
+extern	int exit_code;
 
 void	setifcap(const char *, int value, int s, const struct afswtch *);
 

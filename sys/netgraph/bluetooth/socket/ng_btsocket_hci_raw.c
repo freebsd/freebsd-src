@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -876,6 +878,9 @@ ng_btsocket_hci_raw_init(void)
 	/* Commands - Testing */
 	f = ng_btsocket_hci_raw_sec_filter->commands[NG_HCI_OGF_TESTING - 1];
 	bit_set(f, NG_HCI_OCF_READ_LOOPBACK_MODE - 1);
+	/*Commands - LE*/
+	f = ng_btsocket_hci_raw_sec_filter->commands[NG_HCI_OGF_LE -1];
+
 } /* ng_btsocket_hci_raw_init */
 
 /*

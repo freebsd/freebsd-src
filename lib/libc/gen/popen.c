@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -30,10 +32,8 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 5/3/95";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
+__SCCSID("@(#)popen.c	8.3 (Berkeley) 5/3/95");
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
@@ -67,12 +67,12 @@ static pthread_mutex_t pidlist_mutex = PTHREAD_MUTEX_INITIALIZER;
 #define	THREAD_UNLOCK()	if (__isthreaded) _pthread_mutex_unlock(&pidlist_mutex)
 
 FILE *
-popen(command, type)
-	const char *command, *type;
+popen(const char *command, const char *type)
 {
 	struct pid *cur;
 	FILE *iop;
 	int pdes[2], pid, twoway, cloexec;
+	int pdes_unused_in_parent;
 	char *argv[4];
 	struct pid *p;
 
@@ -99,6 +99,20 @@ popen(command, type)
 		return (NULL);
 	}
 
+	if (*type == 'r') {
+		iop = fdopen(pdes[0], type);
+		pdes_unused_in_parent = pdes[1];
+	} else {
+		iop = fdopen(pdes[1], type);
+		pdes_unused_in_parent = pdes[0];
+	}
+	if (iop == NULL) {
+		(void)_close(pdes[0]);
+		(void)_close(pdes[1]);
+		free(cur);
+		return (NULL);
+	}
+
 	argv[0] = "sh";
 	argv[1] = "-c";
 	argv[2] = (char *)command;
@@ -108,9 +122,14 @@ popen(command, type)
 	switch (pid = vfork()) {
 	case -1:			/* Error. */
 		THREAD_UNLOCK();
-		(void)_close(pdes[0]);
-		(void)_close(pdes[1]);
+		/*
+		 * The _close() closes the unused end of pdes[], while
+		 * the fclose() closes the used end of pdes[], *and* cleans
+		 * up iop.
+		 */
+		(void)_close(pdes_unused_in_parent);
 		free(cur);
+		(void)fclose(iop);
 		return (NULL);
 		/* NOTREACHED */
 	case 0:				/* Child. */
@@ -146,14 +165,8 @@ popen(command, type)
 	}
 	THREAD_UNLOCK();
 
-	/* Parent; assume fdopen can't fail. */
-	if (*type == 'r') {
-		iop = fdopen(pdes[0], type);
-		(void)_close(pdes[1]);
-	} else {
-		iop = fdopen(pdes[1], type);
-		(void)_close(pdes[0]);
-	}
+	/* Parent. */
+	(void)_close(pdes_unused_in_parent);
 
 	/* Link into list of file descriptors. */
 	cur->fp = iop;
@@ -179,8 +192,7 @@ popen(command, type)
  *	if already `pclosed', or waitpid returns an error.
  */
 int
-pclose(iop)
-	FILE *iop;
+pclose(FILE *iop)
 {
 	struct pid *cur, *last = NULL;
 	int pstat;

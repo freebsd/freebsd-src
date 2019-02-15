@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2008 Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
@@ -47,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 enum pmc_class	amd_pmc_class;
 #endif
 
@@ -103,12 +105,144 @@ static  struct amd_descr amd_pmcdesc[AMD_NPMCS] =
 	},
 	.pm_evsel   = AMD_PMC_EVSEL_3,
 	.pm_perfctr = AMD_PMC_PERFCTR_3
-    }
+     },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_4,
+	.pm_perfctr = AMD_PMC_PERFCTR_4
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_5,
+	.pm_perfctr = AMD_PMC_PERFCTR_5
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_L3_0,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_L3_0
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_L3_1,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_L3_1
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_L3_2,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_L3_2
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_L3_3,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_L3_3
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_L3_4,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_L3_4
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_L3_5,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_L3_5
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_DF_0,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_DF_0
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_DF_1,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_DF_1
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_DF_2,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_DF_2
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_DF_3,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_DF_3
+     }
 };
 
 struct amd_event_code_map {
 	enum pmc_event	pe_ev;	 /* enum value */
-	uint8_t		pe_code; /* encoded event mask */
+	uint16_t	pe_code; /* encoded event mask */
 	uint8_t		pe_mask; /* bits allowed in unit mask */
 };
 
@@ -241,8 +375,7 @@ const struct amd_event_code_map amd_event_codes[] = {
 
 };
 
-const int amd_event_codes_size =
-	sizeof(amd_event_codes) / sizeof(amd_event_codes[0]);
+const int amd_event_codes_size = nitems(amd_event_codes);
 
 /*
  * Per-processor information
@@ -282,16 +415,16 @@ amd_read_pmc(int cpu, int ri, pmc_value_t *v)
 
 	mode = PMC_TO_MODE(pm);
 
-	PMCDBG(MDP,REA,1,"amd-read id=%d class=%d", ri, pd->pm_descr.pd_class);
+	PMCDBG2(MDP,REA,1,"amd-read id=%d class=%d", ri, pd->pm_descr.pd_class);
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	KASSERT(pd->pm_descr.pd_class == amd_pmc_class,
 	    ("[amd,%d] unknown PMC class (%d)", __LINE__,
 		pd->pm_descr.pd_class));
 #endif
 
 	tmp = rdmsr(pd->pm_perfctr); /* RDMSR serializes */
-	PMCDBG(MDP,REA,2,"amd-read (pre-munge) id=%d -> %jd", ri, tmp);
+	PMCDBG2(MDP,REA,2,"amd-read (pre-munge) id=%d -> %jd", ri, tmp);
 	if (PMC_IS_SAMPLING_MODE(mode)) {
 		/* Sign extend 48 bit value to 64 bits. */
 		tmp = (pmc_value_t) (((int64_t) tmp << 16) >> 16);
@@ -299,7 +432,7 @@ amd_read_pmc(int cpu, int ri, pmc_value_t *v)
 	}
 	*v = tmp;
 
-	PMCDBG(MDP,REA,2,"amd-read (post-munge) id=%d -> %jd", ri, *v);
+	PMCDBG2(MDP,REA,2,"amd-read (post-munge) id=%d -> %jd", ri, *v);
 
 	return 0;
 }
@@ -329,7 +462,7 @@ amd_write_pmc(int cpu, int ri, pmc_value_t v)
 
 	mode = PMC_TO_MODE(pm);
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	KASSERT(pd->pm_descr.pd_class == amd_pmc_class,
 	    ("[amd,%d] unknown PMC class (%d)", __LINE__,
 		pd->pm_descr.pd_class));
@@ -339,7 +472,7 @@ amd_write_pmc(int cpu, int ri, pmc_value_t v)
 	if (PMC_IS_SAMPLING_MODE(mode))
 		v = AMD_RELOAD_COUNT_TO_PERFCTR_VALUE(v);
 
-	PMCDBG(MDP,WRI,1,"amd-write cpu=%d ri=%d v=%jx", cpu, ri, v);
+	PMCDBG3(MDP,WRI,1,"amd-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
 	/* write the PMC value */
 	wrmsr(pd->pm_perfctr, v);
@@ -356,7 +489,7 @@ amd_config_pmc(int cpu, int ri, struct pmc *pm)
 {
 	struct pmc_hw *phw;
 
-	PMCDBG(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
+	PMCDBG3(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[amd,%d] illegal CPU value %d", __LINE__, cpu));
@@ -395,7 +528,7 @@ amd_switch_in(struct pmc_cpu *pc, struct pmc_process *pp)
 {
 	(void) pc;
 
-	PMCDBG(MDP,SWI,1, "pc=%p pp=%p enable-msr=%d", pc, pp,
+	PMCDBG3(MDP,SWI,1, "pc=%p pp=%p enable-msr=%d", pc, pp,
 	    (pp->pp_flags & PMC_PP_ENABLE_MSR_ACCESS) != 0);
 
 	/* enable the RDPMC instruction if needed */
@@ -416,7 +549,7 @@ amd_switch_out(struct pmc_cpu *pc, struct pmc_process *pp)
 	(void) pc;
 	(void) pp;		/* can be NULL */
 
-	PMCDBG(MDP,SWO,1, "pc=%p pp=%p enable-msr=%d", pc, pp, pp ?
+	PMCDBG3(MDP,SWO,1, "pc=%p pp=%p enable-msr=%d", pc, pp, pp ?
 	    (pp->pp_flags & PMC_PP_ENABLE_MSR_ACCESS) == 1 : 0);
 
 	/* always turn off the RDPMC instruction */
@@ -434,7 +567,7 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a)
 {
 	int i;
-	uint32_t allowed_unitmask, caps, config, unitmask;
+	uint64_t allowed_unitmask, caps, config, unitmask;
 	enum pmc_event pe;
 	const struct pmc_descr *pd;
 
@@ -453,10 +586,23 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	caps = pm->pm_caps;
 
-	PMCDBG(MDP,ALL,1,"amd-allocate ri=%d caps=0x%x", ri, caps);
+	PMCDBG2(MDP,ALL,1,"amd-allocate ri=%d caps=0x%x", ri, caps);
+
+	if((ri >= 0 && ri < 6) && !(a->pm_md.pm_amd.pm_amd_sub_class == PMC_AMD_SUB_CLASS_CORE))
+		return EINVAL;
+	if((ri >= 6 && ri < 12) && !(a->pm_md.pm_amd.pm_amd_sub_class == PMC_AMD_SUB_CLASS_L3_CACHE))
+		return EINVAL;
+	if((ri >= 12 && ri < 16) && !(a->pm_md.pm_amd.pm_amd_sub_class == PMC_AMD_SUB_CLASS_DATA_FABRIC))
+		return EINVAL;
 
 	if ((pd->pd_caps & caps) != caps)
 		return EPERM;
+	if (strlen(pmc_cpuid) != 0) {
+		pm->pm_md.pm_amd.pm_amd_evsel =
+			a->pm_md.pm_amd.pm_amd_config;
+		PMCDBG2(MDP,ALL,2,"amd-allocate ri=%d -> config=0x%x", ri, a->pm_md.pm_amd.pm_amd_config);
+		return (0);
+	}
 
 	pe = a->pm_ev;
 
@@ -500,7 +646,7 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	pm->pm_md.pm_amd.pm_amd_evsel = config; /* save config value */
 
-	PMCDBG(MDP,ALL,2,"amd-allocate ri=%d -> config=0x%x", ri, config);
+	PMCDBG2(MDP,ALL,2,"amd-allocate ri=%d -> config=0x%x", ri, config);
 
 	return 0;
 }
@@ -515,7 +661,7 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
 static int
 amd_release_pmc(int cpu, int ri, struct pmc *pmc)
 {
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	const struct amd_descr *pd;
 #endif
 	struct pmc_hw *phw;
@@ -532,7 +678,7 @@ amd_release_pmc(int cpu, int ri, struct pmc *pmc)
 	KASSERT(phw->phw_pmc == NULL,
 	    ("[amd,%d] PHW pmc %p non-NULL", __LINE__, phw->phw_pmc));
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	pd = &amd_pmcdesc[ri];
 	if (pd->pm_descr.pd_class == amd_pmc_class)
 		KASSERT(AMD_PMC_IS_STOPPED(pd->pm_evsel),
@@ -549,7 +695,7 @@ amd_release_pmc(int cpu, int ri, struct pmc *pmc)
 static int
 amd_start_pmc(int cpu, int ri)
 {
-	uint32_t config;
+	uint64_t config;
 	struct pmc *pm;
 	struct pmc_hw *phw;
 	const struct amd_descr *pd;
@@ -567,7 +713,7 @@ amd_start_pmc(int cpu, int ri)
 	    ("[amd,%d] starting cpu%d,pmc%d with null pmc record", __LINE__,
 		cpu, ri));
 
-	PMCDBG(MDP,STA,1,"amd-start cpu=%d ri=%d", cpu, ri);
+	PMCDBG2(MDP,STA,1,"amd-start cpu=%d ri=%d", cpu, ri);
 
 	KASSERT(AMD_PMC_IS_STOPPED(pd->pm_evsel),
 	    ("[amd,%d] pmc%d,cpu%d: Starting active PMC \"%s\"", __LINE__,
@@ -576,7 +722,7 @@ amd_start_pmc(int cpu, int ri)
 	/* turn on the PMC ENABLE bit */
 	config = pm->pm_md.pm_amd.pm_amd_evsel | AMD_PMC_ENABLE;
 
-	PMCDBG(MDP,STA,2,"amd-start config=0x%x", config);
+	PMCDBG1(MDP,STA,2,"amd-start config=0x%x", config);
 
 	wrmsr(pd->pm_evsel, config);
 	return 0;
@@ -610,7 +756,7 @@ amd_stop_pmc(int cpu, int ri)
 	    ("[amd,%d] PMC%d, CPU%d \"%s\" already stopped",
 		__LINE__, ri, cpu, pd->pm_descr.pd_name));
 
-	PMCDBG(MDP,STO,1,"amd-stop ri=%d", ri);
+	PMCDBG1(MDP,STO,1,"amd-stop ri=%d", ri);
 
 	/* turn off the PMC ENABLE bit */
 	config = pm->pm_md.pm_amd.pm_amd_evsel & ~AMD_PMC_ENABLE;
@@ -626,18 +772,19 @@ amd_stop_pmc(int cpu, int ri)
  */
 
 static int
-amd_intr(int cpu, struct trapframe *tf)
+amd_intr(struct trapframe *tf)
 {
-	int i, error, retval;
-	uint32_t config, evsel, perfctr;
+	int i, error, retval, cpu;
+	uint64_t config, evsel, perfctr;
 	struct pmc *pm;
 	struct amd_cpu *pac;
 	pmc_value_t v;
 
+	cpu = curcpu;
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[amd,%d] out of range CPU %d", __LINE__, cpu));
 
-	PMCDBG(MDP,INT,1, "cpu=%d tf=%p um=%d", cpu, (void *) tf,
+	PMCDBG3(MDP,INT,1, "cpu=%d tf=%p um=%d", cpu, (void *) tf,
 	    TRAPF_USERMODE(tf));
 
 	retval = 0;
@@ -680,22 +827,24 @@ amd_intr(int cpu, struct trapframe *tf)
 
 		KASSERT((config & ~AMD_PMC_ENABLE) ==
 		    (pm->pm_md.pm_amd.pm_amd_evsel & ~AMD_PMC_ENABLE),
-		    ("[amd,%d] config mismatch reg=0x%x pm=0x%x", __LINE__,
-			config, pm->pm_md.pm_amd.pm_amd_evsel));
+		    ("[amd,%d] config mismatch reg=0x%jx pm=0x%jx", __LINE__,
+			 (uintmax_t)config, (uintmax_t)pm->pm_md.pm_amd.pm_amd_evsel));
 
 		wrmsr(evsel, config & ~AMD_PMC_ENABLE);
 		wrmsr(perfctr, AMD_RELOAD_COUNT_TO_PERFCTR_VALUE(v));
 
 		/* Restart the counter if logging succeeded. */
-		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
-		    TRAPF_USERMODE(tf));
+		error = pmc_process_interrupt(PMC_HR, pm, tf);
 		if (error == 0)
-			wrmsr(evsel, config | AMD_PMC_ENABLE);
+			wrmsr(evsel, config);
 	}
 
-	atomic_add_int(retval ? &pmc_stats.pm_intr_processed :
-	    &pmc_stats.pm_intr_ignored, 1);
+	if (retval)
+		counter_u64_add(pmc_stats.pm_intr_processed, 1);
+	else
+		counter_u64_add(pmc_stats.pm_intr_ignored, 1);
 
+	PMCDBG1(MDP,INT,2, "retval=%d", retval);
 	return (retval);
 }
 
@@ -769,7 +918,7 @@ amd_pcpu_init(struct pmc_mdep *md, int cpu)
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[amd,%d] insane cpu number %d", __LINE__, cpu));
 
-	PMCDBG(MDP,INI,1,"amd-init cpu=%d", cpu);
+	PMCDBG1(MDP,INI,1,"amd-init cpu=%d", cpu);
 
 	amd_pcpu[cpu] = pac = malloc(sizeof(struct amd_cpu), M_PMC,
 	    M_WAITOK|M_ZERO);
@@ -816,7 +965,7 @@ amd_pcpu_fini(struct pmc_mdep *md, int cpu)
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[amd,%d] insane cpu number (%d)", __LINE__, cpu));
 
-	PMCDBG(MDP,INI,1,"amd-cleanup cpu=%d", cpu);
+	PMCDBG1(MDP,INI,1,"amd-cleanup cpu=%d", cpu);
 
 	/*
 	 * First, turn off all PMCs on this CPU.
@@ -835,7 +984,7 @@ amd_pcpu_fini(struct pmc_mdep *md, int cpu)
 
 	amd_pcpu[cpu] = NULL;
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	for (i = 0; i < AMD_NPMCS; i++) {
 		KASSERT(pac->pc_amdpmcs[i].phw_pmc == NULL,
 		    ("[amd,%d] CPU%d/PMC%d in use", __LINE__, cpu, i));
@@ -880,6 +1029,7 @@ pmc_amd_initialize(void)
 	enum pmc_cputype cputype;
 	struct pmc_mdep *pmc_mdep;
 	enum pmc_class class;
+	int model;
 	char *name;
 
 	/*
@@ -891,6 +1041,11 @@ pmc_amd_initialize(void)
 	 */
 
 	name = NULL;
+	model = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
+	if (CPUID_TO_FAMILY(cpu_id) == 0x17)
+		snprintf(pmc_cpuid, sizeof(pmc_cpuid), "AuthenticAMD-%d-%02X",
+				 CPUID_TO_FAMILY(cpu_id), model);
+
 	switch (cpu_id & 0xF00) {
 #if	defined(__i386__)
 	case 0x600:		/* Athlon(tm) processor */
@@ -908,11 +1063,11 @@ pmc_amd_initialize(void)
 		break;
 
 	default:
-		(void) printf("pmc: Unknown AMD CPU.\n");
+		(void) printf("pmc: Unknown AMD CPU %x %d-%d.\n", cpu_id, (cpu_id & 0xF00) >> 8, model);
 		return NULL;
 	}
 
-#ifdef	DEBUG
+#ifdef	HWPMC_DEBUG
 	amd_pmc_class = class;
 #endif
 
@@ -976,7 +1131,7 @@ pmc_amd_initialize(void)
 
 	pmc_mdep->pmd_npmc     += AMD_NPMCS;
 
-	PMCDBG(MDP,INI,0,"%s","amd-initialize");
+	PMCDBG0(MDP,INI,0,"amd-initialize");
 
 	return (pmc_mdep);
 

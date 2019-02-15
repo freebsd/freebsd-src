@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 by Thomas Moestl <tmm@FreeBSD.org>.
  * All rights reserved.
  *
@@ -29,7 +31,7 @@
 #define _LIBC_SPARC64_FPU_FPU_REG_H_
 
 /*
- * These are not really of type char[]. They are are arrays of functions defined
+ * These are not really of type char[]. They are arrays of functions defined
  * in fpu_reg.S; each array member loads/stores a certain fpu register of the
  * given size.
  */
@@ -51,7 +53,7 @@ typedef void (fp_ldst64_fn)(u_int64_t *);
 /*
  * These are the functions that are actually used in the fpu emulation code to
  * access the fp registers. They are usually not used more than once, so
- * cacheing needs not be done here.
+ * caching needs not be done here.
  */
 static __inline u_int32_t
 __fpu_getreg(int r)

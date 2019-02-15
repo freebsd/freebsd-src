@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1995 Scott Bartram
  * Copyright (c) 1995 Steven Wallace
  * All rights reserved.
@@ -71,9 +73,8 @@ cvt_msqid2imsqid(bp, ibp)
 struct msqid_ds *bp;
 struct ibcs2_msqid_ds *ibp;
 {
+	memset(ibp, 0, sizeof(*ibp));
 	cvt_perm2iperm(&bp->msg_perm, &ibp->msg_perm);
-	ibp->msg_first = bp->msg_first;
-	ibp->msg_last = bp->msg_last;
 	ibp->msg_cbytes = (u_short)bp->msg_cbytes;
 	ibp->msg_qnum = (u_short)bp->msg_qnum;
 	ibp->msg_qbytes = (u_short)bp->msg_qbytes;
@@ -91,8 +92,6 @@ struct ibcs2_msqid_ds *ibp;
 struct msqid_ds *bp;
 {
 	cvt_iperm2perm(&ibp->msg_perm, &bp->msg_perm);
-	bp->msg_first = ibp->msg_first;
-	bp->msg_last = ibp->msg_last;
 	bp->msg_cbytes = ibp->msg_cbytes;
 	bp->msg_qnum = ibp->msg_qnum;
 	bp->msg_qbytes = ibp->msg_qbytes;
@@ -135,6 +134,8 @@ ibcs2_msgctl(struct thread *td, void *v)
 	struct ibcs2_msqid_ds is;
 	struct msqid_ds bs;
 	int error;
+
+	memset(&is, 0, sizeof(is));
 
 	switch (uap->cmd) {
 	case IBCS2_IPC_STAT:
@@ -281,8 +282,8 @@ cvt_semid2isemid(bp, ibp)
 struct semid_ds *bp;
 struct ibcs2_semid_ds *ibp;
 {
+	memset(ibp, 0, sizeof(*ibp));
 	cvt_perm2iperm(&bp->sem_perm, &ibp->sem_perm);
-	ibp->sem_base = (struct ibcs2_sem *)bp->sem_base;
 	ibp->sem_nsems = bp->sem_nsems;
 	ibp->sem_otime = bp->sem_otime;
 	ibp->sem_ctime = bp->sem_ctime;
@@ -295,7 +296,6 @@ struct ibcs2_semid_ds *ibp;
 struct semid_ds *bp;
 {
 	cvt_iperm2perm(&ibp->sem_perm, &bp->sem_perm);
-	bp->sem_base = (struct sem *)ibp->sem_base;
 	bp->sem_nsems = ibp->sem_nsems;
 	bp->sem_otime = ibp->sem_otime;
 	bp->sem_ctime = ibp->sem_ctime;
@@ -319,6 +319,8 @@ ibcs2_semctl(struct thread *td, void *v)
 	union semun semun;
 	register_t rval;
 	int error;
+
+	memset(&is, 0, sizeof(is));
 
 	switch(uap->cmd) {
 	case IBCS2_IPC_STAT:

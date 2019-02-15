@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
@@ -39,7 +41,7 @@ cproj(double complex z)
 	if (!isinf(creal(z)) && !isinf(cimag(z)))
 		return (z);
 	else
-		return (cpack(INFINITY, copysign(0.0, cimag(z))));
+		return (CMPLX(INFINITY, copysign(0.0, cimag(z))));
 }
 
 #if LDBL_MANT_DIG == 53

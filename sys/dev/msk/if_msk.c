@@ -46,6 +46,8 @@
  *****************************************************************************/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause AND BSD-3-Clause
+ *
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -598,7 +600,7 @@ msk_rxfilter(struct msk_if_softc *sc_if)
 	} else {
 		mode |= GM_RXCR_UCF_ENA;
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
@@ -962,10 +964,6 @@ msk_jumbo_newbuf(struct msk_if_softc *sc_if, int idx)
 	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
 	if (m == NULL)
 		return (ENOBUFS);
-	if ((m->m_flags & M_EXT) == 0) {
-		m_freem(m);
-		return (ENOBUFS);
-	}
 	m->m_len = m->m_pkthdr.len = MJUM9BYTES;
 	if ((sc_if->msk_flags & MSK_FLAG_RAMBUF) == 0)
 		m_adj(m, ETHER_ALIGN);
@@ -1627,7 +1625,7 @@ msk_attach(device_t dev)
 	callout_init_mtx(&sc_if->msk_tick_ch, &sc_if->msk_softc->msk_mtx, 0);
 	msk_sysctl_node(sc_if);
 
-	if ((error = msk_txrx_dma_alloc(sc_if) != 0))
+	if ((error = msk_txrx_dma_alloc(sc_if)) != 0)
 		goto fail;
 	msk_rx_dma_jalloc(sc_if);
 
@@ -1957,12 +1955,6 @@ mskc_attach(device_t dev)
 		goto fail;
 	}
 	mmd = malloc(sizeof(struct msk_mii_data), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (mmd == NULL) {
-		device_printf(dev, "failed to allocate memory for "
-		    "ivars of PORT_A\n");
-		error = ENXIO;
-		goto fail;
-	}
 	mmd->port = MSK_PORT_A;
 	mmd->pmd = sc->msk_pmd;
 	mmd->mii_flags |= MIIF_DOPAUSE;
@@ -1981,12 +1973,6 @@ mskc_attach(device_t dev)
 		}
 		mmd = malloc(sizeof(struct msk_mii_data), M_DEVBUF, M_WAITOK |
 		    M_ZERO);
-		if (mmd == NULL) {
-			device_printf(dev, "failed to allocate memory for "
-			    "ivars of PORT_B\n");
-			error = ENXIO;
-			goto fail;
-		}
 		mmd->port = MSK_PORT_B;
 		mmd->pmd = sc->msk_pmd;
 		if (sc->msk_pmd == 'L' || sc->msk_pmd == 'S')
@@ -2063,11 +2049,11 @@ msk_detach(device_t dev)
 	msk_txrx_dma_free(sc_if);
 	bus_generic_detach(dev);
 
-	if (ifp)
-		if_free(ifp);
 	sc = sc_if->msk_softc;
 	sc->msk_if[sc_if->msk_port] = NULL;
 	MSK_IF_UNLOCK(sc_if);
+	if (ifp)
+		if_free(ifp);
 
 	return (0);
 }
@@ -3497,7 +3483,7 @@ msk_intr_hwerr(struct msk_softc *sc)
 		CSR_WRITE_1(sc, GMAC_TI_ST_CTRL, GMT_ST_CLR_IRQ);
 	if ((status & Y2_IS_PCI_NEXP) != 0) {
 		/*
-		 * PCI Express Error occured which is not described in PEX
+		 * PCI Express Error occurred which is not described in PEX
 		 * spec.
 		 * This error is also mapped either to Master Abort(
 		 * Y2_IS_MST_ERR) or Target Abort (Y2_IS_IRQ_STAT) bit and
@@ -4509,7 +4495,7 @@ msk_sysctl_node(struct msk_if_softc *sc_if)
 
 	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
 	    NULL, "MSK Statistics");
-	schild = child = SYSCTL_CHILDREN(tree);
+	schild = SYSCTL_CHILDREN(tree);
 	tree = SYSCTL_ADD_NODE(ctx, schild, OID_AUTO, "rx", CTLFLAG_RD,
 	    NULL, "MSK RX Statistics");
 	child = SYSCTL_CHILDREN(tree);

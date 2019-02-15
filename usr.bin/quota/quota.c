@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -96,7 +98,7 @@ static int getufsquota(struct fstab *fs, struct quotause *qup, long id,
 	int quotatype);
 static int getnfsquota(struct statfs *fst, struct quotause *qup, long id,
 	int quotatype);
-static int callaurpc(char *host, int prognum, int versnum, int procnum, 
+static enum clnt_stat callaurpc(char *host, int prognum, int versnum, int procnum, 
 	xdrproc_t inproc, char *in, xdrproc_t outproc, char *out);
 static int alldigits(char *s);
 
@@ -266,8 +268,8 @@ prthumanval(int len, u_int64_t bytes)
 	/*
 	 * Limit the width to 5 bytes as that is what users expect.
 	 */
-	humanize_number(buf, sizeof(buf) < 5 ? sizeof(buf) : 5, bytes, "",
-	    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
+	humanize_number(buf, MIN(sizeof(buf), 5), bytes, "",
+			HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 
 	(void)printf(" %*s", len, buf);
 }
@@ -566,51 +568,58 @@ getufsquota(struct fstab *fs, struct quotause *qup, long id, int quotatype)
 static int
 getnfsquota(struct statfs *fst, struct quotause *qup, long id, int quotatype)
 {
-	struct getquota_args gq_args;
+	struct ext_getquota_args gq_args;
+	struct getquota_args old_gq_args;
 	struct getquota_rslt gq_rslt;
 	struct dqblk *dqp = &qup->dqblk;
 	struct timeval tv;
-	char *cp;
+	char *cp, host[NI_MAXHOST];
+	enum clnt_stat call_stat;
 
 	if (fst->f_flags & MNT_LOCAL)
 		return (0);
 
 	/*
-	 * rpc.rquotad does not support group quotas
-	 */
-	if (quotatype != USRQUOTA)
-		return (0);
-
-	/*
 	 * must be some form of "hostname:/path"
 	 */
-	cp = strchr(fst->f_mntfromname, ':');
+	cp = fst->f_mntfromname;
+	do {
+		cp = strrchr(cp, ':');
+	} while (cp != NULL && *(cp + 1) != '/');
 	if (cp == NULL) {
 		warnx("cannot find hostname for %s", fst->f_mntfromname);
 		return (0);
 	}
+	memset(host, 0, sizeof(host));
+	memcpy(host, fst->f_mntfromname, cp - fst->f_mntfromname);
+	host[sizeof(host) - 1] = '\0';
  
-	*cp = '\0';
-	if (*(cp+1) != '/') {
-		*cp = ':';
-		return (0);
-	}
-
 	/* Avoid attempting the RPC for special amd(8) filesystems. */
 	if (strncmp(fst->f_mntfromname, "pid", 3) == 0 &&
-	    strchr(fst->f_mntfromname, '@') != NULL) {
-		*cp = ':';
+	    strchr(fst->f_mntfromname, '@') != NULL)
 		return (0);
-	}
 
 	gq_args.gqa_pathp = cp + 1;
-	gq_args.gqa_uid = id;
-	if (callaurpc(fst->f_mntfromname, RQUOTAPROG, RQUOTAVERS,
-	    RQUOTAPROC_GETQUOTA, (xdrproc_t)xdr_getquota_args, (char *)&gq_args,
-	    (xdrproc_t)xdr_getquota_rslt, (char *)&gq_rslt) != 0) {
-		*cp = ':';
-		return (0);
+	gq_args.gqa_id = id;
+	gq_args.gqa_type = quotatype;
+
+	call_stat = callaurpc(host, RQUOTAPROG, EXT_RQUOTAVERS,
+			      RQUOTAPROC_GETQUOTA, (xdrproc_t)xdr_ext_getquota_args, (char *)&gq_args,
+			      (xdrproc_t)xdr_getquota_rslt, (char *)&gq_rslt);
+	if (call_stat == RPC_PROGVERSMISMATCH) {
+		if (quotatype == USRQUOTA) {
+			old_gq_args.gqa_pathp = cp + 1;
+			old_gq_args.gqa_uid = id;
+			call_stat = callaurpc(host, RQUOTAPROG, RQUOTAVERS,
+					      RQUOTAPROC_GETQUOTA, (xdrproc_t)xdr_getquota_args, (char *)&old_gq_args,
+					      (xdrproc_t)xdr_getquota_rslt, (char *)&gq_rslt);
+		} else {
+			/* Old rpc quota does not support group type */
+			return (0);
+		}
 	}
+	if (call_stat != 0)
+		return (call_stat);
 
 	switch (gq_rslt.status) {
 	case Q_NOQUOTA:
@@ -623,14 +632,14 @@ getnfsquota(struct statfs *fst, struct quotause *qup, long id, int quotatype)
 		gettimeofday(&tv, NULL);
 			/* blocks*/
 		dqp->dqb_bhardlimit =
-		    gq_rslt.getquota_rslt_u.gqr_rquota.rq_bhardlimit *
-		    (gq_rslt.getquota_rslt_u.gqr_rquota.rq_bsize / DEV_BSIZE);
+		    ((uint64_t)gq_rslt.getquota_rslt_u.gqr_rquota.rq_bhardlimit *
+		    gq_rslt.getquota_rslt_u.gqr_rquota.rq_bsize) / DEV_BSIZE;
 		dqp->dqb_bsoftlimit =
-		    gq_rslt.getquota_rslt_u.gqr_rquota.rq_bsoftlimit *
-		    (gq_rslt.getquota_rslt_u.gqr_rquota.rq_bsize / DEV_BSIZE);
+		    ((uint64_t)gq_rslt.getquota_rslt_u.gqr_rquota.rq_bsoftlimit *
+		    gq_rslt.getquota_rslt_u.gqr_rquota.rq_bsize) / DEV_BSIZE;
 		dqp->dqb_curblocks =
-		    gq_rslt.getquota_rslt_u.gqr_rquota.rq_curblocks *
-		    (gq_rslt.getquota_rslt_u.gqr_rquota.rq_bsize / DEV_BSIZE);
+		    ((uint64_t)gq_rslt.getquota_rslt_u.gqr_rquota.rq_curblocks *
+		    gq_rslt.getquota_rslt_u.gqr_rquota.rq_bsize) / DEV_BSIZE;
 			/* inodes */
 		dqp->dqb_ihardlimit =
 			gq_rslt.getquota_rslt_u.gqr_rquota.rq_fhardlimit;
@@ -643,48 +652,37 @@ getnfsquota(struct statfs *fst, struct quotause *qup, long id, int quotatype)
 		    tv.tv_sec + gq_rslt.getquota_rslt_u.gqr_rquota.rq_btimeleft;
 		dqp->dqb_itime =
 		    tv.tv_sec + gq_rslt.getquota_rslt_u.gqr_rquota.rq_ftimeleft;
-		*cp = ':';
 		return (1);
 	default:
 		warnx("bad rpc result, host: %s", fst->f_mntfromname);
 		break;
 	}
-	*cp = ':';
+
 	return (0);
 }
  
-static int
+static enum clnt_stat
 callaurpc(char *host, int prognum, int versnum, int procnum,
     xdrproc_t inproc, char *in, xdrproc_t outproc, char *out)
 {
-	struct sockaddr_in server_addr;
 	enum clnt_stat clnt_stat;
-	struct hostent *hp;
 	struct timeval timeout, tottimeout;
  
 	CLIENT *client = NULL;
-	int sock = RPC_ANYSOCK;
- 
-	if ((hp = gethostbyname(host)) == NULL)
-		return ((int) RPC_UNKNOWNHOST);
+
+ 	client = clnt_create(host, prognum, versnum, "udp");
+	if (client == NULL)
+		return ((int)rpc_createerr.cf_stat);
 	timeout.tv_usec = 0;
 	timeout.tv_sec = 6;
-	bcopy(hp->h_addr, &server_addr.sin_addr,
-			MIN(hp->h_length,(int)sizeof(server_addr.sin_addr)));
-	server_addr.sin_family = AF_INET;
-	server_addr.sin_port =  0;
-
-	if ((client = clntudp_create(&server_addr, prognum,
-	    versnum, timeout, &sock)) == NULL)
-		return ((int) rpc_createerr.cf_stat);
+	CLNT_CONTROL(client, CLSET_RETRY_TIMEOUT, (char *)(void *)&timeout);
 
 	client->cl_auth = authunix_create_default();
 	tottimeout.tv_sec = 25;
 	tottimeout.tv_usec = 0;
 	clnt_stat = clnt_call(client, procnum, inproc, in,
 	    outproc, out, tottimeout);
- 
-	return ((int) clnt_stat);
+	return (clnt_stat);
 }
 
 static int

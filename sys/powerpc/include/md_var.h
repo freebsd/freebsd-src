@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 Doug Rabson
  * All rights reserved.
  *
@@ -37,8 +39,8 @@ extern	char	sigcode32[];
 extern	int	szsigcode32;
 
 #ifdef __powerpc64__
-extern	char	sigcode64[];
-extern	int	szsigcode64;
+extern	char	sigcode64[], sigcode64_elfv2[];
+extern	int	szsigcode64, szsigcode64_elfv2;
 #endif
 
 extern	long	Maxmem;
@@ -61,6 +63,7 @@ void	decr_init(void);
 void	decr_ap_init(void);
 void	decr_tc_init(void);
 
+void	cpu_feature_setup(void);
 void	cpu_setup(u_int);
 
 struct	trapframe;

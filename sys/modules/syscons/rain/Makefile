@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/syscons/rain
+.PATH:	${SRCTOP}/sys/dev/syscons/rain
 
 KMOD=	rain_saver
 SRCS=	rain_saver.c

@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)socketpair.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd September 11, 2013
+.Dd February 10, 2018
 .Dt SOCKETPAIR 2
 .Os
 .Sh NAME
@@ -40,13 +40,13 @@
 .In sys/types.h
 .In sys/socket.h
 .Ft int
-.Fn socketpair "int fd" "int type" "int protocol" "int *sv"
+.Fn socketpair "int domain" "int type" "int protocol" "int *sv"
 .Sh DESCRIPTION
 The
 .Fn socketpair
 system call creates an unnamed pair of connected sockets in
-the specified domain
-.Fa fd ,
+the specified communications
+.Fa domain ,
 of the specified
 .Fa type ,
 and using the optionally specified
@@ -89,6 +89,13 @@ process address space.
 .Xr read 2 ,
 .Xr socket 2 ,
 .Xr write 2
+.Sh STANDARDS
+The
+.Fn socketpair
+system call conforms to
+.St -p1003.1-2001
+and
+.St -p1003.1-2008 .
 .Sh HISTORY
 The
 .Fn socketpair

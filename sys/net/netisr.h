@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2009 Robert N. M. Watson
  * Copyright (c) 2010-2011 Juniper Networks, Inc.
  * All rights reserved.
@@ -55,7 +57,6 @@
 #define	NETISR_ARP	4		/* same as AF_LINK */
 #define	NETISR_ETHER	5		/* ethernet input */
 #define	NETISR_IPV6	6
-#define	NETISR_NATM	7
 #define	NETISR_EPAIR	8		/* if_epair(4) */
 #define	NETISR_IP_DIRECT	9	/* direct-dispatch IPv4 */
 #define	NETISR_IPV6_DIRECT	10	/* direct-dispatch IPv6 */
@@ -210,6 +211,10 @@ void	netisr_getqlimit(const struct netisr_handler *nhp, u_int *qlimitp);
 void	netisr_register(const struct netisr_handler *nhp);
 int	netisr_setqlimit(const struct netisr_handler *nhp, u_int qlimit);
 void	netisr_unregister(const struct netisr_handler *nhp);
+#ifdef VIMAGE
+void	netisr_register_vnet(const struct netisr_handler *nhp);
+void	netisr_unregister_vnet(const struct netisr_handler *nhp);
+#endif
 
 /*
  * Process a packet destined for a protocol, and attempt direct dispatch.

@@ -1,4 +1,5 @@
 /******************************************************************************
+SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 
 Copyright (c) 2006-2013, Myricom Inc.
 All rights reserved.
@@ -46,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sx.h>
 #include <sys/taskqueue.h>
+#include <sys/zlib.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -58,7 +60,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
-#include <net/zlib.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -1145,7 +1146,7 @@ mxge_set_multicast_list(mxge_softc_t *sc)
 	/* Walk the multicast list, and add each address */
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
@@ -1468,15 +1469,15 @@ mxge_add_sysctls(mxge_softc_t *sc)
 	/* random information */
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO,
 		       "firmware_version",
-		       CTLFLAG_RD, &sc->fw_version,
+		       CTLFLAG_RD, sc->fw_version,
 		       0, "firmware version");
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO,
 		       "serial_number",
-		       CTLFLAG_RD, &sc->serial_number_string,
+		       CTLFLAG_RD, sc->serial_number_string,
 		       0, "serial number");
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO,
 		       "product_code",
-		       CTLFLAG_RD, &sc->product_code_string,
+		       CTLFLAG_RD, sc->product_code_string,
 		       0, "product_code");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 		       "pcie_link_width",
@@ -1637,15 +1638,15 @@ mxge_add_sysctls(mxge_softc_t *sc)
 			       "rx_big_cnt",
 			       CTLFLAG_RD, &ss->rx_big.cnt,
 			       0, "rx_small_cnt");
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		SYSCTL_ADD_U64(ctx, children, OID_AUTO,
 			       "lro_flushed", CTLFLAG_RD, &ss->lc.lro_flushed,
 			       0, "number of lro merge queues flushed");
 
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		SYSCTL_ADD_U64(ctx, children, OID_AUTO,
 			       "lro_bad_csum", CTLFLAG_RD, &ss->lc.lro_bad_csum,
 			       0, "number of bad csums preventing LRO");
 
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		SYSCTL_ADD_U64(ctx, children, OID_AUTO,
 			       "lro_queued", CTLFLAG_RD, &ss->lc.lro_queued,
 			       0, "number of frames appended to lro merge"
 			       "queues");
@@ -2702,8 +2703,12 @@ mxge_rx_done_big(struct mxge_slice_state *ss, uint32_t len,
 	if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
 		mxge_vlan_tag_remove(m, &csum);
 	}
+	/* flowid only valid if RSS hashing is enabled */
+	if (sc->num_slices > 1) {
+		m->m_pkthdr.flowid = (ss - sc->ss);
+		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
+	}
 	/* if the checksum is valid, mark it in the mbuf header */
-	
 	if ((ifp->if_capenable & (IFCAP_RXCSUM_IPV6 | IFCAP_RXCSUM)) &&
 	    (0 == mxge_rx_csum(m, csum))) {
 		/* Tell the stack that the  checksum is good */
@@ -2715,11 +2720,6 @@ mxge_rx_done_big(struct mxge_slice_state *ss, uint32_t len,
 		if (lro && (0 == tcp_lro_rx(&ss->lc, m, 0)))
 			return;
 #endif
-	}
-	/* flowid only valid if RSS hashing is enabled */
-	if (sc->num_slices > 1) {
-		m->m_pkthdr.flowid = (ss - sc->ss);
-		m->m_flags |= M_FLOWID;
 	}
 	/* pass the frame up the stack */
 	(*ifp->if_input)(ifp, m);
@@ -2771,6 +2771,11 @@ mxge_rx_done_small(struct mxge_slice_state *ss, uint32_t len,
 	if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
 		mxge_vlan_tag_remove(m, &csum);
 	}
+	/* flowid only valid if RSS hashing is enabled */
+	if (sc->num_slices > 1) {
+		m->m_pkthdr.flowid = (ss - sc->ss);
+		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
+	}
 	/* if the checksum is valid, mark it in the mbuf header */
 	if ((ifp->if_capenable & (IFCAP_RXCSUM_IPV6 | IFCAP_RXCSUM)) &&
 	    (0 == mxge_rx_csum(m, csum))) {
@@ -2783,11 +2788,6 @@ mxge_rx_done_small(struct mxge_slice_state *ss, uint32_t len,
 		if (lro && (0 == tcp_lro_rx(&ss->lc, m, csum)))
 			return;
 #endif
-	}
-	/* flowid only valid if RSS hashing is enabled */
-	if (sc->num_slices > 1) {
-		m->m_pkthdr.flowid = (ss - sc->ss);
-		m->m_flags |= M_FLOWID;
 	}
 	/* pass the frame up the stack */
 	(*ifp->if_input)(ifp, m);
@@ -2819,11 +2819,7 @@ mxge_clean_rx_done(struct mxge_slice_state *ss)
 			break;
 	}
 #if defined(INET)  || defined (INET6)
-	while (!SLIST_EMPTY(&ss->lc.lro_active)) {
-		struct lro_entry *lro = SLIST_FIRST(&ss->lc.lro_active);
-		SLIST_REMOVE_HEAD(&ss->lc.lro_active, next);
-		tcp_lro_flush(&ss->lc, lro);
-	}
+	tcp_lro_flush_all(&ss->lc);
 #endif
 }
 
@@ -2998,16 +2994,14 @@ mxge_media_probe(mxge_softc_t *sc)
 		/* -R is XFP */
 		mxge_media_types = mxge_xfp_media_types;
 		mxge_media_type_entries =
-			sizeof (mxge_xfp_media_types) /
-			sizeof (mxge_xfp_media_types[0]);
+			nitems(mxge_xfp_media_types);
 		byte = MXGE_XFP_COMPLIANCE_BYTE;
 		cage_type = "XFP";
 	} else 	if (sc->connector == MXGE_SFP) {
 		/* -S or -2S is SFP+ */
 		mxge_media_types = mxge_sfp_media_types;
 		mxge_media_type_entries =
-			sizeof (mxge_sfp_media_types) /
-			sizeof (mxge_sfp_media_types[0]);
+			nitems(mxge_sfp_media_types);
 		cage_type = "SFP+";
 		byte = 3;
 	} else {
@@ -4160,19 +4154,54 @@ mxge_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static int
+mxge_fetch_i2c(mxge_softc_t *sc, struct ifi2creq *i2c)
+{
+	mxge_cmd_t cmd;
+	uint32_t i2c_args;
+	int i, ms, err;
+
+
+	if (i2c->dev_addr != 0xA0 &&
+	    i2c->dev_addr != 0xA2)
+		return (EINVAL);
+	if (i2c->len > sizeof(i2c->data))
+		return (EINVAL);
+
+	for (i = 0; i < i2c->len; i++) {
+		i2c_args = i2c->dev_addr << 0x8;
+		i2c_args |= i2c->offset + i;
+		cmd.data0 = 0;	 /* just fetch 1 byte, not all 256 */
+		cmd.data1 = i2c_args;
+		err = mxge_send_cmd(sc, MXGEFW_CMD_I2C_READ, &cmd);
+
+		if (err != MXGEFW_CMD_OK)
+			return (EIO);
+		/* now we wait for the data to be cached */
+		cmd.data0 = i2c_args & 0xff;
+		err = mxge_send_cmd(sc, MXGEFW_CMD_I2C_BYTE, &cmd);
+		for (ms = 0; (err == EBUSY) && (ms < 50); ms++) {
+			cmd.data0 = i2c_args & 0xff;
+			err = mxge_send_cmd(sc, MXGEFW_CMD_I2C_BYTE, &cmd);
+			if (err == EBUSY)
+				DELAY(1000);
+		}
+		if (err != MXGEFW_CMD_OK)
+			return (EIO);
+		i2c->data[i] = cmd.data0;
+	}
+	return (0);
+}
+
+static int
 mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	mxge_softc_t *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
+	struct ifi2creq i2c;
 	int err, mask;
 
 	err = 0;
 	switch (command) {
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-		err = ether_ioctl(ifp, command, data);
-		break;
-
 	case SIOCSIFMTU:
 		err = mxge_change_mtu(sc, ifr->ifr_mtu);
 		break;
@@ -4204,6 +4233,10 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		mtx_lock(&sc->driver_mtx);
+		if (sc->dying) {
+			mtx_unlock(&sc->driver_mtx);
+			return (EINVAL);
+		}
 		mxge_set_multicast_list(sc);
 		mtx_unlock(&sc->driver_mtx);
 		break;
@@ -4289,14 +4322,39 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	case SIOCGIFMEDIA:
 		mtx_lock(&sc->driver_mtx);
+		if (sc->dying) {
+			mtx_unlock(&sc->driver_mtx);
+			return (EINVAL);
+		}
 		mxge_media_probe(sc);
 		mtx_unlock(&sc->driver_mtx);
 		err = ifmedia_ioctl(ifp, (struct ifreq *)data,
 				    &sc->media, command);
 		break;
 
+	case SIOCGI2C:
+		if (sc->connector != MXGE_XFP &&
+		    sc->connector != MXGE_SFP) {
+			err = ENXIO;
+			break;
+		}
+		err = copyin(ifr_data_get_ptr(ifr), &i2c, sizeof(i2c));
+		if (err != 0)
+			break;
+		mtx_lock(&sc->driver_mtx);
+		if (sc->dying) {
+			mtx_unlock(&sc->driver_mtx);
+			return (EINVAL);
+		}
+		err = mxge_fetch_i2c(sc, &i2c);
+		mtx_unlock(&sc->driver_mtx);
+		if (err == 0)
+			err = copyout(&i2c, ifr->ifr_ifru.ifru_data,
+			    sizeof(i2c));
+		break;
 	default:
-		err = ENOTTY;
+		err = ether_ioctl(ifp, command, data);
+		break;
 	}
 	return err;
 }
@@ -4612,7 +4670,7 @@ mxge_add_msix_irqs(mxge_softc_t *sc)
 		device_printf(sc->dev, "using %d msix IRQs:",
 			      sc->num_slices);
 		for (i = 0; i < sc->num_slices; i++)
-			printf(" %ld",  rman_get_start(sc->msix_irq_res[i]));
+			printf(" %jd", rman_get_start(sc->msix_irq_res[i]));
 		printf("\n");
 	}
 	return (0);
@@ -4661,14 +4719,14 @@ mxge_add_single_irq(mxge_softc_t *sc)
 		rid = 0;
 		sc->legacy_irq = 1;
 	}
-	sc->irq_res = bus_alloc_resource(sc->dev, SYS_RES_IRQ, &rid, 0, ~0,
-					 1, RF_SHAREABLE | RF_ACTIVE);
+	sc->irq_res = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ, &rid,
+					     RF_SHAREABLE | RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(sc->dev, "could not alloc interrupt\n");
 		return ENXIO;
 	}
 	if (mxge_verbose)
-		device_printf(sc->dev, "using %s irq %ld\n",
+		device_printf(sc->dev, "using %s irq %jd\n",
 			      sc->legacy_irq ? "INTx" : "MSI",
 			      rman_get_start(sc->irq_res));
 	err = bus_setup_intr(sc->dev, sc->irq_res,
@@ -4813,8 +4871,8 @@ mxge_attach(device_t dev)
 	
 	/* Map the board into the kernel */
 	rid = PCIR_BARS;
-	sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0,
-					 ~0, 1, RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+					     RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "could not map memory\n");
 		err = ENXIO;
@@ -4823,7 +4881,7 @@ mxge_attach(device_t dev)
 	sc->sram = rman_get_virtual(sc->mem_res);
 	sc->sram_size = 2*1024*1024 - (2*(48*1024)+(32*1024)) - 0x100;
 	if (sc->sram_size > rman_get_size(sc->mem_res)) {
-		device_printf(dev, "impossible memory region size %ld\n",
+		device_printf(dev, "impossible memory region size %jd\n",
 			      rman_get_size(sc->mem_res));
 		err = ENXIO;
 		goto abort_with_mem_res;
@@ -4926,6 +4984,9 @@ mxge_attach(device_t dev)
 	ifp->if_ioctl = mxge_ioctl;
 	ifp->if_start = mxge_start;
 	ifp->if_get_counter = mxge_get_counter;
+	ifp->if_hw_tsomax = IP_MAXPACKET - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+	ifp->if_hw_tsomaxsegcount = sc->ss[0].tx.max_desc;
+	ifp->if_hw_tsomaxsegsize = IP_MAXPACKET;
 	/* Initialise the ifmedia structure */
 	ifmedia_init(&sc->media, 0, mxge_media_change,
 		     mxge_media_status);

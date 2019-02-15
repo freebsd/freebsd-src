@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Marcel Moolenaar
  * All rights reserved.
  *
@@ -50,23 +52,13 @@ db_print_thread(void)
 }
 
 void
-db_set_thread(db_expr_t tid, boolean_t hastid, db_expr_t cnt, char *mod)
+db_set_thread(db_expr_t tid, bool hastid, db_expr_t cnt, char *mod)
 {
 	struct thread *thr;
-	db_expr_t radix;
 	int err;
 
-	/*
-	 * We parse our own arguments. We don't like the default radix.
-	 */
-	radix = db_radix;
-	db_radix = 10;
-	hastid = db_expression(&tid);
-	db_radix = radix;
-	db_skip_to_eol();
-
 	if (hastid) {
-		thr = kdb_thr_lookup(tid);
+		thr = db_lookup_thread(tid, false);
 		if (thr != NULL) {
 			err = kdb_thr_select(thr);
 			if (err != 0) {
@@ -86,7 +78,7 @@ db_set_thread(db_expr_t tid, boolean_t hastid, db_expr_t cnt, char *mod)
 }
 
 void
-db_show_threads(db_expr_t addr, boolean_t hasaddr, db_expr_t cnt, char *mod)
+db_show_threads(db_expr_t addr, bool hasaddr, db_expr_t cnt, char *mod)
 {
 	jmp_buf jb;
 	void *prev_jb;
@@ -115,7 +107,7 @@ db_show_threads(db_expr_t addr, boolean_t hasaddr, db_expr_t cnt, char *mod)
  * process.  Otherwise, we treat the addr as a pointer to a thread.
  */
 struct thread *
-db_lookup_thread(db_expr_t addr, boolean_t check_pid)
+db_lookup_thread(db_expr_t addr, bool check_pid)
 {
 	struct thread *td;
 	db_expr_t decaddr;

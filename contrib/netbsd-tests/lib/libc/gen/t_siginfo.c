@@ -1,4 +1,4 @@
-/* $NetBSD: t_siginfo.c,v 1.23 2014/02/09 21:26:07 jmmv Exp $ */
+/* $NetBSD: t_siginfo.c,v 1.30 2015/12/22 14:25:58 christos Exp $ */
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -27,9 +27,10 @@
  */
 
 #include <atf-c.h>
-#include <atf-c/config.h>
 
+#ifdef __NetBSD__
 #include <sys/inttypes.h>
+#endif
 #include <sys/resource.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
@@ -45,8 +46,9 @@
 #include <setjmp.h>
 #include <float.h>
 
-#ifdef HAVE_FENV
 #include <fenv.h>
+#ifdef __HAVE_FENV
+#include <ieeefp.h>	/* only need for ARM Cortex/Neon hack */
 #elif defined(_FLOAT_IEEE754)
 #include <ieeefp.h>
 #endif
@@ -86,9 +88,11 @@ sig_debug(int signo, siginfo_t *info, ucontext_t *ctx)
 		printf("uc_stack %p %lu 0x%x\n", ctx->uc_stack.ss_sp,
 		    (unsigned long)ctx->uc_stack.ss_size,
 		    ctx->uc_stack.ss_flags);
+#ifdef __NetBSD__
 		for (i = 0; i < __arraycount(ctx->uc_mcontext.__gregs); i++)
 			printf("uc_mcontext.greg[%d] 0x%lx\n", i,
 			    (long)ctx->uc_mcontext.__gregs[i]);
+#endif
 	}
 }
 
@@ -141,8 +145,10 @@ sigchild_action(int signo, siginfo_t *info, void *ptr)
 		printf("si_uid=%d\n", info->si_uid);
 		printf("si_pid=%d\n", info->si_pid);
 		printf("si_status=%d\n", info->si_status);
+#ifdef __NetBSD__
 		printf("si_utime=%lu\n", (unsigned long int)info->si_utime);
 		printf("si_stime=%lu\n", (unsigned long int)info->si_stime);
+#endif
 	}
 	ATF_REQUIRE_EQ(info->si_code, code);
 	ATF_REQUIRE_EQ(info->si_signo, SIGCHLD);
@@ -311,13 +317,21 @@ ATF_TC_BODY(sigfpe_flt, tc)
 		atf_tc_skip("Test does not run correctly under QEMU");
 #if defined(__powerpc__)
 	atf_tc_skip("Test not valid on powerpc");
+#elif defined(__arm__) && !__SOFTFP__
+	/*
+	 * Some NEON fpus do not implement IEEE exception handling,
+	 * skip these tests if running on them and compiled for
+	 * hard float.
+	 */
+	if (0 == fpsetmask(fpsetmask(FP_X_INV)))
+		atf_tc_skip("FPU does not implement exception handling");
 #endif
 	if (sigsetjmp(sigfpe_flt_env, 0) == 0) {
 		sa.sa_flags = SA_SIGINFO;
 		sa.sa_sigaction = sigfpe_flt_action;
 		sigemptyset(&sa.sa_mask);
 		sigaction(SIGFPE, &sa, NULL);
-#ifdef HAVE_FENV
+#ifdef __HAVE_FENV
 		feenableexcept(FE_ALL_EXCEPT);
 #elif defined(_FLOAT_IEEE754)
 		fpsetmask(FP_X_INV|FP_X_DZ|FP_X_OFL|FP_X_UFL|FP_X_IMP);
@@ -368,7 +382,7 @@ ATF_TC_BODY(sigfpe_int, tc)
 		sa.sa_sigaction = sigfpe_int_action;
 		sigemptyset(&sa.sa_mask);
 		sigaction(SIGFPE, &sa, NULL);
-#ifdef HAVE_FENV
+#ifdef __HAVE_FENV
 		feenableexcept(FE_ALL_EXCEPT);
 #elif defined(_FLOAT_IEEE754)
 		fpsetmask(FP_X_INV|FP_X_DZ|FP_X_OFL|FP_X_UFL|FP_X_IMP);
@@ -449,14 +463,18 @@ ATF_TC_BODY(sigbus_adraln, tc)
 {
 	struct sigaction sa;
 
-#if defined(__alpha__)
+#if defined(__alpha__) || defined(__arm__)
 	int rv, val;
 	size_t len = sizeof(val);
 	rv = sysctlbyname("machdep.unaligned_sigbus", &val, &len, NULL, 0);
 	ATF_REQUIRE(rv == 0);
 	if (val == 0)
-		atf_tc_skip("SIGBUS signal not enabled for unaligned accesses");
+		atf_tc_skip("No SIGBUS signal for unaligned accesses");
 #endif
+
+	/* m68k (except sun2) never issue SIGBUS (PR lib/49653) */
+	if (strcmp(MACHINE_ARCH, "m68k") == 0)
+		atf_tc_skip("No SIGBUS signal for unaligned accesses");
 
 	sa.sa_flags = SA_SIGINFO;
 	sa.sa_sigaction = sigbus_action;

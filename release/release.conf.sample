@@ -7,6 +7,7 @@
 ## defined in release.sh.
 #load_chroot_env() { }
 #load_target_env() { }
+#buildenv_setup() { }
 
 ## Set the directory within which the release will be built.
 CHROOTDIR="/scratch"
@@ -50,11 +51,29 @@ PORTBRANCH="ports/head@rHEAD"
 ## Set miscellaneous 'make release' settings.
 #NODOC=
 #NOPORTS=
+#NOSRC=
 #WITH_DVD=
 #WITH_COMPRESSED_IMAGES=
 
+## Set to '1' to disable multi-threaded xz(1) compression.
+#XZ_THREADS=0
+
 ## Set when building embedded images.
 #EMBEDDEDBUILD=
+
+## Set to a list of ports required to build embedded system-on-chip
+## images, such as sysutils/u-boot-rpi.
+#EMBEDDEDPORTS=
+
+## Set to the hardware platform of the target userland.  This value
+## is passed to make(1) to set the TARGET (value of uname -m) to cross
+## build.
+#EMBEDDED_TARGET=
+
+## Set to the machine processor architecture of the target userland.
+## This value is passed to make(1) to set the TARGET_ARCH (value of uname -p)
+## to cross build.
+#EMBEDDED_TARGET_ARCH=
 
 ## Set to skip the chroot environment buildworld/installworld/distribution
 ## step if it is expected the build environment will exist via alternate
@@ -98,3 +117,11 @@ PORTBRANCH="ports/head@rHEAD"
 ## image formats to create.  Valid values are listed in the mkimg(1)
 ## manual page, as well as 'mkimg --formats' output.
 #VMFORMATS="vhdf vmdk qcow2 raw"
+
+## Set to a non-empty value to build virtual machine images for various
+## cloud providers as part of the release build.
+#WITH_CLOUDWARE=
+
+## If WITH_CLOUDWARE is set to a non-empty value, this is a list of providers
+## to create disk images.
+#CLOUDWARE="EC2 GCE VAGRANT-VIRTUALBOX VAGRANT-VMWARE"

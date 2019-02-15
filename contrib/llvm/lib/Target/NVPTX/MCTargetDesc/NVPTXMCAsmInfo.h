@@ -11,20 +11,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef NVPTX_MCASM_INFO_H
-#define NVPTX_MCASM_INFO_H
+#ifndef LLVM_LIB_TARGET_NVPTX_MCTARGETDESC_NVPTXMCASMINFO_H
+#define LLVM_LIB_TARGET_NVPTX_MCTARGETDESC_NVPTXMCASMINFO_H
 
 #include "llvm/MC/MCAsmInfo.h"
 
 namespace llvm {
 class Target;
-class StringRef;
+class Triple;
 
 class NVPTXMCAsmInfo : public MCAsmInfo {
   virtual void anchor();
+
 public:
-  explicit NVPTXMCAsmInfo(const StringRef &TT);
+  explicit NVPTXMCAsmInfo(const Triple &TheTriple);
 };
 } // namespace llvm
 
-#endif // NVPTX_MCASM_INFO_H
+#endif

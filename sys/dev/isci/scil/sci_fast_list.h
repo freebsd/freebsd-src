@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -67,7 +69,7 @@
  *        queue.   Pointers in this implementation never == NULL.
  *
  *        Definitions:
- *        - anchor : This is ths list container and has a
+ *        - anchor : This is the list container and has a
  *                   pointer to both the head and tail of the
  *                   list elements
  *        - element: This is the list element not the actual

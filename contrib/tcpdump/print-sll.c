@@ -18,30 +18,111 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-sll.c,v 1.19 2005-11-13 12:12:43 guy Exp $ (LBL)";
-#endif
+
+/* \summary: Linux cooked sockets capture printer */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include <stdio.h>
-#include <string.h>
-#include <pcap.h>
-
-#include "interface.h"
+#include "netdissect.h"
 #include "addrtoname.h"
 #include "ethertype.h"
 #include "extract.h"
 
 #include "ether.h"
-#include "sll.h"
 
-const struct tok sll_pkttype_values[] = {
+/*
+ * For captures on Linux cooked sockets, we construct a fake header
+ * that includes:
+ *
+ *	a 2-byte "packet type" which is one of:
+ *
+ *		LINUX_SLL_HOST		packet was sent to us
+ *		LINUX_SLL_BROADCAST	packet was broadcast
+ *		LINUX_SLL_MULTICAST	packet was multicast
+ *		LINUX_SLL_OTHERHOST	packet was sent to somebody else
+ *		LINUX_SLL_OUTGOING	packet was sent *by* us;
+ *
+ *	a 2-byte Ethernet protocol field;
+ *
+ *	a 2-byte link-layer type;
+ *
+ *	a 2-byte link-layer address length;
+ *
+ *	an 8-byte source link-layer address, whose actual length is
+ *	specified by the previous value.
+ *
+ * All fields except for the link-layer address are in network byte order.
+ *
+ * DO NOT change the layout of this structure, or change any of the
+ * LINUX_SLL_ values below.  If you must change the link-layer header
+ * for a "cooked" Linux capture, introduce a new DLT_ type (ask
+ * "tcpdump-workers@lists.tcpdump.org" for one, so that you don't give it
+ * a value that collides with a value already being used), and use the
+ * new header in captures of that type, so that programs that can
+ * handle DLT_LINUX_SLL captures will continue to handle them correctly
+ * without any change, and so that capture files with different headers
+ * can be told apart and programs that read them can dissect the
+ * packets in them.
+ *
+ * This structure, and the #defines below, must be the same in the
+ * libpcap and tcpdump versions of "sll.h".
+ */
+
+/*
+ * A DLT_LINUX_SLL fake link-layer header.
+ */
+#define SLL_HDR_LEN	16		/* total header length */
+#define SLL_ADDRLEN	8		/* length of address field */
+
+struct sll_header {
+	uint16_t	sll_pkttype;	/* packet type */
+	uint16_t	sll_hatype;	/* link-layer address type */
+	uint16_t	sll_halen;	/* link-layer address length */
+	uint8_t		sll_addr[SLL_ADDRLEN];	/* link-layer address */
+	uint16_t	sll_protocol;	/* protocol */
+};
+
+/*
+ * The LINUX_SLL_ values for "sll_pkttype"; these correspond to the
+ * PACKET_ values on Linux, but are defined here so that they're
+ * available even on systems other than Linux, and so that they
+ * don't change even if the PACKET_ values change.
+ */
+#define LINUX_SLL_HOST		0
+#define LINUX_SLL_BROADCAST	1
+#define LINUX_SLL_MULTICAST	2
+#define LINUX_SLL_OTHERHOST	3
+#define LINUX_SLL_OUTGOING	4
+
+/*
+ * The LINUX_SLL_ values for "sll_protocol"; these correspond to the
+ * ETH_P_ values on Linux, but are defined here so that they're
+ * available even on systems other than Linux.  We assume, for now,
+ * that the ETH_P_ values won't change in Linux; if they do, then:
+ *
+ *	if we don't translate them in "pcap-linux.c", capture files
+ *	won't necessarily be readable if captured on a system that
+ *	defines ETH_P_ values that don't match these values;
+ *
+ *	if we do translate them in "pcap-linux.c", that makes life
+ *	unpleasant for the BPF code generator, as the values you test
+ *	for in the kernel aren't the values that you test for when
+ *	reading a capture file, so the fixup code run on BPF programs
+ *	handed to the kernel ends up having to do more work.
+ *
+ * Add other values here as necessary, for handling packet types that
+ * might show up on non-Ethernet, non-802.x networks.  (Not all the ones
+ * in the Linux "if_ether.h" will, I suspect, actually show up in
+ * captures.)
+ */
+#define LINUX_SLL_P_802_3	0x0001	/* Novell 802.3 frames without 802.2 LLC header */
+#define LINUX_SLL_P_802_2	0x0004	/* 802.2 frames (not D/I/X Ethernet) */
+
+static const struct tok sll_pkttype_values[] = {
     { LINUX_SLL_HOST, "In" },
     { LINUX_SLL_BROADCAST, "B" },
     { LINUX_SLL_MULTICAST, "M" },
@@ -51,11 +132,11 @@ const struct tok sll_pkttype_values[] = {
 };
 
 static inline void
-sll_print(register const struct sll_header *sllp, u_int length)
+sll_print(netdissect_options *ndo, register const struct sll_header *sllp, u_int length)
 {
 	u_short ether_type;
 
-        printf("%3s ",tok2str(sll_pkttype_values,"?",EXTRACT_16BITS(&sllp->sll_pkttype)));
+        ND_PRINT((ndo, "%3s ",tok2str(sll_pkttype_values,"?",EXTRACT_16BITS(&sllp->sll_pkttype))));
 
 	/*
 	 * XXX - check the link-layer address type value?
@@ -63,11 +144,11 @@ sll_print(register const struct sll_header *sllp, u_int length)
 	 * XXX - print others as strings of hex?
 	 */
 	if (EXTRACT_16BITS(&sllp->sll_halen) == 6)
-		(void)printf("%s ", etheraddr_string(sllp->sll_addr));
+		ND_PRINT((ndo, "%s ", etheraddr_string(ndo, sllp->sll_addr)));
 
-	if (!qflag) {
+	if (!ndo->ndo_qflag) {
 		ether_type = EXTRACT_16BITS(&sllp->sll_protocol);
-	
+
 		if (ether_type <= ETHERMTU) {
 			/*
 			 * Not an Ethernet type; what type is it?
@@ -78,30 +159,30 @@ sll_print(register const struct sll_header *sllp, u_int length)
 				/*
 				 * Ethernet_802.3 IPX frame.
 				 */
-				(void)printf("802.3");
+				ND_PRINT((ndo, "802.3"));
 				break;
 
 			case LINUX_SLL_P_802_2:
 				/*
 				 * 802.2.
 				 */
-				(void)printf("802.2");
+				ND_PRINT((ndo, "802.2"));
 				break;
 
 			default:
 				/*
 				 * What is it?
 				 */
-				(void)printf("ethertype Unknown (0x%04x)",
-				    ether_type);
+				ND_PRINT((ndo, "ethertype Unknown (0x%04x)",
+				    ether_type));
 				break;
 			}
 		} else {
-			(void)printf("ethertype %s (0x%04x)",
+			ND_PRINT((ndo, "ethertype %s (0x%04x)",
 			    tok2str(ethertype_values, "Unknown", ether_type),
-			    ether_type);
+			    ether_type));
 		}
-		(void)printf(", length %u: ", length);
+		ND_PRINT((ndo, ", length %u: ", length));
 	}
 }
 
@@ -112,13 +193,14 @@ sll_print(register const struct sll_header *sllp, u_int length)
  * is the number of bytes actually captured.
  */
 u_int
-sll_if_print(const struct pcap_pkthdr *h, const u_char *p)
+sll_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int caplen = h->caplen;
 	u_int length = h->len;
 	register const struct sll_header *sllp;
 	u_short ether_type;
-	u_short extracted_ethertype;
+	int llc_hdrlen;
+	u_int hdrlen;
 
 	if (caplen < SLL_HDR_LEN) {
 		/*
@@ -126,14 +208,14 @@ sll_if_print(const struct pcap_pkthdr *h, const u_char *p)
 		 * adds this many bytes of header to every packet in a
 		 * cooked socket capture.
 		 */
-		printf("[|sll]");
+		ND_PRINT((ndo, "[|sll]"));
 		return (caplen);
 	}
 
 	sllp = (const struct sll_header *)p;
 
-	if (eflag)
-		sll_print(sllp, length);
+	if (ndo->ndo_eflag)
+		sll_print(ndo, sllp, length);
 
 	/*
 	 * Go past the cooked-mode header.
@@ -141,6 +223,7 @@ sll_if_print(const struct pcap_pkthdr *h, const u_char *p)
 	length -= SLL_HDR_LEN;
 	caplen -= SLL_HDR_LEN;
 	p += SLL_HDR_LEN;
+	hdrlen = SLL_HDR_LEN;
 
 	ether_type = EXTRACT_16BITS(&sllp->sll_protocol);
 
@@ -159,7 +242,7 @@ recurse:
 			/*
 			 * Ethernet_802.3 IPX frame.
 			 */
-			ipx_print(p, length);
+			ipx_print(ndo, p, length);
 			break;
 
 		case LINUX_SLL_P_802_2:
@@ -167,25 +250,19 @@ recurse:
 			 * 802.2.
 			 * Try to print the LLC-layer header & higher layers.
 			 */
-			if (llc_print(p, length, caplen, NULL, NULL,
-			    &extracted_ethertype) == 0)
+			llc_hdrlen = llc_print(ndo, p, length, caplen, NULL, NULL);
+			if (llc_hdrlen < 0)
 				goto unknown;	/* unknown LLC type */
+			hdrlen += llc_hdrlen;
 			break;
 
 		default:
-			extracted_ethertype = 0;
 			/*FALLTHROUGH*/
 
 		unknown:
-			/* ether_type not known, print raw packet */
-			if (!eflag)
-				sll_print(sllp, length + SLL_HDR_LEN);
-			if (extracted_ethertype) {
-				printf("(LLC %s) ",
-			       etherproto_string(htons(extracted_ethertype)));
-			}
-			if (!suppress_default_print)
-				default_print(p, caplen);
+			/* packet type not known, print raw packet */
+			if (!ndo->ndo_suppress_default_print)
+				ND_DEFAULTPRINT(p, caplen);
 			break;
 		}
 	} else if (ether_type == ETHERTYPE_8021Q) {
@@ -193,39 +270,41 @@ recurse:
 		 * Print VLAN information, and then go back and process
 		 * the enclosed type field.
 		 */
-		if (caplen < 4 || length < 4) {
-			printf("[|vlan]");
-			return (SLL_HDR_LEN);
+		if (caplen < 4) {
+			ND_PRINT((ndo, "[|vlan]"));
+			return (hdrlen + caplen);
 		}
-	        if (eflag) {
-	        	u_int16_t tag = EXTRACT_16BITS(p);
+		if (length < 4) {
+			ND_PRINT((ndo, "[|vlan]"));
+			return (hdrlen + length);
+		}
+	        if (ndo->ndo_eflag) {
+	        	uint16_t tag = EXTRACT_16BITS(p);
 
-			printf("vlan %u, p %u%s, ",
-			    tag & 0xfff,
-			    tag >> 13,
-			    (tag & 0x1000) ? ", CFI" : "");
+			ND_PRINT((ndo, "%s, ", ieee8021q_tci_string(tag)));
 		}
 
 		ether_type = EXTRACT_16BITS(p + 2);
 		if (ether_type <= ETHERMTU)
 			ether_type = LINUX_SLL_P_802_2;
-		if (!qflag) {
-			(void)printf("ethertype %s, ",
-			    tok2str(ethertype_values, "Unknown", ether_type));
+		if (!ndo->ndo_qflag) {
+			ND_PRINT((ndo, "ethertype %s, ",
+			    tok2str(ethertype_values, "Unknown", ether_type)));
 		}
 		p += 4;
 		length -= 4;
 		caplen -= 4;
+		hdrlen += 4;
 		goto recurse;
 	} else {
-		if (ethertype_print(gndo, ether_type, p, length, caplen) == 0) {
+		if (ethertype_print(ndo, ether_type, p, length, caplen, NULL, NULL) == 0) {
 			/* ether_type not known, print raw packet */
-			if (!eflag)
-				sll_print(sllp, length + SLL_HDR_LEN);
-			if (!suppress_default_print)
-				default_print(p, caplen);
+			if (!ndo->ndo_eflag)
+				sll_print(ndo, sllp, length + SLL_HDR_LEN);
+			if (!ndo->ndo_suppress_default_print)
+				ND_DEFAULTPRINT(p, caplen);
 		}
 	}
 
-	return (SLL_HDR_LEN);
+	return (hdrlen);
 }

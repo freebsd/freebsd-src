@@ -3,15 +3,14 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime-manuals
+
 #MISSING: dump.5 plot.5
 MAN=	acct.5 \
 	ar.5 \
 	a.out.5 \
-	autofs.5 \
-	bluetooth.device.conf.5 \
-	bluetooth.hosts.5 \
-	bluetooth.protocols.5 \
 	${_boot.config.5} \
+	cd9660.5 \
 	core.5 \
 	devfs.5 \
 	devfs.conf.5 \
@@ -41,6 +40,7 @@ MAN=	acct.5 \
 	make.conf.5 \
 	moduli.5 \
 	motd.5 \
+	mount.conf.5 \
 	mqueuefs.5 \
 	msdosfs.5 \
 	networks.5 \
@@ -59,7 +59,6 @@ MAN=	acct.5 \
 	rc.conf.5 \
 	rctl.conf.5 \
 	regdomain.5 \
-	reiserfs.5 \
 	remote.5 \
 	resolver.5 \
 	services.5 \
@@ -79,6 +78,17 @@ MLINKS+=portindex.5 INDEX.5
 MLINKS+=quota.user.5 quota.group.5
 MLINKS+=rc.conf.5 rc.conf.local.5
 MLINKS+=resolver.5 resolv.conf.5
+MLINKS+=src.conf.5 src-env.conf.5
+
+.if ${MK_AUTOFS} != "no"
+MAN+=	autofs.5
+.endif
+
+.if ${MK_BLUETOOTH} != "no"
+MAN+=	bluetooth.device.conf.5 \
+	bluetooth.hosts.5 \
+	bluetooth.protocols.5
+.endif
 
 .if ${MK_FREEBSD_UPDATE} != "no"
 MAN+=	freebsd-update.conf.5

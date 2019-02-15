@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2008 Yahoo!, Inc.
  * All rights reserved.
  * Written by: John Baldwin <jhb@FreeBSD.org>
@@ -147,6 +149,7 @@ mpt_pd_list(int fd)
 	IOC_5_HOT_SPARE *spare;
 	struct mpt_drive_list *list;
 	int count, error, i, j;
+	size_t listsize;
 
 	ioc2 = mpt_read_ioc_page(fd, 2, NULL);
 	if (ioc2 == NULL) {
@@ -189,6 +192,10 @@ mpt_pd_list(int fd)
 			error = errno;
 			warn("Failed to read volume info");
 			errno = error;
+			free(volumes);
+			free(ioc5);
+			free(ioc3);
+			free(ioc2);
 			return (NULL);
 		}
 		count += volumes[i]->NumPhysDisks;
@@ -197,15 +204,20 @@ mpt_pd_list(int fd)
 	count += ioc5->NumHotSpares;
 
 	/* Walk the various lists enumerating drives. */
-	list = malloc(sizeof(*list) + sizeof(CONFIG_PAGE_RAID_PHYS_DISK_0) *
-	    count);
-	list->ndrives = 0;
+	listsize = sizeof(*list) + sizeof(CONFIG_PAGE_RAID_PHYS_DISK_0) * count;
+	list = calloc(1, listsize);
 
 	for (i = 0; i < ioc2->NumActiveVolumes; i++) {
 		rdisk = volumes[i]->PhysDisk;
 		for (j = 0; j < volumes[i]->NumPhysDisks; rdisk++, j++)
-			if (mpt_pd_insert(fd, list, rdisk->PhysDiskNum) < 0)
+			if (mpt_pd_insert(fd, list, rdisk->PhysDiskNum) < 0) {
+				mpt_free_pd_list(list);
+				free(volumes);
+				free(ioc5);
+				free(ioc3);
+				free(ioc2);
 				return (NULL);
+			}
 		free(volumes[i]);
 	}
 	free(ioc2);
@@ -213,14 +225,21 @@ mpt_pd_list(int fd)
 
 	spare = ioc5->HotSpare;
 	for (i = 0; i < ioc5->NumHotSpares; spare++, i++)
-		if (mpt_pd_insert(fd, list, spare->PhysDiskNum) < 0)
+		if (mpt_pd_insert(fd, list, spare->PhysDiskNum) < 0) {
+			mpt_free_pd_list(list);
+			free(ioc5);
+			free(ioc3);
 			return (NULL);
+		}
 	free(ioc5);
 
 	disk = ioc3->PhysDisk;
 	for (i = 0; i < ioc3->NumPhysDisks; disk++, i++)
-		if (mpt_pd_insert(fd, list, disk->PhysDiskNum) < 0)
+		if (mpt_pd_insert(fd, list, disk->PhysDiskNum) < 0) {
+			mpt_free_pd_list(list);
+			free(ioc3);
 			return (NULL);
+		}
 	free(ioc3);
 
 	return (list);
@@ -322,12 +341,15 @@ drive_set_state(char *drive, U8 Action, U8 State, const char *name)
 	}
 
 	list = mpt_pd_list(fd);
-	if (list == NULL)
+	if (list == NULL) {
+		close(fd);
 		return (errno);
+	}
 
 	if (mpt_lookup_drive(list, drive, &PhysDiskNum) < 0) {
 		error = errno;
 		warn("Failed to find drive %s", drive);
+		close(fd);
 		return (error);
 	}
 	mpt_free_pd_list(list);
@@ -337,12 +359,15 @@ drive_set_state(char *drive, U8 Action, U8 State, const char *name)
 	if (info == NULL) {
 		error = errno;
 		warn("Failed to fetch info for drive %u", PhysDiskNum);
+		close(fd);
 		return (error);
 	}
 
 	/* Try to change the state. */
 	if (info->PhysDiskStatus.State == State) {
 		warnx("Drive %u is already in the desired state", PhysDiskNum);
+		free(info);
+		close(fd);
 		return (EINVAL);
 	}
 
@@ -350,6 +375,8 @@ drive_set_state(char *drive, U8 Action, U8 State, const char *name)
 	    NULL, 0, NULL, NULL, 0);
 	if (error) {
 		warnc(error, "Failed to set drive %u to %s", PhysDiskNum, name);
+		free(info);
+		close(fd);
 		return (error);
 	}
 

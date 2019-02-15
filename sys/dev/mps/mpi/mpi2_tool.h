@@ -1,5 +1,8 @@
 /*-
- * Copyright (c) 2011, 2012 LSI Corp.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2007-2015 LSI Corp.
+ * Copyright (c) 2013-2015 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,13 +26,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * LSI MPT-Fusion Host Adapter FreeBSD
+ * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
  *
  * $FreeBSD$
  */
 
 /*
- *  Copyright (c) 2000-2012 LSI Corporation.
+ *  Copyright (c) 2007-2015 LSI Corporation.
+ *  Copyright (c) 2013-2015 Avago Technologies
  *
  *
  *           Name:  mpi2_tool.h

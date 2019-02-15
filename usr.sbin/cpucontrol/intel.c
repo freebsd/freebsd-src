@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006, 2008 Stanislav Sedov <stas@FreeBSD.org>.
  * All rights reserved.
  *
@@ -86,14 +88,15 @@ intel_update(const char *dev, const char *path)
 	intel_fw_header_t *fw_header;
 	intel_cpu_signature_t *ext_table;
 	intel_ext_header_t *ext_header;
-	uint32_t signature, flags;
+	uint32_t sig, signature, flags;
 	int32_t revision;
 	ssize_t ext_size;
 	size_t ext_table_size;
 	void *fw_data;
 	size_t data_size, total_size;
 	cpuctl_msr_args_t msrargs = {
-		.msr = MSR_IA32_PLATFORM_ID,
+		.msr = MSR_BIOS_SIGN,
+		.data = 0,
 	};
 	cpuctl_cpuid_args_t idargs = {
 		.level  = 1,	/* Signature. */
@@ -113,12 +116,18 @@ intel_update(const char *dev, const char *path)
 		WARN(0, "could not open %s for writing", dev);
 		return;
 	}
+	error = ioctl(devfd, CPUCTL_WRMSR, &msrargs);
+	if (error < 0) {
+		WARN(0, "ioctl(%s)", dev);
+		goto fail;
+	}
 	error = ioctl(devfd, CPUCTL_CPUID, &idargs);
 	if (error < 0) {
 		WARN(0, "ioctl(%s)", dev);
 		goto fail;
 	}
 	signature = idargs.data[0];
+	msrargs.msr = MSR_IA32_PLATFORM_ID;
 	error = ioctl(devfd, CPUCTL_RDMSR, &msrargs);
 	if (error < 0) {
 		WARN(0, "ioctl(%s)", dev);
@@ -145,7 +154,7 @@ intel_update(const char *dev, const char *path)
 	fd = open(path, O_RDONLY, 0);
 	if (fd < 0) {
 		WARN(0, "open(%s)", path);
-		return;
+		goto fail;
 	}
 	error = fstat(fd, &st);
 	if (error != 0) {
@@ -229,7 +238,8 @@ intel_update(const char *dev, const char *path)
 		for (i = 0; i < (ext_table_size / sizeof(uint32_t)); i++)
 			sum += *((uint32_t *)ext_header + i);
 		if (sum != 0) {
-			WARNX(2, "%s: extended signature table checksum invalid",
+			WARNX(2,
+			    "%s: extended signature table checksum invalid",
 			    path);
 			goto no_table;
 		}
@@ -244,10 +254,10 @@ no_table:
 	 */
 	if (signature == fw_header->cpu_signature &&
 	    (flags & fw_header->cpu_flags) != 0)
-			goto matched;
+		goto matched;
 	else if (have_ext_table != 0) {
 		for (i = 0; i < ext_header->sig_count; i++) {
-			uint32_t sig = ext_table[i].cpu_signature;
+			sig = ext_table[i].cpu_signature;
 			if (signature == sig &&
 			    (flags & ext_table[i].cpu_flags) != 0)
 				goto matched;
@@ -259,17 +269,17 @@ matched:
 	if (revision >= fw_header->revision) {
 		WARNX(1, "skipping %s of rev %#x: up to date",
 		    path, fw_header->revision);
-		return;
+		goto fail;
 	}
 	fprintf(stderr, "%s: updating cpu %s from rev %#x to rev %#x... ",
-			path, dev, revision, fw_header->revision);
+	    path, dev, revision, fw_header->revision);
 	args.data = fw_data;
 	args.size = data_size;
 	error = ioctl(devfd, CPUCTL_UPDATE, &args);
 	if (error < 0) {
-               error = errno;
+		error = errno;
 		fprintf(stderr, "failed.\n");
-               errno = error;
+		errno = error;
 		WARN(0, "ioctl()");
 		goto fail;
 	}
@@ -283,5 +293,4 @@ fail:
 		close(devfd);
 	if (fd >= 0)
 		close(fd);
-	return;
 }

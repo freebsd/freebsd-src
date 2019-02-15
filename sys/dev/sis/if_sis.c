@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2005 Poul-Henning Kamp <phk@FreeBSD.org>
  * Copyright (c) 1997, 1998, 1999
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
@@ -742,7 +744,7 @@ sis_rxfilter_ns(struct sis_softc *sc)
 		}
 
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			h = sis_mchash(sc,
@@ -758,7 +760,8 @@ sis_rxfilter_ns(struct sis_softc *sc)
 		if_maddr_runlock(ifp);
 	}
 
-	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filter);
+	/* Turn the receive filter on */
+	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filter | SIS_RXFILTCTL_ENABLE);
 	CSR_READ_4(sc, SIS_RXFILT_CTL);
 }
 
@@ -780,7 +783,7 @@ sis_rxfilter_sis(struct sis_softc *sc)
 
 	filter = CSR_READ_4(sc, SIS_RXFILT_CTL);
 	if (filter & SIS_RXFILTCTL_ENABLE) {
-		CSR_WRITE_4(sc, SIS_RXFILT_CTL, filter & ~SIS_RXFILT_CTL);
+		CSR_WRITE_4(sc, SIS_RXFILT_CTL, filter & ~SIS_RXFILTCTL_ENABLE);
 		CSR_READ_4(sc, SIS_RXFILT_CTL);
 	}
 	filter &= ~(SIS_RXFILTCTL_ALLPHYS | SIS_RXFILTCTL_BROAD |
@@ -799,7 +802,7 @@ sis_rxfilter_sis(struct sis_softc *sc)
 			hashes[i] = 0;
 		i = 0;
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 			h = sis_mchash(sc,
@@ -820,7 +823,8 @@ sis_rxfilter_sis(struct sis_softc *sc)
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA, hashes[i]);
 	}
 
-	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filter);
+	/* Turn the receive filter on */
+	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filter | SIS_RXFILTCTL_ENABLE);
 	CSR_READ_4(sc, SIS_RXFILT_CTL);
 }
 
@@ -2015,8 +2019,6 @@ sis_initl(struct sis_softc *sc)
 	}
 
 	sis_rxfilter(sc);
-	/* Turn the receive filter on */
-	SIS_SETBIT(sc, SIS_RXFILT_CTL, SIS_RXFILTCTL_ENABLE);
 
 	/*
 	 * Load the address of the RX and TX lists.
@@ -2138,7 +2140,8 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		SIS_LOCK(sc);
-		sis_rxfilter(sc);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			sis_rxfilter(sc);
 		SIS_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:

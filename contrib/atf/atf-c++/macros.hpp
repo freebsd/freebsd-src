@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2007 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,10 +22,9 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
 
-#if !defined(_ATF_CXX_MACROS_HPP_)
-#define _ATF_CXX_MACROS_HPP_
+#if !defined(ATF_CXX_MACROS_HPP)
+#define ATF_CXX_MACROS_HPP
 
 #include <sstream>
 #include <stdexcept>
@@ -99,21 +95,23 @@
 
 #define ATF_PASS() atf::tests::tc::pass()
 
-#define ATF_REQUIRE(x) \
+#define ATF_REQUIRE(expression) \
     do { \
-        if (!(x)) { \
+        if (!(expression)) { \
             std::ostringstream atfu_ss; \
-            atfu_ss << "Line " << __LINE__ << ": " << #x << " not met"; \
+            atfu_ss << "Line " << __LINE__ << ": " << #expression \
+                    << " not met"; \
             atf::tests::tc::fail(atfu_ss.str()); \
         } \
     } while (false)
 
-#define ATF_REQUIRE_EQ(x, y) \
+#define ATF_REQUIRE_EQ(expected, actual) \
     do { \
-        if ((x) != (y)) { \
+        if ((expected) != (actual)) { \
             std::ostringstream atfu_ss; \
-            atfu_ss << "Line " << __LINE__ << ": " << #x << " != " << #y \
-                     << " (" << (x) << " != " << (y) << ")"; \
+            atfu_ss << "Line " << __LINE__ << ": " \
+                    << #expected << " != " << #actual \
+                    << " (" << (expected) << " != " << (actual) << ")"; \
             atf::tests::tc::fail(atfu_ss.str()); \
         } \
     } while (false)
@@ -134,69 +132,74 @@
         } \
     } while (false)
 
-#define ATF_REQUIRE_THROW(e, x) \
+#define ATF_REQUIRE_THROW(expected_exception, statement) \
     do { \
         try { \
-            x; \
+            statement; \
             std::ostringstream atfu_ss; \
-            atfu_ss << "Line " << __LINE__ << ": " #x " did not throw " \
-                        #e " as expected"; \
+            atfu_ss << "Line " << __LINE__ \
+                    << ": " #statement " did not throw " #expected_exception \
+                       " as expected"; \
             atf::tests::tc::fail(atfu_ss.str()); \
-        } catch (const e&) { \
+        } catch (const expected_exception&) { \
         } catch (const std::exception& atfu_e) { \
             std::ostringstream atfu_ss; \
-            atfu_ss << "Line " << __LINE__ << ": " #x " threw an " \
-                        "unexpected error (not " #e "): " << atfu_e.what(); \
+            atfu_ss << "Line " << __LINE__ << ": " #statement " threw an " \
+                       "unexpected error (not " #expected_exception "): " \
+                    << atfu_e.what(); \
             atf::tests::tc::fail(atfu_ss.str()); \
         } catch (...) { \
             std::ostringstream atfu_ss; \
-            atfu_ss << "Line " << __LINE__ << ": " #x " threw an " \
-                        "unexpected error (not " #e ")"; \
+            atfu_ss << "Line " << __LINE__ << ": " #statement " threw an " \
+                       "unexpected error (not " #expected_exception ")"; \
             atf::tests::tc::fail(atfu_ss.str()); \
         } \
     } while (false)
 
-#define ATF_REQUIRE_THROW_RE(type, regexp, x) \
+#define ATF_REQUIRE_THROW_RE(expected_exception, regexp, statement) \
     do { \
         try { \
-            x; \
+            statement; \
             std::ostringstream atfu_ss; \
-            atfu_ss << "Line " << __LINE__ << ": " #x " did not throw " \
-                        #type " as expected"; \
+            atfu_ss << "Line " << __LINE__ \
+                    << ": " #statement " did not throw " #expected_exception \
+                       " as expected"; \
             atf::tests::tc::fail(atfu_ss.str()); \
-        } catch (const type& e) { \
+        } catch (const expected_exception& e) { \
             if (!atf::tests::detail::match(regexp, e.what())) { \
                 std::ostringstream atfu_ss; \
-                atfu_ss << "Line " << __LINE__ << ": " #x " threw " #type "(" \
+                atfu_ss << "Line " << __LINE__ \
+                        << ": " #statement " threw " #expected_exception "(" \
                         << e.what() << "), but does not match '" << regexp \
                         << "'"; \
                 atf::tests::tc::fail(atfu_ss.str()); \
             } \
         } catch (const std::exception& atfu_e) { \
             std::ostringstream atfu_ss; \
-            atfu_ss << "Line " << __LINE__ << ": " #x " threw an " \
-                        "unexpected error (not " #type "): " << atfu_e.what(); \
+            atfu_ss << "Line " << __LINE__ << ": " #statement " threw an " \
+                        "unexpected error (not " #expected_exception "): " \
+                    << atfu_e.what(); \
             atf::tests::tc::fail(atfu_ss.str()); \
         } catch (...) { \
             std::ostringstream atfu_ss; \
-            atfu_ss << "Line " << __LINE__ << ": " #x " threw an " \
-                        "unexpected error (not " #type ")"; \
+            atfu_ss << "Line " << __LINE__ << ": " #statement " threw an " \
+                        "unexpected error (not " #expected_exception ")"; \
             atf::tests::tc::fail(atfu_ss.str()); \
         } \
     } while (false)
 
-#define ATF_CHECK_ERRNO(exp_errno, bool_expr) \
-    atf::tests::tc::check_errno(__FILE__, __LINE__, exp_errno, #bool_expr, \
-                                bool_expr)
+#define ATF_CHECK_ERRNO(expected_errno, bool_expr) \
+    atf::tests::tc::check_errno(__FILE__, __LINE__, expected_errno, \
+                                #bool_expr, bool_expr)
 
-#define ATF_REQUIRE_ERRNO(exp_errno, bool_expr) \
-    atf::tests::tc::require_errno(__FILE__, __LINE__, exp_errno, #bool_expr, \
-                                  bool_expr)
+#define ATF_REQUIRE_ERRNO(expected_errno, bool_expr) \
+    atf::tests::tc::require_errno(__FILE__, __LINE__, expected_errno, \
+                                  #bool_expr, bool_expr)
 
 #define ATF_INIT_TEST_CASES(tcs) \
     namespace atf { \
         namespace tests { \
-            int run_tp(int, char* const*, \
+            int run_tp(int, char**, \
                        void (*)(std::vector< atf::tests::tc * >&)); \
         } \
     } \
@@ -204,7 +207,7 @@
     static void atfu_init_tcs(std::vector< atf::tests::tc * >&); \
     \
     int \
-    main(int argc, char* const* argv) \
+    main(int argc, char** argv) \
     { \
         return atf::tests::run_tp(argc, argv, atfu_init_tcs); \
     } \
@@ -219,4 +222,4 @@
         (tcs).push_back(atfu_tcptr_ ## tcname); \
     } while (0);
 
-#endif // !defined(_ATF_CXX_MACROS_HPP_)
+#endif // !defined(ATF_CXX_MACROS_HPP)

@@ -25,11 +25,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2009
+.Dd July 28, 2017
 .Dt FLOPEN 3
 .Os
 .Sh NAME
-.Nm flopen
+.Nm flopen ,
+.Nm flopenat
 .Nd "Reliably open and lock a file"
 .Sh LIBRARY
 .Lb libutil
@@ -40,6 +41,10 @@
 .Fn flopen "const char *path" "int flags"
 .Ft int
 .Fn flopen "const char *path" "int flags" "mode_t mode"
+.Ft int
+.Fn flopenat "int fd" "const char *path" "int flags"
+.Ft int
+.Fn flopenat "int fd" "const char *path" "int flags" "mode_t mode"
 .Sh DESCRIPTION
 The
 .Fn flopen
@@ -49,7 +54,7 @@ It is essentially equivalent with calling
 with the same parameters followed by
 .Fn flock
 with an
-.Va operation
+.Fa operation
 argument of
 .Dv LOCK_EX ,
 except that
@@ -61,7 +66,7 @@ files, mailboxes and other kinds of files which are used for
 synchronization between processes.
 .Pp
 If
-.Va flags
+.Fa flags
 includes
 .Dv O_NONBLOCK
 and the file is already locked,
@@ -74,11 +79,32 @@ to
 As with
 .Fn open ,
 the additional
-.Va mode
+.Fa mode
 argument is required if
-.Va flags
+.Fa flags
 includes
 .Dv O_CREAT .
+.Pp
+The
+.Fn flopenat
+function is equivalent to the
+.Fn flopen
+function except in the case where the
+.Fa path
+specifies a relative path.
+In this case the file to be opened is determined relative to the directory
+associated with the file descriptor
+.Fa fd
+instead of the current working directory.
+If
+.Fn flopenat
+is passed the special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter, the current working directory is used
+and the behavior is identical to a call to
+.Fn flopen .
 .Sh RETURN VALUES
 If successful,
 .Fn flopen

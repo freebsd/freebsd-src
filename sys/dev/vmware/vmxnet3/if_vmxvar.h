@@ -131,7 +131,7 @@ struct vmxnet3_txq_stats {
 struct vmxnet3_txqueue {
 	struct mtx			 vxtxq_mtx;
 	struct vmxnet3_softc		*vxtxq_sc;
-#ifndef VMXNET3_TX_LEGACY
+#ifndef VMXNET3_LEGACY_TX
 	struct buf_ring			*vxtxq_br;
 #endif
 	int				 vxtxq_id;
@@ -142,7 +142,7 @@ struct vmxnet3_txqueue {
 	struct vmxnet3_txq_stats	 vxtxq_stats;
 	struct vmxnet3_txq_shared	*vxtxq_ts;
 	struct sysctl_oid_list		*vxtxq_sysctl;
-#ifndef VMXNET3_TX_LEGACY
+#ifndef VMXNET3_LEGACY_TX
 	struct task			 vxtxq_defrtask;
 #endif
 	char				 vxtxq_name[16];

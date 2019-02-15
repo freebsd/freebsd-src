@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -14,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -43,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
 
@@ -61,6 +64,27 @@ MTX_SYSINIT(intr_config_hook, &intr_config_hook_lock, "intr config", MTX_DEF);
 
 /* ARGSUSED */
 static void run_interrupt_driven_config_hooks(void);
+
+/*
+ * Private data and a shim function for implementing config_interhook_oneshot().
+ */
+struct oneshot_config_hook {
+	struct intr_config_hook 
+			och_hook;		/* Must be first */
+	ich_func_t	och_func;
+	void		*och_arg;
+};
+
+static void
+config_intrhook_oneshot_func(void *arg)
+{
+	struct oneshot_config_hook *ohook;
+
+	ohook = arg;
+	ohook->och_func(ohook->och_arg);
+	config_intrhook_disestablish(&ohook->och_hook);
+	free(ohook, M_DEVBUF);
+}
 
 /*
  * If we wait too long for an interrupt-driven config hook to return, print
@@ -131,6 +155,7 @@ boot_run_interrupt_driven_config_hooks(void *dummy)
 	run_interrupt_driven_config_hooks();
 
 	/* Block boot processing until all hooks are disestablished. */
+	TSWAIT("config hooks");
 	mtx_lock(&intr_config_hook_lock);
 	warned = 0;
 	while (!TAILQ_EMPTY(&intr_config_hook_list)) {
@@ -144,6 +169,7 @@ boot_run_interrupt_driven_config_hooks(void *dummy)
 		}
 	}
 	mtx_unlock(&intr_config_hook_lock);
+	TSUNWAIT("config hooks");
 }
 
 SYSINIT(intr_config_hooks, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_FIRST,
@@ -159,6 +185,7 @@ config_intrhook_establish(struct intr_config_hook *hook)
 {
 	struct intr_config_hook *hook_entry;
 
+	TSHOLD("config hooks");
 	mtx_lock(&intr_config_hook_lock);
 	TAILQ_FOREACH(hook_entry, &intr_config_hook_list, ich_links)
 		if (hook_entry == hook)
@@ -183,6 +210,22 @@ config_intrhook_establish(struct intr_config_hook *hook)
 	return (0);
 }
 
+/*
+ * Register a hook function that is automatically unregistered after it runs.
+ */
+void
+config_intrhook_oneshot(ich_func_t func, void *arg)
+{
+	struct oneshot_config_hook *ohook;
+
+	ohook = malloc(sizeof(*ohook), M_DEVBUF, M_WAITOK);
+	ohook->och_func = func;
+	ohook->och_arg  = arg;
+	ohook->och_hook.ich_func = config_intrhook_oneshot_func;
+	ohook->och_hook.ich_arg  = ohook;
+	config_intrhook_establish(&ohook->och_hook);
+}
+
 void
 config_intrhook_disestablish(struct intr_config_hook *hook)
 {
@@ -199,6 +242,7 @@ config_intrhook_disestablish(struct intr_config_hook *hook)
 	if (next_to_notify == hook)
 		next_to_notify = TAILQ_NEXT(hook, ich_links);
 	TAILQ_REMOVE(&intr_config_hook_list, hook, ich_links);
+	TSRELEASE("config hooks");
 
 	/* Wakeup anyone watching the list */
 	wakeup(&intr_config_hook_list);

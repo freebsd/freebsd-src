@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1996, Gary J. Palmer
  * All rights reserved.
  *
@@ -115,7 +117,8 @@ main(int argc, char **argv)
 	if (ftsent->fts_info != FTS_F || ftsent->fts_name[0] == '.')
 	    continue;
 
-	sprintf(filename, "%s/%s", queue_dir, ftsent->fts_name);
+	snprintf(filename, sizeof(filename), "%s/%s", queue_dir,
+	    ftsent->fts_name);
 	fd = open(filename, O_RDONLY);
 	if (fd < 0)
 	{

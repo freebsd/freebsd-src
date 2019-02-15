@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1988, 1993
  *      The Regents of the University of California.
  * Copyright (c) 2005 Andre Oppermann, Internet Business Solutions AG.
@@ -12,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -54,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_fib.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
@@ -65,13 +68,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/socketvar.h>
 
-static VNET_DEFINE(int, ip_dosourceroute);
+VNET_DEFINE_STATIC(int, ip_dosourceroute);
 SYSCTL_INT(_net_inet_ip, IPCTL_SOURCEROUTE, sourceroute,
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_dosourceroute), 0,
     "Enable forwarding source routed IP packets");
 #define	V_ip_dosourceroute	VNET(ip_dosourceroute)
 
-static VNET_DEFINE(int,	ip_acceptsourceroute);
+VNET_DEFINE_STATIC(int,	ip_acceptsourceroute);
 SYSCTL_INT(_net_inet_ip, IPCTL_ACCEPTSOURCEROUTE, accept_sourceroute, 
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_acceptsourceroute), 0, 
     "Enable accepting source routed IP packets");
@@ -104,6 +107,7 @@ ip_dooptions(struct mbuf *m, int pass)
 	int opt, optlen, cnt, off, code, type = ICMP_PARAMPROB, forward = 0;
 	struct in_addr *sin, dst;
 	uint32_t ntime;
+	struct nhop4_extended nh_ext;
 	struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
 
 	/* Ignore or reject packets with IP options. */
@@ -112,9 +116,10 @@ ip_dooptions(struct mbuf *m, int pass)
 	else if (V_ip_doopts == 2) {
 		type = ICMP_UNREACH;
 		code = ICMP_UNREACH_FILTER_PROHIB;
-		goto bad;
+		goto bad_unlocked;
 	}
 
+	NET_EPOCH_ENTER();
 	dst = ip->ip_dst;
 	cp = (u_char *)(ip + 1);
 	cnt = (ip->ip_hl << 2) - sizeof (struct ip);
@@ -194,16 +199,19 @@ ip_dooptions(struct mbuf *m, int pass)
 #endif
 			if (!V_ip_dosourceroute) {
 				if (V_ipforwarding) {
-					char buf[16]; /* aaa.bbb.ccc.ddd\0 */
+					char srcbuf[INET_ADDRSTRLEN];
+					char dstbuf[INET_ADDRSTRLEN];
+
 					/*
 					 * Acting as a router, so generate
 					 * ICMP
 					 */
 nosourcerouting:
-					strcpy(buf, inet_ntoa(ip->ip_dst));
 					log(LOG_WARNING, 
-					    "attempted source route from %s to %s\n",
-					    inet_ntoa(ip->ip_src), buf);
+					    "attempted source route from %s "
+					    "to %s\n",
+					    inet_ntoa_r(ip->ip_src, srcbuf),
+					    inet_ntoa_r(ip->ip_dst, dstbuf));
 					type = ICMP_UNREACH;
 					code = ICMP_UNREACH_SRCFAIL;
 					goto bad;
@@ -217,6 +225,7 @@ dropit:
 #endif
 					IPSTAT_INC(ips_cantforward);
 					m_freem(m);
+					NET_EPOCH_EXIT();
 					return (1);
 				}
 			}
@@ -227,6 +236,9 @@ dropit:
 			(void)memcpy(&ipaddr.sin_addr, cp + off,
 			    sizeof(ipaddr.sin_addr));
 
+			type = ICMP_UNREACH;
+			code = ICMP_UNREACH_SRCFAIL;
+
 			if (opt == IPOPT_SSRR) {
 #define	INA	struct in_ifaddr *
 #define	SA	struct sockaddr *
@@ -235,18 +247,22 @@ dropit:
 			    if (ia == NULL)
 				    ia = (INA)ifa_ifwithnet((SA)&ipaddr, 0,
 						    RT_ALL_FIBS);
-			} else
-/* XXX MRT 0 for routing */
-				ia = ip_rtaddr(ipaddr.sin_addr, M_GETFIB(m));
-			if (ia == NULL) {
-				type = ICMP_UNREACH;
-				code = ICMP_UNREACH_SRCFAIL;
-				goto bad;
+				if (ia == NULL)
+					goto bad;
+
+				memcpy(cp + off, &(IA_SIN(ia)->sin_addr),
+				    sizeof(struct in_addr));
+			} else {
+				/* XXX MRT 0 for routing */
+				if (fib4_lookup_nh_ext(M_GETFIB(m),
+				    ipaddr.sin_addr, 0, 0, &nh_ext) != 0)
+					goto bad;
+
+				memcpy(cp + off, &nh_ext.nh_src,
+				    sizeof(struct in_addr));
 			}
+
 			ip->ip_dst = ipaddr.sin_addr;
-			(void)memcpy(cp + off, &(IA_SIN(ia)->sin_addr),
-			    sizeof(struct in_addr));
-			ifa_free(&ia->ia_ifa);
 			cp[IPOPT_OFFSET] += sizeof(struct in_addr);
 			/*
 			 * Let ip_intr's mcast routing check handle mcast pkts
@@ -280,15 +296,18 @@ dropit:
 			 * destination, use the incoming interface (should be
 			 * same).
 			 */
-			if ((ia = (INA)ifa_ifwithaddr((SA)&ipaddr)) == NULL &&
-			    (ia = ip_rtaddr(ipaddr.sin_addr, M_GETFIB(m))) == NULL) {
+			if ((ia = (INA)ifa_ifwithaddr((SA)&ipaddr)) != NULL) {
+				memcpy(cp + off, &(IA_SIN(ia)->sin_addr),
+				    sizeof(struct in_addr));
+			} else if (fib4_lookup_nh_ext(M_GETFIB(m),
+			    ipaddr.sin_addr, 0, 0, &nh_ext) == 0) {
+				memcpy(cp + off, &nh_ext.nh_src,
+				    sizeof(struct in_addr));
+			} else {
 				type = ICMP_UNREACH;
 				code = ICMP_UNREACH_HOST;
 				goto bad;
 			}
-			(void)memcpy(cp + off, &(IA_SIN(ia)->sin_addr),
-			    sizeof(struct in_addr));
-			ifa_free(&ia->ia_ifa);
 			cp[IPOPT_OFFSET] += sizeof(struct in_addr);
 			break;
 
@@ -334,7 +353,6 @@ dropit:
 					continue;
 				(void)memcpy(sin, &IA_SIN(ia)->sin_addr,
 				    sizeof(struct in_addr));
-				ifa_free(&ia->ia_ifa);
 				cp[IPOPT_OFFSET] += sizeof(struct in_addr);
 				off += sizeof(struct in_addr);
 				break;
@@ -362,12 +380,15 @@ dropit:
 			cp[IPOPT_OFFSET] += sizeof(uint32_t);
 		}
 	}
+	NET_EPOCH_EXIT();
 	if (forward && V_ipforwarding) {
 		ip_forward(m, 1);
 		return (1);
 	}
 	return (0);
 bad:
+	NET_EPOCH_EXIT();
+bad_unlocked:
 	icmp_error(m, type, code, 0, 0);
 	IPSTAT_INC(ips_badoptions);
 	return (1);
@@ -500,7 +521,7 @@ ip_insertoptions(struct mbuf *m, struct mbuf *opt, int *phlen)
 	}
 	if (p->ipopt_dst.s_addr)
 		ip->ip_dst = p->ipopt_dst;
-	if (m->m_flags & M_EXT || m->m_data - optlen < m->m_pktdat) {
+	if (!M_WRITABLE(m) || M_LEADINGSPACE(m) < optlen) {
 		n = m_gethdr(M_NOWAIT, MT_DATA);
 		if (n == NULL) {
 			*phlen = 0;
@@ -594,7 +615,7 @@ ip_pcbopts(struct inpcb *inp, int optname, struct mbuf *m)
 	/* turn off any old options */
 	if (*pcbopt)
 		(void)m_free(*pcbopt);
-	*pcbopt = 0;
+	*pcbopt = NULL;
 	if (m == NULL || m->m_len == 0) {
 		/*
 		 * Only turning off any previous options.
@@ -692,7 +713,7 @@ bad:
  * may change in future.
  * Router alert options SHOULD be passed if running in IPSTEALTH mode and
  * we are not the endpoint.
- * Length checks on individual options should already have been peformed
+ * Length checks on individual options should already have been performed
  * by ip_dooptions() therefore they are folded under INVARIANTS here.
  *
  * Return zero if not present or options are invalid, non-zero if present.

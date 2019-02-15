@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -56,15 +58,13 @@ __FBSDID("$FreeBSD$");
 /*
  * Hack to let ypserv/rpc.nisd use AUTH_DES.
  */
-int (*__getpublickey_LOCAL)() = 0;
+int (*__getpublickey_LOCAL)(const char *, char *) = 0;
 
 /*
  * Get somebody's public key
  */
 static int
-__getpublickey_real(netname, publickey)
-	const char *netname;
-	char *publickey;
+__getpublickey_real(const char *netname, char *publickey)
 {
 	char lookup[3 * HEXKEYBYTES];
 	char *p;
@@ -89,9 +89,7 @@ __getpublickey_real(netname, publickey)
  */
 
 int
-getpublicandprivatekey(key, ret)
-	const char *key;
-	char *ret;
+getpublicandprivatekey(const char *key, char *ret)
 {
 	char buf[1024];	/* big enough */
 	char *res;
@@ -166,9 +164,7 @@ getpublicandprivatekey(key, ret)
 	}
 }
 
-int getpublickey(netname, publickey)
-	const char *netname;
-	char *publickey;
+int getpublickey(const char *netname, char *publickey)
 {
 	if (__getpublickey_LOCAL != NULL)
 		return(__getpublickey_LOCAL(netname, publickey));

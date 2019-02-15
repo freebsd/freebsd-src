@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 #-
-# Copyright (c) 2014 Warner Losh. All Rights Reserved.
-# Copyright (c) 2010 iXsystems, Inc., All rights reserved.
+# Copyright (c) 2014 M. Warner Losh.
+# Copyright (c) 2010 iXsystems, Inc.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -129,7 +129,6 @@ WITHOUT_NLS=true
 WITHOUT_NS_CACHING=true
 WITHOUT_OBJC=true
 WITHOUT_PROFILE=true
-WITHOUT_RCMDS=true
 WITHOUT_SENDMAIL=true
 WITHOUT_SHAREDOCS=true
 WITHOUT_SYSCONS=true
@@ -229,7 +228,7 @@ add_port () {
     local port_path=$1
     local port=`echo $1 | sed -e 's/\//_/'`
     shift
-    # Check if package allready exist
+    # Check if package already exist
     # Need to:
     # 1. check ARCH of this package!
     # 2. Add a trap

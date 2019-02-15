@@ -3,9 +3,9 @@
 .include <src.opts.mk>
 
 GCCVER=	4.2
-GCCDIR=	${.CURDIR}/../../../contrib/gcc
-GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
-SRCDIR=	${.CURDIR}/../../../contrib/libstdc++
+GCCDIR=	${SRCTOP}/contrib/gcc
+GCCLIB=	${SRCTOP}/contrib/gcclibs
+SRCDIR=	${SRCTOP}/contrib/libstdc++
 SUPDIR=	${SRCDIR}/libsupc++
 
 .PATH: ${SRCDIR}/src ${SRCDIR}/libmath ${SRCDIR}/config/io \
@@ -23,8 +23,8 @@ CXXFLAGS+=	-fno-implicit-templates -ffunction-sections -fdata-sections \
 		-Wno-deprecated
 PO_CXXFLAGS=	${CXXFLAGS:N-ffunction-sections}
 
-DPADD=		${LIBM}
-LDADD=		-lm  -Wl,-f,libsupc++.so.1
+LIBADD+=	m
+LDADD=		-Wl,-f,libsupc++.so.1
 
 # libstdc++ sources
 SRCS+=	bitmap_allocator.cc pool_allocator.cc \
@@ -88,7 +88,7 @@ ATOMICITY_H=	${SRCDIR}/config/cpu/generic/atomicity_builtins/atomicity.h
 .endif
 .endif
 
-atomicity.cc:	${ATOMICITY_H}
+atomicity.cc:	${ATOMICITY_H} .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 CLEANFILES+=	atomicity.cc
 
@@ -599,7 +599,7 @@ unwind.h: ${GCCDIR}/config/arm/unwind-arm.h
 unwind.h: ${GCCDIR}/unwind-generic.h
 .endif
 
-unwind.h:
+unwind.h: .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 
 SRCS+=		unwind.h
@@ -624,7 +624,7 @@ CLEANFILES+=	c++config.h
 
 VERSION_MAP=  	libstdc++.map
 
-${VERSION_MAP}: ${SRCDIR}/config/abi/pre/gnu.ver
+${VERSION_MAP}: ${SRCDIR}/config/abi/pre/gnu.ver .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 
 CLEANFILES+=	${VERSION_MAP}

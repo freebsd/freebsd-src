@@ -1,6 +1,8 @@
 /*-
  * Inline routines shareable across OS platforms.
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994-2001 Justin T. Gibbs.
  * Copyright (c) 2000-2003 Adaptec Inc.
  * All rights reserved.
@@ -417,7 +419,7 @@ ahd_targetcmd_offset(struct ahd_softc *ahd, u_int index)
 	       - (uint8_t *)ahd->qoutfifo);
 }
 
-/*********************** Miscelaneous Support Functions ***********************/
+/********************** Miscellaneous Support Functions ***********************/
 static __inline void	ahd_complete_scb(struct ahd_softc *ahd,
 					 struct scb *scb);
 static __inline void	ahd_update_residual(struct ahd_softc *ahd,
@@ -534,7 +536,7 @@ static __inline void
 ahd_outw(struct ahd_softc *ahd, u_int port, u_int value)
 {
 	/*
-	 * Write low byte first to accomodate registers
+	 * Write low byte first to accommodate registers
 	 * such as PRGMCNT where the order maters.
 	 */
 	ahd_outb(ahd, port, value & 0xFF);

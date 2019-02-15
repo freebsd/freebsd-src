@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -85,7 +87,6 @@
  */
 #define	ATH_AGGR_MAXSIZE	65530
 
-extern void ath_freetx(struct mbuf *m);
 extern void ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an);
 extern void ath_tx_txq_drain(struct ath_softc *sc, struct ath_txq *txq);
 extern void ath_txfrag_cleanup(struct ath_softc *sc, ath_bufhead *frags,

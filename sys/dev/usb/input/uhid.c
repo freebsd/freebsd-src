@@ -8,6 +8,8 @@
 __FBSDID("$FreeBSD$");
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -79,7 +81,7 @@ __FBSDID("$FreeBSD$");
 static int uhid_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uhid, CTLFLAG_RW, 0, "USB uhid");
-SYSCTL_INT(_hw_usb_uhid, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uhid, OID_AUTO, debug, CTLFLAG_RWTUN,
     &uhid_debug, 0, "Debug level");
 #endif
 
@@ -518,7 +520,9 @@ uhid_open(struct usb_fifo *fifo, int fflags)
 	 */
 	if (fflags & FREAD) {
 		/* reset flags */
+		mtx_lock(&sc->sc_mtx);
 		sc->sc_flags &= ~UHID_FLAG_IMMED;
+		mtx_unlock(&sc->sc_mtx);
 
 		if (usb_fifo_alloc_buffer(fifo,
 		    sc->sc_isize + 1, UHID_FRAME_NUM)) {
@@ -671,6 +675,8 @@ uhid_probe(device_t dev)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	int error;
+	void *buf;
+	uint16_t len;
 
 	DPRINTFN(11, "\n");
 
@@ -696,6 +702,25 @@ uhid_probe(device_t dev)
 	     ((uaa->info.bInterfaceProtocol == UIPROTO_MOUSE) &&
 	      !usb_test_quirk(uaa, UQ_UMS_IGNORE))))
 		return (ENXIO);
+
+	/* Check for mandatory multitouch usages to give wmt(4) a chance */
+	if (!usb_test_quirk(uaa, UQ_WMT_IGNORE)) {
+		error = usbd_req_get_hid_desc(uaa->device, NULL,
+		    &buf, &len, M_USBDEV, uaa->info.bIfaceIndex);
+		/* Let HID decscriptor-less devices to be handled at attach */
+		if (!error) {
+			if (hid_locate(buf, len,
+			    HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACT_MAX),
+			    hid_feature, 0, NULL, NULL, NULL) &&
+			    hid_locate(buf, len,
+			    HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACTID),
+			    hid_input, 0, NULL, NULL, NULL)) {
+				free(buf, M_USBDEV);
+				return (ENXIO);
+			}
+			free(buf, M_USBDEV);
+		}
+	}
 
 	return (BUS_PROBE_GENERIC);
 }
@@ -734,7 +759,7 @@ uhid_attach(device_t dev)
 		if (uaa->info.idProduct == USB_PRODUCT_WACOM_GRAPHIRE) {
 
 			sc->sc_repdesc_size = sizeof(uhid_graphire_report_descr);
-			sc->sc_repdesc_ptr = (void *)&uhid_graphire_report_descr;
+			sc->sc_repdesc_ptr = __DECONST(void *, &uhid_graphire_report_descr);
 			sc->sc_flags |= UHID_FLAG_STATIC_DESC;
 
 		} else if (uaa->info.idProduct == USB_PRODUCT_WACOM_GRAPHIRE3_4X5) {
@@ -755,7 +780,7 @@ uhid_attach(device_t dev)
 				    usbd_errstr(error));
 			}
 			sc->sc_repdesc_size = sizeof(uhid_graphire3_4x5_report_descr);
-			sc->sc_repdesc_ptr = (void *)&uhid_graphire3_4x5_report_descr;
+			sc->sc_repdesc_ptr = __DECONST(void *, &uhid_graphire3_4x5_report_descr);
 			sc->sc_flags |= UHID_FLAG_STATIC_DESC;
 		}
 	} else if ((uaa->info.bInterfaceClass == UICLASS_VENDOR) &&
@@ -775,7 +800,7 @@ uhid_attach(device_t dev)
 		}
 		/* the Xbox 360 gamepad has no report descriptor */
 		sc->sc_repdesc_size = sizeof(uhid_xb360gp_report_descr);
-		sc->sc_repdesc_ptr = (void *)&uhid_xb360gp_report_descr;
+		sc->sc_repdesc_ptr = __DECONST(void *, &uhid_xb360gp_report_descr);
 		sc->sc_flags |= UHID_FLAG_STATIC_DESC;
 	}
 	if (sc->sc_repdesc_ptr == NULL) {
@@ -876,3 +901,4 @@ static driver_t uhid_driver = {
 DRIVER_MODULE(uhid, uhub, uhid_driver, uhid_devclass, NULL, 0);
 MODULE_DEPEND(uhid, usb, 1, 1, 1);
 MODULE_VERSION(uhid, 1);
+USB_PNP_HOST_INFO(uhid_devs);

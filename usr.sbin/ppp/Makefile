@@ -13,7 +13,6 @@ SRCS=	acf.c arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c \
 WARNS?=	3
 .if defined(RELEASE_CRUNCH)
 CFLAGS+=-DRELEASE_CRUNCH
-PPP_NO_ATM=
 PPP_NO_DES=
 PPP_NO_KLDLOAD=
 PPP_NO_NAT=
@@ -21,15 +20,18 @@ PPP_NO_PAM=
 PPP_NO_RADIUS=
 PPP_NO_SUID=
 .endif
+CONFS=	ppp.conf
+CONFSDIR=	${CONFDIR}/ppp
+CONFSMODE=	600
 
-.if ${MK_ATM} == "no"
-PPP_NO_ATM=
-.endif
 .if ${MK_NETGRAPH} == "no"
 PPP_NO_NETGRAPH=
 .endif
 .if ${MK_PAM_SUPPORT} == "no"
 PPP_NO_PAM=
+.endif
+.if ${MK_RADIUS_SUPPORT} == "no"
+PPP_NO_RADIUS=
 .endif
 
 .if defined(PPP_NO_SUID)
@@ -41,8 +43,7 @@ BINOWN=	root
 BINGRP=	network
 M4FLAGS=
 
-LDADD= -lcrypt -lmd -lutil -lz
-DPADD=	${LIBCRYPT} ${LIBMD} ${LIBUTIL} ${LIBZ}
+LIBADD=	md util z
 
 .if defined(PPP_CONFDIR) && !empty(PPP_CONFDIR)
 CFLAGS+=-DPPP_CONFDIR=\"${PPP_CONFDIR}\"
@@ -60,14 +61,7 @@ CFLAGS+=-DNOINET6
 CFLAGS+=-DNONAT
 .else
 SRCS+=	nat_cmd.c
-LDADD+=	-lalias
-DPADD+= ${LIBALIAS}
-.endif
-
-.if defined(PPP_NO_ATM)
-CFLAGS+=-DNOATM
-.else
-SRCS+=	atm.c
+LIBADD+=	alias
 .endif
 
 .if defined(PPP_NO_SUID)
@@ -80,24 +74,21 @@ SRCS+=	id.c
 CFLAGS+=-DNODES
 .else
 SRCS+=	chap_ms.c mppe.c
-LDADD+= -lcrypto
-DPADD+= ${LIBCRYPTO}
+LIBADD+=	crypto
 .endif
 
 .if defined(PPP_NO_RADIUS)
 CFLAGS+=-DNORADIUS
 .else
 SRCS+=	radius.c
-LDADD+=	-lradius
-DPADD+= ${LIBRADIUS}
+LIBADD+=	radius
 .endif
 
 .if defined(PPP_NO_NETGRAPH)
 CFLAGS+=-DNONETGRAPH
 .else
 SRCS+=	ether.c
-LDADD+=	-lnetgraph
-DPADD+= ${LIBNETGRAPH}
+LIBADD+=	netgraph
 .if defined(EXPERIMENTAL_NETGRAPH)
 CFLAGS+=-DEXPERIMENTAL_NETGRAPH
 SRCS+=	netgraph.c
@@ -106,9 +97,9 @@ SRCS+=	netgraph.c
 
 .if defined(PPP_NO_PAM)
 CFLAGS+=-DNOPAM
+LIBADD+=	crypt
 .else
-LDADD+=	${MINUSLPAM}
-DPADD+=	${LIBPAM}
+LIBADD+=	pam
 .endif
 
 .include <bsd.prog.mk>

@@ -13,7 +13,7 @@
 # A PARTICULAR PURPOSE.
 # $FreeBSD$
 
-TRACEROUTE_DISTDIR?= ${.CURDIR}/../../contrib/traceroute
+TRACEROUTE_DISTDIR?= ${SRCTOP}/contrib/traceroute
 .PATH: ${TRACEROUTE_DISTDIR}
 
 PROG=	traceroute6
@@ -27,7 +27,6 @@ CFLAGS+= -I${.CURDIR} -I${TRACEROUTE_DISTDIR} -I.
 
 WARNS?=	3
 
-DPADD=	${LIBIPSEC}
-LDADD=	-lipsec
+LIBADD=	ipsec
 
 .include <bsd.prog.mk>

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
  * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
@@ -44,10 +46,6 @@ __FBSDID("$FreeBSD$");
 struct sctp_nets *
 sctp_find_alternate_net(struct sctp_tcb *,
     struct sctp_nets *, int mode);
-
-int
-sctp_threshold_management(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *, uint16_t);
 
 int
 sctp_t3rxt_timer(struct sctp_inpcb *, struct sctp_tcb *,

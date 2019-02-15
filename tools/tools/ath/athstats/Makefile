@@ -8,11 +8,11 @@ MAN=
 
 PROG=	athstats
 
-# Because of a clang preprocessor parser limitation causing this
-# to not compile, use gcc for now.
-#CC=	gcc
-
 SRCS=	main.c athstats.c opt_ah.h ah_osdep.h
+
+CFLAGS+=	-I${.CURDIR}/../common/
+.PATH.c: ${.CURDIR}/../common/
+SRCS+=	ctrl.c
 
 CLEANFILES+=	opt_ah.h
 
@@ -21,11 +21,11 @@ CLEANFILES+=	opt_ah.h
 CFLAGS+=-DATH_SUPPORT_ANI
 CFLAGS+=-DATH_SUPPORT_TDMA
 
+CFLAGS+=-I${.CURDIR}/../../../../lib/libbsdstat/
+
 CFLAGS.clang+= -fbracket-depth=512
 
-USEPRIVATELIB=	bsdstat
-
-LDADD=	${LDBSDSTAT}
+LIBADD=	bsdstat
 
 opt_ah.h:
 	echo "#define AH_DEBUG 1" > opt_ah.h

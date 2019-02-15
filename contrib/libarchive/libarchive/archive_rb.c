@@ -312,7 +312,7 @@ __archive_rb_tree_insert_rebalance(struct archive_rb_tree *rbt,
 		father = RB_FATHER(self);
 		if (RB_BLACK_P(father)) {
 			/*
-			 * If our greatgrandpa is black, we're done.
+			 * If our great-grandpa is black, we're done.
 			 */
 			return;
 		}

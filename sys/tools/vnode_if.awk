@@ -1,6 +1,8 @@
 #!/usr/bin/awk -f
 
 #-
+# SPDX-License-Identifier: BSD-3-Clause
+#
 # Copyright (c) 1992, 1993
 #	The Regents of the University of California.  All rights reserved.
 #
@@ -12,7 +14,7 @@
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
-# 4. Neither the name of the University nor the names of its contributors
+# 3. Neither the name of the University nor the names of its contributors
 #    may be used to endorse or promote products derived from this software
 #    without specific prior written permission.
 #
@@ -179,6 +181,7 @@ if (cfile) {
 	    "struct vnodeop_desc vop_default_desc = {\n" \
 	    "	\"default\",\n" \
 	    "	0,\n" \
+	    "   0,\n" \
 	    "	(vop_bypass_t *)vop_panic,\n" \
 	    "	NULL,\n" \
 	    "	VDESC_NO_OFFSET,\n" \
@@ -359,18 +362,16 @@ while ((getline < srcfile) > 0) {
 		printc("\t    vop->"name" == NULL && vop->vop_bypass == NULL)")
 		printc("\t\tvop = vop->vop_default;")
 		printc("\tVNASSERT(vop != NULL, a->a_" args[0]", (\"No "name"(%p, %p)\", a->a_" args[0]", a));")
-		printc("\tSDT_PROBE(vfs, vop, " name ", entry, a->a_" args[0] ", a, 0, 0, 0);\n");
+		printc("\tSDT_PROBE2(vfs, vop, " name ", entry, a->a_" args[0] ", a);\n");
 		for (i = 0; i < numargs; ++i)
 			add_debug_code(name, args[i], "Entry", "\t");
 		printc("\tKTR_START" ctrstr);
 		add_pre(name);
-		printc("\tVFS_PROLOGUE(a->a_" args[0]"->v_mount);")
 		printc("\tif (vop->"name" != NULL)")
 		printc("\t\trc = vop->"name"(a);")
 		printc("\telse")
 		printc("\t\trc = vop->vop_bypass(&a->a_gen);")
-		printc("\tVFS_EPILOGUE(a->a_" args[0]"->v_mount);")
-		printc("\tSDT_PROBE(vfs, vop, " name ", return, a->a_" args[0] ", a, rc, 0, 0);\n");
+		printc("\tSDT_PROBE3(vfs, vop, " name ", return, a->a_" args[0] ", a, rc);\n");
 		printc("\tif (rc == 0) {");
 		for (i = 0; i < numargs; ++i)
 			add_debug_code(name, args[i], "OK", "\t\t");
@@ -400,6 +401,8 @@ while ((getline < srcfile) > 0) {
 			releflags = "0";
 		printc("\t" releflags vppwillrele ",");
 
+		# index in struct vop_vector
+		printc("\t__offsetof(struct vop_vector, " name "),");
 		# function to call
 		printc("\t(vop_bypass_t *)" uname "_AP,");
 		# vp offsets

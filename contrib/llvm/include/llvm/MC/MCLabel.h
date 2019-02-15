@@ -14,45 +14,44 @@
 #ifndef LLVM_MC_MCLABEL_H
 #define LLVM_MC_MCLABEL_H
 
-#include "llvm/Support/Compiler.h"
-
 namespace llvm {
-  class MCContext;
-  class raw_ostream;
 
-  /// MCLabel - Instances of this class represent a label name in the MC file,
-  /// and MCLabel are created and unique'd by the MCContext class.  MCLabel
-  /// should only be constructed for valid instances in the object file.
-  class MCLabel {
-    // Instance - the instance number of this Directional Local Label
-    unsigned Instance;
+class raw_ostream;
 
-  private:  // MCContext creates and uniques these.
-    friend class MCContext;
-    MCLabel(unsigned instance)
-      : Instance(instance) {}
+/// \brief Instances of this class represent a label name in the MC file,
+/// and MCLabel are created and uniqued by the MCContext class.  MCLabel
+/// should only be constructed for valid instances in the object file.
+class MCLabel {
+  // \brief The instance number of this Directional Local Label.
+  unsigned Instance;
 
-    MCLabel(const MCLabel&) LLVM_DELETED_FUNCTION;
-    void operator=(const MCLabel&) LLVM_DELETED_FUNCTION;
-  public:
-    /// getInstance - Get the current instance of this Directional Local Label.
-    unsigned getInstance() const { return Instance; }
+private: // MCContext creates and uniques these.
+  friend class MCContext;
 
-    /// incInstance - Increment the current instance of this Directional Local
-    /// Label.
-    unsigned incInstance() { return ++Instance; }
+  MCLabel(unsigned instance) : Instance(instance) {}
 
-    /// print - Print the value to the stream \p OS.
-    void print(raw_ostream &OS) const;
+public:
+  MCLabel(const MCLabel &) = delete;
+  MCLabel &operator=(const MCLabel &) = delete;
 
-    /// dump - Print the value to stderr.
-    void dump() const;
-  };
+  /// \brief Get the current instance of this Directional Local Label.
+  unsigned getInstance() const { return Instance; }
 
-  inline raw_ostream &operator<<(raw_ostream &OS, const MCLabel &Label) {
-    Label.print(OS);
-    return OS;
-  }
+  /// \brief Increment the current instance of this Directional Local Label.
+  unsigned incInstance() { return ++Instance; }
+
+  /// \brief Print the value to the stream \p OS.
+  void print(raw_ostream &OS) const;
+
+  /// \brief Print the value to stderr.
+  void dump() const;
+};
+
+inline raw_ostream &operator<<(raw_ostream &OS, const MCLabel &Label) {
+  Label.print(OS);
+  return OS;
+}
+
 } // end namespace llvm
 
-#endif
+#endif // LLVM_MC_MCLABEL_H

@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.const.c,v 3.98 2011/04/14 18:25:26 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.const.c,v 3.107 2015/09/08 15:49:53 christos Exp $ */
 /*
  * sh.const.c: String constants for tcsh.
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: tc.const.c,v 3.98 2011/04/14 18:25:26 christos Exp $")
+RCSID("$tcsh: tc.const.c,v 3.107 2015/09/08 15:49:53 christos Exp $")
 
 Char STRlogout[]	= { 'l', 'o', 'g', 'o', 'u', 't', '\0' };
 Char STRautologout[]	= { 'a', 'u', 't', 'o', 'l', 'o', 'g', 'o', 'u', 't', 
@@ -85,6 +85,8 @@ Char STRVENDOR[]	= { 'V', 'E', 'N', 'D', 'O', 'R', '\0' };
 Char STRMACHTYPE[]	= { 'M', 'A', 'C', 'H', 'T', 'Y', 'P', 'E', '\0' };
 Char STROSTYPE[]	= { 'O', 'S', 'T', 'Y', 'P', 'E', '\0' };
 Char STRedit[]		= { 'e', 'd', 'i', 't', '\0' };
+Char STReditors[]	= { 'e', 'd', 'i', 't', 'o', 'r', 's', '\0' };
+Char STRvimode[]	= { 'v', 'i', 'm', 'o', 'd', 'e', '\0' };
 Char STRaddsuffix[]	= { 'a', 'd', 'd', 's', 'u', 'f', 'f', 'i', 'x',
 			    '\0' };
 Char STRcsubstnonl[]	= { 'c', 's', 'u', 'b', 's', 't', 'n', 'o', 'n', 'l',
@@ -113,6 +115,7 @@ Char STRmhT[]		= { '-', 'h', 'T', '\0' };
 Char STRmm[]		= { '-', 'm', '\0' };
 Char STRmr[]		= { '-', 'r', '\0' };
 Char STRmerge[]		= { 'm', 'e', 'r', 'g', 'e', '\0' };
+Char STRlock[]		= { 'l', 'o', 'c', 'k', '\0' };
 Char STRtildothist[]	= { '~', '/', '.', 'h', 'i', 's', 't', 'o', 'r', 
 			    'y', '\0' };
 
@@ -369,6 +372,8 @@ Char STRsldotcshrc[]	= { '/', '.', 'c', 's', 'h', 'r', 'c', '\0' };
 Char STRsldotlogin[]	= { '/', '.', 'l', 'o', 'g', 'i', 'n', '\0' };
 Char STRignoreeof[]	= { 'i', 'g', 'n', 'o', 'r', 'e', 'e', 'o', 'f', '\0' };
 Char STRnoclobber[]	= { 'n', 'o', 'c', 'l', 'o', 'b', 'b', 'e', 'r', '\0' };
+Char STRnotempty[]	= { 'n', 'o', 't', 'e', 'm', 'p', 't', 'y', '\0' };
+Char STRask[]		= { 'a', 's', 'k', '\0' };
 Char STRhelpcommand[]	= { 'h', 'e', 'l', 'p', 'c', 'o', 'm', 'm', 'a', 'n', 
 			    'd', '\0' };
 Char STRfignore[]	= { 'f', 'i', 'g', 'n', 'o', 'r', 'e', '\0' };
@@ -430,8 +435,9 @@ Char STRrmstar[]	= { 'r', 'm', 's', 't', 'a', 'r', '\0' };
 Char STRrm[]		= { 'r', 'm', '\0' };
 Char STRhighlight[]	= { 'h', 'i', 'g', 'h', 'l', 'i', 'g', 'h', 't', '\0' };
 
-Char STRimplicitcd[] = { 'i', 'm', 'p', 'l', 'i', 'c', 'i', 't',
-                         'c', 'd', '\0' };
+Char STRimplicitcd[]	= { 'i', 'm', 'p', 'l', 'i', 'c', 'i', 't',
+			    'c', 'd', '\0' };
+Char STRcdtohome[]	= { 'c', 'd', 't', 'o', 'h', 'o', 'm', 'e', '\0' };
 Char STRkillring[] 	= { 'k', 'i', 'l', 'l', 'r', 'i', 'n', 'g', '\0' };
 Char STRkilldup[] 	= { 'k', 'i', 'l', 'l', 'd', 'u', 'p', '\0' };
 Char STRshlvl[]		= { 's', 'h', 'l', 'v', 'l', '\0' };
@@ -450,12 +456,12 @@ Char STRLC_MONETARY[]	= { 'L', 'C', '_', 'M', 'O', 'N', 'E', 'T', 'A',
 			    'R', 'Y', '\0' };
 Char STRNOREBIND[] 	= { 'N', 'O', 'R', 'E', 'B', 'I', 'N', 'D', '\0' };
 
-#if defined(SIG_WINDOW) || defined (_VMS_POSIX)	 
+#if defined(SIG_WINDOW) || defined(SIGWINCH) || defined(SIGWINDOW) || defined (_VMS_POSIX) || defined(_SIGWINCH)
 /* atp - problem with declaration of str{lines,columns} in sh.func.c (1277) */
 Char STRLINES[]		= { 'L', 'I', 'N', 'E', 'S', '\0'};
 Char STRCOLUMNS[]	= { 'C', 'O', 'L', 'U', 'M', 'N', 'S', '\0'};
 Char STRTERMCAP[]	= { 'T', 'E', 'R', 'M', 'C', 'A', 'P', '\0'};
-#endif /* SIG_WINDOW  || _VMS_POSIX */
+#endif /* SIG_WINDOW  || SIGWINCH || SIGWINDOW || _VMS_POSIX */
 
 #if defined (_OSD_POSIX)  /* BS2000 needs this variable set to "SHELL" */
 Char STRPROGRAM_ENVIRONMENT[] = { 'P', 'R', 'O', 'G', 'R', 'A', 'M',
@@ -491,6 +497,7 @@ Char STRmmcolormauto[]	= { '-', 'G', '\0' };
 Char STRmmcolormauto[]	= { '-', '-', 'c', 'o', 'l', 'o', 'r', '=', 'a', 'u', 't', 'o', '\0' };
 #endif /* BSD_STYLE_COLORLS */
 Char STRLS_COLORS[]	= { 'L', 'S', '_', 'C', 'O', 'L', 'O', 'R', 'S', '\0' };
+Char STRLSCOLORS[]	= { 'L', 'S', 'C', 'O', 'L', 'O', 'R', 'S', '\0' };
 #endif /* COLOR_LS_F */
 
 Char STRls[]		= { 'l', 's', '\0' };

@@ -1,5 +1,7 @@
 /* $Id: os_bsd.h,v 1.20 2010/05/11 03:12:11 lcn Exp $ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * HighPoint RAID Driver for FreeBSD
  * Copyright (C) 2005-2011 HighPoint Technologies, Inc. All Rights Reserved.
  * All rights reserved.
@@ -191,7 +193,7 @@ VBUS_EXT, *PVBUS_EXT;
 #define	hpt_assert_vbus_locked(vbus_ext)	mtx_assert(&(vbus_ext)->lock, MA_OWNED)
 
 
-#define HPT_OSM_TIMEOUT (20*hz)  /* timeout value for OS commands */
+#define HPT_OSM_TIMEOUT (120*hz)  /* timeout value for OS commands */
 
 #define HPT_DO_IOCONTROL	_IOW('H', 0, HPT_IOCTL_PARAM)
 

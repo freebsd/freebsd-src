@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001 Dag-Erling Coïdan Smørgrav
  * All rights reserved.
  *
@@ -27,8 +29,6 @@
  *
  *      $FreeBSD$
  */
-
-#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/lock.h>
@@ -140,7 +140,7 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 		ps->flags = 0; /* nope */
 		ps->events = p->p_stops;
 		ps->why = p->p_step ? p->p_stype : 0;
-		ps->val = p->p_step ? p->p_xstat : 0;
+		ps->val = p->p_step ? p->p_xsig : 0;
 		break;
 #ifdef COMPAT_FREEBSD32
 	case PIOCWAIT32:
@@ -160,7 +160,7 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 		ps32->flags = 0; /* nope */
 		ps32->events = p->p_stops;
 		ps32->why = p->p_step ? p->p_stype : 0;
-		ps32->val = p->p_step ? p->p_xstat : 0;
+		ps32->val = p->p_step ? p->p_xsig : 0;
 		break;
 #endif
 #if defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
@@ -182,7 +182,7 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 #if 0
 		p->p_step = 0;
 		if (P_SHOULDSTOP(p)) {
-			p->p_xstat = sig;
+			p->p_xsig = sig;
 			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG);
 			PROC_SLOCK(p);
 			thread_unsuspend(p);

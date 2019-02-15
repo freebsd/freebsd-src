@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-4-Clause
+ *
  * Copyright (c) 1996, 1997, 1998, 2001 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -98,7 +100,7 @@ extern const int bus_stream_asi[];
 #define	BUS_SPACE_MAXSIZE	0xFFFFFFFFFFFFFFFF
 #define	BUS_SPACE_MAXADDR_24BIT	0xFFFFFF
 #define	BUS_SPACE_MAXADDR_32BIT 0xFFFFFFFF
-#define	BUS_SPACE_MAXADDR	0xFFFFFFFF
+#define	BUS_SPACE_MAXADDR	0xFFFFFFFFFFFFFFFF
 
 #define	BUS_SPACE_UNRESTRICTED	(~0)
 

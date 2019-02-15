@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Doug Rabson
  * All rights reserved.
  *
@@ -83,7 +85,7 @@ _gss_string_to_oid(const char* s, gss_OID oid)
 	 * out the size. Second time around, we actually encode the
 	 * number.
 	 */
-	res = 0;
+	res = NULL;
 	for (i = 0; i < 2; i++) {
 		byte_count = 0;
 		for (p = s, j = 0; p; p = q, j++) {

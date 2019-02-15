@@ -1,4 +1,4 @@
-//===--- RecordLayout.h - Layout information for a struct/union -*- C++ -*-===//
+//===- RecordLayout.h - Layout information for a struct/union ---*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,18 +11,23 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_LAYOUTINFO_H
-#define LLVM_CLANG_AST_LAYOUTINFO_H
+#ifndef LLVM_CLANG_AST_RECORDLAYOUT_H
+#define LLVM_CLANG_AST_RECORDLAYOUT_H
 
+#include "clang/AST/ASTVector.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/Basic/LLVM.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/PointerIntPair.h"
+#include <cassert>
+#include <cstdint>
 
 namespace clang {
-  class ASTContext;
-  class FieldDecl;
-  class RecordDecl;
-  class CXXRecordDecl;
+
+class ASTContext;
+class CXXRecordDecl;
 
 /// ASTRecordLayout -
 /// This class contains layout information for one RecordDecl,
@@ -42,21 +47,21 @@ public:
     /// Whether this virtual base requires a vtordisp field in the
     /// Microsoft ABI.  These fields are required for certain operations
     /// in constructors and destructors.
-    bool HasVtorDisp;
+    bool HasVtorDisp = false;
 
   public:
+    VBaseInfo() = default;
+    VBaseInfo(CharUnits VBaseOffset, bool hasVtorDisp)
+        : VBaseOffset(VBaseOffset), HasVtorDisp(hasVtorDisp) {}
+
     bool hasVtorDisp() const { return HasVtorDisp; }
-
-    VBaseInfo() : HasVtorDisp(false) {}
-
-    VBaseInfo(CharUnits VBaseOffset, bool hasVtorDisp) :
-     VBaseOffset(VBaseOffset), HasVtorDisp(hasVtorDisp) {}
   };
 
-  typedef llvm::DenseMap<const CXXRecordDecl *, VBaseInfo>
-    VBaseOffsetsMapTy;
+  using VBaseOffsetsMapTy = llvm::DenseMap<const CXXRecordDecl *, VBaseInfo>;
 
 private:
+  friend class ASTContext;
+
   /// Size - Size of record in characters.
   CharUnits Size;
 
@@ -66,11 +71,12 @@ private:
   // Alignment - Alignment of record in characters.
   CharUnits Alignment;
 
-  /// FieldOffsets - Array of field offsets in bits.
-  uint64_t *FieldOffsets;
+  /// RequiredAlignment - The required alignment of the object.  In the MS-ABI
+  /// the __declspec(align()) trumps #pramga pack and must always be obeyed.
+  CharUnits RequiredAlignment;
 
-  // FieldCount - Number of fields.
-  unsigned FieldCount;
+  /// FieldOffsets - Array of field offsets in bits.
+  ASTVector<uint64_t> FieldOffsets;
 
   /// CXXRecordLayoutInfo - Contains C++ specific layout information.
   struct CXXRecordLayoutInfo {
@@ -78,9 +84,9 @@ private:
     /// the size of the object without virtual bases.
     CharUnits NonVirtualSize;
 
-    /// NonVirtualAlign - The non-virtual alignment (in chars) of an object,
+    /// NonVirtualAlignment - The non-virtual alignment (in chars) of an object,
     /// which is the alignment of the object without virtual bases.
-    CharUnits NonVirtualAlign;
+    CharUnits NonVirtualAlignment;
 
     /// SizeOfLargestEmptySubobject - The size of the largest empty subobject
     /// (either a base or a member). Will be zero if the class doesn't contain
@@ -100,10 +106,15 @@ private:
     /// a primary base class.
     bool HasExtendableVFPtr : 1;
 
-    /// AlignAfterVBases - Force appropriate alignment after virtual bases are
-    /// laid out in MS-C++-ABI.
-    bool AlignAfterVBases : 1;
-    
+    /// EndsWithZeroSizedObject - True if this class contains a zero sized
+    /// member or base or a base with a zero sized member or base.
+    /// Only used for MS-ABI.
+    bool EndsWithZeroSizedObject : 1;
+
+    /// \brief True if this class is zero sized or first base is zero sized or
+    /// has this property.  Only used for MS-ABI.
+    bool LeadsWithZeroSizedBase : 1;
+
     /// PrimaryBase - The primary base info for this record.
     llvm::PointerIntPair<const CXXRecordDecl *, 1, bool> PrimaryBase;
 
@@ -111,7 +122,7 @@ private:
     const CXXRecordDecl *BaseSharingVBPtr;
     
     /// FIXME: This should really use a SmallPtrMap, once we have one in LLVM :)
-    typedef llvm::DenseMap<const CXXRecordDecl *, CharUnits> BaseOffsetsMapTy;
+    using BaseOffsetsMapTy = llvm::DenseMap<const CXXRecordDecl *, CharUnits>;
     
     /// BaseOffsets - Contains a map from base classes to their offset.
     BaseOffsetsMapTy BaseOffsets;
@@ -122,38 +133,39 @@ private:
 
   /// CXXInfo - If the record layout is for a C++ record, this will have
   /// C++ specific information about the record.
-  CXXRecordLayoutInfo *CXXInfo;
-
-  friend class ASTContext;
+  CXXRecordLayoutInfo *CXXInfo = nullptr;
 
   ASTRecordLayout(const ASTContext &Ctx, CharUnits size, CharUnits alignment,
-                  CharUnits datasize, const uint64_t *fieldoffsets,
-                  unsigned fieldcount);
+                  CharUnits requiredAlignment, CharUnits datasize,
+                  ArrayRef<uint64_t> fieldoffsets);
+
+  using BaseOffsetsMapTy = CXXRecordLayoutInfo::BaseOffsetsMapTy;
 
   // Constructor for C++ records.
-  typedef CXXRecordLayoutInfo::BaseOffsetsMapTy BaseOffsetsMapTy;
   ASTRecordLayout(const ASTContext &Ctx,
                   CharUnits size, CharUnits alignment,
+                  CharUnits requiredAlignment,
                   bool hasOwnVFPtr, bool hasExtendableVFPtr,
                   CharUnits vbptroffset,
                   CharUnits datasize,
-                  const uint64_t *fieldoffsets, unsigned fieldcount,
-                  CharUnits nonvirtualsize, CharUnits nonvirtualalign,
+                  ArrayRef<uint64_t> fieldoffsets,
+                  CharUnits nonvirtualsize, CharUnits nonvirtualalignment,
                   CharUnits SizeOfLargestEmptySubobject,
                   const CXXRecordDecl *PrimaryBase,
                   bool IsPrimaryBaseVirtual,
                   const CXXRecordDecl *BaseSharingVBPtr,
-                  bool ForceAlign,
+                  bool EndsWithZeroSizedObject,
+                  bool LeadsWithZeroSizedBase,
                   const BaseOffsetsMapTy& BaseOffsets,
                   const VBaseOffsetsMapTy& VBaseOffsets);
 
-  ~ASTRecordLayout() {}
+  ~ASTRecordLayout() = default;
 
   void Destroy(ASTContext &Ctx);
   
-  ASTRecordLayout(const ASTRecordLayout &) LLVM_DELETED_FUNCTION;
-  void operator=(const ASTRecordLayout &) LLVM_DELETED_FUNCTION;
 public:
+  ASTRecordLayout(const ASTRecordLayout &) = delete;
+  ASTRecordLayout &operator=(const ASTRecordLayout &) = delete;
 
   /// getAlignment - Get the record alignment in characters.
   CharUnits getAlignment() const { return Alignment; }
@@ -162,12 +174,11 @@ public:
   CharUnits getSize() const { return Size; }
 
   /// getFieldCount - Get the number of fields in the layout.
-  unsigned getFieldCount() const { return FieldCount; }
+  unsigned getFieldCount() const { return FieldOffsets.size(); }
 
   /// getFieldOffset - Get the offset of the given field index, in
   /// bits.
   uint64_t getFieldOffset(unsigned FieldNo) const {
-    assert (FieldNo < FieldCount && "Invalid Field No");
     return FieldOffsets[FieldNo];
   }
 
@@ -187,10 +198,10 @@ public:
 
   /// getNonVirtualSize - Get the non-virtual alignment (in chars) of an object,
   /// which is the alignment of the object without virtual bases.
-  CharUnits getNonVirtualAlign() const {
+  CharUnits getNonVirtualAlignment() const {
     assert(CXXInfo && "Record layout does not have C++ specific info!");
 
-    return CXXInfo->NonVirtualAlign;
+    return CXXInfo->NonVirtualAlignment;
   }
 
   /// getPrimaryBase - Get the primary base for this record.
@@ -267,9 +278,17 @@ public:
     return !CXXInfo->VBPtrOffset.isNegative();
   }
 
-  bool getAlignAfterVBases() const {
+  CharUnits getRequiredAlignment() const {
+    return RequiredAlignment;
+  }
+
+  bool endsWithZeroSizedObject() const {
+    return CXXInfo && CXXInfo->EndsWithZeroSizedObject;
+  }
+
+  bool leadsWithZeroSizedBase() const {
     assert(CXXInfo && "Record layout does not have C++ specific info!");
-    return CXXInfo->AlignAfterVBases;
+    return CXXInfo->LeadsWithZeroSizedBase;
   }
 
   /// getVBPtrOffset - Get the offset for virtual base table pointer.
@@ -290,6 +309,6 @@ public:
   }
 };
 
-}  // end namespace clang
+} // namespace clang
 
-#endif
+#endif // LLVM_CLANG_AST_RECORDLAYOUT_H

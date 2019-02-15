@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2014
+.Dd November 4, 2017
 .Dt POSIX_FALLOCATE 2
 .Os
 .Sh NAME
@@ -106,9 +106,10 @@ A signal was caught during execution.
 .It Bq Er EINVAL
 The
 .Fa len
-argument was less than or equal to zero or the
+argument was less than or equal to zero, the
 .Fa offset
-argument was less than zero.
+argument was less than zero,
+or the operation is not supported by the file system.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to a file system.
 .It Bq Er ENODEV
@@ -118,6 +119,10 @@ argument does not refer to a regular file.
 .It Bq Er ENOSPC
 There is insufficient free space remaining on the file system storage
 media.
+.It Bq Er ENOTCAPABLE
+The file descriptor
+.Fa fd
+has insufficient rights.
 .It Bq Er ESPIPE
 The
 .Fa fd

@@ -106,7 +106,7 @@ pointers can be set to an arrays of IPv4 and IPv6 addresses to be assigned to
 the prison, or NULL if none.
 IPv4 addresses must be in network byte order.
 .Pp
-This is equivalent to the
+This is equivalent to, and deprecated in favor of, the
 .Fn jail_set
 system call (see below), with the parameters
 .Va path ,
@@ -405,7 +405,6 @@ system calls appeared in
 The jail feature was written by
 .An Poul-Henning Kamp
 for R&D Associates
-.Dq Li http://www.rndassociates.com/
 who contributed it to
 .Fx .
 .An James Gritton

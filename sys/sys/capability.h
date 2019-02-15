@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 Robert N. M. Watson
  * All rights reserved.
  *
@@ -33,11 +35,13 @@
  * Historically, the key userspace and kernel Capsicum definitions were found
  * in this file.  However, it conflicted with POSIX.1e's capability.h, so has
  * been renamed capsicum.h.  The file remains for backwards compatibility
- * reasons as a nested include.
+ * reasons as a nested include.  It is expected to be removed before
+ * FreeBSD 13.
  */
 #ifndef _SYS_CAPABILITY_H_
 #define	_SYS_CAPABILITY_H_
 
+#warning this file includes <sys/capability.h> which is deprecated
 #include <sys/capsicum.h>
 
 #endif /* !_SYS_CAPABILITY_H_ */

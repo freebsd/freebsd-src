@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2012 Broadcom Corporation
  * All Rights Reserved
  *
@@ -207,8 +209,8 @@ iicoc_attach(device_t dev)
 	sc->dev = dev;
 	mtx_init(&sc->sc_mtx, "iicoc", "iicoc", MTX_DEF);
 	sc->mem_rid = 0;
-	sc->mem_res = bus_alloc_resource(dev,
-	    SYS_RES_MEMORY, &sc->mem_rid, 0ul, ~0ul, 0x100, RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_anywhere(dev,
+	    SYS_RES_MEMORY, &sc->mem_rid, 0x100, RF_ACTIVE);
 
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "Could not allocate bus resource.\n");
@@ -229,6 +231,7 @@ static int
 iicoc_detach(device_t dev)
 {
 	bus_generic_detach(dev);
+	device_delete_children(dev);
 
 	return (0);
 }
@@ -236,7 +239,7 @@ iicoc_detach(device_t dev)
 static int 
 iicoc_start(device_t dev, u_char slave, int timeout)
 {
-	int error = IIC_EBUSBSY;
+	int error = IIC_EBUSERR;
 	struct iicoc_softc *sc;
 
 	sc = device_get_softc(dev);

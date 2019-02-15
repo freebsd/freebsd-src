@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,8 +33,6 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -58,9 +58,7 @@ struct gethostname_args {
 #endif
 /* ARGSUSED */
 int
-ogethostname(td, uap)
-	struct thread *td;
-	struct gethostname_args *uap;
+ogethostname(struct thread *td, struct gethostname_args *uap)
 {
 	int name[2];
 	size_t len = uap->len;
@@ -79,9 +77,7 @@ struct sethostname_args {
 #endif
 /* ARGSUSED */
 int
-osethostname(td, uap)
-	struct thread *td;
-	register struct sethostname_args *uap;
+osethostname(struct thread *td, struct sethostname_args *uap)
 {
 	int name[2];
 
@@ -98,9 +94,7 @@ struct ogethostid_args {
 #endif
 /* ARGSUSED */
 int
-ogethostid(td, uap)
-	struct thread *td;
-	struct ogethostid_args *uap;
+ogethostid(struct thread *td, struct ogethostid_args *uap)
 {
 	size_t len = sizeof(long);
 	int name[2];
@@ -120,9 +114,7 @@ struct osethostid_args {
 #endif
 /* ARGSUSED */
 int
-osethostid(td, uap)
-	struct thread *td;
-	struct osethostid_args *uap;
+osethostid(struct thread *td, struct osethostid_args *uap)
 {
 	int name[2];
 
@@ -133,9 +125,7 @@ osethostid(td, uap)
 }
 
 int
-oquota(td, uap)
-	struct thread *td;
-	struct oquota_args *uap;
+oquota(struct thread *td, struct oquota_args *uap)
 {
 
 	return (ENOSYS);

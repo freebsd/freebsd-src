@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "$Id: ex_write.c,v 10.41 2011/12/02 01:07:06 zy Exp $";
+static const char sccsid[] = "$Id: ex_write.c,v 10.43 2015/04/03 15:18:45 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -25,19 +25,18 @@ static const char sccsid[] = "$Id: ex_write.c,v 10.41 2011/12/02 01:07:06 zy Exp
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
 #include <unistd.h>
 
 #include "../common/common.h"
 
 enum which {WN, WQ, WRITE, XIT};
-static int exwr __P((SCR *, EXCMD *, enum which));
+static int exwr(SCR *, EXCMD *, enum which);
 
 /*
  * ex_wn --	:wn[!] [>>] [file]
  *	Write to a file and switch to the next one.
  *
- * PUBLIC: int ex_wn __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_wn(SCR *, EXCMD *);
  */
 int
 ex_wn(SCR *sp, EXCMD *cmdp)
@@ -57,7 +56,7 @@ ex_wn(SCR *sp, EXCMD *cmdp)
  * ex_wq --	:wq[!] [>>] [file]
  *	Write to a file and quit.
  *
- * PUBLIC: int ex_wq __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_wq(SCR *, EXCMD *);
  */
 int
 ex_wq(SCR *sp, EXCMD *cmdp)
@@ -83,7 +82,7 @@ ex_wq(SCR *sp, EXCMD *cmdp)
  *		:write [!] [cmd]
  *	Write to a file.
  *
- * PUBLIC: int ex_write __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_write(SCR *, EXCMD *);
  */
 int
 ex_write(SCR *sp, EXCMD *cmdp)
@@ -96,7 +95,7 @@ ex_write(SCR *sp, EXCMD *cmdp)
  * ex_xit -- :x[it]! [file]
  *	Write out any modifications and quit.
  *
- * PUBLIC: int ex_xit __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_xit(SCR *, EXCMD *);
  */
 int
 ex_xit(SCR *sp, EXCMD *cmdp)
@@ -279,8 +278,8 @@ exwr(SCR *sp, EXCMD *cmdp, enum which cmd)
  * ex_writefp --
  *	Write a range of lines to a FILE *.
  *
- * PUBLIC: int ex_writefp __P((SCR *,
- * PUBLIC:    char *, FILE *, MARK *, MARK *, u_long *, u_long *, int));
+ * PUBLIC: int ex_writefp(SCR *,
+ * PUBLIC:    char *, FILE *, MARK *, MARK *, u_long *, u_long *, int);
  */
 int
 ex_writefp(SCR *sp, char *name, FILE *fp, MARK *fm, MARK *tm, u_long *nlno, u_long *nch, int silent)
@@ -291,11 +290,7 @@ ex_writefp(SCR *sp, char *name, FILE *fp, MARK *fm, MARK *tm, u_long *nlno, u_lo
 	recno_t fline, tline, lcnt;
 	size_t len;
 	int rval;
-	char *msg;
-	CHAR_T *p;
-	char *f;
-	size_t flen;
-	int isutf16;
+	char *msg, *p;
 
 	gp = sp->gp;
 	fline = fm->lno;
@@ -324,17 +319,7 @@ ex_writefp(SCR *sp, char *name, FILE *fp, MARK *fm, MARK *tm, u_long *nlno, u_lo
 	ccnt = 0;
 	lcnt = 0;
 	msg = "253|Writing...";
-
-	if (O_ISSET(sp, O_FILEENCODING)) {
-		isutf16 = !strncasecmp(O_STR(sp, O_FILEENCODING), "utf-16", 6);
-		isutf16 += !strncasecmp(O_STR(sp, O_FILEENCODING), "utf-16le", 8);
-	} else isutf16 = 0;
-
-	if (tline != 0) {
-		if (isutf16 == 1 && fwrite("\xfe\xff", 1, 2, fp) != 2)
-			goto err;
-		if (isutf16 == 2 && fwrite("\xff\xfe", 1, 2, fp) != 2)
-			goto err;
+	if (tline != 0)
 		for (; fline <= tline; ++fline, ++lcnt) {
 			/* Caller has to provide any interrupt message. */
 			if ((lcnt + 1) % INTERRUPT_CHECK == 0) {
@@ -346,31 +331,17 @@ ex_writefp(SCR *sp, char *name, FILE *fp, MARK *fm, MARK *tm, u_long *nlno, u_lo
 					msg = NULL;
 				}
 			}
-			if (db_get(sp, fline, DBG_FATAL, &p, &len))
+			if (db_rget(sp, fline, &p, &len))
 				goto err;
-			INT2FILE(sp, p, len, f, flen);
-			if (fwrite(f, 1, flen, fp) != flen)
+			if (fwrite(p, 1, len, fp) != len)
 				goto err;
 			ccnt += len;
-			/* UTF-16 w/o BOM is big-endian */
-			switch (isutf16) {
-			case 1:		/* UTF-16BE */
-				if (fwrite("\0\x0a", 1, 2, fp) != 2)
-					goto done;
+			if (putc('\n', fp) != '\n')
 				break;
-			case 2:		/* UTF-16LE */
-				if (fwrite("\x0a\0", 1, 2, fp) != 2)
-					goto done;
-				break;
-			default:
-				if (putc('\n', fp) != '\n')
-					goto done;
-			}
 			++ccnt;
 		}
-	}
 
-done:	if (fflush(fp))
+	if (fflush(fp))
 		goto err;
 	/*
 	 * XXX

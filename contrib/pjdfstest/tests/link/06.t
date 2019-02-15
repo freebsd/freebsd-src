@@ -1,4 +1,5 @@
 #!/bin/sh
+# vim: filetype=sh noexpandtab ts=8 sw=8
 # $FreeBSD: head/tools/regression/pjdfstest/tests/link/06.t 211352 2010-08-15 21:24:17Z pjd $
 
 desc="link returns EACCES when a component of either path prefix denies search permission"

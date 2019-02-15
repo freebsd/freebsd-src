@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -11,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -306,7 +308,7 @@ kill_qtask(const char *lf)
 	}
 
 	/* If the lock file is empty, then there is no daemon to kill */
-	if (getline(fp) == 0)
+	if (get_line(fp) == 0)
 		goto killdone;
 
 	/*
@@ -1292,7 +1294,7 @@ doarg(char *job)
 		PRIV_END
 		if (fp == NULL)
 			continue;
-		while (getline(fp) > 0)
+		while (get_line(fp) > 0)
 			if (line[0] == 'P')
 				break;
 		(void) fclose(fp);

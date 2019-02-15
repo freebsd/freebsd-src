@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -43,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_var.h>
-#include <net/if_llc.h>
 #include <net/if_media.h>
 #include <net/ethernet.h>
 
@@ -80,8 +81,8 @@ ieee80211_radiotap_attachv(struct ieee80211com *ic,
 	else if (tx_radiotap & B(IEEE80211_RADIOTAP_XCHANNEL))
 		off = radiotap_offset(th, n_tx_v, IEEE80211_RADIOTAP_XCHANNEL);
 	if (off == -1) {
-		if_printf(ic->ic_ifp, "%s: no tx channel, radiotap 0x%x\n",
-		    __func__, tx_radiotap);
+		ic_printf(ic, "%s: no tx channel, radiotap 0x%x\n", __func__,
+		    tx_radiotap);
 		/* NB: we handle this case but data will have no chan spec */
 	} else
 		ic->ic_txchan = ((uint8_t *) th) + off;
@@ -96,8 +97,8 @@ ieee80211_radiotap_attachv(struct ieee80211com *ic,
 	else if (rx_radiotap & B(IEEE80211_RADIOTAP_XCHANNEL))
 		off = radiotap_offset(rh, n_rx_v, IEEE80211_RADIOTAP_XCHANNEL);
 	if (off == -1) {
-		if_printf(ic->ic_ifp, "%s: no rx channel, radiotap 0x%x\n",
-		    __func__, rx_radiotap);
+		ic_printf(ic, "%s: no rx channel, radiotap 0x%x\n", __func__,
+		    rx_radiotap);
 		/* NB: we handle this case but data will have no chan spec */
 	} else
 		ic->ic_rxchan = ((uint8_t *) rh) + off;

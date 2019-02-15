@@ -1,4 +1,5 @@
-	# $FreeBSD$
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from bsaes-x86_64.pl. */
 .text	
 
 
@@ -14,18 +15,18 @@ _bsaes_encrypt8:
 	movdqa	80(%r11),%xmm7
 	pxor	%xmm8,%xmm15
 	pxor	%xmm8,%xmm0
-.byte	102,68,15,56,0,255
 	pxor	%xmm8,%xmm1
-.byte	102,15,56,0,199
 	pxor	%xmm8,%xmm2
-.byte	102,15,56,0,207
+.byte	102,68,15,56,0,255
+.byte	102,15,56,0,199
 	pxor	%xmm8,%xmm3
-.byte	102,15,56,0,215
 	pxor	%xmm8,%xmm4
-.byte	102,15,56,0,223
+.byte	102,15,56,0,207
+.byte	102,15,56,0,215
 	pxor	%xmm8,%xmm5
-.byte	102,15,56,0,231
 	pxor	%xmm8,%xmm6
+.byte	102,15,56,0,223
+.byte	102,15,56,0,231
 .byte	102,15,56,0,239
 .byte	102,15,56,0,247
 _bsaes_encrypt8_bitslice:
@@ -122,21 +123,21 @@ _bsaes_encrypt8_bitslice:
 .Lenc_loop:
 	pxor	0(%rax),%xmm15
 	pxor	16(%rax),%xmm0
-.byte	102,68,15,56,0,255
 	pxor	32(%rax),%xmm1
-.byte	102,15,56,0,199
 	pxor	48(%rax),%xmm2
-.byte	102,15,56,0,207
+.byte	102,68,15,56,0,255
+.byte	102,15,56,0,199
 	pxor	64(%rax),%xmm3
-.byte	102,15,56,0,215
 	pxor	80(%rax),%xmm4
-.byte	102,15,56,0,223
+.byte	102,15,56,0,207
+.byte	102,15,56,0,215
 	pxor	96(%rax),%xmm5
-.byte	102,15,56,0,231
 	pxor	112(%rax),%xmm6
+.byte	102,15,56,0,223
+.byte	102,15,56,0,231
 .byte	102,15,56,0,239
-	leaq	128(%rax),%rax
 .byte	102,15,56,0,247
+	leaq	128(%rax),%rax
 .Lenc_sbox:
 	pxor	%xmm5,%xmm4
 	pxor	%xmm0,%xmm1
@@ -325,45 +326,45 @@ _bsaes_encrypt8_bitslice:
 	pxor	%xmm2,%xmm5
 	decl	%r10d
 	jl	.Lenc_done
-	pshufd	$147,%xmm15,%xmm7
-	pshufd	$147,%xmm0,%xmm8
+	pshufd	$0x93,%xmm15,%xmm7
+	pshufd	$0x93,%xmm0,%xmm8
 	pxor	%xmm7,%xmm15
-	pshufd	$147,%xmm3,%xmm9
+	pshufd	$0x93,%xmm3,%xmm9
 	pxor	%xmm8,%xmm0
-	pshufd	$147,%xmm5,%xmm10
+	pshufd	$0x93,%xmm5,%xmm10
 	pxor	%xmm9,%xmm3
-	pshufd	$147,%xmm2,%xmm11
+	pshufd	$0x93,%xmm2,%xmm11
 	pxor	%xmm10,%xmm5
-	pshufd	$147,%xmm6,%xmm12
+	pshufd	$0x93,%xmm6,%xmm12
 	pxor	%xmm11,%xmm2
-	pshufd	$147,%xmm1,%xmm13
+	pshufd	$0x93,%xmm1,%xmm13
 	pxor	%xmm12,%xmm6
-	pshufd	$147,%xmm4,%xmm14
+	pshufd	$0x93,%xmm4,%xmm14
 	pxor	%xmm13,%xmm1
 	pxor	%xmm14,%xmm4
 
 	pxor	%xmm15,%xmm8
 	pxor	%xmm4,%xmm7
 	pxor	%xmm4,%xmm8
-	pshufd	$78,%xmm15,%xmm15
+	pshufd	$0x4E,%xmm15,%xmm15
 	pxor	%xmm0,%xmm9
-	pshufd	$78,%xmm0,%xmm0
+	pshufd	$0x4E,%xmm0,%xmm0
 	pxor	%xmm2,%xmm12
 	pxor	%xmm7,%xmm15
 	pxor	%xmm6,%xmm13
 	pxor	%xmm8,%xmm0
 	pxor	%xmm5,%xmm11
-	pshufd	$78,%xmm2,%xmm7
+	pshufd	$0x4E,%xmm2,%xmm7
 	pxor	%xmm1,%xmm14
-	pshufd	$78,%xmm6,%xmm8
+	pshufd	$0x4E,%xmm6,%xmm8
 	pxor	%xmm3,%xmm10
-	pshufd	$78,%xmm5,%xmm2
+	pshufd	$0x4E,%xmm5,%xmm2
 	pxor	%xmm4,%xmm10
-	pshufd	$78,%xmm4,%xmm6
+	pshufd	$0x4E,%xmm4,%xmm6
 	pxor	%xmm4,%xmm11
-	pshufd	$78,%xmm1,%xmm5
+	pshufd	$0x4E,%xmm1,%xmm5
 	pxor	%xmm11,%xmm7
-	pshufd	$78,%xmm3,%xmm1
+	pshufd	$0x4E,%xmm3,%xmm1
 	pxor	%xmm12,%xmm8
 	pxor	%xmm10,%xmm2
 	pxor	%xmm14,%xmm6
@@ -486,18 +487,18 @@ _bsaes_decrypt8:
 	movdqa	-48(%r11),%xmm7
 	pxor	%xmm8,%xmm15
 	pxor	%xmm8,%xmm0
-.byte	102,68,15,56,0,255
 	pxor	%xmm8,%xmm1
-.byte	102,15,56,0,199
 	pxor	%xmm8,%xmm2
-.byte	102,15,56,0,207
+.byte	102,68,15,56,0,255
+.byte	102,15,56,0,199
 	pxor	%xmm8,%xmm3
-.byte	102,15,56,0,215
 	pxor	%xmm8,%xmm4
-.byte	102,15,56,0,223
+.byte	102,15,56,0,207
+.byte	102,15,56,0,215
 	pxor	%xmm8,%xmm5
-.byte	102,15,56,0,231
 	pxor	%xmm8,%xmm6
+.byte	102,15,56,0,223
+.byte	102,15,56,0,231
 .byte	102,15,56,0,239
 .byte	102,15,56,0,247
 	movdqa	0(%r11),%xmm7
@@ -593,21 +594,21 @@ _bsaes_decrypt8:
 .Ldec_loop:
 	pxor	0(%rax),%xmm15
 	pxor	16(%rax),%xmm0
-.byte	102,68,15,56,0,255
 	pxor	32(%rax),%xmm1
-.byte	102,15,56,0,199
 	pxor	48(%rax),%xmm2
-.byte	102,15,56,0,207
+.byte	102,68,15,56,0,255
+.byte	102,15,56,0,199
 	pxor	64(%rax),%xmm3
-.byte	102,15,56,0,215
 	pxor	80(%rax),%xmm4
-.byte	102,15,56,0,223
+.byte	102,15,56,0,207
+.byte	102,15,56,0,215
 	pxor	96(%rax),%xmm5
-.byte	102,15,56,0,231
 	pxor	112(%rax),%xmm6
+.byte	102,15,56,0,223
+.byte	102,15,56,0,231
 .byte	102,15,56,0,239
-	leaq	128(%rax),%rax
 .byte	102,15,56,0,247
+	leaq	128(%rax),%rax
 .Ldec_sbox:
 	pxor	%xmm3,%xmm2
 
@@ -797,24 +798,24 @@ _bsaes_decrypt8:
 	decl	%r10d
 	jl	.Ldec_done
 
-	pshufd	$78,%xmm15,%xmm7
-	pshufd	$78,%xmm2,%xmm13
+	pshufd	$0x4E,%xmm15,%xmm7
+	pshufd	$0x4E,%xmm2,%xmm13
 	pxor	%xmm15,%xmm7
-	pshufd	$78,%xmm4,%xmm14
+	pshufd	$0x4E,%xmm4,%xmm14
 	pxor	%xmm2,%xmm13
-	pshufd	$78,%xmm0,%xmm8
+	pshufd	$0x4E,%xmm0,%xmm8
 	pxor	%xmm4,%xmm14
-	pshufd	$78,%xmm5,%xmm9
+	pshufd	$0x4E,%xmm5,%xmm9
 	pxor	%xmm0,%xmm8
-	pshufd	$78,%xmm3,%xmm10
+	pshufd	$0x4E,%xmm3,%xmm10
 	pxor	%xmm5,%xmm9
 	pxor	%xmm13,%xmm15
 	pxor	%xmm13,%xmm0
-	pshufd	$78,%xmm1,%xmm11
+	pshufd	$0x4E,%xmm1,%xmm11
 	pxor	%xmm3,%xmm10
 	pxor	%xmm7,%xmm5
 	pxor	%xmm8,%xmm3
-	pshufd	$78,%xmm6,%xmm12
+	pshufd	$0x4E,%xmm6,%xmm12
 	pxor	%xmm1,%xmm11
 	pxor	%xmm14,%xmm0
 	pxor	%xmm9,%xmm1
@@ -828,45 +829,45 @@ _bsaes_decrypt8:
 	pxor	%xmm14,%xmm1
 	pxor	%xmm14,%xmm6
 	pxor	%xmm12,%xmm4
-	pshufd	$147,%xmm15,%xmm7
-	pshufd	$147,%xmm0,%xmm8
+	pshufd	$0x93,%xmm15,%xmm7
+	pshufd	$0x93,%xmm0,%xmm8
 	pxor	%xmm7,%xmm15
-	pshufd	$147,%xmm5,%xmm9
+	pshufd	$0x93,%xmm5,%xmm9
 	pxor	%xmm8,%xmm0
-	pshufd	$147,%xmm3,%xmm10
+	pshufd	$0x93,%xmm3,%xmm10
 	pxor	%xmm9,%xmm5
-	pshufd	$147,%xmm1,%xmm11
+	pshufd	$0x93,%xmm1,%xmm11
 	pxor	%xmm10,%xmm3
-	pshufd	$147,%xmm6,%xmm12
+	pshufd	$0x93,%xmm6,%xmm12
 	pxor	%xmm11,%xmm1
-	pshufd	$147,%xmm2,%xmm13
+	pshufd	$0x93,%xmm2,%xmm13
 	pxor	%xmm12,%xmm6
-	pshufd	$147,%xmm4,%xmm14
+	pshufd	$0x93,%xmm4,%xmm14
 	pxor	%xmm13,%xmm2
 	pxor	%xmm14,%xmm4
 
 	pxor	%xmm15,%xmm8
 	pxor	%xmm4,%xmm7
 	pxor	%xmm4,%xmm8
-	pshufd	$78,%xmm15,%xmm15
+	pshufd	$0x4E,%xmm15,%xmm15
 	pxor	%xmm0,%xmm9
-	pshufd	$78,%xmm0,%xmm0
+	pshufd	$0x4E,%xmm0,%xmm0
 	pxor	%xmm1,%xmm12
 	pxor	%xmm7,%xmm15
 	pxor	%xmm6,%xmm13
 	pxor	%xmm8,%xmm0
 	pxor	%xmm3,%xmm11
-	pshufd	$78,%xmm1,%xmm7
+	pshufd	$0x4E,%xmm1,%xmm7
 	pxor	%xmm2,%xmm14
-	pshufd	$78,%xmm6,%xmm8
+	pshufd	$0x4E,%xmm6,%xmm8
 	pxor	%xmm5,%xmm10
-	pshufd	$78,%xmm3,%xmm1
+	pshufd	$0x4E,%xmm3,%xmm1
 	pxor	%xmm4,%xmm10
-	pshufd	$78,%xmm4,%xmm6
+	pshufd	$0x4E,%xmm4,%xmm6
 	pxor	%xmm4,%xmm11
-	pshufd	$78,%xmm2,%xmm3
+	pshufd	$0x4E,%xmm2,%xmm3
 	pxor	%xmm11,%xmm7
-	pshufd	$78,%xmm5,%xmm2
+	pshufd	$0x4E,%xmm5,%xmm2
 	pxor	%xmm12,%xmm8
 	pxor	%xmm1,%xmm10
 	pxor	%xmm14,%xmm6
@@ -1068,6 +1069,7 @@ _bsaes_key_convert:
 .type	bsaes_cbc_encrypt,@function
 .align	16
 bsaes_cbc_encrypt:
+.cfi_startproc	
 	cmpl	$0,%r9d
 	jne	asm_AES_cbc_encrypt
 	cmpq	$128,%rdx
@@ -1076,13 +1078,27 @@ bsaes_cbc_encrypt:
 	movq	%rsp,%rax
 .Lcbc_dec_prologue:
 	pushq	%rbp
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbp,-16
 	pushq	%rbx
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbx,-24
 	pushq	%r12
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r12,-32
 	pushq	%r13
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r13,-40
 	pushq	%r14
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r14,-48
 	pushq	%r15
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r15,-56
 	leaq	-72(%rsp),%rsp
+.cfi_adjust_cfa_offset	0x48
 	movq	%rsp,%rbp
+.cfi_def_cfa_register	%rbp
 	movl	240(%rcx),%eax
 	movq	%rdi,%r12
 	movq	%rsi,%r13
@@ -1285,7 +1301,7 @@ bsaes_cbc_encrypt:
 	leaq	(%r12),%rdi
 	leaq	32(%rbp),%rsi
 	leaq	(%r15),%rdx
-	call	asm_AES_decrypt		
+	call	asm_AES_decrypt
 	pxor	32(%rbp),%xmm14
 	movdqu	%xmm14,(%r13)
 	movdqa	%xmm15,%xmm14
@@ -1301,33 +1317,56 @@ bsaes_cbc_encrypt:
 	cmpq	%rax,%rbp
 	ja	.Lcbc_dec_bzero
 
-	leaq	(%rbp),%rsp
-	movq	72(%rsp),%r15
-	movq	80(%rsp),%r14
-	movq	88(%rsp),%r13
-	movq	96(%rsp),%r12
-	movq	104(%rsp),%rbx
-	movq	112(%rsp),%rax
-	leaq	120(%rsp),%rsp
-	movq	%rax,%rbp
+	leaq	120(%rbp),%rax
+.cfi_def_cfa	%rax,8
+	movq	-48(%rax),%r15
+.cfi_restore	%r15
+	movq	-40(%rax),%r14
+.cfi_restore	%r14
+	movq	-32(%rax),%r13
+.cfi_restore	%r13
+	movq	-24(%rax),%r12
+.cfi_restore	%r12
+	movq	-16(%rax),%rbx
+.cfi_restore	%rbx
+	movq	-8(%rax),%rbp
+.cfi_restore	%rbp
+	leaq	(%rax),%rsp
+.cfi_def_cfa_register	%rsp
 .Lcbc_dec_epilogue:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	bsaes_cbc_encrypt,.-bsaes_cbc_encrypt
 
 .globl	bsaes_ctr32_encrypt_blocks
 .type	bsaes_ctr32_encrypt_blocks,@function
 .align	16
 bsaes_ctr32_encrypt_blocks:
+.cfi_startproc	
 	movq	%rsp,%rax
 .Lctr_enc_prologue:
 	pushq	%rbp
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbp,-16
 	pushq	%rbx
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbx,-24
 	pushq	%r12
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r12,-32
 	pushq	%r13
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r13,-40
 	pushq	%r14
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r14,-48
 	pushq	%r15
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r15,-56
 	leaq	-72(%rsp),%rsp
+.cfi_adjust_cfa_offset	0x48
 	movq	%rsp,%rbp
+.cfi_def_cfa_register	%rbp
 	movdqu	(%r8),%xmm0
 	movl	240(%rcx),%eax
 	movq	%rdi,%r12
@@ -1383,21 +1422,21 @@ bsaes_ctr32_encrypt_blocks:
 	movdqa	-16(%r11),%xmm7
 	pxor	%xmm8,%xmm15
 	pxor	%xmm8,%xmm0
-.byte	102,68,15,56,0,255
 	pxor	%xmm8,%xmm1
-.byte	102,15,56,0,199
 	pxor	%xmm8,%xmm2
-.byte	102,15,56,0,207
+.byte	102,68,15,56,0,255
+.byte	102,15,56,0,199
 	pxor	%xmm8,%xmm3
-.byte	102,15,56,0,215
 	pxor	%xmm8,%xmm4
-.byte	102,15,56,0,223
+.byte	102,15,56,0,207
+.byte	102,15,56,0,215
 	pxor	%xmm8,%xmm5
-.byte	102,15,56,0,231
 	pxor	%xmm8,%xmm6
+.byte	102,15,56,0,223
+.byte	102,15,56,0,231
 .byte	102,15,56,0,239
-	leaq	.LBS0(%rip),%r11
 .byte	102,15,56,0,247
+	leaq	.LBS0(%rip),%r11
 	movl	%ebx,%r10d
 
 	call	_bsaes_encrypt8_bitslice
@@ -1501,32 +1540,55 @@ bsaes_ctr32_encrypt_blocks:
 	cmpq	%rax,%rbp
 	ja	.Lctr_enc_bzero
 
-	leaq	(%rbp),%rsp
-	movq	72(%rsp),%r15
-	movq	80(%rsp),%r14
-	movq	88(%rsp),%r13
-	movq	96(%rsp),%r12
-	movq	104(%rsp),%rbx
-	movq	112(%rsp),%rax
-	leaq	120(%rsp),%rsp
-	movq	%rax,%rbp
+	leaq	120(%rbp),%rax
+.cfi_def_cfa	%rax,8
+	movq	-48(%rax),%r15
+.cfi_restore	%r15
+	movq	-40(%rax),%r14
+.cfi_restore	%r14
+	movq	-32(%rax),%r13
+.cfi_restore	%r13
+	movq	-24(%rax),%r12
+.cfi_restore	%r12
+	movq	-16(%rax),%rbx
+.cfi_restore	%rbx
+	movq	-8(%rax),%rbp
+.cfi_restore	%rbp
+	leaq	(%rax),%rsp
+.cfi_def_cfa_register	%rsp
 .Lctr_enc_epilogue:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	bsaes_ctr32_encrypt_blocks,.-bsaes_ctr32_encrypt_blocks
 .globl	bsaes_xts_encrypt
 .type	bsaes_xts_encrypt,@function
 .align	16
 bsaes_xts_encrypt:
+.cfi_startproc	
 	movq	%rsp,%rax
 .Lxts_enc_prologue:
 	pushq	%rbp
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbp,-16
 	pushq	%rbx
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbx,-24
 	pushq	%r12
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r12,-32
 	pushq	%r13
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r13,-40
 	pushq	%r14
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r14,-48
 	pushq	%r15
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r15,-56
 	leaq	-72(%rsp),%rsp
+.cfi_adjust_cfa_offset	0x48
 	movq	%rsp,%rbp
+.cfi_def_cfa_register	%rbp
 	movq	%rdi,%r12
 	movq	%rsi,%r13
 	movq	%rdx,%r14
@@ -1535,7 +1597,7 @@ bsaes_xts_encrypt:
 	leaq	(%r9),%rdi
 	leaq	32(%rbp),%rsi
 	leaq	(%r8),%rdx
-	call	asm_AES_encrypt		
+	call	asm_AES_encrypt
 
 	movl	240(%r15),%eax
 	movq	%r14,%rbx
@@ -1553,20 +1615,20 @@ bsaes_xts_encrypt:
 	movdqa	%xmm7,(%rax)
 
 	andq	$-16,%r14
-	subq	$128,%rsp
+	subq	$0x80,%rsp
 	movdqa	32(%rbp),%xmm6
 
 	pxor	%xmm14,%xmm14
 	movdqa	.Lxts_magic(%rip),%xmm12
 	pcmpgtd	%xmm6,%xmm14
 
-	subq	$128,%r14
+	subq	$0x80,%r14
 	jc	.Lxts_enc_short
 	jmp	.Lxts_enc_loop
 
 .align	16
 .Lxts_enc_loop:
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm15
 	movdqa	%xmm6,0(%rsp)
@@ -1574,7 +1636,7 @@ bsaes_xts_encrypt:
 	pand	%xmm12,%xmm13
 	pcmpgtd	%xmm6,%xmm14
 	pxor	%xmm13,%xmm6
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm0
 	movdqa	%xmm6,16(%rsp)
@@ -1583,7 +1645,7 @@ bsaes_xts_encrypt:
 	pcmpgtd	%xmm6,%xmm14
 	pxor	%xmm13,%xmm6
 	movdqu	0(%r12),%xmm7
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm1
 	movdqa	%xmm6,32(%rsp)
@@ -1593,7 +1655,7 @@ bsaes_xts_encrypt:
 	pxor	%xmm13,%xmm6
 	movdqu	16(%r12),%xmm8
 	pxor	%xmm7,%xmm15
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm2
 	movdqa	%xmm6,48(%rsp)
@@ -1603,7 +1665,7 @@ bsaes_xts_encrypt:
 	pxor	%xmm13,%xmm6
 	movdqu	32(%r12),%xmm9
 	pxor	%xmm8,%xmm0
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm3
 	movdqa	%xmm6,64(%rsp)
@@ -1613,7 +1675,7 @@ bsaes_xts_encrypt:
 	pxor	%xmm13,%xmm6
 	movdqu	48(%r12),%xmm10
 	pxor	%xmm9,%xmm1
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm4
 	movdqa	%xmm6,80(%rsp)
@@ -1623,7 +1685,7 @@ bsaes_xts_encrypt:
 	pxor	%xmm13,%xmm6
 	movdqu	64(%r12),%xmm11
 	pxor	%xmm10,%xmm2
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm5
 	movdqa	%xmm6,96(%rsp)
@@ -1667,20 +1729,20 @@ bsaes_xts_encrypt:
 	pxor	%xmm14,%xmm14
 	movdqa	.Lxts_magic(%rip),%xmm12
 	pcmpgtd	%xmm6,%xmm14
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	paddq	%xmm6,%xmm6
 	pand	%xmm12,%xmm13
 	pcmpgtd	%xmm6,%xmm14
 	pxor	%xmm13,%xmm6
 
-	subq	$128,%r14
+	subq	$0x80,%r14
 	jnc	.Lxts_enc_loop
 
 .Lxts_enc_short:
-	addq	$128,%r14
+	addq	$0x80,%r14
 	jz	.Lxts_enc_done
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm15
 	movdqa	%xmm6,0(%rsp)
@@ -1688,7 +1750,7 @@ bsaes_xts_encrypt:
 	pand	%xmm12,%xmm13
 	pcmpgtd	%xmm6,%xmm14
 	pxor	%xmm13,%xmm6
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm0
 	movdqa	%xmm6,16(%rsp)
@@ -1699,7 +1761,7 @@ bsaes_xts_encrypt:
 	movdqu	0(%r12),%xmm7
 	cmpq	$16,%r14
 	je	.Lxts_enc_1
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm1
 	movdqa	%xmm6,32(%rsp)
@@ -1711,7 +1773,7 @@ bsaes_xts_encrypt:
 	cmpq	$32,%r14
 	je	.Lxts_enc_2
 	pxor	%xmm7,%xmm15
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm2
 	movdqa	%xmm6,48(%rsp)
@@ -1723,7 +1785,7 @@ bsaes_xts_encrypt:
 	cmpq	$48,%r14
 	je	.Lxts_enc_3
 	pxor	%xmm8,%xmm0
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm3
 	movdqa	%xmm6,64(%rsp)
@@ -1735,7 +1797,7 @@ bsaes_xts_encrypt:
 	cmpq	$64,%r14
 	je	.Lxts_enc_4
 	pxor	%xmm9,%xmm1
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm4
 	movdqa	%xmm6,80(%rsp)
@@ -1747,7 +1809,7 @@ bsaes_xts_encrypt:
 	cmpq	$80,%r14
 	je	.Lxts_enc_5
 	pxor	%xmm10,%xmm2
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm5
 	movdqa	%xmm6,96(%rsp)
@@ -1905,7 +1967,7 @@ bsaes_xts_encrypt:
 	leaq	32(%rbp),%rdi
 	leaq	32(%rbp),%rsi
 	leaq	(%r15),%rdx
-	call	asm_AES_encrypt		
+	call	asm_AES_encrypt
 	pxor	32(%rbp),%xmm15
 
 
@@ -1938,7 +2000,7 @@ bsaes_xts_encrypt:
 	leaq	32(%rbp),%rsi
 	movdqa	%xmm15,32(%rbp)
 	leaq	(%r15),%rdx
-	call	asm_AES_encrypt		
+	call	asm_AES_encrypt
 	pxor	32(%rbp),%xmm6
 	movdqu	%xmm6,-16(%r13)
 
@@ -1952,32 +2014,54 @@ bsaes_xts_encrypt:
 	cmpq	%rax,%rbp
 	ja	.Lxts_enc_bzero
 
-	leaq	(%rbp),%rsp
-	movq	72(%rsp),%r15
-	movq	80(%rsp),%r14
-	movq	88(%rsp),%r13
-	movq	96(%rsp),%r12
-	movq	104(%rsp),%rbx
-	movq	112(%rsp),%rax
-	leaq	120(%rsp),%rsp
-	movq	%rax,%rbp
+	leaq	120(%rbp),%rax
+.cfi_def_cfa	%rax,8
+	movq	-48(%rax),%r15
+.cfi_restore	%r15
+	movq	-40(%rax),%r14
+.cfi_restore	%r14
+	movq	-32(%rax),%r13
+.cfi_restore	%r13
+	movq	-24(%rax),%r12
+.cfi_restore	%r12
+	movq	-16(%rax),%rbx
+.cfi_restore	%rbx
+	movq	-8(%rax),%rbp
+.cfi_restore	%rbp
+	leaq	(%rax),%rsp
+.cfi_def_cfa_register	%rsp
 .Lxts_enc_epilogue:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	bsaes_xts_encrypt,.-bsaes_xts_encrypt
 
 .globl	bsaes_xts_decrypt
 .type	bsaes_xts_decrypt,@function
 .align	16
 bsaes_xts_decrypt:
+.cfi_startproc	
 	movq	%rsp,%rax
 .Lxts_dec_prologue:
 	pushq	%rbp
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbp,-16
 	pushq	%rbx
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%rbx,-24
 	pushq	%r12
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r12,-32
 	pushq	%r13
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r13,-40
 	pushq	%r14
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r14,-48
 	pushq	%r15
+.cfi_adjust_cfa_offset	8
+.cfi_offset	%r15,-56
 	leaq	-72(%rsp),%rsp
+.cfi_adjust_cfa_offset	0x48
 	movq	%rsp,%rbp
 	movq	%rdi,%r12
 	movq	%rsi,%r13
@@ -1987,7 +2071,7 @@ bsaes_xts_decrypt:
 	leaq	(%r9),%rdi
 	leaq	32(%rbp),%rsi
 	leaq	(%r8),%rdx
-	call	asm_AES_encrypt		
+	call	asm_AES_encrypt
 
 	movl	240(%r15),%eax
 	movq	%r14,%rbx
@@ -2012,20 +2096,20 @@ bsaes_xts_decrypt:
 	shlq	$4,%rax
 	subq	%rax,%r14
 
-	subq	$128,%rsp
+	subq	$0x80,%rsp
 	movdqa	32(%rbp),%xmm6
 
 	pxor	%xmm14,%xmm14
 	movdqa	.Lxts_magic(%rip),%xmm12
 	pcmpgtd	%xmm6,%xmm14
 
-	subq	$128,%r14
+	subq	$0x80,%r14
 	jc	.Lxts_dec_short
 	jmp	.Lxts_dec_loop
 
 .align	16
 .Lxts_dec_loop:
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm15
 	movdqa	%xmm6,0(%rsp)
@@ -2033,7 +2117,7 @@ bsaes_xts_decrypt:
 	pand	%xmm12,%xmm13
 	pcmpgtd	%xmm6,%xmm14
 	pxor	%xmm13,%xmm6
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm0
 	movdqa	%xmm6,16(%rsp)
@@ -2042,7 +2126,7 @@ bsaes_xts_decrypt:
 	pcmpgtd	%xmm6,%xmm14
 	pxor	%xmm13,%xmm6
 	movdqu	0(%r12),%xmm7
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm1
 	movdqa	%xmm6,32(%rsp)
@@ -2052,7 +2136,7 @@ bsaes_xts_decrypt:
 	pxor	%xmm13,%xmm6
 	movdqu	16(%r12),%xmm8
 	pxor	%xmm7,%xmm15
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm2
 	movdqa	%xmm6,48(%rsp)
@@ -2062,7 +2146,7 @@ bsaes_xts_decrypt:
 	pxor	%xmm13,%xmm6
 	movdqu	32(%r12),%xmm9
 	pxor	%xmm8,%xmm0
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm3
 	movdqa	%xmm6,64(%rsp)
@@ -2072,7 +2156,7 @@ bsaes_xts_decrypt:
 	pxor	%xmm13,%xmm6
 	movdqu	48(%r12),%xmm10
 	pxor	%xmm9,%xmm1
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm4
 	movdqa	%xmm6,80(%rsp)
@@ -2082,7 +2166,7 @@ bsaes_xts_decrypt:
 	pxor	%xmm13,%xmm6
 	movdqu	64(%r12),%xmm11
 	pxor	%xmm10,%xmm2
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm5
 	movdqa	%xmm6,96(%rsp)
@@ -2126,20 +2210,20 @@ bsaes_xts_decrypt:
 	pxor	%xmm14,%xmm14
 	movdqa	.Lxts_magic(%rip),%xmm12
 	pcmpgtd	%xmm6,%xmm14
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	paddq	%xmm6,%xmm6
 	pand	%xmm12,%xmm13
 	pcmpgtd	%xmm6,%xmm14
 	pxor	%xmm13,%xmm6
 
-	subq	$128,%r14
+	subq	$0x80,%r14
 	jnc	.Lxts_dec_loop
 
 .Lxts_dec_short:
-	addq	$128,%r14
+	addq	$0x80,%r14
 	jz	.Lxts_dec_done
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm15
 	movdqa	%xmm6,0(%rsp)
@@ -2147,7 +2231,7 @@ bsaes_xts_decrypt:
 	pand	%xmm12,%xmm13
 	pcmpgtd	%xmm6,%xmm14
 	pxor	%xmm13,%xmm6
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm0
 	movdqa	%xmm6,16(%rsp)
@@ -2158,7 +2242,7 @@ bsaes_xts_decrypt:
 	movdqu	0(%r12),%xmm7
 	cmpq	$16,%r14
 	je	.Lxts_dec_1
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm1
 	movdqa	%xmm6,32(%rsp)
@@ -2170,7 +2254,7 @@ bsaes_xts_decrypt:
 	cmpq	$32,%r14
 	je	.Lxts_dec_2
 	pxor	%xmm7,%xmm15
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm2
 	movdqa	%xmm6,48(%rsp)
@@ -2182,7 +2266,7 @@ bsaes_xts_decrypt:
 	cmpq	$48,%r14
 	je	.Lxts_dec_3
 	pxor	%xmm8,%xmm0
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm3
 	movdqa	%xmm6,64(%rsp)
@@ -2194,7 +2278,7 @@ bsaes_xts_decrypt:
 	cmpq	$64,%r14
 	je	.Lxts_dec_4
 	pxor	%xmm9,%xmm1
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm4
 	movdqa	%xmm6,80(%rsp)
@@ -2206,7 +2290,7 @@ bsaes_xts_decrypt:
 	cmpq	$80,%r14
 	je	.Lxts_dec_5
 	pxor	%xmm10,%xmm2
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	pxor	%xmm14,%xmm14
 	movdqa	%xmm6,%xmm5
 	movdqa	%xmm6,96(%rsp)
@@ -2364,7 +2448,7 @@ bsaes_xts_decrypt:
 	leaq	32(%rbp),%rdi
 	leaq	32(%rbp),%rsi
 	leaq	(%r15),%rdx
-	call	asm_AES_decrypt		
+	call	asm_AES_decrypt
 	pxor	32(%rbp),%xmm15
 
 
@@ -2383,7 +2467,7 @@ bsaes_xts_decrypt:
 	pxor	%xmm14,%xmm14
 	movdqa	.Lxts_magic(%rip),%xmm12
 	pcmpgtd	%xmm6,%xmm14
-	pshufd	$19,%xmm14,%xmm13
+	pshufd	$0x13,%xmm14,%xmm13
 	movdqa	%xmm6,%xmm5
 	paddq	%xmm6,%xmm6
 	pand	%xmm12,%xmm13
@@ -2395,7 +2479,7 @@ bsaes_xts_decrypt:
 	leaq	32(%rbp),%rsi
 	movdqa	%xmm15,32(%rbp)
 	leaq	(%r15),%rdx
-	call	asm_AES_decrypt		
+	call	asm_AES_decrypt
 	pxor	32(%rbp),%xmm6
 	movq	%r13,%rdx
 	movdqu	%xmm6,(%r13)
@@ -2416,7 +2500,7 @@ bsaes_xts_decrypt:
 	leaq	32(%rbp),%rsi
 	movdqa	%xmm15,32(%rbp)
 	leaq	(%r15),%rdx
-	call	asm_AES_decrypt		
+	call	asm_AES_decrypt
 	pxor	32(%rbp),%xmm5
 	movdqu	%xmm5,(%r13)
 
@@ -2430,17 +2514,25 @@ bsaes_xts_decrypt:
 	cmpq	%rax,%rbp
 	ja	.Lxts_dec_bzero
 
-	leaq	(%rbp),%rsp
-	movq	72(%rsp),%r15
-	movq	80(%rsp),%r14
-	movq	88(%rsp),%r13
-	movq	96(%rsp),%r12
-	movq	104(%rsp),%rbx
-	movq	112(%rsp),%rax
-	leaq	120(%rsp),%rsp
-	movq	%rax,%rbp
+	leaq	120(%rbp),%rax
+.cfi_def_cfa	%rax,8
+	movq	-48(%rax),%r15
+.cfi_restore	%r15
+	movq	-40(%rax),%r14
+.cfi_restore	%r14
+	movq	-32(%rax),%r13
+.cfi_restore	%r13
+	movq	-24(%rax),%r12
+.cfi_restore	%r12
+	movq	-16(%rax),%rbx
+.cfi_restore	%rbx
+	movq	-8(%rax),%rbp
+.cfi_restore	%rbp
+	leaq	(%rax),%rsp
+.cfi_def_cfa_register	%rsp
 .Lxts_dec_epilogue:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	bsaes_xts_decrypt,.-bsaes_xts_decrypt
 .type	_bsaes_const,@object
 .align	64

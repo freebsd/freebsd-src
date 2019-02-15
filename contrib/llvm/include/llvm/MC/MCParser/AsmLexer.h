@@ -16,43 +16,46 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/MC/MCParser/MCAsmLexer.h"
-#include "llvm/Support/DataTypes.h"
 #include <string>
 
 namespace llvm {
-class MemoryBuffer;
+
 class MCAsmInfo;
 
 /// AsmLexer - Lexer class for assembly files.
 class AsmLexer : public MCAsmLexer {
   const MCAsmInfo &MAI;
 
-  const char *CurPtr;
-  const MemoryBuffer *CurBuf;
-  bool isAtStartOfLine;
-
-  void operator=(const AsmLexer&) LLVM_DELETED_FUNCTION;
-  AsmLexer(const AsmLexer&) LLVM_DELETED_FUNCTION;
+  const char *CurPtr = nullptr;
+  StringRef CurBuf;
+  bool IsAtStartOfLine = true;
+  bool IsAtStartOfStatement = true;
+  bool IsParsingMSInlineAsm = false;
+  bool IsPeeking = false;
 
 protected:
   /// LexToken - Read the next token and return its code.
-  virtual AsmToken LexToken();
+  AsmToken LexToken() override;
 
 public:
   AsmLexer(const MCAsmInfo &MAI);
-  ~AsmLexer();
+  AsmLexer(const AsmLexer &) = delete;
+  AsmLexer &operator=(const AsmLexer &) = delete;
+  ~AsmLexer() override;
 
-  void setBuffer(const MemoryBuffer *buf, const char *ptr = NULL);
+  void setBuffer(StringRef Buf, const char *ptr = nullptr);
+  void setParsingMSInlineAsm(bool V) { IsParsingMSInlineAsm = V; }
 
-  virtual StringRef LexUntilEndOfStatement();
-  StringRef LexUntilEndOfLine();
+  StringRef LexUntilEndOfStatement() override;
 
-  bool isAtStartOfComment(char Char);
-  bool isAtStatementSeparator(const char *Ptr);
+  size_t peekTokens(MutableArrayRef<AsmToken> Buf,
+                    bool ShouldSkipSpace = true) override;
 
   const MCAsmInfo &getMAI() const { return MAI; }
 
 private:
+  bool isAtStartOfComment(const char *Ptr);
+  bool isAtStatementSeparator(const char *Ptr);
   int getNextChar();
   AsmToken ReturnError(const char *Loc, const std::string &Msg);
 
@@ -64,8 +67,10 @@ private:
   AsmToken LexQuote();
   AsmToken LexFloatLiteral();
   AsmToken LexHexFloatLiteral(bool NoIntDigits);
+
+  StringRef LexUntilEndOfLine();
 };
 
 } // end namespace llvm
 
-#endif
+#endif // LLVM_MC_MCPARSER_ASMLEXER_H

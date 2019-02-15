@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_COMMENT_SEMA_H
-#define LLVM_CLANG_AST_COMMENT_SEMA_H
+#ifndef LLVM_CLANG_AST_COMMENTSEMA_H
+#define LLVM_CLANG_AST_COMMENTSEMA_H
 
 #include "clang/AST/Comment.h"
 #include "clang/Basic/Diagnostic.h"
@@ -31,8 +31,8 @@ namespace comments {
 class CommandTraits;
 
 class Sema {
-  Sema(const Sema &) LLVM_DELETED_FUNCTION;
-  void operator=(const Sema &) LLVM_DELETED_FUNCTION;
+  Sema(const Sema &) = delete;
+  void operator=(const Sema &) = delete;
 
   /// Allocator for AST nodes.
   llvm::BumpPtrAllocator &Allocator;
@@ -79,13 +79,9 @@ public:
   /// Returns a copy of array, owned by Sema's allocator.
   template<typename T>
   ArrayRef<T> copyArray(ArrayRef<T> Source) {
-    size_t Size = Source.size();
-    if (Size != 0) {
-      T *Mem = Allocator.Allocate<T>(Size);
-      std::uninitialized_copy(Source.begin(), Source.end(), Mem);
-      return llvm::makeArrayRef(Mem, Size);
-    } else
-      return llvm::makeArrayRef(static_cast<T *>(NULL), 0);
+    if (!Source.empty())
+      return Source.copy(Allocator);
+    return None;
   }
 
   ParagraphComment *actOnParagraphComment(
@@ -212,6 +208,10 @@ public:
   /// \returns \c true if declaration that this comment is attached to declares
   /// a function pointer.
   bool isFunctionPointerVarDecl();
+  /// \returns \c true if the declaration that this comment is attached to
+  /// declares a variable or a field whose type is a function or a block
+  /// pointer.
+  bool isFunctionOrBlockPointerVarLikeDecl();
   bool isFunctionOrMethodVariadic();
   bool isObjCMethodDecl();
   bool isObjCPropertyDecl();

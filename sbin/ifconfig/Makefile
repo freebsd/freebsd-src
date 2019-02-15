@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime
 PROG=	ifconfig
 
 SRCS=	ifconfig.c		# base support
@@ -30,16 +31,16 @@ SRCS+=	ifmac.c			# MAC support
 SRCS+=	ifmedia.c		# SIOC[GS]IFMEDIA support
 SRCS+=	iffib.c			# non-default FIB support
 SRCS+=	ifvlan.c		# SIOC[GS]ETVLAN support
+SRCS+=	ifvxlan.c		# VXLAN support
 SRCS+=	ifgre.c			# GRE keys etc
 SRCS+=	ifgif.c			# GIF reversed header workaround
+SRCS+=	ifipsec.c		# IPsec VTI
 
 SRCS+=	sfp.c			# SFP/SFP+ information
-DPADD+=	${LIBM}
-LDADD+=	-lm
+LIBADD+=	m
 
-SRCS+=	ifieee80211.c regdomain.c # SIOC[GS]IEEE80211 support
-DPADD+=	${LIBBSDXML} ${LIBSBUF}
-LDADD+=	-lbsdxml -lsbuf
+SRCS+=	ifieee80211.c		# SIOC[GS]IEEE80211 support
+LIBADD+=	80211
 
 SRCS+=	carp.c			# SIOC[GS]VH support
 SRCS+=	ifgroup.c		# ...
@@ -50,6 +51,9 @@ SRCS+=	ifpfsync.c		# pfsync(4) support
 SRCS+=	ifbridge.c		# bridge support
 SRCS+=	iflagg.c		# lagg support
 
+.if ${MK_EXPERIMENTAL} != "no"
+CFLAGS+= -DDRAFT_IETF_6MAN_IPV6ONLY_FLAG
+.endif
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6
 .endif
@@ -58,13 +62,15 @@ CFLAGS+= -DINET
 .endif
 .if ${MK_JAIL} != "no" && !defined(RELEASE_CRUNCH) && !defined(RESCUE)
 CFLAGS+= -DJAIL
-DPADD+= ${LIBJAIL}
-LDADD+= -ljail
+LIBADD+=	jail
 .endif
 
 MAN=	ifconfig.8
 
 CFLAGS+= -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings -Wnested-externs
 WARNS?=	2
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

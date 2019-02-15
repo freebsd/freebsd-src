@@ -487,6 +487,11 @@ acpi_battery_init(void)
 	"remaining time in minutes");
     SYSCTL_ADD_PROC(&acpi_battery_sysctl_ctx,
 	SYSCTL_CHILDREN(acpi_battery_sysctl_tree),
+	OID_AUTO, "rate", CTLTYPE_INT | CTLFLAG_RD,
+	&acpi_battery_battinfo.rate, 0, acpi_battery_sysctl, "I",
+	"present rate in mW");
+    SYSCTL_ADD_PROC(&acpi_battery_sysctl_ctx,
+	SYSCTL_CHILDREN(acpi_battery_sysctl_tree),
 	OID_AUTO, "state", CTLTYPE_INT | CTLFLAG_RD,
 	&acpi_battery_battinfo.state, 0, acpi_battery_sysctl, "I",
 	"current status flags");

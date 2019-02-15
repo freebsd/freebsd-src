@@ -1,3 +1,118 @@
+1.7.0	2016-12-20
+	* Fix lookup of relative names in ldns_resolver_search.
+	* bugfix #548: Double free for answers > 4096 in ldns_resolver_send_pkt
+	* Follow CNAME's when tracing with drill (TODO dnssec trace)
+	* Fix #551 change Regent to Copyright holder in BSD license in
+	  some of the headings of the file, to match the opensource.org
+	  BSD license.
+	* -e option makes ldns-compare-zones exit with status code 2 on difference
+	* Filter out specified RR types with ldns-read-zone -e and -E options
+	* bugfix #563: Correct DNSKEY from DSA private key. Thanks Peter Koch.
+	* bugfix #562: ldns-keygen match DSA key maximum size with library.
+	  And check keysizes with all algorithms. Thanks Peter Koch.
+	* ldns-verify-zone accepts only one single zonefile as argument.
+	* bugfix #573: ldns-keygen write private keys with mode 0600.
+	  Thanks Leon Weber
+	* Fix configure to make ldns compile with LibreSSL 2.0
+	* drill now also accepts dig style -y option
+	  (-y <[algo:]name:key> i.s.o. -y <name:key[:algo]>)
+	* OPENPGPKEY draft rr types. Enable with: --enable-rrtype-openpgpkey
+	* bugfix #608: Correct comment about escaped characters
+	* CDS and CDNSKEY rr type from RFC 7344.
+	  --enable-rrtype-cds configure option removed
+	* fix: Memory leak in ldns_pkt_rr_list_by_name()
+	  Thanks Johannes Naab
+	* fix: Memory leak in ldns_dname2buffer_wire_compress()
+	  Thanks Max Liebkies
+	* bugfix #613: Allow tab as whitespace too in last rdata field of types
+	  of variable length.  Thanks Xiali Yan
+	* bugfix: strip trailing whitespace from $ORIGIN lines in zone files
+	* Let ldns-keygen output .ds files only for KSK keys
+	* Parse RFC7218 TLSA mnemonics, but do not output them
+	* Let ldns-dane use SPKI as the default selector i.s.o. Cert
+	* bugfix: Fit left over NSEC3s once more before adding empty non
+	  terminals.  Thanks Stuart Browne
+	* bugfix #605: Determine default trust anchor location at compile time
+	  Thanks Peter Koch
+	* bugfix #697: Double free with ldns-dane create
+	  Thanks Carsten Strotmann
+	* bugfix #623: Do not redefine bool type and boolean values
+	  Thanks Jakob Petsovits
+	* bugfix #570: Add TLSA, CDS, CDNSKEY and OPENPGPKEY RR types to ldnsx
+	  Thanks Shussain
+	* bugfix #575: ldns_pkt_clone() does not copy timestamp field
+	  Thanks Calle Dybedahl 
+	* bugfix #584: ldns-update fixes.  Send update to port 53, bring manpage
+	  in sync with the usage text, and don't alter the ldns_resolver passed
+	  to ldns_update_soa_zone_mname().  Created a ldns_resolver_clone()
+	  function in the process.  Thanks Nicholas Riley.
+	* bugfix #633: ldns_pkt_clone() parameter isn't const.
+	  Thanks Jakop Petsovits
+	* bugfix: ldns-dane manpage correction
+	  Thanks Erwin Lansing
+	* Spelling fixes.  Thanks Andreas Schulze
+	* Hyphen used as minus in manpages.  Thanks Andreas Schulze.
+	* RFC7553 RR Type URI is supported by default.
+	* Fix ECDSA signature generation, do not omit leading zeroes.
+	* bugfix: Get rid of superfluous newline in ldns-keyfetcher
+	  Thanks Jan-Piet Mens
+	* bugfix: -U option to ldns-signzone to sign with every algorithm
+	  Thanks Guido Kroon
+	* const function parameters whenever possible.
+	  Thanks Ray Bellis
+	* bugfix #725: allow RR-types on the type bitmap window border
+	  Thanks Pieter Lexis
+	* bugfix #726: 2 typos in drill manpage.
+	  Thanks Hugo Lombard
+	* Add type CSYNC support, RFC 7477.
+	* Prepare for ED25519, ED448 support: todo convert* routines in
+	  dnssec.h, once openssl has support for signing with these algorithms.
+	  The dns algorithm number is not yet allocated. These features are
+	  not fully implemented yet, openssl (1.1) does not support the
+	  algorithms enough to generate keys and sign and verify with them.
+	* Fix _answerfrom comment in ldns_struct_pkt.
+	* Fix drill axfr ipv4/ipv6 queries.
+	* Fix comment referring to mk_query in packet.h to pkt_query_new.
+	* Fix description of QR flag in packet.h.
+	* Fix for openssl 1.1.0 API changes.
+	* Remove commented out macro.  Thanks Thiago Farina
+	* bugfix #641: Include install-sh in .gitignore
+	* bugfix #825: Module import breaks with newer SWIG versions.
+	  Thanks Christoph Egger
+	* bugfix #796 - #792: Fix miscellaneous compiler warning issues.
+	  Thanks Ngie Cooper
+	* bugfix #769: Add support for :: in an IPv6 address
+	  Thanks Hajimu UMEMOTO
+	* bugfix #760: Detect superfluous text in presentation format
+	  Thanks Xiali Yan
+	* bugfix #708: warnings and errors with xcode 6.1/7.0
+	* bugfix #754: Memory leak in ldns_str2rdf_ipseckey
+	  Thanks Xiali Yan
+	* bugfix #661: Fail NSEC3 signing when NSEC domainname length
+	  would overflow.  Thanks Jan-Piet Mens.
+	* bugfix #771: hmac-sha224, hmac-sha384 and hmac-sha512 keys.
+	  Thanks Harald Jenny
+	* bugfix #680: ldns fails to reject invalidly formatted
+	  RFC 7553 URI RRs.  Thanks Robert Edmonds
+	* bugfix #678: Use poll i.s.o. select to support > 1024 fds
+	  Thanks William King
+	* Use OpenSSL DANE functions for verification (unless explicitly
+	  disabled with --disable-dane-ta-usage).
+	* Bumb .so version
+	* Include OPENPGPKEY RR type by default
+	* rdata processing for SMIMEA RR type
+	* Fix crash in displaying TLSA RR's.
+	  Thanks Andreas Schulze
+	* Update ldns-key2ds man page to mention GOST and SHA384 hash
+	  functions.  Thanks Harald Jenny
+	* Add sha384 and sha512 tsig algorithm. Thanks Michael Weiser
+	* Clarify data ownership with consts for tsig parameters.
+	  Thanks Michael Weiser
+	* bugfix: Fix detection of DSA support with OpenSSL >= 1.1.0
+	* bugfix #1160: Provide sha256 for release tarballs
+	* --enable-gost-anyway compiles GOST support with OpenSSL >= 1.1.0
+	  even when the GOST engine is not available.
+
 1.6.17	2014-01-10
 	* Fix ldns_dnssec_zone_new_frm_fp_l to allow the last parsed line of a
 	  zone to be an NSEC3 (or its RRSIG) covering an empty non terminal.

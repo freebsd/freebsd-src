@@ -2,6 +2,8 @@
 /*-
  * $Id: bus.h,v 1.6 2007/08/09 11:23:32 katta Exp $
  *
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-4-Clause
+ *
  * Copyright (c) 1996, 1997 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -228,20 +230,21 @@ bus_space_tag_t mips_bus_space_generic = &generic_space;
 
 int
 generic_bs_map(void *t __unused, bus_addr_t addr,
-	      bus_size_t size __unused, int flags __unused,
+	      bus_size_t size, int flags __unused,
 	      bus_space_handle_t *bshp)
 {
 
-	*bshp = addr;
+	*bshp = (bus_space_handle_t)pmap_mapdev((vm_paddr_t)addr,
+	    (vm_size_t)size);
 	return (0);
 }
 
 void
-generic_bs_unmap(void *t __unused, bus_space_handle_t bh __unused,
-	      bus_size_t size __unused)
+generic_bs_unmap(void *t __unused, bus_space_handle_t bh,
+	      bus_size_t size)
 {
 
-	/* Do nothing */
+	pmap_unmapdev((vm_offset_t)bh, (vm_size_t)size);
 }
 
 int

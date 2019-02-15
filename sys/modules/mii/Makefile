@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/mii
+.PATH: ${SRCTOP}/sys/dev/mii
 
 KMOD=	miibus
 SRCS=	acphy.c amphy.c atphy.c axphy.c bmtphy.c brgphy.c bus_if.h

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1996, 1997
  *      HD Associates, Inc.  All rights reserved.
  *
@@ -90,6 +92,7 @@ void	sched_nice(struct proc *p, int nice);
  * priorities inherited from their procs, and use up cpu time.
  */
 void	sched_exit_thread(struct thread *td, struct thread *child);
+u_int	sched_estcpu(struct thread *td);
 void	sched_fork_thread(struct thread *td, struct thread *child);
 void	sched_lend_prio(struct thread *td, u_char prio);
 void	sched_lend_user_prio(struct thread *td, u_char pri);
@@ -100,22 +103,40 @@ void	sched_switch(struct thread *td, struct thread *newtd, int flags);
 void	sched_throw(struct thread *td);
 void	sched_unlend_prio(struct thread *td, u_char prio);
 void	sched_user_prio(struct thread *td, u_char prio);
-void	sched_userret(struct thread *td);
+void	sched_userret_slowpath(struct thread *td);
 void	sched_wakeup(struct thread *td);
-void	sched_preempt(struct thread *td);
 #ifdef	RACCT
 #ifdef	SCHED_4BSD
 fixpt_t	sched_pctcpu_delta(struct thread *td);
 #endif
 #endif
 
+static inline void
+sched_userret(struct thread *td)
+{
+
+	/*
+	 * XXX we cheat slightly on the locking here to avoid locking in
+	 * the usual case.  Setting td_priority here is essentially an
+	 * incomplete workaround for not setting it properly elsewhere.
+	 * Now that some interrupt handlers are threads, not setting it
+	 * properly elsewhere can clobber it in the window between setting
+	 * it here and returning to user mode, so don't waste time setting
+	 * it perfectly here.
+	 */
+	KASSERT((td->td_flags & TDF_BORROWING) == 0,
+	    ("thread with borrowed priority returning to userland"));
+	if (__predict_false(td->td_priority != td->td_user_pri))
+		sched_userret_slowpath(td);
+}
+
 /*
  * Threads are moved on and off of run queues
  */
 void	sched_add(struct thread *td, int flags);
 void	sched_clock(struct thread *td);
+void	sched_preempt(struct thread *td);
 void	sched_rem(struct thread *td);
-void	sched_tick(int cnt);
 void	sched_relinquish(struct thread *td);
 struct thread *sched_choose(void);
 void	sched_idletd(void *);
@@ -222,14 +243,13 @@ struct sched_param {
  */
 #ifndef _KERNEL
 #include <sys/cdefs.h>
+#include <sys/_timespec.h>
 #include <sys/_types.h>
 
 #ifndef _PID_T_DECLARED
 typedef __pid_t         pid_t;
 #define _PID_T_DECLARED
 #endif
-
-struct timespec;
 
 __BEGIN_DECLS
 int     sched_get_priority_max(int);

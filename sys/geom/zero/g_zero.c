@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
@@ -141,3 +143,4 @@ static struct g_class g_zero_class = {
 };
 
 DECLARE_GEOM_CLASS(g_zero_class, g_zero);
+MODULE_VERSION(geom_zero, 0);

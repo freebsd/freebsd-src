@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd January 13, 2002
+.Dd August 11, 2018
 .Dt "AT" 1
 .Os
 .Sh NAME
@@ -64,8 +64,9 @@ case, everybody's jobs are listed;
 .It Nm atrm
 deletes jobs;
 .It Nm batch
-executes commands when system load levels permit; in other words, when the load average
-drops below _LOADAVG_MX, or the value specified in the invocation of
+executes commands when system load levels permit; in other words, when
+the load average drops below _LOADAVG_MX times number of active CPUs,
+or the value specified in the invocation of
 .Nm atrun .
 .El
 .Pp
@@ -294,7 +295,7 @@ The hour of the day, from 0 to 23.
 .It Ar mm
 The minute of the hour, from 0 to 59.
 .It Ar SS
-The second of the minute, from 0 to 61.
+The second of the minute, from 0 to 60.
 .El
 .Pp
 If the

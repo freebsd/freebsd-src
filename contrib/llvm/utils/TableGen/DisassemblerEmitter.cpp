@@ -96,41 +96,44 @@ using namespace llvm::X86Disassembler;
 namespace llvm {
 
 extern void EmitFixedLenDecoder(RecordKeeper &RK, raw_ostream &OS,
-                                std::string PredicateNamespace,
-                                std::string GPrefix,
-                                std::string GPostfix,
-                                std::string ROK,
-                                std::string RFail,
-                                std::string L);
+                                const std::string &PredicateNamespace,
+                                const std::string &GPrefix,
+                                const std::string &GPostfix,
+                                const std::string &ROK,
+                                const std::string &RFail, const std::string &L);
 
 void EmitDisassembler(RecordKeeper &Records, raw_ostream &OS) {
   CodeGenTarget Target(Records);
-  emitSourceFileHeader(" * " + Target.getName() + " Disassembler", OS);
+  emitSourceFileHeader(" * " + Target.getName().str() + " Disassembler", OS);
 
   // X86 uses a custom disassembler.
   if (Target.getName() == "X86") {
     DisassemblerTables Tables;
 
-    const std::vector<const CodeGenInstruction*> &numberedInstructions =
+    ArrayRef<const CodeGenInstruction*> numberedInstructions =
       Target.getInstructionsByEnumValue();
 
     for (unsigned i = 0, e = numberedInstructions.size(); i != e; ++i)
       RecognizableInstr::processInstr(Tables, *numberedInstructions[i], i);
 
-    if (Tables.hasConflicts())
-      PrintFatalError(Target.getTargetRecord()->getLoc(),
-                      "Primary decode conflict");
+    if (Tables.hasConflicts()) {
+      PrintError(Target.getTargetRecord()->getLoc(), "Primary decode conflict");
+      return;
+    }
 
     Tables.emit(OS);
     return;
   }
 
   // ARM and Thumb have a CHECK() macro to deal with DecodeStatuses.
-  if (Target.getName() == "ARM" ||
-      Target.getName() == "Thumb" || 
-      Target.getName() == "AArch64") {
-    EmitFixedLenDecoder(Records, OS, Target.getName() == "AArch64" ? "AArch64" : "ARM",
-                        "if (!Check(S, ", ")) return MCDisassembler::Fail;",
+  if (Target.getName() == "ARM" || Target.getName() == "Thumb" ||
+      Target.getName() == "AArch64" || Target.getName() == "ARM64") {
+    std::string PredicateNamespace = Target.getName();
+    if (PredicateNamespace == "Thumb")
+      PredicateNamespace = "ARM";
+
+    EmitFixedLenDecoder(Records, OS, PredicateNamespace,
+                        "if (!Check(S, ", "))",
                         "S", "MCDisassembler::Fail",
                         "  MCDisassembler::DecodeStatus S = "
                           "MCDisassembler::Success;\n(void)S;");
@@ -138,8 +141,7 @@ void EmitDisassembler(RecordKeeper &Records, raw_ostream &OS) {
   }
 
   EmitFixedLenDecoder(Records, OS, Target.getName(),
-                      "if (", " == MCDisassembler::Fail)"
-                       " return MCDisassembler::Fail;",
+                      "if (", " == MCDisassembler::Fail)",
                       "MCDisassembler::Success", "MCDisassembler::Fail", "");
 }
 

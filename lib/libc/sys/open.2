@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd February 7, 2013
+.Dd October 20, 2018
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -95,6 +95,28 @@ parameter, the current working directory is used
 and the behavior is identical to a call to
 .Fn open .
 .Pp
+In
+.Xr capsicum 4
+capability mode,
+.Fn open
+is not permitted.
+The
+.Fa path
+argument to
+.Fn openat
+must be strictly relative to a file descriptor
+.Fa fd ,
+as defined in
+.Pa sys/kern/vfs_lookup.c .
+.Fa path
+must not be an absolute path and must not contain ".." components.
+Additionally, no symbolic link in
+.Fa path
+may contain ".." components either.
+.Fa fd
+must not be
+.Dv AT_FDCWD .
+.Pp
 The flags specified are formed by
 .Em or Ns 'ing
 the following values
@@ -115,10 +137,12 @@ O_DIRECT	eliminate or reduce cache effects
 O_FSYNC		synchronous writes
 O_SYNC		synchronous writes
 O_NOFOLLOW	do not follow symlinks
-O_NOCTTY	don't assign controlling terminal
-O_TTY_INIT	restore default terminal attributes
+O_NOCTTY	ignored
+O_TTY_INIT	ignored
 O_DIRECTORY	error if file is not a directory
 O_CLOEXEC	set FD_CLOEXEC upon open
+O_VERIFY	verify the contents of the file
+O_BENEATH	require path to be strictly relative to starting directory
 .Ed
 .Pp
 Opening a file with
@@ -236,6 +260,32 @@ such as device nodes.
 may be used to set
 .Dv FD_CLOEXEC
 flag for the newly returned file descriptor.
+.Pp
+.Dv O_VERIFY
+may be used to indicate to the kernel that the contents of the file should
+be verified before allowing the open to proceed.
+The details of what
+.Dq verified
+means is implementation specific.
+The run-time linker (rtld) uses this flag to ensure shared objects have
+been verified before operating on them.
+.Pp
+.Dv O_BENEATH
+returns
+.Er ENOTCAPABLE
+if the specified path, after resolving all symlinks and ".." references
+in it, does not reside in the directory hierarchy of children beneath
+the starting directory, or is an absolute path.
+Starting directory is the process current directory if relative
+.Fa path
+is used for
+.Fn open ,
+and the directory referenced by the
+.Fa fd
+argument when specifying relative
+.Fa path
+for
+.Fn openat .
 .Pp
 If successful,
 .Fn open
@@ -427,7 +477,7 @@ of
 .Dv O_RDWR
 and
 .Dv O_EXEC .
-.It Bq Eq EBADF
+.It Bq Er EBADF
 The
 .Fa path
 argument does not specify an absolute path and the
@@ -436,7 +486,7 @@ argument is
 neither
 .Dv AT_FDCWD
 nor a valid file descriptor open for searching.
-.It Bq Eq ENOTDIR
+.It Bq Er ENOTDIR
 The
 .Fa path
 argument is not an absolute path and
@@ -444,9 +494,24 @@ argument is not an absolute path and
 is neither
 .Dv AT_FDCWD
 nor a file descriptor associated with a directory.
-.It Bq Eq ENOTDIR
+.It Bq Er ENOTDIR
 .Dv O_DIRECTORY
 is specified and the file is not a directory.
+.It Bq Er ECAPMODE
+.Dv AT_FDCWD
+is specified and the process is in capability mode.
+.It Bq Er ECAPMODE
+.Fn open
+was called and the process is in capability mode.
+.It Bq Er ENOTCAPABLE
+.Fa path
+is an absolute path,
+or contained a ".." component leading to a
+directory outside of the directory hierarchy specified by
+.Fa fd ,
+and the process is in capability mode or the
+.Dv O_BENEATH
+flag was provided.
 .El
 .Sh SEE ALSO
 .Xr chmod 2 ,
@@ -461,12 +526,29 @@ is specified and the file is not a directory.
 .Xr read 2 ,
 .Xr umask 2 ,
 .Xr write 2 ,
-.Xr fopen 3
+.Xr fopen 3 ,
+.Xr capsicum 4
+.Sh STANDARDS
+These functions are specified by
+.St -p1003.1-2008 .
+.Fx
+sets
+.Va errno
+to
+.Er EMLINK instead of
+.Er ELOOP
+as specified by
+.Tn POSIX
+when
+.Dv O_NOFOLLOW
+is set in flags and the final component of pathname is a symbolic link
+to distinguish it from the case of too many symbolic link traversals
+in one of its non-final components.
 .Sh HISTORY
 The
 .Fn open
 function appeared in
-.At v6 .
+.At v1 .
 The
 .Fn openat
 function was introduced in

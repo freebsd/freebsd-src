@@ -263,7 +263,6 @@ struct wi_rx_radiotap_header {
 and transmit definitions for the Atheros driver:
 .Bd -literal -offset indent
 #define ATH_TX_RADIOTAP_PRESENT (               \\
-        (1 << IEEE80211_RADIOTAP_TSFT)          | \\
         (1 << IEEE80211_RADIOTAP_FLAGS)         | \\
         (1 << IEEE80211_RADIOTAP_RATE)          | \\
         (1 << IEEE80211_RADIOTAP_DBM_TX_POWER)  | \\
@@ -273,7 +272,6 @@ and transmit definitions for the Atheros driver:
 
 struct ath_tx_radiotap_header {
         struct ieee80211_radiotap_header wt_ihdr;
-        uint64_t       wt_tsf;
         uint8_t        wt_flags;
         uint8_t        wt_rate;
         uint8_t        wt_txpower;

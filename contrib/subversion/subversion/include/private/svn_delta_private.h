@@ -101,24 +101,30 @@ svn_delta__delta_from_editor(const svn_delta_editor_t **deditor,
                              struct svn_delta__extra_baton *exb,
                              apr_pool_t *pool);
 
-/**
- * Get the data from IN, compress it according to the specified
- * COMPRESSION_LEVEL and write the result to OUT.
- * SVN_DELTA_COMPRESSION_LEVEL_NONE is valid for COMPRESSION_LEVEL.
- */
+/** Read the txdelta window header from @a stream and return the total
+    length of the unparsed window data in @a *window_len. */
 svn_error_t *
-svn__compress(svn_string_t *in,
-              svn_stringbuf_t *out,
-              int compression_level);
+svn_txdelta__read_raw_window_len(apr_size_t *window_len,
+                                 svn_stream_t *stream,
+                                 apr_pool_t *pool);
 
-/**
- * Get the compressed data from IN, decompress it and write the result to
- * OUT.  Return an error if the decompressed size is larger than LIMIT.
+/* Return a debug editor that wraps @a wrapped_editor.
+ *
+ * The debug editor simply prints an indication of what callbacks are being
+ * called to @c stdout, and is only intended for use in debugging subversion
+ * editors.
+ *
+ * @a prefix, if non-null, is printed between "DBG: " and each indication.
+ *
+ * Note: Our test suite generally ignores stdout lines starting with "DBG:".
  */
 svn_error_t *
-svn__decompress(svn_string_t *in,
-                svn_stringbuf_t *out,
-                apr_size_t limit);
+svn_delta__get_debug_editor(const svn_delta_editor_t **editor,
+                            void **edit_baton,
+                            const svn_delta_editor_t *wrapped_editor,
+                            void *wrapped_baton,
+                            const char *prefix,
+                            apr_pool_t *pool);
 
 
 #ifdef __cplusplus

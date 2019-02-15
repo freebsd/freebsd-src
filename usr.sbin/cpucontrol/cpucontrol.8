@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2009
+.Dd January 5, 2018
 .Dt CPUCONTROL 8
 .Os
 .Sh NAME
@@ -34,46 +34,51 @@
 device
 .Sh SYNOPSIS
 .Nm
-.Op Fl vh
+.Bk
+.Op Fl v
 .Fl m Ar msr
-.Bk
 .Ar device
 .Ek
+.Bk
 .Nm
-.Op Fl vh
+.Op Fl v
 .Fl m Ar msr Ns = Ns Ar value
-.Bk
 .Ar device
 .Ek
+.Bk
 .Nm
-.Op Fl vh
+.Op Fl v
 .Fl m Ar msr Ns &= Ns Ar mask
-.Bk
 .Ar device
 .Ek
+.Bk
 .Nm
-.Op Fl vh
+.Op Fl v
 .Fl m Ar msr Ns |= Ns Ar mask
-.Bk
 .Ar device
 .Ek
+.Bk
 .Nm
-.Op Fl vh
+.Op Fl v
 .Fl i Ar level
-.Bk
 .Ar device
 .Ek
+.Bk
 .Nm
-.Op Fl vh
+.Op Fl v
 .Fl i Ar level,level_type
-.Bk
 .Ar device
 .Ek
+.Bk
 .Nm
-.Op Fl vh
+.Op Fl vn
 .Op Fl d Ar datadir
 .Fl u
+.Ar device
+.Ek
 .Bk
+.Nm
+.Fl e
 .Ar device
 .Ek
 .Sh DESCRIPTION
@@ -88,11 +93,18 @@ It can also be used to apply CPU firmware updates.
 The following options are available:
 .Bl -tag -width indent
 .It Fl d Ar datadir
-Where to look for microcode images.
+Directory paths where to look for microcode images.
 The option can be specified multiple times.
-.It Fl m Ar msr Ns Op = Ns Ar value
+The paths are added in order of the options appearance on the command
+line, default directories are appended after the user-supplied paths.
+.It Fl n
+Do not look for the microcode images in the standard directories.
+Currently standard directory to look for the microcode update files is
+.Pa /usr/local/share/cpucontrol .
+.It Fl m Ar msr
 Show value of the specified MSR.
 MSR register number should be given as a hexadecimal number.
+The high word is printed first, then the low word is printed second.
 .It Fl m Ar msr Ns = Ns Ar value
 Store the
 .Ar value
@@ -129,6 +141,20 @@ The
 .Nm
 utility will walk through the configured data directories
 and apply all firmware updates available for this CPU.
+.It Fl e
+Re-evaluate the kernel flags indicating the present CPU features.
+This command is typically executed after a firmware update was applied
+which changes information reported by the
+.Dv CPUID
+instruction.
+.Pp
+.Bf -symbolic
+Only execute the
+.Fl e
+command after the microcode update was applied to all CPUs in the system.
+The kernel does not operate correctly if the features of processors are
+not identical.
+.Ef
 .It Fl v
 Increase the verbosity level.
 .It Fl h
@@ -162,10 +188,10 @@ The command
 will retrieve the CPUID level 0x1 from CPU 1.
 .Pp
 To perform firmware updates on CPU 0 from images located at
-.Pa /usr/local/share/cpuctl/
+.Pa /usr/local/share/cpuctl
 use the following command:
 .Pp
-.Dq Li "cpucontrol -d /usr/local/share/cpuctl/ -u /dev/cpuctl0"
+.Dq Li "cpucontrol -nd /usr/local/share/cpuctl -u /dev/cpuctl0"
 .Sh SEE ALSO
 .Xr cpuctl 4
 .Sh HISTORY
@@ -178,5 +204,3 @@ The
 .Nm
 utility and this manual page was written by
 .An Stanislav Sedov Aq Mt stas@FreeBSD.org .
-.Sh BUGS
-Yes, probably, report if any.

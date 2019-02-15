@@ -28,28 +28,15 @@
  * dependent values so we can print the dump file on any architecture.
  */
 
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/savefile.c,v 1.183 2008-12-23 20:13:29 guy Exp $ (LBL)";
-#endif
-
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#ifdef WIN32
-#include <pcap-stdinc.h>
-#else /* WIN32 */
-#if HAVE_INTTYPES_H
-#include <inttypes.h>
-#elif HAVE_STDINT_H
-#include <stdint.h>
-#endif
-#ifdef HAVE_SYS_BITYPES_H
-#include <sys/bitypes.h>
-#endif
-#include <sys/types.h>
-#endif /* WIN32 */
+#include <pcap-types.h>
+#ifdef _WIN32
+#include <io.h>
+#include <fcntl.h>
+#endif /* _WIN32 */
 
 #include <errno.h>
 #include <memory.h>
@@ -58,19 +45,35 @@ static const char rcsid[] _U_ =
 #include <string.h>
 
 #include "pcap-int.h"
-#include "pcap/usb.h"
 
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif
 
 #include "sf-pcap.h"
-#include "sf-pcap-ng.h"
+#include "sf-pcapng.h"
+
+#ifdef _WIN32
+/*
+ * These aren't exported on Windows, because they would only work if both
+ * WinPcap and the code using it were to use the Universal CRT; otherwise,
+ * a FILE structure in WinPcap and a FILE structure in the code using it
+ * could be different if they're using different versions of the C runtime.
+ *
+ * Instead, pcap/pcap.h defines them as macros that wrap the hopen versions,
+ * with the wrappers calling _fileno() and _get_osfhandle() themselves,
+ * so that they convert the appropriate CRT version's FILE structure to
+ * a HANDLE (which is OS-defined, not CRT-defined, and is part of the Win32
+ * and Win64 ABIs).
+ */
+static pcap_t *pcap_fopen_offline_with_tstamp_precision(FILE *, u_int, char *);
+static pcap_t *pcap_fopen_offline(FILE *, char *);
+#endif
 
 /*
  * Setting O_BINARY on DOS/Windows is a bit tricky
  */
-#if defined(WIN32)
+#if defined(_WIN32)
   #define SET_BINMODE(f)  _setmode(_fileno(f), _O_BINARY)
 #elif defined(MSDOS)
   #if defined(__HIGHC__)
@@ -81,7 +84,7 @@ static const char rcsid[] _U_ =
 #endif
 
 static int
-sf_getnonblock(pcap_t *p, char *errbuf)
+sf_getnonblock(pcap_t *p _U_)
 {
 	/*
 	 * This is a savefile, not a live capture file, so never say
@@ -91,7 +94,7 @@ sf_getnonblock(pcap_t *p, char *errbuf)
 }
 
 static int
-sf_setnonblock(pcap_t *p, int nonblock, char *errbuf)
+sf_setnonblock(pcap_t *p, int nonblock _U_)
 {
 	/*
 	 * This is a savefile, not a live capture file, so reject
@@ -101,24 +104,32 @@ sf_setnonblock(pcap_t *p, int nonblock, char *errbuf)
 	 * as it would have to handle reading partial packets and
 	 * keeping the state of the read.)
 	 */
-	snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+	pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
 	    "Savefiles cannot be put into non-blocking mode");
 	return (-1);
 }
 
 static int
-sf_stats(pcap_t *p, struct pcap_stat *ps)
+sf_stats(pcap_t *p, struct pcap_stat *ps _U_)
 {
-	snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+	pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
 	    "Statistics aren't available from savefiles");
 	return (-1);
 }
 
-#ifdef WIN32
+#ifdef _WIN32
+static struct pcap_stat *
+sf_stats_ex(pcap_t *p, int *size)
+{
+	pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+	    "Statistics aren't available from savefiles");
+	return (NULL);
+}
+
 static int
 sf_setbuff(pcap_t *p, int dim)
 {
-	snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+	pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
 	    "The kernel buffer size cannot be set while reading from a file");
 	return (-1);
 }
@@ -126,7 +137,7 @@ sf_setbuff(pcap_t *p, int dim)
 static int
 sf_setmode(pcap_t *p, int mode)
 {
-	snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+	pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
 	    "impossible to set mode while reading from a file");
 	return (-1);
 }
@@ -134,9 +145,73 @@ sf_setmode(pcap_t *p, int mode)
 static int
 sf_setmintocopy(pcap_t *p, int size)
 {
-	snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+	pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
 	    "The mintocopy parameter cannot be set while reading from a file");
 	return (-1);
+}
+
+static HANDLE
+sf_getevent(pcap_t *pcap)
+{
+	(void)pcap_snprintf(pcap->errbuf, sizeof(pcap->errbuf),
+	    "The read event cannot be retrieved while reading from a file");
+	return (INVALID_HANDLE_VALUE);
+}
+
+static int
+sf_oid_get_request(pcap_t *p, bpf_u_int32 oid _U_, void *data _U_,
+    size_t *lenp _U_)
+{
+	pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+	    "An OID get request cannot be performed on a file");
+	return (PCAP_ERROR);
+}
+
+static int
+sf_oid_set_request(pcap_t *p, bpf_u_int32 oid _U_, const void *data _U_,
+    size_t *lenp _U_)
+{
+	pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+	    "An OID set request cannot be performed on a file");
+	return (PCAP_ERROR);
+}
+
+static u_int
+sf_sendqueue_transmit(pcap_t *p, pcap_send_queue *queue, int sync)
+{
+	strlcpy(p->errbuf, "Sending packets isn't supported on savefiles",
+	    PCAP_ERRBUF_SIZE);
+	return (0);
+}
+
+static int
+sf_setuserbuffer(pcap_t *p, int size)
+{
+	pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+	    "The user buffer cannot be set when reading from a file");
+	return (-1);
+}
+
+static int
+sf_live_dump(pcap_t *p, char *filename, int maxsize, int maxpacks)
+{
+	pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+	    "Live packet dumping cannot be performed when reading from a file");
+	return (-1);
+}
+
+static int
+sf_live_dump_ended(pcap_t *p, int sync)
+{
+	pcap_snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+	    "Live packet dumping cannot be performed on a pcap_open_dead pcap_t");
+	return (-1);
+}
+
+static PAirpcapHandle
+sf_get_airpcap_handle(pcap_t *pcap)
+{
+	return (NULL);
 }
 #endif
 
@@ -153,33 +228,39 @@ sf_inject(pcap_t *p, const void *buf _U_, size_t size _U_)
  * single device? IN, OUT or both?
  */
 static int
-sf_setdirection(pcap_t *p, pcap_direction_t d)
+sf_setdirection(pcap_t *p, pcap_direction_t d _U_)
 {
-	snprintf(p->errbuf, sizeof(p->errbuf),
+	pcap_snprintf(p->errbuf, sizeof(p->errbuf),
 	    "Setting direction is not supported on savefiles");
 	return (-1);
 }
 
-static void
+void
 sf_cleanup(pcap_t *p)
 {
-	if (p->sf.rfile != stdin)
-		(void)fclose(p->sf.rfile);
+	if (p->rfile != stdin)
+		(void)fclose(p->rfile);
 	if (p->buffer != NULL)
 		free(p->buffer);
 	pcap_freecode(&p->fcode);
 }
 
 pcap_t *
-pcap_open_offline(const char *fname, char *errbuf)
+pcap_open_offline_with_tstamp_precision(const char *fname, u_int precision,
+					char *errbuf)
 {
 	FILE *fp;
 	pcap_t *p;
 
+	if (fname == NULL) {
+		pcap_snprintf(errbuf, PCAP_ERRBUF_SIZE,
+		    "A null pointer was supplied as the file name");
+		return (NULL);
+	}
 	if (fname[0] == '-' && fname[1] == '\0')
 	{
 		fp = stdin;
-#if defined(WIN32) || defined(MSDOS)
+#if defined(_WIN32) || defined(MSDOS)
 		/*
 		 * We're reading from the standard input, so put it in binary
 		 * mode, as savefiles are binary files.
@@ -188,18 +269,20 @@ pcap_open_offline(const char *fname, char *errbuf)
 #endif
 	}
 	else {
-#if !defined(WIN32) && !defined(MSDOS)
-		fp = fopen(fname, "r");
-#else
+		/*
+		 * "b" is supported as of C90, so *all* UN*Xes should
+		 * support it, even though it does nothing.  It's
+		 * required on Windows, as the file is a binary file
+		 * and must be read in binary mode.
+		 */
 		fp = fopen(fname, "rb");
-#endif
 		if (fp == NULL) {
-			snprintf(errbuf, PCAP_ERRBUF_SIZE, "%s: %s", fname,
-			    pcap_strerror(errno));
+			pcap_fmt_errmsg_for_errno(errbuf, PCAP_ERRBUF_SIZE,
+			    errno, "%s", fname);
 			return (NULL);
 		}
 	}
-	p = pcap_fopen_offline(fp, errbuf);
+	p = pcap_fopen_offline_with_tstamp_precision(fp, precision, errbuf);
 	if (p == NULL) {
 		if (fp != stdin)
 			fclose(fp);
@@ -207,55 +290,70 @@ pcap_open_offline(const char *fname, char *errbuf)
 	return (p);
 }
 
-#ifdef WIN32
-pcap_t* pcap_hopen_offline(intptr_t osfd, char *errbuf)
+pcap_t *
+pcap_open_offline(const char *fname, char *errbuf)
+{
+	return (pcap_open_offline_with_tstamp_precision(fname,
+	    PCAP_TSTAMP_PRECISION_MICRO, errbuf));
+}
+
+#ifdef _WIN32
+pcap_t* pcap_hopen_offline_with_tstamp_precision(intptr_t osfd, u_int precision,
+    char *errbuf)
 {
 	int fd;
 	FILE *file;
 
 	fd = _open_osfhandle(osfd, _O_RDONLY);
-	if ( fd < 0 ) 
+	if ( fd < 0 )
 	{
-		snprintf(errbuf, PCAP_ERRBUF_SIZE, pcap_strerror(errno));
+		pcap_fmt_errmsg_for_errno(errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "_open_osfhandle");
 		return NULL;
 	}
 
 	file = _fdopen(fd, "rb");
-	if ( file == NULL ) 
+	if ( file == NULL )
 	{
-		snprintf(errbuf, PCAP_ERRBUF_SIZE, pcap_strerror(errno));
+		pcap_fmt_errmsg_for_errno(errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "_fdopen");
 		return NULL;
 	}
 
-	return pcap_fopen_offline(file, errbuf);
+	return pcap_fopen_offline_with_tstamp_precision(file, precision,
+	    errbuf);
+}
+
+pcap_t* pcap_hopen_offline(intptr_t osfd, char *errbuf)
+{
+	return pcap_hopen_offline_with_tstamp_precision(osfd,
+	    PCAP_TSTAMP_PRECISION_MICRO, errbuf);
 }
 #endif
 
-static int (*check_headers[])(pcap_t *, bpf_u_int32, FILE *, char *) = {
+static pcap_t *(*check_headers[])(bpf_u_int32, FILE *, u_int, char *, int *) = {
 	pcap_check_header,
 	pcap_ng_check_header
 };
 
 #define	N_FILE_TYPES	(sizeof check_headers / sizeof check_headers[0])
 
-#ifdef WIN32
+#ifdef _WIN32
 static
 #endif
 pcap_t *
-pcap_fopen_offline(FILE *fp, char *errbuf)
+pcap_fopen_offline_with_tstamp_precision(FILE *fp, u_int precision,
+    char *errbuf)
 {
 	register pcap_t *p;
 	bpf_u_int32 magic;
 	size_t amt_read;
 	u_int i;
-
-	p = pcap_create_common("(savefile)", errbuf);
-	if (p == NULL)
-		return (NULL);
+	int err;
 
 	/*
 	 * Read the first 4 bytes of the file; the network analyzer dump
-	 * file formats we support (pcap and pcap-ng), and several other
+	 * file formats we support (pcap and pcapng), and several other
 	 * formats we might support in the future (such as snoop, DOS and
 	 * Windows Sniffer, and Microsoft Network Monitor) all have magic
 	 * numbers that are unique in their first 4 bytes.
@@ -263,53 +361,47 @@ pcap_fopen_offline(FILE *fp, char *errbuf)
 	amt_read = fread((char *)&magic, 1, sizeof(magic), fp);
 	if (amt_read != sizeof(magic)) {
 		if (ferror(fp)) {
-			snprintf(errbuf, PCAP_ERRBUF_SIZE,
-			    "error reading dump file: %s",
-			    pcap_strerror(errno));
+			pcap_fmt_errmsg_for_errno(errbuf, PCAP_ERRBUF_SIZE,
+			    errno, "error reading dump file");
 		} else {
-			snprintf(errbuf, PCAP_ERRBUF_SIZE,
+			pcap_snprintf(errbuf, PCAP_ERRBUF_SIZE,
 			    "truncated dump file; tried to read %lu file header bytes, only got %lu",
 			    (unsigned long)sizeof(magic),
 			    (unsigned long)amt_read);
 		}
-		goto bad;
+		return (NULL);
 	}
 
 	/*
 	 * Try all file types.
 	 */
 	for (i = 0; i < N_FILE_TYPES; i++) {
-		switch ((*check_headers[i])(p, magic, fp, errbuf)) {
-
-		case -1:
+		p = (*check_headers[i])(magic, fp, precision, errbuf, &err);
+		if (p != NULL) {
+			/* Yup, that's it. */
+			goto found;
+		}
+		if (err) {
 			/*
 			 * Error trying to read the header.
 			 */
-			goto bad;
-
-		case 1:
-			/*
-			 * Yup, that's it.
-			 */
-			goto found;
+			return (NULL);
 		}
 	}
 
 	/*
 	 * Well, who knows what this mess is....
 	 */
-	snprintf(errbuf, PCAP_ERRBUF_SIZE, "unknown file format");
-	goto bad;
+	pcap_snprintf(errbuf, PCAP_ERRBUF_SIZE, "unknown file format");
+	return (NULL);
 
 found:
-	p->sf.rfile = fp;
+	p->rfile = fp;
 
-#ifdef PCAP_FDDIPAD
 	/* Padding only needed for live capture fcode */
 	p->fddipad = 0;
-#endif
 
-#if !defined(WIN32) && !defined(MSDOS)
+#if !defined(_WIN32) && !defined(MSDOS)
 	/*
 	 * You can do "select()" and "poll()" on plain files on most
 	 * platforms, and should be able to do so on pipes.
@@ -328,18 +420,45 @@ found:
 	p->getnonblock_op = sf_getnonblock;
 	p->setnonblock_op = sf_setnonblock;
 	p->stats_op = sf_stats;
-#ifdef WIN32
+#ifdef _WIN32
+	p->stats_ex_op = sf_stats_ex;
 	p->setbuff_op = sf_setbuff;
 	p->setmode_op = sf_setmode;
 	p->setmintocopy_op = sf_setmintocopy;
+	p->getevent_op = sf_getevent;
+	p->oid_get_request_op = sf_oid_get_request;
+	p->oid_set_request_op = sf_oid_set_request;
+	p->sendqueue_transmit_op = sf_sendqueue_transmit;
+	p->setuserbuffer_op = sf_setuserbuffer;
+	p->live_dump_op = sf_live_dump;
+	p->live_dump_ended_op = sf_live_dump_ended;
+	p->get_airpcap_handle_op = sf_get_airpcap_handle;
 #endif
-	p->cleanup_op = sf_cleanup;
+
+	/*
+	 * For offline captures, the standard one-shot callback can
+	 * be used for pcap_next()/pcap_next_ex().
+	 */
+	p->oneshot_callback = pcap_oneshot;
+
+	/*
+	 * Savefiles never require special BPF code generation.
+	 */
+	p->bpf_codegen_flags = 0;
+
 	p->activated = 1;
 
 	return (p);
- bad:
-	free(p);
-	return (NULL);
+}
+
+#ifdef _WIN32
+static
+#endif
+pcap_t *
+pcap_fopen_offline(FILE *fp, char *errbuf)
+{
+	return (pcap_fopen_offline_with_tstamp_precision(fp,
+	    PCAP_TSTAMP_PRECISION_MICRO, errbuf));
 }
 
 /*
@@ -375,7 +494,7 @@ pcap_offline_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 				return (n);
 		}
 
-		status = p->sf.next_packet_op(p, &h, &data);
+		status = p->next_packet_op(p, &h, &data);
 		if (status) {
 			if (status == 1)
 				return (0);

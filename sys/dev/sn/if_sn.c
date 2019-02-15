@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1996 Gardner Buchanan <gbuchanan@shl.com>
  * All rights reserved.
  *
@@ -84,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/sockio.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
@@ -224,6 +227,9 @@ sn_attach(device_t dev)
 		sn_detach(dev);
 		return err;
 	}
+
+	gone_by_fcp101_dev(dev);
+
 	return 0;
 }
 
@@ -282,7 +288,7 @@ sninit_locked(void *xsc)
 	CSR_WRITE_2(sc, TXMIT_CONTROL_REG_W, 0x0000);
 
 	/*
-	 * Set the control register to automatically release succesfully
+	 * Set the control register to automatically release successfully
 	 * transmitted packets (making the best use out of our limited
 	 * memory) and to enable the EPH interrupt on certain TX errors.
 	 */
@@ -392,7 +398,7 @@ startagain:
 	 * Sneak a peek at the next packet
 	 */
 	m = ifp->if_snd.ifq_head;
-	if (m == 0)
+	if (m == NULL)
 		return;
 	/*
 	 * Compute the frame length and set pad to give an overall even
@@ -508,7 +514,7 @@ startagain:
 	/*
 	 * Push out the data to the card.
 	 */
-	for (top = m; m != 0; m = m->m_next) {
+	for (top = m; m != NULL; m = m->m_next) {
 
 		/*
 		 * Push out words.
@@ -606,7 +612,7 @@ snresume(struct ifnet *ifp)
 	 * Sneak a peek at the next packet
 	 */
 	m = ifp->if_snd.ifq_head;
-	if (m == 0) {
+	if (m == NULL) {
 		if_printf(ifp, "snresume() with nothing to send\n");
 		return;
 	}
@@ -707,7 +713,7 @@ snresume(struct ifnet *ifp)
 	/*
 	 * Push out the data to the card.
 	 */
-	for (top = m; m != 0; m = m->m_next) {
+	for (top = m; m != NULL; m = m->m_next) {
 
 		/*
 		 * Push out words.
@@ -1065,14 +1071,9 @@ read_another:
 	m->m_pkthdr.len = m->m_len = packet_length;
 
 	/*
-	 * Attach an mbuf cluster
+	 * Attach an mbuf cluster.
 	 */
-	MCLGET(m, M_NOWAIT);
-
-	/*
-	 * Insist on getting a cluster
-	 */
-	if ((m->m_flags & M_EXT) == 0) {
+	if (!(MCLGET(m, M_NOWAIT))) {
 		m_freem(m);
 		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		printf("sn: snread() kernel memory allocation problem\n");
@@ -1220,8 +1221,8 @@ sn_activate(device_t dev)
 	struct sn_softc *sc = device_get_softc(dev);
 
 	sc->port_rid = 0;
-	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
-	    0, ~0, SMC_IO_EXTENT, RF_ACTIVE);
+	sc->port_res = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT,
+	    &sc->port_rid, SMC_IO_EXTENT, RF_ACTIVE);
 	if (!sc->port_res) {
 		if (bootverbose)
 			device_printf(dev, "Cannot allocate ioport\n");
@@ -1420,7 +1421,7 @@ sn_getmcf(struct ifnet *ifp, uint8_t *mcf)
 	bzero(mcf, MCFSZ);
 
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 	    if (ifma->ifma_addr->sa_family != AF_LINK) {
 		if_maddr_runlock(ifp);
 		return 0;

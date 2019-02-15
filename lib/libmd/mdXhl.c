@@ -1,4 +1,7 @@
-/* mdXhl.c * ----------------------------------------------------------------------------
+/*- mdXhl.c
+ * SPDX-License-Identifier: Beerware
+ *
+ * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
  * <phk@FreeBSD.org> wrote this file.  As long as you retain this notice you
  * can do whatever you want with this stuff. If we meet some day, and you think
@@ -41,6 +44,53 @@ MDXEnd(MDX_CTX *ctx, char *buf)
 }
 
 char *
+MDXFd(int fd, char *buf)
+{
+	return MDXFdChunk(fd, buf, 0, 0);
+}
+
+char *
+MDXFdChunk(int fd, char *buf, off_t ofs, off_t len)
+{
+	unsigned char buffer[16*1024];
+	MDX_CTX ctx;
+	struct stat stbuf;
+	int readrv, e;
+	off_t remain;
+
+	if (len < 0) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	MDXInit(&ctx);
+	if (ofs != 0) {
+		errno = 0;
+		if (lseek(fd, ofs, SEEK_SET) != ofs ||
+		    (ofs == -1 && errno != 0)) {
+			readrv = -1;
+			goto error;
+		}
+	}
+	remain = len;
+	readrv = 0;
+	while (len == 0 || remain > 0) {
+		if (len == 0 || remain > sizeof(buffer))
+			readrv = read(fd, buffer, sizeof(buffer));
+		else
+			readrv = read(fd, buffer, remain);
+		if (readrv <= 0)
+			break;
+		MDXUpdate(&ctx, buffer, readrv);
+		remain -= readrv;
+	}
+error:
+	if (readrv < 0)
+		return NULL;
+	return (MDXEnd(&ctx, buf));
+}
+
+char *
 MDXFile(const char *filename, char *buf)
 {
 	return (MDXFileChunk(filename, buf, 0, 0));
@@ -49,42 +99,17 @@ MDXFile(const char *filename, char *buf)
 char *
 MDXFileChunk(const char *filename, char *buf, off_t ofs, off_t len)
 {
-	unsigned char buffer[BUFSIZ];
-	MDX_CTX ctx;
-	struct stat stbuf;
-	int f, i, e;
-	off_t n;
+	char *ret;
+	int e, fd;
 
-	MDXInit(&ctx);
-	f = open(filename, O_RDONLY);
-	if (f < 0)
-		return 0;
-	if (fstat(f, &stbuf) < 0)
-		return 0;
-	if (ofs > stbuf.st_size)
-		ofs = stbuf.st_size;
-	if ((len == 0) || (len > stbuf.st_size - ofs))
-		len = stbuf.st_size - ofs;
-	if (lseek(f, ofs, SEEK_SET) < 0)
-		return 0;
-	n = len;
-	i = 0;
-	while (n > 0) {
-		if (n > sizeof(buffer))
-			i = read(f, buffer, sizeof(buffer));
-		else
-			i = read(f, buffer, n);
-		if (i < 0) 
-			break;
-		MDXUpdate(&ctx, buffer, i);
-		n -= i;
-	} 
+	fd = open(filename, O_RDONLY);
+	if (fd < 0)
+		return NULL;
+	ret = MDXFdChunk(fd, buf, ofs, len);
 	e = errno;
-	close(f);
+	close (fd);
 	errno = e;
-	if (i < 0)
-		return 0;
-	return (MDXEnd(&ctx, buf));
+	return ret;
 }
 
 char *
@@ -96,3 +121,18 @@ MDXData (const void *data, unsigned int len, char *buf)
 	MDXUpdate(&ctx,data,len);
 	return (MDXEnd(&ctx, buf));
 }
+
+#ifdef WEAK_REFS
+/* When building libmd, provide weak references. Note: this is not
+   activated in the context of compiling these sources for internal
+   use in libcrypt.
+ */
+#undef MDXEnd
+__weak_reference(_libmd_MDXEnd, MDXEnd);
+#undef MDXFile
+__weak_reference(_libmd_MDXFile, MDXFile);
+#undef MDXFileChunk
+__weak_reference(_libmd_MDXFileChunk, MDXFileChunk);
+#undef MDXData
+__weak_reference(_libmd_MDXData, MDXData);
+#endif

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2008 MARVELL INTERNATIONAL LTD.
  * All rights reserved.
  *
@@ -99,4 +101,11 @@ get_tclk(void)
 	default:
 		panic("Unknown TCLK settings!");
 	}
+}
+
+uint32_t
+get_cpu_freq(void)
+{
+
+	return (0);
 }

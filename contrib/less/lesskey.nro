@@ -1,4 +1,4 @@
-.TH LESSKEY 1 "Version 458: 04 Apr 2013"
+.TH LESSKEY 1 "Version 530: 05 Dec 2017"
 .SH NAME
 lesskey \- specify key bindings for less
 .SH SYNOPSIS
@@ -134,7 +134,7 @@ default command keys used by less:
 	\en		forw-line 
 	e		forw-line 
 	j		forw-line 
-	\ekd	forw-line
+	\ekd		forw-line
 	^E		forw-line 
 	^N		forw-line 
 	k		back-line 
@@ -149,15 +149,15 @@ default command keys used by less:
 	^D		forw-scroll 
 	u		back-scroll 
 	^U		back-scroll 
-	\e40	forw-screen 
+	\e40		forw-screen 
 	f		forw-screen 
 	^F		forw-screen 
 	^V		forw-screen 
-	\ekD	forw-screen
+	\ekD		forw-screen
 	b		back-screen 
 	^B		back-screen 
 	\eev		back-screen 
-	\ekU	back-screen
+	\ekU		back-screen
 	z		forw-window 
 	w		back-window 
 	\ee\e40		forw-screen-force
@@ -169,7 +169,7 @@ default command keys used by less:
 	^L		repaint 
 	\eeu		undo-hilite
 	g		goto-line 
-	\ekh	goto-line
+	\ekh		goto-line
 	<		goto-line 
 	\ee<		goto-line 
 	p		percent 
@@ -178,6 +178,10 @@ default command keys used by less:
 	\ee]		right-scroll
 	\ee(		left-scroll
 	\ee)		right-scroll
+	\ekl		left-scroll
+	\ekr		right-scroll
+	\ee{		no-scroll
+	\ee}		end-scroll
 	{		forw-bracket {}
 	}		back-bracket {}
 	(		forw-bracket ()
@@ -189,7 +193,8 @@ default command keys used by less:
 	G		goto-end 
 	\ee>		goto-end 
 	>		goto-end 
-	\eke	goto-end
+	\eke		goto-end
+	\eeG		goto-end-buffered
 	=		status 
 	^G		status 
 	:f		status 
@@ -203,6 +208,8 @@ default command keys used by less:
 	\eeN		reverse-search-all 
 	&		filter
 	m		set-mark 
+	M		set-mark-bottom
+	\eem		clear-mark
 	'		goto-mark 
 	^X^X		goto-mark 
 	E		examine 
@@ -356,26 +363,29 @@ which start with a NUL character (0).
 This NUL character should be represented as \e340 in a lesskey file.
 
 .SH COPYRIGHT
-Copyright (C) 2000-2012  Mark Nudelman
+Copyright (C) 1984-2017  Mark Nudelman
 .PP
-lesskey is part of the GNU project and is free software;
-you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by
-the Free Software Foundation;
-either version 2, or (at your option) any later version.
+less is part of the GNU project and is free software.
+You can redistribute it and/or modify it
+under the terms of either
+(1) the GNU General Public License as published by
+the Free Software Foundation; or (2) the Less License.
+See the file README in the less distribution for more details
+regarding redistribution.
+You should have received a copy of the GNU General Public License
+along with the source for less; see the file COPYING.
+If not, write to the Free Software Foundation, 59 Temple Place,
+Suite 330, Boston, MA  02111-1307, USA.
+You should also have received a copy of the Less License;
+see the file LICENSE.
 .PP
-lesskey is distributed in the hope that it will be useful, but
+less is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 or FITNESS FOR A PARTICULAR PURPOSE.
 See the GNU General Public License for more details.
-.PP
-You should have received a copy of the GNU General Public License 
-along with lesskey; see the file COPYING.
-If not, write to the Free Software Foundation, 59 Temple Place,
-Suite 330, Boston, MA  02111-1307, USA.
 
 .SH AUTHOR
 .PP
-Mark Nudelman <bug-less@gnu.org>
+Mark Nudelman
 .br
-Send bug reports or comments to bug-less@gnu.org.
+Send bug reports or comments to <bug-less@gnu.org>.

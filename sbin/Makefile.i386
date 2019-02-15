@@ -2,5 +2,4 @@
 
 SUBDIR += bsdlabel
 SUBDIR += fdisk
-SUBDIR += nvmecontrol
 SUBDIR += sconfig

@@ -3,9 +3,12 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime-manuals
+
 MAN=		assert.3 \
 		ATOMIC_VAR_INIT.3 \
 		bitstring.3 \
+		CMSG_DATA.3 \
 		end.3 \
 		fpgetround.3 \
 		intro.3 \
@@ -13,6 +16,7 @@ MAN=		assert.3 \
 		offsetof.3 \
 		${PTHREAD_MAN} \
 		queue.3 \
+		sigevent.3 \
 		siginfo.3 \
 		stdarg.3 \
 		sysexits.3 \
@@ -46,12 +50,18 @@ MLINKS+=	bitstring.3 bit_alloc.3 \
 		bitstring.3 bit_clear.3 \
 		bitstring.3 bit_decl.3 \
 		bitstring.3 bit_ffc.3 \
+		bitstring.3 bit_ffc_at.3 \
 		bitstring.3 bit_ffs.3 \
+		bitstring.3 bit_ffs_at.3 \
 		bitstring.3 bit_nclear.3 \
 		bitstring.3 bit_nset.3 \
 		bitstring.3 bit_set.3 \
 		bitstring.3 bitstr_size.3 \
 		bitstring.3 bit_test.3
+MLINKS+=	CMSG_DATA.3 CMSG_FIRSTHDR.3 \
+		CMSG_DATA.3 CMSG_LEN.3 \
+		CMSG_DATA.3 CMSG_NEXTHDR.3 \
+		CMSG_DATA.3 CMSG_SPACE.3
 MLINKS+=	end.3 edata.3 \
 		end.3 etext.3
 MLINKS+=	fpgetround.3 fpgetmask.3 \
@@ -64,13 +74,15 @@ MLINKS+=	fpgetround.3 fpgetmask.3 \
 MLINKS+=	makedev.3 major.3 \
 		makedev.3 minor.3
 MLINKS+=	${PTHREAD_MLINKS}
-MLINKS+=	queue.3 LIST_EMPTY.3 \
+MLINKS+=	queue.3 LIST_CLASS_ENTRY.3 \
+		queue.3 LIST_CLASS_HEAD.3 \
+		queue.3 LIST_EMPTY.3 \
 		queue.3 LIST_ENTRY.3 \
 		queue.3 LIST_FIRST.3 \
 		queue.3 LIST_FOREACH.3 \
 		queue.3 LIST_FOREACH_FROM.3 \
-		queue.3 LIST_FOREACH_SAFE.3 \
 		queue.3 LIST_FOREACH_FROM_SAFE.3 \
+		queue.3 LIST_FOREACH_SAFE.3 \
 		queue.3 LIST_HEAD.3 \
 		queue.3 LIST_HEAD_INITIALIZER.3 \
 		queue.3 LIST_INIT.3 \
@@ -81,13 +93,15 @@ MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 LIST_PREV.3 \
 		queue.3 LIST_REMOVE.3 \
 		queue.3 LIST_SWAP.3 \
+		queue.3 SLIST_CLASS_ENTRY.3 \
+		queue.3 SLIST_CLASS_HEAD.3 \
 		queue.3 SLIST_EMPTY.3 \
 		queue.3 SLIST_ENTRY.3 \
 		queue.3 SLIST_FIRST.3 \
 		queue.3 SLIST_FOREACH.3 \
 		queue.3 SLIST_FOREACH_FROM.3 \
-		queue.3 SLIST_FOREACH_SAFE.3 \
 		queue.3 SLIST_FOREACH_FROM_SAFE.3 \
+		queue.3 SLIST_FOREACH_SAFE.3 \
 		queue.3 SLIST_HEAD.3 \
 		queue.3 SLIST_HEAD_INITIALIZER.3 \
 		queue.3 SLIST_INIT.3 \
@@ -97,15 +111,18 @@ MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 SLIST_REMOVE.3 \
 		queue.3 SLIST_REMOVE_AFTER.3 \
 		queue.3 SLIST_REMOVE_HEAD.3 \
+		queue.3 SLIST_REMOVE_PREVPTR.3 \
 		queue.3 SLIST_SWAP.3 \
+		queue.3 STAILQ_CLASS_ENTRY.3 \
+		queue.3 STAILQ_CLASS_HEAD.3 \
 		queue.3 STAILQ_CONCAT.3 \
 		queue.3 STAILQ_EMPTY.3 \
 		queue.3 STAILQ_ENTRY.3 \
 		queue.3 STAILQ_FIRST.3 \
 		queue.3 STAILQ_FOREACH.3 \
 		queue.3 STAILQ_FOREACH_FROM.3 \
-		queue.3 STAILQ_FOREACH_SAFE.3 \
 		queue.3 STAILQ_FOREACH_FROM_SAFE.3 \
+		queue.3 STAILQ_FOREACH_SAFE.3 \
 		queue.3 STAILQ_HEAD.3 \
 		queue.3 STAILQ_HEAD_INITIALIZER.3 \
 		queue.3 STAILQ_INIT.3 \
@@ -118,18 +135,20 @@ MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 STAILQ_REMOVE_AFTER.3 \
 		queue.3 STAILQ_REMOVE_HEAD.3 \
 		queue.3 STAILQ_SWAP.3 \
+		queue.3 TAILQ_CLASS_ENTRY.3 \
+		queue.3 TAILQ_CLASS_HEAD.3 \
 		queue.3 TAILQ_CONCAT.3 \
 		queue.3 TAILQ_EMPTY.3 \
 		queue.3 TAILQ_ENTRY.3 \
 		queue.3 TAILQ_FIRST.3 \
 		queue.3 TAILQ_FOREACH.3 \
 		queue.3 TAILQ_FOREACH_FROM.3 \
+		queue.3 TAILQ_FOREACH_FROM_SAFE.3 \
 		queue.3 TAILQ_FOREACH_REVERSE.3 \
 		queue.3 TAILQ_FOREACH_REVERSE_FROM.3 \
-		queue.3 TAILQ_FOREACH_REVERSE_SAFE.3 \
 		queue.3 TAILQ_FOREACH_REVERSE_FROM_SAFE.3 \
+		queue.3 TAILQ_FOREACH_REVERSE_SAFE.3 \
 		queue.3 TAILQ_FOREACH_SAFE.3 \
-		queue.3 TAILQ_FOREACH_FROM_SAFE.3 \
 		queue.3 TAILQ_HEAD.3 \
 		queue.3 TAILQ_HEAD_INITIALIZER.3 \
 		queue.3 TAILQ_INIT.3 \
@@ -150,7 +169,12 @@ MLINKS+=	stdarg.3 va_arg.3 \
 MLINKS+=	timeradd.3 timerclear.3 \
 		timeradd.3 timercmp.3 \
 		timeradd.3 timerisset.3 \
-		timeradd.3 timersub.3
+		timeradd.3 timersub.3 \
+		timeradd.3 timespecadd.3 \
+		timeradd.3 timespecsub.3 \
+		timeradd.3 timespecclear.3 \
+		timeradd.3 timespecisset.3 \
+		timeradd.3 timespeccmp.3
 MLINKS+=	tree.3 RB_EMPTY.3 \
 		tree.3 RB_ENTRY.3 \
 		tree.3 RB_FIND.3 \
@@ -228,6 +252,7 @@ PTHREAD_MAN=	pthread.3 \
 		pthread_multi_np.3 \
 		pthread_mutexattr.3 \
 		pthread_mutexattr_getkind_np.3 \
+		pthread_mutex_consistent.3 \
 		pthread_mutex_destroy.3 \
 		pthread_mutex_init.3 \
 		pthread_mutex_lock.3 \
@@ -302,16 +327,19 @@ PTHREAD_MLINKS+=pthread_multi_np.3 pthread_single_np.3
 PTHREAD_MLINKS+=pthread_mutexattr.3 pthread_mutexattr_destroy.3 \
 		pthread_mutexattr.3 pthread_mutexattr_getprioceiling.3 \
 		pthread_mutexattr.3 pthread_mutexattr_getprotocol.3 \
+		pthread_mutexattr.3 pthread_mutexattr_getrobust.3 \
 		pthread_mutexattr.3 pthread_mutexattr_gettype.3 \
 		pthread_mutexattr.3 pthread_mutexattr_init.3 \
 		pthread_mutexattr.3 pthread_mutexattr_setprioceiling.3 \
 		pthread_mutexattr.3 pthread_mutexattr_setprotocol.3 \
+		pthread_mutexattr.3 pthread_mutexattr_setrobust.3 \
 		pthread_mutexattr.3 pthread_mutexattr_settype.3
 PTHREAD_MLINKS+=pthread_mutexattr_getkind_np.3 pthread_mutexattr_setkind_np.3
 PTHREAD_MLINKS+=pthread_rwlock_rdlock.3 pthread_rwlock_tryrdlock.3
 PTHREAD_MLINKS+=pthread_rwlock_wrlock.3 pthread_rwlock_trywrlock.3
 PTHREAD_MLINKS+=pthread_schedparam.3 pthread_getschedparam.3 \
 		pthread_schedparam.3 pthread_setschedparam.3
+PTHREAD_MLINKS+=pthread_set_name_np.3 pthread_get_name_np.3
 PTHREAD_MLINKS+=pthread_spin_init.3 pthread_spin_destroy.3 \
 		pthread_spin_lock.3 pthread_spin_trylock.3 \
 		pthread_spin_lock.3 pthread_spin_unlock.3

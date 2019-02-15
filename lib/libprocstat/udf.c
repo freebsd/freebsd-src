@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2009 Stanislav Sedov <stas@FreeBSD.org>
  * All rights reserved.
  *
@@ -30,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
-#include <sys/buf.h>
 #define _KERNEL
 #include <sys/mount.h>
 #undef _KERNEL

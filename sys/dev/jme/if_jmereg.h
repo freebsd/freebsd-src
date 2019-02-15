@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008, Pyun YongHyeon <yongari@FreeBSD.org>
  * All rights reserved.
  *
@@ -925,7 +927,7 @@
 #define	TIMER3_TIMEOUT_COUNT_SHIFT	8
 #define	TIMER3_TIMEOUT_VALUE_SHIFT	1
 
-/* Aggresive power mode control. */
+/* Aggressive power mode control. */
 #define	JME_APMC		0x087C
 #define	APMC_PCIE_SDOWN_STAT	0x80000000
 #define	APMC_PCIE_SDOWN_ENB	0x40000000

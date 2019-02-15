@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -48,6 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <pwd.h>
@@ -88,7 +91,7 @@ static struct interval {
 #undef S
 
 static time_t offset, shuttime;
-static int dohalt, dopower, doreboot, killflg, mbuflen, oflag;
+static int docycle, dohalt, dopower, doreboot, killflg, mbuflen, oflag;
 static char mbuf[BUFSIZ];
 static const char *nosync, *whom;
 
@@ -140,10 +143,13 @@ main(int argc, char **argv)
 		goto poweroff;
 	}
 
-	while ((ch = getopt(argc, argv, "-hknopr")) != -1)
+	while ((ch = getopt(argc, argv, "-chknopr")) != -1)
 		switch (ch) {
 		case '-':
 			readstdin = 1;
+			break;
+		case 'c':
+			docycle = 1;
 			break;
 		case 'h':
 			dohalt = 1;
@@ -173,11 +179,11 @@ main(int argc, char **argv)
 	if (argc < 1)
 		usage((char *)NULL);
 
-	if (killflg + doreboot + dohalt + dopower > 1)
-		usage("incompatible switches -h, -k, -p and -r");
+	if (killflg + doreboot + dohalt + dopower + docycle > 1)
+		usage("incompatible switches -c, -h, -k, -p and -r");
 
-	if (oflag && !(dohalt || dopower || doreboot))
-		usage("-o requires -h, -p or -r");
+	if (oflag && !(dohalt || dopower || doreboot || docycle))
+		usage("-o requires -c, -h, -p or -r");
 
 	if (nosync != NULL && !oflag)
 		usage("-n requires -o");
@@ -322,7 +328,8 @@ timewarn(int timeleft)
 		(void)fprintf(pf, "System going down in %d minute%s\n\n",
 		    timeleft / 60, (timeleft > 60) ? "s" : "");
 	else if (timeleft)
-		(void)fprintf(pf, "System going down in 30 seconds\n\n");
+		(void)fprintf(pf, "System going down in %s30 seconds\n\n",
+		    (offset > 0 && offset < 30 ? "less than " : ""));
 	else
 		(void)fprintf(pf, "System going down IMMEDIATELY\n\n");
 
@@ -354,8 +361,8 @@ die_you_gravy_sucking_pig_dog(void)
 	char *empty_environ[] = { NULL };
 
 	syslog(LOG_NOTICE, "%s by %s: %s",
-	    doreboot ? "reboot" : dohalt ? "halt" : dopower ? "power-down" : 
-	    "shutdown", whom, mbuf);
+	    doreboot ? "reboot" : dohalt ? "halt" : dopower ? "power-down" :
+	    docycle ? "power-cycle" : "shutdown", whom, mbuf);
 
 	(void)printf("\r\nSystem shutdown time has arrived\007\007\r\n");
 	if (killflg) {
@@ -365,6 +372,8 @@ die_you_gravy_sucking_pig_dog(void)
 #ifdef DEBUG
 	if (doreboot)
 		(void)printf("reboot");
+	else if (docycle)
+		(void)printf("power-cycle");
 	else if (dohalt)
 		(void)printf("halt");
 	else if (dopower)
@@ -377,6 +386,7 @@ die_you_gravy_sucking_pig_dog(void)
 		(void)kill(1, doreboot ? SIGINT :	/* reboot */
 			      dohalt ? SIGUSR1 :	/* halt */
 			      dopower ? SIGUSR2 :	/* power-down */
+			      docycle ? SIGWINCH :	/* power-cycle */
 			      SIGTERM);			/* single-user */
 	} else {
 		if (doreboot) {
@@ -400,6 +410,13 @@ die_you_gravy_sucking_pig_dog(void)
 				_PATH_HALT);
 			warn(_PATH_HALT);
 		}
+		else if (docycle) {
+			execle(_PATH_HALT, "halt", "-l", "-c", nosync,
+				(char *)NULL, empty_environ);
+			syslog(LOG_ERR, "shutdown: can't exec %s: %m.",
+				_PATH_HALT);
+			warn(_PATH_HALT);
+		}
 		(void)kill(1, SIGTERM);		/* to single-user */
 	}
 #endif
@@ -414,7 +431,8 @@ getoffset(char *timearg)
 	struct tm *lt;
 	char *p;
 	time_t now;
-	int this_year;
+	int maybe_today, this_year;
+	char *timeunit;
 
 	(void)time(&now);
 
@@ -427,8 +445,25 @@ getoffset(char *timearg)
 	if (*timearg == '+') {				/* +minutes */
 		if (!isdigit(*++timearg))
 			badtime();
-		if ((offset = atoi(timearg) * 60) < 0)
+		errno = 0;
+		offset = strtol(timearg, &timeunit, 10);
+		if (offset < 0 || offset == LONG_MAX || errno != 0)
 			badtime();
+		if (timeunit[0] == '\0' || strcasecmp(timeunit, "m") == 0 ||
+		    strcasecmp(timeunit, "min") == 0 ||
+		    strcasecmp(timeunit, "mins") == 0) {
+			offset *= 60;
+		} else if (strcasecmp(timeunit, "h") == 0 ||
+		    strcasecmp(timeunit, "hour") == 0 ||
+		    strcasecmp(timeunit, "hours") == 0) {
+			offset *= 60 * 60;
+		} else if (strcasecmp(timeunit, "s") == 0 ||
+		    strcasecmp(timeunit, "sec") == 0 ||
+		    strcasecmp(timeunit, "secs") == 0) {
+			offset *= 1;
+		} else {
+			badtime();
+		}
 		shuttime = now + offset;
 		return;
 	}
@@ -447,6 +482,7 @@ getoffset(char *timearg)
 
 	unsetenv("TZ");					/* OUR timezone */
 	lt = localtime(&now);				/* current time val */
+	maybe_today = 1;
 
 	switch(strlen(timearg)) {
 	case 10:
@@ -468,6 +504,7 @@ getoffset(char *timearg)
 			badtime();
 		/* FALLTHROUGH */
 	case 6:
+		maybe_today = 0;
 		lt->tm_mday = ATOI2(timearg);
 		if (lt->tm_mday < 1 || lt->tm_mday > 31)
 			badtime();
@@ -482,8 +519,23 @@ getoffset(char *timearg)
 		lt->tm_sec = 0;
 		if ((shuttime = mktime(lt)) == -1)
 			badtime();
-		if ((offset = shuttime - now) < 0)
-			errx(1, "that time is already past.");
+
+		if ((offset = shuttime - now) < 0) {
+			if (!maybe_today)
+				errx(1, "that time is already past.");
+
+			/*
+			 * If the user only gave a time, assume that
+			 * any time earlier than the current time
+			 * was intended to be that time tomorrow.
+			 */
+			lt->tm_mday++;
+			if ((shuttime = mktime(lt)) == -1)
+				badtime();
+			if ((offset = shuttime - now) < 0) {
+				errx(1, "tomorrow is before today?");
+			}
+		}
 		break;
 	default:
 		badtime();
@@ -533,7 +585,7 @@ usage(const char *cp)
 	if (cp != NULL)
 		warnx("%s", cp);
 	(void)fprintf(stderr,
-	    "usage: shutdown [-] [-h | -p | -r | -k] [-o [-n]] time [warning-message ...]\n"
+	    "usage: shutdown [-] [-c | -h | -p | -r | -k] [-o [-n]] time [warning-message ...]\n"
 	    "       poweroff\n");
 	exit(1);
 }

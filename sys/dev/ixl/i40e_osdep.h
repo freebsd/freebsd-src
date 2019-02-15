@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2018, Intel Corporation
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -54,10 +54,8 @@
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
-#define ASSERT(x) if(!(x)) panic("IXL: x")
-
 #define i40e_usec_delay(x) DELAY(x)
-#define i40e_msec_delay(x) DELAY(1000*(x))
+#define i40e_msec_delay(x) DELAY(1000 * (x))
 
 #define DBG 0 
 #define MSGOUT(S, A, B)     printf(S "\n", A, B)
@@ -77,12 +75,13 @@
 	#define DEBUGOUT7(S,A,B,C,D,E,F,G)
 #endif
 
-#define UNREFERENCED_XPARAMETER
+/* Remove unused shared code macros */
 #define UNREFERENCED_PARAMETER(_p)
 #define UNREFERENCED_1PARAMETER(_p)
 #define UNREFERENCED_2PARAMETER(_p, _q)
 #define UNREFERENCED_3PARAMETER(_p, _q, _r)
 #define UNREFERENCED_4PARAMETER(_p, _q, _r, _s)
+#define UNREFERENCED_5PARAMETER(_p, _q, _r, _s, _t)
 
 #define STATIC	static
 #define INLINE  inline
@@ -147,13 +146,13 @@ void prefetch(void *x)
 #define	prefetch(x)
 #endif
 
-struct i40e_osdep
-{
+struct i40e_osdep {
 	bus_space_tag_t		mem_bus_space_tag;
 	bus_space_handle_t	mem_bus_space_handle;
 	bus_size_t		mem_bus_space_size;
 	uint32_t		flush_reg;
-	struct device		*dev;
+	int			i2c_intfc_num;
+	device_t		dev;
 };
 
 struct i40e_dma_mem {
@@ -167,21 +166,31 @@ struct i40e_dma_mem {
 	int                     flags;
 };
 
-struct i40e_hw; /* forward decl */
-u16	i40e_read_pci_cfg(struct i40e_hw *, u32);
-void	i40e_write_pci_cfg(struct i40e_hw *, u32, u16);
-
-#define i40e_debug(h, m, s, ...)  i40e_debug_d(h, m, s, ##__VA_ARGS__)
-extern void i40e_debug_d(void *hw, u32 mask, char *fmt_str, ...);
-
 struct i40e_virt_mem {
 	void *va;
 	u32 size;
 };
 
+struct i40e_hw; /* forward decl */
+u16	i40e_read_pci_cfg(struct i40e_hw *, u32);
+void	i40e_write_pci_cfg(struct i40e_hw *, u32, u16);
+
 /*
-** This hardware supports either 16 or 32 byte rx descriptors
-** we default here to the larger size.
+** i40e_debug - OS dependent version of shared code debug printing
+*/
+enum i40e_debug_mask;
+#define i40e_debug(h, m, s, ...)  i40e_debug_shared(h, m, s, ##__VA_ARGS__)
+extern void i40e_debug_shared(struct i40e_hw *hw, enum i40e_debug_mask mask,
+    char *fmt_str, ...);
+
+/* Non-busy-wait that uses kern_yield() */
+void i40e_msec_pause(int);
+
+const char * ixl_vc_opcode_str(uint16_t op);
+
+/*
+** This hardware supports either 16 or 32 byte rx descriptors;
+** the driver only uses the 32 byte kind.
 */
 #define i40e_rx_desc i40e_32byte_rx_desc
 
@@ -190,7 +199,7 @@ rd32_osdep(struct i40e_osdep *osdep, uint32_t reg)
 {
 
 	KASSERT(reg < osdep->mem_bus_space_size,
-	    ("ixl: register offset %#jx too large (max is %#jx",
+	    ("ixl: register offset %#jx too large (max is %#jx)",
 	    (uintmax_t)reg, (uintmax_t)osdep->mem_bus_space_size));
 
 	return (bus_space_read_4(osdep->mem_bus_space_tag,
@@ -202,7 +211,7 @@ wr32_osdep(struct i40e_osdep *osdep, uint32_t reg, uint32_t value)
 {
 
 	KASSERT(reg < osdep->mem_bus_space_size,
-	    ("ixl: register offset %#jx too large (max is %#jx",
+	    ("ixl: register offset %#jx too large (max is %#jx)",
 	    (uintmax_t)reg, (uintmax_t)osdep->mem_bus_space_size));
 
 	bus_space_write_4(osdep->mem_bus_space_tag,
@@ -212,7 +221,6 @@ wr32_osdep(struct i40e_osdep *osdep, uint32_t reg, uint32_t value)
 static __inline void
 ixl_flush_osdep(struct i40e_osdep *osdep)
 {
-
 	rd32_osdep(osdep, osdep->flush_reg);
 }
 
@@ -230,5 +238,8 @@ ixl_flush_osdep(struct i40e_osdep *osdep)
                      reg, value))
 
 #define ixl_flush(a)		ixl_flush_osdep((a)->back)
+
+enum i40e_status_code i40e_read_nvm_word_srctl(struct i40e_hw *hw, u16 offset,
+					       u16 *data);
 
 #endif /* _I40E_OSDEP_H_ */

@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 LIB=	roken
-LDADD=	-lcrypt
-DPADD=	${LIBCRYPT}
+PRIVATELIB=	true
+LIBADD=	crypt
 VERSION_MAP=	${KRB5DIR}/lib/roken/version-script.map
 INCS=	roken.h \
 	roken-common.h \
@@ -53,7 +53,6 @@ SRCS=	base64.c \
 	parse_bytes.c \
 	parse_time.c \
 	parse_units.c \
-	qsort.c \
 	rand.c \
 	realloc.c \
 	resolve.c \
@@ -77,7 +76,6 @@ SRCS=	base64.c \
 	write_pid.c \
 	xfree.c
 
-CPPFLAGS+=	-DBUILD_ROKEN_LIB
 CFLAGS+=-I${KRB5DIR}/lib/roken -I.
 
 CLEANFILES= roken.h

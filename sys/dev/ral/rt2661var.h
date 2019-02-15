@@ -26,7 +26,7 @@ struct rt2661_rx_radiotap_header {
 	uint16_t	wr_chan_flags;
 	int8_t		wr_antsignal;
 	int8_t		wr_antnoise;
-} __packed;
+} __packed __aligned(8);
 
 #define RT2661_RX_RADIOTAP_PRESENT					\
 	((1 << IEEE80211_RADIOTAP_TSFT) |				\
@@ -42,7 +42,7 @@ struct rt2661_tx_radiotap_header {
 	uint8_t		wt_rate;
 	uint16_t	wt_chan_freq;
 	uint16_t	wt_chan_flags;
-} __packed;
+} __packed __aligned(8);
 
 #define RT2661_TX_RADIOTAP_PRESENT					\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
@@ -97,12 +97,13 @@ struct rt2661_vap {
 #define	RT2661_VAP(vap)		((struct rt2661_vap *)(vap))
 
 struct rt2661_softc {
-	struct ifnet			*sc_ifp;
+	struct ieee80211com		sc_ic;
+	struct ieee80211_ratectl_tx_status sc_txs;
+	struct mtx			sc_mtx;
+	struct mbufq			sc_snd;
 	device_t			sc_dev;
 	bus_space_tag_t			sc_st;
 	bus_space_handle_t		sc_sh;
-
-	struct mtx			sc_mtx;
 
 	struct callout			watchdog_ch;
 
@@ -117,6 +118,7 @@ struct rt2661_softc {
 	int                             sc_flags;
 #define	RAL_FW_LOADED		0x1
 #define	RAL_INPUT_RUNNING	0x2
+#define	RAL_RUNNING		0x4
 	int				sc_id;
 	struct ieee80211_channel	*sc_curchan;
 
@@ -156,9 +158,7 @@ struct rt2661_softc {
 	int				dwelltime;
 
 	struct rt2661_rx_radiotap_header sc_rxtap;
-	int				sc_rxtap_len;
 	struct rt2661_tx_radiotap_header sc_txtap;
-	int				sc_txtap_len;
 };
 
 int	rt2661_attach(device_t, int);

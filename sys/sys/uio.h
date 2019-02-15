@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,6 +38,7 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 #include <sys/_iovec.h>
+#include <sys/_uio.h>
 
 #ifndef _SSIZE_T_DECLARED
 typedef	__ssize_t	ssize_t;
@@ -45,17 +48,6 @@ typedef	__ssize_t	ssize_t;
 #ifndef _OFF_T_DECLARED
 typedef	__off_t	off_t;
 #define	_OFF_T_DECLARED
-#endif
-
-#if __BSD_VISIBLE
-enum	uio_rw { UIO_READ, UIO_WRITE };
-
-/* Segment flag values. */
-enum uio_seg {
-	UIO_USERSPACE,		/* from user data space */
-	UIO_SYSSPACE,		/* from system space */
-	UIO_NOCOPY		/* don't copy, already in object */
-};
 #endif
 
 #ifdef _KERNEL
@@ -85,6 +77,7 @@ struct uio {
 
 struct vm_object;
 struct vm_page;
+struct bus_dma_segment;
 
 struct uio *cloneuio(struct uio *uiop);
 int	copyinfrom(const void * __restrict src, void * __restrict dst,
@@ -98,6 +91,10 @@ int	copyout_map(struct thread *td, vm_offset_t *addr, size_t sz);
 int	copyout_unmap(struct thread *td, vm_offset_t addr, size_t sz);
 int	physcopyin(void *src, vm_paddr_t dst, size_t len);
 int	physcopyout(vm_paddr_t src, void *dst, size_t len);
+int	physcopyin_vlist(struct bus_dma_segment *src, off_t offset,
+	    vm_paddr_t dst, size_t len);
+int	physcopyout_vlist(vm_paddr_t src, struct bus_dma_segment *dst,
+	    off_t offset, size_t len);
 int	uiomove(void *cp, int n, struct uio *uio);
 int	uiomove_frombuf(void *buf, int buflen, struct uio *uio);
 int	uiomove_fromphys(struct vm_page *ma[], vm_offset_t offset, int n,

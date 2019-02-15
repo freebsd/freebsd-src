@@ -1,6 +1,8 @@
 /*	$OpenBSD: hifn7751.c,v 1.120 2002/05/17 00:33:34 deraadt Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Invertex AEON / Hifn 7751 driver
  * Copyright (c) 1999 Invertex Inc. All rights reserved.
  * Copyright (c) 1999 Theo de Raadt
@@ -100,8 +102,7 @@ static	int hifn_suspend(device_t);
 static	int hifn_resume(device_t);
 static	int hifn_shutdown(device_t);
 
-static	int hifn_newsession(device_t, u_int32_t *, struct cryptoini *);
-static	int hifn_freesession(device_t, u_int64_t);
+static	int hifn_newsession(device_t, crypto_session_t, struct cryptoini *);
 static	int hifn_process(device_t, struct cryptop *, int);
 
 static device_method_t hifn_methods[] = {
@@ -115,7 +116,6 @@ static device_method_t hifn_methods[] = {
 
 	/* crypto device methods */
 	DEVMETHOD(cryptodev_newsession,	hifn_newsession),
-	DEVMETHOD(cryptodev_freesession,hifn_freesession),
 	DEVMETHOD(cryptodev_process,	hifn_process),
 
 	DEVMETHOD_END
@@ -258,7 +258,8 @@ hifn_partname(struct hifn_softc *sc)
 static void
 default_harvest(struct rndtest_state *rsp, void *buf, u_int count)
 {
-	random_harvest(buf, count, count*NBBY/2, RANDOM_PURE_HIFN);
+	/* MarkM: FIX!! Check that this does not swamp the harvester! */
+	random_harvest_queue(buf, count, RANDOM_PURE_HIFN);
 }
 
 static u_int
@@ -557,7 +558,8 @@ hifn_attach(device_t dev)
 			2 + 2*((sc->sc_pllconfig & HIFN_PLL_ND) >> 11));
 	printf("\n");
 
-	sc->sc_cid = crypto_get_driverid(dev, CRYPTOCAP_F_HARDWARE);
+	sc->sc_cid = crypto_get_driverid(dev, sizeof(struct hifn_session),
+	    CRYPTOCAP_F_HARDWARE);
 	if (sc->sc_cid < 0) {
 		device_printf(dev, "could not get crypto driver id\n");
 		goto fail_intr;
@@ -589,7 +591,7 @@ hifn_attach(device_t dev)
 	if (sc->sc_flags & (HIFN_HAS_PUBLIC | HIFN_HAS_RNG))
 		hifn_init_pubrng(sc);
 
-	callout_init(&sc->sc_tickto, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_tickto, 1);
 	callout_reset(&sc->sc_tickto, hz, hifn_tick, sc);
 
 	return (0);
@@ -765,7 +767,7 @@ hifn_init_pubrng(struct hifn_softc *sc)
 			sc->sc_rnghz = hz / 100;
 		else
 			sc->sc_rnghz = 1;
-		callout_init(&sc->sc_rngto, CALLOUT_MPSAFE);
+		callout_init(&sc->sc_rngto, 1);
 		callout_reset(&sc->sc_rngto, sc->sc_rnghz, hifn_rng, sc);
 	}
 
@@ -1028,7 +1030,7 @@ hifn_enable_crypto(struct hifn_softc *sc)
 	u_int32_t dmacfg, ramcfg, encl, addr, i;
 	char *offtbl = NULL;
 
-	for (i = 0; i < sizeof(pci2id)/sizeof(pci2id[0]); i++) {
+	for (i = 0; i < nitems(pci2id); i++) {
 		if (pci2id[i].pci_vendor == pci_get_vendor(sc->sc_dev) &&
 		    pci2id[i].pci_prod == pci_get_device(sc->sc_dev)) {
 			offtbl = pci2id[i].card_id;
@@ -1890,8 +1892,7 @@ hifn_crypto(
 				goto err_srcmap;
 			}
 			if (totlen >= MINCLSIZE) {
-				MCLGET(m0, M_NOWAIT);
-				if ((m0->m_flags & M_EXT) == 0) {
+				if (!(MCLGET(m0, M_NOWAIT))) {
 					hifnstats.hst_nomem_mcl++;
 					err = sc->sc_cmdu ? ERESTART : ENOMEM;
 					m_freem(m0);
@@ -1913,8 +1914,7 @@ hifn_crypto(
 				}
 				len = MLEN;
 				if (totlen >= MINCLSIZE) {
-					MCLGET(m, M_NOWAIT);
-					if ((m->m_flags & M_EXT) == 0) {
+					if (!(MCLGET(m, M_NOWAIT))) {
 						hifnstats.hst_nomem_mcl++;
 						err = sc->sc_cmdu ? ERESTART : ENOMEM;
 						mlast->m_next = m;
@@ -2313,55 +2313,18 @@ hifn_intr(void *arg)
  * id on successful allocation.
  */
 static int
-hifn_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
+hifn_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 {
 	struct hifn_softc *sc = device_get_softc(dev);
 	struct cryptoini *c;
-	int mac = 0, cry = 0, sesn;
-	struct hifn_session *ses = NULL;
+	int mac = 0, cry = 0;
+	struct hifn_session *ses;
 
 	KASSERT(sc != NULL, ("hifn_newsession: null softc"));
-	if (sidp == NULL || cri == NULL || sc == NULL)
+	if (cri == NULL || sc == NULL)
 		return (EINVAL);
 
-	HIFN_LOCK(sc);
-	if (sc->sc_sessions == NULL) {
-		ses = sc->sc_sessions = (struct hifn_session *)malloc(
-		    sizeof(*ses), M_DEVBUF, M_NOWAIT);
-		if (ses == NULL) {
-			HIFN_UNLOCK(sc);
-			return (ENOMEM);
-		}
-		sesn = 0;
-		sc->sc_nsessions = 1;
-	} else {
-		for (sesn = 0; sesn < sc->sc_nsessions; sesn++) {
-			if (!sc->sc_sessions[sesn].hs_used) {
-				ses = &sc->sc_sessions[sesn];
-				break;
-			}
-		}
-
-		if (ses == NULL) {
-			sesn = sc->sc_nsessions;
-			ses = (struct hifn_session *)malloc((sesn + 1) *
-			    sizeof(*ses), M_DEVBUF, M_NOWAIT);
-			if (ses == NULL) {
-				HIFN_UNLOCK(sc);
-				return (ENOMEM);
-			}
-			bcopy(sc->sc_sessions, ses, sesn * sizeof(*ses));
-			bzero(sc->sc_sessions, sesn * sizeof(*ses));
-			free(sc->sc_sessions, M_DEVBUF);
-			sc->sc_sessions = ses;
-			ses = &sc->sc_sessions[sesn];
-			sc->sc_nsessions++;
-		}
-	}
-	HIFN_UNLOCK(sc);
-
-	bzero(ses, sizeof(*ses));
-	ses->hs_used = 1;
+	ses = crypto_get_driver_session(cses);
 
 	for (c = cri; c != NULL; c = c->cri_next) {
 		switch (c->cri_alg) {
@@ -2405,59 +2368,29 @@ hifn_newsession(device_t dev, u_int32_t *sidp, struct cryptoini *cri)
 	}
 	if (mac == 0 && cry == 0)
 		return (EINVAL);
-
-	*sidp = HIFN_SID(device_get_unit(sc->sc_dev), sesn);
-
 	return (0);
 }
 
 /*
- * Deallocate a session.
- * XXX this routine should run a zero'd mac/encrypt key into context ram.
- * XXX to blow away any keys already stored there.
+ * XXX freesession routine should run a zero'd mac/encrypt key into context
+ * ram.  to blow away any keys already stored there.
  */
-static int
-hifn_freesession(device_t dev, u_int64_t tid)
-{
-	struct hifn_softc *sc = device_get_softc(dev);
-	int session, error;
-	u_int32_t sid = CRYPTO_SESID2LID(tid);
-
-	KASSERT(sc != NULL, ("hifn_freesession: null softc"));
-	if (sc == NULL)
-		return (EINVAL);
-
-	HIFN_LOCK(sc);
-	session = HIFN_SESSION(sid);
-	if (session < sc->sc_nsessions) {
-		bzero(&sc->sc_sessions[session], sizeof(struct hifn_session));
-		error = 0;
-	} else
-		error = EINVAL;
-	HIFN_UNLOCK(sc);
-
-	return (error);
-}
 
 static int
 hifn_process(device_t dev, struct cryptop *crp, int hint)
 {
 	struct hifn_softc *sc = device_get_softc(dev);
 	struct hifn_command *cmd = NULL;
-	int session, err, ivlen;
+	int err, ivlen;
 	struct cryptodesc *crd1, *crd2, *maccrd, *enccrd;
+	struct hifn_session *ses;
 
 	if (crp == NULL || crp->crp_callback == NULL) {
 		hifnstats.hst_invalid++;
 		return (EINVAL);
 	}
-	session = HIFN_SESSION(crp->crp_sid);
 
-	if (sc == NULL || session >= sc->sc_nsessions) {
-		err = EINVAL;
-		goto errout;
-	}
-
+	ses = crypto_get_driver_session(crp->crp_session);
 	cmd = malloc(sizeof(struct hifn_command), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (cmd == NULL) {
 		hifnstats.hst_nomem++;
@@ -2568,8 +2501,7 @@ hifn_process(device_t dev, struct cryptop *crp, int hint)
 				if (enccrd->crd_flags & CRD_F_IV_EXPLICIT)
 					bcopy(enccrd->crd_iv, cmd->iv, ivlen);
 				else
-					bcopy(sc->sc_sessions[session].hs_iv,
-					    cmd->iv, ivlen);
+					bcopy(ses->hs_iv, cmd->iv, ivlen);
 
 				if ((enccrd->crd_flags & CRD_F_IV_PRESENT)
 				    == 0) {
@@ -2653,7 +2585,7 @@ hifn_process(device_t dev, struct cryptop *crp, int hint)
 	}
 
 	cmd->crp = crp;
-	cmd->session_num = session;
+	cmd->session = ses;
 	cmd->softc = sc;
 
 	err = hifn_crypto(sc, cmd, crp, hint);
@@ -2828,7 +2760,7 @@ hifn_callback(struct hifn_softc *sc, struct hifn_command *cmd, u_int8_t *macbuf)
 				HIFN_AES_IV_LENGTH : HIFN_IV_LENGTH);
 			crypto_copydata(crp->crp_flags, crp->crp_buf,
 			    crd->crd_skip + crd->crd_len - ivlen, ivlen,
-			    cmd->softc->sc_sessions[cmd->session_num].hs_iv);
+			    cmd->session->hs_iv);
 			break;
 		}
 	}
@@ -2843,7 +2775,7 @@ hifn_callback(struct hifn_softc *sc, struct hifn_command *cmd, u_int8_t *macbuf)
 			    crd->crd_alg != CRYPTO_SHA1_HMAC) {
 				continue;
 			}
-			len = cmd->softc->sc_sessions[cmd->session_num].hs_mlen;
+			len = cmd->session->hs_mlen;
 			crypto_copyback(crp->crp_flags, crp->crp_buf,
 			    crd->crd_inject, len, macbuf);
 			break;

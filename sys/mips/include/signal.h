@@ -1,6 +1,8 @@
 /*	$OpenBSD: signal.h,v 1.2 1999/01/27 04:10:03 imp Exp $	*/
 
 /*
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -68,11 +70,13 @@ struct	sigcontext {
 	int		sc_onstack;	/* sigstack state to restore */
 	__register_t	sc_pc;		/* pc at time of signal */
 	__register_t	sc_regs[32];	/* processor regs 0 to 31 */
+	__register_t	sr;		/* status register */
 	__register_t	mullo, mulhi;	/* mullo and mulhi registers... */
 	int		sc_fpused;	/* fp has been used */
 	f_register_t	sc_fpregs[33];	/* fp regs 0 to 31 and csr */
 	__register_t	sc_fpc_eir;	/* fp exception instruction reg */
-	int		xxx[8];		/* XXX reserved */ 
+	void		*sc_tls;	/* pointer to TLS area */
+	int		__spare__[8];	/* XXX reserved */ 
 };
 
 #endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */

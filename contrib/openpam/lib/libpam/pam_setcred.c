@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2017 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_setcred.c 648 2013-03-05 17:54:27Z des $
+ * $OpenPAM: pam_setcred.c 938 2017-04-30 21:34:42Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -61,7 +61,7 @@ pam_setcred(pam_handle_t *pamh,
 	ENTER();
 	if (flags & ~(PAM_SILENT|PAM_ESTABLISH_CRED|PAM_DELETE_CRED|
 		PAM_REINITIALIZE_CRED|PAM_REFRESH_CRED))
-		RETURNC(PAM_SYMBOL_ERR);
+		RETURNC(PAM_BAD_CONSTANT);
 	/* XXX enforce exclusivity */
 	r = openpam_dispatch(pamh, PAM_SM_SETCRED, flags);
 	RETURNC(r);
@@ -73,7 +73,7 @@ pam_setcred(pam_handle_t *pamh,
  *	=openpam_dispatch
  *	=pam_sm_setcred
  *	!PAM_IGNORE
- *	PAM_SYMBOL_ERR
+ *	PAM_BAD_CONSTANT
  */
 
 /**
@@ -95,5 +95,5 @@ pam_setcred(pam_handle_t *pamh,
  *
  * The latter four are mutually exclusive.
  *
- * If any other bits are set, =pam_setcred will return =PAM_SYMBOL_ERR.
+ * If any other bits are set, =pam_setcred will return =PAM_BAD_CONSTANT.
  */

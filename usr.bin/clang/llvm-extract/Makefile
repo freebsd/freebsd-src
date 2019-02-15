@@ -1,28 +1,10 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+PROG_CXX=	llvm-extract
 
-PROG_CXX=llvm-extract
+SRCDIR=		tools/llvm-extract
+SRCS+=		llvm-extract.cpp
 
-SRCDIR=	tools/llvm-extract
-SRCS=	llvm-extract.cpp
+LIBADD+=	z
 
-LIBDEPS=llvmirreader \
-	llvmasmparser \
-	llvmbitwriter \
-	llvmbitreader \
-	llvmipo \
-	llvmobjcarcopts \
-	llvmvectorize \
-	llvmscalaropts \
-	llvminstcombine \
-	llvmtransformutils \
-	llvmipa \
-	llvmanalysis \
-	llvmtarget \
-	llvmmc \
-	llvmobject \
-	llvmcore \
-	llvmsupport
-
-.include "../clang.prog.mk"
+.include "../llvm.prog.mk"

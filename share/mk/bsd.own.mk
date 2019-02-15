@@ -1,6 +1,6 @@
 # $FreeBSD$
 #
-# The include file <src.opts.mk> set common variables for owner,
+# The include file <bsd.own.mk> set common variables for owner,
 # group, mode, and directories. Defaults are in brackets.
 #
 #
@@ -28,13 +28,9 @@
 #
 # LIBCOMPATDIR	Base path for compat libraries. [/usr/lib/compat]
 #
-# LIBPRIVATEDIR	Base path for private libraries. [/usr/lib/private]
-#
 # LIBDATADIR	Base path for misc. utility data files. [/usr/libdata]
 #
 # LIBEXECDIR	Base path for system daemons and utilities. [/usr/libexec]
-#
-# LINTLIBDIR	Base path for lint libraries. [/usr/libdata/lint]
 #
 # SHLIBDIR	Base path for shared libraries. [${LIBDIR}]
 #
@@ -51,7 +47,7 @@
 #
 #
 # KMODDIR	Base path for loadable kernel modules
-#		(see kld(4)). [/boot/kernel]
+#		(see kld(4)). [/boot/modules]
 #
 # KMODOWN	Kernel and KLD owner. [${BINOWN}]
 #
@@ -77,6 +73,13 @@
 # CONFGRP	Configuration file group. [wheel]
 #
 # CONFMODE	Configuration file mode. [644]
+#
+#
+# DIROWN	Directory owner. [root]
+#
+# DIRGRP	Directory group. [wheel]
+#
+# DIRMODE	Directory mode. [755]
 #
 #
 # DOCDIR	Base path for system documentation (e.g. PSD, USD,
@@ -118,6 +121,21 @@
 # NLSMODE	National Language Support files mode. [${NOBINMODE}]
 #
 # INCLUDEDIR	Base path for standard C include files [/usr/include]
+#
+# PKG_CMD	Program for creating and manipulating packages.
+#               [pkg] 
+#
+# LINKOWN	Hard link owner [${BINOWN}]
+#
+# LINKGRP	Hard link group [${BINGRP}]
+#
+# LINKMODE	Hard link mode [${NOBINMODE}]
+#
+# SYMLINKOWN	Symbolic link owner [${BINOWN} or ${LIBOWN}]
+#
+# SYMLINKGRP	Symbolic link group [${BINGRP} or ${LIBGRP}]
+#
+# SYMLINKMODE	Symbolic link mode [755]
 
 .if !target(__<bsd.own.mk>__)
 __<bsd.own.mk>__:
@@ -134,20 +152,6 @@ CTFCONVERT_CMD=
 CTFCONVERT_CMD=	@:
 .endif 
 
-.if ${MK_INSTALL_AS_USER} != "no"
-_uid!=	id -u
-.if ${_uid} != 0
-.if !defined(USER)
-USER!=	id -un
-.endif
-_gid!=	id -gn
-.for x in BIN CONF DOC INFO KMOD LIB MAN NLS SHARE
-$xOWN=	${USER}
-$xGRP=	${_gid}
-.endfor
-.endif
-.endif
-
 .endif # !_WITHOUT_SRCCONF
 
 # Binaries
@@ -156,21 +160,26 @@ BINGRP?=	wheel
 BINMODE?=	555
 NOBINMODE?=	444
 
-.if defined(MODULES_WITH_WORLD)
 KMODDIR?=	/boot/modules
-.else
-KMODDIR?=	/boot/kernel
-.endif
 KMODOWN?=	${BINOWN}
 KMODGRP?=	${BINGRP}
 KMODMODE?=	${BINMODE}
+DTBDIR?=	/boot/dtb
+DTBODIR?=	/boot/dtb/overlays
+DTBOWN?=	root
+DTBGRP?=	wheel
+DTBMODE?=	444
 
-LIBDIR?=	/usr/lib
+# Use make.conf / environment LIBDIR as default if set...
+.if !empty(_PREMK_LIBDIR)
+LIBDIR_BASE?=	${_PREMK_LIBDIR}
+.endif
+# otherwise use our expected default value.
+LIBDIR_BASE?=	/usr/lib
+LIBDIR?=	${LIBDIR_BASE}
 LIBCOMPATDIR?=	/usr/lib/compat
-LIBPRIVATEDIR?=	/usr/lib/private
 LIBDATADIR?=	/usr/libdata
 LIBEXECDIR?=	/usr/libexec
-LINTLIBDIR?=	/usr/libdata/lint
 SHLIBDIR?=	${LIBDIR}
 LIBOWN?=	${BINOWN}
 LIBGRP?=	${BINGRP}
@@ -196,6 +205,10 @@ MANOWN?=	${SHAREOWN}
 MANGRP?=	${SHAREGRP}
 MANMODE?=	${NOBINMODE}
 
+DIROWN?=	root
+DIRGRP?=	wheel
+DIRMODE?=	755
+
 DOCDIR?=	${SHAREDIR}/doc
 DOCOWN?=	${SHAREOWN}
 DOCGRP?=	${SHAREGRP}
@@ -216,11 +229,23 @@ INCLUDEDIR?=	/usr/include
 #
 # install(1) parameters.
 #
-HRDLINK?=	-l h
-SYMLINK?=	-l s
+_LINKOWN?=	${LINKOWN:U${BINOWN}}
+_LINKGRP?=	${LINKGRP:U${BINGRP}}
+_LINKMODE?=	${LINKMODE:U${NOBINMODE}}
+_SYMLINKOWN?=	${SYMLINKOWN:U${BINOWN}}
+_SYMLINKGRP?=	${SYMLINKGRP:U${BINGRP}}
+_SYMLINKMODE?=	${SYMLINKMODE:U755}
+HRDLINK?=	-l h -o ${_LINKOWN} -g ${_LINKGRP} -m ${_LINKMODE}
+MANHRDLINK?=	-l h -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
+SYMLINK?=	-l s -o ${_SYMLINKOWN} -g ${_SYMLINKGRP} -m ${_SYMLINKMODE}
+LSYMLINK?=	-l s -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE}
+RSYMLINK?=	-l rs -o ${_SYMLINKOWN} -g ${_SYMLINKGRP} -m ${_SYMLINKMODE}
 
 INSTALL_LINK?=		${INSTALL} ${HRDLINK}
+INSTALL_MANLINK?=	${INSTALL} ${MANHRDLINK}
 INSTALL_SYMLINK?=	${INSTALL} ${SYMLINK}
+INSTALL_LIBSYMLINK?=	${INSTALL} ${LSYMLINK}
+INSTALL_RSYMLINK?=	${INSTALL} ${RSYMLINK}
 
 # Common variables
 .if !defined(DEBUG_FLAGS)
@@ -230,11 +255,27 @@ STRIP?=		-s
 COMPRESS_CMD?=	gzip -cn
 COMPRESS_EXT?=	.gz
 
+# Set XZ_THREADS to 1 to disable multi-threading.
+XZ_THREADS?=	0
+
+.if !empty(XZ_THREADS)
+XZ_CMD?=	xz -T ${XZ_THREADS}
+.else
+XZ_CMD?=	xz
+.endif
+
+PKG_CMD?=	pkg
+
 # Pointer to the top directory into which tests are installed.  Should not be
-# overriden by Makefiles, but the user may choose to set this in src.conf(5).
+# overridden by Makefiles, but the user may choose to set this in src.conf(5).
 TESTSBASE?= /usr/tests
 
-# Compat for the moment
+DEPENDFILE?=	.depend
+
+# Compat for the moment -- old bsd.own.mk only included this when _WITHOUT_SRCCONF
+# wasn't defined. bsd.ports.mk and friends depend on this behavior. Remove in 12.
+.if !defined(_WITHOUT_SRCCONF)
 .include <bsd.compiler.mk>
+.endif # !_WITHOUT_SRCCONF
 
 .endif	# !target(__<bsd.own.mk>__)

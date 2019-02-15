@@ -2,70 +2,74 @@
 
 .include <src.opts.mk>
 
+CONFS=	moduli sshd_config
+CONFSDIR=	/etc/ssh
 PROG=	sshd
-SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
+SRCS=	sshd.c auth-rhosts.c auth-passwd.c \
 	audit.c audit-bsm.c audit-linux.c platform.c \
 	sshpty.c sshlogin.c servconf.c serverloop.c \
-	auth.c auth1.c auth2.c auth-options.c session.c \
-	auth-chall.c auth2-chall.c groupaccess.c \
-	auth-skey.c auth-bsdauth.c auth2-hostbased.c auth2-kbdint.c \
+	auth.c auth2.c auth-options.c session.c \
+	auth2-chall.c groupaccess.c \
+	auth-bsdauth.c auth2-hostbased.c auth2-kbdint.c \
 	auth2-none.c auth2-passwd.c auth2-pubkey.c \
-	monitor_mm.c monitor.c monitor_wrap.c kexdhs.c kexgexs.c kexecdhs.c \
-	kexc25519s.c auth-krb5.c \
+	monitor.c monitor_wrap.c auth-krb5.c \
 	auth2-gss.c gss-serv.c gss-serv-krb5.c \
 	loginrec.c auth-pam.c auth-shadow.c auth-sia.c md5crypt.c \
 	sftp-server.c sftp-common.c \
-	roaming_common.c roaming_serv.c \
 	sandbox-null.c sandbox-rlimit.c sandbox-systrace.c sandbox-darwin.c \
-	sandbox-seccomp-filter.c sandbox-capsicum.c
+	sandbox-seccomp-filter.c sandbox-capsicum.c sandbox-pledge.c \
+	sandbox-solaris.c uidswap.c
+PACKAGE=	ssh
 
 # gss-genr.c really belongs in libssh; see src/secure/lib/libssh/Makefile
 SRCS+=	gss-genr.c
 
 MAN=	sshd.8 sshd_config.5
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
+SRCS+=	ssh_namespace.h
 
-DPADD=	${LIBSSH} ${LIBUTIL} ${LIBWRAP} ${LIBPAM}
-LDADD=	${LDSSH} -lutil -lwrap ${MINUSLPAM}
-USEPRIVATELIB= ssh
+# Don't rebuild based on moduli.c
+moduli: .MADE
+
+# pam should always happen before ssh here for static linking
+LIBADD=	pam ssh util
 
 .if ${MK_LDNS} != "no"
 CFLAGS+=	-DHAVE_LDNS=1
 #DPADD+=	${LIBLDNS}
 #LDADD+=	-lldns
-#USEPRIVATELIB+= ldns
 .endif
 
 .if ${MK_AUDIT} != "no"
-CFLAGS+= -DUSE_BSM_AUDIT -DHAVE_GETAUDIT_ADDR
-DPADD+=  ${LIBBSM}
-LDADD+=  -lbsm
+CFLAGS+= -DUSE_BSM_AUDIT=1 -DHAVE_GETAUDIT_ADDR=1
+LIBADD+=	bsm
 .endif
 
-.if ${MK_KERBEROS_SUPPORT} != "no"
-CFLAGS+= -include krb5_config.h
-DPADD+=	 ${LIBGSSAPI_KRB5} ${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBASN1} \
-	${LIBCOM_ERR} ${LIBROKEN} ${LIBWIND} ${LIBHEIMBASE} ${LIBHEIMIPCC}
-LDADD+=	 -lgssapi_krb5 -lgssapi -lkrb5 -lhx509 -lasn1 \
-	-lcom_err -lroken -lwind -lheimbase ${LDHEIMIPCC}
+.if ${MK_BLACKLIST_SUPPORT} != "no"
+CFLAGS+= -DUSE_BLACKLIST=1 -I${SRCTOP}/contrib/blacklist/include
+SRCS+=	blacklist.c
+LIBADD+= blacklist
+LDFLAGS+=-L${LIBBLACKLISTDIR}
 .endif
 
-.if ${MK_OPENSSH_NONE_CIPHER} != "no"
-CFLAGS+= -DNONE_CIPHER_ENABLED
+.if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
+KRB5DIR=	${SRCTOP}/crypto/heimdal
+CFLAGS+= -include krb5_config.h \
+	-I${KRB5DIR}/lib/krb5 \
+	-I${SRCTOP}/kerberos5/include \
+	-I${.OBJDIR:H:H:H}/kerberos5/lib/libkrb5 \
+	-I${.OBJDIR:H:H:H}/kerberos5/lib/libroken \
+	-I${.OBJDIR:H:H:H}/kerberos5/lib/libasn1
+SRCS+=	krb5_config.h
+LIBADD+=	gssapi_krb5 gssapi krb5
 .endif
 
-DPADD+= ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
-LDADD+= -lcrypt -lcrypto -lz
-
-# Fix the order of NEEDED entries for libthr and libc. The libthr
-# needs to interpose libc symbols, leaving the libthr loading as
-# dependency of krb causes reversed order and broken interposing. Put
-# the threading library last on the linker command line, just before
-# the -lc added by a compiler driver.
-.if ${MK_KERBEROS_SUPPORT} != "no"
-DPADD+= ${LIBPTHREAD}
-LDADD+= -lpthread
+.if ${MK_TCP_WRAPPERS} != "no"
+CFLAGS+=	-DLIBWRAP=1
+LIBADD+=	wrap
 .endif
+
+LIBADD+=	crypto
 
 .if defined(LOCALBASE)
 CFLAGS+= -DXAUTH_PATH=\"${LOCALBASE}/bin/xauth\"
@@ -74,8 +78,3 @@ CFLAGS+= -DXAUTH_PATH=\"${LOCALBASE}/bin/xauth\"
 .include <bsd.prog.mk>
 
 .PATH:	${SSHDIR}
-
-${OBJS} ${POBJS} ${SOBJS}: ssh_namespace.h
-.if ${MK_KERBEROS_SUPPORT} != "no"
-${OBJS} ${POBJS} ${SOBJS}: krb5_config.h
-.endif

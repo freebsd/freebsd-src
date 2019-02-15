@@ -46,39 +46,37 @@ __FBSDID("$FreeBSD$");
 
 #define	DELAYBRANCH(x)	((int)(x) < 0)
 		
-extern uintptr_t 	dtrace_in_probe_addr;
-extern int		dtrace_in_probe;
 extern dtrace_id_t	dtrace_probeid_error;
 extern int (*dtrace_invop_jump_addr)(struct trapframe *);
 
 extern void dtrace_getnanotime(struct timespec *tsp);
 
-int dtrace_invop(uintptr_t, uintptr_t *, uintptr_t);
+int dtrace_invop(uintptr_t, struct trapframe *, uintptr_t);
 void dtrace_invop_init(void);
 void dtrace_invop_uninit(void);
 
 typedef struct dtrace_invop_hdlr {
-	int (*dtih_func)(uintptr_t, uintptr_t *, uintptr_t);
+	int (*dtih_func)(uintptr_t, struct trapframe *, uintptr_t);
 	struct dtrace_invop_hdlr *dtih_next;
 } dtrace_invop_hdlr_t;
 
 dtrace_invop_hdlr_t *dtrace_invop_hdlr;
 
 int
-dtrace_invop(uintptr_t addr, uintptr_t *stack, uintptr_t arg0)
+dtrace_invop(uintptr_t addr, struct trapframe *frame, uintptr_t arg0)
 {
 	dtrace_invop_hdlr_t *hdlr;
 	int rval;
 
 	for (hdlr = dtrace_invop_hdlr; hdlr != NULL; hdlr = hdlr->dtih_next)
-		if ((rval = hdlr->dtih_func(addr, stack, arg0)) != 0)
+		if ((rval = hdlr->dtih_func(addr, frame, arg0)) != 0)
 			return (rval);
 
 	return (0);
 }
 
 void
-dtrace_invop_add(int (*func)(uintptr_t, uintptr_t *, uintptr_t))
+dtrace_invop_add(int (*func)(uintptr_t, struct trapframe *, uintptr_t))
 {
 	dtrace_invop_hdlr_t *hdlr;
 
@@ -89,7 +87,7 @@ dtrace_invop_add(int (*func)(uintptr_t, uintptr_t *, uintptr_t))
 }
 
 void
-dtrace_invop_remove(int (*func)(uintptr_t, uintptr_t *, uintptr_t))
+dtrace_invop_remove(int (*func)(uintptr_t, struct trapframe *, uintptr_t))
 {
 	dtrace_invop_hdlr_t *hdlr = dtrace_invop_hdlr, *prev = NULL;
 
@@ -135,8 +133,8 @@ dtrace_xcall(processorid_t cpu, dtrace_xcall_t func, void *arg)
 	else
 		CPU_SETOF(cpu, &cpus);
 
-	smp_rendezvous_cpus(cpus, smp_no_rendevous_barrier, func,
-			smp_no_rendevous_barrier, arg);
+	smp_rendezvous_cpus(cpus, smp_no_rendezvous_barrier, func,
+			smp_no_rendezvous_barrier, arg);
 }
 
 static void
@@ -214,14 +212,19 @@ dtrace_gethrtime_init(void *arg)
 
 		smp_rendezvous_cpus(map, NULL,
 		    dtrace_gethrtime_init_cpu,
-		    smp_no_rendevous_barrier, (void *)(uintptr_t) i);
+		    smp_no_rendezvous_barrier, (void *)(uintptr_t) i);
 
 		timebase_skew[i] = tgt_cpu_tsc - hst_cpu_tsc;
 	}
 	sched_unpin();
 }
-
-SYSINIT(dtrace_gethrtime_init, SI_SUB_SMP, SI_ORDER_ANY, dtrace_gethrtime_init, NULL);
+#ifdef EARLY_AP_STARTUP
+SYSINIT(dtrace_gethrtime_init, SI_SUB_DTRACE, SI_ORDER_ANY,
+    dtrace_gethrtime_init, NULL);
+#else
+SYSINIT(dtrace_gethrtime_init, SI_SUB_SMP, SI_ORDER_ANY, dtrace_gethrtime_init,
+    NULL);
+#endif
 
 /*
  * DTrace needs a high resolution time function which can
@@ -262,8 +265,10 @@ dtrace_gethrestime(void)
 
 /* Function to handle DTrace traps during probes. See powerpc/powerpc/trap.c */
 int
-dtrace_trap(struct trapframe *frame)
+dtrace_trap(struct trapframe *frame, u_int type)
 {
+	uint16_t nofault;
+
 	/*
 	 * A trap can occur while DTrace executes a probe. Before
 	 * executing the probe, DTrace blocks re-scheduling and sets
@@ -273,18 +278,22 @@ dtrace_trap(struct trapframe *frame)
 	 *
 	 * Check if DTrace has enabled 'no-fault' mode:
 	 */
-	if ((cpu_core[curcpu].cpuc_dtrace_flags & CPU_DTRACE_NOFAULT) != 0) {
+	sched_pin();
+	nofault = cpu_core[curcpu].cpuc_dtrace_flags & CPU_DTRACE_NOFAULT;
+	sched_unpin();
+	if (nofault) {
+		KASSERT((frame->srr1 & PSL_EE) == 0, ("interrupts enabled"));
 		/*
 		 * There are only a couple of trap types that are expected.
 		 * All the rest will be handled in the usual way.
 		 */
-		switch (frame->exc) {
+		switch (type) {
 		/* Page fault. */
 		case EXC_DSI:
 		case EXC_DSE:
 			/* Flag a bad address. */
 			cpu_core[curcpu].cpuc_dtrace_flags |= CPU_DTRACE_BADADDR;
-			cpu_core[curcpu].cpuc_dtrace_illval = frame->cpu.aim.dar;
+			cpu_core[curcpu].cpuc_dtrace_illval = frame->dar;
 
 			/*
 			 * Offset the instruction pointer to the instruction
@@ -327,7 +336,8 @@ dtrace_probe_error(dtrace_state_t *state, dtrace_epid_t epid, int which,
 static int
 dtrace_invop_start(struct trapframe *frame)
 {
-	switch (dtrace_invop(frame->srr0, (uintptr_t *)frame, frame->fixreg[3])) {
+
+	switch (dtrace_invop(frame->srr0, frame, frame->fixreg[3])) {
 	case DTRACE_INVOP_JUMP:
 		break;
 	case DTRACE_INVOP_BCTR:
@@ -342,9 +352,7 @@ dtrace_invop_start(struct trapframe *frame)
 		break;
 	default:
 		return (-1);
-		break;
 	}
-
 	return (0);
 }
 

@@ -31,16 +31,11 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/missing/strdup.c,v 1.1 2001-01-20 07:26:08 guy Exp $ (LBL)";
-#endif /* LIBC_SCCS and not lint */
-
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "interface.h"
+#include "netdissect.h"
 
 char *
 strdup(str)

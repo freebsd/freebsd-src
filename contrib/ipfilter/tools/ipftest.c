@@ -864,3 +864,11 @@ void fixv4sums(m, ip)
 		*(u_short *)csump = fr_cksum(&tmp, ip, p, hdr);
 	}
 }
+
+void
+ip_fillid(struct ip *ip)
+{
+	static uint16_t ip_id;
+
+	ip->ip_id = ip_id++;
+}

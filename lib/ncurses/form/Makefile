@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include "${.CURDIR}/../config.mk"
+.include "${.CURDIR:H}/config.mk"
 
 SRCDIR=	${NCURSES_DIR}/form
 
@@ -54,8 +54,7 @@ CLEANFILES=	ncurses_def.h
 CFLAGS+=	-I${SRCDIR}
 CFLAGS+=	-I${NCURSES_DIR}/menu
 
-DPADD=	${LIBNCURSES${LIB_SUFFIX:tu}}
-LDADD=	-lncurses${LIB_SUFFIX}
+LIBADD+=	ncurses${LIB_SUFFIX}
 
 .if defined(ENABLE_WIDEC)
 INCS=	form.h

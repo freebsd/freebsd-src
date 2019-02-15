@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.
  * All rights reserved.
@@ -11,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -67,7 +69,7 @@ struct ip {
 	u_char	ip_p;			/* protocol */
 	u_short	ip_sum;			/* checksum */
 	struct	in_addr ip_src,ip_dst;	/* source and dest address */
-} __packed __aligned(4);
+} __packed __aligned(2);
 
 #define	IP_MAXPACKET	65535		/* maximum packet size */
 
@@ -80,19 +82,24 @@ struct ip {
 #define	IPTOS_MINCOST		0x02
 
 /*
- * Definitions for IP precedence (also in ip_tos) (hopefully unused).
+ * Definitions for IP precedence (also in ip_tos) (deprecated).
  */
-#define	IPTOS_PREC_NETCONTROL		0xe0
-#define	IPTOS_PREC_INTERNETCONTROL	0xc0
-#define	IPTOS_PREC_CRITIC_ECP		0xa0
-#define	IPTOS_PREC_FLASHOVERRIDE	0x80
-#define	IPTOS_PREC_FLASH		0x60
-#define	IPTOS_PREC_IMMEDIATE		0x40
-#define	IPTOS_PREC_PRIORITY		0x20
-#define	IPTOS_PREC_ROUTINE		0x00
+#define	IPTOS_PREC_NETCONTROL		IPTOS_DSCP_CS7
+#define	IPTOS_PREC_INTERNETCONTROL	IPTOS_DSCP_CS6
+#define	IPTOS_PREC_CRITIC_ECP		IPTOS_DSCP_CS5
+#define	IPTOS_PREC_FLASHOVERRIDE	IPTOS_DSCP_CS4
+#define	IPTOS_PREC_FLASH		IPTOS_DSCP_CS3
+#define	IPTOS_PREC_IMMEDIATE		IPTOS_DSCP_CS2
+#define	IPTOS_PREC_PRIORITY		IPTOS_DSCP_CS1
+#define	IPTOS_PREC_ROUTINE		IPTOS_DSCP_CS0
 
 /*
- * Definitions for DiffServ Codepoints as per RFC2474
+ * Offset of Diffserv decimal value to convert it to tos value .
+ */
+#define	IPTOS_DSCP_OFFSET		2
+
+/*
+ * Definitions for DiffServ Codepoints as per RFC2474 and RFC5865.
  */
 #define	IPTOS_DSCP_CS0		0x00
 #define	IPTOS_DSCP_CS1		0x20
@@ -112,6 +119,7 @@ struct ip {
 #define	IPTOS_DSCP_AF42		0x90
 #define	IPTOS_DSCP_AF43		0x98
 #define	IPTOS_DSCP_CS5		0xa0
+#define	IPTOS_DSCP_VA		0xb0
 #define	IPTOS_DSCP_EF		0xb8
 #define	IPTOS_DSCP_CS6		0xc0
 #define	IPTOS_DSCP_CS7		0xe0
@@ -146,7 +154,7 @@ struct ip {
 #define	IPOPT_SECURITY		130		/* provide s,c,h,tcc */
 #define	IPOPT_LSRR		131		/* loose source route */
 #define	IPOPT_ESO		133		/* extended security */
-#define	IPOPT_CIPSO		134		/* commerical security */
+#define	IPOPT_CIPSO		134		/* commercial security */
 #define	IPOPT_SATID		136		/* satnet id */
 #define	IPOPT_SSRR		137		/* strict source route */
 #define	IPOPT_RA		148		/* router alert */

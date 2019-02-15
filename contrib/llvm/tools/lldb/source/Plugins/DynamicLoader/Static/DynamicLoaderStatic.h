@@ -12,77 +12,59 @@
 
 // C Includes
 // C++ Includes
-#include <map>
-#include <vector>
-#include <string>
-
 // Other libraries and framework includes
-#include "llvm/Support/MachO.h"
-
+// Project includes
 #include "lldb/Target/DynamicLoader.h"
-#include "lldb/Host/FileSpec.h"
-#include "lldb/Core/UUID.h"
-#include "lldb/Host/Mutex.h"
 #include "lldb/Target/Process.h"
+#include "lldb/Utility/FileSpec.h"
+#include "lldb/Utility/UUID.h"
 
-class DynamicLoaderStatic : public lldb_private::DynamicLoader
-{
+class DynamicLoaderStatic : public lldb_private::DynamicLoader {
 public:
-    //------------------------------------------------------------------
-    // Static Functions
-    //------------------------------------------------------------------
-    static void
-    Initialize();
+  DynamicLoaderStatic(lldb_private::Process *process);
 
-    static void
-    Terminate();
+  ~DynamicLoaderStatic() override;
 
-    static lldb_private::ConstString
-    GetPluginNameStatic();
+  //------------------------------------------------------------------
+  // Static Functions
+  //------------------------------------------------------------------
+  static void Initialize();
 
-    static const char *
-    GetPluginDescriptionStatic();
+  static void Terminate();
 
-    static lldb_private::DynamicLoader *
-    CreateInstance (lldb_private::Process *process, bool force);
+  static lldb_private::ConstString GetPluginNameStatic();
 
-    DynamicLoaderStatic (lldb_private::Process *process);
+  static const char *GetPluginDescriptionStatic();
 
-    virtual
-    ~DynamicLoaderStatic ();
-    //------------------------------------------------------------------
-    /// Called after attaching a process.
-    ///
-    /// Allow DynamicLoader plug-ins to execute some code after
-    /// attaching to a process.
-    //------------------------------------------------------------------
-    virtual void
-    DidAttach ();
+  static lldb_private::DynamicLoader *
+  CreateInstance(lldb_private::Process *process, bool force);
 
-    virtual void
-    DidLaunch ();
+  //------------------------------------------------------------------
+  /// Called after attaching a process.
+  ///
+  /// Allow DynamicLoader plug-ins to execute some code after
+  /// attaching to a process.
+  //------------------------------------------------------------------
+  void DidAttach() override;
 
-    virtual lldb::ThreadPlanSP
-    GetStepThroughTrampolinePlan (lldb_private::Thread &thread,
-                                  bool stop_others);
+  void DidLaunch() override;
 
-    virtual lldb_private::Error
-    CanLoadImage ();
+  lldb::ThreadPlanSP GetStepThroughTrampolinePlan(lldb_private::Thread &thread,
+                                                  bool stop_others) override;
 
-    //------------------------------------------------------------------
-    // PluginInterface protocol
-    //------------------------------------------------------------------
-    virtual lldb_private::ConstString
-    GetPluginName();
+  lldb_private::Status CanLoadImage() override;
 
-    virtual uint32_t
-    GetPluginVersion();
+  //------------------------------------------------------------------
+  // PluginInterface protocol
+  //------------------------------------------------------------------
+  lldb_private::ConstString GetPluginName() override;
+
+  uint32_t GetPluginVersion() override;
 
 private:
-    void
-    LoadAllImagesAtFileAddresses ();
+  void LoadAllImagesAtFileAddresses();
 
-    DISALLOW_COPY_AND_ASSIGN (DynamicLoaderStatic);
+  DISALLOW_COPY_AND_ASSIGN(DynamicLoaderStatic);
 };
 
-#endif  // liblldb_DynamicLoaderStatic_h_
+#endif // liblldb_DynamicLoaderStatic_h_

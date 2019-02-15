@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -44,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/psl.h>
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
+#include <machine/reg.h>
 #include <machine/segments.h>
 #include <machine/smp.h>
 #include <machine/specialreg.h>
@@ -55,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include "vmm_lapic.h"
 #include "vmm_host.h"
 #include "vmm_ioport.h"
-#include "vmm_ipi.h"
 #include "vmm_ktr.h"
 #include "vmm_stat.h"
 #include "vatpic.h"
@@ -97,20 +99,20 @@ __FBSDID("$FreeBSD$");
 #define	PROCBASED_CTLS2_ZERO_SETTING	0
 
 #define	VM_EXIT_CTLS_ONE_SETTING					\
-	(VM_EXIT_HOST_LMA			|			\
+	(VM_EXIT_SAVE_DEBUG_CONTROLS		|			\
+	VM_EXIT_HOST_LMA			|			\
 	VM_EXIT_SAVE_EFER			|			\
 	VM_EXIT_LOAD_EFER			|			\
-	VM_EXIT_ACKNOWLEDGE_INTERRUPT		|			\
-	VM_EXIT_SAVE_PAT			|			\
-	VM_EXIT_LOAD_PAT)
+	VM_EXIT_ACKNOWLEDGE_INTERRUPT)
 
-#define	VM_EXIT_CTLS_ZERO_SETTING	VM_EXIT_SAVE_DEBUG_CONTROLS
+#define	VM_EXIT_CTLS_ZERO_SETTING	0
 
-#define	VM_ENTRY_CTLS_ONE_SETTING	(VM_ENTRY_LOAD_EFER | VM_ENTRY_LOAD_PAT)
+#define	VM_ENTRY_CTLS_ONE_SETTING					\
+	(VM_ENTRY_LOAD_DEBUG_CONTROLS		|			\
+	VM_ENTRY_LOAD_EFER)
 
 #define	VM_ENTRY_CTLS_ZERO_SETTING					\
-	(VM_ENTRY_LOAD_DEBUG_CONTROLS		|			\
-	VM_ENTRY_INTO_SMM			|			\
+	(VM_ENTRY_INTO_SMM			|			\
 	VM_ENTRY_DEACTIVATE_DUAL_MONITOR)
 
 #define	HANDLED		1
@@ -177,7 +179,7 @@ static int posted_interrupts;
 SYSCTL_INT(_hw_vmm_vmx_cap, OID_AUTO, posted_interrupts, CTLFLAG_RD,
     &posted_interrupts, 0, "APICv posted interrupt support");
 
-static int pirvec;
+static int pirvec = -1;
 SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, posted_interrupt_vector, CTLFLAG_RD,
     &pirvec, 0, "APICv posted interrupt vector");
 
@@ -185,6 +187,94 @@ static struct unrhdr *vpid_unr;
 static u_int vpid_alloc_failed;
 SYSCTL_UINT(_hw_vmm_vmx, OID_AUTO, vpid_alloc_failed, CTLFLAG_RD,
 	    &vpid_alloc_failed, 0, NULL);
+
+static int guest_l1d_flush;
+SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, l1d_flush, CTLFLAG_RD,
+    &guest_l1d_flush, 0, NULL);
+static int guest_l1d_flush_sw;
+SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, l1d_flush_sw, CTLFLAG_RD,
+    &guest_l1d_flush_sw, 0, NULL);
+
+static struct msr_entry msr_load_list[1] __aligned(16);
+
+/*
+ * The definitions of SDT probes for VMX.
+ */
+
+SDT_PROBE_DEFINE3(vmm, vmx, exit, entry,
+    "struct vmx *", "int", "struct vm_exit *");
+
+SDT_PROBE_DEFINE4(vmm, vmx, exit, taskswitch,
+    "struct vmx *", "int", "struct vm_exit *", "struct vm_task_switch *");
+
+SDT_PROBE_DEFINE4(vmm, vmx, exit, craccess,
+    "struct vmx *", "int", "struct vm_exit *", "uint64_t");
+
+SDT_PROBE_DEFINE4(vmm, vmx, exit, rdmsr,
+    "struct vmx *", "int", "struct vm_exit *", "uint32_t");
+
+SDT_PROBE_DEFINE5(vmm, vmx, exit, wrmsr,
+    "struct vmx *", "int", "struct vm_exit *", "uint32_t", "uint64_t");
+
+SDT_PROBE_DEFINE3(vmm, vmx, exit, halt,
+    "struct vmx *", "int", "struct vm_exit *");
+
+SDT_PROBE_DEFINE3(vmm, vmx, exit, mtrap,
+    "struct vmx *", "int", "struct vm_exit *");
+
+SDT_PROBE_DEFINE3(vmm, vmx, exit, pause,
+    "struct vmx *", "int", "struct vm_exit *");
+
+SDT_PROBE_DEFINE3(vmm, vmx, exit, intrwindow,
+    "struct vmx *", "int", "struct vm_exit *");
+
+SDT_PROBE_DEFINE4(vmm, vmx, exit, interrupt,
+    "struct vmx *", "int", "struct vm_exit *", "uint32_t");
+
+SDT_PROBE_DEFINE3(vmm, vmx, exit, nmiwindow,
+    "struct vmx *", "int", "struct vm_exit *");
+
+SDT_PROBE_DEFINE3(vmm, vmx, exit, inout,
+    "struct vmx *", "int", "struct vm_exit *");
+
+SDT_PROBE_DEFINE3(vmm, vmx, exit, cpuid,
+    "struct vmx *", "int", "struct vm_exit *");
+
+SDT_PROBE_DEFINE5(vmm, vmx, exit, exception,
+    "struct vmx *", "int", "struct vm_exit *", "uint32_t", "int");
+
+SDT_PROBE_DEFINE5(vmm, vmx, exit, nestedfault,
+    "struct vmx *", "int", "struct vm_exit *", "uint64_t", "uint64_t");
+
+SDT_PROBE_DEFINE4(vmm, vmx, exit, mmiofault,
+    "struct vmx *", "int", "struct vm_exit *", "uint64_t");
+
+SDT_PROBE_DEFINE3(vmm, vmx, exit, eoi,
+    "struct vmx *", "int", "struct vm_exit *");
+
+SDT_PROBE_DEFINE3(vmm, vmx, exit, apicaccess,
+    "struct vmx *", "int", "struct vm_exit *");
+
+SDT_PROBE_DEFINE4(vmm, vmx, exit, apicwrite,
+    "struct vmx *", "int", "struct vm_exit *", "struct vlapic *");
+
+SDT_PROBE_DEFINE3(vmm, vmx, exit, xsetbv,
+    "struct vmx *", "int", "struct vm_exit *");
+
+SDT_PROBE_DEFINE3(vmm, vmx, exit, monitor,
+    "struct vmx *", "int", "struct vm_exit *");
+
+SDT_PROBE_DEFINE3(vmm, vmx, exit, mwait,
+    "struct vmx *", "int", "struct vm_exit *");
+
+SDT_PROBE_DEFINE3(vmm, vmx, exit, vminsn,
+    "struct vmx *", "int", "struct vm_exit *");
+
+SDT_PROBE_DEFINE4(vmm, vmx, exit, unknown,
+    "struct vmx *", "int", "struct vm_exit *", "uint32_t");
+
+SDT_PROBE_DEFINE4(vmm, vmx, exit, return,
+    "struct vmx *", "int", "struct vm_exit *", "int");
 
 /*
  * Use the last page below 4GB as the APIC access address. This address is
@@ -283,8 +373,8 @@ exit_reason_to_str(int reason)
 		return "monitor";
 	case EXIT_REASON_PAUSE:
 		return "pause";
-	case EXIT_REASON_MCE:
-		return "mce";
+	case EXIT_REASON_MCE_DURING_ENTRY:
+		return "mce-during-entry";
 	case EXIT_REASON_TPR:
 		return "tpr";
 	case EXIT_REASON_APIC_ACCESS:
@@ -487,13 +577,16 @@ static int
 vmx_cleanup(void)
 {
 	
-	if (pirvec != 0)
-		vmm_ipi_free(pirvec);
+	if (pirvec >= 0)
+		lapic_ipi_free(pirvec);
 
 	if (vpid_unr != NULL) {
 		delete_unrhdr(vpid_unr);
 		vpid_unr = NULL;
 	}
+
+	if (nmi_flush_l1d_sw == 1)
+		nmi_flush_l1d_sw = 0;
 
 	smp_rendezvous(NULL, vmx_disable, NULL, NULL);
 
@@ -696,8 +789,9 @@ vmx_init(int ipinum)
 		    MSR_VMX_TRUE_PINBASED_CTLS, PINBASED_POSTED_INTERRUPT, 0,
 		    &tmp);
 		if (error == 0) {
-			pirvec = vmm_ipi_alloc();
-			if (pirvec == 0) {
+			pirvec = lapic_ipi_alloc(pti ? &IDTVEC(justreturn1_pti) :
+			    &IDTVEC(justreturn));
+			if (pirvec < 0) {
 				if (bootverbose) {
 					printf("vmx_init: unable to allocate "
 					    "posted interrupt vector\n");
@@ -718,6 +812,31 @@ vmx_init(int ipinum)
 	if (error) {
 		printf("vmx_init: ept initialization failed (%d)\n", error);
 		return (error);
+	}
+
+	guest_l1d_flush = (cpu_ia32_arch_caps & IA32_ARCH_CAP_RDCL_NO) == 0;
+	TUNABLE_INT_FETCH("hw.vmm.l1d_flush", &guest_l1d_flush);
+
+	/*
+	 * L1D cache flush is enabled.  Use IA32_FLUSH_CMD MSR when
+	 * available.  Otherwise fall back to the software flush
+	 * method which loads enough data from the kernel text to
+	 * flush existing L1D content, both on VMX entry and on NMI
+	 * return.
+	 */
+	if (guest_l1d_flush) {
+		if ((cpu_stdext_feature3 & CPUID_STDEXT3_L1D_FLUSH) == 0) {
+			guest_l1d_flush_sw = 1;
+			TUNABLE_INT_FETCH("hw.vmm.l1d_flush_sw",
+			    &guest_l1d_flush_sw);
+		}
+		if (guest_l1d_flush_sw) {
+			if (nmi_flush_l1d_sw <= 1)
+				nmi_flush_l1d_sw = 1;
+		} else {
+			msr_load_list[0].index = MSR_IA32_FLUSH_CMD;
+			msr_load_list[0].val = IA32_FLUSH_CMD_L1D;
+		}
 	}
 
 	/*
@@ -821,6 +940,7 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	int i, error;
 	struct vmx *vmx;
 	struct vmcs *vmcs;
+	uint32_t exc_bitmap;
 
 	vmx = malloc(sizeof(struct vmx), M_VMX, M_WAITOK | M_ZERO);
 	if ((uintptr_t)vmx & PAGE_MASK) {
@@ -858,14 +978,11 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	 * VM exit and entry respectively. It is also restored from the
 	 * host VMCS area on a VM exit.
 	 *
-	 * MSR_PAT is saved and restored in the guest VMCS are on a VM exit
-	 * and entry respectively. It is also restored from the host VMCS
-	 * area on a VM exit.
-	 *
-	 * The TSC MSR is exposed read-only. Writes are disallowed as that
-	 * will impact the host TSC.
-	 * XXX Writes would be implemented with a wrmsr trap, and
-	 * then modifying the TSC offset in the VMCS.
+	 * The TSC MSR is exposed read-only. Writes are disallowed as
+	 * that will impact the host TSC.  If the guest does a write
+	 * the "use TSC offsetting" execution control is enabled and the
+	 * difference between the host TSC and the guest TSC is written
+	 * into the TSC offset in the VMCS.
 	 */
 	if (guest_msr_rw(vmx, MSR_GSBASE) ||
 	    guest_msr_rw(vmx, MSR_FSBASE) ||
@@ -873,7 +990,6 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	    guest_msr_rw(vmx, MSR_SYSENTER_ESP_MSR) ||
 	    guest_msr_rw(vmx, MSR_SYSENTER_EIP_MSR) ||
 	    guest_msr_rw(vmx, MSR_EFER) ||
-	    guest_msr_rw(vmx, MSR_PAT) ||
 	    guest_msr_ro(vmx, MSR_TSC))
 		panic("vmx_vminit: error setting guest msr access");
 
@@ -911,6 +1027,26 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 		error += vmwrite(VMCS_ENTRY_CTLS, entry_ctls);
 		error += vmwrite(VMCS_MSR_BITMAP, vtophys(vmx->msr_bitmap));
 		error += vmwrite(VMCS_VPID, vpid[i]);
+
+		if (guest_l1d_flush && !guest_l1d_flush_sw) {
+			vmcs_write(VMCS_ENTRY_MSR_LOAD, pmap_kextract(
+			    (vm_offset_t)&msr_load_list[0]));
+			vmcs_write(VMCS_ENTRY_MSR_LOAD_COUNT,
+			    nitems(msr_load_list));
+			vmcs_write(VMCS_EXIT_MSR_STORE, 0);
+			vmcs_write(VMCS_EXIT_MSR_STORE_COUNT, 0);
+		}
+
+		/* exception bitmap */
+		if (vcpu_trace_exceptions(vm, i))
+			exc_bitmap = 0xffffffff;
+		else
+			exc_bitmap = 1 << IDT_MC;
+		error += vmwrite(VMCS_EXCEPTION_BITMAP, exc_bitmap);
+
+		vmx->ctx[i].guest_dr6 = DBREG_DR6_RESERVED1;
+		error += vmwrite(VMCS_GUEST_DR7, DBREG_DR7_RESERVED1);
+
 		if (virtual_interrupt_delivery) {
 			error += vmwrite(VMCS_APIC_ACCESS, APIC_ACCESS_ADDRESS);
 			error += vmwrite(VMCS_VIRTUAL_APIC,
@@ -932,6 +1068,7 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 		vmx->cap[i].proc_ctls = procbased_ctls;
 		vmx->cap[i].proc_ctls2 = procbased_ctls2;
 
+		vmx->state[i].nextrip = ~0;
 		vmx->state[i].lastcpu = NOCPU;
 		vmx->state[i].vpid = vpid[i];
 
@@ -1128,6 +1265,22 @@ vmx_clear_nmi_window_exiting(struct vmx *vmx, int vcpu)
 	VCPU_CTR0(vmx->vm, vcpu, "Disabling NMI window exiting");
 }
 
+int
+vmx_set_tsc_offset(struct vmx *vmx, int vcpu, uint64_t offset)
+{
+	int error;
+
+	if ((vmx->cap[vcpu].proc_ctls & PROCBASED_TSC_OFFSET) == 0) {
+		vmx->cap[vcpu].proc_ctls |= PROCBASED_TSC_OFFSET;
+		vmcs_write(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
+		VCPU_CTR0(vmx->vm, vcpu, "Enabling TSC offsetting");
+	}
+
+	error = vmwrite(VMCS_TSC_OFFSET, offset);
+
+	return (error);
+}
+
 #define	NMI_BLOCKING	(VMCS_INTERRUPTIBILITY_NMI_BLOCKING |		\
 			 VMCS_INTERRUPTIBILITY_MOVSS_BLOCKING)
 #define	HWINTR_BLOCKING	(VMCS_INTERRUPTIBILITY_STI_BLOCKING |		\
@@ -1160,11 +1313,23 @@ vmx_inject_nmi(struct vmx *vmx, int vcpu)
 }
 
 static void
-vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
+vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic,
+    uint64_t guestrip)
 {
 	int vector, need_nmi_exiting, extint_pending;
 	uint64_t rflags, entryinfo;
 	uint32_t gi, info;
+
+	if (vmx->state[vcpu].nextrip != guestrip) {
+		gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
+		if (gi & HWINTR_BLOCKING) {
+			VCPU_CTR2(vmx->vm, vcpu, "Guest interrupt blocking "
+			    "cleared due to rip change: %#lx/%#lx",
+			    vmx->state[vcpu].nextrip, guestrip);
+			gi &= ~HWINTR_BLOCKING;
+			vmcs_write(VMCS_GUEST_INTERRUPTIBILITY, gi);
+		}
+	}
 
 	if (vm_entry_intinfo(vmx->vm, vcpu, &entryinfo)) {
 		KASSERT((entryinfo & VMCS_INTR_VALID) != 0, ("%s: entry "
@@ -1746,8 +1911,6 @@ inout_str_seginfo(struct vmx *vmx, int vcpuid, uint32_t inst_info, int in,
 
 	error = vmx_getdesc(vmx, vcpuid, vis->seg_name, &vis->seg_desc);
 	KASSERT(error == 0, ("%s: vmx_getdesc error %d", __func__, error));
-
-	/* XXX modify svm.c to update bit 16 of seg_desc.access (unusable) */
 }
 
 static void
@@ -1764,23 +1927,31 @@ vmexit_inst_emul(struct vm_exit *vmexit, uint64_t gpa, uint64_t gla)
 {
 	struct vm_guest_paging *paging;
 	uint32_t csar;
-	
+
 	paging = &vmexit->u.inst_emul.paging;
 
 	vmexit->exitcode = VM_EXITCODE_INST_EMUL;
+	vmexit->inst_length = 0;
 	vmexit->u.inst_emul.gpa = gpa;
 	vmexit->u.inst_emul.gla = gla;
 	vmx_paging_info(paging);
 	switch (paging->cpu_mode) {
+	case CPU_MODE_REAL:
+		vmexit->u.inst_emul.cs_base = vmcs_read(VMCS_GUEST_CS_BASE);
+		vmexit->u.inst_emul.cs_d = 0;
+		break;
 	case CPU_MODE_PROTECTED:
 	case CPU_MODE_COMPATIBILITY:
+		vmexit->u.inst_emul.cs_base = vmcs_read(VMCS_GUEST_CS_BASE);
 		csar = vmcs_read(VMCS_GUEST_CS_ACCESS_RIGHTS);
 		vmexit->u.inst_emul.cs_d = SEG_DESC_DEF32(csar);
 		break;
 	default:
+		vmexit->u.inst_emul.cs_base = 0;
 		vmexit->u.inst_emul.cs_d = 0;
 		break;
 	}
+	vie_init(&vmexit->u.inst_emul.vie, NULL, 0);
 }
 
 static int
@@ -2052,13 +2223,13 @@ emulate_rdmsr(struct vmx *vmx, int vcpuid, u_int num, bool *retu)
 static int
 vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 {
-	int error, handled, in;
+	int error, errcode, errcode_valid, handled, in;
 	struct vmxctx *vmxctx;
 	struct vlapic *vlapic;
 	struct vm_inout_str *vis;
 	struct vm_task_switch *ts;
 	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, intr_info, inst_info;
-	uint32_t intr_type, reason;
+	uint32_t intr_type, intr_vec, reason;
 	uint64_t exitintinfo, qual, gpa;
 	bool retu;
 
@@ -2073,6 +2244,19 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	vmexit->exitcode = VM_EXITCODE_BOGUS;
 
 	vmm_stat_incr(vmx->vm, vcpu, VMEXIT_COUNT, 1);
+	SDT_PROBE3(vmm, vmx, exit, entry, vmx, vcpu, vmexit);
+
+	/*
+	 * VM-entry failures during or after loading guest state.
+	 *
+	 * These VM-exits are uncommon but must be handled specially
+	 * as most VM-exit fields are not populated as usual.
+	 */
+	if (__predict_false(reason == EXIT_REASON_MCE_DURING_ENTRY)) {
+		VCPU_CTR0(vmx->vm, vcpu, "Handling MCE during VM-entry");
+		__asm __volatile("int $18");
+		return (1);
+	}
 
 	/*
 	 * VM exits that can be triggered during event delivery need to
@@ -2163,6 +2347,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			}
 		}
 		vmexit->exitcode = VM_EXITCODE_TASK_SWITCH;
+		SDT_PROBE4(vmm, vmx, exit, taskswitch, vmx, vcpu, vmexit, ts);
 		VCPU_CTR4(vmx->vm, vcpu, "task switch reason %d, tss 0x%04x, "
 		    "%s errcode 0x%016lx", ts->reason, ts->tsssel,
 		    ts->ext ? "external" : "internal",
@@ -2170,6 +2355,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		break;
 	case EXIT_REASON_CR_ACCESS:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_CR_ACCESS, 1);
+		SDT_PROBE4(vmm, vmx, exit, craccess, vmx, vcpu, vmexit, qual);
 		switch (qual & 0xf) {
 		case 0:
 			handled = vmx_emulate_cr0_access(vmx, vcpu, qual);
@@ -2187,6 +2373,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		retu = false;
 		ecx = vmxctx->guest_rcx;
 		VCPU_CTR1(vmx->vm, vcpu, "rdmsr 0x%08x", ecx);
+		SDT_PROBE4(vmm, vmx, exit, rdmsr, vmx, vcpu, vmexit, ecx);
 		error = emulate_rdmsr(vmx, vcpu, ecx, &retu);
 		if (error) {
 			vmexit->exitcode = VM_EXITCODE_RDMSR;
@@ -2207,6 +2394,8 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		edx = vmxctx->guest_rdx;
 		VCPU_CTR2(vmx->vm, vcpu, "wrmsr 0x%08x value 0x%016lx",
 		    ecx, (uint64_t)edx << 32 | eax);
+		SDT_PROBE5(vmm, vmx, exit, wrmsr, vmx, vmexit, vcpu, ecx,
+		    (uint64_t)edx << 32 | eax);
 		error = emulate_wrmsr(vmx, vcpu, ecx,
 		    (uint64_t)edx << 32 | eax, &retu);
 		if (error) {
@@ -2223,19 +2412,29 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		break;
 	case EXIT_REASON_HLT:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_HLT, 1);
+		SDT_PROBE3(vmm, vmx, exit, halt, vmx, vcpu, vmexit);
 		vmexit->exitcode = VM_EXITCODE_HLT;
 		vmexit->u.hlt.rflags = vmcs_read(VMCS_GUEST_RFLAGS);
+		if (virtual_interrupt_delivery)
+			vmexit->u.hlt.intr_status =
+			    vmcs_read(VMCS_GUEST_INTR_STATUS);
+		else
+			vmexit->u.hlt.intr_status = 0;
 		break;
 	case EXIT_REASON_MTF:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_MTRAP, 1);
+		SDT_PROBE3(vmm, vmx, exit, mtrap, vmx, vcpu, vmexit);
 		vmexit->exitcode = VM_EXITCODE_MTRAP;
+		vmexit->inst_length = 0;
 		break;
 	case EXIT_REASON_PAUSE:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_PAUSE, 1);
+		SDT_PROBE3(vmm, vmx, exit, pause, vmx, vcpu, vmexit);
 		vmexit->exitcode = VM_EXITCODE_PAUSE;
 		break;
 	case EXIT_REASON_INTR_WINDOW:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_INTR_WINDOW, 1);
+		SDT_PROBE3(vmm, vmx, exit, intrwindow, vmx, vcpu, vmexit);
 		vmx_clear_int_window_exiting(vmx, vcpu);
 		return (1);
 	case EXIT_REASON_EXT_INTR:
@@ -2249,6 +2448,8 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		 * this virtual interrupt during the subsequent VM enter.
 		 */
 		intr_info = vmcs_read(VMCS_EXIT_INTR_INFO);
+		SDT_PROBE4(vmm, vmx, exit, interrupt,
+		    vmx, vcpu, vmexit, intr_info);
 
 		/*
 		 * XXX: Ignore this exit if VMCS_INTR_VALID is not set.
@@ -2268,6 +2469,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_EXTINT, 1);
 		return (1);
 	case EXIT_REASON_NMI_WINDOW:
+		SDT_PROBE3(vmm, vmx, exit, nmiwindow, vmx, vcpu, vmexit);
 		/* Exit to allow the pending virtual NMI to be injected */
 		if (vm_nmi_pending(vmx->vm, vcpu))
 			vmx_inject_nmi(vmx, vcpu);
@@ -2295,9 +2497,11 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vis->addrsize = inout_str_addrsize(inst_info);
 			inout_str_seginfo(vmx, vcpu, inst_info, in, vis);
 		}
+		SDT_PROBE3(vmm, vmx, exit, inout, vmx, vcpu, vmexit);
 		break;
 	case EXIT_REASON_CPUID:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_CPUID, 1);
+		SDT_PROBE3(vmm, vmx, exit, cpuid, vmx, vcpu, vmexit);
 		handled = vmx_handle_cpuid(vmx->vm, vcpu, vmxctx);
 		break;
 	case EXIT_REASON_EXCEPTION:
@@ -2305,6 +2509,9 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		intr_info = vmcs_read(VMCS_EXIT_INTR_INFO);
 		KASSERT((intr_info & VMCS_INTR_VALID) != 0,
 		    ("VM exit interruption info invalid: %#x", intr_info));
+
+		intr_vec = intr_info & 0xff;
+		intr_type = intr_info & VMCS_INTR_T_MASK;
 
 		/*
 		 * If Virtual NMIs control is 1 and the VM-exit is due to a
@@ -2316,16 +2523,57 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		 * See "Information for VM Exits Due to Vectored Events".
 		 */
 		if ((idtvec_info & VMCS_IDT_VEC_VALID) == 0 &&
-		    (intr_info & 0xff) != IDT_DF &&
+		    (intr_vec != IDT_DF) &&
 		    (intr_info & EXIT_QUAL_NMIUDTI) != 0)
 			vmx_restore_nmi_blocking(vmx, vcpu);
 
 		/*
 		 * The NMI has already been handled in vmx_exit_handle_nmi().
 		 */
-		if ((intr_info & VMCS_INTR_T_MASK) == VMCS_INTR_T_NMI)
+		if (intr_type == VMCS_INTR_T_NMI)
 			return (1);
-		break;
+
+		/*
+		 * Call the machine check handler by hand. Also don't reflect
+		 * the machine check back into the guest.
+		 */
+		if (intr_vec == IDT_MC) {
+			VCPU_CTR0(vmx->vm, vcpu, "Vectoring to MCE handler");
+			__asm __volatile("int $18");
+			return (1);
+		}
+
+		if (intr_vec == IDT_PF) {
+			error = vmxctx_setreg(vmxctx, VM_REG_GUEST_CR2, qual);
+			KASSERT(error == 0, ("%s: vmxctx_setreg(cr2) error %d",
+			    __func__, error));
+		}
+
+		/*
+		 * Software exceptions exhibit trap-like behavior. This in
+		 * turn requires populating the VM-entry instruction length
+		 * so that the %rip in the trap frame is past the INT3/INTO
+		 * instruction.
+		 */
+		if (intr_type == VMCS_INTR_T_SWEXCEPTION)
+			vmcs_write(VMCS_ENTRY_INST_LENGTH, vmexit->inst_length);
+
+		/* Reflect all other exceptions back into the guest */
+		errcode_valid = errcode = 0;
+		if (intr_info & VMCS_INTR_DEL_ERRCODE) {
+			errcode_valid = 1;
+			errcode = vmcs_read(VMCS_EXIT_INTR_ERRCODE);
+		}
+		VCPU_CTR2(vmx->vm, vcpu, "Reflecting exception %d/%#x into "
+		    "the guest", intr_vec, errcode);
+		SDT_PROBE5(vmm, vmx, exit, exception,
+		    vmx, vcpu, vmexit, intr_vec, errcode);
+		error = vm_inject_exception(vmx->vm, vcpu, intr_vec,
+		    errcode_valid, errcode, 0);
+		KASSERT(error == 0, ("%s: vm_inject_exception error %d",
+		    __func__, error));
+		return (1);
+
 	case EXIT_REASON_EPT_FAULT:
 		/*
 		 * If 'gpa' lies within the address space allocated to
@@ -2333,15 +2581,20 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		 * this must be an instruction that accesses MMIO space.
 		 */
 		gpa = vmcs_gpa();
-		if (vm_mem_allocated(vmx->vm, gpa) ||
+		if (vm_mem_allocated(vmx->vm, vcpu, gpa) ||
 		    apic_access_fault(vmx, vcpu, gpa)) {
 			vmexit->exitcode = VM_EXITCODE_PAGING;
+			vmexit->inst_length = 0;
 			vmexit->u.paging.gpa = gpa;
 			vmexit->u.paging.fault_type = ept_fault_type(qual);
 			vmm_stat_incr(vmx->vm, vcpu, VMEXIT_NESTED_FAULT, 1);
+			SDT_PROBE5(vmm, vmx, exit, nestedfault,
+			    vmx, vcpu, vmexit, gpa, qual);
 		} else if (ept_emulation_fault(qual)) {
 			vmexit_inst_emul(vmexit, gpa, vmcs_gla());
 			vmm_stat_incr(vmx->vm, vcpu, VMEXIT_INST_EMUL, 1);
+			SDT_PROBE4(vmm, vmx, exit, mmiofault,
+			    vmx, vcpu, vmexit, gpa);
 		}
 		/*
 		 * If Virtual NMIs control is 1 and the VM-exit is due to an
@@ -2358,9 +2611,11 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	case EXIT_REASON_VIRTUALIZED_EOI:
 		vmexit->exitcode = VM_EXITCODE_IOAPIC_EOI;
 		vmexit->u.ioapic_eoi.vector = qual & 0xFF;
+		SDT_PROBE3(vmm, vmx, exit, eoi, vmx, vcpu, vmexit);
 		vmexit->inst_length = 0;	/* trap-like */
 		break;
 	case EXIT_REASON_APIC_ACCESS:
+		SDT_PROBE3(vmm, vmx, exit, apicaccess, vmx, vcpu, vmexit);
 		handled = vmx_handle_apic_access(vmx, vcpu, vmexit);
 		break;
 	case EXIT_REASON_APIC_WRITE:
@@ -2370,18 +2625,38 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		 */
 		vmexit->inst_length = 0;
 		vlapic = vm_lapic(vmx->vm, vcpu);
+		SDT_PROBE4(vmm, vmx, exit, apicwrite,
+		    vmx, vcpu, vmexit, vlapic);
 		handled = vmx_handle_apic_write(vmx, vcpu, vlapic, qual);
 		break;
 	case EXIT_REASON_XSETBV:
+		SDT_PROBE3(vmm, vmx, exit, xsetbv, vmx, vcpu, vmexit);
 		handled = vmx_emulate_xsetbv(vmx, vcpu, vmexit);
 		break;
 	case EXIT_REASON_MONITOR:
+		SDT_PROBE3(vmm, vmx, exit, monitor, vmx, vcpu, vmexit);
 		vmexit->exitcode = VM_EXITCODE_MONITOR;
 		break;
 	case EXIT_REASON_MWAIT:
+		SDT_PROBE3(vmm, vmx, exit, mwait, vmx, vcpu, vmexit);
 		vmexit->exitcode = VM_EXITCODE_MWAIT;
 		break;
+	case EXIT_REASON_VMCALL:
+	case EXIT_REASON_VMCLEAR:
+	case EXIT_REASON_VMLAUNCH:
+	case EXIT_REASON_VMPTRLD:
+	case EXIT_REASON_VMPTRST:
+	case EXIT_REASON_VMREAD:
+	case EXIT_REASON_VMRESUME:
+	case EXIT_REASON_VMWRITE:
+	case EXIT_REASON_VMXOFF:
+	case EXIT_REASON_VMXON:
+		SDT_PROBE3(vmm, vmx, exit, vminsn, vmx, vcpu, vmexit);
+		vmexit->exitcode = VM_EXITCODE_VMINSN;
+		break;
 	default:
+		SDT_PROBE4(vmm, vmx, exit, unknown,
+		    vmx, vcpu, vmexit, reason);
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_UNKNOWN, 1);
 		break;
 	}
@@ -2417,6 +2692,9 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			 */
 		}
 	}
+
+	SDT_PROBE4(vmm, vmx, exit, return,
+	    vmx, vcpu, vmexit, handled);
 	return (handled);
 }
 
@@ -2476,9 +2754,76 @@ vmx_exit_handle_nmi(struct vmx *vmx, int vcpuid, struct vm_exit *vmexit)
 	}
 }
 
+static __inline void
+vmx_dr_enter_guest(struct vmxctx *vmxctx)
+{
+	register_t rflags;
+
+	/* Save host control debug registers. */
+	vmxctx->host_dr7 = rdr7();
+	vmxctx->host_debugctl = rdmsr(MSR_DEBUGCTLMSR);
+
+	/*
+	 * Disable debugging in DR7 and DEBUGCTL to avoid triggering
+	 * exceptions in the host based on the guest DRx values.  The
+	 * guest DR7 and DEBUGCTL are saved/restored in the VMCS.
+	 */
+	load_dr7(0);
+	wrmsr(MSR_DEBUGCTLMSR, 0);
+
+	/*
+	 * Disable single stepping the kernel to avoid corrupting the
+	 * guest DR6.  A debugger might still be able to corrupt the
+	 * guest DR6 by setting a breakpoint after this point and then
+	 * single stepping.
+	 */
+	rflags = read_rflags();
+	vmxctx->host_tf = rflags & PSL_T;
+	write_rflags(rflags & ~PSL_T);
+
+	/* Save host debug registers. */
+	vmxctx->host_dr0 = rdr0();
+	vmxctx->host_dr1 = rdr1();
+	vmxctx->host_dr2 = rdr2();
+	vmxctx->host_dr3 = rdr3();
+	vmxctx->host_dr6 = rdr6();
+
+	/* Restore guest debug registers. */
+	load_dr0(vmxctx->guest_dr0);
+	load_dr1(vmxctx->guest_dr1);
+	load_dr2(vmxctx->guest_dr2);
+	load_dr3(vmxctx->guest_dr3);
+	load_dr6(vmxctx->guest_dr6);
+}
+
+static __inline void
+vmx_dr_leave_guest(struct vmxctx *vmxctx)
+{
+
+	/* Save guest debug registers. */
+	vmxctx->guest_dr0 = rdr0();
+	vmxctx->guest_dr1 = rdr1();
+	vmxctx->guest_dr2 = rdr2();
+	vmxctx->guest_dr3 = rdr3();
+	vmxctx->guest_dr6 = rdr6();
+
+	/*
+	 * Restore host debug registers.  Restore DR7, DEBUGCTL, and
+	 * PSL_T last.
+	 */
+	load_dr0(vmxctx->host_dr0);
+	load_dr1(vmxctx->host_dr1);
+	load_dr2(vmxctx->host_dr2);
+	load_dr3(vmxctx->host_dr3);
+	load_dr6(vmxctx->host_dr6);
+	wrmsr(MSR_DEBUGCTLMSR, vmxctx->host_debugctl);
+	load_dr7(vmxctx->host_dr7);
+	write_rflags(read_rflags() | vmxctx->host_tf);
+}
+
 static int
-vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
-    void *rendezvous_cookie, void *suspend_cookie)
+vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
+    struct vm_eventinfo *evinfo)
 {
 	int rc, handled, launched;
 	struct vmx *vmx;
@@ -2487,8 +2832,9 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 	struct vmcs *vmcs;
 	struct vm_exit *vmexit;
 	struct vlapic *vlapic;
-	uint64_t rip;
 	uint32_t exit_reason;
+	struct region_descriptor gdtr, idtr;
+	uint16_t ldt_sel;
 
 	vmx = arg;
 	vm = vmx->vm;
@@ -2515,11 +2861,13 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 	 */
 	vmcs_write(VMCS_HOST_CR3, rcr3());
 
-	vmcs_write(VMCS_GUEST_RIP, startrip);
+	vmcs_write(VMCS_GUEST_RIP, rip);
 	vmx_set_pcpu_defaults(vmx, vcpu, pmap);
 	do {
-		handled = UNHANDLED;
+		KASSERT(vmcs_guest_rip() == rip, ("%s: vmcs guest rip mismatch "
+		    "%#lx/%#lx", __func__, vmcs_guest_rip(), rip));
 
+		handled = UNHANDLED;
 		/*
 		 * Interrupts are disabled from this point on until the
 		 * guest starts executing. This is done for the following
@@ -2539,41 +2887,78 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 		 * pmap_invalidate_ept().
 		 */
 		disable_intr();
-		vmx_inject_interrupts(vmx, vcpu, vlapic);
+		vmx_inject_interrupts(vmx, vcpu, vlapic, rip);
 
 		/*
 		 * Check for vcpu suspension after injecting events because
 		 * vmx_inject_interrupts() can suspend the vcpu due to a
 		 * triple fault.
 		 */
-		if (vcpu_suspended(suspend_cookie)) {
+		if (vcpu_suspended(evinfo)) {
 			enable_intr();
-			vm_exit_suspended(vmx->vm, vcpu, vmcs_guest_rip());
+			vm_exit_suspended(vmx->vm, vcpu, rip);
 			break;
 		}
 
-		if (vcpu_rendezvous_pending(rendezvous_cookie)) {
+		if (vcpu_rendezvous_pending(evinfo)) {
 			enable_intr();
-			vm_exit_rendezvous(vmx->vm, vcpu, vmcs_guest_rip());
+			vm_exit_rendezvous(vmx->vm, vcpu, rip);
+			break;
+		}
+
+		if (vcpu_reqidle(evinfo)) {
+			enable_intr();
+			vm_exit_reqidle(vmx->vm, vcpu, rip);
 			break;
 		}
 
 		if (vcpu_should_yield(vm, vcpu)) {
 			enable_intr();
-			vm_exit_astpending(vmx->vm, vcpu, vmcs_guest_rip());
-			vmx_astpending_trace(vmx, vcpu, vmexit->rip);
+			vm_exit_astpending(vmx->vm, vcpu, rip);
+			vmx_astpending_trace(vmx, vcpu, rip);
 			handled = HANDLED;
 			break;
 		}
 
+		if (vcpu_debugged(vm, vcpu)) {
+			enable_intr();
+			vm_exit_debug(vmx->vm, vcpu, rip);
+			break;
+		}
+
+		/*
+		 * VM exits restore the base address but not the
+		 * limits of GDTR and IDTR.  The VMCS only stores the
+		 * base address, so VM exits set the limits to 0xffff.
+		 * Save and restore the full GDTR and IDTR to restore
+		 * the limits.
+		 *
+		 * The VMCS does not save the LDTR at all, and VM
+		 * exits clear LDTR as if a NULL selector were loaded.
+		 * The userspace hypervisor probably doesn't use a
+		 * LDT, but save and restore it to be safe.
+		 */
+		sgdt(&gdtr);
+		sidt(&idtr);
+		ldt_sel = sldt();
+
 		vmx_run_trace(vmx, vcpu);
+		vmx_dr_enter_guest(vmxctx);
 		rc = vmx_enter_guest(vmxctx, vmx, launched);
+		vmx_dr_leave_guest(vmxctx);
+
+		bare_lgdt(&gdtr);
+		lidt(&idtr);
+		lldt(ldt_sel);
 
 		/* Collect some information for VM exit processing */
 		vmexit->rip = rip = vmcs_guest_rip();
 		vmexit->inst_length = vmexit_instruction_length();
 		vmexit->u.vmx.exit_reason = exit_reason = vmcs_exit_reason();
 		vmexit->u.vmx.exit_qualification = vmcs_exit_qualification();
+
+		/* Update 'nextrip' */
+		vmx->state[vcpu].nextrip = rip;
 
 		if (rc == VMX_GUEST_VMEXIT) {
 			vmx_exit_handle_nmi(vmx, vcpu, vmexit);
@@ -2585,6 +2970,7 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 		}
 		launched = 1;
 		vmx_exit_trace(vmx, vcpu, rip, exit_reason, handled);
+		rip = vmexit->rip;
 	} while (handled);
 
 	/*
@@ -2663,6 +3049,16 @@ vmxctx_regptr(struct vmxctx *vmxctx, int reg)
 		return (&vmxctx->guest_r15);
 	case VM_REG_GUEST_CR2:
 		return (&vmxctx->guest_cr2);
+	case VM_REG_GUEST_DR0:
+		return (&vmxctx->guest_dr0);
+	case VM_REG_GUEST_DR1:
+		return (&vmxctx->guest_dr1);
+	case VM_REG_GUEST_DR2:
+		return (&vmxctx->guest_dr2);
+	case VM_REG_GUEST_DR3:
+		return (&vmxctx->guest_dr3);
+	case VM_REG_GUEST_DR6:
+		return (&vmxctx->guest_dr6);
 	default:
 		break;
 	}
@@ -3068,8 +3464,29 @@ vmx_pending_intr(struct vlapic *vlapic, int *vecptr)
 	pir_desc = vlapic_vtx->pir_desc;
 
 	pending = atomic_load_acq_long(&pir_desc->pending);
-	if (!pending)
-		return (0);	/* common case */
+	if (!pending) {
+		/*
+		 * While a virtual interrupt may have already been
+		 * processed the actual delivery maybe pending the
+		 * interruptibility of the guest.  Recognize a pending
+		 * interrupt by reevaluating virtual interrupts
+		 * following Section 29.2.1 in the Intel SDM Volume 3.
+		 */
+		struct vm_exit *vmexit;
+		uint8_t rvi, ppr;
+
+		vmexit = vm_exitinfo(vlapic->vm, vlapic->vcpuid);
+		KASSERT(vmexit->exitcode == VM_EXITCODE_HLT,
+		    ("vmx_pending_intr: exitcode not 'HLT'"));
+		rvi = vmexit->u.hlt.intr_status & APIC_TPR_INT;
+		lapic = vlapic->apic_page;
+		ppr = lapic->ppr & APIC_TPR_INT;
+		if (rvi > ppr) {
+			return (1);
+		}
+
+		return (0);
+	}
 
 	/*
 	 * If there is an interrupt pending then it will be recognized only
@@ -3079,7 +3496,7 @@ vmx_pending_intr(struct vlapic *vlapic, int *vecptr)
 	 * interrupt will be recognized.
 	 */
 	lapic = vlapic->apic_page;
-	ppr = lapic->ppr & 0xf0;
+	ppr = lapic->ppr & APIC_TPR_INT;
 	if (ppr == 0)
 		return (1);
 
@@ -3089,7 +3506,7 @@ vmx_pending_intr(struct vlapic *vlapic, int *vecptr)
 	for (i = 3; i >= 0; i--) {
 		pirval = pir_desc->pir[i];
 		if (pirval != 0) {
-			vpr = (i * 64 + flsl(pirval) - 1) & 0xf0;
+			vpr = (i * 64 + flsl(pirval) - 1) & APIC_TPR_INT;
 			return (vpr > ppr);
 		}
 	}

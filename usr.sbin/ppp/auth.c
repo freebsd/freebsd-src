@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1996 - 2001 Brian Somers <brian@Awfulhak.org>
  *          based on work by Toshiharu OHNO <tony-o@iij.ad.jp>
  *                           Internet Initiative Japan, Inc (IIJ)
@@ -125,13 +127,19 @@ auth_CheckPasswd(const char *name, const char *data, const char *key)
 #ifdef NOPAM
     /* Then look up the real password database */
     struct passwd *pw;
-    int result;
+    int result = 0;
     char *cryptpw;
+    
+    pw = getpwnam(name);
 
-    cryptpw = crypt(key, pw->pw_passwd);
-    result = (pw = getpwnam(name)) &&
-             (cryptpw == NULL || !strcmp(cryptpw, pw->pw_passwd));
+    if (pw) {
+      cryptpw = crypt(key, pw->pw_passwd);
+
+      result = (cryptpw != NULL) && !strcmp(cryptpw, pw->pw_passwd);
+    }
+
     endpwent();
+
     return result;
 #else /* !NOPAM */
     /* Then consult with PAM. */

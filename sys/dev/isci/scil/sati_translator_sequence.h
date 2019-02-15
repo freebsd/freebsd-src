@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -57,7 +59,7 @@
 /**
  * @file
  * @brief This file contains all of the defintions for the SATI translator
- *        sequence.  A translator sequence is simply a defintion for the
+ *        sequence.  A translator sequence is simply a definition for the
  *        various sequences of commands that occur in this translator.
  */
 
@@ -310,7 +312,7 @@ typedef struct SATI_TRANSLATOR_SEQUENCE
 
    /**
     * This field specifies the amount of data that will actually be
-    * transfered across the wire for this ATA request.
+    * transferred across the wire for this ATA request.
     */
    U32 ata_transfer_length;
 

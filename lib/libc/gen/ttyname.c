@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,10 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)ttyname.c	8.2 (Berkeley) 1/27/94";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
+__SCCSID("@(#)ttyname.c	8.2 (Berkeley) 1/27/94");
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
@@ -61,11 +61,15 @@ ttyname_r(int fd, char *buf, size_t len)
 {
 	size_t used;
 
+	/* Don't write off the end of a zero-length buffer. */
+	if (len < 1)
+		return (ERANGE);
+
 	*buf = '\0';
 
 	/* Must be a terminal. */
 	if (!isatty(fd))
-		return (ENOTTY);
+		return (errno);
 	/* Must have enough room */
 	if (len <= sizeof(_PATH_DEV))
 		return (ERANGE);
@@ -73,7 +77,7 @@ ttyname_r(int fd, char *buf, size_t len)
 	strcpy(buf, _PATH_DEV);
 	used = strlen(buf);
 	if (fdevname_r(fd, buf + used, len - used) == NULL)
-		return (ENOTTY);
+		return (errno == EINVAL ? ERANGE : errno);
 	return (0);
 }
 

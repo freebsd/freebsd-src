@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Implementation of SCSI Processor Target Peripheral driver for CAM.
  *
  * Copyright (c) 1998 Justin T. Gibbs.
@@ -140,7 +142,7 @@ ptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	int error = 0;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+	if (cam_periph_acquire(periph) != 0)
 		return (ENXIO);	
 
 	softc = (struct pt_softc *)periph->softc;
@@ -173,9 +175,6 @@ ptclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	struct	pt_softc *softc;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return (ENXIO);	
-
 	softc = (struct pt_softc *)periph->softc;
 
 	cam_periph_lock(periph);
@@ -252,6 +251,8 @@ ptctor(struct cam_periph *periph, void *arg)
 	struct pt_softc *softc;
 	struct ccb_getdev *cgd;
 	struct ccb_pathinq cpi;
+	struct make_dev_args args;
+	int error;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (cgd == NULL) {
@@ -276,12 +277,24 @@ ptctor(struct cam_periph *periph, void *arg)
 
 	periph->softc = softc;
 
-	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
 
 	cam_periph_unlock(periph);
+
+	make_dev_args_init(&args);
+	args.mda_devsw = &pt_cdevsw;
+	args.mda_unit = periph->unit_number;
+	args.mda_uid = UID_ROOT;
+	args.mda_gid = GID_OPERATOR;
+	args.mda_mode = 0600;
+	args.mda_si_drv1 = periph;
+	error = make_dev_s(&args, &softc->dev, "%s%d", periph->periph_name,
+	    periph->unit_number);
+	if (error != 0) {
+		cam_periph_lock(periph);
+		return (CAM_REQ_CMP_ERR);
+	}
+
 	softc->device_stats = devstat_new_entry("pt",
 			  periph->unit_number, 0,
 			  DEVSTAT_NO_BLOCKSIZE,
@@ -289,11 +302,7 @@ ptctor(struct cam_periph *periph, void *arg)
 			  XPORT_DEVSTAT_TYPE(cpi.transport),
 			  DEVSTAT_PRIORITY_OTHER);
 
-	softc->dev = make_dev(&pt_cdevsw, periph->unit_number, UID_ROOT,
-			      GID_OPERATOR, 0600, "%s%d", periph->periph_name,
-			      periph->unit_number);
 	cam_periph_lock(periph);
-	softc->dev->si_drv1 = periph;
 
 	/*
 	 * Add async callbacks for bus reset and
@@ -366,7 +375,8 @@ ptasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 
 		if (cgd->protocol != PROTO_SCSI)
 			break;
-
+		if (SID_QUAL(&cgd->inq_data) != SID_QUAL_LU_CONNECTED)
+			break;
 		if (SID_TYPE(&cgd->inq_data) != T_PROCESSOR)
 			break;
 
@@ -558,8 +568,7 @@ pterror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct pt_softc *)periph->softc;
 
-	return(cam_periph_error(ccb, cam_flags, sense_flags,
-				&softc->saved_ccb));
+	return(cam_periph_error(ccb, cam_flags, sense_flags));
 }
 
 static int
@@ -570,9 +579,6 @@ ptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 	int error = 0;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return(ENXIO);
-
 	softc = (struct pt_softc *)periph->softc;
 
 	cam_periph_lock(periph);

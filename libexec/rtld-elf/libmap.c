@@ -16,15 +16,7 @@
 #include "debug.h"
 #include "rtld.h"
 #include "libmap.h"
-
-#ifndef _PATH_LIBMAP_CONF
-#define	_PATH_LIBMAP_CONF	"/etc/libmap.conf"
-#endif
-
-#ifdef COMPAT_32BIT
-#undef _PATH_LIBMAP_CONF
-#define	_PATH_LIBMAP_CONF	"/etc/libmap32.conf"
-#endif
+#include "paths.h"
 
 TAILQ_HEAD(lm_list, lm);
 struct lm {
@@ -33,7 +25,7 @@ struct lm {
 	TAILQ_ENTRY(lm)	lm_link;
 };
 
-TAILQ_HEAD(lmp_list, lmp) lmp_head = TAILQ_HEAD_INITIALIZER(lmp_head);
+static TAILQ_HEAD(lmp_list, lmp) lmp_head = TAILQ_HEAD_INITIALIZER(lmp_head);
 struct lmp {
 	char *p;
 	enum { T_EXACT=0, T_BASENAME, T_DIRECTORY } type;
@@ -44,14 +36,16 @@ struct lmp {
 static TAILQ_HEAD(lmc_list, lmc) lmc_head = TAILQ_HEAD_INITIALIZER(lmc_head);
 struct lmc {
 	char *path;
+	dev_t dev;
+	ino_t ino;
 	TAILQ_ENTRY(lmc) next;
 };
 
 static int lm_count;
 
 static void lmc_parse(char *, size_t);
-static void lmc_parse_file(char *);
-static void lmc_parse_dir(char *);
+static void lmc_parse_file(const char *);
+static void lmc_parse_dir(const char *);
 static void lm_add(const char *, const char *, const char *);
 static void lm_free(struct lm_list *);
 static char *lml_find(struct lm_list *, const char *);
@@ -76,7 +70,7 @@ lm_init(char *libmap_override)
 	dbg("lm_init(\"%s\")", libmap_override);
 	TAILQ_INIT(&lmp_head);
 
-	lmc_parse_file(_PATH_LIBMAP_CONF);
+	lmc_parse_file(ld_path_libmap_conf);
 
 	if (libmap_override) {
 		/*
@@ -102,83 +96,79 @@ lm_init(char *libmap_override)
 }
 
 static void
-lmc_parse_file(char *path)
+lmc_parse_file(const char *path)
 {
 	struct lmc *p;
-	struct stat st;
-	int fd;
-	char *rpath;
 	char *lm_map;
-
-	rpath = realpath(path, NULL);
-	if (rpath == NULL)
-		return;
+	struct stat st;
+	ssize_t retval;
+	int fd;
 
 	TAILQ_FOREACH(p, &lmc_head, next) {
-		if (strcmp(p->path, rpath) == 0) {
-			free(rpath);
+		if (strcmp(p->path, path) == 0)
 			return;
-		}
 	}
 
-	fd = open(rpath, O_RDONLY | O_CLOEXEC);
+	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd == -1) {
-		dbg("lm_parse_file: open(\"%s\") failed, %s", rpath,
+		dbg("lm_parse_file: open(\"%s\") failed, %s", path,
 		    rtld_strerror(errno));
-		free(rpath);
 		return;
 	}
 	if (fstat(fd, &st) == -1) {
 		close(fd);
-		dbg("lm_parse_file: fstat(\"%s\") failed, %s", rpath,
+		dbg("lm_parse_file: fstat(\"%s\") failed, %s", path,
 		    rtld_strerror(errno));
-		free(rpath);
 		return;
 	}
-	lm_map = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-	if (lm_map == (const char *)MAP_FAILED) {
+
+	TAILQ_FOREACH(p, &lmc_head, next) {
+		if (p->dev == st.st_dev && p->ino == st.st_ino) {
+			close(fd);
+			return;
+		}
+	}
+
+	lm_map = xmalloc(st.st_size);
+	retval = read(fd, lm_map, st.st_size);
+	if (retval != st.st_size) {
 		close(fd);
-		dbg("lm_parse_file: mmap(\"%s\") failed, %s", rpath,
+		free(lm_map);
+		dbg("lm_parse_file: read(\"%s\") failed, %s", path,
 		    rtld_strerror(errno));
-		free(rpath);
 		return;
 	}
 	close(fd);
 	p = xmalloc(sizeof(struct lmc));
-	p->path = rpath;
+	p->path = xstrdup(path);
+	p->dev = st.st_dev;
+	p->ino = st.st_ino;
 	TAILQ_INSERT_HEAD(&lmc_head, p, next);
 	lmc_parse(lm_map, st.st_size);
-	munmap(lm_map, st.st_size);
+	free(lm_map);
 }
 
 static void
-lmc_parse_dir(char *idir)
+lmc_parse_dir(const char *idir)
 {
 	DIR *d;
 	struct dirent *dp;
 	struct lmc *p;
 	char conffile[MAXPATHLEN];
 	char *ext;
-	char *rpath;
-
-	rpath = realpath(idir, NULL);
-	if (rpath == NULL)
-		return;
 
 	TAILQ_FOREACH(p, &lmc_head, next) {
-		if (strcmp(p->path, rpath) == 0) {
-			free(rpath);
+		if (strcmp(p->path, idir) == 0)
 			return;
-		}
 	}
 	d = opendir(idir);
-	if (d == NULL) {
-		free(rpath);
+	if (d == NULL)
 		return;
-	}
 
 	p = xmalloc(sizeof(struct lmc));
-	p->path = rpath;
+	p->path = xstrdup(idir);
+	p->dev = NODEV;
+	p->ino = 0;
 	TAILQ_INSERT_HEAD(&lmc_head, p, next);
 
 	while ((dp = readdir(d)) != NULL) {
@@ -209,8 +199,7 @@ lmc_parse(char *lm_p, size_t lm_len)
 	char prog[MAXPATHLEN];
 	/* allow includedir + full length path */
 	char line[MAXPATHLEN + 13];
-	size_t cnt;
-	int i;
+	size_t cnt, i;
 
 	cnt = 0;
 	p = NULL;
@@ -232,17 +221,20 @@ lmc_parse(char *lm_p, size_t lm_len)
 		t = f = c = NULL;
 
 		/* Skip over leading space */
-		while (rtld_isspace(*cp)) cp++;
+		while (rtld_isspace(*cp))
+			cp++;
 
 		/* Found a comment or EOL */
-		if (iseol(*cp)) continue;
+		if (iseol(*cp))
+			continue;
 
 		/* Found a constraint selector */
 		if (*cp == '[') {
 			cp++;
 
 			/* Skip leading space */
-			while (rtld_isspace(*cp)) cp++;
+			while (rtld_isspace(*cp))
+				cp++;
 
 			/* Found comment, EOL or end of selector */
 			if  (iseol(*cp) || *cp == ']')
@@ -254,10 +246,12 @@ lmc_parse(char *lm_p, size_t lm_len)
 				cp++;
 
 			/* Skip and zero out trailing space */
-			while (rtld_isspace(*cp)) *cp++ = '\0';
+			while (rtld_isspace(*cp))
+				*cp++ = '\0';
 
 			/* Check if there is a closing brace */
-			if (*cp != ']') continue;
+			if (*cp != ']')
+				continue;
 
 			/* Terminate string if there was no trailing space */
 			*cp++ = '\0';
@@ -266,8 +260,10 @@ lmc_parse(char *lm_p, size_t lm_len)
 			 * There should be nothing except whitespace or comment
 			  from this point to the end of the line.
 			 */
-			while(rtld_isspace(*cp)) cp++;
-			if (!iseol(*cp)) continue;
+			while (rtld_isspace(*cp))
+				cp++;
+			if (!iseol(*cp))
+				continue;
 
 			if (strlcpy(prog, c, sizeof prog) >= sizeof prog)
 				continue;
@@ -277,23 +273,29 @@ lmc_parse(char *lm_p, size_t lm_len)
 
 		/* Parse the 'from' candidate. */
 		f = cp++;
-		while (!rtld_isspace(*cp) && !iseol(*cp)) cp++;
+		while (!rtld_isspace(*cp) && !iseol(*cp))
+			cp++;
 
 		/* Skip and zero out the trailing whitespace */
-		while (rtld_isspace(*cp)) *cp++ = '\0';
+		while (rtld_isspace(*cp))
+			*cp++ = '\0';
 
 		/* Found a comment or EOL */
-		if (iseol(*cp)) continue;
+		if (iseol(*cp))
+			continue;
 
 		/* Parse 'to' mapping */
 		t = cp++;
-		while (!rtld_isspace(*cp) && !iseol(*cp)) cp++;
+		while (!rtld_isspace(*cp) && !iseol(*cp))
+			cp++;
 
 		/* Skip and zero out the trailing whitespace */
-		while (rtld_isspace(*cp)) *cp++ = '\0';
+		while (rtld_isspace(*cp))
+			*cp++ = '\0';
 
 		/* Should be no extra tokens at this point */
-		if (!iseol(*cp)) continue;
+		if (!iseol(*cp))
+			continue;
 
 		*cp = '\0';
 		if (strcmp(f, "includedir") == 0)
@@ -306,7 +308,7 @@ lmc_parse(char *lm_p, size_t lm_len)
 }
 
 static void
-lm_free (struct lm_list *lml)
+lm_free(struct lm_list *lml)
 {
 	struct lm *lm;
 
@@ -319,11 +321,10 @@ lm_free (struct lm_list *lml)
 		free(lm->t);
 		free(lm);
 	}
-	return;
 }
 
 void
-lm_fini (void)
+lm_fini(void)
 {
 	struct lmp *lmp;
 	struct lmc *p;
@@ -344,14 +345,14 @@ lm_fini (void)
 		lm_free(&lmp->lml);
 		free(lmp);
 	}
-	return;
 }
 
 static void
-lm_add (const char *p, const char *f, const char *t)
+lm_add(const char *p, const char *f, const char *t)
 {
 	struct lm_list *lml;
 	struct lm *lm;
+	const char *t1;
 
 	if (p == NULL)
 		p = "$DEFAULT$";
@@ -361,15 +362,18 @@ lm_add (const char *p, const char *f, const char *t)
 	if ((lml = lmp_find(p)) == NULL)
 		lml = lmp_init(xstrdup(p));
 
-	lm = xmalloc(sizeof(struct lm));
-	lm->f = xstrdup(f);
-	lm->t = xstrdup(t);
-	TAILQ_INSERT_HEAD(lml, lm, lm_link);
-	lm_count++;
+	t1 = lml_find(lml, f);
+	if (t1 == NULL || strcmp(t1, t) != 0) {
+		lm = xmalloc(sizeof(struct lm));
+		lm->f = xstrdup(f);
+		lm->t = xstrdup(t);
+		TAILQ_INSERT_HEAD(lml, lm, lm_link);
+		lm_count++;
+	}
 }
 
 char *
-lm_find (const char *p, const char *f)
+lm_find(const char *p, const char *f)
 {
 	struct lm_list *lml;
 	char *t;
@@ -390,14 +394,15 @@ lm_find (const char *p, const char *f)
 	lml = lmp_find("$DEFAULT$");
 	if (lml != NULL)
 		return (lml_find(lml, f));
-	else
-		return (NULL);
+	return (NULL);
 }
 
-/* Given a libmap translation list and a library name, return the
-   replacement library, or NULL */
+/*
+ * Given a libmap translation list and a library name, return the
+ * replacement library, or NULL.
+ */
 char *
-lm_findn (const char *p, const char *f, const int n)
+lm_findn(const char *p, const char *f, const size_t n)
 {
 	char pathbuf[64], *s, *t;
 
@@ -414,37 +419,43 @@ lm_findn (const char *p, const char *f, const int n)
 }
 
 static char *
-lml_find (struct lm_list *lmh, const char *f)
+lml_find(struct lm_list *lmh, const char *f)
 {
 	struct lm *lm;
 
 	dbg("%s(%p, \"%s\")", __func__, lmh, f);
 
-	TAILQ_FOREACH(lm, lmh, lm_link)
+	TAILQ_FOREACH(lm, lmh, lm_link) {
 		if (strcmp(f, lm->f) == 0)
 			return (lm->t);
+	}
 	return (NULL);
 }
 
-/* Given an executable name, return a pointer to the translation list or
-   NULL if no matches */
+/*
+ * Given an executable name, return a pointer to the translation list or
+ * NULL if no matches.
+ */
 static struct lm_list *
-lmp_find (const char *n)
+lmp_find(const char *n)
 {
 	struct lmp *lmp;
 
 	dbg("%s(\"%s\")", __func__, n);
 
-	TAILQ_FOREACH(lmp, &lmp_head, lmp_link)
+	TAILQ_FOREACH(lmp, &lmp_head, lmp_link) {
 		if ((lmp->type == T_EXACT && strcmp(n, lmp->p) == 0) ||
-		    (lmp->type == T_DIRECTORY && strncmp(n, lmp->p, strlen(lmp->p)) == 0) ||
-		    (lmp->type == T_BASENAME && strcmp(quickbasename(n), lmp->p) == 0))
+		    (lmp->type == T_DIRECTORY && strncmp(n, lmp->p,
+		    strlen(lmp->p)) == 0) ||
+		    (lmp->type == T_BASENAME && strcmp(quickbasename(n),
+		    lmp->p) == 0))
 			return (&lmp->lml);
+	}
 	return (NULL);
 }
 
 static struct lm_list *
-lmp_init (char *n)
+lmp_init(char *n)
 {
 	struct lmp *lmp;
 
@@ -452,7 +463,7 @@ lmp_init (char *n)
 
 	lmp = xmalloc(sizeof(struct lmp));
 	lmp->p = n;
-	if (n[strlen(n)-1] == '/')
+	if (n[strlen(n) - 1] == '/')
 		lmp->type = T_DIRECTORY;
 	else if (strchr(n,'/') == NULL)
 		lmp->type = T_BASENAME;
@@ -464,15 +475,18 @@ lmp_init (char *n)
 	return (&lmp->lml);
 }
 
-/* libc basename is overkill.  Return a pointer to the character after the
-   last /, or the original string if there are no slashes. */
+/*
+ * libc basename is overkill.  Return a pointer to the character after
+ * the last /, or the original string if there are no slashes.
+ */
 static const char *
-quickbasename (const char *path)
+quickbasename(const char *path)
 {
-	const char *p = path;
-	for (; *path; path++) {
+	const char *p;
+
+	for (p = path; *path != '\0'; path++) {
 		if (*path == '/')
-			p = path+1;
+			p = path + 1;
 	}
 	return (p);
 }

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 11, 2014
+.Dd February 26, 2018
 .Dt RCTL 8
 .Os
 .Sh NAME
@@ -35,29 +35,22 @@
 .Nm
 .Op Fl h
 .Op Fl n
-.Op Ar filter
+.Op Ar filter Ar ...
 .Nm
 .Fl a
-.Op Ar rule
+.Ar rule Ar ...
 .Nm
 .Fl l
 .Op Fl h
 .Op Fl n
-.Op Ar filter
+.Ar filter Ar ...
 .Nm
 .Fl r
-.Op Ar filter
+.Ar filter Ar ...
 .Nm
 .Fl u
 .Op Fl h
-.Op Ar filter
-.Pp
-.Nm
-requires the kernel to be compiled with:
-.Bd -ragged -offset indent
-.Cd "options RACCT"
-.Cd "options RCTL"
-.Ed
+.Ar filter Ar ...
 .Sh DESCRIPTION
 When called without options, the
 .Nm
@@ -84,7 +77,7 @@ Remove rules matching
 .Ar filter
 from the RCTL database.
 .It Fl u Ar filter
-Display resource usage for a subject
+Display resource utilization for a subject
 .Po
 .Sy process ,
 .Sy user ,
@@ -144,13 +137,13 @@ Resources which limit bytes may use prefixes from
 defines what entity the
 .Em amount
 gets accounted for.
-For example, rule "loginclass:users:vmem:deny=100M/process" means
+For example, rule "loginclass:users:vmemoryuse:deny=100M/process" means
 that each process of any user belonging to login class "users" may allocate
 up to 100MB of virtual memory.
-Rule "loginclass:users:vmem:deny=100M/user" would mean that for each
+Rule "loginclass:users:vmemoryuse:deny=100M/user" would mean that for each
 user belonging to the login class "users", the sum of virtual memory allocated
 by all the processes of that user will not exceed 100MB.
-Rule "loginclass:users:vmem:deny=100M/loginclass" would mean that the sum of
+Rule "loginclass:users:vmemoryuse:deny=100M/loginclass" would mean that the sum of
 virtual memory allocated by all processes of all users belonging to that login
 class will not exceed 100MB.
 .El
@@ -173,7 +166,6 @@ resource would be
 "::maxproc".
 .Sh SUBJECTS
 .Bl -column -offset 3n "pseudoterminals" ".Sy username or numerical User ID"
-.It Em subject Ta Em subject-id
 .It Sy process Ta numerical Process ID
 .It Sy user Ta user name or numerical User ID
 .It Sy loginclass Ta login class from
@@ -182,7 +174,6 @@ resource would be
 .El
 .Sh RESOURCES
 .Bl -column -offset 3n "pseudoterminals"
-.It Em resource
 .It Sy cputime Ta "CPU time, in seconds"
 .It Sy datasize Ta "data size, in bytes"
 .It Sy stacksize Ta "stack size, in bytes"
@@ -193,7 +184,7 @@ resource would be
 .It Sy openfiles Ta "file descriptor table size"
 .It Sy vmemoryuse Ta "address space limit, in bytes"
 .It Sy pseudoterminals Ta "number of PTYs"
-.It Sy swapuse Ta "swap usage, in bytes"
+.It Sy swapuse Ta "swap space that may be reserved or used, in bytes"
 .It Sy nthr Ta "number of threads"
 .It Sy msgqqueued Ta "number of queued SysV messages"
 .It Sy msgqsize Ta "SysV message queue size, in bytes"
@@ -204,14 +195,21 @@ resource would be
 .It Sy shmsize Ta "SysV shared memory size, in bytes"
 .It Sy wallclock Ta "wallclock time, in seconds"
 .It Sy pcpu Ta "%CPU, in percents of a single CPU core"
+.It Sy readbps Ta "filesystem reads, in bytes per second"
+.It Sy writebps Ta "filesystem writes, in bytes per second"
+.It Sy readiops Ta "filesystem reads, in operations per second"
+.It Sy writeiops Ta "filesystem writes, in operations per second"
 .El
 .Sh ACTIONS
 .Bl -column -offset 3n "pseudoterminals"
-.It Em action
 .It Sy deny Ta deny the allocation; not supported for
-.Sy cputime
+.Sy cputime ,
+.Sy wallclock ,
+.Sy readbps ,
+.Sy writebps ,
+.Sy readiops ,
 and
-.Sy wallclock
+.Sy writeiops
 .It Sy log Ta "log a warning to the console"
 .It Sy devctl Ta "send notification to"
 .Xr devd 8
@@ -228,6 +226,12 @@ send a signal to the offending process.
 See
 .Xr signal 3
 for a list of supported signals
+.It Sy throttle Ta "slow down process execution"; only supported for
+.Sy readbps ,
+.Sy writebps ,
+.Sy readiops ,
+and
+.Sy writeiops .
 .El
 .Pp
 Not all actions are supported for all resources.
@@ -242,7 +246,7 @@ Prevent user "joe" from allocating more than 1GB of virtual memory:
 Remove all RCTL rules:
 .Dl Nm Fl r Ar \&:
 .Pp
-Display resource usage information for jail named "www":
+Display resource utilization information for jail named "www":
 .Dl Nm Fl hu Ar jail:www
 .Pp
 Display all the rules applicable to process with PID 512:
@@ -257,6 +261,8 @@ Display all rules matching user "joe":
 Display all rules matching login classes:
 .Dl Nm Ar loginclass:
 .Sh SEE ALSO
+.Xr cpuset 1 ,
+.Xr rctl 4 ,
 .Xr rctl.conf 5
 .Sh HISTORY
 The
@@ -274,3 +280,22 @@ under sponsorship from the FreeBSD Foundation.
 Limiting
 .Sy memoryuse
 may kill the machine due to thrashing.
+.Pp
+The
+.Sy readiops
+and
+.Sy writeiops
+counters are only approximations.
+Like
+.Sy readbps
+and
+.Sy writebps ,
+they are calculated in the filesystem layer, where it is difficult
+or even impossible to observe actual disk device operations.
+.Pp
+The
+.Sy writebps
+and
+.Sy writeiops
+resources generally account for writes to the filesystem cache,
+not to actual devices.

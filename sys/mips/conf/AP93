@@ -12,7 +12,9 @@
 
 # $FreeBSD$
 
-include		"AR724X_BASE"
+#NO_UNIVERSE
+
+include		"std.AR724X"
 ident		"AP93"
 hints		"AP93.hints"
 
@@ -24,9 +26,9 @@ options 	AR71XX_ENV_UBOOT
 options 	MSDOSFS
 
 # uncompress - to boot read-only lzma natively from flash
-device		geom_uncompress
-options 	GEOM_UNCOMPRESS
-options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uncompress\"
+device		geom_uzip
+options 	GEOM_UZIP
+options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uzip\"
 
 # Used for the static uboot partition map
 device          geom_map

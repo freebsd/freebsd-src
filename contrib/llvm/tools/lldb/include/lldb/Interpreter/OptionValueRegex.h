@@ -12,87 +12,64 @@
 
 // C Includes
 // C++ Includes
-#include <string>
-
 // Other libraries and framework includes
 // Project includes
-#include "lldb/Core/RegularExpression.h"
 #include "lldb/Interpreter/OptionValue.h"
+#include "lldb/Utility/RegularExpression.h"
 
 namespace lldb_private {
 
-class OptionValueRegex : public OptionValue
-{
+class OptionValueRegex : public OptionValue {
 public:
-    OptionValueRegex (const char *value = NULL, uint32_t regex_flags = 0) :
-        OptionValue(),
-        m_regex (value, regex_flags)
-    {
-    }
+  OptionValueRegex(const char *value = nullptr)
+      : OptionValue(), m_regex(llvm::StringRef::withNullAsEmpty(value)) {}
 
-    virtual 
-    ~OptionValueRegex()
-    {
-    }
-    
-    //---------------------------------------------------------------------
-    // Virtual subclass pure virtual overrides
-    //---------------------------------------------------------------------
-    
-    virtual OptionValue::Type
-    GetType () const
-    {
-        return eTypeRegex;
-    }
-    
-    virtual void
-    DumpValue (const ExecutionContext *exe_ctx, Stream &strm, uint32_t dump_mask);
-    
-    virtual Error
-    SetValueFromCString (const char *value,
-                         VarSetOperationType op = eVarSetOperationAssign);
+  ~OptionValueRegex() override = default;
 
-    virtual bool
-    Clear ()
-    {
-        m_regex.Clear();
-        m_value_was_set = false;
-        return true;
-    }
+  //---------------------------------------------------------------------
+  // Virtual subclass pure virtual overrides
+  //---------------------------------------------------------------------
 
-    virtual lldb::OptionValueSP
-    DeepCopy () const;
+  OptionValue::Type GetType() const override { return eTypeRegex; }
 
-    //---------------------------------------------------------------------
-    // Subclass specific functions
-    //---------------------------------------------------------------------
-    const RegularExpression *
-    GetCurrentValue() const
-    {
-        if (m_regex.IsValid())
-            return &m_regex;
-        return NULL;
-    }
-    
-    void
-    SetCurrentValue (const char *value, uint32_t regex_flags)
-    {
-        if (value && value[0])
-            m_regex.Compile (value, regex_flags);
-        else
-            m_regex.Clear();
-    }
+  void DumpValue(const ExecutionContext *exe_ctx, Stream &strm,
+                 uint32_t dump_mask) override;
 
-    bool
-    IsValid () const
-    {
-        return m_regex.IsValid();
-    }
-    
+  Status
+  SetValueFromString(llvm::StringRef value,
+                     VarSetOperationType op = eVarSetOperationAssign) override;
+  Status
+  SetValueFromString(const char *,
+                     VarSetOperationType = eVarSetOperationAssign) = delete;
+
+  bool Clear() override {
+    m_regex.Clear();
+    m_value_was_set = false;
+    return true;
+  }
+
+  lldb::OptionValueSP DeepCopy() const override;
+
+  //---------------------------------------------------------------------
+  // Subclass specific functions
+  //---------------------------------------------------------------------
+  const RegularExpression *GetCurrentValue() const {
+    return (m_regex.IsValid() ? &m_regex : nullptr);
+  }
+
+  void SetCurrentValue(const char *value) {
+    if (value && value[0])
+      m_regex.Compile(llvm::StringRef(value));
+    else
+      m_regex.Clear();
+  }
+
+  bool IsValid() const { return m_regex.IsValid(); }
+
 protected:
-    RegularExpression m_regex;
+  RegularExpression m_regex;
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_OptionValueRegex_h_
+#endif // liblldb_OptionValueRegex_h_

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2013 Emulex
  * All rights reserved.
  *
@@ -43,6 +45,7 @@
 static void copy_stats_to_sc_xe201(POCE_SOFTC sc);
 static void copy_stats_to_sc_be3(POCE_SOFTC sc);
 static void copy_stats_to_sc_be2(POCE_SOFTC sc);
+static void copy_stats_to_sc_sh(POCE_SOFTC sc);
 static int  oce_sysctl_loopback(SYSCTL_HANDLER_ARGS);
 static int  oce_sys_aic_enable(SYSCTL_HANDLER_ARGS);
 static int  oce_be3_fwupgrade(POCE_SOFTC sc, const struct firmware *fw);
@@ -84,21 +87,21 @@ oce_add_sysctls(POCE_SOFTC sc)
 
 	SYSCTL_ADD_STRING(ctx, child,
 			OID_AUTO, "component_revision",
-			CTLTYPE_INT | CTLFLAG_RD,
-			&component_revision,
+			CTLFLAG_RD,
+			component_revision,
 			sizeof(component_revision),
 			"EMULEX One-Connect device driver revision");
 
 	SYSCTL_ADD_STRING(ctx, child,
 			OID_AUTO, "firmware_version",
-			CTLTYPE_INT | CTLFLAG_RD,
-			&sc->fw_version,
+			CTLFLAG_RD,
+			sc->fw_version,
 			sizeof(sc->fw_version),
 			"EMULEX One-Connect Firmware Version");
 
 	SYSCTL_ADD_INT(ctx, child,
 			OID_AUTO, "max_rsp_handled",
-			CTLTYPE_INT | CTLFLAG_RW,
+			CTLFLAG_RW,
 			&oce_max_rsp_handled,
 			sizeof(oce_max_rsp_handled),
 			"Maximum receive frames handled per interupt");
@@ -182,6 +185,8 @@ oce_sys_aic_enable(SYSCTL_HANDLER_ARGS)
 	POCE_SOFTC sc = (struct oce_softc *)arg1;
 	struct oce_aic_obj *aic;
 
+	/* set current value for proper sysctl logging */
+	value = sc->aic_obj[0].enable;
 	status = sysctl_handle_int(oidp, &value, 0, req);
 	if (status || !req->newptr)
 		return status; 
@@ -331,7 +336,7 @@ static void oce_fill_flash_img_data(POCE_SOFTC sc, const struct flash_sec_info *
 		case IMG_PXEBIOS:
 			pimg->optype = 3;
 			if (IS_BE3(sc)) {
-				pimg->img_offset =  13107200;;
+				pimg->img_offset =  13107200;
 				pimg->img_size   = 524288;
 			}
 			break;
@@ -482,34 +487,34 @@ ret:
 	return rc;
 }
 
-#define UFI_TYPE2		2
-#define UFI_TYPE3		3
-#define UFI_TYPE3R		10
-#define UFI_TYPE4		4
-#define UFI_TYPE4R		11
+#define UFI_TYPE2               2
+#define UFI_TYPE3               3
+#define UFI_TYPE3R              10
+#define UFI_TYPE4               4
+#define UFI_TYPE4R              11
 static int oce_get_ufi_type(POCE_SOFTC sc,
-			    const struct flash_file_hdr *fhdr)
+                           const struct flash_file_hdr *fhdr)
 {
-	if (fhdr == NULL)
-		goto be_get_ufi_exit;
+        if (fhdr == NULL)
+                goto be_get_ufi_exit;
 
-	if (IS_SH(sc) && fhdr->build[0] == '4') {
-		if (fhdr->asic_type_rev >= 0x10)
-			return UFI_TYPE4R;
-		else
-			return UFI_TYPE4;
-	} else if (IS_BE3(sc) && fhdr->build[0] == '3') {
-		if (fhdr->asic_type_rev == 0x10)
-			return UFI_TYPE3R;
-		else
-			return UFI_TYPE3;
-	} else if (IS_BE2(sc) && fhdr->build[0] == '2')
-		return UFI_TYPE2;
+        if (IS_SH(sc) && fhdr->build[0] == '4') {
+                if (fhdr->asic_type_rev >= 0x10)
+                        return UFI_TYPE4R;
+                else
+                        return UFI_TYPE4;
+        } else if (IS_BE3(sc) && fhdr->build[0] == '3') {
+                if (fhdr->asic_type_rev == 0x10)
+                        return UFI_TYPE3R;
+                else
+                        return UFI_TYPE3;
+        } else if (IS_BE2(sc) && fhdr->build[0] == '2')
+                return UFI_TYPE2;
 
 be_get_ufi_exit:
-	device_printf(sc->dev,
-		"UFI and Interface are not compatible for flashing\n");
-	return -1;
+        device_printf(sc->dev,
+                "UFI and Interface are not compatible for flashing\n");
+        return -1;
 }
 
 
@@ -777,7 +782,11 @@ oce_add_stats_sysctls_be3(POCE_SOFTC sc,
 		SYSCTL_ADD_UINT(ctx, queue_stats_list, OID_AUTO, "rxcp_err",
 			CTLFLAG_RD, &sc->rq[i]->rx_stats.rxcp_err, 0,
 			"Received Completion Errors");
-		
+		if(IS_SH(sc)) {
+			SYSCTL_ADD_UINT(ctx, queue_stats_list, OID_AUTO, "rx_drops_no_frags",
+                        	CTLFLAG_RD, &sc->rq[i]->rx_stats.rx_drops_no_frags, 0,
+                        	"num of packet drops due to no fragments");
+		}
 	}
 	
 	rx_stats_node = SYSCTL_ADD_NODE(ctx,
@@ -957,11 +966,11 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "total_rxcp_errs",
 			CTLFLAG_RD, &stats->rx.t_rxcp_errs, 0,
 			"Total Receive completion errors");
-	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "pause_frames",
-			CTLFLAG_RD, &stats->u0.xe201.rx_pause_frames, 0,
+	SYSCTL_ADD_UQUAD(ctx, rx_stat_list, OID_AUTO, "pause_frames",
+			CTLFLAG_RD, &stats->u0.xe201.rx_pause_frames,
 			"Pause Frames");
-	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "control_frames",
-			CTLFLAG_RD, &stats->u0.xe201.rx_control_frames, 0,
+	SYSCTL_ADD_UQUAD(ctx, rx_stat_list, OID_AUTO, "control_frames",
+			CTLFLAG_RD, &stats->u0.xe201.rx_control_frames,
 			"Control Frames");
 	
 	for (i = 0; i < sc->nrqs; i++) {
@@ -1001,11 +1010,11 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 					NULL, "Receive Error Stats");
 	rx_stat_list = SYSCTL_CHILDREN(rx_stats_node);
 	
-	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "crc_errs",
-			CTLFLAG_RD, &stats->u0.xe201.rx_crc_errors, 0,
+	SYSCTL_ADD_UQUAD(ctx, rx_stat_list, OID_AUTO, "crc_errs",
+			CTLFLAG_RD, &stats->u0.xe201.rx_crc_errors,
 			"CRC Errors");
-	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "alignment_errors",
-			CTLFLAG_RD, &stats->u0.xe201.rx_alignment_errors, 0,
+	SYSCTL_ADD_UQUAD(ctx, rx_stat_list, OID_AUTO, "alignment_errors",
+			CTLFLAG_RD, &stats->u0.xe201.rx_alignment_errors,
 			"RX Alignmnet Errors");
 	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "in_range_errors",
 			CTLFLAG_RD, &stats->u0.xe201.rx_in_range_errors, 0,
@@ -1013,8 +1022,8 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "out_range_errors",
 			CTLFLAG_RD, &stats->u0.xe201.rx_out_of_range_errors, 0,
 			"Out Range Errors");
-	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "frame_too_long",
-			CTLFLAG_RD, &stats->u0.xe201.rx_frames_too_long, 0,
+	SYSCTL_ADD_UQUAD(ctx, rx_stat_list, OID_AUTO, "frame_too_long",
+			CTLFLAG_RD, &stats->u0.xe201.rx_frames_too_long,
 			"Frame Too Long");
 	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "address_match_errors",
 			CTLFLAG_RD, &stats->u0.xe201.rx_address_match_errors, 0,
@@ -1077,11 +1086,11 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 			"total_ipv6_ext_hdr_tx_drop",
 			CTLFLAG_RD, &stats->tx.t_ipv6_ext_hdr_tx_drop, 0,
 			"Total Transmit IPV6 Drops");
-	SYSCTL_ADD_UINT(ctx, tx_stat_list, OID_AUTO, "pauseframes",
-			CTLFLAG_RD, &stats->u0.xe201.tx_pause_frames, 0,
+	SYSCTL_ADD_UQUAD(ctx, tx_stat_list, OID_AUTO, "pauseframes",
+			CTLFLAG_RD, &stats->u0.xe201.tx_pause_frames,
 			"Pause Frames");
-	SYSCTL_ADD_UINT(ctx, tx_stat_list, OID_AUTO, "controlframes",
-			CTLFLAG_RD, &stats->u0.xe201.tx_control_frames, 0,
+	SYSCTL_ADD_UQUAD(ctx, tx_stat_list, OID_AUTO, "controlframes",
+			CTLFLAG_RD, &stats->u0.xe201.tx_control_frames,
 			"Tx Control Frames");
 
 	for (i = 0; i < sc->nwqs; i++) {
@@ -1372,10 +1381,10 @@ copy_stats_to_sc_be3(POCE_SOFTC sc)
 	struct oce_pmem_stats *pmem;
 	struct oce_rxf_stats_v1 *rxf_stats;
 	struct oce_port_rxf_stats_v1 *port_stats;
-	struct mbx_get_nic_stats *nic_mbx;
+	struct mbx_get_nic_stats_v1 *nic_mbx;
 	uint32_t port = sc->port_id;
 
-	nic_mbx = OCE_DMAPTR(&sc->stats_mem, struct mbx_get_nic_stats);
+	nic_mbx = OCE_DMAPTR(&sc->stats_mem, struct mbx_get_nic_stats_v1);
 	pmem = &nic_mbx->params.rsp.stats.pmem;
 	rxf_stats = &nic_mbx->params.rsp.stats.rxf;
 	port_stats = &nic_mbx->params.rsp.stats.rxf.port[port];
@@ -1429,18 +1438,91 @@ copy_stats_to_sc_be3(POCE_SOFTC sc)
 	adapter_stats->eth_red_drops = pmem->eth_red_drops;
 }
 
+static void
+copy_stats_to_sc_sh(POCE_SOFTC sc)
+{
+        struct oce_be_stats *adapter_stats;
+        struct oce_pmem_stats *pmem;
+        struct oce_rxf_stats_v2 *rxf_stats;
+        struct oce_port_rxf_stats_v2 *port_stats;
+        struct mbx_get_nic_stats_v2 *nic_mbx;
+	struct oce_erx_stats_v2 *erx_stats;
+        uint32_t port = sc->port_id;
+
+        nic_mbx = OCE_DMAPTR(&sc->stats_mem, struct mbx_get_nic_stats_v2);
+        pmem = &nic_mbx->params.rsp.stats.pmem;
+        rxf_stats = &nic_mbx->params.rsp.stats.rxf;
+	erx_stats = &nic_mbx->params.rsp.stats.erx;
+        port_stats = &nic_mbx->params.rsp.stats.rxf.port[port];
+
+        adapter_stats = &sc->oce_stats_info.u0.be;
+
+        /* Update stats */
+        adapter_stats->pmem_fifo_overflow_drop =
+                port_stats->pmem_fifo_overflow_drop;
+        adapter_stats->rx_priority_pause_frames =
+                port_stats->rx_priority_pause_frames;
+        adapter_stats->rx_pause_frames = port_stats->rx_pause_frames;
+        adapter_stats->rx_crc_errors = port_stats->rx_crc_errors;
+        adapter_stats->rx_control_frames = port_stats->rx_control_frames;
+        adapter_stats->rx_in_range_errors = port_stats->rx_in_range_errors;
+        adapter_stats->rx_frame_too_long = port_stats->rx_frame_too_long;
+        adapter_stats->rx_dropped_runt = port_stats->rx_dropped_runt;
+        adapter_stats->rx_ip_checksum_errs = port_stats->rx_ip_checksum_errs;
+        adapter_stats->rx_tcp_checksum_errs = port_stats->rx_tcp_checksum_errs;
+        adapter_stats->rx_udp_checksum_errs = port_stats->rx_udp_checksum_errs;
+        adapter_stats->rx_dropped_tcp_length =
+                port_stats->rx_dropped_tcp_length;
+        adapter_stats->rx_dropped_too_small = port_stats->rx_dropped_too_small;
+        adapter_stats->rx_dropped_too_short = port_stats->rx_dropped_too_short;
+        adapter_stats->rx_out_range_errors = port_stats->rx_out_range_errors;
+        adapter_stats->rx_dropped_header_too_small =
+                port_stats->rx_dropped_header_too_small;
+        adapter_stats->rx_input_fifo_overflow_drop =
+                port_stats->rx_input_fifo_overflow_drop;
+        adapter_stats->rx_address_match_errors =
+                port_stats->rx_address_match_errors;
+        adapter_stats->rx_alignment_symbol_errors =
+                port_stats->rx_alignment_symbol_errors;
+        adapter_stats->rxpp_fifo_overflow_drop =
+                port_stats->rxpp_fifo_overflow_drop;
+        adapter_stats->tx_pauseframes = port_stats->tx_pauseframes;
+        adapter_stats->tx_controlframes = port_stats->tx_controlframes;
+        adapter_stats->jabber_events = port_stats->jabber_events;
+
+        adapter_stats->rx_drops_no_pbuf = rxf_stats->rx_drops_no_pbuf;
+        adapter_stats->rx_drops_no_txpb = rxf_stats->rx_drops_no_txpb;
+        adapter_stats->rx_drops_no_erx_descr = rxf_stats->rx_drops_no_erx_descr;
+        adapter_stats->rx_drops_invalid_ring = rxf_stats->rx_drops_invalid_ring;
+        adapter_stats->forwarded_packets = rxf_stats->forwarded_packets;
+        adapter_stats->rx_drops_mtu = rxf_stats->rx_drops_mtu;
+        adapter_stats->rx_drops_no_tpre_descr =
+                rxf_stats->rx_drops_no_tpre_descr;
+        adapter_stats->rx_drops_too_many_frags =
+                rxf_stats->rx_drops_too_many_frags;
+
+        adapter_stats->eth_red_drops = pmem->eth_red_drops;
+
+	/* populate erx stats */
+	for (int i = 0; i < sc->nrqs; i++) 
+		sc->rq[i]->rx_stats.rx_drops_no_frags = erx_stats->rx_drops_no_fragments[sc->rq[i]->rq_id];
+}
+
+
 
 int
 oce_stats_init(POCE_SOFTC sc)
 {
-	int rc = 0, sz;
-	
-	if (IS_BE(sc) || IS_SH(sc)) {
-		if (sc->flags & OCE_FLAGS_BE2)
-			sz = sizeof(struct mbx_get_nic_stats_v0);
-		else 
-			sz = sizeof(struct mbx_get_nic_stats);
-	} else 
+	int rc = 0, sz = 0;
+
+
+        if( IS_BE2(sc) ) 
+		sz = sizeof(struct mbx_get_nic_stats_v0);
+        else if( IS_BE3(sc) ) 
+		sz = sizeof(struct mbx_get_nic_stats_v1);
+        else if( IS_SH(sc)) 
+		sz = sizeof(struct mbx_get_nic_stats_v2);
+        else if( IS_XE201(sc) )
 		sz = sizeof(struct mbx_get_pport_stats);
 
 	rc = oce_dma_alloc(sc, sz, &sc->stats_mem, 0);
@@ -1463,23 +1545,24 @@ oce_refresh_nic_stats(POCE_SOFTC sc)
 {
 	int rc = 0, reset = 0;
 
-	if (IS_BE(sc) || IS_SH(sc)) {
-		if (sc->flags & OCE_FLAGS_BE2) {
-			rc = oce_mbox_get_nic_stats_v0(sc, &sc->stats_mem);
-			if (!rc)
-				copy_stats_to_sc_be2(sc);
-		} else {
-			rc = oce_mbox_get_nic_stats(sc, &sc->stats_mem);
-			if (!rc)
-				copy_stats_to_sc_be3(sc);
-		}
-
-	} else {
+	if( IS_BE2(sc) ) {
+		rc = oce_mbox_get_nic_stats_v0(sc, &sc->stats_mem);
+		if (!rc)
+			copy_stats_to_sc_be2(sc);
+	}else if( IS_BE3(sc) ) {
+		rc = oce_mbox_get_nic_stats_v1(sc, &sc->stats_mem);
+		if (!rc)
+			copy_stats_to_sc_be3(sc);
+	}else if( IS_SH(sc)) {
+		rc = oce_mbox_get_nic_stats_v2(sc, &sc->stats_mem);
+		if (!rc)
+			copy_stats_to_sc_sh(sc);
+	}else if( IS_XE201(sc) ){
 		rc = oce_mbox_get_pport_stats(sc, &sc->stats_mem, reset);
 		if (!rc)
 			copy_stats_to_sc_xe201(sc);
 	}
-	
+
 	return rc;
 }
 

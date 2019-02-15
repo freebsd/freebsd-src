@@ -32,7 +32,7 @@
 .\"     @(#)system.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd July 25, 2015
 .Dt SYSTEM 3
 .Os
 .Sh NAME
@@ -87,7 +87,8 @@ failed.
 .Xr execve 2 ,
 .Xr fork 2 ,
 .Xr waitpid 2 ,
-.Xr popen 3
+.Xr popen 3 ,
+.Xr posix_spawn 3
 .Sh STANDARDS
 The
 .Fn system
@@ -97,3 +98,14 @@ conforms to
 and is expected to be
 .St -p1003.2
 compatible.
+.Sh SECURITY CONSIDERATIONS
+The
+.Fn system
+function is easily misused in a manner that enables a malicious
+user to run arbitrary command,
+because all meta-characters supported by
+.Xr sh 1
+would be honored.
+User supplied parameters should always be carefully santized
+before they appear in
+.Fa string.

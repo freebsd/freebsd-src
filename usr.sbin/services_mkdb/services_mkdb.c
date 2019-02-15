@@ -1,6 +1,8 @@
 /*	$NetBSD: services_mkdb.c,v 1.14 2008/04/28 20:24:17 martin Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1999 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -44,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <libutil.h>
+#include <libgen.h>
 #include <ctype.h>
 #include <errno.h>
 #include <stringlist.h>
@@ -91,6 +93,8 @@ main(int argc, char *argv[])
 	size_t	 cnt = 0;
 	StringList *sl, ***svc;
 	size_t port, proto;
+	char *dbname_dir, *dbname_dirbuf;
+	int dbname_dir_fd = -1;
 
 	setprogname(argv[0]);
 
@@ -164,8 +168,22 @@ main(int argc, char *argv[])
 	if ((db->close)(db))
 		err(1, "Error closing temporary database `%s'", tname);
 
-	if (rename(tname, dbname) == -1)
+	/*
+	 * Make sure file is safe on disk. To improve performance we will call
+	 * fsync() to the directory where file lies
+	 */
+	if (rename(tname, dbname) == -1 ||
+	    (dbname_dirbuf = strdup(dbname)) == NULL ||
+	    (dbname_dir = dirname(dbname_dirbuf)) == NULL ||
+	    (dbname_dir_fd = open(dbname_dir, O_RDONLY|O_DIRECTORY)) == -1 ||
+	    fsync(dbname_dir_fd) != 0) {
+		if (dbname_dir_fd != -1)
+			close(dbname_dir_fd);
 		err(1, "Cannot rename `%s' to `%s'", tname, dbname);
+	}
+
+	if (dbname_dir_fd != -1)
+		close(dbname_dir_fd);
 
 	return 0;
 }
@@ -219,7 +237,8 @@ add(DB *db, StringList *sl, size_t port, const char *proto, size_t *cnt,
 static StringList ***
 parseservices(const char *fname, StringList *sl)
 {
-	size_t len, line, pindex;
+	ssize_t len;
+	size_t linecap, line, pindex;
 	FILE *fp;
 	StringList ***svc, *s;
 	char *p, *ep;
@@ -227,17 +246,22 @@ parseservices(const char *fname, StringList *sl)
 	if ((fp = fopen(fname, "r")) == NULL)
 		err(1, "Cannot open `%s'", fname);
 
-	line = 0;
+	line = linecap = 0;
 	if ((svc = calloc(PMASK + 1, sizeof(StringList **))) == NULL)
 		err(1, "Cannot allocate %zu bytes", (size_t)(PMASK + 1));
 
-	/* XXX: change NULL to "\0\0#" when fparseln fixed */
-	for (; (p = fparseln(fp, &len, &line, NULL, 0)) != NULL; free(p)) {
+	p = NULL;
+	while ((len = getline(&p, &linecap, fp)) != -1) {
 		char	*name, *port, *proto, *aliases, *cp, *alias;
 		unsigned long pnum;
 
+		line++;
+
 		if (len == 0)
 			continue;
+
+		if (p[len - 1] == '\n')
+			p[len - 1] = '\0';
 
 		for (cp = p; *cp && isspace((unsigned char)*cp); cp++)
 			continue;

@@ -33,8 +33,6 @@
 #include <machine/frame.h>
 #include <machine/trap.h>
 
-#define	BYTE_MSF	(1)
-
 typedef vm_offset_t	db_addr_t;
 typedef long		db_expr_t;
 
@@ -60,9 +58,6 @@ typedef long		db_expr_t;
 #define	inst_call(ins)		(0)
 #define	inst_load(ins)		(0)
 #define	inst_store(ins)		(0)
-
-#define	DB_SMALL_VALUE_MAX	(0x7fffffff)
-#define	DB_SMALL_VALUE_MIN	(-0x40001)
 
 #define	DB_ELFSIZE		64
 

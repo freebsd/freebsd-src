@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1995, 1996
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
  *
@@ -103,7 +105,10 @@ copy_yp_pass(char *p, int x, int m)
 	}
 
 	t = buf;
-#define EXPAND(e)       e = t; while ((*t++ = *p++));
+#define EXPAND(e) do { \
+	e = t; \
+	while ((*t++ = *p++)); \
+} while (0)
         EXPAND(yp_password.pw_name);
 	yp_password.pw_fields |= _PWF_NAME;
         EXPAND(yp_password.pw_passwd);
@@ -212,12 +217,12 @@ validate(struct passwd *opw, struct x_passwd *npw)
 	 * Don't allow the user to shoot himself in the foot,
 	 * even on purpose.
 	 */
-	if (!ok_shell(npw->pw_shell)) {
+	if (!no_chsh && !ok_shell(npw->pw_shell)) {
 		yp_error("%s is not a valid shell", npw->pw_shell);
 		return(1);
 	}
 
-	if (validchars(npw->pw_shell)) {
+	if (!no_chsh && validchars(npw->pw_shell)) {
 		yp_error("specified shell contains invalid characters");
 		return(1);
 	}

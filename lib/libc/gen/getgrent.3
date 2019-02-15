@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     From: @(#)getgrent.3	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 16, 2003
+.Dd July 31, 2016
 .Dt GETGRENT 3
 .Os
 .Sh NAME
@@ -60,7 +60,7 @@
 .Fn getgrgid_r "gid_t gid" "struct group *grp" "char *buffer" "size_t bufsize" "struct group **result"
 .Ft int
 .Fn setgroupent "int stayopen"
-.Ft int
+.Ft void
 .Fn setgrent void
 .Ft void
 .Fn endgrent void
@@ -188,14 +188,13 @@ is set to
 .Dv NULL
 and the return value is 0, no matching entry exists.)
 .Pp
-The functions
+The function
 .Fn setgroupent
-and
-.Fn setgrent
-return the value 1 if successful, otherwise the value
+returns the value 1 if successful, otherwise the value
 0 is returned.
 The functions
-.Fn endgrent
+.Fn endgrent ,
+.Fn setgrent
 and
 .Fn setgrfile
 have no return value.

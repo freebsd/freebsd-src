@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
@@ -140,7 +142,8 @@ struct vtnet_softc {
 #define VTNET_FLAG_MRG_RXBUFS	 0x0080
 #define VTNET_FLAG_LRO_NOMRG	 0x0100
 #define VTNET_FLAG_MULTIQ	 0x0200
-#define VTNET_FLAG_EVENT_IDX	 0x0400
+#define VTNET_FLAG_INDIRECT	 0x0400
+#define VTNET_FLAG_EVENT_IDX	 0x0800
 
 	int			 vtnet_link_active;
 	int			 vtnet_hdr_size;
@@ -154,6 +157,7 @@ struct vtnet_softc {
 	int			 vtnet_if_flags;
 	int			 vtnet_act_vq_pairs;
 	int			 vtnet_max_vq_pairs;
+	int			 vtnet_requested_vq_pairs;
 
 	struct virtqueue	*vtnet_ctrl_vq;
 	struct vtnet_mac_filter	*vtnet_mac_filter;
@@ -312,7 +316,7 @@ CTASSERT(sizeof(struct vtnet_mac_filter) <= PAGE_SIZE);
 #define VTNET_MRG_RX_SEGS	1
 #define VTNET_MIN_RX_SEGS	2
 #define VTNET_MAX_RX_SEGS	34
-#define VTNET_MIN_TX_SEGS	4
+#define VTNET_MIN_TX_SEGS	32
 #define VTNET_MAX_TX_SEGS	64
 
 /*

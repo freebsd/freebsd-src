@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 2002 by Peter Grehan. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,7 +46,6 @@
 
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
-#include <machine/pmap.h>
 #include <machine/resource.h>
 #include <machine/vmparam.h>
 
@@ -78,7 +79,8 @@ static int  macio_attach(device_t);
 static int  macio_print_child(device_t dev, device_t child);
 static void macio_probe_nomatch(device_t, device_t);
 static struct   resource *macio_alloc_resource(device_t, device_t, int, int *,
-					       u_long, u_long, u_long, u_int);
+					       rman_res_t, rman_res_t, rman_res_t,
+					       u_int);
 static int  macio_activate_resource(device_t, device_t, int, int,
 				    struct resource *);
 static int  macio_deactivate_resource(device_t, device_t, int, int,
@@ -201,10 +203,10 @@ macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 		return;
 	}
 
-	nintr = OF_getprop_alloc(devnode, "interrupts", sizeof(*intr), 
+	nintr = OF_getprop_alloc_multi(devnode, "interrupts", sizeof(*intr), 
 		(void **)&intr);
 	if (nintr == -1) {
-		nintr = OF_getprop_alloc(devnode, "AAPL,interrupts", 
+		nintr = OF_getprop_alloc_multi(devnode, "AAPL,interrupts", 
 			sizeof(*intr), (void **)&intr);
 		if (nintr == -1)
 			return;
@@ -241,7 +243,7 @@ macio_add_reg(phandle_t devnode, struct macio_devinfo *dinfo)
 	char		buf[8];
 	int		i, layout_id = 0, nreg, res;
 
-	nreg = OF_getprop_alloc(devnode, "reg", sizeof(*reg), (void **)&reg);
+	nreg = OF_getprop_alloc_multi(devnode, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg == -1)
 		return;
 
@@ -267,7 +269,7 @@ macio_add_reg(phandle_t devnode, struct macio_devinfo *dinfo)
 				sizeof(layout_id));
 
                 if (res > 0 && (layout_id == 36 || layout_id == 76)) {
-                        res = OF_getprop_alloc(OF_parent(devnode), "reg",
+                        res = OF_getprop_alloc_multi(OF_parent(devnode), "reg",
 						sizeof(*regp), (void **)&regp);
                         reg[0] = regp[0];
                         reg[1].mr_base = regp[1].mr_base;
@@ -397,7 +399,8 @@ macio_attach(device_t dev)
 			continue;
 
 		if (strcmp(ofw_bus_get_name(cdev), "bmac") == 0 ||
-		    strcmp(ofw_bus_get_compat(cdev), "bmac+") == 0) {
+		    (ofw_bus_get_compat(cdev) != NULL &&
+		    strcmp(ofw_bus_get_compat(cdev), "bmac+") == 0)) {
 			uint32_t fcr;
 
 			fcr = bus_read_4(sc->sc_memr, HEATHROW_FCR);
@@ -447,8 +450,8 @@ macio_print_child(device_t dev, device_t child)
 
         retval += bus_print_child_header(dev, child);
 
-        retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-        retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+        retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+        retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 
         retval += bus_print_child_footer(dev, child);
 
@@ -470,8 +473,8 @@ macio_probe_nomatch(device_t dev, device_t child)
 		if ((type = ofw_bus_get_type(child)) == NULL)
 			type = "(unknown)";
 		device_printf(dev, "<%s, %s>", type, ofw_bus_get_name(child));
-		resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
-		resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+		resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+		resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 		printf(" (no driver attached)\n");
 	}
 }
@@ -479,7 +482,8 @@ macio_probe_nomatch(device_t dev, device_t child)
 
 static struct resource *
 macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		     u_long start, u_long end, u_long count, u_int flags)
+		     rman_res_t start, rman_res_t end, rman_res_t count,
+		     u_int flags)
 {
 	struct		macio_softc *sc;
 	int		needactivate;

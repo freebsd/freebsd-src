@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Adrian Chadd
  * Copyright (c) 2012 Spectra Logic Corporation
  * All rights reserved.
@@ -53,12 +55,14 @@ __FBSDID("$FreeBSD$");
 #include <xen/hypervisor.h>
 #include <xen/interface/io/xenbus.h>
 #include <xen/interface/vcpu.h>
+#include <xen/error.h>
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/clock.h>
 #include <machine/_inttypes.h>
 #include <machine/smp.h>
+#include <machine/pvclock.h>
 
 #include <dev/xen/timer/timer.h>
 
@@ -73,9 +77,12 @@ static devclass_t xentimer_devclass;
 
 /* Xen timers may fire up to 100us off */
 #define	XENTIMER_MIN_PERIOD_IN_NSEC	100*NSEC_IN_USEC
-#define	XENCLOCK_RESOLUTION		10000000
 
-#define	ETIME	62	/* Xen "bad time" error */
+/*
+ * The real resolution of the PV clock is 1ns, but the highest
+ * resolution that FreeBSD supports is 1us, so just use that.
+ */
+#define	XENCLOCK_RESOLUTION		1
 
 #define	XENTIMER_QUALITY	950
 
@@ -94,9 +101,6 @@ struct xentimer_softc {
 	struct timecounter tc;
 	struct eventtimer et;
 };
-
-/* Last time; this guarantees a monotonically increasing clock. */
-volatile uint64_t xen_timer_last_time = 0;
 
 static void
 xentimer_identify(driver_t *driver, device_t parent)
@@ -148,128 +152,20 @@ xentimer_probe(device_t dev)
 	return (BUS_PROBE_NOWILDCARD);
 }
 
-/*
- * Scale a 64-bit delta by scaling and multiplying by a 32-bit fraction,
- * yielding a 64-bit result.
- */
-static inline uint64_t
-scale_delta(uint64_t delta, uint32_t mul_frac, int shift)
-{
-	uint64_t product;
-
-	if (shift < 0)
-		delta >>= -shift;
-	else
-		delta <<= shift;
-
-#if defined(__i386__)
-	{
-		uint32_t tmp1, tmp2;
-
-		/**
-		 * For i386, the formula looks like:
-		 *
-		 *   lower = (mul_frac * (delta & UINT_MAX)) >> 32
-		 *   upper = mul_frac * (delta >> 32)
-		 *   product = lower + upper
-		 */
-		__asm__ (
-			"mul  %5       ; "
-			"mov  %4,%%eax ; "
-			"mov  %%edx,%4 ; "
-			"mul  %5       ; "
-			"xor  %5,%5    ; "
-			"add  %4,%%eax ; "
-			"adc  %5,%%edx ; "
-			: "=A" (product), "=r" (tmp1), "=r" (tmp2)
-			: "a" ((uint32_t)delta), "1" ((uint32_t)(delta >> 32)),
-			  "2" (mul_frac) );
-	}
-#elif defined(__amd64__)
-	{
-		unsigned long tmp;
-
-		__asm__ (
-			"mulq %[mul_frac] ; shrd $32, %[hi], %[lo]"
-			: [lo]"=a" (product), [hi]"=d" (tmp)
-			: "0" (delta), [mul_frac]"rm"((uint64_t)mul_frac));
-	}
-#else
-#error "xentimer: unsupported architecture"
-#endif
-
-	return (product);
-}
-
-static uint64_t
-get_nsec_offset(struct vcpu_time_info *tinfo)
-{
-
-	return (scale_delta(rdtsc() - tinfo->tsc_timestamp,
-	    tinfo->tsc_to_system_mul, tinfo->tsc_shift));
-}
-
-/*
- * Read the current hypervisor system uptime value from Xen.
- * See <xen/interface/xen.h> for a description of how this works.
- */
-static uint32_t
-xen_fetch_vcpu_tinfo(struct vcpu_time_info *dst, struct vcpu_time_info *src)
-{
-
-	do {
-		dst->version = src->version;
-		rmb();
-		dst->tsc_timestamp = src->tsc_timestamp;
-		dst->system_time = src->system_time;
-		dst->tsc_to_system_mul = src->tsc_to_system_mul;
-		dst->tsc_shift = src->tsc_shift;
-		rmb();
-	} while ((src->version & 1) | (dst->version ^ src->version));
-
-	return (dst->version);
-}
-
 /**
  * \brief Get the current time, in nanoseconds, since the hypervisor booted.
  *
  * \param vcpu		vcpu_info structure to fetch the time from.
  *
- * \note This function returns the current CPU's idea of this value, unless
- *       it happens to be less than another CPU's previously determined value.
  */
 static uint64_t
 xen_fetch_vcpu_time(struct vcpu_info *vcpu)
 {
-	struct vcpu_time_info dst;
-	struct vcpu_time_info *src;
-	uint32_t pre_version;
-	uint64_t now;
-	volatile uint64_t last;
+	struct pvclock_vcpu_time_info *time;
 
-	src = &vcpu->time;
+	time = (struct pvclock_vcpu_time_info *) &vcpu->time;
 
-	do {
-		pre_version = xen_fetch_vcpu_tinfo(&dst, src);
-		barrier();
-		now = dst.system_time + get_nsec_offset(&dst);
-		barrier();
-	} while (pre_version != src->version);
-
-	/*
-	 * Enforce a monotonically increasing clock time across all
-	 * VCPUs.  If our time is too old, use the last time and return.
-	 * Otherwise, try to update the last time.
-	 */
-	do {
-		last = xen_timer_last_time;
-		if (last > now) {
-			now = last;
-			break;
-		}
-	} while (!atomic_cmpset_64(&xen_timer_last_time, last, now));
-
-	return (now);
+	return (pvclock_get_timecount(time));
 }
 
 static uint32_t
@@ -302,15 +198,11 @@ static void
 xen_fetch_wallclock(struct timespec *ts)
 {
 	shared_info_t *src = HYPERVISOR_shared_info;
-	uint32_t version = 0;
+	struct pvclock_wall_clock *wc;
 
-	do {
-		version = src->wc_version;
-		rmb();
-		ts->tv_sec = src->wc_sec;
-		ts->tv_nsec = src->wc_nsec;
-		rmb();
-	} while ((src->wc_version & 1) | (version ^ src->wc_version));
+	wc = (struct pvclock_wall_clock *) &src->wc_version;
+
+	pvclock_get_wallclock(wc, ts);
 }
 
 static void
@@ -327,11 +219,29 @@ xen_fetch_uptime(struct timespec *ts)
 static int
 xentimer_settime(device_t dev __unused, struct timespec *ts)
 {
+	struct xen_platform_op settime;
+	int ret;
+
 	/*
 	 * Don't return EINVAL here; just silently fail if the domain isn't
 	 * privileged enough to set the TOD.
 	 */
-	return (0);
+	if (!xen_initial_domain())
+		return (0);
+
+	settime.cmd = XENPF_settime64;
+	settime.u.settime64.mbz = 0;
+	settime.u.settime64.secs = ts->tv_sec;
+	settime.u.settime64.nsecs = ts->tv_nsec;
+	settime.u.settime64.system_time =
+		xen_fetch_vcpu_time(DPCPU_GET(vcpu_info));
+
+	ret = HYPERVISOR_platform_op(&settime);
+	ret = ret != 0 ? xen_translate_error(ret) : 0;
+	if (ret != 0 && bootverbose)
+		device_printf(dev, "failed to set Xen PV clock: %d\n", ret);
+
+	return (ret);
 }
 
 /**
@@ -352,7 +262,7 @@ xentimer_gettime(device_t dev, struct timespec *ts)
 	timespecclear(ts);
 	xen_fetch_wallclock(ts);
 	xen_fetch_uptime(&u_ts);
-	timespecadd(ts, &u_ts);
+	timespecadd(ts, &u_ts, ts);
 
 	return (0);
 }
@@ -381,7 +291,8 @@ xentimer_vcpu_start_timer(int vcpu, uint64_t next_time)
 	struct vcpu_set_singleshot_timer single;
 
 	single.timeout_abs_ns = next_time;
-	single.flags          = VCPU_SSHOTTMR_future;
+	/* Get an event anyway, even if the timeout is already expired */
+	single.flags          = 0;
 	return (HYPERVISOR_vcpu_op(VCPUOP_set_singleshot_timer, vcpu, &single));
 }
 
@@ -408,7 +319,7 @@ static int
 xentimer_et_start(struct eventtimer *et,
     sbintime_t first, sbintime_t period)
 {
-	int error = 0, i = 0;
+	int error;
 	struct xentimer_softc *sc = et->et_priv;
 	int cpu = PCPU_GET(vcpu_id);
 	struct xentimer_pcpu_data *pcpu = DPCPU_PTR(xentimer_pcpu);
@@ -425,21 +336,8 @@ xentimer_et_start(struct eventtimer *et,
 	first_in_ns = (((first >> 32) * NSEC_IN_SEC) +
 	               (((uint64_t)NSEC_IN_SEC * (uint32_t)first) >> 32));
 
-	/*
-	 * Retry any timer scheduling failures, where the hypervisor
-	 * returns -ETIME.  Sometimes even a 100us timer period isn't large
-	 * enough, but larger period instances are relatively uncommon.
-	 *
-	 * XXX Remove the panics once et_start() and its consumers are
-	 *     equipped to deal with start failures.
-	 */
-	do {
-		if (++i == 60)
-			panic("can't schedule timer");
-		next_time = xen_fetch_vcpu_time(vcpu) + first_in_ns;
-		error = xentimer_vcpu_start_timer(cpu, next_time);
-	} while (error == -ETIME);
-
+	next_time = xen_fetch_vcpu_time(vcpu) + first_in_ns;
+	error = xentimer_vcpu_start_timer(cpu, next_time);
 	if (error)
 		panic("%s: Error %d setting singleshot timer to %"PRIu64"\n",
 		    device_get_nameunit(sc->dev), error, next_time);
@@ -516,8 +414,20 @@ xentimer_attach(device_t dev)
 	/* Register the timecounter. */
 	sc->tc.tc_name = "XENTIMER";
 	sc->tc.tc_quality = XENTIMER_QUALITY;
-	sc->tc.tc_flags = TC_FLAGS_SUSPEND_SAFE;
 	/*
+	 * FIXME: due to the lack of ordering during resume, FreeBSD cannot
+	 * guarantee that the Xen PV timer is resumed before any other device
+	 * attempts to make use of it, so mark it as not safe for suspension
+	 * (ie: remove the TC_FLAGS_SUSPEND_SAFE flag).
+	 *
+	 * NB: This was not a problem in previous FreeBSD versions because the
+	 * timer was directly attached to the nexus, but it is an issue now
+	 * that the timer is attached to the xenpv bus, and thus resumed
+	 * later.
+	 *
+	 * sc->tc.tc_flags = TC_FLAGS_SUSPEND_SAFE;
+	 */
+    	/*
 	 * The underlying resolution is in nanoseconds, since the timer info
 	 * scales TSC frequencies using a fraction that represents time in
 	 * terms of nanoseconds.
@@ -574,7 +484,7 @@ xentimer_resume(device_t dev)
 	}
 
 	/* Reset the last uptime value */
-	xen_timer_last_time = 0;
+	pvclock_resume();
 
 	/* Reset the RTC clock */
 	inittodr(time_second);

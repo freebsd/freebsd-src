@@ -13,18 +13,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_CODEGEN_FUNCTION_INFO_H
-#define LLVM_CLANG_CODEGEN_FUNCTION_INFO_H
+#ifndef LLVM_CLANG_CODEGEN_CGFUNCTIONINFO_H
+#define LLVM_CLANG_CODEGEN_CGFUNCTIONINFO_H
 
+#include "clang/AST/Attr.h"
 #include "clang/AST/CanonicalType.h"
+#include "clang/AST/CharUnits.h"
+#include "clang/AST/Decl.h"
 #include "clang/AST/Type.h"
+#include "llvm/IR/DerivedTypes.h"
 #include "llvm/ADT/FoldingSet.h"
-
+#include "llvm/Support/TrailingObjects.h"
 #include <cassert>
-
-namespace llvm {
-  class Type;
-}
 
 namespace clang {
 namespace CodeGen {
@@ -33,7 +33,7 @@ namespace CodeGen {
 /// specific C type should be passed to or returned from a function.
 class ABIArgInfo {
 public:
-  enum Kind {
+  enum Kind : uint8_t {
     /// Direct - Pass the argument directly using the normal converted LLVM
     /// type, or by coercing to another specified type stored in
     /// 'CoerceToType').  If an offset is specified (in UIntData), then the
@@ -60,85 +60,209 @@ public:
     /// are all scalar types or are themselves expandable types.
     Expand,
 
-    KindFirst=Direct, KindLast=Expand
+    /// CoerceAndExpand - Only valid for aggregate argument types. The
+    /// structure should be expanded into consecutive arguments corresponding
+    /// to the non-array elements of the type stored in CoerceToType.
+    /// Array elements in the type are assumed to be padding and skipped.
+    CoerceAndExpand,
+
+    /// InAlloca - Pass the argument directly using the LLVM inalloca attribute.
+    /// This is similar to indirect with byval, except it only applies to
+    /// arguments stored in memory and forbids any implicit copies.  When
+    /// applied to a return type, it means the value is returned indirectly via
+    /// an implicit sret parameter stored in the argument struct.
+    InAlloca,
+    KindFirst = Direct,
+    KindLast = InAlloca
   };
 
 private:
+  llvm::Type *TypeData; // canHaveCoerceToType()
+  union {
+    llvm::Type *PaddingType; // canHavePaddingType()
+    llvm::Type *UnpaddedCoerceAndExpandType; // isCoerceAndExpand()
+  };
+  union {
+    unsigned DirectOffset;     // isDirect() || isExtend()
+    unsigned IndirectAlign;    // isIndirect()
+    unsigned AllocaFieldIndex; // isInAlloca()
+  };
   Kind TheKind;
-  llvm::Type *TypeData;
-  llvm::Type *PaddingType;
-  unsigned UIntData;
-  bool BoolData0;
-  bool BoolData1;
-  bool InReg;
-  bool PaddingInReg;
+  bool PaddingInReg : 1;
+  bool InAllocaSRet : 1;    // isInAlloca()
+  bool IndirectByVal : 1;   // isIndirect()
+  bool IndirectRealign : 1; // isIndirect()
+  bool SRetAfterThis : 1;   // isIndirect()
+  bool InReg : 1;           // isDirect() || isExtend() || isIndirect()
+  bool CanBeFlattened: 1;   // isDirect()
 
-  ABIArgInfo(Kind K, llvm::Type *TD, unsigned UI, bool B0, bool B1, bool IR,
-             bool PIR, llvm::Type* P)
-    : TheKind(K), TypeData(TD), PaddingType(P), UIntData(UI), BoolData0(B0),
-      BoolData1(B1), InReg(IR), PaddingInReg(PIR) {}
+  bool canHavePaddingType() const {
+    return isDirect() || isExtend() || isIndirect() || isExpand();
+  }
+  void setPaddingType(llvm::Type *T) {
+    assert(canHavePaddingType());
+    PaddingType = T;
+  }
+
+  void setUnpaddedCoerceToType(llvm::Type *T) {
+    assert(isCoerceAndExpand());
+    UnpaddedCoerceAndExpandType = T;
+  }
+
+  ABIArgInfo(Kind K)
+      : TheKind(K), PaddingInReg(false), InReg(false) {
+  }
 
 public:
-  ABIArgInfo() : TheKind(Direct), TypeData(0), UIntData(0) {}
+  ABIArgInfo()
+      : TypeData(nullptr), PaddingType(nullptr), DirectOffset(0),
+        TheKind(Direct), PaddingInReg(false), InReg(false) {}
 
-  static ABIArgInfo getDirect(llvm::Type *T = 0, unsigned Offset = 0,
-                              llvm::Type *Padding = 0) {
-    return ABIArgInfo(Direct, T, Offset, false, false, false, false, Padding);
+  static ABIArgInfo getDirect(llvm::Type *T = nullptr, unsigned Offset = 0,
+                              llvm::Type *Padding = nullptr,
+                              bool CanBeFlattened = true) {
+    auto AI = ABIArgInfo(Direct);
+    AI.setCoerceToType(T);
+    AI.setPaddingType(Padding);
+    AI.setDirectOffset(Offset);
+    AI.setCanBeFlattened(CanBeFlattened);
+    return AI;
   }
-  static ABIArgInfo getDirectInReg(llvm::Type *T = 0) {
-    return ABIArgInfo(Direct, T, 0, false, false, true, false, 0);
+  static ABIArgInfo getDirectInReg(llvm::Type *T = nullptr) {
+    auto AI = getDirect(T);
+    AI.setInReg(true);
+    return AI;
   }
-  static ABIArgInfo getExtend(llvm::Type *T = 0) {
-    return ABIArgInfo(Extend, T, 0, false, false, false, false, 0);
+  static ABIArgInfo getExtend(llvm::Type *T = nullptr) {
+    auto AI = ABIArgInfo(Extend);
+    AI.setCoerceToType(T);
+    AI.setPaddingType(nullptr);
+    AI.setDirectOffset(0);
+    return AI;
   }
-  static ABIArgInfo getExtendInReg(llvm::Type *T = 0) {
-    return ABIArgInfo(Extend, T, 0, false, false, true, false, 0);
+  static ABIArgInfo getExtendInReg(llvm::Type *T = nullptr) {
+    auto AI = getExtend(T);
+    AI.setInReg(true);
+    return AI;
   }
   static ABIArgInfo getIgnore() {
-    return ABIArgInfo(Ignore, 0, 0, false, false, false, false, 0);
+    return ABIArgInfo(Ignore);
   }
-  static ABIArgInfo getIndirect(unsigned Alignment, bool ByVal = true
-                                , bool Realign = false
-                                , llvm::Type *Padding = 0) {
-    return ABIArgInfo(Indirect, 0, Alignment, ByVal, Realign, false, false,
-                      Padding);
+  static ABIArgInfo getIndirect(CharUnits Alignment, bool ByVal = true,
+                                bool Realign = false,
+                                llvm::Type *Padding = nullptr) {
+    auto AI = ABIArgInfo(Indirect);
+    AI.setIndirectAlign(Alignment);
+    AI.setIndirectByVal(ByVal);
+    AI.setIndirectRealign(Realign);
+    AI.setSRetAfterThis(false);
+    AI.setPaddingType(Padding);
+    return AI;
   }
-  static ABIArgInfo getIndirectInReg(unsigned Alignment, bool ByVal = true
-                                , bool Realign = false) {
-    return ABIArgInfo(Indirect, 0, Alignment, ByVal, Realign, true, false, 0);
+  static ABIArgInfo getIndirectInReg(CharUnits Alignment, bool ByVal = true,
+                                     bool Realign = false) {
+    auto AI = getIndirect(Alignment, ByVal, Realign);
+    AI.setInReg(true);
+    return AI;
+  }
+  static ABIArgInfo getInAlloca(unsigned FieldIndex) {
+    auto AI = ABIArgInfo(InAlloca);
+    AI.setInAllocaFieldIndex(FieldIndex);
+    return AI;
   }
   static ABIArgInfo getExpand() {
-    return ABIArgInfo(Expand, 0, 0, false, false, false, false, 0);
+    auto AI = ABIArgInfo(Expand);
+    AI.setPaddingType(nullptr);
+    return AI;
   }
   static ABIArgInfo getExpandWithPadding(bool PaddingInReg,
                                          llvm::Type *Padding) {
-   return ABIArgInfo(Expand, 0, 0, false, false, false, PaddingInReg,
-                     Padding);
+    auto AI = getExpand();
+    AI.setPaddingInReg(PaddingInReg);
+    AI.setPaddingType(Padding);
+    return AI;
+  }
+
+  /// \param unpaddedCoerceToType The coerce-to type with padding elements
+  ///   removed, canonicalized to a single element if it would otherwise
+  ///   have exactly one element.
+  static ABIArgInfo getCoerceAndExpand(llvm::StructType *coerceToType,
+                                       llvm::Type *unpaddedCoerceToType) {
+#ifndef NDEBUG
+    // Sanity checks on unpaddedCoerceToType.
+
+    // Assert that we only have a struct type if there are multiple elements.
+    auto unpaddedStruct = dyn_cast<llvm::StructType>(unpaddedCoerceToType);
+    assert(!unpaddedStruct || unpaddedStruct->getNumElements() != 1);
+
+    // Assert that all the non-padding elements have a corresponding element
+    // in the unpadded type.
+    unsigned unpaddedIndex = 0;
+    for (auto eltType : coerceToType->elements()) {
+      if (isPaddingForCoerceAndExpand(eltType)) continue;
+      if (unpaddedStruct) {
+        assert(unpaddedStruct->getElementType(unpaddedIndex) == eltType);
+      } else {
+        assert(unpaddedIndex == 0 && unpaddedCoerceToType == eltType);
+      }
+      unpaddedIndex++;
+    }
+
+    // Assert that there aren't extra elements in the unpadded type.
+    if (unpaddedStruct) {
+      assert(unpaddedStruct->getNumElements() == unpaddedIndex);
+    } else {
+      assert(unpaddedIndex == 1);
+    }
+#endif
+
+    auto AI = ABIArgInfo(CoerceAndExpand);
+    AI.setCoerceToType(coerceToType);
+    AI.setUnpaddedCoerceToType(unpaddedCoerceToType);
+    return AI;
+  }
+
+  static bool isPaddingForCoerceAndExpand(llvm::Type *eltType) {
+    if (eltType->isArrayTy()) {
+      assert(eltType->getArrayElementType()->isIntegerTy(8));
+      return true;
+    } else {
+      return false;
+    }
   }
 
   Kind getKind() const { return TheKind; }
   bool isDirect() const { return TheKind == Direct; }
+  bool isInAlloca() const { return TheKind == InAlloca; }
   bool isExtend() const { return TheKind == Extend; }
   bool isIgnore() const { return TheKind == Ignore; }
   bool isIndirect() const { return TheKind == Indirect; }
   bool isExpand() const { return TheKind == Expand; }
+  bool isCoerceAndExpand() const { return TheKind == CoerceAndExpand; }
 
   bool canHaveCoerceToType() const {
-    return TheKind == Direct || TheKind == Extend;
+    return isDirect() || isExtend() || isCoerceAndExpand();
   }
 
   // Direct/Extend accessors
   unsigned getDirectOffset() const {
     assert((isDirect() || isExtend()) && "Not a direct or extend kind");
-    return UIntData;
+    return DirectOffset;
+  }
+  void setDirectOffset(unsigned Offset) {
+    assert((isDirect() || isExtend()) && "Not a direct or extend kind");
+    DirectOffset = Offset;
   }
 
   llvm::Type *getPaddingType() const {
-    return PaddingType;
+    return (canHavePaddingType() ? PaddingType : nullptr);
   }
 
   bool getPaddingInReg() const {
     return PaddingInReg;
+  }
+  void setPaddingInReg(bool PIR) {
+    PaddingInReg = PIR;
   }
 
   llvm::Type *getCoerceToType() const {
@@ -151,25 +275,102 @@ public:
     TypeData = T;
   }
 
+  llvm::StructType *getCoerceAndExpandType() const {
+    assert(isCoerceAndExpand());
+    return cast<llvm::StructType>(TypeData);
+  }
+
+  llvm::Type *getUnpaddedCoerceAndExpandType() const {
+    assert(isCoerceAndExpand());
+    return UnpaddedCoerceAndExpandType;
+  }
+
+  ArrayRef<llvm::Type *>getCoerceAndExpandTypeSequence() const {
+    assert(isCoerceAndExpand());
+    if (auto structTy =
+          dyn_cast<llvm::StructType>(UnpaddedCoerceAndExpandType)) {
+      return structTy->elements();
+    } else {
+      return llvm::makeArrayRef(&UnpaddedCoerceAndExpandType, 1);
+    }
+  }
+
   bool getInReg() const {
     assert((isDirect() || isExtend() || isIndirect()) && "Invalid kind!");
     return InReg;
   }
 
+  void setInReg(bool IR) {
+    assert((isDirect() || isExtend() || isIndirect()) && "Invalid kind!");
+    InReg = IR;
+  }
+
   // Indirect accessors
-  unsigned getIndirectAlign() const {
-    assert(TheKind == Indirect && "Invalid kind!");
-    return UIntData;
+  CharUnits getIndirectAlign() const {
+    assert(isIndirect() && "Invalid kind!");
+    return CharUnits::fromQuantity(IndirectAlign);
+  }
+  void setIndirectAlign(CharUnits IA) {
+    assert(isIndirect() && "Invalid kind!");
+    IndirectAlign = IA.getQuantity();
   }
 
   bool getIndirectByVal() const {
-    assert(TheKind == Indirect && "Invalid kind!");
-    return BoolData0;
+    assert(isIndirect() && "Invalid kind!");
+    return IndirectByVal;
+  }
+  void setIndirectByVal(bool IBV) {
+    assert(isIndirect() && "Invalid kind!");
+    IndirectByVal = IBV;
   }
 
   bool getIndirectRealign() const {
-    assert(TheKind == Indirect && "Invalid kind!");
-    return BoolData1;
+    assert(isIndirect() && "Invalid kind!");
+    return IndirectRealign;
+  }
+  void setIndirectRealign(bool IR) {
+    assert(isIndirect() && "Invalid kind!");
+    IndirectRealign = IR;
+  }
+
+  bool isSRetAfterThis() const {
+    assert(isIndirect() && "Invalid kind!");
+    return SRetAfterThis;
+  }
+  void setSRetAfterThis(bool AfterThis) {
+    assert(isIndirect() && "Invalid kind!");
+    SRetAfterThis = AfterThis;
+  }
+
+  unsigned getInAllocaFieldIndex() const {
+    assert(isInAlloca() && "Invalid kind!");
+    return AllocaFieldIndex;
+  }
+  void setInAllocaFieldIndex(unsigned FieldIndex) {
+    assert(isInAlloca() && "Invalid kind!");
+    AllocaFieldIndex = FieldIndex;
+  }
+
+  /// \brief Return true if this field of an inalloca struct should be returned
+  /// to implement a struct return calling convention.
+  bool getInAllocaSRet() const {
+    assert(isInAlloca() && "Invalid kind!");
+    return InAllocaSRet;
+  }
+
+  void setInAllocaSRet(bool SRet) {
+    assert(isInAlloca() && "Invalid kind!");
+    InAllocaSRet = SRet;
+  }
+
+  bool getCanBeFlattened() const {
+    assert(isDirect() && "Invalid kind!");
+    return CanBeFlattened;
+  }
+
+  void setCanBeFlattened(bool Flatten) {
+    assert(isDirect() && "Invalid kind!");
+    CanBeFlattened = Flatten;
   }
 
   void dump() const;
@@ -192,23 +393,34 @@ public:
   /// Compute the arguments required by the given formal prototype,
   /// given that there may be some additional, non-formal arguments
   /// in play.
+  ///
+  /// If FD is not null, this will consider pass_object_size params in FD.
   static RequiredArgs forPrototypePlus(const FunctionProtoType *prototype,
-                                       unsigned additional) {
+                                       unsigned additional,
+                                       const FunctionDecl *FD) {
     if (!prototype->isVariadic()) return All;
-    return RequiredArgs(prototype->getNumArgs() + additional);
+    if (FD)
+      additional +=
+          llvm::count_if(FD->parameters(), [](const ParmVarDecl *PVD) {
+            return PVD->hasAttr<PassObjectSizeAttr>();
+          });
+    return RequiredArgs(prototype->getNumParams() + additional);
   }
 
-  static RequiredArgs forPrototype(const FunctionProtoType *prototype) {
-    return forPrototypePlus(prototype, 0);
+  static RequiredArgs forPrototype(const FunctionProtoType *prototype,
+                                   const FunctionDecl *FD) {
+    return forPrototypePlus(prototype, 0, FD);
   }
 
-  static RequiredArgs forPrototype(CanQual<FunctionProtoType> prototype) {
-    return forPrototype(prototype.getTypePtr());
+  static RequiredArgs forPrototype(CanQual<FunctionProtoType> prototype,
+                                   const FunctionDecl *FD) {
+    return forPrototype(prototype.getTypePtr(), FD);
   }
 
   static RequiredArgs forPrototypePlus(CanQual<FunctionProtoType> prototype,
-                                       unsigned additional) {
-    return forPrototypePlus(prototype.getTypePtr(), additional);
+                                       unsigned additional,
+                                       const FunctionDecl *FD) {
+    return forPrototypePlus(prototype.getTypePtr(), additional, FD);
   }
 
   bool allowsOptionalArgs() const { return NumRequired != ~0U; }
@@ -224,13 +436,21 @@ public:
   }
 };
 
+// Implementation detail of CGFunctionInfo, factored out so it can be named
+// in the TrailingObjects base class of CGFunctionInfo.
+struct CGFunctionInfoArgInfo {
+  CanQualType type;
+  ABIArgInfo info;
+};
+
 /// CGFunctionInfo - Class to encapsulate the information about a
 /// function definition.
-class CGFunctionInfo : public llvm::FoldingSetNode {
-  struct ArgInfo {
-    CanQualType type;
-    ABIArgInfo info;
-  };
+class CGFunctionInfo final
+    : public llvm::FoldingSetNode,
+      private llvm::TrailingObjects<CGFunctionInfo, CGFunctionInfoArgInfo,
+                                    FunctionProtoType::ExtParameterInfo> {
+  typedef CGFunctionInfoArgInfo ArgInfo;
+  typedef FunctionProtoType::ExtParameterInfo ExtParameterInfo;
 
   /// The LLVM::CallingConv to use for this function (as specified by the
   /// user).
@@ -241,7 +461,13 @@ class CGFunctionInfo : public llvm::FoldingSetNode {
   unsigned EffectiveCallingConvention : 8;
 
   /// The clang::CallingConv that this was originally created with.
-  unsigned ASTCallingConvention : 8;
+  unsigned ASTCallingConvention : 7;
+
+  /// Whether this is an instance method.
+  unsigned InstanceMethod : 1;
+
+  /// Whether this is a chain call.
+  unsigned ChainCall : 1;
 
   /// Whether this function is noreturn.
   unsigned NoReturn : 1;
@@ -249,31 +475,70 @@ class CGFunctionInfo : public llvm::FoldingSetNode {
   /// Whether this function is returns-retained.
   unsigned ReturnsRetained : 1;
 
+  /// Whether this function saved caller registers.
+  unsigned NoCallerSavedRegs : 1;
+
   /// How many arguments to pass inreg.
   unsigned HasRegParm : 1;
-  unsigned RegParm : 4;
+  unsigned RegParm : 3;
 
   RequiredArgs Required;
 
+  /// The struct representing all arguments passed in memory.  Only used when
+  /// passing non-trivial types with inalloca.  Not part of the profile.
+  llvm::StructType *ArgStruct;
+  unsigned ArgStructAlign : 31;
+  unsigned HasExtParameterInfos : 1;
+
   unsigned NumArgs;
+
   ArgInfo *getArgsBuffer() {
-    return reinterpret_cast<ArgInfo*>(this+1);
+    return getTrailingObjects<ArgInfo>();
   }
   const ArgInfo *getArgsBuffer() const {
-    return reinterpret_cast<const ArgInfo*>(this + 1);
+    return getTrailingObjects<ArgInfo>();
+  }
+
+  ExtParameterInfo *getExtParameterInfosBuffer() {
+    return getTrailingObjects<ExtParameterInfo>();
+  }
+  const ExtParameterInfo *getExtParameterInfosBuffer() const{
+    return getTrailingObjects<ExtParameterInfo>();
   }
 
   CGFunctionInfo() : Required(RequiredArgs::All) {}
 
 public:
   static CGFunctionInfo *create(unsigned llvmCC,
+                                bool instanceMethod,
+                                bool chainCall,
                                 const FunctionType::ExtInfo &extInfo,
+                                ArrayRef<ExtParameterInfo> paramInfos,
                                 CanQualType resultType,
                                 ArrayRef<CanQualType> argTypes,
                                 RequiredArgs required);
+  void operator delete(void *p) { ::operator delete(p); }
+
+  // Friending class TrailingObjects is apparently not good enough for MSVC,
+  // so these have to be public.
+  friend class TrailingObjects;
+  size_t numTrailingObjects(OverloadToken<ArgInfo>) const {
+    return NumArgs + 1;
+  }
+  size_t numTrailingObjects(OverloadToken<ExtParameterInfo>) const {
+    return (HasExtParameterInfos ? NumArgs : 0);
+  }
 
   typedef const ArgInfo *const_arg_iterator;
   typedef ArgInfo *arg_iterator;
+
+  typedef llvm::iterator_range<arg_iterator> arg_range;
+  typedef llvm::iterator_range<const_arg_iterator> arg_const_range;
+
+  arg_range arguments() { return arg_range(arg_begin(), arg_end()); }
+  arg_const_range arguments() const {
+    return arg_const_range(arg_begin(), arg_end());
+  }
 
   const_arg_iterator arg_begin() const { return getArgsBuffer() + 1; }
   const_arg_iterator arg_end() const { return getArgsBuffer() + 1 + NumArgs; }
@@ -284,12 +549,22 @@ public:
 
   bool isVariadic() const { return Required.allowsOptionalArgs(); }
   RequiredArgs getRequiredArgs() const { return Required; }
+  unsigned getNumRequiredArgs() const {
+    return isVariadic() ? getRequiredArgs().getNumRequiredArgs() : arg_size();
+  }
+
+  bool isInstanceMethod() const { return InstanceMethod; }
+
+  bool isChainCall() const { return ChainCall; }
 
   bool isNoReturn() const { return NoReturn; }
 
   /// In ARC, whether this function retains its return value.  This
   /// is not always reliable for call sites.
   bool isReturnsRetained() const { return ReturnsRetained; }
+
+  /// Whether this function no longer saves caller registers.
+  bool isNoCallerSavedRegs() const { return NoCallerSavedRegs; }
 
   /// getASTCallingConvention() - Return the AST-specified calling
   /// convention.
@@ -314,10 +589,9 @@ public:
   unsigned getRegParm() const { return RegParm; }
 
   FunctionType::ExtInfo getExtInfo() const {
-    return FunctionType::ExtInfo(isNoReturn(),
-                                 getHasRegParm(), getRegParm(),
-                                 getASTCallingConvention(),
-                                 isReturnsRetained());
+    return FunctionType::ExtInfo(isNoReturn(), getHasRegParm(), getRegParm(),
+                                 getASTCallingConvention(), isReturnsRetained(),
+                                 isNoCallerSavedRegs());
   }
 
   CanQualType getReturnType() const { return getArgsBuffer()[0].type; }
@@ -325,28 +599,70 @@ public:
   ABIArgInfo &getReturnInfo() { return getArgsBuffer()[0].info; }
   const ABIArgInfo &getReturnInfo() const { return getArgsBuffer()[0].info; }
 
+  ArrayRef<ExtParameterInfo> getExtParameterInfos() const {
+    if (!HasExtParameterInfos) return {};
+    return llvm::makeArrayRef(getExtParameterInfosBuffer(), NumArgs);
+  }
+  ExtParameterInfo getExtParameterInfo(unsigned argIndex) const {
+    assert(argIndex <= NumArgs);
+    if (!HasExtParameterInfos) return ExtParameterInfo();
+    return getExtParameterInfos()[argIndex];
+  }
+
+  /// \brief Return true if this function uses inalloca arguments.
+  bool usesInAlloca() const { return ArgStruct; }
+
+  /// \brief Get the struct type used to represent all the arguments in memory.
+  llvm::StructType *getArgStruct() const { return ArgStruct; }
+  CharUnits getArgStructAlignment() const {
+    return CharUnits::fromQuantity(ArgStructAlign);
+  }
+  void setArgStruct(llvm::StructType *Ty, CharUnits Align) {
+    ArgStruct = Ty;
+    ArgStructAlign = Align.getQuantity();
+  }
+
   void Profile(llvm::FoldingSetNodeID &ID) {
     ID.AddInteger(getASTCallingConvention());
+    ID.AddBoolean(InstanceMethod);
+    ID.AddBoolean(ChainCall);
     ID.AddBoolean(NoReturn);
     ID.AddBoolean(ReturnsRetained);
+    ID.AddBoolean(NoCallerSavedRegs);
     ID.AddBoolean(HasRegParm);
     ID.AddInteger(RegParm);
     ID.AddInteger(Required.getOpaqueData());
+    ID.AddBoolean(HasExtParameterInfos);
+    if (HasExtParameterInfos) {
+      for (auto paramInfo : getExtParameterInfos())
+        ID.AddInteger(paramInfo.getOpaqueValue());
+    }
     getReturnType().Profile(ID);
-    for (arg_iterator it = arg_begin(), ie = arg_end(); it != ie; ++it)
-      it->type.Profile(ID);
+    for (const auto &I : arguments())
+      I.type.Profile(ID);
   }
   static void Profile(llvm::FoldingSetNodeID &ID,
+                      bool InstanceMethod,
+                      bool ChainCall,
                       const FunctionType::ExtInfo &info,
+                      ArrayRef<ExtParameterInfo> paramInfos,
                       RequiredArgs required,
                       CanQualType resultType,
                       ArrayRef<CanQualType> argTypes) {
     ID.AddInteger(info.getCC());
+    ID.AddBoolean(InstanceMethod);
+    ID.AddBoolean(ChainCall);
     ID.AddBoolean(info.getNoReturn());
     ID.AddBoolean(info.getProducesResult());
+    ID.AddBoolean(info.getNoCallerSavedRegs());
     ID.AddBoolean(info.getHasRegParm());
     ID.AddInteger(info.getRegParm());
     ID.AddInteger(required.getOpaqueData());
+    ID.AddBoolean(!paramInfos.empty());
+    if (!paramInfos.empty()) {
+      for (auto paramInfo : paramInfos)
+        ID.AddInteger(paramInfo.getOpaqueValue());
+    }
     resultType.Profile(ID);
     for (ArrayRef<CanQualType>::iterator
            i = argTypes.begin(), e = argTypes.end(); i != e; ++i) {

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Dima Dorfman.
  * All rights reserved.
  *
@@ -34,15 +36,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/linker.h>
 #include <sys/mdioctl.h>
+#include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 
 #include <assert.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
+#include <inttypes.h>
 #include <paths.h>
 #include <pwd.h>
 #include <stdarg.h>
@@ -78,25 +84,29 @@ static void	 debugprintf(const char *, ...) __printflike(1, 2);
 static void	 do_mdconfig_attach(const char *, const enum md_types);
 static void	 do_mdconfig_attach_au(const char *, const enum md_types);
 static void	 do_mdconfig_detach(void);
-static void	 do_mount(const char *, const char *);
+static void	 do_mount_md(const char *, const char *);
+static void	 do_mount_tmpfs(const char *, const char *);
 static void	 do_mtptsetup(const char *, struct mtpt_info *);
 static void	 do_newfs(const char *);
 static void	 extract_ugid(const char *, struct mtpt_info *);
 static int	 run(int *, const char *, ...) __printflike(2, 3);
+static const char *run_exitstr(int);
+static int	 run_exitnumber(int);
 static void	 usage(void);
 
 int
 main(int argc, char **argv)
 {
 	struct mtpt_info mi;		/* Mountpoint info. */
+	intmax_t mdsize;
 	char *mdconfig_arg, *newfs_arg,	/* Args to helper programs. */
 	    *mount_arg;
 	enum md_types mdtype;		/* The type of our memory disk. */
-	bool have_mdtype;
+	bool have_mdtype, mlmac;
 	bool detach, softdep, autounit, newfs;
-	char *mtpoint, *unitstr;
+	const char *mtpoint, *size_arg, *unitstr;
 	char *p;
-	int ch;
+	int ch, idx;
 	void *set;
 	unsigned long ul;
 
@@ -105,11 +115,13 @@ main(int argc, char **argv)
 	detach = true;
 	softdep = true;
 	autounit = false;
+	mlmac = false;
 	newfs = true;
 	have_mdtype = false;
 	mdtype = MD_SWAP;
 	mdname = MD_NAME;
 	mdnamelen = strlen(mdname);
+	mdsize = 0;
 	/*
 	 * Can't set these to NULL.  They may be passed to the
 	 * respective programs without modification.  I.e., we may not
@@ -119,6 +131,7 @@ main(int argc, char **argv)
 	mdconfig_arg = strdup("");
 	newfs_arg = strdup("");
 	mount_arg = strdup("");
+	size_arg = NULL;
 
 	/* If we were started as mount_mfs or mfs, imply -C. */
 	if (strcmp(getprogname(), "mount_mfs") == 0 ||
@@ -129,7 +142,7 @@ main(int argc, char **argv)
 	}
 
 	while ((ch = getopt(argc, argv,
-	    "a:b:Cc:Dd:E:e:F:f:hi:LlMm:NnO:o:Pp:Ss:tUv:w:X")) != -1)
+	    "a:b:Cc:Dd:E:e:F:f:hi:LlMm:NnO:o:Pp:Ss:tT:Uv:w:X")) != -1)
 		switch (ch) {
 		case 'a':
 			argappend(&newfs_arg, "-a %s", optarg);
@@ -175,6 +188,7 @@ main(int argc, char **argv)
 			loudsubs = true;
 			break;
 		case 'l':
+			mlmac = true;
 			argappend(&newfs_arg, "-l");
 			break;
 		case 'M':
@@ -213,10 +227,13 @@ main(int argc, char **argv)
 			softdep = false;
 			break;
 		case 's':
-			argappend(&mdconfig_arg, "-s %s", optarg);
+			size_arg = optarg;
 			break;
 		case 't':
 			argappend(&newfs_arg, "-t");
+			break;
+		case 'T':
+			argappend(&mount_arg, "-t %s", optarg);
 			break;
 		case 'U':
 			softdep = true;
@@ -239,42 +256,107 @@ main(int argc, char **argv)
 	if (argc < 2)
 		usage();
 
-	/* Derive 'unit' (global). */
-	unitstr = argv[0];
-	if (strncmp(unitstr, "/dev/", 5) == 0)
-		unitstr += 5;
-	if (strncmp(unitstr, mdname, mdnamelen) == 0)
-		unitstr += mdnamelen;
-	if (!isdigit(*unitstr)) {
-		autounit = true;
-		unit = -1;
-		mdsuffix = unitstr;
-	} else {
-		ul = strtoul(unitstr, &p, 10);
-		if (ul == ULONG_MAX)
-			errx(1, "bad device unit: %s", unitstr);
-		unit = ul;
-		mdsuffix = p;	/* can be empty */
+	/*
+	 * Historically our size arg was passed directly to mdconfig, which
+	 * treats a number without a suffix as a count of 512-byte sectors;
+	 * tmpfs would treat it as a count of bytes.  To get predictable
+	 * behavior for 'auto' we document that the size always uses mdconfig
+	 * rules.  To make that work, decode the size here so it can be passed
+	 * to either tmpfs or mdconfig as a count of bytes.
+	 */
+	if (size_arg != NULL) {
+		mdsize = (intmax_t)strtoumax(size_arg, &p, 0);
+		if (p == size_arg || (p[0] != 0 && p[1] != 0) || mdsize < 0)
+			errx(1, "invalid size '%s'", size_arg);
+		switch (*p) {
+		case 'p':
+		case 'P':
+			mdsize *= 1024;
+		case 't':
+		case 'T':
+			mdsize *= 1024;
+		case 'g':
+		case 'G':
+			mdsize *= 1024;
+		case 'm':
+		case 'M':
+			mdsize *= 1024;
+		case 'k':
+		case 'K':
+			mdsize *= 1024;
+		case 'b':
+		case 'B':
+			break;
+		case '\0':
+			mdsize *= 512;
+			break;
+		default:
+			errx(1, "invalid size suffix on '%s'", size_arg);
+		}
 	}
 
+	/*
+	 * Based on the command line 'md-device' either mount a tmpfs filesystem
+	 * or configure the md device then format and mount a filesystem on it.
+	 * If the device is 'auto' use tmpfs if it is available and there is no
+	 * request for multilabel MAC (which tmpfs does not support).
+	 */
+	unitstr = argv[0];
 	mtpoint = argv[1];
-	if (!have_mdtype)
-		mdtype = MD_SWAP;
-	if (softdep)
-		argappend(&newfs_arg, "-U");
-	if (mdtype != MD_VNODE && !newfs)
-		errx(1, "-P requires a vnode-backed disk");
 
-	/* Do the work. */
-	if (detach && !autounit)
-		do_mdconfig_detach();
-	if (autounit)
-		do_mdconfig_attach_au(mdconfig_arg, mdtype);
-	else
-		do_mdconfig_attach(mdconfig_arg, mdtype);
-	if (newfs)
-		do_newfs(newfs_arg);
-	do_mount(mount_arg, mtpoint);
+	if (strcmp(unitstr, "auto") == 0) {
+		if (mlmac)
+			idx = -1; /* Must use md for mlmac. */
+		else if ((idx = modfind("tmpfs")) == -1)
+			idx = kldload("tmpfs");
+		if (idx == -1)
+			unitstr = "md";
+		else
+			unitstr = "tmpfs";
+	}
+
+	if (strcmp(unitstr, "tmpfs") == 0) {
+		if (size_arg != NULL && mdsize != 0)
+			argappend(&mount_arg, "-o size=%jd", mdsize);
+		do_mount_tmpfs(mount_arg, mtpoint); 
+	} else {
+		if (size_arg != NULL)
+			argappend(&mdconfig_arg, "-s %jdB", mdsize);
+		if (strncmp(unitstr, "/dev/", 5) == 0)
+			unitstr += 5;
+		if (strncmp(unitstr, mdname, mdnamelen) == 0)
+			unitstr += mdnamelen;
+		if (!isdigit(*unitstr)) {
+			autounit = true;
+			unit = -1;
+			mdsuffix = unitstr;
+		} else {
+			ul = strtoul(unitstr, &p, 10);
+			if (ul == ULONG_MAX)
+				errx(1, "bad device unit: %s", unitstr);
+			unit = ul;
+			mdsuffix = p;	/* can be empty */
+		}
+	
+		if (!have_mdtype)
+			mdtype = MD_SWAP;
+		if (softdep)
+			argappend(&newfs_arg, "-U");
+		if (mdtype != MD_VNODE && !newfs)
+			errx(1, "-P requires a vnode-backed disk");
+	
+		/* Do the work. */
+		if (detach && !autounit)
+			do_mdconfig_detach();
+		if (autounit)
+			do_mdconfig_attach_au(mdconfig_arg, mdtype);
+		else
+			do_mdconfig_attach(mdconfig_arg, mdtype);
+		if (newfs)
+			do_newfs(newfs_arg);
+		do_mount_md(mount_arg, mtpoint);
+	}
+
 	do_mtptsetup(mtpoint, &mi);
 
 	return (0);
@@ -351,7 +433,8 @@ do_mdconfig_attach(const char *args, const enum md_types mdtype)
 	rv = run(NULL, "%s -a %s%s -u %s%d", path_mdconfig, ta, args,
 	    mdname, unit);
 	if (rv)
-		errx(1, "mdconfig (attach) exited with error code %d", rv);
+		errx(1, "mdconfig (attach) exited %s %d", run_exitstr(rv),
+		    run_exitnumber(rv));
 }
 
 /*
@@ -384,7 +467,8 @@ do_mdconfig_attach_au(const char *args, const enum md_types mdtype)
 	}
 	rv = run(&fd, "%s -a %s%s", path_mdconfig, ta, args);
 	if (rv)
-		errx(1, "mdconfig (attach) exited with error code %d", rv);
+		errx(1, "mdconfig (attach) exited %s %d", run_exitstr(rv),
+		    run_exitnumber(rv));
 
 	/* Receive the unit number. */
 	if (norun) {	/* Since we didn't run, we can't read.  Fake it. */
@@ -423,22 +507,37 @@ do_mdconfig_detach(void)
 
 	rv = run(NULL, "%s -d -u %s%d", path_mdconfig, mdname, unit);
 	if (rv && debug)	/* This is allowed to fail. */
-		warnx("mdconfig (detach) exited with error code %d (ignored)",
-		    rv);
+		warnx("mdconfig (detach) exited %s %d (ignored)",
+		    run_exitstr(rv), run_exitnumber(rv));
 }
 
 /*
  * Mount the configured memory disk.
  */
 static void
-do_mount(const char *args, const char *mtpoint)
+do_mount_md(const char *args, const char *mtpoint)
 {
 	int rv;
 
 	rv = run(NULL, "%s%s /dev/%s%d%s %s", _PATH_MOUNT, args,
 	    mdname, unit, mdsuffix, mtpoint);
 	if (rv)
-		errx(1, "mount exited with error code %d", rv);
+		errx(1, "mount exited %s %d", run_exitstr(rv),
+		    run_exitnumber(rv));
+}
+
+/*
+ * Mount the configured tmpfs.
+ */
+static void
+do_mount_tmpfs(const char *args, const char *mtpoint)
+{
+	int rv;
+
+	rv = run(NULL, "%s -t tmpfs %s tmp %s", _PATH_MOUNT, args, mtpoint);
+	if (rv)
+		errx(1, "tmpfs mount exited %s %d", run_exitstr(rv),
+		    run_exitnumber(rv));
 }
 
 /*
@@ -510,7 +609,8 @@ do_newfs(const char *args)
 
 	rv = run(NULL, "%s%s /dev/%s%d", _PATH_NEWFS, args, mdname, unit);
 	if (rv)
-		errx(1, "newfs exited with error code %d", rv);
+		errx(1, "newfs exited %s %d", run_exitstr(rv),
+		    run_exitnumber(rv));
 }
 
 /*
@@ -581,8 +681,12 @@ extract_ugid(const char *str, struct mtpt_info *mip)
  * Run a process with command name and arguments pointed to by the
  * formatted string 'cmdline'.  Since system(3) is not used, the first
  * space-delimited token of 'cmdline' must be the full pathname of the
- * program to run.  The return value is the return code of the process
- * spawned.  If 'ofd' is non-NULL, it is set to the standard output of
+ * program to run.
+ *
+ * The return value is the return code of the process spawned, or a negative
+ * signal number if the process exited due to an uncaught signal.
+ *
+ * If 'ofd' is non-NULL, it is set to the standard output of
  * the program spawned (i.e., you can read from ofd and get the output
  * of the program).
  */
@@ -678,7 +782,35 @@ run(int *ofd, const char *cmdline, ...)
 	free(argv);
 	while (waitpid(pid, &status, 0) != pid)
 		;
-	return (WEXITSTATUS(status));
+	if (WIFEXITED(status))
+		return (WEXITSTATUS(status));
+	if (WIFSIGNALED(status))
+		return (-WTERMSIG(status));
+	err(1, "unexpected waitpid status: 0x%x", status);
+}
+
+/*
+ * If run() returns non-zero, provide a string explaining why.
+ */
+static const char *
+run_exitstr(int rv)
+{
+	if (rv > 0)
+		return ("with error code");
+	if (rv < 0)
+		return ("with signal");
+	return (NULL);
+}
+
+/*
+ * If run returns non-zero, provide a relevant number.
+ */
+static int
+run_exitnumber(int rv)
+{
+	if (rv < 0)
+		return (-rv);
+	return (rv);
 }
 
 static void

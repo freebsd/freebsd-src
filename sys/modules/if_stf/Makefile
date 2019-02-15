@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../net
+.PATH: ${SRCTOP}/sys/net
 
 KMOD=	if_stf
-SRCS=	if_stf.c opt_inet.h opt_inet6.h
+SRCS=	if_stf.c
 
 .include <bsd.kmod.mk>

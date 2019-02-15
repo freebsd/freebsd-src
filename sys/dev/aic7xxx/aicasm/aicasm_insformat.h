@@ -2,6 +2,8 @@
  * Instruction formats for the sequencer program downloaded to
  * Aic7xxx SCSI host adapters
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1997, 1998, 2000 Justin T. Gibbs.
  * All rights reserved.
  *

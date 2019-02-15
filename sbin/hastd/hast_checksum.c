@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
@@ -31,22 +33,15 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <strings.h>
 
-#ifdef HAVE_CRYPTO
-#include <openssl/sha.h>
-#endif
-
 #include <crc32.h>
 #include <hast.h>
 #include <nv.h>
+#include <sha256.h>
 #include <pjdlog.h>
 
 #include "hast_checksum.h"
 
-#ifdef HAVE_CRYPTO
 #define	MAX_HASH_SIZE	SHA256_DIGEST_LENGTH
-#else
-#define	MAX_HASH_SIZE	4
-#endif
 
 static void
 hast_crc32_checksum(const unsigned char *data, size_t size,
@@ -60,7 +55,6 @@ hast_crc32_checksum(const unsigned char *data, size_t size,
 	*hsizep = sizeof(crc);
 }
 
-#ifdef HAVE_CRYPTO
 static void
 hast_sha256_checksum(const unsigned char *data, size_t size,
     unsigned char *hash, size_t *hsizep)
@@ -72,7 +66,6 @@ hast_sha256_checksum(const unsigned char *data, size_t size,
 	SHA256_Final(hash, &ctx);
 	*hsizep = SHA256_DIGEST_LENGTH;
 }
-#endif	/* HAVE_CRYPTO */
 
 const char *
 checksum_name(int num)
@@ -102,11 +95,9 @@ checksum_send(const struct hast_resource *res, struct nv *nv, void **datap,
 	case HAST_CHECKSUM_CRC32:
 		hast_crc32_checksum(*datap, *sizep, hash, &hsize);
 		break;
-#ifdef HAVE_CRYPTO
 	case HAST_CHECKSUM_SHA256:
 		hast_sha256_checksum(*datap, *sizep, hash, &hsize);
 		break;
-#endif
 	default:
 		PJDLOG_ABORT("Invalid checksum: %d.", res->hr_checksum);
 	}
@@ -138,10 +129,8 @@ checksum_recv(const struct hast_resource *res __unused, struct nv *nv,
 	}
 	if (strcmp(algo, "crc32") == 0)
 		hast_crc32_checksum(*datap, *sizep, chash, &chsize);
-#ifdef HAVE_CRYPTO
 	else if (strcmp(algo, "sha256") == 0)
 		hast_sha256_checksum(*datap, *sizep, chash, &chsize);
-#endif
 	else {
 		pjdlog_error("Unknown checksum algorithm '%s'.", algo);
 		return (-1);	/* Unknown checksum algorithm. */

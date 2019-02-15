@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Stefan Farfeleder
  * All rights reserved.
  *
@@ -34,5 +36,5 @@ float complex
 conjf(float complex z)
 {
 
-	return (cpackf(crealf(z), -cimagf(z)));
+	return (CMPLXF(crealf(z), -cimagf(z)));
 }

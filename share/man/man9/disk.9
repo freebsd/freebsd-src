@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2012
+.Dd August 3, 2017
 .Dt DISK 9
 .Os
 .Sh NAME
@@ -45,6 +45,8 @@
 .Fn disk_destroy "struct disk *disk"
 .Ft int
 .Fn disk_resize "struct disk *disk" "int flags"
+.Ft void
+.Fn disk_add_alias "struct disk *disk" "const char *alias"
 .Sh DESCRIPTION
 The disk storage API permits kernel device drivers providing access to
 disk-like storage devices to advertise the device to other kernel
@@ -69,6 +71,20 @@ function,
 fill in the fields and call
 .Fn disk_create
 when the device is ready to service requests.
+.Fn disk_add_alias
+adds an alias for the disk and must be called before
+.Fn disk_create ,
+but may be called multiple times.
+For each alias added, a device node will be created with
+.Xr make_dev_alias 9
+in the same way primary device nodes are created with
+.Xr make_dev 9
+for
+.Va d_name
+and
+.Va d_unit .
+Care should be taken to ensure that only one driver creates aliases
+for any given name.
 .Fn disk_resize
 can be called by the driver after modifying
 .Va d_mediasize
@@ -227,7 +243,13 @@ structure for this disk device.
 .El
 .Sh SEE ALSO
 .Xr GEOM 4 ,
-.Xr devfs 5
+.Xr devfs 5 ,
+.Xr MAKE_DEV 9
 .Sh AUTHORS
 This manual page was written by
 .An Robert Watson .
+.Sh BUGS
+Disk aliases are not a general purpose aliasing mechanism, but are
+intended only to ease the transition from one name to another.
+They can be used to ensure that nvd0 and nda0 are the same thing.
+They cannot be used to implement the diskX concept from macOS.

@@ -50,6 +50,7 @@
 #include "svn_private_config.h"
 
 #include "private/svn_string_private.h"
+#include "private/svn_eol_private.h"
 
 /**
  * The textual elements of a detranslated special file.  One of these
@@ -127,7 +128,7 @@ svn_subst_translation_required(svn_subst_eol_style_t style,
  *
  * Important API note: This function is the core of the implementation of
  * svn_subst_build_keywords (all versions), and as such must implement the
- * tolerance of NULL and zero inputs that that function's documention
+ * tolerance of NULL and zero inputs that that function's documentation
  * stipulates.
  *
  * The format codes:
@@ -158,7 +159,7 @@ keyword_printf(const char *fmt,
                const char *author,
                apr_pool_t *pool)
 {
-  svn_stringbuf_t *value = svn_stringbuf_ncreate("", 0, pool);
+  svn_stringbuf_t *value = svn_stringbuf_create_empty(pool);
   const char *cur;
   size_t n;
 
@@ -1122,28 +1123,42 @@ translate_chunk(svn_stream_t *dst,
               /* skip current EOL */
               len += b->eol_str_len;
 
-              /* Check 4 bytes at once to allow for efficient pipelining
-                 and to reduce loop condition overhead. */
-              while ((p + len + 4) <= end)
+              if (b->keywords)
                 {
-                  if (interesting[(unsigned char)p[len]]
-                      || interesting[(unsigned char)p[len+1]]
-                      || interesting[(unsigned char)p[len+2]]
-                      || interesting[(unsigned char)p[len+3]])
-                    break;
+                  /* Check 4 bytes at once to allow for efficient pipelining
+                    and to reduce loop condition overhead. */
+                  while ((end - p) >= (len + 4))
+                    {
+                      if (interesting[(unsigned char)p[len]]
+                          || interesting[(unsigned char)p[len+1]]
+                          || interesting[(unsigned char)p[len+2]]
+                          || interesting[(unsigned char)p[len+3]])
+                        break;
 
-                  len += 4;
+                      len += 4;
+                    }
+
+                  /* Found an interesting char or EOF in the next 4 bytes.
+                     Find its exact position. */
+                  while ((p + len) < end
+                         && !interesting[(unsigned char)p[len]])
+                    ++len;
                 }
+              else
+                {
+                  /* use our optimized sub-routine to find the next EOL */
+                  const char *start = p + len;
+                  const char *eol
+                    = svn_eol__find_eol_start((char *)start, end - start);
 
-               /* Found an interesting char or EOF in the next 4 bytes.
-                  Find its exact position. */
-               while ((p + len) < end && !interesting[(unsigned char)p[len]])
-                 ++len;
+                  /* EOL will be NULL if we did not find a line ending */
+                  len += (eol ? eol : end) - start;
+                }
             }
           while (b->nl_translation_skippable ==
                    svn_tristate_true &&       /* can potentially skip EOLs */
-                 p + len + 2 < end &&         /* not too close to EOF */
-                 eol_unchanged (b, p + len)); /* EOL format already ok */
+                 (end - p) > (len + 2) &&     /* not too close to EOF */
+                 eol_unchanged(b, p + len));  /* EOL format already ok */
 
           while ((p + len) < end && !interesting[(unsigned char)p[len]])
             len++;
@@ -1276,7 +1291,7 @@ translated_stream_read(void *baton,
 
           svn_stringbuf_setempty(b->readbuf);
           b->readbuf_off = 0;
-          SVN_ERR(svn_stream_read(b->stream, b->buf, &readlen));
+          SVN_ERR(svn_stream_read_full(b->stream, b->buf, &readlen));
           buf_stream = svn_stream_from_stringbuf(b->readbuf, b->iterpool);
 
           SVN_ERR(translate_chunk(buf_stream, b->in_baton, b->buf,
@@ -1416,14 +1431,6 @@ translated_stream_seek(void *baton, const svn_stream_mark_t *mark)
   return SVN_NO_ERROR;
 }
 
-/* Implements svn_stream__is_buffered_fn_t. */
-static svn_boolean_t
-translated_stream_is_buffered(void *baton)
-{
-  struct translated_stream_baton *b = baton;
-  return svn_stream__is_buffered(b->stream);
-}
-
 svn_error_t *
 svn_subst_read_specialfile(svn_stream_t **stream,
                            const char *path,
@@ -1527,12 +1534,15 @@ stream_translated(svn_stream_t *stream,
   baton->buf = apr_palloc(result_pool, SVN__TRANSLATION_BUF_SIZE);
 
   /* Setup the stream methods */
-  svn_stream_set_read(s, translated_stream_read);
+  svn_stream_set_read2(s, NULL /* only full read support */,
+                       translated_stream_read);
   svn_stream_set_write(s, translated_stream_write);
   svn_stream_set_close(s, translated_stream_close);
-  svn_stream_set_mark(s, translated_stream_mark);
-  svn_stream_set_seek(s, translated_stream_seek);
-  svn_stream__set_is_buffered(s, translated_stream_is_buffered);
+  if (svn_stream_supports_mark(stream))
+    {
+      svn_stream_set_mark(s, translated_stream_mark);
+      svn_stream_set_seek(s, translated_stream_seek);
+    }
 
   return s;
 }
@@ -1633,7 +1643,7 @@ detranslate_special_file(const char *src, const char *dst,
                            cancel_func, cancel_baton, scratch_pool));
 
   /* Do the atomic rename from our temporary location. */
-  return svn_error_trace(svn_io_file_rename(dst_tmp, dst, scratch_pool));
+  return svn_error_trace(svn_io_file_rename2(dst_tmp, dst, FALSE, scratch_pool));
 }
 
 /* Creates a special file DST from the "normal form" located in SOURCE.
@@ -1675,17 +1685,16 @@ create_special_file_from_stream(svn_stream_t *source, const char *dst,
                                                    ".tmp", pool);
 
       /* If we had an error, check to see if it was because symlinks are
-         not supported on the platform.  If so, fall back
-         to using the internal representation. */
-      if (err)
+         not supported on the platform.  If so, fall back to using the
+         internal representation. */
+      if (err && err->apr_err == SVN_ERR_UNSUPPORTED_FEATURE)
         {
-          if (err->apr_err == SVN_ERR_UNSUPPORTED_FEATURE)
-            {
-              svn_error_clear(err);
-              create_using_internal_representation = TRUE;
-            }
-          else
-            return err;
+          svn_error_clear(err);
+          create_using_internal_representation = TRUE;
+        }
+      else if (err)
+        {
+          return svn_error_trace(err);
         }
     }
   else
@@ -1697,27 +1706,27 @@ create_special_file_from_stream(svn_stream_t *source, const char *dst,
     }
 
   /* If nothing else worked, write out the internal representation to
-     a file that can be edited by the user.
-
-     ### this only writes the first line!
-  */
+     a file that can be edited by the user. */
   if (create_using_internal_representation)
     {
-      apr_file_t *new_file;
-      SVN_ERR(svn_io_open_unique_file3(&new_file, &dst_tmp,
-                                       svn_dirent_dirname(dst, pool),
-                                       svn_io_file_del_none,
-                                       pool, pool));
+      svn_stream_t *new_stream;
+      apr_size_t len;
 
-      SVN_ERR(svn_io_file_write_full(new_file,
-                                     contents->data, contents->len, NULL,
-                                     pool));
+      SVN_ERR(svn_stream_open_unique(&new_stream, &dst_tmp,
+                                     svn_dirent_dirname(dst, pool),
+                                     svn_io_file_del_none,
+                                     pool, pool));
 
-      SVN_ERR(svn_io_file_close(new_file, pool));
+      if (!eof)
+        svn_stringbuf_appendcstr(contents, "\n");
+      len = contents->len;
+      SVN_ERR(svn_stream_write(new_stream, contents->data, &len));
+      SVN_ERR(svn_stream_copy3(svn_stream_disown(source, pool), new_stream,
+                               NULL, NULL, pool));
     }
 
   /* Do the atomic rename from our temporary location. */
-  return svn_io_file_rename(dst_tmp, dst, pool);
+  return svn_error_trace(svn_io_file_rename2(dst_tmp, dst, FALSE, pool));
 }
 
 
@@ -1765,8 +1774,9 @@ svn_subst_copy_and_translate4(const char *src,
               SVN_ERR(svn_stream_open_readonly(&src_stream, src, pool, pool));
             }
 
-          return svn_error_trace(create_special_file_from_stream(src_stream,
-                                                                 dst, pool));
+          SVN_ERR(create_special_file_from_stream(src_stream, dst, pool));
+
+          return svn_error_trace(svn_stream_close(src_stream));
         }
       /* else !expand */
 
@@ -1807,7 +1817,7 @@ svn_subst_copy_and_translate4(const char *src,
     }
 
   /* Now that dst_tmp contains the translated data, do the atomic rename. */
-  SVN_ERR(svn_io_file_rename(dst_tmp, dst, pool));
+  SVN_ERR(svn_io_file_rename2(dst_tmp, dst, FALSE, pool));
 
   /* Preserve the source file's permission bits. */
   SVN_ERR(svn_io_copy_perms(src, dst, pool));
@@ -1835,10 +1845,10 @@ read_handler_special(void *baton, char *buffer, apr_size_t *len)
 
   if (btn->read_stream)
     /* We actually found a file to read from */
-    return svn_stream_read(btn->read_stream, buffer, len);
+    return svn_stream_read_full(btn->read_stream, buffer, len);
   else
     return svn_error_createf(APR_ENOENT, NULL,
-                             "Can't read special file: File '%s' not found",
+                             _("Can't read special file: File '%s' not found"),
                              svn_dirent_local_style(btn->path, btn->pool));
 }
 
@@ -1925,7 +1935,8 @@ svn_subst_stream_from_specialfile(svn_stream_t **stream,
   baton->write_stream = svn_stream_from_stringbuf(baton->write_content, pool);
 
   *stream = svn_stream_create(baton, pool);
-  svn_stream_set_read(*stream, read_handler_special);
+  svn_stream_set_read2(*stream, NULL /* only full read support */,
+                       read_handler_special);
   svn_stream_set_write(*stream, write_handler_special);
   svn_stream_set_close(*stream, close_handler_special);
 
@@ -1954,7 +1965,7 @@ svn_subst_translate_string2(svn_string_t **new_value,
       return SVN_NO_ERROR;
     }
 
-  if (encoding && !strcmp(encoding, "UTF-8")) 
+  if (encoding && !strcmp(encoding, "UTF-8"))
     {
       val_utf8 = value->data;
     }

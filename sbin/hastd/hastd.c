@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2010 The FreeBSD Foundation
  * Copyright (c) 2010-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
@@ -1090,7 +1092,7 @@ main_loop(void)
 			fd = proto_descriptor(lst->hl_conn);
 			PJDLOG_ASSERT(fd >= 0);
 			FD_SET(fd, &rfds);
-			maxfd = fd > maxfd ? fd : maxfd;
+			maxfd = MAX(fd, maxfd);
 		}
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			if (res->hr_event == NULL)
@@ -1098,14 +1100,14 @@ main_loop(void)
 			fd = proto_descriptor(res->hr_event);
 			PJDLOG_ASSERT(fd >= 0);
 			FD_SET(fd, &rfds);
-			maxfd = fd > maxfd ? fd : maxfd;
+			maxfd = MAX(fd, maxfd);
 			if (res->hr_role == HAST_ROLE_PRIMARY) {
 				/* Only primary workers asks for connections. */
 				PJDLOG_ASSERT(res->hr_conn != NULL);
 				fd = proto_descriptor(res->hr_conn);
 				PJDLOG_ASSERT(fd >= 0);
 				FD_SET(fd, &rfds);
-				maxfd = fd > maxfd ? fd : maxfd;
+				maxfd = MAX(fd, maxfd);
 			} else {
 				PJDLOG_ASSERT(res->hr_conn == NULL);
 			}

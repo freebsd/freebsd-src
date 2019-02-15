@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "$Id: vs_refresh.c,v 10.53 2013/11/01 11:57:36 zy Exp $";
+static const char sccsid[] = "$Id: vs_refresh.c,v 10.54 2015/04/08 16:32:49 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -30,14 +30,14 @@ static const char sccsid[] = "$Id: vs_refresh.c,v 10.53 2013/11/01 11:57:36 zy E
 #define	UPDATE_CURSOR	0x01			/* Update the cursor. */
 #define	UPDATE_SCREEN	0x02			/* Flush to screen. */
 
-static void	vs_modeline __P((SCR *));
-static int	vs_paint __P((SCR *, u_int));
+static void	vs_modeline(SCR *);
+static int	vs_paint(SCR *, u_int);
 
 /*
  * v_repaint --
  *	Repaint selected lines from the screen.
  *
- * PUBLIC: int vs_repaint __P((SCR *, EVENT *));
+ * PUBLIC: int vs_repaint(SCR *, EVENT *);
  */
 int
 vs_repaint(
@@ -59,7 +59,7 @@ vs_repaint(
  * vs_refresh --
  *	Refresh all screens.
  *
- * PUBLIC: int vs_refresh __P((SCR *, int));
+ * PUBLIC: int vs_refresh(SCR *, int);
  */
 int
 vs_refresh(
@@ -593,7 +593,7 @@ slow:	for (smp = HMAP; smp->lno != LNO; ++smp);
 		 * for the number option offset.
 		 */
 		cnt = vs_columns(sp, NULL, LNO, &CNO, NULL);
-		if (O_ISSET(sp, O_NUMBER) && cnt >= O_NUMBER_LENGTH)
+		if (O_ISSET(sp, O_NUMBER))
 			cnt -= O_NUMBER_LENGTH;
 
 		/* Adjust the window towards the beginning of the line. */

@@ -18,217 +18,204 @@ namespace lldb {
 
 class SBFrame;
 
-class SBThread
-{
+class LLDB_API SBThread {
 public:
-    enum
-    {
-        eBroadcastBitStackChanged           = (1 << 0),
-        eBroadcastBitThreadSuspended        = (1 << 1),
-        eBroadcastBitThreadResumed          = (1 << 2),
-        eBroadcastBitSelectedFrameChanged   = (1 << 3),
-        eBroadcastBitThreadSelected         = (1 << 4)
-    };
+  enum {
+    eBroadcastBitStackChanged = (1 << 0),
+    eBroadcastBitThreadSuspended = (1 << 1),
+    eBroadcastBitThreadResumed = (1 << 2),
+    eBroadcastBitSelectedFrameChanged = (1 << 3),
+    eBroadcastBitThreadSelected = (1 << 4)
+  };
 
-    static const char *
-    GetBroadcasterClassName ();
-    
-    SBThread ();
+  static const char *GetBroadcasterClassName();
 
-    SBThread (const lldb::SBThread &thread);
-    
-    SBThread (const lldb::ThreadSP& lldb_object_sp);
+  SBThread();
 
-   ~SBThread();
+  SBThread(const lldb::SBThread &thread);
 
-    bool
-    IsValid() const;
+  SBThread(const lldb::ThreadSP &lldb_object_sp);
 
-    void
-    Clear ();
+  ~SBThread();
 
-    lldb::StopReason
-    GetStopReason();
+  lldb::SBQueue GetQueue() const;
 
-    /// Get the number of words associated with the stop reason.
-    /// See also GetStopReasonDataAtIndex().
-    size_t
-    GetStopReasonDataCount();
+  bool IsValid() const;
 
-    //--------------------------------------------------------------------------
-    /// Get information associated with a stop reason.
-    ///
-    /// Breakpoint stop reasons will have data that consists of pairs of 
-    /// breakpoint IDs followed by the breakpoint location IDs (they always come
-    /// in pairs).
-    ///
-    /// Stop Reason              Count Data Type
-    /// ======================== ===== =========================================
-    /// eStopReasonNone          0
-    /// eStopReasonTrace         0
-    /// eStopReasonBreakpoint    N     duple: {breakpoint id, location id}
-    /// eStopReasonWatchpoint    1     watchpoint id
-    /// eStopReasonSignal        1     unix signal number
-    /// eStopReasonException     N     exception data
-    /// eStopReasonExec          0
-    /// eStopReasonPlanComplete  0
-    //--------------------------------------------------------------------------
-    uint64_t
-    GetStopReasonDataAtIndex(uint32_t idx);
+  void Clear();
 
-    size_t
-    GetStopDescription (char *dst, size_t dst_len);
-    
-    SBValue
-    GetStopReturnValue ();
+  lldb::StopReason GetStopReason();
 
-    lldb::tid_t
-    GetThreadID () const;
+  /// Get the number of words associated with the stop reason.
+  /// See also GetStopReasonDataAtIndex().
+  size_t GetStopReasonDataCount();
 
-    uint32_t
-    GetIndexID () const;
+  //--------------------------------------------------------------------------
+  /// Get information associated with a stop reason.
+  ///
+  /// Breakpoint stop reasons will have data that consists of pairs of
+  /// breakpoint IDs followed by the breakpoint location IDs (they always come
+  /// in pairs).
+  ///
+  /// Stop Reason              Count Data Type
+  /// ======================== ===== =========================================
+  /// eStopReasonNone          0
+  /// eStopReasonTrace         0
+  /// eStopReasonBreakpoint    N     duple: {breakpoint id, location id}
+  /// eStopReasonWatchpoint    1     watchpoint id
+  /// eStopReasonSignal        1     unix signal number
+  /// eStopReasonException     N     exception data
+  /// eStopReasonExec          0
+  /// eStopReasonPlanComplete  0
+  //--------------------------------------------------------------------------
+  uint64_t GetStopReasonDataAtIndex(uint32_t idx);
 
-    const char *
-    GetName () const;
+  bool GetStopReasonExtendedInfoAsJSON(lldb::SBStream &stream);
 
-    const char *
-    GetQueueName() const;
+  SBThreadCollection
+  GetStopReasonExtendedBacktraces(InstrumentationRuntimeType type);
 
-    lldb::queue_id_t
-    GetQueueID() const;
+  size_t GetStopDescription(char *dst, size_t dst_len);
 
-    void
-    StepOver (lldb::RunMode stop_other_threads = lldb::eOnlyDuringStepping);
+  SBValue GetStopReturnValue();
 
-    void
-    StepInto (lldb::RunMode stop_other_threads = lldb::eOnlyDuringStepping);
+  lldb::tid_t GetThreadID() const;
 
-    void
-    StepInto (const char *target_name, lldb::RunMode stop_other_threads = lldb::eOnlyDuringStepping);
-    
-    void
-    StepOut ();
+  uint32_t GetIndexID() const;
 
-    void
-    StepOutOfFrame (lldb::SBFrame &frame);
+  const char *GetName() const;
 
-    void
-    StepInstruction(bool step_over);
+  const char *GetQueueName() const;
 
-    SBError
-    StepOverUntil (lldb::SBFrame &frame, 
-                   lldb::SBFileSpec &file_spec, 
-                   uint32_t line);
+  lldb::queue_id_t GetQueueID() const;
 
-    SBError
-    JumpToLine (lldb::SBFileSpec &file_spec, uint32_t line);
+  bool GetInfoItemByPathAsString(const char *path, SBStream &strm);
 
-    void
-    RunToAddress (lldb::addr_t addr);
-    
-    SBError
-    ReturnFromFrame (SBFrame &frame, SBValue &return_value);
+  void StepOver(lldb::RunMode stop_other_threads = lldb::eOnlyDuringStepping);
 
-    //--------------------------------------------------------------------------
-    /// LLDB currently supports process centric debugging which means when any
-    /// thread in a process stops, all other threads are stopped. The Suspend()
-    /// call here tells our process to suspend a thread and not let it run when
-    /// the other threads in a process are allowed to run. So when 
-    /// SBProcess::Continue() is called, any threads that aren't suspended will
-    /// be allowed to run. If any of the SBThread functions for stepping are 
-    /// called (StepOver, StepInto, StepOut, StepInstruction, RunToAddres), the
-    /// thread will not be allowed to run and these funtions will simply return.
-    ///
-    /// Eventually we plan to add support for thread centric debugging where
-    /// each thread is controlled individually and each thread would broadcast
-    /// its state, but we haven't implemented this yet.
-    /// 
-    /// Likewise the SBThread::Resume() call will again allow the thread to run
-    /// when the process is continued.
-    ///
-    /// Suspend() and Resume() functions are not currently reference counted, if
-    /// anyone has the need for them to be reference counted, please let us
-    /// know.
-    //--------------------------------------------------------------------------
-    bool
-    Suspend();
-    
-    bool
-    Resume ();
-    
-    bool
-    IsSuspended();
+  void StepInto(lldb::RunMode stop_other_threads = lldb::eOnlyDuringStepping);
 
-    bool
-    IsStopped();
+  void StepInto(const char *target_name,
+                lldb::RunMode stop_other_threads = lldb::eOnlyDuringStepping);
 
-    uint32_t
-    GetNumFrames ();
+  void StepInto(const char *target_name, uint32_t end_line, SBError &error,
+                lldb::RunMode stop_other_threads = lldb::eOnlyDuringStepping);
 
-    lldb::SBFrame
-    GetFrameAtIndex (uint32_t idx);
+  void StepOut();
 
-    lldb::SBFrame
-    GetSelectedFrame ();
+  void StepOutOfFrame(lldb::SBFrame &frame);
 
-    lldb::SBFrame
-    SetSelectedFrame (uint32_t frame_idx);
-    
-    static bool
-    EventIsThreadEvent (const SBEvent &event);
-    
-    static SBFrame
-    GetStackFrameFromEvent (const SBEvent &event);
-    
-    static SBThread
-    GetThreadFromEvent (const SBEvent &event);
+  void StepInstruction(bool step_over);
 
-    lldb::SBProcess
-    GetProcess ();
+  SBError StepOverUntil(lldb::SBFrame &frame, lldb::SBFileSpec &file_spec,
+                        uint32_t line);
 
-    const lldb::SBThread &
-    operator = (const lldb::SBThread &rhs);
+  SBError StepUsingScriptedThreadPlan(const char *script_class_name);
 
-    bool
-    operator == (const lldb::SBThread &rhs) const;
+  SBError StepUsingScriptedThreadPlan(const char *script_class_name,
+                                      bool resume_immediately);
 
-    bool
-    operator != (const lldb::SBThread &rhs) const;
+  SBError JumpToLine(lldb::SBFileSpec &file_spec, uint32_t line);
 
-    bool
-    GetDescription (lldb::SBStream &description) const;
-    
-    bool
-    GetStatus (lldb::SBStream &status) const;
+  void RunToAddress(lldb::addr_t addr);
 
-    SBThread
-    GetExtendedBacktraceThread (const char *type);
+  SBError ReturnFromFrame(SBFrame &frame, SBValue &return_value);
 
-    uint32_t
-    GetExtendedBacktraceOriginatingIndexID ();
+  SBError UnwindInnermostExpression();
 
-protected:
-    friend class SBBreakpoint;
-    friend class SBBreakpointLocation;
-    friend class SBFrame;
-    friend class SBProcess;
-    friend class SBDebugger;
-    friend class SBValue;
-    friend class lldb_private::QueueImpl;
-    friend class SBQueueItem;
+  //--------------------------------------------------------------------------
+  /// LLDB currently supports process centric debugging which means when any
+  /// thread in a process stops, all other threads are stopped. The Suspend()
+  /// call here tells our process to suspend a thread and not let it run when
+  /// the other threads in a process are allowed to run. So when
+  /// SBProcess::Continue() is called, any threads that aren't suspended will
+  /// be allowed to run. If any of the SBThread functions for stepping are
+  /// called (StepOver, StepInto, StepOut, StepInstruction, RunToAddress), the
+  /// thread will not be allowed to run and these functions will simply return.
+  ///
+  /// Eventually we plan to add support for thread centric debugging where
+  /// each thread is controlled individually and each thread would broadcast
+  /// its state, but we haven't implemented this yet.
+  ///
+  /// Likewise the SBThread::Resume() call will again allow the thread to run
+  /// when the process is continued.
+  ///
+  /// Suspend() and Resume() functions are not currently reference counted, if
+  /// anyone has the need for them to be reference counted, please let us
+  /// know.
+  //--------------------------------------------------------------------------
+  bool Suspend();
 
-    void
-    SetThread (const lldb::ThreadSP& lldb_object_sp);
+  bool Resume();
+
+  bool IsSuspended();
+
+  bool IsStopped();
+
+  uint32_t GetNumFrames();
+
+  lldb::SBFrame GetFrameAtIndex(uint32_t idx);
+
+  lldb::SBFrame GetSelectedFrame();
+
+  lldb::SBFrame SetSelectedFrame(uint32_t frame_idx);
+
+  static bool EventIsThreadEvent(const SBEvent &event);
+
+  static SBFrame GetStackFrameFromEvent(const SBEvent &event);
+
+  static SBThread GetThreadFromEvent(const SBEvent &event);
+
+  lldb::SBProcess GetProcess();
+
+  const lldb::SBThread &operator=(const lldb::SBThread &rhs);
+
+  bool operator==(const lldb::SBThread &rhs) const;
+
+  bool operator!=(const lldb::SBThread &rhs) const;
+
+  bool GetDescription(lldb::SBStream &description) const;
+
+  bool GetDescription(lldb::SBStream &description, bool stop_format) const;
+
+  bool GetStatus(lldb::SBStream &status) const;
+
+  SBThread GetExtendedBacktraceThread(const char *type);
+
+  uint32_t GetExtendedBacktraceOriginatingIndexID();
+
+  bool SafeToCallFunctions();
 
 #ifndef SWIG
-    SBError
-    ResumeNewPlan (lldb_private::ExecutionContext &exe_ctx, lldb_private::ThreadPlan *new_plan);
+  lldb_private::Thread *operator->();
+
+  lldb_private::Thread *get();
+
+#endif
+
+protected:
+  friend class SBBreakpoint;
+  friend class SBBreakpointLocation;
+  friend class SBBreakpointCallbackBaton;
+  friend class SBExecutionContext;
+  friend class SBFrame;
+  friend class SBProcess;
+  friend class SBDebugger;
+  friend class SBValue;
+  friend class lldb_private::QueueImpl;
+  friend class SBQueueItem;
+
+  void SetThread(const lldb::ThreadSP &lldb_object_sp);
+
+#ifndef SWIG
+  SBError ResumeNewPlan(lldb_private::ExecutionContext &exe_ctx,
+                        lldb_private::ThreadPlan *new_plan);
 #endif
 
 private:
-    lldb::ExecutionContextRefSP m_opaque_sp;
+  lldb::ExecutionContextRefSP m_opaque_sp;
 };
 
 } // namespace lldb
 
-#endif  // LLDB_SBThread_h_
+#endif // LLDB_SBThread_h_

@@ -1,6 +1,8 @@
 /*	$NetBSD: ffs_subr.c,v 1.32 2003/12/30 12:33:24 pk Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -35,6 +37,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/types.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
@@ -82,10 +85,7 @@ ffs_fragacct_swap(struct fs *fs, int fragmap, int32_t fraglist[], int cnt, int n
  *  returns false if any corresponding bit in the free map is 0
  */
 int
-ffs_isblock(fs, cp, h)
-	struct fs *fs;
-	u_char *cp;
-	int32_t h;
+ffs_isblock(struct fs *fs, u_char *cp, int32_t h)
 {
 	u_char mask;
 
@@ -113,10 +113,7 @@ ffs_isblock(fs, cp, h)
  *  returns false if any corresponding bit in the free map is 1
  */
 int
-ffs_isfreeblock(fs, cp, h)
-	struct fs *fs;
-	u_char *cp;
-	int32_t h;
+ffs_isfreeblock(struct fs *fs, u_char *cp, int32_t h)
 {
 
 	switch ((int)fs->fs_fragshift) {
@@ -138,10 +135,7 @@ ffs_isfreeblock(fs, cp, h)
  * take a block out of the map
  */
 void
-ffs_clrblock(fs, cp, h)
-	struct fs *fs;
-	u_char *cp;
-	int32_t h;
+ffs_clrblock(struct fs *fs, u_char *cp, int32_t h)
 {
 
 	switch ((int)fs->fs_fragshift) {
@@ -167,10 +161,7 @@ ffs_clrblock(fs, cp, h)
  * put a block into the map
  */
 void
-ffs_setblock(fs, cp, h)
-	struct fs *fs;
-	u_char *cp;
-	int32_t h;
+ffs_setblock(struct fs *fs, u_char *cp, int32_t h)
 {
 
 	switch ((int)fs->fs_fragshift) {

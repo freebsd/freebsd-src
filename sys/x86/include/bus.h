@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause AND BSD-2-Clause-NetBSDE
+ *
  * Copyright (c) KATO Takenori, 1999.
  *
  * All rights reserved.  Unpublished rights reserved under the copyright
@@ -101,9 +103,7 @@
 #include <machine/cpufunc.h>
 
 #ifndef __GNUCLIKE_ASM
-# ifndef lint
-#  error "no assembler code for your compiler"
-# endif
+#error "no assembler code for your compiler"
 #endif
 
 /*
@@ -118,6 +118,7 @@
 #define BUS_SPACE_MAXADDR_24BIT	0xFFFFFF
 #define BUS_SPACE_MAXADDR_32BIT 0xFFFFFFFF
 #if defined(__amd64__) || defined(PAE)
+#define BUS_SPACE_MAXADDR_48BIT	0xFFFFFFFFFFFFULL
 #define BUS_SPACE_MAXADDR	0xFFFFFFFFFFFFFFFFULL
 #else
 #define BUS_SPACE_MAXADDR	0xFFFFFFFF
@@ -130,32 +131,15 @@
  * Map a region of device bus space into CPU virtual address space.
  */
 
-static __inline int bus_space_map(bus_space_tag_t t, bus_addr_t addr,
-				  bus_size_t size, int flags,
-				  bus_space_handle_t *bshp);
-
-static __inline int
-bus_space_map(bus_space_tag_t t __unused, bus_addr_t addr,
-	      bus_size_t size __unused, int flags __unused,
-	      bus_space_handle_t *bshp)
-{
-
-	*bshp = addr;
-	return (0);
-}
+int bus_space_map(bus_space_tag_t tag, bus_addr_t addr, bus_size_t size,
+    int flags, bus_space_handle_t *bshp);
 
 /*
  * Unmap a region of device bus space.
  */
 
-static __inline void bus_space_unmap(bus_space_tag_t t, bus_space_handle_t bsh,
-				     bus_size_t size);
-
-static __inline void
-bus_space_unmap(bus_space_tag_t t __unused, bus_space_handle_t bsh __unused,
-		bus_size_t size __unused)
-{
-}
+void bus_space_unmap(bus_space_tag_t tag, bus_space_handle_t bsh,
+    bus_size_t size);
 
 /*
  * Get a new handle for a subregion of an already-mapped area of bus space.

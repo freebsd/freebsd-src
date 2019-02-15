@@ -1,7 +1,9 @@
-/*	$OpenBSD: eval.c,v 1.73 2014/07/11 21:04:17 espie Exp $ */
+/*	$OpenBSD: eval.c,v 1.74 2015/02/05 12:59:57 millert Exp $	*/
 /*	$NetBSD: eval.c,v 1.7 1996/11/10 21:21:29 pk Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -48,8 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <limits.h>
 #include <unistd.h>
-#include <stdint.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
@@ -895,7 +897,7 @@ dosub(const char *argv[], int argc)
  * function of ICON language. Within mapvec, we replace every character 
  * of "from" with the corresponding character in "to". 
  * If "to" is shorter than "from", than the corresponding entries are null, 
- * which means that those characters dissapear altogether. 
+ * which means that those characters disappear altogether. 
  */
 static void
 map(char *dest, const char *src, const char *from, const char *to)

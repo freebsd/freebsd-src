@@ -27,12 +27,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * LSI MPT-Fusion Host Adapter FreeBSD userland interface
+ * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD userland interface
  *
  * $FreeBSD$
  */
 /*-
- * Copyright (c) 2011-2014 LSI Corp.
+ * Copyright (c) 2011-2015 LSI Corp.
+ * Copyright (c) 2013-2016 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,7 +57,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * LSI MPT-Fusion Host Adapter FreeBSD
+ * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
  *
  * $FreeBSD$
  */
@@ -148,6 +149,7 @@ typedef struct mpr_pci_bits
  *
  */
 #define	MPRIOCTL_ADAPTER_TYPE_SAS3		6
+#define	MPRIOCTL_ADAPTER_TYPE_SAS35		7
 typedef struct mpr_adapter_data
 {
 	uint32_t	StructureLength;
@@ -201,7 +203,7 @@ typedef struct mpr_pass_thru
 /*
  * Event queue defines
  */
-#define	MPR_EVENT_QUEUE_SIZE		(50) /* Max Events stored in driver */
+#define	MPR_EVENT_QUEUE_SIZE		(200) /* Max Events stored in driver */
 #define	MPR_MAX_EVENT_DATA_LENGTH	(48) /* Size of each event in Dwords */
 
 typedef struct mpr_event_query

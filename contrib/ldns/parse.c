@@ -161,7 +161,9 @@ ldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit, int *li
 	return (ssize_t)i;
 
 tokenread:
-	ldns_fskipcs_l(f, del, line_nr);
+	if(*del == '"') /* do not skip over quotes, they are significant */
+		ldns_fskipcs_l(f, del+1, line_nr);
+	else	ldns_fskipcs_l(f, del, line_nr);
 	*t = '\0';
 	if (p != 0) {
 		return -1;
@@ -331,7 +333,9 @@ ldns_bget_token(ldns_buffer *b, char *token, const char *delim, size_t limit)
 	return (ssize_t)i;
 
 tokenread:
-	ldns_bskipcs(b, del);
+	if(*del == '"') /* do not skip over quotes, they are significant */
+		ldns_bskipcs(b, del+1);
+	else	ldns_bskipcs(b, del);
 	*t = '\0';
 
 	if (p != 0) {

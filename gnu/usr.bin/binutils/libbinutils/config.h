@@ -104,7 +104,7 @@
 #define HAVE_MKSTEMP 1
 
 /* Define to 1 if you have the `sbrk' function. */
-#define HAVE_SBRK 1
+/* #undef HAVE_SBRK */
 
 /* Define to 1 if you have the `setmode' function. */
 #define HAVE_SETMODE 1

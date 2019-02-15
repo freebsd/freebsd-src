@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2014
+.Dd April 24, 2018
 .Dt UGEN 4
 .Os
 .Sh NAME
@@ -291,6 +291,17 @@ and
 .Va alt_index
 should be set to
 .Dv USB_CURRENT_ALT_INDEX .
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.usb.ugen.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
 .Sh FILES
 .Bl -tag -width ".Pa /dev/ugen Ns Ar N Ns Pa \&. Ns Ar E" -compact
 .It Pa /dev/ugen Ns Ar N Ns Pa \&. Ns Ar E

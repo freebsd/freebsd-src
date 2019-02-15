@@ -17,6 +17,7 @@ e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em \
 EMS+=		elf${BITS}_sparc
 .for ext in ${ELF_SCR_EXT}
 LDSCRIPTS+=	elf${BITS}_sparc.${ext}
+ldscripts/elf${BITS}_sparc.${ext}: eelf${BITS}_sparc.c
 .endfor
 
 SRCS+=		eelf${BITS}_sparc.c

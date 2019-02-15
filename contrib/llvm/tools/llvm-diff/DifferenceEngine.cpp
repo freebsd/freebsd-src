@@ -16,14 +16,13 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSet.h"
+#include "llvm/IR/CFG.h"
+#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/CFG.h"
-#include "llvm/Support/CallSite.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/type_traits.h"
@@ -210,7 +209,8 @@ class FunctionDifferenceEngine {
       if (!LeftI->use_empty())
         TentativeValues.insert(std::make_pair(LeftI, RightI));
 
-      ++LI, ++RI;
+      ++LI;
+      ++RI;
     } while (LI != LE); // This is sufficient: we can't get equality of
                         // terminators if there are residual instructions.
 
@@ -315,17 +315,15 @@ class FunctionDifferenceEngine {
       bool Difference = false;
 
       DenseMap<ConstantInt*,BasicBlock*> LCases;
-      
-      for (SwitchInst::CaseIt I = LI->case_begin(), E = LI->case_end();
-           I != E; ++I)
-        LCases[I.getCaseValue()] = I.getCaseSuccessor();
-        
-      for (SwitchInst::CaseIt I = RI->case_begin(), E = RI->case_end();
-           I != E; ++I) {
-        ConstantInt *CaseValue = I.getCaseValue();
+      for (auto Case : LI->cases())
+        LCases[Case.getCaseValue()] = Case.getCaseSuccessor();
+
+      for (auto Case : RI->cases()) {
+        ConstantInt *CaseValue = Case.getCaseValue();
         BasicBlock *LCase = LCases[CaseValue];
         if (LCase) {
-          if (TryUnify) tryUnify(LCase, I.getCaseSuccessor());
+          if (TryUnify)
+            tryUnify(LCase, Case.getCaseSuccessor());
           LCases.erase(CaseValue);
         } else if (Complain || !Difference) {
           if (Complain)
@@ -555,7 +553,9 @@ void FunctionDifferenceEngine::runBlockDiff(BasicBlock::iterator LStart,
     PI = Path.begin(), PE = Path.end();
   while (PI != PE && *PI == DC_match) {
     unify(&*LI, &*RI);
-    ++PI, ++LI, ++RI;
+    ++PI;
+    ++LI;
+    ++RI;
   }
 
   for (; PI != PE; ++PI) {
@@ -589,7 +589,8 @@ void FunctionDifferenceEngine::runBlockDiff(BasicBlock::iterator LStart,
   while (LI != LE) {
     assert(RI != RE);
     unify(&*LI, &*RI);
-    ++LI, ++RI;
+    ++LI;
+    ++RI;
   }
 
   // If the terminators have different kinds, but one is an invoke and the
@@ -599,7 +600,7 @@ void FunctionDifferenceEngine::runBlockDiff(BasicBlock::iterator LStart,
   TerminatorInst *RTerm = RStart->getParent()->getTerminator();
   if (isa<BranchInst>(LTerm) && isa<InvokeInst>(RTerm)) {
     if (cast<BranchInst>(LTerm)->isConditional()) return;
-    BasicBlock::iterator I = LTerm;
+    BasicBlock::iterator I = LTerm->getIterator();
     if (I == LStart->getParent()->begin()) return;
     --I;
     if (!isa<CallInst>(*I)) return;
@@ -612,7 +613,7 @@ void FunctionDifferenceEngine::runBlockDiff(BasicBlock::iterator LStart,
     tryUnify(LTerm->getSuccessor(0), RInvoke->getNormalDest());
   } else if (isa<InvokeInst>(LTerm) && isa<BranchInst>(RTerm)) {
     if (cast<BranchInst>(RTerm)->isConditional()) return;
-    BasicBlock::iterator I = RTerm;
+    BasicBlock::iterator I = RTerm->getIterator();
     if (I == RStart->getParent()->begin()) return;
     --I;
     if (!isa<CallInst>(*I)) return;

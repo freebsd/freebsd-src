@@ -2,6 +2,8 @@
 /*	$NetBSD: nslexer.l,v 1.3 1999/01/25 00:16:17 lukem Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1997, 1998, 1999 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -48,6 +50,7 @@ static char *rcsid =
 
 %}
 
+%option never-interactive
 %option noinput
 %option nounput
 %option yylineno
@@ -97,14 +100,13 @@ STRING		[a-zA-Z][a-zA-Z0-9_]*
 
 #undef _nsyywrap
 int
-_nsyywrap()
+_nsyywrap(void)
 {
 	return 1;
 } /* _nsyywrap */
 
 void
-_nsyyerror(msg)
-	const char *msg;
+_nsyyerror(const char *msg)
 {
 
 	 syslog(LOG_ERR, "NSSWITCH(nslexer): %s line %d: %s at '%s'",

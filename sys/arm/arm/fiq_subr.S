@@ -37,9 +37,10 @@
  */
 
 
-#include <machine/armreg.h>
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
+
+#include <machine/armreg.h>
 
 /*
  * MODE_CHANGE_NOP should be inserted between a mode change and a

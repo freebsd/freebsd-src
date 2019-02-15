@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../dev/usb/net
+.PATH: ${SRCTOP}/sys/dev/usb/net
 
 KMOD=	if_axge
 SRCS+=	if_axge.c usbdevs.h

@@ -25,9 +25,11 @@ using namespace ento;
 
 namespace {
 class TraversalDumper : public Checker< check::BranchCondition,
+                                        check::BeginFunction,
                                         check::EndFunction > {
 public:
   void checkBranchCondition(const Stmt *Condition, CheckerContext &C) const;
+  void checkBeginFunction(CheckerContext &C) const;
   void checkEndFunction(CheckerContext &C) const;
 };
 }
@@ -48,6 +50,10 @@ void TraversalDumper::checkBranchCondition(const Stmt *Condition,
   SourceLocation Loc = Parent->getLocStart();
   llvm::outs() << C.getSourceManager().getSpellingLineNumber(Loc) << " "
                << Parent->getStmtClassName() << "\n";
+}
+
+void TraversalDumper::checkBeginFunction(CheckerContext &C) const {
+  llvm::outs() << "--BEGIN FUNCTION--\n";
 }
 
 void TraversalDumper::checkEndFunction(CheckerContext &C) const {
@@ -72,7 +78,7 @@ public:
 void CallDumper::checkPreCall(const CallEvent &Call, CheckerContext &C) const {
   unsigned Indentation = 0;
   for (const LocationContext *LC = C.getLocationContext()->getParent();
-       LC != 0; LC = LC->getParent())
+       LC != nullptr; LC = LC->getParent())
     ++Indentation;
 
   // It is mildly evil to print directly to llvm::outs() rather than emitting
@@ -89,7 +95,7 @@ void CallDumper::checkPostCall(const CallEvent &Call, CheckerContext &C) const {
 
   unsigned Indentation = 0;
   for (const LocationContext *LC = C.getLocationContext()->getParent();
-       LC != 0; LC = LC->getParent())
+       LC != nullptr; LC = LC->getParent())
     ++Indentation;
 
   // It is mildly evil to print directly to llvm::outs() rather than emitting

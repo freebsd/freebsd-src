@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001 David E. O'Brien
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -42,11 +44,15 @@
 #define	_ARM_INCLUDE__ALIGN_H_
 
 /*
- * Round p (pointer or byte index) up to a correctly-aligned value
- * for all data types (int, long, ...).   The result is unsigned int
- * and must be cast to any desired pointer type.
+ * Round p (pointer or byte index) up to the hardware-required alignment which
+ * is sufficient for any data type, pointer or numeric.  The resulting type
+ * is equivelent to arm's uintptr_t (but is purposely spelled "unsigned" here).
  */
+#if __ARM_ARCH >= 6
 #define	_ALIGNBYTES	(sizeof(int) - 1)
+#else
+#define	_ALIGNBYTES	(sizeof(long long) - 1)
+#endif
 #define	_ALIGN(p)	(((unsigned)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
 
 #endif /* !_ARM_INCLUDE__ALIGN_H_ */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Izumi Tsutsui.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,7 +79,7 @@ mc146818_attach(device_t dev)
 	}
 
 	mtx_lock_spin(&sc->sc_mtx);
-	if (!(*sc->sc_mcread)(dev, MC_REGD) & MC_REGD_VRT) {
+	if (((*sc->sc_mcread)(dev, MC_REGD) & MC_REGD_VRT) == 0) {
 		mtx_unlock_spin(&sc->sc_mtx);
 		device_printf(dev, "%s: battery low\n", __func__);
 		return (ENXIO);
@@ -118,7 +120,7 @@ mc146818_gettime(device_t dev, struct timespec *ts)
 	 */
 	for (;;) {
 		mtx_lock_spin(&sc->sc_mtx);
-		if (!((*sc->sc_mcread)(dev, MC_REGA) & MC_REGA_UIP))
+		if (((*sc->sc_mcread)(dev, MC_REGA) & MC_REGA_UIP) == 0)
 			break;
 		mtx_unlock_spin(&sc->sc_mtx);
 		if (--timeout < 0) {
@@ -164,7 +166,7 @@ mc146818_getsecs(device_t dev, int *secp)
 
 	for (;;) {
 		mtx_lock_spin(&sc->sc_mtx);
-		if (!((*sc->sc_mcread)(dev, MC_REGA) & MC_REGA_UIP)) {
+		if (((*sc->sc_mcread)(dev, MC_REGA) & MC_REGA_UIP) == 0) {
 			sec = FROMREG((*sc->sc_mcread)(dev, MC_SEC));
 			mtx_unlock_spin(&sc->sc_mtx);
 			break;

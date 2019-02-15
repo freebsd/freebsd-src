@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-BZ2DIR=	${.CURDIR}/../../contrib/bzip2
+PACKAGE=	lib${LIB}
+BZ2DIR=	${SRCTOP}/contrib/bzip2
 .PATH: ${BZ2DIR}
 
 LIB=		bz2

@@ -20,7 +20,9 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
+ * Copyright (c) 2014 Integros [integros.com]
+ * Copyright (c) 2017 Datto Inc.
  */
 
 #include <sys/bpobj.h>
@@ -43,7 +45,7 @@ bpobj_alloc_empty(objset_t *os, int blocksize, dmu_tx_t *tx)
 		if (!spa_feature_is_active(spa, SPA_FEATURE_EMPTY_BPOBJ)) {
 			ASSERT0(dp->dp_empty_bpobj);
 			dp->dp_empty_bpobj =
-			    bpobj_alloc(os, SPA_MAXBLOCKSIZE, tx);
+			    bpobj_alloc(os, SPA_OLD_MAXBLOCKSIZE, tx);
 			VERIFY(zap_add(os,
 			    DMU_POOL_DIRECTORY_OBJECT,
 			    DMU_POOL_EMPTY_BPOBJ, sizeof (uint64_t), 1,
@@ -174,6 +176,12 @@ bpobj_open(bpobj_t *bpo, objset_t *os, uint64_t object)
 	return (0);
 }
 
+boolean_t
+bpobj_is_open(const bpobj_t *bpo)
+{
+	return (bpo->bpo_object != 0);
+}
+
 void
 bpobj_close(bpobj_t *bpo)
 {
@@ -192,11 +200,11 @@ bpobj_close(bpobj_t *bpo)
 	mutex_destroy(&bpo->bpo_lock);
 }
 
-static boolean_t
-bpobj_hasentries(bpobj_t *bpo)
+boolean_t
+bpobj_is_empty(bpobj_t *bpo)
 {
-	return (bpo->bpo_phys->bpo_num_blkptrs != 0 ||
-	    (bpo->bpo_havesubobj && bpo->bpo_phys->bpo_num_subobjs != 0));
+	return (bpo->bpo_phys->bpo_num_blkptrs == 0 &&
+	    (!bpo->bpo_havesubobj || bpo->bpo_phys->bpo_num_subobjs == 0));
 }
 
 static int
@@ -209,6 +217,7 @@ bpobj_iterate_impl(bpobj_t *bpo, bpobj_itor_t func, void *arg, dmu_tx_t *tx,
 	int err = 0;
 	dmu_buf_t *dbuf = NULL;
 
+	ASSERT(bpobj_is_open(bpo));
 	mutex_enter(&bpo->bpo_lock);
 
 	if (free)
@@ -256,9 +265,8 @@ bpobj_iterate_impl(bpobj_t *bpo, bpobj_itor_t func, void *arg, dmu_tx_t *tx,
 		dbuf = NULL;
 	}
 	if (free) {
-		i++;
 		VERIFY3U(0, ==, dmu_free_range(bpo->bpo_os, bpo->bpo_object,
-		    i * sizeof (blkptr_t), -1ULL, tx));
+		    (i + 1) * sizeof (blkptr_t), -1ULL, tx));
 	}
 	if (err || !bpo->bpo_havesubobj || bpo->bpo_phys->bpo_subobjs == 0)
 		goto out;
@@ -341,7 +349,7 @@ bpobj_iterate_impl(bpobj_t *bpo, bpobj_itor_t func, void *arg, dmu_tx_t *tx,
 
 out:
 	/* If there are no entries, there should be no bytes. */
-	if (!bpobj_hasentries(bpo)) {
+	if (bpobj_is_empty(bpo)) {
 		ASSERT0(bpo->bpo_phys->bpo_bytes);
 		ASSERT0(bpo->bpo_phys->bpo_comp);
 		ASSERT0(bpo->bpo_phys->bpo_uncomp);
@@ -376,6 +384,8 @@ bpobj_enqueue_subobj(bpobj_t *bpo, uint64_t subobj, dmu_tx_t *tx)
 	bpobj_t subbpo;
 	uint64_t used, comp, uncomp, subsubobjs;
 
+	ASSERT(bpobj_is_open(bpo));
+	ASSERT(subobj != 0);
 	ASSERT(bpo->bpo_havesubobj);
 	ASSERT(bpo->bpo_havecomp);
 	ASSERT(bpo->bpo_object != dmu_objset_pool(bpo->bpo_os)->dp_empty_bpobj);
@@ -388,24 +398,25 @@ bpobj_enqueue_subobj(bpobj_t *bpo, uint64_t subobj, dmu_tx_t *tx)
 	VERIFY3U(0, ==, bpobj_open(&subbpo, bpo->bpo_os, subobj));
 	VERIFY3U(0, ==, bpobj_space(&subbpo, &used, &comp, &uncomp));
 
-	if (!bpobj_hasentries(&subbpo)) {
+	if (bpobj_is_empty(&subbpo)) {
 		/* No point in having an empty subobj. */
 		bpobj_close(&subbpo);
 		bpobj_free(bpo->bpo_os, subobj, tx);
 		return;
 	}
 
+	mutex_enter(&bpo->bpo_lock);
 	dmu_buf_will_dirty(bpo->bpo_dbuf, tx);
 	if (bpo->bpo_phys->bpo_subobjs == 0) {
 		bpo->bpo_phys->bpo_subobjs = dmu_object_alloc(bpo->bpo_os,
-		    DMU_OT_BPOBJ_SUBOBJ, SPA_MAXBLOCKSIZE, DMU_OT_NONE, 0, tx);
+		    DMU_OT_BPOBJ_SUBOBJ, SPA_OLD_MAXBLOCKSIZE,
+		    DMU_OT_NONE, 0, tx);
 	}
 
 	dmu_object_info_t doi;
 	ASSERT0(dmu_object_info(bpo->bpo_os, bpo->bpo_phys->bpo_subobjs, &doi));
 	ASSERT3U(doi.doi_type, ==, DMU_OT_BPOBJ_SUBOBJ);
 
-	mutex_enter(&bpo->bpo_lock);
 	dmu_write(bpo->bpo_os, bpo->bpo_phys->bpo_subobjs,
 	    bpo->bpo_phys->bpo_num_subobjs * sizeof (subobj),
 	    sizeof (subobj), &subobj, tx);
@@ -461,6 +472,7 @@ bpobj_enqueue(bpobj_t *bpo, const blkptr_t *bp, dmu_tx_t *tx)
 	int blkoff;
 	blkptr_t *bparray;
 
+	ASSERT(bpobj_is_open(bpo));
 	ASSERT(!BP_IS_HOLE(bp));
 	ASSERT(bpo->bpo_object != dmu_objset_pool(bpo->bpo_os)->dp_empty_bpobj);
 
@@ -546,6 +558,7 @@ space_range_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx)
 int
 bpobj_space(bpobj_t *bpo, uint64_t *usedp, uint64_t *compp, uint64_t *uncompp)
 {
+	ASSERT(bpobj_is_open(bpo));
 	mutex_enter(&bpo->bpo_lock);
 
 	*usedp = bpo->bpo_phys->bpo_bytes;
@@ -571,6 +584,8 @@ bpobj_space_range(bpobj_t *bpo, uint64_t mintxg, uint64_t maxtxg,
 {
 	struct space_range_arg sra = { 0 };
 	int err;
+
+	ASSERT(bpobj_is_open(bpo));
 
 	/*
 	 * As an optimization, if they want the whole txg range, just

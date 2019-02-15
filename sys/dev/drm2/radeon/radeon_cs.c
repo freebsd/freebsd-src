@@ -51,12 +51,12 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 	/* FIXME: we assume that each relocs use 4 dwords */
 	p->nrelocs = chunk->length_dw / 4;
 	p->relocs_ptr = malloc(p->nrelocs * sizeof(void *),
-	    DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (p->relocs_ptr == NULL) {
 		return -ENOMEM;
 	}
 	p->relocs = malloc(p->nrelocs * sizeof(struct radeon_cs_reloc),
-	    DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (p->relocs == NULL) {
 		return -ENOMEM;
 	}
@@ -182,7 +182,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	p->chunk_flags_idx = -1;
 	p->chunk_const_ib_idx = -1;
 	p->chunks_array = malloc(cs->num_chunks * sizeof(uint64_t),
-	    DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (p->chunks_array == NULL) {
 		return -ENOMEM;
 	}
@@ -194,7 +194,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	p->cs_flags = 0;
 	p->nchunks = cs->num_chunks;
 	p->chunks = malloc(p->nchunks * sizeof(struct radeon_cs_chunk),
-	    DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (p->chunks == NULL) {
 		return -ENOMEM;
 	}
@@ -241,7 +241,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 		if ((p->chunks[i].chunk_id == RADEON_CHUNK_ID_RELOCS) ||
 		    (p->chunks[i].chunk_id == RADEON_CHUNK_ID_FLAGS)) {
 			size = p->chunks[i].length_dw * sizeof(uint32_t);
-			p->chunks[i].kdata = malloc(size, DRM_MEM_DRIVER, M_WAITOK);
+			p->chunks[i].kdata = malloc(size, DRM_MEM_DRIVER, M_NOWAIT);
 			if (p->chunks[i].kdata == NULL) {
 				return -ENOMEM;
 			}
@@ -288,8 +288,8 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 			return -EINVAL;
 		}
 		if (p->rdev && (p->rdev->flags & RADEON_IS_AGP)) {
-			p->chunks[p->chunk_ib_idx].kpage[0] = malloc(PAGE_SIZE, DRM_MEM_DRIVER, M_WAITOK);
-			p->chunks[p->chunk_ib_idx].kpage[1] = malloc(PAGE_SIZE, DRM_MEM_DRIVER, M_WAITOK);
+			p->chunks[p->chunk_ib_idx].kpage[0] = malloc(PAGE_SIZE, DRM_MEM_DRIVER, M_NOWAIT);
+			p->chunks[p->chunk_ib_idx].kpage[1] = malloc(PAGE_SIZE, DRM_MEM_DRIVER, M_NOWAIT);
 			if (p->chunks[p->chunk_ib_idx].kpage[0] == NULL ||
 			    p->chunks[p->chunk_ib_idx].kpage[1] == NULL) {
 				free(p->chunks[p->chunk_ib_idx].kpage[0], DRM_MEM_DRIVER);

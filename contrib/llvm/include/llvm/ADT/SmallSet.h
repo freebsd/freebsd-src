@@ -14,9 +14,14 @@
 #ifndef LLVM_ADT_SMALLSET_H
 #define LLVM_ADT_SMALLSET_H
 
+#include "llvm/ADT/None.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Compiler.h"
+#include <cstddef>
+#include <functional>
 #include <set>
+#include <utility>
 
 namespace llvm {
 
@@ -27,28 +32,40 @@ namespace llvm {
 ///
 /// Note that this set does not provide a way to iterate over members in the
 /// set.
-template <typename T, unsigned N,  typename C = std::less<T> >
+template <typename T, unsigned N, typename C = std::less<T>>
 class SmallSet {
   /// Use a SmallVector to hold the elements here (even though it will never
   /// reach its 'large' stage) to avoid calling the default ctors of elements
   /// we will never use.
   SmallVector<T, N> Vector;
   std::set<T, C> Set;
-  typedef typename SmallVector<T, N>::const_iterator VIterator;
-  typedef typename SmallVector<T, N>::iterator mutable_iterator;
-public:
-  SmallSet() {}
 
-  bool empty() const { return Vector.empty() && Set.empty(); }
-  unsigned size() const {
+  using VIterator = typename SmallVector<T, N>::const_iterator;
+  using mutable_iterator = typename SmallVector<T, N>::iterator;
+
+  // In small mode SmallPtrSet uses linear search for the elements, so it is
+  // not a good idea to choose this value too high. You may consider using a
+  // DenseSet<> instead if you expect many elements in the set.
+  static_assert(N <= 32, "N should be small");
+
+public:
+  using size_type = size_t;
+
+  SmallSet() = default;
+
+  LLVM_NODISCARD bool empty() const {
+    return Vector.empty() && Set.empty();
+  }
+
+  size_type size() const {
     return isSmall() ? Vector.size() : Set.size();
   }
 
-  /// count - Return true if the element is in the set.
-  bool count(const T &V) const {
+  /// count - Return 1 if the element is in the set, 0 otherwise.
+  size_type count(const T &V) const {
     if (isSmall()) {
       // Since the collection is small, just do a linear search.
-      return vfind(V) != Vector.end();
+      return vfind(V) == Vector.end() ? 0 : 1;
     } else {
       return Set.count(V);
     }
@@ -56,16 +73,21 @@ public:
 
   /// insert - Insert an element into the set if it isn't already there.
   /// Returns true if the element is inserted (it was not in the set before).
-  bool insert(const T &V) {
+  /// The first value of the returned pair is unused and provided for
+  /// partial compatibility with the standard library self-associative container
+  /// concept.
+  // FIXME: Add iterators that abstract over the small and large form, and then
+  // return those here.
+  std::pair<NoneType, bool> insert(const T &V) {
     if (!isSmall())
-      return Set.insert(V).second;
+      return std::make_pair(None, Set.insert(V).second);
 
     VIterator I = vfind(V);
     if (I != Vector.end())    // Don't reinsert if it already exists.
-      return false;
+      return std::make_pair(None, false);
     if (Vector.size() < N) {
       Vector.push_back(V);
-      return true;
+      return std::make_pair(None, true);
     }
 
     // Otherwise, grow from vector to set.
@@ -74,7 +96,7 @@ public:
       Vector.pop_back();
     }
     Set.insert(V);
-    return true;
+    return std::make_pair(None, true);
   }
 
   template <typename IterT>
@@ -82,7 +104,7 @@ public:
     for (; I != E; ++I)
       insert(*I);
   }
-  
+
   bool erase(const T &V) {
     if (!isSmall())
       return Set.erase(V);
@@ -98,6 +120,7 @@ public:
     Vector.clear();
     Set.clear();
   }
+
 private:
   bool isSmall() const { return Set.empty(); }
 
@@ -116,4 +139,4 @@ class SmallSet<PointeeType*, N> : public SmallPtrSet<PointeeType*, N> {};
 
 } // end namespace llvm
 
-#endif
+#endif // LLVM_ADT_SMALLSET_H

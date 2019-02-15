@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
  * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
@@ -57,12 +59,7 @@ static char *	inet_net_ntop_ipv6(const u_char *src, int bits, char *dst,
  *	Paul Vixie (ISC), July 1996
  */
 char *
-inet_net_ntop(af, src, bits, dst, size)
-	int af;
-	const void *src;
-	int bits;
-	char *dst;
-	size_t size;
+inet_net_ntop(int af, const void *src, int bits, char *dst, size_t size)
 {
 	switch (af) {
 	case AF_INET:
@@ -89,11 +86,7 @@ inet_net_ntop(af, src, bits, dst, size)
  *	Paul Vixie (ISC), July 1996
  */
 static char *
-inet_net_ntop_ipv4(src, bits, dst, size)
-	const u_char *src;
-	int bits;
-	char *dst;
-	size_t size;
+inet_net_ntop_ipv4(const u_char *src, int bits, char *dst, size_t size)
 {
 	char *odst = dst;
 	char *t;

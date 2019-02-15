@@ -41,9 +41,30 @@ bool BuiltinFunctionChecker::evalCall(const CallExpr *CE,
   default:
     return false;
 
+  case Builtin::BI__builtin_assume: {
+    assert (CE->arg_begin() != CE->arg_end());
+    SVal ArgSVal = state->getSVal(CE->getArg(0), LCtx);
+    if (ArgSVal.isUndef())
+      return true; // Return true to model purity.
+
+    state = state->assume(ArgSVal.castAs<DefinedOrUnknownSVal>(), true);
+    // FIXME: do we want to warn here? Not right now. The most reports might
+    // come from infeasible paths, thus being false positives.
+    if (!state) {
+      C.generateSink(C.getState(), C.getPredecessor());
+      return true;
+    }
+
+    C.addTransition(state);
+    return true;
+  }
+
+  case Builtin::BI__builtin_unpredictable:
   case Builtin::BI__builtin_expect:
+  case Builtin::BI__builtin_assume_aligned:
   case Builtin::BI__builtin_addressof: {
-    // For __builtin_expect, just return the value of the subexpression.
+    // For __builtin_unpredictable, __builtin_expect, and
+    // __builtin_assume_aligned, just return the value of the subexpression.
     // __builtin_addressof is going from a reference to a pointer, but those
     // are represented the same way in the analyzer.
     assert (CE->arg_begin() != CE->arg_end());
@@ -52,6 +73,7 @@ bool BuiltinFunctionChecker::evalCall(const CallExpr *CE,
     return true;
   }
 
+  case Builtin::BI__builtin_alloca_with_align:
   case Builtin::BI__builtin_alloca: {
     // FIXME: Refactor into StoreManager itself?
     MemRegionManager& RM = C.getStoreManager().getRegionManager();

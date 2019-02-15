@@ -24,29 +24,54 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2003
+.Dd August 12, 2018
 .Dt PTHREAD_SET_NAME_NP 3
 .Os
 .Sh NAME
+.Nm pthread_get_name_np ,
 .Nm pthread_set_name_np
-.Nd set the thread name
+.Nd set and retrieve the thread name
 .Sh LIBRARY
 .Lb libpthread
 .Sh SYNOPSIS
 .In pthread_np.h
 .Ft void
-.Fn pthread_set_name_np "pthread_t tid" "const char *name"
+.Fn pthread_get_name_np "pthread_t thread" "char *name" "size_t len"
+.Ft void
+.Fn pthread_set_name_np "pthread_t thread" "const char *name"
 .Sh DESCRIPTION
 The
 .Fn pthread_set_name_np
-function sets internal name for thread specified by
-.Fa tid
-argument to string value specified by
+function applies a copy of the given
 .Fa name
-argument.
+to the given
+.Fa thread .
+.Pp
+The
+.Fn pthread_get_name_np
+function retrieves the
+.Fa name
+associated with
+.Fa thread .
+If
+.Fn pthread_set_name_np
+was not previously called for
+.Fa thread ,
+the buffer pointed to by
+.Fa name
+will be empty.
 .Sh ERRORS
-Because of the debugging nature of this function, all errors that may
+Because of the debugging nature of these functions, all errors that may
 appear inside are silently ignored.
+.Sh SEE ALSO
+.Xr thr_set_name 2
+.Sh STANDARDS
+.Fn pthread_set_name_np
+and
+.Fn pthread_get_name_np
+are non-standard extensions.
 .Sh AUTHORS
 This manual page was written by
-.An Alexey Zelkin Aq Mt phantom@FreeBSD.org .
+.An Alexey Zelkin Aq Mt phantom@FreeBSD.org
+and
+.An Yuri Pankov Aq Mt yuripv@yuripv.net .

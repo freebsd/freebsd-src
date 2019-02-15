@@ -33,7 +33,7 @@
 .Nm archive_read_open_fd ,
 .Nm archive_read_open_FILE ,
 .Nm archive_read_open_filename ,
-.Nm archive_read_open_memory ,
+.Nm archive_read_open_memory
 .Nd functions for reading streaming archives
 .Sh LIBRARY
 Streaming Archive Library (libarchive, -larchive)
@@ -67,7 +67,7 @@ Streaming Archive Library (libarchive, -larchive)
 .Fa "size_t block_size"
 .Fc
 .Ft int
-.Fn archive_read_open_memory "struct archive *" "void *buff" "size_t size"
+.Fn archive_read_open_memory "struct archive *" "const void *buff" "size_t size"
 .Sh DESCRIPTION
 .Bl -tag -compact -width indent
 .It Fn archive_read_open
@@ -130,14 +130,14 @@ objects can be found in the overview manual page for
 The callback functions must match the following prototypes:
 .Bl -item -offset indent
 .It
-.Ft typedef ssize_t
+.Ft typedef la_ssize_t
 .Fo archive_read_callback
 .Fa "struct archive *"
 .Fa "void *client_data"
 .Fa "const void **buffer"
 .Fc
 .It
-.Ft typedef off_t
+.Ft typedef la_int64_t
 .Fo archive_skip_callback
 .Fa "struct archive *"
 .Fa "void *client_data"

@@ -11,10 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_CODEGEN_CGCLEANUP_H
-#define CLANG_CODEGEN_CGCLEANUP_H
+#ifndef LLVM_CLANG_LIB_CODEGEN_CGCLEANUP_H
+#define LLVM_CLANG_LIB_CODEGEN_CGCLEANUP_H
 
 #include "EHScopeStack.h"
+
+#include "Address.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 
@@ -26,7 +28,17 @@ class AllocaInst;
 }
 
 namespace clang {
+class FunctionDecl;
 namespace CodeGen {
+class CodeGenModule;
+class CodeGenFunction;
+
+/// The MS C++ ABI needs a pointer to RTTI data plus some flags to describe the
+/// type of a catch handler, so we use this wrapper.
+struct CatchTypeInfo {
+  llvm::Constant *RTTI;
+  unsigned Flags;
+};
 
 /// A protected scope for zero-cost EH handling.
 class EHScope {
@@ -37,9 +49,9 @@ class EHScope {
 
   class CommonBitFields {
     friend class EHScope;
-    unsigned Kind : 2;
+    unsigned Kind : 3;
   };
-  enum { NumCommonBits = 2 };
+  enum { NumCommonBits = 3 };
 
 protected:
   class CatchBitFields {
@@ -62,6 +74,9 @@ protected:
     /// Whether this cleanup is currently active.
     unsigned IsActive : 1;
 
+    /// Whether this cleanup is a lifetime marker
+    unsigned IsLifetimeMarker : 1;
+
     /// Whether the normal cleanup should test the activation flag.
     unsigned TestFlagInNormalCleanup : 1;
 
@@ -71,11 +86,6 @@ protected:
     /// The amount of extra storage needed by the Cleanup.
     /// Always a multiple of the scope-stack alignment.
     unsigned CleanupSize : 12;
-
-    /// The number of fixups required by enclosing scopes (not including
-    /// this one).  If this is the top cleanup scope, all the fixups
-    /// from this index onwards belong to this scope.
-    unsigned FixupDepth : 32 - 17 - NumCommonBits; // currently 13    
   };
 
   class FilterBitFields {
@@ -93,10 +103,10 @@ protected:
   };
 
 public:
-  enum Kind { Cleanup, Catch, Terminate, Filter };
+  enum Kind { Cleanup, Catch, Terminate, Filter, PadEnd };
 
   EHScope(Kind kind, EHScopeStack::stable_iterator enclosingEHScope)
-    : CachedLandingPad(0), CachedEHDispatchBlock(0),
+    : CachedLandingPad(nullptr), CachedEHDispatchBlock(nullptr),
       EnclosingEHScope(enclosingEHScope) {
     CommonBits.Kind = kind;
   }
@@ -145,12 +155,12 @@ public:
   struct Handler {
     /// A type info value, or null (C++ null, not an LLVM null pointer)
     /// for a catch-all.
-    llvm::Value *Type;
+    CatchTypeInfo Type;
 
     /// The catch handler for this type.
     llvm::BasicBlock *Block;
 
-    bool isCatchAll() const { return Type == 0; }
+    bool isCatchAll() const { return Type.RTTI == nullptr; }
   };
 
 private:
@@ -173,6 +183,7 @@ public:
                EHScopeStack::stable_iterator enclosingEHScope)
     : EHScope(Catch, enclosingEHScope) {
     CatchBits.NumHandlers = numHandlers;
+    assert(CatchBits.NumHandlers == numHandlers && "NumHandlers overflow?");
   }
 
   unsigned getNumHandlers() const {
@@ -180,10 +191,16 @@ public:
   }
 
   void setCatchAllHandler(unsigned I, llvm::BasicBlock *Block) {
-    setHandler(I, /*catchall*/ 0, Block);
+    setHandler(I, CatchTypeInfo{nullptr, 0}, Block);
   }
 
-  void setHandler(unsigned I, llvm::Value *Type, llvm::BasicBlock *Block) {
+  void setHandler(unsigned I, llvm::Constant *Type, llvm::BasicBlock *Block) {
+    assert(I < getNumHandlers());
+    getHandlers()[I].Type = CatchTypeInfo{Type, 0};
+    getHandlers()[I].Block = Block;
+  }
+
+  void setHandler(unsigned I, CatchTypeInfo Type, llvm::BasicBlock *Block) {
     assert(I < getNumHandlers());
     getHandlers()[I].Type = Type;
     getHandlers()[I].Block = Block;
@@ -192,6 +209,15 @@ public:
   const Handler &getHandler(unsigned I) const {
     assert(I < getNumHandlers());
     return getHandlers()[I];
+  }
+
+  // Clear all handler blocks.
+  // FIXME: it's better to always call clearHandlerBlocks in DTOR and have a
+  // 'takeHandler' or some such function which removes ownership from the
+  // EHCatchScope object if the handlers should live longer than EHCatchScope.
+  void clearHandlerBlocks() {
+    for (unsigned I = 0, N = getNumHandlers(); I != N; ++I)
+      delete getHandler(I).Block;
   }
 
   typedef const Handler *iterator;
@@ -204,7 +230,7 @@ public:
 };
 
 /// A cleanup scope which generates the cleanup blocks lazily.
-class EHCleanupScope : public EHScope {
+class LLVM_ALIGNAS(/*alignof(uint64_t)*/ 8) EHCleanupScope : public EHScope {
   /// The nearest normal cleanup scope enclosing this one.
   EHScopeStack::stable_iterator EnclosingNormal;
 
@@ -233,6 +259,11 @@ class EHCleanupScope : public EHScope {
   };
   mutable struct ExtInfo *ExtInfo;
 
+  /// The number of fixups required by enclosing scopes (not including
+  /// this one).  If this is the top cleanup scope, all the fixups
+  /// from this index onwards belong to this scope.
+  unsigned FixupDepth;
+
   struct ExtInfo &getExtInfo() {
     if (!ExtInfo) ExtInfo = new struct ExtInfo();
     return *ExtInfo;
@@ -258,36 +289,46 @@ public:
                  unsigned cleanupSize, unsigned fixupDepth,
                  EHScopeStack::stable_iterator enclosingNormal,
                  EHScopeStack::stable_iterator enclosingEH)
-    : EHScope(EHScope::Cleanup, enclosingEH), EnclosingNormal(enclosingNormal),
-      NormalBlock(0), ActiveFlag(0), ExtInfo(0) {
+      : EHScope(EHScope::Cleanup, enclosingEH),
+        EnclosingNormal(enclosingNormal), NormalBlock(nullptr),
+        ActiveFlag(nullptr), ExtInfo(nullptr), FixupDepth(fixupDepth) {
     CleanupBits.IsNormalCleanup = isNormal;
     CleanupBits.IsEHCleanup = isEH;
     CleanupBits.IsActive = isActive;
+    CleanupBits.IsLifetimeMarker = false;
     CleanupBits.TestFlagInNormalCleanup = false;
     CleanupBits.TestFlagInEHCleanup = false;
     CleanupBits.CleanupSize = cleanupSize;
-    CleanupBits.FixupDepth = fixupDepth;
 
     assert(CleanupBits.CleanupSize == cleanupSize && "cleanup size overflow");
   }
 
-  ~EHCleanupScope() {
+  void Destroy() {
     delete ExtInfo;
   }
+  // Objects of EHCleanupScope are not destructed. Use Destroy().
+  ~EHCleanupScope() = delete;
 
   bool isNormalCleanup() const { return CleanupBits.IsNormalCleanup; }
   llvm::BasicBlock *getNormalBlock() const { return NormalBlock; }
   void setNormalBlock(llvm::BasicBlock *BB) { NormalBlock = BB; }
 
   bool isEHCleanup() const { return CleanupBits.IsEHCleanup; }
-  llvm::BasicBlock *getEHBlock() const { return getCachedEHDispatchBlock(); }
-  void setEHBlock(llvm::BasicBlock *BB) { setCachedEHDispatchBlock(BB); }
 
   bool isActive() const { return CleanupBits.IsActive; }
   void setActive(bool A) { CleanupBits.IsActive = A; }
 
-  llvm::AllocaInst *getActiveFlag() const { return ActiveFlag; }
-  void setActiveFlag(llvm::AllocaInst *Var) { ActiveFlag = Var; }
+  bool isLifetimeMarker() const { return CleanupBits.IsLifetimeMarker; }
+  void setLifetimeMarker() { CleanupBits.IsLifetimeMarker = true; }
+
+  bool hasActiveFlag() const { return ActiveFlag != nullptr; }
+  Address getActiveFlag() const {
+    return Address(ActiveFlag, CharUnits::One());
+  }
+  void setActiveFlag(Address Var) {
+    assert(Var.getAlignment().isOne());
+    ActiveFlag = cast<llvm::AllocaInst>(Var.getPointer());
+  }
 
   void setTestFlagInNormalCleanup() {
     CleanupBits.TestFlagInNormalCleanup = true;
@@ -303,7 +344,7 @@ public:
     return CleanupBits.TestFlagInEHCleanup;
   }
 
-  unsigned getFixupDepth() const { return CleanupBits.FixupDepth; }
+  unsigned getFixupDepth() const { return FixupDepth; }
   EHScopeStack::stable_iterator getEnclosingNormalCleanup() const {
     return EnclosingNormal;
   }
@@ -332,7 +373,7 @@ public:
   void addBranchAfter(llvm::ConstantInt *Index,
                       llvm::BasicBlock *Block) {
     struct ExtInfo &ExtInfo = getExtInfo();
-    if (ExtInfo.Branches.insert(Block))
+    if (ExtInfo.Branches.insert(Block).second)
       ExtInfo.BranchAfters.push_back(std::make_pair(Block, Index));
   }
 
@@ -367,7 +408,7 @@ public:
   ///
   /// \return true if the branch-through was new to this scope
   bool addBranchThrough(llvm::BasicBlock *Block) {
-    return getExtInfo().Branches.insert(Block);
+    return getExtInfo().Branches.insert(Block).second;
   }
 
   /// Determines if this cleanup scope has any branch throughs.
@@ -380,6 +421,14 @@ public:
     return (Scope->getKind() == Cleanup);
   }
 };
+// NOTE: there's a bunch of different data classes tacked on after an
+// EHCleanupScope. It is asserted (in EHScopeStack::pushCleanup*) that
+// they don't require greater alignment than ScopeStackAlignment. So,
+// EHCleanupScope ought to have alignment equal to that -- not more
+// (would be misaligned by the stack allocator), and not less (would
+// break the appended classes).
+static_assert(alignof(EHCleanupScope) == EHScopeStack::ScopeStackAlignment,
+              "EHCleanupScope expected alignment");
 
 /// An exceptions scope which filters exceptions thrown through it.
 /// Only exceptions matching the filter types will be permitted to be
@@ -402,6 +451,7 @@ public:
   EHFilterScope(unsigned numFilters)
     : EHScope(Filter, EHScopeStack::stable_end()) {
     FilterBits.NumFilters = numFilters;
+    assert(FilterBits.NumFilters == numFilters && "NumFilters overflow");
   }
 
   static size_t getSizeForNumFilters(unsigned numFilters) {
@@ -438,6 +488,17 @@ public:
   }
 };
 
+class EHPadEndScope : public EHScope {
+public:
+  EHPadEndScope(EHScopeStack::stable_iterator enclosingEHScope)
+      : EHScope(PadEnd, enclosingEHScope) {}
+  static size_t getSize() { return sizeof(EHPadEndScope); }
+
+  static bool classof(const EHScope *scope) {
+    return scope->getKind() == PadEnd;
+  }
+};
+
 /// A non-stable pointer into the scope stack.
 class EHScopeStack::iterator {
   char *Ptr;
@@ -446,7 +507,7 @@ class EHScopeStack::iterator {
   explicit iterator(char *Ptr) : Ptr(Ptr) {}
 
 public:
-  iterator() : Ptr(0) {}
+  iterator() : Ptr(nullptr) {}
 
   EHScope *get() const { 
     return reinterpret_cast<EHScope*>(Ptr);
@@ -456,27 +517,31 @@ public:
   EHScope &operator*() const { return *get(); }
 
   iterator &operator++() {
+    size_t Size;
     switch (get()->getKind()) {
     case EHScope::Catch:
-      Ptr += EHCatchScope::getSizeForNumHandlers(
-          static_cast<const EHCatchScope*>(get())->getNumHandlers());
+      Size = EHCatchScope::getSizeForNumHandlers(
+          static_cast<const EHCatchScope *>(get())->getNumHandlers());
       break;
 
     case EHScope::Filter:
-      Ptr += EHFilterScope::getSizeForNumFilters(
-          static_cast<const EHFilterScope*>(get())->getNumFilters());
+      Size = EHFilterScope::getSizeForNumFilters(
+          static_cast<const EHFilterScope *>(get())->getNumFilters());
       break;
 
     case EHScope::Cleanup:
-      Ptr += static_cast<const EHCleanupScope*>(get())
-        ->getAllocatedSize();
+      Size = static_cast<const EHCleanupScope *>(get())->getAllocatedSize();
       break;
 
     case EHScope::Terminate:
-      Ptr += EHTerminateScope::getSize();
+      Size = EHTerminateScope::getSize();
+      break;
+
+    case EHScope::PadEnd:
+      Size = EHPadEndScope::getSize();
       break;
     }
-
+    Ptr += llvm::alignTo(Size, ScopeStackAlignment);
     return *this;
   }
 
@@ -512,7 +577,7 @@ inline void EHScopeStack::popCatch() {
 
   EHCatchScope &scope = cast<EHCatchScope>(*begin());
   InnermostEHScope = scope.getEnclosingEHScope();
-  StartOfData += EHCatchScope::getSizeForNumHandlers(scope.getNumHandlers());
+  deallocate(EHCatchScope::getSizeForNumHandlers(scope.getNumHandlers()));
 }
 
 inline void EHScopeStack::popTerminate() {
@@ -520,7 +585,7 @@ inline void EHScopeStack::popTerminate() {
 
   EHTerminateScope &scope = cast<EHTerminateScope>(*begin());
   InnermostEHScope = scope.getEnclosingEHScope();
-  StartOfData += EHTerminateScope::getSize();
+  deallocate(EHTerminateScope::getSize());
 }
 
 inline EHScopeStack::iterator EHScopeStack::find(stable_iterator sp) const {
@@ -535,6 +600,45 @@ EHScopeStack::stabilize(iterator ir) const {
   return stable_iterator(EndOfBuffer - ir.Ptr);
 }
 
+/// The exceptions personality for a function.
+struct EHPersonality {
+  const char *PersonalityFn;
+
+  // If this is non-null, this personality requires a non-standard
+  // function for rethrowing an exception after a catchall cleanup.
+  // This function must have prototype void(void*).
+  const char *CatchallRethrowFn;
+
+  static const EHPersonality &get(CodeGenModule &CGM, const FunctionDecl *FD);
+  static const EHPersonality &get(CodeGenFunction &CGF);
+
+  static const EHPersonality GNU_C;
+  static const EHPersonality GNU_C_SJLJ;
+  static const EHPersonality GNU_C_SEH;
+  static const EHPersonality GNU_ObjC;
+  static const EHPersonality GNU_ObjC_SJLJ;
+  static const EHPersonality GNU_ObjC_SEH;
+  static const EHPersonality GNUstep_ObjC;
+  static const EHPersonality GNU_ObjCXX;
+  static const EHPersonality NeXT_ObjC;
+  static const EHPersonality GNU_CPlusPlus;
+  static const EHPersonality GNU_CPlusPlus_SJLJ;
+  static const EHPersonality GNU_CPlusPlus_SEH;
+  static const EHPersonality MSVC_except_handler;
+  static const EHPersonality MSVC_C_specific_handler;
+  static const EHPersonality MSVC_CxxFrameHandler3;
+
+  /// Does this personality use landingpads or the family of pad instructions
+  /// designed to form funclets?
+  bool usesFuncletPads() const { return isMSVCPersonality(); }
+
+  bool isMSVCPersonality() const {
+    return this == &MSVC_except_handler || this == &MSVC_C_specific_handler ||
+           this == &MSVC_CxxFrameHandler3;
+  }
+
+  bool isMSVCXXPersonality() const { return this == &MSVC_CxxFrameHandler3; }
+};
 }
 }
 

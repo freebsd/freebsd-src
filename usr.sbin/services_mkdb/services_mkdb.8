@@ -75,6 +75,7 @@ Print the services file to stdout, omitting duplicate entries and comments.
 .El
 .Pp
 The databases are used by the C library services routines (see
+.Xr getservent 3 ) .
 .Pp
 The
 .Fl b
@@ -82,7 +83,6 @@ and
 .Fl l
 flags are mutually exclusive.
 The default byte ordering is the current host order.
-.Xr getservent 3 ) .
 .Sh FILES
 .Bl -tag -width ".Pa /var/db/services.db.tmp" -compact
 .It Pa /var/db/services.db

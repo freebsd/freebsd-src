@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -45,12 +47,12 @@
 #define AC_COMM_LEN 16
 
 /*
- * Accounting structure version 2 (current).
+ * Accounting structure version 3 (current).
  * The first byte is always zero.
  * Time units are microseconds.
  */
 
-struct acctv2 {
+struct acctv3 {
 	uint8_t   ac_zero;		/* zero identifies new version */
 	uint8_t   ac_version;		/* record version number */
 	uint16_t  ac_len;		/* record length */
@@ -65,10 +67,10 @@ struct acctv2 {
 	float	  ac_mem;		/* average memory usage */
 	float	  ac_io;		/* count of IO blocks */
 	__dev_t   ac_tty;		/* controlling tty */
-
+	uint32_t  ac_pad0;
 	uint16_t  ac_len2;		/* record length */
 	union {
-		__dev_t	  ac_align;	/* force v1 compatible alignment */
+		uint32_t  ac_align;	/* force v1 compatible alignment */
 
 #define	AFORK	0x01			/* forked but not exec'ed */
 /* ASU is no longer supported */
@@ -84,6 +86,28 @@ struct acctv2 {
 #define ac_flagx ac_trailer.ac_flag
 };
 
+struct acctv2 {
+	uint8_t   ac_zero;		/* zero identifies new version */
+	uint8_t   ac_version;		/* record version number */
+	uint16_t  ac_len;		/* record length */
+
+	char	  ac_comm[AC_COMM_LEN];	/* command name */
+	float	  ac_utime;		/* user time */
+	float	  ac_stime;		/* system time */
+	float	  ac_etime;		/* elapsed time */
+	time_t	  ac_btime;		/* starting time */
+	uid_t	  ac_uid;		/* user id */
+	gid_t	  ac_gid;		/* group id */
+	float	  ac_mem;		/* average memory usage */
+	float	  ac_io;		/* count of IO blocks */
+	uint32_t  ac_tty;		/* controlling tty */
+
+	uint16_t  ac_len2;		/* record length */
+	union {
+		uint32_t   ac_align;	/* force v1 compatible alignment */
+		uint8_t   ac_flag;	/* accounting flags */
+	} ac_trailer;
+};
 
 /*
  * Legacy accounting structure (rev. 1.5-1.18).
@@ -105,7 +129,7 @@ struct acctv1 {
 	gid_t	  ac_gid;		/* group id */
 	uint16_t  ac_mem;		/* average memory usage */
 	comp_t	  ac_io;		/* count of IO blocks */
-	__dev_t   ac_tty;		/* controlling tty */
+	uint32_t  ac_tty;		/* controlling tty */
 	uint8_t   ac_flag;		/* accounting flags */
 };
 

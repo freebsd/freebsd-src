@@ -385,11 +385,7 @@ out:	if (allow)
 
 
 void
-log_it(username, xpid, event, detail)
-	char	*username;
-	int	xpid;
-	char	*event;
-	char	*detail;
+log_it(char *username, int xpid, char *event, const char *detail)
 {
 #if defined(LOG_FILE) || DEBUGGING
 	PID_T			pid = xpid;

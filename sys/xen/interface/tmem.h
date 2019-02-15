@@ -33,47 +33,27 @@
 #define TMEM_SPEC_VERSION          1
 
 /* Commands to HYPERVISOR_tmem_op() */
-#define TMEM_CONTROL               0
+#ifdef __XEN__
+#define TMEM_CONTROL               0 /* Now called XEN_SYSCTL_tmem_op */
+#else
+#undef TMEM_CONTROL
+#endif
 #define TMEM_NEW_POOL              1
 #define TMEM_DESTROY_POOL          2
-#define TMEM_NEW_PAGE              3
 #define TMEM_PUT_PAGE              4
 #define TMEM_GET_PAGE              5
 #define TMEM_FLUSH_PAGE            6
 #define TMEM_FLUSH_OBJECT          7
+#if __XEN_INTERFACE_VERSION__ < 0x00040400
+#define TMEM_NEW_PAGE              3
 #define TMEM_READ                  8
 #define TMEM_WRITE                 9
 #define TMEM_XCHG                 10
+#endif
 
 /* Privileged commands to HYPERVISOR_tmem_op() */
-#define TMEM_AUTH                 101 
+#define TMEM_AUTH                 101
 #define TMEM_RESTORE_NEW          102
-
-/* Subops for HYPERVISOR_tmem_op(TMEM_CONTROL) */
-#define TMEMC_THAW                   0
-#define TMEMC_FREEZE                 1
-#define TMEMC_FLUSH                  2
-#define TMEMC_DESTROY                3
-#define TMEMC_LIST                   4
-#define TMEMC_SET_WEIGHT             5
-#define TMEMC_SET_CAP                6
-#define TMEMC_SET_COMPRESS           7
-#define TMEMC_QUERY_FREEABLE_MB      8
-#define TMEMC_SAVE_BEGIN             10
-#define TMEMC_SAVE_GET_VERSION       11
-#define TMEMC_SAVE_GET_MAXPOOLS      12
-#define TMEMC_SAVE_GET_CLIENT_WEIGHT 13
-#define TMEMC_SAVE_GET_CLIENT_CAP    14
-#define TMEMC_SAVE_GET_CLIENT_FLAGS  15
-#define TMEMC_SAVE_GET_POOL_FLAGS    16
-#define TMEMC_SAVE_GET_POOL_NPAGES   17
-#define TMEMC_SAVE_GET_POOL_UUID     18
-#define TMEMC_SAVE_GET_NEXT_PAGE     19
-#define TMEMC_SAVE_GET_NEXT_INV      20
-#define TMEMC_SAVE_END               21
-#define TMEMC_RESTORE_BEGIN          30
-#define TMEMC_RESTORE_PUT_PAGE       32
-#define TMEMC_RESTORE_FLUSH_PAGE     33
 
 /* Bits for HYPERVISOR_tmem_op(TMEM_NEW_POOL) */
 #define TMEM_POOL_PERSIST          1
@@ -93,9 +73,16 @@
 #define EFROZEN                 1000
 #define EEMPTY                  1001
 
+struct xen_tmem_oid {
+    uint64_t oid[3];
+};
+typedef struct xen_tmem_oid xen_tmem_oid_t;
+DEFINE_XEN_GUEST_HANDLE(xen_tmem_oid_t);
 
 #ifndef __ASSEMBLY__
+#if __XEN_INTERFACE_VERSION__ < 0x00040400
 typedef xen_pfn_t tmem_cli_mfn_t;
+#endif
 typedef XEN_GUEST_HANDLE(char) tmem_cli_va_t;
 struct tmem_op {
     uint32_t cmd;
@@ -106,33 +93,22 @@ struct tmem_op {
             uint32_t flags;
             uint32_t arg1;
         } creat; /* for cmd == TMEM_NEW_POOL, TMEM_AUTH, TMEM_RESTORE_NEW */
-        struct { 
-            uint32_t subop;
-            uint32_t cli_id;
-            uint32_t arg1;
-            uint32_t arg2;
-            uint64_t oid[3];
-            tmem_cli_va_t buf;
-        } ctrl; /* for cmd == TMEM_CONTROL */
         struct {
-            
+#if __XEN_INTERFACE_VERSION__ < 0x00040600
             uint64_t oid[3];
+#else
+            xen_tmem_oid_t oid;
+#endif
             uint32_t index;
             uint32_t tmem_offset;
             uint32_t pfn_offset;
             uint32_t len;
-            tmem_cli_mfn_t cmfn; /* client machine page frame */
+            xen_pfn_t cmfn; /* client machine page frame */
         } gen; /* for all other cmd ("generic") */
     } u;
 };
 typedef struct tmem_op tmem_op_t;
 DEFINE_XEN_GUEST_HANDLE(tmem_op_t);
-
-struct tmem_handle {
-    uint32_t pool_id;
-    uint32_t index;
-    uint64_t oid[3];
-};
 #endif
 
 #endif /* __XEN_PUBLIC_TMEM_H__ */
@@ -140,7 +116,7 @@ struct tmem_handle {
 /*
  * Local variables:
  * mode: C
- * c-set-style: "BSD"
+ * c-file-style: "BSD"
  * c-basic-offset: 4
  * tab-width: 4
  * indent-tabs-mode: nil

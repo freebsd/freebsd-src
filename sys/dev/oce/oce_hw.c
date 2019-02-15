@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2013 Emulex
  * All rights reserved.
  *
@@ -268,9 +270,8 @@ oce_hw_pci_alloc(POCE_SOFTC sc)
 				SYS_RES_MEMORY, &rr,
 				RF_ACTIVE|RF_SHAREABLE);
 	else
-		sc->devcfg_res = bus_alloc_resource(sc->dev,
-				SYS_RES_MEMORY, &rr,
-				0ul, ~0ul, 32768,
+		sc->devcfg_res = bus_alloc_resource_anywhere(sc->dev,
+				SYS_RES_MEMORY, &rr, 32768,
 				RF_ACTIVE|RF_SHAREABLE);
 
 	if (!sc->devcfg_res)
@@ -393,6 +394,11 @@ oce_create_nw_interface(POCE_SOFTC sc)
 
 	if (IS_SH(sc) || IS_XE201(sc))
 		capab_flags |= MBX_RX_IFACE_FLAGS_MULTICAST;
+
+        if (sc->enable_hwlro) {
+                capab_flags |= MBX_RX_IFACE_FLAGS_LRO;
+                capab_en_flags |= MBX_RX_IFACE_FLAGS_LRO;
+        }
 
 	/* enable capabilities controlled via driver startup parameters */
 	if (is_rss_enabled(sc))
@@ -563,7 +569,7 @@ oce_hw_update_multicast(POCE_SOFTC sc)
 #if __FreeBSD_version > 800000
 	if_maddr_rlock(ifp);
 #endif
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 

@@ -9,33 +9,38 @@
 
 #include "llvm-c/Analysis.h"
 #include "llvm-c/Initialization.h"
-#include "llvm/Analysis/Verifier.h"
-#include "llvm/InitializePasses.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Verifier.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/PassRegistry.h"
+#include "llvm/Support/raw_ostream.h"
 #include <cstring>
 
 using namespace llvm;
 
 /// initializeAnalysis - Initialize all passes linked into the Analysis library.
 void llvm::initializeAnalysis(PassRegistry &Registry) {
-  initializeAliasAnalysisAnalysisGroup(Registry);
-  initializeAliasAnalysisCounterPass(Registry);
-  initializeAAEvalPass(Registry);
-  initializeAliasDebuggerPass(Registry);
+  initializeAAEvalLegacyPassPass(Registry);
   initializeAliasSetPrinterPass(Registry);
-  initializeNoAAPass(Registry);
-  initializeBasicAliasAnalysisPass(Registry);
-  initializeBlockFrequencyInfoPass(Registry);
-  initializeBranchProbabilityInfoPass(Registry);
+  initializeBasicAAWrapperPassPass(Registry);
+  initializeBlockFrequencyInfoWrapperPassPass(Registry);
+  initializeBranchProbabilityInfoWrapperPassPass(Registry);
+  initializeCallGraphWrapperPassPass(Registry);
+  initializeCallGraphDOTPrinterPass(Registry);
+  initializeCallGraphPrinterLegacyPassPass(Registry);
+  initializeCallGraphViewerPass(Registry);
   initializeCostModelAnalysisPass(Registry);
-  initializeCFGViewerPass(Registry);
-  initializeCFGPrinterPass(Registry);
-  initializeCFGOnlyViewerPass(Registry);
-  initializeCFGOnlyPrinterPass(Registry);
-  initializeDependenceAnalysisPass(Registry);
+  initializeCFGViewerLegacyPassPass(Registry);
+  initializeCFGPrinterLegacyPassPass(Registry);
+  initializeCFGOnlyViewerLegacyPassPass(Registry);
+  initializeCFGOnlyPrinterLegacyPassPass(Registry);
+  initializeCFLAndersAAWrapperPassPass(Registry);
+  initializeCFLSteensAAWrapperPassPass(Registry);
+  initializeDependenceAnalysisWrapperPassPass(Registry);
   initializeDelinearizationPass(Registry);
-  initializeDominanceFrontierPass(Registry);
+  initializeDemandedBitsWrapperPassPass(Registry);
+  initializeDivergenceAnalysisPass(Registry);
+  initializeDominanceFrontierWrapperPassPass(Registry);
   initializeDomViewerPass(Registry);
   initializeDomPrinterPass(Registry);
   initializeDomOnlyViewerPass(Registry);
@@ -44,49 +49,78 @@ void llvm::initializeAnalysis(PassRegistry &Registry) {
   initializePostDomPrinterPass(Registry);
   initializePostDomOnlyViewerPass(Registry);
   initializePostDomOnlyPrinterPass(Registry);
-  initializeIVUsersPass(Registry);
+  initializeAAResultsWrapperPassPass(Registry);
+  initializeGlobalsAAWrapperPassPass(Registry);
+  initializeIVUsersWrapperPassPass(Registry);
   initializeInstCountPass(Registry);
   initializeIntervalPartitionPass(Registry);
-  initializeLazyValueInfoPass(Registry);
-  initializeLibCallAliasAnalysisPass(Registry);
+  initializeLazyBranchProbabilityInfoPassPass(Registry);
+  initializeLazyBlockFrequencyInfoPassPass(Registry);
+  initializeLazyValueInfoWrapperPassPass(Registry);
+  initializeLazyValueInfoPrinterPass(Registry);
   initializeLintPass(Registry);
-  initializeLoopInfoPass(Registry);
+  initializeLoopInfoWrapperPassPass(Registry);
   initializeMemDepPrinterPass(Registry);
-  initializeMemoryDependenceAnalysisPass(Registry);
+  initializeMemDerefPrinterPass(Registry);
+  initializeMemoryDependenceWrapperPassPass(Registry);
   initializeModuleDebugInfoPrinterPass(Registry);
-  initializePostDominatorTreePass(Registry);
-  initializeRegionInfoPass(Registry);
+  initializeModuleSummaryIndexWrapperPassPass(Registry);
+  initializeObjCARCAAWrapperPassPass(Registry);
+  initializeOptimizationRemarkEmitterWrapperPassPass(Registry);
+  initializePostDominatorTreeWrapperPassPass(Registry);
+  initializeRegionInfoPassPass(Registry);
   initializeRegionViewerPass(Registry);
   initializeRegionPrinterPass(Registry);
   initializeRegionOnlyViewerPass(Registry);
   initializeRegionOnlyPrinterPass(Registry);
-  initializeScalarEvolutionPass(Registry);
-  initializeScalarEvolutionAliasAnalysisPass(Registry);
-  initializeTargetTransformInfoAnalysisGroup(Registry);
-  initializeTypeBasedAliasAnalysisPass(Registry);
+  initializeSCEVAAWrapperPassPass(Registry);
+  initializeScalarEvolutionWrapperPassPass(Registry);
+  initializeTargetTransformInfoWrapperPassPass(Registry);
+  initializeTypeBasedAAWrapperPassPass(Registry);
+  initializeScopedNoAliasAAWrapperPassPass(Registry);
+  initializeLCSSAVerificationPassPass(Registry);
+  initializeMemorySSAWrapperPassPass(Registry);
+  initializeMemorySSAPrinterLegacyPassPass(Registry);
 }
 
 void LLVMInitializeAnalysis(LLVMPassRegistryRef R) {
   initializeAnalysis(*unwrap(R));
 }
 
+void LLVMInitializeIPA(LLVMPassRegistryRef R) {
+  initializeAnalysis(*unwrap(R));
+}
+
 LLVMBool LLVMVerifyModule(LLVMModuleRef M, LLVMVerifierFailureAction Action,
                           char **OutMessages) {
+  raw_ostream *DebugOS = Action != LLVMReturnStatusAction ? &errs() : nullptr;
   std::string Messages;
+  raw_string_ostream MsgsOS(Messages);
 
-  LLVMBool Result = verifyModule(*unwrap(M),
-                            static_cast<VerifierFailureAction>(Action),
-                            OutMessages? &Messages : 0);
+  LLVMBool Result = verifyModule(*unwrap(M), OutMessages ? &MsgsOS : DebugOS);
+
+  // Duplicate the output to stderr.
+  if (DebugOS && OutMessages)
+    *DebugOS << MsgsOS.str();
+
+  if (Action == LLVMAbortProcessAction && Result)
+    report_fatal_error("Broken module found, compilation aborted!");
 
   if (OutMessages)
-    *OutMessages = strdup(Messages.c_str());
+    *OutMessages = strdup(MsgsOS.str().c_str());
 
   return Result;
 }
 
 LLVMBool LLVMVerifyFunction(LLVMValueRef Fn, LLVMVerifierFailureAction Action) {
-  return verifyFunction(*unwrap<Function>(Fn),
-                        static_cast<VerifierFailureAction>(Action));
+  LLVMBool Result = verifyFunction(
+      *unwrap<Function>(Fn), Action != LLVMReturnStatusAction ? &errs()
+                                                              : nullptr);
+
+  if (Action == LLVMAbortProcessAction && Result)
+    report_fatal_error("Broken function found, compilation aborted!");
+
+  return Result;
 }
 
 void LLVMViewFunctionCFG(LLVMValueRef Fn) {

@@ -1,4 +1,5 @@
 /**************************************************************************
+SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 
 Copyright (c) 2007, Chelsio Inc.
 All rights reserved.
@@ -129,7 +130,7 @@ static int vsc8211_autoneg_restart(struct cphy *cphy)
 				   BMCR_ANRESTART);
 }
 
-static int vsc8211_get_link_status(struct cphy *cphy, int *link_ok,
+static int vsc8211_get_link_status(struct cphy *cphy, int *link_state,
 				     int *speed, int *duplex, int *fc)
 {
 	unsigned int bmcr, status, lpa, adv;
@@ -141,7 +142,7 @@ static int vsc8211_get_link_status(struct cphy *cphy, int *link_ok,
 	if (err)
 		return err;
 
-	if (link_ok) {
+	if (link_state) {
 		/*
 		 * BMSR_LSTATUS is latch-low, so if it is 0 we need to read it
 		 * once more to get the current link state.
@@ -150,7 +151,8 @@ static int vsc8211_get_link_status(struct cphy *cphy, int *link_ok,
 			err = mdio_read(cphy, 0, MII_BMSR, &status);
 		if (err)
 			return err;
-		*link_ok = (status & BMSR_LSTATUS) != 0;
+		*link_state = status & BMSR_LSTATUS ? PHY_LINK_UP :
+		    PHY_LINK_DOWN;
 	}
 	if (!(bmcr & BMCR_ANENABLE)) {
 		dplx = (bmcr & BMCR_FULLDPLX) ? DUPLEX_FULL : DUPLEX_HALF;
@@ -201,7 +203,7 @@ static int vsc8211_get_link_status(struct cphy *cphy, int *link_ok,
 	return 0;
 }
 
-static int vsc8211_get_link_status_fiber(struct cphy *cphy, int *link_ok,
+static int vsc8211_get_link_status_fiber(struct cphy *cphy, int *link_state,
 					 int *speed, int *duplex, int *fc)
 {
 	unsigned int bmcr, status, lpa, adv;
@@ -213,7 +215,7 @@ static int vsc8211_get_link_status_fiber(struct cphy *cphy, int *link_ok,
 	if (err)
 		return err;
 
-	if (link_ok) {
+	if (link_state) {
 		/*
 		 * BMSR_LSTATUS is latch-low, so if it is 0 we need to read it
 		 * once more to get the current link state.
@@ -222,7 +224,8 @@ static int vsc8211_get_link_status_fiber(struct cphy *cphy, int *link_ok,
 			err = mdio_read(cphy, 0, MII_BMSR, &status);
 		if (err)
 			return err;
-		*link_ok = (status & BMSR_LSTATUS) != 0;
+		*link_state = status & BMSR_LSTATUS ? PHY_LINK_UP :
+		    PHY_LINK_DOWN;
 	}
 	if (!(bmcr & BMCR_ANENABLE)) {
 		dplx = (bmcr & BMCR_FULLDPLX) ? DUPLEX_FULL : DUPLEX_HALF;

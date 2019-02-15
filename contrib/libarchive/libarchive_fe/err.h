@@ -42,10 +42,11 @@
 #define	__LA_PRINTFLIKE(f,a)
 #endif
 
-extern const char *lafe_progname;
-
 void	lafe_warnc(int code, const char *fmt, ...) __LA_PRINTFLIKE(2, 3);
 void	lafe_errc(int eval, int code, const char *fmt, ...) __LA_DEAD
 		  __LA_PRINTFLIKE(3, 4);
+
+const char *	lafe_getprogname(void);
+void		lafe_setprogname(const char *name, const char *defaultname);
 
 #endif

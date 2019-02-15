@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
@@ -72,6 +74,7 @@ struct g_concat_disk {
 	struct g_concat_softc	*d_softc;
 	off_t			 d_start;
 	off_t			 d_end;
+	int			 d_candelete;
 	int			 d_removed;
 };
 

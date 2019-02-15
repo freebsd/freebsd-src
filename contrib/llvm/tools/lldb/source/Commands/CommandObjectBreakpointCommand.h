@@ -13,16 +13,14 @@
 // C Includes
 // C++ Includes
 
-
 // Other libraries and framework includes
 // Project includes
 
-#include "lldb/lldb-types.h"
-#include "lldb/Interpreter/Options.h"
 #include "lldb/Interpreter/CommandObject.h"
-#include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/CommandObjectMultiword.h"
-
+#include "lldb/Interpreter/CommandReturnObject.h"
+#include "lldb/Interpreter/Options.h"
+#include "lldb/lldb-types.h"
 
 namespace lldb_private {
 
@@ -30,16 +28,13 @@ namespace lldb_private {
 // CommandObjectMultiwordBreakpoint
 //-------------------------------------------------------------------------
 
-class CommandObjectBreakpointCommand : public CommandObjectMultiword
-{
+class CommandObjectBreakpointCommand : public CommandObjectMultiword {
 public:
-    CommandObjectBreakpointCommand (CommandInterpreter &interpreter);
+  CommandObjectBreakpointCommand(CommandInterpreter &interpreter);
 
-    virtual
-    ~CommandObjectBreakpointCommand ();
-
+  ~CommandObjectBreakpointCommand() override;
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_CommandObjectBreakpointCommand_h_
+#endif // liblldb_CommandObjectBreakpointCommand_h_

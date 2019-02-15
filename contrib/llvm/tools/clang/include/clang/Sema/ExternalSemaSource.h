@@ -10,8 +10,8 @@
 //  This file defines the ExternalSemaSource interface.
 //
 //===----------------------------------------------------------------------===//
-#ifndef LLVM_CLANG_SEMA_EXTERNAL_SEMA_SOURCE_H
-#define LLVM_CLANG_SEMA_EXTERNAL_SEMA_SOURCE_H
+#ifndef LLVM_CLANG_SEMA_EXTERNALSEMASOURCE_H
+#define LLVM_CLANG_SEMA_EXTERNALSEMASOURCE_H
 
 #include "clang/AST/ExternalASTSource.h"
 #include "clang/AST/Type.h"
@@ -20,9 +20,14 @@
 #include "llvm/ADT/MapVector.h"
 #include <utility>
 
+namespace llvm {
+template <class T, unsigned n> class SmallSetVector;
+}
+
 namespace clang {
 
 class CXXConstructorDecl;
+class CXXDeleteExpr;
 class CXXRecordDecl;
 class DeclaratorDecl;
 class LookupResult;
@@ -51,7 +56,7 @@ public:
     ExternalASTSource::SemaSource = true;
   }
 
-  ~ExternalSemaSource();
+  ~ExternalSemaSource() override;
 
   /// \brief Initialize the semantic source with the Sema instance
   /// being used to perform semantic analysis on the abstract syntax
@@ -65,6 +70,10 @@ public:
   /// selector.
   virtual void ReadMethodPool(Selector Sel);
 
+  /// Load the contents of the global method pool for a given
+  /// selector if necessary.
+  virtual void updateOutOfDateSelector(Selector Sel);
+
   /// \brief Load the set of namespaces that are known to the external source,
   /// which will be used during typo correction.
   virtual void ReadKnownNamespaces(
@@ -72,8 +81,11 @@ public:
 
   /// \brief Load the set of used but not defined functions or variables with
   /// internal linkage, or used but not defined internal functions.
-  virtual void ReadUndefinedButUsed(
-                         llvm::DenseMap<NamedDecl*, SourceLocation> &Undefined);
+  virtual void
+  ReadUndefinedButUsed(llvm::MapVector<NamedDecl *, SourceLocation> &Undefined);
+
+  virtual void ReadMismatchingDeleteExpressions(llvm::MapVector<
+      FieldDecl *, llvm::SmallVector<std::pair<SourceLocation, bool>, 4>> &);
 
   /// \brief Do last resort, unqualified lookup on a LookupResult that
   /// Sema cannot find.
@@ -124,23 +136,14 @@ public:
   /// introduce the same declarations repeatedly.
   virtual void ReadExtVectorDecls(SmallVectorImpl<TypedefNameDecl *> &Decls) {}
 
-  /// \brief Read the set of dynamic classes known to the external Sema source.
+  /// \brief Read the set of potentially unused typedefs known to the source.
   ///
-  /// The external source should append its own dynamic classes to
-  /// the given vector of declarations. Note that this routine may be
-  /// invoked multiple times; the external source should take care not to
+  /// The external source should append its own potentially unused local
+  /// typedefs to the given vector of declarations. Note that this routine may
+  /// be invoked multiple times; the external source should take care not to
   /// introduce the same declarations repeatedly.
-  virtual void ReadDynamicClasses(SmallVectorImpl<CXXRecordDecl *> &Decls) {}
-
-  /// \brief Read the set of locally-scoped external declarations known to the
-  /// external Sema source.
-  ///
-  /// The external source should append its own locally-scoped external
-  /// declarations to the given vector of declarations. Note that this routine 
-  /// may be invoked multiple times; the external source should take care not 
-  /// to introduce the same declarations repeatedly.
-  virtual void ReadLocallyScopedExternCDecls(
-                 SmallVectorImpl<NamedDecl *> &Decls) {}
+  virtual void ReadUnusedLocalTypedefNameCandidates(
+      llvm::SmallSetVector<const TypedefNameDecl *, 4> &Decls) {}
 
   /// \brief Read the set of referenced selectors known to the
   /// external Sema source.
@@ -187,7 +190,8 @@ public:
   /// external source should take care not to introduce the same map entries
   /// repeatedly.
   virtual void ReadLateParsedTemplates(
-      llvm::DenseMap<const FunctionDecl *, LateParsedTemplate *> &LPTMap) {}
+      llvm::MapVector<const FunctionDecl *, std::unique_ptr<LateParsedTemplate>>
+          &LPTMap) {}
 
   /// \copydoc Sema::CorrectTypo
   /// \note LookupKind must correspond to a valid Sema::LookupNameKind

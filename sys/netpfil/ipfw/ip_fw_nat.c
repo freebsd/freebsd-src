@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Paolo Pisati
  * All rights reserved.
  *
@@ -43,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/pfil.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
@@ -104,26 +107,32 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 
 	KASSERT(curvnet == ifp->if_vnet,
 	    ("curvnet(%p) differs from iface vnet(%p)", curvnet, ifp->if_vnet));
+
+	if (V_ipfw_vnet_ready == 0 || V_ipfw_nat_ready == 0)
+		return;
+
 	chain = &V_layer3_chain;
-	IPFW_WLOCK(chain);
+	IPFW_UH_WLOCK(chain);
 	/* Check every nat entry... */
 	LIST_FOREACH(ptr, &chain->nat, _next) {
 		/* ...using nic 'ifp->if_xname' as dynamic alias address. */
 		if (strncmp(ptr->if_name, ifp->if_xname, IF_NAMESIZE) != 0)
 			continue;
 		if_addr_rlock(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr == NULL)
 				continue;
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
+			IPFW_WLOCK(chain);
 			ptr->ip = ((struct sockaddr_in *)
 			    (ifa->ifa_addr))->sin_addr;
 			LibAliasSetAddress(ptr->lib, ptr->ip);
+			IPFW_WUNLOCK(chain);
 		}
 		if_addr_runlock(ifp);
 	}
-	IPFW_WUNLOCK(chain);
+	IPFW_UH_WUNLOCK(chain);
 }
 
 /*
@@ -240,6 +249,8 @@ add_redir_spool_cfg(char *buf, struct cfg_nat *ptr)
 		}
 		if (r->alink[0] == NULL) {
 			printf("LibAliasRedirect* returned NULL\n");
+			free(r->alink, M_IPFW);
+			free(r, M_IPFW);
 			return (EINVAL);
 		}
 		/* LSNAT handling. */
@@ -260,6 +271,16 @@ add_redir_spool_cfg(char *buf, struct cfg_nat *ptr)
 
 	return (0);
 }
+
+static void
+free_nat_instance(struct cfg_nat *ptr)
+{
+
+	del_redir_spool_cfg(ptr, &ptr->redir_chain);
+	LibAliasUninit(ptr->lib);
+	free(ptr, M_IPFW);
+}
+
 
 /*
  * ipfw_nat - perform mbuf header translation.
@@ -534,7 +555,7 @@ nat44_config(struct ip_fw_chain *chain, struct nat44_cfg_nat *ucfg)
 	IPFW_UH_WUNLOCK(chain);
 
 	if (tcfg != NULL)
-		free(tcfg, M_IPFW);
+		free_nat_instance(ptr);
 }
 
 /*
@@ -624,9 +645,7 @@ nat44_destroy(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	IPFW_WUNLOCK(chain);
 	IPFW_UH_WUNLOCK(chain);
 
-	del_redir_spool_cfg(ptr, &ptr->redir_chain);
-	LibAliasUninit(ptr->lib);
-	free(ptr, M_IPFW);
+	free_nat_instance(ptr);
 
 	return (0);
 }
@@ -689,7 +708,7 @@ nat44_get_cfg(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	export_nat_cfg(ptr, ucfg);
 	
 	/* Estimate memory amount */
-	sz = sizeof(struct nat44_cfg_nat);
+	sz = sizeof(ipfw_obj_header) + sizeof(struct nat44_cfg_nat);
 	LIST_FOREACH(r, &ptr->redir_chain, _next) {
 		sz += sizeof(struct nat44_cfg_redir);
 		LIST_FOREACH(s, &r->spool_chain, _next)
@@ -697,7 +716,7 @@ nat44_get_cfg(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	}
 
 	ucfg->size = sz;
-	if (sd->valsize < sz + sizeof(*oh)) {
+	if (sd->valsize < sz) {
 
 		/*
 		 * Submitted buffer size is not enough.
@@ -920,7 +939,7 @@ ipfw_nat_cfg(struct sockopt *sopt)
 
 	/*
 	 * Allocate 2x buffer to store converted structures.
-	 * new redir_cfg has shrinked, so we're sure that
+	 * new redir_cfg has shrunk, so we're sure that
 	 * new buffer size is enough.
 	 */
 	buf = malloc(roundup2(len, 8) + len2, M_TEMP, M_WAITOK | M_ZERO);
@@ -992,9 +1011,7 @@ ipfw_nat_del(struct sockopt *sopt)
 	flush_nat_ptrs(chain, i);
 	IPFW_WUNLOCK(chain);
 	IPFW_UH_WUNLOCK(chain);
-	del_redir_spool_cfg(ptr, &ptr->redir_chain);
-	LibAliasUninit(ptr->lib);
-	free(ptr, M_IPFW);
+	free_nat_instance(ptr);
 	return (0);
 }
 
@@ -1135,14 +1152,12 @@ vnet_ipfw_nat_uninit(const void *arg __unused)
 
 	chain = &V_layer3_chain;
 	IPFW_WLOCK(chain);
+	V_ipfw_nat_ready = 0;
 	LIST_FOREACH_SAFE(ptr, &chain->nat, _next, ptr_temp) {
 		LIST_REMOVE(ptr, _next);
-		del_redir_spool_cfg(ptr, &ptr->redir_chain);
-		LibAliasUninit(ptr->lib);
-		free(ptr, M_IPFW);
+		free_nat_instance(ptr);
 	}
 	flush_nat_ptrs(chain, -1 /* flush all */);
-	V_ipfw_nat_ready = 0;
 	IPFW_WUNLOCK(chain);
 	return (0);
 }
@@ -1205,7 +1220,7 @@ static moduledata_t ipfw_nat_mod = {
 };
 
 /* Define startup order. */
-#define	IPFW_NAT_SI_SUB_FIREWALL	SI_SUB_PROTO_IFATTACHDOMAIN
+#define	IPFW_NAT_SI_SUB_FIREWALL	SI_SUB_PROTO_FIREWALL
 #define	IPFW_NAT_MODEVENT_ORDER		(SI_ORDER_ANY - 128) /* after ipfw */
 #define	IPFW_NAT_MODULE_ORDER		(IPFW_NAT_MODEVENT_ORDER + 1)
 #define	IPFW_NAT_VNET_ORDER		(IPFW_NAT_MODEVENT_ORDER + 2)

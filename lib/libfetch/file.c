@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1998-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
@@ -48,7 +50,7 @@ fetchXGetFile(struct url *u, struct url_stat *us, const char *flags)
 	if (us && fetchStatFile(u, us, flags) == -1)
 		return (NULL);
 
-	f = fopen(u->doc, "r");
+	f = fopen(u->doc, "re");
 
 	if (f == NULL) {
 		fetch_syserr();
@@ -61,7 +63,6 @@ fetchXGetFile(struct url *u, struct url_stat *us, const char *flags)
 		return (NULL);
 	}
 
-	fcntl(fileno(f), F_SETFD, FD_CLOEXEC);
 	return (f);
 }
 
@@ -77,9 +78,9 @@ fetchPutFile(struct url *u, const char *flags)
 	FILE *f;
 
 	if (CHECK_FLAG('a'))
-		f = fopen(u->doc, "a");
+		f = fopen(u->doc, "ae");
 	else
-		f = fopen(u->doc, "w+");
+		f = fopen(u->doc, "w+e");
 
 	if (f == NULL) {
 		fetch_syserr();
@@ -92,7 +93,6 @@ fetchPutFile(struct url *u, const char *flags)
 		return (NULL);
 	}
 
-	fcntl(fileno(f), F_SETFD, FD_CLOEXEC);
 	return (f);
 }
 
@@ -151,5 +151,6 @@ fetchListFile(struct url *u, const char *flags __unused)
 		fetch_add_entry(&ue, &size, &len, de->d_name, &us);
 	}
 
+	closedir(dir);
 	return (ue);
 }

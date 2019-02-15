@@ -34,7 +34,6 @@
 #include "svn_string.h"
 #include "svn_io.h"
 #include "svn_config.h"
-#include "svn_private_config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,7 +46,8 @@ struct svn_config_t
   /* Table of cfg_section_t's. */
   apr_hash_t *sections;
 
-  /* Pool for hash tables, table entries and unexpanded values */
+  /* Pool for hash tables, table entries and unexpanded values.
+     Also, parent pool for temporary pools. */
   apr_pool_t *pool;
 
   /* Pool for expanded values -- this is separate, so that we can
@@ -70,20 +70,23 @@ struct svn_config_t
 
   /* Specifies whether option names are populated case sensitively. */
   svn_boolean_t option_names_case_sensitive;
+
+  /* When set, all modification attempts will be ignored.
+   * In debug mode, we will trigger an assertion. */
+  svn_boolean_t read_only;
 };
 
+/* The default add-value constructor callback, used by the default
+   config parser that populates an svn_config_t. */
+svn_error_t *svn_config__default_add_value_fn(
+    void *baton, svn_stringbuf_t *section,
+    svn_stringbuf_t *option, svn_stringbuf_t *value);
 
 /* Read sections and options from a file. */
 svn_error_t *svn_config__parse_file(svn_config_t *cfg,
                                     const char *file,
                                     svn_boolean_t must_exist,
                                     apr_pool_t *pool);
-
-/* Read sections and options from a stream. */
-svn_error_t *svn_config__parse_stream(svn_config_t *cfg,
-                                      svn_stream_t *stream,
-                                      apr_pool_t *result_pool,
-                                      apr_pool_t *scratch_pool);
 
 /* The name of the magic [DEFAULT] section. */
 #define SVN_CONFIG__DEFAULT_SECTION "DEFAULT"
@@ -92,8 +95,9 @@ svn_error_t *svn_config__parse_stream(svn_config_t *cfg,
 #ifdef WIN32
 /* Get the common or user-specific AppData folder */
 svn_error_t *svn_config__win_config_path(const char **folder,
-                                         int system_path,
-                                         apr_pool_t *pool);
+                                         svn_boolean_t system_path,
+                                         apr_pool_t *result_pool,
+                                         apr_pool_t *scratch_pool);
 
 /* Read sections and options from the Windows Registry. */
 svn_error_t *svn_config__parse_registry(svn_config_t *cfg,

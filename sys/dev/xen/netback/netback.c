@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2011 Spectra Logic Corporation
  * All rights reserved.
  *
@@ -43,7 +45,6 @@ __FBSDID("$FreeBSD$");
  */
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_global.h"
 
 #include "opt_sctp.h"
 
@@ -88,8 +89,6 @@ __FBSDID("$FreeBSD$");
 #include <xen/interface/io/netif.h>
 #include <xen/xenbus/xenbusvar.h>
 
-#include <machine/xen/xenvar.h>
-
 /*--------------------------- Compile-time Tunables --------------------------*/
 
 /*---------------------------------- Macros ----------------------------------*/
@@ -99,7 +98,7 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_XENNETBACK, "xnb", "Xen Net Back Driver Data");
 
 #define	XNB_SG	1	/* netback driver supports feature-sg */
-#define	XNB_GSO_TCPV4 1	/* netback driver supports feature-gso-tcpv4 */
+#define	XNB_GSO_TCPV4 0	/* netback driver supports feature-gso-tcpv4 */
 #define	XNB_RX_COPY 1	/* netback driver supports feature-rx-copy */
 #define	XNB_RX_FLIP 0	/* netback driver does not support feature-rx-flip */
 
@@ -133,7 +132,7 @@ static MALLOC_DEFINE(M_XENNETBACK, "xnb", "Xen Net Back Driver Data");
 	req < rsp ? req : rsp;                                          \
 })
 
-#define	virt_to_mfn(x) (vtomach(x) >> PAGE_SHIFT)
+#define	virt_to_mfn(x) (vtophys(x) >> PAGE_SHIFT)
 #define	virt_to_offset(x) ((x) & (PAGE_SIZE - 1))
 
 /**
@@ -167,7 +166,7 @@ static void	xnb_txpkt2rsp(const struct xnb_pkt *pkt,
 			      netif_tx_back_ring_t *ring, int error);
 static struct mbuf *xnb_pkt2mbufc(const struct xnb_pkt *pkt, struct ifnet *ifp);
 static int	xnb_txpkt2gnttab(const struct xnb_pkt *pkt,
-				 const struct mbuf *mbufc,
+				 struct mbuf *mbufc,
 				 gnttab_copy_table gnttab,
 				 const netif_tx_back_ring_t *txb,
 				 domid_t otherend_id);
@@ -419,7 +418,7 @@ struct xnb_softc {
 	 * There are situations where the back and front ends can
 	 * have a different, native abi (e.g. intel x86_64 and
 	 * 32bit x86 domains on the same machine).  The back-end
-	 * always accomodates the front-end's native abi.  That
+	 * always accommodates the front-end's native abi.  That
 	 * value is pulled from the XenStore and recorded here.
 	 */
 	int			abi;
@@ -474,7 +473,6 @@ struct xnb_softc {
 	 */
 	gnttab_copy_table	tx_gnttab;
 
-#ifdef XENHVM
 	/**
 	 * Resource representing allocated physical address space
 	 * associated with our per-instance kva region.
@@ -483,7 +481,6 @@ struct xnb_softc {
 
 	/** Resource id for allocated physical address space. */
 	int			pseudo_phys_res_id;
-#endif
 
 	/** Ring mapping and interrupt configuration data. */
 	struct xnb_ring_config	ring_configs[XNB_NUM_RING_TYPES];
@@ -494,7 +491,7 @@ struct xnb_softc {
 	 */
 	vm_offset_t		kva;
 
-	/** Psuedo-physical address corresponding to kva. */
+	/** Pseudo-physical address corresponding to kva. */
 	uint64_t		gnt_base_addr;
 
 	/** Various configuration and state bit flags. */
@@ -511,6 +508,9 @@ struct xnb_softc {
 
 	/** The size of the global kva pool. */
 	int			kva_size;
+
+	/** Name of the interface */
+	char			 if_name[IFNAMSIZ];
 };
 
 /*---------------------------- Debugging functions ---------------------------*/
@@ -526,13 +526,15 @@ xnb_dump_gnttab_copy(const struct gnttab_copy *entry)
 	if (entry->flags & GNTCOPY_dest_gref)
 		printf("gnttab dest ref=\t%u\n", entry->dest.u.ref);
 	else
-		printf("gnttab dest gmfn=\t%lu\n", entry->dest.u.gmfn);
+		printf("gnttab dest gmfn=\t%"PRI_xen_pfn"\n",
+		       entry->dest.u.gmfn);
 	printf("gnttab dest offset=\t%hu\n", entry->dest.offset);
 	printf("gnttab dest domid=\t%hu\n", entry->dest.domid);
 	if (entry->flags & GNTCOPY_source_gref)
 		printf("gnttab source ref=\t%u\n", entry->source.u.ref);
 	else
-		printf("gnttab source gmfn=\t%lu\n", entry->source.u.gmfn);
+		printf("gnttab source gmfn=\t%"PRI_xen_pfn"\n",
+		       entry->source.u.gmfn);
 	printf("gnttab source offset=\t%hu\n", entry->source.offset);
 	printf("gnttab source domid=\t%hu\n", entry->source.domid);
 	printf("gnttab len=\t%hu\n", entry->len);
@@ -624,16 +626,11 @@ static void
 xnb_free_communication_mem(struct xnb_softc *xnb)
 {
 	if (xnb->kva != 0) {
-#ifndef XENHVM
-		kva_free(xnb->kva, xnb->kva_size);
-#else
 		if (xnb->pseudo_phys_res != NULL) {
-			bus_release_resource(xnb->dev, SYS_RES_MEMORY,
-			    xnb->pseudo_phys_res_id,
+			xenmem_free(xnb->dev, xnb->pseudo_phys_res_id,
 			    xnb->pseudo_phys_res);
 			xnb->pseudo_phys_res = NULL;
 		}
-#endif /* XENHVM */
 	}
 	xnb->kva = 0;
 	xnb->gnt_base_addr = 0;
@@ -665,6 +662,7 @@ xnb_disconnect(struct xnb_softc *xnb)
 	mtx_lock(&xnb->rx_lock);
 	mtx_unlock(&xnb->rx_lock);
 
+	mtx_lock(&xnb->sc_lock);
 	/* Free malloc'd softc member variables */
 	if (xnb->bridge != NULL) {
 		free(xnb->bridge, M_XENSTORE);
@@ -692,6 +690,8 @@ xnb_disconnect(struct xnb_softc *xnb)
 	    sizeof(struct xnb_ring_config));
 
 	xnb->flags &= ~XNBF_RING_CONNECTED;
+	mtx_unlock(&xnb->sc_lock);
+
 	return (0);
 }
 
@@ -814,12 +814,7 @@ xnb_alloc_communication_mem(struct xnb_softc *xnb)
 	for (i=0; i < XNB_NUM_RING_TYPES; i++) {
 		xnb->kva_size += xnb->ring_configs[i].ring_pages * PAGE_SIZE;
 	}
-#ifndef XENHVM
-	xnb->kva = kva_alloc(xnb->kva_size);
-	if (xnb->kva == 0)
-		return (ENOMEM);
-	xnb->gnt_base_addr = xnb->kva;
-#else /* defined XENHVM */
+
 	/*
 	 * Reserve a range of pseudo physical memory that we can map
 	 * into kva.  These pages will only be backed by machine
@@ -828,17 +823,14 @@ xnb_alloc_communication_mem(struct xnb_softc *xnb)
 	 * into this space.
 	 */
 	xnb->pseudo_phys_res_id = 0;
-	xnb->pseudo_phys_res = bus_alloc_resource(xnb->dev, SYS_RES_MEMORY,
-						  &xnb->pseudo_phys_res_id,
-						  0, ~0, xnb->kva_size,
-						  RF_ACTIVE);
+	xnb->pseudo_phys_res = xenmem_alloc(xnb->dev, &xnb->pseudo_phys_res_id,
+	    xnb->kva_size);
 	if (xnb->pseudo_phys_res == NULL) {
 		xnb->kva = 0;
 		return (ENOMEM);
 	}
 	xnb->kva = (vm_offset_t)rman_get_virtual(xnb->pseudo_phys_res);
 	xnb->gnt_base_addr = rman_get_start(xnb->pseudo_phys_res);
-#endif /* !defined XENHVM */
 	return (0);
 }
 
@@ -1077,17 +1069,14 @@ xnb_shutdown(struct xnb_softc *xnb)
 		if_free(xnb->xnb_ifp);
 		xnb->xnb_ifp = NULL;
 	}
-	mtx_lock(&xnb->sc_lock);
 
 	xnb_disconnect(xnb);
 
-	mtx_unlock(&xnb->sc_lock);
 	if (xenbus_get_state(xnb->dev) < XenbusStateClosing)
 		xenbus_set_state(xnb->dev, XenbusStateClosing);
 	mtx_lock(&xnb->sc_lock);
 
 	xnb->flags &= ~XNBF_IN_SHUTDOWN;
-
 
 	/* Indicate to xnb_detach() that is it safe to proceed. */
 	wakeup(xnb);
@@ -1114,14 +1103,13 @@ xnb_attach_failed(struct xnb_softc *xnb, int err, const char *fmt, ...)
 	xs_vprintf(XST_NIL, xenbus_get_node(xnb->dev),
 		  "hotplug-error", fmt, ap_hotplug);
 	va_end(ap_hotplug);
-	xs_printf(XST_NIL, xenbus_get_node(xnb->dev),
+	(void)xs_printf(XST_NIL, xenbus_get_node(xnb->dev),
 		  "hotplug-status", "error");
 
 	xenbus_dev_vfatal(xnb->dev, err, fmt, ap);
 	va_end(ap);
 
-	xs_printf(XST_NIL, xenbus_get_node(xnb->dev),
-		  "online", "0");
+	(void)xs_printf(XST_NIL, xenbus_get_node(xnb->dev), "online", "0");
 	xnb_detach(xnb->dev);
 }
 
@@ -1201,6 +1189,7 @@ create_netdev(device_t dev)
 	struct ifnet *ifp;
 	struct xnb_softc *xnb;
 	int err = 0;
+	uint32_t handle;
 
 	xnb = device_get_softc(dev);
 	mtx_init(&xnb->sc_lock, "xnb_softc", "xen netback softc lock", MTX_DEF);
@@ -1225,18 +1214,27 @@ create_netdev(device_t dev)
 	 */
 	bzero(&xnb->mac[0], sizeof(xnb->mac));
 
+	/* The interface will be named using the following nomenclature:
+	 *
+	 * xnb<domid>.<handle>
+	 *
+	 * Where handle is the oder of the interface referred to the guest.
+	 */
+	err = xs_scanf(XST_NIL, xenbus_get_node(xnb->dev), "handle", NULL,
+		       "%" PRIu32, &handle);
+	if (err != 0)
+		return (err);
+	snprintf(xnb->if_name, IFNAMSIZ, "xnb%" PRIu16 ".%" PRIu32,
+	    xenbus_get_otherend_id(dev), handle);
+
 	if (err == 0) {
 		/* Set up ifnet structure */
 		ifp = xnb->xnb_ifp = if_alloc(IFT_ETHER);
 		ifp->if_softc = xnb;
-		if_initname(ifp, "xnb",  device_get_unit(dev));
+		if_initname(ifp, xnb->if_name,  IF_DUNIT_NONE);
 		ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 		ifp->if_ioctl = xnb_ioctl;
-		ifp->if_output = ether_output;
 		ifp->if_start = xnb_start;
-#ifdef notyet
-		ifp->if_watchdog = xnb_watchdog;
-#endif
 		ifp->if_init = xnb_ifinit;
 		ifp->if_mtu = ETHERMTU;
 		ifp->if_snd.ifq_maxlen = NET_RX_RING_SIZE - 1;
@@ -1326,7 +1324,7 @@ xnb_attach(device_t dev)
  *
  * \note A net back device may be detached at any time in its life-cycle,
  *       including part way through the attach process.  For this reason,
- *       initialization order and the intialization state checks in this
+ *       initialization order and the initialization state checks in this
  *       routine must be carefully coupled so that attach time failures
  *       are gracefully handled.
  */
@@ -1708,12 +1706,12 @@ xnb_pkt2mbufc(const struct xnb_pkt *pkt, struct ifnet *ifp)
  * \return 		The number of gnttab entries filled
  */
 static int
-xnb_txpkt2gnttab(const struct xnb_pkt *pkt, const struct mbuf *mbufc,
+xnb_txpkt2gnttab(const struct xnb_pkt *pkt, struct mbuf *mbufc,
 		 gnttab_copy_table gnttab, const netif_tx_back_ring_t *txb,
 		 domid_t otherend_id)
 {
 
-	const struct mbuf *mbuf = mbufc;/* current mbuf within the chain */
+	struct mbuf *mbuf = mbufc;/* current mbuf within the chain */
 	int gnt_idx = 0;		/* index into grant table */
 	RING_IDX r_idx = pkt->car;	/* index into tx ring buffer */
 	int r_ofs = 0;	/* offset of next data within tx request's data area */
@@ -1930,7 +1928,7 @@ xnb_mbufc2pkt(const struct mbuf *mbufc, struct xnb_pkt *pkt,
 		 * into responses so that each response but the last uses all
 		 * PAGE_SIZE bytes.
 		 */
-		pkt->list_len = (pkt->size + PAGE_SIZE - 1) / PAGE_SIZE;
+		pkt->list_len = howmany(pkt->size, PAGE_SIZE);
 
 		if (pkt->list_len > 1) {
 			pkt->flags |= NETRXF_more_data;
@@ -2235,7 +2233,6 @@ xnb_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			mtx_unlock(&xnb->sc_lock);
 			break;
 		case SIOCSIFADDR:
-		case SIOCGIFADDR:
 #ifdef INET
 			mtx_lock(&xnb->sc_lock);
 			if (ifa->ifa_addr->sa_family == AF_INET) {

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD AND RSA-MD)
+ *
  * Copyright (c) 2010, 2013 Zheng Liu <lz@freebsd.org>
  * Copyright (c) 2012, Vyacheslav Matyushin
  * All rights reserved.
@@ -58,6 +60,8 @@
 #include <sys/stat.h>
 #include <sys/mount.h>
 
+#include <fs/ext2fs/ext2fs.h>
+#include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/htree.h>
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2_mount.h>
@@ -192,14 +196,14 @@ ext2_legacy_hash(const char *name, int len, int unsigned_char)
 
 static void
 ext2_prep_hashbuf(const char *src, int slen, uint32_t *dst, int dlen,
-	     int unsigned_char)
+    int unsigned_char)
 {
 	uint32_t padding = slen | (slen << 8) | (slen << 16) | (slen << 24);
 	uint32_t buf_val;
-	int len, i;
-	int buf_byte;
 	const unsigned char *ubuf = (const unsigned char *)src;
 	const signed char *sbuf = (const signed char *)src;
+	int len, i;
+	int buf_byte;
 
 	if (slen > dlen)
 		len = dlen;
@@ -240,8 +244,8 @@ ext2_prep_hashbuf(const char *src, int slen, uint32_t *dst, int dlen,
 
 int
 ext2_htree_hash(const char *name, int len,
-		uint32_t *hash_seed, int hash_version,
-		uint32_t *hash_major, uint32_t *hash_minor)
+    uint32_t *hash_seed, int hash_version,
+    uint32_t *hash_major, uint32_t *hash_minor)
 {
 	uint32_t hash[4];
 	uint32_t data[8];
@@ -265,6 +269,7 @@ ext2_htree_hash(const char *name, int len,
 	switch (hash_version) {
 	case EXT2_HTREE_TEA_UNSIGNED:
 		unsigned_char = 1;
+		/* FALLTHROUGH */
 	case EXT2_HTREE_TEA:
 		while (len > 0) {
 			ext2_prep_hashbuf(name, len, data, 16, unsigned_char);
@@ -277,11 +282,13 @@ ext2_htree_hash(const char *name, int len,
 		break;
 	case EXT2_HTREE_LEGACY_UNSIGNED:
 		unsigned_char = 1;
+		/* FALLTHROUGH */
 	case EXT2_HTREE_LEGACY:
 		major = ext2_legacy_hash(name, len, unsigned_char);
 		break;
 	case EXT2_HTREE_HALF_MD4_UNSIGNED:
 		unsigned_char = 1;
+		/* FALLTHROUGH */
 	case EXT2_HTREE_HALF_MD4:
 		while (len > 0) {
 			ext2_prep_hashbuf(name, len, data, 32, unsigned_char);

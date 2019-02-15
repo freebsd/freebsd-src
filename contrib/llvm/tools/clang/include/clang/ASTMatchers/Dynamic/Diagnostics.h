@@ -12,11 +12,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_MATCHERS_DYNAMIC_DIAGNOSTICS_H
-#define LLVM_CLANG_AST_MATCHERS_DYNAMIC_DIAGNOSTICS_H
-
-#include <string>
-#include <vector>
+#ifndef LLVM_CLANG_ASTMATCHERS_DYNAMIC_DIAGNOSTICS_H
+#define LLVM_CLANG_ASTMATCHERS_DYNAMIC_DIAGNOSTICS_H
 
 #include "clang/ASTMatchers/Dynamic/VariantValue.h"
 #include "clang/Basic/LLVM.h"
@@ -24,6 +21,8 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/raw_ostream.h"
+#include <string>
+#include <vector>
 
 namespace clang {
 namespace ast_matchers {
@@ -61,11 +60,12 @@ public:
   enum ErrorType {
     ET_None = 0,
 
-    ET_RegistryNotFound = 1,
+    ET_RegistryMatcherNotFound = 1,
     ET_RegistryWrongArgCount = 2,
     ET_RegistryWrongArgType = 3,
     ET_RegistryNotBindable = 4,
     ET_RegistryAmbiguousOverload = 5,
+    ET_RegistryValueNotFound = 6,
 
     ET_ParserStringError = 100,
     ET_ParserNoOpenParen = 101,
@@ -76,7 +76,7 @@ public:
     ET_ParserInvalidToken = 106,
     ET_ParserMalformedBindExpr = 107,
     ET_ParserTrailingCode = 108,
-    ET_ParserUnsignedError = 109,
+    ET_ParserNumberError = 109,
     ET_ParserOverloadedType = 110
   };
 
@@ -104,11 +104,11 @@ public:
     /// \brief About to call the constructor for a matcher.
     enum ConstructMatcherEnum { ConstructMatcher };
     Context(ConstructMatcherEnum, Diagnostics *Error, StringRef MatcherName,
-            const SourceRange &MatcherRange);
+            SourceRange MatcherRange);
     /// \brief About to recurse into parsing one argument for a matcher.
     enum MatcherArgEnum { MatcherArg };
     Context(MatcherArgEnum, Diagnostics *Error, StringRef MatcherName,
-            const SourceRange &MatcherRange, unsigned ArgNumber);
+            SourceRange MatcherRange, unsigned ArgNumber);
     ~Context();
 
   private:
@@ -137,7 +137,7 @@ public:
   /// All the context information will be kept on the error message.
   /// \return a helper class to allow the caller to pass the arguments for the
   /// error message, using the << operator.
-  ArgStream addError(const SourceRange &Range, ErrorType Error);
+  ArgStream addError(SourceRange Range, ErrorType Error);
 
   /// \brief Information stored for one frame of the context.
   struct ContextFrame {

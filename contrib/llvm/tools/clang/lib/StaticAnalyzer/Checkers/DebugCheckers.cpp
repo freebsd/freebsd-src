@@ -16,7 +16,9 @@
 #include "clang/Analysis/Analyses/LiveVariables.h"
 #include "clang/Analysis/CallGraph.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExplodedGraph.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 #include "llvm/Support/Process.h"
@@ -95,6 +97,11 @@ class CFGDumper : public Checker<check::ASTCodeBody> {
 public:
   void checkASTCodeBody(const Decl *D, AnalysisManager& mgr,
                         BugReporter &BR) const {
+    PrintingPolicy Policy(mgr.getLangOpts());
+    Policy.TerseOutput = true;
+    Policy.PolishForDeclaration = true;
+    D->print(llvm::errs(), Policy);
+
     if (CFG *cfg = mgr.getCFG(D)) {
       cfg->dump(mgr.getLangOpts(),
                 llvm::sys::Process::StandardErrHasColors());
@@ -204,3 +211,4 @@ public:
 void ento::registerExplodedGraphViewer(CheckerManager &mgr) {
   mgr.registerChecker<ExplodedGraphViewer>();
 }
+

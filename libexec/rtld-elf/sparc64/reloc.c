@@ -1,6 +1,8 @@
 /*	$NetBSD: mdreloc.c,v 1.42 2008/04/28 20:23:04 martin Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2000 Eduardo Horvath.
  * Copyright (c) 1999 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -254,7 +256,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 
 	assert(dstobj->mainprog);   /* COPY relocations are invalid elsewhere */
 
-	relalim = (const Elf_Rela *)((caddr_t)dstobj->rela + dstobj->relasize);
+	relalim = (const Elf_Rela *)((const char *)dstobj->rela + dstobj->relasize);
 	for (rela = dstobj->rela; rela < relalim; rela++) {
 		if (ELF_R_TYPE(rela->r_info) == R_SPARC_COPY) {
 			dstaddr = (void *)(dstobj->relocbase + rela->r_offset);
@@ -266,8 +268,8 @@ do_copy_relocations(Obj_Entry *dstobj)
 			    ELF_R_SYM(rela->r_info));
 			req.flags = SYMLOOK_EARLY;
 
-			for (srcobj = dstobj->next; srcobj != NULL;
-			    srcobj = srcobj->next) {
+			for (srcobj = globallist_next(dstobj); srcobj != NULL;
+			    srcobj = globallist_next(srcobj)) {
 				res = symlook_obj(&req, srcobj);
 				if (res == 0) {
 					srcsym = req.sym_out;
@@ -314,7 +316,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	} else
 		cache = NULL;
 
-	relalim = (const Elf_Rela *)((caddr_t)obj->rela + obj->relasize);
+	relalim = (const Elf_Rela *)((const char *)obj->rela + obj->relasize);
 	for (rela = obj->rela; rela < relalim; rela++) {
 		if (reloc_nonplt_object(obj, rela, cache, flags, lockstate) < 0)
 			goto done;
@@ -365,8 +367,7 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache,
 	 * Note: R_SPARC_TLS_TPOFF64 must be the numerically largest
 	 * relocation type.
 	 */
-	if (type >= sizeof(reloc_target_bitmask) /
-	    sizeof(*reloc_target_bitmask)) {
+	if (type >= nitems(reloc_target_bitmask)) {
 		_rtld_error("%s: Unsupported relocation type %d in non-PLT "
 		    "object\n", obj->path, type);
 		return (-1);
@@ -407,8 +408,8 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache,
 			 * of) static TLS in dynamically loaded modules.  If
 			 * we run out of space, we generate an error.
 			 */
-			if (!defobj->tls_done &&
-			    !allocate_tls_offset((Obj_Entry*)defobj)) {
+			if (!defobj->tls_done && !allocate_tls_offset(
+			    __DECONST(Obj_Entry *, defobj))) {
 				_rtld_error("%s: No space available for "
 				    "static Thread Local Storage", obj->path);
 				return (-1);
@@ -486,7 +487,7 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache,
 }
 
 int
-reloc_plt(Obj_Entry *obj)
+reloc_plt(Obj_Entry *obj __unused)
 {
 #if 0
 	const Obj_Entry *defobj;
@@ -503,7 +504,7 @@ reloc_plt(Obj_Entry *obj)
 		assert(ELF64_R_TYPE_ID(rela->r_info) == R_SPARC_JMP_SLOT);
 		where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
-		    true, NULL, lockstate);
+		    SYMLOOK_IN_PLT, NULL, lockstate);
 		value = (Elf_Addr)(defobj->relocbase + def->st_value);
 		*where = value;
 	}
@@ -541,7 +542,8 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 	Elf_Addr *where;
 	Elf_Addr target;
 
-	relalim = (const Elf_Rela *)((char *)obj->pltrela + obj->pltrelasize);
+	relalim = (const Elf_Rela *)((const char *)obj->pltrela +
+	    obj->pltrelasize);
 	for (rela = obj->pltrela; rela < relalim; rela++) {
 		assert(ELF64_R_TYPE_ID(rela->r_info) == R_SPARC_JMP_SLOT);
 		where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
@@ -550,14 +552,16 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 		if (def == NULL)
 			return -1;
 		target = (Elf_Addr)(defobj->relocbase + def->st_value);
-		reloc_jmpslot(where, target, defobj, obj, (Elf_Rel *)rela);
+		reloc_jmpslot(where, target, defobj, obj,
+		    (const Elf_Rel *)rela);
 	}
 	obj->jmpslots_done = true;
 	return (0);
 }
 
 int
-reloc_iresolve(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+reloc_iresolve(Obj_Entry *obj __unused,
+    struct Struct_RtldLockState *lockstate __unused)
 {
 
 	/* XXX not implemented */
@@ -565,8 +569,8 @@ reloc_iresolve(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
 }
 
 int
-reloc_gnu_ifunc(Obj_Entry *obj, int flags,
-    struct Struct_RtldLockState *lockstate)
+reloc_gnu_ifunc(Obj_Entry *obj __unused, int flags __unused,
+    struct Struct_RtldLockState *lockstate __unused)
 {
 
 	/* XXX not implemented */
@@ -574,14 +578,16 @@ reloc_gnu_ifunc(Obj_Entry *obj, int flags,
 }
 
 Elf_Addr
-reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
+reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj __unused,
     const Obj_Entry *refobj, const Elf_Rel *rel)
 {
 	const Elf_Rela *rela = (const Elf_Rela *)rel;
 	Elf_Addr offset;
 	Elf_Word *where;
 
-	if (rela - refobj->pltrela < 32764) {
+	if (ld_bind_not) {
+		/* Skip any PLT modifications */
+	} else if (rela - refobj->pltrela < 32764) {
 		/*
 		 * At the PLT entry pointed at by `where', we now construct
 		 * a direct transfer to the now fully resolved function
@@ -609,7 +615,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 		 */
 		where = (Elf_Word *)wherep;
 		offset = ((Elf_Addr)where) - target;
-		if (offset <= (1L<<20) && offset >= -(1L<<20)) {
+		if (offset <= (1UL<<20) && offset >= -(1UL<<20)) {
 			/*
 			 * We're within 1MB -- we can use a direct branch
 			 * instruction.
@@ -628,7 +634,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			 */
 			where[1] = BAA | ((offset >> 2) &0x3fffff);
 			flush(where, 4);
-		} else if (target >= 0 && target < (1L<<32)) {
+		} else if (target < (1UL<<32)) {
 			/*
 			 * We're within 32-bits of address zero.
 			 *
@@ -648,7 +654,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			flush(where, 8);
 			where[1] = SETHI | HIVAL(target, 10);
 			flush(where, 4);
-		} else if (target <= 0 && target > -(1L<<32)) {
+		} else if (target > -(1UL<<32)) {
 			/*
 			 * We're within 32-bits of address -1.
 			 *
@@ -670,7 +676,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			flush(where, 8);
 			where[1] = SETHI | HIVAL(~target, 10);
 			flush(where, 4);
-		} else if (offset <= (1L<<32) && offset >= -((1L<<32) - 4)) {
+		} else if (offset <= (1UL<<32) && offset >= -((1UL<<32) - 4)) {
 			/*
 			 * We're within 32-bits -- we can use a direct call
 			 * insn
@@ -693,7 +699,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			flush(where, 8);
 			where[1] = MOV71;
 			flush(where, 4);
-		} else if (offset >= 0 && offset < (1L<<44)) {
+		} else if (offset < (1L<<44)) {
 			/*
 			 * We're within 44 bits.  We can generate this
 			 * pattern:
@@ -718,7 +724,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			flush(where, 8);
 			where[1] = SETHI | HIVAL(offset, 22);
 			flush(where, 4);
-		} else if (offset < 0 && offset > -(1L<<44)) {
+		} else if (offset > -(1UL<<44)) {
 			/*
 			 * We're within 44 bits.  We can generate this
 			 * pattern:
@@ -786,6 +792,21 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 	return (target);
 }
 
+void
+ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
+{
+
+}
+
+extern void __sparc_utrap_setup(void);
+
+void
+pre_init(void)
+{
+
+	__sparc_utrap_setup();
+}
+
 /*
  * Install rtld function call into this PLT slot.
  */
@@ -814,6 +835,7 @@ init_pltgot(Obj_Entry *obj)
 static void
 install_plt(Elf_Word *pltgot, Elf_Addr proc)
 {
+
 	pltgot[0] = SAVE;
 	flush(pltgot, 0);
 	pltgot[1] = SETHI_l0 | HIVAL(proc, 42);

@@ -28,6 +28,7 @@
 using namespace clang;
 using namespace CodeGen;
 
+
 /// Try to emit a base destructor as an alias to its primary
 /// base-class destructor.
 bool CodeGenModule::TryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
@@ -35,8 +36,14 @@ bool CodeGenModule::TryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
     return true;
 
   // Producing an alias to a base class ctor/dtor can degrade debug quality
-  // as the debugger cannot tell them appart.
+  // as the debugger cannot tell them apart.
   if (getCodeGenOpts().OptimizationLevel == 0)
+    return true;
+
+  // If sanitizing memory to check for use-after-dtor, do not emit as
+  //  an alias, unless this class owns no members.
+  if (getCodeGenOpts().SanitizeMemoryUseAfterDtor &&
+      !D->getParent()->field_empty())
     return true;
 
   // If the destructor doesn't have a trivial body, we have to emit it
@@ -45,6 +52,11 @@ bool CodeGenModule::TryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
     return true;
 
   const CXXRecordDecl *Class = D->getParent();
+
+  // We are going to instrument this destructor, so give up even if it is
+  // currently empty.
+  if (Class->mayInsertExtraPadding())
+    return true;
 
   // If we need to manipulate a VTT parameter, give up.
   if (Class->getNumVBases()) {
@@ -56,22 +68,20 @@ bool CodeGenModule::TryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
 
   // If any field has a non-trivial destructor, we have to emit the
   // destructor separately.
-  for (CXXRecordDecl::field_iterator I = Class->field_begin(),
-         E = Class->field_end(); I != E; ++I)
+  for (const auto *I : Class->fields())
     if (I->getType().isDestructedType())
       return true;
 
   // Try to find a unique base class with a non-trivial destructor.
-  const CXXRecordDecl *UniqueBase = 0;
-  for (CXXRecordDecl::base_class_const_iterator I = Class->bases_begin(),
-         E = Class->bases_end(); I != E; ++I) {
+  const CXXRecordDecl *UniqueBase = nullptr;
+  for (const auto &I : Class->bases()) {
 
     // We're in the base destructor, so skip virtual bases.
-    if (I->isVirtual()) continue;
+    if (I.isVirtual()) continue;
 
     // Skip base classes with trivial destructors.
-    const CXXRecordDecl *Base
-      = cast<CXXRecordDecl>(I->getType()->getAs<RecordType>()->getDecl());
+    const auto *Base =
+        cast<CXXRecordDecl>(I.getType()->getAs<RecordType>()->getDecl());
     if (Base->hasTrivialDestructor()) continue;
 
     // If we've already found a base class with a non-trivial
@@ -100,20 +110,18 @@ bool CodeGenModule::TryEmitBaseDestructorAsAlias(const CXXDestructorDecl *D) {
     return true;
 
   return TryEmitDefinitionAsAlias(GlobalDecl(D, Dtor_Base),
-                                  GlobalDecl(BaseD, Dtor_Base),
-                                  false);
+                                  GlobalDecl(BaseD, Dtor_Base));
 }
 
 /// Try to emit a definition as a global alias for another definition.
 /// If \p InEveryTU is true, we know that an equivalent alias can be produced
 /// in every translation unit.
 bool CodeGenModule::TryEmitDefinitionAsAlias(GlobalDecl AliasDecl,
-                                             GlobalDecl TargetDecl,
-                                             bool InEveryTU) {
+                                             GlobalDecl TargetDecl) {
   if (!getCodeGenOpts().CXXCtorDtorAliases)
     return true;
 
-  // The alias will use the linkage of the referrent.  If we can't
+  // The alias will use the linkage of the referent.  If we can't
   // support aliases with that linkage, fail.
   llvm::GlobalValue::LinkageTypes Linkage = getFunctionLinkage(AliasDecl);
 
@@ -133,38 +141,46 @@ bool CodeGenModule::TryEmitDefinitionAsAlias(GlobalDecl AliasDecl,
     return false;
 
   // Derive the type for the alias.
-  llvm::PointerType *AliasType
-    = getTypes().GetFunctionType(AliasDecl)->getPointerTo();
+  llvm::Type *AliasValueType = getTypes().GetFunctionType(AliasDecl);
+  llvm::PointerType *AliasType = AliasValueType->getPointerTo();
 
-  // Find the referrent.  Some aliases might require a bitcast, in
+  // Find the referent.  Some aliases might require a bitcast, in
   // which case the caller is responsible for ensuring the soundness
   // of these semantics.
-  llvm::GlobalValue *Ref = cast<llvm::GlobalValue>(GetAddrOfGlobal(TargetDecl));
+  auto *Ref = cast<llvm::GlobalValue>(GetAddrOfGlobal(TargetDecl));
   llvm::Constant *Aliasee = Ref;
   if (Ref->getType() != AliasType)
     Aliasee = llvm::ConstantExpr::getBitCast(Ref, AliasType);
 
   // Instead of creating as alias to a linkonce_odr, replace all of the uses
-  // of the aliassee.
+  // of the aliasee.
   if (llvm::GlobalValue::isDiscardableIfUnused(Linkage) &&
-     (TargetLinkage != llvm::GlobalValue::AvailableExternallyLinkage ||
-      !TargetDecl.getDecl()->hasAttr<AlwaysInlineAttr>())) {
-    // FIXME: An extern template instanciation will create functions with
+      !(TargetLinkage == llvm::GlobalValue::AvailableExternallyLinkage &&
+        TargetDecl.getDecl()->hasAttr<AlwaysInlineAttr>())) {
+    // FIXME: An extern template instantiation will create functions with
     // linkage "AvailableExternally". In libc++, some classes also define
     // members with attribute "AlwaysInline" and expect no reference to
     // be generated. It is desirable to reenable this optimisation after
     // corresponding LLVM changes.
-    Replacements[MangledName] = Aliasee;
+    addReplacement(MangledName, Aliasee);
     return false;
   }
 
-  if (!InEveryTU) {
-    /// If we don't have a definition for the destructor yet, don't
-    /// emit.  We can't emit aliases to declarations; that's just not
-    /// how aliases work.
-    if (Ref->isDeclaration())
-      return true;
+  // If we have a weak, non-discardable alias (weak, weak_odr), like an extern
+  // template instantiation or a dllexported class, avoid forming it on COFF.
+  // A COFF weak external alias cannot satisfy a normal undefined symbol
+  // reference from another TU. The other TU must also mark the referenced
+  // symbol as weak, which we cannot rely on.
+  if (llvm::GlobalValue::isWeakForLinker(Linkage) &&
+      getTriple().isOSBinFormatCOFF()) {
+    return true;
   }
+
+  // If we don't have a definition for the destructor yet or the definition is
+  // avaialable_externally, don't emit an alias.  We can't emit aliases to
+  // declarations; that's just not how aliases work.
+  if (Ref->isDeclarationForLinker())
+    return true;
 
   // Don't create an alias to a linker weak symbol. This avoids producing
   // different COMDATs in different TUs. Another option would be to
@@ -174,8 +190,8 @@ bool CodeGenModule::TryEmitDefinitionAsAlias(GlobalDecl AliasDecl,
     return true;
 
   // Create the alias with no name.
-  llvm::GlobalAlias *Alias = 
-    new llvm::GlobalAlias(AliasType, Linkage, "", Aliasee, &getModule());
+  auto *Alias = llvm::GlobalAlias::create(AliasValueType, 0, Linkage, "",
+                                          Aliasee, &getModule());
 
   // Switch any previous uses to the alias.
   if (Entry) {
@@ -189,116 +205,62 @@ bool CodeGenModule::TryEmitDefinitionAsAlias(GlobalDecl AliasDecl,
   }
 
   // Finally, set up the alias with its proper name and attributes.
-  SetCommonAttributes(cast<NamedDecl>(AliasDecl.getDecl()), Alias);
+  setAliasAttributes(cast<NamedDecl>(AliasDecl.getDecl()), Alias);
 
   return false;
 }
 
-void CodeGenModule::EmitCXXConstructor(const CXXConstructorDecl *ctor,
-                                       CXXCtorType ctorType) {
-  // The complete constructor is equivalent to the base constructor
-  // for classes with no virtual bases.  Try to emit it as an alias.
-  if (getTarget().getCXXABI().hasConstructorVariants() &&
-      !ctor->getParent()->getNumVBases() &&
-      (ctorType == Ctor_Complete || ctorType == Ctor_Base)) {
-    bool ProducedAlias =
-        !TryEmitDefinitionAsAlias(GlobalDecl(ctor, Ctor_Complete),
-                                  GlobalDecl(ctor, Ctor_Base), true);
-    if (ctorType == Ctor_Complete && ProducedAlias)
-      return;
+llvm::Function *CodeGenModule::codegenCXXStructor(const CXXMethodDecl *MD,
+                                                  StructorType Type) {
+  const CGFunctionInfo &FnInfo =
+      getTypes().arrangeCXXStructorDeclaration(MD, Type);
+  auto *Fn = cast<llvm::Function>(
+      getAddrOfCXXStructor(MD, Type, &FnInfo, /*FnType=*/nullptr,
+                           /*DontDefer=*/true, ForDefinition));
+
+  GlobalDecl GD;
+  if (const auto *DD = dyn_cast<CXXDestructorDecl>(MD)) {
+    GD = GlobalDecl(DD, toCXXDtorType(Type));
+  } else {
+    const auto *CD = cast<CXXConstructorDecl>(MD);
+    GD = GlobalDecl(CD, toCXXCtorType(Type));
   }
 
-  const CGFunctionInfo &fnInfo =
-    getTypes().arrangeCXXConstructorDeclaration(ctor, ctorType);
+  setFunctionLinkage(GD, Fn);
+  setFunctionDLLStorageClass(GD, Fn);
 
-  llvm::Function *fn =
-    cast<llvm::Function>(GetAddrOfCXXConstructor(ctor, ctorType, &fnInfo));
-  setFunctionLinkage(GlobalDecl(ctor, ctorType), fn);
-
-  CodeGenFunction(*this).GenerateCode(GlobalDecl(ctor, ctorType), fn, fnInfo);
-
-  SetFunctionDefinitionAttributes(ctor, fn);
-  SetLLVMFunctionAttributesForDefinition(ctor, fn);
+  CodeGenFunction(*this).GenerateCode(GD, Fn, FnInfo);
+  setFunctionDefinitionAttributes(MD, Fn);
+  SetLLVMFunctionAttributesForDefinition(MD, Fn);
+  return Fn;
 }
 
-llvm::GlobalValue *
-CodeGenModule::GetAddrOfCXXConstructor(const CXXConstructorDecl *ctor,
-                                       CXXCtorType ctorType,
-                                       const CGFunctionInfo *fnInfo) {
-  GlobalDecl GD(ctor, ctorType);
-  
-  StringRef name = getMangledName(GD);
-  if (llvm::GlobalValue *existing = GetGlobalValue(name))
-    return existing;
-
-  if (!fnInfo)
-    fnInfo = &getTypes().arrangeCXXConstructorDeclaration(ctor, ctorType);
-
-  llvm::FunctionType *fnType = getTypes().GetFunctionType(*fnInfo);
-  return cast<llvm::Function>(GetOrCreateLLVMFunction(name, fnType, GD,
-                                                      /*ForVTable=*/false));
-}
-
-void CodeGenModule::EmitCXXDestructor(const CXXDestructorDecl *dtor,
-                                      CXXDtorType dtorType) {
-  // The complete destructor is equivalent to the base destructor for
-  // classes with no virtual bases, so try to emit it as an alias.
-  if (!dtor->getParent()->getNumVBases() &&
-      (dtorType == Dtor_Complete || dtorType == Dtor_Base)) {
-    bool ProducedAlias =
-        !TryEmitDefinitionAsAlias(GlobalDecl(dtor, Dtor_Complete),
-                                  GlobalDecl(dtor, Dtor_Base), true);
-    if (ProducedAlias) {
-      if (dtorType == Dtor_Complete)
-        return;
-      if (dtor->isVirtual())
-        getVTables().EmitThunks(GlobalDecl(dtor, Dtor_Complete));
-    }
+llvm::Constant *CodeGenModule::getAddrOfCXXStructor(
+    const CXXMethodDecl *MD, StructorType Type, const CGFunctionInfo *FnInfo,
+    llvm::FunctionType *FnType, bool DontDefer,
+    ForDefinition_t IsForDefinition) {
+  GlobalDecl GD;
+  if (auto *CD = dyn_cast<CXXConstructorDecl>(MD)) {
+    GD = GlobalDecl(CD, toCXXCtorType(Type));
+  } else {
+    GD = GlobalDecl(cast<CXXDestructorDecl>(MD), toCXXDtorType(Type));
   }
 
-  // The base destructor is equivalent to the base destructor of its
-  // base class if there is exactly one non-virtual base class with a
-  // non-trivial destructor, there are no fields with a non-trivial
-  // destructor, and the body of the destructor is trivial.
-  if (dtorType == Dtor_Base && !TryEmitBaseDestructorAsAlias(dtor))
-    return;
-
-  const CGFunctionInfo &fnInfo =
-    getTypes().arrangeCXXDestructor(dtor, dtorType);
-
-  llvm::Function *fn =
-    cast<llvm::Function>(GetAddrOfCXXDestructor(dtor, dtorType, &fnInfo));
-  setFunctionLinkage(GlobalDecl(dtor, dtorType), fn);
-
-  CodeGenFunction(*this).GenerateCode(GlobalDecl(dtor, dtorType), fn, fnInfo);
-
-  SetFunctionDefinitionAttributes(dtor, fn);
-  SetLLVMFunctionAttributesForDefinition(dtor, fn);
-}
-
-llvm::GlobalValue *
-CodeGenModule::GetAddrOfCXXDestructor(const CXXDestructorDecl *dtor,
-                                      CXXDtorType dtorType,
-                                      const CGFunctionInfo *fnInfo,
-                                      llvm::FunctionType *fnType) {
-  GlobalDecl GD(dtor, dtorType);
-
-  StringRef name = getMangledName(GD);
-  if (llvm::GlobalValue *existing = GetGlobalValue(name))
-    return existing;
-
-  if (!fnType) {
-    if (!fnInfo) fnInfo = &getTypes().arrangeCXXDestructor(dtor, dtorType);
-    fnType = getTypes().GetFunctionType(*fnInfo);
+  if (!FnType) {
+    if (!FnInfo)
+      FnInfo = &getTypes().arrangeCXXStructorDeclaration(MD, Type);
+    FnType = getTypes().GetFunctionType(*FnInfo);
   }
-  return cast<llvm::Function>(GetOrCreateLLVMFunction(name, fnType, GD,
-                                                      /*ForVTable=*/false));
+
+  return GetOrCreateLLVMFunction(
+      getMangledName(GD), FnType, GD, /*ForVTable=*/false, DontDefer,
+      /*isThunk=*/false, /*ExtraAttrs=*/llvm::AttributeList(), IsForDefinition);
 }
 
-static llvm::Value *BuildAppleKextVirtualCall(CodeGenFunction &CGF,
-                                              GlobalDecl GD,
-                                              llvm::Type *Ty,
-                                              const CXXRecordDecl *RD) {
+static CGCallee BuildAppleKextVirtualCall(CodeGenFunction &CGF,
+                                          GlobalDecl GD,
+                                          llvm::Type *Ty,
+                                          const CXXRecordDecl *RD) {
   assert(!CGF.CGM.getTarget().getCXXABI().isMicrosoft() &&
          "No kext in Microsoft ABI");
   GD = GD.getCanonicalDecl();
@@ -308,22 +270,26 @@ static llvm::Value *BuildAppleKextVirtualCall(CodeGenFunction &CGF,
   VTable = CGF.Builder.CreateBitCast(VTable, Ty);
   assert(VTable && "BuildVirtualCall = kext vtbl pointer is null");
   uint64_t VTableIndex = CGM.getItaniumVTableContext().getMethodVTableIndex(GD);
-  uint64_t AddressPoint =
-    CGM.getItaniumVTableContext().getVTableLayout(RD)
-       .getAddressPoint(BaseSubobject(RD, CharUnits::Zero()));
-  VTableIndex += AddressPoint;
+  const VTableLayout &VTLayout = CGM.getItaniumVTableContext().getVTableLayout(RD);
+  VTableLayout::AddressPointLocation AddressPoint =
+      VTLayout.getAddressPoint(BaseSubobject(RD, CharUnits::Zero()));
+  VTableIndex += VTLayout.getVTableOffset(AddressPoint.VTableIndex) +
+                 AddressPoint.AddressPointIndex;
   llvm::Value *VFuncPtr =
     CGF.Builder.CreateConstInBoundsGEP1_64(VTable, VTableIndex, "vfnkxt");
-  return CGF.Builder.CreateLoad(VFuncPtr);
+  llvm::Value *VFunc =
+    CGF.Builder.CreateAlignedLoad(VFuncPtr, CGF.PointerAlignInBytes);
+  CGCallee Callee(GD.getDecl(), VFunc);
+  return Callee;
 }
 
 /// BuildAppleKextVirtualCall - This routine is to support gcc's kext ABI making
 /// indirect call to virtual functions. It makes the call through indexing
 /// into the vtable.
-llvm::Value *
+CGCallee
 CodeGenFunction::BuildAppleKextVirtualCall(const CXXMethodDecl *MD, 
-                                  NestedNameSpecifier *Qual,
-                                  llvm::Type *Ty) {
+                                           NestedNameSpecifier *Qual,
+                                           llvm::Type *Ty) {
   assert((Qual->getKind() == NestedNameSpecifier::TypeSpec) &&
          "BuildAppleKextVirtualCall - bad Qual kind");
   
@@ -331,9 +297,9 @@ CodeGenFunction::BuildAppleKextVirtualCall(const CXXMethodDecl *MD,
   QualType T = QualType(QTy, 0);
   const RecordType *RT = T->getAs<RecordType>();
   assert(RT && "BuildAppleKextVirtualCall - Qual type must be record");
-  const CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
-  
-  if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(MD))
+  const auto *RD = cast<CXXRecordDecl>(RT->getDecl());
+
+  if (const auto *DD = dyn_cast<CXXDestructorDecl>(MD))
     return BuildAppleKextVirtualDestructorCall(DD, Dtor_Complete, RD);
 
   return ::BuildAppleKextVirtualCall(*this, MD, Ty, RD);
@@ -341,21 +307,15 @@ CodeGenFunction::BuildAppleKextVirtualCall(const CXXMethodDecl *MD,
 
 /// BuildVirtualCall - This routine makes indirect vtable call for
 /// call to virtual destructors. It returns 0 if it could not do it.
-llvm::Value *
+CGCallee
 CodeGenFunction::BuildAppleKextVirtualDestructorCall(
                                             const CXXDestructorDecl *DD,
                                             CXXDtorType Type,
                                             const CXXRecordDecl *RD) {
-  const CXXMethodDecl *MD = cast<CXXMethodDecl>(DD);
-  // FIXME. Dtor_Base dtor is always direct!!
-  // It need be somehow inline expanded into the caller.
-  // -O does that. But need to support -O0 as well.
-  if (MD->isVirtual() && Type != Dtor_Base) {
-    // Compute the function type we're calling.
-    const CGFunctionInfo &FInfo =
-      CGM.getTypes().arrangeCXXDestructor(DD, Dtor_Complete);
-    llvm::Type *Ty = CGM.getTypes().GetFunctionType(FInfo);
-    return ::BuildAppleKextVirtualCall(*this, GlobalDecl(DD, Type), Ty, RD);
-  }
-  return 0;
+  assert(DD->isVirtual() && Type != Dtor_Base);
+  // Compute the function type we're calling.
+  const CGFunctionInfo &FInfo = CGM.getTypes().arrangeCXXStructorDeclaration(
+      DD, StructorType::Complete);
+  llvm::Type *Ty = CGM.getTypes().GetFunctionType(FInfo);
+  return ::BuildAppleKextVirtualCall(*this, GlobalDecl(DD, Type), Ty, RD);
 }

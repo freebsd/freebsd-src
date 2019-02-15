@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 31, 2014
+.Dd May 3, 2017
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -98,11 +98,14 @@
 .Op device id
 .Op generic args
 .Nm
+.Ic reprobe
+.Op device id
+.Nm
 .Ic rescan
-.Aq all | bus Ns Op :target:lun
+.Aq all | device id | bus Ns Op :target:lun
 .Nm
 .Ic reset
-.Aq all | bus Ns Op :target:lun
+.Aq all | device id | bus Ns Op :target:lun
 .Nm
 .Ic defects
 .Op device id
@@ -110,11 +113,15 @@
 .Aq Fl f Ar format
 .Op Fl P
 .Op Fl G
+.Op Fl q
+.Op Fl s
+.Op Fl S Ar offset
+.Op Fl X
 .Nm
 .Ic modepage
 .Op device id
 .Op generic args
-.Aq Fl m Ar page | Fl l
+.Aq Fl m Ar page[,subpage] | Fl l
 .Op Fl P Ar pgctl
 .Op Fl b | Fl e
 .Op Fl d
@@ -235,12 +242,23 @@
 .Op device id
 .Op generic args
 .Nm
+.Ic apm
+.Op device id
+.Op generic args
+.Op Fl l Ar level
+.Nm
+.Ic aam
+.Op device id
+.Op generic args
+.Op Fl l Ar level
+.Nm
 .Ic fwdownload
 .Op device id
 .Op generic args
 .Aq Fl f Ar fw_image
-.Op Fl y
+.Op Fl q
 .Op Fl s
+.Op Fl y
 .Nm
 .Ic security
 .Op device id
@@ -283,6 +301,52 @@
 .Op Fl S
 .Op Fl T Ar res_type
 .Op Fl U
+.Nm
+.Ic attrib
+.Op device id
+.Op generic args
+.Aq Fl r Ar action | Fl w Ar attrib
+.Op Fl a Ar attr_num
+.Op Fl c
+.Op Fl e Ar elem_addr
+.Op Fl F Ar form1,form2
+.Op Fl p Ar part
+.Op Fl s Ar start_addr
+.Op Fl T Ar elem_type
+.Op Fl V Ar lv_num
+.Nm
+.Ic opcodes
+.Op device id
+.Op generic args
+.Op Fl o Ar opcode
+.Op Fl s Ar service_action
+.Op Fl N
+.Op Fl T
+.Nm
+.Ic zone
+.Aq Fl c Ar cmd
+.Op Fl a
+.Op Fl l Ar lba
+.Op Fl o Ar rep_opts
+.Op Fl P Ar print_opts
+.Nm
+.Ic epc
+.Aq Fl c Ar cmd
+.Op Fl d
+.Op Fl D
+.Op Fl e
+.Op Fl H
+.Op Fl p Ar power_cond
+.Op Fl P
+.Op Fl r Ar restore_src
+.Op Fl s
+.Op Fl S Ar power_src
+.Op Fl T Ar timer
+.Nm
+.Ic timestamp
+.Op device id
+.Op generic args
+.Ao Fl r Oo Ns Fl f Ar format | Fl m | Fl U Oc | Fl s Ao Fl f Ar format Fl T Ar time | Fl U Ac Ac
 .Nm
 .Ic help
 .Sh DESCRIPTION
@@ -358,6 +422,17 @@ It may take some other actions, depending upon the sense code returned from
 the command.
 .It Fl n Ar dev_name
 Specify the device type to operate on, e.g.\& "da", "cd".
+.It Fl Q Ar task_attr
+.Tn SCSI
+task attribute for the command, if it is a
+.Tn SCSI
+command.
+This may be ordered, simple, head, or aca.
+In most cases this is not needed.
+The default is simple, which works with all
+.Tn SCSI
+devices.
+The task attribute may also be specified numerically.
 .It Fl t Ar timeout
 SCSI command timeout in seconds.
 This overrides the default timeout for
@@ -482,6 +557,12 @@ are not specified).
 Print out the last logical block or the size of the device only, and omit
 the blocksize.
 .El
+.Pp
+Note that this command only displays the information, it does not update
+the kernel data structures.
+Use the
+.Nm
+reprobe subcommand to do that.
 .It Ic start
 Send the SCSI Start/Stop Unit (0x1B) command to the given device with the
 start bit set.
@@ -495,36 +576,48 @@ start bit set and the load/eject bit set.
 Send the SCSI Start/Stop Unit (0x1B) command to the given device with the
 start bit cleared and the load/eject bit set.
 .It Ic rescan
-Tell the kernel to scan all busses in the system (with the
+Tell the kernel to scan all buses in the system (with the
 .Ar all
-argument), the given bus (XPT_SCAN_BUS), or bus:target:lun
+argument), the given bus (XPT_SCAN_BUS), bus:target:lun or device
 (XPT_SCAN_LUN) for new devices or devices that have gone away.
 The user
-may specify a scan of all busses, a single bus, or a lun.
+may specify a scan of all buses, a single bus, or a lun.
 Scanning all luns
 on a target is not supported.
+.Pp
+If a device is specified by peripheral name and unit number, for instance
+da4, it may only be rescanned if that device currently exists in the CAM EDT
+(Existing Device Table).
+If the device is no longer there (see
+.Nm
+devlist ),
+you must use the bus:target:lun form to rescan it.
+.It Ic reprobe
+Tell the kernel to refresh the information about the device and
+notify the upper layer,
+.Xr GEOM 4 .
+This includes sending the SCSI READ CAPACITY command and updating
+the disk size visible to the rest of the system.
 .It Ic reset
-Tell the kernel to reset all busses in the system (with the
+Tell the kernel to reset all buses in the system (with the
 .Ar all
-argument) or the given bus (XPT_RESET_BUS) by issuing a SCSI bus
-reset for that bus, or to reset the given bus:target:lun
+argument), the given bus (XPT_RESET_BUS) by issuing a SCSI bus
+reset for that bus, or to reset the given bus:target:lun or device
 (XPT_RESET_DEV), typically by issuing a BUS DEVICE RESET message after
 connecting to that device.
 Note that this can have a destructive impact
 on the system.
 .It Ic defects
-Send the SCSI READ DEFECT DATA (10) command (0x37) to the given device, and
+Send the
+.Tn SCSI
+READ DEFECT DATA (10) command (0x37) or the
+.Tn SCSI
+READ DEFECT DATA (12) command (0xB7) to the given device, and
 print out any combination of: the total number of defects, the primary
 defect list (PLIST), and the grown defect list (GLIST).
 .Bl -tag -width 11n
 .It Fl f Ar format
-The three format options are:
-.Em block ,
-to print out the list as logical blocks,
-.Em bfi ,
-to print out the list in bytes from index format, and
-.Em phys ,
-to print out the list in physical sector format.
+Specify the requested format of the defect list.
 The format argument is
 required.
 Most drives support the physical sector format.
@@ -541,12 +634,51 @@ If the drive uses a non-standard sense code to report that it does not
 support the requested format,
 .Nm
 will probably see the error as a failure to complete the request.
+.Pp
+The format options are:
+.Bl -tag -width 9n
+.It block
+Print out the list as logical blocks.
+This is limited to 32-bit block sizes, and isn't supported by many modern
+drives.
+.It longblock
+Print out the list as logical blocks.
+This option uses a 64-bit block size.
+.It bfi
+Print out the list in bytes from index format.
+.It extbfi
+Print out the list in extended bytes from index format.
+The extended format allows for ranges of blocks to be printed.
+.It phys
+Print out the list in physical sector format.
+Most drives support this format.
+.It extphys
+Print out the list in extended physical sector format.
+The extended format allows for ranges of blocks to be printed.
+.El
 .It Fl G
 Print out the grown defect list.
 This is a list of bad blocks that have
 been remapped since the disk left the factory.
 .It Fl P
 Print out the primary defect list.
+This is the list of defects that were present in the factory.
+.It Fl q
+When printing status information with
+.Fl s ,
+only print the number of defects.
+.It Fl s
+Just print the number of defects, not the list of defects.
+.It Fl S Ar offset
+Specify the starting offset into the defect list.
+This implies using the
+.Tn SCSI
+READ DEFECT DATA (12) command, as the 10 byte version of the command
+doesn't support the address descriptor index field.
+Not all drives support the 12 byte command, and some drives that support
+the 12 byte command don't support the address descriptor index field.
+.It Fl X
+Print out defects in hexadecimal (base 16) form instead of base 10 form.
 .El
 .Pp
 If neither
@@ -589,9 +721,10 @@ The editor will be invoked if
 detects that standard input is terminal.
 .It Fl l
 Lists all available mode pages.
-.It Fl m Ar mode_page
-This specifies the number of the mode page the user would like to view
-and/or edit.
+If specified more then once, also lists subpages.
+.It Fl m Ar page[,subpage]
+This specifies the number of the mode page and optionally subpage the user
+would like to view and/or edit.
 This argument is mandatory unless
 .Fl l
 is specified.
@@ -1249,6 +1382,19 @@ Value 0 disables timer.
 Put ATA device into SLEEP state.
 Note that the only way get device out of
 this state may be reset.
+.It Ic apm
+It optional parameter
+.Pq Fl l
+specified, enables and sets advanced power management level, where
+1 -- minimum power, 127 -- maximum performance with standby,
+128 -- minimum power without standby, 254 -- maximum performance.
+If not specified -- APM is disabled.
+.It Ic aam
+It optional parameter
+.Pq Fl l
+specified, enables and sets automatic acoustic management level, where
+1 -- minimum noise, 254 -- maximum performance.
+If not specified -- AAM is disabled.
 .It Ic security
 Update or report security settings, using an ATA identify command (0xec).
 By default,
@@ -1364,8 +1510,8 @@ Defaults to
 Confirm yes to dangerous options such as
 .Fl e
 without prompting for confirmation.
-.Pp
 .El
+.Pp
 If the password specified for any action commands does not match the configured
 password for the specified user the command will fail.
 .Pp
@@ -1434,29 +1580,46 @@ additional unlock calls until after a power-on reset.
 Confirm yes to dangerous options such as
 .Fl e
 without prompting for confirmation
-.Pp
 .El
+.Pp
 The password for all HPA commands is limited to 32 characters, longer passwords
 will fail.
 .It Ic fwdownload
-Program firmware of the named SCSI device using the image file provided.
+Program firmware of the named
+.Tn SCSI
+or ATA device using the image file provided.
 .Pp
-Current list of supported vendors:
-.Bl -bullet -offset indent -compact
-.It
-HITACHI
-.It
-HP
-.It
-IBM
-.It
-PLEXTOR
-.It
-QUANTUM
-.It
-SAMSUNG
-.It
-SEAGATE
+If the device is a
+.Tn SCSI
+device and it provides a recommended timeout for the WRITE BUFFER command
+(see the
+.Nm
+opcodes subcommand), that timeout will be used for the firmware download.
+The drive-recommended timeout value may be overridden on the command line
+with the
+.Fl t
+option.
+.Pp
+Current list of supported vendors for SCSI/SAS drives:
+.Bl -tag -width 10n
+.It HGST
+Tested with 4TB SAS drives, model number HUS724040ALS640.
+.It HITACHI
+.It HP
+.It IBM
+Tested with LTO-5 (ULTRIUM-HH5) and LTO-6 (ULTRIUM-HH6) tape drives.
+There is a separate table entry for hard drives, because the update method
+for hard drives is different than the method for tape drives.
+.It PLEXTOR
+.It QUALSTAR
+.It QUANTUM
+.It SAMSUNG
+Tested with SM1625 SSDs.
+.It SEAGATE
+Tested with Constellation ES (ST32000444SS), ES.2 (ST33000651SS) and
+ES.3 (ST1000NM0023) drives.
+.It SmrtStor
+Tested with 400GB Optimus SSDs (TXA2D20400GA6001).
 .El
 .Pp
 .Em WARNING! WARNING! WARNING!
@@ -1470,23 +1633,81 @@ Extra caution should be taken when using this command since there is no
 guarantee it will not break a device from the listed vendors.
 Ensure that you have a recent backup of the data on the device before
 performing a firmware update.
+.Pp
+Note that unknown
+.Tn SCSI
+protocol devices will not be programmed, since there is little chance of
+the firmware download succeeding.
+.Pp
+.Nm
+will currently attempt a firmware download to any
+.Tn ATA
+or
+.Tn SATA
+device, since the standard
+.Tn ATA
+DOWNLOAD MICROCODE command may work.
+Firmware downloads to
+.Tn ATA
+and
+.Tn SATA
+devices are supported for devices connected
+to standard
+.Tn ATA
+and
+.Tn SATA
+controllers, and devices connected to SAS controllers
+with
+.Tn SCSI
+to
+.Tn ATA
+translation capability.
+In the latter case,
+.Nm
+uses the
+.Tn SCSI
+.Tn ATA
+PASS-THROUGH command to send the
+.Tn ATA
+DOWNLOAD MICROCODE command to the drive.
+Some
+.Tn SCSI
+to
+.Tn ATA
+translation implementations don't work fully when translating
+.Tn SCSI
+WRITE BUFFER commands to
+.Tn ATA
+DOWNLOAD MICROCODE commands, but do support
+.Tn ATA
+passthrough well enough to do a firmware download.
 .Bl -tag -width 11n
 .It Fl f Ar fw_image
 Path to the firmware image file to be downloaded to the specified device.
-.It Fl y
-Do not ask for confirmation.
+.It Fl q
+Do not print informational messages, only print errors.
+This option should be used with the
+.Fl y
+option to suppress all output.
 .It Fl s
 Run in simulation mode.
-Packet sizes that will be sent are shown, but no actual packet is sent to the
-device.
-No confirmation is asked in simulation mode.
+Device checks are run and the confirmation dialog is shown, but no firmware
+download will occur.
 .It Fl v
-Besides showing sense information in case of a failure, the verbose option
-causes
-.Nm
-to output a line for every firmware segment that is sent to the device by the
-fwdownload command
--- the same as the ones shown in simulation mode.
+Show
+.Tn SCSI
+or
+.Tn ATA
+errors in the event of a failure.
+.Pp
+In simulation mode, print out the
+.Tn SCSI
+CDB
+or
+.Tn ATA
+register values that would be used for the firmware download command.
+.It Fl y
+Do not ask for confirmation.
 .El
 .It Ic persist
 Persistent reservation support.
@@ -1613,7 +1834,7 @@ For example:
 .It FC
 A Fibre Channel Transport ID consists of
 .Dq fcp,
-followed by a 64-bit Fibre Channel World Wide Name. 
+followed by a 64-bit Fibre Channel World Wide Name.
 For example:
 .Pp
 .Dl fcp,0x1234567812345678
@@ -1735,11 +1956,11 @@ May also be specified as
 .Dq exclusive_access .
 .It wr_ex_ro
 Write Exclusive Registrants Only mode.
-May also be specified as 
+May also be specified as
 .Dq write_exclusive_reg_only .
 .It ex_ac_ro
 Exclusive Access Registrants Only mode.
-May also be specified as 
+May also be specified as
 .Dq exclusive_access_reg_only .
 .It wr_ex_ar
 Write Exclusive All Registrants mode.
@@ -1747,7 +1968,7 @@ May also be specified as
 .Dq write_exclusive_all_regs .
 .It ex_ac_ar
 Exclusive Access All Registrants mode.
-May also be specified as 
+May also be specified as
 .Dq exclusive_access_all_regs .
 .El
 .It Fl U
@@ -1757,6 +1978,531 @@ By default, the target will not unregister the initiator that sends the
 Register and Move request.
 This option only applies to the Register and Move service action of the
 Persistent Reserve Out command.
+.El
+.It Ic attrib
+Issue the
+.Tn SCSI
+READ or WRITE ATTRIBUTE commands.
+These commands are used to read and write attributes in Medium Auxiliary
+Memory (MAM).
+The most common place Medium Auxiliary Memory is found is small flash chips
+included tape cartriges.
+For instance,
+.Tn LTO
+tapes have MAM.
+Either the
+.Fl r
+option or the
+.Fl w
+option must be specified.
+.Bl -tag -width 14n
+.It Fl r Ar action
+Specify the READ ATTRIBUTE service action.
+.Bl -tag -width 11n
+.It attr_values
+Issue the ATTRIBUTE VALUES service action.
+Read and decode the available attributes and their values.
+.It attr_list
+Issue the ATTRIBUTE LIST service action.
+List the attributes that are available to read and write.
+.It lv_list
+Issue the LOGICAL VOLUME LIST service action.
+List the available logical volumes in the MAM.
+.It part_list
+Issue the PARTITION LIST service action.
+List the available partitions in the MAM.
+.It supp_attr
+Issue the SUPPORTED ATTRIBUTES service action.
+List attributes that are supported for reading or writing.
+These attributes may or may not be currently present in the MAM.
+.El
+.It Fl w Ar attr
+Specify an attribute to write to the MAM.
+This option is not yet implemented.
+.It Fl a Ar num
+Specify the attribute number to display.
+This option only works with the attr_values, attr_list and supp_attr
+arguments to
+.Fl r .
+.It Fl c
+Display cached attributes.
+If the device supports this flag, it allows displaying attributes for the
+last piece of media loaded in the drive.
+.It Fl e Ar num
+Specify the element address.
+This is used for specifying which element number in a medium changer to
+access when reading attributes.
+The element number could be for a picker, portal, slot or drive.
+.It Fl F Ar form1,form2
+Specify the output format for the attribute values (attr_val) display as a
+comma separated list of options.
+The default output is currently set to field_all,nonascii_trim,text_raw.
+Once this code is ported to FreeBSD 10, any text fields will be converted
+from their codeset to the user's native codeset with
+.Xr iconv 3 .
+.Pp
+The text options are mutually exclusive; if you specify more than one, you
+will get unpredictable results.
+The nonascii options are also mutually exclusive.
+Most of the field options may be logically ORed together.
+.Bl -tag -width 12n
+.It text_esc
+Print text fields with non-ASCII characters escaped.
+.It text_raw
+Print text fields natively, with no codeset conversion.
+.It nonascii_esc
+If any non-ASCII characters occur in fields that are supposed to be ASCII,
+escape the non-ASCII characters.
+.It nonascii_trim
+If any non-ASCII characters occur in fields that are supposed to be ASCII,
+omit the non-ASCII characters.
+.It nonascii_raw
+If any non-ASCII characters occur in fields that are supposed to be ASCII,
+print them as they are.
+.It field_all
+Print all of the prefix fields: description, attribute number, attribute
+size, and the attribute's readonly status.
+If field_all is specified, specifying any other field options will not have
+an effect.
+.It field_none
+Print none of the prefix fields, and only print out the attribute value.
+If field_none is specified, specifying any other field options will result
+in those fields being printed.
+.It field_desc
+Print out the attribute description.
+.It field_num
+Print out the attribute number.
+.It field_size
+Print out the attribute size.
+.It field_rw
+Print out the attribute's readonly status.
+.El
+.It Fl p Ar part
+Specify the partition.
+When the media has multiple partitions, specifying different partition
+numbers allows seeing the values for each individual partition.
+.It Fl s Ar start_num
+Specify the starting attribute number.
+This requests that the target device return attribute information starting
+at the given number.
+.It Fl T Ar elem_type
+Specify the element type.
+For medium changer devices, this allows specifying the type the element
+referenced in the element address (
+.Fl e ) .
+Valid types are:
+.Dq all ,
+.Dq picker ,
+.Dq slot ,
+.Dq portal ,
+and
+.Dq drive .
+.It Fl V Ar vol_num
+Specify the number of the logical volume to operate on.
+If the media has multiple logical volumes, this will allow displaying
+or writing attributes on the given logical volume.
+.El
+.It Ic opcodes
+Issue the REPORT SUPPORTED OPCODES service action of the
+.Tn SCSI
+MAINTENANCE IN
+command.
+Without arguments, this command will return a list of all
+.Tn SCSI
+commands supported by the device, including service actions of commands
+that support service actions.
+It will also include the
+.Tn SCSI
+CDB (Command Data Block) length for each command, and the description of
+each command if it is known.
+.Bl -tag -width 18n
+.It Fl o Ar opcode
+Request information on a specific opcode instead of the list of supported
+commands.
+If supported, the target will return a CDB-like structure that indicates
+the opcode, service action (if any), and a mask of bits that are supported
+in that CDB.
+.It Fl s Ar service_action
+For commands that support a service action, specify the service action to
+query.
+.It Fl N
+If a service action is specified for a given opcode, and the device does
+not support the given service action, the device should not return a
+.Tn SCSI
+error, but rather indicate in the returned parameter data that the command
+is not supported.
+By default, if a service action is specified for an opcode, and service
+actions are not supported for the opcode in question, the device will
+return an error.
+.It Fl T
+Include timeout values.
+This option works with the default display, which includes all commands
+supported by the device, and with the
+.Fl o
+and
+.Fl s
+options, which request information on a specific command and service
+action.
+This requests that the device report Nominal and Recommended timeout values
+for the given command or commands.
+The timeout values are in seconds.
+The timeout descriptor also includes a command-specific
+.El
+.It Ic zone
+Manage
+.Tn SCSI
+and
+.Tn ATA
+Zoned Block devices.
+This allows managing devices that conform to the
+.Tn SCSI
+Zoned Block Commands (ZBC) and
+.Tn ATA
+Zoned ATA Command Set (ZAC)
+specifications.
+Devices using these command sets are usually hard drives using Shingled
+Magnetic Recording (SMR).
+There are three types of SMR drives:
+.Bl -tag -width 13n
+.It Drive Managed
+Drive Managed drives look and act just like a standard random access block
+device, but underneath, the drive reads and writes the bulk of its capacity
+using SMR zones.
+Sequential writes will yield better performance, but writing sequentially
+is not required.
+.It Host Aware
+Host Aware drives expose the underlying zone layout via
+.Tn SCSI
+or
+.Tn ATA
+commands and allow the host to manage the zone conditions.
+The host is not required to manage the zones on the drive, though.
+Sequential writes will yield better performance in Sequential Write
+Preferred zones, but the host can write randomly in those zones.
+.It Host Managed
+Host Managed drives expose the underlying zone layout via
+.Tn SCSI
+or
+.Tn ATA
+commands.
+The host is required to access the zones according to the rules described
+by the zone layout.
+Any commands that violate the rules will be returned with an error.
+.El
+.Pp
+SMR drives are divided into zones (typically in the range of 256MB each)
+that fall into three general categories:
+.Bl -tag -width 20n
+.It Conventional
+These are also known as Non Write Pointer zones.
+These zones can be randomly written without an unexpected performance penalty.
+.It Sequential Preferred
+These zones should be written sequentially starting at the write pointer
+for the zone.
+They may be written randomly.
+Writes that do not conform to the zone layout may be significantly slower
+than expected.
+.It Sequential Required
+These zones must be written sequentially.
+If they are not written sequentially, starting at the write pointer, the
+command will fail.
+.El
+.Pp
+.Bl -tag -width 12n
+.It Fl c Ar cmd
+Specify the zone subcommand:
+.Bl -tag -width 6n
+.It rz
+Issue the Report Zones command.
+All zones are returned by default.
+Specify report options with
+.Fl o
+and printing options with
+.Fl P .
+Specify the starting LBA with
+.Fl l .
+Note that
+.Dq reportzones
+is also accepted as a command argument.
+.It open
+Explicitly open the zone specified by the starting LBA.
+.It close
+Close the zone specified by starting LBA.
+.It finish
+Finish the zone specified by the starting LBA.
+.It rwp
+Reset the write pointer for the zone specified by the starting LBA.
+.El
+.It Fl a
+For the Open, Close, Finish, and Reset Write Pointer operations, apply the
+operation to all zones on the drive.
+.It Fl l Ar lba
+Specify the starting LBA.
+For the Report Zones command, this tells the drive to report starting with
+the zone that starts at the given LBA.
+For the other commands, this allows the user to identify the zone requested
+by its starting LBA.
+The LBA may be specified in decimal, hexadecimal or octal notation.
+.It Fl o Ar rep_opt
+For the Report Zones command, specify a subset of zones to report.
+.Bl -tag -width 8n
+.It all
+Report all zones.
+This is the default.
+.It emtpy
+Report only empty zones.
+.It imp_open
+Report zones that are implicitly open.
+This means that the host has sent a write to the zone without explicitly
+opening the zone.
+.It exp_open
+Report zones that are explicitly open.
+.It closed
+Report zones that have been closed by the host.
+.It full
+Report zones that are full.
+.It ro
+Report zones that are in the read only state.
+Note that
+.Dq readonly
+is also accepted as an argument.
+.It offline
+Report zones that are in the offline state.
+.It reset
+Report zones where the device recommends resetting write pointers.
+.It nonseq
+Report zones that have the Non Sequential Resources Active flag set.
+These are zones that are Sequential Write Preferred, but have been written
+non-sequentially.
+.It nonwp
+Report Non Write Pointer zones, also known as Conventional zones.
+.El
+.It Fl P Ar print_opt
+Specify a printing option for Report Zones:
+.Bl -tag -width 7n
+.It normal
+Normal Report Zones output.
+This is the default.
+The summary and column headings are printed, fields are separated by spaces
+and the fields themselves may contain spaces.
+.It summary
+Just print the summary:  the number of zones, the maximum LBA (LBA of the
+last logical block on the drive), and the value of the
+.Dq same
+field.
+The
+.Dq same
+field describes whether the zones on the drive are all identical, all
+different, or whether they are the same except for the last zone, etc.
+.It script
+Print the zones in a script friendly format.
+The summary and column headings are omitted, the fields are separated by
+commas, and the fields do not contain spaces.
+The fields contain underscores where spaces would normally be used.
+.El
+.El
+.It Ic epc
+Issue
+.Tn ATA
+Extended Power Conditions (EPC) feature set commands.
+This only works on
+.Tn ATA
+protocol drives, and will not work on
+.Tn SCSI
+protocol drives.
+It will work on
+.Tn SATA
+drives behind a
+.Tn SCSI
+to
+.Tn ATA
+translation layer (SAT).
+It may be helpful to read the ATA Command Set - 4 (ACS-4) description of
+the Extended Power Conditions feature set, available at t13.org, to
+understand the details of this particular
+.Nm
+subcommand.
+.Bl -tag -width 6n
+.It Fl c Ar cmd
+Specify the epc subcommand
+.Bl -tag -width 7n
+.It restore
+Restore drive power condition settings.
+.Bl -tag -width 6n
+.It Fl r Ar src
+Specify the source for the restored power settings, either
+.Dq default
+or
+.Dq saved .
+This argument is required.
+.It Fl s
+Save the settings.
+This only makes sense to specify when restoring from defaults.
+.El
+.It goto
+Go to the specified power condition.
+.Bl -tag -width 7n
+.It Fl p Ar cond
+Specify the power condition: Idle_a, Idle_b, Idle_c, Standby_y, Standby_z.
+This argument is required.
+.It Fl D
+Specify delayed entry to the power condition.
+The drive, if it supports this, can enter the power condition after the
+command completes.
+.It Fl H
+Hold the power condition.
+If the drive supports this option, it will hold the power condition and
+reject all commands that would normally cause it to exit that power
+condition.
+.El
+.It timer
+Set the timer value for a power condition and enable or disable the
+condition.
+See the
+.Dq list
+display described below to see what the current timer settings are for each
+Idle and Standby mode supported by the drive.
+.Bl -tag -width 8n
+.It Fl e
+Enable the power condition.
+One of
+.Fl e
+or
+.Fl d
+is required.
+.It Fl d
+Disable the power condition.
+One of
+.Fl d
+or
+.Fl e
+is required.
+.It Fl T Ar timer
+Specify the timer in seconds.
+The user may specify a timer as a floating point number with a maximum
+supported resolution of tenths of a second.
+Drives may or may not support sub-second timer values.
+.It Fl p Ar cond
+Specify the power condition: Idle_a, Idle_b, Idle_c, Standby_y, Standby_z.
+This argument is required.
+.It Fl s
+Save the timer and power condition enable/disable state.
+By default, if this option is not specified, only the current values for
+this power condition will be affected.
+.El
+.It state
+Enable or disable a particular power condition.
+.Bl -tag -width 7n
+.It Fl e
+Enable the power condition.
+One of
+.Fl e
+or
+.Fl d
+is required.
+.It Fl d
+Disable the power condition.
+One of
+.Fl d
+or
+.Fl e
+is required.
+.It Fl p Ar cond
+Specify the power condition: Idle_a, Idle_b, Idle_c, Standby_y, Standby_z.
+This argument is required.
+.It Fl s
+Save the power condition enable/disable state.
+By default, if this option is not specified, only the current values for
+this power condition will be affected.
+.El
+.It enable
+Enable the Extended Power Condition (EPC) feature set.
+.It disable
+Disable the Extended Power Condition (EPC) feature set.
+.It source
+Specify the EPC power source.
+.Bl -tag -width 6n
+.It Fl S Ar src
+Specify the power source, either
+.Dq battery
+or
+.Dq nonbattery .
+.El
+.It status
+Get the current status of several parameters related to the Extended Power
+Condition (EPC) feature set, including whether APM and EPC are supported
+and enabled, whether Low Power Standby is supported, whether setting the
+EPC power source is supported, whether Low Power Standby is supported and
+the current power condition.
+.Bl -tag -width 3n
+.It Fl P
+Only report the current power condition.
+Some drives will exit their current power condition if a command other than
+the
+.Tn ATA
+CHECK POWER MODE command is received.
+If this flag is specified,
+.Nm
+will only issue the
+.Tn ATA
+CHECK POWER MODE command to the drive.
+.El
+.It list
+Display the
+.Tn ATA
+Power Conditions log (Log Address 0x08).
+This shows the list of Idle and Standby power conditions the drive
+supports, and a number of parameters about each condition, including
+whether it is enabled and what the timer value is.
+.El
+.El
+.It Ic timestamp
+Issue REPORT TIMESTAMP or SET TIMESTAMP
+.Tn SCSI
+commands. Either the
+.Fl r
+option or the
+.Fl s
+option must be specified.
+.Bl -tag -width 6n
+.It Fl r
+Report the device's timestamp.
+If no more arguments are specified, the timestamp will be reported using
+the national representation of the date and time, followed by the time
+zone.
+.Bl -tag -width 9n
+.It Fl f Ar format
+Specify the strftime format string, as documented in strftime(3), to be used
+to format the reported timestamp.
+.It Fl m
+Report the timestamp as milliseconds since the epoch.
+.It Fl U
+Report the timestamp using the national representation of the date and
+time, but override the system time zone and use UTC instead.
+.El
+.El
+.Bl -tag -width 6n
+.It Fl s
+Set the device's timestamp. Either the
+.Fl f
+and
+.Fl T
+options or the
+.Fl U
+option must be specified.
+.Bl -tag -width 9n
+.It Fl f Ar format
+Specify the strptime format string, as documented in strptime(3).
+The time must also be specified with the
+.Fl T
+option.
+.It Fl T Ar time
+Provide the time in the format specified with the
+.Fl f
+option.
+.It Fl U
+Set the timestamp to the host system's time in UTC.
+.El
 .El
 .It Ic help
 Print out verbose usage information.
@@ -1796,7 +2542,7 @@ information if the command fails since the
 .Fl v
 switch was not specified.
 .Bd -literal -offset indent
-camcontrol tur da1 -E -C 4 -t 50 -v
+camcontrol tur da1 -E -C 4 -t 50 -Q head -v
 .Ed
 .Pp
 Send a test unit ready command to da1.
@@ -1808,6 +2554,9 @@ printing (with the
 flag) if the command fails.
 Since error recovery is turned on, the
 disk will be spun up if it is not currently spinning.
+The
+.Tn SCSI
+task attribute for the command will be set to Head of Queue.
 The
 .Nm
 utility will report whether the disk is ready.
@@ -1844,7 +2593,7 @@ write reallocation settings, among other things.
 .Pp
 .Dl camcontrol rescan all
 .Pp
-Rescan all SCSI busses in the system for devices that have been added,
+Rescan all SCSI buses in the system for devices that have been added,
 removed or changed.
 .Pp
 .Dl camcontrol rescan 0
@@ -1924,14 +2673,13 @@ power-on or hardware reset!
 .Pp
 .Em DO NOT
 use this on a device which has an active filesystem!
-.Pp
 .Bd -literal -offset indent
 camcontrol persist da0 -v -i read_keys
 .Ed
 .Pp
 This will read any persistent reservation keys registered with da0, and
 display any errors encountered when sending the PERSISTENT RESERVE IN
-.Tn SCSI 
+.Tn SCSI
 command.
 .Bd -literal -offset indent
 camcontrol persist da0 -v -o register -a -K 0x12345678
@@ -1976,14 +2724,114 @@ camcontrol persist da0 -v -o register_move -k 0x87654321 \e
 .Ed
 .Pp
 This will move the registration from the current initiator, whose
-Registration Key is 0x87654321, to the Fibre Channel initiator with the 
+Registration Key is 0x87654321, to the Fibre Channel initiator with the
 Fiber Channel World Wide Node Name 0x1234567812345678.
-A new registration key, 0x12345678, will be registered for the initiator 
+A new registration key, 0x12345678, will be registered for the initiator
 with the Fibre Channel World Wide Node Name 0x1234567812345678, and the
 current initiator will be unregistered from the target.
 The reservation will be moved to relative target port 2 on the target
 device.
 The registration will persist across power losses.
+.Bd -literal -offset indent
+camcontrol attrib sa0 -v -i attr_values -p 1
+.Ed
+.Pp
+This will read and decode the attribute values from partition 1 on the tape
+in tape drive sa0, and will display any
+.Tn SCSI
+errors that result.
+.Pp
+.Bd -literal -offset indent
+camcontrol zone da0 -v -c rz -P summary
+.Ed
+.Pp
+This will request the SMR zone list from disk da0, and print out a
+summary of the zone parameters, and display any
+.Tn SCSI
+or
+.Tn ATA
+errors that result.
+.Pp
+.Bd -literal -offset indent
+camcontrol zone da0 -v -c rz -o reset
+.Ed
+.Pp
+This will request the list of SMR zones that should have their write
+pointer reset from the disk da0, and display any
+.Tn SCSI
+or
+.Tn ATA
+errors that result.
+.Pp
+.Bd -literal -offset indent
+camcontrol zone da0 -v -c rwp -l 0x2c80000
+.Ed
+.Pp
+This will issue the Reset Write Pointer command to disk da0 for the zone
+that starts at LBA 0x2c80000 and display any
+.Tn SCSI
+or
+.Tn ATA
+errors that result.
+.Pp
+.Bd -literal -offset indent
+camcontrol epc ada0 -c timer -T 60.1 -p Idle_a -e -s
+.Ed
+.Pp
+Set the timer for the Idle_a power condition on drive
+.Pa ada0
+to 60.1 seconds, enable that particular power condition, and save the timer
+value and the enabled state of the power condition.
+.Pp
+.Bd -literal -offset indent
+camcontrol epc da4 -c goto -p Standby_z -H
+.Ed
+.Pp
+Tell drive
+.Pa da4
+to go to the Standby_z power state (which is
+the drive's lowest power state) and hold in that state until it is
+explicitly released by another
+.Cm goto
+command.
+.Pp
+.Bd -literal -offset indent
+camcontrol epc da2 -c status -P
+.Ed
+.Pp
+Report only the power state of
+drive
+.Pa da2 .
+Some drives will power up in response to the commands sent by the
+.Pa status
+subcommand, and the
+.Fl P
+option causes
+.Nm
+to only send the
+.Tn ATA
+CHECK POWER MODE command, which should not trigger a change in the drive's
+power state.
+.Pp
+.Bd -literal -offset indent
+camcontrol epc ada0 -c list
+.Ed
+.Pp
+Display the ATA Power Conditions log (Log Address 0x08) for
+drive
+.Pa ada0 .
+.Pp
+.Bd -literal -offset indent
+camcontrol timestamp sa0 -s -f "%a, %d %b %Y %T %z" \e
+	-T "Wed, 26 Oct 2016 21:43:57 -0600"
+.Ed
+.Pp
+Set the timestamp of drive
+.Pa sa0
+using a
+.Xr strptime 3
+format string followed by a time string
+that was created using this format string.
 .Sh SEE ALSO
 .Xr cam 3 ,
 .Xr cam_cdbparse 3 ,

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -18,7 +20,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -35,10 +37,8 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)fnmatch.c	8.2 (Berkeley) 4/16/94";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
+__SCCSID("@(#)fnmatch.c	8.2 (Berkeley) 4/16/94");
 __FBSDID("$FreeBSD$");
 
 /*
@@ -76,9 +76,7 @@ static int fnmatch1(const char *, const char *, const char *, int, mbstate_t,
 		mbstate_t);
 
 int
-fnmatch(pattern, string, flags)
-	const char *pattern, *string;
-	int flags;
+fnmatch(const char *pattern, const char *string, int flags)
 {
 	static const mbstate_t initial;
 
@@ -86,16 +84,17 @@ fnmatch(pattern, string, flags)
 }
 
 static int
-fnmatch1(pattern, string, stringstart, flags, patmbs, strmbs)
-	const char *pattern, *string, *stringstart;
-	int flags;
-	mbstate_t patmbs, strmbs;
+fnmatch1(const char *pattern, const char *string, const char *stringstart,
+    int flags, mbstate_t patmbs, mbstate_t strmbs)
 {
+	const char *bt_pattern, *bt_string;
+	mbstate_t bt_patmbs, bt_strmbs;
 	char *newp;
 	char c;
 	wchar_t pc, sc;
 	size_t pclen, sclen;
 
+	bt_pattern = bt_string = NULL;
 	for (;;) {
 		pclen = mbrtowc(&pc, pattern, MB_LEN_MAX, &patmbs);
 		if (pclen == (size_t)-1 || pclen == (size_t)-2)
@@ -111,16 +110,18 @@ fnmatch1(pattern, string, stringstart, flags, patmbs, strmbs)
 		case EOS:
 			if ((flags & FNM_LEADING_DIR) && sc == '/')
 				return (0);
-			return (sc == EOS ? 0 : FNM_NOMATCH);
+			if (sc == EOS)
+				return (0);
+			goto backtrack;
 		case '?':
 			if (sc == EOS)
 				return (FNM_NOMATCH);
 			if (sc == '/' && (flags & FNM_PATHNAME))
-				return (FNM_NOMATCH);
+				goto backtrack;
 			if (sc == '.' && (flags & FNM_PERIOD) &&
 			    (string == stringstart ||
 			    ((flags & FNM_PATHNAME) && *(string - 1) == '/')))
-				return (FNM_NOMATCH);
+				goto backtrack;
 			string += sclen;
 			break;
 		case '*':
@@ -132,7 +133,7 @@ fnmatch1(pattern, string, stringstart, flags, patmbs, strmbs)
 			if (sc == '.' && (flags & FNM_PERIOD) &&
 			    (string == stringstart ||
 			    ((flags & FNM_PATHNAME) && *(string - 1) == '/')))
-				return (FNM_NOMATCH);
+				goto backtrack;
 
 			/* Optimize for pattern with * at end or before /. */
 			if (c == EOS)
@@ -148,33 +149,24 @@ fnmatch1(pattern, string, stringstart, flags, patmbs, strmbs)
 				break;
 			}
 
-			/* General case, use recursion. */
-			while (sc != EOS) {
-				if (!fnmatch1(pattern, string, stringstart,
-				    flags, patmbs, strmbs))
-					return (0);
-				sclen = mbrtowc(&sc, string, MB_LEN_MAX,
-				    &strmbs);
-				if (sclen == (size_t)-1 ||
-				    sclen == (size_t)-2) {
-					sc = (unsigned char)*string;
-					sclen = 1;
-					memset(&strmbs, 0, sizeof(strmbs));
-				}
-				if (sc == '/' && flags & FNM_PATHNAME)
-					break;
-				string += sclen;
-			}
-			return (FNM_NOMATCH);
+			/*
+			 * First try the shortest match for the '*' that
+			 * could work. We can forget any earlier '*' since
+			 * there is no way having it match more characters
+			 * can help us, given that we are already here.
+			 */
+			bt_pattern = pattern, bt_patmbs = patmbs;
+			bt_string = string, bt_strmbs = strmbs;
+			break;
 		case '[':
 			if (sc == EOS)
 				return (FNM_NOMATCH);
 			if (sc == '/' && (flags & FNM_PATHNAME))
-				return (FNM_NOMATCH);
+				goto backtrack;
 			if (sc == '.' && (flags & FNM_PERIOD) &&
 			    (string == stringstart ||
 			    ((flags & FNM_PATHNAME) && *(string - 1) == '/')))
-				return (FNM_NOMATCH);
+				goto backtrack;
 
 			switch (rangematch(pattern, sc, flags, &newp,
 			    &patmbs)) {
@@ -184,7 +176,7 @@ fnmatch1(pattern, string, stringstart, flags, patmbs, strmbs)
 				pattern = newp;
 				break;
 			case RANGE_NOMATCH:
-				return (FNM_NOMATCH);
+				goto backtrack;
 			}
 			string += sclen;
 			break;
@@ -192,21 +184,47 @@ fnmatch1(pattern, string, stringstart, flags, patmbs, strmbs)
 			if (!(flags & FNM_NOESCAPE)) {
 				pclen = mbrtowc(&pc, pattern, MB_LEN_MAX,
 				    &patmbs);
-				if (pclen == (size_t)-1 || pclen == (size_t)-2)
+				if (pclen == 0 || pclen == (size_t)-1 ||
+				    pclen == (size_t)-2)
 					return (FNM_NOMATCH);
 				pattern += pclen;
 			}
 			/* FALLTHROUGH */
 		default:
 		norm:
+			string += sclen;
 			if (pc == sc)
 				;
 			else if ((flags & FNM_CASEFOLD) &&
 				 (towlower(pc) == towlower(sc)))
 				;
-			else
-				return (FNM_NOMATCH);
-			string += sclen;
+			else {
+		backtrack:
+				/*
+				 * If we have a mismatch (other than hitting
+				 * the end of the string), go back to the last
+				 * '*' seen and have it match one additional
+				 * character.
+				 */
+				if (bt_pattern == NULL)
+					return (FNM_NOMATCH);
+				sclen = mbrtowc(&sc, bt_string, MB_LEN_MAX,
+				    &bt_strmbs);
+				if (sclen == (size_t)-1 ||
+				    sclen == (size_t)-2) {
+					sc = (unsigned char)*bt_string;
+					sclen = 1;
+					memset(&bt_strmbs, 0,
+					    sizeof(bt_strmbs));
+				}
+				if (sc == EOS)
+					return (FNM_NOMATCH);
+				if (sc == '/' && flags & FNM_PATHNAME)
+					return (FNM_NOMATCH);
+				bt_string += sclen;
+				pattern = bt_pattern, patmbs = bt_patmbs;
+				string = bt_string, strmbs = bt_strmbs;
+			}
 			break;
 		}
 	}
@@ -214,12 +232,8 @@ fnmatch1(pattern, string, stringstart, flags, patmbs, strmbs)
 }
 
 static int
-rangematch(pattern, test, flags, newp, patmbs)
-	const char *pattern;
-	wchar_t test;
-	int flags;
-	char **newp;
-	mbstate_t *patmbs;
+rangematch(const char *pattern, wchar_t test, int flags, char **newp,
+    mbstate_t *patmbs)
 {
 	int negate, ok;
 	wchar_t c, c2;
@@ -235,7 +249,7 @@ rangematch(pattern, test, flags, newp, patmbs)
 	 * consistency with the regular expression syntax.
 	 * J.T. Conklin (conklin@ngai.kaleida.com)
 	 */
-	if ( (negate = (*pattern == '!' || *pattern == '^')) )
+	if ((negate = (*pattern == '!' || *pattern == '^')))
 		++pattern;
 
 	if (flags & FNM_CASEFOLD)
@@ -283,8 +297,8 @@ rangematch(pattern, test, flags, newp, patmbs)
 
 			if (table->__collate_load_error ?
 			    c <= test && test <= c2 :
-			       __collate_range_cmp(table, c, test) <= 0
-			    && __collate_range_cmp(table, test, c2) <= 0
+			       __wcollate_range_cmp(c, test) <= 0
+			    && __wcollate_range_cmp(test, c2) <= 0
 			   )
 				ok = 1;
 		} else if (c == test)

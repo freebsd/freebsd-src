@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,7 +40,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
+#include <sys/rwlock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
@@ -57,7 +59,7 @@
 #define	NULL_NHASH(vp) (&null_node_hashtbl[vfs_hash_index(vp) & null_hash_mask])
 
 static LIST_HEAD(null_node_hashhead, null_node) *null_node_hashtbl;
-static struct mtx null_hashmtx;
+static struct rwlock null_hash_lock;
 static u_long null_hash_mask;
 
 static MALLOC_DEFINE(M_NULLFSHASH, "nullfs_hash", "NULLFS hash table");
@@ -75,7 +77,7 @@ nullfs_init(vfsp)
 
 	null_node_hashtbl = hashinit(desiredvnodes, M_NULLFSHASH,
 	    &null_hash_mask);
-	mtx_init(&null_hashmtx, "nullhs", NULL, MTX_DEF);
+	rw_init(&null_hash_lock, "nullhs");
 	return (0);
 }
 
@@ -84,7 +86,7 @@ nullfs_uninit(vfsp)
 	struct vfsconf *vfsp;
 {
 
-	mtx_destroy(&null_hashmtx);
+	rw_destroy(&null_hash_lock);
 	hashdestroy(null_node_hashtbl, M_NULLFSHASH, null_hash_mask);
 	return (0);
 }
@@ -111,7 +113,7 @@ null_hashget(mp, lowervp)
 	 * reference count (but NOT the lower vnode's VREF counter).
 	 */
 	hd = NULL_NHASH(lowervp);
-	mtx_lock(&null_hashmtx);
+	rw_rlock(&null_hash_lock);
 	LIST_FOREACH(a, hd, null_hash) {
 		if (a->null_lowervp == lowervp && NULLTOV(a)->v_mount == mp) {
 			/*
@@ -122,11 +124,11 @@ null_hashget(mp, lowervp)
 			 */
 			vp = NULLTOV(a);
 			vref(vp);
-			mtx_unlock(&null_hashmtx);
+			rw_runlock(&null_hash_lock);
 			return (vp);
 		}
 	}
-	mtx_unlock(&null_hashmtx);
+	rw_runlock(&null_hash_lock);
 	return (NULLVP);
 }
 
@@ -144,7 +146,7 @@ null_hashins(mp, xp)
 	struct vnode *ovp;
 
 	hd = NULL_NHASH(xp->null_lowervp);
-	mtx_lock(&null_hashmtx);
+	rw_wlock(&null_hash_lock);
 	LIST_FOREACH(oxp, hd, null_hash) {
 		if (oxp->null_lowervp == xp->null_lowervp &&
 		    NULLTOV(oxp)->v_mount == mp) {
@@ -154,12 +156,12 @@ null_hashins(mp, xp)
 			 */
 			ovp = NULLTOV(oxp);
 			vref(ovp);
-			mtx_unlock(&null_hashmtx);
+			rw_wunlock(&null_hash_lock);
 			return (ovp);
 		}
 	}
 	LIST_INSERT_HEAD(hd, xp, null_hash);
-	mtx_unlock(&null_hashmtx);
+	rw_wunlock(&null_hash_lock);
 	return (NULLVP);
 }
 
@@ -238,7 +240,7 @@ null_nodeget(mp, lowervp, vpp)
 	 */
 	xp = malloc(sizeof(struct null_node), M_NULLFSNODE, M_WAITOK);
 
-	error = getnewvnode("null", mp, &null_vnodeops, &vp);
+	error = getnewvnode("nullfs", mp, &null_vnodeops, &vp);
 	if (error) {
 		vput(lowervp);
 		free(xp, M_NULLFSNODE);
@@ -277,9 +279,9 @@ null_hashrem(xp)
 	struct null_node *xp;
 {
 
-	mtx_lock(&null_hashmtx);
+	rw_wlock(&null_hash_lock);
 	LIST_REMOVE(xp, null_hash);
-	mtx_unlock(&null_hashmtx);
+	rw_wunlock(&null_hash_lock);
 }
 
 #ifdef DIAGNOSTIC

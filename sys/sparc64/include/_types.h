@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Mike Barcroft <mike@FreeBSD.org>
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -56,8 +58,10 @@ typedef	unsigned long		__uint64_t;
  */
 typedef	__int32_t	__clock_t;		/* clock()... */
 typedef	__int64_t	__critical_t;
+#ifndef _STANDALONE
 typedef	double		__double_t;
 typedef	float		__float_t;
+#endif
 typedef	__int64_t	__intfptr_t;
 typedef	__int64_t	__intmax_t;
 typedef	__int64_t	__intptr_t;
@@ -88,27 +92,11 @@ typedef	__uint32_t	__uint_least32_t;
 typedef	__uint64_t	__uint_least64_t;
 typedef	__uint64_t	__u_register_t;
 typedef	__uint64_t	__vm_offset_t;
-typedef	__int64_t	__vm_ooffset_t;
 typedef	__uint64_t	__vm_paddr_t;
-typedef	__uint64_t	__vm_pindex_t;
 typedef	__uint64_t	__vm_size_t;
 typedef	int		___wchar_t;
 
 #define	__WCHAR_MIN	__INT_MIN	/* min value for a wchar_t */
 #define	__WCHAR_MAX	__INT_MAX	/* max value for a wchar_t */
-
-/*
- * Unusual type definitions.
- */
-#ifdef __GNUCLIKE_BUILTIN_VARARGS
-typedef __builtin_va_list	__va_list;	/* internally known to gcc */
-#else
-typedef	char *			__va_list;
-#endif /* __GNUCLIKE_BUILTIN_VARARGS */
-#if defined(__GNUCLIKE_BUILTIN_VAALIST) && !defined(__GNUC_VA_LIST) \
-    && !defined(__NO_GNUC_VA_LIST)
-#define __GNUC_VA_LIST
-typedef __va_list		__gnuc_va_list;	/* compatibility w/GNU headers*/
-#endif
 
 #endif /* !_MACHINE__TYPES_H_ */

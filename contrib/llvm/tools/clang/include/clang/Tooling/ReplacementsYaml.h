@@ -13,30 +13,17 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_TOOLING_REPLACEMENTS_YAML_H
-#define LLVM_CLANG_TOOLING_REPLACEMENTS_YAML_H
+#ifndef LLVM_CLANG_TOOLING_REPLACEMENTSYAML_H
+#define LLVM_CLANG_TOOLING_REPLACEMENTSYAML_H
 
 #include "clang/Tooling/Refactoring.h"
 #include "llvm/Support/YAMLTraits.h"
-#include <vector>
 #include <string>
 
 LLVM_YAML_IS_SEQUENCE_VECTOR(clang::tooling::Replacement)
 
 namespace llvm {
 namespace yaml {
-
-/// \brief ScalarTraits to read/write std::string objects.
-template <> struct ScalarTraits<std::string> {
-  static void output(const std::string &Val, void *, llvm::raw_ostream &Out) {
-    Out << Val;
-  }
-
-  static StringRef input(StringRef Scalar, void *, std::string &Val) {
-    Val = Scalar;
-    return StringRef();
-  }
-};
 
 /// \brief Specialized MappingTraits to describe how a Replacement is
 /// (de)serialized.
@@ -78,11 +65,10 @@ template <> struct MappingTraits<clang::tooling::TranslationUnitReplacements> {
   static void mapping(IO &Io,
                       clang::tooling::TranslationUnitReplacements &Doc) {
     Io.mapRequired("MainSourceFile", Doc.MainSourceFile);
-    Io.mapOptional("Context", Doc.Context, std::string());
     Io.mapRequired("Replacements", Doc.Replacements);
   }
 };
 } // end namespace yaml
 } // end namespace llvm
 
-#endif // LLVM_CLANG_TOOLING_REPLACEMENTS_YAML_H
+#endif

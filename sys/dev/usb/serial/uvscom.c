@@ -4,6 +4,8 @@
 __FBSDID("$FreeBSD$");
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001-2003, 2005 Shunsuke Akiyama <akiyama@jp.FreeBSD.org>.
  * All rights reserved.
  *
@@ -71,7 +73,7 @@ __FBSDID("$FreeBSD$");
 static int uvscom_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uvscom, CTLFLAG_RW, 0, "USB uvscom");
-SYSCTL_INT(_hw_usb_uvscom, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uvscom, OID_AUTO, debug, CTLFLAG_RWTUN,
     &uvscom_debug, 0, "Debug level");
 #endif
 
@@ -268,6 +270,7 @@ DRIVER_MODULE(uvscom, uhub, uvscom_driver, uvscom_devclass, NULL, 0);
 MODULE_DEPEND(uvscom, ucom, 1, 1, 1);
 MODULE_DEPEND(uvscom, usb, 1, 1, 1);
 MODULE_VERSION(uvscom, UVSCOM_MODVER);
+USB_PNP_HOST_INFO(uvscom_devs);
 
 static int
 uvscom_probe(device_t dev)

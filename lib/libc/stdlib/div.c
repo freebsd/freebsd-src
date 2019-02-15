@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -46,6 +48,7 @@ div(num, denom)
 
 	r.quot = num / denom;
 	r.rem = num % denom;
+#if !defined(__STDC_VERSION__) || (__STDC_VERSION__ < 199901L)
 	/*
 	 * The ANSI standard says that |r.quot| <= |n/d|, where
 	 * n/d is to be computed in infinite precision.  In other
@@ -73,5 +76,6 @@ div(num, denom)
 		r.quot++;
 		r.rem -= denom;
 	}
+#endif
 	return (r);
 }

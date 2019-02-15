@@ -1,6 +1,8 @@
 /*	$NetBSD: svc_raw.c,v 1.14 2000/07/06 03:10:35 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -82,7 +84,7 @@ static bool_t svc_raw_control(SVCXPRT *, const u_int, void *);
 char *__rpc_rawcombuf = NULL;
 
 SVCXPRT *
-svc_raw_create()
+svc_raw_create(void)
 {
 	struct svc_raw_private *srp;
 /* VARIABLES PROTECTED BY svcraw_lock: svc_raw_private, srp */
@@ -125,17 +127,14 @@ svc_raw_create()
 
 /*ARGSUSED*/
 static enum xprt_stat
-svc_raw_stat(xprt)
-SVCXPRT *xprt; /* args needed to satisfy ANSI-C typechecking */
+svc_raw_stat(SVCXPRT *xprt)
 {
 	return (XPRT_IDLE);
 }
 
 /*ARGSUSED*/
 static bool_t
-svc_raw_recv(xprt, msg)
-	SVCXPRT *xprt;
-	struct rpc_msg *msg;
+svc_raw_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 {
 	struct svc_raw_private *srp;
 	XDR *xdrs;
@@ -159,9 +158,7 @@ svc_raw_recv(xprt, msg)
 
 /*ARGSUSED*/
 static bool_t
-svc_raw_reply(xprt, msg)
-	SVCXPRT *xprt;
-	struct rpc_msg *msg;
+svc_raw_reply(SVCXPRT *xprt, struct rpc_msg *msg)
 {
 	struct svc_raw_private *srp;
 	XDR *xdrs;
@@ -201,10 +198,7 @@ svc_raw_reply(xprt, msg)
 
 /*ARGSUSED*/
 static bool_t
-svc_raw_getargs(xprt, xdr_args, args_ptr)
-	SVCXPRT *xprt;
-	xdrproc_t xdr_args;
-	void *args_ptr;
+svc_raw_getargs(SVCXPRT *xprt, xdrproc_t xdr_args, void *args_ptr)
 {
 	struct svc_raw_private *srp;
 
@@ -222,10 +216,7 @@ svc_raw_getargs(xprt, xdr_args, args_ptr)
 
 /*ARGSUSED*/
 static bool_t
-svc_raw_freeargs(xprt, xdr_args, args_ptr)
-	SVCXPRT *xprt;
-	xdrproc_t xdr_args;
-	void *args_ptr;
+svc_raw_freeargs(SVCXPRT *xprt, xdrproc_t xdr_args, void *args_ptr)
 {
 	struct svc_raw_private *srp;
 	XDR *xdrs;
@@ -245,24 +236,19 @@ svc_raw_freeargs(xprt, xdr_args, args_ptr)
 
 /*ARGSUSED*/
 static void
-svc_raw_destroy(xprt)
-SVCXPRT *xprt;
+svc_raw_destroy(SVCXPRT *xprt)
 {
 }
 
 /*ARGSUSED*/
 static bool_t
-svc_raw_control(xprt, rq, in)
-	SVCXPRT *xprt;
-	const u_int	rq;
-	void		*in;
+svc_raw_control(SVCXPRT *xprt, const u_int rq, void *in)
 {
 	return (FALSE);
 }
 
 static void
-svc_raw_ops(xprt)
-	SVCXPRT *xprt;
+svc_raw_ops(SVCXPRT *xprt)
 {
 	static struct xp_ops ops;
 	static struct xp_ops2 ops2;

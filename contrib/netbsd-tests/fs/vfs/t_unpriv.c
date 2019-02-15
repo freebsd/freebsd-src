@@ -1,4 +1,4 @@
-/*	$NetBSD: t_unpriv.c,v 1.11 2014/08/29 17:39:18 gson Exp $	*/
+/*	$NetBSD: t_unpriv.c,v 1.13 2017/01/13 21:30:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -38,7 +38,7 @@
 #include <rump/rump.h>
 
 #include "../common/h_fsmacros.h"
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 #define USES_OWNER							 \
 	if (FSTYPE_MSDOS(tc))						 \
@@ -55,8 +55,6 @@ owner(const atf_tc_t *tc, const char *mp)
 	rump_pub_lwproc_rfork(RUMP_RFCFDG);
 	if (rump_sys_setuid(1) == -1)
 		atf_tc_fail_errno("setuid");
-	if (FSTYPE_ZFS(tc))
-		atf_tc_expect_fail("PR kern/47656: Test known to be broken");
         if (rump_sys_chown(".", 1, -1) != -1 || errno != EPERM)
 		atf_tc_fail_errno("chown");
         if (rump_sys_chmod(".", 0000) != -1 || errno != EPERM) 

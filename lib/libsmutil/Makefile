@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
+PACKAGE=lib${LIB}
+SENDMAIL_DIR=${SRCTOP}/contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/libsmutil
 
 CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include -I.
@@ -19,7 +20,7 @@ CLEANFILES+=sm_os.h
 
 INTERNALLIB=
 
-sm_os.h:
-	ln -sf ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h sm_os.h
+sm_os.h: ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 .include <bsd.lib.mk>

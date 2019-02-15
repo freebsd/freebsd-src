@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 John Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
@@ -90,11 +92,14 @@ void	sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg,
 	    int flags, int queue);
 struct sleepqueue *sleepq_alloc(void);
 int	sleepq_broadcast(void *wchan, int flags, int pri, int queue);
+void	sleepq_chains_remove_matching(bool (*matches)(struct thread *));
 void	sleepq_free(struct sleepqueue *sq);
 void	sleepq_lock(void *wchan);
 struct sleepqueue *sleepq_lookup(void *wchan);
 void	sleepq_release(void *wchan);
 void	sleepq_remove(struct thread *td, void *wchan);
+int	sleepq_remove_matching(struct sleepqueue *sq, int queue,
+	    bool (*matches)(struct thread *), int pri);
 int	sleepq_signal(void *wchan, int flags, int pri, int queue);
 void	sleepq_set_timeout_sbt(void *wchan, sbintime_t sbt,
 	    sbintime_t pr, int flags);
@@ -106,6 +111,12 @@ int	sleepq_timedwait_sig(void *wchan, int pri);
 int	sleepq_type(void *wchan);
 void	sleepq_wait(void *wchan, int pri);
 int	sleepq_wait_sig(void *wchan, int pri);
+
+#ifdef STACK
+struct sbuf;
+int sleepq_sbuf_print_stacks(struct sbuf *sb, void *wchan, int queue,
+    int *count_stacks_printed);
+#endif
 
 #endif	/* _KERNEL */
 #endif	/* !_SYS_SLEEPQUEUE_H_ */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Written by: David Jeffery
  * Copyright (c) 2002 Adaptec Inc.
  * All rights reserved.

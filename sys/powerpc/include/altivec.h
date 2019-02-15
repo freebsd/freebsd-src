@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Nathan Whitehorn
  * All rights reserved
  *
@@ -34,6 +36,7 @@
 
 void    enable_vec(struct thread *);
 void    save_vec(struct thread *);
+void    save_vec_nodrop(struct thread *);
 
 #endif	/* _MACHINE_ALTIVEC_H_ */
 

@@ -1,4 +1,4 @@
-//===-- OptionGroupValueObjectDisplay.h -------------------------------*- C++ -*-===//
+//===-- OptionGroupValueObjectDisplay.h -------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -23,63 +23,43 @@ namespace lldb_private {
 // OptionGroupValueObjectDisplay
 //-------------------------------------------------------------------------
 
-class OptionGroupValueObjectDisplay : public OptionGroup
-{
+class OptionGroupValueObjectDisplay : public OptionGroup {
 public:
-    
-    OptionGroupValueObjectDisplay ();
-    
-    virtual
-    ~OptionGroupValueObjectDisplay ();
+  OptionGroupValueObjectDisplay();
 
-    
-    virtual uint32_t
-    GetNumDefinitions ();
-    
-    virtual const OptionDefinition*
-    GetDefinitions ();
-    
-    virtual Error
-    SetOptionValue (CommandInterpreter &interpreter,
-                    uint32_t option_idx,
-                    const char *option_value);
-    
-    virtual void
-    OptionParsingStarting (CommandInterpreter &interpreter);
-    
-    bool
-    AnyOptionWasSet () const
-    {
-        return show_types == true ||
-               no_summary_depth  != 0 ||
-               show_location == true ||
-               flat_output == true ||
-               use_objc == true ||
-               max_depth != UINT32_MAX ||
-               ptr_depth != 0 ||
-               use_synth == false ||
-               be_raw == true ||
-               ignore_cap == true;
-    }
-    
-    DumpValueObjectOptions
-    GetAsDumpOptions (LanguageRuntimeDescriptionDisplayVerbosity lang_descr_verbosity = eLanguageRuntimeDescriptionDisplayVerbosityFull,
-                      lldb::Format format = lldb::eFormatDefault,
-                      lldb::TypeSummaryImplSP summary_sp = lldb::TypeSummaryImplSP());
+  ~OptionGroupValueObjectDisplay() override;
 
-    bool show_types;
-    uint32_t no_summary_depth;
-    bool show_location;
-    bool flat_output;
-    bool use_objc;
-    uint32_t max_depth;
-    uint32_t ptr_depth;
-    lldb::DynamicValueType use_dynamic;
-    bool use_synth;
-    bool be_raw;
-    bool ignore_cap;
+  llvm::ArrayRef<OptionDefinition> GetDefinitions() override;
+
+  Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_value,
+                        ExecutionContext *execution_context) override;
+  Status SetOptionValue(uint32_t, const char *, ExecutionContext *) = delete;
+
+  void OptionParsingStarting(ExecutionContext *execution_context) override;
+
+  bool AnyOptionWasSet() const {
+    return show_types || no_summary_depth != 0 || show_location ||
+           flat_output || use_objc || max_depth != UINT32_MAX ||
+           ptr_depth != 0 || !use_synth || be_raw || ignore_cap ||
+           run_validator;
+  }
+
+  DumpValueObjectOptions GetAsDumpOptions(
+      LanguageRuntimeDescriptionDisplayVerbosity lang_descr_verbosity =
+          eLanguageRuntimeDescriptionDisplayVerbosityFull,
+      lldb::Format format = lldb::eFormatDefault,
+      lldb::TypeSummaryImplSP summary_sp = lldb::TypeSummaryImplSP());
+
+  bool show_types : 1, show_location : 1, flat_output : 1, use_objc : 1,
+      use_synth : 1, be_raw : 1, ignore_cap : 1, run_validator : 1;
+
+  uint32_t no_summary_depth;
+  uint32_t max_depth;
+  uint32_t ptr_depth;
+  uint32_t elem_count;
+  lldb::DynamicValueType use_dynamic;
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_OptionGroupValueObjectDisplay_h_
+#endif // liblldb_OptionGroupValueObjectDisplay_h_

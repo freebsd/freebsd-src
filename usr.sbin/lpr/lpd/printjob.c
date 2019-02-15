@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -11,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -447,12 +449,12 @@ printit(struct printer *pp, char *file)
 	 *		M -- "mail" to user when done printing
 	 *              Z -- "locale" for pr
 	 *
-	 *      getline reads a line and expands tabs to blanks
+	 *      get_line reads a line and expands tabs to blanks
 	 */
 
 	/* pass 1 */
 
-	while (getline(cfp))
+	while (get_line(cfp))
 		switch (line[0]) {
 		case 'H':
 			strlcpy(origin_host, line + 1, sizeof(origin_host));
@@ -577,7 +579,7 @@ printit(struct printer *pp, char *file)
 
 pass2:
 	fseek(cfp, 0L, 0);
-	while (getline(cfp))
+	while (get_line(cfp))
 		switch (line[0]) {
 		case 'L':	/* identification line */
 			if (!pp->no_header && pp->header_last)
@@ -673,7 +675,7 @@ print(struct printer *pp, int format, char *file)
 			av[i++] = "-L";
 			av[i++] = *locale ? locale : "C";
 			av[i++] = "-F";
-			av[i] = 0;
+			av[i] = NULL;
 			fo = ofd;
 			goto start;
 		}
@@ -795,7 +797,7 @@ print(struct printer *pp, int format, char *file)
 	av[n++] = "-h";
 	av[n++] = origin_host;
 	av[n++] = pp->acct_file;
-	av[n] = 0;
+	av[n] = NULL;
 	fo = pfd;
 	if (of_pid > 0) {		/* stop output filter */
 		write(ofd, "\031\1", 2);
@@ -922,7 +924,7 @@ sendit(struct printer *pp, char *file)
 	 * pass 1
 	 */
 	err = OK;
-	while (getline(cfp)) {
+	while (get_line(cfp)) {
 	again:
 		if (line[0] == 'S') {
 			cp = line+1;
@@ -954,7 +956,7 @@ sendit(struct printer *pp, char *file)
 		} else if (line[0] >= 'a' && line[0] <= 'z') {
 			dfcopies = 1;
 			strcpy(last, line);
-			while ((i = getline(cfp)) != 0) {
+			while ((i = get_line(cfp)) != 0) {
 				if (strcmp(last, line) != 0)
 					break;
 				dfcopies++;
@@ -983,7 +985,7 @@ sendit(struct printer *pp, char *file)
 	 * pass 2
 	 */
 	fseek(cfp, 0L, 0);
-	while (getline(cfp))
+	while (get_line(cfp))
 		if (line[0] == 'U' && !strchr(line+1, '/'))
 			(void) unlink(line+1);
 	/*
@@ -1737,7 +1739,7 @@ init(struct printer *pp)
 	sprintf(&length[2], "%ld", pp->page_length);
 	sprintf(&pxwidth[2], "%ld", pp->page_pwidth);
 	sprintf(&pxlength[2], "%ld", pp->page_plength);
-	if ((s = checkremote(pp)) != 0) {
+	if ((s = checkremote(pp)) != NULL) {
 		syslog(LOG_WARNING, "%s", s);
 		free(s);
 	}

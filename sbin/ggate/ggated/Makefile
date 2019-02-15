@@ -1,14 +1,13 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../shared
+.PATH: ${.CURDIR:H}/shared
 
 PROG=	ggated
 MAN=	ggated.8
 SRCS=	ggated.c ggate.c
 
-DPADD=	${LIBPTHREAD}
-LDADD=	-lpthread
+LIBADD=	pthread util
 
-CFLAGS+= -I${.CURDIR}/../shared
+CFLAGS+= -I${.CURDIR:H}/shared
 
 .include <bsd.prog.mk>

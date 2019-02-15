@@ -1,5 +1,7 @@
-/*
+/*-
  * sdp.h
+ *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2001-2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
@@ -530,6 +532,7 @@ void *             sdp_open       (bdaddr_t const *l, bdaddr_t const *r);
 void *             sdp_open_local (char const *control);
 int32_t            sdp_close      (void *xs);
 int32_t            sdp_error      (void *xs);
+int32_t            sdp_get_lcaddr (void *xs, bdaddr_t *l);
 
 int32_t            sdp_search     (void *xs,
                                    uint32_t plen, uint16_t const *pp,
@@ -561,7 +564,7 @@ void               sdp_print      (uint32_t level, uint8_t const *start,
  *	bdaddr_t	bdaddr;	local BD_ADDR (or ANY)
  *	profile data[pdu->len - sizeof(uuid) - sizeof(bdaddr)]
  *
- * in successful reponse additional data will contain 4 bytes record handle
+ * in successful response additional data will contain 4 bytes record handle
  *
  *
  * SDP_PDU_SERVICE_UNREGISTER_REQUEST

@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997-2006 Erez Zadok
+.\" Copyright (c) 1997-2014 Erez Zadok
 .\" Copyright (c) 1993 Jan-Simon Pendry.
 .\" Copyright (c) 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -12,11 +12,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgment:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,34 +28,42 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     from: @(#)fsinfo.8	8.1 (Berkeley) 6/28/93
-.\"	$Id: fsinfo.8,v 1.13.2.1 2006/01/02 18:48:25 ezk Exp $
 .\"	$FreeBSD$
 .\"
-.Dd January 2, 2006
-.Dt FSINFO 8
-.Os
+.\" File: am-utils/fsinfo/fsinfo.8
+.\"
+.Dd August 31, 2016
 .Sh NAME
 .Nm fsinfo
 .Nd co-ordinate site-wide file system information
 .Sh SYNOPSIS
 .Nm
-.Op Fl qv
+.Op fl qv
 .Op Fl a Ar autodir
-.Op Fl b Ar bootparams_prefix
-.Op Fl d Ar dumpsets_prefix
-.Op Fl e Ar exports_prefix
-.Op Fl f Ar fstabs_prefix
+.Op Fl b Ar bootparams
+.Op Fl d Ar dumpsets
+.Op Fl e Ar exports
+.Op Fl f Ar fstabs
 .Op Fl h Ar hostname
-.Op Fl m Ar automounts_prefix
+.Op Fl m Ar automounts
 .Op Fl I Ar dir
 .Oo
 .Fl D
 .Ar name Ns Op = Ns Ar string
 .Oc
-.Op Fl U Ar name
+.Oo
+.Fl U
+.Ar name Ns Op = Ns Ar string
+.Oc
 .Ar config ...
 .Sh DESCRIPTION
+.Bf -symbolic
+This command is obsolete.
+Users are advised to use
+.Xr autofs 5
+instead.
+.Ef
+.Pp
 The
 .Nm
 utility takes a set of system configuration information, and generates

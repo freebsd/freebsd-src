@@ -49,27 +49,22 @@
 #include <time.h>
 #include <unistd.h>
 
-int	main __P((int, char *[]));
-void	print_shmid_ds __P((struct shmid_ds *, mode_t));
-void	sigsys_handler __P((int));
-void	sigchld_handler __P((int));
-void	cleanup __P((void));
-void	receiver __P((void));
-void	usage __P((void));
+static void print_shmid_ds(struct shmid_ds *, mode_t);
+static void sigsys_handler(int);
+static void sigchld_handler(int);
+static void cleanup(void);
+static void receiver(void);
+static void usage(void);
 
-const char *m_str = "The quick brown fox jumped over the lazy dog.";
+static const char *m_str = "The quick brown fox jumped over the lazy dog.";
 
-int	sender_shmid = -1;
-pid_t	child_pid;
-
-key_t	shmkey;
-
-size_t	pgsize;
+static int sender_shmid = -1;
+static pid_t child_pid;
+static key_t shmkey;
+static size_t pgsize;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct sigaction sa;
 	struct shmid_ds s_ds;
@@ -172,17 +167,15 @@ main(argc, argv)
 	errx(1, "sender: received unexpected signal");
 }
 
-void
-sigsys_handler(signo)
-	int signo;
+static void
+sigsys_handler(int signo __unused)
 {
 
 	errx(1, "System V Shared Memory support is not present in the kernel");
 }
 
-void
-sigchld_handler(signo)
-	int signo;
+static void
+sigchld_handler(int signo __unused)
 {
 	struct shmid_ds s_ds;
 	int cstatus;
@@ -214,8 +207,8 @@ sigchld_handler(signo)
 	exit(0);
 }
 
-void
-cleanup()
+static void
+cleanup(void)
 {
 
 	/*
@@ -227,10 +220,8 @@ cleanup()
 	}
 }
 
-void
-print_shmid_ds(sp, mode)
-	struct shmid_ds *sp;
-	mode_t mode;
+static void
+print_shmid_ds(struct shmid_ds *sp, mode_t mode)
 {
 	uid_t uid = geteuid();
 	gid_t gid = getegid();
@@ -262,16 +253,16 @@ print_shmid_ds(sp, mode)
 		errx(1, "mode mismatch");
 }
 
-void
-usage()
+static void
+usage(void)
 {
 
 	fprintf(stderr, "usage: %s keypath\n", getprogname());
 	exit(1);
 }
 
-void
-receiver()
+static void
+receiver(void)
 {
 	int shmid;
 	void *shm_buf;

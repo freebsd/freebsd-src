@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2006
+.Dd October 20, 2017
 .Dt UDBP 4
 .Os
 .Sh NAME
@@ -48,9 +48,14 @@ udbp_load="YES"
 The
 .Nm
 driver provides support for host-to-host cables
-that contain at least two bulk pipes (one for each direction),
-for example
-the EzLink cable and the NetChip 1080 chip.
+that contain at least two bulk pipes (one for each direction).
+This typically includes cables branded for use with
+.Sy Windows USB Easy Transfer ,
+and many cables based on the Prolific PL2xx1 series of USB bridge chips.
+A useful (but non-comprehensive) list of compatible USB host cables
+is listed in the
+.Sx SEE ALSO
+section below.
 .Pp
 .\" XXX	The description of how to add netgraph to the kernel
 .\"	is out of place here.  It should be limited to the
@@ -86,30 +91,64 @@ module and then the
 .Nm
 driver.
 .Pp
-.Dl ngctl mkpeer udbp0: iface data inet
-.Dl ifconfig ng0 10.0.0.1 10.0.0.2
+.Dl ngctl mkpeer udbp0: eiface data ether
+.Dl ifconfig ngeth0 ether aa:dd:xx:xx:xx
+.Dl ifconfig ngeth0 inet 169.254.x.x/16
 .Pp
-Create a new network interface node
-and connect its inet hook to the data hook of the
+Create a new Ethernet network interface node
+and connect its ether hook to the data hook of the
 .Nm
-node.
-.Xr ifconfig 8
-configures the resulting network interface ng0 with a local
-IP address of 10.0.0.1 and a remote IP address of 10.0.0.2.
-On the remote host, the two
-IP addresses should of course be reversed.
+driver.
+.Pp
+This enables FreeBSD to communicate with a Linux peer (e.g. using the
+.Sy plusb
+driver).
+The Linux node should be configured to prefer link-local IPv4 addresses
+(e.g. using Network Manager in Debian and Red Hat derived distributions).
+.Pp
+Whilst both FreeBSD and Linux are able to interoperate by
+loosely following CDC EEM 1.0 in their behaviour, neither implementation
+has been expressly designed to follow its specification.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
-.Xr ng_iface 4 ,
+.Xr ng_eiface 4 ,
 .Xr ohci 4 ,
 .Xr uhci 4 ,
 .Xr usb 4 ,
 .Xr ngctl 8
+.\"
+.Rs
+.%B Universal Serial Bus: Communications Class Subclass Specification for Ethernet Emulation Model Devices 
+.%N Revision 1.0
+.%D February 2, 2005
+.%I USB Implementers Forum, Inc.
+.%U http://www.usb.org/developers/docs/devclass_docs/CDC_EEM10.pdf
+.Re
+.\"
+.Rs
+.%B Total Commander: Supported cables for USB cable connection
+.%I Ghisler Software GmbH.
+.%U https://www.ghisler.com/cables/index.htm
+.Re
+.Sh CAVEATS
+The point-to-point nature and additional latency of USB host-host links
+makes them unsuitable as a "drop-in" replacement for an Ethernet LAN;
+for a USB 3.0 SuperSpeed cable, latency is comparable to 100BaseTX Ethernet
+(but often worse), with throughput comparable to 2.5GBASE-T.
+.Pp
+However, their energy efficiency makes them attractive for embedded
+applications. A Plugable PL27A1 cable claims 24mA of USB3 bus power,
+as compared to 150mA for a typical USB 3.0 to Gigabit Ethernet interface.
 .Sh HISTORY
 The
 .Nm
 driver first appeared in
 .Fx 5.0 .
+.Sh BUGS
+The
+.Nm
+driver does not support the special packets described in section 5.1
+of the CDC EEM specification.
 .Sh AUTHORS
 .An -nosplit
 The
@@ -121,4 +160,6 @@ and
 .An Nick Hibma Aq Mt n_hibma@FreeBSD.org .
 .Pp
 This manual page was written by
-.An Nick Hibma Aq Mt n_hibma@FreeBSD.org .
+.An Nick Hibma Aq Mt n_hibma@FreeBSD.org 
+and updated by
+.An Bruce Simpson Aq Mt bms@FreeBSD.org .

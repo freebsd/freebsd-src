@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 2003
  * 	Hidetoshi Shimokawa. All rights reserved.
  * 
@@ -229,7 +231,7 @@ dconschat_fork_gdb(struct dcons_state *dc, struct dcons_port *p)
 		snprintf(buf, 256, "\n[fork %s]\n", com);
 		write(p->outfd, buf, strlen(buf));
 
-		execl("/bin/sh", "/bin/sh", "-c", com, 0);
+		execl("/bin/sh", "/bin/sh", "-c", com, NULL);
 
 		snprintf(buf, 256, "\n[fork failed]\n");
 		write(p->outfd, buf, strlen(buf));

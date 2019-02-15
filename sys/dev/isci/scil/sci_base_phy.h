@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -93,7 +95,7 @@ typedef enum _SCI_BASE_PHY_STATES
    SCI_BASE_PHY_STATE_STOPPED,
 
    /**
-    * This state indicates that the phy is in the process of becomming
+    * This state indicates that the phy is in the process of becoming
     * ready.  In this state no new IO operations are permitted on this phy.
     * This state is entered from the STOPPED state.
     * This state is entered from the READY state.

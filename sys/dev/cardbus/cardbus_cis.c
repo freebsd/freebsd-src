@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2008, M. Warner Losh
  * Copyright (c) 2000,2001 Jonathan Chen.
  * All rights reserved.
@@ -205,7 +207,7 @@ decode_tuple_funcid(device_t cbdev, device_t child, int id,
     struct tuple_callbacks *info, void *argp)
 {
 	struct cardbus_devinfo *dinfo = device_get_ivars(child);
-	int numnames = sizeof(funcnames) / sizeof(funcnames[0]);
+	int numnames = nitems(funcnames);
 	int i;
 
 	if (cardbus_cis_debug) {
@@ -406,7 +408,7 @@ cardbus_read_tuple_conf(device_t cbdev, device_t child, uint32_t start,
 }
 
 /*
- * Read the CIS data out of memroy.  We indirect through the bus space
+ * Read the CIS data out of memory.  We indirect through the bus space
  * routines to ensure proper byte ordering conversions when necessary.
  */
 static int
@@ -485,7 +487,8 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 		    "to read CIS.\n");
 		return (NULL);
 	}
-	DEVPRINTF((cbdev, "CIS Mapped to %#lx\n", rman_get_start(res)));
+	DEVPRINTF((cbdev, "CIS Mapped to %#jx\n",
+	    rman_get_start(res)));
 
 	/* Flip to the right ROM image if CIS is in ROM */
 	if (space == PCIM_CIS_ASI_ROM) {
@@ -580,7 +583,7 @@ int
 cardbus_parse_cis(device_t cbdev, device_t child,
     struct tuple_callbacks *callbacks, void *argp)
 {
-	uint8_t tupledata[MAXTUPLESIZE];
+	uint8_t *tupledata;
 	int tupleid = CISTPL_NULL;
 	int len;
 	int expect_linktarget;
@@ -588,10 +591,11 @@ cardbus_parse_cis(device_t cbdev, device_t child,
 	struct resource *res;
 	int rid;
 
-	bzero(tupledata, MAXTUPLESIZE);
+	tupledata = malloc(MAXTUPLESIZE, M_DEVBUF, M_WAITOK | M_ZERO);
 	expect_linktarget = TRUE;
 	if ((start = pci_read_config(child, PCIR_CIS, 4)) == 0) {
 		DEVPRINTF((cbdev, "Warning: CIS pointer is 0: (no CIS)\n"));
+		free(tupledata, M_DEVBUF);
 		return (0);
 	}
 	DEVPRINTF((cbdev, "CIS pointer is %#x\n", start));
@@ -599,6 +603,7 @@ cardbus_parse_cis(device_t cbdev, device_t child,
 	res = cardbus_read_tuple_init(cbdev, child, &start, &rid);
 	if (res == NULL) {
 		device_printf(cbdev, "Unable to allocate resources for CIS\n");
+		free(tupledata, M_DEVBUF);
 		return (ENXIO);
 	}
 
@@ -607,6 +612,7 @@ cardbus_parse_cis(device_t cbdev, device_t child,
 		    &tupleid, &len, tupledata) != 0) {
 			device_printf(cbdev, "Failed to read CIS.\n");
 			cardbus_read_tuple_finish(cbdev, child, rid, res);
+			free(tupledata, M_DEVBUF);
 			return (ENXIO);
 		}
 
@@ -614,6 +620,7 @@ cardbus_parse_cis(device_t cbdev, device_t child,
 			device_printf(cbdev, "Expecting link target, got 0x%x\n",
 			    tupleid);
 			cardbus_read_tuple_finish(cbdev, child, rid, res);
+			free(tupledata, M_DEVBUF);
 			return (EINVAL);
 		}
 		expect_linktarget = decode_tuple(cbdev, child, tupleid, len,
@@ -622,10 +629,12 @@ cardbus_parse_cis(device_t cbdev, device_t child,
 			device_printf(cbdev, "Parsing failed with %d\n",
 			    expect_linktarget);
 			cardbus_read_tuple_finish(cbdev, child, rid, res);
+			free(tupledata, M_DEVBUF);
 			return (expect_linktarget);
 		}
 	} while (tupleid != CISTPL_END);
 	cardbus_read_tuple_finish(cbdev, child, rid, res);
+	free(tupledata, M_DEVBUF);
 	return (0);
 }
 

@@ -3,4 +3,7 @@
 
 .PATH: ${LIBC_SRCTOP}/db/mpool
 
-SRCS+=	mpool.c mpool-compat.c
+SRCS+=	mpool.c
+.if ${MK_SYMVER} == yes
+SRCS+=	mpool-compat.c
+.endif

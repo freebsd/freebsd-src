@@ -11,7 +11,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -29,7 +29,7 @@
 .\"
 .\"	@(#)minherit.2	8.1 (Berkeley) 6/9/93
 .\"
-.Dd October 30, 2007
+.Dd March 15, 2017
 .Dt MINHERIT 2
 .Os
 .Sh NAME
@@ -91,6 +91,11 @@ it will no longer be shared in the parent
 after the parent forks and there is no way to get the previous
 shared-backing-store mapping without unmapping and remapping the address
 space in the parent.
+.It Dv INHERIT_ZERO
+This option causes the address space in question to be mapped as new
+anonymous pages,
+which would be initialized to all zero bytes,
+in the child process.
 .El
 .Sh RETURN VALUES
 .Rv -std minherit
@@ -130,6 +135,13 @@ system call first appeared in
 .Ox
 and then in
 .Fx 2.2 .
+.Pp
+The
+.Dv INHERIT_ZERO
+support first appeared in
+.Ox 5.6
+and then in
+.Fx 12.0 .
 .Sh BUGS
 Once you set inheritance to
 .Dv MAP_PRIVATE

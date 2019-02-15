@@ -35,15 +35,15 @@ static const char sccsid[] = "$Id: cl_read.c,v 10.30 2012/07/12 18:28:58 zy Exp 
 #undef columns
 #undef lines  
 
-static input_t	cl_read __P((SCR *,
-    u_int32_t, char *, size_t, int *, struct timeval *));
-static int	cl_resize __P((SCR *, size_t, size_t));
+static input_t	cl_read(SCR *,
+    u_int32_t, char *, size_t, int *, struct timeval *);
+static int	cl_resize(SCR *, size_t, size_t);
 
 /*
  * cl_event --
  *	Return a single event.
  *
- * PUBLIC: int cl_event __P((SCR *, EVENT *, u_int32_t, int));
+ * PUBLIC: int cl_event(SCR *, EVENT *, u_int32_t, int);
  */
 int
 cl_event(SCR *sp, EVENT *evp, u_int32_t flags, int ms)
@@ -143,7 +143,8 @@ read:
  *	Read characters from the input.
  */
 static input_t
-cl_read(SCR *sp, u_int32_t flags, char *bp, size_t blen, int *nrp, struct timeval *tp)
+cl_read(SCR *sp, u_int32_t flags, char *bp, size_t blen, int *nrp,
+    struct timeval *tp)
 {
 	struct termios term1, term2;
 	CL_PRIVATE *clp;

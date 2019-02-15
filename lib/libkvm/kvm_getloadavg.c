@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -29,12 +31,7 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#if defined(LIBC_SCCS) && !defined(lint)
-#if 0
-static char sccsid[] = "@(#)kvm_getloadavg.c	8.1 (Berkeley) 6/4/93";
-#endif
-#endif /* LIBC_SCCS and not lint */
+__SCCSID("@(#)kvm_getloadavg.c	8.1 (Berkeley) 6/4/93");
 
 #include <sys/param.h>
 #include <sys/time.h>
@@ -70,6 +67,12 @@ kvm_getloadavg(kvm_t *kd, double loadavg[], int nelem)
 
 	if (ISALIVE(kd))
 		return (getloadavg(loadavg, nelem));
+
+	if (!kd->arch->ka_native(kd)) {
+		_kvm_err(kd, kd->program,
+		    "cannot read loadavg from non-native core");
+		return (-1);
+	}
 
 	if (kvm_nlist(kd, nl) != 0) {
 		for (p = nl; p->n_type != 0; ++p);

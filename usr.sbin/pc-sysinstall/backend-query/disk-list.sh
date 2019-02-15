@@ -1,5 +1,7 @@
 #!/bin/sh
 #-
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
 # Copyright (c) 2010 iXsystems, Inc.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -82,8 +84,8 @@ do
     esac
   fi
 
-  # Try and find some identification information with camcontrol
-  NEWLINE=$(camcontrol identify $DEV 2>/dev/null | sed -ne 's/^device model *//p')
+  # Try and get some identification information from GEOM
+  NEWLINE=$(geom disk list $DEV 2>/dev/null | sed -ne 's/^   descr: *//p')
   if [ -z "$NEWLINE" ]; then
     	NEWLINE=" <Unknown Device>"
   fi

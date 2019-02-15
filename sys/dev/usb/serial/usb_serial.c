@@ -1,6 +1,8 @@
 /*	$NetBSD: ucom.c,v 1.40 2001/11/13 06:24:54 lukem Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2001-2003, 2005, 2008
  *	Shunsuke Akiyama <akiyama@jp.FreeBSD.org>.
  * All rights reserved.
@@ -79,7 +81,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/priv.h>
 #include <sys/cons.h>
-#include <sys/kdb.h>
+
+#include <dev/uart/uart_ppstypes.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -96,10 +99,22 @@ __FBSDID("$FreeBSD$");
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ucom, CTLFLAG_RW, 0, "USB ucom");
 
+static int ucom_pps_mode;
+
+SYSCTL_INT(_hw_usb_ucom, OID_AUTO, pps_mode, CTLFLAG_RWTUN,
+    &ucom_pps_mode, 0, 
+    "pulse capture mode: 0/1/2=disabled/CTS/DCD; add 0x10 to invert");
+
+static int ucom_device_mode_console = 1;
+
+SYSCTL_INT(_hw_usb_ucom, OID_AUTO, device_mode_console, CTLFLAG_RW,
+    &ucom_device_mode_console, 0,
+    "set to 1 to mark terminals as consoles when in device mode");
+
 #ifdef USB_DEBUG
 static int ucom_debug = 0;
 
-SYSCTL_INT(_hw_usb_ucom, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_ucom, OID_AUTO, debug, CTLFLAG_RWTUN,
     &ucom_debug, 0, "ucom debug level");
 #endif
 
@@ -154,6 +169,7 @@ static tsw_param_t ucom_param;
 static tsw_outwakeup_t ucom_outwakeup;
 static tsw_inwakeup_t ucom_inwakeup;
 static tsw_free_t ucom_free;
+static tsw_busy_t ucom_busy;
 
 static struct ttydevsw ucom_class = {
 	.tsw_flags = TF_INITLOCK | TF_CALLOUT,
@@ -165,6 +181,7 @@ static struct ttydevsw ucom_class = {
 	.tsw_param = ucom_param,
 	.tsw_modem = ucom_modem,
 	.tsw_free = ucom_free,
+	.tsw_busy = ucom_busy,
 };
 
 MODULE_DEPEND(ucom, usb, 1, 1, 1);
@@ -277,7 +294,7 @@ ucom_attach(struct ucom_super_softc *ssc, struct ucom_softc *sc,
 	}
 	ssc->sc_subunits = subunits;
 	ssc->sc_flag = UCOM_FLAG_ATTACHED |
-	    UCOM_FLAG_FREE_UNIT;
+	    UCOM_FLAG_FREE_UNIT | (ssc->sc_flag & UCOM_FLAG_DEVICE_MODE);
 
 	if (callback->ucom_free == NULL)
 		ssc->sc_flag |= UCOM_FLAG_WAIT_REFS;
@@ -377,6 +394,24 @@ ucom_drain_all(void *arg)
 	mtx_unlock(&ucom_mtx);
 }
 
+static cn_probe_t ucom_cnprobe;
+static cn_init_t ucom_cninit;
+static cn_term_t ucom_cnterm;
+static cn_getc_t ucom_cngetc;
+static cn_putc_t ucom_cnputc;
+static cn_grab_t ucom_cngrab;
+static cn_ungrab_t ucom_cnungrab;
+
+const struct consdev_ops ucom_cnops = {
+        .cn_probe       = ucom_cnprobe,
+        .cn_init        = ucom_cninit,
+        .cn_term        = ucom_cnterm,
+        .cn_getc        = ucom_cngetc,
+        .cn_putc        = ucom_cnputc,
+        .cn_grab        = ucom_cngrab,
+        .cn_ungrab      = ucom_cnungrab,
+};
+
 static int
 ucom_attach_tty(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 {
@@ -409,6 +444,11 @@ ucom_attach_tty(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 
 	sc->sc_tty = tp;
 
+	sc->sc_pps.ppscap = PPS_CAPTUREBOTH;
+	sc->sc_pps.driver_abi = PPS_ABI_VERSION;
+	sc->sc_pps.driver_mtx = sc->sc_mtx;
+	pps_init_abi(&sc->sc_pps);
+
 	DPRINTF("ttycreate: %s\n", buf);
 
 	/* Check if this device should be a console */
@@ -434,6 +474,24 @@ ucom_attach_tty(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 		UCOM_MTX_UNLOCK(ucom_cons_softc);
 	}
 
+	if ((ssc->sc_flag & UCOM_FLAG_DEVICE_MODE) != 0 &&
+	    ucom_device_mode_console > 0 &&
+	    ucom_cons_softc == NULL) {
+		struct consdev *cp;
+
+		cp = malloc(sizeof(struct consdev), M_USBDEV,
+		    M_WAITOK|M_ZERO);
+		cp->cn_ops = &ucom_cnops;
+		cp->cn_arg = NULL;
+		cp->cn_pri = CN_NORMAL;
+		strlcpy(cp->cn_name, "tty", sizeof(cp->cn_name));
+		strlcat(cp->cn_name, buf, sizeof(cp->cn_name));
+
+		sc->sc_consdev = cp;
+
+		cnadd(cp);
+	}
+
 	return (0);
 }
 
@@ -443,6 +501,12 @@ ucom_detach_tty(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 	struct tty *tp = sc->sc_tty;
 
 	DPRINTF("sc = %p, tp = %p\n", sc, sc->sc_tty);
+
+	if (sc->sc_consdev != NULL) {
+		cnremove(sc->sc_consdev);
+		free(sc->sc_consdev, M_USBDEV);
+		sc->sc_consdev = NULL;
+	}
 
 	if (sc->sc_flag & UCOM_FLAG_CONSOLE) {
 		UCOM_MTX_LOCK(ucom_cons_softc);
@@ -514,6 +578,20 @@ ucom_set_pnpinfo_usb(struct ucom_super_softc *ssc, device_t dev)
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 		    OID_AUTO, "ttyports", CTLFLAG_RD,
 		    NULL, ssc->sc_subunits, "Number of ports");
+	}
+}
+
+void
+ucom_set_usb_mode(struct ucom_super_softc *ssc, enum usb_hc_mode usb_mode)
+{
+
+	switch (usb_mode) {
+	case USB_MODE_DEVICE:
+		ssc->sc_flag |= UCOM_FLAG_DEVICE_MODE;
+		break;
+	default:
+		ssc->sc_flag &= ~UCOM_FLAG_DEVICE_MODE;
+		break;
 	}
 }
 
@@ -858,6 +936,8 @@ ucom_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 		} else {
 			error = ENOIOCTL;
 		}
+		if (error == ENOIOCTL)
+			error = pps_ioctl(cmd, data, &sc->sc_pps);
 		break;
 	}
 	return (error);
@@ -1059,10 +1139,12 @@ ucom_cfg_status_change(struct usb_proc_msg *_task)
 	    (struct ucom_cfg_task *)_task;
 	struct ucom_softc *sc = task->sc;
 	struct tty *tp;
+	int onoff;
 	uint8_t new_msr;
 	uint8_t new_lsr;
-	uint8_t onoff;
+	uint8_t msr_delta;
 	uint8_t lsr_delta;
+	uint8_t pps_signal;
 
 	tp = sc->sc_tty;
 
@@ -1085,13 +1167,38 @@ ucom_cfg_status_change(struct usb_proc_msg *_task)
 		/* TTY device closed */
 		return;
 	}
-	onoff = ((sc->sc_msr ^ new_msr) & SER_DCD);
+	msr_delta = (sc->sc_msr ^ new_msr);
 	lsr_delta = (sc->sc_lsr ^ new_lsr);
 
 	sc->sc_msr = new_msr;
 	sc->sc_lsr = new_lsr;
 
-	if (onoff) {
+	/*
+	 * Time pulse counting support.
+	 */
+	switch(ucom_pps_mode & UART_PPS_SIGNAL_MASK) {
+	case UART_PPS_CTS:
+		pps_signal = SER_CTS;
+		break;
+	case UART_PPS_DCD:
+		pps_signal = SER_DCD;
+		break;
+	default:
+		pps_signal = 0;
+		break;
+	}
+
+	if ((sc->sc_pps.ppsparam.mode & PPS_CAPTUREBOTH) &&
+	    (msr_delta & pps_signal)) {
+		pps_capture(&sc->sc_pps);
+		onoff = (sc->sc_msr & pps_signal) ? 1 : 0;
+		if (ucom_pps_mode & UART_PPS_INVERT_PULSE)
+			onoff = !onoff;
+		pps_event(&sc->sc_pps, onoff ? PPS_CAPTUREASSERT :
+		    PPS_CAPTURECLEAR);
+	}
+
+	if (msr_delta & SER_DCD) {
 
 		onoff = (sc->sc_msr & SER_DCD) ? 1 : 0;
 
@@ -1251,6 +1358,27 @@ ucom_outwakeup(struct tty *tp)
 		return;
 	}
 	ucom_start_transfers(sc);
+}
+
+static bool
+ucom_busy(struct tty *tp)
+{
+	struct ucom_softc *sc = tty_softc(tp);
+	const uint8_t txidle = ULSR_TXRDY | ULSR_TSRE;
+
+	UCOM_MTX_ASSERT(sc, MA_OWNED);
+
+	DPRINTFN(3, "sc = %p lsr 0x%02x\n", sc, sc->sc_lsr);
+
+	/*
+	 * If the driver maintains the txidle bits in LSR, we can use them to
+	 * determine whether the transmitter is busy or idle.  Otherwise we have
+	 * to assume it is idle to avoid hanging forever on tcdrain(3).
+	 */
+	if (sc->sc_flag & UCOM_FLAG_LSRTXIDLE)
+		return ((sc->sc_lsr & txidle) != txidle);
+	else
+		return (false);
 }
 
 /*------------------------------------------------------------------------*
@@ -1467,14 +1595,6 @@ ucom_free(void *xsc)
 	mtx_unlock(&ucom_mtx);
 }
 
-static cn_probe_t ucom_cnprobe;
-static cn_init_t ucom_cninit;
-static cn_term_t ucom_cnterm;
-static cn_getc_t ucom_cngetc;
-static cn_putc_t ucom_cnputc;
-static cn_grab_t ucom_cngrab;
-static cn_ungrab_t ucom_cnungrab;
-
 CONSOLE_DRIVER(ucom);
 
 static void
@@ -1533,7 +1653,7 @@ ucom_cngetc(struct consdev *cd)
 	UCOM_MTX_UNLOCK(sc);
 
 	/* poll if necessary */
-	if (kdb_active && sc->sc_callback->ucom_poll)
+	if (USB_IN_POLLING_MODE_FUNC() && sc->sc_callback->ucom_poll)
 		(sc->sc_callback->ucom_poll) (sc);
 
 	return (c);
@@ -1569,7 +1689,7 @@ ucom_cnputc(struct consdev *cd, int c)
 	UCOM_MTX_UNLOCK(sc);
 
 	/* poll if necessary */
-	if (kdb_active && sc->sc_callback->ucom_poll) {
+	if (USB_IN_POLLING_MODE_FUNC() && sc->sc_callback->ucom_poll) {
 		(sc->sc_callback->ucom_poll) (sc);
 		/* simple flow control */
 		if (temp == 0)

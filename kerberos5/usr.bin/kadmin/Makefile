@@ -25,25 +25,33 @@ SRCS=	add_enctype.c \
 	util.c
 
 CFLAGS+=-I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/krb5 -I${KRB5DIR}/lib/roken \
-	-I${KRB5DIR}/lib/sl -I. ${LDAPCFLAGS}
-DPADD=	${LIBKADM5CLNT} ${LIBKADM5SRV} ${LIBHDB} ${LIBKRB5} ${LIBHX509} \
-	${LIBSL} ${LIBROKEN} ${LIBVERS} ${LIBASN1} \
-	${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} \
-	${LIBEDIT} ${LIBNCURSESW} ${LDAPDPADD}
-LDADD=	-lkadm5clnt -lkadm5srv -lhdb -lkrb5 -lhx509 \
-	${LIBSL} -lroken ${LIBVERS} -lasn1 \
-	-lcrypto -lcrypt -lcom_err \
-	-ledit -lncursesw ${LDAPLDADD}
+	-I${KRB5DIR}/lib/sl \
+	-I${KRB5DIR}/base \
+	-I${KRB5DIR}/lib/wind \
+	-I${KRB5DIR}/lib/hx509 \
+	-I${KRB5DIR}/lib/hdb \
+	-I${.OBJDIR:H:H}/lib/libkrb5 \
+	-I${.OBJDIR:H:H}/lib/libroken \
+	-I${.OBJDIR:H:H}/lib/libasn1 \
+	-I${.OBJDIR:H:H}/lib/libwind \
+	-I${.OBJDIR:H:H}/lib/libhx509 \
+	-I${.OBJDIR:H:H}/lib/libhdb \
+	-I${SRCTOP}/contrib/com_err \
+	-I. \
+	${LDAPCFLAGS}
+LIBADD=	kadm5clnt kadm5srv hdb krb5 roken vers sl asn1 crypto edit
+DPADD=	${LDAPDPADD}
+LDADD=	${LDAPLDADD}
 LDFLAGS=${LDAPLDFLAGS}
+
+CLEANFILES=	kadmin-commands.h kadmin-commands.c
 
 .include <bsd.prog.mk>
 
 kadmin-commands.h: ${KRB5DIR}/kadmin/kadmin-commands.in
 	${SLC} ${.ALLSRC:M*.in}
 
-.for ext in o c
-kadmin-commands.${ext}: kadmin-commands.h
-.endfor
+kadmin-commands.c: kadmin-commands.h
 
 .PATH: ${KRB5DIR}/kadmin
 

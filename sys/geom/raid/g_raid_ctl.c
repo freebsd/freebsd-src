@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
@@ -117,7 +119,7 @@ g_raid_ctl_label(struct gctl_req *req, struct g_class *mp)
 	}
 	format = gctl_get_asciiparam(req, "arg0");
 	if (format == NULL) {
-		gctl_error(req, "No format recieved.");
+		gctl_error(req, "No format received.");
 		return;
 	}
 	crstatus = g_raid_create_node_format(format, req, &geom);
@@ -164,7 +166,7 @@ g_raid_ctl_stop(struct gctl_req *req, struct g_class *mp)
 	}
 	nodename = gctl_get_asciiparam(req, "arg0");
 	if (nodename == NULL) {
-		gctl_error(req, "No array name recieved.");
+		gctl_error(req, "No array name received.");
 		return;
 	}
 	sc = g_raid_find_node(mp, nodename);
@@ -204,7 +206,7 @@ g_raid_ctl_other(struct gctl_req *req, struct g_class *mp)
 	}
 	nodename = gctl_get_asciiparam(req, "arg0");
 	if (nodename == NULL) {
-		gctl_error(req, "No array name recieved.");
+		gctl_error(req, "No array name received.");
 		return;
 	}
 	sc = g_raid_find_node(mp, nodename);

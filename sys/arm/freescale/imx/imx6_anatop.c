@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ian Lepore <ian@freebsd.org>
  * Copyright (c) 2014 Steven Lawrance <stl@koffein.net>
  * All rights reserved.
@@ -67,19 +69,17 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include <arm/arm/mpcore_timervar.h>
 #include <arm/freescale/fsl_ocotpreg.h>
 #include <arm/freescale/fsl_ocotpvar.h>
+#include <arm/freescale/imx/imx_ccmvar.h>
+#include <arm/freescale/imx/imx_machdep.h>
 #include <arm/freescale/imx/imx6_anatopreg.h>
 #include <arm/freescale/imx/imx6_anatopvar.h>
 
-static SYSCTL_NODE(_hw, OID_AUTO, imx6, CTLFLAG_RW, NULL, "i.MX6 container");
-
 static struct resource_spec imx6_anatop_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ -1, 0 }
 };
 #define	MEMRES	0
@@ -98,6 +98,7 @@ struct imx6_anatop_softc {
 	uint32_t	cpu_maxmv;
 	uint32_t	cpu_maxmhz_hw;
 	boolean_t	cpu_overclock_enable;
+	boolean_t	cpu_init_done;
 	uint32_t	refosc_mhz;
 	void		*temp_intrhand;
 	uint32_t	temp_high_val;
@@ -116,12 +117,16 @@ static struct imx6_anatop_softc *imx6_anatop_sc;
 /*
  * Table of "operating points".
  * These are combinations of frequency and voltage blessed by Freescale.
+ * While the datasheet says the ARM voltage can be as low as 925mV at
+ * 396MHz, it also says that the ARM and SOC voltages can't differ by
+ * more than 200mV, and the minimum SOC voltage is 1150mV, so that
+ * dictates the 950mV entry in this table.
  */
 static struct oppt {
 	uint32_t	mhz;
 	uint32_t	mv;
 } imx6_oppt_table[] = {
-/*      { 396,	 925},  XXX: need functional ccm code for this speed */
+	{ 396,	 950},
 	{ 792,	1150},
 	{ 852,	1225},
 	{ 996,	1225},
@@ -135,7 +140,7 @@ static struct oppt {
  */
 static uint32_t imx6_ocotp_mhz_tab[] = {792, 852, 996, 1200};
 
-#define	TZ_ZEROC	2732	/* deci-Kelvin <-> deci-Celcius offset. */
+#define	TZ_ZEROC	2731	/* deci-Kelvin <-> deci-Celcius offset. */
 
 uint32_t
 imx6_anatop_read_4(bus_size_t offset)
@@ -158,14 +163,15 @@ imx6_anatop_write_4(bus_size_t offset, uint32_t value)
 static void
 vdd_set(struct imx6_anatop_softc *sc, int mv)
 {
-	int newtarg, oldtarg;
+	int newtarg, newtargSoc, oldtarg;
 	uint32_t delay, pmureg;
 	static boolean_t init_done = false;
 
 	/*
 	 * The datasheet says VDD_PU and VDD_SOC must be equal, and VDD_ARM
-	 * can't be more than 50mV above or 200mV below them.  For now to keep
-	 * things simple we set all three to the same value.
+	 * can't be more than 50mV above or 200mV below them.  We keep them the
+	 * same except in the case of the lowest operating point, which is
+	 * handled as a special case below.
 	 */
 
 	pmureg = imx6_anatop_read_4(IMX6_ANALOG_PMU_REG_CORE);
@@ -180,19 +186,29 @@ vdd_set(struct imx6_anatop_softc *sc, int mv)
 		newtarg = (mv - 700) / 25;
 
 	/*
+	 * The SOC voltage can't go below 1150mV, and thus because of the 200mV
+	 * rule, the ARM voltage can't go below 950mV.  The 950 is encoded in
+	 * our oppt table, here we handle the SOC 1150 rule as a special case.
+	 * (1150-700/25=18).
+	 */
+	newtargSoc = (newtarg < 18) ? 18 : newtarg;
+
+	/*
 	 * The first time through the 3 voltages might not be equal so use a
 	 * long conservative delay.  After that we need to delay 3uS for every
-	 * 25mV step upward.  No need to delay at all when lowering.
+	 * 25mV step upward; we actually delay 6uS because empirically, it works
+	 * and the 3uS per step recommended by the docs doesn't (3uS fails when
+	 * going from 400->1200, but works for smaller changes).
 	 */
 	if (init_done) {
 		if (newtarg == oldtarg)
 			return;
 		else if (newtarg > oldtarg)
-			delay = (newtarg - oldtarg) * 3;
+			delay = (newtarg - oldtarg) * 6;
 		else
 			delay = 0;
 	} else {
-		delay = 700 / 25 * 3;
+		delay = (700 / 25) * 6;
 		init_done = true;
 	}
 
@@ -205,7 +221,7 @@ vdd_set(struct imx6_anatop_softc *sc, int mv)
 
 	pmureg |= newtarg << IMX6_ANALOG_PMU_REG0_TARG_SHIFT;
 	pmureg |= newtarg << IMX6_ANALOG_PMU_REG1_TARG_SHIFT;
-	pmureg |= newtarg << IMX6_ANALOG_PMU_REG2_TARG_SHIFT;
+	pmureg |= newtargSoc << IMX6_ANALOG_PMU_REG2_TARG_SHIFT;
 
 	imx6_anatop_write_4(IMX6_ANALOG_PMU_REG_CORE, pmureg);
 	DELAY(delay);
@@ -213,24 +229,29 @@ vdd_set(struct imx6_anatop_softc *sc, int mv)
 }
 
 static inline uint32_t
-cpufreq_mhz_from_div(struct imx6_anatop_softc *sc, uint32_t div)
+cpufreq_mhz_from_div(struct imx6_anatop_softc *sc, uint32_t corediv, 
+    uint32_t plldiv)
 {
 
-	return (sc->refosc_mhz * (div / 2));
+	return ((sc->refosc_mhz * (plldiv / 2)) / (corediv + 1));
 }
 
-static inline uint32_t
-cpufreq_mhz_to_div(struct imx6_anatop_softc *sc, uint32_t cpu_mhz)
+static inline void
+cpufreq_mhz_to_div(struct imx6_anatop_softc *sc, uint32_t cpu_mhz,
+    uint32_t *corediv, uint32_t *plldiv)
 {
 
-	return (cpu_mhz / (sc->refosc_mhz / 2));
+	*corediv = (cpu_mhz < 650) ? 1 : 0;
+	*plldiv = ((*corediv + 1) * cpu_mhz) / (sc->refosc_mhz / 2);
 }
 
 static inline uint32_t
 cpufreq_actual_mhz(struct imx6_anatop_softc *sc, uint32_t cpu_mhz)
 {
+	uint32_t corediv, plldiv;
 
-	return (cpufreq_mhz_from_div(sc, cpufreq_mhz_to_div(sc, cpu_mhz)));
+	cpufreq_mhz_to_div(sc, cpu_mhz, &corediv, &plldiv);
+	return (cpufreq_mhz_from_div(sc, corediv, plldiv));
 }
 
 static struct oppt *
@@ -256,7 +277,7 @@ cpufreq_nearest_oppt(struct imx6_anatop_softc *sc, uint32_t cpu_newmhz)
 static void 
 cpufreq_set_clock(struct imx6_anatop_softc * sc, struct oppt *op)
 {
-	uint32_t timeout, wrk32;
+	uint32_t corediv, plldiv, timeout, wrk32;
 
 	/* If increasing the frequency, we must first increase the voltage. */
 	if (op->mhz > sc->cpu_curmhz) {
@@ -272,6 +293,7 @@ cpufreq_set_clock(struct imx6_anatop_softc * sc, struct oppt *op)
 	 *  - Wait for the LOCK bit to come on; it takes ~50 loop iterations.
 	 *  - Turn off bypass mode; cpu should now be running at the new speed.
 	 */
+	cpufreq_mhz_to_div(sc, op->mhz, &corediv, &plldiv);
 	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_ARM_CLR, 
 	    IMX6_ANALOG_CCM_PLL_ARM_CLK_SRC_MASK);
 	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_ARM_SET, 
@@ -279,7 +301,7 @@ cpufreq_set_clock(struct imx6_anatop_softc * sc, struct oppt *op)
 
 	wrk32 = imx6_anatop_read_4(IMX6_ANALOG_CCM_PLL_ARM);
 	wrk32 &= ~IMX6_ANALOG_CCM_PLL_ARM_DIV_MASK;
-	wrk32 |= cpufreq_mhz_to_div(sc, op->mhz);
+	wrk32 |= plldiv;
 	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_ARM, wrk32);
 
 	timeout = 10000;
@@ -290,6 +312,7 @@ cpufreq_set_clock(struct imx6_anatop_softc * sc, struct oppt *op)
 
 	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_ARM_CLR, 
 	    IMX6_ANALOG_CCM_PLL_ARM_BYPASS);
+	imx_ccm_set_cacrr(corediv);
 
 	/* If lowering the frequency, it is now safe to lower the voltage. */
 	if (op->mhz < sc->cpu_curmhz)
@@ -297,7 +320,7 @@ cpufreq_set_clock(struct imx6_anatop_softc * sc, struct oppt *op)
 	sc->cpu_curmhz = op->mhz;
 
 	/* Tell the mpcore timer that its frequency has changed. */
-        arm_tmr_change_frequency(
+	arm_tmr_change_frequency(
 	    cpufreq_actual_mhz(sc, sc->cpu_curmhz) * 1000000 / 2);
 }
 
@@ -372,23 +395,23 @@ cpufreq_initialize(struct imx6_anatop_softc *sc)
 	uint32_t cfg3speed;
 	struct oppt * op;
 
-	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6),
+	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx),
 	    OID_AUTO, "cpu_mhz", CTLFLAG_RD, &sc->cpu_curmhz, 0, 
 	    "CPU frequency");
 
-	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6), 
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx), 
 	    OID_AUTO, "cpu_minmhz", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
 	    sc, 0, cpufreq_sysctl_minmhz, "IU", "Minimum CPU frequency");
 
-	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6),
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx),
 	    OID_AUTO, "cpu_maxmhz", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
 	    sc, 0, cpufreq_sysctl_maxmhz, "IU", "Maximum CPU frequency");
 
-	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6),
+	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx),
 	    OID_AUTO, "cpu_maxmhz_hw", CTLFLAG_RD, &sc->cpu_maxmhz_hw, 0, 
 	    "Maximum CPU frequency allowed by hardware");
 
-	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6),
+	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx),
 	    OID_AUTO, "cpu_overclock_enable", CTLFLAG_RWTUN, 
 	    &sc->cpu_overclock_enable, 0, 
 	    "Allow setting CPU frequency higher than cpu_maxmhz_hw");
@@ -603,10 +626,10 @@ initialize_tempmon(struct imx6_anatop_softc *sc)
 	callout_reset_sbt(&sc->temp_throttle_callout, sc->temp_throttle_delay, 
 	    0, tempmon_throttle_check, sc, 0);
 
-	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6), 
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx), 
 	    OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
 	    temp_sysctl_handler, "IK", "Current die temperature");
-	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6), 
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx), 
 	    OID_AUTO, "throttle_temperature", CTLTYPE_INT | CTLFLAG_RW, sc,
 	    0, temp_throttle_sysctl_handler, "IK", 
 	    "Throttle CPU when exceeding this temperature");
@@ -615,12 +638,46 @@ initialize_tempmon(struct imx6_anatop_softc *sc)
 static void
 intr_setup(void *arg)
 {
+	int rid;
 	struct imx6_anatop_softc *sc;
 
 	sc = arg;
-	bus_setup_intr(sc->dev, sc->res[IRQRES], INTR_TYPE_MISC | INTR_MPSAFE,
-	    tempmon_intr, NULL, sc, &sc->temp_intrhand);
+	rid = 0;
+	sc->res[IRQRES] = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE);
+	if (sc->res[IRQRES] != NULL) {
+		bus_setup_intr(sc->dev, sc->res[IRQRES],
+		    INTR_TYPE_MISC | INTR_MPSAFE, tempmon_intr, NULL, sc,
+		    &sc->temp_intrhand);
+	} else {
+		device_printf(sc->dev, "Cannot allocate IRQ resource\n");
+	}
 	config_intrhook_disestablish(&sc->intr_setup_hook);
+}
+
+static void
+imx6_anatop_new_pass(device_t dev)
+{
+	struct imx6_anatop_softc *sc;
+	const int cpu_init_pass = BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE;
+
+	/*
+	 * We attach during BUS_PASS_BUS (because some day we will be a
+	 * simplebus that has regulator devices as children), but some of our
+	 * init work cannot be done until BUS_PASS_CPU (we rely on other devices
+	 * that attach on the CPU pass).
+	 */
+	sc = device_get_softc(dev);
+	if (!sc->cpu_init_done && bus_current_pass >= cpu_init_pass) {
+		sc->cpu_init_done = true;
+		cpufreq_initialize(sc);
+		initialize_tempmon(sc);
+		if (bootverbose) {
+			device_printf(sc->dev, "CPU %uMHz @ %umV\n", 
+			    sc->cpu_curmhz, sc->cpu_curmv);
+		}
+	}
+	bus_generic_new_pass(dev);
 }
 
 static int
@@ -666,13 +723,13 @@ imx6_anatop_attach(device_t dev)
 	imx6_anatop_write_4(IMX6_ANALOG_PMU_MISC0_SET, 
 	    IMX6_ANALOG_PMU_MISC0_SELFBIASOFF);
 
-	cpufreq_initialize(sc);
-	initialize_tempmon(sc);
+	/*
+	 * Some day, when we're ready to deal with the actual anatop regulators
+	 * that are described in fdt data as children of this "bus", this would
+	 * be the place to invoke a simplebus helper routine to instantiate the
+	 * children from the fdt data.
+	 */
 
-	if (bootverbose) {
-		device_printf(sc->dev, "CPU %uMHz @ %umV\n", sc->cpu_curmhz,
-		    sc->cpu_curmv);
-	}
 	err = 0;
 
 out:
@@ -682,6 +739,27 @@ out:
 	}
 
 	return (err);
+}
+
+uint32_t
+pll4_configure_output(uint32_t mfi, uint32_t mfn, uint32_t mfd)
+{
+	int reg;
+
+	/*
+	 * Audio PLL (PLL4).
+	 * PLL output frequency = Fref * (DIV_SELECT + NUM/DENOM)
+	 */
+
+	reg = (IMX6_ANALOG_CCM_PLL_AUDIO_ENABLE);
+	reg &= ~(IMX6_ANALOG_CCM_PLL_AUDIO_DIV_SELECT_MASK << \
+		IMX6_ANALOG_CCM_PLL_AUDIO_DIV_SELECT_SHIFT);
+	reg |= (mfi << IMX6_ANALOG_CCM_PLL_AUDIO_DIV_SELECT_SHIFT);
+	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_AUDIO, reg);
+	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_AUDIO_NUM, mfn);
+	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_AUDIO_DENOM, mfd);
+
+	return (0);
 }
 
 static int
@@ -700,13 +778,14 @@ imx6_anatop_probe(device_t dev)
 }
 
 uint32_t 
-imx6_get_cpu_clock()
+imx6_get_cpu_clock(void)
 {
-	uint32_t div;
+	uint32_t corediv, plldiv;
 
-	div = imx6_anatop_read_4(IMX6_ANALOG_CCM_PLL_ARM) &
+	corediv = imx_ccm_get_cacrr();
+	plldiv = imx6_anatop_read_4(IMX6_ANALOG_CCM_PLL_ARM) &
 	    IMX6_ANALOG_CCM_PLL_ARM_DIV_MASK;
-	return (cpufreq_mhz_from_div(imx6_anatop_sc, div));
+	return (cpufreq_mhz_from_div(imx6_anatop_sc, corediv, plldiv));
 }
 
 static device_method_t imx6_anatop_methods[] = {
@@ -714,6 +793,9 @@ static device_method_t imx6_anatop_methods[] = {
 	DEVMETHOD(device_probe,  imx6_anatop_probe),
 	DEVMETHOD(device_attach, imx6_anatop_attach),
 	DEVMETHOD(device_detach, imx6_anatop_detach),
+
+	/* Bus interface */
+	DEVMETHOD(bus_new_pass,  imx6_anatop_new_pass),
 
 	DEVMETHOD_END
 };
@@ -727,5 +809,7 @@ static driver_t imx6_anatop_driver = {
 static devclass_t imx6_anatop_devclass;
 
 EARLY_DRIVER_MODULE(imx6_anatop, simplebus, imx6_anatop_driver,
-    imx6_anatop_devclass, 0, 0, BUS_PASS_CPU + BUS_PASS_ORDER_FIRST + 1);
+    imx6_anatop_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(imx6_anatop, ofwbus, imx6_anatop_driver,
+    imx6_anatop_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 

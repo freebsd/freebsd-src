@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -97,24 +98,15 @@ __FBSDID("$FreeBSD$");
 
 void swi_handler(struct trapframe *);
 
-static __inline void
-call_trapsignal(struct thread *td, int sig, u_long code)
-{
-	ksiginfo_t ksi;
-
-	ksiginfo_init_trap(&ksi);
-	ksi.ksi_signo = sig;
-	ksi.ksi_code = (int)code;
-	trapsignal(td, &ksi);
-}
-
 int
-cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+cpu_fetch_syscall_args(struct thread *td)
 {
 	struct proc *p;
 	register_t *ap;
+	struct syscall_args *sa;
 	int error;
 
+	sa = &td->td_sa;
 	sa->code = td->td_frame->tf_r7;
 	ap = &td->td_frame->tf_r0;
 	if (sa->code == SYS_syscall) {
@@ -151,15 +143,14 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 static void
 syscall(struct thread *td, struct trapframe *frame)
 {
-	struct syscall_args sa;
 	int error;
 
-	sa.nap = 4;
+	td->td_sa.nap = 4;
 
-	error = syscallenter(td, &sa);
+	error = syscallenter(td);
 	KASSERT(error != 0 || td->td_ar == NULL,
 	    ("returning from syscall with td_ar set!"));
-	syscallret(td, error, &sa);
+	syscallret(td, error);
 }
 
 void
@@ -170,16 +161,7 @@ swi_handler(struct trapframe *frame)
 	td->td_frame = frame;
 
 	td->td_pticks = 0;
-	/*
-	 * Make sure the program counter is correctly aligned so we
-	 * don't take an alignment fault trying to read the opcode.
-	 * XXX: Fix for Thumb mode
-	 */
-	if (__predict_false(((frame->tf_pc - INSN_SIZE) & 3) != 0)) {
-		call_trapsignal(td, SIGILL, 0);
-		userret(td, frame);
-		return;
-	}
+
 	/*
 	 * Enable interrupts if they were enabled before the exception.
 	 * Since all syscalls *should* come from user mode it will always

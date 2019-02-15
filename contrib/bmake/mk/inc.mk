@@ -1,4 +1,4 @@
-# $Id: inc.mk,v 1.3 2011/03/11 05:23:05 sjg Exp $
+# $Id: inc.mk,v 1.7 2017/05/06 17:29:45 sjg Exp $
 #
 #	@(#) Copyright (c) 2008, Simon J. Gerraty
 #
@@ -15,8 +15,6 @@
 
 .include <init.mk>
 
-includes:	${INCS}
-
 .if !empty(LIBOWN)
 INC_INSTALL_OWN ?= -o ${LIBOWN} -g ${LIBGRP}
 .endif
@@ -24,12 +22,68 @@ INCMODE ?= 444
 INC_COPY ?= -C
 INCSDIR ?= ${INCDIR}
 
-realinstall:	incinstall
+STAGE_INCSDIR?= ${STAGE_OBJTOP}${INCSDIR}
+
+# accommodate folk used to freebsd
+INCGROUPS ?= ${INCSGROUPS:UINCS}
+INCGROUPS := ${INCGROUPS:O:u}
+
+.if !target(buildincludes)
+.for group in ${INCGROUPS}
+buildincludes: ${${group}}
+.endfor
+.endif
+buildincludes:
+includes: buildincludes
+
 .if !target(incinstall)
-incinstall:
-.if !empty(INCS)
-	[ -d ${DESTDIR}${INCSDIR} ] || \
-	${INSTALL} -d ${INC_INSTALL_OWN} -m 775 ${DESTDIR}${INCSDIR}
-	${INSTALL} ${INC_COPY} ${INC_INSTALL_OWN} -m ${INCMODE} ${INCS} ${DESTDIR}${INCSDIR}
+.for group in ${INCGROUPS}
+.if !empty(${group})
+.if ${group} != "INC"
+${group}_INSTALL_OWN ?= ${INC_INSTALL_OWN}
+${group}DIR ?= ${INCDIR}
 .endif
+# incase we are staging
+STAGE_DIR.${group} ?= ${STAGE_OBJTOP}${${group}DIR}
+
+.for header in ${${group}:O:u}
+${group}_INSTALL_OWN.${header:T} ?= ${${group}_INSTALL_OWN}
+${group}DIR.${header:T} ?= ${${group}DIR}
+inc_mkdir_list += ${${group}DIR.${header:T}}
+
+.if defined(${group}NAME.${header:T})
+STAGE_AS_SETS += ${group}
+STAGE_AS_${header} = ${${group}NAME.${header:T}}
+stage_as.${group}: ${header}
+
+incinstall: incinstall.${group}.${header:T}
+incinstall.${group}.${header:T}: ${header} inc_mkdirs
+	${INSTALL} ${INC_COPY} ${${group}_INSTALL_OWN.${header:T}} -m ${INCMODE} ${.ALLSRC:Ninc_mkdirs} ${DESTDIR}${${group}DIR}/${${group}NAME.${header:T}}
+
+.else
+STAGE_SETS += ${group}
+stage_files.${group}: ${header}
+incinstall.${group}: ${header}
+incinstall: incinstall.${group}
 .endif
+
+.endfor				# header
+
+incinstall.${group}: inc_mkdirs
+	${INSTALL} ${INC_COPY} ${${group}_INSTALL_OWN} -m ${INCMODE} \
+	${.ALLSRC:Ninc_mkdirs:O:u} ${DESTDIR}${${group}DIR}
+
+.endif				# !empty
+.endfor				# group
+
+inc_mkdirs:
+	@for d in ${inc_mkdir_list:O:u}; do \
+		test -d ${DESTDIR}$$d || \
+		${INSTALL} -d ${INC_INSTALL_OWN} -m 775 ${DESTDIR}$$d; \
+	done
+
+.endif				# !target(incinstall)
+
+beforeinstall:
+realinstall:	incinstall
+.ORDER: beforeinstall incinstall

@@ -22,50 +22,40 @@ namespace lldb_private {
 // OptionGroupWatchpoint
 //-------------------------------------------------------------------------
 
-    class OptionGroupWatchpoint : public OptionGroup
-    {
-    public:
-        
-        static bool
-        IsWatchSizeSupported(uint32_t watch_size);
+class OptionGroupWatchpoint : public OptionGroup {
+public:
+  OptionGroupWatchpoint();
 
-        OptionGroupWatchpoint ();
+  ~OptionGroupWatchpoint() override;
 
-        virtual
-        ~OptionGroupWatchpoint ();
-        
-        virtual uint32_t
-        GetNumDefinitions ();
-        
-        virtual const OptionDefinition*
-        GetDefinitions ();
-        
-        virtual Error
-        SetOptionValue (CommandInterpreter &interpreter,
-                        uint32_t option_idx, 
-                        const char *option_arg);
-        
-        virtual void
-        OptionParsingStarting (CommandInterpreter &interpreter);
-        
-        // Note:
-        // eWatchRead == LLDB_WATCH_TYPE_READ; and
-        // eWatchWrite == LLDB_WATCH_TYPE_WRITE
-        typedef enum WatchType {
-            eWatchInvalid = 0,
-            eWatchRead,
-            eWatchWrite,
-            eWatchReadWrite
-        } WatchType;
+  static bool IsWatchSizeSupported(uint32_t watch_size);
 
-        WatchType watch_type;
-        uint32_t watch_size;
-        bool watch_type_specified;
+  llvm::ArrayRef<OptionDefinition> GetDefinitions() override;
 
-    private:
-        DISALLOW_COPY_AND_ASSIGN(OptionGroupWatchpoint);
-    };
-    
+  Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_value,
+                        ExecutionContext *execution_context) override;
+  Status SetOptionValue(uint32_t, const char *, ExecutionContext *) = delete;
+
+  void OptionParsingStarting(ExecutionContext *execution_context) override;
+
+  // Note:
+  // eWatchRead == LLDB_WATCH_TYPE_READ; and
+  // eWatchWrite == LLDB_WATCH_TYPE_WRITE
+  typedef enum WatchType {
+    eWatchInvalid = 0,
+    eWatchRead,
+    eWatchWrite,
+    eWatchReadWrite
+  } WatchType;
+
+  WatchType watch_type;
+  uint32_t watch_size;
+  bool watch_type_specified;
+
+private:
+  DISALLOW_COPY_AND_ASSIGN(OptionGroupWatchpoint);
+};
+
 } // namespace lldb_private
 
-#endif  // liblldb_OptionGroupWatchpoint_h_
+#endif // liblldb_OptionGroupWatchpoint_h_

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
@@ -37,13 +39,10 @@ struct glxsb_session {
 	uint32_t	ses_key[4];		/* key */
 	uint8_t		ses_iv[SB_AES_BLOCK_SIZE]; /* initialization vector */
 	int		ses_klen;		/* key len */
-	int		ses_used;		/* session is used */
-	uint32_t	ses_id;			/* session id*/
 	struct auth_hash *ses_axf;
 	uint8_t		*ses_ictx;
 	uint8_t		*ses_octx;
 	int		ses_mlen;
-	TAILQ_ENTRY(glxsb_session) ses_next;
 };
 
 int glxsb_hash_setup(struct glxsb_session *ses,

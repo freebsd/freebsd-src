@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions
  *
  * Copyright (c) 1997-2008 by Matthew Jacob
@@ -32,12 +34,14 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/endian.h>
+#include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
+#include <sys/rman.h>
 #include <sys/sysctl.h>
 
 #include <sys/proc.h>
@@ -86,16 +90,8 @@ isp_ecmd_t *	isp_get_ecmd(struct ispsoftc *);
 void		isp_put_ecmd(struct ispsoftc *, isp_ecmd_t *);
 
 #ifdef	ISP_TARGET_MODE
-/* Not quite right, but there was no bump for this change */
-#if __FreeBSD_version < 225469
-#define	SDFIXED(x)	(&x)
-#else
-#define	SDFIXED(x)	((struct scsi_sense_data_fixed *)(&x))
-#endif
-
-#define	ISP_TARGET_FUNCTIONS	1
 #define	ATPDPSIZE	4096
-#define	ATPDPHASHSIZE	16
+#define	ATPDPHASHSIZE	32
 #define	ATPDPHASH(x)	((((x) >> 24) ^ ((x) >> 16) ^ ((x) >> 8) ^ (x)) &  \
 			    ((ATPDPHASHSIZE) - 1))
 
@@ -106,10 +102,10 @@ typedef struct atio_private_data {
 	uint32_t	bytes_xfered;
 	uint32_t	bytes_in_transit;
 	uint32_t	tag;		/* typically f/w RX_ID */
-	uint32_t	lun;
+	lun_id_t	lun;
 	uint32_t	nphdl;
 	uint32_t	sid;
-	uint32_t	portid;
+	uint32_t	did;
 	uint16_t	rxid;	/* wire rxid */
 	uint16_t	oxid;	/* wire oxid */
 	uint16_t	word3;	/* PRLI word3 params */
@@ -145,39 +141,27 @@ typedef struct atio_private_data {
 #define	ATPD_GET_SEQNO(hdrp)		(((isphdr_t *)hdrp)->rqs_seqno & ATPD_SEQ_MASK)
 #define	ATPD_GET_NCAM(hdrp)		((((isphdr_t *)hdrp)->rqs_seqno & ATPD_SEQ_NOTIFY_CAM) != 0)
 
-typedef union inot_private_data inot_private_data_t;
-union inot_private_data {
-	inot_private_data_t *next;
-	struct {
-		isp_notify_t nt;	/* must be first! */
-		uint8_t data[64];	/* sb QENTRY_LEN, but order of definitions is wrong */
-		uint32_t tag_id, seq_id;
-	} rd;
+typedef struct inot_private_data inot_private_data_t;
+struct inot_private_data {
+	STAILQ_ENTRY(inot_private_data)	next;
+	isp_notify_t nt;
+	uint8_t data[64];	/* sb QENTRY_LEN, but order of definitions is wrong */
+	uint32_t tag_id, seq_id;
 };
 typedef struct isp_timed_notify_ack {
 	void *isp;
 	void *not;
 	uint8_t data[64];	 /* sb QENTRY_LEN, but order of definitions is wrong */
+	struct callout timer;
 } isp_tna_t;
 
-TAILQ_HEAD(isp_ccbq, ccb_hdr);
+STAILQ_HEAD(ntpdlist, inot_private_data);
 typedef struct tstate {
-	SLIST_ENTRY(tstate) next;
-	struct cam_path *owner;
-	struct isp_ccbq waitq;		/* waiting CCBs */
-	struct ccb_hdr_slist atios;
-	struct ccb_hdr_slist inots;
-	uint32_t hold;
-	uint32_t
-		enabled		: 1,
-		atio_count	: 15,
-		inot_count	: 15;
-	inot_private_data_t *	restart_queue;
-	inot_private_data_t *	ntfree;
-	inot_private_data_t	ntpool[ATPDPSIZE];
-	LIST_HEAD(, atio_private_data)	atfree;
-	LIST_HEAD(, atio_private_data)	atused[ATPDPHASHSIZE];
-	atio_private_data_t	atpool[ATPDPSIZE];
+	SLIST_ENTRY(tstate)	next;
+	lun_id_t		ts_lun;
+	struct ccb_hdr_slist	atios;
+	struct ccb_hdr_slist	inots;
+	struct ntpdlist		restart_queue;
 } tstate_t;
 
 #define	LUN_HASH_SIZE		32
@@ -191,12 +175,8 @@ typedef struct tstate {
 struct isp_pcmd {
 	struct isp_pcmd *	next;
 	bus_dmamap_t 		dmap;		/* dma map for this command */
-	struct ispsoftc *	isp;		/* containing isp */
 	struct callout		wdog;		/* watchdog timer */
 	uint32_t		datalen;	/* data length for this command (target mode only) */
-	uint8_t			totslen;	/* sense length on status response */
-	uint8_t			cumslen;	/* sense length on status response */
-	uint8_t 		crn;		/* command reference number */
 };
 #define	ISP_PCMD(ccb)		(ccb)->ccb_h.spriv_ptr1
 #define	PISP_PCMD(ccb)		((struct isp_pcmd *)ISP_PCMD(ccb))
@@ -205,12 +185,10 @@ struct isp_pcmd {
  * Per nexus info.
  */
 struct isp_nexus {
-	struct isp_nexus *	next;
-	uint32_t
-		crnseed	:	8;	/* next command reference number */
-	uint32_t
-		tgt	:	16,	/* TGT for target */
-		lun	:	16;	/* LUN for target */
+	uint64_t lun;			/* LUN for target */
+	uint32_t tgt;			/* TGT for target */
+	uint8_t crnseed;		/* next command reference number */
+	struct isp_nexus *next;
 };
 #define	NEXUS_HASH_WIDTH	32
 #define	INITIAL_NEXUS_COUNT	MAX_FC_TARG
@@ -220,50 +198,42 @@ struct isp_nexus {
  * Per channel information
  */
 SLIST_HEAD(tslist, tstate);
+TAILQ_HEAD(isp_ccbq, ccb_hdr);
+LIST_HEAD(atpdlist, atio_private_data);
 
 struct isp_fc {
 	struct cam_sim *sim;
 	struct cam_path *path;
 	struct ispsoftc *isp;
 	struct proc *kproc;
-	bus_dma_tag_t tdmat;
-	bus_dmamap_t tdmap;
+	bus_dmamap_t scmap;
 	uint64_t def_wwpn;
 	uint64_t def_wwnn;
-	uint32_t loop_down_time;
-	uint32_t loop_down_limit;
-	uint32_t gone_device_time;
+	time_t loop_down_time;
+	int loop_down_limit;
+	int gone_device_time;
 	/*
 	 * Per target/lun info- just to keep a per-ITL nexus crn count
 	 */
 	struct isp_nexus *nexus_hash[NEXUS_HASH_WIDTH];
 	struct isp_nexus *nexus_free_list;
 	uint32_t
-#ifdef	ISP_TARGET_MODE
-#ifdef	ISP_INTERNAL_TARGET
-		proc_active	: 1,
-#endif
-		tm_luns_enabled	: 1,
-		tm_enable_defer	: 1,
-		tm_enabled	: 1,
-#endif
 		simqfrozen	: 3,
 		default_id	: 8,
-		hysteresis	: 8,
 		def_role	: 2,	/* default role */
-		gdt_running	: 1,
-		loop_dead	: 1,
+		loop_seen_once	: 1,
 		fcbsy		: 1,
 		ready		: 1;
-	struct callout ldt;	/* loop down timer */
 	struct callout gdt;	/* gone device timer */
-	struct task ltask;
 	struct task gtask;
 #ifdef	ISP_TARGET_MODE
-	struct tslist lun_hash[LUN_HASH_SIZE];
-#ifdef	ISP_INTERNAL_TARGET
-	struct proc *		target_proc;
-#endif
+	struct tslist		lun_hash[LUN_HASH_SIZE];
+	struct isp_ccbq		waitq;		/* waiting CCBs */
+	struct ntpdlist		ntfree;
+	inot_private_data_t	ntpool[ATPDPSIZE];
+	struct atpdlist		atfree;
+	struct atpdlist		atused[ATPDPHASHSIZE];
+	atio_private_data_t	atpool[ATPDPSIZE];
 #if defined(DEBUG)
 	unsigned int inject_lost_data_frame;
 #endif
@@ -275,22 +245,16 @@ struct isp_spi {
 	struct cam_sim *sim;
 	struct cam_path *path;
 	uint32_t
-#ifdef	ISP_TARGET_MODE
-#ifdef	ISP_INTERNAL_TARGET
-		proc_active	: 1,
-#endif
-		tm_luns_enabled	: 1,
-		tm_enable_defer	: 1,
-		tm_enabled	: 1,
-#endif
 		simqfrozen	: 3,
-		def_role	: 2,
 		iid		: 4;
 #ifdef	ISP_TARGET_MODE
-	struct tslist lun_hash[LUN_HASH_SIZE];
-#ifdef	ISP_INTERNAL_TARGET
-	struct proc *		target_proc;
-#endif
+	struct tslist		lun_hash[LUN_HASH_SIZE];
+	struct isp_ccbq		waitq;		/* waiting CCBs */
+	struct ntpdlist		ntfree;
+	inot_private_data_t	ntpool[ATPDPSIZE];
+	struct atpdlist		atfree;
+	struct atpdlist		atused[ATPDPHASHSIZE];
+	atio_private_data_t	atpool[ATPDPSIZE];
 #endif
 	int			num_threads;
 };
@@ -302,7 +266,6 @@ struct isposinfo {
 	struct mtx		lock;
 	device_t		dev;
 	struct cdev *		cdev;
-	struct intr_config_hook	ehook;
 	struct cam_devq *	devq;
 
 	/*
@@ -311,13 +274,20 @@ struct isposinfo {
 	const struct firmware *	fw;
 
 	/*
-	 * DMA related sdtuff
+	 * DMA related stuff
 	 */
-	bus_space_tag_t		bus_tag;
+	struct resource *	regs;
+	struct resource *	regs2;
 	bus_dma_tag_t		dmat;
-	bus_space_handle_t	bus_handle;
-	bus_dma_tag_t		cdmat;
-	bus_dmamap_t		cdmap;
+	bus_dma_tag_t		reqdmat;
+	bus_dma_tag_t		respdmat;
+	bus_dma_tag_t		atiodmat;
+	bus_dma_tag_t		iocbdmat;
+	bus_dma_tag_t		scdmat;
+	bus_dmamap_t		reqmap;
+	bus_dmamap_t		respmap;
+	bus_dmamap_t		atiomap;
+	bus_dmamap_t		iocbmap;
 
 	/*
 	 * Command and transaction related related stuff
@@ -325,22 +295,10 @@ struct isposinfo {
 	struct isp_pcmd *	pcmd_pool;
 	struct isp_pcmd *	pcmd_free;
 
-	uint32_t
-#ifdef	ISP_TARGET_MODE
-		tmwanted	: 1,
-		tmbusy		: 1,
-#else
-				: 2,
-#endif
-		sixtyfourbit	: 1,	/* sixtyfour bit platform */
-		timer_active	: 1,
-		autoconf	: 1,
-		ehook_active	: 1,
-		disabled	: 1,
-		mbox_sleeping	: 1,
-		mbox_sleep_ok	: 1,
-		mboxcmd_done	: 1,
-		mboxbsy		: 1;
+	int			mbox_sleeping;
+	int			mbox_sleep_ok;
+	int			mboxbsy;
+	int			mboxcmd_done;
 
 	struct callout		tmo;	/* general timer */
 
@@ -350,10 +308,6 @@ struct isposinfo {
 	int			framesize;
 	int			exec_throttle;
 	int			cont_max;
-
-#ifdef	ISP_TARGET_MODE
-	cam_status *		rptr;
-#endif
 
 	bus_addr_t		ecmd_dma;
 	isp_ecmd_t *		ecmd_base;
@@ -393,14 +347,15 @@ struct isposinfo {
 
 #define	FCP_NEXT_CRN	isp_fcp_next_crn
 #define	isp_lock	isp_osinfo.lock
-#define	isp_bus_tag	isp_osinfo.bus_tag
-#define	isp_bus_handle	isp_osinfo.bus_handle
+#define	isp_regs	isp_osinfo.regs
+#define	isp_regs2	isp_osinfo.regs2
 
 /*
  * Locking macros...
  */
-#define	ISP_LOCK(isp)	mtx_lock(&isp->isp_osinfo.lock)
-#define	ISP_UNLOCK(isp)	mtx_unlock(&isp->isp_osinfo.lock)
+#define	ISP_LOCK(isp)	mtx_lock(&(isp)->isp_lock)
+#define	ISP_UNLOCK(isp)	mtx_unlock(&(isp)->isp_lock)
+#define	ISP_ASSERT_LOCKED(isp)	mtx_assert(&(isp)->isp_lock, MA_OWNED)
 
 /*
  * Required Macros/Defines
@@ -410,8 +365,9 @@ struct isposinfo {
 #define	ISP_MEMZERO(a, b)	memset(a, 0, b)
 #define	ISP_MEMCPY		memcpy
 #define	ISP_SNPRINTF		snprintf
-#define	ISP_DELAY		DELAY
-#define	ISP_SLEEP(isp, x)	DELAY(x)
+#define	ISP_DELAY(x)		DELAY(x)
+#define	ISP_SLEEP(isp, x)	msleep_sbt(&(isp)->isp_osinfo.is_exiting, \
+    &(isp)->isp_lock, 0, "isp_sleep", (x) * SBT_1US, 0, 0)
 
 #define	ISP_MIN			imin
 
@@ -430,34 +386,43 @@ struct isposinfo {
 
 #define	MEMORYBARRIER(isp, type, offset, size, chan)		\
 switch (type) {							\
+case SYNC_REQUEST:						\
+	bus_dmamap_sync(isp->isp_osinfo.reqdmat,		\
+	   isp->isp_osinfo.reqmap, BUS_DMASYNC_PREWRITE);	\
+	break;							\
+case SYNC_RESULT:						\
+	bus_dmamap_sync(isp->isp_osinfo.respdmat, 		\
+	   isp->isp_osinfo.respmap, BUS_DMASYNC_POSTREAD);	\
+	break;							\
 case SYNC_SFORDEV:						\
 {								\
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
-	bus_dmamap_sync(fc->tdmat, fc->tdmap,			\
+	bus_dmamap_sync(isp->isp_osinfo.scdmat, fc->scmap,	\
 	   BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);		\
 	break;							\
 }								\
-case SYNC_REQUEST:						\
-	bus_dmamap_sync(isp->isp_osinfo.cdmat,			\
-	   isp->isp_osinfo.cdmap, 				\
-	   BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);		\
-	break;							\
 case SYNC_SFORCPU:						\
 {								\
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
-	bus_dmamap_sync(fc->tdmat, fc->tdmap,			\
+	bus_dmamap_sync(isp->isp_osinfo.scdmat, fc->scmap,	\
 	   BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);	\
 	break;							\
 }								\
-case SYNC_RESULT:						\
-	bus_dmamap_sync(isp->isp_osinfo.cdmat, 			\
-	   isp->isp_osinfo.cdmap,				\
-	   BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);	\
-	break;							\
 case SYNC_REG:							\
-	bus_space_barrier(isp->isp_osinfo.bus_tag,		\
-	    isp->isp_osinfo.bus_handle, offset, size,		\
+	bus_barrier(isp->isp_osinfo.regs, offset, size,		\
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);	\
+	break;							\
+case SYNC_ATIOQ:						\
+	bus_dmamap_sync(isp->isp_osinfo.atiodmat, 		\
+	   isp->isp_osinfo.atiomap, BUS_DMASYNC_POSTREAD);	\
+	break;							\
+case SYNC_IFORDEV:						\
+	bus_dmamap_sync(isp->isp_osinfo.iocbdmat, isp->isp_osinfo.iocbmap, \
+	   BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);		\
+	break;							\
+case SYNC_IFORCPU:						\
+	bus_dmamap_sync(isp->isp_osinfo.iocbdmat, isp->isp_osinfo.iocbmap, \
+	   BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);	\
 	break;							\
 default:							\
 	break;							\
@@ -465,32 +430,35 @@ default:							\
 
 #define	MEMORYBARRIERW(isp, type, offset, size, chan)		\
 switch (type) {							\
+case SYNC_REQUEST:						\
+	bus_dmamap_sync(isp->isp_osinfo.reqdmat,		\
+	   isp->isp_osinfo.reqmap, BUS_DMASYNC_PREWRITE);	\
+	break;							\
 case SYNC_SFORDEV:						\
 {								\
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
-	bus_dmamap_sync(fc->tdmat, fc->tdmap,			\
+	bus_dmamap_sync(isp->isp_osinfo.scdmat, fc->scmap,	\
 	   BUS_DMASYNC_PREWRITE);				\
 	break;							\
 }								\
-case SYNC_REQUEST:						\
-	bus_dmamap_sync(isp->isp_osinfo.cdmat,			\
-	   isp->isp_osinfo.cdmap, BUS_DMASYNC_PREWRITE);	\
-	break;							\
 case SYNC_SFORCPU:						\
 {								\
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
-	bus_dmamap_sync(fc->tdmat, fc->tdmap,			\
+	bus_dmamap_sync(isp->isp_osinfo.scdmat, fc->scmap,	\
 	   BUS_DMASYNC_POSTWRITE);				\
 	break;							\
 }								\
-case SYNC_RESULT:						\
-	bus_dmamap_sync(isp->isp_osinfo.cdmat, 			\
-	   isp->isp_osinfo.cdmap, BUS_DMASYNC_POSTWRITE);	\
-	break;							\
 case SYNC_REG:							\
-	bus_space_barrier(isp->isp_osinfo.bus_tag,		\
-	    isp->isp_osinfo.bus_handle, offset, size,		\
+	bus_barrier(isp->isp_osinfo.regs, offset, size,		\
 	    BUS_SPACE_BARRIER_WRITE);				\
+	break;							\
+case SYNC_IFORDEV:						\
+	bus_dmamap_sync(isp->isp_osinfo.iocbdmat, isp->isp_osinfo.iocbmap, \
+	   BUS_DMASYNC_PREWRITE);				\
+	break;							\
+case SYNC_IFORCPU:						\
+	bus_dmamap_sync(isp->isp_osinfo.iocbdmat, isp->isp_osinfo.iocbmap, \
+	   BUS_DMASYNC_POSTWRITE);				\
 	break;							\
 default:							\
 	break;							\
@@ -538,10 +506,17 @@ default:							\
         d->ds_base = DMA_LO32(e->ds_addr);	\
         d->ds_count = e->ds_len;		\
 }
+#if (BUS_SPACE_MAXADDR > UINT32_MAX)
+#define XS_NEED_DMA64_SEG(s, n)					\
+	(((bus_dma_segment_t *)s)[n].ds_addr +			\
+	    ((bus_dma_segment_t *)s)[n].ds_len > UINT32_MAX)
+#else
+#define XS_NEED_DMA64_SEG(s, n)	(0)
+#endif
 #define	XS_ISP(ccb)		cam_sim_softc(xpt_path_sim((ccb)->ccb_h.path))
 #define	XS_CHANNEL(ccb)		cam_sim_bus(xpt_path_sim((ccb)->ccb_h.path))
 #define	XS_TGT(ccb)		(ccb)->ccb_h.target_id
-#define	XS_LUN(ccb)		(uint32_t)((ccb)->ccb_h.target_lun)
+#define	XS_LUN(ccb)		(ccb)->ccb_h.target_lun
 
 #define	XS_CDBP(ccb)	\
 	(((ccb)->ccb_h.flags & CAM_CDB_POINTER)? \
@@ -549,7 +524,9 @@ default:							\
 
 #define	XS_CDBLEN(ccb)		(ccb)->cdb_len
 #define	XS_XFRLEN(ccb)		(ccb)->dxfer_len
-#define	XS_TIME(ccb)		(ccb)->ccb_h.timeout
+#define	XS_TIME(ccb)	\
+	(((ccb)->ccb_h.timeout > 0xffff * 1000 - 999) ? 0 : \
+	  (((ccb)->ccb_h.timeout + 999) / 1000))
 #define	XS_GET_RESID(ccb)	(ccb)->resid
 #define	XS_SET_RESID(ccb, r)	(ccb)->resid = r
 #define	XS_STSP(ccb)		(&(ccb)->scsi_status)
@@ -583,6 +560,7 @@ default:							\
 #	define	HBA_CMDTIMEOUT		CAM_CMD_TIMEOUT
 #	define	HBA_SELTIMEOUT		CAM_SEL_TIMEOUT
 #	define	HBA_TGTBSY		CAM_SCSI_STATUS_ERROR
+#	define	HBA_REQINVAL		CAM_REQ_INVALID
 #	define	HBA_BUSRESET		CAM_SCSI_BUS_RESET
 #	define	HBA_ABORTED		CAM_REQ_ABORTED
 #	define	HBA_DATAOVR		CAM_DATA_RUN_ERR
@@ -595,26 +573,19 @@ default:							\
 
 #define	XS_INITERR(ccb)		XS_SETERR(ccb, CAM_REQ_INPROG), ccb->sense_resid = ccb->sense_len
 
-#define	XS_SAVE_SENSE(xs, sense_ptr, totslen, slen)	do {			\
-		uint32_t tlen = slen;						\
-		if (tlen > (xs)->sense_len)					\
-			tlen = (xs)->sense_len;					\
-		PISP_PCMD(xs)->totslen = imin((xs)->sense_len, totslen);	\
-		PISP_PCMD(xs)->cumslen = tlen;					\
-		memcpy(&(xs)->sense_data, sense_ptr, tlen);			\
-		(xs)->sense_resid = (xs)->sense_len - tlen;			\
-		(xs)->ccb_h.status |= CAM_AUTOSNS_VALID;			\
+#define	XS_SAVE_SENSE(xs, sp, len)	do {				\
+		uint32_t amt = min(len, (xs)->sense_len);		\
+		memcpy(&(xs)->sense_data, sp, amt);			\
+		(xs)->sense_resid = (xs)->sense_len - amt;		\
+		(xs)->ccb_h.status |= CAM_AUTOSNS_VALID;		\
 	} while (0)
 
-#define	XS_SENSE_APPEND(xs, xsnsp, xsnsl)	do {				\
-		uint32_t off = PISP_PCMD(xs)->cumslen;				\
-		uint8_t *ptr = &((uint8_t *)(&(xs)->sense_data))[off];		\
-		uint32_t amt = imin(xsnsl, PISP_PCMD(xs)->totslen - off);	\
-		if (amt) {							\
-			memcpy(ptr, xsnsp, amt);				\
-			(xs)->sense_resid -= amt;				\
-			PISP_PCMD(xs)->cumslen += amt;				\
-		}								\
+#define	XS_SENSE_APPEND(xs, sp, len)	do {				\
+		uint8_t *ptr = (uint8_t *)(&(xs)->sense_data) +		\
+		    ((xs)->sense_len - (xs)->sense_resid);		\
+		uint32_t amt = min((len), (xs)->sense_resid);		\
+		memcpy(ptr, sp, amt);					\
+		(xs)->sense_resid -= amt;				\
 	} while (0)
 
 #define	XS_SENSE_VALID(xs)	(((xs)->ccb_h.status & CAM_AUTOSNS_VALID) != 0)
@@ -622,14 +593,8 @@ default:							\
 #define	DEFAULT_FRAMESIZE(isp)		isp->isp_osinfo.framesize
 #define	DEFAULT_EXEC_THROTTLE(isp)	isp->isp_osinfo.exec_throttle
 
-#define	GET_DEFAULT_ROLE(isp, chan)	\
-	(IS_FC(isp)? ISP_FC_PC(isp, chan)->def_role : ISP_SPI_PC(isp, chan)->def_role)
-#define	SET_DEFAULT_ROLE(isp, chan, val)		\
-	if (IS_FC(isp)) { 				\
-		ISP_FC_PC(isp, chan)->def_role = val;	\
-	} else {					\
-		ISP_SPI_PC(isp, chan)->def_role = val;	\
-	}
+#define	DEFAULT_ROLE(isp, chan)	\
+	(IS_FC(isp)? ISP_FC_PC(isp, chan)->def_role : ISP_ROLE_INITIATOR)
 
 #define	DEFAULT_IID(isp, chan)		isp->isp_osinfo.pc.spi[chan].iid
 
@@ -720,18 +685,15 @@ default:							\
  */
 extern int isp_attach(ispsoftc_t *);
 extern int isp_detach(ispsoftc_t *);
-extern void isp_uninit(ispsoftc_t *);
 extern uint64_t isp_default_wwn(ispsoftc_t *, int, int, int);
 
 /*
  * driver global data
  */
 extern int isp_announced;
-extern int isp_fabric_hysteresis;
 extern int isp_loop_down_limit;
 extern int isp_gone_device_time;
 extern int isp_quickboot_time;
-extern int isp_autoconfig;
 
 /*
  * Platform private flags
@@ -748,24 +710,16 @@ void isp_mbox_wait_complete(ispsoftc_t *, mbreg_t *);
 void isp_mbox_notify_done(ispsoftc_t *);
 void isp_mbox_release(ispsoftc_t *);
 int isp_fc_scratch_acquire(ispsoftc_t *, int);
-int isp_mstohz(int);
 void isp_platform_intr(void *);
+void isp_platform_intr_resp(void *);
+void isp_platform_intr_atio(void *);
 void isp_common_dmateardown(ispsoftc_t *, struct ccb_scsiio *, uint32_t);
+void isp_fcp_reset_crn(ispsoftc_t *, int, uint32_t, int);
 int isp_fcp_next_crn(ispsoftc_t *, uint8_t *, XS_T *);
 
 /*
  * Platform Version specific defines
  */
-#define	BUS_DMA_ROOTARG(x)	bus_get_dma_tag(x)
-#define	isp_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, z)	\
-	bus_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, \
-	busdma_lock_mutex, &isp->isp_osinfo.lock, z)
-
-#define	isp_setup_intr	bus_setup_intr
-
-#define	isp_sim_alloc(a, b, c, d, e, f, g, h)	\
-	cam_sim_alloc(a, b, c, d, e, &(d)->isp_osinfo.lock, f, g, h)
-
 #define	ISP_PATH_PRT(i, l, p, ...)					\
 	if ((l) == ISP_LOGALL || ((l)& (i)->isp_dblev) != 0) {		\
                 xpt_print(p, __VA_ARGS__);				\

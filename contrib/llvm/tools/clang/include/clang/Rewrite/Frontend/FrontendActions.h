@@ -7,10 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_REWRITE_FRONTENDACTIONS_H
-#define LLVM_CLANG_REWRITE_FRONTENDACTIONS_H
+#ifndef LLVM_CLANG_REWRITE_FRONTEND_FRONTENDACTIONS_H
+#define LLVM_CLANG_REWRITE_FRONTEND_FRONTENDACTIONS_H
 
 #include "clang/Frontend/FrontendAction.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace clang {
 class FixItRewriter;
@@ -22,60 +23,62 @@ class FixItOptions;
 
 class HTMLPrintAction : public ASTFrontendAction {
 protected:
-  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         StringRef InFile);
+  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                 StringRef InFile) override;
 };
 
 class FixItAction : public ASTFrontendAction {
 protected:
-  OwningPtr<FixItRewriter> Rewriter;
-  OwningPtr<FixItOptions> FixItOpts;
+  std::unique_ptr<FixItRewriter> Rewriter;
+  std::unique_ptr<FixItOptions> FixItOpts;
 
-  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         StringRef InFile);
+  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                 StringRef InFile) override;
 
-  virtual bool BeginSourceFileAction(CompilerInstance &CI,
-                                     StringRef Filename);
+  bool BeginSourceFileAction(CompilerInstance &CI) override;
 
-  virtual void EndSourceFileAction();
+  void EndSourceFileAction() override;
 
-  virtual bool hasASTFileSupport() const { return false; }
+  bool hasASTFileSupport() const override { return false; }
 
 public:
   FixItAction();
-  ~FixItAction();
+  ~FixItAction() override;
 };
 
 /// \brief Emits changes to temporary files and uses them for the original
 /// frontend action.
 class FixItRecompile : public WrapperFrontendAction {
 public:
-  FixItRecompile(FrontendAction *WrappedAction)
-    : WrapperFrontendAction(WrappedAction) {}
+  FixItRecompile(std::unique_ptr<FrontendAction> WrappedAction)
+    : WrapperFrontendAction(std::move(WrappedAction)) {}
 
 protected:
-  virtual bool BeginInvocation(CompilerInstance &CI);
+  bool BeginInvocation(CompilerInstance &CI) override;
 };
 
 class RewriteObjCAction : public ASTFrontendAction {
 protected:
-  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         StringRef InFile);
+  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                 StringRef InFile) override;
 };
 
 class RewriteMacrosAction : public PreprocessorFrontendAction {
 protected:
-  void ExecuteAction();
+  void ExecuteAction() override;
 };
 
 class RewriteTestAction : public PreprocessorFrontendAction {
 protected:
-  void ExecuteAction();
+  void ExecuteAction() override;
 };
 
 class RewriteIncludesAction : public PreprocessorFrontendAction {
+  std::shared_ptr<raw_ostream> OutputStream;
+  class RewriteImportsListener;
 protected:
-  void ExecuteAction();
+  bool BeginSourceFileAction(CompilerInstance &CI) override;
+  void ExecuteAction() override;
 };
 
 }  // end namespace clang

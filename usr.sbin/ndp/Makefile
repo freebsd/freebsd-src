@@ -13,15 +13,22 @@
 # A PARTICULAR PURPOSE.
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../contrib/tcpdump
+.include <src.opts.mk>
+
+.PATH: ${SRCTOP}/contrib/tcpdump
 
 PROG=	ndp
 MAN=	ndp.8
 SRCS=	ndp.c gmt2local.c
 
-CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/../../contrib/tcpdump
+CFLAGS+= -I. -I${.CURDIR} -I${SRCTOP}/contrib/tcpdump
 CFLAGS+= -D_U_=""
 
-WARNS?=	1
+.if ${MK_EXPERIMENTAL} != "no"
+CFLAGS+=	-DEXPERIMENTAL
+CFLAGS+=	-DDRAFT_IETF_6MAN_IPV6ONLY_FLAG
+.endif
+
+WARNS?=	3
 
 .include <bsd.prog.mk>

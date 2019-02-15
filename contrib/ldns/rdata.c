@@ -351,6 +351,15 @@ ldns_rdf_new_frm_str(ldns_rdf_type type, const char *str)
 	case LDNS_RDF_TYPE_LONG_STR:
 		status = ldns_str2rdf_long_str(&rdf, str);
 		break;
+	case LDNS_RDF_TYPE_CERTIFICATE_USAGE:
+		status = ldns_str2rdf_certificate_usage(&rdf, str);
+		break;
+	case LDNS_RDF_TYPE_SELECTOR:
+		status = ldns_str2rdf_selector(&rdf, str);
+		break;
+	case LDNS_RDF_TYPE_MATCHING_TYPE:
+		status = ldns_str2rdf_matching_type(&rdf, str);
+		break;
 	case LDNS_RDF_TYPE_NONE:
 	default:
 		/* default default ??? */
@@ -401,7 +410,7 @@ ldns_rdf_new_frm_fp_l(ldns_rdf **rdf, ldns_rdf_type type, FILE *fp, int *line_nr
 }
 
 ldns_rdf *
-ldns_rdf_address_reverse(ldns_rdf *rd)
+ldns_rdf_address_reverse(const ldns_rdf *rd)
 {
 	uint8_t buf_4[LDNS_IP4ADDRLEN];
 	uint8_t buf_6[LDNS_IP6ADDRLEN * 2];
@@ -466,7 +475,7 @@ ldns_rdf_address_reverse(ldns_rdf *rd)
 			/* some foo magic to reverse the nibbles ... */
 
 			for (nbit = 127; nbit >= 0; nbit = nbit - 4) {
-				/* calculate octett (8 bit) */
+				/* calculate octet (8 bit) */
 				octet = ( ((unsigned int) nbit) & 0x78) >> 3;
 				/* calculate nibble */
 				nnibble = ( ((unsigned int) nbit) & 0x04) >> 2;

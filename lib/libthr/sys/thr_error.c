@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
  * Copyright (c) 1994 by Chris Provenzano, proven@mit.edu
  * All rights reserved.
@@ -42,8 +44,9 @@
 #undef errno
 extern	int	errno;
 
+__weak_reference(__error_threaded, __error);
 int *
-__error(void)
+__error_threaded(void)
 {
 	struct pthread *curthread;
 

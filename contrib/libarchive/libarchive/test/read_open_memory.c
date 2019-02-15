@@ -39,9 +39,9 @@ __FBSDID("$FreeBSD$");
  */
 
 struct read_memory_data {
-	unsigned char	*start;
-	unsigned char	*p;
-	unsigned char	*end;
+	const unsigned char	*start;
+	const unsigned char	*p;
+	const unsigned char	*end;
 	size_t	 read_size;
 	size_t copy_buff_size;
 	size_t copy_buff_offset;
@@ -53,12 +53,12 @@ static int	memory_read_open(struct archive *, void *);
 static int64_t	memory_read_seek(struct archive *, void *, int64_t request, int whence);
 static int64_t	memory_read_skip(struct archive *, void *, int64_t request);
 static ssize_t	memory_read(struct archive *, void *, const void **buff);
-static int	read_open_memory_internal(struct archive *a, void *buff,
+static int	read_open_memory_internal(struct archive *a, const void *buff,
     size_t size, size_t read_size, int fullapi);
 
 
 int
-read_open_memory(struct archive *a, void *buff, size_t size, size_t read_size)
+read_open_memory(struct archive *a, const void *buff, size_t size, size_t read_size)
 {
 	return read_open_memory_internal(a, buff, size, read_size, 2);
 }
@@ -68,7 +68,7 @@ read_open_memory(struct archive *a, void *buff, size_t size, size_t read_size)
  * that internals work correctly with just the minimal entry points.
  */
 int
-read_open_memory_minimal(struct archive *a, void *buff, size_t size, size_t read_size)
+read_open_memory_minimal(struct archive *a, const void *buff, size_t size, size_t read_size)
 {
 	return read_open_memory_internal(a, buff, size, read_size, 1);
 }
@@ -77,38 +77,40 @@ read_open_memory_minimal(struct archive *a, void *buff, size_t size, size_t read
  * Include a seek callback as well.
  */
 int
-read_open_memory_seek(struct archive *a, void *buff, size_t size, size_t read_size)
+read_open_memory_seek(struct archive *a, const void *buff, size_t size, size_t read_size)
 {
 	return read_open_memory_internal(a, buff, size, read_size, 3);
 }
 
 static int
-read_open_memory_internal(struct archive *a, void *buff,
+read_open_memory_internal(struct archive *a, const void *buff,
     size_t size, size_t read_size, int level)
 {
-	struct read_memory_data *mine;
-
-	mine = (struct read_memory_data *)malloc(sizeof(*mine));
-	if (mine == NULL) {
-		archive_set_error(a, ENOMEM, "No memory");
-		return (ARCHIVE_FATAL);
-	}
-	memset(mine, 0, sizeof(*mine));
-	mine->start = mine->p = (unsigned char *)buff;
-	mine->end = mine->start + size;
-	mine->read_size = read_size;
-	mine->copy_buff_offset = 32;
-	mine->copy_buff_size = read_size + mine->copy_buff_offset * 2;
-	mine->copy_buff = malloc(mine->copy_buff_size);
-	memset(mine->copy_buff, 0xA5, mine->copy_buff_size);
+	struct read_memory_data *mine = NULL;
 
 	switch (level) {
 	case 3:
 		archive_read_set_seek_callback(a, memory_read_seek);
+		__LA_FALLTHROUGH;
 	case 2:
 		archive_read_set_open_callback(a, memory_read_open);
 		archive_read_set_skip_callback(a, memory_read_skip);
+		__LA_FALLTHROUGH;
 	case 1:
+		mine = malloc(sizeof(*mine));
+		if (mine == NULL) {
+			archive_set_error(a, ENOMEM, "No memory");
+			return (ARCHIVE_FATAL);
+		}
+		memset(mine, 0, sizeof(*mine));
+		mine->start = mine->p = (const unsigned char *)buff;
+		mine->end = mine->start + size;
+		mine->read_size = read_size;
+		mine->copy_buff_offset = 32;
+		mine->copy_buff_size = read_size + mine->copy_buff_offset * 2;
+		mine->copy_buff = malloc(mine->copy_buff_size);
+		memset(mine->copy_buff, 0xA5, mine->copy_buff_size);
+
 		archive_read_set_read_callback(a, memory_read);
 		archive_read_set_close_callback(a, memory_read_close);
 		archive_read_set_callback_data(a, mine);
@@ -213,7 +215,8 @@ memory_read_close(struct archive *a, void *client_data)
 {
 	struct read_memory_data *mine = (struct read_memory_data *)client_data;
 	(void)a; /* UNUSED */
-	free(mine->copy_buff);
+	if (mine != NULL)
+		free(mine->copy_buff);
 	free(mine);
 	return (ARCHIVE_OK);
 }

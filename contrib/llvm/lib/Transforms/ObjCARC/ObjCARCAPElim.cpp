@@ -24,7 +24,6 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "objc-arc-ap-elim"
 #include "ObjCARC.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/Constants.h"
@@ -34,11 +33,13 @@
 using namespace llvm;
 using namespace llvm::objcarc;
 
+#define DEBUG_TYPE "objc-arc-ap-elim"
+
 namespace {
   /// \brief Autorelease pool elimination.
   class ObjCARCAPElim : public ModulePass {
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const;
-    virtual bool runOnModule(Module &M);
+    void getAnalysisUsage(AnalysisUsage &AU) const override;
+    bool runOnModule(Module &M) override;
 
     static bool MayAutorelease(ImmutableCallSite CS, unsigned Depth = 0);
     static bool OptimizeBB(BasicBlock *BB);
@@ -69,14 +70,11 @@ void ObjCARCAPElim::getAnalysisUsage(AnalysisUsage &AU) const {
 /// possibly produce autoreleases.
 bool ObjCARCAPElim::MayAutorelease(ImmutableCallSite CS, unsigned Depth) {
   if (const Function *Callee = CS.getCalledFunction()) {
-    if (Callee->isDeclaration() || Callee->mayBeOverridden())
+    if (!Callee->hasExactDefinition())
       return true;
-    for (Function::const_iterator I = Callee->begin(), E = Callee->end();
-         I != E; ++I) {
-      const BasicBlock *BB = I;
-      for (BasicBlock::const_iterator J = BB->begin(), F = BB->end();
-           J != F; ++J)
-        if (ImmutableCallSite JCS = ImmutableCallSite(J))
+    for (const BasicBlock &BB : *Callee) {
+      for (const Instruction &I : BB)
+        if (ImmutableCallSite JCS = ImmutableCallSite(&I))
           // This recursion depth limit is arbitrary. It's just great
           // enough to cover known interesting testcases.
           if (Depth < 3 &&
@@ -93,14 +91,14 @@ bool ObjCARCAPElim::MayAutorelease(ImmutableCallSite CS, unsigned Depth) {
 bool ObjCARCAPElim::OptimizeBB(BasicBlock *BB) {
   bool Changed = false;
 
-  Instruction *Push = 0;
+  Instruction *Push = nullptr;
   for (BasicBlock::iterator I = BB->begin(), E = BB->end(); I != E; ) {
-    Instruction *Inst = I++;
-    switch (GetBasicInstructionClass(Inst)) {
-    case IC_AutoreleasepoolPush:
+    Instruction *Inst = &*I++;
+    switch (GetBasicARCInstKind(Inst)) {
+    case ARCInstKind::AutoreleasepoolPush:
       Push = Inst;
       break;
-    case IC_AutoreleasepoolPop:
+    case ARCInstKind::AutoreleasepoolPop:
       // If this pop matches a push and nothing in between can autorelease,
       // zap the pair.
       if (Push && cast<CallInst>(Inst)->getArgOperand(0) == Push) {
@@ -112,11 +110,11 @@ bool ObjCARCAPElim::OptimizeBB(BasicBlock *BB) {
         Inst->eraseFromParent();
         Push->eraseFromParent();
       }
-      Push = 0;
+      Push = nullptr;
       break;
-    case IC_CallOrUser:
+    case ARCInstKind::CallOrUser:
       if (MayAutorelease(ImmutableCallSite(Inst)))
-        Push = 0;
+        Push = nullptr;
       break;
     default:
       break;
@@ -132,6 +130,9 @@ bool ObjCARCAPElim::runOnModule(Module &M) {
 
   // If nothing in the Module uses ARC, don't do anything.
   if (!ModuleHasARC(M))
+    return false;
+
+  if (skipModule(M))
     return false;
 
   // Find the llvm.global_ctors variable, as the first step in
@@ -154,8 +155,8 @@ bool ObjCARCAPElim::runOnModule(Module &M) {
   for (User::op_iterator OI = Init->op_begin(), OE = Init->op_end();
        OI != OE; ++OI) {
     Value *Op = *OI;
-    // llvm.global_ctors is an array of pairs where the second members
-    // are constructor functions.
+    // llvm.global_ctors is an array of three-field structs where the second
+    // members are constructor functions.
     Function *F = dyn_cast<Function>(cast<ConstantStruct>(Op)->getOperand(1));
     // If the user used a constructor function with the wrong signature and
     // it got bitcasted or whatever, look the other way.
@@ -165,10 +166,10 @@ bool ObjCARCAPElim::runOnModule(Module &M) {
     if (F->isDeclaration())
       continue;
     // Only look at functions with one basic block.
-    if (llvm::next(F->begin()) != F->end())
+    if (std::next(F->begin()) != F->end())
       continue;
     // Ok, a single-block constructor function definition. Try to optimize it.
-    Changed |= OptimizeBB(F->begin());
+    Changed |= OptimizeBB(&F->front());
   }
 
   return Changed;

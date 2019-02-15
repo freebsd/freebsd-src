@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -42,13 +44,15 @@
 #define	CONN_DIGEST_NONE		0
 #define	CONN_DIGEST_CRC32C		1
 
-#define CONN_MUTUAL_CHALLENGE_LEN	1024
+#define	CONN_MUTUAL_CHALLENGE_LEN	1024
+#define	SOCKBUF_SIZE			1048576
 
 struct connection {
 	int			conn_iscsi_fd;
 	int			conn_socket;
 	unsigned int		conn_session_id;
 	struct iscsi_session_conf	conn_conf;
+	struct iscsi_session_limits	conn_limits;
 	char			conn_target_alias[ISCSI_ADDR_LEN];
 	uint8_t			conn_isid[6];
 	uint16_t		conn_tsih;
@@ -57,11 +61,11 @@ struct connection {
 	int			conn_data_digest;
 	bool			conn_initial_r2t;
 	bool			conn_immediate_data;
-	size_t			conn_max_data_segment_length;
-	size_t			conn_max_burst_length;
-	size_t			conn_first_burst_length;
-	char			conn_mutual_challenge[CONN_MUTUAL_CHALLENGE_LEN];
-	unsigned char		conn_mutual_id;
+	int			conn_max_recv_data_segment_length;
+	int			conn_max_send_data_segment_length;
+	int			conn_max_burst_length;
+	int			conn_first_burst_length;
+	struct chap		*conn_mutual_chap;
 };
 
 struct pdu {
@@ -80,12 +84,41 @@ struct keys {
 	size_t			keys_data_len;
 };
 
+#define	CHAP_CHALLENGE_LEN	1024
+#define	CHAP_DIGEST_LEN		16 /* Equal to MD5 digest size. */
+
+struct chap {
+	unsigned char	chap_id;
+	char		chap_challenge[CHAP_CHALLENGE_LEN];
+	char		chap_response[CHAP_DIGEST_LEN];
+};
+
+struct rchap {
+	char		*rchap_secret;
+	unsigned char	rchap_id;
+	void		*rchap_challenge;
+	size_t		rchap_challenge_len;
+};
+
+struct chap		*chap_new(void);
+char			*chap_get_id(const struct chap *chap);
+char			*chap_get_challenge(const struct chap *chap);
+int			chap_receive(struct chap *chap, const char *response);
+int			chap_authenticate(struct chap *chap,
+			    const char *secret);
+void			chap_delete(struct chap *chap);
+
+struct rchap		*rchap_new(const char *secret);
+int			rchap_receive(struct rchap *rchap,
+			    const char *id, const char *challenge);
+char			*rchap_get_response(struct rchap *rchap);
+void			rchap_delete(struct rchap *rchap);
+
 struct keys		*keys_new(void);
 void			keys_delete(struct keys *key);
 void			keys_load(struct keys *keys, const struct pdu *pdu);
 void			keys_save(struct keys *keys, struct pdu *pdu);
 const char		*keys_find(struct keys *keys, const char *name);
-int			keys_find_int(struct keys *keys, const char *name);
 void			keys_add(struct keys *keys,
 			    const char *name, const char *value);
 void			keys_add_int(struct keys *keys,

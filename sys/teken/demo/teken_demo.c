@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008-2009 Ed Schouten <ed@FreeBSD.org>
  * All rights reserved.
  *
@@ -72,7 +74,7 @@ struct pixel {
 
 #define NCOLS	80
 #define NROWS	24
-struct pixel buffer[NCOLS][NROWS];
+static struct pixel buffer[NCOLS][NROWS];
 
 static int ptfd;
 

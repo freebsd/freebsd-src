@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -91,7 +93,9 @@ fdopen(int fd, const char *mode)
 	 * O_APPEND bit set, assert __SAPP so that __swrite() caller
 	 * will _sseek() to the end before write.
 	 */
-	if ((oflags & O_APPEND) && !(fdflags & O_APPEND))
+	if (fdflags & O_APPEND)
+		fp->_flags2 |= __S2OAP;
+	else if (oflags & O_APPEND)
 		fp->_flags |= __SAPP;
 	fp->_file = fd;
 	fp->_cookie = fp;

@@ -3,8 +3,8 @@
  */
 
 /*
- * It'd be nice to have this automatically generated, but we don't
- * know to what version they will eventually belong, so for now
+ * It'd be nice to automatically generate the syscall symbols, but we
+ * don't know to what version they will eventually belong to, so for now
  * it has to be manual.
  */
 FBSD_1.0 {
@@ -34,9 +34,7 @@ FBSD_1.0 {
 	__setugid;
 	__syscall;
 	__sysctl;
-	_umtx_lock;
 	_umtx_op;
-	_umtx_unlock;
 	abort2;
 	accept;
 	access;
@@ -56,7 +54,6 @@ FBSD_1.0 {
 	bind;
 	chdir;
 	chflags;
-	__chk_fail;
 	chmod;
 	chown;
 	chroot;
@@ -88,26 +85,19 @@ FBSD_1.0 {
 	fchown;
 	fcntl;
 	fhopen;
-	fhstat;
-	fhstatfs;
 	flock;
 	fork;
 	fpathconf;
-	fstat;
-	fstatfs;
 	fsync;
 	futimes;
 	getaudit;
 	getaudit_addr;
 	getauid;
 	getcontext;
-	getdents;
-	getdirentries;
 	getdtablesize;
 	getegid;
 	geteuid;
 	getfh;
-	getfsstat;
 	getgid;
 	getgroups;
 	getitimer;
@@ -131,7 +121,6 @@ FBSD_1.0 {
 	jail;
 	jail_attach;
 	kenv;
-	kevent;
 	kill;
 	kldfind;
 	kldfirstmod;
@@ -166,7 +155,6 @@ FBSD_1.0 {
 	link;
 	lio_listio;
 	listen;
-	lstat;
 	lutimes;
 	mac_syscall;
 	madvise;
@@ -174,7 +162,6 @@ FBSD_1.0 {
 	minherit;
 	mkdir;
 	mkfifo;
-	mknod;
 	mlock;
 	mlockall;
 	modfind;
@@ -192,18 +179,10 @@ FBSD_1.0 {
 	munlockall;
 	munmap;
 	nanosleep;
-	netbsd_lchown;
-	netbsd_msync;
 	nfssvc;
-	nfstat;
-	nlstat;
 	nmount;
-	nstat;
 	ntp_adjtime;
 	ntp_gettime;
-	oaio_read;
-	oaio_write;
-	olio_listio;
 	open;
 	pathconf;
 	pipe;
@@ -245,7 +224,6 @@ FBSD_1.0 {
 	setaudit;
 	setaudit_addr;
 	setauid;
-	setcontext;
 	setegid;
 	seteuid;
 	setgid;
@@ -282,11 +260,6 @@ FBSD_1.0 {
 	sigwaitinfo;
 	socket;
 	socketpair;
-	__stack_chk_fail;
-	__stack_chk_guard;
-	stat;
-	statfs;
-	swapcontext;
 	swapoff;
 	swapon;
 	symlink;
@@ -340,7 +313,6 @@ FBSD_1.1 {
 	fchmodat;
 	fchownat;
 	fexecve;
-	fstatat;
 	futimesat;
 	jail_get;
 	jail_set;
@@ -349,9 +321,7 @@ FBSD_1.1 {
 	lpathconf;
 	mkdirat;
 	mkfifoat;
-	mknodat;
 	msgctl;
-	openat;
 	readlinkat;
 	renameat;
 	setfib;
@@ -397,6 +367,38 @@ FBSD_1.3 {
 	posix_fadvise;
 	procctl;
 	wait6;
+};
+
+FBSD_1.4 {
+	futimens;
+	ppoll;
+	utimensat;
+	numa_setaffinity;
+	numa_getaffinity;
+	sendmmsg;
+	recvmmsg;
+};
+
+FBSD_1.5 {
+	clock_nanosleep;
+	fdatasync;
+	fhstat;
+	fhstatfs;
+	fstat;
+	fstatat;
+	fstatfs;
+	getdents;
+	getdirentries;
+	getfsstat;
+	getrandom;
+	kevent;
+	lstat;
+	mknod;
+	mknodat;
+	stat;
+	statfs;
+	cpuset_getdomain;
+	cpuset_setdomain;
 };
 
 FBSDprivate_1.0 {
@@ -454,12 +456,8 @@ FBSDprivate_1.0 {
 	__sys___syscall;
 	___sysctl;
 	__sys___sysctl;
-	__umtx_lock;
-	__sys__umtx_lock;
 	__umtx_op;
 	__sys__umtx_op;
-	__umtx_unlock;
-	__sys__umtx_unlock;
 	_abort2;
 	__sys_abort2;
 	_accept;
@@ -472,21 +470,13 @@ FBSDprivate_1.0 {
 	__sys_acct;
 	_adjtime;
 	__sys_adjtime;
-	_aio_cancel;
 	__sys_aio_cancel;
-	_aio_error;
 	__sys_aio_error;
-	_aio_fsync;
 	__sys_aio_fsync;
-	_aio_read;
 	__sys_aio_read;
-	_aio_return;
 	__sys_aio_return;
-	_aio_suspend;
 	__sys_aio_suspend;
-	_aio_waitcomplete;
 	__sys_aio_waitcomplete;
-	_aio_write;
 	__sys_aio_write;
 	_audit;
 	__sys_audit;
@@ -512,6 +502,7 @@ FBSDprivate_1.0 {
 	__sys_clock_getres;
 	_clock_gettime;
 	__sys_clock_gettime;
+	__sys_clock_nanosleep;
 	_clock_settime;
 	__sys_clock_settime;
 	_close;
@@ -593,6 +584,8 @@ FBSDprivate_1.0 {
 	__sys_fstatfs;
 	_fsync;
 	__sys_fsync;
+	_fdatasync;
+	__sys_fdatasync;
 	_futimes;
 	__sys_futimes;
 	_getaudit;
@@ -603,8 +596,6 @@ FBSDprivate_1.0 {
 	__sys_getauid;
 	_getcontext;
 	__sys_getcontext;
-	_getdents;
-	__sys_getdents;
 	_getdirentries;
 	__sys_getdirentries;
 	_getdtablesize;
@@ -729,12 +720,9 @@ FBSDprivate_1.0 {
 	__sys_lgetfh;
 	_link;
 	__sys_link;
-	_lio_listio;
 	__sys_lio_listio;
 	_listen;
 	__sys_listen;
-	_lstat;
-	__sys_lstat;
 	_lutimes;
 	__sys_lutimes;
 	_mac_syscall;
@@ -787,30 +775,14 @@ FBSDprivate_1.0 {
 	__sys_munmap;
 	_nanosleep;
 	__sys_nanosleep;
-	_netbsd_lchown;
-	__sys_netbsd_lchown;
-	_netbsd_msync;
-	__sys_netbsd_msync;
 	_nfssvc;
 	__sys_nfssvc;
-	_nfstat;
-	__sys_nfstat;
-	_nlstat;
-	__sys_nlstat;
 	_nmount;
 	__sys_nmount;
-	_nstat;
-	__sys_nstat;
 	_ntp_adjtime;
 	__sys_ntp_adjtime;
 	_ntp_gettime;
 	__sys_ntp_gettime;
-	_oaio_read;
-	__sys_oaio_read;
-	_oaio_write;
-	__sys_oaio_write;
-	_olio_listio;
-	__sys_olio_listio;
 	_open;
 	__sys_open;
 	_openat;
@@ -821,6 +793,8 @@ FBSDprivate_1.0 {
 	__sys_pipe;
 	_poll;
 	__sys_poll;
+	_ppoll;
+	__sys_ppoll;
 	_preadv;
 	__sys_preadv;
 	_procctl;
@@ -972,8 +946,6 @@ FBSDprivate_1.0 {
 	__sys_socket;
 	_socketpair;
 	__sys_socketpair;
-	_stat;
-	__sys_stat;
 	_statfs;
 	__sys_statfs;
 	_swapcontext;
@@ -1032,8 +1004,6 @@ FBSDprivate_1.0 {
 	__sys_utrace;
 	_uuidgen;
 	__sys_uuidgen;
-	_vadvise;
-	__sys_vadvise;
 	_wait4;
 	__sys_wait4;
 	_wait6;
@@ -1042,7 +1012,13 @@ FBSDprivate_1.0 {
 	__sys_write;
 	_writev;
 	__sys_writev;
-	__error_unthreaded;
+	__set_error_selector;
 	nlm_syscall;
 	gssd_syscall;
+	__libc_interposing_slot;
+	__libc_sigwait;
+	_cpuset_getdomain;
+	__sys_cpuset_getdomain;
+	_cpuset_setdomain;
+	__sys_cpuset_setdomain;
 };

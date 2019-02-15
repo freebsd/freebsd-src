@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007, Juniper Networks, Inc.
  * Copyright (c) 2012-2013, SRI International
  * All rights reserved.
@@ -99,11 +101,17 @@ cfi_read(struct cfi_softc *sc, u_int ofs)
 		break;
 	case 2:
 		sval = bus_space_read_2(sc->sc_tag, sc->sc_handle, ofs);
+#ifdef CFI_HARDWAREBYTESWAP
+		val = sval;
+#else
 		val = le16toh(sval);
+#endif
 		break;
 	case 4:
 		val = bus_space_read_4(sc->sc_tag, sc->sc_handle, ofs);
+#ifndef CFI_HARDWAREBYTESWAP
 		val = le32toh(val);
+#endif
 		break;
 	default:
 		val = ~0;
@@ -122,12 +130,32 @@ cfi_write(struct cfi_softc *sc, u_int ofs, u_int val)
 		bus_space_write_1(sc->sc_tag, sc->sc_handle, ofs, val);
 		break;
 	case 2:
+#ifdef CFI_HARDWAREBYTESWAP
+		bus_space_write_2(sc->sc_tag, sc->sc_handle, ofs, val);
+#else
 		bus_space_write_2(sc->sc_tag, sc->sc_handle, ofs, htole16(val));
+
+#endif
 		break;
 	case 4:
+#ifdef CFI_HARDWAREBYTESWAP
+		bus_space_write_4(sc->sc_tag, sc->sc_handle, ofs, val);
+#else
 		bus_space_write_4(sc->sc_tag, sc->sc_handle, ofs, htole32(val));
+#endif
 		break;
 	}
+}
+
+/*
+ * This is same workaound as NetBSD sys/dev/nor/cfi.c cfi_reset_default()
+ */
+static void
+cfi_reset_default(struct cfi_softc *sc)
+{
+
+	cfi_write(sc, 0, CFI_BCS_READ_ARRAY2);
+	cfi_write(sc, 0, CFI_BCS_READ_ARRAY);
 }
 
 uint8_t
@@ -137,7 +165,7 @@ cfi_read_qry(struct cfi_softc *sc, u_int ofs)
  
 	cfi_write(sc, CFI_QRY_CMD_ADDR * sc->sc_width, CFI_QRY_CMD_DATA); 
 	val = cfi_read(sc, ofs * sc->sc_width);
-	cfi_write(sc, 0, CFI_BCS_READ_ARRAY);
+	cfi_reset_default(sc);
 	return (val);
 } 
 
@@ -410,7 +438,7 @@ cfi_attach(device_t dev)
 		    device_get_nameunit(dev)) < (sizeof(name) - 1) &&
 		    snprintf(value, sizeof(value), "0x%016jx", ppr) <
 		    (sizeof(value) - 1))
-			(void) setenv(name, value);
+			(void) kern_setenv(name, value);
 	}
 #endif
 
@@ -730,7 +758,7 @@ cfi_write_block(struct cfi_softc *sc)
 	/* error is 0. */
 
  out:
-	cfi_write(sc, 0, CFI_BCS_READ_ARRAY);
+	cfi_reset_default(sc);
 
 	/* Relock Intel flash */
 	switch (sc->sc_cmdset) {

@@ -1,5 +1,3 @@
-/* $Id: bsd-waitpid.h,v 1.5 2003/08/29 16:59:52 mouring Exp $ */
-
 /*
  * Copyright (c) 2000 Ben Lindstrom.  All rights reserved.
  *
@@ -29,7 +27,7 @@
 #define _BSD_WAITPID_H
 
 #ifndef HAVE_WAITPID
-/* Clean out any potental issues */
+/* Clean out any potential issues */
 #undef WIFEXITED
 #undef WIFSTOPPED
 #undef WIFSIGNALED

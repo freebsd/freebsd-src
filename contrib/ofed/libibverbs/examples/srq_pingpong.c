@@ -29,10 +29,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
-#if HAVE_CONFIG_H
-#  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#define _GNU_SOURCE
+#include <config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,6 +40,7 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <netdb.h>
+#include <stdlib.h>
 #include <getopt.h>
 #include <arpa/inet.h>
 #include <time.h>
@@ -67,6 +66,7 @@ struct pingpong_context {
 	struct ibv_qp		*qp[MAX_QP];
 	void			*buf;
 	int			 size;
+	int			 send_flags;
 	int			 num_qp;
 	int			 rx_depth;
 	int			 pending[MAX_QP];
@@ -147,7 +147,7 @@ static struct pingpong_dest *pp_client_exch_dest(const char *servername, int por
 {
 	struct addrinfo *res, *t;
 	struct addrinfo hints = {
-		.ai_family   = AF_INET,
+		.ai_family   = AF_UNSPEC,
 		.ai_socktype = SOCK_STREAM
 	};
 	char *service;
@@ -180,7 +180,7 @@ static struct pingpong_dest *pp_client_exch_dest(const char *servername, int por
 		}
 	}
 
-	freeaddrinfo(res);
+	freeaddrinfo_null(res);
 	free(service);
 
 	if (sockfd < 0) {
@@ -190,7 +190,8 @@ static struct pingpong_dest *pp_client_exch_dest(const char *servername, int por
 
 	for (i = 0; i < MAX_QP; ++i) {
 		gid_to_wire_gid(&my_dest[i].gid, gid);
-		sprintf(msg, "%04x:%06x:%06x:%s", my_dest[i].lid, my_dest[i].qpn, my_dest[i].psn, gid);
+		sprintf(msg, "%04x:%06x:%06x:%s", my_dest[i].lid,
+					my_dest[i].qpn, my_dest[i].psn, gid);
 		if (write(sockfd, msg, sizeof msg) != sizeof msg) {
 			fprintf(stderr, "Couldn't send local address\n");
 			goto out;
@@ -214,13 +215,15 @@ static struct pingpong_dest *pp_client_exch_dest(const char *servername, int por
 			n += r;
 		}
 
-		sscanf(msg, "%x:%x:%x:%s",
-		       &rem_dest[i].lid, &rem_dest[i].qpn, &rem_dest[i].psn, gid);
+		sscanf(msg, "%x:%x:%x:%s", &rem_dest[i].lid, &rem_dest[i].qpn,
+							&rem_dest[i].psn, gid);
 		wire_gid_to_gid(gid, &rem_dest[i].gid);
 	}
 
-	write(sockfd, "done", sizeof "done");
-
+	if (write(sockfd, "done", sizeof "done") != sizeof "done") {
+		perror("client write");
+		goto out;
+	}
 out:
 	close(sockfd);
 	return rem_dest;
@@ -272,7 +275,7 @@ static struct pingpong_dest *pp_server_exch_dest(struct pingpong_context *ctx,
 		}
 	}
 
-	freeaddrinfo(res);
+	freeaddrinfo_null(res);
 	free(service);
 
 	if (sockfd < 0) {
@@ -281,7 +284,7 @@ static struct pingpong_dest *pp_server_exch_dest(struct pingpong_context *ctx,
 	}
 
 	listen(sockfd, 1);
-	connfd = accept(sockfd, NULL, 0);
+	connfd = accept(sockfd, NULL, NULL);
 	close(sockfd);
 	if (connfd < 0) {
 		fprintf(stderr, "accept() failed\n");
@@ -305,12 +308,13 @@ static struct pingpong_dest *pp_server_exch_dest(struct pingpong_context *ctx,
 			n += r;
 		}
 
-		sscanf(msg, "%x:%x:%x:%s",
-		       &rem_dest[i].lid, &rem_dest[i].qpn, &rem_dest[i].psn, gid);
+		sscanf(msg, "%x:%x:%x:%s", &rem_dest[i].lid, &rem_dest[i].qpn,
+							&rem_dest[i].psn, gid);
 		wire_gid_to_gid(gid, &rem_dest[i].gid);
 	}
 
-	if (pp_connect_ctx(ctx, ib_port, mtu, sl, my_dest, rem_dest, sgid_idx)) {
+	if (pp_connect_ctx(ctx, ib_port, mtu, sl, my_dest, rem_dest,
+								sgid_idx)) {
 		fprintf(stderr, "Couldn't connect to remote QP\n");
 		free(rem_dest);
 		rem_dest = NULL;
@@ -319,7 +323,8 @@ static struct pingpong_dest *pp_server_exch_dest(struct pingpong_context *ctx,
 
 	for (i = 0; i < MAX_QP; ++i) {
 		gid_to_wire_gid(&my_dest[i].gid, gid);
-		sprintf(msg, "%04x:%06x:%06x:%s", my_dest[i].lid, my_dest[i].qpn, my_dest[i].psn, gid);
+		sprintf(msg, "%04x:%06x:%06x:%s", my_dest[i].lid,
+					my_dest[i].qpn, my_dest[i].psn, gid);
 		if (write(connfd, msg, sizeof msg) != sizeof msg) {
 			fprintf(stderr, "Couldn't send local address\n");
 			free(rem_dest);
@@ -328,7 +333,12 @@ static struct pingpong_dest *pp_server_exch_dest(struct pingpong_context *ctx,
 		}
 	}
 
-	read(connfd, msg, sizeof msg);
+	if (read(connfd, msg, sizeof msg) != sizeof "done") {
+		perror("client write");
+		free(rem_dest);
+		rem_dest = NULL;
+		goto out;
+	}
 
 out:
 	close(connfd);
@@ -346,14 +356,15 @@ static struct pingpong_context *pp_init_ctx(struct ibv_device *ib_dev, int size,
 	if (!ctx)
 		return NULL;
 
-	ctx->size     = size;
-	ctx->num_qp   = num_qp;
-	ctx->rx_depth = rx_depth;
+	ctx->size       = size;
+	ctx->send_flags = IBV_SEND_SIGNALED;
+	ctx->num_qp     = num_qp;
+	ctx->rx_depth   = rx_depth;
 
-	ctx->buf = malloc(roundup(size, page_size));
+	ctx->buf = memalign(page_size, size);
 	if (!ctx->buf) {
 		fprintf(stderr, "Couldn't allocate work buf.\n");
-		return NULL;
+		goto clean_ctx;
 	}
 
 	memset(ctx->buf, 0, size);
@@ -362,14 +373,14 @@ static struct pingpong_context *pp_init_ctx(struct ibv_device *ib_dev, int size,
 	if (!ctx->context) {
 		fprintf(stderr, "Couldn't get context for %s\n",
 			ibv_get_device_name(ib_dev));
-		return NULL;
+		goto clean_buffer;
 	}
 
 	if (use_event) {
 		ctx->channel = ibv_create_comp_channel(ctx->context);
 		if (!ctx->channel) {
 			fprintf(stderr, "Couldn't create completion channel\n");
-			return NULL;
+			goto clean_device;
 		}
 	} else
 		ctx->channel = NULL;
@@ -377,20 +388,20 @@ static struct pingpong_context *pp_init_ctx(struct ibv_device *ib_dev, int size,
 	ctx->pd = ibv_alloc_pd(ctx->context);
 	if (!ctx->pd) {
 		fprintf(stderr, "Couldn't allocate PD\n");
-		return NULL;
+		goto clean_comp_channel;
 	}
 
 	ctx->mr = ibv_reg_mr(ctx->pd, ctx->buf, size, IBV_ACCESS_LOCAL_WRITE);
 	if (!ctx->mr) {
 		fprintf(stderr, "Couldn't register MR\n");
-		return NULL;
+		goto clean_pd;
 	}
 
 	ctx->cq = ibv_create_cq(ctx->context, rx_depth + num_qp, NULL,
 				ctx->channel, 0);
 	if (!ctx->cq) {
 		fprintf(stderr, "Couldn't create CQ\n");
-		return NULL;
+		goto clean_mr;
 	}
 
 	{
@@ -404,12 +415,13 @@ static struct pingpong_context *pp_init_ctx(struct ibv_device *ib_dev, int size,
 		ctx->srq = ibv_create_srq(ctx->pd, &attr);
 		if (!ctx->srq)  {
 			fprintf(stderr, "Couldn't create SRQ\n");
-			return NULL;
+			goto clean_cq;
 		}
 	}
 
 	for (i = 0; i < num_qp; ++i) {
-		struct ibv_qp_init_attr attr = {
+		struct ibv_qp_attr attr;
+		struct ibv_qp_init_attr init_attr = {
 			.send_cq = ctx->cq,
 			.recv_cq = ctx->cq,
 			.srq     = ctx->srq,
@@ -420,10 +432,14 @@ static struct pingpong_context *pp_init_ctx(struct ibv_device *ib_dev, int size,
 			.qp_type = IBV_QPT_RC
 		};
 
-		ctx->qp[i] = ibv_create_qp(ctx->pd, &attr);
+		ctx->qp[i] = ibv_create_qp(ctx->pd, &init_attr);
 		if (!ctx->qp[i])  {
 			fprintf(stderr, "Couldn't create QP[%d]\n", i);
-			return NULL;
+			goto clean_qps;
+		}
+		ibv_query_qp(ctx->qp[i], &attr, IBV_QP_CAP, &init_attr);
+		if (init_attr.cap.max_inline_data >= size) {
+			ctx->send_flags |= IBV_SEND_INLINE;
 		}
 	}
 
@@ -441,14 +457,47 @@ static struct pingpong_context *pp_init_ctx(struct ibv_device *ib_dev, int size,
 				  IBV_QP_PORT               |
 				  IBV_QP_ACCESS_FLAGS)) {
 			fprintf(stderr, "Failed to modify QP[%d] to INIT\n", i);
-			return NULL;
+			goto clean_qps_full;
 		}
 	}
 
 	return ctx;
+
+clean_qps_full:
+	i = num_qp;
+
+clean_qps:
+	for (--i; i >= 0; --i)
+		ibv_destroy_qp(ctx->qp[i]);
+
+	ibv_destroy_srq(ctx->srq);
+
+clean_cq:
+	ibv_destroy_cq(ctx->cq);
+
+clean_mr:
+	ibv_dereg_mr(ctx->mr);
+
+clean_pd:
+	ibv_dealloc_pd(ctx->pd);
+
+clean_comp_channel:
+	if (ctx->channel)
+		ibv_destroy_comp_channel(ctx->channel);
+
+clean_device:
+	ibv_close_device(ctx->context);
+
+clean_buffer:
+	free(ctx->buf);
+
+clean_ctx:
+	free(ctx);
+
+	return NULL;
 }
 
-int pp_close_ctx(struct pingpong_context *ctx, int num_qp)
+static int pp_close_ctx(struct pingpong_context *ctx, int num_qp)
 {
 	int i;
 
@@ -531,7 +580,7 @@ static int pp_post_send(struct pingpong_context *ctx, int qp_index)
 		.sg_list    = &list,
 		.num_sge    = 1,
 		.opcode     = IBV_WR_SEND,
-		.send_flags = IBV_SEND_SIGNALED,
+		.send_flags = ctx->send_flags,
 	};
 	struct ibv_send_wr *bad_wr;
 
@@ -580,13 +629,13 @@ int main(int argc, char *argv[])
 	struct timeval           start, end;
 	char                    *ib_devname = NULL;
 	char                    *servername = NULL;
-	int                      port = 18515;
+	unsigned int             port = 18515;
 	int                      ib_port = 1;
-	int                      size = 4096;
+	unsigned int             size = 4096;
 	enum ibv_mtu		 mtu = IBV_MTU_1024;
-	int                      num_qp = 16;
-	int                      rx_depth = 500;
-	int                      iters = 1000;
+	unsigned int             num_qp = 16;
+	unsigned int             rx_depth = 500;
+	unsigned int             iters = 1000;
 	int                      use_event = 0;
 	int                      routs;
 	int                      rcnt, scnt;
@@ -614,56 +663,61 @@ int main(int argc, char *argv[])
 			{ .name = "sl",       .has_arg = 1, .val = 'l' },
 			{ .name = "events",   .has_arg = 0, .val = 'e' },
 			{ .name = "gid-idx",  .has_arg = 1, .val = 'g' },
-			{ 0 }
+			{}
 		};
 
-		c = getopt_long(argc, argv, "p:d:i:s:m:q:r:n:l:eg:", long_options, NULL);
+		c = getopt_long(argc, argv, "p:d:i:s:m:q:r:n:l:eg:",
+							long_options, NULL);
 		if (c == -1)
 			break;
 
 		switch (c) {
 		case 'p':
-			port = strtol(optarg, NULL, 0);
-			if (port < 0 || port > 65535) {
+			port = strtoul(optarg, NULL, 0);
+			if (port > 65535) {
 				usage(argv[0]);
 				return 1;
 			}
 			break;
 
 		case 'd':
-			ib_devname = strdup(optarg);
+			ib_devname = strdupa(optarg);
 			break;
 
 		case 'i':
 			ib_port = strtol(optarg, NULL, 0);
-			if (ib_port < 0) {
+			if (ib_port < 1) {
 				usage(argv[0]);
 				return 1;
 			}
 			break;
 
 		case 's':
-			size = strtol(optarg, NULL, 0);
+			size = strtoul(optarg, NULL, 0);
+			if (size < 1) {
+				usage(argv[0]);
+				return 1;
+			}
 			break;
 
 		case 'm':
 			mtu = pp_mtu_to_enum(strtol(optarg, NULL, 0));
-			if (mtu < 0) {
+			if (mtu == 0) {
 				usage(argv[0]);
 				return 1;
 			}
 			break;
 
 		case 'q':
-			num_qp = strtol(optarg, NULL, 0);
+			num_qp = strtoul(optarg, NULL, 0);
 			break;
 
 		case 'r':
-			rx_depth = strtol(optarg, NULL, 0);
+			rx_depth = strtoul(optarg, NULL, 0);
 			break;
 
 		case 'n':
-			iters = strtol(optarg, NULL, 0);
+			iters = strtoul(optarg, NULL, 0);
 			break;
 
 		case 'l':
@@ -685,7 +739,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (optind == argc - 1)
-		servername = strdup(argv[optind]);
+		servername = strdupa(argv[optind]);
 	else if (optind < argc) {
 		usage(argv[0]);
 		return 1;
@@ -716,7 +770,6 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 	} else {
-		int i;
 		for (i = 0; dev_list[i]; ++i)
 			if (!strcmp(ibv_get_device_name(dev_list[i]), ib_devname))
 				break;
@@ -753,28 +806,33 @@ int main(int argc, char *argv[])
 		my_dest[i].qpn = ctx->qp[i]->qp_num;
 		my_dest[i].psn = lrand48() & 0xffffff;
 		my_dest[i].lid = ctx->portinfo.lid;
-		if (ctx->portinfo.link_layer == IBV_LINK_LAYER_INFINIBAND && !my_dest[i].lid) {
+		if (ctx->portinfo.link_layer != IBV_LINK_LAYER_ETHERNET
+							&& !my_dest[i].lid) {
 			fprintf(stderr, "Couldn't get local LID\n");
 			return 1;
 		}
 
 		if (gidx >= 0) {
-			if (ibv_query_gid(ctx->context, ib_port, gidx, &my_dest[i].gid)) {
-				fprintf(stderr, "Could not get local gid for gid index %d\n", gidx);
+			if (ibv_query_gid(ctx->context, ib_port, gidx,
+							&my_dest[i].gid)) {
+				fprintf(stderr, "Could not get local gid for "
+							"gid index %d\n", gidx);
 				return 1;
 			}
 		} else
 			memset(&my_dest[i].gid, 0, sizeof my_dest[i].gid);
 
 		inet_ntop(AF_INET6, &my_dest[i].gid, gid, sizeof gid);
-		printf("  local address:  LID 0x%04x, QPN 0x%06x, PSN 0x%06x, GID %s\n",
-		       my_dest[i].lid, my_dest[i].qpn, my_dest[i].psn, gid);
+		printf("  local address:  LID 0x%04x, QPN 0x%06x, PSN 0x%06x, "
+			"GID %s\n", my_dest[i].lid, my_dest[i].qpn,
+			my_dest[i].psn, gid);
 	}
 
 	if (servername)
 		rem_dest = pp_client_exch_dest(servername, port, my_dest);
 	else
-		rem_dest = pp_server_exch_dest(ctx, ib_port, mtu, port, sl, my_dest, gidx);
+		rem_dest = pp_server_exch_dest(ctx, ib_port, mtu, port, sl,
+								my_dest, gidx);
 
 	if (!rem_dest)
 		return 1;
@@ -783,12 +841,14 @@ int main(int argc, char *argv[])
 
 	for (i = 0; i < num_qp; ++i) {
 		inet_ntop(AF_INET6, &rem_dest[i].gid, gid, sizeof gid);
-		printf("  remote address: LID 0x%04x, QPN 0x%06x, PSN 0x%06x, GID %s\n",
-		       rem_dest[i].lid, rem_dest[i].qpn, rem_dest[i].psn, gid);
+		printf("  remote address: LID 0x%04x, QPN 0x%06x, PSN 0x%06x, "
+			"GID %s\n", rem_dest[i].lid, rem_dest[i].qpn,
+			rem_dest[i].psn, gid);
 	}
 
 	if (servername)
-		if (pp_connect_ctx(ctx, ib_port, mtu, sl, my_dest, rem_dest, gidx))
+		if (pp_connect_ctx(ctx, ib_port, mtu, sl, my_dest, rem_dest,
+									gidx))
 			return 1;
 
 	if (servername)

@@ -13,7 +13,7 @@
 #include "edit.h"
 
 
-#define CMD_BUF_LEN 256
+#define CMD_BUF_LEN 4096
 static char cmdbuf[CMD_BUF_LEN];
 static int cmdbuf_pos = 0;
 static const char *ps2 = NULL;
@@ -44,6 +44,12 @@ static void edit_read_char(int sock, void *eloop_ctx, void *sock_ctx)
 		edit_cmd_cb(edit_cb_ctx, cmdbuf);
 		printf("%s> ", ps2 ? ps2 : "");
 		fflush(stdout);
+		return;
+	}
+
+	if (c == '\b') {
+		if (cmdbuf_pos > 0)
+			cmdbuf_pos--;
 		return;
 	}
 

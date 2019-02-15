@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -139,7 +141,7 @@ naddr_ntoa(naddr a)
 const char *
 saddr_ntoa(struct sockaddr *sa)
 {
-	return (sa == 0) ? "?" : naddr_ntoa(S_ADDR(sa));
+	return (sa == NULL) ? "?" : naddr_ntoa(S_ADDR(sa));
 }
 
 
@@ -180,7 +182,7 @@ tmsg(const char *p, ...)
 {
 	va_list args;
 
-	if (ftrace != 0) {
+	if (ftrace != NULL) {
 		lastlog();
 		va_start(args, p);
 		vfprintf(ftrace, p, args);
@@ -200,11 +202,13 @@ trace_close(int zap_stdio)
 	fflush(stdout);
 	fflush(stderr);
 
-	if (ftrace != 0 && zap_stdio) {
+	if (ftrace != NULL && zap_stdio) {
 		if (ftrace != stdout)
 			fclose(ftrace);
-		ftrace = 0;
+		ftrace = NULL;
 		fd = open(_PATH_DEVNULL, O_RDWR);
+		if (fd < 0)
+			return;
 		if (isatty(STDIN_FILENO))
 			(void)dup2(fd, STDIN_FILENO);
 		if (isatty(STDOUT_FILENO))
@@ -220,7 +224,7 @@ trace_close(int zap_stdio)
 void
 trace_flush(void)
 {
-	if (ftrace != 0) {
+	if (ftrace != NULL) {
 		fflush(ftrace);
 		if (ferror(ftrace))
 			trace_off("tracing off: %s", strerror(ferror(ftrace)));
@@ -234,7 +238,7 @@ trace_off(const char *p, ...)
 	va_list args;
 
 
-	if (ftrace != 0) {
+	if (ftrace != NULL) {
 		lastlog();
 		va_start(args, p);
 		vfprintf(ftrace, p, args);
@@ -307,16 +311,16 @@ set_tracefile(const char *filename,
 	 * is already open or if coming from a trusted source, such as
 	 * a signal or the command line.
 	 */
-	if (filename == 0 || filename[0] == '\0') {
-		filename = 0;
-		if (ftrace == 0) {
+	if (filename == NULL || filename[0] == '\0') {
+		filename = NULL;
+		if (ftrace == NULL) {
 			if (inittracename[0] == '\0') {
 				msglog("missing trace file name");
 				return;
 			}
 			fn = inittracename;
 		} else {
-			fn = 0;
+			fn = NULL;
 		}
 
 	} else if (!strcmp(filename,"dump/../table")) {
@@ -351,9 +355,9 @@ set_tracefile(const char *filename,
 		fn = filename;
 	}
 
-	if (fn != 0) {
+	if (fn != NULL) {
 		n_ftrace = fopen(fn, "a");
-		if (n_ftrace == 0) {
+		if (n_ftrace == NULL) {
 			msglog("failed to open trace file \"%s\" %s",
 			       fn, strerror(errno));
 			if (fn == inittracename)
@@ -375,9 +379,9 @@ set_tracefile(const char *filename,
 		dup2(fileno(ftrace), STDERR_FILENO);
 	}
 
-	if (new_tracelevel == 0 || filename == 0)
+	if (new_tracelevel == 0 || filename == NULL)
 		new_tracelevel++;
-	tracelevel_msg(pat, dump != 0 ? dump : (filename != 0));
+	tracelevel_msg(pat, dump != 0 ? dump : (filename != NULL));
 }
 
 
@@ -410,7 +414,7 @@ set_tracelevel(void)
 	/* If tracing entirely off, and there was no tracefile specified
 	 * on the command line, then leave it off.
 	 */
-	if (new_tracelevel > tracelevel && ftrace == 0) {
+	if (new_tracelevel > tracelevel && ftrace == NULL) {
 		if (savetracename[0] != '\0') {
 			set_tracefile(savetracename,sigtrace_pat,0);
 		} else if (inittracename[0] != '\0') {
@@ -439,9 +443,12 @@ addrname(naddr	addr,			/* in network byte order */
 	} bufs[NUM_BUFS];
 	char *s, *sp;
 	naddr dmask;
+	size_t l;
 	int i;
 
-	s = strcpy(bufs[bufno].str, naddr_ntoa(addr));
+	strlcpy(bufs[bufno].str, naddr_ntoa(addr), sizeof(bufs[bufno].str));
+	s = bufs[bufno].str;
+	l = sizeof(bufs[bufno].str);
 	bufno = (bufno+1) % NUM_BUFS;
 
 	if (force == 1 || (force == 0 && mask != std_mask(addr))) {
@@ -451,10 +458,11 @@ addrname(naddr	addr,			/* in network byte order */
 		if (mask + dmask == 0) {
 			for (i = 0; i != 32 && ((1<<i) & mask) == 0; i++)
 				continue;
-			(void)sprintf(sp, "/%d", 32-i);
+			(void)snprintf(sp, s + l - sp, "/%d", 32-i);
 
 		} else {
-			(void)sprintf(sp, " (mask %#x)", (u_int)mask);
+			(void)snprintf(sp, s + l - sp, " (mask %#x)",
+			    (u_int)mask);
 		}
 	}
 
@@ -563,7 +571,7 @@ trace_bits(const struct bits *tbl,
 		}
 		tbl++;
 	}
-	if (field != 0 && tbl->bits_name != 0) {
+	if (field != 0 && tbl->bits_name != NULL) {
 		if (c)
 			(void)putc(c, ftrace);
 		(void)fprintf(ftrace, tbl->bits_name, field);
@@ -604,7 +612,7 @@ print_rts(struct rt_spare *rts,
 	if (force_metric >= 0)
 		(void)fprintf(ftrace, "metric=%-2d ", rts->rts_metric);
 	if (force_ifp >= 0)
-		(void)fprintf(ftrace, "%s ", (rts->rts_ifp == 0 ?
+		(void)fprintf(ftrace, "%s ", (rts->rts_ifp == NULL ?
 					      "if?" : rts->rts_ifp->int_name));
 	if (force_router > 0
 	    || (force_router == 0 && rts->rts_router != rts->rts_gate))
@@ -628,7 +636,7 @@ void
 trace_if(const char *act,
 	 struct interface *ifp)
 {
-	if (!TRACEACTIONS || ftrace == 0)
+	if (!TRACEACTIONS || ftrace == NULL)
 		return;
 
 	lastlog();
@@ -661,7 +669,7 @@ trace_upslot(struct rt_entry *rt,
 	     struct rt_spare *rts,
 	     struct rt_spare *new)
 {
-	if (!TRACEACTIONS || ftrace == 0)
+	if (!TRACEACTIONS || ftrace == NULL)
 		return;
 
 	if (rts->rts_gate == new->rts_gate
@@ -721,7 +729,7 @@ trace_misc(const char *p, ...)
 {
 	va_list args;
 
-	if (ftrace == 0)
+	if (ftrace == NULL)
 		return;
 
 	lastlog();
@@ -739,7 +747,7 @@ trace_act(const char *p, ...)
 {
 	va_list args;
 
-	if (!TRACEACTIONS || ftrace == 0)
+	if (!TRACEACTIONS || ftrace == NULL)
 		return;
 
 	lastlog();
@@ -757,7 +765,7 @@ trace_pkt(const char *p, ...)
 {
 	va_list args;
 
-	if (!TRACEPACKETS || ftrace == 0)
+	if (!TRACEPACKETS || ftrace == NULL)
 		return;
 
 	lastlog();
@@ -774,7 +782,7 @@ trace_change(struct rt_entry *rt,
 	     struct	rt_spare *new,
 	     const char	*label)
 {
-	if (ftrace == 0)
+	if (ftrace == NULL)
 		return;
 
 	if (rt->rt_metric == new->rts_metric
@@ -813,7 +821,7 @@ trace_change(struct rt_entry *rt,
 void
 trace_add_del(const char * action, struct rt_entry *rt)
 {
-	if (ftrace == 0)
+	if (ftrace == NULL)
 		return;
 
 	lastlog();
@@ -863,7 +871,7 @@ trace_dump(void)
 {
 	struct interface *ifp;
 
-	if (ftrace == 0)
+	if (ftrace == NULL)
 		return;
 	lastlog();
 
@@ -885,7 +893,7 @@ trace_rip(const char *dir1, const char *dir2,
 #	define NA ((struct netauth*)n)
 	int i, seen_route;
 
-	if (!TRACEPACKETS || ftrace == 0)
+	if (!TRACEPACKETS || ftrace == NULL)
 		return;
 
 	lastlog();

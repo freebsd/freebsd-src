@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2006 Erez Zadok
+ * Copyright (c) 1997-2014 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -16,11 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -82,7 +78,7 @@ char *alt_spooldir = ALT_SPOOLDIR;
 char *home_subdir = HOME_SUBDIR;
 char *logfile = DEFAULT_LOGFILE;
 char *passwdfile = NULL;	/* alternate passwd file to use */
-char *slinkname = 0;
+char *slinkname = NULL;
 char hostname[MAXHOSTNAMELEN + 1] = "localhost";
 u_int cache_interval = DEFAULT_CACHE_INTERVAL;
 gid_t hlfs_gid = (gid_t) INVALIDID;
@@ -102,6 +98,7 @@ char *mnttab_file_name = NULL;
 
 /* forward declarations */
 void hlfsd_going_down(int rc);
+void fatalerror(char *str);
 
 
 static void
@@ -260,9 +257,6 @@ main(int argc, char *argv[])
       opterrs++;
     }
 
-  /* set some default debugging options */
-  if (xlog_level_init == ~0)
-    switch_option("");
   /* need my pid before any dlog/plog */
   am_set_mypid();
 #ifdef DEBUG
@@ -312,7 +306,11 @@ main(int argc, char *argv[])
   }
 
   /* get hostname for logging and open log before we reset umask */
-  gethostname(hostname, sizeof(hostname));
+  if (gethostname(hostname, sizeof(hostname)) == -1) {
+    fprintf(stderr, "%s: gethostname failed \"%s\".\n",
+	    am_get_progname(), strerror(errno));
+    exit(1);
+  }
   hostname[sizeof(hostname) - 1] = '\0';
   if ((dot = strchr(hostname, '.')) != NULL)
     *dot = '\0';
@@ -418,11 +416,8 @@ main(int argc, char *argv[])
   /*
    * Register hlfsd as an nfs service with the portmapper.
    */
-#ifdef HAVE_TRANSPORT_TYPE_TLI
-  ret = create_nfs_service(&soNFS, &nfs_port, &nfsxprt, nfs_program_2);
-#else /* not HAVE_TRANSPORT_TYPE_TLI */
-  ret = create_nfs_service(&soNFS, &nfs_port, &nfsxprt, nfs_program_2);
-#endif /* not HAVE_TRANSPORT_TYPE_TLI */
+  ret = create_nfs_service(&soNFS, &nfs_port, &nfsxprt, nfs_program_2,
+    NFS_VERSION);
   if (ret != 0)
     fatal("cannot create NFS service");
 
@@ -450,10 +445,10 @@ main(int argc, char *argv[])
 #endif /* not HAVE_SIGACTION */
 
   /*
-   * In the parent, if -D daemon, we don't need to
+   * In the parent, if -D nodaemon, we don't need to
    * set this signal handler.
    */
-  if (!amuDebug(D_DAEMON)) {
+  if (amuDebug(D_DAEMON)) {
     s = -99;
     while (stoplight != SIGUSR2) {
       plog(XLOG_INFO, "parent waits for child to setup (stoplight=%d)", stoplight);
@@ -628,10 +623,10 @@ main(int argc, char *argv[])
 
   plog(XLOG_INFO, "hlfsd ready to serve");
   /*
-   * If asked not to fork a daemon (-D daemon), then hlfsd_init()
+   * If asked not to fork a daemon (-D nodaemon), then hlfsd_init()
    * will not run svc_run.  We must start svc_run here.
    */
-  if (amuDebug(D_DAEMON)) {
+  if (!amuDebug(D_DAEMON)) {
     plog(XLOG_DEBUG, "starting no-daemon debugging svc_run");
     svc_run();
   }
@@ -656,9 +651,9 @@ hlfsd_init(void)
   hlfsd_init_filehandles();
 
   /*
-   * If not -D daemon then we must fork.
+   * If -D daemon then we must fork.
    */
-  if (!amuDebug(D_DAEMON))
+  if (amuDebug(D_DAEMON))
     child = fork();
 
   if (child < 0)
@@ -745,17 +740,17 @@ hlfsd_init(void)
 # endif /* not defined(DEBUG) || defined(DEBUG_PRINT) */
 #endif /* not HAVE_SIGACTION */
 
-  if (setitimer(ITIMER_REAL, &reloadinterval, (struct itimerval *) 0) < 0)
+  if (setitimer(ITIMER_REAL, &reloadinterval, (struct itimerval *) NULL) < 0)
     fatal("setitimer: %m");
 
   clocktime(&startup);
 
   /*
-   * If not -D daemon, then start serving here in the child,
-   * and the parent will exit.  But if -D daemon, then
+   * If -D daemon, then start serving here in the child,
+   * and the parent will exit.  But if -D nodaemon, then
    * skip this code and make sure svc_run is entered elsewhere.
    */
-  if (!amuDebug(D_DAEMON)) {
+  if (amuDebug(D_DAEMON)) {
     /*
      * Dissociate from the controlling terminal
      */
@@ -839,7 +834,7 @@ cleanup(int signum)
   struct stat stbuf;
   int umount_result;
 
-  if (!amuDebug(D_DAEMON)) {
+  if (amuDebug(D_DAEMON)) {
     if (getpid() != masterpid)
       return;
 
@@ -865,7 +860,7 @@ cleanup(int signum)
     break;
   }
 
-  if (!amuDebug(D_DAEMON)) {
+  if (amuDebug(D_DAEMON)) {
     plog(XLOG_INFO, "cleanup(): killing processes and terminating");
     kill(masterpid, SIGKILL);
     kill(serverpid, SIGKILL);

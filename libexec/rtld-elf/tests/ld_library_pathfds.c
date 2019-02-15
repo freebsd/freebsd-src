@@ -186,7 +186,7 @@ expect_missing_library(int binary, char *pathfds)
 {
 	char * const env[] = { pathfds, NULL };
 	try_to_run(binary, 1, env, "",
-	   "Shared object \"libpythagoras.so.0\" not found,"
+	   "ld-elf.so.1: Shared object \"libpythagoras.so.0\" not found,"
 	    " required by \"target\"\n");
 }
 

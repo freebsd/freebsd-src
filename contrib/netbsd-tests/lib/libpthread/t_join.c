@@ -152,6 +152,9 @@ threadfunc2(void *arg)
 
 	j = (uintptr_t)arg;
 
+#ifdef __FreeBSD__
+	pthread_attr_init(&attr);
+#endif
 	ATF_REQUIRE(pthread_attr_get_np(pthread_self(), &attr) == 0);
 	ATF_REQUIRE(pthread_attr_getstacksize(&attr, &stacksize) == 0);
 	ATF_REQUIRE(stacksize == STACKSIZE * (j + 1));

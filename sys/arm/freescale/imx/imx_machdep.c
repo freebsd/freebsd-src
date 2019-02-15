@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ian Lepore <ian@freebsd.org>
  * All rights reserved.
  *
@@ -29,35 +31,30 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/reboot.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/armreg.h>
 #include <machine/bus.h>
-#include <machine/devmap.h>
+#include <machine/cpu.h>
 #include <machine/machdep.h>
 
 #include <arm/freescale/imx/imx_machdep.h>
 #include <arm/freescale/imx/imx_wdogreg.h>
 
-struct arm32_dma_range *
-bus_dma_get_range(void)
-{
+SYSCTL_NODE(_hw, OID_AUTO, imx, CTLFLAG_RW, NULL, "i.MX container");
 
-	return (NULL);
-}
+static int last_reset_status;
+SYSCTL_UINT(_hw_imx, OID_AUTO, last_reset_status, CTLFLAG_RD, 
+    &last_reset_status, 0, "Last reset status register");
 
-int
-bus_dma_get_range_nb(void)
-{
-
-	return (0);
-}
+SYSCTL_STRING(_hw_imx, OID_AUTO, last_reset_reason, CTLFLAG_RD, 
+    "unknown", 0, "Last reset reason");
 
 /*
  * This code which manipulates the watchdog hardware is here to implement
@@ -69,28 +66,67 @@ bus_dma_get_range_nb(void)
 void
 imx_wdog_cpu_reset(vm_offset_t wdcr_physaddr)
 {
-	volatile uint16_t * pcr;
+	volatile uint16_t cr, *pcr;
+
+	if ((pcr = devmap_ptov(wdcr_physaddr, sizeof(*pcr))) == NULL) {
+		printf("imx_wdog_cpu_reset(): "
+		    "cannot find control register... locking up now.");
+		for (;;)
+			cpu_spinwait();
+	}
+	cr = *pcr;
 
 	/*
-	 * The deceptively simple write of WDOG_CR_WDE enables the watchdog,
-	 * sets the timeout to its minimum value (half a second), and also
-	 * clears the SRS bit which results in the SFTW (software-requested
-	 * reset) bit being set in the watchdog status register after the reset.
-	 * This is how software can distinguish a reset from a wdog timeout.
+	 * If the watchdog hardware has been set up to trigger an external reset
+	 * signal on watchdog timeout, then we do software-requested rebooting
+	 * the same way, by asserting the external reset signal.
+	 *
+	 * Asserting external reset is supposed to result in some external
+	 * component asserting the POR pin on the SoC, possibly after adjusting
+	 * and stabilizing system voltages, or taking other system-wide reset
+	 * actions.  Just in case there is some kind of misconfiguration, we
+	 * hang out and do nothing for a full second, then continue on into
+	 * the code to assert a software reset as well.
 	 */
-	if ((pcr = arm_devmap_ptov(wdcr_physaddr, sizeof(*pcr))) == NULL) {
-		printf("cpu_reset() can't find its control register... locking up now.");
-	} else {
-		*pcr = WDOG_CR_WDE;
+	if (cr & WDOG_CR_WDT) {
+		cr &= ~WDOG_CR_WDA; /* Assert active-low ext reset bit. */
+		*pcr = cr;
+		DELAY(1000000);
+		printf("imx_wdog_cpu_reset(): "
+		    "External reset failed, trying internal cpu-reset\n");
+		DELAY(10000); /* Time for printf to appear */
 	}
+
+	/*
+	 * Imx6 erratum ERR004346 says the SRS bit has to be cleared twice
+	 * within the same cycle of the 32khz clock to reliably trigger the
+	 * reset.  Writing it 3 times in a row ensures at least 2 of the writes
+	 * happen in the same 32k clock cycle.
+	 */
+	cr &= ~WDOG_CR_SRS; /* Assert active-low software reset bit. */
+	*pcr = cr;
+	*pcr = cr;
+	*pcr = cr;
+
+	/* Reset happens on the next tick of the 32khz clock, wait for it. */
 	for (;;)
-		continue;
+		cpu_spinwait();
 }
 
-u_int
-imx_soc_family(void)
+void
+imx_wdog_init_last_reset(vm_offset_t wdsr_phys)
 {
-	return (imx_soc_type() >> IMXSOC_FAMSHIFT);
-}
+	volatile uint16_t * psr;
 
+	if ((psr = devmap_ptov(wdsr_phys, sizeof(*psr))) == NULL)
+		return;
+	last_reset_status = *psr;
+	if (last_reset_status & WDOG_RSR_SFTW) {
+		sysctl___hw_imx_last_reset_reason.oid_arg1 = "SoftwareReset";
+	} else if (last_reset_status & WDOG_RSR_TOUT) {
+		sysctl___hw_imx_last_reset_reason.oid_arg1 = "WatchdogTimeout";
+	} else if (last_reset_status & WDOG_RSR_POR) {
+		sysctl___hw_imx_last_reset_reason.oid_arg1 = "PowerOnReset";
+	}
+}
 

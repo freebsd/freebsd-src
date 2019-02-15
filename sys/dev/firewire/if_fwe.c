@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2002-2003
  * 	Hidetoshi Shimokawa. All rights reserved.
  *
@@ -307,10 +309,6 @@ fwe_init(void *arg)
 		xferq->bulkxfer = (struct fw_bulkxfer *) malloc(
 			sizeof(struct fw_bulkxfer) * xferq->bnchunk,
 							M_FWE, M_WAITOK);
-		if (xferq->bulkxfer == NULL) {
-			printf("if_fwe: malloc failed\n");
-			return;
-		}
 		STAILQ_INIT(&xferq->stvalid);
 		STAILQ_INIT(&xferq->stfree);
 		STAILQ_INIT(&xferq->stdma);
@@ -397,7 +395,6 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				/* Disable interrupts */
 				fc->set_intr(fc, 0);
 				ifp->if_capenable |= IFCAP_POLLING;
-				ifp->if_capenable |= IFCAP_POLLING_NOCOUNT;
 				return (error);
 			}
 			if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
@@ -406,7 +403,6 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				/* Enable interrupts. */
 				fc->set_intr(fc, 1);
 				ifp->if_capenable &= ~IFCAP_POLLING;
-				ifp->if_capenable &= ~IFCAP_POLLING_NOCOUNT;
 				return (error);
 			}
 		    }

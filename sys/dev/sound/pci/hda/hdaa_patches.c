@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Stephane E. Potvin <sepotvin@videotron.ca>
  * Copyright (c) 2006 Ariff Abdullah <ariff@FreeBSD.org>
  * Copyright (c) 2008-2012 Alexander Motin <mav@FreeBSD.org>
@@ -401,6 +403,22 @@ hdac_pin_patch(struct hdaa_widget *w)
 			patch = "as=1 seq=15";
 			break;
 		}
+	} else if (id == HDA_CODEC_ALC292 &&
+	    subid == LENOVO_X120BS_SUBVENDOR) {
+		switch (nid) {
+		case 21:
+			patch = "as=1 seq=15";
+			break;
+		}
+	} else if (id == HDA_CODEC_ALC298 && subid == DELL_XPS9560_SUBVENDOR) {
+		switch (nid) {
+		case 24:
+			config  = 0x01a1913c;
+			break;
+		case 26:
+			config  = 0x01a1913d;
+			break;
+		}
 	}
 
 	if (patch != NULL)
@@ -689,6 +707,22 @@ hdaa_patch(struct hdaa_devinfo *devinfo)
 	}
 }
 
+static uint32_t
+hdaa_read_coef(device_t dev, nid_t nid, uint16_t idx)
+{
+
+	hda_command(dev, HDA_CMD_SET_COEFF_INDEX(0, nid, idx));
+	return (hda_command(dev, HDA_CMD_GET_PROCESSING_COEFF(0, nid)));
+}
+
+static uint32_t
+hdaa_write_coef(device_t dev, nid_t nid, uint16_t idx, uint16_t val)
+{
+
+	hda_command(dev, HDA_CMD_SET_COEFF_INDEX(0, nid, idx));
+	return (hda_command(dev, HDA_CMD_SET_PROCESSING_COEFF(0, nid, val)));
+}
+
 void
 hdaa_patch_direct(struct hdaa_devinfo *devinfo)
 {
@@ -716,6 +750,12 @@ hdaa_patch_direct(struct hdaa_devinfo *devinfo)
 		hda_command(dev, HDA_CMD_12BIT(0, devinfo->nid,
 		    0xf88, 0xc0));
 		break;
+	case HDA_CODEC_ALC1150:
+		if (subid == 0xd9781462) {
+			/* Too low volume on MSI H170 GAMING M3. */
+			hdaa_write_coef(dev, 0x20, 0x07, 0x7cb);
+		}
+		break;
 	}
 	if (subid == APPLE_INTEL_MAC)
 		hda_command(dev, HDA_CMD_12BIT(0, devinfo->nid,
@@ -730,10 +770,12 @@ hdaa_patch_direct(struct hdaa_devinfo *devinfo)
 			 * That results in silence if downmix it to mono.
 			 * To workaround, make codec to handle signal as mono.
 			 */
-			hda_command(dev, HDA_CMD_SET_COEFF_INDEX(0, 0x20, 0x07));
-			val = hda_command(dev, HDA_CMD_GET_PROCESSING_COEFF(0, 0x20));
-			hda_command(dev, HDA_CMD_SET_COEFF_INDEX(0, 0x20, 0x07));
-			hda_command(dev, HDA_CMD_SET_PROCESSING_COEFF(0, 0x20, val|0x80));
+			val = hdaa_read_coef(dev, 0x20, 0x07);
+			hdaa_write_coef(dev, 0x20, 0x07, val|0x80);
+		}
+		if (subid == 0x15171043) {
+			/* Increase output amp on ASUS UX31A by +5dB. */
+			hdaa_write_coef(dev, 0x20, 0x12, 0x2800);
 		}
 	}
 }

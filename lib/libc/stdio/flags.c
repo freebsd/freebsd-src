@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -96,6 +98,10 @@ __sflags(const char *mode, int *optr)
 		case 'e':
 			/* set close-on-exec */
 			o |= O_CLOEXEC;
+			break;
+		case 'v':
+			/* verify */
+			o |= O_VERIFY;
 			break;
 		default:
 			known = 0;

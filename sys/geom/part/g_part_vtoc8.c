@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Marcel Moolenaar
  * All rights reserved.
  *
@@ -99,6 +101,7 @@ static struct g_part_scheme g_part_vtoc8_scheme = {
 	.gps_maxent = VTOC8_NPARTS,
 };
 G_PART_SCHEME_DECLARE(g_part_vtoc8);
+MODULE_VERSION(geom_part_vtoc8, 0);
 
 static int
 vtoc8_parse_type(const char *type, uint16_t *tag)

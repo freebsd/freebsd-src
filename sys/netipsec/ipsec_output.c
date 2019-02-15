@@ -1,5 +1,8 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002, 2003 Sam Leffler, Errno Consulting
+ * Copyright (c) 2016 Andrey V. Elsukov <ae@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +35,7 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_enc.h"
+#include "opt_sctp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -41,12 +44,12 @@
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/errno.h>
+#include <sys/hhook.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/if_enc.h>
 #include <net/if_var.h>
-#include <net/pfil.h>
-#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -62,12 +65,19 @@
 #include <netinet/ip6.h>
 #ifdef INET6
 #include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
 #endif
 #include <netinet/in_pcb.h>
 #ifdef INET6
 #include <netinet/icmp6.h>
 #endif
+#ifdef SCTP
+#include <netinet/sctp_crc32.h>
+#endif
 
+#include <netinet/udp.h>
+#include <netipsec/ah.h>
+#include <netipsec/esp.h>
 #include <netipsec/ipsec.h>
 #ifdef INET6
 #include <netipsec/ipsec6.h>
@@ -84,29 +94,604 @@
 
 #include <machine/in_cksum.h>
 
-#ifdef IPSEC_NAT_T
-#include <netinet/udp.h>
-#endif
+#define	IPSEC_OSTAT_INC(proto, name)	do {		\
+	if ((proto) == IPPROTO_ESP)	\
+		ESPSTAT_INC(esps_##name);	\
+	else if ((proto) == IPPROTO_AH)\
+		AHSTAT_INC(ahs_##name);		\
+	else					\
+		IPCOMPSTAT_INC(ipcomps_##name);	\
+} while (0)
 
-#ifdef DEV_ENC
-#include <net/if_enc.h>
-#endif
+static int ipsec_encap(struct mbuf **mp, struct secasindex *saidx);
 
+#ifdef INET
+static struct secasvar *
+ipsec4_allocsa(struct mbuf *m, struct secpolicy *sp, u_int *pidx, int *error)
+{
+	struct secasindex *saidx, tmpsaidx;
+	struct ipsecrequest *isr;
+	struct sockaddr_in *sin;
+	struct secasvar *sav;
+	struct ip *ip;
+
+	/*
+	 * Check system global policy controls.
+	 */
+next:
+	isr = sp->req[*pidx];
+	if ((isr->saidx.proto == IPPROTO_ESP && !V_esp_enable) ||
+	    (isr->saidx.proto == IPPROTO_AH && !V_ah_enable) ||
+	    (isr->saidx.proto == IPPROTO_IPCOMP && !V_ipcomp_enable)) {
+		DPRINTF(("%s: IPsec outbound packet dropped due"
+			" to policy (check your sysctls)\n", __func__));
+		IPSEC_OSTAT_INC(isr->saidx.proto, pdrops);
+		*error = EHOSTUNREACH;
+		return (NULL);
+	}
+	/*
+	 * Craft SA index to search for proper SA.  Note that
+	 * we only initialize unspecified SA peers for transport
+	 * mode; for tunnel mode they must already be filled in.
+	 */
+	if (isr->saidx.mode == IPSEC_MODE_TRANSPORT) {
+		saidx = &tmpsaidx;
+		*saidx = isr->saidx;
+		ip = mtod(m, struct ip *);
+		if (saidx->src.sa.sa_len == 0) {
+			sin = &saidx->src.sin;
+			sin->sin_len = sizeof(*sin);
+			sin->sin_family = AF_INET;
+			sin->sin_port = IPSEC_PORT_ANY;
+			sin->sin_addr = ip->ip_src;
+		}
+		if (saidx->dst.sa.sa_len == 0) {
+			sin = &saidx->dst.sin;
+			sin->sin_len = sizeof(*sin);
+			sin->sin_family = AF_INET;
+			sin->sin_port = IPSEC_PORT_ANY;
+			sin->sin_addr = ip->ip_dst;
+		}
+	} else
+		saidx = &sp->req[*pidx]->saidx;
+	/*
+	 * Lookup SA and validate it.
+	 */
+	sav = key_allocsa_policy(sp, saidx, error);
+	if (sav == NULL) {
+		IPSECSTAT_INC(ips_out_nosa);
+		if (*error != 0)
+			return (NULL);
+		if (ipsec_get_reqlevel(sp, *pidx) != IPSEC_LEVEL_REQUIRE) {
+			/*
+			 * We have no SA and policy that doesn't require
+			 * this IPsec transform, thus we can continue w/o
+			 * IPsec processing, i.e. return EJUSTRETURN.
+			 * But first check if there is some bundled transform.
+			 */
+			if (sp->tcount > ++(*pidx))
+				goto next;
+			*error = EJUSTRETURN;
+		}
+		return (NULL);
+	}
+	IPSEC_ASSERT(sav->tdb_xform != NULL, ("SA with NULL tdb_xform"));
+	return (sav);
+}
+
+/*
+ * IPsec output logic for IPv4.
+ */
+static int
+ipsec4_perform_request(struct mbuf *m, struct secpolicy *sp,
+    struct inpcb *inp, u_int idx)
+{
+	struct ipsec_ctx_data ctx;
+	union sockaddr_union *dst;
+	struct secasvar *sav;
+	struct ip *ip;
+	int error, i, off;
+
+	IPSEC_ASSERT(idx < sp->tcount, ("Wrong IPsec request index %d", idx));
+
+	/*
+	 * We hold the reference to SP. Content of SP couldn't be changed.
+	 * Craft secasindex and do lookup for suitable SA.
+	 * Then do encapsulation if needed and call xform's output.
+	 * We need to store SP in the xform callback parameters.
+	 * In xform callback we will extract SP and it can be used to
+	 * determine next transform. At the end of transform we can
+	 * release reference to SP.
+	 */
+	sav = ipsec4_allocsa(m, sp, &idx, &error);
+	if (sav == NULL) {
+		if (error == EJUSTRETURN) { /* No IPsec required */
+			key_freesp(&sp);
+			return (error);
+		}
+		goto bad;
+	}
+	/*
+	 * XXXAE: most likely ip_sum at this point is wrong.
+	 */
+	IPSEC_INIT_CTX(&ctx, &m, inp, sav, AF_INET, IPSEC_ENC_BEFORE);
+	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_OUT)) != 0)
+		goto bad;
+
+	ip = mtod(m, struct ip *);
+	dst = &sav->sah->saidx.dst;
+	/* Do the appropriate encapsulation, if necessary */
+	if (sp->req[idx]->saidx.mode == IPSEC_MODE_TUNNEL || /* Tunnel requ'd */
+	    dst->sa.sa_family != AF_INET ||	    /* PF mismatch */
+	    (dst->sa.sa_family == AF_INET &&	    /* Proxy */
+	     dst->sin.sin_addr.s_addr != INADDR_ANY &&
+	     dst->sin.sin_addr.s_addr != ip->ip_dst.s_addr)) {
+		/* Fix IPv4 header checksum and length */
+		ip->ip_len = htons(m->m_pkthdr.len);
+		ip->ip_sum = 0;
+		ip->ip_sum = in_cksum(m, ip->ip_hl << 2);
+		error = ipsec_encap(&m, &sav->sah->saidx);
+		if (error != 0) {
+			DPRINTF(("%s: encapsulation for SPI 0x%08x failed "
+			    "with error %d\n", __func__, ntohl(sav->spi),
+			    error));
+			/* XXXAE: IPSEC_OSTAT_INC(tunnel); */
+			goto bad;
+		}
+		inp = NULL;
+	}
+
+	IPSEC_INIT_CTX(&ctx, &m, inp, sav, dst->sa.sa_family, IPSEC_ENC_AFTER);
+	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_OUT)) != 0)
+		goto bad;
+
+	/*
+	 * Dispatch to the appropriate IPsec transform logic.  The
+	 * packet will be returned for transmission after crypto
+	 * processing, etc. are completed.
+	 *
+	 * NB: m & sav are ``passed to caller'' who's responsible for
+	 *     reclaiming their resources.
+	 */
+	switch(dst->sa.sa_family) {
+	case AF_INET:
+		ip = mtod(m, struct ip *);
+		i = ip->ip_hl << 2;
+		off = offsetof(struct ip, ip_p);
+		break;
+#ifdef INET6
+	case AF_INET6:
+		i = sizeof(struct ip6_hdr);
+		off = offsetof(struct ip6_hdr, ip6_nxt);
+		break;
+#endif /* INET6 */
+	default:
+		DPRINTF(("%s: unsupported protocol family %u\n",
+		    __func__, dst->sa.sa_family));
+		error = EPFNOSUPPORT;
+		IPSEC_OSTAT_INC(sav->sah->saidx.proto, nopf);
+		goto bad;
+	}
+	error = (*sav->tdb_xform->xf_output)(m, sp, sav, idx, i, off);
+	return (error);
+bad:
+	IPSECSTAT_INC(ips_out_inval);
+	if (m != NULL)
+		m_freem(m);
+	if (sav != NULL)
+		key_freesav(&sav);
+	key_freesp(&sp);
+	return (error);
+}
 
 int
-ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
+ipsec4_process_packet(struct mbuf *m, struct secpolicy *sp,
+    struct inpcb *inp)
 {
-	struct tdb_ident *tdbi;
-	struct m_tag *mtag;
-	struct secasvar *sav;
-	struct secasindex *saidx;
+
+	return (ipsec4_perform_request(m, sp, inp, 0));
+}
+
+static int
+ipsec4_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
+{
+	struct secpolicy *sp;
 	int error;
 
-	IPSEC_ASSERT(m != NULL, ("null mbuf"));
-	IPSEC_ASSERT(isr != NULL, ("null ISR"));
-	sav = isr->sav;
-	IPSEC_ASSERT(sav != NULL, ("null SA"));
-	IPSEC_ASSERT(sav->sah != NULL, ("null SAH"));
+	/* Lookup for the corresponding outbound security policy */
+	sp = ipsec4_checkpolicy(m, inp, &error, !forwarding);
+	if (sp == NULL) {
+		if (error == -EINVAL) {
+			/* Discarded by policy. */
+			m_freem(m);
+			return (EACCES);
+		}
+		return (0); /* No IPsec required. */
+	}
+
+	/*
+	 * Usually we have to have tunnel mode IPsec security policy
+	 * when we are forwarding a packet. Otherwise we could not handle
+	 * encrypted replies, because they are not destined for us. But
+	 * some users are doing source address translation for forwarded
+	 * packets, and thus, even if they are forwarded, the replies will
+	 * return back to us.
+	 */
+	if (!forwarding) {
+		/*
+		 * Do delayed checksums now because we send before
+		 * this is done in the normal processing path.
+		 */
+		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+			in_delayed_cksum(m);
+			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+		}
+#ifdef SCTP
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP) {
+			struct ip *ip = mtod(m, struct ip *);
+
+			sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
+			m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
+		}
+#endif
+	}
+	/* NB: callee frees mbuf and releases reference to SP */
+	error = ipsec4_process_packet(m, sp, inp);
+	if (error == EJUSTRETURN) {
+		/*
+		 * We had a SP with a level of 'use' and no SA. We
+		 * will just continue to process the packet without
+		 * IPsec processing and return without error.
+		 */
+		return (0);
+	}
+	if (error == 0)
+		return (EINPROGRESS); /* consumed by IPsec */
+	return (error);
+}
+
+/*
+ * IPSEC_OUTPUT() method implementation for IPv4.
+ * 0 - no IPsec handling needed
+ * other values - mbuf consumed by IPsec.
+ */
+int
+ipsec4_output(struct mbuf *m, struct inpcb *inp)
+{
+
+	/*
+	 * If the packet is resubmitted to ip_output (e.g. after
+	 * AH, ESP, etc. processing), there will be a tag to bypass
+	 * the lookup and related policy checking.
+	 */
+	if (m_tag_find(m, PACKET_TAG_IPSEC_OUT_DONE, NULL) != NULL)
+		return (0);
+
+	return (ipsec4_common_output(m, inp, 0));
+}
+
+/*
+ * IPSEC_FORWARD() method implementation for IPv4.
+ * 0 - no IPsec handling needed
+ * other values - mbuf consumed by IPsec.
+ */
+int
+ipsec4_forward(struct mbuf *m)
+{
+
+	/*
+	 * Check if this packet has an active inbound SP and needs to be
+	 * dropped instead of forwarded.
+	 */
+	if (ipsec4_in_reject(m, NULL) != 0) {
+		m_freem(m);
+		return (EACCES);
+	}
+	return (ipsec4_common_output(m, NULL, 1));
+}
+#endif
+
+#ifdef INET6
+static int
+in6_sa_equal_addrwithscope(const struct sockaddr_in6 *sa,
+    const struct in6_addr *ia)
+{
+	struct in6_addr ia2;
+
+	if (IN6_IS_SCOPE_LINKLOCAL(&sa->sin6_addr)) {
+		memcpy(&ia2, &sa->sin6_addr, sizeof(ia2));
+		ia2.s6_addr16[1] = htons(sa->sin6_scope_id);
+		return (IN6_ARE_ADDR_EQUAL(ia, &ia2));
+	}
+	return (IN6_ARE_ADDR_EQUAL(&sa->sin6_addr, ia));
+}
+
+static struct secasvar *
+ipsec6_allocsa(struct mbuf *m, struct secpolicy *sp, u_int *pidx, int *error)
+{
+	struct secasindex *saidx, tmpsaidx;
+	struct ipsecrequest *isr;
+	struct sockaddr_in6 *sin6;
+	struct secasvar *sav;
+	struct ip6_hdr *ip6;
+
+	/*
+	 * Check system global policy controls.
+	 */
+next:
+	isr = sp->req[*pidx];
+	if ((isr->saidx.proto == IPPROTO_ESP && !V_esp_enable) ||
+	    (isr->saidx.proto == IPPROTO_AH && !V_ah_enable) ||
+	    (isr->saidx.proto == IPPROTO_IPCOMP && !V_ipcomp_enable)) {
+		DPRINTF(("%s: IPsec outbound packet dropped due"
+			" to policy (check your sysctls)\n", __func__));
+		IPSEC_OSTAT_INC(isr->saidx.proto, pdrops);
+		*error = EHOSTUNREACH;
+		return (NULL);
+	}
+	/*
+	 * Craft SA index to search for proper SA.  Note that
+	 * we only fillin unspecified SA peers for transport
+	 * mode; for tunnel mode they must already be filled in.
+	 */
+	if (isr->saidx.mode == IPSEC_MODE_TRANSPORT) {
+		saidx = &tmpsaidx;
+		*saidx = isr->saidx;
+		ip6 = mtod(m, struct ip6_hdr *);
+		if (saidx->src.sin6.sin6_len == 0) {
+			sin6 = (struct sockaddr_in6 *)&saidx->src;
+			sin6->sin6_len = sizeof(*sin6);
+			sin6->sin6_family = AF_INET6;
+			sin6->sin6_port = IPSEC_PORT_ANY;
+			sin6->sin6_addr = ip6->ip6_src;
+			if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src)) {
+				/* fix scope id for comparing SPD */
+				sin6->sin6_addr.s6_addr16[1] = 0;
+				sin6->sin6_scope_id =
+				    ntohs(ip6->ip6_src.s6_addr16[1]);
+			}
+		}
+		if (saidx->dst.sin6.sin6_len == 0) {
+			sin6 = (struct sockaddr_in6 *)&saidx->dst;
+			sin6->sin6_len = sizeof(*sin6);
+			sin6->sin6_family = AF_INET6;
+			sin6->sin6_port = IPSEC_PORT_ANY;
+			sin6->sin6_addr = ip6->ip6_dst;
+			if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst)) {
+				/* fix scope id for comparing SPD */
+				sin6->sin6_addr.s6_addr16[1] = 0;
+				sin6->sin6_scope_id =
+				    ntohs(ip6->ip6_dst.s6_addr16[1]);
+			}
+		}
+	} else
+		saidx = &sp->req[*pidx]->saidx;
+	/*
+	 * Lookup SA and validate it.
+	 */
+	sav = key_allocsa_policy(sp, saidx, error);
+	if (sav == NULL) {
+		IPSEC6STAT_INC(ips_out_nosa);
+		if (*error != 0)
+			return (NULL);
+		if (ipsec_get_reqlevel(sp, *pidx) != IPSEC_LEVEL_REQUIRE) {
+			/*
+			 * We have no SA and policy that doesn't require
+			 * this IPsec transform, thus we can continue w/o
+			 * IPsec processing, i.e. return EJUSTRETURN.
+			 * But first check if there is some bundled transform.
+			 */
+			if (sp->tcount > ++(*pidx))
+				goto next;
+			*error = EJUSTRETURN;
+		}
+		return (NULL);
+	}
+	IPSEC_ASSERT(sav->tdb_xform != NULL, ("SA with NULL tdb_xform"));
+	return (sav);
+}
+
+/*
+ * IPsec output logic for IPv6.
+ */
+static int
+ipsec6_perform_request(struct mbuf *m, struct secpolicy *sp,
+    struct inpcb *inp, u_int idx)
+{
+	struct ipsec_ctx_data ctx;
+	union sockaddr_union *dst;
+	struct secasvar *sav;
+	struct ip6_hdr *ip6;
+	int error, i, off;
+
+	IPSEC_ASSERT(idx < sp->tcount, ("Wrong IPsec request index %d", idx));
+
+	sav = ipsec6_allocsa(m, sp, &idx, &error);
+	if (sav == NULL) {
+		if (error == EJUSTRETURN) { /* No IPsec required */
+			key_freesp(&sp);
+			return (error);
+		}
+		goto bad;
+	}
+
+	/* Fix IP length in case if it is not set yet. */
+	ip6 = mtod(m, struct ip6_hdr *);
+	ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
+
+	IPSEC_INIT_CTX(&ctx, &m, inp, sav, AF_INET6, IPSEC_ENC_BEFORE);
+	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_OUT)) != 0)
+		goto bad;
+
+	ip6 = mtod(m, struct ip6_hdr *); /* pfil can change mbuf */
+	dst = &sav->sah->saidx.dst;
+
+	/* Do the appropriate encapsulation, if necessary */
+	if (sp->req[idx]->saidx.mode == IPSEC_MODE_TUNNEL || /* Tunnel requ'd */
+	    dst->sa.sa_family != AF_INET6 ||        /* PF mismatch */
+	    ((dst->sa.sa_family == AF_INET6) &&
+	     (!IN6_IS_ADDR_UNSPECIFIED(&dst->sin6.sin6_addr)) &&
+	     (!in6_sa_equal_addrwithscope(&dst->sin6, &ip6->ip6_dst)))) {
+		if (m->m_pkthdr.len - sizeof(*ip6) > IPV6_MAXPACKET) {
+			/* No jumbogram support. */
+			error = ENXIO;   /*XXX*/
+			goto bad;
+		}
+		error = ipsec_encap(&m, &sav->sah->saidx);
+		if (error != 0) {
+			DPRINTF(("%s: encapsulation for SPI 0x%08x failed "
+			    "with error %d\n", __func__, ntohl(sav->spi),
+			    error));
+			/* XXXAE: IPSEC_OSTAT_INC(tunnel); */
+			goto bad;
+		}
+		inp = NULL;
+	}
+
+	IPSEC_INIT_CTX(&ctx, &m, inp, sav, dst->sa.sa_family, IPSEC_ENC_AFTER);
+	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_OUT)) != 0)
+		goto bad;
+
+	switch(dst->sa.sa_family) {
+#ifdef INET
+	case AF_INET:
+		{
+		struct ip *ip;
+		ip = mtod(m, struct ip *);
+		i = ip->ip_hl << 2;
+		off = offsetof(struct ip, ip_p);
+		}
+		break;
+#endif /* AF_INET */
+	case AF_INET6:
+		i = sizeof(struct ip6_hdr);
+		off = offsetof(struct ip6_hdr, ip6_nxt);
+		break;
+	default:
+		DPRINTF(("%s: unsupported protocol family %u\n",
+				 __func__, dst->sa.sa_family));
+		error = EPFNOSUPPORT;
+		IPSEC_OSTAT_INC(sav->sah->saidx.proto, nopf);
+		goto bad;
+	}
+	error = (*sav->tdb_xform->xf_output)(m, sp, sav, idx, i, off);
+	return (error);
+bad:
+	IPSEC6STAT_INC(ips_out_inval);
+	if (m != NULL)
+		m_freem(m);
+	if (sav != NULL)
+		key_freesav(&sav);
+	key_freesp(&sp);
+	return (error);
+}
+
+int
+ipsec6_process_packet(struct mbuf *m, struct secpolicy *sp,
+    struct inpcb *inp)
+{
+
+	return (ipsec6_perform_request(m, sp, inp, 0));
+}
+
+static int
+ipsec6_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
+{
+	struct secpolicy *sp;
+	int error;
+
+	/* Lookup for the corresponding outbound security policy */
+	sp = ipsec6_checkpolicy(m, inp, &error, !forwarding);
+	if (sp == NULL) {
+		if (error == -EINVAL) {
+			/* Discarded by policy. */
+			m_freem(m);
+			return (EACCES);
+		}
+		return (0); /* No IPsec required. */
+	}
+
+	if (!forwarding) {
+		/*
+		 * Do delayed checksums now because we send before
+		 * this is done in the normal processing path.
+		 */
+		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
+			in6_delayed_cksum(m, m->m_pkthdr.len -
+			    sizeof(struct ip6_hdr), sizeof(struct ip6_hdr));
+		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
+		}
+#ifdef SCTP
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6) {
+			sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
+			m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
+		}
+#endif
+	}
+	/* NB: callee frees mbuf and releases reference to SP */
+	error = ipsec6_process_packet(m, sp, inp);
+	if (error == EJUSTRETURN) {
+		/*
+		 * We had a SP with a level of 'use' and no SA. We
+		 * will just continue to process the packet without
+		 * IPsec processing and return without error.
+		 */
+		return (0);
+	}
+	if (error == 0)
+		return (EINPROGRESS); /* consumed by IPsec */
+	return (error);
+}
+
+/*
+ * IPSEC_OUTPUT() method implementation for IPv6.
+ * 0 - no IPsec handling needed
+ * other values - mbuf consumed by IPsec.
+ */
+int
+ipsec6_output(struct mbuf *m, struct inpcb *inp)
+{
+
+	/*
+	 * If the packet is resubmitted to ip_output (e.g. after
+	 * AH, ESP, etc. processing), there will be a tag to bypass
+	 * the lookup and related policy checking.
+	 */
+	if (m_tag_find(m, PACKET_TAG_IPSEC_OUT_DONE, NULL) != NULL)
+		return (0);
+
+	return (ipsec6_common_output(m, inp, 0));
+}
+
+/*
+ * IPSEC_FORWARD() method implementation for IPv6.
+ * 0 - no IPsec handling needed
+ * other values - mbuf consumed by IPsec.
+ */
+int
+ipsec6_forward(struct mbuf *m)
+{
+
+	/*
+	 * Check if this packet has an active inbound SP and needs to be
+	 * dropped instead of forwarded.
+	 */
+	if (ipsec6_in_reject(m, NULL) != 0) {
+		m_freem(m);
+		return (EACCES);
+	}
+	return (ipsec6_common_output(m, NULL, 1));
+}
+#endif /* INET6 */
+
+int
+ipsec_process_done(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
+    u_int idx)
+{
+	struct xform_history *xh;
+	struct secasindex *saidx;
+	struct m_tag *mtag;
+	int error;
 
 	saidx = &sav->sah->saidx;
 	switch (saidx->dst.sa.sa_family) {
@@ -140,22 +725,23 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 	}
 
 	/*
-	 * Add a record of what we've done or what needs to be done to the
-	 * packet.
+	 * Add a record of what we've done to the packet.
 	 */
-	mtag = m_tag_get(PACKET_TAG_IPSEC_OUT_DONE,
-			sizeof(struct tdb_ident), M_NOWAIT);
+	mtag = m_tag_get(PACKET_TAG_IPSEC_OUT_DONE, sizeof(*xh), M_NOWAIT);
 	if (mtag == NULL) {
 		DPRINTF(("%s: could not get packet tag\n", __func__));
 		error = ENOMEM;
 		goto bad;
 	}
 
-	tdbi = (struct tdb_ident *)(mtag + 1);
-	tdbi->dst = saidx->dst;
-	tdbi->proto = saidx->proto;
-	tdbi->spi = sav->spi;
+	xh = (struct xform_history *)(mtag + 1);
+	xh->dst = saidx->dst;
+	xh->proto = saidx->proto;
+	xh->mode = saidx->mode;
+	xh->spi = sav->spi;
 	m_tag_prepend(m, mtag);
+
+	key_sa_recordxfer(sav, m);		/* record data transfer */
 
 	/*
 	 * If there's another (bundled) SA to apply, do so.
@@ -164,581 +750,212 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 	 * to set the packet on so we can unwind the stack before
 	 * doing further processing.
 	 */
-	if (isr->next) {
-		IPSECSTAT_INC(ips_out_bundlesa);
-		/* XXX-BZ currently only support same AF bundles. */
+	if (++idx < sp->tcount) {
 		switch (saidx->dst.sa.sa_family) {
 #ifdef INET
 		case AF_INET:
-			return ipsec4_process_packet(m, isr->next, 0, 0);
+			key_freesav(&sav);
+			IPSECSTAT_INC(ips_out_bundlesa);
+			return (ipsec4_perform_request(m, sp, NULL, idx));
 			/* NOTREACHED */
 #endif
-#ifdef notyet
 #ifdef INET6
 		case AF_INET6:
-			/* XXX */
-			return ipsec6_process_packet(m, isr->next);
+			key_freesav(&sav);
+			IPSEC6STAT_INC(ips_out_bundlesa);
+			return (ipsec6_perform_request(m, sp, NULL, idx));
 			/* NOTREACHED */
 #endif /* INET6 */
-#endif
 		default:
 			DPRINTF(("%s: unknown protocol family %u\n", __func__,
 			    saidx->dst.sa.sa_family));
-			error = ENXIO;
+			error = EPFNOSUPPORT;
 			goto bad;
 		}
 	}
-	key_sa_recordxfer(sav, m);		/* record data transfer */
 
+	key_freesp(&sp), sp = NULL;	/* Release reference to SP */
+#ifdef INET
+	/*
+	 * Do UDP encapsulation if SA requires it.
+	 */
+	if (sav->natt != NULL) {
+		error = udp_ipsec_output(m, sav);
+		if (error != 0)
+			goto bad;
+	}
+#endif /* INET */
 	/*
 	 * We're done with IPsec processing, transmit the packet using the
-	 * appropriate network protocol (IP or IPv6). SPD lookup will be
-	 * performed again there.
+	 * appropriate network protocol (IP or IPv6).
 	 */
 	switch (saidx->dst.sa.sa_family) {
 #ifdef INET
 	case AF_INET:
-#ifdef IPSEC_NAT_T
-		/*
-		 * If NAT-T is enabled, now that all IPsec processing is done
-		 * insert UDP encapsulation header after IP header.
-		 */
-		if (sav->natt_type) {
-			struct ip *ip = mtod(m, struct ip *);
-			const int hlen = (ip->ip_hl << 2);
-			int size, off;
-			struct mbuf *mi;
-			struct udphdr *udp;
-
-			size = sizeof(struct udphdr);
-			if (sav->natt_type == UDP_ENCAP_ESPINUDP_NON_IKE) {
-				/*
-				 * draft-ietf-ipsec-nat-t-ike-0[01].txt and
-				 * draft-ietf-ipsec-udp-encaps-(00/)01.txt,
-				 * ignoring possible AH mode
-				 * non-IKE marker + non-ESP marker
-				 * from draft-ietf-ipsec-udp-encaps-00.txt.
-				 */
-				size += sizeof(u_int64_t);
-			}
-			mi = m_makespace(m, hlen, size, &off);
-			if (mi == NULL) {
-				DPRINTF(("%s: m_makespace for udphdr failed\n",
-				    __func__));
-				error = ENOBUFS;
-				goto bad;
-			}
-
-			udp = (struct udphdr *)(mtod(mi, caddr_t) + off);
-			if (sav->natt_type == UDP_ENCAP_ESPINUDP_NON_IKE)
-				udp->uh_sport = htons(UDP_ENCAP_ESPINUDP_PORT);
-			else
-				udp->uh_sport =
-					KEY_PORTFROMSADDR(&sav->sah->saidx.src);
-			udp->uh_dport = KEY_PORTFROMSADDR(&sav->sah->saidx.dst);
-			udp->uh_sum = 0;
-			udp->uh_ulen = htons(m->m_pkthdr.len - hlen);
-			ip->ip_len = htons(m->m_pkthdr.len);
-			ip->ip_p = IPPROTO_UDP;
-
-			if (sav->natt_type == UDP_ENCAP_ESPINUDP_NON_IKE)
-				*(u_int64_t *)(udp + 1) = 0;
-		}
-#endif /* IPSEC_NAT_T */
-
+		key_freesav(&sav);
 		return ip_output(m, NULL, NULL, IP_RAWOUTPUT, NULL, NULL);
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		/*
-		 * We don't need massage, IPv6 header fields are always in
-		 * net endian.
-		 */
+		key_freesav(&sav);
 		return ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
 #endif /* INET6 */
 	}
 	panic("ipsec_process_done");
 bad:
 	m_freem(m);
+	key_freesav(&sav);
+	if (sp != NULL)
+		key_freesp(&sp);
 	return (error);
 }
 
-static struct ipsecrequest *
-ipsec_nextisr(
-	struct mbuf *m,
-	struct ipsecrequest *isr,
-	int af,
-	struct secasindex *saidx,
-	int *error
-)
-{
-#define	IPSEC_OSTAT(name)	do {		\
-	if (isr->saidx.proto == IPPROTO_ESP)	\
-		ESPSTAT_INC(esps_##name);	\
-	else if (isr->saidx.proto == IPPROTO_AH)\
-		AHSTAT_INC(ahs_##name);		\
-	else					\
-		IPCOMPSTAT_INC(ipcomps_##name);	\
-} while (0)
-	struct secasvar *sav;
-
-	IPSECREQUEST_LOCK_ASSERT(isr);
-
-	IPSEC_ASSERT(af == AF_INET || af == AF_INET6,
-		("invalid address family %u", af));
-again:
-	/*
-	 * Craft SA index to search for proper SA.  Note that
-	 * we only fillin unspecified SA peers for transport
-	 * mode; for tunnel mode they must already be filled in.
-	 */
-	*saidx = isr->saidx;
-	if (isr->saidx.mode == IPSEC_MODE_TRANSPORT) {
-		/* Fillin unspecified SA peers only for transport mode */
-		if (af == AF_INET) {
-			struct sockaddr_in *sin;
-			struct ip *ip = mtod(m, struct ip *);
-
-			if (saidx->src.sa.sa_len == 0) {
-				sin = &saidx->src.sin;
-				sin->sin_len = sizeof(*sin);
-				sin->sin_family = AF_INET;
-				sin->sin_port = IPSEC_PORT_ANY;
-				sin->sin_addr = ip->ip_src;
-			}
-			if (saidx->dst.sa.sa_len == 0) {
-				sin = &saidx->dst.sin;
-				sin->sin_len = sizeof(*sin);
-				sin->sin_family = AF_INET;
-				sin->sin_port = IPSEC_PORT_ANY;
-				sin->sin_addr = ip->ip_dst;
-			}
-		} else {
-			struct sockaddr_in6 *sin6;
-			struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
-
-			if (saidx->src.sin6.sin6_len == 0) {
-				sin6 = (struct sockaddr_in6 *)&saidx->src;
-				sin6->sin6_len = sizeof(*sin6);
-				sin6->sin6_family = AF_INET6;
-				sin6->sin6_port = IPSEC_PORT_ANY;
-				sin6->sin6_addr = ip6->ip6_src;
-				if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src)) {
-					/* fix scope id for comparing SPD */
-					sin6->sin6_addr.s6_addr16[1] = 0;
-					sin6->sin6_scope_id =
-					    ntohs(ip6->ip6_src.s6_addr16[1]);
-				}
-			}
-			if (saidx->dst.sin6.sin6_len == 0) {
-				sin6 = (struct sockaddr_in6 *)&saidx->dst;
-				sin6->sin6_len = sizeof(*sin6);
-				sin6->sin6_family = AF_INET6;
-				sin6->sin6_port = IPSEC_PORT_ANY;
-				sin6->sin6_addr = ip6->ip6_dst;
-				if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst)) {
-					/* fix scope id for comparing SPD */
-					sin6->sin6_addr.s6_addr16[1] = 0;
-					sin6->sin6_scope_id =
-					    ntohs(ip6->ip6_dst.s6_addr16[1]);
-				}
-			}
-		}
-	}
-
-	/*
-	 * Lookup SA and validate it.
-	 */
-	*error = key_checkrequest(isr, saidx);
-	if (*error != 0) {
-		/*
-		 * IPsec processing is required, but no SA found.
-		 * I assume that key_acquire() had been called
-		 * to get/establish the SA. Here I discard
-		 * this packet because it is responsibility for
-		 * upper layer to retransmit the packet.
-		 */
-		IPSECSTAT_INC(ips_out_nosa);
-		goto bad;
-	}
-	sav = isr->sav;
-	if (sav == NULL) {
-		IPSEC_ASSERT(ipsec_get_reqlevel(isr) == IPSEC_LEVEL_USE,
-			("no SA found, but required; level %u",
-			ipsec_get_reqlevel(isr)));
-		IPSECREQUEST_UNLOCK(isr);
-		isr = isr->next;
-		/*
-		 * If isr is NULL, we found a 'use' policy w/o SA.
-		 * Return w/o error and w/o isr so we can drop out
-		 * and continue w/o IPsec processing.
-		 */
-		if (isr == NULL)
-			return isr;
-		IPSECREQUEST_LOCK(isr);
-		goto again;
-	}
-
-	/*
-	 * Check system global policy controls.
-	 */
-	if ((isr->saidx.proto == IPPROTO_ESP && !V_esp_enable) ||
-	    (isr->saidx.proto == IPPROTO_AH && !V_ah_enable) ||
-	    (isr->saidx.proto == IPPROTO_IPCOMP && !V_ipcomp_enable)) {
-		DPRINTF(("%s: IPsec outbound packet dropped due"
-			" to policy (check your sysctls)\n", __func__));
-		IPSEC_OSTAT(pdrops);
-		*error = EHOSTUNREACH;
-		goto bad;
-	}
-
-	/*
-	 * Sanity check the SA contents for the caller
-	 * before they invoke the xform output method.
-	 */
-	if (sav->tdb_xform == NULL) {
-		DPRINTF(("%s: no transform for SA\n", __func__));
-		IPSEC_OSTAT(noxform);
-		*error = EHOSTUNREACH;
-		goto bad;
-	}
-	return isr;
-bad:
-	IPSEC_ASSERT(*error != 0, ("error return w/ no error code"));
-	IPSECREQUEST_UNLOCK(isr);
-	return NULL;
-#undef IPSEC_OSTAT
-}
-
-#ifdef INET
 /*
- * IPsec output logic for IPv4.
+ * ipsec_prepend() is optimized version of M_PREPEND().
+ * ipsec_encap() is called by IPsec output routine for tunnel mode SA.
+ * It is expected that after IP encapsulation some IPsec transform will
+ * be performed. Each IPsec transform inserts its variable length header
+ * just after outer IP header using m_makespace(). If given mbuf has not
+ * enough free space at the beginning, we allocate new mbuf and reserve
+ * some space at the beginning and at the end.
+ * This helps avoid allocating of new mbuf and data copying in m_makespace(),
+ * we place outer header in the middle of mbuf's data with reserved leading
+ * and trailing space:
+ *	[ LEADINGSPACE ][ Outer IP header ][ TRAILINGSPACE ]
+ * LEADINGSPACE will be used to add ethernet header, TRAILINGSPACE will
+ * be used to inject AH/ESP/IPCOMP header.
  */
-int
-ipsec4_process_packet(
-	struct mbuf *m,
-	struct ipsecrequest *isr,
-	int flags,
-	int tunalready)
+#define	IPSEC_TRAILINGSPACE	(sizeof(struct udphdr) +/* NAT-T */	\
+    max(sizeof(struct newesp) + EALG_MAX_BLOCK_LEN,	/* ESP + IV */	\
+	sizeof(struct newah) + HASH_MAX_LEN		/* AH + ICV */))
+static struct mbuf *
+ipsec_prepend(struct mbuf *m, int len, int how)
 {
-	struct secasindex saidx;
-	struct secasvar *sav;
-	struct ip *ip;
-	int error, i, off;
+	struct mbuf *n;
 
-	IPSEC_ASSERT(m != NULL, ("null mbuf"));
-	IPSEC_ASSERT(isr != NULL, ("null isr"));
-
-	IPSECREQUEST_LOCK(isr);		/* insure SA contents don't change */
-
-	isr = ipsec_nextisr(m, isr, AF_INET, &saidx, &error);
-	if (isr == NULL) {
-		if (error != 0)
-			goto bad;
-		return EJUSTRETURN;
+	M_ASSERTPKTHDR(m);
+	IPSEC_ASSERT(len < MHLEN, ("wrong length"));
+	if (M_LEADINGSPACE(m) >= len) {
+		/* No need to allocate new mbuf. */
+		m->m_data -= len;
+		m->m_len += len;
+		m->m_pkthdr.len += len;
+		return (m);
 	}
-
-	sav = isr->sav;
-
-#ifdef DEV_ENC
-	if_inc_counter(encif, IFCOUNTER_OPACKETS, 1);
-	if_inc_counter(encif, IFCOUNTER_OBYTES, m->m_pkthdr.len);
-
-	/* pass the mbuf to enc0 for bpf processing */
-	ipsec_bpf(m, sav, AF_INET, ENC_OUT|ENC_BEFORE);
-	/* pass the mbuf to enc0 for packet filtering */
-	if ((error = ipsec_filter(&m, PFIL_OUT, ENC_OUT|ENC_BEFORE)) != 0)
-		goto bad;
-#endif
-
-	if (!tunalready) {
-		union sockaddr_union *dst = &sav->sah->saidx.dst;
-		int setdf;
-
-		/*
-		 * Collect IP_DF state from the outer header.
-		 */
-		if (dst->sa.sa_family == AF_INET) {
-			if (m->m_len < sizeof (struct ip) &&
-			    (m = m_pullup(m, sizeof (struct ip))) == NULL) {
-				error = ENOBUFS;
-				goto bad;
-			}
-			ip = mtod(m, struct ip *);
-			/* Honor system-wide control of how to handle IP_DF */
-			switch (V_ip4_ipsec_dfbit) {
-			case 0:			/* clear in outer header */
-			case 1:			/* set in outer header */
-				setdf = V_ip4_ipsec_dfbit;
-				break;
-			default:		/* propagate to outer header */
-				setdf = ntohs(ip->ip_off & IP_DF);
-				break;
-			}
-		} else {
-			ip = NULL;		/* keep compiler happy */
-			setdf = 0;
-		}
-		/* Do the appropriate encapsulation, if necessary */
-		if (isr->saidx.mode == IPSEC_MODE_TUNNEL || /* Tunnel requ'd */
-		    dst->sa.sa_family != AF_INET ||	    /* PF mismatch */
-#if 0
-		    (sav->flags & SADB_X_SAFLAGS_TUNNEL) || /* Tunnel requ'd */
-		    sav->tdb_xform->xf_type == XF_IP4 ||    /* ditto */
-#endif
-		    (dst->sa.sa_family == AF_INET &&	    /* Proxy */
-		     dst->sin.sin_addr.s_addr != INADDR_ANY &&
-		     dst->sin.sin_addr.s_addr != ip->ip_dst.s_addr)) {
-			struct mbuf *mp;
-
-			/* Fix IPv4 header checksum and length */
-			if (m->m_len < sizeof (struct ip) &&
-			    (m = m_pullup(m, sizeof (struct ip))) == NULL) {
-				error = ENOBUFS;
-				goto bad;
-			}
-			ip = mtod(m, struct ip *);
-			if (ip->ip_v == IPVERSION) {
-				ip->ip_len = htons(m->m_pkthdr.len);
-				ip->ip_sum = 0;
-				ip->ip_sum = in_cksum(m, ip->ip_hl << 2);
-			}
-
-			/* Encapsulate the packet */
-			error = ipip_output(m, isr, &mp, 0, 0);
-			if (mp == NULL && !error) {
-				/* Should never happen. */
-				DPRINTF(("%s: ipip_output returns no mbuf and "
-					"no error!", __func__));
-				error = EFAULT;
-			}
-			if (error) {
-				if (mp) {
-					/* XXX: Should never happen! */
-					m_freem(mp);
-				}
-				m = NULL; /* ipip_output() already freed it */
-				goto bad;
-			}
-			m = mp, mp = NULL;
-			/*
-			 * ipip_output clears IP_DF in the new header.  If
-			 * we need to propagate IP_DF from the outer header,
-			 * then we have to do it here.
-			 *
-			 * XXX shouldn't assume what ipip_output does.
-			 */
-			if (dst->sa.sa_family == AF_INET && setdf) {
-				if (m->m_len < sizeof (struct ip) &&
-				    (m = m_pullup(m, sizeof (struct ip))) == NULL) {
-					error = ENOBUFS;
-					goto bad;
-				}
-				ip = mtod(m, struct ip *);
-				ip->ip_off = ntohs(ip->ip_off);
-				ip->ip_off |= IP_DF;
-				ip->ip_off = htons(ip->ip_off);
-			}
-		}
-	}
-
-#ifdef DEV_ENC
-	/* pass the mbuf to enc0 for bpf processing */
-	ipsec_bpf(m, sav, sav->sah->saidx.dst.sa.sa_family, ENC_OUT|ENC_AFTER);
-	/* pass the mbuf to enc0 for packet filtering */
-	if ((error = ipsec_filter(&m, PFIL_OUT, ENC_OUT|ENC_AFTER)) != 0)
-		goto bad;
-#endif
-
-	/*
-	 * Dispatch to the appropriate IPsec transform logic.  The
-	 * packet will be returned for transmission after crypto
-	 * processing, etc. are completed.  For encapsulation we
-	 * bypass this call because of the explicit call done above
-	 * (necessary to deal with IP_DF handling for IPv4).
-	 *
-	 * NB: m & sav are ``passed to caller'' who's reponsible for
-	 *     for reclaiming their resources.
-	 */
-	if (sav->tdb_xform->xf_type != XF_IP4) {
-		union sockaddr_union *dst = &sav->sah->saidx.dst;
-		switch(dst->sa.sa_family) {
-		case AF_INET:
-			ip = mtod(m, struct ip *);
-			i = ip->ip_hl << 2;
-			off = offsetof(struct ip, ip_p);
-			break;
-#ifdef INET6
-		case AF_INET6:
-			i = sizeof(struct ip6_hdr);
-			off = offsetof(struct ip6_hdr, ip6_nxt);
-			break;
-#endif /* INET6 */
-		default:
-		DPRINTF(("%s: unsupported protocol family %u\n",
-				 __func__, dst->sa.sa_family));
-			error = EPFNOSUPPORT;
-			IPSECSTAT_INC(ips_out_inval);
-			goto bad;
-		}
-		error = (*sav->tdb_xform->xf_output)(m, isr, NULL, i, off);
-	} else {
-		error = ipsec_process_done(m, isr);
-	}
-	IPSECREQUEST_UNLOCK(isr);
-	return error;
-bad:
-	if (isr)
-		IPSECREQUEST_UNLOCK(isr);
-	if (m)
+	n = m_gethdr(how, m->m_type);
+	if (n == NULL) {
 		m_freem(m);
-	return error;
+		return (NULL);
+	}
+	m_move_pkthdr(n, m);
+	n->m_next = m;
+	if (len + IPSEC_TRAILINGSPACE < M_SIZE(n))
+		m_align(n, len + IPSEC_TRAILINGSPACE);
+	n->m_len = len;
+	n->m_pkthdr.len += len;
+	return (n);
 }
-#endif
 
-
-#ifdef INET6
 static int
-in6_sa_equal_addrwithscope(const struct sockaddr_in6 *sa, const struct in6_addr *ia)
+ipsec_encap(struct mbuf **mp, struct secasindex *saidx)
 {
-	struct in6_addr ia2;
-
-	memcpy(&ia2, &sa->sin6_addr, sizeof(ia2));
-	if (IN6_IS_SCOPE_LINKLOCAL(&sa->sin6_addr))
-		ia2.s6_addr16[1] = htons(sa->sin6_scope_id);
-
-	return IN6_ARE_ADDR_EQUAL(ia, &ia2);
-}
-
-/*
- * IPsec output logic for IPv6.
- */
-int
-ipsec6_process_packet(
-	struct mbuf *m,
- 	struct ipsecrequest *isr
-    )
-{
-	struct secasindex saidx;
-	struct secasvar *sav;
+#ifdef INET6
 	struct ip6_hdr *ip6;
-	int error, i, off;
-	union sockaddr_union *dst;
+#endif
+	struct ip *ip;
+	int setdf;
+	uint8_t itos, proto;
 
-	IPSEC_ASSERT(m != NULL, ("ipsec6_process_packet: null mbuf"));
-	IPSEC_ASSERT(isr != NULL, ("ipsec6_process_packet: null isr"));
-
-	IPSECREQUEST_LOCK(isr);		/* insure SA contents don't change */
-
-	isr = ipsec_nextisr(m, isr, AF_INET6, &saidx, &error);
-	if (isr == NULL) {
-		if (error != 0)
-			goto bad;
-		return EJUSTRETURN;
+	ip = mtod(*mp, struct ip *);
+	switch (ip->ip_v) {
+#ifdef INET
+	case IPVERSION:
+		proto = IPPROTO_IPIP;
+		/*
+		 * Collect IP_DF state from the inner header
+		 * and honor system-wide control of how to handle it.
+		 */
+		switch (V_ip4_ipsec_dfbit) {
+		case 0:	/* clear in outer header */
+		case 1:	/* set in outer header */
+			setdf = V_ip4_ipsec_dfbit;
+			break;
+		default:/* propagate to outer header */
+			setdf = (ip->ip_off & htons(IP_DF)) != 0;
+		}
+		itos = ip->ip_tos;
+		break;
+#endif
+#ifdef INET6
+	case (IPV6_VERSION >> 4):
+		proto = IPPROTO_IPV6;
+		ip6 = mtod(*mp, struct ip6_hdr *);
+		itos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
+		setdf = V_ip4_ipsec_dfbit ? 1: 0;
+		/* scoped address handling */
+		in6_clearscope(&ip6->ip6_src);
+		in6_clearscope(&ip6->ip6_dst);
+		break;
+#endif
+	default:
+		return (EAFNOSUPPORT);
 	}
-
-	sav = isr->sav;
-	dst = &sav->sah->saidx.dst;
-
-#ifdef DEV_ENC
-	if_inc_counter(encif, IFCOUNTER_OPACKETS, 1);
-	if_inc_counter(encif, IFCOUNTER_OBYTES, m->m_pkthdr.len);
-
-	/* pass the mbuf to enc0 for bpf processing */
-	ipsec_bpf(m, isr->sav, AF_INET6, ENC_OUT|ENC_BEFORE);
-	/* pass the mbuf to enc0 for packet filtering */
-	if ((error = ipsec_filter(&m, PFIL_OUT, ENC_OUT|ENC_BEFORE)) != 0)
-		goto bad;
-#endif /* DEV_ENC */
-
-	ip6 = mtod(m, struct ip6_hdr *); /* XXX */
-
-	/* Do the appropriate encapsulation, if necessary */
-	if (isr->saidx.mode == IPSEC_MODE_TUNNEL || /* Tunnel requ'd */
-	    dst->sa.sa_family != AF_INET6 ||        /* PF mismatch */
-	    ((dst->sa.sa_family == AF_INET6) &&
-	     (!IN6_IS_ADDR_UNSPECIFIED(&dst->sin6.sin6_addr)) &&
-	     (!in6_sa_equal_addrwithscope(&dst->sin6,
-				  &ip6->ip6_dst)))) {
-		struct mbuf *mp;
-
-		/* Fix IPv6 header payload length. */
-		if (m->m_len < sizeof(struct ip6_hdr))
-			if ((m = m_pullup(m,sizeof(struct ip6_hdr))) == NULL) {
-				error = ENOBUFS;
-				goto bad;
-			}
-
-		if (m->m_pkthdr.len - sizeof(*ip6) > IPV6_MAXPACKET) {
-			/* No jumbogram support. */
-			error = ENXIO;   /*XXX*/
-			goto bad;
-		}
-
-		ip6 = mtod(m, struct ip6_hdr *);
-		ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
-
-		/* Encapsulate the packet */
-		error = ipip_output(m, isr, &mp, 0, 0);
-		if (mp == NULL && !error) {
-			/* Should never happen. */
-			DPRINTF(("ipsec6_process_packet: ipip_output "
-				 "returns no mbuf and no error!"));
-			error = EFAULT;
-			goto bad;
-		}
-
-		if (error) {
-			if (mp) {
-				/* XXX: Should never happen! */
-				m_freem(mp);
-			}
-			m = NULL; /* ipip_output() already freed it */
-			goto bad;
-		}
-
-		m = mp;
-		mp = NULL;
-	}
-
-#ifdef DEV_ENC
-	ipsec_bpf(m, isr->sav, dst->sa.sa_family, ENC_OUT|ENC_AFTER);
-	/* pass the mbuf to enc0 for packet filtering */
-	if ((error = ipsec_filter(&m, PFIL_OUT, ENC_OUT|ENC_AFTER)) != 0)
-		goto bad;
-#endif /* DEV_ENC */
-
-	switch(dst->sa.sa_family) {
+	switch (saidx->dst.sa.sa_family) {
 #ifdef INET
 	case AF_INET:
-		{
-		struct ip *ip;
-		ip = mtod(m, struct ip *);
-		i = ip->ip_hl << 2;
-		off = offsetof(struct ip, ip_p);
-		}
+		if (saidx->src.sa.sa_family != AF_INET ||
+		    saidx->src.sin.sin_addr.s_addr == INADDR_ANY ||
+		    saidx->dst.sin.sin_addr.s_addr == INADDR_ANY)
+			return (EINVAL);
+		*mp = ipsec_prepend(*mp, sizeof(struct ip), M_NOWAIT);
+		if (*mp == NULL)
+			return (ENOBUFS);
+		ip = mtod(*mp, struct ip *);
+		ip->ip_v = IPVERSION;
+		ip->ip_hl = sizeof(struct ip) >> 2;
+		ip->ip_p = proto;
+		ip->ip_len = htons((*mp)->m_pkthdr.len);
+		ip->ip_ttl = V_ip_defttl;
+		ip->ip_sum = 0;
+		ip->ip_off = setdf ? htons(IP_DF): 0;
+		ip->ip_src = saidx->src.sin.sin_addr;
+		ip->ip_dst = saidx->dst.sin.sin_addr;
+		ip_ecn_ingress(V_ip4_ipsec_ecn, &ip->ip_tos, &itos);
+		ip_fillid(ip);
 		break;
-#endif /* AF_INET */
+#endif /* INET */
+#ifdef INET6
 	case AF_INET6:
-		i = sizeof(struct ip6_hdr);
-		off = offsetof(struct ip6_hdr, ip6_nxt);
+		if (saidx->src.sa.sa_family != AF_INET6 ||
+		    IN6_IS_ADDR_UNSPECIFIED(&saidx->src.sin6.sin6_addr) ||
+		    IN6_IS_ADDR_UNSPECIFIED(&saidx->dst.sin6.sin6_addr))
+			return (EINVAL);
+		*mp = ipsec_prepend(*mp, sizeof(struct ip6_hdr), M_NOWAIT);
+		if (*mp == NULL)
+			return (ENOBUFS);
+		ip6 = mtod(*mp, struct ip6_hdr *);
+		ip6->ip6_flow = 0;
+		ip6->ip6_vfc = IPV6_VERSION;
+		ip6->ip6_hlim = V_ip6_defhlim;
+		ip6->ip6_nxt = proto;
+		ip6->ip6_dst = saidx->dst.sin6.sin6_addr;
+		/* For link-local address embed scope zone id */
+		if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst))
+			ip6->ip6_dst.s6_addr16[1] =
+			    htons(saidx->dst.sin6.sin6_scope_id & 0xffff);
+		ip6->ip6_src = saidx->src.sin6.sin6_addr;
+		if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src))
+			ip6->ip6_src.s6_addr16[1] =
+			    htons(saidx->src.sin6.sin6_scope_id & 0xffff);
+		ip6->ip6_plen = htons((*mp)->m_pkthdr.len - sizeof(*ip6));
+		ip_ecn_ingress(V_ip6_ipsec_ecn, &proto, &itos);
+		ip6->ip6_flow |= htonl((uint32_t)proto << 20);
 		break;
+#endif /* INET6 */
 	default:
-		DPRINTF(("%s: unsupported protocol family %u\n",
-				 __func__, dst->sa.sa_family));
-		error = EPFNOSUPPORT;
-		IPSEC6STAT_INC(ips_out_inval);
-		goto bad;
+		return (EAFNOSUPPORT);
 	}
-	error = (*sav->tdb_xform->xf_output)(m, isr, NULL, i, off);
-	IPSECREQUEST_UNLOCK(isr);
-	return error;
-bad:
-
-	if (isr)
-		IPSECREQUEST_UNLOCK(isr);
-	if (m)
-		m_freem(m);
-	return error;
+	(*mp)->m_flags &= ~(M_BCAST | M_MCAST);
+	return (0);
 }
-#endif /*INET6*/
+

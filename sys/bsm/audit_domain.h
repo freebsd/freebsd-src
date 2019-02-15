@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2008 Apple Inc.
  * All rights reserved.
  *
@@ -26,7 +28,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE. 
  *
- * P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_domain.h#2
  * $FreeBSD$
  */
 

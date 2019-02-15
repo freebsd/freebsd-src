@@ -26,7 +26,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: libdwarf_reloc.c 2948 2013-05-30 21:25:52Z kaiwang27 $");
+ELFTC_VCSID("$Id: libdwarf_reloc.c 3578 2017-09-14 02:21:28Z emaste $");
 
 Dwarf_Unsigned
 _dwarf_get_reloc_type(Dwarf_P_Debug dbg, int is64)
@@ -35,6 +35,8 @@ _dwarf_get_reloc_type(Dwarf_P_Debug dbg, int is64)
 	assert(dbg != NULL);
 
 	switch (dbg->dbgp_isa) {
+	case DW_ISA_AARCH64:
+		return (is64 ? R_AARCH64_ABS64 : R_AARCH64_ABS32);
 	case DW_ISA_X86:
 		return (R_386_32);
 	case DW_ISA_X86_64:
@@ -47,6 +49,8 @@ _dwarf_get_reloc_type(Dwarf_P_Debug dbg, int is64)
 		return (R_ARM_ABS32);
 	case DW_ISA_MIPS:
 		return (is64 ? R_MIPS_64 : R_MIPS_32);
+	case DW_ISA_RISCV:
+		return (is64 ? R_RISCV_64 : R_RISCV_32);
 	case DW_ISA_IA64:
 		return (is64 ? R_IA_64_DIR64LSB : R_IA_64_DIR32LSB);
 	default:
@@ -62,11 +66,18 @@ _dwarf_get_reloc_size(Dwarf_Debug dbg, Dwarf_Unsigned rel_type)
 	switch (dbg->dbg_machine) {
 	case EM_NONE:
 		break;
+	case EM_AARCH64:
+		if (rel_type == R_AARCH64_ABS32)
+			return (4);
+		else if (rel_type == R_AARCH64_ABS64)
+			return (8);
+		break;
 	case EM_ARM:
 		if (rel_type == R_ARM_ABS32)
 			return (4);
 		break;
 	case EM_386:
+	case EM_IAMCU:
 		if (rel_type == R_386_32)
 			return (4);
 		break;
@@ -90,6 +101,12 @@ _dwarf_get_reloc_size(Dwarf_Debug dbg, Dwarf_Unsigned rel_type)
 		if (rel_type == R_MIPS_32)
 			return (4);
 		else if (rel_type == R_MIPS_64)
+			return (8);
+		break;
+	case EM_RISCV:
+		if (rel_type == R_RISCV_32)
+			return (4);
+		else if (rel_type == R_RISCV_64)
 			return (8);
 		break;
 	case EM_IA_64:

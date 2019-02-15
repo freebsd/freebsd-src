@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/speaker
+.PATH: ${SRCTOP}/sys/dev/speaker
 
 KMOD=	speaker
 SRCS=	spkr.c

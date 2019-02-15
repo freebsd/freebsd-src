@@ -36,7 +36,7 @@
 #error FPA is not supported anymore
 #endif
 
-#if defined(__ARM_EABI__) && !defined(_STANDALONE)
+#if !defined(_STANDALONE)
 	.fpu	vfp
 #endif
 
@@ -61,31 +61,24 @@ __FBSDID("$FreeBSD$");
 ENTRY(_setjmp)
 	ldr	r1, .L_setjmp_magic
 
-#if defined(__ARM_EABI__) && !defined(_STANDALONE)
-	ldr	r2, .Lfpu_present
-#ifdef PIC
-	GOT_INIT(r3, .L_setjmp_got, .L_setjmp_gotinit)
-	ldr	r2, [r2, r3]
-#else
-	ldr	r2, [r2]
-#endif
-	teq	r2, #0		/* do we have a FPU? */
-	beq	1f		/*   no, don't save VFP registers */
-
-	orr	r1, r1, #(_JB_MAGIC__SETJMP ^ _JB_MAGIC__SETJMP_VFP)
-				/* change magic to VFP magic */
+#if !defined(_STANDALONE) && __ARM_ARCH >= 6
 	add	r2, r0, #(_JB_REG_D8 * 4)
 	vstmia	r2, {d8-d15}
 	vmrs	r2, fpscr
 	str	r2, [r0, #(_JB_REG_FPSCR * 4)]
-1:
-#endif /* __ARM_EABI__ */
+#endif /* !_STANDALONE && __ARM_ARCH >= 6 */
 
 	str	r1, [r0]
 
 	add	r0, r0, #(_JB_REG_R4 * 4)
 	/* Store integer registers */
+#ifndef __thumb__
         stmia	r0, {r4-r14}
+#else
+	stmia	r0, {r4-r12}
+	str	r13, [r0, #((_JB_REG_R13 - _JB_REG_R4) * 4)]
+	str	r14, [r0, #((_JB_REG_R14 - _JB_REG_R4) * 4)]
+#endif
 
         mov	r0, #0x00000000
 	RET
@@ -93,42 +86,41 @@ END(_setjmp)
 
 .L_setjmp_magic:
 	.word	_JB_MAGIC__SETJMP
-#if defined(__ARM_EABI__) && !defined(_STANDALONE)
-	GOT_INITSYM(.L_setjmp_got, .L_setjmp_gotinit)
-.Lfpu_present:
-	.word	PIC_SYM(_libc_arm_fpu_present, GOTOFF)
-#endif /* __ARM_EABI__ */
 
 WEAK_ALIAS(___longjmp, _longjmp)
 ENTRY(_longjmp)
 	ldr	r2, [r0]			/* get magic from jmp_buf */
-	bic	r3, r2, #(_JB_MAGIC__SETJMP ^ _JB_MAGIC__SETJMP_VFP)
-						/* ignore VFP-ness of magic */
 	ldr	ip, .L_setjmp_magic		/* load magic */
-	teq	ip, r3				/* magic correct? */
+	teq	ip, r2				/* magic correct? */
 	bne	botch				/*   no, botch */
 
-#if defined(__ARM_EABI__) && !defined(_STANDALONE)
-	teq	r3, r2				/* did magic change? */
-	beq	1f				/*   no, don't restore VFP */
+#if !defined(_STANDALONE) && __ARM_ARCH >= 6
 	add	ip, r0, #(_JB_REG_D8 * 4)
 	vldmia	ip, {d8-d15}
 	ldr	ip, [r0, #(_JB_REG_FPSCR * 4)]
 	vmsr	fpscr, ip
-1:
-#endif /* __ARM_EABI__ */
+#endif /* !_STANDALONE && __ARM_ARCH >= 6 */
 
 	add	r0, r0, #(_JB_REG_R4 * 4)
        	/* Restore integer registers */
+#ifndef __thumb__
         ldmia	r0, {r4-r14}
+#else
+	ldmia	r0, {r4-r12}
+	ldr	r13, [r0, #((_JB_REG_R13 - _JB_REG_R4) * 4)]
+	ldr	r14, [r0, #((_JB_REG_R14 - _JB_REG_R4) * 4)]
+#endif
 
 	/* Validate sp and r14 */
 	teq	sp, #0
+	it	ne
 	teqne	r14, #0
+	it	eq
 	beq	botch
 
 	/* Set return value */
 	movs	r0, r1
+	it	eq
 	moveq	r0, #0x00000001
 	RET
 
@@ -137,8 +129,10 @@ botch:
 #if !defined(_STANDALONE)
 	bl	PIC_SYM(_C_LABEL(longjmperror), PLT)
 	bl	PIC_SYM(_C_LABEL(abort), PLT)
-	b	. - 8		/* Cannot get here */
+1:	b	1b		/* Cannot get here */
 #else
 	b	.
 #endif
 END(_longjmp)
+
+	.section .note.GNU-stack,"",%progbits

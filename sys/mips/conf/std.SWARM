@@ -20,6 +20,7 @@ options 	KDB
 
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	NFSCL			#Network Filesystem Client
 options 	NFS_ROOT		#NFS usable as /, requires NFSCL
 options 	PSEUDOFS		#Pseudo-filesystem framework
@@ -57,4 +58,3 @@ device da
 device pass
 
 device		ata
-options 	ATA_STATIC_ID	# Static device numbering

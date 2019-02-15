@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)unlink.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2010
+.Dd October 20, 2018
 .Dt UNLINK 2
 .Os
 .Sh NAME
@@ -89,6 +89,9 @@ Remove the directory entry specified by
 and
 .Fa path
 as a directory, not a normal file.
+.It Dv AT_BENEATH
+Only unlink files and directories which are beneath of the starting
+directory.
 .El
 .Pp
 If
@@ -151,6 +154,9 @@ The
 .Fa path
 argument
 points outside the process's allocated address space.
+.It Bq Er ENOSPC
+On file systems supporting copy-on-write or snapshots, there was not enough
+free space to record metadata for the delete operation of the file.
 .El
 .Pp
 In addition to the errors returned by the
@@ -197,6 +203,15 @@ argument is not an absolute path and
 is neither
 .Dv AT_FDCWD
 nor a file descriptor associated with a directory.
+.It Bq Er ENOTCAPABLE
+The
+.Dv AT_BENEATH
+flag was specified but
+.Fa path
+is not strictly relative to the starting directory.
+For example,
+.Fa path
+is absolute or includes a ".." component that escapes the starting directory.
 .El
 .Sh SEE ALSO
 .Xr chflags 2 ,
@@ -212,7 +227,7 @@ system call follows The Open Group Extended API Set 2 specification.
 The
 .Fn unlink
 function appeared in
-.At v6 .
+.At v1 .
 The
 .Fn unlinkat
 system call appeared in

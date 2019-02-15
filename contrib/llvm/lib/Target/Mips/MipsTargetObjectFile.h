@@ -7,36 +7,43 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TARGET_MIPS_TARGETOBJECTFILE_H
-#define LLVM_TARGET_MIPS_TARGETOBJECTFILE_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPSTARGETOBJECTFILE_H
+#define LLVM_LIB_TARGET_MIPS_MIPSTARGETOBJECTFILE_H
 
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 
 namespace llvm {
-
+class MipsTargetMachine;
   class MipsTargetObjectFile : public TargetLoweringObjectFileELF {
-    const MCSection *SmallDataSection;
-    const MCSection *SmallBSSSection;
-    const MCSection *ReginfoSection;
+    MCSection *SmallDataSection;
+    MCSection *SmallBSSSection;
+    const MipsTargetMachine *TM;
+
+    bool IsGlobalInSmallSection(const GlobalObject *GO, const TargetMachine &TM,
+                                SectionKind Kind) const;
+    bool IsGlobalInSmallSectionImpl(const GlobalObject *GO,
+                                    const TargetMachine &TM) const;
   public:
 
-    void Initialize(MCContext &Ctx, const TargetMachine &TM);
+    void Initialize(MCContext &Ctx, const TargetMachine &TM) override;
 
-
-    /// IsGlobalInSmallSection - Return true if this global address should be
-    /// placed into small data/bss section.
-    bool IsGlobalInSmallSection(const GlobalValue *GV,
-                                const TargetMachine &TM, SectionKind Kind)const;
-    bool IsGlobalInSmallSection(const GlobalValue *GV,
+    /// Return true if this global address should be placed into small data/bss
+    /// section.
+    bool IsGlobalInSmallSection(const GlobalObject *GO,
                                 const TargetMachine &TM) const;
 
-    const MCSection *SelectSectionForGlobal(const GlobalValue *GV,
-                                            SectionKind Kind,
-                                            Mangler *Mang,
-                                            const TargetMachine &TM) const;
+    MCSection *SelectSectionForGlobal(const GlobalObject *GO, SectionKind Kind,
+                                      const TargetMachine &TM) const override;
 
-    // TODO: Classify globals as mips wishes.
-    const MCSection *getReginfoSection() const { return ReginfoSection; }
+    /// Return true if this constant should be placed into small data section.
+    bool IsConstantInSmallSection(const DataLayout &DL, const Constant *CN,
+                                  const TargetMachine &TM) const;
+
+    MCSection *getSectionForConstant(const DataLayout &DL, SectionKind Kind,
+                                     const Constant *C,
+                                     unsigned &Align) const override;
+    /// Describe a TLS variable address within debug info.
+    const MCExpr *getDebugThreadLocalSymbol(const MCSymbol *Sym) const override;
   };
 } // end namespace llvm
 

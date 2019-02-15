@@ -44,7 +44,8 @@ BEGIN
 	i = 0;
 }
 
-syscall::*lwp*:entry
+syscall::*wait*:entry
+/pid == $1/
 {
 	exit(0);
 }

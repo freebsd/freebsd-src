@@ -124,7 +124,7 @@ main(int argc, char **argv)
 	printf("Mediasize: %ju Bytes (%ju sectors)\nSectorsize: %u Bytes\n",
 	    disk.mediasize, disk.mediasize / disk.sectorsize, disk.sectorsize);
 
-	if (disk_open(&dev, disk.mediasize, disk.sectorsize, 0) != 0)
+	if (disk_open(&dev, disk.mediasize, disk.sectorsize) != 0)
 		errx(1, "disk_open failed");
 	printf("\tdisk0:\n");
 	disk_print(&dev, "\tdisk0", 1);

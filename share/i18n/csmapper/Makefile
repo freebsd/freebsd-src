@@ -5,6 +5,7 @@ FILESDIR= ${CSMAPPERDIR}
 
 SUBDIR=	APPLE AST BIG5 CNS CP EBCDIC GB GEORGIAN ISO646 ISO-8859 JIS \
 	KAZAKH KOI KS MISC TCVN
+SUBDIR_PARALLEL=
 
 mapper.dir: ${SUBDIR}
 	newfile=$$(for i in ${SUBDIR}; do \
@@ -29,9 +30,6 @@ charset.pivot.pvdb: charset.pivot
 
 FILES+=	charset.pivot charset.pivot.pvdb
 CLEANFILES+= charset.pivot charset.pivot.pvdb
-
-all: ${FILES}
-realall: ${FILES}
 
 .include "./Makefile.inc"
 .include <bsd.prog.mk>

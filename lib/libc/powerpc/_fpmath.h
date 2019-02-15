@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
@@ -29,10 +31,17 @@
 union IEEEl2bits {
 	long double	e;
 	struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+		unsigned int	manl	:32;
+		unsigned int	manh	:20;
+		unsigned int	exp	:11;
+		unsigned int	sign	:1;
+#else	/* _BYTE_ORDER == _LITTLE_ENDIAN */
 		unsigned int		sign	:1;
 		unsigned int		exp	:11;
 		unsigned int		manh	:20;
 		unsigned int		manl	:32;
+#endif
 	} bits;
 };
 

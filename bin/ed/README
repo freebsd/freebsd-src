@@ -9,7 +9,6 @@ compile with little trouble.  Otherwise, the macros SPL1() and SPL0()
 should be redefined to disable interrupts.
 
 The following compiler directives are recognized:
-DES		- to add encryption support (requires crypt(3))
 NO_REALLOC_NULL	- if realloc(3) does not accept a NULL pointer
 BACKWARDS	- for backwards compatibility
 NEED_INSQUE	- if insque(3) is missing

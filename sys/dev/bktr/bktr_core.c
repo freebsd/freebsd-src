@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * 1. Redistributions of source code must retain the 
  * Copyright (c) 1997 Amancio Hasty, 1999 Roger Hardiman
  * All rights reserved.
@@ -256,7 +258,7 @@ typedef u_char bool_t;
  */
 
 #define MAX_VBI_LINES	      16   /* Maximum for all vidoe formats */
-#define VBI_LINE_SIZE         2048 /* Store upto 2048 bytes per line */
+#define	VBI_LINE_SIZE         2048 /* Store up to 2048 bytes per line */
 #define VBI_BUFFER_ITEMS      20   /* Number of frames we buffer */
 #define VBI_DATA_SIZE         (VBI_LINE_SIZE * MAX_VBI_LINES * 2)
 #define VBI_BUFFER_SIZE       (VBI_DATA_SIZE * VBI_BUFFER_ITEMS)
@@ -324,7 +326,7 @@ static struct meteor_pixfmt_internal {
 { { 0, METEOR_PIXTYPE_YUV_12, 2, { 0xff0000,0x00ff00,0x0000ff }, 1,1 }, 0x88 },
 
 };
-#define PIXFMT_TABLE_SIZE ( sizeof(pixfmt_table) / sizeof(pixfmt_table[0]) )
+#define	PIXFMT_TABLE_SIZE nitems(pixfmt_table)
 
 /*
  * Table of Meteor-supported Pixel Formats (for SETGEO compatibility)
@@ -354,8 +356,7 @@ static struct {
     },
 
 };
-#define METEOR_PIXFMT_TABLE_SIZE ( sizeof(meteor_pixfmt_table) / \
-				   sizeof(meteor_pixfmt_table[0]) )
+#define	METEOR_PIXFMT_TABLE_SIZE nitems(meteor_pixfmt_table)
 
 
 #define BSWAP (BT848_COLOR_CTL_BSWAP_ODD | BT848_COLOR_CTL_BSWAP_EVEN)
@@ -571,9 +572,9 @@ bktr_store_address(unit, BKTR_MEM_BUF,          buf);
  
 	/* using the pci device id and revision id */
 	/* and determine the card type            */
-	if (PCI_VENDOR(pci_id) == PCI_VENDOR_BROOKTREE)
+	if (BKTR_PCI_VENDOR(pci_id) == PCI_VENDOR_BROOKTREE)
 	{
-		switch (PCI_PRODUCT(pci_id)) {
+		switch (BKTR_PCI_PRODUCT(pci_id)) {
 		case PCI_PRODUCT_BROOKTREE_BT848:
 			if (rev == 0x12)
 				bktr->id = BROOKTREE_848A;
@@ -590,7 +591,7 @@ bktr_store_address(unit, BKTR_MEM_BUF,          buf);
 			bktr->id = BROOKTREE_879;
 			break;
 		}
-	};
+	}
 
 	bktr->clr_on_start = FALSE;
 
@@ -627,7 +628,7 @@ bktr_store_address(unit, BKTR_MEM_BUF,          buf);
 	init_audio_devices( bktr );
 
 #ifdef BKTR_NEW_MSP34XX_DRIVER
-	/* setup the kenrel thread */
+	/* setup the kernel thread */
 	err = msp_attach( bktr );
 	if ( err != 0 ) /* error doing kernel thread stuff, disable msp3400c */
 		bktr->card.msp3400c = 0;
@@ -973,7 +974,7 @@ video_open( bktr_ptr_t bktr )
 	bktr->flags |= METEOR_OPEN;
 
 #ifdef BT848_DUMP
-	dump_bt848( bt848 );
+	dump_bt848(bktr);
 #endif
 
         bktr->clr_on_start = FALSE;
@@ -1546,7 +1547,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct thr
 		break;
 
 	case METEORGBRIG:	/* get brightness */
-		*(u_char *)arg = INB(bktr, BKTR_BRIGHT);
+		*(u_char *)arg = INB(bktr, BKTR_BRIGHT) + 128;
 		break;
 
 	case METEORSCSAT:	/* set chroma saturation */
@@ -1689,7 +1690,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct thr
 			                    BT848_INT_VSYNC      |
 					    BT848_INT_FMTCHG);
 #ifdef BT848_DUMP
-			dump_bt848( bt848 );
+			dump_bt848(bktr);
 #endif
 			break;
 		
@@ -1787,7 +1788,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct thr
 			    && bktr->video.addr == 0) {
 
 /*****************************/
-/* *** OS Dependant code *** */
+/* *** OS Dependent code *** */
 /*****************************/
 #if defined(__NetBSD__) || defined(__OpenBSD__)
                                 bus_dmamap_t dmamap;
@@ -2370,7 +2371,7 @@ common_ioctl( bktr_ptr_t bktr, ioctl_cmd_t cmd, caddr_t arg )
 		/*   Tuner is MUX0, RCA is MUX1, S-Video is MUX2 */
 		/* On the Hauppauge bt878 boards, */
 		/*   Tuner is MUX0, RCA is MUX3 */
-		/* Unfortunatly Meteor driver codes DEV_RCA as DEV_0, so we */
+		/* Unfortunately Meteor driver codes DEV_RCA as DEV_0, so we */
 		/* stick with this system in our Meteor Emulation */
 
 		switch(*(unsigned long *)arg & METEOR_DEV_MASK) {
@@ -2523,7 +2524,7 @@ common_ioctl( bktr_ptr_t bktr, ioctl_cmd_t cmd, caddr_t arg )
 /*
  * 
  */
-#ifdef BT848_DEBUG 
+#if defined(BT848_DEBUG) || defined(BT848_DUMP)
 static int
 dump_bt848( bktr_ptr_t bktr )
 {
@@ -2543,7 +2544,7 @@ dump_bt848( bktr_ptr_t bktr )
 		       r[i], INL(bktr, r[i]),
 		       r[i+1], INL(bktr, r[i+1]),
 		       r[i+2], INL(bktr, r[i+2]),
-		       r[i+3], INL(bktr, r[i+3]]));
+		       r[i+3], INL(bktr, r[i+3]));
 	}
 
 	printf("%s: INT STAT %x \n", bktr_name(bktr),
@@ -3046,7 +3047,7 @@ rgb_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 		/* sync vro */
 		*dma_prog++ = OP_SYNC | BKTR_GEN_IRQ | BKTR_RESYNC | BKTR_VRO;
 		*dma_prog++ = 0;  /* NULL WORD */
-		*dma_prog++ = OP_JUMP; ;
+		*dma_prog++ = OP_JUMP;
 		*dma_prog = (uint32_t ) vtophys(bktr->odd_dma_prog);
 		break;
 	}
@@ -3122,7 +3123,6 @@ yuvpack_prog( bktr_ptr_t bktr, char i_flag,
 	OUTB(bktr, BKTR_COLOR_CTL, INB(bktr, BKTR_COLOR_CTL) | BT848_COLOR_CTL_RGB_DED | BT848_COLOR_CTL_GAMMA);
 	OUTB(bktr, BKTR_ADC, SYNC_LEVEL);
 
-	bktr->capcontrol =   1 << 6 | 1 << 4 | 1 << 2 | 3;
 	bktr->capcontrol = 3 << 2 |  3;
 
 	dma_prog = (uint32_t *) bktr->dma_prog;
@@ -3707,28 +3707,26 @@ start_capture( bktr_ptr_t bktr, unsigned type )
 
 
 /*
- * 
+ * Set the temporal decimation register to get the desired frame rate.
+ * We use the 'skip frame' modus always and always start dropping on an
+ * odd field.
  */
 static void
 set_fps( bktr_ptr_t bktr, u_short fps )
 {
 	struct format_params	*fp;
-	int i_flag;
 
 	fp = &format_params[bktr->format_params];
 
 	switch(bktr->flags & METEOR_ONLY_FIELDS_MASK) {
 	case METEOR_ONLY_EVEN_FIELDS:
 		bktr->flags |= METEOR_WANT_EVEN;
-		i_flag = 1;
 		break;
 	case METEOR_ONLY_ODD_FIELDS:
 		bktr->flags |= METEOR_WANT_ODD;
-		i_flag = 1;
 		break;
 	default:
 		bktr->flags |= METEOR_WANT_MASK;
-		i_flag = 2;
 		break;
 	}
 
@@ -3739,7 +3737,7 @@ set_fps( bktr_ptr_t bktr, u_short fps )
 	OUTB(bktr, BKTR_TDEC, 0);
 
 	if (fps < fp->frame_rate)
-		OUTB(bktr, BKTR_TDEC, i_flag*(fp->frame_rate - fps) & 0x3f);
+		OUTB(bktr, BKTR_TDEC, (fp->frame_rate - fps) & 0x3f);
 	else
 		OUTB(bktr, BKTR_TDEC, 0);
 	return;

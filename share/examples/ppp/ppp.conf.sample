@@ -523,7 +523,7 @@ compuserve:
 #  such as `rlogin' is involved, you may need to ``set escape 0xff''
 #
 tcp-client:
- set device tcpsrv.mynet:1234
+ set device tcpsrv.mynet:6671
  set dial
  set login
  set ifaddr 10.0.5.1 10.0.4.1 255.255.255.0
@@ -538,10 +538,10 @@ tcp-server:
 #
 # and this in /etc/services:
 #
-#    ppp 6671/tcp
+#    ppp 6671/udp
 #
 udp-client:
- set device udpsrv.mynet:1234/udp
+ set device udpsrv.mynet:6671/udp
  set dial
  set login
  set ifaddr 10.0.5.1 10.0.4.1 255.255.255.0

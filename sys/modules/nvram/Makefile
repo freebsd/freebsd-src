@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/nvram
+.PATH: ${SRCTOP}/sys/dev/nvram
 
 KMOD=	nvram
 SRCS=	nvram.c

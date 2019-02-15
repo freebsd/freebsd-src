@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Alan L. Cox <alc@cs.rice.edu>
  * All rights reserved.
  *
@@ -30,9 +32,14 @@
 #define	_MACHINE_VM_H_
 
 #include <machine/pte.h>
+#include <machine/cca.h>
 
 /* Memory attributes. */
-#define	VM_MEMATTR_UNCACHEABLE	((vm_memattr_t)PTE_C_UNCACHED)
-#define	VM_MEMATTR_DEFAULT	((vm_memattr_t)PTE_C_CACHE)
+#define	VM_MEMATTR_UNCACHEABLE		((vm_memattr_t)MIPS_CCA_UNCACHED)
+#define	VM_MEMATTR_WRITE_BACK		((vm_memattr_t)MIPS_CCA_CACHED)
+#define	VM_MEMATTR_DEFAULT		VM_MEMATTR_WRITE_BACK
+#ifdef MIPS_CCA_WC
+#define	VM_MEMATTR_WRITE_COMBINING	((vm_memattr_t)MIPS_CCA_WC)
+#endif
 
 #endif /* !_MACHINE_VM_H_ */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 2014 David T. Chisnall
@@ -102,7 +104,7 @@ typedef DECLARE_BLOCK(int, heapsort_block, const void *, const void *);
  * Select the top of the heap and 'heapify'.  Since by far the most expensive
  * action is the call to the compar function, a considerable optimization
  * in the average case can be achieved due to the fact that k, the displaced
- * elememt, is ususally quite small, so it would be preferable to first
+ * elememt, is usually quite small, so it would be preferable to first
  * heapify, always maintaining the invariant that the larger child is copied
  * over its parent's record.
  *
@@ -138,6 +140,12 @@ typedef DECLARE_BLOCK(int, heapsort_block, const void *, const void *);
 	} \
 }
 
+#ifdef I_AM_HEAPSORT_B
+int heapsort_b(void *, size_t, size_t, heapsort_block);
+#else
+int heapsort(void *, size_t, size_t,
+    int (*)(const void *, const void *));
+#endif
 /*
  * Heapsort -- Knuth, Vol. 3, page 145.  Runs in O (N lg N), both average
  * and worst.  While heapsort is faster than the worst case of quicksort,
@@ -147,16 +155,11 @@ typedef DECLARE_BLOCK(int, heapsort_block, const void *, const void *);
  */
 #ifdef I_AM_HEAPSORT_B
 int
-heapsort_b(vbase, nmemb, size, compar)
-	void *vbase;
-	size_t nmemb, size;
-	heapsort_block compar;
+heapsort_b(void *vbase, size_t nmemb, size_t size, heapsort_block compar)
 #else
 int
-heapsort(vbase, nmemb, size, compar)
-	void *vbase;
-	size_t nmemb, size;
-	int (*compar)(const void *, const void *);
+heapsort(void *vbase, size_t nmemb, size_t size,
+    int (*compar)(const void *, const void *))
 #endif
 {
 	size_t cnt, i, j, l;

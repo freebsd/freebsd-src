@@ -14,16 +14,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "NVPTX.h"
-#include "llvm/Pass.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/Target/TargetFrameLowering.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetFrameLowering.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "nvptx-prolog-epilog"
 
 namespace {
 class NVPTXPrologEpilogPass : public MachineFunctionPass {
@@ -31,7 +34,7 @@ public:
   static char ID;
   NVPTXPrologEpilogPass() : MachineFunctionPass(ID) {}
 
-  virtual bool runOnMachineFunction(MachineFunction &MF);
+  bool runOnMachineFunction(MachineFunction &MF) override;
 
 private:
   void calculateFrameObjectOffsets(MachineFunction &Fn);
@@ -45,31 +48,30 @@ MachineFunctionPass *llvm::createNVPTXPrologEpilogPass() {
 char NVPTXPrologEpilogPass::ID = 0;
 
 bool NVPTXPrologEpilogPass::runOnMachineFunction(MachineFunction &MF) {
-  const TargetMachine &TM = MF.getTarget();
-  const TargetFrameLowering &TFI = *TM.getFrameLowering();
-  const TargetRegisterInfo &TRI = *TM.getRegisterInfo();
+  const TargetSubtargetInfo &STI = MF.getSubtarget();
+  const TargetFrameLowering &TFI = *STI.getFrameLowering();
+  const TargetRegisterInfo &TRI = *STI.getRegisterInfo();
   bool Modified = false;
 
   calculateFrameObjectOffsets(MF);
 
-  for (MachineFunction::iterator BB = MF.begin(), E = MF.end(); BB != E; ++BB) {
-    for (MachineBasicBlock::iterator I = BB->begin(); I != BB->end(); ++I) {
-      MachineInstr *MI = I;
-      for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
-        if (!MI->getOperand(i).isFI())
+  for (MachineBasicBlock &MBB : MF) {
+    for (MachineInstr &MI : MBB) {
+      for (unsigned i = 0, e = MI.getNumOperands(); i != e; ++i) {
+        if (!MI.getOperand(i).isFI())
           continue;
-        TRI.eliminateFrameIndex(MI, 0, i, NULL);
+        TRI.eliminateFrameIndex(MI, 0, i, nullptr);
         Modified = true;
       }
     }
   }
 
   // Add function prolog/epilog
-  TFI.emitPrologue(MF);
+  TFI.emitPrologue(MF, MF.front());
 
   for (MachineFunction::iterator I = MF.begin(), E = MF.end(); I != E; ++I) {
     // If last instruction is a return instruction, add an epilogue
-    if (!I->empty() && I->back().isReturn())
+    if (I->isReturnBlock())
       TFI.emitEpilogue(MF, *I);
   }
 
@@ -78,14 +80,14 @@ bool NVPTXPrologEpilogPass::runOnMachineFunction(MachineFunction &MF) {
 
 /// AdjustStackOffset - Helper function used to adjust the stack frame offset.
 static inline void
-AdjustStackOffset(MachineFrameInfo *MFI, int FrameIdx,
+AdjustStackOffset(MachineFrameInfo &MFI, int FrameIdx,
                   bool StackGrowsDown, int64_t &Offset,
                   unsigned &MaxAlign) {
   // If the stack grows down, add the object size to find the lowest address.
   if (StackGrowsDown)
-    Offset += MFI->getObjectSize(FrameIdx);
+    Offset += MFI.getObjectSize(FrameIdx);
 
-  unsigned Align = MFI->getObjectAlignment(FrameIdx);
+  unsigned Align = MFI.getObjectAlignment(FrameIdx);
 
   // If the alignment of this object is greater than that of the stack, then
   // increase the stack alignment to match.
@@ -96,24 +98,24 @@ AdjustStackOffset(MachineFrameInfo *MFI, int FrameIdx,
 
   if (StackGrowsDown) {
     DEBUG(dbgs() << "alloc FI(" << FrameIdx << ") at SP[" << -Offset << "]\n");
-    MFI->setObjectOffset(FrameIdx, -Offset); // Set the computed offset
+    MFI.setObjectOffset(FrameIdx, -Offset); // Set the computed offset
   } else {
     DEBUG(dbgs() << "alloc FI(" << FrameIdx << ") at SP[" << Offset << "]\n");
-    MFI->setObjectOffset(FrameIdx, Offset);
-    Offset += MFI->getObjectSize(FrameIdx);
+    MFI.setObjectOffset(FrameIdx, Offset);
+    Offset += MFI.getObjectSize(FrameIdx);
   }
 }
 
 void
 NVPTXPrologEpilogPass::calculateFrameObjectOffsets(MachineFunction &Fn) {
-  const TargetFrameLowering &TFI = *Fn.getTarget().getFrameLowering();
-  const TargetRegisterInfo *RegInfo = Fn.getTarget().getRegisterInfo();
+  const TargetFrameLowering &TFI = *Fn.getSubtarget().getFrameLowering();
+  const TargetRegisterInfo *RegInfo = Fn.getSubtarget().getRegisterInfo();
 
   bool StackGrowsDown =
     TFI.getStackGrowthDirection() == TargetFrameLowering::StackGrowsDown;
 
   // Loop over all of the stack objects, assigning sequential addresses...
-  MachineFrameInfo *MFI = Fn.getFrameInfo();
+  MachineFrameInfo &MFI = Fn.getFrameInfo();
 
   // Start at the beginning of the local area.
   // The Offset is the distance from the stack top in the direction
@@ -130,24 +132,24 @@ NVPTXPrologEpilogPass::calculateFrameObjectOffsets(MachineFunction &Fn) {
   // We currently don't support filling in holes in between fixed sized
   // objects, so we adjust 'Offset' to point to the end of last fixed sized
   // preallocated object.
-  for (int i = MFI->getObjectIndexBegin(); i != 0; ++i) {
+  for (int i = MFI.getObjectIndexBegin(); i != 0; ++i) {
     int64_t FixedOff;
     if (StackGrowsDown) {
       // The maximum distance from the stack pointer is at lower address of
       // the object -- which is given by offset. For down growing stack
       // the offset is negative, so we negate the offset to get the distance.
-      FixedOff = -MFI->getObjectOffset(i);
+      FixedOff = -MFI.getObjectOffset(i);
     } else {
       // The maximum distance from the start pointer is at the upper
       // address of the object.
-      FixedOff = MFI->getObjectOffset(i) + MFI->getObjectSize(i);
+      FixedOff = MFI.getObjectOffset(i) + MFI.getObjectSize(i);
     }
     if (FixedOff > Offset) Offset = FixedOff;
   }
 
   // NOTE: We do not have a call stack
 
-  unsigned MaxAlign = MFI->getMaxAlignment();
+  unsigned MaxAlign = MFI.getMaxAlignment();
 
   // No scavenger
 
@@ -155,8 +157,8 @@ NVPTXPrologEpilogPass::calculateFrameObjectOffsets(MachineFunction &Fn) {
   // check for whether the frame is large enough to want to use virtual
   // frame index registers. Functions which don't want/need this optimization
   // will continue to use the existing code path.
-  if (MFI->getUseLocalStackAllocationBlock()) {
-    unsigned Align = MFI->getLocalFrameMaxAlign();
+  if (MFI.getUseLocalStackAllocationBlock()) {
+    unsigned Align = MFI.getLocalFrameMaxAlign();
 
     // Adjust to alignment boundary.
     Offset = (Offset + Align - 1) / Align * Align;
@@ -164,15 +166,15 @@ NVPTXPrologEpilogPass::calculateFrameObjectOffsets(MachineFunction &Fn) {
     DEBUG(dbgs() << "Local frame base offset: " << Offset << "\n");
 
     // Resolve offsets for objects in the local block.
-    for (unsigned i = 0, e = MFI->getLocalFrameObjectCount(); i != e; ++i) {
-      std::pair<int, int64_t> Entry = MFI->getLocalFrameObjectMap(i);
+    for (unsigned i = 0, e = MFI.getLocalFrameObjectCount(); i != e; ++i) {
+      std::pair<int, int64_t> Entry = MFI.getLocalFrameObjectMap(i);
       int64_t FIOffset = (StackGrowsDown ? -Offset : Offset) + Entry.second;
       DEBUG(dbgs() << "alloc FI(" << Entry.first << ") at SP[" <<
             FIOffset << "]\n");
-      MFI->setObjectOffset(Entry.first, FIOffset);
+      MFI.setObjectOffset(Entry.first, FIOffset);
     }
     // Allocate the local block
-    Offset += MFI->getLocalFrameSize();
+    Offset += MFI.getLocalFrameSize();
 
     MaxAlign = std::max(Align, MaxAlign);
   }
@@ -181,11 +183,11 @@ NVPTXPrologEpilogPass::calculateFrameObjectOffsets(MachineFunction &Fn) {
 
   // Then assign frame offsets to stack objects that are not used to spill
   // callee saved registers.
-  for (unsigned i = 0, e = MFI->getObjectIndexEnd(); i != e; ++i) {
-    if (MFI->isObjectPreAllocated(i) &&
-        MFI->getUseLocalStackAllocationBlock())
+  for (unsigned i = 0, e = MFI.getObjectIndexEnd(); i != e; ++i) {
+    if (MFI.isObjectPreAllocated(i) &&
+        MFI.getUseLocalStackAllocationBlock())
       continue;
-    if (MFI->isDeadObjectIndex(i))
+    if (MFI.isDeadObjectIndex(i))
       continue;
 
     AdjustStackOffset(MFI, i, StackGrowsDown, Offset, MaxAlign);
@@ -197,8 +199,8 @@ NVPTXPrologEpilogPass::calculateFrameObjectOffsets(MachineFunction &Fn) {
     // If we have reserved argument space for call sites in the function
     // immediately on entry to the current function, count it as part of the
     // overall stack size.
-    if (MFI->adjustsStack() && TFI.hasReservedCallFrame(Fn))
-      Offset += MFI->getMaxCallFrameSize();
+    if (MFI.adjustsStack() && TFI.hasReservedCallFrame(Fn))
+      Offset += MFI.getMaxCallFrameSize();
 
     // Round up the size to a multiple of the alignment.  If the function has
     // any calls or alloca's, align to the target's StackAlignment value to
@@ -206,8 +208,8 @@ NVPTXPrologEpilogPass::calculateFrameObjectOffsets(MachineFunction &Fn) {
     // otherwise, for leaf functions, align to the TransientStackAlignment
     // value.
     unsigned StackAlign;
-    if (MFI->adjustsStack() || MFI->hasVarSizedObjects() ||
-        (RegInfo->needsStackRealignment(Fn) && MFI->getObjectIndexEnd() != 0))
+    if (MFI.adjustsStack() || MFI.hasVarSizedObjects() ||
+        (RegInfo->needsStackRealignment(Fn) && MFI.getObjectIndexEnd() != 0))
       StackAlign = TFI.getStackAlignment();
     else
       StackAlign = TFI.getTransientStackAlignment();
@@ -221,5 +223,5 @@ NVPTXPrologEpilogPass::calculateFrameObjectOffsets(MachineFunction &Fn) {
 
   // Update frame info to pretend that this is part of the stack...
   int64_t StackSize = Offset - LocalAreaOffset;
-  MFI->setStackSize(StackSize);
+  MFI.setStackSize(StackSize);
 }

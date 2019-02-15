@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1992 Diomidis Spinellis.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -14,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -160,10 +162,10 @@ compile_stream(struct s_command **link)
 	char re[_POSIX2_LINE_MAX + 1];
 	int naddr;				/* Number of addresses */
 
-	stack = 0;
+	stack = NULL;
 	for (;;) {
 		if ((p = cu_fgets(lbuf, sizeof(lbuf), NULL)) == NULL) {
-			if (stack != 0)
+			if (stack != NULL)
 				errx(1, "%lu: %s: unexpected EOF (pending }'s)",
 							linenum, fname);
 			return (link);
@@ -203,9 +205,9 @@ semicolon:	EATSPACE();
 				p = compile_addr(p, cmd->a2);
 				EATSPACE();
 			} else
-				cmd->a2 = 0;
+				cmd->a2 = NULL;
 		} else
-			cmd->a1 = cmd->a2 = 0;
+			cmd->a1 = cmd->a2 = NULL;
 
 nonsel:		/* Now parse the command */
 		if (!*p)
@@ -241,7 +243,7 @@ nonsel:		/* Now parse the command */
 			 * group is really just a noop.
 			 */
 			cmd->nonsel = 1;
-			if (stack == 0)
+			if (stack == NULL)
 				errx(1, "%lu: %s: unexpected }", linenum, fname);
 			cmd2 = stack;
 			stack = cmd2->next;
@@ -364,7 +366,7 @@ nonsel:		/* Now parse the command */
 }
 
 /*
- * Get a delimited string.  P points to the delimeter of the string; d points
+ * Get a delimited string.  P points to the delimiter of the string; d points
  * to a buffer area.  Newline and delimiter escapes are processed; other
  * escapes are ignored.
  *
@@ -544,7 +546,7 @@ compile_subst(char *p, struct s_subst *s)
 			if ((text = realloc(text, asize)) == NULL)
 				err(1, "realloc");
 		}
-	} while (cu_fgets(p = lbuf, sizeof(lbuf), &more));
+	} while (cu_fgets(p = lbuf, sizeof(lbuf), &more) != NULL);
 	errx(1, "%lu: %s: unterminated substitute in regular expression",
 			linenum, fname);
 	/* NOTREACHED */
@@ -558,7 +560,7 @@ compile_flags(char *p, struct s_subst *s)
 {
 	int gn;			/* True if we have seen g or n */
 	unsigned long nval;
-	char wfile[_POSIX2_LINE_MAX + 1], *q;
+	char wfile[_POSIX2_LINE_MAX + 1], *q, *eq;
 
 	s->n = 1;				/* Default */
 	s->p = 0;
@@ -611,9 +613,12 @@ compile_flags(char *p, struct s_subst *s)
 #endif
 			EATSPACE();
 			q = wfile;
+			eq = wfile + sizeof(wfile) - 1;
 			while (*p) {
 				if (*p == '\n')
 					break;
+				if (q >= eq)
+					err(1, "wfile too long");
 				*q++ = *p++;
 			}
 			*q = '\0';
@@ -727,7 +732,7 @@ compile_tr(char *p, struct s_tr **py)
 }
 
 /*
- * Compile the text following an a or i command.
+ * Compile the text following an a, c, or i command.
  */
 static char *
 compile_text(void)
@@ -740,10 +745,12 @@ compile_text(void)
 	if ((text = malloc(asize)) == NULL)
 		err(1, "malloc");
 	size = 0;
-	while (cu_fgets(lbuf, sizeof(lbuf), NULL)) {
+	while (cu_fgets(lbuf, sizeof(lbuf), NULL) != NULL) {
 		op = s = text + size;
 		p = lbuf;
+#ifdef LEGACY_BSDSED_COMPAT
 		EATSPACE();
+#endif
 		for (esc_nl = 0; *p != '\0'; p++) {
 			if (*p == '\\' && p[1] != '\0' && *++p == '\n')
 				esc_nl = 1;

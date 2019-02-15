@@ -7,11 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-def HasMSA : Predicate<"Subtarget.hasMSA()">,
-             AssemblerPredicate<"FeatureMSA">;
-
-class MSAInst : MipsInst<(outs), (ins), "", [], NoItinerary, FrmOther> {
-  let Predicates = [HasMSA];
+class MSAInst : MipsInst<(outs), (ins), "", [], NoItinerary, FrmOther>,
+                PredicateControl, ASE_MSA {
+  let EncodingPredicates = [HasStdEnc];
   let Inst{31-26} = 0b011110;
 }
 
@@ -23,7 +21,7 @@ class MSASpecial : MSAInst {
   let Inst{31-26} = 0b000000;
 }
 
-class PseudoMSA<dag outs, dag ins, list<dag> pattern,
+class MSAPseudo<dag outs, dag ins, list<dag> pattern,
                 InstrItinClass itin = IIPseudo>:
   MipsPseudo<outs, ins, pattern, itin> {
   let Predicates = [HasMSA];
@@ -82,6 +80,17 @@ class MSA_BIT_D_FMT<bits<3> major, bits<6> minor>: MSAInst {
 }
 
 class MSA_2R_FILL_FMT<bits<8> major, bits<2> df, bits<6> minor>: MSAInst {
+  bits<5> rs;
+  bits<5> wd;
+
+  let Inst{25-18} = major;
+  let Inst{17-16} = df;
+  let Inst{15-11} = rs;
+  let Inst{10-6} = wd;
+  let Inst{5-0} = minor;
+}
+
+class MSA_2R_FILL_D_FMT<bits<8> major, bits<2> df, bits<6> minor>: MSAInst {
   bits<5> rs;
   bits<5> wd;
 
@@ -274,6 +283,19 @@ class MSA_ELM_COPY_W_FMT<bits<4> major, bits<6> minor>: MSAInst {
   let Inst{5-0} = minor;
 }
 
+class MSA_ELM_COPY_D_FMT<bits<4> major, bits<6> minor>: MSAInst {
+  bits<4> n;
+  bits<5> ws;
+  bits<5> rd;
+
+  let Inst{25-22} = major;
+  let Inst{21-17} = 0b11100;
+  let Inst{16} = n{0};
+  let Inst{15-11} = ws;
+  let Inst{10-6} = rd;
+  let Inst{5-0} = minor;
+}
+
 class MSA_ELM_INSERT_B_FMT<bits<4> major, bits<6> minor>: MSAInst {
   bits<6> n;
   bits<5> rs;
@@ -308,6 +330,19 @@ class MSA_ELM_INSERT_W_FMT<bits<4> major, bits<6> minor>: MSAInst {
   let Inst{25-22} = major;
   let Inst{21-18} = 0b1100;
   let Inst{17-16} = n{1-0};
+  let Inst{15-11} = rs;
+  let Inst{10-6} = wd;
+  let Inst{5-0} = minor;
+}
+
+class MSA_ELM_INSERT_D_FMT<bits<4> major, bits<6> minor>: MSAInst {
+  bits<6> n;
+  bits<5> rs;
+  bits<5> wd;
+
+  let Inst{25-22} = major;
+  let Inst{21-17} = 0b11100;
+  let Inst{16} = n{0};
   let Inst{15-11} = rs;
   let Inst{10-6} = wd;
   let Inst{5-0} = minor;
@@ -392,6 +427,20 @@ class MSA_CBRANCH_V_FMT<bits<5> major>: MSACBranch {
 }
 
 class SPECIAL_LSA_FMT<bits<6> minor>: MSASpecial {
+  bits<5> rs;
+  bits<5> rt;
+  bits<5> rd;
+  bits<2> sa;
+
+  let Inst{25-21} = rs;
+  let Inst{20-16} = rt;
+  let Inst{15-11} = rd;
+  let Inst{10-8} = 0b000;
+  let Inst{7-6} = sa;
+  let Inst{5-0} = minor;
+}
+
+class SPECIAL_DLSA_FMT<bits<6> minor>: MSASpecial {
   bits<5> rs;
   bits<5> rt;
   bits<5> rd;

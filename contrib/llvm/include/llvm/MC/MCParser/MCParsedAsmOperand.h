@@ -1,4 +1,4 @@
-//===-- llvm/MC/MCParsedAsmOperand.h - Asm Parser Operand -------*- C++ -*-===//
+//===- llvm/MC/MCParsedAsmOperand.h - Asm Parser Operand --------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -10,8 +10,12 @@
 #ifndef LLVM_MC_MCPARSER_MCPARSEDASMOPERAND_H
 #define LLVM_MC_MCPARSER_MCPARSEDASMOPERAND_H
 
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/SMLoc.h"
+#include <string>
+
 namespace llvm {
-class SMLoc;
+
 class raw_ostream;
 
 /// MCParsedAsmOperand - This abstract class represents a source-level assembly
@@ -27,9 +31,17 @@ class MCParsedAsmOperand {
   /// MS-style inline assembly.
   std::string Constraint;
 
+protected:
+  // This only seems to need to be movable (by ARMOperand) but ARMOperand has
+  // lots of members and MSVC doesn't support defaulted move ops, so to avoid
+  // that verbosity, just rely on defaulted copy ops. It's only the Constraint
+  // string member that would benefit from movement anyway.
+  MCParsedAsmOperand() = default;
+  MCParsedAsmOperand(const MCParsedAsmOperand &RHS) = default;
+  MCParsedAsmOperand &operator=(const MCParsedAsmOperand &) = default;
+
 public:
-  MCParsedAsmOperand() {}
-  virtual ~MCParsedAsmOperand() {}
+  virtual ~MCParsedAsmOperand() = default;
 
   void setConstraint(StringRef C) { Constraint = C.str(); }
   StringRef getConstraint() { return Constraint; }
@@ -38,7 +50,7 @@ public:
   unsigned getMCOperandNum() { return MCOperandNum; }
 
   virtual StringRef getSymName() { return StringRef(); }
-  virtual void *getOpDecl() { return 0; }
+  virtual void *getOpDecl() { return nullptr; }
 
   /// isToken - Is this a token operand?
   virtual bool isToken() const = 0;
@@ -70,6 +82,7 @@ public:
 
   /// print - Print a debug representation of the operand to the given stream.
   virtual void print(raw_ostream &OS) const = 0;
+
   /// dump - Print to the debug stream.
   virtual void dump() const;
 };
@@ -82,6 +95,6 @@ inline raw_ostream& operator<<(raw_ostream &OS, const MCParsedAsmOperand &MO) {
   return OS;
 }
 
-} // end namespace llvm.
+} // end namespace llvm
 
-#endif
+#endif // LLVM_MC_MCPARSER_MCPARSEDASMOPERAND_H

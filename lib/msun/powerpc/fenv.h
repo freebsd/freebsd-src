@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2005 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
@@ -87,8 +89,13 @@ extern const fenv_t	__fe_dfl_env;
 			 FE_OVERFLOW | FE_UNDERFLOW) >> _FPUSW_SHIFT)
 
 #ifndef _SOFT_FLOAT
+#ifdef __SPE__
+#define	__mffs(__env)	__asm __volatile("mfspr %0, 512" : "=r" (*(__env)))
+#define	__mtfsf(__env)	__asm __volatile("mtspr 512,%0" : : "r" (__env))
+#else
 #define	__mffs(__env)	__asm __volatile("mffs %0" : "=f" (*(__env)))
 #define	__mtfsf(__env)	__asm __volatile("mtfsf 255,%0" : : "f" (__env))
+#endif
 #else
 #define	__mffs(__env)
 #define	__mtfsf(__env)
@@ -97,8 +104,13 @@ extern const fenv_t	__fe_dfl_env;
 union __fpscr {
 	double __d;
 	struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+		fenv_t __reg;
+		__uint32_t __junk;
+#else
 		__uint32_t __junk;
 		fenv_t __reg;
+#endif
 	} __bits;
 };
 

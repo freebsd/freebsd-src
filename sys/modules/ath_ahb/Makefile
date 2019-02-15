@@ -29,13 +29,13 @@
 # $FreeBSD$
 #
 
-.PATH:	${.CURDIR}/../../dev/ath
-.PATH:	${.CURDIR}/../../dev/ath/ath_hal
+.PATH:	${SRCTOP}/sys/dev/ath
+.PATH:	${SRCTOP}/sys/dev/ath/ath_hal
 
 KMOD=	if_ath_ahb
 SRCS=	if_ath_ahb.c
 SRCS+=	device_if.h bus_if.h opt_wlan.h opt_ath.h opt_ah.h
 
-CFLAGS+=  -I. -I${.CURDIR}/../../dev/ath -I${.CURDIR}/../../dev/ath/ath_hal
+CFLAGS+=  -I. -I${SRCTOP}/sys/dev/ath -I${SRCTOP}/sys/dev/ath/ath_hal
 
 .include <bsd.kmod.mk>

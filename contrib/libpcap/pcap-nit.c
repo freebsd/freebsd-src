@@ -18,13 +18,9 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-nit.c,v 1.62 2008-04-14 20:40:58 guy Exp $ (LBL)";
-#endif
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
 #include <sys/types.h>
@@ -71,9 +67,17 @@ static const char rcsid[] _U_ =
 /* Forwards */
 static int nit_setflags(int, int, int, char *);
 
+/*
+ * Private data for capturing on NIT devices.
+ */
+struct pcap_nit {
+	struct pcap_stat stat;
+};
+
 static int
 pcap_stats_nit(pcap_t *p, struct pcap_stat *ps)
 {
+	struct pcap_nit *pn = p->priv;
 
 	/*
 	 * "ps_recv" counts packets handed to the filter, not packets
@@ -91,13 +95,14 @@ pcap_stats_nit(pcap_t *p, struct pcap_stat *ps)
 	 * kernel by libpcap or packets not yet read from libpcap by the
 	 * application.
 	 */
-	*ps = p->md.stat;
+	*ps = pn->stat;
 	return (0);
 }
 
 static int
 pcap_read_nit(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 {
+	struct pcap_nit *pn = p->priv;
 	register int cc, n;
 	register u_char *bp, *cp, *ep;
 	register struct nit_hdr *nh;
@@ -109,11 +114,11 @@ pcap_read_nit(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 		if (cc < 0) {
 			if (errno == EWOULDBLOCK)
 				return (0);
-			snprintf(p->errbuf, sizeof(p->errbuf), "pcap_read: %s",
-				pcap_strerror(errno));
+			pcap_fmt_errmsg_for_errno(p->errbuf, sizeof(p->errbuf),
+			    errno, "pcap_read");
 			return (-1);
 		}
-		bp = p->buffer;
+		bp = (u_char *)p->buffer;
 	} else
 		bp = p->bp;
 
@@ -156,18 +161,18 @@ pcap_read_nit(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 		case NIT_NOMBUF:
 		case NIT_NOCLUSTER:
 		case NIT_NOSPACE:
-			p->md.stat.ps_drop = nh->nh_dropped;
+			pn->stat.ps_drop = nh->nh_dropped;
 			continue;
 
 		case NIT_SEQNO:
 			continue;
 
 		default:
-			snprintf(p->errbuf, sizeof(p->errbuf),
+			pcap_snprintf(p->errbuf, sizeof(p->errbuf),
 			    "bad nit state %d", nh->nh_state);
 			return (-1);
 		}
-		++p->md.stat.ps_recv;
+		++pn->stat.ps_recv;
 		bp += ((sizeof(struct nit_hdr) + nh->nh_datalen +
 		    sizeof(int) - 1) & ~(sizeof(int) - 1));
 
@@ -180,7 +185,7 @@ pcap_read_nit(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 			h.len = nh->nh_wirelen;
 			h.caplen = caplen;
 			(*callback)(user, &h, cp);
-			if (++n >= cnt && cnt > 0) {
+			if (++n >= cnt && !PACKET_COUNT_IS_UNLIMITED(cnt)) {
 				p->cc = ep - bp;
 				p->bp = bp;
 				return (n);
@@ -201,37 +206,51 @@ pcap_inject_nit(pcap_t *p, const void *buf, size_t size)
 	strncpy(sa.sa_data, device, sizeof(sa.sa_data));
 	ret = sendto(p->fd, buf, size, 0, &sa, sizeof(sa));
 	if (ret == -1) {
-		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "send: %s",
-		    pcap_strerror(errno));
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "send");
 		return (-1);
 	}
 	return (ret);
-}                           
+}
 
 static int
-nit_setflags(int fd, int promisc, int to_ms, char *ebuf)
+nit_setflags(pcap_t *p)
 {
 	struct nit_ioc nioc;
 
 	memset(&nioc, 0, sizeof(nioc));
-	nioc.nioc_bufspace = BUFSPACE;
-	nioc.nioc_chunksize = CHUNKSIZE;
 	nioc.nioc_typetomatch = NT_ALLTYPES;
 	nioc.nioc_snaplen = p->snapshot;
 	nioc.nioc_bufalign = sizeof(int);
 	nioc.nioc_bufoffset = 0;
 
-	if (to_ms != 0) {
-		nioc.nioc_flags |= NF_TIMEOUT;
-		nioc.nioc_timeout.tv_sec = to_ms / 1000;
-		nioc.nioc_timeout.tv_usec = (to_ms * 1000) % 1000000;
+	if (p->opt.buffer_size != 0)
+		nioc.nioc_bufspace = p->opt.buffer_size;
+	else {
+		/* Default buffer size */
+		nioc.nioc_bufspace = BUFSPACE;
 	}
-	if (promisc)
+
+	if (p->opt.immediate) {
+		/*
+		 * XXX - will this cause packets to be delivered immediately?
+		 * XXX - given that this is for SunOS prior to 4.0, do
+		 * we care?
+		 */
+		nioc.nioc_chunksize = 0;
+	} else
+		nioc.nioc_chunksize = CHUNKSIZE;
+	if (p->opt.timeout != 0) {
+		nioc.nioc_flags |= NF_TIMEOUT;
+		nioc.nioc_timeout.tv_sec = p->opt.timeout / 1000;
+		nioc.nioc_timeout.tv_usec = (p->opt.timeout * 1000) % 1000000;
+	}
+	if (p->opt.promisc)
 		nioc.nioc_flags |= NF_PROMISC;
 
-	if (ioctl(fd, SIOCSNIT, &nioc) < 0) {
-		snprintf(ebuf, PCAP_ERRBUF_SIZE, "SIOCSNIT: %s",
-		    pcap_strerror(errno));
+	if (ioctl(p->fd, SIOCSNIT, &nioc) < 0) {
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "SIOCSNIT");
 		return (-1);
 	}
 	return (0);
@@ -252,6 +271,17 @@ pcap_activate_nit(pcap_t *p)
 		return (PCAP_ERROR_RFMON_NOTSUP);
 	}
 
+	/*
+	 * Turn a negative snapshot value (invalid), a snapshot value of
+	 * 0 (unspecified), or a value bigger than the normal maximum
+	 * value, into the maximum allowed value.
+	 *
+	 * If some application really *needs* a bigger snapshot
+	 * length, we should just increase MAXIMUM_SNAPLEN.
+	 */
+	if (p->snapshot <= 0 || p->snapshot > MAXIMUM_SNAPLEN)
+		p->snapshot = MAXIMUM_SNAPLEN;
+
 	if (p->snapshot < 96)
 		/*
 		 * NIT requires a snapshot length of at least 96.
@@ -261,19 +291,27 @@ pcap_activate_nit(pcap_t *p)
 	memset(p, 0, sizeof(*p));
 	p->fd = fd = socket(AF_NIT, SOCK_RAW, NITPROTO_RAW);
 	if (fd < 0) {
-		snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
-		    "socket: %s", pcap_strerror(errno));
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "socket");
 		goto bad;
 	}
 	snit.snit_family = AF_NIT;
-	(void)strncpy(snit.snit_ifname, p->opt.source, NITIFSIZ);
+	(void)strncpy(snit.snit_ifname, p->opt.device, NITIFSIZ);
 
 	if (bind(fd, (struct sockaddr *)&snit, sizeof(snit))) {
-		snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
-		    "bind: %s: %s", snit.snit_ifname, pcap_strerror(errno));
+		/*
+		 * XXX - there's probably a particular bind error that
+		 * means "there's no such device" and a particular bind
+		 * error that means "that device doesn't support NIT";
+		 * they might be the same error, if they both end up
+		 * meaning "NIT doesn't know about that device".
+		 */
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "bind: %s", snit.snit_ifname);
 		goto bad;
 	}
-	nit_setflags(p->fd, p->opt.promisc, p->md.timeout, p->errbuf);
+	if (nit_setflags(p) < 0)
+		goto bad;
 
 	/*
 	 * NIT supports only ethernets.
@@ -281,9 +319,10 @@ pcap_activate_nit(pcap_t *p)
 	p->linktype = DLT_EN10MB;
 
 	p->bufsize = BUFSPACE;
-	p->buffer = (u_char *)malloc(p->bufsize);
+	p->buffer = malloc(p->bufsize);
 	if (p->buffer == NULL) {
-		strlcpy(p->errbuf, pcap_strerror(errno), PCAP_ERRBUF_SIZE);
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		    errno, "malloc");
 		goto bad;
 	}
 
@@ -328,11 +367,11 @@ pcap_activate_nit(pcap_t *p)
 }
 
 pcap_t *
-pcap_create_interface(const char *device, char *ebuf)
+pcap_create_interface(const char *device _U_, char *ebuf)
 {
 	pcap_t *p;
 
-	p = pcap_create_common(device, ebuf);
+	p = pcap_create_common(ebuf, sizeof (struct pcap_nit));
 	if (p == NULL)
 		return (NULL);
 
@@ -340,8 +379,39 @@ pcap_create_interface(const char *device, char *ebuf)
 	return (p);
 }
 
-int
-pcap_platform_finddevs(pcap_if_t **alldevsp, char *errbuf)
+/*
+ * XXX - there's probably a particular bind error that means "that device
+ * doesn't support NIT"; if so, we should try a bind and use that.
+ */
+static int
+can_be_bound(const char *name _U_)
 {
+	return (1);
+}
+
+static int
+get_if_flags(const char *name _U_, bpf_u_int32 *flags _U_, char *errbuf _U_)
+{
+	/*
+	 * Nothing we can do.
+	 * XXX - is there a way to find out whether an adapter has
+	 * something plugged into it?
+	 */
 	return (0);
+}
+
+int
+pcap_platform_finddevs(pcap_if_list_t *devlistp, char *errbuf)
+{
+	return (pcap_findalldevs_interfaces(devlistp, errbuf, can_be_bound,
+	    get_if_flags));
+}
+
+/*
+ * Libpcap version string.
+ */
+const char *
+pcap_lib_version(void)
+{
+	return (PCAP_VERSION_STRING);
 }

@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -86,7 +88,6 @@ ng_l2cap_con_wakeup(ng_l2cap_con_p con)
 
 	/* Process command */
 	switch (cmd->code) {
-	case NG_L2CAP_CMD_REJ:
 	case NG_L2CAP_DISCON_RSP:
 	case NG_L2CAP_ECHO_RSP:
 	case NG_L2CAP_INFO_RSP:
@@ -104,7 +105,16 @@ ng_l2cap_con_wakeup(ng_l2cap_con_p con)
 		ng_l2cap_unlink_cmd(cmd);
 		ng_l2cap_free_cmd(cmd);
 		break;
-
+	case NG_L2CAP_CMD_REJ:
+		(void) ng_l2cap_lp_send(con,
+					(con->linktype == NG_HCI_LINK_ACL)?
+					NG_L2CAP_SIGNAL_CID:
+					NG_L2CAP_LESIGNAL_CID
+					, m);
+		ng_l2cap_unlink_cmd(cmd);
+		ng_l2cap_free_cmd(cmd);
+		break;
+		
 	case NG_L2CAP_CON_REQ:
 		error = ng_l2cap_lp_send(con, NG_L2CAP_SIGNAL_CID, m);
 		if (error != 0) {
@@ -115,7 +125,6 @@ ng_l2cap_con_wakeup(ng_l2cap_con_p con)
 			ng_l2cap_command_timeout(cmd,
 				bluetooth_l2cap_rtx_timeout());
 		break;
-
 	case NG_L2CAP_CON_RSP:
 		error = ng_l2cap_lp_send(con, NG_L2CAP_SIGNAL_CID, m);
 		ng_l2cap_unlink_cmd(cmd);
@@ -208,9 +217,14 @@ ng_l2cap_con_wakeup(ng_l2cap_con_p con)
 		ng_l2cap_unlink_cmd(cmd);
 		ng_l2cap_free_cmd(cmd);
 		} break;
-
+	case NG_L2CAP_CMD_PARAM_UPDATE_RESPONSE:
+		error = ng_l2cap_lp_send(con, NG_L2CAP_LESIGNAL_CID, m);
+		ng_l2cap_unlink_cmd(cmd);
+		ng_l2cap_free_cmd(cmd);
+		break;
+	case NG_L2CAP_CMD_PARAM_UPDATE_REQUEST:
+		  /*TBD.*/
 	/* XXX FIXME add other commands */
-
 	default:
 		panic(
 "%s: %s - unknown command code=%d\n",
@@ -256,6 +270,7 @@ ng_l2cap_con_fail(ng_l2cap_con_p con, u_int16_t result)
 		case NG_L2CAP_DISCON_RSP:
 		case NG_L2CAP_ECHO_RSP:
 		case NG_L2CAP_INFO_RSP:
+		case NG_L2CAP_CMD_PARAM_UPDATE_RESPONSE:
 			break;
 
 		case NG_L2CAP_CON_REQ:
@@ -319,7 +334,7 @@ ng_l2cap_con_fail(ng_l2cap_con_p con, u_int16_t result)
 
 /*
  * Process L2CAP command timeout. In general - notify upper layer and destroy
- * channel. Do not pay much attension to return code, just do our best.
+ * channel. Do not pay much attention to return code, just do our best.
  */
 
 void

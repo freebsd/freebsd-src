@@ -28,7 +28,7 @@
  * Use is subject to license terms.
  */
 
-#include "assym.s"
+#include "assym.inc"
 
 #define _ASM
 
@@ -67,7 +67,13 @@ dtrace_icookie_t dtrace_interrupt_disable(void)
 */
 ASENTRY_NOPROF(dtrace_interrupt_disable)
 	mfmsr	%r3
-	andi.	%r0,%r3,~PSL_EE@l
+#ifdef __powerpc64__
+	/* Two-instruction sequence to clear EE flag */
+	rldicl	%r0,%r3,48,1
+	rotldi	%r0,%r0,16
+#else
+	rlwinm	%r0,%r3,0,17,15 /* Clear EE flag */
+#endif
 	mtmsr	%r0
 	blr
 END(dtrace_interrupt_disable)
@@ -161,45 +167,6 @@ ASENTRY_NOPROF(dtrace_copystr)
 END(dtrace_copystr)
 
 /*
- * The panic() and cmn_err() functions invoke vpanic() as a common entry point
- * into the panic code implemented in panicsys().  vpanic() is responsible
- * for passing through the format string and arguments, and constructing a
- * regs structure on the stack into which it saves the current register
- * values.  If we are not dying due to a fatal trap, these registers will
- * then be preserved in panicbuf as the current processor state.  Before
- * invoking panicsys(), vpanic() activates the first panic trigger (see
- * common/os/panic.c) and switches to the panic_stack if successful.  Note that
- * DTrace takes a slightly different panic path if it must panic from probe
- * context.  Instead of calling panic, it calls into dtrace_vpanic(), which
- * sets up the initial stack as vpanic does, calls dtrace_panic_trigger(), and
- * branches back into vpanic().
- */
-
-/*
-void
-vpanic(const char *format, va_list alist)
-*/
-ASENTRY_NOPROF(vpanic)				/* Initial stack layout: */
-	
-vpanic_common:
-	blr
-END(vpanic)
-
-
-
-/*
-void
-dtrace_vpanic(const char *format, va_list alist)
-*/
-ASENTRY_NOPROF(dtrace_vpanic)			/* Initial stack layout: */
-
-#if 0
-	bl	dtrace_panic_trigger	/* %eax = dtrace_panic_trigger() */
-#endif
-	b	vpanic_common
-END(dtrace_vpanic)
-
-/*
 uintptr_t
 dtrace_caller(int aframes)
 */
@@ -207,4 +174,3 @@ ASENTRY_NOPROF(dtrace_caller)
 	li	%r3, -1
 	blr
 END(dtrace_caller)
-

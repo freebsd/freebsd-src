@@ -1,7 +1,11 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 1998 Juniper Networks, Inc.
  * All rights reserved.
  * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
+ * All rights reserved.
+ * Copyright (c) 2015-2018 The University of Oslo
  * All rights reserved.
  *
  * Portions of this software were developed for the FreeBSD Project by
@@ -57,16 +61,17 @@ __FBSDID("$FreeBSD$");
 #define PAM_OPT_TEMPLATE_USER	"template_user"
 #define PAM_OPT_NAS_ID		"nas_id"
 #define PAM_OPT_NAS_IPADDR	"nas_ipaddr"
+#define PAM_OPT_NO_REPLYMSG	"no_reply_message"
 
 #define	MAX_CHALLENGE_MSGS	10
 #define	PASSWORD_PROMPT		"RADIUS Password:"
 
 static int	 build_access_request(struct rad_handle *, const char *,
-		    const char *, const char *, const char *, const void *,
-		    size_t);
+		    const char *, const char *, const char *, const char *,
+		    const void *, size_t);
 static int	 do_accept(pam_handle_t *, struct rad_handle *);
 static int	 do_challenge(pam_handle_t *, struct rad_handle *,
-		    const char *, const char *, const char *);
+		    const char *, const char *, const char *, const char *);
 
 /*
  * Construct an access request, but don't send it.  Returns 0 on success,
@@ -75,7 +80,7 @@ static int	 do_challenge(pam_handle_t *, struct rad_handle *,
 static int
 build_access_request(struct rad_handle *radh, const char *user,
     const char *pass, const char *nas_id, const char *nas_ipaddr,
-    const void *state, size_t state_len)
+    const char *rhost, const void *state, size_t state_len)
 {
 	int error;
 	char host[MAXHOSTNAMELEN];
@@ -121,8 +126,13 @@ build_access_request(struct rad_handle *radh, const char *user,
 			}
 		}
 	}
-	if (state != NULL && rad_put_attr(radh, RAD_STATE, state,
-	    state_len) == -1) {
+	if (rhost != NULL &&
+	    rad_put_string(radh, RAD_CALLING_STATION_ID, rhost) == -1) {
+		syslog(LOG_CRIT, "rad_put_string: %s", rad_strerror(radh));
+		return (-1);
+	}
+	if (state != NULL &&
+	    rad_put_attr(radh, RAD_STATE, state, state_len) == -1) {
 		syslog(LOG_CRIT, "rad_put_attr: %s", rad_strerror(radh));
 		return (-1);
 	}
@@ -142,15 +152,23 @@ do_accept(pam_handle_t *pamh, struct rad_handle *radh)
 	char *s;
 
 	while ((attrtype = rad_get_attr(radh, &attrval, &attrlen)) > 0) {
-		if (attrtype == RAD_USER_NAME) {
-			s = rad_cvt_string(attrval, attrlen);
-			if (s == NULL) {
-				syslog(LOG_CRIT,
-				    "rad_cvt_string: out of memory");
-				return (-1);
-			}
+		switch (attrtype) {
+		case RAD_USER_NAME:
+			if ((s = rad_cvt_string(attrval, attrlen)) == NULL)
+				goto enomem;
 			pam_set_item(pamh, PAM_USER, s);
 			free(s);
+			break;
+		case RAD_REPLY_MESSAGE:
+			if ((s = rad_cvt_string(attrval, attrlen)) == NULL)
+				goto enomem;
+			if (!openpam_get_option(pamh, PAM_OPT_NO_REPLYMSG))
+				pam_info(pamh, "%s", s);
+			free(s);
+			break;
+		default:
+			PAM_LOG("%s(): ignoring RADIUS attribute %d",
+			    __func__, attrtype);
 		}
 	}
 	if (attrtype == -1) {
@@ -158,11 +176,46 @@ do_accept(pam_handle_t *pamh, struct rad_handle *radh)
 		return (-1);
 	}
 	return (0);
+enomem:
+	syslog(LOG_CRIT, "%s(): out of memory", __func__);
+	return (-1);
+}
+
+static int
+do_reject(pam_handle_t *pamh, struct rad_handle *radh)
+{
+	int attrtype;
+	const void *attrval;
+	size_t attrlen;
+	char *s;
+
+	while ((attrtype = rad_get_attr(radh, &attrval, &attrlen)) > 0) {
+		switch (attrtype) {
+		case RAD_REPLY_MESSAGE:
+			if ((s = rad_cvt_string(attrval, attrlen)) == NULL)
+				goto enomem;
+			if (!openpam_get_option(pamh, PAM_OPT_NO_REPLYMSG))
+				pam_error(pamh, "%s", s);
+			free(s);
+			break;
+		default:
+			PAM_LOG("%s(): ignoring RADIUS attribute %d",
+			    __func__, attrtype);
+		}
+	}
+	if (attrtype < 0) {
+		syslog(LOG_CRIT, "rad_get_attr: %s", rad_strerror(radh));
+		return (-1);
+	}
+	return (0);
+enomem:
+	syslog(LOG_CRIT, "%s(): out of memory", __func__);
+	return (-1);
 }
 
 static int
 do_challenge(pam_handle_t *pamh, struct rad_handle *radh, const char *user,
-    const char *nas_id, const char *nas_ipaddr)
+    const char *nas_id, const char *nas_ipaddr, const char *rhost)
 {
 	int retval;
 	int attrtype;
@@ -230,7 +283,7 @@ do_challenge(pam_handle_t *pamh, struct rad_handle *radh, const char *user,
 	    conv->appdata_ptr)) != PAM_SUCCESS)
 		return (retval);
 	if (build_access_request(radh, user, resp[num_msgs-1].resp, nas_id,
-	    nas_ipaddr, state, statelen) == -1)
+	    nas_ipaddr, rhost, state, statelen) == -1)
 		return (PAM_SERVICE_ERR);
 	memset(resp[num_msgs-1].resp, 0, strlen(resp[num_msgs-1].resp));
 	free(resp[num_msgs-1].resp);
@@ -246,7 +299,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 {
 	struct rad_handle *radh;
 	const char *user, *pass;
-	const void *tmpuser;
+	const void *rhost, *tmpuser;
 	const char *conf_file, *template_user, *nas_id, *nas_ipaddr;
 	int retval;
 	int e;
@@ -255,6 +308,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	template_user = openpam_get_option(pamh, PAM_OPT_TEMPLATE_USER);
 	nas_id = openpam_get_option(pamh, PAM_OPT_NAS_ID);
 	nas_ipaddr = openpam_get_option(pamh, PAM_OPT_NAS_IPADDR);
+	pam_get_item(pamh, PAM_RHOST, &rhost);
 
 	retval = pam_get_user(pamh, &user, NULL);
 	if (retval != PAM_SUCCESS)
@@ -284,8 +338,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 
 	PAM_LOG("Radius config file read");
 
-	if (build_access_request(radh, user, pass, nas_id, nas_ipaddr, NULL,
-	    0) == -1) {
+	if (build_access_request(radh, user, pass, nas_id, nas_ipaddr, rhost,
+	    NULL, 0) == -1) {
 		rad_close(radh);
 		return (PAM_SERVICE_ERR);
 	}
@@ -324,13 +378,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 			return (PAM_SUCCESS);
 
 		case RAD_ACCESS_REJECT:
+			retval = do_reject(pamh, radh);
 			rad_close(radh);
 			PAM_VERBOSE_ERROR("Radius rejection");
 			return (PAM_AUTH_ERR);
 
 		case RAD_ACCESS_CHALLENGE:
 			retval = do_challenge(pamh, radh, user, nas_id,
-			    nas_ipaddr);
+			    nas_ipaddr, rhost);
 			if (retval != PAM_SUCCESS) {
 				rad_close(radh);
 				return (retval);

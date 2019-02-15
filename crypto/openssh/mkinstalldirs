@@ -4,8 +4,6 @@
 # Created: 1993-05-16
 # Public domain
 
-# $Id: mkinstalldirs,v 1.2 2003/11/21 12:48:55 djm Exp $
-
 errstatus=0
 
 for file

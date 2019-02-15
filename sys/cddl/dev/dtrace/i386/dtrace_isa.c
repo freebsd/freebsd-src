@@ -47,13 +47,12 @@
 extern uintptr_t kernbase;
 uintptr_t kernelbase = (uintptr_t) &kernbase;
 
-#define INKERNEL(va) (((vm_offset_t)(va)) >= USRSTACK && \
-	 ((vm_offset_t)(va)) < VM_MAX_KERNEL_ADDRESS)
-
 uint8_t dtrace_fuword8_nocheck(void *);
 uint16_t dtrace_fuword16_nocheck(void *);
 uint32_t dtrace_fuword32_nocheck(void *);
 uint64_t dtrace_fuword64_nocheck(void *);
+
+int	dtrace_ustackdepth_max = 2048;
 
 void
 dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
@@ -93,8 +92,8 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 		}
 
 		if (frame->f_frame <= frame ||
-		    (vm_offset_t)frame->f_frame >=
-		    (vm_offset_t)ebp + KSTACK_PAGES * PAGE_SIZE)
+		    (vm_offset_t)frame->f_frame >= curthread->td_kstack +
+		    curthread->td_kstack_pages * PAGE_SIZE)
 			break;
 		frame = frame->f_frame;
 	}
@@ -113,11 +112,13 @@ dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
 	uintptr_t oldcontext = lwp->lwp_oldcontext; /* XXX signal stack. */
 	size_t s1, s2;
 #endif
+	uintptr_t oldsp;
 	volatile uint16_t *flags =
 	    (volatile uint16_t *)&cpu_core[curcpu].cpuc_dtrace_flags;
 	int ret = 0;
 
 	ASSERT(pcstack == NULL || pcstack_limit > 0);
+	ASSERT(dtrace_ustackdepth_max > 0);
 
 #ifdef notyet /* XXX signal stack. */
 	if (p->p_model == DATAMODEL_NATIVE) {
@@ -130,7 +131,16 @@ dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
 #endif
 
 	while (pc != 0) {
-		ret++;
+		/*
+		 * We limit the number of times we can go around this
+		 * loop to account for a circular stack.
+		 */
+		if (ret++ >= dtrace_ustackdepth_max) {
+			*flags |= CPU_DTRACE_BADSTACK;
+			cpu_core[curcpu].cpuc_dtrace_illval = sp;
+			break;
+		}
+
 		if (pcstack != NULL) {
 			*pcstack++ = (uint64_t)pc;
 			pcstack_limit--;
@@ -140,6 +150,8 @@ dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
 
 		if (sp == 0)
 			break;
+
+		oldsp = sp;
 
 #ifdef notyet /* XXX signal stack. */ 
 		if (oldcontext == sp + s1 || oldcontext == sp + s2) {
@@ -178,6 +190,12 @@ dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
 			offsetof(struct i386_frame, f_retaddr)));
 		sp = dtrace_fuword32((void *)sp);
 #endif /* ! notyet */
+
+		if (sp == oldsp) {
+			*flags |= CPU_DTRACE_BADSTACK;
+			cpu_core[curcpu].cpuc_dtrace_illval = sp;
+			break;
+		}
 
 		/*
 		 * This is totally bogus:  if we faulted, we're going to clear
@@ -405,9 +423,9 @@ zero:
 uint64_t
 dtrace_getarg(int arg, int aframes)
 {
-	uintptr_t val;
+	struct trapframe *frame;
 	struct i386_frame *fp = (struct i386_frame *)dtrace_getfp();
-	uintptr_t *stack;
+	uintptr_t *stack, val;
 	int i;
 
 	for (i = 1; i <= aframes; i++) {
@@ -417,13 +435,18 @@ dtrace_getarg(int arg, int aframes)
 		    (long)dtrace_invop_callsite) {
 			/*
 			 * If we pass through the invalid op handler, we will
-			 * use the pointer that it passed to the stack as the
-			 * second argument to dtrace_invop() as the pointer to
-			 * the stack.  When using this stack, we must step
-			 * beyond the EIP/RIP that was pushed when the trap was
-			 * taken -- hence the "+ 1" below.
+			 * use the trap frame pointer that it pushed on the
+			 * stack as the second argument to dtrace_invop() as
+			 * the pointer to the stack.  When using this stack, we
+			 * must skip the third argument to dtrace_invop(),
+			 * which is included in the i386_frame.
 			 */
-			stack = ((uintptr_t **)&fp[1])[0] + 1;
+			frame = (struct trapframe *)(((uintptr_t **)&fp[1])[0]);
+			/*
+			 * Skip the three hardware-saved registers and the
+			 * return address.
+			 */
+			stack = (uintptr_t *)frame->tf_isp + 4;
 			goto load;
 		}
 
@@ -467,8 +490,8 @@ dtrace_getstackdepth(int aframes)
 			break;
 		depth++;
 		if (frame->f_frame <= frame ||
-		    (vm_offset_t)frame->f_frame >=
-		    (vm_offset_t)ebp + KSTACK_PAGES * PAGE_SIZE)
+		    (vm_offset_t)frame->f_frame >= curthread->td_kstack +
+		    curthread->td_kstack_pages * PAGE_SIZE)
 			break;
 		frame = frame->f_frame;
 	}

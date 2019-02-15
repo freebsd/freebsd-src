@@ -1,6 +1,8 @@
 /*	$NetBSD: clnt_vc.c,v 1.4 2000/07/14 08:40:42 fvdl Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -57,6 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -106,6 +109,8 @@ static struct clnt_ops clnt_vc_ops = {
 };
 
 static void clnt_vc_upcallsdone(struct ct_data *);
+
+static int	fake_wchan;
 
 /*
  * Create a client handle for a connection.
@@ -270,12 +275,10 @@ clnt_vc_create(
 	return (cl);
 
 err:
-	if (ct) {
-		mtx_destroy(&ct->ct_lock);
-		mem_free(ct, sizeof (struct ct_data));
-	}
-	if (cl)
-		mem_free(cl, sizeof (CLIENT));
+	mtx_destroy(&ct->ct_lock);
+	mem_free(ct, sizeof (struct ct_data));
+	mem_free(cl, sizeof (CLIENT));
+
 	return ((CLIENT *)NULL);
 }
 
@@ -300,7 +303,7 @@ clnt_vc_call(
 	uint32_t xid;
 	struct mbuf *mreq = NULL, *results;
 	struct ct_request *cr;
-	int error;
+	int error, trycnt;
 
 	cr = malloc(sizeof(struct ct_request), M_RPC, M_WAITOK);
 
@@ -330,8 +333,20 @@ clnt_vc_call(
 		timeout = ct->ct_wait;	/* use default timeout */
 	}
 
+	/*
+	 * After 15sec of looping, allow it to return RPC_CANTSEND, which will
+	 * cause the clnt_reconnect layer to create a new TCP connection.
+	 */
+	trycnt = 15 * hz;
 call_again:
 	mtx_assert(&ct->ct_lock, MA_OWNED);
+	if (ct->ct_closing || ct->ct_closed) {
+		ct->ct_threads--;
+		wakeup(ct);
+		mtx_unlock(&ct->ct_lock);
+		free(cr, M_RPC);
+		return (RPC_CANTSEND);
+	}
 
 	ct->ct_xid++;
 	xid = ct->ct_xid;
@@ -399,13 +414,16 @@ call_again:
 	 */
 	error = sosend(ct->ct_socket, NULL, NULL, mreq, NULL, 0, curthread);
 	mreq = NULL;
-	if (error == EMSGSIZE) {
+	if (error == EMSGSIZE || (error == ERESTART &&
+	    (ct->ct_waitflag & PCATCH) == 0 && trycnt-- > 0)) {
 		SOCKBUF_LOCK(&ct->ct_socket->so_snd);
 		sbwait(&ct->ct_socket->so_snd);
 		SOCKBUF_UNLOCK(&ct->ct_socket->so_snd);
 		AUTH_VALIDATE(auth, xid, NULL, NULL);
 		mtx_lock(&ct->ct_lock);
 		TAILQ_REMOVE(&ct->ct_pending, cr, cr_link);
+		/* Sleep for 1 clock tick before trying the sosend() again. */
+		msleep(&fake_wchan, &ct->ct_lock, 0, "rpclpsnd", 1);
 		goto call_again;
 	}
 
@@ -520,7 +538,7 @@ got_reply:
 			}
 		}		/* end successful completion */
 		/*
-		 * If unsuccesful AND error is an authentication error
+		 * If unsuccessful AND error is an authentication error
 		 * then refresh credentials and try again, else break
 		 */
 		else if (stat == RPC_AUTHERROR)
@@ -653,7 +671,7 @@ clnt_vc_control(CLIENT *cl, u_int request, void *info)
 		/*
 		 * This RELIES on the information that, in the call body,
 		 * the version number field is the fifth field from the
-		 * begining of the RPC header. MUST be changed if the
+		 * beginning of the RPC header. MUST be changed if the
 		 * call_struct is changed
 		 */
 		*(uint32_t *)info =
@@ -671,7 +689,7 @@ clnt_vc_control(CLIENT *cl, u_int request, void *info)
 		/*
 		 * This RELIES on the information that, in the call body,
 		 * the program number field is the fourth field from the
-		 * begining of the RPC header. MUST be changed if the
+		 * beginning of the RPC header. MUST be changed if the
 		 * call_struct is changed
 		 */
 		*(uint32_t *)info =
@@ -792,7 +810,7 @@ clnt_vc_destroy(CLIENT *cl)
 		sx_xlock(&xprt->xp_lock);
 		mtx_lock(&ct->ct_lock);
 		xprt->xp_p2 = NULL;
-		xprt_unregister(xprt);
+		sx_xunlock(&xprt->xp_lock);
 	}
 
 	if (ct->ct_socket) {
@@ -802,10 +820,6 @@ clnt_vc_destroy(CLIENT *cl)
 	}
 
 	mtx_unlock(&ct->ct_lock);
-	if (xprt != NULL) {
-		sx_xunlock(&xprt->xp_lock);
-		SVC_RELEASE(xprt);
-	}
 
 	mtx_destroy(&ct->ct_lock);
 	if (so) {
@@ -860,7 +874,7 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 			 * error condition
 			 */
 			do_read = FALSE;
-			if (so->so_rcv.sb_cc >= sizeof(uint32_t)
+			if (sbavail(&so->so_rcv) >= sizeof(uint32_t)
 			    || (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 			    || so->so_error)
 				do_read = TRUE;
@@ -913,7 +927,7 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 			 * buffered.
 			 */
 			do_read = FALSE;
-			if (so->so_rcv.sb_cc >= ct->ct_record_resid
+			if (sbavail(&so->so_rcv) >= ct->ct_record_resid
 			    || (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 			    || so->so_error)
 				do_read = TRUE;

@@ -1,4 +1,5 @@
 #!/bin/sh
+# vim: filetype=sh noexpandtab ts=8 sw=8
 # $FreeBSD: head/tools/regression/pjdfstest/tests/chown/00.t 228975 2011-12-30 00:04:11Z uqs $
 
 desc="chown changes ownership"
@@ -213,6 +214,20 @@ done
 # when non-super-user calls chown(2) successfully, set-uid and set-gid bits may
 # be removed, except when both uid and gid are equal to -1.
 for type in regular dir fifo block char socket symlink; do
+	#
+	# Linux makes a destinction for behavior when an executable file vs a
+	# non-executable file. From chmod(2):
+	#
+	#   When the owner or group of an executable file are changed by an
+	#   unprivileged user the S_ISUID and S_ISGID mode bits are cleared.
+	#
+	# I believe in this particular case, the behavior's bugged.
+	#
+	if [ "${type}" = "dir" -a "${os}" = "Linux" ]; then
+		_todo_msg="Linux doesn't clear the SGID/SUID bits for directories, despite the description noted"
+	else
+		_todo_msg=
+	fi
 	if [ "${type}" != "symlink" ]; then
 		create_file ${type} ${n0}
 
@@ -220,10 +235,12 @@ for type in regular dir fifo block char socket symlink; do
 		expect 0 chmod ${n0} 06555
 		expect 06555,65534,65533 stat ${n0} mode,uid,gid
 		expect 0 -u 65534 -g 65533,65532 chown ${n0} 65534 65532
+		[ -n "${_todo_msg}" ] && todo "Linux" "${_todo_msg}"
 		expect 0555,65534,65532 stat ${n0} mode,uid,gid
 		expect 0 chmod ${n0} 06555
 		expect 06555,65534,65532 stat ${n0} mode,uid,gid
 		expect 0 -u 65534 -g 65533,65532 -- chown ${n0} -1 65533
+		[ -n "${_todo_msg}" ] && todo "Linux" "${_todo_msg}"
 		expect 0555,65534,65533 stat ${n0} mode,uid,gid
 		expect 0 chmod ${n0} 06555
 		expect 06555,65534,65533 stat ${n0} mode,uid,gid
@@ -236,13 +253,17 @@ for type in regular dir fifo block char socket symlink; do
 		expect 06555,65534,65533 stat ${n0} mode,uid,gid
 		expect 06555,65534,65533 stat ${n1} mode,uid,gid
 		expect 0 -u 65534 -g 65533,65532 chown ${n1} 65534 65532
+		[ -n "${_todo_msg}" ] && todo "Linux" "${_todo_msg}"
 		expect 0555,65534,65532 stat ${n0} mode,uid,gid
+		[ -n "${_todo_msg}" ] && todo "Linux" "${_todo_msg}"
 		expect 0555,65534,65532 stat ${n1} mode,uid,gid
 		expect 0 chmod ${n1} 06555
 		expect 06555,65534,65532 stat ${n0} mode,uid,gid
 		expect 06555,65534,65532 stat ${n1} mode,uid,gid
 		expect 0 -u 65534 -g 65533,65532 -- chown ${n1} -1 65533
+		[ -n "${_todo_msg}" ] && todo "Linux" "${_todo_msg}"
 		expect 0555,65534,65533 stat ${n0} mode,uid,gid
+		[ -n "${_todo_msg}" ] && todo "Linux" "${_todo_msg}"
 		expect 0555,65534,65533 stat ${n1} mode,uid,gid
 		expect 0 chmod ${n1} 06555
 		expect 06555,65534,65533 stat ${n0} mode,uid,gid
@@ -270,6 +291,7 @@ for type in regular dir fifo block char socket symlink; do
 		fi
 		expect 06555,65534,65533 lstat ${n0} mode,uid,gid
 		expect 0 -u 65534 -g 65533,65532 lchown ${n0} 65534 65532
+		[ -n "${_todo_msg}" ] && todo "Linux" "${_todo_msg}"
 		expect 0555,65534,65532 lstat ${n0} mode,uid,gid
 		if supported lchmod; then
 			expect 0 lchmod ${n0} 06555
@@ -278,6 +300,7 @@ for type in regular dir fifo block char socket symlink; do
 		fi
 		expect 06555,65534,65532 lstat ${n0} mode,uid,gid
 		expect 0 -u 65534 -g 65533,65532 -- lchown ${n0} -1 65533
+		[ -n "${_todo_msg}" ] && todo "Linux" "${_todo_msg}"
 		expect 0555,65534,65533 lstat ${n0} mode,uid,gid
 		if supported lchmod; then
 			expect 0 lchmod ${n0} 06555

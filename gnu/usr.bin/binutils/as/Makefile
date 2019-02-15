@@ -46,8 +46,11 @@ SRCS+=	app.c \
 # DEO: why not used?
 #SRCS+=	itbl-ops.c
 
-.if ${TARGET_ARCH} == "armv6" || ${TARGET_ARCH} == "armv6eb"
+.if ${TARGET_ARCH:Marmv6*} != ""
 CFLAGS+=	-DCPU_DEFAULT=ARM_ARCH_V6K
+.endif
+.if ${TARGET_ARCH:Marmv7*} != ""
+CFLAGS+=	-DCPU_DEFAULT=ARM_ARCH_V7A
 .endif
 
 .if ${TARGET_CPUARCH} == "mips"
@@ -92,9 +95,9 @@ CFLAGS+= -I${.CURDIR} -I${.CURDIR}/${TARGET_CPUARCH}-freebsd
 NO_SHARED?=	yes
 .endif
 
-DPADD=	${RELTOP}/libbfd/libbfd.a
-DPADD+=	${RELTOP}/libiberty/libiberty.a
-DPADD+=	${RELTOP}/libopcodes/libopcodes.a
+DPADD=	${GNURELTOP}/libbfd/libbfd.a
+DPADD+=	${GNURELTOP}/libiberty/libiberty.a
+DPADD+=	${GNURELTOP}/libopcodes/libopcodes.a
 LDADD=	${DPADD}
 
 .include <bsd.prog.mk>

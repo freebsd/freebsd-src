@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_MIPS_MIPSFIXUPKINDS_H
-#define LLVM_MIPS_MIPSFIXUPKINDS_H
+#ifndef LLVM_LIB_TARGET_MIPS_MCTARGETDESC_MIPSFIXUPKINDS_H
+#define LLVM_LIB_TARGET_MIPS_MCTARGETDESC_MIPSFIXUPKINDS_H
 
 #include "llvm/MC/MCFixup.h"
 
@@ -18,13 +18,16 @@ namespace Mips {
   // one can have multiple fixup types for a given relocation and thus need
   // to be uniquely named.
   //
-  // This table *must* be in the save order of
+  // This table *must* be in the same order of
   // MCFixupKindInfo Infos[Mips::NumTargetFixupKinds]
   // in MipsAsmBackend.cpp.
   //
   enum Fixups {
+    // Branch fixups resulting in R_MIPS_NONE.
+    fixup_Mips_NONE = FirstTargetFixupKind,
+
     // Branch fixups resulting in R_MIPS_16.
-    fixup_Mips_16 = FirstTargetFixupKind,
+    fixup_Mips_16,
 
     // Pure 32 bit data fixup resulting in - R_MIPS_32.
     fixup_Mips_32,
@@ -47,11 +50,8 @@ namespace Mips {
     // 16 bit literal fixup resulting in - R_MIPS_LITERAL.
     fixup_Mips_LITERAL,
 
-    // Global symbol fixup resulting in - R_MIPS_GOT16.
-    fixup_Mips_GOT_Global,
-
-    // Local symbol fixup resulting in - R_MIPS_GOT16.
-    fixup_Mips_GOT_Local,
+    // Symbol fixup resulting in - R_MIPS_GOT16.
+    fixup_Mips_GOT,
 
     // PC relative branch fixup resulting in - R_MIPS_PC16.
     fixup_Mips_PC16,
@@ -128,6 +128,24 @@ namespace Mips {
     // resulting in - R_MIPS_CALL_LO16
     fixup_Mips_CALL_LO16,
 
+    // resulting in - R_MIPS_PC18_S3
+    fixup_MIPS_PC18_S3,
+
+    // resulting in - R_MIPS_PC19_S2
+    fixup_MIPS_PC19_S2,
+
+    // resulting in - R_MIPS_PC21_S2
+    fixup_MIPS_PC21_S2,
+
+    // resulting in - R_MIPS_PC26_S2
+    fixup_MIPS_PC26_S2,
+
+    // resulting in - R_MIPS_PCHI16
+    fixup_MIPS_PCHI16,
+
+    // resulting in - R_MIPS_PCLO16
+    fixup_MIPS_PCLO16,
+
     // resulting in - R_MICROMIPS_26_S1
     fixup_MICROMIPS_26_S1,
 
@@ -140,8 +158,26 @@ namespace Mips {
     // resulting in - R_MICROMIPS_GOT16
     fixup_MICROMIPS_GOT16,
 
+    // resulting in - R_MICROMIPS_PC7_S1
+    fixup_MICROMIPS_PC7_S1,
+
+    // resulting in - R_MICROMIPS_PC10_S1
+    fixup_MICROMIPS_PC10_S1,
+
     // resulting in - R_MICROMIPS_PC16_S1
     fixup_MICROMIPS_PC16_S1,
+
+    // resulting in - R_MICROMIPS_PC26_S1
+    fixup_MICROMIPS_PC26_S1,
+
+    // resulting in - R_MICROMIPS_PC19_S2
+    fixup_MICROMIPS_PC19_S2,
+
+    // resulting in - R_MICROMIPS_PC18_S3
+    fixup_MICROMIPS_PC18_S3,
+
+    // resulting in - R_MICROMIPS_PC21_S1
+    fixup_MICROMIPS_PC21_S1,
 
     // resulting in - R_MICROMIPS_CALL16
     fixup_MICROMIPS_CALL16,
@@ -155,17 +191,30 @@ namespace Mips {
     // resulting in - R_MICROMIPS_GOT_OFST
     fixup_MICROMIPS_GOT_OFST,
 
+    // resulting in - R_MICROMIPS_TLS_GD
+    fixup_MICROMIPS_TLS_GD,
+
+    // resulting in - R_MICROMIPS_TLS_LDM
+    fixup_MICROMIPS_TLS_LDM,
+
     // resulting in - R_MICROMIPS_TLS_DTPREL_HI16
     fixup_MICROMIPS_TLS_DTPREL_HI16,
 
     // resulting in - R_MICROMIPS_TLS_DTPREL_LO16
     fixup_MICROMIPS_TLS_DTPREL_LO16,
 
+    // resulting in - R_MICROMIPS_TLS_GOTTPREL.
+    fixup_MICROMIPS_GOTTPREL,
+
     // resulting in - R_MICROMIPS_TLS_TPREL_HI16
     fixup_MICROMIPS_TLS_TPREL_HI16,
 
     // resulting in - R_MICROMIPS_TLS_TPREL_LO16
     fixup_MICROMIPS_TLS_TPREL_LO16,
+
+    // resulting in - R_MIPS_SUB/R_MICROMIPS_SUB
+    fixup_Mips_SUB,
+    fixup_MICROMIPS_SUB,
 
     // Marker
     LastTargetFixupKind,
@@ -175,4 +224,4 @@ namespace Mips {
 } // namespace llvm
 
 
-#endif // LLVM_MIPS_MIPSFIXUPKINDS_H
+#endif

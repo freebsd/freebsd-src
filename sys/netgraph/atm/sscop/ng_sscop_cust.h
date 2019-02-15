@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001-2003
  *	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
  * 	All rights reserved.
@@ -115,7 +117,7 @@ typedef struct callout sscop_timer_t;
 	ng_callout(&(S)->t_##T, (S)->aarg, NULL,			\
 	    hz * (S)->timer##T / 1000, T##_func, (S), 0);		\
     } while (0)
-#define	TIMER_ISACT(S, T) ((S)->t_##T.c_flags & (CALLOUT_PENDING))
+#define	TIMER_ISACT(S, T) (callout_pending(&(S)->t_##T))
 
 /*
  * This assumes, that the user argument is the node pointer.
@@ -327,8 +329,7 @@ ng_sscop_mbuf_alloc(size_t n)						\
 		m->m_len = 0;						\
 		m->m_pkthdr.len = 0;					\
 		if (n > MHLEN) {					\
-			MCLGET(m, M_NOWAIT);				\
-			if (!(m->m_flags & M_EXT)){			\
+			if (!(MCLGET(m, M_NOWAIT))){			\
 				m_free(m);				\
 				m = NULL;				\
 			}						\

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1990 University of Utah.
  * Copyright (c) 1991 The Regents of the University of California.
  * All rights reserved.
@@ -53,8 +55,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_vm.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
@@ -65,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/rwlock.h>
 #include <sys/sf_buf.h>
+#include <sys/domainset.h>
 
 #include <machine/atomic.h>
 
@@ -82,21 +88,33 @@ static int vnode_pager_addr(struct vnode *vp, vm_ooffset_t address,
 static int vnode_pager_input_smlfs(vm_object_t object, vm_page_t m);
 static int vnode_pager_input_old(vm_object_t object, vm_page_t m);
 static void vnode_pager_dealloc(vm_object_t);
-static int vnode_pager_getpages(vm_object_t, vm_page_t *, int, int);
+static int vnode_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *);
+static int vnode_pager_getpages_async(vm_object_t, vm_page_t *, int, int *,
+    int *, vop_getpages_iodone_t, void *);
 static void vnode_pager_putpages(vm_object_t, vm_page_t *, int, int, int *);
 static boolean_t vnode_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 static vm_object_t vnode_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *cred);
+static int vnode_pager_generic_getpages_done(struct buf *);
+static void vnode_pager_generic_getpages_done_async(struct buf *);
 
 struct pagerops vnodepagerops = {
 	.pgo_alloc =	vnode_pager_alloc,
 	.pgo_dealloc =	vnode_pager_dealloc,
 	.pgo_getpages =	vnode_pager_getpages,
+	.pgo_getpages_async = vnode_pager_getpages_async,
 	.pgo_putpages =	vnode_pager_putpages,
 	.pgo_haspage =	vnode_pager_haspage,
 };
 
 int vnode_pbuf_freecnt;
+int vnode_async_pbuf_freecnt;
+
+static struct domainset *vnode_domainset = NULL;
+
+SYSCTL_PROC(_debug, OID_AUTO, vnode_domainset, CTLTYPE_STRING | CTLFLAG_RW,
+    &vnode_domainset, 0, sysctl_handle_domainset, "A",
+    "Default vnode NUMA policy");
 
 /* Create the VM system backing object for this vnode */
 int
@@ -156,14 +174,26 @@ vnode_destroy_vobject(struct vnode *vp)
 		return;
 	ASSERT_VOP_ELOCKED(vp, "vnode_destroy_vobject");
 	VM_OBJECT_WLOCK(obj);
+	umtx_shm_object_terminated(obj);
 	if (obj->ref_count == 0) {
 		/*
 		 * don't double-terminate the object
 		 */
-		if ((obj->flags & OBJ_DEAD) == 0)
+		if ((obj->flags & OBJ_DEAD) == 0) {
 			vm_object_terminate(obj);
-		else
+		} else {
+			/*
+			 * Waiters were already handled during object
+			 * termination.  The exclusive vnode lock hopefully
+			 * prevented new waiters from referencing the dying
+			 * object.
+			 */
+			KASSERT((obj->flags & OBJ_DISCONNECTWNT) == 0,
+			    ("OBJ_DISCONNECTWNT set obj %p flags %x",
+			    obj, obj->flags));
+			vp->v_object = NULL;
 			VM_OBJECT_WUNLOCK(obj);
+		}
 	} else {
 		/*
 		 * Woe to the process that tries to page now :-).
@@ -171,7 +201,7 @@ vnode_destroy_vobject(struct vnode *vp)
 		vm_pager_deallocate(obj);
 		VM_OBJECT_WUNLOCK(obj);
 	}
-	vp->v_object = NULL;
+	KASSERT(vp->v_object == NULL, ("vp %p obj %p", vp, vp->v_object));
 }
 
 
@@ -219,6 +249,7 @@ retry:
 
 		object->un_pager.vnp.vnp_size = size;
 		object->un_pager.vnp.writemappings = 0;
+		object->domain.dr_policy = vnode_domainset;
 
 		object->handle = handle;
 		VI_LOCK(vp);
@@ -227,6 +258,12 @@ retry:
 			 * Object has been created while we were sleeping
 			 */
 			VI_UNLOCK(vp);
+			VM_OBJECT_WLOCK(object);
+			KASSERT(object->ref_count == 1,
+			    ("leaked ref %p %d", object, object->ref_count));
+			object->type = OBJT_DEAD;
+			object->ref_count = 0;
+			VM_OBJECT_WUNLOCK(object);
 			vm_object_destroy(object);
 			goto retry;
 		}
@@ -234,9 +271,12 @@ retry:
 		VI_UNLOCK(vp);
 	} else {
 		object->ref_count++;
+#if VM_NRESERVLEVEL > 0
+		vm_object_color(object, 0);
+#endif
 		VM_OBJECT_WUNLOCK(object);
 	}
-	vref(vp);
+	vrefact(vp);
 	return (object);
 }
 
@@ -327,16 +367,21 @@ vnode_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
 			*before += poff;
 		}
 		if (after) {
-			int numafter;
+			/*
+			 * The BMAP vop can report a partial block in the
+			 * 'after', but must not report blocks after EOF.
+			 * Assert the latter, and truncate 'after' in case
+			 * of the former.
+			 */
+			KASSERT((reqblock + *after) * pagesperblock <
+			    roundup2(object->size, pagesperblock),
+			    ("%s: reqblock %jd after %d size %ju", __func__,
+			    (intmax_t )reqblock, *after,
+			    (uintmax_t )object->size));
 			*after *= pagesperblock;
-			numafter = pagesperblock - (poff + 1);
-			if (IDX_TO_OFF(pindex + numafter) >
-			    object->un_pager.vnp.vnp_size) {
-				numafter =
-		    		    OFF_TO_IDX(object->un_pager.vnp.vnp_size) -
-				    pindex;
-			}
-			*after += numafter;
+			*after += pagesperblock - (poff + 1);
+			if (pindex + *after >= object->size)
+				*after = object->size - 1 - pindex;
 		}
 	} else {
 		if (before) {
@@ -432,10 +477,6 @@ vnode_pager_setsize(struct vnode *vp, vm_ooffset_t nsize)
 			 * replacement from working properly.
 			 */
 			vm_page_clear_dirty(m, base, PAGE_SIZE - base);
-		} else if ((nsize & PAGE_MASK) &&
-		    vm_page_is_cached(object, OFF_TO_IDX(nsize))) {
-			vm_page_cache_free(object, OFF_TO_IDX(nsize),
-			    nobjsize);
 		}
 	}
 	object->un_pager.vnp.vnp_size = nsize;
@@ -649,52 +690,56 @@ vnode_pager_input_old(vm_object_t object, vm_page_t m)
  * backing vp's VOP_GETPAGES.
  */
 static int
-vnode_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
+vnode_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
+    int *rahead)
 {
-	int rtval;
 	struct vnode *vp;
-	int bytes = count * PAGE_SIZE;
+	int rtval;
 
 	vp = object->handle;
 	VM_OBJECT_WUNLOCK(object);
-	rtval = VOP_GETPAGES(vp, m, bytes, reqpage);
+	rtval = VOP_GETPAGES(vp, m, count, rbehind, rahead);
 	KASSERT(rtval != EOPNOTSUPP,
 	    ("vnode_pager: FS getpages not implemented\n"));
 	VM_OBJECT_WLOCK(object);
 	return rtval;
 }
 
+static int
+vnode_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
+    int *rbehind, int *rahead, vop_getpages_iodone_t iodone, void *arg)
+{
+	struct vnode *vp;
+	int rtval;
+
+	vp = object->handle;
+	VM_OBJECT_WUNLOCK(object);
+	rtval = VOP_GETPAGES_ASYNC(vp, m, count, rbehind, rahead, iodone, arg);
+	KASSERT(rtval != EOPNOTSUPP,
+	    ("vnode_pager: FS getpages_async not implemented\n"));
+	VM_OBJECT_WLOCK(object);
+	return (rtval);
+}
+
 /*
- * The implementation of VOP_GETPAGES() for local filesystems, where
- * partially valid pages can only occur at the end of file.
+ * The implementation of VOP_GETPAGES() and VOP_GETPAGES_ASYNC() for
+ * local filesystems, where partially valid pages can only occur at
+ * the end of file.
  */
 int
 vnode_pager_local_getpages(struct vop_getpages_args *ap)
 {
-	vm_page_t mreq;
 
-	mreq = ap->a_m[ap->a_reqpage];
+	return (vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
+	    ap->a_rbehind, ap->a_rahead, NULL, NULL));
+}
 
-	/*
-	 * Since the caller has busied the requested page, that page's valid
-	 * field will not be changed by other threads.
-	 */
-	vm_page_assert_xbusied(mreq);
+int
+vnode_pager_local_getpages_async(struct vop_getpages_async_args *ap)
+{
 
-	/*
-	 * The requested page has valid blocks.  Invalid part can only
-	 * exist at the end of file, and the page is made fully valid
-	 * by zeroing in vm_pager_getpages().  Free non-requested
-	 * pages, since no i/o is done to read its content.
-	 */
-	if (mreq->valid != 0) {
-		vm_pager_free_nonreq(mreq->object, ap->a_m, ap->a_reqpage,
-		    round_page(ap->a_count) / PAGE_SIZE);
-		return (VM_PAGER_OK);
-	}
-
-	return (vnode_pager_generic_getpages(ap->a_vp, ap->a_m,
-	    ap->a_count, ap->a_reqpage));
+	return (vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
+	    ap->a_rbehind, ap->a_rahead, ap->a_iodone, ap->a_arg));
 }
 
 /*
@@ -702,285 +747,372 @@ vnode_pager_local_getpages(struct vop_getpages_args *ap)
  * own vnodes if they fail to implement VOP_GETPAGES.
  */
 int
-vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
-    int reqpage)
+vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
+    int *a_rbehind, int *a_rahead, vop_getpages_iodone_t iodone, void *arg)
 {
 	vm_object_t object;
-	vm_offset_t kva;
-	off_t foff, tfoff, nextoff;
-	int i, j, size, bsize, first;
-	daddr_t firstaddr, reqblock;
 	struct bufobj *bo;
-	int runpg;
-	int runend;
 	struct buf *bp;
-	struct mount *mp;
-	int count;
-	int error;
-
-	object = vp->v_object;
-	count = bytecount / PAGE_SIZE;
+	off_t foff;
+#ifdef INVARIANTS
+	off_t blkno0;
+#endif
+	int bsize, pagesperblock, *freecnt;
+	int error, before, after, rbehind, rahead, poff, i;
+	int bytecount, secmask;
 
 	KASSERT(vp->v_type != VCHR && vp->v_type != VBLK,
-	    ("vnode_pager_generic_getpages does not support devices"));
+	    ("%s does not support devices", __func__));
+
 	if (vp->v_iflag & VI_DOOMED)
-		return VM_PAGER_BAD;
+		return (VM_PAGER_BAD);
 
+	object = vp->v_object;
+	foff = IDX_TO_OFF(m[0]->pindex);
 	bsize = vp->v_mount->mnt_stat.f_iosize;
+	pagesperblock = bsize / PAGE_SIZE;
 
-	/* get the UNDERLYING device for the file with VOP_BMAP() */
-
-	/*
-	 * originally, we did not check for an error return value -- assuming
-	 * an fs always has a bmap entry point -- that assumption is wrong!!!
-	 */
-	foff = IDX_TO_OFF(m[reqpage]->pindex);
+	KASSERT(foff < object->un_pager.vnp.vnp_size,
+	    ("%s: page %p offset beyond vp %p size", __func__, m[0], vp));
+	KASSERT(count <= sizeof(bp->b_pages),
+	    ("%s: requested %d pages", __func__, count));
 
 	/*
-	 * if we can't bmap, use old VOP code
+	 * The last page has valid blocks.  Invalid part can only
+	 * exist at the end of file, and the page is made fully valid
+	 * by zeroing in vm_pager_get_pages().
 	 */
-	error = VOP_BMAP(vp, foff / bsize, &bo, &reqblock, NULL, NULL);
+	if (m[count - 1]->valid != 0 && --count == 0) {
+		if (iodone != NULL)
+			iodone(arg, m, 1, 0);
+		return (VM_PAGER_OK);
+	}
+
+	/*
+	 * Synchronous and asynchronous paging operations use different
+	 * free pbuf counters.  This is done to avoid asynchronous requests
+	 * to consume all pbufs.
+	 * Allocate the pbuf at the very beginning of the function, so that
+	 * if we are low on certain kind of pbufs don't even proceed to BMAP,
+	 * but sleep.
+	 */
+	freecnt = iodone != NULL ?
+	    &vnode_async_pbuf_freecnt : &vnode_pbuf_freecnt;
+	bp = getpbuf(freecnt);
+
+	/*
+	 * Get the underlying device blocks for the file with VOP_BMAP().
+	 * If the file system doesn't support VOP_BMAP, use old way of
+	 * getting pages via VOP_READ.
+	 */
+	error = VOP_BMAP(vp, foff / bsize, &bo, &bp->b_blkno, &after, &before);
 	if (error == EOPNOTSUPP) {
+		relpbuf(bp, freecnt);
 		VM_OBJECT_WLOCK(object);
-		
-		for (i = 0; i < count; i++)
-			if (i != reqpage) {
-				vm_page_lock(m[i]);
-				vm_page_free(m[i]);
-				vm_page_unlock(m[i]);
-			}
-		PCPU_INC(cnt.v_vnodein);
-		PCPU_INC(cnt.v_vnodepgsin);
-		error = vnode_pager_input_old(object, m[reqpage]);
+		for (i = 0; i < count; i++) {
+			VM_CNT_INC(v_vnodein);
+			VM_CNT_INC(v_vnodepgsin);
+			error = vnode_pager_input_old(object, m[i]);
+			if (error)
+				break;
+		}
 		VM_OBJECT_WUNLOCK(object);
 		return (error);
 	} else if (error != 0) {
-		vm_pager_free_nonreq(object, m, reqpage, count);
+		relpbuf(bp, freecnt);
 		return (VM_PAGER_ERROR);
-
-		/*
-		 * if the blocksize is smaller than a page size, then use
-		 * special small filesystem code.  NFS sometimes has a small
-		 * blocksize, but it can handle large reads itself.
-		 */
-	} else if ((PAGE_SIZE / bsize) > 1 &&
-	    (vp->v_mount->mnt_stat.f_type != nfs_mount_type)) {
-		vm_pager_free_nonreq(object, m, reqpage, count);
-		PCPU_INC(cnt.v_vnodein);
-		PCPU_INC(cnt.v_vnodepgsin);
-		return vnode_pager_input_smlfs(object, m[reqpage]);
 	}
 
 	/*
-	 * Since the caller has busied the requested page, that page's valid
-	 * field will not be changed by other threads.
+	 * If the file system supports BMAP, but blocksize is smaller
+	 * than a page size, then use special small filesystem code.
 	 */
-	vm_page_assert_xbusied(m[reqpage]);
-
-	/*
-	 * If we have a completely valid page available to us, we can
-	 * clean up and return.  Otherwise we have to re-read the
-	 * media.
-	 */
-	if (m[reqpage]->valid == VM_PAGE_BITS_ALL) {
-		vm_pager_free_nonreq(object, m, reqpage, count);
-		return (VM_PAGER_OK);
-	} else if (reqblock == -1) {
-		pmap_zero_page(m[reqpage]);
-		KASSERT(m[reqpage]->dirty == 0,
-		    ("vnode_pager_generic_getpages: page %p is dirty", m));
-		VM_OBJECT_WLOCK(object);
-		m[reqpage]->valid = VM_PAGE_BITS_ALL;
-		for (i = 0; i < count; i++)
-			if (i != reqpage) {
-				vm_page_lock(m[i]);
-				vm_page_free(m[i]);
-				vm_page_unlock(m[i]);
-			}
-		VM_OBJECT_WUNLOCK(object);
-		return (VM_PAGER_OK);
-	} else if (m[reqpage]->valid != 0) {
-		VM_OBJECT_WLOCK(object);
-		m[reqpage]->valid = 0;
-		VM_OBJECT_WUNLOCK(object);
-	}
-
-	/*
-	 * here on direct device I/O
-	 */
-	firstaddr = -1;
-
-	/*
-	 * calculate the run that includes the required page
-	 */
-	for (first = 0, i = 0; i < count; i = runend) {
-		if (vnode_pager_addr(vp, IDX_TO_OFF(m[i]->pindex), &firstaddr,
-		    &runpg) != 0) {
-			VM_OBJECT_WLOCK(object);
-			for (; i < count; i++)
-				if (i != reqpage) {
-					vm_page_lock(m[i]);
-					vm_page_free(m[i]);
-					vm_page_unlock(m[i]);
-				}
-			VM_OBJECT_WUNLOCK(object);
-			return (VM_PAGER_ERROR);
+	if (pagesperblock == 0) {
+		relpbuf(bp, freecnt);
+		for (i = 0; i < count; i++) {
+			VM_CNT_INC(v_vnodein);
+			VM_CNT_INC(v_vnodepgsin);
+			error = vnode_pager_input_smlfs(object, m[i]);
+			if (error)
+				break;
 		}
-		if (firstaddr == -1) {
-			VM_OBJECT_WLOCK(object);
-			if (i == reqpage && foff < object->un_pager.vnp.vnp_size) {
-				panic("vnode_pager_getpages: unexpected missing page: firstaddr: %jd, foff: 0x%jx%08jx, vnp_size: 0x%jx%08jx",
-				    (intmax_t)firstaddr, (uintmax_t)(foff >> 32),
-				    (uintmax_t)foff,
-				    (uintmax_t)
-				    (object->un_pager.vnp.vnp_size >> 32),
-				    (uintmax_t)object->un_pager.vnp.vnp_size);
+		return (error);
+	}
+
+	/*
+	 * A sparse file can be encountered only for a single page request,
+	 * which may not be preceded by call to vm_pager_haspage().
+	 */
+	if (bp->b_blkno == -1) {
+		KASSERT(count == 1,
+		    ("%s: array[%d] request to a sparse file %p", __func__,
+		    count, vp));
+		relpbuf(bp, freecnt);
+		pmap_zero_page(m[0]);
+		KASSERT(m[0]->dirty == 0, ("%s: page %p is dirty",
+		    __func__, m[0]));
+		VM_OBJECT_WLOCK(object);
+		m[0]->valid = VM_PAGE_BITS_ALL;
+		VM_OBJECT_WUNLOCK(object);
+		return (VM_PAGER_OK);
+	}
+
+#ifdef INVARIANTS
+	blkno0 = bp->b_blkno;
+#endif
+	bp->b_blkno += (foff % bsize) / DEV_BSIZE;
+
+	/* Recalculate blocks available after/before to pages. */
+	poff = (foff % bsize) / PAGE_SIZE;
+	before *= pagesperblock;
+	before += poff;
+	after *= pagesperblock;
+	after += pagesperblock - (poff + 1);
+	if (m[0]->pindex + after >= object->size)
+		after = object->size - 1 - m[0]->pindex;
+	KASSERT(count <= after + 1, ("%s: %d pages asked, can do only %d",
+	    __func__, count, after + 1));
+	after -= count - 1;
+
+	/* Trim requested rbehind/rahead to possible values. */   
+	rbehind = a_rbehind ? *a_rbehind : 0;
+	rahead = a_rahead ? *a_rahead : 0;
+	rbehind = min(rbehind, before);
+	rbehind = min(rbehind, m[0]->pindex);
+	rahead = min(rahead, after);
+	rahead = min(rahead, object->size - m[count - 1]->pindex);
+	/*
+	 * Check that total amount of pages fit into buf.  Trim rbehind and
+	 * rahead evenly if not.
+	 */
+	if (rbehind + rahead + count > nitems(bp->b_pages)) {
+		int trim, sum;
+
+		trim = rbehind + rahead + count - nitems(bp->b_pages) + 1;
+		sum = rbehind + rahead;
+		if (rbehind == before) {
+			/* Roundup rbehind trim to block size. */
+			rbehind -= roundup(trim * rbehind / sum, pagesperblock);
+			if (rbehind < 0)
+				rbehind = 0;
+		} else
+			rbehind -= trim * rbehind / sum;
+		rahead -= trim * rahead / sum;
+	}
+	KASSERT(rbehind + rahead + count <= nitems(bp->b_pages),
+	    ("%s: behind %d ahead %d count %d", __func__,
+	    rbehind, rahead, count));
+
+	/*
+	 * Fill in the bp->b_pages[] array with requested and optional   
+	 * read behind or read ahead pages.  Read behind pages are looked
+	 * up in a backward direction, down to a first cached page.  Same
+	 * for read ahead pages, but there is no need to shift the array
+	 * in case of encountering a cached page.
+	 */
+	i = bp->b_npages = 0;
+	if (rbehind) {
+		vm_pindex_t startpindex, tpindex;
+		vm_page_t p;
+
+		VM_OBJECT_WLOCK(object);
+		startpindex = m[0]->pindex - rbehind;
+		if ((p = TAILQ_PREV(m[0], pglist, listq)) != NULL &&
+		    p->pindex >= startpindex)
+			startpindex = p->pindex + 1;
+
+		/* tpindex is unsigned; beware of numeric underflow. */
+		for (tpindex = m[0]->pindex - 1;
+		    tpindex >= startpindex && tpindex < m[0]->pindex;
+		    tpindex--, i++) {
+			p = vm_page_alloc(object, tpindex, VM_ALLOC_NORMAL);
+			if (p == NULL) {
+				/* Shift the array. */
+				for (int j = 0; j < i; j++)
+					bp->b_pages[j] = bp->b_pages[j + 
+					    tpindex + 1 - startpindex]; 
+				break;
 			}
-			vm_page_lock(m[i]);
-			vm_page_free(m[i]);
-			vm_page_unlock(m[i]);
-			VM_OBJECT_WUNLOCK(object);
-			runend = i + 1;
-			first = runend;
+			bp->b_pages[tpindex - startpindex] = p;
+		}
+
+		bp->b_pgbefore = i;
+		bp->b_npages += i;
+		bp->b_blkno -= IDX_TO_OFF(i) / DEV_BSIZE;
+	} else
+		bp->b_pgbefore = 0;
+
+	/* Requested pages. */
+	for (int j = 0; j < count; j++, i++)
+		bp->b_pages[i] = m[j];
+	bp->b_npages += count;
+
+	if (rahead) {
+		vm_pindex_t endpindex, tpindex;
+		vm_page_t p;
+
+		if (!VM_OBJECT_WOWNED(object))
+			VM_OBJECT_WLOCK(object);
+		endpindex = m[count - 1]->pindex + rahead + 1;
+		if ((p = TAILQ_NEXT(m[count - 1], listq)) != NULL &&
+		    p->pindex < endpindex)
+			endpindex = p->pindex;
+		if (endpindex > object->size)
+			endpindex = object->size;
+
+		for (tpindex = m[count - 1]->pindex + 1;
+		    tpindex < endpindex; i++, tpindex++) {
+			p = vm_page_alloc(object, tpindex, VM_ALLOC_NORMAL);
+			if (p == NULL)
+				break;
+			bp->b_pages[i] = p;
+		}
+
+		bp->b_pgafter = i - bp->b_npages;
+		bp->b_npages = i;
+	} else
+		bp->b_pgafter = 0;
+
+	if (VM_OBJECT_WOWNED(object))
+		VM_OBJECT_WUNLOCK(object);
+
+	/* Report back actual behind/ahead read. */
+	if (a_rbehind)
+		*a_rbehind = bp->b_pgbefore;
+	if (a_rahead)
+		*a_rahead = bp->b_pgafter;
+
+#ifdef INVARIANTS
+	KASSERT(bp->b_npages <= nitems(bp->b_pages),
+	    ("%s: buf %p overflowed", __func__, bp));
+	for (int j = 1, prev = 0; j < bp->b_npages; j++) {
+		if (bp->b_pages[j] == bogus_page)
 			continue;
-		}
-		runend = i + runpg;
-		if (runend <= reqpage) {
-			VM_OBJECT_WLOCK(object);
-			for (j = i; j < runend; j++) {
-				vm_page_lock(m[j]);
-				vm_page_free(m[j]);
-				vm_page_unlock(m[j]);
-			}
-			VM_OBJECT_WUNLOCK(object);
-		} else {
-			if (runpg < (count - first)) {
-				VM_OBJECT_WLOCK(object);
-				for (i = first + runpg; i < count; i++) {
-					vm_page_lock(m[i]);
-					vm_page_free(m[i]);
-					vm_page_unlock(m[i]);
-				}
-				VM_OBJECT_WUNLOCK(object);
-				count = first + runpg;
-			}
-			break;
-		}
-		first = runend;
+		KASSERT(bp->b_pages[j]->pindex - bp->b_pages[prev]->pindex ==
+		    j - prev, ("%s: pages array not consecutive, bp %p",
+		     __func__, bp));
+		prev = j;
 	}
+#endif
 
 	/*
-	 * the first and last page have been calculated now, move input pages
-	 * to be zero based...
+	 * Recalculate first offset and bytecount with regards to read behind.
+	 * Truncate bytecount to vnode real size and round up physical size
+	 * for real devices.
 	 */
-	if (first != 0) {
-		m += first;
-		count -= first;
-		reqpage -= first;
-	}
+	foff = IDX_TO_OFF(bp->b_pages[0]->pindex);
+	bytecount = bp->b_npages << PAGE_SHIFT;
+	if ((foff + bytecount) > object->un_pager.vnp.vnp_size)
+		bytecount = object->un_pager.vnp.vnp_size - foff;
+	secmask = bo->bo_bsize - 1;
+	KASSERT(secmask < PAGE_SIZE && secmask > 0,
+	    ("%s: sector size %d too large", __func__, secmask + 1));
+	bytecount = (bytecount + secmask) & ~secmask;
 
 	/*
-	 * calculate the file virtual address for the transfer
-	 */
-	foff = IDX_TO_OFF(m[0]->pindex);
-
-	/*
-	 * calculate the size of the transfer
-	 */
-	size = count * PAGE_SIZE;
-	KASSERT(count > 0, ("zero count"));
-	if ((foff + size) > object->un_pager.vnp.vnp_size)
-		size = object->un_pager.vnp.vnp_size - foff;
-	KASSERT(size > 0, ("zero size"));
-
-	/*
-	 * round up physical size for real devices.
-	 */
-	if (1) {
-		int secmask = bo->bo_bsize - 1;
-		KASSERT(secmask < PAGE_SIZE && secmask > 0,
-		    ("vnode_pager_generic_getpages: sector size %d too large",
-		    secmask + 1));
-		size = (size + secmask) & ~secmask;
-	}
-
-	bp = getpbuf(&vnode_pbuf_freecnt);
-	kva = (vm_offset_t)bp->b_data;
-
-	/*
-	 * and map the pages to be read into the kva, if the filesystem
+	 * And map the pages to be read into the kva, if the filesystem
 	 * requires mapped buffers.
 	 */
-	mp = vp->v_mount;
-	if (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMAPPED_BUFS) != 0 &&
+	if ((vp->v_mount->mnt_kern_flag & MNTK_UNMAPPED_BUFS) != 0 &&
 	    unmapped_buf_allowed) {
 		bp->b_data = unmapped_buf;
-		bp->b_kvabase = unmapped_buf;
 		bp->b_offset = 0;
-		bp->b_flags |= B_UNMAPPED;
-		bp->b_npages = count;
-		for (i = 0; i < count; i++)
-			bp->b_pages[i] = m[i];
-	} else
-		pmap_qenter(kva, m, count);
+	} else {
+		bp->b_data = bp->b_kvabase;
+		pmap_qenter((vm_offset_t)bp->b_data, bp->b_pages, bp->b_npages);
+	}
 
-	/* build a minimal buffer header */
+	/* Build a minimal buffer header. */
 	bp->b_iocmd = BIO_READ;
-	bp->b_iodone = bdone;
 	KASSERT(bp->b_rcred == NOCRED, ("leaking read ucred"));
 	KASSERT(bp->b_wcred == NOCRED, ("leaking write ucred"));
 	bp->b_rcred = crhold(curthread->td_ucred);
 	bp->b_wcred = crhold(curthread->td_ucred);
-	bp->b_blkno = firstaddr;
 	pbgetbo(bo, bp);
 	bp->b_vp = vp;
-	bp->b_bcount = size;
-	bp->b_bufsize = size;
-	bp->b_runningbufspace = bp->b_bufsize;
-	atomic_add_long(&runningbufspace, bp->b_runningbufspace);
-
-	PCPU_INC(cnt.v_vnodein);
-	PCPU_ADD(cnt.v_vnodepgsin, count);
-
-	/* do the input */
+	bp->b_bcount = bp->b_bufsize = bp->b_runningbufspace = bytecount;
 	bp->b_iooffset = dbtob(bp->b_blkno);
-	bstrategy(bp);
+	KASSERT(IDX_TO_OFF(m[0]->pindex - bp->b_pages[0]->pindex) ==
+	    (blkno0 - bp->b_blkno) * DEV_BSIZE +
+	    IDX_TO_OFF(m[0]->pindex) % bsize,
+	    ("wrong offsets bsize %d m[0] %ju b_pages[0] %ju "
+	    "blkno0 %ju b_blkno %ju", bsize,
+	    (uintmax_t)m[0]->pindex, (uintmax_t)bp->b_pages[0]->pindex,
+	    (uintmax_t)blkno0, (uintmax_t)bp->b_blkno));
 
-	bwait(bp, PVM, "vnread");
+	atomic_add_long(&runningbufspace, bp->b_runningbufspace);
+	VM_CNT_INC(v_vnodein);
+	VM_CNT_ADD(v_vnodepgsin, bp->b_npages);
 
-	if ((bp->b_ioflags & BIO_ERROR) != 0)
-		error = EIO;
-
-	if (error == 0 && size != count * PAGE_SIZE) {
-		if ((bp->b_flags & B_UNMAPPED) != 0) {
-			bp->b_flags &= ~B_UNMAPPED;
-			pmap_qenter(kva, m, count);
-		}
-		bzero((caddr_t)kva + size, PAGE_SIZE * count - size);
-	}
-	if ((bp->b_flags & B_UNMAPPED) == 0)
-		pmap_qremove(kva, count);
-	if (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMAPPED_BUFS) != 0) {
-		bp->b_data = (caddr_t)kva;
-		bp->b_kvabase = (caddr_t)kva;
-		bp->b_flags &= ~B_UNMAPPED;
-		for (i = 0; i < count; i++)
+	if (iodone != NULL) { /* async */
+		bp->b_pgiodone = iodone;
+		bp->b_caller1 = arg;
+		bp->b_iodone = vnode_pager_generic_getpages_done_async;
+		bp->b_flags |= B_ASYNC;
+		BUF_KERNPROC(bp);
+		bstrategy(bp);
+		return (VM_PAGER_OK);
+	} else {
+		bp->b_iodone = bdone;
+		bstrategy(bp);
+		bwait(bp, PVM, "vnread");
+		error = vnode_pager_generic_getpages_done(bp);
+		for (i = 0; i < bp->b_npages; i++)
 			bp->b_pages[i] = NULL;
+		bp->b_vp = NULL;
+		pbrelbo(bp);
+		relpbuf(bp, &vnode_pbuf_freecnt);
+		return (error != 0 ? VM_PAGER_ERROR : VM_PAGER_OK);
 	}
+}
 
-	/*
-	 * free the buffer header back to the swap buffer pool
-	 */
+static void
+vnode_pager_generic_getpages_done_async(struct buf *bp)
+{
+	int error;
+
+	error = vnode_pager_generic_getpages_done(bp);
+	/* Run the iodone upon the requested range. */
+	bp->b_pgiodone(bp->b_caller1, bp->b_pages + bp->b_pgbefore,
+	    bp->b_npages - bp->b_pgbefore - bp->b_pgafter, error);
+	for (int i = 0; i < bp->b_npages; i++)
+		bp->b_pages[i] = NULL;
 	bp->b_vp = NULL;
 	pbrelbo(bp);
-	relpbuf(bp, &vnode_pbuf_freecnt);
+	relpbuf(bp, &vnode_async_pbuf_freecnt);
+}
+
+static int
+vnode_pager_generic_getpages_done(struct buf *bp)
+{
+	vm_object_t object;
+	off_t tfoff, nextoff;
+	int i, error;
+
+	error = (bp->b_ioflags & BIO_ERROR) != 0 ? EIO : 0;
+	object = bp->b_vp->v_object;
+
+	if (error == 0 && bp->b_bcount != bp->b_npages * PAGE_SIZE) {
+		if (!buf_mapped(bp)) {
+			bp->b_data = bp->b_kvabase;
+			pmap_qenter((vm_offset_t)bp->b_data, bp->b_pages,
+			    bp->b_npages);
+		}
+		bzero(bp->b_data + bp->b_bcount,
+		    PAGE_SIZE * bp->b_npages - bp->b_bcount);
+	}
+	if (buf_mapped(bp)) {
+		pmap_qremove((vm_offset_t)bp->b_data, bp->b_npages);
+		bp->b_data = unmapped_buf;
+	}
 
 	VM_OBJECT_WLOCK(object);
-	for (i = 0, tfoff = foff; i < count; i++, tfoff = nextoff) {
+	for (i = 0, tfoff = IDX_TO_OFF(bp->b_pages[0]->pindex);
+	    i < bp->b_npages; i++, tfoff = nextoff) {
 		vm_page_t mt;
 
 		nextoff = tfoff + PAGE_SIZE;
-		mt = m[i];
+		mt = bp->b_pages[i];
 
 		if (nextoff <= object->un_pager.vnp.vnp_size) {
 			/*
@@ -988,11 +1120,9 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 			 */
 			mt->valid = VM_PAGE_BITS_ALL;
 			KASSERT(mt->dirty == 0,
-			    ("vnode_pager_generic_getpages: page %p is dirty",
-			    mt));
+			    ("%s: page %p is dirty", __func__, mt));
 			KASSERT(!pmap_page_is_mapped(mt),
-			    ("vnode_pager_generic_getpages: page %p is mapped",
-			    mt));
+			    ("%s: page %p is mapped", __func__, mt));
 		} else {
 			/*
 			 * Read did not fill up entire page.
@@ -1005,18 +1135,17 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 			    object->un_pager.vnp.vnp_size - tfoff);
 			KASSERT((mt->dirty & vm_page_bits(0,
 			    object->un_pager.vnp.vnp_size - tfoff)) == 0,
-			    ("vnode_pager_generic_getpages: page %p is dirty",
-			    mt));
+			    ("%s: page %p is dirty", __func__, mt));
 		}
-		
-		if (i != reqpage)
+
+		if (i < bp->b_pgbefore || i >= bp->b_npages - bp->b_pgafter)
 			vm_page_readahead_finish(mt);
 	}
 	VM_OBJECT_WUNLOCK(object);
-	if (error) {
-		printf("vnode_pager_getpages: I/O read error\n");
-	}
-	return (error ? VM_PAGER_ERROR : VM_PAGER_OK);
+	if (error != 0)
+		printf("%s: I/O read error %d\n", __func__, error);
+
+	return (error);
 }
 
 /*
@@ -1038,7 +1167,7 @@ vnode_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 	/*
 	 * Force synchronous operation if we are extremely low on memory
 	 * to prevent a low-memory deadlock.  VOP operations often need to
-	 * allocate more memory to initiate the I/O ( i.e. do a BMAP 
+	 * allocate more memory to initiate the I/O ( i.e. do a BMAP
 	 * operation ).  The swapper handles the case by limiting the amount
 	 * of asynchronous I/O, but that sort of solution doesn't scale well
 	 * for the vnode pager without a lot of work.
@@ -1047,8 +1176,7 @@ vnode_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 	 * daemon up.  This should be probably be addressed XXX.
 	 */
 
-	if (vm_cnt.v_free_count + vm_cnt.v_cache_count <
-	    vm_cnt.v_pageout_free_min)
+	if (vm_page_count_min())
 		flags |= VM_PAGER_PUT_SYNC;
 
 	/*
@@ -1062,13 +1190,30 @@ vnode_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 	VM_OBJECT_WLOCK(object);
 }
 
+static int
+vn_off2bidx(vm_ooffset_t offset)
+{
+
+	return ((offset & PAGE_MASK) / DEV_BSIZE);
+}
+
+static bool
+vn_dirty_blk(vm_page_t m, vm_ooffset_t offset)
+{
+
+	KASSERT(IDX_TO_OFF(m->pindex) <= offset &&
+	    offset < IDX_TO_OFF(m->pindex + 1),
+	    ("page %p pidx %ju offset %ju", m, (uintmax_t)m->pindex,
+	    (uintmax_t)offset));
+	return ((m->dirty & ((vm_page_bits_t)1 << vn_off2bidx(offset))) != 0);
+}
 
 /*
  * This is now called from local media FS's to operate against their
  * own vnodes if they fail to implement VOP_PUTPAGES.
  *
  * This is typically called indirectly via the pageout daemon and
- * clustering has already typically occured, so in general we ask the
+ * clustering has already typically occurred, so in general we ask the
  * underlying filesystem to write the data out asynchronously rather
  * then delayed.
  */
@@ -1076,18 +1221,14 @@ int
 vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
     int flags, int *rtvals)
 {
-	int i;
 	vm_object_t object;
 	vm_page_t m;
-	int count;
-
-	int maxsize, ncount;
-	vm_ooffset_t poffset;
+	vm_ooffset_t maxblksz, next_offset, poffset, prev_offset;
 	struct uio auio;
 	struct iovec aiov;
-	int error;
-	int ioflags;
-	int ppscheck = 0;
+	off_t prev_resid, wrsz;
+	int count, error, i, maxsize, ncount, pgoff, ppscheck;
+	bool in_hole;
 	static struct timeval lastfail;
 	static int curfail;
 
@@ -1098,10 +1239,11 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 		rtvals[i] = VM_PAGER_ERROR;
 
 	if ((int64_t)ma[0]->pindex < 0) {
-		printf("vnode_pager_putpages: attempt to write meta-data!!! -- 0x%lx(%lx)\n",
-		    (long)ma[0]->pindex, (u_long)ma[0]->dirty);
+		printf("vnode_pager_generic_putpages: "
+		    "attempt to write meta-data 0x%jx(%lx)\n",
+		    (uintmax_t)ma[0]->pindex, (u_long)ma[0]->dirty);
 		rtvals[0] = VM_PAGER_BAD;
-		return VM_PAGER_BAD;
+		return (VM_PAGER_BAD);
 	}
 
 	maxsize = count * PAGE_SIZE;
@@ -1111,7 +1253,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 
 	/*
 	 * If the page-aligned write is larger then the actual file we
-	 * have to invalidate pages occuring beyond the file EOF.  However,
+	 * have to invalidate pages occurring beyond the file EOF.  However,
 	 * there is an edge case where a file may not be page-aligned where
 	 * the last page is partially invalid.  In this case the filesystem
 	 * may not properly clear the dirty bits for the entire page (which
@@ -1121,14 +1263,20 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	 * We do not under any circumstances truncate the valid bits, as
 	 * this will screw up bogus page replacement.
 	 */
-	VM_OBJECT_WLOCK(object);
+	VM_OBJECT_RLOCK(object);
 	if (maxsize + poffset > object->un_pager.vnp.vnp_size) {
+		if (!VM_OBJECT_TRYUPGRADE(object)) {
+			VM_OBJECT_RUNLOCK(object);
+			VM_OBJECT_WLOCK(object);
+			if (maxsize + poffset <= object->un_pager.vnp.vnp_size)
+				goto downgrade;
+		}
 		if (object->un_pager.vnp.vnp_size > poffset) {
-			int pgoff;
-
 			maxsize = object->un_pager.vnp.vnp_size - poffset;
 			ncount = btoc(maxsize);
 			if ((pgoff = (int)maxsize & PAGE_MASK) != 0) {
+				pgoff = roundup2(pgoff, DEV_BSIZE);
+
 				/*
 				 * If the object is locked and the following
 				 * conditions hold, then the page's dirty
@@ -1139,6 +1287,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 				vm_page_assert_sbusied(m);
 				KASSERT(!pmap_page_is_write_mapped(m),
 		("vnode_pager_generic_putpages: page %p is not read-only", m));
+				MPASS(m->dirty != 0);
 				vm_page_clear_dirty(m, pgoff, PAGE_SIZE -
 				    pgoff);
 			}
@@ -1146,64 +1295,152 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 			maxsize = 0;
 			ncount = 0;
 		}
-		if (ncount < count) {
-			for (i = ncount; i < count; i++) {
-				rtvals[i] = VM_PAGER_BAD;
-			}
-		}
+		for (i = ncount; i < count; i++)
+			rtvals[i] = VM_PAGER_BAD;
+downgrade:
+		VM_OBJECT_LOCK_DOWNGRADE(object);
 	}
-	VM_OBJECT_WUNLOCK(object);
 
-	/*
-	 * pageouts are already clustered, use IO_ASYNC to force a bawrite()
-	 * rather then a bdwrite() to prevent paging I/O from saturating 
-	 * the buffer cache.  Dummy-up the sequential heuristic to cause
-	 * large ranges to cluster.  If neither IO_SYNC or IO_ASYNC is set,
-	 * the system decides how to cluster.
-	 */
-	ioflags = IO_VMIO;
-	if (flags & (VM_PAGER_PUT_SYNC | VM_PAGER_PUT_INVAL))
-		ioflags |= IO_SYNC;
-	else if ((flags & VM_PAGER_CLUSTER_OK) == 0)
-		ioflags |= IO_ASYNC;
-	ioflags |= (flags & VM_PAGER_PUT_INVAL) ? IO_INVAL: 0;
-	ioflags |= IO_SEQMAX << IO_SEQSHIFT;
-
-	aiov.iov_base = (caddr_t) 0;
-	aiov.iov_len = maxsize;
 	auio.uio_iov = &aiov;
-	auio.uio_iovcnt = 1;
-	auio.uio_offset = poffset;
 	auio.uio_segflg = UIO_NOCOPY;
 	auio.uio_rw = UIO_WRITE;
-	auio.uio_resid = maxsize;
-	auio.uio_td = (struct thread *) 0;
-	error = VOP_WRITE(vp, &auio, ioflags, curthread->td_ucred);
-	PCPU_INC(cnt.v_vnodeout);
-	PCPU_ADD(cnt.v_vnodepgsout, ncount);
+	auio.uio_td = NULL;
+	maxblksz = roundup2(poffset + maxsize, DEV_BSIZE);
 
-	if (error) {
-		if ((ppscheck = ppsratecheck(&lastfail, &curfail, 1)))
-			printf("vnode_pager_putpages: I/O error %d\n", error);
+	for (prev_offset = poffset; prev_offset < maxblksz;) {
+		/* Skip clean blocks. */
+		for (in_hole = true; in_hole && prev_offset < maxblksz;) {
+			m = ma[OFF_TO_IDX(prev_offset - poffset)];
+			for (i = vn_off2bidx(prev_offset);
+			    i < sizeof(vm_page_bits_t) * NBBY &&
+			    prev_offset < maxblksz; i++) {
+				if (vn_dirty_blk(m, prev_offset)) {
+					in_hole = false;
+					break;
+				}
+				prev_offset += DEV_BSIZE;
+			}
+		}
+		if (in_hole)
+			goto write_done;
+
+		/* Find longest run of dirty blocks. */
+		for (next_offset = prev_offset; next_offset < maxblksz;) {
+			m = ma[OFF_TO_IDX(next_offset - poffset)];
+			for (i = vn_off2bidx(next_offset);
+			    i < sizeof(vm_page_bits_t) * NBBY &&
+			    next_offset < maxblksz; i++) {
+				if (!vn_dirty_blk(m, next_offset))
+					goto start_write;
+				next_offset += DEV_BSIZE;
+			}
+		}
+start_write:
+		if (next_offset > poffset + maxsize)
+			next_offset = poffset + maxsize;
+
+		/*
+		 * Getting here requires finding a dirty block in the
+		 * 'skip clean blocks' loop.
+		 */
+		MPASS(prev_offset < next_offset);
+
+		VM_OBJECT_RUNLOCK(object);
+		aiov.iov_base = NULL;
+		auio.uio_iovcnt = 1;
+		auio.uio_offset = prev_offset;
+		prev_resid = auio.uio_resid = aiov.iov_len = next_offset -
+		    prev_offset;
+		error = VOP_WRITE(vp, &auio,
+		    vnode_pager_putpages_ioflags(flags), curthread->td_ucred);
+
+		wrsz = prev_resid - auio.uio_resid;
+		if (wrsz == 0) {
+			if (ppsratecheck(&lastfail, &curfail, 1) != 0) {
+				vn_printf(vp, "vnode_pager_putpages: "
+				    "zero-length write at %ju resid %zd\n",
+				    auio.uio_offset, auio.uio_resid);
+			}
+			VM_OBJECT_RLOCK(object);
+			break;
+		}
+
+		/* Adjust the starting offset for next iteration. */
+		prev_offset += wrsz;
+		MPASS(auio.uio_offset == prev_offset);
+
+		ppscheck = 0;
+		if (error != 0 && (ppscheck = ppsratecheck(&lastfail,
+		    &curfail, 1)) != 0)
+			vn_printf(vp, "vnode_pager_putpages: I/O error %d\n",
+			    error);
+		if (auio.uio_resid != 0 && (ppscheck != 0 ||
+		    ppsratecheck(&lastfail, &curfail, 1) != 0))
+			vn_printf(vp, "vnode_pager_putpages: residual I/O %zd "
+			    "at %ju\n", auio.uio_resid,
+			    (uintmax_t)ma[0]->pindex);
+		VM_OBJECT_RLOCK(object);
+		if (error != 0 || auio.uio_resid != 0)
+			break;
 	}
-	if (auio.uio_resid) {
-		if (ppscheck || ppsratecheck(&lastfail, &curfail, 1))
-			printf("vnode_pager_putpages: residual I/O %zd at %lu\n",
-			    auio.uio_resid, (u_long)ma[0]->pindex);
-	}
-	for (i = 0; i < ncount; i++) {
+write_done:
+	/* Mark completely processed pages. */
+	for (i = 0; i < OFF_TO_IDX(prev_offset - poffset); i++)
 		rtvals[i] = VM_PAGER_OK;
-	}
-	return rtvals[0];
+	/* Mark partial EOF page. */
+	if (prev_offset == poffset + maxsize && (prev_offset & PAGE_MASK) != 0)
+		rtvals[i++] = VM_PAGER_OK;
+	/* Unwritten pages in range, free bonus if the page is clean. */
+	for (; i < ncount; i++)
+		rtvals[i] = ma[i]->dirty == 0 ? VM_PAGER_OK : VM_PAGER_ERROR;
+	VM_OBJECT_RUNLOCK(object);
+	VM_CNT_ADD(v_vnodepgsout, i);
+	VM_CNT_INC(v_vnodeout);
+	return (rtvals[0]);
 }
 
+int
+vnode_pager_putpages_ioflags(int pager_flags)
+{
+	int ioflags;
+
+	/*
+	 * Pageouts are already clustered, use IO_ASYNC to force a
+	 * bawrite() rather then a bdwrite() to prevent paging I/O
+	 * from saturating the buffer cache.  Dummy-up the sequential
+	 * heuristic to cause large ranges to cluster.  If neither
+	 * IO_SYNC or IO_ASYNC is set, the system decides how to
+	 * cluster.
+	 */
+	ioflags = IO_VMIO;
+	if ((pager_flags & (VM_PAGER_PUT_SYNC | VM_PAGER_PUT_INVAL)) != 0)
+		ioflags |= IO_SYNC;
+	else if ((pager_flags & VM_PAGER_CLUSTER_OK) == 0)
+		ioflags |= IO_ASYNC;
+	ioflags |= (pager_flags & VM_PAGER_PUT_INVAL) != 0 ? IO_INVAL: 0;
+	ioflags |= (pager_flags & VM_PAGER_PUT_NOREUSE) != 0 ? IO_NOREUSE : 0;
+	ioflags |= IO_SEQMAX << IO_SEQSHIFT;
+	return (ioflags);
+}
+
+/*
+ * vnode_pager_undirty_pages().
+ *
+ * A helper to mark pages as clean after pageout that was possibly
+ * done with a short write.  The lpos argument specifies the page run
+ * length in bytes, and the written argument specifies how many bytes
+ * were actually written.  eof is the offset past the last valid byte
+ * in the vnode using the absolute file position of the first byte in
+ * the run as the base from which it is computed.
+ */
 void
-vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written)
+vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written, off_t eof,
+    int lpos)
 {
 	vm_object_t obj;
-	int i, pos;
+	int i, pos, pos_devb;
 
-	if (written == 0)
+	if (written == 0 && eof >= lpos)
 		return;
 	obj = ma[0]->object;
 	VM_OBJECT_WLOCK(obj);
@@ -1217,6 +1454,37 @@ vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written)
 			vm_page_clear_dirty(ma[i], 0, written & PAGE_MASK);
 		}
 	}
+	if (eof >= lpos) /* avoid truncation */
+		goto done;
+	for (pos = eof, i = OFF_TO_IDX(trunc_page(pos)); pos < lpos; i++) {
+		if (pos != trunc_page(pos)) {
+			/*
+			 * The page contains the last valid byte in
+			 * the vnode, mark the rest of the page as
+			 * clean, potentially making the whole page
+			 * clean.
+			 */
+			pos_devb = roundup2(pos & PAGE_MASK, DEV_BSIZE);
+			vm_page_clear_dirty(ma[i], pos_devb, PAGE_SIZE -
+			    pos_devb);
+
+			/*
+			 * If the page was cleaned, report the pageout
+			 * on it as successful.  msync() no longer
+			 * needs to write out the page, endlessly
+			 * creating write requests and dirty buffers.
+			 */
+			if (ma[i]->dirty == 0)
+				rtvals[i] = VM_PAGER_OK;
+
+			pos = round_page(pos);
+		} else {
+			/* vm_pageout_flush() clears dirty */
+			rtvals[i] = VM_PAGER_BAD;
+			pos += PAGE_SIZE;
+		}
+	}
+done:
 	VM_OBJECT_WUNLOCK(obj);
 }
 

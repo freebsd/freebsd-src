@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,8 +35,9 @@
 struct delayval;
 struct termios;
 
+extern	char **environ;
+extern	char editedhost[];
 extern	char hostname[];
-extern	int hopcount;
 extern	struct termios tmode, omode;
 extern	struct gettyflags gettyflags[];
 extern	struct gettynums gettynums[];

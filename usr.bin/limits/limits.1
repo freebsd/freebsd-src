@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2013
+.Dd January 13, 2018
 .Dt LIMITS 1
 .Os
 .Sh NAME
@@ -30,11 +30,11 @@
 .Op Fl C Ar class | Fl P Ar pid | Fl U Ar user
 .Op Fl SHB
 .Op Fl ea
-.Op Fl bcdfklmnstuvpw Op Ar val
+.Op Fl bcdfklmnopstuvw Op Ar val
 .Nm
 .Op Fl C Ar class | Fl U Ar user
 .Op Fl SHB
-.Op Fl bcdfklmnstuvpw Op Ar val
+.Op Fl bcdfklmnopstuvw Op Ar val
 .Op Fl E
 .Oo
 .Op Ar name Ns = Ns Ar value ...
@@ -82,7 +82,7 @@ login capabilities database.
 .It Nm Fl e Op Ar limitflags
 This usage determines values of resource settings according to
 .Ar limitflags ,
-but does not set them itself.
+but does not set them.
 Like the previous usage, it outputs these values to standard
 output, except that it will emit them in
 .Ic eval
@@ -180,7 +180,7 @@ options.
 Select
 .Dq "eval mode"
 formatting for output.
-This is valid only on display mode and cannot be used when running a
+This is valid only in display mode and cannot be used when running a
 command.
 The exact syntax used for output depends upon the type of shell from
 which
@@ -233,6 +233,18 @@ system is limited to the value displayed by the
 .Va kern.maxfiles
 .Xr sysctl 8
 variable.
+.It Fl o Op Ar val
+Select or set the
+.Va umtxp
+resource limit.
+The limit determines the maximal number of the process-shared locks
+which may be simultaneously created by the processes owned by the
+user, see
+.Xr pthread 3 .
+.It Fl p Op Ar val
+Select or set the
+.Va pseudoterminals
+resource limit.
 .It Fl s Op Ar val
 Select or set the
 .Va stacksize
@@ -266,10 +278,6 @@ and is inclusive of text, data, bss, stack,
 and
 .Xr mmap 2 Ns 'd
 space.
-.It Fl p Op Ar val
-Select or set the
-.Va pseudoterminals
-resource limit.
 .It Fl w Op Ar val
 Select or set the
 .Va swapuse

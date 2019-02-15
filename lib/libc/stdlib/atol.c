@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -42,16 +44,13 @@ __FBSDID("$FreeBSD$");
 #include <xlocale.h>
 
 long
-atol(str)
-	const char *str;
+atol(const char *str)
 {
 	return strtol(str, (char **)NULL, 10);
 }
 
 long
-atol_l(str, locale)
-	const char *str;
-	locale_t locale;
+atol_l(const char *str, locale_t locale)
 {
 	return strtol_l(str, (char **)NULL, 10, locale);
 }

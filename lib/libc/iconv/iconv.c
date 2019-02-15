@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Peter Wemm
  * All rights reserved.
  *
@@ -31,7 +33,7 @@
 #include "iconv-internal.h"
 
 size_t
-iconv(iconv_t a, const char ** __restrict b,
+iconv(iconv_t a, char ** __restrict b,
       size_t * __restrict c, char ** __restrict d,
       size_t * __restrict e)
 {

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013-2014 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
@@ -49,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
@@ -145,16 +146,16 @@ pinmux_set(struct iomuxc_softc *sc)
 			child = OF_child(child);
 		}
 
-		if (!fdt_is_enabled(child))
+		if (!ofw_bus_node_status_okay(child))
 			continue;
 
 		if ((len = OF_getproplen(child, "iomux_config")) > 0) {
-			OF_getprop(child, "iomux_config", &iomux_config, len);
+			OF_getencprop(child, "iomux_config", iomux_config, len);
 
 			values = len / (sizeof(uint32_t));
 			for (i = 0; i < values; i += 2) {
-				pin = fdt32_to_cpu(iomux_config[i]);
-				pin_cfg = fdt32_to_cpu(iomux_config[i+1]);
+				pin = iomux_config[i];
+				pin_cfg = iomux_config[i+1];
 #if 0
 				device_printf(sc->dev, "Set pin %d to 0x%08x\n",
 				    pin, pin_cfg);

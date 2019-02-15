@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Jukka A. Ukkonen
  * All rights reserved.
  *
@@ -37,6 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 #include <errno.h>
 #include "un-namespace.h"
+#include "libc_private.h"
+
+int __waitid(idtype_t, id_t, siginfo_t *, int);
 
 int
 __waitid(idtype_t idtype, id_t id, siginfo_t *info, int flags)
@@ -44,7 +49,9 @@ __waitid(idtype_t idtype, id_t id, siginfo_t *info, int flags)
 	int status;
 	pid_t ret;
 
-	ret = _wait6(idtype, id, &status, flags, NULL, info);
+	ret = ((pid_t (*)(idtype_t, id_t, int *, int, struct __wrusage *,
+	    siginfo_t *))__libc_interposing[INTERPOS_wait6])(idtype, id,
+	    &status, flags, NULL, info);
 
 	/*
 	 * According to SUSv4, waitid() shall not return a PID when a

@@ -1,6 +1,8 @@
 /*	$NetBSD: db_disasm.c,v 1.4 2003/07/15 00:24:38 lukem Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1996 Mark Brinicombe.
  * Copyright (c) 1996 Brini.
  *
@@ -70,7 +72,7 @@ db_disasm_printaddr(u_int address)
 }
 
 vm_offset_t
-db_disasm(vm_offset_t loc, boolean_t altfmt)
+db_disasm(vm_offset_t loc, bool altfmt)
 {
 
 	return disasm(&db_disasm_interface, loc, altfmt);

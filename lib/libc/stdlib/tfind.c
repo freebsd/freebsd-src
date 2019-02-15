@@ -4,8 +4,6 @@
  * Tree search generalized from Knuth (6.2.2) Algorithm T just like
  * the AT&T man page says.
  *
- * The node_t structure is for internal use only, lint doesn't grok it.
- *
  * Written by reading the System V Interface Definition, not the code.
  *
  * Totally public domain.
@@ -23,14 +21,16 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <search.h>
 
-/* find a node, or return 0 */
-void *
-tfind(vkey, vrootp, compar)
-	const void *vkey;		/* key to be found */
-	void * const *vrootp;		/* address of the tree root */
-	int (*compar)(const void *, const void *);
+/* 
+ * find a node, or return 0
+ *
+ * vkey   - key to be found 
+ * vrootp - address of the tree root 
+ */
+posix_tnode *
+tfind(const void *vkey, posix_tnode * const *rootp,
+    int (*compar)(const void *, const void *))
 {
-	node_t **rootp = (node_t **)vrootp;
 
 	if (rootp == NULL)
 		return NULL;

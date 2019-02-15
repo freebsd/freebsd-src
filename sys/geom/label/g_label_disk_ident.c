@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 Ivan Voras <ivoras@FreeBSD.org>
  * All rights reserved.
  *
@@ -47,7 +49,7 @@ static void
 g_label_disk_ident_taste(struct g_consumer *cp, char *label, size_t size)
 {
 	struct g_class *cls;
-	char ident[100];
+	char ident[DISK_IDENT_SIZE];
 	int ident_len, found, i;
 
 	g_topology_assert_not();

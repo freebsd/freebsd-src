@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Ed Schouten <ed@FreeBSD.org>
  * All rights reserved.
  *
@@ -62,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/tty.h>
 #include <sys/ttycom.h>
+#include <sys/uio.h>
 #include <sys/user.h>
 
 #include <machine/stdarg.h>
@@ -124,7 +127,7 @@ ptsdev_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		/*
 		 * Implement packet mode. When packet mode is turned on,
 		 * the first byte contains a bitmask of events that
-		 * occured (start, stop, flush, window size, etc).
+		 * occurred (start, stop, flush, window size, etc).
 		 */
 		if (psc->pts_flags & PTS_PKT && psc->pts_pkt) {
 			pkt = psc->pts_pkt;
@@ -262,6 +265,9 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 	int error = 0, sig;
 
 	switch (cmd) {
+	case FIODTYPE:
+		*(int *)data = D_TTY;
+		return (0);
 	case FIONBIO:
 		/* This device supports non-blocking operation. */
 		return (0);
@@ -275,7 +281,11 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 		}
 		tty_unlock(tp);
 		return (0);
-	case FIODGNAME: {
+	case FIODGNAME:
+#ifdef COMPAT_FREEBSD32
+	case FIODGNAME_32:
+#endif
+	{
 		struct fiodgname_arg *fgn;
 		const char *p;
 		int i;
@@ -286,7 +296,7 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 		i = strlen(p) + 1;
 		if (i > fgn->len)
 			return (EINVAL);
-		return copyout(p, fgn->buf, i);
+		return (copyout(p, fiodgname_buf_get_ptr(fgn, cmd), i));
 	}
 
 	/*
@@ -589,6 +599,8 @@ ptsdev_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	kif->kf_type = KF_TYPE_PTS;
 	tp = fp->f_data;
 	kif->kf_un.kf_pts.kf_pts_dev = tty_udev(tp);
+	kif->kf_un.kf_pts.kf_pts_dev_freebsd11 =
+	    kif->kf_un.kf_pts.kf_pts_dev; /* truncate */
 	strlcpy(kif->kf_path, tty_devname(tp), sizeof(kif->kf_path));
 	return (0);
 }
@@ -738,7 +750,7 @@ pts_alloc(int fflags, struct thread *td, struct file *fp)
 		PROC_UNLOCK(p);
 		return (EAGAIN);
 	}
-	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(p, RLIMIT_NPTS));
+	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(td, RLIMIT_NPTS));
 	if (!ok) {
 		racct_sub(p, RACCT_NPTS, 1);
 		PROC_UNLOCK(p);
@@ -792,7 +804,7 @@ pts_alloc_external(int fflags, struct thread *td, struct file *fp,
 		PROC_UNLOCK(p);
 		return (EAGAIN);
 	}
-	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(p, RLIMIT_NPTS));
+	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(td, RLIMIT_NPTS));
 	if (!ok) {
 		racct_sub(p, RACCT_NPTS, 1);
 		PROC_UNLOCK(p);
@@ -842,7 +854,7 @@ sys_posix_openpt(struct thread *td, struct posix_openpt_args *uap)
 	/* Allocate the actual pseudo-TTY. */
 	error = pts_alloc(FFLAGS(uap->flags & O_ACCMODE), td, fp);
 	if (error != 0) {
-		fdclose(td->td_proc->p_fd, fp, fd, td);
+		fdclose(td, fp, fd);
 		fdrop(fp, td);
 		return (error);
 	}

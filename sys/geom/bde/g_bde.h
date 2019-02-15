@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -182,7 +184,7 @@ AES_init(cipherInstance *ci)
 }
 
 static __inline void
-AES_makekey(keyInstance *ki, int dir, u_int len, void *key)
+AES_makekey(keyInstance *ki, int dir, u_int len, const void *key)
 {
 	int error;
 
@@ -191,7 +193,7 @@ AES_makekey(keyInstance *ki, int dir, u_int len, void *key)
 }
 
 static __inline void
-AES_encrypt(cipherInstance *ci, keyInstance *ki, void *in, void *out, u_int len)
+AES_encrypt(cipherInstance *ci, keyInstance *ki, const void *in, void *out, u_int len)
 {
 	int error;
 
@@ -200,7 +202,7 @@ AES_encrypt(cipherInstance *ci, keyInstance *ki, void *in, void *out, u_int len)
 }
 
 static __inline void
-AES_decrypt(cipherInstance *ci, keyInstance *ki, void *in, void *out, u_int len)
+AES_decrypt(cipherInstance *ci, keyInstance *ki, const void *in, void *out, u_int len)
 {
 	int error;
 

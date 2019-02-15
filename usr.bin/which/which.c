@@ -1,4 +1,6 @@
-/**
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2000 Dan Papasian.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,9 +30,8 @@
 
 __FBSDID("$FreeBSD$");
 
-#include <sys/stat.h>
 #include <sys/param.h>
-
+#include <sys/stat.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,7 +40,7 @@ __FBSDID("$FreeBSD$");
 
 static void	 usage(void);
 static int	 print_matches(char *, char *);
-	
+
 static int 	 silent;
 static int 	 allpaths;
 
@@ -81,7 +82,7 @@ main(int argc, char **argv)
 
 	while (argc > 0) {
 		memcpy(path, p, pathlen);
-	
+
 		if (strlen(*argv) >= FILENAME_MAX ||
 		    print_matches(path, *argv) == -1)
 			status = EXIT_FAILURE;

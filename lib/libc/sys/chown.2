@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)chown.2	8.4 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2008
+.Dd Octover 20, 2018
 .Dt CHOWN 2
 .Os
 .Sh NAME
@@ -118,6 +118,9 @@ list, defined in
 If
 .Fa path
 names a symbolic link, ownership of the symbolic link is changed.
+.It Dv AT_BENEATH
+Only allow to change ownership of a file which is beneath of
+the starting directory.
 .El
 .Pp
 If
@@ -227,6 +230,15 @@ argument is not an absolute path and
 is neither
 .Dv AT_FDCWD
 nor a file descriptor associated with a directory.
+.It Bq Er ENOTCAPABLE
+The
+.Dv AT_BENEATH
+flag was specified but
+.Fa path
+is not strictly relative to the starting directory.
+For example,
+.Fa path
+is absolute or includes a ".." component that escapes the starting directory.
 .El
 .Sh SEE ALSO
 .Xr chgrp 1 ,
@@ -246,7 +258,7 @@ system call follows The Open Group Extended API Set 2 specification.
 The
 .Fn chown
 function appeared in
-.At v7 .
+.At v1 .
 The
 .Fn fchown
 system call appeared in

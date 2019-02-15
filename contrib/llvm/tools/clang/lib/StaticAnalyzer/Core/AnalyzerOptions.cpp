@@ -13,17 +13,39 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
+using namespace ento;
 using namespace llvm;
+
+std::vector<StringRef>
+AnalyzerOptions::getRegisteredCheckers(bool IncludeExperimental /* = false */) {
+  static const StringRef StaticAnalyzerChecks[] = {
+#define GET_CHECKERS
+#define CHECKER(FULLNAME, CLASS, DESCFILE, HELPTEXT, GROUPINDEX, HIDDEN)       \
+  FULLNAME,
+#include "clang/StaticAnalyzer/Checkers/Checkers.inc"
+#undef CHECKER
+#undef GET_CHECKERS
+  };
+  std::vector<StringRef> Result;
+  for (StringRef CheckName : StaticAnalyzerChecks) {
+    if (!CheckName.startswith("debug.") &&
+        (IncludeExperimental || !CheckName.startswith("alpha.")))
+      Result.push_back(CheckName);
+  }
+  return Result;
+}
 
 AnalyzerOptions::UserModeKind AnalyzerOptions::getUserMode() {
   if (UserMode == UMK_NotSet) {
-    StringRef ModeStr(Config.GetOrCreateValue("mode", "deep").getValue());
+    StringRef ModeStr =
+        Config.insert(std::make_pair("mode", "deep")).first->second;
     UserMode = llvm::StringSwitch<UserModeKind>(ModeStr)
       .Case("shallow", UMK_Shallow)
       .Case("deep", UMK_Deep)
@@ -39,7 +61,7 @@ IPAKind AnalyzerOptions::getIPAMode() {
     // Use the User Mode to set the default IPA value.
     // Note, we have to add the string to the Config map for the ConfigDumper
     // checker to function properly.
-    const char *DefaultIPA = 0;
+    const char *DefaultIPA = nullptr;
     UserModeKind HighLevelMode = getUserMode();
     if (HighLevelMode == UMK_Shallow)
       DefaultIPA = "inlining";
@@ -48,7 +70,8 @@ IPAKind AnalyzerOptions::getIPAMode() {
     assert(DefaultIPA);
 
     // Lookup the ipa configuration option, use the default from User Mode.
-    StringRef ModeStr(Config.GetOrCreateValue("ipa", DefaultIPA).getValue());
+    StringRef ModeStr =
+        Config.insert(std::make_pair("ipa", DefaultIPA)).first->second;
     IPAKind IPAConfig = llvm::StringSwitch<IPAKind>(ModeStr)
             .Case("none", IPAK_None)
             .Case("basic-inlining", IPAK_BasicInlining)
@@ -61,7 +84,7 @@ IPAKind AnalyzerOptions::getIPAMode() {
     // Set the member variable.
     IPAMode = IPAConfig;
   }
-  
+
   return IPAMode;
 }
 
@@ -72,9 +95,9 @@ AnalyzerOptions::mayInlineCXXMemberFunction(CXXInlineableMemberKind K) {
 
   if (!CXXMemberInliningMode) {
     static const char *ModeKey = "c++-inlining";
-    
-    StringRef ModeStr(Config.GetOrCreateValue(ModeKey,
-                                              "destructors").getValue());
+
+    StringRef ModeStr =
+        Config.insert(std::make_pair(ModeKey, "destructors")).first->second;
 
     CXXInlineableMemberKind &MutableMode =
       const_cast<CXXInlineableMemberKind &>(CXXMemberInliningMode);
@@ -98,11 +121,37 @@ AnalyzerOptions::mayInlineCXXMemberFunction(CXXInlineableMemberKind K) {
 
 static StringRef toString(bool b) { return b ? "true" : "false"; }
 
-bool AnalyzerOptions::getBooleanOption(StringRef Name, bool DefaultVal) {
+StringRef AnalyzerOptions::getCheckerOption(StringRef CheckerName,
+                                            StringRef OptionName,
+                                            StringRef Default,
+                                            bool SearchInParents) {
+  // Search for a package option if the option for the checker is not specified
+  // and search in parents is enabled.
+  ConfigTable::const_iterator E = Config.end();
+  do {
+    ConfigTable::const_iterator I =
+        Config.find((Twine(CheckerName) + ":" + OptionName).str());
+    if (I != E)
+      return StringRef(I->getValue());
+    size_t Pos = CheckerName.rfind('.');
+    if (Pos == StringRef::npos)
+      return Default;
+    CheckerName = CheckerName.substr(0, Pos);
+  } while (!CheckerName.empty() && SearchInParents);
+  return Default;
+}
+
+bool AnalyzerOptions::getBooleanOption(StringRef Name, bool DefaultVal,
+                                       const CheckerBase *C,
+                                       bool SearchInParents) {
   // FIXME: We should emit a warning here if the value is something other than
   // "true", "false", or the empty string (meaning the default value),
   // but the AnalyzerOptions doesn't have access to a diagnostic engine.
-  StringRef V(Config.GetOrCreateValue(Name, toString(DefaultVal)).getValue());
+  StringRef Default = toString(DefaultVal);
+  StringRef V =
+      C ? getCheckerOption(C->getTagDescription(), Name, Default,
+                           SearchInParents)
+        : StringRef(Config.insert(std::make_pair(Name, Default)).first->second);
   return llvm::StringSwitch<bool>(V)
       .Case("true", true)
       .Case("false", false)
@@ -110,9 +159,10 @@ bool AnalyzerOptions::getBooleanOption(StringRef Name, bool DefaultVal) {
 }
 
 bool AnalyzerOptions::getBooleanOption(Optional<bool> &V, StringRef Name,
-                                       bool DefaultVal) {
+                                       bool DefaultVal, const CheckerBase *C,
+                                       bool SearchInParents) {
   if (!V.hasValue())
-    V = getBooleanOption(Name, DefaultVal);
+    V = getBooleanOption(Name, DefaultVal, C, SearchInParents);
   return V.getValue();
 }
 
@@ -120,6 +170,22 @@ bool AnalyzerOptions::includeTemporaryDtorsInCFG() {
   return getBooleanOption(IncludeTemporaryDtorsInCFG,
                           "cfg-temporary-dtors",
                           /* Default = */ false);
+}
+
+bool AnalyzerOptions::includeImplicitDtorsInCFG() {
+  return getBooleanOption(IncludeImplicitDtorsInCFG,
+                          "cfg-implicit-dtors",
+                          /* Default = */ true);
+}
+
+bool AnalyzerOptions::includeLifetimeInCFG() {
+  return getBooleanOption(IncludeLifetimeInCFG, "cfg-lifetime",
+                          /* Default = */ false);
+}
+
+bool AnalyzerOptions::includeLoopExitInCFG() {
+  return getBooleanOption(IncludeLoopExitInCFG, "cfg-loopexit",
+          /* Default = */ false);
 }
 
 bool AnalyzerOptions::mayInlineCXXStandardLibrary() {
@@ -134,8 +200,14 @@ bool AnalyzerOptions::mayInlineTemplateFunctions() {
                           /*Default=*/true);
 }
 
-bool AnalyzerOptions::mayInlineCXXContainerCtorsAndDtors() {
-  return getBooleanOption(InlineCXXContainerCtorsAndDtors,
+bool AnalyzerOptions::mayInlineCXXAllocator() {
+  return getBooleanOption(InlineCXXAllocator,
+                          "c++-allocator-inlining",
+                          /*Default=*/false);
+}
+
+bool AnalyzerOptions::mayInlineCXXContainerMethods() {
+  return getBooleanOption(InlineCXXContainerMethods,
                           "c++-container-inlining",
                           /*Default=*/false);
 }
@@ -174,7 +246,7 @@ bool AnalyzerOptions::shouldSuppressInlinedDefensiveChecks() {
 bool AnalyzerOptions::shouldSuppressFromCXXStandardLibrary() {
   return getBooleanOption(SuppressFromCXXStandardLibrary,
                           "suppress-c++-stdlib",
-                          /* Default = */ false);
+                          /* Default = */ true);
 }
 
 bool AnalyzerOptions::shouldReportIssuesInMainSourceFile() {
@@ -183,17 +255,40 @@ bool AnalyzerOptions::shouldReportIssuesInMainSourceFile() {
                           /* Default = */ false);
 }
 
-int AnalyzerOptions::getOptionAsInteger(StringRef Name, int DefaultVal) {
+
+bool AnalyzerOptions::shouldWriteStableReportFilename() {
+  return getBooleanOption(StableReportFilename,
+                          "stable-report-filename",
+                          /* Default = */ false);
+}
+
+int AnalyzerOptions::getOptionAsInteger(StringRef Name, int DefaultVal,
+                                        const CheckerBase *C,
+                                        bool SearchInParents) {
   SmallString<10> StrBuf;
   llvm::raw_svector_ostream OS(StrBuf);
   OS << DefaultVal;
-  
-  StringRef V(Config.GetOrCreateValue(Name, OS.str()).getValue());
+
+  StringRef V = C ? getCheckerOption(C->getTagDescription(), Name, OS.str(),
+                                     SearchInParents)
+                  : StringRef(Config.insert(std::make_pair(Name, OS.str()))
+                                  .first->second);
+
   int Res = DefaultVal;
   bool b = V.getAsInteger(10, Res);
   assert(!b && "analyzer-config option should be numeric");
-  (void) b;
+  (void)b;
   return Res;
+}
+
+StringRef AnalyzerOptions::getOptionAsString(StringRef Name,
+                                             StringRef DefaultVal,
+                                             const CheckerBase *C,
+                                             bool SearchInParents) {
+  return C ? getCheckerOption(C->getTagDescription(), Name, DefaultVal,
+                              SearchInParents)
+           : StringRef(
+                 Config.insert(std::make_pair(Name, DefaultVal)).first->second);
 }
 
 unsigned AnalyzerOptions::getAlwaysInlineSize() {
@@ -214,7 +309,7 @@ unsigned AnalyzerOptions::getMaxInlinableSize() {
         DefaultValue = 4;
         break;
       case UMK_Deep:
-        DefaultValue = 50;
+        DefaultValue = 100;
         break;
     }
 
@@ -235,6 +330,13 @@ unsigned AnalyzerOptions::getMaxTimesInlineLarge() {
   return MaxTimesInlineLarge.getValue();
 }
 
+unsigned AnalyzerOptions::getMinCFGSizeTreatFunctionsAsLarge() {
+  if (!MinCFGSizeTreatFunctionsAsLarge.hasValue())
+    MinCFGSizeTreatFunctionsAsLarge = getOptionAsInteger(
+      "min-cfg-size-treat-functions-as-large", 14);
+  return MinCFGSizeTreatFunctionsAsLarge.getValue();
+}
+
 unsigned AnalyzerOptions::getMaxNodesPerTopLevelFunction() {
   if (!MaxNodesPerTopLevelFunction.hasValue()) {
     int DefaultValue = 0;
@@ -246,7 +348,7 @@ unsigned AnalyzerOptions::getMaxNodesPerTopLevelFunction() {
         DefaultValue = 75000;
         break;
       case UMK_Deep:
-        DefaultValue = 150000;
+        DefaultValue = 225000;
         break;
     }
     MaxNodesPerTopLevelFunction = getOptionAsInteger("max-nodes", DefaultValue);
@@ -266,3 +368,27 @@ bool AnalyzerOptions::shouldConditionalizeStaticInitializers() {
   return getBooleanOption("cfg-conditional-static-initializers", true);
 }
 
+bool AnalyzerOptions::shouldInlineLambdas() {
+  if (!InlineLambdas.hasValue())
+    InlineLambdas = getBooleanOption("inline-lambdas", /*Default=*/true);
+  return InlineLambdas.getValue();
+}
+
+bool AnalyzerOptions::shouldWidenLoops() {
+  if (!WidenLoops.hasValue())
+    WidenLoops = getBooleanOption("widen-loops", /*Default=*/false);
+  return WidenLoops.getValue();
+}
+
+bool AnalyzerOptions::shouldUnrollLoops() {
+  if (!UnrollLoops.hasValue())
+    UnrollLoops = getBooleanOption("unroll-loops", /*Default=*/false);
+  return UnrollLoops.getValue();
+}
+
+bool AnalyzerOptions::shouldDisplayNotesAsEvents() {
+  if (!DisplayNotesAsEvents.hasValue())
+    DisplayNotesAsEvents =
+        getBooleanOption("notes-as-events", /*Default=*/false);
+  return DisplayNotesAsEvents.getValue();
+}

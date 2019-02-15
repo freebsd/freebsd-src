@@ -13,7 +13,6 @@
 
 #include "MipsFrameLowering.h"
 #include "MCTargetDesc/MipsBaseInfo.h"
-#include "MipsAnalyzeImmediate.h"
 #include "MipsInstrInfo.h"
 #include "MipsMachineFunction.h"
 #include "MipsTargetMachine.h"
@@ -24,7 +23,6 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Function.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Target/TargetOptions.h"
 
 using namespace llvm;
@@ -82,53 +80,73 @@ using namespace llvm;
 //
 //===----------------------------------------------------------------------===//
 
-const MipsFrameLowering *MipsFrameLowering::create(MipsTargetMachine &TM,
-                                                   const MipsSubtarget &ST) {
-  if (TM.getSubtargetImpl()->inMips16Mode())
+const MipsFrameLowering *MipsFrameLowering::create(const MipsSubtarget &ST) {
+  if (ST.inMips16Mode())
     return llvm::createMips16FrameLowering(ST);
 
   return llvm::createMipsSEFrameLowering(ST);
 }
 
 // hasFP - Return true if the specified function should have a dedicated frame
-// pointer register.  This is true if the function has variable sized allocas or
-// if frame pointer elimination is disabled.
+// pointer register.  This is true if the function has variable sized allocas,
+// if it needs dynamic stack realignment, if frame pointer elimination is
+// disabled, or if the frame address is taken.
 bool MipsFrameLowering::hasFP(const MachineFunction &MF) const {
-  const MachineFrameInfo *MFI = MF.getFrameInfo();
+  const MachineFrameInfo &MFI = MF.getFrameInfo();
+  const TargetRegisterInfo *TRI = STI.getRegisterInfo();
+
   return MF.getTarget().Options.DisableFramePointerElim(MF) ||
-      MFI->hasVarSizedObjects() || MFI->isFrameAddressTaken();
+      MFI.hasVarSizedObjects() || MFI.isFrameAddressTaken() ||
+      TRI->needsStackRealignment(MF);
 }
 
+bool MipsFrameLowering::hasBP(const MachineFunction &MF) const {
+  const MachineFrameInfo &MFI = MF.getFrameInfo();
+  const TargetRegisterInfo *TRI = STI.getRegisterInfo();
+
+  return MFI.hasVarSizedObjects() && TRI->needsStackRealignment(MF);
+}
+
+// Estimate the size of the stack, including the incoming arguments. We need to
+// account for register spills, local objects, reserved call frame and incoming
+// arguments. This is required to determine the largest possible positive offset
+// from $sp so that it can be determined if an emergency spill slot for stack
+// addresses is required.
 uint64_t MipsFrameLowering::estimateStackSize(const MachineFunction &MF) const {
-  const MachineFrameInfo *MFI = MF.getFrameInfo();
-  const TargetRegisterInfo &TRI = *MF.getTarget().getRegisterInfo();
+  const MachineFrameInfo &MFI = MF.getFrameInfo();
+  const TargetRegisterInfo &TRI = *STI.getRegisterInfo();
 
-  int64_t Offset = 0;
+  int64_t Size = 0;
 
-  // Iterate over fixed sized objects.
-  for (int I = MFI->getObjectIndexBegin(); I != 0; ++I)
-    Offset = std::max(Offset, -MFI->getObjectOffset(I));
+  // Iterate over fixed sized objects which are incoming arguments.
+  for (int I = MFI.getObjectIndexBegin(); I != 0; ++I)
+    if (MFI.getObjectOffset(I) > 0)
+      Size += MFI.getObjectSize(I);
 
   // Conservatively assume all callee-saved registers will be saved.
-  for (const uint16_t *R = TRI.getCalleeSavedRegs(&MF); *R; ++R) {
-    unsigned Size = TRI.getMinimalPhysRegClass(*R)->getSize();
-    Offset = RoundUpToAlignment(Offset + Size, Size);
+  for (const MCPhysReg *R = TRI.getCalleeSavedRegs(&MF); *R; ++R) {
+    unsigned RegSize = TRI.getSpillSize(*TRI.getMinimalPhysRegClass(*R));
+    Size = alignTo(Size + RegSize, RegSize);
   }
 
-  unsigned MaxAlign = MFI->getMaxAlignment();
+  // Get the size of the rest of the frame objects and any possible reserved
+  // call frame, accounting for alignment.
+  return Size + MFI.estimateStackSize(MF);
+}
 
-  // Check that MaxAlign is not zero if there is a stack object that is not a
-  // callee-saved spill.
-  assert(!MFI->getObjectIndexEnd() || MaxAlign);
+// Eliminate ADJCALLSTACKDOWN, ADJCALLSTACKUP pseudo instructions
+MachineBasicBlock::iterator MipsFrameLowering::
+eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
+                              MachineBasicBlock::iterator I) const {
+  unsigned SP = STI.getABI().IsN64() ? Mips::SP_64 : Mips::SP;
 
-  // Iterate over other objects.
-  for (unsigned I = 0, E = MFI->getObjectIndexEnd(); I != E; ++I)
-    Offset = RoundUpToAlignment(Offset + MFI->getObjectSize(I), MaxAlign);
+  if (!hasReservedCallFrame(MF)) {
+    int64_t Amount = I->getOperand(0).getImm();
+    if (I->getOpcode() == Mips::ADJCALLSTACKDOWN)
+      Amount = -Amount;
 
-  // Call frame.
-  if (MFI->adjustsStack() && hasReservedCallFrame(MF))
-    Offset = RoundUpToAlignment(Offset + MFI->getMaxCallFrameSize(),
-                                std::max(MaxAlign, getStackAlignment()));
+    STI.getInstrInfo()->adjustStackPtr(SP, Amount, MBB, I);
+  }
 
-  return RoundUpToAlignment(Offset, getStackAlignment());
+  return MBB.erase(I);
 }

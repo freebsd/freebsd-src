@@ -52,8 +52,8 @@ cat <<'EOF'
 
 EOF
 
-./make_hash 1 info $OPT1 <$DATA
-./make_hash 3 cap  $OPT1 <$DATA
+make_hash 1 info $OPT1 <$DATA
+make_hash 3 cap  $OPT1 <$DATA
 
 $AWK -f $OPT2 bigstrings=$OPT1 tablename=capalias <$DATA
 

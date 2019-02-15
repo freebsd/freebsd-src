@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010-2012 Semihalf
  * Copyright (c) 2008, 2009 Reinoud Zandijk
  * All rights reserved.
@@ -331,8 +333,8 @@ nandfs_write_superblock_at(struct nandfs_device *fsdev,
 	    super->s_last_pseg, super->s_last_cno, super->s_last_seq,
 	    super->s_wtime, index));
 
-	read_block = btodb(offset + ((index / sb_per_sector) * sb_per_sector)
-	    * sizeof(struct nandfs_super_block));
+	read_block = btodb(offset + rounddown(index, sb_per_sector) *
+	    sizeof(struct nandfs_super_block));
 
 	DPRINTF(SYNC, ("%s: read_block %#x\n", __func__, read_block));
 
@@ -559,7 +561,7 @@ nandfs_read_structures(struct nandfs_device *fsdev)
 {
 	struct nandfs_fsdata *fsdata, *fsdatat;
 	struct nandfs_super_block *sblocks, *ssblock;
-	int nsbs, nfsds, i;
+	u_int nsbs, nfsds, i;
 	int error = 0;
 	int nrsbs;
 
@@ -1391,6 +1393,7 @@ nandfs_mountfs(struct vnode *devvp, struct mount *mp)
 	nmp->nm_ronly = ronly;
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
+	mp->mnt_kern_flag |= MNTK_USES_BCACHE;
 	MNT_IUNLOCK(mp);
 	nmp->nm_nandfsdev = nandfsdev;
 	/* Add our mountpoint */

@@ -360,30 +360,30 @@ edithost(char *pat, char *host)
 {
 	char *res = editedhost;
 
-	if (!pat)
-		pat = strdup("");
-	while (*pat) {
-		switch (*pat) {
+	if (pat) {
+		while (*pat) {
+			switch (*pat) {
 
-		case '#':
-			if (*host)
-				host++;
-			break;
+			case '#':
+				if (*host)
+					host++;
+				break;
 
-		case '@':
-			if (*host)
-				*res++ = *host++;
-			break;
+			case '@':
+				if (*host)
+					*res++ = *host++;
+				break;
 
-		default:
-			*res++ = *pat;
-			break;
+			default:
+				*res++ = *pat;
+				break;
+			}
+			if (res == &editedhost[sizeof editedhost - 1]) {
+				*res = '\0';
+				return;
+			}
+			pat++;
 		}
-		if (res == &editedhost[sizeof editedhost - 1]) {
-			*res = '\0';
-			return;
-		}
-		pat++;
 	}
 	if (*host)
 		(void) strncpy(res, host,

@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LIB_ASMPARSER_LLLEXER_H
-#define LIB_ASMPARSER_LLLEXER_H
+#ifndef LLVM_LIB_ASMPARSER_LLLEXER_H
+#define LLVM_LIB_ASMPARSER_LLLEXER_H
 
 #include "LLToken.h"
 #include "llvm/ADT/APFloat.h"
@@ -28,7 +28,7 @@ namespace llvm {
 
   class LLLexer {
     const char *CurPtr;
-    MemoryBuffer *CurBuf;
+    StringRef CurBuf;
     SMDiagnostic &ErrorInfo;
     SourceMgr &SM;
     LLVMContext &Context;
@@ -43,9 +43,8 @@ namespace llvm {
     APSInt  APSIntVal;
 
   public:
-    explicit LLLexer(MemoryBuffer *StartBuf, SourceMgr &SM, SMDiagnostic &,
+    explicit LLLexer(StringRef StartBuf, SourceMgr &SM, SMDiagnostic &,
                      LLVMContext &C);
-    ~LLLexer() {}
 
     lltok::Kind Lex() {
       return CurKind = LexToken();
@@ -63,7 +62,9 @@ namespace llvm {
 
     bool Error(LocTy L, const Twine &Msg) const;
     bool Error(const Twine &Msg) const { return Error(getLoc(), Msg); }
-    std::string getFilename() const;
+
+    void Warning(LocTy WarningLoc, const Twine &Msg) const;
+    void Warning(const Twine &Msg) const { return Warning(getLoc(), Msg); }
 
   private:
     lltok::Kind LexToken();
@@ -77,8 +78,10 @@ namespace llvm {
     lltok::Kind LexDigitOrNegative();
     lltok::Kind LexPositive();
     lltok::Kind LexAt();
+    lltok::Kind LexDollar();
     lltok::Kind LexExclaim();
     lltok::Kind LexPercent();
+    lltok::Kind LexVar(lltok::Kind Var, lltok::Kind VarID);
     lltok::Kind LexQuote();
     lltok::Kind Lex0x();
     lltok::Kind LexHash();

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2013 M. Warner Losh. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -119,34 +121,6 @@ typedef struct {	/* Auxiliary vector entry on initial stack */
 
 __ElfType(Auxinfo);
 
-/* Values for a_type. */
-#define	AT_NULL		0	/* Terminates the vector. */
-#define	AT_IGNORE	1	/* Ignored entry. */
-#define	AT_EXECFD	2	/* File descriptor of program to load. */
-#define	AT_PHDR		3	/* Program header of program already loaded. */
-#define	AT_PHENT	4	/* Size of each program header entry. */
-#define	AT_PHNUM	5	/* Number of program header entries. */
-#define	AT_PAGESZ	6	/* Page size in bytes. */
-#define	AT_BASE		7	/* Interpreter's base address. */
-#define	AT_FLAGS	8	/* Flags (unused for i386). */
-#define	AT_ENTRY	9	/* Where interpreter should transfer control. */
-#define	AT_NOTELF	10	/* Program is not ELF ?? */
-#define	AT_UID		11	/* Real uid. */
-#define	AT_EUID		12	/* Effective uid. */
-#define	AT_GID		13	/* Real gid. */
-#define	AT_EGID		14	/* Effective gid. */
-#define	AT_EXECPATH	15	/* Path to the executable. */
-#define	AT_CANARY	16	/* Canary for SSP */
-#define	AT_CANARYLEN	17	/* Length of the canary. */
-#define	AT_OSRELDATE	18	/* OSRELDATE. */
-#define	AT_NCPUS	19	/* Number of CPUs. */
-#define	AT_PAGESIZES	20	/* Pagesizes. */
-#define	AT_PAGESIZESLEN	21	/* Number of pagesizes. */
-#define	AT_TIMEKEEP	22	/* Pointer to timehands. */
-#define	AT_STACKPROT	23	/* Initial stack protection. */
-
-#define	AT_COUNT	24	/* Count of defined aux entry types. */
-
 #define	ET_DYN_LOAD_ADDR 0x0120000
 
 /*
@@ -237,54 +211,5 @@ __ElfType(Auxinfo);
 
 #define	R_MIPS_COPY		126
 #define	R_MIPS_JUMP_SLOT	127
-
-/* mips dynamic tags */
-
-#define	DT_MIPS_RLD_VERSION	0x70000001
-#define	DT_MIPS_TIME_STAMP	0x70000002
-#define	DT_MIPS_ICHECKSUM	0x70000003
-#define	DT_MIPS_IVERSION	0x70000004
-#define	DT_MIPS_FLAGS		0x70000005
-#define	DT_MIPS_BASE_ADDRESS	0x70000006
-#define	DT_MIPS_CONFLICT	0x70000008
-#define	DT_MIPS_LIBLIST		0x70000009
-#define	DT_MIPS_CONFLICTNO	0x7000000b
-#define	DT_MIPS_LOCAL_GOTNO	0x7000000a	/* number of local got ents */
-#define	DT_MIPS_LIBLISTNO	0x70000010
-#define	DT_MIPS_SYMTABNO	0x70000011	/* number of .dynsym entries */
-#define	DT_MIPS_UNREFEXTNO	0x70000012
-#define	DT_MIPS_GOTSYM		0x70000013	/* first dynamic sym in got */
-#define	DT_MIPS_HIPAGENO	0x70000014
-#define	DT_MIPS_RLD_MAP		0x70000016	/* address of loader map */
-#define	DT_MIPS_PLTGOT		0x70000032
-#define	DT_MIPS_RWPLT		0x70000034
-
-/*
- * ELF Flags
- */
-#define	EF_MIPS_PIC		0x00000002	/* Contains PIC code */
-#define	EF_MIPS_CPIC		0x00000004	/* STD PIC calling sequence */
-#define	EF_MIPS_ABI2		0x00000020	/* N32 */
-
-#define	EF_MIPS_ARCH_ASE	0x0f000000	/* Architectural extensions */
-#define	EF_MIPS_ARCH_MDMX	0x08000000	/* MDMX multimedia extension */
-#define	EF_MIPS_ARCH_M16	0x04000000	/* MIPS-16 ISA extensions */
-
-#define	EF_MIPS_ARCH		0xf0000000	/* Architecture field */
-#define	EF_MIPS_ARCH_1		0x00000000	/* -mips1 code */
-#define	EF_MIPS_ARCH_2		0x10000000	/* -mips2 code */
-#define	EF_MIPS_ARCH_3		0x20000000	/* -mips3 code */
-#define	EF_MIPS_ARCH_4		0x30000000	/* -mips4 code */
-#define	EF_MIPS_ARCH_5		0x40000000	/* -mips5 code */
-#define	EF_MIPS_ARCH_32		0x50000000	/* -mips32 code */
-#define	EF_MIPS_ARCH_64		0x60000000	/* -mips64 code */
-#define	EF_MIPS_ARCH_32R2	0x70000000	/* -mips32r2 code */
-#define	EF_MIPS_ARCH_64R2	0x80000000	/* -mips64r2 code */
-
-#define	EF_MIPS_ABI		0x0000f000
-#define	EF_MIPS_ABI_O32		0x00001000
-#define	EF_MIPS_ABI_O64		0x00002000
-#define	EF_MIPS_ABI_EABI32	0x00003000
-#define	EF_MIPS_ABI_EABI64	0x00004000
 
 #endif /* __MIPS_ELF_H */

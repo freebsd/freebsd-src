@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -15,7 +17,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -43,6 +45,7 @@
 #include <sys/selinfo.h>
 #include <sys/queue.h>
 #include <sys/conf.h>
+#include <sys/counter.h>
 #include <net/if.h>
 
 /*
@@ -74,8 +77,8 @@ struct bpf_d {
 	struct bpf_insn *bd_rfilter; 	/* read filter code */
 	struct bpf_insn *bd_wfilter;	/* write filter code */
 	void		*bd_bfilter;	/* binary filter code */
-	u_int64_t	bd_rcount;	/* number of packets received */
-	u_int64_t	bd_dcount;	/* number of packets dropped */
+	counter_u64_t	bd_rcount;	/* number of packets received */
+	counter_u64_t	bd_dcount;	/* number of packets dropped */
 
 	u_char		bd_promisc;	/* true if listening promiscuously */
 	u_char		bd_state;	/* idle, waiting, or timed out */
@@ -92,14 +95,14 @@ struct bpf_d {
 	struct mtx	bd_lock;	/* per-descriptor lock */
 	struct callout	bd_callout;	/* for BPF timeouts with select */
 	struct label	*bd_label;	/* MAC label for descriptor */
-	u_int64_t	bd_fcount;	/* number of packets which matched filter */
+	counter_u64_t	bd_fcount;	/* number of packets which matched filter */
 	pid_t		bd_pid;		/* PID which created descriptor */
 	int		bd_locked;	/* true if descriptor is locked */
 	u_int		bd_bufmode;	/* Current buffer mode. */
-	u_int64_t	bd_wcount;	/* number of packets written */
-	u_int64_t	bd_wfcount;	/* number of packets that matched write filter */
-	u_int64_t	bd_wdcount;	/* number of packets dropped during a write */
-	u_int64_t	bd_zcopy;	/* number of zero copy operations */
+	counter_u64_t	bd_wcount;	/* number of packets written */
+	counter_u64_t	bd_wfcount;	/* number of packets that matched write filter */
+	counter_u64_t	bd_wdcount;	/* number of packets dropped during a write */
+	counter_u64_t	bd_zcopy;	/* number of zero copy operations */
 	u_char		bd_compat32;	/* 32-bit stream on LP64 system */
 };
 
@@ -115,9 +118,6 @@ struct bpf_d {
 #define BPF_PID_REFRESH(bd, td)	(bd)->bd_pid = (td)->td_proc->p_pid
 #define BPF_PID_REFRESH_CUR(bd)	(bd)->bd_pid = curthread->td_proc->p_pid
 
-#define BPF_LOCK()		mtx_lock(&bpf_mtx)
-#define BPF_UNLOCK()		mtx_unlock(&bpf_mtx)
-#define BPF_LOCK_ASSERT()	mtx_assert(&bpf_mtx, MA_OWNED)
 /*
  * External representation of the bpf descriptor
  */
@@ -151,11 +151,6 @@ struct xbpf_d {
 	 */
 	u_int64_t	bd_spare[4];
 };
-
-#define BPFIF_RLOCK(bif)	rw_rlock(&(bif)->bif_lock)
-#define BPFIF_RUNLOCK(bif)	rw_runlock(&(bif)->bif_lock)
-#define BPFIF_WLOCK(bif)	rw_wlock(&(bif)->bif_lock)
-#define BPFIF_WUNLOCK(bif)	rw_wunlock(&(bif)->bif_lock)
 
 #define BPFIF_FLAG_DYING	1	/* Reject new bpf consumers */
 

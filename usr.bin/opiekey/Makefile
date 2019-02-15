@@ -1,17 +1,16 @@
 # $FreeBSD$
 #
-OPIE_DIST?=	${.CURDIR}/../../contrib/opie
+OPIE_DIST?=	${SRCTOP}/contrib/opie
 
 PROG=	opiekey
 
-CFLAGS+=-I${.CURDIR}/../../lib/libopie
+CFLAGS+=-I${SRCTOP}/lib/libopie
 CFLAGS+=-I${OPIE_DIST}
 CFLAGS+=-DINSECURE_OVERRIDE
 
 WARNS?=	0
 
-DPADD=	${LIBOPIE} ${LIBMD}
-LDADD=	-lopie -lmd
+LIBADD=	opie
 
 LINKS=	${BINDIR}/opiekey ${BINDIR}/otp-md4
 LINKS+=	${BINDIR}/opiekey ${BINDIR}/otp-md5

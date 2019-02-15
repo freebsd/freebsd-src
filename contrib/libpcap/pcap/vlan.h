@@ -29,16 +29,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * @(#) $Header: /tcpdump/master/libpcap/pcap/vlan.h,v 1.1 2008-08-06 07:45:00 guy Exp $
  */
 
 #ifndef lib_pcap_vlan_h
 #define lib_pcap_vlan_h
 
+#include <pcap/pcap-inttypes.h>
+
 struct vlan_tag {
-	u_int16_t	vlan_tpid;		/* ETH_P_8021Q */
-	u_int16_t	vlan_tci;		/* VLAN TCI */
+	uint16_t	vlan_tpid;		/* ETH_P_8021Q */
+	uint16_t	vlan_tci;		/* VLAN TCI */
 };
 
 #define VLAN_TAG_LEN	4

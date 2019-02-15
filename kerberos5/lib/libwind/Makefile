@@ -1,10 +1,10 @@
 #$FreeBSD$
 
 LIB=	wind
+PRIVATELIB=	true
 LDFLAGS=	-Wl,--no-undefined
 VERSION_MAP= ${KRB5DIR}/lib/wind/version-script.map
-LDADD=	-lcom_err -lroken
-DPADD=	${LIBCOM_ERR} ${LIBROKEN}
+LIBADD=	com_err roken
 
 INCS=	wind.h \
 	wind_err.h
@@ -28,7 +28,8 @@ SRCS=	bidi.c \
 SRCS+=	wind_err.c \
 	wind_err.h
 
-CFLAGS+=-I${KRB5DIR}/lib/roken -I.
+CFLAGS+=-I${KRB5DIR}/lib/roken -I${.OBJDIR:H}/libroken \
+	-I${SRCTOP}/contrib/com_err -I.
 
 .include <bsd.lib.mk>
 

@@ -2,6 +2,8 @@
 /* $NetBSD: citrus_stdenc.h,v 1.4 2005/10/29 18:02:04 tshiozak Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2003 Citrus Project,
  * All rights reserved.
  *
@@ -69,7 +71,7 @@ _citrus_stdenc_init_state(struct _citrus_stdenc * __restrict ce,
 static __inline int
 _citrus_stdenc_mbtocs(struct _citrus_stdenc * __restrict ce,
     _citrus_csid_t * __restrict csid, _citrus_index_t * __restrict idx,
-    const char ** __restrict s, size_t n, void * __restrict ps,
+    char ** __restrict s, size_t n, void * __restrict ps,
     size_t * __restrict nresult, struct iconv_hooks *hooks)
 {
 

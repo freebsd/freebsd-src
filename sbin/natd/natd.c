@@ -124,7 +124,7 @@ static void	StrToAddr (const char* str, struct in_addr* addr);
 static u_short  StrToPort (const char* str, const char* proto);
 static int      StrToPortRange (const char* str, const char* proto, port_range *portRange);
 static int 	StrToProto (const char* str);
-static int      StrToAddrAndPortRange (const char* str, struct in_addr* addr, char* proto, port_range *portRange);
+static int      StrToAddrAndPortRange (char* str, struct in_addr* addr, char* proto, port_range *portRange);
 static void	ParseArgs (int argc, char** argv);
 static void	SetupPunchFW(const char *strValue);
 static void	SetupSkinnyPort(const char *strValue);
@@ -223,7 +223,7 @@ int main (int argc, char** argv)
 /*
  * Create divert sockets. Use only one socket if -p was specified
  * on command line. Otherwise, create separate sockets for
- * outgoing and incoming connnections.
+ * outgoing and incoming connections.
  */
 		if (mip->inOutPort) {
 
@@ -618,7 +618,7 @@ static void DoGlobal (int fd)
 	
 	if (wrote != bytes) {
 
-		if (errno == EMSGSIZE) {
+		if (errno == EMSGSIZE && mip != NULL) {
 
 			if (mip->ifMTU != -1)
 				SendNeedFragIcmp (icmpSock,
@@ -1896,7 +1896,7 @@ u_short StrToPort (const char* str, const char* proto)
 
 int StrToPortRange (const char* str, const char* proto, port_range *portRange)
 {
-	char*           sep;
+	const char*	sep;
 	struct servent*	sp;
 	char*		end;
 	u_short         loPort;
@@ -1938,7 +1938,8 @@ int StrToPortRange (const char* str, const char* proto, port_range *portRange)
 }
 
 
-int StrToProto (const char* str)
+static int
+StrToProto (const char* str)
 {
 	if (!strcmp (str, "tcp"))
 		return IPPROTO_TCP;
@@ -1949,7 +1950,8 @@ int StrToProto (const char* str)
 	errx (1, "unknown protocol %s. Expected tcp or udp", str);
 }
 
-int StrToAddrAndPortRange (const char* str, struct in_addr* addr, char* proto, port_range *portRange)
+static int
+StrToAddrAndPortRange (char* str, struct in_addr* addr, char* proto, port_range *portRange)
 {
 	char*	ptr;
 
@@ -2004,7 +2006,7 @@ NewInstance(const char *name)
 		}
 	}
 	ninstance++;
-	ip = calloc(sizeof *ip, 1);
+	ip = calloc(1, sizeof(*ip));
 	ip->name = strdup(name);
 	ip->la = LibAliasInit (ip->la);
 	ip->assignAliasAddr	= 0;

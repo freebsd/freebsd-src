@@ -160,7 +160,7 @@ on_query_startup(struct query_state *qstate)
 	struct cmsgcred *cred;
 	int elem_type;
 
-	struct {
+	union {
 		struct cmsghdr	hdr;
 		char cred[CMSG_SPACE(sizeof(struct cmsgcred))];
 	} cmsg;
@@ -171,8 +171,8 @@ on_query_startup(struct query_state *qstate)
 	memset(&cred_hdr, 0, sizeof(struct msghdr));
 	cred_hdr.msg_iov = &iov;
 	cred_hdr.msg_iovlen = 1;
-	cred_hdr.msg_control = (caddr_t)&cmsg;
-	cred_hdr.msg_controllen = CMSG_LEN(sizeof(struct cmsgcred));
+	cred_hdr.msg_control = &cmsg;
+	cred_hdr.msg_controllen = CMSG_SPACE(sizeof(struct cmsgcred));
 
 	memset(&iov, 0, sizeof(struct iovec));
 	iov.iov_base = &elem_type;
@@ -183,7 +183,8 @@ on_query_startup(struct query_state *qstate)
 		return (-1);
 	}
 
-	if (cmsg.hdr.cmsg_len < CMSG_LEN(sizeof(struct cmsgcred))
+	if (cred_hdr.msg_controllen < CMSG_LEN(sizeof(struct cmsgcred))
+		|| cmsg.hdr.cmsg_len < CMSG_LEN(sizeof(struct cmsgcred))
 		|| cmsg.hdr.cmsg_level != SOL_SOCKET
 		|| cmsg.hdr.cmsg_type != SCM_CREDS) {
 		TRACE_OUT(on_query_startup);
@@ -725,7 +726,7 @@ on_read_request_process(struct query_state *qstate)
 		if (read_response->error_code == -2) {
 			read_response->data = malloc(
 				read_response->data_size);
-			assert(read_response != NULL);
+			assert(read_response->data != NULL);
 			read_response->error_code = cache_read(c_entry,
 				read_request->cache_key,
 		    		read_request->cache_key_size,
@@ -743,9 +744,14 @@ on_read_request_process(struct query_state *qstate)
 				&read_response->data_size);
 
 			if (read_response->error_code == -2) {
-				read_response->error_code = 0;
-				read_response->data = NULL;
-				read_response->data_size = 0;
+				read_response->data = malloc(
+					read_response->data_size);
+				assert(read_response->data != NULL);
+				read_response->error_code = cache_read(neg_c_entry,
+					read_request->cache_key,
+		    			read_request->cache_key_size,
+		    			read_response->data,
+		    			&read_response->data_size);
 			}
 		}
 		configuration_unlock_entry(qstate->config_entry, CELT_NEGATIVE);

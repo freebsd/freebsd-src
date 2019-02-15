@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Charles Mott <cm@linktel.net>
  * All rights reserved.
  *
@@ -699,11 +701,13 @@ ProtoAliasOut(struct libalias *la, struct in_addr *ip_src,
 	struct alias_link *lnk;
 
 	LIBALIAS_LOCK_ASSERT(la);
-	(void)create;
 
 /* Return if proxy-only mode is enabled */
 	if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
 		return (PKT_ALIAS_OK);
+
+	if (!create)
+		return (PKT_ALIAS_IGNORED);
 
 	lnk = FindProtoOut(la, *ip_src, ip_dst, ip_p);
 	if (lnk != NULL) {
@@ -1747,7 +1751,8 @@ LibAliasUnLoadAllModule(void)
  * the input packet, on failure NULL. The input packet is always consumed.
  */
 struct mbuf *
-m_megapullup(struct mbuf *m, int len) {
+m_megapullup(struct mbuf *m, int len)
+{
 	struct mbuf *mcl;
 
 	if (len > m->m_pkthdr.len)
@@ -1756,7 +1761,14 @@ m_megapullup(struct mbuf *m, int len) {
 	if (m->m_next == NULL && M_WRITABLE(m))
 		return (m);
 
-	mcl = m_get2(len, M_NOWAIT, MT_DATA, M_PKTHDR);
+	if (len <= MJUMPAGESIZE)
+		mcl = m_get2(len, M_NOWAIT, MT_DATA, M_PKTHDR);
+	else if (len <= MJUM9BYTES)
+		mcl = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
+	else if (len <= MJUM16BYTES)
+		mcl = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM16BYTES);
+	else
+		goto bad;
 	if (mcl == NULL)
 		goto bad;
 	m_align(mcl, len);

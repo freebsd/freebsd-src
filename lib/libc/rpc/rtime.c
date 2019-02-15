@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -61,16 +63,14 @@ __FBSDID("$FreeBSD$");
 
 extern int _rpc_dtablesize( void );
 
-#define NYEARS	(unsigned long)(1970 - 1900)
-#define TOFFSET (unsigned long)(60*60*24*(365*NYEARS + (NYEARS/4)))
+#define	NYEARS	(unsigned long)(1970 - 1900)
+#define	TOFFSET (unsigned long)(60*60*24*(365*NYEARS + (NYEARS/4)))
 
 static void do_close( int );
 
 int
-rtime(addrp, timep, timeout)
-	struct sockaddr_in *addrp;
-	struct timeval *timep;
-	struct timeval *timeout;
+rtime(struct sockaddr_in *addrp, struct timeval *timep,
+    struct timeval *timeout)
 {
 	int s;
 	fd_set readfds;
@@ -100,11 +100,11 @@ rtime(addrp, timep, timeout)
 	addrp->sin_port = serv->s_port;
 
 	if (type == SOCK_DGRAM) {
-		res = _sendto(s, (char *)&thetime, sizeof(thetime), 0, 
+		res = _sendto(s, (char *)&thetime, sizeof(thetime), 0,
 			     (struct sockaddr *)addrp, sizeof(*addrp));
 		if (res < 0) {
 			do_close(s);
-			return(-1);	
+			return(-1);
 		}
 		do {
 			FD_ZERO(&readfds);
@@ -117,14 +117,14 @@ rtime(addrp, timep, timeout)
 				errno = ETIMEDOUT;
 			}
 			do_close(s);
-			return(-1);	
+			return(-1);
 		}
 		fromlen = sizeof(from);
-		res = _recvfrom(s, (char *)&thetime, sizeof(thetime), 0, 
+		res = _recvfrom(s, (char *)&thetime, sizeof(thetime), 0,
 			       (struct sockaddr *)&from, &fromlen);
 		do_close(s);
 		if (res < 0) {
-			return(-1);	
+			return(-1);
 		}
 	} else {
 		if (_connect(s, (struct sockaddr *)addrp, sizeof(*addrp)) < 0) {
@@ -139,7 +139,7 @@ rtime(addrp, timep, timeout)
 	}
 	if (res != sizeof(thetime)) {
 		errno = EIO;
-		return(-1);	
+		return(-1);
 	}
 	thetime = ntohl(thetime);
 	timep->tv_sec = thetime - TOFFSET;
@@ -148,8 +148,7 @@ rtime(addrp, timep, timeout)
 }
 
 static void
-do_close(s)
-	int s;
+do_close(int s)
 {
 	int save;
 

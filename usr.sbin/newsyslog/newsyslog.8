@@ -17,7 +17,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd September 23, 2014
+.Dd November 10, 2018
 .Dt NEWSYSLOG 8
 .Os
 .Sh NAME
@@ -125,7 +125,8 @@ reasons for either trimming that log or skipping it.
 Cause
 .Nm
 not to trim the logs, but to print out what it would do if this option
-were not specified. This option implies the
+were not specified.
+This option implies the
 .Fl r
 option.
 .It Fl r
@@ -267,10 +268,12 @@ will examine all files listed in the configuration file.
 .Nm
 configuration file
 .It Pa /etc/newsyslog.conf.d
-Each file in this directory will be included by the default
+By default each file in this directory ending in '.conf' and not beginning with
+a '.' will be included by the default
 .Pa newsyslog.conf .
 .It Pa /usr/local/etc/newsyslog.conf.d
-Each file in this directory will be included by the default
+By default each file in this directory ending in '.conf' and not beginning with
+a '.' will be included by the default
 .Pa newsyslog.conf .
 .El
 .Sh COMPATIBILITY
@@ -288,6 +291,7 @@ accepted for backwards compatibility.
 .Xr bzip2 1 ,
 .Xr gzip 1 ,
 .Xr xz 1 ,
+.Xr zstd 1 ,
 .Xr syslog 3 ,
 .Xr newsyslog.conf 5 ,
 .Xr chown 8 ,
@@ -304,5 +308,3 @@ and first appeared in
 MIT Project Athena
 .Pp
 Copyright 1987, Massachusetts Institute of Technology
-.Sh BUGS
-Does not yet automatically read the logs to find security breaches.

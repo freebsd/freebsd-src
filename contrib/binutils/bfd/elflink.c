@@ -4356,9 +4356,38 @@ elf_link_add_object_symbols (bfd *abfd, struct bfd_link_info *info)
 		 --no-add-needed is used.  */
 	      if ((elf_dyn_lib_class (abfd) & DYN_NO_NEEDED) != 0)
 		{
+		  bfd_boolean looks_soish;
+		  const char *print_name;
+		  int print_len;
+		  size_t len, lend = 0;
+
+		  looks_soish = FALSE;
+		  print_name = soname;
+		  print_len = strlen(soname);
+		  if (strncmp(soname, "lib", 3) == 0)
+		    {
+		      len = print_len;
+		      if (len > 5 && strcmp(soname + len - 2, ".a") == 0)
+			lend = len - 5;
+		      else
+			{
+			  while (len > 6 && (ISDIGIT(soname[len - 1]) ||
+					     soname[len - 1] == '.'))
+			    len--;
+			  if (strncmp(soname + len - 3, ".so", 3) == 0)
+			    lend = len - 6;
+			}
+		      if (lend != 0)
+			{
+			  print_name = soname + 3;
+			  print_len = lend;
+			  looks_soish = TRUE;
+		    	}
+		    }
+
 		  (*_bfd_error_handler)
-		    (_("%B: invalid DSO for symbol `%s' definition"),
-		    abfd, name);
+		    (_("undefined reference to symbol `%s' (try adding -l%s%.*s)"),
+		    name, looks_soish? "" : ":", print_len, print_name);
 		  bfd_set_error (bfd_error_bad_value);
 		  goto error_free_vers;
 		}
@@ -4786,7 +4815,7 @@ _bfd_elf_archive_symbol_lookup (bfd *abfd,
   len = strlen (name);
   copy = bfd_alloc (abfd, len);
   if (copy == NULL)
-    return (struct elf_link_hash_entry *) 0 - 1;
+    return (struct elf_link_hash_entry *)(intptr_t)-1;
 
   first = p - name + 1;
   memcpy (copy, name, first);
@@ -4898,7 +4927,7 @@ elf_link_add_archive_symbols (bfd *abfd, struct bfd_link_info *info)
 	    }
 
 	  h = archive_symbol_lookup (abfd, info, symdef->name);
-	  if (h == (struct elf_link_hash_entry *) 0 - 1)
+	  if (h == (struct elf_link_hash_entry *)(intptr_t)-1)
 	    goto error_return;
 
 	  if (h == NULL)
@@ -11458,7 +11487,7 @@ _bfd_elf_section_already_linked (bfd *abfd, struct bfd_section *sec,
 		   abfd, sec);
 	      else if (sec->size != 0)
 		{
-		  bfd_byte *sec_contents, *l_sec_contents;
+		  bfd_byte *sec_contents, *l_sec_contents = NULL;
 
 		  if (!bfd_malloc_and_get_section (abfd, sec, &sec_contents))
 		    (*_bfd_error_handler)

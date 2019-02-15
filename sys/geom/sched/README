@@ -39,37 +39,17 @@ with cvs, and lets cvs progress when competing with a writer.
 
 To try it out:
 
-1. USERS OF FREEBSD 7, PLEASE READ CAREFULLY THE FOLLOWING:
-
-    On loading, this module patches one kernel function (g_io_request())
-    so that I/O requests ("bio's") carry a classification tag, useful
-    for scheduling purposes.
-
-    ON FREEBSD 7, the tag is stored in an existing (though rarely used)
-    field of the "struct bio", a solution which makes this module
-    incompatible with other modules using it, such as ZFS and gjournal.
-    Additionally, g_io_request() is patched in-memory to add a call
-    to the function that initializes this field (i386/amd64 only;
-    for other architectures you need to manually patch sys/geom/geom_io.c).
-    See details in the file g_sched.c.
-
-    On FreeBSD 8.0 and above, the above trick is not necessary,
-    as the struct bio contains dedicated fields for the classifier,
-    and hooks for request classifiers.
-
-    If you don't like the above, don't run this code.
-
-2. PLEASE MAKE SURE THAT THE DISK THAT YOU WILL BE USING FOR TESTS
+1. PLEASE MAKE SURE THAT THE DISK THAT YOU WILL BE USING FOR TESTS
    DOES NOT CONTAIN PRECIOUS DATA.
     This is experimental code, so we make no guarantees, though
     I am routinely using it on my desktop and laptop.
 
-3. EXTRACT AND BUILD THE PROGRAMS
+2. EXTRACT AND BUILD THE PROGRAMS
     A 'make install' in the directory should work (with root privs),
     or you can even try the binary modules.
     If you want to build the modules yourself, look at the Makefile.
 
-4. LOAD THE MODULE, CREATE A GEOM NODE, RUN TESTS
+3. LOAD THE MODULE, CREATE A GEOM NODE, RUN TESTS
 
     The scheduler's module must be loaded first:
 

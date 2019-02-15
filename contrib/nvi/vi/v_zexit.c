@@ -29,7 +29,7 @@ static const char sccsid[] = "$Id: v_zexit.c,v 10.7 2001/06/25 15:19:37 skimo Ex
  * v_zexit -- ZZ
  *	Save the file and exit.
  *
- * PUBLIC: int v_zexit __P((SCR *, VICMD *));
+ * PUBLIC: int v_zexit(SCR *, VICMD *);
  */
 int
 v_zexit(SCR *sp, VICMD *vp)

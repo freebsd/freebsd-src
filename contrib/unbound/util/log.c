@@ -40,7 +40,7 @@
 #include "config.h"
 #include "util/log.h"
 #include "util/locks.h"
-#include "ldns/sbuffer.h"
+#include "sldns/sbuffer.h"
 #include <stdarg.h>
 #ifdef HAVE_TIME_H
 #include <time.h>
@@ -67,7 +67,11 @@ static FILE* logfile = 0;
 /** if key has been created */
 static int key_created = 0;
 /** pthread key for thread ids in logfile */
-static ub_thread_key_t logkey;
+static ub_thread_key_type logkey;
+#ifndef THREADS_DISABLED
+/** pthread mutex to protect FILE* */
+static lock_quick_type log_lock;
+#endif
 /** the identity of this executable/process */
 static const char* ident="unbound";
 #if defined(HAVE_SYSLOG_H) || defined(UB_ON_WINDOWS)
@@ -86,16 +90,25 @@ log_init(const char* filename, int use_syslog, const char* chrootdir)
 	if(!key_created) {
 		key_created = 1;
 		ub_thread_key_create(&logkey, NULL);
+		lock_quick_init(&log_lock);
 	}
+	lock_quick_lock(&log_lock);
 	if(logfile 
 #if defined(HAVE_SYSLOG_H) || defined(UB_ON_WINDOWS)
 	|| logging_to_syslog
 #endif
-	)
-	verbose(VERB_QUERY, "switching log to %s", 
-		use_syslog?"syslog":(filename&&filename[0]?filename:"stderr"));
-	if(logfile && logfile != stderr)
-		fclose(logfile);
+	) {
+		lock_quick_unlock(&log_lock); /* verbose() needs the lock */
+		verbose(VERB_QUERY, "switching log to %s", 
+			use_syslog?"syslog":(filename&&filename[0]?filename:"stderr"));
+		lock_quick_lock(&log_lock);
+	}
+	if(logfile && logfile != stderr) {
+		FILE* cl = logfile;
+		logfile = NULL; /* set to NULL before it is closed, so that
+			other threads have a valid logfile or NULL */
+		fclose(cl);
+	}
 #ifdef HAVE_SYSLOG_H
 	if(logging_to_syslog) {
 		closelog();
@@ -106,6 +119,7 @@ log_init(const char* filename, int use_syslog, const char* chrootdir)
 		 * chroot and no longer be able to access dev/log and so on */
 		openlog(ident, LOG_NDELAY, LOG_DAEMON);
 		logging_to_syslog = 1;
+		lock_quick_unlock(&log_lock);
 		return;
 	}
 #elif defined(UB_ON_WINDOWS)
@@ -114,11 +128,13 @@ log_init(const char* filename, int use_syslog, const char* chrootdir)
 	}
 	if(use_syslog) {
 		logging_to_syslog = 1;
+		lock_quick_unlock(&log_lock);
 		return;
 	}
 #endif /* HAVE_SYSLOG_H */
 	if(!filename || !filename[0]) {
 		logfile = stderr;
+		lock_quick_unlock(&log_lock);
 		return;
 	}
 	/* open the file for logging */
@@ -127,6 +143,7 @@ log_init(const char* filename, int use_syslog, const char* chrootdir)
 		filename += strlen(chrootdir);
 	f = fopen(filename, "a");
 	if(!f) {
+		lock_quick_unlock(&log_lock);
 		log_err("Could not open logfile %s: %s", filename, 
 			strerror(errno));
 		return;
@@ -136,16 +153,27 @@ log_init(const char* filename, int use_syslog, const char* chrootdir)
 	setvbuf(f, NULL, (int)_IOLBF, 0);
 #endif
 	logfile = f;
+	lock_quick_unlock(&log_lock);
 }
 
 void log_file(FILE *f)
 {
+	lock_quick_lock(&log_lock);
 	logfile = f;
+	lock_quick_unlock(&log_lock);
 }
 
 void log_thread_set(int* num)
 {
 	ub_thread_key_set(logkey, num);
+}
+
+int log_thread_get(void)
+{
+	unsigned int* tid;
+	if(!key_created) return 0;
+	tid = (unsigned int*)ub_thread_key_get(logkey);
+	return (int)(tid?*tid:0);
 }
 
 void log_ident_set(const char* id)
@@ -161,6 +189,17 @@ void log_set_time(time_t* t)
 void log_set_time_asc(int use_asc)
 {
 	log_time_asc = use_asc;
+}
+
+void* log_get_lock(void)
+{
+	if(!key_created)
+		return NULL;
+#ifndef THREADS_DISABLED
+	return (void*)&log_lock;
+#else
+	return NULL;
+#endif
 }
 
 void
@@ -211,7 +250,11 @@ log_vmsg(int pri, const char* type,
 		return;
 	}
 #endif /* HAVE_SYSLOG_H */
-	if(!logfile) return;
+	lock_quick_lock(&log_lock);
+	if(!logfile) {
+		lock_quick_unlock(&log_lock);
+		return;
+	}
 	if(log_now)
 		now = (time_t)*log_now;
 	else	now = (time_t)time(NULL);
@@ -236,6 +279,7 @@ log_vmsg(int pri, const char* type,
 	/* line buffering does not work on windows */
 	fflush(logfile);
 #endif
+	lock_quick_unlock(&log_lock);
 }
 
 /**

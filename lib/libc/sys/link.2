@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)link.2	8.3 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2008
+.Dd October 20, 2018
 .Dt LINK 2
 .Os
 .Sh NAME
@@ -115,6 +115,8 @@ If
 .Fa name1
 names a symbolic link, a new link for the target of the symbolic link is
 created.
+.It Dv AT_BENEATH
+Only allow to link to a file which is beneath of the starting directory.
 .El
 .Pp
 If
@@ -257,6 +259,17 @@ or
 respectively, is neither
 .Dv AT_FDCWD
 nor a file descriptor associated with a directory.
+.It Bq Er ENOTCAPABLE
+The
+.Dv AT_BENEATH
+flag was specified but
+.Fa name1
+is not strictly relative to the starting directory.
+For example,
+.Fa name1
+is absolute or includes a ".." component that escapes the starting directory.
+.Dv AT_BENEATH
+flag was specified.
 .El
 .Sh SEE ALSO
 .Xr chflags 2 ,
@@ -275,7 +288,7 @@ system call follows The Open Group Extended API Set 2 specification.
 The
 .Fn link
 function appeared in
-.At v7 .
+.At v1 .
 The
 .Fn linkat
 system call appeared in

@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include "cpio.h"
 #include "err.h"
 #include "line_reader.h"
+#include "passphrase.h"
 
 /* Fixed size of uname/gname caches. */
 #define	name_cache_size 101
@@ -107,22 +108,24 @@ static int	entry_to_archive(struct cpio *, struct archive_entry *);
 static int	file_to_archive(struct cpio *, const char *);
 static void	free_cache(struct name_cache *cache);
 static void	list_item_verbose(struct cpio *, struct archive_entry *);
-static void	long_help(void);
+static void	long_help(void) __LA_DEAD;
 static const char *lookup_gname(struct cpio *, gid_t gid);
 static int	lookup_gname_helper(struct cpio *,
 		    const char **name, id_t gid);
 static const char *lookup_uname(struct cpio *, uid_t uid);
 static int	lookup_uname_helper(struct cpio *,
 		    const char **name, id_t uid);
-static void	mode_in(struct cpio *);
-static void	mode_list(struct cpio *);
+static void	mode_in(struct cpio *) __LA_DEAD;
+static void	mode_list(struct cpio *) __LA_DEAD;
 static void	mode_out(struct cpio *);
 static void	mode_pass(struct cpio *, const char *);
 static const char *remove_leading_slash(const char *);
 static int	restore_time(struct cpio *, struct archive_entry *,
 		    const char *, int fd);
-static void	usage(void);
-static void	version(void);
+static void	usage(void) __LA_DEAD;
+static void	version(void) __LA_DEAD;
+static const char * passphrase_callback(struct archive *, void *);
+static void	passphrase_free(char *);
 
 int
 main(int argc, char *argv[])
@@ -131,8 +134,9 @@ main(int argc, char *argv[])
 	struct cpio _cpio; /* Allocated on stack. */
 	struct cpio *cpio;
 	const char *errmsg;
+	char *tptr;
 	int uid, gid;
-	int opt;
+	int opt, t;
 
 	cpio = &_cpio;
 	memset(cpio, 0, sizeof(*cpio));
@@ -149,20 +153,9 @@ main(int argc, char *argv[])
 	}
 #endif
 
-	/* Need lafe_progname before calling lafe_warnc. */
-	if (*argv == NULL)
-		lafe_progname = "bsdcpio";
-	else {
-#if defined(_WIN32) && !defined(__CYGWIN__)
-		lafe_progname = strrchr(*argv, '\\');
-		if (strrchr(*argv, '/') > lafe_progname)
-#endif
-		lafe_progname = strrchr(*argv, '/');
-		if (lafe_progname != NULL)
-			lafe_progname++;
-		else
-			lafe_progname = *argv;
-	}
+	/* Set lafe_progname before calling lafe_warnc. */
+	lafe_setprogname(*argv, "bsdcpio");
+
 #if HAVE_SETLOCALE
 	if (setlocale(LC_ALL, "") == NULL)
 		lafe_warnc(0, "Failed to set default locale");
@@ -179,6 +172,7 @@ main(int argc, char *argv[])
 	cpio->extract_flags |= ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER;
 	cpio->extract_flags |= ARCHIVE_EXTRACT_SECURE_SYMLINKS;
 	cpio->extract_flags |= ARCHIVE_EXTRACT_SECURE_NODOTDOT;
+	cpio->extract_flags |= ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS;
 	cpio->extract_flags |= ARCHIVE_EXTRACT_PERM;
 	cpio->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
 	cpio->extract_flags |= ARCHIVE_EXTRACT_ACL;
@@ -211,9 +205,15 @@ main(int argc, char *argv[])
 			cpio->add_filter = opt;
 			break;
 		case 'C': /* NetBSD/OpenBSD */
-			cpio->bytes_per_block = atoi(cpio->argument);
-			if (cpio->bytes_per_block <= 0)
-				lafe_errc(1, 0, "Invalid blocksize %s", cpio->argument);
+			errno = 0;
+			tptr = NULL;
+			t = (int)strtol(cpio->argument, &tptr, 10);
+			if (errno || t <= 0 || *(cpio->argument) == '\0' ||
+			    tptr == NULL || *tptr != '\0') {
+				lafe_errc(1, 0, "Invalid blocksize: %s",
+				    cpio->argument);
+			}
+			cpio->bytes_per_block = t;
 			break;
 		case 'c': /* POSIX 1997 */
 			cpio->format = "odc";
@@ -264,6 +264,7 @@ main(int argc, char *argv[])
 		case OPTION_INSECURE:
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_SECURE_SYMLINKS;
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_SECURE_NODOTDOT;
+			cpio->extract_flags &= ~ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS;
 			break;
 		case 'L': /* GNU cpio */
 			cpio->option_follow_links = 1;
@@ -272,8 +273,10 @@ main(int argc, char *argv[])
 			cpio->option_link = 1;
 			break;
 		case OPTION_LRZIP:
+		case OPTION_LZ4:
 		case OPTION_LZMA: /* GNU tar, others */
 		case OPTION_LZOP: /* GNU tar, others */
+		case OPTION_ZSTD:
 			cpio->compress = opt;
 			break;
 		case 'm': /* POSIX 1997 */
@@ -300,6 +303,10 @@ main(int argc, char *argv[])
 				    "Cannot use both -p and -%c", cpio->mode);
 			cpio->mode = opt;
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_SECURE_NODOTDOT;
+			cpio->extract_flags &= ~ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS;
+			break;
+		case OPTION_PASSPHRASE:
+			cpio->passphrase = cpio->argument;
 			break;
 		case OPTION_PRESERVE_OWNER:
 			cpio->extract_flags |= ARCHIVE_EXTRACT_OWNER;
@@ -429,6 +436,7 @@ main(int argc, char *argv[])
 	free_cache(cpio->gname_cache);
 	free_cache(cpio->uname_cache);
 	free(cpio->destdir);
+	passphrase_free(cpio->ppbuff);
 	return (cpio->return_value);
 }
 
@@ -437,7 +445,7 @@ usage(void)
 {
 	const char	*p;
 
-	p = lafe_progname;
+	p = lafe_getprogname();
 
 	fprintf(stderr, "Brief Usage:\n");
 	fprintf(stderr, "  List:    %s -it < archive\n", p);
@@ -475,7 +483,7 @@ long_help(void)
 	const char	*prog;
 	const char	*p;
 
-	prog = lafe_progname;
+	prog = lafe_getprogname();
 
 	fflush(stderr);
 
@@ -498,9 +506,9 @@ long_help(void)
 static void
 version(void)
 {
-	fprintf(stdout,"bsdcpio %s -- %s\n",
+	fprintf(stdout,"bsdcpio %s - %s \n",
 	    BSDCPIO_VERSION_STRING,
-	    archive_version_string());
+	    archive_version_details());
 	exit(0);
 }
 
@@ -537,11 +545,17 @@ mode_out(struct cpio *cpio)
 	case OPTION_LRZIP:
 		r = archive_write_add_filter_lrzip(cpio->archive);
 		break;
+	case OPTION_LZ4:
+		r = archive_write_add_filter_lz4(cpio->archive);
+		break;
 	case OPTION_LZMA:
 		r = archive_write_add_filter_lzma(cpio->archive);
 		break;
 	case OPTION_LZOP:
 		r = archive_write_add_filter_lzop(cpio->archive);
+		break;
+	case OPTION_ZSTD:
+		r = archive_write_add_filter_zstd(cpio->archive);
 		break;
 	case 'j': case 'y':
 		r = archive_write_add_filter_bzip2(cpio->archive);
@@ -578,6 +592,14 @@ mode_out(struct cpio *cpio)
 	cpio->linkresolver = archive_entry_linkresolver_new();
 	archive_entry_linkresolver_set_strategy(cpio->linkresolver,
 	    archive_format(cpio->archive));
+	if (cpio->passphrase != NULL)
+		r = archive_write_set_passphrase(cpio->archive,
+			cpio->passphrase);
+	else
+		r = archive_write_set_passphrase_callback(cpio->archive, cpio,
+			&passphrase_callback);
+	if (r != ARCHIVE_OK)
+		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));
 
 	/*
 	 * The main loop:  Copy each file into the output archive.
@@ -617,6 +639,7 @@ mode_out(struct cpio *cpio)
 		    blocks == 1 ? "block" : "blocks");
 	}
 	archive_write_free(cpio->archive);
+	archive_entry_linkresolver_free(cpio->linkresolver);
 }
 
 static const char *
@@ -692,6 +715,7 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 		lafe_warnc(0, "%s",
 		    archive_error_string(cpio->archive_read_disk));
 	if (r <= ARCHIVE_FAILED) {
+		archive_entry_free(entry);
 		cpio->return_value = 1;
 		return (r);
 	}
@@ -944,6 +968,13 @@ mode_in(struct cpio *cpio)
 		lafe_errc(1, 0, "Couldn't allocate archive object");
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
+	if (cpio->passphrase != NULL)
+		r = archive_read_add_passphrase(a, cpio->passphrase);
+	else
+		r = archive_read_set_passphrase_callback(a, cpio,
+			&passphrase_callback);
+	if (r != ARCHIVE_OK)
+		lafe_errc(1, 0, "%s", archive_error_string(a));
 
 	if (archive_read_open_filename(a, cpio->filename,
 					cpio->bytes_per_block))
@@ -1047,6 +1078,13 @@ mode_list(struct cpio *cpio)
 		lafe_errc(1, 0, "Couldn't allocate archive object");
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
+	if (cpio->passphrase != NULL)
+		r = archive_read_add_passphrase(a, cpio->passphrase);
+	else
+		r = archive_read_set_passphrase_callback(a, cpio,
+			&passphrase_callback);
+	if (r != ARCHIVE_OK)
+		lafe_errc(1, 0, "%s", archive_error_string(a));
 
 	if (archive_read_open_filename(a, cpio->filename,
 					cpio->bytes_per_block))
@@ -1140,7 +1178,8 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 	else
 		fmt = cpio->day_first ? "%d %b %H:%M" : "%b %d %H:%M";
 #else
-	if (abs(mtime - now) > (365/2)*86400)
+	if (mtime - now > 365*86400/2
+		|| mtime - now < -365*86400/2)
 		fmt = cpio->day_first ? "%e %b  %Y" : "%b %e  %Y";
 	else
 		fmt = cpio->day_first ? "%e %b %H:%M" : "%b %e %H:%M";
@@ -1167,12 +1206,15 @@ mode_pass(struct cpio *cpio, const char *destdir)
 	struct lafe_line_reader *lr;
 	const char *p;
 	int r;
+	size_t destdir_len;
 
 	/* Ensure target dir has a trailing '/' to simplify path surgery. */
-	cpio->destdir = malloc(strlen(destdir) + 8);
-	strcpy(cpio->destdir, destdir);
-	if (destdir[strlen(destdir) - 1] != '/')
-		strcat(cpio->destdir, "/");
+	destdir_len = strlen(destdir);
+	cpio->destdir = malloc(destdir_len + 8);
+	memcpy(cpio->destdir, destdir, destdir_len);
+	if (destdir_len == 0 || destdir[destdir_len - 1] != '/')
+		cpio->destdir[destdir_len++] = '/';
+	cpio->destdir[destdir_len++] = '\0';
 
 	cpio->archive = archive_write_disk_new();
 	if (cpio->archive == NULL)
@@ -1213,6 +1255,7 @@ mode_pass(struct cpio *cpio, const char *destdir)
 	}
 
 	archive_write_free(cpio->archive);
+	free(cpio->pass_destpath);
 }
 
 /*
@@ -1235,8 +1278,10 @@ cpio_rename(const char *name)
 	if (t == NULL)
 		return (name);
 	to = fopen("CONOUT$", "w");
-	if (to == NULL)
+	if (to == NULL) {
+		fclose(t);
 		return (name);
+	}
 	fprintf(to, "%s (Enter/./(new name))? ", name);
 	fclose(to);
 #else
@@ -1296,10 +1341,9 @@ lookup_name(struct cpio *cpio, struct name_cache **name_cache_variable,
 
 
 	if (*name_cache_variable == NULL) {
-		*name_cache_variable = malloc(sizeof(struct name_cache));
+		*name_cache_variable = calloc(1, sizeof(struct name_cache));
 		if (*name_cache_variable == NULL)
 			lafe_errc(1, ENOMEM, "No more memory");
-		memset(*name_cache_variable, 0, sizeof(struct name_cache));
 		(*name_cache_variable)->size = name_cache_size;
 	}
 
@@ -1316,23 +1360,23 @@ lookup_name(struct cpio *cpio, struct name_cache **name_cache_variable,
 		cache->cache[slot].name = NULL;
 	}
 
-	if (lookup_fn(cpio, &name, id) == 0) {
-		if (name == NULL || name[0] == '\0') {
-			/* If lookup failed, format it as a number. */
-			snprintf(asnum, sizeof(asnum), "%u", (unsigned)id);
-			name = asnum;
-		}
-		cache->cache[slot].name = strdup(name);
-		if (cache->cache[slot].name != NULL) {
-			cache->cache[slot].id = id;
-			return (cache->cache[slot].name);
-		}
-		/*
-		 * Conveniently, NULL marks an empty slot, so
-		 * if the strdup() fails, we've just failed to
-		 * cache it.  No recovery necessary.
-		 */
+	if (lookup_fn(cpio, &name, id)) {
+		/* If lookup failed, format it as a number. */
+		snprintf(asnum, sizeof(asnum), "%u", (unsigned)id);
+		name = asnum;
 	}
+
+	cache->cache[slot].name = strdup(name);
+	if (cache->cache[slot].name != NULL) {
+		cache->cache[slot].id = id;
+		return (cache->cache[slot].name);
+	}
+
+	/*
+	 * Conveniently, NULL marks an empty slot, so
+	 * if the strdup() fails, we've just failed to
+	 * cache it.  No recovery necessary.
+	 */
 	return (NULL);
 }
 
@@ -1353,15 +1397,14 @@ lookup_uname_helper(struct cpio *cpio, const char **name, id_t id)
 	errno = 0;
 	pwent = getpwuid((uid_t)id);
 	if (pwent == NULL) {
-		*name = NULL;
-		if (errno != 0 && errno != ENOENT)
+		if (errno && errno != ENOENT)
 			lafe_warnc(errno, "getpwuid(%s) failed",
 			    cpio_i64toa((int64_t)id));
-		return (errno);
+		return 1;
 	}
 
 	*name = pwent->pw_name;
-	return (0);
+	return 0;
 }
 
 static const char *
@@ -1381,15 +1424,14 @@ lookup_gname_helper(struct cpio *cpio, const char **name, id_t id)
 	errno = 0;
 	grent = getgrgid((gid_t)id);
 	if (grent == NULL) {
-		*name = NULL;
-		if (errno != 0)
+		if (errno && errno != ENOENT)
 			lafe_warnc(errno, "getgrgid(%s) failed",
 			    cpio_i64toa((int64_t)id));
-		return (errno);
+		return 1;
 	}
 
 	*name = grent->gr_name;
-	return (0);
+	return 0;
 }
 
 /*
@@ -1415,4 +1457,29 @@ cpio_i64toa(int64_t n0)
 	if (n0 < 0)
 		*--p = '-';
 	return p;
+}
+
+#define PPBUFF_SIZE 1024
+static const char *
+passphrase_callback(struct archive *a, void *_client_data)
+{
+	struct cpio *cpio = (struct cpio *)_client_data;
+	(void)a; /* UNUSED */
+
+	if (cpio->ppbuff == NULL) {
+		cpio->ppbuff = malloc(PPBUFF_SIZE);
+		if (cpio->ppbuff == NULL)
+			lafe_errc(1, errno, "Out of memory");
+	}
+	return lafe_readpassphrase("Enter passphrase:",
+		cpio->ppbuff, PPBUFF_SIZE);
+}
+
+static void
+passphrase_free(char *ppbuff)
+{
+	if (ppbuff != NULL) {
+		memset(ppbuff, 0, PPBUFF_SIZE);
+		free(ppbuff);
+	}
 }

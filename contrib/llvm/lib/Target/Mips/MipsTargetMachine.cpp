@@ -12,130 +12,205 @@
 //===----------------------------------------------------------------------===//
 
 #include "MipsTargetMachine.h"
+#include "MCTargetDesc/MipsABIInfo.h"
+#include "MCTargetDesc/MipsMCTargetDesc.h"
 #include "Mips.h"
-#include "MipsFrameLowering.h"
-#include "MipsInstrInfo.h"
-#include "MipsModuleISelDAGToDAG.h"
-#include "MipsOs16.h"
-#include "MipsSEFrameLowering.h"
-#include "MipsSEInstrInfo.h"
-#include "MipsSEISelLowering.h"
-#include "MipsSEISelDAGToDAG.h"
-#include "Mips16FrameLowering.h"
-#include "Mips16HardFloat.h"
-#include "Mips16InstrInfo.h"
 #include "Mips16ISelDAGToDAG.h"
-#include "Mips16ISelLowering.h"
+#include "MipsSEISelDAGToDAG.h"
+#include "MipsSubtarget.h"
+#include "MipsTargetObjectFile.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
+#include "llvm/CodeGen/BasicTTIImpl.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/PassManager.h"
+#include "llvm/CodeGen/TargetPassConfig.h"
+#include "llvm/IR/Attributes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/Support/CodeGen.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/TargetRegistry.h"
-#include "llvm/Transforms/Scalar.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetOptions.h"
+#include <string>
+
 using namespace llvm;
 
-
+#define DEBUG_TYPE "mips"
 
 extern "C" void LLVMInitializeMipsTarget() {
   // Register the target.
-  RegisterTargetMachine<MipsebTargetMachine> X(TheMipsTarget);
-  RegisterTargetMachine<MipselTargetMachine> Y(TheMipselTarget);
-  RegisterTargetMachine<MipsebTargetMachine> A(TheMips64Target);
-  RegisterTargetMachine<MipselTargetMachine> B(TheMips64elTarget);
+  RegisterTargetMachine<MipsebTargetMachine> X(getTheMipsTarget());
+  RegisterTargetMachine<MipselTargetMachine> Y(getTheMipselTarget());
+  RegisterTargetMachine<MipsebTargetMachine> A(getTheMips64Target());
+  RegisterTargetMachine<MipselTargetMachine> B(getTheMips64elTarget());
 }
 
-// DataLayout --> Big-endian, 32-bit pointer/ABI/alignment
-// The stack is always 8 byte aligned
+static std::string computeDataLayout(const Triple &TT, StringRef CPU,
+                                     const TargetOptions &Options,
+                                     bool isLittle) {
+  std::string Ret;
+  MipsABIInfo ABI = MipsABIInfo::computeTargetABI(TT, CPU, Options.MCOptions);
+
+  // There are both little and big endian mips.
+  if (isLittle)
+    Ret += "e";
+  else
+    Ret += "E";
+
+  if (ABI.IsO32())
+    Ret += "-m:m";
+  else
+    Ret += "-m:e";
+
+  // Pointers are 32 bit on some ABIs.
+  if (!ABI.IsN64())
+    Ret += "-p:32:32";
+
+  // 8 and 16 bit integers only need to have natural alignment, but try to
+  // align them to 32 bits. 64 bit integers have natural alignment.
+  Ret += "-i8:8:32-i16:16:32-i64:64";
+
+  // 32 bit registers are always available and the stack is at least 64 bit
+  // aligned. On N64 64 bit registers are also available and the stack is
+  // 128 bit aligned.
+  if (ABI.IsN64() || ABI.IsN32())
+    Ret += "-n32:64-S128";
+  else
+    Ret += "-n32-S64";
+
+  return Ret;
+}
+
+static Reloc::Model getEffectiveRelocModel(bool JIT,
+                                           Optional<Reloc::Model> RM) {
+  if (!RM.hasValue() || JIT)
+    return Reloc::Static;
+  return *RM;
+}
+
+static CodeModel::Model getEffectiveCodeModel(Optional<CodeModel::Model> CM) {
+  if (CM)
+    return *CM;
+  return CodeModel::Small;
+}
+
 // On function prologue, the stack is created by decrementing
 // its pointer. Once decremented, all references are done with positive
 // offset from the stack/frame pointer, using StackGrowsUp enables
 // an easier handling.
 // Using CodeModel::Large enables different CALL behavior.
-MipsTargetMachine::
-MipsTargetMachine(const Target &T, StringRef TT,
-                  StringRef CPU, StringRef FS, const TargetOptions &Options,
-                  Reloc::Model RM, CodeModel::Model CM,
-                  CodeGenOpt::Level OL,
-                  bool isLittle)
-  : LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
-    Subtarget(TT, CPU, FS, isLittle, RM, this),
-    DL(isLittle ?
-               (Subtarget.isABI_N64() ?
-                "e-p:64:64:64-i8:8:32-i16:16:32-i64:64:64-f128:128:128-"
-                "n32:64-S128" :
-                "e-p:32:32:32-i8:8:32-i16:16:32-i64:64:64-n32-S64") :
-               (Subtarget.isABI_N64() ?
-                "E-p:64:64:64-i8:8:32-i16:16:32-i64:64:64-f128:128:128-"
-                "n32:64-S128" :
-                "E-p:32:32:32-i8:8:32-i16:16:32-i64:64:64-n32-S64")),
-    InstrInfo(MipsInstrInfo::create(*this)),
-    FrameLowering(MipsFrameLowering::create(*this, Subtarget)),
-    TLInfo(MipsTargetLowering::create(*this)), TSInfo(*this),
-    InstrItins(Subtarget.getInstrItineraryData()), JITInfo() {
+MipsTargetMachine::MipsTargetMachine(const Target &T, const Triple &TT,
+                                     StringRef CPU, StringRef FS,
+                                     const TargetOptions &Options,
+                                     Optional<Reloc::Model> RM,
+                                     Optional<CodeModel::Model> CM,
+                                     CodeGenOpt::Level OL, bool JIT,
+                                     bool isLittle)
+    : LLVMTargetMachine(T, computeDataLayout(TT, CPU, Options, isLittle), TT,
+                        CPU, FS, Options, getEffectiveRelocModel(JIT, RM),
+                        getEffectiveCodeModel(CM), OL),
+      isLittle(isLittle), TLOF(llvm::make_unique<MipsTargetObjectFile>()),
+      ABI(MipsABIInfo::computeTargetABI(TT, CPU, Options.MCOptions)),
+      Subtarget(nullptr), DefaultSubtarget(TT, CPU, FS, isLittle, *this,
+                                           Options.StackAlignmentOverride),
+      NoMips16Subtarget(TT, CPU, FS.empty() ? "-mips16" : FS.str() + ",-mips16",
+                        isLittle, *this, Options.StackAlignmentOverride),
+      Mips16Subtarget(TT, CPU, FS.empty() ? "+mips16" : FS.str() + ",+mips16",
+                      isLittle, *this, Options.StackAlignmentOverride) {
+  Subtarget = &DefaultSubtarget;
   initAsmInfo();
 }
 
+MipsTargetMachine::~MipsTargetMachine() = default;
 
-void MipsTargetMachine::setHelperClassesMips16() {
-  InstrInfoSE.swap(InstrInfo);
-  FrameLoweringSE.swap(FrameLowering);
-  TLInfoSE.swap(TLInfo);
-  if (!InstrInfo16) {
-    InstrInfo.reset(MipsInstrInfo::create(*this));
-    FrameLowering.reset(MipsFrameLowering::create(*this, Subtarget));
-    TLInfo.reset(MipsTargetLowering::create(*this));
-  } else {
-    InstrInfo16.swap(InstrInfo);
-    FrameLowering16.swap(FrameLowering);
-    TLInfo16.swap(TLInfo);
+void MipsebTargetMachine::anchor() {}
+
+MipsebTargetMachine::MipsebTargetMachine(const Target &T, const Triple &TT,
+                                         StringRef CPU, StringRef FS,
+                                         const TargetOptions &Options,
+                                         Optional<Reloc::Model> RM,
+                                         Optional<CodeModel::Model> CM,
+                                         CodeGenOpt::Level OL, bool JIT)
+    : MipsTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, JIT, false) {}
+
+void MipselTargetMachine::anchor() {}
+
+MipselTargetMachine::MipselTargetMachine(const Target &T, const Triple &TT,
+                                         StringRef CPU, StringRef FS,
+                                         const TargetOptions &Options,
+                                         Optional<Reloc::Model> RM,
+                                         Optional<CodeModel::Model> CM,
+                                         CodeGenOpt::Level OL, bool JIT)
+    : MipsTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, JIT, true) {}
+
+const MipsSubtarget *
+MipsTargetMachine::getSubtargetImpl(const Function &F) const {
+  Attribute CPUAttr = F.getFnAttribute("target-cpu");
+  Attribute FSAttr = F.getFnAttribute("target-features");
+
+  std::string CPU = !CPUAttr.hasAttribute(Attribute::None)
+                        ? CPUAttr.getValueAsString().str()
+                        : TargetCPU;
+  std::string FS = !FSAttr.hasAttribute(Attribute::None)
+                       ? FSAttr.getValueAsString().str()
+                       : TargetFS;
+  bool hasMips16Attr =
+      !F.getFnAttribute("mips16").hasAttribute(Attribute::None);
+  bool hasNoMips16Attr =
+      !F.getFnAttribute("nomips16").hasAttribute(Attribute::None);
+
+  bool HasMicroMipsAttr =
+      !F.getFnAttribute("micromips").hasAttribute(Attribute::None);
+  bool HasNoMicroMipsAttr =
+      !F.getFnAttribute("nomicromips").hasAttribute(Attribute::None);
+
+  // FIXME: This is related to the code below to reset the target options,
+  // we need to know whether or not the soft float flag is set on the
+  // function, so we can enable it as a subtarget feature.
+  bool softFloat =
+      F.hasFnAttribute("use-soft-float") &&
+      F.getFnAttribute("use-soft-float").getValueAsString() == "true";
+
+  if (hasMips16Attr)
+    FS += FS.empty() ? "+mips16" : ",+mips16";
+  else if (hasNoMips16Attr)
+    FS += FS.empty() ? "-mips16" : ",-mips16";
+  if (HasMicroMipsAttr)
+    FS += FS.empty() ? "+micromips" : ",+micromips";
+  else if (HasNoMicroMipsAttr)
+    FS += FS.empty() ? "-micromips" : ",-micromips";
+  if (softFloat)
+    FS += FS.empty() ? "+soft-float" : ",+soft-float";
+
+  auto &I = SubtargetMap[CPU + FS];
+  if (!I) {
+    // This needs to be done before we create a new subtarget since any
+    // creation will depend on the TM and the code generation flags on the
+    // function that reside in TargetOptions.
+    resetTargetOptions(F);
+    I = llvm::make_unique<MipsSubtarget>(TargetTriple, CPU, FS, isLittle, *this,
+                                         Options.StackAlignmentOverride);
   }
-  assert(TLInfo && "null target lowering 16");
-  assert(InstrInfo && "null instr info 16");
-  assert(FrameLowering && "null frame lowering 16");
+  return I.get();
 }
 
-void MipsTargetMachine::setHelperClassesMipsSE() {
-  InstrInfo16.swap(InstrInfo);
-  FrameLowering16.swap(FrameLowering);
-  TLInfo16.swap(TLInfo);
-  if (!InstrInfoSE) {
-    InstrInfo.reset(MipsInstrInfo::create(*this));
-    FrameLowering.reset(MipsFrameLowering::create(*this, Subtarget));
-    TLInfo.reset(MipsTargetLowering::create(*this));
-  } else {
-    InstrInfoSE.swap(InstrInfo);
-    FrameLoweringSE.swap(FrameLowering);
-    TLInfoSE.swap(TLInfo);
-  }
-  assert(TLInfo && "null target lowering in SE");
-  assert(InstrInfo && "null instr info SE");
-  assert(FrameLowering && "null frame lowering SE");
+void MipsTargetMachine::resetSubtarget(MachineFunction *MF) {
+  DEBUG(dbgs() << "resetSubtarget\n");
+
+  Subtarget = const_cast<MipsSubtarget *>(getSubtargetImpl(MF->getFunction()));
+  MF->setSubtarget(Subtarget);
 }
-void MipsebTargetMachine::anchor() { }
-
-MipsebTargetMachine::
-MipsebTargetMachine(const Target &T, StringRef TT,
-                    StringRef CPU, StringRef FS, const TargetOptions &Options,
-                    Reloc::Model RM, CodeModel::Model CM,
-                    CodeGenOpt::Level OL)
-  : MipsTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, false) {}
-
-void MipselTargetMachine::anchor() { }
-
-MipselTargetMachine::
-MipselTargetMachine(const Target &T, StringRef TT,
-                    StringRef CPU, StringRef FS, const TargetOptions &Options,
-                    Reloc::Model RM, CodeModel::Model CM,
-                    CodeGenOpt::Level OL)
-  : MipsTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, true) {}
 
 namespace {
+
 /// Mips Code Generator Pass Configuration Options.
 class MipsPassConfig : public TargetPassConfig {
 public:
-  MipsPassConfig(MipsTargetMachine *TM, PassManagerBase &PM)
-    : TargetPassConfig(TM, PM) {
+  MipsPassConfig(MipsTargetMachine &TM, PassManagerBase &PM)
+      : TargetPassConfig(TM, PM) {
     // The current implementation of long branch pass requires a scratch
     // register ($at) to be available before branch instructions. Tail merging
     // can break this requirement, so disable it when long branch pass is
@@ -151,70 +226,62 @@ public:
     return *getMipsTargetMachine().getSubtargetImpl();
   }
 
-  virtual void addIRPasses();
-  virtual bool addInstSelector();
-  virtual bool addPreEmitPass();
+  void addIRPasses() override;
+  bool addInstSelector() override;
+  void addPreEmitPass() override;
+  void addPreRegAlloc() override;
 };
-} // namespace
+
+} // end anonymous namespace
 
 TargetPassConfig *MipsTargetMachine::createPassConfig(PassManagerBase &PM) {
-  return new MipsPassConfig(this, PM);
+  return new MipsPassConfig(*this, PM);
 }
 
 void MipsPassConfig::addIRPasses() {
   TargetPassConfig::addIRPasses();
+  addPass(createAtomicExpandPass());
   if (getMipsSubtarget().os16())
-    addPass(createMipsOs16(getMipsTargetMachine()));
+    addPass(createMipsOs16Pass());
   if (getMipsSubtarget().inMips16HardFloat())
-    addPass(createMips16HardFloat(getMipsTargetMachine()));
-  addPass(createPartiallyInlineLibCallsPass());
+    addPass(createMips16HardFloatPass());
 }
 // Install an instruction selector pass using
 // the ISelDag to gen Mips code.
 bool MipsPassConfig::addInstSelector() {
-  if (getMipsSubtarget().allowMixed16_32()) {
-    addPass(createMipsModuleISelDag(getMipsTargetMachine()));
-    addPass(createMips16ISelDag(getMipsTargetMachine()));
-    addPass(createMipsSEISelDag(getMipsTargetMachine()));
-  } else {
-    addPass(createMipsISelDag(getMipsTargetMachine()));
-  }
+  addPass(createMipsModuleISelDagPass());
+  addPass(createMips16ISelDag(getMipsTargetMachine(), getOptLevel()));
+  addPass(createMipsSEISelDag(getMipsTargetMachine(), getOptLevel()));
   return false;
 }
 
-void MipsTargetMachine::addAnalysisPasses(PassManagerBase &PM) {
-  if (Subtarget.allowMixed16_32()) {
-    DEBUG(errs() << "No ");
-    //FIXME: The Basic Target Transform Info
-    // pass needs to become a function pass instead of
-    // being an immutable pass and then this method as it exists now
-    // would be unnecessary.
-    PM.add(createNoTargetTransformInfoPass());
-  } else
-    LLVMTargetMachine::addAnalysisPasses(PM);
+void MipsPassConfig::addPreRegAlloc() {
+  addPass(createMipsOptimizePICCallPass());
+}
+
+TargetTransformInfo
+MipsTargetMachine::getTargetTransformInfo(const Function &F) {
+  if (Subtarget->allowMixed16_32()) {
+    DEBUG(errs() << "No Target Transform Info Pass Added\n");
+    // FIXME: This is no longer necessary as the TTI returned is per-function.
+    return TargetTransformInfo(F.getParent()->getDataLayout());
+  }
+
   DEBUG(errs() << "Target Transform Info Pass Added\n");
+  return TargetTransformInfo(BasicTTIImpl(this, F));
 }
 
 // Implemented by targets that want to run passes immediately before
 // machine code is emitted. return true if -print-machineinstrs should
 // print out the code after the passes.
-bool MipsPassConfig::addPreEmitPass() {
-  MipsTargetMachine &TM = getMipsTargetMachine();
-  const MipsSubtarget &Subtarget = TM.getSubtarget<MipsSubtarget>();
-  addPass(createMipsDelaySlotFillerPass(TM));
+void MipsPassConfig::addPreEmitPass() {
+  addPass(createMicroMipsSizeReductionPass());
 
-  if (Subtarget.enableLongBranchPass())
-    addPass(createMipsLongBranchPass(TM));
-  if (Subtarget.inMips16Mode() ||
-      Subtarget.allowMixed16_32())
-    addPass(createMipsConstantIslandPass(TM));
-
-  return true;
-}
-
-bool MipsTargetMachine::addCodeEmitter(PassManagerBase &PM,
-                                       JITCodeEmitter &JCE) {
-  // Machine code emitter pass for Mips.
-  PM.add(createMipsJITCodeEmitterPass(*this, JCE));
-  return false;
+  // The delay slot filler and the long branch passes can potientially create
+  // forbidden slot/ hazards for MIPSR6 which the hazard schedule pass will
+  // fix. Any new pass must come before the hazard schedule pass.
+  addPass(createMipsDelaySlotFillerPass());
+  addPass(createMipsLongBranchPass());
+  addPass(createMipsHazardSchedule());
+  addPass(createMipsConstantIslandPass());
 }

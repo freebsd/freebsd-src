@@ -7,13 +7,17 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  This header file implements the operating system Process concept.
+//  This file implements the operating system Process concept.
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Config/config.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Process.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringExtras.h"
+#include "llvm/Config/config.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/Program.h"
 
 using namespace llvm;
 using namespace sys;
@@ -23,61 +27,41 @@ using namespace sys;
 //===          independent code.
 //===----------------------------------------------------------------------===//
 
-// Empty virtual destructor to anchor the vtable for the process class.
-process::~process() {}
-
-self_process *process::get_self() {
-  // Use a function local static for thread safe initialization and allocate it
-  // as a raw pointer to ensure it is never destroyed.
-  static self_process *SP = new self_process();
-
-  return SP;
+Optional<std::string> Process::FindInEnvPath(StringRef EnvName,
+                                             StringRef FileName) {
+  return FindInEnvPath(EnvName, FileName, {});
 }
 
-#if defined(_MSC_VER)
-// Visual Studio complains that the self_process destructor never exits. This
-// doesn't make much sense, as that's the whole point of calling abort... Just
-// silence this warning.
-#pragma warning(push)
-#pragma warning(disable:4722)
-#endif
+Optional<std::string> Process::FindInEnvPath(StringRef EnvName,
+                                             StringRef FileName,
+                                             ArrayRef<std::string> IgnoreList) {
+  assert(!path::is_absolute(FileName));
+  Optional<std::string> FoundPath;
+  Optional<std::string> OptPath = Process::GetEnv(EnvName);
+  if (!OptPath.hasValue())
+    return FoundPath;
 
-// The destructor for the self_process subclass must never actually be
-// executed. There should be at most one instance of this class, and that
-// instance should live until the process terminates to avoid the potential for
-// racy accesses during shutdown.
-self_process::~self_process() {
-  llvm_unreachable("This destructor must never be executed!");
+  const char EnvPathSeparatorStr[] = {EnvPathSeparator, '\0'};
+  SmallVector<StringRef, 8> Dirs;
+  SplitString(OptPath.getValue(), Dirs, EnvPathSeparatorStr);
+
+  for (StringRef Dir : Dirs) {
+    if (Dir.empty())
+      continue;
+
+    if (any_of(IgnoreList, [&](StringRef S) { return fs::equivalent(S, Dir); }))
+      continue;
+
+    SmallString<128> FilePath(Dir);
+    path::append(FilePath, FileName);
+    if (fs::exists(Twine(FilePath))) {
+      FoundPath = FilePath.str();
+      break;
+    }
+  }
+
+  return FoundPath;
 }
-
-/// \brief A helper function to compute the elapsed wall-time since the program
-/// started.
-///
-/// Note that this routine actually computes the elapsed wall time since the
-/// first time it was called. However, we arrange to have it called during the
-/// startup of the process to get approximately correct results.
-static TimeValue getElapsedWallTime() {
-  static TimeValue &StartTime = *new TimeValue(TimeValue::now());
-  return TimeValue::now() - StartTime;
-}
-
-/// \brief A special global variable to ensure we call \c getElapsedWallTime
-/// during global initialization of the program.
-///
-/// Note that this variable is never referenced elsewhere. Doing so could
-/// create race conditions during program startup or shutdown.
-static volatile TimeValue DummyTimeValue = getElapsedWallTime();
-
-// Implement this routine by using the static helpers above. They're already
-// portable.
-TimeValue self_process::get_wall_time() const {
-  return getElapsedWallTime();
-}
-
-
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
 
 
 #define COLOR(FGBG, CODE, BOLD) "\033[0;" BOLD FGBG CODE "m"
@@ -97,6 +81,13 @@ static const char colorcodes[2][2][8][10] = {
  { ALLCOLORS("3",""), ALLCOLORS("3","1;") },
  { ALLCOLORS("4",""), ALLCOLORS("4","1;") }
 };
+
+// This is set to true when Process::PreventCoreFiles() is called.
+static bool coreFilesPrevented = false;
+
+bool Process::AreCoreFilesPrevented() {
+  return coreFilesPrevented;
+}
 
 // Include the platform-specific parts of this class.
 #ifdef LLVM_ON_UNIX

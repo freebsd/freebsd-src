@@ -1,4 +1,4 @@
-/* $NetBSD: t_mprotect.c,v 1.3 2011/07/20 22:53:44 jym Exp $ */
+/* $NetBSD: t_mprotect.c,v 1.4 2016/05/28 14:34:49 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_mprotect.c,v 1.3 2011/07/20 22:53:44 jym Exp $");
+__RCSID("$NetBSD: t_mprotect.c,v 1.4 2016/05/28 14:34:49 christos Exp $");
 
 #include <sys/param.h>
 #include <sys/mman.h>
@@ -44,7 +44,9 @@ __RCSID("$NetBSD: t_mprotect.c,v 1.3 2011/07/20 22:53:44 jym Exp $");
 
 #include <atf-c.h>
 
+#ifdef __NetBSD__
 #include "../common/exec_prot.h"
+#endif
 
 static long	page = 0;
 static int	pax_global = -1;
@@ -76,10 +78,7 @@ paxinit(void)
 	rv = sysctlbyname("security.pax.mprotect.enabled",
 	    &pax_enabled, &len, NULL, 0);
 
-	if (rv != 0)
-		return false;
-
-	return paxset(1, 1);
+	return rv == 0;
 }
 
 static bool
@@ -160,6 +159,7 @@ ATF_TC_BODY(mprotect_err, tc)
 	ATF_REQUIRE(errno == EINVAL);
 }
 
+#ifdef __NetBSD__
 ATF_TC(mprotect_exec);
 ATF_TC_HEAD(mprotect_exec, tc)
 {
@@ -190,6 +190,12 @@ ATF_TC_BODY(mprotect_exec, tc)
 	case PARTIAL_XP: case PERPAGE_XP: default:
 		break;
 	}
+
+	if (!paxinit())
+		return;
+	if (pax_enabled == 1 && pax_global == 1)
+		atf_tc_skip("PaX MPROTECT restrictions enabled");
+		
 
 	/*
 	 * Map a page read/write and copy a trivial assembly function inside.
@@ -242,6 +248,7 @@ ATF_TC_BODY(mprotect_exec, tc)
 		break;
 	}
 }
+#endif
 
 ATF_TC(mprotect_pax);
 ATF_TC_HEAD(mprotect_pax, tc)
@@ -258,7 +265,7 @@ ATF_TC_BODY(mprotect_pax, tc)
 	size_t i;
 	int rv;
 
-	if (paxinit() != true)
+	if (!paxinit() || !paxset(1, 1))
 		return;
 
 	/*
@@ -351,7 +358,9 @@ ATF_TP_ADD_TCS(tp)
 
 	ATF_TP_ADD_TC(tp, mprotect_access);
 	ATF_TP_ADD_TC(tp, mprotect_err);
+#ifdef __NetBSD__
 	ATF_TP_ADD_TC(tp, mprotect_exec);
+#endif
 	ATF_TP_ADD_TC(tp, mprotect_pax);
 	ATF_TP_ADD_TC(tp, mprotect_write);
 

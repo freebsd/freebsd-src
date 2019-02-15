@@ -2,12 +2,10 @@
 
 .include <src.opts.mk>
 
-PROG=		truncate
-DPADD=		${LIBUTIL}
-LDADD=		-lutil
+PROG=	truncate
+LIBADD=	util
 
-.if ${MK_TESTS} != "no"
-SUBDIR+= tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

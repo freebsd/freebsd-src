@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Mathew Kanner
  * Copyright (c) 1993 Hannu Savolainen
  * All rights reserved.
@@ -98,21 +100,21 @@ __FBSDID("$FreeBSD$");
 #define MIDIDEV(y) (dev2unit(y) & 0x0f)
 
 /* These are the entries to the sequencer driver. */
-static d_open_t seq_open;
-static d_close_t seq_close;
-static d_ioctl_t seq_ioctl;
-static d_read_t seq_read;
-static d_write_t seq_write;
-static d_poll_t seq_poll;
+static d_open_t mseq_open;
+static d_close_t mseq_close;
+static d_ioctl_t mseq_ioctl;
+static d_read_t mseq_read;
+static d_write_t mseq_write;
+static d_poll_t mseq_poll;
 
 static struct cdevsw seq_cdevsw = {
 	.d_version = D_VERSION,
-	.d_open = seq_open,
-	.d_close = seq_close,
-	.d_read = seq_read,
-	.d_write = seq_write,
-	.d_ioctl = seq_ioctl,
-	.d_poll = seq_poll,
+	.d_open = mseq_open,
+	.d_close = mseq_close,
+	.d_read = mseq_read,
+	.d_write = mseq_write,
+	.d_ioctl = mseq_ioctl,
+	.d_poll = mseq_poll,
 	.d_name = "sequencer",
 };
 
@@ -432,7 +434,7 @@ static void
 seq_eventthread(void *arg)
 {
 	struct seq_softc *scp = arg;
-	char event[EV_SZ];
+	u_char event[EV_SZ];
 
 	mtx_lock(&scp->seq_lock);
 	SEQ_DEBUG(2, printf("seq_eventthread started\n"));
@@ -466,12 +468,7 @@ done:
 	cv_broadcast(&scp->th_cv);
 	mtx_unlock(&scp->seq_lock);
 	SEQ_DEBUG(2, printf("seq_eventthread finished\n"));
-#if __FreeBSD_version >= 800002
 	kproc_exit(0);
-#else
-	mtx_lock(&Giant);
-	kthread_exit(0);
-#endif
 }
 
 /*
@@ -587,11 +584,7 @@ seq_addunit(void)
 	 */
 
 	ret =
-#if __FreeBSD_version >= 800002
 	    kproc_create
-#else
-	    kthread_create
-#endif
 	    (seq_eventthread, scp, NULL, RFHIGHPID, 0,
 	    "sequencer %02d", scp->unit);
 
@@ -737,7 +730,7 @@ static int
 seq_fetch_mid(struct seq_softc *scp, int unit, kobj_t *md)
 {
 
-	if (unit > scp->midi_number || unit < 0)
+	if (unit >= scp->midi_number || unit < 0)
 		return EINVAL;
 
 	*md = scp->midis[unit];
@@ -746,7 +739,7 @@ seq_fetch_mid(struct seq_softc *scp, int unit, kobj_t *md)
 }
 
 int
-seq_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
+mseq_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct seq_softc *scp = i_dev->si_drv1;
 	int i;
@@ -826,10 +819,10 @@ seq_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 }
 
 /*
- * seq_close
+ * mseq_close
  */
 int
-seq_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
+mseq_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	int i;
 	struct seq_softc *scp = i_dev->si_drv1;
@@ -867,7 +860,7 @@ err:
 }
 
 int
-seq_read(struct cdev *i_dev, struct uio *uio, int ioflag)
+mseq_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 {
 	int retval, used;
 	struct seq_softc *scp = i_dev->si_drv1;
@@ -878,12 +871,12 @@ seq_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 	if (scp == NULL)
 		return ENXIO;
 
-	SEQ_DEBUG(7, printf("seq_read: unit %d, resid %zd.\n",
+	SEQ_DEBUG(7, printf("mseq_read: unit %d, resid %zd.\n",
 	    scp->unit, uio->uio_resid));
 
 	mtx_lock(&scp->seq_lock);
 	if ((scp->fflags & FREAD) == 0) {
-		SEQ_DEBUG(2, printf("seq_read: unit %d is not for reading.\n",
+		SEQ_DEBUG(2, printf("mseq_read: unit %d is not for reading.\n",
 		    scp->unit));
 		retval = EIO;
 		goto err1;
@@ -928,7 +921,9 @@ seq_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 
 		SEQ_DEBUG(8, printf("midiread: uiomove cc=%d\n", used));
 		MIDIQ_DEQ(scp->in_q, buf, used);
+		mtx_unlock(&scp->seq_lock);
 		retval = uiomove(buf, used, uio);
+		mtx_lock(&scp->seq_lock);
 		if (retval)
 			goto err1;
 	}
@@ -936,14 +931,14 @@ seq_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 	retval = 0;
 err1:
 	mtx_unlock(&scp->seq_lock);
-	SEQ_DEBUG(6, printf("seq_read: ret %d, resid %zd.\n",
+	SEQ_DEBUG(6, printf("mseq_read: ret %d, resid %zd.\n",
 	    retval, uio->uio_resid));
 
 	return retval;
 }
 
 int
-seq_write(struct cdev *i_dev, struct uio *uio, int ioflag)
+mseq_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 {
 	u_char event[EV_SZ], newevent[EV_SZ], ev_code;
 	struct seq_softc *scp = i_dev->si_drv1;
@@ -1003,7 +998,9 @@ seq_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 			retval = ENXIO;
 			goto err0;
 		}
+		mtx_unlock(&scp->seq_lock);
 		retval = uiomove(event, used, uio);
+		mtx_lock(&scp->seq_lock);
 		if (retval)
 			goto err0;
 
@@ -1041,7 +1038,9 @@ seq_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 			SEQ_DEBUG(2,
 			   printf("seq_write: SEQ_FULLSIZE flusing buffer.\n"));
 			while (uio->uio_resid > 0) {
-				retval = uiomove(event, EV_SZ, uio);
+				mtx_unlock(&scp->seq_lock);
+				retval = uiomove(event, MIN(EV_SZ, uio->uio_resid), uio);
+				mtx_lock(&scp->seq_lock);
 				if (retval)
 					goto err0;
 
@@ -1052,6 +1051,7 @@ seq_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 		}
 		retval = EINVAL;
 		if (ev_code >= 128) {
+			int error;
 
 			/*
 			 * Some sort of an extended event. The size is eight
@@ -1061,7 +1061,13 @@ seq_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 				SEQ_DEBUG(2, printf("seq_write: invalid level two event %x.\n", ev_code));
 				goto err0;
 			}
-			if (uiomove((caddr_t)&event[4], 4, uio)) {
+			mtx_unlock(&scp->seq_lock);
+			if (uio->uio_resid < 4)
+				error = EINVAL;
+			else
+				error = uiomove((caddr_t)&event[4], 4, uio);
+			mtx_lock(&scp->seq_lock);
+			if (error) {
 				SEQ_DEBUG(2,
 				   printf("seq_write: user memory mangled?\n"));
 				goto err0;
@@ -1122,7 +1128,7 @@ err0:
 }
 
 int
-seq_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
+mseq_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
     struct thread *td)
 {
 	int midiunit, ret, tmp;
@@ -1426,7 +1432,7 @@ timerevent:
 }
 
 int
-seq_poll(struct cdev *i_dev, int events, struct thread *td)
+mseq_poll(struct cdev *i_dev, int events, struct thread *td)
 {
 	int ret, lim;
 	struct seq_softc *scp = i_dev->si_drv1;

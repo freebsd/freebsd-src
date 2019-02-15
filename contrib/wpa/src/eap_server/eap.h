@@ -1,6 +1,6 @@
 /*
  * hostapd / EAP Full Authenticator state machine (RFC 4137)
- * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2014, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -10,6 +10,7 @@
 #define EAP_H
 
 #include "common/defs.h"
+#include "utils/list.h"
 #include "eap_common/eap_defs.h"
 #include "eap_server/eap_methods.h"
 #include "wpabuf.h"
@@ -32,8 +33,11 @@ struct eap_user {
 			    * nt_password_hash() */
 	int phase2;
 	int force_version;
+	unsigned int remediation:1;
+	unsigned int macacl:1;
 	int ttls_auth; /* bitfield of
 			* EAP_TTLS_AUTH_{PAP,CHAP,MSCHAP,MSCHAPV2} */
+	struct hostapd_radius_attr *accept_attr;
 };
 
 struct eap_eapol_interface {
@@ -55,6 +59,8 @@ struct eap_eapol_interface {
 	struct wpabuf *eapReqData;
 	u8 *eapKeyData;
 	size_t eapKeyDataLen;
+	u8 *eapSessionId;
+	size_t eapSessionIdLen;
 	Boolean eapKeyAvailable; /* called keyAvailable in IEEE 802.1X-2004 */
 
 	/* AAA interface to full authenticator variables */
@@ -75,10 +81,27 @@ struct eap_eapol_interface {
 	Boolean aaaTimeout;
 };
 
+struct eap_server_erp_key {
+	struct dl_list list;
+	size_t rRK_len;
+	size_t rIK_len;
+	u8 rRK[ERP_MAX_KEY_LEN];
+	u8 rIK[ERP_MAX_KEY_LEN];
+	u32 recv_seq;
+	u8 cryptosuite;
+	char keyname_nai[];
+};
+
 struct eapol_callbacks {
 	int (*get_eap_user)(void *ctx, const u8 *identity, size_t identity_len,
 			    int phase2, struct eap_user *user);
 	const char * (*get_eap_req_id_text)(void *ctx, size_t *len);
+	void (*log_msg)(void *ctx, const char *msg);
+	int (*get_erp_send_reauth_start)(void *ctx);
+	const char * (*get_erp_domain)(void *ctx);
+	struct eap_server_erp_key * (*erp_get_key)(void *ctx,
+						   const char *keyname);
+	int (*erp_add_key)(void *ctx, struct eap_server_erp_key *erp);
 };
 
 struct eap_config {
@@ -104,11 +127,20 @@ struct eap_config {
 	int fragment_size;
 
 	int pbc_in_m1;
+
+	const u8 *server_id;
+	size_t server_id_len;
+	int erp;
+	unsigned int tls_session_lifetime;
+
+#ifdef CONFIG_TESTING_OPTIONS
+	u32 tls_test_flags;
+#endif /* CONFIG_TESTING_OPTIONS */
 };
 
 
 struct eap_sm * eap_server_sm_init(void *eapol_ctx,
-				   struct eapol_callbacks *eapol_cb,
+				   const struct eapol_callbacks *eapol_cb,
 				   struct eap_config *eap_conf);
 void eap_server_sm_deinit(struct eap_sm *sm);
 int eap_server_sm_step(struct eap_sm *sm);
@@ -118,5 +150,8 @@ int eap_sm_method_pending(struct eap_sm *sm);
 const u8 * eap_get_identity(struct eap_sm *sm, size_t *len);
 struct eap_eapol_interface * eap_get_interface(struct eap_sm *sm);
 void eap_server_clear_identity(struct eap_sm *sm);
+void eap_server_mschap_rx_callback(struct eap_sm *sm, const char *source,
+				   const u8 *username, size_t username_len,
+				   const u8 *challenge, const u8 *response);
 
 #endif /* EAP_H */

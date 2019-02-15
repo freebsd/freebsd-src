@@ -14,20 +14,20 @@
 #include "llvm/IR/BasicBlock.h"
 #include "SymbolTableListTraitsImpl.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Type.h"
-#include "llvm/Support/CFG.h"
-#include "llvm/Support/LeakDetector.h"
 #include <algorithm>
+
 using namespace llvm;
 
 ValueSymbolTable *BasicBlock::getValueSymbolTable() {
   if (Function *F = getParent())
-    return &F->getValueSymbolTable();
-  return 0;
+    return F->getValueSymbolTable();
+  return nullptr;
 }
 
 LLVMContext &BasicBlock::getContext() const {
@@ -36,27 +36,30 @@ LLVMContext &BasicBlock::getContext() const {
 
 // Explicit instantiation of SymbolTableListTraits since some of the methods
 // are not in the public header file...
-template class llvm::SymbolTableListTraits<Instruction, BasicBlock>;
-
+template class llvm::SymbolTableListTraits<Instruction>;
 
 BasicBlock::BasicBlock(LLVMContext &C, const Twine &Name, Function *NewParent,
                        BasicBlock *InsertBefore)
-  : Value(Type::getLabelTy(C), Value::BasicBlockVal), Parent(0) {
+  : Value(Type::getLabelTy(C), Value::BasicBlockVal), Parent(nullptr) {
 
-  // Make sure that we get added to a function
-  LeakDetector::addGarbageObject(this);
-
-  if (InsertBefore) {
-    assert(NewParent &&
+  if (NewParent)
+    insertInto(NewParent, InsertBefore);
+  else
+    assert(!InsertBefore &&
            "Cannot insert block before another block with no function!");
-    NewParent->getBasicBlockList().insert(InsertBefore, this);
-  } else if (NewParent) {
-    NewParent->getBasicBlockList().push_back(this);
-  }
 
   setName(Name);
 }
 
+void BasicBlock::insertInto(Function *NewParent, BasicBlock *InsertBefore) {
+  assert(NewParent && "Expected a parent");
+  assert(!Parent && "Already has a parent");
+
+  if (InsertBefore)
+    NewParent->getBasicBlockList().insert(InsertBefore->getIterator(), this);
+  else
+    NewParent->getBasicBlockList().push_back(this);
+}
 
 BasicBlock::~BasicBlock() {
   // If the address of the block is taken and it is being deleted (e.g. because
@@ -70,144 +73,202 @@ BasicBlock::~BasicBlock() {
     Constant *Replacement =
       ConstantInt::get(llvm::Type::getInt32Ty(getContext()), 1);
     while (!use_empty()) {
-      BlockAddress *BA = cast<BlockAddress>(use_back());
+      BlockAddress *BA = cast<BlockAddress>(user_back());
       BA->replaceAllUsesWith(ConstantExpr::getIntToPtr(Replacement,
                                                        BA->getType()));
       BA->destroyConstant();
     }
   }
 
-  assert(getParent() == 0 && "BasicBlock still linked into the program!");
+  assert(getParent() == nullptr && "BasicBlock still linked into the program!");
   dropAllReferences();
   InstList.clear();
 }
 
 void BasicBlock::setParent(Function *parent) {
-  if (getParent())
-    LeakDetector::addGarbageObject(this);
-
   // Set Parent=parent, updating instruction symtab entries as appropriate.
   InstList.setSymTabObject(&Parent, parent);
-
-  if (getParent())
-    LeakDetector::removeGarbageObject(this);
 }
 
 void BasicBlock::removeFromParent() {
-  getParent()->getBasicBlockList().remove(this);
+  getParent()->getBasicBlockList().remove(getIterator());
 }
 
-void BasicBlock::eraseFromParent() {
-  getParent()->getBasicBlockList().erase(this);
+iplist<BasicBlock>::iterator BasicBlock::eraseFromParent() {
+  return getParent()->getBasicBlockList().erase(getIterator());
 }
 
-/// moveBefore - Unlink this basic block from its current function and
+/// Unlink this basic block from its current function and
 /// insert it into the function that MovePos lives in, right before MovePos.
 void BasicBlock::moveBefore(BasicBlock *MovePos) {
-  MovePos->getParent()->getBasicBlockList().splice(MovePos,
-                       getParent()->getBasicBlockList(), this);
+  MovePos->getParent()->getBasicBlockList().splice(
+      MovePos->getIterator(), getParent()->getBasicBlockList(), getIterator());
 }
 
-/// moveAfter - Unlink this basic block from its current function and
+/// Unlink this basic block from its current function and
 /// insert it into the function that MovePos lives in, right after MovePos.
 void BasicBlock::moveAfter(BasicBlock *MovePos) {
-  Function::iterator I = MovePos;
-  MovePos->getParent()->getBasicBlockList().splice(++I,
-                                       getParent()->getBasicBlockList(), this);
+  MovePos->getParent()->getBasicBlockList().splice(
+      ++MovePos->getIterator(), getParent()->getBasicBlockList(),
+      getIterator());
 }
 
-
-TerminatorInst *BasicBlock::getTerminator() {
-  if (InstList.empty()) return 0;
-  return dyn_cast<TerminatorInst>(&InstList.back());
+const Module *BasicBlock::getModule() const {
+  return getParent()->getParent();
 }
 
 const TerminatorInst *BasicBlock::getTerminator() const {
-  if (InstList.empty()) return 0;
+  if (InstList.empty()) return nullptr;
   return dyn_cast<TerminatorInst>(&InstList.back());
 }
 
-Instruction* BasicBlock::getFirstNonPHI() {
-  BasicBlock::iterator i = begin();
-  // All valid basic blocks should have a terminator,
-  // which is not a PHINode. If we have an invalid basic
-  // block we'll get an assertion failure when dereferencing
-  // a past-the-end iterator.
-  while (isa<PHINode>(i)) ++i;
-  return &*i;
+const CallInst *BasicBlock::getTerminatingMustTailCall() const {
+  if (InstList.empty())
+    return nullptr;
+  const ReturnInst *RI = dyn_cast<ReturnInst>(&InstList.back());
+  if (!RI || RI == &InstList.front())
+    return nullptr;
+
+  const Instruction *Prev = RI->getPrevNode();
+  if (!Prev)
+    return nullptr;
+
+  if (Value *RV = RI->getReturnValue()) {
+    if (RV != Prev)
+      return nullptr;
+
+    // Look through the optional bitcast.
+    if (auto *BI = dyn_cast<BitCastInst>(Prev)) {
+      RV = BI->getOperand(0);
+      Prev = BI->getPrevNode();
+      if (!Prev || RV != Prev)
+        return nullptr;
+    }
+  }
+
+  if (auto *CI = dyn_cast<CallInst>(Prev)) {
+    if (CI->isMustTailCall())
+      return CI;
+  }
+  return nullptr;
 }
 
-Instruction* BasicBlock::getFirstNonPHIOrDbg() {
-  BasicBlock::iterator i = begin();
-  // All valid basic blocks should have a terminator,
-  // which is not a PHINode. If we have an invalid basic
-  // block we'll get an assertion failure when dereferencing
-  // a past-the-end iterator.
-  while (isa<PHINode>(i) || isa<DbgInfoIntrinsic>(i)) ++i;
-  return &*i;
+const CallInst *BasicBlock::getTerminatingDeoptimizeCall() const {
+  if (InstList.empty())
+    return nullptr;
+  auto *RI = dyn_cast<ReturnInst>(&InstList.back());
+  if (!RI || RI == &InstList.front())
+    return nullptr;
+
+  if (auto *CI = dyn_cast_or_null<CallInst>(RI->getPrevNode()))
+    if (Function *F = CI->getCalledFunction())
+      if (F->getIntrinsicID() == Intrinsic::experimental_deoptimize)
+        return CI;
+
+  return nullptr;
 }
 
-Instruction* BasicBlock::getFirstNonPHIOrDbgOrLifetime() {
-  // All valid basic blocks should have a terminator,
-  // which is not a PHINode. If we have an invalid basic
-  // block we'll get an assertion failure when dereferencing
-  // a past-the-end iterator.
-  BasicBlock::iterator i = begin();
-  for (;; ++i) {
-    if (isa<PHINode>(i) || isa<DbgInfoIntrinsic>(i))
+const Instruction* BasicBlock::getFirstNonPHI() const {
+  for (const Instruction &I : *this)
+    if (!isa<PHINode>(I))
+      return &I;
+  return nullptr;
+}
+
+const Instruction* BasicBlock::getFirstNonPHIOrDbg() const {
+  for (const Instruction &I : *this)
+    if (!isa<PHINode>(I) && !isa<DbgInfoIntrinsic>(I))
+      return &I;
+  return nullptr;
+}
+
+const Instruction* BasicBlock::getFirstNonPHIOrDbgOrLifetime() const {
+  for (const Instruction &I : *this) {
+    if (isa<PHINode>(I) || isa<DbgInfoIntrinsic>(I))
       continue;
 
-    const IntrinsicInst *II = dyn_cast<IntrinsicInst>(i);
-    if (!II)
-      break;
-    if (II->getIntrinsicID() != Intrinsic::lifetime_start &&
-        II->getIntrinsicID() != Intrinsic::lifetime_end)
-      break;
+    if (auto *II = dyn_cast<IntrinsicInst>(&I))
+      if (II->getIntrinsicID() == Intrinsic::lifetime_start ||
+          II->getIntrinsicID() == Intrinsic::lifetime_end)
+        continue;
+
+    return &I;
   }
-  return &*i;
+  return nullptr;
 }
 
-BasicBlock::iterator BasicBlock::getFirstInsertionPt() {
-  iterator InsertPt = getFirstNonPHI();
-  if (isa<LandingPadInst>(InsertPt)) ++InsertPt;
+BasicBlock::const_iterator BasicBlock::getFirstInsertionPt() const {
+  const Instruction *FirstNonPHI = getFirstNonPHI();
+  if (!FirstNonPHI)
+    return end();
+
+  const_iterator InsertPt = FirstNonPHI->getIterator();
+  if (InsertPt->isEHPad()) ++InsertPt;
   return InsertPt;
 }
 
 void BasicBlock::dropAllReferences() {
-  for(iterator I = begin(), E = end(); I != E; ++I)
-    I->dropAllReferences();
+  for (Instruction &I : *this)
+    I.dropAllReferences();
 }
 
-/// getSinglePredecessor - If this basic block has a single predecessor block,
+/// If this basic block has a single predecessor block,
 /// return the block, otherwise return a null pointer.
-BasicBlock *BasicBlock::getSinglePredecessor() {
-  pred_iterator PI = pred_begin(this), E = pred_end(this);
-  if (PI == E) return 0;         // No preds.
-  BasicBlock *ThePred = *PI;
+const BasicBlock *BasicBlock::getSinglePredecessor() const {
+  const_pred_iterator PI = pred_begin(this), E = pred_end(this);
+  if (PI == E) return nullptr;         // No preds.
+  const BasicBlock *ThePred = *PI;
   ++PI;
-  return (PI == E) ? ThePred : 0 /*multiple preds*/;
+  return (PI == E) ? ThePred : nullptr /*multiple preds*/;
 }
 
-/// getUniquePredecessor - If this basic block has a unique predecessor block,
+/// If this basic block has a unique predecessor block,
 /// return the block, otherwise return a null pointer.
 /// Note that unique predecessor doesn't mean single edge, there can be
 /// multiple edges from the unique predecessor to this block (for example
 /// a switch statement with multiple cases having the same destination).
-BasicBlock *BasicBlock::getUniquePredecessor() {
-  pred_iterator PI = pred_begin(this), E = pred_end(this);
-  if (PI == E) return 0; // No preds.
-  BasicBlock *PredBB = *PI;
+const BasicBlock *BasicBlock::getUniquePredecessor() const {
+  const_pred_iterator PI = pred_begin(this), E = pred_end(this);
+  if (PI == E) return nullptr; // No preds.
+  const BasicBlock *PredBB = *PI;
   ++PI;
   for (;PI != E; ++PI) {
     if (*PI != PredBB)
-      return 0;
+      return nullptr;
     // The same predecessor appears multiple times in the predecessor list.
     // This is OK.
   }
   return PredBB;
 }
 
-/// removePredecessor - This method is used to notify a BasicBlock that the
+const BasicBlock *BasicBlock::getSingleSuccessor() const {
+  succ_const_iterator SI = succ_begin(this), E = succ_end(this);
+  if (SI == E) return nullptr; // no successors
+  const BasicBlock *TheSucc = *SI;
+  ++SI;
+  return (SI == E) ? TheSucc : nullptr /* multiple successors */;
+}
+
+const BasicBlock *BasicBlock::getUniqueSuccessor() const {
+  succ_const_iterator SI = succ_begin(this), E = succ_end(this);
+  if (SI == E) return nullptr; // No successors
+  const BasicBlock *SuccBB = *SI;
+  ++SI;
+  for (;SI != E; ++SI) {
+    if (*SI != SuccBB)
+      return nullptr;
+    // The same successor appears multiple times in the successor list.
+    // This is OK.
+  }
+  return SuccBB;
+}
+
+iterator_range<BasicBlock::phi_iterator> BasicBlock::phis() {
+  PHINode *P = empty() ? nullptr : dyn_cast<PHINode>(&*begin());
+  return make_range<phi_iterator>(P, nullptr);
+}
+
+/// This method is used to notify a BasicBlock that the
 /// specified Predecessor of the block is no longer able to reach it.  This is
 /// actually not used to update the Predecessor list, but is actually used to
 /// update the PHI nodes that reside in the block.  Note that this should be
@@ -273,7 +334,7 @@ void BasicBlock::removePredecessor(BasicBlock *Pred,
       PN->removeIncomingValue(Pred, false);
       // If all incoming values to the Phi are the same, we can replace the Phi
       // with that value.
-      Value* PNV = 0;
+      Value* PNV = nullptr;
       if (!DontDeleteUselessPHIs && (PNV = PN->hasConstantValue()))
         if (PNV != PN) {
           PN->replaceAllUsesWith(PNV);
@@ -283,8 +344,32 @@ void BasicBlock::removePredecessor(BasicBlock *Pred,
   }
 }
 
+bool BasicBlock::canSplitPredecessors() const {
+  const Instruction *FirstNonPHI = getFirstNonPHI();
+  if (isa<LandingPadInst>(FirstNonPHI))
+    return true;
+  // This is perhaps a little conservative because constructs like
+  // CleanupBlockInst are pretty easy to split.  However, SplitBlockPredecessors
+  // cannot handle such things just yet.
+  if (FirstNonPHI->isEHPad())
+    return false;
+  return true;
+}
 
-/// splitBasicBlock - This splits a basic block into two at the specified
+bool BasicBlock::isLegalToHoistInto() const {
+  auto *Term = getTerminator();
+  // No terminator means the block is under construction.
+  if (!Term)
+    return true;
+
+  // If the block has no successors, there can be no instructions to hoist.
+  assert(Term->getNumSuccessors() > 0);
+
+  // Instructions should not be hoisted across exception handling boundaries.
+  return !Term->isExceptional();
+}
+
+/// This splits a basic block into two at the specified
 /// instruction.  Note that all instructions BEFORE the specified iterator stay
 /// as part of the original basic block, an unconditional branch is added to
 /// the new BB, and the rest of the instructions in the BB are moved to the new
@@ -300,17 +385,18 @@ BasicBlock *BasicBlock::splitBasicBlock(iterator I, const Twine &BBName) {
   assert(I != InstList.end() &&
          "Trying to get me to create degenerate basic block!");
 
-  BasicBlock *InsertBefore = llvm::next(Function::iterator(this))
-                               .getNodePtrUnchecked();
-  BasicBlock *New = BasicBlock::Create(getContext(), BBName,
-                                       getParent(), InsertBefore);
+  BasicBlock *New = BasicBlock::Create(getContext(), BBName, getParent(),
+                                       this->getNextNode());
 
+  // Save DebugLoc of split point before invalidating iterator.
+  DebugLoc Loc = I->getDebugLoc();
   // Move all of the specified instructions from the original basic block into
   // the new basic block.
   New->getInstList().splice(New->end(), this->getInstList(), I, end());
 
   // Add a branch instruction to the newly formed basic block.
-  BranchInst::Create(New, this);
+  BranchInst *BI = BranchInst::Create(New, this);
+  BI->setDebugLoc(Loc);
 
   // Now we must loop through all of the successors of the New block (which
   // _were_ the successors of the 'this' block), and update any PHI nodes in
@@ -321,13 +407,11 @@ BasicBlock *BasicBlock::splitBasicBlock(iterator I, const Twine &BBName) {
     // Loop over any phi nodes in the basic block, updating the BB field of
     // incoming values...
     BasicBlock *Successor = *I;
-    PHINode *PN;
-    for (BasicBlock::iterator II = Successor->begin();
-         (PN = dyn_cast<PHINode>(II)); ++II) {
-      int IDX = PN->getBasicBlockIndex(this);
-      while (IDX != -1) {
-        PN->setIncomingBlock((unsigned)IDX, New);
-        IDX = PN->getBasicBlockIndex(this);
+    for (auto &PN : Successor->phis()) {
+      int Idx = PN.getBasicBlockIndex(this);
+      while (Idx != -1) {
+        PN.setIncomingBlock((unsigned)Idx, New);
+        Idx = PN.getBasicBlockIndex(this);
       }
     }
   }
@@ -340,8 +424,7 @@ void BasicBlock::replaceSuccessorsPhiUsesWith(BasicBlock *New) {
     // Cope with being called on a BasicBlock that doesn't have a terminator
     // yet. Clang's CodeGenFunction::EmitReturnBlock() likes to do this.
     return;
-  for (unsigned i = 0, e = TI->getNumSuccessors(); i != e; ++i) {
-    BasicBlock *Succ = TI->getSuccessor(i);
+  for (BasicBlock *Succ : TI->successors()) {
     // N.B. Succ might not be a complete BasicBlock, so don't assume
     // that it ends with a non-phi instruction.
     for (iterator II = Succ->begin(), IE = Succ->end(); II != IE; ++II) {
@@ -355,17 +438,26 @@ void BasicBlock::replaceSuccessorsPhiUsesWith(BasicBlock *New) {
   }
 }
 
-/// isLandingPad - Return true if this basic block is a landing pad. I.e., it's
+/// Return true if this basic block is a landing pad. I.e., it's
 /// the destination of the 'unwind' edge of an invoke instruction.
 bool BasicBlock::isLandingPad() const {
   return isa<LandingPadInst>(getFirstNonPHI());
 }
 
-/// getLandingPadInst() - Return the landingpad instruction associated with
-/// the landing pad.
-LandingPadInst *BasicBlock::getLandingPadInst() {
-  return dyn_cast<LandingPadInst>(getFirstNonPHI());
-}
+/// Return the landingpad instruction associated with the landing pad.
 const LandingPadInst *BasicBlock::getLandingPadInst() const {
   return dyn_cast<LandingPadInst>(getFirstNonPHI());
+}
+
+Optional<uint64_t> BasicBlock::getIrrLoopHeaderWeight() const {
+  const TerminatorInst *TI = getTerminator();
+  if (MDNode *MDIrrLoopHeader =
+      TI->getMetadata(LLVMContext::MD_irr_loop)) {
+    MDString *MDName = cast<MDString>(MDIrrLoopHeader->getOperand(0));
+    if (MDName->getString().equals("loop_header_weight")) {
+      auto *CI = mdconst::extract<ConstantInt>(MDIrrLoopHeader->getOperand(1));
+      return Optional<uint64_t>(CI->getValue().getZExtValue());
+    }
+  }
+  return Optional<uint64_t>();
 }

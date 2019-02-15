@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Michael Smith
  * Copyright (c) 2003 Paul Saab
  * Copyright (c) 2003 Vinod Kashyap
@@ -531,7 +533,7 @@ twe_ioctl(struct twe_softc *sc, u_long ioctlcmd, void *addr)
     case TWEIO_COMMAND:
 	/*
 	 * if there's a data buffer, allocate and copy it in.
-	 * Must be in multipled of 512 bytes.
+	 * Must be in multiplied of 512 bytes.
 	 */
 	tr_length = roundup2(tu->tu_size, 512);
 	if (tr_length > 0) {
@@ -985,7 +987,7 @@ twe_immediate_request(struct twe_request *tr, int usetmp)
 
     if (usetmp && (tr->tr_data != NULL)) {
 	tr->tr_flags |= TWE_CMD_IMMEDIATE;
-	if (tr->tr_length > MAXBSIZE)
+	if (tr->tr_length > DFLTPHYS)
 	    return (EINVAL);
 	bcopy(tr->tr_data, sc->twe_immediate, tr->tr_length);
     }

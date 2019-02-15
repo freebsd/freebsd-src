@@ -31,7 +31,7 @@ static const char sccsid[] = "$Id: ex_cd.c,v 10.13 2012/04/12 06:28:27 zy Exp $"
  * ex_cd -- :cd[!] [directory]
  *	Change directories.
  *
- * PUBLIC: int ex_cd __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_cd(SCR *, EXCMD *);
  */
 int
 ex_cd(SCR *sp, EXCMD *cmdp)

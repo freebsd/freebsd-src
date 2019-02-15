@@ -1,4 +1,4 @@
-//== CallGraph.cpp - AST-based Call graph  ----------------------*- C++ -*--==//
+//===- CallGraph.cpp - AST-based Call graph -------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -10,22 +10,38 @@
 //  This file defines the AST-based CallGraph.
 //
 //===----------------------------------------------------------------------===//
-#define DEBUG_TYPE "CallGraph"
 
 #include "clang/Analysis/CallGraph.h"
-#include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclBase.h"
+#include "clang/AST/DeclObjC.h"
+#include "clang/AST/Expr.h"
+#include "clang/AST/ExprObjC.h"
+#include "clang/AST/Stmt.h"
 #include "clang/AST/StmtVisitor.h"
+#include "clang/Basic/IdentifierTable.h"
+#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/PostOrderIterator.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/DOTGraphTraits.h"
 #include "llvm/Support/GraphWriter.h"
+#include "llvm/Support/raw_ostream.h"
+#include <cassert>
+#include <memory>
+#include <string>
 
 using namespace clang;
+
+#define DEBUG_TYPE "CallGraph"
 
 STATISTIC(NumObjCCallEdges, "Number of Objective-C method call edges");
 STATISTIC(NumBlockCallEdges, "Number of block call edges");
 
 namespace {
+
 /// A helper class, which walks the AST and locates all the call sites in the
 /// given function body.
 class CGBuilder : public StmtVisitor<CGBuilder> {
@@ -33,8 +49,7 @@ class CGBuilder : public StmtVisitor<CGBuilder> {
   CallGraphNode *CallerNode;
 
 public:
-  CGBuilder(CallGraph *g, CallGraphNode *N)
-    : G(g), CallerNode(N) {}
+  CGBuilder(CallGraph *g, CallGraphNode *N) : G(g), CallerNode(N) {}
 
   void VisitStmt(Stmt *S) { VisitChildren(S); }
 
@@ -49,19 +64,20 @@ public:
       return Block->getBlockDecl();
     }
 
-    return 0;
+    return nullptr;
   }
 
   void addCalledDecl(Decl *D) {
     if (G->includeInGraph(D)) {
       CallGraphNode *CalleeNode = G->getOrInsertNode(D);
-      CallerNode->addCallee(CalleeNode, G);
+      CallerNode->addCallee(CalleeNode);
     }
   }
 
   void VisitCallExpr(CallExpr *CE) {
     if (Decl *D = getDeclFromCall(CE))
       addCalledDecl(D);
+    VisitChildren(CE);
   }
 
   // Adds may-call edges for the ObjC message sends.
@@ -70,7 +86,7 @@ public:
       Selector Sel = ME->getSelector();
       
       // Find the callee definition within the same translation unit.
-      Decl *D = 0;
+      Decl *D = nullptr;
       if (ME->isInstanceMessage())
         D = IDecl->lookupPrivateMethod(Sel);
       else
@@ -83,56 +99,42 @@ public:
   }
 
   void VisitChildren(Stmt *S) {
-    for (Stmt::child_range I = S->children(); I; ++I)
-      if (*I)
-        static_cast<CGBuilder*>(this)->Visit(*I);
+    for (Stmt *SubStmt : S->children())
+      if (SubStmt)
+        this->Visit(SubStmt);
   }
 };
 
-} // end anonymous namespace
+} // namespace
 
 void CallGraph::addNodesForBlocks(DeclContext *D) {
   if (BlockDecl *BD = dyn_cast<BlockDecl>(D))
     addNodeForDecl(BD, true);
 
-  for (DeclContext::decl_iterator I = D->decls_begin(), E = D->decls_end();
-       I!=E; ++I)
-    if (DeclContext *DC = dyn_cast<DeclContext>(*I))
+  for (auto *I : D->decls())
+    if (auto *DC = dyn_cast<DeclContext>(I))
       addNodesForBlocks(DC);
 }
 
 CallGraph::CallGraph() {
-  Root = getOrInsertNode(0);
+  Root = getOrInsertNode(nullptr);
 }
 
-CallGraph::~CallGraph() {
-  if (!FunctionMap.empty()) {
-    for (FunctionMapTy::iterator I = FunctionMap.begin(), E = FunctionMap.end();
-        I != E; ++I)
-      delete I->second;
-    FunctionMap.clear();
-  }
-}
+CallGraph::~CallGraph() = default;
 
 bool CallGraph::includeInGraph(const Decl *D) {
   assert(D);
-  if (!D->getBody())
+  if (!D->hasBody())
     return false;
 
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
     // We skip function template definitions, as their semantics is
     // only determined when they are instantiated.
-    if (!FD->isThisDeclarationADefinition() ||
-        FD->isDependentContext())
+    if (FD->isDependentContext())
       return false;
 
     IdentifierInfo *II = FD->getIdentifier();
     if (II && II->getName().startswith("__inline"))
-      return false;
-  }
-
-  if (const ObjCMethodDecl *ID = dyn_cast<ObjCMethodDecl>(D)) {
-    if (!ID->isThisDeclarationADefinition())
       return false;
   }
 
@@ -153,20 +155,23 @@ void CallGraph::addNodeForDecl(Decl* D, bool IsGlobal) {
 
 CallGraphNode *CallGraph::getNode(const Decl *F) const {
   FunctionMapTy::const_iterator I = FunctionMap.find(F);
-  if (I == FunctionMap.end()) return 0;
-  return I->second;
+  if (I == FunctionMap.end()) return nullptr;
+  return I->second.get();
 }
 
 CallGraphNode *CallGraph::getOrInsertNode(Decl *F) {
-  CallGraphNode *&Node = FunctionMap[F];
-  if (Node)
-    return Node;
+  if (F && !isa<ObjCMethodDecl>(F))
+    F = F->getCanonicalDecl();
 
-  Node = new CallGraphNode(F);
+  std::unique_ptr<CallGraphNode> &Node = FunctionMap[F];
+  if (Node)
+    return Node.get();
+
+  Node = llvm::make_unique<CallGraphNode>(F);
   // Make Root node a parent of all functions to make sure all are reachable.
-  if (F != 0)
-    Root->addCallee(Node, this);
-  return Node;
+  if (F)
+    Root->addCallee(Node.get());
+  return Node.get();
 }
 
 void CallGraph::print(raw_ostream &OS) const {
@@ -174,8 +179,8 @@ void CallGraph::print(raw_ostream &OS) const {
 
   // We are going to print the graph in reverse post order, partially, to make
   // sure the output is deterministic.
-  llvm::ReversePostOrderTraversal<const clang::CallGraph*> RPOT(this);
-  for (llvm::ReversePostOrderTraversal<const clang::CallGraph*>::rpo_iterator
+  llvm::ReversePostOrderTraversal<const CallGraph *> RPOT(this);
+  for (llvm::ReversePostOrderTraversal<const CallGraph *>::rpo_iterator
          I = RPOT.begin(), E = RPOT.end(); I != E; ++I) {
     const CallGraphNode *N = *I;
 
@@ -197,7 +202,7 @@ void CallGraph::print(raw_ostream &OS) const {
   OS.flush();
 }
 
-void CallGraph::dump() const {
+LLVM_DUMP_METHOD void CallGraph::dump() const {
   print(llvm::errs());
 }
 
@@ -211,7 +216,7 @@ void CallGraphNode::print(raw_ostream &os) const {
   os << "< >";
 }
 
-void CallGraphNode::dump() const {
+LLVM_DUMP_METHOD void CallGraphNode::dump() const {
   print(llvm::errs());
 }
 
@@ -219,8 +224,7 @@ namespace llvm {
 
 template <>
 struct DOTGraphTraits<const CallGraph*> : public DefaultDOTGraphTraits {
-
-  DOTGraphTraits (bool isSimple=false) : DefaultDOTGraphTraits(isSimple) {}
+  DOTGraphTraits (bool isSimple = false) : DefaultDOTGraphTraits(isSimple) {}
 
   static std::string getNodeLabel(const CallGraphNode *Node,
                                   const CallGraph *CG) {
@@ -232,6 +236,6 @@ struct DOTGraphTraits<const CallGraph*> : public DefaultDOTGraphTraits {
     else
       return "< >";
   }
-
 };
-}
+
+} // namespace llvm

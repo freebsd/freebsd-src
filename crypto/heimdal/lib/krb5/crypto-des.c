@@ -225,7 +225,7 @@ evp_des_encrypt_null_ivec(krb5_context context,
     EVP_CIPHER_CTX *c;
     DES_cblock ivec;
     memset(&ivec, 0, sizeof(ivec));
-    c = encryptp ? &ctx->ectx : &ctx->dctx;
+    c = encryptp ? ctx->ectx : ctx->dctx;
     EVP_CipherInit_ex(c, NULL, NULL, NULL, (void *)&ivec, -1);
     EVP_Cipher(c, data, data, len);
     return 0;
@@ -244,7 +244,7 @@ evp_des_encrypt_key_ivec(krb5_context context,
     EVP_CIPHER_CTX *c;
     DES_cblock ivec;
     memcpy(&ivec, key->key->keyvalue.data, sizeof(ivec));
-    c = encryptp ? &ctx->ectx : &ctx->dctx;
+    c = encryptp ? ctx->ectx : ctx->dctx;
     EVP_CipherInit_ex(c, NULL, NULL, NULL, (void *)&ivec, -1);
     EVP_Cipher(c, data, data, len);
     return 0;

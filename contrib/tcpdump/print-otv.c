@@ -13,20 +13,18 @@
  * Original code by Francesco Fondelli (francesco dot fondelli, gmail dot com)
  */
 
+/* \summary: Overlay Transport Virtualization (OTV) printer */
+
+/* specification: draft-hasmit-otv-04 */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
-#include "addrtoname.h"
-
-#include "udp.h"
 
 /*
  * OTV header, draft-hasmit-otv-04
@@ -41,39 +39,34 @@
  */
 
 void
-otv_print(const u_char *bp, u_int len)
+otv_print(netdissect_options *ndo, const u_char *bp, u_int len)
 {
-    u_int8_t flags;
-    u_int32_t overlay_id;
-    u_int32_t instance_id;
-    
-    if (len < 8) {
-        printf("[|OTV]");
-        return;
-    }
+    uint8_t flags;
 
+    ND_PRINT((ndo, "OTV, "));
+    if (len < 8)
+        goto trunc;
+
+    ND_TCHECK(*bp);
     flags = *bp;
+    ND_PRINT((ndo, "flags [%s] (0x%02x), ", flags & 0x08 ? "I" : ".", flags));
     bp += 1;
 
-    overlay_id = EXTRACT_24BITS(bp);
+    ND_TCHECK2(*bp, 3);
+    ND_PRINT((ndo, "overlay %u, ", EXTRACT_24BITS(bp)));
     bp += 3;
 
-    instance_id = EXTRACT_24BITS(bp);
-    bp += 4;
+    ND_TCHECK2(*bp, 3);
+    ND_PRINT((ndo, "instance %u\n", EXTRACT_24BITS(bp)));
+    bp += 3;
 
-    printf("OTV, ");
+    /* Reserved */
+    ND_TCHECK(*bp);
+    bp += 1;
 
-    fputs("flags [", stdout);
-    if (flags & 0x08)
-        fputs("I", stdout);
-    else
-        fputs(".", stdout);
-    fputs("] ", stdout);
-
-    printf("(0x%02x), ", flags);
-    printf("overlay %u, ", overlay_id);
-    printf("instance %u\n", instance_id);
-
-    ether_print(gndo, bp, len - 8, len - 8, NULL, NULL);
+    ether_print(ndo, bp, len - 8, ndo->ndo_snapend - bp, NULL, NULL);
     return;
+
+trunc:
+    ND_PRINT((ndo, " [|OTV]"));
 }

@@ -80,6 +80,8 @@ fi
 # serial console ?
 SERCONS=false
 
+PKG_DIR=/usr/ports/packages/All
+
 # Remotely mounted distfiles
 # REMOTEDISTFILES=fs:/rdonly/distfiles
 
@@ -92,6 +94,9 @@ PORTS_WE_WANT='
 '
 
 PORTS_OPTS="BATCH=YES A4=yes"
+
+PORTS_WITHOUT=""
+PORTS_WITH=""
 
 CONFIGFILES='
 '
@@ -160,7 +165,6 @@ fi
 set -e
 
 log_it() (
-	set +x
 	a="$*"
 	set `cat /tmp/_sb_log`
 	TX=`date +%s`
@@ -173,9 +177,12 @@ log_it() (
 
 #######################################################################
 
+ports_make() {
+	make $* WITH="${PORTS_WITH}" WITHOUT="${PORTS_WITHOUT}" ${PORTS_OPTS}
+}
 
 ports_recurse() (
-	set +x
+	cd /usr/ports
 	t=$1
 	shift
 	if [ "x$t" = "x." ] ; then
@@ -189,12 +196,20 @@ ports_recurse() (
 	echo "$t" >> /tmp/_.plist.tdone
 	for d
 	do
+		fl=""
 		if [ ! -d $d ] ; then
-			echo "Missing port $d" 1>&2
-			continue
+			fl=FLAVOR=`expr $d : '.*@\(.*\)'`
+			bd=`expr $d : '\(.*\)@.*'`
+			if [ ! -d $bd ] ; then
+				echo "Missing port $d ($t) (fl $fl) (bd $bd)" 1>&2
+				continue
+			fi
+			# echo "Flavored port $d ($t) (fl $fl) (bd $bd)" 1>&2
+			d=$bd
 		fi
+		d=`cd /usr/ports && cd $d && /bin/pwd`
 		if [ ! -f $d/Makefile ] ; then
-			echo "Missing port $d" 1>&2
+			echo "Missing port (Makefile) $d" 1>&2
 			continue
 		fi
 		if [ "x$t" != "x." ] ; then
@@ -207,7 +222,13 @@ ports_recurse() (
 		else
 			(
 			cd $d
-			ports_recurse $d `make -V _DEPEND_DIRS ${PORTS_OPTS}`
+			l=""
+			for a in `ports_make -V _UNIFIED_DEPENDS $fl`
+			do
+				x=`expr "$a" : '.*:\(.*\)'`
+				l="${l} ${x}"
+			done
+			ports_recurse $d $l
 			)
 			echo "$d" >> /tmp/_.plist
 		fi
@@ -218,28 +239,33 @@ ports_recurse() (
 )
 
 ports_build() (
-	set +x
 
 	ports_recurse . $PORTS_WE_WANT 
 
+	if [ "x${PKG_DIR}" != "x" ] ; then
+		mkdir -p ${PKG_DIR}
+	fi
+
+	pd=`cd /usr/ports && /bin/pwd`
 	# Now build & install them
 	for p in `cat /tmp/_.plist`
 	do
 		b=`echo $p | tr / _`
-		t=`echo $p | sed 's,/usr/ports/,,'`
-		pn=`cd $p && make package-name`
+		t=`echo $p | sed "s,${pd},,"`
+		pn=`cd $p && ports_make package-name`
 
-		if pkg info $pn > /dev/null 2>&1 ; then
-			log_it "Already installed: $t ($pn)"
+		if [ "x`basename $p`" == "xpkg" ] ; then
+			log_it "Very Special: $t ($pn)"
+
+			(
+			cd $p
+			ports_make clean all install 
+			) > _.$b 2>&1 < /dev/null
 			continue
 		fi
 
-		if [ "x$p" == "x/usr/ports/ports-mgmt/pkg" ] ; then
-			log_it "Very Special: $t ($pn)"
-			(
-			cd $p
-			make clean all install ${PORTS_OPTS}
-			) > _.$b 2>&1 < /dev/null
+		if pkg info $pn > /dev/null 2>&1 ; then
+			log_it "Already installed: $t ($pn)"
 			continue
 		fi
 
@@ -254,26 +280,26 @@ ports_build() (
 			fi
 		fi
 
-		miss=`(cd $p ; make missing ${PORTS_OPTS}) || true`
+		miss=`(cd $p ; ports_make missing) || true`
 
 		if [ "x${miss}" != "x" ] ; then
-			log_it "MISSING for $p:" $miss
-			continue
+			log_it "NB: MISSING for $p:" $miss
 		fi
 
 		log_it "build $pn ($p)"
 		(
 			set +e
 			cd $p
-			make clean ${PORTS_OPTS}
-			if make install ${PORTS_OPTS} ; then
+			ports_make clean
+			if ports_make install ; then
 				if [ "x${PKG_DIR}" != "x" ] ; then
-					make package ${PORTS_OPTS}
+					ports_make package
 				fi
 			else
 				log_it FAIL build $p
 			fi
-			make clean
+			ports_make clean
+
 		) > _.$b 2>&1 < /dev/null
 	done
 )
@@ -294,15 +320,15 @@ ports_prefetch() (
 		b=`echo $p | tr / _`
 		(
 			cd $p
-			if make checksum $PORTS_OPTS ; then
+			if ports_make checksum ; then
 				rm -f /${ldir}/_.prefetch.$b
 				echo "OK $p" >> /${ldir}/_.prefetch
 				exit 0
 			fi
-			make distclean
-			make checksum $PORTS_OPTS || true
+			ports_make distclean
+			ports_make checksum || true
 
-			if make checksum $PORTS_OPTS > /dev/null 2>&1 ; then
+			if ports_make checksum > /dev/null 2>&1 ; then
 				rm -f /${ldir}/_.prefetch.$b
 				echo "OK $p" >> /${ldir}/_.prefetch
 			else
@@ -380,7 +406,6 @@ done
 #######################################################################
 
 if [ "x$1" = "xchroot_script" ] ; then
-	set +x
 	set -e
 
 	shift
@@ -458,8 +483,7 @@ ln -s /freebsd/${SRC_PATH} /usr/src
 if $do_world ; then
 	if [ "x${OBJ_PATH}" != "x" ] ; then
 		rm -rf /usr/obj
-		mkdir -p /freebsd/${OBJ_PATH}
-		ln -s /freebsd/${OBJ_PATH} /usr/obj
+		(cd /freebsd && mkdir -p ${OBJ_PATH} && ln -s ${OBJ_PATH} /usr/obj)
 	else
 		rm -rf /usr/obj
 		mkdir -p /usr/obj
@@ -470,14 +494,17 @@ fi
 
 for i in ${PORTS_WE_WANT}
 do
+	(
+	cd /usr/ports
 	if [ ! -d $i ]  ; then
 		echo "Port $i not found" 1>&2
 		exit 2
 	fi
+	)
 done
 
-export PORTS_WE_WANT
-export PORTS_OPTS
+#export PORTS_WE_WANT
+#export PORTS_OPTS
 
 #######################################################################
 
@@ -522,7 +549,7 @@ log_it Installworld
 	> ${SBMNT}/_.iw 2>&1
 
 log_it distribution
-(cd /usr/src/etc && make -m /usr/src/share/mk distribution DESTDIR=${SBMNT} ${SRCCONF} ) \
+(cd /usr/src && make -m /usr/src/share/mk distribution DESTDIR=${SBMNT} ${SRCCONF} ) \
 	> ${SBMNT}/_.dist 2>&1
 
 log_it Installkernel
@@ -531,7 +558,7 @@ log_it Installkernel
 
 if [ "x${OBJ_PATH}" != "x" ] ; then
 	rmdir ${SBMNT}/usr/obj
-	ln -s /freebsd/${OBJ_PATH} ${SBMNT}/usr/obj
+	( cd /freebsd && mkdir -p ${OBJ_PATH} && ln -s ${OBJ_PATH} ${SBMNT}/usr/obj )
 fi
 
 log_it Wait for ports prefetch

@@ -1,6 +1,7 @@
 /*
+ * Copyright (c) 2015, AVAGO Tech. All rights reserved. Author: Marian Choy
  * Copyright (c) 2014, LSI Corp. All rights reserved. Author: Marian Choy
- * Support: freebsdraid@lsi.com
+ * Support: freebsdraid@avagotech.com
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -31,7 +32,7 @@
  * those of the authors and should not be interpreted as representing
  * official policies,either expressed or implied, of the FreeBSD Project.
  *
- * Send feedback to: <megaraidfbsd@lsi.com> Mail to: LSI Corporation, 1621
+ * Send feedback to: <megaraidfbsd@avagotech.com> Mail to: AVAGO TECHNOLOGIES, 1621
  * Barber Lane, Milpitas, CA 95035 ATTN: MegaRaid FreeBSD
  *
  */
@@ -85,7 +86,7 @@ mrsas_passthru(struct mrsas_softc *sc, void *arg, u_long ioctlCmd)
 	bus_addr_t ioctl_data_phys_addr[MAX_IOCTL_SGE];
 	bus_dma_tag_t ioctl_sense_tag = 0;
 	bus_dmamap_t ioctl_sense_dmamap = 0;
-	void *ioctl_sense_mem = 0;
+	void *ioctl_sense_mem = NULL;
 	bus_addr_t ioctl_sense_phys_addr = 0;
 	int i, ioctl_data_size = 0, ioctl_sense_size, ret = 0;
 	struct mrsas_sge32 *kern_sge32;
@@ -136,6 +137,11 @@ mrsas_passthru(struct mrsas_softc *sc, void *arg, u_long ioctlCmd)
 	 */
 	kern_sge32 = (struct mrsas_sge32 *)
 	    ((unsigned long)cmd->frame + user_ioc->sgl_off);
+
+	memset(ioctl_data_tag, 0, (sizeof(bus_dma_tag_t) * MAX_IOCTL_SGE));
+	memset(ioctl_data_dmamap, 0, (sizeof(bus_dmamap_t) * MAX_IOCTL_SGE));
+	memset(ioctl_data_mem, 0, (sizeof(void *) * MAX_IOCTL_SGE));
+	memset(ioctl_data_phys_addr, 0, (sizeof(bus_addr_t) * MAX_IOCTL_SGE));
 
 	/*
 	 * For each user buffer, create a mirror buffer and copy in
@@ -238,14 +244,21 @@ mrsas_passthru(struct mrsas_softc *sc, void *arg, u_long ioctlCmd)
 		}
 		sense_ptr =
 		    (unsigned long *)((unsigned long)cmd->frame + user_ioc->sense_off);
-		sense_ptr = ioctl_sense_mem;
+		*sense_ptr = ioctl_sense_phys_addr;
 	}
 	/*
 	 * Set the sync_cmd flag so that the ISR knows not to complete this
 	 * cmd to the SCSI mid-layer
 	 */
 	cmd->sync_cmd = 1;
-	mrsas_issue_blocked_cmd(sc, cmd);
+	ret = mrsas_issue_blocked_cmd(sc, cmd);
+	if (ret == ETIMEDOUT) {
+		mrsas_dprint(sc, MRSAS_OCR,
+		    "IOCTL command is timed out, initiating OCR\n");
+		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
+		ret = EAGAIN;
+		goto out;
+	}
 	cmd->sync_cmd = 0;
 
 	/*
@@ -296,13 +309,14 @@ out:
 	/*
 	 * Release sense buffer
 	 */
-	if (ioctl_sense_phys_addr)
-		bus_dmamap_unload(ioctl_sense_tag, ioctl_sense_dmamap);
-	if (ioctl_sense_mem != NULL)
-		bus_dmamem_free(ioctl_sense_tag, ioctl_sense_mem, ioctl_sense_dmamap);
-	if (ioctl_sense_tag != NULL)
-		bus_dma_tag_destroy(ioctl_sense_tag);
-
+	if (user_ioc->sense_len) {
+		if (ioctl_sense_phys_addr)
+			bus_dmamap_unload(ioctl_sense_tag, ioctl_sense_dmamap);
+		if (ioctl_sense_mem != NULL)
+			bus_dmamem_free(ioctl_sense_tag, ioctl_sense_mem, ioctl_sense_dmamap);
+		if (ioctl_sense_tag != NULL)
+			bus_dma_tag_destroy(ioctl_sense_tag);
+	}
 	/*
 	 * Release data buffers
 	 */
@@ -433,6 +447,17 @@ mrsas_create_frame_pool(struct mrsas_softc *sc)
 			device_printf(sc->mrsas_dev, "Cannot alloc MFI frame memory\n");
 			return (ENOMEM);
 		}
+		/*
+		 * For MFI controllers.
+		 * max_num_sge = 60
+		 * max_sge_sz  = 16 byte (sizeof megasas_sge_skinny)
+		 * Totl 960 byte (15 MFI frame of 64 byte)
+		 *
+		 * Fusion adapter require only 3 extra frame.
+		 * max_num_sge = 16 (defined as MAX_IOCTL_SGE)
+		 * max_sge_sz  = 12 byte (sizeof  megasas_sge64)
+		 * Total 192 byte (3 MFI frame of 64 byte)
+		 */
 		memset(cmd->frame, 0, MRSAS_MFI_FRAME_SIZE);
 		cmd->frame->io.context = cmd->index;
 		cmd->frame->io.pad_0 = 0;

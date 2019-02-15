@@ -30,14 +30,13 @@
  * SOFTWARE.
  */
 
-#if HAVE_CONFIG_H
-#  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#include <config.h>
 
 #include <stdio.h>
 
+#include <infiniband/endian.h>
+
 #include <infiniband/verbs.h>
-#include <infiniband/arch.h>
 
 int main(int argc, char *argv[])
 {
@@ -56,7 +55,7 @@ int main(int argc, char *argv[])
 	for (i = 0; i < num_devices; ++i) {
 		printf("    %-16s\t%016llx\n",
 		       ibv_get_device_name(dev_list[i]),
-		       (unsigned long long) ntohll(ibv_get_device_guid(dev_list[i])));
+		       (unsigned long long) be64toh(ibv_get_device_guid(dev_list[i])));
 	}
 
 	ibv_free_device_list(dev_list);

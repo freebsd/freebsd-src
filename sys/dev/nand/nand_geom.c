@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2009-2012 Semihalf
  * All rights reserved.
  *
@@ -100,9 +102,9 @@ nand_strategy(struct bio *bp)
 	bp->bio_driver1 = BIO_NAND_STD;
 
 	nand_debug(NDBG_GEOM, "Strategy %s on chip %d [%p]",
-	    (bp->bio_cmd & BIO_READ) == BIO_READ ? "READ" :
-	    ((bp->bio_cmd & BIO_WRITE) == BIO_WRITE ? "WRITE" :
-	    ((bp->bio_cmd & BIO_DELETE) == BIO_DELETE ? "DELETE" : "UNKNOWN")),
+	    bp->bio_cmd == BIO_READ ? "READ" :
+	    (bp->bio_cmd == BIO_WRITE ? "WRITE" :
+	    (bp->bio_cmd == BIO_DELETE ? "DELETE" : "UNKNOWN")),
 	    chip->num, chip);
 
 	mtx_lock(&chip->qlock);
@@ -122,9 +124,9 @@ nand_strategy_raw(struct bio *bp)
 	bp->bio_driver1 = BIO_NAND_RAW;
 
 	nand_debug(NDBG_GEOM, "Strategy %s on chip %d [%p]",
-	    (bp->bio_cmd & BIO_READ) == BIO_READ ? "READ" :
-	    ((bp->bio_cmd & BIO_WRITE) == BIO_WRITE ? "WRITE" :
-	    ((bp->bio_cmd & BIO_DELETE) == BIO_DELETE ? "DELETE" : "UNKNOWN")),
+	    bp->bio_cmd == BIO_READ ? "READ" :
+	    (bp->bio_cmd == BIO_WRITE ? "WRITE" :
+	    (bp->bio_cmd == BIO_DELETE ? "DELETE" : "UNKNOWN")),
 	    chip->num, chip);
 
 	mtx_lock(&chip->qlock);
@@ -320,21 +322,21 @@ nand_io_proc(void *arg, int pending)
 			break;
 
 		if (bp->bio_driver1 == BIO_NAND_STD) {
-			if ((bp->bio_cmd & BIO_READ) == BIO_READ) {
+			if (bp->bio_cmd == BIO_READ) {
 				err = nand_read(chip,
 				    bp->bio_offset & 0xffffffff,
 				    bp->bio_data, bp->bio_bcount);
-			} else if ((bp->bio_cmd & BIO_WRITE) == BIO_WRITE) {
+			} else if (bp->bio_cmd == BIO_WRITE) {
 				err = nand_write(chip,
 				    bp->bio_offset & 0xffffffff,
 				    bp->bio_data, bp->bio_bcount);
 			}
 		} else if (bp->bio_driver1 == BIO_NAND_RAW) {
-			if ((bp->bio_cmd & BIO_READ) == BIO_READ) {
+			if (bp->bio_cmd == BIO_READ) {
 				err = nand_read_raw(chip,
 				    bp->bio_offset & 0xffffffff,
 				    bp->bio_data, bp->bio_bcount);
-			} else if ((bp->bio_cmd & BIO_WRITE) == BIO_WRITE) {
+			} else if (bp->bio_cmd == BIO_WRITE) {
 				err = nand_write_raw(chip,
 				    bp->bio_offset & 0xffffffff,
 				    bp->bio_data, bp->bio_bcount);
@@ -342,7 +344,7 @@ nand_io_proc(void *arg, int pending)
 		} else
 			panic("Unknown access type in bio->bio_driver1\n");
 
-		if ((bp->bio_cmd & BIO_DELETE) == BIO_DELETE) {
+		if (bp->bio_cmd == BIO_DELETE) {
 			nand_debug(NDBG_GEOM, "Delete on chip%d offset %lld "
 			    "length %ld\n", chip->num, bp->bio_offset,
 			    bp->bio_bcount);
@@ -394,6 +396,7 @@ create_geom_disk(struct nand_chip *chip)
 
 	snprintf(ndisk->d_ident, sizeof(ndisk->d_ident),
 	    "nand: Man:0x%02x Dev:0x%02x", chip->id.man_id, chip->id.dev_id);
+	ndisk->d_rotation_rate = DISK_RR_NON_ROTATING;
 
 	disk_create(ndisk, DISK_VERSION);
 
@@ -415,6 +418,7 @@ create_geom_disk(struct nand_chip *chip)
 	snprintf(rdisk->d_ident, sizeof(rdisk->d_ident),
 	    "nand_raw: Man:0x%02x Dev:0x%02x", chip->id.man_id,
 	    chip->id.dev_id);
+	rdisk->d_rotation_rate = DISK_RR_NON_ROTATING;
 
 	disk_create(rdisk, DISK_VERSION);
 

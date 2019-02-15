@@ -1,5 +1,7 @@
-/*
+/*-
  * bgd.c
+ *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2004 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
@@ -28,7 +30,7 @@
  * $Id: bgd.c,v 1.4 2004/01/13 01:54:39 max Exp $
  * $FreeBSD$
  */
-
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <sdp.h>
 #include <string.h>

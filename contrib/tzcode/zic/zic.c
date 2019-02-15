@@ -2615,29 +2615,15 @@ const char * const	string;
 		register const char *	cp;
 		register char *		wp;
 
-		/*
-		** Want one to ZIC_MAX_ABBR_LEN_WO_WARN alphabetics
-		** optionally followed by a + or - and a number from 1 to 14.
-		*/
 		cp = string;
 		wp = NULL;
 		while (isascii((unsigned char) *cp) &&
-			isalpha((unsigned char) *cp))
+			(isalnum((unsigned char)*cp) || *cp == '-' || *cp == '+'))
 				++cp;
-		if (cp - string == 0)
-wp = _("time zone abbreviation lacks alphabetic at start");
 		if (noise && cp - string > 3)
-wp = _("time zone abbreviation has more than 3 alphabetics");
+wp = _("time zone abbreviation has more than 3 characters");
 		if (cp - string > ZIC_MAX_ABBR_LEN_WO_WARN)
-wp = _("time zone abbreviation has too many alphabetics");
-		if (wp == NULL && (*cp == '+' || *cp == '-')) {
-			++cp;
-			if (isascii((unsigned char) *cp) &&
-				isdigit((unsigned char) *cp))
-					if (*cp++ == '1' &&
-						*cp >= '0' && *cp <= '4')
-							++cp;
-		}
+wp = _("time zone abbreviation has too many characters");
 		if (*cp != '\0')
 wp = _("time zone abbreviation differs from POSIX standard");
 		if (wp != NULL) {

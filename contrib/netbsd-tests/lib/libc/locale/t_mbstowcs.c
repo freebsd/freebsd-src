@@ -82,14 +82,16 @@ static struct test {
 {
 	"en_US.UTF-8",
 	"[\001\177][\302\200\337\277][\340\240\200\357\277\277][\360\220\200"
-	"\200\367\277\277\277][\370\210\200\200\200\373\277\277\277\277][\374"
-	"\204\200\200\200\200\375\277\277\277\277\277]",
+	"\200\364\217\277\277]",
 	{
 		0x5B, 0x01, 0x7F, 0x5D, 0x5B, 0x80, 0x07FF, 0x5D, 0x5B, 0x0800,
-		0xFFFF, 0x5D, 0x5B, 0x10000, 0x1FFFFF, 0x5D, 0x5B, 0x200000,
-		0x3FFFFFF, 0x5D, 0x5B, 0x4000000, 0x7FFFFFFF, 0x5D, 0x0A
+		0xFFFF, 0x5D, 0x5B, 0x10000, 0x10FFFF, 0x5D, 0x0A
 	},
+#ifdef __FreeBSD__
+	{	 1, -1, -1,  1,  1, -1, -1,  1,  1, 1, -1,  1,  1, -1, -1,
+#else
 	{	 1, -1, -1,  1,  1, -1, -1,  1,  1, -1, -1,  1,  1, -1, -1,
+#endif
 		 1,  1, -1, -1,  1,  1, -1, -1,  1, -1
 	}, 
 	-1
@@ -150,7 +152,14 @@ ATF_TC_BODY(mbstowcs_basic, tc)
 		int i;
 
 		ATF_REQUIRE_STREQ(setlocale(LC_ALL, "C"), "C");
+#ifdef __NetBSD__
 		ATF_REQUIRE(setlocale(LC_CTYPE, t->locale) != NULL);
+#else
+		if (setlocale(LC_CTYPE, t->locale) == NULL) {
+			fprintf(stderr, "Locale %s not found.\n", t->locale);
+			continue;
+		}
+#endif
 
 		(void)strvis(visbuf, t->data, VIS_WHITE | VIS_OCTAL);
 		(void)printf("Checking string: \"%s\"\n", visbuf);

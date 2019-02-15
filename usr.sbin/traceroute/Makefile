@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-TRACEROUTE_DISTDIR?= ${.CURDIR}/../../contrib/traceroute
+.include <src.opts.mk>
+
+TRACEROUTE_DISTDIR?= ${SRCTOP}/contrib/traceroute
 .PATH: ${TRACEROUTE_DISTDIR}
 
 PROG=	traceroute
@@ -25,8 +27,13 @@ CFLAGS+= -DIPSEC
 # CFLAGS+= -DSANE_PRECISION
 
 .if !defined(TRACEROUTE_NO_IPSEC)
-DPADD=	${LIBIPSEC}
-LDADD=	-lipsec
+LIBADD+=	ipsec
+.endif
+
+.if ${MK_CASPER} != "no"
+LIBADD+=	casper
+LIBADD+=	cap_dns
+CFLAGS+=-DWITH_CASPER
 .endif
 
 CFLAGS+= -I${TRACEROUTE_DISTDIR}

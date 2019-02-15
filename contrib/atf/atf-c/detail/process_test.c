@@ -1,7 +1,4 @@
-/*
- * Automated Testing Framework (atf)
- *
- * Copyright (c) 2008 The NetBSD Foundation, Inc.
+/* Copyright (c) 2008 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,10 +21,14 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
+
+#include "atf-c/detail/process.h"
 
 #include <sys/types.h>
+#ifdef __FreeBSD__
+#include <sys/sysctl.h>
+#endif
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
@@ -43,10 +44,8 @@
 #include <atf-c.h>
 
 #include "atf-c/defs.h"
-
-#include "process.h"
-#include "sanity.h"
-#include "test_helpers.h"
+#include "atf-c/detail/sanity.h"
+#include "atf-c/detail/test_helpers.h"
 
 atf_error_t atf_process_status_init(atf_process_status_t *, int);
 
@@ -670,6 +669,14 @@ ATF_TC_BODY(status_coredump, tc)
     if (setrlimit(RLIMIT_CORE, &rl) == -1)
         atf_tc_skip("Cannot unlimit the core file size; check limits "
                     "manually");
+
+#ifdef __FreeBSD__
+	int coredump_enabled;
+	size_t ce_len = sizeof(coredump_enabled);
+	if (sysctlbyname("kern.coredump", &coredump_enabled, &ce_len, NULL,
+	    0) == 0 && !coredump_enabled)
+		atf_tc_skip("Coredumps disabled");
+#endif
 
     const int rawstatus = fork_and_wait_child(child_sigquit);
     atf_process_status_t s;

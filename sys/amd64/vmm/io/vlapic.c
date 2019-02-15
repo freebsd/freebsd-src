@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -45,7 +47,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/vmm.h>
 
-#include "vmm_ipi.h"
 #include "vmm_lapic.h"
 #include "vmm_ktr.h"
 #include "vmm_stat.h"
@@ -548,6 +549,8 @@ vlapic_update_ppr(struct vlapic *vlapic)
 	VLAPIC_CTR1(vlapic, "vlapic_update_ppr 0x%02x", ppr);
 }
 
+static VMM_STAT(VLAPIC_GRATUITOUS_EOI, "EOI without any in-service interrupt");
+
 static void
 vlapic_process_eoi(struct vlapic *vlapic)
 {
@@ -558,11 +561,7 @@ vlapic_process_eoi(struct vlapic *vlapic)
 	isrptr = &lapic->isr0;
 	tmrptr = &lapic->tmr0;
 
-	/*
-	 * The x86 architecture reserves the the first 32 vectors for use
-	 * by the processor.
-	 */
-	for (i = 7; i > 0; i--) {
+	for (i = 7; i >= 0; i--) {
 		idx = i * 4;
 		bitpos = fls(isrptr[idx]);
 		if (bitpos-- != 0) {
@@ -571,17 +570,21 @@ vlapic_process_eoi(struct vlapic *vlapic)
 				      vlapic->isrvec_stk_top);
 			}
 			isrptr[idx] &= ~(1 << bitpos);
+			vector = i * 32 + bitpos;
+			VCPU_CTR1(vlapic->vm, vlapic->vcpuid, "EOI vector %d",
+			    vector);
 			VLAPIC_CTR_ISR(vlapic, "vlapic_process_eoi");
 			vlapic->isrvec_stk_top--;
 			vlapic_update_ppr(vlapic);
 			if ((tmrptr[idx] & (1 << bitpos)) != 0) {
-				vector = i * 32 + bitpos;
 				vioapic_process_eoi(vlapic->vm, vlapic->vcpuid,
 				    vector);
 			}
 			return;
 		}
 	}
+	VCPU_CTR0(vlapic->vm, vlapic->vcpuid, "Gratuitous EOI");
+	vmm_stat_incr(vlapic->vm, vlapic->vcpuid, VLAPIC_GRATUITOUS_EOI, 1);
 }
 
 static __inline int
@@ -840,7 +843,7 @@ vlapic_calcdest(struct vm *vm, cpuset_t *dmask, uint32_t dest, bool phys,
 	} else {
 		/*
 		 * In the "Flat Model" the MDA is interpreted as an 8-bit wide
-		 * bitmask. This model is only avilable in the xAPIC mode.
+		 * bitmask. This model is only available in the xAPIC mode.
 		 */
 		mda_flat_ldest = dest & 0xff;
 
@@ -858,7 +861,7 @@ vlapic_calcdest(struct vm *vm, cpuset_t *dmask, uint32_t dest, bool phys,
 
 		/*
 		 * Logical mode: match each APIC that has a bit set
-		 * in it's LDR that matches a bit in the ldest.
+		 * in its LDR that matches a bit in the ldest.
 		 */
 		CPU_ZERO(dmask);
 		amask = vm_active_cpus(vm);
@@ -912,8 +915,12 @@ vlapic_set_tpr(struct vlapic *vlapic, uint8_t val)
 {
 	struct LAPIC *lapic = vlapic->apic_page;
 
-	lapic->tpr = val;
-	vlapic_update_ppr(vlapic);
+	if (lapic->tpr != val) {
+		VCPU_CTR2(vlapic->vm, vlapic->vcpuid, "vlapic TPR changed "
+		    "from %#x to %#x", lapic->tpr, val);
+		lapic->tpr = val;
+		vlapic_update_ppr(vlapic);
+	}
 }
 
 static uint8_t
@@ -1089,11 +1096,7 @@ vlapic_pending_intr(struct vlapic *vlapic, int *vecptr)
 
 	irrptr = &lapic->irr0;
 
-	/*
-	 * The x86 architecture reserves the the first 32 vectors for use
-	 * by the processor.
-	 */
-	for (i = 7; i > 0; i--) {
+	for (i = 7; i >= 0; i--) {
 		idx = i * 4;
 		val = atomic_load_acq_int(&irrptr[idx]);
 		bitpos = fls(val);

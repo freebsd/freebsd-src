@@ -43,6 +43,15 @@ require_fs() {
 	atf_require_prog mount_${name}
 	atf_require_prog umount
 
+	# Begin FreeBSD
+	if true; then
+		if kldload -n ${name}; then
+			found=yes
+		else
+			found=no
+		fi
+	else
+	# End FreeBSD
 	# if we have autoloadable modules, just assume the file system
 	atf_require_prog sysctl
 	autoload=$(sysctl -n kern.module.autoload)
@@ -57,6 +66,9 @@ require_fs() {
 		fi
 		shift
 	done
+	# Begin FreeBSD
+	fi
+	# End FreeBSD
 	[ ${found} = yes ] || \
 		atf_skip "The kernel does not include support the " \
 		         "\`${name}' file system"

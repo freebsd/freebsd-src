@@ -6,13 +6,23 @@
 
 # Include the generated makefile containing the *complete* list
 # of syscall names in MIASM.
-.include "${LIBC_SRCTOP}/../../sys/sys/syscall.mk"
+.include "${SRCTOP}/sys/sys/syscall.mk"
 
 # Include machine dependent definitions.
 #
 # MDASM names override the default syscall names in MIASM.
 # NOASM will prevent the default syscall code from being generated.
+# PSEUDO generates _<sys>() and __sys_<sys>() symbols, but not <sys>().
 #
+# While historically machine dependent, all architectures have the following
+# declarations in common:
+#
+NOASM=	exit.o \
+	getlogin.o \
+	sstk.o \
+	yield.o
+PSEUDO=	_exit.o \
+	_getlogin.o
 .sinclude "${LIBC_SRCTOP}/${LIBC_ARCH}/sys/Makefile.inc"
 
 SRCS+= clock_gettime.c gettimeofday.c __vdso_gettimeofday.c
@@ -20,17 +30,75 @@ NOASM+=  clock_gettime.o gettimeofday.o
 PSEUDO+= _clock_gettime.o _gettimeofday.o
 
 # Sources common to both syscall interfaces:
-SRCS+=	stack_protector.c stack_protector_compat.c __error.c
-.if ${MK_SYSCALL_COMPAT} != "no"
-SYSCALL_COMPAT_SRCS=	fcntl.c ftruncate.c lseek.c mmap.c pread.c \
-	pwrite.c truncate.c
-SRCS+=	${SYSCALL_COMPAT_SRCS}
-NOASM+=	${SYSCALL_COMPAT_SRCS:S/.c/.o/}
-PSEUDO+= _fcntl.o
+SRCS+=	\
+	__error.c \
+	interposing_table.c
+
+SRCS+= getdents.c lstat.c mknod.c stat.c
+
+SRCS+= fstat.c fstatat.c fstatfs.c getfsstat.c statfs.c
+NOASM+= fstat.o fstatat.o fstatfs.o getfsstat.o statfs.o
+PSEUDO+= _fstat.o _fstatat.o _fstatfs.o _getfsstat.o _statfs.o
+
+SRCS+= getdirentries.c
+NOASM+= getdirentries.o
+PSEUDO+= _getdirentries.o
+
+SRCS+= brk.c
+SRCS+= pipe.c
+SRCS+= vadvise.c
+
+SRCS+=	compat-stub.c
+
+INTERPOSED = \
+	accept \
+	accept4 \
+	aio_suspend \
+	clock_nanosleep \
+	close \
+	connect \
+	fcntl \
+	fdatasync \
+	fsync \
+	fork \
+	kevent \
+	msync \
+	nanosleep \
+	open \
+	openat \
+	poll \
+	ppoll \
+	pselect \
+	ptrace \
+	read \
+	readv \
+	recvfrom \
+	recvmsg \
+	select \
+	sendmsg \
+	sendto \
+	setcontext \
+	sigprocmask \
+	sigsuspend \
+	sigtimedwait \
+	sigwait \
+	sigwaitinfo \
+	swapcontext \
+	wait4 \
+	wait6 \
+	write \
+	writev
+
+.if ${MACHINE_CPUARCH} == "sparc64"
+SRCS+=	sigaction.c
+NOASM+=	sigaction.o
+.else
+INTERPOSED+= sigaction
 .endif
-SRCS+= sigwait.c
-NOASM+= sigwait.o
-PSEUDO+= _sigwait.o
+
+SRCS+=	${INTERPOSED:S/$/.c/}
+NOASM+=	${INTERPOSED:S/$/.o/}
+PSEUDO+=	${INTERPOSED:C/^.*$/_&.o/}
 
 # Add machine dependent asm sources:
 SRCS+=${MDASM}
@@ -47,8 +115,6 @@ ASM+=$(_asm)
 .endif
 .endfor
 
-OBJS+=	${ASM} ${PSEUDO}
-
 SASM=	${ASM:S/.o/.S/}
 
 SPSEUDO= ${PSEUDO:S/.o/.S/}
@@ -61,7 +127,7 @@ SYM_MAPS+=	${LIBC_SRCTOP}/sys/Symbol.map
 CLEANFILES+=	${SASM} ${SPSEUDO}
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
-    ${MACHINE_CPUARCH} == "powerpc"
+    ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_ARCH:Marmv[67]*}
 NOTE_GNU_STACK='\t.section .note.GNU-stack,"",%%progbits\n'
 .else
 NOTE_GNU_STACK=''
@@ -111,6 +177,7 @@ MAN+=	abort2.2 \
 	connectat.2 \
 	cpuset.2 \
 	cpuset_getaffinity.2 \
+	cpuset_getdomain.2 \
 	dup.2 \
 	execve.2 \
 	_exit.2 \
@@ -134,6 +201,7 @@ MAN+=	abort2.2 \
 	getpgrp.2 \
 	getpid.2 \
 	getpriority.2 \
+	getrandom.2 \
 	getrlimit.2 \
 	getrusage.2 \
 	getsid.2 \
@@ -203,6 +271,7 @@ MAN+=	abort2.2 \
 	pselect.2 \
 	ptrace.2 \
 	quotactl.2 \
+	rctl_add_rule.2 \
 	read.2 \
 	readlink.2 \
 	reboot.2 \
@@ -259,6 +328,13 @@ MAN+=	sctp_generic_recvmsg.2 \
 	sync.2 \
 	sysarch.2 \
 	syscall.2 \
+	thr_exit.2 \
+	thr_kill.2 \
+	thr_new.2 \
+	thr_self.2 \
+	thr_set_name.2 \
+	thr_suspend.2 \
+	thr_wake.2 \
 	timer_create.2 \
 	timer_delete.2 \
 	timer_settime.2 \
@@ -266,12 +342,14 @@ MAN+=	sctp_generic_recvmsg.2 \
 	umask.2 \
 	undelete.2 \
 	unlink.2 \
+	utimensat.2 \
 	utimes.2 \
 	utrace.2 \
 	uuidgen.2 \
 	vfork.2 \
 	wait.2 \
-	write.2
+	write.2 \
+	_umtx_op.2
 
 MLINKS+=accept.2 accept4.2
 MLINKS+=access.2 eaccess.2 \
@@ -280,7 +358,6 @@ MLINKS+=brk.2 sbrk.2
 MLINKS+=cap_enter.2 cap_getmode.2
 MLINKS+=cap_fcntls_limit.2 cap_fcntls_get.2
 MLINKS+=cap_ioctls_limit.2 cap_ioctls_get.2
-MLINKS+=cap_rights_limit.2 cap_rights_get.2
 MLINKS+=chdir.2 fchdir.2
 MLINKS+=chflags.2 chflagsat.2 \
 	chflags.2 fchflags.2 \
@@ -293,9 +370,11 @@ MLINKS+=chown.2 fchown.2 \
 	chown.2 lchown.2
 MLINKS+=clock_gettime.2 clock_getres.2 \
 	clock_gettime.2 clock_settime.2
+MLINKS+=nanosleep.2 clock_nanosleep.2
 MLINKS+=cpuset.2 cpuset_getid.2 \
 	cpuset.2 cpuset_setid.2
 MLINKS+=cpuset_getaffinity.2 cpuset_setaffinity.2
+MLINKS+=cpuset_getdomain.2 cpuset_setdomain.2
 MLINKS+=dup.2 dup2.2
 MLINKS+=execve.2 fexecve.2
 MLINKS+=extattr_get_file.2 extattr.2 \
@@ -314,6 +393,7 @@ MLINKS+=ffclock.2 ffclock_getcounter.2 \
 	ffclock.2 ffclock_getestimate.2 \
 	ffclock.2 ffclock_setestimate.2
 MLINKS+=fhopen.2 fhstat.2 fhopen.2 fhstatfs.2
+MLINKS+=fsync.2 fdatasync.2
 MLINKS+=getdirentries.2 getdents.2
 MLINKS+=getfh.2 lgetfh.2
 MLINKS+=getgid.2 getegid.2
@@ -353,9 +433,13 @@ MLINKS+=open.2 openat.2
 MLINKS+=pathconf.2 fpathconf.2
 MLINKS+=pathconf.2 lpathconf.2
 MLINKS+=pdfork.2 pdgetpid.2\
-	pdfork.2 pdkill.2 \
-	pdfork.2 pdwait4.2
+	pdfork.2 pdkill.2
 MLINKS+=pipe.2 pipe2.2
+MLINKS+=poll.2 ppoll.2
+MLINKS+=rctl_add_rule.2 rctl_get_limits.2 \
+	rctl_add_rule.2 rctl_get_racct.2 \
+	rctl_add_rule.2 rctl_get_rules.2 \
+	rctl_add_rule.2 rctl_remove_rule.2
 MLINKS+=read.2 pread.2 \
 	read.2 preadv.2 \
 	read.2 readv.2
@@ -395,8 +479,10 @@ MLINKS+=symlink.2 symlinkat.2
 MLINKS+=syscall.2 __syscall.2
 MLINKS+=timer_settime.2 timer_getoverrun.2 \
 	timer_settime.2 timer_gettime.2
+MLINKS+=thr_kill.2 thr_kill2.2
 MLINKS+=truncate.2 ftruncate.2
 MLINKS+=unlink.2 unlinkat.2
+MLINKS+=utimensat.2 futimens.2
 MLINKS+=utimes.2 futimes.2 \
 	utimes.2 futimesat.2 \
 	utimes.2 lutimes.2

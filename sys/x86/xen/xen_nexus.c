@@ -66,14 +66,11 @@ static int
 nexus_xen_attach(device_t dev)
 {
 	int error;
-#ifndef XEN
-	device_t acpi_dev;
-#endif
+	device_t acpi_dev = NULL;
 
 	nexus_init_resources();
 	bus_generic_probe(dev);
 
-#ifndef XEN
 	if (xen_initial_domain()) {
 		/* Disable some ACPI devices that are not usable by Dom0 */
 		acpi_cpu_disabled = true;
@@ -84,13 +81,10 @@ nexus_xen_attach(device_t dev)
 		if (acpi_dev == NULL)
 			panic("Unable to add ACPI bus to Xen Dom0");
 	}
-#endif
 
 	error = bus_generic_attach(dev);
-#ifndef XEN
 	if (xen_initial_domain() && (error == 0))
 		acpi_install_wakeup_handler(device_get_softc(acpi_dev));
-#endif
 
 	return (error);
 }
@@ -105,7 +99,7 @@ nexus_xen_config_intr(device_t dev, int irq, enum intr_trigger trig,
 	 * ISA and PCI intline IRQs are not preregistered on Xen, so
 	 * intercept calls to configure those and register them on the fly.
 	 */
-	if ((irq < FIRST_MSI_INT) && (intr_lookup_source(irq) == NULL)) {
+	if ((irq < first_msi_irq) && (intr_lookup_source(irq) == NULL)) {
 		ret = xen_register_pirq(irq, trig, pol);
 		if (ret != 0)
 			return (ret);

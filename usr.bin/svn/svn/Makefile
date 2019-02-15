@@ -1,26 +1,28 @@
 # $FreeBSD$
 
-.include "${.CURDIR}/../Makefile.inc"
+.include "${.CURDIR:H}/Makefile.inc"
 
 .PATH:	${SVNDIR}/svn
 
 PROG=	svn${SVNLITE}
 
-SRCS=	add-cmd.c blame-cmd.c cat-cmd.c changelist-cmd.c checkout-cmd.c \
-	cl-conflicts.c cleanup-cmd.c commit-cmd.c conflict-callbacks.c \
-	copy-cmd.c delete-cmd.c deprecated.c diff-cmd.c export-cmd.c \
-	file-merge.c help-cmd.c import-cmd.c info-cmd.c list-cmd.c \
-	lock-cmd.c log-cmd.c merge-cmd.c mergeinfo-cmd.c mkdir-cmd.c \
-	move-cmd.c notify.c patch-cmd.c propdel-cmd.c propedit-cmd.c \
-	propget-cmd.c proplist-cmd.c props.c propset-cmd.c relocate-cmd.c \
-	resolve-cmd.c resolved-cmd.c revert-cmd.c status-cmd.c status.c \
-	svn.c switch-cmd.c unlock-cmd.c update-cmd.c upgrade-cmd.c util.c 
+SRCS=	add-cmd.c auth-cmd.c blame-cmd.c cat-cmd.c changelist-cmd.c \
+	checkout-cmd.c cl-conflicts.c cleanup-cmd.c commit-cmd.c \
+	conflict-callbacks.c copy-cmd.c delete-cmd.c deprecated.c \
+	diff-cmd.c export-cmd.c file-merge.c help-cmd.c import-cmd.c \
+	info-cmd.c list-cmd.c lock-cmd.c log-cmd.c merge-cmd.c \
+	mergeinfo-cmd.c mkdir-cmd.c move-cmd.c notify.c patch-cmd.c \
+	propdel-cmd.c propedit-cmd.c propget-cmd.c proplist-cmd.c \
+	props.c propset-cmd.c relocate-cmd.c resolve-cmd.c \
+	resolved-cmd.c revert-cmd.c \
+	shelve-cmd.c status-cmd.c similarity.c status.c \
+	svn.c switch-cmd.c unlock-cmd.c update-cmd.c upgrade-cmd.c util.c
 
-CFLAGS+=-I${SVNDIR}/include -I${SVNDIR} -I${.CURDIR}/.. \
-	-I${.CURDIR}/../lib/libapr \
+CFLAGS+=-I${SVNDIR}/include -I${SVNDIR} -I${.CURDIR:H} \
+	-I${.CURDIR:H}/lib/libapr \
 	-I${APR}/include/arch/unix \
 	-I${APR}/include \
-	-I${.CURDIR}/../lib/libapr_util \
+	-I${.CURDIR:H}/lib/libapr_util \
 	-I${APRU}/include/private \
 	-I${APRU}/include
 
@@ -33,31 +35,29 @@ LDADD=	-L${LIBSVN_CLIENTDIR} -lsvn_client \
 	-L${LIBSVN_REPOSDIR} -lsvn_repos \
 	-L${LIBSVN_FSDIR} -lsvn_fs \
 	-L${LIBSVN_FS_FSDIR} -lsvn_fs_fs \
+	-L${LIBSVN_FS_XDIR} -lsvn_fs_x \
 	-L${LIBSVN_FS_UTILDIR} -lsvn_fs_util \
 	-L${LIBSVN_DELTADIR} -lsvn_delta \
 	-L${LIBSVN_DIFFDIR} -lsvn_diff \
 	-L${LIBSVN_SUBRDIR} -lsvn_subr \
 	-L${LIBSERFDIR} -lserf \
 	-L${LIBAPR_UTILDIR} -lapr-util \
-	-lbsdxml \
-	-L${LIBAPRDIR} -lapr \
-	-L${LIBSQLITEDIR} -lsqlite3 \
-	-lz -lcrypt -lmagic -lcrypto -lssl -lpthread
+	-L${LIBAPRDIR} -lapr
+LIBADD+=	bsdxml sqlite3 z magic crypto ssl pthread
 
 DPADD=	${LIBSVN_CLIENT} ${LIBSVN_WC} ${LIBSVN_RA} ${LIBSVN_RA_LOCAL} \
 	${LIBSVN_RA_SVN} ${LIBSVN_RA_SERF} ${LIBSVN_REPOS} \
 	${LIBSVN_FS} ${LIBSVN_FS_FS} ${LIBSVN_FS_UTIL} ${LIBSVN_DELTA} \
 	${LIBSVN_DIFF} ${LIBSVN_SUBR} ${LIBSERF} ${LIBAPR_UTIL} \
-	${LIBBSDXML} ${LIBAPR} ${LIBSQLITE} ${LIBZ} ${LIBCRYPT} ${LIBMAGIC} \
-	${LIBCRYPTO} ${LIBSSL} ${LIBPTHREAD}
+	${LIBAPR}
 
 CLEANFILES+=	svnlite.1
 .if(defined(ORGANIZATION) && !empty(ORGANIZATION))
-DPSRCS+=	freebsd-organization.h
+SRCS+=		freebsd-organization.h
 CLEANFILES+=	freebsd-organization.h
 CFLAGS+=	-I. -DHAS_ORGANIZATION_NAME
 freebsd-organization.h:
-	@echo '#define ORGANIZATION_NAME ${ORGANIZATION}' \
+	@echo "#define ORGANIZATION_NAME	\"$$(eval echo ${ORGANIZATION})\"" \
 	    > freebsd-organization.h
 .endif
 

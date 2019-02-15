@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
@@ -63,7 +65,7 @@ ata_cenatek_probe(device_t dev)
 
     ctlr->chipinit = ata_generic_chipinit;
     device_set_desc(dev, "Cenatek Rocket Drive controller");
-    return (BUS_PROBE_DEFAULT);
+    return (BUS_PROBE_LOW_PRIORITY);
 }
 
 ATA_DECLARE_DRIVER(ata_cenatek);

@@ -1,6 +1,8 @@
 /*	$NetBSD: getnetpath.c,v 1.3 2000/07/06 03:10:34 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -82,7 +84,7 @@ char *_get_next_token(char *, int);
  */
 
 void *
-setnetpath()
+setnetpath(void)
 {
 
     struct netpath_vars *np_sessionp;   /* this session's variables */
@@ -141,8 +143,7 @@ failed:
  */
 
 struct netconfig *
-getnetpath(handlep)
-    void *handlep;
+getnetpath(void *handlep)
 {
     struct netpath_vars *np_sessionp = (struct netpath_vars *)handlep;
     struct netconfig *ncp = NULL;   /* temp. holds a netconfig session */
@@ -197,8 +198,7 @@ getnetpath(handlep)
  * (e.g. if setnetpath() was not called previously.
  */
 int
-endnetpath(handlep)
-    void *handlep;
+endnetpath(void *handlep)
 {
     struct netpath_vars *np_sessionp = (struct netpath_vars *)handlep;
     struct netpath_chain *chainp, *lastp;
@@ -231,12 +231,12 @@ endnetpath(handlep)
  * Returns pointer to the rest-of-the-string after the current token.
  * The token itself starts at arg, and we null terminate it.  We return NULL
  * if either the arg is empty, or if this is the last token.
+ *
+ * npp   - string
+ * token - char to parse string for
  */
-
 char *
-_get_next_token(npp, token)
-char *npp;		/* string */
-int token;		/* char to parse string for */
+_get_next_token(char *npp, int token)
 {
     char  *cp;		/* char pointer */
     char  *np;		/* netpath pointer */
@@ -264,7 +264,7 @@ int token;		/* char to parse string for */
     *cp++ = '\0';		/* null-terminate token */
     /* get rid of any backslash escapes */
     ep = npp;
-    while ((np = strchr(ep, '\\')) != 0) {
+    while ((np = strchr(ep, '\\')) != NULL) {
 	if (np[1] == '\\')
 	    np++;
 	strcpy(np, (ep = &np[1]));  /* XXX: overlapping string copy */

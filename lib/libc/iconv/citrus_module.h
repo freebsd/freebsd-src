@@ -2,6 +2,8 @@
 /* $NetBSD: citrus_module.h,v 1.1 2002/03/17 22:14:20 tshiozak Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2002 Citrus Project,
  * All rights reserved.
  *

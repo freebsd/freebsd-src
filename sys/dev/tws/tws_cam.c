@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010 LSI Corp. 
  * All rights reserved.
  * Author : Manjunath Ranganathaiah <manjunath.ranganathaiah@lsi.com>
@@ -309,9 +311,9 @@ tws_action(struct cam_sim *sim, union ccb *ccb)
             ccb->cpi.bus_id = cam_sim_bus(sim);
             ccb->cpi.initiator_id = TWS_SCSI_INITIATOR_ID;
             ccb->cpi.base_transfer_speed = 6000000;
-            strncpy(ccb->cpi.sim_vid, "FreeBSD", SIM_IDLEN);
-            strncpy(ccb->cpi.hba_vid, "3ware", HBA_IDLEN);
-            strncpy(ccb->cpi.dev_name, cam_sim_name(sim), DEV_IDLEN);
+            strlcpy(ccb->cpi.sim_vid, "FreeBSD", SIM_IDLEN);
+            strlcpy(ccb->cpi.hba_vid, "3ware", HBA_IDLEN);
+            strlcpy(ccb->cpi.dev_name, cam_sim_name(sim), DEV_IDLEN);
 #if (__FreeBSD_version >= 700000 )
             ccb->cpi.transport = XPORT_SPI;
             ccb->cpi.transport_version = 2;
@@ -747,7 +749,8 @@ tws_execute_scsi(struct tws_softc *sc, union ccb *ccb)
      * and submit the I/O.
      */
     sc->stats.scsi_ios++;
-    callout_reset(&req->timeout, (ccb_h->timeout * hz) / 1000, tws_timeout, req);
+    callout_reset_sbt(&req->timeout, SBT_1MS * ccb->ccb_h.timeout, 0,
+      tws_timeout, req, 0);
     error = tws_map_request(sc, req);
     return(error);
 }
@@ -1098,7 +1101,7 @@ tws_intr_attn_aen(struct tws_softc *sc)
 {
     u_int32_t db=0;
 
-    /* maskoff db intrs untill all the aens are fetched */
+    /* maskoff db intrs until all the aens are fetched */
     /* tws_disable_db_intr(sc); */
     tws_fetch_aen((void *)sc);
     tws_write_reg(sc, TWS_I2O0_HOBDBC, TWS_BIT18, 4);

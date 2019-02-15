@@ -194,8 +194,13 @@ ATF_TC_BODY(setitimer_old, tc)
 
 	ATF_REQUIRE(setitimer(ITIMER_REAL, &it, &ot) == 0);
 
+#ifdef __FreeBSD__
+	if (ot.it_value.tv_sec == 4 && ot.it_value.tv_usec == 3)
+		atf_tc_fail("setitimer(2) did not return remaining time");
+#else
 	if (ot.it_value.tv_sec != 4 || ot.it_value.tv_usec != 3)
 		atf_tc_fail("setitimer(2) did not store old values");
+#endif
 }
 
 ATF_TP_ADD_TCS(tp)

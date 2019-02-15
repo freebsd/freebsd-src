@@ -1,7 +1,8 @@
-/* $NetBSD: cfe_api.c,v 1.5 2005/12/11 12:18:07 christos Exp $ */
-/* from: SiByte Id: cfe_api.c,v 1.16 2002/07/09 23:29:11 cgd Exp $ */
+/* from: Broadcom Id: cfe_api.c,v 1.18 2006/08/24 02:13:56 binh Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 2000, 2001, 2002
  * Broadcom Corporation. All rights reserved.
  *
@@ -176,6 +177,27 @@ cfe_enumenv(int idx, char *name, int namelen, char *val, int vallen)
     return xiocb.xiocb_status;
 }
 #endif /* CFE_API_enumenv || CFE_API_ALL */
+
+#if defined(CFE_API_enumdev) || defined(CFE_API_ALL)
+int
+cfe_enumdev(int idx, char *name, int namelen)
+{
+    cfe_xiocb_t xiocb;
+
+    xiocb.xiocb_fcode = CFE_CMD_DEV_ENUM;
+    xiocb.xiocb_status = 0;
+    xiocb.xiocb_handle = 0;
+    xiocb.xiocb_flags = 0;
+    xiocb.xiocb_psize = sizeof(xiocb_envbuf_t);
+    xiocb.plist.xiocb_envbuf.enum_idx = idx;
+    xiocb.plist.xiocb_envbuf.name_ptr = XPTR_FROM_NATIVE(name);
+    xiocb.plist.xiocb_envbuf.name_length = namelen;
+
+    cfe_iocb_dispatch(&xiocb);
+
+    return xiocb.xiocb_status;
+}
+#endif /* CFE_API_enumdev || CFE_API_ALL */
 
 #if defined(CFE_API_enummem) || defined(CFE_API_ALL)
 int

@@ -1,6 +1,8 @@
 /*	$KAME: if_indextoname.c,v 1.7 2000/11/08 03:09:30 itojun Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-1-Clause
+ *
  * Copyright (c) 1997, 2000
  *	Berkeley Software Design, Inc.  All rights reserved.
  *

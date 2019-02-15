@@ -1,11 +1,9 @@
 # $FreeBSD$
 
-SUBDIR=		doc
-
 LIB=		gnuregex
 SHLIB_MAJOR=	5
 
-REGEXDIR=	${.CURDIR}/../../../contrib/libgnuregex
+REGEXDIR=	${SRCTOP}/contrib/libgnuregex
 .PATH:		${REGEXDIR}
 
 SRCS=		gnuregex.c

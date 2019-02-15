@@ -1,6 +1,8 @@
 /*	$FreeBSD$	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2009 Gabor Kovesdan <gabor@FreeBSD.org>
  * Copyright (C) 2012 Oleg Moskalenko <mom040267@gmail.com>
  * All rights reserved.
@@ -55,7 +57,7 @@ struct sort_list
 };
 
 /*
- * File reader object 
+ * File reader object
  */
 struct file_reader;
 
@@ -64,20 +66,10 @@ struct file_reader;
  */
 struct file_list
 {
-	char			**fns;
+	const char *		*fns;
 	size_t			 count;
 	size_t			 sz;
 	bool			 tmp;
-};
-
-/*
- * Structure for zero-separated file reading (for input files list)
- */
-struct file0_reader
-{
-	char			*current_line;
-	FILE			*f;
-	size_t			 current_sz;
 };
 
 /* memory */
@@ -110,15 +102,13 @@ struct file_reader *file_reader_init(const char *fsrc);
 struct bwstring *file_reader_readline(struct file_reader *fr);
 void file_reader_free(struct file_reader *fr);
 
-char *read_file0_line(struct file0_reader *f0r);
-
 void init_tmp_files(void);
 void clear_tmp_files(void);
 char *new_tmp_file_name(void);
 void tmp_file_atexit(const char *tmp_file);
 
 void file_list_init(struct file_list *fl, bool tmp);
-void file_list_add(struct file_list *fl, char *fn, bool allocate);
+void file_list_add(struct file_list *fl, const char *fn, bool allocate);
 void file_list_populate(struct file_list *fl, int argc, char **argv, bool allocate);
 void file_list_clean(struct file_list *fl);
 

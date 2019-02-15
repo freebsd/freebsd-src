@@ -47,9 +47,11 @@ Keyword keywords[] ={	/* keep sorted: binary searched */
 	{ "BEGIN",	XBEGIN,		XBEGIN },
 	{ "END",	XEND,		XEND },
 	{ "NF",		VARNF,		VARNF },
+	{ "and",	FAND,		BLTIN },
 	{ "atan2",	FATAN,		BLTIN },
 	{ "break",	BREAK,		BREAK },
 	{ "close",	CLOSE,		CLOSE },
+	{ "compl",	FCOMPL,		BLTIN },
 	{ "continue",	CONTINUE,	CONTINUE },
 	{ "cos",	FCOS,		BLTIN },
 	{ "delete",	DELETE,		DELETE },
@@ -69,13 +71,16 @@ Keyword keywords[] ={	/* keep sorted: binary searched */
 	{ "int",	FINT,		BLTIN },
 	{ "length",	FLENGTH,	BLTIN },
 	{ "log",	FLOG,		BLTIN },
+	{ "lshift",	FLSHIFT,	BLTIN },
 	{ "match",	MATCHFCN,	MATCHFCN },
 	{ "next",	NEXT,		NEXT },
 	{ "nextfile",	NEXTFILE,	NEXTFILE },
+	{ "or",		FFOR,		BLTIN },
 	{ "print",	PRINT,		PRINT },
 	{ "printf",	PRINTF,		PRINTF },
 	{ "rand",	FRAND,		BLTIN },
 	{ "return",	RETURN,		RETURN },
+	{ "rshift",	FRSHIFT,	BLTIN },
 	{ "sin",	FSIN,		BLTIN },
 	{ "split",	SPLIT,		SPLIT },
 	{ "sprintf",	SPRINTF,	SPRINTF },
@@ -87,6 +92,7 @@ Keyword keywords[] ={	/* keep sorted: binary searched */
 	{ "tolower",	FTOLOWER,	BLTIN },
 	{ "toupper",	FTOUPPER,	BLTIN },
 	{ "while",	WHILE,		WHILE },
+	{ "xor",	FXOR,		BLTIN },
 };
 
 #define	RET(x)	{ if(dbg)printf("lex %s\n", tokname(x)); return(x); }
@@ -170,10 +176,10 @@ int	reg	= 0;	/* 1 => return a REGEXPR now */
 int yylex(void)
 {
 	int c;
-	static char *buf = 0;
+	static char *buf = NULL;
 	static int bufsize = 5; /* BUG: setting this small causes core dump! */
 
-	if (buf == 0 && (buf = (char *) malloc(bufsize)) == NULL)
+	if (buf == NULL && (buf = (char *) malloc(bufsize)) == NULL)
 		FATAL( "out of space in yylex" );
 	if (sc) {
 		sc = 0;
@@ -358,10 +364,10 @@ int string(void)
 {
 	int c, n;
 	char *s, *bp;
-	static char *buf = 0;
+	static char *buf = NULL;
 	static int bufsz = 500;
 
-	if (buf == 0 && (buf = (char *) malloc(bufsz)) == NULL)
+	if (buf == NULL && (buf = (char *) malloc(bufsz)) == NULL)
 		FATAL("out of space for strings");
 	for (bp = buf; (c = input()) != '"'; ) {
 		if (!adjbuf(&buf, &bufsz, bp-buf+2, 500, &bp, "string"))
@@ -504,11 +510,11 @@ void startreg(void)	/* next call to yylex will return a regular expression */
 int regexpr(void)
 {
 	int c;
-	static char *buf = 0;
+	static char *buf = NULL;
 	static int bufsz = 500;
 	char *bp;
 
-	if (buf == 0 && (buf = (char *) malloc(bufsz)) == NULL)
+	if (buf == NULL && (buf = (char *) malloc(bufsz)) == NULL)
 		FATAL("out of space for rex expr");
 	bp = buf;
 	for ( ; (c = input()) != '/' && c != 0; ) {
@@ -539,7 +545,7 @@ char	ebuf[300];
 char	*ep = ebuf;
 char	yysbuf[100];	/* pushback buffer */
 char	*yysptr = yysbuf;
-FILE	*yyin = 0;
+FILE	*yyin = NULL;
 
 int input(void)	/* get next lexical input character */
 {

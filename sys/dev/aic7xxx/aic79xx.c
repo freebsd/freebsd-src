@@ -1,6 +1,8 @@
 /*-
  * Core routines and tables shareable across OS platforms.
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1994-2002, 2004 Justin T. Gibbs.
  * Copyright (c) 2000-2003 Adaptec Inc.
  * All rights reserved.
@@ -1206,7 +1208,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 		 * that requires host assistance for completion.
 		 * While handling the message phase(s), we will be
 		 * notified by the sequencer after each byte is
-		 * transfered so we can track bus phase changes.
+		 * transferred so we can track bus phase changes.
 		 *
 		 * If this is the first time we've seen a HOST_MSG_LOOP
 		 * interrupt, initialize the state of the host message
@@ -1620,7 +1622,7 @@ ahd_handle_scsiint(struct ahd_softc *ahd, u_int intstat)
 		/*
 		 * Although the driver does not care about the
 		 * 'Selection in Progress' status bit, the busy
-		 * LED does.  SELINGO is only cleared by a sucessfull
+		 * LED does.  SELINGO is only cleared by a successful
 		 * selection, so we must manually clear it to insure
 		 * the LED turns off just incase no future successful
 		 * selections occur (e.g. no devices on the bus).
@@ -2695,7 +2697,7 @@ ahd_clear_critical_section(struct ahd_softc *ahd)
 		ahd_outb(ahd, SEQCTL0, ahd_inb(ahd, SEQCTL0) & ~STEP);
   		ahd_outb(ahd, SIMODE1, simode1);
 		/*
-		 * SCSIINT seems to glitch occassionally when
+		 * SCSIINT seems to glitch occasionally when
 		 * the interrupt masks are restored.  Clear SCSIINT
 		 * one more time so that only persistent errors
 		 * are seen as a real interrupt.
@@ -3023,7 +3025,7 @@ ahd_validate_width(struct ahd_softc *ahd, struct ahd_initiator_tinfo *tinfo,
 
 /*
  * Update the bitmask of targets for which the controller should
- * negotiate with at the next convenient oportunity.  This currently
+ * negotiate with at the next convenient opportunity.  This currently
  * means the next time we send the initial identify messages for
  * a new transaction.
  */
@@ -3374,7 +3376,7 @@ ahd_update_neg_table(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 
 	/*
 	 * During packetized transfers, the target will
-	 * give us the oportunity to send command packets
+	 * give us the opportunity to send command packets
 	 * without us asserting attention.
 	 */
 	if ((tinfo->ppr_options & MSG_EXT_PPR_IU_REQ) == 0)
@@ -4838,7 +4840,7 @@ ahd_handle_msg_reject(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 
 		/*
 		 * Requeue all tagged commands for this target
-		 * currently in our posession so they can be
+		 * currently in our possession so they can be
 		 * converted to untagged commands.
 		 */
 		ahd_search_qinfifo(ahd, SCB_GET_TARGET(ahd, scb),
@@ -5489,7 +5491,7 @@ ahd_shutdown(void *arg)
 /*
  * Reset the controller and record some information about it
  * that is only available just after a reset.  If "reinit" is
- * non-zero, this reset occured after initial configuration
+ * non-zero, this reset occurred after initial configuration
  * and the caller requests that the chip be fully reinitialized
  * to a runable state.  Chip interrupts are *not* enabled after
  * a reinitialization.  The caller must enable interrupts via
@@ -5742,7 +5744,7 @@ ahd_init_scbdata(struct ahd_softc *ahd)
 	}
 
 	/*
-	 * Note that we were successfull
+	 * Note that we were successful
 	 */
 	return (0); 
 
@@ -8785,7 +8787,7 @@ ahd_check_patch(struct ahd_softc *ahd, struct patch **start_patch,
 			cur_patch += cur_patch->skip_patch;
 		} else {
 			/* Accepted this patch.  Advance to the next
-			 * one and wait for our intruction pointer to
+			 * one and wait for our instruction pointer to
 			 * hit this point.
 			 */
 			cur_patch++;
@@ -9664,7 +9666,7 @@ ahd_write_seeprom(struct ahd_softc *ahd, uint16_t *buf,
 		return (error);
 
 	/*
-	 * Write the data.  If we don't get throught the loop at
+	 * Write the data.  If we don't get through the loop at
 	 * least once, the arguments were invalid.
 	 */
 	retval = EINVAL;
@@ -9918,7 +9920,8 @@ ahd_handle_en_lun(struct ahd_softc *ahd, struct cam_sim *sim, union ccb *ccb)
 		u_int	   our_id;
 
 		our_id = ahd->our_id;
-		if (ccb->ccb_h.target_id != our_id) {
+		if (ccb->ccb_h.target_id != our_id
+		 && ccb->ccb_h.target_id != CAM_TARGET_WILDCARD) {
 			if ((ahd->features & AHD_MULTI_TID) != 0
 		   	 && (ahd->flags & AHD_INITIATORROLE) != 0) {
 				/*

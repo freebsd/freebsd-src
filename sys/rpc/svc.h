@@ -1,6 +1,8 @@
 /*	$NetBSD: svc.h,v 1.17 2000/06/02 22:57:56 fvdl Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -226,7 +228,7 @@ typedef struct __rpc_svcxprt_ext {
  * The services list
  * Each entry represents a set of procedures (an rpc program).
  * The dispatch routine takes request structs and runs the
- * apropriate procedure.
+ * appropriate procedure.
  */
 struct svc_callout {
 	TAILQ_ENTRY(svc_callout) sc_link;
@@ -240,7 +242,7 @@ TAILQ_HEAD(svc_callout_list, svc_callout);
 /*
  * The services connection loss list
  * The dispatch routine takes request structs and runs the
- * apropriate procedure.
+ * appropriate procedure.
  */
 struct svc_loss_callout {
 	TAILQ_ENTRY(svc_loss_callout) slc_link;
@@ -371,10 +373,10 @@ typedef struct __rpc_svcpool {
 	 * amount of memory used by RPC requests which are queued
 	 * waiting for execution.
 	 */
-	unsigned int	sp_space_low;
-	unsigned int	sp_space_high;
-	unsigned int	sp_space_used;
-	unsigned int	sp_space_used_highest;
+	unsigned long	sp_space_low;
+	unsigned long	sp_space_high;
+	unsigned long	sp_space_used;
+	unsigned long	sp_space_used_highest;
 	bool_t		sp_space_throttled;
 	int		sp_space_throttle_count;
 
@@ -727,6 +729,12 @@ extern SVCPOOL* svcpool_create(const char *name,
  * Destroy a service pool, including all registered transports.
  */
 extern void svcpool_destroy(SVCPOOL *pool);
+
+/*
+ * Close a service pool.  Similar to svcpool_destroy(), but it does not
+ * free the data structures.  As such, the pool can be used again.
+ */
+extern void svcpool_close(SVCPOOL *pool);
 
 /*
  * Transport independent svc_create routine.

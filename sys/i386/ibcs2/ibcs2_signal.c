@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1995 Scott Bartram
  * Copyright (c) 1995 Steven Wallace
  * All rights reserved.
@@ -190,9 +192,7 @@ bsd_to_ibcs2_sigaction(bsa, isa)
 }
 
 int
-ibcs2_sigaction(td, uap)
-	register struct thread *td;
-	struct ibcs2_sigaction_args *uap;
+ibcs2_sigaction(struct thread *td, struct ibcs2_sigaction_args *uap)
 {
 	struct ibcs2_sigaction isa;
 	struct sigaction nbsa, obsa;
@@ -218,9 +218,7 @@ ibcs2_sigaction(td, uap)
 }
 
 int
-ibcs2_sigsys(td, uap)
-	register struct thread *td;
-	struct ibcs2_sigsys_args *uap;
+ibcs2_sigsys(struct thread *td, struct ibcs2_sigsys_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct sigaction sa;
@@ -341,9 +339,7 @@ ibcs2_sigsys(td, uap)
 }
 
 int
-ibcs2_sigprocmask(td, uap)
-	register struct thread *td;
-	struct ibcs2_sigprocmask_args *uap;
+ibcs2_sigprocmask(struct thread *td, struct ibcs2_sigprocmask_args *uap)
 {
 	ibcs2_sigset_t iss;
 	sigset_t oss, nss;
@@ -379,9 +375,7 @@ ibcs2_sigprocmask(td, uap)
 }
 
 int
-ibcs2_sigpending(td, uap)
-	register struct thread *td;
-	struct ibcs2_sigpending_args *uap;
+ibcs2_sigpending(struct thread *td, struct ibcs2_sigpending_args *uap)
 {
 	struct proc *p = td->td_proc;
 	sigset_t bss;
@@ -398,9 +392,7 @@ ibcs2_sigpending(td, uap)
 }
 
 int
-ibcs2_sigsuspend(td, uap)
-	register struct thread *td;
-	struct ibcs2_sigsuspend_args *uap;
+ibcs2_sigsuspend(struct thread *td, struct ibcs2_sigsuspend_args *uap)
 {
 	ibcs2_sigset_t sss;
 	sigset_t bss;
@@ -414,9 +406,7 @@ ibcs2_sigsuspend(td, uap)
 }
 
 int
-ibcs2_pause(td, uap)
-	register struct thread *td;
-	struct ibcs2_pause_args *uap;
+ibcs2_pause(struct thread *td, struct ibcs2_pause_args *uap)
 {
 	sigset_t mask;
 
@@ -427,9 +417,7 @@ ibcs2_pause(td, uap)
 }
 
 int
-ibcs2_kill(td, uap)
-	register struct thread *td;
-	struct ibcs2_kill_args *uap;
+ibcs2_kill(struct thread *td, struct ibcs2_kill_args *uap)
 {
 	struct kill_args ka;
 

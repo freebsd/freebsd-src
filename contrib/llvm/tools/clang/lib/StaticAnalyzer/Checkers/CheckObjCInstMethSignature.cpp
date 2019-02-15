@@ -40,10 +40,11 @@ static bool AreTypesCompatible(QualType Derived, QualType Ancestor,
 static void CompareReturnTypes(const ObjCMethodDecl *MethDerived,
                                const ObjCMethodDecl *MethAncestor,
                                BugReporter &BR, ASTContext &Ctx,
-                               const ObjCImplementationDecl *ID) {
+                               const ObjCImplementationDecl *ID,
+                               const CheckerBase *Checker) {
 
-  QualType ResDerived  = MethDerived->getResultType();
-  QualType ResAncestor = MethAncestor->getResultType();
+  QualType ResDerived = MethDerived->getReturnType();
+  QualType ResAncestor = MethAncestor->getReturnType();
 
   if (!AreTypesCompatible(ResDerived, ResAncestor, Ctx)) {
     std::string sbuf;
@@ -53,9 +54,9 @@ static void CompareReturnTypes(const ObjCMethodDecl *MethDerived,
        << *MethDerived->getClassInterface()
        << "', which is derived from class '"
        << *MethAncestor->getClassInterface()
-       << "', defines the instance method '"
-       << MethDerived->getSelector().getAsString()
-       << "' whose return type is '"
+       << "', defines the instance method '";
+    MethDerived->getSelector().print(os);
+    os << "' whose return type is '"
        << ResDerived.getAsString()
        << "'.  A method with the same name (same selector) is also defined in "
           "class '"
@@ -69,15 +70,15 @@ static void CompareReturnTypes(const ObjCMethodDecl *MethDerived,
       PathDiagnosticLocation::createBegin(MethDerived,
                                           BR.getSourceManager());
 
-    BR.EmitBasicReport(MethDerived,
-                       "Incompatible instance method return type",
-                       categories::CoreFoundationObjectiveC,
-                       os.str(), MethDLoc);
+    BR.EmitBasicReport(
+        MethDerived, Checker, "Incompatible instance method return type",
+        categories::CoreFoundationObjectiveC, os.str(), MethDLoc);
   }
 }
 
 static void CheckObjCInstMethSignature(const ObjCImplementationDecl *ID,
-                                       BugReporter& BR) {
+                                       BugReporter &BR,
+                                       const CheckerBase *Checker) {
 
   const ObjCInterfaceDecl *D = ID->getClassInterface();
   const ObjCInterfaceDecl *C = D->getSuperClass();
@@ -92,10 +93,7 @@ static void CheckObjCInstMethSignature(const ObjCImplementationDecl *ID,
   MapTy IMeths;
   unsigned NumMethods = 0;
 
-  for (ObjCImplementationDecl::instmeth_iterator I=ID->instmeth_begin(),
-       E=ID->instmeth_end(); I!=E; ++I) {
-
-    ObjCMethodDecl *M = *I;
+  for (auto *M : ID->instance_methods()) {
     IMeths[M->getSelector()] = M;
     ++NumMethods;
   }
@@ -103,22 +101,19 @@ static void CheckObjCInstMethSignature(const ObjCImplementationDecl *ID,
   // Now recurse the class hierarchy chain looking for methods with the
   // same signatures.
   while (C && NumMethods) {
-    for (ObjCInterfaceDecl::instmeth_iterator I=C->instmeth_begin(),
-         E=C->instmeth_end(); I!=E; ++I) {
-
-      ObjCMethodDecl *M = *I;
+    for (const auto *M : C->instance_methods()) {
       Selector S = M->getSelector();
 
       MapTy::iterator MI = IMeths.find(S);
 
-      if (MI == IMeths.end() || MI->second == 0)
+      if (MI == IMeths.end() || MI->second == nullptr)
         continue;
 
       --NumMethods;
       ObjCMethodDecl *MethDerived = MI->second;
-      MI->second = 0;
+      MI->second = nullptr;
 
-      CompareReturnTypes(MethDerived, M, BR, Ctx, ID);
+      CompareReturnTypes(MethDerived, M, BR, Ctx, ID, Checker);
     }
 
     C = C->getSuperClass();
@@ -135,7 +130,7 @@ class ObjCMethSigsChecker : public Checker<
 public:
   void checkASTDecl(const ObjCImplementationDecl *D, AnalysisManager& mgr,
                     BugReporter &BR) const {
-    CheckObjCInstMethSignature(D, BR);
+    CheckObjCInstMethSignature(D, BR, this);
   }
 };
 }

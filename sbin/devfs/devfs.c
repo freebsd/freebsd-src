@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001, 2002 Dima Dorfman.
  * All rights reserved.
  *
@@ -225,6 +227,8 @@ void
 usage(void)
 {
 
-	fprintf(stderr, "usage: devfs rule|ruleset arguments\n");
+	fprintf(stderr, "usage: %s\n%s\n",
+	    "\tdevfs [-m mount-point] [-s ruleset] rule ...",
+	    "\tdevfs [-m mount-point] ruleset ...");
 	exit(1);
 }

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004 Stefan Farfeleder
  * All rights reserved.
  *
@@ -34,5 +36,5 @@ double complex
 conj(double complex z)
 {
 
-	return (cpack(creal(z), -cimag(z)));
+	return (CMPLX(creal(z), -cimag(z)));
 }

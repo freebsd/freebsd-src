@@ -9,6 +9,8 @@
 #include "includes.h"
 
 #include "common.h"
+#include "common/defs.h"
+#include "common/ieee802_11_common.h"
 #include "crypto/aes_wrap.h"
 #include "crypto/crypto.h"
 #include "crypto/dh_group5.h"
@@ -16,6 +18,7 @@
 #include "crypto/sha256.h"
 #include "crypto/random.h"
 #include "wps_i.h"
+#include "wps_dev_attr.h"
 
 
 void wps_kdf(const u8 *key, const u8 *label_prefix, size_t label_prefix_len,
@@ -87,7 +90,7 @@ int wps_derive_keys(struct wps_data *wps)
 	}
 
 	/* Own DH private key is not needed anymore */
-	wpabuf_free(wps->dh_privkey);
+	wpabuf_clear_free(wps->dh_privkey);
 	wps->dh_privkey = NULL;
 
 	wpa_hexdump_buf_key(MSG_DEBUG, "WPS: DH shared key", dh_shared);
@@ -97,7 +100,7 @@ int wps_derive_keys(struct wps_data *wps)
 	len[0] = wpabuf_len(dh_shared);
 	sha256_vector(1, addr, len, dhkey);
 	wpa_hexdump_key(MSG_DEBUG, "WPS: DHKey", dhkey, sizeof(dhkey));
-	wpabuf_free(dh_shared);
+	wpabuf_clear_free(dh_shared);
 
 	/* KDK = HMAC-SHA-256_DHKey(N1 || EnrolleeMAC || N2) */
 	addr[0] = wps->nonce_e;
@@ -126,23 +129,26 @@ int wps_derive_keys(struct wps_data *wps)
 }
 
 
-void wps_derive_psk(struct wps_data *wps, const u8 *dev_passwd,
-		    size_t dev_passwd_len)
+int wps_derive_psk(struct wps_data *wps, const u8 *dev_passwd,
+		   size_t dev_passwd_len)
 {
 	u8 hash[SHA256_MAC_LEN];
 
-	hmac_sha256(wps->authkey, WPS_AUTHKEY_LEN, dev_passwd,
-		    (dev_passwd_len + 1) / 2, hash);
+	if (hmac_sha256(wps->authkey, WPS_AUTHKEY_LEN, dev_passwd,
+			(dev_passwd_len + 1) / 2, hash) < 0)
+		return -1;
 	os_memcpy(wps->psk1, hash, WPS_PSK_LEN);
-	hmac_sha256(wps->authkey, WPS_AUTHKEY_LEN,
-		    dev_passwd + (dev_passwd_len + 1) / 2,
-		    dev_passwd_len / 2, hash);
+	if (hmac_sha256(wps->authkey, WPS_AUTHKEY_LEN,
+			dev_passwd + (dev_passwd_len + 1) / 2,
+			dev_passwd_len / 2, hash) < 0)
+		return -1;
 	os_memcpy(wps->psk2, hash, WPS_PSK_LEN);
 
 	wpa_hexdump_ascii_key(MSG_DEBUG, "WPS: Device Password",
 			      dev_passwd, dev_passwd_len);
 	wpa_hexdump_key(MSG_DEBUG, "WPS: PSK1", wps->psk1, WPS_PSK_LEN);
 	wpa_hexdump_key(MSG_DEBUG, "WPS: PSK2", wps->psk2, WPS_PSK_LEN);
+	return 0;
 }
 
 
@@ -170,7 +176,7 @@ struct wpabuf * wps_decrypt_encr_settings(struct wps_data *wps, const u8 *encr,
 	wpabuf_put_data(decrypted, encr + block_size, encr_len - block_size);
 	if (aes_128_cbc_decrypt(wps->keywrapkey, encr, wpabuf_mhead(decrypted),
 				wpabuf_len(decrypted))) {
-		wpabuf_free(decrypted);
+		wpabuf_clear_free(decrypted);
 		return NULL;
 	}
 
@@ -181,14 +187,14 @@ struct wpabuf * wps_decrypt_encr_settings(struct wps_data *wps, const u8 *encr,
 	pad = *pos;
 	if (pad > wpabuf_len(decrypted)) {
 		wpa_printf(MSG_DEBUG, "WPS: Invalid PKCS#5 v2.0 pad value");
-		wpabuf_free(decrypted);
+		wpabuf_clear_free(decrypted);
 		return NULL;
 	}
 	for (i = 0; i < pad; i++) {
 		if (*pos-- != pad) {
 			wpa_printf(MSG_DEBUG, "WPS: Invalid PKCS#5 v2.0 pad "
 				   "string");
-			wpabuf_free(decrypted);
+			wpabuf_clear_free(decrypted);
 			return NULL;
 		}
 	}
@@ -232,20 +238,18 @@ unsigned int wps_pin_valid(unsigned int pin)
  * wps_generate_pin - Generate a random PIN
  * Returns: Eight digit PIN (i.e., including the checksum digit)
  */
-unsigned int wps_generate_pin(void)
+int wps_generate_pin(unsigned int *pin)
 {
 	unsigned int val;
 
 	/* Generate seven random digits for the PIN */
-	if (random_get_bytes((unsigned char *) &val, sizeof(val)) < 0) {
-		struct os_time now;
-		os_get_time(&now);
-		val = os_random() ^ now.sec ^ now.usec;
-	}
+	if (random_get_bytes((unsigned char *) &val, sizeof(val)) < 0)
+		return -1;
 	val %= 10000000;
 
 	/* Append checksum digit */
-	return val * 10 + wps_pin_checksum(val);
+	*pin = val * 10 + wps_pin_checksum(val);
+	return 0;
 }
 
 
@@ -266,7 +270,7 @@ int wps_pin_str_valid(const char *pin)
 
 
 void wps_fail_event(struct wps_context *wps, enum wps_msg_type msg,
-		    u16 config_error, u16 error_indication)
+		    u16 config_error, u16 error_indication, const u8 *mac_addr)
 {
 	union wps_event_data data;
 
@@ -277,20 +281,26 @@ void wps_fail_event(struct wps_context *wps, enum wps_msg_type msg,
 	data.fail.msg = msg;
 	data.fail.config_error = config_error;
 	data.fail.error_indication = error_indication;
+	os_memcpy(data.fail.peer_macaddr, mac_addr, ETH_ALEN);
 	wps->event_cb(wps->cb_ctx, WPS_EV_FAIL, &data);
 }
 
 
-void wps_success_event(struct wps_context *wps)
+void wps_success_event(struct wps_context *wps, const u8 *mac_addr)
 {
+	union wps_event_data data;
+
 	if (wps->event_cb == NULL)
 		return;
 
-	wps->event_cb(wps->cb_ctx, WPS_EV_SUCCESS, NULL);
+	os_memset(&data, 0, sizeof(data));
+	os_memcpy(data.success.peer_macaddr, mac_addr, ETH_ALEN);
+	wps->event_cb(wps->cb_ctx, WPS_EV_SUCCESS, &data);
 }
 
 
-void wps_pwd_auth_fail_event(struct wps_context *wps, int enrollee, int part)
+void wps_pwd_auth_fail_event(struct wps_context *wps, int enrollee, int part,
+			     const u8 *mac_addr)
 {
 	union wps_event_data data;
 
@@ -300,6 +310,7 @@ void wps_pwd_auth_fail_event(struct wps_context *wps, int enrollee, int part)
 	os_memset(&data, 0, sizeof(data));
 	data.pwd_auth_fail.enrollee = enrollee;
 	data.pwd_auth_fail.part = part;
+	os_memcpy(data.pwd_auth_fail.peer_macaddr, mac_addr, ETH_ALEN);
 	wps->event_cb(wps->cb_ctx, WPS_EV_PWD_AUTH_FAIL, &data);
 }
 
@@ -322,9 +333,28 @@ void wps_pbc_timeout_event(struct wps_context *wps)
 }
 
 
+void wps_pbc_active_event(struct wps_context *wps)
+{
+	if (wps->event_cb == NULL)
+		return;
+
+	wps->event_cb(wps->cb_ctx, WPS_EV_PBC_ACTIVE, NULL);
+}
+
+
+void wps_pbc_disable_event(struct wps_context *wps)
+{
+	if (wps->event_cb == NULL)
+		return;
+
+	wps->event_cb(wps->cb_ctx, WPS_EV_PBC_DISABLE, NULL);
+}
+
+
 #ifdef CONFIG_WPS_OOB
 
-struct wpabuf * wps_get_oob_cred(struct wps_context *wps)
+struct wpabuf * wps_get_oob_cred(struct wps_context *wps, int rf_band,
+				 int channel)
 {
 	struct wps_data data;
 	struct wpabuf *plain;
@@ -340,12 +370,40 @@ struct wpabuf * wps_get_oob_cred(struct wps_context *wps)
 	data.wps = wps;
 	data.auth_type = wps->auth_types;
 	data.encr_type = wps->encr_types;
-	if (wps_build_version(plain) ||
-	    wps_build_cred(&data, plain) ||
+	if (wps_build_cred(&data, plain) ||
+	    (rf_band && wps_build_rf_bands_attr(plain, rf_band)) ||
+	    (channel && wps_build_ap_channel(plain, channel)) ||
+	    wps_build_mac_addr(plain, wps->dev.mac_addr) ||
 	    wps_build_wfa_ext(plain, 0, NULL, 0)) {
-		wpabuf_free(plain);
+		os_free(data.new_psk);
+		wpabuf_clear_free(plain);
 		return NULL;
 	}
+
+	if (wps->wps_state == WPS_STATE_NOT_CONFIGURED && data.new_psk &&
+	    wps->ap) {
+		struct wps_credential cred;
+
+		wpa_printf(MSG_DEBUG, "WPS: Moving to Configured state based "
+			   "on credential token generation");
+
+		os_memset(&cred, 0, sizeof(cred));
+		os_memcpy(cred.ssid, wps->ssid, wps->ssid_len);
+		cred.ssid_len = wps->ssid_len;
+		cred.auth_type = WPS_AUTH_WPAPSK | WPS_AUTH_WPA2PSK;
+		cred.encr_type = WPS_ENCR_TKIP | WPS_ENCR_AES;
+		os_memcpy(cred.key, data.new_psk, data.new_psk_len);
+		cred.key_len = data.new_psk_len;
+
+		wps->wps_state = WPS_STATE_CONFIGURED;
+		wpa_hexdump_ascii_key(MSG_DEBUG,
+				      "WPS: Generated random passphrase",
+				      data.new_psk, data.new_psk_len);
+		if (wps->cred_cb)
+			wps->cred_cb(wps->cb_ctx, &cred);
+	}
+
+	os_free(data.new_psk);
 
 	return plain;
 }
@@ -361,13 +419,12 @@ struct wpabuf * wps_build_nfc_pw_token(u16 dev_pw_id,
 	if (data == NULL)
 		return NULL;
 
-	if (wps_build_version(data) ||
-	    wps_build_oob_dev_pw(data, dev_pw_id, pubkey,
+	if (wps_build_oob_dev_pw(data, dev_pw_id, pubkey,
 				 wpabuf_head(dev_pw), wpabuf_len(dev_pw)) ||
 	    wps_build_wfa_ext(data, 0, NULL, 0)) {
 		wpa_printf(MSG_ERROR, "WPS: Failed to build NFC password "
 			   "token");
-		wpabuf_free(data);
+		wpabuf_clear_free(data);
 		return NULL;
 	}
 
@@ -433,7 +490,7 @@ char * wps_dev_type_bin2str(const u8 dev_type[WPS_DEV_TYPE_LEN], char *buf,
 	ret = os_snprintf(buf, buf_len, "%u-%08X-%u",
 			  WPA_GET_BE16(dev_type), WPA_GET_BE32(&dev_type[2]),
 			  WPA_GET_BE16(&dev_type[6]));
-	if (ret < 0 || (unsigned int) ret >= buf_len)
+	if (os_snprintf_error(buf_len, ret))
 		return NULL;
 
 	return buf;
@@ -472,15 +529,16 @@ u16 wps_config_methods_str2bin(const char *str)
 {
 	u16 methods = 0;
 
-	if (str == NULL) {
+	if (str == NULL || str[0] == '\0') {
 		/* Default to enabling methods based on build configuration */
 		methods |= WPS_CONFIG_DISPLAY | WPS_CONFIG_KEYPAD;
-#ifdef CONFIG_WPS2
 		methods |= WPS_CONFIG_VIRT_DISPLAY;
-#endif /* CONFIG_WPS2 */
 #ifdef CONFIG_WPS_NFC
 		methods |= WPS_CONFIG_NFC_INTERFACE;
 #endif /* CONFIG_WPS_NFC */
+#ifdef CONFIG_P2P
+		methods |= WPS_CONFIG_P2PS;
+#endif /* CONFIG_P2P */
 	} else {
 		if (os_strstr(str, "ethernet"))
 			methods |= WPS_CONFIG_ETHERNET;
@@ -498,7 +556,6 @@ u16 wps_config_methods_str2bin(const char *str)
 			methods |= WPS_CONFIG_PUSHBUTTON;
 		if (os_strstr(str, "keypad"))
 			methods |= WPS_CONFIG_KEYPAD;
-#ifdef CONFIG_WPS2
 		if (os_strstr(str, "virtual_display"))
 			methods |= WPS_CONFIG_VIRT_DISPLAY;
 		if (os_strstr(str, "physical_display"))
@@ -507,7 +564,8 @@ u16 wps_config_methods_str2bin(const char *str)
 			methods |= WPS_CONFIG_VIRT_PUSHBUTTON;
 		if (os_strstr(str, "physical_push_button"))
 			methods |= WPS_CONFIG_PHY_PUSHBUTTON;
-#endif /* CONFIG_WPS2 */
+		if (os_strstr(str, "p2ps"))
+			methods |= WPS_CONFIG_P2PS;
 	}
 
 	return methods;
@@ -562,12 +620,59 @@ struct wpabuf * wps_build_wsc_nack(struct wps_data *wps)
 
 
 #ifdef CONFIG_WPS_NFC
+
+struct wpabuf * wps_nfc_token_build(int ndef, int id, struct wpabuf *pubkey,
+				    struct wpabuf *dev_pw)
+{
+	struct wpabuf *ret;
+
+	if (pubkey == NULL || dev_pw == NULL)
+		return NULL;
+
+	ret = wps_build_nfc_pw_token(id, pubkey, dev_pw);
+	if (ndef && ret) {
+		struct wpabuf *tmp;
+		tmp = ndef_build_wifi(ret);
+		wpabuf_free(ret);
+		if (tmp == NULL)
+			return NULL;
+		ret = tmp;
+	}
+
+	return ret;
+}
+
+
+int wps_nfc_gen_dh(struct wpabuf **pubkey, struct wpabuf **privkey)
+{
+	struct wpabuf *priv = NULL, *pub = NULL;
+	void *dh_ctx;
+
+	dh_ctx = dh5_init(&priv, &pub);
+	if (dh_ctx == NULL)
+		return -1;
+	pub = wpabuf_zeropad(pub, 192);
+	if (pub == NULL) {
+		wpabuf_free(priv);
+		return -1;
+	}
+	wpa_hexdump_buf(MSG_DEBUG, "WPS: Generated new DH pubkey", pub);
+	dh5_free(dh_ctx);
+
+	wpabuf_free(*pubkey);
+	*pubkey = pub;
+	wpabuf_clear_free(*privkey);
+	*privkey = priv;
+
+	return 0;
+}
+
+
 struct wpabuf * wps_nfc_token_gen(int ndef, int *id, struct wpabuf **pubkey,
 				  struct wpabuf **privkey,
 				  struct wpabuf **dev_pw)
 {
-	struct wpabuf *priv = NULL, *pub = NULL, *pw, *ret;
-	void *dh_ctx;
+	struct wpabuf *pw;
 	u16 val;
 
 	pw = wpabuf_alloc(WPS_OOB_DEVICE_PASSWORD_LEN);
@@ -581,31 +686,225 @@ struct wpabuf * wps_nfc_token_gen(int ndef, int *id, struct wpabuf **pubkey,
 		return NULL;
 	}
 
-	dh_ctx = dh5_init(&priv, &pub);
-	if (dh_ctx == NULL) {
+	if (wps_nfc_gen_dh(pubkey, privkey) < 0) {
 		wpabuf_free(pw);
 		return NULL;
 	}
-	dh5_free(dh_ctx);
 
 	*id = 0x10 + val % 0xfff0;
-	wpabuf_free(*pubkey);
-	*pubkey = pub;
-	wpabuf_free(*privkey);
-	*privkey = priv;
-	wpabuf_free(*dev_pw);
+	wpabuf_clear_free(*dev_pw);
 	*dev_pw = pw;
 
-	ret = wps_build_nfc_pw_token(*id, *pubkey, *dev_pw);
-	if (ndef && ret) {
-		struct wpabuf *tmp;
-		tmp = ndef_build_wifi(ret);
-		wpabuf_free(ret);
-		if (tmp == NULL)
-			return NULL;
-		ret = tmp;
+	return wps_nfc_token_build(ndef, *id, *pubkey, *dev_pw);
+}
+
+
+struct wpabuf * wps_build_nfc_handover_req(struct wps_context *ctx,
+					   struct wpabuf *nfc_dh_pubkey)
+{
+	struct wpabuf *msg;
+	void *len;
+
+	if (ctx == NULL)
+		return NULL;
+
+	wpa_printf(MSG_DEBUG, "WPS: Building attributes for NFC connection "
+		   "handover request");
+
+	if (nfc_dh_pubkey == NULL) {
+		wpa_printf(MSG_DEBUG, "WPS: No NFC OOB Device Password "
+			   "configured");
+		return NULL;
 	}
 
-	return ret;
+	msg = wpabuf_alloc(1000);
+	if (msg == NULL)
+		return msg;
+	len = wpabuf_put(msg, 2);
+
+	if (wps_build_oob_dev_pw(msg, DEV_PW_NFC_CONNECTION_HANDOVER,
+				 nfc_dh_pubkey, NULL, 0) ||
+	    wps_build_uuid_e(msg, ctx->uuid) ||
+	    wps_build_wfa_ext(msg, 0, NULL, 0)) {
+		wpabuf_free(msg);
+		return NULL;
+	}
+
+	WPA_PUT_BE16(len, wpabuf_len(msg) - 2);
+
+	return msg;
 }
+
+
+static int wps_build_ssid(struct wpabuf *msg, struct wps_context *wps)
+{
+	wpa_printf(MSG_DEBUG, "WPS:  * SSID");
+	wpa_hexdump_ascii(MSG_DEBUG, "WPS: SSID in Connection Handover Select",
+			  wps->ssid, wps->ssid_len);
+	wpabuf_put_be16(msg, ATTR_SSID);
+	wpabuf_put_be16(msg, wps->ssid_len);
+	wpabuf_put_data(msg, wps->ssid, wps->ssid_len);
+	return 0;
+}
+
+
+static int wps_build_ap_freq(struct wpabuf *msg, int freq)
+{
+	enum hostapd_hw_mode mode;
+	u8 channel, rf_band;
+	u16 ap_channel;
+
+	if (freq <= 0)
+		return 0;
+
+	mode = ieee80211_freq_to_chan(freq, &channel);
+	if (mode == NUM_HOSTAPD_MODES)
+		return 0; /* Unknown channel */
+
+	if (mode == HOSTAPD_MODE_IEEE80211G || mode == HOSTAPD_MODE_IEEE80211B)
+		rf_band = WPS_RF_24GHZ;
+	else if (mode == HOSTAPD_MODE_IEEE80211A)
+		rf_band = WPS_RF_50GHZ;
+	else if (mode == HOSTAPD_MODE_IEEE80211AD)
+		rf_band = WPS_RF_60GHZ;
+	else
+		return 0; /* Unknown band */
+	ap_channel = channel;
+
+	if (wps_build_rf_bands_attr(msg, rf_band) ||
+	    wps_build_ap_channel(msg, ap_channel))
+		return -1;
+
+	return 0;
+}
+
+
+struct wpabuf * wps_build_nfc_handover_sel(struct wps_context *ctx,
+					   struct wpabuf *nfc_dh_pubkey,
+					   const u8 *bssid, int freq)
+{
+	struct wpabuf *msg;
+	void *len;
+
+	if (ctx == NULL)
+		return NULL;
+
+	wpa_printf(MSG_DEBUG, "WPS: Building attributes for NFC connection "
+		   "handover select");
+
+	if (nfc_dh_pubkey == NULL) {
+		wpa_printf(MSG_DEBUG, "WPS: No NFC OOB Device Password "
+			   "configured");
+		return NULL;
+	}
+
+	msg = wpabuf_alloc(1000);
+	if (msg == NULL)
+		return msg;
+	len = wpabuf_put(msg, 2);
+
+	if (wps_build_oob_dev_pw(msg, DEV_PW_NFC_CONNECTION_HANDOVER,
+				 nfc_dh_pubkey, NULL, 0) ||
+	    wps_build_ssid(msg, ctx) ||
+	    wps_build_ap_freq(msg, freq) ||
+	    (bssid && wps_build_mac_addr(msg, bssid)) ||
+	    wps_build_wfa_ext(msg, 0, NULL, 0)) {
+		wpabuf_free(msg);
+		return NULL;
+	}
+
+	WPA_PUT_BE16(len, wpabuf_len(msg) - 2);
+
+	return msg;
+}
+
+
+struct wpabuf * wps_build_nfc_handover_req_p2p(struct wps_context *ctx,
+					       struct wpabuf *nfc_dh_pubkey)
+{
+	struct wpabuf *msg;
+
+	if (ctx == NULL)
+		return NULL;
+
+	wpa_printf(MSG_DEBUG, "WPS: Building attributes for NFC connection "
+		   "handover request (P2P)");
+
+	if (nfc_dh_pubkey == NULL) {
+		wpa_printf(MSG_DEBUG, "WPS: No NFC DH Public Key configured");
+		return NULL;
+	}
+
+	msg = wpabuf_alloc(1000);
+	if (msg == NULL)
+		return msg;
+
+	if (wps_build_manufacturer(&ctx->dev, msg) ||
+	    wps_build_model_name(&ctx->dev, msg) ||
+	    wps_build_model_number(&ctx->dev, msg) ||
+	    wps_build_oob_dev_pw(msg, DEV_PW_NFC_CONNECTION_HANDOVER,
+				 nfc_dh_pubkey, NULL, 0) ||
+	    wps_build_rf_bands(&ctx->dev, msg, 0) ||
+	    wps_build_serial_number(&ctx->dev, msg) ||
+	    wps_build_uuid_e(msg, ctx->uuid) ||
+	    wps_build_wfa_ext(msg, 0, NULL, 0)) {
+		wpabuf_free(msg);
+		return NULL;
+	}
+
+	return msg;
+}
+
+
+struct wpabuf * wps_build_nfc_handover_sel_p2p(struct wps_context *ctx,
+					       int nfc_dev_pw_id,
+					       struct wpabuf *nfc_dh_pubkey,
+					       struct wpabuf *nfc_dev_pw)
+{
+	struct wpabuf *msg;
+	const u8 *dev_pw;
+	size_t dev_pw_len;
+
+	if (ctx == NULL)
+		return NULL;
+
+	wpa_printf(MSG_DEBUG, "WPS: Building attributes for NFC connection "
+		   "handover select (P2P)");
+
+	if (nfc_dh_pubkey == NULL ||
+	    (nfc_dev_pw_id != DEV_PW_NFC_CONNECTION_HANDOVER &&
+	     nfc_dev_pw == NULL)) {
+		wpa_printf(MSG_DEBUG, "WPS: No NFC OOB Device Password "
+			   "configured");
+		return NULL;
+	}
+
+	msg = wpabuf_alloc(1000);
+	if (msg == NULL)
+		return msg;
+
+	if (nfc_dev_pw) {
+		dev_pw = wpabuf_head(nfc_dev_pw);
+		dev_pw_len = wpabuf_len(nfc_dev_pw);
+	} else {
+		dev_pw = NULL;
+		dev_pw_len = 0;
+	}
+
+	if (wps_build_manufacturer(&ctx->dev, msg) ||
+	    wps_build_model_name(&ctx->dev, msg) ||
+	    wps_build_model_number(&ctx->dev, msg) ||
+	    wps_build_oob_dev_pw(msg, nfc_dev_pw_id, nfc_dh_pubkey,
+				 dev_pw, dev_pw_len) ||
+	    wps_build_rf_bands(&ctx->dev, msg, 0) ||
+	    wps_build_serial_number(&ctx->dev, msg) ||
+	    wps_build_uuid_e(msg, ctx->uuid) ||
+	    wps_build_wfa_ext(msg, 0, NULL, 0)) {
+		wpabuf_free(msg);
+		return NULL;
+	}
+
+	return msg;
+}
+
 #endif /* CONFIG_WPS_NFC */

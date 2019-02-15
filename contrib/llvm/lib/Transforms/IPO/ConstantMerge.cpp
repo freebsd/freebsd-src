@@ -17,56 +17,35 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "constmerge"
-#include "llvm/Transforms/IPO.h"
+#include "llvm/Transforms/IPO/ConstantMerge.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/GlobalValue.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
-#include "llvm/IR/Operator.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Transforms/IPO.h"
+#include <algorithm>
+#include <cassert>
+#include <utility>
+
 using namespace llvm;
+
+#define DEBUG_TYPE "constmerge"
 
 STATISTIC(NumMerged, "Number of global constants merged");
 
-namespace {
-  struct ConstantMerge : public ModulePass {
-    static char ID; // Pass identification, replacement for typeid
-    ConstantMerge() : ModulePass(ID) {
-      initializeConstantMergePass(*PassRegistry::getPassRegistry());
-    }
-
-    // For this pass, process all of the globals in the module, eliminating
-    // duplicate constants.
-    bool runOnModule(Module &M);
-
-    // Return true iff we can determine the alignment of this global variable.
-    bool hasKnownAlignment(GlobalVariable *GV) const;
-
-    // Return the alignment of the global, including converting the default
-    // alignment to a concrete value.
-    unsigned getAlignment(GlobalVariable *GV) const;
-
-    const DataLayout *TD;
-  };
-}
-
-char ConstantMerge::ID = 0;
-INITIALIZE_PASS(ConstantMerge, "constmerge",
-                "Merge Duplicate Global Constants", false, false)
-
-ModulePass *llvm::createConstantMergePass() { return new ConstantMerge(); }
-
-
-
 /// Find values that are marked as llvm.used.
 static void FindUsedValues(GlobalVariable *LLVMUsed,
-                           SmallPtrSet<const GlobalValue*, 8> &UsedValues) {
-  if (LLVMUsed == 0) return;
+                           SmallPtrSetImpl<const GlobalValue*> &UsedValues) {
+  if (!LLVMUsed) return;
   ConstantArray *Inits = cast<ConstantArray>(LLVMUsed->getInitializer());
 
   for (unsigned i = 0, e = Inits->getNumOperands(); i != e; ++i) {
@@ -77,42 +56,49 @@ static void FindUsedValues(GlobalVariable *LLVMUsed,
 }
 
 // True if A is better than B.
-static bool IsBetterCannonical(const GlobalVariable &A,
-                               const GlobalVariable &B) {
+static bool IsBetterCanonical(const GlobalVariable &A,
+                              const GlobalVariable &B) {
   if (!A.hasLocalLinkage() && B.hasLocalLinkage())
     return true;
 
   if (A.hasLocalLinkage() && !B.hasLocalLinkage())
     return false;
 
-  return A.hasUnnamedAddr();
+  return A.hasGlobalUnnamedAddr();
 }
 
-bool ConstantMerge::hasKnownAlignment(GlobalVariable *GV) const {
-  return TD || GV->getAlignment() != 0;
+static bool hasMetadataOtherThanDebugLoc(const GlobalVariable *GV) {
+  SmallVector<std::pair<unsigned, MDNode *>, 4> MDs;
+  GV->getAllMetadata(MDs);
+  for (const auto &V : MDs)
+    if (V.first != LLVMContext::MD_dbg)
+      return true;
+  return false;
 }
 
-unsigned ConstantMerge::getAlignment(GlobalVariable *GV) const {
+static void copyDebugLocMetadata(const GlobalVariable *From,
+                                 GlobalVariable *To) {
+  SmallVector<DIGlobalVariableExpression *, 1> MDs;
+  From->getDebugInfo(MDs);
+  for (auto MD : MDs)
+    To->addDebugInfo(MD);
+}
+
+static unsigned getAlignment(GlobalVariable *GV) {
   unsigned Align = GV->getAlignment();
   if (Align)
     return Align;
-  if (TD)
-    return TD->getPreferredAlignment(GV);
-  return 0;
+  return GV->getParent()->getDataLayout().getPreferredAlignment(GV);
 }
 
-bool ConstantMerge::runOnModule(Module &M) {
-  TD = getAnalysisIfAvailable<DataLayout>();
-
+static bool mergeConstants(Module &M) {
   // Find all the globals that are marked "used".  These cannot be merged.
   SmallPtrSet<const GlobalValue*, 8> UsedGlobals;
   FindUsedValues(M.getGlobalVariable("llvm.used"), UsedGlobals);
   FindUsedValues(M.getGlobalVariable("llvm.compiler.used"), UsedGlobals);
-  
-  // Map unique <constants, has-unknown-alignment> pairs to globals.  We don't
-  // want to merge globals of unknown alignment with those of explicit
-  // alignment.  If we have DataLayout, we always know the alignment.
-  DenseMap<PointerIntPair<Constant*, 1, bool>, GlobalVariable*> CMap;
+
+  // Map unique constants to globals.
+  DenseMap<Constant *, GlobalVariable *> CMap;
 
   // Replacements - This vector contains a list of replacements to perform.
   SmallVector<std::pair<GlobalVariable*, GlobalVariable*>, 32> Replacements;
@@ -123,12 +109,11 @@ bool ConstantMerge::runOnModule(Module &M) {
   // constants together may allow us to merge other constants together if the
   // second level constants have initializers which point to the globals that
   // were just merged.
-  while (1) {
-
+  while (true) {
     // First: Find the canonical constants others will be merged with.
     for (Module::global_iterator GVI = M.global_begin(), E = M.global_end();
          GVI != E; ) {
-      GlobalVariable *GV = GVI++;
+      GlobalVariable *GV = &*GVI++;
 
       // If this GV is dead, remove it.
       GV->removeDeadConstantUsers();
@@ -151,16 +136,19 @@ bool ConstantMerge::runOnModule(Module &M) {
       if (GV->isWeakForLinker())
         continue;
 
+      // Don't touch globals with metadata other then !dbg.
+      if (hasMetadataOtherThanDebugLoc(GV))
+        continue;
+
       Constant *Init = GV->getInitializer();
 
       // Check to see if the initializer is already known.
-      PointerIntPair<Constant*, 1, bool> Pair(Init, hasKnownAlignment(GV));
-      GlobalVariable *&Slot = CMap[Pair];
+      GlobalVariable *&Slot = CMap[Init];
 
       // If this is the first constant we find or if the old one is local,
       // replace with the current one. If the current is externally visible
       // it cannot be replace, but can be the canonical constant we merge with.
-      if (Slot == 0 || IsBetterCannonical(*GV, *Slot))
+      if (!Slot || IsBetterCanonical(*GV, *Slot))
         Slot = GV;
     }
 
@@ -170,7 +158,7 @@ bool ConstantMerge::runOnModule(Module &M) {
     // invalidating the Constant* pointers in CMap.
     for (Module::global_iterator GVI = M.global_begin(), E = M.global_end();
          GVI != E; ) {
-      GlobalVariable *GV = GVI++;
+      GlobalVariable *GV = &*GVI++;
 
       // Only process constants with initializers in the default address space.
       if (!GV->isConstant() || !GV->hasDefinitiveInitializer() ||
@@ -186,17 +174,19 @@ bool ConstantMerge::runOnModule(Module &M) {
       Constant *Init = GV->getInitializer();
 
       // Check to see if the initializer is already known.
-      PointerIntPair<Constant*, 1, bool> Pair(Init, hasKnownAlignment(GV));
-      GlobalVariable *Slot = CMap[Pair];
+      GlobalVariable *Slot = CMap[Init];
 
       if (!Slot || Slot == GV)
         continue;
 
-      if (!Slot->hasUnnamedAddr() && !GV->hasUnnamedAddr())
+      if (!Slot->hasGlobalUnnamedAddr() && !GV->hasGlobalUnnamedAddr())
         continue;
 
-      if (!GV->hasUnnamedAddr())
-        Slot->setUnnamedAddr(false);
+      if (hasMetadataOtherThanDebugLoc(GV))
+        continue;
+
+      if (!GV->hasGlobalUnnamedAddr())
+        Slot->setUnnamedAddr(GlobalValue::UnnamedAddr::None);
 
       // Make all uses of the duplicate constant use the canonical version.
       Replacements.push_back(std::make_pair(GV, Slot));
@@ -218,6 +208,8 @@ bool ConstantMerge::runOnModule(Module &M) {
                      getAlignment(Replacements[i].second)));
       }
 
+      copyDebugLocMetadata(Replacements[i].first, Replacements[i].second);
+
       // Eliminate any uses of the dead global.
       Replacements[i].first->replaceAllUsesWith(Replacements[i].second);
 
@@ -230,4 +222,39 @@ bool ConstantMerge::runOnModule(Module &M) {
     NumMerged += Replacements.size();
     Replacements.clear();
   }
+}
+
+PreservedAnalyses ConstantMergePass::run(Module &M, ModuleAnalysisManager &) {
+  if (!mergeConstants(M))
+    return PreservedAnalyses::all();
+  return PreservedAnalyses::none();
+}
+
+namespace {
+
+struct ConstantMergeLegacyPass : public ModulePass {
+  static char ID; // Pass identification, replacement for typeid
+
+  ConstantMergeLegacyPass() : ModulePass(ID) {
+    initializeConstantMergeLegacyPassPass(*PassRegistry::getPassRegistry());
+  }
+
+  // For this pass, process all of the globals in the module, eliminating
+  // duplicate constants.
+  bool runOnModule(Module &M) override {
+    if (skipModule(M))
+      return false;
+    return mergeConstants(M);
+  }
+};
+
+} // end anonymous namespace
+
+char ConstantMergeLegacyPass::ID = 0;
+
+INITIALIZE_PASS(ConstantMergeLegacyPass, "constmerge",
+                "Merge Duplicate Global Constants", false, false)
+
+ModulePass *llvm::createConstantMergePass() {
+  return new ConstantMergeLegacyPass();
 }

@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.time.c,v 3.35 2010/12/09 15:39:29 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.time.c,v 3.37 2016/07/09 00:45:29 christos Exp $ */
 /*
  * sh.time.c: Shell time keeping and printing.
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.time.c,v 3.35 2010/12/09 15:39:29 christos Exp $")
+RCSID("$tcsh: sh.time.c,v 3.37 2016/07/09 00:45:29 christos Exp $")
 
 #ifdef SUNOS4
 # include <machine/param.h>
@@ -158,12 +158,12 @@ donice(Char **v, struct command *c)
 	nval = 4;
     else if (*v	== 0 &&	any("+-", cp[0]))
 	nval = getn(cp);
-#ifdef HAVE_SETPRIORITY
+#if defined(HAVE_SETPRIORITY) && defined(PRIO_PROCESS)
     if (setpriority(PRIO_PROCESS, 0, nval) == -1 && errno)
 	stderror(ERR_SYSTEM, "setpriority", strerror(errno));
-#else /* !HAVE_SETPRIORITY */
+#else /* !HAVE_SETPRIORITY || !PRIO_PROCESS */
     (void) nice(nval);
-#endif /* HAVE_SETPRIORITY */
+#endif /* HAVE_SETPRIORITY && PRIO_PROCESS */
 }
 
 #ifdef BSDTIMES
@@ -293,6 +293,7 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 # endif	/* _SEQUENT_ */
 #endif /* BSDTIMES */
 {
+    int ohaderr = haderr;
 #ifdef BSDTIMES
     time_t t =
     (r1->ru_utime.tv_sec - r0->ru_utime.tv_sec)	* 100 +
@@ -334,12 +335,14 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
     ((e->tv_sec	- b->tv_sec) * 100 + (e->tv_usec - b->tv_usec) / 10000);
 
     cp = "%Uu %Ss %E %P	%X+%Dk %I+%Oio %Fpf+%Ww";
+    haderr = 0;
 #else /* !BSDTIMES */
 # ifdef	_SEQUENT_
     int	    ms = (int)
     ((e->tv_sec	- b->tv_sec) * 100 + (e->tv_usec - b->tv_usec) / 10000);
 
     cp = "%Uu %Ss %E %P	%I+%Oio	%Fpf+%Ww";
+    haderr = 0;
 # else /* !_SEQUENT_ */
 #  ifndef POSIX
     time_t ms = ((time_t)((e - b) / HZ) * 100) +
@@ -350,6 +353,7 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 #  endif /* POSIX */
 
     cp = "%Uu %Ss %E %P";
+    haderr = 0;
 
     /*
      * the tms stuff is	not very precise, so we	fudge it.
@@ -678,6 +682,7 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 		break;
 	    }
     xputchar('\n');
+    haderr = ohaderr;
 }
 
 #if defined(BSDTIMES) || defined(_SEQUENT_)

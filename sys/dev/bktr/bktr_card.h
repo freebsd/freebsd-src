@@ -15,6 +15,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * 1. Redistributions of source code must retain the
  * Copyright (c) 1997 Amancio Hasty, 1999 Roger Hardiman
  * All rights reserved.
@@ -82,7 +84,8 @@
 #define CARD_PIXELVIEW_PLAYTV_PAK	20
 #define CARD_TERRATVALUE	21
 #define	CARD_PIXELVIEW_PLAYTV_PRO_REV_4C	22
-#define Bt848_MAX_CARD		23
+#define CARD_LEADTEK_WINFAST_2000_XP    23
+#define Bt848_MAX_CARD		24
  
 #define CARD_IO_GV		CARD_IO_BCTV2
 

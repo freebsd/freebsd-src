@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This header provides constants specific to AM33XX pinctrl bindings.
  */
@@ -13,7 +14,8 @@
 
 #define PULL_DISABLE		(1 << 3)
 #define INPUT_EN		(1 << 5)
-#define SLEWCTRL_FAST		(1 << 6)
+#define SLEWCTRL_SLOW		(1 << 6)
+#define SLEWCTRL_FAST		0
 
 /* update macro depending on INPUT_EN and PULL_ENA */
 #undef PIN_OUTPUT

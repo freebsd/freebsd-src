@@ -16,10 +16,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_OBJCRETAINCOUNT_H
-#define LLVM_CLANG_OBJCRETAINCOUNT_H
+#ifndef LLVM_CLANG_STATICANALYZER_CHECKERS_OBJCRETAINCOUNT_H
+#define LLVM_CLANG_STATICANALYZER_CHECKERS_OBJCRETAINCOUNT_H
 
-namespace clang { namespace ento { namespace objc_retain {
+#include "clang/Basic/LLVM.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallVector.h"
+
+namespace clang {
+class FunctionDecl;
+class ObjCMethodDecl;
+
+namespace ento { namespace objc_retain {
 
 /// An ArgEffect summarizes the retain count behavior on an argument or receiver
 /// to a function or method.
@@ -60,6 +68,14 @@ enum ArgEffect {
   /// The argument acts as if has been passed to CFMakeCollectable, which
   /// transfers the object to the Garbage Collector under GC.
   MakeCollectable,
+
+  /// The argument is a pointer to a retain-counted object; on exit, the new
+  /// value of the pointer is a +0 value or NULL.
+  UnretainedOutParameter,
+
+  /// The argument is a pointer to a retain-counted object; on exit, the new
+  /// value of the pointer is a +1 value or NULL.
+  RetainedOutParameter,
 
   /// The argument is treated as potentially escaping, meaning that
   /// even when its reference count hits 0 it should be treated as still
@@ -104,9 +120,6 @@ public:
     NoRet,
     /// Indicates that the returned value is an owned (+1) symbol.
     OwnedSymbol,
-    /// Indicates that the returned value is an owned (+1) symbol and
-    /// that it should be treated as freshly allocated.
-    OwnedAllocatedSymbol,
     /// Indicates that the returned value is an object with retain count
     /// semantics but that it is not owned (+0).  This is the default
     /// for getters, etc.
@@ -114,8 +127,6 @@ public:
     /// Indicates that the object is not owned and controlled by the
     /// Garbage collector.
     GCNotOwnedSymbol,
-    /// Indicates that the object is not owned and controlled by ARC.
-    ARCNotOwnedSymbol,
     /// Indicates that the return value is an owned object when the
     /// receiver is also a tracked object.
     OwnedWhenTrackedReceiver,
@@ -134,9 +145,11 @@ public:
     /// Indicates that the tracked object is an Objective-C object.
     ObjC,
     /// Indicates that the tracked object could be a CF or Objective-C object.
-    AnyObj
+    AnyObj,
+    /// Indicates that the tracked object is a generalized object.
+    Generalized
   };
-  
+
 private:
   Kind K;
   ObjKind O;
@@ -149,12 +162,11 @@ public:
   ObjKind getObjKind() const { return O; }
   
   bool isOwned() const {
-    return K == OwnedSymbol || K == OwnedAllocatedSymbol ||
-    K == OwnedWhenTrackedReceiver;
+    return K == OwnedSymbol || K == OwnedWhenTrackedReceiver;
   }
   
   bool notOwned() const {
-    return K == NotOwnedSymbol || K == ARCNotOwnedSymbol;
+    return K == NotOwnedSymbol;
   }
   
   bool operator==(const RetEffect &Other) const {
@@ -165,17 +177,14 @@ public:
     return RetEffect(OwnedWhenTrackedReceiver, ObjC);
   }
   
-  static RetEffect MakeOwned(ObjKind o, bool isAllocated = false) {
-    return RetEffect(isAllocated ? OwnedAllocatedSymbol : OwnedSymbol, o);
+  static RetEffect MakeOwned(ObjKind o) {
+    return RetEffect(OwnedSymbol, o);
   }
   static RetEffect MakeNotOwned(ObjKind o) {
     return RetEffect(NotOwnedSymbol, o);
   }
   static RetEffect MakeGCNotOwned() {
     return RetEffect(GCNotOwnedSymbol, ObjC);
-  }
-  static RetEffect MakeARCNotOwned() {
-    return RetEffect(ARCNotOwnedSymbol, ObjC);
   }
   static RetEffect MakeNoRet() {
     return RetEffect(NoRet);
@@ -202,7 +211,7 @@ class CallEffects {
 
 public:
   /// Returns the argument effects for a call.
-  llvm::ArrayRef<ArgEffect> getArgs() const { return Args; }
+  ArrayRef<ArgEffect> getArgs() const { return Args; }
 
   /// Returns the effects on the receiver.
   ArgEffect getReceiver() const { return Receiver; }

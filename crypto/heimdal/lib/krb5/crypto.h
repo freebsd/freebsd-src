@@ -174,6 +174,6 @@ extern int _krb5_num_etypes;
 
 /* Interface to the EVP crypto layer provided by hcrypto */
 struct _krb5_evp_schedule {
-    EVP_CIPHER_CTX ectx;
-    EVP_CIPHER_CTX dctx;
+    EVP_CIPHER_CTX *ectx;
+    EVP_CIPHER_CTX *dctx;
 };

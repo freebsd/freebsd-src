@@ -11,8 +11,8 @@
 // the Mips target useful for the compiler back-end and the MC libraries.
 //
 //===----------------------------------------------------------------------===//
-#ifndef MIPSBASEINFO_H
-#define MIPSBASEINFO_H
+#ifndef LLVM_LIB_TARGET_MIPS_MCTARGETDESC_MIPSBASEINFO_H
+#define LLVM_LIB_TARGET_MIPS_MCTARGETDESC_MIPSBASEINFO_H
 
 #include "MipsFixupKinds.h"
 #include "MipsMCTargetDesc.h"
@@ -33,9 +33,8 @@ namespace MipsII {
 
     MO_NO_FLAG,
 
-    /// MO_GOT16 - Represents the offset into the global offset table at which
+    /// MO_GOT - Represents the offset into the global offset table at which
     /// the address the relocation entry symbol resides during execution.
-    MO_GOT16,
     MO_GOT,
 
     /// MO_GOT_CALL - Represents the offset into the global offset table at
@@ -117,36 +116,18 @@ namespace MipsII {
     /// FrmOther - This form is for instructions that have no specific format.
     FrmOther = 6,
 
-    FormMask = 15
+    FormMask = 15,
+    /// IsCTI - Instruction is a Control Transfer Instruction.
+    IsCTI = 1 << 4,
+    /// HasForbiddenSlot - Instruction has a forbidden slot.
+    HasForbiddenSlot = 1 << 5,
+    /// IsPCRelativeLoad - A Load instruction with implicit source register
+    ///                    ($pc) with explicit offset and destination register
+    IsPCRelativeLoad = 1 << 6,
+    /// HasFCCRegOperand - Instruction uses an $fcc<x> register.
+    HasFCCRegOperand = 1 << 7
+
   };
-}
-
-inline static std::pair<const MCSymbolRefExpr*, int64_t>
-MipsGetSymAndOffset(const MCFixup &Fixup) {
-  MCFixupKind FixupKind = Fixup.getKind();
-
-  if ((FixupKind < FirstTargetFixupKind) ||
-      (FixupKind >= MCFixupKind(Mips::LastTargetFixupKind)))
-    return std::make_pair((const MCSymbolRefExpr*)0, (int64_t)0);
-
-  const MCExpr *Expr = Fixup.getValue();
-  MCExpr::ExprKind Kind = Expr->getKind();
-
-  if (Kind == MCExpr::Binary) {
-    const MCBinaryExpr *BE = static_cast<const MCBinaryExpr*>(Expr);
-    const MCExpr *LHS = BE->getLHS();
-    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(BE->getRHS());
-
-    if ((LHS->getKind() != MCExpr::SymbolRef) || !CE)
-      return std::make_pair((const MCSymbolRefExpr*)0, (int64_t)0);
-
-    return std::make_pair(cast<MCSymbolRefExpr>(LHS), CE->getValue());
-  }
-
-  if (Kind != MCExpr::SymbolRef)
-    return std::make_pair((const MCSymbolRefExpr*)0, (int64_t)0);
-
-  return std::make_pair(cast<MCSymbolRefExpr>(Expr), 0);
 }
 }
 

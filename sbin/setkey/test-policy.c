@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
  * All rights reserved.
  * 
@@ -76,7 +78,7 @@ main()
 	int i;
 	char *buf;
 
-	for (i = 0; i < sizeof(requests)/sizeof(requests[0]); i++) {
+	for (i = 0; i < nitems(requests); i++) {
 		printf("* requests:[%s]\n", requests[i]);
 		if ((buf = setpolicy(requests[i])) == NULL)
 			continue;

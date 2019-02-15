@@ -81,7 +81,7 @@ ldns_dnssec_get_dnskey_for_rrsig(const ldns_rr *rrsig,
 }
 
 ldns_rdf *
-ldns_nsec_get_bitmap(ldns_rr *nsec) {
+ldns_nsec_get_bitmap(const ldns_rr *nsec) {
 	if (ldns_rr_get_type(nsec) == LDNS_RR_TYPE_NSEC) {
 		return ldns_rr_rdf(nsec, 1);
 	} else if (ldns_rr_get_type(nsec) == LDNS_RR_TYPE_NSEC3) {
@@ -94,9 +94,9 @@ ldns_nsec_get_bitmap(ldns_rr *nsec) {
 /*return the owner name of the closest encloser for name from the list of rrs */
 /* this is NOT the hash, but the original name! */
 ldns_rdf *
-ldns_dnssec_nsec3_closest_encloser(ldns_rdf *qname,
+ldns_dnssec_nsec3_closest_encloser(const ldns_rdf *qname,
                                    ATTR_UNUSED(ldns_rr_type qtype),
-                                   ldns_rr_list *nsec3s)
+                                   const ldns_rr_list *nsec3s)
 {
 	/* remember parameters, they must match */
 	uint8_t algorithm;
@@ -215,7 +215,7 @@ ldns_dnssec_pkt_has_rrsigs(const ldns_pkt *pkt)
 
 ldns_rr_list *
 ldns_dnssec_pkt_get_rrsigs_for_name_and_type(const ldns_pkt *pkt,
-									ldns_rdf *name,
+									const ldns_rdf *name,
 									ldns_rr_type type)
 {
 	uint16_t t_netorder;
@@ -298,7 +298,7 @@ ldns_calc_keytag(const ldns_rr *key)
 	return ac16;
 }
 
-uint16_t ldns_calc_keytag_raw(uint8_t* key, size_t keysize)
+uint16_t ldns_calc_keytag_raw(const uint8_t* key, size_t keysize)
 {
 	unsigned int i;
 	uint32_t ac32;
@@ -327,14 +327,14 @@ uint16_t ldns_calc_keytag_raw(uint8_t* key, size_t keysize)
 
 #ifdef HAVE_SSL
 DSA *
-ldns_key_buf2dsa(ldns_buffer *key)
+ldns_key_buf2dsa(const ldns_buffer *key)
 {
-	return ldns_key_buf2dsa_raw((unsigned char*)ldns_buffer_begin(key),
+	return ldns_key_buf2dsa_raw((const unsigned char*)ldns_buffer_begin(key),
 						   ldns_buffer_position(key));
 }
 
 DSA *
-ldns_key_buf2dsa_raw(unsigned char* key, size_t len)
+ldns_key_buf2dsa_raw(const unsigned char* key, size_t len)
 {
 	uint8_t T;
 	uint16_t length;
@@ -375,25 +375,43 @@ ldns_key_buf2dsa_raw(unsigned char* key, size_t len)
 		BN_free(Y);
 		return NULL;
 	}
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
 #ifndef S_SPLINT_S
 	dsa->p = P;
 	dsa->q = Q;
 	dsa->g = G;
 	dsa->pub_key = Y;
 #endif /* splint */
+#else /* OPENSSL_VERSION_NUMBER */
+	if (!DSA_set0_pqg(dsa, P, Q, G)) {
+		/* QPG not yet attached, need to free */
+		BN_free(Q);
+		BN_free(P);
+		BN_free(G);
 
+		DSA_free(dsa);
+		BN_free(Y);
+		return NULL;
+	}
+	if (!DSA_set0_key(dsa, Y, NULL)) {
+		/* QPG attached, cleaned up by DSA_fre() */
+		DSA_free(dsa);
+		BN_free(Y);
+		return NULL;
+	}
+#endif /* OPENSSL_VERSION_NUMBER */
 	return dsa;
 }
 
 RSA *
-ldns_key_buf2rsa(ldns_buffer *key)
+ldns_key_buf2rsa(const ldns_buffer *key)
 {
-	return ldns_key_buf2rsa_raw((unsigned char*)ldns_buffer_begin(key),
+	return ldns_key_buf2rsa_raw((const unsigned char*)ldns_buffer_begin(key),
 						   ldns_buffer_position(key));
 }
 
 RSA *
-ldns_key_buf2rsa_raw(unsigned char* key, size_t len)
+ldns_key_buf2rsa_raw(const unsigned char* key, size_t len)
 {
 	uint16_t offset;
 	uint16_t exp;
@@ -443,16 +461,25 @@ ldns_key_buf2rsa_raw(unsigned char* key, size_t len)
 		BN_free(modulus);
 		return NULL;
 	}
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
 #ifndef S_SPLINT_S
 	rsa->n = modulus;
 	rsa->e = exponent;
 #endif /* splint */
+#else /* OPENSSL_VERSION_NUMBER */
+	if (!RSA_set0_key(rsa, modulus, exponent, NULL)) {
+		BN_free(exponent);
+		BN_free(modulus);
+		RSA_free(rsa);
+		return NULL;
+	}
+#endif /* OPENSSL_VERSION_NUMBER */
 
 	return rsa;
 }
 
 int
-ldns_digest_evp(unsigned char* data, unsigned int len, unsigned char* dest,
+ldns_digest_evp(const unsigned char* data, unsigned int len, unsigned char* dest,
 	const EVP_MD* md)
 {
 	EVP_MD_CTX* ctx;
@@ -688,11 +715,8 @@ ldns_dnssec_create_nsec_bitmap(ldns_rr_type rr_type_list[],
 {
 	uint8_t  window;		/*  most significant octet of type */
 	uint8_t  subtype;		/* least significant octet of type */
-	uint16_t windows[256]		/* Max subtype per window */
-#ifndef S_SPLINT_S
-	                      = { 0 }	/* Initialize ALL elements with 0 */
-#endif
-	                             ;
+	int      windows[256];		/* Max subtype per window */
+	uint8_t  windowpresent[256];	/* bool if window appears in bitmap */
 	ldns_rr_type* d;	/* used to traverse rr_type_list*/
 	size_t i;		/* used to traverse windows array */
 
@@ -705,14 +729,17 @@ ldns_dnssec_create_nsec_bitmap(ldns_rr_type rr_type_list[],
 	    nsec_type != LDNS_RR_TYPE_NSEC3) {
 		return NULL;
 	}
+	memset(windows, 0, sizeof(int)*256);
+	memset(windowpresent, 0, 256);
 
 	/* Which other windows need to be in the bitmap rdf?
 	 */
 	for (d = rr_type_list; d < rr_type_list + size; d++) {
 		window  = *d >> 8;
 		subtype = *d & 0xff;
-		if (windows[window] < subtype) {
-			windows[window] = subtype;
+		windowpresent[window] = 1;
+		if (windows[window] < (int)subtype) {
+			windows[window] = (int)subtype;
 		}
 	}
 
@@ -720,7 +747,7 @@ ldns_dnssec_create_nsec_bitmap(ldns_rr_type rr_type_list[],
 	 */
 	sz = 0;
 	for (i = 0; i < 256; i++) {
-		if (windows[i]) {
+		if (windowpresent[i]) {
 			sz += windows[i] / 8 + 3;
 		}
 	}
@@ -732,14 +759,14 @@ ldns_dnssec_create_nsec_bitmap(ldns_rr_type rr_type_list[],
 			return NULL;
 		}
 		for (i = 0; i < 256; i++) {
-			if (windows[i]) {
+			if (windowpresent[i]) {
 				*dptr++ = (uint8_t)i;
 				*dptr++ = (uint8_t)(windows[i] / 8 + 1);
 
 				/* Now let windows[i] index the bitmap
 				 * within data
 				 */
-				windows[i] = (uint16_t)(dptr - data);
+				windows[i] = (int)(dptr - data);
 
 				dptr += dptr[-1];
 			}
@@ -764,10 +791,10 @@ ldns_dnssec_create_nsec_bitmap(ldns_rr_type rr_type_list[],
 }
 
 int
-ldns_dnssec_rrsets_contains_type(ldns_dnssec_rrsets *rrsets,
+ldns_dnssec_rrsets_contains_type(const ldns_dnssec_rrsets *rrsets,
                                  ldns_rr_type type)
 {
-	ldns_dnssec_rrsets *cur_rrset = rrsets;
+	const ldns_dnssec_rrsets *cur_rrset = rrsets;
 	while (cur_rrset) {
 		if (cur_rrset->type == type) {
 			return 1;
@@ -778,8 +805,8 @@ ldns_dnssec_rrsets_contains_type(ldns_dnssec_rrsets *rrsets,
 }
 
 ldns_rr *
-ldns_dnssec_create_nsec(ldns_dnssec_name *from,
-                        ldns_dnssec_name *to,
+ldns_dnssec_create_nsec(const ldns_dnssec_name *from,
+                        const ldns_dnssec_name *to,
                         ldns_rr_type nsec_type)
 {
 	ldns_rr *nsec_rr;
@@ -832,14 +859,14 @@ ldns_dnssec_create_nsec(ldns_dnssec_name *from,
 }
 
 ldns_rr *
-ldns_dnssec_create_nsec3(ldns_dnssec_name *from,
-					ldns_dnssec_name *to,
-					ldns_rdf *zone_name,
+ldns_dnssec_create_nsec3(const ldns_dnssec_name *from,
+					const ldns_dnssec_name *to,
+					const ldns_rdf *zone_name,
 					uint8_t algorithm,
 					uint8_t flags,
 					uint16_t iterations,
 					uint8_t salt_length,
-					uint8_t *salt)
+					const uint8_t *salt)
 {
 	ldns_rr *nsec_rr;
 	ldns_rr_type types[65536];
@@ -971,11 +998,11 @@ ldns_create_nsec(ldns_rdf *cur_owner, ldns_rdf *next_owner, ldns_rr_list *rrs)
 }
 
 ldns_rdf *
-ldns_nsec3_hash_name(ldns_rdf *name,
+ldns_nsec3_hash_name(const ldns_rdf *name,
 				 uint8_t algorithm,
 				 uint16_t iterations,
 				 uint8_t salt_length,
-				 uint8_t *salt)
+				 const uint8_t *salt)
 {
 	size_t hashed_owner_str_len;
 	ldns_rdf *cann;
@@ -1075,7 +1102,7 @@ ldns_nsec3_add_param_rdfs(ldns_rr *rr,
 					 uint8_t flags,
 					 uint16_t iterations,
 					 uint8_t salt_length,
-					 uint8_t *salt)
+					 const uint8_t *salt)
 {
 	ldns_rdf *salt_rdf = NULL;
 	uint8_t *salt_data = NULL;
@@ -1121,7 +1148,7 @@ ldns_nsec3_add_param_rdfs(ldns_rr *rr,
 }
 
 static int
-rr_list_delegation_only(ldns_rdf *origin, ldns_rr_list *rr_list)
+rr_list_delegation_only(const ldns_rdf *origin, const ldns_rr_list *rr_list)
 {
 	size_t i;
 	ldns_rr *cur_rr;
@@ -1141,14 +1168,14 @@ rr_list_delegation_only(ldns_rdf *origin, ldns_rr_list *rr_list)
 /* this will NOT return the NSEC3  completed, you will have to run the
    finalize function on the rrlist later! */
 ldns_rr *
-ldns_create_nsec3(ldns_rdf *cur_owner,
-                  ldns_rdf *cur_zone,
-                  ldns_rr_list *rrs,
+ldns_create_nsec3(const ldns_rdf *cur_owner,
+                  const ldns_rdf *cur_zone,
+                  const ldns_rr_list *rrs,
                   uint8_t algorithm,
                   uint8_t flags,
                   uint16_t iterations,
                   uint8_t salt_length,
-                  uint8_t *salt,
+                  const uint8_t *salt,
                   bool emptynonterminal)
 {
 	size_t i;
@@ -1329,7 +1356,7 @@ ldns_nsec3_bitmap(const ldns_rr *nsec3_rr)
 }
 
 ldns_rdf *
-ldns_nsec3_hash_name_frm_nsec3(const ldns_rr *nsec, ldns_rdf *name)
+ldns_nsec3_hash_name_frm_nsec3(const ldns_rr *nsec, const ldns_rdf *name)
 {
 	uint8_t algorithm;
 	uint16_t iterations;
@@ -1354,7 +1381,7 @@ ldns_nsec3_hash_name_frm_nsec3(const ldns_rr *nsec, ldns_rdf *name)
 }
 
 bool
-ldns_nsec_bitmap_covers_type(const  ldns_rdf* bitmap, ldns_rr_type type)
+ldns_nsec_bitmap_covers_type(const ldns_rdf* bitmap, ldns_rr_type type)
 {
 	uint8_t* dptr;
 	uint8_t* dend;
@@ -1520,8 +1547,8 @@ ldns_nsec_covers_name(const ldns_rr *nsec, const ldns_rdf *name)
 /* sig may be null - if so look in the packet */
 
 ldns_status
-ldns_pkt_verify_time(ldns_pkt *p, ldns_rr_type t, ldns_rdf *o, 
-		ldns_rr_list *k, ldns_rr_list *s, 
+ldns_pkt_verify_time(const ldns_pkt *p, ldns_rr_type t, const ldns_rdf *o, 
+		const ldns_rr_list *k, const ldns_rr_list *s, 
 		time_t check_time, ldns_rr_list *good_keys)
 {
 	ldns_rr_list *rrset;
@@ -1542,7 +1569,7 @@ ldns_pkt_verify_time(ldns_pkt *p, ldns_rr_type t, ldns_rdf *o,
 
 	if (s) {
 		/* if s is not NULL, the sigs are given to use */
-		sigs = s;
+		sigs = (ldns_rr_list *)s;
 	} else {
 		/* otherwise get them from the packet */
 		sigs = ldns_pkt_rr_list_by_name_and_type(p, o,
@@ -1584,8 +1611,8 @@ ldns_pkt_verify_time(ldns_pkt *p, ldns_rr_type t, ldns_rdf *o,
 }
 
 ldns_status
-ldns_pkt_verify(ldns_pkt *p, ldns_rr_type t, ldns_rdf *o, 
-		ldns_rr_list *k, ldns_rr_list *s, ldns_rr_list *good_keys)
+ldns_pkt_verify(const ldns_pkt *p, ldns_rr_type t, const ldns_rdf *o, 
+		const ldns_rr_list *k, const ldns_rr_list *s, ldns_rr_list *good_keys)
 {
 	return ldns_pkt_verify_time(p, t, o, k, s, ldns_time(NULL), good_keys);
 }
@@ -1707,8 +1734,10 @@ ldns_rdf *
 ldns_convert_dsa_rrsig_asn12rdf(const ldns_buffer *sig,
 						  const long sig_len)
 {
+#ifdef USE_DSA
 	ldns_rdf *sigdata_rdf;
 	DSA_SIG *dsasig;
+	const BIGNUM *R, *S;
 	unsigned char *dsasig_data = (unsigned char*)ldns_buffer_begin(sig);
 	size_t byte_offset;
 
@@ -1726,22 +1755,28 @@ ldns_convert_dsa_rrsig_asn12rdf(const ldns_buffer *sig,
                 return NULL;
         }
 	dsasig_data[0] = 0;
-	byte_offset = (size_t) (20 - BN_num_bytes(dsasig->r));
+# ifdef HAVE_DSA_SIG_GET0
+	DSA_SIG_get0(dsasig, &R, &S);
+# else
+	R = dsasig->r;
+	S = dsasig->s;
+# endif
+	byte_offset = (size_t) (20 - BN_num_bytes(R));
 	if (byte_offset > 20) {
                 DSA_SIG_free(dsasig);
                 LDNS_FREE(dsasig_data);
 		return NULL;
 	}
 	memset(&dsasig_data[1], 0, byte_offset);
-	BN_bn2bin(dsasig->r, &dsasig_data[1 + byte_offset]);
-	byte_offset = (size_t) (20 - BN_num_bytes(dsasig->s));
+	BN_bn2bin(R, &dsasig_data[1 + byte_offset]);
+	byte_offset = (size_t) (20 - BN_num_bytes(S));
 	if (byte_offset > 20) {
                 DSA_SIG_free(dsasig);
                 LDNS_FREE(dsasig_data);
 		return NULL;
 	}
 	memset(&dsasig_data[21], 0, byte_offset);
-	BN_bn2bin(dsasig->s, &dsasig_data[21 + byte_offset]);
+	BN_bn2bin(S, &dsasig_data[21 + byte_offset]);
 
 	sigdata_rdf = ldns_rdf_new(LDNS_RDF_TYPE_B64, 41, dsasig_data);
         if(!sigdata_rdf) {
@@ -1750,12 +1785,17 @@ ldns_convert_dsa_rrsig_asn12rdf(const ldns_buffer *sig,
 	DSA_SIG_free(dsasig);
 
 	return sigdata_rdf;
+#else
+	(void)sig; (void)sig_len;
+	return NULL;
+#endif
 }
 
 ldns_status
 ldns_convert_dsa_rrsig_rdf2asn1(ldns_buffer *target_buffer,
 						  const ldns_rdf *sig_rdf)
 {
+#ifdef USE_DSA
 	/* the EVP api wants the DER encoding of the signature... */
 	BIGNUM *R, *S;
 	DSA_SIG *dsasig;
@@ -1783,9 +1823,13 @@ ldns_convert_dsa_rrsig_rdf2asn1(ldns_buffer *target_buffer,
 		BN_free(S);
 		return LDNS_STATUS_MEM_ERR;
 	}
-
+# ifdef HAVE_DSA_SIG_SET0
+       if (! DSA_SIG_set0(dsasig, R, S))
+	       return LDNS_STATUS_SSL_ERR;
+# else
 	dsasig->r = R;
 	dsasig->s = S;
+# endif
 
 	raw_sig_len = i2d_DSA_SIG(dsasig, &raw_sig);
 	if (raw_sig_len < 0) {
@@ -1801,30 +1845,48 @@ ldns_convert_dsa_rrsig_rdf2asn1(ldns_buffer *target_buffer,
 	free(raw_sig);
 
 	return ldns_buffer_status(target_buffer);
+#else
+	(void)target_buffer; (void)sig_rdf;
+	return LDNS_STATUS_CRYPTO_ALGO_NOT_IMPL;
+#endif
 }
 
 #ifdef USE_ECDSA
 #ifndef S_SPLINT_S
 ldns_rdf *
-ldns_convert_ecdsa_rrsig_asn12rdf(const ldns_buffer *sig, const long sig_len)
+ldns_convert_ecdsa_rrsig_asn1len2rdf(const ldns_buffer *sig,
+	const long sig_len, int num_bytes)
 {
         ECDSA_SIG* ecdsa_sig;
+	const BIGNUM *r, *s;
 	unsigned char *data = (unsigned char*)ldns_buffer_begin(sig);
         ldns_rdf* rdf;
 	ecdsa_sig = d2i_ECDSA_SIG(NULL, (const unsigned char **)&data, sig_len);
         if(!ecdsa_sig) return NULL;
 
+#ifdef HAVE_ECDSA_SIG_GET0
+	ECDSA_SIG_get0(ecdsa_sig, &r, &s);
+#else
+	r = ecdsa_sig->r;
+	s = ecdsa_sig->s;
+#endif
         /* "r | s". */
-        data = LDNS_XMALLOC(unsigned char,
-                BN_num_bytes(ecdsa_sig->r) + BN_num_bytes(ecdsa_sig->s));
+        if(BN_num_bytes(r) > num_bytes ||
+		BN_num_bytes(s) > num_bytes) {
+                ECDSA_SIG_free(ecdsa_sig);
+		return NULL; /* numbers too big for passed curve size */
+	}
+        data = LDNS_XMALLOC(unsigned char, num_bytes*2);
         if(!data) {
                 ECDSA_SIG_free(ecdsa_sig);
                 return NULL;
         }
-        BN_bn2bin(ecdsa_sig->r, data);
-        BN_bn2bin(ecdsa_sig->s, data+BN_num_bytes(ecdsa_sig->r));
-	rdf = ldns_rdf_new(LDNS_RDF_TYPE_B64, (size_t)(
-		BN_num_bytes(ecdsa_sig->r) + BN_num_bytes(ecdsa_sig->s)), data);
+	/* write the bignums (in big-endian) a little offset if the BN code
+	 * wants to write a shorter number of bytes, with zeroes prefixed */
+	memset(data, 0, num_bytes*2);
+        BN_bn2bin(r, data+num_bytes-BN_num_bytes(r));
+        BN_bn2bin(s, data+num_bytes*2-BN_num_bytes(s));
+	rdf = ldns_rdf_new(LDNS_RDF_TYPE_B64, (size_t)(num_bytes*2), data);
         ECDSA_SIG_free(ecdsa_sig);
         return rdf;
 }
@@ -1833,37 +1895,116 @@ ldns_status
 ldns_convert_ecdsa_rrsig_rdf2asn1(ldns_buffer *target_buffer,
         const ldns_rdf *sig_rdf)
 {
-        ECDSA_SIG* sig;
-	int raw_sig_len;
+        /* convert from two BIGNUMs in the rdata buffer, to ASN notation.
+	 * ASN preable:  30440220 <R 32bytefor256> 0220 <S 32bytefor256>
+	 * the '20' is the length of that field (=bnsize).
+	 * the '44' is the total remaining length.
+	 * if negative, start with leading zero.
+	 * if starts with 00s, remove them from the number.
+	 */
+        uint8_t pre[] = {0x30, 0x44, 0x02, 0x20};
+        int pre_len = 4;
+        uint8_t mid[] = {0x02, 0x20};
+        int mid_len = 2;
+        int raw_sig_len, r_high, s_high, r_rem=0, s_rem=0;
         long bnsize = (long)ldns_rdf_size(sig_rdf) / 2;
+        uint8_t* d = ldns_rdf_data(sig_rdf);
         /* if too short, or not even length, do not bother */
         if(bnsize < 16 || (size_t)bnsize*2 != ldns_rdf_size(sig_rdf))
                 return LDNS_STATUS_ERR;
-        
-        /* use the raw data to parse two evenly long BIGNUMs, "r | s". */
-        sig = ECDSA_SIG_new();
-        if(!sig) return LDNS_STATUS_MEM_ERR;
-        sig->r = BN_bin2bn((const unsigned char*)ldns_rdf_data(sig_rdf),
-                bnsize, sig->r);
-        sig->s = BN_bin2bn((const unsigned char*)ldns_rdf_data(sig_rdf)+bnsize,
-                bnsize, sig->s);
-        if(!sig->r || !sig->s) {
-                ECDSA_SIG_free(sig);
-                return LDNS_STATUS_MEM_ERR;
+        /* strip leading zeroes from r (but not last one) */
+        while(r_rem < bnsize-1 && d[r_rem] == 0)
+                r_rem++;
+        /* strip leading zeroes from s (but not last one) */
+        while(s_rem < bnsize-1 && d[bnsize+s_rem] == 0)
+                s_rem++;
+
+        r_high = ((d[0+r_rem]&0x80)?1:0);
+        s_high = ((d[bnsize+s_rem]&0x80)?1:0);
+        raw_sig_len = pre_len + r_high + bnsize - r_rem + mid_len +
+		s_high + bnsize - s_rem;
+        if(ldns_buffer_reserve(target_buffer, (size_t) raw_sig_len)) {
+                ldns_buffer_write_u8(target_buffer, pre[0]);
+                ldns_buffer_write_u8(target_buffer, raw_sig_len-2);
+                ldns_buffer_write_u8(target_buffer, pre[2]);
+                ldns_buffer_write_u8(target_buffer, bnsize + r_high - r_rem);
+                if(r_high)
+                        ldns_buffer_write_u8(target_buffer, 0);
+                ldns_buffer_write(target_buffer, d+r_rem, bnsize-r_rem);
+                ldns_buffer_write(target_buffer, mid, mid_len-1);
+                ldns_buffer_write_u8(target_buffer, bnsize + s_high - s_rem);
+                if(s_high)
+                        ldns_buffer_write_u8(target_buffer, 0);
+                ldns_buffer_write(target_buffer, d+bnsize+s_rem, bnsize-s_rem);
         }
-
-	raw_sig_len = i2d_ECDSA_SIG(sig, NULL);
-	if (ldns_buffer_reserve(target_buffer, (size_t) raw_sig_len)) {
-                unsigned char* pp = (unsigned char*)
-			ldns_buffer_current(target_buffer);
-	        raw_sig_len = i2d_ECDSA_SIG(sig, &pp);
-                ldns_buffer_skip(target_buffer, (ssize_t) raw_sig_len);
-	}
-        ECDSA_SIG_free(sig);
-
-	return ldns_buffer_status(target_buffer);
+        return ldns_buffer_status(target_buffer);
 }
 
 #endif /* S_SPLINT_S */
 #endif /* USE_ECDSA */
+
+#if defined(USE_ED25519) || defined(USE_ED448)
+/* debug printout routine */
+static void print_hex(const char* str, uint8_t* d, int len)
+{
+	const char hex[] = "0123456789abcdef";
+	int i;
+	printf("%s [len=%d]: ", str, len);
+	for(i=0; i<len; i++) {
+		int x = (d[i]&0xf0)>>4;
+		int y = (d[i]&0x0f);
+		printf("%c%c", hex[x], hex[y]);
+	}
+	printf("\n");
+}
+#endif
+
+#ifdef USE_ED25519
+ldns_rdf *
+ldns_convert_ed25519_rrsig_asn12rdf(const ldns_buffer *sig, long sig_len)
+{
+	unsigned char *data = (unsigned char*)ldns_buffer_begin(sig);
+        ldns_rdf* rdf = NULL;
+
+	/* TODO when Openssl supports signing and you can test this */
+	print_hex("sig in ASN", data, sig_len);
+
+        return rdf;
+}
+
+ldns_status
+ldns_convert_ed25519_rrsig_rdf2asn1(ldns_buffer *target_buffer,
+        const ldns_rdf *sig_rdf)
+{
+	/* TODO when Openssl supports signing and you can test this. */
+	/* convert sig_buf into ASN1 into the target_buffer */
+	print_hex("sig raw", ldns_rdf_data(sig_rdf), ldns_rdf_size(sig_rdf));
+        return ldns_buffer_status(target_buffer);
+}
+#endif /* USE_ED25519 */
+
+#ifdef USE_ED448
+ldns_rdf *
+ldns_convert_ed448_rrsig_asn12rdf(const ldns_buffer *sig, long sig_len)
+{
+	unsigned char *data = (unsigned char*)ldns_buffer_begin(sig);
+        ldns_rdf* rdf = NULL;
+
+	/* TODO when Openssl supports signing and you can test this */
+	print_hex("sig in ASN", data, sig_len);
+
+	return rdf;
+}
+
+ldns_status
+ldns_convert_ed448_rrsig_rdf2asn1(ldns_buffer *target_buffer,
+        const ldns_rdf *sig_rdf)
+{
+	/* TODO when Openssl supports signing and you can test this. */
+	/* convert sig_buf into ASN1 into the target_buffer */
+	print_hex("sig raw", ldns_rdf_data(sig_rdf), ldns_rdf_size(sig_rdf));
+        return ldns_buffer_status(target_buffer);
+}
+#endif /* USE_ED448 */
+
 #endif /* HAVE_SSL */

@@ -127,29 +127,29 @@ public:
 
 class PropertyRewriteTraverser : public ASTTraverser {
 public:
-  virtual void traverseObjCImplementation(ObjCImplementationContext &ImplCtx);
+  void traverseObjCImplementation(ObjCImplementationContext &ImplCtx) override;
 };
 
 class BlockObjCVariableTraverser : public ASTTraverser {
 public:
-  virtual void traverseBody(BodyContext &BodyCtx);
+  void traverseBody(BodyContext &BodyCtx) override;
 };
 
 class ProtectedScopeTraverser : public ASTTraverser {
 public:
-  virtual void traverseBody(BodyContext &BodyCtx);
+  void traverseBody(BodyContext &BodyCtx) override;
 };
 
 // GC transformations
 
 class GCAttrsTraverser : public ASTTraverser {
 public:
-  virtual void traverseTU(MigrationContext &MigrateCtx);
+  void traverseTU(MigrationContext &MigrateCtx) override;
 };
 
 class GCCollectableCallsTraverser : public ASTTraverser {
 public:
-  virtual void traverseBody(BodyContext &BodyCtx);
+  void traverseBody(BodyContext &BodyCtx) override;
 };
 
 //===----------------------------------------------------------------------===//
@@ -180,7 +180,7 @@ SourceLocation findSemiAfterLocation(SourceLocation loc, ASTContext &Ctx,
 bool hasSideEffects(Expr *E, ASTContext &Ctx);
 bool isGlobalVar(Expr *E);
 /// \brief Returns "nil" or "0" if 'nil' macro is not actually defined.
-StringRef getNilString(ASTContext &Ctx);
+StringRef getNilString(MigrationPass &Pass);
 
 template <typename BODY_TRANS>
 class BodyTransform : public RecursiveASTVisitor<BodyTransform<BODY_TRANS> > {
@@ -189,7 +189,7 @@ class BodyTransform : public RecursiveASTVisitor<BodyTransform<BODY_TRANS> > {
 
   typedef RecursiveASTVisitor<BodyTransform<BODY_TRANS> > base;
 public:
-  BodyTransform(MigrationPass &pass) : Pass(pass), ParentD(0) { }
+  BodyTransform(MigrationPass &pass) : Pass(pass), ParentD(nullptr) { }
 
   bool TraverseStmt(Stmt *rootS) {
     if (rootS)

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -96,7 +98,7 @@ pass1(void)
 	for (c = 0; c < sblock.fs_ncg; c++) {
 		inumber = c * sblock.fs_ipg;
 		setinodebuf(inumber);
-		cgbp = cgget(c);
+		cgbp = cglookup(c);
 		cgp = cgbp->b_un.b_cg;
 		rebuildcg = 0;
 		if (!check_cgmagic(c, cgbp))
@@ -133,9 +135,14 @@ pass1(void)
 		 */
 		if ((preen || inoopt) && usedsoftdep && !rebuildcg) {
 			cp = &cg_inosused(cgp)[(inosused - 1) / CHAR_BIT];
-			for ( ; inosused > 0; inosused -= CHAR_BIT, cp--) {
-				if (*cp == 0)
+			for ( ; inosused != 0; cp--) {
+				if (*cp == 0) {
+					if (inosused > CHAR_BIT)
+						inosused -= CHAR_BIT;
+					else
+						inosused = 0;
 					continue;
+				}
 				for (i = 1 << (CHAR_BIT - 1); i > 0; i >>= 1) {
 					if (*cp & i)
 						break;
@@ -143,15 +150,13 @@ pass1(void)
 				}
 				break;
 			}
-			if (inosused < 0)
-				inosused = 0;
 		}
 		/*
 		 * Allocate inoinfo structures for the allocated inodes.
 		 */
 		inostathead[c].il_numalloced = inosused;
 		if (inosused == 0) {
-			inostathead[c].il_stat = 0;
+			inostathead[c].il_stat = NULL;
 			continue;
 		}
 		info = Calloc((unsigned)inosused, sizeof(struct inostat));
@@ -163,7 +168,7 @@ pass1(void)
 		 * Scan the allocated inodes.
 		 */
 		for (i = 0; i < inosused; i++, inumber++) {
-			if (inumber < ROOTINO) {
+			if (inumber < UFS_ROOTINO) {
 				(void)getnextinode(inumber, rebuildcg);
 				continue;
 			}
@@ -221,7 +226,7 @@ pass1(void)
 		inostathead[c].il_numalloced = inosused;
 		if (inosused == 0) {
 			free(inostathead[c].il_stat);
-			inostathead[c].il_stat = 0;
+			inostathead[c].il_stat = NULL;
 			continue;
 		}
 		info = Calloc((unsigned)inosused, sizeof(struct inostat));
@@ -250,22 +255,22 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 	if (mode == 0) {
 		if ((sblock.fs_magic == FS_UFS1_MAGIC &&
 		     (memcmp(dp->dp1.di_db, ufs1_zino.di_db,
-			NDADDR * sizeof(ufs1_daddr_t)) ||
+			UFS_NDADDR * sizeof(ufs1_daddr_t)) ||
 		      memcmp(dp->dp1.di_ib, ufs1_zino.di_ib,
-			NIADDR * sizeof(ufs1_daddr_t)) ||
+			UFS_NIADDR * sizeof(ufs1_daddr_t)) ||
 		      dp->dp1.di_mode || dp->dp1.di_size)) ||
 		    (sblock.fs_magic == FS_UFS2_MAGIC &&
 		     (memcmp(dp->dp2.di_db, ufs2_zino.di_db,
-			NDADDR * sizeof(ufs2_daddr_t)) ||
+			UFS_NDADDR * sizeof(ufs2_daddr_t)) ||
 		      memcmp(dp->dp2.di_ib, ufs2_zino.di_ib,
-			NIADDR * sizeof(ufs2_daddr_t)) ||
+			UFS_NIADDR * sizeof(ufs2_daddr_t)) ||
 		      dp->dp2.di_mode || dp->dp2.di_size))) {
 			pfatal("PARTIALLY ALLOCATED INODE I=%lu",
 			    (u_long)inumber);
 			if (reply("CLEAR") == 1) {
 				dp = ginode(inumber);
 				clearinode(dp);
-				inodirty();
+				inodirty(dp);
 			}
 		}
 		inoinfo(inumber)->ino_state = USTATE;
@@ -288,7 +293,7 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 		dp = ginode(inumber);
 		DIP_SET(dp, di_size, sblock.fs_fsize);
 		DIP_SET(dp, di_mode, IFREG|0600);
-		inodirty();
+		inodirty(dp);
 	}
 	if ((mode == IFBLK || mode == IFCHR || mode == IFIFO ||
 	     mode == IFSOCK) && DIP(dp, di_size) != 0) {
@@ -324,24 +329,24 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 			else
 				ndb = howmany(DIP(dp, di_size),
 				    sizeof(ufs2_daddr_t));
-			if (ndb > NDADDR) {
-				j = ndb - NDADDR;
+			if (ndb > UFS_NDADDR) {
+				j = ndb - UFS_NDADDR;
 				for (ndb = 1; j > 1; j--)
 					ndb *= NINDIR(&sblock);
-				ndb += NDADDR;
+				ndb += UFS_NDADDR;
 			}
 		}
 	}
-	for (j = ndb; ndb < NDADDR && j < NDADDR; j++)
+	for (j = ndb; ndb < UFS_NDADDR && j < UFS_NDADDR; j++)
 		if (DIP(dp, di_db[j]) != 0) {
 			if (debug)
 				printf("bad direct addr[%d]: %ju\n", j,
 				    (uintmax_t)DIP(dp, di_db[j]));
 			goto unknown;
 		}
-	for (j = 0, ndb -= NDADDR; ndb > 0; j++)
+	for (j = 0, ndb -= UFS_NDADDR; ndb > 0; j++)
 		ndb /= NINDIR(&sblock);
-	for (; j < NIADDR; j++)
+	for (; j < UFS_NIADDR; j++)
 		if (DIP(dp, di_ib[j]) != 0) {
 			if (debug)
 				printf("bad indirect addr: %ju\n",
@@ -376,7 +381,7 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 	if (sblock.fs_magic == FS_UFS2_MAGIC && dp->dp2.di_extsize > 0) {
 		idesc->id_type = ADDR;
 		ndb = howmany(dp->dp2.di_extsize, sblock.fs_bsize);
-		for (j = 0; j < NXADDR; j++) {
+		for (j = 0; j < UFS_NXADDR; j++) {
 			if (--ndb == 0 &&
 			    (offset = blkoff(&sblock, dp->dp2.di_extsize)) != 0)
 				idesc->id_numfrags = numfrags(&sblock,
@@ -405,7 +410,7 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 		if (bkgrdflag == 0) {
 			dp = ginode(inumber);
 			DIP_SET(dp, di_blocks, idesc->id_entryno);
-			inodirty();
+			inodirty(dp);
 		} else {
 			cmd.value = idesc->id_number;
 			cmd.size = idesc->id_entryno - DIP(dp, di_blocks);
@@ -425,7 +430,7 @@ unknown:
 		inoinfo(inumber)->ino_state = USTATE;
 		dp = ginode(inumber);
 		clearinode(dp);
-		inodirty();
+		inodirty(dp);
 	}
 	return (1);
 }
@@ -500,9 +505,9 @@ pass1check(struct inodesc *idesc)
 				return (STOP);
 			}
 			new->dup = blkno;
-			if (muldup == 0) {
+			if (muldup == NULL) {
 				duplist = muldup = new;
-				new->next = 0;
+				new->next = NULL;
 			} else {
 				new->next = muldup->next;
 				muldup->next = new;

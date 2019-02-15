@@ -295,7 +295,7 @@ static u_char conv802table[256] =
 
 void
 haddr_conv802(addr_in, addr_out, len)
-	register u_char *addr_in, *addr_out;
+	u_char *addr_in, *addr_out;
 	int len;
 {
 	u_char *lim;

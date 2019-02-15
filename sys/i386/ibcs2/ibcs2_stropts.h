@@ -1,5 +1,7 @@
 /*-
  * ibcs2_stropts.h
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1995 Scott Bartram
  * All rights reserved.
  *

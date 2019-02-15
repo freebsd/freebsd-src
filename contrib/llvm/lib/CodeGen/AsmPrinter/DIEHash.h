@@ -11,84 +11,32 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "DIE.h"
+#ifndef LLVM_LIB_CODEGEN_ASMPRINTER_DIEHASH_H
+#define LLVM_LIB_CODEGEN_ASMPRINTER_DIEHASH_H
+
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/CodeGen/DIE.h"
 #include "llvm/Support/MD5.h"
 
 namespace llvm {
 
+class AsmPrinter;
 class CompileUnit;
 
 /// \brief An object containing the capability of hashing and adding hash
 /// attributes onto a DIE.
 class DIEHash {
-  // The entry for a particular attribute.
-  struct AttrEntry {
-    const DIEValue *Val;
-    const DIEAbbrevData *Desc;
-  };
-
   // Collection of all attributes used in hashing a particular DIE.
   struct DIEAttrs {
-    AttrEntry DW_AT_name;
-    AttrEntry DW_AT_accessibility;
-    AttrEntry DW_AT_address_class;
-    AttrEntry DW_AT_allocated;
-    AttrEntry DW_AT_artificial;
-    AttrEntry DW_AT_associated;
-    AttrEntry DW_AT_binary_scale;
-    AttrEntry DW_AT_bit_offset;
-    AttrEntry DW_AT_bit_size;
-    AttrEntry DW_AT_bit_stride;
-    AttrEntry DW_AT_byte_size;
-    AttrEntry DW_AT_byte_stride;
-    AttrEntry DW_AT_const_expr;
-    AttrEntry DW_AT_const_value;
-    AttrEntry DW_AT_containing_type;
-    AttrEntry DW_AT_count;
-    AttrEntry DW_AT_data_bit_offset;
-    AttrEntry DW_AT_data_location;
-    AttrEntry DW_AT_data_member_location;
-    AttrEntry DW_AT_decimal_scale;
-    AttrEntry DW_AT_decimal_sign;
-    AttrEntry DW_AT_default_value;
-    AttrEntry DW_AT_digit_count;
-    AttrEntry DW_AT_discr;
-    AttrEntry DW_AT_discr_list;
-    AttrEntry DW_AT_discr_value;
-    AttrEntry DW_AT_encoding;
-    AttrEntry DW_AT_enum_class;
-    AttrEntry DW_AT_endianity;
-    AttrEntry DW_AT_explicit;
-    AttrEntry DW_AT_is_optional;
-    AttrEntry DW_AT_location;
-    AttrEntry DW_AT_lower_bound;
-    AttrEntry DW_AT_mutable;
-    AttrEntry DW_AT_ordering;
-    AttrEntry DW_AT_picture_string;
-    AttrEntry DW_AT_prototyped;
-    AttrEntry DW_AT_small;
-    AttrEntry DW_AT_segment;
-    AttrEntry DW_AT_string_length;
-    AttrEntry DW_AT_threads_scaled;
-    AttrEntry DW_AT_upper_bound;
-    AttrEntry DW_AT_use_location;
-    AttrEntry DW_AT_use_UTF8;
-    AttrEntry DW_AT_variable_parameter;
-    AttrEntry DW_AT_virtuality;
-    AttrEntry DW_AT_visibility;
-    AttrEntry DW_AT_vtable_elem_location;
-    AttrEntry DW_AT_type;
-
-    // Insert any additional ones here...
+#define HANDLE_DIE_HASH_ATTR(NAME) DIEValue NAME;
+#include "DIEHashAttributes.def"
   };
 
 public:
-  /// \brief Computes the ODR signature.
-  uint64_t computeDIEODRSignature(const DIE &Die);
+  DIEHash(AsmPrinter *A = nullptr) : AP(A) {}
 
   /// \brief Computes the CU signature.
-  uint64_t computeCUSignature(const DIE &Die);
+  uint64_t computeCUSignature(StringRef DWOName, const DIE &Die);
 
   /// \brief Computes the type signature.
   uint64_t computeTypeSignature(const DIE &Die);
@@ -105,13 +53,17 @@ private:
   void computeHash(const DIE &Die);
 
   // Routines that add DIEValues to the hash.
-private:
+public:
+  /// \brief Adds \param Value to the hash.
+  void update(uint8_t Value) { Hash.update(Value); }
+
   /// \brief Encodes and adds \param Value to the hash as a ULEB128.
   void addULEB128(uint64_t Value);
 
   /// \brief Encodes and adds \param Value to the hash as a SLEB128.
   void addSLEB128(int64_t Value);
 
+private:
   /// \brief Adds \param Str to the hash and includes a NULL byte.
   void addString(StringRef Str);
 
@@ -122,8 +74,15 @@ private:
   /// \brief Hashes the attributes in \param Attrs in order.
   void hashAttributes(const DIEAttrs &Attrs, dwarf::Tag Tag);
 
+  /// \brief Hashes the data in a block like DIEValue, e.g. DW_FORM_block or
+  /// DW_FORM_exprloc.
+  void hashBlockData(const DIE::const_value_range &Values);
+
+  /// \brief Hashes the contents pointed to in the .debug_loc section.
+  void hashLocList(const DIELocList &LocList);
+
   /// \brief Hashes an individual attribute.
-  void hashAttribute(AttrEntry Attr, dwarf::Tag Tag);
+  void hashAttribute(const DIEValue &Value, dwarf::Tag Tag);
 
   /// \brief Hashes an attribute that refers to another DIE.
   void hashDIEEntry(dwarf::Attribute Attribute, dwarf::Tag Tag,
@@ -136,12 +95,16 @@ private:
                                 StringRef Name);
 
   /// \brief Hashes a reference to a previously referenced type DIE.
-  void hashRepeatedTypeReference(dwarf::Attribute Attribute, unsigned DieNumber);
+  void hashRepeatedTypeReference(dwarf::Attribute Attribute,
+                                 unsigned DieNumber);
 
   void hashNestedType(const DIE &Die, StringRef Name);
 
 private:
   MD5 Hash;
+  AsmPrinter *AP;
   DenseMap<const DIE *, unsigned> Numbering;
 };
 }
+
+#endif

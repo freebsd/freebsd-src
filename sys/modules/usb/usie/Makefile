@@ -25,7 +25,7 @@
 # SUCH DAMAGE.
 #
 
-.PATH: ${.CURDIR}/../../../dev/usb/net
+.PATH: ${SRCTOP}/sys/dev/usb/net
 
 KMOD = usie
 SRCS = if_usie.c

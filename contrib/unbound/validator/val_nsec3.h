@@ -1,5 +1,5 @@
 /*
- * validator/val_nsec3.h - validator NSEC3 denial of existance functions.
+ * validator/val_nsec3.h - validator NSEC3 denial of existence functions.
  *
  * Copyright (c) 2007, NLnet Labs. All rights reserved.
  *
@@ -38,7 +38,7 @@
  *
  * This file contains helper functions for the validator module.
  * The functions help with NSEC3 checking, the different NSEC3 proofs
- * for denial of existance, and proofs for presence of types.
+ * for denial of existence, and proofs for presence of types.
  *
  * NSEC3
  *                      1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
@@ -71,6 +71,7 @@
 struct val_env;
 struct regional;
 struct module_env;
+struct module_qstate;
 struct ub_packed_rrset_key;
 struct reply_info;
 struct query_info;
@@ -185,6 +186,7 @@ nsec3_prove_wildcard(struct module_env* env, struct val_env* ve,
  * @param qinfo: query that is verified for.
  * @param kkey: key entry that signed the NSEC3s.
  * @param reason: string for bogus result.
+ * @param qstate: qstate with region.
  * @return:
  * 	sec_status SECURE of the proposition is proven by the NSEC3 RRs, 
  * 	BOGUS if not, INSECURE if all of the NSEC3s could be validly ignored.
@@ -194,7 +196,8 @@ nsec3_prove_wildcard(struct module_env* env, struct val_env* ve,
 enum sec_status
 nsec3_prove_nods(struct module_env* env, struct val_env* ve,
 	struct ub_packed_rrset_key** list, size_t num, 
-	struct query_info* qinfo, struct key_entry_key* kkey, char** reason);
+	struct query_info* qinfo, struct key_entry_key* kkey, char** reason,
+	struct module_qstate* qstate);
 
 /**
  * Prove NXDOMAIN or NODATA.
@@ -224,7 +227,7 @@ nsec3_prove_nxornodata(struct module_env* env, struct val_env* ve,
  */
 struct nsec3_cached_hash {
 	/** rbtree node, key is this structure */
-	rbnode_t node;
+	rbnode_type node;
 	/** where are the parameters for conversion, in this rrset data */
 	struct ub_packed_rrset_key* nsec3;
 	/** where are the parameters for conversion, this RR number in data */
@@ -256,7 +259,7 @@ int nsec3_hash_cmp(const void* c1, const void* c2);
  * Used internally by the nsec3 proof functions in this file.
  * published to enable unit testing of hash algorithms and cache.
  *
- * @param table: the cache table. Must be inited at start.
+ * @param table: the cache table. Must be initialised at start.
  * @param region: scratch region to use for allocation.
  * 	This region holds the tree, if you wipe the region, reinit the tree.
  * @param buf: temporary buffer.
@@ -271,7 +274,7 @@ int nsec3_hash_cmp(const void* c1, const void* c2);
  * 	0 on a malloc failure.
  * 	-1 if the NSEC3 rr was badly formatted (i.e. formerr).
  */
-int nsec3_hash_name(rbtree_t* table, struct regional* region,
+int nsec3_hash_name(rbtree_type* table, struct regional* region,
 	struct sldns_buffer* buf, struct ub_packed_rrset_key* nsec3, int rr,
 	uint8_t* dname, size_t dname_len, struct nsec3_cached_hash** hash);
 

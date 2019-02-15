@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -101,6 +103,16 @@ CNAME(x):
 #define	ALTENTRY(x)	_ALTENTRY(x)
 #define	ENTRY(x)	_ENTRY(x)
 #define	END(x)		.size x, . - x
+
+/*
+ * WEAK_REFERENCE(): create a weak reference alias from sym.
+ * The macro is not a general asm macro that takes arbitrary names,
+ * but one that takes only C names.  It does the non-null name
+ * translation inside the macro.
+ */
+#define	WEAK_REFERENCE(sym, alias) \
+	.weak	CNAME(alias); \
+	.equ	CNAME(alias),CNAME(sym)
 
 /*
  * Kernel RCS ID tag and copyright macros

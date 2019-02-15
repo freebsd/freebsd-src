@@ -18,19 +18,21 @@
 .\" information: Portions Copyright [yyyy] [name of copyright owner]
 .\"
 .\" Copyright (c) 2010, Sun Microsystems, Inc. All Rights Reserved.
-.\" Copyright (c) 2014 by Delphix. All rights reserved.
+.\" Copyright (c) 2011, 2014 by Delphix. All rights reserved.
 .\" Copyright (c) 2011, Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
 .\" Copyright (c) 2012, Bryan Drewery <bdrewery@FreeBSD.org>
 .\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
-.\" Copyright (c) 2013 Nexenta Systems, Inc. All Rights Reserved.
 .\" Copyright (c) 2014, Joyent, Inc. All rights reserved.
 .\" Copyright (c) 2013, Steven Hartland <smh@FreeBSD.org>
+.\" Copyright (c) 2016 Nexenta Systems, Inc. All Rights Reserved.
 .\" Copyright (c) 2014, Xin LI <delphij@FreeBSD.org>
+.\" Copyright (c) 2014-2015, The FreeBSD Foundation, All Rights Reserved.
+.\" Copyright 2018 Joyent, Inc.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2014
+.Dd August 11, 2018
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -113,10 +115,13 @@
 .Op Fl t Ar type Ns Oo , Ns type Ns Oc Ns ...
 .Oo Fl s Ar property Oc Ns ...
 .Oo Fl S Ar property Oc Ns ...
-.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot | Ns Ar bookmark Ns ...
+.Nm
+.Cm remap
+.Ar filesystem Ns | Ns Ar volume
 .Nm
 .Cm set
-.Ar property Ns = Ns Ar value
+.Ar property Ns = Ns Ar value Oo Ar property Ns = Ns Ar value Oc Ns ...
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns ...
 .Nm
 .Cm get
@@ -179,23 +184,33 @@
 .Ar bookmark
 .Nm
 .Cm send
-.Op Fl DnPpRve
+.Op Fl DLPRcenpv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Nm
 .Cm send
-.Op Fl e
+.Op Fl Lce
 .Op Fl i Ar snapshot Ns | Ns bookmark
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Nm
+.Cm send
+.Op Fl Penv
+.Fl t Ar receive_resume_token
+.Nm
 .Cm receive Ns | Ns Cm recv
-.Op Fl vnFu
+.Op Fl vnsFu
+.Op Fl o Sy origin Ns = Ns Ar snapshot
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Nm
 .Cm receive Ns | Ns Cm recv
-.Op Fl vnFu
+.Op Fl vnsFu
 .Op Fl d | e
+.Op Fl o Sy origin Ns = Ns Ar snapshot
 .Ar filesystem
+.Nm
+.Cm receive Ns | Ns Cm recv
+.Fl A
+.Ar filesystem Ns | Ns Ar volume
 .Nm
 .Cm allow
 .Ar filesystem Ns | Ns Ar volume
@@ -261,8 +276,10 @@
 .Ar tag snapshot Ns ...
 .Nm
 .Cm holds
-.Op Fl r
-.Ar snapshot Ns ...
+.Op Fl Hp
+.Op Fl r Ns | Ns Fl d Ar depth
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns
+.Ns ...
 .Nm
 .Cm release
 .Op Fl r
@@ -272,6 +289,13 @@
 .Op Fl FHt
 .Ar snapshot
 .Op Ar snapshot Ns | Ns Ar filesystem
+.Nm
+.Cm program
+.Op Fl n
+.Op Fl t Ar timeout
+.Op Fl m Ar memory_limit
+.Ar pool script
+.Op Ar arg1 No ...
 .Nm
 .Cm jail
 .Ar jailid Ns | Ns Ar jailname filesystem
@@ -296,7 +320,8 @@ namespace. For example:
 .Pp
 where the maximum length of a dataset name is
 .Dv MAXNAMELEN
-(256 bytes).
+(256 bytes)
+and the maximum amount of nesting allowed in a path is 50 levels deep.
 .Pp
 A dataset can be one of the following:
 .Bl -hang -width 12n
@@ -437,8 +462,11 @@ responsible for mounting and unmounting the file system.
 dataset can be attached to a jail by using the
 .Qq Nm Cm jail
 subcommand. You cannot attach a dataset to one jail and the children of the
-same dataset to another jails. To allow management of the dataset from within
-a jail, the
+same dataset to another jail. You can also not attach the root file system
+of the jail or any dataset which needs to be mounted before the zfs rc script
+is run inside the jail, as it would be attached unmounted until it is
+mounted from the rc script inside the jail. To allow management of the
+dataset from within a jail, the
 .Sy jailed
 property has to be set and the jail needs access to the
 .Pa /dev/zfs
@@ -523,6 +551,13 @@ property. Compression can be turned on by running:
 .Qq Nm Cm set compression=on Ar dataset
 The default value is
 .Cm off .
+.It Sy createtxg
+The transaction group (txg) in which the dataset was created.
+Bookmarks have the same
+.Sy createtxg
+as the snapshot they are initially tied to.
+This property is suitable for ordering a list of snapshots,
+e.g. for incremental send and receive.
 .It Sy creation
 The time this dataset was created.
 .It Sy clones
@@ -550,6 +585,14 @@ This value is only available when a
 .Sy filesystem_limit
 has
 been set somewhere in the tree under which the dataset resides.
+.It Sy guid
+The 64 bit GUID of this dataset or bookmark which does not change over its
+entire lifetime.
+When a snapshot is sent to another pool, the received snapshot has the same
+GUID.
+Thus, the
+.Sy guid
+is suitable to identify a snapshot across pools.
 .It Sy logicalreferenced
 The amount of space that is
 .Qq logically
@@ -594,6 +637,13 @@ For cloned file systems or volumes, the snapshot from which the clone was
 created. See also the
 .Sy clones
 property.
+.It Sy receive_resume_token
+For filesystems or volumes which have saved partially-completed state from
+.Sy zfs receive -s ,
+this opaque token can be provided to
+.Sy zfs send -t
+to resume and complete the
+.Sy zfs receive .
 .It Sy referenced
 The amount of data that is accessible by this dataset, which may or may not be
 shared with other datasets in the pool. When a snapshot or clone is created, it
@@ -920,7 +970,7 @@ command or unmounted by the
 command.
 .Pp
 This property is not inherited.
-.It Sy checksum Ns = Ns Cm on | off | fletcher2 | fletcher4 | sha256 | noparity
+.It Sy checksum Ns = Ns Cm on | off | fletcher2 | fletcher4 | sha256 | noparity | sha512 | skein
 Controls the checksum used to verify data integrity. The default value is
 .Cm on ,
 which automatically selects an appropriate algorithm (currently,
@@ -937,8 +987,38 @@ not be used by any other dataset.
 Disabling checksums is
 .Em NOT
 a recommended practice.
-.It Sy compression Ns = Ns Cm on | off | lzjb | gzip | gzip- Ns Ar N | zle | Cm lz4
-Controls the compression algorithm used for this dataset. The
+The
+.Sy sha512 ,
+and
+.Sy skein
+checksum algorithms require enabling the appropriate features on the pool.
+Please see
+.Xr zpool-features 7
+for more information on these algorithms.
+.Pp
+Changing this property affects only newly-written data.
+.Pp
+Salted checksum algorithms
+.Pq Cm edonr , skein
+are currently not supported for any filesystem on the boot pools.
+.It Sy compression Ns = Ns Cm on | off | lzjb | gzip | gzip- Ns Ar N | Cm zle | Cm lz4
+Controls the compression algorithm used for this dataset.
+Setting compression to
+.Cm on
+indicates that the current default compression algorithm should be used.
+The default balances compression and decompression speed, with compression
+ratio and is expected to work well on a wide variety of workloads.
+Unlike all other settings for this property, on does not select a fixed
+compression type.
+As new compression algorithms are added to ZFS and enabled on a pool, the
+default compression algorithm may change.
+The current default compression algorthm is either
+.Cm lzjb
+or, if the
+.Sy lz4_compress
+feature is enabled,
+.Cm lz4 .
+The
 .Cm lzjb
 compression algorithm is optimized for performance while providing decent data
 compression. Setting compression to
@@ -1000,7 +1080,7 @@ Changing this property only affects newly-written data. Therefore, set this
 property at file system creation time by using the
 .Fl o Cm copies= Ns Ar N
 option.
-.It Sy dedup Ns = Ns Cm on | off | verify | sha256 Ns Op Cm ,verify
+.It Sy dedup Ns = Ns Cm on | off | verify | sha256 Ns Oo Cm ,verify Oc | Sy sha512 Ns Oo Cm ,verify Oc | Sy skein Ns Oo Cm ,verify Oc
 Configures deduplication for a dataset. The default value is
 .Cm off .
 The default deduplication checksum is
@@ -1187,6 +1267,12 @@ systems is strongly discouraged, and may adversely affect performance.
 .Pp
 The size specified must be a power of two greater than or equal to 512 and less
 than or equal to 128 Kbytes.
+If the
+.Sy large_blocks
+feature is enabled on the pool, the size may be up to 1 Mbyte.
+See
+.Xr zpool-features 7
+for details on ZFS feature flags.
 .Pp
 Changing the file system's
 .Sy recordsize
@@ -1245,7 +1331,7 @@ The default value is
 Limits the amount of space a dataset can consume. This property enforces a hard
 limit on the amount of space used. This hard limit does not include space used
 by descendents, including file systems and snapshots.
-.It Sy refreservation Ns = Ns Ar size | Cm none
+.It Sy refreservation Ns = Ns Ar size | Cm none | Cm auto
 The minimum amount of space guaranteed to a dataset, not including its
 descendents. When the amount of space used is below this value, the dataset is
 treated as if it were taking up the amount of space specified by
@@ -1260,6 +1346,18 @@ If
 is set, a snapshot is only allowed if there is enough free pool space outside
 of this reservation to accommodate the current number of "referenced" bytes in
 the dataset.
+.Pp
+If
+.Sy refreservation
+is set to
+.Sy auto ,
+a volume is thick provisioned or not sparse.
+.Sy refreservation Ns = Cm auto
+is only supported on volumes.
+See
+.Sy volsize
+in the Native Properties
+section for more information about sparse volumes.
 .Pp
 This property can also be referred to by its shortened column name,
 .Sy refreserv .
@@ -1393,18 +1491,33 @@ on how the volume is used. These effects can also occur when the volume size is
 changed while it is in use (particularly when shrinking the size). Extreme care
 should be used when adjusting the volume size.
 .Pp
-Though not recommended, a "sparse volume" (also known as "thin provisioning")
+Though not recommended, a "sparse volume" (also known as "thin provisioned")
 can be created by specifying the
 .Fl s
 option to the
 .Qq Nm Cm create Fl V
-command, or by changing the reservation after the volume has been created. A
-"sparse volume" is a volume where the reservation is less then the volume size.
+command, or by changing the value of the
+.Sy refreservation
+property, or
+.Sy reservation
+property on pool version 8 or earlier
+.Pc
+after the volume has been created.
+A "sparse volume" is a volume where the value of
+.Sy refreservation
+is less then the size of the volume plus the space required to store its
+metadata.
 Consequently, writes to a sparse volume can fail with
 .Sy ENOSPC
 when the pool is low on space. For a sparse volume, changes to
 .Sy volsize
-are not reflected in the reservation.
+are not reflected in the
+.Sy refreservation .
+A volume that is not sparse is said to be "thick provisioned".
+A sparse volume can become thick provisioned by setting
+.Sy refreservation
+to
+.Sy auto .
 .It Sy volmode Ns = Ns Cm default | geom | dev | none
 This property specifies how volumes should be exposed to the OS.
 Setting it to
@@ -1785,7 +1898,7 @@ descendent file systems.
 Recursively destroy all clones of these snapshots, including the clones,
 snapshots, and children.
 If this flag is specified, the
-.Op fl d
+.Fl d
 flag will have no effect.
 .It Fl n
 Do a dry-run ("No-op") deletion. No data will be deleted. This is useful in
@@ -2081,14 +2194,14 @@ option, but sorts by property in descending order.
 .It Xo
 .Nm
 .Cm set
-.Ar property Ns = Ns Ar value
+.Ar property Ns = Ns Ar value Oo Ar property Ns = Ns Ar value Oc Ns ...
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Xc
 .Pp
-Sets the property to the given value for each dataset. Only some properties can
-be edited. See the "Properties" section for more information on what properties
-can be set and acceptable values. Numeric values can be specified as exact
-values, or in a human-readable form with a suffix of
+Sets the property or list of properties to the given value(s) for each dataset.
+Only some properties can be edited. See the "Properties" section for more
+information on what properties can be set and acceptable values. Numeric values
+can be specified as exact values, or in a human-readable form with a suffix of
 .Sy B , K , M , G , T , P , E , Z
 (for bytes, kilobytes, megabytes, gigabytes, terabytes, petabytes, exabytes, or
 zettabytes, respectively). User properties can be set on snapshots. For more
@@ -2104,7 +2217,7 @@ section.
 .Op Fl t Ar type Ns Oo , Ns Ar type Oc Ns ...
 .Op Fl s Ar source Ns Oo , Ns Ar source Oc Ns ...
 .Ar all | property Ns Oo , Ns Ar property Oc Ns ...
-.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns ...
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns | Ns Ar bookmark Ns ...
 .Xc
 .Pp
 Displays properties for the given datasets. If no datasets are specified, then
@@ -2119,7 +2232,8 @@ Property name
 .It value
 Property value
 .It source
-Property source. Can either be local, default, temporary, inherited, or none
+Property source. Can either be local, default, temporary, inherited, received,
+or none
 (\&-).
 .El
 .Pp
@@ -2185,8 +2299,11 @@ The default value is all sources.
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns ...
 .Xc
 .Pp
-Clears the specified property, causing it to be inherited from an ancestor. If
-no ancestor has the property set, then the default value is used. See the
+Clears the specified property, causing it to be inherited from an ancestor,
+restored to default if no ancestor has the property set, or with the
+.Fl S
+option reverted to the received value if one exists.
+See the
 .Qq Sx Properties
 section for a listing of default values, and details on which properties can be
 inherited.
@@ -2194,9 +2311,22 @@ inherited.
 .It Fl r
 Recursively inherit the given property for all children.
 .It Fl S
-For properties with a received value, revert to this value. This flag has no
-effect on properties that do not have a received value.
+Revert the property to the received value if one exists; otherwise operate as
+if the
+.Fl S
+option was not specified.
 .El
+.It Xo
+.Nm
+.Cm remap
+.Ar filesystem Ns | Ns Ar volume
+.Xc
+.Pp
+Remap the indirect blocks in the given fileystem or volume so that they no
+longer reference blocks on previously removed vdevs and we can eventually
+shrink the size of the indirect mapping objects for the previously removed
+vdevs. Note that remapping all blocks might not be possible and that
+references from snapshots will still exist and cannot be remapped.
 .It Xo
 .Nm
 .Cm upgrade
@@ -2477,7 +2607,7 @@ feature.
 .It Xo
 .Nm
 .Cm send
-.Op Fl DnPpRve
+.Op Fl DLPRcenpv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Xc
@@ -2522,7 +2652,7 @@ The incremental
 source may be specified as with the
 .Fl i
 option.
-.It Fl R
+.It Fl R, -replicate
 Generate a replication stream package, which will replicate the specified
 filesystem, and all descendent file systems, up to the named snapshot. When
 received, all properties, snapshots, descendent file systems, and clones are
@@ -2540,7 +2670,7 @@ is received. If the
 .Fl F
 flag is specified when this stream is received, snapshots and file systems that
 do not exist on the sending side are destroyed.
-.It Fl D
+.It Fl D, -dedup
 Generate a deduplicated stream. Blocks which would have been sent multiple
 times in the send stream will only be sent once.  The receiving system must
 also support this feature to receive a deduplicated stream.  This flag can
@@ -2549,7 +2679,23 @@ be used regardless of the dataset's
 property, but performance will be much better if the filesystem uses a
 dedup-capable checksum (eg.
 .Sy sha256 ) .
-.It Fl e
+.It Fl L, -large-block
+Generate a stream which may contain blocks larger than 128KB.
+This flag
+has no effect if the
+.Sy large_blocks
+pool feature is disabled, or if the
+.Sy recordsize
+property of this filesystem has never been set above 128KB.
+The receiving system must have the
+.Sy large_blocks
+pool feature enabled as well.
+See
+.Xr zpool-features 7
+for details on ZFS feature flags and the
+.Sy large_blocks
+feature.
+.It Fl e, -embed
 Generate a more compact stream by using WRITE_EMBEDDED records for blocks
 which are stored more compactly on disk by the
 .Sy embedded_data
@@ -2572,20 +2718,39 @@ See
 for details on ZFS feature flags and the
 .Sy embedded_data
 feature.
-.It Fl p
+.It Fl c, -compressed
+Generate a more compact stream by using compressed WRITE records for blocks
+which are compressed on disk and in memory (see the
+.Sy compression
+property for details).
+If the
+.Sy lz4_compress
+feature is active on the sending system, then the receiving system must have that
+feature enabled as well. If the
+.Sy large_blocks
+feature is enabled on the sending system but the
+.Fl L
+option is not supplied in conjunction with
+.Fl c
+then the data will be decompressed before sending so it can be split
+into smaller block sizes.
+.It Fl p, -props
 Include the dataset's properties in the stream. This flag is implicit when
 .Fl R
 is specified. The receiving system must also support this feature.
-.It Fl n
+.It Fl n, -dryrun
 Do a dry-run ("No-op") send.  Do not generate any actual send data.  This is
 useful in conjunction with the
 .Fl v
 or
 .Fl P
 flags to determine what data will be sent.
-.It Fl P
+In this case, the verbose output will be written to
+standard output (contrast with a non-dry-run, where the stream is written
+to standard output and the verbose output goes to standard error).
+.It Fl P, -parsable
 Print machine-parsable verbose information about the stream package generated.
-.It Fl v
+.It Fl v, -verbose
 Print verbose information about the stream package generated.
 This information includes a per-second report of how much data has been sent.
 .El
@@ -2596,7 +2761,7 @@ on future versions of
 .It Xo
 .Nm
 .Cm send
-.Op Fl e
+.Op Fl Lce
 .Op Fl i Ar snapshot Ns | Ns Ar bookmark
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Xc
@@ -2622,7 +2787,38 @@ specified as the last component of the name
 If the incremental target is a clone, the incremental source can
 be the origin snapshot, or an earlier snapshot in the origin's filesystem,
 or the origin's origin, etc.
-.It Fl e
+.It Fl L, -large-block
+Generate a stream which may contain blocks larger than 128KB.
+This flag
+has no effect if the
+.Sy large_blocks
+pool feature is disabled, or if the
+.Sy recordsize
+property of this filesystem has never been set above 128KB.
+The receiving system must have the
+.Sy large_blocks
+pool feature enabled as well.
+See
+.Xr zpool-features 7
+for details on ZFS feature flags and the
+.Sy large_blocks
+feature.
+.It Fl c, -compressed
+Generate a more compact stream by using compressed WRITE records for blocks
+which are compressed on disk and in memory (see the
+.Sy compression
+property for details).  If the
+.Sy lz4_compress
+feature is active on the sending system, then the receiving system must have
+that feature enabled as well. If the
+.Sy large_blocks
+feature is enabled on the sending system but the
+.Fl L
+option is not supplied in conjunction with
+.Fl c
+then the data will be decompressed before sending so it can be split
+into smaller block sizes.
+.It Fl e, -embed
 Generate a more compact stream by using WRITE_EMBEDDED records for blocks
 which are stored more compactly on disk by the
 .Sy embedded_data
@@ -2648,15 +2844,30 @@ feature.
 .El
 .It Xo
 .Nm
+.Cm send
+.Op Fl Penv
+.Fl t
+.Ar receive_resume_token
+.Xc
+Creates a send stream which resumes an interrupted receive.  The
+.Ar receive_resume_token
+is the value of this property on the filesystem
+or volume that was being received into.  See the documentation for
+.Sy zfs receive -s
+for more details.
+.It Xo
+.Nm
 .Cm receive Ns | Ns Cm recv
-.Op Fl vnFu
+.Op Fl vnsFu
+.Op Fl o Sy origin Ns = Ns Ar snapshot
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Xc
 .It Xo
 .Nm
 .Cm receive Ns | Ns Cm recv
-.Op Fl vnFu
+.Op Fl vnsFu
 .Op Fl d | e
+.Op Fl o Sy origin Ns = Ns Ar snapshot
 .Ar filesystem
 .Xc
 .Pp
@@ -2741,13 +2952,53 @@ receive operation.
 Do not actually receive the stream. This can be useful in conjunction with the
 .Fl v
 option to verify the name the receive operation would use.
+.It Fl o Sy origin Ns = Ns Ar snapshot
+Forces the stream to be received as a clone of the given snapshot.
+If the stream is a full send stream, this will create the filesystem
+described by the stream as a clone of the specified snapshot. Which
+snapshot was specified will not affect the success or failure of the
+receive, as long as the snapshot does exist.  If the stream is an
+incremental send stream, all the normal verification will be performed.
 .It Fl F
 Force a rollback of the file system to the most recent snapshot before
 performing the receive operation. If receiving an incremental replication
 stream (for example, one generated by
 .Qq Nm Cm send Fl R Bro Fl i | Fl I Brc ) ,
 destroy snapshots and file systems that do not exist on the sending side.
+.It Fl s
+If the receive is interrupted, save the partially received state, rather
+than deleting it.  Interruption may be due to premature termination of
+the stream
+.Po e.g. due to network failure or failure of the remote system
+if the stream is being read over a network connection
+.Pc ,
+a checksum error in the stream, termination of the
+.Nm zfs Cm receive
+process, or unclean shutdown of the system.
+.Pp
+The receive can be resumed with a stream generated by
+.Nm zfs Cm send Fl t Ar token ,
+where the
+.Ar token
+is the value of the
+.Sy receive_resume_token
+property of the filesystem or volume which is received into.
+.Pp
+To use this flag, the storage pool must have the
+.Sy extensible_dataset
+feature enabled.  See
+.Xr zpool-features 5
+for details on ZFS feature flags.
 .El
+.It Xo
+.Nm
+.Cm receive Ns | Ns Cm recv
+.Fl A
+.Ar filesystem Ns | Ns Ar volume
+.Xc
+Abort an interrupted
+.Nm zfs Cm receive Fl s ,
+deleting its saved partially received state.
 .It Xo
 .Nm
 .Cm allow
@@ -3026,15 +3277,26 @@ snapshots of all descendent file systems.
 .It Xo
 .Nm
 .Cm holds
-.Op Fl r
-.Ar snapshot Ns ...
+.Op Fl Hp
+.Op Fl r Ns | Ns Fl d Ar depth
+.Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns
+.Ns ...
 .Xc
 .Pp
-Lists all existing user references for the given snapshot or snapshots.
+Lists all existing user references for the given dataset or datasets.
 .Bl -tag -width indent
+.It Fl H
+Used for scripting mode. Do not print headers and separate fields by a single
+tab instead of arbitrary white space.
+.It Fl p
+Display numbers in parsable (exact) values.
 .It Fl r
-Lists the holds that are set on the named descendent snapshots, in addition to
-listing the holds on the named snapshot.
+Lists the holds that are set on the descendent snapshots of the named datasets
+or snapshots, in addition to listing the holds on the named snapshots, if any.
+.It Fl d Ar depth
+Recursively display any holds on the named snapshots, or descendent snapshots of
+the named datasets or snapshots, limiting the recursion to
+.Ar depth .
 .El
 .It Xo
 .Nm
@@ -3096,6 +3358,57 @@ Give more parsable tab-separated output, without header lines and without
 arrows.
 .It Fl t
 Display the path's inode change time as the first column of output.
+.El
+.It Xo
+.Nm
+.Cm program
+.Op Fl n
+.Op Fl t Ar timeout
+.Op Fl m Ar memory_limit
+.Ar pool script
+.Op Ar arg1 No ...
+.Xc
+.Pp
+Executes
+.Ar script
+as a ZFS channel program on
+.Ar pool .
+The ZFS channel
+program interface allows ZFS administrative operations to be run
+programmatically via a Lua script.
+The entire script is executed atomically, with no other administrative
+operations taking effect concurrently.
+A library of ZFS calls is made available to channel program scripts.
+Channel programs may only be run with root privileges.
+.Pp
+For full documentation of the ZFS channel program interface, see the manual
+page for
+.Xr zfs-program 8 .
+.Bl -tag -width indent
+.It Fl n
+Executes a read-only channel program, which runs faster.
+The program cannot change on-disk state by calling functions from
+the zfs.sync submodule.
+The program can be used to gather information such as properties and
+determining if changes would succeed (zfs.check.*).
+Without this flag, all pending changes must be synced to disk before
+a channel program can complete.
+.It Fl t Ar timeout
+Execution time limit, in milliseconds.
+If a channel program executes for longer than the provided timeout, it will
+be stopped and an error will be returned.
+The default timeout is 1000 ms, and can be set to a maximum of 10000 ms.
+.It Fl m Ar memory-limit
+Memory limit, in bytes.
+If a channel program attempts to allocate more memory than the given limit,
+it will be stopped and an error returned.
+The default memory limit is 10 MB, and can be set to a maximum of 100 MB.
+.Pp
+All remaining argument strings are passed directly to the channel program as
+arguments.
+See
+.Xr zfs-program 8
+for more information.
 .El
 .It Xo
 .Nm
@@ -3466,10 +3779,9 @@ are also displayed.
 .Bd -literal -offset 2n
 .Li # Ic zfs allow cindys create,destroy,mount,snapshot tank/cindys
 .Li # Ic zfs allow tank/cindys
--------------------------------------------------------------
-Local+Descendent permissions on (tank/cindys)
-          user cindys create,destroy,mount,snapshot
--------------------------------------------------------------
+---- Permissions on tank/cindys --------------------------------------
+Local+Descendent permissions:
+        user cindys create,destroy,mount,snapshot
 .Ed
 .It Sy Example 18 No Delegating Create Time Permissions on a Tn ZFS No Dataset
 .Pp
@@ -3485,12 +3797,11 @@ are also displayed.
 .Li # Ic zfs allow staff create,mount tank/users
 .Li # Ic zfs allow -c destroy tank/users
 .Li # Ic zfs allow tank/users
--------------------------------------------------------------
-Create time permissions on (tank/users)
-          create,destroy
-Local+Descendent permissions on (tank/users)
-          group staff create,mount
--------------------------------------------------------------
+---- Permissions on tank/users ---------------------------------------
+Permission sets:
+        destroy
+Local+Descendent permissions:
+        group staff create,mount
 .Ed
 .It Xo
 .Sy Example 19
@@ -3508,14 +3819,11 @@ are also displayed.
 .Li # Ic zfs allow -s @pset create,destroy,snapshot,mount tank/users
 .Li # Ic zfs allow staff @pset tank/users
 .Li # Ic zfs allow tank/users
--------------------------------------------------------------
-Permission sets on (tank/users)
+---- Permissions on tank/users ---------------------------------------
+Permission sets:
         @pset create,destroy,mount,snapshot
-Create time permissions on (tank/users)
-        create,destroy
-Local+Descendent permissions on (tank/users)
-        group staff @pset,create,mount
--------------------------------------------------------------
+Local+Descendent permissions:
+        group staff @pset
 .Ed
 .It Sy Example 20 No Delegating Property Permissions on a Tn ZFS No Dataset
 .Pp
@@ -3527,16 +3835,15 @@ file system. The permissions on
 are also displayed.
 .Bd -literal -offset 2n
 .Li # Ic zfs allow cindys quota,reservation users/home
-.Li # Ic zfs allow cindys
--------------------------------------------------------------
-Local+Descendent permissions on (users/home)
+.Li # Ic zfs allow users/home
+---- Permissions on users/home ---------------------------------------
+Local+Descendent permissions:
         user cindys quota,reservation
--------------------------------------------------------------
 .Li # Ic su - cindys
 .Li cindys% Ic zfs set quota=10G users/home/marks
 .Li cindys% Ic zfs get quota users/home/marks
-NAME              PROPERTY  VALUE             SOURCE
-users/home/marks  quota     10G               local
+NAME              PROPERTY  VALUE  SOURCE
+users/home/marks  quota     10G    local
 .Ed
 .It Sy Example 21 No Removing ZFS Delegated Permissions on a Tn ZFS No Dataset
 .Pp
@@ -3550,14 +3857,11 @@ are also displayed.
 .Bd -literal -offset 2n
 .Li # Ic zfs unallow staff snapshot tank/users
 .Li # Ic zfs allow tank/users
--------------------------------------------------------------
-Permission sets on (tank/users)
+---- Permissions on tank/users ---------------------------------------
+Permission sets:
         @pset create,destroy,mount,snapshot
-Create time permissions on (tank/users)
-        create,destroy
-Local+Descendent permissions on (tank/users)
-        group staff @pset,create,mount
--------------------------------------------------------------
+Local+Descendent permissions:
+        group staff @pset
 .Ed
 .It Sy Example 22 Showing the differences between a snapshot and a ZFS Dataset
 .Pp

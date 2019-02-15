@@ -1,5 +1,8 @@
-/* 
+/*-
  *  perm.h -  header for at(1)
+ *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  *  Copyright (C) 1994  Thomas Koenig
  *
  * Redistribution and use in source and binary forms, with or without

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Marcel Moolenaar
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,7 +54,7 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct resource_list *rl = &idev->id_resources;
 	int isdefault, passthrough, rids;
 
-	isdefault = (start == 0UL && end == ~0UL) ? 1 : 0;
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end) ? 1 : 0;
 	passthrough = (device_get_parent(child) != bus) ? 1 : 0;
 
 	if (!passthrough && !isdefault &&

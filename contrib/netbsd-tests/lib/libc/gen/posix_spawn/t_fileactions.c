@@ -1,4 +1,4 @@
-/* $NetBSD: t_fileactions.c,v 1.5 2012/04/09 19:42:07 martin Exp $ */
+/* $NetBSD: t_fileactions.c,v 1.6 2017/01/10 22:36:29 christos Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -32,6 +32,10 @@
 
 
 #include <atf-c.h>
+
+#include <sys/wait.h>
+#include <sys/stat.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,7 +43,6 @@
 #include <fcntl.h>
 #include <spawn.h>
 #include <unistd.h>
-#include <sys/wait.h>
 
 
 ATF_TC(t_spawn_openmode);
@@ -248,6 +251,7 @@ ATF_TC_BODY(t_spawn_open_nonexistent, tc)
 	posix_spawn_file_actions_destroy(&fa);
 }
 
+#ifdef __NetBSD__
 ATF_TC(t_spawn_open_nonexistent_diag);
 
 ATF_TC_HEAD(t_spawn_open_nonexistent_diag, tc)
@@ -283,6 +287,7 @@ ATF_TC_BODY(t_spawn_open_nonexistent_diag, tc)
 	posix_spawn_file_actions_destroy(&fa);
 	posix_spawnattr_destroy(&attr);
 }
+#endif
 
 ATF_TC(t_spawn_fileactions);
 
@@ -376,7 +381,9 @@ ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, t_spawn_fileactions);
 	ATF_TP_ADD_TC(tp, t_spawn_open_nonexistent);
+#ifdef __NetBSD__
 	ATF_TP_ADD_TC(tp, t_spawn_open_nonexistent_diag);
+#endif
 	ATF_TP_ADD_TC(tp, t_spawn_reopen);
 	ATF_TP_ADD_TC(tp, t_spawn_openmode);
 	ATF_TP_ADD_TC(tp, t_spawn_empty_fileactions);

@@ -2,6 +2,8 @@
 /*	$NetBSD: shm.h,v 1.15 1994/06/29 06:45:17 cgd Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1994 Adam Glass
  * All rights reserved.
  *
@@ -40,8 +42,13 @@
 #define _SYS_SHM_H_
 
 #include <sys/cdefs.h>
+#ifdef _WANT_SYSVSHM_INTERNALS
+#define	_WANT_SYSVIPC_INTERNALS
+#endif
 #include <sys/ipc.h>
 #include <sys/_types.h>
+
+#include <machine/param.h>
 
 #define SHM_RDONLY  010000  /* Attach read-only (else read-write) */
 #define SHM_RND     020000  /* Round attach address to SHMLBA */
@@ -56,7 +63,7 @@
 #define	SHM_LOCK	11
 #define	SHM_UNLOCK	12
 
-/* ipcs shmctl commands for Linux compatability */
+/* ipcs shmctl commands for Linux compatibility */
 #define	SHM_STAT	13
 #define	SHM_INFO	14
 
@@ -90,20 +97,20 @@ struct shmid_ds_old {
 };
 #endif
 
+typedef unsigned int shmatt_t;
+
 struct shmid_ds {
 	struct ipc_perm shm_perm;	/* operation permission structure */
 	size_t          shm_segsz;	/* size of segment in bytes */
 	pid_t           shm_lpid;   /* process ID of last shared memory op */
 	pid_t           shm_cpid;	/* process ID of creator */
-	int		shm_nattch;	/* number of current attaches */
+	shmatt_t        shm_nattch;	/* number of current attaches */
 	time_t          shm_atime;	/* time of last shmat() */
 	time_t          shm_dtime;	/* time of last shmdt() */
 	time_t          shm_ctime;	/* time of last change by shmctl() */
 };
 
-#ifdef _KERNEL
-#include <vm/vm.h>
-
+#if defined(_KERNEL) || defined(_WANT_SYSVSHM_INTERNALS)
 /*
  * System 5 style catch-all structure for shared memory constants that
  * might be of interest to user programs.  Do we really want/need this?
@@ -116,18 +123,19 @@ struct shminfo {
 	u_long	shmall;		/* max amount of shared memory (pages) */
 };
 
+struct vm_object;
+
 /* 
  * Add a kernel wrapper to the shmid_ds struct so that private info (like the
  * MAC label) can be added to it, without changing the user interface.
  */
 struct shmid_kernel {
 	struct shmid_ds u;
-	vm_object_t object;
+	struct vm_object *object;
 	struct label *label;	/* MAC label */
 	struct ucred *cred;	/* creator's credendials */
 };
-
-extern struct shminfo	shminfo;
+#endif
 
 struct shm_info {
 	int used_ids;
@@ -138,12 +146,15 @@ struct shm_info {
 	unsigned long swap_successes;
 };
 
-struct thread;
+#ifdef _KERNEL
 struct proc;
 struct vmspace;
 
+extern struct shminfo	shminfo;
+
 void	shmexit(struct vmspace *);
 void	shmfork(struct proc *, struct proc *);
+
 #else /* !_KERNEL */
 
 #include <sys/cdefs.h>
@@ -154,7 +165,7 @@ typedef __size_t        size_t;
 #endif
 
 __BEGIN_DECLS
-#ifdef __BSD_VISIBLE
+#if __BSD_VISIBLE
 int shmsys(int, ...);
 #endif
 void *shmat(int, const void *, int);
@@ -163,6 +174,6 @@ int shmctl(int, int, struct shmid_ds *);
 int shmdt(const void *);
 __END_DECLS
 
-#endif /* !_KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_SHM_H_ */

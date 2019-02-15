@@ -6,7 +6,7 @@
 # $FreeBSD$
 #
 
-include "BERI_TEMPLATE"
+include "std.BERI"
 
 ident		BERI_NETFPGA_MDROOT
 

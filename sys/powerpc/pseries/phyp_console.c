@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2011 by Nathan Whitehorn. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -147,7 +149,7 @@ uart_phyp_probe_node(struct uart_phyp_softc *sc)
 		return (ENXIO);
 
 	reg = -1;
-	OF_getprop(node, "reg", &reg, sizeof(reg));
+	OF_getencprop(node, "reg", &reg, sizeof(reg));
 	if (reg == -1)
 		return (ENXIO);
 	sc->vtermid = reg;
@@ -200,7 +202,7 @@ uart_phyp_cnprobe(struct consdev *cp)
 
 	/* Check if OF has an active stdin/stdout */
 	input = -1;
-	if (OF_getprop(chosen, "stdout", &stdout,
+	if (OF_getencprop(chosen, "stdout", &stdout,
 	    sizeof(stdout)) == sizeof(stdout) && stdout != 0)
 		input = OF_instance_to_package(stdout);
 	if (input == -1)
@@ -256,7 +258,7 @@ uart_phyp_attach(device_t dev)
 		bus_setup_intr(dev, sc->irqres, INTR_TYPE_TTY | INTR_MPSAFE,
 		    NULL, uart_phyp_intr, sc, &sc->sc_icookie);
 	} else {
-		callout_init(&sc->callout, CALLOUT_MPSAFE);
+		callout_init(&sc->callout, 1);
 		sc->polltime = hz / 20;
 		if (sc->polltime < 1)
 			sc->polltime = 1;

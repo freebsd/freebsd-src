@@ -1,4 +1,4 @@
-/*	$NetBSD: make.c,v 1.88 2012/11/09 18:53:05 sjg Exp $	*/
+/*	$NetBSD: make.c,v 1.96 2016/11/10 23:41:58 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: make.c,v 1.88 2012/11/09 18:53:05 sjg Exp $";
+static char rcsid[] = "$NetBSD: make.c,v 1.96 2016/11/10 23:41:58 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)make.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: make.c,v 1.88 2012/11/09 18:53:05 sjg Exp $");
+__RCSID("$NetBSD: make.c,v 1.96 2016/11/10 23:41:58 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -308,7 +308,7 @@ Make_OODate(GNode *gn)
 	if (DEBUG(MAKE)) {
 	    if (gn->cmgn != NULL && gn->mtime < gn->cmgn->mtime) {
 		fprintf(debug_file, "modified before source %s...",
-		    gn->cmgn->path);
+		    gn->cmgn->path ? gn->cmgn->path : gn->cmgn->name);
 	    } else if (gn->mtime == 0) {
 		fprintf(debug_file, "non-existent and no sources...");
 	    } else {
@@ -482,10 +482,9 @@ Make_HandleUse(GNode *cgn, GNode *pgn)
 	    if (gn->uname == NULL) {
 		gn->uname = gn->name;
 	    } else {
-		if (gn->name)
-		    free(gn->name);
+		free(gn->name);
 	    }
-	    gn->name = Var_Subst(NULL, gn->uname, pgn, FALSE);
+	    gn->name = Var_Subst(NULL, gn->uname, pgn, VARF_WANTRES);
 	    if (gn->name && gn->uname && strcmp(gn->name, gn->uname) != 0) {
 		/* See if we have a target for this node. */
 		tgn = Targ_FindNode(gn->name, TARG_NOCREATE);
@@ -563,7 +562,7 @@ MakeHandleUse(void *cgnp, void *pgnp)
  *	in the comments below.
  *
  * Results:
- *	returns 0 if the gnode does not exist, or it's filesystem
+ *	returns 0 if the gnode does not exist, or its filesystem
  *	time if it does.
  *
  * Side Effects:
@@ -692,8 +691,7 @@ Make_Update(GNode *cgn)
     checked++;
 
     cname = Var_Value(TARGET, cgn, &p1);
-    if (p1)
-	free(p1);
+    free(p1);
 
     if (DEBUG(MAKE))
 	fprintf(debug_file, "Make_Update: %s%s\n", cgn->name, cgn->cohort_num);
@@ -838,8 +836,7 @@ Make_Update(GNode *cgn)
 		    Var_Set(PREFIX, cpref, pgn, 0);
 	    }
 	}
-	if (p1)
-	    free(p1);
+	free(p1);
 	Lst_Close(cgn->iParents);
     }
 }
@@ -907,8 +904,7 @@ MakeAddAllSrc(void *cgnp, void *pgnp)
 	}
 	if (allsrc != NULL)
 		Var_Append(ALLSRC, allsrc, pgn);
-	if (p2)
-	    free(p2);
+	free(p2);
 	if (pgn->type & OP_JOIN) {
 	    if (cgn->made == MADE) {
 		Var_Append(OODATE, child, pgn);
@@ -934,8 +930,7 @@ MakeAddAllSrc(void *cgnp, void *pgnp)
 	     */
 	    Var_Append(OODATE, child, pgn);
 	}
-	if (p1)
-	    free(p1);
+	free(p1);
     }
     return (0);
 }
@@ -981,8 +976,7 @@ Make_DoAllVar(GNode *gn)
     if (gn->type & OP_JOIN) {
 	char *p1;
 	Var_Set(TARGET, Var_Value(ALLSRC, gn, &p1), gn, 0);
-	if (p1)
-	    free(p1);
+	free(p1);
     }
     gn->flags |= DONE_ALLSRC;
 }

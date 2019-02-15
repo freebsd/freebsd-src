@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010-2012 Semihalf.
  * All rights reserved.
  *
@@ -132,7 +134,7 @@ static uint32_t nuserfiles;
 static uint32_t seg_nblocks;
 static uint32_t seg_endblock;
 
-#define SIZE_TO_BLOCK(size) (((size) + (blocksize - 1)) / blocksize)
+#define SIZE_TO_BLOCK(size) howmany(size, blocksize)
 
 static uint32_t
 nandfs_first_block(void)
@@ -314,8 +316,8 @@ count_su_blocks(void)
 	}
 
 	debug("bad segment needs %#jx", blk);
-	if (blk >= NDADDR) {
-		printf("nandfs: file too big (%jd > %d)\n", blk, NDADDR);
+	if (blk >= NANDFS_NDADDR) {
+		printf("nandfs: file too big (%jd > %d)\n", blk, NANDFS_NDADDR);
 		exit(2);
 	}
 
@@ -520,6 +522,7 @@ save_segsum(struct nandfs_segment_summary *ss)
 static void
 create_fsdata(void)
 {
+	struct uuid tmp;
 
 	memset(&fsdata, 0, sizeof(struct nandfs_fsdata));
 
@@ -540,7 +543,8 @@ create_fsdata(void)
 	fsdata.f_checkpoint_size = sizeof(struct nandfs_checkpoint);
 	fsdata.f_segment_usage_size = sizeof(struct nandfs_segment_usage);
 
-	uuidgen(&fsdata.f_uuid, 1);
+	uuidgen(&tmp, 1);
+	fsdata.f_uuid = tmp;
 
 	if (volumelabel)
 		memcpy(fsdata.f_volume_name, volumelabel, 16);
@@ -808,7 +812,7 @@ create_fs(void)
 	char *data;
 	int i;
 
-	nuserfiles = (sizeof(user_files) / sizeof(user_files[0]));
+	nuserfiles = nitems(user_files);
 
 	/* Count and assign blocks */
 	count_seg_blocks();
@@ -897,7 +901,7 @@ check_parameters(void)
 		    NANDFS_SEG_MIN_BLOCKS);
 
 	/* check reserved segment percentage */
-	if ((rsv_segment_percent < 1) && (rsv_segment_percent > 99))
+	if ((rsv_segment_percent < 1) || (rsv_segment_percent > 99))
 		errx(1, "Bad reserved segment percentage. "
 		    "Must in range 1..99.");
 
@@ -1088,7 +1092,7 @@ static void
 print_summary(void)
 {
 
-	printf("filesystem created succesfully\n");
+	printf("filesystem was created successfully\n");
 	printf("total segments: %#jx valid segments: %#jx\n", nsegments,
 	    nsegments - bad_segments_count);
 	printf("total space: %ju MB free: %ju MB\n",

@@ -1,5 +1,7 @@
 /*-
- * Copyright (C) 2012-2013 Intel Corporation
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (C) 2012-2016 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
 
@@ -46,6 +49,9 @@ struct nvd_disk;
 
 static disk_ioctl_t nvd_ioctl;
 static disk_strategy_t nvd_strategy;
+static dumper_t nvd_dump;
+
+static void nvd_done(void *arg, const struct nvme_completion *cpl);
 
 static void *nvd_new_disk(struct nvme_namespace *ns, void *ctrlr);
 static void destroy_geom_disk(struct nvd_disk *ndisk);
@@ -71,6 +77,7 @@ struct nvd_disk {
 	struct nvme_namespace	*ns;
 
 	uint32_t		cur_depth;
+	uint32_t		ordered_in_flight;
 
 	TAILQ_ENTRY(nvd_disk)	global_tailq;
 	TAILQ_ENTRY(nvd_disk)	ctrlr_tailq;
@@ -84,6 +91,19 @@ struct nvd_controller {
 
 static TAILQ_HEAD(, nvd_controller)	ctrlr_head;
 static TAILQ_HEAD(disk_list, nvd_disk)	disk_head;
+
+static SYSCTL_NODE(_hw, OID_AUTO, nvd, CTLFLAG_RD, 0, "nvd driver parameters");
+/*
+ * The NVMe specification does not define a maximum or optimal delete size, so
+ *  technically max delete size is min(full size of the namespace, 2^32 - 1
+ *  LBAs).  A single delete for a multi-TB NVMe namespace though may take much
+ *  longer to complete than the nvme(4) I/O timeout period.  So choose a sensible
+ *  default here that is still suitably large to minimize the number of overall
+ *  delete operations.
+ */
+static uint64_t nvd_delete_max = (1024 * 1024 * 1024);  /* 1GB */
+SYSCTL_UQUAD(_hw_nvd, OID_AUTO, delete_max, CTLFLAG_RDTUN, &nvd_delete_max, 0,
+	     "nvd maximum BIO_DELETE size in bytes");
 
 static int nvd_modevent(module_t mod, int type, void *arg)
 {
@@ -116,6 +136,8 @@ MODULE_DEPEND(nvd, nvme, 1, 1, 1);
 static int
 nvd_load()
 {
+	if (!nvme_use_nvd)
+		return 0;
 
 	TAILQ_INIT(&ctrlr_head);
 	TAILQ_INIT(&disk_head);
@@ -131,6 +153,9 @@ nvd_unload()
 {
 	struct nvd_controller	*ctrlr;
 	struct nvd_disk		*disk;
+
+	if (!nvme_use_nvd)
+		return;
 
 	while (!TAILQ_EMPTY(&ctrlr_head)) {
 		ctrlr = TAILQ_FIRST(&ctrlr_head);
@@ -148,6 +173,28 @@ nvd_unload()
 	nvme_unregister_consumer(consumer_handle);
 }
 
+static int
+nvd_bio_submit(struct nvd_disk *ndisk, struct bio *bp)
+{
+	int err;
+
+	bp->bio_driver1 = NULL;
+	atomic_add_int(&ndisk->cur_depth, 1);
+	err = nvme_ns_bio_process(ndisk->ns, bp, nvd_done);
+	if (err) {
+		atomic_add_int(&ndisk->cur_depth, -1);
+		if (__predict_false(bp->bio_flags & BIO_ORDERED))
+			atomic_add_int(&ndisk->ordered_in_flight, -1);
+		bp->bio_error = err;
+		bp->bio_flags |= BIO_ERROR;
+		bp->bio_resid = bp->bio_bcount;
+		biodone(bp);
+		return (-1);
+	}
+
+	return (0);
+}
+
 static void
 nvd_strategy(struct bio *bp)
 {
@@ -155,6 +202,18 @@ nvd_strategy(struct bio *bp)
 
 	ndisk = (struct nvd_disk *)bp->bio_disk->d_drv1;
 
+	if (__predict_false(bp->bio_flags & BIO_ORDERED))
+		atomic_add_int(&ndisk->ordered_in_flight, 1);
+
+	if (__predict_true(ndisk->ordered_in_flight == 0)) {
+		nvd_bio_submit(ndisk, bp);
+		return;
+	}
+
+	/*
+	 * There are ordered bios in flight, so we need to submit
+	 *  bios through the task queue to enforce ordering.
+	 */
 	mtx_lock(&ndisk->bioqlock);
 	bioq_insert_tail(&ndisk->bioq, bp);
 	mtx_unlock(&ndisk->bioqlock);
@@ -175,6 +234,18 @@ nvd_ioctl(struct disk *ndisk, u_long cmd, void *data, int fflag,
 	return (ret);
 }
 
+static int
+nvd_dump(void *arg, void *virt, vm_offset_t phys, off_t offset, size_t len)
+{
+	struct nvd_disk *ndisk;
+	struct disk *dp;
+
+	dp = arg;
+	ndisk = dp->d_drv1;
+
+	return (nvme_ns_dump(ndisk->ns, virt, offset, len));
+}
+
 static void
 nvd_done(void *arg, const struct nvme_completion *cpl)
 {
@@ -186,6 +257,8 @@ nvd_done(void *arg, const struct nvme_completion *cpl)
 	ndisk = bp->bio_disk->d_drv1;
 
 	atomic_add_int(&ndisk->cur_depth, -1);
+	if (__predict_false(bp->bio_flags & BIO_ORDERED))
+		atomic_add_int(&ndisk->ordered_in_flight, -1);
 
 	biodone(bp);
 }
@@ -195,7 +268,6 @@ nvd_bioq_process(void *arg, int pending)
 {
 	struct nvd_disk *ndisk = arg;
 	struct bio *bp;
-	int err;
 
 	for (;;) {
 		mtx_lock(&ndisk->bioqlock);
@@ -204,30 +276,8 @@ nvd_bioq_process(void *arg, int pending)
 		if (bp == NULL)
 			break;
 
-#ifdef BIO_ORDERED
-		/*
-		 * BIO_ORDERED flag dictates that all outstanding bios
-		 *  must be completed before processing the bio with
-		 *  BIO_ORDERED flag set.
-		 */
-		if (bp->bio_flags & BIO_ORDERED) {
-			while (ndisk->cur_depth > 0) {
-				pause("nvd flush", 1);
-			}
-		}
-#endif
-
-		bp->bio_driver1 = NULL;
-		atomic_add_int(&ndisk->cur_depth, 1);
-
-		err = nvme_ns_bio_process(ndisk->ns, bp, nvd_done);
-
-		if (err) {
-			atomic_add_int(&ndisk->cur_depth, -1);
-			bp->bio_error = err;
-			bp->bio_flags |= BIO_ERROR;
-			bp->bio_resid = bp->bio_bcount;
-			biodone(bp);
+		if (nvd_bio_submit(ndisk, bp) != 0) {
+			continue;
 		}
 
 #ifdef BIO_ORDERED
@@ -272,12 +322,17 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	disk = disk_alloc();
 	disk->d_strategy = nvd_strategy;
 	disk->d_ioctl = nvd_ioctl;
+	disk->d_dump = nvd_dump;
 	disk->d_name = NVD_STR;
 	disk->d_drv1 = ndisk;
 
 	disk->d_maxsize = nvme_ns_get_max_io_xfer_size(ns);
 	disk->d_sectorsize = nvme_ns_get_sector_size(ns);
 	disk->d_mediasize = (off_t)nvme_ns_get_size(ns);
+	disk->d_delmaxsize = (off_t)nvme_ns_get_size(ns);
+	if (disk->d_delmaxsize > nvd_delete_max)
+		disk->d_delmaxsize = nvd_delete_max;
+	disk->d_stripesize = nvme_ns_get_stripesize(ns);
 
 	if (TAILQ_EMPTY(&disk_head))
 		disk->d_unit = 0;
@@ -285,7 +340,7 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 		disk->d_unit =
 		    TAILQ_LAST(&disk_head, disk_list)->disk->d_unit + 1;
 
-	disk->d_flags = 0;
+	disk->d_flags = DISKFLAG_DIRECT_COMPLETION;
 
 	if (nvme_ns_get_flags(ns) & NVME_NS_DEALLOCATE_SUPPORTED)
 		disk->d_flags |= DISKFLAG_CANDELETE;
@@ -304,17 +359,16 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	 */
 	nvme_strvis(disk->d_ident, nvme_ns_get_serial_number(ns),
 	    sizeof(disk->d_ident), NVME_SERIAL_NUMBER_LENGTH);
-
 	nvme_strvis(descr, nvme_ns_get_model_number(ns), sizeof(descr),
 	    NVME_MODEL_NUMBER_LENGTH);
-
-#if __FreeBSD_version >= 900034
 	strlcpy(disk->d_descr, descr, sizeof(descr));
-#endif
+
+	disk->d_rotation_rate = DISK_RR_NON_ROTATING;
 
 	ndisk->ns = ns;
 	ndisk->disk = disk;
 	ndisk->cur_depth = 0;
+	ndisk->ordered_in_flight = 0;
 
 	mtx_init(&ndisk->bioqlock, "NVD bioq lock", NULL, MTX_DEF);
 	bioq_init(&ndisk->bioq);

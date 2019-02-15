@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -241,7 +243,7 @@ extern "C" {
 #define SCU_SAS_PHYCAP_WRITE(phy, value) \
     scu_link_layer_register_write(phy, phy_capabilities, value)
 
-/// This macro reads the Recieved PHY Capacity register
+/// This macro reads the Received PHY Capacity register
 #define SCU_SAS_RECPHYCAP_READ(phy) \
     scu_link_layer_register_read(phy, receive_phycap)
 

@@ -2,7 +2,9 @@
 
 /* Common parser code for dhcpd and dhclient. */
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1995, 1996, 1997, 1998 The Internet Software Consortium.
  * All rights reserved.
  *
@@ -42,6 +44,8 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
+#include <stdbool.h>
 
 #include "dhcpd.h"
 #include "dhctoken.h"
@@ -131,8 +135,10 @@ parse_string(FILE *cfile)
 		error("no memory for string %s.", val);
 	memcpy(s, val, valsize);
 
-	if (!parse_semi(cfile))
+	if (!parse_semi(cfile)) {
+		free(s);
 		return (NULL);
+	}
 	return (s);
 }
 
@@ -154,7 +160,8 @@ void
 parse_hardware_param(FILE *cfile, struct hardware *hardware)
 {
 	unsigned char *t;
-	int token, hlen;
+	int token;
+	size_t hlen;
 	char *val;
 
 	token = next_token(&val, cfile);
@@ -238,17 +245,18 @@ parse_lease_time(FILE *cfile, time_t *timep)
  * tokenized.
  */
 unsigned char *
-parse_numeric_aggregate(FILE *cfile, unsigned char *buf, int *max,
-    int separator, int base, int size)
+parse_numeric_aggregate(FILE *cfile, unsigned char *buf, size_t *max,
+    int separator, unsigned base, int size)
 {
 	unsigned char *bufp = buf, *s = NULL;
-	int token, count = 0;
+	int token;
 	char *val, *t;
-	size_t valsize;
+	size_t valsize, count = 0;
 	pair c = NULL;
+	unsigned char *lbufp = NULL;
 
 	if (!bufp && *max) {
-		bufp = malloc(*max * size / 8);
+		lbufp = bufp = malloc(*max * size / 8);
 		if (!bufp)
 			error("can't allocate space for numeric aggregate");
 	} else
@@ -265,6 +273,7 @@ parse_numeric_aggregate(FILE *cfile, unsigned char *buf, int *max,
 				parse_warn("too few numbers.");
 				if (token != SEMI)
 					skip_to_semi(cfile);
+				free(lbufp);
 				return (NULL);
 			}
 			token = next_token(&val, cfile);
@@ -281,6 +290,7 @@ parse_numeric_aggregate(FILE *cfile, unsigned char *buf, int *max,
 		    (base != 16 || token != NUMBER_OR_NAME)) {
 			parse_warn("expecting numeric value.");
 			skip_to_semi(cfile);
+			free(lbufp);
 			return (NULL);
 		}
 		/*
@@ -302,6 +312,7 @@ parse_numeric_aggregate(FILE *cfile, unsigned char *buf, int *max,
 
 	/* If we had to cons up a list, convert it now. */
 	if (c) {
+		free(lbufp);
 		bufp = malloc(count * size / 8);
 		if (!bufp)
 			error("can't allocate space for numeric aggregate.");
@@ -321,14 +332,15 @@ parse_numeric_aggregate(FILE *cfile, unsigned char *buf, int *max,
 }
 
 void
-convert_num(unsigned char *buf, char *str, int base, int size)
+convert_num(unsigned char *buf, char *str, unsigned base, int size)
 {
-	int negative = 0, tval, max;
+	bool negative = false;
+	unsigned tval, max;
 	u_int32_t val = 0;
 	char *ptr = str;
 
 	if (*ptr == '-') {
-		negative = 1;
+		negative = true;
 		ptr++;
 	}
 

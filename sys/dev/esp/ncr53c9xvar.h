@@ -1,6 +1,8 @@
 /*	$NetBSD: ncr53c9xvar.h,v 1.55 2011/07/31 18:39:00 jakllsch Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-4-Clause
+ *
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -102,7 +104,7 @@
 /*
  * ECB. Holds additional information for each SCSI command Comments: We
  * need a separate scsi command block because we may need to overwrite it
- * with a request sense command.  Basicly, we refrain from fiddling with
+ * with a request sense command.  Basically, we refrain from fiddling with
  * the ccb union (except do the expected updating of return values).
  * We'll generally update: ccb->ccb_h.status and ccb->csio.{resid,
  * scsi_status,sense_data}.

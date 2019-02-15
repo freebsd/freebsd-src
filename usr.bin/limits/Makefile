@@ -1,7 +1,11 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PROG=	limits
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

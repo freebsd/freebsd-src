@@ -1,5 +1,7 @@
 %{
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -35,7 +37,6 @@
 #include <sys/stat.h>
 #include <assert.h>
 #include <stdio.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -58,17 +59,18 @@ extern void	yyrestart(FILE *);
 %}
 
 %token ALIAS AUTH_GROUP AUTH_TYPE BACKEND BLOCKSIZE CHAP CHAP_MUTUAL
-%token CLOSING_BRACKET DEBUG DEVICE_ID DISCOVERY_AUTH_GROUP INITIATOR_NAME
-%token INITIATOR_PORTAL LISTEN LISTEN_ISER LUN MAXPROC NUM OPENING_BRACKET
-%token OPTION PATH PIDFILE PORTAL_GROUP SERIAL SIZE STR TARGET TIMEOUT
+%token CLOSING_BRACKET CTL_LUN DEBUG DEVICE_ID DEVICE_TYPE
+%token DISCOVERY_AUTH_GROUP DISCOVERY_FILTER FOREIGN
+%token INITIATOR_NAME INITIATOR_PORTAL ISNS_SERVER ISNS_PERIOD ISNS_TIMEOUT
+%token LISTEN LISTEN_ISER LUN MAXPROC OFFLOAD OPENING_BRACKET OPTION
+%token PATH PIDFILE PORT PORTAL_GROUP REDIRECT SEMICOLON SERIAL SIZE STR
+%token TAG TARGET TIMEOUT
 
 %union
 {
-	uint64_t num;
 	char *str;
 }
 
-%token <num> NUM
 %token <str> STR
 
 %%
@@ -76,6 +78,8 @@ extern void	yyrestart(FILE *);
 statements:
 	|
 	statements statement
+	|
+	statements statement SEMICOLON
 	;
 
 statement:
@@ -87,28 +91,60 @@ statement:
 	|
 	pidfile
 	|
+	isns_server
+	|
+	isns_period
+	|
+	isns_timeout
+	|
 	auth_group
 	|
 	portal_group
 	|
+	lun
+	|
 	target
 	;
 
-debug:		DEBUG NUM
+debug:		DEBUG STR
 	{
-		conf->conf_debug = $2;
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			return (1);
+		}
+			
+		conf->conf_debug = tmp;
 	}
 	;
 
-timeout:	TIMEOUT NUM
+timeout:	TIMEOUT STR
 	{
-		conf->conf_timeout = $2;
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			return (1);
+		}
+
+		conf->conf_timeout = tmp;
 	}
 	;
 
-maxproc:	MAXPROC NUM
+maxproc:	MAXPROC STR
 	{
-		conf->conf_maxproc = $2;
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			return (1);
+		}
+
+		conf->conf_maxproc = tmp;
 	}
 	;
 
@@ -120,6 +156,45 @@ pidfile:	PIDFILE STR
 			return (1);
 		}
 		conf->conf_pidfile_path = $2;
+	}
+	;
+
+isns_server:	ISNS_SERVER STR
+	{
+		int error;
+
+		error = isns_new(conf, $2);
+		free($2);
+		if (error != 0)
+			return (1);
+	}
+	;
+
+isns_period:	ISNS_PERIOD STR
+	{
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			return (1);
+		}
+
+		conf->conf_isns_period = tmp;
+	}
+	;
+
+isns_timeout:	ISNS_TIMEOUT STR
+	{
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			return (1);
+		}
+
+		conf->conf_isns_timeout = tmp;
 	}
 	;
 
@@ -152,6 +227,8 @@ auth_group_name:	STR
 auth_group_entries:
 	|
 	auth_group_entries auth_group_entry
+	|
+	auth_group_entries auth_group_entry SEMICOLON
 	;
 
 auth_group_entry:
@@ -170,7 +247,7 @@ auth_group_auth_type:	AUTH_TYPE STR
 	{
 		int error;
 
-		error = auth_group_set_type_str(auth_group, $2);
+		error = auth_group_set_type(auth_group, $2);
 		free($2);
 		if (error != 0)
 			return (1);
@@ -254,14 +331,28 @@ portal_group_name:	STR
 portal_group_entries:
 	|
 	portal_group_entries portal_group_entry
+	|
+	portal_group_entries portal_group_entry SEMICOLON
 	;
 
 portal_group_entry:
 	portal_group_discovery_auth_group
 	|
+	portal_group_discovery_filter
+	|
+	portal_group_foreign
+	|
 	portal_group_listen
 	|
 	portal_group_listen_iser
+	|
+	portal_group_offload
+	|
+	portal_group_option
+	|
+	portal_group_redirect
+	|
+	portal_group_tag
 	;
 
 portal_group_discovery_auth_group:	DISCOVERY_AUTH_GROUP STR
@@ -281,6 +372,24 @@ portal_group_discovery_auth_group:	DISCOVERY_AUTH_GROUP STR
 			return (1);
 		}
 		free($2);
+	}
+	;
+
+portal_group_discovery_filter:	DISCOVERY_FILTER STR
+	{
+		int error;
+
+		error = portal_group_set_filter(portal_group, $2);
+		free($2);
+		if (error != 0)
+			return (1);
+	}
+	;
+
+portal_group_foreign:	FOREIGN
+	{
+
+		portal_group->pg_foreign = 1;
 	}
 	;
 
@@ -306,6 +415,70 @@ portal_group_listen_iser:	LISTEN_ISER STR
 	}
 	;
 
+portal_group_offload:	OFFLOAD STR
+	{
+		int error;
+
+		error = portal_group_set_offload(portal_group, $2);
+		free($2);
+		if (error != 0)
+			return (1);
+	}
+	;
+
+portal_group_option:	OPTION STR STR
+	{
+		struct option *o;
+
+		o = option_new(&portal_group->pg_options, $2, $3);
+		free($2);
+		free($3);
+		if (o == NULL)
+			return (1);
+	}
+	;
+
+portal_group_redirect:	REDIRECT STR
+	{
+		int error;
+
+		error = portal_group_set_redirection(portal_group, $2);
+		free($2);
+		if (error != 0)
+			return (1);
+	}
+	;
+
+portal_group_tag:	TAG STR
+	{
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			return (1);
+		}
+
+		portal_group->pg_tag = tmp;
+	}
+	;
+
+lun:	LUN lun_name
+    OPENING_BRACKET lun_entries CLOSING_BRACKET
+	{
+		lun = NULL;
+	}
+	;
+
+lun_name:	STR
+	{
+		lun = lun_new(conf, $1);
+		free($1);
+		if (lun == NULL)
+			return (1);
+	}
+	;
+
 target:	TARGET target_name
     OPENING_BRACKET target_entries CLOSING_BRACKET
 	{
@@ -325,6 +498,8 @@ target_name:	STR
 target_entries:
 	|
 	target_entries target_entry
+	|
+	target_entries target_entry SEMICOLON
 	;
 
 target_entry:
@@ -344,7 +519,13 @@ target_entry:
 	|
 	target_portal_group
 	|
+	target_port
+	|
+	target_redirect
+	|
 	target_lun
+	|
+	target_lun_ref
 	;
 
 target_alias:	ALIAS STR
@@ -399,7 +580,7 @@ target_auth_type:	AUTH_TYPE STR
 			}
 			target->t_auth_group->ag_target = target;
 		}
-		error = auth_group_set_type_str(target->t_auth_group, $2);
+		error = auth_group_set_type(target->t_auth_group, $2);
 		free($2);
 		if (error != 0)
 			return (1);
@@ -527,22 +708,113 @@ target_initiator_portal:	INITIATOR_PORTAL STR
 	}
 	;
 
-target_portal_group:	PORTAL_GROUP STR
+target_portal_group:	PORTAL_GROUP STR STR
 	{
-		if (target->t_portal_group != NULL) {
-			log_warnx("portal-group for target \"%s\" "
-			    "specified more than once", target->t_name);
+		struct portal_group *tpg;
+		struct auth_group *tag;
+		struct port *tp;
+
+		tpg = portal_group_find(conf, $2);
+		if (tpg == NULL) {
+			log_warnx("unknown portal-group \"%s\" for target "
+			    "\"%s\"", $2, target->t_name);
+			free($2);
+			free($3);
+			return (1);
+		}
+		tag = auth_group_find(conf, $3);
+		if (tag == NULL) {
+			log_warnx("unknown auth-group \"%s\" for target "
+			    "\"%s\"", $3, target->t_name);
+			free($2);
+			free($3);
+			return (1);
+		}
+		tp = port_new(conf, target, tpg);
+		if (tp == NULL) {
+			log_warnx("can't link portal-group \"%s\" to target "
+			    "\"%s\"", $2, target->t_name);
 			free($2);
 			return (1);
 		}
-		target->t_portal_group = portal_group_find(conf, $2);
-		if (target->t_portal_group == NULL) {
+		tp->p_auth_group = tag;
+		free($2);
+		free($3);
+	}
+	|		PORTAL_GROUP STR
+	{
+		struct portal_group *tpg;
+		struct port *tp;
+
+		tpg = portal_group_find(conf, $2);
+		if (tpg == NULL) {
 			log_warnx("unknown portal-group \"%s\" for target "
 			    "\"%s\"", $2, target->t_name);
 			free($2);
 			return (1);
 		}
+		tp = port_new(conf, target, tpg);
+		if (tp == NULL) {
+			log_warnx("can't link portal-group \"%s\" to target "
+			    "\"%s\"", $2, target->t_name);
+			free($2);
+			return (1);
+		}
 		free($2);
+	}
+	;
+
+target_port:	PORT STR
+	{
+		struct pport *pp;
+		struct port *tp;
+		int ret, i_pp, i_vp = 0;
+
+		ret = sscanf($2, "ioctl/%d/%d", &i_pp, &i_vp);
+		if (ret > 0) {
+			tp = port_new_ioctl(conf, target, i_pp, i_vp);
+			if (tp == NULL) {
+				log_warnx("can't create new ioctl port for "
+				    "target \"%s\"", target->t_name);
+				free($2);
+				return (1);
+			}
+		} else {
+			pp = pport_find(conf, $2);
+			if (pp == NULL) {
+				log_warnx("unknown port \"%s\" for target \"%s\"",
+				    $2, target->t_name);
+				free($2);
+				return (1);
+			}
+			if (!TAILQ_EMPTY(&pp->pp_ports)) {
+				log_warnx("can't link port \"%s\" to target \"%s\", "
+				    "port already linked to some target",
+				    $2, target->t_name);
+				free($2);
+				return (1);
+			}
+			tp = port_new_pp(conf, target, pp);
+			if (tp == NULL) {
+				log_warnx("can't link port \"%s\" to target \"%s\"",
+				    $2, target->t_name);
+				free($2);
+				return (1);
+			}
+		}
+
+		free($2);
+	}
+	;
+
+target_redirect:	REDIRECT STR
+	{
+		int error;
+
+		error = target_set_redirection(target, $2);
+		free($2);
+		if (error != 0)
+			return (1);
 	}
 	;
 
@@ -553,17 +825,66 @@ target_lun:	LUN lun_number
 	}
 	;
 
-lun_number:	NUM
+lun_number:	STR
 	{
-		lun = lun_new(target, $1);
+		uint64_t tmp;
+		int ret;
+		char *name;
+
+		if (expand_number($1, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($1);
+			return (1);
+		}
+		if (tmp >= MAX_LUNS) {
+			yyerror("LU number is too big");
+			free($1);
+			return (1);
+		}
+
+		ret = asprintf(&name, "%s,lun,%ju", target->t_name, tmp);
+		if (ret <= 0)
+			log_err(1, "asprintf");
+		lun = lun_new(conf, name);
 		if (lun == NULL)
 			return (1);
+
+		lun_set_scsiname(lun, name);
+		target->t_luns[tmp] = lun;
+	}
+	;
+
+target_lun_ref:	LUN STR STR
+	{
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			free($3);
+			return (1);
+		}
+		free($2);
+		if (tmp >= MAX_LUNS) {
+			yyerror("LU number is too big");
+			free($3);
+			return (1);
+		}
+
+		lun = lun_find(conf, $3);
+		free($3);
+		if (lun == NULL)
+			return (1);
+
+		target->t_luns[tmp] = lun;
 	}
 	;
 
 lun_entries:
 	|
 	lun_entries lun_entry
+	|
+	lun_entries lun_entry SEMICOLON
 	;
 
 lun_entry:
@@ -572,6 +893,10 @@ lun_entry:
 	lun_blocksize
 	|
 	lun_device_id
+	|
+	lun_device_type
+	|
+	lun_ctl_lun
 	|
 	lun_option
 	|
@@ -585,9 +910,9 @@ lun_entry:
 lun_backend:	BACKEND STR
 	{
 		if (lun->l_backend != NULL) {
-			log_warnx("backend for lun %d, target \"%s\" "
+			log_warnx("backend for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_name);
+			    lun->l_name);
 			free($2);
 			return (1);
 		}
@@ -596,24 +921,32 @@ lun_backend:	BACKEND STR
 	}
 	;
 
-lun_blocksize:	BLOCKSIZE NUM
+lun_blocksize:	BLOCKSIZE STR
 	{
-		if (lun->l_blocksize != 0) {
-			log_warnx("blocksize for lun %d, target \"%s\" "
-			    "specified more than once",
-			    lun->l_lun, target->t_name);
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
 			return (1);
 		}
-		lun_set_blocksize(lun, $2);
+
+		if (lun->l_blocksize != 0) {
+			log_warnx("blocksize for lun \"%s\" "
+			    "specified more than once",
+			    lun->l_name);
+			return (1);
+		}
+		lun_set_blocksize(lun, tmp);
 	}
 	;
 
 lun_device_id:	DEVICE_ID STR
 	{
 		if (lun->l_device_id != NULL) {
-			log_warnx("device_id for lun %d, target \"%s\" "
+			log_warnx("device_id for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_name);
+			    lun->l_name);
 			free($2);
 			return (1);
 		}
@@ -622,14 +955,59 @@ lun_device_id:	DEVICE_ID STR
 	}
 	;
 
+lun_device_type:	DEVICE_TYPE STR
+	{
+		uint64_t tmp;
+
+		if (strcasecmp($2, "disk") == 0 ||
+		    strcasecmp($2, "direct") == 0)
+			tmp = 0;
+		else if (strcasecmp($2, "processor") == 0)
+			tmp = 3;
+		else if (strcasecmp($2, "cd") == 0 ||
+		    strcasecmp($2, "cdrom") == 0 ||
+		    strcasecmp($2, "dvd") == 0 ||
+		    strcasecmp($2, "dvdrom") == 0)
+			tmp = 5;
+		else if (expand_number($2, &tmp) != 0 ||
+		    tmp > 15) {
+			yyerror("invalid numeric value");
+			free($2);
+			return (1);
+		}
+
+		lun_set_device_type(lun, tmp);
+	}
+	;
+
+lun_ctl_lun:	CTL_LUN STR
+	{
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			return (1);
+		}
+
+		if (lun->l_ctl_lun >= 0) {
+			log_warnx("ctl_lun for lun \"%s\" "
+			    "specified more than once",
+			    lun->l_name);
+			return (1);
+		}
+		lun_set_ctl_lun(lun, tmp);
+	}
+	;
+
 lun_option:	OPTION STR STR
 	{
-		struct lun_option *clo;
-		
-		clo = lun_option_new(lun, $2, $3);
+		struct option *o;
+
+		o = option_new(&lun->l_options, $2, $3);
 		free($2);
 		free($3);
-		if (clo == NULL)
+		if (o == NULL)
 			return (1);
 	}
 	;
@@ -637,9 +1015,9 @@ lun_option:	OPTION STR STR
 lun_path:	PATH STR
 	{
 		if (lun->l_path != NULL) {
-			log_warnx("path for lun %d, target \"%s\" "
+			log_warnx("path for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_name);
+			    lun->l_name);
 			free($2);
 			return (1);
 		}
@@ -651,39 +1029,34 @@ lun_path:	PATH STR
 lun_serial:	SERIAL STR
 	{
 		if (lun->l_serial != NULL) {
-			log_warnx("serial for lun %d, target \"%s\" "
+			log_warnx("serial for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_name);
+			    lun->l_name);
 			free($2);
 			return (1);
 		}
 		lun_set_serial(lun, $2);
 		free($2);
-	} |	SERIAL NUM
-	{
-		char *str = NULL;
-
-		if (lun->l_serial != NULL) {
-			log_warnx("serial for lun %d, target \"%s\" "
-			    "specified more than once",
-			    lun->l_lun, target->t_name);
-			return (1);
-		}
-		asprintf(&str, "%ju", $2);
-		lun_set_serial(lun, str);
-		free(str);
 	}
 	;
 
-lun_size:	SIZE NUM
+lun_size:	SIZE STR
 	{
-		if (lun->l_size != 0) {
-			log_warnx("size for lun %d, target \"%s\" "
-			    "specified more than once",
-			    lun->l_lun, target->t_name);
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
 			return (1);
 		}
-		lun_set_size(lun, $2);
+
+		if (lun->l_size != 0) {
+			log_warnx("size for lun \"%s\" "
+			    "specified more than once",
+			    lun->l_name);
+			return (1);
+		}
+		lun_set_size(lun, tmp);
 	}
 	;
 %%
@@ -696,66 +1069,18 @@ yyerror(const char *str)
 	    lineno, yytext, str);
 }
 
-static void
-check_perms(const char *path)
+int
+parse_conf(struct conf *newconf, const char *path)
 {
-	struct stat sb;
 	int error;
 
-	error = stat(path, &sb);
-	if (error != 0) {
-		log_warn("stat");
-		return;
-	}
-	if (sb.st_mode & S_IWOTH) {
-		log_warnx("%s is world-writable", path);
-	} else if (sb.st_mode & S_IROTH) {
-		log_warnx("%s is world-readable", path);
-	} else if (sb.st_mode & S_IXOTH) {
-		/*
-		 * Ok, this one doesn't matter, but still do it,
-		 * just for consistency.
-		 */
-		log_warnx("%s is world-executable", path);
-	}
-
-	/*
-	 * XXX: Should we also check for owner != 0?
-	 */
-}
-
-struct conf *
-conf_new_from_file(const char *path)
-{
-	struct auth_group *ag;
-	struct portal_group *pg;
-	int error;
-
-	log_debugx("obtaining configuration from %s", path);
-
-	conf = conf_new();
-
-	ag = auth_group_new(conf, "default");
-	assert(ag != NULL);
-
-	ag = auth_group_new(conf, "no-authentication");
-	assert(ag != NULL);
-	ag->ag_type = AG_TYPE_NO_AUTHENTICATION;
-
-	ag = auth_group_new(conf, "no-access");
-	assert(ag != NULL);
-	ag->ag_type = AG_TYPE_DENY;
-
-	pg = portal_group_new(conf, "default");
-	assert(pg != NULL);
-
+	conf = newconf;
 	yyin = fopen(path, "r");
 	if (yyin == NULL) {
 		log_warn("unable to open configuration file %s", path);
-		conf_delete(conf);
-		return (NULL);
+		return (1);
 	}
-	check_perms(path);
+
 	lineno = 1;
 	yyrestart(yyin);
 	error = yyparse();
@@ -764,35 +1089,6 @@ conf_new_from_file(const char *path)
 	target = NULL;
 	lun = NULL;
 	fclose(yyin);
-	if (error != 0) {
-		conf_delete(conf);
-		return (NULL);
-	}
 
-	if (conf->conf_default_ag_defined == false) {
-		log_debugx("auth-group \"default\" not defined; "
-		    "going with defaults");
-		ag = auth_group_find(conf, "default");
-		assert(ag != NULL);
-		ag->ag_type = AG_TYPE_DENY;
-	}
-
-	if (conf->conf_default_pg_defined == false) {
-		log_debugx("portal-group \"default\" not defined; "
-		    "going with defaults");
-		pg = portal_group_find(conf, "default");
-		assert(pg != NULL);
-		portal_group_add_listen(pg, "0.0.0.0:3260", false);
-		portal_group_add_listen(pg, "[::]:3260", false);
-	}
-
-	conf->conf_kernel_port_on = true;
-
-	error = conf_verify(conf);
-	if (error != 0) {
-		conf_delete(conf);
-		return (NULL);
-	}
-
-	return (conf);
+	return (error);
 }

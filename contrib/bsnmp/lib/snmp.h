@@ -4,14 +4,14 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- * 
+ *
  * Copyright (c) 2010 The FreeBSD Foundation
  * All rights reserved.
  *
  * Portions of this software were developed by Shteryana Sotirova Shopova
  * under sponsorship from the FreeBSD Foundation.
  *
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -20,7 +20,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -41,6 +41,9 @@
 #define snmp_h_
 
 #include <sys/types.h>
+
+#define	BSNMP_MAJOR	1
+#define	BSNMP_MINOR	13
 
 #define SNMP_COMMUNITY_MAXLEN		128
 #define SNMP_MAX_BINDINGS		100

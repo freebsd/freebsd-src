@@ -1,13 +1,30 @@
-/*  -*- Mode: C -*-  */
+/*  -*- Mode: C -*- 
+ *
+ *  compat.h is free software.
+ *  This file is part of AutoGen and AutoOpts.
+ *
+ *  AutoGen Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
+ *
+ *  AutoOpts is available under any one of two licenses.  The license
+ *  in use must be one of these two and the choice is under the control
+ *  of the user of the license.
+ *
+ *   The GNU Lesser General Public License, version 3 or later
+ *      See the files "COPYING.lgplv3" and "COPYING.gplv3"
+ *
+ *   The Modified Berkeley Software Distribution License
+ *      See the file "COPYING.mbsd"
+ *
+ *  These files have the following sha256 sums:
+ *
+ *  8584710e9b04216a394078dc156b781d0b47e1729104d666658aecef8ee32e95  COPYING.gplv3
+ *  4379e7444a0e2ce2b12dd6f5a52a27a4d02d39d247901d3285c88cf0d37f477b  COPYING.lgplv3
+ *  13aa749a5b0a454917a944ed8fffc530b784f5ead522b1aacaf4ec8aa55a6239  COPYING.mbsd
+ */
 
-/* --- fake the preprocessor into handlng portability */
-/*
- *  Time-stamp:      "2007-02-03 17:41:06 bkorb"
- *
- * Author:           Gary V Vaughan <gvaughan@oranda.demon.co.uk>
- * Created:          Mon Jun 30 15:54:46 1997
- *
- * $Id: compat.h,v 4.16 2007/04/27 01:10:47 bkorb Exp $
+/**
+ * \file compat.h
+ *  fake the preprocessor into handlng stuff portability
  */
 #ifndef COMPAT_H_GUARD
 #define COMPAT_H_GUARD 1
@@ -25,7 +42,9 @@
 
 
 #ifndef HAVE_STRSIGNAL
-   char * strsignal( int signo );
+# ifndef HAVE_RAW_DECL_STRSIGNAL
+   char * strsignal(int signo);
+# endif
 #endif
 
 #define  _GNU_SOURCE    1 /* for strsignal in GNU's libc */
@@ -45,7 +64,9 @@
 #  include <sys/procset.h>
 #endif
 #include <sys/stat.h>
-#include <sys/wait.h>
+#ifdef HAVE_SYS_WAIT_H
+#  include <sys/wait.h>
+#endif
 
 #if defined( HAVE_SOLARIS_SYSINFO )
 #  include <sys/systeminfo.h>
@@ -142,15 +163,15 @@
 #include <setjmp.h>
 #include <signal.h>
 
-#if defined( HAVE_STDINT_H )
+#if defined(HAVE_STDINT_H)
 #  include <stdint.h>
-#elif defined( HAVE_INTTYPES_H )
+
+#elif defined(HAVE_INTTYPES_H)
 #  include <inttypes.h>
 #endif
 
 #include <stdlib.h>
 #include <string.h>
-
 #include <time.h>
 
 #ifdef HAVE_UTIME_H
@@ -159,6 +180,17 @@
 
 #ifdef HAVE_UNISTD_H
 #  include <unistd.h>
+#endif
+
+#ifdef HAVE_STDBOOL_H
+#  include <stdbool.h>
+#else
+   typedef enum { false = 0, true = 1 } _Bool;
+#  define bool _Bool
+
+   /* The other macros must be usable in preprocessor directives.  */
+#  define false 0
+#  define true 1
 #endif
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -205,7 +237,7 @@
 #endif
 
 #if !defined (MAXPATHLEN)
-#  define MAXPATHLEN ((size_t)4096)
+#  define MAXPATHLEN 4096
 #endif /* MAXPATHLEN */
 
 #define AG_PATH_MAX  ((size_t)MAXPATHLEN)
@@ -221,57 +253,89 @@
 #endif
 
 #ifndef SHORT_MAX
-#  define SHORT_MAX     ~(1 << (8*sizeof(short) -1))
+#  define SHORT_MAX     ~(1 << (8*sizeof(short) - 1))
 #else
 #  define USHORT_MAX    ~(OUS)
 #endif
 
 #ifndef HAVE_INT8_T
-  typedef signed char       int8_t;
+  typedef signed char           int8_t;
+# define  HAVE_INT8_T           1
 #endif
 #ifndef HAVE_UINT8_T
-  typedef unsigned char     uint8_t;
+  typedef unsigned char         uint8_t;
+# define  HAVE_UINT8_T          1
 #endif
 #ifndef HAVE_INT16_T
-  typedef signed short      int16_t;
+  typedef signed short          int16_t;
+# define  HAVE_INT16_T          1
 #endif
 #ifndef HAVE_UINT16_T
-  typedef unsigned short    uint16_t;
-#endif
-#ifndef HAVE_UINT_T
-  typedef unsigned int      uint_t;
+  typedef unsigned short        uint16_t;
+# define  HAVE_UINT16_T         1
 #endif
 
 #ifndef HAVE_INT32_T
-# if SIZEOF_INT == 4
-        typedef signed int      int32_t;
-# elif SIZEOF_LONG == 4
-        typedef signed long     int32_t;
+# if SIZEOF_INT ==              4
+    typedef signed int          int32_t;
+# elif SIZEOF_LONG ==           4
+    typedef signed long         int32_t;
 # endif
+# define  HAVE_INT32_T          1
 #endif
 
 #ifndef HAVE_UINT32_T
-# if SIZEOF_INT == 4
-        typedef unsigned int    uint32_t;
-# elif SIZEOF_LONG == 4
-        typedef unsigned long   uint32_t;
+# if SIZEOF_INT ==              4
+    typedef unsigned int        uint32_t;
+# elif SIZEOF_LONG ==           4
+    typedef unsigned long       uint32_t;
 # else
 #   error Cannot create a uint32_t type.
     Choke Me.
 # endif
+# define  HAVE_UINT32_T         1
 #endif
 
 #ifndef HAVE_INTPTR_T
-  typedef signed long   intptr_t;
+# if SIZEOF_CHARP == SIZEOF_LONG
+    typedef signed long         intptr_t;
+# else
+    typedef signed int          intptr_t;
+# endif
+# define  HAVE_INTPTR_T         1
 #endif
+
 #ifndef HAVE_UINTPTR_T
-  typedef unsigned long uintptr_t;
+# if SIZEOF_CHARP == SIZEOF_LONG
+    typedef unsigned long       intptr_t;
+# else
+    typedef unsigned int        intptr_t;
+# endif
+# define  HAVE_INTPTR_T         1
+#endif
+
+#ifndef HAVE_UINT_T
+  typedef unsigned int          uint_t;
+# define  HAVE_UINT_T           1
+#endif
+
+#ifndef HAVE_SIZE_T
+  typedef unsigned int          size_t;
+# define  HAVE_SIZE_T           1
+#endif
+#ifndef HAVE_WINT_T
+  typedef unsigned int          wint_t;
+# define  HAVE_WINT_T           1
+#endif
+#ifndef HAVE_PID_T
+  typedef signed int            pid_t;
+# define  HAVE_PID_T            1
 #endif
 
 /* redefine these for BSD style string libraries */
 #ifndef HAVE_STRCHR
-#  define strchr        index
-#  define strrchr       rindex
+#  define strchr            index
+#  define strrchr           rindex
 #endif
 
 #ifdef USE_FOPEN_BINARY

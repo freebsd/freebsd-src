@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -323,7 +325,7 @@ SCI_STATUS scic_oem_parameters_set(
 );
 
 /**
- * @brief This method allows the user to retreive the OEM
+ * @brief This method allows the user to retrieve the OEM
  *        parameters utilized by the controller.
  *
  * @param[in]  controller This parameter specifies the controller on which

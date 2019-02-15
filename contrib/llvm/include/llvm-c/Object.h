@@ -19,7 +19,7 @@
 #ifndef LLVM_C_OBJECT_H
 #define LLVM_C_OBJECT_H
 
-#include "llvm-c/Core.h"
+#include "llvm-c/Types.h"
 #include "llvm/Config/llvm-config.h"
 
 #ifdef __cplusplus
@@ -78,11 +78,9 @@ void LLVMMoveToNextRelocation(LLVMRelocationIteratorRef RI);
 // SymbolRef accessors
 const char *LLVMGetSymbolName(LLVMSymbolIteratorRef SI);
 uint64_t LLVMGetSymbolAddress(LLVMSymbolIteratorRef SI);
-uint64_t LLVMGetSymbolFileOffset(LLVMSymbolIteratorRef SI);
 uint64_t LLVMGetSymbolSize(LLVMSymbolIteratorRef SI);
 
 // RelocationRef accessors
-uint64_t LLVMGetRelocationAddress(LLVMRelocationIteratorRef RI);
 uint64_t LLVMGetRelocationOffset(LLVMRelocationIteratorRef RI);
 LLVMSymbolIteratorRef LLVMGetRelocationSymbol(LLVMRelocationIteratorRef RI);
 uint64_t LLVMGetRelocationType(LLVMRelocationIteratorRef RI);

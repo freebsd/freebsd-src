@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd January 1, 2013
+.Dd April 7, 2018
 .Dt DTC 1
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nd device tree compiler
 .Sh SYNOPSIS
 .Nm
-.Op Fl fhsv
+.Op Fl @fhsv
 .Op Fl b Ar boot_cpu_id
 .Op Fl d Ar dependency_file
 .Op Fl E Ar [no-]checker_name
@@ -56,8 +56,8 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility converts flattened device tree (FDT) representations.
- It is most commonly used to generate device tree blobs (DTB), the binary
+utility converts between flattened device tree (FDT) representations.
+It is most commonly used to generate device tree blobs (DTB), the binary
 representation of an FDT, from device tree sources (DTS), the ASCII text source
 representation.
 .Pp
@@ -84,6 +84,8 @@ Enable or disable a specified checker.
 The argument is the name of the checker.
 The full list of checkers is given in
 .Sx CHECKERS .
+.It Fl @
+Emit a __symbols__ node to allow plugins to be loaded.
 .It Fl f
 Force the tool to attempt to generate the output, even if the input had errors.
 .It Fl h
@@ -151,9 +153,9 @@ format for property values.
 These allow property value to be specified on the command line.
 .It Fl R Ar entries
 The number of empty reservation table entries to pad the table with.
-This is
-useful if you are generating a device tree blob for bootloader or similar that
-needs to reserve some memory before passing control to the operating system.
+This is useful if you are generating a device tree blob for bootloader or
+similar that needs to reserve some memory before passing control to the
+operating system.
 .It Fl S Ar bytes
 The minimum size in bytes of the blob.
 The blob will be padded after the strings table to ensure that it is the
@@ -237,6 +239,71 @@ Checks that all nodes with children have both
 and
 .Va #size-cells
 properties.
+.It deleted-nodes
+Checks that all
+.Va /delete-node/
+statements refer to nodes that are merged.
+.El
+.Sh OVERLAYS
+The utility provides support for generating overlays, also known as plugins.
+Overlays are a method of patching a base device tree that has been compiled with
+the
+.Fl @
+flag, with some limited support for patching device trees that were not compiled
+with the
+.Fl @
+flag.
+.Pp
+To denote that a DTS is intended to be used as an overlay,
+.Va /plugin/;
+should be included in the header, following any applicable
+.Va /dts-v1/;
+tag.
+.Pp
+Conventional overlays are crafted by creating
+.Va fragment
+nodes in a root.
+Each fragment node must have either a
+.Va target
+property set to a label reference, or a
+.Va target-path
+string property set to a path.
+It must then have an
+.Va __overlay__
+child node, whose properties and child nodes are merged into the base device
+tree when the overlay is applied.
+.Pp
+Much simpler syntactic sugar was later invented to simplify generating overlays.
+Instead of creating targetted fragments manually, one can instead create a root
+node that targets a label in the base FDT using the
+.Va &label
+syntax supported in conventional DTS.
+This will indicate that a fragment should be generated for the node, with the
+given
+.Va label
+being the target, and the properties and child nodes will be used as the
+__overlay__.
+.Pp
+Additionally, a path-based version of this syntactic sugar is supported.
+A root node may target a path in the base FDT using a name of the form
+.Va &{/path} .
+A fragment will be generated for the node as it is in the
+.Va &label
+case, except the
+.Va target-path
+property will be set to
+.Va /path
+and no
+.Va target
+will be set.
+.Pp
+Both conventional overlays and the later-added syntactic sugar are supported.
+.Pp
+Overlay blobs can be applied at boot time by setting
+.Va fdt_overlays
+in
+.Xr loader.conf 5 .
+Multiple overlays may be specified, and they will be applied in the order given.
 .El
 .Sh EXAMPLES
 The command:
@@ -248,8 +315,7 @@ will generate a
 file from the device tree source
 .Pa device.dts
 and print errors if any occur during parsing or property checking.
-The
-resulting file can be assembled and linked into a binary.
+The resulting file can be assembled and linked into a binary.
 .Pp
 The command:
 .Pp
@@ -259,6 +325,33 @@ will write the device tree source for the device tree blob
 .Pa device.dtb
 to the standard output.
 This is useful when debugging device trees.
+.Pp
+The command:
+.Pp
+.Dl "dtc -@ -O dtb -I dts -o device.dtb device.dts"
+.Pp
+will generate a
+.Pa device.dtb
+file from the device tree source
+.Pa device.dts
+with a __symbols__ node included so that overlays may be applied to it.
+.Pp
+The command:
+.Pp
+.Dl "dtc -@ -O dtb -I dts -o device_overlay.dtbo device_overlay.dts"
+.Pp
+will generate a
+.Pa device_overlay.dtbo
+file, using the standard extension for a device tree overlay, from the device
+tree source
+.Pa device_overlay.dts .
+A __symbols__ node will be included so that overlays may be applied to it.
+The presence of a
+.Va /plugin/;
+directive in
+.Pa device_overlay.dts
+will indicate to the utility that it should also generate the underlying
+metadata required in overlays.
 .Sh COMPATIBILITY
 This utility is intended to be compatible with the device tree compiler
 provided by elinux.org.

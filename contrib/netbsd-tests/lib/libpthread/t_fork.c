@@ -1,4 +1,4 @@
-/* $NetBSD: t_fork.c,v 1.1 2010/07/16 15:42:53 jmmv Exp $ */
+/* $NetBSD: t_fork.c,v 1.2 2017/01/16 16:28:27 christos Exp $ */
 
 /*
  * Copyright (c) 2008 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
 #include <sys/cdefs.h>
 __COPYRIGHT("@(#) Copyright (c) 2008\
  The NetBSD Foundation, inc. All rights reserved.");
-__RCSID("$NetBSD: t_fork.c,v 1.1 2010/07/16 15:42:53 jmmv Exp $");
+__RCSID("$NetBSD: t_fork.c,v 1.2 2017/01/16 16:28:27 christos Exp $");
 
 /*
  * Written by Love Hörnquist Åstrand <lha@NetBSD.org>, March 2003.
@@ -61,7 +61,7 @@ print_pid(void *arg)
 
 	thread_survived = 1;
 	if (parent != getpid()) {
-		exit(1);
+		_exit(1);
 	}
 	return NULL;
 }
@@ -95,7 +95,7 @@ ATF_TC_BODY(fork, tc)
 		ATF_REQUIRE_EQ_MSG(WEXITSTATUS(status), 0, "thread survived in child");
 	} else {
 		sleep(5);
-		exit(thread_survived ? 1 : 0);
+		_exit(thread_survived ? 1 : 0);
 	}
 }
 

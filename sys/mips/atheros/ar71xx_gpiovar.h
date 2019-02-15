@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, Oleksandr Tymoshenko <gonzo@FreeBSD.org>
  * Copyright (c) 2009, Luiz Otavio O Souza.
  * All rights reserved.
@@ -57,12 +59,13 @@
 
 struct ar71xx_gpio_softc {
 	device_t		dev;
-        struct mtx		gpio_mtx;
-        struct resource		*gpio_mem_res;
-        int			gpio_mem_rid;
-        struct resource		*gpio_irq_res;
-        int			gpio_irq_rid;
-        void			*gpio_ih;
+	device_t		busdev;
+	struct mtx		gpio_mtx;
+	struct resource		*gpio_mem_res;
+	int			gpio_mem_rid;
+	struct resource		*gpio_irq_res;
+	int			gpio_irq_rid;
+	void			*gpio_ih;
 	int			gpio_npins;
 	struct gpio_pin		*gpio_pins;
 };

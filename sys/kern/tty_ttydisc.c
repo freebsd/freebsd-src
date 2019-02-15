@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Ed Schouten <ed@FreeBSD.org>
  * All rights reserved.
  *
@@ -94,14 +96,11 @@ ttydisc_close(struct tty *tp)
 	/* Clean up our flags when leaving the discipline. */
 	tp->t_flags &= ~(TF_STOPPED|TF_HIWAT|TF_ZOMBIE);
 
-	/* POSIX states we should flush when close() is called. */
-	ttyinq_flush(&tp->t_inq);
-	ttyoutq_flush(&tp->t_outq);
-
-	if (!tty_gone(tp)) {
-		ttydevsw_inwakeup(tp);
-		ttydevsw_outwakeup(tp);
-	}
+	/*
+	 * POSIX states that we must drain output and flush input on
+	 * last close.  Draining has already been done if possible.
+	 */
+	tty_flush(tp, FREAD | FWRITE);
 
 	if (ttyhook_hashook(tp, close))
 		ttyhook_close(tp);
@@ -1252,17 +1251,27 @@ ttydisc_getc_poll(struct tty *tp)
  */
 
 int
-tty_putchar(struct tty *tp, char c)
+tty_putstrn(struct tty *tp, const char *p, size_t n)
 {
+	size_t i;
+
 	tty_lock_assert(tp, MA_OWNED);
 
 	if (tty_gone(tp))
 		return (-1);
 
-	ttydisc_echo_force(tp, c, 0);
+	for (i = 0; i < n; i++)
+		ttydisc_echo_force(tp, p[i], 0);
+
 	tp->t_writepos = tp->t_column;
 	ttyinq_reprintpos_set(&tp->t_inq);
 
 	ttydevsw_outwakeup(tp);
 	return (0);
+}
+
+int
+tty_putchar(struct tty *tp, char c)
+{
+	return (tty_putstrn(tp, &c, 1));
 }

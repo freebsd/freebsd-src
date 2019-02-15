@@ -19,11 +19,6 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/vfprintf.c,v 1.6 2003-11-16 09:36:45 guy Exp $ (LBL)";
-#endif
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -35,7 +30,7 @@ static const char rcsid[] _U_ =
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "interface.h"
+#include "netdissect.h"
 
 /*
  * Stock 4.3 doesn't have vfprintf.

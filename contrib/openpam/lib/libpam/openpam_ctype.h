@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Dag-Erling Smørgrav
+ * Copyright (c) 2012-2014 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_ctype.h 763 2014-02-26 16:29:16Z des $
+ * $OpenPAM: openpam_ctype.h 938 2017-04-30 21:34:42Z des $
  */
 
 #ifndef OPENPAM_CTYPE_H_INCLUDED

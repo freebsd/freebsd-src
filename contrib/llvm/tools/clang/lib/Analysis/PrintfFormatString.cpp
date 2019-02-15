@@ -49,18 +49,38 @@ static bool ParsePrecision(FormatStringHandler &H, PrintfSpecifier &FS,
   return false;
 }
 
+static bool ParseObjCFlags(FormatStringHandler &H, PrintfSpecifier &FS,
+                           const char *FlagBeg, const char *E, bool Warn) {
+   StringRef Flag(FlagBeg, E - FlagBeg);
+   // Currently there is only one flag.
+   if (Flag == "tt") {
+     FS.setHasObjCTechnicalTerm(FlagBeg);
+     return false;
+   }
+   // Handle either the case of no flag or an invalid flag.
+   if (Warn) {
+     if (Flag == "")
+       H.HandleEmptyObjCModifierFlag(FlagBeg, E  - FlagBeg);
+     else
+       H.HandleInvalidObjCModifierFlag(FlagBeg, E  - FlagBeg);
+   }
+   return true;
+}
+
 static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
                                                   const char *&Beg,
                                                   const char *E,
                                                   unsigned &argIndex,
                                                   const LangOptions &LO,
-                                                  const TargetInfo &Target) {
+                                                  const TargetInfo &Target,
+                                                  bool Warn,
+                                                  bool isFreeBSDKPrintf) {
 
   using namespace clang::analyze_format_string;
   using namespace clang::analyze_printf;
 
   const char *I = Beg;
-  const char *Start = 0;
+  const char *Start = nullptr;
   UpdateOnReturn <const char*> UpdateBeg(Beg, I);
 
   // Look for a '%' character that indicates the start of a format specifier.
@@ -83,7 +103,8 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
 
   if (I == E) {
     // No more characters left?
-    H.HandleIncompleteSpecifier(Start, E - Start);
+    if (Warn)
+      H.HandleIncompleteSpecifier(Start, E - Start);
     return true;
   }
 
@@ -93,8 +114,42 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
 
   if (I == E) {
     // No more characters left?
-    H.HandleIncompleteSpecifier(Start, E - Start);
+    if (Warn)
+      H.HandleIncompleteSpecifier(Start, E - Start);
     return true;
+  }
+
+  const char *OSLogVisibilityFlagsStart = nullptr,
+             *OSLogVisibilityFlagsEnd = nullptr;
+  if (*I == '{') {
+    OSLogVisibilityFlagsStart = I++;
+    // Find the end of the modifier.
+    while (I != E && *I != '}') {
+      I++;
+    }
+    if (I == E) {
+      if (Warn)
+        H.HandleIncompleteSpecifier(Start, E - Start);
+      return true;
+    }
+    assert(*I == '}');
+    OSLogVisibilityFlagsEnd = I++;
+
+    // Just see if 'private' or 'public' is the first word. os_log itself will
+    // do any further parsing.
+    const char *P = OSLogVisibilityFlagsStart + 1;
+    while (P < OSLogVisibilityFlagsEnd && isspace(*P))
+      P++;
+    const char *WordStart = P;
+    while (P < OSLogVisibilityFlagsEnd && (isalnum(*P) || *P == '_'))
+      P++;
+    const char *WordEnd = P;
+    StringRef Word(WordStart, WordEnd - WordStart);
+    if (Word == "private") {
+      FS.setIsPrivate(WordStart);
+    } else if (Word == "public") {
+      FS.setIsPublic(WordStart);
+    }
   }
 
   // Look for flags (if any).
@@ -118,18 +173,20 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
 
   if (I == E) {
     // No more characters left?
-    H.HandleIncompleteSpecifier(Start, E - Start);
+    if (Warn)
+      H.HandleIncompleteSpecifier(Start, E - Start);
     return true;
   }
 
   // Look for the field width (if any).
   if (ParseFieldWidth(H, FS, Start, I, E,
-                      FS.usesPositionalArg() ? 0 : &argIndex))
+                      FS.usesPositionalArg() ? nullptr : &argIndex))
     return true;
 
   if (I == E) {
     // No more characters left?
-    H.HandleIncompleteSpecifier(Start, E - Start);
+    if (Warn)
+      H.HandleIncompleteSpecifier(Start, E - Start);
     return true;
   }
 
@@ -137,17 +194,19 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
   if (*I == '.') {
     ++I;
     if (I == E) {
-      H.HandleIncompleteSpecifier(Start, E - Start);
+      if (Warn)
+        H.HandleIncompleteSpecifier(Start, E - Start);
       return true;
     }
 
     if (ParsePrecision(H, FS, Start, I, E,
-                       FS.usesPositionalArg() ? 0 : &argIndex))
+                       FS.usesPositionalArg() ? nullptr : &argIndex))
       return true;
 
     if (I == E) {
       // No more characters left?
-      H.HandleIncompleteSpecifier(Start, E - Start);
+      if (Warn)
+        H.HandleIncompleteSpecifier(Start, E - Start);
       return true;
     }
   }
@@ -155,8 +214,41 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
   // Look for the length modifier.
   if (ParseLengthModifier(FS, I, E, LO) && I == E) {
     // No more characters left?
-    H.HandleIncompleteSpecifier(Start, E - Start);
+    if (Warn)
+      H.HandleIncompleteSpecifier(Start, E - Start);
     return true;
+  }
+
+  // Look for the Objective-C modifier flags, if any.
+  // We parse these here, even if they don't apply to
+  // the conversion specifier, and then emit an error
+  // later if the conversion specifier isn't '@'.  This
+  // enables better recovery, and we don't know if
+  // these flags are applicable until later.
+  const char *ObjCModifierFlagsStart = nullptr,
+             *ObjCModifierFlagsEnd = nullptr;
+  if (*I == '[') {
+    ObjCModifierFlagsStart = I;
+    ++I;
+    auto flagStart = I;
+    for (;; ++I) {
+      ObjCModifierFlagsEnd = I;
+      if (I == E) {
+        if (Warn)
+          H.HandleIncompleteSpecifier(Start, E - Start);
+        return true;
+      }
+      // Did we find the closing ']'?
+      if (*I == ']') {
+        if (ParseObjCFlags(H, FS, flagStart, I, Warn))
+          return true;
+        ++I;
+        break;
+      }
+      // There are no separators defined yet for multiple
+      // Objective-C modifier flags.  When those are
+      // defined, this is the place to check.
+    }
   }
 
   if (*I == '\0') {
@@ -194,29 +286,33 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
     // POSIX specific.
     case 'C': k = ConversionSpecifier::CArg; break;
     case 'S': k = ConversionSpecifier::SArg; break;
+    // Apple extension for os_log
+    case 'P':
+      k = ConversionSpecifier::PArg;
+      break;
     // Objective-C.
     case '@': k = ConversionSpecifier::ObjCObjArg; break;
     // Glibc specific.
     case 'm': k = ConversionSpecifier::PrintErrno; break;
-    // FreeBSD format extensions
+    // FreeBSD kernel specific.
     case 'b':
-      if (LO.FormatExtensions)
+      if (isFreeBSDKPrintf)
         k = ConversionSpecifier::FreeBSDbArg; // int followed by char *
       break;
     case 'r':
-      if (LO.FormatExtensions)
-        k = ConversionSpecifier::FreeBSDrArg;
+      if (isFreeBSDKPrintf)
+        k = ConversionSpecifier::FreeBSDrArg; // int
       break;
     case 'y':
-      if (LO.FormatExtensions)
-        k = ConversionSpecifier::iArg;
+      if (isFreeBSDKPrintf)
+        k = ConversionSpecifier::FreeBSDyArg; // int
       break;
-    // Apple-specific
+    // Apple-specific.
     case 'D':
-      if (Target.getTriple().isOSDarwin())
+      if (isFreeBSDKPrintf)
+        k = ConversionSpecifier::FreeBSDDArg; // void * followed by char *
+      else if (Target.getTriple().isOSDarwin())
         k = ConversionSpecifier::DArg;
-      else if (LO.FormatExtensions)
-        k = ConversionSpecifier::FreeBSDDArg; // u_char * followed by char *
       break;
     case 'O':
       if (Target.getTriple().isOSDarwin())
@@ -226,19 +322,40 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
       if (Target.getTriple().isOSDarwin())
         k = ConversionSpecifier::UArg;
       break;
+    // MS specific.
+    case 'Z':
+      if (Target.getTriple().isOSMSVCRT())
+        k = ConversionSpecifier::ZArg;
   }
+  
+  // Check to see if we used the Objective-C modifier flags with
+  // a conversion specifier other than '@'.
+  if (k != ConversionSpecifier::ObjCObjArg &&
+      k != ConversionSpecifier::InvalidSpecifier &&
+      ObjCModifierFlagsStart) {
+    H.HandleObjCFlagsWithNonObjCConversion(ObjCModifierFlagsStart,
+                                           ObjCModifierFlagsEnd + 1,
+                                           conversionPosition);
+    return true;
+  }
+
   PrintfConversionSpecifier CS(conversionPosition, k);
   FS.setConversionSpecifier(CS);
   if (CS.consumesDataArgument() && !FS.usesPositionalArg())
     FS.setArgIndex(argIndex++);
-  // FreeBSD extension
+  // FreeBSD kernel specific.
   if (k == ConversionSpecifier::FreeBSDbArg ||
       k == ConversionSpecifier::FreeBSDDArg)
     argIndex++;
 
   if (k == ConversionSpecifier::InvalidSpecifier) {
+    unsigned Len = I - Start;
+    if (ParseUTF8InvalidSpecifier(Start, E, Len)) {
+      CS.setEndScanList(Start + Len);
+      FS.setConversionSpecifier(CS);
+    }
     // Assume the conversion takes one argument.
-    return !H.HandleInvalidPrintfConversionSpecifier(FS, Start, I - Start);
+    return !H.HandleInvalidPrintfConversionSpecifier(FS, Start, Len);
   }
   return PrintfSpecifierResult(Start, FS);
 }
@@ -247,14 +364,16 @@ bool clang::analyze_format_string::ParsePrintfString(FormatStringHandler &H,
                                                      const char *I,
                                                      const char *E,
                                                      const LangOptions &LO,
-                                                     const TargetInfo &Target) {
+                                                     const TargetInfo &Target,
+                                                     bool isFreeBSDKPrintf) {
 
   unsigned argIndex = 0;
 
   // Keep looking for a format specifier until we have exhausted the string.
   while (I != E) {
     const PrintfSpecifierResult &FSR = ParsePrintfSpecifier(H, I, E, argIndex,
-                                                            LO, Target);
+                                                            LO, Target, true,
+                                                            isFreeBSDKPrintf);
     // Did a fail-stop error of any kind occur when parsing the specifier?
     // If so, don't do any more processing.
     if (FSR.shouldStop())
@@ -272,6 +391,35 @@ bool clang::analyze_format_string::ParsePrintfString(FormatStringHandler &H,
   return false;
 }
 
+bool clang::analyze_format_string::ParseFormatStringHasSArg(const char *I,
+                                                            const char *E,
+                                                            const LangOptions &LO,
+                                                            const TargetInfo &Target) {
+  
+  unsigned argIndex = 0;
+  
+  // Keep looking for a %s format specifier until we have exhausted the string.
+  FormatStringHandler H;
+  while (I != E) {
+    const PrintfSpecifierResult &FSR = ParsePrintfSpecifier(H, I, E, argIndex,
+                                                            LO, Target, false,
+                                                            false);
+    // Did a fail-stop error of any kind occur when parsing the specifier?
+    // If so, don't do any more processing.
+    if (FSR.shouldStop())
+      return false;
+    // Did we exhaust the string or encounter an error that
+    // we can recover from?
+    if (!FSR.hasValue())
+      continue;
+    const analyze_printf::PrintfSpecifier &FS = FSR.getValue();
+    // Return true if this a %s format specifier.
+    if (FS.getConversionSpecifier().getKind() == ConversionSpecifier::Kind::sArg)
+      return true;
+  }
+  return false;
+}
+
 //===----------------------------------------------------------------------===//
 // Methods on PrintfSpecifier.
 //===----------------------------------------------------------------------===//
@@ -285,9 +433,15 @@ ArgType PrintfSpecifier::getArgType(ASTContext &Ctx,
 
   if (CS.getKind() == ConversionSpecifier::cArg)
     switch (LM.getKind()) {
-      case LengthModifier::None: return Ctx.IntTy;
+      case LengthModifier::None:
+        return Ctx.IntTy;
       case LengthModifier::AsLong:
+      case LengthModifier::AsWide:
         return ArgType(ArgType::WIntTy, "wint_t");
+      case LengthModifier::AsShort:
+        if (Ctx.getTargetInfo().getTriple().isOSMSVCRT())
+          return Ctx.IntTy;
+        LLVM_FALLTHROUGH;
       default:
         return ArgType::Invalid();
     }
@@ -312,8 +466,7 @@ ArgType PrintfSpecifier::getArgType(ASTContext &Ctx,
       case LengthModifier::AsIntMax:
         return ArgType(Ctx.getIntMaxType(), "intmax_t");
       case LengthModifier::AsSizeT:
-        // FIXME: How to get the corresponding signed version of size_t?
-        return ArgType();
+        return ArgType(Ctx.getSignedSizeType(), "ssize_t");
       case LengthModifier::AsInt3264:
         return Ctx.getTargetInfo().getTriple().isArch64Bit()
                    ? ArgType(Ctx.LongLongTy, "__int64")
@@ -322,6 +475,7 @@ ArgType PrintfSpecifier::getArgType(ASTContext &Ctx,
         return ArgType(Ctx.getPointerDiffType(), "ptrdiff_t");
       case LengthModifier::AsAllocate:
       case LengthModifier::AsMAllocate:
+      case LengthModifier::AsWide:
         return ArgType::Invalid();
     }
 
@@ -351,11 +505,10 @@ ArgType PrintfSpecifier::getArgType(ASTContext &Ctx,
                    ? ArgType(Ctx.UnsignedLongLongTy, "unsigned __int64")
                    : ArgType(Ctx.UnsignedIntTy, "unsigned __int32");
       case LengthModifier::AsPtrDiff:
-        // FIXME: How to get the corresponding unsigned
-        // version of ptrdiff_t?
-        return ArgType();
+        return ArgType(Ctx.getUnsignedPointerDiffType(), "unsigned ptrdiff_t");
       case LengthModifier::AsAllocate:
       case LengthModifier::AsMAllocate:
+      case LengthModifier::AsWide:
         return ArgType::Invalid();
     }
 
@@ -381,7 +534,7 @@ ArgType PrintfSpecifier::getArgType(ASTContext &Ctx,
       case LengthModifier::AsIntMax:
         return ArgType::PtrTo(ArgType(Ctx.getIntMaxType(), "intmax_t"));
       case LengthModifier::AsSizeT:
-        return ArgType(); // FIXME: ssize_t
+        return ArgType::PtrTo(ArgType(Ctx.getSignedSizeType(), "ssize_t"));
       case LengthModifier::AsPtrDiff:
         return ArgType::PtrTo(ArgType(Ctx.getPointerDiffType(), "ptrdiff_t"));
       case LengthModifier::AsLongDouble:
@@ -391,6 +544,7 @@ ArgType PrintfSpecifier::getArgType(ASTContext &Ctx,
       case LengthModifier::AsInt32:
       case LengthModifier::AsInt3264:
       case LengthModifier::AsInt64:
+      case LengthModifier::AsWide:
         return ArgType::Invalid();
     }
   }
@@ -403,17 +557,26 @@ ArgType PrintfSpecifier::getArgType(ASTContext &Ctx,
                          "const unichar *");
         return ArgType(ArgType::WCStrTy, "wchar_t *");
       }
+      if (LM.getKind() == LengthModifier::AsWide)
+        return ArgType(ArgType::WCStrTy, "wchar_t *");
       return ArgType::CStrTy;
     case ConversionSpecifier::SArg:
       if (IsObjCLiteral)
         return ArgType(Ctx.getPointerType(Ctx.UnsignedShortTy.withConst()),
                        "const unichar *");
+      if (Ctx.getTargetInfo().getTriple().isOSMSVCRT() &&
+          LM.getKind() == LengthModifier::AsShort)
+        return ArgType::CStrTy;
       return ArgType(ArgType::WCStrTy, "wchar_t *");
     case ConversionSpecifier::CArg:
       if (IsObjCLiteral)
         return ArgType(Ctx.UnsignedShortTy, "unichar");
+      if (Ctx.getTargetInfo().getTriple().isOSMSVCRT() &&
+          LM.getKind() == LengthModifier::AsShort)
+        return Ctx.IntTy;
       return ArgType(Ctx.WideCharTy, "wchar_t");
     case ConversionSpecifier::pArg:
+    case ConversionSpecifier::PArg:
       return ArgType::CPointerTy;
     case ConversionSpecifier::ObjCObjArg:
       return ArgType::ObjCPointerTy;
@@ -489,9 +652,14 @@ bool PrintfSpecifier::fixType(QualType QT, const LangOptions &LangOpt,
   case BuiltinType::UInt128:
   case BuiltinType::Int128:
   case BuiltinType::Half:
+  case BuiltinType::Float16:
+  case BuiltinType::Float128:
     // Various types which are non-trivial to correct.
     return false;
 
+#define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
+  case BuiltinType::Id:
+#include "clang/Basic/OpenCLImageTypes.def"
 #define SIGNED_TYPE(Id, SingletonId)
 #define UNSIGNED_TYPE(Id, SingletonId)
 #define FLOATING_TYPE(Id, SingletonId)
@@ -638,6 +806,7 @@ bool PrintfSpecifier::hasValidPlusPrefix() const {
   case ConversionSpecifier::aArg:
   case ConversionSpecifier::AArg:
   case ConversionSpecifier::FreeBSDrArg:
+  case ConversionSpecifier::FreeBSDyArg:
     return true;
 
   default:
@@ -664,6 +833,7 @@ bool PrintfSpecifier::hasValidAlternativeForm() const {
   case ConversionSpecifier::gArg:
   case ConversionSpecifier::GArg:
   case ConversionSpecifier::FreeBSDrArg:
+  case ConversionSpecifier::FreeBSDyArg:
     return true;
 
   default:
@@ -694,6 +864,8 @@ bool PrintfSpecifier::hasValidLeadingZeros() const {
   case ConversionSpecifier::FArg:
   case ConversionSpecifier::gArg:
   case ConversionSpecifier::GArg:
+  case ConversionSpecifier::FreeBSDrArg:
+  case ConversionSpecifier::FreeBSDyArg:
     return true;
 
   default:
@@ -718,6 +890,8 @@ bool PrintfSpecifier::hasValidSpacePrefix() const {
   case ConversionSpecifier::GArg:
   case ConversionSpecifier::aArg:
   case ConversionSpecifier::AArg:
+  case ConversionSpecifier::FreeBSDrArg:
+  case ConversionSpecifier::FreeBSDyArg:
     return true;
 
   default:
@@ -763,7 +937,7 @@ bool PrintfSpecifier::hasValidPrecision() const {
   if (Precision.getHowSpecified() == OptionalAmount::NotSpecified)
     return true;
 
-  // Precision is only valid with the diouxXaAeEfFgGs conversions
+  // Precision is only valid with the diouxXaAeEfFgGsP conversions
   switch (CS.getKind()) {
   case ConversionSpecifier::dArg:
   case ConversionSpecifier::DArg:
@@ -783,6 +957,9 @@ bool PrintfSpecifier::hasValidPrecision() const {
   case ConversionSpecifier::gArg:
   case ConversionSpecifier::GArg:
   case ConversionSpecifier::sArg:
+  case ConversionSpecifier::FreeBSDrArg:
+  case ConversionSpecifier::FreeBSDyArg:
+  case ConversionSpecifier::PArg:
     return true;
 
   default:

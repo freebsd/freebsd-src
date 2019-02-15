@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1995 by Pavel Antonov, Moscow, Russia.
  * Copyright (C) 1995 by Andrey A. Chernov, Moscow, Russia.
  * Copyright (C) 2002 by John Baldwin <jhb@FreeBSD.org>
@@ -186,7 +188,7 @@ rc_probe(device_t dev)
 	if (port == -1)
 		return (ENXIO);
 	found = 0;
-	for (i = 0; i < sizeof(rc_ports) / sizeof(int); i++)
+	for (i = 0; i < nitems(rc_ports); i++)
 		if (rc_ports[i] == port) {
 			found = 1;
 			break;
@@ -242,8 +244,8 @@ rc_attach(device_t dev)
 	error = ENOMEM;
 	for (i = 0; i < IOBASE_ADDRS; i++) {
 		x = i;
-		sc->sc_port[i] = bus_alloc_resource(dev, SYS_RES_IOPORT, &x,
-		    0ul, ~0ul, 0x10, RF_ACTIVE);
+		sc->sc_port[i] = bus_alloc_resource_anywhere(dev,
+		    SYS_RES_IOPORT, &x, 0x10, RF_ACTIVE);
 		if (x != i) {
 			device_printf(dev, "ioport %d was rid %d\n", i, x);
 			goto fail;
@@ -1123,7 +1125,7 @@ rc_test(struct rc_softc *sc)
 
 	chipid = RC_FAKEID;
 
-	/* First, reset board to inital state */
+	/* First, reset board to initial state */
 	rc_hwreset(sc, chipid);
 
 	divs = RC_BRD(19200);

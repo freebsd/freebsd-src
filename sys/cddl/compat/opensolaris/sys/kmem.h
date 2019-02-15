@@ -33,6 +33,7 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/vmem.h>
+#include <sys/vmmeter.h>
 
 #include <vm/uma.h>
 #include <vm/vm.h>
@@ -72,14 +73,16 @@ kmem_cache_t *kmem_cache_create(char *name, size_t bufsize, size_t align,
 void kmem_cache_destroy(kmem_cache_t *cache);
 void *kmem_cache_alloc(kmem_cache_t *cache, int flags);
 void kmem_cache_free(kmem_cache_t *cache, void *buf);
-void kmem_cache_reap_now(kmem_cache_t *cache);
+boolean_t kmem_cache_reap_active(void);
+void kmem_cache_reap_soon(kmem_cache_t *);
 void kmem_reap(void);
 int kmem_debugging(void);
 void *calloc(size_t n, size_t s);
 
-#define	freemem				(vm_cnt.v_free_count + vm_cnt.v_cache_count)
+#define	freemem				vm_free_count()
 #define	minfree				vm_cnt.v_free_min
-#define	heap_arena			kmem_arena
+#define	heap_arena			kernel_arena
+#define	zio_arena			NULL
 #define	kmem_alloc(size, kmflags)	zfs_kmem_alloc((size), (kmflags))
 #define	kmem_zalloc(size, kmflags)	zfs_kmem_alloc((size), (kmflags) | M_ZERO)
 #define	kmem_free(buf, size)		zfs_kmem_free((buf), (size))

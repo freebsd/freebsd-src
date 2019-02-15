@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Jake Burkholder <jake@freebsd.org>.
  * All rights reserved.
  *
@@ -31,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -45,6 +48,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/ktrace.h>
 #endif
+
+/*
+ * A bound below which cv_waiters is valid.  Once cv_waiters reaches this bound,
+ * cv_signal must manually check the wait queue for threads.
+ */
+#define	CV_WAITERS_BOUND	INT_MAX
+
+#define	CV_WAITERS_INC(cvp) do {					\
+	if ((cvp)->cv_waiters < CV_WAITERS_BOUND)			\
+		(cvp)->cv_waiters++;					\
+} while (0)
 
 /*
  * Common sanity checks for cv_wait* functions.
@@ -110,19 +124,12 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 	    "Waiting on \"%s\"", cvp->cv_description);
 	class = LOCK_CLASS(lock);
 
-	if (cold || panicstr) {
-		/*
-		 * During autoconfiguration, just give interrupts
-		 * a chance, then just return.  Don't run any other
-		 * thread or panic below, in case this is the idle
-		 * process and already asleep.
-		 */
+	if (SCHEDULER_STOPPED_TD(td))
 		return;
-	}
 
 	sleepq_lock(cvp);
 
-	cvp->cv_waiters++;
+	CV_WAITERS_INC(cvp);
 	if (lock == &Giant.lock_object)
 		mtx_assert(&Giant, MA_OWNED);
 	DROP_GIANT();
@@ -151,7 +158,7 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 
 /*
  * Wait on a condition variable.  This function differs from cv_wait by
- * not aquiring the mutex after condition variable was signaled.
+ * not acquiring the mutex after condition variable was signaled.
  */
 void
 _cv_wait_unlock(struct cv *cvp, struct lock_object *lock)
@@ -171,20 +178,14 @@ _cv_wait_unlock(struct cv *cvp, struct lock_object *lock)
 	    ("cv_wait_unlock cannot be used with Giant"));
 	class = LOCK_CLASS(lock);
 
-	if (cold || panicstr) {
-		/*
-		 * During autoconfiguration, just give interrupts
-		 * a chance, then just return.  Don't run any other
-		 * thread or panic below, in case this is the idle
-		 * process and already asleep.
-		 */
+	if (SCHEDULER_STOPPED_TD(td)) {
 		class->lc_unlock(lock);
 		return;
 	}
 
 	sleepq_lock(cvp);
 
-	cvp->cv_waiters++;
+	CV_WAITERS_INC(cvp);
 	DROP_GIANT();
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR, 0);
@@ -228,19 +229,12 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 	    "Waiting on \"%s\"", cvp->cv_description);
 	class = LOCK_CLASS(lock);
 
-	if (cold || panicstr) {
-		/*
-		 * After a panic, or during autoconfiguration, just give
-		 * interrupts a chance, then just return; don't run any other
-		 * procs or panic below, in case this is the idle process and
-		 * already asleep.
-		 */
+	if (SCHEDULER_STOPPED_TD(td))
 		return (0);
-	}
 
 	sleepq_lock(cvp);
 
-	cvp->cv_waiters++;
+	CV_WAITERS_INC(cvp);
 	if (lock == &Giant.lock_object)
 		mtx_assert(&Giant, MA_OWNED);
 	DROP_GIANT();
@@ -295,19 +289,12 @@ _cv_timedwait_sbt(struct cv *cvp, struct lock_object *lock, sbintime_t sbt,
 	    "Waiting on \"%s\"", cvp->cv_description);
 	class = LOCK_CLASS(lock);
 
-	if (cold || panicstr) {
-		/*
-		 * After a panic, or during autoconfiguration, just give
-		 * interrupts a chance, then just return; don't run any other
-		 * thread or panic below, in case this is the idle process and
-		 * already asleep.
-		 */
-		return 0;
-	}
+	if (SCHEDULER_STOPPED_TD(td))
+		return (0);
 
 	sleepq_lock(cvp);
 
-	cvp->cv_waiters++;
+	CV_WAITERS_INC(cvp);
 	if (lock == &Giant.lock_object)
 		mtx_assert(&Giant, MA_OWNED);
 	DROP_GIANT();
@@ -364,19 +351,12 @@ _cv_timedwait_sig_sbt(struct cv *cvp, struct lock_object *lock,
 	    "Waiting on \"%s\"", cvp->cv_description);
 	class = LOCK_CLASS(lock);
 
-	if (cold || panicstr) {
-		/*
-		 * After a panic, or during autoconfiguration, just give
-		 * interrupts a chance, then just return; don't run any other
-		 * thread or panic below, in case this is the idle process and
-		 * already asleep.
-		 */
-		return 0;
-	}
+	if (SCHEDULER_STOPPED_TD(td))
+		return (0);
 
 	sleepq_lock(cvp);
 
-	cvp->cv_waiters++;
+	CV_WAITERS_INC(cvp);
 	if (lock == &Giant.lock_object)
 		mtx_assert(&Giant, MA_OWNED);
 	DROP_GIANT();
@@ -419,11 +399,20 @@ cv_signal(struct cv *cvp)
 {
 	int wakeup_swapper;
 
+	if (cvp->cv_waiters == 0)
+		return;
 	wakeup_swapper = 0;
 	sleepq_lock(cvp);
 	if (cvp->cv_waiters > 0) {
-		cvp->cv_waiters--;
-		wakeup_swapper = sleepq_signal(cvp, SLEEPQ_CONDVAR, 0, 0);
+		if (cvp->cv_waiters == CV_WAITERS_BOUND &&
+		    sleepq_lookup(cvp) == NULL) {
+			cvp->cv_waiters = 0;
+		} else {
+			if (cvp->cv_waiters < CV_WAITERS_BOUND)
+				cvp->cv_waiters--;
+			wakeup_swapper = sleepq_signal(cvp, SLEEPQ_CONDVAR, 0,
+			    0);
+		}
 	}
 	sleepq_release(cvp);
 	if (wakeup_swapper)
@@ -439,6 +428,8 @@ cv_broadcastpri(struct cv *cvp, int pri)
 {
 	int wakeup_swapper;
 
+	if (cvp->cv_waiters == 0)
+		return;
 	/*
 	 * XXX sleepq_broadcast pri argument changed from -1 meaning
 	 * no pri to 0 meaning no pri.

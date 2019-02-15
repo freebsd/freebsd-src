@@ -33,19 +33,64 @@
 #include <sys/types.h>
 #endif
 
+#define SHA256_BLOCK_LENGTH		64
+#define SHA256_DIGEST_LENGTH		32
+#define SHA256_DIGEST_STRING_LENGTH	(SHA256_DIGEST_LENGTH * 2 + 1)
+
 typedef struct SHA256Context {
 	uint32_t state[8];
 	uint64_t count;
-	uint8_t buf[64];
+	uint8_t buf[SHA256_BLOCK_LENGTH];
 } SHA256_CTX;
 
 __BEGIN_DECLS
+
+/* Ensure libmd symbols do not clash with libcrypto */
+
+#ifndef SHA256_Init
+#define SHA256_Init		_libmd_SHA256_Init
+#endif
+#ifndef SHA256_Update
+#define SHA256_Update		_libmd_SHA256_Update
+#endif
+#ifndef SHA256_Final
+#define SHA256_Final		_libmd_SHA256_Final
+#endif
+#ifndef SHA256_End
+#define SHA256_End		_libmd_SHA256_End
+#endif
+#ifndef SHA256_Fd
+#define SHA256_Fd		_libmd_SHA256_Fd
+#endif
+#ifndef SHA256_FdChunk
+#define SHA256_FdChunk		_libmd_SHA256_FdChunk
+#endif
+#ifndef SHA256_File
+#define SHA256_File		_libmd_SHA256_File
+#endif
+#ifndef SHA256_FileChunk
+#define SHA256_FileChunk	_libmd_SHA256_FileChunk
+#endif
+#ifndef SHA256_Data
+#define SHA256_Data		_libmd_SHA256_Data
+#endif
+
+#ifndef SHA256_Transform
+#define SHA256_Transform	_libmd_SHA256_Transform
+#endif
+#ifndef SHA256_version
+#define SHA256_version		_libmd_SHA256_version
+#endif
+
 void	SHA256_Init(SHA256_CTX *);
 void	SHA256_Update(SHA256_CTX *, const void *, size_t);
-void	SHA256_Final(unsigned char [32], SHA256_CTX *);
+void	SHA256_Final(unsigned char [__min_size(SHA256_DIGEST_LENGTH)],
+    SHA256_CTX *);
+#ifndef _KERNEL
 char   *SHA256_End(SHA256_CTX *, char *);
 char   *SHA256_Data(const void *, unsigned int, char *);
-#ifndef _KERNEL
+char   *SHA256_Fd(int, char *);
+char   *SHA256_FdChunk(int, char *, off_t, off_t);
 char   *SHA256_File(const char *, char *);
 char   *SHA256_FileChunk(const char *, char *, off_t, off_t);
 #endif

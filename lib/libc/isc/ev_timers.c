@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
  * Copyright (c) 1995-1999 by Internet Software Consortium
  *
@@ -117,7 +119,7 @@ evCmpTime(struct timespec a, struct timespec b) {
 }
 
 struct timespec
-evNowTime() {
+evNowTime(void) {
 	struct timeval now;
 #ifdef CLOCK_REALTIME
 	struct timespec tsnow;
@@ -136,7 +138,7 @@ evNowTime() {
 }
 
 struct timespec
-evUTCTime() {
+evUTCTime(void) {
 	struct timeval now;
 #ifdef CLOCK_REALTIME
 	struct timespec tsnow;

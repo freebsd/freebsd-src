@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1998-2014 Dag-Erling Smørgrav
  * All rights reserved.
  *
@@ -73,9 +75,10 @@ struct iovec;
 
 void		 fetch_seterr(struct fetcherr *, int);
 void		 fetch_syserr(void);
-void		 fetch_info(const char *, ...);
+void		 fetch_info(const char *, ...) __printflike(1, 2);
 int		 fetch_default_port(const char *);
 int		 fetch_default_proxy_port(const char *);
+struct addrinfo *fetch_resolve(const char *, int, int);
 int		 fetch_bind(int, int, const char *);
 conn_t		*fetch_connect(const char *, int, int, int);
 conn_t		*fetch_reopen(int);
@@ -101,9 +104,16 @@ int		 fetch_no_proxy_match(const char *);
 #define url_seterr(n)	 fetch_seterr(url_errlist, n)
 
 #ifndef NDEBUG
-#define DEBUG(x) do { if (fetchDebug) { x; } } while (0)
+#define DEBUGF(...)							\
+	do {								\
+		if (fetchDebug)						\
+			fprintf(stderr, __VA_ARGS__);			\
+	} while (0)
 #else
-#define DEBUG(x) do { } while (0)
+#define DEBUGF(...)							\
+	do {								\
+		/* nothing */						\
+	} while (0)
 #endif
 
 /*

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-4-Clause
+ *
  * Copyright (c) 1996, 1997, 1998, 2001 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -68,6 +70,7 @@
 #ifndef _SPARC64_BUS_DMA_H
 #define _SPARC64_BUS_DMA_H
 
+#define WANT_INLINE_DMAMAP
 #include <sys/bus_dma.h>
 
 /* DMA support */
@@ -124,29 +127,95 @@ struct bus_dma_tag {
 	struct bus_dma_methods	*dt_mt;
 };
 
-#define	bus_dmamap_create(t, f, p)					\
-	((t)->dt_mt->dm_dmamap_create((t), (f), (p)))
-#define	bus_dmamap_destroy(t, p)					\
-	((t)->dt_mt->dm_dmamap_destroy((t), (p)))
-#define	_bus_dmamap_load_phys(t, m, b, l, f, s, sp)			\
-	((t)->dt_mt->dm_dmamap_load_phys((t), (m), (b), (l),		\
-	    (f), (s), (sp)))
-#define	_bus_dmamap_load_buffer(t, m, b, l, p, f, s, sp)		\
-	((t)->dt_mt->dm_dmamap_load_buffer((t), (m), (b), (l), (p),	\
-	    (f), (s), (sp)))
-#define	_bus_dmamap_waitok(t, m, mem, c, ca)				\
-	((t)->dt_mt->dm_dmamap_waitok((t), (m), (mem), (c), (ca)))
-#define	_bus_dmamap_complete(t, m, s, n, e)				\
-	((t)->dt_mt->dm_dmamap_complete((t), (m), (s), (n), (e)))
-#define	bus_dmamap_unload(t, p)						\
-	((t)->dt_mt->dm_dmamap_unload((t), (p)))
-#define	bus_dmamap_sync(t, m, op)					\
-	((t)->dt_mt->dm_dmamap_sync((t), (m), (op)))
-#define	bus_dmamem_alloc(t, v, f, m)					\
-	((t)->dt_mt->dm_dmamem_alloc((t), (v), (f), (m)))
-#define	bus_dmamem_free(t, v, m)					\
-	((t)->dt_mt->dm_dmamem_free((t), (v), (m)))
-#define _bus_dmamap_load_ma(t, m, a, tt, o, f, s, p)			\
-	bus_dmamap_load_ma_triv((t), (m), (a), (tt), (o), (f), (s), (p))
+static inline int
+bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
+{
+
+	return (dmat->dt_mt->dm_dmamap_create(dmat, flags, mapp));
+}
+
+static inline int
+bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
+{
+
+	return (dmat->dt_mt->dm_dmamap_destroy(dmat, map));
+}
+
+static inline void
+bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
+{
+
+	dmat->dt_mt->dm_dmamap_sync(dmat, map, op);
+}
+
+static inline void
+bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
+{
+
+	dmat->dt_mt->dm_dmamap_unload(dmat, map);
+}
+
+static inline int
+bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags, bus_dmamap_t *mapp)
+{
+
+	return (dmat->dt_mt->dm_dmamem_alloc(dmat, vaddr, flags, mapp));
+}
+
+static inline void
+bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
+{
+
+	dmat->dt_mt->dm_dmamem_free(dmat, vaddr, map);
+}
+
+static inline bus_dma_segment_t*
+_bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
+    bus_dma_segment_t *segs, int nsegs, int error)
+{
+
+	return (dmat->dt_mt->dm_dmamap_complete(dmat, map, segs,
+	    nsegs, error));
+}
+
+static inline int
+_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map,
+    void *buf, bus_size_t buflen, struct pmap *pmap,
+    int flags, bus_dma_segment_t *segs, int *segp)
+{
+
+	return (dmat->dt_mt->dm_dmamap_load_buffer(dmat, map, buf, buflen,
+	    pmap, flags, segs, segp));
+}
+
+static inline int
+_bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map,
+    struct vm_page **ma, bus_size_t tlen, int ma_offs,
+    int flags, bus_dma_segment_t *segs, int *segp)
+{
+
+	return (bus_dmamap_load_ma_triv(dmat, map, ma, tlen, ma_offs, flags,
+	    segs, segp));
+}
+
+static inline int
+_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
+    vm_paddr_t paddr, bus_size_t buflen,
+    int flags, bus_dma_segment_t *segs, int *segp)
+{
+
+	return (dmat->dt_mt->dm_dmamap_load_phys(dmat, map, paddr, buflen,
+	    flags, segs, segp));
+}
+
+static inline void
+_bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
+    struct memdesc *mem, bus_dmamap_callback_t *callback,
+    void *callback_arg)
+{
+
+	return (dmat->dt_mt->dm_dmamap_waitok(dmat, map, mem, callback,
+	    callback_arg));
+}
 
 #endif /* !_SPARC64_BUS_DMA_H_ */

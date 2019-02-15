@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
  * All rights reserved.
@@ -56,14 +58,13 @@ struct trapframe {
 	register_t srr0;
 	register_t srr1;
 	register_t exc;
+	register_t dar;	/* DAR/DEAR filled in on DSI traps */
 	union {
 		struct {
-			/* dar & dsisr are only filled on a DSI trap */
-			register_t dar;
+			/* dsisr only filled on a DSI trap */
 			register_t dsisr;
 		} aim;
 		struct {
-			register_t dear;
 			register_t esr;
 			register_t dbcr0;
 		} booke;
@@ -110,7 +111,5 @@ struct callframe {
 /* Definitions for syscalls */
 #define	FIRSTARG	3				/* first arg in reg 3 */
 #define	NARGREG		8				/* 8 args in regs */
-#define	MOREARGS(sp)	((caddr_t)((uintptr_t)(sp) + \
-    sizeof(struct callframe) - 3*sizeof(register_t))) /* more args go here */
 
 #endif	/* _MACHINE_FRAME_H_ */

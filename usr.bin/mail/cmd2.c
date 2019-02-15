@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -53,9 +55,10 @@ extern int wait_status;
  * If given as first command with no arguments, print first message.
  */
 int
-next(int *msgvec)
+next(void *v)
 {
 	struct message *mp;
+	int *msgvec = v;
 	int *ip, *ip2, list[2], mdot;
 
 	if (*msgvec != 0) {
@@ -130,8 +133,9 @@ hitit:
  * so we can discard when the user quits.
  */
 int
-save(char str[])
+save(void *v)
 {
+	char *str = v;
 
 	return (save1(str, 1, "save", saveignore));
 }
@@ -140,8 +144,9 @@ save(char str[])
  * Copy a message to a file without affected its saved-ness
  */
 int
-copycmd(char str[])
+copycmd(void *v)
 {
+	char *str = v;
 
 	return (save1(str, 0, "copy", saveignore));
 }
@@ -208,8 +213,9 @@ save1(char str[], int mark, const char *cmd, struct ignoretab *ignore)
  * file name, minus header and trailing blank line.
  */
 int
-swrite(char str[])
+swrite(void *v)
 {
+	char *str = v;
 
 	return (save1(str, 1, "write", ignoreall));
 }
@@ -224,7 +230,7 @@ swrite(char str[])
  */
 
 char *
-snarf(char linebuf[], int *flag)
+snarf(char *linebuf, int *flag)
 {
 	char *cp;
 
@@ -260,8 +266,9 @@ snarf(char linebuf[], int *flag)
  * Delete messages.
  */
 int
-delete(int msgvec[])
+deletecmd(void *v)
 {
+	int *msgvec = v;
 
 	delm(msgvec);
 	return (0);
@@ -271,8 +278,9 @@ delete(int msgvec[])
  * Delete messages, then type the new dot.
  */
 int
-deltype(int msgvec[])
+deltype(void *v)
 {
+	int *msgvec = v;
 	int list[2];
 	int lastdot;
 
@@ -333,10 +341,11 @@ delm(int *msgvec)
  * Undelete the indicated messages.
  */
 int
-undelete_messages(int *msgvec)
+undeletecmd(void *v)
 {
-	struct message *mp;
+	int *msgvec = v;
 	int *ip;
+	struct message *mp;
 
 	for (ip = msgvec; *ip && ip-msgvec < msgCount; ip++) {
 		mp = &message[*ip - 1];
@@ -410,8 +419,9 @@ clob1(int n)
  * If no arguments, print the current list of retained fields.
  */
 int
-retfield(char *list[])
+retfield(void *v)
 {
+	char **list = v;
 
 	return (ignore1(list, ignore + 1, "retained"));
 }
@@ -421,33 +431,36 @@ retfield(char *list[])
  * If no arguments, print the current list of ignored fields.
  */
 int
-igfield(char *list[])
+igfield(void *v)
 {
+	char **list = v;
 
 	return (ignore1(list, ignore, "ignored"));
 }
 
 int
-saveretfield(char *list[])
+saveretfield(void *v)
 {
+	char **list = v;
 
 	return (ignore1(list, saveignore + 1, "retained"));
 }
 
 int
-saveigfield(char *list[])
+saveigfield(void *v)
 {
+	char **list = v;
 
 	return (ignore1(list, saveignore, "ignored"));
 }
 
 int
-ignore1(char *list[], struct ignoretab *tab, const char *which)
+ignore1(char **list, struct ignoretab *tab, const char *which)
 {
 	char field[LINESIZE];
-	int h;
-	struct ignore *igp;
 	char **ap;
+	struct ignore *igp;
+	int h;
 
 	if (*list == NULL)
 		return (igshow(tab, which));

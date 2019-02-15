@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2010 Fabio Checconi
  * Copyright (c) 2009-2010 Luigi Rizzo, Universita` di Pisa
  * All rights reserved.
@@ -119,19 +121,6 @@ struct g_sched_softc {
 
 #define	G_SCHED_PROXYING	1
 #define	G_SCHED_FLUSHING	2
-
-/*
- * Temporary- our own version of the disksort, because the
- * version in 7.x and 8.x before march 2009 is buggy.
- */
-void gs_bioq_init(struct bio_queue_head *);
-void gs_bioq_remove(struct bio_queue_head *, struct bio *);
-void gs_bioq_flush(struct bio_queue_head *, struct devstat *, int);
-void gs_bioq_insert_head(struct bio_queue_head *, struct bio *);
-void gs_bioq_insert_tail(struct bio_queue_head *, struct bio *);
-struct bio *gs_bioq_first(struct bio_queue_head *);
-struct bio *gs_bioq_takefirst(struct bio_queue_head *);
-void gs_bioq_disksort(struct bio_queue_head *, struct bio *);
 
 #endif	/* _KERNEL */
 

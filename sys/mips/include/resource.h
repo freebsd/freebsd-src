@@ -42,5 +42,8 @@
 #define	SYS_RES_DRQ	2	/* isa dma lines */
 #define	SYS_RES_MEMORY	3	/* i/o memory */
 #define	SYS_RES_IOPORT	4	/* i/o ports */
+#ifdef NEW_PCIB
+#define	PCI_RES_BUS	5
+#endif
 
 #endif /* !_MACHINE_RESOURCE_H_ */

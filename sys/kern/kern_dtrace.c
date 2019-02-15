@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2008 John Birrell <jb@FreeBSD.org>
  * All rights reserved.
  *
@@ -54,7 +56,8 @@ dtrace_doubletrap_func_t	dtrace_doubletrap_func;
 dtrace_pid_probe_ptr_t		dtrace_pid_probe_ptr;
 dtrace_return_probe_ptr_t	dtrace_return_probe_ptr;
 
-systrace_probe_func_t		systrace_probe_func;
+bool __read_frequently		systrace_enabled;
+systrace_probe_func_t 		systrace_probe_func;
 
 /* Return the DTrace process data size compiled in the kernel hooks. */
 size_t

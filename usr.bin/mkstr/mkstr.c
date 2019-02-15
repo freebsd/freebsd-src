@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -76,8 +78,8 @@ __FBSDID("$FreeBSD$");
  * existing error message file for recompilation of single routines.
  */
 
-FILE	*mesgread, *mesgwrite;
-char	name[100], *np;
+static FILE	*mesgread, *mesgwrite;
+static char	name[100], *np;
 
 void copystr(void);
 int fgetNUL(char *, int, FILE *);
@@ -267,7 +269,7 @@ inithash(void)
 
 #define	NBUCKETS	511
 
-struct	hash {
+static struct	hash {
 	long	hval;
 	unsigned hpt;
 	struct	hash *hnext;

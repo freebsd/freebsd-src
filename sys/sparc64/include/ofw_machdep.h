@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 by Thomas Moestl <tmm@FreeBSD.org>.
  * All rights reserved.
  *
@@ -33,6 +35,9 @@
 #include <dev/ofw/openfirm.h>
 
 typedef uint64_t cell_t;
+
+/* sparc64 doesn't use the interrupt parent #address-cells in interrupt maps */
+#define OFW_IMAP_NO_IPARENT_ADDR_CELLS
 
 int  OF_decode_addr(phandle_t, int, int *, bus_addr_t *);
 void OF_getetheraddr(device_t, u_char *);

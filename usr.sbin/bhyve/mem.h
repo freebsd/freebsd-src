@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 NetApp, Inc.
  * All rights reserved.
  *
@@ -53,7 +55,9 @@ struct mem_range {
 void	init_mem(void);
 int     emulate_mem(struct vmctx *, int vcpu, uint64_t paddr, struct vie *vie,
 		    struct vm_guest_paging *paging);
-		    
+
+int	read_mem(struct vmctx *ctx, int vcpu, uint64_t gpa, uint64_t *rval,
+		 int size);
 int	register_mem(struct mem_range *memp);
 int	register_mem_fallback(struct mem_range *memp);
 int	unregister_mem(struct mem_range *memp);

@@ -25,6 +25,7 @@
    along with this program; see the file COPYING.  If not, write to
    the Free Software Foundation, 51 Franklin Street, Fifth Floor,
    Boston, MA 02110-1301, USA.  */
+#define __ARM_STATIC_INLINE
 #include "unwind.h"
 
 /* We add a prototype for abort here to avoid creating a dependency on
@@ -624,8 +625,8 @@ __gnu_Unwind_RaiseException (_Unwind_Control_Block * ucbp,
   do
     {
       /* Find the entry for this routine.  */
-      if (get_eit_entry (ucbp, saved_vrs.core.r[R_PC]) != _URC_OK)
-	return _URC_FAILURE;
+      if ((pr_result = get_eit_entry (ucbp, saved_vrs.core.r[R_PC])) != _URC_OK)
+	return pr_result;
 
       /* Call the pr to decide what to do.  */
       pr_result = ((personality_routine) UCB_PR_ADDR (ucbp))
@@ -772,11 +773,8 @@ __gnu_Unwind_Backtrace(_Unwind_Trace_Fn trace, void * trace_argument,
   do
     {
       /* Find the entry for this routine.  */
-      if (get_eit_entry (ucbp, saved_vrs.core.r[R_PC]) != _URC_OK)
-	{
-	  code = _URC_FAILURE;
+      if ((code = get_eit_entry (ucbp, saved_vrs.core.r[R_PC])) != _URC_OK)
 	  break;
-	}
 
       /* The dwarf unwinder assumes the context structure holds things
 	 like the function and LSDA pointers.  The ARM implementation
@@ -1089,4 +1087,11 @@ _Unwind_GetIPInfo (struct _Unwind_Context *context, int *ip_before_insn)
   *ip_before_insn = 0;
   return _Unwind_GetGR (context, 15) & ~(_Unwind_Word)1;
 }
+
+void
+_Unwind_SetIP (struct _Unwind_Context *context, _Unwind_Ptr val)
+{
+  _Unwind_SetGR (context, 15, val | (_Unwind_GetGR (context, 15) & 1));
+}
+
 #endif

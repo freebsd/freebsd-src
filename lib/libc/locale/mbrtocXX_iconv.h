@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ed Schouten <ed@FreeBSD.org>
  * All rights reserved.
  *
@@ -39,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include "../iconv/citrus_hash.h"
 #include "../iconv/citrus_module.h"
 #include "../iconv/citrus_iconv.h"
-#include "xlocale_private.h"
+#include "mblocal.h"
 
 typedef struct {
 	bool			initialized;
@@ -66,7 +68,7 @@ mbrtocXX_l(charXX_t * __restrict pc, const char * __restrict s, size_t n,
 
 	FIX_LOCALE(locale);
 	if (ps == NULL)
-		ps = &locale->mbrtocXX;
+		ps = &(XLOCALE_CTYPE(locale)->mbrtocXX);
 	cs = (_ConversionState *)ps;
 	handle = &cs->iconv;
 
@@ -99,8 +101,7 @@ mbrtocXX_l(charXX_t * __restrict pc, const char * __restrict s, size_t n,
 
 	/* Convert as few characters to the dst buffer as possible. */
 	for (i = 0; ; i++) {
-		const char *src;
-		char *dst;
+		char *src, *dst;
 		size_t srcleft, dstleft, invlen;
 		int err;
 

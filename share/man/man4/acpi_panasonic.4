@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2012
+.Dd June 19, 2015
 .Dt ACPI_PANASONIC 4
 .Os
 .Sh NAME
@@ -100,7 +100,7 @@ For the other events such as
 mixer control and showing battery status,
 .Xr devd 8
 should take the role as described below.
-.Ss Xr devd 8 Ss Events
+.Ss Xr devd 8 Events
 When notified to
 .Xr devd 8 ,
 the hotkey event provides the following information:
@@ -142,11 +142,11 @@ The following MIBs are available:
 .Bl -tag -width indent
 .It Va hw.acpi.panasonic.lcd_brightness_max
 The maximum level of brightness.
-The value is read only and
+This read-only value is
 automatically set according to hardware model.
 .It Va hw.acpi.panasonic.lcd_brightness_min
 The minimum level of brightness.
-The value is read only and
+This read-only value is
 automatically set according to hardware model.
 .It Va hw.acpi.panasonic.lcd_brightness
 Current brightness level of the LCD (read-write).

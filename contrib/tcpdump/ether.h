@@ -1,4 +1,3 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/ether.h,v 1.8 2002-12-11 07:13:51 guy Exp $ (LBL) */
 /*
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -42,18 +41,17 @@
 #define	ETHER_ADDR_LEN		6
 
 /*
- * Structure of a DEC/Intel/Xerox or 802.3 Ethernet header.
+ * Structure of an Ethernet header.
  */
 struct	ether_header {
-	u_int8_t	ether_dhost[ETHER_ADDR_LEN];
-	u_int8_t	ether_shost[ETHER_ADDR_LEN];
-	u_int16_t	ether_type;
+	uint8_t		ether_dhost[ETHER_ADDR_LEN];
+	uint8_t		ether_shost[ETHER_ADDR_LEN];
+	uint16_t	ether_length_type;
 };
 
 /*
- * Length of a DEC/Intel/Xerox or 802.3 Ethernet header; note that some
- * compilers may pad "struct ether_header" to a multiple of 4 bytes,
- * for example, so "sizeof (struct ether_header)" may not give the right
- * answer.
+ * Length of an Ethernet header; note that some compilers may pad
+ * "struct ether_header" to a multiple of 4 bytes, for example, so
+ * "sizeof (struct ether_header)" may not give the right answer.
  */
 #define ETHER_HDRLEN		14

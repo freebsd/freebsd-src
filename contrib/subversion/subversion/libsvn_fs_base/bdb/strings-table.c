@@ -236,9 +236,9 @@ svn_fs_bdb__string_read(svn_fs_t *fs,
     {
       svn_fs_base__clear_dbt(&result);
       result.data = buf + bytes_read;
-      result.ulen = *len - bytes_read;
+      result.ulen = (u_int32_t)(*len - bytes_read);
       result.doff = (u_int32_t)offset;
-      result.dlen = *len - bytes_read;
+      result.dlen = result.ulen;
       result.flags |= (DB_DBT_USERMEM | DB_DBT_PARTIAL);
       db_err = svn_bdb_dbc_get(cursor, &query, &result, DB_CURRENT);
       if (db_err)

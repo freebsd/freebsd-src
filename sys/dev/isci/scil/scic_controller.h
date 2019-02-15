@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -133,7 +135,7 @@ typedef BOOL (*SCIC_CONTROLLER_INTERRUPT_HANDLER)(
  *        called some time after the interrupt handler.
  *
  * @note  Most, if not all, of the user callback APIs are invoked from within
- *        this API.  As a result, the user should be cognizent of the operating
+ *        this API.  As a result, the user should be cognizant of the operating
  *        level at which they invoke this API.
  *
  */

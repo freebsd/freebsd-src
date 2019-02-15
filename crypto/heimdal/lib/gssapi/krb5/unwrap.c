@@ -50,7 +50,7 @@ unwrap_des
   size_t len;
   EVP_MD_CTX *md5;
   u_char hash[16];
-  EVP_CIPHER_CTX des_ctx;
+  EVP_CIPHER_CTX *des_ctx;
   DES_key_schedule schedule;
   DES_cblock deskey;
   DES_cblock zero;
@@ -104,12 +104,17 @@ unwrap_des
 	  deskey[i] ^= 0xf0;
 
 
-      EVP_CIPHER_CTX_init(&des_ctx);
-      EVP_CipherInit_ex(&des_ctx, EVP_des_cbc(), NULL, deskey, zero, 0);
-      EVP_Cipher(&des_ctx, p, p, input_message_buffer->length - len);
-      EVP_CIPHER_CTX_cleanup(&des_ctx);
+      des_ctx = EVP_CIPHER_CTX_new();
+      if (des_ctx == NULL) {
+	  memset (deskey, 0, sizeof(deskey));
+	  *minor_status = ENOMEM;
+	  return GSS_S_FAILURE;
+      }
+      EVP_CipherInit_ex(des_ctx, EVP_des_cbc(), NULL, deskey, zero, 0);
+      EVP_Cipher(des_ctx, p, p, input_message_buffer->length - len);
+      EVP_CIPHER_CTX_free(des_ctx);
 
-      memset (&schedule, 0, sizeof(schedule));
+      memset (deskey, 0, sizeof(deskey));
   }
 
   if (IS_DCE_STYLE(context_handle)) {
@@ -135,19 +140,29 @@ unwrap_des
   DES_set_key_unchecked (&deskey, &schedule);
   DES_cbc_cksum ((void *)hash, (void *)hash, sizeof(hash),
 		 &schedule, &zero);
-  if (ct_memcmp (p - 8, hash, 8) != 0)
+  if (ct_memcmp (p - 8, hash, 8) != 0) {
+    memset (deskey, 0, sizeof(deskey));
+    memset (&schedule, 0, sizeof(schedule));
     return GSS_S_BAD_MIC;
+  }
 
   /* verify sequence number */
+
+  des_ctx = EVP_CIPHER_CTX_new();
+  if (des_ctx == NULL) {
+    memset (deskey, 0, sizeof(deskey));
+    memset (&schedule, 0, sizeof(schedule));
+    *minor_status = ENOMEM;
+    return GSS_S_FAILURE;
+  }
 
   HEIMDAL_MUTEX_lock(&context_handle->ctx_id_mutex);
 
   p -= 16;
 
-  EVP_CIPHER_CTX_init(&des_ctx);
-  EVP_CipherInit_ex(&des_ctx, EVP_des_cbc(), NULL, key->keyvalue.data, hash, 0);
-  EVP_Cipher(&des_ctx, p, p, 8);
-  EVP_CIPHER_CTX_cleanup(&des_ctx);
+  EVP_CipherInit_ex(des_ctx, EVP_des_cbc(), NULL, key->keyvalue.data, hash, 0);
+  EVP_Cipher(des_ctx, p, p, 8);
+  EVP_CIPHER_CTX_free(des_ctx);
 
   memset (deskey, 0, sizeof(deskey));
   memset (&schedule, 0, sizeof(schedule));

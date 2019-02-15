@@ -1,6 +1,5 @@
 .\"-
 .\" Copyright (c) 2010 Xin LI <delphij@FreeBSD.org>
-.\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2010
+.Dd June 2, 2016
 .Dt PTHREAD_ATTR_AFFINITY_NP 3
 .Os
 .Sh NAME
@@ -132,8 +131,8 @@ Insufficient memory exists to store the cpuset mask.
 .Xr cpuset 2 ,
 .Xr cpuset_getid 2 ,
 .Xr cpuset_setid 2 ,
-.Xr pthread_get_affinity_np 3 ,
-.Xr pthread_set_affinity_np 3
+.Xr pthread_getaffinity_np 3 ,
+.Xr pthread_setaffinity_np 3
 .Sh STANDARDS
 The
 .Nm pthread_attr_getaffinity_np

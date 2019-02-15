@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2012
+.Dd June 19, 2015
 .Dt ACPI_IBM 4
 .Os
 .Sh NAME
@@ -74,7 +74,7 @@ sysctl, is set to
 .Va availmask
 by default, a value representing all possible keypress events on the specific
 ThinkPad model.
-.Ss Xr devd 8 Ss Events
+.Ss Xr devd 8 Events
 Hotkey events received by
 .Xr devd 8
 provide the following information:
@@ -144,7 +144,7 @@ Mute
 .It Li 0x18
 Access IBM Button
 .El
-.Ss Xr led 4 Ss Interface
+.Ss Xr led 4 Interface
 The
 .Nm
 driver provides a
@@ -344,7 +344,7 @@ when
 is set to 1.
 Events are specified as a whitespace-separated list of event code in
 hexadecimal or decimal form.
-Note that the event maybe handled twice (eg. Brightness up/down) if ACPI BIOS
+Note that the event maybe handled twice (e.g., Brightness up/down) if ACPI BIOS
 already handled the event.
 .El
 .Pp

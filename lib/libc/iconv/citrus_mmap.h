@@ -2,6 +2,8 @@
 /* $NetBSD: citrus_mmap.h,v 1.1 2003/06/25 09:51:38 tshiozak Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2003 Citrus Project,
  * All rights reserved.
  *

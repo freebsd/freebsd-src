@@ -2,7 +2,7 @@
 
 REGRESSION_START($1)
 
-echo '1..23'
+echo '1..24'
 
 REGRESSION_TEST(`b', `printf "abc%b%b" "def\n" "\cghi"')
 REGRESSION_TEST(`d', `printf "%d,%5d,%.5d,%0*d,%.*d\n" 123 123 123 5 123 5 123')
@@ -27,5 +27,6 @@ REGRESSION_TEST(`missingpos1', `printf "%*.*1\$s" 1 1 1 2>&1')
 REGRESSION_TEST(`missingpos1', `printf "%1\$*2\$.*s" 1 1 1 2>&1')
 REGRESSION_TEST(`missingpos1', `printf "%*1\$.*2\$s" 1 1 1 2>&1')
 REGRESSION_TEST(`missingpos1', `printf "%1\$*.*2\$s" 1 1 1 2>&1')
+REGRESSION_TEST(`bwidth', `printf "%8.2b" "a\nb\n"')
 
 REGRESSION_END()

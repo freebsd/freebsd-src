@@ -1,6 +1,13 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2010 Hans Petter Selasky
+ * Copyright (c) 2018 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Portions of this software were developed by Edward Tomasz Napierala
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -54,27 +61,34 @@
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_cdc.h>
+#include <dev/usb/usb_ioctl.h>
+#include <dev/usb/usb_util.h>
 
 #include <dev/usb/template/usb_template.h>
 #endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 enum {
-	INDEX_LANG,
-	INDEX_MOUSE,
-	INDEX_PRODUCT,
-	INDEX_MAX,
+	MOUSE_LANG_INDEX,
+	MOUSE_INTERFACE_INDEX,
+	MOUSE_MANUFACTURER_INDEX,
+	MOUSE_PRODUCT_INDEX,
+	MOUSE_SERIAL_NUMBER_INDEX,
+	MOUSE_MAX_INDEX,
 };
 
-#define	STRING_PRODUCT \
-  "M\0o\0u\0s\0e\0 \0T\0e\0s\0t\0 \0D\0e\0v\0i\0c\0e"
+#define	MOUSE_DEFAULT_VENDOR_ID		USB_TEMPLATE_VENDOR
+#define	MOUSE_DEFAULT_PRODUCT_ID	0x27da
+#define	MOUSE_DEFAULT_INTERFACE		"Mouse interface"
+#define	MOUSE_DEFAULT_MANUFACTURER	USB_TEMPLATE_MANUFACTURER
+#define	MOUSE_DEFAULT_PRODUCT		"Mouse Test Interface"
+#define	MOUSE_DEFAULT_SERIAL_NUMBER	"March 2008"
 
-#define	STRING_MOUSE \
-  "M\0o\0u\0s\0e\0 \0i\0n\0t\0e\0r\0f\0a\0c\0e"
+static struct usb_string_descriptor	mouse_interface;
+static struct usb_string_descriptor	mouse_manufacturer;
+static struct usb_string_descriptor	mouse_product;
+static struct usb_string_descriptor	mouse_serial_number;
 
-/* make the real string descriptors */
-
-USB_MAKE_STRING_DESC(STRING_MOUSE, string_mouse);
-USB_MAKE_STRING_DESC(STRING_PRODUCT, string_product);
+static struct sysctl_ctx_list		mouse_ctx_list;
 
 /* prototypes */
 
@@ -128,10 +142,10 @@ static const void *mouse_iface_0_desc[] = {
 static const struct usb_temp_interface_desc mouse_iface_0 = {
 	.ppRawDesc = mouse_iface_0_desc,
 	.ppEndpoints = mouse_endpoints,
-	.bInterfaceClass = 3,
-	.bInterfaceSubClass = 1,
-	.bInterfaceProtocol = 2,
-	.iInterface = INDEX_MOUSE,
+	.bInterfaceClass = UICLASS_HID,
+	.bInterfaceSubClass = UISUBCLASS_BOOT,
+	.bInterfaceProtocol = UIPROTO_MOUSE,
+	.iInterface = MOUSE_INTERFACE_INDEX,
 };
 
 static const struct usb_temp_interface_desc *mouse_interfaces[] = {
@@ -141,9 +155,9 @@ static const struct usb_temp_interface_desc *mouse_interfaces[] = {
 
 static const struct usb_temp_config_desc mouse_config_desc = {
 	.ppIfaceDesc = mouse_interfaces,
-	.bmAttributes = UC_BUS_POWERED,
-	.bMaxPower = 25,		/* 50 mA */
-	.iConfiguration = INDEX_PRODUCT,
+	.bmAttributes = 0,
+	.bMaxPower = 0,
+	.iConfiguration = MOUSE_INTERFACE_INDEX,
 };
 
 static const struct usb_temp_config_desc *mouse_configs[] = {
@@ -154,19 +168,19 @@ static const struct usb_temp_config_desc *mouse_configs[] = {
 static usb_temp_get_string_desc_t mouse_get_string_desc;
 static usb_temp_get_vendor_desc_t mouse_get_vendor_desc;
 
-const struct usb_temp_device_desc usb_template_mouse = {
+struct usb_temp_device_desc usb_template_mouse = {
 	.getStringDesc = &mouse_get_string_desc,
 	.getVendorDesc = &mouse_get_vendor_desc,
 	.ppConfigDesc = mouse_configs,
-	.idVendor = USB_TEMPLATE_VENDOR,
-	.idProduct = 0x00AE,
+	.idVendor = MOUSE_DEFAULT_VENDOR_ID,
+	.idProduct = MOUSE_DEFAULT_PRODUCT_ID,
 	.bcdDevice = 0x0100,
 	.bDeviceClass = UDCLASS_COMM,
 	.bDeviceSubClass = 0,
 	.bDeviceProtocol = 0,
-	.iManufacturer = 0,
-	.iProduct = INDEX_PRODUCT,
-	.iSerialNumber = 0,
+	.iManufacturer = MOUSE_MANUFACTURER_INDEX,
+	.iProduct = MOUSE_PRODUCT_INDEX,
+	.iSerialNumber = MOUSE_SERIAL_NUMBER_INDEX,
 };
 
 /*------------------------------------------------------------------------*
@@ -199,10 +213,12 @@ mouse_get_vendor_desc(const struct usb_device_request *req, uint16_t *plen)
 static const void *
 mouse_get_string_desc(uint16_t lang_id, uint8_t string_index)
 {
-	static const void *ptr[INDEX_MAX] = {
-		[INDEX_LANG] = &usb_string_lang_en,
-		[INDEX_MOUSE] = &string_mouse,
-		[INDEX_PRODUCT] = &string_product,
+	static const void *ptr[MOUSE_MAX_INDEX] = {
+		[MOUSE_LANG_INDEX] = &usb_string_lang_en,
+		[MOUSE_INTERFACE_INDEX] = &mouse_interface,
+		[MOUSE_MANUFACTURER_INDEX] = &mouse_manufacturer,
+		[MOUSE_PRODUCT_INDEX] = &mouse_product,
+		[MOUSE_SERIAL_NUMBER_INDEX] = &mouse_serial_number,
 	};
 
 	if (string_index == 0) {
@@ -211,8 +227,66 @@ mouse_get_string_desc(uint16_t lang_id, uint8_t string_index)
 	if (lang_id != 0x0409) {
 		return (NULL);
 	}
-	if (string_index < INDEX_MAX) {
+	if (string_index < MOUSE_MAX_INDEX) {
 		return (ptr[string_index]);
 	}
 	return (NULL);
 }
+
+static void
+mouse_init(void *arg __unused)
+{
+	struct sysctl_oid *parent;
+	char parent_name[3];
+
+	usb_make_str_desc(&mouse_interface, sizeof(mouse_interface),
+	    MOUSE_DEFAULT_INTERFACE);
+	usb_make_str_desc(&mouse_manufacturer, sizeof(mouse_manufacturer),
+	    MOUSE_DEFAULT_MANUFACTURER);
+	usb_make_str_desc(&mouse_product, sizeof(mouse_product),
+	    MOUSE_DEFAULT_PRODUCT);
+	usb_make_str_desc(&mouse_serial_number, sizeof(mouse_serial_number),
+	    MOUSE_DEFAULT_SERIAL_NUMBER);
+
+	snprintf(parent_name, sizeof(parent_name), "%d", USB_TEMP_MOUSE);
+	sysctl_ctx_init(&mouse_ctx_list);
+
+	parent = SYSCTL_ADD_NODE(&mouse_ctx_list,
+	    SYSCTL_STATIC_CHILDREN(_hw_usb_templates), OID_AUTO,
+	    parent_name, CTLFLAG_RW,
+	    0, "USB Mouse device side template");
+	SYSCTL_ADD_U16(&mouse_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "vendor_id", CTLFLAG_RWTUN,
+	    &usb_template_mouse.idVendor, 1, "Vendor identifier");
+	SYSCTL_ADD_U16(&mouse_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "product_id", CTLFLAG_RWTUN,
+	    &usb_template_mouse.idProduct, 1, "Product identifier");
+#if 0
+	SYSCTL_ADD_PROC(&mouse_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "interface", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &mouse_interface, sizeof(mouse_interface), usb_temp_sysctl,
+	    "A", "Interface string");
+#endif
+	SYSCTL_ADD_PROC(&mouse_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "manufacturer", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &mouse_manufacturer, sizeof(mouse_manufacturer), usb_temp_sysctl,
+	    "A", "Manufacturer string");
+	SYSCTL_ADD_PROC(&mouse_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "product", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &mouse_product, sizeof(mouse_product), usb_temp_sysctl,
+	    "A", "Product string");
+	SYSCTL_ADD_PROC(&mouse_ctx_list, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    "serial_number", CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+	    &mouse_serial_number, sizeof(mouse_serial_number), usb_temp_sysctl,
+	    "A", "Serial number string");
+}
+
+static void
+mouse_uninit(void *arg __unused)
+{
+
+	sysctl_ctx_free(&mouse_ctx_list);
+}
+
+SYSINIT(mouse_init, SI_SUB_LOCK, SI_ORDER_FIRST, mouse_init, NULL);
+SYSUNINIT(mouse_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, mouse_uninit, NULL);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Ian Lepore <ian@freebsd.org>
  * All rights reserved.
  *
@@ -33,42 +35,27 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/reboot.h>
+#include <sys/devmap.h>
 
 #include <vm/vm.h>
 
 #include <machine/bus.h>
-#include <machine/devmap.h>
 #include <machine/machdep.h>
-#include <machine/platform.h> 
+#include <machine/platformvar.h> 
 
 #include <arm/freescale/imx/imx_machdep.h>
 
-vm_offset_t
-platform_lastaddr(void)
+#include "platform_if.h"
+
+static platform_attach_t imx53_attach;
+static platform_devmap_init_t imx53_devmap_init;
+static platform_cpu_reset_t imx53_cpu_reset;
+
+static int
+imx53_attach(platform_t plat)
 {
 
-	return (arm_devmap_lastaddr());
-}
-
-void
-platform_probe_and_attach(void)
-{
-
-	/* XXX - Get rid of this stuff soon. */
-	boothowto |= RB_VERBOSE|RB_MULTIPLE;
-	bootverbose = 1;
-}
-
-void
-platform_gpio_init(void)
-{
-
-}
-
-void
-platform_late_init(void)
-{
-
+	return (0);
 }
 
 /*
@@ -78,27 +65,36 @@ platform_late_init(void)
  *
  * Notably missing are entries for GPU, IPU, in general anything video related.
  */
-int
-platform_devmap_init(void)
+static int
+imx53_devmap_init(platform_t plat)
 {
 
-	arm_devmap_add_entry(0x50000000, 0x00100000);
-	arm_devmap_add_entry(0x53f00000, 0x00100000);
-	arm_devmap_add_entry(0x63f00000, 0x00100000);
+	devmap_add_entry(0x50000000, 0x00100000);
+	devmap_add_entry(0x53f00000, 0x00100000);
+	devmap_add_entry(0x63f00000, 0x00100000);
 
 	return (0);
 }
 
-void
-cpu_reset(void)
+static void
+imx53_cpu_reset(platform_t plat)
 {
 
 	imx_wdog_cpu_reset(0x53F98000);
 }
 
-u_int imx_soc_type()
+u_int
+imx_soc_type(void)
 {
 	return (IMXSOC_53);
 }
 
+static platform_method_t imx53_methods[] = {
+	PLATFORMMETHOD(platform_attach,		imx53_attach),
+	PLATFORMMETHOD(platform_devmap_init,	imx53_devmap_init),
+	PLATFORMMETHOD(platform_cpu_reset,	imx53_cpu_reset),
 
+	PLATFORMMETHOD_END,
+};
+
+FDT_PLATFORM_DEF(imx53, "i.MX53", 0, "fsl,imx53", 100);

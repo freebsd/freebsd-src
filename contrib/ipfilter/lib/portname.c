@@ -10,8 +10,8 @@
 #include "ipf.h"
 
 
-char *portname(pr, port)
-	int pr, port;
+char *
+portname(int pr, int port)
 {
 	static char buf[32];
 	struct protoent *p = NULL;
@@ -28,16 +28,16 @@ char *portname(pr, port)
 				     NULL : sv1;
 			}
 			if (sv)
-				return buf;
+				return (buf);
 		} else if ((pr != -2) && (p = getprotobynumber(pr))) {
 			if ((sv = getservbyport(htons(port), p->p_name))) {
 				strncpy(buf, sv->s_name, sizeof(buf)-1);
 				buf[sizeof(buf)-1] = '\0';
-				return buf;
+				return (buf);
 			}
 		}
 	}
 
 	(void) sprintf(buf, "%d", port);
-	return buf;
+	return (buf);
 }

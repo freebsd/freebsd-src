@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007-2009 Google Inc.
  * All rights reserved.
  *
@@ -108,7 +110,7 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh);
 static int 
 fuse_write_directbackend(struct vnode *vp, struct uio *uio,
-    struct ucred *cred, struct fuse_filehandle *fufh);
+    struct ucred *cred, struct fuse_filehandle *fufh, int ioflag);
 static int 
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh, int ioflag);
@@ -156,7 +158,7 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 		if (directio) {
 			FS_DEBUG("direct write of vnode %ju via file handle %ju\n",
 			    (uintmax_t)VTOILLU(vp), (uintmax_t)fufh->fh_id);
-			err = fuse_write_directbackend(vp, uio, cred, fufh);
+			err = fuse_write_directbackend(vp, uio, cred, fufh, ioflag);
 		} else {
 			FS_DEBUG("buffered write of vnode %ju\n", 
 			      (uintmax_t)VTOILLU(vp));
@@ -209,7 +211,7 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio,
 	         * buffer based on an EOF condition we need to hold
 	         * nfs_rslock() through obtaining the buffer to prevent
 	         * a potential writer-appender from messing with n_size.
-	         * Otherwise we may accidently truncate the buffer and
+	         * Otherwise we may accidentally truncate the buffer and
 	         * lose dirty data.
 	         *
 	         * Note that bcount is *not* DEV_BSIZE aligned.
@@ -318,7 +320,7 @@ out:
 
 static int
 fuse_write_directbackend(struct vnode *vp, struct uio *uio,
-    struct ucred *cred, struct fuse_filehandle *fufh)
+    struct ucred *cred, struct fuse_filehandle *fufh, int ioflag)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_write_in *fwi;
@@ -327,8 +329,10 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 	int diff;
 	int err = 0;
 
-	if (!uio->uio_resid)
+	if (uio->uio_resid == 0)
 		return (0);
+	if (ioflag & IO_APPEND)
+		uio_setoffset(uio, fvdat->filesize);
 
 	fdisp_init(&fdi, 0);
 
@@ -546,7 +550,7 @@ again:
 		    (on > bp->b_dirtyend || (on + n) < bp->b_dirtyoff)) {
 			/*
 	                 * Yes, we mean it. Write out everything to "storage"
-	                 * immediatly, without hesitation. (Apart from other
+	                 * immediately, without hesitation. (Apart from other
 	                 * reasons: the only way to know if a write is valid
 	                 * if its actually written out.)
 	                 */
@@ -705,7 +709,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 			io.iov_base = (char *)bp->b_data + bp->b_dirtyoff;
 			uiop->uio_rw = UIO_WRITE;
 
-			error = fuse_write_directbackend(vp, uiop, cred, fufh);
+			error = fuse_write_directbackend(vp, uiop, cred, fufh, 0);
 
 			if (error == EINTR || error == ETIMEDOUT
 			    || (!error && (bp->b_flags & B_NEEDCOMMIT))) {

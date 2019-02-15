@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1996 - 2001 Brian Somers <brian@Awfulhak.org>
  *          based on work by Toshiharu OHNO <tony-o@iij.ad.jp>
  *                           Internet Initiative Japan, Inc (IIJ)
@@ -435,7 +437,7 @@ route_IfDelete(struct bundle *bundle, int all)
            ) &&
           (all || (rtm->rtm_flags & RTF_GATEWAY))) {
         if (log_IsKept(LogDEBUG)) {
-          char gwstr[41];
+          char gwstr[NCP_ASCIIBUFFERSIZE];
           struct ncpaddr gw;
           ncprange_setsa(&range, sa[RTAX_DST], sa[RTAX_NETMASK]);
           ncpaddr_setsa(&gw, sa[RTAX_GATEWAY]);
@@ -801,7 +803,8 @@ rt_Set(struct bundle *bundle, int cmd, const struct ncprange *dst,
   if (!ncprange_ishost(dst)) {
     cp += memcpy_roundup(cp, &samask, samask.ss_len);
     rtmes.m_rtm.rtm_addrs |= RTA_NETMASK;
-  }
+  } else
+    rtmes.m_rtm.rtm_flags |= RTF_HOST;
 
   nb = cp - (char *)&rtmes;
   rtmes.m_rtm.rtm_msglen = nb;
@@ -840,7 +843,7 @@ failed:
   }
 
   if (log_IsKept(LogDEBUG)) {
-    char gwstr[40];
+    char gwstr[NCP_ASCIIBUFFERSIZE];
 
     if (gw)
       snprintf(gwstr, sizeof gwstr, "%s", ncpaddr_ntoa(gw));
@@ -905,7 +908,8 @@ rt_Update(struct bundle *bundle, const struct sockaddr *dst,
   if (mask) {
     rtmes.m_rtm.rtm_addrs |= RTA_NETMASK;
     p += memcpy_roundup(p, mask, mask->sa_len);
-  }
+  } else
+    rtmes.m_rtm.rtm_flags |= RTF_HOST;
 
   if (ifa && ifp && ifp->sa_family == AF_LINK) {
     rtmes.m_rtm.rtm_addrs |= RTA_IFP;

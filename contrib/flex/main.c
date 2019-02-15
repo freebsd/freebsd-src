@@ -364,7 +364,7 @@ void check_options ()
     output_chain = filter_create_int(NULL, filter_tee_header, headerfilename);
     if ( !(m4 = getenv("M4")))
         m4 = M4;
-    filter_create_ext(output_chain, m4, "-gP", 0);
+    filter_create_ext(output_chain, m4, "-gP", NULL);
     filter_create_int(output_chain, filter_fix_linedirs, NULL);
 
     /* For debugging, only run the requested number of filters. */

@@ -43,13 +43,21 @@ namespace llvm {
       BasicRegex=4
     };
 
+    Regex();
     /// Compiles the given regular expression \p Regex.
     Regex(StringRef Regex, unsigned Flags = NoFlags);
+    Regex(const Regex &) = delete;
+    Regex &operator=(Regex regex) {
+      std::swap(preg, regex.preg);
+      std::swap(error, regex.error);
+      return *this;
+    }
+    Regex(Regex &&regex);
     ~Regex();
 
     /// isValid - returns the error encountered during regex compilation, or
     /// matching, if any.
-    bool isValid(std::string &Error);
+    bool isValid(std::string &Error) const;
 
     /// getNumMatches - In a valid regex, return the number of parenthesized
     /// matches it contains.  The number filled in by match will include this
@@ -63,7 +71,7 @@ namespace llvm {
     /// the first group is always the entire pattern.
     ///
     /// This returns true on a successful match.
-    bool match(StringRef String, SmallVectorImpl<StringRef> *Matches = 0);
+    bool match(StringRef String, SmallVectorImpl<StringRef> *Matches = nullptr);
 
     /// sub - Return the result of replacing the first match of the regex in
     /// \p String with the \p Repl string. Backreferences like "\0" in the
@@ -75,11 +83,15 @@ namespace llvm {
     /// \param Error If non-null, any errors in the substitution (invalid
     /// backreferences, trailing backslashes) will be recorded as a non-empty
     /// string.
-    std::string sub(StringRef Repl, StringRef String, std::string *Error = 0);
+    std::string sub(StringRef Repl, StringRef String,
+                    std::string *Error = nullptr);
 
     /// \brief If this function returns true, ^Str$ is an extended regular
     /// expression that matches Str and only Str.
     static bool isLiteralERE(StringRef Str);
+
+    /// \brief Turn String into a regex by escaping its special characters.
+    static std::string escape(StringRef String);
 
   private:
     struct llvm_regex *preg;

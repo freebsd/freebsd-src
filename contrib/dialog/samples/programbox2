@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: programbox2,v 1.1 2011/03/02 01:25:31 tom Exp $
+# $Id: programbox2,v 1.3 2018/06/17 20:45:25 tom Exp $
 
 . ./setup-vars
 
@@ -11,9 +11,12 @@ while true
 do
 read text
 test -z "$text" && break
-ls -ld "$text"
+ls -ld "$text" || break
 sleep 0.1
 done <$tempfile
 ) |
 
 $DIALOG --title "PROGRAMBOX" "$@" --programbox "ProgramBox" 20 70
+
+retval=$?
+. ./report-button

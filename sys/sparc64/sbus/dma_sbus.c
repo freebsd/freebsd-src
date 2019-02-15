@@ -2,6 +2,8 @@
 /*	$NetBSD: dma_sbus.c,v 1.32 2008/04/28 20:23:57 martin Exp $ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -207,7 +209,7 @@ dma_attach(device_t dev)
 		 * the user can change it via a "media" option to ifconfig.
 		 */
 		csr = L64854_GCSR(lsc);
-		if ((OF_getprop_alloc(node, "cable-selection", 1,
+		if ((OF_getprop_alloc(node, "cable-selection",
 		    (void **)&cabletype)) == -1) {
 			/* assume TP if nothing there */
 			csr |= E_TP_AUI;
@@ -216,7 +218,7 @@ dma_attach(device_t dev)
 				csr &= ~E_TP_AUI;
 			else
 				csr |= E_TP_AUI;
-			free(cabletype, M_OFWPROP);
+			OF_prop_free(cabletype);
 		}
 		L64854_SCSR(lsc, csr);
 		DELAY(20000);	/* manual says we need a 20ms delay */
@@ -293,7 +295,7 @@ dma_setup_dinfo(device_t dev, struct dma_softc *dsc, phandle_t node)
 	}
 	resource_list_init(&ddi->ddi_rl);
 	slot = -1;
-	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
+	nreg = OF_getprop_alloc_multi(node, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg == -1) {
 		device_printf(dev, "<%s>: incomplete\n",
 		    ddi->ddi_obdinfo.obd_name);
@@ -309,7 +311,7 @@ dma_setup_dinfo(device_t dev, struct dma_softc *dsc, phandle_t node)
 		if (slot != -1 && slot != rslot) {
 			device_printf(dev, "<%s>: multiple slots\n",
 			    ddi->ddi_obdinfo.obd_name);
-			free(reg, M_OFWPROP);
+			OF_prop_free(reg);
 			goto fail;
 		}
 		slot = rslot;
@@ -317,7 +319,7 @@ dma_setup_dinfo(device_t dev, struct dma_softc *dsc, phandle_t node)
 		resource_list_add(&ddi->ddi_rl, SYS_RES_MEMORY, i, base,
 		    base + reg[i].sbr_size, reg[i].sbr_size);
 	}
-	free(reg, M_OFWPROP);
+	OF_prop_free(reg);
 	if (slot != dsc->sc_slot) {
 		device_printf(dev, "<%s>: parent and child slot do not match\n",
 		    ddi->ddi_obdinfo.obd_name);
@@ -327,7 +329,7 @@ dma_setup_dinfo(device_t dev, struct dma_softc *dsc, phandle_t node)
 	/*
 	 * The `interrupts' property contains the SBus interrupt level.
 	 */
-	nintr = OF_getprop_alloc(node, "interrupts", sizeof(*intr),
+	nintr = OF_getprop_alloc_multi(node, "interrupts", sizeof(*intr),
 	    (void **)&intr);
 	if (nintr != -1) {
 		for (i = 0; i < nintr; i++) {
@@ -343,7 +345,7 @@ dma_setup_dinfo(device_t dev, struct dma_softc *dsc, phandle_t node)
 			resource_list_add(&ddi->ddi_rl, SYS_RES_IRQ, i,
 			    iv, iv, 1);
 		}
-		free(intr, M_OFWPROP);
+		OF_prop_free(intr);
 	}
 	return (ddi);
 
@@ -409,7 +411,7 @@ dma_print_res(struct dma_devinfo *ddi)
 
 	rv = 0;
 	rv += resource_list_print_type(&ddi->ddi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx");
-	rv += resource_list_print_type(&ddi->ddi_rl, "irq", SYS_RES_IRQ, "%ld");
+	    "%#jx");
+	rv += resource_list_print_type(&ddi->ddi_rl, "irq", SYS_RES_IRQ, "%jd");
 	return (rv);
 }

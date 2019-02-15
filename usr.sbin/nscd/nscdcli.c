@@ -138,14 +138,14 @@ send_credentials(struct nscd_connection_ *connection, int type)
 	struct msghdr	cred_hdr;
 	struct iovec	iov;
 
-	struct {
+	union {
 		struct cmsghdr	hdr;
-		struct cmsgcred	creds;
+		char cred[CMSG_SPACE(sizeof(struct cmsgcred))];
 	} cmsg;
 
 	TRACE_IN(send_credentials);
 	memset(&cmsg, 0, sizeof(cmsg));
-	cmsg.hdr.cmsg_len = sizeof(cmsg);
+	cmsg.hdr.cmsg_len = CMSG_LEN(sizeof(struct cmsgcred));
 	cmsg.hdr.cmsg_level = SOL_SOCKET;
 	cmsg.hdr.cmsg_type = SCM_CREDS;
 
@@ -153,7 +153,7 @@ send_credentials(struct nscd_connection_ *connection, int type)
 	cred_hdr.msg_iov = &iov;
 	cred_hdr.msg_iovlen = 1;
 	cred_hdr.msg_control = &cmsg;
-	cred_hdr.msg_controllen = sizeof(cmsg);
+	cred_hdr.msg_controllen = CMSG_SPACE(sizeof(struct cmsgcred));
 
 	iov.iov_base = &type;
 	iov.iov_len = sizeof(int);

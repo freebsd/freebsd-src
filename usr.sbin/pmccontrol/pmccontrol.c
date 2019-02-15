@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003,2004 Joseph Koshy
  * All rights reserved.
  *
@@ -141,16 +143,14 @@ pmcc_do_enable_disable(struct pmcc_op_list *op_list)
 			err(EX_OSERR,
 			    "Unable to determine the number of PMCs in CPU %d",
 			    c);
-		npmc = t > npmc ? t : npmc;
+		npmc = MAX(t, npmc);
 	}
 
 	if (npmc == 0)
 		errx(EX_CONFIG, "No PMCs found");
 
-	if ((map = malloc(npmc * ncpu)) == NULL)
+	if ((map = calloc(npmc, ncpu)) == NULL)
 		err(EX_SOFTWARE, "Out of memory");
-
-	(void) memset(map, PMCC_OP_IGNORE, npmc*ncpu);
 
 	error = 0;
 	STAILQ_FOREACH(np, op_list, op_next) {
@@ -282,6 +282,14 @@ pmcc_do_list_state(void)
 	return 0;
 }
 
+#if defined(__i386__) || defined(__amd64__)
+static int
+pmcc_do_list_events(void)
+{
+	pmc_pmu_print_counters(NULL);
+	return (0);
+}
+#else
 static int
 pmcc_do_list_events(void)
 {
@@ -311,6 +319,7 @@ pmcc_do_list_events(void)
 	}
 	return 0;
 }
+#endif
 
 static int
 pmcc_show_statistics(void)

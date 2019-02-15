@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010-2013 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
@@ -53,7 +55,7 @@ typedef int et_deregister_cb_t(struct eventtimer *et, void *arg);
 struct eventtimer {
 	SLIST_ENTRY(eventtimer)	et_all;
 		/* Pointer to the next event timer. */
-	char			*et_name;
+	const char		*et_name;
 		/* Name of the event timer. */
 	int			et_flags;
 		/* Set of capabilities flags: */

@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2005
+.Dd February 13, 2018
 .Dt DECLARE_MODULE 9
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@
 .In sys/kernel.h
 .In sys/module.h
 .Fn DECLARE_MODULE "name" "moduledata_t data" "sub" "order"
+.Fn DECLARE_MODULE_TIED "name" "moduledata_t data" "sub" "order"
 .Sh DESCRIPTION
 The
 .Fn DECLARE_MODULE
@@ -55,7 +56,22 @@ and
 Of course, it can also be called directly, for example in
 order to implement dynamic sysctls.
 .Pp
-The arguments it expects are:
+A module declared with
+.Fn DECLARE_MODULE_TIED
+will load only if the running kernel version
+(as specified by
+.Dv __FreeBSD_version )
+is identical to that on which it was built.
+This declaration should be used by modules which depend on interfaces beyond
+the stable kernel KBI (such as ABI emulators or hypervisors that rely on
+internal kernel structures).
+.Fn DECLARE_MODULE
+will behave like 
+.Fn DECLARE_MODULE_TIED
+when compiled with modules built with the kernel. This allows locks and
+other synchronization primitives to be inlined safely.
+.Pp
+The arguments are:
 .Bl -tag -width indent
 .It Fa name
 The module name, which will be used in the

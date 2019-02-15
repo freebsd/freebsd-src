@@ -7,11 +7,14 @@ LINKS=	${BINDIR}/kcc ${BINDIR}/klist \
 CFLAGS+=	-I${KRB5DIR}/lib/hx509 \
 		-I${KRB5DIR}/lib/asn1 \
 		-I${KRB5DIR}/lib/roken \
-		-I${KRB5DIR}/lib/sl -I.
-DPADD=	${LIBKRB5} ${LIBHEIMNTLM} ${LIBROKEN} ${LIBASN1} ${LIBCRYPTO} \
-	${LIBCRYPT} ${LIBKAFS5} ${LIBSL} ${LIBVERS} ${LIBEDIT}
-LDADD=	-lkrb5 -lheimntlm -lroken -lasn1 -lcrypto -lcrypt -lkafs5 ${LIBSL} \
-	${LIBVERS} -ledit
+		-I${KRB5DIR}/lib/sl \
+		-I${KRB5DIR}/lib/krb5 \
+		-I${KRB5DIR}/lib/kafs \
+		-I${.OBJDIR:H:H}/lib/libroken \
+		-I${.OBJDIR:H:H}/lib/libasn1 \
+		-I${.OBJDIR:H:H}/lib/libkrb5 \
+		-I.
+LIBADD=	krb5 roken asn1 kafs5 edit sl vers
 SRCS=	kcc.c \
 	kcc-commands.c \
 	kcc-commands.h \
@@ -19,12 +22,12 @@ SRCS=	kcc.c \
 	kswitch.c \
 	copy_cred_cache.c
 
+CLEANFILES=	kcc-commands.h kcc-commands.c
+
 kcc-commands.h: kcc-commands.in
 	${SLC} ${.ALLSRC:M*.in}
 
-.for ext in c o
-kcc-commands.${ext}: kcc-commands.h
-.endfor
+kcc-commands.c: kcc-commands.h
 
 .include <bsd.prog.mk>
 

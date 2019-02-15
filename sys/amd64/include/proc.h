@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -33,11 +35,23 @@
 #ifndef _MACHINE_PROC_H_
 #define	_MACHINE_PROC_H_
 
+#include <sys/queue.h>
 #include <machine/segments.h>
+
+/*
+ * List of locks
+ *	k - only accessed by curthread
+ *	pp - pmap.c:invl_gen_mtx
+ */
 
 struct proc_ldt {
 	caddr_t ldt_base;
 	int     ldt_refcnt;
+};
+
+struct pmap_invl_gen {
+	u_long gen;			/* (k) */
+	LIST_ENTRY(pmap_invl_gen) link;	/* (pp) */
 };
 
 /*
@@ -47,6 +61,9 @@ struct mdthread {
 	int	md_spinlock_count;	/* (k) */
 	register_t md_saved_flags;	/* (k) */
 	register_t md_spurflt_addr;	/* (k) Spurious page fault address. */
+	struct pmap_invl_gen md_invl_gen;
+	register_t md_efirt_tmp;	/* (k) */
+	int	md_efirt_dis_pf;	/* (k) */
 };
 
 struct mdproc {
@@ -56,6 +73,13 @@ struct mdproc {
 
 #define	KINFO_PROC_SIZE 1088
 #define	KINFO_PROC32_SIZE 768
+
+struct syscall_args {
+	u_int code;
+	struct sysent *callp;
+	register_t args[8];
+	int narg;
+};
 
 #ifdef	_KERNEL
 
@@ -68,10 +92,8 @@ struct mdproc {
 	    (char *)&td;						\
 } while (0)
 
-void set_user_ldt(struct mdproc *);
 struct proc_ldt *user_ldt_alloc(struct proc *, int);
 void user_ldt_free(struct thread *);
-void user_ldt_deref(struct proc_ldt *);
 struct sysarch_args;
 int sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space);
 int amd64_set_ldt_data(struct thread *td, int start, int num,
@@ -80,12 +102,8 @@ int amd64_set_ldt_data(struct thread *td, int start, int num,
 extern struct mtx dt_lock;
 extern int max_ldt_segment;
 
-struct syscall_args {
-	u_int code;
-	struct sysent *callp;
-	register_t args[8];
-	int narg;
-};
+#define	NARGREGS	6
+
 #endif  /* _KERNEL */
 
 #endif /* !_MACHINE_PROC_H_ */

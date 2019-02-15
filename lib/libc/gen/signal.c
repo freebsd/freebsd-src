@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1985, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,10 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)signal.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
+__SCCSID("@(#)signal.c	8.1 (Berkeley) 6/4/93");
 __FBSDID("$FreeBSD$");
 
 /*
@@ -44,9 +44,7 @@ __FBSDID("$FreeBSD$");
 sigset_t _sigintr __hidden;	/* shared with siginterrupt */
 
 sig_t
-signal(s, a)
-	int s;
-	sig_t a;
+signal(int s, sig_t a)
 {
 	struct sigaction sa, osa;
 
@@ -55,7 +53,7 @@ signal(s, a)
 	sa.sa_flags = 0;
 	if (!sigismember(&_sigintr, s))
 		sa.sa_flags |= SA_RESTART;
-	if (_sigaction(s, &sa, &osa) < 0)
+	if (__libc_sigaction(s, &sa, &osa) < 0)
 		return (SIG_ERR);
 	return (osa.sa_handler);
 }

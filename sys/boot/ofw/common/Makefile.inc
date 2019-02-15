@@ -1,3 +1,0 @@
-# $FreeBSD$
-
-SRCS+=	main.c

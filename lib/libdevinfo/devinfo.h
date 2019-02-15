@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Michael Smith
  * Copyright (c) 2000 BSDi
  * All rights reserved.
@@ -50,14 +52,14 @@ struct devinfo_dev {
 	char			*dd_location;	/* Where bus thinks dev at */
 	uint32_t		dd_devflags;	/* API flags */
 	uint16_t		dd_flags;	/* internal dev flags */
-	devinfo_state_t		dd_state;	/* attacement state of dev */
+	devinfo_state_t		dd_state;	/* attachment state of dev */
 };
 
 struct devinfo_rman {
 	devinfo_handle_t	dm_handle;	/* resource manager handle */
 
-	unsigned long		dm_start;	/* resource start */
-	unsigned long		dm_size;	/* resource size */
+	rman_res_t		dm_start;	/* resource start */
+	rman_res_t		dm_size;	/* resource size */
     
 	char			*dm_desc;	/* resource description */
 };
@@ -67,8 +69,8 @@ struct devinfo_res {
 	devinfo_handle_t	dr_rman;	/* resource manager handle */
 	devinfo_handle_t	dr_device;	/* owning device */
 
-	unsigned long		dr_start;	/* region start */
-	unsigned long		dr_size;	/* region size */
+	rman_res_t		dr_start;	/* region start */
+	rman_res_t		dr_size;	/* region size */
 	/* XXX add flags */
 };
 

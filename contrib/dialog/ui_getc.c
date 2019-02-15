@@ -1,9 +1,9 @@
 /*
- *  $Id: ui_getc.c,v 1.67 2013/03/24 23:53:19 tom Exp $
+ *  $Id: ui_getc.c,v 1.70 2018/06/14 00:05:05 tom Exp $
  *
  *  ui_getc.c - user interface glue for getc()
  *
- *  Copyright 2001-2012,2013	Thomas E. Dickey
+ *  Copyright 2001-2013,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -89,10 +89,16 @@ dlg_remove_callback(DIALOG_CALLBACK * p)
     DIALOG_CALLBACK *q;
 
     if (p->input != 0) {
-	fclose(p->input);
+	FILE *input = p->input;
+	fclose(input);
 	if (p->input == dialog_state.pipe_input)
 	    dialog_state.pipe_input = 0;
-	p->input = 0;
+	/* more than one callback can have the same input */
+	for (q = dialog_state.getc_callbacks; q != 0; q = q->next) {
+	    if (q->input == input) {
+		q->input = 0;
+	    }
+	}
     }
 
     if (!(p->keep_win))
@@ -147,8 +153,9 @@ handle_inputs(WINDOW *win)
     if (result) {
 	(void) wmove(win, cur_y, cur_x);	/* Restore cursor position */
 	wrefresh(win);
-	curs_set(state);
     }
+    if (state != ERR)
+	curs_set(state);
     return result;
 }
 
@@ -480,10 +487,12 @@ dlg_getc(WINDOW *win, int *fkey)
 	    case ERR:		/* wtimeout() in effect; check for file I/O */
 		if (interval > 0
 		    && current >= expired) {
-		    dlg_exiterr("timeout");
-		}
-		if (!valid_file(stdin)
-		    || !valid_file(dialog_state.screen_output)) {
+		    DLG_TRACE(("# dlg_getc: timeout expired\n"));
+		    ch = ESC;
+		    done = TRUE;
+		} else if (!valid_file(stdin)
+			   || !valid_file(dialog_state.screen_output)) {
+		    DLG_TRACE(("# dlg_getc: input or output is invalid\n"));
 		    ch = ESC;
 		    done = TRUE;
 		} else if (check_inputs()) {

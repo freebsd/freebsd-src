@@ -683,6 +683,10 @@ tdesc_array_create(dwarf_t *dw, Dwarf_Die dim, tdesc_t *arrtdp,
 		ar->ad_nelems = uval + 1;
 	else if (die_signed(dw, dim, DW_AT_upper_bound, &sval, 0))
 		ar->ad_nelems = sval + 1;
+	else if (die_unsigned(dw, dim, DW_AT_count, &uval, 0))
+		ar->ad_nelems = uval;
+	else if (die_signed(dw, dim, DW_AT_count, &sval, 0))
+		ar->ad_nelems = sval;
 	else
 		ar->ad_nelems = 0;
 
@@ -723,13 +727,6 @@ die_array_create(dwarf_t *dw, Dwarf_Die arr, Dwarf_Off off, tdesc_t *tdp)
 		tdesc_t *dimtdp;
 		int flags;
 
-		/* Check for bogus gcc DW_AT_byte_size attribute */
-		if (uval == (unsigned)-1) {
-			printf("dwarf.c:%s() working around bogus -1 DW_AT_byte_size\n",
-			    __func__);
-			uval = 0;
-		}
-		
 		tdp->t_size = uval;
 
 		/*
@@ -766,7 +763,8 @@ die_array_resolve(tdesc_t *tdp, tdesc_t **tdpp __unused, void *private)
 	debug(3, "trying to resolve array %d (cont %d)\n", tdp->t_id,
 	    tdp->t_ardef->ad_contents->t_id);
 
-	if ((sz = tdesc_size(tdp->t_ardef->ad_contents)) == 0) {
+	if ((sz = tdesc_size(tdp->t_ardef->ad_contents)) == 0 &&
+	    (tdp->t_ardef->ad_contents->t_flags & TDESC_F_RESOLVED) == 0) {
 		debug(3, "unable to resolve array %s (%d) contents %d\n",
 		    tdesc_name(tdp), tdp->t_id,
 		    tdp->t_ardef->ad_contents->t_id);
@@ -811,17 +809,16 @@ die_enum_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp)
 	Dwarf_Unsigned uval;
 	Dwarf_Signed sval;
 
+	if (die_isdecl(dw, die)) {
+		tdp->t_type = FORWARD;
+		return;
+	}
+
 	debug(3, "die %llu: creating enum\n", off);
 
 	tdp->t_type = ENUM;
 
 	(void) die_unsigned(dw, die, DW_AT_byte_size, &uval, DW_ATTR_REQ);
-	/* Check for bogus gcc DW_AT_byte_size attribute */
-	if (uval == (unsigned)-1) {
-		printf("dwarf.c:%s() working around bogus -1 DW_AT_byte_size\n",
-		    __func__); 
-		uval = 0;
-	}
 	tdp->t_size = uval;
 
 	if ((mem = die_child(dw, die)) != NULL) {
@@ -935,7 +932,7 @@ static void
 die_sou_create(dwarf_t *dw, Dwarf_Die str, Dwarf_Off off, tdesc_t *tdp,
     int type, const char *typename)
 {
-	Dwarf_Unsigned sz, bitsz, bitoff, maxsz=0;
+	Dwarf_Unsigned sz, bitsz, bitoff;
 #if BYTE_ORDER == _LITTLE_ENDIAN
 	Dwarf_Unsigned bysz;
 #endif
@@ -994,8 +991,6 @@ die_sou_create(dwarf_t *dw, Dwarf_Die str, Dwarf_Off off, tdesc_t *tdp,
 			ml->ml_name = NULL;
 
 		ml->ml_type = die_lookup_pass1(dw, mem, DW_AT_type);
-		debug(3, "die_sou_create(): ml_type = %p t_id = %d\n",
-		    ml->ml_type, ml->ml_type->t_id);
 
 		if (die_mem_offset(dw, mem, DW_AT_data_member_location,
 		    &mloff, 0)) {
@@ -1041,23 +1036,7 @@ die_sou_create(dwarf_t *dw, Dwarf_Die str, Dwarf_Off off, tdesc_t *tdp,
 
 		*mlastp = ml;
 		mlastp = &ml->ml_next;
-
-		/* Find the size of the largest member to work around a gcc
-		 * bug.  See GCC Bugzilla 35998.
-		 */
-		if (maxsz < ml->ml_size)
-			maxsz = ml->ml_size;
-
 	} while ((mem = die_sibling(dw, mem)) != NULL);
-
-	/* See if we got a bogus DW_AT_byte_size.  GCC will sometimes
-	 * emit this.
-	 */
-	if (sz == (unsigned)-1) {
-		 printf("dwarf.c:%s() working around bogus -1 DW_AT_byte_size\n",
-		     __func__);
-		 tdp->t_size = maxsz / 8;  /* maxsz is in bits, t_size is bytes */
-	}
 
 	/*
 	 * GCC will attempt to eliminate unused types, thus decreasing the
@@ -1138,11 +1117,16 @@ die_sou_resolve(tdesc_t *tdp, tdesc_t **tdpp __unused, void *private)
 
 			/*
 			 * For empty members, or GCC/C99 flexible array
-			 * members, a size of 0 is correct.
+			 * members, a size of 0 is correct. Structs and unions
+			 * consisting of flexible array members will also have
+			 * size 0.
 			 */
 			if (mt->t_members == NULL)
 				continue;
 			if (mt->t_type == ARRAY && mt->t_ardef->ad_nelems == 0)
+				continue;
+			if ((mt->t_flags & TDESC_F_RESOLVED) != 0 &&
+			    (mt->t_type == STRUCT || mt->t_type == UNION))
 				continue;
 
 			dw->dw_nunres++;
@@ -1155,7 +1139,7 @@ die_sou_resolve(tdesc_t *tdp, tdesc_t **tdpp __unused, void *private)
 		}
 
 		if (ml->ml_size != 0 && mt->t_type == INTRINSIC &&
-		    mt->t_intr->intr_nbits != (int)ml->ml_size) {
+		    mt->t_intr->intr_nbits != ml->ml_size) {
 			/*
 			 * This member is a bitfield, and needs to reference
 			 * an intrinsic type with the same width.  If the
@@ -1384,7 +1368,7 @@ die_base_type2enc(dwarf_t *dw, Dwarf_Off off, Dwarf_Signed enc, size_t sz)
 		mult = 2;
 		col = 1;
 	} else if (enc == DW_ATE_imaginary_float
-#if defined(sun)
+#ifdef illumos
 	    || enc == DW_ATE_SUN_imaginary_float
 #endif
 	    )
@@ -1435,7 +1419,7 @@ die_base_from_dwarf(dwarf_t *dw, Dwarf_Die base, Dwarf_Off off, size_t sz)
 	case DW_ATE_float:
 	case DW_ATE_complex_float:
 	case DW_ATE_imaginary_float:
-#if defined(sun)
+#ifdef illumos
 	case DW_ATE_SUN_imaginary_float:
 	case DW_ATE_SUN_interval_float:
 #endif
@@ -1470,13 +1454,6 @@ die_base_create(dwarf_t *dw, Dwarf_Die base, Dwarf_Off off, tdesc_t *tdp)
 	 * the data model.
 	 */
 	(void) die_unsigned(dw, base, DW_AT_byte_size, &sz, DW_ATTR_REQ);
-
-	/* Check for bogus gcc DW_AT_byte_size attribute */
-	if (sz == (unsigned)-1) {
-		printf("dwarf.c:%s() working around bogus -1 DW_AT_byte_size\n",
-		    __func__);
-		sz = 0;
-	}
 
 	if (tdp->t_name == NULL)
 		terminate("die %llu: base type without name\n", off);
@@ -1636,6 +1613,7 @@ die_function_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp __un
 			ii->ii_vargs = 1;
 			continue;
 		}
+		free(name1);
 
 		ii->ii_nargs++;
 	}
@@ -1923,7 +1901,7 @@ should_have_dwarf(Elf *elf)
 int
 dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 {
-	Dwarf_Unsigned abboff, hdrlen, nxthdr;
+	Dwarf_Unsigned abboff, hdrlen, lang, nxthdr;
 	Dwarf_Half vers, addrsz, offsz;
 	Dwarf_Die cu = 0;
 	Dwarf_Die child = 0;
@@ -1963,9 +1941,12 @@ dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 	}
 
 	if ((rc = dwarf_next_cu_header_b(dw.dw_dw, &hdrlen, &vers, &abboff,
-	    &addrsz, &offsz, NULL, &nxthdr, &dw.dw_err)) != DW_DLV_OK)
-		terminate("rc = %d %s\n", rc, dwarf_errmsg(dw.dw_err));
-
+	    &addrsz, &offsz, NULL, &nxthdr, &dw.dw_err)) != DW_DLV_OK) {
+		if (dw.dw_err.err_error == DW_DLE_NO_ENTRY)
+			exit(0);
+		else
+			terminate("rc = %d %s\n", rc, dwarf_errmsg(dw.dw_err));
+	}
 	if ((cu = die_sibling(&dw, NULL)) == NULL ||
 	    (((child = die_child(&dw, cu)) == NULL) &&
 	    should_have_dwarf(elf))) {
@@ -1990,6 +1971,26 @@ dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 		debug(1, "DWARF emitter: %s\n", prod);
 		free(prod);
 	}
+
+	if (dwarf_attrval_unsigned(cu, DW_AT_language, &lang, &dw.dw_err) == 0)
+		switch (lang) {
+		case DW_LANG_C:
+		case DW_LANG_C89:
+		case DW_LANG_C99:
+		case DW_LANG_C11:
+		case DW_LANG_C_plus_plus:
+		case DW_LANG_C_plus_plus_03:
+		case DW_LANG_C_plus_plus_11:
+		case DW_LANG_C_plus_plus_14:
+		case DW_LANG_Mips_Assembler:
+			break;
+		default:
+			terminate("file contains DWARF for unsupported "
+			    "language %#x", lang);
+		}
+	else
+		warning("die %llu: failed to get language attribute: %s\n",
+		    die_off(&dw, cu), dwarf_errmsg(dw.dw_err));
 
 	if ((dw.dw_cuname = die_name(&dw, cu)) != NULL) {
 		char *base = xstrdup(basename(dw.dw_cuname));

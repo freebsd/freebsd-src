@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1991-1997 Søren Schmidt
  * All rights reserved.
  *
@@ -33,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fbio.h>
 #include "vgl.h"
 
-static VGLText		*VGLTextFont = 0;
+static VGLText		*VGLTextFont;
 
 extern byte VGLFont[];
 

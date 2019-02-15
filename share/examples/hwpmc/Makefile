@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=examples
+FILESDIR=${SHAREDIR}/examples/hwpmc
 PROG=	overhead
 LDFLAGS+= -lpmc
 MAN=

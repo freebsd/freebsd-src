@@ -101,6 +101,7 @@ allocate_value (struct type *type)
   VALUE_EMBEDDED_OFFSET (val) = 0;
   VALUE_POINTED_TO_OFFSET (val) = 0;
   val->modifiable = 1;
+  val->initialized = 1;  /* Default to initialized.  */
   return val;
 }
 
@@ -1309,6 +1310,22 @@ using_struct_return (struct type *value_type, int gcc_p)
   return (gdbarch_return_value (current_gdbarch, value_type,
 				NULL, NULL, NULL)
 	  == RETURN_VALUE_STRUCT_CONVENTION);
+}
+
+/* Set the initialized field in a value struct.  */
+
+void
+set_value_initialized (struct value *val, int status)
+{
+  val->initialized = status;
+}
+
+/* Return the initialized field in a value struct.  */
+
+int
+value_initialized (struct value *val)
+{
+  return val->initialized;
 }
 
 void

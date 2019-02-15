@@ -40,24 +40,16 @@
 #define	INITHUNKMAX 125		/* initial dynamic allocation size */
 #define	INITLINELEN 4096
 #define	BUFFERSIZE 4096
-
-#define	SCCSPREFIX "s."
-#define	GET "get -e %s"
-#define	SCCSDIFF "get -p %s | diff - %s >/dev/null"
-
-#define	RCSSUFFIX ",v"
-#define	CHECKOUT "co -l %s"
-#define	RCSDIFF "rcsdiff %s > /dev/null"
+#define	LINENUM_MAX LONG_MAX
 
 #define	ORIGEXT ".orig"
 #define	REJEXT ".rej"
 
 /* handy definitions */
 
-#define	strNE(s1,s2) (strcmp(s1, s2))
-#define	strEQ(s1,s2) (!strcmp(s1, s2))
-#define	strnNE(s1,s2,l) (strncmp(s1, s2, l))
-#define	strnEQ(s1,s2,l) (!strncmp(s1, s2, l))
+#define	strEQ(s1,s2) (strcmp(s1, s2) == 0)
+#define	strnNE(s1,s2,l) (strncmp(s1, s2, l) != 0)
+#define	strnEQ(s1,s2,l) (strncmp(s1, s2, l) == 0)
 
 /* typedefs */
 

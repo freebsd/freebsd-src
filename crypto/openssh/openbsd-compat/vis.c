@@ -1,4 +1,4 @@
-/*	$OpenBSD: vis.c,v 1.19 2005/09/01 17:15:49 millert Exp $ */
+/*	$OpenBSD: vis.c,v 1.25 2015/09/13 11:32:51 guenther Exp $ */
 /*-
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -33,13 +33,18 @@
 #include "includes.h"
 #if !defined(HAVE_STRNVIS) || defined(BROKEN_STRNVIS)
 
+#include <sys/types.h>
+#include <errno.h>
 #include <ctype.h>
+#include <limits.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "vis.h"
 
 #define	isoctal(c)	(((u_char)(c)) >= '0' && ((u_char)(c)) <= '7')
-#define	isvisible(c)							\
+#define	isvisible(c,flag)						\
+	(((c) == '\\' || (flag & VIS_ALL) == 0) &&			\
 	(((u_int)(c) <= UCHAR_MAX && isascii((u_char)(c)) &&		\
 	(((c) != '*' && (c) != '?' && (c) != '[' && (c) != '#') ||	\
 		(flag & VIS_GLOB) == 0) && isgraph((u_char)(c))) ||	\
@@ -48,7 +53,7 @@
 	((flag & VIS_NL) == 0 && (c) == '\n') ||			\
 	((flag & VIS_SAFE) && ((c) == '\b' ||				\
 		(c) == '\007' || (c) == '\r' ||				\
-		isgraph((u_char)(c)))))
+		isgraph((u_char)(c))))))
 
 /*
  * vis - visually encode characters
@@ -56,10 +61,11 @@
 char *
 vis(char *dst, int c, int flag, int nextc)
 {
-	if (isvisible(c)) {
-		*dst++ = c;
-		if (c == '\\' && (flag & VIS_NOSLASH) == 0)
+	if (isvisible(c, flag)) {
+		if ((c == '"' && (flag & VIS_DQ) != 0) ||
+		    (c == '\\' && (flag & VIS_NOSLASH) == 0))
 			*dst++ = '\\';
+		*dst++ = c;
 		*dst = '\0';
 		return (dst);
 	}
@@ -136,6 +142,7 @@ done:
 	*dst = '\0';
 	return (dst);
 }
+DEF_WEAK(vis);
 
 /*
  * strvis, strnvis, strvisx - visually encode characters from src into dst
@@ -161,6 +168,7 @@ strvis(char *dst, const char *src, int flag)
 	*dst = '\0';
 	return (dst - start);
 }
+DEF_WEAK(strvis);
 
 int
 strnvis(char *dst, const char *src, size_t siz, int flag)
@@ -171,19 +179,18 @@ strnvis(char *dst, const char *src, size_t siz, int flag)
 
 	i = 0;
 	for (start = dst, end = start + siz - 1; (c = *src) && dst < end; ) {
-		if (isvisible(c)) {
-			i = 1;
-			*dst++ = c;
-			if (c == '\\' && (flag & VIS_NOSLASH) == 0) {
+		if (isvisible(c, flag)) {
+			if ((c == '"' && (flag & VIS_DQ) != 0) ||
+			    (c == '\\' && (flag & VIS_NOSLASH) == 0)) {
 				/* need space for the extra '\\' */
-				if (dst < end)
-					*dst++ = '\\';
-				else {
-					dst--;
+				if (dst + 1 >= end) {
 					i = 2;
 					break;
 				}
+				*dst++ = '\\';
 			}
+			i = 1;
+			*dst++ = c;
 			src++;
 		} else {
 			i = vis(tbuf, c, flag, *++src) - tbuf;
@@ -204,6 +211,25 @@ strnvis(char *dst, const char *src, size_t siz, int flag)
 			dst += vis(tbuf, c, flag, *++src) - tbuf;
 	}
 	return (dst - start);
+}
+
+int
+stravis(char **outp, const char *src, int flag)
+{
+	char *buf;
+	int len, serrno;
+
+	buf = reallocarray(NULL, 4, strlen(src) + 1);
+	if (buf == NULL)
+		return -1;
+	len = strvis(buf, src, flag);
+	serrno = errno;
+	*outp = realloc(buf, len + 1);
+	if (*outp == NULL) {
+		*outp = buf;
+		errno = serrno;
+	}
+	return (len);
 }
 
 int

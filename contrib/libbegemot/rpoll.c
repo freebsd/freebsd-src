@@ -44,17 +44,6 @@
 # include <unistd.h>
 # include <sys/time.h>
 
-/*
- * There happens to be linuxes which read siginfo.h when including
- * signal.h, which, for no appearent reason, defines these symbols.
- */
-# ifdef POLL_IN
-#  undef POLL_IN
-# endif
-# ifdef POLL_OUT
-#  undef POLL_OUT
-# endif
-
 # include "rpoll.h"
 
 /*
@@ -339,11 +328,11 @@ poll_build(void)
 		if(p->fd >= 0) {
 			f->fd = p->fd;
 			f->events = 0;
-			if(p->mask & POLL_IN)
+			if(p->mask & RPOLL_IN)
 				f->events |= poll_in;
-			if(p->mask & POLL_OUT)
+			if(p->mask & RPOLL_OUT)
 				f->events |= poll_out;
-			if(p->mask & POLL_EXCEPT)
+			if(p->mask & RPOLL_EXCEPT)
 				f->events |= poll_except;
 			f->revents = 0;
 			p->pfd = f++;
@@ -360,11 +349,11 @@ poll_build(void)
 		if(p->fd >= 0) {
 			if(p->fd > maxfd)
 				maxfd = p->fd;
-			if(p->mask & POLL_IN)
+			if(p->mask & RPOLL_IN)
 				FD_SET(p->fd, &rset);
-			if(p->mask & POLL_OUT)
+			if(p->mask & RPOLL_OUT)
 				FD_SET(p->fd, &wset);
-			if(p->mask & POLL_EXCEPT)
+			if(p->mask & RPOLL_EXCEPT)
 				FD_SET(p->fd, &xset);
 		}
 # endif
@@ -582,27 +571,27 @@ poll_dispatch(int wait)
 
 # ifdef USE_POLL
 				if(regs[idx].pfd) {
-					if ((regs[idx].mask & POLL_IN) &&
+					if ((regs[idx].mask & RPOLL_IN) &&
 					    (regs[idx].pfd->revents & poll_in))
-						mask |= POLL_IN;
-					if ((regs[idx].mask & POLL_OUT) &&
+						mask |= RPOLL_IN;
+					if ((regs[idx].mask & RPOLL_OUT) &&
 					    (regs[idx].pfd->revents & poll_out))
-						mask |= POLL_OUT;
-					if((regs[idx].mask & POLL_EXCEPT) &&
+						mask |= RPOLL_OUT;
+					if((regs[idx].mask & RPOLL_EXCEPT) &&
 					    (regs[idx].pfd->revents & poll_except))
-						mask |= POLL_EXCEPT;
+						mask |= RPOLL_EXCEPT;
 				}
 # endif
 # ifdef USE_SELECT
-				if ((regs[idx].mask & POLL_IN) &&
+				if ((regs[idx].mask & RPOLL_IN) &&
 				    FD_ISSET(regs[idx].fd, &nrset))
-					mask |= POLL_IN;
-				if ((regs[idx].mask & POLL_OUT) &&
+					mask |= RPOLL_IN;
+				if ((regs[idx].mask & RPOLL_OUT) &&
 				    FD_ISSET(regs[idx].fd, &nwset))
-					mask |= POLL_OUT;
-				if ((regs[idx].mask & POLL_EXCEPT) &&
+					mask |= RPOLL_OUT;
+				if ((regs[idx].mask & RPOLL_EXCEPT) &&
 				    FD_ISSET(regs[idx].fd, &nxset))
-					mask |= POLL_EXCEPT;
+					mask |= RPOLL_EXCEPT;
 # endif
 				assert(idx < regs_alloc);
 
@@ -723,7 +712,7 @@ main(int argc, char *argv[])
 {
 	argv = argv;
 	gettimeofday(&start, NULL);
-	poll_register(0, infunc, NULL, POLL_IN);
+	poll_register(0, infunc, NULL, RPOLL_IN);
 
 	if (argc < 2) {
 		t0 = poll_start_timer(1000, 1, tfunc0, "1 second");

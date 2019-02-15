@@ -22,7 +22,7 @@ options 	AR71XX_ENV_UBOOT
 # who already are using it without modifying the default flash layout)
 # we need to cut down on a lot of things.
 
-makeoptions	MODULES_OVERRIDE="ath ath_pci ath_ahb bridgestp if_bridge if_gif if_gre random wlan wlan_acl wlan_amrr wlan_ccmp wlan_rssadapt wlan_tkip wlan_wep wlan_xauth usb ar71xx"
+makeoptions	MODULES_OVERRIDE="ath ath_pci ath_ahb bridgestp if_bridge if_gif if_gre wlan wlan_acl wlan_amrr wlan_ccmp wlan_rssadapt wlan_tkip wlan_wep wlan_xauth usb ar71xx"
 
 hints		"PB92.hints"
 include		"../atheros/std.ar71xx"
@@ -37,6 +37,7 @@ options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
 # Can't do IPv6 - it just doesn't fit.
 # options 	INET6
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 # options 	NFSCL			#Network Filesystem Client
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
@@ -54,9 +55,9 @@ options         FFS                     #Berkeley Fast Filesystem
 #options         UFS_DIRHASH             #Improve performance on big directories
 
 # Support uncompress lzma rootfs
-device		geom_uncompress
-options 	GEOM_UNCOMPRESS
-options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uncompress\"
+device		geom_uzip
+options 	GEOM_UZIP
+options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uzip\"
 
 # PCI bus
 device		pci
@@ -125,6 +126,8 @@ device		ar71xx_wdog
 # Serial
 device		uart
 device		uart_ar71xx
+
+device		ar71xx_apb
 
 # Network twiddling
 device		loop

@@ -14,6 +14,7 @@ SRCS+= \
 	thr_cond.c \
 	thr_condattr.c \
 	thr_create.c \
+	thr_ctrdtr.c \
 	thr_detach.c \
 	thr_equal.c \
 	thr_event.c \
@@ -35,6 +36,7 @@ SRCS+= \
 	thr_mutexattr.c \
 	thr_once.c \
 	thr_printf.c \
+	thr_pshared.c \
 	thr_pspinlock.c \
 	thr_resume_np.c \
 	thr_rtld.c \

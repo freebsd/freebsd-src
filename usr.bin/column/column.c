@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -233,18 +235,18 @@ maketbl(void)
 	wchar_t *last;
 
 	if ((t = tbl = calloc(entries, sizeof(TBL))) == NULL)
-		err(1, (char *)NULL);
+		err(1, NULL);
 	if ((cols = calloc((maxcols = DEFCOLS), sizeof(*cols))) == NULL)
-		err(1, (char *)NULL);
+		err(1, NULL);
 	if ((lens = calloc(maxcols, sizeof(int))) == NULL)
-		err(1, (char *)NULL);
+		err(1, NULL);
 	for (cnt = 0, lp = list; cnt < entries; ++cnt, ++lp, ++t) {
 		for (coloff = 0, p = *lp;
 		    (cols[coloff] = wcstok(p, separator, &last));
 		    p = NULL)
 			if (++coloff == maxcols) {
 				if (!(cols = realloc(cols, ((u_int)maxcols +
-				    DEFCOLS) * sizeof(char *))) ||
+				    DEFCOLS) * sizeof(wchar_t *))) ||
 				    !(lens = realloc(lens,
 				    ((u_int)maxcols + DEFCOLS) * sizeof(int))))
 					err(1, NULL);
@@ -253,9 +255,9 @@ maketbl(void)
 				maxcols += DEFCOLS;
 			}
 		if ((t->list = calloc(coloff, sizeof(*t->list))) == NULL)
-			err(1, (char *)NULL);
+			err(1, NULL);
 		if ((t->len = calloc(coloff, sizeof(int))) == NULL)
-			err(1, (char *)NULL);
+			err(1, NULL);
 		for (t->cols = coloff; --coloff >= 0;) {
 			t->list[coloff] = cols[coloff];
 			t->len[coloff] = width(cols[coloff]);
@@ -268,7 +270,12 @@ maketbl(void)
 			(void)wprintf(L"%ls%*ls", t->list[coloff],
 			    lens[coloff] - t->len[coloff] + 2, L" ");
 		(void)wprintf(L"%ls\n", t->list[coloff]);
+		free(t->list);
+		free(t->len);
 	}
+	free(lens);
+	free(cols);
+	free(tbl);
 }
 
 #define	DEFNUM		1000
@@ -284,7 +291,7 @@ input(FILE *fp)
 	if (!list)
 		if ((list = calloc((maxentry = DEFNUM), sizeof(*list))) ==
 		    NULL)
-			err(1, (char *)NULL);
+			err(1, NULL);
 	while (fgetws(buf, MAXLINELEN, fp)) {
 		for (p = buf; *p && iswspace(*p); ++p);
 		if (!*p)

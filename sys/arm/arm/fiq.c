@@ -1,6 +1,8 @@
 /*	$NetBSD: fiq.c,v 1.5 2002/04/03 23:33:27 thorpej Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001, 2002 Wasabi Systems, Inc.
  * All rights reserved.
  *
@@ -59,7 +61,7 @@ extern uint32_t fiq_nullhandler_size;
  * fiq_installhandler:
  *
  *	Actually install the FIQ handler down at the FIQ vector.
- *	
+ *
  *	The FIQ vector is fixed by the hardware definition as the
  *	seventh 32-bit word in the vector page.
  *
@@ -73,16 +75,16 @@ fiq_installhandler(void *func, size_t size)
 {
 	const uint32_t fiqvector = 7 * sizeof(uint32_t);
 
-#if !defined(__ARM_FIQ_INDIRECT)
+#if __ARM_ARCH < 6 && !defined(__ARM_FIQ_INDIRECT)
 	vector_page_setprot(VM_PROT_READ|VM_PROT_WRITE);
 #endif
 
 	memcpy((void *)(vector_page + fiqvector), func, size);
 
-#if !defined(__ARM_FIQ_INDIRECT)
+#if __ARM_ARCH < 6 && !defined(__ARM_FIQ_INDIRECT)
 	vector_page_setprot(VM_PROT_READ);
-	cpu_icache_sync_range((vm_offset_t) fiqvector, size);
 #endif
+	icache_sync((vm_offset_t) fiqvector, size);
 }
 
 /*

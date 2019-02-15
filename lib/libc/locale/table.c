@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -18,7 +20,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -101,16 +103,16 @@ const _RuneLocale _DefaultRuneLocale = {
 		_CTYPE_P|_CTYPE_R|_CTYPE_G,
 		_CTYPE_P|_CTYPE_R|_CTYPE_G,
 		_CTYPE_P|_CTYPE_R|_CTYPE_G,
-	/*30*/	_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|0,
-		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|1,
-		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|2,
-		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|3,
-		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|4,
-		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|5,
-		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|6,
-		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|7,
-	/*38*/	_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|8,
-		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|9,
+	/*30*/	_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|0,
+		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|1,
+		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|2,
+		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|3,
+		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|4,
+		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|5,
+		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|6,
+		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|7,
+	/*38*/	_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|8,
+		_CTYPE_D|_CTYPE_R|_CTYPE_G|_CTYPE_X|_CTYPE_N|9,
 		_CTYPE_P|_CTYPE_R|_CTYPE_G,
 		_CTYPE_P|_CTYPE_R|_CTYPE_G,
 		_CTYPE_P|_CTYPE_R|_CTYPE_G,

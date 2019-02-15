@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (C) 2006-2012 Semihalf.
  * All rights reserved.
  *
@@ -34,7 +36,7 @@
 
 /*  PowerPC E500 MAS registers */
 #define MAS0_TLBSEL(x)		((x << 28) & 0x10000000)
-#define MAS0_ESEL(x)		((x << 16) & 0x000F0000)
+#define MAS0_ESEL(x)		((x << 16) & 0x003F0000)
 
 #define MAS0_TLBSEL1		0x10000000
 #define MAS0_TLBSEL0		0x00000000
@@ -65,7 +67,11 @@
 #define	TLB_SIZE_1G		10
 #define	TLB_SIZE_4G		11
 
+#ifdef __powerpc64__
+#define	MAS2_EPN_MASK		0xFFFFFFFFFFFFF000UL
+#else
 #define	MAS2_EPN_MASK		0xFFFFF000
+#endif
 #define	MAS2_EPN_SHIFT		12
 #define	MAS2_X0			0x00000040
 #define	MAS2_X1			0x00000020
@@ -74,6 +80,7 @@
 #define	MAS2_M			0x00000004
 #define	MAS2_G			0x00000002
 #define	MAS2_E			0x00000001
+#define	MAS2_WIMGE_MASK		0x0000007F
 
 #define	MAS3_RPN		0xFFFFF000
 #define	MAS3_RPN_SHIFT		12
@@ -106,6 +113,8 @@
 #define MAS6_SPID0_SHIFT	16
 #define MAS6_SAS		0x00000001
 
+#define MAS7_RPN		0x0000000F
+
 #define MAS1_GETTID(mas1)	(((mas1) & MAS1_TID_MASK) >> MAS1_TID_SHIFT)
 
 #define MAS2_TLB0_ENTRY_IDX_MASK	0x0007f000
@@ -117,12 +126,16 @@
  */
 #define KERNEL_REGION_MAX_TLB_ENTRIES   4
 
+/*
+ * Use MAS2_X0 to mark entries which will be copied
+ * to AP CPUs during SMP bootstrap. As result entries
+ * marked with _TLB_ENTRY_SHARED will be shared by all CPUs.
+ */
+#define _TLB_ENTRY_SHARED	(MAS2_X0)	/* XXX under SMP? */
 #define _TLB_ENTRY_IO	(MAS2_I | MAS2_G)
-#ifdef SMP
 #define _TLB_ENTRY_MEM	(MAS2_M)
-#else
-#define _TLB_ENTRY_MEM	(0)
-#endif
+
+#define TLB1_MAX_ENTRIES	64
 
 #if !defined(LOCORE)
 typedef struct tlb_entry {
@@ -130,16 +143,17 @@ typedef struct tlb_entry {
 	vm_offset_t virt;
 	vm_size_t size;
 	uint32_t mas1;
+#ifdef __powerpc64__
+	uint64_t mas2;
+#else
 	uint32_t mas2;
+#endif
 	uint32_t mas3;
+	uint32_t mas7;
 } tlb_entry_t;
-
-void tlb0_print_tlbentries(void);
 
 void tlb1_inval_entry(unsigned int);
 void tlb1_init(void);
-void tlb1_print_entries(void);
-void tlb1_print_tlbentries(void);
 #endif /* !LOCORE */
 
 #elif defined(BOOKE_PPC4XX)
@@ -209,8 +223,10 @@ typedef int tlbtid_t;
 
 struct pmap;
 
-void tlb_lock(uint32_t *);
-void tlb_unlock(uint32_t *);
+void tlb_lock(uintptr_t *);
+void tlb_unlock(uintptr_t *);
+void tlb1_ap_prep(void);
+int  tlb1_set_entry(vm_offset_t, vm_paddr_t, vm_size_t, uint32_t);
 
 #endif /* !LOCORE */
 

@@ -17,8 +17,6 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @(#) $Header: /tcpdump/master/tcpdump/lbl/os-sunos4.h,v 1.32 1999-10-07 23:47:13 mcr Exp $ (LBL)
  */
 
 /* Prototypes missing in SunOS 4 */
@@ -168,12 +166,10 @@ int	sscanf(char *, const char *, ...);
 int	stat(const char *, struct stat *);
 int	statfs(char *, struct statfs *);
 char	*strerror(int);
-int	strcasecmp(const char *, const char *);
 #ifdef __STDC__
 struct	tm;
 #endif
 int	strftime(char *, int, char *, struct tm *);
-int	strncasecmp(const char *, const char *, int);
 long	strtol(const char *, char **, int);
 void	sync(void);
 void	syslog(int, const char *, ...);

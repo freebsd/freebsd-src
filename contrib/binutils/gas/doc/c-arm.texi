@@ -317,13 +317,6 @@ Either @samp{#} or @samp{$} can be used to indicate immediate operands.
 @cindex register names, ARM
 *TODO* Explain about ARM register naming, and the predefined names.
 
-@node ARM Floating Point
-@section Floating Point
-
-@cindex floating point, ARM (@sc{ieee})
-@cindex ARM floating point (@sc{ieee})
-The ARM family uses @sc{ieee} floating-point numbers.
-
 @node ARM-Relocations
 @subsection ARM relocation generation
 
@@ -364,6 +357,13 @@ respectively.  For example to load the 32-bit address of foo into r0:
         MOVW r0, #:lower16:foo
         MOVT r0, #:upper16:foo
 @end smallexample
+
+@node ARM Floating Point
+@section Floating Point
+
+@cindex floating point, ARM (@sc{ieee})
+@cindex ARM floating point (@sc{ieee})
+The ARM family uses @sc{ieee} floating-point numbers.
 
 @node ARM Directives
 @section ARM Machine Directives

@@ -1,4 +1,4 @@
-//===-- TypeFinder.cpp - Implement the TypeFinder class -------------------===//
+//===- TypeFinder.cpp - Implement the TypeFinder class --------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,10 +14,19 @@
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Constant.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Use.h"
+#include "llvm/IR/User.h"
+#include "llvm/IR/Value.h"
+#include "llvm/Support/Casting.h"
+#include <utility>
+
 using namespace llvm;
 
 void TypeFinder::run(const Module &M, bool onlyNamed) {
@@ -40,24 +49,20 @@ void TypeFinder::run(const Module &M, bool onlyNamed) {
   }
 
   // Get types from functions.
-  SmallVector<std::pair<unsigned, MDNode*>, 4> MDForInst;
-  for (Module::const_iterator FI = M.begin(), E = M.end(); FI != E; ++FI) {
-    incorporateType(FI->getType());
+  SmallVector<std::pair<unsigned, MDNode *>, 4> MDForInst;
+  for (const Function &FI : M) {
+    incorporateType(FI.getType());
 
-    if (FI->hasPrefixData())
-      incorporateValue(FI->getPrefixData());
+    for (const Use &U : FI.operands())
+      incorporateValue(U.get());
 
     // First incorporate the arguments.
-    for (Function::const_arg_iterator AI = FI->arg_begin(),
-           AE = FI->arg_end(); AI != AE; ++AI)
-      incorporateValue(AI);
+    for (Function::const_arg_iterator AI = FI.arg_begin(), AE = FI.arg_end();
+         AI != AE; ++AI)
+      incorporateValue(&*AI);
 
-    for (Function::const_iterator BB = FI->begin(), E = FI->end();
-         BB != E;++BB)
-      for (BasicBlock::const_iterator II = BB->begin(),
-             E = BB->end(); II != E; ++II) {
-        const Instruction &I = *II;
-
+    for (const BasicBlock &BB : FI)
+      for (const Instruction &I : BB) {
         // Incorporate the type of the instruction.
         incorporateType(I.getType());
 
@@ -65,7 +70,7 @@ void TypeFinder::run(const Module &M, bool onlyNamed) {
         // instructions with this loop.)
         for (User::const_op_iterator OI = I.op_begin(), OE = I.op_end();
              OI != OE; ++OI)
-          if (!isa<Instruction>(OI))
+          if (*OI && !isa<Instruction>(OI))
             incorporateValue(*OI);
 
         // Incorporate types hiding in metadata.
@@ -79,7 +84,7 @@ void TypeFinder::run(const Module &M, bool onlyNamed) {
 
   for (Module::const_named_metadata_iterator I = M.named_metadata_begin(),
          E = M.named_metadata_end(); I != E; ++I) {
-    const NamedMDNode *NMD = I;
+    const NamedMDNode *NMD = &*I;
     for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i)
       incorporateMDNode(NMD->getOperand(i));
   }
@@ -122,8 +127,13 @@ void TypeFinder::incorporateType(Type *Ty) {
 /// other ways.  GlobalValues, basic blocks, instructions, and inst operands are
 /// all explicitly enumerated.
 void TypeFinder::incorporateValue(const Value *V) {
-  if (const MDNode *M = dyn_cast<MDNode>(V))
-    return incorporateMDNode(M);
+  if (const auto *M = dyn_cast<MetadataAsValue>(V)) {
+    if (const auto *N = dyn_cast<MDNode>(M->getMetadata()))
+      return incorporateMDNode(N);
+    if (const auto *MDV = dyn_cast<ValueAsMetadata>(M->getMetadata()))
+      return incorporateValue(MDV->getValue());
+    return;
+  }
 
   if (!isa<Constant>(V) || isa<GlobalValue>(V)) return;
 
@@ -149,11 +159,21 @@ void TypeFinder::incorporateValue(const Value *V) {
 /// find types hiding within.
 void TypeFinder::incorporateMDNode(const MDNode *V) {
   // Already visited?
-  if (!VisitedConstants.insert(V).second)
+  if (!VisitedMetadata.insert(V).second)
     return;
 
   // Look in operands for types.
-  for (unsigned i = 0, e = V->getNumOperands(); i != e; ++i)
-    if (Value *Op = V->getOperand(i))
-      incorporateValue(Op);
+  for (unsigned i = 0, e = V->getNumOperands(); i != e; ++i) {
+    Metadata *Op = V->getOperand(i);
+    if (!Op)
+      continue;
+    if (auto *N = dyn_cast<MDNode>(Op)) {
+      incorporateMDNode(N);
+      continue;
+    }
+    if (auto *C = dyn_cast<ConstantAsMetadata>(Op)) {
+      incorporateValue(C->getValue());
+      continue;
+    }
+  }
 }

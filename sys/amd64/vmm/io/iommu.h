@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
  *
@@ -61,7 +63,6 @@ struct iommu_ops {
 extern struct iommu_ops iommu_ops_intel;
 extern struct iommu_ops iommu_ops_amd;
 
-void	iommu_init(void);
 void	iommu_cleanup(void);
 void	*iommu_host_domain(void);
 void	*iommu_create_domain(vm_paddr_t maxaddr);

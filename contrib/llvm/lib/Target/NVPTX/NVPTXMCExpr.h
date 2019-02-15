@@ -9,11 +9,12 @@
 
 // Modeled after ARMMCExpr
 
-#ifndef NVPTXMCEXPR_H
-#define NVPTXMCEXPR_H
+#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXMCEXPR_H
+#define LLVM_LIB_TARGET_NVPTX_NVPTXMCEXPR_H
 
 #include "llvm/ADT/APFloat.h"
 #include "llvm/MC/MCExpr.h"
+#include <utility>
 
 namespace llvm {
 
@@ -21,32 +22,38 @@ class NVPTXFloatMCExpr : public MCTargetExpr {
 public:
   enum VariantKind {
     VK_NVPTX_None,
-    VK_NVPTX_SINGLE_PREC_FLOAT,   // FP constant in single-precision
-    VK_NVPTX_DOUBLE_PREC_FLOAT    // FP constant in double-precision
+    VK_NVPTX_HALF_PREC_FLOAT,   // FP constant in half-precision
+    VK_NVPTX_SINGLE_PREC_FLOAT, // FP constant in single-precision
+    VK_NVPTX_DOUBLE_PREC_FLOAT  // FP constant in double-precision
   };
 
 private:
   const VariantKind Kind;
   const APFloat Flt;
 
-  explicit NVPTXFloatMCExpr(VariantKind _Kind, APFloat _Flt)
-    : Kind(_Kind), Flt(_Flt) {}
+  explicit NVPTXFloatMCExpr(VariantKind Kind, APFloat Flt)
+      : Kind(Kind), Flt(std::move(Flt)) {}
 
 public:
   /// @name Construction
   /// @{
 
-  static const NVPTXFloatMCExpr *Create(VariantKind Kind, APFloat Flt,
+  static const NVPTXFloatMCExpr *create(VariantKind Kind, const APFloat &Flt,
                                         MCContext &Ctx);
 
-  static const NVPTXFloatMCExpr *CreateConstantFPSingle(APFloat Flt,
+  static const NVPTXFloatMCExpr *createConstantFPHalf(const APFloat &Flt,
                                                         MCContext &Ctx) {
-    return Create(VK_NVPTX_SINGLE_PREC_FLOAT, Flt, Ctx);
+    return create(VK_NVPTX_HALF_PREC_FLOAT, Flt, Ctx);
   }
 
-  static const NVPTXFloatMCExpr *CreateConstantFPDouble(APFloat Flt,
+  static const NVPTXFloatMCExpr *createConstantFPSingle(const APFloat &Flt,
                                                         MCContext &Ctx) {
-    return Create(VK_NVPTX_DOUBLE_PREC_FLOAT, Flt, Ctx);
+    return create(VK_NVPTX_SINGLE_PREC_FLOAT, Flt, Ctx);
+  }
+
+  static const NVPTXFloatMCExpr *createConstantFPDouble(const APFloat &Flt,
+                                                        MCContext &Ctx) {
+    return create(VK_NVPTX_DOUBLE_PREC_FLOAT, Flt, Ctx);
   }
 
   /// @}
@@ -61,23 +68,64 @@ public:
 
 /// @}
 
-  void PrintImpl(raw_ostream &OS) const;
-  bool EvaluateAsRelocatableImpl(MCValue &Res,
-                                 const MCAsmLayout *Layout) const {
+  void printImpl(raw_ostream &OS, const MCAsmInfo *MAI) const override;
+  bool evaluateAsRelocatableImpl(MCValue &Res,
+                                 const MCAsmLayout *Layout,
+                                 const MCFixup *Fixup) const override {
     return false;
   }
-  void AddValueSymbols(MCAssembler *) const {};
-  const MCSection *FindAssociatedSection() const {
-    return NULL;
-  }
+  void visitUsedExpr(MCStreamer &Streamer) const override {};
+  MCFragment *findAssociatedFragment() const override { return nullptr; }
 
   // There are no TLS NVPTXMCExprs at the moment.
-  void fixELFSymbolsInTLSFixups(MCAssembler &Asm) const {}
+  void fixELFSymbolsInTLSFixups(MCAssembler &Asm) const override {}
 
   static bool classof(const MCExpr *E) {
     return E->getKind() == MCExpr::Target;
   }
 };
+
+/// A wrapper for MCSymbolRefExpr that tells the assembly printer that the
+/// symbol should be enclosed by generic().
+class NVPTXGenericMCSymbolRefExpr : public MCTargetExpr {
+private:
+  const MCSymbolRefExpr *SymExpr;
+
+  explicit NVPTXGenericMCSymbolRefExpr(const MCSymbolRefExpr *_SymExpr)
+      : SymExpr(_SymExpr) {}
+
+public:
+  /// @name Construction
+  /// @{
+
+  static const NVPTXGenericMCSymbolRefExpr
+  *create(const MCSymbolRefExpr *SymExpr, MCContext &Ctx);
+
+  /// @}
+  /// @name Accessors
+  /// @{
+
+  /// getOpcode - Get the kind of this expression.
+  const MCSymbolRefExpr *getSymbolExpr() const { return SymExpr; }
+
+  /// @}
+
+  void printImpl(raw_ostream &OS, const MCAsmInfo *MAI) const override;
+  bool evaluateAsRelocatableImpl(MCValue &Res,
+                                 const MCAsmLayout *Layout,
+                                 const MCFixup *Fixup) const override {
+    return false;
+  }
+  void visitUsedExpr(MCStreamer &Streamer) const override {};
+  MCFragment *findAssociatedFragment() const override { return nullptr; }
+
+  // There are no TLS NVPTXMCExprs at the moment.
+  void fixELFSymbolsInTLSFixups(MCAssembler &Asm) const override {}
+
+  static bool classof(const MCExpr *E) {
+    return E->getKind() == MCExpr::Target;
+  }
+  };
 } // end namespace llvm
 
 #endif

@@ -93,7 +93,7 @@ svn_log__get_file(const char *path, svn_revnum_t rev,
 const char *
 svn_log__get_dir(const char *path, svn_revnum_t rev,
                  svn_boolean_t want_contents, svn_boolean_t want_props,
-                 apr_uint64_t dirent_fields,
+                 apr_uint32_t dirent_fields,
                  apr_pool_t *pool);
 
 /**
@@ -204,7 +204,7 @@ svn_log__get_file_revs(const char *path, svn_revnum_t start, svn_revnum_t end,
  * @since New in 1.6.
  */
 const char *
-svn_log__lock(const apr_array_header_t *paths, svn_boolean_t steal,
+svn_log__lock(apr_hash_t *targets, svn_boolean_t steal,
               apr_pool_t *pool);
 
 /**
@@ -213,7 +213,7 @@ svn_log__lock(const apr_array_header_t *paths, svn_boolean_t steal,
  * @since New in 1.6.
  */
 const char *
-svn_log__unlock(const apr_array_header_t *paths, svn_boolean_t break_lock,
+svn_log__unlock(apr_hash_t *targets, svn_boolean_t break_lock,
                 apr_pool_t *pool);
 
 /**
@@ -253,6 +253,17 @@ const char *
 svn_log__get_inherited_props(const char *path,
                              svn_revnum_t rev,
                              apr_pool_t *pool);
+
+/**
+ * Return a log string for a list action.
+ *
+ * @since New in 1.10.
+ */
+const char *
+svn_log__list(const char *path, svn_revnum_t revision,
+              apr_array_header_t *patterns, svn_depth_t depth,
+              apr_uint32_t dirent_fields, apr_pool_t *pool);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

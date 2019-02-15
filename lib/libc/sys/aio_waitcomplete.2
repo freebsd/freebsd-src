@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 19, 2000
+.Dd March 21, 2016
 .Dt AIO_WAITCOMPLETE 2
 .Os
 .Sh NAME
@@ -34,7 +34,7 @@
 .Lb libc
 .Sh SYNOPSIS
 .In aio.h
-.Ft int
+.Ft ssize_t
 .Fn aio_waitcomplete "struct aiocb **iocbp" "struct timespec *timeout"
 .Sh DESCRIPTION
 The

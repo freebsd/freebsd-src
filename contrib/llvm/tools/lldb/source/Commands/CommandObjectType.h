@@ -13,25 +13,22 @@
 // C Includes
 // C++ Includes
 
-
 // Other libraries and framework includes
 // Project includes
 
-#include "lldb/lldb-types.h"
 #include "lldb/Interpreter/CommandObjectMultiword.h"
 #include "lldb/Interpreter/Options.h"
+#include "lldb/lldb-types.h"
 
 namespace lldb_private {
 
-class CommandObjectType : public CommandObjectMultiword
-{
+class CommandObjectType : public CommandObjectMultiword {
 public:
-    CommandObjectType (CommandInterpreter &interpreter);
+  CommandObjectType(CommandInterpreter &interpreter);
 
-    virtual
-    ~CommandObjectType ();
+  ~CommandObjectType() override;
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_CommandObjectType_h_
+#endif // liblldb_CommandObjectType_h_

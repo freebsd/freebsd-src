@@ -1,6 +1,8 @@
 /*	$NetBSD: getrpcent.c,v 1.17 2000/01/22 22:19:17 mycroft Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -39,7 +41,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <assert.h>
@@ -512,6 +513,7 @@ nis_rpcent(void *retval, void *mdata, va_list ap)
 		    sizeof(char *)) {
 			*errnop = ERANGE;
 			rv = NS_RETURN;
+			free(resultbuf);
 			break;
 		}
 
@@ -521,6 +523,7 @@ nis_rpcent(void *retval, void *mdata, va_list ap)
 		if (aliases_size < 1) {
 			*errnop = ERANGE;
 			rv = NS_RETURN;
+			free(resultbuf);
 			break;
 		}
 
@@ -969,7 +972,7 @@ getrpc(int (*fn)(union key, struct rpcent *, char *, size_t, struct rpcent **),
 }
 
 struct rpcent *
-getrpcbyname(char *name)
+getrpcbyname(const char *name)
 {
 	union key key;
 
@@ -989,7 +992,7 @@ getrpcbynumber(int number)
 }
 
 struct rpcent *
-getrpcent()
+getrpcent(void)
 {
 	union key key;
 
@@ -1023,7 +1026,7 @@ setrpcent(int stayopen)
 }
 
 void
-endrpcent()
+endrpcent(void)
 {
 #ifdef NS_CACHING
 	static const nss_cache_info cache_info = NS_MP_CACHE_INFO_INITIALIZER(

@@ -218,7 +218,8 @@ test_defaults(void)
  * the first and second listen().
  */
 static int
-socket_listen_update(int domain, int type, int protocol, int backlog,
+socket_listen_update(int domain __unused, int type __unused,
+    int protocol __unused, int backlog,
     int update_backlog, int listen_backlog_assertion,
     int update_backlog_assertion, int *sockp, const char *domainstring,
     const char *typestring, const char *testclass, const char *test)
@@ -365,7 +366,7 @@ test_set_qlimit(void)
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	size_t len;
 

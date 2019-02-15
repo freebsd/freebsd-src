@@ -28,7 +28,9 @@
  * Samsung Exynos 5 Pad Control
  * Chapter 4, Exynos 5 Dual User's Manual Public Rev 1.00
  */
-
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -45,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/gpio.h>
 
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -54,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 
 #include "gpio_if.h"
+#endif
 
 #include <arm/samsung/exynos/exynos5_combiner.h>
 #include <arm/samsung/exynos/exynos5_pad.h>
@@ -82,6 +86,7 @@ __FBSDID("$FreeBSD$");
 /*
  * GPIO interface
  */
+static device_t pad_get_bus(device_t);
 static int pad_pin_max(device_t, int *);
 static int pad_pin_getcaps(device_t, uint32_t, uint32_t *);
 static int pad_pin_getname(device_t, uint32_t, char *);
@@ -111,6 +116,7 @@ struct pad_softc {
 	struct gpio_pin		gpio_pins[MAX_NGPIO];
 	void			*gpio_ih[MAX_PORTS];
 	device_t		dev;
+	device_t		busdev;
 	int			model;
 	struct resource_spec	*pad_spec;
 	struct gpio_bank	*gpio_map;
@@ -324,10 +330,10 @@ get_bank(struct pad_softc *sc, int gpio_number,
 			*bank = sc->gpio_map[i];
 			*pin_shift = (gpio_number - n);
 			return (0);
-		};
+		}
 
 		n += ngpio;
-	};
+	}
 
 	return (-1);
 }
@@ -509,12 +515,12 @@ pad_attach(device_t dev)
 		sc->nports = 5;
 		break;
 	default:
-		return (-1);
-	};
+		goto fail;
+	}
 
 	if (bus_alloc_resources(dev, sc->pad_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");
-		return (ENXIO);
+		goto fail;
 	}
 
 	/* Memory interface */
@@ -522,7 +528,7 @@ pad_attach(device_t dev)
 	for (i = 0; i < sc->nports; i++) {
 		sc->bst[i] = rman_get_bustag(sc->res[i]);
 		sc->bsh[i] = rman_get_bushandle(sc->res[i]);
-	};
+	}
 
 	sc->dev = dev;
 
@@ -534,9 +540,9 @@ pad_attach(device_t dev)
 			    NULL, sc, &sc->gpio_ih[i]))) {
 			device_printf(dev,
 			    "ERROR: Unable to register interrupt handler\n");
-			return (ENXIO);
+			goto fail;
 		}
-	};
+	}
 
 	for (i = 0; i < sc->gpio_npins; i++) {
 		sc->gpio_pins[i].gp_pin = i;
@@ -558,11 +564,32 @@ pad_attach(device_t dev)
 		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME,
 		    "pad%d.%d", device_get_unit(dev), i);
 	}
+	sc->busdev = gpiobus_attach_bus(dev);
+	if (sc->busdev == NULL)
+		goto fail;
 
-	device_add_child(dev, "gpioc", device_get_unit(dev));
-	device_add_child(dev, "gpiobus", device_get_unit(dev));
+	return (0);
 
-	return (bus_generic_attach(dev));
+fail:
+	for (i = 0; i < sc->nports; i++) {
+		if (sc->gpio_ih[i])
+			bus_teardown_intr(dev, sc->res[sc->nports + i],
+			    sc->gpio_ih[i]);
+	}
+	bus_release_resources(dev, sc->pad_spec, sc->res);
+	mtx_destroy(&sc->sc_mtx);
+
+	return (ENXIO);
+}
+
+static device_t
+pad_get_bus(device_t dev)
+{
+	struct pad_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (sc->busdev);
 }
 
 static int
@@ -764,15 +791,6 @@ pad_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	if (i >= sc->gpio_npins)
 		return (EINVAL);
 
-	/* Check for unwanted flags. */
-	if ((flags & sc->gpio_pins[i].gp_caps) != flags)
-		return (EINVAL);
-
-	/* Can't mix input/output together */
-	if ((flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) ==
-	    (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT))
-		return (EINVAL);
-
 	pad_pin_configure(sc, &sc->gpio_pins[i], flags);
 
 	return (0);
@@ -815,6 +833,7 @@ static device_method_t pad_methods[] = {
 	DEVMETHOD(device_attach,	pad_attach),
 
 	/* GPIO protocol */
+	DEVMETHOD(gpio_get_bus,		pad_get_bus),
 	DEVMETHOD(gpio_pin_max,		pad_pin_max),
 	DEVMETHOD(gpio_pin_getname,	pad_pin_getname),
 	DEVMETHOD(gpio_pin_getcaps,	pad_pin_getcaps),

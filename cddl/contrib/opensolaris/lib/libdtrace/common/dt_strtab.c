@@ -24,6 +24,10 @@
  * Use is subject to license terms.
  */
 
+/*
+ * Portions Copyright 2016 Pedro Giffuni.  All rights reserved.
+ */
+ 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
@@ -70,12 +74,11 @@ dt_strtab_create(size_t bufsz)
 		return (NULL);
 
 	bzero(sp, sizeof (dt_strtab_t));
-	sp->str_hash = malloc(nbuckets * sizeof (dt_strhash_t *));
+	sp->str_hash = calloc(nbuckets, sizeof (dt_strhash_t *));
 
 	if (sp->str_hash == NULL)
 		goto err;
 
-	bzero(sp->str_hash, nbuckets * sizeof (dt_strhash_t *));
 	sp->str_hashsz = nbuckets;
 	sp->str_bufs = NULL;
 	sp->str_ptr = NULL;
@@ -253,8 +256,10 @@ dt_strtab_insert(dt_strtab_t *sp, const char *str)
 	 * Now copy the string data into our buffer list, and then update
 	 * the global counts of strings and bytes.  Return str's byte offset.
 	 */
-	if (dt_strtab_copyin(sp, str, len + 1) == -1)
+	if (dt_strtab_copyin(sp, str, len + 1) == -1) {
+		free(hp);
 		return (-1L);
+	}
 
 	sp->str_nstrs++;
 	sp->str_size += len + 1;

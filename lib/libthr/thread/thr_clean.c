@@ -1,4 +1,7 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+
  * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
@@ -25,9 +28,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <signal.h>
@@ -84,7 +88,7 @@ _pthread_cleanup_push(void (*routine) (void *), void *arg)
 	curthread->unwind_disabled = 1;
 #endif
 	if ((newbuf = (struct pthread_cleanup *)
-	    malloc(sizeof(struct _pthread_cleanup_info))) != NULL) {
+	    malloc(sizeof(struct pthread_cleanup))) != NULL) {
 		newbuf->routine = routine;
 		newbuf->routine_arg = arg;
 		newbuf->onheap = 1;

@@ -11,7 +11,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the author nor the names of other contributors
+.\" 3. Neither the name of the author nor the names of other contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 9, 2014
+.Dd August 10, 2016
 .Dt CRYPT 3
 .Os
 .Sh NAME
@@ -41,6 +41,8 @@
 .In unistd.h
 .Ft char *
 .Fn crypt "const char *key" "const char *salt"
+.Ft char *
+.Fn crypt_r "const char *key" "const char *salt" "struct crypt_data *data"
 .Ft const char *
 .Fn crypt_get_format "void"
 .Ft int
@@ -246,10 +248,20 @@ The
 .Fn crypt_set_format
 function sets the default encoding format according to the supplied
 .Fa string .
+.Pp
+The
+.Fn crypt_r
+function behaves identically to
+.Fn crypt ,
+except that the resulting string is stored in
+.Fa data ,
+making it thread-safe.
 .Sh RETURN VALUES
 The
 .Fn crypt
-function returns a pointer to the encrypted value on success, and NULL on
+and
+.Fn crypt_r
+functions return a pointer to the encrypted value on success, and NULL on
 failure.
 Note: this is not a standard behaviour, AT&T
 .Fn crypt
@@ -280,6 +292,11 @@ section of the code (FreeSec 1.0) was developed outside the United
 States of America as an unencumbered replacement for the U.S.-only
 .Nx
 libcrypt encryption library.
+.Pp
+The
+.Fn crypt_r
+function was added in
+.Fx 12.0 .
 .Sh AUTHORS
 .An -nosplit
 Originally written by

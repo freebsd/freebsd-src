@@ -29,12 +29,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 6, 2012
+.Dd April 26, 2017
 .Dt UMODEM 4
 .Os
 .Sh NAME
 .Nm umodem
-.Nd USB modem support
+.Nd USB Communication Device Class serial (CDC ACM) driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -54,9 +54,10 @@ umodem_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for USB modems in the Communication
-Device Class using the Abstract Control Model.
-These modems are basically standard serial line modems, but they are
+driver provides support for USB modems and serial devices that
+implement the Communication Device Class Abstract Control Model (CDC ACM).
+It also provides device-side CDC ACM support.
+Supported modems are basically standard serial line modems, but they are
 accessed via USB instead.
 They support a regular AT command set.
 The commands can either be multiplexed with the data stream
@@ -94,6 +95,20 @@ ELSA MicroLink 56k USB modem
 Sony Ericsson W810i phone
 .It
 Sonim XP5300 Force
+.El
+.Sh FILES
+.Bl -tag -width "/dev/ttyU*.init" -compact
+.It Pa /dev/ttyU*
+for callin ports
+.It Pa /dev/ttyU*.init
+.It Pa /dev/ttyU*.lock
+corresponding callin initial-state and lock-state devices
+.Pp
+.It Pa /dev/cuaU*
+for callout ports
+.It Pa /dev/cuaU*.init
+.It Pa /dev/cuaU*.lock
+corresponding callout initial-state and lock-state devices
 .El
 .Sh SEE ALSO
 .Xr tty 4 ,

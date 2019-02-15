@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Marcel Moolenaar
  * All rights reserved.
  *
@@ -6,24 +8,22 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
  * $FreeBSD$
  */
@@ -198,7 +198,7 @@
 #define	LINUX_VT_SETMODE	0x5602
 #define	LINUX_VT_GETSTATE	0x5603
 #define	LINUX_VT_RELDISP	0x5605
-#define	LINUX_VT_ACTIVATE	0x5606  
+#define	LINUX_VT_ACTIVATE	0x5606
 #define	LINUX_VT_WAITACTIVE	0x5607
 
 #define	LINUX_IOCTL_CONSOLE_MIN	LINUX_KIOCSOUND
@@ -226,6 +226,7 @@
 #define	LINUX_SIOCGPGRP		0x8904
 #define	LINUX_SIOCATMARK	0x8905
 #define	LINUX_SIOCGSTAMP	0x8906
+#define	LINUX_SIOCGIFNAME	0x8910
 #define	LINUX_SIOCGIFCONF	0x8912
 #define	LINUX_SIOCGIFFLAGS	0x8913
 #define	LINUX_SIOCGIFADDR	0x8915
@@ -249,7 +250,7 @@
 #define	LINUX_IOCTL_SOCKET_MAX	LINUX_SIOCGIFCOUNT
 
 /*
- * Device private ioctl calls 
+ * Device private ioctl calls
  */
 #define LINUX_SIOCDEVPRIVATE	0x89F0  /* to 89FF */
 #define LINUX_IOCTL_PRIVATE_MIN	LINUX_SIOCDEVPRIVATE
@@ -427,7 +428,7 @@
 /* In addition to the termio values */
 #define	LINUX_VSTART		8
 #define	LINUX_VSTOP		9
-#define	LINUX_VSUSP 		10
+#define	LINUX_VSUSP		10
 #define	LINUX_VEOL		11
 #define	LINUX_VREPRINT		12
 #define	LINUX_VDISCARD		13
@@ -579,13 +580,6 @@
 
 #define	LINUX_IOCTL_DRM_MIN	0x6400
 #define	LINUX_IOCTL_DRM_MAX	0x64ff
-
-/*
- * This doesn't really belong here, but I can't think of a better
- * place to put it.
- */
-struct ifnet;
-int		 linux_ifname(struct ifnet *, char *, size_t);
 
 /*
  * video
@@ -752,6 +746,18 @@ int		 linux_ifname(struct ifnet *, char *, size_t);
 #define	FBSD_LUSB_MIN			0xffdd
 
 /*
+ * Linux btrfs clone operation
+ */
+#define LINUX_BTRFS_IOC_CLONE		0x9409 /* 0x40049409 */
+
+/*
+ * Linux evdev ioctl min and max
+ */
+#define LINUX_IOCTL_EVDEV_MIN		0x4500
+#define LINUX_IOCTL_EVDEV_MAX		0x45ff
+#define LINUX_IOCTL_EVDEV_CLK		LINUX_CLOCK_REALTIME |	\
+	    LINUX_CLOCK_MONOTONIC |LINUX_CLOCK_BOOTTIME
+/*
  * Pluggable ioctl handlers
  */
 struct linux_ioctl_args;
@@ -764,7 +770,18 @@ struct linux_ioctl_handler {
 	int	low, high;
 };
 
+struct linux_ioctl_handler_element
+{
+	TAILQ_ENTRY(linux_ioctl_handler_element) list;
+	int	(*func)(struct thread *, struct linux_ioctl_args *);
+	int	low, high, span;
+};
+
 int	linux_ioctl_register_handler(struct linux_ioctl_handler *h);
 int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
+#ifdef COMPAT_LINUX32
+int	linux32_ioctl_register_handler(struct linux_ioctl_handler *h);
+int	linux32_ioctl_unregister_handler(struct linux_ioctl_handler *h);
+#endif
 
 #endif /* !_LINUX_IOCTL_H_ */

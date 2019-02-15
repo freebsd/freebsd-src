@@ -1,4 +1,4 @@
-//===--- ModuleManager.cpp - Module Manager ---------------------*- C++ -*-===//
+//===- ModuleManager.cpp - Module Manager -----------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,35 +12,73 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SERIALIZATION_MODULE_MANAGER_H
-#define LLVM_CLANG_SERIALIZATION_MODULE_MANAGER_H
+#ifndef LLVM_CLANG_SERIALIZATION_MODULEMANAGER_H
+#define LLVM_CLANG_SERIALIZATION_MODULEMANAGER_H
 
-#include "clang/Basic/FileManager.h"
+#include "clang/Basic/LLVM.h"
+#include "clang/Basic/Module.h"
+#include "clang/Basic/SourceLocation.h"
 #include "clang/Serialization/Module.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/iterator.h"
+#include "llvm/ADT/iterator_range.h"
+#include <cstdint>
+#include <ctime>
+#include <memory>
+#include <string>
+#include <utility>
 
-namespace clang { 
+namespace clang {
 
+class FileEntry;
+class FileManager;
 class GlobalModuleIndex;
+class HeaderSearch;
+class MemoryBufferCache;
 class ModuleMap;
+class PCHContainerReader;
 
 namespace serialization {
 
 /// \brief Manages the set of modules loaded by an AST reader.
 class ModuleManager {
-  /// \brief The chain of AST files. The first entry is the one named by the
-  /// user, the last one is the one that doesn't depend on anything further.
-  SmallVector<ModuleFile *, 2> Chain;
-  
+  /// \brief The chain of AST files, in the order in which we started to load
+  /// them (this order isn't really useful for anything).
+  SmallVector<std::unique_ptr<ModuleFile>, 2> Chain;
+
+  /// \brief The chain of non-module PCH files. The first entry is the one named
+  /// by the user, the last one is the one that doesn't depend on anything
+  /// further.
+  SmallVector<ModuleFile *, 2> PCHChain;
+
+  // \brief The roots of the dependency DAG of AST files. This is used
+  // to implement short-circuiting logic when running DFS over the dependencies.
+  SmallVector<ModuleFile *, 2> Roots;
+
   /// \brief All loaded modules, indexed by name.
   llvm::DenseMap<const FileEntry *, ModuleFile *> Modules;
-  
+
   /// \brief FileManager that handles translating between filenames and
   /// FileEntry *.
   FileManager &FileMgr;
-  
+
+  /// Cache of PCM files.
+  IntrusiveRefCntPtr<MemoryBufferCache> PCMCache;
+
+  /// \brief Knows how to unwrap module containers.
+  const PCHContainerReader &PCHContainerRdr;
+
+  /// \brief Preprocessor's HeaderSearchInfo containing the module map.
+  const HeaderSearch &HeaderSearchInfo;
+
   /// \brief A lookup of in-memory (virtual file) buffers
-  llvm::DenseMap<const FileEntry *, llvm::MemoryBuffer *> InMemoryBuffers;
+  llvm::DenseMap<const FileEntry *, std::unique_ptr<llvm::MemoryBuffer>>
+      InMemoryBuffers;
 
   /// \brief The visitation order.
   SmallVector<ModuleFile *, 4> VisitOrder;
@@ -59,14 +97,12 @@ class ModuleManager {
   ///
   /// The global module index will actually be owned by the ASTReader; this is
   /// just an non-owning pointer.
-  GlobalModuleIndex *GlobalIndex;
+  GlobalModuleIndex *GlobalIndex = nullptr;
 
   /// \brief State used by the "visit" operation to avoid malloc traffic in
   /// calls to visit().
   struct VisitState {
-    explicit VisitState(unsigned N)
-      : VisitNumber(N, 0), NextVisitNumber(1), NextState(0)
-    {
+    explicit VisitState(unsigned N) : VisitNumber(N, 0) {
       Stack.reserve(N);
     }
 
@@ -83,45 +119,56 @@ class ModuleManager {
     SmallVector<unsigned, 4> VisitNumber;
 
     /// \brief The next visit number to use to mark visited module files.
-    unsigned NextVisitNumber;
+    unsigned NextVisitNumber = 1;
 
     /// \brief The next visit state.
-    VisitState *NextState;
+    VisitState *NextState = nullptr;
   };
 
   /// \brief The first visit() state in the chain.
-  VisitState *FirstVisitState;
+  VisitState *FirstVisitState = nullptr;
 
   VisitState *allocateVisitState();
   void returnVisitState(VisitState *State);
 
 public:
-  typedef SmallVectorImpl<ModuleFile*>::iterator ModuleIterator;
-  typedef SmallVectorImpl<ModuleFile*>::const_iterator ModuleConstIterator;
-  typedef SmallVectorImpl<ModuleFile*>::reverse_iterator ModuleReverseIterator;
-  typedef std::pair<uint32_t, StringRef> ModuleOffset;
-  
-  explicit ModuleManager(FileManager &FileMgr);
+  using ModuleIterator = llvm::pointee_iterator<
+      SmallVectorImpl<std::unique_ptr<ModuleFile>>::iterator>;
+  using ModuleConstIterator = llvm::pointee_iterator<
+      SmallVectorImpl<std::unique_ptr<ModuleFile>>::const_iterator>;
+  using ModuleReverseIterator = llvm::pointee_iterator<
+      SmallVectorImpl<std::unique_ptr<ModuleFile>>::reverse_iterator>;
+  using ModuleOffset = std::pair<uint32_t, StringRef>;
+
+  explicit ModuleManager(FileManager &FileMgr, MemoryBufferCache &PCMCache,
+                         const PCHContainerReader &PCHContainerRdr,
+                         const HeaderSearch &HeaderSearchInfo);
   ~ModuleManager();
-  
-  /// \brief Forward iterator to traverse all loaded modules.  This is reverse
-  /// source-order.
+
+  /// \brief Forward iterator to traverse all loaded modules.
   ModuleIterator begin() { return Chain.begin(); }
+
   /// \brief Forward iterator end-point to traverse all loaded modules
   ModuleIterator end() { return Chain.end(); }
   
-  /// \brief Const forward iterator to traverse all loaded modules.  This is 
-  /// in reverse source-order.
+  /// \brief Const forward iterator to traverse all loaded modules.
   ModuleConstIterator begin() const { return Chain.begin(); }
+
   /// \brief Const forward iterator end-point to traverse all loaded modules
   ModuleConstIterator end() const { return Chain.end(); }
   
-  /// \brief Reverse iterator to traverse all loaded modules.  This is in 
-  /// source order.
+  /// \brief Reverse iterator to traverse all loaded modules.
   ModuleReverseIterator rbegin() { return Chain.rbegin(); }
+
   /// \brief Reverse iterator end-point to traverse all loaded modules.
   ModuleReverseIterator rend() { return Chain.rend(); }
-  
+
+  /// \brief A range covering the PCH and preamble module files loaded.
+  llvm::iterator_range<SmallVectorImpl<ModuleFile *>::const_iterator>
+  pch_modules() const {
+    return llvm::make_range(PCHChain.begin(), PCHChain.end());
+  }
+
   /// \brief Returns the primary module associated with the manager, that is,
   /// the first module loaded
   ModuleFile &getPrimaryModule() { return *Chain[0]; }
@@ -133,14 +180,17 @@ public:
   /// \brief Returns the module associated with the given index
   ModuleFile &operator[](unsigned Index) const { return *Chain[Index]; }
   
-  /// \brief Returns the module associated with the given name
-  ModuleFile *lookup(StringRef Name);
+  /// \brief Returns the module associated with the given file name.
+  ModuleFile *lookupByFileName(StringRef FileName) const;
+
+  /// \brief Returns the module associated with the given module name.
+  ModuleFile *lookupByModuleName(StringRef ModName) const;
 
   /// \brief Returns the module associated with the given module file.
-  ModuleFile *lookup(const FileEntry *File);
+  ModuleFile *lookup(const FileEntry *File) const;
 
   /// \brief Returns the in-memory (virtual file) buffer with the given name
-  llvm::MemoryBuffer *lookupBuffer(StringRef Name);
+  std::unique_ptr<llvm::MemoryBuffer> lookupBuffer(StringRef Name);
   
   /// \brief Number of modules loaded
   unsigned size() const { return Chain.size(); }
@@ -149,13 +199,18 @@ public:
   enum AddModuleResult {
     /// \brief The module file had already been loaded.
     AlreadyLoaded,
+
     /// \brief The module file was just loaded in response to this call.
     NewlyLoaded,
+
     /// \brief The module file is missing.
     Missing,
+
     /// \brief The module file is out-of-date.
     OutOfDate
   };
+
+  using ASTFileSignatureReader = ASTFileSignature (*)(StringRef);
 
   /// \brief Attempts to create a new module and add it to the list of known
   /// modules.
@@ -177,6 +232,12 @@ public:
   /// \param ExpectedModTime The expected modification time of the module
   /// file, used for validation. This will be zero if unknown.
   ///
+  /// \param ExpectedSignature The expected signature of the module file, used
+  /// for validation. This will be zero if unknown.
+  ///
+  /// \param ReadSignature Reads the signature from an AST file without actually
+  /// loading it.
+  ///
   /// \param Module A pointer to the module file if the module was successfully
   /// loaded.
   ///
@@ -189,15 +250,19 @@ public:
                             SourceLocation ImportLoc,
                             ModuleFile *ImportedBy, unsigned Generation,
                             off_t ExpectedSize, time_t ExpectedModTime,
+                            ASTFileSignature ExpectedSignature,
+                            ASTFileSignatureReader ReadSignature,
                             ModuleFile *&Module,
                             std::string &ErrorStr);
 
-  /// \brief Remove the given set of modules.
-  void removeModules(ModuleIterator first, ModuleIterator last,
+  /// \brief Remove the modules starting from First (to the end).
+  void removeModules(ModuleIterator First,
+                     llvm::SmallPtrSetImpl<ModuleFile *> &LoadedSuccessfully,
                      ModuleMap *modMap);
 
   /// \brief Add an in-memory buffer the list of known buffers
-  void addInMemoryBuffer(StringRef FileName, llvm::MemoryBuffer *Buffer);
+  void addInMemoryBuffer(StringRef FileName,
+                         std::unique_ptr<llvm::MemoryBuffer> Buffer);
 
   /// \brief Set the global module index.
   void setGlobalIndex(GlobalModuleIndex *Index);
@@ -217,40 +282,16 @@ public:
   /// operations that can find data in any of the loaded modules.
   ///
   /// \param Visitor A visitor function that will be invoked with each
-  /// module and the given user data pointer. The return value must be
-  /// convertible to bool; when false, the visitation continues to
-  /// modules that the current module depends on. When true, the
-  /// visitation skips any modules that the current module depends on.
-  ///
-  /// \param UserData User data associated with the visitor object, which
-  /// will be passed along to the visitor.
+  /// module. The return value must be convertible to bool; when false, the
+  /// visitation continues to modules that the current module depends on. When
+  /// true, the visitation skips any modules that the current module depends on.
   ///
   /// \param ModuleFilesHit If non-NULL, contains the set of module files
   /// that we know we need to visit because the global module index told us to.
   /// Any module that is known to both the global module index and the module
   /// manager that is *not* in this set can be skipped.
-  void visit(bool (*Visitor)(ModuleFile &M, void *UserData), void *UserData,
-             llvm::SmallPtrSet<ModuleFile *, 4> *ModuleFilesHit = 0);
-  
-  /// \brief Visit each of the modules with a depth-first traversal.
-  ///
-  /// This routine visits each of the modules known to the module
-  /// manager using a depth-first search, starting with the first
-  /// loaded module. The traversal invokes the callback both before
-  /// traversing the children (preorder traversal) and after
-  /// traversing the children (postorder traversal).
-  ///
-  /// \param Visitor A visitor function that will be invoked with each
-  /// module and given a \c Preorder flag that indicates whether we're
-  /// visiting the module before or after visiting its children.  The
-  /// visitor may return true at any time to abort the depth-first
-  /// visitation.
-  ///
-  /// \param UserData User data ssociated with the visitor object,
-  /// which will be passed along to the user.
-  void visitDepthFirst(bool (*Visitor)(ModuleFile &M, bool Preorder, 
-                                       void *UserData), 
-                       void *UserData);
+  void visit(llvm::function_ref<bool(ModuleFile &M)> Visitor,
+             llvm::SmallPtrSetImpl<ModuleFile *> *ModuleFilesHit = nullptr);
 
   /// \brief Attempt to resolve the given module file name to a file entry.
   ///
@@ -276,8 +317,12 @@ public:
 
   /// \brief View the graphviz representation of the module graph.
   void viewGraph();
+
+  MemoryBufferCache &getPCMCache() const { return *PCMCache; }
 };
 
-} } // end namespace clang::serialization
+} // namespace serialization
 
-#endif
+} // namespace clang
+
+#endif // LLVM_CLANG_SERIALIZATION_MODULEMANAGER_H

@@ -62,6 +62,12 @@ static const struct ucl_emitter_context ucl_standard_emitters[] = {
 		.id = UCL_EMIT_YAML,
 		.func = NULL,
 		.ops = &ucl_standartd_emitter_ops[UCL_EMIT_YAML]
+	},
+	[UCL_EMIT_MSGPACK] = {
+		.name = "msgpack",
+		.id = UCL_EMIT_MSGPACK,
+		.func = NULL,
+		.ops = &ucl_standartd_emitter_ops[UCL_EMIT_MSGPACK]
 	}
 };
 
@@ -73,7 +79,7 @@ static const struct ucl_emitter_context ucl_standard_emitters[] = {
 const struct ucl_emitter_context *
 ucl_emit_get_standard_context (enum ucl_emitter emit_type)
 {
-	if (emit_type >= UCL_EMIT_JSON && emit_type <= UCL_EMIT_YAML) {
+	if (emit_type >= UCL_EMIT_JSON && emit_type < UCL_EMIT_MAX) {
 		return &ucl_standard_emitters[emit_type];
 	}
 
@@ -93,12 +99,10 @@ ucl_elt_string_write_json (const char *str, size_t size,
 	size_t len = 0;
 	const struct ucl_emitter_functions *func = ctx->func;
 
-	if (ctx->id != UCL_EMIT_YAML) {
-		func->ucl_emitter_append_character ('"', 1, func->ud);
-	}
+	func->ucl_emitter_append_character ('"', 1, func->ud);
 
 	while (size) {
-		if (ucl_test_character (*p, UCL_CHARACTER_JSON_UNSAFE)) {
+		if (ucl_test_character (*p, UCL_CHARACTER_JSON_UNSAFE|UCL_CHARACTER_DENIED)) {
 			if (len > 0) {
 				func->ucl_emitter_append_len (c, len, func->ud);
 			}
@@ -124,6 +128,10 @@ ucl_elt_string_write_json (const char *str, size_t size,
 			case '"':
 				func->ucl_emitter_append_len ("\\\"", 2, func->ud);
 				break;
+			default:
+				/* Emit unicode unknown character */
+				func->ucl_emitter_append_len ("\\uFFFD", 5, func->ud);
+				break;
 			}
 			len = 0;
 			c = ++p;
@@ -134,12 +142,23 @@ ucl_elt_string_write_json (const char *str, size_t size,
 		}
 		size --;
 	}
+
 	if (len > 0) {
 		func->ucl_emitter_append_len (c, len, func->ud);
 	}
-	if (ctx->id != UCL_EMIT_YAML) {
-		func->ucl_emitter_append_character ('"', 1, func->ud);
-	}
+
+	func->ucl_emitter_append_character ('"', 1, func->ud);
+}
+
+void
+ucl_elt_string_write_multiline (const char *str, size_t size,
+		struct ucl_emitter_context *ctx)
+{
+	const struct ucl_emitter_functions *func = ctx->func;
+
+	func->ucl_emitter_append_len ("<<EOD\n", sizeof ("<<EOD\n") - 1, func->ud);
+	func->ucl_emitter_append_len (str, size, func->ud);
+	func->ucl_emitter_append_len ("\nEOD", sizeof ("\nEOD") - 1, func->ud);
 }
 
 /*
@@ -154,7 +173,7 @@ ucl_utstring_append_character (unsigned char c, size_t len, void *ud)
 		utstring_append_c (buf, c);
 	}
 	else {
-		utstring_reserve (buf, len);
+		utstring_reserve (buf, len + 1);
 		memset (&buf->d[buf->i], c, len);
 		buf->i += len;
 		buf->d[buf->i] = '\0';
@@ -267,19 +286,24 @@ ucl_fd_append_character (unsigned char c, size_t len, void *ud)
 	unsigned char *buf;
 
 	if (len == 1) {
-		write (fd, &c, 1);
+		return write (fd, &c, 1);
 	}
 	else {
 		buf = malloc (len);
 		if (buf == NULL) {
 			/* Fallback */
 			while (len --) {
-				write (fd, &c, 1);
+				if (write (fd, &c, 1) == -1) {
+					return -1;
+				}
 			}
 		}
 		else {
 			memset (buf, c, len);
-			write (fd, buf, len);
+			if (write (fd, buf, len) == -1) {
+				free(buf);
+				return -1;
+			}
 			free (buf);
 		}
 	}
@@ -292,9 +316,7 @@ ucl_fd_append_len (const unsigned char *str, size_t len, void *ud)
 {
 	int fd = *(int *)ud;
 
-	write (fd, str, len);
-
-	return 0;
+	return write (fd, str, len);
 }
 
 static int
@@ -304,9 +326,7 @@ ucl_fd_append_int (int64_t val, void *ud)
 	char intbuf[64];
 
 	snprintf (intbuf, sizeof (intbuf), "%jd", (intmax_t)val);
-	write (fd, intbuf, strlen (intbuf));
-
-	return 0;
+	return write (fd, intbuf, strlen (intbuf));
 }
 
 static int
@@ -327,9 +347,7 @@ ucl_fd_append_double (double val, void *ud)
 		snprintf (nbuf, sizeof (nbuf), "%lf", val);
 	}
 
-	write (fd, nbuf, strlen (nbuf));
-
-	return 0;
+	return write (fd, nbuf, strlen (nbuf));
 }
 
 struct ucl_emitter_functions*
@@ -463,4 +481,19 @@ ucl_object_emit_single_json (const ucl_object_t *obj)
 	}
 
 	return res;
+}
+
+#define LONG_STRING_LIMIT 80
+
+bool
+ucl_maybe_long_string (const ucl_object_t *obj)
+{
+	if (obj->len > LONG_STRING_LIMIT || (obj->flags & UCL_OBJECT_MULTILINE)) {
+		/* String is long enough, so search for newline characters in it */
+		if (memchr (obj->value.sv, '\n', obj->len) != NULL) {
+			return true;
+		}
+	}
+
+	return false;
 }

@@ -2438,9 +2438,9 @@ msgstr ""
 msgid "Warning: size of symbol `%s' changed from %lu in %B to %lu in %B"
 msgstr ""
 
-#: elflink.c:4309
+#: elflink.c:4389
 #, c-format
-msgid "%B: invalid DSO for symbol `%s' definition"
+msgid "undefined reference to symbol `%s' (try adding -l%s%.*s)"
 msgstr ""
 
 #: elflink.c:5535

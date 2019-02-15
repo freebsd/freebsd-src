@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Ryuichiro Imura
  * All rights reserved.
  *
@@ -41,10 +43,10 @@
  * 
  * For example, the eucJP and Unocode mapping rule is based on
  * the JIS standard. Since Microsoft uses cp932 for Unicode mapping
- * witch is not truly based on the JIS standard, reading a file
+ * which is not truly based on the JIS standard, reading a file
  * system created by Microsoft Windows family using eucJP/Unicode
  * mapping rule will cause a problem. That's why we define eucJP-ms here.
- * The eucJP-ms has been defined by The Open Group Japan Vendor Coucil.
+ * The eucJP-ms has been defined by The Open Group Japan Vendor Council.
  *
  * Well, Apple Mac OS also has their own Unicode mappings,
  * but we won't require these quirks here, because HFS doesn't have

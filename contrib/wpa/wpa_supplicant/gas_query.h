@@ -17,7 +17,8 @@ struct gas_query;
 struct gas_query * gas_query_init(struct wpa_supplicant *wpa_s);
 void gas_query_deinit(struct gas_query *gas);
 int gas_query_rx(struct gas_query *gas, const u8 *da, const u8 *sa,
-		 const u8 *bssid, const u8 *data, size_t len, int freq);
+		 const u8 *bssid, u8 categ, const u8 *data, size_t len,
+		 int freq);
 
 /**
  * enum gas_query_result - GAS query result
@@ -28,7 +29,6 @@ enum gas_query_result {
 	GAS_QUERY_TIMEOUT,
 	GAS_QUERY_PEER_ERROR,
 	GAS_QUERY_INTERNAL_ERROR,
-	GAS_QUERY_CANCELLED,
 	GAS_QUERY_DELETED_AT_DEINIT
 };
 
@@ -39,7 +39,6 @@ int gas_query_req(struct gas_query *gas, const u8 *dst, int freq,
 			     const struct wpabuf *adv_proto,
 			     const struct wpabuf *resp, u16 status_code),
 		  void *ctx);
-void gas_query_cancel(struct gas_query *gas, const u8 *dst, u8 dialog_token);
 
 #else /* CONFIG_GAS */
 

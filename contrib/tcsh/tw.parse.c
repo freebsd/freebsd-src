@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tw.parse.c,v 3.133 2011/04/14 14:33:05 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tw.parse.c,v 3.139 2015/10/16 14:59:56 christos Exp $ */
 /*
  * tw.parse.c: Everyone has taken a shot in this futile effort to
  *	       lexically analyze a csh line... Well we cannot good
@@ -35,7 +35,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: tw.parse.c,v 3.133 2011/04/14 14:33:05 christos Exp $")
+RCSID("$tcsh: tw.parse.c,v 3.139 2015/10/16 14:59:56 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -618,7 +618,11 @@ insert_meta(const Char *cp, const Char *cpend, const Char *word,
 	    break;
 
 	wq = w & QUOTE;
-	w &= ~QUOTE;
+#if INVALID_BYTE != 0
+	/* add checking INVALID_BYTE for FIX UTF32 */
+	if ((w & INVALID_BYTE) != INVALID_BYTE)		/* w < INVALID_BYTE */
+#endif
+	    w &= ~QUOTE;
 
 	if (cmap(w, _ESC | _QF))
 	    wq = QUOTE;		/* quotes are always quoted */
@@ -1236,7 +1240,7 @@ static Char
 tw_suffix(int looking, struct Strbuf *word, const Char *exp_dir, Char *exp_name)
 {
     Char *ptr;
-    Char *dollar;
+    Char *dol;
     struct varent *vp;
 
     (void) strip(exp_name);
@@ -1258,8 +1262,8 @@ tw_suffix(int looking, struct Strbuf *word, const Char *exp_dir, Char *exp_name)
 	else if ((ptr = tgetenv(exp_name)) == NULL || *ptr == '\0')
 	    return ' ';
 
-	if ((dollar = Strrchr(word->s, '$')) != 0 && 
-	    dollar[1] == '{' && Strchr(dollar, '}') == NULL)
+	if ((dol = Strrchr(word->s, '$')) != 0 && 
+	    dol[1] == '{' && Strchr(dol, '}') == NULL)
 	  return '}';
 
 	return isadirectory(exp_dir, ptr) ? '/' : ' ';

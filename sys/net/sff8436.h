@@ -131,7 +131,7 @@ enum {
 	SFF_8436_CONNECTOR	= 130,  /* Connector type (Table 32) */
 	SFF_8436_TRANS_START	= 131,  /* Electric or Optical Compatibility
 					 * (Table 33) */
-	SFF_8436_CODE_E1040G	= 131,	/* 10/40G Ethernet Compliance Code */
+	SFF_8436_CODE_E1040100G	= 131,	/* 10/40/100G Ethernet Compliance Code */
 	SFF_8436_CODE_SONET	= 132,	/* SONET Compliance codes */
 	SFF_8436_CODE_SATA	= 133,	/* SAS/SATA compliance codes */
 	SFF_8436_CODE_E1G	= 134,	/* Gigabit Ethernet Compliant codes */
@@ -202,7 +202,9 @@ enum {
 					* optional features are implemented
 					* (if any) in the transceiver
 					* (see Table 42) */
-	SFF_8436_CC_EXT		= 222,	/* Check code for the Extended ID
+	SFF_8636_BITRATE	= 222,	/* Nominal bit rate per channel, units
+					* of 250 Mbps */
+	SFF_8436_CC_EXT		= 223,	/* Check code for the Extended ID
 					* Fields (bytes 192-222 incl) */
 	SFF_8436_VENDOR_RSRVD_START	= 224,
 	SFF_8436_VENDOR_RSRVD_END	= 255,

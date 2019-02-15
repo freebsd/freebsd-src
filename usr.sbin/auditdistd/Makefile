@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-OPENBSMDIR=${.CURDIR}/../../contrib/openbsm
+OPENBSMDIR=${SRCTOP}/contrib/openbsm
 .PATH: ${OPENBSMDIR}/bin/auditdistd
 
 # Addition of auditdistd because otherwise generated parse.c can't find
@@ -21,10 +21,7 @@ SRCS+=	sandbox.c sender.c subr.c
 SRCS+=	token.l trail.c
 MAN=	auditdistd.8 auditdistd.conf.5
 
-DPADD=	${LIBL} ${LIBPTHREAD} ${LIBUTIL}
-LDADD=	-ll -lpthread -lutil
-DPADD+=	${LIBCRYPTO} ${LIBSSL}
-LDADD+=	-lcrypto -lssl
+LIBADD+=	l pthread util crypto ssl
 
 YFLAGS+=-v
 

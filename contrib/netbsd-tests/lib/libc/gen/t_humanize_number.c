@@ -1,4 +1,4 @@
-/*	$NetBSD: t_humanize_number.c,v 1.8 2012/03/18 07:14:08 jruoho Exp $	*/
+/*	$NetBSD: t_humanize_number.c,v 1.9 2017/01/10 15:20:44 christos Exp $	*/
 
 /*-
  * Copyright (c) 2010, 2011 The NetBSD Foundation, Inc.
@@ -78,6 +78,7 @@ const struct hnopts {
 	/*
 	 * Truncated output.  Rev. 1.7 produces "1.0 K".
 	 */
+#ifndef __FreeBSD__
 	{ 6, 1000, "A", HN_AUTOSCALE, HN_DECIMAL, -1, "" },
 
 	/*
@@ -90,6 +91,7 @@ const struct hnopts {
 	/* Similar case it prints 1000 where it shouldn't */
 	{ 5, 1023488, "",
 	  HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL, 4, "1.0M" },
+#endif
 	{ 5, 1023999, "",
 	  HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL, 4, "1.0M" },
 };
@@ -241,6 +243,7 @@ ATF_TC_BODY(humanize_number_basic, tc)
 		newline();
 		atf_tc_fail_nonfatal("Failed for table entry %d", i);
 	}
+	free(buf);
 }
 
 ATF_TC(humanize_number_big);

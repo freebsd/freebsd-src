@@ -82,9 +82,9 @@ DEFINE_TEST(test_option_s)
 	 */
 	assertMakeDir("test4", 0755);
 	systemf("%s -cf test4.tar in/d1/foo in/d1/bar",
-	    testprog, testprog);
+	    testprog);
 	systemf("%s -xf test4.tar -s /foo/bar/ -s }bar}baz} -C test4",
-	    testprog, testprog);
+	    testprog);
 	assertFileContents("foo", 3, "test4/in/d1/bar");
 	assertFileContents("bar", 3, "test4/in/d1/baz");
 
@@ -258,4 +258,23 @@ DEFINE_TEST(test_option_s)
 	assertFileContents("foo", 3, "test13a/in/d1/hardlink2");
 	assertIsHardlink("test13a/in/d1/foo", "test13a/in/d1/hardlink2");
 	/* TODO: See above; expand this test to verify renames at creation. */
+
+	/*
+	 * Test 14: Global substitutions when extracting archive.
+	 */
+    /* Global substitution. */
+	assertMakeDir("test14", 0755);
+	systemf("%s -cf test14.tar in/d1/foo in/d1/bar",
+	    testprog);
+	systemf("%s -xf test14.tar -s /o/z/g -s /bar/baz/ -C test14",
+	    testprog);
+	assertFileContents("foo", 3, "test14/in/d1/fzz");
+	assertFileContents("bar", 3, "test14/in/d1/baz");
+    /* Singular substitution. */
+	systemf("%s -cf test14.tar in/d1/foo in/d1/bar",
+	    testprog);
+	systemf("%s -xf test14.tar -s /o/z/ -s /bar/baz/ -C test14",
+	    testprog);
+	assertFileContents("foo", 3, "test14/in/d1/fzo");
+	assertFileContents("bar", 3, "test14/in/d1/baz");
 }

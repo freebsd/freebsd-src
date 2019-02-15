@@ -1,6 +1,8 @@
 /* $FreeBSD$ */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2012 SRI International
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -35,16 +37,49 @@
 
 #include_next <sys/cdefs.h>
 
+#ifndef __dead
 #ifdef __dead2
 #define __dead __dead2
 #else
 #define __dead
 #endif
+#endif /* !__dead */
+
+/*
+ * The __CONCAT macro is used to concatenate parts of symbol names, e.g.
+ * with "#define OLD(foo) __CONCAT(old,foo)", OLD(foo) produces oldfoo.
+ * The __CONCAT macro is a bit tricky -- make sure you don't put spaces
+ * in between its arguments.  __CONCAT can also concatenate double-quoted
+ * strings produced by the __STRING macro, but this only works with ANSI C.
+ */
+
+#define	___STRING(x)	__STRING(x)
+#define	___CONCAT(x,y)	__CONCAT(x,y)
+
+/*
+ * The following macro is used to remove const cast-away warnings
+ * from gcc -Wcast-qual; it should be used with caution because it
+ * can hide valid errors; in particular most valid uses are in
+ * situations where the API requires it, not to cast away string
+ * constants. We don't use *intptr_t on purpose here and we are
+ * explicit about unsigned long so that we don't have additional
+ * dependencies.
+ */
+#define __UNCONST(a)	((void *)(unsigned long)(const void *)(a))
 
 /*
  * Return the number of elements in a statically-allocated array,
  * __x.
  */
 #define	__arraycount(__x)	(sizeof(__x) / sizeof(__x[0]))
+
+/* __BIT(n): nth bit, where __BIT(0) == 0x1. */
+#define	__BIT(__n)	\
+    (((uintmax_t)(__n) >= NBBY * sizeof(uintmax_t)) ? 0 : \
+    ((uintmax_t)1 << (uintmax_t)((__n) & (NBBY * sizeof(uintmax_t) - 1))))
+
+/* __BITS(m, n): bits m through n, m < n. */
+#define	__BITS(__m, __n)	\
+	((__BIT(MAX((__m), (__n)) + 1) - 1) ^ (__BIT(MIN((__m), (__n))) - 1))
 
 #endif /* _LIBNETBSD_SYS_CDEFS_H_ */

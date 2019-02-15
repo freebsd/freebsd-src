@@ -1,4 +1,5 @@
 /**************************************************************************
+SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 
 Copyright (c) 2007-2009, Chelsio Inc.
 All rights reserved.
@@ -41,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/bus_dma.h>
 #include <sys/rman.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
@@ -389,6 +389,15 @@ reclaim_completed_tx(struct sge_qset *qs, int reclaim_min, int queue)
 
 	return (reclaim);
 }
+
+#ifdef NETDUMP
+int
+cxgb_netdump_poll_tx(struct sge_qset *qs)
+{
+
+	return (reclaim_completed_tx(qs, TX_RECLAIM_MAX, TXQ_ETH));
+}
+#endif
 
 /**
  *	should_restart_tx - are there enough resources to restart a Tx queue?
@@ -738,7 +747,7 @@ refill_fl(adapter_t *sc, struct sge_fl *q, int n)
 		    cl, q->buf_size, refill_fl_cb, &cb_arg, 0);
 		
 		if (err != 0 || cb_arg.error) {
-			if (q->zone == zone_pack)
+			if (q->zone != zone_pack)
 				uma_zfree(q->zone, cl);
 			m_free(m);
 			goto done;
@@ -795,12 +804,10 @@ free_rx_bufs(adapter_t *sc, struct sge_fl *q)
 			bus_dmamap_unload(q->entry_tag, d->map);
 			bus_dmamap_destroy(q->entry_tag, d->map);
 			if (q->zone == zone_pack) {
-				m_init(d->m, zone_pack, MCLBYTES,
-				    M_NOWAIT, MT_DATA, M_EXT);
+				m_init(d->m, M_NOWAIT, MT_DATA, M_EXT);
 				uma_zfree(zone_pack, d->m);
 			} else {
-				m_init(d->m, zone_mbuf, MLEN,
-				    M_NOWAIT, MT_DATA, 0);
+				m_init(d->m, M_NOWAIT, MT_DATA, 0);
 				uma_zfree(zone_mbuf, d->m);
 				uma_zfree(q->zone, d->rxsd_cl);
 			}			
@@ -1008,7 +1015,7 @@ sge_timer_cb(void *arg)
 int
 t3_sge_init_adapter(adapter_t *sc)
 {
-	callout_init(&sc->sge_timer_ch, CALLOUT_MPSAFE);
+	callout_init(&sc->sge_timer_ch, 1);
 	callout_reset(&sc->sge_timer_ch, TX_RECLAIM_PERIOD, sge_timer_cb, sc);
 	TASK_INIT(&sc->slow_intr_task, 0, sge_slow_intr_handler, sc);
 	return (0);
@@ -1117,9 +1124,10 @@ init_qset_cntxt(struct sge_qset *qs, u_int id)
 	qs->txq[TXQ_CTRL].cntxt_id = FW_CTRL_SGEEC_START + id;
 	qs->txq[TXQ_CTRL].token = FW_CTRL_TID_START + id;
 
-	mbufq_init(&qs->txq[TXQ_ETH].sendq);
-	mbufq_init(&qs->txq[TXQ_OFLD].sendq);
-	mbufq_init(&qs->txq[TXQ_CTRL].sendq);
+	/* XXX: a sane limit is needed instead of INT_MAX */
+	mbufq_init(&qs->txq[TXQ_ETH].sendq, INT_MAX);
+	mbufq_init(&qs->txq[TXQ_OFLD].sendq, INT_MAX);
+	mbufq_init(&qs->txq[TXQ_CTRL].sendq, INT_MAX);
 }
 
 
@@ -1587,6 +1595,23 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 	return (0);
 }
 
+#ifdef NETDUMP
+int
+cxgb_netdump_encap(struct sge_qset *qs, struct mbuf **m)
+{
+	int error;
+
+	error = t3_encap(qs, m);
+	if (error == 0)
+		check_ring_tx_db(qs->port->adapter, &qs->txq[TXQ_ETH], 1);
+	else if (*m != NULL) {
+		m_freem(*m);
+		*m = NULL;
+	}
+	return (error);
+}
+#endif
+
 void
 cxgb_tx_watchdog(void *arg)
 {
@@ -1733,8 +1758,9 @@ cxgb_transmit(struct ifnet *ifp, struct mbuf *m)
 		m_freem(m);
 		return (0);
 	}
-	
-	if (m->m_flags & M_FLOWID)
+
+	/* check if flowid is set */
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)	
 		qidx = (m->m_pkthdr.flowid % pi->nqsets) + pi->first_qset;
 
 	qs = &pi->adapter->sge.qs[qidx];
@@ -1819,8 +1845,8 @@ check_desc_avail(adapter_t *adap, struct sge_txq *q,
 	 * the control queue is only used for binding qsets which happens
 	 * at init time so we are guaranteed enough descriptors
 	 */
-	if (__predict_false(!mbufq_empty(&q->sendq))) {
-addq_exit:	mbufq_tail(&q->sendq, m);
+	if (__predict_false(mbufq_len(&q->sendq))) {
+addq_exit:	(void )mbufq_enqueue(&q->sendq, m);
 		return 1;
 	}
 	if (__predict_false(q->size - q->in_use < ndesc)) {
@@ -1935,7 +1961,7 @@ again:	reclaim_completed_tx_imm(q);
 		}
 		q->in_use++;
 	}
-	if (!mbufq_empty(&q->sendq)) {
+	if (mbufq_len(&q->sendq)) {
 		setbit(&qs->txq_stopped, TXQ_CTRL);
 
 		if (should_restart_tx(q) &&
@@ -2318,7 +2344,7 @@ restart_offloadq(void *data, int npending)
 	TXQ_LOCK(qs);
 again:	cleaned = reclaim_completed_tx(qs, 16, TXQ_OFLD);
 
-	while ((m = mbufq_peek(&q->sendq)) != NULL) {
+	while ((m = mbufq_first(&q->sendq)) != NULL) {
 		unsigned int gen, pidx;
 		struct ofld_hdr *oh = mtod(m, struct ofld_hdr *);
 		unsigned int ndesc = G_HDR_NDESC(oh->flags);
@@ -2484,7 +2510,7 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 			printf("error %d from alloc ring tx %i\n", ret, i);
 			goto err;
 		}
-		mbufq_init(&q->txq[i].sendq);
+		mbufq_init(&q->txq[i].sendq, INT_MAX);
 		q->txq[i].gen = 1;
 		q->txq[i].size = p->txq_size[i];
 	}
@@ -2723,7 +2749,7 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 		if ((sopeop == RSPQ_SOP_EOP) ||
 		    (sopeop == RSPQ_SOP))
 			flags |= M_PKTHDR;
-		m_init(m, fl->zone, fl->buf_size, M_NOWAIT, MT_DATA, flags);
+		m_init(m, M_NOWAIT, MT_DATA, flags);
 		if (fl->zone == zone_pack) {
 			/*
 			 * restore clobbered data pointer
@@ -2870,7 +2896,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 
                         memcpy(mtod(m, char *), r, AN_PKT_SIZE);
 			m->m_len = m->m_pkthdr.len = AN_PKT_SIZE;
-                        *mtod(m, char *) = CPL_ASYNC_NOTIF;
+                        *mtod(m, uint8_t *) = CPL_ASYNC_NOTIF;
 			opcode = CPL_ASYNC_NOTIF;
 			eop = 1;
                         rspq->async_notif++;
@@ -2899,9 +2925,11 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			
 			eop = get_packet(adap, drop_thresh, qs, mh, r);
 			if (eop) {
-				if (r->rss_hdr.hash_type && !adap->timestamp)
-					mh->mh_head->m_flags |= M_FLOWID;
-				mh->mh_head->m_pkthdr.flowid = rss_hash;
+				if (r->rss_hdr.hash_type && !adap->timestamp) {
+					M_HASHTYPE_SET(mh->mh_head,
+					    M_HASHTYPE_OPAQUE_HASH);
+					mh->mh_head->m_pkthdr.flowid = rss_hash;
+				}
 			}
 			
 			ethpad = 2;
@@ -2975,11 +3003,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 
 #if defined(INET6) || defined(INET)
 	/* Flush LRO */
-	while (!SLIST_EMPTY(&lro_ctrl->lro_active)) {
-		struct lro_entry *queued = SLIST_FIRST(&lro_ctrl->lro_active);
-		SLIST_REMOVE_HEAD(&lro_ctrl->lro_active, next);
-		tcp_lro_flush(lro_ctrl, queued);
-	}
+	tcp_lro_flush_all(lro_ctrl);
 #endif
 
 	if (sleeping)
@@ -3016,6 +3040,14 @@ process_responses_gts(adapter_t *adap, struct sge_rspq *rq)
 	return (work);
 }
 
+#ifdef NETDUMP
+int
+cxgb_netdump_poll_rx(adapter_t *adap, struct sge_qset *qs)
+{
+
+	return (process_responses_gts(adap, &qs->rspq));
+}
+#endif
 
 /*
  * Interrupt handler for legacy INTx interrupts for T3B-based cards.
@@ -3146,9 +3178,6 @@ t3_dump_rspq(SYSCTL_HANDLER_ARGS)
 	}
 
 	err = sbuf_finish(sb);
-	/* Output a trailing NUL. */
-	if (err == 0)
-		err = SYSCTL_OUT(req, "", 1);
 	sbuf_delete(sb);
 	return (err);
 }	
@@ -3216,9 +3245,6 @@ t3_dump_txq_eth(SYSCTL_HANDLER_ARGS)
 
 	}
 	err = sbuf_finish(sb);
-	/* Output a trailing NUL. */
-	if (err == 0)
-		err = SYSCTL_OUT(req, "", 1);
 	sbuf_delete(sb);
 	return (err);
 }
@@ -3276,9 +3302,6 @@ t3_dump_txq_ctrl(SYSCTL_HANDLER_ARGS)
 
 	}
 	err = sbuf_finish(sb);
-	/* Output a trailing NUL. */
-	if (err == 0)
-		err = SYSCTL_OUT(req, "", 1);
 	sbuf_delete(sb);
 	return (err);
 }
@@ -3365,7 +3388,7 @@ t3_add_attach_sysctls(adapter_t *sc)
 	/* random information */
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, 
 	    "firmware_version",
-	    CTLFLAG_RD, &sc->fw_version,
+	    CTLFLAG_RD, sc->fw_version,
 	    0, "firmware version");
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
 	    "hw_revision",
@@ -3373,7 +3396,7 @@ t3_add_attach_sysctls(adapter_t *sc)
 	    0, "chip model");
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, 
 	    "port_types",
-	    CTLFLAG_RD, &sc->port_types,
+	    CTLFLAG_RD, sc->port_types,
 	    0, "type of ports");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
 	    "enable_debug",
@@ -3502,7 +3525,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "starved",
 			    CTLFLAG_RD, &qs->rspq.starved,
 			    0, "#times starved");
-			SYSCTL_ADD_ULONG(ctx, rspqpoidlist, OID_AUTO, "phys_addr",
+			SYSCTL_ADD_UAUTO(ctx, rspqpoidlist, OID_AUTO, "phys_addr",
 			    CTLFLAG_RD, &qs->rspq.phys_addr,
 			    "physical_address_of the queue");
 			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "dump_start",
@@ -3519,7 +3542,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 			    CTLFLAG_RD, &qs->txq[TXQ_ETH].txq_mr->br_drops,
 			    "#tunneled packets dropped");
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "sendqlen",
-			    CTLFLAG_RD, &qs->txq[TXQ_ETH].sendq.qlen,
+			    CTLFLAG_RD, &qs->txq[TXQ_ETH].sendq.mq_len,
 			    0, "#tunneled packets waiting to be sent");
 #if 0			
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "queue_pidx",
@@ -3538,7 +3561,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "in_use",
 			    CTLFLAG_RD, &txq->in_use,
 			    0, "#tunneled packet slots in use");
-			SYSCTL_ADD_ULONG(ctx, txqpoidlist, OID_AUTO, "frees",
+			SYSCTL_ADD_UQUAD(ctx, txqpoidlist, OID_AUTO, "frees",
 			    CTLFLAG_RD, &txq->txq_frees,
 			    "#tunneled packets freed");
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "skipped",
@@ -3553,7 +3576,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "stopped_flags",
 			    CTLFLAG_RD, &qs->txq_stopped,
 			    0, "tx queues stopped");
-			SYSCTL_ADD_ULONG(ctx, txqpoidlist, OID_AUTO, "phys_addr",
+			SYSCTL_ADD_UAUTO(ctx, txqpoidlist, OID_AUTO, "phys_addr",
 			    CTLFLAG_RD, &txq->phys_addr,
 			    "physical_address_of the queue");
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "qgen",
@@ -3585,11 +3608,11 @@ t3_add_configured_sysctls(adapter_t *sc)
 			    CTLTYPE_STRING | CTLFLAG_RD, &qs->txq[TXQ_CTRL],
 			    0, t3_dump_txq_ctrl, "A", "dump of the transmit queue");
 
-			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_queued",
+			SYSCTL_ADD_U64(ctx, lropoidlist, OID_AUTO, "lro_queued",
 			    CTLFLAG_RD, &qs->lro.ctrl.lro_queued, 0, NULL);
-			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_flushed",
+			SYSCTL_ADD_U64(ctx, lropoidlist, OID_AUTO, "lro_flushed",
 			    CTLFLAG_RD, &qs->lro.ctrl.lro_flushed, 0, NULL);
-			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_bad_csum",
+			SYSCTL_ADD_U64(ctx, lropoidlist, OID_AUTO, "lro_bad_csum",
 			    CTLFLAG_RD, &qs->lro.ctrl.lro_bad_csum, 0, NULL);
 			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_cnt",
 			    CTLFLAG_RD, &qs->lro.ctrl.lro_cnt, 0, NULL);

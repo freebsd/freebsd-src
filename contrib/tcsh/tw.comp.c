@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tw.comp.c,v 1.42 2007/10/01 21:52:00 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tw.comp.c,v 1.45 2015/09/30 13:28:02 christos Exp $ */
 /*
  * tw.comp.c: File completion builtin
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: tw.comp.c,v 1.42 2007/10/01 21:52:00 christos Exp $")
+RCSID("$tcsh: tw.comp.c,v 1.45 2015/09/30 13:28:02 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -46,7 +46,7 @@ static Char		**tw_find	(Char *, struct varent *, int);
 static Char 		 *tw_tok	(Char *);
 static int	 	  tw_pos	(Char *, int);
 static void	  	  tw_pr		(Char **);
-static int	  	  tw_match	(const Char *, const Char *);
+static int	  	  tw_match	(const Char *, const Char *, int);
 static void	 	  tw_prlist	(struct varent *);
 static const Char	 *tw_dollar	(const Char *,Char **, size_t, Char **,
 					 Char, const char *);
@@ -248,14 +248,15 @@ tw_tok(Char *str)
  *	in a prefix of the string.
  */
 static int
-tw_match(const Char *str, const Char *pat)
+tw_match(const Char *str, const Char *pat, int exact)
 {
     const Char *estr;
-    int rv = Gnmatch(str, pat, &estr);
+    int rv = exact ? Gmatch(estr = str, pat) : Gnmatch(str, pat, &estr);
 #ifdef TDEBUG
-    xprintf("Gnmatch(%s, ", short2str(str));
+    xprintf("G%smatch(%s, ", exact ? "" : "n", short2str(str));
     xprintf("%s, ", short2str(pat));
-    xprintf("%s) = %d [%d]\n", short2str(estr), rv, estr - str);
+    xprintf("%s) = %d [%" TCSH_PTRDIFF_T_FMT "d]\n", short2str(estr), rv,
+	estr - str);
 #endif /* TDEBUG */
     return (int) (rv ? estr - str : -1);
 }
@@ -525,6 +526,7 @@ tw_complete(const Char *line, Char **word, Char **pat, int looking, eChar *suf)
 	     *pos = NULL;	/* scratch pointer 			*/
 	int   cmd, res;
         Char  sep;		/* the command and separator characters */
+	int   exact;
 
 	if (ptr[0] == '\0')
 	    continue;
@@ -599,6 +601,7 @@ tw_complete(const Char *line, Char **word, Char **pat, int looking, eChar *suf)
 	}
 #endif /* TDEBUG */
 
+	exact = 0;
 	switch (cmd) {
 	case 'p':			/* positional completion */
 #ifdef TDEBUG
@@ -614,12 +617,14 @@ tw_complete(const Char *line, Char **word, Char **pat, int looking, eChar *suf)
 
 	case 'N':			/* match with the next-next word */
 	case 'n':			/* match with the next word */
+	    exact = 1;
+	    /*FALLTHROUGH*/
 	case 'c':			/* match with the current word */
 	case 'C':
 #ifdef TDEBUG
 	    xprintf("%c: ", cmd);
 #endif /* TDEBUG */
-	    if ((n = tw_match(pos, ran)) < 0) {
+	    if ((n = tw_match(pos, ran, exact)) < 0) {
 		cleanup_until(ran);
 		continue;
 	    }

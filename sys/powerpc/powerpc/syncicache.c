@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (C) 1995-1997, 1999 Wolfgang Solfrank.
  * Copyright (C) 1995-1997, 1999 TooLs GmbH.
  * All rights reserved.
@@ -31,10 +33,8 @@
  * $NetBSD: syncicache.c,v 1.2 1999/05/05 12:36:40 tsubai Exp $
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #if	defined(_KERNEL) || defined(_STANDALONE)

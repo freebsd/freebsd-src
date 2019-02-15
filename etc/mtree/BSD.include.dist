@@ -5,9 +5,11 @@
 
 /set type=dir uname=root gname=wheel mode=0755
 .
-    altq
-    ..
     arpa
+    ..
+    atf-c
+    ..
+    atf-c++
     ..
     bsm
     ..
@@ -88,12 +90,14 @@
     cam
         ata
         ..
+        mmc
+        ..
+        nvme
+        ..
         scsi
         ..
     ..
-    clang
-        3.4.1
-        ..
+    casper
     ..
     crypto
     ..
@@ -108,23 +112,27 @@
         ..
         ciss
         ..
+        evdev
+        ..
         filemon
         ..
         firewire
         ..
         hwpmc
         ..
-        ic
+        hyperv
         ..
-        ieee488
+        ic
         ..
         iicbus
         ..
         io
         ..
-        lmc
-        ..
         mfi
+        ..
+        mlx5
+        ..
+        mmc
         ..
         mpt
             mpilib
@@ -148,14 +156,16 @@
         ..
         speaker
         ..
-        usb
+        tcp_log
         ..
-        utopia
+        usb
         ..
         vkbd
         ..
         wi
         ..
+    ..
+    devdctl
     ..
     edit
         readline
@@ -225,12 +235,10 @@
         posix
         ..
     ..
-    gpib
-    ..
     gssapi
     ..
     infiniband
-        complib 
+        complib
         ..
         iba
         ..
@@ -247,7 +255,13 @@
     ..
     krb5
     ..
+    lib80211
+    ..
+    libipt
+    ..
     libmilter
+    ..
+    libxo
     ..
     lzma
     ..
@@ -256,6 +270,8 @@
         ..
     ..
     net
+        altq
+        ..
     ..
     net80211
     ..
@@ -270,6 +286,10 @@
         ..
     ..
     netinet
+        cc
+        ..
+        netdump
+        ..
     ..
     netinet6
     ..
@@ -297,6 +317,18 @@
     ..
     nfsserver
     ..
+    opencsd
+        c_api
+        ..
+        etmv3
+        ..
+        etmv4
+        ..
+        ptm
+        ..
+        stm
+        ..
+    ..
     openssl
     ..
     pcap
@@ -304,8 +336,6 @@
     protocols
     ..
     rdma
-    ..
-    readline
     ..
     rpc
     ..
@@ -328,6 +358,8 @@
     ssp
     ..
     sys
+        disk
+        ..
     ..
     teken
     ..

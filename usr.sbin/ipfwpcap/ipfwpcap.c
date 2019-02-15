@@ -41,6 +41,8 @@
 #include <netinet/in_systm.h>	/* for IP_MAXPACKET */
 #include <netinet/ip.h>		/* for IP_MAXPACKET */
 
+#include <net/bpf.h>
+
 /* XXX normally defined in config.h */
 #define HAVE_STRLCPY 1
 #define HAVE_SNPRINTF 1

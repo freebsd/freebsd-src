@@ -11,15 +11,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SYSTEM_UNIX_UNIX_H
-#define LLVM_SYSTEM_UNIX_UNIX_H
+#ifndef LLVM_LIB_SUPPORT_UNIX_UNIX_H
+#define LLVM_LIB_SUPPORT_UNIX_UNIX_H
 
 //===----------------------------------------------------------------------===//
 //=== WARNING: Implementation here must contain only generic UNIX code that
 //===          is guaranteed to work on all UNIX variants.
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Config/config.h"     // Get autoconf configuration settings
+#include "llvm/Config/config.h" // Get autoconf configuration settings
+#include "llvm/Support/Chrono.h"
 #include "llvm/Support/Errno.h"
 #include <algorithm>
 #include <assert.h>
@@ -29,6 +30,7 @@
 #include <cstring>
 #include <string>
 #include <sys/types.h>
+#include <sys/wait.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -43,20 +45,12 @@
 #endif
 #include <time.h>
 
-#ifdef HAVE_SYS_WAIT_H
-# include <sys/wait.h>
-#endif
-
 #ifdef HAVE_DLFCN_H
 # include <dlfcn.h>
 #endif
 
-#ifndef WEXITSTATUS
-# define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
-#endif
-
-#ifndef WIFEXITED
-# define WIFEXITED(stat_val) (((stat_val) & 255) == 0)
+#ifdef HAVE_FCNTL_H
+# include <fcntl.h>
 #endif
 
 /// This function builds an error message into \p ErrMsg using the \p prefix
@@ -75,5 +69,38 @@ static inline bool MakeErrMsg(
   *ErrMsg = prefix + ": " + llvm::sys::StrError(errnum);
   return true;
 }
+
+namespace llvm {
+namespace sys {
+
+/// Convert a struct timeval to a duration. Note that timeval can be used both
+/// as a time point and a duration. Be sure to check what the input represents.
+inline std::chrono::microseconds toDuration(const struct timeval &TV) {
+  return std::chrono::seconds(TV.tv_sec) +
+         std::chrono::microseconds(TV.tv_usec);
+}
+
+/// Convert a time point to struct timespec.
+inline struct timespec toTimeSpec(TimePoint<> TP) {
+  using namespace std::chrono;
+
+  struct timespec RetVal;
+  RetVal.tv_sec = toTimeT(TP);
+  RetVal.tv_nsec = (TP.time_since_epoch() % seconds(1)).count();
+  return RetVal;
+}
+
+/// Convert a time point to struct timeval.
+inline struct timeval toTimeVal(TimePoint<std::chrono::microseconds> TP) {
+  using namespace std::chrono;
+
+  struct timeval RetVal;
+  RetVal.tv_sec = toTimeT(TP);
+  RetVal.tv_usec = (TP.time_since_epoch() % seconds(1)).count();
+  return RetVal;
+}
+
+} // namespace sys
+} // namespace llvm
 
 #endif

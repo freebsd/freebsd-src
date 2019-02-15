@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
@@ -52,7 +54,7 @@
  * TODO
  * ----
  *
- * - Allow subsytems to register to submit files for inclusion in the text
+ * - Allow subsystems to register to submit files for inclusion in the text
  *   dump in a generic way.
  */
 
@@ -348,8 +350,8 @@ textdump_dump_msgbuf(struct dumperinfo *di)
 	 */
 	total_len = 0;
 	offset = 0;
-        msgbuf_peekbytes(msgbufp, NULL, 0, &seq);
-        while ((len = msgbuf_peekbytes(msgbufp, buf, sizeof(buf), &seq)) > 0) {
+	msgbuf_peekbytes(msgbufp, NULL, 0, &seq);
+	while ((len = msgbuf_peekbytes(msgbufp, buf, sizeof(buf), &seq)) > 0) {
 		for (i = 0; i < len; i++) {
 			if (buf[i] == '\0')
 				continue;
@@ -362,7 +364,7 @@ textdump_dump_msgbuf(struct dumperinfo *di)
 			total_len += offset;
 			offset = 0;
 		}
-        }
+	}
 	total_len += offset;	/* Without the zero-padding. */
 	if (offset != 0) {
 		bzero(textdump_block_buffer + offset,
@@ -427,6 +429,7 @@ textdump_dump_version(struct dumperinfo *di)
 void
 textdump_dumpsys(struct dumperinfo *di)
 {
+	struct kerneldumpcrypto *kdc;
 	off_t dumplen, trailer_offset;
 
 	if (di->blocksize != TEXTDUMP_BLOCKSIZE) {
@@ -449,6 +452,12 @@ textdump_dumpsys(struct dumperinfo *di)
 	textdump_error = 0;
 
 	/*
+	 * Disable EKCD because we don't provide encrypted textdumps.
+	 */
+	kdc = di->kdcrypto;
+	di->kdcrypto = NULL;
+
+	/*
 	 * Position the start of the dump so that we'll write the kernel dump
 	 * trailer immediately before the end of the partition, and then work
 	 * our way back.  We will rewrite this header later to reflect the
@@ -456,7 +465,7 @@ textdump_dumpsys(struct dumperinfo *di)
 	 */
 	textdump_offset = di->mediasize - sizeof(kdh);
 	textdump_saveoff(&trailer_offset);
-	mkdumpheader(&kdh, TEXTDUMPMAGIC, KERNELDUMP_TEXT_VERSION, 0, TEXTDUMP_BLOCKSIZE);
+	dump_init_header(di, &kdh, TEXTDUMPMAGIC, KERNELDUMP_TEXT_VERSION, 0);
 	(void)textdump_writenextblock(di, (char *)&kdh);
 
 	/*
@@ -481,8 +490,8 @@ textdump_dumpsys(struct dumperinfo *di)
 	 * size.
 	 */
 	dumplen = trailer_offset - (textdump_offset + TEXTDUMP_BLOCKSIZE);
-	mkdumpheader(&kdh, TEXTDUMPMAGIC, KERNELDUMP_TEXT_VERSION, dumplen,
-	    TEXTDUMP_BLOCKSIZE);
+	dump_init_header(di, &kdh, TEXTDUMPMAGIC, KERNELDUMP_TEXT_VERSION,
+	    dumplen);
 	(void)textdump_writenextblock(di, (char *)&kdh);
 	textdump_restoreoff(trailer_offset);
 	(void)textdump_writenextblock(di, (char *)&kdh);
@@ -499,6 +508,11 @@ textdump_dumpsys(struct dumperinfo *di)
 	else
 		printf("Textdump complete.\n");
 	textdump_pending = 0;
+
+	/*
+	 * Restore EKCD status.
+	 */
+	di->kdcrypto = kdc;
 }
 
 /*-
@@ -516,8 +530,7 @@ db_textdump_usage(void)
 }
 
 void
-db_textdump_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
-    char *modif)
+db_textdump_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 {
 	int t;
 
@@ -543,7 +556,7 @@ db_textdump_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 		db_printf("textdump unset\n");
 	} else if (strcmp(db_tok_string, "dump") == 0) {
 		textdump_pending = 1;
-		doadump(TRUE);
+		doadump(true);
 	} else {
 		db_textdump_usage();
 	}

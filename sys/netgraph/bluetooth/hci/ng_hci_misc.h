@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -41,7 +43,7 @@ void              ng_hci_unit_clean             (ng_hci_unit_p, int);
 ng_hci_neighbor_p ng_hci_new_neighbor           (ng_hci_unit_p);
 void              ng_hci_free_neighbor          (ng_hci_neighbor_p);
 void              ng_hci_flush_neighbor_cache   (ng_hci_unit_p);
-ng_hci_neighbor_p ng_hci_get_neighbor           (ng_hci_unit_p, bdaddr_p);
+ng_hci_neighbor_p ng_hci_get_neighbor           (ng_hci_unit_p, bdaddr_p, int);
 int               ng_hci_neighbor_stale         (ng_hci_neighbor_p);
 
 ng_hci_unit_con_p ng_hci_new_con                (ng_hci_unit_p, int);

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 #include "archive_private.h"
 #include "archive_entry.h"
+#include "archive_getdate.h"
 #include "archive_pathmatch.h"
 #include "archive_rb.h"
 #include "archive_string.h"
@@ -184,7 +185,6 @@ static int	time_excluded(struct archive_match *,
 		    struct archive_entry *);
 static int	validate_time_flag(struct archive *, int, const char *);
 
-time_t __archive_get_date(time_t now, const char *);
 #define get_date __archive_get_date
 
 static const struct archive_rb_tree_ops rb_ops_mbs = {
@@ -471,7 +471,7 @@ archive_match_path_excluded(struct archive *_a,
 }
 
 /*
- * Utilty functions to get statistic information for inclusion patterns.
+ * Utility functions to get statistic information for inclusion patterns.
  */
 int
 archive_match_path_unmatched_inclusions(struct archive *_a)
@@ -580,6 +580,7 @@ add_pattern_from_file(struct archive_match *a, struct match_list *mlist,
 		return (ARCHIVE_FATAL);
 	}
 	r = archive_read_support_format_raw(ar);
+	r = archive_read_support_format_empty(ar);
 	if (r != ARCHIVE_OK) {
 		archive_copy_error(&(a->archive), ar);
 		archive_read_free(ar);
@@ -596,9 +597,13 @@ add_pattern_from_file(struct archive_match *a, struct match_list *mlist,
 	}
 	r = archive_read_next_header(ar, &ae);
 	if (r != ARCHIVE_OK) {
-		archive_copy_error(&(a->archive), ar);
 		archive_read_free(ar);
-		return (r);
+		if (r == ARCHIVE_EOF) {
+			return (ARCHIVE_OK);
+		} else {
+			archive_copy_error(&(a->archive), ar);
+			return (r);
+		}
 	}
 
 	archive_string_init(&as);
@@ -650,7 +655,7 @@ add_pattern_from_file(struct archive_match *a, struct match_list *mlist,
 		}
 	}
 
-	/* If something error happend, report it immediately. */ 
+	/* If an error occurred, report it immediately. */
 	if (r < ARCHIVE_OK) {
 		archive_copy_error(&(a->archive), ar);
 		archive_read_free(ar);
@@ -1152,7 +1157,7 @@ set_timefilter_pathname_mbs(struct archive_match *a, int timetype,
 {
 	/* NOTE: stat() on Windows cannot handle nano seconds. */
 	HANDLE h;
-	WIN32_FIND_DATA d;
+	WIN32_FIND_DATAA d;
 
 	if (path == NULL || *path == '\0') {
 		archive_set_error(&(a->archive), EINVAL, "pathname is empty");
@@ -1265,7 +1270,7 @@ set_timefilter_pathname_wcs(struct archive_match *a, int timetype,
 #endif /* _WIN32 && !__CYGWIN__ */
 
 /*
- * Call back funtions for archive_rb.
+ * Call back functions for archive_rb.
  */
 static int
 cmp_node_mbs(const struct archive_rb_node *n1,
@@ -1400,7 +1405,7 @@ add_entry(struct archive_match *a, int flag,
 			&(a->exclusion_tree), pathname);
 
 		/*
-		 * We always overwrite comparison condision.
+		 * We always overwrite comparison condition.
 		 * If you do not want to overwrite it, you should not
 		 * call archive_match_exclude_entry(). We cannot know
 		 * what behavior you really expect since overwriting
@@ -1476,7 +1481,7 @@ time_excluded(struct archive_match *a, struct archive_entry *entry)
 			if (nsec == a->older_ctime_nsec &&
 			    (a->older_ctime_filter & ARCHIVE_MATCH_EQUAL)
 			      == 0)
-				return (1); /* Eeual, skip it. */
+				return (1); /* Equal, skip it. */
 		}
 	}
 	if (a->newer_mtime_filter) {
@@ -1508,7 +1513,7 @@ time_excluded(struct archive_match *a, struct archive_entry *entry)
 		}
 	}
 
-	/* If there is no excluson list, include the file. */
+	/* If there is no exclusion list, include the file. */
 	if (a->exclusion_entry_list.count == 0)
 		return (0);
 
@@ -1577,7 +1582,7 @@ time_excluded(struct archive_match *a, struct archive_entry *entry)
  */
 
 int
-archive_match_include_uid(struct archive *_a, int64_t uid)
+archive_match_include_uid(struct archive *_a, la_int64_t uid)
 {
 	struct archive_match *a;
 
@@ -1588,7 +1593,7 @@ archive_match_include_uid(struct archive *_a, int64_t uid)
 }
 
 int
-archive_match_include_gid(struct archive *_a, int64_t gid)
+archive_match_include_gid(struct archive *_a, la_int64_t gid)
 {
 	struct archive_match *a;
 
@@ -1695,7 +1700,7 @@ add_owner_id(struct archive_match *a, struct id_array *ids, int64_t id)
 			break;
 	}
 
-	/* Add oowner id. */
+	/* Add owner id. */
 	if (i == ids->count)
 		ids->ids[ids->count++] = id;
 	else if (ids->ids[i] != id) {

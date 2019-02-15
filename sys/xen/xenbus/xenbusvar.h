@@ -82,7 +82,13 @@ enum {
 };
 
 /**
- * Simplified accessors for xenbus devices
+ * Simplified accessors for xenbus devices:
+ *
+ * xenbus_get_node
+ * xenbus_get_type
+ * xenbus_get_state
+ * xenbus_get_otherend_id
+ * xenbus_get_otherend_path
  */
 #define	XENBUS_ACCESSOR(var, ivar, type) \
 	__BUS_ACCESSOR(xenbus, var, XENBUS, ivar, type)

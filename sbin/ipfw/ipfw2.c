@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002-2003 Luigi Rizzo
  * Copyright (c) 1996 Alex Nash, Paul Traina, Poul-Henning Kamp
  * Copyright (c) 1994 Ugen J.S.Antsilevich
@@ -32,10 +32,12 @@
 #include <err.h>
 #include <errno.h>
 #include <grp.h>
+#include <jail.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
@@ -61,6 +63,7 @@ struct format_opts {
 	int bcwidth;
 	int pcwidth;
 	int show_counters;
+	int show_time;		/* show timestamp */
 	uint32_t set_mask;	/* enabled sets mask */
 	uint32_t flags;		/* request flags */
 	uint32_t first;		/* first rule to request */
@@ -81,7 +84,7 @@ int ipfw_socket = -1;
  * Check if we have enough space in cmd buffer. Note that since
  * first 8? u32 words are reserved by reserved header, full cmd
  * buffer can't be used, so we need to protect from buffer overrun
- * only. At the beginnig, cblen is less than actual buffer size by
+ * only. At the beginning, cblen is less than actual buffer size by
  * size of ipfw_insn_u32 instruction + 1 u32 work. This eliminates need
  * for checking small instructions fitting in given range.
  * We also (ab)use the fact that ipfw_insn is always the first field
@@ -233,8 +236,17 @@ static struct _s_x ether_types[] = {
 	{ NULL,		0 }
 };
 
+static struct _s_x rule_eactions[] = {
+	{ "nat64lsn",		TOK_NAT64LSN },
+	{ "nat64stl",		TOK_NAT64STL },
+	{ "nptv6",		TOK_NPTV6 },
+	{ "tcp-setmss",		TOK_TCPSETMSS },
+	{ NULL, 0 }	/* terminator */
+};
 
 static struct _s_x rule_actions[] = {
+	{ "abort6",		TOK_ABORT6 },
+	{ "abort",		TOK_ABORT },
 	{ "accept",		TOK_ACCEPT },
 	{ "pass",		TOK_ACCEPT },
 	{ "allow",		TOK_ACCEPT },
@@ -264,6 +276,8 @@ static struct _s_x rule_actions[] = {
 	{ "setdscp",		TOK_SETDSCP },
 	{ "call",		TOK_CALL },
 	{ "return",		TOK_RETURN },
+	{ "eaction",		TOK_EACTION },
+	{ "tcp-setmss",		TOK_TCPSETMSS },
 	{ NULL, 0 }	/* terminator */
 };
 
@@ -291,7 +305,9 @@ static struct _s_x rule_options[] = {
 	{ "jail",		TOK_JAIL },
 	{ "in",			TOK_IN },
 	{ "limit",		TOK_LIMIT },
+	{ "set-limit",		TOK_SETLIMIT },
 	{ "keep-state",		TOK_KEEPSTATE },
+	{ "record-state",	TOK_RECORDSTATE },
 	{ "bridged",		TOK_LAYER2 },
 	{ "layer2",		TOK_LAYER2 },
 	{ "out",		TOK_OUT },
@@ -354,6 +370,8 @@ static struct _s_x rule_options[] = {
 	{ "src-ip6",		TOK_SRCIP6},
 	{ "lookup",		TOK_LOOKUP},
 	{ "flow",		TOK_FLOW},
+	{ "defer-action",	TOK_SKIPACTION },
+	{ "defer-immediate-action",	TOK_SKIPACTION },
 	{ "//",			TOK_COMMENT },
 
 	{ "not",		TOK_NOT },		/* pseudo option */
@@ -373,6 +391,15 @@ static int ipfw_get_config(struct cmdline_opts *co, struct format_opts *fo,
 static int ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
     ipfw_cfg_lheader *cfg, size_t sz, int ac, char **av);
 static void ipfw_list_tifaces(void);
+
+struct tidx;
+static uint16_t pack_object(struct tidx *tstate, char *name, int otype);
+static uint16_t pack_table(struct tidx *tstate, char *name);
+
+static char *table_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx);
+static void object_sort_ctlv(ipfw_obj_ctlv *ctlv);
+static char *object_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx,
+    uint16_t type);
 
 /*
  * Simple string buffer API.
@@ -416,6 +443,7 @@ bp_flush(struct buf_pr *b)
 
 	b->ptr = b->buf;
 	b->avail = b->size;
+	b->buf[0] = '\0';
 }
 
 /*
@@ -573,7 +601,7 @@ do_cmd(int optname, void *optval, uintptr_t optlen)
  * Returns 0 on success or errno otherwise.
  */
 int
-do_set3(int optname, ip_fw3_opheader *op3, uintptr_t optlen)
+do_set3(int optname, ip_fw3_opheader *op3, size_t optlen)
 {
 
 	if (co.test_only)
@@ -603,6 +631,7 @@ int
 do_get3(int optname, ip_fw3_opheader *op3, size_t *optlen)
 {
 	int error;
+	socklen_t len;
 
 	if (co.test_only)
 		return (0);
@@ -614,8 +643,9 @@ do_get3(int optname, ip_fw3_opheader *op3, size_t *optlen)
 
 	op3->opcode = optname;
 
-	error = getsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3,
-	    (socklen_t *)optlen);
+	len = *optlen;
+	error = getsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3, &len);
+	*optlen = len;
 
 	return (error);
 }
@@ -625,7 +655,7 @@ do_get3(int optname, ip_fw3_opheader *op3, size_t *optlen)
  * with the string (-1 in case of failure).
  */
 int
-match_token(struct _s_x *table, char *string)
+match_token(struct _s_x *table, const char *string)
 {
 	struct _s_x *pt;
 	uint i = strlen(string);
@@ -637,7 +667,7 @@ match_token(struct _s_x *table, char *string)
 }
 
 /**
- * match_token takes a table and a string, returns the value associated
+ * match_token_relaxed takes a table and a string, returns the value associated
  * with the string for the best match.
  *
  * Returns:
@@ -646,7 +676,7 @@ match_token(struct _s_x *table, char *string)
  * -2 if more than one records match @string.
  */
 int
-match_token_relaxed(struct _s_x *table, char *string)
+match_token_relaxed(struct _s_x *table, const char *string)
 {
 	struct _s_x *pt, *m;
 	int i, c;
@@ -665,6 +695,18 @@ match_token_relaxed(struct _s_x *table, char *string)
 		return (m->x);
 
 	return (c > 0 ? -2: -1);
+}
+
+int
+get_token(struct _s_x *table, const char *string, const char *errbase)
+{
+	int tcmd;
+
+	if ((tcmd = match_token_relaxed(table, string)) < 0)
+		errx(EX_USAGE, "%s %s %s",
+		    (tcmd == 0) ? "invalid" : "ambiguous", errbase, string);
+
+	return (tcmd);
 }
 
 /**
@@ -1021,7 +1063,7 @@ fill_dscp(ipfw_insn *cmd, char *av, int cblen)
 				errx(EX_DATAERR, "Invalid DSCP value");
 		}
 
-		if (code > 32)
+		if (code >= 32)
 			*high |= 1 << (code - 32);
 		else
 			*low |= 1 << code;
@@ -1139,8 +1181,7 @@ print_flags(struct buf_pr *bp, char const *name, ipfw_insn *cmd,
  * Print the ip address contained in a command.
  */
 static void
-print_ip(struct buf_pr *bp, struct format_opts *fo, ipfw_insn_ip *cmd,
-    char const *s)
+print_ip(struct buf_pr *bp, const struct format_opts *fo, ipfw_insn_ip *cmd)
 {
 	struct hostent *he = NULL;
 	struct in_addr *ia;
@@ -1148,6 +1189,7 @@ print_ip(struct buf_pr *bp, struct format_opts *fo, ipfw_insn_ip *cmd,
 	uint32_t *a = ((ipfw_insn_u32 *)cmd)->d;
 	char *t;
 
+	bprintf(bp, " ");
 	if (cmd->o.opcode == O_IP_DST_LOOKUP && len > F_INSN_SIZE(ipfw_insn_u32)) {
 		uint32_t d = a[1];
 		const char *arg = "<invalid>";
@@ -1155,12 +1197,9 @@ print_ip(struct buf_pr *bp, struct format_opts *fo, ipfw_insn_ip *cmd,
 		if (d < sizeof(lookup_key)/sizeof(lookup_key[0]))
 			arg = match_value(rule_options, lookup_key[d]);
 		t = table_search_ctlv(fo->tstate, ((ipfw_insn *)cmd)->arg1);
-		bprintf(bp, "%s lookup %s %s", cmd->o.len & F_NOT ? " not": "",
-			arg, t);
+		bprintf(bp, "lookup %s %s", arg, t);
 		return;
 	}
-	bprintf(bp, "%s%s ", cmd->o.len & F_NOT ? " not": "", s);
-
 	if (cmd->o.opcode == O_IP_SRC_ME || cmd->o.opcode == O_IP_DST_ME) {
 		bprintf(bp, "me");
 		return;
@@ -1225,9 +1264,10 @@ print_ip(struct buf_pr *bp, struct format_opts *fo, ipfw_insn_ip *cmd,
 	else {		/* numeric IP followed by some kind of mask */
 		ia = (struct in_addr *)&a[0];
 		bprintf(bp, "%s", inet_ntoa(*ia));
-		if (mb < 0)
-			bprintf(bp, ":%s", inet_ntoa(*ia ) );
-		else if (mb < 32)
+		if (mb < 0) {
+			ia = (struct in_addr *)&a[1];
+			bprintf(bp, ":%s", inet_ntoa(*ia));
+		} else if (mb < 32)
 			bprintf(bp, "/%d", mb);
 	}
 	if (len > 1)
@@ -1239,7 +1279,7 @@ print_ip(struct buf_pr *bp, struct format_opts *fo, ipfw_insn_ip *cmd,
  * prints a MAC address/mask pair
  */
 static void
-print_mac(struct buf_pr *bp, uint8_t *addr, uint8_t *mask)
+format_mac(struct buf_pr *bp, uint8_t *addr, uint8_t *mask)
 {
 	int l = contigmask(mask, 48);
 
@@ -1255,6 +1295,15 @@ print_mac(struct buf_pr *bp, uint8_t *addr, uint8_t *mask)
 		else if (l < 48)
 			bprintf(bp, "/%d", l);
 	}
+}
+
+static void
+print_mac(struct buf_pr *bp, ipfw_insn_mac *mac)
+{
+
+	bprintf(bp, " MAC");
+	format_mac(bp, mac->addr, mac->mask);
+	format_mac(bp, mac->addr + 6, mac->mask + 6);
 }
 
 static void
@@ -1299,14 +1348,12 @@ print_icmptypes(struct buf_pr *bp, ipfw_insn_u32 *cmd)
 static void
 print_dscp(struct buf_pr *bp, ipfw_insn_u32 *cmd)
 {
-	int i, c;
+	int i = 0;
 	uint32_t *v;
 	char sep= ' ';
 	const char *code;
 
 	bprintf(bp, " dscp");
-	i = 0;
-	c = 0;
 	v = cmd->d;
 	while (i < 64) {
 		if (*v & (1 << i)) {
@@ -1322,74 +1369,782 @@ print_dscp(struct buf_pr *bp, ipfw_insn_u32 *cmd)
 	}
 }
 
-/*
- * show_ipfw() prints the body of an ipfw rule.
- * Because the standard rule has at least proto src_ip dst_ip, we use
- * a helper function to produce these entries if not provided explicitly.
- * The first argument is the list of fields we have, the second is
- * the list of fields we want to be printed.
- *
- * Special cases if we have provided a MAC header:
- *   + if the rule does not contain IP addresses/ports, do not print them;
- *   + if the rule does not contain an IP proto, print "all" instead of "ip";
- *
- * Once we have 'have_options', IP header fields are printed as options.
- */
-#define	HAVE_PROTO	0x0001
-#define	HAVE_SRCIP	0x0002
-#define	HAVE_DSTIP	0x0004
-#define	HAVE_PROTO4	0x0008
-#define	HAVE_PROTO6	0x0010
-#define	HAVE_IP		0x0100
-#define	HAVE_OPTIONS	0x8000
+#define	insntod(cmd, type)	((ipfw_insn_ ## type *)(cmd))
+struct show_state {
+	struct ip_fw_rule	*rule;
+	const ipfw_insn		*eaction;
+	uint8_t			*printed;
+	int			flags;
+#define	HAVE_PROTO		0x0001
+#define	HAVE_SRCIP		0x0002
+#define	HAVE_DSTIP		0x0004
+#define	HAVE_PROBE_STATE	0x0008
+	int			proto;
+	int			or_block;
+};
+
+static int
+init_show_state(struct show_state *state, struct ip_fw_rule *rule)
+{
+
+	state->printed = calloc(rule->cmd_len, sizeof(uint8_t));
+	if (state->printed == NULL)
+		return (ENOMEM);
+	state->rule = rule;
+	state->eaction = NULL;
+	state->flags = 0;
+	state->proto = 0;
+	state->or_block = 0;
+	return (0);
+}
 
 static void
-show_prerequisites(struct buf_pr *bp, int *flags, int want, int cmd)
+free_show_state(struct show_state *state)
 {
-	(void)cmd;	/* UNUSED */
-	if (co.comment_only)
-		return;
-	if ( (*flags & HAVE_IP) == HAVE_IP)
-		*flags |= HAVE_OPTIONS;
 
-	if ( !(*flags & HAVE_OPTIONS)) {
-		if ( !(*flags & HAVE_PROTO) && (want & HAVE_PROTO)) {
-			if ( (*flags & HAVE_PROTO4))
-				bprintf(bp, " ip4");
-			else if ( (*flags & HAVE_PROTO6))
-				bprintf(bp, " ip6");
-			else
-				bprintf(bp, " ip");
-		}
-		if ( !(*flags & HAVE_SRCIP) && (want & HAVE_SRCIP))
-			bprintf(bp, " from any");
-		if ( !(*flags & HAVE_DSTIP) && (want & HAVE_DSTIP))
-			bprintf(bp, " to any");
-	}
-	*flags |= want;
+	free(state->printed);
 }
+
+static uint8_t
+is_printed_opcode(struct show_state *state, const ipfw_insn *cmd)
+{
+
+	return (state->printed[cmd - state->rule->cmd]);
+}
+
+static void
+mark_printed(struct show_state *state, const ipfw_insn *cmd)
+{
+
+	state->printed[cmd - state->rule->cmd] = 1;
+}
+
+static void
+print_limit_mask(struct buf_pr *bp, const ipfw_insn_limit *limit)
+{
+	struct _s_x *p = limit_masks;
+	char const *comma = " ";
+	uint8_t x;
+
+	for (x = limit->limit_mask; p->x != 0; p++) {
+		if ((x & p->x) == p->x) {
+			x &= ~p->x;
+			bprintf(bp, "%s%s", comma, p->s);
+			comma = ",";
+		}
+	}
+	bprint_uint_arg(bp, " ", limit->conn_limit);
+}
+
+static int
+print_instruction(struct buf_pr *bp, const struct format_opts *fo,
+    struct show_state *state, ipfw_insn *cmd)
+{
+	struct protoent *pe;
+	struct passwd *pwd;
+	struct group *grp;
+	const char *s;
+	double d;
+
+	if (is_printed_opcode(state, cmd))
+		return (0);
+	if ((cmd->len & F_OR) != 0 && state->or_block == 0)
+		bprintf(bp, " {");
+	if (cmd->opcode != O_IN && (cmd->len & F_NOT) != 0)
+		bprintf(bp, " not");
+
+	switch (cmd->opcode) {
+	case O_PROB:
+		d = 1.0 * insntod(cmd, u32)->d[0] / 0x7fffffff;
+		bprintf(bp, "prob %f ", d);
+		break;
+	case O_PROBE_STATE: /* no need to print anything here */
+		state->flags |= HAVE_PROBE_STATE;
+		break;
+	case O_IP_SRC:
+	case O_IP_SRC_LOOKUP:
+	case O_IP_SRC_MASK:
+	case O_IP_SRC_ME:
+	case O_IP_SRC_SET:
+		if (state->flags & HAVE_SRCIP)
+			bprintf(bp, " src-ip");
+		print_ip(bp, fo, insntod(cmd, ip));
+		break;
+	case O_IP_DST:
+	case O_IP_DST_LOOKUP:
+	case O_IP_DST_MASK:
+	case O_IP_DST_ME:
+	case O_IP_DST_SET:
+		if (state->flags & HAVE_DSTIP)
+			bprintf(bp, " dst-ip");
+		print_ip(bp, fo, insntod(cmd, ip));
+		break;
+	case O_IP6_SRC:
+	case O_IP6_SRC_MASK:
+	case O_IP6_SRC_ME:
+		if (state->flags & HAVE_SRCIP)
+			bprintf(bp, " src-ip6");
+		print_ip6(bp, insntod(cmd, ip6));
+		break;
+	case O_IP6_DST:
+	case O_IP6_DST_MASK:
+	case O_IP6_DST_ME:
+		if (state->flags & HAVE_DSTIP)
+			bprintf(bp, " dst-ip6");
+		print_ip6(bp, insntod(cmd, ip6));
+		break;
+	case O_FLOW6ID:
+		print_flow6id(bp, insntod(cmd, u32));
+		break;
+	case O_IP_DSTPORT:
+	case O_IP_SRCPORT:
+		print_newports(bp, insntod(cmd, u16), state->proto,
+		    (state->flags & (HAVE_SRCIP | HAVE_DSTIP)) ==
+		    (HAVE_SRCIP | HAVE_DSTIP) ?  cmd->opcode: 0);
+		break;
+	case O_PROTO:
+		pe = getprotobynumber(cmd->arg1);
+		if (state->flags & HAVE_PROTO)
+			bprintf(bp, " proto");
+		if (pe != NULL)
+			bprintf(bp, " %s", pe->p_name);
+		else
+			bprintf(bp, " %u", cmd->arg1);
+		break;
+	case O_MACADDR2:
+		print_mac(bp, insntod(cmd, mac));
+		break;
+	case O_MAC_TYPE:
+		print_newports(bp, insntod(cmd, u16),
+		    IPPROTO_ETHERTYPE, cmd->opcode);
+		break;
+	case O_FRAG:
+		bprintf(bp, " frag");
+		break;
+	case O_FIB:
+		bprintf(bp, " fib %u", cmd->arg1);
+		break;
+	case O_SOCKARG:
+		bprintf(bp, " sockarg");
+		break;
+	case O_IN:
+		bprintf(bp, cmd->len & F_NOT ? " out" : " in");
+		break;
+	case O_DIVERTED:
+		switch (cmd->arg1) {
+		case 3:
+			bprintf(bp, " diverted");
+			break;
+		case 2:
+			bprintf(bp, " diverted-output");
+			break;
+		case 1:
+			bprintf(bp, " diverted-loopback");
+			break;
+		default:
+			bprintf(bp, " diverted-?<%u>", cmd->arg1);
+			break;
+		}
+		break;
+	case O_LAYER2:
+		bprintf(bp, " layer2");
+		break;
+	case O_XMIT:
+	case O_RECV:
+	case O_VIA:
+		if (cmd->opcode == O_XMIT)
+			s = "xmit";
+		else if (cmd->opcode == O_RECV)
+			s = "recv";
+		else /* if (cmd->opcode == O_VIA) */
+			s = "via";
+		switch (insntod(cmd, if)->name[0]) {
+		case '\0':
+			bprintf(bp, " %s %s", s,
+			    inet_ntoa(insntod(cmd, if)->p.ip));
+			break;
+		case '\1':
+			bprintf(bp, " %s table(%s)", s,
+			    table_search_ctlv(fo->tstate,
+			    insntod(cmd, if)->p.kidx));
+			break;
+		default:
+			bprintf(bp, " %s %s", s,
+			    insntod(cmd, if)->name);
+		}
+		break;
+	case O_IP_FLOW_LOOKUP:
+		s = table_search_ctlv(fo->tstate, cmd->arg1);
+		bprintf(bp, " flow table(%s", s);
+		if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn_u32))
+			bprintf(bp, ",%u", insntod(cmd, u32)->d[0]);
+		bprintf(bp, ")");
+		break;
+	case O_IPID:
+	case O_IPTTL:
+	case O_IPLEN:
+	case O_TCPDATALEN:
+	case O_TCPWIN:
+		if (F_LEN(cmd) == 1) {
+			switch (cmd->opcode) {
+			case O_IPID:
+				s = "ipid";
+				break;
+			case O_IPTTL:
+				s = "ipttl";
+				break;
+			case O_IPLEN:
+				s = "iplen";
+				break;
+			case O_TCPDATALEN:
+				s = "tcpdatalen";
+				break;
+			case O_TCPWIN:
+				s = "tcpwin";
+				break;
+			}
+			bprintf(bp, " %s %u", s, cmd->arg1);
+		} else
+			print_newports(bp, insntod(cmd, u16), 0,
+			    cmd->opcode);
+		break;
+	case O_IPVER:
+		bprintf(bp, " ipver %u", cmd->arg1);
+		break;
+	case O_IPPRECEDENCE:
+		bprintf(bp, " ipprecedence %u", cmd->arg1 >> 5);
+		break;
+	case O_DSCP:
+		print_dscp(bp, insntod(cmd, u32));
+		break;
+	case O_IPOPT:
+		print_flags(bp, "ipoptions", cmd, f_ipopts);
+		break;
+	case O_IPTOS:
+		print_flags(bp, "iptos", cmd, f_iptos);
+		break;
+	case O_ICMPTYPE:
+		print_icmptypes(bp, insntod(cmd, u32));
+		break;
+	case O_ESTAB:
+		bprintf(bp, " established");
+		break;
+	case O_TCPFLAGS:
+		print_flags(bp, "tcpflags", cmd, f_tcpflags);
+		break;
+	case O_TCPOPTS:
+		print_flags(bp, "tcpoptions", cmd, f_tcpopts);
+		break;
+	case O_TCPACK:
+		bprintf(bp, " tcpack %d",
+		    ntohl(insntod(cmd, u32)->d[0]));
+		break;
+	case O_TCPSEQ:
+		bprintf(bp, " tcpseq %d",
+		    ntohl(insntod(cmd, u32)->d[0]));
+		break;
+	case O_UID:
+		pwd = getpwuid(insntod(cmd, u32)->d[0]);
+		if (pwd != NULL)
+			bprintf(bp, " uid %s", pwd->pw_name);
+		else
+			bprintf(bp, " uid %u",
+			    insntod(cmd, u32)->d[0]);
+		break;
+	case O_GID:
+		grp = getgrgid(insntod(cmd, u32)->d[0]);
+		if (grp != NULL)
+			bprintf(bp, " gid %s", grp->gr_name);
+		else
+			bprintf(bp, " gid %u",
+			    insntod(cmd, u32)->d[0]);
+		break;
+	case O_JAIL:
+		bprintf(bp, " jail %d", insntod(cmd, u32)->d[0]);
+		break;
+	case O_VERREVPATH:
+		bprintf(bp, " verrevpath");
+		break;
+	case O_VERSRCREACH:
+		bprintf(bp, " versrcreach");
+		break;
+	case O_ANTISPOOF:
+		bprintf(bp, " antispoof");
+		break;
+	case O_IPSEC:
+		bprintf(bp, " ipsec");
+		break;
+	case O_NOP:
+		bprintf(bp, " // %s", (char *)(cmd + 1));
+		break;
+	case O_KEEP_STATE:
+		if (state->flags & HAVE_PROBE_STATE)
+			bprintf(bp, " keep-state");
+		else
+			bprintf(bp, " record-state");
+		bprintf(bp, " :%s",
+		    object_search_ctlv(fo->tstate, cmd->arg1,
+		    IPFW_TLV_STATE_NAME));
+		break;
+	case O_LIMIT:
+		if (state->flags & HAVE_PROBE_STATE)
+			bprintf(bp, " limit");
+		else
+			bprintf(bp, " set-limit");
+		print_limit_mask(bp, insntod(cmd, limit));
+		bprintf(bp, " :%s",
+		    object_search_ctlv(fo->tstate, cmd->arg1,
+		    IPFW_TLV_STATE_NAME));
+		break;
+	case O_IP6:
+		bprintf(bp, " ip6");
+		break;
+	case O_IP4:
+		bprintf(bp, " ip4");
+		break;
+	case O_ICMP6TYPE:
+		print_icmp6types(bp, insntod(cmd, u32));
+		break;
+	case O_EXT_HDR:
+		print_ext6hdr(bp, cmd);
+		break;
+	case O_TAGGED:
+		if (F_LEN(cmd) == 1)
+			bprint_uint_arg(bp, " tagged ", cmd->arg1);
+		else
+			print_newports(bp, insntod(cmd, u16),
+				    0, O_TAGGED);
+		break;
+	case O_SKIP_ACTION:
+		bprintf(bp, " defer-immediate-action");
+		break;
+	default:
+		bprintf(bp, " [opcode %d len %d]", cmd->opcode,
+		    cmd->len);
+	}
+	if (cmd->len & F_OR) {
+		bprintf(bp, " or");
+		state->or_block = 1;
+	} else if (state->or_block != 0) {
+		bprintf(bp, " }");
+		state->or_block = 0;
+	}
+	mark_printed(state, cmd);
+
+	return (1);
+}
+
+static ipfw_insn *
+print_opcode(struct buf_pr *bp, struct format_opts *fo,
+    struct show_state *state, int opcode)
+{
+	ipfw_insn *cmd;
+	int l;
+
+	for (l = state->rule->act_ofs, cmd = state->rule->cmd;
+	    l > 0; l -= F_LEN(cmd), cmd += F_LEN(cmd)) {
+		/* We use zero opcode to print the rest of options */
+		if (opcode >= 0 && cmd->opcode != opcode)
+			continue;
+		/*
+		 * Skip O_NOP, when we printing the rest
+		 * of options, it will be handled separately.
+		 */
+		if (cmd->opcode == O_NOP && opcode != O_NOP)
+			continue;
+		if (!print_instruction(bp, fo, state, cmd))
+			continue;
+		return (cmd);
+	}
+	return (NULL);
+}
+
+static void
+print_fwd(struct buf_pr *bp, const ipfw_insn *cmd)
+{
+	char buf[INET6_ADDRSTRLEN + IF_NAMESIZE + 2];
+	ipfw_insn_sa6 *sa6;
+	ipfw_insn_sa *sa;
+	uint16_t port;
+
+	if (cmd->opcode == O_FORWARD_IP) {
+		sa = insntod(cmd, sa);
+		port = sa->sa.sin_port;
+		if (sa->sa.sin_addr.s_addr == INADDR_ANY)
+			bprintf(bp, "fwd tablearg");
+		else
+			bprintf(bp, "fwd %s", inet_ntoa(sa->sa.sin_addr));
+	} else {
+		sa6 = insntod(cmd, sa6);
+		port = sa6->sa.sin6_port;
+		bprintf(bp, "fwd ");
+		if (getnameinfo((const struct sockaddr *)&sa6->sa,
+		    sizeof(struct sockaddr_in6), buf, sizeof(buf), NULL, 0,
+		    NI_NUMERICHOST) == 0)
+			bprintf(bp, "%s", buf);
+	}
+	if (port != 0)
+		bprintf(bp, ",%u", port);
+}
+
+static int
+print_action_instruction(struct buf_pr *bp, const struct format_opts *fo,
+    struct show_state *state, const ipfw_insn *cmd)
+{
+	const char *s;
+
+	if (is_printed_opcode(state, cmd))
+		return (0);
+	switch (cmd->opcode) {
+	case O_CHECK_STATE:
+		bprintf(bp, "check-state");
+		if (cmd->arg1 != 0)
+			s = object_search_ctlv(fo->tstate, cmd->arg1,
+			    IPFW_TLV_STATE_NAME);
+		else
+			s = NULL;
+		bprintf(bp, " :%s", s ? s: "any");
+		break;
+	case O_ACCEPT:
+		bprintf(bp, "allow");
+		break;
+	case O_COUNT:
+		bprintf(bp, "count");
+		break;
+	case O_DENY:
+		bprintf(bp, "deny");
+		break;
+	case O_REJECT:
+		if (cmd->arg1 == ICMP_REJECT_RST)
+			bprintf(bp, "reset");
+		else if (cmd->arg1 == ICMP_REJECT_ABORT)
+			bprintf(bp, "abort");
+		else if (cmd->arg1 == ICMP_UNREACH_HOST)
+			bprintf(bp, "reject");
+		else
+			print_reject_code(bp, cmd->arg1);
+		break;
+	case O_UNREACH6:
+		if (cmd->arg1 == ICMP6_UNREACH_RST)
+			bprintf(bp, "reset6");
+		else if (cmd->arg1 == ICMP6_UNREACH_ABORT)
+			bprintf(bp, "abort6");
+		else
+			print_unreach6_code(bp, cmd->arg1);
+		break;
+	case O_SKIPTO:
+		bprint_uint_arg(bp, "skipto ", cmd->arg1);
+		break;
+	case O_PIPE:
+		bprint_uint_arg(bp, "pipe ", cmd->arg1);
+		break;
+	case O_QUEUE:
+		bprint_uint_arg(bp, "queue ", cmd->arg1);
+		break;
+	case O_DIVERT:
+		bprint_uint_arg(bp, "divert ", cmd->arg1);
+		break;
+	case O_TEE:
+		bprint_uint_arg(bp, "tee ", cmd->arg1);
+		break;
+	case O_NETGRAPH:
+		bprint_uint_arg(bp, "netgraph ", cmd->arg1);
+		break;
+	case O_NGTEE:
+		bprint_uint_arg(bp, "ngtee ", cmd->arg1);
+		break;
+	case O_FORWARD_IP:
+	case O_FORWARD_IP6:
+		print_fwd(bp, cmd);
+		break;
+	case O_LOG:
+		if (insntod(cmd, log)->max_log > 0)
+			bprintf(bp, " log logamount %d",
+			    insntod(cmd, log)->max_log);
+		else
+			bprintf(bp, " log");
+		break;
+	case O_ALTQ:
+#ifndef NO_ALTQ
+		print_altq_cmd(bp, insntod(cmd, altq));
+#endif
+		break;
+	case O_TAG:
+		bprint_uint_arg(bp, cmd->len & F_NOT ? " untag ":
+		    " tag ", cmd->arg1);
+		break;
+	case O_NAT:
+		if (cmd->arg1 != IP_FW_NAT44_GLOBAL)
+			bprint_uint_arg(bp, "nat ", cmd->arg1);
+		else
+			bprintf(bp, "nat global");
+		break;
+	case O_SETFIB:
+		if (cmd->arg1 == IP_FW_TARG)
+			bprint_uint_arg(bp, "setfib ", cmd->arg1);
+		else
+			bprintf(bp, "setfib %u", cmd->arg1 & 0x7FFF);
+		break;
+	case O_EXTERNAL_ACTION:
+		/*
+		 * The external action can consists of two following
+		 * each other opcodes - O_EXTERNAL_ACTION and
+		 * O_EXTERNAL_INSTANCE. The first contains the ID of
+		 * name of external action. The second contains the ID
+		 * of name of external action instance.
+		 * NOTE: in case when external action has no named
+		 * instances support, the second opcode isn't needed.
+		 */
+		state->eaction = cmd;
+		s = object_search_ctlv(fo->tstate, cmd->arg1,
+		    IPFW_TLV_EACTION);
+		if (match_token(rule_eactions, s) != -1)
+			bprintf(bp, "%s", s);
+		else
+			bprintf(bp, "eaction %s", s);
+		break;
+	case O_EXTERNAL_INSTANCE:
+		if (state->eaction == NULL)
+			break;
+		/*
+		 * XXX: we need to teach ipfw(9) to rewrite opcodes
+		 * in the user buffer on rule addition. When we add
+		 * the rule, we specify zero TLV type for
+		 * O_EXTERNAL_INSTANCE object. To show correct
+		 * rule after `ipfw add` we need to search instance
+		 * name with zero type. But when we do `ipfw show`
+		 * we calculate TLV type using IPFW_TLV_EACTION_NAME()
+		 * macro.
+		 */
+		s = object_search_ctlv(fo->tstate, cmd->arg1, 0);
+		if (s == NULL)
+			s = object_search_ctlv(fo->tstate,
+			    cmd->arg1, IPFW_TLV_EACTION_NAME(
+			    state->eaction->arg1));
+		bprintf(bp, " %s", s);
+		break;
+	case O_EXTERNAL_DATA:
+		if (state->eaction == NULL)
+			break;
+		/*
+		 * Currently we support data formatting only for
+		 * external data with datalen u16. For unknown data
+		 * print its size in bytes.
+		 */
+		if (cmd->len == F_INSN_SIZE(ipfw_insn))
+			bprintf(bp, " %u", cmd->arg1);
+		else
+			bprintf(bp, " %ubytes",
+			    cmd->len * sizeof(uint32_t));
+		break;
+	case O_SETDSCP:
+		if (cmd->arg1 == IP_FW_TARG) {
+			bprintf(bp, "setdscp tablearg");
+			break;
+		}
+		s = match_value(f_ipdscp, cmd->arg1 & 0x3F);
+		if (s != NULL)
+			bprintf(bp, "setdscp %s", s);
+		else
+			bprintf(bp, "setdscp %u", cmd->arg1 & 0x3F);
+		break;
+	case O_REASS:
+		bprintf(bp, "reass");
+		break;
+	case O_CALLRETURN:
+		if (cmd->len & F_NOT)
+			bprintf(bp, "return");
+		else
+			bprint_uint_arg(bp, "call ", cmd->arg1);
+		break;
+	default:
+		bprintf(bp, "** unrecognized action %d len %d ",
+			cmd->opcode, cmd->len);
+	}
+	mark_printed(state, cmd);
+
+	return (1);
+}
+
+
+static ipfw_insn *
+print_action(struct buf_pr *bp, struct format_opts *fo,
+    struct show_state *state, uint8_t opcode)
+{
+	ipfw_insn *cmd;
+	int l;
+
+	for (l = state->rule->cmd_len - state->rule->act_ofs,
+	    cmd = ACTION_PTR(state->rule); l > 0;
+	    l -= F_LEN(cmd), cmd += F_LEN(cmd)) {
+		if (cmd->opcode != opcode)
+			continue;
+		if (!print_action_instruction(bp, fo, state, cmd))
+			continue;
+		return (cmd);
+	}
+	return (NULL);
+}
+
+static void
+print_proto(struct buf_pr *bp, struct format_opts *fo,
+    struct show_state *state)
+{
+	ipfw_insn *cmd;
+	int l, proto, ip4, ip6, tmp;
+
+	/* Count all O_PROTO, O_IP4, O_IP6 instructions. */
+	proto = tmp = ip4 = ip6 = 0;
+	for (l = state->rule->act_ofs, cmd = state->rule->cmd;
+	    l > 0; l -= F_LEN(cmd), cmd += F_LEN(cmd)) {
+		switch (cmd->opcode) {
+		case O_PROTO:
+			proto++;
+			break;
+		case O_IP4:
+			ip4 = 1;
+			if (cmd->len & F_OR)
+				ip4++;
+			break;
+		case O_IP6:
+			ip6 = 1;
+			if (cmd->len & F_OR)
+				ip6++;
+			break;
+		default:
+			continue;
+		}
+	}
+	if (proto == 0 && ip4 == 0 && ip6 == 0) {
+		state->proto = IPPROTO_IP;
+		state->flags |= HAVE_PROTO;
+		bprintf(bp, " ip");
+		return;
+	}
+	/* To handle the case { ip4 or ip6 }, print opcode with F_OR first */
+	cmd = NULL;
+	if (ip4 || ip6)
+		cmd = print_opcode(bp, fo, state, ip4 > ip6 ? O_IP4: O_IP6);
+	if (cmd != NULL && (cmd->len & F_OR))
+		cmd = print_opcode(bp, fo, state, ip4 > ip6 ? O_IP6: O_IP4);
+	if (cmd == NULL || (cmd->len & F_OR))
+		for (l = proto; l > 0; l--) {
+			cmd = print_opcode(bp, fo, state, O_PROTO);
+			if (cmd != NULL && (cmd->len & F_OR) == 0)
+				break;
+			tmp = cmd->arg1;
+		}
+	/* Initialize proto, it is used by print_newports() */
+	if (tmp != 0)
+		state->proto = tmp;
+	else if (ip6 != 0)
+		state->proto = IPPROTO_IPV6;
+	else
+		state->proto = IPPROTO_IP;
+	state->flags |= HAVE_PROTO;
+}
+
+static int
+match_opcode(int opcode, const int opcodes[], size_t nops)
+{
+	int i;
+
+	for (i = 0; i < nops; i++)
+		if (opcode == opcodes[i])
+			return (1);
+	return (0);
+}
+
+static void
+print_address(struct buf_pr *bp, struct format_opts *fo,
+    struct show_state *state, const int opcodes[], size_t nops, int portop,
+    int flag)
+{
+	ipfw_insn *cmd;
+	int count, l, portcnt, pf;
+
+	count = portcnt = 0;
+	for (l = state->rule->act_ofs, cmd = state->rule->cmd;
+	    l > 0; l -= F_LEN(cmd), cmd += F_LEN(cmd)) {
+		if (match_opcode(cmd->opcode, opcodes, nops))
+			count++;
+		else if (cmd->opcode == portop)
+			portcnt++;
+	}
+	if (count == 0)
+		bprintf(bp, " any");
+	for (l = state->rule->act_ofs, cmd = state->rule->cmd;
+	    l > 0 && count > 0; l -= F_LEN(cmd), cmd += F_LEN(cmd)) {
+		if (!match_opcode(cmd->opcode, opcodes, nops))
+			continue;
+		print_instruction(bp, fo, state, cmd);
+		if ((cmd->len & F_OR) == 0)
+			break;
+		count--;
+	}
+	/*
+	 * If several O_IP_?PORT opcodes specified, leave them to the
+	 * options section.
+	 */
+	if (portcnt == 1) {
+		for (l = state->rule->act_ofs, cmd = state->rule->cmd, pf = 0;
+		    l > 0; l -= F_LEN(cmd), cmd += F_LEN(cmd)) {
+			if (cmd->opcode != portop) {
+				pf = (cmd->len & F_OR);
+				continue;
+			}
+			/* Print opcode iff it is not in OR block. */
+			if (pf == 0 && (cmd->len & F_OR) == 0)
+				print_instruction(bp, fo, state, cmd);
+			break;
+		}
+	}
+	state->flags |= flag;
+}
+
+static const int action_opcodes[] = {
+	O_CHECK_STATE, O_ACCEPT, O_COUNT, O_DENY, O_REJECT,
+	O_UNREACH6, O_SKIPTO, O_PIPE, O_QUEUE, O_DIVERT, O_TEE,
+	O_NETGRAPH, O_NGTEE, O_FORWARD_IP, O_FORWARD_IP6, O_NAT,
+	O_SETFIB, O_SETDSCP, O_REASS, O_CALLRETURN,
+	/* keep the following opcodes at the end of the list */
+	O_EXTERNAL_ACTION, O_EXTERNAL_INSTANCE, O_EXTERNAL_DATA
+};
+
+static const int modifier_opcodes[] = {
+	O_LOG, O_ALTQ, O_TAG
+};
+
+static const int src_opcodes[] = {
+	O_IP_SRC, O_IP_SRC_LOOKUP, O_IP_SRC_MASK, O_IP_SRC_ME,
+	O_IP_SRC_SET, O_IP6_SRC, O_IP6_SRC_MASK, O_IP6_SRC_ME
+};
+
+static const int dst_opcodes[] = {
+	O_IP_DST, O_IP_DST_LOOKUP, O_IP_DST_MASK, O_IP_DST_ME,
+	O_IP_DST_SET, O_IP6_DST, O_IP6_DST_MASK, O_IP6_DST_ME
+};
 
 static void
 show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
     struct buf_pr *bp, struct ip_fw_rule *rule, struct ip_fw_bcounter *cntr)
 {
+	struct show_state state;
+	ipfw_insn *cmd;
 	static int twidth = 0;
-	int l;
-	ipfw_insn *cmd, *tagptr = NULL;
-	const char *comment = NULL;	/* ptr to comment if we have one */
-	int proto = 0;		/* default */
-	int flags = 0;	/* prerequisites */
-	ipfw_insn_log *logptr = NULL; /* set if we find an O_LOG */
-	ipfw_insn_altq *altqptr = NULL; /* set if we find an O_ALTQ */
-	int or_block = 0;	/* we are in an or block */
-	uint32_t uval;
+	int i;
 
+	/* Print # DISABLED or skip the rule */
 	if ((fo->set_mask & (1 << rule->set)) == 0) {
 		/* disabled mask */
 		if (!co->show_sets)
 			return;
 		else
 			bprintf(bp, "# DISABLED ");
+	}
+	if (init_show_state(&state, rule) != 0) {
+		warn("init_show_state() failed");
+		return;
 	}
 	bprintf(bp, "%05u ", rule->rulenum);
 
@@ -1399,9 +2154,10 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 		pr_u64(bp, &cntr->bcnt, fo->bcwidth);
 	}
 
-	if (co->do_time == 2)
+	/* Print timestamp */
+	if (co->do_time == TIMESTAMP_NUMERIC)
 		bprintf(bp, "%10u ", cntr->timestamp);
-	else if (co->do_time == 1) {
+	else if (co->do_time == TIMESTAMP_STRING) {
 		char timestr[30];
 		time_t t = (time_t)0;
 
@@ -1421,637 +2177,65 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 		}
 	}
 
+	/* Print set number */
 	if (co->show_sets)
 		bprintf(bp, "set %d ", rule->set);
 
-	/*
-	 * print the optional "match probability"
-	 */
-	if (rule->cmd_len > 0) {
-		cmd = rule->cmd ;
-		if (cmd->opcode == O_PROB) {
-			ipfw_insn_u32 *p = (ipfw_insn_u32 *)cmd;
-			double d = 1.0 * p->d[0];
-
-			d = (d / 0x7fffffff);
-			bprintf(bp, "prob %f ", d);
-		}
-	}
-
-	/*
-	 * first print actions
-	 */
-	for (l = rule->cmd_len - rule->act_ofs, cmd = ACTION_PTR(rule);
-			l > 0 ; l -= F_LEN(cmd), cmd += F_LEN(cmd)) {
-		switch(cmd->opcode) {
-		case O_CHECK_STATE:
-			bprintf(bp, "check-state");
-			/* avoid printing anything else */
-			flags = HAVE_PROTO | HAVE_SRCIP |
-				HAVE_DSTIP | HAVE_IP;
-			break;
-
-		case O_ACCEPT:
-			bprintf(bp, "allow");
-			break;
-
-		case O_COUNT:
-			bprintf(bp, "count");
-			break;
-
-		case O_DENY:
-			bprintf(bp, "deny");
-			break;
-
-		case O_REJECT:
-			if (cmd->arg1 == ICMP_REJECT_RST)
-				bprintf(bp, "reset");
-			else if (cmd->arg1 == ICMP_UNREACH_HOST)
-				bprintf(bp, "reject");
-			else
-				print_reject_code(bp, cmd->arg1);
-			break;
-
-		case O_UNREACH6:
-			if (cmd->arg1 == ICMP6_UNREACH_RST)
-				bprintf(bp, "reset6");
-			else
-				print_unreach6_code(cmd->arg1);
-			break;
-
-		case O_SKIPTO:
-			bprint_uint_arg(bp, "skipto ", cmd->arg1);
-			break;
-
-		case O_PIPE:
-			bprint_uint_arg(bp, "pipe ", cmd->arg1);
-			break;
-
-		case O_QUEUE:
-			bprint_uint_arg(bp, "queue ", cmd->arg1);
-			break;
-
-		case O_DIVERT:
-			bprint_uint_arg(bp, "divert ", cmd->arg1);
-			break;
-
-		case O_TEE:
-			bprint_uint_arg(bp, "tee ", cmd->arg1);
-			break;
-
-		case O_NETGRAPH:
-			bprint_uint_arg(bp, "netgraph ", cmd->arg1);
-			break;
-
-		case O_NGTEE:
-			bprint_uint_arg(bp, "ngtee ", cmd->arg1);
-			break;
-
-		case O_FORWARD_IP:
-		    {
-			ipfw_insn_sa *s = (ipfw_insn_sa *)cmd;
-
-			if (s->sa.sin_addr.s_addr == INADDR_ANY) {
-				bprintf(bp, "fwd tablearg");
-			} else {
-				bprintf(bp, "fwd %s",inet_ntoa(s->sa.sin_addr));
-			}
-			if (s->sa.sin_port)
-				bprintf(bp, ",%d", s->sa.sin_port);
-		    }
-			break;
-
-		case O_FORWARD_IP6:
-		    {
-			char buf[4 + INET6_ADDRSTRLEN + 1];
-			ipfw_insn_sa6 *s = (ipfw_insn_sa6 *)cmd;
-
-			bprintf(bp, "fwd %s", inet_ntop(AF_INET6,
-			    &s->sa.sin6_addr, buf, sizeof(buf)));
-			if (s->sa.sin6_port)
-				bprintf(bp, ",%d", s->sa.sin6_port);
-		    }
-			break;
-
-		case O_LOG: /* O_LOG is printed last */
-			logptr = (ipfw_insn_log *)cmd;
-			break;
-
-		case O_ALTQ: /* O_ALTQ is printed after O_LOG */
-			altqptr = (ipfw_insn_altq *)cmd;
-			break;
-
-		case O_TAG:
-			tagptr = cmd;
-			break;
-
-		case O_NAT:
-			if (cmd->arg1 != 0)
-				bprint_uint_arg(bp, "nat ", cmd->arg1);
-			else
-				bprintf(bp, "nat global");
-			break;
-
-		case O_SETFIB:
-			bprint_uint_arg(bp, "setfib ", cmd->arg1 & 0x7FFF);
- 			break;
-
-		case O_SETDSCP:
-		    {
-			const char *code;
-
-			if (cmd->arg1 == IP_FW_TARG) {
-				bprint_uint_arg(bp, "setdscp ", cmd->arg1);
-				break;
-			}
-			uval = cmd->arg1 & 0x3F;
-			if ((code = match_value(f_ipdscp, uval)) != NULL)
-				bprintf(bp, "setdscp %s", code);
-			else
-				bprint_uint_arg(bp, "setdscp ", uval);
-		    }
- 			break;
-
-		case O_REASS:
-			bprintf(bp, "reass");
-			break;
-
-		case O_CALLRETURN:
-			if (cmd->len & F_NOT)
-				bprintf(bp, "return");
-			else
-				bprint_uint_arg(bp, "call ", cmd->arg1);
-			break;
-
-		default:
-			bprintf(bp, "** unrecognized action %d len %d ",
-				cmd->opcode, cmd->len);
-		}
-	}
-	if (logptr) {
-		if (logptr->max_log > 0)
-			bprintf(bp, " log logamount %d", logptr->max_log);
-		else
-			bprintf(bp, " log");
-	}
-#ifndef NO_ALTQ
-	if (altqptr) {
-		print_altq_cmd(bp, altqptr);
-	}
-#endif
-	if (tagptr) {
-		if (tagptr->len & F_NOT)
-			bprint_uint_arg(bp, " untag ", tagptr->arg1);
-		else
-			bprint_uint_arg(bp, " tag ", tagptr->arg1);
-	}
-
-	/*
-	 * then print the body.
-	 */
-	for (l = rule->act_ofs, cmd = rule->cmd;
-			l > 0 ; l -= F_LEN(cmd) , cmd += F_LEN(cmd)) {
-		if ((cmd->len & F_OR) || (cmd->len & F_NOT))
+	/* Print the optional "match probability" */
+	cmd = print_opcode(bp, fo, &state, O_PROB);
+	/* Print rule action */
+	for (i = 0; i < nitems(action_opcodes); i++) {
+		cmd = print_action(bp, fo, &state, action_opcodes[i]);
+		if (cmd == NULL)
 			continue;
-		if (cmd->opcode == O_IP4) {
-			flags |= HAVE_PROTO4;
-			break;
-		} else if (cmd->opcode == O_IP6) {
-			flags |= HAVE_PROTO6;
-			break;
+		/* Handle special cases */
+		switch (cmd->opcode) {
+		case O_CHECK_STATE:
+			goto end;
+		case O_EXTERNAL_ACTION:
+		case O_EXTERNAL_INSTANCE:
+			/* External action can have several instructions */
+			continue;
 		}
+		break;
 	}
-	if (rule->flags & IPFW_RULE_NOOPT) {	/* empty rules before options */
-		if (!co->do_compact) {
-			show_prerequisites(bp, &flags, HAVE_PROTO, 0);
-			bprintf(bp, " from any to any");
-		}
-		flags |= HAVE_IP | HAVE_OPTIONS | HAVE_PROTO |
-			 HAVE_SRCIP | HAVE_DSTIP;
+	/* Print rule modifiers */
+	for (i = 0; i < nitems(modifier_opcodes); i++)
+		print_action(bp, fo, &state, modifier_opcodes[i]);
+	/*
+	 * Print rule body
+	 */
+	if (co->comment_only != 0)
+		goto end;
+
+	if (rule->flags & IPFW_RULE_JUSTOPTS) {
+		state.flags |= HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP;
+		goto justopts;
 	}
 
-	if (co->comment_only)
-		comment = "...";
+	print_proto(bp, fo, &state);
 
-	for (l = rule->act_ofs, cmd = rule->cmd;
-			l > 0 ; l -= F_LEN(cmd) , cmd += F_LEN(cmd)) {
-		/* useful alias */
-		ipfw_insn_u32 *cmd32 = (ipfw_insn_u32 *)cmd;
+	/* Print source */
+	bprintf(bp, " from");
+	print_address(bp, fo, &state, src_opcodes, nitems(src_opcodes),
+	    O_IP_SRCPORT, HAVE_SRCIP);
 
-		if (co->comment_only) {
-			if (cmd->opcode != O_NOP)
-				continue;
-			bprintf(bp, " // %s\n", (char *)(cmd + 1));
-			return;
-		}
+	/* Print destination */
+	bprintf(bp, " to");
+	print_address(bp, fo, &state, dst_opcodes, nitems(dst_opcodes),
+	    O_IP_DSTPORT, HAVE_DSTIP);
 
-		show_prerequisites(bp, &flags, 0, cmd->opcode);
-
-		switch(cmd->opcode) {
-		case O_PROB:
-			break;	/* done already */
-
-		case O_PROBE_STATE:
-			break; /* no need to print anything here */
-
-		case O_IP_SRC:
-		case O_IP_SRC_LOOKUP:
-		case O_IP_SRC_MASK:
-		case O_IP_SRC_ME:
-		case O_IP_SRC_SET:
-			show_prerequisites(bp, &flags, HAVE_PROTO, 0);
-			if (!(flags & HAVE_SRCIP))
-				bprintf(bp, " from");
-			if ((cmd->len & F_OR) && !or_block)
-				bprintf(bp, " {");
-			print_ip(bp, fo, (ipfw_insn_ip *)cmd,
-				(flags & HAVE_OPTIONS) ? " src-ip" : "");
-			flags |= HAVE_SRCIP;
-			break;
-
-		case O_IP_DST:
-		case O_IP_DST_LOOKUP:
-		case O_IP_DST_MASK:
-		case O_IP_DST_ME:
-		case O_IP_DST_SET:
-			show_prerequisites(bp, &flags, HAVE_PROTO|HAVE_SRCIP, 0);
-			if (!(flags & HAVE_DSTIP))
-				bprintf(bp, " to");
-			if ((cmd->len & F_OR) && !or_block)
-				bprintf(bp, " {");
-			print_ip(bp, fo, (ipfw_insn_ip *)cmd,
-				(flags & HAVE_OPTIONS) ? " dst-ip" : "");
-			flags |= HAVE_DSTIP;
-			break;
-
-		case O_IP6_SRC:
-		case O_IP6_SRC_MASK:
-		case O_IP6_SRC_ME:
-			show_prerequisites(bp, &flags, HAVE_PROTO, 0);
-			if (!(flags & HAVE_SRCIP))
-				bprintf(bp, " from");
-			if ((cmd->len & F_OR) && !or_block)
-				bprintf(bp, " {");
-			print_ip6(bp, (ipfw_insn_ip6 *)cmd,
-			    (flags & HAVE_OPTIONS) ? " src-ip6" : "");
-			flags |= HAVE_SRCIP | HAVE_PROTO;
-			break;
-
-		case O_IP6_DST:
-		case O_IP6_DST_MASK:
-		case O_IP6_DST_ME:
-			show_prerequisites(bp, &flags, HAVE_PROTO|HAVE_SRCIP, 0);
-			if (!(flags & HAVE_DSTIP))
-				bprintf(bp, " to");
-			if ((cmd->len & F_OR) && !or_block)
-				bprintf(bp, " {");
-			print_ip6(bp, (ipfw_insn_ip6 *)cmd,
-			    (flags & HAVE_OPTIONS) ? " dst-ip6" : "");
-			flags |= HAVE_DSTIP;
-			break;
-
-		case O_FLOW6ID:
-			print_flow6id(bp, (ipfw_insn_u32 *) cmd );
-			flags |= HAVE_OPTIONS;
-			break;
-
-		case O_IP_DSTPORT:
-			show_prerequisites(bp, &flags,
-				HAVE_PROTO | HAVE_SRCIP |
-				HAVE_DSTIP | HAVE_IP, 0);
-		case O_IP_SRCPORT:
-			if (flags & HAVE_DSTIP)
-				flags |= HAVE_IP;
-			show_prerequisites(bp, &flags,
-				HAVE_PROTO | HAVE_SRCIP, 0);
-			if ((cmd->len & F_OR) && !or_block)
-				bprintf(bp, " {");
-			if (cmd->len & F_NOT)
-				bprintf(bp, " not");
-			print_newports(bp, (ipfw_insn_u16 *)cmd, proto,
-				(flags & HAVE_OPTIONS) ? cmd->opcode : 0);
-			break;
-
-		case O_PROTO: {
-			struct protoent *pe = NULL;
-
-			if ((cmd->len & F_OR) && !or_block)
-				bprintf(bp, " {");
-			if (cmd->len & F_NOT)
-				bprintf(bp, " not");
-			proto = cmd->arg1;
-			pe = getprotobynumber(cmd->arg1);
-			if ((flags & (HAVE_PROTO4 | HAVE_PROTO6)) &&
-			    !(flags & HAVE_PROTO))
-				show_prerequisites(bp, &flags,
-				    HAVE_PROTO | HAVE_IP | HAVE_SRCIP |
-				    HAVE_DSTIP | HAVE_OPTIONS, 0);
-			if (flags & HAVE_OPTIONS)
-				bprintf(bp, " proto");
-			if (pe)
-				bprintf(bp, " %s", pe->p_name);
-			else
-				bprintf(bp, " %u", cmd->arg1);
-			}
-			flags |= HAVE_PROTO;
-			break;
-
-		default: /*options ... */
-			if (!(cmd->len & (F_OR|F_NOT)))
-				if (((cmd->opcode == O_IP6) &&
-				    (flags & HAVE_PROTO6)) ||
-				    ((cmd->opcode == O_IP4) &&
-				    (flags & HAVE_PROTO4)))
-					break;
-			show_prerequisites(bp, &flags, HAVE_PROTO | HAVE_SRCIP |
-				    HAVE_DSTIP | HAVE_IP | HAVE_OPTIONS, 0);
-			if ((cmd->len & F_OR) && !or_block)
-				bprintf(bp, " {");
-			if (cmd->len & F_NOT && cmd->opcode != O_IN)
-				bprintf(bp, " not");
-			switch(cmd->opcode) {
-			case O_MACADDR2: {
-				ipfw_insn_mac *m = (ipfw_insn_mac *)cmd;
-
-				bprintf(bp, " MAC");
-				print_mac(bp, m->addr, m->mask);
-				print_mac(bp, m->addr + 6, m->mask + 6);
-				}
-				break;
-
-			case O_MAC_TYPE:
-				print_newports(bp, (ipfw_insn_u16 *)cmd,
-						IPPROTO_ETHERTYPE, cmd->opcode);
-				break;
-
-
-			case O_FRAG:
-				bprintf(bp, " frag");
-				break;
-
-			case O_FIB:
-				bprintf(bp, " fib %u", cmd->arg1 );
-				break;
-			case O_SOCKARG:
-				bprintf(bp, " sockarg");
-				break;
-
-			case O_IN:
-				bprintf(bp, cmd->len & F_NOT ? " out" : " in");
-				break;
-
-			case O_DIVERTED:
-				switch (cmd->arg1) {
-				case 3:
-					bprintf(bp, " diverted");
-					break;
-				case 1:
-					bprintf(bp, " diverted-loopback");
-					break;
-				case 2:
-					bprintf(bp, " diverted-output");
-					break;
-				default:
-					bprintf(bp, " diverted-?<%u>", cmd->arg1);
-					break;
-				}
-				break;
-
-			case O_LAYER2:
-				bprintf(bp, " layer2");
-				break;
-			case O_XMIT:
-			case O_RECV:
-			case O_VIA:
-			    {
-				char const *s, *t;
-				ipfw_insn_if *cmdif = (ipfw_insn_if *)cmd;
-
-				if (cmd->opcode == O_XMIT)
-					s = "xmit";
-				else if (cmd->opcode == O_RECV)
-					s = "recv";
-				else /* if (cmd->opcode == O_VIA) */
-					s = "via";
-				if (cmdif->name[0] == '\0')
-					bprintf(bp, " %s %s", s,
-					    inet_ntoa(cmdif->p.ip));
-				else if (cmdif->name[0] == '\1') {
-					/* interface table */
-					t = table_search_ctlv(fo->tstate,
-					    cmdif->p.kidx);
-					bprintf(bp, " %s table(%s)", s, t);
-				} else
-					bprintf(bp, " %s %s", s, cmdif->name);
-
-				break;
-			    }
-			case O_IP_FLOW_LOOKUP:
-			    {
-				char *t;
-
-				t = table_search_ctlv(fo->tstate, cmd->arg1);
-				bprintf(bp, " flow table(%s", t);
-				if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn_u32))
-					bprintf(bp, ",%u",
-					    ((ipfw_insn_u32 *)cmd)->d[0]);
-				bprintf(bp, ")");
-				break;
-			    }
-			case O_IPID:
-				if (F_LEN(cmd) == 1)
-				    bprintf(bp, " ipid %u", cmd->arg1 );
-				else
-				    print_newports(bp, (ipfw_insn_u16 *)cmd, 0,
-					O_IPID);
-				break;
-
-			case O_IPTTL:
-				if (F_LEN(cmd) == 1)
-				    bprintf(bp, " ipttl %u", cmd->arg1 );
-				else
-				    print_newports(bp, (ipfw_insn_u16 *)cmd, 0,
-					O_IPTTL);
-				break;
-
-			case O_IPVER:
-				bprintf(bp, " ipver %u", cmd->arg1 );
-				break;
-
-			case O_IPPRECEDENCE:
-				bprintf(bp, " ipprecedence %u", cmd->arg1 >> 5);
-				break;
-
-			case O_DSCP:
-				print_dscp(bp, (ipfw_insn_u32 *)cmd);
-	 			break;
-
-			case O_IPLEN:
-				if (F_LEN(cmd) == 1)
-				    bprintf(bp, " iplen %u", cmd->arg1 );
-				else
-				    print_newports(bp, (ipfw_insn_u16 *)cmd, 0,
-					O_IPLEN);
-				break;
-
-			case O_IPOPT:
-				print_flags(bp, "ipoptions", cmd, f_ipopts);
-				break;
-
-			case O_IPTOS:
-				print_flags(bp, "iptos", cmd, f_iptos);
-				break;
-
-			case O_ICMPTYPE:
-				print_icmptypes(bp, (ipfw_insn_u32 *)cmd);
-				break;
-
-			case O_ESTAB:
-				bprintf(bp, " established");
-				break;
-
-			case O_TCPDATALEN:
-				if (F_LEN(cmd) == 1)
-				    bprintf(bp, " tcpdatalen %u", cmd->arg1 );
-				else
-				    print_newports(bp, (ipfw_insn_u16 *)cmd, 0,
-					O_TCPDATALEN);
-				break;
-
-			case O_TCPFLAGS:
-				print_flags(bp, "tcpflags", cmd, f_tcpflags);
-				break;
-
-			case O_TCPOPTS:
-				print_flags(bp, "tcpoptions", cmd, f_tcpopts);
-				break;
-
-			case O_TCPWIN:
-				if (F_LEN(cmd) == 1)
-				    bprintf(bp, " tcpwin %u", cmd->arg1);
-				else
-				    print_newports(bp, (ipfw_insn_u16 *)cmd, 0,
-					O_TCPWIN);
-				break;
-
-			case O_TCPACK:
-				bprintf(bp, " tcpack %d", ntohl(cmd32->d[0]));
-				break;
-
-			case O_TCPSEQ:
-				bprintf(bp, " tcpseq %d", ntohl(cmd32->d[0]));
-				break;
-
-			case O_UID:
-			    {
-				struct passwd *pwd = getpwuid(cmd32->d[0]);
-
-				if (pwd)
-					bprintf(bp, " uid %s", pwd->pw_name);
-				else
-					bprintf(bp, " uid %u", cmd32->d[0]);
-			    }
-				break;
-
-			case O_GID:
-			    {
-				struct group *grp = getgrgid(cmd32->d[0]);
-
-				if (grp)
-					bprintf(bp, " gid %s", grp->gr_name);
-				else
-					bprintf(bp, " gid %u", cmd32->d[0]);
-			    }
-				break;
-
-			case O_JAIL:
-				bprintf(bp, " jail %d", cmd32->d[0]);
-				break;
-
-			case O_VERREVPATH:
-				bprintf(bp, " verrevpath");
-				break;
-
-			case O_VERSRCREACH:
-				bprintf(bp, " versrcreach");
-				break;
-
-			case O_ANTISPOOF:
-				bprintf(bp, " antispoof");
-				break;
-
-			case O_IPSEC:
-				bprintf(bp, " ipsec");
-				break;
-
-			case O_NOP:
-				comment = (char *)(cmd + 1);
-				break;
-
-			case O_KEEP_STATE:
-				bprintf(bp, " keep-state");
-				break;
-
-			case O_LIMIT: {
-				struct _s_x *p = limit_masks;
-				ipfw_insn_limit *c = (ipfw_insn_limit *)cmd;
-				uint8_t x = c->limit_mask;
-				char const *comma = " ";
-
-				bprintf(bp, " limit");
-				for (; p->x != 0 ; p++)
-					if ((x & p->x) == p->x) {
-						x &= ~p->x;
-						bprintf(bp, "%s%s", comma,p->s);
-						comma = ",";
-					}
-				bprint_uint_arg(bp, " ", c->conn_limit);
-				break;
-			}
-
-			case O_IP6:
-				bprintf(bp, " ip6");
-				break;
-
-			case O_IP4:
-				bprintf(bp, " ip4");
-				break;
-
-			case O_ICMP6TYPE:
-				print_icmp6types(bp, (ipfw_insn_u32 *)cmd);
-				break;
-
-			case O_EXT_HDR:
-				print_ext6hdr(bp, (ipfw_insn *)cmd);
-				break;
-
-			case O_TAGGED:
-				if (F_LEN(cmd) == 1)
-					bprint_uint_arg(bp, " tagged ",
-					    cmd->arg1);
-				else
-					print_newports(bp, (ipfw_insn_u16 *)cmd,
-					    0, O_TAGGED);
-				break;
-
-			default:
-				bprintf(bp, " [opcode %d len %d]",
-				    cmd->opcode, cmd->len);
-			}
-		}
-		if (cmd->len & F_OR) {
-			bprintf(bp, " or");
-			or_block = 1;
-		} else if (or_block) {
-			bprintf(bp, " }");
-			or_block = 0;
-		}
-	}
-	show_prerequisites(bp, &flags, HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP
-					      | HAVE_IP, 0);
-	if (comment)
-		bprintf(bp, " // %s", comment);
+justopts:
+	/* Print the rest of options */
+	while (print_opcode(bp, fo, &state, -1))
+		;
+end:
+	/* Print comment at the end */
+	cmd = print_opcode(bp, fo, &state, O_NOP);
+	if (co->comment_only != 0 && cmd == NULL)
+		bprintf(bp, " // ...");
 	bprintf(bp, "\n");
+	free_show_state(&state);
 }
 
 static void
@@ -2104,20 +2288,29 @@ show_dyn_state(struct cmdline_opts *co, struct format_opts *fo,
 		bprintf(bp, " <-> %s %d", inet_ntop(AF_INET6, &d->id.dst_ip6,
 		    buf, sizeof(buf)), d->id.dst_port);
 	} else
-		bprintf(bp, " UNKNOWN <-> UNKNOWN\n");
+		bprintf(bp, " UNKNOWN <-> UNKNOWN");
+	if (d->kidx != 0)
+		bprintf(bp, " :%s", object_search_ctlv(fo->tstate,
+		    d->kidx, IPFW_TLV_STATE_NAME));
 }
 
 static int
 do_range_cmd(int cmd, ipfw_range_tlv *rt)
 {
 	ipfw_range_header rh;
+	size_t sz;
 
 	memset(&rh, 0, sizeof(rh));
 	memcpy(&rh.range, rt, sizeof(*rt));
 	rh.range.head.length = sizeof(*rt);
 	rh.range.head.type = IPFW_TLV_RANGE;
+	sz = sizeof(rh);
 
-	return (do_set3(cmd, &rh.opheader, sizeof(rh)));
+	if (do_get3(cmd, &rh.opheader, &sz) != 0)
+		return (-1);
+	/* Save number of matched objects */
+	rt->new_set = rh.range.new_set;
+	return (0);
 }
 
 /*
@@ -2130,12 +2323,13 @@ do_range_cmd(int cmd, ipfw_range_tlv *rt)
 void
 ipfw_sets_handler(char *av[])
 {
-	uint32_t masks[2];
-	int i;
-	uint8_t cmd, new_set, rulenum;
 	ipfw_range_tlv rt;
 	char *msg;
 	size_t size;
+	uint32_t masks[2];
+	int i;
+	uint16_t rulenum;
+	uint8_t cmd;
 
 	av++;
 	memset(&rt, 0, sizeof(rt));
@@ -2196,9 +2390,12 @@ ipfw_sets_handler(char *av[])
 		if (!isdigit(*(av[0])) || (cmd == 3 && rt.set > RESVD_SET) ||
 			(cmd == 2 && rt.start_rule == IPFW_DEFAULT_RULE) )
 			errx(EX_DATAERR, "invalid source number %s\n", av[0]);
-		if (!isdigit(*(av[2])) || new_set > RESVD_SET)
+		if (!isdigit(*(av[2])) || rt.new_set > RESVD_SET)
 			errx(EX_DATAERR, "invalid dest. set %s\n", av[1]);
 		i = do_range_cmd(cmd, &rt);
+		if (i < 0)
+			err(EX_OSERR, "failed to move %s",
+			    cmd == IP_FW_SET_MOVE ? "set": "rule");
 	} else if (_substrcmp(*av, "disable") == 0 ||
 		   _substrcmp(*av, "enable") == 0 ) {
 		int which = _substrcmp(*av, "enable") == 0 ? 1 : 0;
@@ -2395,7 +2592,7 @@ list_static_range(struct cmdline_opts *co, struct format_opts *fo,
 	for (n = seen = 0; n < rcnt; n++,
 	    rtlv = (ipfw_obj_tlv *)((caddr_t)rtlv + rtlv->length)) {
 
-		if (fo->show_counters != 0) {
+		if ((fo->show_counters | fo->show_time) != 0) {
 			cntr = (struct ip_fw_bcounter *)(rtlv + 1);
 			r = (struct ip_fw_rule *)((caddr_t)cntr + cntr->size);
 		} else {
@@ -2497,10 +2694,11 @@ ipfw_list(int ac, char *av[], int show_counters)
 	/* get configuraion from kernel */
 	cfg = NULL;
 	sfo.show_counters = show_counters;
+	sfo.show_time = co.do_time;
 	sfo.flags = IPFW_CFG_GET_STATIC;
 	if (co.do_dynamic != 0)
 		sfo.flags |= IPFW_CFG_GET_STATES;
-	if (sfo.show_counters != 0)
+	if ((sfo.show_counters | sfo.show_time) != 0)
 		sfo.flags |= IPFW_CFG_GET_COUNTERS;
 	if (ipfw_get_config(&co, &sfo, &cfg, &sz) != 0)
 		err(EX_OSERR, "retrieving config failed");
@@ -2524,7 +2722,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 	int lac;
 	char **lav;
 	char *endptr;
-	size_t read;
+	size_t readsz;
 	struct buf_pr bp;
 	ipfw_obj_ctlv *ctlv, *tstate;
 	ipfw_obj_tlv *rbase;
@@ -2536,7 +2734,8 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 	rbase = NULL;
 	dynbase = NULL;
 	dynsz = 0;
-	read = sizeof(*cfg);
+	readsz = sizeof(*cfg);
+	rcnt = 0;
 
 	fo->set_mask = cfg->set_mask;
 
@@ -2545,8 +2744,9 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 	if (cfg->flags & IPFW_CFG_GET_STATIC) {
 		/* We've requested static rules */
 		if (ctlv->head.type == IPFW_TLV_TBLNAME_LIST) {
+			object_sort_ctlv(ctlv);
 			fo->tstate = ctlv;
-			read += ctlv->head.length;
+			readsz += ctlv->head.length;
 			ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv +
 			    ctlv->head.length);
 		}
@@ -2554,15 +2754,15 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 		if (ctlv->head.type == IPFW_TLV_RULE_LIST) {
 			rbase = (ipfw_obj_tlv *)(ctlv + 1);
 			rcnt = ctlv->count;
-			read += ctlv->head.length;
+			readsz += ctlv->head.length;
 			ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv +
 			    ctlv->head.length);
 		}
 	}
 
-	if ((cfg->flags & IPFW_CFG_GET_STATES) && (read != sz))  {
+	if ((cfg->flags & IPFW_CFG_GET_STATES) && (readsz != sz))  {
 		/* We may have some dynamic states */
-		dynsz = sz - read;
+		dynsz = sz - readsz;
 		/* Skip empty header */
 		if (dynsz != sizeof(ipfw_obj_ctlv))
 			dynbase = (caddr_t)ctlv;
@@ -2580,7 +2780,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 		list_static_range(co, fo, &bp, rbase, rcnt);
 
 		if (co->do_dynamic && dynsz > 0) {
-			printf("## Dynamic rules (%d %lu):\n", fo->dcnt, dynsz);
+			printf("## Dynamic rules (%d %zu):\n", fo->dcnt, dynsz);
 			list_dyn_range(co, fo, &bp, dynbase, dynsz);
 		}
 
@@ -2710,19 +2910,66 @@ struct tidx {
 	uint8_t set;
 };
 
+int
+ipfw_check_object_name(const char *name)
+{
+	int c, i, l;
+
+	/*
+	 * Check that name is null-terminated and contains
+	 * valid symbols only. Valid mask is:
+	 * [a-zA-Z0-9\-_\.]{1,63}
+	 */
+	l = strlen(name);
+	if (l == 0 || l >= 64)
+		return (EINVAL);
+	for (i = 0; i < l; i++) {
+		c = name[i];
+		if (isalpha(c) || isdigit(c) || c == '_' ||
+		    c == '-' || c == '.')
+			continue;
+		return (EINVAL);
+	}
+	return (0);
+}
+
+static char *default_state_name = "default";
+static int
+state_check_name(const char *name)
+{
+
+	if (ipfw_check_object_name(name) != 0)
+		return (EINVAL);
+	if (strcmp(name, "any") == 0)
+		return (EINVAL);
+	return (0);
+}
+
+static int
+eaction_check_name(const char *name)
+{
+
+	if (ipfw_check_object_name(name) != 0)
+		return (EINVAL);
+	/* Restrict some 'special' names */
+	if (match_token(rule_actions, name) != -1 &&
+	    match_token(rule_action_params, name) != -1)
+		return (EINVAL);
+	return (0);
+}
+
 static uint16_t
-pack_table(struct tidx *tstate, char *name)
+pack_object(struct tidx *tstate, char *name, int otype)
 {
 	int i;
 	ipfw_obj_ntlv *ntlv;
-
-	if (table_check_name(name) != 0)
-		return (0);
 
 	for (i = 0; i < tstate->count; i++) {
 		if (strcmp(tstate->idx[i].name, name) != 0)
 			continue;
 		if (tstate->idx[i].set != tstate->set)
+			continue;
+		if (tstate->idx[i].head.type != otype)
 			continue;
 
 		return (tstate->idx[i].idx);
@@ -2739,7 +2986,7 @@ pack_table(struct tidx *tstate, char *name)
 	ntlv = &tstate->idx[i];
 	memset(ntlv, 0, sizeof(ipfw_obj_ntlv));
 	strlcpy(ntlv->name, name, sizeof(ntlv->name));
-	ntlv->head.type = IPFW_TLV_TBL_NAME;
+	ntlv->head.type = otype;
 	ntlv->head.length = sizeof(ipfw_obj_ntlv);
 	ntlv->set = tstate->set;
 	ntlv->idx = ++tstate->counter;
@@ -2748,8 +2995,19 @@ pack_table(struct tidx *tstate, char *name)
 	return (ntlv->idx);
 }
 
-static void
-fill_table(ipfw_insn *cmd, char *av, uint8_t opcode, struct tidx *tstate)
+static uint16_t
+pack_table(struct tidx *tstate, char *name)
+{
+
+	if (table_check_name(name) != 0)
+		return (0);
+
+	return (pack_object(tstate, name, IPFW_TLV_TBL_NAME));
+}
+
+void
+fill_table(struct _ipfw_insn *cmd, char *av, uint8_t opcode,
+    struct tidx *tstate)
 {
 	uint32_t *d = ((ipfw_insn_u32 *)cmd)->d;
 	uint16_t uidx;
@@ -2839,14 +3097,14 @@ fill_ip(ipfw_insn_ip *cmd, char *av, int cblen, struct tidx *tstate)
 	case '/':
 		masklen = atoi(p);
 		if (masklen == 0)
-			d[1] = htonl(0);	/* mask */
+			d[1] = htonl(0U);	/* mask */
 		else if (masklen > 32)
 			errx(EX_DATAERR, "bad width ``%s''", p);
 		else
-			d[1] = htonl(~0 << (32 - masklen));
+			d[1] = htonl(~0U << (32 - masklen));
 		break;
 	case '{':	/* no mask, assume /24 and put back the '{' */
-		d[1] = htonl(~0 << (32 - 24));
+		d[1] = htonl(~0U << (32 - 24));
 		*(--p) = md;
 		break;
 
@@ -2855,7 +3113,7 @@ fill_ip(ipfw_insn_ip *cmd, char *av, int cblen, struct tidx *tstate)
 		/* FALLTHROUGH */
 	case 0:		/* initialization value */
 	default:
-		d[1] = htonl(~0);	/* force /32 */
+		d[1] = htonl(~0U);	/* force /32 */
 		break;
 	}
 	d[0] &= d[1];		/* mask base address with mask */
@@ -3003,15 +3261,14 @@ fill_flags_cmd(ipfw_insn *cmd, enum ipfw_opcodes opcode,
 void
 ipfw_delete(char *av[])
 {
-	uint32_t rulenum;
-	int i;
+	ipfw_range_tlv rt;
+	char *sep;
+	int i, j;
 	int exitval = EX_OK;
 	int do_set = 0;
-	ipfw_range_tlv rt;
 
 	av++;
 	NEED1("missing rule specification");
-	memset(&rt, 0, sizeof(rt));
 	if ( *av && _substrcmp(*av, "set") == 0) {
 		/* Do not allow using the following syntax:
 		 *	ipfw set N delete set M
@@ -3024,22 +3281,29 @@ ipfw_delete(char *av[])
 
 	/* Rule number */
 	while (*av && isdigit(**av)) {
-		i = atoi(*av); av++;
+		i = strtol(*av, &sep, 10);
+		j = i;
+		if (*sep== '-')
+			j = strtol(sep + 1, NULL, 10);
+		av++;
 		if (co.do_nat) {
 			exitval = do_cmd(IP_FW_NAT_DEL, &i, sizeof i);
 			if (exitval) {
 				exitval = EX_UNAVAILABLE;
-				warn("rule %u not available", i);
+				if (co.do_quiet)
+					continue;
+				warn("nat %u not available", i);
 			}
- 		} else if (co.do_pipe) {
+		} else if (co.do_pipe) {
 			exitval = ipfw_delete_pipe(co.do_pipe, i);
 		} else {
+			memset(&rt, 0, sizeof(rt));
 			if (do_set != 0) {
 				rt.set = i & 31;
 				rt.flags = IPFW_RCFLAG_SET;
 			} else {
 				rt.start_rule = i & 0xffff;
-				rt.end_rule = i & 0xffff;
+				rt.end_rule = j & 0xffff;
 				if (rt.start_rule == 0 && rt.end_rule == 0)
 					rt.flags |= IPFW_RCFLAG_ALL;
 				else
@@ -3052,12 +3316,24 @@ ipfw_delete(char *av[])
 			i = do_range_cmd(IP_FW_XDEL, &rt);
 			if (i != 0) {
 				exitval = EX_UNAVAILABLE;
+				if (co.do_quiet)
+					continue;
 				warn("rule %u: setsockopt(IP_FW_XDEL)",
-				    rulenum);
+				    rt.start_rule);
+			} else if (rt.new_set == 0 && do_set == 0) {
+				exitval = EX_UNAVAILABLE;
+				if (co.do_quiet)
+					continue;
+				if (rt.start_rule != rt.end_rule)
+					warnx("no rules rules in %u-%u range",
+					    rt.start_rule, rt.end_rule);
+				else
+					warnx("rule %u not found",
+					    rt.start_rule);
 			}
 		}
 	}
-	if (exitval != EX_OK)
+	if (exitval != EX_OK && co.do_force == 0)
 		exit(exitval);
 }
 
@@ -3396,7 +3672,7 @@ add_src(ipfw_insn *cmd, char *av, u_char proto, int cblen, struct tidx *tstate)
 
 	if (proto == IPPROTO_IPV6  || strcmp(av, "me6") == 0 ||
 	    inet_pton(AF_INET6, host, &a) == 1)
-		ret = add_srcip6(cmd, av, cblen);
+		ret = add_srcip6(cmd, av, cblen, tstate);
 	/* XXX: should check for IPv4, not !IPv6 */
 	if (ret == NULL && (proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
 	    inet_pton(AF_INET6, host, &a) != 1))
@@ -3427,7 +3703,7 @@ add_dst(ipfw_insn *cmd, char *av, u_char proto, int cblen, struct tidx *tstate)
 
 	if (proto == IPPROTO_IPV6  || strcmp(av, "me6") == 0 ||
 	    inet_pton(AF_INET6, host, &a) == 1)
-		ret = add_dstip6(cmd, av, cblen);
+		ret = add_dstip6(cmd, av, cblen, tstate);
 	/* XXX: should check for IPv4, not !IPv6 */
 	if (ret == NULL && (proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
 	    inet_pton(AF_INET6, host, &a) != 1))
@@ -3470,8 +3746,10 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 	/*
 	 * various flags used to record that we entered some fields.
 	 */
-	ipfw_insn *have_state = NULL;	/* check-state or keep-state */
+	ipfw_insn *have_state = NULL;	/* any state-related option */
+	int have_rstate = 0;
 	ipfw_insn *have_log = NULL, *have_altq = NULL, *have_tag = NULL;
+	ipfw_insn *have_skipcmd = NULL;
 	size_t len;
 
 	int i;
@@ -3537,6 +3815,35 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 	case TOK_CHECKSTATE:
 		have_state = action;
 		action->opcode = O_CHECK_STATE;
+		if (*av == NULL ||
+		    match_token(rule_options, *av) == TOK_COMMENT) {
+			action->arg1 = pack_object(tstate,
+			    default_state_name, IPFW_TLV_STATE_NAME);
+			break;
+		}
+		if (*av[0] == ':') {
+			if (strcmp(*av + 1, "any") == 0)
+				action->arg1 = 0;
+			else if (state_check_name(*av + 1) == 0)
+				action->arg1 = pack_object(tstate, *av + 1,
+				    IPFW_TLV_STATE_NAME);
+			else
+				errx(EX_DATAERR, "Invalid state name %s",
+				    *av);
+			av++;
+			break;
+		}
+		errx(EX_DATAERR, "Invalid state name %s", *av);
+		break;
+
+	case TOK_ABORT:
+		action->opcode = O_REJECT;
+		action->arg1 = ICMP_REJECT_ABORT;
+		break;
+
+	case TOK_ABORT6:
+		action->opcode = O_UNREACH6;
+		action->arg1 = ICMP6_UNREACH_ABORT;
 		break;
 
 	case TOK_ACCEPT:
@@ -3585,13 +3892,12 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 		action->opcode = O_NAT;
 		action->len = F_INSN_SIZE(ipfw_insn_nat);
 		CHECK_ACTLEN;
-		if (_substrcmp(*av, "global") == 0) {
-			action->arg1 = 0;
+		if (*av != NULL && _substrcmp(*av, "global") == 0) {
+			action->arg1 = IP_FW_NAT44_GLOBAL;
 			av++;
 			break;
 		} else
 			goto chkarg;
-
 	case TOK_QUEUE:
 		action->opcode = O_QUEUE;
 		goto chkarg;
@@ -3724,8 +4030,8 @@ chkarg:
 			p->sa.sin6_family = AF_INET6;
 			p->sa.sin6_port = port_number;
 			p->sa.sin6_flowinfo = 0;
-			p->sa.sin6_scope_id = 0;
-			/* No table support for v6 yet. */
+			p->sa.sin6_scope_id =
+			    ((struct sockaddr_in6 *)&result)->sin6_scope_id;
 			bcopy(&((struct sockaddr_in6*)&result)->sin6_addr,
 			    &p->sa.sin6_addr, sizeof(p->sa.sin6_addr));
 		} else {
@@ -3771,15 +4077,19 @@ chkarg:
 		NEED1("missing DSCP code");
 		if (_substrcmp(*av, "tablearg") == 0) {
 			action->arg1 = IP_FW_TARG;
-		} else if (isalpha(*av[0])) {
-			if ((code = match_token(f_ipdscp, *av)) == -1)
-				errx(EX_DATAERR, "Unknown DSCP code");
-			action->arg1 = code;
-		} else
-		        action->arg1 = strtoul(*av, NULL, 10);
-		/* Add high-order bit to DSCP to make room for tablearg */
-		if (action->arg1 != IP_FW_TARG)
+		} else {
+			if (isalpha(*av[0])) {
+				if ((code = match_token(f_ipdscp, *av)) == -1)
+					errx(EX_DATAERR, "Unknown DSCP code");
+				action->arg1 = code;
+			} else
+			        action->arg1 = strtoul(*av, NULL, 10);
+			/*
+			 * Add high-order bit to DSCP to make room
+			 * for tablearg
+			 */
 			action->arg1 |= 0x8000;
+		}
 		av++;
 		break;
 	    }
@@ -3792,8 +4102,67 @@ chkarg:
 		fill_cmd(action, O_CALLRETURN, F_NOT, 0);
 		break;
 
+	case TOK_TCPSETMSS: {
+		u_long mss;
+		uint16_t idx;
+
+		idx = pack_object(tstate, "tcp-setmss", IPFW_TLV_EACTION);
+		if (idx == 0)
+			errx(EX_DATAERR, "pack_object failed");
+		fill_cmd(action, O_EXTERNAL_ACTION, 0, idx);
+		NEED1("Missing MSS value");
+		action = next_cmd(action, &ablen);
+		action->len = 1;
+		CHECK_ACTLEN;
+		mss = strtoul(*av, NULL, 10);
+		if (mss == 0 || mss > UINT16_MAX)
+			errx(EX_USAGE, "invalid MSS value %s", *av);
+		fill_cmd(action, O_EXTERNAL_DATA, 0, (uint16_t)mss);
+		av++;
+		break;
+	}
+
 	default:
-		errx(EX_DATAERR, "invalid action %s\n", av[-1]);
+		av--;
+		if (match_token(rule_eactions, *av) == -1)
+			errx(EX_DATAERR, "invalid action %s\n", *av);
+		/*
+		 * External actions support.
+		 * XXX: we support only syntax with instance name.
+		 *	For known external actions (from rule_eactions list)
+		 *	we can handle syntax directly. But with `eaction'
+		 *	keyword we can use only `eaction <name> <instance>'
+		 *	syntax.
+		 */
+	case TOK_EACTION: {
+		uint16_t idx;
+
+		NEED1("Missing eaction name");
+		if (eaction_check_name(*av) != 0)
+			errx(EX_DATAERR, "Invalid eaction name %s", *av);
+		idx = pack_object(tstate, *av, IPFW_TLV_EACTION);
+		if (idx == 0)
+			errx(EX_DATAERR, "pack_object failed");
+		fill_cmd(action, O_EXTERNAL_ACTION, 0, idx);
+		av++;
+		NEED1("Missing eaction instance name");
+		action = next_cmd(action, &ablen);
+		action->len = 1;
+		CHECK_ACTLEN;
+		if (eaction_check_name(*av) != 0)
+			errx(EX_DATAERR, "Invalid eaction instance name %s",
+			    *av);
+		/*
+		 * External action instance object has TLV type depended
+		 * from the external action name object index. Since we
+		 * currently don't know this index, use zero as TLV type.
+		 */
+		idx = pack_object(tstate, *av, 0);
+		if (idx == 0)
+			errx(EX_DATAERR, "pack_object failed");
+		fill_cmd(action, O_EXTERNAL_INSTANCE, 0, idx);
+		av++;
+		}
 	}
 	action = next_cmd(action, &ablen);
 
@@ -3883,8 +4252,17 @@ chkarg:
 		cmd = next_cmd(cmd, &cblen);
 	}
 
-	if (have_state)	/* must be a check-state, we are done */
+	if (have_state)	{ /* must be a check-state, we are done */
+		if (*av != NULL &&
+		    match_token(rule_options, *av) == TOK_COMMENT) {
+			/* check-state has a comment */
+			av++;
+			fill_comment(cmd, av, cblen);
+			cmd = next_cmd(cmd, &cblen);
+			av[0] = NULL;
+		}
 		goto done;
+	}
 
 #define OR_START(target)					\
 	if (av[0] && (*av[0] == '(' || *av[0] == '{')) { 	\
@@ -3969,8 +4347,10 @@ chkarg:
 		}
 	} else if (first_cmd != cmd) {
 		errx(EX_DATAERR, "invalid protocol ``%s''", *av);
-	} else
+	} else {
+		rule->flags |= IPFW_RULE_JUSTOPTS;
 		goto read_options;
+	}
     OR_BLOCK(get_proto);
 
 	/*
@@ -4046,13 +4426,6 @@ chkarg:
 	}
 
 read_options:
-	if (av[0] && first_cmd == cmd) {
-		/*
-		 * nothing specified so far, store in the rule to ease
-		 * printout later.
-		 */
-		 rule->flags |= IPFW_RULE_NOOPT;
-	}
 	prev = NULL;
 	while ( av[0] != NULL ) {
 		char *s;
@@ -4253,13 +4626,12 @@ read_options:
 		case TOK_JAIL:
 			NEED1("jail requires argument");
 		    {
-			char *end;
 			int jid;
 
 			cmd->opcode = O_JAIL;
-			jid = (int)strtol(*av, &end, 0);
-			if (jid < 0 || *end != '\0')
-				errx(EX_DATAERR, "jail requires prison ID");
+			jid = jail_getid(*av);
+			if (jid < 0)
+				errx(EX_DATAERR, "%s", jail_errmsg);
 			cmd32->d[0] = (uint32_t)jid;
 			cmd->len |= F_INSN_SIZE(ipfw_insn_u32);
 			av++;
@@ -4320,27 +4692,44 @@ read_options:
 			break;
 
 		case TOK_KEEPSTATE:
+		case TOK_RECORDSTATE: {
+			uint16_t uidx;
+
 			if (open_par)
-				errx(EX_USAGE, "keep-state cannot be part "
+				errx(EX_USAGE, "keep-state or record-state cannot be part "
 				    "of an or block");
 			if (have_state)
-				errx(EX_USAGE, "only one of keep-state "
-					"and limit is allowed");
+				errx(EX_USAGE, "only one of keep-state, record-state, "
+					" limit and set-limit is allowed");
+			if (*av != NULL && *av[0] == ':') {
+				if (state_check_name(*av + 1) != 0)
+					errx(EX_DATAERR,
+					    "Invalid state name %s", *av);
+				uidx = pack_object(tstate, *av + 1,
+				    IPFW_TLV_STATE_NAME);
+				av++;
+			} else
+				uidx = pack_object(tstate, default_state_name,
+				    IPFW_TLV_STATE_NAME);
 			have_state = cmd;
-			fill_cmd(cmd, O_KEEP_STATE, 0, 0);
+			have_rstate = i == TOK_RECORDSTATE;
+			fill_cmd(cmd, O_KEEP_STATE, 0, uidx);
 			break;
+		}
 
-		case TOK_LIMIT: {
+		case TOK_LIMIT:
+		case TOK_SETLIMIT: {
 			ipfw_insn_limit *c = (ipfw_insn_limit *)cmd;
 			int val;
 
 			if (open_par)
 				errx(EX_USAGE,
-				    "limit cannot be part of an or block");
+				    "limit or set-limit cannot be part of an or block");
 			if (have_state)
-				errx(EX_USAGE, "only one of keep-state and "
-				    "limit is allowed");
+				errx(EX_USAGE, "only one of keep-state, record-state, "
+					" limit and set-limit is allowed");
 			have_state = cmd;
+			have_rstate = i == TOK_SETLIMIT;
 
 			cmd->len = F_INSN_SIZE(ipfw_insn_limit);
 			CHECK_CMDLEN;
@@ -4359,8 +4748,18 @@ read_options:
 
 			GET_UINT_ARG(c->conn_limit, IPFW_ARG_MIN, IPFW_ARG_MAX,
 			    TOK_LIMIT, rule_options);
-
 			av++;
+
+			if (*av != NULL && *av[0] == ':') {
+				if (state_check_name(*av + 1) != 0)
+					errx(EX_DATAERR,
+					    "Invalid state name %s", *av);
+				cmd->arg1 = pack_object(tstate, *av + 1,
+				    IPFW_TLV_STATE_NAME);
+				av++;
+			} else
+				cmd->arg1 = pack_object(tstate,
+				    default_state_name, IPFW_TLV_STATE_NAME);
 			break;
 		}
 
@@ -4389,14 +4788,14 @@ read_options:
 
 		case TOK_SRCIP6:
 			NEED1("missing source IP6");
-			if (add_srcip6(cmd, *av, cblen)) {
+			if (add_srcip6(cmd, *av, cblen, tstate)) {
 				av++;
 			}
 			break;
 
 		case TOK_DSTIP6:
 			NEED1("missing destination IP6");
-			if (add_dstip6(cmd, *av, cblen)) {
+			if (add_dstip6(cmd, *av, cblen, tstate)) {
 				av++;
 			}
 			break;
@@ -4533,6 +4932,14 @@ read_options:
 			av++;
 			break;
 
+		case TOK_SKIPACTION:
+			if (have_skipcmd)
+				errx(EX_USAGE, "only one defer-action "
+					"is allowed");
+			have_skipcmd = cmd;
+			fill_cmd(cmd, O_SKIP_ACTION, 0, 0);
+			break;
+
 		default:
 			errx(EX_USAGE, "unrecognised option [%d] %s\n", i, s);
 		}
@@ -4543,6 +4950,11 @@ read_options:
 	}
 
 done:
+
+	if (!have_state && have_skipcmd)
+		warnx("Rule contains \"defer-immediate-action\" "
+			"and doesn't contain any state-related options.");
+
 	/*
 	 * Now copy stuff into the rule.
 	 * If we have a keep-state option, the first instruction
@@ -4565,12 +4977,15 @@ done:
 	/*
 	 * generate O_PROBE_STATE if necessary
 	 */
-	if (have_state && have_state->opcode != O_CHECK_STATE) {
-		fill_cmd(dst, O_PROBE_STATE, 0, 0);
+	if (have_state && have_state->opcode != O_CHECK_STATE && !have_rstate) {
+		fill_cmd(dst, O_PROBE_STATE, 0, have_state->arg1);
 		dst = next_cmd(dst, &rblen);
 	}
 
-	/* copy all commands but O_LOG, O_KEEP_STATE, O_LIMIT, O_ALTQ, O_TAG */
+	/*
+	 * copy all commands but O_LOG, O_KEEP_STATE, O_LIMIT, O_ALTQ, O_TAG,
+	 * O_SKIP_ACTION
+	 */
 	for (src = (ipfw_insn *)cmdbuf; src != cmd; src += i) {
 		i = F_LEN(src);
 		CHECK_RBUFLEN(i);
@@ -4581,6 +4996,7 @@ done:
 		case O_LIMIT:
 		case O_ALTQ:
 		case O_TAG:
+		case O_SKIP_ACTION:
 			break;
 		default:
 			bcopy(src, dst, i * sizeof(uint32_t));
@@ -4597,6 +5013,17 @@ done:
 		bcopy(have_state, dst, i * sizeof(uint32_t));
 		dst += i;
 	}
+
+	/*
+	 * put back the have_skipcmd command as very last opcode
+	 */
+	if (have_skipcmd) {
+		i = F_LEN(have_skipcmd);
+		CHECK_RBUFLEN(i);
+		bcopy(have_skipcmd, dst, i * sizeof(uint32_t));
+		dst += i;
+	}
+
 	/*
 	 * start action section
 	 */
@@ -4636,6 +5063,101 @@ done:
 	*rbufsize = (char *)dst - (char *)rule;
 }
 
+static int
+compare_ntlv(const void *_a, const void *_b)
+{
+	ipfw_obj_ntlv *a, *b;
+
+	a = (ipfw_obj_ntlv *)_a;
+	b = (ipfw_obj_ntlv *)_b;
+
+	if (a->set < b->set)
+		return (-1);
+	else if (a->set > b->set)
+		return (1);
+
+	if (a->idx < b->idx)
+		return (-1);
+	else if (a->idx > b->idx)
+		return (1);
+
+	if (a->head.type < b->head.type)
+		return (-1);
+	else if (a->head.type > b->head.type)
+		return (1);
+
+	return (0);
+}
+
+/*
+ * Provide kernel with sorted list of referenced objects
+ */
+static void
+object_sort_ctlv(ipfw_obj_ctlv *ctlv)
+{
+
+	qsort(ctlv + 1, ctlv->count, ctlv->objsize, compare_ntlv);
+}
+
+struct object_kt {
+	uint16_t	uidx;
+	uint16_t	type;
+};
+static int
+compare_object_kntlv(const void *k, const void *v)
+{
+	ipfw_obj_ntlv *ntlv;
+	struct object_kt key;
+
+	key = *((struct object_kt *)k);
+	ntlv = (ipfw_obj_ntlv *)v;
+
+	if (key.uidx < ntlv->idx)
+		return (-1);
+	else if (key.uidx > ntlv->idx)
+		return (1);
+
+	if (key.type < ntlv->head.type)
+		return (-1);
+	else if (key.type > ntlv->head.type)
+		return (1);
+
+	return (0);
+}
+
+/*
+ * Finds object name in @ctlv by @idx and @type.
+ * Uses the following facts:
+ * 1) All TLVs are the same size
+ * 2) Kernel implementation provides already sorted list.
+ *
+ * Returns table name or NULL.
+ */
+static char *
+object_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx, uint16_t type)
+{
+	ipfw_obj_ntlv *ntlv;
+	struct object_kt key;
+
+	key.uidx = idx;
+	key.type = type;
+
+	ntlv = bsearch(&key, (ctlv + 1), ctlv->count, ctlv->objsize,
+	    compare_object_kntlv);
+
+	if (ntlv != NULL)
+		return (ntlv->name);
+
+	return (NULL);
+}
+
+static char *
+table_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx)
+{
+
+	return (object_search_ctlv(ctlv, idx, IPFW_TLV_TBL_NAME));
+}
+
 /*
  * Adds one or more rules to ipfw chain.
  * Data layout:
@@ -4655,7 +5177,7 @@ done:
  * Rules in reply are modified to store their actual ruleset number.
  *
  * (*1) TLVs inside IPFW_TLV_TBL_LIST needs to be sorted ascending
- * accoring to their idx field and there has to be no duplicates.
+ * according to their idx field and there has to be no duplicates.
  * (*2) Numbered rules inside IPFW_TLV_RULE_LIST needs to be sorted ascending.
  * (*3) Each ip_fw structure needs to be aligned to u64 boundary.
  */
@@ -4672,6 +5194,7 @@ ipfw_add(char *av[])
 	ipfw_obj_ctlv *ctlv, *tstate;
 
 	rbufsize = sizeof(rulebuf);
+	memset(rulebuf, 0, rbufsize);
 	memset(&ts, 0, sizeof(ts));
 
 	/* Optimize case with no tables */
@@ -4703,7 +5226,7 @@ ipfw_add(char *av[])
 		ctlv->count = ts.count;
 		ctlv->objsize = sizeof(ipfw_obj_ntlv);
 		memcpy(ctlv + 1, ts.idx, tlen);
-		table_sort_ctlv(ctlv);
+		object_sort_ctlv(ctlv);
 		tstate = ctlv;
 		/* Rule next */
 		ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv + ctlv->head.length);
@@ -4752,18 +5275,17 @@ void
 ipfw_zero(int ac, char *av[], int optname)
 {
 	ipfw_range_tlv rt;
-	uint32_t arg;
-	int failed = EX_OK;
 	char const *errstr;
 	char const *name = optname ? "RESETLOG" : "ZERO";
+	uint32_t arg;
+	int failed = EX_OK;
 
 	optname = optname ? IP_FW_XRESETLOG : IP_FW_XZERO;
-	memset(&rt, 0, sizeof(rt));
-
 	av++; ac--;
 
 	if (ac == 0) {
 		/* clear all entries */
+		memset(&rt, 0, sizeof(rt));
 		rt.flags = IPFW_RCFLAG_ALL;
 		if (do_range_cmd(optname, &rt) < 0)
 			err(EX_UNAVAILABLE, "setsockopt(IP_FW_X%s)", name);
@@ -4781,6 +5303,7 @@ ipfw_zero(int ac, char *av[], int optname)
 			if (errstr)
 				errx(EX_DATAERR,
 				    "invalid rule number %s\n", *av);
+			memset(&rt, 0, sizeof(rt));
 			rt.start_rule = arg;
 			rt.end_rule = arg;
 			rt.flags |= IPFW_RCFLAG_RANGE;
@@ -4792,6 +5315,9 @@ ipfw_zero(int ac, char *av[], int optname)
 				warn("rule %u: setsockopt(IP_FW_X%s)",
 				    arg, name);
 				failed = EX_UNAVAILABLE;
+			} else if (rt.new_set == 0) {
+				printf("Entry %d not found\n", arg);
+				failed = EX_UNAVAILABLE;
 			} else if (!co.do_quiet)
 				printf("Entry %d %s.\n", arg,
 				    optname == IP_FW_XZERO ?
@@ -4799,6 +5325,7 @@ ipfw_zero(int ac, char *av[], int optname)
 		} else {
 			errx(EX_USAGE, "invalid rule number ``%s''", *av);
 		}
+		av++; ac--;
 	}
 	if (failed != EX_OK)
 		exit(failed);
@@ -4844,9 +5371,81 @@ ipfw_flush(int force)
 static struct _s_x intcmds[] = {
       { "talist",	TOK_TALIST },
       { "iflist",	TOK_IFLIST },
+      { "olist",	TOK_OLIST },
       { "vlist",	TOK_VLIST },
       { NULL, 0 }
 };
+
+static struct _s_x otypes[] = {
+	{ "EACTION",	IPFW_TLV_EACTION },
+	{ "DYNSTATE",	IPFW_TLV_STATE_NAME },
+	{ NULL, 0 }
+};
+
+static const char*
+lookup_eaction_name(ipfw_obj_ntlv *ntlv, int cnt, uint16_t type)
+{
+	const char *name;
+	int i;
+
+	name = NULL;
+	for (i = 0; i < cnt; i++) {
+		if (ntlv[i].head.type != IPFW_TLV_EACTION)
+			continue;
+		if (IPFW_TLV_EACTION_NAME(ntlv[i].idx) != type)
+			continue;
+		name = ntlv[i].name;
+		break;
+	}
+	return (name);
+}
+
+static void
+ipfw_list_objects(int ac, char *av[])
+{
+	ipfw_obj_lheader req, *olh;
+	ipfw_obj_ntlv *ntlv;
+	const char *name;
+	size_t sz;
+	int i;
+
+	memset(&req, 0, sizeof(req));
+	sz = sizeof(req);
+	if (do_get3(IP_FW_DUMP_SRVOBJECTS, &req.opheader, &sz) != 0)
+		if (errno != ENOMEM)
+			return;
+
+	sz = req.size;
+	if ((olh = calloc(1, sz)) == NULL)
+		return;
+
+	olh->size = sz;
+	if (do_get3(IP_FW_DUMP_SRVOBJECTS, &olh->opheader, &sz) != 0) {
+		free(olh);
+		return;
+	}
+
+	if (olh->count > 0)
+		printf("Objects list:\n");
+	else
+		printf("There are no objects\n");
+	ntlv = (ipfw_obj_ntlv *)(olh + 1);
+	for (i = 0; i < olh->count; i++) {
+		name = match_value(otypes, ntlv->head.type);
+		if (name == NULL)
+			name = lookup_eaction_name(
+			    (ipfw_obj_ntlv *)(olh + 1), olh->count,
+			    ntlv->head.type);
+		if (name == NULL)
+			printf(" kidx: %4d\ttype: %10d\tname: %s\n",
+			    ntlv->idx, ntlv->head.type, ntlv->name);
+		else
+			printf(" kidx: %4d\ttype: %10s\tname: %s\n",
+			    ntlv->idx, name, ntlv->name);
+		ntlv++;
+	}
+	free(olh);
+}
 
 void
 ipfw_internal_handler(int ac, char *av[])
@@ -4865,6 +5464,9 @@ ipfw_internal_handler(int ac, char *av[])
 		break;
 	case TOK_TALIST:
 		ipfw_list_ta(ac, av);
+		break;
+	case TOK_OLIST:
+		ipfw_list_objects(ac, av);
 		break;
 	case TOK_VLIST:
 		ipfw_list_values(ac, av);

@@ -44,7 +44,7 @@
  * documents..
  */
 
-/* Data Link Control Registrs, on invaliant port addresses.  */
+/* Data Link Control Registers, on invaliant port addresses.  */
 #define FE_DLCR0	0
 #define FE_DLCR1	1
 #define FE_DLCR2	2

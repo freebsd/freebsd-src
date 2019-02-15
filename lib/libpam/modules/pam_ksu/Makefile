@@ -28,7 +28,17 @@ LIB=	pam_ksu
 SRCS=	pam_ksu.c
 MAN=	pam_ksu.8
 
-DPADD=	${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBROKEN} ${LIBCOM_ERR} ${LIBCRYPT} ${LIBCRYPTO}
-LDADD=	-lkrb5 -lhx509 -lasn1 -lroken -lcom_err -lcrypt -lcrypto
+LIBADD+=	krb5
+
+# XXX Must be the same as in kerberos5/Makefile.inc
+# XXX There will be a better way to reduce duplication but
+# XXX for now this will do.
+KRB5DIR=	${SRCTOP}/crypto/heimdal
+
+CFLAGS+=	-I${SRCTOP}/kerberos5/include \
+		-I${KRB5DIR}/lib/krb5 \
+		-I${.OBJDIR:H:H:H:H}/kerberos5/lib/libkrb5 \
+ 		-I${KRB5DIR}/lib/asn1 \
+		-I${.OBJDIR:H:H:H:H}/kerberos5/lib/libasn1
 
 .include <bsd.lib.mk>

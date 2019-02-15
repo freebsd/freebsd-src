@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 IronPort Systems Inc. <ambrisko@ironport.com>
  * All rights reserved.
  *
@@ -36,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/poll.h>
+#include <sys/reboot.h>
 #include <sys/rman.h>
 #include <sys/selinfo.h>
 #include <sys/sysctl.h>
@@ -48,6 +51,23 @@ __FBSDID("$FreeBSD$");
 #include <sys/ipmi.h>
 #include <dev/ipmi/ipmivars.h>
 #endif
+
+/*
+ * Driver request structures are allocated on the stack via alloca() to
+ * avoid calling malloc(), especially for the watchdog handler.
+ * To avoid too much stack growth, a previously allocated structure can
+ * be reused via IPMI_INIT_DRIVER_REQUEST(), but the caller should ensure
+ * that there is adequate reply/request space in the original allocation.
+ */
+#define	IPMI_INIT_DRIVER_REQUEST(req, addr, cmd, reqlen, replylen)	\
+	bzero((req), sizeof(struct ipmi_request));			\
+	ipmi_init_request((req), NULL, 0, (addr), (cmd), (reqlen), (replylen))
+
+#define	IPMI_ALLOC_DRIVER_REQUEST(req, addr, cmd, reqlen, replylen)	\
+	(req) = __builtin_alloca(sizeof(struct ipmi_request) +		\
+	    (reqlen) + (replylen));					\
+	IPMI_INIT_DRIVER_REQUEST((req), (addr), (cmd), (reqlen),	\
+	    (replylen))
 
 #ifdef IPMB
 static int ipmi_ipmb_checksum(u_char, int);
@@ -63,10 +83,32 @@ static void ipmi_dtor(void *arg);
 int ipmi_attached = 0;
 
 static int on = 1;
+static bool wd_in_shutdown = false;
+static int wd_timer_actions = IPMI_SET_WD_ACTION_POWER_CYCLE;
+static int wd_shutdown_countdown = 0; /* sec */
+static int wd_startup_countdown = 0; /* sec */
+static int wd_pretimeout_countdown = 120; /* sec */
+static int cycle_wait = 10; /* sec */
+
 static SYSCTL_NODE(_hw, OID_AUTO, ipmi, CTLFLAG_RD, 0,
     "IPMI driver parameters");
-SYSCTL_INT(_hw_ipmi, OID_AUTO, on, CTLFLAG_RW,
+SYSCTL_INT(_hw_ipmi, OID_AUTO, on, CTLFLAG_RWTUN,
 	&on, 0, "");
+SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_timer_actions, CTLFLAG_RW,
+	&wd_timer_actions, 0,
+	"IPMI watchdog timer actions (including pre-timeout interrupt)");
+SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_shutdown_countdown, CTLFLAG_RW,
+	&wd_shutdown_countdown, 0,
+	"IPMI watchdog countdown for shutdown (seconds)");
+SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_startup_countdown, CTLFLAG_RDTUN,
+	&wd_startup_countdown, 0,
+	"IPMI watchdog countdown initialized during startup (seconds)");
+SYSCTL_INT(_hw_ipmi, OID_AUTO, wd_pretimeout_countdown, CTLFLAG_RW,
+	&wd_pretimeout_countdown, 0,
+	"IPMI watchdog pre-timeout countdown (seconds)");
+SYSCTL_INT(_hw_ipmi, OID_AUTO, cyle_wait, CTLFLAG_RWTUN,
+	&cycle_wait, 0,
+	"IPMI power cycle on reboot delay time (seconds)");
 
 static struct cdevsw ipmi_cdevsw = {
 	.d_version =    D_VERSION,
@@ -181,8 +223,8 @@ ipmi_dtor(void *arg)
 		 */
 		dev->ipmi_closing = 1;
 		while (dev->ipmi_requests > 0) {
-			msleep(&dev->ipmi_requests, &sc->ipmi_lock, PWAIT,
-			    "ipmidrain", 0);
+			msleep(&dev->ipmi_requests, &sc->ipmi_requests_lock,
+			    PWAIT, "ipmidrain", 0);
 			ipmi_purge_completed_requests(dev);
 		}
 	}
@@ -215,7 +257,7 @@ ipmi_ipmb_send_message(device_t dev, u_char channel, u_char netfn,
 	u_char slave_addr = 0x52;
 	int error;
 
-	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+	IPMI_ALLOC_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 	    IPMI_SEND_MSG, data_len + 8, 0);
 	req->ir_request[0] = channel;
 	req->ir_request[1] = slave_addr;
@@ -231,7 +273,6 @@ ipmi_ipmb_send_message(device_t dev, u_char channel, u_char netfn,
 
 	ipmi_submit_driver_request(sc, req);
 	error = req->ir_error;
-	ipmi_free_request(req);
 
 	return (error);
 }
@@ -243,7 +284,7 @@ ipmi_handle_attn(struct ipmi_softc *sc)
 	int error;
 
 	device_printf(sc->ipmi_dev, "BMC has a message\n");
-	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+	IPMI_ALLOC_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 	    IPMI_GET_MSG_FLAGS, 0, 1);
 
 	ipmi_submit_driver_request(sc, req);
@@ -257,9 +298,7 @@ ipmi_handle_attn(struct ipmi_softc *sc)
 			    "watchdog about to go off");
 		}
 		if (req->ir_reply[0] & IPMI_MSG_AVAILABLE) {
-			ipmi_free_request(req);
-
-			req = ipmi_alloc_driver_request(
+			IPMI_ALLOC_DRIVER_REQUEST(req,
 			    IPMI_ADDR(IPMI_APP_REQUEST, 0), IPMI_GET_MSG, 0,
 			    16);
 
@@ -268,7 +307,6 @@ ipmi_handle_attn(struct ipmi_softc *sc)
 		}
 	}
 	error = req->ir_error;
-	ipmi_free_request(req);
 
 	return (error);
 }
@@ -478,15 +516,11 @@ ipmi_ioctl(struct cdev *cdev, u_long cmd, caddr_t data,
  * Request management.
  */
 
-/* Allocate a new request with request and reply buffers. */
-struct ipmi_request *
-ipmi_alloc_request(struct ipmi_device *dev, long msgid, uint8_t addr,
-    uint8_t command, size_t requestlen, size_t replylen)
+static __inline void
+ipmi_init_request(struct ipmi_request *req, struct ipmi_device *dev, long msgid,
+    uint8_t addr, uint8_t command, size_t requestlen, size_t replylen)
 {
-	struct ipmi_request *req;
 
-	req = malloc(sizeof(struct ipmi_request) + requestlen + replylen,
-	    M_IPMI, M_WAITOK | M_ZERO);
 	req->ir_owner = dev;
 	req->ir_msgid = msgid;
 	req->ir_addr = addr;
@@ -499,6 +533,18 @@ ipmi_alloc_request(struct ipmi_device *dev, long msgid, uint8_t addr,
 		req->ir_reply = (char *)&req[1] + requestlen;
 		req->ir_replybuflen = replylen;
 	}
+}
+
+/* Allocate a new request with request and reply buffers. */
+struct ipmi_request *
+ipmi_alloc_request(struct ipmi_device *dev, long msgid, uint8_t addr,
+    uint8_t command, size_t requestlen, size_t replylen)
+{
+	struct ipmi_request *req;
+
+	req = malloc(sizeof(struct ipmi_request) + requestlen + replylen,
+	    M_IPMI, M_WAITOK | M_ZERO);
+	ipmi_init_request(req, dev, msgid, addr, command, requestlen, replylen);
 	return (req);
 }
 
@@ -533,21 +579,13 @@ ipmi_complete_request(struct ipmi_softc *sc, struct ipmi_request *req)
 	}
 }
 
-/* Enqueue an internal driver request and wait until it is completed. */
+/* Perform an internal driver request. */
 int
 ipmi_submit_driver_request(struct ipmi_softc *sc, struct ipmi_request *req,
     int timo)
 {
-	int error;
 
-	IPMI_LOCK(sc);
-	error = sc->ipmi_enqueue_request(sc, req);
-	if (error == 0)
-		error = msleep(req, &sc->ipmi_lock, 0, "ipmireq", timo);
-	if (error == 0)
-		error = req->ir_error;
-	IPMI_UNLOCK(sc);
-	return (error);
+	return (sc->ipmi_driver_request(sc, req, timo));
 }
 
 /*
@@ -564,7 +602,7 @@ ipmi_dequeue_request(struct ipmi_softc *sc)
 	IPMI_LOCK_ASSERT(sc);
 
 	while (!sc->ipmi_detaching && TAILQ_EMPTY(&sc->ipmi_pending_requests))
-		cv_wait(&sc->ipmi_request_added, &sc->ipmi_lock);
+		cv_wait(&sc->ipmi_request_added, &sc->ipmi_requests_lock);
 	if (sc->ipmi_detaching)
 		return (NULL);
 
@@ -590,6 +628,20 @@ ipmi_polled_enqueue_request(struct ipmi_softc *sc, struct ipmi_request *req)
  */
 
 static int
+ipmi_reset_watchdog(struct ipmi_softc *sc)
+{
+	struct ipmi_request *req;
+	int error;
+
+	IPMI_ALLOC_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
+	    IPMI_RESET_WDOG, 0, 0);
+	error = ipmi_submit_driver_request(sc, req, 0);
+	if (error)
+		device_printf(sc->ipmi_dev, "Failed to reset watchdog\n");
+	return (error);
+}
+
+static int
 ipmi_set_watchdog(struct ipmi_softc *sc, unsigned int sec)
 {
 	struct ipmi_request *req;
@@ -598,14 +650,13 @@ ipmi_set_watchdog(struct ipmi_softc *sc, unsigned int sec)
 	if (sec > 0xffff / 10)
 		return (EINVAL);
 
-	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+	IPMI_ALLOC_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 	    IPMI_SET_WDOG, 6, 0);
-
 	if (sec) {
 		req->ir_request[0] = IPMI_SET_WD_TIMER_DONT_STOP
 		    | IPMI_SET_WD_TIMER_SMS_OS;
-		req->ir_request[1] = IPMI_SET_WD_ACTION_RESET;
-		req->ir_request[2] = 0;
+		req->ir_request[1] = (wd_timer_actions & 0xff);
+		req->ir_request[2] = (wd_pretimeout_countdown & 0xff);
 		req->ir_request[3] = 0;	/* Timer use */
 		req->ir_request[4] = (sec * 10) & 0xff;
 		req->ir_request[5] = (sec * 10) >> 8;
@@ -617,27 +668,10 @@ ipmi_set_watchdog(struct ipmi_softc *sc, unsigned int sec)
 		req->ir_request[4] = 0;
 		req->ir_request[5] = 0;
 	}
-
 	error = ipmi_submit_driver_request(sc, req, 0);
 	if (error)
 		device_printf(sc->ipmi_dev, "Failed to set watchdog\n");
-	else if (sec) {
-		ipmi_free_request(req);
-
-		req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
-		    IPMI_RESET_WDOG, 0, 0);
-
-		error = ipmi_submit_driver_request(sc, req, 0);
-		if (error)
-			device_printf(sc->ipmi_dev,
-			    "Failed to reset watchdog\n");
-	}
-
-	ipmi_free_request(req);
 	return (error);
-	/*
-	dump_watchdog(sc);
-	*/
 }
 
 static void
@@ -647,25 +681,134 @@ ipmi_wd_event(void *arg, unsigned int cmd, int *error)
 	unsigned int timeout;
 	int e;
 
-	if (dumping)
+	/* Ignore requests while disabled. */
+	if (!on)
 		return;
+
+	/*
+	 * To prevent infinite hangs, we don't let anyone pat or change
+	 * the watchdog when we're shutting down. (See ipmi_shutdown_event().)
+	 * However, we do want to keep patting the watchdog while we are doing
+	 * a coredump.
+	 */
+	if (wd_in_shutdown) {
+		if (dumping && sc->ipmi_watchdog_active)
+			ipmi_reset_watchdog(sc);
+		return;
+	}
 
 	cmd &= WD_INTERVAL;
 	if (cmd > 0 && cmd <= 63) {
 		timeout = ((uint64_t)1 << cmd) / 1000000000;
 		if (timeout == 0)
 			timeout = 1;
-		e = ipmi_set_watchdog(sc, timeout);
-		if (e == 0) {
-			*error = 0;
-			sc->ipmi_watchdog_active = 1;
-		} else
-			(void)ipmi_set_watchdog(sc, 0);
+		if (timeout != sc->ipmi_watchdog_active ||
+		    wd_timer_actions != sc->ipmi_watchdog_actions ||
+		    wd_pretimeout_countdown != sc->ipmi_watchdog_pretimeout) {
+			e = ipmi_set_watchdog(sc, timeout);
+			if (e == 0) {
+				sc->ipmi_watchdog_active = timeout;
+				sc->ipmi_watchdog_actions = wd_timer_actions;
+				sc->ipmi_watchdog_pretimeout = wd_pretimeout_countdown;
+			} else {
+				(void)ipmi_set_watchdog(sc, 0);
+				sc->ipmi_watchdog_active = 0;
+				sc->ipmi_watchdog_actions = 0;
+				sc->ipmi_watchdog_pretimeout = 0;
+			}
+		}
+		if (sc->ipmi_watchdog_active != 0) {
+			e = ipmi_reset_watchdog(sc);
+			if (e == 0) {
+				*error = 0;
+			} else {
+				(void)ipmi_set_watchdog(sc, 0);
+				sc->ipmi_watchdog_active = 0;
+				sc->ipmi_watchdog_actions = 0;
+				sc->ipmi_watchdog_pretimeout = 0;
+			}
+		}
 	} else if (atomic_readandclear_int(&sc->ipmi_watchdog_active) != 0) {
+		sc->ipmi_watchdog_actions = 0;
+		sc->ipmi_watchdog_pretimeout = 0;
+
 		e = ipmi_set_watchdog(sc, 0);
 		if (e != 0 && cmd == 0)
 			*error = EOPNOTSUPP;
 	}
+}
+
+static void
+ipmi_shutdown_event(void *arg, unsigned int cmd, int *error)
+{
+	struct ipmi_softc *sc = arg;
+
+	/* Ignore event if disabled. */
+	if (!on)
+		return;
+
+	/*
+	 * Positive wd_shutdown_countdown value will re-arm watchdog;
+	 * Zero value in wd_shutdown_countdown will disable watchdog;
+	 * Negative value in wd_shutdown_countdown will keep existing state;
+	 *
+	 * Revert to using a power cycle to ensure that the watchdog will
+	 * do something useful here.  Having the watchdog send an NMI
+	 * instead is useless during shutdown, and might be ignored if an
+	 * NMI already triggered.
+	 */
+
+	wd_in_shutdown = true;
+	if (wd_shutdown_countdown == 0) {
+		/* disable watchdog */
+		ipmi_set_watchdog(sc, 0);
+		sc->ipmi_watchdog_active = 0;
+	} else if (wd_shutdown_countdown > 0) {
+		/* set desired action and time, and, reset watchdog */
+		wd_timer_actions = IPMI_SET_WD_ACTION_POWER_CYCLE;
+		ipmi_set_watchdog(sc, wd_shutdown_countdown);
+		sc->ipmi_watchdog_active = wd_shutdown_countdown;
+		ipmi_reset_watchdog(sc);
+	}
+}
+
+static void
+ipmi_power_cycle(void *arg, int howto)
+{
+	struct ipmi_softc *sc = arg;
+	struct ipmi_request *req;
+
+	/*
+	 * Ignore everything except power cycling requests
+	 */
+	if ((howto & RB_POWERCYCLE) == 0)
+		return;
+
+	device_printf(sc->ipmi_dev, "Power cycling using IPMI\n");
+
+	/*
+	 * Send a CHASSIS_CONTROL command to the CHASSIS device, subcommand 2
+	 * as described in IPMI v2.0 spec section 28.3.
+	 */
+	IPMI_ALLOC_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_CHASSIS_REQUEST, 0),
+	    IPMI_CHASSIS_CONTROL, 1, 0);
+	req->ir_request[0] = IPMI_CC_POWER_CYCLE;
+
+	ipmi_submit_driver_request(sc, req, MAX_TIMEOUT);
+
+	if (req->ir_error != 0 || req->ir_compcode != 0) {
+		device_printf(sc->ipmi_dev, "Power cycling via IPMI failed code %#x %#x\n",
+		    req->ir_error, req->ir_compcode);
+		return;
+	}
+
+	/*
+	 * BMCs are notoriously slow, give it cyle_wait seconds for the power
+	 * down leg of the power cycle. If that fails, fallback to the next
+	 * hanlder in the shutdown_final chain and/or the platform failsafe.
+	 */
+	DELAY(cycle_wait * 1000 * 1000);
+	device_printf(sc->ipmi_dev, "Power cycling via IPMI timed out\n");
 }
 
 static void
@@ -680,7 +823,8 @@ ipmi_startup(void *arg)
 	dev = sc->ipmi_dev;
 
 	/* Initialize interface-independent state. */
-	mtx_init(&sc->ipmi_lock, device_get_nameunit(dev), "ipmi", MTX_DEF);
+	mtx_init(&sc->ipmi_requests_lock, "ipmi requests", NULL, MTX_DEF);
+	mtx_init(&sc->ipmi_io_lock, "ipmi io", NULL, MTX_DEF);
 	cv_init(&sc->ipmi_request_added, "ipmireq");
 	TAILQ_INIT(&sc->ipmi_pending_requests);
 
@@ -693,40 +837,36 @@ ipmi_startup(void *arg)
 	}
 
 	/* Send a GET_DEVICE_ID request. */
-	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+	IPMI_ALLOC_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 	    IPMI_GET_DEVICE_ID, 0, 15);
 
 	error = ipmi_submit_driver_request(sc, req, MAX_TIMEOUT);
 	if (error == EWOULDBLOCK) {
 		device_printf(dev, "Timed out waiting for GET_DEVICE_ID\n");
-		ipmi_free_request(req);
 		return;
 	} else if (error) {
 		device_printf(dev, "Failed GET_DEVICE_ID: %d\n", error);
-		ipmi_free_request(req);
 		return;
 	} else if (req->ir_compcode != 0) {
 		device_printf(dev,
 		    "Bad completion code for GET_DEVICE_ID: %d\n",
 		    req->ir_compcode);
-		ipmi_free_request(req);
 		return;
 	} else if (req->ir_replylen < 5) {
 		device_printf(dev, "Short reply for GET_DEVICE_ID: %d\n",
 		    req->ir_replylen);
-		ipmi_free_request(req);
 		return;
 	}
 
 	device_printf(dev, "IPMI device rev. %d, firmware rev. %d.%d%d, "
-	    "version %d.%d\n",
-	     req->ir_reply[1] & 0x0f,
-	     req->ir_reply[2] & 0x7f, req->ir_reply[3] >> 4, req->ir_reply[3] & 0x0f,
-	     req->ir_reply[4] & 0x0f, req->ir_reply[4] >> 4);
+	    "version %d.%d, device support mask %#x\n",
+	    req->ir_reply[1] & 0x0f,
+	    req->ir_reply[2] & 0x7f, req->ir_reply[3] >> 4, req->ir_reply[3] & 0x0f,
+	    req->ir_reply[4] & 0x0f, req->ir_reply[4] >> 4, req->ir_reply[5]);
 
-	ipmi_free_request(req);
+	sc->ipmi_dev_support = req->ir_reply[5];
 
-	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+	IPMI_INIT_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 	    IPMI_CLEAR_FLAGS, 1, 0);
 
 	ipmi_submit_driver_request(sc, req, 0);
@@ -738,36 +878,39 @@ ipmi_startup(void *arg)
 	if (req->ir_compcode == 0xc1) {
 		device_printf(dev, "Clear flags illegal\n");
 	}
-	ipmi_free_request(req);
 
 	for (i = 0; i < 8; i++) {
-		req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
+		IPMI_INIT_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 		    IPMI_GET_CHANNEL_INFO, 1, 0);
 		req->ir_request[0] = i;
 
 		ipmi_submit_driver_request(sc, req, 0);
 
-		if (req->ir_compcode != 0) {
-			ipmi_free_request(req);
+		if (req->ir_compcode != 0)
 			break;
-		}
-		ipmi_free_request(req);
 	}
 	device_printf(dev, "Number of channels %d\n", i);
 
-	/* probe for watchdog */
-	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
-	    IPMI_GET_WDOG, 0, 0);
+	/*
+	 * Probe for watchdog, but only for backends which support
+	 * polled driver requests.
+	 */
+	if (sc->ipmi_driver_requests_polled) {
+		IPMI_INIT_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
+		    IPMI_GET_WDOG, 0, 0);
 
-	ipmi_submit_driver_request(sc, req, 0);
+		ipmi_submit_driver_request(sc, req, 0);
 
-	if (req->ir_compcode == 0x00) {
-		device_printf(dev, "Attached watchdog\n");
-		/* register the watchdog event handler */
-		sc->ipmi_watchdog_tag = EVENTHANDLER_REGISTER(watchdog_list,
-		    ipmi_wd_event, sc, 0);
+		if (req->ir_compcode == 0x00) {
+			device_printf(dev, "Attached watchdog\n");
+			/* register the watchdog event handler */
+			sc->ipmi_watchdog_tag = EVENTHANDLER_REGISTER(
+				watchdog_list, ipmi_wd_event, sc, 0);
+			sc->ipmi_shutdown_tag = EVENTHANDLER_REGISTER(
+				shutdown_pre_sync, ipmi_shutdown_event,
+				sc, 0);
+		}
 	}
-	ipmi_free_request(req);
 
 	sc->ipmi_cdev = make_dev(&ipmi_cdevsw, device_get_unit(dev),
 	    UID_ROOT, GID_OPERATOR, 0660, "ipmi%d", device_get_unit(dev));
@@ -776,6 +919,34 @@ ipmi_startup(void *arg)
 		return;
 	}
 	sc->ipmi_cdev->si_drv1 = sc;
+
+	/*
+	 * Set initial watchdog state. If desired, set an initial
+	 * watchdog on startup. Or, if the watchdog device is
+	 * disabled, clear any existing watchdog.
+	 */
+	if (on && wd_startup_countdown > 0) {
+		wd_timer_actions = IPMI_SET_WD_ACTION_POWER_CYCLE;
+		if (ipmi_set_watchdog(sc, wd_startup_countdown) == 0 &&
+		    ipmi_reset_watchdog(sc) == 0) {
+			sc->ipmi_watchdog_active = wd_startup_countdown;
+			sc->ipmi_watchdog_actions = wd_timer_actions;
+			sc->ipmi_watchdog_pretimeout = wd_pretimeout_countdown;
+		} else
+			(void)ipmi_set_watchdog(sc, 0);
+		ipmi_reset_watchdog(sc);
+	} else if (!on)
+		(void)ipmi_set_watchdog(sc, 0);
+	/*
+	 * Power cycle the system off using IPMI. We use last - 1 since we don't
+	 * handle all the other kinds of reboots. We'll let others handle them.
+	 * We only try to do this if the BMC supports the Chassis device.
+	 */
+	if (sc->ipmi_dev_support & IPMI_ADS_CHASSIS) {
+		device_printf(dev, "Establishing power cycle handler\n");
+		sc->ipmi_power_cycle_tag = EVENTHANDLER_REGISTER(shutdown_final,
+		    ipmi_power_cycle, sc, SHUTDOWN_PRI_LAST - 1);
+	}
 }
 
 int
@@ -823,10 +994,17 @@ ipmi_detach(device_t dev)
 		destroy_dev(sc->ipmi_cdev);
 
 	/* Detach from watchdog handling and turn off watchdog. */
+	if (sc->ipmi_shutdown_tag)
+		EVENTHANDLER_DEREGISTER(shutdown_pre_sync,
+		sc->ipmi_shutdown_tag);
 	if (sc->ipmi_watchdog_tag) {
 		EVENTHANDLER_DEREGISTER(watchdog_list, sc->ipmi_watchdog_tag);
 		ipmi_set_watchdog(sc, 0);
 	}
+
+	/* Detach from shutdown handling for power cycle reboot */
+	if (sc->ipmi_power_cycle_tag)
+		EVENTHANDLER_DEREGISTER(shutdown_final, sc->ipmi_power_cycle_tag);
 
 	/* XXX: should use shutdown callout I think. */
 	/* If the backend uses a kthread, shut it down. */
@@ -834,14 +1012,16 @@ ipmi_detach(device_t dev)
 	sc->ipmi_detaching = 1;
 	if (sc->ipmi_kthread) {
 		cv_broadcast(&sc->ipmi_request_added);
-		msleep(sc->ipmi_kthread, &sc->ipmi_lock, 0, "ipmi_wait", 0);
+		msleep(sc->ipmi_kthread, &sc->ipmi_requests_lock, 0,
+		    "ipmi_wait", 0);
 	}
 	IPMI_UNLOCK(sc);
 	if (sc->ipmi_irq)
 		bus_teardown_intr(dev, sc->ipmi_irq_res, sc->ipmi_irq);
 
 	ipmi_release_resources(dev);
-	mtx_destroy(&sc->ipmi_lock);
+	mtx_destroy(&sc->ipmi_io_lock);
+	mtx_destroy(&sc->ipmi_requests_lock);
 	return (0);
 }
 
@@ -873,6 +1053,8 @@ ipmi_unload(void *arg)
 	int		count;
 	int		i;
 
+	if (ipmi_devclass == NULL)
+		return;
 	if (devclass_get_devices(ipmi_devclass, &devs, &count) != 0)
 		return;
 	for (i = 0; i < count; i++)

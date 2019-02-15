@@ -1,6 +1,8 @@
 /*	$NetBSD: xdr_array.c,v 1.12 2000/01/22 22:19:18 mycroft Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2010, Oracle America, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,13 +66,15 @@ __FBSDID("$FreeBSD$");
  * xdr procedure to call to handle each element of the array.
  */
 bool_t
-xdr_array(xdrs, addrp, sizep, maxsize, elsize, elproc)
-	XDR *xdrs;
-	caddr_t *addrp;		/* array pointer */
-	u_int *sizep;		/* number of elements */
-	u_int maxsize;		/* max numberof elements */
-	u_int elsize;		/* size in bytes of each element */
-	xdrproc_t elproc;	/* xdr routine to handle each element */
+xdr_array(XDR *xdrs, caddr_t *addrp, u_int *sizep, u_int maxsize, u_int elsize, xdrproc_t elproc)
+/*
+ *	XDR *xdrs;
+ *	caddr_t *addrp;		// array pointer
+ *	u_int *sizep;		// number of elements
+ *	u_int maxsize;		// max numberof elements
+ *	u_int elsize;		// size in bytes of each element
+ *	xdrproc_t elproc;	// xdr routine to handle each element
+ */
 {
 	u_int i;
 	caddr_t target = *addrp;
@@ -142,12 +146,7 @@ xdr_array(xdrs, addrp, sizep, maxsize, elsize, elproc)
  * > xdr_elem: routine to XDR each element
  */
 bool_t
-xdr_vector(xdrs, basep, nelem, elemsize, xdr_elem)
-	XDR *xdrs;
-	char *basep;
-	u_int nelem;
-	u_int elemsize;
-	xdrproc_t xdr_elem;	
+xdr_vector(XDR *xdrs, char *basep, u_int nelem, u_int elemsize, xdrproc_t xdr_elem)
 {
 	u_int i;
 	char *elptr;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2012  Mark Nudelman
+ * Copyright (C) 1984-2017  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -85,9 +85,9 @@ ap_str(s)
 {
 	int len;
 
-	len = strlen(s);
+	len = (int) strlen(s);
 	if (mp + len >= message + PROMPT_SIZE)
-		len = message + PROMPT_SIZE - mp - 1;
+		len = (int) (message + PROMPT_SIZE - mp - 1);
 	strncpy(mp, s, len);
 	mp += len;
 	*mp = '\0';
@@ -394,9 +394,9 @@ protochar(c, where, iseditproto)
  */
 	static constant char *
 skipcond(p)
-	register constant char *p;
+	constant char *p;
 {
-	register int iflevel;
+	int iflevel;
 
 	/*
 	 * We came in here after processing a ? or :,
@@ -464,7 +464,7 @@ wherechar(p, wp)
 		case 'm':   *wp = MIDDLE;		break;
 		case 'b':   *wp = BOTTOM;		break;
 		case 'B':   *wp = BOTTOM_PLUS_ONE;	break;
-		case 'j':   *wp = adjsline(jump_sline);	break;
+		case 'j':   *wp = sindex_from_sline(jump_sline); break;
 		default:    *wp = TOP;  p--;		break;
 		}
 	}
@@ -479,8 +479,8 @@ pr_expand(proto, maxwidth)
 	constant char *proto;
 	int maxwidth;
 {
-	register constant char *p;
-	register int c;
+	constant char *p;
+	int c;
 	int where;
 
 	mp = message;

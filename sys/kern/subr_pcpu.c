@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2001 Wind River Systems, Inc.
  * All rights reserved.
  * Written by: John Baldwin <jhb@FreeBSD.org>
@@ -14,7 +16,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the author nor the names of any co-contributors
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -70,7 +72,7 @@ struct dpcpu_free {
 	TAILQ_ENTRY(dpcpu_free) df_link;
 };
 
-static DPCPU_DEFINE(char, modspace[DPCPU_MODMIN]);
+DPCPU_DEFINE_STATIC(char, modspace[DPCPU_MODMIN] __aligned(__alignof(void *)));
 static TAILQ_HEAD(, dpcpu_free) dpcpu_head = TAILQ_HEAD_INITIALIZER(dpcpu_head);
 static struct sx dpcpu_lock;
 uintptr_t dpcpu_off[MAXCPU];
@@ -125,7 +127,7 @@ dpcpu_startup(void *dummy __unused)
 	TAILQ_INSERT_HEAD(&dpcpu_head, df, df_link);
 	sx_init(&dpcpu_lock, "dpcpu alloc lock");
 }
-SYSINIT(dpcpu, SI_SUB_KLD, SI_ORDER_FIRST, dpcpu_startup, 0);
+SYSINIT(dpcpu, SI_SUB_KLD, SI_ORDER_FIRST, dpcpu_startup, NULL);
 
 /*
  * UMA_PCPU_ZONE zones, that are available for all kernel
@@ -149,7 +151,7 @@ pcpu_zones_startup(void)
 		pcpu_zone_ptr = uma_zcreate("ptr pcpu", sizeof(void *),
 		    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_PCPU);
 }
-SYSINIT(pcpu_zones, SI_SUB_KMEM, SI_ORDER_ANY, pcpu_zones_startup, NULL);
+SYSINIT(pcpu_zones, SI_SUB_VM, SI_ORDER_ANY, pcpu_zones_startup, NULL);
 
 /*
  * First-fit extent based allocator for allocating space in the per-cpu
@@ -248,7 +250,7 @@ dpcpu_copy(void *s, int size)
 	uintptr_t dpcpu;
 	int i;
 
-	for (i = 0; i < mp_ncpus; ++i) {
+	CPU_FOREACH(i) {
 		dpcpu = dpcpu_off[i];
 		if (dpcpu == 0)
 			continue;
@@ -289,7 +291,7 @@ sysctl_dpcpu_quad(SYSCTL_HANDLER_ARGS)
 	int i;
 
 	count = 0;
-	for (i = 0; i < mp_ncpus; ++i) {
+	CPU_FOREACH(i) {
 		dpcpu = dpcpu_off[i];
 		if (dpcpu == 0)
 			continue;
@@ -306,7 +308,7 @@ sysctl_dpcpu_long(SYSCTL_HANDLER_ARGS)
 	int i;
 
 	count = 0;
-	for (i = 0; i < mp_ncpus; ++i) {
+	CPU_FOREACH(i) {
 		dpcpu = dpcpu_off[i];
 		if (dpcpu == 0)
 			continue;
@@ -323,7 +325,7 @@ sysctl_dpcpu_int(SYSCTL_HANDLER_ARGS)
 	int i;
 
 	count = 0;
-	for (i = 0; i < mp_ncpus; ++i) {
+	CPU_FOREACH(i) {
 		dpcpu = dpcpu_off[i];
 		if (dpcpu == 0)
 			continue;
@@ -354,8 +356,8 @@ show_pcpu(struct pcpu *pc)
 	db_printf("curthread    = ");
 	td = pc->pc_curthread;
 	if (td != NULL)
-		db_printf("%p: pid %d \"%s\"\n", td, td->td_proc->p_pid,
-		    td->td_name);
+		db_printf("%p: pid %d tid %d \"%s\"\n", td, td->td_proc->p_pid,
+		    td->td_tid, td->td_name);
 	else
 		db_printf("none\n");
 	db_printf("curpcb       = %p\n", pc->pc_curpcb);
@@ -407,7 +409,7 @@ DB_SHOW_ALL_COMMAND(pcpu, db_show_cpu_all)
 	int id;
 
 	db_printf("Current CPU: %d\n\n", PCPU_GET(cpuid));
-	for (id = 0; id <= mp_maxid; id++) {
+	CPU_FOREACH(id) {
 		pc = pcpu_find(id);
 		if (pc != NULL) {
 			show_pcpu(pc);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998, 2001 Nicolas Souchu
  * All rights reserved.
  *
@@ -149,22 +151,9 @@ iicbb_attach(device_t dev)
 static int
 iicbb_detach(device_t dev)
 {
-	struct iicbb_softc *sc = (struct iicbb_softc *)device_get_softc(dev);
-	device_t child;
 
-	/*
-	 * We need to save child because the detach indirectly causes
-	 * sc->iicbus to be zeroed.  Since we added the device
-	 * unconditionally in iicbb_attach, we need to make sure we
-	 * delete it here.  See iicbb_child_detached.  We need that
-	 * callback in case newbus detached our children w/o detaching
-	 * us (say iicbus is a module and unloaded w/o iicbb being
-	 * unloaded).
-	 */
-	child = sc->iicbus;
 	bus_generic_detach(dev);
-	if (child)
-		device_delete_child(dev, child);
+	device_delete_children(dev);
 
 	return (0);
 }

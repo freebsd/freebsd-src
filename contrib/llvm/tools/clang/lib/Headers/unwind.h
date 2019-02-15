@@ -26,8 +26,8 @@
 #ifndef __CLANG_UNWIND_H
 #define __CLANG_UNWIND_H
 
-#if __has_include_next(<unwind.h>)
-/* Darwin (from 11.x on) and libunwind provide an unwind.h. If that's available,
+#if defined(__APPLE__) && __has_include_next(<unwind.h>)
+/* Darwin (from 11.x on) provide an unwind.h. If that's available,
  * use it. libunwind wraps some of its definitions in #ifdef _GNU_SOURCE,
  * so define that around the include.*/
 # ifndef _GNU_SOURCE
@@ -76,9 +76,19 @@ typedef intptr_t _sleb128_t;
 typedef uintptr_t _uleb128_t;
 
 struct _Unwind_Context;
+#if defined(__arm__) && !(defined(__USING_SJLJ_EXCEPTIONS__) || defined(__ARM_DWARF_EH__))
+struct _Unwind_Control_Block;
+typedef struct _Unwind_Control_Block _Unwind_Exception; /* Alias */
+#else
 struct _Unwind_Exception;
+typedef struct _Unwind_Exception _Unwind_Exception;
+#endif
 typedef enum {
   _URC_NO_REASON = 0,
+#if defined(__arm__) && !defined(__USING_SJLJ_EXCEPTIONS__) && \
+    !defined(__ARM_DWARF_EH__)
+  _URC_OK = 0, /* used by ARM EHABI */
+#endif
   _URC_FOREIGN_EXCEPTION_CAUGHT = 1,
 
   _URC_FATAL_PHASE2_ERROR = 2,
@@ -88,7 +98,11 @@ typedef enum {
   _URC_END_OF_STACK = 5,
   _URC_HANDLER_FOUND = 6,
   _URC_INSTALL_CONTEXT = 7,
-  _URC_CONTINUE_UNWIND = 8
+  _URC_CONTINUE_UNWIND = 8,
+#if defined(__arm__) && !defined(__USING_SJLJ_EXCEPTIONS__) && \
+    !defined(__ARM_DWARF_EH__)
+  _URC_FAILURE = 9 /* used by ARM EHABI */
+#endif
 } _Unwind_Reason_Code;
 
 typedef enum {
@@ -101,8 +115,42 @@ typedef enum {
 } _Unwind_Action;
 
 typedef void (*_Unwind_Exception_Cleanup_Fn)(_Unwind_Reason_Code,
-                                             struct _Unwind_Exception *);
+                                             _Unwind_Exception *);
 
+#if defined(__arm__) && !(defined(__USING_SJLJ_EXCEPTIONS__) || defined(__ARM_DWARF_EH__))
+typedef struct _Unwind_Control_Block _Unwind_Control_Block;
+typedef uint32_t _Unwind_EHT_Header;
+
+struct _Unwind_Control_Block {
+  uint64_t exception_class;
+  void (*exception_cleanup)(_Unwind_Reason_Code, _Unwind_Control_Block *);
+  /* unwinder cache (private fields for the unwinder's use) */
+  struct {
+    uint32_t reserved1; /* forced unwind stop function, 0 if not forced */
+    uint32_t reserved2; /* personality routine */
+    uint32_t reserved3; /* callsite */
+    uint32_t reserved4; /* forced unwind stop argument */
+    uint32_t reserved5;
+  } unwinder_cache;
+  /* propagation barrier cache (valid after phase 1) */
+  struct {
+    uint32_t sp;
+    uint32_t bitpattern[5];
+  } barrier_cache;
+  /* cleanup cache (preserved over cleanup) */
+  struct {
+    uint32_t bitpattern[4];
+  } cleanup_cache;
+  /* personality cache (for personality's benefit) */
+  struct {
+    uint32_t fnstart;         /* function start address */
+    _Unwind_EHT_Header *ehtp; /* pointer to EHT entry header word */
+    uint32_t additional;      /* additional data */
+    uint32_t reserved1;
+  } pr_cache;
+  long long int : 0; /* force alignment of next item to 8-byte boundary */
+} __attribute__((__aligned__(8)));
+#else
 struct _Unwind_Exception {
   _Unwind_Exception_Class exception_class;
   _Unwind_Exception_Cleanup_Fn exception_cleanup;
@@ -112,23 +160,24 @@ struct _Unwind_Exception {
    * aligned".  GCC has interpreted this to mean "use the maximum useful
    * alignment for the target"; so do we. */
 } __attribute__((__aligned__));
+#endif
 
 typedef _Unwind_Reason_Code (*_Unwind_Stop_Fn)(int, _Unwind_Action,
                                                _Unwind_Exception_Class,
-                                               struct _Unwind_Exception *,
+                                               _Unwind_Exception *,
                                                struct _Unwind_Context *,
                                                void *);
 
-typedef _Unwind_Reason_Code (*_Unwind_Personality_Fn)(
-    int, _Unwind_Action, _Unwind_Exception_Class, struct _Unwind_Exception *,
-    struct _Unwind_Context *);
+typedef _Unwind_Reason_Code (*_Unwind_Personality_Fn)(int, _Unwind_Action,
+                                                      _Unwind_Exception_Class,
+                                                      _Unwind_Exception *,
+                                                      struct _Unwind_Context *);
 typedef _Unwind_Personality_Fn __personality_routine;
 
 typedef _Unwind_Reason_Code (*_Unwind_Trace_Fn)(struct _Unwind_Context *,
                                                 void *);
 
-#if defined(__arm__) && !defined(__APPLE__)
-
+#if defined(__arm__) && !(defined(__USING_SJLJ_EXCEPTIONS__) || defined(__ARM_DWARF_EH__))
 typedef enum {
   _UVRSC_CORE = 0,        /* integer register */
   _UVRSC_VFP = 1,         /* vfp */
@@ -149,6 +198,13 @@ typedef enum {
   _UVRSR_NOT_IMPLEMENTED = 1,
   _UVRSR_FAILED = 2
 } _Unwind_VRS_Result;
+
+typedef uint32_t _Unwind_State;
+#define _US_VIRTUAL_UNWIND_FRAME  ((_Unwind_State)0)
+#define _US_UNWIND_FRAME_STARTING ((_Unwind_State)1)
+#define _US_UNWIND_FRAME_RESUME   ((_Unwind_State)2)
+#define _US_ACTION_MASK           ((_Unwind_State)3)
+#define _US_FORCE_UNWIND          ((_Unwind_State)8)
 
 _Unwind_VRS_Result _Unwind_VRS_Get(struct _Unwind_Context *__context,
   _Unwind_VRS_RegClass __regclass,
@@ -199,19 +255,20 @@ _Unwind_Word _Unwind_GetIPInfo(struct _Unwind_Context *, int *);
 
 _Unwind_Word _Unwind_GetCFA(struct _Unwind_Context *);
 
+_Unwind_Word _Unwind_GetBSP(struct _Unwind_Context *);
+
 void *_Unwind_GetLanguageSpecificData(struct _Unwind_Context *);
 
 _Unwind_Ptr _Unwind_GetRegionStart(struct _Unwind_Context *);
 
 /* DWARF EH functions; currently not available on Darwin/ARM */
 #if !defined(__APPLE__) || !defined(__arm__)
-
-_Unwind_Reason_Code _Unwind_RaiseException(struct _Unwind_Exception *);
-_Unwind_Reason_Code _Unwind_ForcedUnwind(struct _Unwind_Exception *,
-                                         _Unwind_Stop_Fn, void *);
-void _Unwind_DeleteException(struct _Unwind_Exception *);
-void _Unwind_Resume(struct _Unwind_Exception *);
-_Unwind_Reason_Code _Unwind_Resume_or_Rethrow(struct _Unwind_Exception *);
+_Unwind_Reason_Code _Unwind_RaiseException(_Unwind_Exception *);
+_Unwind_Reason_Code _Unwind_ForcedUnwind(_Unwind_Exception *, _Unwind_Stop_Fn,
+                                         void *);
+void _Unwind_DeleteException(_Unwind_Exception *);
+void _Unwind_Resume(_Unwind_Exception *);
+_Unwind_Reason_Code _Unwind_Resume_or_Rethrow(_Unwind_Exception *);
 
 #endif
 
@@ -222,20 +279,20 @@ typedef struct SjLj_Function_Context *_Unwind_FunctionContext_t;
 
 void _Unwind_SjLj_Register(_Unwind_FunctionContext_t);
 void _Unwind_SjLj_Unregister(_Unwind_FunctionContext_t);
-_Unwind_Reason_Code _Unwind_SjLj_RaiseException(struct _Unwind_Exception *);
-_Unwind_Reason_Code _Unwind_SjLj_ForcedUnwind(struct _Unwind_Exception *,
+_Unwind_Reason_Code _Unwind_SjLj_RaiseException(_Unwind_Exception *);
+_Unwind_Reason_Code _Unwind_SjLj_ForcedUnwind(_Unwind_Exception *,
                                               _Unwind_Stop_Fn, void *);
-void _Unwind_SjLj_Resume(struct _Unwind_Exception *);
-_Unwind_Reason_Code _Unwind_SjLj_Resume_or_Rethrow(struct _Unwind_Exception *);
+void _Unwind_SjLj_Resume(_Unwind_Exception *);
+_Unwind_Reason_Code _Unwind_SjLj_Resume_or_Rethrow(_Unwind_Exception *);
 
 void *_Unwind_FindEnclosingFunction(void *);
 
 #ifdef __APPLE__
 
 _Unwind_Ptr _Unwind_GetDataRelBase(struct _Unwind_Context *)
-    __attribute__((unavailable));
+    __attribute__((__unavailable__));
 _Unwind_Ptr _Unwind_GetTextRelBase(struct _Unwind_Context *)
-    __attribute__((unavailable));
+    __attribute__((__unavailable__));
 
 /* Darwin-specific functions */
 void __register_frame(const void *);
@@ -249,15 +306,15 @@ struct dwarf_eh_bases {
 void *_Unwind_Find_FDE(const void *, struct dwarf_eh_bases *);
 
 void __register_frame_info_bases(const void *, void *, void *, void *)
-  __attribute__((unavailable));
-void __register_frame_info(const void *, void *) __attribute__((unavailable));
+  __attribute__((__unavailable__));
+void __register_frame_info(const void *, void *) __attribute__((__unavailable__));
 void __register_frame_info_table_bases(const void *, void*, void *, void *)
-  __attribute__((unavailable));
+  __attribute__((__unavailable__));
 void __register_frame_info_table(const void *, void *)
-  __attribute__((unavailable));
-void __register_frame_table(const void *) __attribute__((unavailable));
-void __deregister_frame_info(const void *) __attribute__((unavailable));
-void __deregister_frame_info_bases(const void *)__attribute__((unavailable));
+  __attribute__((__unavailable__));
+void __register_frame_table(const void *) __attribute__((__unavailable__));
+void __deregister_frame_info(const void *) __attribute__((__unavailable__));
+void __deregister_frame_info_bases(const void *)__attribute__((__unavailable__));
 
 #else
 

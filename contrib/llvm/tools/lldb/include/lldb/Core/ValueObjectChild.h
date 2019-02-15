@@ -10,113 +10,90 @@
 #ifndef liblldb_ValueObjectChild_h_
 #define liblldb_ValueObjectChild_h_
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/ValueObject.h"
+
+#include "lldb/Symbol/CompilerType.h"       // for CompilerType
+#include "lldb/Utility/ConstString.h"       // for ConstString
+#include "lldb/lldb-defines.h"              // for DISALLOW_COPY_AND_ASSIGN
+#include "lldb/lldb-enumerations.h"         // for ValueType
+#include "lldb/lldb-private-enumerations.h" // for LazyBool, AddressType
+#include "lldb/lldb-types.h"                // for offset_t
+
+#include "llvm/ADT/Optional.h"
+
+#include <stddef.h> // for size_t
+#include <stdint.h> // for uint32_t, uint64_t, int32_t
 
 namespace lldb_private {
 
 //----------------------------------------------------------------------
 // A child of another ValueObject.
 //----------------------------------------------------------------------
-class ValueObjectChild : public ValueObject
-{
+class ValueObjectChild : public ValueObject {
 public:
-    virtual ~ValueObjectChild();
+  ~ValueObjectChild() override;
 
-    virtual uint64_t
-    GetByteSize()
-    {
-        return m_byte_size;
-    }
+  uint64_t GetByteSize() override { return m_byte_size; }
 
-    virtual off_t
-    GetByteOffset()
-    {
-        return m_byte_offset;
-    }
+  lldb::offset_t GetByteOffset() override { return m_byte_offset; }
 
-    virtual uint32_t
-    GetBitfieldBitSize()
-    {
-        return m_bitfield_bit_size;
-    }
+  uint32_t GetBitfieldBitSize() override { return m_bitfield_bit_size; }
 
-    virtual uint32_t
-    GetBitfieldBitOffset()
-    {
-        return m_bitfield_bit_offset;
-    }
+  uint32_t GetBitfieldBitOffset() override { return m_bitfield_bit_offset; }
 
-    virtual lldb::ValueType
-    GetValueType() const;
+  lldb::ValueType GetValueType() const override;
 
-    virtual size_t
-    CalculateNumChildren();
+  size_t CalculateNumChildren(uint32_t max) override;
 
-    virtual ConstString
-    GetTypeName();
+  ConstString GetTypeName() override;
 
-    virtual ConstString
-    GetQualifiedTypeName();
-    
-    virtual bool
-    IsInScope ();
+  ConstString GetQualifiedTypeName() override;
 
-    virtual bool
-    IsBaseClass ()
-    {
-        return m_is_base_class;
-    }
+  ConstString GetDisplayTypeName() override;
 
-    virtual bool
-    IsDereferenceOfParent ()
-    {
-        return m_is_deref_of_parent;
-    }
+  bool IsInScope() override;
+
+  bool IsBaseClass() override { return m_is_base_class; }
+
+  bool IsDereferenceOfParent() override { return m_is_deref_of_parent; }
 
 protected:
-    virtual bool
-    UpdateValue ();
+  bool UpdateValue() override;
 
-    virtual ClangASTType
-    GetClangTypeImpl ()
-    {
-        return m_clang_type;
-    }
-    
-    ClangASTType m_clang_type;
-    ConstString m_type_name;
-    uint64_t m_byte_size;
-    int32_t m_byte_offset;
-    uint8_t m_bitfield_bit_size;
-    uint8_t m_bitfield_bit_offset;
-    bool m_is_base_class;
-    bool m_is_deref_of_parent;
+  LazyBool CanUpdateWithInvalidExecutionContext() override;
 
-//
-//  void
-//  ReadValueFromMemory (ValueObject* parent, lldb::addr_t address);
+  CompilerType GetCompilerTypeImpl() override { return m_compiler_type; }
+
+  CompilerType m_compiler_type;
+  ConstString m_type_name;
+  uint64_t m_byte_size;
+  int32_t m_byte_offset;
+  uint8_t m_bitfield_bit_size;
+  uint8_t m_bitfield_bit_offset;
+  bool m_is_base_class;
+  bool m_is_deref_of_parent;
+  llvm::Optional<LazyBool> m_can_update_with_invalid_exe_ctx;
+
+  //
+  //  void
+  //  ReadValueFromMemory (ValueObject* parent, lldb::addr_t address);
 
 protected:
-    friend class ValueObject;
-    friend class ValueObjectConstResult;
-    ValueObjectChild (ValueObject &parent,
-                      const ClangASTType &clang_type,
-                      const ConstString &name,
-                      uint64_t byte_size,
-                      int32_t byte_offset,
-                      uint32_t bitfield_bit_size,
-                      uint32_t bitfield_bit_offset,
-                      bool is_base_class,
-                      bool is_deref_of_parent,
-                      AddressType child_ptr_or_ref_addr_type);
+  friend class ValueObject;
+  friend class ValueObjectConstResult;
+  friend class ValueObjectConstResultImpl;
 
-    DISALLOW_COPY_AND_ASSIGN (ValueObjectChild);
+  ValueObjectChild(ValueObject &parent, const CompilerType &compiler_type,
+                   const ConstString &name, uint64_t byte_size,
+                   int32_t byte_offset, uint32_t bitfield_bit_size,
+                   uint32_t bitfield_bit_offset, bool is_base_class,
+                   bool is_deref_of_parent,
+                   AddressType child_ptr_or_ref_addr_type,
+                   uint64_t language_flags);
+
+  DISALLOW_COPY_AND_ASSIGN(ValueObjectChild);
 };
 
 } // namespace lldb_private
 
-#endif  // liblldb_ValueObjectChild_h_
+#endif // liblldb_ValueObjectChild_h_

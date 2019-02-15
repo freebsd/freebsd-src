@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Mark Johnston <markj@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,17 +34,45 @@
 	SDT_PROBE6(ip, , , probe, arg0, arg1, arg2, arg3, arg4, arg5)
 #define	UDP_PROBE(probe, arg0, arg1, arg2, arg3, arg4)			\
 	SDT_PROBE5(udp, , , probe, arg0, arg1, arg2, arg3, arg4)
+#define	UDPLITE_PROBE(probe, arg0, arg1, arg2, arg3, arg4)		\
+	SDT_PROBE5(udplite, , , probe, arg0, arg1, arg2, arg3, arg4)
+#define	TCP_PROBE1(probe, arg0)						\
+	SDT_PROBE1(tcp, , , probe, arg0)
+#define	TCP_PROBE2(probe, arg0, arg1)					\
+	SDT_PROBE2(tcp, , , probe, arg0, arg1)
+#define	TCP_PROBE3(probe, arg0, arg1, arg2)				\
+	SDT_PROBE3(tcp, , , probe, arg0, arg1, arg2)
+#define	TCP_PROBE4(probe, arg0, arg1, arg2, arg3)			\
+	SDT_PROBE4(tcp, , , probe, arg0, arg1, arg2, arg3)
 #define	TCP_PROBE5(probe, arg0, arg1, arg2, arg3, arg4)			\
 	SDT_PROBE5(tcp, , , probe, arg0, arg1, arg2, arg3, arg4)
 #define	TCP_PROBE6(probe, arg0, arg1, arg2, arg3, arg4, arg5)		\
 	SDT_PROBE6(tcp, , , probe, arg0, arg1, arg2, arg3, arg4, arg5)
+#define	SCTP_PROBE1(probe, arg0)					\
+	SDT_PROBE1(sctp, , , probe, arg0)
+#define	SCTP_PROBE2(probe, arg0, arg1)					\
+	SDT_PROBE2(sctp, , , probe, arg0, arg1)
+#define	SCTP_PROBE3(probe, arg0, arg1, arg2)				\
+	SDT_PROBE3(sctp, , , probe, arg0, arg1, arg2)
+#define	SCTP_PROBE4(probe, arg0, arg1, arg2, arg3)			\
+	SDT_PROBE4(sctp, , , probe, arg0, arg1, arg2, arg3)
+#define	SCTP_PROBE5(probe, arg0, arg1, arg2, arg3, arg4)		\
+	SDT_PROBE5(sctp, , , probe, arg0, arg1, arg2, arg3, arg4)
+#define	SCTP_PROBE6(probe, arg0, arg1, arg2, arg3, arg4, arg5)		\
+	SDT_PROBE6(sctp, , , probe, arg0, arg1, arg2, arg3, arg4, arg5)
 
 SDT_PROVIDER_DECLARE(ip);
+SDT_PROVIDER_DECLARE(sctp);
 SDT_PROVIDER_DECLARE(tcp);
 SDT_PROVIDER_DECLARE(udp);
+SDT_PROVIDER_DECLARE(udplite);
 
 SDT_PROBE_DECLARE(ip, , , receive);
 SDT_PROBE_DECLARE(ip, , , send);
+
+SDT_PROBE_DECLARE(sctp, , , receive);
+SDT_PROBE_DECLARE(sctp, , , send);
+SDT_PROBE_DECLARE(sctp, , , state__change);
 
 SDT_PROBE_DECLARE(tcp, , , accept__established);
 SDT_PROBE_DECLARE(tcp, , , accept__refused);
@@ -51,9 +81,18 @@ SDT_PROBE_DECLARE(tcp, , , connect__refused);
 SDT_PROBE_DECLARE(tcp, , , connect__request);
 SDT_PROBE_DECLARE(tcp, , , receive);
 SDT_PROBE_DECLARE(tcp, , , send);
+SDT_PROBE_DECLARE(tcp, , , siftr);
 SDT_PROBE_DECLARE(tcp, , , state__change);
+SDT_PROBE_DECLARE(tcp, , , debug__input);
+SDT_PROBE_DECLARE(tcp, , , debug__output);
+SDT_PROBE_DECLARE(tcp, , , debug__user);
+SDT_PROBE_DECLARE(tcp, , , debug__drop);
+SDT_PROBE_DECLARE(tcp, , , receive__autoresize);
 
 SDT_PROBE_DECLARE(udp, , , receive);
 SDT_PROBE_DECLARE(udp, , , send);
+
+SDT_PROBE_DECLARE(udplite, , , receive);
+SDT_PROBE_DECLARE(udplite, , , send);
 
 #endif

@@ -119,7 +119,7 @@ void *
 x86bios_alloc(uint32_t *offset, size_t size, int flags)
 {
 	void *vaddr;
-	int i;
+	u_int i;
 
 	if (offset == NULL || size == 0)
 		return (NULL);
@@ -586,7 +586,7 @@ x86bios_call(struct x86regs *regs, uint16_t seg, uint16_t off)
 		X86BIOS_TRACE(Calling 0x%06x, (seg << 4) + off, regs);
 
 	mtx_lock(&x86bios_lock);
-	memcpy(&x86bios_emu.x86, regs, sizeof(*regs));
+	memcpy((struct x86regs *)&x86bios_emu.x86, regs, sizeof(*regs));
 	x86bios_fault = 0;
 	spinlock_enter();
 	x86emu_exec_call(&x86bios_emu, seg, off);
@@ -628,7 +628,7 @@ x86bios_intr(struct x86regs *regs, int intno)
 		X86BIOS_TRACE(Calling INT 0x%02x, intno, regs);
 
 	mtx_lock(&x86bios_lock);
-	memcpy(&x86bios_emu.x86, regs, sizeof(*regs));
+	memcpy((struct x86regs *)&x86bios_emu.x86, regs, sizeof(*regs));
 	x86bios_fault = 0;
 	spinlock_enter();
 	x86emu_exec_intr(&x86bios_emu, intno);
@@ -656,17 +656,24 @@ static __inline void
 x86bios_unmap_mem(void)
 {
 
-	free(x86bios_map, M_DEVBUF);
-	if (x86bios_ivt != NULL)
+	if (x86bios_map != NULL) {
+		free(x86bios_map, M_DEVBUF);
+		x86bios_map = NULL;
+	}
+	if (x86bios_ivt != NULL) {
 #ifdef X86BIOS_NATIVE_ARCH
 		pmap_unmapbios((vm_offset_t)x86bios_ivt, X86BIOS_IVT_SIZE);
 #else
 		free(x86bios_ivt, M_DEVBUF);
+		x86bios_ivt = NULL;
 #endif
+	}
 	if (x86bios_rom != NULL)
 		pmap_unmapdev((vm_offset_t)x86bios_rom, X86BIOS_ROM_SIZE);
-	if (x86bios_seg != NULL)
+	if (x86bios_seg != NULL) {
 		contigfree(x86bios_seg, X86BIOS_SEG_SIZE, M_DEVBUF);
+		x86bios_seg = NULL;
+	}
 }
 
 static __inline int
@@ -674,7 +681,9 @@ x86bios_map_mem(void)
 {
 
 	x86bios_map = malloc(sizeof(*x86bios_map) * X86BIOS_PAGES, M_DEVBUF,
-	    M_WAITOK | M_ZERO);
+	    M_NOWAIT | M_ZERO);
+	if (x86bios_map == NULL)
+		goto fail;
 
 #ifdef X86BIOS_NATIVE_ARCH
 	x86bios_ivt = pmap_mapbios(X86BIOS_IVT_BASE, X86BIOS_IVT_SIZE);
@@ -688,7 +697,9 @@ x86bios_map_mem(void)
 		    rounddown(x86bios_rom_phys, X86BIOS_PAGE_SIZE);
 	else
 #else
-	x86bios_ivt = malloc(X86BIOS_IVT_SIZE, M_DEVBUF, M_ZERO | M_WAITOK);
+	x86bios_ivt = malloc(X86BIOS_IVT_SIZE, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (x86bios_ivt == NULL)
+		goto fail;
 #endif
 
 	x86bios_rom_phys = X86BIOS_ROM_BASE;
@@ -703,8 +714,10 @@ x86bios_map_mem(void)
 		goto fail;
 #endif
 
-	x86bios_seg = contigmalloc(X86BIOS_SEG_SIZE, M_DEVBUF, M_WAITOK,
+	x86bios_seg = contigmalloc(X86BIOS_SEG_SIZE, M_DEVBUF, M_NOWAIT,
 	    X86BIOS_RAM_BASE, x86bios_rom_phys, X86BIOS_PAGE_SIZE, 0);
+	if (x86bios_seg == NULL)
+	    goto fail;
 	x86bios_seg_phys = vtophys(x86bios_seg);
 
 	x86bios_set_pages((vm_offset_t)x86bios_ivt, X86BIOS_IVT_BASE,

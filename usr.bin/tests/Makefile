@@ -1,13 +1,10 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+PACKAGE=	tests
 
-TESTSDIR=	${TESTSBASE}/usr.bin
-
-.PATH:		${.CURDIR:H:H}/tests
+.PATH:		${SRCTOP}/tests
 KYUAFILE=	yes
 
-FILESDIR=	${TESTSDIR}
-FILES=		regress.m4
+${PACKAGE}FILES+=		regress.m4
 
 .include <bsd.test.mk>

@@ -3,10 +3,9 @@
 PROG=	smbutil
 SRCS=	smbutil.c dumptree.c login.c lookup.c view.c print.c
 
-DPADD=	${LIBSMB} ${LIBKICONV}
-LDADD=	-lsmb -lkiconv
+LIBADD=	smb
 
-CONTRIBDIR=	${.CURDIR}/../../contrib/smbfs
+CONTRIBDIR=	${SRCTOP}/contrib/smbfs
 CFLAGS+=	-I${CONTRIBDIR}/include
 
 WARNS?=	0

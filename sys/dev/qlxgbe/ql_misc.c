@@ -1,5 +1,7 @@
-/*
- * Copyright (c) 2013-2014 Qlogic Corporation
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2013-2016 Qlogic Corporation
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -77,7 +79,7 @@ ql_rdwr_indreg32(qla_host_t *ha, uint32_t addr, uint32_t *val, uint32_t rd)
 	if (!count || QL_ERR_INJECT(ha, INJCT_RDWR_INDREG_FAILURE)) {
 		device_printf(ha->pci_dev, "%s: [0x%08x, 0x%08x, %d] failed\n",
 			__func__, addr, *val, rd);
-		ha->qla_initiate_recovery = 1;
+		QL_INITIATE_RECOVERY(ha);
 		return -1;
 	}
 
@@ -210,7 +212,7 @@ exit_ql_rdwr_offchip_mem:
 		(uint32_t)(addr), val->data_lo, val->data_hi, val->data_ulo,
 		val->data_uhi, rd, step);
 
-	ha->qla_initiate_recovery = 1;
+	QL_INITIATE_RECOVERY(ha);
 
 	return (-1);
 }
@@ -661,6 +663,7 @@ ql_wr_flash_buffer_exit:
 	return (rval);
 }
 
+#ifdef QL_LDFLASH_FW
 /*
  * Name: qla_load_fw_from_flash
  * Function: Reads the Bootloader from Flash and Loads into Offchip Memory
@@ -704,6 +707,7 @@ qla_load_fw_from_flash(qla_host_t *ha)
 
 	return;
 }
+#endif /* #ifdef QL_LDFLASH_FW */
 
 /*
  * Name: qla_init_from_flash
@@ -771,12 +775,13 @@ ql_init_hw(qla_host_t *ha)
 			}
 			qla_mdelay(__func__, 100);
 		}
-		return (-1);
+		ret = -1;
+		goto ql_init_hw_exit;
 	}
 
 	
 	val = READ_REG32(ha, Q8_CMDPEG_STATE);
-	if (!cold || (val != 0xFF01)) {
+	if (!cold || (val != 0xFF01) || ha->qla_initiate_recovery) {
         	ret = qla_init_from_flash(ha);
 		qla_mdelay(__func__, 100);
 	}
@@ -790,6 +795,13 @@ qla_init_exit:
 		device_printf(dev, "%s: qla_get_fdt failed\n", __func__);
 	} else {
 		ha->hw.flags.fdt_valid = 1;
+	}
+
+ql_init_hw_exit:
+
+	if (ret) {
+		if (ha->hw.sp_log_stop_events & Q8_SP_LOG_STOP_HW_INIT_FAILURE)
+			ha->hw.sp_log_stop = -1;
 	}
 
         return (ret);
@@ -1179,6 +1191,93 @@ qla_tmplt_execute(qla_host_t *ha, uint8_t *buf, int start_idx, int *end_idx,
 	return (ret);
 }
 
+#ifndef QL_LDFLASH_FW
+static int
+qla_load_offchip_mem(qla_host_t *ha, uint64_t addr, uint32_t *data32,
+        uint32_t len32)
+{
+        q80_offchip_mem_val_t val;
+        int             ret = 0;
+
+        while (len32) {
+                if (len32 > 4) {
+                        val.data_lo = *data32++;
+                        val.data_hi = *data32++;
+                        val.data_ulo = *data32++;
+                        val.data_uhi = *data32++;
+                        len32 -= 4;
+                        if (ql_rdwr_offchip_mem(ha, addr, &val, 0))
+                                return -1;
+
+                        addr += (uint64_t)16;
+                } else {
+                        break;
+                }
+        }
+
+        bzero(&val, sizeof(q80_offchip_mem_val_t));
+
+        switch (len32) {
+        case 3:
+                val.data_lo = *data32++;
+                val.data_hi = *data32++;
+                val.data_ulo = *data32++;
+                 ret = ql_rdwr_offchip_mem(ha, addr, &val, 0);
+                break;
+
+        case 2:
+                val.data_lo = *data32++;
+                val.data_hi = *data32++;
+                 ret = ql_rdwr_offchip_mem(ha, addr, &val, 0);
+                break;
+
+        case 1:
+                val.data_lo = *data32++;
+                ret = ql_rdwr_offchip_mem(ha, addr, &val, 0);
+                break;
+
+        default:
+                break;
+
+        }
+        return ret;
+}
+
+
+static int
+qla_load_bootldr(qla_host_t *ha)
+{
+        uint64_t        addr;
+        uint32_t        *data32;
+        uint32_t        len32;
+        int             ret;
+
+        addr = (uint64_t)(READ_REG32(ha, Q8_BOOTLD_ADDR));
+        data32 = (uint32_t *)ql83xx_bootloader;
+        len32 = ql83xx_bootloader_len >> 2;
+
+        ret = qla_load_offchip_mem(ha, addr, data32, len32);
+
+        return (ret);
+}
+
+static int
+qla_load_fwimage(qla_host_t *ha)
+{
+        uint64_t        addr;
+        uint32_t        *data32;
+        uint32_t        len32;
+        int             ret;
+
+        addr = (uint64_t)(READ_REG32(ha, Q8_FW_IMAGE_ADDR));
+        data32 = (uint32_t *)ql83xx_firmware;
+        len32 = ql83xx_firmware_len >> 2;
+
+        ret = qla_load_offchip_mem(ha, addr, data32, len32);
+
+        return (ret);
+}
+#endif /* #ifndef QL_LDFLASH_FW */
 
 static int
 qla_ld_fw_init(qla_host_t *ha)
@@ -1191,6 +1290,7 @@ qla_ld_fw_init(qla_host_t *ha)
 
 	hdr = (q8_tmplt_hdr_t *)ql83xx_resetseq;
 
+	device_printf(ha->pci_dev, "%s: reset sequence\n", __func__);
 	if (qla_tmplt_16bit_checksum(ha, (uint16_t *)ql83xx_resetseq,
 		(uint32_t)hdr->size)) {
 		device_printf(ha->pci_dev, "%s: reset seq checksum failed\n",
@@ -1201,7 +1301,7 @@ qla_ld_fw_init(qla_host_t *ha)
 
 	buf = ql83xx_resetseq + hdr->stop_seq_off;
 
-//	device_printf(ha->pci_dev, "%s: stop sequence\n", __func__);
+	device_printf(ha->pci_dev, "%s: stop sequence\n", __func__);
 	if (qla_tmplt_execute(ha, buf, index , &end_idx, hdr->nentries)) {
 		device_printf(ha->pci_dev, "%s: stop seq failed\n", __func__);
 		return -1;
@@ -1211,19 +1311,29 @@ qla_ld_fw_init(qla_host_t *ha)
 
 	buf = ql83xx_resetseq + hdr->init_seq_off;
 
-//	device_printf(ha->pci_dev, "%s: init sequence\n", __func__);
+	device_printf(ha->pci_dev, "%s: init sequence\n", __func__);
 	if (qla_tmplt_execute(ha, buf, index , &end_idx, hdr->nentries)) {
 		device_printf(ha->pci_dev, "%s: init seq failed\n", __func__);
 		return -1;
 	}
 
+#ifdef QL_LDFLASH_FW
 	qla_load_fw_from_flash(ha);
 	WRITE_REG32(ha, Q8_FW_IMAGE_VALID, 0);
+#else
+        if (qla_load_bootldr(ha))
+                return -1;
+
+        if (qla_load_fwimage(ha))
+                return -1;
+
+        WRITE_REG32(ha, Q8_FW_IMAGE_VALID, 0x12345678);
+#endif /* #ifdef QL_LDFLASH_FW */
 
 	index = end_idx;
 	buf = ql83xx_resetseq + hdr->start_seq_off;
 
-//	device_printf(ha->pci_dev, "%s: start sequence\n", __func__);
+	device_printf(ha->pci_dev, "%s: start sequence\n", __func__);
 	if (qla_tmplt_execute(ha, buf, index , &end_idx, hdr->nentries)) {
 		device_printf(ha->pci_dev, "%s: init seq failed\n", __func__);
 		return -1;
@@ -1287,8 +1397,19 @@ ql_start_sequence(qla_host_t *ha, uint16_t index)
 		return (-1);
 	}
 
+#ifdef QL_LDFLASH_FW
 	qla_load_fw_from_flash(ha);
 	WRITE_REG32(ha, Q8_FW_IMAGE_VALID, 0);
+#else
+        if (qla_load_bootldr(ha))
+                return -1;
+
+        if (qla_load_fwimage(ha))
+                return -1;
+
+        WRITE_REG32(ha, Q8_FW_IMAGE_VALID, 0x12345678);
+#endif /* #ifdef QL_LDFLASH_FW */
+
 
 	index = end_idx;
 	buf = ql83xx_resetseq + hdr->start_seq_off;

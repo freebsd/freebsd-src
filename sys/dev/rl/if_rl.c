@@ -259,6 +259,8 @@ static driver_t rl_driver = {
 static devclass_t rl_devclass;
 
 DRIVER_MODULE(rl, pci, rl_driver, rl_devclass, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device", pci, rl, rl_devs,
+    nitems(rl_devs) - 1);
 DRIVER_MODULE(rl, cardbus, rl_driver, rl_devclass, 0, 0);
 DRIVER_MODULE(miibus, rl, miibus_driver, miibus_devclass, 0, 0);
 
@@ -276,7 +278,7 @@ DRIVER_MODULE(miibus, rl, miibus_driver, miibus_devclass, 0, 0);
 static void
 rl_eeprom_putbyte(struct rl_softc *sc, int addr)
 {
-	register int		d, i;
+	int			d, i;
 
 	d = addr | sc->rl_eecmd_read;
 
@@ -303,7 +305,7 @@ rl_eeprom_putbyte(struct rl_softc *sc, int addr)
 static void
 rl_eeprom_getword(struct rl_softc *sc, int addr, uint16_t *dest)
 {
-	register int		i;
+	int			i;
 	uint16_t		word = 0;
 
 	/* Enter EEPROM access mode. */
@@ -538,7 +540,7 @@ rl_rxfilter(struct rl_softc *sc)
 	} else {
 		/* Now program new ones. */
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
@@ -561,7 +563,7 @@ rl_rxfilter(struct rl_softc *sc)
 static void
 rl_reset(struct rl_softc *sc)
 {
-	register int		i;
+	int			i;
 
 	RL_LOCK_ASSERT(sc);
 
@@ -598,7 +600,7 @@ rl_probe(device_t dev)
 		}
 	}
 	t = rl_devs;
-	for (i = 0; i < sizeof(rl_devs) / sizeof(rl_devs[0]); i++, t++) {
+	for (i = 0; i < nitems(rl_devs); i++, t++) {
 		if (vendor == t->rl_vid && devid == t->rl_did) {
 			device_set_desc(dev, t->rl_name);
 			return (BUS_PROBE_DEFAULT);
@@ -1912,7 +1914,7 @@ rl_watchdog(struct rl_softc *sc)
 static void
 rl_stop(struct rl_softc *sc)
 {
-	register int		i;
+	int			i;
 	struct ifnet		*ifp = sc->rl_ifp;
 
 	RL_LOCK_ASSERT(sc);
@@ -1938,15 +1940,13 @@ rl_stop(struct rl_softc *sc)
 	 */
 	for (i = 0; i < RL_TX_LIST_CNT; i++) {
 		if (sc->rl_cdata.rl_tx_chain[i] != NULL) {
-			if (sc->rl_cdata.rl_tx_chain[i] != NULL) {
-				bus_dmamap_sync(sc->rl_cdata.rl_tx_tag,
-				    sc->rl_cdata.rl_tx_dmamap[i],
-				    BUS_DMASYNC_POSTWRITE);
-				bus_dmamap_unload(sc->rl_cdata.rl_tx_tag,
-				    sc->rl_cdata.rl_tx_dmamap[i]);
-				m_freem(sc->rl_cdata.rl_tx_chain[i]);
-				sc->rl_cdata.rl_tx_chain[i] = NULL;
-			}
+			bus_dmamap_sync(sc->rl_cdata.rl_tx_tag,
+			    sc->rl_cdata.rl_tx_dmamap[i],
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->rl_cdata.rl_tx_tag,
+			    sc->rl_cdata.rl_tx_dmamap[i]);
+			m_freem(sc->rl_cdata.rl_tx_chain[i]);
+			sc->rl_cdata.rl_tx_chain[i] = NULL;
 			CSR_WRITE_4(sc, RL_TXADDR0 + (i * sizeof(uint32_t)),
 			    0x0000000);
 		}

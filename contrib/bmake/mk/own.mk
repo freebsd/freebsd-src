@@ -1,4 +1,4 @@
-# $Id: own.mk,v 1.27 2013/07/18 05:46:24 sjg Exp $
+# $Id: own.mk,v 1.40 2018/04/23 04:53:57 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -7,7 +7,7 @@ __${.PARSEFILE}__:
 .include "init.mk"
 .endif
 
-.ifndef NOMAKECONF
+.if !defined(NOMAKECONF) && !defined(NO_MAKECONF)
 MAKECONF?=	/etc/mk.conf
 .-include "${MAKECONF}"
 .endif
@@ -20,8 +20,8 @@ TARGET_OSTYPE?= ${HOST_OSTYPE}
 TARGET_HOST?= ${HOST_TARGET}
 
 # these may or may not exist
-.-include "${TARGET_HOST}.mk"
-.-include "config.mk"
+.-include <${TARGET_HOST}.mk>
+.-include <config.mk>
 
 RM?= rm
 LN?= ln
@@ -35,7 +35,7 @@ libprefix?=	/usr
 .endif
 
 # FreeBSD at least does not set this
-MACHINE_ARCH?=${MACHINE}
+MACHINE_ARCH?=	${MACHINE}
 # we need to make sure these are defined too in case sys.mk fails to.
 COMPILE.s?=	${CC} ${AFLAGS} -c
 LINK.s?=	${CC} ${AFLAGS} ${LDFLAGS}
@@ -79,7 +79,7 @@ PRINTOBJDIR=	echo # prevent infinite recursion
 
 # we really like to have SRCTOP and OBJTOP defined...
 .if !defined(SRCTOP) || !defined(OBJTOP)
-.-include "srctop.mk"
+.-include <srctop.mk>
 .endif
 
 .if !defined(SRCTOP) || !defined(OBJTOP)
@@ -91,14 +91,13 @@ OPTIONS_DEFAULT_NO+= DPADD_MK
 OPTIONS_DEFAULT_NO+= \
 	INSTALL_AS_USER \
 	GPROF \
+	PROG_LDORDER_MK \
 	LIBTOOL \
 	LINT \
-	META_MODE \
 
 OPTIONS_DEFAULT_YES+= \
 	ARCHIVE \
 	AUTODEP \
-	AUTO_OBJ \
 	CRYPTO \
 	DOC \
 	DPADD_MK \
@@ -115,10 +114,12 @@ OPTIONS_DEFAULT_YES+= \
 
 OPTIONS_DEFAULT_DEPENDENT+= \
 	CATPAGES/MAN \
+	LDORDER_MK/PROG_LDORDER_MK \
 	OBJDIRS/OBJ \
 	PICINSTALL/LINKLIB \
 	PICLIB/PIC \
 	PROFILE/LINKLIB \
+	STAGING_PROG/STAGING \
 
 .include <options.mk>
 
@@ -130,9 +131,10 @@ _uid!=  id -u
 USERGRP!=  id -g
 .export USERGRP
 .endif
-.for x in BIN CONF DOC INFO KMOD LIB MAN NLS SHARE
+.for x in BIN CONF DOC INC INFO FILES KMOD LIB MAN NLS PROG SHARE
 $xOWN=  ${USER}
 $xGRP=  ${USERGRP}
+$x_INSTALL_OWN=
 .endfor
 .endif
 .endif
@@ -143,6 +145,10 @@ BINGRP?=	${ROOT_GROUP}
 BINOWN?=	root
 BINMODE?=	555
 NONBINMODE?=	444
+DIRMODE?=	755
+
+INCLUDEDIR?=	${prefix}/include
+INCDIR?=	${INCLUDEDIR}
 
 # Define MANZ to have the man pages compressed (gzip)
 #MANZ=		1
@@ -153,6 +159,7 @@ MANGRP?=	${BINGRP}
 MANOWN?=	${BINOWN}
 MANMODE?=	${NONBINMODE}
 
+INCLUDEDIR?=	${libprefix}/include
 LIBDIR?=	${libprefix}/lib
 SHLIBDIR?=	${libprefix}/lib
 .if ${USE_SHLIBDIR:Uno} == "yes"
@@ -181,6 +188,10 @@ KMODDIR?=	${prefix}/lkm
 KMODGRP?=	${BINGRP}
 KMODOWN?=	${BINOWN}
 KMODMODE?=	${NONBINMODE}
+
+SHAREGRP?=	${BINGRP}
+SHAREOWN?=	${BINOWN}
+SHAREMODE?=	${NONBINMODE}
 
 COPY?=		-c
 STRIP_FLAG?=	-s
@@ -240,6 +251,21 @@ MK_DOC=		no
 MK_INFO=	no
 MK_MAN=		no
 MK_NLS=		no
+.endif
+
+# :U incase not using our sys.mk
+.if ${MK_META_MODE:Uno} == "yes"
+# should all be set by sys.mk if not default
+TARGET_SPEC_VARS ?= MACHINE
+.if ${TARGET_SPEC_VARS:[#]} > 1
+TARGET_SPEC_VARS_REV := ${TARGET_SPEC_VARS:[-1..1]}
+.else
+TARGET_SPEC_VARS_REV = ${TARGET_SPEC_VARS}
+.endif
+.if ${MK_STAGING} == "yes"
+STAGE_ROOT?= ${OBJROOT}/stage
+STAGE_OBJTOP?= ${STAGE_ROOT}/${TARGET_SPEC_VARS_REV:ts/}
+.endif
 .endif
 
 .endif

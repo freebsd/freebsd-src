@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Daniel Eischen <deischen@FreeBSD.org>.
  * All rights reserved.
  *
@@ -56,6 +58,7 @@
 #define		bind				_bind
 #define		__cap_get_fd			___cap_get_fd
 #define		__cap_set_fd			___cap_set_fd
+#define		clock_nanosleep			_clock_nanosleep
 #define		close				_close
 #define		connect				_connect
 #define		dup				_dup
@@ -131,6 +134,7 @@
 #define		pthread_detach			_pthread_detach
 #define		pthread_equal			_pthread_equal
 #define		pthread_exit			_pthread_exit
+#define		pthread_get_name_np		_pthread_get_name_np
 #define		pthread_getaffinity_np		_pthread_getaffinity_np
 #define		pthread_getconcurrency		_pthread_getconcurrency
 #define		pthread_getcpuclockid		_pthread_getcpuclockid
@@ -208,6 +212,7 @@
 #define		readv				_readv
 #define		recvfrom			_recvfrom
 #define		recvmsg				_recvmsg
+#define		recvmmsg			_recvmmsg
 #define		select				_select
 #define		sem_close			_sem_close
 #define		sem_destroy			_sem_destroy
@@ -216,10 +221,12 @@
 #define		sem_open			_sem_open
 #define		sem_post			_sem_post
 #define		sem_timedwait			_sem_timedwait
+#define		sem_clockwait_np		_sem_clockwait_np
 #define		sem_trywait			_sem_trywait
 #define		sem_unlink			_sem_unlink
 #define		sem_wait			_sem_wait
 #define		sendmsg				_sendmsg
+#define		sendmmsg			_sendmmsg
 #define		sendto				_sendto
 #define		setsockopt			_setsockopt
 /*#define		sigaction			_sigaction*/

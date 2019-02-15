@@ -4,9 +4,8 @@ PROG=	ancontrol
 MAN=	ancontrol.8
 
 WARNS?=	3
-CFLAGS+= -DANCACHE -I${.CURDIR}/../../sys
+CFLAGS+= -DANCACHE -I${SRCTOP}/sys
 
-DPADD=	${LIBMD}
-LDADD=	-lmd
+LIBADD=	md
 
 .include <bsd.prog.mk>

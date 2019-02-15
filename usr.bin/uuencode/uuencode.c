@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -66,6 +68,7 @@ static void usage(void);
 
 static FILE *output;
 static int mode;
+static char raw = 0;
 static char **av;
 
 int
@@ -82,13 +85,16 @@ main(int argc, char *argv[])
 	if (strcmp(basename(argv[0]), "b64encode") == 0)
 		base64 = 1;
 
-	while ((ch = getopt(argc, argv, "mo:")) != -1) {
+	while ((ch = getopt(argc, argv, "mo:r")) != -1) {
 		switch (ch) {
 		case 'm':
 			base64 = 1;
 			break;
 		case 'o':
 			outfile = optarg;
+			break;
+		case 'r':
+			raw = 1;
 			break;
 		case '?':
 		default:
@@ -152,17 +158,19 @@ base64_encode(void)
 
 	sequence = 0;
 
-	fprintf(output, "begin-base64 %o %s\n", mode, *av);
+	if (!raw)
+		fprintf(output, "begin-base64 %o %s\n", mode, *av);
 	while ((n = fread(buf, 1, sizeof(buf), stdin))) {
 		++sequence;
-		rv = b64_ntop(buf, n, buf2, (sizeof(buf2) / sizeof(buf2[0])));
+		rv = b64_ntop(buf, n, buf2, nitems(buf2));
 		if (rv == -1)
 			errx(1, "b64_ntop: error encoding base64");
 		fprintf(output, "%s%s", buf2, (sequence % GROUPS) ? "" : "\n");
 	}
 	if (sequence % GROUPS)
 		fprintf(output, "\n");
-	fprintf(output, "====\n");
+	if (!raw)
+		fprintf(output, "====\n");
 }
 
 /*
@@ -175,7 +183,8 @@ encode(void)
 	register char *p;
 	char buf[80];
 
-	(void)fprintf(output, "begin %o %s\n", mode, *av);
+	if (!raw)
+		(void)fprintf(output, "begin %o %s\n", mode, *av);
 	while ((n = fread(buf, 1, 45, stdin))) {
 		ch = ENC(n);
 		if (fputc(ch, output) == EOF)
@@ -209,7 +218,8 @@ encode(void)
 	}
 	if (ferror(stdin))
 		errx(1, "read error");
-	(void)fprintf(output, "%c\nend\n", ENC('\0'));
+	if (!raw)
+		(void)fprintf(output, "%c\nend\n", ENC('\0'));
 }
 
 static void

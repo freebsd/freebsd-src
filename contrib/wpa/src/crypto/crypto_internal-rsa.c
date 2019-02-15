@@ -26,6 +26,15 @@ struct crypto_public_key * crypto_public_key_import(const u8 *key, size_t len)
 }
 
 
+struct crypto_public_key *
+crypto_public_key_import_parts(const u8 *n, size_t n_len,
+			       const u8 *e, size_t e_len)
+{
+	return (struct crypto_public_key *)
+		crypto_rsa_import_public_key_parts(n, n_len, e, e_len);
+}
+
+
 struct crypto_private_key * crypto_private_key_import(const u8 *key,
 						      size_t len,
 						      const char *passwd)

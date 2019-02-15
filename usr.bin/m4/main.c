@@ -1,7 +1,9 @@
-/*	$OpenBSD: main.c,v 1.83 2014/05/12 19:11:19 espie Exp $ */
+/*	$OpenBSD: main.c,v 1.86 2015/11/03 16:21:47 deraadt Exp $	*/
 /*	$NetBSD: main.c,v 1.12 1997/02/08 23:54:49 cgd Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -133,16 +135,13 @@ static struct keyblk keywrds[] = {	/* m4 keywords to be installed */
 	{ "traceon",	  TRACEONTYPE | NOARGS },
 	{ "traceoff",	  TRACEOFFTYPE | NOARGS },
 
-#if defined(unix) || defined(__unix__)
 	{ "unix",         SELFTYPE | NOARGS },
-#else
-#ifdef vms
-	{ "vms",          SELFTYPE | NOARGS },
-#endif
-#endif
 };
 
 #define MAXKEYS	(sizeof(keywrds)/sizeof(struct keyblk))
+
+extern int optind;
+extern char *optarg;
 
 #define MAXRECORD 50
 static struct position {
@@ -396,7 +395,7 @@ macro(void)
 		/*
 		 * now push the string arguments:
 		 */
-				pushs1(macro_getdef(p)->defn);	/* defn string */
+				pushdef(p);			/* defn string */
 				pushs1((char *)macro_name(p));	/* macro name  */
 				pushs(ep);			/* start next..*/
 
@@ -474,14 +473,14 @@ macro(void)
 
 		default:
 			if (LOOK_AHEAD(t, scommt)) {
-				char *cp;
-				for (cp = scommt; *cp; cp++)
-					chrsave(*cp);
+				char *p;
+				for (p = scommt; *p; p++)
+					chrsave(*p);
 				for(;;) {
 					t = gpbc();
 					if (LOOK_AHEAD(t, ecommt)) {
-						for (cp = ecommt; *cp; cp++)
-							chrsave(*cp);
+						for (p = ecommt; *p; p++)
+							chrsave(*p);
 						break;
 					}
 					if (t == EOF)

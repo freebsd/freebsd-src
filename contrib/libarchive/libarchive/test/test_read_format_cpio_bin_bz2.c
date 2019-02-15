@@ -49,6 +49,8 @@ DEFINE_TEST(test_read_format_cpio_bin_bz2)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_memory(a, archive, sizeof(archive)));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 	assert(archive_filter_code(a, 0) == ARCHIVE_FILTER_BZIP2);
 	assert(archive_format(a) == ARCHIVE_FORMAT_CPIO_BIN_LE);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));

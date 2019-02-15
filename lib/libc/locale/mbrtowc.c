@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
@@ -41,7 +43,7 @@ mbrtowc_l(wchar_t * __restrict pwc, const char * __restrict s,
 {
 	FIX_LOCALE(locale);
 	if (ps == NULL)
-		ps = &locale->mbrtowc;
+		ps = &(XLOCALE_CTYPE(locale)->mbrtowc);
 	return (XLOCALE_CTYPE(locale)->__mbrtowc(pwc, s, n, ps));
 }
 

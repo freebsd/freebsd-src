@@ -3,11 +3,11 @@
 
 .include <src.opts.mk>
 
+PACKAGE=runtime
 PROG=	date
 SRCS=	date.c netdate.c vary.c
 
-.if ${MK_TESTS} != "no"
-SUBDIR+=    tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

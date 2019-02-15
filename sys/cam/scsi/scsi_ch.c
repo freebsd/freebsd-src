@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-2-Clause-FreeBSD AND BSD-4-Clause)
+ *
  * Copyright (c) 1997 Justin T. Gibbs.
  * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
  * All rights reserved.
@@ -25,12 +27,6 @@
  * SUCH DAMAGE.
  */
 
-/*
- * Derived from the NetBSD SCSI changer driver.
- *
- *	$NetBSD: ch.c,v 1.32 1998/01/12 09:49:12 thorpej Exp $
- *
- */
 /*-
  * Copyright (c) 1996, 1997 Jason R. Thorpe <thorpej@and.com>
  * All rights reserved.
@@ -65,6 +61,8 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $NetBSD: ch.c,v 1.34 1998/08/31 22:28:06 cgd Exp $
  */
 
 #include <sys/cdefs.h>
@@ -337,7 +335,8 @@ chasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 
 		if (cgd->protocol != PROTO_SCSI)
 			break;
-
+		if (SID_QUAL(&cgd->inq_data) != SID_QUAL_LU_CONNECTED)
+			break;
 		if (SID_TYPE(&cgd->inq_data)!= T_CHANGER)
 			break;
 
@@ -371,6 +370,8 @@ chregister(struct cam_periph *periph, void *arg)
 	struct ch_softc *softc;
 	struct ccb_getdev *cgd;
 	struct ccb_pathinq cpi;
+	struct make_dev_args args;
+	int error;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (cgd == NULL) {
@@ -399,10 +400,7 @@ chregister(struct cam_periph *periph, void *arg)
 	if (cgd->inq_data.version <= SCSI_REV_2)
 		softc->quirks |= CH_Q_NO_DVCID;
 
-	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-	cpi.ccb_h.func_code = XPT_PATH_INQ;
-	xpt_action((union ccb *)&cpi);
+	xpt_path_inq(&cpi, periph->path);
 
 	/*
 	 * Changers don't have a blocksize, and obviously don't support
@@ -421,7 +419,7 @@ chregister(struct cam_periph *periph, void *arg)
 	 * instance for it.  We'll release this reference once the devfs
 	 * instance has been freed.
 	 */
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+	if (cam_periph_acquire(periph) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -430,11 +428,20 @@ chregister(struct cam_periph *periph, void *arg)
 
 
 	/* Register the device */
-	softc->dev = make_dev(&ch_cdevsw, periph->unit_number, UID_ROOT,
-			      GID_OPERATOR, 0600, "%s%d", periph->periph_name,
-			      periph->unit_number);
+	make_dev_args_init(&args);
+	args.mda_devsw = &ch_cdevsw;
+	args.mda_unit = periph->unit_number;
+	args.mda_uid = UID_ROOT;
+	args.mda_gid = GID_OPERATOR;
+	args.mda_mode = 0600;
+	args.mda_si_drv1 = periph;
+	error = make_dev_s(&args, &softc->dev, "%s%d", periph->periph_name,
+	    periph->unit_number);
 	cam_periph_lock(periph);
-	softc->dev->si_drv1 = periph;
+	if (error != 0) {
+		cam_periph_release_locked(periph);
+		return (CAM_REQ_CMP_ERR);
+	}
 
 	/*
 	 * Add an async callback so that we get
@@ -460,7 +467,7 @@ chopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	int error;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+	if (cam_periph_acquire(periph) != 0)
 		return (ENXIO);
 
 	softc = (struct ch_softc *)periph->softc;
@@ -506,8 +513,6 @@ chclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	struct mtx *mtx;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return(ENXIO);
 	mtx = cam_periph_mtx(periph);
 	mtx_lock(mtx);
 
@@ -576,7 +581,7 @@ chstart(struct cam_periph *periph, union ccb *start_ccb)
 				/* tag_action */ MSG_SIMPLE_Q_TAG,
 				/* dbd */ (softc->quirks & CH_Q_NO_DBD) ?
 					FALSE : TRUE,
-				/* page_code */ SMS_PAGE_CTRL_CURRENT,
+				/* pc */ SMS_PAGE_CTRL_CURRENT,
 				/* page */ CH_ELEMENT_ADDR_ASSIGN_PAGE,
 				/* param_buf */ (u_int8_t *)mode_buffer,
 				/* param_len */ mode_buffer_len,
@@ -638,6 +643,11 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 		    		softc->sc_counts[CHET_IE],
 				PLURAL(softc->sc_counts[CHET_IE]));
 #undef PLURAL
+			if (announce_buf[0] != '\0') {
+				xpt_announce_periph(periph, announce_buf);
+				xpt_announce_quirks(periph, softc->quirks,
+				    CH_Q_BIT_STRING);
+			}
 		} else {
 			int error;
 
@@ -649,16 +659,18 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 			 */
 			if (error == ERESTART) {
 				/*
-				 * A retry was scheuled, so
+				 * A retry was scheduled, so
 				 * just return.
 				 */
 				return;
 			} else if (error != 0) {
-				int retry_scheduled;
 				struct scsi_mode_sense_6 *sms;
+				int frozen, retry_scheduled;
 
 				sms = (struct scsi_mode_sense_6 *)
 					done_ccb->csio.cdb_io.cdb_bytes;
+				frozen = (done_ccb->ccb_h.status &
+				    CAM_DEV_QFRZN) != 0;
 
 				/*
 				 * Check to see if block descriptors were
@@ -669,7 +681,8 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 				 * block descriptors were disabled, enable
 				 * them and re-send the command.
 				 */
-				if (sms->byte2 & SMS_DBD) {
+				if ((sms->byte2 & SMS_DBD) != 0 &&
+				    (periph->flags & CAM_PERIPH_INVALID) == 0) {
 					sms->byte2 &= ~SMS_DBD;
 					xpt_action(done_ccb);
 					softc->quirks |= CH_Q_NO_DBD;
@@ -678,7 +691,7 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 					retry_scheduled = 0;
 
 				/* Don't wedge this device's queue */
-				if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
+				if (frozen)
 					cam_release_devq(done_ccb->ccb_h.path,
 						 /*relsim_flags*/0,
 						 /*reduction*/0,
@@ -701,13 +714,7 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 
 				cam_periph_invalidate(periph);
 
-				announce_buf[0] = '\0';
 			}
-		}
-		if (announce_buf[0] != '\0') {
-			xpt_announce_periph(periph, announce_buf);
-			xpt_announce_quirks(periph, softc->quirks,
-			    CH_Q_BIT_STRING);
 		}
 		softc->state = CH_STATE_NORMAL;
 		free(mode_header, M_SCSICH);
@@ -738,8 +745,7 @@ cherror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct ch_softc *)periph->softc;
 
-	return (cam_periph_error(ccb, cam_flags, sense_flags,
-				 &softc->saved_ccb));
+	return (cam_periph_error(ccb, cam_flags, sense_flags));
 }
 
 static int
@@ -750,9 +756,6 @@ chioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 	int error;
 
 	periph = (struct cam_periph *)dev->si_drv1;
-	if (periph == NULL)
-		return(ENXIO);
-
 	cam_periph_lock(periph);
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("entering chioctl\n"));
 
@@ -1195,13 +1198,14 @@ chgetelemstatus(struct cam_periph *periph, int scsi_version, u_long cmd,
 	struct read_element_status_descriptor *desc;
 	caddr_t data = NULL;
 	size_t size, desclen;
-	int avail, i, error = 0;
+	u_int avail, i;
 	int curdata, dvcid, sense_flags;
 	int try_no_dvcid = 0;
 	struct changer_element_status *user_data = NULL;
 	struct ch_softc *softc;
 	union ccb *ccb;
 	int chet = cesr->cesr_element_type;
+	int error = 0;
 	int want_voltags = (cesr->cesr_flags & CESR_VOLTAGS) ? 1 : 0;
 
 	softc = (struct ch_softc *)periph->softc;
@@ -1560,6 +1564,7 @@ chgetparams(struct cam_periph *periph)
 
 	if (mode_buffer == NULL) {
 		printf("chgetparams: couldn't malloc mode sense data\n");
+		xpt_release_ccb(ccb);
 		return(ENOSPC);
 	}
 
@@ -1578,7 +1583,7 @@ chgetparams(struct cam_periph *periph)
 			/* cbfcnp */ chdone,
 			/* tag_action */ MSG_SIMPLE_Q_TAG,
 			/* dbd */ dbd,
-			/* page_code */ SMS_PAGE_CTRL_CURRENT,
+			/* pc */ SMS_PAGE_CTRL_CURRENT,
 			/* page */ CH_ELEMENT_ADDR_ASSIGN_PAGE,
 			/* param_buf */ (u_int8_t *)mode_buffer,
 			/* param_len */ mode_buffer_len,
@@ -1641,7 +1646,7 @@ chgetparams(struct cam_periph *periph)
 			/* cbfcnp */ chdone,
 			/* tag_action */ MSG_SIMPLE_Q_TAG,
 			/* dbd */ dbd,
-			/* page_code */ SMS_PAGE_CTRL_CURRENT,
+			/* pc */ SMS_PAGE_CTRL_CURRENT,
 			/* page */ CH_DEVICE_CAP_PAGE,
 			/* param_buf */ (u_int8_t *)mode_buffer,
 			/* param_len */ mode_buffer_len,

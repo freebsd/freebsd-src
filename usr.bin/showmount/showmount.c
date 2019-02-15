@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -61,13 +63,15 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <vis.h>
 
 /* Constant defs */
 #define	ALL	1
 #define	DIRS	2
 
-#define	DODUMP		0x1
-#define	DOEXPORTS	0x2
+#define	DODUMP			0x1
+#define	DOEXPORTS		0x2
+#define	DOPARSABLEEXPORTS	0x4
 
 struct mountlist {
 	struct mountlist *ml_left;
@@ -108,13 +112,14 @@ int tcp_callrpc(const char *host, int prognum, int versnum, int procnum,
 int
 main(int argc, char **argv)
 {
+	char strvised[MNTPATHLEN * 4 + 1];
 	register struct exportslist *exp;
 	register struct grouplist *grp;
 	register int rpcs = 0, mntvers = 3;
 	const char *host;
-	int ch, estat;
+	int ch, estat, nbytes;
 
-	while ((ch = getopt(argc, argv, "ade13")) != -1)
+	while ((ch = getopt(argc, argv, "adEe13")) != -1)
 		switch (ch) {
 		case 'a':
 			if (type == 0) {
@@ -129,6 +134,9 @@ main(int argc, char **argv)
 				rpcs |= DODUMP;
 			} else
 				usage();
+			break;
+		case 'E':
+			rpcs |= DOPARSABLEEXPORTS;
 			break;
 		case 'e':
 			rpcs |= DOEXPORTS;
@@ -146,6 +154,13 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	if ((rpcs & DOPARSABLEEXPORTS) != 0) {
+		if ((rpcs & DOEXPORTS) != 0)
+			errx(1, "-E cannot be used with -e");
+		if ((rpcs & DODUMP) != 0)
+			errx(1, "-E cannot be used with -a or -d");
+	}
+
 	if (argc > 0)
 		host = *argv;
 	else
@@ -161,7 +176,7 @@ main(int argc, char **argv)
 			clnt_perrno(estat);
 			errx(1, "can't do mountdump rpc");
 		}
-	if (rpcs & DOEXPORTS)
+	if (rpcs & (DOEXPORTS | DOPARSABLEEXPORTS))
 		if ((estat = tcp_callrpc(host, MOUNTPROG, mntvers,
 			MOUNTPROC_EXPORT, (xdrproc_t)xdr_void, (char *)0,
 			(xdrproc_t)xdr_exportslist, (char *)&exportslist)) != 0) {
@@ -181,7 +196,7 @@ main(int argc, char **argv)
 		default:
 			printf("Hosts on %s:\n", host);
 			break;
-		};
+		}
 		print_dump(mntdump);
 	}
 	if (rpcs & DOEXPORTS) {
@@ -199,6 +214,17 @@ main(int argc, char **argv)
 				}
 				printf("\n");
 			}
+			exp = exp->ex_next;
+		}
+	}
+	if (rpcs & DOPARSABLEEXPORTS) {
+		exp = exportslist;
+		while (exp) {
+			nbytes = strsnvis(strvised, sizeof(strvised),
+			    exp->ex_dirp, VIS_GLOB | VIS_NL, "\"'$");
+			if (nbytes == -1)
+				err(1, "strsnvis");
+			printf("%s\n", strvised);
 			exp = exp->ex_next;
 		}
 	}
@@ -253,11 +279,15 @@ xdr_mntdump(XDR *xdrsp, struct mountlist **mlp)
 			return (0);
 		mp->ml_left = mp->ml_right = (struct mountlist *)0;
 		strp = mp->ml_host;
-		if (!xdr_string(xdrsp, &strp, MNTNAMLEN))
+		if (!xdr_string(xdrsp, &strp, MNTNAMLEN)) {
+			free(mp);
 			return (0);
+		}
 		strp = mp->ml_dirp;
-		if (!xdr_string(xdrsp, &strp, MNTPATHLEN))
+		if (!xdr_string(xdrsp, &strp, MNTPATHLEN)) {
+			free(mp);
 			return (0);
+		}
 
 		/*
 		 * Build a binary tree on sorted order of either host or dirp.
@@ -293,7 +323,7 @@ xdr_mntdump(XDR *xdrsp, struct mountlist **mlp)
 						goto next;
 					}
 					break;
-				};
+				}
 				if (val < 0) {
 					otp = &tp->ml_left;
 					tp = tp->ml_left;
@@ -383,7 +413,7 @@ print_dump(struct mountlist *mp)
 	default:
 		printf("%s\n", mp->ml_host);
 		break;
-	};
+	}
 	if (mp->ml_right)
 		print_dump(mp->ml_right);
 }

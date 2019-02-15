@@ -17,13 +17,16 @@
 /* #undef ENABLE_NLS */
 
 /* Define to 1 if you have the `bind_textdomain_codeset' function. */
-#define HAVE_BIND_TEXTDOMAIN_CODESET 1
+/* #undef HAVE_BIND_TEXTDOMAIN_CODESET */
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
 /* Define to 1 if you don't have `vprintf' but do have `_doprnt.' */
 /* #undef HAVE_DOPRNT */
+
+/* Define to 1 if you have the `getpid' function. */
+#define HAVE_GETPID 1
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
@@ -48,6 +51,15 @@
 
 /* Define to 1 if you have the <serf.h> header file. */
 #define HAVE_SERF_H 1
+
+/* Define to use internal LZ4 code */
+#define SVN_INTERNAL_LZ4 1
+ 
+/* Define to use internal UTF8PROC code */
+#define SVN_INTERNAL_UTF8PROC 1
+
+/* Define to 1 if you have the <stdbool.h> header file. */
+#define HAVE_STDBOOL_H 1
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
@@ -94,8 +106,7 @@
 /* Define to 1 if you have the <zlib.h> header file. */
 /* #undef HAVE_ZLIB_H */
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #define LT_OBJDIR ".libs/"
 
 /* Define to the address where bug reports for this package should be sent. */
@@ -105,7 +116,7 @@
 #define PACKAGE_NAME "subversion"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "subversion 1.8.10"
+#define PACKAGE_STRING "subversion 1.10.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "subversion"
@@ -114,25 +125,25 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.8.10"
+#define PACKAGE_VERSION "1.10.0"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
+/* Defined to build against httpd 2.4 with broken auth */
+/* #undef SVN_ALLOW_BROKEN_HTTPD_AUTH */
+
 /* Define to the Python/C API format character suitable for apr_int64_t */
 #define SVN_APR_INT64_T_PYCFMT "l"
-
-/* Define if circular linkage is not possible on this platform. */
-/* #undef SVN_AVOID_CIRCULAR_LINKAGE_AT_ALL_COSTS_HACK */
 
 /* Defined to be the path to the installed binaries */
 #define SVN_BINDIR "/usr/bin"
 
 /* Defined to the config.guess name of the build system */
-#define SVN_BUILD_HOST "bikeshed-malachite-topaz-amber-freebsd"
+#define SVN_BUILD_HOST "bikeshed-rgb-freebsd"
 
 /* Defined to the config.guess name of the build target */
-#define SVN_BUILD_TARGET "bikeshed-malachite-topaz-amber-freebsd"
+#define SVN_BUILD_TARGET "bikeshed-rgb-freebsd"
 
 /* The path of a default editor for the client. */
 /* #undef SVN_CLIENT_EDITOR */
@@ -142,6 +153,9 @@
 
 /* Defined if plaintext password/passphrase storage is disabled */
 /* #undef SVN_DISABLE_PLAINTEXT_PASSWORD_STORAGE */
+
+/* Shared library file name suffix format */
+#undef SVN_DSO_SUFFIX_FMT
 
 /* The desired major version for the Berkeley DB */
 #define SVN_FS_WANT_DB_MAJOR 4
@@ -153,7 +167,7 @@
 #define SVN_FS_WANT_DB_PATCH 14
 
 /* Define if compiler provides atomic builtins */
-#define SVN_HAS_ATOMIC_BUILTINS 0
+/* #undef SVN_HAS_ATOMIC_BUILTINS */
 
 /* Is GNOME Keyring support enabled? */
 /* #undef SVN_HAVE_GNOME_KEYRING */
@@ -164,11 +178,17 @@
 /* Is Mac OS KeyChain support enabled? */
 /* #undef SVN_HAVE_KEYCHAIN_SERVICES */
 
+/* Defined if KF5 available */
+#undef SVN_HAVE_KF5
+
 /* Defined if KWallet support is enabled */
 /* #undef SVN_HAVE_KWALLET */
 
 /* Defined if libmagic support is enabled */
 #define SVN_HAVE_LIBMAGIC 1
+
+/* Is libsecret support enabled? */
+#undef SVN_HAVE_LIBSECRET
 
 /* Is Mach-O low-level _dyld API available? */
 /* #undef SVN_HAVE_MACHO_ITERATE */
@@ -188,20 +208,23 @@
 /* Defined if support for Serf is enabled */
 #define SVN_HAVE_SERF 1
 
-/* Defined if libsvn_client should link against libsvn_ra_local */
-#define SVN_LIBSVN_CLIENT_LINKS_RA_LOCAL 1
-
-/* Defined if libsvn_client should link against libsvn_ra_serf */
-#define SVN_LIBSVN_CLIENT_LINKS_RA_SERF 1
-
-/* Defined if libsvn_client should link against libsvn_ra_svn */
-#define SVN_LIBSVN_CLIENT_LINKS_RA_SVN 1
-
 /* Defined if libsvn_fs should link against libsvn_fs_base */
 /* #undef SVN_LIBSVN_FS_LINKS_FS_BASE */
 
 /* Defined if libsvn_fs should link against libsvn_fs_fs */
 #define SVN_LIBSVN_FS_LINKS_FS_FS 1
+
+/* Defined if libsvn_fs should link against libsvn_fs_x */
+#define SVN_LIBSVN_FS_LINKS_FS_X 1
+
+/* Defined if libsvn_ra should link against libsvn_ra_local */
+#define SVN_LIBSVN_RA_LINKS_RA_LOCAL 1
+
+/* Defined if libsvn_ra should link against libsvn_ra_serf */
+#define SVN_LIBSVN_RA_LINKS_RA_SERF 1
+
+/* Defined if libsvn_ra should link against libsvn_ra_svn */
+#define SVN_LIBSVN_RA_LINKS_RA_SVN 1
 
 /* Defined to be the path to the installed locale dirs */
 #define SVN_LOCALE_DIR "NONE/share/locale"
@@ -220,6 +243,9 @@
 
 /* Defined if svn should try to load DSOs */
 /* #undef SVN_USE_DSO */
+
+/* Defined to build with patched httpd 2.4 and working auth */
+/* #undef SVN_USE_FORCE_AUTHN */
 
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
@@ -257,4 +283,28 @@
 #define gettext(x) (x)
 #define dgettext(domain, x) (x)
 #endif
+
+/* compiler hints */
+#if defined(__GNUC__) && (__GNUC__ >= 3)
+# define SVN__PREDICT_FALSE(x) (__builtin_expect(x, 0))
+# define SVN__PREDICT_TRUE(x) (__builtin_expect(!!(x), 1))
+#else
+# define SVN__PREDICT_FALSE(x) (x)
+# define SVN__PREDICT_TRUE(x) (x)
+#endif
+
+#if defined(SVN_DEBUG)
+# define SVN__FORCE_INLINE
+# define SVN__PREVENT_INLINE
+#elif defined(__GNUC__)
+# define SVN__FORCE_INLINE APR_INLINE __attribute__ ((always_inline))
+# define SVN__PREVENT_INLINE __attribute__ ((noinline))
+#else
+# define SVN__FORCE_INLINE APR_INLINE
+# define SVN__PREVENT_INLINE
+#endif
+
+/* Macro used to specify that a variable is intentionally left unused.
+   Supresses compiler warnings about the variable being unused.  */
+#define SVN_UNUSED(v) ( (void)(v) )
 

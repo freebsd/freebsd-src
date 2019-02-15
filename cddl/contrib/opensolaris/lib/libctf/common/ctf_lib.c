@@ -34,14 +34,14 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#if defined(sun)
+#ifdef illumos
 #include <dlfcn.h>
 #else
 #include <zlib.h>
 #endif
 #include <gelf.h>
 
-#if defined(sun)
+#ifdef illumos
 #ifdef _LP64
 static const char *_libctf_zlib = "/usr/lib/64/libz.so";
 #else
@@ -58,7 +58,7 @@ static struct {
 static size_t _PAGESIZE;
 static size_t _PAGEMASK;
 
-#if defined(sun)
+#ifdef illumos
 #pragma init(_libctf_init)
 #else
 void    _libctf_init(void) __attribute__ ((constructor));
@@ -66,7 +66,7 @@ void    _libctf_init(void) __attribute__ ((constructor));
 void
 _libctf_init(void)
 {
-#if defined(sun)
+#ifdef illumos
 	const char *p = getenv("LIBCTF_DECOMPRESSOR");
 
 	if (p != NULL)
@@ -87,7 +87,7 @@ _libctf_init(void)
 void *
 ctf_zopen(int *errp)
 {
-#if defined(sun)
+#ifdef illumos
 	ctf_dprintf("decompressing CTF data using %s\n", _libctf_zlib);
 
 	if (zlib.z_dlp != NULL)
@@ -230,12 +230,12 @@ ctf_fdopen(int fd, int *errp)
 	bzero(&ctfsect, sizeof (ctf_sect_t));
 	bzero(&symsect, sizeof (ctf_sect_t));
 	bzero(&strsect, sizeof (ctf_sect_t));
-	bzero(&hdr.ctf, sizeof (hdr));
+	bzero(&hdr, sizeof (hdr));
 
 	if (fstat64(fd, &st) == -1)
 		return (ctf_set_open_errno(errp, errno));
 
-	if ((nbytes = pread64(fd, &hdr.ctf, sizeof (hdr), 0)) <= 0)
+	if ((nbytes = pread64(fd, &hdr, sizeof (hdr), 0)) <= 0)
 		return (ctf_set_open_errno(errp, nbytes < 0? errno : ECTF_FMT));
 
 	/*
@@ -346,6 +346,7 @@ ctf_fdopen(int fd, int *errp)
 			if ((sp32 = malloc(nbytes)) == NULL || pread64(fd,
 			    sp32, nbytes, hdr.e64.e_shoff) != nbytes) {
 				free(sp);
+				free(sp32);
 				return (ctf_set_open_errno(errp, errno));
 			}
 

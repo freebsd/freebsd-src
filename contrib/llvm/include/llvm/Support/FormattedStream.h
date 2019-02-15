@@ -25,26 +25,10 @@ namespace llvm {
 /// boundaries and querying the number of lines written to the stream.
 ///
 class formatted_raw_ostream : public raw_ostream {
-public:
-  /// DELETE_STREAM - Tell the destructor to delete the held stream.
-  ///
-  static const bool DELETE_STREAM = true;
-
-  /// PRESERVE_STREAM - Tell the destructor to not delete the held
-  /// stream.
-  ///
-  static const bool PRESERVE_STREAM = false;
-
-private:
   /// TheStream - The real stream we output to. We set it to be
   /// unbuffered, since we're already doing our own buffering.
   ///
   raw_ostream *TheStream;
-
-  /// DeleteStream - Do we need to delete TheStream in the
-  /// destructor?
-  ///
-  bool DeleteStream;
 
   /// Position - The current output column and line of the data that's
   /// been flushed and the portion of the buffer that's been
@@ -57,11 +41,11 @@ private:
   ///
   const char *Scanned;
 
-  virtual void write_impl(const char *Ptr, size_t Size) LLVM_OVERRIDE;
+  void write_impl(const char *Ptr, size_t Size) override;
 
   /// current_pos - Return the current position within the stream,
   /// not counting the bytes currently in the buffer.
-  virtual uint64_t current_pos() const LLVM_OVERRIDE {
+  uint64_t current_pos() const override {
     // Our current position in the stream is all the contents which have been
     // written to the underlying stream (*not* the current position of the
     // underlying stream).
@@ -72,6 +56,24 @@ private:
   /// position after output.
   ///
   void ComputePosition(const char *Ptr, size_t size);
+
+  void setStream(raw_ostream &Stream) {
+    releaseStream();
+
+    TheStream = &Stream;
+
+    // This formatted_raw_ostream inherits from raw_ostream, so it'll do its
+    // own buffering, and it doesn't need or want TheStream to do another
+    // layer of buffering underneath. Resize the buffer to what TheStream
+    // had been using, and tell TheStream not to do its own buffering.
+    if (size_t BufferSize = TheStream->GetBufferSize())
+      SetBufferSize(BufferSize);
+    else
+      SetUnbuffered();
+    TheStream->SetUnbuffered();
+
+    Scanned = nullptr;
+  }
 
 public:
   /// formatted_raw_ostream - Open the specified file for
@@ -84,37 +86,17 @@ public:
   /// so it doesn't want another layer of buffering to be happening
   /// underneath it.
   ///
-  formatted_raw_ostream(raw_ostream &Stream, bool Delete = false) 
-    : raw_ostream(), TheStream(0), DeleteStream(false), Position(0, 0) {
-    setStream(Stream, Delete);
+  formatted_raw_ostream(raw_ostream &Stream)
+      : TheStream(nullptr), Position(0, 0) {
+    setStream(Stream);
   }
-  explicit formatted_raw_ostream()
-    : raw_ostream(), TheStream(0), DeleteStream(false), Position(0, 0) {
-    Scanned = 0;
+  explicit formatted_raw_ostream() : TheStream(nullptr), Position(0, 0) {
+    Scanned = nullptr;
   }
 
-  ~formatted_raw_ostream() {
+  ~formatted_raw_ostream() override {
     flush();
     releaseStream();
-  }
-
-  void setStream(raw_ostream &Stream, bool Delete = false) {
-    releaseStream();
-
-    TheStream = &Stream;
-    DeleteStream = Delete;
-
-    // This formatted_raw_ostream inherits from raw_ostream, so it'll do its
-    // own buffering, and it doesn't need or want TheStream to do another
-    // layer of buffering underneath. Resize the buffer to what TheStream
-    // had been using, and tell TheStream not to do its own buffering.
-    if (size_t BufferSize = TheStream->GetBufferSize())
-      SetBufferSize(BufferSize);
-    else
-      SetUnbuffered();
-    TheStream->SetUnbuffered();
-
-    Scanned = 0;
   }
 
   /// PadToColumn - Align the output to some column number.  If the current
@@ -129,37 +111,33 @@ public:
 
   /// getLine - Return the line number
   unsigned getLine() { return Position.second; }
-  
-  raw_ostream &resetColor() {
+
+  raw_ostream &resetColor() override {
     TheStream->resetColor();
     return *this;
   }
-  
-  raw_ostream &reverseColor() {
+
+  raw_ostream &reverseColor() override {
     TheStream->reverseColor();
     return *this;
   }
-  
-  raw_ostream &changeColor(enum Colors Color,
-                           bool Bold,
-                           bool BG) {
+
+  raw_ostream &changeColor(enum Colors Color, bool Bold, bool BG) override {
     TheStream->changeColor(Color, Bold, BG);
     return *this;
   }
-  
-  bool is_displayed() const {
+
+  bool is_displayed() const override {
     return TheStream->is_displayed();
   }
 
 private:
   void releaseStream() {
-    // Delete the stream if needed. Otherwise, transfer the buffer
-    // settings from this raw_ostream back to the underlying stream.
+    // Transfer the buffer settings from this raw_ostream back to the underlying
+    // stream.
     if (!TheStream)
       return;
-    if (DeleteStream)
-      delete TheStream;
-    else if (size_t BufferSize = GetBufferSize())
+    if (size_t BufferSize = GetBufferSize())
       TheStream->SetBufferSize(BufferSize);
     else
       TheStream->SetUnbuffered();

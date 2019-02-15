@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,6 +38,8 @@ static char sccsid[] = "@(#)aux.c	8.1 (Berkeley) 6/6/93";
 __FBSDID("$FreeBSD$");
 
 #include <sys/time.h>
+
+#include <fcntl.h>
 
 #include "rcv.h"
 #include "extern.h"
@@ -212,7 +216,7 @@ gethfield(FILE *f, char linebuf[], int rem, char **colon)
  */
 
 char*
-ishfield(char linebuf[], char *colon, const char *field)
+ishfield(char *linebuf, char *colon, const char *field)
 {
 	char *cp = colon;
 
@@ -319,15 +323,13 @@ unstack(void)
 void
 alter(char *name)
 {
-	struct stat sb;
-	struct timeval tv[2];
+	struct timespec ts[2];
 
-	if (stat(name, &sb))
-		return;
-	(void)gettimeofday(&tv[0], NULL);
-	tv[0].tv_sec++;
-	TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtim);
-	(void)utimes(name, tv);
+	(void)clock_gettime(CLOCK_REALTIME, &ts[0]);
+	ts[0].tv_sec++;
+	ts[1].tv_sec = 0;
+	ts[1].tv_nsec = UTIME_OMIT;
+	(void)utimensat(AT_FDCWD, name, ts, 0);
 }
 
 /*

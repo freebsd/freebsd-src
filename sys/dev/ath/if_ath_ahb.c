@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
  * Copyright (c) 2010-2011 Adrian Chadd, Xenion Pty Ltd
  * All rights reserved.
@@ -66,6 +68,12 @@ __FBSDID("$FreeBSD$");
 #include <mips/atheros/ar91xxreg.h>
 #include <mips/atheros/ar71xx_cpudef.h>
 
+/* For EEPROM firmware */
+#ifdef	ATH_EEPROM_FIRMWARE
+#include <sys/linker.h>
+#include <sys/firmware.h>
+#endif	/* ATH_EEPROM_FIRMWARE */
+
 /*
  * bus glue.
  */
@@ -77,7 +85,6 @@ struct ath_ahb_softc {
 	struct ath_softc	sc_sc;
 	struct resource		*sc_sr;		/* memory resource */
 	struct resource		*sc_irq;	/* irq resource */
-	struct resource		*sc_eeprom;	/* eeprom location */
 	void			*sc_ih;		/* interrupt handler */
 };
 
@@ -117,6 +124,14 @@ ath_ahb_probe(device_t dev)
 	return ENXIO;
 }
 
+static void
+ath_ahb_intr(void *arg)
+{
+	/* XXX TODO: check if its ours! */
+	ar71xx_device_flush_ddr(AR71XX_CPU_DDR_FLUSH_WMAC);
+	ath_intr(arg);
+}
+
 static int
 ath_ahb_attach(device_t dev)
 {
@@ -124,10 +139,11 @@ ath_ahb_attach(device_t dev)
 	struct ath_softc *sc = &psc->sc_sc;
 	int error = ENXIO;
 	int rid;
-	long eepromaddr;
-	int eepromsize;
-	uint8_t *p;
 	int device_id, vendor_id;
+#ifdef	ATH_EEPROM_FIRMWARE
+	const struct firmware *fw = NULL;
+	const char *buf;
+#endif
 
 	sc->sc_dev = dev;
 
@@ -138,32 +154,6 @@ ath_ahb_attach(device_t dev)
 		goto bad;
 	}
 
-	if (resource_long_value(device_get_name(dev), device_get_unit(dev),
-	    "eepromaddr", &eepromaddr) != 0) {
-		device_printf(dev, "cannot fetch 'eepromaddr' from hints\n");
-		goto bad0;
-	}
-
-	/*
-	 * The default EEPROM size is 2048 * 16 bit words.
-	 * Later EEPROM/OTP/flash regions may be quite a bit bigger.
-	 */
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    "eepromsize", &eepromsize) != 0) {
-		eepromsize = ATH_EEPROM_DATA_SIZE * 2;
-	}
-
-
-	rid = 0;
-	device_printf(sc->sc_dev, "eeprom @ %p (%d bytes)\n",
-	    (void *) eepromaddr, eepromsize);
-	psc->sc_eeprom = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, (uintptr_t) eepromaddr,
-	  (uintptr_t) eepromaddr + (uintptr_t) (eepromsize - 1), 0, RF_ACTIVE);
-	if (psc->sc_eeprom == NULL) {
-		device_printf(dev, "cannot map eeprom space\n");
-		goto bad0;
-	}
-
 	sc->sc_st = (HAL_BUS_TAG) rman_get_bustag(psc->sc_sr);
 	sc->sc_sh = (HAL_BUS_HANDLE) rman_get_bushandle(psc->sc_sr);
 	/*
@@ -172,22 +162,35 @@ ath_ahb_attach(device_t dev)
 	 */
 	sc->sc_invalid = 1;
 
-	/* Copy the EEPROM data out */
-	sc->sc_eepromdata = malloc(eepromsize, M_TEMP, M_NOWAIT | M_ZERO);
-	if (sc->sc_eepromdata == NULL) {
-		device_printf(dev, "cannot allocate memory for eeprom data\n");
-		goto bad1;
+#ifdef	ATH_EEPROM_FIRMWARE
+	/*
+	 * If there's an EEPROM firmware image, load that in.
+	 */
+	if (resource_string_value(device_get_name(dev), device_get_unit(dev),
+	    "eeprom_firmware", &buf) == 0) {
+		device_printf(dev, "%s: looking up firmware @ '%s'\n",
+		    __func__, buf);
+
+		fw = firmware_get(buf);
+		if (fw == NULL) {
+			device_printf(dev, "%s: couldn't find firmware\n",
+			    __func__);
+			goto bad1;
+		}
+
+		device_printf(dev, "%s: EEPROM firmware @ %p\n",
+		    __func__, fw->data);
+		sc->sc_eepromdata =
+		    malloc(fw->datasize, M_TEMP, M_WAITOK | M_ZERO);
+		if (! sc->sc_eepromdata) {
+			device_printf(dev, "%s: can't malloc eepromdata\n",
+			    __func__);
+			goto bad1;
+		}
+		memcpy(sc->sc_eepromdata, fw->data, fw->datasize);
+		firmware_put(fw, 0);
 	}
-	device_printf(sc->sc_dev, "eeprom data @ %p\n", (void *) rman_get_bushandle(psc->sc_eeprom));
-	/* XXX why doesn't this work? -adrian */
-#if 0
-	bus_space_read_multi_1(
-	    rman_get_bustag(psc->sc_eeprom),
-	    rman_get_bushandle(psc->sc_eeprom),
-	    0, (u_int8_t *) sc->sc_eepromdata, eepromsize);
-#endif
-	p = (void *) rman_get_bushandle(psc->sc_eeprom);
-	memcpy(sc->sc_eepromdata, p, eepromsize);
+#endif	/* ATH_EEPROM_FIRMWARE */
 
 	/*
 	 * Arrange interrupt line.
@@ -200,7 +203,7 @@ ath_ahb_attach(device_t dev)
 	}
 	if (bus_setup_intr(dev, psc->sc_irq,
 			   INTR_TYPE_NET | INTR_MPSAFE,
-			   NULL, ath_intr, sc, &psc->sc_ih)) {
+			   NULL, ath_ahb_intr, sc, &psc->sc_ih)) {
 		device_printf(dev, "could not establish interrupt\n");
 		goto bad2;
 	}
@@ -241,7 +244,6 @@ ath_ahb_attach(device_t dev)
 	ATH_PCU_LOCK_INIT(sc);
 	ATH_RX_LOCK_INIT(sc);
 	ATH_TX_LOCK_INIT(sc);
-	ATH_TX_IC_LOCK_INIT(sc);
 	ATH_TXSTATUS_LOCK_INIT(sc);
 
 	error = ath_attach(device_id, sc);
@@ -251,7 +253,6 @@ ath_ahb_attach(device_t dev)
 	ATH_TXSTATUS_LOCK_DESTROY(sc);
 	ATH_RX_LOCK_DESTROY(sc);
 	ATH_TX_LOCK_DESTROY(sc);
-	ATH_TX_IC_LOCK_DESTROY(sc);
 	ATH_PCU_LOCK_DESTROY(sc);
 	ATH_LOCK_DESTROY(sc);
 	bus_dma_tag_destroy(sc->sc_dmat);
@@ -260,8 +261,6 @@ bad3:
 bad2:
 	bus_release_resource(dev, SYS_RES_IRQ, 0, psc->sc_irq);
 bad1:
-	bus_release_resource(dev, SYS_RES_MEMORY, 0, psc->sc_eeprom);
-bad0:
 	bus_release_resource(dev, SYS_RES_MEMORY, 0, psc->sc_sr);
 bad:
 	/* XXX?! */
@@ -287,7 +286,6 @@ ath_ahb_detach(device_t dev)
 
 	bus_dma_tag_destroy(sc->sc_dmat);
 	bus_release_resource(dev, SYS_RES_MEMORY, 0, psc->sc_sr);
-	bus_release_resource(dev, SYS_RES_MEMORY, 0, psc->sc_eeprom);
 	/* XXX?! */
 	if (sc->sc_eepromdata)
 		free(sc->sc_eepromdata, M_TEMP);
@@ -295,7 +293,6 @@ ath_ahb_detach(device_t dev)
 	ATH_TXSTATUS_LOCK_DESTROY(sc);
 	ATH_RX_LOCK_DESTROY(sc);
 	ATH_TX_LOCK_DESTROY(sc);
-	ATH_TX_IC_LOCK_DESTROY(sc);
 	ATH_PCU_LOCK_DESTROY(sc);
 	ATH_LOCK_DESTROY(sc);
 
@@ -348,7 +345,9 @@ static driver_t ath_ahb_driver = {
 	sizeof (struct ath_ahb_softc)
 };
 static	devclass_t ath_devclass;
-DRIVER_MODULE(ath, nexus, ath_ahb_driver, ath_devclass, 0, 0);
-MODULE_VERSION(ath, 1);
-MODULE_DEPEND(ath, wlan, 1, 1, 1);		/* 802.11 media layer */
-MODULE_DEPEND(ath, if_ath, 1, 1, 1);		/* if_ath driver */
+DRIVER_MODULE(if_ath_ahb, nexus, ath_ahb_driver, ath_devclass, 0, 0);
+DRIVER_MODULE(if_ath_ahb, apb, ath_ahb_driver, ath_devclass, 0, 0);
+MODULE_VERSION(if_ath_ahb, 1);
+MODULE_DEPEND(if_ath_ahb, wlan, 1, 1, 1);		/* 802.11 media layer */
+MODULE_DEPEND(if_ath_ahb, ath_main, 1, 1, 1);		/* if_ath driver */
+MODULE_DEPEND(if_ath_ahb, ath_hal, 1, 1, 1);		/* ath HAL */

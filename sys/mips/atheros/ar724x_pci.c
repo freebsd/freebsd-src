@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009, Oleksandr Tymoshenko <gonzo@FreeBSD.org>
  * Copyright (c) 2011, Luiz Otavio O Souza.
  * All rights reserved.
@@ -48,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr_machdep.h>
-#include <machine/pmap.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -105,10 +106,12 @@ ar724x_pci_write(uint32_t reg, uint32_t offset, uint32_t data, int bytes)
 	else
 		mask = 0xffffffff;
 
+	rmb();
 	val = ATH_READ_REG(reg + (offset & ~3));
 	val &= ~(mask << shift);
 	val |= ((data & mask) << shift);
 	ATH_WRITE_REG(reg + (offset & ~3), val);
+	wmb();
 
 	dprintf("%s: %#x/%#x addr=%#x, data=%#x(%#x), bytes=%d\n", __func__, 
 	    reg, reg + (offset & ~3), offset, data, val, bytes);
@@ -134,6 +137,7 @@ ar724x_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 	dprintf("%s: tag (%x, %x, %x) reg %d(%d)\n", __func__, bus, slot,
 	    func, reg, bytes);
 
+	rmb();
 	if ((bus == 0) && (slot == 0) && (func == 0))
 		data = ATH_READ_REG(AR724X_PCI_CFG_BASE + (reg & ~3));
 	else
@@ -167,6 +171,9 @@ ar724x_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 	 * map is for this device.  Without it, it'll think the memory
 	 * map is 32 bits wide, the PCI code will then end up thinking
 	 * the register window is '0' and fail to allocate resources.
+	 *
+	 * Note: Test on AR7241/AR7242/AR9344! Those use a WAR value of
+	 * 0x1000ffff.
 	 */
 	if (reg == PCIR_BAR(0) && bytes == 4
 	    && ar71xx_soc == AR71XX_SOC_AR7240
@@ -285,6 +292,7 @@ ar724x_pci_fixup(device_t dev, long flash_addr, int len)
 	bar0 = ar724x_pci_read_config(dev, 0, 0, 0, PCIR_BAR(0), 4);
 
 	/* Write temporary BAR0 to map the NIC into a fixed location */
+	/* XXX AR7240: 0xffff; 7241/7242/9344: 0x1000ffff */
 	ar724x_pci_write_config(dev, 0, 0, 0, PCIR_BAR(0),
 	    AR71XX_PCI_MEM_BASE, 4);
 
@@ -300,7 +308,7 @@ ar724x_pci_fixup(device_t dev, long flash_addr, int len)
 		val |= (*cal_data++) << 16;
 
 		if (bootverbose)
-			printf("    0x%08x=0x%04x\n", reg, val);
+			printf("    0x%08x=0x%08x\n", reg, val);
 
 		/* Write eeprom fixup data to device memory */
 		ATH_WRITE_REG(AR71XX_PCI_MEM_BASE + reg, val);
@@ -369,7 +377,6 @@ static int
 ar724x_pci_attach(device_t dev)
 {
 	struct ar71xx_pci_softc *sc = device_get_softc(dev);
-	int busno = 0;
 	int rid = 0;
 
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
@@ -429,7 +436,7 @@ ar724x_pci_attach(device_t dev)
 	    | PCIM_CMD_SERRESPEN | PCIM_CMD_BACKTOBACK
 	    | PCIM_CMD_PERRESPEN | PCIM_CMD_MWRICEN, 2);
 
-	device_add_child(dev, "pci", busno);
+	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
 }
 
@@ -466,7 +473,7 @@ ar724x_pci_write_ivar(device_t dev, device_t child, int which, uintptr_t result)
 
 static struct resource *
 ar724x_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct ar71xx_pci_softc *sc = device_get_softc(bus);	
 	struct resource *rv;
@@ -587,7 +594,6 @@ ar724x_pci_intr(void *arg)
 	struct intr_event *event;
 	uint32_t reg, irq, mask;
 
-	ar71xx_device_ddr_flush_ip2();
 
 	reg = ATH_READ_REG(AR724X_PCI_INTR_STATUS);
 	mask = ATH_READ_REG(AR724X_PCI_INTR_MASK);
@@ -599,10 +605,13 @@ ar724x_pci_intr(void *arg)
 
 		irq = AR71XX_PCI_IRQ_START;
 		event = sc->sc_eventstab[irq];
-		if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
+		if (!event || CK_SLIST_EMPTY(&event->ie_handlers)) {
 			printf("Stray IRQ %d\n", irq);
 			return (FILTER_STRAY);
 		}
+
+		/* Flush pending memory transactions */
+		ar71xx_device_flush_ddr(AR71XX_CPU_DDR_FLUSH_PCIE);
 
 		/* TODO: frame instead of NULL? */
 		intr_event_handle(event, NULL);
@@ -649,6 +658,7 @@ static device_method_t ar724x_pci_methods[] = {
 	DEVMETHOD(pcib_read_config,	ar724x_pci_read_config),
 	DEVMETHOD(pcib_write_config,	ar724x_pci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	ar724x_pci_route_interrupt),
+	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	DEVMETHOD_END
 };

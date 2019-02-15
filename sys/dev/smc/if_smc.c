@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Benno Rice.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -234,7 +236,7 @@ smc_probe(device_t dev)
 	if (sc->smc_usemem)
 		type = SYS_RES_MEMORY;
 
-	reg = bus_alloc_resource(dev, type, &rid, 0, ~0, 16, RF_ACTIVE);
+	reg = bus_alloc_resource_anywhere(dev, type, &rid, 16, RF_ACTIVE);
 	if (reg == NULL) {
 		if (bootverbose)
 			device_printf(dev,
@@ -328,15 +330,15 @@ smc_attach(device_t dev)
 		type = SYS_RES_MEMORY;
 
 	sc->smc_reg_rid = 0;
-	sc->smc_reg = bus_alloc_resource(dev, type, &sc->smc_reg_rid, 0, ~0,
+	sc->smc_reg = bus_alloc_resource_anywhere(dev, type, &sc->smc_reg_rid,
 	    16, RF_ACTIVE);
 	if (sc->smc_reg == NULL) {
 		error = ENXIO;
 		goto done;
 	}
 
-	sc->smc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->smc_irq_rid, 0,
-	    ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	sc->smc_irq = bus_alloc_resource_anywhere(dev, SYS_RES_IRQ,
+	    &sc->smc_irq_rid, 1, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->smc_irq == NULL) {
 		error = ENXIO;
 		goto done;
@@ -527,7 +529,7 @@ smc_start_locked(struct ifnet *ifp)
 	 * Work out how many 256 byte "pages" we need.  We have to include the
 	 * control data for the packet in this calculation.
 	 */
-	npages = (len * PKT_CTRL_DATA_LEN) >> 8;
+	npages = (len + PKT_CTRL_DATA_LEN) >> 8;
 	if (npages == 0)
 		npages = 1;
 
@@ -560,7 +562,7 @@ smc_start_locked(struct ifnet *ifp)
 		return;
 	}
 
-	taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_tx);
+	taskqueue_enqueue(sc->smc_tq, &sc->smc_tx);
 }
 
 static void
@@ -693,8 +695,7 @@ smc_task_rx(void *context, int pending)
 		if (m == NULL) {
 			break;
 		}
-		MCLGET(m, M_NOWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
+		if (!(MCLGET(m, M_NOWAIT))) {
 			m_freem(m);
 			break;
 		}
@@ -783,7 +784,7 @@ smc_task_rx(void *context, int pending)
 }
 
 #ifdef DEVICE_POLLING
-static void
+static int
 smc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct smc_softc	*sc;
@@ -793,12 +794,13 @@ smc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	SMC_LOCK(sc);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		SMC_UNLOCK(sc);
-		return;
+		return (0);
 	}
 	SMC_UNLOCK(sc);
 
 	if (cmd == POLL_AND_CHECK_STATUS)
-		taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_intr);
+		taskqueue_enqueue(sc->smc_tq, &sc->smc_intr);
+        return (0);
 }
 #endif
 
@@ -806,13 +808,25 @@ static int
 smc_intr(void *context)
 {
 	struct smc_softc	*sc;
-	
+	uint32_t curbank;
+
 	sc = (struct smc_softc *)context;
+
+	/*
+	 * Save current bank and restore later in this function
+	 */
+	curbank = (smc_read_2(sc, BSR) & BSR_BANK_MASK);
+
 	/*
 	 * Block interrupts in order to let smc_task_intr to kick in
 	 */
+	smc_select_bank(sc, 2);
 	smc_write_1(sc, MSK, 0);
-	taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_intr);
+
+	/* Restore bank */
+	smc_select_bank(sc, curbank);
+
+	taskqueue_enqueue(sc->smc_tq, &sc->smc_intr);
 	return (FILTER_HANDLED);
 }
 
@@ -845,13 +859,19 @@ smc_task_intr(void *context, int pending)
 		 */
 		packet = smc_read_1(sc, FIFO_TX);
 		if ((packet & FIFO_EMPTY) == 0) {
+			callout_stop(&sc->smc_watchdog);
+			smc_select_bank(sc, 2);
 			smc_write_1(sc, PNR, packet);
 			smc_write_2(sc, PTR, 0 | PTR_READ | 
 			    PTR_AUTO_INCR);
-			tcr = smc_read_2(sc, DATA0);
+			smc_select_bank(sc, 0);
+			tcr = smc_read_2(sc, EPHSR);
+#if 0
 			if ((tcr & EPHSR_TX_SUC) == 0)
 				device_printf(sc->smc_dev,
 				    "bad packet\n");
+#endif
+			smc_select_bank(sc, 2);
 			smc_mmu_wait(sc);
 			smc_write_2(sc, MMUCR, MMUCR_CMD_RELEASE_PKT);
 
@@ -860,7 +880,7 @@ smc_task_intr(void *context, int pending)
 			tcr |= TCR_TXENA | TCR_PAD_EN;
 			smc_write_2(sc, TCR, tcr);
 			smc_select_bank(sc, 2);
-			taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_tx);
+			taskqueue_enqueue(sc->smc_tq, &sc->smc_tx);
 		}
 
 		/*
@@ -875,7 +895,7 @@ smc_task_intr(void *context, int pending)
 	if (status & RCV_INT) {
 		smc_write_1(sc, ACK, RCV_INT);
 		sc->smc_mask &= ~RCV_INT;
-		taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_rx);
+		taskqueue_enqueue(sc->smc_tq, &sc->smc_rx);
 	}
 
 	/*
@@ -884,7 +904,7 @@ smc_task_intr(void *context, int pending)
 	if (status & ALLOC_INT) {
 		smc_write_1(sc, ACK, ALLOC_INT);
 		sc->smc_mask &= ~ALLOC_INT;
-		taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_tx);
+		taskqueue_enqueue(sc->smc_tq, &sc->smc_tx);
 	}
 
 	/*
@@ -916,12 +936,13 @@ smc_task_intr(void *context, int pending)
 		/*
 		 * See if there are any packets to transmit.
 		 */
-		taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_tx);
+		taskqueue_enqueue(sc->smc_tq, &sc->smc_tx);
 	}
 
 	/*
 	 * Update the interrupt mask.
 	 */
+	smc_select_bank(sc, 2);
 	if ((ifp->if_capenable & IFCAP_POLLING) == 0)
 		smc_write_1(sc, MSK, sc->smc_mask);
 
@@ -1195,7 +1216,6 @@ smc_stop(struct smc_softc *sc)
 #ifdef DEVICE_POLLING
 	ether_poll_deregister(sc->smc_ifp);
 	sc->smc_ifp->if_capenable &= ~IFCAP_POLLING;
-	sc->smc_ifp->if_capenable &= ~IFCAP_POLLING_NOCOUNT;
 #endif
 
 	/*
@@ -1215,7 +1235,7 @@ smc_watchdog(void *arg)
 	
 	sc = (struct smc_softc *)arg;
 	device_printf(sc->smc_dev, "watchdog timeout\n");
-	taskqueue_enqueue_fast(sc->smc_tq, &sc->smc_intr);
+	taskqueue_enqueue(sc->smc_tq, &sc->smc_intr);
 }
 
 static void
@@ -1255,7 +1275,6 @@ smc_init_locked(struct smc_softc *sc)
 	ether_poll_register(smc_poll, ifp);
 	SMC_LOCK(sc);
 	ifp->if_capenable |= IFCAP_POLLING;
-	ifp->if_capenable |= IFCAP_POLLING_NOCOUNT;
 #endif
 }
 

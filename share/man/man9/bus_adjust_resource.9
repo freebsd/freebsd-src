@@ -1,6 +1,6 @@
 .\" -*- nroff -*-
 .\"
-.\" Copyright (c) 2011 Advanced Computing Technologies LLC
+.\" Copyright (c) 2011 Hudson River Trading LLC
 .\" Written by: John H. Baldwin <jhb@FreeBSD.org>
 .\" All rights reserved.
 .\"
@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2011
+.Dd April 23, 2016
 .Dt BUS_ADJUST_RESOURCE 9
 .Os
 .Sh NAME
@@ -41,7 +41,10 @@
 .In sys/rman.h
 .In machine/resource.h
 .Ft int
-.Fn bus_adjust_resource "device_t dev" "int type" "struct resource *r" "u_long start" "u_long end"
+.Fo bus_adjust_resource
+.Fa "device_t dev" "int type" "struct resource *r"
+.Fa "rman_res_t start" "rman_res_t end"
+.Fc
 .Sh DESCRIPTION
 This function is used to ask the parent bus to adjust the resource range
 assigned to an allocated resource.

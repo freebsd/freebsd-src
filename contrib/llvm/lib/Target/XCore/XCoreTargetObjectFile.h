@@ -7,18 +7,33 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TARGET_XCORE_TARGETOBJECTFILE_H
-#define LLVM_TARGET_XCORE_TARGETOBJECTFILE_H
+#ifndef LLVM_LIB_TARGET_XCORE_XCORETARGETOBJECTFILE_H
+#define LLVM_LIB_TARGET_XCORE_XCORETARGETOBJECTFILE_H
 
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 
 namespace llvm {
 
-  class XCoreTargetObjectFile : public TargetLoweringObjectFileELF {
-  public:
-    void Initialize(MCContext &Ctx, const TargetMachine &TM);
+static const unsigned CodeModelLargeSize = 256;
 
-    // TODO: Classify globals as xcore wishes.
+  class XCoreTargetObjectFile : public TargetLoweringObjectFileELF {
+    MCSection *BSSSectionLarge;
+    MCSection *DataSectionLarge;
+    MCSection *ReadOnlySectionLarge;
+    MCSection *DataRelROSectionLarge;
+
+  public:
+    void Initialize(MCContext &Ctx, const TargetMachine &TM) override;
+
+    MCSection *getExplicitSectionGlobal(const GlobalObject *GO, SectionKind Kind,
+                                        const TargetMachine &TM) const override;
+
+    MCSection *SelectSectionForGlobal(const GlobalObject *GO, SectionKind Kind,
+                                      const TargetMachine &TM) const override;
+
+    MCSection *getSectionForConstant(const DataLayout &DL, SectionKind Kind,
+                                     const Constant *C,
+                                     unsigned &Align) const override;
   };
 } // end namespace llvm
 

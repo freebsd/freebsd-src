@@ -24,7 +24,7 @@
  * Use is subject to license terms.
  */
 
-#if defined(sun)
+#ifdef illumos
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 #endif
 
@@ -505,7 +505,7 @@ getsym(struct ps_prochandle *P, uintptr_t addr, char *buf, size_t size,
 {
 	char name[256];
 	GElf_Sym sym;
-#if defined(sun)
+#ifdef illumos
 	prsyminfo_t info;
 #else
 	prmap_t *map;
@@ -515,10 +515,10 @@ getsym(struct ps_prochandle *P, uintptr_t addr, char *buf, size_t size,
 
 	if (P == NULL || Pxlookup_by_addr(P, addr, name, sizeof (name),
 	    &sym, &info) != 0) {
-		(void) snprintf(buf, size, "%#lx", addr);
+		(void) snprintf(buf, size, "%#lx", (unsigned long)addr);
 		return (0);
 	}
-#if defined(sun)
+#ifdef illumos
 	if (info.prs_object == NULL)
 		info.prs_object = "<unknown>";
 
@@ -537,7 +537,7 @@ getsym(struct ps_prochandle *P, uintptr_t addr, char *buf, size_t size,
 	size -= len;
 
 	if (sym.st_value != addr)
-		len = snprintf(buf, size, "+%#lx", addr - sym.st_value);
+		len = snprintf(buf, size, "+%#lx", (unsigned long)(addr - sym.st_value));
 
 	if (nolocks && strcmp("libc.so.1", map->pr_mapname) == 0 &&
 	    (strstr("mutex", name) == 0 ||
@@ -668,7 +668,7 @@ process_aggregate(const dtrace_aggdata_t **aggsdata, int naggvars, void *arg)
 static void
 prochandler(struct ps_prochandle *P, const char *msg, void *arg)
 {
-#if defined(sun)
+#ifdef illumos
 	const psinfo_t *prp = Ppsinfo(P);
 	int pid = Pstatus(P)->pr_pid;
 #else
@@ -773,7 +773,7 @@ intr(int signo)
 int
 main(int argc, char **argv)
 {
-#if defined(sun)
+#ifdef illumos
 	ucred_t *ucp;
 #endif
 	int err;
@@ -785,7 +785,7 @@ main(int argc, char **argv)
 
 	g_pname = basename(argv[0]);
 	argv[0] = g_pname; /* rewrite argv[0] for getopt errors */
-#if defined(sun)
+#ifdef illumos
 	/*
 	 * Make sure we have the required dtrace_proc privilege.
 	 */
@@ -988,7 +988,7 @@ main(int argc, char **argv)
 
 	if (opt_v)
 		(void) printf("%s: tracing enabled for pid %d\n", g_pname,
-#if defined(sun)
+#ifdef illumos
 		    (int)Pstatus(g_pr)->pr_pid);
 #else
 		    (int)proc_getpid(g_pr));

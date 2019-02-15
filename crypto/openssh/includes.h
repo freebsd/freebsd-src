@@ -23,19 +23,14 @@
 #endif
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h> /* For CMSG_* */
 
 #ifdef HAVE_LIMITS_H
-# include <limits.h> /* For PATH_MAX */
+# include <limits.h> /* For PATH_MAX, _POSIX_HOST_NAME_MAX */
 #endif
 #ifdef HAVE_BSTRING_H
 # include <bstring.h>
-#endif
-#if defined(HAVE_GLOB_H) && defined(GLOB_HAS_ALTDIRFUNC) && \
-    defined(GLOB_HAS_GL_MATCHC) && defined(GLOB_HAS_GL_STATV) && \
-    defined(HAVE_DECL_GLOB_NOMATCH) &&  HAVE_DECL_GLOB_NOMATCH != 0 && \
-    !defined(BROKEN_GLOB)
-# include <glob.h>
 #endif
 #ifdef HAVE_ENDIAN_H
 # include <endian.h>
@@ -97,6 +92,9 @@
 #endif
 #ifdef HAVE_SYS_SYSMACROS_H
 # include <sys/sysmacros.h> /* For MIN, MAX, etc */
+#endif
+#ifdef HAVE_SYS_TIME_H
+# include <sys/time.h> /* for timespeccmp if present */
 #endif
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h> /* for MAP_ANONYMOUS */
@@ -166,7 +164,9 @@
 # endif
 #endif
 
+#ifdef WITH_OPENSSL
 #include <openssl/opensslv.h> /* For OPENSSL_VERSION_NUMBER */
+#endif
 
 #include "defines.h"
 

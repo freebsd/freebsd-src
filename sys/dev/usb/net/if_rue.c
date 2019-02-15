@@ -25,6 +25,8 @@
  * SUCH DAMAGE.
  */
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause AND BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Bill Paul <wpaul@ee.columbia.edu>.  All rights reserved.
  *
@@ -104,7 +106,7 @@ __FBSDID("$FreeBSD$");
 static int rue_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, rue, CTLFLAG_RW, 0, "USB rue");
-SYSCTL_INT(_hw_usb_rue, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_rue, OID_AUTO, debug, CTLFLAG_RWTUN,
     &rue_debug, 0, "Debug level");
 #endif
 
@@ -214,6 +216,7 @@ MODULE_DEPEND(rue, usb, 1, 1, 1);
 MODULE_DEPEND(rue, ether, 1, 1, 1);
 MODULE_DEPEND(rue, miibus, 1, 1, 1);
 MODULE_VERSION(rue, 1);
+USB_PNP_HOST_INFO(rue_devs);
 
 static const struct usb_ether_methods rue_ue_methods = {
 	.ue_attach_post = rue_attach_post,
@@ -497,7 +500,7 @@ rue_setmulti(struct usb_ether *ue)
 
 	/* now program new ones */
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH (ifma, &ifp->if_multiaddrs, ifma_link)
+	CK_STAILQ_FOREACH (ifma, &ifp->if_multiaddrs, ifma_link)
 	{
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -692,7 +695,7 @@ rue_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		usbd_copy_out(pc, actlen - 4, &status, sizeof(status));
 		actlen -= 4;
 
-		/* check recieve packet was valid or not */
+		/* check receive packet was valid or not */
 		status = le16toh(status);
 		if ((status & RUE_RXSTAT_VALID) == 0) {
 			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);

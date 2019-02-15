@@ -24,13 +24,11 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <libelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: elf_flag.c 2272 2011-12-03 17:07:31Z jkoshy $");
+ELFTC_VCSID("$Id: elf_flag.c 3174 2015-03-27 17:13:41Z emaste $");
 
 unsigned int
 elf_flagarhdr(Elf_Arhdr *a, Elf_Cmd c, unsigned int flags)
@@ -111,7 +109,7 @@ elf_flagehdr(Elf *e, Elf_Cmd c, unsigned int flags)
 unsigned int
 elf_flagelf(Elf *e, Elf_Cmd c, unsigned int flags)
 {
-	int r;
+	unsigned int r;
 
 	if (e == NULL)
 		return (0);
@@ -173,7 +171,7 @@ elf_flagphdr(Elf *e, Elf_Cmd c, unsigned int flags)
 unsigned int
 elf_flagscn(Elf_Scn *s, Elf_Cmd c, unsigned int flags)
 {
-	int r;
+	unsigned int r;
 
 	if (s == NULL)
 		return (0);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2013
  * 	Swinburne University of Technology, Melbourne, Australia
  * All rights reserved.
@@ -63,14 +65,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
-#include <net/if.h>
 #include <net/vnet.h>
 
-#include <netinet/cc.h>
+#include <netinet/tcp.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
-
+#include <netinet/cc/cc.h>
 #include <netinet/cc/cc_module.h>
 
 #include <netinet/khelp/h_ertt.h>
@@ -204,13 +205,13 @@ static MALLOC_DEFINE(M_CDG, "cdg data",
 
 static int ertt_id;
 
-static VNET_DEFINE(uint32_t, cdg_alpha_inc);
-static VNET_DEFINE(uint32_t, cdg_beta_delay);
-static VNET_DEFINE(uint32_t, cdg_beta_loss);
-static VNET_DEFINE(uint32_t, cdg_smoothing_factor);
-static VNET_DEFINE(uint32_t, cdg_exp_backoff_scale);
-static VNET_DEFINE(uint32_t, cdg_consec_cong);
-static VNET_DEFINE(uint32_t, cdg_hold_backoff);
+VNET_DEFINE_STATIC(uint32_t, cdg_alpha_inc);
+VNET_DEFINE_STATIC(uint32_t, cdg_beta_delay);
+VNET_DEFINE_STATIC(uint32_t, cdg_beta_loss);
+VNET_DEFINE_STATIC(uint32_t, cdg_smoothing_factor);
+VNET_DEFINE_STATIC(uint32_t, cdg_exp_backoff_scale);
+VNET_DEFINE_STATIC(uint32_t, cdg_consec_cong);
+VNET_DEFINE_STATIC(uint32_t, cdg_hold_backoff);
 #define	V_cdg_alpha_inc		VNET(cdg_alpha_inc)
 #define	V_cdg_beta_delay	VNET(cdg_beta_delay)
 #define	V_cdg_beta_loss		VNET(cdg_beta_loss)
@@ -375,7 +376,7 @@ cdg_exp_backoff_scale_handler(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_int(oidp, arg1, arg2, req));
 }
 
-static inline unsigned long
+static inline uint32_t
 cdg_window_decrease(struct cc_var *ccv, unsigned long owin, unsigned int beta)
 {
 
@@ -461,7 +462,7 @@ cdg_cong_signal(struct cc_var *ccv, uint32_t signal_type)
 				cdg_data->shadow_w = cdg_window_decrease(ccv,
 				    cdg_data->shadow_w, RENO_BETA);
 
-			CCV(ccv, snd_ssthresh) = ulmax(cdg_data->shadow_w,
+			CCV(ccv, snd_ssthresh) = max(cdg_data->shadow_w,
 			    cdg_window_decrease(ccv, CCV(ccv, snd_cwnd),
 			    V_cdg_beta_loss));
 
@@ -659,39 +660,39 @@ SYSCTL_STRING(_net_inet_tcp_cc_cdg, OID_AUTO, version,
     CTLFLAG_RD, CDG_VERSION, sizeof(CDG_VERSION) - 1,
     "Current algorithm/implementation version number");
 
-SYSCTL_VNET_UINT(_net_inet_tcp_cc_cdg, OID_AUTO, alpha_inc,
-    CTLFLAG_RW, &VNET_NAME(cdg_alpha_inc), 0,
+SYSCTL_UINT(_net_inet_tcp_cc_cdg, OID_AUTO, alpha_inc,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(cdg_alpha_inc), 0,
     "Increment the window increase factor alpha by 1 MSS segment every "
     "alpha_inc RTTs during congestion avoidance mode.");
 
-SYSCTL_VNET_PROC(_net_inet_tcp_cc_cdg, OID_AUTO, beta_delay,
-    CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(cdg_beta_delay), 70,
+SYSCTL_PROC(_net_inet_tcp_cc_cdg, OID_AUTO, beta_delay,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW, &VNET_NAME(cdg_beta_delay), 70,
     &cdg_beta_handler, "IU",
     "Delay-based window decrease factor as a percentage "
     "(on delay-based backoff, w = w * beta_delay / 100)");
 
-SYSCTL_VNET_PROC(_net_inet_tcp_cc_cdg, OID_AUTO, beta_loss,
-    CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(cdg_beta_loss), 50,
+SYSCTL_PROC(_net_inet_tcp_cc_cdg, OID_AUTO, beta_loss,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW, &VNET_NAME(cdg_beta_loss), 50,
     &cdg_beta_handler, "IU",
     "Loss-based window decrease factor as a percentage "
     "(on loss-based backoff, w = w * beta_loss / 100)");
 
-SYSCTL_VNET_PROC(_net_inet_tcp_cc_cdg, OID_AUTO, exp_backoff_scale,
-    CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(cdg_exp_backoff_scale), 2,
-    &cdg_exp_backoff_scale_handler, "IU",
+SYSCTL_PROC(_net_inet_tcp_cc_cdg, OID_AUTO, exp_backoff_scale,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
+    &VNET_NAME(cdg_exp_backoff_scale), 2, &cdg_exp_backoff_scale_handler, "IU",
     "Scaling parameter for the probabilistic exponential backoff");
 
-SYSCTL_VNET_UINT(_net_inet_tcp_cc_cdg,  OID_AUTO, smoothing_factor,
-    CTLFLAG_RW, &VNET_NAME(cdg_smoothing_factor), 8,
+SYSCTL_UINT(_net_inet_tcp_cc_cdg,  OID_AUTO, smoothing_factor,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(cdg_smoothing_factor), 8,
     "Number of samples used for moving average smoothing (0 = no smoothing)");
 
-SYSCTL_VNET_UINT(_net_inet_tcp_cc_cdg, OID_AUTO, loss_compete_consec_cong,
-    CTLFLAG_RW, &VNET_NAME(cdg_consec_cong), 5,
+SYSCTL_UINT(_net_inet_tcp_cc_cdg, OID_AUTO, loss_compete_consec_cong,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(cdg_consec_cong), 5,
     "Number of consecutive delay-gradient based congestion episodes which will "
     "trigger loss based CC compatibility");
 
-SYSCTL_VNET_UINT(_net_inet_tcp_cc_cdg, OID_AUTO, loss_compete_hold_backoff,
-    CTLFLAG_RW, &VNET_NAME(cdg_hold_backoff), 5,
+SYSCTL_UINT(_net_inet_tcp_cc_cdg, OID_AUTO, loss_compete_hold_backoff,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(cdg_hold_backoff), 5,
     "Number of consecutive delay-gradient based congestion episodes to hold "
     "the window backoff for loss based CC compatibility");
 

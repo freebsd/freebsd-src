@@ -12,7 +12,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -31,7 +31,7 @@
 .\"     @(#)cmp.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd November 18, 2013
+.Dd May 1, 2018
 .Dt CMP 1
 .Os
 .Sh NAME
@@ -59,10 +59,10 @@ The following options are available:
 .Bl -tag -width indent
 .It Fl h
 Do not follow symbolic links.
-.It Fl l
+.It Fl l , Fl -verbose
 Print the byte number (decimal) and the differing
 byte values (octal) for each difference.
-.It Fl s
+.It Fl s , Fl -silent , Fl -quiet
 Print nothing for differing files; return exit
 status only.
 .It Fl x

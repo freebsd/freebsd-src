@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Jake Burkholder.
  * All rights reserved.
  *
@@ -27,7 +29,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_kbd.h"
 #include "opt_sunkbd.h"
 
@@ -857,7 +858,7 @@ keycode2scancode(int keycode, int shift, int up)
 	int scancode;
 
 	scancode = keycode;
-	if ((keycode >= 89) && (keycode < 89 + sizeof(scan) / sizeof(scan[0])))
+	if ((keycode >= 89) && (keycode < 89 + nitems(scan)))
 	scancode = scan[keycode - 89] | SCAN_PREFIX_E0;
 	/* pause/break */
 	if ((keycode == 104) && !(shift & CTLS))

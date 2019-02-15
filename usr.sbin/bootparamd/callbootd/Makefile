@@ -10,7 +10,7 @@ CFLAGS+= -I.
 
 CLEANFILES= ${GENSRCS}
 
-RPCSRC=	${DESTDIR}/usr/include/rpcsvc/bootparam_prot.x
+RPCSRC=	${SYSROOT:U${DESTDIR}}/usr/include/rpcsvc/bootparam_prot.x
 
 bootparam_prot_clnt.c: ${RPCSRC}
 	RPCGEN_CPP=${CPP:Q} rpcgen -C -l -o ${.TARGET} ${RPCSRC}

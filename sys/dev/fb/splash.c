@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
  * All rights reserved.
  *
@@ -115,7 +117,7 @@ splash_register(splash_decoder_t *decoder)
 
 	if (splash_adp != NULL) {
 		/*
-		 * If the video card has aleady been initialized, test
+		 * If the video card has already been initialized, test
 		 * this decoder immediately.
 		 */
 		error = splash_test(decoder);

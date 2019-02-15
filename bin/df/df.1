@@ -10,7 +10,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -29,7 +29,7 @@
 .\"     @(#)df.1	8.3 (Berkeley) 5/8/95
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2014
+.Dd August 8, 2017
 .Dt DF 1
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Nd display free disk space
 .Sh SYNOPSIS
 .Nm
+.Op Fl -libxo
 .Op Fl b | g | H | h | k | m | P
 .Op Fl acilnT
 .Op Fl \&,
@@ -61,6 +62,13 @@ option below).
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
 .It Fl a
 Show all mount points, including those that were mounted with the
 .Dv MNT_IGNORE
@@ -89,7 +97,7 @@ output.
 Use unit suffixes: Byte, Kibibyte, Mebibyte, Gibibyte, Tebibyte and
 Pebibyte (based on powers of 1024) in order to reduce the number of
 digits to four or fewer.
-.It Fl H
+.It Fl H , Fl Fl si
 .Dq Human-readable
 output.
 Use unit suffixes: Byte, Kilobyte, Megabyte,
@@ -193,7 +201,9 @@ If the value is outside, it will be set to the appropriate limit.
 .Xr statfs 2 ,
 .Xr getbsize 3 ,
 .Xr getmntinfo 3 ,
+.Xr libxo 3 ,
 .Xr localeconv 3 ,
+.Xr xo_parse_args 3 ,
 .Xr fstab 5 ,
 .Xr mount 8 ,
 .Xr pstat 8 ,

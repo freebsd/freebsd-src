@@ -1,7 +1,14 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999-2008 Apple Inc.
- * Copyright (c) 2006-2008 Robert N. M. Watson
+ * Copyright (c) 2006-2008, 2016, 2018 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -71,6 +78,8 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
+#include <machine/stdarg.h>
+
 /*
  * Worker thread that will schedule disk I/O, etc.
  */
@@ -98,6 +107,26 @@ static struct sx	 audit_worker_lock;
 #define	AUDIT_WORKER_LOCK()		sx_xlock(&audit_worker_lock)
 #define	AUDIT_WORKER_UNLOCK()		sx_xunlock(&audit_worker_lock)
 
+static void
+audit_worker_sync_vp(struct vnode *vp, struct mount *mp, const char *fmt, ...)
+{
+	struct mount *mp1;
+	int error;
+	va_list va;
+
+	va_start(va, fmt);
+	error = vn_start_write(vp, &mp1, 0);
+	if (error == 0) {
+		VOP_LOCK(vp, LK_EXCLUSIVE | LK_RETRY);
+		(void)VOP_FSYNC(vp, MNT_WAIT, curthread);
+		VOP_UNLOCK(vp, 0);
+		vn_finished_write(mp1);
+	}
+	vfs_unbusy(mp);
+	vpanic(fmt, va);
+	va_end(va);
+}
+
 /*
  * Write an audit record to a file, performed as the last stage after both
  * preselection and BSM conversion.  Both space management and write failures
@@ -114,6 +143,7 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 	static struct timeval last_fail;
 	static int cur_lowspace_trigger;
 	struct statfs *mnt_stat;
+	struct mount *mp;
 	int error;
 	static int cur_fail;
 	long temp;
@@ -123,15 +153,25 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 	if (vp == NULL)
 		return;
 
-	mnt_stat = &vp->v_mount->mnt_stat;
+	mp = vp->v_mount;
+	if (mp == NULL) {
+		error = EINVAL;
+		goto fail;
+	}
+	error = vfs_busy(mp, 0);
+	if (error != 0) {
+		mp = NULL;
+		goto fail;
+	}
+	mnt_stat = &mp->mnt_stat;
 
 	/*
 	 * First, gather statistics on the audit log file and file system so
 	 * that we know how we're doing on space.  Consider failure of these
 	 * operations to indicate a future inability to write to the file.
 	 */
-	error = VFS_STATFS(vp->v_mount, mnt_stat);
-	if (error)
+	error = VFS_STATFS(mp, mnt_stat);
+	if (error != 0)
 		goto fail;
 
 	/*
@@ -246,13 +286,12 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 	 */
 	if (audit_in_failure) {
 		if (audit_q_len == 0 && audit_pre_q_len == 0) {
-			VOP_LOCK(vp, LK_EXCLUSIVE | LK_RETRY);
-			(void)VOP_FSYNC(vp, MNT_WAIT, curthread);
-			VOP_UNLOCK(vp, 0);
-			panic("Audit store overflow; record queue drained.");
+			audit_worker_sync_vp(vp, mp,
+			    "Audit store overflow; record queue drained.");
 		}
 	}
 
+	vfs_unbusy(mp);
 	return;
 
 fail_enospc:
@@ -262,13 +301,12 @@ fail_enospc:
 	 * space, or ENOSPC returned by the vnode write call.
 	 */
 	if (audit_fail_stop) {
-		VOP_LOCK(vp, LK_EXCLUSIVE | LK_RETRY);
-		(void)VOP_FSYNC(vp, MNT_WAIT, curthread);
-		VOP_UNLOCK(vp, 0);
-		panic("Audit log space exhausted and fail-stop set.");
+		audit_worker_sync_vp(vp, mp,
+		    "Audit log space exhausted and fail-stop set.");
 	}
 	(void)audit_send_trigger(AUDIT_TRIGGER_NO_SPACE);
-	audit_suspended = 1;
+	audit_trail_suspended = 1;
+	audit_syscalls_enabled_update();
 
 	/* FALLTHROUGH */
 fail:
@@ -277,12 +315,12 @@ fail:
 	 * lost, which may require an immediate system halt.
 	 */
 	if (audit_panic_on_write_fail) {
-		VOP_LOCK(vp, LK_EXCLUSIVE | LK_RETRY);
-		(void)VOP_FSYNC(vp, MNT_WAIT, curthread);
-		VOP_UNLOCK(vp, 0);
-		panic("audit_worker: write error %d\n", error);
+		audit_worker_sync_vp(vp, mp,
+		    "audit_worker: write error %d\n", error);
 	} else if (ppsratecheck(&last_fail, &cur_fail, 1))
 		printf("audit_worker: write error %d\n", error);
+	if (mp != NULL)
+		vfs_unbusy(mp);
 }
 
 /*
@@ -332,7 +370,8 @@ audit_worker_process_record(struct kaudit_record *ar)
 
 	if (!(ar->k_ar_commit & AR_COMMIT_KERNEL) ||
 	    ((ar->k_ar_commit & AR_PRESELECT_PIPE) == 0 &&
-	    (ar->k_ar_commit & AR_PRESELECT_TRAIL) == 0))
+	    (ar->k_ar_commit & AR_PRESELECT_TRAIL) == 0 &&
+	    (ar->k_ar_commit & AR_PRESELECT_DTRACE) == 0))
 		goto out;
 
 	auid = ar->k_ar.ar_subj_auid;
@@ -368,6 +407,17 @@ audit_worker_process_record(struct kaudit_record *ar)
 		audit_pipe_submit(auid, event, class, sorf,
 		    ar->k_ar_commit & AR_PRESELECT_TRAIL, bsm->data,
 		    bsm->len);
+
+#ifdef KDTRACE_HOOKS
+	/*
+	 * Version of the dtaudit commit hook that accepts BSM.
+	 */
+	if (ar->k_ar_commit & AR_PRESELECT_DTRACE) {
+		if (dtaudit_hook_bsm != NULL)
+			dtaudit_hook_bsm(ar, auid, event, class, sorf,
+			    bsm->data, bsm->len);
+	}
+#endif
 
 	kau_free(bsm);
 out:
@@ -469,7 +519,8 @@ audit_rotate_vnode(struct ucred *cred, struct vnode *vp)
 	audit_vp = vp;
 	audit_size = vattr.va_size;
 	audit_file_rotate_wait = 0;
-	audit_enabled = (audit_vp != NULL);
+	audit_trail_enabled = (audit_vp != NULL);
+	audit_syscalls_enabled_update();
 	AUDIT_WORKER_UNLOCK();
 
 	/*

@@ -61,7 +61,7 @@ value_of_builtin_frame_reg (struct frame_info *frame)
   val = allocate_value (builtin_type_frame_reg);
   VALUE_LVAL (val) = not_lval;
   buf = VALUE_CONTENTS_RAW (val);
-  memset (buf, TYPE_LENGTH (VALUE_TYPE (val)), 0);
+  memset (buf, 0, TYPE_LENGTH (VALUE_TYPE (val)));
   /* frame.base.  */
   if (frame != NULL)
     ADDRESS_TO_POINTER (builtin_type_void_data_ptr, buf,
@@ -87,7 +87,7 @@ value_of_builtin_frame_fp_reg (struct frame_info *frame)
       struct value *val = allocate_value (builtin_type_void_data_ptr);
       char *buf = VALUE_CONTENTS_RAW (val);
       if (frame == NULL)
-	memset (buf, TYPE_LENGTH (VALUE_TYPE (val)), 0);
+	memset (buf, 0, TYPE_LENGTH (VALUE_TYPE (val)));
       else
 	ADDRESS_TO_POINTER (builtin_type_void_data_ptr, buf,
 			    get_frame_base_address (frame));
@@ -105,7 +105,7 @@ value_of_builtin_frame_pc_reg (struct frame_info *frame)
       struct value *val = allocate_value (builtin_type_void_data_ptr);
       char *buf = VALUE_CONTENTS_RAW (val);
       if (frame == NULL)
-	memset (buf, TYPE_LENGTH (VALUE_TYPE (val)), 0);
+	memset (buf, 0, TYPE_LENGTH (VALUE_TYPE (val)));
       else
 	ADDRESS_TO_POINTER (builtin_type_void_data_ptr, buf,
 			    get_frame_pc (frame));

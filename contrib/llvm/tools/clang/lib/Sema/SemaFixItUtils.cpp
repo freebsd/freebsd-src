@@ -42,7 +42,7 @@ bool ConversionFixItGenerator::compareTypesSimple(CanQualType From,
   const CanQualType FromUnq = From.getUnqualifiedType();
   const CanQualType ToUnq = To.getUnqualifiedType();
 
-  if ((FromUnq == ToUnq || (S.IsDerivedFrom(FromUnq, ToUnq)) ) &&
+  if ((FromUnq == ToUnq || (S.IsDerivedFrom(Loc, FromUnq, ToUnq)) ) &&
       To.isAtLeastAsQualifiedAs(From))
     return true;
   return false;
@@ -58,8 +58,8 @@ bool ConversionFixItGenerator::tryToFixConversion(const Expr *FullExpr,
   const CanQualType FromQTy = S.Context.getCanonicalType(FromTy);
   const CanQualType ToQTy = S.Context.getCanonicalType(ToTy);
   const SourceLocation Begin = FullExpr->getSourceRange().getBegin();
-  const SourceLocation End = S.PP.getLocForEndOfToken(FullExpr->getSourceRange()
-                                                      .getEnd());
+  const SourceLocation End = S.getLocForEndOfToken(FullExpr->getSourceRange()
+                                                   .getEnd());
 
   // Strip the implicit casts - those are implied by the compiler, not the
   // original source code.
@@ -161,11 +161,8 @@ bool ConversionFixItGenerator::tryToFixConversion(const Expr *FullExpr,
 }
 
 static bool isMacroDefined(const Sema &S, SourceLocation Loc, StringRef Name) {
-  const IdentifierInfo *II = &S.getASTContext().Idents.get(Name);
-  if (!II->hadMacroDefinition()) return false;
-
-  MacroDirective *Macro = S.PP.getMacroDirectiveHistory(II);
-  return Macro && Macro->findDirectiveAtLoc(Loc, S.getSourceManager());
+  return (bool)S.PP.getMacroDefinitionAtLoc(&S.getASTContext().Idents.get(Name),
+                                            Loc);
 }
 
 static std::string getScalarZeroExpressionForType(

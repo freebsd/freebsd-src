@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=lib${LIB}
 LIB=	stdthreads
 SHLIB_MAJOR= 0
 
@@ -32,10 +33,9 @@ MLINKS=	thrd_create.3 call_once.3 \
 	thrd_create.3 tss_get.3 \
 	thrd_create.3 tss_set.3
 
-DPADD=	${LIBPTHREAD}
-LDADD=	-lpthread
+LIBADD=	pthread
 
-VERSION_DEF= ${.CURDIR}/../libc/Versions.def
+VERSION_DEF= ${SRCTOP}/lib/libc/Versions.def
 SYMBOL_MAPS= ${.CURDIR}/Symbol.map
 
 .include <bsd.lib.mk>

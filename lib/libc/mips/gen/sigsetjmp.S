@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 LEAF(sigsetjmp)
 	PIC_PROLOGUE(sigsetjmp)
 
-	bne	a1, 0x0, 1f			# do saving of signal mask?
+	bne	a1, zero, 1f			# do saving of signal mask?
 	PIC_TAILCALL(_setjmp)
 
 1:	PIC_TAILCALL(setjmp)

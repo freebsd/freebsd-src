@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/arcmsr
+.PATH: ${SRCTOP}/sys/dev/arcmsr
 
 KMOD=	arcmsr
 SRCS=	arcmsr.c

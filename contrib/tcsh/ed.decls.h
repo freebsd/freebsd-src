@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/ed.decls.h,v 3.45 2008/10/17 20:25:00 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/ed.decls.h,v 3.46 2015/08/19 14:29:55 christos Exp $ */
 /*
  * ed.decls.h: Editor external definitions
  */
@@ -142,7 +142,7 @@ extern	CCRETVAL	e_wordfwd		(Char);
 extern	CCRETVAL	v_wordbegnext		(Char);
 extern	CCRETVAL	e_uppercase		(Char);
 extern	CCRETVAL	e_lowercase		(Char);
-extern	CCRETVAL	e_capitolcase		(Char);
+extern	CCRETVAL	e_capitalcase		(Char);
 extern	CCRETVAL	e_cleardisp		(Char);
 extern	CCRETVAL	e_complete		(Char);
 extern	CCRETVAL	e_correct		(Char);

@@ -38,7 +38,7 @@ unwind.h: ${GCCDIR}/config/arm/unwind-arm.h
 unwind.h: ${GCCDIR}/unwind-generic.h
 .endif
 
-unwind.h:
+unwind.h: .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 
 SRCS+=		unwind.h

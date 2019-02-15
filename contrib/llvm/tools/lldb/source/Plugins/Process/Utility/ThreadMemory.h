@@ -1,4 +1,4 @@
-//===-- ThreadMemory.h -----------------------------------------*- C++ -*-===//
+//===-- ThreadMemory.h ------------------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -10,143 +10,102 @@
 #ifndef liblldb_ThreadMemory_h_
 #define liblldb_ThreadMemory_h_
 
+// C Includes
+// C++ Includes
+#include <string>
+
+// Other libraries and framework includes
+// Project includes
 #include "lldb/Target/Thread.h"
 
-class ThreadMemory :
-    public lldb_private::Thread
-{
+class ThreadMemory : public lldb_private::Thread {
 public:
+  ThreadMemory(lldb_private::Process &process, lldb::tid_t tid,
+               const lldb::ValueObjectSP &thread_info_valobj_sp);
 
-    ThreadMemory (lldb_private::Process &process,
-                  lldb::tid_t tid,
-                  const lldb::ValueObjectSP &thread_info_valobj_sp);
+  ThreadMemory(lldb_private::Process &process, lldb::tid_t tid,
+               llvm::StringRef name, llvm::StringRef queue,
+               lldb::addr_t register_data_addr);
 
-    ThreadMemory (lldb_private::Process &process,
-                  lldb::tid_t tid,
-                  const char *name,
-                  const char *queue,
-                  lldb::addr_t register_data_addr);
+  ~ThreadMemory() override;
 
-    virtual
-    ~ThreadMemory();
+  lldb::RegisterContextSP GetRegisterContext() override;
 
-    //------------------------------------------------------------------
-    // lldb_private::Thread methods
-    //------------------------------------------------------------------
-    virtual lldb::RegisterContextSP
-    GetRegisterContext ();
+  lldb::RegisterContextSP
+  CreateRegisterContextForFrame(lldb_private::StackFrame *frame) override;
 
-    virtual lldb::RegisterContextSP
-    CreateRegisterContextForFrame (lldb_private::StackFrame *frame);
+  bool CalculateStopInfo() override;
 
-    virtual bool
-    CalculateStopInfo ();
+  const char *GetInfo() override {
+    if (m_backing_thread_sp)
+      m_backing_thread_sp->GetInfo();
+    return nullptr;
+  }
 
-    virtual const char *
-    GetInfo ()
-    {
-        if (m_backing_thread_sp)
-            m_backing_thread_sp->GetInfo();
-        return NULL;
-    }
+  const char *GetName() override {
+    if (!m_name.empty())
+      return m_name.c_str();
+    if (m_backing_thread_sp)
+      m_backing_thread_sp->GetName();
+    return nullptr;
+  }
 
-    virtual const char *
-    GetName ()
-    {
-        if (!m_name.empty())
-            return m_name.c_str();
-        if (m_backing_thread_sp)
-            m_backing_thread_sp->GetName();
-        return NULL;
-    }
-    
-    virtual const char *
-    GetQueueName ()
-    {
-        if (!m_queue.empty())
-            return m_queue.c_str();
-        if (m_backing_thread_sp)
-            m_backing_thread_sp->GetQueueName();
-        return NULL;
-    }
+  const char *GetQueueName() override {
+    if (!m_queue.empty())
+      return m_queue.c_str();
+    if (m_backing_thread_sp)
+      m_backing_thread_sp->GetQueueName();
+    return nullptr;
+  }
 
-    virtual void
-    WillResume (lldb::StateType resume_state);
+  void WillResume(lldb::StateType resume_state) override;
 
-    virtual void
-    DidResume ()
-    {
-        if (m_backing_thread_sp)
-            m_backing_thread_sp->DidResume();
-    }
-    
-    virtual lldb::user_id_t
-    GetProtocolID () const
-    {
-        if (m_backing_thread_sp)
-            return m_backing_thread_sp->GetProtocolID();
-        return Thread::GetProtocolID();
-    }
+  void DidResume() override {
+    if (m_backing_thread_sp)
+      m_backing_thread_sp->DidResume();
+  }
 
-    virtual void
-    RefreshStateAfterStop();
-    
-    lldb::ValueObjectSP &
-    GetValueObject ()
-    {
-        return m_thread_info_valobj_sp;
-    }
-    
-    virtual void
-    ClearStackFrames ();
+  lldb::user_id_t GetProtocolID() const override {
+    if (m_backing_thread_sp)
+      return m_backing_thread_sp->GetProtocolID();
+    return Thread::GetProtocolID();
+  }
 
-    virtual void
-    ClearBackingThread ()
-    {
-        m_backing_thread_sp.reset();
-    }
+  void RefreshStateAfterStop() override;
 
-    virtual bool
-    SetBackingThread (const lldb::ThreadSP &thread_sp)
-    {
-        //printf ("Thread 0x%llx is being backed by thread 0x%llx\n", GetID(), thread_sp->GetID());
-        m_backing_thread_sp = thread_sp;
-        return (bool)thread_sp;
-    }
-    
-    virtual lldb::ThreadSP
-    GetBackingThread () const
-    {
-        return m_backing_thread_sp;
-    }
+  lldb::ValueObjectSP &GetValueObject() { return m_thread_info_valobj_sp; }
+
+  void ClearStackFrames() override;
+
+  void ClearBackingThread() override { m_backing_thread_sp.reset(); }
+
+  bool SetBackingThread(const lldb::ThreadSP &thread_sp) override {
+    // printf ("Thread 0x%llx is being backed by thread 0x%llx\n", GetID(),
+    // thread_sp->GetID());
+    m_backing_thread_sp = thread_sp;
+    return (bool)thread_sp;
+  }
+
+  lldb::ThreadSP GetBackingThread() const override {
+    return m_backing_thread_sp;
+  }
 
 protected:
-    
-    virtual bool
-    IsOperatingSystemPluginThread () const
-    {
-        return true;
-    }
-    
+  bool IsOperatingSystemPluginThread() const override { return true; }
 
-    //------------------------------------------------------------------
-    // For ThreadMemory and subclasses
-    //------------------------------------------------------------------
-    // If this memory thread is actually represented by a thread from the
-    // lldb_private::Process subclass, then fill in the thread here and
-    // all APIs will be routed through this thread object. If m_backing_thread_sp
-    // is empty, then this thread is simply in memory with no representation
-    // through the process plug-in.
-    lldb::ThreadSP m_backing_thread_sp;
-    lldb::ValueObjectSP m_thread_info_valobj_sp;
-    std::string m_name;
-    std::string m_queue;
-    lldb::addr_t m_register_data_addr;
+  // If this memory thread is actually represented by a thread from the
+  // lldb_private::Process subclass, then fill in the thread here and
+  // all APIs will be routed through this thread object. If m_backing_thread_sp
+  // is empty, then this thread is simply in memory with no representation
+  // through the process plug-in.
+  lldb::ThreadSP m_backing_thread_sp;
+  lldb::ValueObjectSP m_thread_info_valobj_sp;
+  std::string m_name;
+  std::string m_queue;
+  lldb::addr_t m_register_data_addr;
+
 private:
-    //------------------------------------------------------------------
-    // For ThreadMemory only
-    //------------------------------------------------------------------
-    DISALLOW_COPY_AND_ASSIGN (ThreadMemory);
+  DISALLOW_COPY_AND_ASSIGN(ThreadMemory);
 };
 
-#endif  // liblldb_ThreadMemory_h_
+#endif // liblldb_ThreadMemory_h_

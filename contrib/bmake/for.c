@@ -1,4 +1,4 @@
-/*	$NetBSD: for.c,v 1.49 2012/06/03 04:29:40 sjg Exp $	*/
+/*	$NetBSD: for.c,v 1.53 2017/04/16 21:04:44 riastradh Exp $	*/
 
 /*
  * Copyright (c) 1992, The Regents of the University of California.
@@ -30,14 +30,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: for.c,v 1.49 2012/06/03 04:29:40 sjg Exp $";
+static char rcsid[] = "$NetBSD: for.c,v 1.53 2017/04/16 21:04:44 riastradh Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)for.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: for.c,v 1.49 2012/06/03 04:29:40 sjg Exp $");
+__RCSID("$NetBSD: for.c,v 1.53 2017/04/16 21:04:44 riastradh Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -216,7 +216,7 @@ For_Eval(char *line)
      * We can't do the escapes here - because we don't know whether
      * we are substuting into ${...} or $(...).
      */
-    sub = Var_Subst(NULL, ptr, VAR_GLOBAL, FALSE);
+    sub = Var_Subst(NULL, ptr, VAR_GLOBAL, VARF_WANTRES);
 
     /*
      * Split into words allowing for quoted strings.
@@ -427,7 +427,7 @@ For_Iterate(void *v_arg, size_t *ret_len)
     for (cp = cmd_cp; (cp = strchr(cp, '$')) != NULL;) {
 	char ech;
 	ch = *++cp;
-	if ((ch == '(' && (ech = ')')) || (ch == '{' && (ech = '}'))) {
+	if ((ch == '(' && (ech = ')', 1)) || (ch == '{' && (ech = '}', 1))) {
 	    cp++;
 	    /* Check variable name against the .for loop variables */
 	    STRLIST_FOREACH(var, &arg->vars, i) {

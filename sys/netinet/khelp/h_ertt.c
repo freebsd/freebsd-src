@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2010
  * 	Swinburne University of Technology, Melbourne, Australia
  * Copyright (c) 2010 Lawrence Stewart <lstewart@freebsd.org>
@@ -83,7 +85,7 @@ static void ertt_uma_dtor(void *mem, int size, void *arg);
  */
 struct txseginfo {
 	/* Segment length. */
-	long		len;
+	uint32_t	len;
 	/* Segment sequence number. */
 	tcp_seq		seq;
 	/* Time stamp indicating when the packet was sent. */
@@ -366,8 +368,8 @@ ertt_packet_measurement_hook(int hhook_type, int hhook_id, void *udata,
 				    &rtt_bytes_adjust, CORRECT_ACK);
 
 			if (txsi->flags & TXSI_TSO) {
-				txsi->len -= acked;
-				if (txsi->len > 0) {
+				if (txsi->len > acked) {
+					txsi->len -= acked;
 					/*
 					 * This presumes ack for first bytes in
 					 * txsi, this may not be true but it
@@ -400,6 +402,7 @@ ertt_packet_measurement_hook(int hhook_type, int hhook_id, void *udata,
 					 */
 					break;
 				}
+				txsi->len = 0;
 			}
 
 			TAILQ_REMOVE(&e_t->txsegi_q, txsi, txsegi_lnk);
@@ -435,7 +438,7 @@ ertt_add_tx_segment_info_hook(int hhook_type, int hhook_id, void *udata,
 	struct tcpopt *to;
 	struct tcp_hhook_data *thdp;
 	struct txseginfo *txsi;
-	long len;
+	uint32_t len;
 	int tso;
 
 	KASSERT(ctx_data != NULL, ("%s: ctx_data is NULL!", __func__));

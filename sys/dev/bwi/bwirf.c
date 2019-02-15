@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2007 The DragonFly Project.  All rights reserved.
  * 
  * This code is derived from software contributed to The DragonFly Project
@@ -1018,8 +1020,7 @@ bwi_rf_calibval(struct bwi_mac *mac)
 
 	val = RF_READ(mac, BWI_RFR_BBP_ATTEN);
 	idx = __SHIFTOUT(val, BWI_RFR_BBP_ATTEN_CALIB_IDX);
-	KASSERT(idx < (int)(sizeof(rf_calibvals) / sizeof(rf_calibvals[0])),
-	    ("idx %d", idx));
+	KASSERT(idx < (int)nitems(rf_calibvals), ("idx %d", idx));
 
 	calib = rf_calibvals[idx] << 1;
 	if (val & BWI_RFR_BBP_ATTEN_CALIB_BIT)
@@ -1155,7 +1156,6 @@ bwi_rf_map_txpower(struct bwi_mac *mac)
 	}
 
 #define IS_VALID_PA_PARAM(p)	((p) != 0 && (p) != -1)
-#define N(arr)	(int)(sizeof(arr) / sizeof(arr[0]))
 
 	/*
 	 * Extract PA parameters
@@ -1164,10 +1164,10 @@ bwi_rf_map_txpower(struct bwi_mac *mac)
 		sprom_ofs = BWI_SPROM_PA_PARAM_11A;
 	else
 		sprom_ofs = BWI_SPROM_PA_PARAM_11BG;
-	for (i = 0; i < N(pa_params); ++i)
+	for (i = 0; i < nitems(pa_params); ++i)
 		pa_params[i] = (int16_t)bwi_read_sprom(sc, sprom_ofs + (i * 2));
 
-	for (i = 0; i < N(pa_params); ++i) {
+	for (i = 0; i < nitems(pa_params); ++i) {
 		/*
 		 * If one of the PA parameters from SPROM is not valid,
 		 * fall back to the default values, if there are any.
@@ -1199,8 +1199,6 @@ bwi_rf_map_txpower(struct bwi_mac *mac)
 			goto back;
 		}
 	}
-
-#undef N
 
 	/*
 	 * All of the PA parameters from SPROM are valid.
@@ -1260,7 +1258,6 @@ static void
 bwi_rf_lo_update_11g(struct bwi_mac *mac)
 {
 	struct bwi_softc *sc = mac->mac_sc;
-	struct ifnet *ifp = sc->sc_ifp;
 	struct bwi_rf *rf = &mac->mac_rf;
 	struct bwi_phy *phy = &mac->mac_phy;
 	struct bwi_tpctl *tpctl = &mac->mac_tpctl;
@@ -1329,7 +1326,7 @@ bwi_rf_lo_update_11g(struct bwi_mac *mac)
 		PHY_WRITE(mac, 0x812, 0xb2);
 	}
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if ((sc->sc_flags & BWI_F_RUNNING) == 0)
 		tpctl->tp_ctrl2 = bwi_rf_get_tp_ctrl2(mac);
 	PHY_WRITE(mac, 0x80f, 0x8078);
 
@@ -1352,7 +1349,7 @@ bwi_rf_lo_update_11g(struct bwi_mac *mac)
 		PHY_WRITE(mac, 0x15, devi_ctrl | 0xefa0);
 	}
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if ((sc->sc_flags & BWI_F_RUNNING) == 0)
 		tpctl = NULL;
 	bwi_rf_lo_adjust(mac, tpctl);
 
@@ -1462,7 +1459,7 @@ _bwi_rf_lo_update_11g(struct bwi_mac *mac, uint16_t orig_rf7a)
 	static const int rf_lo_measure_order[RF_ATTEN_LISTSZ] =
 	{ 3, 1, 5, 7, 9, 2, 0, 4, 6, 8, 10, 11, 12, 13 };
 
-	struct ifnet *ifp = mac->mac_sc->sc_ifp;
+	struct bwi_softc *sc = mac->mac_sc;
 	struct bwi_rf_lo lo_save, *lo;
 	uint8_t devi_ctrl = 0;
 	int idx, adj_rf7a = 0;
@@ -1476,7 +1473,7 @@ _bwi_rf_lo_update_11g(struct bwi_mac *mac, uint16_t orig_rf7a)
 		for (bbp_atten = 0; bbp_atten < BBP_ATTEN_MAX; ++bbp_atten) {
 			uint16_t tp_ctrl2, rf7a;
 
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+			if ((sc->sc_flags & BWI_F_RUNNING) == 0) {
 				if (idx == 0) {
 					bzero(&lo_save, sizeof(lo_save));
 				} else if (init_rf_atten < 0) {

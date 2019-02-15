@@ -1,4 +1,4 @@
-# $Id: dep.mk,v 1.16 2012/11/11 22:37:02 sjg Exp $
+# $Id: dep.mk,v 1.17 2014/08/04 05:12:27 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -34,21 +34,15 @@ MKDEP ?= ${MKDEP_CMD}
 
 .NOPATH:	.depend
 
-.if ${MKDEP} == "auto.dep" && make(depend)
+.if ${MKDEP_MK:Uno} == "auto.dep.mk" && make(depend)
 # auto.dep.mk does not "do" depend
 MK_AUTODEP= no
 .endif
 
 .if ${MK_AUTODEP} == yes
-.if ${MKDEP:T:S,auto,,} != ${MKDEP:T}
-.include <${MKDEP}.mk>
+MKDEP_MK ?= autodep.mk
+.include <${MKDEP_MK}>
 .else
-.include <autodep.mk>
-.endif
-.else
-.if ${MKDEP:T:S,auto,,} != ${MKDEP:T}
-MKDEP = ${MKDEP_CMD}
-.endif
 MKDEP_ENV_VARS += CC CXX
 .for v in ${MKDEP_ENV_VARS:O:u}
 .if !empty($v)

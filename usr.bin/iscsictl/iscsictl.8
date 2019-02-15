@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 12, 2014
+.Dd May 6, 2016
 .Dt ISCSICTL 8
 .Os
 .Sh NAME
@@ -36,10 +36,17 @@
 .Sh SYNOPSIS
 .Nm
 .Fl A
-.Fl p Ar portal Fl t Ar target Op Fl u Ar user Fl s Ar secret
+.Fl p Ar portal Fl t Ar target
+.Op Fl u Ar user Fl s Ar secret
+.Op Fl w Ar timeout
+.Op Fl r
+.Op Fl e Cm on | off
 .Nm
 .Fl A
-.Fl d Ar discovery-host Op Fl u Ar user Fl s Ar secret
+.Fl d Ar discovery-host
+.Op Fl u Ar user Fl s Ar secret
+.Op Fl r
+.Op Fl e Cm on | off
 .Nm
 .Fl A
 .Fl a Op Fl c Ar path
@@ -53,6 +60,7 @@
 .Op Fl t Ar target
 .Op Fl u Ar user
 .Op Fl s Ar secret
+.Op Fl e Cm on | off
 .Nm
 .Fl M
 .Fl i Ar session-id
@@ -70,6 +78,7 @@
 .Nm
 .Fl L
 .Op Fl v
+.Op Fl w Ar timeout
 .Sh DESCRIPTION
 The
 .Nm
@@ -77,6 +86,13 @@ utility is used to configure the iSCSI initiator.
 .Pp
 The following options are available:
 .Bl -tag -width ".Fl A"
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
 .It Fl A
 Add session.
 .It Fl M
@@ -97,6 +113,10 @@ Target host name or address used for SendTargets discovery.
 When used, it will add a temporary discovery session.
 After discovery is done, sessions will be added for each discovered target,
 and the temporary discovery session will be removed.
+.It Fl e
+Enable or disable the session.
+This is ignored for discovery sessions, but gets passed down to normal
+sessions they add.
 .It Fl i
 Session ID, as displayed by
 .Nm
@@ -105,6 +125,8 @@ Session ID, as displayed by
 The "nickname" of session defined in the configuration file.
 .It Fl p
 Target portal - host name or address - for statically defined targets.
+.It Fl r
+Use iSER (iSCSI over RDMA) instead of plain iSCSI over TCP/IP.
 .It Fl s
 CHAP secret.
 .It Fl t
@@ -113,6 +135,10 @@ Target name.
 CHAP login.
 .It Fl v
 Verbose mode.
+.It Fl w
+Instead of returning immediately, wait up to
+.Ar timeout
+seconds until all configured sessions are successfully established.
 .El
 .Pp
 Certain parameters are necessary when adding a session.
@@ -132,9 +158,11 @@ via configuration file.
 .Pp
 Since connecting to the target is performed in background, non-zero
 exit status does not mean that the session was successfully established.
-Use
+Use either
 .Nm Fl L
-to check the connection status.
+to check the connection status, or the
+.Fl w
+flag to wait for session establishment.
 .Pp
 Note that in order for the iSCSI initiator to be able to connect to a target,
 the
@@ -168,9 +196,17 @@ utility exits 0 on success, and >0 if an error occurs.
 Attach to target iqn.2012-06.com.example:target0, served by 192.168.1.1:
 .Dl Nm Fl A Fl t Ar iqn.2012-06.com.example:target0 Fl p Ar 192.168.1.1
 .Pp
+Perform discovery on 192.168.1.1, and add disabled sessions for each
+discovered target; use
+.Nm -M -e on
+to connect them:
+.Dl Nm Fl A Fl d Ar 192.168.1.1 Fl e Ar off
+.Pp
 Disconnect all iSCSI sessions:
 .Dl Nm Fl Ra
 .Sh SEE ALSO
+.Xr libxo 3 ,
+.Xr xo_parse_args 3 ,
 .Xr iscsi 4 ,
 .Xr iscsi.conf 5 ,
 .Xr iscsid 8

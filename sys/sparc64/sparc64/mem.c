@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1982, 1986, 1990 The Regents of the University of California.
  * All rights reserved.
@@ -16,7 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -43,7 +45,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Memory special file
  *
- * NOTE: other architectures support mmap()'ing the mem and kmem devices; this
+ * NOTE: other architectures support mmap()'ing the mem device; this
  * might cause illegal aliases to be created for the locked kernel page(s), so
  * it is not implemented.
  */
@@ -61,17 +63,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
+#include <vm/vm_phys.h>
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
 #include <machine/cache.h>
 #include <machine/md_var.h>
-#include <machine/pmap.h>
 #include <machine/tlb.h>
 
 #include <machine/memdev.h>
@@ -92,15 +95,12 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 	vm_size_t cnt;
 	vm_page_t m;
 	int error;
-	int i;
 	uint32_t colors;
 
 	cnt = 0;
 	colors = 1;
 	error = 0;
 	ova = 0;
-
-	GIANT_REQUIRED;
 
 	while (uio->uio_resid > 0 && error == 0) {
 		iov = uio->uio_iov;
@@ -124,15 +124,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			cnt = ulmin(cnt, PAGE_SIZE - off);
 			cnt = ulmin(cnt, iov->iov_len);
 
-			m = NULL;
-			for (i = 0; phys_avail[i] != 0; i += 2) {
-				if (pa >= phys_avail[i] &&
-				    pa < phys_avail[i + 1]) {
-					m = PHYS_TO_VM_PAGE(pa);
-					break;
-				}
-			}
-
+			m = vm_phys_paddr_to_vm_page(pa);
 			if (m != NULL) {
 				if (ova == 0) {
 					if (dcache_color_ignore == 0)

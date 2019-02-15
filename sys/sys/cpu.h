@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2007 Nate Lawson (SDG)
  * All rights reserved.
  *
@@ -37,6 +39,8 @@
 
 #define CPU_IVAR_PCPU		1
 #define CPU_IVAR_NOMINAL_MHZ	2
+#define CPU_IVAR_CPUID_SIZE	3
+#define CPU_IVAR_CPUID		4
 
 static __inline struct pcpu *cpu_get_pcpu(device_t dev)
 {
@@ -54,6 +58,20 @@ static __inline int32_t cpu_get_nominal_mhz(device_t dev)
 	return ((int32_t)v);
 }
 
+static __inline const uint32_t *cpu_get_cpuid(device_t dev, size_t *count)
+{
+	uintptr_t v = 0;
+	if (BUS_READ_IVAR(device_get_parent(dev), dev,
+	    CPU_IVAR_CPUID_SIZE, &v) != 0)
+		return (NULL);
+	*count = (size_t)v;
+
+	if (BUS_READ_IVAR(device_get_parent(dev), dev,
+	    CPU_IVAR_CPUID, &v) != 0)
+		return (NULL);
+	return ((const uint32_t *)v);
+}
+
 /*
  * CPU frequency control interface.
  */
@@ -69,7 +87,7 @@ struct cf_setting {
 };
 
 /* Maximum number of settings a given driver can have. */
-#define MAX_SETTINGS		24
+#define MAX_SETTINGS		256
 
 /* A combination of settings is a level. */
 struct cf_level {

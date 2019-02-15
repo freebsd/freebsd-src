@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2012
+.Dd October 5, 2016
 .Dt EXPR 1
 .Os
 .Sh NAME
@@ -90,17 +90,17 @@ Return the evaluation of
 .Ar expr1
 if neither expression evaluates to an empty string or zero;
 otherwise, returns zero.
-.It Ar expr1 Li "{=, >, >=, <, <=, !=}" Ar expr2
+.It Ar expr1 Bro =, >, >=, <, <=, != Brc Ar expr2
 Return the results of integer comparison if both arguments are integers;
 otherwise, returns the results of string comparison using the locale-specific
 collation sequence.
 The result of each comparison is 1 if the specified relation is true,
 or 0 if the relation is false.
-.It Ar expr1 Li "{+, -}" Ar expr2
+.It Ar expr1 Bro +, - Brc Ar expr2
 Return the results of addition or subtraction of integer-valued arguments.
-.It Ar expr1 Li "{*, /, %}" Ar expr2
+.It Ar expr1 Bro *, /, % Brc Ar expr2
 Return the results of multiplication, integer division, or remainder of integer-valued arguments.
-.It Ar expr1 Li : Ar expr2
+.It Ar expr1 Li \&: Ar expr2
 The
 .Dq Li \&:
 operator matches
@@ -309,3 +309,19 @@ these arguments are treated just as their respective string values.
 The
 .Fl e
 flag is an extension.
+.Sh HISTORY
+An
+.Nm
+utility first appeared in the Programmer's Workbench (PWB/UNIX).
+A public domain version of
+.Nm
+written by
+.An Pace Willisson Aq Mt pace@blitz.com
+appeared in
+.Bx 386 0.1 .
+.Sh AUTHORS
+Initial implementation by
+.An Pace Willisson Aq Mt pace@blitz.com
+was largely rewritten by
+.An -nosplit
+.An J.T. Conklin Aq Mt jtc@FreeBSD.org .

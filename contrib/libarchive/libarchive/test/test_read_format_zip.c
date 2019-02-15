@@ -26,12 +26,6 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_LIBZ
-static const int libz_enabled = 1;
-#else
-static const int libz_enabled = 0;
-#endif
-
 /*
  * The reference file for this has been manually tweaked so that:
  *   * file2 has length-at-end but file1 does not
@@ -47,23 +41,29 @@ verify_basic(struct archive *a, int seek_checks)
 	int64_t o;
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+        assertEqualString("ZIP 1.0 (uncompressed)", archive_format_name(a));
 	assertEqualString("dir/", archive_entry_pathname(ae));
 	assertEqualInt(1179604249, archive_entry_mtime(ae));
 	assertEqualInt(0, archive_entry_size(ae));
 	if (seek_checks)
 		assertEqualInt(AE_IFDIR | 0755, archive_entry_mode(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualIntA(a, ARCHIVE_EOF,
 	    archive_read_data_block(a, &pv, &s, &o));
 	assertEqualInt((int)s, 0);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+        assertEqualString("ZIP 2.0 (deflation)", archive_format_name(a));
 	assertEqualString("file1", archive_entry_pathname(ae));
 	assertEqualInt(1179604289, archive_entry_mtime(ae));
 	if (seek_checks)
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
 	assertEqualInt(18, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	failure("archive_read_data() returns number of bytes read");
-	if (libz_enabled) {
+	if (archive_zlib_version() != NULL) {
 		assertEqualInt(18, archive_read_data(a, buff, 19));
 		assertEqualMem(buff, "hello\nhello\nhello\n", 18);
 	} else {
@@ -74,16 +74,17 @@ verify_basic(struct archive *a, int seek_checks)
 	}
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+        assertEqualString("ZIP 2.0 (deflation)", archive_format_name(a));
 	assertEqualString("file2", archive_entry_pathname(ae));
 	assertEqualInt(1179605932, archive_entry_mtime(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	if (seek_checks) {
 		assertEqualInt(AE_IFREG | 0755, archive_entry_mode(ae));
-		assertEqualInt(64, archive_entry_size_is_set(ae));
-	} else {
-		failure("file2 has length-at-end, so we shouldn't see a valid size when streaming");
-		assertEqualInt(0, archive_entry_size_is_set(ae));
 	}
-	if (libz_enabled) {
+	assert(archive_entry_size_is_set(ae));
+	assertEqualInt(18, archive_entry_size(ae));
+	if (archive_zlib_version() != NULL) {
 		failure("file2 has a bad CRC, so read should fail and not change buff");
 		memset(buff, 'a', 19);
 		assertEqualInt(ARCHIVE_WARN, archive_read_data(a, buff, 19));
@@ -95,6 +96,7 @@ verify_basic(struct archive *a, int seek_checks)
 		assert(archive_errno(a) != 0);
 	}
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &ae));
+        assertEqualString("ZIP 2.0 (deflation)", archive_format_name(a));
 	/* Verify the number of files read. */
 	failure("the archive file has three files");
 	assertEqualInt(3, archive_file_count(a));
@@ -128,6 +130,7 @@ test_basic(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, p, s, 31));
 	verify_basic(a, 0);
+	free(p);
 }
 
 /*
@@ -144,12 +147,14 @@ verify_info_zip_ux(struct archive *a, int seek_checks)
 	assertEqualString("file1", archive_entry_pathname(ae));
 	assertEqualInt(1300668680, archive_entry_mtime(ae));
 	assertEqualInt(18, archive_entry_size(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	if (seek_checks)
 		assertEqualInt(AE_IFREG | 0644, archive_entry_mode(ae));
 	failure("zip reader should read Info-ZIP New Unix Extra Field");
 	assertEqualInt(1001, archive_entry_uid(ae));
 	assertEqualInt(1001, archive_entry_gid(ae));
-	if (libz_enabled) {
+	if (archive_zlib_version() != NULL) {
 		failure("archive_read_data() returns number of bytes read");
 		assertEqualInt(18, archive_read_data(a, buff, 19));
 		assertEqualMem(buff, "hello\nhello\nhello\n", 18);
@@ -195,6 +200,7 @@ test_info_zip_ux(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, p, s, 108));
 	verify_info_zip_ux(a, 0);
+	free(p);
 }
 
 /*
@@ -208,6 +214,8 @@ verify_extract_length_at_end(struct archive *a, int seek_checks)
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 	assertEqualString("hello.txt", archive_entry_pathname(ae));
 	if (seek_checks) {
 		assertEqualInt(AE_IFREG | 0644, archive_entry_mode(ae));
@@ -218,7 +226,7 @@ verify_extract_length_at_end(struct archive *a, int seek_checks)
 		assertEqualInt(0, archive_entry_size(ae));
 	}
 
-	if (libz_enabled) {
+	if (archive_zlib_version() != NULL) {
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_extract(a, ae, 0));
 		assertFileContents("hello\x0A", 6, "hello.txt");
 	} else {
@@ -256,6 +264,7 @@ test_extract_length_at_end(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, p, s, 108));
 	verify_extract_length_at_end(a, 0);
+	free(p);
 }
 
 static void
@@ -278,16 +287,22 @@ test_symlink(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("file", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("symlink", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
 	assertEqualInt(0, archive_entry_size(ae));
 	assertEqualString("file", archive_entry_symlink(ae));
+	assertEqualInt(archive_entry_is_encrypted(ae), 0);
+	assertEqualIntA(a, archive_read_has_encrypted_entries(a), 0);
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+
+	free(p);
 }
 
 DEFINE_TEST(test_read_format_zip)

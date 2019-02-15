@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Silicon Graphics International Corp.
  * All rights reserved.
  *
@@ -89,7 +91,10 @@ static struct ctl_task_desc ctl_task_table[] = {
 	{CTL_TASK_TARGET_RESET, "Target Reset"},
 	{CTL_TASK_BUS_RESET, "Bus Reset"},
 	{CTL_TASK_PORT_LOGIN, "Port Login"},
-	{CTL_TASK_PORT_LOGOUT, "Port Logout"}
+	{CTL_TASK_PORT_LOGOUT, "Port Logout"},
+	{CTL_TASK_QUERY_TASK, "Query Task"},
+	{CTL_TASK_QUERY_TASK_SET, "Query Task Set"},
+	{CTL_TASK_QUERY_ASYNC_EVENT, "Query Async Event"}
 };
 
 void
@@ -486,8 +491,7 @@ ctl_scsi_mode_sense(union ctl_io *io, uint8_t *data_ptr, uint32_t data_len,
 
 void
 ctl_scsi_start_stop(union ctl_io *io, int start, int load_eject, int immediate,
-		    int power_conditions, int onoffline __unused,
-		    ctl_tag_type tag_type, uint8_t control)
+    int power_conditions, ctl_tag_type tag_type, uint8_t control)
 {
 	struct scsi_start_stop_unit *cdb;
 
@@ -498,10 +502,6 @@ ctl_scsi_start_stop(union ctl_io *io, int start, int load_eject, int immediate,
 	cdb->opcode = START_STOP_UNIT;
 	if (immediate)
 		cdb->byte2 |= SSS_IMMED;
-#ifdef NEEDTOPORT
-	if (onoffline)
-		cdb->byte2 |= SSS_ONOFFLINE;
-#endif
 	cdb->how = power_conditions;
 	if (load_eject)
 		cdb->how |= SSS_LOEJ;
@@ -679,7 +679,7 @@ ctl_scsi_maintenance_in(union ctl_io *io, uint8_t *data_ptr, uint32_t data_len,
 
 #ifndef _KERNEL
 union ctl_io *
-ctl_scsi_alloc_io(struct ctl_id initid)
+ctl_scsi_alloc_io(uint32_t initid)
 {
 	union ctl_io *io;
 
@@ -699,7 +699,6 @@ ctl_scsi_free_io(union ctl_io *io)
 	free(io);
 }
 
-#endif /* !_KERNEL */
 void
 ctl_scsi_zero_io(union ctl_io *io)
 {
@@ -709,11 +708,10 @@ ctl_scsi_zero_io(union ctl_io *io)
 		return;
 
 	pool_ref = io->io_hdr.pool;
-
 	memset(io, 0, sizeof(*io));
-
 	io->io_hdr.pool = pool_ref;
 }
+#endif /* !_KERNEL */
 
 const char *
 ctl_scsi_task_string(struct ctl_taskio *taskio)
@@ -731,6 +729,44 @@ ctl_scsi_task_string(struct ctl_taskio *taskio)
 }
 
 void
+ctl_io_sbuf(union ctl_io *io, struct sbuf *sb)
+{
+	const char *task_desc;
+	char path_str[64];
+
+	ctl_scsi_path_string(io, path_str, sizeof(path_str));
+
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		sbuf_cat(sb, path_str);
+		ctl_scsi_command_string(&io->scsiio, NULL, sb);
+		sbuf_printf(sb, " Tag: %#x/%d\n",
+			    io->scsiio.tag_num, io->scsiio.tag_type);
+		break;
+	case CTL_IO_TASK:
+		sbuf_cat(sb, path_str);
+		task_desc = ctl_scsi_task_string(&io->taskio);
+		if (task_desc == NULL)
+			sbuf_printf(sb, "Unknown Task Action %d (%#x)",
+			    io->taskio.task_action, io->taskio.task_action);
+		else
+			sbuf_printf(sb, "Task Action: %s", task_desc);
+		switch (io->taskio.task_action) {
+		case CTL_TASK_ABORT_TASK:
+			sbuf_printf(sb, " Tag: %#x/%d\n",
+			    io->taskio.tag_num, io->taskio.tag_type);
+			break;
+		default:
+			sbuf_printf(sb, "\n");
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+void
 ctl_io_error_sbuf(union ctl_io *io, struct scsi_inquiry_data *inq_data,
 		  struct sbuf *sb)
 {
@@ -738,8 +774,9 @@ ctl_io_error_sbuf(union ctl_io *io, struct scsi_inquiry_data *inq_data,
 	char path_str[64];
 	unsigned int i;
 
-	status_desc = NULL;
+	ctl_io_sbuf(io, sb);
 
+	status_desc = NULL;
 	for (i = 0; i < (sizeof(ctl_status_table)/sizeof(ctl_status_table[0]));
 	     i++) {
 		if ((io->io_hdr.status & CTL_STATUS_MASK) ==
@@ -750,50 +787,6 @@ ctl_io_error_sbuf(union ctl_io *io, struct scsi_inquiry_data *inq_data,
 	}
 
 	ctl_scsi_path_string(io, path_str, sizeof(path_str));
-
-	switch (io->io_hdr.io_type) {
-	case CTL_IO_SCSI:
-		sbuf_cat(sb, path_str);
-
-		ctl_scsi_command_string(&io->scsiio, NULL, sb);
-
-		sbuf_printf(sb, "\n");
-
-		sbuf_printf(sb, "%sTag: 0x%04x, Type: %d\n", path_str,
-			    io->scsiio.tag_num, io->scsiio.tag_type);
-		break;
-	case CTL_IO_TASK: {
-		const char *task_desc;
-
-		sbuf_cat(sb, path_str);
-
-		task_desc = ctl_scsi_task_string(&io->taskio);
-
-		if (task_desc == NULL)
-			sbuf_printf(sb, "Unknown Task Action %d (%#x)",
-				    io->taskio.task_action,
-				    io->taskio.task_action);
-		else
-			sbuf_printf(sb, "Task Action: %s", task_desc);
-
-		sbuf_printf(sb, "\n");
-
-		switch (io->taskio.task_action) {
-		case CTL_TASK_ABORT_TASK:
-		case CTL_TASK_ABORT_TASK_SET:
-		case CTL_TASK_CLEAR_TASK_SET:
-			sbuf_printf(sb, "%sTag: 0x%04x, Type: %d\n", path_str,
-				    io->taskio.tag_num,
-				    io->taskio.tag_type);
-			break;
-		default:
-			break;
-		}
-		break;
-	}
-	default:
-		break;
-	}
 
 	sbuf_cat(sb, path_str);
 	if (status_desc == NULL)
@@ -815,45 +808,76 @@ ctl_io_error_sbuf(union ctl_io *io, struct scsi_inquiry_data *inq_data,
 }
 
 char *
+ctl_io_string(union ctl_io *io, char *str, int str_len)
+{
+	struct sbuf sb;
+
+	sbuf_new(&sb, str, str_len, SBUF_FIXEDLEN);
+	ctl_io_sbuf(io, &sb);
+	sbuf_finish(&sb);
+	return (sbuf_data(&sb));
+}
+
+char *
 ctl_io_error_string(union ctl_io *io, struct scsi_inquiry_data *inq_data,
 		    char *str, int str_len)
 {
 	struct sbuf sb;
 
 	sbuf_new(&sb, str, str_len, SBUF_FIXEDLEN);
-
 	ctl_io_error_sbuf(io, inq_data, &sb);
-
 	sbuf_finish(&sb);
-
 	return (sbuf_data(&sb));
 }
 
 #ifdef _KERNEL
 
 void
+ctl_io_print(union ctl_io *io)
+{
+	char str[512];
+
+	printf("%s", ctl_io_string(io, str, sizeof(str)));
+}
+
+void
 ctl_io_error_print(union ctl_io *io, struct scsi_inquiry_data *inq_data)
 {
 	char str[512];
-#ifdef NEEDTOPORT
-	char *message;
-	char *line;
 
-	message = io_error_string(io, inq_data, str, sizeof(str));
-
-	for (line = strsep(&message, "\n"); line != NULL;
-	     line = strsep(&message, "\n")) {
-		csevent_log(CSC_CTL | CSC_SHELF_SW | CTL_ERROR_REPORT,
-                            csevent_LogType_Trace,
-                            csevent_Severity_Information,
-                            csevent_AlertLevel_Green,
-                            csevent_FRU_Firmware,
-                            csevent_FRU_Unknown, "%s", line);
-	}
-#else
 	printf("%s", ctl_io_error_string(io, inq_data, str, sizeof(str)));
-#endif
 
+}
+
+void
+ctl_data_print(union ctl_io *io)
+{
+	char str[128];
+	char path_str[64];
+	struct sbuf sb;
+	int i, j, len;
+
+	if (io->io_hdr.io_type != CTL_IO_SCSI)
+		return;
+	if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
+		return;
+	if (io->scsiio.ext_sg_entries > 0)	/* XXX: Implement */
+		return;
+	ctl_scsi_path_string(io, path_str, sizeof(path_str));
+	len = min(io->scsiio.kern_data_len, 4096);
+	for (i = 0; i < len; ) {
+		sbuf_new(&sb, str, sizeof(str), SBUF_FIXEDLEN);
+		sbuf_cat(&sb, path_str);
+		sbuf_printf(&sb, " %#6x:%04x:", io->scsiio.tag_num, i);
+		for (j = 0; j < 16 && i < len; i++, j++) {
+			if (j == 8)
+				sbuf_cat(&sb, " ");
+			sbuf_printf(&sb, " %02x", io->scsiio.kern_data_ptr[i]);
+		}
+		sbuf_cat(&sb, "\n");
+		sbuf_finish(&sb);
+		printf("%s", sbuf_data(&sb));
+	}
 }
 
 #else /* _KERNEL */

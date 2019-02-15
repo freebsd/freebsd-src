@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -281,7 +283,7 @@ void	 fatal(const struct printer *_pp, const char *_msg, ...)
 int	 firstprinter(struct printer *_pp, int *_error);
 void	 free_printer(struct printer *_pp);
 void	 free_request(struct request *_rp);
-int	 getline(FILE *_cfp);
+int	 get_line(FILE *_cfp);
 int	 getport(const struct printer *_pp, const char *_rhost, int _rport);
 int	 getprintcap(const char *_printer, struct printer *_pp);
 int	 getq(const struct printer *_pp, struct jobqueue *(*_namelist[]));

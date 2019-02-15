@@ -1,10 +1,9 @@
 # $FreeBSD$
 
 LIB=	gssapi_krb5
+PRIVATELIB=	true
 LDFLAGS= -Wl,-Bsymbolic -Wl,--no-undefined
-LDADD=	-lgssapi -lkrb5 -lhx509 -lcrypto -lroken -lasn1 -lcom_err -lcrypt
-DPADD=	${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBCRYPTO} ${LIBROKEN} ${LIBASN1} \
-	${LIBCOM_ERR} ${LIBCRYPT}
+LIBADD=	gssapi krb5 crypto roken asn1 com_err
 SHLIB_MAJOR=	10
 
 INCS=	${KRB5DIR}/lib/gssapi/gssapi/gssapi_krb5.h
@@ -79,9 +78,18 @@ CFLAGS+=-I${KRB5DIR}/lib/gssapi
 CFLAGS+=-I${KRB5DIR}/lib/gssapi/krb5
 CFLAGS+=-I${KRB5DIR}/lib/gssapi/gssapi
 CFLAGS+=-I${KRB5DIR}/lib/krb5
+CFLAGS+=-I${.OBJDIR:H}/libkrb5
 CFLAGS+=-I${KRB5DIR}/lib/asn1
-CFLAGS+=-I${KRB5DIR}/lib/roken -I.
+CFLAGS+=-I${.OBJDIR:H}/libasn1
+CFLAGS+=-I${KRB5DIR}/lib/roken
+CFLAGS+=-I${.OBJDIR:H}/libroken
+CFLAGS+=-I${KRB5DIR}/lib/wind
+CFLAGS+=-I${.OBJDIR:H}/libwind
+CFLAGS+=-I${KRB5DIR}/lib/hx509
+CFLAGS+=-I${.OBJDIR:H}/libhx509
+CFLAGS+=-I${SRCTOP}/contrib/com_err 
+CFLAGS+=-I${KRB5DIR}/base -I.
 
 .include <bsd.lib.mk>
 
-.PATH: ${KRB5DIR}/lib/gssapi/krb5 ${.CURDIR}/../../../lib/libgssapi
+.PATH: ${KRB5DIR}/lib/gssapi/krb5 ${SRCTOP}/lib/libgssapi

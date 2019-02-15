@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -64,7 +66,7 @@ __rec_open(const char *fname, int flags, int mode, const RECNOINFO *openinfo,
 	int rfd, sverrno;
 
 	/* Open the user's file -- if this fails, we're done. */
-	if (fname != NULL && (rfd = _open(fname, flags, mode)) < 0)
+	if (fname != NULL && (rfd = _open(fname, flags | O_CLOEXEC, mode)) < 0)
 		return (NULL);
 
 	/* Create a btree in memory (backed by disk). */

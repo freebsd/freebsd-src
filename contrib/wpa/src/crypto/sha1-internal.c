@@ -19,6 +19,7 @@ typedef struct SHA1Context SHA1_CTX;
 void SHA1Transform(u32 state[5], const unsigned char buffer[64]);
 
 
+#ifdef CONFIG_CRYPTO_INTERNAL
 /**
  * sha1_vector - SHA-1 hash for data vector
  * @num_elem: Number of elements in the data vector
@@ -32,12 +33,16 @@ int sha1_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 	SHA1_CTX ctx;
 	size_t i;
 
+	if (TEST_FAIL())
+		return -1;
+
 	SHA1Init(&ctx);
 	for (i = 0; i < num_elem; i++)
 		SHA1Update(&ctx, addr[i], len[i]);
 	SHA1Final(mac, &ctx);
 	return 0;
 }
+#endif /* CONFIG_CRYPTO_INTERNAL */
 
 
 /* ===== start - public domain SHA1 implementation ===== */
@@ -292,7 +297,6 @@ void SHA1Final(unsigned char digest[20], SHA1_CTX* context)
 			 255);
 	}
 	/* Wipe variables */
-	i = 0;
 	os_memset(context->buffer, 0, 64);
 	os_memset(context->state, 0, 20);
 	os_memset(context->count, 0, 8);

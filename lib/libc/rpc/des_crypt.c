@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -41,7 +43,7 @@ static char sccsid[] = "@(#)des_crypt.c	2.2 88/08/10 4.0 RPCSRC; from 1.13 88/02
 __FBSDID("$FreeBSD$");
 
 static int common_crypt( char *, char *, unsigned, unsigned, struct desparams * );
-int (*__des_crypt_LOCAL)() = 0;
+int (*__des_crypt_LOCAL)(char *, unsigned, struct desparams *) = 0;
 extern int _des_crypt_call(char *, int, struct desparams *);
 /*
  * Copy 8 bytes
@@ -70,12 +72,7 @@ extern int _des_crypt_call(char *, int, struct desparams *);
  * CBC mode encryption
  */
 int
-cbc_crypt(key, buf, len, mode, ivec)
-	char *key;
-	char *buf;
-	unsigned len;
-	unsigned mode;
-	char *ivec;	
+cbc_crypt(char *key, char *buf, unsigned len, unsigned mode, char *ivec)
 {
 	int err;
 	struct desparams dp;
@@ -97,11 +94,7 @@ cbc_crypt(key, buf, len, mode, ivec)
  * ECB mode encryption
  */
 int
-ecb_crypt(key, buf, len, mode)
-	char *key;
-	char *buf;
-	unsigned len;
-	unsigned mode;
+ecb_crypt(char *key, char *buf, unsigned len, unsigned mode)
 {
 	struct desparams dp;
 
@@ -120,12 +113,8 @@ ecb_crypt(key, buf, len, mode)
  * Common code to cbc_crypt() & ecb_crypt()
  */
 static int
-common_crypt(key, buf, len, mode, desp)	
-	char *key;	
-	char *buf;
-	unsigned len;
-	unsigned mode;
-	struct desparams *desp;
+common_crypt(char *key, char *buf, unsigned len, unsigned mode,
+    struct desparams *desp)
 {
 	int desdev;
 

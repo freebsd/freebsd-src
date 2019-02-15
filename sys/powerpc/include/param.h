@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2001 David E. O'Brien
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
@@ -57,7 +59,11 @@
 #ifdef __powerpc64__
 #define	MACHINE_ARCH	"powerpc64"
 #else
+#ifdef	__SPE__
+#define	MACHINE_ARCH	"powerpcspe"
+#else
 #define	MACHINE_ARCH	"powerpc"
+#endif
 #endif
 #endif
 #define	MID_MACHINE	MID_POWERPC
@@ -69,7 +75,7 @@
 
 #if defined(SMP) || defined(KLD_MODULE)
 #ifndef MAXCPU
-#define	MAXCPU		32	
+#define	MAXCPU		256
 #endif
 #else
 #define	MAXCPU		1
@@ -98,7 +104,7 @@
 
 #define	PAGE_SHIFT	12
 #define	PAGE_SIZE	(1L << PAGE_SHIFT)	/* Page size */
-#define	PAGE_MASK	(vm_offset_t)(PAGE_SIZE - 1)
+#define	PAGE_MASK	(PAGE_SIZE - 1)
 #define	NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 
 #define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
@@ -111,20 +117,22 @@
 #endif
 #endif
 #define	KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
-#define	USPACE		(KSTACK_PAGES * PAGE_SIZE)	/* total size of pcb */
+#define	USPACE		(kstack_pages * PAGE_SIZE)	/* total size of pcb */
 
 /*
  * Mach derived conversion macros
  */
-#define	trunc_page(x)		((unsigned long)(x) & ~(PAGE_MASK))
+#define	trunc_page(x)		((x) & ~(PAGE_MASK))
 #define	round_page(x)		(((x) + PAGE_MASK) & ~PAGE_MASK)
 
-#define	atop(x)			((unsigned long)(x) >> PAGE_SHIFT)
-#define	ptoa(x)			((unsigned long)(x) << PAGE_SHIFT)
+#define	atop(x)			((x) >> PAGE_SHIFT)
+#define	ptoa(x)			((x) << PAGE_SHIFT)
 
-#define	powerpc_btop(x)		((unsigned long)(x) >> PAGE_SHIFT)
-#define	powerpc_ptob(x)		((unsigned long)(x) << PAGE_SHIFT)
+#define	powerpc_btop(x)		((x) >> PAGE_SHIFT)
+#define	powerpc_ptob(x)		((x) << PAGE_SHIFT)
 
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024UL))
+
+#define btoc(x)			((vm_offset_t)(((x)+PAGE_MASK)>>PAGE_SHIFT))
 
 #endif /* !_POWERPC_INCLUDE_PARAM_H_ */

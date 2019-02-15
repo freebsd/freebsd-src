@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -11,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -657,11 +659,7 @@ chkhost(struct sockaddr *f, int ch_opts)
 	char hostbuf[NI_MAXHOST], ip[NI_MAXHOST];
 	char serv[NI_MAXSERV];
 	char *syserr, *usererr;
-	int error, errsav, fpass, good, wantsl;
-
-	wantsl = 0;
-	if (ch_opts & LPD_LOGCONNERR)
-		wantsl = 1;			/* also syslog the errors */
+	int error, errsav, fpass, good;
 
 	from_host = ".na.";
 

@@ -4,9 +4,117 @@
  *
  *****************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2014, Intel Corp.
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights. You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code. No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision. In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change. Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee. Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution. In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE. ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT, ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES. INTEL WILL NOT PROVIDE ANY
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS. INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government. In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
+ * following license:
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,23 +131,23 @@
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
@@ -53,7 +161,7 @@
         ACPI_MODULE_NAME    ("aslopt")
 
 
-static UINT32 OptTotal = 0;
+static UINT32               OptTotal = 0;
 
 /* Local prototypes */
 
@@ -132,15 +240,15 @@ OptSearchToRoot (
      * name in the search path before the one we want, the nodes will
      * not match, and we cannot use this optimization.
      */
-    Path = &(((char *) TargetPath->Pointer)[TargetPath->Length -
-                                            ACPI_NAME_SIZE]),
+    Path = &(((char *) TargetPath->Pointer)[
+        TargetPath->Length - ACPI_NAME_SIZE]);
     ScopeInfo.Scope.Node = CurrentNode;
 
     /* Lookup the NameSeg using SEARCH_PARENT (search-to-root) */
 
     Status = AcpiNsLookup (&ScopeInfo, Path, ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
-                    ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
-                    WalkState, &(Node));
+        ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
+        WalkState, &(Node));
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -167,13 +275,13 @@ OptSearchToRoot (
 
     /* We must allocate a new string for the name (TargetPath gets deleted) */
 
-    *NewPath = UtStringCacheCalloc (ACPI_NAME_SIZE + 1);
-    ACPI_STRCPY (*NewPath, Path);
+    *NewPath = UtLocalCacheCalloc (ACPI_NAME_SIZE + 1);
+    strcpy (*NewPath, Path);
 
-    if (ACPI_STRNCMP (*NewPath, "_T_", 3))
+    if (strncmp (*NewPath, "_T_", 3))
     {
-        AslError (ASL_OPTIMIZATION, ASL_MSG_SINGLE_NAME_OPTIMIZATION, Op,
-                *NewPath);
+        AslError (ASL_OPTIMIZATION, ASL_MSG_SINGLE_NAME_OPTIMIZATION,
+            Op, *NewPath);
     }
 
     return (AE_OK);
@@ -217,7 +325,7 @@ OptBuildShortestPath (
     UINT32                  Index;
     UINT32                  NumCarats;
     UINT32                  i;
-    char                    *NewPath;
+    char                    *NewPathInternal;
     char                    *NewPathExternal;
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_GENERIC_STATE      ScopeInfo;
@@ -253,11 +361,11 @@ OptBuildShortestPath (
     {
         /* Compare two single NameSegs */
 
+        Index = (NumCommonSegments * ACPI_PATH_SEGMENT_LENGTH) + 1;
+
         if (!ACPI_COMPARE_NAME (
-            &((char *) TargetPath->Pointer)[
-                (NumCommonSegments * ACPI_PATH_SEGMENT_LENGTH) + 1],
-            &((char *) CurrentPath->Pointer)[
-                (NumCommonSegments * ACPI_PATH_SEGMENT_LENGTH) + 1]))
+            &(ACPI_CAST_PTR (char, TargetPath->Pointer)) [Index],
+            &(ACPI_CAST_PTR (char, CurrentPath->Pointer)) [Index]))
         {
             /* Mismatch */
 
@@ -292,13 +400,13 @@ OptBuildShortestPath (
     /* Determine how many prefix Carats are required */
 
     NumCarats = (CurrentPath->Length / ACPI_PATH_SEGMENT_LENGTH) -
-                NumCommonSegments;
+        NumCommonSegments;
 
     /*
      * Construct a new target string
      */
-    NewPathExternal = ACPI_ALLOCATE_ZEROED (
-        TargetPath->Length + NumCarats + 1);
+    NewPathExternal =
+        UtLocalCacheCalloc (TargetPath->Length + NumCarats + 1);
 
     /* Insert the Carats into the Target string */
 
@@ -315,7 +423,8 @@ OptBuildShortestPath (
 
     /* Special handling for exact subpath in a name declaration */
 
-    if (IsDeclaration && SubPath && (CurrentPath->Length > TargetPath->Length))
+    if (IsDeclaration && SubPath &&
+        (CurrentPath->Length > TargetPath->Length))
     {
         /*
          * The current path is longer than the target, and the target is a
@@ -341,7 +450,8 @@ OptBuildShortestPath (
         Index = TargetPath->Length;
     }
 
-    ACPI_STRCPY (&NewPathExternal[i], &((char *) TargetPath->Pointer)[Index]);
+    strcpy (&NewPathExternal[i],
+        &(ACPI_CAST_PTR (char, TargetPath->Pointer))[Index]);
     ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS, " %-24s", NewPathExternal));
 
     /*
@@ -349,22 +459,24 @@ OptBuildShortestPath (
      * string to make sure that this is in fact an optimization. If the
      * original string is already optimal, there is no point in continuing.
      */
-    Status = AcpiNsInternalizeName (NewPathExternal, &NewPath);
+    Status = AcpiNsInternalizeName (NewPathExternal, &NewPathInternal);
     if (ACPI_FAILURE (Status))
     {
         AslCoreSubsystemError (Op, Status, "Internalizing new NamePath",
             ASL_NO_ABORT);
-        ACPI_FREE (NewPathExternal);
-        return (Status);
+        goto Cleanup;
     }
 
-    if (ACPI_STRLEN (NewPath) >= AmlNameStringLength)
+    if (strlen (NewPathInternal) >= AmlNameStringLength)
     {
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS,
             " NOT SHORTER (New %u old %u)",
-            (UINT32) ACPI_STRLEN (NewPath), (UINT32) AmlNameStringLength));
-        ACPI_FREE (NewPathExternal);
-        return (AE_NOT_FOUND);
+            (UINT32) strlen (NewPathInternal),
+            (UINT32) AmlNameStringLength));
+
+        ACPI_FREE (NewPathInternal);
+        Status = AE_NOT_FOUND;
+        goto Cleanup;
     }
 
     /*
@@ -372,9 +484,9 @@ OptBuildShortestPath (
      * looking for. This is simply a sanity check on the new
      * path that has been created.
      */
-    Status = AcpiNsLookup (&ScopeInfo,  NewPath,
-                    ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
-                    ACPI_NS_DONT_OPEN_SCOPE, WalkState, &(Node));
+    Status = AcpiNsLookup (&ScopeInfo, NewPathInternal,
+        ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
+        ACPI_NS_DONT_OPEN_SCOPE, WalkState, &(Node));
     if (ACPI_SUCCESS (Status))
     {
         /* Found the namepath, but make sure the node is correct */
@@ -385,7 +497,7 @@ OptBuildShortestPath (
 
             AslError (ASL_OPTIMIZATION, ASL_MSG_NAME_OPTIMIZATION,
                 Op, NewPathExternal);
-            *ReturnNewPath = NewPath;
+            *ReturnNewPath = NewPathInternal;
         }
         else
         {
@@ -401,12 +513,15 @@ OptBuildShortestPath (
     {
         /* The lookup failed, we obviously cannot use this optimization */
 
+        ACPI_FREE (NewPathInternal);
+
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS, " ***** NOT FOUND"));
         AslError (ASL_WARNING, ASL_MSG_COMPILER_INTERNAL, Op,
             "Not using optimized name - did not find node");
     }
 
-    ACPI_FREE (NewPathExternal);
+Cleanup:
+
     return (Status);
 }
 
@@ -446,7 +561,7 @@ OptOptimizeNameDeclaration (
 
 
     if (((CurrentNode == AcpiGbl_RootNode) ||
-        (Op->Common.Parent->Asl.ParseOpcode == PARSEOP_DEFINITIONBLOCK)) &&
+        (Op->Common.Parent->Asl.ParseOpcode == PARSEOP_DEFINITION_BLOCK)) &&
             (ACPI_IS_ROOT_PREFIX (AmlNameString[0])))
     {
         /*
@@ -458,7 +573,7 @@ OptOptimizeNameDeclaration (
         /* Debug output */
 
         Status = AcpiNsExternalizeName (ACPI_UINT32_MAX, *NewPath,
-                    NULL, &NewPathExternal);
+            NULL, &NewPathExternal);
         if (ACPI_FAILURE (Status))
         {
             AslCoreSubsystemError (Op, Status, "Externalizing NamePath",
@@ -474,8 +589,8 @@ OptOptimizeNameDeclaration (
          * We know that we are at the root, so NULL is used for the scope.
          */
         Status = AcpiNsLookup (NULL, *NewPath,
-                        ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
-                        ACPI_NS_DONT_OPEN_SCOPE, WalkState, &(Node));
+            ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
+            ACPI_NS_DONT_OPEN_SCOPE, WalkState, &(Node));
         if (ACPI_SUCCESS (Status))
         {
             /* Found the namepath, but make sure the node is correct */
@@ -563,7 +678,7 @@ OptOptimizeNamePath (
 
     /* This is an optional optimization */
 
-    if (!Gbl_ReferenceOptimizationFlag)
+    if (!AslGbl_ReferenceOptimizationFlag)
     {
         return_VOID;
     }
@@ -583,7 +698,7 @@ OptOptimizeNamePath (
 
     if (!(Flags & (AML_NAMED | AML_CREATE)))
     {
-        if (Op->Asl.CompileFlags & NODE_IS_NAME_DECLARATION)
+        if (Op->Asl.CompileFlags & OP_IS_NAME_DECLARATION)
         {
             /* We don't want to fuss with actual name declaration nodes here */
 
@@ -597,7 +712,7 @@ OptOptimizeNamePath (
      * The original path must be longer than one NameSeg (4 chars) for there
      * to be any possibility that it can be optimized to a shorter string
      */
-    AmlNameStringLength = ACPI_STRLEN (AmlNameString);
+    AmlNameStringLength = strlen (AmlNameString);
     if (AmlNameStringLength <= ACPI_NAME_SIZE)
     {
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS,
@@ -633,6 +748,7 @@ OptOptimizeNamePath (
         {
             NextOp = NextOp->Asl.Parent;
         }
+
         if (NextOp && NextOp->Asl.Node)
         {
             CurrentNode = NextOp->Asl.Node;
@@ -655,31 +771,33 @@ OptOptimizeNamePath (
      * format -- something we can easily manipulate
      */
     TargetPath.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
-    Status = AcpiNsHandleToPathname (TargetNode, &TargetPath);
+    Status = AcpiNsHandleToPathname (TargetNode, &TargetPath, FALSE);
     if (ACPI_FAILURE (Status))
     {
         AslCoreSubsystemError (Op, Status, "Getting Target NamePath",
             ASL_NO_ABORT);
         return_VOID;
     }
+
     TargetPath.Length--;    /* Subtract one for null terminator */
 
     /* CurrentPath is the path to this scope (where we are in the namespace) */
 
     CurrentPath.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
-    Status = AcpiNsHandleToPathname (CurrentNode, &CurrentPath);
+    Status = AcpiNsHandleToPathname (CurrentNode, &CurrentPath, FALSE);
     if (ACPI_FAILURE (Status))
     {
         AslCoreSubsystemError (Op, Status, "Getting Current NamePath",
             ASL_NO_ABORT);
         return_VOID;
     }
+
     CurrentPath.Length--;   /* Subtract one for null terminator */
 
     /* Debug output only */
 
     Status = AcpiNsExternalizeName (ACPI_UINT32_MAX, AmlNameString,
-                NULL, &ExternalNameString);
+        NULL, &ExternalNameString);
     if (ACPI_FAILURE (Status))
     {
         AslCoreSubsystemError (Op, Status, "Externalizing NamePath",
@@ -705,7 +823,7 @@ OptOptimizeNamePath (
          * a reference.
          */
         Status = OptOptimizeNameDeclaration (Op, WalkState, CurrentNode,
-                    TargetNode, AmlNameString, &NewPath);
+            TargetNode, AmlNameString, &NewPath);
         if (ACPI_FAILURE (Status))
         {
             /*
@@ -713,8 +831,8 @@ OptOptimizeNamePath (
              *    optimize the namestring with carats (up-arrow)
              */
             Status = OptBuildShortestPath (Op, WalkState, CurrentNode,
-                            TargetNode, &CurrentPath, &TargetPath,
-                            AmlNameStringLength, 1, &NewPath);
+                TargetNode, &CurrentPath, &TargetPath,
+                AmlNameStringLength, 1, &NewPath);
         }
     }
     else
@@ -726,7 +844,7 @@ OptOptimizeNamePath (
          *    NameSeg of the NamePath
          */
         Status = OptSearchToRoot (Op, WalkState, CurrentNode,
-                        TargetNode, &TargetPath, &NewPath);
+            TargetNode, &TargetPath, &NewPath);
         if (ACPI_FAILURE (Status))
         {
             /*
@@ -734,8 +852,8 @@ OptOptimizeNamePath (
              *    optimize the namestring with carats (up-arrow)
              */
             Status = OptBuildShortestPath (Op, WalkState, CurrentNode,
-                            TargetNode, &CurrentPath, &TargetPath,
-                            AmlNameStringLength, 0, &NewPath);
+                TargetNode, &CurrentPath, &TargetPath,
+                AmlNameStringLength, 0, &NewPath);
         }
     }
 
@@ -745,7 +863,7 @@ OptOptimizeNamePath (
      */
     if (ACPI_SUCCESS (Status))
     {
-        HowMuchShorter = (AmlNameStringLength - ACPI_STRLEN (NewPath));
+        HowMuchShorter = (AmlNameStringLength - strlen (NewPath));
         OptTotal += HowMuchShorter;
 
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS,
@@ -761,12 +879,12 @@ OptOptimizeNamePath (
                  * (alias name) is the second operand
                  */
                 Op->Asl.Child->Asl.Next->Asl.Value.String = NewPath;
-                Op->Asl.Child->Asl.Next->Asl.AmlLength = ACPI_STRLEN (NewPath);
+                Op->Asl.Child->Asl.Next->Asl.AmlLength = strlen (NewPath);
             }
             else
             {
                 Op->Asl.Child->Asl.Value.String = NewPath;
-                Op->Asl.Child->Asl.AmlLength = ACPI_STRLEN (NewPath);
+                Op->Asl.Child->Asl.AmlLength = strlen (NewPath);
             }
         }
         else if (Flags & AML_CREATE)
@@ -774,21 +892,21 @@ OptOptimizeNamePath (
             /* Name must appear as the last parameter */
 
             NextOp = Op->Asl.Child;
-            while (!(NextOp->Asl.CompileFlags & NODE_IS_NAME_DECLARATION))
+            while (!(NextOp->Asl.CompileFlags & OP_IS_NAME_DECLARATION))
             {
                 NextOp = NextOp->Asl.Next;
             }
             /* Update the parse node with the new NamePath */
 
             NextOp->Asl.Value.String = NewPath;
-            NextOp->Asl.AmlLength = ACPI_STRLEN (NewPath);
+            NextOp->Asl.AmlLength = strlen (NewPath);
         }
         else
         {
             /* Update the parse node with the new NamePath */
 
             Op->Asl.Value.String = NewPath;
-            Op->Asl.AmlLength = ACPI_STRLEN (NewPath);
+            Op->Asl.AmlLength = strlen (NewPath);
         }
     }
     else

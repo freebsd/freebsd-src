@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: ISC
+ *
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2006 Atheros Communications, Inc.
  *
@@ -154,6 +156,7 @@ static void ar5211SetOperatingMode(struct ath_hal *, int opmode);
 HAL_BOOL
 ar5211Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	struct ieee80211_channel *chan, HAL_BOOL bChannelChange,
+	HAL_RESET_TYPE resetType,
 	HAL_STATUS *status)
 {
 uint32_t softLedCfg, softLedState;
@@ -912,7 +915,7 @@ getNoiseFloorThresh(struct ath_hal *ah, const struct ieee80211_channel *chan,
 }
 
 /*
- * Read the NF and check it against the noise floor threshhold
+ * Read the NF and check it against the noise floor threshold
  *
  * Returns: TRUE if the NF is good
  */

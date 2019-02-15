@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Alexander Motin <mav@FreeBSD.org>
  * Copyright (c) 2000 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
@@ -277,15 +279,13 @@ sii_meta_read(struct g_consumer *cp)
 		    pp->name, error);
 		return (NULL);
 	}
-	meta = malloc(sizeof(*meta), M_MD_SII, M_WAITOK);
-	memcpy(meta, buf, min(sizeof(*meta), pp->sectorsize));
-	g_free(buf);
+	meta = (struct sii_raid_conf *)buf;
 
 	/* Check vendor ID. */
 	if (meta->vendor_id != 0x1095) {
 		G_RAID_DEBUG(1, "SiI vendor ID check failed on %s (0x%04x)",
 		    pp->name, meta->vendor_id);
-		free(meta, M_MD_SII);
+		g_free(buf);
 		return (NULL);
 	}
 
@@ -293,9 +293,12 @@ sii_meta_read(struct g_consumer *cp)
 	if (meta->version_major != 2) {
 		G_RAID_DEBUG(1, "SiI version check failed on %s (%d.%d)",
 		    pp->name, meta->version_major, meta->version_minor);
-		free(meta, M_MD_SII);
+		g_free(buf);
 		return (NULL);
 	}
+	meta = malloc(sizeof(*meta), M_MD_SII, M_WAITOK);
+	memcpy(meta, buf, min(sizeof(*meta), pp->sectorsize));
+	g_free(buf);
 
 	/* Check metadata checksum. */
 	for (checksum = 0, ptr = (uint16_t *)meta, i = 0; i <= 159; i++)
@@ -488,7 +491,7 @@ g_raid_md_sii_start_disk(struct g_raid_disk *disk)
 	pd = (struct g_raid_md_sii_perdisk *)disk->d_md_data;
 	olddisk = NULL;
 
-	/* Find disk position in metadata by it's serial. */
+	/* Find disk position in metadata by its serial. */
 	if (pd->pd_meta != NULL)
 		disk_pos = sii_meta_disk_pos(meta, pd->pd_meta);
 	else
@@ -548,7 +551,7 @@ nofit:
 		if (olddisk == NULL)
 			panic("No disk at position %d!", disk_pos);
 		if (olddisk->d_state != G_RAID_DISK_S_OFFLINE) {
-			G_RAID_DEBUG1(1, sc, "More then one disk for pos %d",
+			G_RAID_DEBUG1(1, sc, "More than one disk for pos %d",
 			    disk_pos);
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_STALE);
 			return (0);
@@ -922,9 +925,9 @@ g_raid_md_taste_sii(struct g_raid_md_object *md, struct g_class *mp,
 
 	/* Read metadata from device. */
 	meta = NULL;
-	vendor = 0xffff;
 	g_topology_unlock();
-	len = 2;
+	vendor = 0xffff;
+	len = sizeof(vendor);
 	if (pp->geom->rank == 1)
 		g_io_getattr("GEOM::hba_vendor", cp, &len, &vendor);
 	meta = sii_meta_read(cp);
@@ -1481,7 +1484,7 @@ g_raid_md_write_sii(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	struct g_raid_md_sii_object *mdi;
 	struct g_raid_md_sii_perdisk *pd;
 	struct sii_raid_conf *meta;
-	int i;
+	u_int i;
 
 	sc = md->mdo_softc;
 	mdi = (struct g_raid_md_sii_object *)md;

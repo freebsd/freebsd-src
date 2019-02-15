@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005 Doug Rabson
  * All rights reserved.
  *
@@ -40,13 +42,14 @@ gss_wrap_size_limit(OM_uint32 *minor_status,
     OM_uint32 *max_input_size)
 {
 	struct _gss_context *ctx = (struct _gss_context *) context_handle;
-	struct _gss_mech_switch *m = ctx->gc_mech;
+	struct _gss_mech_switch *m;
 
 	*max_input_size = 0;
 	if (ctx == NULL) {
 		*minor_status = 0;
 		return (GSS_S_NO_CONTEXT);
 	}
+	m = ctx->gc_mech;
 
 	return (m->gm_wrap_size_limit(minor_status, ctx->gc_ctx,
 		    conf_req_flag, qop_req, req_output_size, max_input_size));

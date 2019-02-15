@@ -26,6 +26,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=lib${LIB}
 LIB=		radius
 SRCS=		radlib.c
 INCS=		radlib.h radlib_vs.h
@@ -70,13 +71,11 @@ MLINKS+=libradius.3 rad_acct_open.3 \
 
 WARNS?=		3
 
-.if ${MK_OPENSSL} == "no"
-DPADD=		${LIBMD}
-LDADD=		-lmd
-.else
-DPADD=		${LIBCRYPTO}
-LDADD=		-lcrypto
+.if ${MK_OPENSSL} != "no"
+LIBADD+=	crypto
 CFLAGS+=	-DWITH_SSL
+.else
+LIBADD+=	md
 .endif
 
 .include <bsd.lib.mk>

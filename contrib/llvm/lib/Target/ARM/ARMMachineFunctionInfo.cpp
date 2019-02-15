@@ -1,4 +1,4 @@
-//===-- ARMMachineFuctionInfo.cpp - ARM machine function info -------------===//
+//===-- ARMMachineFunctionInfo.cpp - ARM machine function info ------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -8,7 +8,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "ARMMachineFunctionInfo.h"
+#include "ARMSubtarget.h"
 
 using namespace llvm;
 
-void ARMFunctionInfo::anchor() { }
+void ARMFunctionInfo::anchor() {}
+
+ARMFunctionInfo::ARMFunctionInfo(MachineFunction &MF)
+    : isThumb(MF.getSubtarget<ARMSubtarget>().isThumb()),
+      hasThumb2(MF.getSubtarget<ARMSubtarget>().hasThumb2()) {}

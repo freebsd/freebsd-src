@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Marcel Moolenaar
  * All rights reserved.
  *
@@ -58,7 +60,7 @@ CTASSERT(sizeof(struct uuid) == 16);
 /* We use an alternative, more convenient representation in the generator. */
 struct uuid_private {
 	union {
-		uint64_t	ll;		/* internal. */
+		uint64_t	ll;	/* internal, for uuid_last only */
 		struct {
 			uint32_t	low;
 			uint16_t	mid;
@@ -423,4 +425,11 @@ parse_uuid(const char *str, struct uuid *uuid)
 	return (((c[3] & 0x80) != 0x00 &&		/* variant 0? */
 	    (c[3] & 0xc0) != 0x80 &&			/* variant 1? */
 	    (c[3] & 0xe0) != 0xc0) ? EINVAL : 0);	/* variant 2? */
+}
+
+int
+uuidcmp(const struct uuid *uuid1, const struct uuid *uuid2)
+{
+
+	return (memcmp(uuid1, uuid2, sizeof(struct uuid)));
 }

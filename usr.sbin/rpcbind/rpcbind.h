@@ -2,6 +2,8 @@
 /*	$FreeBSD$ */
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -42,6 +44,8 @@
 #ifndef rpcbind_h
 #define	rpcbind_h
 
+#include <signal.h>
+
 #ifdef PORTMAP
 #include <rpc/pmap_prot.h>
 #endif
@@ -66,6 +70,8 @@ struct r_rmtcall_args {
 
 extern int debugging;
 extern int doabort;
+extern int terminate_rfd;
+extern volatile sig_atomic_t doterminate;
 #ifdef LIBWRAP
 extern int libwrap;
 #endif
@@ -73,6 +79,7 @@ extern int verboselog;
 extern int insecure;
 extern int oldstyle_local;
 extern rpcblist_ptr list_rbl;	/* A list of version 3 & 4 rpcbind services */
+extern int rpcbindlockfd;
 
 #ifdef PORTMAP
 extern struct pmaplist *list_pml; /* A list of version 2 rpcbind services */
@@ -85,7 +92,7 @@ extern char *tcp_uaddr;		/* Universal TCP address */
 int add_bndlist(struct netconfig *, struct netbuf *);
 bool_t is_bound(char *, char *);
 char *mergeaddr(SVCXPRT *, char *, char *, char *);
-struct netconfig *rpcbind_get_conf(char *);
+struct netconfig *rpcbind_get_conf(const char *);
 
 void rpcbs_init(void); 
 void rpcbs_procinfo(rpcvers_t, rpcproc_t);
@@ -134,8 +141,8 @@ extern void pmap_service(struct svc_req *, SVCXPRT *);
 void write_warmstart(void);
 void read_warmstart(void);
 
-char *addrmerge(struct netbuf *caller, char *serv_uaddr, char *clnt_uaddr,
-		     char *netid);
+char *addrmerge(struct netbuf *caller, const char *serv_uaddr,
+		const char *clnt_uaddr, char const *netid);
 int listen_addr(const struct sockaddr *sa);
 void network_init(void);
 struct sockaddr *local_sa(int);

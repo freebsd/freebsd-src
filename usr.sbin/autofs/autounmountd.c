@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -37,13 +39,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <assert.h>
 #include <errno.h>
+#include <libutil.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <libutil.h>
 
 #include "common.h"
 
@@ -78,7 +80,7 @@ automounted_add(fsid_t fsid, const char *mountpoint)
 {
 	struct automounted_fs *af;
 
-	af = calloc(sizeof(*af), 1);
+	af = calloc(1, sizeof(*af));
 	if (af == NULL)
 		log_err(1, "calloc");
 	af->af_mount_time = time(NULL);
@@ -161,7 +163,7 @@ unmount_by_fsid(const fsid_t fsid, const char *mountpoint)
 	if (ret < 0)
 		log_err(1, "asprintf");
 
-	error = unmount(fsid_str, MNT_BYFSID);
+	error = unmount(fsid_str, MNT_NONBUSY | MNT_BYFSID);
 	if (error != 0) {
 		if (errno == EBUSY) {
 			log_debugx("cannot unmount %s (%s): %s",
@@ -182,7 +184,7 @@ expire_automounted(double expiration_time)
 {
 	struct automounted_fs *af, *tmpaf;
 	time_t now;
-	double mounted_for, mounted_max = 0;
+	double mounted_for, mounted_max = -1.0;
 	int error;
 
 	now = time(NULL);
@@ -231,21 +233,31 @@ do_wait(int kq, double sleep_time)
 {
 	struct timespec timeout;
 	struct kevent unused;
-	int error;
+	int nevents;
 
-	assert(sleep_time > 0);
-	timeout.tv_sec = sleep_time;
-	timeout.tv_nsec = 0;
+	if (sleep_time != -1.0) {
+		assert(sleep_time > 0.0);
+		timeout.tv_sec = sleep_time;
+		timeout.tv_nsec = 0;
 
-	log_debugx("waiting for filesystem event for %.0f seconds", sleep_time);
-	error = kevent(kq, NULL, 0, &unused, 1, &timeout);
-	if (error < 0)
+		log_debugx("waiting for filesystem event for %.0f seconds", sleep_time);
+		nevents = kevent(kq, NULL, 0, &unused, 1, &timeout);
+	} else {
+		log_debugx("waiting for filesystem event");
+		nevents = kevent(kq, NULL, 0, &unused, 1, NULL);
+	}
+	if (nevents < 0) {
+		if (errno == EINTR)
+			return;
 		log_err(1, "kevent");
+	}
 
-	if (error == 0)
+	if (nevents == 0) {
 		log_debugx("timeout reached");
-	else
+		assert(sleep_time > 0.0);
+	} else {
 		log_debugx("got filesystem event");
+	}
 }
 
 int
@@ -324,7 +336,10 @@ main_autounmountd(int argc, char **argv)
 	for (;;) {
 		refresh_automounted();
 		mounted_max = expire_automounted(expiration_time);
-		if (mounted_max < expiration_time) {
+		if (mounted_max == -1.0) {
+			sleep_time = mounted_max;
+			log_debugx("no filesystems to expire");
+		} else if (mounted_max < expiration_time) {
 			sleep_time = difftime(expiration_time, mounted_max);
 			log_debugx("some filesystems expire in %.0f seconds",
 			    sleep_time);

@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/tools/ctf/common
-.PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/tools/ctf/cvt
+.include <src.opts.mk>
 
-DEBUG_FLAGS=	-g
+.PATH: ${SRCTOP}/cddl/contrib/opensolaris/tools/ctf/common
+.PATH: ${SRCTOP}/cddl/contrib/opensolaris/tools/ctf/cvt
 
 PROG=		ctfconvert
 SRCS=		alist.c \
@@ -27,8 +27,8 @@ SRCS=		alist.c \
 		traverse.c \
 		util.c
 
-CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
-		-I${.CURDIR}/../../../cddl/compat/opensolaris/include \
+CFLAGS+=	-I${SRCTOP}/sys/cddl/compat/opensolaris \
+		-I${SRCTOP}/cddl/compat/opensolaris/include \
 		-I${OPENSOLARIS_USR_DISTDIR} \
 		-I${OPENSOLARIS_SYS_DISTDIR} \
 		-I${OPENSOLARIS_USR_DISTDIR}/head \
@@ -36,7 +36,9 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${OPENSOLARIS_USR_DISTDIR}/tools/ctf/cvt \
 		-I${OPENSOLARIS_SYS_DISTDIR}/uts/common
 
-DPADD=		${LIBCTF} ${LIBDWARF} ${LIBELF} ${LIBZ} ${LIBPTHREAD}
-LDADD=		-lctf -ldwarf -lelf -lz -lpthread
+LIBADD=		dwarf elf z pthread
+
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

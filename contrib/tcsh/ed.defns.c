@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/ed.defns.c,v 3.46 2006/03/02 18:46:44 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/ed.defns.c,v 3.51 2016/02/14 15:44:18 christos Exp $ */
 /*
  * ed.defns.c: Editor function definitions and initialization
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: ed.defns.c,v 3.46 2006/03/02 18:46:44 christos Exp $")
+RCSID("$tcsh: ed.defns.c,v 3.51 2016/02/14 15:44:18 christos Exp $")
 
 #include "ed.h"
 
@@ -151,7 +151,7 @@ PFCmd   CcFuncTbl[] = {		/* table of available commands */
 #define         F_CASEUPPER     54
     e_lowercase,
 #define         F_CASELOWER     55
-    e_capitolcase,
+    e_capitalcase,
 #define         F_CASECAPITAL   56
     v_zero,
 #define		V_ZERO		57
@@ -1801,27 +1801,27 @@ editinit(void)
 void
 CheckMaps(void)
 {		/* check the size of the key maps */
-    int     c1 = (NT_NUM_KEYS * sizeof(KEYCMD));
+    size_t     c1 = NT_NUM_KEYS * sizeof(KEYCMD);
 
-    if ((sizeof(CcKeyMap)) != c1)
-	xprintf("CcKeyMap should be %d entries, but is %d.\r\n",
-		NT_NUM_KEYS, sizeof(CcKeyMap) / sizeof(KEYCMD)));
+    if (sizeof(CcKeyMap) != c1)
+	xprintf("CcKeyMap should be %u entries, but is %zu.\r\n",
+		NT_NUM_KEYS, sizeof(CcKeyMap) / sizeof(KEYCMD));
 
-    if ((sizeof(CcAltMap)) != c1)
-	xprintf("CcAltMap should be %d entries, but is %d.\r\n",
-		NT_NUM_KEYS, (sizeof(CcAltMap) / sizeof(KEYCMD)));
+    if (sizeof(CcAltMap) != c1)
+	xprintf("CcAltMap should be %u entries, but is %zu.\r\n",
+		NT_NUM_KEYS, sizeof(CcAltMap) / sizeof(KEYCMD));
 
-    if ((sizeof(CcEmacsMap)) != c1)
-	xprintf("CcEmacsMap should be %d entries, but is %d.\r\n",
-		NT_NUM_KEYS, (sizeof(CcEmacsMap) / sizeof(KEYCMD)));
+    if (sizeof(CcEmacsMap) != c1)
+	xprintf("CcEmacsMap should be %u entries, but is %zu.\r\n",
+		NT_NUM_KEYS, sizeof(CcEmacsMap) / sizeof(KEYCMD));
 
-    if ((sizeof(CcViMap)) != c1)
-	xprintf("CcViMap should be %d entries, but is %d.\r\n",
-		NT_NUM_KEYS, (sizeof(CcViMap) / sizeof(KEYCMD)));
+    if (sizeof(CcViMap) != c1)
+	xprintf("CcViMap should be %u entries, but is %zu.\r\n",
+		NT_NUM_KEYS, sizeof(CcViMap) / sizeof(KEYCMD));
 
-    if ((sizeof(CcViCmdMap)) != c1)
-	xprintf("CcViCmdMap should be %d entries, but is %d.\r\n",
-		NT_NUM_KEYS, (sizeof(CcViCmdMap) / sizeof(KEYCMD)));
+    if (sizeof(CcViCmdMap) != c1)
+	xprintf("CcViCmdMap should be %u entries, but is %zu.\r\n",
+		NT_NUM_KEYS, sizeof(CcViCmdMap) / sizeof(KEYCMD));
 }
 
 #endif
@@ -1889,6 +1889,9 @@ ed_InitVIMaps(void)
     int i;
 
     VImode = 1;
+    setNS(STRvimode);
+    update_wordchars();
+
     ResetXmap();
     for (i = 0; i < NT_NUM_KEYS; i++) {
 	CcKeyMap[i] = CcViMap[i];
@@ -1910,6 +1913,10 @@ ed_InitEmacsMaps(void)
     cstr.len = 2;
 
     VImode = 0;
+    if (adrof(STRvimode))
+	unsetv(STRvimode);
+    update_wordchars();
+
     ResetXmap();
     for (i = 0; i < NT_NUM_KEYS; i++) {
 	CcKeyMap[i] = CcEmacsMap[i];

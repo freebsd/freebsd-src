@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef SYSTEMZASMPRINTER_H
-#define SYSTEMZASMPRINTER_H
+#ifndef LLVM_LIB_TARGET_SYSTEMZ_SYSTEMZASMPRINTER_H
+#define LLVM_LIB_TARGET_SYSTEMZ_SYSTEMZASMPRINTER_H
 
 #include "SystemZTargetMachine.h"
 #include "llvm/CodeGen/AsmPrinter.h"
@@ -22,30 +22,20 @@ class Module;
 class raw_ostream;
 
 class LLVM_LIBRARY_VISIBILITY SystemZAsmPrinter : public AsmPrinter {
-private:
-  const SystemZSubtarget *Subtarget;
-
 public:
-  SystemZAsmPrinter(TargetMachine &TM, MCStreamer &Streamer)
-    : AsmPrinter(TM, Streamer) {
-    Subtarget = &TM.getSubtarget<SystemZSubtarget>();
-  }
+  SystemZAsmPrinter(TargetMachine &TM, std::unique_ptr<MCStreamer> Streamer)
+      : AsmPrinter(TM, std::move(Streamer)) {}
 
   // Override AsmPrinter.
-  virtual const char *getPassName() const LLVM_OVERRIDE {
-    return "SystemZ Assembly Printer";
-  }
-  virtual void EmitInstruction(const MachineInstr *MI) LLVM_OVERRIDE;
-  virtual void EmitMachineConstantPoolValue(MachineConstantPoolValue *MCPV)
-    LLVM_OVERRIDE;
-  virtual bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
-                               unsigned AsmVariant, const char *ExtraCode,
-                               raw_ostream &OS) LLVM_OVERRIDE;
-  virtual bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNo,
-                                     unsigned AsmVariant,
-                                     const char *ExtraCode,
-                                     raw_ostream &OS) LLVM_OVERRIDE;
-  virtual void EmitEndOfAsmFile(Module &M) LLVM_OVERRIDE;
+  StringRef getPassName() const override { return "SystemZ Assembly Printer"; }
+  void EmitInstruction(const MachineInstr *MI) override;
+  void EmitMachineConstantPoolValue(MachineConstantPoolValue *MCPV) override;
+  bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
+                       unsigned AsmVariant, const char *ExtraCode,
+                       raw_ostream &OS) override;
+  bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNo,
+                             unsigned AsmVariant, const char *ExtraCode,
+                             raw_ostream &OS) override;
 };
 } // end namespace llvm
 

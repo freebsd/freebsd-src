@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-none.c,v 1.16 2010/06/25 08:46:17 djm Exp $ */
+/* $OpenBSD: auth2-none.c,v 1.22 2018/07/09 21:35:50 markus Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -30,21 +30,23 @@
 #include <sys/uio.h>
 
 #include <fcntl.h>
-#include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 #include "atomicio.h"
 #include "xmalloc.h"
-#include "key.h"
+#include "sshkey.h"
 #include "hostfile.h"
 #include "auth.h"
 #include "packet.h"
 #include "log.h"
-#include "buffer.h"
+#include "misc.h"
 #include "servconf.h"
 #include "compat.h"
 #include "ssh2.h"
+#include "ssherr.h"
 #ifdef GSSAPI
 #include "ssh-gss.h"
 #endif
@@ -57,12 +59,15 @@ extern ServerOptions options;
 static int none_enabled = 1;
 
 static int
-userauth_none(Authctxt *authctxt)
+userauth_none(struct ssh *ssh)
 {
+	int r;
+
 	none_enabled = 0;
-	packet_check_eom();
+	if ((r = sshpkt_get_end(ssh)) != 0)
+		fatal("%s: %s", __func__, ssh_err(r));
 	if (options.permit_empty_passwd && options.password_authentication)
-		return (PRIVSEP(auth_password(authctxt, "")));
+		return (PRIVSEP(auth_password(ssh, "")));
 	return (0);
 }
 

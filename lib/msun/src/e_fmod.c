@@ -20,6 +20,8 @@ __FBSDID("$FreeBSD$");
  * Method: shift and subtract
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -40,7 +42,7 @@ __ieee754_fmod(double x, double y)
     /* purge off exception values */
 	if((hy|ly)==0||(hx>=0x7ff00000)||	/* y=0,or x not finite */
 	  ((hy|((ly|-ly)>>31))>0x7ff00000))	/* or y is NaN */
-	    return (x*y)/(x*y);
+	    return nan_mix_op(x, y, *)/nan_mix_op(x, y, *);
 	if(hx<=hy) {
 	    if((hx<hy)||(lx<ly)) return x;	/* |x|<|y| return x */
 	    if(lx==ly) 
@@ -130,3 +132,7 @@ __ieee754_fmod(double x, double y)
 	}
 	return x;		/* exact output */
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(fmod, fmodl);
+#endif

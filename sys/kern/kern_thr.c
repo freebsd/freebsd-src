@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003, Jeffrey Roberson <jeff@freebsd.org>
  * All rights reserved.
  *
@@ -27,8 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_posix.h"
+#include "opt_hwpmc_hooks.h"
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -36,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/posix4.h>
+#include <sys/ptrace.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
@@ -53,6 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/rtprio.h>
 #include <sys/umtx.h>
 #include <sys/limits.h>
+#ifdef	HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 
 #include <machine/frame.h>
 
@@ -87,29 +93,39 @@ suword_lwpid(void *addr, lwpid_t lwpid)
 #define suword_lwpid	suword
 #endif
 
-static int create_thread(struct thread *td, mcontext_t *ctx,
-			 void (*start_func)(void *), void *arg,
-			 char *stack_base, size_t stack_size,
-			 char *tls_base,
-			 long *child_tid, long *parent_tid,
-			 int flags, struct rtprio *rtp);
-
 /*
  * System call interface.
  */
+
+struct thr_create_initthr_args {
+	ucontext_t ctx;
+	long *tid;
+};
+
+static int
+thr_create_initthr(struct thread *td, void *thunk)
+{
+	struct thr_create_initthr_args *args;
+
+	/* Copy out the child tid. */
+	args = thunk;
+	if (args->tid != NULL && suword_lwpid(args->tid, td->td_tid))
+		return (EFAULT);
+
+	return (set_mcontext(td, &args->ctx.uc_mcontext));
+}
+
 int
 sys_thr_create(struct thread *td, struct thr_create_args *uap)
     /* ucontext_t *ctx, long *id, int flags */
 {
-	ucontext_t ctx;
+	struct thr_create_initthr_args args;
 	int error;
 
-	if ((error = copyin(uap->ctx, &ctx, sizeof(ctx))))
+	if ((error = copyin(uap->ctx, &args.ctx, sizeof(args.ctx))))
 		return (error);
-
-	error = create_thread(td, &ctx.uc_mcontext, NULL, NULL,
-		NULL, 0, NULL, uap->id, NULL, uap->flags, NULL);
-	return (error);
+	args.tid = uap->id;
+	return (thread_create(td, NULL, thr_create_initthr, &args));
 }
 
 int
@@ -127,6 +143,35 @@ sys_thr_new(struct thread *td, struct thr_new_args *uap)
 	return (kern_thr_new(td, &param));
 }
 
+static int
+thr_new_initthr(struct thread *td, void *thunk)
+{
+	stack_t stack;
+	struct thr_param *param;
+
+	/*
+	 * Here we copy out tid to two places, one for child and one
+	 * for parent, because pthread can create a detached thread,
+	 * if parent wants to safely access child tid, it has to provide
+	 * its storage, because child thread may exit quickly and
+	 * memory is freed before parent thread can access it.
+	 */
+	param = thunk;
+	if ((param->child_tid != NULL &&
+	    suword_lwpid(param->child_tid, td->td_tid)) ||
+	    (param->parent_tid != NULL &&
+	    suword_lwpid(param->parent_tid, td->td_tid)))
+		return (EFAULT);
+
+	/* Set up our machine context. */
+	stack.ss_sp = param->stack_base;
+	stack.ss_size = param->stack_size;
+	/* Set upcall address to user thread entry function. */
+	cpu_set_upcall(td, param->start_func, param->arg, &stack);
+	/* Setup user TLS address and TLS pointer register. */
+	return (cpu_set_user_tls(td, param->tls_base));
+}
+
 int
 kern_thr_new(struct thread *td, struct thr_param *param)
 {
@@ -140,33 +185,18 @@ kern_thr_new(struct thread *td, struct thr_param *param)
 			return (error);
 		rtpp = &rtp;
 	}
-	error = create_thread(td, NULL, param->start_func, param->arg,
-		param->stack_base, param->stack_size, param->tls_base,
-		param->child_tid, param->parent_tid, param->flags,
-		rtpp);
-	return (error);
+	return (thread_create(td, rtpp, thr_new_initthr, param));
 }
 
-static int
-create_thread(struct thread *td, mcontext_t *ctx,
-	    void (*start_func)(void *), void *arg,
-	    char *stack_base, size_t stack_size,
-	    char *tls_base,
-	    long *child_tid, long *parent_tid,
-	    int flags, struct rtprio *rtp)
+int
+thread_create(struct thread *td, struct rtprio *rtp,
+    int (*initialize_thread)(struct thread *, void *), void *thunk)
 {
-	stack_t stack;
 	struct thread *newtd;
 	struct proc *p;
 	int error;
 
 	p = td->td_proc;
-
-	/* Have race condition but it is cheap. */
-	if (p->p_numthreads >= max_threads_per_proc) {
-		++max_threads_hits;
-		return (EPROCLIM);
-	}
 
 	if (rtp != NULL) {
 		switch(rtp->type) {
@@ -187,72 +217,40 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	}
 
 #ifdef RACCT
-	PROC_LOCK(td->td_proc);
-	error = racct_add(p, RACCT_NTHR, 1);
-	PROC_UNLOCK(td->td_proc);
-	if (error != 0)
-		return (EPROCLIM);
+	if (racct_enable) {
+		PROC_LOCK(p);
+		error = racct_add(p, RACCT_NTHR, 1);
+		PROC_UNLOCK(p);
+		if (error != 0)
+			return (EPROCLIM);
+	}
 #endif
 
 	/* Initialize our td */
-	newtd = thread_alloc(0);
-	if (newtd == NULL) {
-		error = ENOMEM;
+	error = kern_thr_alloc(p, 0, &newtd);
+	if (error)
 		goto fail;
-	}
 
-	cpu_set_upcall(newtd, td);
-
-	/*
-	 * Try the copyout as soon as we allocate the td so we don't
-	 * have to tear things down in a failure case below.
-	 * Here we copy out tid to two places, one for child and one
-	 * for parent, because pthread can create a detached thread,
-	 * if parent wants to safely access child tid, it has to provide 
-	 * its storage, because child thread may exit quickly and
-	 * memory is freed before parent thread can access it.
-	 */
-	if ((child_tid != NULL &&
-	    suword_lwpid(child_tid, newtd->td_tid)) ||
-	    (parent_tid != NULL &&
-	    suword_lwpid(parent_tid, newtd->td_tid))) {
-		thread_free(newtd);
-		error = EFAULT;
-		goto fail;
-	}
+	cpu_copy_thread(newtd, td);
 
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	bcopy(&td->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 	newtd->td_proc = td->td_proc;
-	newtd->td_ucred = crhold(td->td_ucred);
+	newtd->td_rb_list = newtd->td_rbp_list = newtd->td_rb_inact = 0;
+	thread_cow_get(newtd, td);
 
-	if (ctx != NULL) { /* old way to set user context */
-		error = set_mcontext(newtd, ctx);
-		if (error != 0) {
-			thread_free(newtd);
-			crfree(td->td_ucred);
-			goto fail;
-		}
-	} else {
-		/* Set up our machine context. */
-		stack.ss_sp = stack_base;
-		stack.ss_size = stack_size;
-		/* Set upcall address to user thread entry function. */
-		cpu_set_upcall_kse(newtd, start_func, arg, &stack);
-		/* Setup user TLS address and TLS pointer register. */
-		error = cpu_set_user_tls(newtd, tls_base);
-		if (error != 0) {
-			thread_free(newtd);
-			crfree(td->td_ucred);
-			goto fail;
-		}
+	error = initialize_thread(newtd, thunk);
+	if (error != 0) {
+		thread_cow_free(newtd);
+		thread_free(newtd);
+		goto fail;
 	}
 
-	PROC_LOCK(td->td_proc);
-	td->td_proc->p_flag |= P_HADTHREADS;
-	thread_link(newtd, p); 
+	PROC_LOCK(p);
+	p->p_flag |= P_HADTHREADS;
+	thread_link(newtd, p);
 	bcopy(p->p_comm, newtd->td_name, sizeof(newtd->td_name));
 	thread_lock(td);
 	/* let the scheduler know about these things. */
@@ -260,7 +258,16 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	thread_unlock(td);
 	if (P_SHOULDSTOP(p))
 		newtd->td_flags |= TDF_ASTPENDING | TDF_NEEDSUSPCHK;
+	if (p->p_ptevents & PTRACE_LWP)
+		newtd->td_dbgflags |= TDB_BORN;
+
 	PROC_UNLOCK(p);
+#ifdef	HWPMC_HOOKS
+	if (PMC_PROC_IS_USING_PMCS(p))
+		PMC_CALL_HOOK(newtd, PMC_FN_THR_CREATE, NULL);
+	else if (PMC_SYSTEM_SAMPLING_ACTIVE())
+		PMC_CALL_HOOK_UNLOCKED(newtd, PMC_FN_THR_CREATE_LOG, NULL);
+#endif
 
 	tidhash_add(newtd);
 
@@ -280,9 +287,11 @@ create_thread(struct thread *td, mcontext_t *ctx,
 
 fail:
 #ifdef RACCT
-	PROC_LOCK(p);
-	racct_sub(p, RACCT_NTHR, 1);
-	PROC_UNLOCK(p);
+	if (racct_enable) {
+		PROC_LOCK(p);
+		racct_sub(p, RACCT_NTHR, 1);
+		PROC_UNLOCK(p);
+	}
 #endif
 	return (error);
 }
@@ -303,9 +312,8 @@ int
 sys_thr_exit(struct thread *td, struct thr_exit_args *uap)
     /* long *state */
 {
-	struct proc *p;
 
-	p = td->td_proc;
+	umtx_thread_exit(td);
 
 	/* Signal userland that it can free the stack. */
 	if ((void *)uap->state != NULL) {
@@ -313,27 +321,68 @@ sys_thr_exit(struct thread *td, struct thr_exit_args *uap)
 		kern_umtx_wake(td, uap->state, INT_MAX, 0);
 	}
 
-	rw_wlock(&tidhash_lock);
+	return (kern_thr_exit(td));
+}
 
-	PROC_LOCK(p);
+int
+kern_thr_exit(struct thread *td)
+{
+	struct proc *p;
+
+	p = td->td_proc;
 
 	/*
-	 * Shutting down last thread in the proc.  This will actually
-	 * call exit() in the trampoline when it returns.
+	 * If all of the threads in a process call this routine to
+	 * exit (e.g. all threads call pthread_exit()), exactly one
+	 * thread should return to the caller to terminate the process
+	 * instead of the thread.
+	 *
+	 * Checking p_numthreads alone is not sufficient since threads
+	 * might be committed to terminating while the PROC_LOCK is
+	 * dropped in either ptracestop() or while removing this thread
+	 * from the tidhash.  Instead, the p_pendingexits field holds
+	 * the count of threads in either of those states and a thread
+	 * is considered the "last" thread if all of the other threads
+	 * in a process are already terminating.
 	 */
-	if (p->p_numthreads != 1) {
-		racct_sub(p, RACCT_NTHR, 1);
-		LIST_REMOVE(td, td_hash);
-		rw_wunlock(&tidhash_lock);
-		tdsigcleanup(td);
-		PROC_SLOCK(p);
-		thread_stopped(p);
-		thread_exit();
-		/* NOTREACHED */
+	PROC_LOCK(p);
+	if (p->p_numthreads == p->p_pendingexits + 1) {
+		/*
+		 * Ignore attempts to shut down last thread in the
+		 * proc.  This will actually call _exit(2) in the
+		 * usermode trampoline when it returns.
+		 */
+		PROC_UNLOCK(p);
+		return (0);
 	}
+
+	p->p_pendingexits++;
+	td->td_dbgflags |= TDB_EXIT;
+	if (p->p_ptevents & PTRACE_LWP)
+		ptracestop(td, SIGTRAP, NULL);
 	PROC_UNLOCK(p);
-	rw_wunlock(&tidhash_lock);
-	return (0);
+	tidhash_remove(td);
+	PROC_LOCK(p);
+	p->p_pendingexits--;
+
+	/*
+	 * The check above should prevent all other threads from this
+	 * process from exiting while the PROC_LOCK is dropped, so
+	 * there must be at least one other thread other than the
+	 * current thread.
+	 */
+	KASSERT(p->p_numthreads > 1, ("too few threads"));
+	racct_sub(p, RACCT_NTHR, 1);
+	tdsigcleanup(td);
+
+#ifdef AUDIT
+	AUDIT_SYSCALL_EXIT(0, td);
+#endif
+
+	PROC_SLOCK(p);
+	thread_stopped(p);
+	thread_exit();
+	/* NOTREACHED */
 }
 
 int
@@ -537,8 +586,11 @@ sys_thr_set_name(struct thread *td, struct thr_set_name_args *uap)
 	error = 0;
 	name[0] = '\0';
 	if (uap->name != NULL) {
-		error = copyinstr(uap->name, name, sizeof(name),
-			NULL);
+		error = copyinstr(uap->name, name, sizeof(name), NULL);
+		if (error == ENAMETOOLONG) {
+			error = copyin(uap->name, name, sizeof(name) - 1);
+			name[sizeof(name) - 1] = '\0';
+		}
 		if (error)
 			return (error);
 	}
@@ -547,9 +599,30 @@ sys_thr_set_name(struct thread *td, struct thr_set_name_args *uap)
 	if (ttd == NULL)
 		return (ESRCH);
 	strcpy(ttd->td_name, name);
+#ifdef HWPMC_HOOKS
+	if (PMC_PROC_IS_USING_PMCS(p) || PMC_SYSTEM_SAMPLING_ACTIVE())
+		PMC_CALL_HOOK_UNLOCKED(ttd, PMC_FN_THR_CREATE_LOG, NULL);
+#endif
 #ifdef KTR
 	sched_clear_tdname(ttd);
 #endif
 	PROC_UNLOCK(p);
 	return (error);
+}
+
+int
+kern_thr_alloc(struct proc *p, int pages, struct thread **ntd)
+{
+
+	/* Have race condition but it is cheap. */
+	if (p->p_numthreads >= max_threads_per_proc) {
+		++max_threads_hits;
+		return (EPROCLIM);
+	}
+
+	*ntd = thread_alloc(pages);
+	if (*ntd == NULL)
+		return (ENOMEM);
+
+	return (0);
 }

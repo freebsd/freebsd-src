@@ -1,4 +1,4 @@
-/*	$NetBSD: nonints.h,v 1.65 2012/08/30 21:17:05 sjg Exp $	*/
+/*	$NetBSD: nonints.h,v 1.74 2016/09/05 00:40:29 sevan Exp $	*/
 
 /*-
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -91,7 +91,7 @@ int Compat_Make(void *, void *);
 
 /* cond.c */
 struct If;
-int Cond_EvalExpression(const struct If *, char *, Boolean *, int);
+int Cond_EvalExpression(const struct If *, char *, Boolean *, int, Boolean);
 int Cond_Eval(char *);
 void Cond_restore_depth(unsigned int);
 unsigned int Cond_save_depth(void);
@@ -109,7 +109,6 @@ void JobReapChild(pid_t, WAIT_T, Boolean);
 /* main.c */
 void Main_ParseArgLine(const char *);
 void MakeMode(const char *);
-int main(int, char **);
 char *Cmd_Exec(const char *, const char **);
 void Error(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2);
 void Fatal(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2) MAKE_ATTR_DEAD;
@@ -120,7 +119,9 @@ void Finish(int) MAKE_ATTR_DEAD;
 int eunlink(const char *);
 void execError(const char *, const char *);
 char *getTmpdir(void);
+Boolean s2Boolean(const char *, Boolean);
 Boolean getBoolean(const char *, Boolean);
+char *cached_realpath(const char *, char *);
 
 /* parse.c */
 void Parse_Error(int, const char *, ...) MAKE_ATTR_PRINTFLIKE(2, 3);
@@ -141,6 +142,11 @@ char *Str_FindSubstring(const char *, const char *);
 int Str_Match(const char *, const char *);
 char *Str_SYSVMatch(const char *, const char *, int *len);
 void Str_SYSVSubst(Buffer *, char *, char *, int);
+
+#ifndef HAVE_STRLCPY
+/* strlcpy.c */
+size_t strlcpy(char *, const char *, size_t);
+#endif
 
 /* suff.c */
 void Suff_ClearSuffixes(void);
@@ -184,8 +190,8 @@ void Var_Set(const char *, const char *, GNode *, int);
 void Var_Append(const char *, const char *, GNode *);
 Boolean Var_Exists(const char *, GNode *);
 char *Var_Value(const char *, GNode *, char **);
-char *Var_Parse(const char *, GNode *, Boolean, int *, void **);
-char *Var_Subst(const char *, const char *, GNode *, Boolean);
+char *Var_Parse(const char *, GNode *, int, int *, void **);
+char *Var_Subst(const char *, const char *, GNode *, int);
 char *Var_GetTail(const char *);
 char *Var_GetHead(const char *);
 void Var_Init(void);

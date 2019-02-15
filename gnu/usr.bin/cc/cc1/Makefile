@@ -9,7 +9,7 @@ MAN=
 
 PROG=	cc1
 SRCS=	main.c c-parser.c c-lang.c
-BINDIR=	/usr/libexec
+BINDIR=	${LIBEXECDIR}
 .if ${MK_SHARED_TOOLCHAIN} == "no"
 NO_SHARED?=yes
 .endif
@@ -20,7 +20,7 @@ LDADD=	${LIBBACKEND} ${LIBCPP} ${LIBDECNUMBER} ${LIBIBERTY}
 
 DOBJS+=	${SRCS:N*.h:R:S/$/.o/g}
 ${PROG}-dummy:	${DOBJS}
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${DOBJS} ${LDADD}
+	${CC:N${CCACHE_BIN}} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${DOBJS} ${LDADD}
 CLEANFILES+=	${PROG}-dummy
 
 ${PROG}-checksum.c:	${PROG}-dummy

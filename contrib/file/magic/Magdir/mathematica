@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: mathematica,v 1.7 2009/09/19 16:28:10 christos Exp $
+# $File: mathematica,v 1.9 2017/03/17 21:35:28 christos Exp $
 # mathematica:  file(1) magic for mathematica files
 # "H. Nanosecond" <aldomel@ix.netcom.com>
 # Mathematica a multi-purpose math program
@@ -8,13 +8,16 @@
 
 #mathematica .mb
 0	string	\064\024\012\000\035\000\000\000	Mathematica version 2 notebook
+!:ext mb
 0	string	\064\024\011\000\035\000\000\000	Mathematica version 2 notebook
+!:ext mb
 
 # .ma
 # multiple possibilites:
 
 0	string	(*^\n\n::[\011frontEndVersion\ =\ 	Mathematica notebook
 #>41	string	>\0	%s
+!:ext mb
 
 #0	string	(*^\n\n::[\011palette	Mathematica notebook version 2.x
 
@@ -25,20 +28,28 @@
 
 # generic:
 0	string	(*^\r\r::[\011	Mathematica notebook version 2.x
+!:ext mb
 0	string	(*^\r\n\r\n::[\011	Mathematica notebook version 2.x
+!:ext mb
 0	string	(*^\015			Mathematica notebook version 2.x
+!:ext mb
 0	string	(*^\n\r\n\r::[\011	Mathematica notebook version 2.x
+!:ext mb
 0	string	(*^\r::[\011	Mathematica notebook version 2.x
+!:ext mb
 0	string	(*^\r\n::[\011	Mathematica notebook version 2.x
+!:ext mb
 0	string	(*^\n\n::[\011	Mathematica notebook version 2.x
+!:ext mb
 0	string	(*^\n::[\011	Mathematica notebook version 2.x
+!:ext mb
 
 
 # Mathematica .mx files
 
 #0	string	(*This\ is\ a\ Mathematica\ binary\ dump\ file.\ It\ can\ be\ loaded\ with\ Get.*)	Mathematica binary file
 0	string	(*This\ is\ a\ Mathematica\ binary\ 	Mathematica binary file
-#>71	string \000\010\010\010\010\000\000\000\000\000\000\010\100\010\000\000\000	
+#>71	string \000\010\010\010\010\000\000\000\000\000\000\010\100\010\000\000\000
 # >71... is optional
 >88	string	>\0	from %s
 
@@ -48,7 +59,7 @@
 0	string	MMAPBF\000\001\000\000\000\203\000\001\000	Mathematica PBF (fonts I think)
 
 # .ml files  These are menu resources I think
-# these start with "[0-9][0-9][0-9]\ A~[0-9][0-9][0-9]\ 
+# these start with "[0-9][0-9][0-9]\ A~[0-9][0-9][0-9]\
 # how to put that into a magic rule?
 4	string	\ A~	MAthematica .ml file
 

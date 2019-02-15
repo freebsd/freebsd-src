@@ -14,14 +14,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "expand-isel-pseudos"
-#include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/TargetLowering.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/TargetMachine.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "expand-isel-pseudos"
 
 namespace {
   class ExpandISelPseudos : public MachineFunctionPass {
@@ -30,9 +31,9 @@ namespace {
     ExpandISelPseudos() : MachineFunctionPass(ID) {}
 
   private:
-    virtual bool runOnMachineFunction(MachineFunction &MF);
+    bool runOnMachineFunction(MachineFunction &MF) override;
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       MachineFunctionPass::getAnalysisUsage(AU);
     }
   };
@@ -40,29 +41,28 @@ namespace {
 
 char ExpandISelPseudos::ID = 0;
 char &llvm::ExpandISelPseudosID = ExpandISelPseudos::ID;
-INITIALIZE_PASS(ExpandISelPseudos, "expand-isel-pseudos",
+INITIALIZE_PASS(ExpandISelPseudos, DEBUG_TYPE,
                 "Expand ISel Pseudo-instructions", false, false)
 
 bool ExpandISelPseudos::runOnMachineFunction(MachineFunction &MF) {
   bool Changed = false;
-  const TargetLowering *TLI = MF.getTarget().getTargetLowering();
+  const TargetLowering *TLI = MF.getSubtarget().getTargetLowering();
 
   // Iterate through each instruction in the function, looking for pseudos.
   for (MachineFunction::iterator I = MF.begin(), E = MF.end(); I != E; ++I) {
-    MachineBasicBlock *MBB = I;
+    MachineBasicBlock *MBB = &*I;
     for (MachineBasicBlock::iterator MBBI = MBB->begin(), MBBE = MBB->end();
          MBBI != MBBE; ) {
-      MachineInstr *MI = MBBI++;
+      MachineInstr &MI = *MBBI++;
 
       // If MI is a pseudo, expand it.
-      if (MI->usesCustomInsertionHook()) {
+      if (MI.usesCustomInsertionHook()) {
         Changed = true;
-        MachineBasicBlock *NewMBB =
-          TLI->EmitInstrWithCustomInserter(MI, MBB);
+        MachineBasicBlock *NewMBB = TLI->EmitInstrWithCustomInserter(MI, MBB);
         // The expansion may involve new basic blocks.
         if (NewMBB != MBB) {
           MBB = NewMBB;
-          I = NewMBB;
+          I = NewMBB->getIterator();
           MBBI = NewMBB->begin();
           MBBE = NewMBB->end();
         }

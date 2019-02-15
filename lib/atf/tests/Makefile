@@ -1,10 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
-TESTSDIR=	${TESTSBASE}/lib/atf
-
-.PATH:		${.CURDIR:H:H:H}/tests
+.PATH:		${SRCTOP}/tests
 KYUAFILE=	yes
 
 SUBDIR=		test-programs

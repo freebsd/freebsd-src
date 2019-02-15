@@ -1,6 +1,8 @@
 /*-
  * CAM request queue management functions.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Justin T. Gibbs.
  * All rights reserved.
  *
@@ -122,7 +124,7 @@ camq_resize(struct camq *queue, int new_size)
 	cam_pinfo **new_array;
 
 	KASSERT(new_size >= queue->entries, ("camq_resize: "
-	    "New queue size can't accomodate queued entries (%d < %d).",
+	    "New queue size can't accommodate queued entries (%d < %d).",
 	    new_size, queue->entries));
 	new_array = (cam_pinfo **)malloc(new_size * sizeof(cam_pinfo *),
 					 M_CAMQ, M_NOWAIT);
@@ -176,8 +178,11 @@ camq_remove(struct camq *queue, int index)
 {
 	cam_pinfo *removed_entry;
 
-	if (index == 0 || index > queue->entries)
-		return (NULL);
+	if (index <= 0 || index > queue->entries)
+		panic("%s: Attempt to remove out-of-bounds index %d "
+		    "from queue %p of size %d", __func__, index, queue,
+		    queue->entries);
+
 	removed_entry = queue->queue_array[index];
 	if (queue->entries != index) {
 		queue->queue_array[index] = queue->queue_array[queue->entries];

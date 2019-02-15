@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -81,6 +83,9 @@ struct atexit {
 
 static struct atexit *__atexit;		/* points to head of LIFO stack */
 typedef DECLARE_BLOCK(void, atexit_block, void);
+
+int atexit_b(atexit_block);
+int __cxa_atexit(void (*)(void *), void *, void *);
 
 /*
  * Register the function described by 'fptr' to be called at application

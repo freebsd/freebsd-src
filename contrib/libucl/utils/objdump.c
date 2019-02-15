@@ -41,26 +41,30 @@ ucl_obj_dump (const ucl_object_t *obj, unsigned int shift)
 
 	tmp = obj;
 
-	while ((obj = ucl_iterate_object (tmp, &it, false))) {
+	while ((obj = ucl_object_iterate (tmp, &it, false))) {
 		printf ("%sucl object address: %p\n", pre + 4, obj);
 		if (obj->key != NULL) {
 			printf ("%skey: \"%s\"\n", pre, ucl_object_key (obj));
 		}
-		printf ("%sref: %hd\n", pre, obj->ref);
+		printf ("%sref: %u\n", pre, obj->ref);
 		printf ("%slen: %u\n", pre, obj->len);
 		printf ("%sprev: %p\n", pre, obj->prev);
 		printf ("%snext: %p\n", pre, obj->next);
 		if (obj->type == UCL_OBJECT) {
 			printf ("%stype: UCL_OBJECT\n", pre);
 			printf ("%svalue: %p\n", pre, obj->value.ov);
-			while ((cur = ucl_iterate_object (obj, &it_obj, true))) {
+			it_obj = NULL;
+			while ((cur = ucl_object_iterate (obj, &it_obj, true))) {
 				ucl_obj_dump (cur, shift + 2);
 			}
 		}
 		else if (obj->type == UCL_ARRAY) {
 			printf ("%stype: UCL_ARRAY\n", pre);
 			printf ("%svalue: %p\n", pre, obj->value.av);
-			ucl_obj_dump (obj->value.av, shift + 2);
+			it_obj = NULL;
+			while ((cur = ucl_object_iterate (obj, &it_obj, true))) {
+				ucl_obj_dump (cur, shift + 2);
+			}
 		}
 		else if (obj->type == UCL_INT) {
 			printf ("%stype: UCL_INT\n", pre);
@@ -95,9 +99,10 @@ int
 main(int argc, char **argv)
 {
 	const char *fn = NULL;
-	char inbuf[8192];
+	unsigned char *inbuf;
 	struct ucl_parser *parser;
 	int k, ret = 0, r = 0;
+	ssize_t bufsize;
 	ucl_object_t *obj = NULL;
 	const ucl_object_t *par;
 	FILE *in;
@@ -117,9 +122,27 @@ main(int argc, char **argv)
 	}
 
 	parser = ucl_parser_new (0);
-	while (!feof (in) && r < (int)sizeof (inbuf)) {
-		r += fread (inbuf + r, 1, sizeof (inbuf) - r, in);
+	inbuf = malloc (BUFSIZ);
+	bufsize = BUFSIZ;
+	r = 0;
+
+	while (!feof (in) && !ferror (in)) {
+		if (r == bufsize) {
+			inbuf = realloc (inbuf, bufsize * 2);
+			bufsize *= 2;
+			if (inbuf == NULL) {
+				perror ("realloc");
+				exit (EXIT_FAILURE);
+			}
+		}
+		r += fread (inbuf + r, 1, bufsize - r, in);
 	}
+
+	if (ferror (in)) {
+		fprintf (stderr, "Failed to read the input file.\n");
+		exit (EXIT_FAILURE);
+	}
+
 	ucl_parser_add_chunk (parser, inbuf, r);
 	fclose (in);
 	if (ucl_parser_get_error(parser)) {
@@ -138,7 +161,7 @@ main(int argc, char **argv)
 	if (argc > 2) {
 		for (k = 2; k < argc; k++) {
 			printf ("search for \"%s\"... ", argv[k]);
-			par = ucl_object_find_key (obj, argv[k]);
+			par = ucl_object_lookup (obj, argv[k]);
 			printf ("%sfound\n", (par == NULL )?"not ":"");
 			ucl_obj_dump (par, 0);
 		}

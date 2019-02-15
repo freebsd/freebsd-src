@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.92 2013/09/04 15:38:26 sjg Exp $	*/
+/*	$NetBSD: make.h,v 1.104 2018/02/12 21:38:09 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -88,6 +88,7 @@
 #include <sys/param.h>
 
 #include <ctype.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #ifdef HAVE_STRING_H
@@ -97,6 +98,10 @@
 #endif
 #include <unistd.h>
 #include <sys/cdefs.h>
+
+#ifndef FD_CLOEXEC
+#define FD_CLOEXEC 1
+#endif
 
 #if defined(__GNUC__)
 #define	MAKE_GNUC_PREREQ(x, y)						\
@@ -194,6 +199,7 @@ typedef struct GNode {
 #define DONE_ALLSRC	0x40	/* We do it once only */
 #define CYCLE		0x1000  /* Used by MakePrintStatus */
 #define DONECYCLE	0x2000  /* Used by MakePrintStatus */
+#define INTERNAL	0x4000	/* Internal use only */
     enum enum_made {
 	UNMADE, DEFERRED, REQUESTED, BEINGMADE,
 	MADE, UPTODATE, ERROR, ABORTED
@@ -289,6 +295,7 @@ typedef struct GNode {
 #define OP_NOMETA	0x00080000  /* .NOMETA do not create a .meta file */
 #define OP_META		0x00100000  /* .META we _do_ want a .meta file */
 #define OP_NOMETA_CMP	0x00200000  /* Do not compare commands in .meta file */
+#define OP_SUBMAKE	0x00400000  /* Possibly a submake node */
 /* Attributes applied by PMake */
 #define OP_TRANSFORM	0x80000000  /* The node is a transformation rule */
 #define OP_MEMBER 	0x40000000  /* Target is a member of an archive */
@@ -339,6 +346,7 @@ typedef struct GNode {
  * once the makefile has been parsed. PARSE_WARNING means it can. Passed
  * as the first argument to Parse_Error.
  */
+#define PARSE_INFO	3
 #define PARSE_WARNING	2
 #define PARSE_FATAL	1
 
@@ -382,6 +390,7 @@ extern Boolean  beSilent;    	/* True if should print no commands */
 extern Boolean  noExecute;    	/* True if should execute nothing */
 extern Boolean  noRecursiveExecute;    	/* True if should execute nothing */
 extern Boolean  allPrecious;   	/* True if every target is precious */
+extern Boolean  deleteOnError;	/* True if failed targets should be deleted */
 extern Boolean  keepgoing;    	/* True if should continue on unaffected
 				 * portions of the graph when have an error
 				 * in one portion */
@@ -496,9 +505,15 @@ char * Check_Cwd_Cmd(const char *);
 void Check_Cwd(const char **);
 void PrintOnError(GNode *, const char *);
 void Main_ExportMAKEFLAGS(Boolean);
-Boolean Main_SetObjdir(const char *);
+Boolean Main_SetObjdir(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2);
 int mkTempFile(const char *, char **);
 int str2Lst_Append(Lst, char *, const char *);
+int cached_lstat(const char *, void *);
+int cached_stat(const char *, void *);
+
+#define	VARF_UNDEFERR	1
+#define	VARF_WANTRES	2
+#define	VARF_ASSIGN	4
 
 #ifdef __GNUC__
 #define UNCONST(ptr)	({ 		\
@@ -518,8 +533,21 @@ int str2Lst_Append(Lst, char *, const char *);
 #define MAX(a, b) ((a > b) ? a : b)
 #endif
 
+/* At least GNU/Hurd systems lack hardcoded MAXPATHLEN/PATH_MAX */
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifndef MAXPATHLEN
-#define MAXPATHLEN BMAKE_PATH_MAX
+#define MAXPATHLEN	BMAKE_PATH_MAX
+#endif
+#ifndef PATH_MAX
+#define PATH_MAX	MAXPATHLEN
+#endif
+
+#if defined(SYSV)
+#define KILLPG(pid, sig)	kill(-(pid), (sig))
+#else
+#define KILLPG(pid, sig)	killpg((pid), (sig))
 #endif
 
 #endif /* _MAKE_H_ */

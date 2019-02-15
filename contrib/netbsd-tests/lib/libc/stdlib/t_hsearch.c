@@ -121,7 +121,11 @@ ATF_TC_BODY(hsearch_basic, tc)
 		ATF_REQUIRE_EQ((intptr_t)ep->data, i);
 	}
 
+#ifdef __NetBSD__
 	hdestroy1(free, NULL);
+#else
+	hdestroy();
+#endif
 }
 
 ATF_TC(hsearch_duplicate);
@@ -229,6 +233,7 @@ ATF_TC_BODY(hsearch_two, tc)
 	hdestroy();
 }
 
+#if defined(__FreeBSD__) && 1100027 <= __FreeBSD_version
 ATF_TC(hsearch_r_basic);
 ATF_TC_HEAD(hsearch_r_basic, tc)
 {
@@ -274,9 +279,15 @@ ATF_TC_BODY(hsearch_r_basic, tc)
 		ATF_REQUIRE_EQ((intptr_t)ep->data, i);
 	}
 
+#ifdef __NetBSD__
 	hdestroy1_r(&t, free, NULL);
+#else
+	hdestroy_r(&t);
+#endif
 }
+#endif
 
+#if defined(__FreeBSD__) && 1100027 <= __FreeBSD_version
 ATF_TC(hsearch_r_duplicate);
 ATF_TC_HEAD(hsearch_r_duplicate, tc)
 {
@@ -327,6 +338,9 @@ ATF_TC_BODY(hsearch_r_nonexistent, tc)
 
 	REQUIRE_ERRNO(hcreate_r(16, &t));
 
+#ifdef __FreeBSD__
+	atf_tc_expect_fail("behavior doesn't match docs; see bug # 216872");
+#endif
 	e.key = __UNCONST("A");
 	ATF_REQUIRE(hsearch_r(e, FIND, &ep, &t) == 1);
 	ATF_REQUIRE_EQ(ep, NULL);
@@ -381,6 +395,7 @@ ATF_TC_BODY(hsearch_r_two, tc)
 
 	hdestroy_r(&t);
 }
+#endif
 
 ATF_TP_ADD_TCS(tp)
 {
@@ -390,10 +405,12 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, hsearch_nonexistent);
 	ATF_TP_ADD_TC(tp, hsearch_two);
 
+#if defined(__FreeBSD__) && 1100027 <= __FreeBSD_version
 	ATF_TP_ADD_TC(tp, hsearch_r_basic);
 	ATF_TP_ADD_TC(tp, hsearch_r_duplicate);
 	ATF_TP_ADD_TC(tp, hsearch_r_nonexistent);
 	ATF_TP_ADD_TC(tp, hsearch_r_two);
+#endif
 
 	return atf_no_error();
 }

@@ -24,14 +24,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2009
+.Dd August 22, 2018
 .Dt NFSUSERD 8
 .Os
 .Sh NAME
 .Nm nfsuserd
 .Nd load user and group information into the kernel for
 .Tn NFSv4
-services
+services plus support manage-gids for all NFS versions
 .Sh SYNOPSIS
 .Nm nfsuserd
 .Op Fl domain Ar domain_name
@@ -39,11 +39,19 @@ services
 .Op Fl usermax Ar max_cache_size
 .Op Fl verbose
 .Op Fl force
+.Op Fl manage-gids
 .Op Ar num_servers
 .Sh DESCRIPTION
 .Nm
 loads user and group information into the kernel for NFSv4.
-It must be running for NFSv4 to function correctly, either client or server.
+For Kerberized NFSv4 mounts, it must be running on both client(s) and
+server for correct operation.
+For non-Kerberized NFSv4 mounts, this daemon must be running unless all
+client(s) plus the server are configured to put uid/gid numbers in the
+owner and owner_group strings.
+.Pp
+It also provides support for manage-gids and must be running on the server if
+this is being used for any version of NFS.
 .Pp
 Upon startup, it loads the machines DNS domain name, plus timeout and
 cache size limit into the kernel. It then preloads the cache with group
@@ -61,8 +69,8 @@ if that name is not a fully qualified host name, the canonical name as
 reported by
 .Xr getaddrinfo 3 .
 .It Fl usertimeout Ar minutes
-Overrides the default timeout for cache entries, in minutes. If the
-timeout is specified as 0, cache entries never time out. The longer the
+Overrides the default timeout for cache entries, in minutes.
+The longer the
 time out, the better the performance, but the longer it takes for replaced
 entries to be seen. If your user/group database management system almost
 never re-uses the same names or id numbers, a large timeout is recommended.
@@ -79,6 +87,15 @@ When set, the server logs a bunch of information to syslog.
 This flag option must be set to restart the daemon after it has gone away
 abnormally and refuses to start, because it thinks nfsuserd is already
 running.
+.It Fl manage-gids
+This flag enables manage-gids for the NFS server
+.Xr nfsd 8 .
+When this is enabled, all NFS requests using
+AUTH_SYS authentication take the uid from the RPC request
+and uses the group list for that uid provided by
+.Xr getgrouplist 3
+on the server instead of the list of groups provided in the RPC authenticator.
+This can be used to avoid the 16 group limit for AUTH_SYS.
 .It Ar num_servers
 Specifies how many servers to create (max 20).
 The default of 4 may be sufficient. You should run enough servers, so that
@@ -89,12 +106,13 @@ performance impact, whereas running too many will only tie up some resources,
 such as a process table entry and swap space.
 .El
 .Sh SEE ALSO
-.Xr getpwent 3 ,
 .Xr getgrent 3 ,
+.Xr getgrouplist 3 ,
+.Xr getpwent 3 ,
 .Xr nfsv4 4 ,
 .Xr group 5 ,
 .Xr passwd 5 ,
-.Xr nfsd 8 .
+.Xr nfsd 8
 .Sh HISTORY
 The
 .Nm
@@ -103,7 +121,8 @@ utility was introduced with the NFSv4 experimental subsystem in 2009.
 The
 .Nm
 use
-.Xr getgrent 3
+.Xr getgrent 3 ,
+.Xr getgrouplist 3
 and
 .Xr getpwent 3
 library calls to resolve requests and will hang if the servers handling
@@ -112,3 +131,9 @@ those requests fail and the library functions don't return. See
 and
 .Xr passwd 5
 for more information on how the databases are accessed.
+.Pp
+Since the kernel communicates with the
+.Nm
+daemon via an upcall that uses the IP address 127.0.0.1, it does not work correctly when
+.Xr jail 8
+are used and can crash the system.

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -37,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <sys/sysctl.h>
 
 #include <ufs/ufs/dinode.h>
@@ -254,7 +257,7 @@ fileerror(ino_t cwd, ino_t ino, const char *errmesg)
 	pinode(ino);
 	printf("\n");
 	getpathname(pathbuf, cwd, ino);
-	if (ino < ROOTINO || ino > maxino) {
+	if (ino < UFS_ROOTINO || ino > maxino) {
 		pfatal("NAME=%s\n", pathbuf);
 		return;
 	}
@@ -320,7 +323,7 @@ adjust(struct inodesc *idesc, int lcnt)
 		if (preen || reply("ADJUST") == 1) {
 			if (bkgrdflag == 0) {
 				DIP_SET(dp, di_nlink, DIP(dp, di_nlink) - lcnt);
-				inodirty();
+				inodirty(dp);
 			} else {
 				cmd.value = idesc->id_number;
 				cmd.size = -lcnt;
@@ -400,24 +403,25 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 		if (reply("RECONNECT") == 0)
 			return (0);
 	if (lfdir == 0) {
-		dp = ginode(ROOTINO);
+		dp = ginode(UFS_ROOTINO);
 		idesc.id_name = strdup(lfname);
 		idesc.id_type = DATA;
 		idesc.id_func = findino;
-		idesc.id_number = ROOTINO;
+		idesc.id_number = UFS_ROOTINO;
 		if ((ckinode(dp, &idesc) & FOUND) != 0) {
 			lfdir = idesc.id_parent;
 		} else {
 			pwarn("NO lost+found DIRECTORY");
 			if (preen || reply("CREATE")) {
-				lfdir = allocdir(ROOTINO, (ino_t)0, lfmode);
+				lfdir = allocdir(UFS_ROOTINO, (ino_t)0, lfmode);
 				if (lfdir != 0) {
-					if (makeentry(ROOTINO, lfdir, lfname) != 0) {
+					if (makeentry(UFS_ROOTINO, lfdir,
+					    lfname) != 0) {
 						numdirs++;
 						if (preen)
 							printf(" (CREATED)\n");
 					} else {
-						freedir(lfdir, ROOTINO);
+						freedir(lfdir, UFS_ROOTINO);
 						lfdir = 0;
 						if (preen)
 							printf("\n");
@@ -437,15 +441,15 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 		if (reply("REALLOCATE") == 0)
 			return (0);
 		oldlfdir = lfdir;
-		if ((lfdir = allocdir(ROOTINO, (ino_t)0, lfmode)) == 0) {
+		if ((lfdir = allocdir(UFS_ROOTINO, (ino_t)0, lfmode)) == 0) {
 			pfatal("SORRY. CANNOT CREATE lost+found DIRECTORY\n\n");
 			return (0);
 		}
-		if ((changeino(ROOTINO, lfname, lfdir) & ALTERED) == 0) {
+		if ((changeino(UFS_ROOTINO, lfname, lfdir) & ALTERED) == 0) {
 			pfatal("SORRY. CANNOT CREATE lost+found DIRECTORY\n\n");
 			return (0);
 		}
-		inodirty();
+		inodirty(dp);
 		idesc.id_type = ADDR;
 		idesc.id_func = pass4check;
 		idesc.id_number = oldlfdir;
@@ -470,7 +474,7 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 			(void)makeentry(orphan, lfdir, "..");
 		dp = ginode(lfdir);
 		DIP_SET(dp, di_nlink, DIP(dp, di_nlink) + 1);
-		inodirty();
+		inodirty(dp);
 		inoinfo(lfdir)->ino_linkcnt++;
 		pwarn("DIR I=%lu CONNECTED. ", (u_long)orphan);
 		if (parentdir != (ino_t)-1) {
@@ -518,8 +522,8 @@ makeentry(ino_t parent, ino_t ino, const char *name)
 	struct inodesc idesc;
 	char pathbuf[MAXPATHLEN + 1];
 
-	if (parent < ROOTINO || parent >= maxino ||
-	    ino < ROOTINO || ino >= maxino)
+	if (parent < UFS_ROOTINO || parent >= maxino ||
+	    ino < UFS_ROOTINO || ino >= maxino)
 		return (0);
 	memset(&idesc, 0, sizeof(struct inodesc));
 	idesc.id_type = DATA;
@@ -531,7 +535,7 @@ makeentry(ino_t parent, ino_t ino, const char *name)
 	dp = ginode(parent);
 	if (DIP(dp, di_size) % DIRBLKSIZ) {
 		DIP_SET(dp, di_size, roundup(DIP(dp, di_size), DIRBLKSIZ));
-		inodirty();
+		inodirty(dp);
 	}
 	if ((ckinode(dp, &idesc) & ALTERED) != 0)
 		return (1);
@@ -553,7 +557,7 @@ expanddir(union dinode *dp, char *name)
 	char *cp, firstblk[DIRBLKSIZ];
 
 	lastbn = lblkno(&sblock, DIP(dp, di_size));
-	if (lastbn >= NDADDR - 1 || DIP(dp, di_db[lastbn]) == 0 ||
+	if (lastbn >= UFS_NDADDR - 1 || DIP(dp, di_db[lastbn]) == 0 ||
 	    DIP(dp, di_size) == 0)
 		return (0);
 	if ((newblk = allocblk(sblock.fs_frag)) == 0)
@@ -587,7 +591,7 @@ expanddir(union dinode *dp, char *name)
 	else if (reply("EXPAND") == 0)
 		goto bad;
 	dirty(bp);
-	inodirty();
+	inodirty(dp);
 	return (1);
 bad:
 	DIP_SET(dp, di_db[lastbn], DIP(dp, di_db[lastbn + 1]));
@@ -628,8 +632,8 @@ allocdir(ino_t parent, ino_t request, int mode)
 		memmove(cp, &emptydir, sizeof emptydir);
 	dirty(bp);
 	DIP_SET(dp, di_nlink, 2);
-	inodirty();
-	if (ino == ROOTINO) {
+	inodirty(dp);
+	if (ino == UFS_ROOTINO) {
 		inoinfo(ino)->ino_linkcnt = DIP(dp, di_nlink);
 		cacheino(dp, ino);
 		return(ino);
@@ -649,7 +653,7 @@ allocdir(ino_t parent, ino_t request, int mode)
 	}
 	dp = ginode(parent);
 	DIP_SET(dp, di_nlink, DIP(dp, di_nlink) + 1);
-	inodirty();
+	inodirty(dp);
 	return (ino);
 }
 
@@ -664,7 +668,7 @@ freedir(ino_t ino, ino_t parent)
 	if (ino != parent) {
 		dp = ginode(parent);
 		DIP_SET(dp, di_nlink, DIP(dp, di_nlink) - 1);
-		inodirty();
+		inodirty(dp);
 	}
 	freeino(ino);
 }
@@ -701,7 +705,7 @@ static struct bufarea *
 getdirblk(ufs2_daddr_t blkno, long size)
 {
 
-	if (pdirbp != 0)
+	if (pdirbp != NULL)
 		pdirbp->b_flags &= ~B_INUSE;
 	pdirbp = getdatablk(blkno, size, BT_DIRDATA);
 	return (pdirbp);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2005-2008 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
@@ -35,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h> 
 #include <sys/kernel.h>
 #include <sys/malloc.h>
- 
 #include <sys/socket.h>
 
 #include <net/if.h>
@@ -70,10 +71,7 @@ ieee80211_regdomain_attach(struct ieee80211com *ic)
 {
 	if (ic->ic_regdomain.regdomain == 0 &&
 	    ic->ic_regdomain.country == CTRY_DEFAULT) {
-		ic->ic_regdomain.country = CTRY_UNITED_STATES;	/* XXX */
 		ic->ic_regdomain.location = ' ';		/* both */
-		ic->ic_regdomain.isocc[0] = 'U';		/* XXX */
-		ic->ic_regdomain.isocc[1] = 'S';		/* XXX */
 		/* NB: driver calls ieee80211_init_channels or similar */
 	}
 	ic->ic_getradiocaps = null_getradiocaps;
@@ -84,7 +82,7 @@ void
 ieee80211_regdomain_detach(struct ieee80211com *ic)
 {
 	if (ic->ic_countryie != NULL) {
-		free(ic->ic_countryie, M_80211_NODE_IE);
+		IEEE80211_FREE(ic->ic_countryie, M_80211_NODE_IE);
 		ic->ic_countryie = NULL;
 	}
 }
@@ -99,22 +97,14 @@ ieee80211_regdomain_vdetach(struct ieee80211vap *vap)
 {
 }
 
-static void
-addchan(struct ieee80211com *ic, int ieee, int flags)
-{
-	struct ieee80211_channel *c;
-
-	c = &ic->ic_channels[ic->ic_nchans++];
-	c->ic_freq = ieee80211_ieee2mhz(ieee, flags);
-	c->ic_ieee = ieee;
-	c->ic_flags = flags;
-	if (flags & IEEE80211_CHAN_HT40U)
-		c->ic_extieee = ieee + 4;
-	else if (flags & IEEE80211_CHAN_HT40D)
-		c->ic_extieee = ieee - 4;
-	else
-		c->ic_extieee = 0;
-}
+static const uint8_t def_chan_2ghz[] =
+    { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+static const uint8_t def_chan_5ghz_band1[] =
+    { 36, 40, 44, 48, 52, 56, 60, 64 };
+static const uint8_t def_chan_5ghz_band2[] =
+    { 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140 };
+static const uint8_t def_chan_5ghz_band3[] =
+    { 149, 153, 157, 161 };
 
 /*
  * Setup the channel list for the specified regulatory domain,
@@ -126,82 +116,34 @@ int
 ieee80211_init_channels(struct ieee80211com *ic,
 	const struct ieee80211_regdomain *rd, const uint8_t bands[])
 {
-	int i;
+	struct ieee80211_channel *chans = ic->ic_channels;
+	int *nchans = &ic->ic_nchans;
+	int ht40;
 
 	/* XXX just do something for now */
-	ic->ic_nchans = 0;
+	ht40 = !!(ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40);
+	*nchans = 0;
 	if (isset(bands, IEEE80211_MODE_11B) ||
 	    isset(bands, IEEE80211_MODE_11G) ||
 	    isset(bands, IEEE80211_MODE_11NG)) {
-		int maxchan = 11;
-		if (rd != NULL && rd->ecm)
-			maxchan = 14;
-		for (i = 1; i <= maxchan; i++) {
-			if (isset(bands, IEEE80211_MODE_11B))
-				addchan(ic, i, IEEE80211_CHAN_B);
-			if (isset(bands, IEEE80211_MODE_11G))
-				addchan(ic, i, IEEE80211_CHAN_G);
-			if (isset(bands, IEEE80211_MODE_11NG)) {
-				addchan(ic, i,
-				    IEEE80211_CHAN_G | IEEE80211_CHAN_HT20);
-			}
-			if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) == 0)
-				continue;
-			if (i <= 7) {
-				addchan(ic, i,
-				    IEEE80211_CHAN_G | IEEE80211_CHAN_HT40U);
-				addchan(ic, i + 4,
-				    IEEE80211_CHAN_G | IEEE80211_CHAN_HT40D);
-			}
-		}
+		int nchan = nitems(def_chan_2ghz);
+		if (!(rd != NULL && rd->ecm))
+			nchan -= 3;
+
+		ieee80211_add_channel_list_2ghz(chans, IEEE80211_CHAN_MAX,
+		    nchans, def_chan_2ghz, nchan, bands, ht40);
 	}
 	if (isset(bands, IEEE80211_MODE_11A) ||
 	    isset(bands, IEEE80211_MODE_11NA)) {
-		for (i = 36; i <= 64; i += 4) {
-			addchan(ic, i, IEEE80211_CHAN_A);
-			if (isset(bands, IEEE80211_MODE_11NA)) {
-				addchan(ic, i,
-				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT20);
-			}
-			if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) == 0)
-				continue;
-			if ((i % 8) == 4) {
-				addchan(ic, i,
-				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U);
-				addchan(ic, i + 4,
-				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D);
-			}
-		}
-		for (i = 100; i <= 140; i += 4) {
-			addchan(ic, i, IEEE80211_CHAN_A);
-			if (isset(bands, IEEE80211_MODE_11NA)) {
-				addchan(ic, i,
-				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT20);
-			}
-			if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) == 0)
-				continue;
-			if ((i % 8) == 4 && i != 140) {
-				addchan(ic, i,
-				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U);
-				addchan(ic, i + 4,
-				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D);
-			}
-		}
-		for (i = 149; i <= 161; i += 4) {
-			addchan(ic, i, IEEE80211_CHAN_A);
-			if (isset(bands, IEEE80211_MODE_11NA)) {
-				addchan(ic, i,
-				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT20);
-			}
-			if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) == 0)
-				continue;
-			if ((i % 8) == 5) {
-				addchan(ic, i,
-				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U);
-				addchan(ic, i + 4,
-				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D);
-			}
-		}
+		ieee80211_add_channel_list_5ghz(chans, IEEE80211_CHAN_MAX,
+		    nchans, def_chan_5ghz_band1, nitems(def_chan_5ghz_band1),
+		    bands, ht40);
+		ieee80211_add_channel_list_5ghz(chans, IEEE80211_CHAN_MAX,
+		    nchans, def_chan_5ghz_band2, nitems(def_chan_5ghz_band2),
+		    bands, ht40);
+		ieee80211_add_channel_list_5ghz(chans, IEEE80211_CHAN_MAX,
+		    nchans, def_chan_5ghz_band3, nitems(def_chan_5ghz_band3),
+		    bands, ht40);
 	}
 	if (rd != NULL)
 		ic->ic_regdomain = *rd;
@@ -301,19 +243,19 @@ ieee80211_alloc_countryie(struct ieee80211com *ic)
 	struct ieee80211_country_ie *ie;
 	int i, skip, nruns;
 
-	aie = malloc(IEEE80211_COUNTRY_MAX_SIZE, M_80211_NODE_IE,
-	    M_NOWAIT | M_ZERO);
+	aie = IEEE80211_MALLOC(IEEE80211_COUNTRY_MAX_SIZE, M_80211_NODE_IE,
+	    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (aie == NULL) {
-		if_printf(ic->ic_ifp,
-		    "%s: unable to allocate memory for country ie\n", __func__);
+		ic_printf(ic, "%s: unable to allocate memory for country ie\n",
+		    __func__);
 		/* XXX stat */
 		return NULL;
 	}
 	ie = (struct ieee80211_country_ie *) aie->ie_data;
 	ie->ie = IEEE80211_ELEMID_COUNTRY;
 	if (rd->isocc[0] == '\0') {
-		if_printf(ic->ic_ifp, "no ISO country string for cc %d; "
-			"using blanks\n", rd->country);
+		ic_printf(ic, "no ISO country string for cc %d; using blanks\n",
+		    rd->country);
 		ie->cc[0] = ie->cc[1] = ' ';
 	} else {
 		ie->cc[0] = rd->isocc[0];
@@ -323,7 +265,7 @@ ieee80211_alloc_countryie(struct ieee80211com *ic)
 	 * Indoor/Outdoor portion of country string:
 	 *     'I' indoor only
 	 *     'O' outdoor only
-	 *     ' ' all enviroments
+	 *     ' ' all environments
 	 */
 	ie->cc[2] = (rd->location == 'I' ? 'I' :
 		     rd->location == 'O' ? 'O' : ' ');
@@ -350,7 +292,7 @@ ieee80211_alloc_countryie(struct ieee80211com *ic)
 		if (c->ic_ieee != nextchan ||
 		    c->ic_maxregpower != frm[-1]) {	/* new run */
 			if (nruns == IEEE80211_COUNTRY_MAX_BANDS) {
-				if_printf(ic->ic_ifp, "%s: country ie too big, "
+				ic_printf(ic, "%s: country ie too big, "
 				    "runs > max %d, truncating\n",
 				    __func__, IEEE80211_COUNTRY_MAX_BANDS);
 				/* XXX stat? fail? */
@@ -487,13 +429,13 @@ ieee80211_setregdomain(struct ieee80211vap *vap,
 	memset(&ic->ic_channels[ic->ic_nchans], 0,
 	    (IEEE80211_CHAN_MAX - ic->ic_nchans) *
 	       sizeof(struct ieee80211_channel));
-	ieee80211_media_init(ic);
+	ieee80211_chan_init(ic);
 
 	/*
 	 * Invalidate channel-related state.
 	 */
 	if (ic->ic_countryie != NULL) {
-		free(ic->ic_countryie, M_80211_NODE_IE);
+		IEEE80211_FREE(ic->ic_countryie, M_80211_NODE_IE);
 		ic->ic_countryie = NULL;
 	}
 	ieee80211_scan_flush(vap);

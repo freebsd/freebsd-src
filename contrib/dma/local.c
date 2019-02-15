@@ -1,8 +1,9 @@
 /*
+ * Copyright (c) 2008-2014, Simon Schubert <2@0x2c.org>.
  * Copyright (c) 2008 The DragonFly Project.  All rights reserved.
  *
  * This code is derived from software contributed to The DragonFly Project
- * by Simon 'corecode' Schubert <corecode@fs.ei.tum.de>.
+ * by Simon Schubert <2@0x2c.org>.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -43,6 +44,7 @@
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <syslog.h>
 #include <unistd.h>
 
@@ -81,7 +83,7 @@ create_mbox(const char *name)
 
 		execl(LIBEXEC_PATH "/dma-mbox-create", "dma-mbox-create", name, NULL);
 		syslog(LOG_ERR, "cannot execute "LIBEXEC_PATH"/dma-mbox-create: %m");
-		exit(1);
+		exit(EX_SOFTWARE);
 
 	default:
 		/* parent */
@@ -195,7 +197,7 @@ retry:
 		goto out;
 	}
 
-	error = snprintf(line, sizeof(line), "%sFrom %s\t%s", newline, sender, ctime(&now));
+	error = snprintf(line, sizeof(line), "%sFrom %s %s", newline, sender, ctime(&now));
 	if (error < 0 || (size_t)error >= sizeof(line)) {
 		syslog(LOG_NOTICE, "local delivery deferred: can not write header: %m");
 		goto out;

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
@@ -64,18 +66,15 @@ static void ata_cam_end_transaction(device_t dev, struct ata_request *request);
 static void ata_cam_request_sense(device_t dev, struct ata_request *request);
 static int ata_check_ids(device_t dev, union ccb *ccb);
 static void ata_conn_event(void *context, int dummy);
-static void ata_init(void);
 static void ata_interrupt_locked(void *data);
 static int ata_module_event_handler(module_t mod, int what, void *arg);
 static void ata_periodic_poll(void *data);
 static int ata_str2mode(const char *str);
-static void ata_uninit(void);
 
 /* global vars */
 MALLOC_DEFINE(M_ATA, "ata_generic", "ATA driver generic layer");
 int (*ata_raid_ioctl_func)(u_long cmd, caddr_t data) = NULL;
 devclass_t ata_devclass;
-uma_zone_t ata_request_zone;
 int ata_dma_check_80pin = 1;
 
 /* sysctl vars */
@@ -91,7 +90,7 @@ FEATURE(ata_cam, "ATA devices are accessed through the cam(4) driver");
 int
 ata_probe(device_t dev)
 {
-    return (BUS_PROBE_DEFAULT);
+    return (BUS_PROBE_LOW_PRIORITY);
 }
 
 int
@@ -317,13 +316,13 @@ ata_suspend(device_t dev)
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
-	if (ch->flags & ATA_PERIODIC_POLL)
-		callout_drain(&ch->poll_callout);
-	mtx_lock(&ch->state_mtx);
-	xpt_freeze_simq(ch->sim, 1);
-	while (ch->state != ATA_IDLE)
-		msleep(ch, &ch->state_mtx, PRIBIO, "atasusp", hz/100);
-	mtx_unlock(&ch->state_mtx);
+    if (ch->flags & ATA_PERIODIC_POLL)
+	callout_drain(&ch->poll_callout);
+    mtx_lock(&ch->state_mtx);
+    xpt_freeze_simq(ch->sim, 1);
+    while (ch->state != ATA_IDLE)
+	msleep(ch, &ch->state_mtx, PRIBIO, "atasusp", hz/100);
+    mtx_unlock(&ch->state_mtx);
     return(0);
 }
 
@@ -429,7 +428,7 @@ ata_default_registers(device_t dev)
 void
 ata_udelay(int interval)
 {
-    /* for now just use DELAY, the timer/sleep subsytems are not there yet */
+    /* for now just use DELAY, the timer/sleep subsystems are not there yet */
     if (1 || interval < (1000000/hz) || ata_delayed_attach)
 	DELAY(interval);
     else
@@ -499,7 +498,18 @@ ata_cmd2str(struct ata_request *request)
 		}
 	} else {
 		switch (request->u.ata.command) {
-		case 0x00: return ("NOP");
+		case 0x00:
+			switch (request->u.ata.feature) {
+			case 0x00: return ("NOP FLUSHQUEUE");
+			case 0x01: return ("NOP AUTOPOLL");
+			}
+			return ("NOP");
+		case 0x03: return ("CFA_REQUEST_EXTENDED_ERROR");
+		case 0x06:
+			switch (request->u.ata.feature) {
+			case 0x01: return ("DSM TRIM");
+			}
+			return "DSM";
 		case 0x08: return ("DEVICE_RESET");
 		case 0x20: return ("READ");
 		case 0x24: return ("READ48");
@@ -507,18 +517,65 @@ ata_cmd2str(struct ata_request *request)
 		case 0x26: return ("READ_DMA_QUEUED48");
 		case 0x27: return ("READ_NATIVE_MAX_ADDRESS48");
 		case 0x29: return ("READ_MUL48");
+		case 0x2a: return ("READ_STREAM_DMA48");
+		case 0x2b: return ("READ_STREAM48");
+		case 0x2f: return ("READ_LOG_EXT");
 		case 0x30: return ("WRITE");
 		case 0x34: return ("WRITE48");
 		case 0x35: return ("WRITE_DMA48");
 		case 0x36: return ("WRITE_DMA_QUEUED48");
 		case 0x37: return ("SET_MAX_ADDRESS48");
 		case 0x39: return ("WRITE_MUL48");
+		case 0x3a: return ("WRITE_STREAM_DMA48");
+		case 0x3b: return ("WRITE_STREAM48");
+		case 0x3d: return ("WRITE_DMA_FUA48");
+		case 0x3e: return ("WRITE_DMA_QUEUED_FUA48");
+		case 0x3f: return ("WRITE_LOG_EXT");
+		case 0x40: return ("READ_VERIFY");
+		case 0x42: return ("READ_VERIFY48");
+		case 0x45:
+			switch (request->u.ata.feature) {
+			case 0x55: return ("WRITE_UNCORRECTABLE48 PSEUDO");
+			case 0xaa: return ("WRITE_UNCORRECTABLE48 FLAGGED");
+			}
+			return "WRITE_UNCORRECTABLE48";
+		case 0x51: return ("CONFIGURE_STREAM");
+		case 0x60: return ("READ_FPDMA_QUEUED");
+		case 0x61: return ("WRITE_FPDMA_QUEUED");
+		case 0x63: return ("NCQ_NON_DATA");
+		case 0x64: return ("SEND_FPDMA_QUEUED");
+		case 0x65: return ("RECEIVE_FPDMA_QUEUED");
+		case 0x67:
+			if (request->u.ata.feature == 0xec)
+				return ("SEP_ATTN IDENTIFY");
+			switch (request->u.ata.lba) {
+			case 0x00: return ("SEP_ATTN READ BUFFER");
+			case 0x02: return ("SEP_ATTN RECEIVE DIAGNOSTIC RESULTS");
+			case 0x80: return ("SEP_ATTN WRITE BUFFER");
+			case 0x82: return ("SEP_ATTN SEND DIAGNOSTIC");
+			}
+			return ("SEP_ATTN");
 		case 0x70: return ("SEEK");
-		case 0xa0: return ("PACKET_CMD");
+		case 0x87: return ("CFA_TRANSLATE_SECTOR");
+		case 0x90: return ("EXECUTE_DEVICE_DIAGNOSTIC");
+		case 0x92: return ("DOWNLOAD_MICROCODE");
+		case 0xa0: return ("PACKET");
 		case 0xa1: return ("ATAPI_IDENTIFY");
 		case 0xa2: return ("SERVICE");
-		case 0xb0: return ("SMART");
-		case 0xc0: return ("CFA ERASE");
+		case 0xb0:
+			switch(request->u.ata.feature) {
+			case 0xd0: return ("SMART READ ATTR VALUES");
+			case 0xd1: return ("SMART READ ATTR THRESHOLDS");
+			case 0xd3: return ("SMART SAVE ATTR VALUES");
+			case 0xd4: return ("SMART EXECUTE OFFLINE IMMEDIATE");
+			case 0xd5: return ("SMART READ LOG DATA");
+			case 0xd8: return ("SMART ENABLE OPERATION");
+			case 0xd9: return ("SMART DISABLE OPERATION");
+			case 0xda: return ("SMART RETURN STATUS");
+			}
+			return ("SMART");
+		case 0xb1: return ("DEVICE CONFIGURATION");
+		case 0xc0: return ("CFA_ERASE");
 		case 0xc4: return ("READ_MUL");
 		case 0xc5: return ("WRITE_MUL");
 		case 0xc6: return ("SET_MULTI");
@@ -526,22 +583,48 @@ ata_cmd2str(struct ata_request *request)
 		case 0xc8: return ("READ_DMA");
 		case 0xca: return ("WRITE_DMA");
 		case 0xcc: return ("WRITE_DMA_QUEUED");
+		case 0xcd: return ("CFA_WRITE_MULTIPLE_WITHOUT_ERASE");
+		case 0xce: return ("WRITE_MUL_FUA48");
+		case 0xd1: return ("CHECK_MEDIA_CARD_TYPE");
+		case 0xda: return ("GET_MEDIA_STATUS");
+		case 0xde: return ("MEDIA_LOCK");
+		case 0xdf: return ("MEDIA_UNLOCK");
+		case 0xe0: return ("STANDBY_IMMEDIATE");
+		case 0xe1: return ("IDLE_IMMEDIATE");
+		case 0xe2: return ("STANDBY");
+		case 0xe3: return ("IDLE");
+		case 0xe4: return ("READ_BUFFER/PM");
+		case 0xe5: return ("CHECK_POWER_MODE");
 		case 0xe6: return ("SLEEP");
 		case 0xe7: return ("FLUSHCACHE");
+		case 0xe8: return ("WRITE_PM");
 		case 0xea: return ("FLUSHCACHE48");
 		case 0xec: return ("ATA_IDENTIFY");
+		case 0xed: return ("MEDIA_EJECT");
 		case 0xef:
 			switch (request->u.ata.feature) {
 			case 0x03: return ("SETFEATURES SET TRANSFER MODE");
 			case 0x02: return ("SETFEATURES ENABLE WCACHE");
 			case 0x82: return ("SETFEATURES DISABLE WCACHE");
+			case 0x06: return ("SETFEATURES ENABLE PUIS");
+			case 0x86: return ("SETFEATURES DISABLE PUIS");
+			case 0x07: return ("SETFEATURES SPIN-UP");
+			case 0x10: return ("SETFEATURES ENABLE SATA FEATURE");
+			case 0x90: return ("SETFEATURES DISABLE SATA FEATURE");
 			case 0xaa: return ("SETFEATURES ENABLE RCACHE");
 			case 0x55: return ("SETFEATURES DISABLE RCACHE");
+			case 0x5d: return ("SETFEATURES ENABLE RELIRQ");
+			case 0xdd: return ("SETFEATURES DISABLE RELIRQ");
+			case 0x5e: return ("SETFEATURES ENABLE SRVIRQ");
+			case 0xde: return ("SETFEATURES DISABLE SRVIRQ");
 			}
-			sprintf(buffer, "SETFEATURES 0x%02x",
-			    request->u.ata.feature);
-			return (buffer);
-		case 0xf5: return ("SECURITY_FREE_LOCK");
+			return "SETFEATURES";
+		case 0xf1: return ("SECURITY_SET_PASSWORD");
+		case 0xf2: return ("SECURITY_UNLOCK");
+		case 0xf3: return ("SECURITY_ERASE_PREPARE");
+		case 0xf4: return ("SECURITY_ERASE_UNIT");
+		case 0xf5: return ("SECURITY_FREEZE_LOCK");
+		case 0xf6: return ("SECURITY_DISABLE_PASSWORD");
 		case 0xf8: return ("READ_NATIVE_MAX_ADDRESS");
 		case 0xf9: return ("SET_MAX_ADDRESS");
 		}
@@ -572,6 +655,7 @@ ata_mode2str(int mode)
     case ATA_UDMA6: return "UDMA133";
     case ATA_SA150: return "SATA150";
     case ATA_SA300: return "SATA300";
+    case ATA_SA600: return "SATA600";
     default:
 	if (mode & ATA_DMA_MASK)
 	    return "BIOSDMA";
@@ -649,12 +733,7 @@ ata_cam_begin_transaction(device_t dev, union ccb *ccb)
 	struct ata_channel *ch = device_get_softc(dev);
 	struct ata_request *request;
 
-	if (!(request = ata_alloc_request())) {
-		device_printf(dev, "FAILURE - out of memory in start\n");
-		ccb->ccb_h.status = CAM_REQ_INVALID;
-		xpt_done(ccb);
-		return;
-	}
+	request = &ch->request;
 	bzero(request, sizeof(*request));
 
 	/* setup request */
@@ -793,7 +872,6 @@ ata_cam_process_sense(device_t dev, struct ata_request *request)
 		ccb->ccb_h.status |= CAM_AUTOSENSE_FAIL;
 	}
 
-	ata_free_request(request);
 	xpt_done(ccb);
 	/* Do error recovery if needed. */
 	if (fatalerr)
@@ -864,10 +942,8 @@ ata_cam_end_transaction(device_t dev, struct ata_request *request)
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR &&
 	    (ccb->ccb_h.flags & CAM_DIS_AUTOSENSE) == 0)
 		ata_cam_request_sense(dev, request);
-	else {
-		ata_free_request(request);
+	else
 		xpt_done(ccb);
-	}
 	/* Do error recovery if needed. */
 	if (fatalerr)
 		ata_reinit(dev);
@@ -888,6 +964,12 @@ ata_check_ids(device_t dev, union ccb *ccb)
 		xpt_done(ccb);
 		return (-1);
 	}
+	/*
+	 * It's a programming error to see AUXILIARY register requests.
+	 */
+	KASSERT(ccb->ccb_h.func_code != XPT_ATA_IO ||
+	    ((ccb->ataio.ata_flags & ATA_FLAG_AUX) == 0),
+	    ("AUX register unsupported"));
 	return (0);
 }
 
@@ -933,10 +1015,6 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 		}
 		ata_cam_begin_transaction(dev, ccb);
 		return;
-	case XPT_EN_LUN:		/* Enable LUN as a target */
-	case XPT_TARGET_IO:		/* Execute target I/O request */
-	case XPT_ACCEPT_TARGET_IO:	/* Accept Host Target Mode CDB */
-	case XPT_CONT_TARGET_IO:	/* Continue Host Target I/O Connection*/
 	case XPT_ABORT:			/* Abort the specified CCB */
 		/* XXX Implement */
 		ccb->ccb_h.status = CAM_REQ_INVALID;
@@ -1074,7 +1152,7 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->version_num = 1; /* XXX??? */
 		cpi->hba_inquiry = PI_SDTR_ABLE;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_SEQSCAN;
+		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED;
 		cpi->hba_eng_cnt = 0;
 		if (ch->flags & ATA_NO_SLAVE)
 			cpi->max_target = 0;
@@ -1087,9 +1165,9 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 			cpi->base_transfer_speed = 150000;
 		else
 			cpi->base_transfer_speed = 3300;
-		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "ATA", HBA_IDLEN);
-		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strlcpy(cpi->hba_vid, "ATA", HBA_IDLEN);
+		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
 		if (ch->flags & ATA_SATA)
 			cpi->transport = XPORT_SATA;
@@ -1147,18 +1225,3 @@ static moduledata_t ata_moduledata = { "ata", ata_module_event_handler, NULL };
 DECLARE_MODULE(ata, ata_moduledata, SI_SUB_CONFIGURE, SI_ORDER_SECOND);
 MODULE_VERSION(ata, 1);
 MODULE_DEPEND(ata, cam, 1, 1, 1);
-
-static void
-ata_init(void)
-{
-    ata_request_zone = uma_zcreate("ata_request", sizeof(struct ata_request),
-				   NULL, NULL, NULL, NULL, 0, 0);
-}
-SYSINIT(ata_register, SI_SUB_DRIVERS, SI_ORDER_SECOND, ata_init, NULL);
-
-static void
-ata_uninit(void)
-{
-    uma_zdestroy(ata_request_zone);
-}
-SYSUNINIT(ata_unregister, SI_SUB_DRIVERS, SI_ORDER_SECOND, ata_uninit, NULL);

@@ -188,12 +188,20 @@ static apr_status_t impl_pollset_create(apr_pollset_t *pollset,
     {
         int flags;
 
-        if ((flags = fcntl(pollset->p->port_fd, F_GETFD)) == -1)
-            return errno;
+        if ((flags = fcntl(pollset->p->port_fd, F_GETFD)) == -1) {
+            rv = errno;
+            close(pollset->p->port_fd);
+            pollset->p = NULL;
+            return rv;
+        }
 
         flags |= FD_CLOEXEC;
-        if (fcntl(pollset->p->port_fd, F_SETFD, flags) == -1)
-            return errno;
+        if (fcntl(pollset->p->port_fd, F_SETFD, flags) == -1) {
+            rv = errno;
+            close(pollset->p->port_fd);
+            pollset->p = NULL;
+            return rv;
+        }
     }
 
     pollset->p->result_set = apr_palloc(p, size * sizeof(apr_pollfd_t));
@@ -478,13 +486,22 @@ static apr_status_t impl_pollcb_create(apr_pollcb_t *pollcb,
 
     {
         int flags;
+        apr_status_t rv;
 
-        if ((flags = fcntl(pollcb->fd, F_GETFD)) == -1)
-            return errno;
+        if ((flags = fcntl(pollcb->fd, F_GETFD)) == -1) {
+            rv = errno;
+            close(pollcb->fd);
+            pollcb->fd = -1;
+            return rv;
+        }
 
         flags |= FD_CLOEXEC;
-        if (fcntl(pollcb->fd, F_SETFD, flags) == -1)
-            return errno;
+        if (fcntl(pollcb->fd, F_SETFD, flags) == -1) {
+            rv = errno;
+            close(pollcb->fd);
+            pollcb->fd = -1;
+            return rv;
+        }
     }
 
     pollcb->pollset.port = apr_palloc(p, size * sizeof(port_event_t));

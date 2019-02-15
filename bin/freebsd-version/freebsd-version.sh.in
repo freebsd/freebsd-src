@@ -36,9 +36,9 @@ USERLAND_VERSION="@@REVISION@@-@@BRANCH@@"
 : ${LOADER_CONF_FILES:=$LOADER_DIR/defaults/loader.conf $LOADER_DIR/loader.conf $LOADER_DIR/loader.conf.local}
 LOADER_RE1='^\([A-Z_a-z][0-9A-Z_a-z]*=[-./0-9A-Z_a-z]\{1,\}\).*$'
 LOADER_RE2='^\([A-Z_a-z][0-9A-Z_a-z]*="[-./0-9A-Z_a-z]\{1,\}"\).*$'
-KERNEL_RE='^@(#)@@TYPE@@ \([-.0-9A-Za-z]\{1,\}\) .*$'
+KERNEL_RE='^@@TYPE@@ \([-.0-9A-Za-z]\{1,\}\) .*$'
 
-progname=$(basename $0)
+progname=${0##*/}
 
 #
 # Print an error message and exit.
@@ -67,7 +67,14 @@ kernel_version() {
 	if [ ! -f "$kernfile" -o ! -r "$kernfile" ] ; then
 		error "unable to locate kernel"
 	fi
-	strings "$kernfile" | sed -n "s/$KERNEL_RE/\\1/p"
+	what -qs "$kernfile" | sed -n "s/$KERNEL_RE/\\1/p"
+}
+
+#
+# Print the version of the currently running kernel.
+#
+running_version() {
+	sysctl -n kern.osrelease
 }
 
 #
@@ -81,7 +88,7 @@ userland_version() {
 # Print a usage string and exit.
 #
 usage() {
-	echo "usage: $progname [-ku]" >&2
+	echo "usage: $progname [-kru]" >&2
 	exit 1
 }
 
@@ -90,10 +97,13 @@ usage() {
 #
 main() {
 	# parse command-line arguments
-	while getopts "ku" option ; do
+	while getopts "kru" option ; do
 		case $option in
 		k)
 			opt_k=1
+			;;
+		r)
+			opt_r=1
 			;;
 		u)
 			opt_u=1
@@ -108,13 +118,18 @@ main() {
 	fi
 
 	# default is -u
-	if [ $((opt_k + opt_u)) -eq 0 ] ; then
+	if [ $((opt_k + opt_r + opt_u)) -eq 0 ] ; then
 		opt_u=1
 	fi
 
-	# print kernel version
+	# print installed kernel version
 	if [ $opt_k ] ; then
 		kernel_version
+	fi
+
+	# print running kernel version
+	if [ $opt_r ] ; then
+		running_version
 	fi
 
 	# print userland version

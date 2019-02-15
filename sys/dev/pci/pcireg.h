@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * All rights reserved.
  *
@@ -51,6 +53,7 @@
 #define	PCIE_ARI_SLOTMAX 0
 #define	PCIE_ARI_FUNCMAX 255
 
+#define	PCI_RID_DOMAIN_SHIFT	16
 #define	PCI_RID_BUS_SHIFT	8
 #define	PCI_RID_SLOT_SHIFT	3
 #define	PCI_RID_FUNC_SHIFT	0
@@ -67,6 +70,10 @@
 #define PCI_RID2BUS(rid) (((rid) >> PCI_RID_BUS_SHIFT) & PCI_BUSMAX)
 #define PCI_RID2SLOT(rid) (((rid) >> PCI_RID_SLOT_SHIFT) & PCI_SLOTMAX)
 #define PCI_RID2FUNC(rid) (((rid) >> PCI_RID_FUNC_SHIFT) & PCI_FUNCMAX)
+
+#define PCIE_ARI_RID2SLOT(rid) (0)
+#define PCIE_ARI_RID2FUNC(rid) \
+    (((rid) >> PCI_RID_FUNC_SHIFT) & PCIE_ARI_FUNCMAX)
 
 #define PCIE_ARI_SLOT(func) (((func) >> PCI_RID_SLOT_SHIFT) & PCI_SLOTMAX)
 #define PCIE_ARI_FUNC(func) (((func) >> PCI_RID_FUNC_SHIFT) & PCI_FUNCMAX)
@@ -115,6 +122,9 @@
 #define	PCIM_MFDEV		0x80
 #define	PCIR_BIST	0x0f
 
+/* PCI Spec rev 2.2: 0FFFFh is an invalid value for Vendor ID. */
+#define	PCIV_INVALID	0xffff 
+
 /* Capability Register Offsets */
 
 #define	PCICAP_ID	0x0
@@ -141,6 +151,7 @@
 #define	PCIY_MSIX	0x11	/* MSI-X */
 #define	PCIY_SATA	0x12	/* SATA */
 #define	PCIY_PCIAF	0x13	/* PCI Advanced Features */
+#define	PCIY_EA		0x14	/* PCI Extended Allocation */
 
 /* Extended Capability Register Fields */
 
@@ -260,6 +271,11 @@
 #define	PCIR_BIOS_1	0x38
 #define	PCIR_BRIDGECTL_1 0x3e
 
+#define	PCI_PPBMEMBASE(h,l)  ((((uint64_t)(h) << 32) + ((l)<<16)) & ~0xfffff)
+#define	PCI_PPBMEMLIMIT(h,l) ((((uint64_t)(h) << 32) + ((l)<<16)) | 0xfffff)
+#define	PCI_PPBIOBASE(h,l)   ((((h)<<16) + ((l)<<8)) & ~0xfff)
+#define	PCI_PPBIOLIMIT(h,l)  ((((h)<<16) + ((l)<<8)) | 0xfff)
+
 /* config registers for header type 2 (CardBus) devices */
 
 #define	PCIR_MAX_BAR_2	0
@@ -279,6 +295,9 @@
 #define	PCIR_IOLIMIT0_2	0x30
 #define	PCIR_IOBASE1_2	0x34
 #define	PCIR_IOLIMIT1_2	0x38
+#define	PCIM_CBBIO_16		0x0
+#define	PCIM_CBBIO_32		0x1
+#define	PCIM_CBBIO_MASK		0x3
 
 #define	PCIR_BRIDGECTL_2 0x3e
 
@@ -286,6 +305,11 @@
 #define	PCIR_SUBDEV_2	0x42
 
 #define	PCIR_PCCARDIF_2	0x44
+
+#define	PCI_CBBMEMBASE(l)  ((l) & ~0xfffff)
+#define	PCI_CBBMEMLIMIT(l) ((l) | 0xfffff)
+#define	PCI_CBBIOBASE(l)   ((l) & ~0x3)
+#define	PCI_CBBIOLIMIT(l)  ((l) | 0x3)
 
 /* PCI device class, subclass and programming interface definitions */
 
@@ -459,6 +483,11 @@
 #define	PCIS_DASP_MGMT_CARD	0x20
 #define	PCIS_DASP_OTHER		0x80
 
+#define	PCIC_ACCEL	0x12
+#define	PCIS_ACCEL_PROCESSING	0x00
+
+#define	PCIC_INSTRUMENT	0x13
+
 #define	PCIC_OTHER	0xff
 
 /* Bridge Control Values. */
@@ -473,6 +502,17 @@
 #define	PCIB_BCR_SEC_DISCARD_TIMEOUT	0x0200
 #define	PCIB_BCR_DISCARD_TIMER_STATUS	0x0400
 #define	PCIB_BCR_DISCARD_TIMER_SERREN	0x0800
+
+#define	CBB_BCR_PERR_ENABLE		0x0001
+#define	CBB_BCR_SERR_ENABLE		0x0002
+#define	CBB_BCR_ISA_ENABLE		0x0004
+#define	CBB_BCR_VGA_ENABLE		0x0008
+#define	CBB_BCR_MASTER_ABORT_MODE	0x0020
+#define	CBB_BCR_CARDBUS_RESET		0x0040
+#define	CBB_BCR_IREQ_INT_ENABLE		0x0080
+#define	CBB_BCR_PREFETCH_0_ENABLE	0x0100
+#define	CBB_BCR_PREFETCH_1_ENABLE	0x0200
+#define	CBB_BCR_WRITE_POSTING_ENABLE	0x0400
 
 /* PCI power manangement */
 #define	PCIR_POWER_CAP		0x2
@@ -556,6 +596,52 @@
 #define	PCIR_MSI_DATA_64BIT	0xc
 #define	PCIR_MSI_MASK		0x10
 #define	PCIR_MSI_PENDING	0x14
+
+/* PCI Enhanced Allocation registers */
+#define	PCIR_EA_NUM_ENT		2	/* Number of Capability Entries */
+#define	PCIM_EA_NUM_ENT_MASK	0x3f	/* Num Entries Mask */
+#define	PCIR_EA_FIRST_ENT	4	/* First EA Entry in List */
+#define	PCIR_EA_FIRST_ENT_BRIDGE	8	/* First EA Entry for Bridges */
+#define	PCIM_EA_ES		0x00000007	/* Entry Size */
+#define	PCIM_EA_BEI		0x000000f0	/* BAR Equivalent Indicator */
+#define	PCIM_EA_BEI_OFFSET	4
+/* 0-5 map to BARs 0-5 respectively */
+#define	PCIM_EA_BEI_BAR_0	0
+#define	PCIM_EA_BEI_BAR_5	5
+#define	PCIM_EA_BEI_BAR(x)	(((x) >> PCIM_EA_BEI_OFFSET) & 0xf)
+#define	PCIM_EA_BEI_BRIDGE	0x6	/* Resource behind bridge */
+#define	PCIM_EA_BEI_ENI		0x7	/* Equivalent Not Indicated */
+#define	PCIM_EA_BEI_ROM		0x8	/* Expansion ROM */
+/* 9-14 map to VF BARs 0-5 respectively */
+#define	PCIM_EA_BEI_VF_BAR_0	9
+#define	PCIM_EA_BEI_VF_BAR_5	14
+#define	PCIM_EA_BEI_RESERVED	0xf	/* Reserved - Treat like ENI */
+#define	PCIM_EA_PP		0x0000ff00	/* Primary Properties */
+#define	PCIM_EA_PP_OFFSET	8
+#define	PCIM_EA_SP_OFFSET	16
+#define	PCIM_EA_SP		0x00ff0000	/* Secondary Properties */
+#define	PCIM_EA_P_MEM		0x00	/* Non-Prefetch Memory */
+#define	PCIM_EA_P_MEM_PREFETCH	0x01	/* Prefetchable Memory */
+#define	PCIM_EA_P_IO		0x02	/* I/O Space */
+#define	PCIM_EA_P_VF_MEM_PREFETCH	0x03	/* VF Prefetchable Memory */
+#define	PCIM_EA_P_VF_MEM	0x04	/* VF Non-Prefetch Memory */
+#define	PCIM_EA_P_BRIDGE_MEM	0x05	/* Bridge Non-Prefetch Memory */
+#define	PCIM_EA_P_BRIDGE_MEM_PREFETCH	0x06	/* Bridge Prefetchable Memory */
+#define	PCIM_EA_P_BRIDGE_IO	0x07	/* Bridge I/O Space */
+/* 0x08-0xfc reserved */
+#define	PCIM_EA_P_MEM_RESERVED	0xfd	/* Reserved Memory */
+#define	PCIM_EA_P_IO_RESERVED	0xfe	/* Reserved I/O Space */
+#define	PCIM_EA_P_UNAVAILABLE	0xff	/* Entry Unavailable */
+#define	PCIM_EA_WRITABLE	0x40000000	/* Writable: 1 = RW, 0 = HwInit */
+#define	PCIM_EA_ENABLE		0x80000000	/* Enable for this entry */
+#define	PCIM_EA_BASE		4	/* Base Address Offset */
+#define	PCIM_EA_MAX_OFFSET	8	/* MaxOffset (resource length) */
+/* bit 0 is reserved */
+#define	PCIM_EA_IS_64		0x00000002	/* 64-bit field flag */
+#define	PCIM_EA_FIELD_MASK	0xfffffffc	/* For Base & Max Offset */
+/* Bridge config register */
+#define	PCIM_EA_SEC_NR(reg)	((reg) & 0xff)
+#define	PCIM_EA_SUB_NR(reg)	(((reg) >> 8) & 0xff)
 
 /* PCI-X definitions */
 
@@ -660,6 +746,9 @@
 /* PCI Vendor capability definitions */
 #define	PCIR_VENDOR_LENGTH	0x2
 #define	PCIR_VENDOR_DATA	0x3
+
+/* PCI Device capability definitions */
+#define	PCIR_DEVICE_LENGTH	0x2
 
 /* PCI EHCI Debug Port definitions */
 #define	PCIR_DEBUG_PORT		0x2
@@ -771,8 +860,16 @@
 #define	PCIEM_SLOT_CTL_CCIE		0x0010
 #define	PCIEM_SLOT_CTL_HPIE		0x0020
 #define	PCIEM_SLOT_CTL_AIC		0x00c0
+#define	PCIEM_SLOT_CTL_AI_ON		0x0040
+#define	PCIEM_SLOT_CTL_AI_BLINK		0x0080
+#define	PCIEM_SLOT_CTL_AI_OFF		0x00c0
 #define	PCIEM_SLOT_CTL_PIC		0x0300
+#define	PCIEM_SLOT_CTL_PI_ON		0x0100
+#define	PCIEM_SLOT_CTL_PI_BLINK		0x0200
+#define	PCIEM_SLOT_CTL_PI_OFF		0x0300
 #define	PCIEM_SLOT_CTL_PCC		0x0400
+#define	PCIEM_SLOT_CTL_PC_ON		0x0000
+#define	PCIEM_SLOT_CTL_PC_OFF		0x0400
 #define	PCIEM_SLOT_CTL_EIC		0x0800
 #define	PCIEM_SLOT_CTL_DLLSCE		0x1000
 #define	PCIER_SLOT_STA		0x1a
@@ -798,10 +895,25 @@
 #define	PCIEM_ROOT_STA_PME_STATUS	0x00010000
 #define	PCIEM_ROOT_STA_PME_PEND		0x00020000
 #define	PCIER_DEVICE_CAP2	0x24
-#define	PCIEM_CAP2_ARI		0x20
+#define	PCIEM_CAP2_COMP_TIMO_RANGES	0x0000000f
+#define	PCIEM_CAP2_COMP_TIMO_RANGE_A	0x00000001
+#define	PCIEM_CAP2_COMP_TIMO_RANGE_B	0x00000002
+#define	PCIEM_CAP2_COMP_TIMO_RANGE_C	0x00000004
+#define	PCIEM_CAP2_COMP_TIMO_RANGE_D	0x00000008
+#define	PCIEM_CAP2_COMP_TIMO_DISABLE	0x00000010
+#define	PCIEM_CAP2_ARI			0x00000020
 #define	PCIER_DEVICE_CTL2	0x28
-#define	PCIEM_CTL2_COMP_TIMEOUT_VAL	0x000f
-#define	PCIEM_CTL2_COMP_TIMEOUT_DIS	0x0010
+#define	PCIEM_CTL2_COMP_TIMO_VAL	0x000f
+#define	PCIEM_CTL2_COMP_TIMO_50MS	0x0000
+#define	PCIEM_CTL2_COMP_TIMO_100US	0x0001
+#define	PCIEM_CTL2_COMP_TIMO_10MS	0x0002
+#define	PCIEM_CTL2_COMP_TIMO_55MS	0x0005
+#define	PCIEM_CTL2_COMP_TIMO_210MS	0x0006
+#define	PCIEM_CTL2_COMP_TIMO_900MS	0x0009
+#define	PCIEM_CTL2_COMP_TIMO_3500MS	0x000a
+#define	PCIEM_CTL2_COMP_TIMO_13S	0x000d
+#define	PCIEM_CTL2_COMP_TIMO_64S	0x000e
+#define	PCIEM_CTL2_COMP_TIMO_DISABLE	0x0010
 #define	PCIEM_CTL2_ARI			0x0020
 #define	PCIEM_CTL2_ATOMIC_REQ_ENABLE	0x0040
 #define	PCIEM_CTL2_ATOMIC_EGR_BLOCK	0x0080
@@ -920,3 +1032,37 @@
 #define	PCIR_SERIAL_LOW		0x04
 #define	PCIR_SERIAL_HIGH	0x08
 
+/* SR-IOV definitions */
+#define	PCIR_SRIOV_CTL		0x08
+#define	PCIM_SRIOV_VF_EN	0x01
+#define	PCIM_SRIOV_VF_MSE	0x08	/* Memory space enable. */
+#define	PCIM_SRIOV_ARI_EN	0x10
+#define	PCIR_SRIOV_TOTAL_VFS	0x0E
+#define	PCIR_SRIOV_NUM_VFS	0x10
+#define	PCIR_SRIOV_VF_OFF	0x14
+#define	PCIR_SRIOV_VF_STRIDE	0x16
+#define	PCIR_SRIOV_VF_DID	0x1A
+#define	PCIR_SRIOV_PAGE_CAP	0x1C
+#define	PCIR_SRIOV_PAGE_SIZE	0x20
+
+#define	PCI_SRIOV_BASE_PAGE_SHIFT	12
+
+#define	PCIR_SRIOV_BARS		0x24
+#define	PCIR_SRIOV_BAR(x)	(PCIR_SRIOV_BARS + (x) * 4)
+
+/*
+ * PCI Express Firmware Interface definitions
+ */
+#define	PCI_OSC_STATUS		0
+#define	PCI_OSC_SUPPORT		1
+#define	PCIM_OSC_SUPPORT_EXT_PCI_CONF	0x01	/* Extended PCI Config Space */
+#define	PCIM_OSC_SUPPORT_ASPM		0x02	/* Active State Power Management */
+#define	PCIM_OSC_SUPPORT_CPMC		0x04	/* Clock Power Management Cap */
+#define	PCIM_OSC_SUPPORT_SEG_GROUP	0x08	/* PCI Segment Groups supported */
+#define	PCIM_OSC_SUPPORT_MSI		0x10	/* MSI signalling supported */
+#define	PCI_OSC_CTL		2
+#define	PCIM_OSC_CTL_PCIE_HP		0x01	/* PCIe Native Hot Plug */
+#define	PCIM_OSC_CTL_SHPC_HP		0x02	/* SHPC Native Hot Plug */
+#define	PCIM_OSC_CTL_PCIE_PME		0x04	/* PCIe Native Power Mgt Events */
+#define	PCIM_OSC_CTL_PCIE_AER		0x08	/* PCIe Advanced Error Reporting */
+#define	PCIM_OSC_CTL_PCIE_CAP_STRUCT	0x10	/* Various Capability Structures */

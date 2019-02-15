@@ -10,16 +10,17 @@
 // This file implements RegionPass and RGPassManager. All region optimization
 // and transformation passes are derived from RegionPass. RGPassManager is
 // responsible for managing RegionPasses.
-// most of these codes are COPY from LoopPass.cpp
+// Most of this code has been COPIED from LoopPass.cpp
 //
 //===----------------------------------------------------------------------===//
 #include "llvm/Analysis/RegionPass.h"
-#include "llvm/Analysis/RegionIterator.h"
+#include "llvm/IR/OptBisect.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/Timer.h"
+#include "llvm/Support/raw_ostream.h"
+using namespace llvm;
 
 #define DEBUG_TYPE "regionpassmgr"
-#include "llvm/Support/Debug.h"
-using namespace llvm;
 
 //===----------------------------------------------------------------------===//
 // RGPassManager
@@ -31,41 +32,39 @@ RGPassManager::RGPassManager()
   : FunctionPass(ID), PMDataManager() {
   skipThisRegion = false;
   redoThisRegion = false;
-  RI = NULL;
-  CurrentRegion = NULL;
+  RI = nullptr;
+  CurrentRegion = nullptr;
 }
 
 // Recurse through all subregions and all regions  into RQ.
-static void addRegionIntoQueue(Region *R, std::deque<Region *> &RQ) {
-  RQ.push_back(R);
-  for (Region::iterator I = R->begin(), E = R->end(); I != E; ++I)
-    addRegionIntoQueue(*I, RQ);
+static void addRegionIntoQueue(Region &R, std::deque<Region *> &RQ) {
+  RQ.push_back(&R);
+  for (const auto &E : R)
+    addRegionIntoQueue(*E, RQ);
 }
 
 /// Pass Manager itself does not invalidate any analysis info.
 void RGPassManager::getAnalysisUsage(AnalysisUsage &Info) const {
-  Info.addRequired<RegionInfo>();
+  Info.addRequired<RegionInfoPass>();
   Info.setPreservesAll();
 }
 
 /// run - Execute all of the passes scheduled for execution.  Keep track of
 /// whether any of the passes modifies the function, and if so, return true.
 bool RGPassManager::runOnFunction(Function &F) {
-  RI = &getAnalysis<RegionInfo>();
+  RI = &getAnalysis<RegionInfoPass>().getRegionInfo();
   bool Changed = false;
 
   // Collect inherited analysis from Module level pass manager.
   populateInheritedAnalysis(TPM->activeStack);
 
-  addRegionIntoQueue(RI->getTopLevelRegion(), RQ);
+  addRegionIntoQueue(*RI->getTopLevelRegion(), RQ);
 
   if (RQ.empty()) // No regions, skip calling finalizers
     return false;
 
   // Initialization
-  for (std::deque<Region *>::const_iterator I = RQ.begin(), E = RQ.end();
-       I != E; ++I) {
-    Region *R = *I;
+  for (Region *R : RQ) {
     for (unsigned Index = 0; Index < getNumContainedPasses(); ++Index) {
       RegionPass *RP = (RegionPass *)getContainedPass(Index);
       Changed |= RP->doInitialization(R, *this);
@@ -83,9 +82,11 @@ bool RGPassManager::runOnFunction(Function &F) {
     for (unsigned Index = 0; Index < getNumContainedPasses(); ++Index) {
       RegionPass *P = (RegionPass*)getContainedPass(Index);
 
-      dumpPassInfo(P, EXECUTION_MSG, ON_REGION_MSG,
-                   CurrentRegion->getNameStr());
-      dumpRequiredSet(P);
+      if (isPassDebuggingExecutionsOrMore()) {
+        dumpPassInfo(P, EXECUTION_MSG, ON_REGION_MSG,
+                     CurrentRegion->getNameStr());
+        dumpRequiredSet(P);
+      }
 
       initializeAnalysisImpl(P);
 
@@ -96,11 +97,13 @@ bool RGPassManager::runOnFunction(Function &F) {
         Changed |= P->runOnRegion(CurrentRegion, *this);
       }
 
-      if (Changed)
-        dumpPassInfo(P, MODIFICATION_MSG, ON_REGION_MSG,
-                     skipThisRegion ? "<deleted>" :
-                                    CurrentRegion->getNameStr());
-      dumpPreservedSet(P);
+      if (isPassDebuggingExecutionsOrMore()) {
+        if (Changed)
+          dumpPassInfo(P, MODIFICATION_MSG, ON_REGION_MSG,
+                       skipThisRegion ? "<deleted>" :
+                                      CurrentRegion->getNameStr());
+        dumpPreservedSet(P);
+      }
 
       if (!skipThisRegion) {
         // Manually check that this region is still healthy. This is done
@@ -120,8 +123,8 @@ bool RGPassManager::runOnFunction(Function &F) {
       removeNotPreservedAnalysis(P);
       recordAvailableAnalysis(P);
       removeDeadPasses(P,
-                       skipThisRegion ? "<deleted>" :
-                                      CurrentRegion->getNameStr(),
+                       (!isPassDebuggingExecutionsOrMore() || skipThisRegion) ?
+                       "<deleted>" :  CurrentRegion->getNameStr(),
                        ON_REGION_MSG);
 
       if (skipThisRegion)
@@ -185,22 +188,26 @@ private:
 
 public:
   static char ID;
-  PrintRegionPass() : RegionPass(ID), Out(dbgs()) {}
   PrintRegionPass(const std::string &B, raw_ostream &o)
       : RegionPass(ID), Banner(B), Out(o) {}
 
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesAll();
   }
 
-  virtual bool runOnRegion(Region *R, RGPassManager &RGM) {
+  bool runOnRegion(Region *R, RGPassManager &RGM) override {
     Out << Banner;
-    for (Region::block_iterator I = R->block_begin(), E = R->block_end();
-         I != E; ++I)
-      (*I)->print(Out);
+    for (const auto *BB : R->blocks()) {
+      if (BB)
+        BB->print(Out);
+      else
+        Out << "Printing <null> Block";
+    }
 
     return false;
   }
+
+  StringRef getPassName() const override { return "Print Region IR"; }
 };
 
 char PrintRegionPass::ID = 0;
@@ -272,4 +279,19 @@ void RegionPass::assignPassManager(PMStack &PMS,
 Pass *RegionPass::createPrinterPass(raw_ostream &O,
                                   const std::string &Banner) const {
   return new PrintRegionPass(Banner, O);
+}
+
+bool RegionPass::skipRegion(Region &R) const {
+  Function &F = *R.getEntry()->getParent();
+  if (!F.getContext().getOptBisect().shouldRunPass(this, R))
+    return true;
+
+  if (F.hasFnAttribute(Attribute::OptimizeNone)) {
+    // Report this only once per function.
+    if (R.getEntry() == &F.getEntryBlock())
+      DEBUG(dbgs() << "Skipping pass '" << getPassName()
+            << "' on function " << F.getName() << "\n");
+    return true;
+  }
+  return false;
 }

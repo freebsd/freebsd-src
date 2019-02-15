@@ -16,24 +16,25 @@
 #define LLVM_SUPPORT_ARRAYRECYCLER_H
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Allocator.h"
 #include "llvm/Support/MathExtras.h"
 
 namespace llvm {
-
-class BumpPtrAllocator;
 
 /// Recycle small arrays allocated from a BumpPtrAllocator.
 ///
 /// Arrays are allocated in a small number of fixed sizes. For each supported
 /// array size, the ArrayRecycler keeps a free list of available arrays.
 ///
-template<class T, size_t Align = AlignOf<T>::Alignment>
-class ArrayRecycler {
+template <class T, size_t Align = alignof(T)> class ArrayRecycler {
   // The free list for a given array size is a simple singly linked list.
   // We can't use iplist or Recycler here since those classes can't be copied.
   struct FreeList {
     FreeList *Next;
   };
+
+  static_assert(Align >= alignof(FreeList), "Object underaligned");
+  static_assert(sizeof(T) >= sizeof(FreeList), "Objects are too small");
 
   // Keep a free list for each array size.
   SmallVector<FreeList*, 8> Bucket;
@@ -42,24 +43,25 @@ class ArrayRecycler {
   // Return NULL if no entries are available.
   T *pop(unsigned Idx) {
     if (Idx >= Bucket.size())
-      return 0;
+      return nullptr;
     FreeList *Entry = Bucket[Idx];
     if (!Entry)
-      return 0;
+      return nullptr;
+    __asan_unpoison_memory_region(Entry, Capacity::get(Idx).getSize());
     Bucket[Idx] = Entry->Next;
+    __msan_allocated_memory(Entry, Capacity::get(Idx).getSize());
     return reinterpret_cast<T*>(Entry);
   }
 
   // Add an entry to the free list at Bucket[Idx].
   void push(unsigned Idx, T *Ptr) {
     assert(Ptr && "Cannot recycle NULL pointer");
-    assert(sizeof(T) >= sizeof(FreeList) && "Objects are too small");
-    assert(Align >= AlignOf<FreeList>::Alignment && "Object underaligned");
     FreeList *Entry = reinterpret_cast<FreeList*>(Ptr);
     if (Idx >= Bucket.size())
       Bucket.resize(size_t(Idx) + 1);
     Entry->Next = Bucket[Idx];
     Bucket[Idx] = Entry;
+    __asan_poison_memory_region(Ptr, Capacity::get(Idx).getSize());
   }
 
 public:

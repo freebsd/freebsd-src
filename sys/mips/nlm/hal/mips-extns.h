@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 2003-2011 Netlogic Microsystems (Netlogic). All rights
  * reserved.
  *
@@ -161,7 +163,7 @@ nlm_ldaddwu(unsigned int value, unsigned int *addr)
 #else /* ! (defined(__mips_n64) || defined(__mips_n32)) */
 
 /*
- * 32 bit compilation, 64 bit values has to split 
+ * 32 bit compilation, 64 bit values has to split
  */
 #define	read_c0_register64(reg, sel)				\
 ({								\
@@ -207,7 +209,7 @@ do {								\
  *        cp0 register 9 sel 7
  *        bits 0...7 are same as status register 8...15
  */
-static __inline uint64_t 
+static __inline uint64_t
 nlm_read_c0_eirr(void)
 {
 
@@ -221,7 +223,7 @@ nlm_write_c0_eirr(uint64_t val)
 	write_c0_register64(9, 6, val);
 }
 
-static __inline uint64_t 
+static __inline uint64_t
 nlm_read_c0_eimr(void)
 {
 

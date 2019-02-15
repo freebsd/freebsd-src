@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -53,11 +55,13 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
+#include <getopt.h>
 #include <grp.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <locale.h>
 #include <pwd.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -95,6 +99,16 @@ __FBSDID("$FreeBSD$");
 static void	 display(const FTSENT *, FTSENT *, int);
 static int	 mastercmp(const FTSENT * const *, const FTSENT * const *);
 static void	 traverse(int, char **, int);
+
+#define	COLOR_OPT	(CHAR_MAX + 1)
+
+static const struct option long_opts[] =
+{
+#ifdef COLORLS
+        {"color",       optional_argument,      NULL, COLOR_OPT},
+#endif
+        {NULL,          no_argument,            NULL, 0}
+};
 
 static void (*printfcn)(const DISPLAY *);
 static int (*sortfcn)(const FTSENT *, const FTSENT *);
@@ -137,10 +151,10 @@ static int f_stream;		/* stream the output, separate with commas */
 static int f_timesort;		/* sort by time vice name */
        int f_type;		/* add type character for non-regular files */
 static int f_whiteout;		/* show whiteout entries */
-
 #ifdef COLORLS
+       int colorflag = COLORFLAG_AUTO;		/* passed in colorflag */
        int f_color;		/* add type in color for non-regular files */
-
+       bool explicitansi;	/* Explicit ANSI sequences, no termcap(5) */
 char *ansi_bgcol;		/* ANSI sequence to set background colour */
 char *ansi_fgcol;		/* ANSI sequence to set foreground colour */
 char *ansi_coloff;		/* ANSI sequence to reset colours */
@@ -150,6 +164,68 @@ char *enter_bold;		/* ANSI sequence to set color to bold mode */
 
 static int rval;
 
+static bool
+do_color_from_env(void)
+{
+	const char *p;
+	bool doit;
+
+	doit = false;
+	p = getenv("CLICOLOR");
+	if (p == NULL) {
+		/*
+		 * COLORTERM is the more standard name for this variable.  We'll
+		 * honor it as long as it's both set and not empty.
+		 */
+		p = getenv("COLORTERM");
+		if (p != NULL && *p != '\0')
+			doit = true;
+	} else
+		doit = true;
+
+	return (doit &&
+	    (isatty(STDOUT_FILENO) || getenv("CLICOLOR_FORCE")));
+}
+
+static bool
+do_color(void)
+{
+
+#ifdef COLORLS
+	if (colorflag == COLORFLAG_NEVER)
+		return (false);
+	else if (colorflag == COLORFLAG_ALWAYS)
+		return (true);
+#endif
+	return (do_color_from_env());
+}
+
+#ifdef COLORLS
+static bool
+do_color_always(const char *term)
+{
+
+	return (strcmp(term, "always") == 0 || strcmp(term, "yes") == 0 ||
+	    strcmp(term, "force") == 0);
+}
+
+static bool
+do_color_never(const char *term)
+{
+
+	return (strcmp(term, "never") == 0 || strcmp(term, "no") == 0 ||
+	    strcmp(term, "none") == 0);
+}
+
+static bool
+do_color_auto(const char *term)
+{
+
+	return (strcmp(term, "auto") == 0 || strcmp(term, "tty") == 0 ||
+	    strcmp(term, "if-tty") == 0);
+}
+#endif	/* COLORLS */
+
 int
 main(int argc, char *argv[])
 {
@@ -157,10 +233,11 @@ main(int argc, char *argv[])
 	struct winsize win;
 	int ch, fts_options, notused;
 	char *p;
+	const char *errstr = NULL;
 #ifdef COLORLS
 	char termcapbuf[1024];	/* termcap definition buffer */
 	char tcapbuf[512];	/* capability buffer */
-	char *bp = tcapbuf;
+	char *bp = tcapbuf, *term;
 #endif
 
 	(void)setlocale(LC_ALL, "");
@@ -169,7 +246,7 @@ main(int argc, char *argv[])
 	if (isatty(STDOUT_FILENO)) {
 		termwidth = 80;
 		if ((p = getenv("COLUMNS")) != NULL && *p != '\0')
-			termwidth = atoi(p);
+			termwidth = strtonum(p, 0, INT_MAX, &errstr);
 		else if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &win) != -1 &&
 		    win.ws_col > 0)
 			termwidth = win.ws_col;
@@ -179,14 +256,18 @@ main(int argc, char *argv[])
 		/* retrieve environment variable, in case of explicit -C */
 		p = getenv("COLUMNS");
 		if (p)
-			termwidth = atoi(p);
+			termwidth = strtonum(p, 0, INT_MAX, &errstr);
 	}
+
+	if (errstr)
+		termwidth = 80;
 
 	fts_options = FTS_PHYSICAL;
 	if (getenv("LS_SAMESORT"))
 		f_samesort = 1;
-	while ((ch = getopt(argc, argv,
-	    "1ABCD:FGHILPRSTUWXZabcdfghiklmnopqrstuwxy,")) != -1) {
+	while ((ch = getopt_long(argc, argv,
+	    "+1ABCD:FGHILPRSTUWXZabcdfghiklmnopqrstuwxy,", long_opts,
+	    NULL)) != -1) {
 		switch (ch) {
 		/*
 		 * The -1, -C, -x and -l options all override each other so
@@ -349,6 +430,19 @@ main(int argc, char *argv[])
 		case 'y':
 			f_samesort = 1;
 			break;
+#ifdef COLORLS
+		case COLOR_OPT:
+			if (optarg == NULL || do_color_always(optarg))
+				colorflag = COLORFLAG_ALWAYS;
+			else if (do_color_auto(optarg))
+				colorflag = COLORFLAG_AUTO;
+			else if (do_color_never(optarg))
+				colorflag = COLORFLAG_NEVER;
+			else
+				errx(2, "unsupported --color value '%s' (must be always, auto, or never)",
+				    optarg);
+			break;
+#endif
 		default:
 		case '?':
 			usage();
@@ -361,11 +455,14 @@ main(int argc, char *argv[])
 	if (!f_listdot && getuid() == (uid_t)0 && !f_noautodot)
 		f_listdot = 1;
 
-	/* Enabling of colours is conditional on the environment. */
-	if (getenv("CLICOLOR") &&
-	    (isatty(STDOUT_FILENO) || getenv("CLICOLOR_FORCE")))
+	/*
+	 * Enabling of colours is conditional on the environment in conjunction
+	 * with the --color and -G arguments, if supplied.
+	 */
+	if (do_color()) {
 #ifdef COLORLS
-		if (tgetent(termcapbuf, getenv("TERM")) == 1) {
+		if ((term = getenv("TERM")) != NULL &&
+		    tgetent(termcapbuf, term) == 1) {
 			ansi_fgcol = tgetstr("AF", &bp);
 			ansi_bgcol = tgetstr("AB", &bp);
 			attrs_off = tgetstr("me", &bp);
@@ -379,10 +476,19 @@ main(int argc, char *argv[])
 				ansi_coloff = tgetstr("oc", &bp);
 			if (ansi_fgcol && ansi_bgcol && ansi_coloff)
 				f_color = 1;
+		} else if (colorflag == COLORFLAG_ALWAYS) {
+			/*
+			 * If we're *always* doing color but we don't have
+			 * a functional TERM supplied, we'll fallback to
+			 * outputting raw ANSI sequences.
+			 */
+			f_color = 1;
+			explicitansi = true;
 		}
 #else
 		warnx("color support not compiled in");
 #endif /*COLORLS*/
+	}
 
 #ifdef COLORLS
 	if (f_color) {
@@ -413,9 +519,14 @@ main(int argc, char *argv[])
 
 	/*
 	 * If not -F, -P, -d or -l options, follow any symbolic links listed on
-	 * the command line.
+	 * the command line, unless in color mode in which case we need to
+	 * distinguish file type for a symbolic link itself and its target.
 	 */
-	if (!f_nofollow && !f_longform && !f_listdir && (!f_type || f_slash))
+	if (!f_nofollow && !f_longform && !f_listdir && (!f_type || f_slash)
+#ifdef COLORLS
+	    && !f_color
+#endif
+	    )
 		fts_options |= FTS_COMFOLLOW;
 
 	/*

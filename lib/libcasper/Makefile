@@ -1,20 +1,10 @@
 # $FreeBSD$
 
-LIB=	casper
+SUBDIR=		libcasper
+SUBDIR+=	services
 
-SHLIB_MAJOR=	0
-SHLIBDIR?=	/lib
+SUBDIR.${MK_TESTS}+=	tests
 
-SRCS=	libcasper.c
-INCS=	libcasper.h
+SUBDIR_PARALLEL=
 
-DPADD=	${LIBCAPSICUM} ${LIBNV} ${LIBPJDLOG}
-LDADD=	-lcapsicum -lnv -lpjdlog
-
-CFLAGS+=-I${.CURDIR}
-CFLAGS+=-I${.CURDIR}/../libpjdlog
-CFLAGS+=-I${.CURDIR}/../../sbin/casper
-
-WARNS?=	6
-
-.include <bsd.lib.mk>
+.include <bsd.subdir.mk>

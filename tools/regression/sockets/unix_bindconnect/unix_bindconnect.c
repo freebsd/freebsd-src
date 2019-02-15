@@ -54,8 +54,8 @@
 
 #define	UNWIND_MAX	1024
 
-int unwind_len;
-struct unwind {
+static int unwind_len;
+static struct unwind {
 	char	u_path[PATH_MAX];
 } unwind_list[UNWIND_MAX];
 
@@ -105,7 +105,7 @@ bind_test(const char *directory_path)
 	sun.sun_len = sizeof(sun);
 	sun.sun_family = AF_UNIX;
 	if (snprintf(sun.sun_path, sizeof(sun.sun_path), "%s", socket_path)
-	    >= sizeof(sun.sun_path)) {
+	    >= (int)sizeof(sun.sun_path)) {
 		warn("bind_test: snprintf(sun.sun_path)");
 		close(sock1);
 		return (-1);
@@ -216,7 +216,7 @@ connect_test(const char *directory_path)
 	sun.sun_len = sizeof(sun);
 	sun.sun_family = AF_UNIX;
 	if (snprintf(sun.sun_path, sizeof(sun.sun_path), "%s", socket_path)
-	    >= sizeof(sun.sun_path)) {
+	    >= (int)sizeof(sun.sun_path)) {
 		warn("connect_test: snprintf(sun.sun_path)");
 		close(sock1);
 		return (-1);
@@ -298,7 +298,7 @@ connect_test(const char *directory_path)
 	return (0);
 }
 int
-main(int argc, char *argv[])
+main(void)
 {
 	char directory_path[PATH_MAX];
 	int error;

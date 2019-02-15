@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 1996
  *	David L. Nugent.  All rights reserved.
  *
@@ -29,35 +31,62 @@
 #ifndef _PWUPD_H_
 #define _PWUPD_H_
 
+#include <sys/cdefs.h>
+#include <sys/param.h>
 #include <sys/types.h>
+
 #include <pwd.h>
 #include <grp.h>
+#include <stdbool.h>
+#include <stringlist.h>
 
-#include <sys/cdefs.h>
-
-#if defined(__FreeBSD__)
-#define	RET_SETGRENT	int
-#else
-#define	RET_SETGRENT	void
-#endif
-
-struct pwf
-{
+struct pwf {
 	int		    _altdir;
 	void		  (*_setpwent)(void);
 	void		  (*_endpwent)(void);
 	struct passwd * (*_getpwent)(void);
 	struct passwd	* (*_getpwuid)(uid_t uid);
 	struct passwd	* (*_getpwnam)(const char * nam);
-	RET_SETGRENT	  (*_setgrent)(void);
+	void		  (*_setgrent)(void);
 	void		  (*_endgrent)(void);
 	struct group  * (*_getgrent)(void);
 	struct group  * (*_getgrgid)(gid_t gid);
 	struct group  * (*_getgrnam)(const char * nam);
 };
 
+struct userconf {
+	int		default_password;	/* Default password for new users? */
+	int		reuse_uids;		/* Reuse uids? */
+	int		reuse_gids;		/* Reuse gids? */
+	char		*nispasswd;		/* Path to NIS version of the passwd file */
+	char		*dotdir;		/* Where to obtain skeleton files */
+	char		*newmail;		/* Mail to send to new accounts */
+	char		*logfile;		/* Where to log changes */
+	char		*home;			/* Where to create home directory */
+	mode_t		homemode;		/* Home directory permissions */
+	char		*shelldir;		/* Where shells are located */
+	char		**shells;		/* List of shells */
+	char		*shell_default;		/* Default shell */
+	char		*default_group;		/* Default group number */
+	StringList	*groups;		/* Default (additional) groups */
+	char		*default_class;		/* Default user class */
+	uid_t		min_uid, max_uid;	/* Allowed range of uids */
+	gid_t		min_gid, max_gid;	/* Allowed range of gids */
+	time_t		expire_days;		/* Days to expiry */
+	time_t		password_days;		/* Days to password expiry */
+};
+
+struct pwconf {
+	char		 rootdir[MAXPATHLEN];
+	char		 etcpath[MAXPATHLEN];
+	int		 fd;
+	int		 rootfd;
+	bool		 checkduplicate;
+};
+
 extern struct pwf PWF;
 extern struct pwf VPWF;
+extern struct pwconf conf;
 
 #define SETPWENT()	PWF._setpwent()
 #define ENDPWENT()	PWF._endpwent()
@@ -70,6 +99,10 @@ extern struct pwf VPWF;
 #define GETGRENT()	PWF._getgrent()
 #define GETGRGID(gid)	PWF._getgrgid(gid)
 #define GETGRNAM(nam)	PWF._getgrnam(nam)
+
+#define PWF_REGULAR 0
+#define PWF_ALT 1
+#define PWF_ROOTDIR 2
 
 #define PWALTDIR()	PWF._altdir
 #ifndef _PATH_PWD
@@ -87,15 +120,12 @@ int addpwent(struct passwd * pwd);
 int delpwent(struct passwd * pwd);
 int chgpwent(char const * login, struct passwd * pwd);
 
-int setpwdir(const char * dir);
 char * getpwpath(char const * file);
 
 int addgrent(struct group * grp);
 int delgrent(struct group * grp);
 int chggrent(char const * name, struct group * grp);
-int editgroups(char *name, char **groups);
 
-int setgrdir(const char * dir);
 char * getgrpath(const char *file);
 
 void vsetpwent(void);
@@ -107,15 +137,12 @@ struct passwd * vgetpwnam(const char * nam);
 struct group * vgetgrent(void);
 struct group * vgetgrgid(gid_t gid);
 struct group * vgetgrnam(const char * nam);
-RET_SETGRENT   vsetgrent(void);
+void           vsetgrent(void);
 void           vendgrent(void);
 
-void copymkdir(char const * dir, char const * skel, mode_t mode, uid_t uid, gid_t gid);
-void rm_r(char const * dir, uid_t uid);
-int extendline(char **buf, int *buflen, int needed);
-int extendarray(char ***buf, int *buflen, int needed);
+void copymkdir(int rootfd, char const * dir, int skelfd, mode_t mode, uid_t uid,
+    gid_t gid, int flags);
+void rm_r(int rootfd, char const * dir, uid_t uid);
 __END_DECLS
-
-#define PWBUFSZ 1024
 
 #endif				/* !_PWUPD_H */

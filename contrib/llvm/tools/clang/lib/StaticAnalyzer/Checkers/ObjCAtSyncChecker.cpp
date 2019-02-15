@@ -26,8 +26,8 @@ using namespace ento;
 namespace {
 class ObjCAtSyncChecker
     : public Checker< check::PreStmt<ObjCAtSynchronizedStmt> > {
-  mutable OwningPtr<BuiltinBug> BT_null;
-  mutable OwningPtr<BuiltinBug> BT_undef;
+  mutable std::unique_ptr<BuiltinBug> BT_null;
+  mutable std::unique_ptr<BuiltinBug> BT_undef;
 
 public:
   void checkPreStmt(const ObjCAtSynchronizedStmt *S, CheckerContext &C) const;
@@ -43,14 +43,14 @@ void ObjCAtSyncChecker::checkPreStmt(const ObjCAtSynchronizedStmt *S,
 
   // Uninitialized value used for the mutex?
   if (V.getAs<UndefinedVal>()) {
-    if (ExplodedNode *N = C.generateSink()) {
+    if (ExplodedNode *N = C.generateErrorNode()) {
       if (!BT_undef)
-        BT_undef.reset(new BuiltinBug("Uninitialized value used as mutex "
-                                  "for @synchronized"));
-      BugReport *report =
-        new BugReport(*BT_undef, BT_undef->getDescription(), N);
+        BT_undef.reset(new BuiltinBug(this, "Uninitialized value used as mutex "
+                                            "for @synchronized"));
+      auto report =
+          llvm::make_unique<BugReport>(*BT_undef, BT_undef->getDescription(), N);
       bugreporter::trackNullOrUndefValue(N, Ex, *report);
-      C.emitReport(report);
+      C.emitReport(std::move(report));
     }
     return;
   }
@@ -60,21 +60,22 @@ void ObjCAtSyncChecker::checkPreStmt(const ObjCAtSynchronizedStmt *S,
 
   // Check for null mutexes.
   ProgramStateRef notNullState, nullState;
-  llvm::tie(notNullState, nullState) = state->assume(V.castAs<DefinedSVal>());
+  std::tie(notNullState, nullState) = state->assume(V.castAs<DefinedSVal>());
 
   if (nullState) {
     if (!notNullState) {
       // Generate an error node.  This isn't a sink since
       // a null mutex just means no synchronization occurs.
-      if (ExplodedNode *N = C.addTransition(nullState)) {
+      if (ExplodedNode *N = C.generateNonFatalErrorNode(nullState)) {
         if (!BT_null)
-          BT_null.reset(new BuiltinBug("Nil value used as mutex for @synchronized() "
-                                   "(no synchronization will occur)"));
-        BugReport *report =
-          new BugReport(*BT_null, BT_null->getDescription(), N);
+          BT_null.reset(new BuiltinBug(
+              this, "Nil value used as mutex for @synchronized() "
+                    "(no synchronization will occur)"));
+        auto report =
+            llvm::make_unique<BugReport>(*BT_null, BT_null->getDescription(), N);
         bugreporter::trackNullOrUndefValue(N, Ex, *report);
 
-        C.emitReport(report);
+        C.emitReport(std::move(report));
         return;
       }
     }

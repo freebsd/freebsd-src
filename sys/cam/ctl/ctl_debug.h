@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Silicon Graphics International Corp.
  * All rights reserved.
  *
@@ -38,6 +40,16 @@
 
 #ifndef	_CTL_DEBUG_H_
 #define	_CTL_DEBUG_H_
+
+/*
+ * Debugging flags.
+ */
+typedef enum {
+	CTL_DEBUG_NONE		= 0x00,	/* no debugging */
+	CTL_DEBUG_INFO		= 0x01,	/* SCSI errors */
+	CTL_DEBUG_CDB		= 0x02,	/* SCSI CDBs and tasks */
+	CTL_DEBUG_CDB_DATA	= 0x04	/* SCSI CDB DATA */
+} ctl_debug_flags;
 
 #ifdef	CAM_CTL_DEBUG
 #define	CTL_DEBUG_PRINT(X)		\

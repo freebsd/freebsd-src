@@ -210,7 +210,7 @@ EOF
 
 #
 # The nm(1) utility must only be used on the architecture which
-# we build it for.  Although i386 and pc98 are so; my only fear
+# we build it for.  Although i386 is so; my only fear
 # with this is that this will not work properly on cross-builds.
 
 while getopts k FLAG;

@@ -1,6 +1,7 @@
 /*
  * mstolfp - convert an ascii string in milliseconds to an l_fp number
  */
+#include <config.h>
 #include <stdio.h>
 #include <ctype.h>
 
@@ -31,7 +32,7 @@ mstolfp(
 	 */
 	bp = buf;
 	cp = str;
-	while (isspace((int)*cp))
+	while (isspace((unsigned char)*cp))
 	    cp++;
 	
 	if (*cp == '-') {
@@ -39,7 +40,7 @@ mstolfp(
 		cp++;
 	}
 
-	if (*cp != '.' && !isdigit((int)*cp))
+	if (*cp != '.' && !isdigit((unsigned char)*cp))
 	    return 0;
 
 
@@ -47,7 +48,7 @@ mstolfp(
 	 * Search forward for the decimal point or the end of the string.
 	 */
 	cpdec = cp;
-	while (isdigit((int)*cpdec))
+	while (isdigit((unsigned char)*cpdec))
 	    cpdec++;
 
 	/*
@@ -69,8 +70,7 @@ mstolfp(
 	 */
 	*bp++ = '.';
 	if ((cpdec - cp) < 3) {
-		register int i = 3 - (cpdec - cp);
-
+		size_t i = 3 - (cpdec - cp);
 		do {
 			*bp++ = '0';
 		} while (--i > 0);
@@ -85,7 +85,7 @@ mstolfp(
 	
 	if (*cp == '.') {
 		cp++;
-		while (isdigit((int)*cp))
+		while (isdigit((unsigned char)*cp))
 		    *bp++ = (char)*cp++;
 	}
 	*bp = '\0';
@@ -94,7 +94,7 @@ mstolfp(
 	 * Check to make sure the string is properly terminated.  If
 	 * so, give the buffer to the decoding routine.
 	 */
-	if (*cp != '\0' && !isspace((int)*cp))
+	if (*cp != '\0' && !isspace((unsigned char)*cp))
 	    return 0;
 	return atolfp(buf, lfp);
 }

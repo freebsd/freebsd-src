@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Mitsuru IWASAKI
  * All rights reserved.
  *
@@ -104,13 +106,6 @@ acpi_machdep_quirks(int *quirks)
 		*quirks = ACPI_Q_BROKEN;
 
 	return (0);
-}
-
-void
-acpi_cpu_c1()
-{
-
-	__asm __volatile("sti; hlt");
 }
 
 /*

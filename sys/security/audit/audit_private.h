@@ -1,6 +1,14 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1999-2009 Apple Inc.
+ * Copyright (c) 2016, 2018 Robert N. M. Watson
  * All rights reserved.
+ *
+ * Portions of this software were developed by BAE Systems, the University of
+ * Cambridge Computer Laboratory, and Memorial University under DARPA/AFRL
+ * contract FA8650-15-C-7558 ("CADETS"), as part of the DARPA Transparent
+ * Computing (TC) research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -88,6 +96,8 @@ extern int			audit_arge;
 #define	AR_PRESELECT_USER_TRAIL	0x00004000U
 #define	AR_PRESELECT_USER_PIPE	0x00008000U
 
+#define	AR_PRESELECT_DTRACE	0x00010000U
+
 /*
  * Audit data is generated as a stream of struct audit_record structures,
  * linked by struct kaudit_record, and contain storage for possible audit so
@@ -99,9 +109,9 @@ struct vnode_au_info {
 	mode_t	vn_mode;
 	uid_t	vn_uid;
 	gid_t	vn_gid;
-	dev_t	vn_dev;
-	long	vn_fsid;
-	long	vn_fileid;
+	u_int32_t vn_dev;		/* XXX dev_t compatibility */
+	long	vn_fsid;		/* XXX uint64_t compatibility */
+	long	vn_fileid;		/* XXX ino_t compatibility */
 	long	vn_gen;
 };
 
@@ -151,6 +161,7 @@ union auditon_udata {
 	au_stat_t		au_stat;
 	au_fstat_t		au_fstat;
 	auditinfo_addr_t	au_kau_info;
+	au_evname_map_t		au_evname;
 };
 
 struct posix_ipc_perm {
@@ -201,7 +212,7 @@ struct audit_record {
 	int			ar_arg_atfd2;
 	int			ar_arg_fflags;
 	mode_t			ar_arg_mode;
-	int			ar_arg_dev;
+	int			ar_arg_dev;	/* XXX dev_t compatibility */
 	long			ar_arg_value;
 	void			*ar_arg_addr;
 	int			ar_arg_len;
@@ -217,6 +228,7 @@ struct audit_record {
 	struct vnode_au_info	ar_arg_vnode1;
 	struct vnode_au_info	ar_arg_vnode2;
 	int			ar_arg_cmd;
+	int			ar_arg_svipc_which;
 	int			ar_arg_svipc_cmd;
 	struct ipc_perm		ar_arg_svipc_perm;
 	int			ar_arg_svipc_id;
@@ -263,7 +275,7 @@ struct audit_record {
 #define	ARG_SADDRINET		0x0000000000100000ULL
 #define	ARG_SADDRINET6		0x0000000000200000ULL
 #define	ARG_SADDRUNIX		0x0000000000400000ULL
-#define	ARG_TERMID_ADDR		0x0000000000400000ULL
+#define	ARG_TERMID_ADDR		0x0000000000800000ULL
 #define	ARG_UNUSED2		0x0000000001000000ULL
 #define	ARG_UPATH1		0x0000000002000000ULL
 #define	ARG_UPATH2		0x0000000004000000ULL
@@ -294,6 +306,7 @@ struct audit_record {
 #define	ARG_ATFD2		0x0008000000000000ULL
 #define	ARG_RIGHTS		0x0010000000000000ULL
 #define	ARG_FCNTL_RIGHTS	0x0020000000000000ULL
+#define	ARG_SVIPC_WHICH		0x0200000000000000ULL
 #define	ARG_NONE		0x0000000000000000ULL
 #define	ARG_ALL			0xFFFFFFFFFFFFFFFFULL
 
@@ -316,6 +329,7 @@ struct kaudit_record {
 	void				*k_udata;	/* User data. */
 	u_int				 k_ulen;	/* User data length. */
 	struct uthread			*k_uthread;	/* Audited thread. */
+	void				*k_dtaudit_state;
 	TAILQ_ENTRY(kaudit_record)	 k_q;
 };
 TAILQ_HEAD(kaudit_queue, kaudit_record);
@@ -328,6 +342,13 @@ void			 audit_abort(struct kaudit_record *ar);
 void			 audit_commit(struct kaudit_record *ar, int error,
 			    int retval);
 struct kaudit_record	*audit_new(int event, struct thread *td);
+
+/*
+ * Function to update the audit_syscalls_enabled flag, whose value is affected
+ * by configuration of the audit trail/pipe mechanism and DTrace.  Call this
+ * function when any of the inputs to that policy change.
+ */
+void	audit_syscalls_enabled_update(void);
 
 /*
  * Functions relating to the conversion of internal kernel audit records to
@@ -368,6 +389,55 @@ extern int			audit_in_failure;
 #define	AUDIT_OPEN_FLAGS	(FWRITE | O_APPEND)
 #define	AUDIT_CLOSE_FLAGS	(FWRITE | O_APPEND)
 
+/*
+ * Audit event-to-name mapping structure, maintained in audit_bsm_klib.c.  It
+ * appears in this header so that the DTrace audit provider can dereference
+ * instances passed back in the au_evname_foreach() callbacks.  Safe access to
+ * its fields requires holding ene_lock (after it is visible in the global
+ * table).
+ *
+ * Locking:
+ * (c) - Constant after inserted in the global table
+ * (l) - Protected by ene_lock
+ * (m) - Protected by evnamemap_lock (audit_bsm_klib.c)
+ * (M) - Writes protected by evnamemap_lock; reads unprotected.
+ */
+struct evname_elem {
+	au_event_t		ene_event;			/* (c) */
+	char			ene_name[EVNAMEMAP_NAME_SIZE];	/* (l) */
+	LIST_ENTRY(evname_elem)	ene_entry;			/* (m) */
+	struct mtx		ene_lock;
+
+	/* DTrace probe IDs; 0 if not yet registered. */
+	uint32_t		ene_commit_probe_id;		/* (M) */
+	uint32_t		ene_bsm_probe_id;		/* (M) */
+
+	/* Flags indicating if the probes enabled or not. */
+	int			ene_commit_probe_enabled;	/* (M) */
+	int			ene_bsm_probe_enabled;		/* (M) */
+};
+
+#define	EVNAME_LOCK(ene)	mtx_lock(&(ene)->ene_lock)
+#define	EVNAME_UNLOCK(ene)	mtx_unlock(&(ene)->ene_lock)
+
+/*
+ * Callback function typedef for the same.
+ */
+typedef	void	(*au_evnamemap_callback_t)(struct evname_elem *ene);
+
+/*
+ * DTrace audit provider (dtaudit) hooks -- to be set non-NULL when the audit
+ * provider is loaded and ready to be called into.
+ */
+extern void	*(*dtaudit_hook_preselect)(au_id_t auid, au_event_t event,
+		    au_class_t class);
+extern int	(*dtaudit_hook_commit)(struct kaudit_record *kar,
+		    au_id_t auid, au_event_t event, au_class_t class,
+		    int sorf);
+extern void	(*dtaudit_hook_bsm)(struct kaudit_record *kar, au_id_t auid,
+		    au_event_t event, au_class_t class, int sorf,
+		    void *bsm_data, size_t bsm_len);
+
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -387,11 +457,19 @@ int		 au_preselect(au_event_t event, au_class_t class,
 void		 au_evclassmap_init(void);
 void		 au_evclassmap_insert(au_event_t event, au_class_t class);
 au_class_t	 au_event_class(au_event_t event);
+void		 au_evnamemap_init(void);
+void		 au_evnamemap_insert(au_event_t event, const char *name);
+void		 au_evnamemap_foreach(au_evnamemap_callback_t callback);
+struct evname_elem	*au_evnamemap_lookup(au_event_t event);
+int		 au_event_name(au_event_t event, char *name);
 au_event_t	 audit_ctlname_to_sysctlevent(int name[], uint64_t valid_arg);
 au_event_t	 audit_flags_and_error_to_openevent(int oflags, int error);
 au_event_t	 audit_flags_and_error_to_openatevent(int oflags, int error);
 au_event_t	 audit_msgctl_to_event(int cmd);
-au_event_t	 audit_semctl_to_event(int cmr);
+au_event_t	 audit_msgsys_to_event(int which);
+au_event_t	 audit_semctl_to_event(int cmd);
+au_event_t	 audit_semsys_to_event(int which);
+au_event_t	 audit_shmsys_to_event(int which);
 void		 audit_canon_path(struct thread *td, int dirfd, char *path,
 		    char *cpath);
 au_event_t	 auditon_command_event(int cmd);

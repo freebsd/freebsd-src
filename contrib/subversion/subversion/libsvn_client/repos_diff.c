@@ -328,7 +328,7 @@ get_file_from_ra(struct file_baton *fb,
                                      fb->pool, scratch_pool));
 
       fstream = svn_stream_checksummed2(fstream, NULL, &fb->start_md5_checksum,
-                                        svn_checksum_md5, TRUE, scratch_pool);
+                                        svn_checksum_md5, TRUE, fb->pool);
 
       /* Retrieve the file and its properties */
       SVN_ERR(svn_ra_get_file(fb->edit_baton->ra_session,
@@ -388,6 +388,10 @@ remove_non_prop_changes(apr_hash_t *pristine_props,
                         apr_array_header_t *changes)
 {
   int i;
+
+  /* For added nodes, there is nothing to filter. */
+  if (apr_hash_count(pristine_props) == 0)
+    return;
 
   for (i = 0; i < changes->nelts; i++)
     {
@@ -581,8 +585,8 @@ diff_deleted_dir(const char *path,
            hi = apr_hash_next(hi))
         {
           const char *child_path;
-          const char *name = svn__apr_hash_index_key(hi);
-          svn_dirent_t *dirent = svn__apr_hash_index_val(hi);
+          const char *name = apr_hash_this_key(hi);
+          svn_dirent_t *dirent = apr_hash_this_val(hi);
 
           svn_pool_clear(iterpool);
 
@@ -1162,7 +1166,7 @@ change_file_prop(void *file_baton,
 
   propchange = apr_array_push(fb->propchanges);
   propchange->name = apr_pstrdup(fb->pool, name);
-  propchange->value = value ? svn_string_dup(value, fb->pool) : NULL;
+  propchange->value = svn_string_dup(value, fb->pool);
 
   return SVN_NO_ERROR;
 }
@@ -1192,7 +1196,7 @@ change_dir_prop(void *dir_baton,
 
   propchange = apr_array_push(db->propchanges);
   propchange->name = apr_pstrdup(db->pool, name);
-  propchange->value = value ? svn_string_dup(value, db->pool) : NULL;
+  propchange->value = svn_string_dup(value, db->pool);
 
   return SVN_NO_ERROR;
 }
@@ -1365,6 +1369,7 @@ svn_client__get_diff_editor2(const svn_delta_editor_t **editor,
   eb->ra_session = ra_session;
 
   eb->revision = revision;
+  eb->target_revision = SVN_INVALID_REVNUM;
   eb->empty_file = NULL;
   eb->empty_hash = apr_hash_make(eb->pool);
   eb->text_deltas = text_deltas;

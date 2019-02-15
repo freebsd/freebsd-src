@@ -8,23 +8,23 @@
 # dependency lines other than the first are silently ignored.
 #
 atkbdmap.h			optional	atkbd_dflt_keymap	\
-	compile-with	"/usr/sbin/kbdcontrol -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h"			\
+	compile-with	"kbdcontrol -P ${S:S/sys$/share/}/vt/keymaps -P ${S:S/sys$/share/}/syscons/keymaps -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h"			\
 	no-obj no-implicit-rule before-depend				\
 	clean		"atkbdmap.h"
 #
 sunkbdmap.h			optional	sunkbd_dflt_keymap	\
-	compile-with	"/usr/sbin/kbdcontrol -L ${SUNKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > sunkbdmap.h"			\
+	compile-with	"kbdcontrol -P ${S:S/sys$/share/}/vt/keymaps -P ${S:S/sys$/share/}/syscons/keymaps -L ${SUNKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > sunkbdmap.h"			\
 	no-obj no-implicit-rule before-depend				\
 	clean		"sunkbdmap.h"
 #
 ukbdmap.h			optional	ukbd_dflt_keymap	\
-	compile-with	"/usr/sbin/kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
+	compile-with	"kbdcontrol -P ${S:S/sys$/share/}/vt/keymaps -P ${S:S/sys$/share/}/syscons/keymaps -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
 cddl/contrib/opensolaris/common/atomic/sparc64/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
-crypto/blowfish/bf_enc.c	optional	crypto | ipsec
-crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
+crypto/des/des_enc.c		optional	crypto | ipsec | ipsec_support | netsmb
 dev/atkbdc/atkbd.c		optional	atkbd atkbdc
 dev/atkbdc/atkbd_atkbdc.c	optional	atkbd atkbdc
 dev/atkbdc/atkbdc.c		optional	atkbdc
@@ -40,7 +40,6 @@ dev/fb/fb.c			optional	sc
 dev/fb/gallant12x22.c		optional	sc
 dev/fb/machfb.c			optional	machfb sc
 dev/hwpmc/hwpmc_sparc64.c	optional	hwpmc
-dev/kbd/kbd.c			optional	atkbd | sc | ukbd | vt
 dev/le/if_le_lebuffer.c		optional	le sbus
 dev/le/if_le_ledma.c		optional	le sbus
 dev/le/lebuffer_sbus.c		optional	le sbus
@@ -68,10 +67,11 @@ kern/syscalls.c			optional	ktr
 kern/subr_sfbuf.c		standard
 libkern/ffs.c			standard
 libkern/ffsl.c			standard
+libkern/ffsll.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/flsll.c			standard
-libkern/memmove.c		standard
+libkern/memcmp.c		standard
 sparc64/central/central.c	optional	central
 sparc64/ebus/ebus.c		optional	ebus
 sparc64/ebus/epic.c		optional	epic ebus
@@ -82,6 +82,7 @@ sparc64/isa/isa_dma.c		optional	isa
 sparc64/isa/ofw_isa.c		optional	ebus | isa
 sparc64/pci/apb.c		optional	pci
 sparc64/pci/fire.c		optional	pci
+sparc64/pci/ofw_pci.c		optional	pci
 sparc64/pci/ofw_pcib.c		optional	pci
 sparc64/pci/ofw_pcib_subr.c	optional	pci
 sparc64/pci/ofw_pcibus.c	optional	pci
@@ -148,3 +149,6 @@ sparc64/sparc64/uio_machdep.c	standard
 sparc64/sparc64/upa.c		optional	creator
 sparc64/sparc64/vm_machdep.c	standard
 sparc64/sparc64/zeus.c		standard
+
+# Zstd
+contrib/zstd/lib/freebsd/zstd_kfreebsd.c		optional zstdio compile-with ${ZSTD_C}

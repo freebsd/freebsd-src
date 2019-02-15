@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 John Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
@@ -69,13 +71,13 @@ mptable_hostb_attach(device_t dev)
 #ifdef NEW_PCIB
 	mptable_pci_host_res_init(dev);
 #endif
-	device_add_child(dev, "pci", pcib_get_bus(dev));
+	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
 }
 
 #ifdef NEW_PCIB
 static int
-mptable_is_isa_range(u_long start, u_long end)
+mptable_is_isa_range(rman_res_t start, rman_res_t end)
 {
 
 	if (end >= 0x10000)
@@ -88,7 +90,7 @@ mptable_is_isa_range(u_long start, u_long end)
 }
 
 static int
-mptable_is_vga_range(u_long start, u_long end)
+mptable_is_vga_range(rman_res_t start, rman_res_t end)
 {
 	if (end >= 0x10000)
 		return (0);
@@ -101,7 +103,7 @@ mptable_is_vga_range(u_long start, u_long end)
 
 static struct resource *
 mptable_hostb_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct mptable_hostb_softc *sc;
 
@@ -142,7 +144,7 @@ mptable_hostb_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 static int
 mptable_hostb_adjust_resource(device_t dev, device_t child, int type,
-    struct resource *r, u_long start, u_long end)
+    struct resource *r, rman_res_t start, rman_res_t end)
 {
 	struct mptable_hostb_softc *sc;
 

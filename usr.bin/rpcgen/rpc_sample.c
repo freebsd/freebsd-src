@@ -115,7 +115,7 @@ write_sample_client(const char *program_name, version_list *vp)
 			for (l = proc->args.decls; l != NULL; l = l->next) {
 				f_print(fout, "\t");
 				ptype(l->decl.prefix, l->decl.type, 1);
-				if (strcmp(l->decl.type,"string") == 1)
+				if (strcmp(l->decl.type,"string") >= 1)
 				    f_print(fout, " ");
 				pvname(proc->proc_name, vp->vers_num);
 				f_print(fout, "_%s;\n", l->decl.name);

@@ -1,13 +1,13 @@
 # $FreeBSD$
 
-# exercise libcrypt
+ATF_TESTS_C+= crypt_tests
 
-TESTSDIR= ${TESTSBASE}/lib/libcrypt
+NETBSD_ATF_TESTS_C+= crypt_test
 
-ATF_TESTS_C= crypt_tests
-
+WARNS?=		6
 CFLAGS+= -I${.CURDIR:H}
-DPADD+=	${LIBCRYPT}
-LDADD+= -lcrypt
+LIBADD=	crypt
+
+.include <netbsd-tests.test.mk>
 
 .include <bsd.test.mk>

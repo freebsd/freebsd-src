@@ -1,6 +1,5 @@
 .\"
-.\" Copyright (c) 2000 Warner Losh
-.\" All rights reserved.
+.\" Copyright (c) 2000 M. Warner Losh
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2005
+.Dd October 24, 2018
 .Dt SN 4
 .Os
 .Sh NAME
@@ -44,6 +43,14 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 if_sn_load="YES"
 .Ed
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is not present in
+.Fx 13.0
+and later.
+See https://github.com/freebsd/fcp/blob/master/fcp-0101.md for more
+information.
 .Sh DESCRIPTION
 The
 .Nm
@@ -97,7 +104,6 @@ driver.
 .Sh SEE ALSO
 .Xr ed 4 ,
 .Xr ep 4 ,
-.Xr ie 4 ,
 .Xr intro 4 ,
 .Xr ng_ether 4 ,
 .Xr vx 4 ,

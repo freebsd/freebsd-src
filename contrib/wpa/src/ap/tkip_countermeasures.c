@@ -68,7 +68,7 @@ void ieee80211_tkip_countermeasures_deinit(struct hostapd_data *hapd)
 
 int michael_mic_failure(struct hostapd_data *hapd, const u8 *addr, int local)
 {
-	struct os_time now;
+	struct os_reltime now;
 	int ret = 0;
 
 	if (addr && local) {
@@ -89,8 +89,8 @@ int michael_mic_failure(struct hostapd_data *hapd, const u8 *addr, int local)
 		}
 	}
 
-	os_get_time(&now);
-	if (now.sec > hapd->michael_mic_failure + 60) {
+	os_get_reltime(&now);
+	if (os_reltime_expired(&now, &hapd->michael_mic_failure, 60)) {
 		hapd->michael_mic_failures = 1;
 	} else {
 		hapd->michael_mic_failures++;
@@ -99,7 +99,7 @@ int michael_mic_failure(struct hostapd_data *hapd, const u8 *addr, int local)
 			ret = 1;
 		}
 	}
-	hapd->michael_mic_failure = now.sec;
+	hapd->michael_mic_failure = now;
 
 	return ret;
 }

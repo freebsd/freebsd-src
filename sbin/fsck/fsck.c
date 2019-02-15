@@ -1,6 +1,8 @@
 /*	$NetBSD: fsck.c,v 1.30 2003/08/07 10:04:15 agc Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1996 Christos Zoulas. All rights reserved.
  * Copyright (c) 1980, 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
@@ -41,8 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/queue.h>
 #include <sys/wait.h>
-#define FSTYPENAMES
-#include <sys/disklabel.h>
+#include <sys/disk.h>
 #include <sys/ioctl.h>
 
 #include <ctype.h>
@@ -81,9 +82,20 @@ static void addentry(struct fstypelist *, const char *, const char *);
 static void maketypelist(char *);
 static void catopt(char **, const char *);
 static void mangle(char *, int *, const char ** volatile *, int *);
-static const char *getfslab(const char *);
+static const char *getfstype(const char *);
 static void usage(void) __dead2;
 static int isok(struct fstab *);
+
+static struct {
+	const char *ptype;
+	const char *name;
+} ptype_map[] = {
+	{ "ufs",	"ffs" },
+	{ "ffs",	"ffs" },
+	{ "fat",	"msdosfs" },
+	{ "efi",	"msdosfs" },
+	{ NULL,		NULL },
+};
 
 int
 main(int argc, char *argv[])
@@ -190,7 +202,7 @@ main(int argc, char *argv[])
 		mntpt = NULL;
 		spec = *argv;
 		cp = strrchr(spec, '/');
-		if (cp == 0) {
+		if (cp == NULL) {
 			(void)snprintf(device, sizeof(device), "%s%s",
 				_PATH_DEV, spec);
 			spec = device;
@@ -203,9 +215,9 @@ main(int argc, char *argv[])
 		if ((fs = getfsfile(spec)) == NULL &&
 		    (fs = getfsspec(spec)) == NULL) {
 			if (vfstype == NULL)
-				vfstype = getfslab(spec);
+				vfstype = getfstype(spec);
 			if (vfstype == NULL)
-				errx(1, "Could not determine filesystem type");
+				vfstype = "ufs";
 			type = vfstype;
 			devcheck(spec);
 		} else {
@@ -535,41 +547,27 @@ mangle(char *opts, int *argcp, const char ** volatile *argvp, int *maxargcp)
 	*maxargcp = maxargc;
 }
 
-
 static const char *
-getfslab(const char *str)
+getfstype(const char *str)
 {
-	struct disklabel dl;
-	int fd;
-	char p;
-	const char *vfstype;
-	u_char t;
+	struct diocgattr_arg attr;
+	int fd, i;
 
-	/* deduce the file system type from the disk label */
 	if ((fd = open(str, O_RDONLY)) == -1)
 		err(1, "cannot open `%s'", str);
 
-	if (ioctl(fd, DIOCGDINFO, &dl) == -1) {
+	strncpy(attr.name, "PART::type", sizeof(attr.name));
+	memset(&attr.value, 0, sizeof(attr.value));
+	attr.len = sizeof(attr.value);
+	if (ioctl(fd, DIOCGATTR, &attr) == -1) {
 		(void) close(fd);
 		return(NULL);
 	}
-
 	(void) close(fd);
-
-	p = str[strlen(str) - 1];
-
-	if ((p - 'a') >= dl.d_npartitions)
-		errx(1, "partition `%s' is not defined on disk", str);
-
-	if ((t = dl.d_partitions[p - 'a'].p_fstype) >= FSMAXTYPES) 
-		errx(1, "partition `%s' is not of a legal vfstype",
-		    str);
-
-	if ((vfstype = fstypenames[t]) == NULL)
-		errx(1, "vfstype `%s' on partition `%s' is not supported",
-		    fstypenames[t], str);
-
-	return vfstype;
+	for (i = 0; ptype_map[i].ptype != NULL; i++)
+		if (strstr(attr.value.str, ptype_map[i].ptype) != NULL)
+			return (ptype_map[i].name);
+	return (NULL);
 }
 
 

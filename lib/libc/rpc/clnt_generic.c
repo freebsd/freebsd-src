@@ -1,6 +1,8 @@
 /*	$NetBSD: clnt_generic.c,v 1.18 2000/07/06 03:10:34 christos Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2010, Oracle America, Inc.
  * All rights reserved.
  *
@@ -402,7 +404,7 @@ clnt_tli_create(int fd, const struct netconfig *nconf,
 	if (madefd) {
 		(void) CLNT_CONTROL(cl, CLSET_FD_CLOSE, NULL);
 /*		(void) CLNT_CONTROL(cl, CLSET_POP_TIMOD, NULL);  */
-	};
+	}
 
 	return (cl);
 

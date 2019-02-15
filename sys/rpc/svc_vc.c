@@ -1,6 +1,8 @@
 /*	$NetBSD: svc_vc.c,v 1.7 2000/08/03 00:01:53 fvdl Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -96,6 +98,7 @@ static SVCXPRT *svc_vc_create_conn(SVCPOOL *pool, struct socket *so,
     struct sockaddr *raddr);
 static int svc_vc_accept(struct socket *head, struct socket **sop);
 static int svc_vc_soupcall(struct socket *so, void *arg, int waitflag);
+static int svc_vc_rendezvous_soupcall(struct socket *, void *, int);
 
 static struct xp_ops svc_vc_rendezvous_ops = {
 	.xp_recv =	svc_vc_rendezvous_recv,
@@ -150,7 +153,9 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	SOCK_LOCK(so);
 	if (so->so_state & (SS_ISCONNECTED|SS_ISDISCONNECTED)) {
 		SOCK_UNLOCK(so);
+		CURVNET_SET(so->so_vnet);
 		error = so->so_proto->pr_usrreqs->pru_peeraddr(so, &sa);
+		CURVNET_RESTORE();
 		if (error)
 			return (NULL);
 		xprt = svc_vc_create_conn(pool, so, sa);
@@ -167,7 +172,9 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	xprt->xp_p2 = NULL;
 	xprt->xp_ops = &svc_vc_rendezvous_ops;
 
+	CURVNET_SET(so->so_vnet);
 	error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
+	CURVNET_RESTORE();
 	if (error) {
 		goto cleanup_svc_vc_create;
 	}
@@ -177,19 +184,19 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 
 	xprt_register(xprt);
 
-	solisten(so, SOMAXCONN, curthread);
+	solisten(so, -1, curthread);
 
-	SOCKBUF_LOCK(&so->so_rcv);
+	SOLISTEN_LOCK(so);
 	xprt->xp_upcallset = 1;
-	soupcall_set(so, SO_RCV, svc_vc_soupcall, xprt);
-	SOCKBUF_UNLOCK(&so->so_rcv);
+	solisten_upcall_set(so, svc_vc_rendezvous_soupcall, xprt);
+	SOLISTEN_UNLOCK(so);
 
 	return (xprt);
+
 cleanup_svc_vc_create:
-	if (xprt) {
-		sx_destroy(&xprt->xp_lock);
-		svc_xprt_free(xprt);
-	}
+	sx_destroy(&xprt->xp_lock);
+	svc_xprt_free(xprt);
+
 	return (NULL);
 }
 
@@ -199,8 +206,8 @@ cleanup_svc_vc_create:
 SVCXPRT *
 svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 {
-	SVCXPRT *xprt = NULL;
-	struct cf_conn *cd = NULL;
+	SVCXPRT *xprt;
+	struct cf_conn *cd;
 	struct sockaddr* sa = NULL;
 	struct sockopt opt;
 	int one = 1;
@@ -249,7 +256,9 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 
 	memcpy(&xprt->xp_rtaddr, raddr, raddr->sa_len);
 
+	CURVNET_SET(so->so_vnet);
 	error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
+	CURVNET_RESTORE();
 	if (error)
 		goto cleanup_svc_vc_create;
 
@@ -273,12 +282,10 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 
 	return (xprt);
 cleanup_svc_vc_create:
-	if (xprt) {
-		sx_destroy(&xprt->xp_lock);
-		svc_xprt_free(xprt);
-	}
-	if (cd)
-		mem_free(cd, sizeof(*cd));
+	sx_destroy(&xprt->xp_lock);
+	svc_xprt_free(xprt);
+	mem_free(cd, sizeof(*cd));
+
 	return (NULL);
 }
 
@@ -312,9 +319,11 @@ svc_vc_create_backchannel(SVCPOOL *pool)
 int
 svc_vc_accept(struct socket *head, struct socket **sop)
 {
-	int error = 0;
 	struct socket *so;
+	int error = 0;
+	short nbio;
 
+	/* XXXGL: shouldn't that be an assertion? */
 	if ((head->so_options & SO_ACCEPTCONN) == 0) {
 		error = EINVAL;
 		goto done;
@@ -324,38 +333,26 @@ svc_vc_accept(struct socket *head, struct socket **sop)
 	if (error != 0)
 		goto done;
 #endif
-	ACCEPT_LOCK();
-	if (TAILQ_EMPTY(&head->so_comp)) {
-		ACCEPT_UNLOCK();
-		error = EWOULDBLOCK;
-		goto done;
-	}
-	so = TAILQ_FIRST(&head->so_comp);
-	KASSERT(!(so->so_qstate & SQ_INCOMP), ("svc_vc_accept: so SQ_INCOMP"));
-	KASSERT(so->so_qstate & SQ_COMP, ("svc_vc_accept: so not SQ_COMP"));
-
 	/*
-	 * Before changing the flags on the socket, we have to bump the
-	 * reference count.  Otherwise, if the protocol calls sofree(),
-	 * the socket will be released due to a zero refcount.
-	 * XXX might not need soref() since this is simpler than kern_accept.
+	 * XXXGL: we want non-blocking semantics.  The socket could be a
+	 * socket created by kernel as well as socket shared with userland,
+	 * so we can't be sure about presense of SS_NBIO.  We also shall not
+	 * toggle it on the socket, since that may surprise userland.  So we
+	 * set SS_NBIO only temporarily.
 	 */
-	SOCK_LOCK(so);			/* soref() and so_state update */
-	soref(so);			/* file descriptor reference */
+	SOLISTEN_LOCK(head);
+	nbio = head->so_state & SS_NBIO;
+	head->so_state |= SS_NBIO;
+	error = solisten_dequeue(head, &so, 0);
+	head->so_state &= (nbio & ~SS_NBIO);
+	if (error)
+		goto done;
 
-	TAILQ_REMOVE(&head->so_comp, so, so_list);
-	head->so_qlen--;
-	so->so_state |= (head->so_state & SS_NBIO);
-	so->so_qstate &= ~SQ_COMP;
-	so->so_head = NULL;
-
-	SOCK_UNLOCK(so);
-	ACCEPT_UNLOCK();
-
+	so->so_state |= nbio;
 	*sop = so;
 
 	/* connection has been removed from the listen queue */
-	KNOTE_UNLOCKED(&head->so_rcv.sb_sel.si_note, 0);
+	KNOTE_UNLOCKED(&head->so_rdsel.si_note, 0);
 done:
 	return (error);
 }
@@ -388,21 +385,21 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 		 * connection arrives after our call to accept fails
 		 * with EWOULDBLOCK.
 		 */
-		ACCEPT_LOCK();
-		if (TAILQ_EMPTY(&xprt->xp_socket->so_comp))
+		SOLISTEN_LOCK(xprt->xp_socket);
+		if (TAILQ_EMPTY(&xprt->xp_socket->sol_comp))
 			xprt_inactive_self(xprt);
-		ACCEPT_UNLOCK();
+		SOLISTEN_UNLOCK(xprt->xp_socket);
 		sx_xunlock(&xprt->xp_lock);
 		return (FALSE);
 	}
 
 	if (error) {
-		SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
+		SOLISTEN_LOCK(xprt->xp_socket);
 		if (xprt->xp_upcallset) {
 			xprt->xp_upcallset = 0;
 			soupcall_clear(xprt->xp_socket, SO_RCV);
 		}
-		SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
+		SOLISTEN_UNLOCK(xprt->xp_socket);
 		xprt_inactive_self(xprt);
 		sx_xunlock(&xprt->xp_lock);
 		return (FALSE);
@@ -410,7 +407,7 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 
 	sx_xunlock(&xprt->xp_lock);
 
-	sa = 0;
+	sa = NULL;
 	error = soaccept(so, &sa);
 
 	if (error) {
@@ -449,12 +446,6 @@ svc_vc_rendezvous_stat(SVCXPRT *xprt)
 static void
 svc_vc_destroy_common(SVCXPRT *xprt)
 {
-	SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
-	if (xprt->xp_upcallset) {
-		xprt->xp_upcallset = 0;
-		soupcall_clear(xprt->xp_socket, SO_RCV);
-	}
-	SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 
 	if (xprt->xp_socket)
 		(void)soclose(xprt->xp_socket);
@@ -468,6 +459,13 @@ static void
 svc_vc_rendezvous_destroy(SVCXPRT *xprt)
 {
 
+	SOLISTEN_LOCK(xprt->xp_socket);
+	if (xprt->xp_upcallset) {
+		xprt->xp_upcallset = 0;
+		solisten_upcall_set(xprt->xp_socket, NULL, NULL);
+	}
+	SOLISTEN_UNLOCK(xprt->xp_socket);
+
 	svc_vc_destroy_common(xprt);
 }
 
@@ -475,6 +473,13 @@ static void
 svc_vc_destroy(SVCXPRT *xprt)
 {
 	struct cf_conn *cd = (struct cf_conn *)xprt->xp_p1;
+
+	SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
+	if (xprt->xp_upcallset) {
+		xprt->xp_upcallset = 0;
+		soupcall_clear(xprt->xp_socket, SO_RCV);
+	}
+	SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 
 	svc_vc_destroy_common(xprt);
 
@@ -546,7 +551,7 @@ svc_vc_ack(SVCXPRT *xprt, uint32_t *ack)
 {
 
 	*ack = atomic_load_acq_32(&xprt->xp_snt_cnt);
-	*ack -= xprt->xp_socket->so_snd.sb_cc;
+	*ack -= sbused(&xprt->xp_socket->so_snd);
 	return (TRUE);
 }
 
@@ -860,7 +865,7 @@ svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 		len = mrep->m_pkthdr.len;
 		*mtod(mrep, uint32_t *) =
 			htonl(0x80000000 | (len - sizeof(uint32_t)));
-		atomic_add_acq_32(&xprt->xp_snd_cnt, len);
+		atomic_add_32(&xprt->xp_snd_cnt, len);
 		error = sosend(xprt->xp_socket, NULL, NULL, mrep, NULL,
 		    0, curthread);
 		if (!error) {
@@ -950,6 +955,16 @@ svc_vc_soupcall(struct socket *so, void *arg, int waitflag)
 	SVCXPRT *xprt = (SVCXPRT *) arg;
 
 	if (soreadable(xprt->xp_socket))
+		xprt_active(xprt);
+	return (SU_OK);
+}
+
+static int
+svc_vc_rendezvous_soupcall(struct socket *head, void *arg, int waitflag)
+{
+	SVCXPRT *xprt = (SVCXPRT *) arg;
+
+	if (!TAILQ_EMPTY(&head->sol_comp))
 		xprt_active(xprt);
 	return (SU_OK);
 }

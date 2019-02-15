@@ -42,14 +42,17 @@ DEFINE_TEST(test_option_lzop)
 	if (r != 0) {
 		if (!canLzop()) {
 			skipping("lzop is not supported on this platform");
-			return;
+			goto done;
 		}
 		failure("--lzop option is broken");
 		assertEqualInt(r, 0);
-		return;
+		goto done;
 	}
+	free(p);
 	/* Check that the archive file has an lzma signature. */
 	p = slurpfile(&s, "archive.out");
 	assert(s > 2);
 	assertEqualMem(p, "\x89\x4c\x5a\x4f\x00\x0d\x0a\x1a\x0a", 9);
+done:
+	free(p);
 }

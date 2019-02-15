@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -300,7 +302,7 @@ decode2(void)
 }
 
 static int
-getline(char *buf, size_t size)
+get_line(char *buf, size_t size)
 {
 
 	if (fgets(buf, size, infp) != NULL)
@@ -338,7 +340,7 @@ uu_decode(void)
 
 	/* for each input line */
 	for (;;) {
-		switch (getline(buf, sizeof(buf))) {
+		switch (get_line(buf, sizeof(buf))) {
 		case 0:
 			return (0);
 		case 1:
@@ -397,7 +399,7 @@ uu_decode(void)
 				}
 			}
 	}
-	switch (getline(buf, sizeof(buf))) {
+	switch (get_line(buf, sizeof(buf))) {
 	case 0:
 		return (0);
 	case 1:
@@ -418,7 +420,7 @@ base64_decode(void)
 	leftover[0] = '\0';
 	for (;;) {
 		strcpy(inbuf, leftover);
-		switch (getline(inbuf + strlen(inbuf),
+		switch (get_line(inbuf + strlen(inbuf),
 		    sizeof(inbuf) - strlen(inbuf))) {
 		case 0:
 			return (0);

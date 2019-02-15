@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1996-1998 John D. Polstra.
  * All rights reserved.
  *
@@ -68,6 +70,18 @@ typedef struct {
 	Elf32_Half	e_shnum;	/* Number of section header entries. */
 	Elf32_Half	e_shstrndx;	/* Section name strings section. */
 } Elf32_Ehdr;
+
+/*
+ * Shared object information, found in SHT_MIPS_LIBLIST.
+ */
+
+typedef struct {
+	Elf32_Word l_name;		/* The name of a shared object. */
+	Elf32_Word l_time_stamp;	/* 32-bit timestamp. */
+	Elf32_Word l_checksum;		/* Checksum of visible symbols, sizes. */
+	Elf32_Word l_version;		/* Interface version string index. */
+	Elf32_Word l_flags;		/* Flags (LL_*). */
+} Elf32_Lib;
 
 /*
  * Section header.
@@ -241,5 +255,11 @@ typedef struct {
 	Elf32_Half	si_boundto;	/* direct bindings - symbol bound to */
 	Elf32_Half	si_flags;	/* per symbol flags */
 } Elf32_Syminfo;
+
+typedef struct {
+	Elf32_Word	ch_type;
+	Elf32_Word	ch_size;
+	Elf32_Word	ch_addralign;
+} Elf32_Chdr;
 
 #endif /* !_SYS_ELF32_H_ */

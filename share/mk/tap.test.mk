@@ -18,7 +18,7 @@
 # PROGS, PROGS_CXX and SCRIPTS, respectively.
 #
 # Test programs registered in this manner are set to be installed into TESTSDIR
-# (which should be overriden by the Makefile) and are not required to provide a
+# (which should be overridden by the Makefile) and are not required to provide a
 # manpage.
 TAP_TESTS_C?=
 TAP_TESTS_CXX?=
@@ -26,7 +26,7 @@ TAP_TESTS_PERL?=
 TAP_TESTS_SH?=
 
 # Perl interpreter to use for test programs written in this language.
-TAP_PERL_INTERPRETER?= /usr/local/bin/perl
+TAP_PERL_INTERPRETER?=	${LOCALBASE}/bin/perl
 
 .if !empty(TAP_TESTS_C)
 PROGS+= ${TAP_TESTS_C}
@@ -86,7 +86,11 @@ CLEANFILES+= ${_T} ${_T}.tmp
 TAP_TESTS_SH_SED_${_T}?= # empty
 TAP_TESTS_SH_SRC_${_T}?= ${_T}.sh
 ${_T}: ${TAP_TESTS_SH_SRC_${_T}}
+.if empty(TAP_TESTS_SH_SED_${_T})
+	cat ${.ALLSRC} >${.TARGET}.tmp
+.else
 	cat ${.ALLSRC} | sed ${TAP_TESTS_SH_SED_${_T}} >${.TARGET}.tmp
+.endif
 	chmod +x ${.TARGET}.tmp
 	mv ${.TARGET}.tmp ${.TARGET}
 .endfor

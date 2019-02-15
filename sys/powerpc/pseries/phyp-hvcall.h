@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2010 Andreas Tobler
  * All rights reserved.
  *
@@ -294,7 +296,25 @@
 #define H_VPM_STAT	       	0x2bc
 #define H_SET_MPP		0x2d0
 #define H_GET_MPP		0x2d4
-#define MAX_HCALL_OPCODE	H_GET_MPP
+#define H_MO_PERF		0x2d8
+#define H_REG_SUB_CRQ		0x2dc
+#define H_FREE_SUB_CRQ		0x2e0
+#define H_SEND_SUB_CRQ		0x2e4
+#define H_SEND_SUB_CRQ_IND	0x2e8
+#define H_HOME_NODE_ASSOC	0x2ec
+/* Reserved ... */
+#define H_BEST_ENERGY		0x2f4
+#define H_REG_SNS		0x2f8
+#define H_X_XIRR		0x2fc
+#define H_RANDOM		0x300
+/* Reserved ... */
+#define H_COP_OP		0x304
+#define H_STOP_COP_OP		0x308
+#define H_GET_MPP_X		0x314
+#define H_SET_MODE		0x31C
+/* Reserved ... */
+#define H_GET_DMA_XLATES_L	0x324
+#define MAX_HCALL_OPCODE	H_GET_DMA_XLATES_L
 
 int64_t phyp_hcall(uint64_t opcode, ...);
 int64_t phyp_pft_hcall(uint64_t opcode, uint64_t flags, uint64_t pteidx,

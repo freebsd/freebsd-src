@@ -1,5 +1,5 @@
 %{
-/*	$OpenBSD: bc.y,v 1.44 2013/11/20 21:33:54 deraadt Exp $	*/
+/*	$OpenBSD: bc.y,v 1.46 2014/10/14 15:35:18 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2003, Otto Moerbeek <otto@drijf.net>
@@ -80,7 +80,7 @@ static void		 grow(void);
 static ssize_t		 cs(const char *);
 static ssize_t		 as(const char *);
 static ssize_t		 node(ssize_t, ...);
-static void		 emit(ssize_t);
+static void		 emit(ssize_t, int);
 static void		 emit_macro(int, ssize_t);
 static void		 free_tree(void);
 static ssize_t		 numnode(int);
@@ -196,7 +196,7 @@ program		: /* empty */
 
 input_item	: semicolon_list NEWLINE
 			{
-				emit($1);
+				emit($1, 0);
 				macro_char = reset_macro_char;
 				putchar('\n');
 				free_tree();
@@ -771,7 +771,7 @@ grow(void)
 
 	if (current == instr_sz) {
 		newsize = instr_sz * 2 + 1;
-		p = realloc(instructions, newsize * sizeof(*p));
+		p = reallocarray(instructions, newsize, sizeof(*p));
 		if (p == NULL) {
 			free(instructions);
 			err(1, NULL);
@@ -826,13 +826,18 @@ node(ssize_t arg, ...)
 }
 
 static void
-emit(ssize_t i)
+emit(ssize_t i, int level)
 {
 
-	if (instructions[i].index >= 0)
-		while (instructions[i].index != END_NODE)
-			emit(instructions[i++].index);
-	else
+	if (level > 1000)
+		errx(1, "internal error: tree level > 1000");
+	if (instructions[i].index >= 0) {
+		while (instructions[i].index != END_NODE &&
+		    instructions[i].index != i)  {
+			emit(instructions[i].index, level + 1);
+			i++;
+		}
+	} else if (instructions[i].index != END_NODE)
 		fputs(instructions[i].u.cstr, stdout);
 }
 
@@ -841,7 +846,7 @@ emit_macro(int nodeidx, ssize_t code)
 {
 
 	putchar('[');
-	emit(code);
+	emit(code, 0);
 	printf("]s%s\n", instructions[nodeidx].u.cstr);
 	nesting--;
 }
@@ -978,7 +983,7 @@ yyerror(const char *s)
 	    !isprint((unsigned char)yytext[0]))
 		n = asprintf(&str,
 		    "%s: %s:%d: %s: ascii char 0x%02x unexpected",
-		    __progname, filename, lineno, s, yytext[0]);
+		    __progname, filename, lineno, s, yytext[0] & 0xff);
 	else
 		n = asprintf(&str, "%s: %s:%d: %s: %s unexpected",
 		    __progname, filename, lineno, s, yytext);
@@ -1125,9 +1130,9 @@ main(int argc, char *argv[])
 	int ch, i;
 
 	init();
-	setlinebuf(stdout);
+	setvbuf(stdout, NULL, _IOLBF, 0);
 
-	sargv = malloc(argc * sizeof(char *));
+	sargv = reallocarray(NULL, argc, sizeof(char *));
 	if (sargv == NULL)
 		err(1, NULL);
 

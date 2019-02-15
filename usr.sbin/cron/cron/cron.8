@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 29, 2008
+.Dd July 19, 2017
 .Dt CRON 8
 .Os
 .Sh NAME
@@ -28,6 +28,7 @@
 .Op Fl j Ar jitter
 .Op Fl J Ar rootjitter
 .Op Fl m Ar mailto
+.Op Fl n
 .Op Fl s
 .Op Fl o
 .Op Fl x Ar debugflag Ns Op , Ns Ar ...
@@ -52,7 +53,11 @@ The
 .Nm
 utility also searches for
 .Pa /etc/crontab
-which is in a different format (see
+and files in
+.Pa /etc/cron.d
+and
+.Pa /usr/local/etc/cron.d
+which are in a different format (see
 .Xr crontab 5 ) .
 .Pp
 The
@@ -132,6 +137,8 @@ set to a null string, usually specified in a shell as
 .Li ''
 or
 .Li \*q\*q .
+.It Fl n
+Do not daemonize; run in foreground instead.
 .It Fl s
 Enable special handling of situations when the GMT offset of the local
 timezone changes, such as the switches between the standard time and
@@ -202,13 +209,17 @@ trace through the execution, but do not perform any actions
 .El
 .El
 .Sh FILES
-.Bl -tag -width /etc/pam.d/cron -compact
+.Bl -tag -width /usr/local/etc/cron.d -compact
 .It Pa /etc/crontab
 System crontab file
+.It Pa /etc/cron.d
+Directory for optional/modularized system crontab files.
 .It Pa /etc/pam.d/cron
 .Xr pam.conf 5
 configuration file for
 .Nm
+.It Pa /usr/local/etc/cron.d
+Directory for third-party package provided crontab files.
 .It Pa /var/cron/tabs
 Directory for personal crontab files
 .El

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -54,6 +56,24 @@
 	(VFSTONFS((v)->v_mount)->nm_flag & NFSMNT_NFSV4)
 #define	NFS_ISV34(v) \
 	(VFSTONFS((v)->v_mount)->nm_flag & (NFSMNT_NFSV3 | NFSMNT_NFSV4))
+
+#ifdef NFS_DEBUG
+
+extern int nfs_debug;
+#define	NFS_DEBUG_ASYNCIO	1 /* asynchronous i/o */
+#define	NFS_DEBUG_WG		2 /* server write gathering */
+#define	NFS_DEBUG_RC		4 /* server request caching */
+
+#define	NFS_DPF(cat, args)					\
+	do {							\
+		if (nfs_debug & NFS_DEBUG_##cat) printf args;	\
+	} while (0)
+
+#else
+
+#define	NFS_DPF(cat, args)
+
+#endif
 
 /*
  * NFS iod threads can be in one of these three states once spawned.

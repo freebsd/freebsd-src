@@ -26,7 +26,7 @@
 .\"     $OpenBSD: hash.9,v 1.5 2003/04/17 05:08:39 jmc Exp $
 .\" $FreeBSD$
 .\"
-.Dd September 4, 2012
+.Dd June 30, 2015
 .Dt HASH 9
 .Os
 .Sh NAME
@@ -37,8 +37,10 @@
 .Nm hash32_strn ,
 .Nm hash32_stre ,
 .Nm hash32_strne ,
+.Nm jenkins_hash ,
 .Nm jenkins_hash32 ,
-.Nm jenkins_hash
+.Nm murmur3_32_hash ,
+.Nm murmur3_32_hash32
 .Nd general kernel hashing functions
 .Sh SYNOPSIS
 .In sys/hash.h
@@ -56,6 +58,10 @@
 .Fn jenkins_hash "const void *buf" "size_t len" "uint32_t hash"
 .Ft uint32_t
 .Fn jenkins_hash32 "const uint32_t *buf" "size_t count" "uint32_t hash"
+.Ft uint32_t
+.Fn murmur3_32_hash "const void *buf" "size_t len" "uint32_t hash"
+.Ft uint32_t
+.Fn murmur3_32_hash32 "const uint32_t *buf" "size_t count" "uint32_t hash"
 .Sh DESCRIPTION
 The
 .Fn hash32
@@ -66,6 +72,13 @@ These functions can be used to hash
 .Dv NUL
 terminated strings, as well as blocks of memory.
 .Pp
+A
+.Fa len
+argument is the length of the buffer in bytes.
+A
+.Fa count
+argument is the length of the buffer in 32-bit words.
+.Pp
 The
 .Fn hash32_buf
 function is used as a general buffer hashing function.
@@ -73,7 +86,7 @@ The argument
 .Fa buf
 is used to pass in the location, and
 .Fa len
-is the length of the buffer.
+is the length of the buffer in bytes.
 The argument
 .Fa hash
 is used to extend an existing hash, or is passed the initial value
@@ -126,10 +139,20 @@ uses same hashing algorithm as the
 .Fn jenkins_hash
 function, but works only on
 .Ft uint32_t
-sized arrays, thus is simplier and faster.
+sized arrays, thus is simpler and faster.
 It accepts an array of
 .Ft uint32_t
 values in its first argument and size of this array in the second argument.
+.Pp
+The
+.Fn murmur3_32_hash
+and
+.Fn murmur3_32_hash32
+functions are similar to
+.Fn jenkins_hash
+and
+.Fn jenkins_hash32 ,
+but implement the 32-bit version of MurmurHash3.
 .Sh RETURN VALUES
 The
 .Fn hash32
@@ -185,6 +208,10 @@ The
 .Nm jenkins_hash
 functions were added in
 .Fx 10.0 .
+The
+.Nm murmur3_32_hash
+functions were added in
+.Fx 10.1 .
 .Sh AUTHORS
 The
 .Nm hash32
@@ -192,5 +219,9 @@ functions were written by
 .An Tobias Weingartner .
 The
 .Nm jenkins_hash
-functions was written by
-Bob Jenkins .
+functions were written by
+.An Bob Jenkins .
+The
+.Nm murmur3_32_hash
+functions were written by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .

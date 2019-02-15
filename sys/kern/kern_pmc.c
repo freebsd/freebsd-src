@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2008 Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
@@ -33,8 +35,9 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_hwpmc_hooks.h"
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/ctype.h>
+#include <sys/domainset.h>
 #include <sys/param.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
@@ -46,6 +49,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+
 #ifdef	HWPMC_HOOKS
 FEATURE(hwpmc_hooks, "Kernel support for HW PMC");
 #define	PMC_KERNEL_VERSION	PMC_VERSION
@@ -56,16 +63,18 @@ FEATURE(hwpmc_hooks, "Kernel support for HW PMC");
 MALLOC_DECLARE(M_PMCHOOKS);
 MALLOC_DEFINE(M_PMCHOOKS, "pmchooks", "Memory space for PMC hooks");
 
+/* memory pool */
+MALLOC_DEFINE(M_PMC, "pmc", "Memory space for the PMC module");
+
 const int pmc_kernel_version = PMC_KERNEL_VERSION;
 
 /* Hook variable. */
-int (*pmc_hook)(struct thread *td, int function, void *arg) = NULL;
+int __read_mostly (*pmc_hook)(struct thread *td, int function, void *arg) = NULL;
 
 /* Interrupt handler */
-int (*pmc_intr)(int cpu, struct trapframe *tf) = NULL;
+int __read_mostly (*pmc_intr)(struct trapframe *tf) = NULL;
 
-/* Bitmask of CPUs requiring servicing at hardclock time */
-volatile cpuset_t pmc_cpumask;
+DPCPU_DEFINE(uint8_t, pmc_sampled);
 
 /*
  * A global count of SS mode PMCs.  When non-zero, this means that
@@ -83,11 +92,17 @@ volatile int pmc_ss_count;
  * somewhat more expensive than a simple 'if' check and indirect call.
  */
 struct sx pmc_sx;
+SX_SYSINIT(pmcsx, &pmc_sx, "pmc-sx");
 
 /*
  * PMC Soft per cpu trapframe.
  */
 struct trapframe pmc_tf[MAXCPU];
+
+/*
+ * Per domain list of buffer headers
+ */
+__read_mostly struct pmc_domain_buffer_header *pmc_dom_hdrs[MAXMEMDOM];
 
 /*
  * PMC Soft use a global table to store registered events.
@@ -99,19 +114,11 @@ static int pmc_softevents = 16;
 SYSCTL_INT(_kern_hwpmc, OID_AUTO, softevents, CTLFLAG_RDTUN,
     &pmc_softevents, 0, "maximum number of soft events");
 
-struct mtx pmc_softs_mtx;
 int pmc_softs_count;
 struct pmc_soft **pmc_softs;
 
+struct mtx pmc_softs_mtx;
 MTX_SYSINIT(pmc_soft_mtx, &pmc_softs_mtx, "pmc-softs", MTX_SPIN);
-
-static void
-pmc_init_sx(void)
-{
-	sx_init_flags(&pmc_sx, "pmc-sx", SX_NOWITNESS);
-}
-
-SYSINIT(pmcsx, SI_SUB_LOCK, SI_ORDER_MIDDLE, pmc_init_sx, NULL);
 
 /*
  * Helper functions.
@@ -287,8 +294,8 @@ pmc_soft_ev_deregister(struct pmc_soft *ps)
 
 	if (ps->ps_ev.pm_ev_code != 0 &&
 	    (ps->ps_ev.pm_ev_code - PMC_EV_SOFT_FIRST) < pmc_softevents) {
-		KASSERT(ps->ps_ev.pm_ev_code >= PMC_EV_SOFT_FIRST &&
-		    ps->ps_ev.pm_ev_code <= PMC_EV_SOFT_LAST,
+		KASSERT((int)ps->ps_ev.pm_ev_code >= PMC_EV_SOFT_FIRST &&
+		    (int)ps->ps_ev.pm_ev_code <= PMC_EV_SOFT_LAST,
 		    ("pmc_soft_deregister: invalid event value"));
 		pmc_softs[ps->ps_ev.pm_ev_code - PMC_EV_SOFT_FIRST] = NULL;
 	}
@@ -304,8 +311,8 @@ pmc_soft_ev_acquire(enum pmc_event ev)
 	if (ev == 0 || (ev - PMC_EV_SOFT_FIRST) >= pmc_softevents)
 		return NULL;
 
-	KASSERT(ev >= PMC_EV_SOFT_FIRST &&
-	    ev <= PMC_EV_SOFT_LAST,
+	KASSERT((int)ev >= PMC_EV_SOFT_FIRST &&
+	    (int)ev <= PMC_EV_SOFT_LAST,
 	    ("event out of range"));
 
 	mtx_lock_spin(&pmc_softs_mtx);
@@ -330,14 +337,30 @@ pmc_soft_ev_release(struct pmc_soft *ps)
 static void
 init_hwpmc(void *dummy __unused)
 {
+	int domain, cpu;
+
 	if (pmc_softevents <= 0 ||
 	    pmc_softevents > PMC_EV_DYN_COUNT) {
 		(void) printf("hwpmc: tunable \"softevents\"=%d out of "
 		    "range.\n", pmc_softevents);
 		pmc_softevents = PMC_EV_DYN_COUNT;
 	}
-	pmc_softs = malloc(pmc_softevents * sizeof(struct pmc_soft *), M_PMCHOOKS, M_NOWAIT|M_ZERO);
-	KASSERT(pmc_softs != NULL, ("cannot allocate soft events table"));
+	pmc_softs = malloc(pmc_softevents * sizeof(*pmc_softs), M_PMCHOOKS,
+	    M_WAITOK | M_ZERO);
+
+	for (domain = 0; domain < vm_ndomains; domain++) {
+		pmc_dom_hdrs[domain] = malloc_domainset(
+		    sizeof(struct pmc_domain_buffer_header), M_PMC,
+		    DOMAINSET_PREF(domain), M_WAITOK | M_ZERO);
+		mtx_init(&pmc_dom_hdrs[domain]->pdbh_mtx, "pmc_bufferlist_mtx", "pmc-leaf", MTX_SPIN);
+		TAILQ_INIT(&pmc_dom_hdrs[domain]->pdbh_head);
+	}
+	CPU_FOREACH(cpu) {
+		domain = pcpu_find(cpu)->pc_domain;
+		KASSERT(pmc_dom_hdrs[domain] != NULL, ("no mem allocated for domain: %d", domain));
+		pmc_dom_hdrs[domain]->pdbh_ncpus++;
+	}
+
 }
 
 SYSINIT(hwpmc, SI_SUB_KDTRACE, SI_ORDER_FIRST, init_hwpmc, NULL);

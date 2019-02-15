@@ -1,5 +1,7 @@
 %{
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -49,7 +51,7 @@ extern int	yylex(void);
 
 %%
 \"[^"]+\"		{ yytext++; yytext[strlen(yytext) - 1] = '\0'; return STR; };
-[a-zA-Z0-9\.\+-_/\:\[\]$&{}]+ { return STR; }
+[a-zA-Z0-9\.\+-_/\:\[\]$&%{}]+ { return STR; }
 #.*\n			{ lineno++; return NEWLINE; };
 \\\n			{ lineno++; };
 \n			{ lineno++; return NEWLINE; }

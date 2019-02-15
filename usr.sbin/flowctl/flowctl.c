@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2005 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 2001-2003 Roman V. Palagin <romanp@unshadow.net>
  * All rights reserved.
@@ -222,12 +224,12 @@ ctl_show(int argc, char **argv)
 static void
 do_show(int version, void (*func)(struct ngnf_show_header *))
 {
+	char buf[SORCVBUF_SIZE];
 	struct ng_mesg *ng_mesg;
 	struct ngnf_show_header req, *resp;
 	int token, nread;
 
-	ng_mesg = alloca(SORCVBUF_SIZE);
-
+	ng_mesg = (struct ng_mesg *)buf;
 	req.version = version;
 	req.hash_id = req.list_id = 0;
 

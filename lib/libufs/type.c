@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2002 Juli Mallett.  All rights reserved.
  *
  * This software was written by Juli Mallett <jmallett@FreeBSD.org> for the
@@ -58,6 +60,7 @@ ufs_disk_close(struct uufsd *disk)
 {
 	ERROR(disk, NULL);
 	close(disk->d_fd);
+	disk->d_fd = -1;
 	if (disk->d_inoblock != NULL) {
 		free(disk->d_inoblock);
 		disk->d_inoblock = NULL;
@@ -81,6 +84,7 @@ ufs_disk_fillout(struct uufsd *disk, const char *name)
 	}
 	if (sbread(disk) == -1) {
 		ERROR(disk, "could not read superblock to fill out disk");
+		ufs_disk_close(disk);
 		return (-1);
 	}
 	return (0);
@@ -178,19 +182,21 @@ again:	if ((ret = stat(name, &st)) < 0) {
 int
 ufs_disk_write(struct uufsd *disk)
 {
+	int fd;
+
 	ERROR(disk, NULL);
 
 	if (disk->d_mine & MINE_WRITE)
 		return (0);
 
-	close(disk->d_fd);
-
-	disk->d_fd = open(disk->d_name, O_RDWR);
-	if (disk->d_fd < 0) {
+	fd = open(disk->d_name, O_RDWR);
+	if (fd < 0) {
 		ERROR(disk, "failed to open disk for writing");
 		return (-1);
 	}
 
+	close(disk->d_fd);
+	disk->d_fd = fd;
 	disk->d_mine |= MINE_WRITE;
 
 	return (0);

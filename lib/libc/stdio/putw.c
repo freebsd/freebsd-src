@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -41,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "fvwrite.h"
 #include "libc_private.h"
+#include "local.h"
 
 int
 putw(int w, FILE *fp)
@@ -53,8 +56,8 @@ putw(int w, FILE *fp)
 	uio.uio_resid = iov.iov_len = sizeof(w);
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
-	FLOCKFILE(fp);
+	FLOCKFILE_CANCELSAFE(fp);
 	retval = __sfvwrite(fp, &uio);
-	FUNLOCKFILE(fp);
+	FUNLOCKFILE_CANCELSAFE();
 	return (retval);
 }

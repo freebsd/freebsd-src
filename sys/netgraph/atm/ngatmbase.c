@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001-2003
  *	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
  * 	All rights reserved.
@@ -151,8 +153,7 @@ uni_msg_pack_mbuf(struct uni_msg *msg, void *hdr, size_t hdrlen)
 
 	} else {
 		if ((n = uni_msg_len(msg)) > MHLEN) {
-			MCLGET(m0, M_NOWAIT);
-			if (!(m0->m_flags & M_EXT))
+			if (!(MCLGET(m0, M_NOWAIT)))
 				goto drop;
 			if (n > MCLBYTES)
 				n = MCLBYTES;
@@ -173,8 +174,7 @@ uni_msg_pack_mbuf(struct uni_msg *msg, void *hdr, size_t hdrlen)
 		last = m;
 
 		if (n > MLEN) {
-			MCLGET(m, M_NOWAIT);
-			if (!(m->m_flags & M_EXT))
+			if (!(MCLGET(m, M_NOWAIT)))
 				goto drop;
 			if (n > MCLBYTES)
 				n = MCLBYTES;

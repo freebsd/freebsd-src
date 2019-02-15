@@ -11,32 +11,40 @@ void	cpu_halt(void);
 void	swi_vm(void *);
 
 #ifdef _KERNEL
+#if __ARM_ARCH >= 6
+#include <machine/cpu-v6.h>
+#else
+#include <machine/cpu-v4.h>
+#endif /* __ARM_ARCH >= 6 */
+
 static __inline uint64_t
 get_cyclecount(void)
 {
-/* This '#if' asks the question 'Does CP15/SCC include performance counters?' */
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) \
- || defined(CPU_MV_PJ4B) \
- || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
-	uint32_t ccnt;
-	uint64_t ccnt64;
+#if __ARM_ARCH >= 6
+#if (__ARM_ARCH > 6) && defined(DEV_PMU)
+	if (pmu_attched) {
+		u_int cpu;
+		uint64_t h, h2;
+		uint32_t l, r;
 
-	/*
-	 * Read PMCCNTR. Curses! Its only 32 bits.
-	 * TODO: Fix this by catching overflow with interrupt?
-	 */
-/* The ARMv6 vs ARMv7 divide is going to need a better way of
- * distinguishing between them.
- */
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176)
-	/* ARMv6 - Earlier model SCCs */
-	__asm __volatile("mrc p15, 0, %0, c15, c12, 1": "=r" (ccnt));
-#else
-	/* ARMv7 - Later model SCCs */
-	__asm __volatile("mrc p15, 0, %0, c9, c13, 0": "=r" (ccnt));
+		cpu = PCPU_GET(cpuid);
+		h = (uint64_t)atomic_load_acq_32(&ccnt_hi[cpu]);
+		l = cp15_pmccntr_get();
+		/* In case interrupts are disabled we need to check for overflow. */
+		r = cp15_pmovsr_get();
+		if (r & PMU_OVSR_C) {
+			atomic_add_32(&ccnt_hi[cpu], 1);
+			/* Clear the event. */
+			cp15_pmovsr_set(PMU_OVSR_C);
+		}
+		/* Make sure there was no wrap-around while we read the lo half. */
+		h2 = (uint64_t)atomic_load_acq_32(&ccnt_hi[cpu]);
+		if (h != h2)
+			l = cp15_pmccntr_get();
+		return (h2 << 32 | l);
+	} else
 #endif
-	ccnt64 = (uint64_t)ccnt;
-	return (ccnt64);
+		return cp15_pmccntr_get();
 #else /* No performance counters, so use binuptime(9). This is slooooow */
 	struct bintime bt;
 
@@ -53,6 +61,7 @@ get_cyclecount(void)
 #define cpu_getstack(td)	((td)->td_frame->tf_usr_sp)
 #define cpu_setstack(td, sp)	((td)->td_frame->tf_usr_sp = (sp))
 #define cpu_spinwait()		/* nothing */
+#define	cpu_lock_delay()	DELAY(1)
 
 #define ARM_NVEC		8
 #define ARM_VEC_ALL		0xffffffff

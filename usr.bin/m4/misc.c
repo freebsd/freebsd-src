@@ -1,7 +1,9 @@
-/*	$OpenBSD: misc.c,v 1.44 2014/05/12 19:11:19 espie Exp $	*/
+/*	$OpenBSD: misc.c,v 1.46 2015/12/07 14:12:46 espie Exp $	*/
 /*	$NetBSD: misc.c,v 1.6 1995/09/28 05:37:41 tls Exp $	*/
 
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -187,7 +189,7 @@ enlarge_strspace(void)
 		errx(1, "string space overflow");
 	memcpy(newstrspace, strspace, strsize/2);
 	for (i = 0; i <= sp; i++)
-		if (sstack[i])
+		if (sstack[i] == STORAGE_STRSPACE)
 			mstack[i].sstr = (mstack[i].sstr - strspace)
 			    + newstrspace;
 	ep = (ep-strspace) + newstrspace;
@@ -265,7 +267,7 @@ killdiv(void)
 extern char *__progname;
 
 void
-m4errx(int exitstatus, const char *fmt, ...)
+m4errx(int eval, const char *fmt, ...)
 {
 	fprintf(stderr, "%s: ", __progname);
 	fprintf(stderr, "%s at line %lu: ", CURRENT_NAME, CURRENT_LINE);
@@ -277,7 +279,7 @@ m4errx(int exitstatus, const char *fmt, ...)
 		va_end(ap);
 	}
 	fprintf(stderr, "\n");
-	exit(exitstatus);
+	exit(eval);
 }
 
 /*
@@ -352,23 +354,6 @@ xrealloc(void *old, size_t n, const char *fmt, ...)
 	return p;
 }
 
-/*
- * This is sqrt(SIZE_MAX+1), as s1*s2 <= SIZE_MAX
- * if both s1 < MUL_NO_OVERFLOW and s2 < MUL_NO_OVERFLOW
- */
-#define MUL_NO_OVERFLOW	(1UL << (sizeof(size_t) * 4))
-
-static void *
-reallocarray(void *optr, size_t nmemb, size_t size)
-{
-	if ((nmemb >= MUL_NO_OVERFLOW || size >= MUL_NO_OVERFLOW) &&
-	    nmemb > 0 && SIZE_MAX / nmemb < size) {
-		errno = ENOMEM;
-		return NULL;
-	}
-	return realloc(optr, size * nmemb);
-}
-
 void *
 xreallocarray(void *old, size_t s1, size_t s2, const char *fmt, ...)
 {
@@ -441,6 +426,8 @@ do_emit_synchline(void)
 void
 release_input(struct input_file *f)
 {
+	if (ferror(f->file))
+		errx(1, "Fatal error reading from %s\n", f->name);
 	if (f->file != stdin)
 	    fclose(f->file);
 	f->c = EOF;

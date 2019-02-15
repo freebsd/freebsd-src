@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Semihalf.
  * All rights reserved.
  *
@@ -36,14 +38,18 @@
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/pmap.h>
 
 #include <dev/fdt/fdt_common.h>
 
+#include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/armreg.h>
 
 #include <arm/mv/mvwin.h>
+
+#include <machine/platformvar.h>
 
 #define MV_AXP_CPU_DIVCLK_BASE		(MV_BASE + 0x18700)
 #define CPU_DIVCLK_CTRL0		0x00
@@ -62,6 +68,9 @@
 void armadaxp_init_coher_fabric(void);
 int platform_get_ncpus(void);
 
+void mv_axp_platform_mp_setmaxid(platform_t plat);
+void mv_axp_platform_mp_start_ap(platform_t plat);
+
 /* Coherency Fabric registers */
 static uint32_t
 read_cpu_clkdiv(uint32_t reg)
@@ -78,24 +87,11 @@ write_cpu_clkdiv(uint32_t reg, uint32_t val)
 }
 
 void
-platform_mp_setmaxid(void)
-{
-
-	mp_maxid = 3;
-}
-
-int
-platform_mp_probe(void)
+mv_axp_platform_mp_setmaxid(platform_t plat)
 {
 
 	mp_ncpus = platform_get_ncpus();
-
-	return (mp_ncpus > 1);
-}
-
-void
-platform_mp_init_secondary(void)
-{
+	mp_maxid = mp_ncpus - 1;
 }
 
 void mptramp(void);
@@ -103,33 +99,29 @@ void mptramp_end(void);
 extern vm_offset_t mptramp_pmu_boot;
 
 void
-platform_mp_start_ap(void)
+mv_axp_platform_mp_start_ap(platform_t plat)
 {
 	uint32_t reg, *src, *dst, cpu_num, div_val, cputype;
-	vm_offset_t smp_boot, pmu_boot_off;
+	vm_offset_t pmu_boot_off;
 	/*
 	 * Initialization procedure depends on core revision,
 	 * in this step CHIP ID is checked to choose proper procedure
 	 */
-	cputype = cpufunc_id();
+	cputype = cp15_midr_get();
 	cputype &= CPU_ID_CPU_MASK;
 
-	smp_boot = kva_alloc(PAGE_SIZE);
-	pmap_kenter_nocache(smp_boot, 0xffff0000);
-	dst = (uint32_t *) smp_boot;
 	/*
 	 * Set the PA of CPU0 Boot Address Redirect register used in
 	 * mptramp according to the actual SoC registers' base address.
 	 */
 	pmu_boot_off = (CPU_PMU(0) - MV_BASE) + CPU_PMU_BOOT;
 	mptramp_pmu_boot = fdt_immr_pa + pmu_boot_off;
-
+	dst = pmap_mapdev(0xffff0000, PAGE_SIZE);
 	for (src = (uint32_t *)mptramp; src < (uint32_t *)mptramp_end;
 	    src++, dst++) {
 		*dst = *src;
 	}
-	kva_free(smp_boot, PAGE_SIZE);
-
+	pmap_unmapdev((vm_offset_t)dst, PAGE_SIZE);
 	if (cputype == CPU_ID_MV88SV584X_V7) {
 		/* Core rev A0 */
 		div_val = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1);
@@ -178,7 +170,7 @@ platform_mp_start_ap(void)
 		bus_space_write_4(fdtbus_bs_tag, CPU_PMU(cpu_num), CPU_PMU_BOOT,
 		    pmap_kextract((vm_offset_t)mpentry));
 
-	cpu_idcache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	for (cpu_num = 1; cpu_num < mp_ncpus; cpu_num++ )
 		bus_space_write_4(fdtbus_bs_tag, MP, MP_SW_RESET(cpu_num), 0);
@@ -188,11 +180,4 @@ platform_mp_start_ap(void)
 	DELAY(10);
 
 	armadaxp_init_coher_fabric();
-}
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
 }

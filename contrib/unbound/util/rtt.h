@@ -56,7 +56,7 @@ struct rtt_info {
 };
 
 /** min retransmit timeout value, in milliseconds */
-#define RTT_MIN_TIMEOUT	50
+extern int RTT_MIN_TIMEOUT;
 /** max retransmit timeout value, in milliseconds */
 #define RTT_MAX_TIMEOUT 120000
 
@@ -96,7 +96,7 @@ int rtt_notimeout(const struct rtt_info* rtt);
 void rtt_update(struct rtt_info* rtt, int ms);
 
 /**
- * Update the statistics with a new timout expired observation.
+ * Update the statistics with a new timeout expired observation.
  * @param rtt: round trip statistics structure.
  * @param orig: original rtt time given for the query that timed out.
  * 	Used to calculate the maximum responsible backed off time that

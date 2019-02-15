@@ -84,6 +84,27 @@ DEFINE_TEST(test_write_disk_secure)
 	archive_entry_free(ae);
 	assert(0 == archive_write_finish_entry(a));
 
+	/* Write an absolute symlink to /tmp. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "/tmp/libarchive_test-test_write_disk_secure-absolute_symlink");
+	archive_entry_set_mode(ae, S_IFLNK | 0777);
+	archive_entry_set_symlink(ae, "/tmp");
+	archive_write_disk_set_options(a, 0);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+
+	/* With security checks enabled, this should fail. */
+	assert(archive_entry_clear(ae) != NULL);
+	archive_entry_copy_pathname(ae, "/tmp/libarchive_test-test_write_disk_secure-absolute_symlink/libarchive_test-test_write_disk_secure-absolute_symlink_path.tmp");
+	archive_entry_set_mode(ae, S_IFREG | 0777);
+	archive_write_disk_set_options(a, ARCHIVE_EXTRACT_SECURE_SYMLINKS);
+	failure("Extracting a file through an absolute symlink should fail here.");
+	assertEqualInt(ARCHIVE_FAILED, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertFileNotExists("/tmp/libarchive_test-test_write_disk_secure-absolute_symlink/libarchive_test-test_write_disk_secure-absolute_symlink_path.tmp");
+	assert(0 == unlink("/tmp/libarchive_test-test_write_disk_secure-absolute_symlink"));
+	unlink("/tmp/libarchive_test-test_write_disk_secure-absolute_symlink_path.tmp");
+
 	/* Create another link. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "link_to_dir2");
@@ -102,6 +123,25 @@ DEFINE_TEST(test_write_disk_secure)
 	archive_entry_set_mode(ae, S_IFREG | 0777);
 	archive_write_disk_set_options(a, ARCHIVE_EXTRACT_SECURE_SYMLINKS | ARCHIVE_EXTRACT_UNLINK);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assert(0 == archive_write_finish_entry(a));
+
+	/* Create a nested symlink. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "dir/nested_link_to_dir");
+	archive_entry_set_mode(ae, S_IFLNK | 0777);
+	archive_entry_set_symlink(ae, "../dir");
+	archive_write_disk_set_options(a, 0);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+
+	/* But with security checks enabled, this should fail. */
+	assert(archive_entry_clear(ae) != NULL);
+	archive_entry_copy_pathname(ae, "dir/nested_link_to_dir/filed");
+	archive_entry_set_mode(ae, S_IFREG | 0777);
+	archive_write_disk_set_options(a, ARCHIVE_EXTRACT_SECURE_SYMLINKS);
+	failure("Extracting a file through a symlink should fail here.");
+	assertEqualInt(ARCHIVE_FAILED, archive_write_header(a, ae));
 	archive_entry_free(ae);
 	assert(0 == archive_write_finish_entry(a));
 
@@ -178,6 +218,29 @@ DEFINE_TEST(test_write_disk_secure)
 	assert(S_ISDIR(st.st_mode));
 	archive_entry_free(ae);
 
+	/*
+	 * Without security checks, we should be able to
+	 * extract an absolute path.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "/tmp/libarchive_test-test_write_disk_secure-absolute_path.tmp");
+	archive_entry_set_mode(ae, S_IFREG | 0777);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+	assertFileExists("/tmp/libarchive_test-test_write_disk_secure-absolute_path.tmp");
+	assert(0 == unlink("/tmp/libarchive_test-test_write_disk_secure-absolute_path.tmp"));
+
+	/* But with security checks enabled, this should fail. */
+	assert(archive_entry_clear(ae) != NULL);
+	archive_entry_copy_pathname(ae, "/tmp/libarchive_test-test_write_disk_secure-absolute_path.tmp");
+	archive_entry_set_mode(ae, S_IFREG | 0777);
+	archive_write_disk_set_options(a, ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS);
+	failure("Extracting an absolute path should fail here.");
+	assertEqualInt(ARCHIVE_FAILED, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assert(0 == archive_write_finish_entry(a));
+	assertFileNotExists("/tmp/libarchive_test-test_write_disk_secure-absolute_path.tmp");
+
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/* Test the entries on disk. */
@@ -211,5 +274,8 @@ DEFINE_TEST(test_write_disk_secure)
 	assert(S_ISREG(st.st_mode));
 	failure("link_to_dir2/filec: st.st_mode=%o", st.st_mode);
 	assert((st.st_mode & 07777) == 0755);
+
+	failure("dir/filed: This file should not have been created");
+	assert(0 != lstat("dir/filed", &st));
 #endif
 }

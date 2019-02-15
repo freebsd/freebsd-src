@@ -13,24 +13,17 @@
 
 using namespace llvm;
 
-SystemZMCAsmInfo::SystemZMCAsmInfo(StringRef TT) {
-  PointerSize = 8;
+SystemZMCAsmInfo::SystemZMCAsmInfo(const Triple &TT) {
+  CodePointerSize = 8;
   CalleeSaveStackSlotSize = 8;
   IsLittleEndian = false;
 
   CommentString = "#";
-  GlobalPrefix = "";
-  PrivateGlobalPrefix = ".L";
   ZeroDirective = "\t.space\t";
   Data64bitsDirective = "\t.quad\t";
   UsesELFSectionDirectiveForBSS = true;
   SupportsDebugInformation = true;
-  HasLEB128 = true;
   ExceptionsType = ExceptionHandling::DwarfCFI;
-}
 
-const MCSection *
-SystemZMCAsmInfo::getNonexecutableStackSection(MCContext &Ctx) const {
-  return Ctx.getELFSection(".note.GNU-stack", ELF::SHT_PROGBITS,
-                           0, SectionKind::getMetadata());
+  UseIntegratedAssembler = true;
 }

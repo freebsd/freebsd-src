@@ -4,9 +4,117 @@
  *
  *****************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2014, Intel Corp.
+/******************************************************************************
+ *
+ * 1. Copyright Notice
+ *
+ * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
  * All rights reserved.
+ *
+ * 2. License
+ *
+ * 2.1. This is your license from Intel Corp. under its intellectual property
+ * rights. You may have additional license terms from the party that provided
+ * you this software, covering your right to use that party's intellectual
+ * property rights.
+ *
+ * 2.2. Intel grants, free of charge, to any person ("Licensee") obtaining a
+ * copy of the source code appearing in this file ("Covered Code") an
+ * irrevocable, perpetual, worldwide license under Intel's copyrights in the
+ * base code distributed originally by Intel ("Original Intel Code") to copy,
+ * make derivatives, distribute, use and display any portion of the Covered
+ * Code in any form, with the right to sublicense such rights; and
+ *
+ * 2.3. Intel grants Licensee a non-exclusive and non-transferable patent
+ * license (with the right to sublicense), under only those claims of Intel
+ * patents that are infringed by the Original Intel Code, to make, use, sell,
+ * offer to sell, and import the Covered Code and derivative works thereof
+ * solely to the minimum extent necessary to exercise the above copyright
+ * license, and in no event shall the patent license extend to any additions
+ * to or modifications of the Original Intel Code. No other license or right
+ * is granted directly or by implication, estoppel or otherwise;
+ *
+ * The above copyright and patent license is granted only if the following
+ * conditions are met:
+ *
+ * 3. Conditions
+ *
+ * 3.1. Redistribution of Source with Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification with rights to further distribute source must include
+ * the above Copyright Notice, the above License, this list of Conditions,
+ * and the following Disclaimer and Export Compliance provision. In addition,
+ * Licensee must cause all Covered Code to which Licensee contributes to
+ * contain a file documenting the changes Licensee made to create that Covered
+ * Code and the date of any change. Licensee must include in that file the
+ * documentation of any changes made by any predecessor Licensee. Licensee
+ * must include a prominent statement that the modification is derived,
+ * directly or indirectly, from Original Intel Code.
+ *
+ * 3.2. Redistribution of Source with no Rights to Further Distribute Source.
+ * Redistribution of source code of any substantial portion of the Covered
+ * Code or modification without rights to further distribute source must
+ * include the following Disclaimer and Export Compliance provision in the
+ * documentation and/or other materials provided with distribution. In
+ * addition, Licensee may not authorize further sublicense of source of any
+ * portion of the Covered Code, and must include terms to the effect that the
+ * license from Licensee to its licensee is limited to the intellectual
+ * property embodied in the software Licensee provides to its licensee, and
+ * not to intellectual property embodied in modifications its licensee may
+ * make.
+ *
+ * 3.3. Redistribution of Executable. Redistribution in executable form of any
+ * substantial portion of the Covered Code or modification must reproduce the
+ * above Copyright Notice, and the following Disclaimer and Export Compliance
+ * provision in the documentation and/or other materials provided with the
+ * distribution.
+ *
+ * 3.4. Intel retains all right, title, and interest in and to the Original
+ * Intel Code.
+ *
+ * 3.5. Neither the name Intel nor any other trademark owned or controlled by
+ * Intel shall be used in advertising or otherwise to promote the sale, use or
+ * other dealings in products derived from or relating to the Covered Code
+ * without prior written authorization from Intel.
+ *
+ * 4. Disclaimer and Export Compliance
+ *
+ * 4.1. INTEL MAKES NO WARRANTY OF ANY KIND REGARDING ANY SOFTWARE PROVIDED
+ * HERE. ANY SOFTWARE ORIGINATING FROM INTEL OR DERIVED FROM INTEL SOFTWARE
+ * IS PROVIDED "AS IS," AND INTEL WILL NOT PROVIDE ANY SUPPORT, ASSISTANCE,
+ * INSTALLATION, TRAINING OR OTHER SERVICES. INTEL WILL NOT PROVIDE ANY
+ * UPDATES, ENHANCEMENTS OR EXTENSIONS. INTEL SPECIFICALLY DISCLAIMS ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, NONINFRINGEMENT AND FITNESS FOR A
+ * PARTICULAR PURPOSE.
+ *
+ * 4.2. IN NO EVENT SHALL INTEL HAVE ANY LIABILITY TO LICENSEE, ITS LICENSEES
+ * OR ANY OTHER THIRD PARTY, FOR ANY LOST PROFITS, LOST DATA, LOSS OF USE OR
+ * COSTS OF PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, OR FOR ANY INDIRECT,
+ * SPECIAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THIS AGREEMENT, UNDER ANY
+ * CAUSE OF ACTION OR THEORY OF LIABILITY, AND IRRESPECTIVE OF WHETHER INTEL
+ * HAS ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS
+ * SHALL APPLY NOTWITHSTANDING THE FAILURE OF THE ESSENTIAL PURPOSE OF ANY
+ * LIMITED REMEDY.
+ *
+ * 4.3. Licensee shall not export, either directly or indirectly, any of this
+ * software or system incorporating such software without first obtaining any
+ * required license or other approval from the U. S. Department of Commerce or
+ * any other agency or department of the United States Government. In the
+ * event Licensee exports any such software from the United States or
+ * re-exports any such software from a foreign destination, Licensee shall
+ * ensure that the distribution and export/re-export of the software is in
+ * compliance with all laws, regulations, orders, or other restrictions of the
+ * U.S. Export Administration Regulations. Licensee agrees that neither it nor
+ * any of its subsidiaries will export/re-export any technical data, process,
+ * software, or service, directly or indirectly, to any country for which the
+ * United States government or any agency thereof requires an export license,
+ * other governmental approval, or letter of assurance, without first obtaining
+ * such license, approval or letter.
+ *
+ *****************************************************************************
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
+ * following license:
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,23 +131,23 @@
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * Alternatively, this software may be distributed under the terms of the
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Alternatively, you may choose to be licensed under the terms of the
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
@@ -97,32 +205,32 @@ LsDoListings (
     void)
 {
 
-    if (Gbl_C_OutputFlag)
+    if (AslGbl_C_OutputFlag)
     {
         LsGenerateListing (ASL_FILE_C_SOURCE_OUTPUT);
     }
 
-    if (Gbl_ListingFlag)
+    if (AslGbl_ListingFlag)
     {
         LsGenerateListing (ASL_FILE_LISTING_OUTPUT);
     }
 
-    if (Gbl_AsmOutputFlag)
+    if (AslGbl_AsmOutputFlag)
     {
         LsGenerateListing (ASL_FILE_ASM_SOURCE_OUTPUT);
     }
 
-    if (Gbl_C_IncludeOutputFlag)
+    if (AslGbl_C_IncludeOutputFlag)
     {
         LsGenerateListing (ASL_FILE_C_INCLUDE_OUTPUT);
     }
 
-    if (Gbl_AsmIncludeOutputFlag)
+    if (AslGbl_AsmIncludeOutputFlag)
     {
         LsGenerateListing (ASL_FILE_ASM_INCLUDE_OUTPUT);
     }
 
-    if (Gbl_C_OffsetTableFlag)
+    if (AslGbl_C_OffsetTableFlag)
     {
         LsGenerateListing (ASL_FILE_C_OFFSET_OUTPUT);
     }
@@ -151,28 +259,28 @@ LsGenerateListing (
 
     FlSeekFile (ASL_FILE_SOURCE_OUTPUT, 0);
     FlSeekFile (ASL_FILE_AML_OUTPUT, 0);
-    Gbl_SourceLine = 0;
-    Gbl_CurrentHexColumn = 0;
-    LsPushNode (Gbl_Files[ASL_FILE_INPUT].Filename);
+    AslGbl_SourceLine = 0;
+    AslGbl_CurrentHexColumn = 0;
+    LsPushNode (AslGbl_Files[ASL_FILE_INPUT].Filename);
 
     if (FileId == ASL_FILE_C_OFFSET_OUTPUT)
     {
-        Gbl_CurrentAmlOffset = 0;
+        AslGbl_CurrentAmlOffset = 0;
 
         /* Offset table file has a special header and footer */
 
         LsDoOffsetTableHeader (FileId);
 
-        TrWalkParseTree (RootNode, ASL_WALK_VISIT_DOWNWARD, LsAmlOffsetWalk,
-            NULL, (void *) ACPI_TO_POINTER (FileId));
+        TrWalkParseTree (AslGbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
+            LsAmlOffsetWalk, NULL, (void *) ACPI_TO_POINTER (FileId));
         LsDoOffsetTableFooter (FileId);
         return;
     }
 
     /* Process all parse nodes */
 
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_DOWNWARD, LsAmlListingWalk,
-        NULL, (void *) ACPI_TO_POINTER (FileId));
+    TrWalkParseTree (AslGbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
+        LsAmlListingWalk, NULL, (void *) ACPI_TO_POINTER (FileId));
 
     /* Final processing */
 
@@ -205,10 +313,16 @@ LsAmlListingWalk (
 
     LsWriteNodeToListing (Op, FileId);
 
-    if (Op->Asl.CompileFlags & NODE_IS_RESOURCE_DATA)
+    if (Op->Asl.CompileFlags & OP_IS_RESOURCE_DATA)
     {
         /* Buffer is a resource template, don't dump the data all at once */
 
+        return (AE_OK);
+    }
+
+    if ((FileId == ASL_FILE_ASM_INCLUDE_OUTPUT) ||
+        (FileId == ASL_FILE_C_INCLUDE_OUTPUT))
+    {
         return (AE_OK);
     }
 
@@ -221,6 +335,7 @@ LsAmlListingWalk (
             FlFileError (ASL_FILE_AML_OUTPUT, ASL_MSG_READ);
             AslAbort ();
         }
+
         LsWriteListingHexBytes (&FileByte, 1, FileId);
     }
 
@@ -245,14 +360,18 @@ LsDumpParseTree (
     void)
 {
 
-    if (!Gbl_DebugFlag)
+    if (!AslGbl_DebugFlag)
     {
         return;
     }
 
     DbgPrint (ASL_TREE_OUTPUT, "\nOriginal parse tree from parser:\n\n");
-    TrWalkParseTree (RootNode, ASL_WALK_VISIT_DOWNWARD,
+    DbgPrint (ASL_TREE_OUTPUT, ASL_PARSE_TREE_HEADER1);
+
+    TrWalkParseTree (AslGbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
         LsTreeWriteWalk, NULL, NULL);
+
+    DbgPrint (ASL_TREE_OUTPUT, ASL_PARSE_TREE_HEADER1);
 }
 
 
@@ -263,14 +382,71 @@ LsTreeWriteWalk (
     void                    *Context)
 {
 
-    /* Debug output */
+    /* Dump ParseOp name and possible value */
 
-    DbgPrint (ASL_TREE_OUTPUT,
-        "%5.5d [%2d]", Op->Asl.LogicalLineNumber, Level);
+    switch (Op->Asl.ParseOpcode)
+    {
+        case PARSEOP_NAMESEG:
+        case PARSEOP_NAMESTRING:
+        case PARSEOP_METHODCALL:
+        case PARSEOP_STRING_LITERAL:
 
-    UtPrintFormattedName (Op->Asl.ParseOpcode, Level);
+        UtDumpStringOp (Op, Level);
+        break;
 
-    DbgPrint (ASL_TREE_OUTPUT, "    (%.4X)\n", Op->Asl.ParseOpcode);
+    case PARSEOP_BYTECONST:
+
+        UtDumpIntegerOp (Op, Level, 2);
+        break;
+
+    case PARSEOP_WORDCONST:
+    case PARSEOP_PACKAGE_LENGTH:
+
+        UtDumpIntegerOp (Op, Level, 4);
+        break;
+
+    case PARSEOP_DWORDCONST:
+    case PARSEOP_EISAID:
+
+        UtDumpIntegerOp (Op, Level, 8);
+        break;
+
+    case PARSEOP_QWORDCONST:
+    case PARSEOP_INTEGER:
+    case PARSEOP_ONE:
+    case PARSEOP_ZERO:
+    case PARSEOP_ONES:
+
+        UtDumpIntegerOp (Op, Level, 16);
+        break;
+
+    case PARSEOP_INCLUDE:
+
+        DbgPrint (ASL_TREE_OUTPUT,
+            "Open: %s\n", Op->Asl.Value.String);
+        return (AE_OK);
+
+    case PARSEOP_INCLUDE_END:
+
+        DbgPrint (ASL_TREE_OUTPUT,
+            "Close: %s\n", Op->Asl.Filename);
+        return (AE_OK);
+
+    default:
+
+        UtDumpBasicOp (Op, Level);
+        break;
+    }
+
+    /* Dump the remaining data */
+
+    DbgPrint (ASL_TREE_OUTPUT, ASL_PARSE_TREE_DEBUG1,
+        Op->Asl.ParseOpcode, Op->Asl.CompileFlags,
+        Op->Asl.LineNumber, Op->Asl.EndLine,
+        Op->Asl.LogicalLineNumber, Op->Asl.EndLogicalLine);
+
+    TrPrintOpFlags (Op->Asl.CompileFlags, ASL_TREE_OUTPUT);
+    DbgPrint (ASL_TREE_OUTPUT, "\n");
     return (AE_OK);
 }
 
@@ -313,7 +489,7 @@ LsWriteNodeToListing (
     {
         switch (Op->Asl.ParseOpcode)
         {
-        case PARSEOP_DEFINITIONBLOCK:
+        case PARSEOP_DEFINITION_BLOCK:
         case PARSEOP_METHODCALL:
         case PARSEOP_INCLUDE:
         case PARSEOP_INCLUDE_END:
@@ -359,36 +535,49 @@ LsWriteNodeToListing (
 
     switch (Op->Asl.ParseOpcode)
     {
-    case PARSEOP_DEFINITIONBLOCK:
+    case PARSEOP_DEFINITION_BLOCK:
 
+        /* Always start a definition block at AML offset zero */
+
+        AslGbl_CurrentAmlOffset = 0;
         LsWriteSourceLines (Op->Asl.EndLine, Op->Asl.EndLogicalLine, FileId);
 
         /* Use the table Signature and TableId to build a unique name */
 
-        if (FileId == ASL_FILE_ASM_SOURCE_OUTPUT)
+        switch (FileId)
         {
+        case ASL_FILE_ASM_SOURCE_OUTPUT:
+
             FlPrintFile (FileId,
                 "%s_%s_Header \\\n",
-                Gbl_TableSignature, Gbl_TableId);
-        }
-        if (FileId == ASL_FILE_C_SOURCE_OUTPUT)
-        {
+                AslGbl_TableSignature, AslGbl_TableId);
+            break;
+
+        case ASL_FILE_C_SOURCE_OUTPUT:
+
             FlPrintFile (FileId,
                 "    unsigned char    %s_%s_Header [] =\n    {\n",
-                Gbl_TableSignature, Gbl_TableId);
-        }
-        if (FileId == ASL_FILE_ASM_INCLUDE_OUTPUT)
-        {
+                AslGbl_TableSignature, AslGbl_TableId);
+            break;
+
+        case ASL_FILE_ASM_INCLUDE_OUTPUT:
+
             FlPrintFile (FileId,
                 "extrn %s_%s_Header : byte\n",
-                Gbl_TableSignature, Gbl_TableId);
-        }
-        if (FileId == ASL_FILE_C_INCLUDE_OUTPUT)
-        {
+                AslGbl_TableSignature, AslGbl_TableId);
+            break;
+
+        case ASL_FILE_C_INCLUDE_OUTPUT:
+
             FlPrintFile (FileId,
                 "extern unsigned char    %s_%s_Header [];\n",
-                Gbl_TableSignature, Gbl_TableId);
+                AslGbl_TableSignature, AslGbl_TableId);
+            break;
+
+        default:
+            break;
         }
+
         return;
 
 
@@ -408,7 +597,7 @@ LsWriteNodeToListing (
 
         /* Create a new listing node and push it */
 
-        LsPushNode (Op->Asl.Child->Asl.Value.String);
+        LsPushNode (Op->Asl.Value.String);
         return;
 
 
@@ -427,7 +616,7 @@ LsWriteNodeToListing (
 
     case PARSEOP_DEFAULT_ARG:
 
-        if (Op->Asl.CompileFlags & NODE_IS_RESOURCE_DESC)
+        if (Op->Asl.CompileFlags & OP_IS_RESOURCE_DESC)
         {
             LsWriteSourceLines (Op->Asl.LineNumber, Op->Asl.EndLogicalLine,
                 FileId);
@@ -471,7 +660,7 @@ LsWriteNodeToListing (
 
         case AML_NAME_OP:
 
-            if (Op->Asl.CompileFlags & NODE_IS_RESOURCE_DESC)
+            if (Op->Asl.CompileFlags & OP_IS_RESOURCE_DESC)
             {
                 LsWriteSourceLines (Op->Asl.LineNumber, Op->Asl.LogicalLineNumber,
                     FileId);
@@ -537,31 +726,41 @@ LsWriteNodeToListing (
 
                         /* Create the appropriate symbol in the output file */
 
-                        if (FileId == ASL_FILE_ASM_SOURCE_OUTPUT)
+                        switch (FileId)
                         {
+                        case ASL_FILE_ASM_SOURCE_OUTPUT:
+
                             FlPrintFile (FileId,
                                 "%s_%s_%s  \\\n",
-                                Gbl_TableSignature, Gbl_TableId, &Pathname[1]);
-                        }
-                        if (FileId == ASL_FILE_C_SOURCE_OUTPUT)
-                        {
+                                AslGbl_TableSignature, AslGbl_TableId, &Pathname[1]);
+                            break;
+
+                        case ASL_FILE_C_SOURCE_OUTPUT:
+
                             FlPrintFile (FileId,
                                 "    unsigned char    %s_%s_%s [] =\n    {\n",
-                                Gbl_TableSignature, Gbl_TableId, &Pathname[1]);
-                        }
-                        if (FileId == ASL_FILE_ASM_INCLUDE_OUTPUT)
-                        {
+                                AslGbl_TableSignature, AslGbl_TableId, &Pathname[1]);
+                            break;
+
+                        case ASL_FILE_ASM_INCLUDE_OUTPUT:
+
                             FlPrintFile (FileId,
                                 "extrn %s_%s_%s : byte\n",
-                                Gbl_TableSignature, Gbl_TableId, &Pathname[1]);
-                        }
-                        if (FileId == ASL_FILE_C_INCLUDE_OUTPUT)
-                        {
+                                AslGbl_TableSignature, AslGbl_TableId, &Pathname[1]);
+                            break;
+
+                        case ASL_FILE_C_INCLUDE_OUTPUT:
+
                             FlPrintFile (FileId,
                                 "extern unsigned char    %s_%s_%s [];\n",
-                                Gbl_TableSignature, Gbl_TableId, &Pathname[1]);
+                                AslGbl_TableSignature, AslGbl_TableId, &Pathname[1]);
+                            break;
+
+                        default:
+                            break;
                         }
                     }
+
                     ACPI_FREE (Pathname);
                 }
                 break;
@@ -580,7 +779,7 @@ LsWriteNodeToListing (
     default:
 
         if ((Op->Asl.ParseOpcode == PARSEOP_BUFFER) &&
-            (Op->Asl.CompileFlags & NODE_IS_RESOURCE_DESC))
+            (Op->Asl.CompileFlags & OP_IS_RESOURCE_DESC))
         {
             return;
         }
@@ -622,7 +821,7 @@ LsFinishSourceListing (
     }
 
     LsFlushListingBuffer (FileId);
-    Gbl_CurrentAmlOffset = 0;
+    AslGbl_CurrentAmlOffset = 0;
 
     /* Flush any remaining text in the source file */
 

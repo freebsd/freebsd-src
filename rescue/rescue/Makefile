@@ -3,6 +3,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=rescue
 MAN=
 MK_SSP=	no
 
@@ -51,8 +52,9 @@ CRUNCH_LIBS+= ${.OBJDIR}/../librescue/*.o
 CRUNCH_SRCDIRS+= bin
 CRUNCH_PROGS_bin= cat chflags chio chmod cp date dd df echo 	\
 	 ed expr getfacl hostname kenv kill ln ls mkdir mv	\
-	 pkill ps pwd realpath rm rmdir setfacl sh stty sync test
-CRUNCH_LIBS+= -lcrypt -ledit -ljail -lkvm -ll -ltermcapw -lutil
+	 pkill ps pwd realpath rm rmdir setfacl sh sleep stty	\
+	 sync test
+CRUNCH_LIBS+= -lcrypt -ledit -ljail -lkvm -lelf -ll -ltermcapw -lutil -lxo
 CRUNCH_BUILDTOOLS+= bin/sh
 
 # Additional options for specific programs
@@ -64,10 +66,6 @@ CRUNCH_ALIAS_ln= link
 CRUNCH_ALIAS_rm= unlink
 CRUNCH_ALIAS_ed= red
 CRUNCH_ALIAS_pkill= pgrep
-
-.if ${MK_RCMDS} != "no"
-CRUNCH_PROGS_bin+= rcp
-.endif
 
 .if ${MK_TCSH} != "no"
 CRUNCH_PROGS_bin+= csh
@@ -87,8 +85,8 @@ CRUNCH_SUPPRESS_LINK_-tcsh= 1
 # headers in addition to the standard 'paths.h' header.
 #
 CRUNCH_SRCDIRS+= sbin
-CRUNCH_PROGS_sbin= badsect					\
-	camcontrol ccdconfig clri devfs dmesg dump		\
+CRUNCH_PROGS_sbin= 						\
+	camcontrol clri devfs dmesg dump			\
 	dumpfs dumpon fsck fsck_ffs fsck_msdosfs fsdb		\
 	fsirand gbde geom ifconfig init 			\
 	kldconfig kldload kldstat kldunload ldconfig 		\
@@ -96,21 +94,29 @@ CRUNCH_PROGS_sbin= badsect					\
 	mount_msdosfs mount_nfs mount_nullfs			\
 	mount_udf mount_unionfs newfs				\
 	newfs_msdos nos-tun ping reboot				\
-	restore rcorder route routed rtquery rtsol savecore	\
-	spppcontrol swapon sysctl tunefs umount
+	restore rcorder route savecore		 		\
+	shutdown spppcontrol swapon sysctl tunefs umount
 
-.if ${MK_ATM} != "no"
-CRUNCH_PROGS_sbin+= atmconfig
+.if ${MK_CCD} != "no"
+CRUNCH_PROGS_sbin+= ccdconfig
 .endif
 
 .if ${MK_INET6_SUPPORT} != "no"
 CRUNCH_PROGS_sbin+= ping6
+CRUNCH_PROGS_sbin+= rtsol
 .endif
 
 .if ${MK_IPFILTER} != "no"
 CRUNCH_PROGS_sbin+= ipf
+CRUNCH_LIBS_ipf+=	${LIBIPF}
 .endif
+
+.if ${MK_ROUTED} != "no"
+CRUNCH_PROGS_sbin+= routed rtquery
+.endif
+
 .if ${MK_ZFS} != "no"
+CRUNCH_PROGS_sbin+= bectl
 CRUNCH_PROGS_sbin+= zfs
 CRUNCH_PROGS_sbin+= zpool
 CRUNCH_PROGS_usr.sbin+= zdb
@@ -119,25 +125,25 @@ CRUNCH_PROGS_usr.sbin+= zdb
 # crunchgen does not like C++ programs; this should be fixed someday
 # CRUNCH_PROGS+= devd
 
-CRUNCH_LIBS+= -lalias -lcam -lncursesw -ldevstat -lipsec
+CRUNCH_LIBS+= -l80211 -lalias -lcam -lncursesw -ldevstat -lipsec -llzma
 .if ${MK_ZFS} != "no"
 CRUNCH_LIBS+= -lavl -lzpool -lzfs_core -lzfs -lnvpair -lpthread -luutil -lumem
+CRUNCH_LIBS+= -lbe
+.else
+# liblzma needs pthread
+CRUNCH_LIBS+= -lpthread
 .endif
 CRUNCH_LIBS+= -lgeom -lbsdxml -lkiconv
 .if ${MK_OPENSSL} == "no"
 CRUNCH_LIBS+= -lmd
 .endif
-CRUNCH_LIBS+= -lsbuf -lufs -lz
+CRUNCH_LIBS+= -lmt -lsbuf -lufs -lz
 
 .if ${MACHINE_CPUARCH} == "i386"
 CRUNCH_PROGS_sbin+= bsdlabel sconfig fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
 #CRUNCH_PROGS+= mount_smbfs
 #CRUNCH_LIBS+= -lsmb
-.endif
-
-.if ${MACHINE} == "pc98"
-CRUNCH_SRCDIR_fdisk= $(.CURDIR)/../../sbin/fdisk_pc98
 .endif
 
 .if ${MACHINE_CPUARCH} == "sparc64"
@@ -149,22 +155,19 @@ CRUNCH_PROGS_sbin+= bsdlabel fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
-CRUNCH_SRCDIR_atm= $(.CURDIR)/../../sbin/atm/atm
-CRUNCH_SRCDIR_atmconfig= $(.CURDIR)/../../sbin/atm/atmconfig
-CRUNCH_SRCDIR_fore_dnld= $(.CURDIR)/../../sbin/atm/fore_dnld
-CRUNCH_SRCDIR_ilmid= $(.CURDIR)/../../sbin/atm/ilmid
-CRUNCH_SRCDIR_rtquery= $(.CURDIR)/../../sbin/routed/rtquery
-CRUNCH_SRCDIR_ipf= $(.CURDIR)/../../sbin/ipf/ipf
+CRUNCH_SRCDIR_rtquery= ${SRCTOP}/sbin/routed/rtquery
+CRUNCH_SRCDIR_ipf= ${SRCTOP}/sbin/ipf/ipf
 .if ${MK_ZFS} != "no"
-CRUNCH_SRCDIR_zfs= ${.CURDIR}/../../cddl/sbin/zfs
-CRUNCH_SRCDIR_zpool= ${.CURDIR}/../../cddl/sbin/zpool
-CRUNCH_SRCDIR_zdb= ${.CURDIR}/../../cddl/usr.sbin/zdb
+CRUNCH_SRCDIR_zfs= ${SRCTOP}/cddl/sbin/zfs
+CRUNCH_SRCDIR_zpool= ${SRCTOP}/cddl/sbin/zpool
+CRUNCH_SRCDIR_zdb= ${SRCTOP}/cddl/usr.sbin/zdb
 .endif
 CRUNCH_ALIAS_reboot= fastboot halt fasthalt
 CRUNCH_ALIAS_restore= rrestore
 CRUNCH_ALIAS_dump= rdump
 CRUNCH_ALIAS_fsck_ffs= fsck_4.2bsd fsck_ufs
 CRUNCH_ALIAS_geom= glabel gpart
+CRUNCH_ALIAS_shutdown= poweroff
 
 # dhclient has historically been troublesome...
 CRUNCH_PROGS_sbin+= dhclient
@@ -175,7 +178,7 @@ CRUNCH_BUILDOPTS_dhclient= -DRELEASE_CRUNCH -Dlint
 #
 CRUNCH_SRCDIRS+= usr.bin
 
-CRUNCH_PROGS_usr.bin= head mt nc sed tail tee
+CRUNCH_PROGS_usr.bin= head mt sed tail tee
 
 CRUNCH_PROGS_usr.bin+= gzip
 CRUNCH_ALIAS_gzip= gunzip gzcat zcat
@@ -189,7 +192,10 @@ CRUNCH_ALIAS_less= more
 
 CRUNCH_PROGS_usr.bin+= xz
 CRUNCH_ALIAS_xz= unxz lzma unlzma xzcat lzcat
-CRUNCH_LIBS+= -llzma
+
+CRUNCH_PROGS_usr.bin+= zstd
+CRUNCH_ALIAS_zstd= unzstd zstdcat zstdmt
+CRUNCH_LIBS+=	${LDADD_zstd}
 
 CRUNCH_PROGS_usr.bin+= tar
 CRUNCH_LIBS+= -larchive
@@ -198,8 +204,14 @@ CRUNCH_LIBS+= -lcrypto
 .endif
 CRUNCH_LIBS+= -lmd
 
+.if ${MK_NETCAT} != "no"
+CRUNCH_PROGS_usr.bin+=	nc
+.endif
+
+.if ${MK_VI} != "no"
 CRUNCH_PROGS_usr.bin+= vi
 CRUNCH_ALIAS_vi= ex
+.endif
 
 CRUNCH_PROGS_usr.bin+= id
 CRUNCH_ALIAS_id= groups whoami
@@ -215,6 +227,11 @@ CRUNCH_PROGS_usr.sbin+= chown
 CRUNCH_ALIAS_chown= chgrp
 ##################################################################
 CRUNCH_LIBS+= -lm
+
+.if ${MK_ISCSI} != "no"
+CRUNCH_PROGS_usr.bin+=	iscsictl
+CRUNCH_PROGS_usr.sbin+=	iscsid
+.endif
 
 .include <bsd.crunchgen.mk>
 .include <bsd.prog.mk>

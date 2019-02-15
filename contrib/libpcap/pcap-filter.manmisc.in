@@ -1,5 +1,3 @@
-.\" @(#) $Header: /tcpdump/master/libpcap/pcap-filter.manmisc.in,v 1.1 2008-10-21 07:33:01 guy Exp $ (LBL)
-.\"
 .\" Copyright (c) 1987, 1988, 1989, 1990, 1991, 1992, 1994, 1995, 1996, 1997
 .\"	The Regents of the University of California.  All rights reserved.
 .\" All rights reserved.
@@ -20,7 +18,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH PCAP-FILTER @MAN_MISC_INFO@ "6 January 2008"
+.TH PCAP-FILTER @MAN_MISC_INFO@ "3 August 2015"
 .SH NAME
 pcap-filter \- packet filter syntax
 .br
@@ -183,9 +181,10 @@ be checked for a match.
 .IP "\fBether dst \fIehost\fP"
 True if the Ethernet destination address is \fIehost\fP.
 \fIEhost\fP
-may be either a name from /etc/ethers or a number (see
-.IR ethers (3N)
-for numeric format).
+may be either a name from /etc/ethers or a numerical MAC address of the
+form "xx:xx:xx:xx:xx:xx", "xx.xx.xx.xx.xx.xx", "xx-xx-xx-xx-xx-xx",
+"xxxx.xxxx.xxxx", "xxxxxxxxxxxx", or various mixes of ':', '.', and '-',
+where each "x" is a hex digit (0-9, a-f, or A-F).
 .IP "\fBether src \fIehost\fP"
 True if the Ethernet source address is \fIehost\fP.
 .IP "\fBether host \fIehost\fP"
@@ -300,7 +299,7 @@ of protocol type \fIprotocol\fP.
 \fBicmp\fP, \fBicmp6\fP, \fBigmp\fP, \fBigrp\fP, \fBpim\fP, \fBah\fP,
 \fBesp\fP, \fBvrrp\fP, \fBudp\fP, or \fBtcp\fP.
 Note that the identifiers \fBtcp\fP, \fBudp\fP, and \fBicmp\fP are also
-keywords and must be escaped via backslash (\\), which is \\\\ in the C-shell.
+keywords and must be escaped via backslash (\\).
 Note that this primitive does not chase the protocol header chain.
 .IP "\fBip6 proto \fIprotocol\fR"
 True if the packet is an IPv6 packet of protocol type \fIprotocol\fP.
@@ -332,8 +331,9 @@ The packet may contain, for example,
 authentication header, routing header, or hop-by-hop option header,
 between IPv6 header and TCP header.
 The BPF code emitted by this primitive is complex and
-cannot be optimized by the BPF optimizer code, so this can be somewhat
-slow.
+cannot be optimized by the BPF optimizer code, and is not supported by
+filter engines in the kernel, so this can be somewhat slow, and may
+cause more packets to be dropped.
 .IP "\fBip protochain \fIprotocol\fR"
 Equivalent to \fBip6 protochain \fIprotocol\fR, but this is for IPv4.
 .IP "\fBprotochain \fIprotocol\fR"
@@ -373,9 +373,9 @@ True if the packet is of ether type \fIprotocol\fR.
 Note these identifiers are also keywords
 and must be escaped via backslash (\\).
 .IP
-[In the case of FDDI (e.g., `\fBfddi protocol arp\fR'), Token Ring
-(e.g., `\fBtr protocol arp\fR'), and IEEE 802.11 wireless LANS (e.g.,
-`\fBwlan protocol arp\fR'), for most of those protocols, the
+[In the case of FDDI (e.g., `\fBfddi proto arp\fR'), Token Ring
+(e.g., `\fBtr proto arp\fR'), and IEEE 802.11 wireless LANS (e.g.,
+`\fBwlan proto arp\fR'), for most of those protocols, the
 protocol identification comes from the 802.2 Logical Link Control (LLC)
 header, which is usually layered on top of the FDDI, Token Ring, or
 802.11 header.
@@ -453,6 +453,67 @@ True if the DECNET destination address is
 .IP "\fBdecnet host \fIhost\fR"
 True if either the DECNET source or destination address is
 .IR host .
+.IP \fBllc\fP
+True if the packet has an 802.2 LLC header.  This includes:
+.IP
+Ethernet packets with a length field rather than a type field that
+aren't raw NetWare-over-802.3 packets;
+.IP
+IEEE 802.11 data packets;
+.IP
+Token Ring packets (no check is done for LLC frames);
+.IP
+FDDI packets (no check is done for LLC frames);
+.IP
+LLC-encapsulated ATM packets, for SunATM on Solaris.
+.IP
+
+.IP "\fBllc\fP \Fitype\fR"
+True if the packet has an 802.2 LLC header and has the specified
+.IR type .
+.I type
+can be one of:
+.RS
+.TP
+\fBi\fR
+Information (I) PDUs
+.TP
+\fBs\fR
+Supervisory (S) PDUs
+.TP
+\fBu\fR
+Unnumbered (U) PDUs
+.TP
+\fBrr\fR
+Receiver Ready (RR) S PDUs
+.TP
+\fBrnr\fR
+Receiver Not Ready (RNR) S PDUs
+.TP
+\fBrej\fR
+Reject (REJ) S PDUs
+.TP
+\fBui\fR
+Unnumbered Information (UI) U PDUs
+.TP
+\fBua\fR
+Unnumbered Acknowledgment (UA) U PDUs
+.TP
+\fBdisc\fR
+Disconnect (DISC) U PDUs
+.TP
+\fBsabme\fR
+Set Asynchronous Balanced Mode Extended (SABME) U PDUs
+.TP
+\fBtest\fR
+Test (TEST) U PDUs
+.TP
+\fBxid\fR
+Exchange Identification (XID) U PDUs
+.TP
+\fBfrmr\fR
+Frame Reject (FRMR) U PDUs
+.RE
 .IP "\fBifname \fIinterface\fR"
 True if the packet was logged as coming from the specified interface (applies
 only to packets logged by OpenBSD's or FreeBSD's
@@ -487,7 +548,7 @@ name of an anchored ruleset (applies only to packets logged by OpenBSD's
 or FreeBSD's
 .BR pf (4)).
 .IP "\fBruleset \fIname\fR"
-Synonomous with the
+Synonymous with the
 .B rset
 modifier.
 .IP "\fBsrnr \fInum\fR"
@@ -496,7 +557,7 @@ of an anchored ruleset (applies only to packets logged by OpenBSD's or
 FreeBSD's
 .BR pf (4)).
 .IP "\fBsubrulenum \fInum\fR"
-Synonomous with the
+Synonymous with the
 .B srnr
 modifier.
 .IP "\fBaction \fIact\fR"
@@ -637,7 +698,7 @@ changes the decoding offsets for the remainder of \fIexpression\fR on
 the assumption that the packet is a MPLS-encapsulated IP packet.  The
 \fBmpls \fI[label_num]\fR expression may be used more than once, to
 filter on MPLS hierarchies.  Each use of that expression increments the
-filter offsets by 4. 
+filter offsets by 4.
 .IP
 For example:
 .in +.5i
@@ -657,9 +718,11 @@ any outer label.
 .IP \fBpppoed\fP
 True if the packet is a PPP-over-Ethernet Discovery packet (Ethernet
 type 0x8863).
-.IP \fBpppoes\fP
+.IP "\fBpppoes \fI[session_id]\fR"
 True if the packet is a PPP-over-Ethernet Session packet (Ethernet
 type 0x8864).
+If \fI[session_id]\fR is specified, only true if the packet has the specified
+\fIsession_id\fR.
 Note that the first \fBpppoes\fR keyword encountered in \fIexpression\fR
 changes the decoding offsets for the remainder of \fIexpression\fR on
 the assumption that the packet is a PPPoE session packet.
@@ -667,10 +730,26 @@ the assumption that the packet is a PPPoE session packet.
 For example:
 .in +.5i
 .nf
-\fBpppoes && ip\fR
+\fBpppoes 0x27 && ip\fR
 .fi
 .in -.5i
-filters IPv4 protocols encapsulated in PPPoE.
+filters IPv4 protocols encapsulated in PPPoE session id 0x27.
+.IP "\fBgeneve \fI[vni]\fR"
+True if the packet is a Geneve packet (UDP port 6081). If \fI[vni]\fR
+is specified, only true if the packet has the specified \fIvni\fR.
+Note that when the \fBgeneve\fR keyword is encountered in
+\fIexpression\fR, it changes the decoding offsets for the remainder of
+\fIexpression\fR on the assumption that the packet is a Geneve packet.
+.IP
+For example:
+.in +.5i
+.nf
+\fBgeneve 0xb && ip\fR
+.fi
+.in -.5i
+filters IPv4 protocols encapsulated in Geneve with VNI 0xb. This will
+match both IP directly encapsulated in Geneve as well as IP contained
+inside an Ethernet frame.
 .IP "\fBiso proto \fIprotocol\fR"
 True if the packet is an OSI packet of protocol type \fIprotocol\fP.
 \fIProtocol\fP can be a number or one of the names
@@ -702,9 +781,6 @@ on the assumption that the packet is either a LANE emulated Ethernet
 packet or a LANE LE Control packet.  If \fBlane\fR isn't specified, the
 tests are done under the assumption that the packet is an
 LLC-encapsulated packet.
-.IP \fBllc\fP
-True if the packet is an ATM packet, for SunATM on Solaris, and is
-an LLC-encapsulated packet.
 .IP \fBoamf4s\fP
 True if the packet is an ATM packet, for SunATM on Solaris, and is
 a segment OAM F4 flow cell (VPI=0 & VCI=3).
@@ -741,11 +817,17 @@ Release, or Release Done message.
 True if the relation holds, where \fIrelop\fR is one of >, <, >=, <=, =,
 !=, and \fIexpr\fR is an arithmetic expression composed of integer
 constants (expressed in standard C syntax), the normal binary operators
-[+, -, *, /, &, |, <<, >>], a length operator, and special packet data
+[+, -, *, /, %, &, |, ^, <<, >>], a length operator, and special packet data
 accessors.  Note that all comparisons are unsigned, so that, for example,
 0x80000000 and 0xffffffff are > 0.
-To access
-data inside the packet, use the following syntax:
+.IP
+The % and ^ operators are currently only supported for filtering in the
+kernel on Linux with 3.7 and later kernels; on all other systems, if
+those operators are used, filtering will be done in user mode, which
+will increase the overhead of capturing packets and may cause more
+packets to be dropped.
+.IP
+To access data inside the packet, use the following syntax:
 .in +.5i
 .nf
 \fIproto\fB [ \fIexpr\fB : \fIsize\fB ]\fR
@@ -782,8 +864,9 @@ intervening fragment.
 Some offsets and field values may be expressed as names rather than
 as numeric values.
 The following protocol header field offsets are
-available: \fBicmptype\fP (ICMP type field), \fBicmpcode\fP (ICMP
-code field), and \fBtcpflags\fP (TCP flags field).
+available: \fBicmptype\fP (ICMP type field), \fBicmp6type (ICMP v6 type field)
+\fBicmpcode\fP (ICMP code field), \fBicmp6code\fP (ICMP v6 code field), and
+\fBtcpflags\fP (TCP flags field).
 
 The following ICMP type field values are available: \fBicmp-echoreply\fP,
 \fBicmp-unreach\fP, \fBicmp-sourcequench\fP, \fBicmp-redirect\fP,
@@ -792,6 +875,20 @@ The following ICMP type field values are available: \fBicmp-echoreply\fP,
 \fBicmp-tstampreply\fP, \fBicmp-ireq\fP, \fBicmp-ireqreply\fP,
 \fBicmp-maskreq\fP, \fBicmp-maskreply\fP.
 
+The following ICMPv6 type fields are available: \fBicmp6-echo\fP,
+\fBicmp6-echoreply\fP, \fBicmp6-multicastlistenerquery\fP,
+\fBicmp6-multicastlistenerreportv1\fP, \fBicmp6-multicastlistenerdone\fP,
+\fBicmp6-routersolicit\fP, \fBicmp6-routeradvert\fP,
+\fBicmp6-neighborsolicit\fP, \fBicmp6-neighboradvert\fP, \fBicmp6-redirect\fP,
+\fBicmp6-routerrenum\fP, \fBicmp6-nodeinformationquery\fP,
+\fBicmp6-nodeinformationresponse\fP, \fBicmp6-ineighbordiscoverysolicit\fP,
+\fBicmp6-ineighbordiscoveryadvert\fP, \fBicmp6-multicastlistenerreportv2\fP,
+\fBicmp6-homeagentdiscoveryrequest\fP, \fBicmp6-homeagentdiscoveryreply\fP,
+\fBicmp6-mobileprefixsolicit\fP, \fBicmp6-mobileprefixadvert\fP,
+\fBicmp6-certpathsolicit\fP, \fBicmp6-certpathadvert\fP,
+\fBicmp6-multicastrouteradvert\fP, \fBicmp6-multicastroutersolicit\fP,
+\fBicmp6-multicastrouterterm\fP.
+
 The following TCP flags field values are available: \fBtcp-fin\fP,
 \fBtcp-syn\fP, \fBtcp-rst\fP, \fBtcp-push\fP,
 \fBtcp-ack\fP, \fBtcp-urg\fP, \fBtcp-ece\fP,
@@ -799,8 +896,7 @@ The following TCP flags field values are available: \fBtcp-fin\fP,
 .LP
 Primitives may be combined using:
 .IP
-A parenthesized group of primitives and operators
-(parentheses are special to the Shell and must be escaped).
+A parenthesized group of primitives and operators.
 .IP
 Negation (`\fB!\fP' or `\fBnot\fP').
 .IP
@@ -931,11 +1027,12 @@ icmp[icmptype] != icmp-echo and icmp[icmptype] != icmp-echoreply
 .SH "SEE ALSO"
 pcap(3PCAP)
 .SH BUGS
-Please send problems, bugs, questions, desirable enhancements, etc. to:
+To report a security issue please send an e-mail to security@tcpdump.org.
 .LP
-.RS
-tcpdump-workers@lists.tcpdump.org
-.RE
+To report bugs and other problems, contribute patches, request a
+feature, provide generic feedback etc please see the file
+.I CONTRIBUTING
+in the libpcap source tree root.
 .LP
 Filter expressions on fields other than those in Token Ring headers will
 not correctly handle source-routed Token Ring packets.

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013, Nathan Whitehorn <nwhitehorn@FreeBSD.org>
  * All rights reserved.
  *
@@ -88,19 +90,20 @@ phyp_iommu_set_dma_tag(device_t bus, device_t dev, bus_dma_tag_t tag)
 		return (ENXIO);
 
 	node = ofw_bus_get_node(p);
-	if (OF_getprop(node, "ibm,#dma-size-cells", &dma_scells,
+	if (OF_getencprop(node, "ibm,#dma-size-cells", &dma_scells,
 	    sizeof(cell_t)) <= 0)
-		OF_searchprop(node, "#size-cells", &dma_scells, sizeof(cell_t));
-	if (OF_getprop(node, "ibm,#dma-address-cells", &dma_acells,
+		OF_searchencprop(node, "#size-cells", &dma_scells,
+		    sizeof(cell_t));
+	if (OF_getencprop(node, "ibm,#dma-address-cells", &dma_acells,
 	    sizeof(cell_t)) <= 0)
-		OF_searchprop(node, "#address-cells", &dma_acells,
+		OF_searchencprop(node, "#address-cells", &dma_acells,
 		    sizeof(cell_t));
 
 	if (ofw_bus_has_prop(p, "ibm,my-dma-window"))
-		OF_getprop(node, "ibm,my-dma-window", dmawindow,
+		OF_getencprop(node, "ibm,my-dma-window", dmawindow,
 		    sizeof(cell_t)*(dma_scells + dma_acells + 1));
 	else
-		OF_getprop(node, "ibm,dma-window", dmawindow,
+		OF_getencprop(node, "ibm,dma-window", dmawindow,
 		    sizeof(cell_t)*(dma_scells + dma_acells + 1));
 
 	struct dma_window *window = malloc(sizeof(struct dma_window),
@@ -191,13 +194,13 @@ phyp_iommu_map(device_t dev, bus_dma_segment_t *segs, int *nsegs,
 
 		tce = trunc_page(segs[i].ds_addr);
 		tce |= 0x3; /* read/write */
-		if (papr_supports_stuff_tce) {
-			error = phyp_hcall(H_STUFF_TCE, window->map->iobn,
-			    alloced, tce, allocsize/PAGE_SIZE);
-		} else {
-			for (j = 0; j < allocsize; j += PAGE_SIZE)
-				error = phyp_hcall(H_PUT_TCE, window->map->iobn,
-				    alloced + j, tce + j);
+		for (j = 0; j < allocsize; j += PAGE_SIZE) {
+			error = phyp_hcall(H_PUT_TCE, window->map->iobn,
+			    alloced + j, tce + j);
+			if (error < 0) {
+				panic("IOMMU mapping error: %d\n", error);
+				return (ENOMEM);
+			}
 		}
 
 		segs[i].ds_addr = alloced + (segs[i].ds_addr & PAGE_MASK);

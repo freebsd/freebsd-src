@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -303,11 +305,6 @@ usage:
 	pidfile(0);
 #endif
 	mypid = getpid();
-#ifdef __FreeBSD__
-	srandomdev();
-#else
-	srandom((int)(clk.tv_sec ^ clk.tv_usec ^ mypid));
-#endif
 
 	/* prepare socket connected to the kernel.
 	 */
@@ -670,6 +667,7 @@ get_rip_sock(naddr addr,
 	if (bind(s, (struct sockaddr *)&rsin, sizeof(rsin)) < 0) {
 		if (serious)
 			BADERR(errno != EADDRINUSE, "bind(rip_sock)");
+		close(s);
 		return -1;
 	}
 	fix_sock(s,"rip_sock");
@@ -752,7 +750,7 @@ rip_on(struct interface *ifp)
 	 * multicasts for this interface.
 	 */
 	if (rip_sock >= 0) {
-		if (ifp != 0)
+		if (ifp != NULL)
 			rip_mcast_on(ifp);
 		return;
 	}
@@ -778,7 +776,7 @@ rip_on(struct interface *ifp)
 		}
 
 		rip_sock = get_rip_sock(INADDR_ANY, 1);
-		rip_sock_mcast = 0;
+		rip_sock_mcast = NULL;
 
 		/* Do not advertise anything until we have heard something
 		 */
@@ -791,7 +789,7 @@ rip_on(struct interface *ifp)
 		}
 		ifinit_timer.tv_sec = now.tv_sec;
 
-	} else if (ifp != 0
+	} else if (ifp != NULL
 		   && !(ifp->int_state & IS_REMOTE)
 		   && ifp->int_rip_sock < 0) {
 		/* RIP is off, so ensure there are sockets on which
@@ -811,7 +809,7 @@ rtmalloc(size_t size,
 	 const char *msg)
 {
 	void *p = malloc(size);
-	if (p == 0)
+	if (p == NULL)
 		logbad(1,"malloc(%lu) failed in %s", (u_long)size, msg);
 	return p;
 }
@@ -826,8 +824,8 @@ intvl_random(struct timeval *tp,	/* put value here */
 {
 	tp->tv_sec = (time_t)(hi == lo
 			      ? lo
-			      : (lo + random() % ((hi - lo))));
-	tp->tv_usec = random() % 1000000;
+			      : (lo + arc4random_uniform(1 + hi - lo)));
+	tp->tv_usec = arc4random_uniform(1000000);
 }
 
 
@@ -871,7 +869,7 @@ msglog(const char *p, ...)
 	va_start(args, p);
 	vsyslog(LOG_ERR, p, args);
 	va_end(args);
-	if (ftrace != 0) {
+	if (ftrace != NULL) {
 		if (ftrace == stdout)
 			(void)fputs("routed: ", ftrace);
 		va_start(args, p);
@@ -906,7 +904,7 @@ msglim(struct msg_limit *lim, naddr addr, const char *p, ...)
 			/* Reuse a slot at most once every 10 minutes.
 			 */
 			if (lim->reuse > now.tv_sec) {
-				ms = 0;
+				ms = NULL;
 			} else {
 				ms = ms1;
 				lim->reuse = now.tv_sec + 10*60;
@@ -918,13 +916,13 @@ msglim(struct msg_limit *lim, naddr addr, const char *p, ...)
 			 * most once an hour.
 			 */
 			if (ms->until > now.tv_sec)
-				ms = 0;
+				ms = NULL;
 			break;
 		}
 		if (ms->until < ms1->until)
 			ms = ms1;
 	}
-	if (ms != 0) {
+	if (ms != NULL) {
 		ms->addr = addr;
 		ms->until = now.tv_sec + 60*60;	/* 60 minutes */
 
@@ -937,7 +935,7 @@ msglim(struct msg_limit *lim, naddr addr, const char *p, ...)
 	}
 
 	/* always display the message if tracing */
-	if (ftrace != 0) {
+	if (ftrace != NULL) {
 		va_start(args, p);
 		(void)vfprintf(ftrace, p, args);
 		va_end(args);

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013  Peter Grehan <grehan@freebsd.org>
  * All rights reserved.
  *
@@ -29,6 +31,6 @@
 #ifndef _RTC_H_
 #define _RTC_H_
 
-void	rtc_init(struct vmctx *ctx);
+void	rtc_init(struct vmctx *ctx, int use_localtime);
 
 #endif /* _RTC_H_ */

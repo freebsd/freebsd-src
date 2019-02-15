@@ -7,18 +7,35 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/MC/MCParser/MCAsmParserExtension.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/ADT/Triple.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/BinaryFormat/MachO.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCDirectives.h"
+#include "llvm/MC/MCObjectFileInfo.h"
 #include "llvm/MC/MCParser/MCAsmLexer.h"
 #include "llvm/MC/MCParser/MCAsmParser.h"
+#include "llvm/MC/MCParser/MCAsmParserExtension.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/SectionKind.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/SMLoc.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/raw_ostream.h"
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <system_error>
+#include <utility>
+
 using namespace llvm;
 
 namespace {
@@ -33,340 +50,423 @@ class DarwinAsmParser : public MCAsmParserExtension {
     getParser().addDirectiveHandler(Directive, Handler);
   }
 
-  bool ParseSectionSwitch(const char *Segment, const char *Section,
+  bool parseSectionSwitch(StringRef Segment, StringRef Section,
                           unsigned TAA = 0, unsigned ImplicitAlign = 0,
                           unsigned StubSize = 0);
 
-public:
-  DarwinAsmParser() {}
+  SMLoc LastVersionDirective;
 
-  virtual void Initialize(MCAsmParser &Parser) {
+public:
+  DarwinAsmParser() = default;
+
+  void Initialize(MCAsmParser &Parser) override {
     // Call the base implementation.
     this->MCAsmParserExtension::Initialize(Parser);
 
-    addDirectiveHandler<&DarwinAsmParser::ParseDirectiveDesc>(".desc");
-    addDirectiveHandler<&DarwinAsmParser::ParseDirectiveIndirectSymbol>(
+    addDirectiveHandler<&DarwinAsmParser::parseDirectiveAltEntry>(".alt_entry");
+    addDirectiveHandler<&DarwinAsmParser::parseDirectiveDesc>(".desc");
+    addDirectiveHandler<&DarwinAsmParser::parseDirectiveIndirectSymbol>(
       ".indirect_symbol");
-    addDirectiveHandler<&DarwinAsmParser::ParseDirectiveLsym>(".lsym");
-    addDirectiveHandler<&DarwinAsmParser::ParseDirectiveSubsectionsViaSymbols>(
+    addDirectiveHandler<&DarwinAsmParser::parseDirectiveLsym>(".lsym");
+    addDirectiveHandler<&DarwinAsmParser::parseDirectiveSubsectionsViaSymbols>(
       ".subsections_via_symbols");
-    addDirectiveHandler<&DarwinAsmParser::ParseDirectiveDumpOrLoad>(".dump");
-    addDirectiveHandler<&DarwinAsmParser::ParseDirectiveDumpOrLoad>(".load");
-    addDirectiveHandler<&DarwinAsmParser::ParseDirectiveSection>(".section");
-    addDirectiveHandler<&DarwinAsmParser::ParseDirectivePushSection>(
+    addDirectiveHandler<&DarwinAsmParser::parseDirectiveDumpOrLoad>(".dump");
+    addDirectiveHandler<&DarwinAsmParser::parseDirectiveDumpOrLoad>(".load");
+    addDirectiveHandler<&DarwinAsmParser::parseDirectiveSection>(".section");
+    addDirectiveHandler<&DarwinAsmParser::parseDirectivePushSection>(
       ".pushsection");
-    addDirectiveHandler<&DarwinAsmParser::ParseDirectivePopSection>(
+    addDirectiveHandler<&DarwinAsmParser::parseDirectivePopSection>(
       ".popsection");
-    addDirectiveHandler<&DarwinAsmParser::ParseDirectivePrevious>(".previous");
-    addDirectiveHandler<&DarwinAsmParser::ParseDirectiveSecureLogUnique>(
+    addDirectiveHandler<&DarwinAsmParser::parseDirectivePrevious>(".previous");
+    addDirectiveHandler<&DarwinAsmParser::parseDirectiveSecureLogUnique>(
       ".secure_log_unique");
-    addDirectiveHandler<&DarwinAsmParser::ParseDirectiveSecureLogReset>(
+    addDirectiveHandler<&DarwinAsmParser::parseDirectiveSecureLogReset>(
       ".secure_log_reset");
-    addDirectiveHandler<&DarwinAsmParser::ParseDirectiveTBSS>(".tbss");
-    addDirectiveHandler<&DarwinAsmParser::ParseDirectiveZerofill>(".zerofill");
+    addDirectiveHandler<&DarwinAsmParser::parseDirectiveTBSS>(".tbss");
+    addDirectiveHandler<&DarwinAsmParser::parseDirectiveZerofill>(".zerofill");
 
-    addDirectiveHandler<&DarwinAsmParser::ParseDirectiveDataRegion>(
+    addDirectiveHandler<&DarwinAsmParser::parseDirectiveDataRegion>(
       ".data_region");
-    addDirectiveHandler<&DarwinAsmParser::ParseDirectiveDataRegionEnd>(
+    addDirectiveHandler<&DarwinAsmParser::parseDirectiveDataRegionEnd>(
       ".end_data_region");
 
     // Special section directives.
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveBss>(".bss");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveConst>(".const");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveConstData>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveBss>(".bss");
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveConst>(".const");
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveConstData>(
       ".const_data");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveConstructor>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveConstructor>(
       ".constructor");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveCString>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveCString>(
       ".cstring");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveData>(".data");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveDestructor>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveData>(".data");
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveDestructor>(
       ".destructor");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveDyld>(".dyld");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveFVMLibInit0>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveDyld>(".dyld");
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveFVMLibInit0>(
       ".fvmlib_init0");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveFVMLibInit1>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveFVMLibInit1>(
       ".fvmlib_init1");
     addDirectiveHandler<
-      &DarwinAsmParser::ParseSectionDirectiveLazySymbolPointers>(
+      &DarwinAsmParser::parseSectionDirectiveLazySymbolPointers>(
         ".lazy_symbol_pointer");
-    addDirectiveHandler<&DarwinAsmParser::ParseDirectiveLinkerOption>(
+    addDirectiveHandler<&DarwinAsmParser::parseDirectiveLinkerOption>(
       ".linker_option");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveLiteral16>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveLiteral16>(
       ".literal16");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveLiteral4>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveLiteral4>(
       ".literal4");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveLiteral8>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveLiteral8>(
       ".literal8");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveModInitFunc>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveModInitFunc>(
       ".mod_init_func");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveModTermFunc>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveModTermFunc>(
       ".mod_term_func");
     addDirectiveHandler<
-      &DarwinAsmParser::ParseSectionDirectiveNonLazySymbolPointers>(
+      &DarwinAsmParser::parseSectionDirectiveNonLazySymbolPointers>(
         ".non_lazy_symbol_pointer");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveObjCCatClsMeth>(
+    addDirectiveHandler<
+      &DarwinAsmParser::parseSectionDirectiveThreadLocalVariablePointers>(
+        ".thread_local_variable_pointer");
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveObjCCatClsMeth>(
       ".objc_cat_cls_meth");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveObjCCatInstMeth>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveObjCCatInstMeth>(
       ".objc_cat_inst_meth");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveObjCCategory>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveObjCCategory>(
       ".objc_category");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveObjCClass>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveObjCClass>(
       ".objc_class");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveObjCClassNames>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveObjCClassNames>(
       ".objc_class_names");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveObjCClassVars>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveObjCClassVars>(
       ".objc_class_vars");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveObjCClsMeth>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveObjCClsMeth>(
       ".objc_cls_meth");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveObjCClsRefs>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveObjCClsRefs>(
       ".objc_cls_refs");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveObjCInstMeth>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveObjCInstMeth>(
       ".objc_inst_meth");
     addDirectiveHandler<
-      &DarwinAsmParser::ParseSectionDirectiveObjCInstanceVars>(
+      &DarwinAsmParser::parseSectionDirectiveObjCInstanceVars>(
         ".objc_instance_vars");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveObjCMessageRefs>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveObjCMessageRefs>(
       ".objc_message_refs");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveObjCMetaClass>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveObjCMetaClass>(
       ".objc_meta_class");
     addDirectiveHandler<
-      &DarwinAsmParser::ParseSectionDirectiveObjCMethVarNames>(
+      &DarwinAsmParser::parseSectionDirectiveObjCMethVarNames>(
         ".objc_meth_var_names");
     addDirectiveHandler<
-      &DarwinAsmParser::ParseSectionDirectiveObjCMethVarTypes>(
+      &DarwinAsmParser::parseSectionDirectiveObjCMethVarTypes>(
         ".objc_meth_var_types");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveObjCModuleInfo>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveObjCModuleInfo>(
       ".objc_module_info");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveObjCProtocol>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveObjCProtocol>(
       ".objc_protocol");
     addDirectiveHandler<
-      &DarwinAsmParser::ParseSectionDirectiveObjCSelectorStrs>(
+      &DarwinAsmParser::parseSectionDirectiveObjCSelectorStrs>(
         ".objc_selector_strs");
     addDirectiveHandler<
-      &DarwinAsmParser::ParseSectionDirectiveObjCStringObject>(
+      &DarwinAsmParser::parseSectionDirectiveObjCStringObject>(
         ".objc_string_object");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveObjCSymbols>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveObjCSymbols>(
       ".objc_symbols");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectivePICSymbolStub>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectivePICSymbolStub>(
       ".picsymbol_stub");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveStaticConst>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveStaticConst>(
       ".static_const");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveStaticData>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveStaticData>(
       ".static_data");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveSymbolStub>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveSymbolStub>(
       ".symbol_stub");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveTData>(".tdata");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveText>(".text");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveThreadInitFunc>(
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveTData>(".tdata");
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveText>(".text");
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveThreadInitFunc>(
       ".thread_init_func");
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveTLV>(".tlv");
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveTLV>(".tlv");
 
-    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveIdent>(".ident");
+    addDirectiveHandler<&DarwinAsmParser::parseSectionDirectiveIdent>(".ident");
+    addDirectiveHandler<&DarwinAsmParser::parseWatchOSVersionMin>(
+      ".watchos_version_min");
+    addDirectiveHandler<&DarwinAsmParser::parseTvOSVersionMin>(
+      ".tvos_version_min");
+    addDirectiveHandler<&DarwinAsmParser::parseIOSVersionMin>(
+      ".ios_version_min");
+    addDirectiveHandler<&DarwinAsmParser::parseMacOSXVersionMin>(
+      ".macosx_version_min");
+    addDirectiveHandler<&DarwinAsmParser::parseBuildVersion>(".build_version");
+
+    LastVersionDirective = SMLoc();
   }
 
-  bool ParseDirectiveDesc(StringRef, SMLoc);
-  bool ParseDirectiveIndirectSymbol(StringRef, SMLoc);
-  bool ParseDirectiveDumpOrLoad(StringRef, SMLoc);
-  bool ParseDirectiveLsym(StringRef, SMLoc);
-  bool ParseDirectiveLinkerOption(StringRef, SMLoc);
-  bool ParseDirectiveSection(StringRef, SMLoc);
-  bool ParseDirectivePushSection(StringRef, SMLoc);
-  bool ParseDirectivePopSection(StringRef, SMLoc);
-  bool ParseDirectivePrevious(StringRef, SMLoc);
-  bool ParseDirectiveSecureLogReset(StringRef, SMLoc);
-  bool ParseDirectiveSecureLogUnique(StringRef, SMLoc);
-  bool ParseDirectiveSubsectionsViaSymbols(StringRef, SMLoc);
-  bool ParseDirectiveTBSS(StringRef, SMLoc);
-  bool ParseDirectiveZerofill(StringRef, SMLoc);
-  bool ParseDirectiveDataRegion(StringRef, SMLoc);
-  bool ParseDirectiveDataRegionEnd(StringRef, SMLoc);
+  bool parseDirectiveAltEntry(StringRef, SMLoc);
+  bool parseDirectiveDesc(StringRef, SMLoc);
+  bool parseDirectiveIndirectSymbol(StringRef, SMLoc);
+  bool parseDirectiveDumpOrLoad(StringRef, SMLoc);
+  bool parseDirectiveLsym(StringRef, SMLoc);
+  bool parseDirectiveLinkerOption(StringRef, SMLoc);
+  bool parseDirectiveSection(StringRef, SMLoc);
+  bool parseDirectivePushSection(StringRef, SMLoc);
+  bool parseDirectivePopSection(StringRef, SMLoc);
+  bool parseDirectivePrevious(StringRef, SMLoc);
+  bool parseDirectiveSecureLogReset(StringRef, SMLoc);
+  bool parseDirectiveSecureLogUnique(StringRef, SMLoc);
+  bool parseDirectiveSubsectionsViaSymbols(StringRef, SMLoc);
+  bool parseDirectiveTBSS(StringRef, SMLoc);
+  bool parseDirectiveZerofill(StringRef, SMLoc);
+  bool parseDirectiveDataRegion(StringRef, SMLoc);
+  bool parseDirectiveDataRegionEnd(StringRef, SMLoc);
 
   // Named Section Directive
-  bool ParseSectionDirectiveBss(StringRef, SMLoc) {
-    return ParseSectionSwitch("__DATA", "__bss");
+  bool parseSectionDirectiveBss(StringRef, SMLoc) {
+    return parseSectionSwitch("__DATA", "__bss");
   }
 
-  bool ParseSectionDirectiveConst(StringRef, SMLoc) {
-    return ParseSectionSwitch("__TEXT", "__const");
+  bool parseSectionDirectiveConst(StringRef, SMLoc) {
+    return parseSectionSwitch("__TEXT", "__const");
   }
-  bool ParseSectionDirectiveStaticConst(StringRef, SMLoc) {
-    return ParseSectionSwitch("__TEXT", "__static_const");
+
+  bool parseSectionDirectiveStaticConst(StringRef, SMLoc) {
+    return parseSectionSwitch("__TEXT", "__static_const");
   }
-  bool ParseSectionDirectiveCString(StringRef, SMLoc) {
-    return ParseSectionSwitch("__TEXT","__cstring",
-                              MCSectionMachO::S_CSTRING_LITERALS);
+
+  bool parseSectionDirectiveCString(StringRef, SMLoc) {
+    return parseSectionSwitch("__TEXT","__cstring",
+                              MachO::S_CSTRING_LITERALS);
   }
-  bool ParseSectionDirectiveLiteral4(StringRef, SMLoc) {
-    return ParseSectionSwitch("__TEXT", "__literal4",
-                              MCSectionMachO::S_4BYTE_LITERALS, 4);
+
+  bool parseSectionDirectiveLiteral4(StringRef, SMLoc) {
+    return parseSectionSwitch("__TEXT", "__literal4",
+                              MachO::S_4BYTE_LITERALS, 4);
   }
-  bool ParseSectionDirectiveLiteral8(StringRef, SMLoc) {
-    return ParseSectionSwitch("__TEXT", "__literal8",
-                              MCSectionMachO::S_8BYTE_LITERALS, 8);
+
+  bool parseSectionDirectiveLiteral8(StringRef, SMLoc) {
+    return parseSectionSwitch("__TEXT", "__literal8",
+                              MachO::S_8BYTE_LITERALS, 8);
   }
-  bool ParseSectionDirectiveLiteral16(StringRef, SMLoc) {
-    return ParseSectionSwitch("__TEXT","__literal16",
-                              MCSectionMachO::S_16BYTE_LITERALS, 16);
+
+  bool parseSectionDirectiveLiteral16(StringRef, SMLoc) {
+    return parseSectionSwitch("__TEXT","__literal16",
+                              MachO::S_16BYTE_LITERALS, 16);
   }
-  bool ParseSectionDirectiveConstructor(StringRef, SMLoc) {
-    return ParseSectionSwitch("__TEXT","__constructor");
+
+  bool parseSectionDirectiveConstructor(StringRef, SMLoc) {
+    return parseSectionSwitch("__TEXT","__constructor");
   }
-  bool ParseSectionDirectiveDestructor(StringRef, SMLoc) {
-    return ParseSectionSwitch("__TEXT","__destructor");
+
+  bool parseSectionDirectiveDestructor(StringRef, SMLoc) {
+    return parseSectionSwitch("__TEXT","__destructor");
   }
-  bool ParseSectionDirectiveFVMLibInit0(StringRef, SMLoc) {
-    return ParseSectionSwitch("__TEXT","__fvmlib_init0");
+
+  bool parseSectionDirectiveFVMLibInit0(StringRef, SMLoc) {
+    return parseSectionSwitch("__TEXT","__fvmlib_init0");
   }
-  bool ParseSectionDirectiveFVMLibInit1(StringRef, SMLoc) {
-    return ParseSectionSwitch("__TEXT","__fvmlib_init1");
+
+  bool parseSectionDirectiveFVMLibInit1(StringRef, SMLoc) {
+    return parseSectionSwitch("__TEXT","__fvmlib_init1");
   }
-  bool ParseSectionDirectiveSymbolStub(StringRef, SMLoc) {
-    return ParseSectionSwitch("__TEXT","__symbol_stub",
-                              MCSectionMachO::S_SYMBOL_STUBS |
-                              MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS,
+
+  bool parseSectionDirectiveSymbolStub(StringRef, SMLoc) {
+    return parseSectionSwitch("__TEXT","__symbol_stub",
+                              MachO::S_SYMBOL_STUBS |
+                              MachO::S_ATTR_PURE_INSTRUCTIONS,
                               // FIXME: Different on PPC and ARM.
                               0, 16);
   }
-  bool ParseSectionDirectivePICSymbolStub(StringRef, SMLoc) {
-    return ParseSectionSwitch("__TEXT","__picsymbol_stub",
-                              MCSectionMachO::S_SYMBOL_STUBS |
-                              MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS, 0, 26);
+
+  bool parseSectionDirectivePICSymbolStub(StringRef, SMLoc) {
+    return parseSectionSwitch("__TEXT","__picsymbol_stub",
+                              MachO::S_SYMBOL_STUBS |
+                              MachO::S_ATTR_PURE_INSTRUCTIONS, 0, 26);
   }
-  bool ParseSectionDirectiveData(StringRef, SMLoc) {
-    return ParseSectionSwitch("__DATA", "__data");
+
+  bool parseSectionDirectiveData(StringRef, SMLoc) {
+    return parseSectionSwitch("__DATA", "__data");
   }
-  bool ParseSectionDirectiveStaticData(StringRef, SMLoc) {
-    return ParseSectionSwitch("__DATA", "__static_data");
+
+  bool parseSectionDirectiveStaticData(StringRef, SMLoc) {
+    return parseSectionSwitch("__DATA", "__static_data");
   }
-  bool ParseSectionDirectiveNonLazySymbolPointers(StringRef, SMLoc) {
-    return ParseSectionSwitch("__DATA", "__nl_symbol_ptr",
-                              MCSectionMachO::S_NON_LAZY_SYMBOL_POINTERS, 4);
+
+  bool parseSectionDirectiveNonLazySymbolPointers(StringRef, SMLoc) {
+    return parseSectionSwitch("__DATA", "__nl_symbol_ptr",
+                              MachO::S_NON_LAZY_SYMBOL_POINTERS, 4);
   }
-  bool ParseSectionDirectiveLazySymbolPointers(StringRef, SMLoc) {
-    return ParseSectionSwitch("__DATA", "__la_symbol_ptr",
-                              MCSectionMachO::S_LAZY_SYMBOL_POINTERS, 4);
+
+  bool parseSectionDirectiveLazySymbolPointers(StringRef, SMLoc) {
+    return parseSectionSwitch("__DATA", "__la_symbol_ptr",
+                              MachO::S_LAZY_SYMBOL_POINTERS, 4);
   }
-  bool ParseSectionDirectiveDyld(StringRef, SMLoc) {
-    return ParseSectionSwitch("__DATA", "__dyld");
+
+  bool parseSectionDirectiveThreadLocalVariablePointers(StringRef, SMLoc) {
+    return parseSectionSwitch("__DATA", "__thread_ptr",
+                              MachO::S_THREAD_LOCAL_VARIABLE_POINTERS, 4);
   }
-  bool ParseSectionDirectiveModInitFunc(StringRef, SMLoc) {
-    return ParseSectionSwitch("__DATA", "__mod_init_func",
-                              MCSectionMachO::S_MOD_INIT_FUNC_POINTERS, 4);
+
+  bool parseSectionDirectiveDyld(StringRef, SMLoc) {
+    return parseSectionSwitch("__DATA", "__dyld");
   }
-  bool ParseSectionDirectiveModTermFunc(StringRef, SMLoc) {
-    return ParseSectionSwitch("__DATA", "__mod_term_func",
-                              MCSectionMachO::S_MOD_TERM_FUNC_POINTERS, 4);
+
+  bool parseSectionDirectiveModInitFunc(StringRef, SMLoc) {
+    return parseSectionSwitch("__DATA", "__mod_init_func",
+                              MachO::S_MOD_INIT_FUNC_POINTERS, 4);
   }
-  bool ParseSectionDirectiveConstData(StringRef, SMLoc) {
-    return ParseSectionSwitch("__DATA", "__const");
+
+  bool parseSectionDirectiveModTermFunc(StringRef, SMLoc) {
+    return parseSectionSwitch("__DATA", "__mod_term_func",
+                              MachO::S_MOD_TERM_FUNC_POINTERS, 4);
   }
-  bool ParseSectionDirectiveObjCClass(StringRef, SMLoc) {
-    return ParseSectionSwitch("__OBJC", "__class",
-                              MCSectionMachO::S_ATTR_NO_DEAD_STRIP);
+
+  bool parseSectionDirectiveConstData(StringRef, SMLoc) {
+    return parseSectionSwitch("__DATA", "__const");
   }
-  bool ParseSectionDirectiveObjCMetaClass(StringRef, SMLoc) {
-    return ParseSectionSwitch("__OBJC", "__meta_class",
-                              MCSectionMachO::S_ATTR_NO_DEAD_STRIP);
+
+  bool parseSectionDirectiveObjCClass(StringRef, SMLoc) {
+    return parseSectionSwitch("__OBJC", "__class",
+                              MachO::S_ATTR_NO_DEAD_STRIP);
   }
-  bool ParseSectionDirectiveObjCCatClsMeth(StringRef, SMLoc) {
-    return ParseSectionSwitch("__OBJC", "__cat_cls_meth",
-                              MCSectionMachO::S_ATTR_NO_DEAD_STRIP);
+
+  bool parseSectionDirectiveObjCMetaClass(StringRef, SMLoc) {
+    return parseSectionSwitch("__OBJC", "__meta_class",
+                              MachO::S_ATTR_NO_DEAD_STRIP);
   }
-  bool ParseSectionDirectiveObjCCatInstMeth(StringRef, SMLoc) {
-    return ParseSectionSwitch("__OBJC", "__cat_inst_meth",
-                              MCSectionMachO::S_ATTR_NO_DEAD_STRIP);
+
+  bool parseSectionDirectiveObjCCatClsMeth(StringRef, SMLoc) {
+    return parseSectionSwitch("__OBJC", "__cat_cls_meth",
+                              MachO::S_ATTR_NO_DEAD_STRIP);
   }
-  bool ParseSectionDirectiveObjCProtocol(StringRef, SMLoc) {
-    return ParseSectionSwitch("__OBJC", "__protocol",
-                              MCSectionMachO::S_ATTR_NO_DEAD_STRIP);
+
+  bool parseSectionDirectiveObjCCatInstMeth(StringRef, SMLoc) {
+    return parseSectionSwitch("__OBJC", "__cat_inst_meth",
+                              MachO::S_ATTR_NO_DEAD_STRIP);
   }
-  bool ParseSectionDirectiveObjCStringObject(StringRef, SMLoc) {
-    return ParseSectionSwitch("__OBJC", "__string_object",
-                              MCSectionMachO::S_ATTR_NO_DEAD_STRIP);
+
+  bool parseSectionDirectiveObjCProtocol(StringRef, SMLoc) {
+    return parseSectionSwitch("__OBJC", "__protocol",
+                              MachO::S_ATTR_NO_DEAD_STRIP);
   }
-  bool ParseSectionDirectiveObjCClsMeth(StringRef, SMLoc) {
-    return ParseSectionSwitch("__OBJC", "__cls_meth",
-                              MCSectionMachO::S_ATTR_NO_DEAD_STRIP);
+
+  bool parseSectionDirectiveObjCStringObject(StringRef, SMLoc) {
+    return parseSectionSwitch("__OBJC", "__string_object",
+                              MachO::S_ATTR_NO_DEAD_STRIP);
   }
-  bool ParseSectionDirectiveObjCInstMeth(StringRef, SMLoc) {
-    return ParseSectionSwitch("__OBJC", "__inst_meth",
-                              MCSectionMachO::S_ATTR_NO_DEAD_STRIP);
+
+  bool parseSectionDirectiveObjCClsMeth(StringRef, SMLoc) {
+    return parseSectionSwitch("__OBJC", "__cls_meth",
+                              MachO::S_ATTR_NO_DEAD_STRIP);
   }
-  bool ParseSectionDirectiveObjCClsRefs(StringRef, SMLoc) {
-    return ParseSectionSwitch("__OBJC", "__cls_refs",
-                              MCSectionMachO::S_ATTR_NO_DEAD_STRIP |
-                              MCSectionMachO::S_LITERAL_POINTERS, 4);
+
+  bool parseSectionDirectiveObjCInstMeth(StringRef, SMLoc) {
+    return parseSectionSwitch("__OBJC", "__inst_meth",
+                              MachO::S_ATTR_NO_DEAD_STRIP);
   }
-  bool ParseSectionDirectiveObjCMessageRefs(StringRef, SMLoc) {
-    return ParseSectionSwitch("__OBJC", "__message_refs",
-                              MCSectionMachO::S_ATTR_NO_DEAD_STRIP |
-                              MCSectionMachO::S_LITERAL_POINTERS, 4);
+
+  bool parseSectionDirectiveObjCClsRefs(StringRef, SMLoc) {
+    return parseSectionSwitch("__OBJC", "__cls_refs",
+                              MachO::S_ATTR_NO_DEAD_STRIP |
+                              MachO::S_LITERAL_POINTERS, 4);
   }
-  bool ParseSectionDirectiveObjCSymbols(StringRef, SMLoc) {
-    return ParseSectionSwitch("__OBJC", "__symbols",
-                              MCSectionMachO::S_ATTR_NO_DEAD_STRIP);
+
+  bool parseSectionDirectiveObjCMessageRefs(StringRef, SMLoc) {
+    return parseSectionSwitch("__OBJC", "__message_refs",
+                              MachO::S_ATTR_NO_DEAD_STRIP |
+                              MachO::S_LITERAL_POINTERS, 4);
   }
-  bool ParseSectionDirectiveObjCCategory(StringRef, SMLoc) {
-    return ParseSectionSwitch("__OBJC", "__category",
-                              MCSectionMachO::S_ATTR_NO_DEAD_STRIP);
+
+  bool parseSectionDirectiveObjCSymbols(StringRef, SMLoc) {
+    return parseSectionSwitch("__OBJC", "__symbols",
+                              MachO::S_ATTR_NO_DEAD_STRIP);
   }
-  bool ParseSectionDirectiveObjCClassVars(StringRef, SMLoc) {
-    return ParseSectionSwitch("__OBJC", "__class_vars",
-                              MCSectionMachO::S_ATTR_NO_DEAD_STRIP);
+
+  bool parseSectionDirectiveObjCCategory(StringRef, SMLoc) {
+    return parseSectionSwitch("__OBJC", "__category",
+                              MachO::S_ATTR_NO_DEAD_STRIP);
   }
-  bool ParseSectionDirectiveObjCInstanceVars(StringRef, SMLoc) {
-    return ParseSectionSwitch("__OBJC", "__instance_vars",
-                              MCSectionMachO::S_ATTR_NO_DEAD_STRIP);
+
+  bool parseSectionDirectiveObjCClassVars(StringRef, SMLoc) {
+    return parseSectionSwitch("__OBJC", "__class_vars",
+                              MachO::S_ATTR_NO_DEAD_STRIP);
   }
-  bool ParseSectionDirectiveObjCModuleInfo(StringRef, SMLoc) {
-    return ParseSectionSwitch("__OBJC", "__module_info",
-                              MCSectionMachO::S_ATTR_NO_DEAD_STRIP);
+
+  bool parseSectionDirectiveObjCInstanceVars(StringRef, SMLoc) {
+    return parseSectionSwitch("__OBJC", "__instance_vars",
+                              MachO::S_ATTR_NO_DEAD_STRIP);
   }
-  bool ParseSectionDirectiveObjCClassNames(StringRef, SMLoc) {
-    return ParseSectionSwitch("__TEXT", "__cstring",
-                              MCSectionMachO::S_CSTRING_LITERALS);
+
+  bool parseSectionDirectiveObjCModuleInfo(StringRef, SMLoc) {
+    return parseSectionSwitch("__OBJC", "__module_info",
+                              MachO::S_ATTR_NO_DEAD_STRIP);
   }
-  bool ParseSectionDirectiveObjCMethVarTypes(StringRef, SMLoc) {
-    return ParseSectionSwitch("__TEXT", "__cstring",
-                              MCSectionMachO::S_CSTRING_LITERALS);
+
+  bool parseSectionDirectiveObjCClassNames(StringRef, SMLoc) {
+    return parseSectionSwitch("__TEXT", "__cstring",
+                              MachO::S_CSTRING_LITERALS);
   }
-  bool ParseSectionDirectiveObjCMethVarNames(StringRef, SMLoc) {
-    return ParseSectionSwitch("__TEXT", "__cstring",
-                              MCSectionMachO::S_CSTRING_LITERALS);
+
+  bool parseSectionDirectiveObjCMethVarTypes(StringRef, SMLoc) {
+    return parseSectionSwitch("__TEXT", "__cstring",
+                              MachO::S_CSTRING_LITERALS);
   }
-  bool ParseSectionDirectiveObjCSelectorStrs(StringRef, SMLoc) {
-    return ParseSectionSwitch("__OBJC", "__selector_strs",
-                              MCSectionMachO::S_CSTRING_LITERALS);
+
+  bool parseSectionDirectiveObjCMethVarNames(StringRef, SMLoc) {
+    return parseSectionSwitch("__TEXT", "__cstring",
+                              MachO::S_CSTRING_LITERALS);
   }
-  bool ParseSectionDirectiveTData(StringRef, SMLoc) {
-    return ParseSectionSwitch("__DATA", "__thread_data",
-                              MCSectionMachO::S_THREAD_LOCAL_REGULAR);
+
+  bool parseSectionDirectiveObjCSelectorStrs(StringRef, SMLoc) {
+    return parseSectionSwitch("__OBJC", "__selector_strs",
+                              MachO::S_CSTRING_LITERALS);
   }
-  bool ParseSectionDirectiveText(StringRef, SMLoc) {
-    return ParseSectionSwitch("__TEXT", "__text",
-                              MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS);
+
+  bool parseSectionDirectiveTData(StringRef, SMLoc) {
+    return parseSectionSwitch("__DATA", "__thread_data",
+                              MachO::S_THREAD_LOCAL_REGULAR);
   }
-  bool ParseSectionDirectiveTLV(StringRef, SMLoc) {
-    return ParseSectionSwitch("__DATA", "__thread_vars",
-                              MCSectionMachO::S_THREAD_LOCAL_VARIABLES);
+
+  bool parseSectionDirectiveText(StringRef, SMLoc) {
+    return parseSectionSwitch("__TEXT", "__text",
+                              MachO::S_ATTR_PURE_INSTRUCTIONS);
   }
-  bool ParseSectionDirectiveIdent(StringRef, SMLoc) {
+
+  bool parseSectionDirectiveTLV(StringRef, SMLoc) {
+    return parseSectionSwitch("__DATA", "__thread_vars",
+                              MachO::S_THREAD_LOCAL_VARIABLES);
+  }
+
+  bool parseSectionDirectiveIdent(StringRef, SMLoc) {
     // Darwin silently ignores the .ident directive.
     getParser().eatToEndOfStatement();
     return false;
   }
-  bool ParseSectionDirectiveThreadInitFunc(StringRef, SMLoc) {
-    return ParseSectionSwitch("__DATA", "__thread_init",
-                         MCSectionMachO::S_THREAD_LOCAL_INIT_FUNCTION_POINTERS);
+
+  bool parseSectionDirectiveThreadInitFunc(StringRef, SMLoc) {
+    return parseSectionSwitch("__DATA", "__thread_init",
+                         MachO::S_THREAD_LOCAL_INIT_FUNCTION_POINTERS);
   }
 
+  bool parseWatchOSVersionMin(StringRef Directive, SMLoc Loc) {
+    return parseVersionMin(Directive, Loc, MCVM_WatchOSVersionMin);
+  }
+  bool parseTvOSVersionMin(StringRef Directive, SMLoc Loc) {
+    return parseVersionMin(Directive, Loc, MCVM_TvOSVersionMin);
+  }
+  bool parseIOSVersionMin(StringRef Directive, SMLoc Loc) {
+    return parseVersionMin(Directive, Loc, MCVM_IOSVersionMin);
+  }
+  bool parseMacOSXVersionMin(StringRef Directive, SMLoc Loc) {
+    return parseVersionMin(Directive, Loc, MCVM_OSXVersionMin);
+  }
+
+  bool parseBuildVersion(StringRef Directive, SMLoc Loc);
+  bool parseVersionMin(StringRef Directive, SMLoc Loc, MCVersionMinType Type);
+  bool parseVersion(unsigned *Major, unsigned *Minor, unsigned *Update);
+  void checkVersion(StringRef Directive, StringRef Arg, SMLoc Loc,
+                    Triple::OSType ExpectedOS);
 };
 
 } // end anonymous namespace
 
-bool DarwinAsmParser::ParseSectionSwitch(const char *Segment,
-                                         const char *Section,
+bool DarwinAsmParser::parseSectionSwitch(StringRef Segment, StringRef Section,
                                          unsigned TAA, unsigned Align,
                                          unsigned StubSize) {
   if (getLexer().isNot(AsmToken::EndOfStatement))
@@ -374,11 +474,10 @@ bool DarwinAsmParser::ParseSectionSwitch(const char *Segment,
   Lex();
 
   // FIXME: Arch specific.
-  bool isText = TAA & MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS;
+  bool isText = TAA & MachO::S_ATTR_PURE_INSTRUCTIONS;
   getStreamer().SwitchSection(getContext().getMachOSection(
-                                Segment, Section, TAA, StubSize,
-                                isText ? SectionKind::getText()
-                                       : SectionKind::getDataRel()));
+      Segment, Section, TAA, StubSize,
+      isText ? SectionKind::getText() : SectionKind::getData()));
 
   // Set the implicit alignment, if any.
   //
@@ -389,20 +488,40 @@ bool DarwinAsmParser::ParseSectionSwitch(const char *Segment,
   // is no good reason for someone to intentionally emit incorrectly sized
   // values into the implicitly aligned sections.
   if (Align)
-    getStreamer().EmitValueToAlignment(Align, 0, 1, 0);
+    getStreamer().EmitValueToAlignment(Align);
 
   return false;
 }
 
-/// ParseDirectiveDesc
+/// parseDirectiveAltEntry
+///  ::= .alt_entry identifier
+bool DarwinAsmParser::parseDirectiveAltEntry(StringRef, SMLoc) {
+  StringRef Name;
+  if (getParser().parseIdentifier(Name))
+    return TokError("expected identifier in directive");
+
+  // Look up symbol.
+  MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
+
+  if (Sym->isDefined())
+    return TokError(".alt_entry must preceed symbol definition");
+
+  if (!getStreamer().EmitSymbolAttribute(Sym, MCSA_AltEntry))
+    return TokError("unable to emit symbol attribute");
+
+  Lex();
+  return false;
+}
+
+/// parseDirectiveDesc
 ///  ::= .desc identifier , expression
-bool DarwinAsmParser::ParseDirectiveDesc(StringRef, SMLoc) {
+bool DarwinAsmParser::parseDirectiveDesc(StringRef, SMLoc) {
   StringRef Name;
   if (getParser().parseIdentifier(Name))
     return TokError("expected identifier in directive");
 
   // Handle the identifier as the key symbol.
-  MCSymbol *Sym = getContext().GetOrCreateSymbol(Name);
+  MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
 
   if (getLexer().isNot(AsmToken::Comma))
     return TokError("unexpected token in '.desc' directive");
@@ -423,15 +542,16 @@ bool DarwinAsmParser::ParseDirectiveDesc(StringRef, SMLoc) {
   return false;
 }
 
-/// ParseDirectiveIndirectSymbol
+/// parseDirectiveIndirectSymbol
 ///  ::= .indirect_symbol identifier
-bool DarwinAsmParser::ParseDirectiveIndirectSymbol(StringRef, SMLoc Loc) {
-  const MCSectionMachO *Current = static_cast<const MCSectionMachO*>(
-                                       getStreamer().getCurrentSection().first);
-  unsigned SectionType = Current->getType();
-  if (SectionType != MCSectionMachO::S_NON_LAZY_SYMBOL_POINTERS &&
-      SectionType != MCSectionMachO::S_LAZY_SYMBOL_POINTERS &&
-      SectionType != MCSectionMachO::S_SYMBOL_STUBS)
+bool DarwinAsmParser::parseDirectiveIndirectSymbol(StringRef, SMLoc Loc) {
+  const MCSectionMachO *Current = static_cast<const MCSectionMachO *>(
+      getStreamer().getCurrentSectionOnly());
+  MachO::SectionType SectionType = Current->getType();
+  if (SectionType != MachO::S_NON_LAZY_SYMBOL_POINTERS &&
+      SectionType != MachO::S_LAZY_SYMBOL_POINTERS &&
+      SectionType != MachO::S_THREAD_LOCAL_VARIABLE_POINTERS &&
+      SectionType != MachO::S_SYMBOL_STUBS)
     return Error(Loc, "indirect symbol not in a symbol pointer or stub "
                       "section");
 
@@ -439,7 +559,7 @@ bool DarwinAsmParser::ParseDirectiveIndirectSymbol(StringRef, SMLoc Loc) {
   if (getParser().parseIdentifier(Name))
     return TokError("expected identifier in .indirect_symbol directive");
 
-  MCSymbol *Sym = getContext().GetOrCreateSymbol(Name);
+  MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
 
   // Assembler local symbols don't make any sense here. Complain loudly.
   if (Sym->isTemporary())
@@ -456,9 +576,9 @@ bool DarwinAsmParser::ParseDirectiveIndirectSymbol(StringRef, SMLoc Loc) {
   return false;
 }
 
-/// ParseDirectiveDumpOrLoad
+/// parseDirectiveDumpOrLoad
 ///  ::= ( .dump | .load ) "filename"
-bool DarwinAsmParser::ParseDirectiveDumpOrLoad(StringRef Directive,
+bool DarwinAsmParser::parseDirectiveDumpOrLoad(StringRef Directive,
                                                SMLoc IDLoc) {
   bool IsDump = Directive == ".dump";
   if (getLexer().isNot(AsmToken::String))
@@ -481,9 +601,9 @@ bool DarwinAsmParser::ParseDirectiveDumpOrLoad(StringRef Directive,
 
 /// ParseDirectiveLinkerOption
 ///  ::= .linker_option "string" ( , "string" )*
-bool DarwinAsmParser::ParseDirectiveLinkerOption(StringRef IDVal, SMLoc) {
+bool DarwinAsmParser::parseDirectiveLinkerOption(StringRef IDVal, SMLoc) {
   SmallVector<std::string, 4> Args;
-  for (;;) {
+  while (true) {
     if (getLexer().isNot(AsmToken::String))
       return TokError("expected string in '" + Twine(IDVal) + "' directive");
 
@@ -493,7 +613,6 @@ bool DarwinAsmParser::ParseDirectiveLinkerOption(StringRef IDVal, SMLoc) {
 
     Args.push_back(Data);
 
-    Lex();
     if (getLexer().is(AsmToken::EndOfStatement))
       break;
 
@@ -506,15 +625,15 @@ bool DarwinAsmParser::ParseDirectiveLinkerOption(StringRef IDVal, SMLoc) {
   return false;
 }
 
-/// ParseDirectiveLsym
+/// parseDirectiveLsym
 ///  ::= .lsym identifier , expression
-bool DarwinAsmParser::ParseDirectiveLsym(StringRef, SMLoc) {
+bool DarwinAsmParser::parseDirectiveLsym(StringRef, SMLoc) {
   StringRef Name;
   if (getParser().parseIdentifier(Name))
     return TokError("expected identifier in directive");
 
   // Handle the identifier as the key symbol.
-  MCSymbol *Sym = getContext().GetOrCreateSymbol(Name);
+  MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
 
   if (getLexer().isNot(AsmToken::Comma))
     return TokError("unexpected token in '.lsym' directive");
@@ -536,9 +655,9 @@ bool DarwinAsmParser::ParseDirectiveLsym(StringRef, SMLoc) {
   return TokError("directive '.lsym' is unsupported");
 }
 
-/// ParseDirectiveSection:
+/// parseDirectiveSection:
 ///   ::= .section identifier (',' identifier)*
-bool DarwinAsmParser::ParseDirectiveSection(StringRef, SMLoc) {
+bool DarwinAsmParser::parseDirectiveSection(StringRef, SMLoc) {
   SMLoc Loc = getLexer().getLoc();
 
   StringRef SectionName;
@@ -562,7 +681,6 @@ bool DarwinAsmParser::ParseDirectiveSection(StringRef, SMLoc) {
     return TokError("unexpected token in '.section' directive");
   Lex();
 
-
   StringRef Segment, Section;
   unsigned StubSize;
   unsigned TAA;
@@ -572,23 +690,45 @@ bool DarwinAsmParser::ParseDirectiveSection(StringRef, SMLoc) {
                                           TAA, TAAParsed, StubSize);
 
   if (!ErrorStr.empty())
-    return Error(Loc, ErrorStr.c_str());
+    return Error(Loc, ErrorStr);
+
+  // Issue a warning if the target is not powerpc and Section is a *coal* section.
+  Triple TT = getParser().getContext().getObjectFileInfo()->getTargetTriple();
+  Triple::ArchType ArchTy = TT.getArch();
+
+  if (ArchTy != Triple::ppc && ArchTy != Triple::ppc64) {
+    StringRef NonCoalSection = StringSwitch<StringRef>(Section)
+                                   .Case("__textcoal_nt", "__text")
+                                   .Case("__const_coal", "__const")
+                                   .Case("__datacoal_nt", "__data")
+                                   .Default(Section);
+
+    if (!Section.equals(NonCoalSection)) {
+      StringRef SectionVal(Loc.getPointer());
+      size_t B = SectionVal.find(',') + 1, E = SectionVal.find(',', B);
+      SMLoc BLoc = SMLoc::getFromPointer(SectionVal.data() + B);
+      SMLoc ELoc = SMLoc::getFromPointer(SectionVal.data() + E);
+      getParser().Warning(Loc, "section \"" + Section + "\" is deprecated",
+                          SMRange(BLoc, ELoc));
+      getParser().Note(Loc, "change section name to \"" + NonCoalSection +
+                       "\"", SMRange(BLoc, ELoc));
+    }
+  }
 
   // FIXME: Arch specific.
   bool isText = Segment == "__TEXT";  // FIXME: Hack.
   getStreamer().SwitchSection(getContext().getMachOSection(
-                                Segment, Section, TAA, StubSize,
-                                isText ? SectionKind::getText()
-                                : SectionKind::getDataRel()));
+      Segment, Section, TAA, StubSize,
+      isText ? SectionKind::getText() : SectionKind::getData()));
   return false;
 }
 
 /// ParseDirectivePushSection:
 ///   ::= .pushsection identifier (',' identifier)*
-bool DarwinAsmParser::ParseDirectivePushSection(StringRef S, SMLoc Loc) {
+bool DarwinAsmParser::parseDirectivePushSection(StringRef S, SMLoc Loc) {
   getStreamer().PushSection();
 
-  if (ParseDirectiveSection(S, Loc)) {
+  if (parseDirectiveSection(S, Loc)) {
     getStreamer().PopSection();
     return true;
   }
@@ -598,7 +738,7 @@ bool DarwinAsmParser::ParseDirectivePushSection(StringRef S, SMLoc Loc) {
 
 /// ParseDirectivePopSection:
 ///   ::= .popsection
-bool DarwinAsmParser::ParseDirectivePopSection(StringRef, SMLoc) {
+bool DarwinAsmParser::parseDirectivePopSection(StringRef, SMLoc) {
   if (!getStreamer().PopSection())
     return TokError(".popsection without corresponding .pushsection");
   return false;
@@ -606,45 +746,45 @@ bool DarwinAsmParser::ParseDirectivePopSection(StringRef, SMLoc) {
 
 /// ParseDirectivePrevious:
 ///   ::= .previous
-bool DarwinAsmParser::ParseDirectivePrevious(StringRef DirName, SMLoc) {
+bool DarwinAsmParser::parseDirectivePrevious(StringRef DirName, SMLoc) {
   MCSectionSubPair PreviousSection = getStreamer().getPreviousSection();
-  if (PreviousSection.first == NULL)
-      return TokError(".previous without corresponding .section");
+  if (!PreviousSection.first)
+    return TokError(".previous without corresponding .section");
   getStreamer().SwitchSection(PreviousSection.first, PreviousSection.second);
   return false;
 }
 
 /// ParseDirectiveSecureLogUnique
 ///  ::= .secure_log_unique ... message ...
-bool DarwinAsmParser::ParseDirectiveSecureLogUnique(StringRef, SMLoc IDLoc) {
+bool DarwinAsmParser::parseDirectiveSecureLogUnique(StringRef, SMLoc IDLoc) {
   StringRef LogMessage = getParser().parseStringToEndOfStatement();
   if (getLexer().isNot(AsmToken::EndOfStatement))
     return TokError("unexpected token in '.secure_log_unique' directive");
 
-  if (getContext().getSecureLogUsed() != false)
+  if (getContext().getSecureLogUsed())
     return Error(IDLoc, ".secure_log_unique specified multiple times");
 
   // Get the secure log path.
   const char *SecureLogFile = getContext().getSecureLogFile();
-  if (SecureLogFile == NULL)
+  if (!SecureLogFile)
     return Error(IDLoc, ".secure_log_unique used but AS_SECURE_LOG_FILE "
                  "environment variable unset.");
 
   // Open the secure log file if we haven't already.
-  raw_ostream *OS = getContext().getSecureLog();
-  if (OS == NULL) {
-    std::string Err;
-    OS = new raw_fd_ostream(SecureLogFile, Err, sys::fs::F_Append);
-    if (!Err.empty()) {
-       delete OS;
+  raw_fd_ostream *OS = getContext().getSecureLog();
+  if (!OS) {
+    std::error_code EC;
+    auto NewOS = llvm::make_unique<raw_fd_ostream>(
+        StringRef(SecureLogFile), EC, sys::fs::F_Append | sys::fs::F_Text);
+    if (EC)
        return Error(IDLoc, Twine("can't open secure log file: ") +
-                    SecureLogFile + " (" + Err + ")");
-    }
-    getContext().setSecureLog(OS);
+                               SecureLogFile + " (" + EC.message() + ")");
+    OS = NewOS.get();
+    getContext().setSecureLog(std::move(NewOS));
   }
 
   // Write the message.
-  int CurBuf = getSourceManager().FindBufferContainingLoc(IDLoc);
+  unsigned CurBuf = getSourceManager().FindBufferContainingLoc(IDLoc);
   *OS << getSourceManager().getBufferInfo(CurBuf).Buffer->getBufferIdentifier()
       << ":" << getSourceManager().FindLineNumber(IDLoc, CurBuf) << ":"
       << LogMessage + "\n";
@@ -656,7 +796,7 @@ bool DarwinAsmParser::ParseDirectiveSecureLogUnique(StringRef, SMLoc IDLoc) {
 
 /// ParseDirectiveSecureLogReset
 ///  ::= .secure_log_reset
-bool DarwinAsmParser::ParseDirectiveSecureLogReset(StringRef, SMLoc IDLoc) {
+bool DarwinAsmParser::parseDirectiveSecureLogReset(StringRef, SMLoc IDLoc) {
   if (getLexer().isNot(AsmToken::EndOfStatement))
     return TokError("unexpected token in '.secure_log_reset' directive");
 
@@ -667,9 +807,9 @@ bool DarwinAsmParser::ParseDirectiveSecureLogReset(StringRef, SMLoc IDLoc) {
   return false;
 }
 
-/// ParseDirectiveSubsectionsViaSymbols
+/// parseDirectiveSubsectionsViaSymbols
 ///  ::= .subsections_via_symbols
-bool DarwinAsmParser::ParseDirectiveSubsectionsViaSymbols(StringRef, SMLoc) {
+bool DarwinAsmParser::parseDirectiveSubsectionsViaSymbols(StringRef, SMLoc) {
   if (getLexer().isNot(AsmToken::EndOfStatement))
     return TokError("unexpected token in '.subsections_via_symbols' directive");
 
@@ -682,14 +822,14 @@ bool DarwinAsmParser::ParseDirectiveSubsectionsViaSymbols(StringRef, SMLoc) {
 
 /// ParseDirectiveTBSS
 ///  ::= .tbss identifier, size, align
-bool DarwinAsmParser::ParseDirectiveTBSS(StringRef, SMLoc) {
+bool DarwinAsmParser::parseDirectiveTBSS(StringRef, SMLoc) {
   SMLoc IDLoc = getLexer().getLoc();
   StringRef Name;
   if (getParser().parseIdentifier(Name))
     return TokError("expected identifier in directive");
 
   // Handle the identifier as the key symbol.
-  MCSymbol *Sym = getContext().GetOrCreateSymbol(Name);
+  MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
 
   if (getLexer().isNot(AsmToken::Comma))
     return TokError("unexpected token in directive");
@@ -728,7 +868,7 @@ bool DarwinAsmParser::ParseDirectiveTBSS(StringRef, SMLoc) {
 
   getStreamer().EmitTBSSSymbol(getContext().getMachOSection(
                                  "__DATA", "__thread_bss",
-                                 MCSectionMachO::S_THREAD_LOCAL_ZEROFILL,
+                                 MachO::S_THREAD_LOCAL_ZEROFILL,
                                  0, SectionKind::getThreadBSS()),
                                Sym, Size, 1 << Pow2Alignment);
 
@@ -738,7 +878,7 @@ bool DarwinAsmParser::ParseDirectiveTBSS(StringRef, SMLoc) {
 /// ParseDirectiveZerofill
 ///  ::= .zerofill segname , sectname [, identifier , size_expression [
 ///      , align_expression ]]
-bool DarwinAsmParser::ParseDirectiveZerofill(StringRef, SMLoc) {
+bool DarwinAsmParser::parseDirectiveZerofill(StringRef, SMLoc) {
   StringRef Segment;
   if (getParser().parseIdentifier(Segment))
     return TokError("expected segment name after '.zerofill' directive");
@@ -757,7 +897,7 @@ bool DarwinAsmParser::ParseDirectiveZerofill(StringRef, SMLoc) {
   if (getLexer().is(AsmToken::EndOfStatement)) {
     // Create the zerofill section but no symbol
     getStreamer().EmitZerofill(getContext().getMachOSection(
-                                 Segment, Section, MCSectionMachO::S_ZEROFILL,
+                                 Segment, Section, MachO::S_ZEROFILL,
                                  0, SectionKind::getBSS()));
     return false;
   }
@@ -772,7 +912,7 @@ bool DarwinAsmParser::ParseDirectiveZerofill(StringRef, SMLoc) {
     return TokError("expected identifier in directive");
 
   // handle the identifier as the key symbol.
-  MCSymbol *Sym = getContext().GetOrCreateSymbol(IDStr);
+  MCSymbol *Sym = getContext().getOrCreateSymbol(IDStr);
 
   if (getLexer().isNot(AsmToken::Comma))
     return TokError("unexpected token in directive");
@@ -815,7 +955,7 @@ bool DarwinAsmParser::ParseDirectiveZerofill(StringRef, SMLoc) {
   //
   // FIXME: Arch specific.
   getStreamer().EmitZerofill(getContext().getMachOSection(
-                               Segment, Section, MCSectionMachO::S_ZEROFILL,
+                               Segment, Section, MachO::S_ZEROFILL,
                                0, SectionKind::getBSS()),
                              Sym, Size, 1 << Pow2Alignment);
 
@@ -824,7 +964,7 @@ bool DarwinAsmParser::ParseDirectiveZerofill(StringRef, SMLoc) {
 
 /// ParseDirectiveDataRegion
 ///  ::= .data_region [ ( jt8 | jt16 | jt32 ) ]
-bool DarwinAsmParser::ParseDirectiveDataRegion(StringRef, SMLoc) {
+bool DarwinAsmParser::parseDirectiveDataRegion(StringRef, SMLoc) {
   if (getLexer().is(AsmToken::EndOfStatement)) {
     Lex();
     getStreamer().EmitDataRegion(MCDR_DataRegion);
@@ -849,7 +989,7 @@ bool DarwinAsmParser::ParseDirectiveDataRegion(StringRef, SMLoc) {
 
 /// ParseDirectiveDataRegionEnd
 ///  ::= .end_data_region
-bool DarwinAsmParser::ParseDirectiveDataRegionEnd(StringRef, SMLoc) {
+bool DarwinAsmParser::parseDirectiveDataRegionEnd(StringRef, SMLoc) {
   if (getLexer().isNot(AsmToken::EndOfStatement))
     return TokError("unexpected token in '.end_data_region' directive");
 
@@ -857,6 +997,144 @@ bool DarwinAsmParser::ParseDirectiveDataRegionEnd(StringRef, SMLoc) {
   getStreamer().EmitDataRegion(MCDR_DataRegionEnd);
   return false;
 }
+
+/// parseVersion ::= major, minor [, update]
+bool DarwinAsmParser::parseVersion(unsigned *Major, unsigned *Minor,
+                                   unsigned *Update) {
+  // Get the major version number.
+  if (getLexer().isNot(AsmToken::Integer))
+    return TokError("invalid OS major version number, integer expected");
+  int64_t MajorVal = getLexer().getTok().getIntVal();
+  if (MajorVal > 65535 || MajorVal <= 0)
+    return TokError("invalid OS major version number");
+  *Major = (unsigned)MajorVal;
+  Lex();
+  if (getLexer().isNot(AsmToken::Comma))
+    return TokError("OS minor version number required, comma expected");
+  Lex();
+  // Get the minor version number.
+  if (getLexer().isNot(AsmToken::Integer))
+    return TokError("invalid OS minor version number, integer expected");
+  int64_t MinorVal = getLexer().getTok().getIntVal();
+  if (MinorVal > 255 || MinorVal < 0)
+    return TokError("invalid OS minor version number");
+  *Minor = MinorVal;
+  Lex();
+
+  // Get the update level, if specified
+  *Update = 0;
+  if (getLexer().is(AsmToken::EndOfStatement))
+    return false;
+  if (getLexer().isNot(AsmToken::Comma))
+    return TokError("invalid OS update specifier, comma expected");
+  Lex();
+  if (getLexer().isNot(AsmToken::Integer))
+    return TokError("invalid OS update version number, integer expected");
+  int64_t UpdateVal = getLexer().getTok().getIntVal();
+  if (UpdateVal > 255 || UpdateVal < 0)
+    return TokError("invalid OS update version number");
+  *Update = UpdateVal;
+  Lex();
+  return false;
+}
+
+void DarwinAsmParser::checkVersion(StringRef Directive, StringRef Arg,
+                                   SMLoc Loc, Triple::OSType ExpectedOS) {
+  const Triple &Target = getContext().getObjectFileInfo()->getTargetTriple();
+  if (Target.getOS() != ExpectedOS)
+    Warning(Loc, Twine(Directive) +
+            (Arg.empty() ? Twine() : Twine(' ') + Arg) +
+            " used while targeting " + Target.getOSName());
+
+  if (LastVersionDirective.isValid()) {
+    Warning(Loc, "overriding previous version directive");
+    Note(LastVersionDirective, "previous definition is here");
+  }
+  LastVersionDirective = Loc;
+}
+
+static Triple::OSType getOSTypeFromMCVM(MCVersionMinType Type) {
+  switch (Type) {
+  case MCVM_WatchOSVersionMin: return Triple::WatchOS;
+  case MCVM_TvOSVersionMin:    return Triple::TvOS;
+  case MCVM_IOSVersionMin:     return Triple::IOS;
+  case MCVM_OSXVersionMin:     return Triple::MacOSX;
+  }
+  llvm_unreachable("Invalid mc version min type");
+}
+
+/// parseVersionMin
+///   ::= .ios_version_min parseVersion
+///   |   .macosx_version_min parseVersion
+///   |   .tvos_version_min parseVersion
+///   |   .watchos_version_min parseVersion
+bool DarwinAsmParser::parseVersionMin(StringRef Directive, SMLoc Loc,
+                                      MCVersionMinType Type) {
+  unsigned Major;
+  unsigned Minor;
+  unsigned Update;
+  if (parseVersion(&Major, &Minor, &Update))
+    return true;
+
+  if (parseToken(AsmToken::EndOfStatement))
+    return addErrorSuffix(Twine(" in '") + Directive + "' directive");
+
+  Triple::OSType ExpectedOS = getOSTypeFromMCVM(Type);
+  checkVersion(Directive, StringRef(), Loc, ExpectedOS);
+
+  getStreamer().EmitVersionMin(Type, Major, Minor, Update);
+  return false;
+}
+
+static Triple::OSType getOSTypeFromPlatform(MachO::PlatformType Type) {
+  switch (Type) {
+  case MachO::PLATFORM_MACOS:   return Triple::MacOSX;
+  case MachO::PLATFORM_IOS:     return Triple::IOS;
+  case MachO::PLATFORM_TVOS:    return Triple::TvOS;
+  case MachO::PLATFORM_WATCHOS: return Triple::WatchOS;
+  case MachO::PLATFORM_BRIDGEOS: /* silence warning */break;
+  }
+  llvm_unreachable("Invalid mach-o platform type");
+}
+
+/// parseBuildVersion
+///   ::= .build_version (macos|ios|tvos|watchos), parseVersion
+bool DarwinAsmParser::parseBuildVersion(StringRef Directive, SMLoc Loc) {
+  StringRef PlatformName;
+  SMLoc PlatformLoc = getTok().getLoc();
+  if (getParser().parseIdentifier(PlatformName))
+    return TokError("platform name expected");
+
+  unsigned Platform = StringSwitch<unsigned>(PlatformName)
+    .Case("macos", MachO::PLATFORM_MACOS)
+    .Case("ios", MachO::PLATFORM_IOS)
+    .Case("tvos", MachO::PLATFORM_TVOS)
+    .Case("watchos", MachO::PLATFORM_WATCHOS)
+    .Default(0);
+  if (Platform == 0)
+    return Error(PlatformLoc, "unknown platform name");
+
+  if (getLexer().isNot(AsmToken::Comma))
+    return TokError("version number required, comma expected");
+  Lex();
+
+  unsigned Major;
+  unsigned Minor;
+  unsigned Update;
+  if (parseVersion(&Major, &Minor, &Update))
+    return true;
+
+  if (parseToken(AsmToken::EndOfStatement))
+    return addErrorSuffix(" in '.build_version' directive");
+
+  Triple::OSType ExpectedOS
+    = getOSTypeFromPlatform((MachO::PlatformType)Platform);
+  checkVersion(Directive, PlatformName, Loc, ExpectedOS);
+
+  getStreamer().EmitBuildVersion(Platform, Major, Minor, Update);
+  return false;
+}
+
 
 namespace llvm {
 

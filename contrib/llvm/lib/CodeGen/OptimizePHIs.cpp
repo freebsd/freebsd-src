@@ -1,4 +1,4 @@
-//===-- OptimizePHIs.cpp - Optimize machine instruction PHIs --------------===//
+//===- OptimizePHIs.cpp - Optimize machine instruction PHIs ---------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,57 +12,71 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "phi-opt"
-#include "llvm/CodeGen/Passes.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/IR/Function.h"
-#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/Pass.h"
+#include <cassert>
+
 using namespace llvm;
+
+#define DEBUG_TYPE "opt-phis"
 
 STATISTIC(NumPHICycles, "Number of PHI cycles replaced");
 STATISTIC(NumDeadPHICycles, "Number of dead PHI cycles");
 
 namespace {
+
   class OptimizePHIs : public MachineFunctionPass {
     MachineRegisterInfo *MRI;
     const TargetInstrInfo *TII;
 
   public:
     static char ID; // Pass identification
+
     OptimizePHIs() : MachineFunctionPass(ID) {
       initializeOptimizePHIsPass(*PassRegistry::getPassRegistry());
     }
 
-    virtual bool runOnMachineFunction(MachineFunction &MF);
+    bool runOnMachineFunction(MachineFunction &MF) override;
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesCFG();
       MachineFunctionPass::getAnalysisUsage(AU);
     }
 
   private:
-    typedef SmallPtrSet<MachineInstr*, 16> InstrSet;
-    typedef SmallPtrSetIterator<MachineInstr*> InstrSetIterator;
+    using InstrSet = SmallPtrSet<MachineInstr *, 16>;
+    using InstrSetIterator = SmallPtrSetIterator<MachineInstr *>;
 
     bool IsSingleValuePHICycle(MachineInstr *MI, unsigned &SingleValReg,
                                InstrSet &PHIsInCycle);
     bool IsDeadPHICycle(MachineInstr *MI, InstrSet &PHIsInCycle);
     bool OptimizeBB(MachineBasicBlock &MBB);
   };
-}
+
+} // end anonymous namespace
 
 char OptimizePHIs::ID = 0;
+
 char &llvm::OptimizePHIsID = OptimizePHIs::ID;
-INITIALIZE_PASS(OptimizePHIs, "opt-phis",
+
+INITIALIZE_PASS(OptimizePHIs, DEBUG_TYPE,
                 "Optimize machine instruction PHIs", false, false)
 
 bool OptimizePHIs::runOnMachineFunction(MachineFunction &Fn) {
+  if (skipFunction(Fn.getFunction()))
+    return false;
+
   MRI = &Fn.getRegInfo();
-  TII = Fn.getTarget().getInstrInfo();
+  TII = Fn.getSubtarget().getInstrInfo();
 
   // Find dead PHI cycles and PHI cycles that can be replaced by a single
   // value.  InstCombine does these optimizations, but DAG legalization may
@@ -87,7 +101,7 @@ bool OptimizePHIs::IsSingleValuePHICycle(MachineInstr *MI,
   unsigned DstReg = MI->getOperand(0).getReg();
 
   // See if we already saw this register.
-  if (!PHIsInCycle.insert(MI))
+  if (!PHIsInCycle.insert(MI).second)
     return true;
 
   // Don't scan crazily complex things.
@@ -132,17 +146,15 @@ bool OptimizePHIs::IsDeadPHICycle(MachineInstr *MI, InstrSet &PHIsInCycle) {
          "PHI destination is not a virtual register");
 
   // See if we already saw this register.
-  if (!PHIsInCycle.insert(MI))
+  if (!PHIsInCycle.insert(MI).second)
     return true;
 
   // Don't scan crazily complex things.
   if (PHIsInCycle.size() == 16)
     return false;
 
-  for (MachineRegisterInfo::use_iterator I = MRI->use_begin(DstReg),
-         E = MRI->use_end(); I != E; ++I) {
-    MachineInstr *UseMI = &*I;
-    if (!UseMI->isPHI() || !IsDeadPHICycle(UseMI, PHIsInCycle))
+  for (MachineInstr &UseMI : MRI->use_nodbg_instructions(DstReg)) {
+    if (!UseMI.isPHI() || !IsDeadPHICycle(&UseMI, PHIsInCycle))
       return false;
   }
 
@@ -181,7 +193,7 @@ bool OptimizePHIs::OptimizeBB(MachineBasicBlock &MBB) {
       for (InstrSetIterator PI = PHIsInCycle.begin(), PE = PHIsInCycle.end();
            PI != PE; ++PI) {
         MachineInstr *PhiMI = *PI;
-        if (&*MII == PhiMI)
+        if (MII == PhiMI)
           ++MII;
         PhiMI->eraseFromParent();
       }

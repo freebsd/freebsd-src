@@ -53,7 +53,7 @@ root" contains exactly three subdirectories: <tt>/trunk</tt>,
 only one project root, or it may contain a number of them.</p>
 
 <p><em>Book reference:</em> <a
-        href="http://svnbook.red-bean.com/svnbook/ch05s04.html#svn-ch-5-sect-6.1">Choosing
+        href="http://svnbook.red-bean.com/nightly/en/svn.reposadmin.planning.html#svn.reposadmin.projects.chooselayout">Choosing
         a Repository Layout</a>.</p>
 
 
@@ -70,10 +70,8 @@ change.  You can mention this revision number in bug databases, or use
 it as an argument to <tt>svn merge</tt> should you want to undo the
 change or port it to another branch.</p>
 
-<p><em>Book reference:</em> "Subversion and Changesets" sidebar,
-        within <a
-        href="http://svnbook.red-bean.com/svnbook/ch04s03.html">chapter
-        4</a>.</p>
+<p><em>Book reference:</em> <a
+        href="http://svnbook.red-bean.com/nightly/en/svn.branchmerge.basicmerging.html#svn.branchmerge.changesets">Changesets</a>.</p>
 
 <!-- =================================================== -->
 
@@ -91,7 +89,10 @@ and your issue-tracking database as possible:</p>
 
 <!-- =================================================== -->
 
+<div style="color:grey">
 <h2>Track merges manually</h2>
+
+<p><em>### OBSOLETE RECOMMENDATION ###</em></p>
 
 <p>When committing the result of a merge, be sure to write a
 descriptive log message that explains what was merged, something
@@ -103,6 +104,7 @@ like:</p>
         href="http://svnbook.red-bean.com/svnbook/ch04s03.html#svn-ch-4-sect-3.2">Tracking
         merges manually</a>, and <a
         href="http://svnbook.red-bean.com/svnbook/ch04s04.html#svn-ch-4-sect-4.1">Merging a whole branch to another</a>.</p>
+</div>
 
 <!-- =================================================== -->
 
@@ -134,8 +136,7 @@ revision, and everything else is at an older revision.</li>
 </ol>
 
 <p><em>Book reference:</em> <a
-href="http://svnbook.red-bean.com/svnbook/ch02s03.html#svn-ch-2-sect-3.4">The
-            limitation of mixed revisions</a>.</p>
+        href="http://svnbook.red-bean.com/nightly/en/svn.basic.in-action.html#svn.basic.in-action.mixedrevs">Mixed-revision working copies</a>.</p>
 
 
 <!-- =================================================== -->
@@ -179,39 +180,6 @@ you'll need to be aware that very large files may require quite a bit
 of patient waiting while your client chugs away.  You can rest
 assured, however, that unlike CVS, your large files won't incapacitate
 the server or affect other users.</p>
-
-<!-- =================================================== -->
-
-<h2>Work around commands that don't understand copies/renames</h2>
-
-<p>When a file or directory is copied or renamed, the Subversion repository
-tracks that history.  Unfortunately in Subversion 1.0, the only client
-subcommand which actually takes advantage of this feature is <tt>svn
-log</tt>.  A number of other commands (such as <tt>svn diff</tt> and
-<tt>svn cat</tt>) ought to be automatically following rename-history,
-but aren't doing so yet.</p>
-
-<p>In all of these cases, a basic workaround is to use <tt>'svn log
--v'</tt> to discover the proper path within the older revision.</p>
-
-<p>For example, suppose you copied <tt>/trunk</tt> to
-<tt>/branches/mybranch</tt> in revision 200, and then committed some
-changes to <tt>/branches/mybranch/foo.c</tt> in subsequent revisions.
-Now you'd like to compare revisions 80 and 250 of the file.</p>
-
-<p>If you have a working copy of the branch and run <tt>svn diff
--r80:250 foo.c</tt>, you'll see an error about
-<tt>/branches/mybranch/foo.c</tt> not existing in revision 80.  To
-remedy, you would run <tt>svn log -v</tt> on your branch or file to
-discover that it was named <tt>/trunk/foo.c</tt> prior to revision 200,
-and then compare the two URLs directly:</p>
-
-<pre>
-   $ svn diff http://.../trunk/foo.c@80 \
-              http://.../branches/mybranch/foo.c@200
-</pre>
-
-
 
 <!-- =================================================== -->
 

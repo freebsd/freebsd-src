@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1997 Semen Ustimenko
  * All rights reserved.
  *
@@ -90,7 +92,7 @@
 #define INTSTAT_CNT	0x00000200
 #define INTSTAT_PREI	0x00000400
 #define INTSTAT_RCT	0x00000800	
-#define INTSTAT_FATAL	0x00001000	/* One of DPE,APE,PMA,PTA happend */	
+#define	INTSTAT_FATAL	0x00001000	/* One of DPE,APE,PMA,PTA happened */	
 #define INTSTAT_UNUSED1	0x00002000
 #define INTSTAT_UNUSED2	0x00004000	
 #define INTSTAT_GP2	0x00008000	/* PHY Event */	

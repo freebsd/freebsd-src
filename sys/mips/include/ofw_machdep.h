@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 by Thomas Moestl <tmm@FreeBSD.org>.
  * All rights reserved.
  *
@@ -32,7 +34,6 @@
 #include <sys/types.h>
 #include <sys/rman.h>
 #include <sys/bus.h>
-#include <dev/ofw/openfirm.h>
 
 typedef	uint32_t	cell_t;
 struct mem_region {
@@ -40,8 +41,6 @@ struct mem_region {
 	vm_size_t	mr_size;
 };
 
-
-int  OF_decode_addr(phandle_t, int, bus_space_tag_t *, bus_space_handle_t *);
 void OF_getetheraddr(device_t dev, u_char *addr);
 void OF_initial_setup(void *fdt_ptr, void *junk, int (*openfirm)(void *));
 

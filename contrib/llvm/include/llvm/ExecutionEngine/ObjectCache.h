@@ -1,4 +1,4 @@
-//===-- ObjectCache.h - Class definition for the ObjectCache -----C++ -*-===//
+//===-- ObjectCache.h - Class definition for the ObjectCache ----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,6 +11,7 @@
 #define LLVM_EXECUTIONENGINE_OBJECTCACHE_H
 
 #include "llvm/Support/MemoryBuffer.h"
+#include <memory>
 
 namespace llvm {
 
@@ -21,21 +22,21 @@ class Module;
 /// have already been compiled and an object file is available.
 class ObjectCache {
   virtual void anchor();
-public:
-  ObjectCache() { }
 
-  virtual ~ObjectCache() { }
+public:
+  ObjectCache() = default;
+
+  virtual ~ObjectCache() = default;
 
   /// notifyObjectCompiled - Provides a pointer to compiled code for Module M.
-  virtual void notifyObjectCompiled(const Module *M, const MemoryBuffer *Obj) = 0;
+  virtual void notifyObjectCompiled(const Module *M, MemoryBufferRef Obj) = 0;
 
-  /// getObjectCopy - Returns a pointer to a newly allocated MemoryBuffer that
-  /// contains the object which corresponds with Module M, or 0 if an object is
-  /// not available. The caller owns both the MemoryBuffer returned by this
-  /// and the memory it references.
-  virtual MemoryBuffer* getObject(const Module* M) = 0;
+  /// Returns a pointer to a newly allocated MemoryBuffer that contains the
+  /// object which corresponds with Module M, or 0 if an object is not
+  /// available.
+  virtual std::unique_ptr<MemoryBuffer> getObject(const Module* M) = 0;
 };
 
-}
+} // end namespace llvm
 
-#endif
+#endif // LLVM_EXECUTIONENGINE_OBJECTCACHE_H

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009 Andrew Thompson
  *
  * Redistribution and use in source and binary forms, with or without
@@ -128,6 +130,8 @@ struct usb_xfer_queue {
 	void    (*command) (struct usb_xfer_queue *pq);
 	uint8_t	recurse_1:1;
 	uint8_t	recurse_2:1;
+	uint8_t	recurse_3:1;
+	uint8_t	reserved:5;
 };
 
 /*
@@ -239,7 +243,7 @@ struct usb_config {
 /*
  * Use these macro when defining USB device ID arrays if you want to
  * have your driver module automatically loaded in host, device or
- * both modes respectivly:
+ * both modes respectively:
  */
 #if USB_HAVE_ID_SECTION
 #define	STRUCT_USB_HOST_ID \
@@ -264,8 +268,38 @@ struct usb_config {
  */
 struct usb_device_id {
 
-	/* Hook for driver specific information */
-	unsigned long driver_info;
+	/* Select which fields to match against */
+#if BYTE_ORDER == LITTLE_ENDIAN
+	uint16_t
+		match_flag_vendor:1,
+		match_flag_product:1,
+		match_flag_dev_lo:1,
+		match_flag_dev_hi:1,
+
+		match_flag_dev_class:1,
+		match_flag_dev_subclass:1,
+		match_flag_dev_protocol:1,
+		match_flag_int_class:1,
+
+		match_flag_int_subclass:1,
+		match_flag_int_protocol:1,
+		match_flag_unused:6;
+#else
+	uint16_t
+		match_flag_unused:6,
+		match_flag_int_protocol:1,
+		match_flag_int_subclass:1,
+
+		match_flag_int_class:1,
+		match_flag_dev_protocol:1,
+		match_flag_dev_subclass:1,
+		match_flag_dev_class:1,
+
+		match_flag_dev_hi:1,
+		match_flag_dev_lo:1,
+		match_flag_product:1,
+		match_flag_vendor:1;
+#endif
 
 	/* Used for product specific matches; the BCD range is inclusive */
 	uint16_t idVendor;
@@ -283,21 +317,6 @@ struct usb_device_id {
 	uint8_t	bInterfaceSubClass;
 	uint8_t	bInterfaceProtocol;
 
-	/* Select which fields to match against */
-	uint8_t	match_flag_vendor:1;
-	uint8_t	match_flag_product:1;
-	uint8_t	match_flag_dev_lo:1;
-	uint8_t	match_flag_dev_hi:1;
-
-	uint8_t	match_flag_dev_class:1;
-	uint8_t	match_flag_dev_subclass:1;
-	uint8_t	match_flag_dev_protocol:1;
-	uint8_t	match_flag_int_class:1;
-
-	uint8_t	match_flag_int_subclass:1;
-	uint8_t	match_flag_int_protocol:1;
-	uint8_t match_flag_unused:6;
-
 #if USB_HAVE_COMPAT_LINUX
 	/* which fields to match against */
 	uint16_t match_flags;
@@ -312,7 +331,25 @@ struct usb_device_id {
 #define	USB_DEVICE_ID_MATCH_INT_SUBCLASS	0x0100
 #define	USB_DEVICE_ID_MATCH_INT_PROTOCOL	0x0200
 #endif
+
+	/* Hook for driver specific information */
+	unsigned long driver_info;
 } __aligned(32);
+
+#define USB_STD_PNP_INFO "M16:mask;U16:vendor;U16:product;L16:release;G16:release;" \
+	"U8:devclass;U8:devsubclass;U8:devproto;" \
+	"U8:intclass;U8:intsubclass;U8:intprotocol;"
+#define USB_STD_PNP_HOST_INFO USB_STD_PNP_INFO "T:mode=host;"
+#define USB_STD_PNP_DEVICE_INFO USB_STD_PNP_INFO "T:mode=device;"
+#define USB_PNP_HOST_INFO(table)					\
+	MODULE_PNP_INFO(USB_STD_PNP_HOST_INFO, uhub, table, table,	\
+	    sizeof(table) / sizeof(table[0]))
+#define USB_PNP_DEVICE_INFO(table)					\
+	MODULE_PNP_INFO(USB_STD_PNP_DEVICE_INFO, uhub, table, table,	\
+	    sizeof(table) / sizeof(table[0]))
+#define USB_PNP_DUAL_INFO(table)					\
+	MODULE_PNP_INFO(USB_STD_PNP_INFO, uhub, table, table,		\
+	    sizeof(table) / sizeof(table[0]))
 
 /* check that the size of the structure above is correct */
 extern char usb_device_id_assert[(sizeof(struct usb_device_id) == 32) ? 1 : -1];
@@ -400,6 +437,39 @@ struct usb_attach_arg {
 };
 
 /*
+ * General purpose locking wrappers to ease supporting
+ * USB polled mode:
+ */
+#ifdef INVARIANTS
+#define	USB_MTX_ASSERT(_m, _t) do {		\
+	if (!USB_IN_POLLING_MODE_FUNC())	\
+		mtx_assert(_m, _t);		\
+} while (0)
+#else
+#define	USB_MTX_ASSERT(_m, _t) do { } while (0)
+#endif
+
+#define	USB_MTX_LOCK(_m) do {			\
+	if (!USB_IN_POLLING_MODE_FUNC())	\
+		mtx_lock(_m);			\
+} while (0)
+
+#define	USB_MTX_UNLOCK(_m) do {			\
+	if (!USB_IN_POLLING_MODE_FUNC())	\
+		mtx_unlock(_m);			\
+} while (0)
+
+#define	USB_MTX_LOCK_SPIN(_m) do {		\
+	if (!USB_IN_POLLING_MODE_FUNC())	\
+		mtx_lock_spin(_m);		\
+} while (0)
+
+#define	USB_MTX_UNLOCK_SPIN(_m) do {		\
+	if (!USB_IN_POLLING_MODE_FUNC())	\
+		mtx_unlock_spin(_m);		\
+} while (0)
+
+/*
  * The following is a wrapper for the callout structure to ease
  * porting the code to other platforms.
  */
@@ -407,8 +477,26 @@ struct usb_callout {
 	struct callout co;
 };
 #define	usb_callout_init_mtx(c,m,f) callout_init_mtx(&(c)->co,m,f)
-#define	usb_callout_reset(c,t,f,d) callout_reset(&(c)->co,t,f,d)
-#define	usb_callout_stop(c) callout_stop(&(c)->co)
+#define	usb_callout_reset(c,...) do {			\
+	if (!USB_IN_POLLING_MODE_FUNC())		\
+		callout_reset(&(c)->co, __VA_ARGS__);	\
+} while (0)
+#define	usb_callout_reset_sbt(c,...) do {			\
+	if (!USB_IN_POLLING_MODE_FUNC())			\
+		callout_reset_sbt(&(c)->co, __VA_ARGS__);	\
+} while (0)
+#define	usb_callout_stop(c) do {			\
+	if (!USB_IN_POLLING_MODE_FUNC()) {		\
+		callout_stop(&(c)->co);			\
+	} else {					\
+		/*					\
+		 * Cannot stop callout when		\
+		 * polling. Set dummy callback		\
+		 * function instead:			\
+		 */					\
+		(c)->co.c_func = &usbd_dummy_timeout;	\
+	}						\
+} while (0)
 #define	usb_callout_drain(c) callout_drain(&(c)->co)
 #define	usb_callout_pending(c) callout_pending(&(c)->co)
 
@@ -588,6 +676,8 @@ void	usbd_frame_zero(struct usb_page_cache *cache, usb_frlength_t offset,
 void	usbd_start_re_enumerate(struct usb_device *udev);
 usb_error_t
 	usbd_start_set_config(struct usb_device *, uint8_t);
+int	usbd_in_polling_mode(void);
+void	usbd_dummy_timeout(void *);
 
 int	usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 	    struct mtx *priv_mtx, struct usb_fifo_methods *pm,

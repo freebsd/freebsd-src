@@ -18,10 +18,12 @@
  *
  * CDDL HEADER END
  */
+
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
- * Copyright 2014 Nexenta Systems, Inc. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
+ * Copyright 2015 RackTop Systems.
+ * Copyright 2016 Nexenta Systems, Inc.
  */
 
 /*
@@ -31,7 +33,7 @@
  * ZFS label of each device.  If we successfully read the label, then we
  * organize the configuration information in the following hierarchy:
  *
- * 	pool guid -> toplevel vdev guid -> label txg
+ *	pool guid -> toplevel vdev guid -> label txg
  *
  * Duplicate entries matching this same tuple will be discarded.  Once we have
  * examined every device, we pick the best label txg config for each toplevel
@@ -40,6 +42,7 @@
  * using our derived config, and record the results.
  */
 
+#include <aio.h>
 #include <ctype.h>
 #include <devid.h>
 #include <dirent.h>
@@ -198,8 +201,10 @@ fix_paths(nvlist_t *nv, name_entry_t *names)
 	if ((devid = get_devid(best->ne_name)) == NULL) {
 		(void) nvlist_remove_all(nv, ZPOOL_CONFIG_DEVID);
 	} else {
-		if (nvlist_add_string(nv, ZPOOL_CONFIG_DEVID, devid) != 0)
+		if (nvlist_add_string(nv, ZPOOL_CONFIG_DEVID, devid) != 0) {
+			devid_str_free(devid);
 			return (-1);
+		}
 		devid_str_free(devid);
 	}
 
@@ -235,9 +240,11 @@ add_config(libzfs_handle_t *hdl, pool_list_t *pl, const char *path,
 			free(ne);
 			return (-1);
 		}
+
 		ne->ne_guid = vdev_guid;
 		ne->ne_next = pl->names;
 		pl->names = ne;
+
 		return (0);
 	}
 
@@ -257,7 +264,6 @@ add_config(libzfs_handle_t *hdl, pool_list_t *pl, const char *path,
 	    &top_guid) != 0 ||
 	    nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_TXG,
 	    &txg) != 0 || txg == 0) {
-		nvlist_free(config);
 		return (0);
 	}
 
@@ -272,7 +278,6 @@ add_config(libzfs_handle_t *hdl, pool_list_t *pl, const char *path,
 
 	if (pe == NULL) {
 		if ((pe = zfs_alloc(hdl, sizeof (pool_entry_t))) == NULL) {
-			nvlist_free(config);
 			return (-1);
 		}
 		pe->pe_guid = pool_guid;
@@ -291,7 +296,6 @@ add_config(libzfs_handle_t *hdl, pool_list_t *pl, const char *path,
 
 	if (ve == NULL) {
 		if ((ve = zfs_alloc(hdl, sizeof (vdev_entry_t))) == NULL) {
-			nvlist_free(config);
 			return (-1);
 		}
 		ve->ve_guid = top_guid;
@@ -311,15 +315,12 @@ add_config(libzfs_handle_t *hdl, pool_list_t *pl, const char *path,
 
 	if (ce == NULL) {
 		if ((ce = zfs_alloc(hdl, sizeof (config_entry_t))) == NULL) {
-			nvlist_free(config);
 			return (-1);
 		}
 		ce->ce_txg = txg;
-		ce->ce_config = config;
+		ce->ce_config = fnvlist_dup(config);
 		ce->ce_next = ve->ve_configs;
 		ve->ve_configs = ce;
-	} else {
-		nvlist_free(config);
 	}
 
 	/*
@@ -375,13 +376,14 @@ refresh_config(libzfs_handle_t *hdl, nvlist_t *config)
 {
 	nvlist_t *nvl;
 	zfs_cmd_t zc = { 0 };
-	int err;
+	int err, dstbuf_size;
 
 	if (zcmd_write_conf_nvlist(hdl, &zc, config) != 0)
 		return (NULL);
 
-	if (zcmd_alloc_dst_nvlist(hdl, &zc,
-	    zc.zc_nvlist_conf_size * 2) != 0) {
+	dstbuf_size = MAX(CONFIG_BUF_MINSIZE, zc.zc_nvlist_conf_size * 4);
+
+	if (zcmd_alloc_dst_nvlist(hdl, &zc, dstbuf_size) != 0) {
 		zcmd_free_nvlists(&zc);
 		return (NULL);
 	}
@@ -431,17 +433,18 @@ vdev_is_hole(uint64_t *hole_array, uint_t holes, uint_t id)
  * return to the user.
  */
 static nvlist_t *
-get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
+get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok,
+    nvlist_t *policy)
 {
 	pool_entry_t *pe;
 	vdev_entry_t *ve;
 	config_entry_t *ce;
-	nvlist_t *ret = NULL, *config = NULL, *tmp, *nvtop, *nvroot;
+	nvlist_t *ret = NULL, *config = NULL, *tmp = NULL, *nvtop, *nvroot;
 	nvlist_t **spares, **l2cache;
 	uint_t i, nspares, nl2cache;
 	boolean_t config_seen;
 	uint64_t best_txg;
-	char *name, *hostname;
+	char *name, *hostname = NULL;
 	uint64_t guid;
 	uint_t children = 0;
 	nvlist_t **child = NULL;
@@ -665,8 +668,10 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 				    nvlist_add_uint64(holey,
 				    ZPOOL_CONFIG_ID, c) != 0 ||
 				    nvlist_add_uint64(holey,
-				    ZPOOL_CONFIG_GUID, 0ULL) != 0)
+				    ZPOOL_CONFIG_GUID, 0ULL) != 0) {
+					nvlist_free(holey);
 					goto nomem;
+				}
 				child[c] = holey;
 			}
 		}
@@ -761,6 +766,12 @@ get_configs(libzfs_handle_t *hdl, pool_list_t *pl, boolean_t active_ok)
 			nvlist_free(config);
 			config = NULL;
 			continue;
+		}
+
+		if (policy != NULL) {
+			if (nvlist_add_nvlist(config, ZPOOL_LOAD_POLICY,
+			    policy) != 0)
+				goto nomem;
 		}
 
 		if ((nvl = refresh_config(hdl, config)) == NULL) {
@@ -858,6 +869,7 @@ label_offset(uint64_t size, int l)
 /*
  * Given a file descriptor, read the label information and return an nvlist
  * describing the configuration, if there is one.
+ * Return 0 on success, or -1 on failure
  */
 int
 zpool_read_label(int fd, nvlist_t **config)
@@ -870,7 +882,7 @@ zpool_read_label(int fd, nvlist_t **config)
 	*config = NULL;
 
 	if (fstat64(fd, &statbuf) == -1)
-		return (0);
+		return (-1);
 	size = P2ALIGN_TYPED(statbuf.st_size, sizeof (vdev_label_t), uint64_t);
 
 	if ((label = malloc(sizeof (vdev_label_t))) == NULL)
@@ -904,7 +916,92 @@ zpool_read_label(int fd, nvlist_t **config)
 
 	free(label);
 	*config = NULL;
-	return (0);
+	errno = ENOENT;
+	return (-1);
+}
+
+/*
+ * Given a file descriptor, read the label information and return an nvlist
+ * describing the configuration, if there is one.
+ * returns the number of valid labels found
+ * If a label is found, returns it via config.  The caller is responsible for
+ * freeing it.
+ */
+int
+zpool_read_all_labels(int fd, nvlist_t **config)
+{
+	struct stat64 statbuf;
+	struct aiocb aiocbs[VDEV_LABELS];
+	struct aiocb *aiocbps[VDEV_LABELS];
+	int l;
+	vdev_phys_t *labels;
+	uint64_t state, txg, size;
+	int nlabels = 0;
+
+	*config = NULL;
+
+	if (fstat64(fd, &statbuf) == -1)
+		return (0);
+	size = P2ALIGN_TYPED(statbuf.st_size, sizeof (vdev_label_t), uint64_t);
+
+	if ((labels = calloc(VDEV_LABELS, sizeof (vdev_phys_t))) == NULL)
+		return (0);
+
+	memset(aiocbs, 0, sizeof(aiocbs));
+	for (l = 0; l < VDEV_LABELS; l++) {
+		aiocbs[l].aio_fildes = fd;
+		aiocbs[l].aio_offset = label_offset(size, l) + VDEV_SKIP_SIZE;
+		aiocbs[l].aio_buf = &labels[l];
+		aiocbs[l].aio_nbytes = sizeof(vdev_phys_t);
+		aiocbs[l].aio_lio_opcode = LIO_READ;
+		aiocbps[l] = &aiocbs[l];
+	}
+
+	if (lio_listio(LIO_WAIT, aiocbps, VDEV_LABELS, NULL) != 0) {
+		if (errno == EAGAIN || errno == EINTR || errno == EIO) {
+			for (l = 0; l < VDEV_LABELS; l++) {
+				errno = 0;
+				int r = aio_error(&aiocbs[l]);
+				if (r != EINVAL)
+					(void)aio_return(&aiocbs[l]);
+			}
+		}
+		free(labels);
+		return (0);
+	}
+
+	for (l = 0; l < VDEV_LABELS; l++) {
+		nvlist_t *temp = NULL;
+
+		if (aio_return(&aiocbs[l]) != sizeof(vdev_phys_t))
+			continue;
+
+		if (nvlist_unpack(labels[l].vp_nvlist,
+		    sizeof (labels[l].vp_nvlist), &temp, 0) != 0)
+			continue;
+
+		if (nvlist_lookup_uint64(temp, ZPOOL_CONFIG_POOL_STATE,
+		    &state) != 0 || state > POOL_STATE_L2CACHE) {
+			nvlist_free(temp);
+			temp = NULL;
+			continue;
+		}
+
+		if (state != POOL_STATE_SPARE && state != POOL_STATE_L2CACHE &&
+		    (nvlist_lookup_uint64(temp, ZPOOL_CONFIG_POOL_TXG,
+		    &txg) != 0 || txg == 0)) {
+			nvlist_free(temp);
+			temp = NULL;
+			continue;
+		}
+		if (temp)
+			*config = temp;
+
+		nlabels++;
+	}
+
+	free(labels);
+	return (nlabels);
 }
 
 typedef struct rdsk_node {
@@ -952,7 +1049,7 @@ slice_cache_compare(const void *arg1, const void *arg2)
 	return (rv > 0 ? 1 : -1);
 }
 
-#ifdef sun
+#ifdef illumos
 static void
 check_one_slice(avl_tree_t *r, char *diskname, uint_t partno,
     diskaddr_t size, uint_t blksz)
@@ -975,12 +1072,12 @@ check_one_slice(avl_tree_t *r, char *diskname, uint_t partno,
 	    (node = avl_find(r, &tmpnode, NULL)))
 		node->rn_nozpool = B_TRUE;
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 static void
 nozpool_all_slices(avl_tree_t *r, const char *sname)
 {
-#ifdef sun
+#ifdef illumos
 	char diskname[MAXNAMELEN];
 	char *ptr;
 	int i;
@@ -996,10 +1093,10 @@ nozpool_all_slices(avl_tree_t *r, const char *sname)
 	ptr[0] = 'p';
 	for (i = 0; i <= FD_NUMPART; i++)
 		check_one_slice(r, diskname, i, 0, 1);
-#endif	/* sun */
+#endif	/* illumos */
 }
 
-#ifdef sun
+#ifdef illumos
 static void
 check_slices(avl_tree_t *r, int fd, const char *sname)
 {
@@ -1033,7 +1130,7 @@ check_slices(avl_tree_t *r, int fd, const char *sname)
 		efi_free(gpt);
 	}
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 static void
 zpool_open_func(void *arg)
@@ -1063,7 +1160,7 @@ zpool_open_func(void *arg)
 		return;
 	}
 	/* this file is too small to hold a zpool */
-#ifdef sun
+#ifdef illumos
 	if (S_ISREG(statbuf.st_mode) &&
 	    statbuf.st_size < SPA_MINDEVSIZE) {
 		(void) close(fd);
@@ -1075,31 +1172,25 @@ zpool_open_func(void *arg)
 		 */
 		check_slices(rn->rn_avl, fd, rn->rn_name);
 	}
-#else	/* !sun */
+#else	/* !illumos */
 	if (statbuf.st_size < SPA_MINDEVSIZE) {
 		(void) close(fd);
 		return;
 	}
-#endif	/* sun */
+#endif	/* illumos */
 
-	if ((zpool_read_label(fd, &config)) != 0) {
+	if ((zpool_read_label(fd, &config)) != 0 && errno == ENOMEM) {
 		(void) close(fd);
 		(void) no_memory(rn->rn_hdl);
 		return;
 	}
 	(void) close(fd);
 
-
 	rn->rn_config = config;
-	if (config != NULL) {
-		assert(rn->rn_nozpool == B_FALSE);
-	}
 }
 
 /*
- * Given a file descriptor, clear (zero) the label information.  This function
- * is used in the appliance stack as part of the ZFS sysevent module and
- * to implement the "zpool labelclear" command.
+ * Given a file descriptor, clear (zero) the label information.
  */
 int
 zpool_clear_label(int fd)
@@ -1118,8 +1209,10 @@ zpool_clear_label(int fd)
 
 	for (l = 0; l < VDEV_LABELS; l++) {
 		if (pwrite64(fd, label, sizeof (vdev_label_t),
-		    label_offset(size, l)) != sizeof (vdev_label_t))
+		    label_offset(size, l)) != sizeof (vdev_label_t)) {
+			free(label);
 			return (-1);
+		}
 	}
 
 	free(label);
@@ -1137,7 +1230,6 @@ static nvlist_t *
 zpool_find_import_impl(libzfs_handle_t *hdl, importargs_t *iarg)
 {
 	int i, dirs = iarg->paths;
-	DIR *dirp = NULL;
 	struct dirent64 *dp;
 	char path[MAXPATHLEN];
 	char *end, **dir = iarg->path;
@@ -1165,8 +1257,10 @@ zpool_find_import_impl(libzfs_handle_t *hdl, importargs_t *iarg)
 	 */
 	for (i = 0; i < dirs; i++) {
 		tpool_t *t;
-		char *rdsk;
+		char rdsk[MAXPATHLEN];
 		int dfd;
+		boolean_t config_failed = B_FALSE;
+		DIR *dirp;
 
 		/* use realpath to normalize the path */
 		if (realpath(dir[i], path) == 0) {
@@ -1179,18 +1273,22 @@ zpool_find_import_impl(libzfs_handle_t *hdl, importargs_t *iarg)
 		*end = 0;
 		pathleft = &path[sizeof (path)] - end;
 
+#ifdef illumos
 		/*
 		 * Using raw devices instead of block devices when we're
 		 * reading the labels skips a bunch of slow operations during
 		 * close(2) processing, so we replace /dev/dsk with /dev/rdsk.
 		 */
-		if (strcmp(path, "/dev/dsk/") == 0)
-			rdsk = "/dev/";
+		if (strcmp(path, ZFS_DISK_ROOTD) == 0)
+			(void) strlcpy(rdsk, ZFS_RDISK_ROOTD, sizeof (rdsk));
 		else
-			rdsk = path;
+#endif
+			(void) strlcpy(rdsk, path, sizeof (rdsk));
 
 		if ((dfd = open64(rdsk, O_RDONLY)) < 0 ||
 		    (dirp = fdopendir(dfd)) == NULL) {
+			if (dfd >= 0)
+				(void) close(dfd);
 			zfs_error_aux(hdl, strerror(errno));
 			(void) zfs_error_fmt(hdl, EZFS_BADPATH,
 			    dgettext(TEXT_DOMAIN, "cannot open '%s'"),
@@ -1272,7 +1370,7 @@ skipdir:
 		cookie = NULL;
 		while ((slice = avl_destroy_nodes(&slice_cache,
 		    &cookie)) != NULL) {
-			if (slice->rn_config != NULL) {
+			if (slice->rn_config != NULL && !config_failed) {
 				nvlist_t *config = slice->rn_config;
 				boolean_t matched = B_TRUE;
 
@@ -1291,15 +1389,17 @@ skipdir:
 					    &this_guid) == 0 &&
 					    iarg->guid == this_guid;
 				}
-				if (!matched) {
-					nvlist_free(config);
-					config = NULL;
-					continue;
+				if (matched) {
+					/*
+					 * use the non-raw path for the config
+					 */
+					(void) strlcpy(end, slice->rn_name,
+					    pathleft);
+					if (add_config(hdl, &pools, path,
+					    config) != 0)
+						config_failed = B_TRUE;
 				}
-				/* use the non-raw path for the config */
-				(void) strlcpy(end, slice->rn_name, pathleft);
-				if (add_config(hdl, &pools, path, config) != 0)
-					goto error;
+				nvlist_free(config);
 			}
 			free(slice->rn_name);
 			free(slice);
@@ -1307,10 +1407,12 @@ skipdir:
 		avl_destroy(&slice_cache);
 
 		(void) closedir(dirp);
-		dirp = NULL;
+
+		if (config_failed)
+			goto error;
 	}
 
-	ret = get_configs(hdl, &pools, iarg->can_be_active);
+	ret = get_configs(hdl, &pools, iarg->can_be_active, iarg->policy);
 
 error:
 	for (pe = pools.pools; pe != NULL; pe = penext) {
@@ -1319,8 +1421,7 @@ error:
 			venext = ve->ve_next;
 			for (ce = ve->ve_configs; ce != NULL; ce = cenext) {
 				cenext = ce->ce_next;
-				if (ce->ce_config)
-					nvlist_free(ce->ce_config);
+				nvlist_free(ce->ce_config);
 				free(ce);
 			}
 			free(ve);
@@ -1330,13 +1431,9 @@ error:
 
 	for (ne = pools.names; ne != NULL; ne = nenext) {
 		nenext = ne->ne_next;
-		if (ne->ne_name)
-			free(ne->ne_name);
+		free(ne->ne_name);
 		free(ne);
 	}
-
-	if (dirp)
-		(void) closedir(dirp);
 
 	return (ret);
 }
@@ -1444,6 +1541,14 @@ zpool_find_import_cached(libzfs_handle_t *hdl, const char *cachefile,
 
 		if (active)
 			continue;
+
+		if (nvlist_add_string(src, ZPOOL_CONFIG_CACHEFILE,
+		    cachefile) != 0) {
+			(void) no_memory(hdl);
+			nvlist_free(raw);
+			nvlist_free(pools);
+			return (NULL);
+		}
 
 		if ((dst = refresh_config(hdl, src)) == NULL) {
 			nvlist_free(raw);
@@ -1582,7 +1687,7 @@ zpool_in_use(libzfs_handle_t *hdl, int fd, pool_state_t *state, char **namestr,
 
 	*inuse = B_FALSE;
 
-	if (zpool_read_label(fd, &config) != 0) {
+	if (zpool_read_label(fd, &config) != 0 && errno == ENOMEM) {
 		(void) no_memory(hdl);
 		return (-1);
 	}
@@ -1695,9 +1800,9 @@ zpool_in_use(libzfs_handle_t *hdl, int fd, pool_state_t *state, char **namestr,
 		cb.cb_type = ZPOOL_CONFIG_SPARES;
 		if (zpool_iter(hdl, find_aux, &cb) == 1) {
 			name = (char *)zpool_get_name(cb.cb_zhp);
-			ret = TRUE;
+			ret = B_TRUE;
 		} else {
-			ret = FALSE;
+			ret = B_FALSE;
 		}
 		break;
 
@@ -1711,9 +1816,9 @@ zpool_in_use(libzfs_handle_t *hdl, int fd, pool_state_t *state, char **namestr,
 		cb.cb_type = ZPOOL_CONFIG_L2CACHE;
 		if (zpool_iter(hdl, find_aux, &cb) == 1) {
 			name = (char *)zpool_get_name(cb.cb_zhp);
-			ret = TRUE;
+			ret = B_TRUE;
 		} else {
-			ret = FALSE;
+			ret = B_FALSE;
 		}
 		break;
 

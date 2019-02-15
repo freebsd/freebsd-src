@@ -35,7 +35,6 @@
 #include <skey.h>
 
 #include "xmalloc.h"
-#include "key.h"
 #include "hostfile.h"
 #include "auth.h"
 #include "ssh-gss.h"

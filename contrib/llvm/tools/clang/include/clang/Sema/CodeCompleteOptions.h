@@ -10,6 +10,8 @@
 #ifndef LLVM_CLANG_SEMA_CODECOMPLETEOPTIONS_H
 #define LLVM_CLANG_SEMA_CODECOMPLETEOPTIONS_H
 
+namespace clang {
+
 /// Options controlling the behavior of code completion.
 class CodeCompleteOptions {
 public:
@@ -22,16 +24,23 @@ public:
   /// Show top-level decls in code completion results.
   unsigned IncludeGlobals : 1;
 
+  /// Show decls in namespace (including the global namespace) in code
+  /// completion results. If this is 0, `IncludeGlobals` will be ignored.
+  ///
+  /// Currently, this only works when completing qualified IDs (i.e.
+  /// `Sema::CodeCompleteQualifiedId`).
+  /// FIXME: consider supporting more completion cases with this option.
+  unsigned IncludeNamespaceLevelDecls : 1;
+
   /// Show brief documentation comments in code completion results.
   unsigned IncludeBriefComments : 1;
 
-  CodeCompleteOptions() :
-      IncludeMacros(0),
-      IncludeCodePatterns(0),
-      IncludeGlobals(1),
-      IncludeBriefComments(0)
-  { }
+  CodeCompleteOptions()
+      : IncludeMacros(0), IncludeCodePatterns(0), IncludeGlobals(1),
+        IncludeNamespaceLevelDecls(1), IncludeBriefComments(0) {}
 };
+
+} // namespace clang
 
 #endif
 

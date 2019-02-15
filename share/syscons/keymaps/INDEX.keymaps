@@ -123,7 +123,7 @@ danish.cp865.kbd:fr:Danois Code page 865
 danish.cp865.kbd:pt:Dinamarquês Codepage 865
 danish.cp865.kbd:es:Danés Codepage 865
 
-danish.iso.macbook.kbd:da:Danish ISO-8859-1 (macbook)
+danish.iso.macbook.kbd:en:Danish ISO-8859-1 (macbook)
 danish.iso.macbook.kbd:da:Dansk ISO-8859-1 (macbook)
 danish.iso.macbook.kbd:de:Dänisch ISO-8859-1 (Macbook)
 danish.iso.macbook.kbd:fr:Danois ISO-8859-1 (macbook)
@@ -293,20 +293,6 @@ jp.106x.kbd:fr:Japonais 106x
 jp.106x.kbd:pt:Japonês 106x
 jp.106x.kbd:es:Japonés 106x
 jp.106x.kbd:uk:ñÐÏÎÓØËÁ 106x
-
-jp.pc98.kbd:en:Japanese PC-98x1
-jp.pc98.kbd:de:Japanisch PC-98x1
-jp.pc98.kbd:fr:Japonais PC-98x1
-jp.pc98.kbd:pt:Japonês PC-98x1
-jp.pc98.kbd:es:Japonés PC-98x1
-jp.pc98.kbd:uk:ñÐÏÎÓØËÁ PC-98x1
-
-jp.pc98.iso.kbd:en:Japanese PC-98x1 (ISO)
-jp.pc98.iso.kbd:de:Japanisch PC-98x1 (ISO)
-jp.pc98.iso.kbd:fr:Japonais PC-98x1 (ISO)
-jp.pc98.iso.kbd:pt:Japonês PC-98x1 (ISO)
-jp.pc98.iso.kbd:es:Japonés PC-98x1 (ISO)
-jp.pc98.iso.kbd:uk:ñÐÏÎÓØËÁ PC-98x1 (ISO)
 
 kk.pt154.kst.kbd:en:Kazakh PT154 codepage
 kk.pt154.kst.kbd:de:Kasachisch PT154 codepage
@@ -540,6 +526,12 @@ us.iso.acc.kbd:de:US-amerikanisch ISO-8859-1 (mit Akzenten)
 us.iso.acc.kbd:fr:États Unis d'Amérique ISO-8859-1 (avec accents)
 us.iso.acc.kbd:pt:Estados Unidos da América ISO-8859-1 (com acentos)
 us.iso.acc.kbd:es:Estadounidense ISO-8859-1 (con acentos)
+
+us.iso.macbook.kbd:en:United States of America Macbook/Macbook Pro ISO-8859-1
+us.iso.macbook.kbd:de:US-amerikanisch Macbook/Macbook Pro ISO-8859-1
+us.iso.macbook.kbd:fr:ï¾‰tats Unis d'Amé§»ique Macbook/Macbook Pro ISO-8859-1
+us.iso.macbook.kbd:pt:Estados Unidos da Amé§»ica Macbook/Macbook Pro ISO-8859-1
+us.iso.macbook.kbd:es:Estadounidense Macbook/Macbook Pro ISO-8859-1
 
 us.dvorak.kbd:en:United States of America dvorak
 us.dvorak.kbd:de:US-amerikanisch dvorak

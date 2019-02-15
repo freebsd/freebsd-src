@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -138,7 +140,6 @@ main(int argc, char **argv)
 {
 	char errbuf[_POSIX2_LINE_MAX], dummy;
 	size_t	size;
-	double t;
 	struct cmdentry *cmd = NULL;
 
 	(void) setlocale(LC_ALL, "");
@@ -179,7 +180,7 @@ main(int argc, char **argv)
 		 * devices. We can now use sysctl only.
 		 */
 		use_kvm = 0;
-		kd = kvm_openfiles("/dev/null", "/dev/null", "/dev/null",
+		kd = kvm_openfiles(_PATH_DEVNULL, _PATH_DEVNULL, _PATH_DEVNULL,
 		    O_RDONLY, errbuf);
 		if (kd == NULL) {
 			error("%s", errbuf);
@@ -244,6 +245,11 @@ labels(void)
 		    "/0   /1   /2   /3   /4   /5   /6   /7   /8   /9   /10");
 		mvaddstr(1, 5, "Load Average");
 	}
+	if (curcmd->c_flags & CF_ZFSARC) {
+		mvaddstr(0, 20,
+		    "   Total     MFU     MRU    Anon     Hdr   L2Hdr   Other");
+		mvaddstr(1, 5, "ZFS ARC     ");
+	}
 	(*curcmd->c_label)();
 #ifdef notdef
 	mvprintw(21, 25, "CPU usage on %s", hostname);
@@ -254,10 +260,11 @@ labels(void)
 void
 display(void)
 {
+	uint64_t arc_stat;
 	int i, j;
 
 	/* Get the load average over the last minute. */
-	(void) getloadavg(avenrun, sizeof(avenrun) / sizeof(avenrun[0]));
+	(void) getloadavg(avenrun, nitems(avenrun));
 	(*curcmd->c_fetch)();
 	if (curcmd->c_flags & CF_LOADAV) {
 		j = 5.0*avenrun[0] + 0.5;
@@ -272,13 +279,42 @@ display(void)
 			c = '|';
 		dellave = avenrun[0];
 		wmove(wload, 0, 0); wclrtoeol(wload);
-		for (i = (j > 50) ? 50 : j; i > 0; i--)
+		for (i = MIN(j, 50); i > 0; i--)
 			waddch(wload, c);
 		if (j > 50)
 			wprintw(wload, " %4.1f", avenrun[0]);
 	}
+	if (curcmd->c_flags & CF_ZFSARC) {
+	    uint64_t arc[7] = {};
+	    size_t size = sizeof(arc[0]);
+	    if (sysctlbyname("kstat.zfs.misc.arcstats.size",
+		&arc[0], &size, NULL, 0) == 0 ) {
+		    GETSYSCTL("vfs.zfs.mfu_size", arc[1]);
+		    GETSYSCTL("vfs.zfs.mru_size", arc[2]);
+		    GETSYSCTL("vfs.zfs.anon_size", arc[3]);
+		    GETSYSCTL("kstat.zfs.misc.arcstats.hdr_size", arc[4]);
+		    GETSYSCTL("kstat.zfs.misc.arcstats.l2_hdr_size", arc[5]);
+		    GETSYSCTL("kstat.zfs.misc.arcstats.bonus_size", arc[6]);
+		    GETSYSCTL("kstat.zfs.misc.arcstats.dnode_size", arc_stat);
+		    arc[6] += arc_stat;
+		    GETSYSCTL("kstat.zfs.misc.arcstats.dbuf_size", arc_stat);
+		    arc[6] += arc_stat;
+		    wmove(wload, 0, 0); wclrtoeol(wload);
+		    for (i = 0 ; i < nitems(arc); i++) {
+			if (arc[i] > 10llu * 1024 * 1024 * 1024 ) {
+				wprintw(wload, "%7lluG", arc[i] >> 30);
+			}
+			else if (arc[i] > 10 * 1024 * 1024 ) {
+				wprintw(wload, "%7lluM", arc[i] >> 20);
+			}
+			else {
+				wprintw(wload, "%7lluK", arc[i] >> 10);
+			}
+		    }
+	    }
+	}
 	(*curcmd->c_refresh)();
-	if (curcmd->c_flags & CF_LOADAV)
+	if (curcmd->c_flags & (CF_LOADAV |CF_ZFSARC))
 		wrefresh(wload);
 	wrefresh(wnd);
 	move(CMDLINE, col);
@@ -289,7 +325,7 @@ void
 load(void)
 {
 
-	(void) getloadavg(avenrun, sizeof(avenrun)/sizeof(avenrun[0]));
+	(void) getloadavg(avenrun, nitems(avenrun));
 	mvprintw(CMDLINE, 0, "%4.1f %4.1f %4.1f",
 	    avenrun[0], avenrun[1], avenrun[2]);
 	clrtoeol();

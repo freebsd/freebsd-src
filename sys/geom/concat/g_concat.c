@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
@@ -129,10 +131,9 @@ g_concat_remove_disk(struct g_concat_disk *disk)
 	}
 
 	if (sc->sc_provider != NULL) {
-		sc->sc_provider->flags |= G_PF_WITHER;
 		G_CONCAT_DEBUG(0, "Device %s deactivated.",
 		    sc->sc_provider->name);
-		g_orphan_provider(sc->sc_provider, ENXIO);
+		g_wither_provider(sc->sc_provider, ENXIO);
 		sc->sc_provider = NULL;
 	}
 
@@ -202,6 +203,27 @@ fail:
 		g_access(cp2, -dr, -dw, -de);
 	}
 	return (error);
+}
+
+static void
+g_concat_candelete(struct bio *bp)
+{
+	struct g_concat_softc *sc;
+	struct g_concat_disk *disk;
+	int i, *val;
+
+	val = (int *)bp->bio_data;
+	*val = 0;
+
+	sc = bp->bio_to->geom->softc;
+	for (i = 0; i < sc->sc_ndisks; i++) {
+		disk = &sc->sc_disks[i];
+		if (!disk->d_removed && disk->d_candelete) {
+			*val = 1;
+			break;
+		}
+	}
+	g_io_deliver(bp, 0);
 }
 
 static void
@@ -326,6 +348,9 @@ g_concat_start(struct bio *bp)
 		if (strcmp("GEOM::kerneldump", bp->bio_attribute) == 0) {
 			g_concat_kernel_dump(bp);
 			return;
+		} else if (strcmp("GEOM::candelete", bp->bio_attribute) == 0) {
+			g_concat_candelete(bp);
+			return;
 		}
 		/* To which provider it should be delivered? */
 		/* FALLTHROUGH */
@@ -407,6 +432,7 @@ g_concat_check_and_run(struct g_concat_softc *sc)
 	struct g_provider *dp, *pp;
 	u_int no, sectorsize = 0;
 	off_t start;
+	int error;
 
 	g_topology_assert();
 	if (g_concat_nvalid(sc) != sc->sc_ndisks)
@@ -424,6 +450,16 @@ g_concat_check_and_run(struct g_concat_softc *sc)
 		if (sc->sc_type == G_CONCAT_TYPE_AUTOMATIC)
 			disk->d_end -= dp->sectorsize;
 		start = disk->d_end;
+		error = g_access(disk->d_consumer, 1, 0, 0);
+		if (error == 0) {
+			error = g_getattr("GEOM::candelete", disk->d_consumer,
+			    &disk->d_candelete);
+			if (error != 0)
+				disk->d_candelete = 0;
+			(void)g_access(disk->d_consumer, -1, 0, 0);
+		} else
+			G_CONCAT_DEBUG(1, "Failed to access disk %s, error %d.",
+			    dp->name, error);
 		if (no == 0)
 			sectorsize = dp->sectorsize;
 		else
@@ -992,3 +1028,4 @@ g_concat_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 }
 
 DECLARE_GEOM_CLASS(g_concat_class, g_concat);
+MODULE_VERSION(geom_concat, 0);

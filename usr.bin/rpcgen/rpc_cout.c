@@ -81,7 +81,7 @@ emit(definition *def)
 
 		if (strcmp(def->def.ty.old_type, def->def_name) == 0)
 			return;
-	};
+	}
 	print_header(def);
 	switch (def->def_kind) {
 	case DEF_UNION:
@@ -551,7 +551,8 @@ emit_struct(definition *def)
 	}
 
 	for (dl = def->def.st.decls; dl != NULL; dl = dl->next)
-		if (dl->decl.rel == REL_VECTOR){
+		if (dl->decl.rel == REL_VECTOR &&
+		    strcmp(dl->decl.type, "opaque") != 0){
 			f_print(fout, "\tint i;\n");
 			break;
 		}

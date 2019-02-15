@@ -2,6 +2,8 @@
 /* $FreeBSD$ */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 1995 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -31,14 +33,14 @@
  */
 
 struct proc;
-struct fpreg;
+struct fpu;
 struct trapframe;
 union instr;
 struct fpemu;
 struct fpn;
 
 /* fpu.c */
-int fpu_emulate(struct trapframe *, struct fpreg *);
+int fpu_emulate(struct trapframe *, struct fpu *);
 int fpu_execute(struct trapframe *, struct fpemu *, union instr *);
 
 /* fpu_explode.c */

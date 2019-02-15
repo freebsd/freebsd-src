@@ -30,7 +30,7 @@
  *    probably requires libm on most operating systems.  Don't yet
  *    support the exponent (e,E) and sigfig (g,G).  Also, fmtint()
  *    was pretty badly broken, it just wasn't being exercised in ways
- *    which showed it, so that's been fixed.  Also, formated the code
+ *    which showed it, so that's been fixed.  Also, formatted the code
  *    to mutt conventions, and removed dead code left over from the
  *    original.  Also, there is now a builtin-test, just compile with:
  *           gcc -DTEST_SNPRINTF -o snprintf snprintf.c -lm
@@ -97,18 +97,6 @@
 #if defined(BROKEN_SNPRINTF)		/* For those with broken snprintf() */
 # undef HAVE_SNPRINTF
 # undef HAVE_VSNPRINTF
-#endif
-
-#ifndef VA_COPY
-# ifdef HAVE_VA_COPY
-#  define VA_COPY(dest, src) va_copy(dest, src)
-# else
-#  ifdef HAVE___VA_COPY
-#   define VA_COPY(dest, src) __va_copy(dest, src)
-#  else
-#   define VA_COPY(dest, src) (dest) = (src)
-#  endif
-# endif
 #endif
 
 #if !defined(HAVE_SNPRINTF) || !defined(HAVE_VSNPRINTF)
@@ -538,7 +526,7 @@ fmtstr(char *buffer, size_t *currlen, size_t maxlen,
 	}
 	while (*value && (cnt < max)) {
 		DOPR_OUTCH(buffer, *currlen, maxlen, *value);
-		*value++;
+		value++;
 		++cnt;
 	}
 	while ((padlen < 0) && (cnt < max)) {
@@ -553,7 +541,7 @@ fmtstr(char *buffer, size_t *currlen, size_t maxlen,
 
 static int
 fmtint(char *buffer, size_t *currlen, size_t maxlen,
-		    LLONG value, int base, int min, int max, int flags)
+    intmax_t value, int base, int min, int max, int flags)
 {
 	int signvalue = 0;
 	unsigned LLONG uvalue;

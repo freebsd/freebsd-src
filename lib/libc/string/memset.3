@@ -32,7 +32,7 @@
 .\"     @(#)memset.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd August 19, 2018
 .Dt MEMSET 3
 .Os
 .Sh NAME
@@ -43,7 +43,10 @@
 .Sh SYNOPSIS
 .In string.h
 .Ft void *
-.Fn memset "void *b" "int c" "size_t len"
+.Fn memset "void *dest" "int c" "size_t len"
+.Fd #define __STDC_WANT_LIB_EXT1__ 1
+.Ft errno_t
+.Fn memset_s "void *dest" "rsize_t destsz" "int c" "rsize_t len"
 .Sh DESCRIPTION
 The
 .Fn memset
@@ -55,13 +58,66 @@ bytes of value
 (converted to an
 .Vt "unsigned char" )
 to the string
-.Fa b .
+.Fa dest .
+Undefined behaviour from
+.Fn memset ,
+resulting from storage overflow, will occur if
+.Fa len
+is greater than the the length of buffer
+.Fa dest .
+The behaviour is also undefined if
+.Fa dest
+is an invalid pointer.
+.Pp
+The
+.Fn memset_s
+function behaves the same as
+.Fn memset
+except that an error is returned and the currently registered
+runtime-constraint handler is called if
+.Fa dest
+is a null pointer,
+.Fa destsz
+or
+.Fa len
+is greater than
+.Dv RSIZE_MAX ,
+or
+.Fa len
+is greater than
+.Fa destsz
+(buffer overflow would occur).
+The runtime-constraint handler is called first and may not return.
+If it does return, an error is returned to the caller.
+Like
+.Xr explicit_bzero 3 ,
+.Fn memset_s
+is not removed through Dead Store Elimination (DSE), making it useful for
+clearing sensitive data.
+In contrast
+.Fn memset
+function
+may be optimized away if the object modified by the function is not accessed
+again.
+To clear memory that will not subsequently be accessed it is advised to use
+.Fn memset_s
+instead of
+.Fn memset .
+For instance, a buffer containing a password should be cleared with
+.Fn memset_s
+before
+.Xr free 3 .
 .Sh RETURN VALUES
 The
 .Fn memset
 function returns its first argument.
+The
+.Fn memset_s
+function returns zero on success, non-zero on error.
 .Sh SEE ALSO
 .Xr bzero 3 ,
+.Xr explicit_bzero 3 ,
+.Xr set_constraint_handler_s 3 ,
 .Xr swab 3 ,
 .Xr wmemset 3
 .Sh STANDARDS
@@ -70,3 +126,7 @@ The
 function
 conforms to
 .St -isoC .
+.Fn memset_s
+conforms to
+.St -isoC-2011
+K.3.7.4.1.

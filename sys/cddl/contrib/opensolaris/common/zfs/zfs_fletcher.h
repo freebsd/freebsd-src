@@ -22,6 +22,10 @@
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
+/*
+ * Copyright 2013 Saso Kiselkov. All rights reserved.
+ * Copyright (c) 2016 by Delphix. All rights reserved.
+ */
 
 #ifndef	_ZFS_FLETCHER_H
 #define	_ZFS_FLETCHER_H
@@ -37,14 +41,15 @@ extern "C" {
  * fletcher checksum functions
  */
 
-void fletcher_2_native(const void *, uint64_t, zio_cksum_t *);
-void fletcher_2_byteswap(const void *, uint64_t, zio_cksum_t *);
-void fletcher_4_native(const void *, uint64_t, zio_cksum_t *);
-void fletcher_4_byteswap(const void *, uint64_t, zio_cksum_t *);
-void fletcher_4_incremental_native(const void *, uint64_t,
-    zio_cksum_t *);
-void fletcher_4_incremental_byteswap(const void *, uint64_t,
-    zio_cksum_t *);
+void fletcher_init(zio_cksum_t *);
+void fletcher_2_native(const void *, size_t, const void *, zio_cksum_t *);
+void fletcher_2_byteswap(const void *, size_t, const void *, zio_cksum_t *);
+int fletcher_2_incremental_native(void *, size_t, void *);
+int fletcher_2_incremental_byteswap(void *, size_t, void *);
+void fletcher_4_native(const void *, size_t, const void *, zio_cksum_t *);
+void fletcher_4_byteswap(const void *, size_t, const void *, zio_cksum_t *);
+int fletcher_4_incremental_native(void *, size_t, void *);
+int fletcher_4_incremental_byteswap(void *, size_t, void *);
 
 #ifdef	__cplusplus
 }

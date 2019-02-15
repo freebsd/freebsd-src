@@ -1,9 +1,9 @@
 /*
- *  $Id: tailbox.c,v 1.68 2012/11/18 15:48:52 tom Exp $
+ *  $Id: tailbox.c,v 1.72 2018/06/19 22:57:01 tom Exp $
  *
  *  tailbox.c -- implements the tail box
  *
- *  Copyright 2000-2011,2012	Thomas E. Dickey
+ *  Copyright 2000-2012,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -88,12 +88,7 @@ print_line(MY_OBJ * obj, WINDOW *win, int row, int width)
 
     (void) wmove(win, row, 0);	/* move cursor to correct line */
     (void) waddch(win, ' ');
-#ifdef NCURSES_VERSION
     (void) waddnstr(win, line, MIN((int) strlen(line), width - 2));
-#else
-    line[MIN((int) strlen(line), width - 2)] = '\0';
-    waddstr(win, line);
-#endif
 
     getyx(win, y, x);
     (void) y;
@@ -220,10 +215,27 @@ handle_input(DIALOG_CALLBACK * cb)
 }
 
 static bool
+valid_callback(DIALOG_CALLBACK * cb)
+{
+    bool valid = FALSE;
+    DIALOG_CALLBACK *p;
+    for (p = dialog_state.getc_callbacks; p != 0; p = p->next) {
+	if (p == cb) {
+	    valid = TRUE;
+	    break;
+	}
+    }
+    return valid;
+}
+
+static bool
 handle_my_getc(DIALOG_CALLBACK * cb, int ch, int fkey, int *result)
 {
     MY_OBJ *obj = (MY_OBJ *) cb;
     bool done = FALSE;
+
+    if (!valid_callback(cb))
+	return FALSE;
 
     if (!fkey && dlg_char_to_button(ch, obj->buttons) == 0) {
 	ch = DLGK_ENTER;
@@ -281,7 +293,11 @@ handle_my_getc(DIALOG_CALLBACK * cb, int ch, int fkey, int *result)
  * Display text from a file in a dialog box, like in a "tail -f".
  */
 int
-dialog_tailbox(const char *title, const char *file, int height, int width, int bg_task)
+dialog_tailbox(const char *title,
+	       const char *filename,
+	       int height,
+	       int width,
+	       int bg_task)
 {
     /* *INDENT-OFF* */
     static DLG_KEYS_BINDING binding[] = {
@@ -311,14 +327,21 @@ dialog_tailbox(const char *title, const char *file, int height, int width, int b
     FILE *fd;
     int min_width = 12;
 
+    DLG_TRACE(("# tailbox args:\n"));
+    DLG_TRACE2S("title", title);
+    DLG_TRACE2S("filename", filename);
+    DLG_TRACE2N("height", height);
+    DLG_TRACE2N("width", width);
+    DLG_TRACE2N("bg_task", bg_task);
+
     /* Open input file for reading */
-    if ((fd = fopen(file, "rb")) == NULL)
+    if ((fd = fopen(filename, "rb")) == NULL)
 	dlg_exiterr("Can't open input file in dialog_tailbox().");
 
 #ifdef KEY_RESIZE
   retry:
 #endif
-    dlg_auto_sizefile(title, file, &height, &width, 2, min_width);
+    dlg_auto_sizefile(title, filename, &height, &width, 2, min_width);
     dlg_print_size(height, width);
     dlg_ctl_size(height, width);
 
@@ -381,6 +404,7 @@ dialog_tailbox(const char *title, const char *file, int height, int width, int b
 	    ch = dlg_getc(dialog, &fkey);
 #ifdef KEY_RESIZE
 	    if (fkey && ch == KEY_RESIZE) {
+		dlg_will_resize(dialog);
 		/* reset data */
 		height = old_height;
 		width = old_width;

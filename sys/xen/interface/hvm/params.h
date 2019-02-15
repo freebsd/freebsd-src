@@ -16,6 +16,8 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
+ *
+ * Copyright (c) 2007, Keir Fraser
  */
 
 #ifndef __XEN_PUBLIC_HVM_PARAMS_H__
@@ -54,16 +56,53 @@
 #define HVM_PARAM_BUFIOREQ_PFN 6
 #define HVM_PARAM_BUFIOREQ_EVTCHN 26
 
-#ifdef __ia64__
+#if defined(__i386__) || defined(__x86_64__)
 
-#define HVM_PARAM_NVRAM_FD     7
-#define HVM_PARAM_VHPT_SIZE    8
-#define HVM_PARAM_BUFPIOREQ_PFN	9
-
-#elif defined(__i386__) || defined(__x86_64__)
-
-/* Expose Viridian interfaces to this HVM guest? */
+/*
+ * Viridian enlightenments
+ *
+ * (See http://download.microsoft.com/download/A/B/4/AB43A34E-BDD0-4FA6-BDEF-79EEF16E880B/Hypervisor%20Top%20Level%20Functional%20Specification%20v4.0.docx)
+ *
+ * To expose viridian enlightenments to the guest set this parameter
+ * to the desired feature mask. The base feature set must be present
+ * in any valid feature mask.
+ */
 #define HVM_PARAM_VIRIDIAN     9
+
+/* Base+Freq viridian feature sets:
+ *
+ * - Hypercall MSRs (HV_X64_MSR_GUEST_OS_ID and HV_X64_MSR_HYPERCALL)
+ * - APIC access MSRs (HV_X64_MSR_EOI, HV_X64_MSR_ICR and HV_X64_MSR_TPR)
+ * - Virtual Processor index MSR (HV_X64_MSR_VP_INDEX)
+ * - Timer frequency MSRs (HV_X64_MSR_TSC_FREQUENCY and
+ *   HV_X64_MSR_APIC_FREQUENCY)
+ */
+#define _HVMPV_base_freq 0
+#define HVMPV_base_freq  (1 << _HVMPV_base_freq)
+
+/* Feature set modifications */
+
+/* Disable timer frequency MSRs (HV_X64_MSR_TSC_FREQUENCY and
+ * HV_X64_MSR_APIC_FREQUENCY).
+ * This modification restores the viridian feature set to the
+ * original 'base' set exposed in releases prior to Xen 4.4.
+ */
+#define _HVMPV_no_freq 1
+#define HVMPV_no_freq  (1 << _HVMPV_no_freq)
+
+/* Enable Partition Time Reference Counter (HV_X64_MSR_TIME_REF_COUNT) */
+#define _HVMPV_time_ref_count 2
+#define HVMPV_time_ref_count  (1 << _HVMPV_time_ref_count)
+
+/* Enable Reference TSC Page (HV_X64_MSR_REFERENCE_TSC) */
+#define _HVMPV_reference_tsc 3
+#define HVMPV_reference_tsc  (1 << _HVMPV_reference_tsc)
+
+#define HVMPV_feature_mask \
+	(HVMPV_base_freq | \
+	 HVMPV_no_freq | \
+	 HVMPV_time_ref_count | \
+	 HVMPV_reference_tsc)
 
 #endif
 
@@ -125,28 +164,34 @@
  */
 #define HVM_PARAM_ACPI_IOPORTS_LOCATION 19
 
-/* Enable blocking memory events, async or sync (pause vcpu until response) 
- * onchangeonly indicates messages only on a change of value */
+/* Deprecated */
 #define HVM_PARAM_MEMORY_EVENT_CR0          20
 #define HVM_PARAM_MEMORY_EVENT_CR3          21
 #define HVM_PARAM_MEMORY_EVENT_CR4          22
 #define HVM_PARAM_MEMORY_EVENT_INT3         23
 #define HVM_PARAM_MEMORY_EVENT_SINGLE_STEP  25
-
-#define HVMPME_MODE_MASK       (3 << 0)
-#define HVMPME_mode_disabled   0
-#define HVMPME_mode_async      1
-#define HVMPME_mode_sync       2
-#define HVMPME_onchangeonly    (1 << 2)
+#define HVM_PARAM_MEMORY_EVENT_MSR          30
 
 /* Boolean: Enable nestedhvm (hvm only) */
 #define HVM_PARAM_NESTEDHVM    24
 
 /* Params for the mem event rings */
 #define HVM_PARAM_PAGING_RING_PFN   27
-#define HVM_PARAM_ACCESS_RING_PFN   28
+#define HVM_PARAM_MONITOR_RING_PFN  28
 #define HVM_PARAM_SHARING_RING_PFN  29
 
-#define HVM_NR_PARAMS          30
+/* SHUTDOWN_* action in case of a triple fault */
+#define HVM_PARAM_TRIPLE_FAULT_REASON 31
+
+#define HVM_PARAM_IOREQ_SERVER_PFN 32
+#define HVM_PARAM_NR_IOREQ_SERVER_PAGES 33
+
+/* Location of the VM Generation ID in guest physical address space. */
+#define HVM_PARAM_VM_GENERATION_ID_ADDR 34
+
+/* Boolean: Enable altp2m */
+#define HVM_PARAM_ALTP2M       35
+
+#define HVM_NR_PARAMS          36
 
 #endif /* __XEN_PUBLIC_HVM_PARAMS_H__ */

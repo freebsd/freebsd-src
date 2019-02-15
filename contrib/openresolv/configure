@@ -8,8 +8,9 @@ HOST=
 TARGET=
 RESTARTCMD=
 RCDIR=
+STATUSARG=
 
-for x; do
+for x do
 	opt=${x%%=*}
 	var=${x#*=}
 	case "$opt" in
@@ -18,7 +19,7 @@ for x; do
 	--debug) DEBUG=$var;;
 	--disable-debug) DEBUG=no;;
 	--enable-debug) DEBUG=yes;;
-	--prefix) prefix=$var;;
+	--prefix) PREFIX=$var;;
 	--sysconfdir) SYSCONFDIR=$var;;
 	--bindir|--sbindir) SBINDIR=$var;;
 	--libexecdir) LIBEXECDIR=$var;;
@@ -33,6 +34,8 @@ for x; do
 	--target) TARGET=$var;;
 	--libdir) LIBDIR=$var;;
 	--restartcmd) RESTARTCMD=$var;;
+	--rcdir) RCDIR=$var;;
+	--statusarg) STATUSARG=$var;;
 	--includedir) eval INCLUDEDIR="$INCLUDEDIR${INCLUDEDIR:+ }$var";;
 	--datadir|--infodir) ;; # ignore autotools
 	--disable-maintainer-mode|--disable-dependency-tracking) ;;
@@ -41,75 +44,100 @@ for x; do
 	esac
 done
 
+if [ -z "$LIBEXECDIR" ]; then
+	printf "Checking for directory /libexec ... "
+	if [ -d /libexec ]; then
+		echo "yes"
+		LIBEXECDIR=$PREFIX/libexec/resolvconf
+	else
+		echo "no"
+		LIBEXECDIR=$PREFIX/lib/resolvconf
+	fi
+fi
+if [ -z "$RUNDIR" ]; then
+	printf "Checking for directory /run ... "
+	if [ -d /run ]; then
+		echo "yes"
+		RUNDIR=/run
+	else
+		echo "no"
+		RUNDIR=/var/run
+	fi
+fi	
+
 : ${SED:=sed}
 
-: ${PREFIX:=$prefix}
 : ${SYSCONFDIR:=$PREFIX/etc}
 : ${SBINDIR:=$PREFIX/sbin}
-: ${LIBEXECDIR:=$PREFIX/libexec}
+: ${LIBEXECDIR:=$PREFIX/libexec/resolvconf}
 : ${STATEDIR:=/var}
 : ${RUNDIR:=$STATEDIR/run}
 : ${MANDIR:=${PREFIX:-/usr}/share/man}
 
 eval SYSCONFDIR="$SYSCONFDIR"
 eval SBINDIR="$SBINDIR"
-eval LIBEXECDIR="$LIBEXECDIR/resolvconf"
+eval LIBEXECDIR="$LIBEXECDIR"
 eval VARDIR="$RUNDIR/resolvconf"
 eval MANDIR="$MANDIR"
 
 CONFIG_MK=config.mk
 
 if [ -z "$BUILD" ]; then
-	BUILD=`uname -m`-`uname -s | tr '[:upper:]' '[:lower:]'`
+	# autoconf target triplet: cpu-vendor-os
+	BUILD=$(uname -m)-unknown-$(uname -s | tr '[:upper:]' '[:lower:]')
 fi
-if [ -z "$HOST" ]; then
-	[ -z "$TARGET" ] && TARGET=$BUILD
-	HOST=$TARGET
-fi
-if [ -z "$TARGET" ]; then
-	[ -z "$HOST" ] && HOST=$BUILD
-	TARGET=$HOST
-fi
-
-# Debian and Slackware have linux in different places when dealing with
-# autoconf, so we deal with that here.
-if [ -z "$OS" ]; then
-	case "$TARGET" in
-	*-linux-*|linux-*|*-linux|linux) OS=linux;;
-	esac
-fi
+: ${HOST:=$BUILD}
 
 if [ -z "$OS" ]; then
-	# Derive OS from cpu-manufacturer-os-kernel
-	CPU=${TARGET%%-*}
-	REST=${TARGET#*-}
+	echo "Deriving operating system from ... $HOST"
+	# Derive OS from cpu-vendor-[kernel-]os
+	CPU=${HOST%%-*}
+	REST=${HOST#*-}
 	if [ "$CPU" != "$REST" ]; then
-		MANU=${REST%%-*}
+		VENDOR=${REST%%-*}
 		REST=${REST#*-}
-		if [ "$MANU" != "$REST" ]; then
+		if [ "$VENDOR" != "$REST" ]; then
+			# Use kernel if given, otherwise os
 			OS=${REST%%-*}
-			REST=${REST#*-}
-			if [ "$OS" != "$REST" ]; then
-				KERNEL=${REST%%-*}
-			else
-				# 3 tupple
-				KERNEL=$OS
-				OS=$MANU
-				MANU=
-			fi
 		else
 			# 2 tupple
-			OS=$MANU
-			MANU=
+			OS=$VENDOR
+			VENDOR=
 		fi
 	fi
+
+        # Work with cpu-kernel-os, ie Debian
+	case "$VENDOR" in
+	linux*|kfreebsd*) OS=$VENDOR; VENDOR= ;;
+	esac
+	# Special case
+	case "$OS" in
+	gnu*) OS=hurd;; # No HURD support as yet
+	esac
 fi
 
 echo "Configuring openresolv for ... $OS"
 rm -rf $CONFIG_MK
 echo "# $OS" >$CONFIG_MK
 
-for x in SYSCONFDIR SBINDIR LIBEXECDIR VARDIR MANDIR; do
+case "$OS" in
+freebsd*)
+	# On FreeBSD, /etc/init.d/foo status returns 0 if foo is not enabled
+	# regardless of if it's not running.
+	# So we force onestatus to work around this silly bug.
+	if [ -z "$STATUSARG" ]; then
+		STATUSARG="onestatus"
+	fi
+	;;
+linux*)
+	# cksum does't support -a and netpgp is rare
+	echo "CKSUM=		sha256sum --tag" >>$CONFIG_MK
+	echo "PGP=		gpg2" >>$CONFIG_MK
+	;;
+esac
+
+for x in SYSCONFDIR SBINDIR LIBEXECDIR VARDIR MANDIR RESTARTCMD RCDIR STATUSARG
+do
 	eval v=\$$x
 	# Make files look nice for import
 	l=$((10 - ${#x}))
@@ -118,69 +146,14 @@ for x in SYSCONFDIR SBINDIR LIBEXECDIR VARDIR MANDIR; do
 	echo "$x=$t	$v" >>$CONFIG_MK
 done
 
-if [ -e /etc/arch-release -a -d /etc/rc.d ]; then
-	echo "Overriding service status check for Arch Linux"
-	RCDIR=/etc/rc.d
-	RESTARTCMD="[ -e /var/run/daemons/\1 ] \&\& /etc/rc.d/\1 restart"
-	echo "yes"
-fi
-
-if [ -z "$RESTARTCMD" ]; then
-	printf "Checking for OpenRC ... "
-	if [ -x /sbin/rc-service ]; then
-		RESTARTCMD="/sbin/rc-service -e \1 \&\& /sbin/rc-service \1 -- -Ds restart"
-		echo "yes"
-	else
-		echo "no"
-	fi
-fi
-if [ -z "$RESTARTCMD" ]; then
-	printf "Checking for invoke-rc.d ... "
-	if [ -x /usr/sbin/invoke-rc.d ]; then
-		RCDIR=/etc/init.d
-		RESTARTCMD="/usr/sbin/invoke-rc.d --quiet \1 status >/dev/null 2>\&1 \&\& /usr/sbin/invoke-rc.d \1 restart"
-		echo "yes"
-	else
-		echo "no"
-	fi
-fi
-if [ -z "$RESTARTCMD" ]; then
-	printf "Checking for service ... "
-	if [ -x /sbin/service ]; then
-		RCDIR=/etc/init.d
-		RESTARTCMD="/sbin/service \1 \&\& /sbin/service \1 restart"
-		echo "yes"
-	else
-		echo "no"
-	fi
-fi
-if [ -z "$RESTARTCMD" ]; then
-	for x in /etc/init.d/rc.d /etc/rc.d /etc/init.d; do
-		printf "Checking for $x ... "
-		if [ -d $x ]; then
-			RCDIR=$x
-			RESTARTCMD="$x/\1 status >/dev/null 2>\&1 \&\& $x/\1 restart"
-			echo "yes"
-			break
-		else
-			echo "no"
-		fi
-	done
-fi
-
-if [ -z "$RESTARTCMD" ]; then
-	echo "WARNING! No means of interacting with system services detected!"
-	exit 1
-fi
-
-echo "RCDIR=		$RCDIR" >>$CONFIG_MK
-# Work around bug in the dash shell as "echo 'foo \1'" does bad things
-printf "%s\n" "RESTARTCMD=	$RESTARTCMD" >>$CONFIG_MK
-
 echo
 echo "   SYSCONFDIR =		$SYSCONFDIR"
 echo "   SBINDIR =		$SBINDIR"
 echo "   LIBEXECDIR =		$LIBEXECDIR"
 echo "   VARDIR =		$RUNDIR"
 echo "   MANDIR =		$MANDIR"
+echo
+echo "   RESTARTCMD =		$RESTARTCMD"
+echo "   RCDIR =		$RCDIR"
+echo "   STATUSARG =		$STATUSARG"
 echo

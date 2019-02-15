@@ -1,7 +1,7 @@
-/*	$NetBSD: t_bpfjit.c,v 1.2 2014/07/08 21:44:26 alnsn Exp $ */
+/*	$NetBSD: t_bpfjit.c,v 1.12 2017/01/13 21:30:42 christos Exp $ */
 
 /*-
- * Copyright (c) 2011-2012, 2014 Alexander Nasonov.
+ * Copyright (c) 2011-2012, 2014-2015 Alexander Nasonov.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_bpfjit.c,v 1.2 2014/07/08 21:44:26 alnsn Exp $");
+__RCSID("$NetBSD: t_bpfjit.c,v 1.12 2017/01/13 21:30:42 christos Exp $");
 
 #include <sys/param.h>
 #include <sys/mbuf.h>
@@ -49,7 +49,7 @@ __RCSID("$NetBSD: t_bpfjit.c,v 1.2 2014/07/08 21:44:26 alnsn Exp $");
 #undef m_data
 #include <atf-c.h>
 
-#include "../../h_macros.h"
+#include "h_macros.h"
 
 
 static uint8_t deadbeef_at_5[16] = {
@@ -79,15 +79,73 @@ ATF_TC_HEAD(bpfjit_empty, tc)
 ATF_TC_BODY(bpfjit_empty, tc)
 {
 	struct bpf_insn dummy;
-	bpfjit_func_t fn;
+	bpfjit_func_t code;
 
 	RZ(rump_init());
 
+	ATF_CHECK(!prog_validate(&dummy, 0));
+
 	rump_schedule();
-	fn = rumpns_bpfjit_generate_code(NULL, &dummy, 0);
+	code = rumpns_bpfjit_generate_code(NULL, &dummy, 0);
 	rump_unschedule();
 
-	ATF_CHECK(fn == NULL);
+	ATF_CHECK(code == NULL);
+}
+
+ATF_TC(bpfjit_ret_k);
+ATF_TC_HEAD(bpfjit_ret_k, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of a trivial bpf program");
+}
+
+ATF_TC_BODY(bpfjit_ret_k, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_RET+BPF_K, 17)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 17);
+}
+
+ATF_TC(bpfjit_bad_ret_k);
+ATF_TC_HEAD(bpfjit_bad_ret_k, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test that JIT compilation of a program with bad BPF_RET fails");
+}
+
+ATF_TC_BODY(bpfjit_bad_ret_k, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_RET+BPF_K+0x8000, 13)
+	};
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	/*
+	 * The point of this test is checking a bad instruction of
+	 * a valid class and with a valid BPF_RVAL data.
+	 */
+	const uint16_t rcode = insns[0].code;
+	ATF_CHECK(BPF_CLASS(rcode) == BPF_RET &&
+	    (BPF_RVAL(rcode) == BPF_K || BPF_RVAL(rcode) == BPF_A));
+
+	RZ(rump_init());
+
+	ATF_CHECK(!prog_validate(insns, insn_count));
+
+	/* Current implementation generates code. */
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 13);
 }
 
 ATF_TC(bpfjit_alu_add_k);
@@ -364,6 +422,205 @@ ATF_TC_BODY(bpfjit_alu_div80000000_k, tc)
 	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 1);
 }
 
+ATF_TC(bpfjit_alu_mod0_k);
+ATF_TC_HEAD(bpfjit_alu_mod0_k, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of BPF_ALU+BPF_MOD+BPF_K with k=0");
+}
+
+ATF_TC_BODY(bpfjit_alu_mod0_k, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_ALU+BPF_MOD+BPF_K, 0),
+		BPF_STMT(BPF_RET+BPF_A, 0)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	//ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 0);
+}
+
+ATF_TC(bpfjit_alu_mod1_k);
+ATF_TC_HEAD(bpfjit_alu_mod1_k, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of BPF_ALU+BPF_MOD+BPF_K with k=1");
+}
+
+ATF_TC_BODY(bpfjit_alu_mod1_k, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LD+BPF_IMM, 7),
+		BPF_STMT(BPF_ALU+BPF_MOD+BPF_K, 1),
+		BPF_STMT(BPF_RET+BPF_A, 0)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 0);
+}
+
+ATF_TC(bpfjit_alu_mod2_k);
+ATF_TC_HEAD(bpfjit_alu_mod2_k, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of BPF_ALU+BPF_MOD+BPF_K with k=2");
+}
+
+ATF_TC_BODY(bpfjit_alu_mod2_k, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LD+BPF_IMM, 7),
+		BPF_STMT(BPF_ALU+BPF_MOD+BPF_K, 2),
+		BPF_STMT(BPF_RET+BPF_A, 0)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 1);
+}
+
+ATF_TC(bpfjit_alu_mod4_k);
+ATF_TC_HEAD(bpfjit_alu_mod4_k, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of BPF_ALU+BPF_MOD+BPF_K with k=4");
+}
+
+ATF_TC_BODY(bpfjit_alu_mod4_k, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LD+BPF_IMM, UINT32_C(0xffffffff)),
+		BPF_STMT(BPF_ALU+BPF_MOD+BPF_K, 4),
+		BPF_STMT(BPF_RET+BPF_A, 0)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 3);
+}
+
+ATF_TC(bpfjit_alu_mod10_k);
+ATF_TC_HEAD(bpfjit_alu_mod10_k, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of BPF_ALU+BPF_MOD+BPF_K with k=10");
+}
+
+ATF_TC_BODY(bpfjit_alu_mod10_k, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LD+BPF_IMM, UINT32_C(4294843849)),
+		BPF_STMT(BPF_ALU+BPF_MOD+BPF_K, 10),
+		BPF_STMT(BPF_RET+BPF_A, 0)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 9);
+}
+
+ATF_TC(bpfjit_alu_mod10000_k);
+ATF_TC_HEAD(bpfjit_alu_mod10000_k, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of BPF_ALU+BPF_MOD+BPF_K with k=10000");
+}
+
+ATF_TC_BODY(bpfjit_alu_mod10000_k, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LD+BPF_IMM, UINT32_C(4294843849)),
+		BPF_STMT(BPF_ALU+BPF_MOD+BPF_K, 10000),
+		BPF_STMT(BPF_RET+BPF_A, 0)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 3849);
+}
+
+ATF_TC(bpfjit_alu_mod7609801_k);
+ATF_TC_HEAD(bpfjit_alu_mod7609801_k, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of BPF_ALU+BPF_MOD+BPF_K with k=7609801");
+}
+
+ATF_TC_BODY(bpfjit_alu_mod7609801_k, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LD+BPF_IMM, UINT32_C(4294967295)),
+		BPF_STMT(BPF_ALU+BPF_MOD+BPF_K, UINT32_C(7609801)),
+		BPF_STMT(BPF_RET+BPF_A, 0)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 3039531);
+}
+
+ATF_TC(bpfjit_alu_mod80000000_k);
+ATF_TC_HEAD(bpfjit_alu_mod80000000_k, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of BPF_ALU+BPF_MOD+BPF_K with k=0x80000000");
+}
+
+ATF_TC_BODY(bpfjit_alu_mod80000000_k, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LD+BPF_IMM, UINT32_C(0xffffffde)),
+		BPF_STMT(BPF_ALU+BPF_MOD+BPF_K, UINT32_C(0x80000000)),
+		BPF_STMT(BPF_RET+BPF_A, 0)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == UINT32_C(0x7fffffde));
+}
+
 ATF_TC(bpfjit_alu_and_k);
 ATF_TC_HEAD(bpfjit_alu_and_k, tc)
 {
@@ -401,6 +658,31 @@ ATF_TC_BODY(bpfjit_alu_or_k, tc)
 	static struct bpf_insn insns[] = {
 		BPF_STMT(BPF_LD+BPF_IMM, 0xdead0000),
 		BPF_STMT(BPF_ALU+BPF_OR+BPF_K, 0x0000beef),
+		BPF_STMT(BPF_RET+BPF_A, 0)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 0xdeadbeef);
+}
+
+ATF_TC(bpfjit_alu_xor_k);
+ATF_TC_HEAD(bpfjit_alu_xor_k, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of BPF_ALU+BPF_XOR+BPF_K");
+}
+
+ATF_TC_BODY(bpfjit_alu_xor_k, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LD+BPF_IMM, 0xdead0f0f),
+		BPF_STMT(BPF_ALU+BPF_XOR+BPF_K, 0x0000b1e0),
 		BPF_STMT(BPF_RET+BPF_A, 0)
 	};
 
@@ -852,7 +1134,7 @@ ATF_TC_HEAD(bpfjit_alu_div80000000_x, tc)
 ATF_TC_BODY(bpfjit_alu_div80000000_x, tc)
 {
 	static struct bpf_insn insns[] = {
-		BPF_STMT(BPF_LD+BPF_IMM, UINT32_MAX - 33),
+		BPF_STMT(BPF_LD+BPF_IMM, UINT32_C(0xffffffde)),
 		BPF_STMT(BPF_LDX+BPF_W+BPF_IMM, UINT32_C(0x80000000)),
 		BPF_STMT(BPF_ALU+BPF_DIV+BPF_X, 0),
 		BPF_STMT(BPF_RET+BPF_A, 0)
@@ -866,6 +1148,213 @@ ATF_TC_BODY(bpfjit_alu_div80000000_x, tc)
 
 	ATF_CHECK(prog_validate(insns, insn_count));
 	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 1);
+}
+
+ATF_TC(bpfjit_alu_mod0_x);
+ATF_TC_HEAD(bpfjit_alu_mod0_x, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of BPF_ALU+BPF_MOD+BPF_X with X=0");
+}
+
+ATF_TC_BODY(bpfjit_alu_mod0_x, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LDX+BPF_W+BPF_IMM, 0),
+		BPF_STMT(BPF_ALU+BPF_MOD+BPF_X, 0),
+		BPF_STMT(BPF_RET+BPF_A, 0)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 0);
+}
+
+ATF_TC(bpfjit_alu_mod1_x);
+ATF_TC_HEAD(bpfjit_alu_mod1_x, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of BPF_ALU+BPF_MOD+BPF_X with X=1");
+}
+
+ATF_TC_BODY(bpfjit_alu_mod1_x, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LD+BPF_IMM, 7),
+		BPF_STMT(BPF_LDX+BPF_W+BPF_IMM, 1),
+		BPF_STMT(BPF_ALU+BPF_MOD+BPF_X, 0),
+		BPF_STMT(BPF_RET+BPF_A, 0)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 0);
+}
+
+ATF_TC(bpfjit_alu_mod2_x);
+ATF_TC_HEAD(bpfjit_alu_mod2_x, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of BPF_ALU+BPF_MOD+BPF_X with X=2");
+}
+
+ATF_TC_BODY(bpfjit_alu_mod2_x, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LD+BPF_IMM, 7),
+		BPF_STMT(BPF_LDX+BPF_W+BPF_IMM, 2),
+		BPF_STMT(BPF_ALU+BPF_MOD+BPF_X, 0),
+		BPF_STMT(BPF_RET+BPF_A, 0)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 1);
+}
+
+ATF_TC(bpfjit_alu_mod4_x);
+ATF_TC_HEAD(bpfjit_alu_mod4_x, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of BPF_ALU+BPF_MOD+BPF_X with X=4");
+}
+
+ATF_TC_BODY(bpfjit_alu_mod4_x, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LD+BPF_IMM, UINT32_C(0xffffffff)),
+		BPF_STMT(BPF_LDX+BPF_W+BPF_IMM, 4),
+		BPF_STMT(BPF_ALU+BPF_MOD+BPF_X, 0),
+		BPF_STMT(BPF_RET+BPF_A, 0)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 3);
+}
+
+ATF_TC(bpfjit_alu_mod10_x);
+ATF_TC_HEAD(bpfjit_alu_mod10_x, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of BPF_ALU+BPF_MOD+BPF_X with X=10");
+}
+
+ATF_TC_BODY(bpfjit_alu_mod10_x, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LD+BPF_IMM, UINT32_C(4294843849)),
+		BPF_STMT(BPF_LDX+BPF_W+BPF_IMM, 10),
+		BPF_STMT(BPF_ALU+BPF_MOD+BPF_X, 0),
+		BPF_STMT(BPF_RET+BPF_A, 0)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 9);
+}
+
+ATF_TC(bpfjit_alu_mod10000_x);
+ATF_TC_HEAD(bpfjit_alu_mod10000_x, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of BPF_ALU+BPF_MOD+BPF_X with X=10000");
+}
+
+ATF_TC_BODY(bpfjit_alu_mod10000_x, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LD+BPF_IMM, UINT32_C(4294843849)),
+		BPF_STMT(BPF_LDX+BPF_W+BPF_IMM, 10000),
+		BPF_STMT(BPF_ALU+BPF_MOD+BPF_X, 0),
+		BPF_STMT(BPF_RET+BPF_A, 0)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 3849);
+}
+
+ATF_TC(bpfjit_alu_mod7609801_x);
+ATF_TC_HEAD(bpfjit_alu_mod7609801_x, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of BPF_ALU+BPF_MOD+BPF_X with X=7609801");
+}
+
+ATF_TC_BODY(bpfjit_alu_mod7609801_x, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LD+BPF_IMM, UINT32_C(4294967295)),
+		BPF_STMT(BPF_LDX+BPF_W+BPF_IMM, UINT32_C(7609801)),
+		BPF_STMT(BPF_ALU+BPF_MOD+BPF_X, 0),
+		BPF_STMT(BPF_RET+BPF_A, 0)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 3039531);
+}
+
+ATF_TC(bpfjit_alu_mod80000000_x);
+ATF_TC_HEAD(bpfjit_alu_mod80000000_x, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of BPF_ALU+BPF_MOD+BPF_X with X=0x80000000");
+}
+
+ATF_TC_BODY(bpfjit_alu_mod80000000_x, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LD+BPF_IMM, UINT32_C(0xffffffde)),
+		BPF_STMT(BPF_LDX+BPF_W+BPF_IMM, UINT32_C(0x80000000)),
+		BPF_STMT(BPF_ALU+BPF_MOD+BPF_X, 0),
+		BPF_STMT(BPF_RET+BPF_A, 0)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == UINT32_C(0x7fffffde));
 }
 
 ATF_TC(bpfjit_alu_and_x);
@@ -907,6 +1396,32 @@ ATF_TC_BODY(bpfjit_alu_or_x, tc)
 		BPF_STMT(BPF_LD+BPF_IMM, 0xdead0000),
 		BPF_STMT(BPF_LDX+BPF_W+BPF_IMM, 0x0000beef),
 		BPF_STMT(BPF_ALU+BPF_OR+BPF_X, 0),
+		BPF_STMT(BPF_RET+BPF_A, 0)
+	};
+
+	uint8_t pkt[1]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == 0xdeadbeef);
+}
+
+ATF_TC(bpfjit_alu_xor_x);
+ATF_TC_HEAD(bpfjit_alu_xor_x, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test JIT compilation of BPF_ALU+BPF_XOR+BPF_X");
+}
+
+ATF_TC_BODY(bpfjit_alu_xor_x, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LD+BPF_IMM, 0xdead0f0f),
+		BPF_STMT(BPF_LDX+BPF_W+BPF_IMM, 0x0000b1e0),
+		BPF_STMT(BPF_ALU+BPF_XOR+BPF_X, 0),
 		BPF_STMT(BPF_RET+BPF_A, 0)
 	};
 
@@ -1153,6 +1668,66 @@ ATF_TC_BODY(bpfjit_jmp_ja, tc)
 
 	ATF_CHECK(prog_validate(insns, insn_count));
 	ATF_CHECK(exec_prog(insns, insn_count, pkt, 1) == UINT32_MAX);
+}
+
+ATF_TC(bpfjit_jmp_ja_invalid);
+ATF_TC_HEAD(bpfjit_jmp_ja_invalid, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test BPF_JMP+BPF_JA to invalid destination");
+}
+
+ATF_TC_BODY(bpfjit_jmp_ja_invalid, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_JMP+BPF_JA, 4),
+		BPF_STMT(BPF_RET+BPF_K, 0),
+		BPF_STMT(BPF_RET+BPF_K, 1),
+		BPF_STMT(BPF_RET+BPF_K, 2),
+		BPF_STMT(BPF_RET+BPF_K, 3),
+	};
+
+	bpfjit_func_t code;
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(!prog_validate(insns, insn_count));
+
+	rump_schedule();
+	code = rumpns_bpfjit_generate_code(NULL, insns, insn_count);
+	rump_unschedule();
+	ATF_CHECK(code == NULL);
+}
+
+ATF_TC(bpfjit_jmp_ja_overflow);
+ATF_TC_HEAD(bpfjit_jmp_ja_overflow, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test BPF_JMP+BPF_JA with negative offset");
+}
+
+ATF_TC_BODY(bpfjit_jmp_ja_overflow, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_JMP+BPF_JA, 1),
+		BPF_STMT(BPF_RET+BPF_K, 777),
+		BPF_STMT(BPF_JMP+BPF_JA, UINT32_MAX - 1), // -2
+		BPF_STMT(BPF_RET+BPF_K, 0)
+	};
+
+	bpfjit_func_t code;
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	/* Jumps with negative offsets work only in userspace. */
+	ATF_CHECK(!prog_validate(insns, insn_count));
+
+	rump_schedule();
+	code = rumpns_bpfjit_generate_code(NULL, insns, insn_count);
+	rump_unschedule();
+	ATF_CHECK(code == NULL);
 }
 
 ATF_TC(bpfjit_jmp_jgt_k);
@@ -1574,26 +2149,26 @@ ATF_TC_BODY(bpfjit_jmp_jeq_x, tc)
 		BPF_STMT(BPF_LD+BPF_W+BPF_LEN, 0),
 		BPF_STMT(BPF_LDX+BPF_W+BPF_IMM, 8),
 		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_X, 0, 0, 1),
-		BPF_STMT(BPF_RET+BPF_K, 0),
+		BPF_STMT(BPF_RET+BPF_K, 1),
 		BPF_STMT(BPF_LDX+BPF_W+BPF_IMM, 3),
 		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_X, 0, 2, 0),
 		BPF_STMT(BPF_LDX+BPF_W+BPF_IMM, 9),
 		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_X, 0, 1, 1),
-		BPF_STMT(BPF_RET+BPF_K, 1),
-		BPF_STMT(BPF_LDX+BPF_W+BPF_IMM, 5),
-		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_X, 0, 1, 1),
 		BPF_STMT(BPF_RET+BPF_K, 2),
+		BPF_STMT(BPF_LDX+BPF_W+BPF_IMM, 5),
+		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_X, 0, 0, 1),
+		BPF_STMT(BPF_RET+BPF_K, 3),
 		BPF_STMT(BPF_LDX+BPF_W+BPF_IMM, 7),
 		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_X, 0, 2, 3),
-		BPF_STMT(BPF_RET+BPF_K, 3),
 		BPF_STMT(BPF_RET+BPF_K, 4),
 		BPF_STMT(BPF_RET+BPF_K, 5),
+		BPF_STMT(BPF_RET+BPF_K, 6),
 		BPF_STMT(BPF_LDX+BPF_W+BPF_IMM, 6),
 		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_X, 0, 3, 1),
-		BPF_STMT(BPF_RET+BPF_K, 6),
-		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_X, 1, 0, 0),
 		BPF_STMT(BPF_RET+BPF_K, 7),
-		BPF_STMT(BPF_RET+BPF_K, 8)
+		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_X, 0, 1, 0),
+		BPF_STMT(BPF_RET+BPF_K, 8),
+		BPF_STMT(BPF_RET+BPF_K, 9)
 	};
 
 	bpfjit_func_t code;
@@ -1610,14 +2185,14 @@ ATF_TC_BODY(bpfjit_jmp_jeq_x, tc)
 	rump_unschedule();
 	ATF_REQUIRE(code != NULL);
 
-	ATF_CHECK(jitcall(code, pkt, 1, 1) == 7);
-	ATF_CHECK(jitcall(code, pkt, 2, 2) == 7);
-	ATF_CHECK(jitcall(code, pkt, 3, 3) == 1);
-	ATF_CHECK(jitcall(code, pkt, 4, 4) == 7);
-	ATF_CHECK(jitcall(code, pkt, 5, 5) == 7);
-	ATF_CHECK(jitcall(code, pkt, 6, 6) == 8);
-	ATF_CHECK(jitcall(code, pkt, 7, 7) == 5);
-	ATF_CHECK(jitcall(code, pkt, 8, 8) == 0);
+	ATF_CHECK(jitcall(code, pkt, 1, 1) == 8);
+	ATF_CHECK(jitcall(code, pkt, 2, 2) == 8);
+	ATF_CHECK(jitcall(code, pkt, 3, 3) == 2);
+	ATF_CHECK(jitcall(code, pkt, 4, 4) == 8);
+	ATF_CHECK(jitcall(code, pkt, 5, 5) == 3);
+	ATF_CHECK(jitcall(code, pkt, 6, 6) == 9);
+	ATF_CHECK(jitcall(code, pkt, 7, 7) == 6);
+	ATF_CHECK(jitcall(code, pkt, 8, 8) == 1);
 
 	rump_schedule();
 	rumpns_bpfjit_free_code(code);
@@ -1681,6 +2256,116 @@ ATF_TC_BODY(bpfjit_jmp_jset_x, tc)
 	ATF_CHECK(jitcall(code, pkt, 6, 6) == 8);
 	ATF_CHECK(jitcall(code, pkt, 7, 7) == 5);
 	ATF_CHECK(jitcall(code, pkt, 8, 8) == 0);
+
+	rump_schedule();
+	rumpns_bpfjit_free_code(code);
+	rump_unschedule();
+}
+
+ATF_TC(bpfjit_jmp_jeq_x_noinit_ax);
+ATF_TC_HEAD(bpfjit_jmp_jeq_x_noinit_ax, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test JIT compilation "
+	    "of BPF_JMP+BPF_EQ+BPF_X with uninitialised A and X");
+}
+
+ATF_TC_BODY(bpfjit_jmp_jeq_x_noinit_ax, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_X, 0, 0, 1),
+		BPF_STMT(BPF_RET+BPF_K, 10),
+		BPF_STMT(BPF_RET+BPF_K, 11)
+	};
+
+	bpfjit_func_t code;
+	uint8_t pkt[8]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+
+	rump_schedule();
+	code = rumpns_bpfjit_generate_code(NULL, insns, insn_count);
+	rump_unschedule();
+	ATF_REQUIRE(code != NULL);
+
+	ATF_CHECK(jitcall(code, pkt, 1, 1) == 10);
+
+	rump_schedule();
+	rumpns_bpfjit_free_code(code);
+	rump_unschedule();
+}
+
+ATF_TC(bpfjit_jmp_jeq_x_noinit_a);
+ATF_TC_HEAD(bpfjit_jmp_jeq_x_noinit_a, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test JIT compilation "
+	    "of BPF_JMP+BPF_EQ+BPF_X with uninitialised A");
+}
+
+ATF_TC_BODY(bpfjit_jmp_jeq_x_noinit_a, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LDX+BPF_W+BPF_LEN, 0), /* X > 0 */
+		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_X, 0, 0, 1),
+		BPF_STMT(BPF_RET+BPF_K, 10),
+		BPF_STMT(BPF_RET+BPF_K, 11)
+	};
+
+	bpfjit_func_t code;
+	uint8_t pkt[8]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+
+	rump_schedule();
+	code = rumpns_bpfjit_generate_code(NULL, insns, insn_count);
+	rump_unschedule();
+	ATF_REQUIRE(code != NULL);
+
+	ATF_CHECK(jitcall(code, pkt, 1, 1) == 11);
+
+	rump_schedule();
+	rumpns_bpfjit_free_code(code);
+	rump_unschedule();
+}
+
+ATF_TC(bpfjit_jmp_jeq_x_noinit_x);
+ATF_TC_HEAD(bpfjit_jmp_jeq_x_noinit_x, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test JIT compilation "
+	    "of BPF_JMP+BPF_EQ+BPF_X with uninitialised X");
+}
+
+ATF_TC_BODY(bpfjit_jmp_jeq_x_noinit_x, tc)
+{
+	static struct bpf_insn insns[] = {
+		BPF_STMT(BPF_LD+BPF_LEN, 0), /* A > 0 */
+		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_X, 0, 0, 1),
+		BPF_STMT(BPF_RET+BPF_K, 10),
+		BPF_STMT(BPF_RET+BPF_K, 11)
+	};
+
+	bpfjit_func_t code;
+	uint8_t pkt[8]; /* the program doesn't read any data */
+
+	size_t insn_count = sizeof(insns) / sizeof(insns[0]);
+
+	RZ(rump_init());
+
+	ATF_CHECK(prog_validate(insns, insn_count));
+
+	rump_schedule();
+	code = rumpns_bpfjit_generate_code(NULL, insns, insn_count);
+	rump_unschedule();
+	ATF_REQUIRE(code != NULL);
+
+	ATF_CHECK(jitcall(code, pkt, 1, 1) == 11);
 
 	rump_schedule();
 	rumpns_bpfjit_free_code(code);
@@ -3887,6 +4572,8 @@ ATF_TP_ADD_TCS(tp)
 	 * to ../../lib/libbpfjit/t_bpfjit.c
 	 */
 	ATF_TP_ADD_TC(tp, bpfjit_empty);
+	ATF_TP_ADD_TC(tp, bpfjit_ret_k);
+	ATF_TP_ADD_TC(tp, bpfjit_bad_ret_k);
 	ATF_TP_ADD_TC(tp, bpfjit_alu_add_k);
 	ATF_TP_ADD_TC(tp, bpfjit_alu_sub_k);
 	ATF_TP_ADD_TC(tp, bpfjit_alu_mul_k);
@@ -3898,8 +4585,17 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, bpfjit_alu_div10000_k);
 	ATF_TP_ADD_TC(tp, bpfjit_alu_div7609801_k);
 	ATF_TP_ADD_TC(tp, bpfjit_alu_div80000000_k);
+	ATF_TP_ADD_TC(tp, bpfjit_alu_mod0_k);
+	ATF_TP_ADD_TC(tp, bpfjit_alu_mod1_k);
+	ATF_TP_ADD_TC(tp, bpfjit_alu_mod2_k);
+	ATF_TP_ADD_TC(tp, bpfjit_alu_mod4_k);
+	ATF_TP_ADD_TC(tp, bpfjit_alu_mod10_k);
+	ATF_TP_ADD_TC(tp, bpfjit_alu_mod10000_k);
+	ATF_TP_ADD_TC(tp, bpfjit_alu_mod7609801_k);
+	ATF_TP_ADD_TC(tp, bpfjit_alu_mod80000000_k);
 	ATF_TP_ADD_TC(tp, bpfjit_alu_and_k);
 	ATF_TP_ADD_TC(tp, bpfjit_alu_or_k);
+	ATF_TP_ADD_TC(tp, bpfjit_alu_xor_k);
 	ATF_TP_ADD_TC(tp, bpfjit_alu_lsh_k);
 	ATF_TP_ADD_TC(tp, bpfjit_alu_lsh0_k);
 	ATF_TP_ADD_TC(tp, bpfjit_alu_rsh_k);
@@ -3916,8 +4612,17 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, bpfjit_alu_div10000_x);
 	ATF_TP_ADD_TC(tp, bpfjit_alu_div7609801_x);
 	ATF_TP_ADD_TC(tp, bpfjit_alu_div80000000_x);
+	ATF_TP_ADD_TC(tp, bpfjit_alu_mod0_x);
+	ATF_TP_ADD_TC(tp, bpfjit_alu_mod1_x);
+	ATF_TP_ADD_TC(tp, bpfjit_alu_mod2_x);
+	ATF_TP_ADD_TC(tp, bpfjit_alu_mod4_x);
+	ATF_TP_ADD_TC(tp, bpfjit_alu_mod10_x);
+	ATF_TP_ADD_TC(tp, bpfjit_alu_mod10000_x);
+	ATF_TP_ADD_TC(tp, bpfjit_alu_mod7609801_x);
+	ATF_TP_ADD_TC(tp, bpfjit_alu_mod80000000_x);
 	ATF_TP_ADD_TC(tp, bpfjit_alu_and_x);
 	ATF_TP_ADD_TC(tp, bpfjit_alu_or_x);
+	ATF_TP_ADD_TC(tp, bpfjit_alu_xor_x);
 	ATF_TP_ADD_TC(tp, bpfjit_alu_lsh_x);
 	ATF_TP_ADD_TC(tp, bpfjit_alu_lsh0_x);
 	ATF_TP_ADD_TC(tp, bpfjit_alu_rsh_x);
@@ -3925,6 +4630,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, bpfjit_alu_modulo_x);
 	ATF_TP_ADD_TC(tp, bpfjit_alu_neg);
 	ATF_TP_ADD_TC(tp, bpfjit_jmp_ja);
+	ATF_TP_ADD_TC(tp, bpfjit_jmp_ja_invalid);
+	ATF_TP_ADD_TC(tp, bpfjit_jmp_ja_overflow);
 	ATF_TP_ADD_TC(tp, bpfjit_jmp_jgt_k);
 	ATF_TP_ADD_TC(tp, bpfjit_jmp_jge_k);
 	ATF_TP_ADD_TC(tp, bpfjit_jmp_jeq_k);
@@ -3934,6 +4641,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, bpfjit_jmp_jge_x);
 	ATF_TP_ADD_TC(tp, bpfjit_jmp_jeq_x);
 	ATF_TP_ADD_TC(tp, bpfjit_jmp_jset_x);
+	ATF_TP_ADD_TC(tp, bpfjit_jmp_jeq_x_noinit_ax);
+	ATF_TP_ADD_TC(tp, bpfjit_jmp_jeq_x_noinit_a);
+	ATF_TP_ADD_TC(tp, bpfjit_jmp_jeq_x_noinit_x);
 	ATF_TP_ADD_TC(tp, bpfjit_jmp_modulo_x);
 	ATF_TP_ADD_TC(tp, bpfjit_ld_abs);
 	ATF_TP_ADD_TC(tp, bpfjit_ld_abs_k_overflow);

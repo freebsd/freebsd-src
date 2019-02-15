@@ -2,6 +2,8 @@
  * Generic routines for LSI Fusion adapters.
  * FreeBSD Version.
  *
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-3-Clause
+ *
  * Copyright (c) 2000, 2001 by Greg Ansley
  *
  * Redistribution and use in source and binary forms, with or without
@@ -964,7 +966,7 @@ mpt_wait_state(struct mpt_softc *mpt, enum DB_STATE_BITS state)
 }
 
 
-/************************* Intialization/Configuration ************************/
+/************************* Initialization/Configuration ************************/
 static int mpt_download_fw(struct mpt_softc *mpt);
 
 /* Issue the reset COMMAND to the IOC */
@@ -1320,18 +1322,21 @@ mpt_wait_req(struct mpt_softc *mpt, request_t *req,
 	     mpt_req_state_t state, mpt_req_state_t mask,
 	     int sleep_ok, int time_ms)
 {
-	int   error;
 	int   timeout;
 	u_int saved_cnt;
+	sbintime_t sbt;
 
 	/*
-	 * timeout is in ms.  0 indicates infinite wait.
-	 * Convert to ticks or 500us units depending on
+	 * time_ms is in ms, 0 indicates infinite wait.
+	 * Convert to sbintime_t or 500us units depending on
 	 * our sleep mode.
 	 */
 	if (sleep_ok != 0) {
-		timeout = (time_ms * hz) / 1000;
+		sbt = SBT_1MS * time_ms;
+		/* Set timeout as well so final timeout check works. */
+		timeout = time_ms;
 	} else {
+		sbt = 0; /* Squelch bogus gcc warning. */
 		timeout = time_ms * 2;
 	}
 	req->state |= REQ_STATE_NEED_WAKEUP;
@@ -1339,8 +1344,8 @@ mpt_wait_req(struct mpt_softc *mpt, request_t *req,
 	saved_cnt = mpt->reset_cnt;
 	while ((req->state & mask) != state && mpt->reset_cnt == saved_cnt) {
 		if (sleep_ok != 0) {
-			error = mpt_sleep(mpt, req, PUSER, "mptreq", timeout);
-			if (error == EWOULDBLOCK) {
+			if (mpt_sleep(mpt, req, PUSER, "mptreq", sbt) ==
+			    EWOULDBLOCK) {
 				timeout = 0;
 				break;
 			}
@@ -1420,7 +1425,7 @@ mpt_send_handshake_cmd(struct mpt_softc *mpt, size_t len, void *cmd)
 
 	/* Send the command */
 	for (i = 0; i < len; i++) {
-		mpt_write(mpt, MPT_OFFSET_DOORBELL, htole32(*data32++));
+		mpt_write_stream(mpt, MPT_OFFSET_DOORBELL, *data32++);
 		if (mpt_wait_db_ack(mpt) != MPT_OK) {
 			mpt_prt(mpt,
 			    "mpt_send_handshake_cmd: timeout @ index %d\n", i);
@@ -1454,7 +1459,7 @@ mpt_recv_handshake_reply(struct mpt_softc *mpt, size_t reply_len, void *reply)
 	*data16++ = le16toh(data & MPT_DB_DATA_MASK);
 	mpt_write(mpt, MPT_OFFSET_INTR_STATUS, 0);
 
-	/* Get Second Word */
+	/* Get second word */
 	if (mpt_wait_db_int(mpt) != MPT_OK) {
 		mpt_prt(mpt, "mpt_recv_handshake_cmd timeout2\n");
 		return ETIMEDOUT;
@@ -1478,18 +1483,13 @@ mpt_recv_handshake_reply(struct mpt_softc *mpt, size_t reply_len, void *reply)
 	left = (hdr->MsgLength << 1) - 2;
 	reply_left =  reply_len - 2;
 	while (left--) {
-		u_int16_t datum;
-
 		if (mpt_wait_db_int(mpt) != MPT_OK) {
 			mpt_prt(mpt, "mpt_recv_handshake_cmd timeout3\n");
 			return ETIMEDOUT;
 		}
 		data = mpt_read(mpt, MPT_OFFSET_DOORBELL);
-		datum = le16toh(data & MPT_DB_DATA_MASK);
-
 		if (reply_left-- > 0)
-			*data16++ = datum;
-
+			*data16++ = le16toh(data & MPT_DB_DATA_MASK);
 		mpt_write(mpt, MPT_OFFSET_INTR_STATUS, 0);
 	}
 
@@ -1546,7 +1546,7 @@ mpt_get_portfacts(struct mpt_softc *mpt, U8 port, MSG_PORT_FACTS_REPLY *freplp)
 
 /*
  * Send the initialization request. This is where we specify how many
- * SCSI busses and how many devices per bus we wish to emulate.
+ * SCSI buses and how many devices per bus we wish to emulate.
  * This is also the command that specifies the max size of the reply
  * frames from the IOC that we will be allocating.
  */
@@ -1561,7 +1561,7 @@ mpt_send_ioc_init(struct mpt_softc *mpt, uint32_t who)
 	init.WhoInit = who;
 	init.Function = MPI_FUNCTION_IOC_INIT;
 	init.MaxDevices = 0;	/* at least 256 devices per bus */
-	init.MaxBuses = 16;	/* at least 16 busses */
+	init.MaxBuses = 16;	/* at least 16 buses */
 
 	init.MsgVersion = htole16(MPI_VERSION);
 	init.HeaderVersion = htole16(MPI_HEADER_VERSION);
@@ -2697,7 +2697,11 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 	 */
 	mpt->max_cam_seg_cnt = min(mpt->max_seg_cnt, (MAXPHYS / PAGE_SIZE) + 1);
 
+	/* XXX Lame Locking! */
+	MPT_UNLOCK(mpt);
 	error = mpt_dma_buf_alloc(mpt);
+	MPT_LOCK(mpt);
+
 	if (error != 0) {
 		mpt_prt(mpt, "mpt_dma_buf_alloc() failed!\n");
 		return (EIO);
@@ -2747,6 +2751,7 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		 * retrieved, we are responsible for re-downloading
 		 * the firmware after any hard-reset.
 		 */
+		MPT_UNLOCK(mpt);
 		mpt->fw_image_size = mpt->ioc_facts.FWImageSize;
 		error = mpt_dma_tag_create(mpt, mpt->parent_dmat, 1, 0,
 		    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
@@ -2754,6 +2759,7 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		    &mpt->fw_dmat);
 		if (error != 0) {
 			mpt_prt(mpt, "cannot create firmware dma tag\n");
+			MPT_LOCK(mpt);
 			return (ENOMEM);
 		}
 		error = bus_dmamem_alloc(mpt->fw_dmat,
@@ -2762,6 +2768,7 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		if (error != 0) {
 			mpt_prt(mpt, "cannot allocate firmware memory\n");
 			bus_dma_tag_destroy(mpt->fw_dmat);
+			MPT_LOCK(mpt);
 			return (ENOMEM);
 		}
 		mi.mpt = mpt;
@@ -2770,6 +2777,7 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		    mpt->fw_image, mpt->fw_image_size, mpt_map_rquest, &mi, 0);
 		mpt->fw_phys = mi.phys;
 
+		MPT_LOCK(mpt);
 		error = mpt_upload_fw(mpt);
 		if (error != 0) {
 			mpt_prt(mpt, "firmware upload failed.\n");

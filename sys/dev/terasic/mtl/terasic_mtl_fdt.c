@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012-2013 Robert N. M. Watson
  * All rights reserved.
  *
@@ -55,6 +57,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/terasic/mtl/terasic_mtl.h>
 
+#include "fb_if.h"
+
 static int
 terasic_mtl_fdt_probe(device_t dev)
 {
@@ -94,12 +98,12 @@ terasic_mtl_fdt_attach(device_t dev)
 		goto error;
 	}
 	if (rman_get_start(sc->mtl_reg_res) % PAGE_SIZE != 0) {
-		device_printf(dev, "improper register address");
+		device_printf(dev, "improper register address\n");
 		error = ENXIO;
 		goto error;
 	}
 	if (rman_get_size(sc->mtl_reg_res) % PAGE_SIZE != 0) {
-		device_printf(dev, "improper register size");
+		device_printf(dev, "improper register size\n");
 		error = ENXIO;
 		goto error;
 	}
@@ -117,12 +121,12 @@ terasic_mtl_fdt_attach(device_t dev)
 		goto error;
 	}
 	if (rman_get_start(sc->mtl_pixel_res) % PAGE_SIZE != 0) {
-		device_printf(dev, "improper pixel address");
+		device_printf(dev, "improper pixel address\n");
 		error = ENXIO;
 		goto error;
 	}
 	if (rman_get_size(sc->mtl_pixel_res) % PAGE_SIZE != 0) {
-		device_printf(dev, "improper pixel size");
+		device_printf(dev, "improper pixel size\n");
 		error = ENXIO;
 		goto error;
 	}
@@ -140,12 +144,12 @@ terasic_mtl_fdt_attach(device_t dev)
 		goto error;
 	}
 	if (rman_get_start(sc->mtl_text_res) % PAGE_SIZE != 0) {
-		device_printf(dev, "improper text address");
+		device_printf(dev, "improper text address\n");
 		error = ENXIO;
 		goto error;
 	}
 	if (rman_get_size(sc->mtl_text_res) % PAGE_SIZE != 0) {
-		device_printf(dev, "improper text size");
+		device_printf(dev, "improper text size\n");
 		error = ENXIO;
 		goto error;
 	}
@@ -186,10 +190,20 @@ terasic_mtl_fdt_detach(device_t dev)
 	return (0);
 }
 
+static struct fb_info *
+terasic_mtl_fb_getinfo(device_t dev)
+{
+        struct terasic_mtl_softc *sc;
+
+        sc = device_get_softc(dev);
+        return (&sc->mtl_fb_info);
+}
+
 static device_method_t terasic_mtl_fdt_methods[] = {
 	DEVMETHOD(device_probe,		terasic_mtl_fdt_probe),
 	DEVMETHOD(device_attach,	terasic_mtl_fdt_attach),
 	DEVMETHOD(device_detach,	terasic_mtl_fdt_detach),
+	DEVMETHOD(fb_getinfo,		terasic_mtl_fb_getinfo),
 	{ 0, 0 }
 };
 

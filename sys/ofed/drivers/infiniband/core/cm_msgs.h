@@ -1,5 +1,7 @@
-/*
- * Copyright (c) 2004 Intel Corporation.  All rights reserved.
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
+ * Copyright (c) 2004, 2011 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
  *
@@ -30,7 +32,10 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS THE
  * SOFTWARE.
+ *
+ * $FreeBSD$
  */
+
 #if !defined(CM_MSGS_H)
 #define CM_MSGS_H
 
@@ -43,18 +48,6 @@
  */
 
 #define IB_CM_CLASS_VERSION	2 /* IB specification 1.2 */
-
-#define CM_REQ_ATTR_ID		cpu_to_be16(0x0010)
-#define CM_MRA_ATTR_ID		cpu_to_be16(0x0011)
-#define CM_REJ_ATTR_ID		cpu_to_be16(0x0012)
-#define CM_REP_ATTR_ID		cpu_to_be16(0x0013)
-#define CM_RTU_ATTR_ID		cpu_to_be16(0x0014)
-#define CM_DREQ_ATTR_ID		cpu_to_be16(0x0015)
-#define CM_DREP_ATTR_ID		cpu_to_be16(0x0016)
-#define CM_SIDR_REQ_ATTR_ID	cpu_to_be16(0x0017)
-#define CM_SIDR_REP_ATTR_ID	cpu_to_be16(0x0018)
-#define CM_LAP_ATTR_ID		cpu_to_be16(0x0019)
-#define CM_APR_ATTR_ID		cpu_to_be16(0x001A)
 
 enum cm_msg_sequence {
 	CM_MSG_SEQUENCE_REQ,
@@ -86,7 +79,7 @@ struct cm_req_msg {
 	__be16 pkey;
 	/* path MTU:4, RDC exists:1, RNR retry count:3. */
 	u8 offset50;
-	/* max CM Retries:4, SRQ:1, rsvd:3 */
+	/* max CM Retries:4, SRQ:1, extended transport type:3 */
 	u8 offset51;
 
 	__be16 primary_local_lid;
@@ -115,7 +108,7 @@ struct cm_req_msg {
 	/* local ACK timeout:5, rsvd:3 */
 	u8 alt_offset139;
 
-	u8 private_data[IB_CM_REQ_PRIVATE_DATA_SIZE];
+	u32 private_data[IB_CM_REQ_PRIVATE_DATA_SIZE / sizeof(u32)];
 
 } __attribute__ ((packed));
 
@@ -175,6 +168,11 @@ static inline enum ib_qp_type cm_req_get_qp_type(struct cm_req_msg *req_msg)
 	switch(transport_type) {
 	case 0: return IB_QPT_RC;
 	case 1: return IB_QPT_UC;
+	case 3:
+		switch (req_msg->offset51 & 0x7) {
+		case 1: return IB_QPT_XRC_TGT;
+		default: return 0;
+		}
 	default: return 0;
 	}
 }
@@ -187,6 +185,12 @@ static inline void cm_req_set_qp_type(struct cm_req_msg *req_msg,
 		req_msg->offset40 = cpu_to_be32((be32_to_cpu(
 						  req_msg->offset40) &
 						   0xFFFFFFF9) | 0x2);
+		break;
+	case IB_QPT_XRC_INI:
+		req_msg->offset40 = cpu_to_be32((be32_to_cpu(
+						 req_msg->offset40) &
+						   0xFFFFFFF9) | 0x6);
+		req_msg->offset51 = (req_msg->offset51 & 0xF8) | 1;
 		break;
 	default:
 		req_msg->offset40 = cpu_to_be32(be32_to_cpu(
@@ -527,6 +531,23 @@ static inline void cm_rep_set_local_qpn(struct cm_rep_msg *rep_msg, __be32 qpn)
 			    (be32_to_cpu(rep_msg->offset12) & 0x000000FF));
 }
 
+static inline __be32 cm_rep_get_local_eecn(struct cm_rep_msg *rep_msg)
+{
+	return cpu_to_be32(be32_to_cpu(rep_msg->offset16) >> 8);
+}
+
+static inline void cm_rep_set_local_eecn(struct cm_rep_msg *rep_msg, __be32 eecn)
+{
+	rep_msg->offset16 = cpu_to_be32((be32_to_cpu(eecn) << 8) |
+			    (be32_to_cpu(rep_msg->offset16) & 0x000000FF));
+}
+
+static inline __be32 cm_rep_get_qpn(struct cm_rep_msg *rep_msg, enum ib_qp_type qp_type)
+{
+	return (qp_type == IB_QPT_XRC_INI) ?
+		cm_rep_get_local_eecn(rep_msg) : cm_rep_get_local_qpn(rep_msg);
+}
+
 static inline __be32 cm_rep_get_starting_psn(struct cm_rep_msg *rep_msg)
 {
 	return cpu_to_be32(be32_to_cpu(rep_msg->offset20) >> 8);
@@ -771,6 +792,7 @@ struct cm_apr_msg {
 
 	u8 info_length;
 	u8 ap_status;
+	__be16 rsvd;
 	u8 info[IB_CM_APR_INFO_LENGTH];
 
 	u8 private_data[IB_CM_APR_PRIVATE_DATA_SIZE];
@@ -784,7 +806,7 @@ struct cm_sidr_req_msg {
 	__be16 rsvd;
 	__be64 service_id;
 
-	u8 private_data[IB_CM_SIDR_REQ_PRIVATE_DATA_SIZE];
+	u32 private_data[IB_CM_SIDR_REQ_PRIVATE_DATA_SIZE / sizeof(u32)];
 } __attribute__ ((packed));
 
 struct cm_sidr_rep_msg {

@@ -1,4 +1,8 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright 2013 Garrett D'Amore <garrett@damore.org>
+ * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2002-2004 Tim J. Robbins.
  *
  * Copyright (c) 2011 The FreeBSD Foundation
@@ -44,7 +48,7 @@ mbsnrtowcs_l(wchar_t * __restrict dst, const char ** __restrict src,
 {
 	FIX_LOCALE(locale);
 	if (ps == NULL)
-		ps = &locale->mbsnrtowcs;
+		ps = &(XLOCALE_CTYPE(locale)->mbsnrtowcs);
 	return (XLOCALE_CTYPE(locale)->__mbsnrtowcs(dst, src, nms, len, ps));
 }
 size_t
@@ -56,20 +60,20 @@ mbsnrtowcs(wchar_t * __restrict dst, const char ** __restrict src,
 
 size_t
 __mbsnrtowcs_std(wchar_t * __restrict dst, const char ** __restrict src,
-    size_t nms, size_t len, mbstate_t * __restrict ps)
+    size_t nms, size_t len, mbstate_t * __restrict ps,
+    mbrtowc_pfn_t pmbrtowc)
 {
 	const char *s;
 	size_t nchr;
 	wchar_t wc;
 	size_t nb;
-	struct xlocale_ctype *ct = XLOCALE_CTYPE(__get_locale());
 
 	s = *src;
 	nchr = 0;
 
 	if (dst == NULL) {
 		for (;;) {
-			if ((nb = ct->__mbrtowc(&wc, s, nms, ps)) == (size_t)-1)
+			if ((nb = pmbrtowc(&wc, s, nms, ps)) == (size_t)-1)
 				/* Invalid sequence - mbrtowc() sets errno. */
 				return ((size_t)-1);
 			else if (nb == 0 || nb == (size_t)-2)
@@ -82,7 +86,7 @@ __mbsnrtowcs_std(wchar_t * __restrict dst, const char ** __restrict src,
 	}
 
 	while (len-- > 0) {
-		if ((nb = ct->__mbrtowc(dst, s, nms, ps)) == (size_t)-1) {
+		if ((nb = pmbrtowc(dst, s, nms, ps)) == (size_t)-1) {
 			*src = s;
 			return ((size_t)-1);
 		} else if (nb == (size_t)-2) {

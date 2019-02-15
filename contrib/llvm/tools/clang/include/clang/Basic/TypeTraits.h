@@ -12,13 +12,13 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_TYPETRAITS_H
-#define LLVM_CLANG_TYPETRAITS_H
+#ifndef LLVM_CLANG_BASIC_TYPETRAITS_H
+#define LLVM_CLANG_BASIC_TYPETRAITS_H
 
 namespace clang {
 
-  /// \brief Names for the unary type traits.
-  enum UnaryTypeTrait {
+  /// \brief Names for traits that operate specifically on types.
+  enum TypeTrait {
     UTT_HasNothrowAssign,
     UTT_HasNothrowMoveAssign,
     UTT_HasNothrowCopy,
@@ -31,12 +31,14 @@ namespace clang {
     UTT_HasTrivialDestructor,
     UTT_HasVirtualDestructor,
     UTT_IsAbstract,
+    UTT_IsAggregate,
     UTT_IsArithmetic,
     UTT_IsArray,
     UTT_IsClass,
     UTT_IsCompleteType,
     UTT_IsCompound,
     UTT_IsConst,
+    UTT_IsDestructible,
     UTT_IsEmpty,
     UTT_IsEnum,
     UTT_IsFinal,
@@ -50,6 +52,7 @@ namespace clang {
     UTT_IsMemberFunctionPointer,
     UTT_IsMemberObjectPointer,
     UTT_IsMemberPointer,
+    UTT_IsNothrowDestructible,
     UTT_IsObject,
     UTT_IsPOD,
     UTT_IsPointer,
@@ -62,20 +65,25 @@ namespace clang {
     UTT_IsStandardLayout,
     UTT_IsTrivial,
     UTT_IsTriviallyCopyable,
+    UTT_IsTriviallyDestructible,
     UTT_IsUnion,
     UTT_IsUnsigned,
     UTT_IsVoid,
-    UTT_IsVolatile
-  };
-
-  /// \brief Names for the binary type traits.
-  enum BinaryTypeTrait {
+    UTT_IsVolatile,
+    UTT_HasUniqueObjectRepresentations,
+    UTT_Last = UTT_HasUniqueObjectRepresentations,
     BTT_IsBaseOf,
     BTT_IsConvertible,
     BTT_IsConvertibleTo,
     BTT_IsSame,
     BTT_TypeCompatible,
-    BTT_IsTriviallyAssignable
+    BTT_IsAssignable,
+    BTT_IsNothrowAssignable,
+    BTT_IsTriviallyAssignable,
+    BTT_Last = BTT_IsTriviallyAssignable,
+    TT_IsConstructible,
+    TT_IsNothrowConstructible,
+    TT_IsTriviallyConstructible
   };
 
   /// \brief Names for the array type traits.
@@ -88,14 +96,9 @@ namespace clang {
   enum UnaryExprOrTypeTrait {
     UETT_SizeOf,
     UETT_AlignOf,
-    UETT_VecStep
+    UETT_VecStep,
+    UETT_OpenMPRequiredSimdAlign,
   };
-  
-  /// \brief Names for type traits that operate specifically on types.
-  enum TypeTrait {
-    TT_IsTriviallyConstructible
-  };
-  
 }
 
 #endif

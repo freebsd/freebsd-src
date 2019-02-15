@@ -24,7 +24,7 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" Copyright (c) 1990 The Regents of the University of California.
 .\" All rights reserved.
 .\"
@@ -49,7 +49,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 15, 2010
+.Dd October 21, 2016
 .Dt BPF 4
 .Os
 .Sh NAME
@@ -290,8 +290,6 @@ and
 .Pp
 In addition to
 .Dv FIONREAD
-and
-.Dv SIOCGIFADDR ,
 the following commands may be applied to any open
 .Nm
 file.
@@ -579,7 +577,8 @@ output via the interface is successful.
 When
 .Dv BPF_D_INOUT
 direction is set, injected outgoing packet is not returned by BPF to avoid
-duplication. This flag is initialized to zero by default.
+duplication.
+This flag is initialized to zero by default.
 .It Dv BIOCLOCK
 Set the locked flag on the
 .Nm
@@ -882,16 +881,20 @@ BPF_ALU+BPF_ADD+BPF_K	A <- A + k
 BPF_ALU+BPF_SUB+BPF_K	A <- A - k
 BPF_ALU+BPF_MUL+BPF_K	A <- A * k
 BPF_ALU+BPF_DIV+BPF_K	A <- A / k
+BPF_ALU+BPF_MOD+BPF_K	A <- A % k
 BPF_ALU+BPF_AND+BPF_K	A <- A & k
 BPF_ALU+BPF_OR+BPF_K	A <- A | k
+BPF_ALU+BPF_XOR+BPF_K	A <- A ^ k
 BPF_ALU+BPF_LSH+BPF_K	A <- A << k
 BPF_ALU+BPF_RSH+BPF_K	A <- A >> k
 BPF_ALU+BPF_ADD+BPF_X	A <- A + X
 BPF_ALU+BPF_SUB+BPF_X	A <- A - X
 BPF_ALU+BPF_MUL+BPF_X	A <- A * X
 BPF_ALU+BPF_DIV+BPF_X	A <- A / X
+BPF_ALU+BPF_MOD+BPF_X	A <- A % X
 BPF_ALU+BPF_AND+BPF_X	A <- A & X
 BPF_ALU+BPF_OR+BPF_X	A <- A | X
+BPF_ALU+BPF_XOR+BPF_X	A <- A ^ X
 BPF_ALU+BPF_LSH+BPF_X	A <- A << X
 BPF_ALU+BPF_RSH+BPF_X	A <- A >> X
 BPF_ALU+BPF_NEG		A <- -A

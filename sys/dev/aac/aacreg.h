@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Michael Smith
  * Copyright (c) 2000-2001 Scott Long
  * Copyright (c) 2000 BSDi
@@ -886,7 +888,7 @@ typedef enum {
 	AifEnSMARTEvent,		/* SMART Event */
 	AifEnBatteryNeedsRecond,	/* The battery needs reconditioning */
 	AifEnClusterEvent,		/* Some cluster event */
-	AifEnDiskSetEvent,		/* A disk set event occured. */
+	AifEnDiskSetEvent,		/* A disk set event occurred. */
 	AifEnContainerScsiEvent,	/* a container event with no. and scsi id */
 	AifEnPicBatteryEvent,	/* An event gen. by pic_battery.c for an ABM */
 	AifEnExpEvent,		/* Exp. Event Type to replace CTPopUp messages */

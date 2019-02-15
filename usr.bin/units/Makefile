@@ -3,14 +3,12 @@
 .include <src.opts.mk>
 
 PROG=	units
-FILES=	units.lib
+FILES=	definitions.units
 FILESDIR=	${SHAREDIR}/misc
 
-LDADD+=-ledit -ltermcapw
-DPADD+=${LIBEDIT} ${LIBTERMCAPW}
+LIBADD=	edit
 
-.if ${MK_TESTS} != "no"
-SUBDIR+= tests
-.endif
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>

@@ -219,6 +219,3 @@ echo '
 
 ' >> $H
 echo "</HTML>" >> $H
-
-echo "rsync phk"
-rsync -r $HDIR/. phk@phk:www/misc/build_options

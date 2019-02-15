@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Mitsuru IWASAKI <iwasaki@FreeBSD.org>
  * All rights reserved.
  *
@@ -90,7 +92,7 @@ acpi_battinfo(int num)
 	uint32_t volt;
 
 	if (num < 0 || num > 64)
-		err(EX_USAGE, "invalid battery %d", num);
+		errx(EX_USAGE, "invalid battery %d", num);
 
 	/* Print battery design information. */
 	battio.unit = num;
@@ -136,16 +138,30 @@ acpi_battinfo(int num)
 	if (ioctl(acpifd, ACPIIO_BATT_GET_BATTINFO, &battio) == -1)
 		err(EX_IOERR, "get battery user info (%d) failed", num);
 	if (battio.battinfo.state != ACPI_BATT_STAT_NOT_PRESENT) {
-		printf("State:\t\t\t");
-		if (battio.battinfo.state == 0)
-			printf("high ");
-		if (battio.battinfo.state & ACPI_BATT_STAT_CRITICAL)
-			printf("critical ");
-		if (battio.battinfo.state & ACPI_BATT_STAT_DISCHARG)
-			printf("discharging ");
-		if (battio.battinfo.state & ACPI_BATT_STAT_CHARGING)
-			printf("charging ");
-		printf("\n");
+		const char *state;
+		switch (battio.battinfo.state & ACPI_BATT_STAT_BST_MASK) {
+		case 0:
+			state = "high";
+			break;
+		case ACPI_BATT_STAT_DISCHARG:
+			state = "discharging";
+			break;
+		case ACPI_BATT_STAT_CHARGING:
+			state = "charging";
+			break;
+		case ACPI_BATT_STAT_CRITICAL:
+			state = "critical";
+			break;
+		case ACPI_BATT_STAT_DISCHARG | ACPI_BATT_STAT_CRITICAL:
+			state = "critical discharging";
+			break;
+		case ACPI_BATT_STAT_CHARGING | ACPI_BATT_STAT_CRITICAL:
+			state = "critical charging";
+			break;
+		default:
+			state = "invalid";
+		}
+		printf("State:\t\t\t%s\n", state);
 		if (battio.battinfo.cap == -1)
 			printf("Remaining capacity:\tunknown\n");
 		else
@@ -189,8 +205,9 @@ usage(const char* prog)
 int
 main(int argc, char *argv[])
 {
-	char	c, *prog;
-	int	sleep_type;
+	char	*prog, *end;
+	int	c, sleep_type, battery, ack;
+	int	iflag = 0, kflag = 0, sflag = 0;
 
 	prog = argv[0];
 	if (argc < 2)
@@ -202,16 +219,24 @@ main(int argc, char *argv[])
 	while ((c = getopt(argc, argv, "hi:k:s:")) != -1) {
 		switch (c) {
 		case 'i':
-			acpi_battinfo(atoi(optarg));
+			iflag = 1;
+			battery = strtol(optarg, &end, 10);
+			if ((size_t)(end - optarg) != strlen(optarg))
+			    errx(EX_USAGE, "invalid battery");
 			break;
 		case 'k':
-			acpi_sleep_ack(atoi(optarg));
+			kflag = 1;
+			ack = strtol(optarg, &end, 10);
+			if ((size_t)(end - optarg) != strlen(optarg))
+			    errx(EX_USAGE, "invalid ack argument");
 			break;
 		case 's':
+			sflag = 1;
 			if (optarg[0] == 'S')
-				sleep_type = optarg[1] - '0';
-			else
-				sleep_type = optarg[0] - '0';
+				optarg++;
+			sleep_type = strtol(optarg, &end, 10);
+			if ((size_t)(end - optarg) != strlen(optarg))
+			    errx(EX_USAGE, "invalid sleep type");
 			if (sleep_type < 1 || sleep_type > 4)
 				errx(EX_USAGE, "invalid sleep type (%d)",
 				     sleep_type);
@@ -225,7 +250,25 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (sleep_type != -1)
+	if (iflag != 0 && kflag != 0 && sflag != 0)
+			errx(EX_USAGE, "-i, -k and -s are mutually exclusive");
+
+	if (iflag  != 0) {
+		if (kflag != 0)
+			errx(EX_USAGE, "-i and -k are mutually exclusive");
+		if (sflag != 0)
+			errx(EX_USAGE, "-i and -s are mutually exclusive");
+		acpi_battinfo(battery);
+	}
+
+	if (kflag != 0) {
+		if (sflag != 0)
+			errx(EX_USAGE, "-k and -s are mutually exclusive");
+		acpi_sleep_ack(ack);
+	}
+
+
+	if (sflag != 0)
 		acpi_sleep(sleep_type);
 
 	close(acpifd);

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006-2007 Bruce M. Simpson.
  * Copyright (c) 2003-2004 Juli Mallett.
  * All rights reserved.
@@ -51,17 +53,21 @@ __FBSDID("$FreeBSD$");
 #include <machine/locore.h>
 #include <machine/md_var.h>
 
+#ifdef INTRNG
+#include <machine/intr.h>
+#endif
+
 uint64_t counter_freq;
 
 struct timecounter *platform_timecounter;
 
-static DPCPU_DEFINE(uint32_t, cycles_per_tick);
+DPCPU_DEFINE_STATIC(uint32_t, cycles_per_tick);
 static uint32_t cycles_per_usec;
 
-static DPCPU_DEFINE(volatile uint32_t, counter_upper);
-static DPCPU_DEFINE(volatile uint32_t, counter_lower_last);
-static DPCPU_DEFINE(uint32_t, compare_ticks);
-static DPCPU_DEFINE(uint32_t, lost_ticks);
+DPCPU_DEFINE_STATIC(volatile uint32_t, counter_upper);
+DPCPU_DEFINE_STATIC(volatile uint32_t, counter_lower_last);
+DPCPU_DEFINE_STATIC(uint32_t, compare_ticks);
+DPCPU_DEFINE_STATIC(uint32_t, lost_ticks);
 
 struct clock_softc {
 	int intr_rid;
@@ -191,6 +197,7 @@ DELAY(int n)
 {
 	uint32_t cur, last, delta, usecs;
 
+	TSENTER();
 	/*
 	 * This works by polling the timer and counting the number of
 	 * microseconds that go by.
@@ -214,6 +221,7 @@ DELAY(int n)
 			delta %= cycles_per_usec;
 		}
 	}
+	TSEXIT();
 }
 
 static int
@@ -324,12 +332,18 @@ static int
 clock_attach(device_t dev)
 {
 	struct clock_softc *sc;
+#ifndef INTRNG
 	int error;
+#endif
 
 	if (device_get_unit(dev) != 0)
 		panic("can't attach more clocks");
 
 	softc = sc = device_get_softc(dev);
+#ifdef INTRNG
+	cpu_establish_hardintr("clock", clock_intr, NULL, sc, 5, INTR_TYPE_CLK,
+	    NULL);
+#else
 	sc->intr_rid = 0;
 	sc->intr_res = bus_alloc_resource(dev,
 	    SYS_RES_IRQ, &sc->intr_rid, 5, 5, 1, RF_ACTIVE);
@@ -343,6 +357,7 @@ clock_attach(device_t dev)
 		device_printf(dev, "bus_setup_intr returned %d\n", error);
 		return (error);
 	}
+#endif
 
 	sc->tc.tc_get_timecount = counter_get_timecount;
 	sc->tc.tc_counter_mask = 0xffffffff;

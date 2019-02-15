@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003 Jake Burkholder.
  * All rights reserved.
  *
@@ -138,7 +140,7 @@ central_attach(device_t dev)
 	sc = device_get_softc(dev);
 	node = ofw_bus_get_node(dev);
 
-	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
+	sc->sc_nrange = OF_getprop_alloc_multi(node, "ranges",
 	    sizeof(*sc->sc_ranges), (void **)&sc->sc_ranges);
 	if (sc->sc_nrange == -1) {
 		device_printf(dev, "can't get ranges\n");
@@ -151,7 +153,7 @@ central_attach(device_t dev)
 			free(cdi, M_DEVBUF);
 			continue;
 		}
-		nreg = OF_getprop_alloc(child, "reg", sizeof(*reg),
+		nreg = OF_getprop_alloc_multi(child, "reg", sizeof(*reg),
 		    (void **)&reg);
 		if (nreg == -1) {
 			device_printf(dev, "<%s>: incomplete\n",
@@ -165,7 +167,7 @@ central_attach(device_t dev)
 			resource_list_add(&cdi->cdi_rl, SYS_RES_MEMORY, i,
 			    reg[i].sbr_offset, reg[i].sbr_offset +
 			    reg[i].sbr_size, reg[i].sbr_size);
-		free(reg, M_OFWPROP);
+		OF_prop_free(reg);
 		cdev = device_add_child(dev, NULL, -1);
 		if (cdev == NULL) {
 			device_printf(dev, "<%s>: device_add_child failed\n",
@@ -183,8 +185,8 @@ central_attach(device_t dev)
 
 static int
 central_adjust_resource(device_t bus __unused, device_t child __unused,
-    int type __unused, struct resource *r __unused, u_long start __unused,
-    u_long end __unused)
+    int type __unused, struct resource *r __unused, rman_res_t start __unused,
+    rman_res_t end __unused)
 {
 
 	return (ENXIO);
@@ -215,7 +217,7 @@ central_probe_nomatch(device_t dev, device_t child)
 
 static struct resource *
 central_alloc_resource(device_t bus, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource_list *rl;
 	struct resource_list_entry *rle;
@@ -228,7 +230,7 @@ central_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	int passthrough;
 	int i;
 
-	isdefault = (start == 0UL && end == ~0UL);
+	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != bus);
 	res = NULL;
 	rle = NULL;
@@ -295,5 +297,5 @@ central_print_res(struct central_devinfo *cdi)
 {
 
 	return (resource_list_print_type(&cdi->cdi_rl, "mem", SYS_RES_MEMORY,
-	    "%#lx"));
+	    "%#jx"));
 }

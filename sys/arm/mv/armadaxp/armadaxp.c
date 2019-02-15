@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2011 Semihalf.
  * All rights reserved.
  *
@@ -33,14 +35,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 
-#include <machine/bus.h>
 #include <machine/armreg.h>
+#include <machine/bus.h>
+#include <machine/cpu.h>
 
 #include <arm/mv/mvwin.h>
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/fdt.h>
@@ -54,6 +56,7 @@ static uint32_t count_l2clk(void);
 void armadaxp_l2_init(void);
 void armadaxp_init_coher_fabric(void);
 int platform_get_ncpus(void);
+static uint64_t get_sar_value_armadaxp(void);
 
 #define ARMADAXP_L2_BASE		(MV_BASE + 0x8000)
 #define ARMADAXP_L2_CTRL		0x100
@@ -85,13 +88,6 @@ int platform_get_ncpus(void);
 #define COHER_FABRIC_CONF		0x04
 #define COHER_FABRIC_CFU		0x28
 #define COHER_FABRIC_CIB_CTRL		0x80
-
-/* XXX Make gpio driver optional and remove it */
-struct resource_spec mv_gpio_res[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ -1, 0 }
-};
 
 struct vco_freq_ratio {
 	uint8_t	vco_cpu;	/* VCO to CLK0(CPU) clock ratio */
@@ -130,18 +126,37 @@ static uint16_t	cpu_clock_table[] = {
     1000, 1066, 1200, 1333, 1500, 1666, 1800, 2000, 600,  667,  800,  1600,
     2133, 2200, 2400 };
 
+static uint64_t
+get_sar_value_armadaxp(void)
+{
+	uint32_t sar_low, sar_high;
+
+	sar_high = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
+	    SAMPLE_AT_RESET_HI);
+	sar_low = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
+	    SAMPLE_AT_RESET_LO);
+	return (((uint64_t)sar_high << 32) | sar_low);
+}
+
 uint32_t
-get_tclk(void)
+get_tclk_armadaxp(void)
 {
  	uint32_t cputype;
 
-	cputype = cpufunc_id();
+	cputype = cp15_midr_get();
 	cputype &= CPU_ID_CPU_MASK;
 
 	if (cputype == CPU_ID_MV88SV584X_V7)
 		return (TCLK_250MHZ);
 	else
 		return (TCLK_200MHZ);
+}
+
+uint32_t
+get_cpu_freq_armadaxp(void)
+{
+
+	return (0);
 }
 
 static uint32_t
@@ -152,18 +167,18 @@ count_l2clk(void)
 	uint8_t  sar_cpu_freq, sar_fab_freq, array_size;
 
 	/* Get value of the SAR register and process it */
-	sar_reg = get_sar_value();
+	sar_reg = get_sar_value_armadaxp();
 	sar_cpu_freq = CPU_FREQ_FIELD(sar_reg);
 	sar_fab_freq = FAB_FREQ_FIELD(sar_reg);
 
 	/* Check if CPU frequency field has correct value */
-	array_size = sizeof(cpu_clock_table) / sizeof(cpu_clock_table[0]);
+	array_size = nitems(cpu_clock_table);
 	if (sar_cpu_freq >= array_size)
 		panic("Reserved value in cpu frequency configuration field: "
 		    "%d", sar_cpu_freq);
 
 	/* Check if fabric frequency field has correct value */
-	array_size = sizeof(freq_conf_table) / sizeof(freq_conf_table[0]);
+	array_size = nitems(freq_conf_table);
 	if (sar_fab_freq >= array_size)
 		panic("Reserved value in fabric frequency configuration field: "
 		    "%d", sar_fab_freq);

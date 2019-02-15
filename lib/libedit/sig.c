@@ -1,3 +1,5 @@
+/*	$NetBSD: sig.c,v 1.24 2016/02/16 19:08:41 christos Exp $	*/
+
 /*-
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -28,12 +30,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$NetBSD: sig.c,v 1.15 2009/02/19 15:20:22 christos Exp $
  */
 
+#include "config.h"
 #if !defined(lint) && !defined(SCCSID)
+#if 0
 static char sccsid[] = "@(#)sig.c	8.1 (Berkeley) 6/4/93";
+#else
+__RCSID("$NetBSD: sig.c,v 1.24 2016/02/16 19:08:41 christos Exp $");
+#endif
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -43,9 +48,11 @@ __FBSDID("$FreeBSD$");
  *	  our policy is to trap all signals, set a good state
  *	  and pass the ball to our caller.
  */
-#include "sys.h"
-#include "el.h"
+#include <errno.h>
 #include <stdlib.h>
+
+#include "el.h"
+#include "common.h"
 
 private EditLine *sel = NULL;
 
@@ -66,9 +73,10 @@ private void sig_handler(int);
 private void
 sig_handler(int signo)
 {
-	int i;
+	int i, save_errno;
 	sigset_t nset, oset;
 
+	save_errno = errno;
 	(void) sigemptyset(&nset);
 	(void) sigaddset(&nset, signo);
 	(void) sigprocmask(SIG_BLOCK, &nset, &oset);
@@ -80,7 +88,7 @@ sig_handler(int signo)
 		tty_rawmode(sel);
 		if (ed_redisplay(sel, 0) == CC_REFRESH)
 			re_refresh(sel);
-		term__flush(sel);
+		terminal__flush(sel);
 		break;
 
 	case SIGWINCH:
@@ -102,6 +110,7 @@ sig_handler(int signo)
 	sigemptyset(&sel->el_signal->sig_action[i].sa_mask);
 	(void) sigprocmask(SIG_SETMASK, &oset, NULL);
 	(void) kill(0, signo);
+	errno = save_errno;
 }
 
 
@@ -144,7 +153,7 @@ protected void
 sig_end(EditLine *el)
 {
 
-	el_free((ptr_t) el->el_signal);
+	el_free(el->el_signal);
 	el->el_signal = NULL;
 }
 

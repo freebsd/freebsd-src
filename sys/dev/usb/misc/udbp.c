@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1996-2000 Whistle Communications, Inc.
  * All rights reserved.
  *
@@ -97,7 +99,7 @@ __FBSDID("$FreeBSD$");
 static int udbp_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, udbp, CTLFLAG_RW, 0, "USB udbp");
-SYSCTL_INT(_hw_usb_udbp, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_udbp, OID_AUTO, debug, CTLFLAG_RWTUN,
     &udbp_debug, 0, "udbp debug level");
 #endif
 
@@ -258,10 +260,22 @@ static driver_t udbp_driver = {
 	.size = sizeof(struct udbp_softc),
 };
 
+static const STRUCT_USB_HOST_ID udbp_devs[] = {
+	{USB_VPI(USB_VENDOR_BELKIN, USB_PRODUCT_BELKIN_F5U258, 0)},
+	{USB_VPI(USB_VENDOR_NETCHIP, USB_PRODUCT_NETCHIP_TURBOCONNECT, 0)},
+	{USB_VPI(USB_VENDOR_NETCHIP, USB_PRODUCT_NETCHIP_GADGETZERO, 0)},
+	{USB_VPI(USB_VENDOR_PROLIFIC, USB_PRODUCT_PROLIFIC_PL2301, 0)},
+	{USB_VPI(USB_VENDOR_PROLIFIC, USB_PRODUCT_PROLIFIC_PL2302, 0)},
+	{USB_VPI(USB_VENDOR_PROLIFIC, USB_PRODUCT_PROLIFIC_PL27A1, 0)},
+	{USB_VPI(USB_VENDOR_ANCHOR, USB_PRODUCT_ANCHOR_EZLINK, 0)},
+	{USB_VPI(USB_VENDOR_GENESYS, USB_PRODUCT_GENESYS_GL620USB, 0)},
+};
+
 DRIVER_MODULE(udbp, uhub, udbp_driver, udbp_devclass, udbp_modload, 0);
 MODULE_DEPEND(udbp, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
 MODULE_DEPEND(udbp, usb, 1, 1, 1);
 MODULE_VERSION(udbp, 1);
+USB_PNP_HOST_INFO(udbp_devs);
 
 static int
 udbp_modload(module_t mod, int event, void *data)
@@ -288,15 +302,6 @@ udbp_modload(module_t mod, int event, void *data)
 	}
 	return (error);
 }
-
-static const STRUCT_USB_HOST_ID udbp_devs[] = {
-	{USB_VPI(USB_VENDOR_NETCHIP, USB_PRODUCT_NETCHIP_TURBOCONNECT, 0)},
-	{USB_VPI(USB_VENDOR_NETCHIP, USB_PRODUCT_NETCHIP_GADGETZERO, 0)},
-	{USB_VPI(USB_VENDOR_PROLIFIC, USB_PRODUCT_PROLIFIC_PL2301, 0)},
-	{USB_VPI(USB_VENDOR_PROLIFIC, USB_PRODUCT_PROLIFIC_PL2302, 0)},
-	{USB_VPI(USB_VENDOR_ANCHOR, USB_PRODUCT_ANCHOR_EZLINK, 0)},
-	{USB_VPI(USB_VENDOR_GENESYS, USB_PRODUCT_GENESYS_GL620USB, 0)},
-};
 
 static int
 udbp_probe(device_t dev)
@@ -417,9 +422,8 @@ udbp_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (m == NULL) {
 			goto tr_setup;
 		}
-		MCLGET(m, M_NOWAIT);
 
-		if (!(m->m_flags & M_EXT)) {
+		if (!(MCLGET(m, M_NOWAIT))) {
 			m_freem(m);
 			goto tr_setup;
 		}
@@ -744,7 +748,7 @@ ng_udbp_rcvdata(hook_p hook, item_p item)
 
 /*
  * Do local shutdown processing..
- * We are a persistant device, we refuse to go away, and
+ * We are a persistent device, we refuse to go away, and
  * only remove our links and reset ourself.
  */
 static int

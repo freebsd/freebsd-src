@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2010, Pyun YongHyeon <yongari@FreeBSD.org>
  * All rights reserved.
  *
@@ -428,7 +430,7 @@ vte_attach(device_t dev)
 	/* Reset the ethernet controller. */
 	vte_reset(sc);
 
-	if ((error = vte_dma_alloc(sc) != 0))
+	if ((error = vte_dma_alloc(sc)) != 0)
 		goto fail;
 
 	/* Create device sysctl node. */
@@ -1994,7 +1996,7 @@ vte_rxfilter(struct vte_softc *sc)
 
 	nperf = 0;
 	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &sc->vte_ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &sc->vte_ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		/*

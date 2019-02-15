@@ -40,6 +40,12 @@
 #define	MSEC2NSEC(m)	((hrtime_t)(m) * (NANOSEC / MILLISEC))
 #define	NSEC2MSEC(n)	((n) / (NANOSEC / MILLISEC))
 
+#define	USEC2NSEC(m)	((hrtime_t)(m) * (NANOSEC / MICROSEC))
+#define	NSEC2USEC(n)	((n) / (NANOSEC / MICROSEC))
+
+#define	NSEC2SEC(n)	((n) / (NANOSEC / SEC))
+#define	SEC2NSEC(m)	((hrtime_t)(m) * (NANOSEC / SEC))
+
 typedef longlong_t	hrtime_t;
 
 #if defined(__i386__) || defined(__powerpc__)
@@ -51,7 +57,7 @@ typedef longlong_t	hrtime_t;
 #endif
 
 #define	SEC_TO_TICK(sec)	((sec) * hz)
-#define	NSEC_TO_TICK(usec)	((usec) / (NANOSEC / hz))
+#define	NSEC_TO_TICK(nsec)	((nsec) / (NANOSEC / hz))
 
 #ifdef _KERNEL
 static __inline hrtime_t

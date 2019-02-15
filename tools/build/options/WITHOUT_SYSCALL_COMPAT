@@ -1,2 +1,0 @@
-.\" $FreeBSD$
-Do not include some compatible syscall wrappers in libc.

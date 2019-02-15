@@ -256,8 +256,8 @@ Pointer to
 .Pq Vt "struct ifnet *"
 is passed as the first argument, interface
 .Fa dlt
-follows. Last argument indicates listener is attached (1) or
-detached (0).
+follows.
+Last argument indicates listener is attached (1) or detached (0).
 Note that handler is invoked with
 .Nm
 global lock held, which implies restriction on sleeping and calling

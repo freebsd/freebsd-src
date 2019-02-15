@@ -3,27 +3,22 @@
 .include <src.opts.mk>
 
 PROG=	ssh-keysign
-SRCS=	ssh-keysign.c roaming_dummy.c readconf.c
+SRCS=	ssh-keysign.c readconf.c uidswap.c
 MAN=	ssh-keysign.8
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
+SRCS+=	ssh_namespace.h
 BINMODE=4555
 
-DPADD=	${LIBSSH}
-LDADD=	${LDSSH}
-USEPRIVATELIB= ssh
+LIBADD=	ssh
 
 .if ${MK_LDNS} != "no"
 CFLAGS+=	-DHAVE_LDNS=1
 #DPADD+=	${LIBLDNS}
 #LDADD+=	-lldns
-#USEPRIVATELIB+= ldns
 .endif
 
-DPADD+= ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
-LDADD+= -lcrypt -lcrypto -lz
+LIBADD+=	crypto
 
 .include <bsd.prog.mk>
 
 .PATH:	${SSHDIR}
-
-${OBJS} ${POBJS} ${SOBJS}: ssh_namespace.h

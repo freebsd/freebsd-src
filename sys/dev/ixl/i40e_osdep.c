@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2018, Intel Corporation
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -32,7 +32,7 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-#include <machine/stdarg.h>
+#include <sys/limits.h>
 
 #include "ixl.h"
 
@@ -59,6 +59,8 @@ i40e_status
 i40e_free_virt_mem(struct i40e_hw *hw, struct i40e_virt_mem *mem)
 {
 	free(mem->va, M_DEVBUF);
+	mem->va = NULL;
+
 	return(0);
 }
 
@@ -107,6 +109,7 @@ i40e_allocate_dma_mem(struct i40e_hw *hw, struct i40e_dma_mem *mem,
 		    "error %u\n", err);
 		goto fail_2;
 	}
+	mem->nseg = 1;
 	mem->size = size;
 	bus_dmamap_sync(mem->tag, mem->map,
 	    BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
@@ -129,14 +132,14 @@ i40e_free_dma_mem(struct i40e_hw *hw, struct i40e_dma_mem *mem)
 	bus_dmamap_unload(mem->tag, mem->map);
 	bus_dmamem_free(mem->tag, mem->va, mem->map);
 	bus_dma_tag_destroy(mem->tag);
-	return (0);
+	return (I40E_SUCCESS);
 }
 
 void
 i40e_init_spinlock(struct i40e_spinlock *lock)
 {
 	mtx_init(&lock->mutex, "mutex",
-	    MTX_NETWORK_LOCK, MTX_DEF | MTX_DUPOK);
+	    "ixl spinlock", MTX_DEF | MTX_DUPOK);
 }
 
 void
@@ -154,26 +157,101 @@ i40e_release_spinlock(struct i40e_spinlock *lock)
 void
 i40e_destroy_spinlock(struct i40e_spinlock *lock)
 {
-	mtx_destroy(&lock->mutex);
+	if (mtx_initialized(&lock->mutex))
+		mtx_destroy(&lock->mutex);
+}
+
+static inline int
+ixl_ms_scale(int x)
+{
+	if (hz == 1000)
+		return (x);
+	else if (hz > 1000)
+		return (x*(hz/1000));
+	else
+		return (max(1, x/(1000/hz)));
+}
+
+void
+i40e_msec_pause(int msecs)
+{
+	if (cold || SCHEDULER_STOPPED())
+		i40e_msec_delay(msecs);
+	else
+		// ERJ: (msecs * hz) could overflow
+		pause("ixl", ixl_ms_scale(msecs));
 }
 
 /*
-** i40e_debug_d - OS dependent version of shared code debug printing
-*/
-void i40e_debug_d(void *hw, u32 mask, char *fmt, ...)
+ * Helper function for debug statement printing
+ */
+void
+i40e_debug_shared(struct i40e_hw *hw, enum i40e_debug_mask mask, char *fmt, ...)
 {
-        char buf[512];
-        va_list args;
+	va_list args;
+	device_t dev;
 
-        if (!(mask & ((struct i40e_hw *)hw)->debug_mask))
-                return;
+	if (!(mask & ((struct i40e_hw *)hw)->debug_mask))
+		return;
 
+	dev = ((struct i40e_osdep *)hw->back)->dev;
+
+	/* Re-implement device_printf() */
+	device_print_prettyname(dev);
 	va_start(args, fmt);
-        vsnprintf(buf, sizeof(buf), fmt, args);
+	vprintf(fmt, args);
 	va_end(args);
+}
 
-        /* the debug string is already formatted with a newline */
-        printf("%s", buf);
+const char *
+ixl_vc_opcode_str(uint16_t op)
+{
+	switch (op) {
+	case VIRTCHNL_OP_VERSION:
+		return ("VERSION");
+	case VIRTCHNL_OP_RESET_VF:
+		return ("RESET_VF");
+	case VIRTCHNL_OP_GET_VF_RESOURCES:
+		return ("GET_VF_RESOURCES");
+	case VIRTCHNL_OP_CONFIG_TX_QUEUE:
+		return ("CONFIG_TX_QUEUE");
+	case VIRTCHNL_OP_CONFIG_RX_QUEUE:
+		return ("CONFIG_RX_QUEUE");
+	case VIRTCHNL_OP_CONFIG_VSI_QUEUES:
+		return ("CONFIG_VSI_QUEUES");
+	case VIRTCHNL_OP_CONFIG_IRQ_MAP:
+		return ("CONFIG_IRQ_MAP");
+	case VIRTCHNL_OP_ENABLE_QUEUES:
+		return ("ENABLE_QUEUES");
+	case VIRTCHNL_OP_DISABLE_QUEUES:
+		return ("DISABLE_QUEUES");
+	case VIRTCHNL_OP_ADD_ETH_ADDR:
+		return ("ADD_ETH_ADDR");
+	case VIRTCHNL_OP_DEL_ETH_ADDR:
+		return ("DEL_ETH_ADDR");
+	case VIRTCHNL_OP_ADD_VLAN:
+		return ("ADD_VLAN");
+	case VIRTCHNL_OP_DEL_VLAN:
+		return ("DEL_VLAN");
+	case VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE:
+		return ("CONFIG_PROMISCUOUS_MODE");
+	case VIRTCHNL_OP_GET_STATS:
+		return ("GET_STATS");
+	case VIRTCHNL_OP_RSVD:
+		return ("RSVD");
+	case VIRTCHNL_OP_EVENT:
+		return ("EVENT");
+	case VIRTCHNL_OP_CONFIG_RSS_KEY:
+		return ("CONFIG_RSS_KEY");
+	case VIRTCHNL_OP_CONFIG_RSS_LUT:
+		return ("CONFIG_RSS_LUT");
+	case VIRTCHNL_OP_GET_RSS_HENA_CAPS:
+		return ("GET_RSS_HENA_CAPS");
+	case VIRTCHNL_OP_SET_RSS_HENA:
+		return ("SET_RSS_HENA");
+	default:
+		return ("UNKNOWN");
+	}
 }
 
 u16
@@ -192,7 +270,5 @@ i40e_write_pci_cfg(struct i40e_hw *hw, u32 reg, u16 value)
 {
         pci_write_config(((struct i40e_osdep *)hw->back)->dev,
             reg, value, 2);
-
-        return;
 }
 

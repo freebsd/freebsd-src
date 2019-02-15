@@ -12,34 +12,34 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "regalloc"
-#include "llvm/CodeGen/Passes.h"
 #include "AllocationOrder.h"
 #include "LiveDebugVariables.h"
 #include "RegAllocBase.h"
 #include "Spiller.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/CodeGen/CalcSpillWeights.h"
-#include "llvm/CodeGen/LiveIntervalAnalysis.h"
+#include "llvm/CodeGen/LiveIntervals.h"
 #include "llvm/CodeGen/LiveRangeEdit.h"
 #include "llvm/CodeGen/LiveRegMatrix.h"
-#include "llvm/CodeGen/LiveStackAnalysis.h"
+#include "llvm/CodeGen/LiveStacks.h"
 #include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/RegAllocRegistry.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/VirtRegMap.h"
 #include "llvm/PassAnalysisSupport.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegisterInfo.h"
 #include <cstdlib>
 #include <queue>
 
 using namespace llvm;
+
+#define DEBUG_TYPE "regalloc"
 
 static RegisterRegAlloc basicRegAlloc("basic", "basic register allocator",
                                       createBasicRegisterAllocator);
@@ -58,13 +58,14 @@ namespace {
 /// whenever a register is unavailable. This is not practical in production but
 /// provides a useful baseline both for measuring other allocators and comparing
 /// the speed of the basic algorithm against other styles of allocators.
-class RABasic : public MachineFunctionPass, public RegAllocBase
-{
+class RABasic : public MachineFunctionPass,
+                public RegAllocBase,
+                private LiveRangeEdit::Delegate {
   // context
   MachineFunction *MF;
 
   // state
-  OwningPtr<Spiller> SpillerInstance;
+  std::unique_ptr<Spiller> SpillerInstance;
   std::priority_queue<LiveInterval*, std::vector<LiveInterval*>,
                       CompSpillWeight> Queue;
 
@@ -72,40 +73,44 @@ class RABasic : public MachineFunctionPass, public RegAllocBase
   // selectOrSplit().
   BitVector UsableRegs;
 
+  bool LRE_CanEraseVirtReg(unsigned) override;
+  void LRE_WillShrinkVirtReg(unsigned) override;
+
 public:
   RABasic();
 
   /// Return the pass name.
-  virtual const char* getPassName() const {
-    return "Basic Register Allocator";
-  }
+  StringRef getPassName() const override { return "Basic Register Allocator"; }
 
   /// RABasic analysis usage.
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const;
+  void getAnalysisUsage(AnalysisUsage &AU) const override;
 
-  virtual void releaseMemory();
+  void releaseMemory() override;
 
-  virtual Spiller &spiller() { return *SpillerInstance; }
+  Spiller &spiller() override { return *SpillerInstance; }
 
-  virtual float getPriority(LiveInterval *LI) { return LI->weight; }
-
-  virtual void enqueue(LiveInterval *LI) {
+  void enqueue(LiveInterval *LI) override {
     Queue.push(LI);
   }
 
-  virtual LiveInterval *dequeue() {
+  LiveInterval *dequeue() override {
     if (Queue.empty())
-      return 0;
+      return nullptr;
     LiveInterval *LI = Queue.top();
     Queue.pop();
     return LI;
   }
 
-  virtual unsigned selectOrSplit(LiveInterval &VirtReg,
-                                 SmallVectorImpl<unsigned> &SplitVRegs);
+  unsigned selectOrSplit(LiveInterval &VirtReg,
+                         SmallVectorImpl<unsigned> &SplitVRegs) override;
 
   /// Perform register allocation.
-  virtual bool runOnMachineFunction(MachineFunction &mf);
+  bool runOnMachineFunction(MachineFunction &mf) override;
+
+  MachineFunctionProperties getRequiredProperties() const override {
+    return MachineFunctionProperties().set(
+        MachineFunctionProperties::Property::NoPHIs);
+  }
 
   // Helper for spilling all live virtual registers currently unified under preg
   // that interfere with the most recently queried lvr.  Return true if spilling
@@ -120,23 +125,55 @@ char RABasic::ID = 0;
 
 } // end anonymous namespace
 
+char &llvm::RABasicID = RABasic::ID;
+
+INITIALIZE_PASS_BEGIN(RABasic, "regallocbasic", "Basic Register Allocator",
+                      false, false)
+INITIALIZE_PASS_DEPENDENCY(LiveDebugVariables)
+INITIALIZE_PASS_DEPENDENCY(SlotIndexes)
+INITIALIZE_PASS_DEPENDENCY(LiveIntervals)
+INITIALIZE_PASS_DEPENDENCY(RegisterCoalescer)
+INITIALIZE_PASS_DEPENDENCY(MachineScheduler)
+INITIALIZE_PASS_DEPENDENCY(LiveStacks)
+INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
+INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_PASS_DEPENDENCY(VirtRegMap)
+INITIALIZE_PASS_DEPENDENCY(LiveRegMatrix)
+INITIALIZE_PASS_END(RABasic, "regallocbasic", "Basic Register Allocator", false,
+                    false)
+
+bool RABasic::LRE_CanEraseVirtReg(unsigned VirtReg) {
+  LiveInterval &LI = LIS->getInterval(VirtReg);
+  if (VRM->hasPhys(VirtReg)) {
+    Matrix->unassign(LI);
+    aboutToRemoveInterval(LI);
+    return true;
+  }
+  // Unassigned virtreg is probably in the priority queue.
+  // RegAllocBase will erase it after dequeueing.
+  // Nonetheless, clear the live-range so that the debug
+  // dump will show the right state for that VirtReg.
+  LI.clear();
+  return false;
+}
+
+void RABasic::LRE_WillShrinkVirtReg(unsigned VirtReg) {
+  if (!VRM->hasPhys(VirtReg))
+    return;
+
+  // Register is assigned, put it back on the queue for reassignment.
+  LiveInterval &LI = LIS->getInterval(VirtReg);
+  Matrix->unassign(LI);
+  enqueue(&LI);
+}
+
 RABasic::RABasic(): MachineFunctionPass(ID) {
-  initializeLiveDebugVariablesPass(*PassRegistry::getPassRegistry());
-  initializeLiveIntervalsPass(*PassRegistry::getPassRegistry());
-  initializeSlotIndexesPass(*PassRegistry::getPassRegistry());
-  initializeRegisterCoalescerPass(*PassRegistry::getPassRegistry());
-  initializeMachineSchedulerPass(*PassRegistry::getPassRegistry());
-  initializeLiveStacksPass(*PassRegistry::getPassRegistry());
-  initializeMachineDominatorTreePass(*PassRegistry::getPassRegistry());
-  initializeMachineLoopInfoPass(*PassRegistry::getPassRegistry());
-  initializeVirtRegMapPass(*PassRegistry::getPassRegistry());
-  initializeLiveRegMatrixPass(*PassRegistry::getPassRegistry());
 }
 
 void RABasic::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesCFG();
-  AU.addRequired<AliasAnalysis>();
-  AU.addPreserved<AliasAnalysis>();
+  AU.addRequired<AAResultsWrapperPass>();
+  AU.addPreserved<AAResultsWrapperPass>();
   AU.addRequired<LiveIntervals>();
   AU.addPreserved<LiveIntervals>();
   AU.addPreserved<SlotIndexes>();
@@ -158,7 +195,7 @@ void RABasic::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 void RABasic::releaseMemory() {
-  SpillerInstance.reset(0);
+  SpillerInstance.reset();
 }
 
 
@@ -175,8 +212,6 @@ bool RABasic::spillInterferences(LiveInterval &VirtReg, unsigned PhysReg,
   for (MCRegUnitIterator Units(PhysReg, TRI); Units.isValid(); ++Units) {
     LiveIntervalUnion::Query &Q = Matrix->query(VirtReg, *Units);
     Q.collectInterferingVRegs();
-    if (Q.seenUnspillableVReg())
-      return false;
     for (unsigned i = Q.interferingVRegs().size(); i; --i) {
       LiveInterval *Intf = Q.interferingVRegs()[i - 1];
       if (!Intf->isSpillable() || Intf->weight > VirtReg.weight)
@@ -184,8 +219,8 @@ bool RABasic::spillInterferences(LiveInterval &VirtReg, unsigned PhysReg,
       Intfs.push_back(Intf);
     }
   }
-  DEBUG(dbgs() << "spilling " << TRI->getName(PhysReg) <<
-        " interferences with " << VirtReg << "\n");
+  DEBUG(dbgs() << "spilling " << printReg(PhysReg, TRI)
+               << " interferences with " << VirtReg << "\n");
   assert(!Intfs.empty() && "expected interference");
 
   // Spill each interfering vreg allocated to PhysReg or an alias.
@@ -201,7 +236,7 @@ bool RABasic::spillInterferences(LiveInterval &VirtReg, unsigned PhysReg,
     Matrix->unassign(Spill);
 
     // Spill the extracted interval.
-    LiveRangeEdit LRE(&Spill, SplitVRegs, *MF, *LIS, VRM);
+    LiveRangeEdit LRE(&Spill, SplitVRegs, *MF, *LIS, VRM, this, &DeadRemats);
     spiller().spill(LRE);
   }
   return true;
@@ -225,7 +260,7 @@ unsigned RABasic::selectOrSplit(LiveInterval &VirtReg,
   SmallVector<unsigned, 8> PhysRegSpillCands;
 
   // Check for an available register in this class.
-  AllocationOrder Order(VirtReg.reg, *VRM, RegClassInfo);
+  AllocationOrder Order(VirtReg.reg, *VRM, RegClassInfo, Matrix);
   while (unsigned PhysReg = Order.next()) {
     // Check for interference in PhysReg
     switch (Matrix->checkInterference(VirtReg, PhysReg)) {
@@ -260,7 +295,7 @@ unsigned RABasic::selectOrSplit(LiveInterval &VirtReg,
   DEBUG(dbgs() << "spilling: " << VirtReg << '\n');
   if (!VirtReg.isSpillable())
     return ~0u;
-  LiveRangeEdit LRE(&VirtReg, SplitVRegs, *MF, *LIS, VRM);
+  LiveRangeEdit LRE(&VirtReg, SplitVRegs, *MF, *LIS, VRM, this, &DeadRemats);
   spiller().spill(LRE);
 
   // The live virtual register requesting allocation was spilled, so tell
@@ -278,13 +313,14 @@ bool RABasic::runOnMachineFunction(MachineFunction &mf) {
                      getAnalysis<LiveIntervals>(),
                      getAnalysis<LiveRegMatrix>());
 
-  calculateSpillWeightsAndHints(*LIS, *MF,
+  calculateSpillWeightsAndHints(*LIS, *MF, VRM,
                                 getAnalysis<MachineLoopInfo>(),
                                 getAnalysis<MachineBlockFrequencyInfo>());
 
   SpillerInstance.reset(createInlineSpiller(*this, *MF, *VRM));
 
   allocatePhysRegs();
+  postOptimization();
 
   // Diagnostic output before rewriting
   DEBUG(dbgs() << "Post alloc VirtRegMap:\n" << *VRM << "\n");

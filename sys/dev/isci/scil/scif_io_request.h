@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -81,13 +83,13 @@ U32 scif_io_request_get_object_size(
 );
 
 /**
-* @brief This method simply the number of data bytes transfered for a
+* @brief This method simply the number of data bytes transferred for a
 *        STP or SSP io request.
 *
 * @param[in] scif_io_request This parameter specifies the framework IO
 *            handle to retrieve the number of data bytes transferred.
 *
-* @return Return the number of data bytes transfered by the io request
+* @return Return the number of data bytes transferred by the io request
 */
 U32 scif_io_request_get_number_of_bytes_transferred(
    void * scif_io_request

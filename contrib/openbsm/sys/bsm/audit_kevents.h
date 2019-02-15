@@ -25,18 +25,16 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_kevents.h#10 $
  */
 
 #ifndef _BSM_AUDIT_KEVENTS_H_
 #define	_BSM_AUDIT_KEVENTS_H_
 
 /*
- * The reserved event numbers for kernel events are 1...2047 and 43001..44900.
+ * The reserved event numbers for kernel events are 1...2047 and 43001..44999.
  */
-#define	AUE_IS_A_KEVENT(e)	(((e) > 0 && (e) < 2048) || 	\
-    				 ((e) > 43000 && (e) < 45000))
+#define	AUE_IS_A_KEVENT(e)	(((e) > 0 && (e) < 2048) ||	\
+				 ((e) > 43000 && (e) < 45000))
 
 /*
  * Values marked as AUE_NULL are not required to be audited as per CAPP.
@@ -587,7 +585,8 @@
 #define	AUE_OPENAT		43184	/* FreeBSD. */
 #define	AUE_POSIX_OPENPT	43185	/* FreeBSD. */
 #define	AUE_CAP_NEW		43186	/* TrustedBSD. */
-#define	AUE_CAP_GETRIGHTS	43187	/* TrustedBSD. */
+#define	AUE_CAP_RIGHTS_GET	43187	/* TrustedBSD. */
+#define	AUE_CAP_GETRIGHTS	AUE_CAP_RIGHTS_GET
 #define	AUE_CAP_ENTER		43188	/* TrustedBSD. */
 #define	AUE_CAP_GETMODE		43189	/* TrustedBSD. */
 #define	AUE_POSIX_SPAWN		43190	/* Darwin. */
@@ -602,6 +601,45 @@
 #define	AUE_PDGETPID		43199	/* FreeBSD. */
 #define	AUE_PDWAIT		43200	/* FreeBSD. */
 #define	AUE_WAIT6		43201	/* FreeBSD. */
+#define	AUE_CAP_RIGHTS_LIMIT	43202	/* TrustedBSD. */
+#define	AUE_CAP_IOCTLS_LIMIT	43203	/* TrustedBSD. */
+#define	AUE_CAP_IOCTLS_GET	43204	/* TrustedBSD. */
+#define	AUE_CAP_FCNTLS_LIMIT	43205	/* TrustedBSD. */
+#define	AUE_CAP_FCNTLS_GET	43206	/* TrustedBSD. */
+#define	AUE_BINDAT		43207	/* TrustedBSD. */
+#define	AUE_CONNECTAT		43208	/* TrustedBSD. */
+#define	AUE_CHFLAGSAT		43209	/* FreeBSD-specific. */
+#define	AUE_PREADV		43210	/* FreeBSD-specific. */
+#define	AUE_PWRITEV		43211	/* FreeBSD-specific. */
+#define	AUE_POSIX_FALLOCATE	43212	/* FreeBSD-specific. */
+#define	AUE_AIO_MLOCK		43213	/* FreeBSD-specific. */
+#define	AUE_PROCCTL		43214	/* FreeBSD-specific. */
+#define	AUE_AIO_READ		43215	/* FreeBSD-specific. */
+#define	AUE_AIO_WRITE		43216	/* FreeBSD-specific. */
+#define	AUE_AIO_RETURN		43217	/* FreeBSD-specific. */
+#define	AUE_AIO_SUSPEND		43218	/* FreeBSD-specific. */
+#define	AUE_AIO_CANCEL		43219	/* FreeBSD-specific. */
+#define	AUE_AIO_ERROR		43220	/* FreeBSD-specific. */
+#define	AUE_AIO_WAITCOMPLETE	43221	/* FreeBSD-specific. */
+#define	AUE_AIO_FSYNC		43222	/* FreeBSD-specific. */
+#define	AUE_THR_CREATE		43223	/* FreeBSD-specific. */
+#define	AUE_THR_NEW		43224	/* FreeBSD-specific. */
+#define	AUE_THR_EXIT		43225	/* FreeBSD-specific. */
+#define	AUE_THR_KILL		43226	/* FreeBSD-specific. */
+#define	AUE_THR_KILL2		43227	/* FreeBSD-specific. */
+#define	AUE_SETFIB		43228	/* FreeBSD-specific. */
+#define	AUE_LIO_LISTIO		43229	/* FreeBSD-specific. */
+#define	AUE_SETUGID		43230	/* FreeBSD-specific. */
+#define	AUE_SCTP_PEELOFF	43231	/* FreeBSD-specific. */
+#define	AUE_SCTP_GENERIC_SENDMSG	43232	/* FreeBSD-specific. */
+#define	AUE_SCTP_GENERIC_RECVMSG	43233	/* FreeBSD-specific. */
+#define	AUE_JAIL_GET		43234	/* FreeBSD-specific. */
+#define	AUE_JAIL_SET		43235	/* FreeBSD-specific. */
+#define	AUE_JAIL_REMOVE		43236	/* FreeBSD-specific. */
+#define	AUE_GETLOGINCLASS	43237	/* FreeBSD-specific. */
+#define	AUE_SETLOGINCLASS	43238	/* FreeBSD-specific. */
+#define	AUE_POSIX_FADVISE	43239	/* FreeBSD-specific. */
+#define	AUE_SCTP_GENERIC_SENDMSG_IOV	43240	/* FreeBSD-specific. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the
@@ -739,7 +777,6 @@
 #define	AUE_MODWATCH		AUE_NULL
 #define	AUE_MSGCL		AUE_NULL
 #define	AUE_MSYNC		AUE_NULL
-#define	AUE_PREADV		AUE_NULL
 #define	AUE_PROCINFO		AUE_NULL
 #define	AUE_PTHREADCANCELED	AUE_NULL
 #define	AUE_PTHREADCHDIR	AUE_NULL
@@ -754,7 +791,6 @@
 #define	AUE_PTHREADMUTEXINIT	AUE_NULL
 #define	AUE_PTHREADMUTEXTRYLOCK	AUE_NULL
 #define	AUE_PTHREADMUTEXUNLOCK	AUE_NULL
-#define	AUE_PWRITEV		AUE_NULL
 #define	AUE_REMOVEXATTR		AUE_NULL
 #define	AUE_SBRK		AUE_NULL
 #define	AUE_SELECT		AUE_NULL

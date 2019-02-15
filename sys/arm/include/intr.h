@@ -1,6 +1,8 @@
 /* 	$NetBSD: intr.h,v 1.7 2003/06/16 20:01:00 thorpej Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997 Mark Brinicombe.
  * All rights reserved.
  *
@@ -39,34 +41,46 @@
 #ifndef _MACHINE_INTR_H_
 #define _MACHINE_INTR_H_
 
+#ifdef FDT
+#include <dev/ofw/openfirm.h>
+#endif
+
+#ifdef INTRNG
+
+#ifndef NIRQ
+#define	NIRQ		1024	/* XXX - It should be an option. */
+#endif
+
+#include <sys/intr.h>
+
+#ifdef SMP
+typedef void intr_ipi_send_t(void *, cpuset_t, u_int);
+typedef void intr_ipi_handler_t(void *);
+
+void intr_ipi_dispatch(u_int, struct trapframe *);
+void intr_ipi_send(cpuset_t, u_int);
+
+void intr_ipi_setup(u_int, const char *, intr_ipi_handler_t *, void *,
+    intr_ipi_send_t *, void *);
+
+int intr_pic_ipi_setup(u_int, const char *, intr_ipi_handler_t *, void *);
+#endif
+#else /* INTRNG */
+
 /* XXX move to std.* files? */
-#ifdef CPU_XSCALE_81342
-#define NIRQ		128
-#elif defined(CPU_XSCALE_PXA2X0)
-#include <arm/xscale/pxa/pxareg.h>
-#define	NIRQ		IRQ_GPIO_MAX
-#elif defined(SOC_MV_DISCOVERY)
+#if defined(SOC_MV_DISCOVERY)
 #define NIRQ		96
-#elif defined(CPU_ARM9) || defined(SOC_MV_KIRKWOOD) || \
-    defined(CPU_XSCALE_IXP435)
+#elif defined(SOC_MV_KIRKWOOD)
 #define NIRQ		64
 #elif defined(CPU_CORTEXA)
 #define NIRQ		1020
 #elif defined(CPU_KRAIT)
 #define NIRQ		288
-#elif defined(CPU_ARM1136) || defined(CPU_ARM1176)
+#elif defined(CPU_ARM1176)
 #define NIRQ		128
-#elif defined(SOC_MV_ARMADAXP)
-#define MAIN_IRQ_NUM		116
-#define ERR_IRQ_NUM		32
-#define ERR_IRQ			(MAIN_IRQ_NUM)
-#define MSI_IRQ_NUM		32
-#define MSI_IRQ			(ERR_IRQ + ERR_IRQ_NUM)
-#define NIRQ			(MAIN_IRQ_NUM + ERR_IRQ_NUM + MSI_IRQ_NUM)
 #else
 #define NIRQ		32
 #endif
-
 
 int arm_get_next_irq(int);
 void arm_mask_irq(uintptr_t);
@@ -79,10 +93,15 @@ extern void (*arm_post_filter)(void *);
 extern int (*arm_config_irq)(int irq, enum intr_trigger trig,
     enum intr_polarity pol);
 
-void arm_irq_memory_barrier(uintptr_t);
+void intr_pic_init_secondary(void);
 
-void gic_init_secondary(void);
-int  gic_decode_fdt(uint32_t iparentnode, uint32_t *intrcells, int *interrupt,
-    int *trig, int *pol);
+#ifdef FDT
+int gic_decode_fdt(phandle_t, pcell_t *, int *, int *, int *);
+int intr_fdt_map_irq(phandle_t, pcell_t *, int);
+#endif
+
+#endif /* INTRNG */
+
+void arm_irq_memory_barrier(uintptr_t);
 
 #endif	/* _MACHINE_INTR_H */

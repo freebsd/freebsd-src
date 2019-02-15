@@ -22,6 +22,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
@@ -31,40 +33,49 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/smp.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
+#include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
+#include <machine/platformvar.h>
 
+#include <arm/xilinx/zy7_machdep.h>
 #include <arm/xilinx/zy7_reg.h>
 
 #define	ZYNQ7_CPU1_ENTRY	0xfffffff0
 
-void
-platform_mp_init_secondary(void)
-{
-
-	gic_init_secondary();
-}
+#define	SCU_CONTROL_REG		0xf8f00000
+#define	   SCU_CONTROL_ENABLE	(1 << 0)
 
 void
-platform_mp_setmaxid(void)
+zynq7_mp_setmaxid(platform_t plat)
 {
 
 	mp_maxid = 1;
-}
-
-int
-platform_mp_probe(void)
-{
-
 	mp_ncpus = 2;
-	return (1);
 }
 
 void    
-platform_mp_start_ap(void)
+zynq7_mp_start_ap(platform_t plat)
 {
+	bus_space_handle_t scu_handle;
 	bus_space_handle_t ocm_handle;
+	uint32_t scu_ctrl;
+
+	/* Map in SCU control register. */
+	if (bus_space_map(fdtbus_bs_tag, SCU_CONTROL_REG, 4,
+			  0, &scu_handle) != 0)
+		panic("platform_mp_start_ap: Couldn't map SCU config reg\n");
+
+	/* Set SCU enable bit. */
+	scu_ctrl = bus_space_read_4(fdtbus_bs_tag, scu_handle, 0);
+	scu_ctrl |= SCU_CONTROL_ENABLE;
+	bus_space_write_4(fdtbus_bs_tag, scu_handle, 0, scu_ctrl);
+
+	bus_space_unmap(fdtbus_bs_tag, scu_handle, 4);
 
 	/* Map in magic location to give entry address to CPU1. */
 	if (bus_space_map(fdtbus_bs_tag, ZYNQ7_CPU1_ENTRY, 4,
@@ -75,25 +86,18 @@ platform_mp_start_ap(void)
 	bus_space_write_4(fdtbus_bs_tag, ocm_handle, 0,
 	    pmap_kextract((vm_offset_t)mpentry));
 
+	bus_space_unmap(fdtbus_bs_tag, ocm_handle, 4);
+
 	/*
-	 * The SCU is enabled by the BOOTROM but I think the second CPU doesn't
+	 * The SCU is enabled above but I think the second CPU doesn't
 	 * turn on filtering until after the wake-up below. I think that's why
 	 * things don't work if I don't put these cache ops here.  Also, the
 	 * magic location, 0xfffffff0, isn't in the SCU's filtering range so it
 	 * needs a write-back too.
 	 */
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	/* Wake up CPU1. */
-	armv7_sev();
-
-	bus_space_unmap(fdtbus_bs_tag, ocm_handle, 4);
-}
-
-void
-platform_ipi_send(cpuset_t cpus, u_int ipi)
-{
-
-	pic_ipi_send(cpus, ipi);
+	dsb();
+	sev();
 }

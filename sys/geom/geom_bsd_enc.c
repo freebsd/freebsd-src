@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Poul-Henning Kamp
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
@@ -35,7 +37,7 @@
 
 /*
  * Functions to encode and decode struct disklabel and struct partition into
- * a bytestream of little endianess and correct packing.
+ * a bytestream of little endianness and correct packing.
  *
  * NB!  This file must be usable both in kernel and userland.
  */

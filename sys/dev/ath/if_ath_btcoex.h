@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 Adrian Chadd <adrian@FreeBSD.org>
  * All rights reserved.
  *
@@ -30,6 +32,10 @@
  */
 #ifndef	__IF_ATH_BTCOEX_H__
 #define	__IF_ATH_BTCOEX_H__
+
+typedef enum {
+	ATH_COEX_EVENT_BT_NOOP,
+} ATH_BT_COEX_EVENT;
 
 extern	int ath_btcoex_attach(struct ath_softc *sc);
 extern	int ath_btcoex_detach(struct ath_softc *sc);

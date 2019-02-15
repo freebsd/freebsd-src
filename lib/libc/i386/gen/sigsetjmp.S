@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -59,21 +59,12 @@ ENTRY(sigsetjmp)
 	movl	%eax,44(%ecx)
 	testl	%eax,%eax
 	jz	2f
-	PIC_PROLOGUE
-#ifdef PIC
-	subl	$12,%esp		/* make the stack 16-byte aligned */
-#endif
 	leal	28(%ecx), %eax
 	pushl	%eax			/* (sigset_t*)oset */
 	pushl	$0			/* (sigset_t*)set  */
 	pushl	$1			/* SIG_BLOCK       */
-	call	PIC_PLT(CNAME(_sigprocmask))
-#ifdef PIC
-	addl	$24,%esp
-#else
+	call	__libc_sigprocmask
 	addl	$12,%esp
-#endif
-	PIC_EPILOGUE
 	movl	4(%esp),%ecx
 2:	movl	0(%esp),%edx
 	movl	%edx, 0(%ecx)
@@ -92,21 +83,12 @@ ENTRY(__siglongjmp)
 	movl	4(%esp),%edx
 	cmpl	$0,44(%edx)
 	jz	2f
-	PIC_PROLOGUE
-#ifdef PIC
-	subl	$12,%esp		/* make the stack 16-byte aligned */
-#endif
 	pushl	$0			/* (sigset_t*)oset */
 	leal	28(%edx), %eax
 	pushl	%eax			/* (sigset_t*)set  */
 	pushl	$3			/* SIG_SETMASK     */
-	call	PIC_PLT(CNAME(_sigprocmask))
-#ifdef PIC
-	addl	$24,%esp
-#else
+	call	__libc_sigprocmask
 	addl	$12,%esp
-#endif
-	PIC_EPILOGUE
 	movl	4(%esp),%edx
 2:	movl	8(%esp),%eax
 	movl	0(%edx),%ecx

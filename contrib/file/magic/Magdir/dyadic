@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: dyadic,v 1.6 2014/06/01 19:14:42 christos Exp $
+# $File: dyadic,v 1.8 2017/03/17 21:35:28 christos Exp $
 # Dyadic: file(1) magic for Dyalog APL.
 #
 # updated by Joerg Jenderek at Oct 2013
@@ -10,9 +10,9 @@
 # .DIN Dyalog APL Input Table
 # .DOT Dyalog APL Output Table
 # .DFT Dyalog APL Format File
-0	ubeshort&0xFF60	0xaa00		
+0	ubeshort&0xFF60	0xaa00
 # skip biblio.dbt
->1	byte		!4		
+>1	byte		!4
 # real Dyalog APL have non zero version numbers like 7.3 or 13.4
 >>2	ubeshort	>0x0000		Dyalog APL
 >>>1	byte		0x00		aplcore
@@ -46,6 +46,11 @@
 >>>1	byte		0x12		component file 64-bit level 3 journaled checksummed
 >>>1	byte		0x13		component file 32-bit non-journaled checksummed
 >>>1	byte		0x14		component file 64-bit non-journaled checksummed
+>>>1	byte		0x15		component file under construction
+>>>1	byte		0x16		DFS component file 64-bit level 1 journaled checksummed
+>>>1	byte		0x17		DFS component file 64-bit level 2 journaled checksummed
+>>>1	byte		0x18		DFS component file 64-bit level 3 journaled checksummed
+>>>1	byte		0x19		external workspace
 >>>1	byte		0x80		DDB
 >>>2	byte		x		version %d
 >>>3	byte		x		\b.%d

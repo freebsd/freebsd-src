@@ -2,6 +2,8 @@
 /* $FreeBSD$ */
 
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 1997 Marc Horowitz.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,18 +31,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-/*
- * PCCARD_API_LEVEL.  When set to 5, we provide a 5.x compatible API
- * for driver writers that have to share their code between 5.x and 6.x.
- * The 5.x compatibility interfaces will be unsupported in 7.0, at which
- * point we'll only support 6 and newer, etc.
- */
-#ifndef PCCARD_API_LEVEL
-#define PCCARD_API_LEVEL 6
-#elif PCCARD_API_LEVEL < 5
-#error "pccard API less than 5 unsupported"
-#endif
 
 /*
  * Contains information about mapped/allocated i/o spaces.
@@ -97,13 +87,30 @@ struct pccard_product {
 	const char	*pp_cis[4];
 };
 
+/**
+ * Note: There's no cis3 or cis4 reported for NOMATCH / pnpinfo events for
+ * pccard.  It's unclear if we actually need that for automatic loading or
+ * not.  These strings are informative, according to the standard.  Some Linux
+ * drivers match on them, for example.  However, FreeBSD's hardware probing is a
+ * little different than Linux, so it turns out we don't need them.  Some cards
+ * use CIS3 or CIS4 for a textual representation of the MAC address.  In short,
+ * belief that all the entries in Linux don't actually need to be separate there
+ * either, but they persist since it's hard to eliminate them and retest on old,
+ * possibly rare, hardware.  Despite years of collecting ~300 different PC Cards
+ * off E-Bay, I've not been able to find any that need CIS3/CIS4 to select which
+ * device attaches.
+ */
+#define PCCARD_PNP_DESCR "D:#;V32:manufacturer;V32:product;Z:cisvendor;Z:cisproduct;"
+#define PCCARD_PNP_INFO(t) \
+	MODULE_PNP_INFO(PCCARD_PNP_DESCR, pccard, t, t, nitems(t) - 1)
+
 typedef int (*pccard_product_match_fn) (device_t dev,
     const struct pccard_product *ent, int vpfmatch);
 
 #include "card_if.h"
 
 /*
- * make this inline so that we don't have to worry about dangling references
+ * Make this inline so that we don't have to worry about dangling references
  * to it in the modules or the code.
  */
 static inline const struct pccard_product *
@@ -229,29 +236,10 @@ enum {
 #define PCCARD_S(a, b) PCMCIA_STR_ ## a ## _ ## b
 #define PCCARD_P(a, b) PCMCIA_PRODUCT_ ## a ## _ ## b
 #define PCCARD_C(a, b) PCMCIA_CIS_ ## a ## _ ## b
-#if PCCARD_API_LEVEL >= 6
 #define PCMCIA_CARD_D(v, p) { PCCARD_S(v, p), PCMCIA_VENDOR_ ## v, \
 		PCCARD_P(v, p), PCCARD_C(v, p) }
-#define PCMCIA_CARD2_D(v1, p1, p2) \
-		{ PCMCIA_STR_ ## p2, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
-		  PCMCIA_CIS_ ## p2}
-#define PCMCIA_CARD(v, p) { NULL, PCMCIA_VENDOR_ ## v, \
+#define PCMCIA_CARD(v, p) { PCCARD_S(v, p), PCMCIA_VENDOR_ ## v, \
 		PCCARD_P(v, p), PCCARD_C(v, p) }
-#define PCMCIA_CARD2(v1, p1, p2) \
-		{ NULL, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
-		  PCMCIA_CIS_ ## p2}
-#else
-#define PCMCIA_CARD_D(v, p, f) { PCCARD_S(v, p), PCMCIA_VENDOR_ ## v, \
-		PCCARD_P(v, p), PCCARD_C(v, p) }
-#define PCMCIA_CARD2_D(v1, p1, p2, f) \
-		{ PCMCIA_STR_ ## p2, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
-		  PCMCIA_CIS_ ## p2}
-#define PCMCIA_CARD(v, p, f) { NULL, PCMCIA_VENDOR_ ## v, \
-		PCCARD_P(v, p), PCCARD_C(v, p) }
-#define PCMCIA_CARD2(v1, p1, p2, f) \
-		{ NULL, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
-		  PCMCIA_CIS_ ## p2}
-#endif
 
 /*
  * Defines to decode the get_funce_disk return value.  See the PCMCIA standard

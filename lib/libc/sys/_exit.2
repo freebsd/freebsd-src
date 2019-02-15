@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)_exit.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd September 8, 2016
 .Dt EXIT 2
 .Os
 .Sh NAME
@@ -64,9 +64,11 @@ is set as defined by
 .Xr wait 2 .
 .It
 The parent process-ID of all of the calling process's existing child
-processes are set to 1; the initialization process
+processes are set to the process-ID of the calling process's reaper;
+the reaper (normally the initialization process)
 inherits each of these processes
 (see
+.Xr procctl 2 ,
 .Xr init 8
 and the
 .Sx DEFINITIONS

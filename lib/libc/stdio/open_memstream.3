@@ -1,4 +1,4 @@
-.\" Copyright (c) 2013 Advanced Computing Technologies LLC
+.\" Copyright (c) 2013 Hudson River Trading LLC
 .\" Written by: John H. Baldwin <jhb@FreeBSD.org>
 .\" All rights reserved.
 .\"
@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 27, 2013
+.Dd August 1, 2015
 .Dt OPEN_MEMSTREAM 3
 .Os
 .Sh NAME
@@ -37,10 +37,10 @@
 .Sh SYNOPSIS
 .In stdio.h
 .Ft FILE *
-.Fn open_memstream "char **bufp" "size_t **sizep"
+.Fn open_memstream "char **bufp" "size_t *sizep"
 .In wchar.h
 .Ft FILE *
-.Fn open_wmemstream "wchar_t **bufp" "size_t **sizep"
+.Fn open_wmemstream "wchar_t **bufp" "size_t *sizep"
 .Sh DESCRIPTION
 The
 .Fn open_memstream
@@ -86,13 +86,13 @@ will contain the start of the memory buffer and the variable referenced by
 will contain the smaller of the current position and the current buffer length.
 .Pp
 After a successful call to
-.Xr fflush 3,
+.Xr fflush 3 ,
 the pointer referenced by
 .Fa bufp
 and the variable referenced by
 .Fa sizep
 are only valid until the next write operation or a call to
-.Xr fclose 3.
+.Xr fclose 3 .
 .Pp
 Once a stream is closed,
 the allocated buffer referenced by
@@ -144,8 +144,8 @@ Memory for the stream or buffer could not be allocated.
 .Xr fopen 3 ,
 .Xr free 3 ,
 .Xr fseek 3 ,
-.Xr sbuf 3 ,
-.Xr stdio 3
+.Xr stdio 3 ,
+.Xr sbuf 9
 .Sh STANDARDS
 The
 .Fn open_memstream

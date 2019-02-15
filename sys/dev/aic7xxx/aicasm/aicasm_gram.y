@@ -2,6 +2,8 @@
 /*-
  * Parser for the Aic7xxx SCSI Host adapter sequencer assembler.
  *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1997, 1998, 2000 Justin T. Gibbs.
  * Copyright (c) 2001, 2002 Adaptec Inc.
  * All rights reserved.
@@ -1286,8 +1288,8 @@ code:
 ;
 
 	/*
-	 * This grammer differs from the one in the aic7xxx
-	 * reference manual since the grammer listed there is
+	 * This grammar differs from the one in the aic7xxx
+	 * reference manual since the grammar listed there is
 	 * ambiguous and causes a shift/reduce conflict.
 	 * It also seems more logical as the "immediate"
 	 * argument is listed as the second arg like the
@@ -1753,7 +1755,7 @@ format_3_instr(int opcode, symbol_ref_t *src,
 	instr = seq_alloc();
 	f3_instr = &instr->format.format3;
 	if (address->symbol == NULL) {
-		/* 'dot' referrence.  Use the current instruction pointer */
+		/* 'dot' reference.  Use the current instruction pointer */
 		addr = instruction_ptr + address->offset;
 	} else if (address->symbol->type == UNINITIALIZED) {
 		/* forward reference */

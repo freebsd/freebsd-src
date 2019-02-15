@@ -1,6 +1,8 @@
 /*	$NetBSD: authunix_prot.c,v 1.12 2000/01/22 22:19:17 mycroft Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
@@ -55,9 +57,7 @@ __FBSDID("$FreeBSD$");
  * XDR for unix authentication parameters.
  */
 bool_t
-xdr_authunix_parms(xdrs, p)
-	XDR *xdrs;
-	struct authunix_parms *p;
+xdr_authunix_parms(XDR *xdrs, struct authunix_parms *p)
 {
 	u_int **paup_gids;
 

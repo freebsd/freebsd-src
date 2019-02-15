@@ -15,7 +15,7 @@
 
 #include "delta_common.h"
 
-struct lzma_coder_s {
+typedef struct {
 	/// Next coder in the chain
 	lzma_next_coder next;
 
@@ -27,11 +27,11 @@ struct lzma_coder_s {
 
 	/// Buffer to hold history of the original data
 	uint8_t history[LZMA_DELTA_DIST_MAX];
-};
+} lzma_delta_coder;
 
 
 extern lzma_ret lzma_delta_coder_init(
-		lzma_next_coder *next, lzma_allocator *allocator,
+		lzma_next_coder *next, const lzma_allocator *allocator,
 		const lzma_filter_info *filters);
 
 #endif

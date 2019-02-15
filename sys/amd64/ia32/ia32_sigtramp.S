@@ -26,8 +26,6 @@
  * $FreeBSD$
  */
 
-#include "opt_compat.h"
-
 #include <machine/asmacros.h>
 #include <sys/syscall.h>
 
@@ -78,65 +76,23 @@ ia32_osigcode:
 1:
 	jmp	1b
 
-
 /*
- * The lcall $7,$0 emulator cannot use the call gate that does an
- * inter-privilege transition. The reason is that the call gate
- * does not disable interrupts, and, before the swapgs is
- * executed, we would have a window where the ring 0 code is
- * executed with the wrong gsbase.
+ * Our lcall $7,$0 handler remains in user mode (ring 3), since lcalls
+ * don't change the interrupt mask, so if this one went directly to the
+ * kernel then there would be a window with interrupts enabled in kernel
+ * mode, and all interrupt handlers would have to be almost as complicated
+ * as the NMI handler to support this.
  *
- * Instead, reflect the lcall $7,$0 back to ring 3 trampoline
- * which sets up the frame for int $0x80.
+ * Instead, convert the lcall to an int0x80 call.  The kernel does most
+ * of the conversion by popping the lcall return values off the user
+ * stack and returning to them instead of to here, except when the
+ * conversion itself fails.  Adjusting the stack here is impossible for
+ * vfork() and harder for other syscalls.
  */
 	ALIGN_TEXT
 lcall_tramp:
-	.code64
-	/*
-	 * There, we are in 64bit mode and need to return to 32bit.
-	 * First, convert call frame from 64 to 32 bit format.
-	 */
-	pushq	%rax
-	movl	16(%rsp),%eax
-	movl	%eax,20(%rsp)	/* ret %cs */
-	movl	8(%rsp),%eax
-	movl	%eax,16(%rsp)	/* ret %rip -> %eip */
-	popq	%rax
-	addq	$8,%rsp
-	/* Now return to 32bit */
-	pushq	$0x33 /* _ucode32sel UPL */
-	callq	1f
-1:
-	addq	$2f-1b,(%rsp)
-	lretq
-2:
-	/* Back in 32bit mode */
-	.code32
-	cmpl	$SYS_vfork,%eax
-	je	4f
-	pushl	%ebp
-	movl	%esp,%ebp
-	pushl	0x24(%ebp) /* arg 6 */
-	pushl	0x20(%ebp)
-	pushl	0x1c(%ebp)
-	pushl	0x18(%ebp)
-	pushl	0x14(%ebp)
-	pushl	0x10(%ebp) /* arg 1 */
-	pushl	0xc(%ebp)  /* gap */
 	int	$0x80
-	leavel
-3:
-	lretl
-4:
-	/*
-	 * vfork handling is special and relies on the libc stub saving
-	 * the return ip in %ecx.  If vfork failed, then there is no
-	 * child which can corrupt the frame created by call gate.
-	 */
-	int	$0x80
-	jb	3b
-	addl	$8,%esp
-	jmpl	*%ecx
+1:	jmp	1b
 #endif
 
 	ALIGN_TEXT

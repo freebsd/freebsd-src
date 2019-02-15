@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
@@ -917,9 +919,9 @@ vtscsi_cam_path_inquiry(struct vtscsi_softc *sc, struct cam_sim *sim,
 	cpi->max_lun = sc->vtscsi_max_lun;
 	cpi->initiator_id = VTSCSI_INITIATOR_ID;
 
-	strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-	strncpy(cpi->hba_vid, "VirtIO", HBA_IDLEN);
-	strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+	strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+	strlcpy(cpi->hba_vid, "VirtIO", HBA_IDLEN);
+	strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 
 	cpi->unit_number = cam_sim_unit(sim);
 	cpi->bus_id = cam_sim_bus(sim);
@@ -1087,8 +1089,8 @@ vtscsi_execute_scsi_cmd(struct vtscsi_softc *sc, struct vtscsi_request *req)
 
 	if (ccbh->timeout != CAM_TIME_INFINITY) {
 		req->vsr_flags |= VTSCSI_REQ_FLAG_TIMEOUT_SET;
-		callout_reset(&req->vsr_callout, ccbh->timeout * hz / 1000,
-		    vtscsi_timedout_scsi_cmd, req);
+		callout_reset_sbt(&req->vsr_callout, SBT_1MS * ccbh->timeout,
+		    0, vtscsi_timedout_scsi_cmd, req, 0);
 	}
 
 	vtscsi_dprintf_req(req, VTSCSI_TRACE, "enqueued req=%p ccb=%p\n",

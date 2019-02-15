@@ -28,7 +28,7 @@
 {
 	_URC_OK = 0,                /* operation completed successfully */
 	_URC_FOREIGN_EXCEPTION_CAUGHT = 1,
-    _URC_END_OF_STACK = 5,
+	_URC_END_OF_STACK = 5,
 	_URC_HANDLER_FOUND = 6,
 	_URC_INSTALL_CONTEXT = 7,
 	_URC_CONTINUE_UNWIND = 8,
@@ -36,15 +36,19 @@
 	_URC_FATAL_PHASE1_ERROR = _URC_FAILURE
 } _Unwind_Reason_Code;
 
+typedef int _Unwind_Action;
+
 typedef uint32_t _Unwind_State;
 #ifdef __clang__
 static const _Unwind_State _US_VIRTUAL_UNWIND_FRAME  = 0;
 static const _Unwind_State _US_UNWIND_FRAME_STARTING = 1;
 static const _Unwind_State _US_UNWIND_FRAME_RESUME   = 2;
+static const _Unwind_State _US_ACTION_MASK           = 3;
 #else // GCC fails at knowing what a constant expression is
 #	define _US_VIRTUAL_UNWIND_FRAME  0
 #	define _US_UNWIND_FRAME_STARTING 1
-#	define _US_UNWIND_FRAME_RESUME 2
+#	define _US_UNWIND_FRAME_RESUME   2
+#	define _US_ACTION_MASK           3
 #endif
 
 typedef struct _Unwind_Context _Unwind_Context;
@@ -218,6 +222,6 @@ _Unwind_Reason_Code name(_Unwind_State state,\
 			break;\
 		}\
 	}\
-	_Unwind_SetGR (context, 12, (unsigned long)exceptionObject);\
+	_Unwind_SetGR (context, 12, reinterpret_cast<unsigned long>(exceptionObject));\
 
 #define CALL_PERSONALITY_FUNCTION(name) name(state,exceptionObject,context)

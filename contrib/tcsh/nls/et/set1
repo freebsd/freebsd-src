@@ -1,4 +1,4 @@
-$ $tcsh: set1,v 1.4 2011/02/04 18:19:33 christos Exp $
+$ $tcsh: set1,v 1.5 2015/05/26 17:38:25 christos Exp $
 $ Error messages
 $set 1 
 1 Süntaksi viga
@@ -8,7 +8,7 @@ $set 1
 5 $0 jaoks pole faili
 6 Mittetäielik [] muutja
 7 $ laiendus peab lõppema enne ]
-8 Halb : täiendaja $ (%c)
+8 Halb : täiendaja $ '%c'
 9 Viga indeksis
 10 Vigane number
 11 Sõnad on otsas
@@ -51,8 +51,8 @@ $set 1
 48 Pole while/foreach sees
 49 Protsessid on otsas
 50 Ei leia
-51 Puuduv %c
-52 Ei leia sümbolit %c
+51 Puuduv '%c'
+52 Ei leia sümbolit '%c'
 53 Mälu on otsas
 54 Toru ei saa luua
 55 %s: %s
@@ -93,7 +93,7 @@ $set 1
 90 Vigane asendamine
 91 Eelmist vasakut poolt pole
 92 Parem pool on liiga pikk
-93 Vigane ! modifikaator: %c
+93 Vigane ! modifikaator: '%c'
 94 Modifikaator ebaõnnestus
 95 Asenduse puhvri ületäitumine
 96 Vigane ! argumendi valik
@@ -118,7 +118,7 @@ $set 1
 115 Termcap sõne on liiga pikk
 116 Kasuta: settc %s [yes|no]
 117 Tundmatu omadus `%s'
-118 Tundmatu termcap parameeter `%%%c'
+118 Tundmatu termcap parameeter '%%%c'
 119 `%s' jaoks on liiga palju argumente (%d)
 120 `%s' nõuab %d argumenti
 121 Kasuta: echotc [-v|-s] [<omadus> [<argumendid>]]
@@ -137,4 +137,4 @@ $set 1
 134 Kasuta: unlimit [-fh] [limiidid]
 135 $%S on ainult lugemiseks
 136 Pole sellist tööd
-137 Tundmatu colorls muutuja `%c%c'
+137 Tundmatu colorls muutuja '%c%c'

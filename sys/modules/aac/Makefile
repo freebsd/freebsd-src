@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/aac
+.PATH: ${SRCTOP}/sys/dev/aac
 
 .if ${MACHINE_CPUARCH} == "i386"
 SUBDIR= aac_linux

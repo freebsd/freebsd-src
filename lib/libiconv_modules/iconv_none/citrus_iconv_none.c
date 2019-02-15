@@ -2,6 +2,8 @@
 /*	$NetBSD: citrus_iconv_none.c,v 1.3 2011/05/23 14:45:44 joerg Exp $	*/
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c)2003 Citrus Project,
  * All rights reserved.
  *
@@ -97,7 +99,7 @@ _citrus_iconv_none_iconv_uninit_context(struct _citrus_iconv *cv __unused)
 static int
 /*ARGSUSED*/
 _citrus_iconv_none_iconv_convert(struct _citrus_iconv * __restrict ci __unused,
-    const char * __restrict * __restrict in, size_t * __restrict inbytes,
+    char * __restrict * __restrict in, size_t * __restrict inbytes,
     char * __restrict * __restrict out, size_t * __restrict outbytes,
     uint32_t flags __unused, size_t * __restrict invalids)
 {

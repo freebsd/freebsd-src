@@ -13,8 +13,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_LAMBDA_H
-#define LLVM_CLANG_AST_LAMBDA_H
+#ifndef LLVM_CLANG_AST_ASTLAMBDA_H
+#define LLVM_CLANG_AST_ASTLAMBDA_H
 
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclTemplate.h"
@@ -36,9 +36,9 @@ inline bool isLambdaCallOperator(const DeclContext *DC) {
   return isLambdaCallOperator(cast<CXXMethodDecl>(DC));
 }
 
-inline bool isGenericLambdaCallOperatorSpecialization(CXXMethodDecl *MD) {
+inline bool isGenericLambdaCallOperatorSpecialization(const CXXMethodDecl *MD) {
   if (!MD) return false;
-  CXXRecordDecl *LambdaClass = MD->getParent();
+  const CXXRecordDecl *LambdaClass = MD->getParent();
   if (LambdaClass && LambdaClass->isGenericLambda())
     return isLambdaCallOperator(MD) && 
                     MD->isFunctionTemplateSpecialization();
@@ -77,4 +77,4 @@ inline DeclContext *getLambdaAwareParentOfDeclContext(DeclContext *DC) {
 
 } // clang
 
-#endif // LLVM_CLANG_AST_LAMBDA_H
+#endif

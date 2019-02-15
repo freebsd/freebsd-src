@@ -45,11 +45,11 @@ __ieee754_remainder(double x, double p)
 	hx &= 0x7fffffff;
 
     /* purge off exception values */
-	if((hp|lp)==0) return (x*p)/(x*p); 	/* p = 0 */
-	if((hx>=0x7ff00000)||			/* x not finite */
+	if(((hp|lp)==0)||		 	/* p = 0 */
+	  (hx>=0x7ff00000)||			/* x not finite */
 	  ((hp>=0x7ff00000)&&			/* p is NaN */
 	  (((hp-0x7ff00000)|lp)!=0)))
-	    return ((long double)x*p)/((long double)x*p);
+	    return nan_mix_op(x, p, *)/nan_mix_op(x, p, *);
 
 
 	if (hp<=0x7fdfffff) x = __ieee754_fmod(x,p+p);	/* now x < 2p */

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1999 Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
  * All rights reserved.
  *
@@ -271,13 +273,11 @@ gfb_cursor(scr_stat *scp, int at, int blink, int on, int flip)
 			c = sc_vtb_getc(&scp->vtb, at);
 			vidd_putc(scp->sc->adp, at, c,
 			    (a >> 4) | ((a & 0xf) << 4));
-			scp->cursor_saveunder_attr = a;
-			scp->cursor_saveunder_char = c;
 		} else {
 			if (scp->status & VR_CURSOR_ON)
 				vidd_putc(scp->sc->adp, at,
-				    scp->cursor_saveunder_char,
-				    scp->cursor_saveunder_attr);
+				    sc_vtb_getc(&scp->vtb, at),
+				    sc_vtb_geta(&scp->vtb, at) >> 8);
 			scp->status &= ~VR_CURSOR_ON;
 		}
 	}
@@ -337,28 +337,14 @@ static void
 gfb_mouse(scr_stat *scp, int x, int y, int on)
 {
 #ifdef __sparc64__
-		vidd_putm(scp->sc->adp, x, y, mouse_pointer,
-		    on ? 0xffffffff : 0x0, 22, 12);
+	vidd_putm(scp->sc->adp, x, y, mouse_pointer,
+	    on ? 0xffffffff : 0x0, 22, 12);
 #else
-	int i, pos;
-
 	if (on) {
-
-		/* Display the mouse pointer image... */
 		vidd_putm(scp->sc->adp, x, y, mouse_pointer,
 		    0xffffffff, 16, 8);
 	} else {
-
-		/*
-		   Erase the mouse cursor image by redrawing the text
-		   underneath it...
-		*/
-		return;
-		pos = x*scp->xsize + y;
-		i = (y < scp->xsize - 1) ? 2 : 1;
-		(*scp->rndr->draw)(scp, pos, i, FALSE);
-		if (x < scp->ysize - 1)
-			(*scp->rndr->draw)(scp, pos + scp->xsize, i, FALSE);
+		/* XXX: removal is incomplete for h/w cursors and borders. */
 	}
 #endif
 }

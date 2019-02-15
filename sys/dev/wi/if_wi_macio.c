@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright (c) 2013	Justin Hibbits
  * All rights reserved.
  * Copyright (c) 1997, 1998, 1999
@@ -48,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 
@@ -72,6 +75,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/wi/if_wavelan_ieee.h>
 #include <dev/wi/if_wireg.h>
 #include <dev/wi/if_wivar.h>
+
+#include <powerpc/powermac/maciovar.h>
 
 static int wi_macio_probe(device_t);
 static int wi_macio_attach(device_t);
@@ -129,6 +134,7 @@ wi_macio_attach(device_t dev)
 
 	error = wi_alloc(dev, 0);
 	if (error == 0) {
+		macio_enable_wireless(device_get_parent(dev), 1);
 		/* Make sure interrupts are disabled. */
 		CSR_WRITE_2(sc, WI_INT_EN, 0);
 		CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);

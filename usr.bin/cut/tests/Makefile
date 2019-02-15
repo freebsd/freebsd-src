@@ -1,21 +1,18 @@
 # $FreeBSD$
 
-TESTSRC=	${.CURDIR}/../../../contrib/netbsd-tests/usr.bin/cut
-.PATH: ${TESTSRC}
+PACKAGE=	tests
 
-.include <bsd.own.mk>
+ATF_TESTS_SH+=	cut2_test
+NETBSD_ATF_TESTS_SH=	cut_test
 
-TESTSDIR=	${TESTSBASE}/usr.bin/cut
-ATF_TESTS_SH=	cut_test
-ATF_TESTS_SH_SRC_cut_test=	t_cut.sh
+${PACKAGE}FILES=		d_basic.out
+${PACKAGE}FILES+=		d_cut.in
+${PACKAGE}FILES+=		d_dflag.out
+${PACKAGE}FILES+=		d_dsflag.out
+${PACKAGE}FILES+=		d_latin1.in
+${PACKAGE}FILES+=		d_sflag.out
+${PACKAGE}FILES+=		d_utf8.in
 
-FILESDIR=	${TESTSDIR}
-FILES=		d_basic.out
-FILES+=		d_cut.in
-FILES+=		d_dflag.out
-FILES+=		d_dsflag.out
-FILES+=		d_latin1.in
-FILES+=		d_sflag.out
-FILES+=		d_utf8.in
+.include <netbsd-tests.test.mk>
 
 .include <bsd.test.mk>

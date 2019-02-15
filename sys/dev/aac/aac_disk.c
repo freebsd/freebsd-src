@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2000 Michael Smith
  * Copyright (c) 2001 Scott Long
  * Copyright (c) 2000 BSDi
@@ -88,7 +90,7 @@ DRIVER_MODULE(aacd, aac, aac_disk_driver, aac_disk_devclass, NULL, NULL);
  * Handle open from generic layer.
  *
  * This is called by the diskslice code on first open in order to get the
- * basic device geometry paramters.
+ * basic device geometry parameters.
  */
 static int
 aac_disk_open(struct disk *dp)

@@ -31,7 +31,7 @@
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2013
+.Dd September 18, 2018
 .Dt RC 8
 .Os
 .Sh NAME
@@ -44,6 +44,7 @@
 .Nm rc.d/
 .Nm rc.firewall
 .Nm rc.local
+.Nm rc.resume
 .Nm rc.shutdown
 .Nm rc.subr
 .Sh DESCRIPTION
@@ -87,6 +88,9 @@ The
 .Nm rc.d/
 directories contain scripts which will be automatically
 executed at boot time and shutdown time.
+.Pp
+The sysrc(8) command provides a scripting interface to modify system
+config files.
 .Ss Operation of Nm
 .Bl -enum
 .It
@@ -323,6 +327,25 @@ If the script starts a process (rather than performing a one-off
 operation), show the status of the process.
 Otherwise it is not necessary to support this argument.
 Defaults to displaying the process ID of the program (if running).
+.It Cm enable
+Enable the service in
+.Xr rc.conf 5 .
+.It Cm disable
+Disable the service in
+.Xr rc.conf 5 .
+.It Cm delete
+Remove the service from
+.Xr rc.conf 5 .
+If
+.Ql Li service_delete_empty
+is set to
+.Dq Li YES ,
+.Pa /etc/rc.conf.d/$servicename
+will be deleted if empty after modification.
+.It Cm describe
+Print a short description of what the script does.
+.It Cm extracommands
+Print the script's non-standard commands.
 .It Cm poll
 If the script starts a process (rather than performing a one-off
 operation), wait for the command to exit.
@@ -451,15 +474,6 @@ disables the loading of firewall rules
 will load the rules in the given filename (full path required).
 .El
 .Pp
-The
-.Pa /etc/rc.d/atm*
-scripts are used to configure ATM network interfaces.
-The interfaces are configured in three passes.
-The first pass performs the initial interface configuration.
-The second pass completes the interface configuration and defines PVCs and
-permanent ATMARP entries.
-The third pass starts any ATM daemons.
-.Pp
 Most daemons, including network related daemons, have their own script in
 .Pa /etc/rc.d/ ,
 which can be used to start, stop, and check the status of the service.
@@ -550,10 +564,12 @@ is unnecessary, but is often included.
 .Xr kill 1 ,
 .Xr rc.conf 5 ,
 .Xr init 8 ,
-.Xr rcorder 8 ,
+.Xr rc.resume 8 ,
 .Xr rc.subr 8 ,
+.Xr rcorder 8 ,
 .Xr reboot 8 ,
-.Xr savecore 8
+.Xr savecore 8 ,
+.Xr sysrc 8
 .Sh HISTORY
 The
 .Nm

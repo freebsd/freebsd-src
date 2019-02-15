@@ -30,7 +30,7 @@
 #include <machine/cpuregs.h>
 #include <machine/octeon_cop2.h>
 
-#include "assym.s"
+#include "assym.inc"
 
 .set noreorder
 

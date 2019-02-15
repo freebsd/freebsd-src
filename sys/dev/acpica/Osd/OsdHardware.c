@@ -37,6 +37,19 @@ __FBSDID("$FreeBSD$");
 #include <machine/iodev.h>
 #include <machine/pci_cfgreg.h>
 
+extern int	acpi_susp_bounce;
+
+ACPI_STATUS
+AcpiOsEnterSleep(UINT8 SleepState, UINT32 RegaValue, UINT32 RegbValue)
+{
+
+	/* If testing device suspend only, back out of everything here. */
+	if (acpi_susp_bounce)
+		return (AE_CTRL_TERMINATE);
+
+	return (AE_OK);
+}
+
 /*
  * ACPICA's rather gung-ho approach to hardware resource ownership is a little
  * troublesome insofar as there is no easy way for us to know in advance
@@ -89,6 +102,10 @@ AcpiOsReadPciConfiguration(ACPI_PCI_ID *PciId, UINT32 Register, UINT64 *Value,
     UINT32 Width)
 {
 
+#ifdef __aarch64__
+    /* ARM64TODO: Add pci support */
+    return (AE_SUPPORT);
+#else
     if (Width == 64)
 	return (AE_SUPPORT);
 
@@ -99,6 +116,7 @@ AcpiOsReadPciConfiguration(ACPI_PCI_ID *PciId, UINT32 Register, UINT64 *Value,
 	PciId->Function, Register, Width / 8);
 
     return (AE_OK);
+#endif
 }
 
 
@@ -107,6 +125,10 @@ AcpiOsWritePciConfiguration (ACPI_PCI_ID *PciId, UINT32 Register,
     UINT64 Value, UINT32 Width)
 {
 
+#ifdef __aarch64__
+    /* ARM64TODO: Add pci support */
+    return (AE_SUPPORT);
+#else
     if (Width == 64)
 	return (AE_SUPPORT);
 
@@ -117,4 +139,5 @@ AcpiOsWritePciConfiguration (ACPI_PCI_ID *PciId, UINT32 Register,
 	Value, Width / 8);
 
     return (AE_OK);
+#endif
 }

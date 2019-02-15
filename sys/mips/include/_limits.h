@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -75,17 +77,23 @@
 #define	__LLONG_MAX	0x7fffffffffffffffLL	/* max value for a long long */
 #define	__LLONG_MIN	(-0x7fffffffffffffffLL - 1)  /* min for a long long */
 
+#ifdef __mips_n64
 #define	__SSIZE_MAX	__LONG_MAX	/* max value for a ssize_t */
-
 #define	__SIZE_T_MAX	__ULONG_MAX	/* max value for a size_t */
-
-#define	__OFF_MAX	__LLONG_MAX	/* max value for an off_t */
-#define	__OFF_MIN	__LLONG_MIN	/* min value for an off_t */
-
-/* Quads and long longs are the same size.  Ensure they stay in sync. */
-#define	__UQUAD_MAX	__ULLONG_MAX	/* max value for a uquad_t */
-#define	__QUAD_MAX	__LLONG_MAX	/* max value for a quad_t */
-#define	__QUAD_MIN	__LLONG_MIN	/* min value for a quad_t */
+#define	__OFF_MAX	__LONG_MAX	/* max value for an off_t */
+#define	__OFF_MIN	__LONG_MIN	/* min value for an off_t */
+#define	__UQUAD_MAX	__ULONG_MAX	/* max value for a uquad_t */
+#define	__QUAD_MAX	__LONG_MAX	/* max value for a quad_t */
+#define	__QUAD_MIN	__LONG_MIN	/* min value for a quad_t */
+#else
+#define	__SSIZE_MAX	__INT_MAX
+#define	__SIZE_T_MAX	__UINT_MAX
+#define	__OFF_MAX	__LLONG_MAX
+#define	__OFF_MIN	__LLONG_MIN
+#define	__UQUAD_MAX	__ULLONG_MAX
+#define	__QUAD_MAX	__LLONG_MAX
+#define	__QUAD_MIN	__LLONG_MIN
+#endif
 
 #define	__WORD_BIT	32
 

@@ -52,22 +52,12 @@ struct wpabuf * eap_ikev2_build_frag_ack(u8 id, u8 code)
 {
 	struct wpabuf *msg;
 
-#ifdef CCNS_PL
-	msg = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_IKEV2, 1, code, id);
-	if (msg == NULL) {
-		wpa_printf(MSG_ERROR, "EAP-IKEV2: Failed to allocate memory "
-			   "for fragment ack");
-		return NULL;
-	}
-	wpabuf_put_u8(msg, 0); /* Flags */
-#else /* CCNS_PL */
 	msg = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_IKEV2, 0, code, id);
 	if (msg == NULL) {
 		wpa_printf(MSG_ERROR, "EAP-IKEV2: Failed to allocate memory "
 			   "for fragment ack");
 		return NULL;
 	}
-#endif /* CCNS_PL */
 
 	wpa_printf(MSG_DEBUG, "EAP-IKEV2: Send fragment ack");
 
@@ -110,7 +100,7 @@ int eap_ikev2_validate_icv(int integ_alg, struct ikev2_keys *keys,
 		return -1;
 	}
 
-	if (os_memcmp(icv, end - icv_len, icv_len) != 0) {
+	if (os_memcmp_const(icv, end - icv_len, icv_len) != 0) {
 		wpa_printf(MSG_INFO, "EAP-IKEV2: Invalid ICV");
 		wpa_hexdump(MSG_DEBUG, "EAP-IKEV2: Calculated ICV",
 			    icv, icv_len);

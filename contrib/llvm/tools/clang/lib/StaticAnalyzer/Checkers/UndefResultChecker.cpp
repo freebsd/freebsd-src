@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This defines UndefResultChecker, a builtin check in ExprEngine that 
+// This defines UndefResultChecker, a builtin check in ExprEngine that
 // performs checks for undefined results of non-assignment binary operators.
 //
 //===----------------------------------------------------------------------===//
@@ -25,15 +25,44 @@ using namespace clang;
 using namespace ento;
 
 namespace {
-class UndefResultChecker 
+class UndefResultChecker
   : public Checker< check::PostStmt<BinaryOperator> > {
 
-  mutable OwningPtr<BugType> BT;
-  
+  mutable std::unique_ptr<BugType> BT;
+
 public:
   void checkPostStmt(const BinaryOperator *B, CheckerContext &C) const;
 };
 } // end anonymous namespace
+
+static bool isArrayIndexOutOfBounds(CheckerContext &C, const Expr *Ex) {
+  ProgramStateRef state = C.getState();
+  const LocationContext *LCtx = C.getLocationContext();
+
+  if (!isa<ArraySubscriptExpr>(Ex))
+    return false;
+
+  SVal Loc = state->getSVal(Ex, LCtx);
+  if (!Loc.isValid())
+    return false;
+
+  const MemRegion *MR = Loc.castAs<loc::MemRegionVal>().getRegion();
+  const ElementRegion *ER = dyn_cast<ElementRegion>(MR);
+  if (!ER)
+    return false;
+
+  DefinedOrUnknownSVal Idx = ER->getIndex().castAs<DefinedOrUnknownSVal>();
+  DefinedOrUnknownSVal NumElements = C.getStoreManager().getSizeInElements(
+      state, ER->getSuperRegion(), ER->getValueType());
+  ProgramStateRef StInBound = state->assumeInBound(Idx, NumElements, true);
+  ProgramStateRef StOutBound = state->assumeInBound(Idx, NumElements, false);
+  return StOutBound && !StInBound;
+}
+
+static bool isShiftOverflow(const BinaryOperator *B, CheckerContext &C) {
+  return C.isGreaterOrEqual(
+      B->getRHS(), C.getASTContext().getIntWidth(B->getLHS()->getType()));
+}
 
 void UndefResultChecker::checkPostStmt(const BinaryOperator *B,
                                        CheckerContext &C) const {
@@ -50,18 +79,19 @@ void UndefResultChecker::checkPostStmt(const BinaryOperator *B,
         return;
 
     // Generate an error node.
-    ExplodedNode *N = C.generateSink();
+    ExplodedNode *N = C.generateErrorNode();
     if (!N)
       return;
-    
+
     if (!BT)
-      BT.reset(new BuiltinBug("Result of operation is garbage or undefined"));
+      BT.reset(
+          new BuiltinBug(this, "Result of operation is garbage or undefined"));
 
     SmallString<256> sbuf;
     llvm::raw_svector_ostream OS(sbuf);
-    const Expr *Ex = NULL;
+    const Expr *Ex = nullptr;
     bool isLeft = true;
-    
+
     if (state->getSVal(B->getLHS(), LCtx).isUndef()) {
       Ex = B->getLHS()->IgnoreParenCasts();
       isLeft = true;
@@ -70,28 +100,62 @@ void UndefResultChecker::checkPostStmt(const BinaryOperator *B,
       Ex = B->getRHS()->IgnoreParenCasts();
       isLeft = false;
     }
-    
+
     if (Ex) {
-      OS << "The " << (isLeft ? "left" : "right")
-         << " operand of '"
+      OS << "The " << (isLeft ? "left" : "right") << " operand of '"
          << BinaryOperator::getOpcodeStr(B->getOpcode())
          << "' is a garbage value";
-    }          
-    else {
+      if (isArrayIndexOutOfBounds(C, Ex))
+        OS << " due to array index out of bounds";
+    } else {
       // Neither operand was undefined, but the result is undefined.
-      OS << "The result of the '"
-         << BinaryOperator::getOpcodeStr(B->getOpcode())
-         << "' expression is undefined";
+      if ((B->getOpcode() == BinaryOperatorKind::BO_Shl ||
+           B->getOpcode() == BinaryOperatorKind::BO_Shr) &&
+          C.isNegative(B->getRHS())) {
+        OS << "The result of the "
+           << ((B->getOpcode() == BinaryOperatorKind::BO_Shl) ? "left"
+                                                              : "right")
+           << " shift is undefined because the right operand is negative";
+      } else if ((B->getOpcode() == BinaryOperatorKind::BO_Shl ||
+                  B->getOpcode() == BinaryOperatorKind::BO_Shr) &&
+                 isShiftOverflow(B, C)) {
+
+        OS << "The result of the "
+           << ((B->getOpcode() == BinaryOperatorKind::BO_Shl) ? "left"
+                                                              : "right")
+           << " shift is undefined due to shifting by ";
+
+        SValBuilder &SB = C.getSValBuilder();
+        const llvm::APSInt *I =
+            SB.getKnownValue(C.getState(), C.getSVal(B->getRHS()));
+        if (!I)
+          OS << "a value that is";
+        else if (I->isUnsigned())
+          OS << '\'' << I->getZExtValue() << "\', which is";
+        else
+          OS << '\'' << I->getSExtValue() << "\', which is";
+
+        OS << " greater or equal to the width of type '"
+           << B->getLHS()->getType().getAsString() << "'.";
+      } else if (B->getOpcode() == BinaryOperatorKind::BO_Shl &&
+                 C.isNegative(B->getLHS())) {
+        OS << "The result of the left shift is undefined because the left "
+              "operand is negative";
+      } else {
+        OS << "The result of the '"
+           << BinaryOperator::getOpcodeStr(B->getOpcode())
+           << "' expression is undefined";
+      }
     }
-    BugReport *report = new BugReport(*BT, OS.str(), N);
+    auto report = llvm::make_unique<BugReport>(*BT, OS.str(), N);
     if (Ex) {
       report->addRange(Ex->getSourceRange());
       bugreporter::trackNullOrUndefValue(N, Ex, *report);
     }
     else
       bugreporter::trackNullOrUndefValue(N, B, *report);
-    
-    C.emitReport(report);
+
+    C.emitReport(std::move(report));
   }
 }
 

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2012 NetApp, Inc.
  * All rights reserved.
  *
@@ -59,7 +61,16 @@ vmm_host_state_init(void)
 	 */
 	vmm_host_cr0 = rcr0() | CR0_TS;
 
-	vmm_host_cr4 = rcr4();
+	/*
+	 * On non-PCID or PCID but without INVPCID support machines,
+	 * we flush kernel i.e. global TLB entries, by temporary
+	 * clearing the CR4.PGE bit, see invltlb_glob().  If
+	 * preemption occurs at the wrong time, cached vmm_host_cr4
+	 * might store the value with CR4.PGE cleared.  Since FreeBSD
+	 * requires support for PG_G on amd64, just set it
+	 * unconditionally.
+	 */
+	vmm_host_cr4 = rcr4() | CR4_PGE;
 
 	/*
 	 * Only permit a guest to use XSAVE if the host is using

@@ -1,4 +1,4 @@
-/* $OpenBSD: gss-serv.c,v 1.26 2014/02/26 20:28:44 djm Exp $ */
+/* $OpenBSD: gss-serv.c,v 1.31 2018/07/09 21:37:55 markus Exp $ */
 
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
@@ -29,7 +29,6 @@
 #ifdef GSSAPI
 
 #include <sys/types.h>
-#include <sys/param.h>
 
 #include <stdarg.h>
 #include <string.h>
@@ -37,16 +36,18 @@
 
 #include "openbsd-compat/sys-queue.h"
 #include "xmalloc.h"
-#include "buffer.h"
-#include "key.h"
+#include "sshkey.h"
 #include "hostfile.h"
 #include "auth.h"
 #include "log.h"
 #include "channels.h"
 #include "session.h"
 #include "misc.h"
+#include "servconf.h"
 
 #include "ssh-gss.h"
+
+extern ServerOptions options;
 
 static ssh_gssapi_client gssapi_client =
     { GSS_C_EMPTY_BUFFER, GSS_C_EMPTY_BUFFER,
@@ -97,28 +98,35 @@ static OM_uint32
 ssh_gssapi_acquire_cred(Gssctxt *ctx)
 {
 	OM_uint32 status;
-	char lname[MAXHOSTNAMELEN];
+	char lname[NI_MAXHOST];
 	gss_OID_set oidset;
 
-	gss_create_empty_oid_set(&status, &oidset);
-	gss_add_oid_set_member(&status, ctx->oid, &oidset);
+	if (options.gss_strict_acceptor) {
+		gss_create_empty_oid_set(&status, &oidset);
+		gss_add_oid_set_member(&status, ctx->oid, &oidset);
 
-	if (gethostname(lname, MAXHOSTNAMELEN)) {
-		gss_release_oid_set(&status, &oidset);
-		return (-1);
-	}
+		if (gethostname(lname, MAXHOSTNAMELEN)) {
+			gss_release_oid_set(&status, &oidset);
+			return (-1);
+		}
 
-	if (GSS_ERROR(ssh_gssapi_import_name(ctx, lname))) {
+		if (GSS_ERROR(ssh_gssapi_import_name(ctx, lname))) {
+			gss_release_oid_set(&status, &oidset);
+			return (ctx->major);
+		}
+
+		if ((ctx->major = gss_acquire_cred(&ctx->minor,
+		    ctx->name, 0, oidset, GSS_C_ACCEPT, &ctx->creds,
+		    NULL, NULL)))
+			ssh_gssapi_error(ctx);
+
 		gss_release_oid_set(&status, &oidset);
 		return (ctx->major);
+	} else {
+		ctx->name = GSS_C_NO_NAME;
+		ctx->creds = GSS_C_NO_CREDENTIAL;
 	}
-
-	if ((ctx->major = gss_acquire_cred(&ctx->minor,
-	    ctx->name, 0, oidset, GSS_C_ACCEPT, &ctx->creds, NULL, NULL)))
-		ssh_gssapi_error(ctx);
-
-	gss_release_oid_set(&status, &oidset);
-	return (ctx->major);
+	return GSS_S_COMPLETE;
 }
 
 /* Privileged */
@@ -382,6 +390,15 @@ ssh_gssapi_checkmic(Gssctxt *ctx, gss_buffer_t gssbuf, gss_buffer_t gssmic)
 	    gssbuf, gssmic, NULL);
 
 	return (ctx->major);
+}
+
+/* Privileged */
+const char *ssh_gssapi_displayname(void)
+{
+	if (gssapi_client.displayname.length == 0 ||
+	    gssapi_client.displayname.value == NULL)
+		return NULL;
+	return (char *)gssapi_client.displayname.value;
 }
 
 #endif

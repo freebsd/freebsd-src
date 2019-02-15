@@ -14,7 +14,19 @@
 include "llvm/Target/Target.td"
 
 //===----------------------------------------------------------------------===//
-// SystemZ supported processors and features
+// SystemZ subtarget features
+//===----------------------------------------------------------------------===//
+
+include "SystemZFeatures.td"
+
+//===----------------------------------------------------------------------===//
+// SystemZ subtarget scheduling models
+//===----------------------------------------------------------------------===//
+
+include "SystemZSchedule.td"
+
+//===----------------------------------------------------------------------===//
+// SystemZ supported processors
 //===----------------------------------------------------------------------===//
 
 include "SystemZProcessors.td"
@@ -40,9 +52,13 @@ include "SystemZOperands.td"
 include "SystemZPatterns.td"
 include "SystemZInstrFormats.td"
 include "SystemZInstrInfo.td"
+include "SystemZInstrVector.td"
 include "SystemZInstrFP.td"
+include "SystemZInstrHFP.td"
+include "SystemZInstrDFP.td"
+include "SystemZInstrSystem.td"
 
-def SystemZInstrInfo : InstrInfo {}
+def SystemZInstrInfo : InstrInfo { let guessInstructionProperties = 0; }
 
 //===----------------------------------------------------------------------===//
 // Assembly parser
@@ -53,20 +69,10 @@ def SystemZAsmParser : AsmParser {
 }
 
 //===----------------------------------------------------------------------===//
-// Assembly writer
-//===----------------------------------------------------------------------===//
-
-def SystemZAsmWriter : AsmWriter {
-  string AsmWriterClassName = "InstPrinter";
-  bit isMCAsmWriter = 1;
-}
-
-//===----------------------------------------------------------------------===//
 // Top-level target declaration
 //===----------------------------------------------------------------------===//
 
 def SystemZ : Target {
   let InstructionSet = SystemZInstrInfo;
   let AssemblyParsers = [SystemZAsmParser];
-  let AssemblyWriters = [SystemZAsmWriter];
 }

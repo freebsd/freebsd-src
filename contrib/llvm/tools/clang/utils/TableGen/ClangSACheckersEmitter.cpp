@@ -51,7 +51,8 @@ static std::string getParentPackageFullName(const Record *R) {
 static std::string getPackageFullName(const Record *R) {
   std::string name = getParentPackageFullName(R);
   if (!name.empty()) name += ".";
-  return name + R->getValueAsString("PackageName");
+  name += R->getValueAsString("PackageName");
+  return name;
 }
 
 static std::string getCheckerFullName(const Record *R) {
@@ -129,7 +130,7 @@ void EmitClangSACheckers(RecordKeeper &Records, raw_ostream &OS) {
 
   for (unsigned i = 0, e = checkers.size(); i != e; ++i) {
     Record *R = checkers[i];
-    Record *package = 0;
+    Record *package = nullptr;
     if (DefInit *
           DI = dyn_cast<DefInit>(R->getValueInit("ParentPackage")))
       package = DI->getDef();

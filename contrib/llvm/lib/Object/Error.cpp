@@ -13,27 +13,29 @@
 
 #include "llvm/Object/Error.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/ManagedStatic.h"
 
 using namespace llvm;
 using namespace object;
 
 namespace {
-class _object_error_category : public _do_message {
+// FIXME: This class is only here to support the transition to llvm::Error. It
+// will be removed once this transition is complete. Clients should prefer to
+// deal with the Error value directly, rather than converting to error_code.
+class _object_error_category : public std::error_category {
 public:
-  virtual const char* name() const;
-  virtual std::string message(int ev) const;
-  virtual error_condition default_error_condition(int ev) const;
+  const char* name() const noexcept override;
+  std::string message(int ev) const override;
 };
 }
 
-const char *_object_error_category::name() const {
+const char *_object_error_category::name() const noexcept {
   return "llvm.object";
 }
 
-std::string _object_error_category::message(int ev) const {
-  object_error::Impl E = static_cast<object_error::Impl>(ev);
+std::string _object_error_category::message(int EV) const {
+  object_error E = static_cast<object_error>(EV);
   switch (E) {
-  case object_error::success: return "Success";
   case object_error::arch_not_found:
     return "No object file for requested architecture";
   case object_error::invalid_file_type:
@@ -42,18 +44,52 @@ std::string _object_error_category::message(int ev) const {
     return "Invalid data was encountered while parsing the file";
   case object_error::unexpected_eof:
     return "The end of the file was unexpectedly encountered";
+  case object_error::string_table_non_null_end:
+    return "String table must end with a null terminator";
+  case object_error::invalid_section_index:
+    return "Invalid section index";
+  case object_error::bitcode_section_not_found:
+    return "Bitcode section not found in object file";
+  case object_error::invalid_symbol_index:
+    return "Invalid symbol index";
   }
   llvm_unreachable("An enumerator of object_error does not have a message "
                    "defined.");
 }
 
-error_condition _object_error_category::default_error_condition(int ev) const {
-  if (ev == object_error::success)
-    return errc::success;
-  return errc::invalid_argument;
+char BinaryError::ID = 0;
+char GenericBinaryError::ID = 0;
+
+GenericBinaryError::GenericBinaryError(Twine Msg) : Msg(Msg.str()) {}
+
+GenericBinaryError::GenericBinaryError(Twine Msg, object_error ECOverride)
+    : Msg(Msg.str()) {
+  setErrorCode(make_error_code(ECOverride));
 }
 
-const error_category &object::object_category() {
-  static _object_error_category o;
-  return o;
+void GenericBinaryError::log(raw_ostream &OS) const {
+  OS << Msg;
+}
+
+static ManagedStatic<_object_error_category> error_category;
+
+const std::error_category &object::object_category() {
+  return *error_category;
+}
+
+llvm::Error llvm::object::isNotObjectErrorInvalidFileType(llvm::Error Err) {
+  if (auto Err2 =
+          handleErrors(std::move(Err), [](std::unique_ptr<ECError> M) -> Error {
+            // Try to handle 'M'. If successful, return a success value from
+            // the handler.
+            if (M->convertToErrorCode() == object_error::invalid_file_type)
+              return Error::success();
+
+            // We failed to handle 'M' - return it from the handler.
+            // This value will be passed back from catchErrors and
+            // wind up in Err2, where it will be returned from this function.
+            return Error(std::move(M));
+          }))
+    return Err2;
+  return Err;
 }

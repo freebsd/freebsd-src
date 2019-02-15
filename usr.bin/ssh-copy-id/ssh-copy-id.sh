@@ -1,7 +1,8 @@
 #!/bin/sh
 #-
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
 # Copyright (c) 2012 Eitan Adler
-# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -48,7 +49,7 @@ sendkey() {
 		done ; \
 		if [ -x /sbin/restorecon ]; then \
 			/sbin/restorecon -F "$HOME/.ssh/" "$keyfile" >/dev/null 2>&1 || true ; \
-		fi
+		fi \
 	'\' 
 }
 

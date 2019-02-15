@@ -2284,6 +2284,37 @@ s_unreq (int a ATTRIBUTE_UNUSED)
   demand_empty_rest_of_line ();
 }
 
+static void
+s_inst(int unused ATTRIBUTE_UNUSED)
+{
+	expressionS exp;
+
+	if (thumb_mode) {
+		as_bad(".inst not implemented for Thumb mode");
+		ignore_rest_of_line();
+		return;
+	}
+
+	if (is_it_end_of_statement()) {
+		demand_empty_rest_of_line();
+		return;
+	}
+
+	do {
+		expression(&exp);
+
+		if (exp.X_op != O_constant)
+			as_bad("constant expression required");
+		else
+			emit_expr(&exp, 4);
+
+	} while (*input_line_pointer++ == ',');
+
+	/* Put terminator back into stream. */
+	input_line_pointer--;
+	demand_empty_rest_of_line();
+}
+
 /* Directives: Instruction set selection.  */
 
 #ifdef OBJ_ELF
@@ -3837,10 +3868,10 @@ s_arm_eabi_attribute (int ignored ATTRIBUTE_UNUSED)
 #endif /* OBJ_ELF */
 
 static void s_arm_arch (int);
-static void s_arm_arch_extension (int);
 static void s_arm_object_arch (int);
 static void s_arm_cpu (int);
 static void s_arm_fpu (int);
+static void s_arm_arch_extension (int);
 
 #ifdef TE_PE
 
@@ -3892,9 +3923,10 @@ const pseudo_typeS md_pseudo_table[] =
   { "syntax",	   s_syntax,	  0 },
   { "cpu",	   s_arm_cpu,	  0 },
   { "arch",	   s_arm_arch,	  0 },
-  { "arch_extension",	   s_arm_arch_extension,	  0 },
   { "object_arch", s_arm_object_arch,	0 },
   { "fpu",	   s_arm_fpu,	  0 },
+  { "arch_extension",	   s_arm_arch_extension,	  0 },
+  { "inst",	   s_inst,	  0 },
 #ifdef OBJ_ELF
   { "word",	   s_arm_elf_cons, 4 },
   { "long",	   s_arm_elf_cons, 4 },
@@ -5179,12 +5211,6 @@ parse_neon_mov (char **str, int *which_operand)
               inst.operands[i].present = 1;
             }
         }
-      else if (parse_qfloat_immediate (&ptr, &inst.operands[i].imm) == SUCCESS)
-          /* Case 2: VMOV<c><q>.<dt> <Qd>, #<float-imm>
-             Case 3: VMOV<c><q>.<dt> <Dd>, #<float-imm>
-             Case 10: VMOV.F32 <Sd>, #<imm>
-             Case 11: VMOV.F64 <Dd>, #<imm>  */
-        inst.operands[i].immisfloat = 1;
       else if ((val = arm_typed_reg_parse (&ptr, REG_TYPE_NSDQ, &rtype,
                                            &optype)) != FAIL)
         {
@@ -5221,9 +5247,15 @@ parse_neon_mov (char **str, int *which_operand)
               
               inst.operands[i].reg = val;
               inst.operands[i].isreg = 1;
-              inst.operands[i++].present = 1;
+              inst.operands[i].present = 1;
             }
         }
+      else if (parse_qfloat_immediate (&ptr, &inst.operands[i].imm) == SUCCESS)
+          /* Case 2: VMOV<c><q>.<dt> <Qd>, #<float-imm>
+             Case 3: VMOV<c><q>.<dt> <Dd>, #<float-imm>
+             Case 10: VMOV.F32 <Sd>, #<imm>
+             Case 11: VMOV.F64 <Dd>, #<imm>  */
+        inst.operands[i].immisfloat = 1;
       else if (parse_big_immediate (&ptr, i) == SUCCESS)
           /* Case 2: VMOV<c><q>.<dt> <Qd>, #<imm>
              Case 3: VMOV<c><q>.<dt> <Dd>, #<imm>  */
@@ -5305,7 +5337,7 @@ parse_neon_mov (char **str, int *which_operand)
           inst.operands[i].isvec = 1;
           inst.operands[i].issingle = 1;
           inst.operands[i].vectype = optype;
-          inst.operands[i++].present = 1;
+          inst.operands[i].present = 1;
         }
     }
   else
@@ -6079,7 +6111,7 @@ parse_operands (char *str, const unsigned char *pattern)
 
 /* Functions for operand encoding.  ARM, then Thumb.  */
 
-#define rotate_left(v, n) (v << n | v >> (32 - n))
+#define rotate_left(v, n) (v << (n % 32) | v >> ((32 - n) % 32))
 
 /* If VAL can be encoded in the immediate field of an ARM instruction,
    return the encoded form.  Otherwise, return FAIL.  */
@@ -6789,7 +6821,11 @@ do_co_reg (void)
 {
   inst.instruction |= inst.operands[0].reg << 8;
   inst.instruction |= inst.operands[1].imm << 21;
-  inst.instruction |= inst.operands[2].reg << 12;
+  /* If this is a vector we are using the APSR_nzcv syntax, encode as r15 */
+  if (inst.operands[2].isvec != 0)
+    inst.instruction |= 15 << 12;
+  else
+    inst.instruction |= inst.operands[2].reg << 12;
   inst.instruction |= inst.operands[3].reg << 16;
   inst.instruction |= inst.operands[4].reg;
   inst.instruction |= inst.operands[5].imm << 5;
@@ -15055,7 +15091,7 @@ static const struct asm_opcode insns[] =
  TCE(stc,	c000000, ec000000, 3, (RCP, RCN, ADDRGLDC),	        lstc,   lstc),
  TC3(stcl,	c400000, ec400000, 3, (RCP, RCN, ADDRGLDC),	        lstc,   lstc),
  TCE(mcr,	e000010, ee000010, 6, (RCP, I7b, RR, RCN, RCN, oI7b),   co_reg, co_reg),
- TCE(mrc,	e100010, ee100010, 6, (RCP, I7b, RR, RCN, RCN, oI7b),   co_reg, co_reg),
+ TCE(mrc,	e100010, ee100010, 6, (RCP, I7b, APSR_RR, RCN, RCN, oI7b),   co_reg, co_reg),
 
 #undef ARM_VARIANT
 #define ARM_VARIANT &arm_ext_v2s /* ARM 3 - swp instructions.  */
@@ -15114,7 +15150,7 @@ static const struct asm_opcode insns[] =
  TUF(stc2l,	c400000, fc400000, 3, (RCP, RCN, ADDRGLDC),		        lstc,	lstc),
  TUF(cdp2,	e000000, fe000000, 6, (RCP, I15b, RCN, RCN, RCN, oI7b), cdp,    cdp),
  TUF(mcr2,	e000010, fe000010, 6, (RCP, I7b, RR, RCN, RCN, oI7b),   co_reg, co_reg),
- TUF(mrc2,	e100010, fe100010, 6, (RCP, I7b, RR, RCN, RCN, oI7b),   co_reg, co_reg),
+ TUF(mrc2,	e100010, fe100010, 6, (RCP, I7b, APSR_RR, RCN, RCN, oI7b),   co_reg, co_reg),
 
 #undef ARM_VARIANT
 #define ARM_VARIANT &arm_ext_v5exp /*  ARM Architecture 5TExP.  */

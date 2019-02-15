@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (C) 2009-2012 Semihalf
  * All rights reserved.
  *
@@ -228,8 +230,6 @@ generic_nand_attach(device_t dev)
 	if (ivar->is_onfi) {
 		onfi_chip_params = malloc(sizeof(struct onfi_chip_params),
 		    M_NAND, M_WAITOK | M_ZERO);
-		if (onfi_chip_params == NULL)
-			return (ENOMEM);
 
 		if (onfi_read_parameter(chip, onfi_chip_params)) {
 			nand_debug(NDBG_GEN,"Could not read parameter page!\n");
@@ -392,7 +392,7 @@ onfi_read_parameter(struct nand_chip *chip, struct onfi_chip_params *chip_params
 	chip_params->blocks_per_lun = le32dec(&params.blocks_per_lun);
 	chip_params->pages_per_block = le32dec(&params.pages_per_block);
 	chip_params->bytes_per_page = le32dec(&params.bytes_per_page);
-	chip_params->spare_bytes_per_page = le32dec(&params.spare_bytes_per_page);
+	chip_params->spare_bytes_per_page = le16dec(&params.spare_bytes_per_page);
 	chip_params->t_bers = le16dec(&params.t_bers);
 	chip_params->t_prog = le16dec(&params.t_prog);
 	chip_params->t_r = le16dec(&params.t_r);
@@ -741,10 +741,6 @@ onfi_is_blk_bad(device_t device, uint32_t block_number, uint8_t *bad)
 	chip = device_get_softc(device);
 
 	oob = malloc(chip->chip_geom.oob_size, M_NAND, M_WAITOK);
-	if (!oob) {
-		device_printf(device, "%s: cannot allocate oob\n", __func__);
-		return (ENOMEM);
-	}
 
 	page_number = block_number * chip->chip_geom.pgs_per_blk;
 	*bad = 0;
@@ -1001,10 +997,6 @@ generic_is_blk_bad(device_t dev, uint32_t block, uint8_t *bad)
 	chip = device_get_softc(dev);
 
 	oob = malloc(chip->chip_geom.oob_size, M_NAND, M_WAITOK);
-	if (!oob) {
-		device_printf(dev, "%s: cannot allocate OOB\n", __func__);
-		return (ENOMEM);
-	}
 
 	page_number = block * chip->chip_geom.pgs_per_blk;
 	*bad = 0;

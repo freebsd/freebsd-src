@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: (BSD-3-Clause AND BSD-2-Clause)
+ *
  * Copyright (C) 2003 WIDE Project.
  * All rights reserved.
  *
@@ -46,11 +48,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by Niels Provos.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -63,7 +60,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $OpenBSD: ip_id.c,v 1.6 2002/03/15 18:19:52 millert Exp $
+ * $OpenBSD: ip6_id.c,v 1.3 2003/12/12 06:57:12 itojun Exp $
  */
 
 #include <sys/cdefs.h>
@@ -84,7 +81,7 @@ __FBSDID("$FreeBSD$");
  * The transaction id is determined by:
  * id[n] = seed xor (g^X[n] mod n)
  *
- * Effectivly the id is restricted to the lower (bits - 1) bits, thus
+ * Effectively the id is restricted to the lower (bits - 1) bits, thus
  * yielding two different cycles by toggling the msb on and off.
  * This avoids reuse issues caused by reseeding.
  */
@@ -108,7 +105,7 @@ __FBSDID("$FreeBSD$");
 
 struct randomtab {
 	const int	ru_bits; /* resulting bits */
-	const long	ru_out;	/* Time after wich will be reseeded */
+	const long	ru_out;	/* Time after which will be reseeded */
 	const u_int32_t ru_max;	/* Uniq cycle, avoid blackjack prediction */
 	const u_int32_t ru_gen;	/* Starting generator */
 	const u_int32_t ru_n;	/* ru_n: prime, ru_n - 1: product of pfacts[] */
@@ -128,7 +125,7 @@ struct randomtab {
 
 static struct randomtab randomtab_32 = {
 	32,			/* resulting bits */
-	180,			/* Time after wich will be reseeded */
+	180,			/* Time after which will be reseeded */
 	1000000000,		/* Uniq cycle, avoid blackjack prediction */
 	2,			/* Starting generator */
 	2147483629,		/* RU_N-1 = 2^2*3^2*59652323 */
@@ -139,7 +136,7 @@ static struct randomtab randomtab_32 = {
 
 static struct randomtab randomtab_20 = {
 	20,			/* resulting bits */
-	180,			/* Time after wich will be reseeded */
+	180,			/* Time after which will be reseeded */
 	200000,			/* Uniq cycle, avoid blackjack prediction */
 	2,			/* Starting generator */
 	524269,			/* RU_N-1 = 2^2*3^2*14563 */
@@ -175,7 +172,7 @@ pmod(u_int32_t gen, u_int32_t expo, u_int32_t mod)
 }
 
 /*
- * Initalizes the seed and chooses a suitable generator. Also toggles
+ * Initializes the seed and chooses a suitable generator. Also toggles
  * the msb flag. The msb flag is used to generate two distinct
  * cycles of random numbers and thus avoiding reuse of ids.
  *
@@ -230,15 +227,12 @@ static u_int32_t
 randomid(struct randomtab *p)
 {
 	int i, n;
-	u_int32_t tmp;
 
 	if (p->ru_counter >= p->ru_max || time_uptime > p->ru_reseed)
 		initid(p);
 
-	tmp = arc4random();
-
 	/* Skip a random number of ids */
-	n = tmp & 0x3; tmp = tmp >> 2;
+	n = arc4random() & 0x3;
 	if (p->ru_counter + n >= p->ru_max)
 		initid(p);
 
@@ -249,7 +243,7 @@ randomid(struct randomtab *p)
 
 	p->ru_counter += i;
 
-	return (p->ru_seed ^ pmod(p->ru_g, p->ru_seed2 ^ p->ru_x, p->ru_n)) |
+	return (p->ru_seed ^ pmod(p->ru_g, p->ru_seed2 + p->ru_x, p->ru_n)) |
 	    p->ru_msb;
 }
 

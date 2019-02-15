@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ *
  * Copyright (c) 2001, 2002 Mike Barcroft <mike@FreeBSD.org>
  * Copyright (c) 2001 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -139,7 +141,7 @@
  * 7.18.3  Limits of other integer types
  */
 /* Limits of ptrdiff_t. */
-#define	PTRDIFF_MIN	INT32_MIN	
+#define	PTRDIFF_MIN	INT32_MIN
 #define	PTRDIFF_MAX	INT32_MAX
 
 /* Limits of sig_atomic_t. */

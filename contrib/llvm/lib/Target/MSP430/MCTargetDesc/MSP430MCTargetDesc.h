@@ -11,13 +11,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MSP430MCTARGETDESC_H
-#define MSP430MCTARGETDESC_H
+#ifndef LLVM_LIB_TARGET_MSP430_MCTARGETDESC_MSP430MCTARGETDESC_H
+#define LLVM_LIB_TARGET_MSP430_MCTARGETDESC_MSP430MCTARGETDESC_H
+
+#include "llvm/Support/DataTypes.h"
 
 namespace llvm {
 class Target;
 
-extern Target TheMSP430Target;
+Target &getTheMSP430Target();
 
 } // End llvm namespace
 

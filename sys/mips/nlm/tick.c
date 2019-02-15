@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 2003-2011 Netlogic Microsystems (Netlogic). All rights
  * reserved.
  *
@@ -12,11 +14,11 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY Netlogic Microsystems ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL NETLOGIC OR CONTRIBUTORS BE 
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL NETLOGIC OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -60,13 +62,13 @@ uint64_t counter_freq;
 
 struct timecounter *platform_timecounter;
 
-static DPCPU_DEFINE(uint32_t, cycles_per_tick);
+DPCPU_DEFINE_STATIC(uint32_t, cycles_per_tick);
 static uint32_t cycles_per_usec;
 
-static DPCPU_DEFINE(volatile uint32_t, counter_upper);
-static DPCPU_DEFINE(volatile uint32_t, counter_lower_last);
-static DPCPU_DEFINE(uint32_t, compare_ticks);
-static DPCPU_DEFINE(uint32_t, lost_ticks);
+DPCPU_DEFINE_STATIC(volatile uint32_t, counter_upper);
+DPCPU_DEFINE_STATIC(volatile uint32_t, counter_lower_last);
+DPCPU_DEFINE_STATIC(uint32_t, compare_ticks);
+DPCPU_DEFINE_STATIC(uint32_t, lost_ticks);
 
 struct clock_softc {
 	int intr_rid;
@@ -85,7 +87,7 @@ static void clock_identify(driver_t *, device_t);
 static int clock_attach(device_t);
 static unsigned counter_get_timecount(struct timecounter *tc);
 
-void 
+void
 mips_timer_early_init(uint64_t clock_hz)
 {
 	/* Initialize clock early so that we can use DELAY sooner */
@@ -196,6 +198,7 @@ DELAY(int n)
 {
 	uint32_t cur, last, delta, usecs;
 
+	TSENTER();
 	/*
 	 * This works by polling the timer and counting the number of
 	 * microseconds that go by.
@@ -219,6 +222,7 @@ DELAY(int n)
 			delta %= cycles_per_usec;
 		}
 	}
+	TSEXIT();
 }
 
 static int
@@ -287,7 +291,7 @@ clock_intr(void *arg)
 		 */
 		lost_ticks = DPCPU_GET(lost_ticks);
 		lost_ticks += count - compare_last;
-	
+
 		/*
 		 * If the COUNT and COMPARE registers are no longer in sync
 		 * then make up some reasonable value for the 'lost_ticks'.

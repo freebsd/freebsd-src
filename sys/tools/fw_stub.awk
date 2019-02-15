@@ -1,6 +1,8 @@
 #!/usr/bin/awk -f
 
 #-
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
 # Copyright (c) 2006 Max Laier.
 # All rights reserved.
 #
@@ -156,7 +158,7 @@ if (opt_l) {
 		printc("\
 		TUNABLE_LONG_FETCH(\"legal." opt_l ".license_ack\", &" opt_l "_license_ack);\
 		if (!" opt_l "_license_ack) {\
-			printf(\"" opt_m ": You need to read the LICENSE file in /usr/share/doc/legal/" opt_l "/.\\n\");\
+			printf(\"" opt_m ": You need to read the LICENSE file in /usr/share/doc/legal/" opt_l ".LICENSE.\\n\");\
 			printf(\"" opt_m ": If you agree with the license, set legal." opt_l ".license_ack=1 in /boot/loader.conf.\\n\");\
 			return(EPERM);\
 		}\n");

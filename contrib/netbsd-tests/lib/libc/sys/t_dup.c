@@ -1,4 +1,4 @@
-/* $NetBSD: t_dup.c,v 1.8 2012/03/18 07:00:51 jruoho Exp $ */
+/* $NetBSD: t_dup.c,v 1.9 2017/01/13 20:31:53 christos Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_dup.c,v 1.8 2012/03/18 07:00:51 jruoho Exp $");
+__RCSID("$NetBSD: t_dup.c,v 1.9 2017/01/13 20:31:53 christos Exp $");
 
 #include <sys/resource.h>
 #include <sys/stat.h>
@@ -39,6 +39,7 @@ __RCSID("$NetBSD: t_dup.c,v 1.8 2012/03/18 07:00:51 jruoho Exp $");
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,7 +47,9 @@ __RCSID("$NetBSD: t_dup.c,v 1.8 2012/03/18 07:00:51 jruoho Exp $");
 #include <sysexits.h>
 
 static char	path[] = "dup";
+#ifdef __NetBSD__
 static void	check_mode(bool, bool, bool);
+#endif
 
 static void
 check_mode(bool _dup, bool _dup2, bool _dup3)
@@ -207,10 +210,24 @@ ATF_TC_BODY(dup3_err, tc)
 	ATF_REQUIRE(fd >= 0);
 
 	errno = 0;
+#if defined(__FreeBSD__) || defined(__linux__)
+	/*
+	 * FreeBSD and linux return EINVAL, because...
+	 *
+	 * [EINVAL] The oldd argument is equal to the newd argument.
+	 */
+	ATF_REQUIRE(dup3(fd, fd, O_CLOEXEC) == -1);
+#else
 	ATF_REQUIRE(dup3(fd, fd, O_CLOEXEC) != -1);
+#endif
 
 	errno = 0;
+#if defined(__FreeBSD__) || defined(__linux__)
+	ATF_REQUIRE_ERRNO(EINVAL, dup3(-1, -1, O_CLOEXEC) == -1);
+	ATF_REQUIRE_ERRNO(EBADF, dup3(fd, -1, O_CLOEXEC) == -1);
+#else
 	ATF_REQUIRE_ERRNO(EBADF, dup3(-1, -1, O_CLOEXEC) == -1);
+#endif
 
 	errno = 0;
 	ATF_REQUIRE_ERRNO(EBADF, dup3(fd, -1, O_CLOEXEC) == -1);

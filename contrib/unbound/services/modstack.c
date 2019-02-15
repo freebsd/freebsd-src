@@ -43,11 +43,22 @@
 #include "services/modstack.h"
 #include "util/module.h"
 #include "util/fptr_wlist.h"
+#include "dns64/dns64.h"
 #include "iterator/iterator.h"
 #include "validator/validator.h"
+#include "respip/respip.h"
 
 #ifdef WITH_PYTHONMODULE
 #include "pythonmod/pythonmod.h"
+#endif
+#ifdef USE_CACHEDB
+#include "cachedb/cachedb.h"
+#endif
+#ifdef USE_IPSECMOD
+#include "ipsecmod/ipsecmod.h"
+#endif
+#ifdef CLIENT_SUBNET
+#include "edns-subnet/subnetmod.h"
 #endif
 
 /** count number of modules (words) in the string */
@@ -59,12 +70,12 @@ count_modules(const char* s)
                 return 0;
         while(*s) {
                 /* skip whitespace */
-                while(*s && isspace((int)*s))
+                while(*s && isspace((unsigned char)*s))
                         s++;
-                if(*s && !isspace((int)*s)) {
+                if(*s && !isspace((unsigned char)*s)) {
                         /* skip identifier */
                         num++;
-                        while(*s && !isspace((int)*s))
+                        while(*s && !isspace((unsigned char)*s))
                                 s++;
                 }
         }
@@ -116,11 +127,22 @@ module_list_avail(void)
 {
         /* these are the modules available */
         static const char* names[] = {
+		"dns64",
 #ifdef WITH_PYTHONMODULE
-		"python", 
+		"python",
 #endif
-		"validator", 
-		"iterator", 
+#ifdef USE_CACHEDB
+		"cachedb",
+#endif
+#ifdef USE_IPSECMOD
+		"ipsecmod",
+#endif
+#ifdef CLIENT_SUBNET
+		"subnetcache",
+#endif
+		"respip",
+		"validator",
+		"iterator",
 		NULL};
 	return names;
 }
@@ -133,23 +155,34 @@ static fbgetfunctype*
 module_funcs_avail(void)
 {
         static struct module_func_block* (*fb[])(void) = {
+		&dns64_get_funcblock,
 #ifdef WITH_PYTHONMODULE
-		&pythonmod_get_funcblock, 
+		&pythonmod_get_funcblock,
 #endif
-		&val_get_funcblock, 
-		&iter_get_funcblock, 
+#ifdef USE_CACHEDB
+		&cachedb_get_funcblock,
+#endif
+#ifdef USE_IPSECMOD
+		&ipsecmod_get_funcblock,
+#endif
+#ifdef CLIENT_SUBNET
+		&subnetmod_get_funcblock,
+#endif
+		&respip_get_funcblock,
+		&val_get_funcblock,
+		&iter_get_funcblock,
 		NULL};
 	return fb;
 }
 
-struct 
+struct
 module_func_block* module_factory(const char** str)
 {
         int i = 0;
         const char* s = *str;
 	const char** names = module_list_avail();
 	fbgetfunctype* fb = module_funcs_avail();
-        while(*s && isspace((int)*s))
+        while(*s && isspace((unsigned char)*s))
                 s++;
 	while(names[i]) {
                 if(strncmp(names[i], s, strlen(names[i])) == 0) {
@@ -204,9 +237,21 @@ int
 modstack_find(struct module_stack* stack, const char* name)
 {
 	int i;
-        for(i=0; i<stack->num; i++) {
+	for(i=0; i<stack->num; i++) {
 		if(strcmp(stack->mod[i]->name, name) == 0)
 			return i;
 	}
 	return -1;
+}
+
+size_t
+mod_get_mem(struct module_env* env, const char* name)
+{
+	int m = modstack_find(&env->mesh->mods, name);
+	if(m != -1) {
+		fptr_ok(fptr_whitelist_mod_get_mem(env->mesh->
+			mods.mod[m]->get_mem));
+		return (*env->mesh->mods.mod[m]->get_mem)(env, m);
+	}
+	return 0;
 }

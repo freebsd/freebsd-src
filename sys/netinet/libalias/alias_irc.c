@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2001 Charles Mott <cm@linktel.net>
  * All rights reserved.
  *
@@ -44,7 +46,7 @@ __FBSDID("$FreeBSD$");
 	 Version 2.1:  May, 1997 (cjm)
 	     Very minor changes to conform with
 	     local/global/function naming conventions
-	     withing the packet alising module.
+	     within the packet alising module.
 */
 
 /* Includes */
@@ -96,8 +98,7 @@ static int
 fingerprint(struct libalias *la, struct alias_data *ah)
 {
 
-	if (ah->dport == NULL || ah->dport == NULL || ah->lnk == NULL ||
-	    ah->maxpktsize == 0)
+	if (ah->dport == NULL || ah->lnk == NULL || ah->maxpktsize == 0)
 		return (-1);
 	if (ntohs(*ah->dport) == IRC_CONTROL_PORT_NUMBER_1
 	    || ntohs(*ah->dport) == IRC_CONTROL_PORT_NUMBER_2)
@@ -482,7 +483,7 @@ lPACKET_DONE:
    which will generate a type-error on all but 32-bit machines.
 
 	[Note 2] This routine really ought to be replaced with one that
-	creates a transparent proxy on the aliasing host, to allow arbitary
+	creates a transparent proxy on the aliasing host, to allow arbitrary
 	changes in the TCP stream.  This should not be too difficult given
 	this base;  I (ee) will try to do this some time later.
 	*/

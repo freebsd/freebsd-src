@@ -3,6 +3,8 @@
  */
 
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
@@ -350,7 +352,9 @@ ng_l2cap_lower_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		case NGM_HCI_LP_QOS_IND:
 			error = ng_l2cap_lp_qos_ind(l2cap, msg);
 			break;
-
+		case NGM_HCI_LP_ENC_CHG:
+			error = ng_l2cap_lp_enc_change(l2cap, msg);
+			break;
 		default:
 			error = EINVAL;
 			break;

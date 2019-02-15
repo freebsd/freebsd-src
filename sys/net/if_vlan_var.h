@@ -32,22 +32,6 @@
 #ifndef _NET_IF_VLAN_VAR_H_
 #define	_NET_IF_VLAN_VAR_H_	1
 
-struct	ether_vlan_header {
-	u_char	evl_dhost[ETHER_ADDR_LEN];
-	u_char	evl_shost[ETHER_ADDR_LEN];
-	u_int16_t evl_encap_proto;
-	u_int16_t evl_tag;
-	u_int16_t evl_proto;
-};
-
-#define	EVL_VLID_MASK		0x0FFF
-#define	EVL_PRI_MASK		0xE000
-#define	EVL_VLANOFTAG(tag)	((tag) & EVL_VLID_MASK)
-#define	EVL_PRIOFTAG(tag)	(((tag) >> 13) & 7)
-#define	EVL_CFIOFTAG(tag)	(((tag) >> 12) & 1)
-#define	EVL_MAKETAG(vlid, pri, cfi)					\
-	((((((pri) & 7) << 1) | ((cfi) & 1)) << 12) | ((vlid) & EVL_VLID_MASK))
-
 /* Set the VLAN ID in an mbuf packet header non-destructively. */
 #define EVL_APPLY_VLID(m, vlid)						\
 	do {								\
@@ -89,6 +73,9 @@ struct	vlanreq {
 #define	SIOCSETVLAN	SIOCSIFGENERIC
 #define	SIOCGETVLAN	SIOCGIFGENERIC
 
+#define	SIOCGVLANPCP	SIOCGLANPCP	/* Get VLAN PCP */
+#define	SIOCSVLANPCP	SIOCSLANPCP	/* Set VLAN PCP */
+
 #ifdef _KERNEL
 /*
  * Drivers that are capable of adding and removing the VLAN header
@@ -126,27 +113,40 @@ struct	vlanreq {
  * if_capabilities.
  */
 
+/*
+ * The 802.1q code may also tag mbufs with the PCP (priority) field for use in
+ * other layers of the stack, in which case an m_tag will be used.  This is
+ * semantically quite different from use of the ether_vtag field, which is
+ * defined only between the device driver and VLAN layer.
+ */
+#define	MTAG_8021Q		1326104895
+#define	MTAG_8021Q_PCP_IN	0		/* Input priority. */
+#define	MTAG_8021Q_PCP_OUT	1		/* Output priority. */
+
 #define	VLAN_CAPABILITIES(_ifp) do {				\
 	if ((_ifp)->if_vlantrunk != NULL) 			\
 		(*vlan_trunk_cap_p)(_ifp);			\
 } while (0)
 
 #define	VLAN_TRUNKDEV(_ifp)					\
-	(_ifp)->if_type == IFT_L2VLAN ? (*vlan_trunkdev_p)((_ifp)) : NULL
+	((_ifp)->if_type == IFT_L2VLAN ? (*vlan_trunkdev_p)((_ifp)) : NULL)
 #define	VLAN_TAG(_ifp, _vid)					\
-	(_ifp)->if_type == IFT_L2VLAN ? (*vlan_tag_p)((_ifp), (_vid)) : EINVAL
+	((_ifp)->if_type == IFT_L2VLAN ? (*vlan_tag_p)((_ifp), (_vid)) : EINVAL)
+#define	VLAN_PCP(_ifp, _pcp)					\
+	((_ifp)->if_type == IFT_L2VLAN ? (*vlan_pcp_p)((_ifp), (_pcp)) : EINVAL)
 #define	VLAN_COOKIE(_ifp)					\
-	(_ifp)->if_type == IFT_L2VLAN ? (*vlan_cookie_p)((_ifp)) : NULL
+	((_ifp)->if_type == IFT_L2VLAN ? (*vlan_cookie_p)((_ifp)) : NULL)
 #define	VLAN_SETCOOKIE(_ifp, _cookie)				\
-	(_ifp)->if_type == IFT_L2VLAN ?				\
-	    (*vlan_setcookie_p)((_ifp), (_cookie)) : EINVAL
+	((_ifp)->if_type == IFT_L2VLAN ?			\
+	    (*vlan_setcookie_p)((_ifp), (_cookie)) : EINVAL)
 #define	VLAN_DEVAT(_ifp, _vid)					\
-	(_ifp)->if_vlantrunk != NULL ? (*vlan_devat_p)((_ifp), (_vid)) : NULL
+	((_ifp)->if_vlantrunk != NULL ? (*vlan_devat_p)((_ifp), (_vid)) : NULL)
 
 extern	void (*vlan_trunk_cap_p)(struct ifnet *);
 extern	struct ifnet *(*vlan_trunkdev_p)(struct ifnet *);
 extern	struct ifnet *(*vlan_devat_p)(struct ifnet *, uint16_t);
 extern	int (*vlan_tag_p)(struct ifnet *, uint16_t *);
+extern	int (*vlan_pcp_p)(struct ifnet *, uint16_t *);
 extern	int (*vlan_setcookie_p)(struct ifnet *, void *);
 extern	void *(*vlan_cookie_p)(struct ifnet *);
 

@@ -22,7 +22,7 @@ namespace llvm {
   class LatencyPriorityQueue;
 
   /// Sorting functions for the Available queue.
-  struct latency_sort : public std::binary_function<SUnit*, SUnit*, bool> {
+  struct latency_sort {
     LatencyPriorityQueue *PQ;
     explicit latency_sort(LatencyPriorityQueue *pq) : PQ(pq) {}
 
@@ -47,22 +47,22 @@ namespace llvm {
     LatencyPriorityQueue() : Picker(this) {
     }
 
-    bool isBottomUp() const { return false; }
+    bool isBottomUp() const override { return false; }
 
-    void initNodes(std::vector<SUnit> &sunits) {
+    void initNodes(std::vector<SUnit> &sunits) override {
       SUnits = &sunits;
       NumNodesSolelyBlocking.resize(SUnits->size(), 0);
     }
 
-    void addNode(const SUnit *SU) {
+    void addNode(const SUnit *SU) override {
       NumNodesSolelyBlocking.resize(SUnits->size(), 0);
     }
 
-    void updateNode(const SUnit *SU) {
+    void updateNode(const SUnit *SU) override {
     }
 
-    void releaseState() {
-      SUnits = 0;
+    void releaseState() override {
+      SUnits = nullptr;
     }
 
     unsigned getLatency(unsigned NodeNum) const {
@@ -75,21 +75,19 @@ namespace llvm {
       return NumNodesSolelyBlocking[NodeNum];
     }
 
-    bool empty() const { return Queue.empty(); }
+    bool empty() const override { return Queue.empty(); }
 
-    virtual void push(SUnit *U);
+    void push(SUnit *U) override;
 
-    virtual SUnit *pop();
+    SUnit *pop() override;
 
-    virtual void remove(SUnit *SU);
-
-    virtual void dump(ScheduleDAG* DAG) const;
+    void remove(SUnit *SU) override;
 
     // scheduledNode - As nodes are scheduled, we look to see if there are any
     // successor nodes that have a single unscheduled predecessor.  If so, that
     // single predecessor has a higher priority, since scheduling it will make
     // the node available.
-    void scheduledNode(SUnit *Node);
+    void scheduledNode(SUnit *Node) override;
 
 private:
     void AdjustPriorityOfUnscheduledPreds(SUnit *SU);

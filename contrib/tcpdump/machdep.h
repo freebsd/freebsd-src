@@ -17,11 +17,9 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @(#) $Header: /tcpdump/master/tcpdump/machdep.h,v 1.2 2000-01-17 06:24:24 itojun Exp $ (LBL)
  */
-#ifndef tcpdump_machdep_h
-#define tcpdump_machdep_h
+#ifndef netdissect_machdep_h
+#define netdissect_machdep_h
 
 int abort_on_misalignment(char *, size_t);
 #endif

@@ -1,6 +1,6 @@
 /*
  * TLS v1.0/v1.1/v1.2 server (RFC 2246, RFC 4346, RFC 5246)
- * Copyright (c) 2006-2011, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2006-2014, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -19,6 +19,31 @@
 /* TODO:
  * Support for a message fragmented across several records (RFC 2246, 6.2.1)
  */
+
+
+void tlsv1_server_log(struct tlsv1_server *conn, const char *fmt, ...)
+{
+	va_list ap;
+	char *buf;
+	int buflen;
+
+	va_start(ap, fmt);
+	buflen = vsnprintf(NULL, 0, fmt, ap) + 1;
+	va_end(ap);
+
+	buf = os_malloc(buflen);
+	if (buf == NULL)
+		return;
+	va_start(ap, fmt);
+	vsnprintf(buf, buflen, fmt, ap);
+	va_end(ap);
+
+	wpa_printf(MSG_DEBUG, "TLSv1: %s", buf);
+	if (conn->log_cb)
+		conn->log_cb(conn->log_cb_ctx, buf);
+
+	os_free(buf);
+}
 
 
 void tlsv1_server_alert(struct tlsv1_server *conn, u8 level, u8 description)
@@ -250,8 +275,7 @@ int tlsv1_server_decrypt(struct tlsv1_server *conn,
 		used = tlsv1_record_receive(&conn->rl, pos, in_end - pos,
 					    out_pos, &olen, &alert);
 		if (used < 0) {
-			wpa_printf(MSG_DEBUG, "TLSv1: Record layer processing "
-				   "failed");
+			tlsv1_server_log(conn, "Record layer processing failed");
 			tlsv1_server_alert(conn, TLS_ALERT_LEVEL_FATAL, alert);
 			return -1;
 		}
@@ -265,14 +289,13 @@ int tlsv1_server_decrypt(struct tlsv1_server *conn,
 
 		if (ct == TLS_CONTENT_TYPE_ALERT) {
 			if (olen < 2) {
-				wpa_printf(MSG_DEBUG, "TLSv1: Alert "
-					   "underflow");
+				tlsv1_server_log(conn, "Alert underflow");
 				tlsv1_server_alert(conn, TLS_ALERT_LEVEL_FATAL,
 						   TLS_ALERT_DECODE_ERROR);
 				return -1;
 			}
-			wpa_printf(MSG_DEBUG, "TLSv1: Received alert %d:%d",
-				   out_pos[0], out_pos[1]);
+			tlsv1_server_log(conn, "Received alert %d:%d",
+					 out_pos[0], out_pos[1]);
 			if (out_pos[0] == TLS_ALERT_LEVEL_WARNING) {
 				/* Continue processing */
 				pos += used;
@@ -285,12 +308,22 @@ int tlsv1_server_decrypt(struct tlsv1_server *conn,
 		}
 
 		if (ct != TLS_CONTENT_TYPE_APPLICATION_DATA) {
-			wpa_printf(MSG_DEBUG, "TLSv1: Unexpected content type "
-				   "0x%x", pos[0]);
+			tlsv1_server_log(conn, "Unexpected content type 0x%x",
+					 pos[0]);
 			tlsv1_server_alert(conn, TLS_ALERT_LEVEL_FATAL,
 					   TLS_ALERT_UNEXPECTED_MESSAGE);
 			return -1;
 		}
+
+#ifdef CONFIG_TESTING_OPTIONS
+		if ((conn->test_flags &
+		     (TLS_BREAK_VERIFY_DATA | TLS_BREAK_SRV_KEY_X_HASH |
+		      TLS_BREAK_SRV_KEY_X_SIGNATURE)) &&
+		    !conn->test_failure_reported) {
+			tlsv1_server_log(conn, "TEST-FAILURE: Client ApplData received after invalid handshake");
+			conn->test_failure_reported = 1;
+		}
+#endif /* CONFIG_TESTING_OPTIONS */
 
 		out_pos += olen;
 		if (out_pos > out_end) {
@@ -361,8 +394,15 @@ struct tlsv1_server * tlsv1_server_init(struct tlsv1_credentials *cred)
 
 	count = 0;
 	suites = conn->cipher_suites;
+	suites[count++] = TLS_DHE_RSA_WITH_AES_256_CBC_SHA256;
+	suites[count++] = TLS_RSA_WITH_AES_256_CBC_SHA256;
+	suites[count++] = TLS_DHE_RSA_WITH_AES_256_CBC_SHA;
 	suites[count++] = TLS_RSA_WITH_AES_256_CBC_SHA;
+	suites[count++] = TLS_DHE_RSA_WITH_AES_128_CBC_SHA256;
+	suites[count++] = TLS_RSA_WITH_AES_128_CBC_SHA256;
+	suites[count++] = TLS_DHE_RSA_WITH_AES_128_CBC_SHA;
 	suites[count++] = TLS_RSA_WITH_AES_128_CBC_SHA;
+	suites[count++] = TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA;
 	suites[count++] = TLS_RSA_WITH_3DES_EDE_CBC_SHA;
 	suites[count++] = TLS_RSA_WITH_RC4_128_SHA;
 	suites[count++] = TLS_RSA_WITH_RC4_128_MD5;
@@ -476,14 +516,56 @@ int tlsv1_server_get_cipher(struct tlsv1_server *conn, char *buf,
 	case TLS_RSA_WITH_3DES_EDE_CBC_SHA:
 		cipher = "DES-CBC3-SHA";
 		break;
+	case TLS_DHE_RSA_WITH_DES_CBC_SHA:
+		cipher = "DHE-RSA-DES-CBC-SHA";
+		break;
+	case TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA:
+		cipher = "DHE-RSA-DES-CBC3-SHA";
+		break;
+	case TLS_DH_anon_WITH_RC4_128_MD5:
+		cipher = "ADH-RC4-MD5";
+		break;
+	case TLS_DH_anon_WITH_DES_CBC_SHA:
+		cipher = "ADH-DES-SHA";
+		break;
+	case TLS_DH_anon_WITH_3DES_EDE_CBC_SHA:
+		cipher = "ADH-DES-CBC3-SHA";
+		break;
+	case TLS_RSA_WITH_AES_128_CBC_SHA:
+		cipher = "AES-128-SHA";
+		break;
+	case TLS_DHE_RSA_WITH_AES_128_CBC_SHA:
+		cipher = "DHE-RSA-AES-128-SHA";
+		break;
 	case TLS_DH_anon_WITH_AES_128_CBC_SHA:
 		cipher = "ADH-AES-128-SHA";
 		break;
 	case TLS_RSA_WITH_AES_256_CBC_SHA:
 		cipher = "AES-256-SHA";
 		break;
-	case TLS_RSA_WITH_AES_128_CBC_SHA:
-		cipher = "AES-128-SHA";
+	case TLS_DHE_RSA_WITH_AES_256_CBC_SHA:
+		cipher = "DHE-RSA-AES-256-SHA";
+		break;
+	case TLS_DH_anon_WITH_AES_256_CBC_SHA:
+		cipher = "ADH-AES-256-SHA";
+		break;
+	case TLS_RSA_WITH_AES_128_CBC_SHA256:
+		cipher = "AES-128-SHA256";
+		break;
+	case TLS_RSA_WITH_AES_256_CBC_SHA256:
+		cipher = "AES-256-SHA256";
+		break;
+	case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256:
+		cipher = "DHE-RSA-AES-128-SHA256";
+		break;
+	case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256:
+		cipher = "DHE-RSA-AES-256-SHA256";
+		break;
+	case TLS_DH_anon_WITH_AES_128_CBC_SHA256:
+		cipher = "ADH-AES-128-SHA256";
+		break;
+	case TLS_DH_anon_WITH_AES_256_CBC_SHA256:
+		cipher = "ADH-AES-256-SHA256";
 		break;
 	default:
 		return -1;
@@ -528,12 +610,12 @@ int tlsv1_server_resumed(struct tlsv1_server *conn)
 
 
 /**
- * tlsv1_server_get_keys - Get master key and random data from TLS connection
+ * tlsv1_server_get_random - Get random data from TLS connection
  * @conn: TLSv1 server connection data from tlsv1_server_init()
- * @keys: Structure of key/random data (filled on success)
+ * @keys: Structure of random data (filled on success)
  * Returns: 0 on success, -1 on failure
  */
-int tlsv1_server_get_keys(struct tlsv1_server *conn, struct tls_keys *keys)
+int tlsv1_server_get_random(struct tlsv1_server *conn, struct tls_random *keys)
 {
 	os_memset(keys, 0, sizeof(*keys));
 	if (conn->state == CLIENT_HELLO)
@@ -545,8 +627,6 @@ int tlsv1_server_get_keys(struct tlsv1_server *conn, struct tls_keys *keys)
 	if (conn->state != SERVER_HELLO) {
 		keys->server_random = conn->server_random;
 		keys->server_random_len = TLS_RANDOM_LEN;
-		keys->master_key = conn->master_secret;
-		keys->master_key_len = TLS_MASTER_SECRET_LEN;
 	}
 
 	return 0;
@@ -617,4 +697,126 @@ void tlsv1_server_set_session_ticket_cb(struct tlsv1_server *conn,
 		   cb, ctx);
 	conn->session_ticket_cb = cb;
 	conn->session_ticket_cb_ctx = ctx;
+}
+
+
+void tlsv1_server_set_log_cb(struct tlsv1_server *conn,
+			     void (*cb)(void *ctx, const char *msg), void *ctx)
+{
+	conn->log_cb = cb;
+	conn->log_cb_ctx = ctx;
+}
+
+
+#ifdef CONFIG_TESTING_OPTIONS
+void tlsv1_server_set_test_flags(struct tlsv1_server *conn, u32 flags)
+{
+	conn->test_flags = flags;
+}
+
+
+static const u8 test_tls_prime15[1] = {
+	15
+};
+
+static const u8 test_tls_prime511b[64] = {
+	0x50, 0xfb, 0xf1, 0xae, 0x01, 0xf1, 0xfe, 0xe6,
+	0xe1, 0xae, 0xdc, 0x1e, 0xbe, 0xfb, 0x9e, 0x58,
+	0x9a, 0xd7, 0x54, 0x9d, 0x6b, 0xb3, 0x78, 0xe2,
+	0x39, 0x7f, 0x30, 0x01, 0x25, 0xa1, 0xf9, 0x7c,
+	0x55, 0x0e, 0xa1, 0x15, 0xcc, 0x36, 0x34, 0xbb,
+	0x6c, 0x8b, 0x64, 0x45, 0x15, 0x7f, 0xd3, 0xe7,
+	0x31, 0xc8, 0x8e, 0x56, 0x8e, 0x95, 0xdc, 0xea,
+	0x9e, 0xdf, 0xf7, 0x56, 0xdd, 0xb0, 0x34, 0xdb
+};
+
+static const u8 test_tls_prime767b[96] = {
+	0x4c, 0xdc, 0xb8, 0x21, 0x20, 0x9d, 0xe8, 0xa3,
+	0x53, 0xd9, 0x1c, 0x18, 0xc1, 0x3a, 0x58, 0x67,
+	0xa7, 0x85, 0xf9, 0x28, 0x9b, 0xce, 0xc0, 0xd1,
+	0x05, 0x84, 0x61, 0x97, 0xb2, 0x86, 0x1c, 0xd0,
+	0xd1, 0x96, 0x23, 0x29, 0x8c, 0xc5, 0x30, 0x68,
+	0x3e, 0xf9, 0x05, 0xba, 0x60, 0xeb, 0xdb, 0xee,
+	0x2d, 0xdf, 0x84, 0x65, 0x49, 0x87, 0x90, 0x2a,
+	0xc9, 0x8e, 0x34, 0x63, 0x6d, 0x9a, 0x2d, 0x32,
+	0x1c, 0x46, 0xd5, 0x4e, 0x20, 0x20, 0x90, 0xac,
+	0xd5, 0x48, 0x79, 0x99, 0x0c, 0xe6, 0xed, 0xbf,
+	0x79, 0xc2, 0x47, 0x50, 0x95, 0x38, 0x38, 0xbc,
+	0xde, 0xb0, 0xd2, 0xe8, 0x97, 0xcb, 0x22, 0xbb
+};
+
+static const u8 test_tls_prime58[128] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x03, 0xc1, 0xba, 0xc8, 0x25, 0xbe, 0x2d, 0xf3
+};
+
+static const u8 test_tls_non_prime[] = {
+	/*
+	 * This is not a prime and the value has the following factors:
+	 * 13736783488716579923 * 16254860191773456563 * 18229434976173670763 *
+	 * 11112313018289079419 * 10260802278580253339 * 12394009491575311499 *
+	 * 12419059668711064739 * 14317973192687985827 * 10498605410533203179 *
+	 * 16338688760390249003 * 11128963991123878883 * 12990532258280301419 *
+	 * 3
+	 */
+	0x0C, 0x8C, 0x36, 0x9C, 0x6F, 0x71, 0x2E, 0xA7,
+	0xAB, 0x32, 0xD3, 0x0F, 0x68, 0x3D, 0xB2, 0x6D,
+	0x81, 0xDD, 0xC4, 0x84, 0x0D, 0x9C, 0x6E, 0x36,
+	0x29, 0x70, 0xF3, 0x1E, 0x9A, 0x42, 0x0B, 0x67,
+	0x82, 0x6B, 0xB1, 0xF2, 0xAF, 0x55, 0x28, 0xE7,
+	0xDB, 0x67, 0x6C, 0xF7, 0x6B, 0xAC, 0xAC, 0xE5,
+	0xF7, 0x9F, 0xD4, 0x63, 0x55, 0x70, 0x32, 0x7C,
+	0x70, 0xFB, 0xAF, 0xB8, 0xEB, 0x37, 0xCF, 0x3F,
+	0xFE, 0x94, 0x73, 0xF9, 0x7A, 0xC7, 0x12, 0x2E,
+	0x9B, 0xB4, 0x7D, 0x08, 0x60, 0x83, 0x43, 0x52,
+	0x83, 0x1E, 0xA5, 0xFC, 0xFA, 0x87, 0x12, 0xF4,
+	0x64, 0xE2, 0xCE, 0x71, 0x17, 0x72, 0xB6, 0xAB
+};
+
+#endif /* CONFIG_TESTING_OPTIONS */
+
+
+void tlsv1_server_get_dh_p(struct tlsv1_server *conn, const u8 **dh_p,
+			   size_t *dh_p_len)
+{
+	*dh_p = conn->cred->dh_p;
+	*dh_p_len = conn->cred->dh_p_len;
+
+#ifdef CONFIG_TESTING_OPTIONS
+	if (conn->test_flags & TLS_DHE_PRIME_511B) {
+		tlsv1_server_log(conn, "TESTING: Use short 511-bit prime with DHE");
+		*dh_p = test_tls_prime511b;
+		*dh_p_len = sizeof(test_tls_prime511b);
+	} else if (conn->test_flags & TLS_DHE_PRIME_767B) {
+		tlsv1_server_log(conn, "TESTING: Use short 767-bit prime with DHE");
+		*dh_p = test_tls_prime767b;
+		*dh_p_len = sizeof(test_tls_prime767b);
+	} else if (conn->test_flags & TLS_DHE_PRIME_15) {
+		tlsv1_server_log(conn, "TESTING: Use bogus 15 \"prime\" with DHE");
+		*dh_p = test_tls_prime15;
+		*dh_p_len = sizeof(test_tls_prime15);
+	} else if (conn->test_flags & TLS_DHE_PRIME_58B) {
+		tlsv1_server_log(conn, "TESTING: Use short 58-bit prime in long container with DHE");
+		*dh_p = test_tls_prime58;
+		*dh_p_len = sizeof(test_tls_prime58);
+	} else if (conn->test_flags & TLS_DHE_NON_PRIME) {
+		tlsv1_server_log(conn, "TESTING: Use claim non-prime as the DHE prime");
+		*dh_p = test_tls_non_prime;
+		*dh_p_len = sizeof(test_tls_non_prime);
+	}
+#endif /* CONFIG_TESTING_OPTIONS */
 }

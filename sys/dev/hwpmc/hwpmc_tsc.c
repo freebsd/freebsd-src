@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2008 Joseph Koshy
  * All rights reserved.
  *
@@ -99,7 +101,7 @@ tsc_config_pmc(int cpu, int ri, struct pmc *pm)
 {
 	struct pmc_hw *phw;
 
-	PMCDBG(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
+	PMCDBG3(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[tsc,%d] illegal CPU value %d", __LINE__, cpu));
@@ -253,7 +255,7 @@ tsc_read_pmc(int cpu, int ri, pmc_value_t *v)
 	KASSERT(mode == PMC_MODE_SC,
 	    ("[tsc,%d] illegal pmc mode %d", __LINE__, mode));
 
-	PMCDBG(MDP,REA,1,"tsc-read id=%d", ri);
+	PMCDBG1(MDP,REA,1,"tsc-read id=%d", ri);
 
 	*v = rdtsc();
 

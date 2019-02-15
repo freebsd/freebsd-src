@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2008 Yahoo!, Inc.
  * All rights reserved.
  * Written by: John Baldwin <jhb@FreeBSD.org>
@@ -48,7 +50,7 @@ struct sglist_seg {
 
 struct sglist {
 	struct sglist_seg *sg_segs;
-	int		sg_refs;
+	u_int		sg_refs;
 	u_short		sg_nseg;
 	u_short		sg_maxseg;
 };
@@ -88,13 +90,18 @@ int	sglist_append_bio(struct sglist *sg, struct bio *bp);
 int	sglist_append_mbuf(struct sglist *sg, struct mbuf *m0);
 int	sglist_append_phys(struct sglist *sg, vm_paddr_t paddr,
 	    size_t len);
+int	sglist_append_sglist(struct sglist *sg, struct sglist *source,
+	    size_t offset, size_t length);
 int	sglist_append_uio(struct sglist *sg, struct uio *uio);
 int	sglist_append_user(struct sglist *sg, void *buf, size_t len,
 	    struct thread *td);
+int	sglist_append_vmpages(struct sglist *sg, vm_page_t *m, size_t pgoff,
+	    size_t len);
 struct sglist *sglist_build(void *buf, size_t len, int mflags);
 struct sglist *sglist_clone(struct sglist *sg, int mflags);
 int	sglist_consume_uio(struct sglist *sg, struct uio *uio, size_t resid);
 int	sglist_count(void *buf, size_t len);
+int	sglist_count_vmpages(vm_page_t *m, size_t pgoff, size_t len);
 void	sglist_free(struct sglist *sg);
 int	sglist_join(struct sglist *first, struct sglist *second);
 size_t	sglist_length(struct sglist *sg);

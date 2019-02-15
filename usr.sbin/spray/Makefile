@@ -3,7 +3,6 @@
 PROG=	spray
 MAN=	spray.8
 
-DPADD=	${LIBRPCSVC}
-LDADD=	-lrpcsvc
+LIBADD=	rpcsvc
 
 .include <bsd.prog.mk>

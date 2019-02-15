@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2009 Kip Macy <kmacy@freebsd.org>
  * All rights reserved.
  *
@@ -32,10 +34,6 @@
 
 #include <machine/cpu.h>
 
-#if defined(INVARIANTS) && !defined(DEBUG_BUFRING)
-#define DEBUG_BUFRING 1
-#endif
-
 #ifdef DEBUG_BUFRING
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -64,10 +62,15 @@ struct buf_ring {
 static __inline int
 buf_ring_enqueue(struct buf_ring *br, void *buf)
 {
-	uint32_t prod_head, prod_next;
-	uint32_t cons_tail;
+	uint32_t prod_head, prod_next, cons_tail;
 #ifdef DEBUG_BUFRING
 	int i;
+
+	/*
+	 * Note: It is possible to encounter an mbuf that was removed
+	 * via drbr_peek(), and then re-added via drbr_putback() and
+	 * trigger a spurious panic.
+	 */
 	for (i = br->br_cons_head; i != br->br_prod_head;
 	     i = ((i + 1) & br->br_cons_mask))
 		if(br->br_ring[i] == buf)
@@ -77,16 +80,20 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 	critical_enter();
 	do {
 		prod_head = br->br_prod_head;
+		prod_next = (prod_head + 1) & br->br_prod_mask;
 		cons_tail = br->br_cons_tail;
 
-		prod_next = (prod_head + 1) & br->br_prod_mask;
-		
 		if (prod_next == cons_tail) {
-			br->br_drops++;
-			critical_exit();
-			return (ENOBUFS);
+			rmb();
+			if (prod_head == br->br_prod_head &&
+			    cons_tail == br->br_cons_tail) {
+				br->br_drops++;
+				critical_exit();
+				return (ENOBUFS);
+			}
+			continue;
 		}
-	} while (!atomic_cmpset_int(&br->br_prod_head, prod_head, prod_next));
+	} while (!atomic_cmpset_acq_int(&br->br_prod_head, prod_head, prod_next));
 #ifdef DEBUG_BUFRING
 	if (br->br_ring[prod_head] != NULL)
 		panic("dangling value in enqueue");
@@ -94,19 +101,13 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 	br->br_ring[prod_head] = buf;
 
 	/*
-	 * The full memory barrier also avoids that br_prod_tail store
-	 * is reordered before the br_ring[prod_head] is full setup.
-	 */
-	mb();
-
-	/*
 	 * If there are other enqueues in progress
-	 * that preceeded us, we need to wait for them
+	 * that preceded us, we need to wait for them
 	 * to complete 
 	 */   
 	while (br->br_prod_tail != prod_head)
 		cpu_spinwait();
-	br->br_prod_tail = prod_next;
+	atomic_store_rel_int(&br->br_prod_tail, prod_next);
 	critical_exit();
 	return (0);
 }
@@ -119,46 +120,32 @@ static __inline void *
 buf_ring_dequeue_mc(struct buf_ring *br)
 {
 	uint32_t cons_head, cons_next;
-	uint32_t prod_tail;
 	void *buf;
-	int success;
 
 	critical_enter();
 	do {
 		cons_head = br->br_cons_head;
-		prod_tail = br->br_prod_tail;
-
 		cons_next = (cons_head + 1) & br->br_cons_mask;
-		
-		if (cons_head == prod_tail) {
+
+		if (cons_head == br->br_prod_tail) {
 			critical_exit();
 			return (NULL);
 		}
-		
-		success = atomic_cmpset_int(&br->br_cons_head, cons_head,
-		    cons_next);
-	} while (success == 0);		
+	} while (!atomic_cmpset_acq_int(&br->br_cons_head, cons_head, cons_next));
 
 	buf = br->br_ring[cons_head];
 #ifdef DEBUG_BUFRING
 	br->br_ring[cons_head] = NULL;
 #endif
-
-	/*
-	 * The full memory barrier also avoids that br_ring[cons_read]
-	 * load is reordered after br_cons_tail is set.
-	 */
-	mb();
-	
 	/*
 	 * If there are other dequeues in progress
-	 * that preceeded us, we need to wait for them
+	 * that preceded us, we need to wait for them
 	 * to complete 
 	 */   
 	while (br->br_cons_tail != cons_head)
 		cpu_spinwait();
 
-	br->br_cons_tail = cons_next;
+	atomic_store_rel_int(&br->br_cons_tail, cons_next);
 	critical_exit();
 
 	return (buf);
@@ -178,9 +165,38 @@ buf_ring_dequeue_sc(struct buf_ring *br)
 #endif
 	uint32_t prod_tail;
 	void *buf;
-	
+
+	/*
+	 * This is a workaround to allow using buf_ring on ARM and ARM64.
+	 * ARM64TODO: Fix buf_ring in a generic way.
+	 * REMARKS: It is suspected that br_cons_head does not require
+	 *   load_acq operation, but this change was extensively tested
+	 *   and confirmed it's working. To be reviewed once again in
+	 *   FreeBSD-12.
+	 *
+	 * Preventing following situation:
+
+	 * Core(0) - buf_ring_enqueue()                                       Core(1) - buf_ring_dequeue_sc()
+	 * -----------------------------------------                                       ----------------------------------------------
+	 *
+	 *                                                                                cons_head = br->br_cons_head;
+	 * atomic_cmpset_acq_32(&br->br_prod_head, ...));
+	 *                                                                                buf = br->br_ring[cons_head];     <see <1>>
+	 * br->br_ring[prod_head] = buf;
+	 * atomic_store_rel_32(&br->br_prod_tail, ...);
+	 *                                                                                prod_tail = br->br_prod_tail;
+	 *                                                                                if (cons_head == prod_tail) 
+	 *                                                                                        return (NULL);
+	 *                                                                                <condition is false and code uses invalid(old) buf>`	
+	 *
+	 * <1> Load (on core 1) from br->br_ring[cons_head] can be reordered (speculative readed) by CPU.
+	 */	
+#if defined(__arm__) || defined(__aarch64__)
+	cons_head = atomic_load_acq_32(&br->br_cons_head);
+#else
 	cons_head = br->br_cons_head;
-	prod_tail = br->br_prod_tail;
+#endif
+	prod_tail = atomic_load_acq_32(&br->br_prod_tail);
 	
 	cons_next = (cons_head + 1) & br->br_cons_mask;
 #ifdef PREFETCH_DEFINED
@@ -238,16 +254,16 @@ buf_ring_advance_sc(struct buf_ring *br)
 
 /*
  * Used to return a buffer (most likely already there)
- * to the top od the ring. The caller should *not*
+ * to the top of the ring. The caller should *not*
  * have used any dequeue to pull it out of the ring
  * but instead should have used the peek() function.
  * This is normally used where the transmit queue
- * of a driver is full, and an mubf must be returned.
+ * of a driver is full, and an mbuf must be returned.
  * Most likely whats in the ring-buffer is what
  * is being put back (since it was not removed), but
  * sometimes the lower transmit function may have
  * done a pullup or other function that will have
- * changed it. As an optimzation we always put it
+ * changed it. As an optimization we always put it
  * back (since jhb says the store is probably cheaper),
  * if we have to do a multi-queue version we will need
  * the compare and an atomic.
@@ -283,6 +299,37 @@ buf_ring_peek(struct buf_ring *br)
 		return (NULL);
 	
 	return (br->br_ring[br->br_cons_head]);
+}
+
+static __inline void *
+buf_ring_peek_clear_sc(struct buf_ring *br)
+{
+#ifdef DEBUG_BUFRING
+	void *ret;
+
+	if (!mtx_owned(br->br_lock))
+		panic("lock not held on single consumer dequeue");
+#endif	
+	/*
+	 * I believe it is safe to not have a memory barrier
+	 * here because we control cons and tail is worst case
+	 * a lagging indicator so we worst case we might
+	 * return NULL immediately after a buffer has been enqueued
+	 */
+	if (br->br_cons_head == br->br_prod_tail)
+		return (NULL);
+
+#ifdef DEBUG_BUFRING
+	/*
+	 * Single consumer, i.e. cons_head will not move while we are
+	 * running, so atomic_swap_ptr() is not necessary here.
+	 */
+	ret = br->br_ring[br->br_cons_head];
+	br->br_ring[br->br_cons_head] = NULL;
+	return (ret);
+#else
+	return (br->br_ring[br->br_cons_head]);
+#endif
 }
 
 static __inline int

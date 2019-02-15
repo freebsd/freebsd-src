@@ -1,4 +1,4 @@
-//===-- AArch64MCInstLower.cpp - Convert AArch64 MachineInstr to an MCInst -==//
+//==-- AArch64MCInstLower.cpp - Convert AArch64 MachineInstr to an MCInst --==//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,146 +12,236 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "AArch64AsmPrinter.h"
-#include "AArch64TargetMachine.h"
+#include "AArch64MCInstLower.h"
 #include "MCTargetDesc/AArch64MCExpr.h"
 #include "Utils/AArch64BaseInfo.h"
-#include "llvm/ADT/SmallString.h"
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/MC/MCAsmInfo.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/TargetLoweringObjectFile.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
-#include "llvm/Target/Mangler.h"
-
+#include "llvm/Support/CodeGen.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 
-MCOperand
-AArch64AsmPrinter::lowerSymbolOperand(const MachineOperand &MO,
-                                      const MCSymbol *Sym) const {
-  const MCExpr *Expr = 0;
+extern cl::opt<bool> EnableAArch64ELFLocalDynamicTLSGeneration;
 
-  Expr = MCSymbolRefExpr::Create(Sym, MCSymbolRefExpr::VK_None, OutContext);
+AArch64MCInstLower::AArch64MCInstLower(MCContext &ctx, AsmPrinter &printer)
+    : Ctx(ctx), Printer(printer) {}
 
-  switch (MO.getTargetFlags()) {
-  case AArch64II::MO_GOT:
-    Expr = AArch64MCExpr::CreateGOT(Expr, OutContext);
-    break;
-  case AArch64II::MO_GOT_LO12:
-    Expr = AArch64MCExpr::CreateGOTLo12(Expr, OutContext);
-    break;
-  case AArch64II::MO_LO12:
-    Expr = AArch64MCExpr::CreateLo12(Expr, OutContext);
-    break;
-  case AArch64II::MO_DTPREL_G1:
-    Expr = AArch64MCExpr::CreateDTPREL_G1(Expr, OutContext);
-    break;
-  case AArch64II::MO_DTPREL_G0_NC:
-    Expr = AArch64MCExpr::CreateDTPREL_G0_NC(Expr, OutContext);
-    break;
-  case AArch64II::MO_GOTTPREL:
-    Expr = AArch64MCExpr::CreateGOTTPREL(Expr, OutContext);
-    break;
-  case AArch64II::MO_GOTTPREL_LO12:
-    Expr = AArch64MCExpr::CreateGOTTPRELLo12(Expr, OutContext);
-    break;
-  case AArch64II::MO_TLSDESC:
-    Expr = AArch64MCExpr::CreateTLSDesc(Expr, OutContext);
-    break;
-  case AArch64II::MO_TLSDESC_LO12:
-    Expr = AArch64MCExpr::CreateTLSDescLo12(Expr, OutContext);
-    break;
-  case AArch64II::MO_TPREL_G1:
-    Expr = AArch64MCExpr::CreateTPREL_G1(Expr, OutContext);
-    break;
-  case AArch64II::MO_TPREL_G0_NC:
-    Expr = AArch64MCExpr::CreateTPREL_G0_NC(Expr, OutContext);
-    break;
-  case AArch64II::MO_ABS_G3:
-    Expr = AArch64MCExpr::CreateABS_G3(Expr, OutContext);
-    break;
-  case AArch64II::MO_ABS_G2_NC:
-    Expr = AArch64MCExpr::CreateABS_G2_NC(Expr, OutContext);
-    break;
-  case AArch64II::MO_ABS_G1_NC:
-    Expr = AArch64MCExpr::CreateABS_G1_NC(Expr, OutContext);
-    break;
-  case AArch64II::MO_ABS_G0_NC:
-    Expr = AArch64MCExpr::CreateABS_G0_NC(Expr, OutContext);
-    break;
-  case AArch64II::MO_NO_FLAG:
-    // Expr is already correct
-    break;
-  default:
-    llvm_unreachable("Unexpected MachineOperand flag");
-  }
+MCSymbol *
+AArch64MCInstLower::GetGlobalAddressSymbol(const MachineOperand &MO) const {
+  const GlobalValue *GV = MO.getGlobal();
+  unsigned TargetFlags = MO.getTargetFlags();
+  const Triple &TheTriple = Printer.TM.getTargetTriple();
+  if (!TheTriple.isOSBinFormatCOFF())
+    return Printer.getSymbol(GV);
 
-  if (!MO.isJTI() && MO.getOffset())
-    Expr = MCBinaryExpr::CreateAdd(Expr,
-                                   MCConstantExpr::Create(MO.getOffset(),
-                                                          OutContext),
-                                   OutContext);
+  assert(TheTriple.isOSWindows() &&
+         "Windows is the only supported COFF target");
 
-  return MCOperand::CreateExpr(Expr);
+  bool IsIndirect = (TargetFlags & AArch64II::MO_DLLIMPORT);
+  if (!IsIndirect)
+    return Printer.getSymbol(GV);
+
+  SmallString<128> Name;
+  Name = "__imp_";
+  Printer.TM.getNameWithPrefix(Name, GV,
+                               Printer.getObjFileLowering().getMangler());
+
+  return Ctx.getOrCreateSymbol(Name);
 }
 
-bool AArch64AsmPrinter::lowerOperand(const MachineOperand &MO,
-                                     MCOperand &MCOp) const {
+MCSymbol *
+AArch64MCInstLower::GetExternalSymbolSymbol(const MachineOperand &MO) const {
+  return Printer.GetExternalSymbolSymbol(MO.getSymbolName());
+}
+
+MCOperand AArch64MCInstLower::lowerSymbolOperandDarwin(const MachineOperand &MO,
+                                                       MCSymbol *Sym) const {
+  // FIXME: We would like an efficient form for this, so we don't have to do a
+  // lot of extra uniquing.
+  MCSymbolRefExpr::VariantKind RefKind = MCSymbolRefExpr::VK_None;
+  if ((MO.getTargetFlags() & AArch64II::MO_GOT) != 0) {
+    if ((MO.getTargetFlags() & AArch64II::MO_FRAGMENT) == AArch64II::MO_PAGE)
+      RefKind = MCSymbolRefExpr::VK_GOTPAGE;
+    else if ((MO.getTargetFlags() & AArch64II::MO_FRAGMENT) ==
+             AArch64II::MO_PAGEOFF)
+      RefKind = MCSymbolRefExpr::VK_GOTPAGEOFF;
+    else
+      llvm_unreachable("Unexpected target flags with MO_GOT on GV operand");
+  } else if ((MO.getTargetFlags() & AArch64II::MO_TLS) != 0) {
+    if ((MO.getTargetFlags() & AArch64II::MO_FRAGMENT) == AArch64II::MO_PAGE)
+      RefKind = MCSymbolRefExpr::VK_TLVPPAGE;
+    else if ((MO.getTargetFlags() & AArch64II::MO_FRAGMENT) ==
+             AArch64II::MO_PAGEOFF)
+      RefKind = MCSymbolRefExpr::VK_TLVPPAGEOFF;
+    else
+      llvm_unreachable("Unexpected target flags with MO_TLS on GV operand");
+  } else {
+    if ((MO.getTargetFlags() & AArch64II::MO_FRAGMENT) == AArch64II::MO_PAGE)
+      RefKind = MCSymbolRefExpr::VK_PAGE;
+    else if ((MO.getTargetFlags() & AArch64II::MO_FRAGMENT) ==
+             AArch64II::MO_PAGEOFF)
+      RefKind = MCSymbolRefExpr::VK_PAGEOFF;
+  }
+  const MCExpr *Expr = MCSymbolRefExpr::create(Sym, RefKind, Ctx);
+  if (!MO.isJTI() && MO.getOffset())
+    Expr = MCBinaryExpr::createAdd(
+        Expr, MCConstantExpr::create(MO.getOffset(), Ctx), Ctx);
+  return MCOperand::createExpr(Expr);
+}
+
+MCOperand AArch64MCInstLower::lowerSymbolOperandELF(const MachineOperand &MO,
+                                                    MCSymbol *Sym) const {
+  uint32_t RefFlags = 0;
+
+  if (MO.getTargetFlags() & AArch64II::MO_GOT)
+    RefFlags |= AArch64MCExpr::VK_GOT;
+  else if (MO.getTargetFlags() & AArch64II::MO_TLS) {
+    TLSModel::Model Model;
+    if (MO.isGlobal()) {
+      const GlobalValue *GV = MO.getGlobal();
+      Model = Printer.TM.getTLSModel(GV);
+      if (!EnableAArch64ELFLocalDynamicTLSGeneration &&
+          Model == TLSModel::LocalDynamic)
+        Model = TLSModel::GeneralDynamic;
+
+    } else {
+      assert(MO.isSymbol() &&
+             StringRef(MO.getSymbolName()) == "_TLS_MODULE_BASE_" &&
+             "unexpected external TLS symbol");
+      // The general dynamic access sequence is used to get the
+      // address of _TLS_MODULE_BASE_.
+      Model = TLSModel::GeneralDynamic;
+    }
+    switch (Model) {
+    case TLSModel::InitialExec:
+      RefFlags |= AArch64MCExpr::VK_GOTTPREL;
+      break;
+    case TLSModel::LocalExec:
+      RefFlags |= AArch64MCExpr::VK_TPREL;
+      break;
+    case TLSModel::LocalDynamic:
+      RefFlags |= AArch64MCExpr::VK_DTPREL;
+      break;
+    case TLSModel::GeneralDynamic:
+      RefFlags |= AArch64MCExpr::VK_TLSDESC;
+      break;
+    }
+  } else {
+    // No modifier means this is a generic reference, classified as absolute for
+    // the cases where it matters (:abs_g0: etc).
+    RefFlags |= AArch64MCExpr::VK_ABS;
+  }
+
+  if ((MO.getTargetFlags() & AArch64II::MO_FRAGMENT) == AArch64II::MO_PAGE)
+    RefFlags |= AArch64MCExpr::VK_PAGE;
+  else if ((MO.getTargetFlags() & AArch64II::MO_FRAGMENT) ==
+           AArch64II::MO_PAGEOFF)
+    RefFlags |= AArch64MCExpr::VK_PAGEOFF;
+  else if ((MO.getTargetFlags() & AArch64II::MO_FRAGMENT) == AArch64II::MO_G3)
+    RefFlags |= AArch64MCExpr::VK_G3;
+  else if ((MO.getTargetFlags() & AArch64II::MO_FRAGMENT) == AArch64II::MO_G2)
+    RefFlags |= AArch64MCExpr::VK_G2;
+  else if ((MO.getTargetFlags() & AArch64II::MO_FRAGMENT) == AArch64II::MO_G1)
+    RefFlags |= AArch64MCExpr::VK_G1;
+  else if ((MO.getTargetFlags() & AArch64II::MO_FRAGMENT) == AArch64II::MO_G0)
+    RefFlags |= AArch64MCExpr::VK_G0;
+  else if ((MO.getTargetFlags() & AArch64II::MO_FRAGMENT) == AArch64II::MO_HI12)
+    RefFlags |= AArch64MCExpr::VK_HI12;
+
+  if (MO.getTargetFlags() & AArch64II::MO_NC)
+    RefFlags |= AArch64MCExpr::VK_NC;
+
+  const MCExpr *Expr =
+      MCSymbolRefExpr::create(Sym, MCSymbolRefExpr::VK_None, Ctx);
+  if (!MO.isJTI() && MO.getOffset())
+    Expr = MCBinaryExpr::createAdd(
+        Expr, MCConstantExpr::create(MO.getOffset(), Ctx), Ctx);
+
+  AArch64MCExpr::VariantKind RefKind;
+  RefKind = static_cast<AArch64MCExpr::VariantKind>(RefFlags);
+  Expr = AArch64MCExpr::create(Expr, RefKind, Ctx);
+
+  return MCOperand::createExpr(Expr);
+}
+
+MCOperand AArch64MCInstLower::lowerSymbolOperandCOFF(const MachineOperand &MO,
+                                                     MCSymbol *Sym) const {
+  MCSymbolRefExpr::VariantKind RefKind = MCSymbolRefExpr::VK_None;
+  const MCExpr *Expr = MCSymbolRefExpr::create(Sym, RefKind, Ctx);
+  if (!MO.isJTI() && MO.getOffset())
+    Expr = MCBinaryExpr::createAdd(
+        Expr, MCConstantExpr::create(MO.getOffset(), Ctx), Ctx);
+  return MCOperand::createExpr(Expr);
+}
+
+MCOperand AArch64MCInstLower::LowerSymbolOperand(const MachineOperand &MO,
+                                                 MCSymbol *Sym) const {
+  if (Printer.TM.getTargetTriple().isOSDarwin())
+    return lowerSymbolOperandDarwin(MO, Sym);
+  if (Printer.TM.getTargetTriple().isOSBinFormatCOFF())
+    return lowerSymbolOperandCOFF(MO, Sym);
+
+  assert(Printer.TM.getTargetTriple().isOSBinFormatELF() && "Invalid target");
+  return lowerSymbolOperandELF(MO, Sym);
+}
+
+bool AArch64MCInstLower::lowerOperand(const MachineOperand &MO,
+                                      MCOperand &MCOp) const {
   switch (MO.getType()) {
-  default: llvm_unreachable("unknown operand type");
+  default:
+    llvm_unreachable("unknown operand type");
   case MachineOperand::MO_Register:
+    // Ignore all implicit register operands.
     if (MO.isImplicit())
       return false;
-    assert(!MO.getSubReg() && "Subregs should be eliminated!");
-    MCOp = MCOperand::CreateReg(MO.getReg());
-    break;
-  case MachineOperand::MO_Immediate:
-    MCOp = MCOperand::CreateImm(MO.getImm());
-    break;
-  case MachineOperand::MO_FPImmediate: {
-    assert(MO.getFPImm()->isZero() && "Only fp imm 0.0 is supported");
-    MCOp = MCOperand::CreateFPImm(0.0);
-    break;
-  }
-  case MachineOperand::MO_BlockAddress:
-    MCOp = lowerSymbolOperand(MO, GetBlockAddressSymbol(MO.getBlockAddress()));
-    break;
-  case MachineOperand::MO_ExternalSymbol:
-    MCOp = lowerSymbolOperand(MO, GetExternalSymbolSymbol(MO.getSymbolName()));
-    break;
-  case MachineOperand::MO_GlobalAddress:
-    MCOp = lowerSymbolOperand(MO, getSymbol(MO.getGlobal()));
-    break;
-  case MachineOperand::MO_MachineBasicBlock:
-    MCOp = MCOperand::CreateExpr(MCSymbolRefExpr::Create(
-                                   MO.getMBB()->getSymbol(), OutContext));
-    break;
-  case MachineOperand::MO_JumpTableIndex:
-    MCOp = lowerSymbolOperand(MO, GetJTISymbol(MO.getIndex()));
-    break;
-  case MachineOperand::MO_ConstantPoolIndex:
-    MCOp = lowerSymbolOperand(MO, GetCPISymbol(MO.getIndex()));
+    MCOp = MCOperand::createReg(MO.getReg());
     break;
   case MachineOperand::MO_RegisterMask:
-    // Ignore call clobbers
+    // Regmasks are like implicit defs.
     return false;
-
+  case MachineOperand::MO_Immediate:
+    MCOp = MCOperand::createImm(MO.getImm());
+    break;
+  case MachineOperand::MO_MachineBasicBlock:
+    MCOp = MCOperand::createExpr(
+        MCSymbolRefExpr::create(MO.getMBB()->getSymbol(), Ctx));
+    break;
+  case MachineOperand::MO_GlobalAddress:
+    MCOp = LowerSymbolOperand(MO, GetGlobalAddressSymbol(MO));
+    break;
+  case MachineOperand::MO_ExternalSymbol:
+    MCOp = LowerSymbolOperand(MO, GetExternalSymbolSymbol(MO));
+    break;
+  case MachineOperand::MO_MCSymbol:
+    MCOp = LowerSymbolOperand(MO, MO.getMCSymbol());
+    break;
+  case MachineOperand::MO_JumpTableIndex:
+    MCOp = LowerSymbolOperand(MO, Printer.GetJTISymbol(MO.getIndex()));
+    break;
+  case MachineOperand::MO_ConstantPoolIndex:
+    MCOp = LowerSymbolOperand(MO, Printer.GetCPISymbol(MO.getIndex()));
+    break;
+  case MachineOperand::MO_BlockAddress:
+    MCOp = LowerSymbolOperand(
+        MO, Printer.GetBlockAddressSymbol(MO.getBlockAddress()));
+    break;
   }
-
   return true;
 }
 
-void llvm::LowerAArch64MachineInstrToMCInst(const MachineInstr *MI,
-                                            MCInst &OutMI,
-                                            AArch64AsmPrinter &AP) {
+void AArch64MCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
   OutMI.setOpcode(MI->getOpcode());
 
-  for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
-    const MachineOperand &MO = MI->getOperand(i);
-
+  for (const MachineOperand &MO : MI->operands()) {
     MCOperand MCOp;
-    if (AP.lowerOperand(MO, MCOp))
+    if (lowerOperand(MO, MCOp))
       OutMI.addOperand(MCOp);
   }
 }

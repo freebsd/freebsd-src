@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2007-2009 Marvell Semiconductor, Inc.
  * All rights reserved.
@@ -1440,7 +1442,7 @@ mwl_hal_bastream_alloc(struct mwl_hal_vap *vap, int ba_policy,
 	sp->setup = 0;
 	sp->ba_policy = ba_policy;
 	MWL_HAL_UNLOCK(mh);
-	return sp != NULL ? &sp->public : NULL;
+	return &sp->public;
 }
 
 const MWL_HAL_BASTREAM *

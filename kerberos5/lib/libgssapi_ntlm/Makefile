@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 LIB=	gssapi_ntlm
+PRIVATELIB=	true
 LDFLAGS= -Wl,-Bsymbolic -Wl,--no-undefined
-LDADD=	-lcrypto -lgssapi -lkrb5 -lhx509 -lheimntlm -lroken
-DPADD=	${LIBCRYPTO} ${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBHEIMNTLM} ${LIBROKEN}
+LIBADD=	crypto gssapi krb5 heimntlm roken
 SHLIB_MAJOR=	10
 
 SRCS=	accept_sec_context.c \
@@ -42,8 +42,15 @@ CFLAGS+=-I${KRB5DIR}/lib/gssapi
 CFLAGS+=-I${KRB5DIR}/lib/gssapi/gssapi
 CFLAGS+=-I${KRB5DIR}/lib/gssapi/ntlm
 CFLAGS+=-I${KRB5DIR}/lib/krb5
+CFLAGS+=-I${.OBJDIR:H}/libkrb5
 CFLAGS+=-I${KRB5DIR}/lib/ntlm
+CFLAGS+=-I${KRB5DIR}/lib/roken
+CFLAGS+=-I${.OBJDIR:H}/libroken
+CFLAGS+=-I${KRB5DIR}/lib/asn1
+CFLAGS+=-I${.OBJDIR:H}/libasn1
+CFLAGS+=-I${KRB5DIR}/lib/ntlm
+CFLAGS+=-I${.OBJDIR:H}/libheimntlm
 
 .include <bsd.lib.mk>
 
-.PATH: ${KRB5DIR}/lib/gssapi/ntlm ${.CURDIR}/../../../lib/libgssapi ${.CURDIR}/../libgssapi_krb5
+.PATH: ${KRB5DIR}/lib/gssapi/ntlm ${SRCTOP}/lib/libgssapi ${.CURDIR:H}/libgssapi_krb5

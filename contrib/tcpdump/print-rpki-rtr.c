@@ -12,29 +12,26 @@
  * LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE.
  *
- * support for the The RPKI/Router Protocol as RFC6810
- *
- * Original code by Hannes Gredler (hannes@juniper.net)
+ * Original code by Hannes Gredler (hannes@gredler.at)
  */
 
-#ifndef lint
-static const char rcsid[] _U_ =
-"@(#) $Header: /tcpdump/master/tcpdump/print-rpki_rtr.c,v 1.10 2008-03-20 09:30:56 hannes Exp $";
-#endif
+/* \summary: Resource Public Key Infrastructure (RPKI) to Router Protocol printer */
+
+/* specification: RFC 6810 */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <tcpdump-stdinc.h>
+#include <netdissect-stdinc.h>
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
-#include "interface.h"
+#include "netdissect.h"
 #include "extract.h"
 #include "addrtoname.h"
+
+static const char tstr[] = "[|RPKI-RTR]";
 
 /*
  * RPKI/Router PDU header
@@ -85,6 +82,9 @@ typedef struct rpki_rtr_pdu_ipv6_prefix_ {
 typedef struct rpki_rtr_pdu_error_report_ {
     rpki_rtr_pdu pdu_header;
     u_char encapsulated_pdu_length[4]; /* Encapsulated PDU length */
+    /* Copy of Erroneous PDU (variable, optional) */
+    /* Length of Error Text (4 octets in network byte order) */
+    /* Arbitrary Text of Error Diagnostic Message (variable, optional) */
 } rpki_rtr_pdu_error_report;
 
 /*
@@ -126,7 +126,7 @@ static const struct tok rpki_rtr_error_codes[] = {
 };
 
 /*
- * Build a identation string for a given identation level.
+ * Build a indentation string for a given indentation level.
  * XXX this should be really in util.c
  */
 static char *
@@ -174,23 +174,47 @@ indent_string (u_int indent)
 /*
  * Print a single PDU.
  */
-static void
-rpki_rtr_pdu_print (const u_char *tptr, u_int indent)
+static u_int
+rpki_rtr_pdu_print (netdissect_options *ndo, const u_char *tptr, const u_int len,
+	const u_char recurse, const u_int indent)
 {
     const rpki_rtr_pdu *pdu_header;
     u_int pdu_type, pdu_len, hexdump;
     const u_char *msg;
 
-    pdu_header = (rpki_rtr_pdu *)tptr;
+    /* Protocol Version */
+    ND_TCHECK_8BITS(tptr);
+    if (*tptr != 0) {
+	/* Skip the rest of the input buffer because even if this is
+	 * a well-formed PDU of a future RPKI-Router protocol version
+	 * followed by a well-formed PDU of RPKI-Router protocol
+	 * version 0, there is no way to know exactly how to skip the
+	 * current PDU.
+	 */
+	ND_PRINT((ndo, "%sRPKI-RTRv%u (unknown)", indent_string(8), *tptr));
+	return len;
+    }
+    if (len < sizeof(rpki_rtr_pdu)) {
+	ND_PRINT((ndo, "(%u bytes is too few to decode)", len));
+	goto invalid;
+    }
+    ND_TCHECK2(*tptr, sizeof(rpki_rtr_pdu));
+    pdu_header = (const rpki_rtr_pdu *)tptr;
     pdu_type = pdu_header->pdu_type;
     pdu_len = EXTRACT_32BITS(pdu_header->length);
+    /* Do not check bounds with pdu_len yet, do it in the case blocks
+     * below to make it possible to decode at least the beginning of
+     * a truncated Error Report PDU or a truncated encapsulated PDU.
+     */
     hexdump = FALSE;
 
-    printf("%sRPKI-RTRv%u, %s PDU (%u), length: %u",
+    ND_PRINT((ndo, "%sRPKI-RTRv%u, %s PDU (%u), length: %u",
 	   indent_string(8),
 	   pdu_header->version,
 	   tok2str(rpki_rtr_pdu_values, "Unknown", pdu_type),
-	   pdu_type, pdu_len);
+	   pdu_type, pdu_len));
+    if (pdu_len < sizeof(rpki_rtr_pdu) || pdu_len > len)
+	goto invalid;
 
     switch (pdu_type) {
 
@@ -200,11 +224,14 @@ rpki_rtr_pdu_print (const u_char *tptr, u_int indent)
     case RPKI_RTR_SERIAL_NOTIFY_PDU:
     case RPKI_RTR_SERIAL_QUERY_PDU:
     case RPKI_RTR_END_OF_DATA_PDU:
+	if (pdu_len != sizeof(rpki_rtr_pdu) + 4)
+	    goto invalid;
+	ND_TCHECK2(*tptr, pdu_len);
         msg = (const u_char *)(pdu_header + 1);
-	printf("%sSession ID: 0x%04x, Serial: %u",
+	ND_PRINT((ndo, "%sSession ID: 0x%04x, Serial: %u",
 	       indent_string(indent+2),
 	       EXTRACT_16BITS(pdu_header->u.session_id),
-	       EXTRACT_32BITS(msg));
+	       EXTRACT_32BITS(msg)));
 	break;
 
 	/*
@@ -212,6 +239,9 @@ rpki_rtr_pdu_print (const u_char *tptr, u_int indent)
 	 */
     case RPKI_RTR_RESET_QUERY_PDU:
     case RPKI_RTR_CACHE_RESET_PDU:
+	if (pdu_len != sizeof(rpki_rtr_pdu))
+	    goto invalid;
+	/* no additional boundary to check */
 
 	/*
 	 * Zero payload PDUs.
@@ -219,145 +249,155 @@ rpki_rtr_pdu_print (const u_char *tptr, u_int indent)
 	break;
 
     case RPKI_RTR_CACHE_RESPONSE_PDU:
-	printf("%sSession ID: 0x%04x",
+	if (pdu_len != sizeof(rpki_rtr_pdu))
+	    goto invalid;
+	/* no additional boundary to check */
+	ND_PRINT((ndo, "%sSession ID: 0x%04x",
 	       indent_string(indent+2),
-	       EXTRACT_16BITS(pdu_header->u.session_id));
+	       EXTRACT_16BITS(pdu_header->u.session_id)));
 	break;
 
     case RPKI_RTR_IPV4_PREFIX_PDU:
 	{
-	    rpki_rtr_pdu_ipv4_prefix *pdu;
+	    const rpki_rtr_pdu_ipv4_prefix *pdu;
 
-	    pdu = (rpki_rtr_pdu_ipv4_prefix *)tptr;
-	    printf("%sIPv4 Prefix %s/%u-%u, origin-as %u, flags 0x%02x",
+	    if (pdu_len != sizeof(rpki_rtr_pdu) + 12)
+		goto invalid;
+	    ND_TCHECK2(*tptr, pdu_len);
+	    pdu = (const rpki_rtr_pdu_ipv4_prefix *)tptr;
+	    ND_PRINT((ndo, "%sIPv4 Prefix %s/%u-%u, origin-as %u, flags 0x%02x",
 		   indent_string(indent+2),
-		   ipaddr_string(pdu->prefix),
+		   ipaddr_string(ndo, pdu->prefix),
 		   pdu->prefix_length, pdu->max_length,
-		   EXTRACT_32BITS(pdu->as), pdu->flags);
+		   EXTRACT_32BITS(pdu->as), pdu->flags));
 	}
 	break;
 
-#ifdef INET6
     case RPKI_RTR_IPV6_PREFIX_PDU:
 	{
-	    rpki_rtr_pdu_ipv6_prefix *pdu;
+	    const rpki_rtr_pdu_ipv6_prefix *pdu;
 
-	    pdu = (rpki_rtr_pdu_ipv6_prefix *)tptr;
-	    printf("%sIPv6 Prefix %s/%u-%u, origin-as %u, flags 0x%02x",
+	    if (pdu_len != sizeof(rpki_rtr_pdu) + 24)
+		goto invalid;
+	    ND_TCHECK2(*tptr, pdu_len);
+	    pdu = (const rpki_rtr_pdu_ipv6_prefix *)tptr;
+	    ND_PRINT((ndo, "%sIPv6 Prefix %s/%u-%u, origin-as %u, flags 0x%02x",
 		   indent_string(indent+2),
-		   ip6addr_string(pdu->prefix),
+		   ip6addr_string(ndo, pdu->prefix),
 		   pdu->prefix_length, pdu->max_length,
-		   EXTRACT_32BITS(pdu->as), pdu->flags);
+		   EXTRACT_32BITS(pdu->as), pdu->flags));
 	}
 	break;
-#endif
 
     case RPKI_RTR_ERROR_REPORT_PDU:
 	{
-	    rpki_rtr_pdu_error_report *pdu;
+	    const rpki_rtr_pdu_error_report *pdu;
 	    u_int encapsulated_pdu_length, text_length, tlen, error_code;
-	    u_char buf[80];
 
-	    pdu = (rpki_rtr_pdu_error_report *)tptr;
+	    tlen = sizeof(rpki_rtr_pdu);
+	    /* Do not test for the "Length of Error Text" data element yet. */
+	    if (pdu_len < tlen + 4)
+		goto invalid;
+	    ND_TCHECK2(*tptr, tlen + 4);
+	    /* Safe up to and including the "Length of Encapsulated PDU"
+	     * data element, more data elements may be present.
+	     */
+	    pdu = (const rpki_rtr_pdu_error_report *)tptr;
 	    encapsulated_pdu_length = EXTRACT_32BITS(pdu->encapsulated_pdu_length);
-	    tlen = pdu_len;
+	    tlen += 4;
 
 	    error_code = EXTRACT_16BITS(pdu->pdu_header.u.error_code);
-	    printf("%sError code: %s (%u), Encapsulated PDU length: %u",
+	    ND_PRINT((ndo, "%sError code: %s (%u), Encapsulated PDU length: %u",
 		   indent_string(indent+2),
 		   tok2str(rpki_rtr_error_codes, "Unknown", error_code),
-		   error_code, encapsulated_pdu_length);
+		   error_code, encapsulated_pdu_length));
 
-	    tptr += sizeof(*pdu);
-	    tlen -= sizeof(*pdu);
-
-	    /*
-	     * Recurse if there is an encapsulated PDU.
-	     */
-	    if (encapsulated_pdu_length &&
-		(encapsulated_pdu_length <= tlen)) {
-		printf("%s-----encapsulated PDU-----", indent_string(indent+4));
-		rpki_rtr_pdu_print(tptr, indent+2);
+	    if (encapsulated_pdu_length) {
+		/* Section 5.10 of RFC 6810 says:
+		 * "An Error Report PDU MUST NOT be sent for an Error Report PDU."
+		 *
+		 * However, as far as the protocol encoding goes Error Report PDUs can
+		 * happen to be nested in each other, however many times, in which case
+		 * the decoder should still print such semantically incorrect PDUs.
+		 *
+		 * That said, "the Erroneous PDU field MAY be truncated" (ibid), thus
+		 * to keep things simple this implementation decodes only the two
+		 * outermost layers of PDUs and makes bounds checks in the outer and
+		 * the inner PDU independently.
+		 */
+		if (pdu_len < tlen + encapsulated_pdu_length)
+		    goto invalid;
+		if (! recurse) {
+		    ND_TCHECK2(*tptr, tlen + encapsulated_pdu_length);
+		}
+		else {
+		    ND_PRINT((ndo, "%s-----encapsulated PDU-----", indent_string(indent+4)));
+		    rpki_rtr_pdu_print(ndo, tptr + tlen,
+			encapsulated_pdu_length, 0, indent + 2);
+		}
+		tlen += encapsulated_pdu_length;
 	    }
 
-	    tptr += encapsulated_pdu_length;
-	    tlen -= encapsulated_pdu_length;
+	    if (pdu_len < tlen + 4)
+		goto invalid;
+	    ND_TCHECK2(*tptr, tlen + 4);
+	    /* Safe up to and including the "Length of Error Text" data element,
+	     * one more data element may be present.
+	     */
 
 	    /*
 	     * Extract, trail-zero and print the Error message.
-	     */ 
-	    text_length = 0;
-	    if (tlen > 4) {
-		text_length = EXTRACT_32BITS(tptr);
-		tptr += 4;
-		tlen -= 4;
-	    }
-	    if (text_length && (text_length <= tlen )) {
-		memcpy(buf, tptr, MIN(sizeof(buf)-1, text_length));
-		buf[text_length] = '\0';
-		printf("%sError text: %s", indent_string(indent+2), buf);
+	     */
+	    text_length = EXTRACT_32BITS(tptr + tlen);
+	    tlen += 4;
+
+	    if (text_length) {
+		if (pdu_len < tlen + text_length)
+		    goto invalid;
+		/* fn_printn() makes the bounds check */
+		ND_PRINT((ndo, "%sError text: ", indent_string(indent+2)));
+		if (fn_printn(ndo, tptr + tlen, text_length, ndo->ndo_snapend))
+			goto trunc;
 	    }
 	}
 	break;
 
     default:
+	ND_TCHECK2(*tptr, pdu_len);
 
 	/*
 	 * Unknown data, please hexdump.
-	 */ 
+	 */
 	hexdump = TRUE;
     }
 
     /* do we also want to see a hex dump ? */
-    if (vflag > 1 || (vflag && hexdump)) {
-	print_unknown_data(tptr,"\n\t  ", pdu_len);
+    if (ndo->ndo_vflag > 1 || (ndo->ndo_vflag && hexdump)) {
+	print_unknown_data(ndo,tptr,"\n\t  ", pdu_len);
     }
+    return pdu_len;
+
+invalid:
+    ND_PRINT((ndo, "%s", istr));
+    ND_TCHECK2(*tptr, len);
+    return len;
+trunc:
+    ND_PRINT((ndo, "\n\t%s", tstr));
+    return len;
 }
 
 void
-rpki_rtr_print(register const u_char *pptr, register u_int len) {
-
-    u_int tlen, pdu_type, pdu_len;
-    const u_char *tptr;
-    const rpki_rtr_pdu *pdu_header;
-
-    tptr = pptr;
-    tlen = len;
-
-    if (!vflag) {
-	printf(", RPKI-RTR");
+rpki_rtr_print(netdissect_options *ndo, register const u_char *pptr, register u_int len)
+{
+    if (!ndo->ndo_vflag) {
+	ND_PRINT((ndo, ", RPKI-RTR"));
 	return;
     }
-
-    while (tlen >= sizeof(rpki_rtr_pdu)) {
-
-        TCHECK2(*tptr, sizeof(rpki_rtr_pdu));
-
-	pdu_header = (rpki_rtr_pdu *)tptr;
-        pdu_type = pdu_header->pdu_type;
-        pdu_len = EXTRACT_32BITS(pdu_header->length);
-
-        /* infinite loop check */
-        if (!pdu_type || !pdu_len) {
-            break;
-        }
-
-        TCHECK2(*tptr, pdu_len);
-        if (tlen < pdu_len) {
-            goto trunc;
-        }
-
-	/*
-	 * Print the PDU.
-	 */
-	rpki_rtr_pdu_print(tptr, 8);
-
-        tlen -= pdu_len;
-        tptr += pdu_len;
+    while (len) {
+	u_int pdu_len = rpki_rtr_pdu_print(ndo, pptr, len, 1, 8);
+	len -= pdu_len;
+	pptr += pdu_len;
     }
-    return;
- trunc:
-    printf("\n\t[|RPKI-RTR]");
 }
 
 /*

@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1980, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -150,7 +152,7 @@ changeitems(const char *args, int onoff)
 			continue;
 		}
 		hp = gethostbyname(tmpstr1);
-		if (hp == 0) {
+		if (hp == NULL) {
 			in.s_addr = inet_addr(tmpstr1);
 			if (in.s_addr == INADDR_NONE) {
 				error("%s: unknown host or port", tmpstr1);
@@ -167,7 +169,7 @@ static int
 selectproto(const char *proto)
 {
 
-	if (proto == 0 || streq(proto, "all"))
+	if (proto == NULL || streq(proto, "all"))
 		protos = TCP | UDP;
 	else if (streq(proto, "tcp"))
 		protos = TCP;
@@ -202,13 +204,13 @@ selectport(long port, int onoff)
 	struct pitem *p;
 
 	if (port == -1) {
-		if (ports == 0)
+		if (ports == NULL)
 			return (0);
 		free((char *)ports), ports = 0;
 		nports = 0;
 		return (1);
 	}
-	for (p = ports; p < ports+nports; p++)
+	for (p = ports; p < ports + nports; p++)
 		if (p->port == port) {
 			p->onoff = onoff;
 			return (0);
@@ -224,13 +226,13 @@ selectport(long port, int onoff)
 }
 
 int
-checkport(struct inpcb *inp)
+checkport(struct in_conninfo *inc)
 {
 	struct pitem *p;
 
 	if (ports)
 	for (p = ports; p < ports+nports; p++)
-		if (p->port == inp->inp_lport || p->port == inp->inp_fport)
+		if (p->port == inc->inc_lport || p->port == inc->inc_fport)
 			return (p->onoff);
 	return (1);
 }
@@ -258,8 +260,8 @@ selecthost(struct in_addr *in, int onoff)
 {
 	struct hitem *p;
 
-	if (in == 0) {
-		if (hosts == 0)
+	if (in == NULL) {
+		if (hosts == NULL)
 			return (0);
 		free((char *)hosts), hosts = 0;
 		nhosts = 0;
@@ -281,14 +283,14 @@ selecthost(struct in_addr *in, int onoff)
 }
 
 int
-checkhost(struct inpcb *inp)
+checkhost(struct in_conninfo *inc)
 {
 	struct hitem *p;
 
 	if (hosts)
 	for (p = hosts; p < hosts+nhosts; p++)
-		if (p->addr.s_addr == inp->inp_laddr.s_addr ||
-		    p->addr.s_addr == inp->inp_faddr.s_addr)
+		if (p->addr.s_addr == inc->inc_laddr.s_addr ||
+		    p->addr.s_addr == inc->inc_faddr.s_addr)
 			return (p->onoff);
 	return (1);
 }

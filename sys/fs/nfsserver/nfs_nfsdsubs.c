@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -13,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -44,14 +46,19 @@ __FBSDID("$FreeBSD$");
 
 extern u_int32_t newnfs_true, newnfs_false;
 extern int nfs_pubfhset;
-extern struct nfsclienthashhead nfsclienthash[NFSCLIENTHASHSIZE];
-extern struct nfslockhashhead nfslockhash[NFSLOCKHASHSIZE];
-extern struct nfssessionhash nfssessionhash[NFSSESSIONHASHSIZE];
+extern struct nfsclienthashhead *nfsclienthash;
+extern int nfsrv_clienthashsize;
+extern struct nfslockhashhead *nfslockhash;
+extern int nfsrv_lockhashsize;
+extern struct nfssessionhash *nfssessionhash;
+extern int nfsrv_sessionhashsize;
 extern int nfsrv_useacl;
 extern uid_t nfsrv_defaultuid;
 extern gid_t nfsrv_defaultgid;
 
 char nfs_v2pubfh[NFSX_V2FH];
+struct nfsdontlisthead nfsrv_dontlisthead;
+struct nfslayouthead nfsrv_recalllisthead;
 static nfstype newnfsv2_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK,
     NFNON, NFCHR, NFNON };
 extern nfstype nfsv34_type[9];
@@ -61,10 +68,20 @@ static u_int32_t nfsrv_isannfserr(u_int32_t);
 
 SYSCTL_DECL(_vfs_nfsd);
 
-static int	disable_checkutf8 = 0;
-SYSCTL_INT(_vfs_nfsd, OID_AUTO, disable_checkutf8, CTLFLAG_RW,
-    &disable_checkutf8, 0,
-    "Disable the NFSv4 check for a UTF8 compliant name");
+static int	enable_checkutf8 = 1;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_checkutf8, CTLFLAG_RW,
+    &enable_checkutf8, 0,
+    "Enable the NFSv4 check for the UTF8 compliant name required by rfc3530");
+
+static int    enable_nobodycheck = 1;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_nobodycheck, CTLFLAG_RW,
+    &enable_nobodycheck, 0,
+    "Enable the NFSv4 check when setting user nobody as owner");
+
+static int    enable_nogroupcheck = 1;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_nogroupcheck, CTLFLAG_RW,
+    &enable_nogroupcheck, 0,
+    "Enable the NFSv4 check when setting group nogroup as owner");
 
 static char nfsrv_hexdigit(char, int *);
 
@@ -1131,6 +1148,7 @@ static short nfsv4err_setclientid[] = {
 	NFSERR_INVAL,
 	NFSERR_RESOURCE,
 	NFSERR_SERVERFAULT,
+	NFSERR_WRONGSEC,
 	0,
 };
 
@@ -1384,8 +1402,7 @@ nfsrv_fillattr(struct nfsrv_descript *nd, struct nfsvattr *nvap)
 		fp->fa3_rdev.specdata2 = txdr_unsigned(NFSMINOR(nvap->na_rdev));
 		fp->fa3_fsid.nfsuquad[0] = 0;
 		fp->fa3_fsid.nfsuquad[1] = txdr_unsigned(nvap->na_fsid);
-		fp->fa3_fileid.nfsuquad[0] = 0;
-		fp->fa3_fileid.nfsuquad[1] = txdr_unsigned(nvap->na_fileid);
+		txdr_hyper(nvap->na_fileid, &fp->fa3_fileid);
 		txdr_nfsv3time(&nvap->na_atime, &fp->fa3_atime);
 		txdr_nfsv3time(&nvap->na_mtime, &fp->fa3_mtime);
 		txdr_nfsv3time(&nvap->na_ctime, &fp->fa3_ctime);
@@ -1428,7 +1445,14 @@ nfsrv_mtofh(struct nfsrv_descript *nd, struct nfsrvfh *fhp)
 			nd->nd_flag |= ND_PUBLOOKUP;
 			goto nfsmout;
 		}
-		if (len < NFSRV_MINFH || len > NFSRV_MAXFH) {
+		copylen = len;
+
+		/* If len == NFSX_V4PNFSFH the RPC is a pNFS DS one. */
+		if (len == NFSX_V4PNFSFH && (nd->nd_flag & ND_NFSV41) != 0) {
+			copylen = NFSX_MYFH;
+			len = NFSM_RNDUP(len);
+			nd->nd_flag |= ND_DSSERVER;
+		} else if (len < NFSRV_MINFH || len > NFSRV_MAXFH) {
 			if (nd->nd_flag & ND_NFSV4) {
 			    if (len > 0 && len <= NFSX_V4FHMAX) {
 				error = nfsm_advance(nd, NFSM_RNDUP(len), -1);
@@ -1445,7 +1469,6 @@ nfsrv_mtofh(struct nfsrv_descript *nd, struct nfsrvfh *fhp)
 				goto nfsmout;
 			}
 		}
-		copylen = len;
 	} else {
 		/*
 		 * For NFSv2, the file handle is always 32 bytes on the
@@ -1543,8 +1566,10 @@ nfsrv_checkuidgid(struct nfsrv_descript *nd, struct nfsvattr *nvap)
 	 */
 	if (NFSVNO_NOTSETUID(nvap) && NFSVNO_NOTSETGID(nvap))
 		goto out;
-	if ((NFSVNO_ISSETUID(nvap) && nvap->na_uid == nfsrv_defaultuid)
-	    || (NFSVNO_ISSETGID(nvap) && nvap->na_gid == nfsrv_defaultgid)) {
+	if ((NFSVNO_ISSETUID(nvap) && nvap->na_uid == nfsrv_defaultuid &&
+           enable_nobodycheck == 1)
+	    || (NFSVNO_ISSETGID(nvap) && nvap->na_gid == nfsrv_defaultgid &&
+           enable_nogroupcheck == 1)) {
 		error = NFSERR_BADOWNER;
 		goto out;
 	}
@@ -1793,13 +1818,12 @@ nfsrv_putreferralattr(struct nfsrv_descript *nd, nfsattrbit_t *retbitp,
 			break;
 		case NFSATTRBIT_MOUNTEDONFILEID:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_HYPER);
-			*tl++ = 0;
-			*tl = txdr_unsigned(refp->nfr_dfileno);
+			txdr_hyper(refp->nfr_dfileno, tl);
 			retnum += NFSX_HYPER;
 			break;
 		default:
 			printf("EEK! Bad V4 refattr bitpos=%d\n", bitpos);
-		};
+		}
 	    }
 	}
 	*retnump = txdr_unsigned(retnum);
@@ -1993,7 +2017,7 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
 		    error = 0;
 		    goto nfsmout;
 		}
-		if (disable_checkutf8 == 0 &&
+		if (enable_checkutf8 == 1 &&
 		    nfsrv_checkutf8((u_int8_t *)bufp, outlen)) {
 		    nd->nd_repstat = NFSERR_INVAL;
 		    error = 0;
@@ -2024,12 +2048,22 @@ nfsd_init(void)
 	 * Initialize client queues. Don't free/reinitialize
 	 * them when nfsds are restarted.
 	 */
-	for (i = 0; i < NFSCLIENTHASHSIZE; i++)
+	nfsclienthash = malloc(sizeof(struct nfsclienthashhead) *
+	    nfsrv_clienthashsize, M_NFSDCLIENT, M_WAITOK | M_ZERO);
+	for (i = 0; i < nfsrv_clienthashsize; i++)
 		LIST_INIT(&nfsclienthash[i]);
-	for (i = 0; i < NFSLOCKHASHSIZE; i++)
+	nfslockhash = malloc(sizeof(struct nfslockhashhead) *
+	    nfsrv_lockhashsize, M_NFSDLOCKFILE, M_WAITOK | M_ZERO);
+	for (i = 0; i < nfsrv_lockhashsize; i++)
 		LIST_INIT(&nfslockhash[i]);
-	for (i = 0; i < NFSSESSIONHASHSIZE; i++)
+	nfssessionhash = malloc(sizeof(struct nfssessionhash) *
+	    nfsrv_sessionhashsize, M_NFSDSESSION, M_WAITOK | M_ZERO);
+	for (i = 0; i < nfsrv_sessionhashsize; i++) {
+		mtx_init(&nfssessionhash[i].mtx, "nfssm", NULL, MTX_DEF);
 		LIST_INIT(&nfssessionhash[i].list);
+	}
+	LIST_INIT(&nfsrv_dontlisthead);
+	TAILQ_INIT(&nfsrv_recalllisthead);
 
 	/* and the v2 pubfh should be all zeros */
 	NFSBZERO(nfs_v2pubfh, NFSX_V2FH);

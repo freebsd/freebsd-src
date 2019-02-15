@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2014 Rohit Grover
  * All rights reserved.
  *
@@ -178,33 +180,33 @@ enum atp_log_level {
 	ATP_LLEVEL_INFO,        /* for diagnostics */
 };
 static int atp_debug = ATP_LLEVEL_ERROR; /* the default is to only log errors */
-SYSCTL_INT(_hw_usb_atp, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_atp, OID_AUTO, debug, CTLFLAG_RWTUN,
     &atp_debug, ATP_LLEVEL_ERROR, "ATP debug level");
 #endif /* USB_DEBUG */
 
 static u_int atp_touch_timeout = ATP_TOUCH_TIMEOUT;
-SYSCTL_UINT(_hw_usb_atp, OID_AUTO, touch_timeout, CTLFLAG_RW,
+SYSCTL_UINT(_hw_usb_atp, OID_AUTO, touch_timeout, CTLFLAG_RWTUN,
     &atp_touch_timeout, 125000, "age threshold in microseconds for a touch");
 
 static u_int atp_double_tap_threshold = ATP_DOUBLE_TAP_N_DRAG_THRESHOLD;
-SYSCTL_UINT(_hw_usb_atp, OID_AUTO, double_tap_threshold, CTLFLAG_RW,
+SYSCTL_UINT(_hw_usb_atp, OID_AUTO, double_tap_threshold, CTLFLAG_RWTUN,
     &atp_double_tap_threshold, ATP_DOUBLE_TAP_N_DRAG_THRESHOLD,
     "maximum time in microseconds to allow association between a double-tap and "
     "drag gesture");
 
 static u_int atp_mickeys_scale_factor = ATP_SCALE_FACTOR;
 static int atp_sysctl_scale_factor_handler(SYSCTL_HANDLER_ARGS);
-SYSCTL_PROC(_hw_usb_atp, OID_AUTO, scale_factor, CTLTYPE_UINT | CTLFLAG_RW,
+SYSCTL_PROC(_hw_usb_atp, OID_AUTO, scale_factor, CTLTYPE_UINT | CTLFLAG_RWTUN,
     &atp_mickeys_scale_factor, sizeof(atp_mickeys_scale_factor),
     atp_sysctl_scale_factor_handler, "IU", "movement scale factor");
 
 static u_int atp_small_movement_threshold = ATP_SMALL_MOVEMENT_THRESHOLD;
-SYSCTL_UINT(_hw_usb_atp, OID_AUTO, small_movement, CTLFLAG_RW,
+SYSCTL_UINT(_hw_usb_atp, OID_AUTO, small_movement, CTLFLAG_RWTUN,
     &atp_small_movement_threshold, ATP_SMALL_MOVEMENT_THRESHOLD,
     "the small movement black-hole for filtering noise");
 
 static u_int atp_tap_minimum = 1;
-SYSCTL_UINT(_hw_usb_atp, OID_AUTO, tap_minimum, CTLFLAG_RW,
+SYSCTL_UINT(_hw_usb_atp, OID_AUTO, tap_minimum, CTLFLAG_RWTUN,
     &atp_tap_minimum, 1, "Minimum number of taps before detection");
 
 /*
@@ -213,7 +215,7 @@ SYSCTL_UINT(_hw_usb_atp, OID_AUTO, tap_minimum, CTLFLAG_RW,
  * slides. Unit: mickeys.
  */
 static u_int atp_slide_min_movement = 2 * ATP_SMALL_MOVEMENT_THRESHOLD;
-SYSCTL_UINT(_hw_usb_atp, OID_AUTO, slide_min_movement, CTLFLAG_RW,
+SYSCTL_UINT(_hw_usb_atp, OID_AUTO, slide_min_movement, CTLFLAG_RWTUN,
     &atp_slide_min_movement, 2 * ATP_SMALL_MOVEMENT_THRESHOLD,
     "strokes with at least this amt. of movement are considered slides");
 
@@ -222,7 +224,7 @@ SYSCTL_UINT(_hw_usb_atp, OID_AUTO, slide_min_movement, CTLFLAG_RW,
  * helps filter movements (noise) from immature strokes. Units: interrupts.
  */
 static u_int atp_stroke_maturity_threshold = 4;
-SYSCTL_UINT(_hw_usb_atp, OID_AUTO, stroke_maturity_threshold, CTLFLAG_RW,
+SYSCTL_UINT(_hw_usb_atp, OID_AUTO, stroke_maturity_threshold, CTLFLAG_RWTUN,
     &atp_stroke_maturity_threshold, 4,
     "the minimum age of a stroke for it to be considered mature");
 
@@ -2630,3 +2632,5 @@ static driver_t atp_driver = {
 DRIVER_MODULE(atp, uhub, atp_driver, atp_devclass, NULL, 0);
 MODULE_DEPEND(atp, usb, 1, 1, 1);
 MODULE_VERSION(atp, 1);
+USB_PNP_HOST_INFO(fg_devs);
+USB_PNP_HOST_INFO(wsp_devs);

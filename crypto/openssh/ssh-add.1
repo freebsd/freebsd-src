@@ -1,5 +1,4 @@
-.\"	$OpenBSD: ssh-add.1,v 1.59 2013/12/07 11:58:46 naddy Exp $
-.\"	$FreeBSD$
+.\"	$OpenBSD: ssh-add.1,v 1.66 2017/08/29 13:05:58 jmc Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -36,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd December 7, 2013
+.Dd $Mdocdate: August 29 2017 $
 .Dt SSH-ADD 1
 .Os
 .Sh NAME
@@ -44,7 +43,8 @@
 .Nd adds private key identities to the authentication agent
 .Sh SYNOPSIS
 .Nm ssh-add
-.Op Fl cDdkLlXx
+.Op Fl cDdkLlqXx
+.Op Fl E Ar fingerprint_hash
 .Op Fl t Ar life
 .Op Ar
 .Nm ssh-add
@@ -59,9 +59,8 @@ When run without arguments, it adds the files
 .Pa ~/.ssh/id_rsa ,
 .Pa ~/.ssh/id_dsa ,
 .Pa ~/.ssh/id_ecdsa ,
-.Pa ~/.ssh/id_ed25519
 and
-.Pa ~/.ssh/identity .
+.Pa ~/.ssh/id_ed25519 .
 After loading a private key,
 .Nm
 will try to load corresponding certificate information from the
@@ -88,12 +87,11 @@ The options are as follows:
 .It Fl c
 Indicates that added identities should be subject to confirmation before
 being used for authentication.
-Confirmation is performed by the
-.Ev SSH_ASKPASS
-program mentioned below.
-Successful confirmation is signaled by a zero exit status from the
-.Ev SSH_ASKPASS
-program, rather than text entered into the requester.
+Confirmation is performed by
+.Xr ssh-askpass 1 .
+Successful confirmation is signaled by a zero exit status from
+.Xr ssh-askpass 1 ,
+rather than text entered into the requester.
 .It Fl D
 Deletes all identities from the agent.
 .It Fl d
@@ -109,6 +107,14 @@ If no public key is found at a given path,
 will append
 .Pa .pub
 and retry.
+.It Fl E Ar fingerprint_hash
+Specifies the hash algorithm used when displaying key fingerprints.
+Valid options are:
+.Dq md5
+and
+.Dq sha256 .
+The default is
+.Dq sha256 .
 .It Fl e Ar pkcs11
 Remove keys provided by the PKCS#11 shared library
 .Ar pkcs11 .
@@ -120,6 +126,8 @@ Lists public key parameters of all identities currently represented
 by the agent.
 .It Fl l
 Lists fingerprints of all identities currently represented by the agent.
+.It Fl q
+Be quiet after a successful operation.
 .It Fl s Ar pkcs11
 Add keys provided by the PKCS#11 shared library
 .Ar pkcs11 .
@@ -148,6 +156,8 @@ and
 .Ev SSH_ASKPASS
 are set, it will execute the program specified by
 .Ev SSH_ASKPASS
+(by default
+.Dq ssh-askpass )
 and open an X11 window to read the passphrase.
 This is particularly useful when calling
 .Nm
@@ -165,16 +175,14 @@ socket used to communicate with the agent.
 .El
 .Sh FILES
 .Bl -tag -width Ds
-.It Pa ~/.ssh/identity
-Contains the protocol version 1 RSA authentication identity of the user.
 .It Pa ~/.ssh/id_dsa
-Contains the protocol version 2 DSA authentication identity of the user.
+Contains the DSA authentication identity of the user.
 .It Pa ~/.ssh/id_ecdsa
-Contains the protocol version 2 ECDSA authentication identity of the user.
+Contains the ECDSA authentication identity of the user.
 .It Pa ~/.ssh/id_ed25519
-Contains the protocol version 2 ED25519 authentication identity of the user.
+Contains the Ed25519 authentication identity of the user.
 .It Pa ~/.ssh/id_rsa
-Contains the protocol version 2 RSA authentication identity of the user.
+Contains the RSA authentication identity of the user.
 .El
 .Pp
 Identity files should not be readable by anyone but the user.
@@ -189,6 +197,7 @@ is unable to contact the authentication agent.
 .Sh SEE ALSO
 .Xr ssh 1 ,
 .Xr ssh-agent 1 ,
+.Xr ssh-askpass 1 ,
 .Xr ssh-keygen 1 ,
 .Xr sshd 8
 .Sh AUTHORS

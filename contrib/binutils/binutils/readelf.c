@@ -9159,6 +9159,8 @@ get_freebsd_note_type (unsigned e_type)
 	return _("NT_PROCSTAT_PSSTRINGS (ps_strings data)");
       case NT_PROCSTAT_AUXV:
 	return _("NT_PROCSTAT_AUXV (auxv data)");
+      case NT_X86_XSTATE:
+	return _("NT_X86_XSTATE (x86 XSAVE extended state)");
       default:
 	return get_note_type(e_type);
       }

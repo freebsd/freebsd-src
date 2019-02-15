@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2009-2011 Nathan Whitehorn
  * All rights reserved.
  *
@@ -29,7 +31,7 @@
 #ifndef _POWERPC_POWERMAC_POWERMAC_THERMAL_H
 #define _POWERPC_POWERMAC_POWERMAC_THERMAL_H
 
-#define ZERO_C_TO_K 2732
+#define ZERO_C_TO_K 2731
 
 struct pmac_fan {
 	int min_rpm, max_rpm, default_rpm;

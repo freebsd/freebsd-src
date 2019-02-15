@@ -71,6 +71,28 @@ struct ether_addr {
 } __packed;
 
 #define	ETHER_IS_MULTICAST(addr) (*(addr) & 0x01) /* is address mcast/bcast? */
+#define	ETHER_IS_BROADCAST(addr) \
+	(((addr)[0] & (addr)[1] & (addr)[2] & \
+	  (addr)[3] & (addr)[4] & (addr)[5]) == 0xff)
+
+/*
+ * 802.1q Virtual LAN header.
+ */
+struct ether_vlan_header {
+	uint8_t evl_dhost[ETHER_ADDR_LEN];
+	uint8_t evl_shost[ETHER_ADDR_LEN];
+	uint16_t evl_encap_proto;
+	uint16_t evl_tag;
+	uint16_t evl_proto;
+} __packed;
+
+#define	EVL_VLID_MASK		0x0FFF
+#define	EVL_PRI_MASK		0xE000
+#define	EVL_VLANOFTAG(tag)	((tag) & EVL_VLID_MASK)
+#define	EVL_PRIOFTAG(tag)	(((tag) >> 13) & 7)
+#define	EVL_CFIOFTAG(tag)	(((tag) >> 12) & 1)
+#define	EVL_MAKETAG(vlid, pri, cfi)					\
+	((((((pri) & 7) << 1) | ((cfi) & 1)) << 12) | ((vlid) & EVL_VLID_MASK))
 
 /*
  *  NOTE: 0x0000-0x05DC (0..1500) are generally IEEE 802.3 length fields.
@@ -314,6 +336,7 @@ struct ether_addr {
 #define	ETHERTYPE_SLOW		0x8809	/* 802.3ad link aggregation (LACP) */
 #define	ETHERTYPE_PPP		0x880B	/* PPP (obsolete by PPPoE) */
 #define	ETHERTYPE_HITACHI	0x8820	/* Hitachi Cable (Optoelectronic Systems Laboratory) */
+#define ETHERTYPE_TEST		0x8822  /* Network Conformance Testing */
 #define	ETHERTYPE_MPLS		0x8847	/* MPLS Unicast */
 #define	ETHERTYPE_MPLS_MCAST	0x8848	/* MPLS Multicast */
 #define	ETHERTYPE_AXIS		0x8856	/* Axis Communications AB proprietary bootstrap/config */
@@ -321,6 +344,7 @@ struct ether_addr {
 #define	ETHERTYPE_PPPOE		0x8864	/* PPP Over Ethernet Session Stage */
 #define	ETHERTYPE_LANPROBE	0x8888	/* HP LanProbe test? */
 #define	ETHERTYPE_PAE		0x888e	/* EAPOL PAE/802.1x */
+#define	ETHERTYPE_QINQ		0x88A8	/* 802.1ad VLAN stacking */
 #define	ETHERTYPE_LOOPBACK	0x9000	/* Loopback: used to test interfaces */
 #define	ETHERTYPE_LBACK		ETHERTYPE_LOOPBACK	/* DEC MOP loopback */
 #define	ETHERTYPE_XNSSM		0x9001	/* 3Com (Formerly Bridge Communications), XNS Systems Management */
@@ -361,6 +385,20 @@ struct ether_addr {
 	}								\
 } while (0)
 
+/*
+ * Names for 802.1q priorities ("802.1p").  Notice that in this scheme,
+ * (0 < 1), allowing default 0-tagged traffic to take priority over background
+ * tagged traffic.
+ */
+#define	IEEE8021Q_PCP_BK	1	/* Background (lowest) */
+#define	IEEE8021Q_PCP_BE	0	/* Best effort (default) */
+#define	IEEE8021Q_PCP_EE	2	/* Excellent effort */
+#define	IEEE8021Q_PCP_CA	3	/* Critical applications */
+#define	IEEE8021Q_PCP_VI	4	/* Video, < 100ms latency */
+#define	IEEE8021Q_PCP_VO	5	/* Video, < 10ms latency */
+#define	IEEE8021Q_PCP_IC	6	/* Internetwork control */
+#define	IEEE8021Q_PCP_NC	7	/* Network control (highest) */
+
 #ifdef _KERNEL
 
 struct ifnet;
@@ -382,6 +420,14 @@ extern	char *ether_sprintf(const u_int8_t *);
 void	ether_vlan_mtap(struct bpf_if *, struct mbuf *,
 	    void *, u_int);
 struct mbuf  *ether_vlanencap(struct mbuf *, uint16_t);
+bool	ether_8021q_frame(struct mbuf **mp, struct ifnet *ife, struct ifnet *p,
+	    uint16_t vid, uint8_t pcp);
+
+#ifdef _SYS_EVENTHANDLER_H_
+/* new ethernet interface attached event */
+typedef void (*ether_ifattach_event_handler_t)(void *, struct ifnet *);
+EVENTHANDLER_DECLARE(ether_ifattach_event, ether_ifattach_event_handler_t);
+#endif
 
 #else /* _KERNEL */
 

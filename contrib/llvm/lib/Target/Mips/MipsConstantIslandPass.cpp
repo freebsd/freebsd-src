@@ -1,4 +1,4 @@
-//===-- MipsConstantIslandPass.cpp - Emit Pc Relative loads----------------===//
+//===- MipsConstantIslandPass.cpp - Emit Pc Relative loads ----------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -6,7 +6,6 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-//
 //
 // This pass is used to make Pc relative loads of constants.
 // For now, only Mips16 will use this. 
@@ -17,35 +16,48 @@
 //
 // The constants can be not just numbers but addresses of functions and labels.
 // This can be particularly helpful in static relocation mode for embedded
-// non linux targets.
+// non-linux targets.
 //
-//
-
-#define DEBUG_TYPE "mips-constant-islands"
+//===----------------------------------------------------------------------===//
 
 #include "Mips.h"
-#include "MCTargetDesc/MipsBaseInfo.h"
 #include "Mips16InstrInfo.h"
 #include "MipsMachineFunction.h"
-#include "MipsTargetMachine.h"
+#include "MipsSubtarget.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineConstantPool.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/Type.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/InstIterator.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Format.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Support/Format.h"
 #include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <iterator>
+#include <vector>
 
 using namespace llvm;
+
+#define DEBUG_TYPE "mips-constant-islands"
 
 STATISTIC(NumCPEs,       "Number of constpool entries");
 STATISTIC(NumSplit,      "Number of uncond branches inserted");
@@ -57,32 +69,122 @@ static cl::opt<bool>
 AlignConstantIslands("mips-align-constant-islands", cl::Hidden, cl::init(true),
           cl::desc("Align constant islands in code"));
 
-
 // Rather than do make check tests with huge amounts of code, we force
 // the test to use this amount.
-//
 static cl::opt<int> ConstantIslandsSmallOffset(
   "mips-constant-islands-small-offset",
   cl::init(0),
   cl::desc("Make small offsets be this amount for testing purposes"),
   cl::Hidden);
 
-//
 // For testing purposes we tell it to not use relaxed load forms so that it
 // will split blocks.
-//
 static cl::opt<bool> NoLoadRelaxation(
   "mips-constant-islands-no-load-relaxation",
   cl::init(false),
   cl::desc("Don't relax loads to long loads - for testing purposes"),
   cl::Hidden);
 
+static unsigned int branchTargetOperand(MachineInstr *MI) {
+  switch (MI->getOpcode()) {
+  case Mips::Bimm16:
+  case Mips::BimmX16:
+  case Mips::Bteqz16:
+  case Mips::BteqzX16:
+  case Mips::Btnez16:
+  case Mips::BtnezX16:
+  case Mips::JalB16:
+    return 0;
+  case Mips::BeqzRxImm16:
+  case Mips::BeqzRxImmX16:
+  case Mips::BnezRxImm16:
+  case Mips::BnezRxImmX16:
+    return 1;
+  }
+  llvm_unreachable("Unknown branch type");
+}
+
+static unsigned int longformBranchOpcode(unsigned int Opcode) {
+  switch (Opcode) {
+  case Mips::Bimm16:
+  case Mips::BimmX16:
+    return Mips::BimmX16;
+  case Mips::Bteqz16:
+  case Mips::BteqzX16:
+    return Mips::BteqzX16;
+  case Mips::Btnez16:
+  case Mips::BtnezX16:
+    return Mips::BtnezX16;
+  case Mips::JalB16:
+    return Mips::JalB16;
+  case Mips::BeqzRxImm16:
+  case Mips::BeqzRxImmX16:
+    return Mips::BeqzRxImmX16;
+  case Mips::BnezRxImm16:
+  case Mips::BnezRxImmX16:
+    return Mips::BnezRxImmX16;
+  }
+  llvm_unreachable("Unknown branch type");
+}
+
+// FIXME: need to go through this whole constant islands port and check the math
+// for branch ranges and clean this up and make some functions to calculate things
+// that are done many times identically.
+// Need to refactor some of the code to call this routine.
+static unsigned int branchMaxOffsets(unsigned int Opcode) {
+  unsigned Bits, Scale;
+  switch (Opcode) {
+    case Mips::Bimm16:
+      Bits = 11;
+      Scale = 2;
+      break;
+    case Mips::BimmX16:
+      Bits = 16;
+      Scale = 2;
+      break;
+    case Mips::BeqzRxImm16:
+      Bits = 8;
+      Scale = 2;
+      break;
+    case Mips::BeqzRxImmX16:
+      Bits = 16;
+      Scale = 2;
+      break;
+    case Mips::BnezRxImm16:
+      Bits = 8;
+      Scale = 2;
+      break;
+    case Mips::BnezRxImmX16:
+      Bits = 16;
+      Scale = 2;
+      break;
+    case Mips::Bteqz16:
+      Bits = 8;
+      Scale = 2;
+      break;
+    case Mips::BteqzX16:
+      Bits = 16;
+      Scale = 2;
+      break;
+    case Mips::Btnez16:
+      Bits = 8;
+      Scale = 2;
+      break;
+    case Mips::BtnezX16:
+      Bits = 16;
+      Scale = 2;
+      break;
+    default:
+      llvm_unreachable("Unknown branch type");
+  }
+  unsigned MaxOffs = ((1 << (Bits-1))-1) * Scale;
+  return MaxOffs;
+}
 
 namespace {
 
-
-  typedef MachineBasicBlock::iterator Iter;
-  typedef MachineBasicBlock::reverse_iterator ReverseIter;
+  using Iter = MachineBasicBlock::iterator;
+  using ReverseIter = MachineBasicBlock::reverse_iterator;
 
   /// MipsConstantIslands - Due to limited PC-relative displacements, Mips
   /// requires constant pool entries to be scattered among the instructions
@@ -97,7 +199,6 @@ namespace {
   ///             tracks a list of users.
 
   class MipsConstantIslands : public MachineFunctionPass {
-
     /// BasicBlockInfo - Information about the offset and size of a single
     /// basic block.
     struct BasicBlockInfo {
@@ -110,14 +211,16 @@ namespace {
       ///
       /// Because worst case padding is used, the computed offset of an aligned
       /// block may not actually be aligned.
-      unsigned Offset;
+      unsigned Offset = 0;
 
       /// Size - Size of the basic block in bytes.  If the block contains
       /// inline assembly, this is a worst case estimate.
       ///
       /// The size does not include any alignment padding whether from the
       /// beginning of the block, or from an aligned jump table at the end.
-      unsigned Size;
+      unsigned Size = 0;
+
+      BasicBlockInfo() = default;
 
       // FIXME: ignore LogAlign for this patch
       //
@@ -125,9 +228,6 @@ namespace {
         unsigned PO = Offset + Size;
         return PO;
       }
-
-      BasicBlockInfo() : Offset(0), Size(0) {}
-
     };
 
     std::vector<BasicBlockInfo> BBInfo;
@@ -141,7 +241,7 @@ namespace {
     /// previous iteration by inserting unconditional branches.
     SmallSet<MachineBasicBlock*, 4> NewWaterList;
 
-    typedef std::vector<MachineBasicBlock*>::iterator water_iterator;
+    using water_iterator = std::vector<MachineBasicBlock *>::iterator;
 
     /// CPUser - One user of a constant pool, keeping the machine instruction
     /// pointer, the constant pool being referenced, and the max displacement
@@ -159,13 +259,16 @@ namespace {
       MachineInstr *MI;
       MachineInstr *CPEMI;
       MachineBasicBlock *HighWaterMark;
+
     private:
       unsigned MaxDisp;
       unsigned LongFormMaxDisp; // mips16 has 16/32 bit instructions
                                 // with different displacements
       unsigned LongFormOpcode;
+
     public:
       bool NegOk;
+
       CPUser(MachineInstr *mi, MachineInstr *cpemi, unsigned maxdisp,
              bool neg,
              unsigned longformmaxdisp, unsigned longformopcode)
@@ -174,18 +277,22 @@ namespace {
           NegOk(neg){
         HighWaterMark = CPEMI->getParent();
       }
+
       /// getMaxDisp - Returns the maximum displacement supported by MI.
       unsigned getMaxDisp() const {
         unsigned xMaxDisp = ConstantIslandsSmallOffset?
                             ConstantIslandsSmallOffset: MaxDisp;
         return xMaxDisp;
       }
+
       void setMaxDisp(unsigned val) {
         MaxDisp = val;
       }
+
       unsigned getLongFormMaxDisp() const {
         return LongFormMaxDisp;
       }
+
       unsigned getLongFormOpcode() const {
           return LongFormOpcode;
       }
@@ -202,6 +309,7 @@ namespace {
     MachineInstr *CPEMI;
     unsigned CPI;
     unsigned RefCount;
+
     CPEntry(MachineInstr *cpemi, unsigned cpi, unsigned rc = 0)
       : CPEMI(cpemi), CPI(cpi), RefCount(rc) {}
   };
@@ -211,7 +319,7 @@ namespace {
   /// existed upon entry to this pass), it keeps a vector of entries.
   /// Original elements are cloned as we go along; the clones are
   /// put in the vector of the original element, but have distinct CPIs.
-  std::vector<std::vector<CPEntry> > CPEntries;
+  std::vector<std::vector<CPEntry>> CPEntries;
 
   /// ImmBranch - One per immediate branch, keeping the machine instruction
   /// pointer, conditional or unconditional, the max displacement,
@@ -222,6 +330,7 @@ namespace {
     unsigned MaxDisp : 31;
     bool isCond : 1;
     int UncondBr;
+
     ImmBranch(MachineInstr *mi, unsigned maxdisp, bool cond, int ubr)
       : MI(mi), MaxDisp(maxdisp), isCond(cond), UncondBr(ubr) {}
   };
@@ -234,22 +343,18 @@ namespace {
   /// the branch fix up pass.
   bool HasFarJump;
 
-  const TargetMachine &TM;
-  bool IsPIC;
-  unsigned ABI;
-  const MipsSubtarget *STI;
+  const MipsSubtarget *STI = nullptr;
   const Mips16InstrInfo *TII;
   MipsFunctionInfo *MFI;
-  MachineFunction *MF;
-  MachineConstantPool *MCP;
+  MachineFunction *MF = nullptr;
+  MachineConstantPool *MCP = nullptr;
 
   unsigned PICLabelUId;
-  bool PrescannedForConstants;
+  bool PrescannedForConstants = false;
 
   void initPICLabelUId(unsigned UId) {
     PICLabelUId = UId;
   }
-
 
   unsigned createPICLabelUId() {
     return PICLabelUId++;
@@ -257,38 +362,33 @@ namespace {
 
   public:
     static char ID;
-    MipsConstantIslands(TargetMachine &tm)
-      : MachineFunctionPass(ID), TM(tm),
-        IsPIC(TM.getRelocationModel() == Reloc::PIC_),
-        ABI(TM.getSubtarget<MipsSubtarget>().getTargetABI()),
-        STI(&TM.getSubtarget<MipsSubtarget>()), MF(0), MCP(0),
-        PrescannedForConstants(false){}
 
-    virtual const char *getPassName() const {
-      return "Mips Constant Islands";
+    MipsConstantIslands() : MachineFunctionPass(ID) {}
+
+    StringRef getPassName() const override { return "Mips Constant Islands"; }
+
+    bool runOnMachineFunction(MachineFunction &F) override;
+
+    MachineFunctionProperties getRequiredProperties() const override {
+      return MachineFunctionProperties().set(
+          MachineFunctionProperties::Property::NoVRegs);
     }
-
-    bool runOnMachineFunction(MachineFunction &F);
 
     void doInitialPlacement(std::vector<MachineInstr*> &CPEMIs);
     CPEntry *findConstPoolEntry(unsigned CPI, const MachineInstr *CPEMI);
-    unsigned getCPELogAlign(const MachineInstr *CPEMI);
+    unsigned getCPELogAlign(const MachineInstr &CPEMI);
     void initializeFunctionInfo(const std::vector<MachineInstr*> &CPEMIs);
     unsigned getOffsetOf(MachineInstr *MI) const;
     unsigned getUserOffset(CPUser&) const;
     void dumpBBs();
-    void verify();
 
     bool isOffsetInRange(unsigned UserOffset, unsigned TrialOffset,
                          unsigned Disp, bool NegativeOK);
     bool isOffsetInRange(unsigned UserOffset, unsigned TrialOffset,
                          const CPUser &U);
 
-    bool isLongFormOffsetInRange(unsigned UserOffset, unsigned TrialOffset,
-                                const CPUser &U);
-
     void computeBlockSize(MachineBasicBlock *MBB);
-    MachineBasicBlock *splitBlockBeforeInstr(MachineInstr *MI);
+    MachineBasicBlock *splitBlockBeforeInstr(MachineInstr &MI);
     void updateForInsertedWaterBlock(MachineBasicBlock *NewBB);
     void adjustBBOffsetsAfter(MachineBasicBlock *BB);
     bool decrementCPEReferenceCount(unsigned CPI, MachineInstr* CPEMI);
@@ -312,21 +412,11 @@ namespace {
     bool fixupUnconditionalBr(ImmBranch &Br);
 
     void prescanForConstants();
-
-  private:
-
   };
 
-  char MipsConstantIslands::ID = 0;
-} // end of anonymous namespace
+} // end anonymous namespace
 
-
-bool MipsConstantIslands::isLongFormOffsetInRange
-  (unsigned UserOffset, unsigned TrialOffset,
-   const CPUser &U) {
-  return isOffsetInRange(UserOffset, TrialOffset,
-                         U.getLongFormMaxDisp(), U.NegOk);
-}
+char MipsConstantIslands::ID = 0;
 
 bool MipsConstantIslands::isOffsetInRange
   (unsigned UserOffset, unsigned TrialOffset,
@@ -334,33 +424,29 @@ bool MipsConstantIslands::isOffsetInRange
   return isOffsetInRange(UserOffset, TrialOffset,
                          U.getMaxDisp(), U.NegOk);
 }
+
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 /// print block size and offset information - debugging
-void MipsConstantIslands::dumpBBs() {
-  DEBUG({
-    for (unsigned J = 0, E = BBInfo.size(); J !=E; ++J) {
-      const BasicBlockInfo &BBI = BBInfo[J];
-      dbgs() << format("%08x BB#%u\t", BBI.Offset, J)
-             << format(" size=%#x\n", BBInfo[J].Size);
-    }
-  });
+LLVM_DUMP_METHOD void MipsConstantIslands::dumpBBs() {
+  for (unsigned J = 0, E = BBInfo.size(); J !=E; ++J) {
+    const BasicBlockInfo &BBI = BBInfo[J];
+    dbgs() << format("%08x %bb.%u\t", BBI.Offset, J)
+           << format(" size=%#x\n", BBInfo[J].Size);
+  }
 }
-/// createMipsLongBranchPass - Returns a pass that converts branches to long
-/// branches.
-FunctionPass *llvm::createMipsConstantIslandPass(MipsTargetMachine &tm) {
-  return new MipsConstantIslands(tm);
-}
+#endif
 
 bool MipsConstantIslands::runOnMachineFunction(MachineFunction &mf) {
   // The intention is for this to be a mips16 only pass for now
   // FIXME:
   MF = &mf;
   MCP = mf.getConstantPool();
+  STI = &static_cast<const MipsSubtarget &>(mf.getSubtarget());
   DEBUG(dbgs() << "constant island machine function " << "\n");
-  if (!TM.getSubtarget<MipsSubtarget>().inMips16Mode() ||
-      !MipsSubtarget::useConstantIslands()) {
+  if (!STI->inMips16Mode() || !MipsSubtarget::useConstantIslands()) {
     return false;
   }
-  TII = (const Mips16InstrInfo*)MF->getTarget().getInstrInfo();
+  TII = (const Mips16InstrInfo *)STI->getInstrInfo();
   MFI = MF->getInfo<MipsFunctionInfo>();
   DEBUG(dbgs() << "constant island processing " << "\n");
   //
@@ -445,7 +531,6 @@ MipsConstantIslands::doInitialPlacement(std::vector<MachineInstr*> &CPEMIs) {
   MachineBasicBlock *BB = MF->CreateMachineBasicBlock();
   MF->push_back(BB);
 
-
   // MachineConstantPool measures alignment in bytes. We measure in log2(bytes).
   unsigned MaxAlign = Log2_32(MCP->getConstantPoolAlignment());
 
@@ -467,7 +552,7 @@ MipsConstantIslands::doInitialPlacement(std::vector<MachineInstr*> &CPEMIs) {
   // identity mapping of CPI's to CPE's.
   const std::vector<MachineConstantPoolEntry> &CPs = MCP->getConstants();
 
-  const DataLayout &TD = *MF->getTarget().getDataLayout();
+  const DataLayout &TD = MF->getDataLayout();
   for (unsigned i = 0, e = CPs.size(); i != e; ++i) {
     unsigned Size = TD.getTypeAllocSize(CPs[i].getType());
     assert(Size >= 4 && "Too small constant pool entry");
@@ -493,9 +578,7 @@ MipsConstantIslands::doInitialPlacement(std::vector<MachineInstr*> &CPEMIs) {
       if (InsPoint[a] == InsAt)
         InsPoint[a] = CPEMI;
     // Add a new CPEntry, but no corresponding CPUser yet.
-    std::vector<CPEntry> CPEs;
-    CPEs.push_back(CPEntry(CPEMI, i));
-    CPEntries.push_back(CPEs);
+    CPEntries.emplace_back(1, CPEntry(CPEMI, i));
     ++NumCPEs;
     DEBUG(dbgs() << "Moved CPI#" << i << " to end of function, size = "
                  << Size << ", align = " << Align <<'\n');
@@ -507,12 +590,12 @@ MipsConstantIslands::doInitialPlacement(std::vector<MachineInstr*> &CPEMIs) {
 /// into the block immediately after it.
 static bool BBHasFallthrough(MachineBasicBlock *MBB) {
   // Get the next machine basic block in the function.
-  MachineFunction::iterator MBBI = MBB;
+  MachineFunction::iterator MBBI = MBB->getIterator();
   // Can't fall off end of function.
-  if (llvm::next(MBBI) == MBB->getParent()->end())
+  if (std::next(MBBI) == MBB->getParent()->end())
     return false;
 
-  MachineBasicBlock *NextBB = llvm::next(MBBI);
+  MachineBasicBlock *NextBB = &*std::next(MBBI);
   for (MachineBasicBlock::succ_iterator I = MBB->succ_begin(),
        E = MBB->succ_end(); I != E; ++I)
     if (*I == NextBB)
@@ -533,19 +616,19 @@ MipsConstantIslands::CPEntry
     if (CPEs[i].CPEMI == CPEMI)
       return &CPEs[i];
   }
-  return NULL;
+  return nullptr;
 }
 
 /// getCPELogAlign - Returns the required alignment of the constant pool entry
 /// represented by CPEMI.  Alignment is measured in log2(bytes) units.
-unsigned MipsConstantIslands::getCPELogAlign(const MachineInstr *CPEMI) {
-  assert(CPEMI && CPEMI->getOpcode() == Mips::CONSTPOOL_ENTRY);
+unsigned MipsConstantIslands::getCPELogAlign(const MachineInstr &CPEMI) {
+  assert(CPEMI.getOpcode() == Mips::CONSTPOOL_ENTRY);
 
   // Everything is 4-byte aligned unless AlignConstantIslands is set.
   if (!AlignConstantIslands)
     return 2;
 
-  unsigned CPI = CPEMI->getOperand(1).getIndex();
+  unsigned CPI = CPEMI.getOperand(1).getIndex();
   assert(CPI < MCP->getConstants().size() && "Invalid constant pool index.");
   unsigned Align = MCP->getConstants()[CPI].getAlignment();
   assert(isPowerOf2_32(Align) && "Invalid CPE alignment");
@@ -565,28 +648,23 @@ initializeFunctionInfo(const std::vector<MachineInstr*> &CPEMIs) {
   // alignment assumptions, as we don't know for sure the size of any
   // instructions in the inline assembly.
   for (MachineFunction::iterator I = MF->begin(), E = MF->end(); I != E; ++I)
-    computeBlockSize(I);
-
+    computeBlockSize(&*I);
 
   // Compute block offsets.
-  adjustBBOffsetsAfter(MF->begin());
+  adjustBBOffsetsAfter(&MF->front());
 
   // Now go back through the instructions and build up our data structures.
-  for (MachineFunction::iterator MBBI = MF->begin(), E = MF->end();
-       MBBI != E; ++MBBI) {
-    MachineBasicBlock &MBB = *MBBI;
-
+  for (MachineBasicBlock &MBB : *MF) {
     // If this block doesn't fall through into the next MBB, then this is
     // 'water' that a constant pool island could be placed.
     if (!BBHasFallthrough(&MBB))
       WaterList.push_back(&MBB);
-    for (MachineBasicBlock::iterator I = MBB.begin(), E = MBB.end();
-         I != E; ++I) {
-      if (I->isDebugValue())
+    for (MachineInstr &MI : MBB) {
+      if (MI.isDebugValue())
         continue;
 
-      int Opc = I->getOpcode();
-      if (I->isBranch()) {
+      int Opc = MI.getOpcode();
+      if (MI.isBranch()) {
         bool isCond = false;
         unsigned Bits = 0;
         unsigned Scale = 1;
@@ -603,20 +681,67 @@ initializeFunctionInfo(const std::vector<MachineInstr*> &CPEMIs) {
           Bits = 16;
           Scale = 2;
           isCond = false;
+          break;
+        case Mips::BeqzRxImm16:
+          UOpc=Mips::Bimm16;
+          Bits = 8;
+          Scale = 2;
+          isCond = true;
+          break;
+        case Mips::BeqzRxImmX16:
+          UOpc=Mips::Bimm16;
+          Bits = 16;
+          Scale = 2;
+          isCond = true;
+          break;
+        case Mips::BnezRxImm16:
+          UOpc=Mips::Bimm16;
+          Bits = 8;
+          Scale = 2;
+          isCond = true;
+          break;
+        case Mips::BnezRxImmX16:
+          UOpc=Mips::Bimm16;
+          Bits = 16;
+          Scale = 2;
+          isCond = true;
+          break;
+        case Mips::Bteqz16:
+          UOpc=Mips::Bimm16;
+          Bits = 8;
+          Scale = 2;
+          isCond = true;
+          break;
+        case Mips::BteqzX16:
+          UOpc=Mips::Bimm16;
+          Bits = 16;
+          Scale = 2;
+          isCond = true;
+          break;
+        case Mips::Btnez16:
+          UOpc=Mips::Bimm16;
+          Bits = 8;
+          Scale = 2;
+          isCond = true;
+          break;
+        case Mips::BtnezX16:
+          UOpc=Mips::Bimm16;
+          Bits = 16;
+          Scale = 2;
+          isCond = true;
+          break;
         }
         // Record this immediate branch.
         unsigned MaxOffs = ((1 << (Bits-1))-1) * Scale;
-        ImmBranches.push_back(ImmBranch(I, MaxOffs, isCond, UOpc));
+        ImmBranches.push_back(ImmBranch(&MI, MaxOffs, isCond, UOpc));
       }
 
       if (Opc == Mips::CONSTPOOL_ENTRY)
         continue;
 
-
       // Scan the instructions for constant pool operands.
-      for (unsigned op = 0, e = I->getNumOperands(); op != e; ++op)
-        if (I->getOperand(op).isCPI()) {
-
+      for (unsigned op = 0, e = MI.getNumOperands(); op != e; ++op)
+        if (MI.getOperand(op).isCPI()) {
           // We found one.  The addressing mode tells us the max displacement
           // from the PC that this instruction permits.
 
@@ -634,22 +759,22 @@ initializeFunctionInfo(const std::vector<MachineInstr*> &CPEMIs) {
             Bits = 8;
             Scale = 4;
             LongFormOpcode = Mips::LwRxPcTcpX16;
-            LongFormBits = 16;
+            LongFormBits = 14;
             LongFormScale = 1;
             break;
           case Mips::LwRxPcTcpX16:
-            Bits = 16;
+            Bits = 14;
             Scale = 1;
             NegOk = true;
             break;
           }
           // Remember that this is a user of a CP entry.
-          unsigned CPI = I->getOperand(op).getIndex();
+          unsigned CPI = MI.getOperand(op).getIndex();
           MachineInstr *CPEMI = CPEMIs[CPI];
           unsigned MaxOffs = ((1 << Bits)-1) * Scale;
           unsigned LongFormMaxOffs = ((1 << LongFormBits)-1) * LongFormScale;
-          CPUsers.push_back(CPUser(I, CPEMI, MaxOffs, NegOk,
-                                   LongFormMaxOffs, LongFormOpcode));
+          CPUsers.push_back(CPUser(&MI, CPEMI, MaxOffs, NegOk, LongFormMaxOffs,
+                                   LongFormOpcode));
 
           // Increment corresponding CPEntry reference count.
           CPEntry *CPE = findConstPoolEntry(CPI, CPEMI);
@@ -659,12 +784,9 @@ initializeFunctionInfo(const std::vector<MachineInstr*> &CPEMIs) {
           // Instructions can only use one CP entry, don't bother scanning the
           // rest of the operands.
           break;
-
         }
-
     }
   }
-
 }
 
 /// computeBlockSize - Compute the size and some alignment information for MBB.
@@ -673,10 +795,8 @@ void MipsConstantIslands::computeBlockSize(MachineBasicBlock *MBB) {
   BasicBlockInfo &BBI = BBInfo[MBB->getNumber()];
   BBI.Size = 0;
 
-  for (MachineBasicBlock::iterator I = MBB->begin(), E = MBB->end(); I != E;
-       ++I)
-    BBI.Size += TII->GetInstSizeInBytes(I);
-
+  for (const MachineInstr &MI : *MBB)
+    BBI.Size += TII->getInstSizeInBytes(MI);
 }
 
 /// getOffsetOf - Return the current offset of the specified machine instruction
@@ -693,7 +813,7 @@ unsigned MipsConstantIslands::getOffsetOf(MachineInstr *MI) const {
   // Sum instructions before MI in MBB.
   for (MachineBasicBlock::iterator I = MBB->begin(); &*I != MI; ++I) {
     assert(I != MBB->end() && "Didn't find MI in its own basic block?");
-    Offset += TII->GetInstSizeInBytes(I);
+    Offset += TII->getInstSizeInBytes(*I);
   }
   return Offset;
 }
@@ -732,14 +852,14 @@ unsigned MipsConstantIslands::getUserOffset(CPUser &U) const {
 /// Split the basic block containing MI into two blocks, which are joined by
 /// an unconditional branch.  Update data structures and renumber blocks to
 /// account for this change and returns the newly created block.
-MachineBasicBlock *MipsConstantIslands::splitBlockBeforeInstr
-  (MachineInstr *MI) {
-  MachineBasicBlock *OrigBB = MI->getParent();
+MachineBasicBlock *
+MipsConstantIslands::splitBlockBeforeInstr(MachineInstr &MI) {
+  MachineBasicBlock *OrigBB = MI.getParent();
 
   // Create a new MBB for the code after the OrigBB.
   MachineBasicBlock *NewBB =
     MF->CreateMachineBasicBlock(OrigBB->getBasicBlock());
-  MachineFunction::iterator MBBI = OrigBB; ++MBBI;
+  MachineFunction::iterator MBBI = ++OrigBB->getIterator();
   MF->insert(MBBI, NewBB);
 
   // Splice the instructions starting with MI over to NewBB.
@@ -776,7 +896,7 @@ MachineBasicBlock *MipsConstantIslands::splitBlockBeforeInstr
                      CompareMBBNumbers);
   MachineBasicBlock* WaterBB = *IP;
   if (WaterBB == OrigBB)
-    WaterList.insert(llvm::next(IP), NewBB);
+    WaterList.insert(std::next(IP), NewBB);
   else
     WaterList.insert(IP, OrigBB);
   NewWaterList.insert(OrigBB);
@@ -797,8 +917,6 @@ MachineBasicBlock *MipsConstantIslands::splitBlockBeforeInstr
 
   return NewBB;
 }
-
-
 
 /// isOffsetInRange - Checks whether UserOffset (the location of a constant pool
 /// reference) is within MaxDisp of TrialOffset (a proposed location of a
@@ -824,11 +942,11 @@ bool MipsConstantIslands::isOffsetInRange(unsigned UserOffset,
 bool MipsConstantIslands::isWaterInRange(unsigned UserOffset,
                                         MachineBasicBlock* Water, CPUser &U,
                                         unsigned &Growth) {
-  unsigned CPELogAlign = getCPELogAlign(U.CPEMI);
+  unsigned CPELogAlign = getCPELogAlign(*U.CPEMI);
   unsigned CPEOffset = BBInfo[Water->getNumber()].postOffset(CPELogAlign);
   unsigned NextBlockOffset, NextBlockAlignment;
-  MachineFunction::const_iterator NextBlock = Water;
-  if (++NextBlock == MF->end()) {
+  MachineFunction::const_iterator NextBlock = ++Water->getIterator();
+  if (NextBlock == MF->end()) {
     NextBlockOffset = BBInfo[Water->getNumber()].postOffset();
     NextBlockAlignment = 0;
   } else {
@@ -845,7 +963,7 @@ bool MipsConstantIslands::isWaterInRange(unsigned UserOffset,
     Growth = CPEEnd - NextBlockOffset;
     // Compute the padding that would go at the end of the CPE to align the next
     // block.
-    Growth += OffsetToAlignment(CPEEnd, 1u << NextBlockAlignment);
+    Growth += OffsetToAlignment(CPEEnd, 1ULL << NextBlockAlignment);
 
     // If the CPE is to be inserted before the instruction, that will raise
     // the offset of the instruction. Also account for unknown alignment padding
@@ -873,11 +991,11 @@ bool MipsConstantIslands::isCPEntryInRange
       const BasicBlockInfo &BBI = BBInfo[Block];
       dbgs() << "User of CPE#" << CPEMI->getOperand(0).getImm()
              << " max delta=" << MaxDisp
-             << format(" insn address=%#x", UserOffset)
-             << " in BB#" << Block << ": "
+             << format(" insn address=%#x", UserOffset) << " in "
+             << printMBBReference(*MI->getParent()) << ": "
              << format("%#x-%x\t", BBI.Offset, BBI.postOffset()) << *MI
              << format("CPE address=%#x offset=%+d: ", CPEOffset,
-                       int(CPEOffset-UserOffset));
+                       int(CPEOffset - UserOffset));
     });
   }
 
@@ -913,7 +1031,6 @@ void MipsConstantIslands::adjustBBOffsetsAfter(MachineBasicBlock *BB) {
 /// and instruction CPEMI, and decrement its refcount.  If the refcount
 /// becomes 0 remove the entry and instruction.  Returns true if we removed
 /// the entry, false if we didn't.
-
 bool MipsConstantIslands::decrementCPEReferenceCount(unsigned CPI,
                                                     MachineInstr *CPEMI) {
   // Find the old entry. Eliminate it if it is no longer used.
@@ -921,7 +1038,7 @@ bool MipsConstantIslands::decrementCPEReferenceCount(unsigned CPI,
   assert(CPE && "Unexpected!");
   if (--CPE->RefCount == 0) {
     removeDeadCPEMI(CPEMI);
-    CPE->CPEMI = NULL;
+    CPE->CPEMI = nullptr;
     --NumCPEs;
     return true;
   }
@@ -954,7 +1071,7 @@ int MipsConstantIslands::findInRangeCPEntry(CPUser& U, unsigned UserOffset)
     if (CPEs[i].CPEMI == CPEMI)
       continue;
     // Removing CPEs can leave empty entries, skip
-    if (CPEs[i].CPEMI == NULL)
+    if (CPEs[i].CPEMI == nullptr)
       continue;
     if (isCPEntryInRange(UserMI, UserOffset, CPEs[i].CPEMI, U.getMaxDisp(),
                      U.NegOk)) {
@@ -1010,7 +1127,7 @@ int MipsConstantIslands::findLongFormInRangeCPEntry
     if (CPEs[i].CPEMI == CPEMI)
       continue;
     // Removing CPEs can leave empty entries, skip
-    if (CPEs[i].CPEMI == NULL)
+    if (CPEs[i].CPEMI == nullptr)
       continue;
     if (isCPEntryInRange(UserMI, UserOffset, CPEs[i].CPEMI,
                          U.getLongFormMaxDisp(), U.NegOk)) {
@@ -1062,7 +1179,7 @@ bool MipsConstantIslands::findAvailableWater(CPUser &U, unsigned UserOffset,
     return false;
 
   unsigned BestGrowth = ~0u;
-  for (water_iterator IP = prior(WaterList.end()), B = WaterList.begin();;
+  for (water_iterator IP = std::prev(WaterList.end()), B = WaterList.begin();;
        --IP) {
     MachineBasicBlock* WaterBB = *IP;
     // Check if water is in range and is either at a lower address than the
@@ -1080,7 +1197,7 @@ bool MipsConstantIslands::findAvailableWater(CPUser &U, unsigned UserOffset,
       // This is the least amount of required padding seen so far.
       BestGrowth = Growth;
       WaterIter = IP;
-      DEBUG(dbgs() << "Found water after BB#" << WaterBB->getNumber()
+      DEBUG(dbgs() << "Found water after " << printMBBReference(*WaterBB)
                    << " Growth=" << Growth << '\n');
 
       // Keep looking unless it is perfect.
@@ -1106,7 +1223,7 @@ void MipsConstantIslands::createNewWater(unsigned CPUserIndex,
   CPUser &U = CPUsers[CPUserIndex];
   MachineInstr *UserMI = U.MI;
   MachineInstr *CPEMI  = U.CPEMI;
-  unsigned CPELogAlign = getCPELogAlign(CPEMI);
+  unsigned CPELogAlign = getCPELogAlign(*CPEMI);
   MachineBasicBlock *UserMBB = UserMI->getParent();
   const BasicBlockInfo &UserBBI = BBInfo[UserMBB->getNumber()];
 
@@ -1119,9 +1236,9 @@ void MipsConstantIslands::createNewWater(unsigned CPUserIndex,
     unsigned CPEOffset = UserBBI.postOffset(CPELogAlign) + Delta;
 
     if (isOffsetInRange(UserOffset, CPEOffset, U)) {
-      DEBUG(dbgs() << "Split at end of BB#" << UserMBB->getNumber()
-            << format(", expected CPE offset %#x\n", CPEOffset));
-      NewMBB = llvm::next(MachineFunction::iterator(UserMBB));
+      DEBUG(dbgs() << "Split at end of " << printMBBReference(*UserMBB)
+                   << format(", expected CPE offset %#x\n", CPEOffset));
+      NewMBB = &*++UserMBB->getIterator();
       // Add an unconditional branch from UserMBB to fallthrough block.  Record
       // it for branch lengthening; this new branch will not get out of range,
       // but if the preceding conditional branch is out of range, the targets
@@ -1172,10 +1289,9 @@ void MipsConstantIslands::createNewWater(unsigned CPUserIndex,
   unsigned CPUIndex = CPUserIndex+1;
   unsigned NumCPUsers = CPUsers.size();
   //MachineInstr *LastIT = 0;
-  for (unsigned Offset = UserOffset+TII->GetInstSizeInBytes(UserMI);
+  for (unsigned Offset = UserOffset + TII->getInstSizeInBytes(*UserMI);
        Offset < BaseInsertOffset;
-       Offset += TII->GetInstSizeInBytes(MI),
-       MI = llvm::next(MI)) {
+       Offset += TII->getInstSizeInBytes(*MI), MI = std::next(MI)) {
     assert(MI != UserMBB->end() && "Fell off end of block");
     if (CPUIndex < NumCPUsers && CPUsers[CPUIndex].MI == MI) {
       CPUser &U = CPUsers[CPUIndex];
@@ -1193,8 +1309,7 @@ void MipsConstantIslands::createNewWater(unsigned CPUserIndex,
     }
   }
 
-  --MI;
-  NewMBB = splitBlockBeforeInstr(MI);
+  NewMBB = splitBlockBeforeInstr(*--MI);
 }
 
 /// handleConstantPoolUser - Analyze the specified user, checking to see if it
@@ -1216,7 +1331,6 @@ bool MipsConstantIslands::handleConstantPoolUser(unsigned CPUserIndex) {
   if (result==1) return false;
   else if (result==2) return true;
 
-
   // Look for water where we can place this CPE.
   MachineBasicBlock *NewIsland = MF->CreateMachineBasicBlock();
   MachineBasicBlock *NewMBB;
@@ -1232,8 +1346,7 @@ bool MipsConstantIslands::handleConstantPoolUser(unsigned CPUserIndex) {
       NewWaterList.insert(NewIsland);
 
     // The new CPE goes before the following block (NewMBB).
-    NewMBB = llvm::next(MachineFunction::iterator(WaterBB));
-
+    NewMBB = &*++WaterBB->getIterator();
   } else {
     // No water found.
     // we first see if a longer form of the instrucion could have reached
@@ -1250,8 +1363,8 @@ bool MipsConstantIslands::handleConstantPoolUser(unsigned CPUserIndex) {
     // next iteration for constant pools, but in this context, we don't want
     // it.  Check for this so it will be removed from the WaterList.
     // Also remove any entry from NewWaterList.
-    MachineBasicBlock *WaterBB = prior(MachineFunction::iterator(NewMBB));
-    IP = std::find(WaterList.begin(), WaterList.end(), WaterBB);
+    MachineBasicBlock *WaterBB = &*--NewMBB->getIterator();
+    IP = llvm::find(WaterList, WaterBB);
     if (IP != WaterList.end())
       NewWaterList.erase(WaterBB);
 
@@ -1267,13 +1380,17 @@ bool MipsConstantIslands::handleConstantPoolUser(unsigned CPUserIndex) {
     WaterList.erase(IP);
 
   // Okay, we know we can put an island before NewMBB now, do it!
-  MF->insert(NewMBB, NewIsland);
+  MF->insert(NewMBB->getIterator(), NewIsland);
 
   // Update internal data structures to account for the newly inserted MBB.
   updateForInsertedWaterBlock(NewIsland);
 
   // Decrement the old entry, and remove it if refcount becomes 0.
   decrementCPEReferenceCount(CPI, CPEMI);
+
+  // No existing clone of this CPE is within range.
+  // We will be generating a new clone.  Get a UID for it.
+  unsigned ID = createPICLabelUId();
 
   // Now that we have an island to add the CPE to, clone the original CPE and
   // add it to the island.
@@ -1284,15 +1401,11 @@ bool MipsConstantIslands::handleConstantPoolUser(unsigned CPUserIndex) {
   ++NumCPEs;
 
   // Mark the basic block as aligned as required by the const-pool entry.
-  NewIsland->setAlignment(getCPELogAlign(U.CPEMI));
+  NewIsland->setAlignment(getCPELogAlign(*U.CPEMI));
 
   // Increase the size of the island block to account for the new entry.
   BBInfo[NewIsland->getNumber()].Size += Size;
-  adjustBBOffsetsAfter(llvm::prior(MachineFunction::iterator(NewIsland)));
-
-  // No existing clone of this CPE is within range.
-  // We will be generating a new clone.  Get a UID for it.
-  unsigned ID = createPICLabelUId();
+  adjustBBOffsetsAfter(&*--NewIsland->getIterator());
 
   // Finally, change the CPI in the instruction operand to be ID.
   for (unsigned i = 0, e = UserMI->getNumOperands(); i != e; ++i)
@@ -1322,7 +1435,7 @@ void MipsConstantIslands::removeDeadCPEMI(MachineInstr *CPEMI) {
     CPEBB->setAlignment(0);
   } else
     // Entries are sorted by descending alignment, so realign from the front.
-    CPEBB->setAlignment(getCPELogAlign(CPEBB->begin()));
+    CPEBB->setAlignment(getCPELogAlign(*CPEBB->begin()));
 
   adjustBBOffsetsAfter(CPEBB);
   // An island has only one predecessor BB and one successor BB. Check if
@@ -1341,7 +1454,7 @@ bool MipsConstantIslands::removeUnusedCPEntries() {
       for (unsigned j = 0, ee = CPEs.size(); j != ee; ++j) {
         if (CPEs[j].RefCount == 0 && CPEs[j].CPEMI) {
           removeDeadCPEMI(CPEs[j].CPEMI);
-          CPEs[j].CPEMI = NULL;
+          CPEs[j].CPEMI = nullptr;
           MadeChange = true;
         }
       }
@@ -1353,17 +1466,15 @@ bool MipsConstantIslands::removeUnusedCPEntries() {
 /// specific BB can fit in MI's displacement field.
 bool MipsConstantIslands::isBBInRange
   (MachineInstr *MI,MachineBasicBlock *DestBB, unsigned MaxDisp) {
-
-unsigned PCAdj = 4;
-
+  unsigned PCAdj = 4;
   unsigned BrOffset   = getOffsetOf(MI) + PCAdj;
   unsigned DestOffset = BBInfo[DestBB->getNumber()].Offset;
 
-  DEBUG(dbgs() << "Branch of destination BB#" << DestBB->getNumber()
-               << " from BB#" << MI->getParent()->getNumber()
-               << " max delta=" << MaxDisp
-               << " from " << getOffsetOf(MI) << " to " << DestOffset
-               << " offset " << int(DestOffset-BrOffset) << "\t" << *MI);
+  DEBUG(dbgs() << "Branch of destination " << printMBBReference(*DestBB)
+               << " from " << printMBBReference(*MI->getParent())
+               << " max delta=" << MaxDisp << " from " << getOffsetOf(MI)
+               << " to " << DestOffset << " offset "
+               << int(DestOffset - BrOffset) << "\t" << *MI);
 
   if (BrOffset <= DestOffset) {
     // Branch before the Dest.
@@ -1380,7 +1491,8 @@ unsigned PCAdj = 4;
 /// away to fit in its displacement field.
 bool MipsConstantIslands::fixupImmediateBr(ImmBranch &Br) {
   MachineInstr *MI = Br.MI;
-  MachineBasicBlock *DestBB = MI->getOperand(0).getMBB();
+  unsigned TargetOperand = branchTargetOperand(MI);
+  MachineBasicBlock *DestBB = MI->getOperand(TargetOperand).getMBB();
 
   // Check to see if the DestBB is already in-range.
   if (isBBInRange(MI, DestBB, Br.MaxDisp))
@@ -1399,9 +1511,29 @@ bool
 MipsConstantIslands::fixupUnconditionalBr(ImmBranch &Br) {
   MachineInstr *MI = Br.MI;
   MachineBasicBlock *MBB = MI->getParent();
+  MachineBasicBlock *DestBB = MI->getOperand(0).getMBB();
   // Use BL to implement far jump.
-  Br.MaxDisp = ((1 << 16)-1) * 2;
-  MI->setDesc(TII->get(Mips::BimmX16));
+  unsigned BimmX16MaxDisp = ((1 << 16)-1) * 2;
+  if (isBBInRange(MI, DestBB, BimmX16MaxDisp)) {
+    Br.MaxDisp = BimmX16MaxDisp;
+    MI->setDesc(TII->get(Mips::BimmX16));
+  }
+  else {
+    // need to give the math a more careful look here
+    // this is really a segment address and not
+    // a PC relative address. FIXME. But I think that
+    // just reducing the bits by 1 as I've done is correct.
+    // The basic block we are branching too much be longword aligned.
+    // we know that RA is saved because we always save it right now.
+    // this requirement will be relaxed later but we also have an alternate
+    // way to implement this that I will implement that does not need jal.
+    // We should have a way to back out this alignment restriction if we "can" later.
+    // but it is not harmful.
+    //
+    DestBB->setAlignment(2);
+    Br.MaxDisp = ((1<<24)-1) * 2;
+    MI->setDesc(TII->get(Mips::JalB16));
+  }
   BBInfo[MBB->getNumber()].Size += 2;
   adjustBBOffsetsAfter(MBB);
   HasFarJump = true;
@@ -1418,17 +1550,26 @@ MipsConstantIslands::fixupUnconditionalBr(ImmBranch &Br) {
 bool
 MipsConstantIslands::fixupConditionalBr(ImmBranch &Br) {
   MachineInstr *MI = Br.MI;
-  MachineBasicBlock *DestBB = MI->getOperand(0).getMBB();
+  unsigned TargetOperand = branchTargetOperand(MI);
+  MachineBasicBlock *DestBB = MI->getOperand(TargetOperand).getMBB();
+  unsigned Opcode = MI->getOpcode();
+  unsigned LongFormOpcode = longformBranchOpcode(Opcode);
+  unsigned LongFormMaxOff = branchMaxOffsets(LongFormOpcode);
+
+  // Check to see if the DestBB is already in-range.
+  if (isBBInRange(MI, DestBB, LongFormMaxOff)) {
+    Br.MaxDisp = LongFormMaxOff;
+    MI->setDesc(TII->get(LongFormOpcode));
+    return true;
+  }
 
   // Add an unconditional branch to the destination and invert the branch
   // condition to jump over it:
-  // blt L1
+  // bteqz L1
   // =>
-  // bge L2
+  // bnez L2
   // b   L1
   // L2:
-  unsigned CCReg = 0;  // FIXME
-  unsigned CC=0; //FIXME
 
   // If the branch is at the end of its MBB and that has a fall-through block,
   // direct the updated conditional branch to the fall-through block. Otherwise,
@@ -1436,82 +1577,91 @@ MipsConstantIslands::fixupConditionalBr(ImmBranch &Br) {
   MachineBasicBlock *MBB = MI->getParent();
   MachineInstr *BMI = &MBB->back();
   bool NeedSplit = (BMI != MI) || !BBHasFallthrough(MBB);
-
+  unsigned OppositeBranchOpcode = TII->getOppositeBranchOpc(Opcode);
+ 
   ++NumCBrFixed;
   if (BMI != MI) {
-    if (llvm::next(MachineBasicBlock::iterator(MI)) == prior(MBB->end()) &&
-        BMI->getOpcode() == Br.UncondBr) {
+    if (std::next(MachineBasicBlock::iterator(MI)) == std::prev(MBB->end()) &&
+        BMI->isUnconditionalBranch()) {
       // Last MI in the BB is an unconditional branch. Can we simply invert the
       // condition and swap destinations:
-      // beq L1
+      // beqz L1
       // b   L2
       // =>
-      // bne L2
+      // bnez L2
       // b   L1
-      MachineBasicBlock *NewDest = BMI->getOperand(0).getMBB();
+      unsigned BMITargetOperand = branchTargetOperand(BMI);
+      MachineBasicBlock *NewDest = 
+        BMI->getOperand(BMITargetOperand).getMBB();
       if (isBBInRange(MI, NewDest, Br.MaxDisp)) {
         DEBUG(dbgs() << "  Invert Bcc condition and swap its destination with "
                      << *BMI);
-        BMI->getOperand(0).setMBB(DestBB);
-        MI->getOperand(0).setMBB(NewDest);
+        MI->setDesc(TII->get(OppositeBranchOpcode));
+        BMI->getOperand(BMITargetOperand).setMBB(DestBB);
+        MI->getOperand(TargetOperand).setMBB(NewDest);
         return true;
       }
     }
   }
 
   if (NeedSplit) {
-    splitBlockBeforeInstr(MI);
+    splitBlockBeforeInstr(*MI);
     // No need for the branch to the next block. We're adding an unconditional
     // branch to the destination.
-    int delta = TII->GetInstSizeInBytes(&MBB->back());
+    int delta = TII->getInstSizeInBytes(MBB->back());
     BBInfo[MBB->getNumber()].Size -= delta;
     MBB->back().eraseFromParent();
     // BBInfo[SplitBB].Offset is wrong temporarily, fixed below
   }
-  MachineBasicBlock *NextBB = llvm::next(MachineFunction::iterator(MBB));
+  MachineBasicBlock *NextBB = &*++MBB->getIterator();
 
-  DEBUG(dbgs() << "  Insert B to BB#" << DestBB->getNumber()
-               << " also invert condition and change dest. to BB#"
-               << NextBB->getNumber() << "\n");
+  DEBUG(dbgs() << "  Insert B to " << printMBBReference(*DestBB)
+               << " also invert condition and change dest. to "
+               << printMBBReference(*NextBB) << "\n");
 
   // Insert a new conditional branch and a new unconditional branch.
   // Also update the ImmBranch as well as adding a new entry for the new branch.
-  BuildMI(MBB, DebugLoc(), TII->get(MI->getOpcode()))
-    .addMBB(NextBB).addImm(CC).addReg(CCReg);
+  if (MI->getNumExplicitOperands() == 2) {
+    BuildMI(MBB, DebugLoc(), TII->get(OppositeBranchOpcode))
+           .addReg(MI->getOperand(0).getReg())
+           .addMBB(NextBB);
+  } else {
+    BuildMI(MBB, DebugLoc(), TII->get(OppositeBranchOpcode))
+           .addMBB(NextBB);
+  }
   Br.MI = &MBB->back();
-  BBInfo[MBB->getNumber()].Size += TII->GetInstSizeInBytes(&MBB->back());
+  BBInfo[MBB->getNumber()].Size += TII->getInstSizeInBytes(MBB->back());
   BuildMI(MBB, DebugLoc(), TII->get(Br.UncondBr)).addMBB(DestBB);
-  BBInfo[MBB->getNumber()].Size += TII->GetInstSizeInBytes(&MBB->back());
+  BBInfo[MBB->getNumber()].Size += TII->getInstSizeInBytes(MBB->back());
   unsigned MaxDisp = getUnconditionalBrDisp(Br.UncondBr);
   ImmBranches.push_back(ImmBranch(&MBB->back(), MaxDisp, false, Br.UncondBr));
 
   // Remove the old conditional branch.  It may or may not still be in MBB.
-  BBInfo[MI->getParent()->getNumber()].Size -= TII->GetInstSizeInBytes(MI);
+  BBInfo[MI->getParent()->getNumber()].Size -= TII->getInstSizeInBytes(*MI);
   MI->eraseFromParent();
   adjustBBOffsetsAfter(MBB);
   return true;
 }
 
-
 void MipsConstantIslands::prescanForConstants() {
   unsigned J = 0;
   (void)J;
-  PrescannedForConstants = true;
   for (MachineFunction::iterator B =
          MF->begin(), E = MF->end(); B != E; ++B) {
     for (MachineBasicBlock::instr_iterator I =
         B->instr_begin(), EB = B->instr_end(); I != EB; ++I) {
       switch(I->getDesc().getOpcode()) {
         case Mips::LwConstant32: {
+          PrescannedForConstants = true;
           DEBUG(dbgs() << "constant island constant " << *I << "\n");
           J = I->getNumOperands();
-          DEBUG(dbgs() << "num operands " << J  << "\n");
+          DEBUG(dbgs() << "num operands " << J << "\n");
           MachineOperand& Literal = I->getOperand(1);
           if (Literal.isImm()) {
             int64_t V = Literal.getImm();
-            DEBUG(dbgs() << "literal " << V  << "\n");
+            DEBUG(dbgs() << "literal " << V << "\n");
             Type *Int32Ty =
-              Type::getInt32Ty(MF->getFunction()->getContext());
+              Type::getInt32Ty(MF->getFunction().getContext());
             const Constant *C = ConstantInt::get(Int32Ty, V);
             unsigned index = MCP->getConstantPoolIndex(C, 4);
             I->getOperand(2).ChangeToImmediate(index);
@@ -1531,3 +1681,7 @@ void MipsConstantIslands::prescanForConstants() {
   }
 }
 
+/// Returns a pass that converts branches to long branches.
+FunctionPass *llvm::createMipsConstantIslandPass() {
+  return new MipsConstantIslands();
+}

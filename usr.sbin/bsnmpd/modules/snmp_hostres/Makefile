@@ -28,7 +28,7 @@
 # $FreeBSD$
 #
 
-LPRSRC=	${.CURDIR}/../../../lpr/common_source
+LPRSRC=	${SRCTOP}/usr.sbin/lpr/common_source
 .PATH: ${LPRSRC}
 
 MOD=	hostres
@@ -69,14 +69,9 @@ MAN=	snmp_hostres.3
 DEFS=	${MOD}_tree.def
 BMIBS=	BEGEMOT-HOSTRES-MIB.txt
 
-DPADD=	${LIBKVM} ${LIBDEVINFO} ${LIBM} ${LIBGEOM} ${LIBMEMSTAT}
-LDADD=	-lkvm -ldevinfo -lm -lgeom -lmemstat
+LIBADD=	kvm devinfo m geom memstat
 
 .include <bsd.snmpmod.mk>
 
-printcap.So: printcap.c
+printcap.pico: printcap.c
 	${CC} ${PICFLAG} -DPIC ${CFLAGS:C/^-W.*//} -c ${.IMPSRC} -o ${.TARGET}
-
-smilint:
-	env SMIPATH=.:/usr/share/snmp/mibs:/usr/local/share/snmp/mibs \
-	    smilint -c /dev/null -l6 -i group-membership BEGEMOT-HOSTRES-MIB

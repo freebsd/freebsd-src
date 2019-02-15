@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2013 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -33,12 +35,15 @@
 #define	_DEV_VT_HW_FB_VT_FB_H_
 /* Generic framebuffer interface call vt_fb_attach to init VT(9) */
 int vt_fb_attach(struct fb_info *info);
-void vt_fb_resume(void);
-void vt_fb_suspend(void);
+void vt_fb_resume(struct vt_device *vd);
+void vt_fb_suspend(struct vt_device *vd);
+int vt_fb_detach(struct fb_info *info);
 
 vd_init_t		vt_fb_init;
+vd_fini_t		vt_fb_fini;
 vd_blank_t		vt_fb_blank;
 vd_bitblt_text_t	vt_fb_bitblt_text;
+vd_invalidate_text_t	vt_fb_invalidate_text;
 vd_bitblt_bmp_t		vt_fb_bitblt_bitmap;
 vd_drawrect_t		vt_fb_drawrect;
 vd_setpixel_t		vt_fb_setpixel;

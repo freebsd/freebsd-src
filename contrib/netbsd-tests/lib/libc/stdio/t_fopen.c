@@ -303,6 +303,7 @@ ATF_TC_BODY(fopen_perm, tc)
 	ATF_REQUIRE_ERRNO(EACCES, fopen("/bin/ls", "w+") == NULL);
 }
 
+#ifdef __NetBSD__
 ATF_TC(fopen_regular);
 ATF_TC_HEAD(fopen_regular, tc)
 {
@@ -335,6 +336,7 @@ ATF_TC_BODY(fopen_regular, tc)
 		}
 	}
 }
+#endif
 
 ATF_TC_WITH_CLEANUP(fopen_seek);
 ATF_TC_HEAD(fopen_seek, tc)
@@ -434,7 +436,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, fopen_err);
 	ATF_TP_ADD_TC(tp, fopen_mode);
 	ATF_TP_ADD_TC(tp, fopen_perm);
+#ifdef __NetBSD__
 	ATF_TP_ADD_TC(tp, fopen_regular);
+#endif
 	ATF_TP_ADD_TC(tp, fopen_seek);
 	ATF_TP_ADD_TC(tp, freopen_std);
 

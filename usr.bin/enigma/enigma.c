@@ -22,7 +22,6 @@ __FBSDID("$FreeBSD$");
 
 #define MINUSKVAR "CrYpTkEy"
 
-#define ECHO 010
 #define ROTORSZ 256
 #define MASK 0377
 static char	t1[ROTORSZ];
@@ -42,6 +41,11 @@ setup(char *pw)
 	unsigned rnd;
 	int32_t seed;
 	char *cryptpw;
+
+	if (crypt_set_format("des") == 0) {
+		fprintf(stderr, "crypt_set_format(\"des\") failed.\n");
+		exit(1);
+	}
 
 	strlcpy(salt, pw, sizeof(salt));
 	cryptpw = crypt(pw, salt);
