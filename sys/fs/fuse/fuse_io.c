@@ -362,8 +362,11 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 		}
 		uio->uio_resid += diff;
 		uio->uio_offset -= diff;
-		if (uio->uio_offset > fvdat->filesize)
+		if (uio->uio_offset > fvdat->filesize &&
+		    fuse_data_cache_enable) {
 			fuse_vnode_setsize(vp, cred, uio->uio_offset);
+			fvdat->flag &= ~FN_SIZECHANGE;
+		}
 	}
 
 	fdisp_destroy(&fdi);
