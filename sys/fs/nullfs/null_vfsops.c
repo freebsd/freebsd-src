@@ -72,14 +72,15 @@ static vfs_extattrctl_t	nullfs_extattrctl;
 static int
 nullfs_mount(struct mount *mp)
 {
-	int error = 0;
 	struct vnode *lowerrootvp, *vp;
 	struct vnode *nullm_rootvp;
 	struct null_mount *xmp;
 	struct thread *td = curthread;
+	struct null_node *nn;
+	struct nameidata nd, *ndp;
 	char *target;
-	int isvnunlocked = 0, len;
-	struct nameidata nd, *ndp = &nd;
+	int error, len;
+	bool isvnunlocked;
 
 	NULLFSDEBUG("nullfs_mount(mp = %p)\n", (void *)mp);
 
@@ -111,14 +112,18 @@ nullfs_mount(struct mount *mp)
 	/*
 	 * Unlock lower node to avoid possible deadlock.
 	 */
-	if ((mp->mnt_vnodecovered->v_op == &null_vnodeops) &&
+	if (mp->mnt_vnodecovered->v_op == &null_vnodeops &&
 	    VOP_ISLOCKED(mp->mnt_vnodecovered) == LK_EXCLUSIVE) {
 		VOP_UNLOCK(mp->mnt_vnodecovered, 0);
-		isvnunlocked = 1;
+		isvnunlocked = true;
+	} else {
+		isvnunlocked = false;
 	}
+
 	/*
 	 * Find lower node
 	 */
+	ndp = &nd;
 	NDINIT(ndp, LOOKUP, FOLLOW|LOCKLEAF, UIO_SYSSPACE, target, curthread);
 	error = namei(ndp);
 
@@ -141,10 +146,13 @@ nullfs_mount(struct mount *mp)
 	/*
 	 * Check multi null mount to avoid `lock against myself' panic.
 	 */
-	if (lowerrootvp == VTONULL(mp->mnt_vnodecovered)->null_lowervp) {
-		NULLFSDEBUG("nullfs_mount: multi null mount?\n");
-		vput(lowerrootvp);
-		return (EDEADLK);
+	if (mp->mnt_vnodecovered->v_op == &null_vnodeops) {
+		nn = VTONULL(mp->mnt_vnodecovered);
+		if (nn == NULL || lowerrootvp == nn->null_lowervp) {
+			NULLFSDEBUG("nullfs_mount: multi null mount?\n");
+			vput(lowerrootvp);
+			return (EDEADLK);
+		}
 	}
 
 	xmp = (struct null_mount *) malloc(sizeof(struct null_mount),
