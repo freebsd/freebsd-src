@@ -200,14 +200,46 @@ fuse_internal_access(struct vnode *vp,
 
 /* attributes */
 
+/*
+ * Cache FUSE attributes 'fat', with nominal expiration
+ * 'attr_valid'.'attr_valid_nsec', in attr cache associated with vnode 'vp'.
+ * Optionally, if argument 'vap' is not NULL, store a copy of the converted
+ * attributes there as well.
+ *
+ * If the nominal attribute cache TTL is zero, do not cache on the 'vp' (but do
+ * return the result to the caller).
+ */
 static __inline
 void
-fuse_internal_attr_fat2vat(struct mount *mp,
+fuse_internal_attr_fat2vat(struct vnode *vp,
                            struct fuse_attr *fat,
+                           uint64_t attr_valid,
+                           uint32_t attr_valid_nsec,
                            struct vattr *vap)
 {
+    struct mount *mp;
+    struct fuse_vnode_data *fvdat;
+    struct vattr *vp_cache_at;
+
+    mp = vnode_mount(vp);
+    fvdat = VTOFUD(vp);
+
     DEBUGX(FUSE_DEBUG_INTERNAL,
         "node #%ju, mode 0%o\n", (uintmax_t)fat->ino, fat->mode);
+
+    /* Honor explicit do-not-cache requests from user filesystems. */
+    if (attr_valid == 0 && attr_valid_nsec == 0)
+        fvdat->valid_attr_cache = false;
+    else
+        fvdat->valid_attr_cache = true;
+
+    vp_cache_at = VTOVA(vp);
+
+    if (vap == NULL && vp_cache_at == NULL)
+        return;
+
+    if (vap == NULL)
+        vap = vp_cache_at;
 
     vattr_null(vap);
 
@@ -227,21 +259,17 @@ fuse_internal_attr_fat2vat(struct mount *mp,
     vap->va_ctime.tv_nsec = fat->ctimensec;
     vap->va_blocksize = PAGE_SIZE;
     vap->va_type = IFTOVT(fat->mode);
-
-#if (S_BLKSIZE == 512)
-    /* Optimize this case */
-    vap->va_bytes = fat->blocks << 9;
-#else
     vap->va_bytes = fat->blocks * S_BLKSIZE;
-#endif
-
     vap->va_flags = 0;
+
+    if (vap != vp_cache_at && vp_cache_at != NULL)
+        memcpy(vp_cache_at, vap, sizeof(*vap));
 }
 
 
-#define	cache_attrs(vp, fuse_out)					\
-	fuse_internal_attr_fat2vat(vnode_mount(vp), &(fuse_out)->attr,	\
-	    VTOVA(vp));
+#define	cache_attrs(vp, fuse_out, vap_out)				\
+        fuse_internal_attr_fat2vat((vp), &(fuse_out)->attr,		\
+            (fuse_out)->attr_valid, (fuse_out)->attr_valid_nsec, (vap_out))
 
 /* fsync */
 
