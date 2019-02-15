@@ -88,6 +88,7 @@ static enum LMB
 select_lmb(void)
 {
 	u_int p[4];
+	/* Not a typo, string matches our cpuidp() registers use. */
 	static const char intel_id[] = "GenuntelineI";
 
 	cpuidp(0, p);
