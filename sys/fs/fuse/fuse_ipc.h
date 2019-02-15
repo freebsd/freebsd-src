@@ -214,7 +214,13 @@ struct fuse_data {
 #define FSESS_NO_MMAP             0x0800 /* disable mmap */
 #define FSESS_BROKENIO            0x1000 /* fix broken io */
 
-extern int fuse_data_cache_enable;
+enum fuse_data_cache_mode {
+	FUSE_CACHE_UC,
+	FUSE_CACHE_WT,
+	FUSE_CACHE_WB,
+};
+
+extern int fuse_data_cache_mode;
 extern int fuse_data_cache_invalidate;
 extern int fuse_mmap_enable;
 extern int fuse_sync_resize;
@@ -248,7 +254,7 @@ fsess_opt_datacache(struct mount *mp)
 {
     struct fuse_data *data = fuse_get_mpdata(mp);
 
-    return (fuse_data_cache_enable ||
+    return (fuse_data_cache_mode != FUSE_CACHE_UC &&
         (data->dataflags & FSESS_NO_DATACACHE) == 0);
 }
 
@@ -257,7 +263,7 @@ fsess_opt_mmap(struct mount *mp)
 {
     struct fuse_data *data = fuse_get_mpdata(mp);
 
-    if (!(fuse_mmap_enable && fuse_data_cache_enable))
+    if (!fuse_mmap_enable || fuse_data_cache_mode == FUSE_CACHE_UC)
         return 0;
     return ((data->dataflags & (FSESS_NO_DATACACHE | FSESS_NO_MMAP)) == 0);
 }
