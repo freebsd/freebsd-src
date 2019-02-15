@@ -25,9 +25,9 @@
 .Nm getnameinfo
 .Nd socket address structure to hostname and service name
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/socket.h>
-.Fd #include <netdb.h>
+.In sys/types.h
+.In sys/socket.h
+.In netdb.h
 .Ft int
 .Fo getnameinfo
 .Fa "const struct sockaddr *sa" "socklen_t salen" "char *host"

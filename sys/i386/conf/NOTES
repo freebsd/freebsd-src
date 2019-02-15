@@ -714,6 +714,10 @@ hint.stg.0.port="11"
 device		aac
 device		aacp	# SCSI Passthrough interface (optional, CAM required)
 
+#
+# Adaptec by PMC RAID controllers, Series 6/7/8 and upcoming families
+device		aacraid		# Container interface, CAM required
+
 # The 'asr' driver provides support for current DPT/Adaptec SCSI RAID
 # controllers (SmartRAID V and VI and later).
 # These controllers require the CAM infrastructure.

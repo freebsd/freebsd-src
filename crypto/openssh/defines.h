@@ -25,7 +25,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.169 2012/02/15 04:13:06 tim Exp $ */
+/* $Id: defines.h,v 1.171 2013/03/07 09:06:13 dtucker Exp $ */
 
 
 /* Constants */
@@ -227,11 +227,7 @@ typedef uint16_t u_int16_t;
 typedef uint32_t u_int32_t;
 # define HAVE_U_INTXX_T 1
 # else
-#  if (SIZEOF_CHAR == 1)
 typedef unsigned char u_int8_t;
-#  else
-#   error "8 bit int type not found."
-#  endif
 #  if (SIZEOF_SHORT_INT == 2)
 typedef unsigned short int u_int16_t;
 #  else
@@ -282,6 +278,10 @@ typedef unsigned long long int u_int64_t;
 typedef unsigned char u_char;
 # define HAVE_U_CHAR
 #endif /* HAVE_U_CHAR */
+
+#ifndef ULLONG_MAX
+# define ULLONG_MAX ((unsigned long long)-1)
+#endif
 
 #ifndef SIZE_T_MAX
 #define SIZE_T_MAX ULONG_MAX

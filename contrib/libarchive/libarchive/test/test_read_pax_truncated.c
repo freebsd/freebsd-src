@@ -38,7 +38,7 @@ DEFINE_TEST(test_read_pax_truncated)
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_pax(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_compression_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 			archive_write_open_memory(a, buff, buff_size, &used));
 

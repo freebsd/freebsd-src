@@ -1,4 +1,4 @@
-/*	$NetBSD: _setjmp.S,v 1.5 2003/04/05 23:08:51 bjh21 Exp $	*/
+/*	$NetBSD: _setjmp.S,v 1.12 2013/04/19 13:45:45 matt Exp $	*/
 
 /*
  * Copyright (c) 1997 Mark Brinicombe
@@ -32,7 +32,17 @@
  * SUCH DAMAGE.
  */
 
+#if !defined(__SOFTFP__) && !defined(__VFP_FP__) && !defined(__ARM_PCS)
+#error FPA is not supported anymore
+#endif
+
+#if defined(__ARM_EABI__) && !defined(_STANDALONE)
+	.fpu	vfp
+#endif
+
 #include <machine/asm.h>
+#include <machine/setjmp.h>
+
 __FBSDID("$FreeBSD$");
 
 /*
@@ -45,21 +55,35 @@ __FBSDID("$FreeBSD$");
  * The previous signal state is NOT restored.
  *
  * Note: r0 is the return value
- *       r1-r3 are scratch registers in functions
+ *       r1-r3,ip are scratch registers in functions
  */
 
 ENTRY(_setjmp)
 	ldr	r1, .L_setjmp_magic
-	str	r1, [r0], #4
-#ifdef __SOFTFP__
-	add	r0, r0, #52
+
+#if defined(__ARM_EABI__) && !defined(_STANDALONE)
+	ldr	r2, .Lfpu_present
+#ifdef PIC
+	GOT_INIT(r3, .L_setjmp_got, .L_setjmp_gotinit)
+	ldr	r2, [r2, r3]
 #else
-	/* Store fp registers */
-	sfm	f4, 4, [r0], #48
-	/* Store fpsr */
-	rfs	r1
-	str	r1, [r0], #0x0004
-#endif	/* __SOFTFP__ */
+	ldr	r2, [r2]
+#endif
+	teq	r2, #0		/* do we have a FPU? */
+	beq	1f		/*   no, don't save VFP registers */
+
+	orr	r1, r1, #(_JB_MAGIC__SETJMP ^ _JB_MAGIC__SETJMP_VFP)
+				/* change magic to VFP magic */
+	add	r2, r0, #(_JB_REG_D8 * 4)
+	vstmia	r2, {d8-d15}
+	vmrs	r2, fpscr
+	str	r2, [r0, #(_JB_REG_FPSCR * 4)]
+1:
+#endif /* __ARM_EABI__ */
+
+	str	r1, [r0]
+
+	add	r0, r0, #(_JB_REG_R4 * 4)
 	/* Store integer registers */
         stmia	r0, {r4-r14}
 
@@ -68,23 +92,32 @@ ENTRY(_setjmp)
 
 .L_setjmp_magic:
 	.word	_JB_MAGIC__SETJMP
+#if defined(__ARM_EABI__) && !defined(_STANDALONE)
+	GOT_INITSYM(.L_setjmp_got, .L_setjmp_gotinit)
+.Lfpu_present:
+	.word	PIC_SYM(_libc_arm_fpu_present, GOTOFF)
+#endif /* __ARM_EABI__ */
 
 WEAK_ALIAS(___longjmp, _longjmp)
 ENTRY(_longjmp)
-	ldr	r2, .L_setjmp_magic
-	ldr	r3, [r0], #4
-	teq	r2, r3
-	bne	botch
+	ldr	r2, [r0]			/* get magic from jmp_buf */
+	bic	r3, r2, #(_JB_MAGIC__SETJMP ^ _JB_MAGIC__SETJMP_VFP)
+						/* ignore VFP-ness of magic */
+	ldr	ip, .L_setjmp_magic		/* load magic */
+	teq	ip, r3				/* magic correct? */
+	bne	botch				/*   no, botch */
 
-#ifdef __SOFTFP__
-	add	r0, r0, #52
-#else
-	/* Restore fp registers */
-	lfm	f4, 4, [r0], #48
-	/* Restore fpsr */
-	ldr	r4, [r0], #0x0004
-	wfs	r4
-#endif	/* __SOFTFP__ */
+#if defined(__ARM_EABI__) && !defined(_STANDALONE)
+	teq	r3, r2				/* did magic change? */
+	beq	1f				/*   no, don't restore VFP */
+	add	ip, r0, #(_JB_REG_D8 * 4)
+	vldmia	ip, {d8-d15}
+	ldr	ip, [r0, #(_JB_REG_FPSCR * 4)]
+	vmsr	fpscr, ip
+1:
+#endif /* __ARM_EABI__ */
+
+	add	r0, r0, #(_JB_REG_R4 * 4)
        	/* Restore integer registers */
         ldmia	r0, {r4-r14}
 
@@ -94,8 +127,7 @@ ENTRY(_longjmp)
 	beq	botch
 
 	/* Set return value */
-	mov	r0, r1
-	teq	r0, #0x00000000
+	movs	r0, r1
 	moveq	r0, #0x00000001
 	RET
 

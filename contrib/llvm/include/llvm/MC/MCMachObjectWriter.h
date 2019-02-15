@@ -45,6 +45,13 @@ protected:
 public:
   virtual ~MCMachObjectTargetWriter();
 
+  /// @name Lifetime Management
+  /// @{
+
+  virtual void reset() {};
+
+  /// @}
+
   /// @name Accessors
   /// @{
 
@@ -110,6 +117,13 @@ public:
                    bool _IsLittleEndian)
     : MCObjectWriter(_OS, _IsLittleEndian), TargetObjectWriter(MOTW) {
   }
+
+  /// @name Lifetime management Methods
+  /// @{
+
+  virtual void reset();
+
+  /// @}
 
   /// @name Utility Methods
   /// @{
@@ -182,6 +196,8 @@ public:
   void WriteLinkeditLoadCommand(uint32_t Type, uint32_t DataOffset,
                                 uint32_t DataSize);
 
+  void WriteLinkerOptionsLoadCommand(const std::vector<std::string> &Options);
+
   // FIXME: We really need to improve the relocation validation. Basically, we
   // want to implement a separate computation which evaluates the relocation
   // entry as the linker would, and verifies that the resultant fixup value is
@@ -223,8 +239,6 @@ public:
   /// ComputeSymbolTable - Compute the symbol table data
   ///
   /// \param StringTable [out] - The string table data.
-  /// \param StringIndexMap [out] - Map from symbol names to offsets in the
-  /// string table.
   void ComputeSymbolTable(MCAssembler &Asm, SmallString<256> &StringTable,
                           std::vector<MachSymbolData> &LocalSymbolData,
                           std::vector<MachSymbolData> &ExternalSymbolData,

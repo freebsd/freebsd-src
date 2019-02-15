@@ -62,6 +62,8 @@ struct ipipstat
 VNET_DECLARE(int, ipip_allow);
 VNET_DECLARE(struct ipipstat, ipipstat);
 
+#define	IPIPSTAT_ADD(name, val)	V_ipipstat.name += (val)
+#define	IPIPSTAT_INC(name)	IPIPSTAT_ADD(name, 1)
 #define	V_ipip_allow		VNET(ipip_allow)
 #define	V_ipipstat		VNET(ipipstat)
 #endif /* _KERNEL */

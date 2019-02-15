@@ -50,7 +50,11 @@
 #define XENOPROF_shutdown           13
 #define XENOPROF_get_buffer         14
 #define XENOPROF_set_backtrace      15
-#define XENOPROF_last_op            15
+
+/* AMD IBS support */
+#define XENOPROF_get_ibs_caps       16
+#define XENOPROF_ibs_counter        17
+#define XENOPROF_last_op            17
 
 #define MAX_OPROF_EVENTS    32
 #define MAX_OPROF_DOMAINS   25
@@ -64,7 +68,7 @@ struct event_log {
 };
 
 /* PC value that indicates a special code */
-#define XENOPROF_ESCAPE_CODE ~0UL
+#define XENOPROF_ESCAPE_CODE (~0ULL)
 /* Transient events for the xenoprof->oprofile cpu buf */
 #define XENOPROF_TRACE_BEGIN 1
 
@@ -124,6 +128,16 @@ typedef struct xenoprof_passive {
 } xenoprof_passive_t;
 DEFINE_XEN_GUEST_HANDLE(xenoprof_passive_t);
 
+struct xenoprof_ibs_counter {
+    uint64_t op_enabled;
+    uint64_t fetch_enabled;
+    uint64_t max_cnt_fetch;
+    uint64_t max_cnt_op;
+    uint64_t rand_en;
+    uint64_t dispatched_ops;
+};
+typedef struct xenoprof_ibs_counter xenoprof_ibs_counter_t;
+DEFINE_XEN_GUEST_HANDLE(xenoprof_ibs_counter_t);
 
 #endif /* __XEN_PUBLIC_XENOPROF_H__ */
 

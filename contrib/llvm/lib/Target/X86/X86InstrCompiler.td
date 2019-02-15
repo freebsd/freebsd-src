@@ -149,11 +149,12 @@ let Defs = [EAX, EDX, EFLAGS], FPForm = SpecialFP in {
 //===----------------------------------------------------------------------===//
 // EH Pseudo Instructions
 //
+let SchedRW = [WriteSystem] in {
 let isTerminator = 1, isReturn = 1, isBarrier = 1,
     hasCtrlDep = 1, isCodeGenOnly = 1 in {
 def EH_RETURN   : I<0xC3, RawFrm, (outs), (ins GR32:$addr),
                     "ret\t#eh_return, addr: $addr",
-                    [(X86ehret GR32:$addr)], IIC_RET>;
+                    [(X86ehret GR32:$addr)], IIC_RET>, Sched<[WriteJumpLd]>;
 
 }
 
@@ -161,7 +162,7 @@ let isTerminator = 1, isReturn = 1, isBarrier = 1,
     hasCtrlDep = 1, isCodeGenOnly = 1 in {
 def EH_RETURN64   : I<0xC3, RawFrm, (outs), (ins GR64:$addr),
                      "ret\t#eh_return, addr: $addr",
-                     [(X86ehret GR64:$addr)], IIC_RET>;
+                     [(X86ehret GR64:$addr)], IIC_RET>, Sched<[WriteJumpLd]>;
 
 }
 
@@ -186,6 +187,7 @@ let hasSideEffects = 1, isBarrier = 1, isCodeGenOnly = 1,
                           Requires<[In64BitMode]>;
   }
 }
+} // SchedRW
 
 let isBranch = 1, isTerminator = 1, isCodeGenOnly = 1 in {
   def EH_SjLj_Setup : I<0, Pseudo, (outs), (ins brtarget:$dst),
@@ -220,7 +222,7 @@ def MORESTACK_RET_RESTORE_R10 : I<0, Pseudo, (outs), (ins),
 let Defs = [EFLAGS], isReMaterializable = 1, isAsCheapAsAMove = 1,
     isCodeGenOnly = 1 in {
 def MOV8r0   : I<0x30, MRMInitReg, (outs GR8 :$dst), (ins), "",
-                 [(set GR8:$dst, 0)], IIC_ALU_NONMEM>;
+                 [(set GR8:$dst, 0)], IIC_ALU_NONMEM>, Sched<[WriteZero]>;
 
 // We want to rewrite MOV16r0 in terms of MOV32r0, because it's a smaller
 // encoding and avoids a partial-register update sometimes, but doing so
@@ -229,11 +231,12 @@ def MOV8r0   : I<0x30, MRMInitReg, (outs GR8 :$dst), (ins), "",
 // to an MCInst.
 def MOV16r0   : I<0x31, MRMInitReg, (outs GR16:$dst), (ins),
                  "",
-                 [(set GR16:$dst, 0)], IIC_ALU_NONMEM>, OpSize;
+                 [(set GR16:$dst, 0)], IIC_ALU_NONMEM>, OpSize,
+                 Sched<[WriteZero]>;
 
 // FIXME: Set encoding to pseudo.
 def MOV32r0  : I<0x31, MRMInitReg, (outs GR32:$dst), (ins), "",
-                 [(set GR32:$dst, 0)], IIC_ALU_NONMEM>;
+                 [(set GR32:$dst, 0)], IIC_ALU_NONMEM>, Sched<[WriteZero]>;
 }
 
 // We want to rewrite MOV64r0 in terms of MOV32r0, because it's sometimes a
@@ -245,7 +248,7 @@ def MOV32r0  : I<0x31, MRMInitReg, (outs GR32:$dst), (ins), "",
 let Defs = [EFLAGS], isCodeGenOnly=1,
     AddedComplexity = 1, isReMaterializable = 1, isAsCheapAsAMove = 1 in
 def MOV64r0   : I<0x31, MRMInitReg, (outs GR64:$dst), (ins), "",
-                 [(set GR64:$dst, 0)], IIC_ALU_NONMEM>;
+                 [(set GR64:$dst, 0)], IIC_ALU_NONMEM>, Sched<[WriteZero]>;
 
 // Materialize i64 constant where top 32-bits are zero. This could theoretically
 // use MOV32ri with a SUBREG_TO_REG to represent the zero-extension, however
@@ -254,10 +257,10 @@ let AddedComplexity = 1, isReMaterializable = 1, isAsCheapAsAMove = 1,
     isCodeGenOnly = 1 in
 def MOV64ri64i32 : Ii32<0xB8, AddRegFrm, (outs GR64:$dst), (ins i64i32imm:$src),
                         "", [(set GR64:$dst, i64immZExt32:$src)],
-                        IIC_ALU_NONMEM>;
+                        IIC_ALU_NONMEM>, Sched<[WriteALU]>;
 
 // Use sbb to materialize carry bit.
-let Uses = [EFLAGS], Defs = [EFLAGS], isPseudo = 1 in {
+let Uses = [EFLAGS], Defs = [EFLAGS], isPseudo = 1, SchedRW = [WriteALU] in {
 // FIXME: These are pseudo ops that should be replaced with Pat<> patterns.
 // However, Pat<> can't replicate the destination reg into the inputs of the
 // result.
@@ -320,6 +323,7 @@ def : Pat<(sub GR64:$op, (i64 (X86setcc_c X86_COND_B, EFLAGS))),
 //===----------------------------------------------------------------------===//
 // String Pseudo Instructions
 //
+let SchedRW = [WriteMicrocoded] in {
 let Defs = [ECX,EDI,ESI], Uses = [ECX,EDI,ESI], isCodeGenOnly = 1 in {
 def REP_MOVSB_32 : I<0xA4, RawFrm, (outs), (ins), "{rep;movsb|rep movsb}",
                     [(X86rep_movs i8)], IIC_REP_MOVS>, REP,
@@ -382,6 +386,7 @@ let Defs = [RCX,RDI], isCodeGenOnly = 1 in {
                       [(X86rep_stos i64)], IIC_REP_STOS>, REP,
                      Requires<[In64BitMode]>;
 }
+} // SchedRW
 
 //===----------------------------------------------------------------------===//
 // Thread Local Storage Instructions
@@ -513,18 +518,22 @@ def CMOV_RFP80 : I<0, Pseudo,
 
 multiclass PSEUDO_ATOMIC_LOAD_BINOP<string mnemonic> {
   let usesCustomInserter = 1, mayLoad = 1, mayStore = 1 in {
-    def #NAME#8  : I<0, Pseudo, (outs GR8:$dst),
-                     (ins i8mem:$ptr, GR8:$val),
-                     !strconcat(mnemonic, "8 PSEUDO!"), []>;
-    def #NAME#16 : I<0, Pseudo,(outs GR16:$dst),
-                     (ins i16mem:$ptr, GR16:$val),
-                     !strconcat(mnemonic, "16 PSEUDO!"), []>;
-    def #NAME#32 : I<0, Pseudo, (outs GR32:$dst),
-                     (ins i32mem:$ptr, GR32:$val),
-                     !strconcat(mnemonic, "32 PSEUDO!"), []>;
-    def #NAME#64 : I<0, Pseudo, (outs GR64:$dst),
-                     (ins i64mem:$ptr, GR64:$val),
-                     !strconcat(mnemonic, "64 PSEUDO!"), []>;
+    let Defs = [EFLAGS, AL] in
+    def NAME#8  : I<0, Pseudo, (outs GR8:$dst),
+                    (ins i8mem:$ptr, GR8:$val),
+                    !strconcat(mnemonic, "8 PSEUDO!"), []>;
+    let Defs = [EFLAGS, AX] in
+    def NAME#16 : I<0, Pseudo,(outs GR16:$dst),
+                    (ins i16mem:$ptr, GR16:$val),
+                    !strconcat(mnemonic, "16 PSEUDO!"), []>;
+    let Defs = [EFLAGS, EAX] in
+    def NAME#32 : I<0, Pseudo, (outs GR32:$dst),
+                    (ins i32mem:$ptr, GR32:$val),
+                    !strconcat(mnemonic, "32 PSEUDO!"), []>;
+    let Defs = [EFLAGS, RAX] in
+    def NAME#64 : I<0, Pseudo, (outs GR64:$dst),
+                    (ins i64mem:$ptr, GR64:$val),
+                    !strconcat(mnemonic, "64 PSEUDO!"), []>;
   }
 }
 
@@ -559,10 +568,11 @@ defm : PSEUDO_ATOMIC_LOAD_BINOP_PATS<"ATOMUMAX", "atomic_load_umax">;
 defm : PSEUDO_ATOMIC_LOAD_BINOP_PATS<"ATOMUMIN", "atomic_load_umin">;
 
 multiclass PSEUDO_ATOMIC_LOAD_BINOP6432<string mnemonic> {
-  let usesCustomInserter = 1, mayLoad = 1, mayStore = 1 in
-    def #NAME#6432 : I<0, Pseudo, (outs GR32:$dst1, GR32:$dst2),
-                       (ins i64mem:$ptr, GR32:$val1, GR32:$val2),
-                       !strconcat(mnemonic, "6432 PSEUDO!"), []>;
+  let usesCustomInserter = 1, Defs = [EFLAGS, EAX, EDX],
+      mayLoad = 1, mayStore = 1, hasSideEffects = 0 in
+    def NAME#6432 : I<0, Pseudo, (outs GR32:$dst1, GR32:$dst2),
+                      (ins i64mem:$ptr, GR32:$val1, GR32:$val2),
+                      !strconcat(mnemonic, "6432 PSEUDO!"), []>;
 }
 
 defm ATOMAND  : PSEUDO_ATOMIC_LOAD_BINOP6432<"#ATOMAND">;
@@ -589,12 +599,13 @@ defm ATOMSWAP : PSEUDO_ATOMIC_LOAD_BINOP6432<"#ATOMSWAP">;
 let isCodeGenOnly = 1, Defs = [EFLAGS] in
 def OR32mrLocked  : I<0x09, MRMDestMem, (outs), (ins i32mem:$dst, GR32:$zero),
                       "or{l}\t{$zero, $dst|$dst, $zero}",
-                      [], IIC_ALU_MEM>, Requires<[In32BitMode]>, LOCK;
+                      [], IIC_ALU_MEM>, Requires<[In32BitMode]>, LOCK,
+                    Sched<[WriteALULd, WriteRMW]>;
 
 let hasSideEffects = 1 in
 def Int_MemBarrier : I<0, Pseudo, (outs), (ins),
                      "#MEMBARRIER",
-                     [(X86MemBarrier)]>;
+                     [(X86MemBarrier)]>, Sched<[WriteLoad]>;
 
 // RegOpc corresponds to the mr version of the instruction
 // ImmOpc corresponds to the mi version of the instruction
@@ -602,79 +613,80 @@ def Int_MemBarrier : I<0, Pseudo, (outs), (ins),
 // ImmMod corresponds to the instruction format of the mi and mi8 versions
 multiclass LOCK_ArithBinOp<bits<8> RegOpc, bits<8> ImmOpc, bits<8> ImmOpc8,
                            Format ImmMod, string mnemonic> {
-let Defs = [EFLAGS], mayLoad = 1, mayStore = 1, isCodeGenOnly = 1 in {
+let Defs = [EFLAGS], mayLoad = 1, mayStore = 1, isCodeGenOnly = 1,
+    SchedRW = [WriteALULd, WriteRMW] in {
 
-def #NAME#8mr : I<{RegOpc{7}, RegOpc{6}, RegOpc{5}, RegOpc{4},
-                   RegOpc{3}, RegOpc{2}, RegOpc{1}, 0 },
-                   MRMDestMem, (outs), (ins i8mem:$dst, GR8:$src2),
-                   !strconcat(mnemonic, "{b}\t",
+def NAME#8mr : I<{RegOpc{7}, RegOpc{6}, RegOpc{5}, RegOpc{4},
+                  RegOpc{3}, RegOpc{2}, RegOpc{1}, 0 },
+                  MRMDestMem, (outs), (ins i8mem:$dst, GR8:$src2),
+                  !strconcat(mnemonic, "{b}\t",
+                             "{$src2, $dst|$dst, $src2}"),
+                  [], IIC_ALU_NONMEM>, LOCK;
+def NAME#16mr : I<{RegOpc{7}, RegOpc{6}, RegOpc{5}, RegOpc{4},
+                   RegOpc{3}, RegOpc{2}, RegOpc{1}, 1 },
+                   MRMDestMem, (outs), (ins i16mem:$dst, GR16:$src2),
+                   !strconcat(mnemonic, "{w}\t",
+                              "{$src2, $dst|$dst, $src2}"),
+                   [], IIC_ALU_NONMEM>, OpSize, LOCK;
+def NAME#32mr : I<{RegOpc{7}, RegOpc{6}, RegOpc{5}, RegOpc{4},
+                   RegOpc{3}, RegOpc{2}, RegOpc{1}, 1 },
+                   MRMDestMem, (outs), (ins i32mem:$dst, GR32:$src2),
+                   !strconcat(mnemonic, "{l}\t",
                               "{$src2, $dst|$dst, $src2}"),
                    [], IIC_ALU_NONMEM>, LOCK;
-def #NAME#16mr : I<{RegOpc{7}, RegOpc{6}, RegOpc{5}, RegOpc{4},
+def NAME#64mr : RI<{RegOpc{7}, RegOpc{6}, RegOpc{5}, RegOpc{4},
                     RegOpc{3}, RegOpc{2}, RegOpc{1}, 1 },
-                    MRMDestMem, (outs), (ins i16mem:$dst, GR16:$src2),
-                    !strconcat(mnemonic, "{w}\t",
-                               "{$src2, $dst|$dst, $src2}"),
-                    [], IIC_ALU_NONMEM>, OpSize, LOCK;
-def #NAME#32mr : I<{RegOpc{7}, RegOpc{6}, RegOpc{5}, RegOpc{4},
-                    RegOpc{3}, RegOpc{2}, RegOpc{1}, 1 },
-                    MRMDestMem, (outs), (ins i32mem:$dst, GR32:$src2),
-                    !strconcat(mnemonic, "{l}\t",
+                    MRMDestMem, (outs), (ins i64mem:$dst, GR64:$src2),
+                    !strconcat(mnemonic, "{q}\t",
                                "{$src2, $dst|$dst, $src2}"),
                     [], IIC_ALU_NONMEM>, LOCK;
-def #NAME#64mr : RI<{RegOpc{7}, RegOpc{6}, RegOpc{5}, RegOpc{4},
-                     RegOpc{3}, RegOpc{2}, RegOpc{1}, 1 },
-                     MRMDestMem, (outs), (ins i64mem:$dst, GR64:$src2),
-                     !strconcat(mnemonic, "{q}\t",
-                                "{$src2, $dst|$dst, $src2}"),
-                     [], IIC_ALU_NONMEM>, LOCK;
 
-def #NAME#8mi : Ii8<{ImmOpc{7}, ImmOpc{6}, ImmOpc{5}, ImmOpc{4},
-                     ImmOpc{3}, ImmOpc{2}, ImmOpc{1}, 0 },
-                     ImmMod, (outs), (ins i8mem :$dst, i8imm :$src2),
-                     !strconcat(mnemonic, "{b}\t",
-                                "{$src2, $dst|$dst, $src2}"),
-                     [], IIC_ALU_MEM>, LOCK;
+def NAME#8mi : Ii8<{ImmOpc{7}, ImmOpc{6}, ImmOpc{5}, ImmOpc{4},
+                    ImmOpc{3}, ImmOpc{2}, ImmOpc{1}, 0 },
+                    ImmMod, (outs), (ins i8mem :$dst, i8imm :$src2),
+                    !strconcat(mnemonic, "{b}\t",
+                               "{$src2, $dst|$dst, $src2}"),
+                    [], IIC_ALU_MEM>, LOCK;
 
-def #NAME#16mi : Ii16<{ImmOpc{7}, ImmOpc{6}, ImmOpc{5}, ImmOpc{4},
-                       ImmOpc{3}, ImmOpc{2}, ImmOpc{1}, 1 },
-                       ImmMod, (outs), (ins i16mem :$dst, i16imm :$src2),
-                       !strconcat(mnemonic, "{w}\t",
-                                  "{$src2, $dst|$dst, $src2}"),
-                       [], IIC_ALU_MEM>, OpSize, LOCK;
+def NAME#16mi : Ii16<{ImmOpc{7}, ImmOpc{6}, ImmOpc{5}, ImmOpc{4},
+                      ImmOpc{3}, ImmOpc{2}, ImmOpc{1}, 1 },
+                      ImmMod, (outs), (ins i16mem :$dst, i16imm :$src2),
+                      !strconcat(mnemonic, "{w}\t",
+                                 "{$src2, $dst|$dst, $src2}"),
+                      [], IIC_ALU_MEM>, OpSize, LOCK;
 
-def #NAME#32mi : Ii32<{ImmOpc{7}, ImmOpc{6}, ImmOpc{5}, ImmOpc{4},
-                       ImmOpc{3}, ImmOpc{2}, ImmOpc{1}, 1 },
-                       ImmMod, (outs), (ins i32mem :$dst, i32imm :$src2),
-                       !strconcat(mnemonic, "{l}\t",
+def NAME#32mi : Ii32<{ImmOpc{7}, ImmOpc{6}, ImmOpc{5}, ImmOpc{4},
+                      ImmOpc{3}, ImmOpc{2}, ImmOpc{1}, 1 },
+                      ImmMod, (outs), (ins i32mem :$dst, i32imm :$src2),
+                      !strconcat(mnemonic, "{l}\t",
+                                 "{$src2, $dst|$dst, $src2}"),
+                      [], IIC_ALU_MEM>, LOCK;
+
+def NAME#64mi32 : RIi32<{ImmOpc{7}, ImmOpc{6}, ImmOpc{5}, ImmOpc{4},
+                         ImmOpc{3}, ImmOpc{2}, ImmOpc{1}, 1 },
+                         ImmMod, (outs), (ins i64mem :$dst, i64i32imm :$src2),
+                         !strconcat(mnemonic, "{q}\t",
+                                    "{$src2, $dst|$dst, $src2}"),
+                         [], IIC_ALU_MEM>, LOCK;
+
+def NAME#16mi8 : Ii8<{ImmOpc8{7}, ImmOpc8{6}, ImmOpc8{5}, ImmOpc8{4},
+                      ImmOpc8{3}, ImmOpc8{2}, ImmOpc8{1}, 1 },
+                      ImmMod, (outs), (ins i16mem :$dst, i16i8imm :$src2),
+                      !strconcat(mnemonic, "{w}\t",
+                                 "{$src2, $dst|$dst, $src2}"),
+                      [], IIC_ALU_MEM>, OpSize, LOCK;
+def NAME#32mi8 : Ii8<{ImmOpc8{7}, ImmOpc8{6}, ImmOpc8{5}, ImmOpc8{4},
+                      ImmOpc8{3}, ImmOpc8{2}, ImmOpc8{1}, 1 },
+                      ImmMod, (outs), (ins i32mem :$dst, i32i8imm :$src2),
+                      !strconcat(mnemonic, "{l}\t",
+                                 "{$src2, $dst|$dst, $src2}"),
+                      [], IIC_ALU_MEM>, LOCK;
+def NAME#64mi8 : RIi8<{ImmOpc8{7}, ImmOpc8{6}, ImmOpc8{5}, ImmOpc8{4},
+                       ImmOpc8{3}, ImmOpc8{2}, ImmOpc8{1}, 1 },
+                       ImmMod, (outs), (ins i64mem :$dst, i64i8imm :$src2),
+                       !strconcat(mnemonic, "{q}\t",
                                   "{$src2, $dst|$dst, $src2}"),
                        [], IIC_ALU_MEM>, LOCK;
-
-def #NAME#64mi32 : RIi32<{ImmOpc{7}, ImmOpc{6}, ImmOpc{5}, ImmOpc{4},
-                          ImmOpc{3}, ImmOpc{2}, ImmOpc{1}, 1 },
-                          ImmMod, (outs), (ins i64mem :$dst, i64i32imm :$src2),
-                          !strconcat(mnemonic, "{q}\t",
-                                     "{$src2, $dst|$dst, $src2}"),
-                          [], IIC_ALU_MEM>, LOCK;
-
-def #NAME#16mi8 : Ii8<{ImmOpc8{7}, ImmOpc8{6}, ImmOpc8{5}, ImmOpc8{4},
-                       ImmOpc8{3}, ImmOpc8{2}, ImmOpc8{1}, 1 },
-                       ImmMod, (outs), (ins i16mem :$dst, i16i8imm :$src2),
-                       !strconcat(mnemonic, "{w}\t",
-                                  "{$src2, $dst|$dst, $src2}"),
-                       [], IIC_ALU_MEM>, OpSize, LOCK;
-def #NAME#32mi8 : Ii8<{ImmOpc8{7}, ImmOpc8{6}, ImmOpc8{5}, ImmOpc8{4},
-                       ImmOpc8{3}, ImmOpc8{2}, ImmOpc8{1}, 1 },
-                       ImmMod, (outs), (ins i32mem :$dst, i32i8imm :$src2),
-                       !strconcat(mnemonic, "{l}\t",
-                                  "{$src2, $dst|$dst, $src2}"),
-                       [], IIC_ALU_MEM>, LOCK;
-def #NAME#64mi8 : RIi8<{ImmOpc8{7}, ImmOpc8{6}, ImmOpc8{5}, ImmOpc8{4},
-                        ImmOpc8{3}, ImmOpc8{2}, ImmOpc8{1}, 1 },
-                        ImmMod, (outs), (ins i64mem :$dst, i64i8imm :$src2),
-                        !strconcat(mnemonic, "{q}\t",
-                                   "{$src2, $dst|$dst, $src2}"),
-                        [], IIC_ALU_MEM>, LOCK;
 
 }
 
@@ -689,20 +701,21 @@ defm LOCK_XOR : LOCK_ArithBinOp<0x30, 0x80, 0x83, MRM6m, "xor">;
 // Optimized codegen when the non-memory output is not used.
 multiclass LOCK_ArithUnOp<bits<8> Opc8, bits<8> Opc, Format Form,
                           string mnemonic> {
-let Defs = [EFLAGS], mayLoad = 1, mayStore = 1, isCodeGenOnly = 1 in {
+let Defs = [EFLAGS], mayLoad = 1, mayStore = 1, isCodeGenOnly = 1,
+    SchedRW = [WriteALULd, WriteRMW] in {
 
-def #NAME#8m  : I<Opc8, Form, (outs), (ins i8mem :$dst),
-                  !strconcat(mnemonic, "{b}\t$dst"),
+def NAME#8m  : I<Opc8, Form, (outs), (ins i8mem :$dst),
+                 !strconcat(mnemonic, "{b}\t$dst"),
+                 [], IIC_UNARY_MEM>, LOCK;
+def NAME#16m : I<Opc, Form, (outs), (ins i16mem:$dst),
+                 !strconcat(mnemonic, "{w}\t$dst"),
+                 [], IIC_UNARY_MEM>, OpSize, LOCK;
+def NAME#32m : I<Opc, Form, (outs), (ins i32mem:$dst),
+                 !strconcat(mnemonic, "{l}\t$dst"),
+                 [], IIC_UNARY_MEM>, LOCK;
+def NAME#64m : RI<Opc, Form, (outs), (ins i64mem:$dst),
+                  !strconcat(mnemonic, "{q}\t$dst"),
                   [], IIC_UNARY_MEM>, LOCK;
-def #NAME#16m : I<Opc, Form, (outs), (ins i16mem:$dst),
-                  !strconcat(mnemonic, "{w}\t$dst"),
-                  [], IIC_UNARY_MEM>, OpSize, LOCK;
-def #NAME#32m : I<Opc, Form, (outs), (ins i32mem:$dst),
-                  !strconcat(mnemonic, "{l}\t$dst"),
-                  [], IIC_UNARY_MEM>, LOCK;
-def #NAME#64m : RI<Opc, Form, (outs), (ins i64mem:$dst),
-                   !strconcat(mnemonic, "{q}\t$dst"),
-                   [], IIC_UNARY_MEM>, LOCK;
 }
 }
 
@@ -714,43 +727,44 @@ multiclass LCMPXCHG_UnOp<bits<8> Opc, Format Form, string mnemonic,
                          SDPatternOperator frag, X86MemOperand x86memop,
                          InstrItinClass itin> {
 let isCodeGenOnly = 1 in {
-  def #NAME# : I<Opc, Form, (outs), (ins x86memop:$ptr),
-                 !strconcat(mnemonic, "\t$ptr"),
-                 [(frag addr:$ptr)], itin>, TB, LOCK;
+  def NAME : I<Opc, Form, (outs), (ins x86memop:$ptr),
+               !strconcat(mnemonic, "\t$ptr"),
+               [(frag addr:$ptr)], itin>, TB, LOCK;
 }
 }
 
 multiclass LCMPXCHG_BinOp<bits<8> Opc8, bits<8> Opc, Format Form,
                           string mnemonic, SDPatternOperator frag,
                           InstrItinClass itin8, InstrItinClass itin> {
-let isCodeGenOnly = 1 in {
+let isCodeGenOnly = 1, SchedRW = [WriteALULd, WriteRMW] in {
   let Defs = [AL, EFLAGS], Uses = [AL] in
-  def #NAME#8  : I<Opc8, Form, (outs), (ins i8mem:$ptr, GR8:$swap),
-                   !strconcat(mnemonic, "{b}\t{$swap, $ptr|$ptr, $swap}"),
-                   [(frag addr:$ptr, GR8:$swap, 1)], itin8>, TB, LOCK;
+  def NAME#8  : I<Opc8, Form, (outs), (ins i8mem:$ptr, GR8:$swap),
+                  !strconcat(mnemonic, "{b}\t{$swap, $ptr|$ptr, $swap}"),
+                  [(frag addr:$ptr, GR8:$swap, 1)], itin8>, TB, LOCK;
   let Defs = [AX, EFLAGS], Uses = [AX] in
-  def #NAME#16 : I<Opc, Form, (outs), (ins i16mem:$ptr, GR16:$swap),
-                   !strconcat(mnemonic, "{w}\t{$swap, $ptr|$ptr, $swap}"),
-                   [(frag addr:$ptr, GR16:$swap, 2)], itin>, TB, OpSize, LOCK;
+  def NAME#16 : I<Opc, Form, (outs), (ins i16mem:$ptr, GR16:$swap),
+                  !strconcat(mnemonic, "{w}\t{$swap, $ptr|$ptr, $swap}"),
+                  [(frag addr:$ptr, GR16:$swap, 2)], itin>, TB, OpSize, LOCK;
   let Defs = [EAX, EFLAGS], Uses = [EAX] in
-  def #NAME#32 : I<Opc, Form, (outs), (ins i32mem:$ptr, GR32:$swap),
-                   !strconcat(mnemonic, "{l}\t{$swap, $ptr|$ptr, $swap}"),
-                   [(frag addr:$ptr, GR32:$swap, 4)], itin>, TB, LOCK;
+  def NAME#32 : I<Opc, Form, (outs), (ins i32mem:$ptr, GR32:$swap),
+                  !strconcat(mnemonic, "{l}\t{$swap, $ptr|$ptr, $swap}"),
+                  [(frag addr:$ptr, GR32:$swap, 4)], itin>, TB, LOCK;
   let Defs = [RAX, EFLAGS], Uses = [RAX] in
-  def #NAME#64 : RI<Opc, Form, (outs), (ins i64mem:$ptr, GR64:$swap),
-                    !strconcat(mnemonic, "{q}\t{$swap, $ptr|$ptr, $swap}"),
-                    [(frag addr:$ptr, GR64:$swap, 8)], itin>, TB, LOCK;
+  def NAME#64 : RI<Opc, Form, (outs), (ins i64mem:$ptr, GR64:$swap),
+                   !strconcat(mnemonic, "{q}\t{$swap, $ptr|$ptr, $swap}"),
+                   [(frag addr:$ptr, GR64:$swap, 8)], itin>, TB, LOCK;
 }
 }
 
-let Defs = [EAX, EDX, EFLAGS], Uses = [EAX, EBX, ECX, EDX] in {
+let Defs = [EAX, EDX, EFLAGS], Uses = [EAX, EBX, ECX, EDX],
+    SchedRW = [WriteALULd, WriteRMW] in {
 defm LCMPXCHG8B : LCMPXCHG_UnOp<0xC7, MRM1m, "cmpxchg8b",
                                 X86cas8, i64mem,
                                 IIC_CMPX_LOCK_8B>;
 }
 
 let Defs = [RAX, RDX, EFLAGS], Uses = [RAX, RBX, RCX, RDX],
-    Predicates = [HasCmpxchg16b] in {
+    Predicates = [HasCmpxchg16b], SchedRW = [WriteALULd, WriteRMW] in {
 defm LCMPXCHG16B : LCMPXCHG_UnOp<0xC7, MRM1m, "cmpxchg16b",
                                  X86cas16, i128mem,
                                  IIC_CMPX_LOCK_16B>, REX_W;
@@ -763,34 +777,35 @@ defm LCMPXCHG : LCMPXCHG_BinOp<0xB0, 0xB1, MRMDestMem, "cmpxchg",
 multiclass ATOMIC_LOAD_BINOP<bits<8> opc8, bits<8> opc, string mnemonic,
                              string frag,
                              InstrItinClass itin8, InstrItinClass itin> {
-  let Constraints = "$val = $dst", Defs = [EFLAGS], isCodeGenOnly = 1 in {
-    def #NAME#8  : I<opc8, MRMSrcMem, (outs GR8:$dst),
-                     (ins GR8:$val, i8mem:$ptr),
-                     !strconcat(mnemonic, "{b}\t{$val, $ptr|$ptr, $val}"),
-                     [(set GR8:$dst,
-                           (!cast<PatFrag>(frag # "_8") addr:$ptr, GR8:$val))],
-                     itin8>;
-    def #NAME#16 : I<opc, MRMSrcMem, (outs GR16:$dst),
-                     (ins GR16:$val, i16mem:$ptr),
-                     !strconcat(mnemonic, "{w}\t{$val, $ptr|$ptr, $val}"),
+  let Constraints = "$val = $dst", Defs = [EFLAGS], isCodeGenOnly = 1,
+      SchedRW = [WriteALULd, WriteRMW] in {
+    def NAME#8  : I<opc8, MRMSrcMem, (outs GR8:$dst),
+                    (ins GR8:$val, i8mem:$ptr),
+                    !strconcat(mnemonic, "{b}\t{$val, $ptr|$ptr, $val}"),
+                    [(set GR8:$dst,
+                          (!cast<PatFrag>(frag # "_8") addr:$ptr, GR8:$val))],
+                    itin8>;
+    def NAME#16 : I<opc, MRMSrcMem, (outs GR16:$dst),
+                    (ins GR16:$val, i16mem:$ptr),
+                    !strconcat(mnemonic, "{w}\t{$val, $ptr|$ptr, $val}"),
+                    [(set
+                       GR16:$dst,
+                       (!cast<PatFrag>(frag # "_16") addr:$ptr, GR16:$val))],
+                    itin>, OpSize;
+    def NAME#32 : I<opc, MRMSrcMem, (outs GR32:$dst),
+                    (ins GR32:$val, i32mem:$ptr),
+                    !strconcat(mnemonic, "{l}\t{$val, $ptr|$ptr, $val}"),
+                    [(set
+                       GR32:$dst,
+                       (!cast<PatFrag>(frag # "_32") addr:$ptr, GR32:$val))],
+                    itin>;
+    def NAME#64 : RI<opc, MRMSrcMem, (outs GR64:$dst),
+                     (ins GR64:$val, i64mem:$ptr),
+                     !strconcat(mnemonic, "{q}\t{$val, $ptr|$ptr, $val}"),
                      [(set
-                        GR16:$dst,
-                        (!cast<PatFrag>(frag # "_16") addr:$ptr, GR16:$val))],
-                     itin>, OpSize;
-    def #NAME#32 : I<opc, MRMSrcMem, (outs GR32:$dst),
-                     (ins GR32:$val, i32mem:$ptr),
-                     !strconcat(mnemonic, "{l}\t{$val, $ptr|$ptr, $val}"),
-                     [(set
-                        GR32:$dst,
-                        (!cast<PatFrag>(frag # "_32") addr:$ptr, GR32:$val))],
+                        GR64:$dst,
+                        (!cast<PatFrag>(frag # "_64") addr:$ptr, GR64:$val))],
                      itin>;
-    def #NAME#64 : RI<opc, MRMSrcMem, (outs GR64:$dst),
-                      (ins GR64:$val, i64mem:$ptr),
-                      !strconcat(mnemonic, "{q}\t{$val, $ptr|$ptr, $val}"),
-                      [(set
-                         GR64:$dst,
-                         (!cast<PatFrag>(frag # "_64") addr:$ptr, GR64:$val))],
-                      itin>;
   }
 }
 
@@ -985,9 +1000,6 @@ def : Pat<(i64 (X86Wrapper tglobaltlsaddr :$dst)),
 // This corresponds to add $foo@tpoff, %rax
 def : Pat<(add GR64:$src1, (X86Wrapper tglobaltlsaddr :$dst)),
           (ADD64ri32 GR64:$src1, tglobaltlsaddr :$dst)>;
-// This corresponds to mov foo@tpoff(%rbx), %eax
-def : Pat<(load (i64 (X86Wrapper tglobaltlsaddr :$dst))),
-          (MOV64rm tglobaltlsaddr :$dst)>;
 
 
 // Direct PC relative function call for small code model. 32-bit displacement
@@ -1187,7 +1199,8 @@ def or_is_add : PatFrag<(ops node:$lhs, node:$rhs), (or node:$lhs, node:$rhs),[{
 
 
 // (or x1, x2) -> (add x1, x2) if two operands are known not to share bits.
-let AddedComplexity = 5 in { // Try this before the selecting to OR
+// Try this before the selecting to OR.
+let AddedComplexity = 5, SchedRW = [WriteALU] in {
 
 let isConvertibleToThreeAddress = 1,
     Constraints = "$src1 = $dst", Defs = [EFLAGS] in {
@@ -1234,7 +1247,7 @@ def ADD64ri32_DB : I<0, Pseudo,
                       [(set GR64:$dst, (or_is_add GR64:$src1,
                                                   i64immSExt32:$src2))]>;
 }
-} // AddedComplexity
+} // AddedComplexity, SchedRW
 
 
 //===----------------------------------------------------------------------===//

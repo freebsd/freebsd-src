@@ -117,5 +117,6 @@ void	minidumpsys(struct dumperinfo *);
 struct savefpu *get_pcb_user_save_td(struct thread *td);
 struct savefpu *get_pcb_user_save_pcb(struct pcb *pcb);
 struct pcb *get_pcb_td(struct thread *td);
+void	amd64_db_resume_dbreg(void);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

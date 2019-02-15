@@ -43,7 +43,7 @@ ERROR
 	exit(1);
 }
 
-sdt:::test
+test:::sdttest
 /arg0 != 1 || arg1 != 2 || arg2 != 3 || arg3 != 4 || arg4 != 5 || arg5 != 6 ||
     arg6 != 7/
 {
@@ -54,7 +54,7 @@ sdt:::test
 	exit(1);
 }
 
-sdt:::test
+test:::sdttest
 {
 	exit(0);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2010, 2012 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2010, 2012, 2013 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -17,7 +17,7 @@
 # include <libmilter/mfdef.h>
 #endif /* MILTER */
 
-SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.1011 2012/12/19 02:49:21 ca Exp $")
+SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.1015 2013/03/12 15:24:54 ca Exp $")
 
 #include <sm/time.h>
 #include <sm/fdset.h>
@@ -1864,7 +1864,7 @@ smtp(nullserver, d_flags, e)
 			{
 				message("454 4.3.3 TLS not available: error generating SSL handle");
 				if (LogLevel > 8)
-					tlslogerr("server");
+					tlslogerr(LOG_WARNING, "server");
 				goto tls_done;
 			}
 
@@ -1927,7 +1927,7 @@ smtp(nullserver, d_flags, e)
 						  ssl_err, errno, i,
 						  CurSmtpClient);
 					if (LogLevel > 9)
-						tlslogerr("server");
+						tlslogerr(LOG_WARNING, "server");
 				}
 				tls_ok_srv = false;
 				SSL_free(srv_ssl);
@@ -4518,6 +4518,8 @@ rcpt_esmtp_args(a, kp, vp, e)
 	}
 	else if (sm_strcasecmp(kp, "orcpt") == 0)
 	{
+		char *p;
+
 		if (!bitset(SRV_OFFER_DSN, e->e_features))
 		{
 			usrerr("504 5.7.0 Sorry, ORCPT not supported, we do not allow DSN");
@@ -4528,16 +4530,25 @@ rcpt_esmtp_args(a, kp, vp, e)
 			usrerr("501 5.5.2 ORCPT requires a value");
 			/* NOTREACHED */
 		}
-		if (strchr(vp, ';') == NULL || !xtextok(vp))
-		{
-			usrerr("501 5.5.4 Syntax error in ORCPT parameter value");
-			/* NOTREACHED */
-		}
 		if (a->q_orcpt != NULL)
 		{
 			usrerr("501 5.5.0 Duplicate ORCPT parameter");
 			/* NOTREACHED */
 		}
+		p = strchr(vp, ';');
+		if (p == NULL)
+		{
+			usrerr("501 5.5.4 Syntax error in ORCPT parameter value");
+			/* NOTREACHED */
+		}
+		*p = '\0';
+		if (!isatom(vp) || !xtextok(p + 1))
+		{
+			*p = ';';
+			usrerr("501 5.5.4 Syntax error in ORCPT parameter value");
+			/* NOTREACHED */
+		}
+		*p = ';';
 		a->q_orcpt = sm_rpool_strdup_x(e->e_rpool, vp);
 	}
 	else
@@ -4923,7 +4934,7 @@ help(topic, e)
 
 	len = strlen(topic);
 
-	while (sm_io_fgets(hf, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
+	while (sm_io_fgets(hf, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
 	{
 		if (buf[0] == '#')
 		{

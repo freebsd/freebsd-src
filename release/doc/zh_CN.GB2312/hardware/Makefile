@@ -21,7 +21,7 @@ JADEFLAGS+=	-V %generate-article-toc%
 # SGML content
 SRCS+=	article.xml
 SRCS+=	${DEV-AUTODIR}/catalog-auto
-SRCS+=	${DEV-AUTODIR}/dev-auto.xml
+SRCS+=	${DEV-AUTODIR}/dev-auto.ent
 
 CATALOGS+=	-c ${DEV-AUTODIR}/catalog-auto
 

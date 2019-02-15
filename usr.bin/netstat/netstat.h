@@ -60,6 +60,7 @@ extern int	af;	/* address family */
 extern int	live;	/* true if we are examining a live system */
 
 int	kread(u_long addr, void *buf, size_t size);
+int	kread_counters(u_long *addr, uint64_t *rval, size_t count);
 const char *plural(uintmax_t);
 const char *plurales(uintmax_t);
 const char *pluralies(uintmax_t);

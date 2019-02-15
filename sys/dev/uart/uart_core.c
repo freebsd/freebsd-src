@@ -137,7 +137,7 @@ uart_intr_break(void *arg)
  * much of the data we can, but otherwise flush the receiver FIFO to
  * create some breathing room. The net effect is that we avoid the
  * overrun condition to happen for the next X characters, where X is
- * related to the FIFO size at the cost of loosing data right away.
+ * related to the FIFO size at the cost of losing data right away.
  * So, instead of having multiple overrun interrupts in close proximity
  * to each other and possibly pessimizing UART interrupt latency for
  * other UARTs in a multiport configuration, we create a longer segment
@@ -192,7 +192,7 @@ uart_intr_rxready(void *arg)
  * Line or modem status change (OOB signalling).
  * We pass the signals to the software interrupt handler for further
  * processing. Note that we merge the delta bits, but set the state
- * bits. This is to avoid loosing state transitions due to having more
+ * bits. This is to avoid losing state transitions due to having more
  * than 1 hardware interrupt between software interrupts.
  */
 static __inline int
@@ -457,7 +457,13 @@ uart_bus_attach(device_t dev)
 		callout_init(&sc->sc_timer, 1);
 	}
 
-	sc->sc_rxbufsz = 384;
+	/*
+	 * Ensure there is room for at least three full FIFOs of data in the
+	 * receive buffer (handles the case of low-level drivers with huge
+	 * FIFOs), and also ensure that there is no less than the historical
+	 * size of 384 bytes (handles the typical small-FIFO case).
+	 */
+	sc->sc_rxbufsz = MAX(384, sc->sc_rxfifosz * 3);
 	sc->sc_rxbuf = malloc(sc->sc_rxbufsz * sizeof(*sc->sc_rxbuf),
 	    M_UART, M_WAITOK);
 	sc->sc_txbuf = malloc(sc->sc_txfifosz * sizeof(*sc->sc_txbuf),

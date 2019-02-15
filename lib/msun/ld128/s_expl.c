@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Steven G. Kargl
+ * Copyright (c) 2009-2013 Steven G. Kargl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,6 +22,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Optimized by Bruce D. Evans.
  */
 
 #include <sys/cdefs.h>
@@ -38,35 +40,61 @@ __FBSDID("$FreeBSD$");
 #include "math_private.h"
 
 #define	INTERVALS	128
+#define	LOG2_INTERVALS	7
 #define	BIAS	(LDBL_MAX_EXP - 1)
 
+static const long double
+huge = 0x1p10000L,
+twom10000 = 0x1p-10000L;
+/* XXX Prevent gcc from erroneously constant folding this: */
 static volatile const long double tiny = 0x1p-10000L;
 
 static const long double
-INV_L = 1.84664965233787316142070359168242182e+02L,
-L1 = 5.41521234812457272982212595914567508e-03L,
-L2 = -1.02536706388947310094527932552595546e-29L,
-huge = 0x1p10000L,
+/* log(2**16384 - 0.5) rounded towards zero: */
+/* log(2**16384 - 0.5 + 1) rounded towards zero for expm1l() is the same: */
 o_threshold =  11356.523406294143949491931077970763428L,
-twom10000 = 0x1p-10000L,
+/* log(2**(-16381-64-1)) rounded towards zero: */
 u_threshold = -11433.462743336297878837243843452621503L;
 
+static const double
+/*
+ * ln2/INTERVALS = L1+L2 (hi+lo decomposition for multiplication).  L1 must
+ * have at least 22 (= log2(|LDBL_MIN_EXP-extras|) + log2(INTERVALS)) lowest
+ * bits zero so that multiplication of it by n is exact.
+ */
+INV_L = 1.8466496523378731e+2,		/*  0x171547652b82fe.0p-45 */
+L2 = -1.0253670638894731e-29;		/* -0x1.9ff0342542fc3p-97 */
 static const long double
-P2 = 5.00000000000000000000000000000000000e-1L,
-P3 = 1.66666666666666666666666666666666972e-1L,
-P4 = 4.16666666666666666666666666653708268e-2L,
-P5 = 8.33333333333333333333333315069867254e-3L,
-P6 = 1.38888888888888888888996596213795377e-3L,
-P7 = 1.98412698412698412718821436278644414e-4L,
-P8 = 2.48015873015869681884882576649543128e-5L,
-P9 = 2.75573192240103867817876199544468806e-6L,
-P10 = 2.75573236172670046201884000197885520e-7L,
-P11 = 2.50517544183909126492878226167697856e-8L;
+/* 0x1.62e42fefa39ef35793c768000000p-8 */
+L1 =  5.41521234812457272982212595914567508e-3L;
+
+static const long double
+/*
+ * Domain [-0.002708, 0.002708], range ~[-2.4021e-38, 2.4234e-38]:
+ * |exp(x) - p(x)| < 2**-124.9
+ * (0.002708 is ln2/(2*INTERVALS) rounded up a little).
+ */
+A2  =  0.5,
+A3  =  1.66666666666666666666666666651085500e-1L,
+A4  =  4.16666666666666666666666666425885320e-2L,
+A5  =  8.33333333333333333334522877160175842e-3L,
+A6  =  1.38888888888888888889971139751596836e-3L;
+
+static const double
+A7  =  1.9841269841269471e-4,
+A8  =  2.4801587301585284e-5,
+A9  =  2.7557324277411234e-6,
+A10 =  2.7557333722375072e-7;
 
 static const struct {
+	/*
+	 * hi must be rounded to at most 106 bits so that multiplication
+	 * by r1 in expm1l() is exact, but it is rounded to 88 bits due to
+	 * historical accidents.
+	 */
 	long double	hi;
 	long double	lo;
-} s[INTERVALS] = {
+} tbl[INTERVALS] = {
 	0x1p0L, 0x0p0L,
 	0x1.0163da9fb33356d84a66aep0L, 0x3.36dcdfa4003ec04c360be2404078p-92L,
 	0x1.02c9a3e778060ee6f7cacap0L, 0x4.f7a29bde93d70a2cabc5cb89ba10p-92L,
@@ -201,9 +229,10 @@ long double
 expl(long double x)
 {
 	union IEEEl2bits u, v;
-	long double fn, r, r1, r2, q, t, twopk, twopkp10000;
+	long double q, r, r1, t, twopk, twopkp10000;
+	double dr, fn, r2;
 	int k, n, n2;
-	uint32_t hx, ix;
+	uint16_t hx, ix;
 
 	/* Filter out exceptional cases. */
 	u.e = x;
@@ -211,31 +240,39 @@ expl(long double x)
 	ix = hx & 0x7fff;
 	if (ix >= BIAS + 13) {		/* |x| >= 8192 or x is NaN */
 		if (ix == BIAS + LDBL_MAX_EXP) {
-			if (hx & 0x8000 && u.xbits.manh == 0 &&
-			    u.xbits.manl == 0)
-				return (0.0L);	/* x is -Inf */
-			return (x + x);	/* x is +Inf or NaN */
+			if (hx & 0x8000)  /* x is -Inf or -NaN */
+				return (-1 / x);
+			return (x + x);	/* x is +Inf or +NaN */
 		}
 		if (x > o_threshold)
 			return (huge * huge);
 		if (x < u_threshold)
 			return (tiny * tiny);
-	} else if (ix < BIAS - 115) {	/* |x| < 0x1p-115 */
-	    	if (huge + x > 1.0L)	/* trigger inexact iff x != 0 */
-			return (1.0L + x);
+	} else if (ix < BIAS - 114) {	/* |x| < 0x1p-114 */
+		return (1 + x);		/* 1 with inexact iff x != 0 */
 	}
 
-	/* Reduce x to (k*ln2 + midpoint[n2] + r1 + r2). */
-	fn = x * INV_L + 0x1.8p112 - 0x1.8p112;
-	n  = (int)fn;
+	ENTERI();
+
+	/* Reduce x to (k*ln2 + endpoint[n2] + r1 + r2). */
+	/* Use a specialized rint() to get fn.  Assume round-to-nearest. */
+	/* XXX assume no extra precision for the additions, as for trig fns. */
+	/* XXX this set of comments is now quadruplicated. */
+	fn = (double)x * INV_L + 0x1.8p52 - 0x1.8p52;
+#if defined(HAVE_EFFICIENT_IRINT)
+	n = irint(fn);
+#else
+	n = (int)fn;
+#endif
 	n2 = (unsigned)n % INTERVALS;
-	k = (n - n2) / INTERVALS;
+	k = n >> LOG2_INTERVALS;
 	r1 = x - fn * L1;
-	r2 = -fn * L2;
+	r2 = fn * -L2;
+	r = r1 + r2;
 
 	/* Prepare scale factors. */
-	v.xbits.manh = 0;
-	v.xbits.manl = 0;
+	/* XXX sparc64 multiplication is so slow that scalbnl() is faster. */
+	v.e = 1;
 	if (k >= LDBL_MIN_EXP) {
 		v.xbits.expsign = BIAS + k;
 		twopk = v.e;
@@ -244,18 +281,214 @@ expl(long double x)
 		twopkp10000 = v.e;
 	}
 
-	r = r1 + r2;
-	q = r * r * (P2 + r * (P3 + r * (P4 + r * (P5 + r * (P6 + r * (P7 +
-	    r * (P8 + r * (P9 + r * (P10 + r * P11)))))))));
-	t = s[n2].lo + s[n2].hi;
-	t = s[n2].hi + (s[n2].lo + t * (r2 + q + r1));
+	/* Evaluate expl(endpoint[n2] + r1 + r2) = tbl[n2] * expl(r1 + r2). */
+	dr = r;
+	q = r2 + r * r * (A2 + r * (A3 + r * (A4 + r * (A5 + r * (A6 +
+	    dr * (A7 + dr * (A8 + dr * (A9 + dr * A10))))))));
+	t = tbl[n2].lo + tbl[n2].hi;
+	t = tbl[n2].lo + t * (q + r1) + tbl[n2].hi;
 
 	/* Scale by 2**k. */
 	if (k >= LDBL_MIN_EXP) {
 		if (k == LDBL_MAX_EXP)
-			return (t * 2.0L * 0x1p16383L);
-		return (t * twopk);
+			RETURNI(t * 2 * 0x1p16383L);
+		RETURNI(t * twopk);
 	} else {
-		return (t * twopkp10000 * twom10000);
+		RETURNI(t * twopkp10000 * twom10000);
 	}
+}
+
+/*
+ * Our T1 and T2 are chosen to be approximately the points where method
+ * A and method B have the same accuracy.  Tang's T1 and T2 are the
+ * points where method A's accuracy changes by a full bit.  For Tang,
+ * this drop in accuracy makes method A immediately less accurate than
+ * method B, but our larger INTERVALS makes method A 2 bits more
+ * accurate so it remains the most accurate method significantly
+ * closer to the origin despite losing the full bit in our extended
+ * range for it.
+ *
+ * Split the interval [T1, T2] into two intervals [T1, T3] and [T3, T2].
+ * Setting T3 to 0 would require the |x| < 0x1p-113 condition to appear
+ * in both subintervals, so set T3 = 2**-5, which places the condition
+ * into the [T1, T3] interval.
+ */
+static const double
+T1 = -0.1659,				/* ~-30.625/128 * log(2) */
+T2 =  0.1659,				/* ~30.625/128 * log(2) */
+T3 =  0.03125;
+
+/*
+ * Domain [-0.1659, 0.03125], range ~[2.9134e-44, 1.8404e-37]:
+ * |(exp(x)-1-x-x**2/2)/x - p(x)| < 2**-122.03
+ */
+static const long double
+C3  =  1.66666666666666666666666666666666667e-1L,
+C4  =  4.16666666666666666666666666666666645e-2L,
+C5  =  8.33333333333333333333333333333371638e-3L,
+C6  =  1.38888888888888888888888888891188658e-3L,
+C7  =  1.98412698412698412698412697235950394e-4L,
+C8  =  2.48015873015873015873015112487849040e-5L,
+C9  =  2.75573192239858906525606685484412005e-6L,
+C10 =  2.75573192239858906612966093057020362e-7L,
+C11 =  2.50521083854417203619031960151253944e-8L,
+C12 =  2.08767569878679576457272282566520649e-9L,
+C13 =  1.60590438367252471783548748824255707e-10L;
+
+static const double
+C14 =  1.1470745580491932e-11,		/*  0x1.93974a81dae30p-37 */
+C15 =  7.6471620181090468e-13,		/*  0x1.ae7f3820adab1p-41 */
+C16 =  4.7793721460260450e-14,		/*  0x1.ae7cd18a18eacp-45 */
+C17 =  2.8074757356658877e-15,		/*  0x1.949992a1937d9p-49 */
+C18 =  1.4760610323699476e-16;		/*  0x1.545b43aabfbcdp-53 */
+
+/*
+ * Domain [0.03125, 0.1659], range ~[-2.7676e-37, -1.0367e-38]:
+ * |(exp(x)-1-x-x**2/2)/x - p(x)| < 2**-121.44
+ */
+static const long double
+D3  =  1.66666666666666666666666666666682245e-1L,
+D4  =  4.16666666666666666666666666634228324e-2L,
+D5  =  8.33333333333333333333333364022244481e-3L,
+D6  =  1.38888888888888888888887138722762072e-3L,
+D7  =  1.98412698412698412699085805424661471e-4L,
+D8  =  2.48015873015873015687993712101479612e-5L,
+D9  =  2.75573192239858944101036288338208042e-6L,
+D10 =  2.75573192239853161148064676533754048e-7L,
+D11 =  2.50521083855084570046480450935267433e-8L,
+D12 =  2.08767569819738524488686318024854942e-9L,
+D13 =  1.60590442297008495301927448122499313e-10L;
+
+static const double
+D14 =  1.1470726176204336e-11,		/*  0x1.93971dc395d9ep-37 */
+D15 =  7.6478532249581686e-13,		/*  0x1.ae892e3D16fcep-41 */
+D16 =  4.7628892832607741e-14,		/*  0x1.ad00Dfe41feccp-45 */
+D17 =  3.0524857220358650e-15;		/*  0x1.D7e8d886Df921p-49 */
+
+long double
+expm1l(long double x)
+{
+	union IEEEl2bits u, v;
+	long double hx2_hi, hx2_lo, q, r, r1, t, twomk, twopk, x_hi;
+	long double x_lo, x2;
+	double dr, dx, fn, r2;
+	int k, n, n2;
+	uint16_t hx, ix;
+
+	/* Filter out exceptional cases. */
+	u.e = x;
+	hx = u.xbits.expsign;
+	ix = hx & 0x7fff;
+	if (ix >= BIAS + 7) {		/* |x| >= 128 or x is NaN */
+		if (ix == BIAS + LDBL_MAX_EXP) {
+			if (hx & 0x8000)  /* x is -Inf or -NaN */
+				return (-1 / x - 1);
+			return (x + x);	/* x is +Inf or +NaN */
+		}
+		if (x > o_threshold)
+			return (huge * huge);
+		/*
+		 * expm1l() never underflows, but it must avoid
+		 * unrepresentable large negative exponents.  We used a
+		 * much smaller threshold for large |x| above than in
+		 * expl() so as to handle not so large negative exponents
+		 * in the same way as large ones here.
+		 */
+		if (hx & 0x8000)	/* x <= -128 */
+			return (tiny - 1);	/* good for x < -114ln2 - eps */
+	}
+
+	ENTERI();
+
+	if (T1 < x && x < T2) {
+		x2 = x * x;
+		dx = x;
+
+		if (x < T3) {
+			if (ix < BIAS - 113) {	/* |x| < 0x1p-113 */
+				/* x (rounded) with inexact if x != 0: */
+				RETURNI(x == 0 ? x :
+				    (0x1p200 * x + fabsl(x)) * 0x1p-200);
+			}
+			q = x * x2 * C3 + x2 * x2 * (C4 + x * (C5 + x * (C6 +
+			    x * (C7 + x * (C8 + x * (C9 + x * (C10 +
+			    x * (C11 + x * (C12 + x * (C13 +
+			    dx * (C14 + dx * (C15 + dx * (C16 +
+			    dx * (C17 + dx * C18))))))))))))));
+		} else {
+			q = x * x2 * D3 + x2 * x2 * (D4 + x * (D5 + x * (D6 +
+			    x * (D7 + x * (D8 + x * (D9 + x * (D10 +
+			    x * (D11 + x * (D12 + x * (D13 +
+			    dx * (D14 + dx * (D15 + dx * (D16 +
+			    dx * D17)))))))))))));
+		}
+
+		x_hi = (float)x;
+		x_lo = x - x_hi;
+		hx2_hi = x_hi * x_hi / 2;
+		hx2_lo = x_lo * (x + x_hi) / 2;
+		if (ix >= BIAS - 7)
+			RETURNI(hx2_lo + x_lo + q + (hx2_hi + x_hi));
+		else
+			RETURNI(hx2_lo + q + hx2_hi + x);
+	}
+
+	/* Reduce x to (k*ln2 + endpoint[n2] + r1 + r2). */
+	/* Use a specialized rint() to get fn.  Assume round-to-nearest. */
+	fn = (double)x * INV_L + 0x1.8p52 - 0x1.8p52;
+#if defined(HAVE_EFFICIENT_IRINT)
+	n = irint(fn);
+#else
+	n = (int)fn;
+#endif
+	n2 = (unsigned)n % INTERVALS;
+	k = n >> LOG2_INTERVALS;
+	r1 = x - fn * L1;
+	r2 = fn * -L2;
+	r = r1 + r2;
+
+	/* Prepare scale factor. */
+	v.e = 1;
+	v.xbits.expsign = BIAS + k;
+	twopk = v.e;
+
+	/*
+	 * Evaluate lower terms of
+	 * expl(endpoint[n2] + r1 + r2) = tbl[n2] * expl(r1 + r2).
+	 */
+	dr = r;
+	q = r2 + r * r * (A2 + r * (A3 + r * (A4 + r * (A5 + r * (A6 +
+	    dr * (A7 + dr * (A8 + dr * (A9 + dr * A10))))))));
+
+	t = tbl[n2].lo + tbl[n2].hi;
+
+	if (k == 0) {
+		t = tbl[n2].lo * (r1 + 1) + t * q + tbl[n2].hi * r1 +
+		    (tbl[n2].hi - 1);
+		RETURNI(t);
+	}
+	if (k == -1) {
+		t = tbl[n2].lo * (r1 + 1) + t * q + tbl[n2].hi * r1 + 
+		    (tbl[n2].hi - 2);
+		RETURNI(t / 2);
+	}
+	if (k < -7) {
+		t = tbl[n2].lo + t * (q + r1) + tbl[n2].hi;
+		RETURNI(t * twopk - 1);
+	}
+	if (k > 2 * LDBL_MANT_DIG - 1) {
+		t = tbl[n2].lo + t * (q + r1) + tbl[n2].hi;
+		if (k == LDBL_MAX_EXP)
+			RETURNI(t * 2 * 0x1p16383L - 1);
+		RETURNI(t * twopk - 1);
+	}
+
+	v.xbits.expsign = BIAS - k;
+	twomk = v.e;
+
+	if (k > LDBL_MANT_DIG - 1)
+		t = tbl[n2].lo - twomk + t * (q + r1) + tbl[n2].hi;
+	else
+		t = tbl[n2].lo + t * (q + r1) + (tbl[n2].hi - twomk);
+	RETURNI(t * twopk);
 }

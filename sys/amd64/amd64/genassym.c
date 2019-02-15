@@ -109,7 +109,6 @@ ASSYM(addr_PML4map, addr_PML4map);
 ASSYM(addr_PML4pml4e, addr_PML4pml4e);
 ASSYM(PDESIZE, sizeof(pd_entry_t));
 ASSYM(PTESIZE, sizeof(pt_entry_t));
-ASSYM(PTESHIFT, PTESHIFT);
 ASSYM(PAGE_SHIFT, PAGE_SHIFT);
 ASSYM(PAGE_MASK, PAGE_MASK);
 ASSYM(PDRSHIFT, PDRSHIFT);
@@ -167,7 +166,6 @@ ASSYM(PCB_FPUSUSPEND, offsetof(struct pcb, pcb_fpususpend));
 ASSYM(PCB_SIZE, sizeof(struct pcb));
 ASSYM(PCB_FULL_IRET, PCB_FULL_IRET);
 ASSYM(PCB_DBREGS, PCB_DBREGS);
-ASSYM(PCB_GS32BIT, PCB_GS32BIT);
 ASSYM(PCB_32BIT, PCB_32BIT);
 
 ASSYM(COMMON_TSS_RSP0, offsetof(struct amd64tss, tss_rsp0));

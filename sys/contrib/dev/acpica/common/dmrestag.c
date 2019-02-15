@@ -666,6 +666,7 @@ AcpiGetTagPathname (
     Status = AcpiNsBuildExternalPath (BufferNode, RequiredSize, Pathname);
     if (ACPI_FAILURE (Status))
     {
+        ACPI_FREE (Pathname);
         return (NULL);
     }
 
@@ -798,7 +799,6 @@ AcpiDmGetResourceTag (
     case ACPI_RESOURCE_NAME_ADDRESS32:
     case ACPI_RESOURCE_NAME_ADDRESS64:
     case ACPI_RESOURCE_NAME_EXTENDED_ADDRESS64:
-
         /*
          * Subtype differentiation is the flags.
          * Kindof brute force, but just blindly search for an index match
@@ -846,6 +846,7 @@ AcpiDmGetResourceTag (
         break;
 
     default:
+
         break;
     }
 

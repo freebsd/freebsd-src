@@ -12,14 +12,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Serialization/ASTWriter.h"
-#include "clang/Serialization/ASTReader.h"
 #include "ASTCommon.h"
-#include "clang/AST/DeclVisitor.h"
 #include "clang/AST/DeclCXX.h"
-#include "clang/AST/DeclTemplate.h"
-#include "clang/AST/Expr.h"
 #include "clang/AST/DeclContextInternals.h"
+#include "clang/AST/DeclTemplate.h"
+#include "clang/AST/DeclVisitor.h"
+#include "clang/AST/Expr.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Serialization/ASTReader.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Bitcode/BitstreamWriter.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -81,6 +81,7 @@ namespace clang {
     void VisitCXXDestructorDecl(CXXDestructorDecl *D);
     void VisitCXXConversionDecl(CXXConversionDecl *D);
     void VisitFieldDecl(FieldDecl *D);
+    void VisitMSPropertyDecl(MSPropertyDecl *D);
     void VisitIndirectFieldDecl(IndirectFieldDecl *D);
     void VisitVarDecl(VarDecl *D);
     void VisitImplicitParamDecl(ImplicitParamDecl *D);
@@ -102,6 +103,8 @@ namespace clang {
     void VisitFriendTemplateDecl(FriendTemplateDecl *D);
     void VisitStaticAssertDecl(StaticAssertDecl *D);
     void VisitBlockDecl(BlockDecl *D);
+    void VisitCapturedDecl(CapturedDecl *D);
+    void VisitEmptyDecl(EmptyDecl *D);
 
     void VisitDeclContext(DeclContext *DC, uint64_t LexicalOffset,
                           uint64_t VisibleOffset);
@@ -122,6 +125,7 @@ namespace clang {
     void VisitObjCCompatibleAliasDecl(ObjCCompatibleAliasDecl *D);
     void VisitObjCPropertyDecl(ObjCPropertyDecl *D);
     void VisitObjCPropertyImplDecl(ObjCPropertyImplDecl *D);
+    void VisitOMPThreadPrivateDecl(OMPThreadPrivateDecl *D);
   };
 }
 
@@ -252,6 +256,7 @@ void ASTDeclWriter::VisitEnumDecl(EnumDecl *D) {
       !D->isModulePrivate() &&
       !CXXRecordDecl::classofKind(D->getKind()) &&
       !D->getIntegerTypeSourceInfo() &&
+      !D->getMemberSpecializationInfo() &&
       D->getDeclName().getNameKind() == DeclarationName::Identifier)
     AbbrevToUse = Writer.getDeclEnumAbbrev();
 
@@ -263,6 +268,7 @@ void ASTDeclWriter::VisitRecordDecl(RecordDecl *D) {
   Record.push_back(D->hasFlexibleArrayMember());
   Record.push_back(D->isAnonymousStructOrUnion());
   Record.push_back(D->hasObjectMember());
+  Record.push_back(D->hasVolatileMember());
 
   if (!D->hasAttrs() &&
       !D->isImplicit() &&
@@ -315,7 +321,6 @@ void ASTDeclWriter::VisitFunctionDecl(FunctionDecl *D) {
   // after everything else is written.
   
   Record.push_back(D->getStorageClass()); // FIXME: stable encoding
-  Record.push_back(D->getStorageClassAsWritten());
   Record.push_back(D->IsInline);
   Record.push_back(D->isInlineSpecified());
   Record.push_back(D->isVirtualAsWritten());
@@ -328,6 +333,8 @@ void ASTDeclWriter::VisitFunctionDecl(FunctionDecl *D) {
   Record.push_back(D->isExplicitlyDefaulted());
   Record.push_back(D->hasImplicitReturnZero());
   Record.push_back(D->isConstexpr());
+  Record.push_back(D->HasSkippedBody);
+  Record.push_back(D->getLinkage());
   Writer.AddSourceLocation(D->getLocEnd(), Record);
 
   Record.push_back(D->getTemplatedKind());
@@ -419,6 +426,7 @@ void ASTDeclWriter::VisitObjCMethodDecl(ObjCMethodDecl *D) {
   Record.push_back(D->isPropertyAccessor());
   Record.push_back(D->isDefined());
   Record.push_back(D->IsOverriding);
+  Record.push_back(D->HasSkippedBody);
 
   Record.push_back(D->IsRedeclaration);
   Record.push_back(D->HasRedeclaration);
@@ -489,13 +497,14 @@ void ASTDeclWriter::VisitObjCInterfaceDecl(ObjCInterfaceDecl *D) {
            PEnd = Data.AllReferencedProtocols.end();
          P != PEnd; ++P)
       Writer.AddDeclRef(*P, Record);
+
     
-    if (ObjCCategoryDecl *Cat = D->getCategoryList()) {
+    if (ObjCCategoryDecl *Cat = D->getCategoryListRaw()) {
       // Ensure that we write out the set of categories for this class.
       Writer.ObjCClassesWithCategories.insert(D);
       
       // Make sure that the categories get serialized.
-      for (; Cat; Cat = Cat->getNextClassCategory())
+      for (; Cat; Cat = Cat->getNextClassCategoryRaw())
         (void)Writer.GetDeclRef(Cat);
     }
   }  
@@ -604,6 +613,7 @@ void ASTDeclWriter::VisitObjCCategoryImplDecl(ObjCCategoryImplDecl *D) {
 void ASTDeclWriter::VisitObjCImplementationDecl(ObjCImplementationDecl *D) {
   VisitObjCImplDecl(D);
   Writer.AddDeclRef(D->getSuperClass(), Record);
+  Writer.AddSourceLocation(D->getSuperClassLoc(), Record);
   Writer.AddSourceLocation(D->getIvarLBraceLoc(), Record);
   Writer.AddSourceLocation(D->getIvarRBraceLoc(), Record);
   Record.push_back(D->hasNonZeroConstructors());
@@ -655,6 +665,13 @@ void ASTDeclWriter::VisitFieldDecl(FieldDecl *D) {
   Code = serialization::DECL_FIELD;
 }
 
+void ASTDeclWriter::VisitMSPropertyDecl(MSPropertyDecl *D) {
+  VisitDeclaratorDecl(D);
+  Writer.AddIdentifierRef(D->getGetterId(), Record);
+  Writer.AddIdentifierRef(D->getSetterId(), Record);
+  Code = serialization::DECL_MS_PROPERTY;
+}
+
 void ASTDeclWriter::VisitIndirectFieldDecl(IndirectFieldDecl *D) {
   VisitValueDecl(D);
   Record.push_back(D->getChainingSize());
@@ -669,15 +686,15 @@ void ASTDeclWriter::VisitIndirectFieldDecl(IndirectFieldDecl *D) {
 void ASTDeclWriter::VisitVarDecl(VarDecl *D) {
   VisitRedeclarable(D);
   VisitDeclaratorDecl(D);
-  Record.push_back(D->getStorageClass()); // FIXME: stable encoding
-  Record.push_back(D->getStorageClassAsWritten());
-  Record.push_back(D->isThreadSpecified());
+  Record.push_back(D->getStorageClass());
+  Record.push_back(D->getTSCSpec());
   Record.push_back(D->getInitStyle());
   Record.push_back(D->isExceptionVariable());
   Record.push_back(D->isNRVOVariable());
   Record.push_back(D->isCXXForRangeDecl());
   Record.push_back(D->isARCPseudoStrong());
   Record.push_back(D->isConstexpr());
+  Record.push_back(D->getLinkage());
 
   if (D->getInit()) {
     Record.push_back(!D->isInitKnownICE() ? 1 : (D->isInitICE() ? 3 : 2));
@@ -759,7 +776,7 @@ void ASTDeclWriter::VisitParmVarDecl(ParmVarDecl *D) {
 
   // Check things we know are true of *every* PARM_VAR_DECL, which is more than
   // just us assuming it.
-  assert(!D->isThreadSpecified() && "PARM_VAR_DECL can't be __thread");
+  assert(!D->getTSCSpec() && "PARM_VAR_DECL can't use TLS");
   assert(D->getAccess() == AS_none && "PARM_VAR_DECL can't be public/private");
   assert(!D->isExceptionVariable() && "PARM_VAR_DECL can't be exception var");
   assert(D->getPreviousDecl() == 0 && "PARM_VAR_DECL can't be redecl");
@@ -772,6 +789,11 @@ void ASTDeclWriter::VisitFileScopeAsmDecl(FileScopeAsmDecl *D) {
   Writer.AddStmt(D->getAsmString());
   Writer.AddSourceLocation(D->getRParenLoc(), Record);
   Code = serialization::DECL_FILE_SCOPE_ASM;
+}
+
+void ASTDeclWriter::VisitEmptyDecl(EmptyDecl *D) {
+  VisitDecl(D);
+  Code = serialization::DECL_EMPTY;
 }
 
 void ASTDeclWriter::VisitBlockDecl(BlockDecl *D) {
@@ -802,6 +824,15 @@ void ASTDeclWriter::VisitBlockDecl(BlockDecl *D) {
   }
 
   Code = serialization::DECL_BLOCK;
+}
+
+void ASTDeclWriter::VisitCapturedDecl(CapturedDecl *CD) {
+  Record.push_back(CD->getNumParams());
+  VisitDecl(CD);
+  // Body is stored by VisitCapturedStmt.
+  for (unsigned i = 0; i < CD->getNumParams(); ++i)
+    Writer.AddDeclRef(CD->getParam(i), Record);
+  Code = serialization::DECL_CAPTURED;
 }
 
 void ASTDeclWriter::VisitLinkageSpecDecl(LinkageSpecDecl *D) {
@@ -839,11 +870,10 @@ void ASTDeclWriter::VisitNamespaceDecl(NamespaceDecl *D) {
     if (StoredDeclsMap *Map = NS->buildLookup()) {
       for (StoredDeclsMap::iterator D = Map->begin(), DEnd = Map->end();
            D != DEnd; ++D) {
-        DeclContext::lookup_result Result = D->second.getLookupResult();
-        while (Result.first != Result.second) {
-          Writer.GetDeclRef(*Result.first);
-          ++Result.first;
-        }
+        DeclContext::lookup_result R = D->second.getLookupResult();
+        for (DeclContext::lookup_iterator I = R.begin(), E = R.end(); I != E;
+             ++I)
+          Writer.GetDeclRef(*I);
       }
     }
   }
@@ -940,10 +970,10 @@ void ASTDeclWriter::VisitCXXRecordDecl(CXXRecordDecl *D) {
     Record.push_back(CXXRecNotTemplate);
   }
 
-  // Store the key function to avoid deserializing every method so we can
-  // compute it.
+  // Store (what we currently believe to be) the key function to avoid
+  // deserializing every method so we can compute it.
   if (D->IsCompleteDefinition)
-    Writer.AddDeclRef(Context.getKeyFunction(D), Record);
+    Writer.AddDeclRef(Context.getCurrentKeyFunction(D), Record);
 
   Code = serialization::DECL_CXX_RECORD;
 }
@@ -1014,12 +1044,19 @@ void ASTDeclWriter::VisitAccessSpecDecl(AccessSpecDecl *D) {
 }
 
 void ASTDeclWriter::VisitFriendDecl(FriendDecl *D) {
+  // Record the number of friend type template parameter lists here
+  // so as to simplify memory allocation during deserialization.
+  Record.push_back(D->NumTPLists);
   VisitDecl(D);
-  Record.push_back(D->Friend.is<TypeSourceInfo*>());
-  if (D->Friend.is<TypeSourceInfo*>())
-    Writer.AddTypeSourceInfo(D->Friend.get<TypeSourceInfo*>(), Record);
+  bool hasFriendDecl = D->Friend.is<NamedDecl*>();
+  Record.push_back(hasFriendDecl);
+  if (hasFriendDecl)
+    Writer.AddDeclRef(D->getFriendDecl(), Record);
   else
-    Writer.AddDeclRef(D->Friend.get<NamedDecl*>(), Record);
+    Writer.AddTypeSourceInfo(D->getFriendType(), Record);
+  for (unsigned i = 0; i < D->NumTPLists; ++i)
+    Writer.AddTemplateParameterList(D->getFriendTypeTemplateParameterList(i),
+                                    Record);
   Writer.AddDeclRef(D->getNextFriend(), Record);
   Record.push_back(D->UnsupportedFriend);
   Writer.AddSourceLocation(D->FriendLoc, Record);
@@ -1275,7 +1312,10 @@ template <typename T>
 void ASTDeclWriter::VisitRedeclarable(Redeclarable<T> *D) {
   T *First = D->getFirstDeclaration();
   if (First->getMostRecentDecl() != First) {
-    // There is more than one declaration of this entity, so we will need to 
+    assert(isRedeclarableDeclKind(static_cast<T *>(D)->getKind()) &&
+           "Not considered redeclarable?");
+    
+    // There is more than one declaration of this entity, so we will need to
     // write a redeclaration chain.
     Writer.AddDeclRef(First, Record);
     Writer.Redeclarations.insert(First);
@@ -1290,6 +1330,16 @@ void ASTDeclWriter::VisitRedeclarable(Redeclarable<T> *D) {
     Record.push_back(0);
   }
   
+}
+
+void ASTDeclWriter::VisitOMPThreadPrivateDecl(OMPThreadPrivateDecl *D) {
+  Record.push_back(D->varlist_size());
+  VisitDecl(D);
+  for (OMPThreadPrivateDecl::varlist_iterator I = D->varlist_begin(),
+                                              E = D->varlist_end();
+       I != E; ++I)
+    Writer.AddStmt(*I);
+  Code = serialization::DECL_OMP_THREADPRIVATE;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1451,6 +1501,7 @@ void ASTWriter::WriteDeclsBlockAbbrevs() {
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // FlexibleArrayMember
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // AnonymousStructUnion
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // hasObjectMember
+  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // hasVolatileMember
   // DC
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6));   // LexicalOffset
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6));   // VisibleOffset
@@ -1483,14 +1534,14 @@ void ASTWriter::WriteDeclsBlockAbbrevs() {
   Abv->Add(BitCodeAbbrevOp(0));                       // hasExtInfo
   // VarDecl
   Abv->Add(BitCodeAbbrevOp(0));                       // StorageClass
-  Abv->Add(BitCodeAbbrevOp(0));                       // StorageClassAsWritten
-  Abv->Add(BitCodeAbbrevOp(0));                       // isThreadSpecified
+  Abv->Add(BitCodeAbbrevOp(0));                       // getTSCSpec
   Abv->Add(BitCodeAbbrevOp(0));                       // hasCXXDirectInitializer
   Abv->Add(BitCodeAbbrevOp(0));                       // isExceptionVariable
   Abv->Add(BitCodeAbbrevOp(0));                       // isNRVOVariable
   Abv->Add(BitCodeAbbrevOp(0));                       // isCXXForRangeDecl
   Abv->Add(BitCodeAbbrevOp(0));                       // isARCPseudoStrong
   Abv->Add(BitCodeAbbrevOp(0));                       // isConstexpr
+  Abv->Add(BitCodeAbbrevOp(0));                       // Linkage
   Abv->Add(BitCodeAbbrevOp(0));                       // HasInit
   Abv->Add(BitCodeAbbrevOp(0));                   // HasMemberSpecializationInfo
   // ParmVarDecl
@@ -1562,14 +1613,14 @@ void ASTWriter::WriteDeclsBlockAbbrevs() {
   Abv->Add(BitCodeAbbrevOp(0));                       // hasExtInfo
   // VarDecl
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // StorageClass
-  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // StorageClassAsWritten
-  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // isThreadSpecified
+  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 2)); // getTSCSpec
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // CXXDirectInitializer
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // isExceptionVariable
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // isNRVOVariable
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // isCXXForRangeDecl
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // isARCPseudoStrong
   Abv->Add(BitCodeAbbrevOp(0));                         // isConstexpr
+  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 2)); // Linkage
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // HasInit
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // HasMemberSpecInfo
   // Type Source Info

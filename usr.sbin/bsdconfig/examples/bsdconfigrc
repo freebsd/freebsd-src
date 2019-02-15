@@ -27,10 +27,16 @@
 
 # This file allows you to customize the behavior of bsdconfig.
 #   Copy it to your $HOME/.bsdconfigrc and edit to suit.
-#   defaults are shown.
 
-# debugging aid for development
+# Debugging aids for development
+#
+#debug=1
+#debugFile=$HOME/out
+#debugFile=+$HOME/out # includes debug to stdout
+
+# Optionally override functions to be more verbose (like including the date)
+#
 # f_dprintf() {
-#   local format="$1"; shift
-#   printf "$(date):$pgm:$format\n" "$@" >> $HOME/out
+# 	local format="$1"; shift
+# 	printf "$(date):$pgm:$format\n" "$@" >> $HOME/out
 # }

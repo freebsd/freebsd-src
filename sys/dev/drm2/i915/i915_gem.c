@@ -1362,7 +1362,6 @@ unlocked_vmobj:
 	cause = ret = 0;
 	m = NULL;
 
-
 	if (i915_intr_pf) {
 		ret = i915_mutex_lock_interruptible(dev);
 		if (ret != 0) {
@@ -1371,6 +1370,23 @@ unlocked_vmobj:
 		}
 	} else
 		DRM_LOCK(dev);
+
+	/*
+	 * Since the object lock was dropped, other thread might have
+	 * faulted on the same GTT address and instantiated the
+	 * mapping for the page.  Recheck.
+	 */
+	VM_OBJECT_WLOCK(vm_obj);
+	m = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
+	if (m != NULL) {
+		if ((m->flags & VPO_BUSY) != 0) {
+			DRM_UNLOCK(dev);
+			vm_page_sleep(m, "915pee");
+			goto retry;
+		}
+		goto have_page;
+	} else
+		VM_OBJECT_WUNLOCK(vm_obj);
 
 	/* Now bind it into the GTT if needed */
 	if (!obj->map_and_fenceable) {
@@ -1425,10 +1441,9 @@ unlocked_vmobj:
 		goto retry;
 	}
 	m->valid = VM_PAGE_BITS_ALL;
-	*mres = m;
-	vm_page_lock(m);
 	vm_page_insert(m, vm_obj, OFF_TO_IDX(offset));
-	vm_page_unlock(m);
+have_page:
+	*mres = m;
 	vm_page_busy(m);
 
 	CTR4(KTR_DRM, "fault %p %jx %x phys %x", gem_obj, offset, prot,
@@ -2489,8 +2504,10 @@ i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex)
 	int rv;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
+	    VM_ALLOC_RETRY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
+		vm_page_busy(m);
 		if (vm_pager_has_page(object, pindex, NULL, NULL)) {
 			rv = vm_pager_get_pages(object, &m, 1, 0);
 			m = vm_page_lookup(object, pindex);
@@ -2507,11 +2524,11 @@ i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex)
 			m->valid = VM_PAGE_BITS_ALL;
 			m->dirty = 0;
 		}
+		vm_page_wakeup(m);
 	}
 	vm_page_lock(m);
 	vm_page_wire(m);
 	vm_page_unlock(m);
-	vm_page_wakeup(m);
 	atomic_add_long(&i915_gem_wired_pages_cnt, 1);
 	return (m);
 }

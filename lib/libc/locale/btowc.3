@@ -42,9 +42,9 @@
 .In wchar.h
 .In xlocale.h
 .Ft wint_t
-.Fn btowc "int c"
+.Fn btowc_l "int c" "locale_t loc"
 .Ft int
-.Fn wctob "wint_t c"
+.Fn wctob_l "wint_t c" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn btowc

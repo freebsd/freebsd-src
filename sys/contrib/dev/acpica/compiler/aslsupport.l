@@ -395,16 +395,19 @@ count (
     switch (Type)
     {
     case 2:
+
         TotalKeywords++;
         TotalNamedObjects++;
         break;
 
     case 3:
+
         TotalKeywords++;
         TotalExecutableOpcodes++;
         break;
 
     default:
+
         break;
     }
 
@@ -594,6 +597,7 @@ DoCharacter:
                 goto CompletedString;
 
             default:
+
                 break;
             }
             break;
@@ -605,34 +609,42 @@ DoCharacter:
             switch (StringChar)
             {
             case 'a':
+
                 StringChar = 0x07;      /* BELL */
                 break;
 
             case 'b':
+
                 StringChar = 0x08;      /* BACKSPACE */
                 break;
 
             case 'f':
+
                 StringChar = 0x0C;      /* FORMFEED */
                 break;
 
             case 'n':
+
                 StringChar = 0x0A;      /* LINEFEED */
                 break;
 
             case 'r':
+
                 StringChar = 0x0D;      /* CARRIAGE RETURN*/
                 break;
 
             case 't':
+
                 StringChar = 0x09;      /* HORIZONTAL TAB */
                 break;
 
             case 'v':
+
                 StringChar = 0x0B;      /* VERTICAL TAB */
                 break;
 
             case 'x':
+
                 State = ASL_HEX_CONSTANT;
                 i = 0;
                 continue;
@@ -640,6 +652,7 @@ DoCharacter:
             case '\'':                  /* Single Quote */
             case '\"':                  /* Double Quote */
             case '\\':                  /* Backslash */
+
                 break;
 
             default:
@@ -709,7 +722,6 @@ DoCharacter:
             i++;
             continue;
 
-
         case ASL_HEX_CONSTANT:
 
             /* Up to two hex digits allowed */
@@ -755,6 +767,7 @@ DoCharacter:
             continue;
 
         default:
+
             break;
         }
 

@@ -1,4 +1,4 @@
-/* $Id: output.c,v 1.44 2012/05/26 01:13:02 tom Exp $ */
+/* $Id: output.c,v 1.45 2013/03/05 00:29:17 tom Exp $ */
 
 #include "defs.h"
 
@@ -861,9 +861,12 @@ output_defines(FILE * fp)
     {
 	if (unionized)
 	{
-	    rewind(union_file);
-	    while ((c = getc(union_file)) != EOF)
-		putc(c, fp);
+	    if (union_file != 0)
+	    {
+		rewind(union_file);
+		while ((c = getc(union_file)) != EOF)
+		    putc(c, fp);
+	    }
 	    fprintf(fp, "extern YYSTYPE %slval;\n", symbol_prefix);
 	}
     }
@@ -1446,9 +1449,12 @@ output(void)
 
     if (iflag)
     {
-	++outline;
-	fprintf(code_file, "#include \"%s\"\n", defines_file_name);
-	if (!dflag)
+	if (dflag)
+	{
+	    ++outline;
+	    fprintf(code_file, "#include \"%s\"\n", defines_file_name);
+	}
+	else
 	    output_defines(externs_file);
     }
     else

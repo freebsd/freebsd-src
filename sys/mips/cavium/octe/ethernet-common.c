@@ -107,22 +107,7 @@ int cvm_assign_mac_address(uint64_t *macp, uint8_t *octets)
 		if (cvm_oct_mac_addr == 0)
 			return ENXIO;
 
-		/*
-		 * The offset from mac_addr_base that should be used for the next port
-		 * that is configured.  By convention, if any mgmt ports exist on the
-		 * chip, they get the first mac addresses.  The ports controlled by
-		 * driver that use this function are numbered sequencially following 
-		 * any mgmt addresses that may exist.
-		 *
-		 * XXX Would be nice if __cvmx_mgmt_port_num_ports() were
-		 *     not static to cvmx-mgmt-port.c.
-		 */
-		if (OCTEON_IS_MODEL(OCTEON_CN56XX))
-			cvm_oct_mac_addr_offset = 1;
-		else if (OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX))
-			cvm_oct_mac_addr_offset = 2;
-		else
-			cvm_oct_mac_addr_offset = 0;
+		cvm_oct_mac_addr_offset = cvmx_mgmt_port_num_ports();
 		cvm_oct_mac_addr += cvm_oct_mac_addr_offset;
 	}
 

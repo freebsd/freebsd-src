@@ -240,6 +240,7 @@ etc-examples:
 .endif
 
 .if ${SHARED} != "symlinks"
+SUBDIR=	smbfs
 .if ${MK_ATF} != "no"
 SUBDIR+=atf
 .endif

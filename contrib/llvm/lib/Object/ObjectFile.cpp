@@ -23,8 +23,14 @@ using namespace object;
 
 void ObjectFile::anchor() { }
 
-ObjectFile::ObjectFile(unsigned int Type, MemoryBuffer *source, error_code &ec)
+ObjectFile::ObjectFile(unsigned int Type, MemoryBuffer *source)
   : Binary(Type, source) {
+}
+
+error_code ObjectFile::getSymbolAlignment(DataRefImpl DRI,
+                                          uint32_t &Result) const {
+  Result = 0;
+  return object_error::success;
 }
 
 ObjectFile *ObjectFile::createObjectFile(MemoryBuffer *Object) {
@@ -33,6 +39,8 @@ ObjectFile *ObjectFile::createObjectFile(MemoryBuffer *Object) {
   sys::LLVMFileType type = sys::IdentifyFileType(Object->getBufferStart(),
                                 static_cast<unsigned>(Object->getBufferSize()));
   switch (type) {
+    case sys::Unknown_FileType:
+      return 0;
     case sys::ELF_Relocatable_FileType:
     case sys::ELF_Executable_FileType:
     case sys::ELF_SharedObject_FileType:
@@ -52,7 +60,7 @@ ObjectFile *ObjectFile::createObjectFile(MemoryBuffer *Object) {
     case sys::COFF_FileType:
       return createCOFFObjectFile(Object);
     default:
-      llvm_unreachable("Unknown Object File Type");
+      llvm_unreachable("Unexpected Object File Type");
   }
 }
 

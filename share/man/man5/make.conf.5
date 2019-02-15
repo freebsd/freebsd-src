@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2013
+.Dd May 28, 2013
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -177,16 +177,6 @@ Refer to
 for a list of recognized
 .Va CPUTYPE
 options.
-.It Va CVS_UPDATE
-.Pq Vt bool
-Set this to use
-.Xr cvs 1
-to update your
-.Pa src , ports
-and
-.Pa doc
-trees with
-.Dq Li "make update" .
 .It Va CXXFLAGS
 .Pq Vt str
 Controls the compiler settings when compiling C++ code.
@@ -205,7 +195,7 @@ instead of
 the default install command.
 To install only files for which the target differs or does not exist, use
 .Bd -literal -offset indent
-INSTALL="install -C"
+INSTALL+= -C
 .Ed
 Note that some makefiles (including those in
 .Pa /usr/share/mk )
@@ -255,61 +245,6 @@ Set this to not update the doc tree during
 .Pq Vt bool
 Set this to not update the ports tree during
 .Dq Li "make update" .
-.It Va SUP
-.Pq Vt str
-The location of the
-.Xr csup 1
-or
-.Xr cvsup 1
-command for
-.Dq Li "make update" .
-.It Va SUPFILE
-.Pq Vt str
-The first
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-For example,
-.Pa /usr/share/examples/cvsup/standard-supfile .
-.It Va SUPFILE1
-.Pq Vt str
-The second
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-.It Va SUPFILE2
-.Pq Vt str
-The third
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-.It Va SUPFLAGS
-.Pq Vt str
-The flag for the
-.Xr sup 1
-command when doing
-.Dq Li "make update" .
-This defaults to
-.Op Fl g L Ar 2 .
-.It Va SUPHOST
-.Pq Vt str
-The hostname of the sup server to use when doing
-.Dq Li "make update" .
-.It Va SUP_UPDATE
-.Pq Vt bool
-Set this to use
-.Xr csup 1
-to update your
-.Pa src ,
-and
-.Pa ports
-trees with
-.Dq Li "make update" .
-This option is deprecated.
-Please use
-.Va SVN_UPDATE
-or
-.Xr freebsd-update 8 .
 .It Va SVN_UPDATE
 .Pq Vt bool
 Set this to use
@@ -454,11 +389,6 @@ with the set-user-ID bit set.
 Otherwise,
 .Xr newgrp 1
 will not be able to change users' groups.
-.It Va ENABLE_SUID_SSH
-.Pq Vt bool
-Set this to install
-.Xr ssh 1
-with the set-user-ID bit turned on.
 .It Va LOADER_TFTP_SUPPORT
 .Pq Vt bool
 By default the

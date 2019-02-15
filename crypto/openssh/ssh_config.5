@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.157 2012/06/29 13:57:25 naddy Exp $
+.\" $OpenBSD: ssh_config.5,v 1.161 2013/01/08 18:49:04 markus Exp $
 .\" $FreeBSD$
-.Dd June 29 2012
+.Dd January 8, 2013
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -205,6 +205,8 @@ The supported ciphers are
 .Dq aes128-ctr ,
 .Dq aes192-ctr ,
 .Dq aes256-ctr ,
+.Dq aes128-gcm@openssh.com ,
+.Dq aes256-gcm@openssh.com ,
 .Dq arcfour128 ,
 .Dq arcfour256 ,
 .Dq arcfour ,
@@ -214,6 +216,7 @@ and
 The default is:
 .Bd -literal -offset 3n
 aes128-ctr,aes192-ctr,aes256-ctr,arcfour256,arcfour128,
+aes128-gcm@openssh.com,aes256-gcm@openssh.com,
 aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,aes192-cbc,
 aes256-cbc,arcfour
 .Ed
@@ -603,6 +606,8 @@ should only use the authentication identity files configured in the
 files,
 even if
 .Xr ssh-agent 1
+or a
+.Cm PKCS11Provider
 offers more identities.
 The argument to this keyword must be
 .Dq yes
@@ -791,9 +796,18 @@ in order of preference.
 The MAC algorithm is used in protocol version 2
 for data integrity protection.
 Multiple algorithms must be comma-separated.
+The algorithms that contain
+.Dq -etm
+calculate the MAC after encryption (encrypt-then-mac).
+These are considered safer and their use recommended.
 The default is:
 .Bd -literal -offset indent
-hmac-md5,hmac-sha1,umac-64@openssh.com,
+hmac-md5-etm@openssh.com,hmac-sha1-etm@openssh.com,
+umac-64-etm@openssh.com,umac-128-etm@openssh.com,
+hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,
+hmac-ripemd160-etm@openssh.com,hmac-sha1-96-etm@openssh.com,
+hmac-md5-96-etm@openssh.com,
+hmac-md5,hmac-sha1,umac-64@openssh.com,umac-128@openssh.com,
 hmac-sha2-256,hmac-sha2-512,hmac-ripemd160,
 hmac-sha1-96,hmac-md5-96
 .Ed
@@ -1216,7 +1230,7 @@ in
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20120901 .
+.Dq FreeBSD-20130515 .
 .It Cm VisualHostKey
 If this flag is set to
 .Dq yes ,

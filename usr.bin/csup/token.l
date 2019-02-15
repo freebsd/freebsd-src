@@ -35,12 +35,11 @@
 #include "misc.h"
 #include "token.h"
 
-#define	YY_NO_UNPUT
-
 int lineno = 1;
 
 %}
 
+%option nounput
 %option noyywrap
 
 %%

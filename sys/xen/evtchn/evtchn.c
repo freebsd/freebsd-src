@@ -146,7 +146,7 @@ static int irq_bindcount[NR_IRQS];
 #ifdef SMP
 
 static uint8_t cpu_evtchn[NR_EVENT_CHANNELS];
-static unsigned long cpu_evtchn_mask[MAX_VIRT_CPUS][NR_EVENT_CHANNELS/LONG_BIT];
+static unsigned long cpu_evtchn_mask[XEN_LEGACY_MAX_VCPUS][NR_EVENT_CHANNELS/LONG_BIT];
 
 #define active_evtchns(cpu,sh,idx)		\
 	((sh)->evtchn_pending[idx] &		\
@@ -998,7 +998,7 @@ void irq_resume(void)
 	}
 
 	/* Secondary CPUs must have no VIRQ or IPI bindings. */
-	for (cpu = 1; cpu < MAX_VIRT_CPUS; cpu++) {
+	for (cpu = 1; cpu < XEN_LEGACY_MAX_VCPUS; cpu++) {
 		for (virq = 0; virq < NR_VIRQS; virq++) {
 			KASSERT(pcpu_find(cpu)->pc_virq_to_irq[virq] == -1,
 			    ("virq_to_irq inconsistent"));

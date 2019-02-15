@@ -29,13 +29,14 @@
 /*
  * RFC3315: DHCPv6
  * supported DHCPv6 options: 
- *  RFC3319,
- *  RFC3633,
- *  RFC3646,
- *  RFC3898,
- *  RFC4075,
- *  RFC4242,
- *  RFC4280,
+ *  RFC3319: Session Initiation Protocol (SIP) Servers options,
+ *  RFC3633: IPv6 Prefix options,
+ *  RFC3646: DNS Configuration options,
+ *  RFC3898: Network Information Service (NIS) Configuration options,
+ *  RFC4075: Simple Network Time Protocol (SNTP) Configuration option,
+ *  RFC4242: Information Refresh Time option,
+ *  RFC4280: Broadcast and Multicast Control Servers options,
+ *  RFC6334: Dual-Stack Lite option,
  */
 
 #ifndef lint
@@ -170,6 +171,7 @@ struct dhcp6_relay {
 #define DH6OPT_CLT_TIME 46
 #define DH6OPT_LQ_RELAY_DATA 47
 #define DH6OPT_LQ_CLIENT_LINK 48
+#define DH6OPT_AFTR_NAME 64
 
 struct dhcp6opt {
 	u_int16_t dh6opt_type;
@@ -278,6 +280,8 @@ dhcp6opt_name(int type)
 		return "LQ-relay-data";
 	case DH6OPT_LQ_CLIENT_LINK:
 		return "LQ-client-link";
+	case DH6OPT_AFTR_NAME:
+		return "AFTR-Name";
 	default:
 		snprintf(genstr, sizeof(genstr), "opt_%d", type);
 		return(genstr);
@@ -338,6 +342,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 		if (ep < cp + sizeof(*dh6o))
 			goto trunc;
 		dh6o = (struct dhcp6opt *)cp;
+		TCHECK(*dh6o);
 		optlen = EXTRACT_16BITS(&dh6o->dh6opt_len);
 		if (ep < cp + sizeof(*dh6o) + optlen)
 			goto trunc;
@@ -410,7 +415,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 			    EXTRACT_32BITS(&tp[20]));
 			if (optlen > 24) {
 				/* there are sub-options */
-				dhcp6opt_print(tp + 24, tp + 24 + optlen);
+				dhcp6opt_print(tp + 24, tp + optlen);
 			}
 			printf(")");
 			break;
@@ -610,7 +615,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 			    EXTRACT_32BITS(&tp[8]));
 			if (optlen > 12) {
 				/* there are sub-options */
-				dhcp6opt_print(tp + 12, tp + 12 + optlen);
+				dhcp6opt_print(tp + 12, tp + optlen);
 			}
 			printf(")");
 			break;
@@ -623,7 +628,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 			printf(" IAID:%u", EXTRACT_32BITS(tp));
 			if (optlen > 4) {
 				/* there are sub-options */
-				dhcp6opt_print(tp + 4, tp + 4 + optlen);
+				dhcp6opt_print(tp + 4, tp + optlen);
 			}
 			printf(")");
 			break;
@@ -639,7 +644,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 			    EXTRACT_32BITS(&tp[4]));
 			if (optlen > 25) {
 				/* there are sub-options */
-				dhcp6opt_print(tp + 25, tp + 25 + optlen);
+				dhcp6opt_print(tp + 25, tp + optlen);
 			}
 			printf(")");
 			break;
@@ -711,6 +716,30 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 			for (i = 16; i < optlen && i < 26; i++)
 				printf("%02x", tp[i]);
 			printf("...)");
+			break;
+		case DH6OPT_AFTR_NAME:
+			if (optlen < 3) {
+				printf(" ?)");
+				break;
+			}
+			tp = (u_char *)(dh6o + 1);
+			int remain_len = optlen;
+			printf(" ");
+			/* Encoding is described in section 3.1 of RFC 1035 */
+			int label_len; /* Label length */
+			while (remain_len && *tp) {
+				label_len =  *tp++;
+				if (label_len < remain_len - 1) {
+					printf("%.*s", label_len, tp);
+					tp += label_len;
+					remain_len -= (label_len + 1);
+					if(*tp) printf(".");
+				} else {
+					printf(" ?");
+					break;
+				}
+			}
+			printf(")");
 			break;
 		default:
 			printf(")");

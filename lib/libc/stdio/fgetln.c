@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -115,7 +115,7 @@ fgetln(FILE *fp, size_t *lenp)
 	 * As a bonus, though, we can leave off the __SMOD.
 	 *
 	 * OPTIMISTIC is length that we (optimistically) expect will
-	 * accomodate the `rest' of the string, on each trip through the
+	 * accommodate the `rest' of the string, on each trip through the
 	 * loop below.
 	 */
 #define OPTIMISTIC 80

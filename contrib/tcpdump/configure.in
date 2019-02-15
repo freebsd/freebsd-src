@@ -994,13 +994,13 @@ AC_LBL_UNALIGNED_ACCESS
 
 AC_VAR_H_ERRNO
 
-# Check for SSLeay
-AC_MSG_CHECKING(whether to use SSLeay libcrypto)
+# Check for OpenSSL libcrypto
+AC_MSG_CHECKING(whether to use OpenSSL libcrypto)
 # Specify location for both includes and libraries.
-want_libcrypto=youmama
+want_libcrypto=ifavailable
 AC_ARG_WITH(crypto,
-    AS_HELP_STRING([--with-crypto@<:@=PATH@:>@],
-		   [use SSLeay libcrypto (located in directory PATH, if supplied).  @<:@default=yes, if available@:>@]),
+    AS_HELP_STRING([--with-crypto],
+		   [use OpenSSL libcrypto @<:@default=yes, if available@:>@]),
 [
 	if test $withval = no
 	then
@@ -1010,10 +1010,6 @@ AC_ARG_WITH(crypto,
 	then
 		want_libcrypto=yes
 		AC_MSG_RESULT(yes)
-	else
-		want_libcrypto=yes
-		AC_MSG_RESULT(yes)
-		crypto_dir=$withval
 	fi
 ],[
 	#
@@ -1023,63 +1019,8 @@ AC_ARG_WITH(crypto,
 	AC_MSG_RESULT([yes, if available])
 ])
 if test "$want_libcrypto" != "no"; then
-	ac_cv_ssleay_path=no
-	incdir=no
-	if test "x$crypto_dir" = x; then
-		#
-		# Location not specified; check the default locations.
-		#
-		AC_MSG_CHECKING(where SSLeay is located)
-		dirs="/usr /usr/local /usr/local/ssl /usr/pkg"
-		if test "x${host_alias}" != x; then
-			dirs="/usr/${host_alias} $dirs"
-		fi
-		for dir in $dirs; do
-			AC_LBL_SSLEAY($dir)
-
-			if test "$ac_cv_ssleay_path" != "no" -a "$incdir" != "no"; then
-				break;
-			else
-				ac_cv_ssleay_path=no
-				incdir=no
-			fi
-		done
-		if test "$ac_cv_ssleay_path" != no; then
-			AC_MSG_RESULT($ac_cv_ssleay_path)
-		fi
-	else
-		AC_MSG_CHECKING(for SSLeay in $crypto_dir)
-		AC_LBL_SSLEAY($crypto_dir)
-		if test "$ac_cv_ssleay_path" != no; then
-			AC_MSG_RESULT(found)
-		fi
-	fi
-	if test "$ac_cv_ssleay_path" != no; then
-		V_INCLS="$V_INCLS $incdir"
-		if test "$dir" != "/usr"; then
-			LDFLAGS="-L$dir/lib $LDFLAGS"
-		fi
-		if test -f $ac_cv_ssleay_path/lib/libRSAglue.a; then
-			LIBS="$LIBS -lRSAglue"
-		fi
-		if test -f $ac_cv_ssleay_path/lib/librsaref.a; then
-			LIBS="$LIBS -lrsaref"
-		fi
-		AC_CHECK_LIB(crypto, DES_cbc_encrypt)
-
-		savedcppflags="$CPPFLAGS"
-		CPPFLAGS="$CPPFLAGS $V_INCLS"
-		AC_CHECK_HEADERS(openssl/evp.h)
-		CPPFLAGS="$savedcppflags"
-	else
-		#
-		# Not found.  Did the user explicitly ask for it?
-		#
-		AC_MSG_RESULT(not found)
-		if test "$want_libcrypto" = yes; then
-			AC_MSG_ERROR(SSLeay not found)
-		fi
-	fi
+	AC_CHECK_LIB(crypto, DES_cbc_encrypt)
+	AC_CHECK_HEADERS(openssl/evp.h)
 fi
 
 dnl

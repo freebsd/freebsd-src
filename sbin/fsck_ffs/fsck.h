@@ -74,6 +74,7 @@
 #define	MINBUFS		10	/* minimum number of buffers required */
 #define	MAXBUFS		40	/* maximum space to allocate to buffers */
 #define	INOBUFSIZE	64*1024	/* size of buffer to read inodes in pass1 */
+#define	ZEROBUFSIZE	(dev_bsize * 128) /* size of zero buffer used by -Z */
 
 union dinode {
 	struct ufs1_dinode dp1;
@@ -198,7 +199,6 @@ struct timespec totalreadtime[BT_NUMBUFTYPES];
 struct timespec startprog;
 
 struct bufarea sblk;		/* file system superblock */
-struct bufarea cgblk;		/* cylinder group blocks */
 struct bufarea *pdirbp;		/* current directory contents */
 struct bufarea *pbp;		/* current inode block */
 
@@ -216,9 +216,7 @@ struct bufarea *pbp;		/* current inode block */
 } while (0)
 
 #define	sbdirty()	dirty(&sblk)
-#define	cgdirty()	dirty(&cgblk)
 #define	sblock		(*sblk.b_un.b_fs)
-#define	cgrp		(*cgblk.b_un.b_cg)
 
 enum fixstate {DONTKNOW, NOFIX, FIX, IGNORE};
 ino_t cursnapshot;
@@ -309,7 +307,8 @@ char	yflag;			/* assume a yes response */
 int	bkgrdflag;		/* use a snapshot to run on an active system */
 int	bflag;			/* location of alternate super block */
 int	debug;			/* output debugging info */
-int	Eflag;			/* zero out empty data blocks */
+int	Eflag;			/* delete empty data blocks */
+int	Zflag;			/* zero empty data blocks */
 int	inoopt;			/* trim out unused inodes */
 char	ckclean;		/* only do work if not cleanly unmounted */
 int	cvtlevel;		/* convert to newer file system format */
@@ -361,6 +360,37 @@ struct	ufs2_dinode ufs2_zino;
 
 #define	EEXIT	8		/* Standard error exit. */
 
+int flushentry(void);
+/*
+ * Wrapper for malloc() that flushes the cylinder group cache to try 
+ * to get space.
+ */
+static inline void*
+Malloc(int size)
+{
+	void *retval;
+
+	while ((retval = malloc(size)) == NULL)
+		if (flushentry() == 0)
+			break;
+	return (retval);
+}
+
+/*
+ * Wrapper for calloc() that flushes the cylinder group cache to try 
+ * to get space.
+ */
+static inline void*
+Calloc(int cnt, int size)
+{
+	void *retval;
+
+	while ((retval = calloc(cnt, size)) == NULL)
+		if (flushentry() == 0)
+			break;
+	return (retval);
+}
+
 struct fstab;
 
 
@@ -374,11 +404,12 @@ int		blread(int fd, char *buf, ufs2_daddr_t blk, long size);
 void		bufinit(void);
 void		blwrite(int fd, char *buf, ufs2_daddr_t blk, ssize_t size);
 void		blerase(int fd, ufs2_daddr_t blk, long size);
+void		blzero(int fd, ufs2_daddr_t blk, long size);
 void		cacheino(union dinode *dp, ino_t inumber);
 void		catch(int);
 void		catchquit(int);
 int		changeino(ino_t dir, const char *name, ino_t newnum);
-int		check_cgmagic(int cg, struct cg *cgp);
+int		check_cgmagic(int cg, struct bufarea *cgbp);
 int		chkrange(ufs2_daddr_t blk, int cnt);
 void		ckfini(int markclean);
 int		ckinode(union dinode *dp, struct inodesc *);
@@ -398,6 +429,7 @@ void		freeino(ino_t ino);
 void		freeinodebuf(void);
 int		ftypeok(union dinode *dp);
 void		getblk(struct bufarea *bp, ufs2_daddr_t blk, long size);
+struct bufarea *cgget(int cg);
 struct bufarea *getdatablk(ufs2_daddr_t blkno, long size, int type);
 struct inoinfo *getinoinfo(ino_t inumber);
 union dinode   *getnextinode(ino_t inumber, int rebuildcg);

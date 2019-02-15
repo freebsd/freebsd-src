@@ -35,7 +35,7 @@ test(int pristine)
 	struct archive* a = archive_write_new();
 
 	if (!pristine)
-		archive_write_set_compression_gzip(a);
+		archive_write_add_filter_gzip(a);
 
 	should(a, ARCHIVE_OK, NULL, NULL, NULL);
 	should(a, ARCHIVE_OK, "", "", "");
@@ -45,7 +45,7 @@ test(int pristine)
 	should(a, ARCHIVE_FAILED, "fubar", "snafu", NULL);
 	should(a, ARCHIVE_FAILED, "fubar", "snafu", "betcha");
 
-	archive_write_finish(a);
+	archive_write_free(a);
 }
 
 DEFINE_TEST(test_archive_write_set_filter_option)

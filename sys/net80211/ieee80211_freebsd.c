@@ -472,6 +472,39 @@ ieee80211_realign(struct ieee80211vap *vap, struct mbuf *m, size_t align)
 #endif /* !__NO_STRICT_ALIGNMENT */
 
 int
+ieee80211_add_txinfo(struct mbuf *m, struct ieee80211_tx_info *txinfo)
+{
+	struct m_tag *mtag;
+	struct ieee80211_tx_info *t;
+
+	mtag = m_tag_alloc(MTAG_ABI_NET80211, NET80211_TAG_TXINFO,
+	    sizeof(struct ieee80211_tx_info), M_NOWAIT);
+	if (mtag == NULL)
+		return (0);
+
+	t = (struct ieee80211_tx_info *) (mtag+1);
+
+	memcpy(t, txinfo, sizeof(struct ieee80211_tx_info));
+	m_tag_prepend(m, mtag);
+	m->m_flags |= M_TXINFO;
+	return (1);
+}
+
+struct ieee80211_tx_info *
+ieee80211_get_txinfo(struct mbuf *m)
+{
+	struct m_tag *mtag;
+	struct ieee80211_tx_info *t;
+
+	mtag = m_tag_locate(m, MTAG_ABI_NET80211, NET80211_TAG_TXINFO, NULL);
+	if (mtag == NULL)
+		return (NULL);
+
+	t = (struct ieee80211_tx_info *) (mtag + 1);
+	return (t);
+}
+
+int
 ieee80211_add_callback(struct mbuf *m,
 	void (*func)(struct ieee80211_node *, void *, int), void *arg)
 {
@@ -809,7 +842,7 @@ static void
 bpf_track(void *arg, struct ifnet *ifp, int dlt, int attach)
 {
 	/* NB: identify vap's by if_start */
-	if (dlt == DLT_IEEE802_11_RADIO && ifp->if_start == ieee80211_start) {
+	if (dlt == DLT_IEEE802_11_RADIO && ifp->if_transmit == ieee80211_vap_if_transmit) {
 		struct ieee80211vap *vap = ifp->if_softc;
 		/*
 		 * Track bpf radiotap listener state.  We mark the vap

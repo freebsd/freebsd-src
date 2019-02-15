@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 2, 2013
+.Dd March 5, 2013
 .Dt WATCHDOGD 8
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Nd watchdog daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl dnw
+.Op Fl dnSw
 .Op Fl -debug
 .Op Fl -softtimeout
 .Op Fl -softtimeout-action Ar action
@@ -125,6 +125,12 @@ Do not fork.
 When this option is specified,
 .Nm
 will not fork into the background at startup.
+.Pp
+.It Fl S
+Do not send a message to the system logger when the watchdog command takes
+longer than expected to execute.
+The default behaviour is to log a warning via the system logger with the
+LOG_DAEMON facility, and to output a warning to standard error.
 .Pp
 .It Fl w
 Complain when the watchdog script takes too long.

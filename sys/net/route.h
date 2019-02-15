@@ -185,6 +185,9 @@ struct ortentry {
 
 #define	RTF_RNH_LOCKED	 0x40000000	/* radix node head is locked */
 
+#define	RTF_GWFLAG_COMPAT 0x80000000	/* a compatibility bit for interacting
+					   with existing routing apps */
+
 /* Mask of RTF flags that are allowed to be modified by RTM_CHANGE. */
 #define RTF_FMASK	\
 	(RTF_PROTO1 | RTF_PROTO2 | RTF_PROTO3 | RTF_BLACKHOLE | \

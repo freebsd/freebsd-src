@@ -4,6 +4,9 @@ arm/ti/aintc.c				standard
 arm/ti/am335x/am335x_prcm.c		standard
 arm/ti/am335x/am335x_dmtimer.c		standard
 arm/ti/am335x/am335x_scm_padconf.c	standard
+arm/ti/am335x/am335x_lcd.c		optional	sc	
+arm/ti/am335x/am335x_lcd_syscons.c	optional	sc
+arm/ti/am335x/am335x_pwm.c		standard	
 arm/ti/ti_edma3.c			standard
 arm/ti/ti_mmchs.c			optional	mmc
 arm/ti/cpsw/if_cpsw.c			optional	cpsw

@@ -144,6 +144,8 @@ sys_cap_getmode(struct thread *td, struct cap_getmode_args *uap)
 
 FEATURE(security_capabilities, "Capsicum Capabilities");
 
+MALLOC_DECLARE(M_FILECAPS);
+
 static inline int
 _cap_check(cap_rights_t have, cap_rights_t need, enum ktr_cap_fail_type type)
 {
@@ -229,7 +231,7 @@ sys_cap_rights_limit(struct thread *td, struct cap_rights_limit_args *uap)
 	if (error == 0) {
 		fdp->fd_ofiles[fd].fde_rights = rights;
 		if ((rights & CAP_IOCTL) == 0) {
-			free(fdp->fd_ofiles[fd].fde_ioctls, M_TEMP);
+			free(fdp->fd_ofiles[fd].fde_ioctls, M_FILECAPS);
 			fdp->fd_ofiles[fd].fde_ioctls = NULL;
 			fdp->fd_ofiles[fd].fde_nioctls = 0;
 		}
@@ -344,10 +346,10 @@ sys_cap_ioctls_limit(struct thread *td, struct cap_ioctls_limit_args *uap)
 	if (ncmds == 0) {
 		cmds = NULL;
 	} else {
-		cmds = malloc(sizeof(cmds[0]) * ncmds, M_TEMP, M_WAITOK);
+		cmds = malloc(sizeof(cmds[0]) * ncmds, M_FILECAPS, M_WAITOK);
 		error = copyin(uap->cmds, cmds, sizeof(cmds[0]) * ncmds);
 		if (error != 0) {
-			free(cmds, M_TEMP);
+			free(cmds, M_FILECAPS);
 			return (error);
 		}
 	}
@@ -372,7 +374,7 @@ sys_cap_ioctls_limit(struct thread *td, struct cap_ioctls_limit_args *uap)
 	error = 0;
 out:
 	FILEDESC_XUNLOCK(fdp);
-	free(cmds, M_TEMP);
+	free(cmds, M_FILECAPS);
 	return (error);
 }
 
@@ -548,7 +550,7 @@ sys_cap_new(struct thread *td, struct cap_new_args *uap)
 	 */
 	fdp->fd_ofiles[newfd].fde_rights = rights;
 	if ((rights & CAP_IOCTL) == 0) {
-		free(fdp->fd_ofiles[newfd].fde_ioctls, M_TEMP);
+		free(fdp->fd_ofiles[newfd].fde_ioctls, M_FILECAPS);
 		fdp->fd_ofiles[newfd].fde_ioctls = NULL;
 		fdp->fd_ofiles[newfd].fde_nioctls = 0;
 	}

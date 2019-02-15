@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 21, 2010
+.Dd April 21, 2013
 .Dt DEVFS 8
 .Os
 .Sh NAME
@@ -269,13 +269,11 @@ the operations are performed on
 .Pa /dev
 (this only matters for things that might change the properties of nodes).
 .Pp
-.Dl "devfs ruleset 10"
-.Pp
 Specify that ruleset 10 should be the current ruleset for
 .Pa /dev
-(if it does not already exist, it is created).
+(if it does not already exist, it is created):
 .Pp
-.Dl "devfs rule add path speaker mode 666"
+.Dl "devfs ruleset 10"
 .Pp
 Add a rule that causes all nodes that have a path that matches
 .Dq Li speaker
@@ -291,22 +289,19 @@ be changed if the node is created
 the rule is added
 (e.g., the
 .Pa atspeaker
-module is loaded after the above rule is added).
+module is loaded after the above rule is added):
 .Pp
-.Dl "devfs rule applyset"
+.Dl "devfs rule add path speaker mode 666"
 .Pp
 Apply all the rules in the current ruleset to all the existing nodes.
-E.g., if the above rule was added after
+E.g., if the below rule was added after
 .Pa /dev/speaker
 was created,
 this command will cause its file mode to be changed to 666
-as prescribed by the rule.
+as prescribed by the rule:
 .Pp
-.Dl devfs rule add path "snp*" mode 660 group snoopers
+.Dl "devfs rule applyset"
 .Pp
-(Quoting the argument to
-.Cm path
-is often necessary to disable the shell's globbing features.)
 For all devices with a path that matches
 .Dq Li snp* ,
 set the file mode to 660 and the GID to
@@ -315,53 +310,57 @@ This permits users in the
 .Dq Li snoopers
 group to use the
 .Xr snp 4
-devices.
+devices
+(quoting the argument to
+.Cm path
+is often necessary to disable the shell's globbing features):
 .Pp
-.Dl "devfs rule -s 20 add type disk group wheel"
+.Dl devfs rule add path "snp*" mode 660 group snoopers
 .Pp
 Add a rule to ruleset number 20.
 Since this ruleset is not the current ruleset for any mount-points,
 this rule is never applied automatically (unless ruleset 20 becomes
-a current ruleset for some mount-point at a later time).
-However, it can be applied explicitly, as such:
+a current ruleset for some mount-point at a later time):
+.Pp
+.Dl "devfs rule -s 20 add type disk group wheel"
+.Pp
+Explicitly apply all rules in ruleset number 20 to the DEVFS mount on
+.Pa /my/jail/dev .
+It does not matter that ruleset 20 is not the current ruleset for that
+mount-point; the rules are still applied:
 .Pp
 .Dl "devfs -m /my/jail/dev rule -s 20 applyset"
 .Pp
-This will apply all rules in ruleset number 20 to the DEVFS mount on
-.Pa /my/jail/dev .
-It does not matter that ruleset 20 is not the current ruleset for that
-mount-point; the rules are still applied.
+Since the following rule has no conditions, the action
+.Pq Cm hide
+will be applied to all nodes:
 .Pp
 .Dl "devfs rule apply hide"
 .Pp
-Since this rule has no conditions, the action
-.Pq Cm hide
-will be applied to all nodes.
-Since hiding all nodes is not very useful, we can undo it:
+Since hiding all nodes is not very useful, we can undo it.
+The following applies
+.Cm unhide
+to all the nodes,
+causing them to reappear:
 .Pp
 .Dl "devfs rule apply unhide"
 .Pp
-which applies
-.Cm unhide
-to all the nodes,
-causing them to reappear.
+Add all the rules from the file
+.Pa my_rules
+to ruleset 10:
 .Pp
 .Dl "devfs rule -s 10 add - < my_rules"
 .Pp
-Add all the rules from the file
-.Pa my_rules
-to ruleset 10.
-.Pp
-.Dl "devfs rule -s 20 show | devfs rule -s 10 add -"
-.Pp
-Since
-.Cm show
-outputs valid rules,
-this feature can be used to copy rulesets.
-The above copies all the rules from ruleset 20 into ruleset 10.
+The below copies all the rules from ruleset 20 into ruleset 10.
 The rule numbers are preserved,
 but ruleset 10 may already have rules with non-conflicting numbers
 (these will be preserved).
+Since
+.Cm show
+outputs valid rules,
+this feature can be used to copy rulesets:
+.Pp
+.Dl "devfs rule -s 20 show | devfs rule -s 10 add -"
 .Sh SEE ALSO
 .Xr chmod 1 ,
 .Xr jail 2 ,

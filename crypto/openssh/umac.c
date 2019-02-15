@@ -52,7 +52,15 @@
 /* --- User Switches ---------------------------------------------------- */
 /* ---------------------------------------------------------------------- */
 
+#ifndef UMAC_OUTPUT_LEN
 #define UMAC_OUTPUT_LEN     8  /* Alowable: 4, 8, 12, 16                  */
+#endif
+
+#if UMAC_OUTPUT_LEN != 4 && UMAC_OUTPUT_LEN != 8 && \
+    UMAC_OUTPUT_LEN != 12 && UMAC_OUTPUT_LEN != 16
+# error UMAC_OUTPUT_LEN must be defined to 4, 8, 12 or 16
+#endif
+
 /* #define FORCE_C_ONLY        1  ANSI C and 64-bit integers req'd        */
 /* #define AES_IMPLEMENTAION   1  1 = OpenSSL, 2 = Barreto, 3 = Gladman   */
 /* #define SSE2                0  Is SSE2 is available?                   */

@@ -1,7 +1,7 @@
 /*-
  * Cronyx-Tau-PCI adapter driver for FreeBSD.
  * Supports PPP/HDLC, Cisco/HDLC and FrameRelay protocol in synchronous mode,
- * and asyncronous channels with full modem control.
+ * and asynchronous channels with full modem control.
  * Keepalive protocol implemented in both Cisco and PPP modes.
  *
  * Copyright (C) 1999-2004 Cronyx Engineering.

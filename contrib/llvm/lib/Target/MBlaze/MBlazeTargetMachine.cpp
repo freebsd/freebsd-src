@@ -13,8 +13,8 @@
 
 #include "MBlazeTargetMachine.h"
 #include "MBlaze.h"
-#include "llvm/PassManager.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/PassManager.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/TargetOptions.h"
@@ -42,8 +42,7 @@ MBlazeTargetMachine(const Target &T, StringRef TT,
     InstrInfo(*this),
     FrameLowering(Subtarget),
     TLInfo(*this), TSInfo(*this),
-    InstrItins(Subtarget.getInstrItineraryData()),
-    STTI(&TLInfo), VTTI(&TLInfo) {
+    InstrItins(Subtarget.getInstrItineraryData()) {
 }
 
 namespace {

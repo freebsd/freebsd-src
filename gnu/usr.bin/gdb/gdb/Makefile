@@ -15,3 +15,4 @@ DPADD=	${GDBLIBS} ${BULIBS} ${LIBM} ${LIBREADLINE} ${LIBTERMCAP} ${LIBGNUREGEX}
 LDADD=	${GDBLIBS} ${BULIBS} -lm -lreadline -ltermcap -lgnuregex
 
 .include <bsd.prog.mk>
+CFLAGS+=	-DDEBUGDIR=\"${DEBUGDIR}\"

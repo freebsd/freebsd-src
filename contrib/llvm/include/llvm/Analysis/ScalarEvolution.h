@@ -21,16 +21,16 @@
 #ifndef LLVM_ANALYSIS_SCALAREVOLUTION_H
 #define LLVM_ANALYSIS_SCALAREVOLUTION_H
 
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/FoldingSet.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Operator.h"
 #include "llvm/Pass.h"
-#include "llvm/Instructions.h"
-#include "llvm/Function.h"
-#include "llvm/Operator.h"
-#include "llvm/Support/DataTypes.h"
-#include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/ConstantRange.h"
-#include "llvm/ADT/FoldingSet.h"
-#include "llvm/ADT/DenseSet.h"
+#include "llvm/Support/DataTypes.h"
+#include "llvm/Support/ValueHandle.h"
 #include <map>
 
 namespace llvm {
@@ -338,6 +338,10 @@ namespace llvm {
       /// getMax - Get the max backedge taken count for the loop.
       const SCEV *getMax(ScalarEvolution *SE) const;
 
+      /// Return true if any backedge taken count expressions refer to the given
+      /// subexpression.
+      bool hasOperand(const SCEV *S, ScalarEvolution *SE) const;
+
       /// clear - Invalidate this result and free associated memory.
       void clear();
     };
@@ -449,7 +453,8 @@ namespace llvm {
     ExitLimit ComputeExitLimitFromCond(const Loop *L,
                                        Value *ExitCond,
                                        BasicBlock *TBB,
-                                       BasicBlock *FBB);
+                                       BasicBlock *FBB,
+                                       bool IsSubExpr);
 
     /// ComputeExitLimitFromICmp - Compute the number of times the backedge of
     /// the specified loop will execute if its exit condition were a conditional
@@ -457,7 +462,8 @@ namespace llvm {
     ExitLimit ComputeExitLimitFromICmp(const Loop *L,
                                        ICmpInst *ExitCond,
                                        BasicBlock *TBB,
-                                       BasicBlock *FBB);
+                                       BasicBlock *FBB,
+                                       bool IsSubExpr);
 
     /// ComputeLoadConstantCompareExitLimit - Given an exit condition
     /// of 'icmp op load X, cst', try to see if we can compute the
@@ -479,7 +485,7 @@ namespace llvm {
     /// HowFarToZero - Return the number of times an exit condition comparing
     /// the specified value to zero will execute.  If not computable, return
     /// CouldNotCompute.
-    ExitLimit HowFarToZero(const SCEV *V, const Loop *L);
+    ExitLimit HowFarToZero(const SCEV *V, const Loop *L, bool IsSubExpr);
 
     /// HowFarToNonZero - Return the number of times an exit condition checking
     /// the specified value for nonzero will execute.  If not computable, return
@@ -491,7 +497,7 @@ namespace llvm {
     /// computable, return CouldNotCompute. isSigned specifies whether the
     /// less-than is signed.
     ExitLimit HowManyLessThans(const SCEV *LHS, const SCEV *RHS,
-                               const Loop *L, bool isSigned);
+                               const Loop *L, bool isSigned, bool IsSubExpr);
 
     /// getPredecessorWithUniqueSuccessorForBB - Return a predecessor of BB
     /// (which may not be an immediate predecessor) which has exactly one
@@ -831,7 +837,7 @@ namespace llvm {
 
     /// SimplifyICmpOperands - Simplify LHS and RHS in a comparison with
     /// predicate Pred. Return true iff any changes were made. If the
-    /// operands are provably equal or inequal, LHS and RHS are set to
+    /// operands are provably equal or unequal, LHS and RHS are set to
     /// the same value and Pred is set to either ICMP_EQ or ICMP_NE.
     ///
     bool SimplifyICmpOperands(ICmpInst::Predicate &Pred,

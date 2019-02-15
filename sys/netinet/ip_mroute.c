@@ -824,6 +824,7 @@ set_api_config(uint32_t *apival)
 
     for (i = 0; i < mfchashsize; i++) {
 	if (LIST_FIRST(&V_mfchashtbl[i]) != NULL) {
+	    MFC_UNLOCK();
 	    *apival = 0;
 	    return EPERM;
 	}
@@ -2845,7 +2846,8 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 	if_detach_event_tag = EVENTHANDLER_REGISTER(ifnet_departure_event, 
 	    if_detached_event, NULL, EVENTHANDLER_PRI_ANY);
 	if (if_detach_event_tag == NULL) {
-		printf("ip_mroute: unable to ifnet_deperture_even handler\n");
+		printf("ip_mroute: unable to register "
+		    "ifnet_departure_event handler\n");
 		MROUTER_LOCK_DESTROY();
 		return (EINVAL);
 	}

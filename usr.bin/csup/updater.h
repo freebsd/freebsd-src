@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 #ifndef _UPDATER_H_
-#define _UPDATER_H
+#define _UPDATER_H_
 
 void	*updater(void *);
 

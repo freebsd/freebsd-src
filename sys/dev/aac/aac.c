@@ -379,8 +379,6 @@ aac_add_event(struct aac_softc *sc, struct aac_event *event)
 		    event->ev_type);
 		break;
 	}
-
-	return;
 }
 
 /*
@@ -989,14 +987,18 @@ aac_startio(struct aac_softc *sc)
 		 * busdma.
 		 */
 		if (cm->cm_datalen != 0) {
-			error = bus_dmamap_load(sc->aac_buffer_dmat,
-						cm->cm_datamap, cm->cm_data,
-						cm->cm_datalen,
-						aac_map_command_sg, cm, 0);
+			if (cm->cm_flags & AAC_REQ_BIO)
+				error = bus_dmamap_load_bio(
+				    sc->aac_buffer_dmat, cm->cm_datamap,
+				    (struct bio *)cm->cm_private,
+				    aac_map_command_sg, cm, 0);
+			else
+				error = bus_dmamap_load(sc->aac_buffer_dmat,
+				    cm->cm_datamap, cm->cm_data,
+				    cm->cm_datalen, aac_map_command_sg, cm, 0);
 			if (error == EINPROGRESS) {
 				fwprintf(sc, HBA_FLAGS_DBG_COMM_B, "freezing queue\n");
 				sc->flags |= AAC_QUEUE_FRZN;
-				error = 0;
 			} else if (error != 0)
 				panic("aac_startio: unexpected error %d from "
 				      "busdma", error);
@@ -1201,9 +1203,9 @@ aac_bio_command(struct aac_softc *sc, struct aac_command **cmp)
 		goto fail;
 
 	/* fill out the command */
-	cm->cm_data = (void *)bp->bio_data;
 	cm->cm_datalen = bp->bio_bcount;
 	cm->cm_complete = aac_bio_complete;
+	cm->cm_flags = AAC_REQ_BIO;
 	cm->cm_private = bp;
 	cm->cm_timestamp = time_uptime;
 
@@ -1631,8 +1633,6 @@ aac_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 			aac_requeue_ready(cm);
 		}
 	}
-
-	return;
 }
 
 /*
@@ -2362,7 +2362,6 @@ aac_timeout(struct aac_softc *sc)
 				      "longer running! code= 0x%x\n", code);
 		}
 	}
-	return;
 }
 
 /*
@@ -3372,8 +3371,6 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 	/* Wakeup any poll()ers */
 	selwakeuppri(&sc->rcv_select, PRIBIO);
 	mtx_unlock(&sc->aac_aifq_lock);
-
-	return;
 }
 
 /*
@@ -3788,6 +3785,4 @@ aac_get_bus_info(struct aac_softc *sc)
 
 	if (found)
 		bus_generic_attach(sc->aac_dev);
-
-	return;
 }

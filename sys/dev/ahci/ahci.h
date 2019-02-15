@@ -348,7 +348,6 @@ struct ata_dma {
     uint8_t                     *rfis;          /* FIS receive area */
     bus_addr_t                  rfis_bus;       /* bus address of rfis */
     bus_dma_tag_t               data_tag;       /* data DMA tag */
-    u_int64_t                   max_address;    /* highest DMA'able address */
 };
 
 enum ahci_slot_states {
@@ -453,6 +452,7 @@ struct ahci_enclosure {
 /* structure describing a AHCI controller */
 struct ahci_controller {
 	device_t		dev;
+	bus_dma_tag_t		dma_tag;
 	int			r_rid;
 	struct resource		*r_mem;
 	struct rman		sc_iomem;

@@ -48,6 +48,7 @@ VNET_DECLARE(int, ip6_ah_trans_deflev);
 VNET_DECLARE(int, ip6_ah_net_deflev);
 VNET_DECLARE(int, ip6_ipsec_ecn);
 
+#define	IPSEC6STAT_INC(name)	V_ipsec6stat.name += 1
 #define	V_ipsec6stat		VNET(ipsec6stat)
 #define	V_ip6_esp_trans_deflev	VNET(ip6_esp_trans_deflev)
 #define	V_ip6_esp_net_deflev	VNET(ip6_esp_net_deflev)

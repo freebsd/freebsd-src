@@ -40,6 +40,13 @@ __getcontextx_size(void)
 }
 
 int
+__fillcontextx2(char *ctx)
+{
+
+	return (0);
+}
+
+int
 __fillcontextx(char *ctx)
 {
 	ucontext_t *ucp;

@@ -66,37 +66,31 @@ iconv_t		 _iconv_open(const char *out, const char *in,
 		    struct _citrus_iconv *prealloc);
 
 iconv_t
-_iconv_open(const char *out, const char *in, struct _citrus_iconv *prealloc)
+_iconv_open(const char *out, const char *in, struct _citrus_iconv *handle)
 {
-	struct _citrus_iconv *handle;
-	char *out_truncated, *p;
+	const char *out_slashes;
+	char *out_noslashes;
 	int ret;
-
-	handle = prealloc;
 
 	/*
 	 * Remove anything following a //, as these are options (like
 	 * //ignore, //translate, etc) and we just don't handle them.
-	 * This is for compatibilty with software that uses thees
+	 * This is for compatibility with software that uses these
 	 * blindly.
 	 */
-	out_truncated = strdup(out);
-	if (out_truncated == NULL) {
-		errno = ENOMEM;
-		return ((iconv_t)-1);
+	out_slashes = strstr(out, "//");
+	if (out_slashes != NULL) {
+		out_noslashes = strndup(out, out_slashes - out);
+		if (out_noslashes == NULL) {
+			errno = ENOMEM;
+			return ((iconv_t)-1);
+		}
+		ret = _citrus_iconv_open(&handle, in, out_noslashes);
+		free(out_noslashes);
+	} else {
+		ret = _citrus_iconv_open(&handle, in, out);
 	}
 
-	p = out_truncated;
-        while (*p != 0) {
-                if (p[0] == '/' && p[1] == '/') {
-                        *p = '\0';
-                        break;
-                }
-                p++;
-        }
-
-	ret = _citrus_iconv_open(&handle, in, out_truncated);
-	free(out_truncated);
 	if (ret) {
 		errno = ret == ENOENT ? EINVAL : ret;
 		return ((iconv_t)-1);

@@ -1,0 +1,13 @@
+SERF_MAJOR_VERSION=@SERF_MAJOR_VERSION@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: serf
+Description: HTTP client library
+Version: @SERF_DOTTED_VERSION@
+Requires.private: libssl libcrypto
+Libs: -L${libdir} -lserf-${SERF_MAJOR_VERSION}
+Libs.private: @EXTRA_LIBS@ @SERF_LIBS@ -lz
+Cflags: -I${includedir}

@@ -28,12 +28,13 @@
 .\"     from: @(#)asinh.3	6.4 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd May 6, 1991
+.Dd June 9, 2013
 .Dt ASINH 3
 .Os
 .Sh NAME
 .Nm asinh ,
-.Nm asinhf
+.Nm asinhf ,
+.Nm asinhl
 .Nd inverse hyperbolic sine functions
 .Sh LIBRARY
 .Lb libm
@@ -43,11 +44,14 @@
 .Fn asinh "double x"
 .Ft float
 .Fn asinhf "float x"
+.Ft long double
+.Fn asinhl "long double x"
 .Sh DESCRIPTION
 The
-.Fn asinh
-and the
-.Fn asinhf
+.Fn asinh ,
+.Fn asinhf ,
+and
+.Fn asinhl
 functions compute the inverse hyperbolic sine
 of the real
 argument
@@ -55,11 +59,7 @@ argument
 For a discussion of error due to roundoff, see
 .Xr math 3 .
 .Sh RETURN VALUES
-The
-.Fn asinh
-and the
-.Fn asinhf
-functions
+These functions
 return the inverse hyperbolic sine of
 .Ar x .
 .Sh SEE ALSO
@@ -69,6 +69,13 @@ return the inverse hyperbolic sine of
 .Xr math 3
 .Sh HISTORY
 The
-.Fn asinh
-function appeared in
-.Bx 4.3 .
+.Fn asinh ,
+.Fn asinhf ,
+and
+.Fn asinhl
+functions appeared in
+.Bx 4.3 ,
+.Fx 2.0 ,
+and
+.Fx 10.0 ,
+respectively.

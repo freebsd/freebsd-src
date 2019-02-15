@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <math.h>
 #include <stdio.h>
 
+#include "test-utils.h"
+
 #pragma	STDC CX_LIMITED_RANGE	off
 
 /* Make sure gcc doesn't use builtin versions of these or honor __pure2. */
@@ -49,27 +51,6 @@ static long double (*libcreall)(long double complex) = creall;
 static float (*libcimagf)(float complex) = cimagf;
 static double (*libcimag)(double complex) = cimag;
 static long double (*libcimagl)(long double complex) = cimagl;
-
-/*
- * Compare d1 and d2 using special rules: NaN == NaN and +0 != -0.
- * Fail an assertion if they differ.
- */
-static int
-fpequal(long double d1, long double d2)
-{
-
-	if (d1 != d2)
-		return (isnan(d1) && isnan(d2));
-	return (copysignl(1.0, d1) == copysignl(1.0, d2));
-}
-
-static int
-cfpequal(long double complex d1, long double complex d2)
-{
-
-	return (fpequal(creall(d1), creall(d2)) &&
-		fpequal(cimagl(d1), cimagl(d2)));
-}
 
 static const double tests[] = {
 	/* a +  bI */

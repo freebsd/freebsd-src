@@ -274,6 +274,7 @@ struct thread {
 	pid_t		td_dbg_forked;	/* (c) Child pid for debugger. */
 	u_int		td_vp_reserv;	/* (k) Count of reserved vnodes. */
 	int		td_no_sleeping;	/* (k) Sleeping disabled count. */
+	int		td_dom_rr_idx;	/* (k) RR Numa domain selection. */
 #define	td_endzero td_sigmask
 
 /* Copied during fork1() or create_thread(). */
@@ -340,9 +341,6 @@ do {									\
 #else
 #define	THREAD_LOCKPTR_ASSERT(td, lock)
 #endif
-
-#define	CRITICAL_ASSERT(td)						\
-    KASSERT((td)->td_critnest >= 1, ("Not in critical section"));
 
 /*
  * Flags kept in td_flags:
@@ -876,6 +874,7 @@ struct	pargs *pargs_alloc(int len);
 void	pargs_drop(struct pargs *pa);
 void	pargs_hold(struct pargs *pa);
 int	proc_getargv(struct thread *td, struct proc *p, struct sbuf *sb);
+int	proc_getauxv(struct thread *td, struct proc *p, struct sbuf *sb);
 int	proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb);
 void	procinit(void);
 void	proc_linkup0(struct proc *p, struct thread *td);

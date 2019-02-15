@@ -45,25 +45,25 @@
 
 #define DEBUG_TYPE "mergefunc"
 #include "llvm/Transforms/IPO.h"
-#include "llvm/Constants.h"
-#include "llvm/IRBuilder.h"
-#include "llvm/InlineAsm.h"
-#include "llvm/Instructions.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
-#include "llvm/Operator.h"
-#include "llvm/Pass.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/InlineAsm.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Operator.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/DataLayout.h"
 #include <vector>
 using namespace llvm;
 
@@ -71,6 +71,15 @@ STATISTIC(NumFunctionsMerged, "Number of functions merged");
 STATISTIC(NumThunksWritten, "Number of thunks generated");
 STATISTIC(NumAliasesWritten, "Number of aliases generated");
 STATISTIC(NumDoubleWeak, "Number of new functions created");
+
+/// Returns the type id for a type to be hashed. We turn pointer types into
+/// integers here because the actual compare logic below considers pointers and
+/// integers of the same size as equal.
+static Type::TypeID getTypeIDForHash(Type *Ty) {
+  if (Ty->isPointerTy())
+    return Type::IntegerTyID;
+  return Ty->getTypeID();
+}
 
 /// Creates a hash-code for the function which is the same for any two
 /// functions that will compare equal, without looking at the instructions
@@ -83,9 +92,9 @@ static unsigned profileFunction(const Function *F) {
   ID.AddInteger(F->getCallingConv());
   ID.AddBoolean(F->hasGC());
   ID.AddBoolean(FTy->isVarArg());
-  ID.AddInteger(FTy->getReturnType()->getTypeID());
+  ID.AddInteger(getTypeIDForHash(FTy->getReturnType()));
   for (unsigned i = 0, e = FTy->getNumParams(); i != e; ++i)
-    ID.AddInteger(FTy->getParamType(i)->getTypeID());
+    ID.AddInteger(getTypeIDForHash(FTy->getParamType(i)));
   return ID.ComputeHash();
 }
 
@@ -200,8 +209,7 @@ private:
 
 // Any two pointers in the same address space are equivalent, intptr_t and
 // pointers are equivalent. Otherwise, standard type equivalence rules apply.
-bool FunctionComparator::isEquivalentType(Type *Ty1,
-                                          Type *Ty2) const {
+bool FunctionComparator::isEquivalentType(Type *Ty1, Type *Ty2) const {
   if (Ty1 == Ty2)
     return true;
   if (Ty1->getTypeID() != Ty2->getTypeID()) {
@@ -346,13 +354,11 @@ bool FunctionComparator::isEquivalentGEP(const GEPOperator *GEP1,
                                          const GEPOperator *GEP2) {
   // When we have target data, we can reduce the GEP down to the value in bytes
   // added to the address.
-  if (TD && GEP1->hasAllConstantIndices() && GEP2->hasAllConstantIndices()) {
-    SmallVector<Value *, 8> Indices1(GEP1->idx_begin(), GEP1->idx_end());
-    SmallVector<Value *, 8> Indices2(GEP2->idx_begin(), GEP2->idx_end());
-    uint64_t Offset1 = TD->getIndexedOffset(GEP1->getPointerOperandType(),
-                                            Indices1);
-    uint64_t Offset2 = TD->getIndexedOffset(GEP2->getPointerOperandType(),
-                                            Indices2);
+  unsigned BitWidth = TD ? TD->getPointerSizeInBits() : 1;
+  APInt Offset1(BitWidth, 0), Offset2(BitWidth, 0);
+  if (TD &&
+      GEP1->accumulateConstantOffset(*TD, Offset1) &&
+      GEP2->accumulateConstantOffset(*TD, Offset2)) {
     return Offset1 == Offset2;
   }
 
@@ -742,7 +748,13 @@ void MergeFunctions::writeThunk(Function *F, Function *G) {
   if (NewG->getReturnType()->isVoidTy()) {
     Builder.CreateRetVoid();
   } else {
-    Builder.CreateRet(Builder.CreateBitCast(CI, NewG->getReturnType()));
+    Type *RetTy = NewG->getReturnType();
+    if (CI->getType()->isIntegerTy() && RetTy->isPointerTy())
+      Builder.CreateRet(Builder.CreateIntToPtr(CI, RetTy));
+    else if (CI->getType()->isPointerTy() && RetTy->isIntegerTy())
+      Builder.CreateRet(Builder.CreatePtrToInt(CI, RetTy));
+    else
+      Builder.CreateRet(Builder.CreateBitCast(CI, RetTy));
   }
 
   NewG->copyAttributesFrom(G);

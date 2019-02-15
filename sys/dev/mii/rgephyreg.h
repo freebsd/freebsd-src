@@ -138,6 +138,17 @@
 #define RGEPHY_EXTSTS_T_HD_CAP	0x1000	/* 1000base-T HD capable */
 
 /* RTL8211B(L)/RTL8211C(L) */
+#define RGEPHY_MII_PCR		0x10	/* PHY Specific control register */
+#define RGEPHY_PCR_ASSERT_CRS	0x0800
+#define RGEPHY_PCR_FORCE_LINK	0x0400
+#define RGEPHY_PCR_MDI_MASK	0x0060
+#define RGEPHY_PCR_MDIX_AUTO	0x0040
+#define RGEPHY_PCR_MDIX_MANUAL	0x0020
+#define RGEPHY_PCR_MDI_MANUAL	0x0000
+#define RGEPHY_PCR_CLK125_DIS	0x0010
+#define RGEPHY_PCR_JABBER_DIS	0x0001
+
+/* RTL8211B(L)/RTL8211C(L) */
 #define RGEPHY_MII_SSR		0x11	/* PHY Specific status register */
 #define	RGEPHY_SSR_S1000	0x8000	/* 1000Mbps */
 #define	RGEPHY_SSR_S100		0x4000	/* 100Mbps */

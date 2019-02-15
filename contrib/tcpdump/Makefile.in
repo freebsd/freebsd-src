@@ -84,7 +84,7 @@ CSRC =	addrtoname.c af.c checksum.c cpack.c gmpls.c oui.c gmt2local.c ipproto.c 
 	print-l2tp.c print-lane.c print-ldp.c print-lldp.c print-llc.c \
         print-lmp.c print-lspping.c print-lwapp.c \
 	print-lwres.c print-mobile.c print-mpcp.c print-mpls.c print-msdp.c \
-	print-nfs.c print-ntp.c print-null.c print-olsr.c print-ospf.c \
+	print-msnlb.c print-nfs.c print-ntp.c print-null.c print-olsr.c print-ospf.c \
 	print-pgm.c print-pim.c \
 	print-ppi.c print-ppp.c print-pppoe.c print-pptp.c \
 	print-radius.c print-raw.c print-rip.c print-rpki-rtr.c print-rrcp.c print-rsvp.c \
@@ -93,7 +93,7 @@ CSRC =	addrtoname.c af.c checksum.c cpack.c gmpls.c oui.c gmt2local.c ipproto.c 
 	print-symantec.c print-syslog.c print-tcp.c print-telnet.c print-tftp.c \
 	print-timed.c print-tipc.c print-token.c print-udld.c print-udp.c \
 	print-usb.c print-vjc.c print-vqp.c print-vrrp.c print-vtp.c \
-	print-wb.c print-zephyr.c signature.c setsignal.c tcpdump.c util.c
+	print-wb.c print-zephyr.c print-zeromq.c print-vxlan.c print-otv.c signature.c setsignal.c tcpdump.c util.c
 
 LIBNETDISSECT_SRC=print-isakmp.c
 LIBNETDISSECT_OBJ=$(LIBNETDISSECT_SRC:.c=.o)
@@ -263,93 +263,8 @@ EXTRA_DIST = \
 	stime.awk \
 	strcasecmp.c \
 	tcpdump.1.in \
-	tests/02-sunrise-sunset-esp.pcap \
-	tests/08-sunrise-sunset-aes.pcap \
-	tests/08-sunrise-sunset-esp2.pcap \
-	tests/QinQpacket.out \
-	tests/QinQpacket.pcap \
-	tests/QinQpacketv.out \
-	tests/TESTLIST \
-	tests/TESTonce \
-	tests/TESTrun.sh \
-	tests/babel.pcap \
-	tests/babel1.out \
-	tests/babel1v.out \
-	tests/bgp-infinite-loop.pcap \
-	tests/bgp_vpn_attrset.out \
-	tests/bgp_vpn_attrset.pcap \
-	tests/chdlc-slarp-short.pcap \
-	tests/chdlc-slarp.pcap \
-	tests/dio.out \
-	tests/dio.pcap \
-	tests/e1000g.out \
-	tests/e1000g.pcap \
-	tests/eapon1.gdbinit \
-	tests/eapon1.out \
-	tests/eapon1.pcap \
-	tests/empty.uu \
-	tests/esp-secrets.txt \
-	tests/esp0.out \
-	tests/esp1.gdbinit \
-	tests/esp1.out \
-	tests/esp2.gdbinit \
-	tests/esp2.out \
-	tests/esp3.gdbinit \
-	tests/esp4.gdbinit \
-	tests/esp5.gdbinit \
-	tests/esp5.out \
-	tests/espudp1.out \
-	tests/espudp1.pcap \
-	tests/forces1.out \
-	tests/forces1.pcap \
-	tests/forces1vvv.out \
-	tests/forces1vvvv.out \
-	tests/forces2v.out \
-	tests/forces2vv.out \
-	tests/forces3vvv.out \
-	tests/icmpv6.out  \
-	tests/icmpv6.pcap \
-	tests/ikev2four.out \
-	tests/ikev2four.pcap \
-	tests/ikev2fourv.out \
-	tests/ikev2fourv4.out \
-	tests/ikev2pI2-secrets.txt \
-	tests/ikev2pI2.out \
-	tests/ikev2pI2.pcap \
-	tests/isakmp-delete-segfault.pcap \
-	tests/isakmp-identification-segfault.pcap \
-	tests/isakmp-pointer-loop.pcap \
-	tests/isakmp1.out \
-	tests/isakmp2.out \
-	tests/isakmp3.out \
-	tests/isakmp4.out \
-	tests/isakmp4500.pcap \
-	tests/isis-infinite-loop.pcap \
-	tests/ldp-infinite-loop.pcap \
-	tests/lmp.out \
-	tests/lmp.pcap \
-	tests/lmp.sh \
-	tests/lspping-fec-ldp.pcap \
-	tests/lspping-fec-rsvp.pcap \
-	tests/mpls-ldp-hello.out \
-	tests/mpls-ldp-hello.pcap \
-	tests/mpls-traceroute.pcap \
-	tests/ospf-gmpls.out \
-	tests/ospf-gmpls.pcap \
-	tests/pppoe.out \
-	tests/pppoe.pcap \
-	tests/print-A.out \
-	tests/print-AA.out \
-	tests/print-capX.out \
-	tests/print-capXX.out \
-	tests/print-flags.pcap \
-	tests/print-flags.sh \
-	tests/print-x.out \
-	tests/print-xx.out \
-	tests/rsvp-infinite-loop.pcap \
-	tests/sflow_multiple_counter_30_pdus.out \
-	tests/sflow_multiple_counter_30_pdus.pcap \
 	vfprintf.c \
+	win32/Include/bittypes.h \
 	win32/Include/errno.h \
 	win32/Include/getopt.h \
 	win32/Include/w32_fzs.h \
@@ -357,6 +272,8 @@ EXTRA_DIST = \
 	win32/prj/GNUmakefile \
 	win32/prj/WinDump.dsp \
 	win32/prj/WinDump.dsw
+
+TEST_DIST= `find tests \( -name 'DIFF' -prune \) -o \( -name NEW -prune \) -o -type f \! -name '.*' \! -name '*~' -print`
 
 all: $(PROG)
 
@@ -443,9 +360,12 @@ TAGS: $(TAGFILES)
 releasetar:
 	@cwd=`pwd` ; dir=`basename $$cwd` ; name=$(PROG)-`cat VERSION` ; \
 	   mkdir $$name; \
-	   tar cf - $(CSRC) $(HDR) $(LIBNETDISSECT_SRC) $(EXTRA_DIST) | (cd $$name; tar xf -); \
+	   tar cf - $(CSRC) $(HDR) $(LIBNETDISSECT_SRC) $(EXTRA_DIST) $(TEST_DIST) | (cd $$name; tar xf -); \
 	   tar -c -z -f $$name.tar.gz $$name; \
 	   rm -rf $$name
+
+testlist:
+	echo $(TEST_DIST)
 
 depend: $(GENSRC)
 	${srcdir}/mkdep -c $(CC) $(DEFS) $(INCLS) $(SRC)

@@ -28,7 +28,7 @@
 #
 
 # PROVIDE: mdconfig
-# REQUIRE: localswap root
+# REQUIRE: swap root
 
 . /etc/rc.subr
 

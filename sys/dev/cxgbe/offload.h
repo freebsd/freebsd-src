@@ -59,8 +59,8 @@ struct listen_ctx;
 
 struct stid_region {
 	TAILQ_ENTRY(stid_region) link;
-	int used;	/* # of stids used by this region */
-	int free;	/* # of contiguous stids free right after this region */
+	u_int used;	/* # of stids used by this region */
+	u_int free;	/* # of contiguous stids free right after this region */
 };
 
 /*

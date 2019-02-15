@@ -1,4 +1,4 @@
-/*	$NetBSD: sigsetjmp.S,v 1.3 2002/08/17 19:54:30 thorpej Exp $	*/
+/*	$NetBSD: sigsetjmp.S,v 1.6 2013/04/19 16:50:22 matt Exp $	*/
 
 /*
  * Copyright (c) 1997 Mark Brinicombe
@@ -34,6 +34,8 @@
 
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
+
+#include <machine/setjmp.h>
 
 /*
  * C library -- sigsetjmp, siglongjmp

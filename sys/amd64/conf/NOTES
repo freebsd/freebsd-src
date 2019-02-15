@@ -366,6 +366,10 @@ device		iwn6000fw
 device		iwn6050fw
 device		wpifw
 
+# Intel Non-Transparent Bridge (NTB) hardware
+device		ntb_hw	# Hardware Abstraction Layer for the NTB
+device		if_ntb	# Simulated ethernet device using the NTB
+
 #
 #XXX this stores pointers in a 32bit field that is defined by the hardware
 #device	pst
@@ -400,6 +404,10 @@ device		stg
 # the Dell PERC 2/QC and the HP NetRAID-4M
 device		aac
 device		aacp	# SCSI Passthrough interface (optional, CAM required)
+
+#
+# Adaptec by PMC RAID controllers, Series 6/7/8 and upcoming families
+device		aacraid		# Container interface, CAM required
 
 #
 # Highpoint RocketRAID 27xx.
