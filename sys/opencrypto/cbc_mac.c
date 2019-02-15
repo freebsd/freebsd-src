@@ -128,7 +128,7 @@ AES_CBC_MAC_Reinit(struct aes_cbc_mac_ctx *ctx, const uint8_t *nonce, uint16_t n
 			uint16_t sizeVal = htobe16(ctx->authDataLength);
 			bcopy(&sizeVal, ctx->staging_block, sizeof(sizeVal));
 			ctx->blockIndex = sizeof(sizeVal);
-		} else if (ctx->authDataLength < (1UL<<32)) {
+		} else if (ctx->authDataLength < (1ULL<<32)) {
 			uint32_t sizeVal = htobe32(ctx->authDataLength);
 			ctx->staging_block[0] = 0xff;
 			ctx->staging_block[1] = 0xfe;
