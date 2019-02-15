@@ -174,6 +174,7 @@ SUBDIR=	\
 	if_tun \
 	if_vlan \
 	if_vxlan \
+	iflib \
 	${_iir} \
 	imgact_binmisc \
 	${_intelspi} \

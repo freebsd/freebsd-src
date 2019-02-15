@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 20, 2018
+.Dd January 30, 2019
 .Dt BNXT 4
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@ To compile this driver into the kernel,
 place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
+.Cd "device iflib"
 .Cd "device bnxt"
 .Ed
 .Pp
