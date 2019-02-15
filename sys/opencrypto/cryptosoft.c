@@ -62,6 +62,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include "cryptodev_if.h"
 
+_Static_assert(AES_CCM_IV_LEN == AES_GCM_IV_LEN,
+    "AES_GCM_IV_LEN must currently be the same as AES_CCM_IV_LEN");
+
 static	int32_t swcr_id;
 
 u_int8_t hmac_ipad_buffer[HMAC_MAX_BLOCK_LEN];
@@ -506,6 +509,7 @@ swcr_authenc(struct cryptop *crp)
 	caddr_t buf = (caddr_t)crp->crp_buf;
 	uint32_t *blkp;
 	int aadlen, blksz, i, ivlen, len, iskip, oskip, r;
+	int isccm = 0;
 
 	ivlen = blksz = iskip = oskip = 0;
 
@@ -520,13 +524,18 @@ swcr_authenc(struct cryptop *crp)
 
 		sw = &ses->swcr_algorithms[i];
 		switch (sw->sw_alg) {
+		case CRYPTO_AES_CCM_16:
 		case CRYPTO_AES_NIST_GCM_16:
 		case CRYPTO_AES_NIST_GMAC:
 			swe = sw;
 			crde = crd;
 			exf = swe->sw_exf;
-			ivlen = 12;
+			/* AES_CCM_IV_LEN and AES_GCM_IV_LEN are both 12 */
+			ivlen = AES_CCM_IV_LEN;
 			break;
+		case CRYPTO_AES_CCM_CBC_MAC:
+			isccm = 1;
+			/* FALLTHROUGH */
 		case CRYPTO_AES_128_NIST_GMAC:
 		case CRYPTO_AES_192_NIST_GMAC:
 		case CRYPTO_AES_256_NIST_GMAC:
@@ -544,8 +553,26 @@ swcr_authenc(struct cryptop *crp)
 	}
 	if (crde == NULL || crda == NULL)
 		return (EINVAL);
+	/*
+	 * We need to make sure that the auth algorithm matches the
+	 * encr algorithm.  Specifically, for AES-GCM must go with
+	 * AES NIST GMAC, and AES-CCM must go with CBC-MAC.
+	 */
+	if (crde->crd_alg == CRYPTO_AES_NIST_GCM_16) {
+		switch (crda->crd_alg) {
+		case CRYPTO_AES_128_NIST_GMAC:
+		case CRYPTO_AES_192_NIST_GMAC:
+		case CRYPTO_AES_256_NIST_GMAC:
+			break;	/* Good! */
+		default:
+			return (EINVAL);	/* Not good! */
+		}
+	} else if (crde->crd_alg == CRYPTO_AES_CCM_16 &&
+	    crda->crd_alg != CRYPTO_AES_CCM_CBC_MAC)
+		return (EINVAL);
 
-	if (crde->crd_alg == CRYPTO_AES_NIST_GCM_16 &&
+	if ((crde->crd_alg == CRYPTO_AES_NIST_GCM_16 ||
+	     crde->crd_alg == CRYPTO_AES_CCM_16) &&
 	    (crde->crd_flags & CRD_F_IV_EXPLICIT) == 0)
 		return (EINVAL);
 
@@ -576,6 +603,15 @@ swcr_authenc(struct cryptop *crp)
 		}
 	}
 
+	if (swa->sw_alg == CRYPTO_AES_CCM_CBC_MAC) {
+		/*
+		 * AES CCM-CBC needs to know the length of
+		 * both the auth data, and payload data, before
+		 * doing the auth computation.
+		 */
+		ctx.aes_cbc_mac_ctx.authDataLength = crda->crd_len;
+		ctx.aes_cbc_mac_ctx.cryptDataLength = crde->crd_len;
+	}
 	/* Supply MAC with IV */
 	if (axf->Reinit)
 		axf->Reinit(&ctx, iv, ivlen);
@@ -610,16 +646,30 @@ swcr_authenc(struct cryptop *crp)
 			bzero(blk, blksz);
 		crypto_copydata(crp->crp_flags, buf, crde->crd_skip + i, len,
 		    blk);
+		/*
+		 * One of the problems with CCM+CBC is that the authentication
+		 * is done on the unecncrypted data.  As a result, we have
+		 * to do the authentication update at different times,
+		 * depending on whether it's CCM or not.
+		 */
 		if (crde->crd_flags & CRD_F_ENCRYPT) {
+			if (isccm)
+				axf->Update(&ctx, blk, len);
 			if (exf->encrypt_multi != NULL)
 				exf->encrypt_multi(swe->sw_kschedule, blk,
 				    len);
 			else
 				exf->encrypt(swe->sw_kschedule, blk);
-			axf->Update(&ctx, blk, len);
+			if (!isccm)
+				axf->Update(&ctx, blk, len);
 			crypto_copyback(crp->crp_flags, buf,
 			    crde->crd_skip + i, len, blk);
 		} else {
+			if (isccm) {
+				KASSERT(exf->encrypt_multi == NULL,
+				    ("assume CCM is single-block only"));
+				exf->decrypt(swe->sw_kschedule, blk);
+			}
 			axf->Update(&ctx, blk, len);
 		}
 	}
@@ -650,6 +700,11 @@ swcr_authenc(struct cryptop *crp)
 		r = timingsafe_bcmp(aalg, uaalg, axf->hashsize);
 		if (r == 0) {
 			/* tag matches, decrypt data */
+			if (isccm) {
+				KASSERT(exf->reinit != NULL,
+				    ("AES-CCM reinit function must be set"));
+				exf->reinit(swe->sw_kschedule, iv);
+			}
 			for (i = 0; i < crde->crd_len; i += blksz) {
 				len = MIN(crde->crd_len - i, blksz);
 				if (len < blksz)
@@ -799,6 +854,9 @@ swcr_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 		case CRYPTO_AES_NIST_GCM_16:
 			txf = &enc_xform_aes_nist_gcm;
 			goto enccommon;
+		case CRYPTO_AES_CCM_16:
+			txf = &enc_xform_ccm;
+			goto enccommon;
 		case CRYPTO_AES_NIST_GMAC:
 			txf = &enc_xform_aes_nist_gmac;
 			swd->sw_exf = txf;
@@ -943,6 +1001,22 @@ swcr_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 			swd->sw_axf = axf;
 			break;
 
+		case CRYPTO_AES_CCM_CBC_MAC:
+			switch (cri->cri_klen) {
+			case 128:
+				axf = &auth_hash_ccm_cbc_mac_128;
+				break;
+			case 192:
+				axf = &auth_hash_ccm_cbc_mac_192;
+				break;
+			case 256:
+				axf = &auth_hash_ccm_cbc_mac_256;
+				break;
+			default:
+				swcr_freesession(dev, cses);
+				return EINVAL;
+			}
+			goto auth4common;
 		case CRYPTO_AES_128_NIST_GMAC:
 			axf = &auth_hash_nist_gmac_aes_128;
 			goto auth4common;
@@ -1042,6 +1116,7 @@ swcr_freesession(device_t dev, crypto_session_t cses)
 		case CRYPTO_CAMELLIA_CBC:
 		case CRYPTO_NULL_CBC:
 		case CRYPTO_CHACHA20:
+		case CRYPTO_AES_CCM_16:
 			txf = swd->sw_exf;
 
 			if (swd->sw_kschedule)
@@ -1056,6 +1131,7 @@ swcr_freesession(device_t dev, crypto_session_t cses)
 		case CRYPTO_SHA2_512_HMAC:
 		case CRYPTO_RIPEMD160_HMAC:
 		case CRYPTO_NULL_HMAC:
+		case CRYPTO_AES_CCM_CBC_MAC:
 			axf = swd->sw_axf;
 
 			if (swd->sw_ictx) {
@@ -1201,6 +1277,8 @@ swcr_process(device_t dev, struct cryptop *crp, int hint)
 		case CRYPTO_AES_128_NIST_GMAC:
 		case CRYPTO_AES_192_NIST_GMAC:
 		case CRYPTO_AES_256_NIST_GMAC:
+		case CRYPTO_AES_CCM_16:
+		case CRYPTO_AES_CCM_CBC_MAC:
 			crp->crp_etype = swcr_authenc(crp);
 			goto done;
 
@@ -1291,6 +1369,8 @@ swcr_attach(device_t dev)
 	REGISTER(CRYPTO_BLAKE2B);
 	REGISTER(CRYPTO_BLAKE2S);
 	REGISTER(CRYPTO_CHACHA20);
+	REGISTER(CRYPTO_AES_CCM_16);
+	REGISTER(CRYPTO_AES_CCM_CBC_MAC);
 	REGISTER(CRYPTO_POLY1305);
 #undef REGISTER
 
