@@ -1,3 +1,10 @@
+<?xml version="1.0" encoding="koi8-r"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+ %release;
+]>
+
 <!--
    The FreeBSD Russian Documentation Project
 
@@ -6,14 +13,6 @@
 
    Original revision: 1.37
 -->
-
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
-<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
-%articles.ent;
-
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
-%release;
-]>
 
 <article lang="ru">
   <articleinfo>
@@ -97,9 +96,7 @@
     <sect2>
       <title>Целевая аудитория</title>
 
-<![ %release.type.current; [
-
-      <para>Этот дистрибутив (<quote>&release.type;</quote>) предназначен
+      <para releasetype="current">Этот дистрибутив (<quote>&release.type;</quote>) предназначен
 	в основном для предварительного ознакомления и различных
 	пользователей, желающих быть на переднем краю продолжающейся
 	разработки &os;.  Хотя команда разработки &os; прилагает все
@@ -107,21 +104,17 @@
 	предполагается, &release.branch; находится в промежуточном
 	состоянии.</para>
 
-      <para>Основное требование к использованию таких релизов это опыт
+      <para releasetype="current">Основное требование к использованию таких релизов это опыт
 	работы с &os; и понимание процесса разработки &os; &release.branch;
 	(обсуждается в списке рассылки &a.current.name;).</para>
 
-      <para>Тем, кому &os; нужна для решения конкретных задач,
+      <para releasetype="current">Тем, кому &os; нужна для решения конкретных задач,
 	а не для экспериментирования с новыми технологиями, зачастую
 	больше подходят формальные релизы (такие как
 	&release.prev.stable;).  Релизы проходят через период тестирования
 	и проверку качества, где выясняется их надежность.</para>
 
-]]>
-
-<![ %release.type.snapshot; [
-
-      <para>Этот дистрибутив (<quote>&release.type;</quote>) предназначен
+      <para releasetype="snapshot">Этот дистрибутив (<quote>&release.type;</quote>) предназначен
 	в основном для предварительного ознакомления и различных
 	пользователей, желающих быть на переднем краю продолжающейся
 	разработки &os;.  Хотя команда разработки &os; прилагает все
@@ -129,26 +122,19 @@
 	предполагается, &release.branch; находится в промежуточном
 	состоянии.</para>
 
-      <para>Основное требование к использованию снэпшотов это опыт
+      <para releasetype="snapshot">Основное требование к использованию снэпшотов это опыт
 	работы с &os; и понимание процесса разработки &os; &release.branch;
 	(обсуждается в &a.current;).</para>
 
-      <para>Тем, кому &os; нужна для решения конкретных задач,
+      <para releasetype="snapshot">Тем, кому &os; нужна для решения конкретных задач,
 	а не для экспериментирования с новыми технологиями, зачастую
 	больше подходят формальные релизы (такие как
 	&release.prev.stable;).  Релизы проходят через период тестирования
 	и проверку качества, где выясняется их надежность.</para>
 
-]]>
-
-<![ %release.type.release; [
-
-      <para>Этот дистрибутив (<quote>&release.type;</quote>) &os; подходит для
+      <para releasetype="release">Этот дистрибутив (<quote>&release.type;</quote>) &os; подходит для
 	всех пользователей.  Он прошел период тестирования и проверки
 	качества, которые подтвердили его надежность.</para>
-
-]]>
-
     </sect2>
   </sect1>
 

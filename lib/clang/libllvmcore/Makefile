@@ -4,7 +4,7 @@
 
 LIB=	llvmcore
 
-SRCDIR=	lib/VMCore
+SRCDIR=	lib/IR
 SRCS=	AsmWriter.cpp \
 	Attributes.cpp \
 	AutoUpgrade.cpp \
@@ -37,14 +37,12 @@ SRCS=	AsmWriter.cpp \
 	PrintModulePass.cpp \
 	Type.cpp \
 	TypeFinder.cpp \
-	TargetTransformInfo.cpp \
 	Use.cpp \
 	User.cpp \
 	Value.cpp \
 	ValueSymbolTable.cpp \
 	ValueTypes.cpp \
 	Verifier.cpp
-LLVM_REQUIRES_RTTI=
 
 TGHDRS=	Intrinsics
 

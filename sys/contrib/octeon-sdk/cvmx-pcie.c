@@ -422,12 +422,12 @@ static int __cvmx_pcie_rc_initialize_link_gen1(int pcie_port)
     start_cycle = cvmx_get_cycle();
     do
     {
-        if (cvmx_get_cycle() - start_cycle > 2*cvmx_clock_get_rate(CVMX_CLOCK_CORE))
+        if (cvmx_get_cycle() - start_cycle > 100*cvmx_clock_get_rate(CVMX_CLOCK_CORE))
         {
             cvmx_dprintf("PCIe: Port %d link timeout\n", pcie_port);
             return -1;
         }
-        cvmx_wait(10000);
+        cvmx_wait(50000);
         pciercx_cfg032.u32 = cvmx_pcie_cfgx_read(pcie_port, CVMX_PCIERCX_CFG032(pcie_port));
     } while (pciercx_cfg032.s.dlla == 0);
 
@@ -1340,7 +1340,9 @@ uint16_t cvmx_pcie_config_read16(int pcie_port, int bus, int dev, int fn, int re
  */
 uint32_t cvmx_pcie_config_read32(int pcie_port, int bus, int dev, int fn, int reg)
 {
-    uint64_t address = __cvmx_pcie_build_config_addr(pcie_port, bus, dev, fn, reg);
+    uint64_t address;
+
+    address = __cvmx_pcie_build_config_addr(pcie_port, bus, dev, fn, reg);
     if (address)
         return cvmx_le32_to_cpu(cvmx_read64_uint32(address));
     else

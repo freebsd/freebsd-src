@@ -80,7 +80,7 @@ struct jmploc main_handler;
 int localeisutf8, initial_localeisutf8;
 
 static void cmdloop(int);
-static void read_profile(char *);
+static void read_profile(const char *);
 static char *find_dot_file(char *);
 
 /*
@@ -239,7 +239,7 @@ cmdloop(int top)
  */
 
 static void
-read_profile(char *name)
+read_profile(const char *name)
 {
 	int fd;
 	const char *expandedname;
@@ -248,7 +248,7 @@ read_profile(char *name)
 	if (expandedname == NULL)
 		return;
 	INTOFF;
-	if ((fd = open(expandedname, O_RDONLY)) >= 0)
+	if ((fd = open(expandedname, O_RDONLY | O_CLOEXEC)) >= 0)
 		setinputfd(fd, 1);
 	INTON;
 	if (fd < 0)

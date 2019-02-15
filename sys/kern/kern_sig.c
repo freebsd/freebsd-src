@@ -3273,6 +3273,7 @@ restart:
 			goto out;
 		if ((error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH)) != 0)
 			goto out;
+		free(name, M_TEMP);
 		goto restart;
 	}
 

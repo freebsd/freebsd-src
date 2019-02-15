@@ -38,6 +38,8 @@
 #define TRC_MEM      0x0010f000    /* Xen memory trace         */
 #define TRC_PV       0x0020f000    /* Xen PV traces            */
 #define TRC_SHADOW   0x0040f000    /* Xen shadow tracing       */
+#define TRC_HW       0x0080f000    /* Xen hardware-related traces */
+#define TRC_GUEST    0x0800f000    /* Guest-generated traces   */
 #define TRC_ALL      0x0ffff000
 #define TRC_HD_TO_EVENT(x) ((x)&0x0fffffff)
 #define TRC_HD_CYCLE_FLAG (1UL<<31)
@@ -52,14 +54,20 @@
 #define TRC_HVM_HANDLER   0x00082000   /* various HVM handlers      */
 
 #define TRC_SCHED_MIN       0x00021000   /* Just runstate changes */
+#define TRC_SCHED_CLASS     0x00022000   /* Scheduler-specific    */
 #define TRC_SCHED_VERBOSE   0x00028000   /* More inclusive scheduling */
+
+/* Trace classes for Hardware */
+#define TRC_HW_PM           0x00801000   /* Power management traces */
+#define TRC_HW_IRQ          0x00802000   /* Traces relating to the handling of IRQs */
 
 /* Trace events per class */
 #define TRC_LOST_RECORDS        (TRC_GEN + 1)
 #define TRC_TRACE_WRAP_BUFFER  (TRC_GEN + 2)
 #define TRC_TRACE_CPU_CHANGE    (TRC_GEN + 3)
 
-#define TRC_SCHED_RUNSTATE_CHANGE (TRC_SCHED_MIN + 1)
+#define TRC_SCHED_RUNSTATE_CHANGE   (TRC_SCHED_MIN + 1)
+#define TRC_SCHED_CONTINUE_RUNNING  (TRC_SCHED_MIN + 2)
 #define TRC_SCHED_DOM_ADD        (TRC_SCHED_VERBOSE +  1)
 #define TRC_SCHED_DOM_REM        (TRC_SCHED_VERBOSE +  2)
 #define TRC_SCHED_SLEEP          (TRC_SCHED_VERBOSE +  3)
@@ -75,10 +83,17 @@
 #define TRC_SCHED_DOM_TIMER_FN   (TRC_SCHED_VERBOSE + 13)
 #define TRC_SCHED_SWITCH_INFPREV (TRC_SCHED_VERBOSE + 14)
 #define TRC_SCHED_SWITCH_INFNEXT (TRC_SCHED_VERBOSE + 15)
+#define TRC_SCHED_SHUTDOWN_CODE  (TRC_SCHED_VERBOSE + 16)
 
 #define TRC_MEM_PAGE_GRANT_MAP      (TRC_MEM + 1)
 #define TRC_MEM_PAGE_GRANT_UNMAP    (TRC_MEM + 2)
 #define TRC_MEM_PAGE_GRANT_TRANSFER (TRC_MEM + 3)
+#define TRC_MEM_SET_P2M_ENTRY       (TRC_MEM + 4)
+#define TRC_MEM_DECREASE_RESERVATION (TRC_MEM + 5)
+#define TRC_MEM_POD_POPULATE        (TRC_MEM + 16)
+#define TRC_MEM_POD_ZERO_RECLAIM    (TRC_MEM + 17)
+#define TRC_MEM_POD_SUPERPAGE_SPLINTER (TRC_MEM + 18)
+
 
 #define TRC_PV_HYPERCALL             (TRC_PV +  1)
 #define TRC_PV_TRAP                  (TRC_PV +  3)
@@ -111,6 +126,7 @@
 #define TRC_SHADOW_RESYNC_ONLY                (TRC_SHADOW + 15)
 
 /* trace events per subclass */
+#define TRC_HVM_NESTEDFLAG      (0x400)
 #define TRC_HVM_VMENTRY         (TRC_HVM_ENTRYEXIT + 0x01)
 #define TRC_HVM_VMEXIT          (TRC_HVM_ENTRYEXIT + 0x02)
 #define TRC_HVM_VMEXIT64        (TRC_HVM_ENTRYEXIT + TRC_64_FLAG + 0x02)
@@ -140,11 +156,37 @@
 #define TRC_HVM_INVLPG          (TRC_HVM_HANDLER + 0x14)
 #define TRC_HVM_INVLPG64        (TRC_HVM_HANDLER + TRC_64_FLAG + 0x14)
 #define TRC_HVM_MCE             (TRC_HVM_HANDLER + 0x15)
-#define TRC_HVM_IO_ASSIST       (TRC_HVM_HANDLER + 0x16)
-#define TRC_HVM_MMIO_ASSIST     (TRC_HVM_HANDLER + 0x17)
+#define TRC_HVM_IOPORT_READ     (TRC_HVM_HANDLER + 0x16)
+#define TRC_HVM_IOMEM_READ      (TRC_HVM_HANDLER + 0x17)
 #define TRC_HVM_CLTS            (TRC_HVM_HANDLER + 0x18)
 #define TRC_HVM_LMSW            (TRC_HVM_HANDLER + 0x19)
 #define TRC_HVM_LMSW64          (TRC_HVM_HANDLER + TRC_64_FLAG + 0x19)
+#define TRC_HVM_RDTSC           (TRC_HVM_HANDLER + 0x1a)
+#define TRC_HVM_INTR_WINDOW     (TRC_HVM_HANDLER + 0x20)
+#define TRC_HVM_NPF             (TRC_HVM_HANDLER + 0x21)
+#define TRC_HVM_REALMODE_EMULATE (TRC_HVM_HANDLER + 0x22)
+#define TRC_HVM_TRAP             (TRC_HVM_HANDLER + 0x23)
+#define TRC_HVM_TRAP_DEBUG       (TRC_HVM_HANDLER + 0x24)
+#define TRC_HVM_VLAPIC           (TRC_HVM_HANDLER + 0x25)
+
+#define TRC_HVM_IOPORT_WRITE    (TRC_HVM_HANDLER + 0x216)
+#define TRC_HVM_IOMEM_WRITE     (TRC_HVM_HANDLER + 0x217)
+
+/* trace events for per class */
+#define TRC_PM_FREQ_CHANGE      (TRC_HW_PM + 0x01)
+#define TRC_PM_IDLE_ENTRY       (TRC_HW_PM + 0x02)
+#define TRC_PM_IDLE_EXIT        (TRC_HW_PM + 0x03)
+
+/* Trace events for IRQs */
+#define TRC_HW_IRQ_MOVE_CLEANUP_DELAY (TRC_HW_IRQ + 0x1)
+#define TRC_HW_IRQ_MOVE_CLEANUP       (TRC_HW_IRQ + 0x2)
+#define TRC_HW_IRQ_BIND_VECTOR        (TRC_HW_IRQ + 0x3)
+#define TRC_HW_IRQ_CLEAR_VECTOR       (TRC_HW_IRQ + 0x4)
+#define TRC_HW_IRQ_MOVE_FINISH        (TRC_HW_IRQ + 0x5)
+#define TRC_HW_IRQ_ASSIGN_VECTOR      (TRC_HW_IRQ + 0x6)
+#define TRC_HW_IRQ_UNMAPPED_VECTOR    (TRC_HW_IRQ + 0x7)
+#define TRC_HW_IRQ_HANDLED            (TRC_HW_IRQ + 0x8)
+
 
 /* This structure represents a single trace buffer record. */
 struct t_rec {
@@ -178,6 +220,16 @@ struct t_buf {
     uint32_t cons;   /* Offset of next item to be consumed by control tools. */
     uint32_t prod;   /* Offset of next item to be produced by Xen.           */
     /*  Records follow immediately after the meta-data header.    */
+};
+
+/* Structure used to pass MFNs to the trace buffers back to trace consumers.
+ * Offset is an offset into the mapped structure where the mfn list will be held.
+ * MFNs will be at ((unsigned long *)(t_info))+(t_info->cpu_offset[cpu]).
+ */
+struct t_info {
+    uint16_t tbuf_size; /* Size in pages of each trace buffer */
+    uint16_t mfn_offset[];  /* Offset within t_info structure of the page list per cpu */
+    /* MFN lists immediately after the header */
 };
 
 #endif /* __XEN_PUBLIC_TRACE_H__ */

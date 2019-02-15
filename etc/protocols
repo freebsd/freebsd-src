@@ -92,6 +92,7 @@ vmtp	81	VMTP		# Versatile Message Transport
 secure-vmtp	82	SECURE-VMTP	# SECURE-VMTP
 vines	83	VINES		# VINES
 ttp	84	TTP		# TTP
+#iptm	84	IPTM		# Protocol Internet Protocol Traffic
 nsfnet-igp	85	NSFNET-IGP	# NSFNET-IGP
 dgp	86	DGP		# Dissimilar Gateway Protocol
 tcf	87	TCF		# TCF
@@ -145,7 +146,13 @@ rsvp-e2e-ignore	134	RSVP-E2E-IGNORE	# Aggregation of RSVP for IP reservations
 mobility-header	135	Mobility-Header	# Mobility Support in IPv6
 udplite	136	UDPLite		# The UDP-Lite Protocol
 mpls-in-ip	137	MPLS-IN-IP	# Encapsulating MPLS in IP
+manet	138	MANET		# MANET Protocols (RFC5498)
+hip	139	HIP		# Host Identity Protocol (RFC5201)
+shim6	140	SHIM6		# Shim6 Protocol (RFC5533)
+wesp	141	WESP		# Wrapped Encapsulating Security Payload (RFC5840)
+rohc	142	ROHC		# Robust Header Compression (RFC5858)
 #	138-254			# Unassigned
 pfsync	240	PFSYNC		# PF Synchronization
+#	253-254			# Use for experimentation and testing (RFC3692)
 #	255			# Reserved
 divert	258	DIVERT		# Divert pseudo-protocol [non IANA]

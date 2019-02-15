@@ -303,7 +303,7 @@ cpuset_create(struct cpuset **setp, struct cpuset *parent, const cpuset_t *mask)
  * empty as well as RDONLY flags.
  */
 static int
-cpuset_testupdate(struct cpuset *set, cpuset_t *mask)
+cpuset_testupdate(struct cpuset *set, cpuset_t *mask, int check_mask)
 {
 	struct cpuset *nset;
 	cpuset_t newmask;
@@ -312,13 +312,16 @@ cpuset_testupdate(struct cpuset *set, cpuset_t *mask)
 	mtx_assert(&cpuset_lock, MA_OWNED);
 	if (set->cs_flags & CPU_SET_RDONLY)
 		return (EPERM);
-	if (!CPU_OVERLAP(&set->cs_mask, mask))
-		return (EDEADLK);
-	CPU_COPY(&set->cs_mask, &newmask);
-	CPU_AND(&newmask, mask);
+	if (check_mask) {
+		if (!CPU_OVERLAP(&set->cs_mask, mask))
+			return (EDEADLK);
+		CPU_COPY(&set->cs_mask, &newmask);
+		CPU_AND(&newmask, mask);
+	} else
+		CPU_COPY(mask, &newmask);
 	error = 0;
 	LIST_FOREACH(nset, &set->cs_children, cs_siblings) 
-		if ((error = cpuset_testupdate(nset, &newmask)) != 0)
+		if ((error = cpuset_testupdate(nset, &newmask, 1)) != 0)
 			break;
 	return (error);
 }
@@ -370,11 +373,11 @@ cpuset_modify(struct cpuset *set, cpuset_t *mask)
 	if (root && !CPU_SUBSET(&root->cs_mask, mask))
 		return (EINVAL);
 	mtx_lock_spin(&cpuset_lock);
-	error = cpuset_testupdate(set, mask);
+	error = cpuset_testupdate(set, mask, 0);
 	if (error)
 		goto out;
-	cpuset_update(set, mask);
 	CPU_COPY(mask, &set->cs_mask);
+	cpuset_update(set, mask);
 out:
 	mtx_unlock_spin(&cpuset_lock);
 
@@ -615,26 +618,6 @@ out:
 		uma_zfree(cpuset_zone, nset);
 	}
 	return (error);
-}
-
-/*
- * Calculate the ffs() of the cpuset.
- */
-int
-cpusetobj_ffs(const cpuset_t *set)
-{
-	size_t i;
-	int cbit;
-
-	cbit = 0;
-	for (i = 0; i < _NCPUWORDS; i++) {
-		if (set->__bits[i] != 0) {
-			cbit = ffsl(set->__bits[i]);
-			cbit += i * _NCPUBITS;
-			break;
-		}
-	}
-	return (cbit);
 }
 
 /*
@@ -1147,25 +1130,34 @@ out:
 }
 
 #ifdef DDB
+void
+ddb_display_cpuset(const cpuset_t *set)
+{
+	int cpu, once;
+
+	for (once = 0, cpu = 0; cpu < CPU_SETSIZE; cpu++) {
+		if (CPU_ISSET(cpu, set)) {
+			if (once == 0) {
+				db_printf("%d", cpu);
+				once = 1;
+			} else  
+				db_printf(",%d", cpu);
+		}
+	}
+	if (once == 0)
+		db_printf("<none>");
+}
+
 DB_SHOW_COMMAND(cpusets, db_show_cpusets)
 {
 	struct cpuset *set;
-	int cpu, once;
 
 	LIST_FOREACH(set, &cpuset_ids, cs_link) {
 		db_printf("set=%p id=%-6u ref=%-6d flags=0x%04x parent id=%d\n",
 		    set, set->cs_id, set->cs_ref, set->cs_flags,
 		    (set->cs_parent != NULL) ? set->cs_parent->cs_id : 0);
 		db_printf("  mask=");
-		for (once = 0, cpu = 0; cpu < CPU_SETSIZE; cpu++) {
-			if (CPU_ISSET(cpu, &set->cs_mask)) {
-				if (once == 0) {
-					db_printf("%d", cpu);
-					once = 1;
-				} else  
-					db_printf(",%d", cpu);
-			}
-		}
+		ddb_display_cpuset(&set->cs_mask);
 		db_printf("\n");
 		if (db_pager_quit)
 			break;

@@ -848,6 +848,7 @@ newroute(int argc, char **argv)
 				if (!--argc)
 					usage(NULL);
 				getaddr(RTA_GATEWAY, *++argv, 0, nrflags);
+				gateway = *argv;
 				break;
 			case K_DST:
 				if (!--argc)

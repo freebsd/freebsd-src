@@ -10,7 +10,7 @@ FILES+=	esdb.dir esdb.dir.db esdb.alias esdb.alias.db
 CLEANFILES= ${FILES}
 
 esdb.dir: ${SUBDIR}
-	touch $@
+	> $@
 .for i in ${SUBDIR}
 	cat ${i}/esdb.dir.${i} >>${.TARGET}
 .endfor
@@ -18,7 +18,7 @@ esdb.dir.db: esdb.dir
 	${MKESDB} -m -o ${.TARGET} ${.ALLSRC}
 
 esdb.alias: ${SUBDIR}
-	touch $@
+	> $@
 .for i in ${SUBDIR}
 	cat ${i}/esdb.alias.${i} >>${.TARGET}
 .endfor

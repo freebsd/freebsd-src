@@ -157,9 +157,9 @@ DEFINE_TEST(test_format_newc)
 
 	/* Verify that nothing went to stderr. */
 	if (canSymlink()) {
-		strncat(result, "2 blocks\n", sizeof(result) - strlen(result));
+		strncat(result, "2 blocks\n", sizeof(result) - strlen(result) -1);
 	} else {
-		strncat(result, "1 block\n", sizeof(result) - strlen(result));
+		strncat(result, "1 block\n", sizeof(result) - strlen(result) -1);
 	}
 	assertTextFileContents(result, "newc.err");
 

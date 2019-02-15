@@ -106,6 +106,7 @@ struct pci_devinfo *pci_read_device(device_t pcib, int d, int b, int s, int f,
 		    size_t size);
 void		pci_print_verbose(struct pci_devinfo *dinfo);
 int		pci_freecfg(struct pci_devinfo *dinfo);
+void		pci_child_detached(device_t dev, device_t child);
 int		pci_child_location_str_method(device_t cbdev, device_t child,
 		    char *buf, size_t buflen);
 int		pci_child_pnpinfo_str_method(device_t cbdev, device_t child,

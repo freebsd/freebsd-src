@@ -94,7 +94,7 @@ static const struct iwn_ident iwn_ident_table[] = {
 	{ 0x8086, 0x0885, "Intel Centrino Wireless-N + WiMAX 6150"	},
 	{ 0x8086, 0x0886, "Intel Centrino Wireless-N + WiMAX 6150"	},
 	{ 0x8086, 0x0896, "Intel Centrino Wireless-N 130"		},
-	{ 0x8086, 0x0887, "Intel Centrino Wireless-N 130"		},
+	{ 0x8086, 0x0897, "Intel Centrino Wireless-N 130"		},
 	{ 0x8086, 0x08ae, "Intel Centrino Wireless-N 100"		},
 	{ 0x8086, 0x08af, "Intel Centrino Wireless-N 100"		},
 	{ 0x8086, 0x4229, "Intel Wireless WiFi Link 4965"		},
@@ -2136,7 +2136,8 @@ iwn_newassoc(struct ieee80211_node *ni, int isnew)
 		for (i = 0; i < ni->ni_rates.rs_nrates; i++) {
 			rate = RV(ni->ni_rates.rs_rates[i]);
 			plcp = rate2plcp(rate);
-			ridx = ic->ic_rt->rateCodeToIndex[rate];
+			ridx = ieee80211_legacy_rate_lookup(ic->ic_rt,
+			    rate & IEEE80211_RATE_VAL);
 			if (ridx < IWN_RIDX_OFDM6 &&
 			    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
 				plcp |= IWN_RFLAG_CCK;
@@ -3400,7 +3401,8 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
 		rate = ni->ni_txrate;
 	}
-	ridx = ic->ic_rt->rateCodeToIndex[rate];
+	ridx = ieee80211_legacy_rate_lookup(ic->ic_rt,
+	    rate & IEEE80211_RATE_VAL);
 
 	/* Encrypt the frame if need be. */
 	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
@@ -3637,7 +3639,8 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 
 	/* Choose a TX rate index. */
 	rate = params->ibp_rate0;
-	ridx = ic->ic_rt->rateCodeToIndex[rate];
+	ridx = ieee80211_legacy_rate_lookup(ic->ic_rt,
+	    rate & IEEE80211_RATE_VAL);
 	if (ridx == (uint8_t)-1) {
 		/* XXX fall back to mcast/mgmt rate? */
 		m_freem(m);

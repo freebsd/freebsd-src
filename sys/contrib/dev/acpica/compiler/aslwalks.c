@@ -122,6 +122,7 @@ AnMethodTypingWalkEnd (
         break;
 
     default:
+
         break;
     }
 
@@ -176,6 +177,7 @@ AnOperandTypecheckWalkEnd (
         return (AE_OK);
 
     default:
+
         break;
     }
 
@@ -252,6 +254,7 @@ AnOperandTypecheckWalkEnd (
         return (AE_OK);
 
     default:
+
         break;
     }
 
@@ -379,11 +382,13 @@ AnOperandTypecheckWalkEnd (
                     break;
 
                 case PARSEOP_DEBUG:
+
                     break;
 
                 case PARSEOP_REFOF:
                 case PARSEOP_INDEX:
                 default:
+
                     break;
 
                 }
@@ -391,6 +396,7 @@ AnOperandTypecheckWalkEnd (
 
             case ARGI_INTEGER:
             default:
+
                 break;
             }
 
@@ -434,6 +440,7 @@ AnOperandTypecheckWalkEnd (
         break;
 
     default:
+
         break;
     }
 
@@ -499,13 +506,13 @@ AnOtherSemanticAnalysisWalkBegin (
                     (PrevArgNode) &&
                     (PrevArgNode->Asl.ParseOpcode == PARSEOP_ZERO))
                 {
-                    AslError (ASL_WARNING, ASL_MSG_RESULT_NOT_USED,
+                    AslError (ASL_ERROR, ASL_MSG_RESULT_NOT_USED,
                         Op, Op->Asl.ExternalName);
                 }
             }
             else if (ArgNode->Asl.ParseOpcode == PARSEOP_ZERO)
             {
-                AslError (ASL_WARNING, ASL_MSG_RESULT_NOT_USED,
+                AslError (ASL_ERROR, ASL_MSG_RESULT_NOT_USED,
                     Op, Op->Asl.ExternalName);
             }
         }
@@ -520,10 +527,12 @@ AnOtherSemanticAnalysisWalkBegin (
             case PARSEOP_ACQUIRE:
             case PARSEOP_WAIT:
             case PARSEOP_LOADTABLE:
+
                 break;
 
             default:
-                AslError (ASL_WARNING, ASL_MSG_RESULT_NOT_USED,
+
+                AslError (ASL_ERROR, ASL_MSG_RESULT_NOT_USED,
                     Op, Op->Asl.ExternalName);
                 break;
             }
@@ -661,6 +670,7 @@ AnOtherSemanticAnalysisWalkBegin (
         break;
 
     default:
+
         break;
     }
 

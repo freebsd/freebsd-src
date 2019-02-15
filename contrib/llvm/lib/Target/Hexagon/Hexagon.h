@@ -21,39 +21,40 @@
 
 namespace llvm {
   class FunctionPass;
+  class ModulePass;
   class TargetMachine;
   class MachineInstr;
-  class MCInst;
+  class HexagonMCInst;
   class HexagonAsmPrinter;
   class HexagonTargetMachine;
   class raw_ostream;
 
-  FunctionPass *createHexagonISelDag(HexagonTargetMachine &TM);
-  FunctionPass *createHexagonDelaySlotFillerPass(TargetMachine &TM);
-  FunctionPass *createHexagonFPMoverPass(TargetMachine &TM);
-  FunctionPass *createHexagonRemoveExtendOps(HexagonTargetMachine &TM);
-  FunctionPass *createHexagonCFGOptimizer(HexagonTargetMachine &TM);
+  FunctionPass *createHexagonISelDag(const HexagonTargetMachine &TM,
+                                     CodeGenOpt::Level OptLevel);
+  FunctionPass *createHexagonDelaySlotFillerPass(const TargetMachine &TM);
+  FunctionPass *createHexagonFPMoverPass(const TargetMachine &TM);
+  FunctionPass *createHexagonRemoveExtendArgs(const HexagonTargetMachine &TM);
+  FunctionPass *createHexagonCFGOptimizer(const HexagonTargetMachine &TM);
 
-  FunctionPass *createHexagonSplitTFRCondSets(HexagonTargetMachine &TM);
-  FunctionPass *createHexagonExpandPredSpillCode(HexagonTargetMachine &TM);
-
+  FunctionPass *createHexagonSplitTFRCondSets(const HexagonTargetMachine &TM);
+  FunctionPass *createHexagonExpandPredSpillCode(
+                      const HexagonTargetMachine &TM);
   FunctionPass *createHexagonHardwareLoops();
   FunctionPass *createHexagonPeephole();
   FunctionPass *createHexagonFixupHwLoops();
   FunctionPass *createHexagonPacketizer();
   FunctionPass *createHexagonNewValueJump();
 
-
 /* TODO: object output.
   MCCodeEmitter *createHexagonMCCodeEmitter(const Target &,
-                                            TargetMachine &TM,
+                                            const TargetMachine &TM,
                                             MCContext &Ctx);
 */
 /* TODO: assembler input.
   TargetAsmBackend *createHexagonAsmBackend(const Target &,
                                                   const std::string &);
 */
-  void HexagonLowerToMC(const MachineInstr *MI, MCInst &MCI,
+  void HexagonLowerToMC(const MachineInstr *MI, HexagonMCInst &MCI,
                         HexagonAsmPrinter &AP);
 } // end namespace llvm;
 

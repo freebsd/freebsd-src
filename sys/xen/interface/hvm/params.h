@@ -21,7 +21,7 @@
 #ifndef __XEN_PUBLIC_HVM_PARAMS_H__
 #define __XEN_PUBLIC_HVM_PARAMS_H__
 
-#include <xen/interface/hvm/hvm_op.h>
+#include "hvm_op.h"
 
 /*
  * Parameter space for HVMOP_{set,get}_param.
@@ -33,6 +33,9 @@
  * val[63:56] == 1: val[55:0] is a delivery PCI INTx line, as follows:
  *                  Domain = val[47:32], Bus  = val[31:16],
  *                  DevFn  = val[15: 8], IntX = val[ 1: 0]
+ * val[63:56] == 2: val[7:0] is a vector number, check for
+ *                  XENFEAT_hvm_callback_vector to know if this delivery
+ *                  method is available.
  * If val == 0 then CPU0 event-channel notifications are not delivered.
  */
 #define HVM_PARAM_CALLBACK_IRQ 0
@@ -49,11 +52,19 @@
 #define HVM_PARAM_IOREQ_PFN    5
 
 #define HVM_PARAM_BUFIOREQ_PFN 6
+#define HVM_PARAM_BUFIOREQ_EVTCHN 26
 
 #ifdef __ia64__
+
 #define HVM_PARAM_NVRAM_FD     7
 #define HVM_PARAM_VHPT_SIZE    8
 #define HVM_PARAM_BUFPIOREQ_PFN	9
+
+#elif defined(__i386__) || defined(__x86_64__)
+
+/* Expose Viridian interfaces to this HVM guest? */
+#define HVM_PARAM_VIRIDIAN     9
+
 #endif
 
 /*
@@ -93,32 +104,49 @@
 /* ACPI S state: currently support S0 and S3 on x86. */
 #define HVM_PARAM_ACPI_S_STATE 14
 
-#define HVM_NR_PARAMS          15
+/* TSS used on Intel when CR0.PE=0. */
+#define HVM_PARAM_VM86_TSS     15
 
-#ifdef XENHVM
-/**
- * Retrieve an HVM setting from the hypervisor.
- *
- * \param index  The index of the HVM parameter to retrieve.
- *
- * \return  On error, 0.  Otherwise the value of the requested parameter.
+/* Boolean: Enable aligning all periodic vpts to reduce interrupts */
+#define HVM_PARAM_VPT_ALIGN    16
+
+/* Console debug shared memory ring and event channel */
+#define HVM_PARAM_CONSOLE_PFN    17
+#define HVM_PARAM_CONSOLE_EVTCHN 18
+
+/*
+ * Select location of ACPI PM1a and TMR control blocks. Currently two locations
+ * are supported, specified by version 0 or 1 in this parameter:
+ *   - 0: default, use the old addresses
+ *        PM1A_EVT == 0x1f40; PM1A_CNT == 0x1f44; PM_TMR == 0x1f48
+ *   - 1: use the new default qemu addresses
+ *        PM1A_EVT == 0xb000; PM1A_CNT == 0xb004; PM_TMR == 0xb008
+ * You can find these address definitions in <hvm/ioreq.h>
  */
-static inline unsigned long
-hvm_get_parameter(int index)
-{
-	struct xen_hvm_param xhv;
-	int error;
+#define HVM_PARAM_ACPI_IOPORTS_LOCATION 19
 
-	xhv.domid = DOMID_SELF;
-	xhv.index = index;
-	error = HYPERVISOR_hvm_op(HVMOP_get_param, &xhv);
-	if (error) {
-		printf("hvm_get_parameter: failed to get %d, error %d\n",
-		    index, error);
-		return (0);
-	}
-	return (xhv.value);
-}
-#endif
+/* Enable blocking memory events, async or sync (pause vcpu until response) 
+ * onchangeonly indicates messages only on a change of value */
+#define HVM_PARAM_MEMORY_EVENT_CR0          20
+#define HVM_PARAM_MEMORY_EVENT_CR3          21
+#define HVM_PARAM_MEMORY_EVENT_CR4          22
+#define HVM_PARAM_MEMORY_EVENT_INT3         23
+#define HVM_PARAM_MEMORY_EVENT_SINGLE_STEP  25
+
+#define HVMPME_MODE_MASK       (3 << 0)
+#define HVMPME_mode_disabled   0
+#define HVMPME_mode_async      1
+#define HVMPME_mode_sync       2
+#define HVMPME_onchangeonly    (1 << 2)
+
+/* Boolean: Enable nestedhvm (hvm only) */
+#define HVM_PARAM_NESTEDHVM    24
+
+/* Params for the mem event rings */
+#define HVM_PARAM_PAGING_RING_PFN   27
+#define HVM_PARAM_ACCESS_RING_PFN   28
+#define HVM_PARAM_SHARING_RING_PFN  29
+
+#define HVM_NR_PARAMS          30
 
 #endif /* __XEN_PUBLIC_HVM_PARAMS_H__ */

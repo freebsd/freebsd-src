@@ -35,13 +35,13 @@
 #ifndef LLVM_CLANG_AST_MATCHERS_AST_MATCHERS_INTERNAL_H
 #define LLVM_CLANG_AST_MATCHERS_AST_MATCHERS_INTERNAL_H
 
-#include "clang/AST/Decl.h"
+#include "clang/AST/ASTTypeTraits.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/Decl.h"
 #include "clang/AST/ExprCXX.h"
-#include "clang/AST/Stmt.h"
 #include "clang/AST/StmtCXX.h"
+#include "clang/AST/Stmt.h"
 #include "clang/AST/Type.h"
-#include "clang/ASTMatchers/ASTTypeTraits.h"
 #include "llvm/ADT/VariadicFunction.h"
 #include "llvm/Support/type_traits.h"
 #include <map>
@@ -193,7 +193,7 @@ class ASTMatchFinder;
 /// current node and doesn't care about its children or descendants,
 /// implement SingleNodeMatcherInterface instead.
 template <typename T>
-class MatcherInterface : public llvm::RefCountedBaseVPTR {
+class MatcherInterface : public RefCountedBaseVPTR {
 public:
   virtual ~MatcherInterface() {}
 
@@ -343,7 +343,7 @@ private:
     const Matcher<Base> From;
   };
 
-  llvm::IntrusiveRefCntPtr< MatcherInterface<T> > Implementation;
+  IntrusiveRefCntPtr< MatcherInterface<T> > Implementation;
 };  // class Matcher
 
 /// \brief A convenient helper for creating a Matcher<T> without specifying
@@ -352,6 +352,61 @@ template <typename T>
 inline Matcher<T> makeMatcher(MatcherInterface<T> *Implementation) {
   return Matcher<T>(Implementation);
 }
+
+/// \brief Metafunction to determine if type T has a member called getDecl.
+template <typename T> struct has_getDecl {
+  struct Default { int getDecl; };
+  struct Derived : T, Default { };
+
+  template<typename C, C> struct CheckT;
+
+  // If T::getDecl exists, an ambiguity arises and CheckT will
+  // not be instantiable. This makes f(...) the only available
+  // overload.
+  template<typename C>
+  static char (&f(CheckT<int Default::*, &C::getDecl>*))[1];
+  template<typename C> static char (&f(...))[2];
+
+  static bool const value = sizeof(f<Derived>(0)) == 2;
+};
+
+/// \brief Matches overloaded operators with a specific name.
+///
+/// The type argument ArgT is not used by this matcher but is used by
+/// PolymorphicMatcherWithParam1 and should be StringRef.
+template <typename T, typename ArgT>
+class HasOverloadedOperatorNameMatcher : public SingleNodeMatcherInterface<T> {
+  TOOLING_COMPILE_ASSERT((llvm::is_same<T, CXXOperatorCallExpr>::value ||
+                          llvm::is_same<T, CXXMethodDecl>::value),
+                         unsupported_class_for_matcher);
+  TOOLING_COMPILE_ASSERT((llvm::is_same<ArgT, StringRef>::value),
+                         argument_type_must_be_StringRef);
+public:
+  explicit HasOverloadedOperatorNameMatcher(const StringRef Name)
+      : SingleNodeMatcherInterface<T>(), Name(Name) {}
+
+  virtual bool matchesNode(const T &Node) const LLVM_OVERRIDE {
+    return matchesSpecialized(Node);
+  }
+
+private:
+
+  /// \brief CXXOperatorCallExpr exist only for calls to overloaded operators
+  /// so this function returns true if the call is to an operator of the given
+  /// name.
+  bool matchesSpecialized(const CXXOperatorCallExpr &Node) const {
+    return getOperatorSpelling(Node.getOperator()) == Name;
+  }
+
+  /// \brief Returns true only if CXXMethodDecl represents an overloaded
+  /// operator and has the given operator name.
+  bool matchesSpecialized(const CXXMethodDecl &Node) const {
+    return Node.isOverloadedOperator() &&
+           getOperatorSpelling(Node.getOverloadedOperator()) == Name;
+  }
+
+  std::string Name;
+};
 
 /// \brief Matches declarations for QualType and CallExpr.
 ///
@@ -373,14 +428,34 @@ public:
   }
 
 private:
-  /// \brief Extracts the CXXRecordDecl of a QualType and returns whether the
-  /// inner matcher matches on it.
+  /// \brief If getDecl exists as a member of U, returns whether the inner
+  /// matcher matches Node.getDecl().
+  template <typename U>
+  bool matchesSpecialized(
+      const U &Node, ASTMatchFinder *Finder, BoundNodesTreeBuilder *Builder,
+      typename llvm::enable_if<has_getDecl<U>, int>::type = 0) const {
+    return matchesDecl(Node.getDecl(), Finder, Builder);
+  }
+
+  /// \brief Extracts the CXXRecordDecl or EnumDecl of a QualType and returns
+  /// whether the inner matcher matches on it.
   bool matchesSpecialized(const QualType &Node, ASTMatchFinder *Finder,
                           BoundNodesTreeBuilder *Builder) const {
     /// FIXME: Add other ways to convert...
     if (Node.isNull())
       return false;
+    if (const EnumType *AsEnum = dyn_cast<EnumType>(Node.getTypePtr()))
+      return matchesDecl(AsEnum->getDecl(), Finder, Builder);
     return matchesDecl(Node->getAsCXXRecordDecl(), Finder, Builder);
+  }
+
+  /// \brief Gets the TemplateDecl from a TemplateSpecializationType
+  /// and returns whether the inner matches on it.
+  bool matchesSpecialized(const TemplateSpecializationType &Node,
+                          ASTMatchFinder *Finder,
+                          BoundNodesTreeBuilder *Builder) const {
+    return matchesDecl(Node.getTemplateName().getAsTemplateDecl(),
+                       Finder, Builder);
   }
 
   /// \brief Extracts the Decl of the callee of a CallExpr and returns whether
@@ -537,6 +612,8 @@ public:
                              Matcher, Builder, MatchMode);
   }
 
+  virtual ASTContext &getASTContext() const = 0;
+
 protected:
   virtual bool matchesChildOf(const ast_type_traits::DynTypedNode &Node,
                               const DynTypedMatcher &Matcher,
@@ -672,7 +749,7 @@ public:
   virtual bool matches(const T &Node,
                        ASTMatchFinder *Finder,
                        BoundNodesTreeBuilder *Builder) const {
-    const To *InnerMatchValue = llvm::dyn_cast<To>(&Node);
+    const To *InnerMatchValue = dyn_cast<To>(&Node);
     return InnerMatchValue != NULL &&
       InnerMatcher.matches(*InnerMatchValue, Finder, Builder);
   }
@@ -828,21 +905,56 @@ private:
 /// used. They will always be instantiated with types convertible to
 /// Matcher<T>.
 template <typename T, typename MatcherT1, typename MatcherT2>
+class EachOfMatcher : public MatcherInterface<T> {
+public:
+  EachOfMatcher(const Matcher<T> &InnerMatcher1,
+                const Matcher<T> &InnerMatcher2)
+      : InnerMatcher1(InnerMatcher1), InnerMatcher2(InnerMatcher2) {
+  }
+
+  virtual bool matches(const T &Node, ASTMatchFinder *Finder,
+                       BoundNodesTreeBuilder *Builder) const {
+    BoundNodesTreeBuilder Builder1;
+    bool Matched1 = InnerMatcher1.matches(Node, Finder, &Builder1);
+    if (Matched1)
+      Builder->addMatch(Builder1.build());
+
+    BoundNodesTreeBuilder Builder2;
+    bool Matched2 = InnerMatcher2.matches(Node, Finder, &Builder2);
+    if (Matched2)
+      Builder->addMatch(Builder2.build());
+
+    return Matched1 || Matched2;
+  }
+
+private:
+  const Matcher<T> InnerMatcher1;
+  const Matcher<T> InnerMatcher2;
+};
+
+/// \brief Matches nodes of type T for which at least one of the two provided
+/// matchers matches.
+///
+/// Type arguments MatcherT1 and MatcherT2 are
+/// required by PolymorphicMatcherWithParam2 but not actually
+/// used. They will always be instantiated with types convertible to
+/// Matcher<T>.
+template <typename T, typename MatcherT1, typename MatcherT2>
 class AnyOfMatcher : public MatcherInterface<T> {
 public:
   AnyOfMatcher(const Matcher<T> &InnerMatcher1, const Matcher<T> &InnerMatcher2)
-      : InnerMatcher1(InnerMatcher1), InnertMatcher2(InnerMatcher2) {}
+      : InnerMatcher1(InnerMatcher1), InnerMatcher2(InnerMatcher2) {}
 
   virtual bool matches(const T &Node,
                        ASTMatchFinder *Finder,
                        BoundNodesTreeBuilder *Builder) const {
     return InnerMatcher1.matches(Node, Finder, Builder) ||
-           InnertMatcher2.matches(Node, Finder, Builder);
+           InnerMatcher2.matches(Node, Finder, Builder);
   }
 
 private:
   const Matcher<T> InnerMatcher1;
-  const Matcher<T> InnertMatcher2;
+  const Matcher<T> InnerMatcher2;
 };
 
 /// \brief Creates a Matcher<T> that matches if all inner matchers match.
@@ -989,69 +1101,6 @@ private:
   const ValueT ExpectedValue;
 };
 
-template <typename T>
-class IsDefinitionMatcher : public SingleNodeMatcherInterface<T> {
-  TOOLING_COMPILE_ASSERT(
-    (llvm::is_base_of<TagDecl, T>::value) ||
-    (llvm::is_base_of<VarDecl, T>::value) ||
-    (llvm::is_base_of<FunctionDecl, T>::value),
-    is_definition_requires_isThisDeclarationADefinition_method);
-public:
-  virtual bool matchesNode(const T &Node) const {
-    return Node.isThisDeclarationADefinition();
-  }
-};
-
-/// \brief Matches on template instantiations for FunctionDecl, VarDecl or
-/// CXXRecordDecl nodes.
-template <typename T>
-class IsTemplateInstantiationMatcher : public MatcherInterface<T> {
-  TOOLING_COMPILE_ASSERT((llvm::is_base_of<FunctionDecl, T>::value) ||
-                         (llvm::is_base_of<VarDecl, T>::value) ||
-                         (llvm::is_base_of<CXXRecordDecl, T>::value),
-                         requires_getTemplateSpecializationKind_method);
- public:
-  virtual bool matches(const T& Node,
-                       ASTMatchFinder* Finder,
-                       BoundNodesTreeBuilder* Builder) const {
-    return (Node.getTemplateSpecializationKind() ==
-                TSK_ImplicitInstantiation ||
-            Node.getTemplateSpecializationKind() ==
-                TSK_ExplicitInstantiationDefinition);
-  }
-};
-
-/// \brief Matches on explicit template specializations for FunctionDecl,
-/// VarDecl or CXXRecordDecl nodes.
-template <typename T>
-class IsExplicitTemplateSpecializationMatcher : public MatcherInterface<T> {
-  TOOLING_COMPILE_ASSERT((llvm::is_base_of<FunctionDecl, T>::value) ||
-                         (llvm::is_base_of<VarDecl, T>::value) ||
-                         (llvm::is_base_of<CXXRecordDecl, T>::value),
-                         requires_getTemplateSpecializationKind_method);
- public:
-  virtual bool matches(const T& Node,
-                       ASTMatchFinder* Finder,
-                       BoundNodesTreeBuilder* Builder) const {
-    return (Node.getTemplateSpecializationKind() == TSK_ExplicitSpecialization);
-  }
-};
-
-class IsArrowMatcher : public SingleNodeMatcherInterface<MemberExpr> {
-public:
-  virtual bool matchesNode(const MemberExpr &Node) const {
-    return Node.isArrow();
-  }
-};
-
-class IsConstQualifiedMatcher
-    : public SingleNodeMatcherInterface<QualType> {
- public:
-  virtual bool matchesNode(const QualType& Node) const {
-    return Node.isConstQualified();
-  }
-};
-
 /// \brief A VariadicDynCastAllOfMatcher<SourceT, TargetT> object is a
 /// variadic functor that takes a number of Matcher<TargetT> and returns a
 /// Matcher<SourceT> that matches TargetT nodes that are matched by all of the
@@ -1113,50 +1162,6 @@ private:
   }
 
   const Matcher<T> InnerMatcher;
-};
-
-/// \brief Matches \c NestedNameSpecifiers with a prefix matching another
-/// \c Matcher<NestedNameSpecifier>.
-class NestedNameSpecifierPrefixMatcher
-  : public MatcherInterface<NestedNameSpecifier> {
-public:
-  explicit NestedNameSpecifierPrefixMatcher(
-    const Matcher<NestedNameSpecifier> &InnerMatcher)
-    : InnerMatcher(InnerMatcher) {}
-
-  virtual bool matches(const NestedNameSpecifier &Node,
-                       ASTMatchFinder *Finder,
-                       BoundNodesTreeBuilder *Builder) const {
-    NestedNameSpecifier *NextNode = Node.getPrefix();
-    if (NextNode == NULL)
-      return false;
-    return InnerMatcher.matches(*NextNode, Finder, Builder);
-  }
-
-private:
-  const Matcher<NestedNameSpecifier> InnerMatcher;
-};
-
-/// \brief Matches \c NestedNameSpecifierLocs with a prefix matching another
-/// \c Matcher<NestedNameSpecifierLoc>.
-class NestedNameSpecifierLocPrefixMatcher
-  : public MatcherInterface<NestedNameSpecifierLoc> {
-public:
-  explicit NestedNameSpecifierLocPrefixMatcher(
-    const Matcher<NestedNameSpecifierLoc> &InnerMatcher)
-    : InnerMatcher(InnerMatcher) {}
-
-  virtual bool matches(const NestedNameSpecifierLoc &Node,
-                       ASTMatchFinder *Finder,
-                       BoundNodesTreeBuilder *Builder) const {
-    NestedNameSpecifierLoc NextNode = Node.getPrefix();
-    if (!NextNode)
-      return false;
-    return InnerMatcher.matches(NextNode, Finder, Builder);
-  }
-
-private:
-  const Matcher<NestedNameSpecifierLoc> InnerMatcher;
 };
 
 /// \brief Matches \c TypeLocs based on an inner matcher matching a certain

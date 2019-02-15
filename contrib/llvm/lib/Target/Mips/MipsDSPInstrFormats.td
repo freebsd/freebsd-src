@@ -24,8 +24,9 @@ class DSPInst : MipsInst<(outs), (ins), "", [], NoItinerary, FrmOther> {
   let Predicates = [HasDSP];
 }
 
-class PseudoDSP<dag outs, dag ins, list<dag> pattern>:
-  MipsPseudo<outs, ins, "", pattern> {
+class PseudoDSP<dag outs, dag ins, list<dag> pattern,
+                InstrItinClass itin = IIPseudo>:
+  MipsPseudo<outs, ins, pattern, itin> {
   let Predicates = [HasDSP];
 }
 
@@ -215,6 +216,33 @@ class MULT_FMT<bits<6> opcode, bits<6> funct> : DSPInst {
   let Inst{15-13} = 0;
   let Inst{12-11} = ac;
   let Inst{10-6}  = 0;
+  let Inst{5-0} = funct;
+}
+
+// MFHI sub-class format.
+class MFHI_FMT<bits<6> funct> : DSPInst {
+  bits<5> rd;
+  bits<2> ac;
+
+  let Inst{31-26} = 0;
+  let Inst{25-23} = 0;
+  let Inst{22-21} = ac;
+  let Inst{20-16} = 0;
+  let Inst{15-11} = rd;
+  let Inst{10-6} = 0;
+  let Inst{5-0} = funct;
+}
+
+// MTHI sub-class format.
+class MTHI_FMT<bits<6> funct> : DSPInst {
+  bits<5> rs;
+  bits<2> ac;
+
+  let Inst{31-26} = 0;
+  let Inst{25-21} = rs;
+  let Inst{20-13} = 0;
+  let Inst{12-11} = ac;
+  let Inst{10-6} = 0;
   let Inst{5-0} = funct;
 }
 

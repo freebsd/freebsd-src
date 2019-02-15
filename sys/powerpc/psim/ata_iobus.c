@@ -23,14 +23,14 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * PSIM local bus ATA controller
  */
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -80,7 +80,7 @@ static device_method_t ata_iobus_methods[] = {
 	DEVMETHOD(bus_setup_intr,           bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,        bus_generic_teardown_intr),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ata_iobus_driver = {
@@ -91,7 +91,8 @@ static driver_t ata_iobus_driver = {
 
 static devclass_t ata_iobus_devclass;
 
-DRIVER_MODULE(ataiobus, iobus, ata_iobus_driver, ata_iobus_devclass, 0, 0);
+DRIVER_MODULE(ataiobus, iobus, ata_iobus_driver, ata_iobus_devclass, NULL,
+    NULL);
 MODULE_DEPEND(ata, ata, 1, 1, 1);
 
 static int
@@ -221,7 +222,7 @@ static device_method_t ata_iobus_sub_methods[] = {
 
 	/* ATA interface */
 	DEVMETHOD(ata_setmode,	    ata_iobus_sub_setmode),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ata_iobus_sub_driver = {
@@ -230,7 +231,7 @@ static driver_t ata_iobus_sub_driver = {
 	sizeof(struct ata_channel),
 };
 
-DRIVER_MODULE(ata, ataiobus, ata_iobus_sub_driver, ata_devclass, 0, 0);
+DRIVER_MODULE(ata, ataiobus, ata_iobus_sub_driver, ata_devclass, NULL, NULL);
 
 static int
 ata_iobus_sub_probe(device_t dev)

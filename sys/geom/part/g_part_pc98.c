@@ -498,6 +498,9 @@ g_part_pc98_setunset(struct g_part_table *table, struct g_part_entry *baseentry,
 	struct g_part_pc98_entry *entry;
 	int changed, mid, sid;
 
+	if (baseentry == NULL)
+		return (ENODEV);
+
 	mid = sid = 0;
 	if (strcasecmp(attrib, "active") == 0)
 		sid = 1;

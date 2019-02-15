@@ -90,11 +90,13 @@ struct tsp {
 #define	TSPTYPENUMBER		25
 
 #ifdef TSPTYPES
-const char *tsptype[TSPTYPENUMBER] =
+static char const * const tsptype[] =
   { "ANY", "ADJTIME", "ACK", "MASTERREQ", "MASTERACK", "SETTIME", "MASTERUP",
   "SLAVEUP", "ELECTION", "ACCEPT", "REFUSE", "CONFLICT", "RESOLVE", "QUIT",
   "DATE", "DATEREQ", "DATEACK", "TRACEON", "TRACEOFF", "MSITE", "MSITEREQ",
   "TEST", "SETDATE", "SETDATEREQ", "LOOP" };
+_Static_assert(sizeof(tsptype) / sizeof(const char *) == TSPTYPENUMBER,
+    "Size of tsptype does not match TSPTYPENUMBER");
 #endif
 
 #endif /* !_TIMED_H_ */

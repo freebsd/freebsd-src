@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
  * uid 0 is offered no special privilege in the kernel security policy.
  * Setting it to zero may seriously impact the functionality of many existing
  * userland programs, and should not be done without careful consideration of
- * the consequences. 
+ * the consequences.
  */
 static int	suser_enabled = 1;
 SYSCTL_INT(_security_bsd, OID_AUTO, suser_enabled, CTLFLAG_RW,
@@ -104,10 +104,10 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 		 * mlockall(2)/munlockall(2).
 		 */
 		switch (priv) {
-			case PRIV_VM_MLOCK:
-			case PRIV_VM_MUNLOCK:
-				error = 0;
-				goto out;
+		case PRIV_VM_MLOCK:
+		case PRIV_VM_MUNLOCK:
+			error = 0;
+			goto out;
 		}
 	}
 
@@ -132,7 +132,6 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 				goto out;
 			}
 			break;
-
 		default:
 			if (cred->cr_uid == 0) {
 				error = 0;
@@ -159,13 +158,10 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 	 */
 	error = EPERM;
 out:
-	if (error) {
-		SDT_PROBE(priv, kernel, priv_check, priv_err, priv, 0, 0, 0,
-		    0);
-	} else {
-		SDT_PROBE(priv, kernel, priv_check, priv_ok, priv, 0, 0, 0,
-		    0);
-	}
+	if (error)
+		SDT_PROBE1(priv, kernel, priv_check, priv_err, priv);
+	else
+		SDT_PROBE1(priv, kernel, priv_check, priv_ok, priv);
 	return (error);
 }
 

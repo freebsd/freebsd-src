@@ -245,8 +245,6 @@ g_gate_start(struct bio *pbp)
 			}
 			cbp->bio_done = g_gate_done;
 			cbp->bio_offset = pbp->bio_offset + sc->sc_readoffset;
-			cbp->bio_data = pbp->bio_data;
-			cbp->bio_length = pbp->bio_length;
 			cbp->bio_to = sc->sc_readcons->provider;
 			g_io_request(cbp, sc->sc_readcons);
 			return;

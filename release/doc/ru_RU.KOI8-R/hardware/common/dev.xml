@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="koi8-r"?>
 <!--
      The FreeBSD Russian Documentation Project
 
@@ -140,7 +141,9 @@
 
     &hwlist.isp;
 
+<!--
     &hwlist.amd;
+-->
 
     &hwlist.nsp;
 
@@ -604,7 +607,9 @@
 
     &hwlist.rc;
 
+<!--
     &hwlist.sr;
+-->
 
     <para arch="i386,amd64">Specialix SI/XIO/SX многопортовые последовательные
       карты, с старым SIHOST2.x и новым <quote>расширенным</quote> (transputer

@@ -73,7 +73,7 @@ generic_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 	offset = bpa & PAGE_MASK;
 	startpa = trunc_page(bpa);
 
-	va = kmem_alloc(kernel_map, endpa - startpa);
+	va = kmem_alloc_nofault(kernel_map, endpa - startpa);
 	if (va == 0)
 		return (ENOMEM);
 

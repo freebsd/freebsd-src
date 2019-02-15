@@ -160,7 +160,7 @@ AcpiTbAddTable (
         ACPI_BIOS_ERROR ((AE_INFO,
             "Table has invalid signature [%4.4s] (0x%8.8X), "
             "must be SSDT or OEMx",
-            AcpiUtValidAcpiName (*(UINT32 *) TableDesc->Pointer->Signature) ?
+            AcpiUtValidAcpiName (TableDesc->Pointer->Signature) ?
                 TableDesc->Pointer->Signature : "????",
             *(UINT32 *) TableDesc->Pointer->Signature));
 
@@ -514,16 +514,19 @@ AcpiTbDeleteTable (
     switch (TableDesc->Flags & ACPI_TABLE_ORIGIN_MASK)
     {
     case ACPI_TABLE_ORIGIN_MAPPED:
+
         AcpiOsUnmapMemory (TableDesc->Pointer, TableDesc->Length);
         break;
 
     case ACPI_TABLE_ORIGIN_ALLOCATED:
+
         ACPI_FREE (TableDesc->Pointer);
         break;
 
     /* Not mapped or allocated, there is nothing we can do */
 
     default:
+
         return;
     }
 

@@ -36,7 +36,7 @@
 #ifndef GSSAPI_KRB5_H_
 #define GSSAPI_KRB5_H_
 
-#include <gssapi.h>
+#include <gssapi/gssapi.h>
 
 GSSAPI_CPP_START
 

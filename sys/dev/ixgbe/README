@@ -2,7 +2,7 @@ FreeBSD Driver for Intel(R) Ethernet 10 Gigabit PCI Express Server Adapters
 ============================================================================
 /*$FreeBSD$*/
 
-November 12, 2010
+Jun 18, 2013
 
 
 Contents
@@ -18,8 +18,8 @@ Contents
 Overview
 ========
 
-This file describes the FreeBSD* driver for the Intel(R) Ethernet 10 Gigabit 
-Family of Adapters.  Driver has been developed for use with FreeBSD 7.2 or later.
+This file describes the FreeBSD* driver for the
+Intel(R) Ethernet 10 Gigabit Family of Adapters.
 
 For questions related to hardware requirements, refer to the documentation
 supplied with your Intel 10GbE adapter.  All hardware requirements listed
@@ -42,7 +42,7 @@ optics, or is an Intel(R) Ethernet Server Adapter X520-2, then it only supports
 Intel optics and/or the direct attach cables listed below.
 
 When 82599-based SFP+ devices are connected back to back, they should be set to
-the same Speed setting via Ethtool. Results may vary if you mix speed settings. 
+the same Speed setting. Results may vary if you mix speed settings. 
  
 Supplier    Type                                             Part Numbers
 
@@ -70,7 +70,12 @@ Finisar	   DUAL RATE 1G/10G SFP+ LR (No Bail)	             FTLX1471D3QCV-IT
 Avago	   DUAL RATE 1G/10G SFP+ LR (No Bail)	             AFCT-701SDZ-IN1
 Finistar   1000BASE-T SFP                                    FCLF8522P2BTL
 Avago      1000BASE-T SFP                                    ABCU-5710RZ
-		
+
+NOTE: As of driver version 2.5.13 it is possible to allow the operation
+of unsupported modules by setting the static variable 'allow_unsupported_sfp'
+to TRUE and rebuilding the driver. If problems occur please assure that they
+can be reproduced with fully supported optics first.
+
 82599-based adapters support all passive and active limiting direct attach 
 cables that comply with SFF-8431 v4.1 and SFF-8472 v10.4 specifications.
 
@@ -224,14 +229,7 @@ all 10 Gigabit adapters.
   When there is a choice run on a 64bit OS rather than 32, it makes a 
   significant difference in improvement.
   
-  The default scheduler SCHED_4BSD is not smart about SMP locality issues. 
-  Significant improvement can be achieved by switching to the ULE scheduler.
-
-  This is done by changing the entry in the config file from SCHED_4BSD to 
-  SCHED_ULE. Note that this is only advisable on FreeBSD 7, on 6.X there have
-  been stability problems with ULE.
-
-  The interface can generate high number of interrupts. To avoid running 
+  The interface can generate a high number of interrupts. To avoid running 
   into the limit set by the kernel, adjust hw.intr_storm_threshold 
   setting using sysctl:
  
@@ -242,12 +240,10 @@ all 10 Gigabit adapters.
        hw.intr_storm_threshold=9000
 
   If you still see Interrupt Storm detected messages, increase the limit to a
-  higher number.
+  higher number, or the detection can be disabled by setting it to 0.
 
-  Best throughput results are seen with a large MTU; use 9000 if possible. 
-
-  The default number of descriptors is 1024, increasing this to 2K or even 
-  4K may improve performance in some workloads, but change carefully.
+  The default number of descriptors is 2048, increasing or descreasing
+  may improve performance in some workloads, but change carefully.
 
 
 Known Limitations
@@ -284,7 +280,7 @@ issues download your adapter's user guide and read the Release Notes.
   ----------------------------------------------------------
   Some PCI-E x8 slots are actually configured as x4 slots. These slots have 
   insufficient bandwidth for full 10Gbe line rate with dual port 10GbE devices.
-  The driver can detect this situation and will write the following message in
+  The driver will detect this situation and will write the following message in
   the system log: "PCI-Express bandwidth available for this card is not 
   sufficient for optimal performance. For optimal performance a x8 PCI-Express 
   slot is required."

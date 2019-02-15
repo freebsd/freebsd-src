@@ -24,29 +24,17 @@
  * Copyright (c) 2004-2007, K A Fraser
  */
 
-#include <sys/param.h>
-#include <sys/types.h>
-
 #ifndef __XEN_PUBLIC_ARCH_X86_XEN_X86_32_H__
 #define __XEN_PUBLIC_ARCH_X86_XEN_X86_32_H__
 
 /*
  * Hypercall interface:
- *  Input:  %ebx, %ecx, %edx, %esi, %edi (arguments 1-5)
+ *  Input:  %ebx, %ecx, %edx, %esi, %edi, %ebp (arguments 1-6)
  *  Output: %eax
  * Access is via hypercall page (set up by guest loader or via a Xen MSR):
  *  call hypercall_page + hypercall-number * 32
  * Clobbered: Argument registers (e.g., 2-arg hypercall clobbers %ebx,%ecx)
  */
-
-#if __XEN_INTERFACE_VERSION__ < 0x00030203
-/*
- * Legacy hypercall interface:
- * As above, except the entry sequence to the hypervisor is:
- *  mov $hypercall-number*32,%eax ; int $0x82
- */
-#define TRAP_INSTR "int $0x82"
-#endif
 
 /*
  * These flat segments are in the Xen-private section of every GDT. Since these
@@ -111,8 +99,8 @@
         __guest_handle_ ## name;                                \
     typedef struct { union { type *p; uint64_aligned_t q; }; }  \
         __guest_handle_64_ ## name
-#undef set_xen_guest_handle
-#define set_xen_guest_handle(hnd, val)                      \
+#undef set_xen_guest_handle_raw
+#define set_xen_guest_handle_raw(hnd, val)                  \
     do { if ( sizeof(hnd) == 8 ) *(uint64_t *)&(hnd) = 0;   \
          (hnd).p = val;                                     \
     } while ( 0 )

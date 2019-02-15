@@ -60,6 +60,8 @@
 
 struct ieee80211_channel;
 
+#define	IEEE80211_RATE_TABLE_SIZE	128
+
 struct ieee80211_rate_table {
 	int		rateCount;		/* NB: for proper padding */
 	uint8_t		rateCodeToIndex[256];	/* back mapping */
@@ -74,7 +76,7 @@ struct ieee80211_rate_table {
 						 * rate; used for dur. calcs */
 		uint16_t	lpAckDuration;	/* long preamble ACK dur. */
 		uint16_t	spAckDuration;	/* short preamble ACK dur. */
-	} info[32];
+	} info[IEEE80211_RATE_TABLE_SIZE];
 };
 
 const struct ieee80211_rate_table *ieee80211_get_ratetable(
@@ -83,7 +85,14 @@ const struct ieee80211_rate_table *ieee80211_get_ratetable(
 static __inline__ uint8_t
 ieee80211_ack_rate(const struct ieee80211_rate_table *rt, uint8_t rate)
 {
-	uint8_t cix = rt->info[rt->rateCodeToIndex[rate]].ctlRateIndex;
+	/*
+	 * XXX Assert this is for a legacy rate; not for an MCS rate.
+	 * If the caller wishes to use it for a basic rate, they should
+	 * clear the high bit first.
+	 */
+	KASSERT(! (rate & 0x80), ("rate %d is basic/mcs?", rate));
+
+	uint8_t cix = rt->info[rt->rateCodeToIndex[rate & IEEE80211_RATE_VAL]].ctlRateIndex;
 	KASSERT(cix != (uint8_t)-1, ("rate %d has no info", rate));
 	return rt->info[cix].dot11Rate;
 }
@@ -91,7 +100,14 @@ ieee80211_ack_rate(const struct ieee80211_rate_table *rt, uint8_t rate)
 static __inline__ uint8_t
 ieee80211_ctl_rate(const struct ieee80211_rate_table *rt, uint8_t rate)
 {
-	uint8_t cix = rt->info[rt->rateCodeToIndex[rate]].ctlRateIndex;
+	/*
+	 * XXX Assert this is for a legacy rate; not for an MCS rate.
+	 * If the caller wishes to use it for a basic rate, they should
+	 * clear the high bit first.
+	 */
+	KASSERT(! (rate & 0x80), ("rate %d is basic/mcs?", rate));
+
+	uint8_t cix = rt->info[rt->rateCodeToIndex[rate & IEEE80211_RATE_VAL]].ctlRateIndex;
 	KASSERT(cix != (uint8_t)-1, ("rate %d has no info", rate));
 	return rt->info[cix].dot11Rate;
 }
@@ -99,7 +115,14 @@ ieee80211_ctl_rate(const struct ieee80211_rate_table *rt, uint8_t rate)
 static __inline__ enum ieee80211_phytype
 ieee80211_rate2phytype(const struct ieee80211_rate_table *rt, uint8_t rate)
 {
-	uint8_t rix = rt->rateCodeToIndex[rate];
+	/*
+	 * XXX Assert this is for a legacy rate; not for an MCS rate.
+	 * If the caller wishes to use it for a basic rate, they should
+	 * clear the high bit first.
+	 */
+	KASSERT(! (rate & 0x80), ("rate %d is basic/mcs?", rate));
+
+	uint8_t rix = rt->rateCodeToIndex[rate & IEEE80211_RATE_VAL];
 	KASSERT(rix != (uint8_t)-1, ("rate %d has no info", rate));
 	return rt->info[rix].phy;
 }
@@ -107,6 +130,13 @@ ieee80211_rate2phytype(const struct ieee80211_rate_table *rt, uint8_t rate)
 static __inline__ int
 ieee80211_isratevalid(const struct ieee80211_rate_table *rt, uint8_t rate)
 {
+	/*
+	 * XXX Assert this is for a legacy rate; not for an MCS rate.
+	 * If the caller wishes to use it for a basic rate, they should
+	 * clear the high bit first.
+	 */
+	KASSERT(! (rate & 0x80), ("rate %d is basic/mcs?", rate));
+
 	return rt->rateCodeToIndex[rate] != (uint8_t)-1;
 }
 
@@ -134,6 +164,14 @@ ieee80211_ack_duration(const struct ieee80211_rate_table *rt,
 	}
 }
 
+static __inline__ uint8_t
+ieee80211_legacy_rate_lookup(const struct ieee80211_rate_table *rt,
+    uint8_t rate)
+{
+
+	return (rt->rateCodeToIndex[rate & IEEE80211_RATE_VAL]);
+}
+
 /*
  * Compute the time to transmit a frame of length frameLen bytes
  * using the specified 802.11 rate code, phy, and short preamble
@@ -151,5 +189,10 @@ uint8_t		ieee80211_plcp2rate(uint8_t, enum ieee80211_phytype);
  * Convert 802.11 rate code to PLCP signal.
  */
 uint8_t		ieee80211_rate2plcp(int, enum ieee80211_phytype);
+
+uint32_t	ieee80211_compute_duration_ht(uint32_t frameLen,
+			uint16_t rate, int streams, int isht40,
+			int isShortGI);
+
 #endif	/* _KERNEL */
 #endif	/* !_NET80211_IEEE80211_PHY_H_ */

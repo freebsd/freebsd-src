@@ -59,7 +59,7 @@ extern struct ath_buf * ath_getbuf(struct ath_softc *sc,
 extern struct ath_buf * _ath_getbuf_locked(struct ath_softc *sc,
 	    ath_buf_type_t btype);
 extern struct ath_buf * ath_buf_clone(struct ath_softc *sc,
-	    const struct ath_buf *bf);
+	    struct ath_buf *bf);
 /* XXX change this to NULL the buffer pointer? */
 extern void ath_freebuf(struct ath_softc *sc, struct ath_buf *bf);
 extern void ath_returnbuf_head(struct ath_softc *sc, struct ath_buf *bf);
@@ -72,8 +72,13 @@ extern void ath_tx_update_ratectrl(struct ath_softc *sc,
 	    struct ieee80211_node *ni, struct ath_rc_series *rc,
 	    struct ath_tx_status *ts, int frmlen, int nframes, int nbad);
 
+extern	int ath_hal_gethangstate(struct ath_hal *ah, uint32_t mask,
+	    uint32_t *hangs);
+
 extern void ath_tx_freebuf(struct ath_softc *sc, struct ath_buf *bf,
     int status);
+extern	void ath_txq_freeholdingbuf(struct ath_softc *sc,
+	    struct ath_txq *txq);
 
 extern void ath_txqmove(struct ath_txq *dst, struct ath_txq *src);
 
@@ -120,6 +125,8 @@ extern	void ath_tx_update_tim(struct ath_softc *sc,
 extern void ath_start(struct ifnet *ifp);
 extern	void ath_start_task(void *arg, int npending);
 
+extern void ath_tx_dump(struct ath_softc *sc, struct ath_txq *txq);
+
 /*
  * Kick the frame TX task.
  */
@@ -127,9 +134,7 @@ static inline void
 ath_tx_kick(struct ath_softc *sc)
 {
 
-	ATH_TX_LOCK(sc);
-	ath_start(sc->sc_ifp);
-	ATH_TX_UNLOCK(sc);
+	/* XXX NULL for now */
 }
 
 /*

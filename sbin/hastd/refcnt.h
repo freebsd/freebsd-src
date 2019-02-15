@@ -36,15 +36,24 @@
 
 #include "pjdlog.h"
 
+typedef unsigned int refcnt_t;
+
 static __inline void
-refcnt_acquire(volatile unsigned int *count)
+refcnt_init(refcnt_t *count, unsigned int v)
+{
+
+	*count = v;
+}
+
+static __inline void
+refcnt_acquire(refcnt_t *count)
 {
 
 	atomic_add_acq_int(count, 1);
 }
 
 static __inline unsigned int
-refcnt_release(volatile unsigned int *count)
+refcnt_release(refcnt_t *count)
 {
 	unsigned int old;
 

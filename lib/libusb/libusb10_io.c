@@ -397,7 +397,7 @@ libusb_set_pollfd_notifiers(libusb_context *ctx,
 	ctx->fd_cb_user_data = user_data;
 }
 
-struct libusb_pollfd **
+const struct libusb_pollfd **
 libusb_get_pollfds(libusb_context *ctx)
 {
 	struct libusb_super_pollfd *pollfd;
@@ -423,7 +423,7 @@ libusb_get_pollfds(libusb_context *ctx)
 
 done:
 	CTX_UNLOCK(ctx);
-	return (ret);
+	return ((const struct libusb_pollfd **)ret);
 }
 
 

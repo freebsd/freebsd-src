@@ -39,6 +39,7 @@ typedef int (*inout_func_t)(struct vmctx *ctx, int vcpu, int in, int port,
 struct inout_port {
 	const char 	*name;
 	int		port;
+	int		size;
 	int		flags;
 	inout_func_t	handler;
 	void		*arg;
@@ -51,6 +52,7 @@ struct inout_port {
 	static struct inout_port __CONCAT(__inout_port, __LINE__) = {	\
 		#name,							\
 		(port),							\
+		1,							\
 		(flags),						\
 		(handler),						\
 		0							\
@@ -61,7 +63,7 @@ void	init_inout(void);
 int	emulate_inout(struct vmctx *, int vcpu, int in, int port, int bytes,
 		      uint32_t *eax, int strict);
 int	register_inout(struct inout_port *iop);
-
+int	unregister_inout(struct inout_port *iop);
 void	init_bvmcons(void);
 
 #endif	/* _INOUT_H_ */

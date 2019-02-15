@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2004
+.Dd June 8, 2013
 .Dt SIGNAL 9
 .Os
 .Sh NAME
@@ -252,7 +252,7 @@ The
 function resets the signal set and signal stack of a process in preparation
 for an
 .Xr execve 2 .
-The lock for
+The process lock for
 .Fa p
 must be held before
 .Fn execsigs
@@ -272,11 +272,9 @@ Stop signals are handled and cleared right away by
 .Fn issignal
 unless the process is a member of an orphaned process group and the stop
 signal originated from a TTY.
-The
-.Va sched_lock
-lock may be acquired and released, and if
-.Va Giant
-is held, it may be released and reacquired.
+The process spin lock for
+.Fa td->td_proc
+may be acquired and released.
 The
 .Vt sigacts
 structure
@@ -289,9 +287,6 @@ The process lock for
 must be acquired before calling
 .Fn issignal
 and may be released and reacquired during the call.
-The lock for the parent of
-.Fa td->td_proc
-may also be acquired and released.
 Default signal actions are not taken for system processes and init.
 .Pp
 The
@@ -342,7 +337,7 @@ after the kernel has been notified that a signal should be delivered
 which causes the flag
 .Dv PS_NEEDSIGCHK
 to be set).
-The lock for process that owns
+The process lock for process that owns
 .Va curthread
 must be held before
 .Fn postsig
@@ -360,7 +355,7 @@ function causes the process that owns
 to exit with a return value of signal number
 .Fa sig .
 If required, the process will dump core.
-The lock for the process that owns
+The process lock for the process that owns
 .Fa td
 must be held before
 .Fn sigexit
@@ -377,8 +372,8 @@ to be ignored by
 .Fa p .
 The process lock for
 .Fa p
-is acquired and released by
-.Fn siginit .
+is acquired and released, as is the lock for sigacts structure
+.Fa p->p_sigacts .
 The only process that
 .Fn siginit
 is ever called for
@@ -390,13 +385,11 @@ The
 function flags that there are unmasked signals pending that
 .Fn ast
 should handle.
-The lock for process
+The process lock for process
 .Fa td->td_proc
 must be held before
 .Fn signotify
-is called, and
-.Va sched_lock
-is acquired and released.
+is called, and the thread lock is acquired and released.
 .Pp
 The
 .Fn trapsignal
@@ -410,10 +403,9 @@ will deliver it directly; otherwise,
 will call
 .Xr psignal 9
 to cause the signal to be delivered.
-The
-.Va sched_lock
-lock is acquired and released, as is the lock for
-.Fa td->td_proc .
+The process lock for
+.Fa td->td_proc
+is acquired and released.
 The lock for the
 .Va p_sigacts
 field of

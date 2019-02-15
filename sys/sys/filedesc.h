@@ -150,6 +150,7 @@ int	falloc_noinstall(struct thread *td, struct file **resultfp);
 int	finstall(struct thread *td, struct file *fp, int *resultfp, int flags,
 	    struct filecaps *fcaps);
 int	fdalloc(struct thread *td, int minfd, int *result);
+int	fdallocn(struct thread *td, int minfd, int *fds, int n);
 int	fdavail(struct thread *td, int n);
 int	fdcheckstd(struct thread *td);
 void	fdclose(struct filedesc *fdp, struct file *fp, int idx, struct thread *td);

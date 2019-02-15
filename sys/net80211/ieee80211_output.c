@@ -120,7 +120,7 @@ doprint(struct ieee80211vap *vap, int subtype)
  * do this first.
  */
 static int
-ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
+ieee80211_vap_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 {
 #define	IS_DWDS(vap) \
 	(vap->iv_opmode == IEEE80211_M_WDS && \
@@ -359,14 +359,88 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 }
 
 /*
- * Start method for vap's.  All packets from the stack come
- * through here.  We handle common processing of the packets
- * before dispatching them to the underlying device.
+ * Entry point for transmission for all VAPs.
+ *
+ * This sanitises the mbuf flags and queues it into the transmit
+ * queue.
  */
-void
-ieee80211_start(struct ifnet *ifp)
+int
+ieee80211_vap_if_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ieee80211vap *vap = ifp->if_softc;
+	struct ieee80211com *ic = vap->iv_ic;
+	struct ifnet *parent = ic->ic_ifp;
+
+	/* NB: parent must be up and running */
+	if (!IFNET_IS_UP_RUNNING(parent)) {
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_OUTPUT,
+		    "%s: ignore queue, parent %s not up+running\n",
+		    __func__, parent->if_xname);
+		/* XXX stat */
+		m_free(m);
+		return (EINVAL);/* XXX errno? */
+	}
+
+	IF_LOCK(&ifp->if_snd);
+
+	/* Enforce queue limits */
+	if (_IF_QFULL(&ifp->if_snd)) {
+		IF_UNLOCK(&ifp->if_snd);
+		m_free(m);
+		return (ENOBUFS);	/* XXX errno? */
+	}
+
+	/*
+	 * Sanitize mbuf flags for net80211 use.  We cannot
+	 * clear M_PWR_SAV or M_MORE_DATA because these may
+	 * be set for frames that are re-submitted from the
+	 * power save queue.
+	 *
+	 * NB: This must be done before ieee80211_classify as
+	 *     it marks EAPOL in frames with M_EAPOL.
+	 *
+	 * XXX TODO: for VAP frames coming in from the stack
+	 * itself, we should just inject them directly into
+	 * the vap rather than via ieee80211_vap_transmit().
+	 * Yes, they still need to go into the ifnet queue
+	 * and be dequeued, but we can skip this particular
+	 * check as they're already "in" the net80211 layer.
+	 */
+	m->m_flags &= ~(M_80211_TX - M_PWR_SAV - M_MORE_DATA);
+	_IF_ENQUEUE(&ifp->if_snd, m);
+	IF_UNLOCK(&ifp->if_snd);
+
+	/* Schedule the deferred TX task */
+	ieee80211_runtask(ic, &vap->iv_tx_task);
+
+	return (0);
+}
+
+void
+ieee80211_vap_if_qflush(struct ifnet *ifp)
+{
+	struct mbuf *m;
+
+	IF_LOCK(&ifp->if_snd);
+	do {
+		_IF_DEQUEUE(&ifp->if_snd, m);
+		if (m != NULL)
+			m_free(m);
+	} while (m != NULL);
+	IF_UNLOCK(&ifp->if_snd);
+}
+
+/*
+ * Do deferred VAP transmit.
+ *
+ * This walks the ifnet send queue and dispatches whichever frames
+ * require it.
+ */
+void
+ieee80211_vap_tx_task(void *arg, int npending)
+{
+	struct ieee80211vap *vap = (struct ieee80211vap *) arg;
+	struct ifnet *ifp = vap->iv_ifp;
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *parent = ic->ic_ifp;
 	struct mbuf *m;
@@ -409,24 +483,42 @@ ieee80211_start(struct ifnet *ifp)
 		IEEE80211_UNLOCK(ic);
 	}
 
+	/*
+	 * Dispatch frames to the VAP packet processing routine.
+	 *
+	 * Since this is the only place (in theory!) which is actually
+	 * dispatching frames for this VAP, there shouldn't be any races
+	 * between dispatch threads.  So it's OK to not hold a lock across
+	 * the dequeue.  If multiple places could dequeue+dispatch we'd
+	 * need a lock to ensure they were dispatched in the correct order
+	 */
 	for (;;) {
+		struct ieee80211_tx_info *txinfo;
+		struct ieee80211_bpf_params *params;
+		struct ieee80211_node *ni;
+
 		IFQ_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
-		/*
-		 * Sanitize mbuf flags for net80211 use.  We cannot
-		 * clear M_PWR_SAV or M_MORE_DATA because these may
-		 * be set for frames that are re-submitted from the
-		 * power save queue.
-		 *
-		 * NB: This must be done before ieee80211_classify as
-		 *     it marks EAPOL in frames with M_EAPOL.
-		 */
-		m->m_flags &= ~(M_80211_TX - M_PWR_SAV - M_MORE_DATA);
-		/*
-		 * Bump to the packet transmission path.
-		 */
-		(void) ieee80211_start_pkt(vap, m);
+
+		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
+
+		/* Fetch TX info from the mbuf if it has it */
+		if (m->m_flags & M_TXINFO)
+			txinfo = ieee80211_get_txinfo(m);
+		else
+			txinfo = NULL;
+
+		/* Raw packet? or normal data packet? */
+		if (txinfo != NULL && txinfo->is_raw_tx) {
+			params = NULL;
+			if (txinfo->has_tx_params) {
+				params = &txinfo->bpf_params;
+			}
+			(void) (ic->ic_raw_xmit(ni, m, params));
+		} else {
+			(void) ieee80211_vap_start_pkt(vap, m);
+		}
 		/* mbuf is consumed here */
 	}
 }
@@ -439,8 +531,51 @@ ieee80211_raw_output(struct ieee80211vap *vap, struct ieee80211_node *ni,
     struct mbuf *m, const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = vap->iv_ic;
+#if 0
+	struct ifnet *ifp = vap->iv_ifp;
+	struct ieee80211_tx_info txinfo;
 
+	/*
+	 * Queue the given mbuf into the VAP queue.
+	 *
+	 * Dispatch to the hardware will occur in the VAP transimt
+	 * thread.
+	 */
+	bzero(&txinfo, sizeof(txinfo));
+
+	txinfo.is_raw_tx = 1;
+
+	if (params != NULL) {
+		txinfo.has_tx_params = 1;
+		memcpy(&txinfo.bpf_params, params, sizeof(*params));
+	}
+
+	if (! ieee80211_add_txinfo(m, &txinfo)) {
+		m_freem(m);
+		return (ENOBUFS);	/* XXX correct? */
+	}
+
+	IF_LOCK(&ifp->if_snd);
+
+	/* Enforce queue limits */
+	if (_IF_QFULL(&ifp->if_snd)) {
+		IF_UNLOCK(&ifp->if_snd);
+		m_free(m);
+		return (ENOBUFS);       /* XXX errno? */
+	}
+
+	/* XXX sanitize TX mbuf flags? */
+	m->m_flags |= M_TXINFO;
+	_IF_ENQUEUE(&ifp->if_snd, m);
+	IF_UNLOCK(&ifp->if_snd);
+
+	/* Schedule the deferred TX task */
+	ieee80211_runtask(ic, &vap->iv_tx_task);
+
+	return (0);
+#else
 	return (ic->ic_raw_xmit(ni, m, params));
+#endif
 }
 
 /*
@@ -448,9 +583,15 @@ ieee80211_raw_output(struct ieee80211vap *vap, struct ieee80211_node *ni,
  * connect bpf write calls to the 802.11 layer for injecting
  * raw 802.11 frames.
  */
+#if __FreeBSD_version >= 1000031
+int
+ieee80211_output(struct ifnet *ifp, struct mbuf *m,
+	const struct sockaddr *dst, struct route *ro)
+#else
 int
 ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	struct sockaddr *dst, struct route *ro)
+#endif
 {
 #define senderr(e) do { error = (e); goto bad;} while (0)
 	struct ieee80211_node *ni = NULL;
@@ -1495,18 +1636,28 @@ static int
 ieee80211_fragment(struct ieee80211vap *vap, struct mbuf *m0,
 	u_int hdrsize, u_int ciphdrsize, u_int mtu)
 {
+	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_frame *wh, *whf;
 	struct mbuf *m, *prev, *next;
 	u_int totalhdrsize, fragno, fragsize, off, remainder, payload;
+	u_int hdrspace;
 
 	KASSERT(m0->m_nextpkt == NULL, ("mbuf already chained?"));
 	KASSERT(m0->m_pkthdr.len > mtu,
 		("pktlen %u mtu %u", m0->m_pkthdr.len, mtu));
 
+	/*
+	 * Honor driver DATAPAD requirement.
+	 */
+	if (ic->ic_flags & IEEE80211_F_DATAPAD)
+		hdrspace = roundup(hdrsize, sizeof(uint32_t));
+	else
+		hdrspace = hdrsize;
+
 	wh = mtod(m0, struct ieee80211_frame *);
 	/* NB: mark the first frag; it will be propagated below */
 	wh->i_fc[1] |= IEEE80211_FC1_MORE_FRAG;
-	totalhdrsize = hdrsize + ciphdrsize;
+	totalhdrsize = hdrspace + ciphdrsize;
 	fragno = 1;
 	off = mtu - ciphdrsize;
 	remainder = m0->m_pkthdr.len - off;
@@ -1553,9 +1704,10 @@ ieee80211_fragment(struct ieee80211vap *vap, struct mbuf *m0,
 
 		payload = fragsize - totalhdrsize;
 		/* NB: destination is known to be contiguous */
-		m_copydata(m0, off, payload, mtod(m, uint8_t *) + hdrsize);
-		m->m_len = hdrsize + payload;
-		m->m_pkthdr.len = hdrsize + payload;
+
+		m_copydata(m0, off, payload, mtod(m, uint8_t *) + hdrspace);
+		m->m_len = hdrspace + payload;
+		m->m_pkthdr.len = hdrspace + payload;
 		m->m_flags |= M_FRAG;
 
 		/* chain up the fragment */

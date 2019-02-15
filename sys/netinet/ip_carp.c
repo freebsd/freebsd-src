@@ -1372,7 +1372,7 @@ carp_multicast_cleanup(struct carp_if *cif, sa_family_t sa)
 }
 
 int
-carp_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa)
+carp_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *sa)
 {
 	struct m_tag *mtag;
 	struct carp_softc *sc;

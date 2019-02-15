@@ -946,25 +946,23 @@ sgsendccb(struct cam_periph *periph, union ccb *ccb)
 {
 	struct sg_softc *softc;
 	struct cam_periph_map_info mapinfo;
-	int error, need_unmap = 0;
+	int error;
 
 	softc = periph->softc;
-	if (((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE)
-	    && (ccb->csio.data_ptr != NULL)) {
-		bzero(&mapinfo, sizeof(mapinfo));
+	bzero(&mapinfo, sizeof(mapinfo));
 
-		/*
-		 * cam_periph_mapmem calls into proc and vm functions that can
-		 * sleep as well as trigger I/O, so we can't hold the lock.
-		 * Dropping it here is reasonably safe.
-		 */
-		cam_periph_unlock(periph);
-		error = cam_periph_mapmem(ccb, &mapinfo);
-		cam_periph_lock(periph);
-		if (error)
-			return (error);
-		need_unmap = 1;
-	}
+	/*
+	 * cam_periph_mapmem calls into proc and vm functions that can
+	 * sleep as well as trigger I/O, so we can't hold the lock.
+	 * Dropping it here is reasonably safe.
+	 * The only CCB opcode that is possible here is XPT_SCSI_IO, no
+	 * need for additional checks.
+	 */
+	cam_periph_unlock(periph);
+	error = cam_periph_mapmem(ccb, &mapinfo);
+	cam_periph_lock(periph);
+	if (error)
+		return (error);
 
 	error = cam_periph_runccb(ccb,
 				  sgerror,
@@ -972,8 +970,7 @@ sgsendccb(struct cam_periph *periph, union ccb *ccb)
 				  SF_RETRY_UA,
 				  softc->device_stats);
 
-	if (need_unmap)
-		cam_periph_unmapmem(ccb, &mapinfo);
+	cam_periph_unmapmem(ccb, &mapinfo);
 
 	return (error);
 }

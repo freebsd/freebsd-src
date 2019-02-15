@@ -1,0 +1,2 @@
+/* $FreeBSD$ */
+GROUP ( @@SHLIB@@ @@LIBDIR@@/libssp_nonshared.a )

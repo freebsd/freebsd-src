@@ -304,20 +304,24 @@ AcpiDbConvertToObject (
     switch (Type)
     {
     case ACPI_TYPE_STRING:
+
         Object->Type = ACPI_TYPE_STRING;
         Object->String.Pointer = String;
         Object->String.Length = (UINT32) ACPI_STRLEN (String);
         break;
 
     case ACPI_TYPE_BUFFER:
+
         Status = AcpiDbConvertToBuffer (String, Object);
         break;
 
     case ACPI_TYPE_PACKAGE:
+
         Status = AcpiDbConvertToPackage (String, Object);
         break;
 
     default:
+
         Object->Type = ACPI_TYPE_INTEGER;
         Status = AcpiUtStrtoul64 (String, 16, &Object->Integer.Value);
         break;

@@ -82,4 +82,4 @@ void fixredir(union node *, const char *, int);
 int goodname(const char *);
 int isassignment(const char *);
 char *getprompt(void *);
-const char *expandstr(char *);
+const char *expandstr(const char *);

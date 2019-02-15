@@ -533,27 +533,33 @@ XfNamespaceLocateBegin (
             break;
 
         case AML_CREATE_BIT_FIELD_OP:
+
             FieldBitLength = 1;
             break;
 
         case AML_CREATE_BYTE_FIELD_OP:
         case AML_INDEX_OP:
+
             FieldBitLength = 8;
             break;
 
         case AML_CREATE_WORD_FIELD_OP:
+
             FieldBitLength = 16;
             break;
 
         case AML_CREATE_DWORD_FIELD_OP:
+
             FieldBitLength = 32;
             break;
 
         case AML_CREATE_QWORD_FIELD_OP:
+
             FieldBitLength = 64;
             break;
 
         default:
+
             FieldBitLength = 0;
             break;
         }
@@ -595,6 +601,7 @@ XfNamespaceLocateBegin (
             break;
 
         default:
+
             break;
         }
 
@@ -728,18 +735,22 @@ XfNamespaceLocateBegin (
             case AML_FIELD_ACCESS_BYTE:
             case AML_FIELD_ACCESS_BUFFER:
             default:
+
                 MinimumLength = 1;
                 break;
 
             case AML_FIELD_ACCESS_WORD:
+
                 MinimumLength = 2;
                 break;
 
             case AML_FIELD_ACCESS_DWORD:
+
                 MinimumLength = 4;
                 break;
 
             case AML_FIELD_ACCESS_QWORD:
+
                 MinimumLength = 8;
                 break;
             }
@@ -784,6 +795,7 @@ XfNamespaceLocateBegin (
             default:
 
                 /* Nothing to do for other address spaces */
+
                 break;
             }
         }

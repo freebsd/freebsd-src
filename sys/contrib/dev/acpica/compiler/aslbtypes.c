@@ -83,15 +83,19 @@ AnMapArgTypeToBtype (
     /* Simple types */
 
     case ARGI_ANYTYPE:
+
         return (ACPI_BTYPE_OBJECTS_AND_REFS);
 
     case ARGI_PACKAGE:
+
         return (ACPI_BTYPE_PACKAGE);
 
     case ARGI_EVENT:
+
         return (ACPI_BTYPE_EVENT);
 
     case ARGI_MUTEX:
+
         return (ACPI_BTYPE_MUTEX);
 
     case ARGI_DDBHANDLE:
@@ -111,31 +115,36 @@ AnMapArgTypeToBtype (
     case ARGI_BUFFER:
     case ARGI_BUFFER_OR_STRING:
     case ARGI_COMPUTEDATA:
+
         return (ACPI_BTYPE_COMPUTE_DATA);
 
     /* References */
 
     case ARGI_INTEGER_REF:
+
         return (ACPI_BTYPE_INTEGER);
 
     case ARGI_OBJECT_REF:
+
         return (ACPI_BTYPE_ALL_OBJECTS);
 
     case ARGI_DEVICE_REF:
+
         return (ACPI_BTYPE_DEVICE_OBJECTS);
 
     case ARGI_REFERENCE:
+
         return (ACPI_BTYPE_REFERENCE);
 
     case ARGI_TARGETREF:
     case ARGI_FIXED_TARGET:
     case ARGI_SIMPLE_TARGET:
+
         return (ACPI_BTYPE_OBJECTS_AND_REFS);
 
     /* Complex types */
 
     case ARGI_DATAOBJECT:
-
         /*
          * Buffer, string, package or reference to a Op -
          * Used only by SizeOf operator
@@ -150,6 +159,7 @@ AnMapArgTypeToBtype (
         return (ACPI_BTYPE_STRING | ACPI_BTYPE_BUFFER | ACPI_BTYPE_PACKAGE);
 
     case ARGI_REF_OR_STRING:
+
         return (ACPI_BTYPE_STRING | ACPI_BTYPE_REFERENCE);
 
     case ARGI_REGION_OR_BUFFER:
@@ -159,10 +169,12 @@ AnMapArgTypeToBtype (
         return (ACPI_BTYPE_REGION | ACPI_BTYPE_BUFFER | ACPI_BTYPE_FIELD_UNIT);
 
     case ARGI_DATAREFOBJ:
+
         return (ACPI_BTYPE_INTEGER |ACPI_BTYPE_STRING | ACPI_BTYPE_BUFFER |
             ACPI_BTYPE_PACKAGE | ACPI_BTYPE_REFERENCE | ACPI_BTYPE_DDB_HANDLE);
 
     default:
+
         break;
     }
 
@@ -207,22 +219,28 @@ AnMapEtypeToBtype (
         switch (Etype)
         {
         case ACPI_TYPE_INTEGER:
+
             return (ACPI_BTYPE_COMPUTE_DATA | ACPI_BTYPE_DDB_HANDLE);
 
         case ACPI_TYPE_STRING:
         case ACPI_TYPE_BUFFER:
+
             return (ACPI_BTYPE_COMPUTE_DATA);
 
         case ACPI_TYPE_PACKAGE:
+
             return (ACPI_BTYPE_PACKAGE);
 
         case ACPI_TYPE_FIELD_UNIT:
+
             return (ACPI_BTYPE_COMPUTE_DATA | ACPI_BTYPE_FIELD_UNIT);
 
         case ACPI_TYPE_BUFFER_FIELD:
+
             return (ACPI_BTYPE_COMPUTE_DATA | ACPI_BTYPE_BUFFER_FIELD);
 
         case ACPI_TYPE_DDB_HANDLE:
+
             return (ACPI_BTYPE_INTEGER | ACPI_BTYPE_DDB_HANDLE);
 
         case ACPI_BTYPE_DEBUG_OBJECT:
@@ -232,6 +250,7 @@ AnMapEtypeToBtype (
             return (0);
 
         default:
+
             return (1 << (Etype - 1));
         }
     }
@@ -259,6 +278,7 @@ AnMapEtypeToBtype (
         return (ACPI_BTYPE_REFERENCE);
 
     default:
+
         printf ("Unhandled encoded type: %X\n", Etype);
         return (0);
     }
@@ -438,51 +458,67 @@ AnMapObjTypeToBtype (
     switch (Op->Asl.ParseOpcode)
     {
     case PARSEOP_OBJECTTYPE_BFF:        /* "BuffFieldObj" */
+
         return (ACPI_BTYPE_BUFFER_FIELD);
 
     case PARSEOP_OBJECTTYPE_BUF:        /* "BuffObj" */
+
         return (ACPI_BTYPE_BUFFER);
 
     case PARSEOP_OBJECTTYPE_DDB:        /* "DDBHandleObj" */
+
         return (ACPI_BTYPE_DDB_HANDLE);
 
     case PARSEOP_OBJECTTYPE_DEV:        /* "DeviceObj" */
+
         return (ACPI_BTYPE_DEVICE);
 
     case PARSEOP_OBJECTTYPE_EVT:        /* "EventObj" */
+
         return (ACPI_BTYPE_EVENT);
 
     case PARSEOP_OBJECTTYPE_FLD:        /* "FieldUnitObj" */
+
         return (ACPI_BTYPE_FIELD_UNIT);
 
     case PARSEOP_OBJECTTYPE_INT:        /* "IntObj" */
+
         return (ACPI_BTYPE_INTEGER);
 
     case PARSEOP_OBJECTTYPE_MTH:        /* "MethodObj" */
+
         return (ACPI_BTYPE_METHOD);
 
     case PARSEOP_OBJECTTYPE_MTX:        /* "MutexObj" */
+
         return (ACPI_BTYPE_MUTEX);
 
     case PARSEOP_OBJECTTYPE_OPR:        /* "OpRegionObj" */
+
         return (ACPI_BTYPE_REGION);
 
     case PARSEOP_OBJECTTYPE_PKG:        /* "PkgObj" */
+
         return (ACPI_BTYPE_PACKAGE);
 
     case PARSEOP_OBJECTTYPE_POW:        /* "PowerResObj" */
+
         return (ACPI_BTYPE_POWER);
 
     case PARSEOP_OBJECTTYPE_STR:        /* "StrObj" */
+
         return (ACPI_BTYPE_STRING);
 
     case PARSEOP_OBJECTTYPE_THZ:        /* "ThermalZoneObj" */
+
         return (ACPI_BTYPE_THERMAL);
 
     case PARSEOP_OBJECTTYPE_UNK:        /* "UnknownObj" */
+
         return (ACPI_BTYPE_OBJECTS_AND_REFS);
 
     default:
+
         return (0);
     }
 }

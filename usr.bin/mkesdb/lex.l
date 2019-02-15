@@ -43,7 +43,7 @@
 #include "ldef.h"
 #include "yacc.h"
 
-int line_number = 1;
+int linenumber = 1;
 %}
 %option	noinput
 %option	nounput
@@ -53,11 +53,11 @@ int line_number = 1;
 %%
 
 [ \t]+	{ }
-#.*[\n]|"//".*[\n]|[\n]	{ line_number++; return (R_LN); }
+#.*[\n]|"//".*[\n]|[\n]	{ linenumber++; return (R_LN); }
 
 "/*"		{ BEGIN COMMENT; }
 <COMMENT>"*/"	{ BEGIN 0; }
-<COMMENT>[\n]	{ line_number++; }
+<COMMENT>[\n]	{ linenumber++; }
 <COMMENT>.	{ }
 <COMMENT><<EOF>>	{
 		yyerror("unexpected file end (unterminated comment)\n");

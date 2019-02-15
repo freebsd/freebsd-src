@@ -68,7 +68,7 @@ ext2_blkatoff(struct vnode *vp, off_t offset, char **res, struct buf **bpp)
 	struct inode *ip;
 	struct m_ext2fs *fs;
 	struct buf *bp;
-	int32_t lbn;
+	e2fs_lbn_t lbn;
 	int bsize, error;
 
 	ip = VTOI(vp);

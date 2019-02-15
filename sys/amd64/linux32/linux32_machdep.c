@@ -447,7 +447,7 @@ linux_set_cloned_tls(struct thread *td, void *desc)
 		pcb->pcb_gsbase = (register_t)info.base_addr;
 /* XXXKIB	pcb->pcb_gs32sd = sd; */
 		td->td_frame->tf_gs = GSEL(GUGS32_SEL, SEL_UPL);
-		set_pcb_flags(pcb, PCB_GS32BIT | PCB_32BIT);
+		set_pcb_flags(pcb, PCB_32BIT);
 	}
 
 	return (error);
@@ -1026,7 +1026,7 @@ linux_set_thread_area(struct thread *td,
 
 	pcb = td->td_pcb;
 	pcb->pcb_gsbase = (register_t)info.base_addr;
-	set_pcb_flags(pcb, PCB_32BIT | PCB_GS32BIT);
+	set_pcb_flags(pcb, PCB_32BIT);
 	update_gdt_gsbase(td, info.base_addr);
 
 	return (0);

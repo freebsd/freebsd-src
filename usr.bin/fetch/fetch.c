@@ -565,7 +565,7 @@ fetch(char *URL, const char *path)
 				goto failure;
 			}
 			if (nsb.st_dev != sb.st_dev ||
-			    nsb.st_ino != nsb.st_ino ||
+			    nsb.st_ino != sb.st_ino ||
 			    nsb.st_size != sb.st_size) {
 				warnx("%s: file has changed", URL);
 				fclose(of);

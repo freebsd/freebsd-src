@@ -1282,11 +1282,14 @@ smbfs_lookup(ap)
 			error = vfs_busy(mp, 0);
 			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 			vfs_rel(mp);
-			if (error)
-				return (ENOENT);
+			if (error) {
+				error = ENOENT;
+				goto out;
+			}
 			if ((dvp->v_iflag & VI_DOOMED) != 0) {
 				vfs_unbusy(mp);
-				return (ENOENT);	
+				error = ENOENT;
+				goto out;
 			}
 		}	
 		VOP_UNLOCK(dvp, 0);

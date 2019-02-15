@@ -37,6 +37,8 @@
 #include "parser.h"
 
 	int	yylex	(void);
+
+#define	YY_DECL	int yylex(void)
 %}
 
 %option yylineno noyywrap nounput noinput

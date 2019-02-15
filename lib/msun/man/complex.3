@@ -89,6 +89,12 @@ creal	compute the real part
 .\" Section 7.3.5-6 of ISO C99 standard
 .Ss Trigonometric and Hyperbolic Functions
 .Cl
+cacos	arc cosine
+cacosh	arc hyperbolic cosine
+casin	arc sine
+casinh	arc hyperbolic sine
+catan	arc tangent
+catanh	arc hyperbolic tangent
 ccos	cosine
 ccosh	hyperbolic cosine
 csin	sine
@@ -111,20 +117,8 @@ The
 functions described here conform to
 .St -isoC-99 .
 .Sh BUGS
-The inverse trigonometric and hyperbolic functions
-.Fn cacos ,
-.Fn cacosh ,
-.Fn casin ,
-.Fn casinh ,
-.Fn catan ,
-and
-.Fn catanh
-are not implemented.
-.Pp
 The logarithmic functions
 .Fn clog
-are not implemented.
-.Pp
-The power functions
+and the power functions
 .Fn cpow
 are not implemented.

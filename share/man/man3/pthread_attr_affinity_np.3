@@ -50,7 +50,7 @@ functions allow the manipulation of sets of CPUs available to the specified thre
 Masks of type
 .Ft cpuset_t
 are composed using the
-.Xr CPU_SET 3
+.Dv CPU_SET
 macros.
 The kernel tolerates large sets as long as all CPUs specified
 in the set exist.
@@ -132,7 +132,6 @@ Insufficient memory exists to store the cpuset mask.
 .Xr cpuset 2 ,
 .Xr cpuset_getid 2 ,
 .Xr cpuset_setid 2 ,
-.Xr CPU_SET 3 ,
 .Xr pthread_get_affinity_np 3 ,
 .Xr pthread_set_affinity_np 3
 .Sh STANDARDS

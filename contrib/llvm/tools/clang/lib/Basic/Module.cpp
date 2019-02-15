@@ -1,4 +1,4 @@
-//===--- Module.h - Describe a module ---------------------------*- C++ -*-===//
+//===--- Module.cpp - Describe a module -----------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -15,10 +15,11 @@
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/TargetInfo.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
 Module::Module(StringRef Name, SourceLocation DefinitionLoc, Module *Parent, 
@@ -27,7 +28,8 @@ Module::Module(StringRef Name, SourceLocation DefinitionLoc, Module *Parent,
     Umbrella(), ASTFile(0), IsAvailable(true), IsFromModuleFile(false),
     IsFramework(IsFramework), IsExplicit(IsExplicit), IsSystem(false),
     InferSubmodules(false), InferExplicitSubmodules(false), 
-    InferExportWildcard(false), NameVisibility(Hidden) 
+    InferExportWildcard(false), ConfigMacrosExhaustive(false),
+    NameVisibility(Hidden)
 { 
   if (Parent) {
     if (!Parent->isAvailable())
@@ -45,7 +47,6 @@ Module::~Module() {
        I != IEnd; ++I) {
     delete *I;
   }
-  
 }
 
 /// \brief Determine whether a translation unit built using the current
@@ -56,7 +57,7 @@ static bool hasFeature(StringRef Feature, const LangOptions &LangOpts,
            .Case("altivec", LangOpts.AltiVec)
            .Case("blocks", LangOpts.Blocks)
            .Case("cplusplus", LangOpts.CPlusPlus)
-           .Case("cplusplus11", LangOpts.CPlusPlus0x)
+           .Case("cplusplus11", LangOpts.CPlusPlus11)
            .Case("objc", LangOpts.ObjC1)
            .Case("objc_arc", LangOpts.ObjCAutoRefCount)
            .Case("opencl", LangOpts.OpenCL)
@@ -103,15 +104,15 @@ const Module *Module::getTopLevelModule() const {
 }
 
 std::string Module::getFullModuleName() const {
-  llvm::SmallVector<StringRef, 2> Names;
+  SmallVector<StringRef, 2> Names;
   
   // Build up the set of module names (from innermost to outermost).
   for (const Module *M = this; M; M = M->Parent)
     Names.push_back(M->Name);
   
   std::string Result;
-  for (llvm::SmallVector<StringRef, 2>::reverse_iterator I = Names.rbegin(),
-                                                      IEnd = Names.rend(); 
+  for (SmallVector<StringRef, 2>::reverse_iterator I = Names.rbegin(),
+                                                IEnd = Names.rend();
        I != IEnd; ++I) {
     if (!Result.empty())
       Result += '.';
@@ -129,6 +130,19 @@ const DirectoryEntry *Module::getUmbrellaDir() const {
   return Umbrella.dyn_cast<const DirectoryEntry *>();
 }
 
+ArrayRef<const FileEntry *> Module::getTopHeaders(FileManager &FileMgr) {
+  if (!TopHeaderNames.empty()) {
+    for (std::vector<std::string>::iterator
+           I = TopHeaderNames.begin(), E = TopHeaderNames.end(); I != E; ++I) {
+      if (const FileEntry *FE = FileMgr.getFile(*I))
+        TopHeaders.insert(FE);
+    }
+    TopHeaderNames.clear();
+  }
+
+  return llvm::makeArrayRef(TopHeaders.begin(), TopHeaders.end());
+}
+
 void Module::addRequirement(StringRef Feature, const LangOptions &LangOpts,
                             const TargetInfo &Target) {
   Requires.push_back(Feature);
@@ -140,7 +154,7 @@ void Module::addRequirement(StringRef Feature, const LangOptions &LangOpts,
   if (!IsAvailable)
     return;
 
-  llvm::SmallVector<Module *, 2> Stack;
+  SmallVector<Module *, 2> Stack;
   Stack.push_back(this);
   while (!Stack.empty()) {
     Module *Current = Stack.back();
@@ -167,7 +181,7 @@ Module *Module::findSubmodule(StringRef Name) const {
   return SubModules[Pos->getValue()];
 }
 
-static void printModuleId(llvm::raw_ostream &OS, const ModuleId &Id) {
+static void printModuleId(raw_ostream &OS, const ModuleId &Id) {
   for (unsigned I = 0, N = Id.size(); I != N; ++I) {
     if (I)
       OS << ".";
@@ -175,7 +189,60 @@ static void printModuleId(llvm::raw_ostream &OS, const ModuleId &Id) {
   }
 }
 
-void Module::print(llvm::raw_ostream &OS, unsigned Indent) const {
+void Module::getExportedModules(SmallVectorImpl<Module *> &Exported) const {
+  bool AnyWildcard = false;
+  bool UnrestrictedWildcard = false;
+  SmallVector<Module *, 4> WildcardRestrictions;
+  for (unsigned I = 0, N = Exports.size(); I != N; ++I) {
+    Module *Mod = Exports[I].getPointer();
+    if (!Exports[I].getInt()) {
+      // Export a named module directly; no wildcards involved.
+      Exported.push_back(Mod);
+
+      continue;
+    }
+
+    // Wildcard export: export all of the imported modules that match
+    // the given pattern.
+    AnyWildcard = true;
+    if (UnrestrictedWildcard)
+      continue;
+
+    if (Module *Restriction = Exports[I].getPointer())
+      WildcardRestrictions.push_back(Restriction);
+    else {
+      WildcardRestrictions.clear();
+      UnrestrictedWildcard = true;
+    }
+  }
+
+  // If there were any wildcards, push any imported modules that were
+  // re-exported by the wildcard restriction.
+  if (!AnyWildcard)
+    return;
+
+  for (unsigned I = 0, N = Imports.size(); I != N; ++I) {
+    Module *Mod = Imports[I];
+    bool Acceptable = UnrestrictedWildcard;
+    if (!Acceptable) {
+      // Check whether this module meets one of the restrictions.
+      for (unsigned R = 0, NR = WildcardRestrictions.size(); R != NR; ++R) {
+        Module *Restriction = WildcardRestrictions[R];
+        if (Mod == Restriction || Mod->isSubModuleOf(Restriction)) {
+          Acceptable = true;
+          break;
+        }
+      }
+    }
+
+    if (!Acceptable)
+      continue;
+
+    Exported.push_back(Mod);
+  }
+}
+
+void Module::print(raw_ostream &OS, unsigned Indent) const {
   OS.indent(Indent);
   if (IsFramework)
     OS << "framework ";
@@ -212,7 +279,20 @@ void Module::print(llvm::raw_ostream &OS, unsigned Indent) const {
     OS.write_escaped(UmbrellaDir->getName());
     OS << "\"\n";    
   }
-  
+
+  if (!ConfigMacros.empty() || ConfigMacrosExhaustive) {
+    OS.indent(Indent + 2);
+    OS << "config_macros ";
+    if (ConfigMacrosExhaustive)
+      OS << "[exhaustive]";
+    for (unsigned I = 0, N = ConfigMacros.size(); I != N; ++I) {
+      if (I)
+        OS << ", ";
+      OS << ConfigMacros[I];
+    }
+    OS << "\n";
+  }
+
   for (unsigned I = 0, N = Headers.size(); I != N; ++I) {
     OS.indent(Indent + 2);
     OS << "header \"";
@@ -255,6 +335,34 @@ void Module::print(llvm::raw_ostream &OS, unsigned Indent) const {
         OS << ".*";
     }
     OS << "\n";
+  }
+
+  for (unsigned I = 0, N = LinkLibraries.size(); I != N; ++I) {
+    OS.indent(Indent + 2);
+    OS << "link ";
+    if (LinkLibraries[I].IsFramework)
+      OS << "framework ";
+    OS << "\"";
+    OS.write_escaped(LinkLibraries[I].Library);
+    OS << "\"";
+  }
+
+  for (unsigned I = 0, N = UnresolvedConflicts.size(); I != N; ++I) {
+    OS.indent(Indent + 2);
+    OS << "conflict ";
+    printModuleId(OS, UnresolvedConflicts[I].Id);
+    OS << ", \"";
+    OS.write_escaped(UnresolvedConflicts[I].Message);
+    OS << "\"\n";
+  }
+
+  for (unsigned I = 0, N = Conflicts.size(); I != N; ++I) {
+    OS.indent(Indent + 2);
+    OS << "conflict ";
+    OS << Conflicts[I].Other->getFullModuleName();
+    OS << ", \"";
+    OS.write_escaped(Conflicts[I].Message);
+    OS << "\"\n";
   }
 
   if (InferSubmodules) {

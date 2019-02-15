@@ -797,7 +797,7 @@
 #define	BGE_LEDCTL_BLINKPERIOD_OVERRIDE	0x80000000
 
 /* TX backoff seed register */
-#define	BGE_TX_BACKOFF_SEED_MASK	0x3F
+#define	BGE_TX_BACKOFF_SEED_MASK	0x3FF
 
 /* Autopoll status register */
 #define	BGE_AUTOPOLLSTS_ERROR		0x00000001
@@ -2918,6 +2918,7 @@ struct bge_dmamap_arg {
 #define	BGE_HWREV_TIGON_II	0x02
 #define	BGE_TIMEOUT		100000
 #define	BGE_TXCONS_UNSET		0xFFFF	/* impossible value */
+#define	BGE_TX_TIMEOUT		5
 
 struct bge_bcom_hack {
 	int			reg;

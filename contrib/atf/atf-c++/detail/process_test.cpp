@@ -64,10 +64,10 @@ exec_process_helpers(const atf::tests::tc& tc, const char* helper_name)
     using atf::process::exec;
 
     std::vector< std::string > argv;
-    argv.push_back(get_process_helpers_path(tc).leaf_name());
+    argv.push_back(get_process_helpers_path(tc, true).leaf_name());
     argv.push_back(helper_name);
 
-    return exec(get_process_helpers_path(tc),
+    return exec(get_process_helpers_path(tc, true),
                 atf::process::argv_array(argv),
                 atf::process::stream_inherit(),
                 atf::process::stream_inherit());

@@ -22,7 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2010 Nexenta Systems, Inc. All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  * Copyright (c) 2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
  */
@@ -308,12 +308,11 @@ int
 zfs_iter_snapspec(zfs_handle_t *fs_zhp, const char *spec_orig,
     zfs_iter_f func, void *arg)
 {
-	char buf[ZFS_MAXNAMELEN];
-	char *comma_separated, *cp;
+	char *buf, *comma_separated, *cp;
 	int err = 0;
 	int ret = 0;
 
-	(void) strlcpy(buf, spec_orig, sizeof (buf));
+	buf = zfs_strdup(fs_zhp->zfs_hdl, spec_orig);
 	cp = buf;
 
 	while ((comma_separated = strsep(&cp, ",")) != NULL) {
@@ -371,6 +370,7 @@ zfs_iter_snapspec(zfs_handle_t *fs_zhp, const char *spec_orig,
 		}
 	}
 
+	free(buf);
 	return (ret);
 }
 

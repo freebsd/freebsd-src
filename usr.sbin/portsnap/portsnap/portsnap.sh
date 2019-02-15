@@ -1113,7 +1113,7 @@ cmd_alfred() {
 	else
 		cmd_cron
 	fi
-	if [ -d ${PORTSDIR} ]; then
+	if [ -r ${PORTSDIR}/.portsnap.INDEX ]; then
 		cmd_update
 	else
 		cmd_extract

@@ -14,8 +14,8 @@
 #ifndef MIPS16INSTRUCTIONINFO_H
 #define MIPS16INSTRUCTIONINFO_H
 
-#include "MipsInstrInfo.h"
 #include "Mips16RegisterInfo.h"
+#include "MipsInstrInfo.h"
 
 namespace llvm {
 
@@ -48,31 +48,75 @@ public:
                            unsigned DestReg, unsigned SrcReg,
                            bool KillSrc) const;
 
-  virtual void storeRegToStackSlot(MachineBasicBlock &MBB,
-                                   MachineBasicBlock::iterator MBBI,
-                                   unsigned SrcReg, bool isKill, int FrameIndex,
-                                   const TargetRegisterClass *RC,
-                                   const TargetRegisterInfo *TRI) const;
+  virtual void storeRegToStack(MachineBasicBlock &MBB,
+                               MachineBasicBlock::iterator MBBI,
+                               unsigned SrcReg, bool isKill, int FrameIndex,
+                               const TargetRegisterClass *RC,
+                               const TargetRegisterInfo *TRI,
+                               int64_t Offset) const;
 
-  virtual void loadRegFromStackSlot(MachineBasicBlock &MBB,
-                                    MachineBasicBlock::iterator MBBI,
-                                    unsigned DestReg, int FrameIndex,
-                                    const TargetRegisterClass *RC,
-                                    const TargetRegisterInfo *TRI) const;
+  virtual void loadRegFromStack(MachineBasicBlock &MBB,
+                                MachineBasicBlock::iterator MBBI,
+                                unsigned DestReg, int FrameIndex,
+                                const TargetRegisterClass *RC,
+                                const TargetRegisterInfo *TRI,
+                                int64_t Offset) const;
 
   virtual bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const;
 
   virtual unsigned GetOppositeBranchOpc(unsigned Opc) const;
 
+  // Adjust SP by FrameSize bytes. Save RA, S0, S1
+  void makeFrame(unsigned SP, int64_t FrameSize, MachineBasicBlock &MBB,
+                      MachineBasicBlock::iterator I) const;
+
+  // Adjust SP by FrameSize bytes. Restore RA, S0, S1
+  void restoreFrame(unsigned SP, int64_t FrameSize, MachineBasicBlock &MBB,
+                      MachineBasicBlock::iterator I) const;
+
+
   /// Adjust SP by Amount bytes.
   void adjustStackPtr(unsigned SP, int64_t Amount, MachineBasicBlock &MBB,
                       MachineBasicBlock::iterator I) const;
+
+  /// Emit a series of instructions to load an immediate.
+  // This is to adjust some FrameReg. We return the new register to be used
+  // in place of FrameReg and the adjusted immediate field (&NewImm)
+  //
+  unsigned loadImmediate(unsigned FrameReg,
+                         int64_t Imm, MachineBasicBlock &MBB,
+                         MachineBasicBlock::iterator II, DebugLoc DL,
+                         unsigned &NewImm) const;
+
+  static bool validSpImm8(int offset) {
+    return ((offset & 7) == 0) && isInt<11>(offset);
+  }
+
+  //
+  // build the proper one based on the Imm field
+  //
+
+  const MCInstrDesc& AddiuSpImm(int64_t Imm) const;
+
+  void BuildAddiuSpImm
+    (MachineBasicBlock &MBB, MachineBasicBlock::iterator I, int64_t Imm) const;
 
 private:
   virtual unsigned GetAnalyzableBrOpc(unsigned Opc) const;
 
   void ExpandRetRA16(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                    unsigned Opc) const;
+
+  // Adjust SP by Amount bytes where bytes can be up to 32bit number.
+  void adjustStackPtrBig(unsigned SP, int64_t Amount, MachineBasicBlock &MBB,
+                         MachineBasicBlock::iterator I,
+                         unsigned Reg1, unsigned Reg2) const;
+
+  // Adjust SP by Amount bytes where bytes can be up to 32bit number.
+  void adjustStackPtrBigUnrestricted(unsigned SP, int64_t Amount,
+                                     MachineBasicBlock &MBB,
+                                     MachineBasicBlock::iterator I) const;
+
 };
 
 }

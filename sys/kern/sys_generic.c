@@ -1498,6 +1498,62 @@ sys_openbsd_poll(td, uap)
 }
 
 /*
+ * XXX This was created specifically to support netncp and netsmb.  This
+ * allows the caller to specify a socket to wait for events on.  It returns
+ * 0 if any events matched and an error otherwise.  There is no way to
+ * determine which events fired.
+ */
+int
+selsocket(struct socket *so, int events, struct timeval *tvp, struct thread *td)
+{
+	struct timeval rtv;
+	sbintime_t asbt, precision, rsbt;
+	int error;
+
+	precision = 0;	/* stupid gcc! */
+	if (tvp != NULL) {
+		rtv = *tvp;
+		if (rtv.tv_sec < 0 || rtv.tv_usec < 0 || 
+		    rtv.tv_usec >= 1000000)
+			return (EINVAL);
+		if (!timevalisset(&rtv))
+			asbt = 0;
+		else if (rtv.tv_sec <= INT32_MAX) {
+			rsbt = tvtosbt(rtv);
+			precision = rsbt;
+			precision >>= tc_precexp;
+			if (TIMESEL(&asbt, rsbt))
+				asbt += tc_tick_sbt;
+			if (asbt <= INT64_MAX - rsbt)
+				asbt += rsbt;
+			else
+				asbt = -1;
+		} else
+			asbt = -1;
+	} else
+		asbt = -1;
+	seltdinit(td);
+	/*
+	 * Iterate until the timeout expires or the socket becomes ready.
+	 */
+	for (;;) {
+		selfdalloc(td, NULL);
+		error = sopoll(so, events, NULL, td);
+		/* error here is actually the ready events. */
+		if (error)
+			return (0);
+		error = seltdwait(td, asbt, precision);
+		if (error)
+			break;
+	}
+	seltdclear(td);
+	/* XXX Duplicates ncp/smb behavior. */
+	if (error == ERESTART)
+		error = 0;
+	return (error);
+}
+
+/*
  * Preallocate two selfds associated with 'cookie'.  Some fo_poll routines
  * have two select sets, one for read and another for write.
  */

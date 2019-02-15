@@ -29,18 +29,17 @@ namespace bitc {
 
     // Module sub-block id's.
     PARAMATTR_BLOCK_ID,
+    PARAMATTR_GROUP_BLOCK_ID,
 
-    UNUSED_ID1,
-    
     CONSTANTS_BLOCK_ID,
     FUNCTION_BLOCK_ID,
-    
-    UNUSED_ID2,
-    
+
+    UNUSED_ID1,
+
     VALUE_SYMTAB_BLOCK_ID,
     METADATA_BLOCK_ID,
     METADATA_ATTACHMENT_ID,
-    
+
     TYPE_BLOCK_ID_NEW,
 
     USELIST_BLOCK_ID
@@ -54,6 +53,8 @@ namespace bitc {
     MODULE_CODE_DATALAYOUT  = 3,    // DATALAYOUT:  [strchr x N]
     MODULE_CODE_ASM         = 4,    // ASM:         [strchr x N]
     MODULE_CODE_SECTIONNAME = 5,    // SECTIONNAME: [strchr x N]
+
+    // FIXME: Remove DEPLIB in 4.0.
     MODULE_CODE_DEPLIB      = 6,    // DEPLIB:      [strchr x N]
 
     // GLOBALVAR: [pointer type, isconst, initid,
@@ -67,7 +68,7 @@ namespace bitc {
     // ALIAS: [alias type, aliasee val#, linkage, visibility]
     MODULE_CODE_ALIAS       = 9,
 
-    /// MODULE_CODE_PURGEVALS: [numvals]
+    // MODULE_CODE_PURGEVALS: [numvals]
     MODULE_CODE_PURGEVALS   = 10,
 
     MODULE_CODE_GCNAME      = 11   // GCNAME: [strchr x N]
@@ -75,7 +76,12 @@ namespace bitc {
 
   /// PARAMATTR blocks have code for defining a parameter attribute set.
   enum AttributeCodes {
-    PARAMATTR_CODE_ENTRY = 1   // ENTRY: [paramidx0, attr0, paramidx1, attr1...]
+    // FIXME: Remove `PARAMATTR_CODE_ENTRY_OLD' in 4.0
+    PARAMATTR_CODE_ENTRY_OLD  = 1, // ENTRY: [paramidx0, attr0,
+                                   //         paramidx1, attr1...]
+    PARAMATTR_CODE_ENTRY      = 2, // ENTRY: [paramidx0, attrgrp0,
+                                   //         paramidx1, attrgrp1, ...]
+    PARAMATTR_GRP_CODE_ENTRY  = 3  // ENTRY: [id, attr0, att1, ...]
   };
 
   /// TYPE blocks have codes for each type primitive they use.
@@ -93,9 +99,9 @@ namespace bitc {
 
     TYPE_CODE_FUNCTION_OLD = 9, // FUNCTION: [vararg, attrid, retty,
                                 //            paramty x N]
-    
+
     TYPE_CODE_HALF     =  10,   // HALF
-    
+
     TYPE_CODE_ARRAY    = 11,    // ARRAY: [numelts, eltty]
     TYPE_CODE_VECTOR   = 12,    // VECTOR: [numelts, eltty]
 
@@ -109,7 +115,7 @@ namespace bitc {
     TYPE_CODE_METADATA = 16,    // METADATA
 
     TYPE_CODE_X86_MMX = 17,     // X86 MMX
-    
+
     TYPE_CODE_STRUCT_ANON = 18, // STRUCT_ANON: [ispacked, eltty x N]
     TYPE_CODE_STRUCT_NAME = 19, // STRUCT_NAME: [strchr x N]
     TYPE_CODE_STRUCT_NAMED = 20,// STRUCT_NAMED: [ispacked, eltty x N]
@@ -141,6 +147,7 @@ namespace bitc {
     METADATA_NAMED_NODE    = 10,  // NAMED_NODE:    [n x mdnodes]
     METADATA_ATTACHMENT    = 11   // [m x [value, [n x [id, mdnode]]]
   };
+
   // The constants block (CONSTANTS_BLOCK_ID) describes emission for each
   // constant and maintains an implicit current type value.
   enum ConstantsCodes {
@@ -234,7 +241,7 @@ namespace bitc {
     OBO_NO_SIGNED_WRAP = 1
   };
 
-  /// PossiblyExactOperatorOptionalFlags - Flags for serializing 
+  /// PossiblyExactOperatorOptionalFlags - Flags for serializing
   /// PossiblyExactOperator's SubclassOptionalData contents.
   enum PossiblyExactOperatorOptionalFlags {
     PEO_EXACT = 0

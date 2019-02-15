@@ -23,7 +23,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH TCPDUMP 1  "05 March 2009"
+.TH TCPDUMP 1  "12 July 2012"
 .SH NAME
 tcpdump \- dump traffic on a network
 .SH SYNOPSIS
@@ -72,6 +72,10 @@ tcpdump \- dump traffic on a network
 .ti +8
 [
 .B \-r
+.I file
+]
+[
+.B \-V
 .I file
 ]
 [
@@ -128,8 +132,10 @@ flag, which causes it to save the packet data to a file for later
 analysis, and/or with the
 .B \-r
 flag, which causes it to read from a saved packet file rather than to
-read packets from a network interface.  In all cases, only packets that
-match
+read packets from a network interface.  It can also be run with the
+.B \-V
+flag, which causes it to read a list of saved packet files. In all cases,
+only packets that match
 .I expression
 will be processed by
 .IR tcpdump .
@@ -257,7 +263,9 @@ that lacks the
 function.
 .TP
 .B \-e
-Print the link-level header on each dump line.
+Print the link-level header on each dump line.  This can be used, for
+example, to print MAC layer addresses for protocols such as Ethernet and
+IEEE 802.11.
 .TP
 .B \-E
 Use \fIspi@ipaddr algo:secret\fP for decrypting IPsec ESP packets that
@@ -510,15 +518,19 @@ Force packets selected by "\fIexpression\fP" to be interpreted the
 specified \fItype\fR.
 Currently known types are
 \fBaodv\fR (Ad-hoc On-demand Distance Vector protocol),
+\fBcarp\fR (Common Address Redundancy Protocol),
 \fBcnfp\fR (Cisco NetFlow protocol),
+\fBradius\fR (RADIUS),
 \fBrpc\fR (Remote Procedure Call),
 \fBrtp\fR (Real-Time Applications protocol),
 \fBrtcp\fR (Real-Time Applications control protocol),
 \fBsnmp\fR (Simple Network Management Protocol),
 \fBtftp\fR (Trivial File Transfer Protocol),
 \fBvat\fR (Visual Audio Tool),
+\fBwb\fR (distributed White Board),
+\fBzmtp1\fR (ZeroMQ Message Transport Protocol 1.0)
 and
-\fBwb\fR (distributed White Board).
+\fBvxlan\fR (Virtual eXtensible Local Area Network).
 .TP
 .B \-t
 \fIDon't\fP print a timestamp on each dump line.
@@ -591,6 +603,10 @@ With
 .B \-X
 Telnet options are printed in hex as well.
 .TP
+.B \-V
+Read a list of filenames from \fIfile\fR. Standard input is used
+if \fIfile\fR is ``-''.
+.TP
 .B \-w
 Write the raw packets to \fIfile\fR rather than parsing and printing
 them out.
@@ -602,6 +618,15 @@ reading from the file or pipe may not see packets for an arbitrary
 amount of time after they are received.  Use the
 .B \-U
 flag to cause packets to be written as soon as they are received.
+.IP
+The MIME type \fIapplication/vnd.tcpdump.pcap\fP has been registered
+with IANA for \fIpcap\fP files. The filename extension \fI.pcap\fP
+appears to be the most commonly used along with \fI.cap\fP and
+\fI.dmp\fP. \fITcpdump\fP itself doesn't check the extension when
+reading capture files and doesn't add an extension when writing them
+(it uses magic numbers in the file header instead). However, many
+operating systems and applications will use the extension if it is
+present and adding one (e.g. .pcap) is recommended.
 .IP
 See
 .BR pcap-savefile (5)
@@ -706,8 +731,10 @@ For the \fIexpression\fP syntax, see
 .LP
 Expression arguments can be passed to \fItcpdump\fP as either a single
 argument or as multiple arguments, whichever is more convenient.
-Generally, if the expression contains Shell metacharacters, it is
-easier to pass it as a single, quoted argument.
+Generally, if the expression contains Shell metacharacters, such as
+backslashes used to escape protocol names, it is easier to pass it as
+a single, quoted argument rather than to escape the Shell
+metacharacters.
 Multiple arguments are concatenated with spaces before being parsed.
 .SH EXAMPLES
 .LP
@@ -1709,6 +1736,11 @@ serviced the `new packet' interrupt.
 .SH "SEE ALSO"
 stty(1), pcap(3PCAP), bpf(4), nit(4P), pcap-savefile(5),
 pcap-filter(7), pcap-tstamp-type(7)
+.LP
+.RS
+.I http://www.iana.org/assignments/media-types/application/vnd.tcpdump.pcap
+.RE
+.LP
 .SH AUTHORS
 The original authors are:
 .LP
@@ -1728,7 +1760,7 @@ The current version is available via http:
 The original distribution is available via anonymous ftp:
 .LP
 .RS
-.I ftp://ftp.ee.lbl.gov/tcpdump.tar.Z
+.I ftp://ftp.ee.lbl.gov/old/tcpdump.tar.Z
 .RE
 .LP
 IPv6/IPsec support is added by WIDE/KAME project.

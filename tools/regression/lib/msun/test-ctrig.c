@@ -38,44 +38,10 @@ __FBSDID("$FreeBSD$");
 #include <math.h>
 #include <stdio.h>
 
-#define	ALL_STD_EXCEPT	(FE_DIVBYZERO | FE_INEXACT | FE_INVALID | \
-			 FE_OVERFLOW | FE_UNDERFLOW)
-#define	OPT_INVALID	(ALL_STD_EXCEPT & ~FE_INVALID)
-#define	OPT_INEXACT	(ALL_STD_EXCEPT & ~FE_INEXACT)
-#define	FLT_ULP()	ldexpl(1.0, 1 - FLT_MANT_DIG)
-#define	DBL_ULP()	ldexpl(1.0, 1 - DBL_MANT_DIG)
-#define	LDBL_ULP()	ldexpl(1.0, 1 - LDBL_MANT_DIG)
+#include "test-utils.h"
 
 #pragma STDC FENV_ACCESS	ON
 #pragma	STDC CX_LIMITED_RANGE	OFF
-
-/*
- * XXX gcc implements complex multiplication incorrectly. In
- * particular, it implements it as if the CX_LIMITED_RANGE pragma
- * were ON. Consequently, we need this function to form numbers
- * such as x + INFINITY * I, since gcc evalutes INFINITY * I as
- * NaN + INFINITY * I.
- */
-static inline long double complex
-cpackl(long double x, long double y)
-{
-	long double complex z;
-
-	__real__ z = x;
-	__imag__ z = y;
-	return (z);
-}
-
-/* Flags that determine whether to check the signs of the result. */
-#define	CS_REAL	1
-#define	CS_IMAG	2
-#define	CS_BOTH	(CS_REAL | CS_IMAG)
-
-#ifdef	DEBUG
-#define	debug(...)	printf(__VA_ARGS__)
-#else
-#define	debug(...)	(void)0
-#endif
 
 /*
  * Test that a function returns the correct value and sets the
@@ -95,8 +61,8 @@ cpackl(long double x, long double y)
 	debug("  testing %s(%Lg + %Lg I) == %Lg + %Lg I\n", #func,	\
 	    creall(_d), cimagl(_d), creall(result), cimagl(result));	\
 	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert(cfpequal((func)(_d), (result), (checksign)));		\
-	assert(((func), fetestexcept(exceptmask) == (excepts)));	\
+	assert(cfpequal_cs((func)(_d), (result), (checksign)));		\
+	assert(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
 } while (0)
 
 /*
@@ -108,7 +74,7 @@ cpackl(long double x, long double y)
 	volatile long double complex _d = z;				\
 	debug("  testing %s(%Lg + %Lg I) ~= %Lg + %Lg I\n", #func,	\
 	    creall(_d), cimagl(_d), creall(result), cimagl(result));	\
-	assert(cfpequal_tol((func)(_d), (result), (tol)));		\
+	assert(cfpequal_tol((func)(_d), (result), (tol), FPE_ABS_ZERO)); \
 } while (0)
 
 /* These wrappers apply the identities f(conj(z)) = conj(f(z)). */
@@ -119,6 +85,14 @@ cpackl(long double x, long double y)
 #define	test_tol(func, z, result, tol)				do {	\
 	test_p_tol(func, z, result, tol);				\
 	test_p_tol(func, conjl(z), conjl(result), tol);			\
+} while (0)
+#define	test_odd_tol(func, z, result, tol)			do {	\
+	test_tol(func, z, result, tol);					\
+	test_tol(func, -(z), -(result), tol);				\
+} while (0)
+#define	test_even_tol(func, z, result, tol)			do {	\
+	test_tol(func, z, result, tol);					\
+	test_tol(func, -(z), result, tol);				\
 } while (0)
 
 /* Test the given function in all precisions. */
@@ -144,87 +118,26 @@ cpackl(long double x, long double y)
 	test_tol(func##f, x, result, tol * FLT_ULP());			\
 } while (0)
 #define	testall_odd_tol(func, x, result, tol)	       		   do { \
-	test_tol(func, x, result, tol * DBL_ULP());			\
-	test_tol(func, -x, -result, tol * DBL_ULP());			\
+	test_odd_tol(func, x, result, tol * DBL_ULP());			\
+	test_odd_tol(func##f, x, result, tol * FLT_ULP());		\
 } while (0)
 #define	testall_even_tol(func, x, result, tol)	       		   do { \
-	test_tol(func, x, result, tol * DBL_ULP());			\
-	test_tol(func, -x, result, tol * DBL_ULP());			\
+	test_even_tol(func, x, result, tol * DBL_ULP());		\
+	test_even_tol(func##f, x, result, tol * FLT_ULP());		\
 } while (0)
-
-/*
- * Determine whether x and y are equal, with two special rules:
- *	+0.0 != -0.0
- *	 NaN == NaN
- * If checksign is 0, we compare the absolute values instead.
- */
-static int
-fpequal(long double x, long double y, int checksign)
-{
-	if (isnan(x) && isnan(y))
-		return (1);
-	if (checksign)
-		return (x == y && !signbit(x) == !signbit(y));
-	else
-		return (fabsl(x) == fabsl(y));
-}
-
-static int
-fpequal_tol(long double x, long double y, long double tol)
-{
-	fenv_t env;
-	int ret;
-
-	if (isnan(x) && isnan(y))
-		return (1);
-	if (!signbit(x) != !signbit(y) && tol == 0)
-		return (0);
-	if (x == y)
-		return (1);
-	if (tol == 0)
-		return (0);
-
-	/* Hard case: need to check the tolerance. */
-	feholdexcept(&env);
-	/*
-	 * For our purposes here, if y=0, we interpret tol as an absolute
-	 * tolerance. This is to account for roundoff in the input, e.g.,
-	 * cos(Pi/2) ~= 0.
-	 */
-	if (y == 0.0)
-		ret = fabsl(x - y) <= fabsl(tol);
-	else
-		ret = fabsl(x - y) <= fabsl(y * tol);
-	fesetenv(&env);
-	return (ret);
-}
-
-static int
-cfpequal(long double complex x, long double complex y, int checksign)
-{
-	return (fpequal(creal(x), creal(y), checksign & CS_REAL)
-		&& fpequal(cimag(x), cimag(y), checksign & CS_IMAG));
-}
-
-static int
-cfpequal_tol(long double complex x, long double complex y, long double tol)
-{
-	return (fpequal_tol(creal(x), creal(y), tol)
-		&& fpequal_tol(cimag(x), cimag(y), tol));
-}
 
 
 /* Tests for 0 */
 void
 test_zero(void)
 {
-	long double complex zero = cpackl(0.0, 0.0);
+	long double complex zero = CMPLXL(0.0, 0.0);
 
 	/* csinh(0) = ctanh(0) = 0; ccosh(0) = 1 (no exceptions raised) */
 	testall_odd(csinh, zero, zero, ALL_STD_EXCEPT, 0, CS_BOTH);
 	testall_odd(csin, zero, zero, ALL_STD_EXCEPT, 0, CS_BOTH);
 	testall_even(ccosh, zero, 1.0, ALL_STD_EXCEPT, 0, CS_BOTH);
-	testall_even(ccos, zero, cpackl(1.0, -0.0), ALL_STD_EXCEPT, 0, CS_BOTH);
+	testall_even(ccos, zero, CMPLXL(1.0, -0.0), ALL_STD_EXCEPT, 0, CS_BOTH);
 	testall_odd(ctanh, zero, zero, ALL_STD_EXCEPT, 0, CS_BOTH);
 	testall_odd(ctan, zero, zero, ALL_STD_EXCEPT, 0, CS_BOTH);
 }
@@ -235,7 +148,7 @@ test_zero(void)
 void
 test_nan()
 {
-	long double complex nan_nan = cpackl(NAN, NAN);
+	long double complex nan_nan = CMPLXL(NAN, NAN);
 	long double complex z;
 
 	/*
@@ -256,7 +169,7 @@ test_nan()
 	testall_even(ccos, z, nan_nan, ALL_STD_EXCEPT, 0, 0);
 	testall_odd(ctan, z, nan_nan, ALL_STD_EXCEPT, 0, 0);
 
-	z = cpackl(42, NAN);
+	z = CMPLXL(42, NAN);
 	testall_odd(csinh, z, nan_nan, OPT_INVALID, 0, 0);
 	testall_even(ccosh, z, nan_nan, OPT_INVALID, 0, 0);
 	/* XXX We allow a spurious inexact exception here. */
@@ -265,7 +178,7 @@ test_nan()
 	testall_even(ccos, z, nan_nan, OPT_INVALID, 0, 0);
 	testall_odd(ctan, z, nan_nan, OPT_INVALID, 0, 0);
 
-	z = cpackl(NAN, 42);
+	z = CMPLXL(NAN, 42);
 	testall_odd(csinh, z, nan_nan, OPT_INVALID, 0, 0);
 	testall_even(ccosh, z, nan_nan, OPT_INVALID, 0, 0);
 	testall_odd(ctanh, z, nan_nan, OPT_INVALID, 0, 0);
@@ -274,38 +187,38 @@ test_nan()
 	/* XXX We allow a spurious inexact exception here. */
 	testall_odd(ctan, z, nan_nan, OPT_INVALID & ~FE_INEXACT, 0, 0);
 
-	z = cpackl(NAN, INFINITY);
+	z = CMPLXL(NAN, INFINITY);
 	testall_odd(csinh, z, nan_nan, OPT_INVALID, 0, 0);
 	testall_even(ccosh, z, nan_nan, OPT_INVALID, 0, 0);
 	testall_odd(ctanh, z, nan_nan, OPT_INVALID, 0, 0);
-	testall_odd(csin, z, cpackl(NAN, INFINITY), ALL_STD_EXCEPT, 0, 0);
-	testall_even(ccos, z, cpackl(INFINITY, NAN), ALL_STD_EXCEPT, 0,
+	testall_odd(csin, z, CMPLXL(NAN, INFINITY), ALL_STD_EXCEPT, 0, 0);
+	testall_even(ccos, z, CMPLXL(INFINITY, NAN), ALL_STD_EXCEPT, 0,
 	    CS_IMAG);
-	testall_odd(ctan, z, cpackl(0, 1), ALL_STD_EXCEPT, 0, CS_IMAG);
+	testall_odd(ctan, z, CMPLXL(0, 1), ALL_STD_EXCEPT, 0, CS_IMAG);
 
-	z = cpackl(INFINITY, NAN);
-	testall_odd(csinh, z, cpackl(INFINITY, NAN), ALL_STD_EXCEPT, 0, 0);
-	testall_even(ccosh, z, cpackl(INFINITY, NAN), ALL_STD_EXCEPT, 0,
+	z = CMPLXL(INFINITY, NAN);
+	testall_odd(csinh, z, CMPLXL(INFINITY, NAN), ALL_STD_EXCEPT, 0, 0);
+	testall_even(ccosh, z, CMPLXL(INFINITY, NAN), ALL_STD_EXCEPT, 0,
 		     CS_REAL);
-	testall_odd(ctanh, z, cpackl(1, 0), ALL_STD_EXCEPT, 0, CS_REAL);
+	testall_odd(ctanh, z, CMPLXL(1, 0), ALL_STD_EXCEPT, 0, CS_REAL);
 	testall_odd(csin, z, nan_nan, OPT_INVALID, 0, 0);
 	testall_even(ccos, z, nan_nan, OPT_INVALID, 0, 0);
 	testall_odd(ctan, z, nan_nan, OPT_INVALID, 0, 0);
 
-	z = cpackl(0, NAN);
-	testall_odd(csinh, z, cpackl(0, NAN), ALL_STD_EXCEPT, 0, 0);
-	testall_even(ccosh, z, cpackl(NAN, 0), ALL_STD_EXCEPT, 0, 0);
+	z = CMPLXL(0, NAN);
+	testall_odd(csinh, z, CMPLXL(0, NAN), ALL_STD_EXCEPT, 0, 0);
+	testall_even(ccosh, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, 0, 0);
 	testall_odd(ctanh, z, nan_nan, OPT_INVALID, 0, 0);
-	testall_odd(csin, z, cpackl(0, NAN), ALL_STD_EXCEPT, 0, CS_REAL);
-	testall_even(ccos, z, cpackl(NAN, 0), ALL_STD_EXCEPT, 0, 0);
-	testall_odd(ctan, z, cpackl(0, NAN), ALL_STD_EXCEPT, 0, CS_REAL);
+	testall_odd(csin, z, CMPLXL(0, NAN), ALL_STD_EXCEPT, 0, CS_REAL);
+	testall_even(ccos, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, 0, 0);
+	testall_odd(ctan, z, CMPLXL(0, NAN), ALL_STD_EXCEPT, 0, CS_REAL);
 
-	z = cpackl(NAN, 0);
-	testall_odd(csinh, z, cpackl(NAN, 0), ALL_STD_EXCEPT, 0, CS_IMAG);
-	testall_even(ccosh, z, cpackl(NAN, 0), ALL_STD_EXCEPT, 0, 0);
-	testall_odd(ctanh, z, cpackl(NAN, 0), ALL_STD_EXCEPT, 0, CS_IMAG);
-	testall_odd(csin, z, cpackl(NAN, 0), ALL_STD_EXCEPT, 0, 0);
-	testall_even(ccos, z, cpackl(NAN, 0), ALL_STD_EXCEPT, 0, 0);
+	z = CMPLXL(NAN, 0);
+	testall_odd(csinh, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, 0, CS_IMAG);
+	testall_even(ccosh, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, 0, 0);
+	testall_odd(ctanh, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, 0, CS_IMAG);
+	testall_odd(csin, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, 0, 0);
+	testall_even(ccos, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, 0, 0);
 	testall_odd(ctan, z, nan_nan, OPT_INVALID, 0, 0);
 }
 
@@ -325,53 +238,53 @@ test_inf(void)
 	 * 0,Inf	+-0,NaN	inval	NaN,+-0 inval	NaN,NaN	inval
 	 * finite,Inf	NaN,NaN inval	NaN,NaN inval	NaN,NaN inval
 	 */
-	z = cpackl(INFINITY, INFINITY);
-	testall_odd(csinh, z, cpackl(INFINITY, NAN),
+	z = CMPLXL(INFINITY, INFINITY);
+	testall_odd(csinh, z, CMPLXL(INFINITY, NAN),
 		    ALL_STD_EXCEPT, FE_INVALID, 0);
-	testall_even(ccosh, z, cpackl(INFINITY, NAN),
+	testall_even(ccosh, z, CMPLXL(INFINITY, NAN),
 		     ALL_STD_EXCEPT, FE_INVALID, 0);
-	testall_odd(ctanh, z, cpackl(1, 0), ALL_STD_EXCEPT, 0, CS_REAL);
-	testall_odd(csin, z, cpackl(NAN, INFINITY),
+	testall_odd(ctanh, z, CMPLXL(1, 0), ALL_STD_EXCEPT, 0, CS_REAL);
+	testall_odd(csin, z, CMPLXL(NAN, INFINITY),
 		    ALL_STD_EXCEPT, FE_INVALID, 0);
-	testall_even(ccos, z, cpackl(INFINITY, NAN),
+	testall_even(ccos, z, CMPLXL(INFINITY, NAN),
 		     ALL_STD_EXCEPT, FE_INVALID, 0);
-	testall_odd(ctan, z, cpackl(0, 1), ALL_STD_EXCEPT, 0, CS_REAL);
+	testall_odd(ctan, z, CMPLXL(0, 1), ALL_STD_EXCEPT, 0, CS_REAL);
 
 	/* XXX We allow spurious inexact exceptions here (hard to avoid). */
 	for (i = 0; i < sizeof(finites) / sizeof(finites[0]); i++) {
-		z = cpackl(INFINITY, finites[i]);
+		z = CMPLXL(INFINITY, finites[i]);
 		c = INFINITY * cosl(finites[i]);
 		s = finites[i] == 0 ? finites[i] : INFINITY * sinl(finites[i]);
-		testall_odd(csinh, z, cpackl(c, s), OPT_INEXACT, 0, CS_BOTH);
-		testall_even(ccosh, z, cpackl(c, s), OPT_INEXACT, 0, CS_BOTH);
-		testall_odd(ctanh, z, cpackl(1, 0 * sin(finites[i] * 2)),
+		testall_odd(csinh, z, CMPLXL(c, s), OPT_INEXACT, 0, CS_BOTH);
+		testall_even(ccosh, z, CMPLXL(c, s), OPT_INEXACT, 0, CS_BOTH);
+		testall_odd(ctanh, z, CMPLXL(1, 0 * sin(finites[i] * 2)),
 			    OPT_INEXACT, 0, CS_BOTH);
-		z = cpackl(finites[i], INFINITY);
-		testall_odd(csin, z, cpackl(s, c), OPT_INEXACT, 0, CS_BOTH);
-		testall_even(ccos, z, cpackl(c, -s), OPT_INEXACT, 0, CS_BOTH);
-		testall_odd(ctan, z, cpackl(0 * sin(finites[i] * 2), 1),
+		z = CMPLXL(finites[i], INFINITY);
+		testall_odd(csin, z, CMPLXL(s, c), OPT_INEXACT, 0, CS_BOTH);
+		testall_even(ccos, z, CMPLXL(c, -s), OPT_INEXACT, 0, CS_BOTH);
+		testall_odd(ctan, z, CMPLXL(0 * sin(finites[i] * 2), 1),
 			    OPT_INEXACT, 0, CS_BOTH);
 	}
 
-	z = cpackl(0, INFINITY);
-	testall_odd(csinh, z, cpackl(0, NAN), ALL_STD_EXCEPT, FE_INVALID, 0);
-	testall_even(ccosh, z, cpackl(NAN, 0), ALL_STD_EXCEPT, FE_INVALID, 0);
-	testall_odd(ctanh, z, cpackl(NAN, NAN), ALL_STD_EXCEPT, FE_INVALID, 0);
-	z = cpackl(INFINITY, 0);
-	testall_odd(csin, z, cpackl(NAN, 0), ALL_STD_EXCEPT, FE_INVALID, 0);
-	testall_even(ccos, z, cpackl(NAN, 0), ALL_STD_EXCEPT, FE_INVALID, 0);
-	testall_odd(ctan, z, cpackl(NAN, NAN), ALL_STD_EXCEPT, FE_INVALID, 0);
+	z = CMPLXL(0, INFINITY);
+	testall_odd(csinh, z, CMPLXL(0, NAN), ALL_STD_EXCEPT, FE_INVALID, 0);
+	testall_even(ccosh, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, FE_INVALID, 0);
+	testall_odd(ctanh, z, CMPLXL(NAN, NAN), ALL_STD_EXCEPT, FE_INVALID, 0);
+	z = CMPLXL(INFINITY, 0);
+	testall_odd(csin, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, FE_INVALID, 0);
+	testall_even(ccos, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, FE_INVALID, 0);
+	testall_odd(ctan, z, CMPLXL(NAN, NAN), ALL_STD_EXCEPT, FE_INVALID, 0);
 
-	z = cpackl(42, INFINITY);
-	testall_odd(csinh, z, cpackl(NAN, NAN), ALL_STD_EXCEPT, FE_INVALID, 0);
-	testall_even(ccosh, z, cpackl(NAN, NAN), ALL_STD_EXCEPT, FE_INVALID, 0);
+	z = CMPLXL(42, INFINITY);
+	testall_odd(csinh, z, CMPLXL(NAN, NAN), ALL_STD_EXCEPT, FE_INVALID, 0);
+	testall_even(ccosh, z, CMPLXL(NAN, NAN), ALL_STD_EXCEPT, FE_INVALID, 0);
 	/* XXX We allow a spurious inexact exception here. */
-	testall_odd(ctanh, z, cpackl(NAN, NAN), OPT_INEXACT, FE_INVALID, 0);
-	z = cpackl(INFINITY, 42);
-	testall_odd(csin, z, cpackl(NAN, NAN), ALL_STD_EXCEPT, FE_INVALID, 0);
-	testall_even(ccos, z, cpackl(NAN, NAN), ALL_STD_EXCEPT, FE_INVALID, 0);
+	testall_odd(ctanh, z, CMPLXL(NAN, NAN), OPT_INEXACT, FE_INVALID, 0);
+	z = CMPLXL(INFINITY, 42);
+	testall_odd(csin, z, CMPLXL(NAN, NAN), ALL_STD_EXCEPT, FE_INVALID, 0);
+	testall_even(ccos, z, CMPLXL(NAN, NAN), ALL_STD_EXCEPT, FE_INVALID, 0);
 	/* XXX We allow a spurious inexact exception here. */
-	testall_odd(ctan, z, cpackl(NAN, NAN), OPT_INEXACT, FE_INVALID, 0);
+	testall_odd(ctan, z, CMPLXL(NAN, NAN), OPT_INEXACT, FE_INVALID, 0);
 }
 
 /* Tests along the real and imaginary axes. */
@@ -387,26 +300,50 @@ test_axes(void)
 
 	for (i = 0; i < sizeof(nums) / sizeof(nums[0]); i++) {
 		/* Real axis */
-		z = cpackl(nums[i], 0.0);
-		testall_odd_tol(csinh, z, cpackl(sinh(nums[i]), 0), 0);
-		testall_even_tol(ccosh, z, cpackl(cosh(nums[i]), 0), 0);
-		testall_odd_tol(ctanh, z, cpackl(tanh(nums[i]), 0), 1);
-		testall_odd_tol(csin, z, cpackl(sin(nums[i]),
-					    copysign(0, cos(nums[i]))), 0);
-		testall_even_tol(ccos, z, cpackl(cos(nums[i]),
-		    -copysign(0, sin(nums[i]))), 0);
-		testall_odd_tol(ctan, z, cpackl(tan(nums[i]), 0), 1);
+		z = CMPLXL(nums[i], 0.0);
+		test_odd_tol(csinh, z, CMPLXL(sinh(nums[i]), 0), DBL_ULP());
+		test_even_tol(ccosh, z, CMPLXL(cosh(nums[i]), 0), DBL_ULP());
+		test_odd_tol(ctanh, z, CMPLXL(tanh(nums[i]), 0), DBL_ULP());
+		test_odd_tol(csin, z, CMPLXL(sin(nums[i]),
+		    copysign(0, cos(nums[i]))), DBL_ULP());
+		test_even_tol(ccos, z, CMPLXL(cos(nums[i]),
+		    -copysign(0, sin(nums[i]))), DBL_ULP());
+		test_odd_tol(ctan, z, CMPLXL(tan(nums[i]), 0), DBL_ULP());
+
+		test_odd_tol(csinhf, z, CMPLXL(sinhf(nums[i]), 0), FLT_ULP());
+		test_even_tol(ccoshf, z, CMPLXL(coshf(nums[i]), 0), FLT_ULP());
+		printf("%a %a\n", creal(z), cimag(z));
+		printf("%a %a\n", creal(ctanhf(z)), cimag(ctanhf(z)));
+		printf("%a\n", nextafterf(tanhf(nums[i]), INFINITY));
+		test_odd_tol(ctanhf, z, CMPLXL(tanhf(nums[i]), 0),
+			     1.3 * FLT_ULP());
+		test_odd_tol(csinf, z, CMPLXL(sinf(nums[i]),
+		    copysign(0, cosf(nums[i]))), FLT_ULP());
+		test_even_tol(ccosf, z, CMPLXL(cosf(nums[i]),
+		    -copysign(0, sinf(nums[i]))), 2 * FLT_ULP());
+		test_odd_tol(ctanf, z, CMPLXL(tanf(nums[i]), 0), FLT_ULP());
 
 		/* Imaginary axis */
-		z = cpackl(0.0, nums[i]);
-		testall_odd_tol(csinh, z, cpackl(copysign(0, cos(nums[i])),
-						 sin(nums[i])), 0);
-		testall_even_tol(ccosh, z, cpackl(cos(nums[i]),
-		    copysign(0, sin(nums[i]))), 0);
-		testall_odd_tol(ctanh, z, cpackl(0, tan(nums[i])), 1);
-		testall_odd_tol(csin, z, cpackl(0, sinh(nums[i])), 0);
-		testall_even_tol(ccos, z, cpackl(cosh(nums[i]), -0.0), 0);
-		testall_odd_tol(ctan, z, cpackl(0, tanh(nums[i])), 1);
+		z = CMPLXL(0.0, nums[i]);
+		test_odd_tol(csinh, z, CMPLXL(copysign(0, cos(nums[i])),
+						 sin(nums[i])), DBL_ULP());
+		test_even_tol(ccosh, z, CMPLXL(cos(nums[i]),
+		    copysign(0, sin(nums[i]))), DBL_ULP());
+		test_odd_tol(ctanh, z, CMPLXL(0, tan(nums[i])), DBL_ULP());
+		test_odd_tol(csin, z, CMPLXL(0, sinh(nums[i])), DBL_ULP());
+		test_even_tol(ccos, z, CMPLXL(cosh(nums[i]), -0.0), DBL_ULP());
+		test_odd_tol(ctan, z, CMPLXL(0, tanh(nums[i])), DBL_ULP());
+
+		test_odd_tol(csinhf, z, CMPLXL(copysign(0, cosf(nums[i])),
+						 sinf(nums[i])), FLT_ULP());
+		test_even_tol(ccoshf, z, CMPLXL(cosf(nums[i]),
+		    copysign(0, sinf(nums[i]))), FLT_ULP());
+		test_odd_tol(ctanhf, z, CMPLXL(0, tanf(nums[i])), FLT_ULP());
+		test_odd_tol(csinf, z, CMPLXL(0, sinhf(nums[i])), FLT_ULP());
+		test_even_tol(ccosf, z, CMPLXL(coshf(nums[i]), -0.0),
+			      FLT_ULP());
+		test_odd_tol(ctanf, z, CMPLXL(0, tanhf(nums[i])),
+			     1.3 * FLT_ULP());
 	}
 }
 
@@ -462,13 +399,13 @@ test_small(void)
 	int i;
 
 	for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
-		z = cpackl(tests[i].a, tests[i].b);
+		z = CMPLXL(tests[i].a, tests[i].b);
 		testall_odd_tol(csinh, z,
-		    cpackl(tests[i].sinh_a, tests[i].sinh_b), 1.1);
+		    CMPLXL(tests[i].sinh_a, tests[i].sinh_b), 1.1);
 		testall_even_tol(ccosh, z,
-		    cpackl(tests[i].cosh_a, tests[i].cosh_b), 1.1);
+		    CMPLXL(tests[i].cosh_a, tests[i].cosh_b), 1.1);
 		testall_odd_tol(ctanh, z,
-		    cpackl(tests[i].tanh_a, tests[i].tanh_b), 1.1);
+		    CMPLXL(tests[i].tanh_a, tests[i].tanh_b), 1.4);
         }
 }
 
@@ -479,36 +416,39 @@ test_large(void)
 	long double complex z;
 
 	/* tanh() uses a threshold around x=22, so check both sides. */
-	z = cpackl(21, 0.78539816339744830961566084581987572L);
+	z = CMPLXL(21, 0.78539816339744830961566084581987572L);
 	testall_odd_tol(ctanh, z,
-	    cpackl(1.0, 1.14990445285871196133287617611468468e-18L), 1);
+	    CMPLXL(1.0, 1.14990445285871196133287617611468468e-18L), 1.2);
 	z++;
 	testall_odd_tol(ctanh, z,
-	    cpackl(1.0, 1.55622644822675930314266334585597964e-19L), 1);
+	    CMPLXL(1.0, 1.55622644822675930314266334585597964e-19L), 1);
 
-	z = cpackl(355, 0.78539816339744830961566084581987572L);
-	testall_odd_tol(ctanh, z,
-	    cpackl(1.0, 8.95257245135025991216632140458264468e-309L), 1);
-	z = cpackl(30, 0x1p1023L);
-	testall_odd_tol(ctanh, z,
-	    cpackl(1.0, -1.62994325413993477997492170229268382e-26L), 1);
-	z = cpackl(1, 0x1p1023L);
-	testall_odd_tol(ctanh, z,
-	    cpackl(0.878606311888306869546254022621986509L,
-		   -0.225462792499754505792678258169527424L), 1);
+	z = CMPLXL(355, 0.78539816339744830961566084581987572L);
+	test_odd_tol(ctanh, z,
+		     CMPLXL(1.0, 8.95257245135025991216632140458264468e-309L),
+		     DBL_ULP());
+	z = CMPLXL(30, 0x1p1023L);
+	test_odd_tol(ctanh, z,
+		     CMPLXL(1.0, -1.62994325413993477997492170229268382e-26L),
+		     DBL_ULP());
+	z = CMPLXL(1, 0x1p1023L);
+	test_odd_tol(ctanh, z,
+		     CMPLXL(0.878606311888306869546254022621986509L,
+			    -0.225462792499754505792678258169527424L),
+		     DBL_ULP());
 
-	z = cpackl(710.6, 0.78539816339744830961566084581987572L);
-	testall_odd_tol(csinh, z,
-	    cpackl(1.43917579766621073533185387499658944e308L,
-		   1.43917579766621073533185387499658944e308L), 1);
-	testall_even_tol(ccosh, z,
-	    cpackl(1.43917579766621073533185387499658944e308L,
-		   1.43917579766621073533185387499658944e308L), 1);
+	z = CMPLXL(710.6, 0.78539816339744830961566084581987572L);
+	test_odd_tol(csinh, z,
+	    CMPLXL(1.43917579766621073533185387499658944e308L,
+		   1.43917579766621073533185387499658944e308L), DBL_ULP());
+	test_even_tol(ccosh, z,
+	    CMPLXL(1.43917579766621073533185387499658944e308L,
+		   1.43917579766621073533185387499658944e308L), DBL_ULP());
 
-	z = cpackl(1500, 0.78539816339744830961566084581987572L);
-	testall_odd(csinh, z, cpackl(INFINITY, INFINITY), OPT_INEXACT,
+	z = CMPLXL(1500, 0.78539816339744830961566084581987572L);
+	testall_odd(csinh, z, CMPLXL(INFINITY, INFINITY), OPT_INEXACT,
 	    FE_OVERFLOW, CS_BOTH);
-	testall_even(ccosh, z, cpackl(INFINITY, INFINITY), OPT_INEXACT,
+	testall_even(ccosh, z, CMPLXL(INFINITY, INFINITY), OPT_INEXACT,
 	    FE_OVERFLOW, CS_BOTH);
 }
 

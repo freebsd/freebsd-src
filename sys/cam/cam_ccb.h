@@ -145,8 +145,6 @@ typedef enum {
 				/* Path statistics (error counts, etc.) */
 	XPT_GDEV_STATS		= 0x0c,
 				/* Device statistics (error counts, etc.) */
-	XPT_FREEZE_QUEUE	= 0x0d,
-				/* Freeze device queue */
 	XPT_DEV_ADVINFO		= 0x0e,
 				/* Get/Set Device advanced information */
 /* SCSI Control Functions: 0x10->0x1F */
@@ -543,7 +541,7 @@ struct ccb_dev_match {
 /*
  * Definitions for the path inquiry CCB fields.
  */
-#define CAM_VERSION	0x16	/* Hex value for current version */
+#define CAM_VERSION	0x17	/* Hex value for current version */
 
 typedef enum {
 	PI_MDP_ABLE	= 0x80,	/* Supports MDP message */
@@ -749,7 +747,6 @@ struct ccb_relsim {
 #define RELSIM_RELEASE_AFTER_TIMEOUT	0x02
 #define RELSIM_RELEASE_AFTER_CMDCMPLT	0x04
 #define RELSIM_RELEASE_AFTER_QEMPTY	0x08
-#define RELSIM_RELEASE_RUNLEVEL		0x10
 	u_int32_t      openings;
 	u_int32_t      release_timeout;	/* Abstract argument. */
 	u_int32_t      qfrozen_cnt;
@@ -896,9 +893,14 @@ struct ccb_trans_settings_pata {
 #define	CTS_ATA_VALID_MODE		0x01
 #define	CTS_ATA_VALID_BYTECOUNT		0x02
 #define	CTS_ATA_VALID_ATAPI		0x20
+#define	CTS_ATA_VALID_CAPS		0x40
 	int		mode;		/* Mode */
 	u_int 		bytecount;	/* Length of PIO transaction */
 	u_int 		atapi;		/* Length of ATAPI CDB */
+	u_int 		caps;		/* Device and host SATA caps. */
+#define	CTS_ATA_CAPS_H			0x0000ffff
+#define	CTS_ATA_CAPS_H_DMA48		0x00000001 /* 48-bit DMA */
+#define	CTS_ATA_CAPS_D			0xffff0000
 };
 
 struct ccb_trans_settings_sata {
@@ -1292,6 +1294,19 @@ cam_fill_smpio(struct ccb_smpio *smpio, uint32_t retries,
 	smpio->smp_request_len = smp_request_len;
 	smpio->smp_response = smp_response;
 	smpio->smp_response_len = smp_response_len;
+}
+
+static __inline void
+cam_set_ccbstatus(union ccb *ccb, cam_status status)
+{
+	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+	ccb->ccb_h.status |= status;
+}
+
+static __inline cam_status
+cam_ccb_status(union ccb *ccb)
+{
+	return (ccb->ccb_h.status & CAM_STATUS_MASK);
 }
 
 void cam_calc_geometry(struct ccb_calc_geometry *ccg, int extended);

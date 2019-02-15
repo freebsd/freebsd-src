@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: tailboxbg1,v 1.9 2010/01/13 10:20:03 tom Exp $
+# $Id: tailboxbg1,v 1.10 2012/06/29 09:51:46 tom Exp $
 
 . ./setup-vars
 
@@ -24,7 +24,7 @@ if test -n "$pid" ; then
 sleep 10
 
 # now kill it
-kill -3 $pid 2>&1 >/dev/null 2>/dev/null
+kill -$SIG_QUIT $pid 2>&1 >/dev/null 2>/dev/null
 echo "killed [$pid]"
 fi
 
