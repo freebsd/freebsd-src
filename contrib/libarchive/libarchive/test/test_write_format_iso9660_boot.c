@@ -104,7 +104,7 @@ _test_write_format_iso9660_boot(int write_info_tbl)
 	/* ISO9660 format: Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_iso9660(a));
-	assertA(0 == archive_write_set_compression_none(a));
+	assertA(0 == archive_write_add_filter_none(a));
 	assertA(0 == archive_write_set_option(a, NULL, "boot", "boot.img"));
 	if (write_info_tbl)
 		assertA(0 == archive_write_set_option(a, NULL, "boot-info-table", "1"));

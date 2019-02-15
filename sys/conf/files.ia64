@@ -41,7 +41,7 @@ contrib/ia64/libuwx/src/uwx_trace.c		standard
 contrib/ia64/libuwx/src/uwx_uinfo.c		standard
 contrib/ia64/libuwx/src/uwx_utable.c		standard
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
-crypto/des/des_enc.c		optional	crypto | ipsec
+crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/atkbdc/atkbd.c		optional	atkbd atkbdc
 dev/atkbdc/atkbd_atkbdc.c	optional	atkbd atkbdc
 dev/atkbdc/atkbdc.c		optional	atkbdc

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2011 Qlogic Corporation
+ * Copyright (c) 2011-2013 Qlogic Corporation
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -201,6 +201,10 @@
  */
 
 #define Q8_ROM_RD_DATA			0x03310018
+#define Q8_ROM_WR_DATA                  0x0331000C
+#define Q8_ROM_DIRECT_WINDOW            0x03310030
+#define Q8_ROM_DIRECT_DATA_OFFSET       0x03310000
+
 
 #define Q8_NX_CDRP_CMD_RSP		0x1B2218
 #define Q8_NX_CDRP_ARG1			0x1B221C

@@ -206,7 +206,16 @@
         mov     r0, r0;	  		/* NOP for previous instruction */ \
 	add	sp, sp, #(4*15);	/* Adjust the stack pointer */	   \
 	ldmia	sp, {sp, lr, pc}^	/* Restore lr and exit */
-#endif 
+#endif
+#if defined(__ARM_EABI__)
+#define	UNWINDSVCFRAME							   \
+	.save {r13-r15};		/* Restore sp, lr, pc */	   \
+	.pad #(2*4);			/* Skip user sp and lr */	   \
+	.save {r0-r12};			/* Restore r0-r12 */		   \
+	.pad #(4)			/* Skip spsr */
+#else
+#define	UNWINDSVCFRAME
+#endif
 
 #define	DATA(name) \
 	.data ; \

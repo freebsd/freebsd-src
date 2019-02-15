@@ -25,13 +25,11 @@ You can install from the following types of media:
 
    FTP      Get the distribution files from an anonymous ftp server
             (you will be presented with a list).  Please note that
-            you may invoke FTP in "Active" mode, "Passive" mode, or
+            you may invoke FTP in "Active"/"Passive" auto-mode, or
             via an HTTP proxy.
 
-            Active mode is the standard way of fetching files and
-            Passive mode is for use when you're behind a firewall or
-            some other security mechanism that blocks active FTP
-            connections.  Using an HTTP proxy is sometimes necessary
+            By default, ftp(1) will automatically use the best mode
+            for the server.  Using an HTTP proxy is sometimes necessary
             for firewalls which block all FTP connections.
 
             If you chose to enter your own URL in the FTP menu, please
@@ -39,6 +37,14 @@ You can install from the following types of media:
             of the user being logged in as.  By default, this is the
             user "ftp" (anonymous ftp) but you may change this in the
             Options screen.
+
+
+   HTTP Direct
+            Get the distribution files directly from an HTTP server.
+
+            If you chose to enter your own URL in the HTTP Direct menu,
+            please note that all paths are *relative* to the root
+            directory of the web server.
 
 
    NFS      Get the distribution files from an NFS server somewhere

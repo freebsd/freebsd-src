@@ -1,5 +1,5 @@
-/* $OpenBSD: sshconnect.c,v 1.234 2011/05/24 07:15:47 djm Exp $ */
-/* $FreeBSD$ */
+/* $OpenBSD: sshconnect.c,v 1.236 2012/09/14 16:51:34 markus Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.237 2013/02/22 19:13:56 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -89,6 +89,13 @@ ssh_proxy_connect(const char *host, u_short port, const char *proxy_command)
 	int pin[2], pout[2];
 	pid_t pid;
 	char *shell, strport[NI_MAXSERV];
+
+	if (!strcmp(proxy_command, "-")) {
+		packet_set_connection(STDIN_FILENO, STDOUT_FILENO);
+		packet_set_timeout(options.server_alive_interval,
+		    options.server_alive_count_max);
+		return 0;
+	}
 
 	if ((shell = getenv("SHELL")) == NULL || *shell == '\0')
 		shell = _PATH_BSHELL;
@@ -458,6 +465,23 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 	return 0;
 }
 
+static void
+send_client_banner(int connection_out, int minor1)
+{
+	/* Send our own protocol version identification. */
+	xasprintf(&client_version_string, "SSH-%d.%d-%.100s%s%s%s%s",
+	    compat20 ? PROTOCOL_MAJOR_2 : PROTOCOL_MAJOR_1,
+	    compat20 ? PROTOCOL_MINOR_2 : minor1,
+	    SSH_VERSION, options.hpn_disabled ? "" : SSH_VERSION_HPN,
+	    *options.version_addendum == '\0' ? "" : " ",
+	    options.version_addendum, compat20 ? "\r\n" : "\n");
+	if (roaming_atomicio(vwrite, connection_out, client_version_string,
+	    strlen(client_version_string)) != strlen(client_version_string))
+		fatal("write: %.100s", strerror(errno));
+	chop(client_version_string);
+	debug("Local version string %.100s", client_version_string);
+}
+
 /*
  * Waits for the server identification string, and sends our own
  * identification string.
@@ -469,7 +493,7 @@ ssh_exchange_identification(int timeout_ms)
 	int remote_major, remote_minor, mismatch;
 	int connection_in = packet_get_connection_in();
 	int connection_out = packet_get_connection_out();
-	int minor1 = PROTOCOL_MINOR_1;
+	int minor1 = PROTOCOL_MINOR_1, client_banner_sent = 0;
 	u_int i, n;
 	size_t len;
 	int fdsetsz, remaining, rc;
@@ -478,6 +502,16 @@ ssh_exchange_identification(int timeout_ms)
 
 	fdsetsz = howmany(connection_in + 1, NFDBITS) * sizeof(fd_mask);
 	fdset = xcalloc(1, fdsetsz);
+
+	/*
+	 * If we are SSH2-only then we can send the banner immediately and
+	 * save a round-trip.
+	 */
+	if (options.protocol == SSH_PROTO_2) {
+		enable_compat20();
+		send_client_banner(connection_out, 0);
+		client_banner_sent = 1;
+	}
 
 	/* Read other side's version identification. */
 	remaining = timeout_ms;
@@ -581,20 +615,9 @@ ssh_exchange_identification(int timeout_ms)
 		fatal("Protocol major versions differ: %d vs. %d",
 		    (options.protocol & SSH_PROTO_2) ? PROTOCOL_MAJOR_2 : PROTOCOL_MAJOR_1,
 		    remote_major);
-	/* Send our own protocol version identification. */
-	snprintf(buf, sizeof buf, "SSH-%d.%d-%.100s%s%s%s%s",
-	    compat20 ? PROTOCOL_MAJOR_2 : PROTOCOL_MAJOR_1,
-	    compat20 ? PROTOCOL_MINOR_2 : minor1,
-	    SSH_VERSION, options.hpn_disabled ? "" : SSH_VERSION_HPN,
-	    *options.version_addendum == '\0' ? "" : " ",
-	    options.version_addendum, compat20 ? "\r\n" : "\n");
-	if (roaming_atomicio(vwrite, connection_out, buf, strlen(buf))
-	    != strlen(buf))
-		fatal("write: %.100s", strerror(errno));
-	client_version_string = xstrdup(buf);
-	chop(client_version_string);
+	if (!client_banner_sent)
+		send_client_banner(connection_out, minor1);
 	chop(server_version_string);
-	debug("Local version string %.100s", client_version_string);
 }
 
 /* defaults to 'no' */

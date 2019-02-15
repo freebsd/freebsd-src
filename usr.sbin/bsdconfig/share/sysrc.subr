@@ -135,7 +135,7 @@ f_sysrc_get()
 	case "$1" in
 	[0-9]*)
 		# Don't expand possible positional parameters
-		return $FAILURE;;
+		return $FAILURE ;;
 	*)
 		[ "$1" ] || return $FAILURE
 	esac
@@ -218,7 +218,7 @@ f_sysrc_get_default()
 	case "$1" in
 	[0-9]*)
 		# Don't expand possible positional parameters
-		return $FAILURE;;
+		return $FAILURE ;;
 	*)
 		[ "$1" ] || return $FAILURE
 	esac

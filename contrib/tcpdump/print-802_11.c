@@ -1223,6 +1223,34 @@ handle_deauth(const struct mgmt_header_t *pmh, const u_char *p, u_int length)
 		   printf("Act#%d", (v)) \
 )
 
+#define PRINT_MESH_ACTION(v) (\
+	(v) == 0 ? printf("MeshLink") : \
+	(v) == 1 ? printf("HWMP") : \
+	(v) == 2 ? printf("Gate Announcement") : \
+	(v) == 3 ? printf("Congestion Control") : \
+	(v) == 4 ? printf("MCCA Setup Request") : \
+	(v) == 5 ? printf("MCCA Setup Reply") : \
+	(v) == 6 ? printf("MCCA Advertisement Request") : \
+	(v) == 7 ? printf("MCCA Advertisement") : \
+	(v) == 8 ? printf("MCCA Teardown") : \
+	(v) == 9 ? printf("TBTT Adjustment Request") : \
+	(v) == 10 ? printf("TBTT Adjustment Response") : \
+		   printf("Act#%d", (v)) \
+)
+#define PRINT_MULTIHOP_ACTION(v) (\
+	(v) == 0 ? printf("Proxy Update") : \
+	(v) == 1 ? printf("Proxy Update Confirmation") : \
+		   printf("Act#%d", (v)) \
+)
+#define PRINT_SELFPROT_ACTION(v) (\
+	(v) == 1 ? printf("Peering Open") : \
+	(v) == 2 ? printf("Peering Confirm") : \
+	(v) == 3 ? printf("Peering Close") : \
+	(v) == 4 ? printf("Group Key Inform") : \
+	(v) == 5 ? printf("Group Key Acknowledge") : \
+		   printf("Act#%d", (v)) \
+)
+
 static int
 handle_action(const struct mgmt_header_t *pmh, const u_char *p, u_int length)
 {
@@ -1241,12 +1269,13 @@ handle_action(const struct mgmt_header_t *pmh, const u_char *p, u_int length)
 	case 2: printf("DLS Act#%d", p[1]); break;
 	case 3: printf("BA "); PRINT_BA_ACTION(p[1]); break;
 	case 7: printf("HT "); PRINT_HT_ACTION(p[1]); break;
-	case 13: printf("MeshLMetric "); PRINT_MESHLINK_ACTION(p[1]); break;
-	case 15: printf("Interwork Act#%d", p[1]); break;
-	case 16: printf("Resource Act#%d", p[1]); break;
-	case 17: printf("Proxy Act#%d", p[1]); break;
-	case 30: printf("MeshPeering "); PRINT_MESHPEERING_ACTION(p[1]); break;
-	case 32: printf("MeshPath "); PRINT_MESHPATH_ACTION(p[1]); break;
+	case 13: printf("MeshAction "); PRINT_MESH_ACTION(p[1]); break;
+	case 14:
+		printf("MultiohopAction ");
+		PRINT_MULTIHOP_ACTION(p[1]); break;
+	case 15:
+		printf("SelfprotectAction ");
+		PRINT_SELFPROT_ACTION(p[1]); break;
 	case 127: printf("Vendor Act#%d", p[1]); break;
 	default:
 		printf("Reserved(%d) Act#%d", p[0], p[1]);

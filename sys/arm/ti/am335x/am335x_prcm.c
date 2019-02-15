@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #define CM_PER_L3S_CLKSTCTRL		(CM_PER + 0x004)
 #define CM_PER_L3_CLKSTCTRL		(CM_PER + 0x00C)
 #define CM_PER_CPGMAC0_CLKCTRL		(CM_PER + 0x014)
+#define CM_PER_LCDC_CLKCTRL		(CM_PER + 0x018)
 #define CM_PER_USB0_CLKCTRL		(CM_PER + 0x01C)
 #define CM_PER_TPTC0_CLKCTRL		(CM_PER + 0x024)
 #define CM_PER_MMC0_CLKCTRL		(CM_PER + 0x03C)
@@ -72,6 +73,9 @@ __FBSDID("$FreeBSD$");
 #define CM_PER_GPIO2_CLKCTRL		(CM_PER + 0x0B0)
 #define CM_PER_GPIO3_CLKCTRL		(CM_PER + 0x0B4)
 #define CM_PER_TPCC_CLKCTRL		(CM_PER + 0x0BC)
+#define CM_PER_EPWMSS1_CLKCTRL		(CM_PER + 0x0CC)
+#define CM_PER_EPWMSS0_CLKCTRL		(CM_PER + 0x0D4)
+#define CM_PER_EPWMSS2_CLKCTRL		(CM_PER + 0x0D8)
 #define CM_PER_L3_INSTR_CLKCTRL		(CM_PER + 0x0DC)
 #define CM_PER_L3_CLKCTRL		(CM_PER + 0x0E0)
 #define CM_PER_TIMER5_CLKCTRL		(CM_PER + 0x0EC)
@@ -90,7 +94,10 @@ __FBSDID("$FreeBSD$");
 #define CM_WKUP_GPIO0_CLKCTRL		(CM_WKUP + 0x008)
 #define CM_WKUP_CM_L3_AON_CLKSTCTRL	(CM_WKUP + 0x01C)
 #define CM_WKUP_CM_CLKSEL_DPLL_MPU	(CM_WKUP + 0x02C)
+#define CM_WKUP_CM_IDLEST_DPLL_DISP	(CM_WKUP + 0x048)
+#define CM_WKUP_CM_CLKSEL_DPLL_DISP	(CM_WKUP + 0x054)
 #define CM_WKUP_CM_CLKDCOLDO_DPLL_PER	(CM_WKUP + 0x07C)
+#define CM_WKUP_CM_CLKMODE_DPLL_DISP	(CM_WKUP + 0x098)
 #define CM_WKUP_I2C0_CLKCTRL		(CM_WKUP + 0x0B8)
 
 #define CM_DPLL				0x500
@@ -124,9 +131,11 @@ static int am335x_clk_generic_set_source(struct ti_clock_dev *clkdev, clk_src_t 
 static int am335x_clk_hsmmc_get_source_freq(struct ti_clock_dev *clkdev,  unsigned int *freq);
 static int am335x_clk_get_sysclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
 static int am335x_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
+static int am335x_clk_get_arm_disp_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
 static void am335x_prcm_reset(void);
 static int am335x_clk_cpsw_activate(struct ti_clock_dev *clkdev);
 static int am335x_clk_musb0_activate(struct ti_clock_dev *clkdev);
+static int am335x_clk_lcdc_activate(struct ti_clock_dev *clkdev);
 
 #define AM335X_GENERIC_CLOCK_DEV(i) \
 	{	.id = (i), \
@@ -190,6 +199,15 @@ struct ti_clock_dev ti_clk_devmap[] = {
 		.clk_get_source_freq = NULL,
 	},
 
+	/* LCD controller clocks */
+	{	.id                  = LCDC_CLK,
+		.clk_activate        = am335x_clk_lcdc_activate,
+		.clk_deactivate      = NULL,
+		.clk_set_source      = NULL,
+		.clk_accessible      = NULL,
+		.clk_get_source_freq = am335x_clk_get_arm_disp_freq,
+	},
+
 	/* DMTimer */
 	AM335X_GENERIC_CLOCK_DEV(DMTIMER2_CLK),
 	AM335X_GENERIC_CLOCK_DEV(DMTIMER3_CLK),
@@ -219,6 +237,11 @@ struct ti_clock_dev ti_clk_devmap[] = {
 	AM335X_MMCHS_CLOCK_DEV(MMC0_CLK),
 	AM335X_MMCHS_CLOCK_DEV(MMC1_CLK),
 	AM335X_MMCHS_CLOCK_DEV(MMC2_CLK),
+
+	/* PWMSS */
+	AM335X_GENERIC_CLOCK_DEV(PWMSS0_CLK),
+	AM335X_GENERIC_CLOCK_DEV(PWMSS1_CLK),
+	AM335X_GENERIC_CLOCK_DEV(PWMSS2_CLK),
 
 	{  INVALID_CLK_IDENT, NULL, NULL, NULL, NULL }
 };
@@ -266,6 +289,11 @@ static struct am335x_clk_details g_am335x_clk_details[] = {
 	_CLK_DETAIL(MMC0_CLK, CM_PER_MMC0_CLKCTRL, 0),
 	_CLK_DETAIL(MMC1_CLK, CM_PER_MMC1_CLKCTRL, 0),
 	_CLK_DETAIL(MMC2_CLK, CM_PER_MMC1_CLKCTRL, 0),
+
+	/* PWMSS modules */
+	_CLK_DETAIL(PWMSS0_CLK, CM_PER_EPWMSS0_CLKCTRL, 0),
+	_CLK_DETAIL(PWMSS1_CLK, CM_PER_EPWMSS1_CLKCTRL, 0),
+	_CLK_DETAIL(PWMSS2_CLK, CM_PER_EPWMSS2_CLKCTRL, 0),
 
 	{ INVALID_CLK_IDENT, 0},
 };
@@ -491,16 +519,34 @@ am335x_clk_get_sysclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq)
 	return (0);
 }
 
+#define DPLL_BYP_CLKSEL(reg)	((reg>>23) & 1)
+#define DPLL_DIV(reg)		((reg & 0x7f)+1)
+#define DPLL_MULT(reg)		((reg>>8) & 0x7FF)
+
 static int
 am335x_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq)
 {
 	uint32_t reg;
 	uint32_t sysclk;
-#define DPLL_BYP_CLKSEL(reg)	((reg>>23) & 1)
-#define DPLL_DIV(reg)		((reg & 0x7f)+1)
-#define DPLL_MULT(reg)		((reg>>8) & 0x7FF)
 
 	reg = prcm_read_4(CM_WKUP_CM_CLKSEL_DPLL_MPU);
+
+	/*Check if we are running in bypass */
+	if (DPLL_BYP_CLKSEL(reg))
+		return ENXIO;
+
+	am335x_clk_get_sysclk_freq(NULL, &sysclk);
+	*freq = DPLL_MULT(reg) * (sysclk / DPLL_DIV(reg));
+	return(0);
+}
+
+static int
+am335x_clk_get_arm_disp_freq(struct ti_clock_dev *clkdev, unsigned int *freq)
+{
+	uint32_t reg;
+	uint32_t sysclk;
+
+	reg = prcm_read_4(CM_WKUP_CM_CLKSEL_DPLL_DISP);
 
 	/*Check if we are running in bypass */
 	if (DPLL_BYP_CLKSEL(reg))
@@ -565,4 +611,46 @@ am335x_clk_musb0_activate(struct ti_clock_dev *clkdev)
 	return(0);
 }
 
+static int
+am335x_clk_lcdc_activate(struct ti_clock_dev *clkdev)
+{
+	struct am335x_prcm_softc *sc = am335x_prcm_sc;
 
+	if (sc == NULL)
+		return (ENXIO);
+
+	/* Bypass mode */
+	prcm_write_4(CM_WKUP_CM_CLKMODE_DPLL_DISP, 0x4);
+
+	/* Make sure it's in bypass mode */
+	while (!(prcm_read_4(CM_WKUP_CM_IDLEST_DPLL_DISP) 
+	    & (1 << 8)))
+		DELAY(10);
+
+	/* 
+	 * For now set frequenct to  5xSYSFREQ 
+	 * More flexible control might be required
+	 */
+	prcm_write_4(CM_WKUP_CM_CLKSEL_DPLL_DISP, (5 << 8) | 0);
+
+	/* Locked mode */
+	prcm_write_4(CM_WKUP_CM_CLKMODE_DPLL_DISP, 0x7);
+
+	int timeout = 10000;
+	while ((!(prcm_read_4(CM_WKUP_CM_IDLEST_DPLL_DISP) 
+	    & (1 << 0))) && timeout--)
+		DELAY(10);
+
+	/*set MODULEMODE to ENABLE(2) */
+	prcm_write_4(CM_PER_LCDC_CLKCTRL, 2);
+
+	/* wait for MODULEMODE to become ENABLE(2) */
+	while ((prcm_read_4(CM_PER_LCDC_CLKCTRL) & 0x3) != 2)
+		DELAY(10);
+
+	/* wait for IDLEST to become Func(0) */
+	while(prcm_read_4(CM_PER_LCDC_CLKCTRL) & (3<<16))
+		DELAY(10);
+
+	return (0);
+}

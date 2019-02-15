@@ -652,8 +652,10 @@ route_output(struct mbuf *m, struct socket *so)
 		 */
 		if (gw_ro.ro_rt != NULL &&
 		    gw_ro.ro_rt->rt_gateway->sa_family == AF_LINK &&
-		    gw_ro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK)
+		    gw_ro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK) {
 			info.rti_flags &= ~RTF_GATEWAY;
+			info.rti_flags |= RTF_GWFLAG_COMPAT;
+		}
 		if (gw_ro.ro_rt != NULL)
 			RTFREE(gw_ro.ro_rt);
 	}
@@ -853,7 +855,11 @@ route_output(struct mbuf *m, struct socket *so)
 				Free(rtm); rtm = new_rtm;
 			}
 			(void)rt_msg2(rtm->rtm_type, &info, (caddr_t)rtm, NULL);
-			rtm->rtm_flags = rt->rt_flags;
+			if (rt->rt_flags & RTF_GWFLAG_COMPAT)
+				rtm->rtm_flags = RTF_GATEWAY | 
+					(rt->rt_flags & ~RTF_GWFLAG_COMPAT);
+			else
+				rtm->rtm_flags = rt->rt_flags;
 			rt_getmetrics(&rt->rt_rmx, &rtm->rtm_rmx);
 			rtm->rtm_addrs = info.rti_addrs;
 			break;
@@ -905,6 +911,7 @@ route_output(struct mbuf *m, struct socket *so)
 					RT_UNLOCK(rt);
 					senderr(error);
 				}
+				rt->rt_flags &= ~RTF_GATEWAY;
 				rt->rt_flags |= (RTF_GATEWAY & info.rti_flags);
 			}
 			if (info.rti_ifa != NULL &&
@@ -1591,7 +1598,11 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 	if (w->w_req && w->w_tmem) {
 		struct rt_msghdr *rtm = (struct rt_msghdr *)w->w_tmem;
 
-		rtm->rtm_flags = rt->rt_flags;
+		if (rt->rt_flags & RTF_GWFLAG_COMPAT)
+			rtm->rtm_flags = RTF_GATEWAY | 
+				(rt->rt_flags & ~RTF_GWFLAG_COMPAT);
+		else
+			rtm->rtm_flags = rt->rt_flags;
 		/*
 		 * let's be honest about this being a retarded hack
 		 */

@@ -96,7 +96,7 @@ parse_lt(const char *str)
 	else
 	    m.lt_start = 0;
 	if (*p == '-')
-	    p = parse_time(++p, &m.lt_end);
+	    p = parse_time(p + 1, &m.lt_end);
 	else
 	    m.lt_end = 1440;
 

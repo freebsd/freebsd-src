@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <signal.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,10 +72,11 @@ popen(command, type)
 {
 	struct pid *cur;
 	FILE *iop;
-	int pdes[2], pid, twoway;
+	int pdes[2], pid, twoway, cloexec;
 	char *argv[4];
 	struct pid *p;
 
+	cloexec = strchr(type, 'e') != NULL;
 	/*
 	 * Lite2 introduced two-way popen() pipes using _socketpair().
 	 * FreeBSD's pipe() is bidirectional, so we use that.
@@ -84,10 +86,11 @@ popen(command, type)
 		type = "r+";
 	} else  {
 		twoway = 0;
-		if ((*type != 'r' && *type != 'w') || type[1])
+		if ((*type != 'r' && *type != 'w') ||
+		    (type[1] && (type[1] != 'e' || type[2])))
 			return (NULL);
 	}
-	if (pipe(pdes) < 0)
+	if ((cloexec ? pipe2(pdes, O_CLOEXEC) : pipe(pdes)) < 0)
 		return (NULL);
 
 	if ((cur = malloc(sizeof(struct pid))) == NULL) {
@@ -120,20 +123,29 @@ popen(command, type)
 			 * the compiler is free to corrupt all the local
 			 * variables.
 			 */
-			(void)_close(pdes[0]);
+			if (!cloexec)
+				(void)_close(pdes[0]);
 			if (pdes[1] != STDOUT_FILENO) {
 				(void)_dup2(pdes[1], STDOUT_FILENO);
-				(void)_close(pdes[1]);
+				if (!cloexec)
+					(void)_close(pdes[1]);
 				if (twoway)
 					(void)_dup2(STDOUT_FILENO, STDIN_FILENO);
-			} else if (twoway && (pdes[1] != STDIN_FILENO))
+			} else if (twoway && (pdes[1] != STDIN_FILENO)) {
 				(void)_dup2(pdes[1], STDIN_FILENO);
+				if (cloexec)
+					(void)_fcntl(pdes[1], F_SETFD, 0);
+			} else if (cloexec)
+				(void)_fcntl(pdes[1], F_SETFD, 0);
 		} else {
 			if (pdes[0] != STDIN_FILENO) {
 				(void)_dup2(pdes[0], STDIN_FILENO);
-				(void)_close(pdes[0]);
-			}
-			(void)_close(pdes[1]);
+				if (!cloexec)
+					(void)_close(pdes[0]);
+			} else if (cloexec)
+				(void)_fcntl(pdes[0], F_SETFD, 0);
+			if (!cloexec)
+				(void)_close(pdes[1]);
 		}
 		SLIST_FOREACH(p, &pidlist, next)
 			(void)_close(fileno(p->fp));

@@ -148,7 +148,7 @@ stack_save(struct stack *st)
 	u_register_t pc, sp;
 
 	if (curthread == NULL)
-		panic("stack_save: curthread == NULL)");
+		panic("stack_save: curthread == NULL");
 
 	pc = curthread->td_pcb->pcb_regs.pc;
 	sp = curthread->td_pcb->pcb_regs.sp;

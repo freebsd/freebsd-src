@@ -12,10 +12,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "DwarfAccelTable.h"
-#include "DwarfDebug.h"
 #include "DIE.h"
-#include "llvm/ADT/Twine.h"
+#include "DwarfDebug.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCStreamer.h"
@@ -32,7 +32,7 @@ const char *DwarfAccelTable::Atom::AtomTypeString(enum AtomType AT) {
   case eAtomTypeTag: return "eAtomTypeTag";
   case eAtomTypeNameFlags: return "eAtomTypeNameFlags";
   case eAtomTypeTypeFlags: return "eAtomTypeTypeFlags";
-  } 
+  }
   llvm_unreachable("invalid AtomType!");
 }
 
@@ -155,7 +155,7 @@ void DwarfAccelTable::EmitHashes(AsmPrinter *Asm) {
            HE = Buckets[i].end(); HI != HE; ++HI) {
       Asm->OutStreamer.AddComment("Hash in Bucket " + Twine(i));
       Asm->EmitInt32((*HI)->HashValue);
-    } 
+    }
   }
 }
 
@@ -173,7 +173,7 @@ void DwarfAccelTable::EmitOffsets(AsmPrinter *Asm, MCSymbol *SecBegin) {
         MCBinaryExpr::CreateSub(MCSymbolRefExpr::Create((*HI)->Sym, Context),
                                 MCSymbolRefExpr::Create(SecBegin, Context),
                                 Context);
-      Asm->OutStreamer.EmitValue(Sub, sizeof(uint32_t), 0);
+      Asm->OutStreamer.EmitValue(Sub, sizeof(uint32_t));
     }
   }
 }
@@ -181,7 +181,7 @@ void DwarfAccelTable::EmitOffsets(AsmPrinter *Asm, MCSymbol *SecBegin) {
 // Walk through the buckets and emit the full data for each element in
 // the bucket. For the string case emit the dies and the various offsets.
 // Terminate each HashData bucket with 0.
-void DwarfAccelTable::EmitData(AsmPrinter *Asm, DwarfDebug *D) {
+void DwarfAccelTable::EmitData(AsmPrinter *Asm, DwarfUnits *D) {
   uint64_t PrevHash = UINT64_MAX;
   for (size_t i = 0, e = Buckets.size(); i < e; ++i) {
     for (HashList::const_iterator HI = Buckets[i].begin(),
@@ -190,7 +190,7 @@ void DwarfAccelTable::EmitData(AsmPrinter *Asm, DwarfDebug *D) {
       Asm->OutStreamer.EmitLabel((*HI)->Sym);
       Asm->OutStreamer.AddComment((*HI)->Str);
       Asm->EmitSectionOffset(D->getStringPoolEntry((*HI)->Str),
-                             D->getStringPool());
+                             D->getStringPoolSym());
       Asm->OutStreamer.AddComment("Num DIEs");
       Asm->EmitInt32((*HI)->Data.size());
       for (ArrayRef<HashDataContents*>::const_iterator
@@ -215,7 +215,7 @@ void DwarfAccelTable::EmitData(AsmPrinter *Asm, DwarfDebug *D) {
 
 // Emit the entire data structure to the output file.
 void DwarfAccelTable::Emit(AsmPrinter *Asm, MCSymbol *SecBegin,
-                           DwarfDebug *D) {
+                           DwarfUnits *D) {
   // Emit the header.
   EmitHeader(Asm);
 
@@ -258,7 +258,7 @@ void DwarfAccelTable::print(raw_ostream &O) {
     for (std::vector<HashData*>::const_iterator
            DI = Data.begin(), DE = Data.end(); DI != DE; ++DI)
       (*DI)->print(O);
-  
+
 
 }
 #endif

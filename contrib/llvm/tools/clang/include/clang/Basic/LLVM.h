@@ -16,19 +16,24 @@
 #ifndef CLANG_BASIC_LLVM_H
 #define CLANG_BASIC_LLVM_H
 
-// This should be the only #include, force #includes of all the others on
-// clients.
+// Do not proliferate #includes here, require clients to #include their
+// dependencies.
+// Casting.h has complex templates that cannot be easily forward declared.
 #include "llvm/Support/Casting.h"
+// None.h includes an enumerator that is desired & cannot be forward declared
+// without a definition of NoneType.
+#include "llvm/ADT/None.h"
 
 namespace llvm {
   // ADT's.
   class StringRef;
   class Twine;
   template<typename T> class ArrayRef;
-  template<class T> class OwningPtr;
+  template<typename T> class OwningPtr;
   template<unsigned InternalLen> class SmallString;
   template<typename T, unsigned N> class SmallVector;
   template<typename T> class SmallVectorImpl;
+  template<typename T> class Optional;
 
   template<typename T>
   struct SaveAndRestore;
@@ -53,6 +58,8 @@ namespace clang {
   using llvm::cast_or_null;
   
   // ADT's.
+  using llvm::None;
+  using llvm::Optional;
   using llvm::StringRef;
   using llvm::Twine;
   using llvm::ArrayRef;

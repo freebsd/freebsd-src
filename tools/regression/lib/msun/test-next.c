@@ -41,8 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <ieeefp.h>
 #endif
 
-#define	ALL_STD_EXCEPT	(FE_DIVBYZERO | FE_INEXACT | FE_INVALID |\
-			 FE_OVERFLOW | FE_UNDERFLOW)
+#include "test-utils.h"
+
 #define	test(exp, ans, ex)	do {			\
 	double __ans = (ans);				\
 	feclearexcept(ALL_STD_EXCEPT);			\
@@ -235,7 +235,7 @@ _testl(const char *exp, int line, long double actual, long double expected,
 	int actual_except;
 
 	actual_except = fetestexcept(ALL_STD_EXCEPT);
-	if (actual != expected && !(isnan(actual) && isnan(expected))) {
+	if (!fpequal(actual, expected)) {
 		fprintf(stderr, "%d: %s returned %La, expecting %La\n",
 		    line, exp, actual, expected);
 		abort();

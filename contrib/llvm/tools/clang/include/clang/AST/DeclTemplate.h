@@ -84,6 +84,13 @@ public:
 
   unsigned size() const { return NumParams; }
 
+  llvm::ArrayRef<NamedDecl*> asArray() {
+    return llvm::ArrayRef<NamedDecl*>(begin(), size());
+  }
+  llvm::ArrayRef<const NamedDecl*> asArray() const {
+    return llvm::ArrayRef<const NamedDecl*>(begin(), size());
+  }
+
   NamedDecl* getParam(unsigned Idx) {
     assert(Idx < size() && "Template parameter index out-of-range");
     return begin()[Idx];
@@ -192,6 +199,11 @@ public:
 
   /// \brief Retrieve the template argument at a given index.
   const TemplateArgument &operator[](unsigned Idx) const { return get(Idx); }
+
+  /// \brief Produce this as an array ref.
+  llvm::ArrayRef<TemplateArgument> asArray() const {
+    return llvm::ArrayRef<TemplateArgument>(data(), size());
+  }
 
   /// \brief Retrieve the number of template arguments in this
   /// template argument list.
@@ -324,6 +336,23 @@ public:
     return getTemplateSpecializationKind() == TSK_ExplicitSpecialization;
   }
 
+  /// \brief True if this declaration is an explicit specialization,
+  /// explicit instantiation declaration, or explicit instantiation
+  /// definition.
+  bool isExplicitInstantiationOrSpecialization() const {
+    switch (getTemplateSpecializationKind()) {
+    case TSK_ExplicitSpecialization:
+    case TSK_ExplicitInstantiationDeclaration:
+    case TSK_ExplicitInstantiationDefinition:
+      return true;
+
+    case TSK_Undeclared:
+    case TSK_ImplicitInstantiation:
+      return false;
+    }
+    llvm_unreachable("bad template specialization kind");
+  }
+
   /// \brief Set the template specialization kind.
   void setTemplateSpecializationKind(TemplateSpecializationKind TSK) {
     assert(TSK != TSK_Undeclared &&
@@ -390,6 +419,10 @@ public:
     return (TemplateSpecializationKind)(MemberAndTSK.getInt() + 1);
   }
 
+  bool isExplicitSpecialization() const {
+    return getTemplateSpecializationKind() == TSK_ExplicitSpecialization;
+  }
+
   /// \brief Set the template specialization kind.
   void setTemplateSpecializationKind(TemplateSpecializationKind TSK) {
     assert(TSK != TSK_Undeclared &&
@@ -425,18 +458,19 @@ public:
 ///   };
 /// \endcode
 class DependentFunctionTemplateSpecializationInfo {
+  struct CA {
+    /// The number of potential template candidates.
+    unsigned NumTemplates;
+
+    /// The number of template arguments.
+    unsigned NumArgs;
+  };
+
   union {
     // Force sizeof to be a multiple of sizeof(void*) so that the
     // trailing data is aligned.
     void *Aligner;
-
-    struct {
-      /// The number of potential template candidates.
-      unsigned NumTemplates;
-
-      /// The number of template arguments.
-      unsigned NumArgs;
-    } d;
+    struct CA d;
   };
 
   /// The locations of the left and right angle brackets.
@@ -552,7 +586,7 @@ protected:
   };
 
   template <typename EntryType>
-  SpecIterator<EntryType>
+  static SpecIterator<EntryType>
   makeSpecIterator(llvm::FoldingSetVector<EntryType> &Specs, bool isEnd) {
     return SpecIterator<EntryType>(isEnd ? Specs.end() : Specs.begin());
   }
@@ -576,14 +610,14 @@ protected:
 
   /// \brief Pointer to the common data shared by all declarations of this
   /// template.
-  CommonBase *Common;
+  mutable CommonBase *Common;
   
   /// \brief Retrieves the "common" pointer shared by all (re-)declarations of
   /// the same template. Calling this routine may implicitly allocate memory
   /// for the common pointer.
-  CommonBase *getCommonPtr();
+  CommonBase *getCommonPtr() const;
 
-  virtual CommonBase *newCommon(ASTContext &C) = 0;
+  virtual CommonBase *newCommon(ASTContext &C) const = 0;
 
   // Construct a template decl with name, parameters, and templated element.
   RedeclarableTemplateDecl(Kind DK, DeclContext *DC, SourceLocation L,
@@ -618,7 +652,7 @@ public:
   /// template<> template<typename T>
   /// struct X<int>::Inner { /* ... */ };
   /// \endcode
-  bool isMemberSpecialization() {
+  bool isMemberSpecialization() const {
     return getCommonPtr()->InstantiatedFromMember.getInt();
   }
 
@@ -665,7 +699,7 @@ public:
   /// template<typename U>
   /// void X<T>::f(T, U);
   /// \endcode
-  RedeclarableTemplateDecl *getInstantiatedFromMemberTemplate() {
+  RedeclarableTemplateDecl *getInstantiatedFromMemberTemplate() const {
     return getCommonPtr()->InstantiatedFromMember.getPointer();
   }
 
@@ -729,9 +763,9 @@ protected:
                        TemplateParameterList *Params, NamedDecl *Decl)
     : RedeclarableTemplateDecl(FunctionTemplate, DC, L, Name, Params, Decl) { }
 
-  CommonBase *newCommon(ASTContext &C);
+  CommonBase *newCommon(ASTContext &C) const;
 
-  Common *getCommonPtr() {
+  Common *getCommonPtr() const {
     return static_cast<Common *>(RedeclarableTemplateDecl::getCommonPtr());
   }
 
@@ -740,7 +774,7 @@ protected:
   /// \brief Retrieve the set of function template specializations of this
   /// function template.
   llvm::FoldingSetVector<FunctionTemplateSpecializationInfo> &
-  getSpecializations() {
+  getSpecializations() const {
     return getCommonPtr()->Specializations;
   }
 
@@ -798,11 +832,11 @@ public:
 
   typedef SpecIterator<FunctionTemplateSpecializationInfo> spec_iterator;
 
-  spec_iterator spec_begin() {
+  spec_iterator spec_begin() const {
     return makeSpecIterator(getSpecializations(), false);
   }
 
-  spec_iterator spec_end() {
+  spec_iterator spec_end() const {
     return makeSpecIterator(getSpecializations(), true);
   }
 
@@ -1205,7 +1239,7 @@ public:
                                           unsigned P,
                                           IdentifierInfo *Id,
                                           TemplateParameterList *Params,
-                             llvm::ArrayRef<TemplateParameterList*> Expansions);
+                                 ArrayRef<TemplateParameterList *> Expansions);
 
   static TemplateTemplateParmDecl *CreateDeserialized(ASTContext &C,
                                                       unsigned ID);
@@ -1399,7 +1433,7 @@ public:
   static ClassTemplateSpecializationDecl *
   CreateDeserialized(ASTContext &C, unsigned ID);
 
-  virtual void getNameForDiagnostic(std::string &S,
+  virtual void getNameForDiagnostic(raw_ostream &OS,
                                     const PrintingPolicy &Policy,
                                     bool Qualified) const;
 
@@ -1433,6 +1467,23 @@ public:
     return getSpecializationKind() == TSK_ExplicitSpecialization;
   }
 
+  /// \brief True if this declaration is an explicit specialization,
+  /// explicit instantiation declaration, or explicit instantiation
+  /// definition.
+  bool isExplicitInstantiationOrSpecialization() const {
+    switch (getTemplateSpecializationKind()) {
+    case TSK_ExplicitSpecialization:
+    case TSK_ExplicitInstantiationDeclaration:
+    case TSK_ExplicitInstantiationDefinition:
+      return true;
+
+    case TSK_Undeclared:
+    case TSK_ImplicitInstantiation:
+      return false;
+    }
+    llvm_unreachable("bad template specialization kind");
+  }
+
   void setSpecializationKind(TemplateSpecializationKind TSK) {
     SpecializationKind = TSK;
   }
@@ -1464,8 +1515,7 @@ public:
           = SpecializedTemplate.dyn_cast<SpecializedPartialSpecialization*>())
       return PartialSpec->PartialSpecialization;
 
-    return const_cast<ClassTemplateDecl*>(
-                             SpecializedTemplate.get<ClassTemplateDecl*>());
+    return SpecializedTemplate.get<ClassTemplateDecl*>();
   }
 
   /// \brief Retrieve the class template or class template partial
@@ -1477,8 +1527,7 @@ public:
           = SpecializedTemplate.dyn_cast<SpecializedPartialSpecialization*>())
       return PartialSpec->PartialSpecialization;
 
-    return const_cast<ClassTemplateDecl*>(
-                             SpecializedTemplate.get<ClassTemplateDecl*>());
+    return SpecializedTemplate.get<ClassTemplateDecl*>();
   }
 
   /// \brief Retrieve the set of template arguments that should be used
@@ -1780,10 +1829,11 @@ protected:
   };
 
   /// \brief Load any lazily-loaded specializations from the external source.
-  void LoadLazySpecializations();
+  void LoadLazySpecializations() const;
 
   /// \brief Retrieve the set of specializations of this class template.
-  llvm::FoldingSetVector<ClassTemplateSpecializationDecl> &getSpecializations();
+  llvm::FoldingSetVector<ClassTemplateSpecializationDecl> &
+  getSpecializations() const;
 
   /// \brief Retrieve the set of partial specializations of this class
   /// template.
@@ -1798,9 +1848,9 @@ protected:
     : RedeclarableTemplateDecl(ClassTemplate, 0, SourceLocation(),
                                DeclarationName(), 0, 0) { }
 
-  CommonBase *newCommon(ASTContext &C);
+  CommonBase *newCommon(ASTContext &C) const;
 
-  Common *getCommonPtr() {
+  Common *getCommonPtr() const {
     return static_cast<Common *>(RedeclarableTemplateDecl::getCommonPtr());
   }
 
@@ -1925,11 +1975,11 @@ public:
 
   typedef SpecIterator<ClassTemplateSpecializationDecl> spec_iterator;
 
-  spec_iterator spec_begin() {
+  spec_iterator spec_begin() const {
     return makeSpecIterator(getSpecializations(), false);
   }
 
-  spec_iterator spec_end() {
+  spec_iterator spec_end() const {
     return makeSpecIterator(getSpecializations(), true);
   }
 
@@ -2063,7 +2113,7 @@ protected:
                         TemplateParameterList *Params, NamedDecl *Decl)
     : RedeclarableTemplateDecl(TypeAliasTemplate, DC, L, Name, Params, Decl) { }
 
-  CommonBase *newCommon(ASTContext &C);
+  CommonBase *newCommon(ASTContext &C) const;
 
   Common *getCommonPtr() {
     return static_cast<Common *>(RedeclarableTemplateDecl::getCommonPtr());

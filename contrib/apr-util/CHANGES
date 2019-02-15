@@ -1,0 +1,62 @@
+                                                     -*- coding: utf-8 -*-
+Changes with APR-Util 1.4.1
+
+  *) Apply Windows build fixes for the apr_crypto API. [Mladen Turk]
+
+Changes with APR-util 1.4.0
+
+  *) apr_ldap_init: Pass secure=1 to ldapssl_init() with Solaris LDAP SDK.
+     PR: 42682 [Stefan Fritsch]
+
+  *) apr_memcache_server_create: Fix possible segfault. PR 51064.
+     [Michajlo Matijkiw <michajlo_matijkiw comcast com>]
+
+  *) apr_thread_pool: Fix thread unsafe pool usage. [Stefan Fritsch]
+
+  *) Do not include apr.h and apr_errno.h from system search path in
+     apu_errno.h. PR 46487 [Rainer Jung]
+
+  *) Add optional dbm, openssl and nss subpackages to the RPM spec file.
+     [Graham Leggett]
+
+  *) apr_dbd_freetds: The sybdb.h header file might be freetds/sybdb.h
+     or sybdb.h. [Graham Leggett]
+
+  *) Add apr_crypto implementations for OpenSSL and Mozilla NSS. Add a unit
+     test to verify the interoperability of the two modules. Builds default
+     to disabled unless explicitly enabled.
+     [Graham Leggett]
+
+  *) Add the apr_crypto interface, a rewrite of the earlier apr_ssl code,
+     based on the modular dso interface used for dbd and ldap. Initially,
+     the interface supports symmetrical encryption and decryption. The
+     purpose of the interface is to offer portable and interoperable
+     access to basic crypto using the native crypto libraries present on
+     each platform.  [Graham Leggett]
+
+  *) Add trace probes to hooks, making it easier to inspect APR Hook based
+     applications with DTrace or other such mechanisms.
+     [Theo Schlossnagle <jesus omniti.com>, generalized by Jeff Trawick]
+
+  *) Implement resource list when threads are unavailable. PR 24325
+     [Bojan Smojver]
+
+Changes for APR-util 1.3.x and later:
+
+  *) http://svn.apache.org/viewvc/apr/apr-util/branches/1.3.x/CHANGES?view=markup
+
+Changes for APR-util 1.2.x and later:
+
+  *) http://svn.apache.org/viewvc/apr/apr-util/branches/1.2.x/CHANGES?view=markup
+
+Changes for APR-util 1.1.x and later:
+
+  *) http://svn.apache.org/viewvc/apr/apr-util/branches/1.1.x/CHANGES?view=markup
+
+Changes for APR-util 1.0.x and later:
+
+  *) http://svn.apache.org/viewvc/apr/apr-util/branches/1.0.x/CHANGES?view=markup
+
+Changes for APR-util 0.9.x and later/earlier:
+
+  *) http://svn.apache.org/viewvc/apr/apr-util/branches/0.9.x/CHANGES?view=markup

@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
 <!--
 
 	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.xml,v 1.84 2003/05/25 09:36:36 ue Exp $
@@ -1236,7 +1237,7 @@
       &man.pcn.4; Treiber)
       <itemizedlist>
 	<listitem arch="i386,alpha">
-	  <para>AMD PCnet/PCI (79c970 & 53c974 oder 79c974)</para>
+	  <para>AMD PCnet/PCI (79c970 &amp; 53c974 oder 79c974)</para>
 	</listitem>
 
 	<listitem arch="i386,alpha">
@@ -3744,7 +3745,7 @@
 	</listitem>
 
 	<listitem arch="i386,alpha">
-	  <para>CMD Tech 670 & 673</para>
+	  <para>CMD Tech 670 &amp; 673</para>
 	</listitem>
 
 	<listitem arch="i386,alpha">

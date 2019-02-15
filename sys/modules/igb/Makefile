@@ -14,4 +14,10 @@ CFLAGS += -I${.CURDIR}/../../dev/e1000 -DSMP
 # not advisable since MSIX gives better results
 #CFLAGS  += -DDEVICE_POLLING
 
+# IGB_LEGACY_TX will override the stack if_transmit path and
+# instead use the older if_start non-multiqueue capable interface.
+# This might be desireable for testing, or to enable the use of
+# ALTQ. 
+#CFLAGS  += -DIGB_LEGACY_TX
+
 .include <bsd.kmod.mk>

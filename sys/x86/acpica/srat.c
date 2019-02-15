@@ -28,8 +28,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_vm.h"
-
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
@@ -47,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/acpica/acpivar.h>
 
-#if VM_NDOMAIN > 1
+#if MAXMEMDOM > 1
 struct cpu_info {
 	int enabled:1;
 	int has_memory:1;
@@ -246,33 +244,34 @@ static int
 renumber_domains(void)
 {
 	int domains[VM_PHYSSEG_MAX];
-	int ndomain, i, j, slot;
+	int i, j, slot;
 
 	/* Enumerate all the domains. */
-	ndomain = 0;
+	vm_ndomains = 0;
 	for (i = 0; i < num_mem; i++) {
 		/* See if this domain is already known. */
-		for (j = 0; j < ndomain; j++) {
+		for (j = 0; j < vm_ndomains; j++) {
 			if (domains[j] >= mem_info[i].domain)
 				break;
 		}
-		if (j < ndomain && domains[j] == mem_info[i].domain)
+		if (j < vm_ndomains && domains[j] == mem_info[i].domain)
 			continue;
 
 		/* Insert the new domain at slot 'j'. */
 		slot = j;
-		for (j = ndomain; j > slot; j--)
+		for (j = vm_ndomains; j > slot; j--)
 			domains[j] = domains[j - 1];
 		domains[slot] = mem_info[i].domain;
-		ndomain++;
-		if (ndomain > VM_NDOMAIN) {
+		vm_ndomains++;
+		if (vm_ndomains > MAXMEMDOM) {
+			vm_ndomains = 1;
 			printf("SRAT: Too many memory domains\n");
 			return (EFBIG);
 		}
 	}
 
 	/* Renumber each domain to its index in the sorted 'domains' list. */
-	for (i = 0; i < ndomain; i++) {
+	for (i = 0; i < vm_ndomains; i++) {
 		/*
 		 * If the domain is already the right value, no need
 		 * to renumber.
@@ -288,6 +287,9 @@ renumber_domains(void)
 			if (cpus[j].enabled && cpus[j].domain == domains[i])
 				cpus[j].domain = i;
 	}
+	KASSERT(vm_ndomains > 0,
+	    ("renumber_domains: invalid final vm_ndomains setup"));
+
 	return (0);
 }
 
@@ -362,4 +364,4 @@ srat_set_cpus(void *dummy)
 	}
 }
 SYSINIT(srat_set_cpus, SI_SUB_CPU, SI_ORDER_ANY, srat_set_cpus, NULL);
-#endif /* VM_NDOMAIN > 1 */
+#endif /* MAXMEMDOM > 1 */

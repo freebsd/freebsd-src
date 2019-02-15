@@ -139,8 +139,8 @@ void
 __policy__strbuffer__init__(msg)
 	char *msg;
 {
-	if (yy_current_buffer)
-		yy_delete_buffer(yy_current_buffer);
+	if (YY_CURRENT_BUFFER)
+		yy_delete_buffer(YY_CURRENT_BUFFER);
 	strbuffer = (YY_BUFFER_STATE)yy_scan_string(msg);
 	yy_switch_to_buffer(strbuffer);
 

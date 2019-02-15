@@ -110,7 +110,7 @@ versatile_sic_attach(device_t dev)
 	 * Let PCI and Ethernet interrupts pass through
 	 * IRQ25, IRQ27..IRQ31
 	 */
-	pass_irqs = (7 << 27) | (1 << 25);
+	pass_irqs = (0x1f << 27) | (1 << 25);
 	sic_write_4(sc, SIC_PICENSET, pass_irqs);
 
 	return (0);

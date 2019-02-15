@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY NETAPP, INC ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL NETAPP, INC OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -50,7 +50,10 @@ __FBSDID("$FreeBSD$");
 #include <vmmapi.h>
 #endif	/* _KERNEL */
 
-
+enum cpu_mode {
+	CPU_MODE_COMPATIBILITY,		/* IA-32E mode (CS.L = 0) */
+	CPU_MODE_64BIT,			/* IA-32E mode (CS.L = 1) */
+};
 
 /* struct vie_op.op_type */
 enum {
@@ -133,31 +136,9 @@ static uint64_t size2mask[] = {
 };
 
 static int
-vie_valid_register(enum vm_reg_name reg)
-{
-#ifdef _KERNEL
-	/*
-	 * XXX
-	 * The operand register in which we store the result of the
-	 * read must be a GPR that we can modify even if the vcpu
-	 * is "running". All the GPRs qualify except for %rsp.
-	 *
-	 * This is a limitation of the vm_set_register() API
-	 * and can be fixed if necessary.
-	 */
-	if (reg == VM_REG_GUEST_RSP)
-		return (0);
-#endif
-	return (1);
-}
-
-static int
 vie_read_register(void *vm, int vcpuid, enum vm_reg_name reg, uint64_t *rval)
 {
 	int error;
-
-	if (!vie_valid_register(reg))
-		return (EINVAL);
 
 	error = vm_get_register(vm, vcpuid, reg, rval);
 
@@ -196,9 +177,6 @@ vie_read_bytereg(void *vm, int vcpuid, struct vie *vie, uint8_t *rval)
 		}
 	}
 
-	if (!vie_valid_register(reg))
-		return (EINVAL);
-
 	error = vm_get_register(vm, vcpuid, reg, &val);
 	*rval = val >> rshift;
 	return (error);
@@ -210,9 +188,6 @@ vie_update_register(void *vm, int vcpuid, enum vm_reg_name reg,
 {
 	int error;
 	uint64_t origval;
-
-	if (!vie_valid_register(reg))
-		return (EINVAL);
 
 	switch (size) {
 	case 1:
@@ -583,13 +558,16 @@ decode_opcode(struct vie *vie)
 	return (0);
 }
 
-/*
- * XXX assuming 32-bit or 64-bit guest
- */
 static int
 decode_modrm(struct vie *vie)
 {
 	uint8_t x;
+	enum cpu_mode cpu_mode;
+
+	/*
+	 * XXX assuming that guest is in IA-32E 64-bit mode
+	 */
+	cpu_mode = CPU_MODE_64BIT;
 
 	if (vie_peek(vie, &x))
 		return (-1);
@@ -642,7 +620,18 @@ decode_modrm(struct vie *vie)
 	case VIE_MOD_INDIRECT:
 		if (vie->rm == VIE_RM_DISP32) {
 			vie->disp_bytes = 4;
-			vie->base_register = VM_REG_LAST;	/* no base */
+			/*
+			 * Table 2-7. RIP-Relative Addressing
+			 *
+			 * In 64-bit mode mod=00 r/m=101 implies [rip] + disp32
+			 * whereas in compatibility mode it just implies disp32.
+			 */
+
+			if (cpu_mode == CPU_MODE_64BIT)
+				vie->base_register = VM_REG_GUEST_RIP;
+			else
+				vie->base_register = VM_REG_LAST;
+				
 		}
 		break;
 	}
@@ -790,17 +779,19 @@ decode_immediate(struct vie *vie)
 	return (0);
 }
 
-#define	VERIFY_GLA
 /*
  * Verify that the 'guest linear address' provided as collateral of the nested
  * page table fault matches with our instruction decoding.
  */
-#ifdef VERIFY_GLA
 static int
 verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 {
 	int error;
 	uint64_t base, idx;
+
+	/* Skip 'gla' verification */
+	if (gla == VIE_INVALID_GLA)
+		return (0);
 
 	base = 0;
 	if (vie->base_register != VM_REG_LAST) {
@@ -810,6 +801,13 @@ verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 				error, vie->base_register);
 			return (-1);
 		}
+
+		/*
+		 * RIP-relative addressing starts from the following
+		 * instruction
+		 */
+		if (vie->base_register == VM_REG_GUEST_RIP)
+			base += vie->num_valid;
 	}
 
 	idx = 0;
@@ -832,7 +830,6 @@ verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 
 	return (0);
 }
-#endif	/* VERIFY_GLA */
 
 int
 vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
@@ -856,10 +853,8 @@ vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 	if (decode_immediate(vie))
 		return (-1);
 
-#ifdef VERIFY_GLA
 	if (verify_gla(vm, cpuid, gla, vie))
 		return (-1);
-#endif
 
 	vie->decoded = 1;	/* success */
 

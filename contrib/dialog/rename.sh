@@ -1,7 +1,7 @@
 #! /bin/sh
-# $Id: rename.sh,v 1.3 2011/01/06 10:51:02 tom Exp $
+# $Id: rename.sh,v 1.4 2012/12/19 10:17:36 tom Exp $
 ##############################################################################
-# Copyright (c) 2011 Thomas E. Dickey                                        #
+# Copyright (c) 2011,2012 Thomas E. Dickey                                   #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -54,6 +54,7 @@ sed	-e "s,^\.ds p dialog\>,.ds p $BINARY," \
 	-e "s,^\.ds l dialog\>,.ds l $PACKAGE," \
 	-e "s,^\.ds L Dialog\>,.ds L $ONE_CAPS," \
 	-e "s,^\.ds D DIALOG\>,.ds D $ALL_CAPS," \
+	-e 's,^dialog \\- ,'"$PACKAGE"' \\- ,' \
 	<$SOURCE >source.tmp
 "$@" source.tmp $TARGET
 rm -f source.tmp

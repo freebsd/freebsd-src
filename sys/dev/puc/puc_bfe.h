@@ -27,7 +27,7 @@
  */
 
 #ifndef _DEV_PUC_BFE_H_
-#define	_DEV_PUC_BFE_H
+#define	_DEV_PUC_BFE_H_
 
 #define	PUC_PCI_BARS	6
 

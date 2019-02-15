@@ -431,16 +431,6 @@ VNET_DEFINE(int, nd6_onlink_ns_rfc4861) = 0;/* allow 'on-link' nd6 NS
 VNET_DEFINE(int, pmtu_expire) = 60*10;
 VNET_DEFINE(int, pmtu_probe) = 60*2;
 
-/* raw IP6 parameters */
-/*
- * Nominal space allocated to a raw ip socket.
- */
-#define	RIPV6SNDQ	8192
-#define	RIPV6RCVQ	8192
-
-VNET_DEFINE(u_long, rip6_sendspace) = RIPV6SNDQ;
-VNET_DEFINE(u_long, rip6_recvspace) = RIPV6RCVQ;
-
 /* ICMPV6 parameters */
 VNET_DEFINE(int, icmp6_rediraccept) = 1;/* accept and process redirects */
 VNET_DEFINE(int, icmp6_redirtimeout) = 10 * 60;	/* 10 minutes */
@@ -448,11 +438,7 @@ VNET_DEFINE(int, icmp6errppslim) = 100;		/* 100pps */
 /* control how to respond to NI queries */
 VNET_DEFINE(int, icmp6_nodeinfo) =
     (ICMP6_NODEINFO_FQDNOK|ICMP6_NODEINFO_NODEADDROK);
-
-/* UDP on IP6 parameters */
-VNET_DEFINE(int, udp6_sendspace) = 9216;/* really max datagram size */
-VNET_DEFINE(int, udp6_recvspace) = 40 * (1024 + sizeof(struct sockaddr_in6));
-					/* 40 1K datagrams */
+VNET_DEFINE(int, icmp6_nodeinfo_oldmcprefix) = 1;
 
 /*
  * sysctl related items.
@@ -617,6 +603,11 @@ SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_USELOOPBACK, nd6_useloopback,
 	CTLFLAG_RW, &VNET_NAME(nd6_useloopback), 0, "");
 SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_NODEINFO, nodeinfo, CTLFLAG_RW,
 	&VNET_NAME(icmp6_nodeinfo), 0, "");
+SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_NODEINFO_OLDMCPREFIX,
+	nodeinfo_oldmcprefix, CTLFLAG_RW,
+	&VNET_NAME(icmp6_nodeinfo_oldmcprefix), 0, 
+	"Join old IPv6 NI group address in draft-ietf-ipngwg-icmp-name-lookup"
+	" for compatibility with KAME implememtation.");
 SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ERRPPSLIMIT, errppslimit,
 	CTLFLAG_RW, &VNET_NAME(icmp6errppslim), 0, "");
 SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MAXNUDHINT, nd6_maxnudhint,

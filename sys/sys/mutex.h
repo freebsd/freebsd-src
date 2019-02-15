@@ -426,12 +426,6 @@ do {									\
 	}
 #endif
 
-#define	UGAR(rval) do {							\
-	int _val = (rval);						\
-	mtx_unlock(&Giant);						\
-	return (_val);							\
-} while (0)
-
 struct mtx_args {
 	void		*ma_mtx;
 	const char 	*ma_desc;

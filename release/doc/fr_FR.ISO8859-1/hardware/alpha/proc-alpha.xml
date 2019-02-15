@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
 <!--
      The FreeBSD Documentation Project
      The FreeBSD French Documentation Project
@@ -379,7 +380,7 @@
             ou 1 Mbyte (utilisation des puces DIL)</para>
 	  </listitem>
 	  <listitem>
-	    <para>Souris PS/2 & port clavier OU clavier 5 broches DIN
+	    <para>Souris PS/2 &amp; port clavier OU clavier 5 broches DIN
             (2 mod&egrave;les de carte m&egrave;re)</para>
 	  </listitem>
 	  <listitem>
@@ -539,7 +540,7 @@
             sont vendus avec 256kB de cache</para>
 	  </listitem>
 	  <listitem>
-            <para>port souris PS/2 & clavier</para>
+            <para>port souris PS/2 &amp; clavier</para>
 	  </listitem>
           <listitem>
             <para>m&eacute;moire:</para>
@@ -838,7 +839,7 @@
 	    <para>1 port parall&egrave;le</para>
 	  </listitem>
 	  <listitem>
-	    <para>port PS/2 clavier & souris</para>
+	    <para>port PS/2 clavier &amp; souris</para>
 	  </listitem>
 	  <listitem>
 	    <para>interface USB [MiataGL uniquement]</para>
@@ -1152,7 +1153,7 @@ cpu	EV4</programlisting>
            <para>2 16550A serial ports</para>
         </listitem>
         <listitem>
-           <para>PS/2 style keyboard & mouse</para>
+           <para>PS/2 style keyboard &amp; mouse</para>
         </listitem>
         <listitem>
            <para>floppy controller</para>
@@ -1312,15 +1313,15 @@ cpu             EV5</programlisting>
         </listitem>
         <listitem>
           <para>32 bit PCI expansion slots (3 for the AS400-series, 
-  	2 for the AS200 & 250-series)</para>
+  	2 for the AS200 &amp; 250-series)</para>
         </listitem>
         <listitem>
           <para>ISA expansion slots (4 for the AS400-series, 
-  	  2 for the AS200 & 250-series) 
+  	  2 for the AS200 &amp; 250-series) 
           (some ISA/PCI slots are physically shared)</para>
         </listitem>
         <listitem>
-          <para>embedded 21040-based Ethernet (200 & 250 series)</para>
+          <para>embedded 21040-based Ethernet (200 &amp; 250 series)</para>
         </listitem>
         <listitem>
           <para>embedded Symbios 53c810 Fast SCSI-2 chip</para>
@@ -1332,7 +1333,7 @@ cpu             EV5</programlisting>
           <para>graphics is embedded TGA or PCI VGA (model dependent)</para>
         </listitem>
         <listitem>
-          <para>16 bit sound (on 200 & 250 series)</para>
+          <para>16 bit sound (on 200 &amp; 250 series)</para>
         </listitem>
       </itemizedlist>
 
@@ -1341,14 +1342,14 @@ cpu             EV5</programlisting>
       acceptable too. EDO or 32 bit SIMMs will not work. 4, 8, 16, 32 and 
       64 Mbyte SIMMs are supported.</para>
 
-      <para>The AS200 & AS250 sound hardware is reported to work OK assuming 
+      <para>The AS200 &amp; AS250 sound hardware is reported to work OK assuming 
       you have the following line in your kernel config file:</para>
       <programlisting>device pcm</programlisting>
 
       <para>The sound device uses port 0x530, IRQ 9 and drq 0. You also need
       to specify flags 0x10011 in the <filename>device.hints</filename> file.</para>
 
-      <para>AlphaStation 200 & 250 series have an automatic SCSI terminator. 
+      <para>AlphaStation 200 &amp; 250 series have an automatic SCSI terminator. 
       This means that as soon as you plug a cable onto the external SCSI 
       connector the internal terminator of the system is disabled. It also 
       means that you should not leave unterminated cables plugged into 
@@ -1369,7 +1370,7 @@ cpu	EV4</programlisting>
     </sect3>
 
     <sect3>
-      <title>AlphaStation 500 and 600 (<quote>Alcor</quote> &
+      <title>AlphaStation 500 and 600 (<quote>Alcor</quote> &amp;
       <quote>Maverick</quote> for EV5, <quote>Bret</quote> for EV56)</title>
 
       <para>AS500 and 600 were the high-end EV5 / PCI based workstations. 
@@ -1761,7 +1762,7 @@ cpu	EV5		# depends on the CPU model installed</programlisting>
             <para>2 USB</para>
 	  </listitem>
 	  <listitem>
-            <para>PS/2 keyboard & mouse port</para>
+            <para>PS/2 keyboard &amp; mouse port</para>
 	  </listitem>
 	</itemizedlist>
 
@@ -1892,7 +1893,7 @@ cpu	EV5</programlisting>
           <para>1 parallel port</para>
 	</listitem>
 	<listitem>
-          <para>PS/2 keyboard & mouse port</para>
+          <para>PS/2 keyboard &amp; mouse port</para>
 	</listitem>
 	<listitem>
           <para>embedded 16-bit ESS ES1888 sound chip</para>
@@ -2181,7 +2182,7 @@ cpu	EV5</programlisting>
           <para>1 parallel port</para>
 	</listitem>
 	<listitem>
-          <para>PS/2 style keyboard & mouse port</para>
+          <para>PS/2 style keyboard &amp; mouse port</para>
 	</listitem>
       </itemizedlist>
 
@@ -2343,7 +2344,7 @@ cpu	EV5	#dependent on CPU model installed</programlisting>
             <para>1 parallel port</para>
 	  </listitem>
 	  <listitem>
-            <para>PS/2 style keyboard & mouse port</para>
+            <para>PS/2 style keyboard &amp; mouse port</para>
 	  </listitem>
         </itemizedlist>
 
@@ -2425,7 +2426,7 @@ cpu	EV5</programlisting>
             <para>1 parallel port</para>
 	  </listitem>
 	  <listitem>
-            <para>PS/2 style keyboard & mouse port</para>
+            <para>PS/2 style keyboard &amp; mouse port</para>
 	  </listitem>
         </itemizedlist>
 
@@ -2599,7 +2600,7 @@ cpu	EV5</programlisting>
 	    super-IO chip</para>
 	  </listitem>
 	  <listitem>
-            <para>PS/2 mouse & keyboard port</para>
+            <para>PS/2 mouse &amp; keyboard port</para>
 	  </listitem>
 	  <listitem>
             <para>memory: 168-pin PC100 unbuffered SDRAM DIMMS, 3 DIMM slots
@@ -2649,9 +2650,9 @@ cpu	EV5</programlisting>
        <para>The UP1000 needs a 400Watt ATX power supply according 
        to the manufacturer. This might be a bit overly 
        conservative/pessimistic judging from the power consumption of 
-       the board & cpu. But as always you will have to take your
+       the board &amp; cpu. But as always you will have to take your
        expansion cards and peripherals into account. The M1543C chip 
-       contains power management functionality & temperature monitoring 
+       contains power management functionality &amp; temperature monitoring 
        (via I2C / SM bus).</para>
 
        <para>Chances are that your UP1000 comes by default with 
@@ -2705,7 +2706,7 @@ cpu	EV5</programlisting>
 	    super-IO chip</para>
 	  </listitem>
 	  <listitem>
-            <para>PS/2 mouse & keyboard port</para>
+            <para>PS/2 mouse &amp; keyboard port</para>
 	  </listitem>
 	  <listitem>
             <para>memory: 168-pin PC100 unbuffered SDRAM DIMMS, 3 DIMM slots
@@ -2742,10 +2743,10 @@ cpu	EV5</programlisting>
 
       <para>The UP1100 needs a 400Watt ATX power supply according to 
       the manufacturer. This might be a bit overly conservative/pessimistic 
-      judging from the power consumption of the board & cpu. But as 
+      judging from the power consumption of the board &amp; cpu. But as 
       always you will have to take your expansion cards and 
       peripherals into account. The M1535D chip contains power
-      management functionality & temperature monitoring 
+      management functionality &amp; temperature monitoring 
       (via I2C / SM bus using a LM75 thermal sensor).</para>
 
       <para>The UP1100 has an on-board 21143 10/100Mbit Ethernet 
@@ -2796,7 +2797,7 @@ cpu	EV5</programlisting>
 	    </para>
 	  </listitem>
 	  <listitem>
-            <para>PS/2 mouse & keyboard port</para>
+            <para>PS/2 mouse &amp; keyboard port</para>
 	  </listitem>
 	  <listitem>
             <para>memory: 168-pin PC100 PLL buffered/registered SDRAM DIMMS,

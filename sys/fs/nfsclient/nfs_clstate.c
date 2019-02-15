@@ -5145,16 +5145,26 @@ static void
 nfscl_dolayoutcommit(struct nfsmount *nmp, struct nfscllayout *lyp,
     struct ucred *cred, NFSPROC_T *p)
 {
+	struct nfsclflayout *flp;
+	uint64_t len;
 	int error;
 
-	error = nfsrpc_layoutcommit(nmp, lyp->nfsly_fh, lyp->nfsly_fhlen,
-	    0, 0, 0, lyp->nfsly_lastbyte, &lyp->nfsly_stateid,
-	    NFSLAYOUT_NFSV4_1_FILES, 0, NULL, cred, p, NULL);
-	if (error == NFSERR_NOTSUPP) {
-		/* If the server doesn't want it, don't bother doing it. */
-		NFSLOCKMNT(nmp);
-		nmp->nm_state |= NFSSTA_NOLAYOUTCOMMIT;
-		NFSUNLOCKMNT(nmp);
+	LIST_FOREACH(flp, &lyp->nfsly_flayrw, nfsfl_list) {
+		if (flp->nfsfl_off <= lyp->nfsly_lastbyte) {
+			len = flp->nfsfl_end - flp->nfsfl_off;
+			error = nfsrpc_layoutcommit(nmp, lyp->nfsly_fh,
+			    lyp->nfsly_fhlen, 0, flp->nfsfl_off, len,
+			    lyp->nfsly_lastbyte, &lyp->nfsly_stateid,
+			    NFSLAYOUT_NFSV4_1_FILES, 0, NULL, cred, p, NULL);
+			NFSCL_DEBUG(4, "layoutcommit err=%d\n", error);
+			if (error == NFSERR_NOTSUPP) {
+				/* If not supported, don't bother doing it. */
+				NFSLOCKMNT(nmp);
+				nmp->nm_state |= NFSSTA_NOLAYOUTCOMMIT;
+				NFSUNLOCKMNT(nmp);
+				break;
+			}
+		}
 	}
 }
 

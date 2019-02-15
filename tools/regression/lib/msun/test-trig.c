@@ -42,8 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <math.h>
 #include <stdio.h>
 
-#define	ALL_STD_EXCEPT	(FE_DIVBYZERO | FE_INEXACT | FE_INVALID | \
-			 FE_OVERFLOW | FE_UNDERFLOW)
+#include "test-utils.h"
 
 #define	LEN(a)		(sizeof(a) / sizeof((a)[0]))
 
@@ -66,7 +65,7 @@ __FBSDID("$FreeBSD$");
 	volatile long double _d = x;					\
 	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
 	assert(fpequal((func)(_d), (result)));				\
-	assert(((func), fetestexcept(exceptmask) == (excepts)));	\
+	assert(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
 } while (0)
 
 #define	testall(prefix, x, result, exceptmask, excepts)	do {		\
@@ -79,19 +78,6 @@ __FBSDID("$FreeBSD$");
 	test(prefix, x, (double)result, exceptmask, excepts);		\
 	test(prefix##f, x, (float)result, exceptmask, excepts);		\
 } while (0)
-
-
-
-/*
- * Determine whether x and y are equal, with two special rules:
- *	+0.0 != -0.0
- *	 NaN == NaN
- */
-int
-fpequal(long double x, long double y)
-{
-	return ((x == y && !signbit(x) == !signbit(y)) || isnan(x) && isnan(y));
-}
 
 /*
  * Test special cases in sin(), cos(), and tan().

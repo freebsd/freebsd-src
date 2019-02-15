@@ -114,6 +114,7 @@ AcpiExConvertToInteger (
         break;
 
     default:
+
         return_ACPI_STATUS (AE_TYPE);
     }
 
@@ -133,7 +134,6 @@ AcpiExConvertToInteger (
     switch (ObjDesc->Common.Type)
     {
     case ACPI_TYPE_STRING:
-
         /*
          * Convert string to an integer - for most cases, the string must be
          * hexadecimal as per the ACPI specification. The only exception (as
@@ -146,7 +146,6 @@ AcpiExConvertToInteger (
             return_ACPI_STATUS (Status);
         }
         break;
-
 
     case ACPI_TYPE_BUFFER:
 
@@ -179,10 +178,10 @@ AcpiExConvertToInteger (
         }
         break;
 
-
     default:
 
         /* No other types can get here */
+
         break;
     }
 
@@ -242,7 +241,6 @@ AcpiExConvertToBuffer (
 
 
     case ACPI_TYPE_INTEGER:
-
         /*
          * Create a new Buffer object.
          * Need enough space for one integer
@@ -261,9 +259,7 @@ AcpiExConvertToBuffer (
                         AcpiGbl_IntegerByteWidth);
         break;
 
-
     case ACPI_TYPE_STRING:
-
         /*
          * Create a new Buffer object
          * Size will be the string length
@@ -287,8 +283,8 @@ AcpiExConvertToBuffer (
             ObjDesc->String.Length);
         break;
 
-
     default:
+
         return_ACPI_STATUS (AE_TYPE);
     }
 
@@ -344,15 +340,18 @@ AcpiExConvertToAscii (
         switch (DataWidth)
         {
         case 1:
+
             DecimalLength = ACPI_MAX8_DECIMAL_DIGITS;
             break;
 
         case 4:
+
             DecimalLength = ACPI_MAX32_DECIMAL_DIGITS;
             break;
 
         case 8:
         default:
+
             DecimalLength = ACPI_MAX64_DECIMAL_DIGITS;
             break;
         }
@@ -461,7 +460,6 @@ AcpiExConvertToString (
         *ResultDesc = ObjDesc;
         return_ACPI_STATUS (AE_OK);
 
-
     case ACPI_TYPE_INTEGER:
 
         switch (Type)
@@ -504,7 +502,6 @@ AcpiExConvertToString (
         ReturnDesc->String.Length = StringLength;
         NewBuf [StringLength] = 0;
         break;
-
 
     case ACPI_TYPE_BUFFER:
 
@@ -604,6 +601,7 @@ AcpiExConvertToString (
         break;
 
     default:
+
         return_ACPI_STATUS (AE_TYPE);
     }
 
@@ -663,6 +661,7 @@ AcpiExConvertToTargetType (
             break;
 
         default:
+
             /* No conversion allowed for these types */
 
             if (DestinationType != SourceDesc->Common.Type)
@@ -675,7 +674,6 @@ AcpiExConvertToTargetType (
             }
         }
         break;
-
 
     case ARGI_TARGETREF:
 
@@ -693,7 +691,6 @@ AcpiExConvertToTargetType (
                         16);
             break;
 
-
         case ACPI_TYPE_STRING:
             /*
              * The operand must be a String. We can convert an
@@ -703,7 +700,6 @@ AcpiExConvertToTargetType (
                         ACPI_IMPLICIT_CONVERT_HEX);
             break;
 
-
         case ACPI_TYPE_BUFFER:
             /*
              * The operand must be a Buffer. We can convert an
@@ -712,8 +708,8 @@ AcpiExConvertToTargetType (
             Status = AcpiExConvertToBuffer (SourceDesc, ResultDesc);
             break;
 
-
         default:
+
             ACPI_ERROR ((AE_INFO, "Bad destination type during conversion: 0x%X",
                 DestinationType));
             Status = AE_AML_INTERNAL;
@@ -721,15 +717,14 @@ AcpiExConvertToTargetType (
         }
         break;
 
-
     case ARGI_REFERENCE:
         /*
          * CreateXxxxField cases - we are storing the field object into the name
          */
         break;
 
-
     default:
+
         ACPI_ERROR ((AE_INFO,
             "Unknown Target type ID 0x%X AmlOpcode 0x%X DestType %s",
             GET_CURRENT_ARG_TYPE (WalkState->OpInfo->RuntimeArgs),

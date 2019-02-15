@@ -87,12 +87,11 @@ static struct mtx	poll_mtx;
  * The following constraints hold
  *
  *	1 <= poll_each_burst <= poll_burst <= poll_burst_max
- *	0 <= poll_each_burst
  *	MIN_POLL_BURST_MAX <= poll_burst_max <= MAX_POLL_BURST_MAX
  */
 
 #define MIN_POLL_BURST_MAX	10
-#define MAX_POLL_BURST_MAX	1000
+#define MAX_POLL_BURST_MAX	20000
 
 static uint32_t poll_burst = 5;
 static uint32_t poll_burst_max = 150;	/* good for 100Mbit net and HZ=1000 */

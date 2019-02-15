@@ -77,7 +77,9 @@ The following rights may be specified in a rights mask:
 .Bl -tag -width CAP_EXTATTR_DELETE
 .It Dv CAP_ACCEPT
 Permit
-.Xr accept 2 .
+.Xr accept 2
+and
+.Xr accept4 2 .
 .It Dv CAP_ACL_CHECK
 Permit checking of an ACL on a file descriptor; there is no cross-reference
 for this system call.
@@ -159,7 +161,12 @@ Permit
 .Xr fchdir 2 .
 .It Dv CAP_FCHFLAGS
 Permit
-.Xr fchflags 2 .
+.Xr fchflags 2
+and
+.Xr chflagsat 2 .
+.It Dv CAP_CHFLAGSAT
+An alias to
+.Dv CAP_FCHFLAGS .
 .It Dv CAP_FCHMOD
 Permit
 .Xr fchmod 2

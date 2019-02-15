@@ -1,9 +1,9 @@
 /*
- * $Id: mouse.c,v 1.18 2007/02/22 21:51:38 tom Exp $
+ * $Id: mouse.c,v 1.20 2012/12/21 10:00:30 tom Exp $
  *
  * mouse.c -- mouse support for dialog
  *
- * Copyright 2002-2006,2007	Thomas E. Dickey
+ * Copyright 2002-2007,2012	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -26,7 +26,7 @@
 
 #if USE_MOUSE
 
-static int basex, basey;
+static int basex, basey, basecode;
 
 static mseRegion *regionList = NULL;
 
@@ -49,6 +49,12 @@ dlg_mouse_setbase(int x, int y)
 {
     basex = x;
     basey = y;
+}
+
+void
+dlg_mouse_setcode(int code)
+{
+    basecode = code;
 }
 
 void
@@ -79,7 +85,7 @@ dlg_mouse_mkregion(int y, int x, int height, int width, int code)
 {
     mseRegion *butPtr;
 
-    if ((butPtr = find_region_by_code(code)) == 0) {
+    if ((butPtr = find_region_by_code(basecode + code)) == 0) {
 	butPtr = dlg_malloc(mseRegion, 1);
 	assert_ptr(butPtr, "dlg_mouse_mkregion");
 	butPtr->next = regionList;
@@ -93,7 +99,7 @@ dlg_mouse_mkregion(int y, int x, int height, int width, int code)
 	butPtr->Y = basey + y + height;
 	butPtr->x = basex + x;
 	butPtr->X = basex + x + width;
-	butPtr->code = code;
+	butPtr->code = basecode + code;
     }
     return butPtr;
 }
@@ -105,12 +111,15 @@ any_mouse_region(int y, int x, int small)
     mseRegion *butPtr;
 
     for (butPtr = regionList; butPtr; butPtr = butPtr->next) {
-	if (small ^ (butPtr->code >= 0))
+	if (small ^ (butPtr->code >= 0)) {
 	    continue;
-	if (y < butPtr->y || y >= butPtr->Y)
+	}
+	if (y < butPtr->y || y >= butPtr->Y) {
 	    continue;
-	if (x < butPtr->x || x >= butPtr->X)
+	}
+	if (x < butPtr->x || x >= butPtr->X) {
 	    continue;
+	}
 	break;			/* found */
     }
     return butPtr;

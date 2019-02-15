@@ -94,7 +94,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.3.7";
+char em_driver_version[] = "7.3.8";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -335,6 +335,9 @@ MODULE_DEPEND(em, ether, 1, 1, 1);
 #define EM_USECS_TO_TICKS(usecs)	((1000 * (usecs) + 512) / 1024)
 #define M_TSO_LEN			66
 
+#define MAX_INTS_PER_SEC	8000
+#define DEFAULT_ITR		(1000000000/(MAX_INTS_PER_SEC * 256))
+
 /* Allow common code without TSO */
 #ifndef CSUM_TSO
 #define CSUM_TSO	0
@@ -570,6 +573,11 @@ em_attach(device_t dev)
 	    &adapter->tx_abs_int_delay,
 	    E1000_REGISTER(hw, E1000_TADV),
 	    em_tx_abs_int_delay_dflt);
+	em_add_int_delay_sysctl(adapter, "itr",
+	    "interrupt delay limit in usecs/4",
+	    &adapter->tx_itr,
+	    E1000_REGISTER(hw, E1000_ITR),
+	    DEFAULT_ITR);
 
 	/* Sysctl for limiting the amount of work done in the taskqueue */
 	em_set_sysctl_value(adapter, "rx_processing_limit",
@@ -2133,12 +2141,37 @@ em_set_promisc(struct adapter *adapter)
 static void
 em_disable_promisc(struct adapter *adapter)
 {
-	u32	reg_rctl;
+	struct ifnet	*ifp = adapter->ifp;
+	u32		reg_rctl;
+	int		mcnt = 0;
 
 	reg_rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
-
 	reg_rctl &=  (~E1000_RCTL_UPE);
-	reg_rctl &=  (~E1000_RCTL_MPE);
+	if (ifp->if_flags & IFF_ALLMULTI)
+		mcnt = MAX_NUM_MULTICAST_ADDRESSES;
+	else {
+		struct  ifmultiaddr *ifma;
+#if __FreeBSD_version < 800000
+		IF_ADDR_LOCK(ifp);
+#else   
+		if_maddr_rlock(ifp);
+#endif
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			if (mcnt == MAX_NUM_MULTICAST_ADDRESSES)
+				break;
+			mcnt++;
+		}
+#if __FreeBSD_version < 800000
+		IF_ADDR_UNLOCK(ifp);
+#else
+		if_maddr_runlock(ifp);
+#endif
+	}
+	/* Don't disable if in MAX groups */
+	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
+		reg_rctl &=  (~E1000_RCTL_MPE);
 	reg_rctl &=  (~E1000_RCTL_SBP);
 	E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
 }
@@ -3803,17 +3836,9 @@ em_txeof(struct tx_ring *txr)
 
 	EM_TX_LOCK_ASSERT(txr);
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_adapter *na = NA(ifp);
-
-		selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
-		EM_TX_UNLOCK(txr);
-		EM_CORE_LOCK(adapter);
-		selwakeuppri(&na->tx_si, PI_NET);
-		EM_CORE_UNLOCK(adapter);
-		EM_TX_LOCK(txr);
+	if (netmap_tx_irq(ifp, txr->me |
+	    (NETMAP_LOCKED_ENTER | NETMAP_LOCKED_EXIT)))
 		return;
-	}
 #endif /* DEV_NETMAP */
 
 	/* No work, make sure watchdog is off */
@@ -4254,8 +4279,6 @@ em_free_receive_buffers(struct rx_ring *rxr)
  *  Enable receive unit.
  *
  **********************************************************************/
-#define MAX_INTS_PER_SEC	8000
-#define DEFAULT_ITR	     1000000000/(MAX_INTS_PER_SEC * 256)
 
 static void
 em_initialize_receive_unit(struct adapter *adapter)
@@ -4297,11 +4320,12 @@ em_initialize_receive_unit(struct adapter *adapter)
 		E1000_WRITE_REG(hw, E1000_RFCTL, E1000_RFCTL_ACK_DIS);
 	}
 
-	if (ifp->if_capenable & IFCAP_RXCSUM) {
-		rxcsum = E1000_READ_REG(hw, E1000_RXCSUM);
-		rxcsum |= (E1000_RXCSUM_IPOFL | E1000_RXCSUM_TUOFL);
-		E1000_WRITE_REG(hw, E1000_RXCSUM, rxcsum);
-	}
+	rxcsum = E1000_READ_REG(hw, E1000_RXCSUM);
+	if (ifp->if_capenable & IFCAP_RXCSUM)
+		rxcsum |= E1000_RXCSUM_TUOFL;
+	else
+		rxcsum &= ~E1000_RXCSUM_TUOFL;
+	E1000_WRITE_REG(hw, E1000_RXCSUM, rxcsum);
 
 	/*
 	** XXX TEMPORARY WORKAROUND: on some systems with 82573
@@ -4315,6 +4339,8 @@ em_initialize_receive_unit(struct adapter *adapter)
 
 	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
 		/* Setup the Base and Length of the Rx Descriptor Ring */
+		u32 rdt = adapter->num_rx_desc - 1; /* default */
+
 		bus_addr = rxr->rxdma.dma_paddr;
 		E1000_WRITE_REG(hw, E1000_RDLEN(i),
 		    adapter->num_rx_desc * sizeof(struct e1000_rx_desc));
@@ -4326,18 +4352,11 @@ em_initialize_receive_unit(struct adapter *adapter)
 		/*
 		 * an init() while a netmap client is active must
 		 * preserve the rx buffers passed to userspace.
-		 * In this driver it means we adjust RDT to
-		 * something different from na->num_rx_desc - 1.
 		 */
-		if (ifp->if_capenable & IFCAP_NETMAP) {
-			struct netmap_adapter *na = NA(adapter->ifp);
-			struct netmap_kring *kring = &na->rx_rings[i];
-			int t = na->num_rx_desc - 1 - kring->nr_hwavail;
-
-			E1000_WRITE_REG(hw, E1000_RDT(i), t);
-		} else
+		if (ifp->if_capenable & IFCAP_NETMAP)
+			rdt -= NA(adapter->ifp)->rx_rings[i].nr_hwavail;
 #endif /* DEV_NETMAP */
-		E1000_WRITE_REG(hw, E1000_RDT(i), adapter->num_rx_desc - 1);
+		E1000_WRITE_REG(hw, E1000_RDT(i), rdt);
 	}
 
 	/* Set PTHRESH for improved jumbo performance */
@@ -4414,17 +4433,8 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 	EM_RX_LOCK(rxr);
 
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_adapter *na = NA(ifp);
-
-		na->rx_rings[rxr->me].nr_kflags |= NKR_PENDINTR;
-		selwakeuppri(&na->rx_rings[rxr->me].si, PI_NET);
-		EM_RX_UNLOCK(rxr);
-		EM_CORE_LOCK(adapter);
-		selwakeuppri(&na->rx_si, PI_NET);
-		EM_CORE_UNLOCK(adapter);
-		return (0);
-	}
+	if (netmap_rx_irq(ifp, rxr->me | NETMAP_LOCKED_ENTER, &processed))
+		return (FALSE);
 #endif /* DEV_NETMAP */
 
 	for (i = rxr->next_to_check, processed = 0; count != 0;) {
@@ -4619,31 +4629,23 @@ em_fixup_rx(struct rx_ring *rxr)
 static void
 em_receive_checksum(struct e1000_rx_desc *rx_desc, struct mbuf *mp)
 {
+	mp->m_pkthdr.csum_flags = 0;
+
 	/* Ignore Checksum bit is set */
-	if (rx_desc->status & E1000_RXD_STAT_IXSM) {
-		mp->m_pkthdr.csum_flags = 0;
+	if (rx_desc->status & E1000_RXD_STAT_IXSM)
 		return;
-	}
 
-	if (rx_desc->status & E1000_RXD_STAT_IPCS) {
-		/* Did it pass? */
-		if (!(rx_desc->errors & E1000_RXD_ERR_IPE)) {
-			/* IP Checksum Good */
-			mp->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
-			mp->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+	if (rx_desc->errors & (E1000_RXD_ERR_TCPE | E1000_RXD_ERR_IPE))
+		return;
 
-		} else {
-			mp->m_pkthdr.csum_flags = 0;
-		}
-	}
+	/* IP Checksum Good? */
+	if (rx_desc->status & E1000_RXD_STAT_IPCS)
+		mp->m_pkthdr.csum_flags = (CSUM_IP_CHECKED | CSUM_IP_VALID);
 
-	if (rx_desc->status & E1000_RXD_STAT_TCPCS) {
-		/* Did it pass? */
-		if (!(rx_desc->errors & E1000_RXD_ERR_TCPE)) {
-			mp->m_pkthdr.csum_flags |=
-			(CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
-			mp->m_pkthdr.csum_data = htons(0xffff);
-		}
+	/* TCP or UDP checksum */
+	if (rx_desc->status & (E1000_RXD_STAT_TCPCS | E1000_RXD_STAT_UDPCS)) {
+		mp->m_pkthdr.csum_flags |= (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+		mp->m_pkthdr.csum_data = htons(0xffff);
 	}
 }
 
@@ -5622,6 +5624,8 @@ em_sysctl_int_delay(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	info->value = usecs;
 	ticks = EM_USECS_TO_TICKS(usecs);
+	if (info->offset == E1000_ITR)	/* units are 256ns here */
+		ticks *= 4;
 
 	adapter = info->adapter;
 	

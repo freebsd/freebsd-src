@@ -1,0 +1,506 @@
+#!/usr/bin/env python
+
+import os
+import re
+import shutil
+import sys
+import stat
+import copy
+
+### use get_version() ?
+MAJOR = 1
+
+# Basic defines for our outputs.
+LIBNAME = 'libserf-%d' % (MAJOR,)
+INCLUDES = 'serf-%d' % (MAJOR,)
+PCFILE = 'serf-%d' % (MAJOR,)
+
+
+FILES_HDR = [
+  ('.', 'serf'),
+  ('.', 'serf_bucket_types'),
+  ('.', 'serf_bucket_util'),
+  ]
+
+LIB_FILES = [
+  ('.', 'context'),
+  ('.', 'incoming'),
+  ('.', 'outgoing'),
+  ('.', 'ssltunnel'),
+
+  ('buckets', 'aggregate_buckets'),
+  ('buckets', 'request_buckets'),
+  ('buckets', 'buckets'),
+  ('buckets', 'simple_buckets'),
+  ('buckets', 'file_buckets'),
+  ('buckets', 'mmap_buckets'),
+  ('buckets', 'socket_buckets'),
+  ('buckets', 'response_buckets'),
+  ('buckets', 'response_body_buckets'),
+  ('buckets', 'headers_buckets'),
+  ('buckets', 'allocator'),
+  ('buckets', 'dechunk_buckets'),
+  ('buckets', 'deflate_buckets'),
+  ('buckets', 'limit_buckets'),
+  ('buckets', 'ssl_buckets'),
+  ('buckets', 'barrier_buckets'),
+  ('buckets', 'chunk_buckets'),
+  ('buckets', 'iovec_buckets'),
+  ('auth', 'auth'),
+  ('auth', 'auth_basic'),
+  ('auth', 'auth_digest'),
+  ('auth', 'auth_kerb'),
+  ('auth', 'auth_kerb_gss'),
+  ]
+
+TEST_DEPS = [
+  ('test', 'CuTest'),
+  ('test', 'test_util'),
+  ('test', 'test_context'),
+  ('test', 'test_buckets'),
+  ('test', 'test_ssl'),
+  ('test/server', 'test_server'),
+  ('test/server', 'test_sslserver'),
+  ]
+
+TEST_HDR_FILES = [
+  ('test', 'CuTest'),
+  ('test', 'test_serf'),
+  ]
+
+TEST_FILES = [
+  ('test', 'serf_get'),
+  ('test', 'serf_response'),
+  ('test', 'serf_request'),
+  ('test', 'serf_spider'),
+  ('test', 'test_all'),
+  ]
+
+TESTCASES = [
+  ('test/testcases', 'simple.response'),
+  ('test/testcases', 'chunked-empty.response'),
+  ('test/testcases', 'chunked.response'),
+  ('test/testcases', 'chunked-trailers.response'),
+  ('test/testcases', 'deflate.response'),
+  ]
+
+
+def main(argv):
+  params = {}
+
+  commands = []
+
+  for arg in argv[1:]:
+    idx = arg.find('=')
+    if idx > 0:
+      start = arg.rfind('-', 0, idx)
+      if start > 0:
+        params[arg[start+1:idx]] = arg[idx+1:].strip()
+    else:
+      func = globals().get('cmd_' + arg)
+      if func:
+        commands.append(func)
+      else:
+        print('ERROR: unknown argument: ' + arg)
+        usage()
+
+  if not commands:
+    usage()
+
+  for func in commands:
+    try:
+      func(params)
+    except:
+      print('ERROR: exception:')
+      print(sys.exc_info()[1])
+      print("")
+      usage()
+
+
+def usage():
+  ### print something
+  print('serfmake [cmd] [options]')
+  print('Commands:')
+  print('\tbuild\tBuilds (default)')
+  print('\tcheck\tRuns test cases')
+  print('\tinstall\tInstalls serf into PREFIX')
+  print('\tclean\tCleans')
+  print('Options:')
+  print('\t--with-apr=PATH\t\tprefix for installed APR and APR-util')
+  print('\t\t\t\t(needs apr-1-config and apu-1-config; will look in PATH)')
+  print('\t--with-gssapi=PATH\tbuild serf with GSSAPI support')
+  print('\t\t\t\t(needs krb5-config; will look in PATH/bin)')
+
+  print('\t--prefix=PATH\t\tinstall serf into PATH (default: /usr/local)')
+  print('Quick guide:')
+  print('\tserfmake --prefix=/usr/local/serf --with-apr=/usr/local/apr install')
+  sys.exit(1)
+
+
+def cmd_build(param):
+  builder = Builder(param)
+  builder.build_target(File('.', LIBNAME, 'la'), False)
+  builder.build_target(File('.', PCFILE, 'pc'), False)
+
+
+def cmd_install(param):
+  builder = Builder(param)
+  builder.build_target(File('.', PCFILE, 'pc'), False) 
+  ### should be called .install_all()
+  builder.install_target(File('.', LIBNAME, 'la'), False)
+
+
+def cmd_check(param):
+  builder = Builder(param)
+  for dirpath, fname in TEST_FILES:
+    builder.build_target(File(dirpath, fname, None), False)
+
+  for dirpath, fname in TESTCASES:
+    case = os.path.join(dirpath, fname)
+    print('== Testing %s ==' % case)
+    result = os.system('%s %s' % (os.path.join('test', 'serf_response'), case))
+    if result:
+      raise TestError("", result)
+
+  # run the test suite based on the CuTest framework
+  result = os.system(os.path.join('test', 'test_all'))
+  if result:
+    raise TestError(case, result)  
+
+def cmd_clean(param):
+  targets = [File(dirpath, fname, 'o') for dirpath, fname in LIB_FILES]
+  targets += [File(dirpath, fname, 'lo') for dirpath, fname in LIB_FILES]
+  targets += [File('.', LIBNAME, 'la'),
+              File('.', PCFILE, 'pc'),
+              ]
+  targets += [File(dirpath, fname, 'o') for dirpath, fname in TEST_FILES]
+  targets += [File(dirpath, fname, 'lo') for dirpath, fname in TEST_FILES]
+  targets += [File(dirpath, fname, None) for dirpath, fname in TEST_FILES]
+  targets += [File(dirpath, fname, 'o') for dirpath, fname in TEST_DEPS]
+  targets += [File(dirpath, fname, 'lo') for dirpath, fname in TEST_DEPS]
+
+  clean = [file for file in targets if file.mtime]
+  if clean:
+    sys.stdout.write('Cleaning %d files... ' % len(clean))
+    for i in clean:
+      if i.mtime:
+        os.remove(i.fname)
+    print('done.')
+  else:
+    print('Clean.')
+
+
+class Builder(object):
+  def __init__(self, params):
+    # use apr option if set
+    if 'apr' in params:
+      self.apr = APRConfig(params['apr'])
+      self.apu = APUConfig(params['apr'])
+    else:
+      self.apr = APRConfig(None)
+      self.apu = APUConfig(None)
+
+    # build with gssapi if option is set
+    if 'gssapi' in params:
+      self.gssapi = GSSAPIConfig(params['gssapi'])
+    else:
+      self.gssapi = None
+
+    try:
+      self.prefix = params['prefix']
+    except:
+      self.prefix = '/usr/local'
+
+    ### no way to tweak these
+    self.libdir = os.path.join(self.prefix, 'lib')
+    self.pkgconfigdir = os.path.join(self.prefix, 'lib', 'pkgconfig')
+    self.includedir = os.path.join(self.prefix, 'include', INCLUDES)
+
+    self.load_vars()
+    self.load_deps()
+
+  def load_vars(self):
+    self.CC = self.apr.get_value('CC', '--cc')
+    self.CFLAGS = self.apr.get_value('CFLAGS', '--cflags')
+    self.CPPFLAGS = self.apr.get_value('CPPFLAGS', '--cppflags')
+    self.LIBTOOL = self.apr.get_value('LIBTOOL', '--apr-libtool')
+    self.LDFLAGS = self.apr.get_value('LDFLAGS', '--ldflags') \
+                   + ' ' + self.apu.get_value('LDFLAGS', '--ldflags')
+
+    self.INCLUDES = '-I%s -I%s -I%s' % (
+      '.',
+      self.apr.get_value(None, '--includedir'),
+      self.apu.get_value(None, '--includedir'),
+      )
+    if os.getenv('EXTRA_INCLUDES'):
+      self.INCLUDES += ' -I' + os.getenv('EXTRA_INCLUDES')
+
+    self.LIBS = self.apu.get_value(None, '--link-libtool') \
+                + ' ' + self.apu.get_value(None, '--libs') \
+                + ' ' + self.apr.get_value(None, '--link-libtool') \
+                + ' ' + self.apr.get_value(None, '--libs') \
+                + ' -lz'
+    self.SSL_LIBS = '-lssl -lcrypto'
+    if self.gssapi:
+        self.LIBS += ' ' + self.gssapi.get_value(None, '--libs gssapi')
+        self.CFLAGS += ' ' + self.gssapi.get_value('CFLAGS', '--cflags gssapi')\
+                       + ' -DSERF_HAVE_GSSAPI -g'
+
+    self.MODE = 644
+
+  def load_deps(self):
+    self.deps = { }
+
+    hdrs = [File(dirpath, fname, 'h') for dirpath, fname in FILES_HDR]
+    libfiles = [File(dirpath, fname, 'c') for dirpath, fname in LIB_FILES]
+    libobjs = [File(dirpath, fname, 'lo') for dirpath, fname in LIB_FILES]
+    for src, obj in zip(libfiles, libobjs):
+      self._add_compile(src, obj, hdrs)
+
+    self.hdrs = hdrs
+
+    all_libs = self.LIBS + ' ' + self.SSL_LIBS
+
+    lib = File('.', LIBNAME, 'la')
+    cmd = '%s --silent --mode=link %s %s -rpath %s -o %s %s %s' % (
+      self.LIBTOOL, self.CC, self.LDFLAGS, self.libdir,
+      lib.fname, ' '.join([l.fname for l in libobjs]), all_libs)
+    self._add_dep(lib, libobjs, cmd)
+
+    # load the test program dependencies now
+    testhdrs = copy.deepcopy(hdrs)
+    testhdrs += [File(dirpath, fname, 'h') for dirpath, fname in TEST_HDR_FILES]
+    testdeps = [File(dirpath, fname, 'c') for dirpath, fname in TEST_DEPS]
+    testobjs = [File(dirpath, fname, 'lo') for dirpath, fname in TEST_DEPS]
+
+    for testsrc, testobj in zip(testdeps, testobjs):
+      self._add_compile(testsrc, testobj, testhdrs)
+
+    for dirpath, fname in TEST_FILES:
+      src = File(dirpath, fname, 'c')
+      obj = File(dirpath, fname, 'lo')
+      prog = File(dirpath, fname, None)
+
+      self._add_compile(src, obj, hdrs)
+
+      # test_all requires extra dependencies
+      if fname == "test_all":
+        cmd = '%s --silent --mode=link %s %s -static -o %s %s %s %s' % (
+          self.LIBTOOL, self.CC, self.LDFLAGS,
+          prog.fname, lib.fname, ' '.join([l.fname for l in [obj] + testobjs]), 
+          all_libs)
+        self._add_dep(prog, [lib, obj] + testobjs, cmd)
+      else:
+        cmd = '%s --silent --mode=link %s %s -static -o %s %s %s %s' % (
+          self.LIBTOOL, self.CC, self.LDFLAGS,
+          prog.fname, lib.fname, obj.fname, all_libs)
+        self._add_dep(prog, [lib, obj], cmd)
+
+    # create 'serf-1.pc' if it doesn't exist.
+    pcfile = File('.', PCFILE, 'pc')
+    self._add_dep(pcfile, [], self._write_pcfile)
+
+  def _add_compile(self, src, obj, hdrs):
+    cmd = '%s --silent --mode=compile %s %s %s %s -c -o %s %s' % (
+      self.LIBTOOL, self.CC, self.CFLAGS, self.CPPFLAGS, self.INCLUDES,
+      obj.fname, src.fname)
+    self._add_dep(obj, [src] + hdrs, cmd)
+
+  def _add_dep(self, target, deps, cmd):
+    if target.mtime:
+      for dep in deps:
+        if dep in self.deps or (dep.mtime and dep.mtime > target.mtime):
+          # a dep is newer. this needs to be rebuilt.
+          break
+      else:
+        # this is up to date. don't add it to the deps[] structure.
+        return
+    # else non-existent, so it must be rebuilt.
+
+    # Commands that are strings are cmdline invocations. Otherwise, it
+    # should be a callable.
+    if isinstance(cmd, str):
+      cmd = CommandLine(cmd)
+
+    # register the dependency so this will get built
+    self.deps[target] = deps, cmd
+
+  def _write_pcfile(self):
+    """Generating serf-1.pc ..."""
+
+    open(PCFILE + '.pc', 'w').write(
+"""SERF_MAJOR_VERSION=%d
+prefix=%s
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include/%s
+
+Name: serf
+Description: HTTP client library
+Version: %s
+Requires.private: libssl libcrypto
+Libs: -L${libdir} -lserf-${SERF_MAJOR_VERSION}
+Libs.private: %s
+Cflags: -I${includedir}
+""" % (MAJOR, self.prefix, INCLUDES, get_version(), self.LIBS))
+
+  def build_target(self, target, dry_run):
+    deps, cmd = self.deps.get(target, (None, None))
+    if cmd is None:
+      # it's already up to date. all done.
+      return
+
+    for f in deps:
+      subdep = self.deps.get(f)
+      if subdep:
+        self.build_target(f, dry_run)
+
+    # build the target now
+    print(cmd.__doc__)
+    if not dry_run:
+      result = cmd()
+      if result:
+        raise BuildError(cmd.__doc__, result)
+      # FALLTHROUGH
+
+    # it's a dry run. pretend we built the target.
+    del self.deps[target]
+    return 0
+
+  def install_target(self, target, dry_run):
+    self.build_target(target, dry_run)
+
+    # install the target now
+    if not dry_run:
+
+      for path in (self.libdir, self.pkgconfigdir, self.includedir):
+        if not os.path.exists(path):
+          try:
+            os.makedirs(path)
+          except OSError:
+            raise BuildError('os.makedirs',
+                             'can not create install directories')
+
+      for f in self.hdrs:
+        print("Installing: %s" % (os.path.basename(f.fname),))
+        shutil.copy(f.fname, self.includedir)
+
+      print("Installing: %s.pc" % (PCFILE,))
+      shutil.copy(PCFILE + '.pc', self.pkgconfigdir)
+
+      cmd = '%s --silent --mode=install %s -c -m %d %s %s' % (
+            self.LIBTOOL, '/usr/bin/install', self.MODE, target.fname,
+            self.libdir)
+
+      print("Installing: %s" % (os.path.basename(target.fname),))
+      result = os.system(cmd)
+      if result:
+        raise BuildError(cmd, result)
+      # FALLTHROUGH
+
+    return 0
+
+
+class ConfigScript(object):
+  script_name = None
+  locations = [
+    '/usr/bin',
+    '/usr/local/bin',
+    '/usr/local/apache2/bin',
+    ]
+
+  def __init__(self, search_dir):
+    if search_dir:
+      locations = [search_dir, os.path.join(search_dir, 'bin')]
+    else:
+      locations = self.locations
+
+    for dirname in locations:
+      bin = os.path.join(dirname, self.script_name)
+      if os.access(bin, os.X_OK):
+        self.bin = bin
+        break
+    else:
+      raise ConfigScriptNotFound(self.script_name)
+
+  def get_value(self, env_name, switch):
+    if env_name and os.getenv(env_name):
+      return os.getenv(env_name)
+    return os.popen('%s %s' % (self.bin, switch), 'r').read().strip()
+
+
+class APRConfig(ConfigScript):
+  script_name = 'apr-1-config'
+
+
+class APUConfig(ConfigScript):
+  script_name = 'apu-1-config'
+
+
+class GSSAPIConfig(ConfigScript):
+  script_name = 'krb5-config'
+
+
+class CommandLine(object):
+  """Simple helper to invoke a system command when called."""
+
+  def __init__(self, cmd):
+    self.cmd = cmd
+    self.__doc__ = cmd  # when we print the execution of this command
+
+  def __call__(self):
+    return os.system(self.cmd)
+
+
+class File:
+  def __init__(self, dirpath, fname, ext):
+    if ext:
+      self.fname = os.path.join(dirpath, fname + '.' + ext)
+    else:
+      self.fname = os.path.join(dirpath, fname)
+
+    try:
+      s = os.stat(self.fname)
+    except OSError:
+      self.mtime = None
+    else:
+      self.mtime = s[stat.ST_MTIME]
+
+  def __eq__(self, other):
+    return self.fname == other.fname
+
+  def __hash__(self):
+    return hash(self.fname)
+
+
+def get_version():
+  match = re.search('SERF_MAJOR_VERSION ([0-9]+).*'
+                    'SERF_MINOR_VERSION ([0-9]+).*'
+                    'SERF_PATCH_VERSION ([0-9]+)',
+                    open('serf.h').read(),
+                    re.DOTALL)
+  major, minor, patch = match.groups()
+  return '%s.%s.%s' % (major, minor, patch)
+
+
+class BuildError(Exception):
+  "An error occurred while building a target."
+class TestError(Exception):
+  "An error occurred while running a unit test."
+class ConfigScriptNotFound(Exception):
+  def __init__(self, value):
+    self.value = "ERROR: A configuration script was not found: " + value
+  def __str__(self):
+    return self.value
+
+
+if __name__ == '__main__':
+  main(sys.argv)
+
+
+###
+### TODO:
+### * obey DESTDIR
+### * arfrever says LDFLAGS is passed twice
+### * be able to specify libdir and includedir
+###

@@ -10,6 +10,7 @@
 #ifndef LLVM_MC_MCOBJECTSTREAMER_H
 #define LLVM_MC_MCOBJECTSTREAMER_H
 
+#include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCStreamer.h"
 
 namespace llvm {
@@ -32,24 +33,35 @@ class raw_ostream;
 class MCObjectStreamer : public MCStreamer {
   MCAssembler *Assembler;
   MCSectionData *CurSectionData;
+  MCSectionData::iterator CurInsertionPoint;
 
   virtual void EmitInstToData(const MCInst &Inst) = 0;
   virtual void EmitCFIStartProcImpl(MCDwarfFrameInfo &Frame);
   virtual void EmitCFIEndProcImpl(MCDwarfFrameInfo &Frame);
 
 protected:
-  MCObjectStreamer(MCContext &Context, MCAsmBackend &TAB,
+  MCObjectStreamer(StreamerKind Kind, MCContext &Context, MCAsmBackend &TAB,
                    raw_ostream &_OS, MCCodeEmitter *_Emitter);
-  MCObjectStreamer(MCContext &Context, MCAsmBackend &TAB,
+  MCObjectStreamer(StreamerKind Kind, MCContext &Context, MCAsmBackend &TAB,
                    raw_ostream &_OS, MCCodeEmitter *_Emitter,
                    MCAssembler *_Assembler);
   ~MCObjectStreamer();
 
+public:
+  /// state management
+  virtual void reset();
+
+protected:
   MCSectionData *getCurrentSectionData() const {
     return CurSectionData;
   }
 
   MCFragment *getCurrentFragment() const;
+
+  void insert(MCFragment *F) const {
+    CurSectionData->getFragmentList().insert(CurInsertionPoint, F);
+    F->setParent(CurSectionData);
+  }
 
   /// Get a data fragment to write into, creating a new one if the current
   /// fragment is not a data fragment.
@@ -64,15 +76,25 @@ public:
   /// @{
 
   virtual void EmitLabel(MCSymbol *Symbol);
+  virtual void EmitDebugLabel(MCSymbol *Symbol);
+  virtual void EmitAssignment(MCSymbol *Symbol, const MCExpr *Value);
   virtual void EmitValueImpl(const MCExpr *Value, unsigned Size,
                              unsigned AddrSpace);
   virtual void EmitULEB128Value(const MCExpr *Value);
   virtual void EmitSLEB128Value(const MCExpr *Value);
   virtual void EmitWeakReference(MCSymbol *Alias, const MCSymbol *Symbol);
-  virtual void ChangeSection(const MCSection *Section);
+  virtual void ChangeSection(const MCSection *Section,
+                             const MCExpr *Subsection);
   virtual void EmitInstruction(const MCInst &Inst);
+
+  /// \brief Emit an instruction to a special fragment, because this instruction
+  /// can change its size during relaxation.
   virtual void EmitInstToFragment(const MCInst &Inst);
-  virtual void EmitBytes(StringRef Data, unsigned AddrSpace);
+
+  virtual void EmitBundleAlignMode(unsigned AlignPow2);
+  virtual void EmitBundleLock(bool AlignToEnd);
+  virtual void EmitBundleUnlock();
+  virtual void EmitBytes(StringRef Data, unsigned AddrSpace = 0);
   virtual void EmitValueToAlignment(unsigned ByteAlignment,
                                     int64_t Value = 0,
                                     unsigned ValueSize = 1,
@@ -89,10 +111,14 @@ public:
   virtual void EmitGPRel32Value(const MCExpr *Value);
   virtual void EmitGPRel64Value(const MCExpr *Value);
   virtual void EmitFill(uint64_t NumBytes, uint8_t FillValue,
-                        unsigned AddrSpace);
+                        unsigned AddrSpace = 0);
   virtual void FinishImpl();
 
   /// @}
+
+  static bool classof(const MCStreamer *S) {
+    return S->getKind() >= SK_ELFStreamer && S->getKind() <= SK_WinCOFFStreamer;
+  }
 };
 
 } // end namespace llvm

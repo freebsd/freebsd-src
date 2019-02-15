@@ -118,7 +118,7 @@ tunable_mbinit(void *dummy)
 	 * At most it can be 3/4 of available kernel memory.
 	 */
 	realmem = qmin((quad_t)physmem * PAGE_SIZE,
-	    vm_map_max(kernel_map) - vm_map_min(kernel_map));
+	    vm_map_max(kmem_map) - vm_map_min(kmem_map));
 	maxmbufmem = realmem / 2;
 	TUNABLE_QUAD_FETCH("kern.maxmbufmem", &maxmbufmem);
 	if (maxmbufmem > realmem / 4 * 3)
@@ -470,6 +470,7 @@ mb_ctor_mbuf(void *mem, int size, void *arg, int how)
 		m->m_pkthdr.tso_segsz = 0;
 		m->m_pkthdr.ether_vtag = 0;
 		m->m_pkthdr.flowid = 0;
+		m->m_pkthdr.fibnum = 0;
 		SLIST_INIT(&m->m_pkthdr.tags);
 #ifdef MAC
 		/* If the label init fails, fail the alloc */
@@ -695,6 +696,7 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 		m->m_pkthdr.tso_segsz = 0;
 		m->m_pkthdr.ether_vtag = 0;
 		m->m_pkthdr.flowid = 0;
+		m->m_pkthdr.fibnum = 0;
 		SLIST_INIT(&m->m_pkthdr.tags);
 #ifdef MAC
 		/* If the label init fails, fail the alloc */
@@ -720,6 +722,7 @@ m_pkthdr_init(struct mbuf *m, int how)
 	m->m_pkthdr.header = NULL;
 	m->m_pkthdr.len = 0;
 	m->m_pkthdr.flowid = 0;
+	m->m_pkthdr.fibnum = 0;
 	m->m_pkthdr.csum_flags = 0;
 	m->m_pkthdr.csum_data = 0;
 	m->m_pkthdr.tso_segsz = 0;

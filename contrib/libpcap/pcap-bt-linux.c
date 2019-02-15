@@ -71,14 +71,14 @@ static int bt_setdirection_linux(pcap_t *, pcap_direction_t);
 static int bt_stats_linux(pcap_t *, struct pcap_stat *);
 
 int 
-bt_platform_finddevs(pcap_if_t **alldevsp, char *err_str)
+bt_findalldevs(pcap_if_t **alldevsp, char *err_str)
 {
 	pcap_if_t *found_dev = *alldevsp;
 	struct hci_dev_list_req *dev_list;
 	struct hci_dev_req *dev_req;
 	int i, sock;
 	int ret = 0;
-	
+
 	sock  = socket(AF_BLUETOOTH, SOCK_RAW, BTPROTO_HCI);
 	if (sock < 0)
 	{
@@ -135,9 +135,39 @@ done:
 }
 
 pcap_t *
-bt_create(const char *device, char *ebuf)
+bt_create(const char *device, char *ebuf, int *is_ours)
 {
+	const char *cp;
+	char *cpend;
+	long devnum;
 	pcap_t *p;
+
+	/* Does this look like a Bluetooth device? */
+	cp = strrchr(device, '/');
+	if (cp == NULL)
+		cp = device;
+	/* Does it begin with BT_IFACE? */
+	if (strncmp(cp, BT_IFACE, sizeof BT_IFACE - 1) != 0) {
+		/* Nope, doesn't begin with BT_IFACE */
+		*is_ours = 0;
+		return NULL;
+	}
+	/* Yes - is BT_IFACE followed by a number? */
+	cp += sizeof BT_IFACE - 1;
+	devnum = strtol(cp, &cpend, 10);
+	if (cpend == cp || *cpend != '\0') {
+		/* Not followed by a number. */
+		*is_ours = 0;
+		return NULL;
+	}
+	if (devnum < 0) {
+		/* Followed by a non-valid number. */
+		*is_ours = 0;
+		return NULL;
+	}
+
+	/* OK, it's probably ours. */
+	*is_ours = 1;
 
 	p = pcap_create_common(device, ebuf);
 	if (p == NULL)
@@ -224,6 +254,9 @@ bt_activate(pcap_t* handle)
 	/* Bind socket to the HCI device */
 	addr.hci_family = AF_BLUETOOTH;
 	addr.hci_dev = handle->md.ifindex;
+#ifdef SOCKADDR_HCI_HAS_HCI_CHANNEL
+	addr.hci_channel = HCI_CHANNEL_RAW;
+#endif
 	if (bind(handle->fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
 		snprintf(handle->errbuf, PCAP_ERRBUF_SIZE,
 		    "Can't attach to device %d: %s", handle->md.ifindex,

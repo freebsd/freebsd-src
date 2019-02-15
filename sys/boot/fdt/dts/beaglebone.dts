@@ -28,13 +28,11 @@
 
 /dts-v1/;
 
+/include/ "am335x.dtsi"
+
 / {
 	model = "beaglebone";
 	compatible = "beaglebone", "ti,am335x";
-	#address-cells = <1>;
-	#size-cells = <1>;
-
-	interrupt-parent = <&AINTC>;
 
 	aliases {
 		soc = &SOC;
@@ -46,24 +44,8 @@
 		reg = < 0x80000000 0x10000000 >;	/* 256MB RAM */
 	};
 
-	SOC: am335x {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "simple-bus";
-		ranges;
-		bus-frequency = <0>;
-
-		AINTC: interrupt-controller@48200000 {
-			compatible = "ti,aintc";
-			interrupt-controller;
-			#address-cells = <0>;
-			#interrupt-cells = <1>;
-			reg =	< 0x48200000 0x1000 >;
-		};
-
-		scm@44e10000 {
-			compatible = "ti,scm";
-			reg =	< 0x44e10000 0x2000 >;
+	am335x {
+ 		scm@44e10000 {
 			/* Set of triplets < padname, muxname, padstate> */
 			scm-pad-config =
 				/* I2C0 */
@@ -143,102 +125,14 @@
 				"GPMC_A3", "ehrpwm1B", "output",
 				"GPMC_AD8", "ehrpwm2A", "output",
 				"GPMC_AD9", "ehrpwm2B", "output";
-		};
-
-		prcm@44E00000 {
-			compatible = "am335x,prcm";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			reg = < 0x44E00000 0x1300 >;
-		};
-
-		dmtimers@44E05000 {
-			compatible = "ti,am335x-dmtimer";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			reg =	< 0x44E05000 0x1000
-				  0x44E31000 0x1000
-				  0x48040000 0x1000
-				  0x48042000 0x1000
-				  0x48044000 0x1000
-				  0x48046000 0x1000
-				  0x48048000 0x1000
-				  0x4804A000 0x1000 >;
-			interrupts = < 66 67 68 69 92 93 94 95 >;
-			interrupt-parent = <&AINTC>;
-		};
-
-		GPIO: gpio {
-			#gpio-cells = <3>;
-			compatible = "ti,gpio";
-			gpio-controller;
-			reg =<	0x44E07000 0x1000
-				0x4804C000 0x1000
-				0x481AC000 0x1000
-				0x481AE000 0x1000 >;
-			interrupts = < 96 97 98 99 32 33 62 63 >;
-			interrupt-parent = <&AINTC>;
-		};
-
-
-		uart0: serial@44E09000 {
-			compatible = "ns16550";
-			reg = <0x44E09000 0x1000>;
-			reg-shift = <2>;
-			interrupts = < 72 >;
-			interrupt-parent = <&AINTC>;
-			clock-frequency = < 48000000 >; /* FIXME */
-		};
-
-		edma3@49000000 {
-			compatible = "ti,edma3";
-			reg =<	0x49000000 0x100000	/* Channel Controller Regs */
-				0x49800000 0x100000	/* Transfer Controller 0 Regs */
-				0x49900000 0x100000	/* Transfer Controller 1 Regs */
-				0x49a00000 0x100000 >;	/* Transfer Controller 2 Regs */
-			interrupts = <12 13 14>;
-			interrupt-parent = <&AINTC>;
-		};
-
-		mmchs0@4809C000 {
-			compatible = "ti,mmchs";
-			reg =<0x48060000 0x1000 >;
-			interrupts = <64>;
-			interrupt-parent = <&AINTC>;
-			mmchs-device-id = <0>;
-		};
-
-		enet0: ethernet@4A100000 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "ti,cpsw";
-			reg = <0x4A100000 0x4000>;
-			interrupts = <40 41 42 43>;
-			interrupt-parent = <&AINTC>;
-			phy-handle = <&phy0>;
-			mdio@0 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				compatible = "ti,cpsw-mdio";
-				phy0: ethernet-phy@0 {
-					reg = <0x0>;
-				};
-			};
-		};
-
-		i2c0: i2c@44e0b000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "ti,i2c";
-			reg =<	0x44e0b000 0x1000 >;
-			interrupts = <70>;
-			interrupt-parent = <&AINTC>;
-			i2c-device-id = <0>;
+ 		};
+ 
+		i2c@44e0b000 {
 			pmic@24 {
 				compatible = "ti,am335x-pmic";
 				reg = <0x24>;
 			};
-		};
+		}
 	};
 
 	chosen {

@@ -111,4 +111,11 @@ CFLAGS+=	-DDEFSHELLNAME=\"${MAKE_SHELL}\"
 .error "MAKE_SHELL must be set to one of \"csh\", \"sh\" or \"ksh\"."
 .endif
 
+.if defined(MK_BMAKE) && ${MK_BMAKE} != "no"
+# if we are here we don't want this called 'make'
+PROG=	fmake
+fmake.1: make.1
+	cp ${.ALLSRC} ${.TARGET}
+.endif
+
 .include <bsd.prog.mk>

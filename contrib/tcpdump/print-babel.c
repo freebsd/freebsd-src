@@ -81,6 +81,8 @@ babel_print(const u_char *cp, u_int length) {
 #define MESSAGE_UPDATE 8
 #define MESSAGE_REQUEST 9
 #define MESSAGE_MH_REQUEST 10
+#define MESSAGE_TSPC 11
+#define MESSAGE_HMAC 12
 
 static const char *
 format_id(const u_char *id)
@@ -102,7 +104,11 @@ format_prefix(const u_char *prefix, unsigned char plen)
     if(plen >= 96 && memcmp(prefix, v4prefix, 12) == 0)
         snprintf(buf, 50, "%s/%u", ipaddr_string(prefix + 12), plen - 96);
     else
+#ifdef INET6
         snprintf(buf, 50, "%s/%u", ip6addr_string(prefix), plen);
+#else
+        snprintf(buf, 50, "IPv6 addresses not supported");
+#endif
     buf[49] = '\0';
     return buf;
 }
@@ -113,7 +119,11 @@ format_address(const u_char *prefix)
     if(memcmp(prefix, v4prefix, 12) == 0)
         return ipaddr_string(prefix + 12);
     else
+#ifdef INET6
         return ip6addr_string(prefix);
+#else
+        return "IPv6 addresses not supported";
+#endif
 }
 
 static int
@@ -199,7 +209,7 @@ babel_print_v2(const u_char *cp, u_int length) {
     i = 0;
     while(i < bodylen) {
         const u_char *message;
-        u_char type, len;
+        u_int type, len;
 
         message = cp + 4 + i;
         TCHECK2(*message, 2);
@@ -391,6 +401,29 @@ babel_print_v2(const u_char *cp, u_int length) {
                 printf("(%u hops) for %s seqno %u id %s",
                        message[6], format_prefix(prefix, plen),
                        seqno, format_id(message + 8));
+            }
+        }
+            break;
+        case MESSAGE_TSPC :
+            if(!vflag)
+                printf(" tspc");
+            else {
+                printf("\n\tTS/PC ");
+                if(len < 6) goto corrupt;
+                printf("timestamp %u packetcounter %u", EXTRACT_32BITS (message + 4),
+                       EXTRACT_16BITS(message + 2));
+            }
+            break;
+        case MESSAGE_HMAC : {
+            if(!vflag)
+                printf(" hmac");
+            else {
+                unsigned j;
+                printf("\n\tHMAC ");
+                if(len < 18) goto corrupt;
+                printf("key-id %u digest-%u ", EXTRACT_16BITS(message + 2), len - 2);
+                for (j = 0; j < len - 2; j++)
+                    printf ("%02X", message[4 + j]);
             }
         }
             break;

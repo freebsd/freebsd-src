@@ -53,6 +53,6 @@ int  yyparse(void);
 __END_DECLS
 
 #define PATH_DEVCTL	"/dev/devctl"
-#define DEVCTL_MAXBUF	1025
+#define DEVCTL_MAXBUF	8192
 
 #endif /* DEVD_H */

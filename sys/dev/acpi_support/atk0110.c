@@ -253,8 +253,8 @@ aibs_attach_sif(struct aibs_softc *sc, enum aibs_type st)
 		    "0x%08"PRIx64" %20s %5"PRIi64" / %5"PRIi64"  "
 		    "0x%"PRIx64"\n",
 		    name[0], i,
-		    as[i].i, desc, (int64_t)as[i].l, (int64_t)as[i].h,
-		    oi[4].Integer.Value);
+		    (uint64_t)as[i].i, desc, (int64_t)as[i].l,
+		    (int64_t)as[i].h, (uint64_t)oi[4].Integer.Value);
 #endif
 		snprintf(si, sizeof(si), "%i", i);
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(sc->sc_dev),

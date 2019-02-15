@@ -26,8 +26,6 @@
  * $FreeBSD$
  */
 
-#include "opt_ata.h"
-
 #if 0
 #define	ATA_LEGACY_SUPPORT		/* Enable obsolete features that break
 					 * some modern devices */
@@ -423,9 +421,7 @@ struct ata_request {
     struct ata_composite        *composite;     /* for composite atomic ops */
     void                        *driver;        /* driver specific */
     TAILQ_ENTRY(ata_request)    chain;          /* list management */
-#ifdef ATA_CAM
     union ccb			*ccb;
-#endif
 };
 
 /* define this for debugging request processing */
@@ -532,7 +528,6 @@ struct ata_resource {
     int                         offset;
 };
 
-#ifdef ATA_CAM
 struct ata_cam_device {
 	u_int			revision;
 	int			mode;
@@ -540,7 +535,6 @@ struct ata_cam_device {
 	u_int			atapi;
 	u_int			caps;
 };
-#endif
 
 /* structure describing an ATA channel */
 struct ata_channel {
@@ -580,18 +574,13 @@ struct ata_channel {
 #define         ATA_ACTIVE              0x0001
 #define         ATA_STALL_QUEUE         0x0002
 
-    struct mtx                  queue_mtx;      /* queue lock */
-    TAILQ_HEAD(, ata_request)   ata_queue;      /* head of ATA queue */
-    struct ata_request          *freezepoint;   /* composite freezepoint */
     struct ata_request          *running;       /* currently running request */
     struct task			conntask;	/* PHY events handling task */
-#ifdef ATA_CAM
 	struct cam_sim		*sim;
 	struct cam_path		*path;
 	struct ata_cam_device	user[16];       /* User-specified settings */
 	struct ata_cam_device	curr[16];       /* Current settings */
 	int			requestsense;	/* CCB waiting for SENSE. */
-#endif
 	struct callout		poll_callout;	/* Periodic status poll. */
 };
 
@@ -619,40 +608,15 @@ int ata_reinit(device_t dev);
 int ata_suspend(device_t dev);
 int ata_resume(device_t dev);
 void ata_interrupt(void *data);
-int ata_device_ioctl(device_t dev, u_long cmd, caddr_t data);
 int ata_getparam(struct ata_device *atadev, int init);
-int ata_identify(device_t dev);
 void ata_default_registers(device_t dev);
-void ata_modify_if_48bit(struct ata_request *request);
 void ata_udelay(int interval);
-const char *ata_unit2str(struct ata_device *atadev);
+const char *ata_cmd2str(struct ata_request *request);
 const char *ata_mode2str(int mode);
-int ata_str2mode(const char *str);
-const char *ata_satarev2str(int rev);
-int ata_atapi(device_t dev, int target);
-int ata_pmode(struct ata_params *ap);
-int ata_wmode(struct ata_params *ap);
-int ata_umode(struct ata_params *ap);
-int ata_limit_mode(device_t dev, int mode, int maxmode);
 void ata_setmode(device_t dev);
 void ata_print_cable(device_t dev, u_int8_t *who);
-int ata_check_80pin(device_t dev, int mode);
-#ifdef ATA_CAM
-void ata_cam_begin_transaction(device_t dev, union ccb *ccb);
-void ata_cam_end_transaction(device_t dev, struct ata_request *request);
-#endif
-
-/* ata-queue.c: */
-int ata_controlcmd(device_t dev, u_int8_t command, u_int16_t feature, u_int64_t lba, u_int16_t count);
-int ata_atapicmd(device_t dev, u_int8_t *ccb, caddr_t data, int count, int flags, int timeout);
-void ata_queue_request(struct ata_request *request);
-void ata_start(device_t dev);
-void ata_finish(struct ata_request *request);
+int ata_atapi(device_t dev, int target);
 void ata_timeout(struct ata_request *);
-void ata_catch_inflight(device_t dev);
-void ata_fail_requests(device_t dev);
-void ata_drop_requests(device_t dev);
-const char *ata_cmd2str(struct ata_request *request);
 
 /* ata-lowlevel.c: */
 void ata_generic_hw(device_t dev);
@@ -682,11 +646,6 @@ extern uma_zone_t ata_request_zone;
 	if (!(request->flags & ATA_R_DANGER2)) \
 	    uma_zfree(ata_request_zone, request); \
 	}
-
-/* macros for alloc/free of struct ata_composite */
-extern uma_zone_t ata_composite_zone;
-#define ata_alloc_composite() uma_zalloc(ata_composite_zone, M_NOWAIT | M_ZERO)
-#define ata_free_composite(composite) uma_zfree(ata_composite_zone, composite)
 
 MALLOC_DECLARE(M_ATA);
 

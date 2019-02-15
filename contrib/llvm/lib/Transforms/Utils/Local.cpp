@@ -13,33 +13,34 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/Local.h"
-#include "llvm/Constants.h"
-#include "llvm/DIBuilder.h"
-#include "llvm/DebugInfo.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/GlobalAlias.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/IRBuilder.h"
-#include "llvm/Instructions.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/MDBuilder.h"
-#include "llvm/Metadata.h"
-#include "llvm/Operator.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/ProfileInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/DIBuilder.h"
+#include "llvm/DebugInfo.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/GlobalAlias.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/MDBuilder.h"
+#include "llvm/IR/Metadata.h"
+#include "llvm/IR/Operator.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/DataLayout.h"
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -604,7 +605,7 @@ bool llvm::TryToSimplifyUncondBranchFromEmptyBlock(BasicBlock *BB) {
   // possible to handle such cases, but difficult: it requires checking whether
   // BB dominates Succ, which is non-trivial to calculate in the case where
   // Succ has multiple predecessors.  Also, it requires checking whether
-  // constructing the necessary self-referential PHI node doesn't intoduce any
+  // constructing the necessary self-referential PHI node doesn't introduce any
   // conflicts; this isn't too difficult, but the previous code for doing this
   // was incorrect.
   //
@@ -831,13 +832,33 @@ unsigned llvm::getOrEnforceKnownAlignment(Value *V, unsigned PrefAlign,
 ///  Dbg Intrinsic utilities
 ///
 
-/// Inserts a llvm.dbg.value instrinsic before the stores to an alloca'd value
+/// See if there is a dbg.value intrinsic for DIVar before I.
+static bool LdStHasDebugValue(DIVariable &DIVar, Instruction *I) {
+  // Since we can't guarantee that the original dbg.declare instrinsic
+  // is removed by LowerDbgDeclare(), we need to make sure that we are
+  // not inserting the same dbg.value intrinsic over and over.
+  llvm::BasicBlock::InstListType::iterator PrevI(I);
+  if (PrevI != I->getParent()->getInstList().begin()) {
+    --PrevI;
+    if (DbgValueInst *DVI = dyn_cast<DbgValueInst>(PrevI))
+      if (DVI->getValue() == I->getOperand(0) &&
+          DVI->getOffset() == 0 &&
+          DVI->getVariable() == DIVar)
+        return true;
+  }
+  return false;
+}
+
+/// Inserts a llvm.dbg.value intrinsic before a store to an alloca'd value
 /// that has an associated llvm.dbg.decl intrinsic.
 bool llvm::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
                                            StoreInst *SI, DIBuilder &Builder) {
   DIVariable DIVar(DDI->getVariable());
   if (!DIVar.Verify())
     return false;
+
+  if (LdStHasDebugValue(DIVar, SI))
+    return true;
 
   Instruction *DbgVal = NULL;
   // If an argument is zero extended then use argument directly. The ZExt
@@ -862,13 +883,16 @@ bool llvm::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
   return true;
 }
 
-/// Inserts a llvm.dbg.value instrinsic before the stores to an alloca'd value
+/// Inserts a llvm.dbg.value intrinsic before a load of an alloca'd value
 /// that has an associated llvm.dbg.decl intrinsic.
 bool llvm::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
                                            LoadInst *LI, DIBuilder &Builder) {
   DIVariable DIVar(DDI->getVariable());
   if (!DIVar.Verify())
     return false;
+
+  if (LdStHasDebugValue(DIVar, LI))
+    return true;
 
   Instruction *DbgVal = 
     Builder.insertDbgValueIntrinsic(LI->getOperand(0), 0,
@@ -901,6 +925,8 @@ bool llvm::LowerDbgDeclare(Function &F) {
          E = Dbgs.end(); I != E; ++I) {
     DbgDeclareInst *DDI = *I;
     if (AllocaInst *AI = dyn_cast_or_null<AllocaInst>(DDI->getAddress())) {
+      // We only remove the dbg.declare intrinsic if all uses are
+      // converted to dbg.value intrinsics.
       bool RemoveDDI = true;
       for (Value::use_iterator UI = AI->use_begin(), E = AI->use_end();
            UI != E; ++UI)
@@ -927,4 +953,74 @@ DbgDeclareInst *llvm::FindAllocaDbgDeclare(Value *V) {
         return DDI;
 
   return 0;
+}
+
+bool llvm::replaceDbgDeclareForAlloca(AllocaInst *AI, Value *NewAllocaAddress,
+                                      DIBuilder &Builder) {
+  DbgDeclareInst *DDI = FindAllocaDbgDeclare(AI);
+  if (!DDI)
+    return false;
+  DIVariable DIVar(DDI->getVariable());
+  if (!DIVar.Verify())
+    return false;
+
+  // Create a copy of the original DIDescriptor for user variable, appending
+  // "deref" operation to a list of address elements, as new llvm.dbg.declare
+  // will take a value storing address of the memory for variable, not
+  // alloca itself.
+  Type *Int64Ty = Type::getInt64Ty(AI->getContext());
+  SmallVector<Value*, 4> NewDIVarAddress;
+  if (DIVar.hasComplexAddress()) {
+    for (unsigned i = 0, n = DIVar.getNumAddrElements(); i < n; ++i) {
+      NewDIVarAddress.push_back(
+          ConstantInt::get(Int64Ty, DIVar.getAddrElement(i)));
+    }
+  }
+  NewDIVarAddress.push_back(ConstantInt::get(Int64Ty, DIBuilder::OpDeref));
+  DIVariable NewDIVar = Builder.createComplexVariable(
+      DIVar.getTag(), DIVar.getContext(), DIVar.getName(),
+      DIVar.getFile(), DIVar.getLineNumber(), DIVar.getType(),
+      NewDIVarAddress, DIVar.getArgNumber());
+
+  // Insert llvm.dbg.declare in the same basic block as the original alloca,
+  // and remove old llvm.dbg.declare.
+  BasicBlock *BB = AI->getParent();
+  Builder.insertDeclare(NewAllocaAddress, NewDIVar, BB);
+  DDI->eraseFromParent();
+  return true;
+}
+
+bool llvm::removeUnreachableBlocks(Function &F) {
+  SmallPtrSet<BasicBlock*, 16> Reachable;
+  SmallVector<BasicBlock*, 128> Worklist;
+  Worklist.push_back(&F.getEntryBlock());
+  Reachable.insert(&F.getEntryBlock());
+  do {
+    BasicBlock *BB = Worklist.pop_back_val();
+    for (succ_iterator SI = succ_begin(BB), SE = succ_end(BB); SI != SE; ++SI)
+      if (Reachable.insert(*SI))
+        Worklist.push_back(*SI);
+  } while (!Worklist.empty());
+
+  if (Reachable.size() == F.size())
+    return false;
+
+  assert(Reachable.size() < F.size());
+  for (Function::iterator I = llvm::next(F.begin()), E = F.end(); I != E; ++I) {
+    if (Reachable.count(I))
+      continue;
+
+    for (succ_iterator SI = succ_begin(I), SE = succ_end(I); SI != SE; ++SI)
+      if (Reachable.count(*SI))
+        (*SI)->removePredecessor(I);
+    I->dropAllReferences();
+  }
+
+  for (Function::iterator I = llvm::next(F.begin()), E=F.end(); I != E;)
+    if (!Reachable.count(I))
+      I = F.getBasicBlockList().erase(I);
+    else
+      ++I;
+
+  return true;
 }

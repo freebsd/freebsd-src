@@ -103,17 +103,17 @@ bintime_mul(struct bintime *bt, u_int x)
 }
 
 static __inline void
-bintime_shift(struct bintime *bt, int exp)
+bintime_shift(struct bintime *__bt, int __exp)
 {
 
-	if (exp > 0) {
-		bt->sec <<= exp;
-		bt->sec |= bt->frac >> (64 - exp);
-		bt->frac <<= exp;
-	} else if (exp < 0) {
-		bt->frac >>= -exp;
-		bt->frac |= (uint64_t)bt->sec << (64 + exp);
-		bt->sec >>= -exp;
+	if (__exp > 0) {
+		__bt->sec <<= __exp;
+		__bt->sec |= __bt->frac >> (64 - __exp);
+		__bt->frac <<= __exp;
+	} else if (__exp < 0) {
+		__bt->frac >>= -__exp;
+		__bt->frac |= (uint64_t)__bt->sec << (64 + __exp);
+		__bt->sec >>= -__exp;
 	}
 }
 

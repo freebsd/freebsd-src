@@ -9,21 +9,20 @@
 
 #define DEBUG_TYPE "arm-disassembler"
 
+#include "llvm/MC/MCDisassembler.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
-#include "MCTargetDesc/ARMMCExpr.h"
 #include "MCTargetDesc/ARMBaseInfo.h"
-#include "llvm/MC/EDInstInfo.h"
+#include "MCTargetDesc/ARMMCExpr.h"
+#include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCFixedLenDisassembler.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstrDesc.h"
-#include "llvm/MC/MCExpr.h"
-#include "llvm/MC/MCContext.h"
-#include "llvm/MC/MCDisassembler.h"
-#include "llvm/MC/MCFixedLenDisassembler.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/MemoryObject.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/LEB128.h"
+#include "llvm/Support/MemoryObject.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 #include <vector>
@@ -105,10 +104,6 @@ public:
                               uint64_t address,
                               raw_ostream &vStream,
                               raw_ostream &cStream) const;
-
-  /// getEDInfo - See MCDisassembler.
-  const EDInstInfo *getEDInfo() const;
-private:
 };
 
 /// ThumbDisassembler - Thumb disassembler for all Thumb platforms.
@@ -131,8 +126,6 @@ public:
                               raw_ostream &vStream,
                               raw_ostream &cStream) const;
 
-  /// getEDInfo - See MCDisassembler.
-  const EDInstInfo *getEDInfo() const;
 private:
   mutable ITStatus ITBlock;
   DecodeStatus AddThumbPredicate(MCInst&) const;
@@ -315,6 +308,8 @@ static DecodeStatus DecodeVCVTD(MCInst &Inst, unsigned Insn,
                                 uint64_t Address, const void *Decoder);
 static DecodeStatus DecodeVCVTQ(MCInst &Inst, unsigned Insn,
                                 uint64_t Address, const void *Decoder);
+static DecodeStatus DecodeImm0_4(MCInst &Inst, unsigned Insn, uint64_t Address,
+                                 const void *Decoder);
 
 
 static DecodeStatus DecodeThumbAddSpecialReg(MCInst &Inst, uint16_t Insn,
@@ -385,7 +380,6 @@ static DecodeStatus DecodeLDR(MCInst &Inst, unsigned Val,
 static DecodeStatus DecodeMRRC2(llvm::MCInst &Inst, unsigned Val,
                                 uint64_t Address, const void *Decoder);
 #include "ARMGenDisassemblerTables.inc"
-#include "ARMGenEDInfo.inc"
 
 static MCDisassembler *createARMDisassembler(const Target &T, const MCSubtargetInfo &STI) {
   return new ARMDisassembler(STI);
@@ -393,14 +387,6 @@ static MCDisassembler *createARMDisassembler(const Target &T, const MCSubtargetI
 
 static MCDisassembler *createThumbDisassembler(const Target &T, const MCSubtargetInfo &STI) {
   return new ThumbDisassembler(STI);
-}
-
-const EDInstInfo *ARMDisassembler::getEDInfo() const {
-  return instInfoARM;
-}
-
-const EDInstInfo *ThumbDisassembler::getEDInfo() const {
-  return instInfoARM;
 }
 
 DecodeStatus ARMDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
@@ -1281,7 +1267,13 @@ static DecodeStatus DecodeBitfieldMaskOperand(MCInst &Inst, unsigned Val,
   unsigned lsb = fieldFromInstruction(Val, 0, 5);
 
   DecodeStatus S = MCDisassembler::Success;
-  if (lsb > msb) Check(S, MCDisassembler::SoftFail);
+  if (lsb > msb) {
+    Check(S, MCDisassembler::SoftFail);
+    // The check above will cause the warning for the "potentially undefined
+    // instruction encoding" but we can't build a bad MCOperand value here
+    // with a lsb > msb or else printing the MCInst will cause a crash.
+    lsb = msb;
+  }
 
   uint32_t msb_mask = 0xFFFFFFFF;
   if (msb != 31) msb_mask = (1U << (msb+1)) - 1;
@@ -1961,10 +1953,12 @@ static DecodeStatus DecodeT2CPSInstruction(MCInst &Inst, unsigned Insn,
     Inst.addOperand(MCOperand::CreateImm(mode));
     if (iflags) S = MCDisassembler::SoftFail;
   } else {
-    // imod == '00' && M == '0' --> UNPREDICTABLE
-    Inst.setOpcode(ARM::t2CPS1p);
-    Inst.addOperand(MCOperand::CreateImm(mode));
-    S = MCDisassembler::SoftFail;
+    // imod == '00' && M == '0' --> this is a HINT instruction
+    int imm = fieldFromInstruction(Insn, 0, 8);
+    // HINT are defined only for immediate in [0..4]
+    if(imm > 4) return MCDisassembler::Fail;
+    Inst.setOpcode(ARM::t2HINT);
+    Inst.addOperand(MCOperand::CreateImm(imm));
   }
 
   return S;
@@ -2006,9 +2000,10 @@ static DecodeStatus DecodeArmMOVTWInstruction(MCInst &Inst, unsigned Insn,
   imm |= (fieldFromInstruction(Insn, 16, 4) << 12);
 
   if (Inst.getOpcode() == ARM::MOVTi16)
-    if (!Check(S, DecoderGPRRegisterClass(Inst, Rd, Address, Decoder)))
+    if (!Check(S, DecodeGPRnopcRegisterClass(Inst, Rd, Address, Decoder)))
       return MCDisassembler::Fail;
-  if (!Check(S, DecoderGPRRegisterClass(Inst, Rd, Address, Decoder)))
+
+  if (!Check(S, DecodeGPRnopcRegisterClass(Inst, Rd, Address, Decoder)))
     return MCDisassembler::Fail;
 
   if (!tryAddingSymbolicOperand(Address, imm, false, 4, Inst, Decoder))
@@ -3059,9 +3054,9 @@ static DecodeStatus DecodeT2BROperand(MCInst &Inst, unsigned Val,
 
 static DecodeStatus DecodeThumbCmpBROperand(MCInst &Inst, unsigned Val,
                                  uint64_t Address, const void *Decoder) {
-  if (!tryAddingSymbolicOperand(Address, Address + SignExtend32<7>(Val<<1) + 4,
+  if (!tryAddingSymbolicOperand(Address, Address + (Val<<1) + 4,
                                 true, 2, Inst, Decoder))
-    Inst.addOperand(MCOperand::CreateImm(SignExtend32<7>(Val << 1)));
+    Inst.addOperand(MCOperand::CreateImm(Val << 1));
   return MCDisassembler::Success;
 }
 
@@ -3288,7 +3283,7 @@ static DecodeStatus DecodeT2LdStPre(MCInst &Inst, unsigned Insn,
       return MCDisassembler::Fail;
   }
 
-  if (!Check(S, DecoderGPRRegisterClass(Inst, Rt, Address, Decoder)))
+  if (!Check(S, DecodeGPRRegisterClass(Inst, Rt, Address, Decoder)))
     return MCDisassembler::Fail;
 
   if (load) {
@@ -3580,7 +3575,7 @@ static DecodeStatus DecodeDoubleRegStore(MCInst &Inst, unsigned Insn,
   unsigned Rn = fieldFromInstruction(Insn, 16, 4);
   unsigned pred = fieldFromInstruction(Insn, 28, 4);
 
-  if (!Check(S, DecoderGPRRegisterClass(Inst, Rd, Address, Decoder)))
+  if (!Check(S, DecodeGPRnopcRegisterClass(Inst, Rd, Address, Decoder)))
     return MCDisassembler::Fail;
 
   if ((Rt & 1) || Rt == 0xE || Rn == 0xF) return MCDisassembler::Fail;
@@ -4504,6 +4499,15 @@ static DecodeStatus DecodeVCVTQ(MCInst &Inst, unsigned Insn,
   Inst.addOperand(MCOperand::CreateImm(64 - imm));
 
   return S;
+}
+
+static DecodeStatus DecodeImm0_4(MCInst &Inst, unsigned Insn, uint64_t Address,
+                                 const void *Decoder)
+{
+  unsigned Imm = fieldFromInstruction(Insn, 0, 3);
+  if (Imm > 4) return MCDisassembler::Fail;
+  Inst.addOperand(MCOperand::CreateImm(Imm));
+  return MCDisassembler::Success;
 }
 
 static DecodeStatus DecodeLDR(MCInst &Inst, unsigned Val,

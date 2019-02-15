@@ -51,6 +51,7 @@ MAN=	accept_filter.9 \
 	config_intrhook.9 \
 	contigmalloc.9 \
 	copy.9 \
+	counter.9 \
 	cr_cansee.9 \
 	critical_enter.9 \
 	cr_seeothergids.9 \
@@ -281,7 +282,6 @@ MAN=	accept_filter.9 \
 	vfs_getopt.9 \
 	vfs_getvfs.9 \
 	VFS_MOUNT.9 \
-	vfs_mount.9 \
 	vfs_mountedfrom.9 \
 	VFS_QUOTACTL.9 \
 	VFS_ROOT.9 \
@@ -569,6 +569,14 @@ MLINKS+=copy.9 copyin.9 \
 	copy.9 copyout.9 \
 	copy.9 copyout_nofault.9 \
 	copy.9 copystr.9
+MLINKS+=counter.9 counter_u64_alloc.9 \
+	counter.9 counter_u64_free.9 \
+	counter.9 counter_u64_add.9 \
+	counter.9 counter_enter.9 \
+	counter.9 counter_exit.9 \
+	counter.9 counter_u64_add_protected.9 \
+	counter.9 counter_u64_fetch.9 \
+	counter.9 counter_u64_zero.9
 MLINKS+=critical_enter.9 critical.9 \
 	critical_enter.9 critical_exit.9
 MLINKS+=crypto.9 crypto_dispatch.9 \
@@ -1069,12 +1077,15 @@ MLINKS+=rman.9 rman_activate_resource.9 \
 	rman.9 rman_set_bustag.9 \
 	rman.9 rman_set_rid.9 \
 	rman.9 rman_set_virtual.9
-MLINKS+=rmlock.9 rm_destroy.9 \
+MLINKS+=rmlock.9 rm_assert.9 \
+	rmlock.9 rm_destroy.9 \
 	rmlock.9 rm_init.9 \
+	rmlock.9 rm_init_flags.9 \
 	rmlock.9 rm_rlock.9 \
-	rmlock.9 rm_try_rlock.9 \
 	rmlock.9 rm_runlock.9 \
+	rmlock.9 rm_sleep.9 \
 	rmlock.9 RM_SYSINIT.9 \
+	rmlock.9 rm_try_rlock.9 \
 	rmlock.9 rm_wlock.9 \
 	rmlock.9 rm_wowned.9 \
 	rmlock.9 rm_wunlock.9

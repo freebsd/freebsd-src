@@ -91,7 +91,8 @@ MCSectionMachO::MCSectionMachO(StringRef Segment, StringRef Section,
 }
 
 void MCSectionMachO::PrintSwitchToSection(const MCAsmInfo &MAI,
-                                          raw_ostream &OS) const {
+                                          raw_ostream &OS,
+                                          const MCExpr *Subsection) const {
   OS << "\t.section\t" << getSegmentName() << ',' << getSectionName();
 
   // Get the section type and attributes.
@@ -165,9 +166,9 @@ bool MCSectionMachO::isVirtualSection() const {
 
 /// StripSpaces - This removes leading and trailing spaces from the StringRef.
 static void StripSpaces(StringRef &Str) {
-  while (!Str.empty() && isspace(Str[0]))
+  while (!Str.empty() && isspace(static_cast<unsigned char>(Str[0])))
     Str = Str.substr(1);
-  while (!Str.empty() && isspace(Str.back()))
+  while (!Str.empty() && isspace(static_cast<unsigned char>(Str.back())))
     Str = Str.substr(0, Str.size()-1);
 }
 

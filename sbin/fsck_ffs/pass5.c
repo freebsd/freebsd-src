@@ -59,14 +59,14 @@ pass5(void)
 	int c, i, j, blk, frags, basesize, mapsize;
 	int inomapsize, blkmapsize;
 	struct fs *fs = &sblock;
-	struct cg *cg = &cgrp;
 	ufs2_daddr_t d, dbase, dmax, start;
 	int rewritecg = 0;
 	struct csum *cs;
 	struct csum_total cstotal;
 	struct inodesc idesc[3];
 	char buf[MAXBSIZE];
-	struct cg *newcg = (struct cg *)buf;
+	struct cg *cg, *newcg = (struct cg *)buf;
+	struct bufarea *cgbp;
 
 	inoinfo(WINO)->ino_state = USTATE;
 	memset(newcg, 0, (size_t)fs->fs_cgsize);
@@ -162,7 +162,8 @@ pass5(void)
 			    c * 100 / sblock.fs_ncg);
 			got_sigalarm = 0;
 		}
-		getblk(&cgblk, cgtod(fs, c), fs->fs_cgsize);
+		cgbp = cgget(c);
+		cg = cgbp->b_un.b_cg;
 		if (!cg_chkmagic(cg))
 			pfatal("CG %d: BAD MAGIC NUMBER\n", c);
 		newcg->cg_time = cg->cg_time;
@@ -251,7 +252,7 @@ pass5(void)
 			frags = 0;
 			for (j = 0; j < fs->fs_frag; j++) {
 				if (testbmap(d + j)) {
-					if (Eflag && start != -1) {
+					if ((Eflag || Zflag) && start != -1) {
 						clear_blocks(start, d + j - 1);
 						start = -1;
 					}
@@ -273,7 +274,7 @@ pass5(void)
 				ffs_fragacct(fs, blk, newcg->cg_frsum, 1);
 			}
 		}
-		if (Eflag && start != -1)
+		if ((Eflag || Zflag) && start != -1)
 			clear_blocks(start, d - 1);
 		if (fs->fs_contigsumsize > 0) {
 			int32_t *sump = cg_clustersum(newcg);
@@ -324,14 +325,14 @@ pass5(void)
 		}
 		if (rewritecg) {
 			memmove(cg, newcg, (size_t)fs->fs_cgsize);
-			cgdirty();
+			dirty(cgbp);
 			continue;
 		}
 		if (cursnapshot == 0 &&
 		    memcmp(newcg, cg, basesize) != 0 &&
 		    dofix(&idesc[2], "SUMMARY INFORMATION BAD")) {
 			memmove(cg, newcg, (size_t)basesize);
-			cgdirty();
+			dirty(cgbp);
 		}
 		if (bkgrdflag != 0 || usedsoftdep || debug)
 			update_maps(cg, newcg, bkgrdflag);
@@ -340,7 +341,7 @@ pass5(void)
 		    dofix(&idesc[1], "BLK(S) MISSING IN BIT MAPS")) {
 			memmove(cg_inosused(cg), cg_inosused(newcg),
 			      (size_t)mapsize);
-			cgdirty();
+			dirty(cgbp);
 		}
 	}
 	if (cursnapshot == 0 &&
@@ -580,11 +581,16 @@ check_maps(
 	}
 }
 
-static void clear_blocks(ufs2_daddr_t start, ufs2_daddr_t end)
+static void
+clear_blocks(ufs2_daddr_t start, ufs2_daddr_t end)
 {
 
 	if (debug)
 		printf("Zero frags %jd to %jd\n", start, end);
-	blerase(fswritefd, fsbtodb(&sblock, start),
-	    lfragtosize(&sblock, end - start + 1));
+	if (Zflag)
+		blzero(fswritefd, fsbtodb(&sblock, start),
+		    lfragtosize(&sblock, end - start + 1));
+	if (Eflag)
+		blerase(fswritefd, fsbtodb(&sblock, start),
+		    lfragtosize(&sblock, end - start + 1));
 }

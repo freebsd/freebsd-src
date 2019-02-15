@@ -51,10 +51,12 @@ __FBSDID("$FreeBSD$");
     PMC_CAP_INVERT | PMC_CAP_QUALIFIER | PMC_CAP_PRECISE)
 
 #define	SELECTSEL(x) \
-	(((x) == PMC_CPU_INTEL_SANDYBRIDGE) ? UCP_CB0_EVSEL0 : UCP_EVSEL0)
+	(((x) == PMC_CPU_INTEL_SANDYBRIDGE || (x) == PMC_CPU_INTEL_HASWELL) ? \
+	UCP_CB0_EVSEL0 : UCP_EVSEL0)
 
 #define SELECTOFF(x) \
-	(((x) == PMC_CPU_INTEL_SANDYBRIDGE) ? UCF_OFFSET_SB : UCF_OFFSET)
+	(((x) == PMC_CPU_INTEL_SANDYBRIDGE || (x) == PMC_CPU_INTEL_HASWELL) ? \
+	UCF_OFFSET_SB : UCF_OFFSET)
 
 static enum pmc_cputype	uncore_cputype;
 
@@ -469,7 +471,8 @@ struct ucp_event_descr {
 #define	UCP_F_I7	(1 << 0)	/* CPU: Core i7 */
 #define	UCP_F_WM	(1 << 1)	/* CPU: Westmere */
 #define	UCP_F_SB	(1 << 2)	/* CPU: Sandy Bridge */
-#define	UCP_F_FM	(1 << 3)	/* Fixed mask */
+#define	UCP_F_HW	(1 << 3)	/* CPU: Haswell */
+#define	UCP_F_FM	(1 << 4)	/* Fixed mask */
 
 #define	UCP_F_ALLCPUS					\
     (UCP_F_I7 | UCP_F_WM)
@@ -573,15 +576,16 @@ static struct ucp_event_descr ucp_events[] = {
     UCPDESCR(21H_04H, 0x21, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
 
     UCPDESCR(22H_01H, 0x22, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM |
-	UCP_F_SB),
+	UCP_F_SB | UCP_F_HW),
     UCPDESCR(22H_02H, 0x22, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM |
-	UCP_F_SB),
+	UCP_F_SB | UCP_F_HW),
     UCPDESCR(22H_04H, 0x22, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM |
-	UCP_F_SB),
-    UCPDESCR(22H_08H, 0x22, 0x08, UCP_F_FM | UCP_F_SB),
-    UCPDESCR(22H_20H, 0x22, 0x20, UCP_F_FM | UCP_F_SB),
-    UCPDESCR(22H_40H, 0x22, 0x40, UCP_F_FM | UCP_F_SB),
-    UCPDESCR(22H_80H, 0x22, 0x80, UCP_F_FM | UCP_F_SB),
+	UCP_F_SB | UCP_F_HW),
+    UCPDESCR(22H_08H, 0x22, 0x08, UCP_F_FM | UCP_F_SB | UCP_F_HW),
+    UCPDESCR(22H_10H, 0x22, 0x10, UCP_F_FM | UCP_F_HW),
+    UCPDESCR(22H_20H, 0x22, 0x20, UCP_F_FM | UCP_F_SB | UCP_F_HW),
+    UCPDESCR(22H_40H, 0x22, 0x40, UCP_F_FM | UCP_F_SB | UCP_F_HW),
+    UCPDESCR(22H_80H, 0x22, 0x80, UCP_F_FM | UCP_F_SB | UCP_F_HW),
 
     UCPDESCR(23H_01H, 0x23, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
     UCPDESCR(23H_02H, 0x23, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
@@ -671,14 +675,19 @@ static struct ucp_event_descr ucp_events[] = {
     UCPDESCR(33H_04H, 0x33, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
     UCPDESCR(33H_07H, 0x33, 0x07, UCP_F_FM | UCP_F_WM),
 
-    UCPDESCR(34H_01H, 0x34, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB),
+    UCPDESCR(34H_01H, 0x34, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB |
+	UCP_F_HW),
     UCPDESCR(34H_02H, 0x34, 0x02, UCP_F_FM | UCP_F_WM | UCP_F_SB),
     UCPDESCR(34H_04H, 0x34, 0x04, UCP_F_FM | UCP_F_WM | UCP_F_SB),
-    UCPDESCR(34H_08H, 0x34, 0x08, UCP_F_FM | UCP_F_WM | UCP_F_SB),
-    UCPDESCR(34H_10H, 0x34, 0x10, UCP_F_FM | UCP_F_WM | UCP_F_SB),
-    UCPDESCR(34H_20H, 0x34, 0x20, UCP_F_FM | UCP_F_WM | UCP_F_SB),
-    UCPDESCR(34H_40H, 0x34, 0x40, UCP_F_FM | UCP_F_SB),
-    UCPDESCR(34H_80H, 0x34, 0x80, UCP_F_FM | UCP_F_SB),
+    UCPDESCR(34H_06H, 0x34, 0x06, UCP_F_FM | UCP_F_HW),
+    UCPDESCR(34H_08H, 0x34, 0x08, UCP_F_FM | UCP_F_WM | UCP_F_SB |
+	UCP_F_HW),
+    UCPDESCR(34H_10H, 0x34, 0x10, UCP_F_FM | UCP_F_WM | UCP_F_SB |
+	UCP_F_HW),
+    UCPDESCR(34H_20H, 0x34, 0x20, UCP_F_FM | UCP_F_WM | UCP_F_SB |
+	UCP_F_HW),
+    UCPDESCR(34H_40H, 0x34, 0x40, UCP_F_FM | UCP_F_SB | UCP_F_HW),
+    UCPDESCR(34H_80H, 0x34, 0x80, UCP_F_FM | UCP_F_SB | UCP_F_HW),
 
     UCPDESCR(35H_01H, 0x35, 0x01, UCP_F_FM | UCP_F_WM),
     UCPDESCR(35H_02H, 0x35, 0x02, UCP_F_FM | UCP_F_WM),
@@ -745,27 +754,31 @@ static struct ucp_event_descr ucp_events[] = {
     UCPDESCR(66H_04H, 0x66, 0x04, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
 
     UCPDESCR(67H_01H, 0x67, 0x01, UCP_F_FM | UCP_F_WM),
-    
-    UCPDESCR(80H_01H, 0x80, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB),
+
+    UCPDESCR(80H_01H, 0x80, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB |
+	UCP_F_HW),
     UCPDESCR(80H_02H, 0x80, 0x02, UCP_F_FM | UCP_F_WM),
     UCPDESCR(80H_04H, 0x80, 0x04, UCP_F_FM | UCP_F_WM),
     UCPDESCR(80H_08H, 0x80, 0x08, UCP_F_FM | UCP_F_WM),
-    
-    UCPDESCR(81H_01H, 0x81, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB),
+
+    UCPDESCR(81H_01H, 0x81, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB |
+	UCP_F_HW),
     UCPDESCR(81H_02H, 0x81, 0x02, UCP_F_FM | UCP_F_WM),
     UCPDESCR(81H_04H, 0x81, 0x04, UCP_F_FM | UCP_F_WM),
     UCPDESCR(81H_08H, 0x81, 0x08, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(81H_20H, 0x81, 0x20, UCP_F_FM | UCP_F_SB),
-    UCPDESCR(81H_80H, 0x81, 0x80, UCP_F_FM | UCP_F_SB),
+    UCPDESCR(81H_20H, 0x81, 0x20, UCP_F_FM | UCP_F_SB | UCP_F_HW),
+    UCPDESCR(81H_80H, 0x81, 0x80, UCP_F_FM | UCP_F_SB | UCP_F_HW),
 
     UCPDESCR(82H_01H, 0x82, 0x01, UCP_F_FM | UCP_F_WM),
- 
-    UCPDESCR(83H_01H, 0x83, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB),
+
+    UCPDESCR(83H_01H, 0x83, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB |
+	UCP_F_HW),
     UCPDESCR(83H_02H, 0x83, 0x02, UCP_F_FM | UCP_F_WM),
     UCPDESCR(83H_04H, 0x83, 0x04, UCP_F_FM | UCP_F_WM),
     UCPDESCR(83H_08H, 0x83, 0x08, UCP_F_FM | UCP_F_WM),
- 
-    UCPDESCR(84H_01H, 0x84, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB),
+
+    UCPDESCR(84H_01H, 0x84, 0x01, UCP_F_FM | UCP_F_WM | UCP_F_SB |
+	UCP_F_HW),
     UCPDESCR(84H_02H, 0x84, 0x02, UCP_F_FM | UCP_F_WM),
     UCPDESCR(84H_04H, 0x84, 0x04, UCP_F_FM | UCP_F_WM),
     UCPDESCR(84H_08H, 0x84, 0x08, UCP_F_FM | UCP_F_WM),
@@ -788,24 +801,27 @@ ucp_reload_count_to_perfctr_value(pmc_value_t rlc)
 	return (1ULL << uncore_ucp_width) - rlc;
 }
 
+/*
+ * Counter specific event information for Sandybridge and Haswell
+ */
 static int
-ucp_event_sandybridge_ok_on_counter(enum pmc_event pe, int ri)
+ucp_event_sb_hw_ok_on_counter(enum pmc_event pe, int ri)
 {
 	uint32_t mask;
-	
+
 	switch (pe) {
-		/*	
+		/*
 		 * Events valid only on counter 0.
 		 */
 	case PMC_EV_UCP_EVENT_80H_01H:
 	case PMC_EV_UCP_EVENT_83H_01H:
 		mask = (1 << 0);
 		break;
-	
+
 	default:
 		mask = ~0;	/* Any row index is ok. */
 	}
-	
+
 	return (mask & (1 << ri));
 }
 
@@ -831,14 +847,15 @@ ucp_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	ev = pm->pm_event;
 
 	switch (uncore_cputype) {
+	case PMC_CPU_INTEL_HASWELL:
 	case PMC_CPU_INTEL_SANDYBRIDGE:
-		if (ucp_event_sandybridge_ok_on_counter(ev, ri) == 0)
+		if (ucp_event_sb_hw_ok_on_counter(ev, ri) == 0)
 			return (EINVAL);
 		break;
 	default:
 		break;
 	}
-	
+
 
 	/*
 	 * Look for an event descriptor with matching CPU and event id
@@ -848,6 +865,9 @@ ucp_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	switch (uncore_cputype) {
 	case PMC_CPU_INTEL_COREI7:
 		cpuflag = UCP_F_I7;
+		break;
+	case PMC_CPU_INTEL_HASWELL:
+		cpuflag = UCP_F_HW;
 		break;
 	case PMC_CPU_INTEL_SANDYBRIDGE:
 		cpuflag = UCP_F_SB;
@@ -1025,9 +1045,9 @@ ucp_start_pmc(int cpu, int ri)
 
 	evsel = pm->pm_md.pm_ucp.pm_ucp_evsel;
 
-	PMCDBG(MDP,STA,2, 
-	    "ucp-start/2 cpu=%d ri=%d evselmsr=0x%x evsel=0x%x", 
-	    cpu, ri, SELECTSEL(uncore_cputype) + ri, evsel); 
+	PMCDBG(MDP,STA,2,
+	    "ucp-start/2 cpu=%d ri=%d evselmsr=0x%x evsel=0x%x",
+	    cpu, ri, SELECTSEL(uncore_cputype) + ri, evsel);
 
 	/* Event specific configuration. */
 	switch (pm->pm_event) {
@@ -1047,12 +1067,12 @@ ucp_start_pmc(int cpu, int ri)
 	case PMC_EV_UCP_EVENT_0CH_08H_S:
 		wrmsr(MSR_GQ_SNOOP_MESF,0x4);
 		break;
-	default:	
+	default:
 		break;
 	}
 
 	wrmsr(SELECTSEL(uncore_cputype) + ri, evsel);
-	
+
 	do {
 		cc->pc_resync = 0;
 		cc->pc_globalctrl |= (1ULL << ri);

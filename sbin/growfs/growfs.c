@@ -141,14 +141,9 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	uint cylno;
 	int i, j, width;
 	char tmpbuf[100];
-	static int randinit = 0;
 
 	DBG_ENTER;
 
-	if (!randinit) {
-		randinit = 1;
-		srandomdev();
-	}
 	time(&modtime);
 
 	/*
@@ -407,7 +402,7 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 		    i += sblock.fs_frag) {
 			dp1 = (struct ufs1_dinode *)(void *)iobuf;
 			for (j = 0; j < INOPB(&sblock); j++) {
-				dp1->di_gen = random();
+				dp1->di_gen = arc4random();
 				dp1++;
 			}
 			wtfs(fsbtodb(&sblock, cgimin(&sblock, cylno) + i),
@@ -1549,7 +1544,7 @@ main(int argc, char **argv)
 		printf(" from %s to %s? [Yes/No] ", oldsizebuf, newsizebuf);
 		fflush(stdout);
 		fgets(reply, (int)sizeof(reply), stdin);
-		if (strcmp(reply, "Yes\n")){
+		if (strcasecmp(reply, "Yes\n")){
 			printf("\nNothing done\n");
 			exit (0);
 		}

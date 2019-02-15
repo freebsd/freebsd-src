@@ -30,6 +30,7 @@ COMM=	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/fs/msdosfs/*.[ch] \
 	${SYS}/fs/nullfs/*.[ch] \
 	${SYS}/fs/procfs/*.[ch] \
+	${SYS}/fs/smbfs/*.[ch] \
 	${SYS}/fs/udf/*.[ch] \
 	${SYS}/fs/unionfs/*.[ch] \
 	${SYS}/geom/*.[ch] \

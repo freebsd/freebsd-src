@@ -1345,10 +1345,18 @@ nfs_asyncio(struct nfsmount *nmp, struct buf *bp, struct ucred *cred, struct thr
 	 * Commits are usually short and sweet so lets save some cpu and
 	 * leave the async daemons for more important rpc's (such as reads
 	 * and writes).
+	 *
+	 * Readdirplus RPCs do vget()s to acquire the vnodes for entries
+	 * in the directory in order to update attributes. This can deadlock
+	 * with another thread that is waiting for async I/O to be done by
+	 * an nfsiod thread while holding a lock on one of these vnodes.
+	 * To avoid this deadlock, don't allow the async nfsiod threads to
+	 * perform Readdirplus RPCs.
 	 */
 	mtx_lock(&nfs_iod_mtx);
-	if (bp->b_iocmd == BIO_WRITE && (bp->b_flags & B_NEEDCOMMIT) &&
-	    (nmp->nm_bufqiods > nfs_numasync / 2)) {
+	if ((bp->b_iocmd == BIO_WRITE && (bp->b_flags & B_NEEDCOMMIT) &&
+	     (nmp->nm_bufqiods > nfs_numasync / 2)) ||
+	    (bp->b_vp->v_type == VDIR && (nmp->nm_flag & NFSMNT_RDIRPLUS))) {
 		mtx_unlock(&nfs_iod_mtx);
 		return(EIO);
 	}

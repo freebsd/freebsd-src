@@ -33,12 +33,62 @@
 #include "checking.hh"
 #include <stdio.h>
 
+
+
 namespace dtc
 {
 namespace fdt
 {
 namespace checking
 {
+
+namespace
+{
+	/**
+	 * Checker that verifies that every node that has children has
+	 * #address-cells and #size-cells properties.
+	 */
+	struct address_cells_checker : public checker
+	{
+		address_cells_checker(const char *name) : checker(name) {}
+		virtual bool check_node(device_tree *tree, node *n)
+		{
+			// If this has no children, it trivially meets the
+			// conditions.
+			if (n->child_begin() == n->child_end())
+			{
+				return true;
+			}
+			bool found_address = false;
+			bool found_size = false;
+			for (node::property_iterator i=n->property_begin(),
+			     e=n->property_end() ; i!=e ; ++i)
+			{
+				if (!found_address)
+				{
+					found_address = ((*i)->get_key() == "#address-cells");
+				}
+				if (!found_size)
+				{
+					found_size = ((*i)->get_key() == "#size-cells");
+				}
+				if (found_size && found_address)
+				{
+						break;
+				}
+			}
+			if (!found_address)
+			{
+					report_error("Missing #address-cells property");
+			}
+			if (!found_size)
+			{
+					report_error("Missing #size-cells property");
+			}
+			return found_address && found_size;
+		}
+	};
+} // anonymous namespace
 
 bool
 checker::visit_node(device_tree *tree, node *n)
@@ -145,6 +195,7 @@ check_manager::~check_manager()
 	while (disabled_checkers.begin() != disabled_checkers.end())
 	{
 		delete disabled_checkers.begin()->second;
+		disabled_checkers.erase(disabled_checkers.begin());
 	}
 }
 
@@ -157,6 +208,8 @@ check_manager::check_manager()
 	add_property_type_checker<property_value::STRING>(
 			"type-model", string("model"));
 	add_property_size_checker("type-phandle", string("phandle"), 4);
+	disabled_checkers.insert(std::make_pair(string("cells-attributes"),
+		new address_cells_checker("cells-attributes")));
 }
 
 bool

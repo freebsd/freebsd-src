@@ -136,19 +136,65 @@ MALLOC_DECLARE(M_ATHDEV);
 
 static void ath_edma_tx_processq(struct ath_softc *sc, int dosched);
 
+/*
+ * Push some frames into the TX FIFO if we have space.
+ */
 static void
 ath_edma_tx_fifo_fill(struct ath_softc *sc, struct ath_txq *txq)
 {
-	struct ath_buf *bf;
+	struct ath_buf *bf, *bf_last;
 	int i = 0;
 
-	ATH_TX_LOCK_ASSERT(sc);
+	ATH_TXQ_LOCK_ASSERT(txq);
 
-	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: called\n", __func__);
+	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: Q%d: called\n",
+	    __func__,
+	    txq->axq_qnum);
 
 	TAILQ_FOREACH(bf, &txq->axq_q, bf_list) {
 		if (txq->axq_fifo_depth >= HAL_TXFIFO_DEPTH)
 			break;
+
+		/*
+		 * We have space in the FIFO - so let's push a frame
+		 * into it.
+		 */
+
+		/*
+		 * Remove it from the normal list
+		 */
+		ATH_TXQ_REMOVE(txq, bf, bf_list);
+
+		/*
+		 * XXX for now, we only dequeue a frame at a time, so
+		 * that's only one buffer.  Later on when we just
+		 * push this staging _list_ into the queue, we'll
+		 * set bf_last to the end pointer in the list.
+		 */
+		bf_last = bf;
+		DPRINTF(sc, ATH_DEBUG_TX_PROC,
+		    "%s: Q%d: depth=%d; pushing %p->%p\n",
+		    __func__,
+		    txq->axq_qnum,
+		    txq->axq_fifo_depth,
+		    bf,
+		    bf_last);
+
+		/*
+		 * Append it to the FIFO staging list
+		 */
+		ATH_TXQ_INSERT_TAIL(&txq->fifo, bf, bf_list);
+
+		/*
+		 * Set fifo start / fifo end flags appropriately
+		 *
+		 */
+		bf->bf_flags |= ATH_BUF_FIFOPTR;
+		bf_last->bf_flags |= ATH_BUF_FIFOEND;
+
+		/*
+		 * Push _into_ the FIFO.
+		 */
 		ath_hal_puttxbuf(sc->sc_ah, txq->axq_qnum, bf->bf_daddr);
 #ifdef	ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
@@ -175,15 +221,115 @@ ath_edma_tx_fifo_fill(struct ath_softc *sc, struct ath_txq *txq)
 static void
 ath_edma_dma_restart(struct ath_softc *sc, struct ath_txq *txq)
 {
+	struct ath_buf *bf;
+	int i = 0;
+	int fifostart = 1;
+	int old_fifo_depth;
 
-	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called: txq=%p, qnum=%d\n",
+	DPRINTF(sc, ATH_DEBUG_RESET, "%s: Q%d: called\n",
 	    __func__,
-	    txq,
 	    txq->axq_qnum);
 
-	ATH_TX_LOCK_ASSERT(sc);
-	ath_edma_tx_fifo_fill(sc, txq);
+	ATH_TXQ_LOCK_ASSERT(txq);
 
+	/*
+	 * Let's log if the tracked FIFO depth doesn't match
+	 * what we actually push in.
+	 */
+	old_fifo_depth = txq->axq_fifo_depth;
+	txq->axq_fifo_depth = 0;
+
+	/*
+	 * Walk the FIFO staging list, looking for "head" entries.
+	 * Since we may have a partially completed list of frames,
+	 * we push the first frame we see into the FIFO and re-mark
+	 * it as the head entry.  We then skip entries until we see
+	 * FIFO end, at which point we get ready to push another
+	 * entry into the FIFO.
+	 */
+	TAILQ_FOREACH(bf, &txq->fifo.axq_q, bf_list) {
+		/*
+		 * If we're looking for FIFOEND and we haven't found
+		 * it, skip.
+		 *
+		 * If we're looking for FIFOEND and we've found it,
+		 * reset for another descriptor.
+		 */
+#ifdef	ATH_DEBUG
+		if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
+			ath_printtxbuf(sc, bf, txq->axq_qnum, i, 0);
+#endif/* ATH_DEBUG */
+#ifdef	ATH_DEBUG_ALQ
+		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXDESC))
+			ath_tx_alq_post(sc, bf);
+#endif /* ATH_DEBUG_ALQ */
+
+		if (fifostart == 0) {
+			if (bf->bf_flags & ATH_BUF_FIFOEND)
+				fifostart = 1;
+			continue;
+		}
+
+		/* Make sure we're not overflowing the FIFO! */
+		if (txq->axq_fifo_depth >= HAL_TXFIFO_DEPTH) {
+			device_printf(sc->sc_dev,
+			    "%s: Q%d: more frames in the queue; FIFO depth=%d?!\n",
+			    __func__,
+			    txq->axq_qnum,
+			    txq->axq_fifo_depth);
+		}
+
+#if 0
+		DPRINTF(sc, ATH_DEBUG_RESET,
+		    "%s: Q%d: depth=%d: pushing bf=%p; start=%d, end=%d\n",
+		    __func__,
+		    txq->axq_qnum,
+		    txq->axq_fifo_depth,
+		    bf,
+		    !! (bf->bf_flags & ATH_BUF_FIFOPTR),
+		    !! (bf->bf_flags & ATH_BUF_FIFOEND));
+#endif
+
+		/*
+		 * Set this to be the first buffer in the FIFO
+		 * list - even if it's also the last buffer in
+		 * a FIFO list!
+		 */
+		bf->bf_flags |= ATH_BUF_FIFOPTR;
+
+		/* Push it into the FIFO and bump the FIFO count */
+		ath_hal_puttxbuf(sc->sc_ah, txq->axq_qnum, bf->bf_daddr);
+		txq->axq_fifo_depth++;
+
+		/*
+		 * If this isn't the last entry either, let's
+		 * clear fifostart so we continue looking for
+		 * said last entry.
+		 */
+		if (! (bf->bf_flags & ATH_BUF_FIFOEND))
+			fifostart = 0;
+		i++;
+	}
+
+	/* Only bother starting the queue if there's something in it */
+	if (i > 0)
+		ath_hal_txstart(sc->sc_ah, txq->axq_qnum);
+
+	DPRINTF(sc, ATH_DEBUG_RESET, "%s: Q%d: FIFO depth was %d, is %d\n",
+	    __func__,
+	    txq->axq_qnum,
+	    old_fifo_depth,
+	    txq->axq_fifo_depth);
+
+	/* And now, let's check! */
+	if (txq->axq_fifo_depth != old_fifo_depth) {
+		device_printf(sc->sc_dev,
+		    "%s: Q%d: FIFO depth should be %d, is %d\n",
+		    __func__,
+		    txq->axq_qnum,
+		    old_fifo_depth,
+		    txq->axq_fifo_depth);
+	}
 }
 
 /*
@@ -202,9 +348,8 @@ static void
 ath_edma_xmit_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
     struct ath_buf *bf)
 {
-	struct ath_hal *ah = sc->sc_ah;
 
-	ATH_TX_LOCK_ASSERT(sc);
+	ATH_TXQ_LOCK(txq);
 
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
 	    ("%s: busy status 0x%x", __func__, bf->bf_flags));
@@ -221,20 +366,19 @@ ath_edma_xmit_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 	/* Push and update frame stats */
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
 
-	/* Only schedule to the FIFO if there's space */
-	if (txq->axq_fifo_depth < HAL_TXFIFO_DEPTH) {
-#ifdef	ATH_DEBUG
-		if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
-			ath_printtxbuf(sc, bf, txq->axq_qnum, 0, 0);
-#endif /* ATH_DEBUG */
-#ifdef	ATH_DEBUG_ALQ
-		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXDESC))
-			ath_tx_alq_post(sc, bf);
-#endif	/* ATH_DEBUG_ALQ */
-		ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
-		txq->axq_fifo_depth++;
-		ath_hal_txstart(ah, txq->axq_qnum);
-	}
+	/* For now, set the link pointer in the last descriptor
+	 * to be NULL.
+	 *
+	 * Later on, when it comes time to handling multiple descriptors
+	 * in one FIFO push, we can link descriptors together this way.
+	 */
+
+	/*
+	 * Finally, call the FIFO schedule routine to schedule some
+	 * frames to the FIFO.
+	 */
+	ath_edma_tx_fifo_fill(sc, txq);
+	ATH_TXQ_UNLOCK(txq);
 }
 
 /*
@@ -253,10 +397,11 @@ ath_edma_xmit_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
 	    ("%s: busy status 0x%x", __func__, bf->bf_flags));
 
+	ATH_TXQ_LOCK(txq);
 	/*
 	 * XXX this is mostly duplicated in ath_tx_handoff_mcast().
 	 */
-	if (ATH_TXQ_FIRST(txq) != NULL) {
+	if (ATH_TXQ_LAST(txq, axq_q_s) != NULL) {
 		struct ath_buf *bf_last = ATH_TXQ_LAST(txq, axq_q_s);
 		struct ieee80211_frame *wh;
 
@@ -264,18 +409,21 @@ ath_edma_xmit_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 		wh = mtod(bf_last->bf_m, struct ieee80211_frame *);
 		wh->i_fc[1] |= IEEE80211_FC1_MORE_DATA;
 
-		/* sync descriptor to memory */
+		/* re-sync buffer to memory */
 		bus_dmamap_sync(sc->sc_dmat, bf_last->bf_dmamap,
 		   BUS_DMASYNC_PREWRITE);
-	}
 
+		/* link descriptor */
+		ath_hal_settxdesclink(sc->sc_ah,
+		    bf_last->bf_lastds,
+		    bf->bf_daddr);
+	}
 #ifdef	ATH_DEBUG_ALQ
 	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXDESC))
 		ath_tx_alq_post(sc, bf);
 #endif	/* ATH_DEBUG_ALQ */
-
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
-	ath_hal_gettxdesclinkptr(sc->sc_ah, bf->bf_lastds, &txq->axq_link);
+	ATH_TXQ_UNLOCK(txq);
 }
 
 /*
@@ -300,8 +448,6 @@ ath_edma_xmit_handoff(struct ath_softc *sc, struct ath_txq *txq,
     struct ath_buf *bf)
 {
 
-	ATH_TX_LOCK_ASSERT(sc);
-
 	DPRINTF(sc, ATH_DEBUG_XMIT_DESC,
 	    "%s: called; bf=%p, txq=%p, qnum=%d\n",
 	    __func__,
@@ -313,14 +459,6 @@ ath_edma_xmit_handoff(struct ath_softc *sc, struct ath_txq *txq,
 		ath_edma_xmit_handoff_mcast(sc, txq, bf);
 	else
 		ath_edma_xmit_handoff_hw(sc, txq, bf);
-
-#if 0
-	/*
-	 * XXX For now this is a placeholder; free the buffer
-	 * and inform the stack that the TX failed.
-	 */
-	ath_tx_default_comp(sc, bf, 1);
-#endif
 }
 
 static int
@@ -413,6 +551,22 @@ ath_edma_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 	 */
 	if (reset_type == ATH_RESET_NOLOSS) {
 		ath_edma_tx_processq(sc, 0);
+		for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+			if (ATH_TXQ_SETUP(sc, i)) {
+				ATH_TXQ_LOCK(&sc->sc_txq[i]);
+				/*
+				 * Free the holding buffer; DMA is now
+				 * stopped.
+				 */
+				ath_txq_freeholdingbuf(sc, &sc->sc_txq[i]);
+				/*
+				 * Reset the link pointer to NULL; there's
+				 * no frames to chain DMA to.
+				 */
+				sc->sc_txq[i].axq_link = NULL;
+				ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
+			}
+		}
 	} else {
 		for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
 			if (ATH_TXQ_SETUP(sc, i))
@@ -439,8 +593,10 @@ ath_edma_tx_proc(void *arg, int npending)
 {
 	struct ath_softc *sc = (struct ath_softc *) arg;
 
+#if 0
 	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: called, npending=%d\n",
 	    __func__, npending);
+#endif
 	ath_edma_tx_processq(sc, 1);
 }
 
@@ -474,14 +630,15 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 		status = ath_hal_txprocdesc(ah, NULL, (void *) &ts);
 		ATH_TXSTATUS_UNLOCK(sc);
 
+		if (status == HAL_EINPROGRESS)
+			break;
+
 #ifdef	ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_TX_PROC)
+			if (ts.ts_queue_id != sc->sc_bhalq)
 			ath_printtxstatbuf(sc, NULL, txstatus, ts.ts_queue_id,
 			    idx, (status == HAL_OK));
 #endif
-
-		if (status == HAL_EINPROGRESS)
-			break;
 
 		/*
 		 * If there is an error with this descriptor, continue
@@ -492,10 +649,10 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 		if (status == HAL_EIO) {
 			device_printf(sc->sc_dev, "%s: invalid TX status?\n",
 			    __func__);
-			continue;
+			break;
 		}
 
-#ifdef	ATH_DEBUG_ALQ
+#if defined(ATH_DEBUG_ALQ) && defined(ATH_DEBUG)
 		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXSTATUS))
 			if_ath_alq_post(&sc->sc_alq, ATH_ALQ_EDMA_TXSTATUS,
 			    sc->sc_tx_statuslen,
@@ -523,12 +680,27 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 
 		txq = &sc->sc_txq[ts.ts_queue_id];
 
-		ATH_TX_LOCK(sc);
-		bf = TAILQ_FIRST(&txq->axq_q);
+		ATH_TXQ_LOCK(txq);
+		bf = ATH_TXQ_FIRST(&txq->fifo);
 
-		DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: qcuid=%d, bf=%p\n",
+		/*
+		 * Work around the situation where I'm seeing notifications
+		 * for Q1 when no frames are available.  That needs to be
+		 * debugged but not by crashing _here_.
+		 */
+		if (bf == NULL) {
+			device_printf(sc->sc_dev, "%s: Q%d: empty?\n",
+			    __func__,
+			    ts.ts_queue_id);
+			ATH_TXQ_UNLOCK(txq);
+			continue;
+		}
+
+		DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: Q%d, bf=%p, start=%d, end=%d\n",
 		    __func__,
-		    ts.ts_queue_id, bf);
+		    ts.ts_queue_id, bf,
+		    !! (bf->bf_flags & ATH_BUF_FIFOPTR),
+		    !! (bf->bf_flags & ATH_BUF_FIFOEND));
 
 		/* XXX TODO: actually output debugging info about this */
 
@@ -546,12 +718,42 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 #endif
 
 		/* This removes the buffer and decrements the queue depth */
-		ATH_TXQ_REMOVE(txq, bf, bf_list);
+		ATH_TXQ_REMOVE(&txq->fifo, bf, bf_list);
 		if (bf->bf_state.bfs_aggr)
 			txq->axq_aggr_depth--;
-		txq->axq_fifo_depth --;
+
+		/*
+		 * If this was the end of a FIFO set, decrement FIFO depth
+		 */
+		if (bf->bf_flags & ATH_BUF_FIFOEND)
+			txq->axq_fifo_depth--;
+
+		/*
+		 * If this isn't the final buffer in a FIFO set, mark
+		 * the buffer as busy so it goes onto the holding queue.
+		 */
+		if (! (bf->bf_flags & ATH_BUF_FIFOEND))
+			bf->bf_flags |= ATH_BUF_BUSY;
+
+		DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: Q%d: FIFO depth is now %d (%d)\n",
+		    __func__,
+		    txq->axq_qnum,
+		    txq->axq_fifo_depth,
+		    txq->fifo.axq_depth);
+
 		/* XXX assert FIFO depth >= 0 */
-		ATH_TX_UNLOCK(sc);
+		ATH_TXQ_UNLOCK(txq);
+
+		/*
+		 * Outside of the TX lock - if the buffer is end
+		 * end buffer in this FIFO, we don't need a holding
+		 * buffer any longer.
+		 */
+		if (bf->bf_flags & ATH_BUF_FIFOEND) {
+			ATH_TXQ_LOCK(txq);
+			ath_txq_freeholdingbuf(sc, txq);
+			ATH_TXQ_UNLOCK(txq);
+		}
 
 		/*
 		 * First we need to make sure ts_rate is valid.
@@ -622,22 +824,11 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 		/*
 		 * Now that there's space in the FIFO, let's push some
 		 * more frames into it.
-		 *
-		 * Unfortunately for now, the txq has FIFO and non-FIFO
-		 * frames in the same linked list, so there's no way
-		 * to quickly/easily populate frames without walking
-		 * the queue and skipping 'axq_fifo_depth' frames.
-		 *
-		 * So for now, let's only repopulate the FIFO once it
-		 * is empty.  It's sucky for performance but it's enough
-		 * to begin validating that things are somewhat
-		 * working.
 		 */
-		ATH_TX_LOCK(sc);
-		if (dosched && txq->axq_fifo_depth == 0) {
+		ATH_TXQ_LOCK(txq);
+		if (dosched)
 			ath_edma_tx_fifo_fill(sc, txq);
-		}
-		ATH_TX_UNLOCK(sc);
+		ATH_TXQ_UNLOCK(txq);
 	}
 
 	sc->sc_wd_timer = 0;

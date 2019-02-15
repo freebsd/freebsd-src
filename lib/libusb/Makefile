@@ -203,6 +203,7 @@ MLINKS += libusb20.3 libusb20_dev_reset.3
 MLINKS += libusb20.3 libusb20_dev_check_connected.3
 MLINKS += libusb20.3 libusb20_dev_set_power_mode.3
 MLINKS += libusb20.3 libusb20_dev_get_power_mode.3
+MLINKS += libusb20.3 libusb20_dev_get_port_path.3
 MLINKS += libusb20.3 libusb20_dev_get_power_usage.3
 MLINKS += libusb20.3 libusb20_dev_set_alt_index.3
 MLINKS += libusb20.3 libusb20_dev_get_device_desc.3

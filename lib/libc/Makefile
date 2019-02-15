@@ -23,6 +23,7 @@ LIBC_ARCH=${MACHINE_CPUARCH}
 # to CFLAGS below.  -DSYSLIBC_SCCS affects just the system call stubs.
 LIB=c
 SHLIB_MAJOR= 7
+SHLIB_LDSCRIPT=libc.ldscript
 WARNS?=	2
 CFLAGS+=-I${.CURDIR}/include -I${.CURDIR}/../../include
 CFLAGS+=-I${.CURDIR}/${LIBC_ARCH}

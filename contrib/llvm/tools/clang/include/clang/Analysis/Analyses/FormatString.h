@@ -206,7 +206,7 @@ public:
 
   bool isPrintfKind() const { return IsPrintf; }
   
-  llvm::Optional<ConversionSpecifier> getStandardSpecifier() const;
+  Optional<ConversionSpecifier> getStandardSpecifier() const;
 
 protected:
   bool IsPrintf;
@@ -366,7 +366,7 @@ public:
 
   bool hasStandardLengthModifier() const;
 
-  llvm::Optional<LengthModifier> getCorrectedLengthModifier() const;
+  Optional<LengthModifier> getCorrectedLengthModifier() const;
 
   bool hasStandardConversionSpecifier(const LangOptions &LangOpt) const;
 

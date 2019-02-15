@@ -1,9 +1,8 @@
-<?xml version="1.0" encoding="iso-8859-1" standalone="no"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.2-Based Extension//EN" [
-<!ENTITY % entities PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Entity Set//FR">
-%entities;
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
-%release;
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+ %release;
 ]>
 
 <!--
@@ -63,28 +62,15 @@ jour de ce document devrait toujours être consult&eacute;e avant
 d'installer cette version de &os;.  
 </para>
 
-
-<![ %release.type.current [
-
-<para>Cet errata de &os; &release.prev; sera maintenu 
+<para releasetype="current">Cet errata de &os; &release.prev; sera maintenu 
 jusqu'a  &os; &release.next;.</para>
 
-]]>
-
-<![ %release.type.snapshot [
-
-<para>Cet errata de &os; &release.prev; sera maintenu 
+<para releasetype="snapshot">Cet errata de &os; &release.prev; sera maintenu 
 jusqu'a  &os; &release.next;.</para>
 
-]]>
-
-<![ %release.type.release [
-
-<para>Ceci est la version final du errat pour &os; &release.prev;. 
+<para releasetype="release">Ceci est la version final du errat pour &os; &release.prev;. 
 Les errata suivants de la branche &release.branch; se r&eacute;f&eacute;reront 
 a &os; &release.current; et les version suivantes.</para>
-
-]]>
 
 <para>Actuellement, &release.current; ne comporte aucun errata, car 
 il n'y a pas eut de version finale dans la branche &release.branch; 

@@ -1,3 +1,11 @@
+<?xml version="1.0" encoding="koi8-r"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+ %release;
+<!ENTITY release.bugfix "5.2.1-RELEASE">
+]>
+
 <!--
    The FreeBSD Russian Documentation Project
 
@@ -7,28 +15,9 @@
    Original revision: 1.72
 -->
 
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
-<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
-%articles.ent;
-
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
-%release;
-<!ENTITY release.bugfix "5.2.1-RELEASE">
-]>
-
 <article lang="ru">
   <articleinfo>
-    <title>Список проблем &os;
-<![ %release.type.current [
-    &release.current;
-]]>
-<![ %release.type.snapshot [
-    &release.prev;
-]]>
-<![ %release.type.release [
-    &release.current;
-]]>
-    </title>
+    <title>Список проблем &os; &release;</title>
 
     <corpauthor>
     Проект &os;
@@ -54,16 +43,7 @@
   </articleinfo>
 
   <abstract>
-    <para>В этом документе находится список проблем &os;
-<![ %release.type.current [
-      &release.current;,
-]]>
-<![ %release.type.snapshot [
-      &release.prev;,
-]]>
-<![ %release.type.release [
-      &release.current;,
-]]>
+    <para>В этом документе находится список проблем &os; &release;,
       содержащий важную информацию, полученную после релиза или на поздней
       стадии выпуска релиза и не попавшую в документацию на релиз.
       Эта информация включает сообщения безопасности, а также новости,
@@ -71,32 +51,14 @@
       могут повлиять на использование системы.  Перед установкой этой версии
       &os; необходимо сверяться с обновленной версией этого документа.</para>
 
-    <para>Этот список проблем &os; 
-<![ %release.type.current [
-      &release.current;.
-]]>
-<![ %release.type.snapshot [
-      &release.prev;
-]]>
-<![ %release.type.release [
-      &release.current;
-]]>
+    <para>Этот список проблем &os; &release;.
       будет поддерживаться до &os; &release.next;.</para>
   </abstract>
 
   <sect1 id="intro">
     <title>Введение</title>
 
-    <para>Этот документ содержит последние новости об &os;
-<![ %release.type.current [
-      &release.current;.
-]]>
-<![ %release.type.snapshot [
-      &release.prev;.
-]]>
-<![ %release.type.release [
-      &release.current;.
-]]>
+    <para>Этот документ содержит последние новости об &os; &release;.
       Перед установкой этой версии необходимо проконсультироваться с данным
       документом для получения информации о обнаруженных после выпуска
       релиза проблемах, которые уже могли быть найдены
@@ -123,51 +85,32 @@
   <sect1 id="security">
     <title>Сообщения безопасности</title>
 
-<![ %release.type.current [
-    <para>Нет сообщений.</para>
-]]>
+    <para releasetype="current">Нет сообщений.</para>
 
-<![ %release.type.release [
-    <para>Нет сообщений.</para>
-]]>
+    <para releasetype="release">Нет сообщений.</para>
 
-<![ %release.type.snapshot [
-    <para>Нет сообщений.</para>
-]]>
+    <para releasetype="snapshot">Нет сообщений.</para>
 
   </sect1>
 
   <sect1 id="open-issues">
     <title>Актуальные проблемы</title>
 
-<![ %release.type.current [
-    <para>Нет актуальных проблем.</para>
-]]>
+    <para releasetype="current">Нет актуальных проблем.</para>
 
-<![ %release.type.release [
-    <para>Нет актуальных проблем.</para>
-]]>
+    <para releasetype="release">Нет актуальных проблем.</para>
 
-<![ %release.type.snapshot [
-    <para>Нет актуальных проблем.</para>
-]]>
+    <para releasetype="snapshot">Нет актуальных проблем.</para>
 
   </sect1>
 
   <sect1 id="late-news">
     <title>Последние новости</title>
 
-<![ %release.type.current [
-    <para>Нет новостей.</para>
-]]>
+    <para releasetype="current">Нет новостей.</para>
 
-<![ %release.type.release [
-    <para>Нет новостей.</para>
-]]>
+    <para releasetype="release">Нет новостей.</para>
 
-<![ %release.type.snapshot [
-    <para>Нет новостей.</para>
-]]>
+    <para releasetype="snapshot">Нет новостей.</para>
   </sect1>
-
 </article>

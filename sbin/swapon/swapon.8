@@ -28,7 +28,7 @@
 .\"     @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 23, 2008
+.Dd June 21, 2013
 .Dt SWAPON 8
 .Os
 .Sh NAME
@@ -38,11 +38,11 @@
 .Nm swapon
 .Oo Fl F Ar fstab
 .Oc
-.Fl aq | Ar
+.Fl aLq | Ar
 .Nm swapoff
 .Oo Fl F Ar fstab
 .Oc
-.Fl aq | Ar
+.Fl aLq | Ar
 .Nm swapctl
 .Op Fl AghklmsU
 .Oo
@@ -74,10 +74,19 @@ option is used, all swap devices in
 .Pa /etc/fstab
 will be added, unless their
 .Dq noauto
+or
+.Dq late
 option is also set.
 If the
+.Fl L
+option is specified,
+swap devices with the
+.Dq late
+option will be added as well as ones with no option.
+If the
 .Fl q
-option is used informational messages will not be
+option is used,
+informational messages will not be
 written to standard output when a swap device is added.
 .Pp
 The
@@ -89,10 +98,19 @@ option is used, all swap devices in
 .Pa /etc/fstab
 will be removed, unless their
 .Dq noauto
+or
+.Dq late
 option is also set.
 If the
+.Fl L
+option is specified,
+swap devices with the
+.Dq late
+option will be removed as well as ones with no option.
+If the
 .Fl q
-option is used informational messages will not be
+option is used,
+informational messages will not be
 written to standard output when a swap device is removed.
 Note that
 .Nm swapoff

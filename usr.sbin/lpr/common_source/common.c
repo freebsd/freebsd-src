@@ -757,16 +757,22 @@ fatal(const struct printer *pp, const char *msg, ...)
 
 /*
  * Close all file descriptors from START on up.
- * This is a horrific kluge, since getdtablesize() might return
- * ``infinity'', in which case we will be spending a long time
- * closing ``files'' which were never open.  Perhaps it would
- * be better to close the first N fds, for some small value of N.
  */
 void
 closeallfds(int start)
 {
-	int stop = getdtablesize();
-	for (; start < stop; start++)
-		close(start);
+	int stop;
+
+	if (USE_CLOSEFROM)		/* The faster, modern solution */
+		closefrom(start);
+	else {
+		/* This older logic can be pretty awful on some OS's.  The
+		 * getdtablesize() might return ``infinity'', and then this
+		 * will waste a lot of time closing file descriptors which
+		 * had never been open()-ed. */
+		stop = getdtablesize();
+		for (; start < stop; start++)
+			close(start);
+	}
 }
 

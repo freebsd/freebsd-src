@@ -56,15 +56,19 @@ static volatile sig_atomic_t timed_out;
 int
 main(int argc, char **argv)
 {
-	int ch, silent, status, waitsec;
+	int ch, flags, silent, status, waitsec;
 	pid_t child;
 
 	silent = keep = 0;
+	flags = O_CREAT;
 	waitsec = -1;	/* Infinite. */
-	while ((ch = getopt(argc, argv, "skt:")) != -1) {
+	while ((ch = getopt(argc, argv, "sknt:")) != -1) {
 		switch (ch) {
 		case 'k':
 			keep = 1;
+			break;
+		case 'n':
+			flags &= ~O_CREAT;
 			break;
 		case 's':
 			silent = 1;
@@ -118,13 +122,13 @@ main(int argc, char **argv)
 	 * avoiding the separate step of waiting for the lock.  This
 	 * yields fairness and improved performance.
 	 */
-	lockfd = acquire_lock(lockname, O_NONBLOCK);
+	lockfd = acquire_lock(lockname, flags | O_NONBLOCK);
 	while (lockfd == -1 && !timed_out && waitsec != 0) {
 		if (keep)
-			lockfd = acquire_lock(lockname, 0);
+			lockfd = acquire_lock(lockname, flags);
 		else {
 			wait_for_lock(lockname);
-			lockfd = acquire_lock(lockname, O_NONBLOCK);
+			lockfd = acquire_lock(lockname, flags | O_NONBLOCK);
 		}
 	}
 	if (waitsec > 0)
@@ -165,7 +169,7 @@ acquire_lock(const char *name, int flags)
 {
 	int fd;
 
-	if ((fd = open(name, O_RDONLY|O_CREAT|O_EXLOCK|flags, 0666)) == -1) {
+	if ((fd = open(name, flags|O_RDONLY|O_EXLOCK|flags, 0666)) == -1) {
 		if (errno == EAGAIN || errno == EINTR)
 			return (-1);
 		err(EX_CANTCREAT, "cannot open %s", name);
@@ -215,7 +219,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: lockf [-ks] [-t seconds] file command [arguments]\n");
+	    "usage: lockf [-kns] [-t seconds] file command [arguments]\n");
 	exit(EX_USAGE);
 }
 

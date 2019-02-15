@@ -14,7 +14,6 @@
 
 #define DEBUG_TYPE "regalloc"
 #include "Spiller.h"
-#include "VirtRegMap.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/Analysis/AliasAnalysis.h"
@@ -22,16 +21,17 @@
 #include "llvm/CodeGen/LiveRangeEdit.h"
 #include "llvm/CodeGen/LiveStackAnalysis.h"
 #include "llvm/CodeGen/MachineDominators.h"
-#include "llvm/CodeGen/MachineInstrBundle.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineInstrBundle.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/CodeGen/VirtRegMap.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
 
@@ -955,18 +955,21 @@ void InlineSpiller::reMaterializeAll() {
   Edit->eliminateDeadDefs(DeadDefs, RegsToSpill);
 
   // Get rid of deleted and empty intervals.
-  for (unsigned i = RegsToSpill.size(); i != 0; --i) {
-    unsigned Reg = RegsToSpill[i-1];
-    if (!LIS.hasInterval(Reg)) {
-      RegsToSpill.erase(RegsToSpill.begin() + (i - 1));
+  unsigned ResultPos = 0;
+  for (unsigned i = 0, e = RegsToSpill.size(); i != e; ++i) {
+    unsigned Reg = RegsToSpill[i];
+    if (!LIS.hasInterval(Reg))
+      continue;
+
+    LiveInterval &LI = LIS.getInterval(Reg);
+    if (LI.empty()) {
+      Edit->eraseVirtReg(Reg);
       continue;
     }
-    LiveInterval &LI = LIS.getInterval(Reg);
-    if (!LI.empty())
-      continue;
-    Edit->eraseVirtReg(Reg);
-    RegsToSpill.erase(RegsToSpill.begin() + (i - 1));
+
+    RegsToSpill[ResultPos++] = Reg;
   }
+  RegsToSpill.erase(RegsToSpill.begin() + ResultPos, RegsToSpill.end());
   DEBUG(dbgs() << RegsToSpill.size() << " registers to spill after remat.\n");
 }
 

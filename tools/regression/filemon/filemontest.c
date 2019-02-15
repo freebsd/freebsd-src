@@ -43,9 +43,13 @@ __FBSDID("$FreeBSD$");
  * "test_script.sh" in the cwd.
  */
 
+#ifndef BIT
+#define BIT ""
+#endif
+
 int
 main(void) {
-	char log_name[] = "filemon_log.XXXXXX";
+	char log_name[] = "filemon_log" BIT ".XXXXXX";
 	pid_t child;
 	int fm_fd, fm_log;
 
@@ -66,7 +70,7 @@ main(void) {
 		child = getpid();
 		if (ioctl(fm_fd, FILEMON_SET_PID, &child) == -1)
 			err(1, "Cannot set filemon PID to %d", child);
-		system("./test_script.sh");
+		system("env BIT=" BIT "	./test_script.sh");
 		break;
 	case -1:
 		err(1, "Cannot fork");

@@ -404,6 +404,31 @@ xenbusb_device_sysctl_init(device_t dev)
 }
 
 /**
+ * \brief Decrement the number of XenBus child devices in the
+ *        connecting state by one and release the xbs_attch_ch
+ *        interrupt configuration hook if the connecting count
+ *        drops to zero.
+ *
+ * \param xbs  XenBus Bus device softc of the owner of the bus to enumerate.
+ */
+static void
+xenbusb_release_confighook(struct xenbusb_softc *xbs)
+{
+	mtx_lock(&xbs->xbs_lock);
+	KASSERT(xbs->xbs_connecting_children > 0,
+		("Connecting device count error\n"));
+	xbs->xbs_connecting_children--;
+	if (xbs->xbs_connecting_children == 0
+	 && (xbs->xbs_flags & XBS_ATTACH_CH_ACTIVE) != 0) {
+		xbs->xbs_flags &= ~XBS_ATTACH_CH_ACTIVE;
+		mtx_unlock(&xbs->xbs_lock);
+		config_intrhook_disestablish(&xbs->xbs_attach_ch);
+	} else {
+		mtx_unlock(&xbs->xbs_lock);
+	}
+}
+
+/**
  * \brief Verify the existance of attached device instances and perform
  *        probe/attach processing for newly arrived devices.
  *
@@ -417,7 +442,7 @@ xenbusb_probe_children(device_t dev)
 {
 	device_t *kids;
 	struct xenbus_device_ivars *ivars;
-	int i, count;
+	int i, count, error;
 
 	if (device_get_children(dev, &kids, &count) == 0) {
 		for (i = 0; i < count; i++) {
@@ -430,7 +455,30 @@ xenbusb_probe_children(device_t dev)
 				continue;
 			}
 
-			if (device_probe_and_attach(kids[i])) {
+			error = device_probe_and_attach(kids[i]);
+			if (error == ENXIO) {
+				struct xenbusb_softc *xbs;
+
+				/*
+				 * We don't have a PV driver for this device.
+				 * However, an emulated device we do support
+				 * may share this backend.  Hide the node from
+				 * XenBus until the next rescan, but leave it's
+				 * state unchanged so we don't inadvertently
+				 * prevent attachment of any emulated device.
+				 */
+				xenbusb_delete_child(dev, kids[i]);
+
+				/*
+				 * Since the XenStore state of this device
+				 * still indicates a pending attach, manually
+				 * release it's hold on the boot process.
+				 */
+				xbs = device_get_softc(dev);
+				xenbusb_release_confighook(xbs);
+
+				continue;
+			} else if (error) {
 				/*
 				 * Transition device to the closed state
 				 * so the world knows that attachment will
@@ -577,31 +625,6 @@ out:
 static void
 xenbusb_nop_confighook_cb(void *arg __unused)
 {
-}
-
-/**
- * \brief Decrement the number of XenBus child devices in the
- *        connecting state by one and release the xbs_attch_ch
- *        interrupt configuration hook if the connecting count
- *        drops to zero.
- *
- * \param xbs  XenBus Bus device softc of the owner of the bus to enumerate.
- */
-static void
-xenbusb_release_confighook(struct xenbusb_softc *xbs)
-{
-	mtx_lock(&xbs->xbs_lock);
-	KASSERT(xbs->xbs_connecting_children > 0,
-		("Connecting device count error\n"));
-	xbs->xbs_connecting_children--;
-	if (xbs->xbs_connecting_children == 0
-	 && (xbs->xbs_flags & XBS_ATTACH_CH_ACTIVE) != 0) {
-		xbs->xbs_flags &= ~XBS_ATTACH_CH_ACTIVE;
-		mtx_unlock(&xbs->xbs_lock);
-		config_intrhook_disestablish(&xbs->xbs_attach_ch);
-	} else {
-		mtx_unlock(&xbs->xbs_lock);
-	}
 }
 
 /*--------------------------- Public Functions -------------------------------*/

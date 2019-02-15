@@ -207,20 +207,8 @@ vrrp		return VRRP;
 carp		return CARP;
 radio		return RADIO;
 
-ip6		{
-#ifdef INET6
-		return IPV6;
-#else
-		bpf_error("%s not supported", yytext);
-#endif
-		}
-icmp6		{
-#ifdef INET6
-		return ICMPV6;
-#else
-		bpf_error("%s not supported", yytext);
-#endif
-		}
+ip6		return IPV6;
+icmp6		return ICMPV6;
 ah		return AH;
 esp		return ESP;
 
@@ -385,6 +373,8 @@ tcp-rst			{ yylval.i = 0x04; return NUM; }
 tcp-push		{ yylval.i = 0x08; return NUM; }
 tcp-ack			{ yylval.i = 0x10; return NUM; }
 tcp-urg			{ yylval.i = 0x20; return NUM; }
+tcp-ece			{ yylval.i = 0x40; return NUM; }
+tcp-cwr			{ yylval.i = 0x80; return NUM; }
 [A-Za-z0-9]([-_.A-Za-z0-9]*[.A-Za-z0-9])? {
 			 yylval.s = sdup((char *)yytext); return ID; }
 "\\"[^ !()\n\t]+	{ yylval.s = sdup((char *)yytext + 1); return ID; }
