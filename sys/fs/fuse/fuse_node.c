@@ -375,6 +375,7 @@ fuse_vnode_refreshsize(struct vnode *vp, struct ucred *cred)
 	struct vattr va;
 
 	if ((fvdat->flag & FN_SIZECHANGE) != 0 ||
+	    fuse_data_cache_enable == 0 ||
 	    (fuse_refresh_size == 0 && fvdat->filesize != 0))
 		return;
 
