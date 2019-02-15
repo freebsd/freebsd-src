@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_iface.8,v 1.5 1999/01/25 23:46:26 archie Exp $
 .\"
-.Dd January 12, 2015
+.Dd February 6, 2019
 .Dt NG_IFACE 4
 .Os
 .Sh NAME
@@ -144,6 +144,17 @@ In case when your graph ends up with some kind of serial line, either
 synchronous or modem, the
 .Nm
 is the right place to turn ALTQ on.
+.Sh Nesting
+.Nm
+supports nesting, a configuration when traffic of one
+.Nm
+interface flows through the other.
+The default maximum allowed nesting level is 2.
+It can be changed at runtime setting
+.Xr sysctl 8
+variable
+.Va net.graph.iface.max_nesting
+to the desired level of nesting.
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr bpf 4 ,
@@ -151,6 +162,7 @@ is the right place to turn ALTQ on.
 .Xr ng_cisco 4 ,
 .Xr ifconfig 8 ,
 .Xr ngctl 8
+.Xr sysctl
 .Sh HISTORY
 The
 .Nm iface
