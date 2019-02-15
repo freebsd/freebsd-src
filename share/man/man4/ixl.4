@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2018
+.Dd January 30, 2019
 .Dt IXL 4
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 To compile this driver into the kernel, place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
+.Cd "device iflib"
 .Cd "device ixl"
 .Ed
 .Pp

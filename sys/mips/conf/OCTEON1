@@ -188,6 +188,8 @@ device		octm
 # physical port, but may eventually provide support for DSA or similar instead.
 #device		mv88e61xxphy	# Marvell 88E61XX
 
+device		iflib
+
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel PRO/1000 Gigabit Ethernet Family
