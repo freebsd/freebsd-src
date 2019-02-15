@@ -39,7 +39,7 @@ MK_DEBUG_FILES=	no
 LDFLAGS+= -Wl,-znow
 .endif
 .if ${MK_PIE} != "no" && \
-    !defined(NO_SHARED) || ${NO_SHARED} == "no" || ${NO_SHARED} == "NO"
+    (!defined(NO_SHARED) || ${NO_SHARED} == "no" || ${NO_SHARED} == "NO")
 CFLAGS+= -fPIE
 CXXFLAGS+= -fPIE
 LDFLAGS+= -pie
