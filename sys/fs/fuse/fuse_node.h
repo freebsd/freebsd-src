@@ -86,6 +86,7 @@ struct fuse_vnode_data {
     uint32_t   flag;
 
     /** meta **/
+    bool              valid_attr_cache;
     struct vattr      cached_attrs;
     off_t             filesize;
     uint64_t          nlookup;
@@ -95,7 +96,9 @@ struct fuse_vnode_data {
 #define VTOFUD(vp) \
     ((struct fuse_vnode_data *)((vp)->v_data))
 #define VTOI(vp)    (VTOFUD(vp)->nid)
-#define VTOVA(vp)   (&(VTOFUD(vp)->cached_attrs))
+#define VTOVA(vp) \
+    (VTOFUD(vp)->valid_attr_cache ? \
+    &(VTOFUD(vp)->cached_attrs) : NULL)
 #define VTOILLU(vp) ((uint64_t)(VTOFUD(vp) ? VTOI(vp) : 0))
 
 #define FUSE_NULL_ID 0

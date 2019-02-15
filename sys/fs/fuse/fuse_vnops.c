@@ -518,10 +518,8 @@ fuse_vnop_getattr(struct vop_getattr_args *ap)
 		}
 		goto out;
 	}
-	cache_attrs(vp, (struct fuse_attr_out *)fdi.answ);
-	if (vap != VTOVA(vp)) {
-		memcpy(vap, VTOVA(vp), sizeof(*vap));
-	}
+
+	cache_attrs(vp, (struct fuse_attr_out *)fdi.answ, vap);
 	if (vap->va_type != vnode_vtype(vp)) {
 		fuse_internal_vnode_disappear(vp);
 		err = ENOENT;
@@ -628,9 +626,15 @@ fuse_vnop_link(struct vop_link_args *ap)
 	if (vnode_mount(tdvp) != vnode_mount(vp)) {
 		return EXDEV;
 	}
-	if (vap->va_nlink >= FUSE_LINK_MAX) {
+
+	/*
+	 * This is a seatbelt check to protect naive userspace filesystems from
+	 * themselves and the limitations of the FUSE IPC protocol.  If a
+	 * filesystem does not allow attribute caching, assume it is capable of
+	 * validating that nlink does not overflow.
+	 */
+	if (vap != NULL && vap->va_nlink >= FUSE_LINK_MAX)
 		return EMLINK;
-	}
 	fli.oldnodeid = VTOI(vp);
 
 	fdisp_init(&fdi, 0);
@@ -966,9 +970,11 @@ calldaemon:
 		}
 
 		if (op == FUSE_GETATTR) {
-			cache_attrs(*vpp, (struct fuse_attr_out *)fdi.answ);
+			cache_attrs(*vpp, (struct fuse_attr_out *)fdi.answ,
+			    NULL);
 		} else {
-			cache_attrs(*vpp, (struct fuse_entry_out *)fdi.answ);
+			cache_attrs(*vpp, (struct fuse_entry_out *)fdi.answ,
+			    NULL);
 		}
 
 		/* Insert name into cache if appropriate. */
@@ -1644,7 +1650,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 		}
 	}
 	if (!err && !sizechanged) {
-		cache_attrs(vp, (struct fuse_attr_out *)fdi.answ);
+		cache_attrs(vp, (struct fuse_attr_out *)fdi.answ, NULL);
 	}
 out:
 	fdisp_destroy(&fdi);
