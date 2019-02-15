@@ -2626,6 +2626,7 @@ pci_xhci_parse_opts(struct pci_xhci_softc *sc, char *opts)
 	char	*uopt, *xopts, *config;
 	int	usb3_port, usb2_port, i;
 
+	uopt = NULL;
 	usb3_port = sc->usb3_port_start - 1;
 	usb2_port = sc->usb2_port_start - 1;
 	devices = NULL;
@@ -2700,8 +2701,6 @@ pci_xhci_parse_opts(struct pci_xhci_softc *sc, char *opts)
 
 		sc->ndevices++;
 	}
-	if (uopt != NULL)
-		free(uopt);
 
 portsfinal:
 	sc->portregs = calloc(XHCI_MAX_DEVS, sizeof(struct pci_xhci_portregs));
