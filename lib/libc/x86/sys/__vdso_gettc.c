@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2012 Konstantin Belousov <kib@FreeBSD.org>
- * Copyright (c) 2016, 2017 The FreeBSD Foundation
+ * Copyright (c) 2016, 2017, 2019 The FreeBSD Foundation
  * All rights reserved.
  *
  * Portions of this software were developed by Konstantin Belousov
@@ -50,14 +50,8 @@ __FBSDID("$FreeBSD$");
 #ifdef WANT_HYPERV
 #include <dev/hyperv/hyperv.h>
 #endif
+#include <x86/ifunc.h>
 #include "libc_private.h"
-
-static enum LMB {
-	LMB_UNKNOWN,
-	LMB_NONE,
-	LMB_MFENCE,
-	LMB_LFENCE
-} lfence_works = LMB_UNKNOWN;
 
 static void
 cpuidp(u_int leaf, u_int p[4])
@@ -84,68 +78,36 @@ cpuidp(u_int leaf, u_int p[4])
 	    :  "0" (leaf));
 }
 
-static enum LMB
-select_lmb(void)
+static void
+rdtsc_mb_lfence(void)
+{
+
+	lfence();
+}
+
+static void
+rdtsc_mb_mfence(void)
+{
+
+	mfence();
+}
+
+static void
+rdtsc_mb_none(void)
+{
+}
+
+DEFINE_UIFUNC(static, void, rdtsc_mb, (void), static)
 {
 	u_int p[4];
+	/* Not a typo, string matches our cpuidp() registers use. */
 	static const char intel_id[] = "GenuntelineI";
 
+	if ((cpu_feature & CPUID_SSE2) == 0)
+		return (rdtsc_mb_none);
 	cpuidp(0, p);
 	return (memcmp(p + 1, intel_id, sizeof(intel_id) - 1) == 0 ?
-	    LMB_LFENCE : LMB_MFENCE);
-}
-
-static void
-init_fence(void)
-{
-#if defined(__i386__)
-	u_int cpuid_supported, p[4];
-
-	lfence_works = LMB_NONE;
-	__asm __volatile(
-	    "	pushfl\n"
-	    "	popl	%%eax\n"
-	    "	movl    %%eax,%%ecx\n"
-	    "	xorl    $0x200000,%%eax\n"
-	    "	pushl	%%eax\n"
-	    "	popfl\n"
-	    "	pushfl\n"
-	    "	popl    %%eax\n"
-	    "	xorl    %%eax,%%ecx\n"
-	    "	je	1f\n"
-	    "	movl	$1,%0\n"
-	    "	jmp	2f\n"
-	    "1:	movl	$0,%0\n"
-	    "2:\n"
-	    : "=r" (cpuid_supported) : : "eax", "ecx", "cc");
-	if (cpuid_supported) {
-		cpuidp(0x1, p);
-		if ((p[3] & CPUID_SSE2) != 0)
-			lfence_works = select_lmb();
-	}
-#elif defined(__amd64__)
-	lfence_works = select_lmb();
-#else
-#error "Arch"
-#endif
-}
-
-static void
-rdtsc_mb(void)
-{
-
-again:
-	if (__predict_true(lfence_works == LMB_LFENCE)) {
-		lfence();
-		return;
-	} else if (lfence_works == LMB_MFENCE) {
-		mfence();
-		return;
-	} else if (lfence_works == LMB_NONE) {
-		return;
-	}
-	init_fence();
-	goto again;
+	    rdtsc_mb_lfence : rdtsc_mb_mfence);
 }
 
 static u_int
