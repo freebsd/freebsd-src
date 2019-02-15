@@ -41,8 +41,11 @@
 #ifndef LOCORE
 
 #include <sys/queue.h>
+#include <sys/_cpuset.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+
+#include <vm/_vm_radix.h>
 
 #ifdef _KERNEL
 
@@ -78,8 +81,11 @@ struct pmap {
 	struct mtx		pm_mtx;
 	struct pmap_statistics	pm_stats;	/* pmap statictics */
 	pd_entry_t		*pm_l1;
+	u_long			pm_satp;	/* value for SATP register */
+	cpuset_t		pm_active;	/* active on cpus */
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	LIST_ENTRY(pmap)	pm_list;	/* List of all pmaps */
+	struct vm_radix		pm_root;
 };
 
 typedef struct pv_entry {
@@ -134,11 +140,16 @@ extern vm_offset_t virtual_end;
 #define	L1_MAPPABLE_P(va, pa, size)					\
 	((((va) | (pa)) & L1_OFFSET) == 0 && (size) >= L1_SIZE)
 
+struct thread;
+
+void	pmap_activate_boot(pmap_t);
+void	pmap_activate_sw(struct thread *);
 void	pmap_bootstrap(vm_offset_t, vm_paddr_t, vm_size_t);
 void	pmap_kenter_device(vm_offset_t, vm_size_t, vm_paddr_t);
 vm_paddr_t pmap_kextract(vm_offset_t va);
 void	pmap_kremove(vm_offset_t);
 void	pmap_kremove_device(vm_offset_t, vm_size_t);
+bool	pmap_ps_enabled(pmap_t);
 
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
 void	*pmap_mapbios(vm_paddr_t, vm_size_t);

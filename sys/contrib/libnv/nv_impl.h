@@ -103,6 +103,7 @@ bool nvlist_move_nvpair(nvlist_t *nvl, nvpair_t *nvp);
 
 void nvlist_set_parent(nvlist_t *nvl, nvpair_t *parent);
 void nvlist_set_array_next(nvlist_t *nvl, nvpair_t *ele);
+nvpair_t *nvlist_get_array_next_nvpair(nvlist_t *nvl);
 
 const nvpair_t *nvlist_get_nvpair(const nvlist_t *nvl, const char *name);
 

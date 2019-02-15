@@ -5411,8 +5411,9 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 	}
 
 	/*
-	 * Insulate against a race where the periph is destroyed
-	 * but CCBs are still not all processed.
+	 * Insulate against a race where the periph is destroyed but CCBs are
+	 * still not all processed. This shouldn't happen, but allows us better
+	 * bug diagnostic when it does.
 	 */
 	if (ccb_h->path->bus)
 		sim = ccb_h->path->bus->sim;
@@ -5434,7 +5435,7 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 
 		if (sim)
 			devq = sim->devq;
-		KASSERT(devq, ("sim missing for XPT_FC_USER_CCB request"));
+		KASSERT(devq, ("Periph disappeared with request pending."));
 
 		mtx_lock(&devq->send_mtx);
 		devq->send_active--;

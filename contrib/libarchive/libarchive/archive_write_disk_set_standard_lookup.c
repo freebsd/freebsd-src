@@ -114,8 +114,7 @@ lookup_gid(void *private_data, const char *gname, int64_t gid)
 		return ((gid_t)b->id);
 
 	/* Free the cache slot for a new entry. */
-	if (b->name != NULL)
-		free(b->name);
+	free(b->name);
 	b->name = strdup(gname);
 	/* Note: If strdup fails, that's okay; we just won't cache. */
 	b->hash = h;
@@ -184,8 +183,7 @@ lookup_uid(void *private_data, const char *uname, int64_t uid)
 		return ((uid_t)b->id);
 
 	/* Free the cache slot for a new entry. */
-	if (b->name != NULL)
-		free(b->name);
+	free(b->name);
 	b->name = strdup(uname);
 	/* Note: If strdup fails, that's okay; we just won't cache. */
 	b->hash = h;

@@ -148,12 +148,11 @@ fairq_pfattach(struct pf_altq *a)
 }
 
 int
-fairq_add_altq(struct pf_altq *a)
+fairq_add_altq(struct ifnet *ifp, struct pf_altq *a)
 {
 	struct fairq_if *pif;
-	struct ifnet *ifp;
 
-	if ((ifp = ifunit(a->ifname)) == NULL)
+	if (ifp == NULL)
 		return (EINVAL);
 	if (!ALTQ_IS_READY(&ifp->if_snd))
 		return (ENODEV);

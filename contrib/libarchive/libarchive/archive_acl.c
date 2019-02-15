@@ -138,14 +138,10 @@ archive_acl_clear(struct archive_acl *acl)
 		free(acl->acl_head);
 		acl->acl_head = ap;
 	}
-	if (acl->acl_text_w != NULL) {
-		free(acl->acl_text_w);
-		acl->acl_text_w = NULL;
-	}
-	if (acl->acl_text != NULL) {
-		free(acl->acl_text);
-		acl->acl_text = NULL;
-	}
+	free(acl->acl_text_w);
+	acl->acl_text_w = NULL;
+	free(acl->acl_text);
+	acl->acl_text = NULL;
 	acl->acl_p = NULL;
 	acl->acl_types = 0;
 	acl->acl_state = 0; /* Not counting. */
@@ -324,14 +320,10 @@ acl_new_entry(struct archive_acl *acl,
 		return (NULL);
 	}
 
-	if (acl->acl_text_w != NULL) {
-		free(acl->acl_text_w);
-		acl->acl_text_w = NULL;
-	}
-	if (acl->acl_text != NULL) {
-		free(acl->acl_text);
-		acl->acl_text = NULL;
-	}
+	free(acl->acl_text_w);
+	acl->acl_text_w = NULL;
+	free(acl->acl_text);
+	acl->acl_text = NULL;
 
 	/*
 	 * If there's a matching entry already in the list, overwrite it.

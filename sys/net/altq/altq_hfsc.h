@@ -214,6 +214,7 @@ struct runtime_sc {
 
 struct hfsc_class {
 	u_int		cl_id;		/* class id (just for debug) */
+	u_int		cl_slot;	/* slot in hif class table */
 	u_int32_t	cl_handle;	/* class handle */
 	struct hfsc_if	*cl_hif;	/* back pointer to struct hfsc_if */
 	int		cl_flags;	/* misc flags */

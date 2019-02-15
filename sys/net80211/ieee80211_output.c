@@ -1948,14 +1948,8 @@ ieee80211_fragment(struct ieee80211vap *vap, struct mbuf *m0,
 		whf = mtod(m, struct ieee80211_frame *);
 		memcpy(whf, wh, hdrsize);
 #ifdef IEEE80211_SUPPORT_MESH
-		if (vap->iv_opmode == IEEE80211_M_MBSS) {
-			if (IEEE80211_IS_DSTODS(wh))
-				((struct ieee80211_qosframe_addr4 *)
-				    whf)->i_qos[1] &= ~IEEE80211_QOS_MC;
-			else
-				((struct ieee80211_qosframe *)
-				    whf)->i_qos[1] &= ~IEEE80211_QOS_MC;
-		}
+		if (vap->iv_opmode == IEEE80211_M_MBSS)
+			ieee80211_getqos(wh)[1] &= ~IEEE80211_QOS_MC;
 #endif
 		*(uint16_t *)&whf->i_seq[0] |= htole16(
 			(fragno & IEEE80211_SEQ_FRAG_MASK) <<

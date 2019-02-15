@@ -59,7 +59,6 @@
  */
 typedef intmax_t arith_t;
 #define	ARITH_FORMAT_STR  "%" PRIdMAX
-#define	strtoarith_t(nptr, endptr, base)  (intmax_t)strtoumax(nptr, endptr, base)
 #define	ARITH_MIN INTMAX_MIN
 #define	ARITH_MAX INTMAX_MAX
 

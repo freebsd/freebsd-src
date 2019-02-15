@@ -88,11 +88,11 @@ DEFINE_TEST(test_option_t)
 	setlocale(LC_ALL, "");
 #endif
 #if defined(_WIN32) && !defined(__CYGWIN__)
-	strftime(date2, sizeof(date), "%b %d  %Y", localtime(&mtime));
-	_snprintf(date, sizeof(date)-1, "%12s file", date2);
+	strftime(date2, sizeof(date2)-1, "%b %d  %Y", localtime(&mtime));
+	_snprintf(date, sizeof(date)-1, "%12.12s file", date2);
 #else
-	strftime(date2, sizeof(date), "%b %e  %Y", localtime(&mtime));
-	snprintf(date, sizeof(date)-1, "%12s file", date2);
+	strftime(date2, sizeof(date2)-1, "%b %e  %Y", localtime(&mtime));
+	snprintf(date, sizeof(date)-1, "%12.12s file", date2);
 #endif
 	assertEqualMem(p + 42, date, strlen(date));
 	free(p);

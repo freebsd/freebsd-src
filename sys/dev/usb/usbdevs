@@ -767,7 +767,6 @@ vendor SIMTEC		0x20df	Simtec Electronics
 vendor TRENDNET		0x20f4  TRENDnet
 vendor RTSYSTEMS	0x2100	RT Systems
 vendor DLINK4		0x2101	D-Link
-vendor INTENSO		0x2109	INTENSO
 vendor VIALABS		0x2109	VIA Labs
 vendor ERICSSON		0x2282	Ericsson
 vendor MOTOROLA2	0x22b8	Motorola
@@ -2571,9 +2570,6 @@ product INSYSTEM ISD110		0x0200	IDE Adapter ISD110
 product INSYSTEM ISD105		0x0202	IDE Adapter ISD105
 product INSYSTEM USBCABLE	0x081a	USB cable
 product INSYSTEM STORAGE_V2	0x5701	USB Storage Adapter V2
-
-/* Intenso products */
-product INTENSO MEMORY_BOX	0x0701	External disk
 
 /* Intel products */
 product INTEL EASYPC_CAMERA	0x0110	Easy PC Camera
@@ -4738,6 +4734,7 @@ product VIA USB2IDEBRIDGE	0x6204	USB 2.0 IDE Bridge
 
 /* VIA Labs */
 product VIALABS USB30SATABRIDGE	0x0700	USB 3.0 SATA Bridge
+product VIALABS VL701		0x0701	VL701 USB 3.0 SATA Bridge
 
 /* Vaisala products */
 product VAISALA CABLE		0x0200	USB Interface cable
