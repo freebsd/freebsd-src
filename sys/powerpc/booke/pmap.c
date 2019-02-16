@@ -3053,8 +3053,11 @@ mmu_booke_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
 	int cnt;
 
 	if (hw_direct_map) {
-		bcopy((caddr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*ma)) + a_offset,
-		    (caddr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*mb)), xfersize);
+		a_cp = (caddr_t)((uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*ma)) +
+		    a_offset);
+		b_cp = (caddr_t)((uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*mb)) +
+		    b_offset);
+		bcopy(a_cp, b_cp, xfersize);
 	} else {
 		mtx_lock(&copy_page_mutex);
 		while (xfersize > 0) {
