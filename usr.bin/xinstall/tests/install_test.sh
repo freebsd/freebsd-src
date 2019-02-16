@@ -377,6 +377,29 @@ mkdir_simple_body() {
 	atf_check install -d dir1/dir2/dir3
 }
 
+atf_test_case symbolic_link_relative_absolute_common
+symbolic_link_relative_absolute_common_head() {
+	atf_set "descr" "Verify -l rs with absolute paths having common components"
+}
+symbolic_link_relative_absolute_common_body() {
+	filename=foo.so
+	src_path=lib
+	src_path_prefixed=$PWD/$src_path
+	dest_path=$PWD/libexec/
+	src_file=$src_path_prefixed/$filename
+	dest_file=$dest_path/$filename
+
+	atf_check mkdir $src_path_prefixed $dest_path
+	atf_check touch $src_file
+	atf_check install -l sr $src_file $dest_path
+
+	dest_path_relative=$(readlink $dest_file)
+	src_path_relative="../lib/$filename"
+	if [ "$src_path_relative" != "$dest_path_relative" ]; then
+		atf_fail "unexpected symlink contents ('$src_path_relative' != '$dest_path_relative')"
+	fi
+}
+
 atf_init_test_cases() {
 	atf_add_test_case copy_to_nonexistent
 	atf_add_test_case copy_to_nonexistent_safe
@@ -415,5 +438,6 @@ atf_init_test_cases() {
 	atf_add_test_case symbolic_link_relative_absolute_source_and_dest1
 	atf_add_test_case symbolic_link_relative_absolute_source_and_dest1_double_slash
 	atf_add_test_case symbolic_link_relative_absolute_source_and_dest2
+	atf_add_test_case symbolic_link_relative_absolute_common
 	atf_add_test_case mkdir_simple
 }
