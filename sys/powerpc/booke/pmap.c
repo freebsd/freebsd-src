@@ -3911,29 +3911,23 @@ tlb1_write_entry_int(void *arg)
 	mas0 = MAS0_TLBSEL(1) | MAS0_ESEL(args->idx);
 
 	mtspr(SPR_MAS0, mas0);
-	__asm __volatile("isync");
 	mtspr(SPR_MAS1, args->e->mas1);
-	__asm __volatile("isync");
 	mtspr(SPR_MAS2, args->e->mas2);
-	__asm __volatile("isync");
 	mtspr(SPR_MAS3, args->e->mas3);
-	__asm __volatile("isync");
 	switch ((mfpvr() >> 16) & 0xFFFF) {
 	case FSL_E500mc:
 	case FSL_E5500:
 	case FSL_E6500:
 		mtspr(SPR_MAS8, 0);
-		__asm __volatile("isync");
 		/* FALLTHROUGH */
 	case FSL_E500v2:
 		mtspr(SPR_MAS7, args->e->mas7);
-		__asm __volatile("isync");
 		break;
 	default:
 		break;
 	}
 
-	__asm __volatile("tlbwe; isync; msync");
+	__asm __volatile("isync; tlbwe; isync; msync");
 
 }
 
@@ -4376,7 +4370,6 @@ tid_flush(tlbtid_t tid)
 
 			mas0 = MAS0_TLBSEL(0) | MAS0_ESEL(way);
 			mtspr(SPR_MAS0, mas0);
-			__asm __volatile("isync");
 
 			mas2 = entry << MAS2_TLB0_ENTRY_IDX_SHIFT;
 			mtspr(SPR_MAS2, mas2);
@@ -4453,7 +4446,6 @@ DB_SHOW_COMMAND(tlb0, tlb0_print_tlbentries)
 
 			mas0 = MAS0_TLBSEL(0) | MAS0_ESEL(way);
 			mtspr(SPR_MAS0, mas0);
-			__asm __volatile("isync");
 
 			mas2 = entryidx << MAS2_TLB0_ENTRY_IDX_SHIFT;
 			mtspr(SPR_MAS2, mas2);
