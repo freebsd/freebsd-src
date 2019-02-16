@@ -1,4 +1,4 @@
-//===- IdentifierResolver.cpp - Lexical Scope Name lookup -------*- C++ -*-===//
+//===- IdentifierResolver.cpp - Lexical Scope Name lookup -----------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,10 +14,16 @@
 
 #include "clang/Sema/IdentifierResolver.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclBase.h"
+#include "clang/AST/DeclarationName.h"
+#include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Lex/ExternalPreprocessorSource.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Sema/Scope.h"
+#include "llvm/Support/ErrorHandling.h"
+#include <cassert>
+#include <cstdint>
 
 using namespace clang;
 
@@ -35,17 +41,17 @@ class IdentifierResolver::IdDeclInfoMap {
   /// impossible to add something to a pre-C++0x STL container without
   /// a completely unnecessary copy.
   struct IdDeclInfoPool {
-    IdDeclInfoPool(IdDeclInfoPool *Next) : Next(Next) {}
-    
     IdDeclInfoPool *Next;
     IdDeclInfo Pool[POOL_SIZE];
+
+    IdDeclInfoPool(IdDeclInfoPool *Next) : Next(Next) {}
   };
-  
-  IdDeclInfoPool *CurPool;
-  unsigned int CurIndex;
+
+  IdDeclInfoPool *CurPool = nullptr;
+  unsigned int CurIndex = POOL_SIZE;
 
 public:
-  IdDeclInfoMap() : CurPool(nullptr), CurIndex(POOL_SIZE) {}
+  IdDeclInfoMap() = default;
 
   ~IdDeclInfoMap() {
     IdDeclInfoPool *Cur = CurPool;
@@ -59,7 +65,6 @@ public:
   /// It creates a new IdDeclInfo if one was not created before for this id.
   IdDeclInfo &operator[](DeclarationName Name);
 };
-
 
 //===----------------------------------------------------------------------===//
 // IdDeclInfo Implementation
@@ -83,9 +88,7 @@ void IdentifierResolver::IdDeclInfo::RemoveDecl(NamedDecl *D) {
 //===----------------------------------------------------------------------===//
 
 IdentifierResolver::IdentifierResolver(Preprocessor &PP)
-  : LangOpt(PP.getLangOpts()), PP(PP),
-    IdDeclInfos(new IdDeclInfoMap) {
-}
+    : LangOpt(PP.getLangOpts()), PP(PP), IdDeclInfos(new IdDeclInfoMap) {}
 
 IdentifierResolver::~IdentifierResolver() {
   delete IdDeclInfos;
@@ -168,9 +171,9 @@ void IdentifierResolver::InsertDeclAfter(iterator Pos, NamedDecl *D) {
   DeclarationName Name = D->getDeclName();
   if (IdentifierInfo *II = Name.getAsIdentifierInfo())
     updatingIdentifier(*II);
-  
+
   void *Ptr = Name.getFETokenInfo<void>();
-  
+
   if (!Ptr) {
     AddDecl(D);
     return;
@@ -193,7 +196,7 @@ void IdentifierResolver::InsertDeclAfter(iterator Pos, NamedDecl *D) {
     return;
   }
 
-  // General case: insert the declaration at the appropriate point in the 
+  // General case: insert the declaration at the appropriate point in the
   // list, which already has at least two elements.
   IdDeclInfo *IDI = toIdDeclInfo(Ptr);
   if (Pos.isIterator()) {
@@ -228,7 +231,7 @@ IdentifierResolver::iterator
 IdentifierResolver::begin(DeclarationName Name) {
   if (IdentifierInfo *II = Name.getAsIdentifierInfo())
     readingIdentifier(*II);
-    
+
   void *Ptr = Name.getFETokenInfo<void>();
   if (!Ptr) return end();
 
@@ -245,15 +248,17 @@ IdentifierResolver::begin(DeclarationName Name) {
 }
 
 namespace {
-  enum DeclMatchKind {
-    DMK_Different,
-    DMK_Replace,
-    DMK_Ignore
-  };
-}
 
-/// \brief Compare two declarations to see whether they are different or,
-/// if they are the same, whether the new declaration should replace the 
+enum DeclMatchKind {
+  DMK_Different,
+  DMK_Replace,
+  DMK_Ignore
+};
+
+} // namespace
+
+/// Compare two declarations to see whether they are different or,
+/// if they are the same, whether the new declaration should replace the
 /// existing declaration.
 static DeclMatchKind compareDeclarations(NamedDecl *Existing, NamedDecl *New) {
   // If the declarations are identical, ignore the new one.
@@ -284,40 +289,40 @@ static DeclMatchKind compareDeclarations(NamedDecl *Existing, NamedDecl *New) {
     for (auto RD : New->redecls()) {
       if (RD == Existing)
         return DMK_Replace;
-        
+
       if (RD->isCanonicalDecl())
         break;
     }
-    
+
     return DMK_Ignore;
   }
-  
+
   return DMK_Different;
 }
 
 bool IdentifierResolver::tryAddTopLevelDecl(NamedDecl *D, DeclarationName Name){
   if (IdentifierInfo *II = Name.getAsIdentifierInfo())
     readingIdentifier(*II);
-  
+
   void *Ptr = Name.getFETokenInfo<void>();
-    
+
   if (!Ptr) {
     Name.setFETokenInfo(D);
     return true;
   }
-  
+
   IdDeclInfo *IDI;
-  
+
   if (isDeclPtr(Ptr)) {
     NamedDecl *PrevD = static_cast<NamedDecl*>(Ptr);
-    
+
     switch (compareDeclarations(PrevD, D)) {
     case DMK_Different:
       break;
-      
+
     case DMK_Ignore:
       return false;
-      
+
     case DMK_Replace:
       Name.setFETokenInfo(D);
       return true;
@@ -325,7 +330,7 @@ bool IdentifierResolver::tryAddTopLevelDecl(NamedDecl *D, DeclarationName Name){
 
     Name.setFETokenInfo(nullptr);
     IDI = &(*IdDeclInfos)[Name];
-    
+
     // If the existing declaration is not visible in translation unit scope,
     // then add the new top-level declaration first.
     if (!PrevD->getDeclContext()->getRedeclContext()->isTranslationUnit()) {
@@ -336,28 +341,28 @@ bool IdentifierResolver::tryAddTopLevelDecl(NamedDecl *D, DeclarationName Name){
       IDI->AddDecl(D);
     }
     return true;
-  } 
-  
+  }
+
   IDI = toIdDeclInfo(Ptr);
 
   // See whether this declaration is identical to any existing declarations.
   // If not, find the right place to insert it.
-  for (IdDeclInfo::DeclsTy::iterator I = IDI->decls_begin(), 
+  for (IdDeclInfo::DeclsTy::iterator I = IDI->decls_begin(),
                                   IEnd = IDI->decls_end();
        I != IEnd; ++I) {
-    
+
     switch (compareDeclarations(*I, D)) {
     case DMK_Different:
       break;
-      
+
     case DMK_Ignore:
       return false;
-      
+
     case DMK_Replace:
       *I = D;
       return true;
     }
-    
+
     if (!(*I)->getDeclContext()->getRedeclContext()->isTranslationUnit()) {
       // We've found a declaration that is not visible from the translation
       // unit (it's in an inner scope). Insert our declaration here.
@@ -365,7 +370,7 @@ bool IdentifierResolver::tryAddTopLevelDecl(NamedDecl *D, DeclarationName Name){
       return true;
     }
   }
-  
+
   // Add the declaration to the end.
   IDI->AddDecl(D);
   return true;
@@ -373,13 +378,13 @@ bool IdentifierResolver::tryAddTopLevelDecl(NamedDecl *D, DeclarationName Name){
 
 void IdentifierResolver::readingIdentifier(IdentifierInfo &II) {
   if (II.isOutOfDate())
-    PP.getExternalSource()->updateOutOfDateIdentifier(II);  
+    PP.getExternalSource()->updateOutOfDateIdentifier(II);
 }
 
 void IdentifierResolver::updatingIdentifier(IdentifierInfo &II) {
   if (II.isOutOfDate())
     PP.getExternalSource()->updateOutOfDateIdentifier(II);
-  
+
   if (II.isFromAST())
     II.setFETokenInfoChangedSinceDeserialization();
 }

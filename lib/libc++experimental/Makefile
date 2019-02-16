@@ -11,9 +11,6 @@ MK_PROFILE=	no
 
 .PATH:		${SRCDIR}/src/experimental
 
-SRCS+=		filesystem/directory_iterator.cpp
-SRCS+=		filesystem/operations.cpp
-SRCS+=		filesystem/path.cpp
 SRCS+=		memory_resource.cpp
 
 WARNS?=		0

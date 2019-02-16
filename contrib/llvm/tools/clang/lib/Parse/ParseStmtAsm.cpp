@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements parsing for GCC and Microsoft inline assembly. 
+// This file implements parsing for GCC and Microsoft inline assembly.
 //
 //===----------------------------------------------------------------------===//
 
@@ -239,7 +239,7 @@ ExprResult Parser::ParseMSAsmIdentifier(llvm::SmallVectorImpl<Token> &LineToks,
                                  /*AllowDestructorName=*/false,
                                  /*AllowConstructorName=*/false,
                                  /*AllowDeductionGuide=*/false,
-                                 /*ObjectType=*/nullptr, TemplateKWLoc, Id);
+                                 /*ObjectType=*/nullptr, &TemplateKWLoc, Id);
     // Perform the lookup.
     Result = Actions.LookupInlineAsmIdentifier(SS, TemplateKWLoc, Id,
                                                IsUnevaluatedContext);

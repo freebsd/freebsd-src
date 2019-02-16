@@ -158,6 +158,8 @@ static DecodeStatus DecoderGPRRegisterClass(MCInst &Inst, unsigned RegNo,
                                    uint64_t Address, const void *Decoder);
 static DecodeStatus DecodeGPRPairRegisterClass(MCInst &Inst, unsigned RegNo,
                                    uint64_t Address, const void *Decoder);
+static DecodeStatus DecodeHPRRegisterClass(MCInst &Inst, unsigned RegNo,
+                                   uint64_t Address, const void *Decoder);
 static DecodeStatus DecodeSPRRegisterClass(MCInst &Inst, unsigned RegNo,
                                    uint64_t Address, const void *Decoder);
 static DecodeStatus DecodeDPRRegisterClass(MCInst &Inst, unsigned RegNo,
@@ -618,7 +620,7 @@ ThumbDisassembler::AddThumbPredicate(MCInst &MI) const {
   // assume a predicate of AL.
   unsigned CC;
   CC = ITBlock.getITCC();
-  if (CC == 0xF) 
+  if (CC == 0xF)
     CC = ARMCC::AL;
   if (ITBlock.instrInITBlock())
     ITBlock.advanceITState();
@@ -657,6 +659,8 @@ ThumbDisassembler::AddThumbPredicate(MCInst &MI) const {
 void ThumbDisassembler::UpdateThumbVFPPredicate(MCInst &MI) const {
   unsigned CC;
   CC = ITBlock.getITCC();
+  if (CC == 0xF)
+    CC = ARMCC::AL;
   if (ITBlock.instrInITBlock())
     ITBlock.advanceITState();
 
@@ -727,10 +731,13 @@ DecodeStatus ThumbDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
     // code and mask operands so that we can apply them correctly
     // to the subsequent instructions.
     if (MI.getOpcode() == ARM::t2IT) {
-
       unsigned Firstcond = MI.getOperand(0).getImm();
       unsigned Mask = MI.getOperand(1).getImm();
       ITBlock.setITState(Firstcond, Mask);
+
+      // An IT instruction that would give a 'NV' predicate is unpredictable.
+      if (Firstcond == ARMCC::AL && !isPowerOf2_32(Mask))
+        CS << "unpredictable IT predicate sequence";
     }
 
     return Result;
@@ -881,7 +888,7 @@ DecodeGPRnopcRegisterClass(MCInst &Inst, unsigned RegNo,
                            uint64_t Address, const void *Decoder) {
   DecodeStatus S = MCDisassembler::Success;
 
-  if (RegNo == 15) 
+  if (RegNo == 15)
     S = MCDisassembler::SoftFail;
 
   Check(S, DecodeGPRRegisterClass(Inst, RegNo, Address, Decoder));
@@ -994,6 +1001,11 @@ static DecodeStatus DecodeSPRRegisterClass(MCInst &Inst, unsigned RegNo,
   unsigned Register = SPRDecoderTable[RegNo];
   Inst.addOperand(MCOperand::createReg(Register));
   return MCDisassembler::Success;
+}
+
+static DecodeStatus DecodeHPRRegisterClass(MCInst &Inst, unsigned RegNo,
+                                   uint64_t Address, const void *Decoder) {
+  return DecodeSPRRegisterClass(Inst, RegNo, Address, Decoder);
 }
 
 static const uint16_t DPRDecoderTable[] = {
@@ -2159,7 +2171,7 @@ static DecodeStatus DecodeSETPANInstruction(MCInst &Inst, unsigned Insn,
   const MCDisassembler *Dis = static_cast<const MCDisassembler*>(Decoder);
   const FeatureBitset &FeatureBits = Dis->getSubtargetInfo().getFeatureBits();
 
-  if (!FeatureBits[ARM::HasV8_1aOps] || 
+  if (!FeatureBits[ARM::HasV8_1aOps] ||
       !FeatureBits[ARM::HasV8Ops])
     return MCDisassembler::Fail;
 
@@ -4142,7 +4154,6 @@ static DecodeStatus DecodeMSRMask(MCInst &Inst, unsigned Val,
     case 0x8a: // msplim_ns
     case 0x8b: // psplim_ns
     case 0x91: // basepri_ns
-    case 0x92: // basepri_max_ns
     case 0x93: // faultmask_ns
       if (!(FeatureBits[ARM::HasV8MMainlineOps]))
         return MCDisassembler::Fail;
@@ -4158,7 +4169,9 @@ static DecodeStatus DecodeMSRMask(MCInst &Inst, unsigned Val,
         return MCDisassembler::Fail;
       break;
     default:
-      return MCDisassembler::Fail;
+      // Architecturally defined as unpredictable
+      S = MCDisassembler::SoftFail;
+      break;
     }
 
     if (Inst.getOpcode() == ARM::t2MSR_M) {
@@ -4198,15 +4211,8 @@ static DecodeStatus DecodeBankedReg(MCInst &Inst, unsigned Val,
   // The table of encodings for these banked registers comes from B9.2.3 of the
   // ARM ARM. There are patterns, but nothing regular enough to make this logic
   // neater. So by fiat, these values are UNPREDICTABLE:
-  if (!R) {
-    if (SysM == 0x7 || SysM == 0xf || SysM == 0x18 || SysM == 0x19 ||
-        SysM == 0x1a || SysM == 0x1b)
-      return MCDisassembler::SoftFail;
-  } else {
-    if (SysM != 0xe && SysM != 0x10 && SysM != 0x12 && SysM != 0x14 &&
-        SysM != 0x16 && SysM != 0x1c && SysM != 0x1e)
-      return MCDisassembler::SoftFail;
-  }
+  if (!ARMBankedReg::lookupBankedRegByEncoding((R << 5) | SysM))
+    return MCDisassembler::Fail;
 
   Inst.addOperand(MCOperand::createImm(Val));
   return MCDisassembler::Success;
@@ -4461,7 +4467,7 @@ static DecodeStatus DecodeVST1LN(MCInst &Inst, unsigned Insn,
       index = fieldFromInstruction(Insn, 7, 1);
 
       switch (fieldFromInstruction(Insn, 4, 2)) {
-        case 0: 
+        case 0:
           align = 0; break;
         case 3:
           align = 4; break;
@@ -5273,7 +5279,7 @@ static DecodeStatus DecodeLDR(MCInst &Inst, unsigned Val,
     return MCDisassembler::Fail;
   if (!Check(S, DecodeGPRnopcRegisterClass(Inst, Rn, Address, Decoder)))
     return MCDisassembler::Fail;
-  if (!Check(S, DecodeAddrMode7Operand(Inst, Rn, Address, Decoder))) 
+  if (!Check(S, DecodeAddrMode7Operand(Inst, Rn, Address, Decoder)))
     return MCDisassembler::Fail;
   if (!Check(S, DecodePostIdxReg(Inst, Rm, Address, Decoder)))
     return MCDisassembler::Fail;

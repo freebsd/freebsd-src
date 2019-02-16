@@ -95,10 +95,10 @@ public:
   uint32_t
   FindGlobalVariables(const lldb_private::ConstString &name,
                       const lldb_private::CompilerDeclContext *parent_decl_ctx,
-                      bool append, uint32_t max_matches,
+                      uint32_t max_matches,
                       lldb_private::VariableList &variables) override;
   uint32_t FindGlobalVariables(const lldb_private::RegularExpression &regex,
-                               bool append, uint32_t max_matches,
+                               uint32_t max_matches,
                                lldb_private::VariableList &variables) override;
   uint32_t
   FindFunctions(const lldb_private::ConstString &name,
@@ -136,7 +136,7 @@ protected:
   friend class DebugMapModule;
   friend struct DIERef;
   friend class DWARFASTParserClang;
-  friend class DWARFCompileUnit;
+  friend class DWARFUnit;
   friend class SymbolFileDWARF;
   struct OSOInfo {
     lldb::ModuleSP module_sp;
@@ -300,7 +300,9 @@ protected:
   std::vector<CompileUnitInfo> m_compile_unit_infos;
   std::vector<uint32_t> m_func_indexes; // Sorted by address
   std::vector<uint32_t> m_glob_indexes;
-  std::map<lldb_private::ConstString, OSOInfoSP> m_oso_map;
+  std::map<std::pair<lldb_private::ConstString, llvm::sys::TimePoint<>>,
+           OSOInfoSP>
+      m_oso_map;
   UniqueDWARFASTTypeMap m_unique_ast_type_map;
   lldb_private::LazyBool m_supports_DW_AT_APPLE_objc_complete_type;
   DebugMap m_debug_map;

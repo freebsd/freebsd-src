@@ -63,6 +63,13 @@ AVRTargetLowering::AVRTargetLowering(AVRTargetMachine &tm)
 
   setTruncStoreAction(MVT::i16, MVT::i8, Expand);
 
+  for (MVT VT : MVT::integer_valuetypes()) {
+    setOperationAction(ISD::ADDC, VT, Legal);
+    setOperationAction(ISD::SUBC, VT, Legal);
+    setOperationAction(ISD::ADDE, VT, Legal);
+    setOperationAction(ISD::SUBE, VT, Legal);
+  }
+
   // sub (x, imm) gets canonicalized to add (x, -imm), so for illegal types
   // revert into a sub since we don't have an add with immediate instruction.
   setOperationAction(ISD::ADD, MVT::i32, Custom);
@@ -344,6 +351,9 @@ SDValue AVRTargetLowering::LowerDivRem(SDValue Op, SelectionDAG &DAG) const {
     break;
   case MVT::i64:
     LC = IsSigned ? RTLIB::SDIVREM_I64 : RTLIB::UDIVREM_I64;
+    break;
+  case MVT::i128:
+    LC = IsSigned ? RTLIB::SDIVREM_I128 : RTLIB::UDIVREM_I128;
     break;
   }
 
@@ -867,10 +877,12 @@ bool AVRTargetLowering::isOffsetFoldingLegal(
 
 /// For each argument in a function store the number of pieces it is composed
 /// of.
-static void parseFunctionArgs(const Function *F, const DataLayout *TD,
+static void parseFunctionArgs(const SmallVectorImpl<ISD::InputArg> &Ins,
                               SmallVectorImpl<unsigned> &Out) {
-  for (Argument const &Arg : F->args()) {
-    unsigned Bytes = (TD->getTypeSizeInBits(Arg.getType()) + 7) / 8;
+  for (const ISD::InputArg &Arg : Ins) {
+    if(Arg.PartOffset > 0) continue;
+    unsigned Bytes = ((Arg.ArgVT.getSizeInBits()) + 7) / 8;
+
     Out.push_back((Bytes + 1) / 2);
   }
 }
@@ -938,7 +950,7 @@ static void analyzeStandardArguments(TargetLowering::CallLoweringInfo *CLI,
     parseExternFuncCallArgs(*Outs, Args);
   } else {
     assert(F != nullptr && "function should not be null");
-    parseFunctionArgs(F, TD, Args);
+    parseFunctionArgs(*Ins, Args);
   }
 
   unsigned RegsLeft = array_lengthof(RegList8), ValNo = 0;

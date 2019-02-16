@@ -16,13 +16,15 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/ThreadPool.h"
+#include "llvm/Support/Threading.h"
 #include <numeric>
 
 using namespace llvm;
 
 namespace {
 
-/// \brief Helper struct which prints trimmed and aligned columns.
+/// Helper struct which prints trimmed and aligned columns.
 struct Column {
   enum TrimKind { NoTrim, WidthTrim, RightTrim };
 
@@ -89,7 +91,7 @@ size_t FileReportColumns[] = {25, 12, 18, 10, 12, 18, 10,
                               16, 16, 10, 12, 18, 10};
 size_t FunctionReportColumns[] = {25, 10, 8, 8, 10, 8, 8};
 
-/// \brief Adjust column widths to fit long file paths and function names.
+/// Adjust column widths to fit long file paths and function names.
 void adjustColumnWidths(ArrayRef<StringRef> Files,
                         ArrayRef<StringRef> Functions) {
   for (StringRef Filename : Files)
@@ -99,7 +101,7 @@ void adjustColumnWidths(ArrayRef<StringRef> Files,
         std::max(FunctionReportColumns[0], Funcname.size());
 }
 
-/// \brief Prints a horizontal divider long enough to cover the given column
+/// Prints a horizontal divider long enough to cover the given column
 /// widths.
 void renderDivider(ArrayRef<size_t> ColumnWidths, raw_ostream &OS) {
   size_t Length = std::accumulate(ColumnWidths.begin(), ColumnWidths.end(), 0);
@@ -107,7 +109,7 @@ void renderDivider(ArrayRef<size_t> ColumnWidths, raw_ostream &OS) {
     OS << '-';
 }
 
-/// \brief Return the color which correponds to the coverage percentage of a
+/// Return the color which correponds to the coverage percentage of a
 /// certain metric.
 template <typename T>
 raw_ostream::Colors determineCoveragePercentageColor(const T &Info) {
@@ -117,7 +119,7 @@ raw_ostream::Colors determineCoveragePercentageColor(const T &Info) {
                                           : raw_ostream::RED;
 }
 
-/// \brief Get the number of redundant path components in each path in \p Paths.
+/// Get the number of redundant path components in each path in \p Paths.
 unsigned getNumRedundantPathComponents(ArrayRef<std::string> Paths) {
   // To start, set the number of redundant path components to the maximum
   // possible value.
@@ -146,7 +148,7 @@ unsigned getNumRedundantPathComponents(ArrayRef<std::string> Paths) {
   return NumRedundant;
 }
 
-/// \brief Determine the length of the longest redundant prefix of the paths in
+/// Determine the length of the longest redundant prefix of the paths in
 /// \p Paths.
 unsigned getRedundantPrefixLen(ArrayRef<std::string> Paths) {
   // If there's at most one path, no path components are redundant.
@@ -319,50 +321,72 @@ void CoverageReport::renderFunctionReports(ArrayRef<std::string> Files,
   }
 }
 
+void CoverageReport::prepareSingleFileReport(const StringRef Filename,
+    const coverage::CoverageMapping *Coverage,
+    const CoverageViewOptions &Options, const unsigned LCP,
+    FileCoverageSummary *FileReport, const CoverageFilter *Filters) {
+  for (const auto &Group : Coverage->getInstantiationGroups(Filename)) {
+    std::vector<FunctionCoverageSummary> InstantiationSummaries;
+    for (const coverage::FunctionRecord *F : Group.getInstantiations()) {
+      if (!Filters->matches(*Coverage, *F))
+        continue;
+      auto InstantiationSummary = FunctionCoverageSummary::get(*Coverage, *F);
+      FileReport->addInstantiation(InstantiationSummary);
+      InstantiationSummaries.push_back(InstantiationSummary);
+    }
+    if (InstantiationSummaries.empty())
+      continue;
+
+    auto GroupSummary =
+        FunctionCoverageSummary::get(Group, InstantiationSummaries);
+
+    if (Options.Debug)
+      outs() << "InstantiationGroup: " << GroupSummary.Name << " with "
+             << "size = " << Group.size() << "\n";
+
+    FileReport->addFunction(GroupSummary);
+  }
+}
+
 std::vector<FileCoverageSummary> CoverageReport::prepareFileReports(
     const coverage::CoverageMapping &Coverage, FileCoverageSummary &Totals,
     ArrayRef<std::string> Files, const CoverageViewOptions &Options,
     const CoverageFilter &Filters) {
-  std::vector<FileCoverageSummary> FileReports;
   unsigned LCP = getRedundantPrefixLen(Files);
+  auto NumThreads = Options.NumThreads;
+
+  // If NumThreads is not specified, auto-detect a good default.
+  if (NumThreads == 0)
+    NumThreads =
+        std::max(1U, std::min(llvm::heavyweight_hardware_concurrency(),
+                              unsigned(Files.size())));
+
+  ThreadPool Pool(NumThreads);
+
+  std::vector<FileCoverageSummary> FileReports;
+  FileReports.reserve(Files.size());
 
   for (StringRef Filename : Files) {
-    FileCoverageSummary Summary(Filename.drop_front(LCP));
-
-    for (const auto &Group : Coverage.getInstantiationGroups(Filename)) {
-      std::vector<FunctionCoverageSummary> InstantiationSummaries;
-      for (const coverage::FunctionRecord *F : Group.getInstantiations()) {
-        if (!Filters.matches(Coverage, *F))
-          continue;
-        auto InstantiationSummary = FunctionCoverageSummary::get(Coverage, *F);
-        Summary.addInstantiation(InstantiationSummary);
-        Totals.addInstantiation(InstantiationSummary);
-        InstantiationSummaries.push_back(InstantiationSummary);
-      }
-      if (InstantiationSummaries.empty())
-        continue;
-
-      auto GroupSummary =
-          FunctionCoverageSummary::get(Group, InstantiationSummaries);
-
-      if (Options.Debug)
-        outs() << "InstantiationGroup: " << GroupSummary.Name << " with "
-               << "size = " << Group.size() << "\n";
-
-      Summary.addFunction(GroupSummary);
-      Totals.addFunction(GroupSummary);
-    }
-
-    FileReports.push_back(Summary);
+    FileReports.emplace_back(Filename.drop_front(LCP));
+    Pool.async(&CoverageReport::prepareSingleFileReport, Filename,
+               &Coverage, Options, LCP, &FileReports.back(), &Filters);
   }
+  Pool.wait();
+
+  for (const auto &FileReport : FileReports)
+    Totals += FileReport;
 
   return FileReports;
 }
 
-void CoverageReport::renderFileReports(raw_ostream &OS) const {
+void CoverageReport::renderFileReports(
+    raw_ostream &OS, const CoverageFilters &IgnoreFilenameFilters) const {
   std::vector<std::string> UniqueSourceFiles;
-  for (StringRef SF : Coverage.getUniqueSourceFiles())
-    UniqueSourceFiles.emplace_back(SF.str());
+  for (StringRef SF : Coverage.getUniqueSourceFiles()) {
+    // Apply ignore source files filters.
+    if (!IgnoreFilenameFilters.matchesFilename(SF))
+      UniqueSourceFiles.emplace_back(SF.str());
+  }
   renderFileReports(OS, UniqueSourceFiles);
 }
 
