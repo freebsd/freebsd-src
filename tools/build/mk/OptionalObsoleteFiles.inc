@@ -54,6 +54,10 @@ OLD_FILES+=usr/share/man/man8/acpidump.8.gz
 OLD_FILES+=usr/share/man/man8/iasl.8.gz
 .endif
 
+.if ${MK_ACPI} == no && ${MK_APM} == no
+OLD_FILES+=etc/rc.d/powerd
+.endif
+
 .if ${MK_AMD} == no
 OLD_FILES+=etc/amd.map
 OLD_FILES+=etc/newsyslog.conf.d/amd.conf
@@ -434,6 +438,7 @@ OLD_FILES+=usr/bin/ld.bfd
 .endif
 
 .if ${MK_BLACKLIST} == no
+OLD_FILES+=etc/blacklistd.conf
 OLD_FILES+=etc/rc.d/blacklistd
 OLD_FILES+=usr/include/blacklist.h
 OLD_FILES+=usr/lib/libblacklist.a
@@ -655,6 +660,7 @@ OLD_FILES+=usr/share/man/man8/zfsloader.8.gz
 .endif
 
 .if ${MK_BOOTPARAMD} == no
+OLD_FILES+=etc/rc.d/bootparams
 OLD_FILES+=usr/sbin/bootparamd
 OLD_FILES+=usr/share/man/man5/bootparams.5.gz
 OLD_FILES+=usr/share/man/man8/bootparamd.8.gz
@@ -1131,6 +1137,7 @@ OLD_FILES+=etc/casper/system.grp
 OLD_FILES+=etc/casper/system.pwd
 OLD_FILES+=etc/casper/system.random
 OLD_FILES+=etc/casper/system.sysctl
+OLD_DIRS+=etc/casper
 OLD_FILES+=etc/rc.d/casperd
 OLD_LIBS+=lib/libcapsicum.so.0
 OLD_LIBS+=lib/libcasper.so.0
@@ -1293,6 +1300,8 @@ OLD_FILES+=etc/rc.d/zvol
 OLD_FILES+=etc/devd/zfs.conf
 OLD_FILES+=etc/periodic/daily/404.status-zfs
 OLD_FILES+=etc/periodic/daily/800.scrub-zfs
+OLD_FILES+=etc/zfs/exports
+OLD_DIRS+=etc/zfs
 OLD_LIBS+=lib/libzfs.so.2
 OLD_LIBS+=lib/libzfs.so.3
 OLD_LIBS+=lib/libzfs_core.so.2
@@ -2279,6 +2288,7 @@ OLD_DIRS+=usr/share/dict
 
 .if ${MK_DMAGENT} == no
 OLD_FILES+=etc/dma/dma.conf
+OLD_DIRS+=etc/dma
 OLD_FILES+=usr/libexec/dma
 OLD_FILES+=usr/libexec/dma-mbox-create
 OLD_FILES+=usr/share/man/man8/dma.8.gz
@@ -2914,6 +2924,7 @@ OLD_FILES+=usr/share/man/man8/gssd.8.gz
 .endif
 
 .if ${MK_HAST} == no
+OLD_FILES+=etc/rc.d/hastd
 OLD_FILES+=sbin/hastctl
 OLD_FILES+=sbin/hastd
 OLD_FILES+=usr/share/examples/hast/ucarp.sh
@@ -3106,6 +3117,7 @@ OLD_FILES+=rescue/rtsol
 .endif
 
 .if ${MK_INETD} == no
+OLD_FILES+=etc/inetd.conf
 OLD_FILES+=etc/rc.d/inetd
 OLD_FILES+=usr/sbin/inetd
 OLD_FILES+=usr/share/man/man5/inetd.conf.5.gz
@@ -3196,6 +3208,7 @@ OLD_FILES+=usr/share/man/man8/ippool.8.gz
 .endif
 
 .if ${MK_IPFW} == no
+OLD_FILES+=etc/rc.d/ipfw
 OLD_FILES+=etc/periodic/security/500.ipfwdenied
 OLD_FILES+=etc/periodic/security/550.ipfwlimit
 OLD_FILES+=sbin/ipfw
@@ -4256,6 +4269,8 @@ OLD_FILES+=usr/share/man/man1/host.1.gz
 .endif
 
 .if ${MK_LEGACY_CONSOLE} == no
+OLD_FILES+=etc/rc.d/moused
+OLD_FILES+=etc/rc.d/syscons
 OLD_FILES+=usr/sbin/kbdcontrol
 OLD_FILES+=usr/sbin/kbdmap
 OLD_FILES+=usr/sbin/moused
@@ -6029,6 +6044,7 @@ OLD_FILES+=etc/mail.rc
 OLD_FILES+=etc/mail/aliases
 OLD_FILES+=etc/mail/mailer.conf
 OLD_FILES+=etc/periodic/daily/130.clean-msgs
+OLD_FILES+=etc/rc.d/othermta
 OLD_FILES+=usr/bin/Mail
 OLD_FILES+=usr/bin/biff
 OLD_FILES+=usr/bin/from
@@ -6501,6 +6517,10 @@ OLD_FILES+=usr/share/man/man8/nghook.8.gz
 OLD_FILES+=usr/share/man/man8/pppoed.8.gz
 .endif
 
+.if ${MK_IPFW} == no || ${MK_NETGRAPH} == no
+OLD_FILES+=etc/rc.d/ipfw_netflow
+.endif
+
 .if ${MK_NETGRAPH_SUPPORT} == no
 OLD_FILES+=usr/include/bsnmp/snmp_netgraph.h
 OLD_FILES+=usr/lib/snmp_netgraph.so
@@ -6874,8 +6894,12 @@ OLD_FILES+=usr/share/man/man8/nscd.8.gz
 .endif
 
 .if ${MK_NTP} == no
+OLD_FILES+=etc/ntp/leap-seconds
+OLD_DIRS+=etc/ntp
 OLD_FILES+=etc/ntp.conf
 OLD_FILES+=etc/periodic/daily/480.status-ntpd
+OLD_FILES+=etc/periodic/daily/480.leapfile-ntpd
+OLD_FILES+=etc/rc.d/ntpd
 OLD_FILES+=usr/bin/ntpq
 OLD_FILES+=usr/sbin/ntp-keygen
 OLD_FILES+=usr/sbin/ntpd
@@ -7554,6 +7578,7 @@ OLD_FILES+=etc/rc.d/sshd
 OLD_FILES+=etc/ssh/moduli
 OLD_FILES+=etc/ssh/ssh_config
 OLD_FILES+=etc/ssh/sshd_config
+OLD_DIRS+=etc/ssh
 OLD_FILES+=usr/bin/scp
 OLD_FILES+=usr/bin/sftp
 OLD_FILES+=usr/bin/slogin
@@ -8090,6 +8115,7 @@ OLD_FILES+=${RESCUE_FILES}
 .endif
 
 .if ${MK_ROUTED} == no
+OLD_FILES+=etc/rc.d/routed
 OLD_FILES+=rescue/routed
 OLD_FILES+=rescue/rtquery
 OLD_FILES+=sbin/routed
@@ -8105,6 +8131,7 @@ OLD_FILES+=etc/periodic/daily/150.clean-hoststat
 OLD_FILES+=etc/periodic/daily/440.status-mailq
 OLD_FILES+=etc/periodic/daily/460.status-mail-rejects
 OLD_FILES+=etc/periodic/daily/500.queuerun
+OLD_FILES+=etc/rc.d/sendmail
 OLD_FILES+=bin/rmail
 OLD_FILES+=usr/bin/vacation
 OLD_FILES+=usr/include/libmilter/mfapi.h
@@ -10067,6 +10094,7 @@ OLD_FILES+=usr/share/misc/usbdevs
 
 .if ${MK_UTMPX} == no
 OLD_FILES+=etc/periodic/monthly/200.accounting
+OLD_FILES+=etc/rc.d/utx
 OLD_FILES+=usr/bin/last
 OLD_FILES+=usr/bin/users
 OLD_FILES+=usr/bin/who
