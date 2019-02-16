@@ -81,6 +81,10 @@ CWARNFLAGS.clang+=	-Wno-unused-local-typedef
 .if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 40000
 CWARNFLAGS.clang+=	-Wno-address-of-packed-member
 .endif
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 70000 && \
+    ${MACHINE_CPUARCH} == "arm" && !${MACHINE_ARCH:Marmv[67]*}
+CWARNFLAGS.clang+=	-Wno-atomic-alignment
+.endif
 .endif # WARNS <= 3
 .if ${WARNS} <= 2
 CWARNFLAGS.clang+=	-Wno-switch -Wno-switch-enum -Wno-knr-promoted-parameter

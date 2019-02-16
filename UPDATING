@@ -16,6 +16,12 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20190216:
+	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
+	7.0.1.  Please see the 20141231 entry below for information about
+	prerequisites and upgrading, if you are not already using clang 3.5.0
+	or higher.
+
 20181228:
 	r342562 modifies the NFSv4 server so that it obeys vfs.nfsd.nfs_privport
 	in the same as it is applied to NFSv2 and 3.  This implies that NFSv4

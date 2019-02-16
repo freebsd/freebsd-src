@@ -44,7 +44,7 @@ void UnqualifiedId::setConstructorTemplateId(TemplateIdAnnotation *TemplateId) {
   EndLocation = TemplateId->RAngleLoc;
 }
 
-void CXXScopeSpec::Extend(ASTContext &Context, SourceLocation TemplateKWLoc, 
+void CXXScopeSpec::Extend(ASTContext &Context, SourceLocation TemplateKWLoc,
                           TypeLoc TL, SourceLocation ColonColonLoc) {
   Builder.Extend(Context, TemplateKWLoc, TL, ColonColonLoc);
   if (Range.getBegin().isInvalid())
@@ -56,23 +56,23 @@ void CXXScopeSpec::Extend(ASTContext &Context, SourceLocation TemplateKWLoc,
 }
 
 void CXXScopeSpec::Extend(ASTContext &Context, IdentifierInfo *Identifier,
-                          SourceLocation IdentifierLoc, 
+                          SourceLocation IdentifierLoc,
                           SourceLocation ColonColonLoc) {
   Builder.Extend(Context, Identifier, IdentifierLoc, ColonColonLoc);
-  
+
   if (Range.getBegin().isInvalid())
     Range.setBegin(IdentifierLoc);
   Range.setEnd(ColonColonLoc);
-  
+
   assert(Range == Builder.getSourceRange() &&
          "NestedNameSpecifierLoc range computation incorrect");
 }
 
 void CXXScopeSpec::Extend(ASTContext &Context, NamespaceDecl *Namespace,
-                          SourceLocation NamespaceLoc, 
+                          SourceLocation NamespaceLoc,
                           SourceLocation ColonColonLoc) {
   Builder.Extend(Context, Namespace, NamespaceLoc, ColonColonLoc);
-  
+
   if (Range.getBegin().isInvalid())
     Range.setBegin(NamespaceLoc);
   Range.setEnd(ColonColonLoc);
@@ -82,10 +82,10 @@ void CXXScopeSpec::Extend(ASTContext &Context, NamespaceDecl *Namespace,
 }
 
 void CXXScopeSpec::Extend(ASTContext &Context, NamespaceAliasDecl *Alias,
-                          SourceLocation AliasLoc, 
+                          SourceLocation AliasLoc,
                           SourceLocation ColonColonLoc) {
   Builder.Extend(Context, Alias, AliasLoc, ColonColonLoc);
-  
+
   if (Range.getBegin().isInvalid())
     Range.setBegin(AliasLoc);
   Range.setEnd(ColonColonLoc);
@@ -94,12 +94,12 @@ void CXXScopeSpec::Extend(ASTContext &Context, NamespaceAliasDecl *Alias,
          "NestedNameSpecifierLoc range computation incorrect");
 }
 
-void CXXScopeSpec::MakeGlobal(ASTContext &Context, 
+void CXXScopeSpec::MakeGlobal(ASTContext &Context,
                               SourceLocation ColonColonLoc) {
   Builder.MakeGlobal(Context, ColonColonLoc);
-  
+
   Range = SourceRange(ColonColonLoc);
-  
+
   assert(Range == Builder.getSourceRange() &&
          "NestedNameSpecifierLoc range computation incorrect");
 }
@@ -116,7 +116,7 @@ void CXXScopeSpec::MakeSuper(ASTContext &Context, CXXRecordDecl *RD,
   "NestedNameSpecifierLoc range computation incorrect");
 }
 
-void CXXScopeSpec::MakeTrivial(ASTContext &Context, 
+void CXXScopeSpec::MakeTrivial(ASTContext &Context,
                                NestedNameSpecifier *Qualifier, SourceRange R) {
   Builder.MakeTrivial(Context, Qualifier, R);
   Range = R;
@@ -139,11 +139,11 @@ SourceLocation CXXScopeSpec::getLastQualifierNameLoc() const {
   return Builder.getTemporary().getLocalBeginLoc();
 }
 
-NestedNameSpecifierLoc 
+NestedNameSpecifierLoc
 CXXScopeSpec::getWithLocInContext(ASTContext &Context) const {
   if (!Builder.getRepresentation())
     return NestedNameSpecifierLoc();
-  
+
   return Builder.getWithLocInContext(Context);
 }
 
@@ -186,7 +186,6 @@ DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto,
   I.Kind                        = Function;
   I.Loc                         = LocalRangeBegin;
   I.EndLoc                      = LocalRangeEnd;
-  I.Fun.AttrList                = nullptr;
   I.Fun.hasPrototype            = hasProto;
   I.Fun.isVariadic              = EllipsisLoc.isValid();
   I.Fun.isAmbiguous             = isAmbiguous;
@@ -233,7 +232,7 @@ DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto,
       I.Fun.DeleteParams = true;
     }
     for (unsigned i = 0; i < NumParams; i++)
-      I.Fun.Params[i] = std::move(Params[i]);    
+      I.Fun.Params[i] = std::move(Params[i]);
   }
 
   // Check what exception specification information we should actually store.
@@ -251,7 +250,9 @@ DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto,
     }
     break;
 
-  case EST_ComputedNoexcept:
+  case EST_DependentNoexcept:
+  case EST_NoexceptFalse:
+  case EST_NoexceptTrue:
     I.Fun.NoexceptExpr = NoexceptExpr;
     break;
 
@@ -322,13 +323,14 @@ bool Declarator::isDeclarationOfFunction() const {
     }
     llvm_unreachable("Invalid type chunk");
   }
-  
+
   switch (DS.getTypeSpecType()) {
     case TST_atomic:
     case TST_auto:
     case TST_auto_type:
     case TST_bool:
     case TST_char:
+    case TST_char8:
     case TST_char16:
     case TST_char32:
     case TST_class:
@@ -336,6 +338,8 @@ bool Declarator::isDeclarationOfFunction() const {
     case TST_decimal32:
     case TST_decimal64:
     case TST_double:
+    case TST_Accum:
+    case TST_Fract:
     case TST_Float16:
     case TST_float128:
     case TST_enum:
@@ -365,20 +369,20 @@ bool Declarator::isDeclarationOfFunction() const {
       if (Expr *E = DS.getRepAsExpr())
         return E->getType()->isFunctionType();
       return false;
-     
+
     case TST_underlyingType:
     case TST_typename:
     case TST_typeofType: {
       QualType QT = DS.getRepAsType().get();
       if (QT.isNull())
         return false;
-      
+
       if (const LocInfoType *LIT = dyn_cast<LocInfoType>(QT))
         QT = LIT->getType();
 
       if (QT.isNull())
         return false;
-        
+
       return QT->isFunctionType();
     }
   }
@@ -434,8 +438,8 @@ template <class T> static bool BadSpecifier(T TNew, T TPrev,
   if (TNew != TPrev)
     DiagID = diag::err_invalid_decl_spec_combination;
   else
-    DiagID = IsExtension ? diag::ext_duplicate_declspec : 
-                           diag::warn_duplicate_declspec;    
+    DiagID = IsExtension ? diag::ext_duplicate_declspec :
+                           diag::warn_duplicate_declspec;
   return true;
 }
 
@@ -499,6 +503,7 @@ const char *DeclSpec::getSpecifierName(DeclSpec::TST T,
   case DeclSpec::TST_void:        return "void";
   case DeclSpec::TST_char:        return "char";
   case DeclSpec::TST_wchar:       return Policy.MSWChar ? "__wchar_t" : "wchar_t";
+  case DeclSpec::TST_char8:       return "char8_t";
   case DeclSpec::TST_char16:      return "char16_t";
   case DeclSpec::TST_char32:      return "char32_t";
   case DeclSpec::TST_int:         return "int";
@@ -506,6 +511,8 @@ const char *DeclSpec::getSpecifierName(DeclSpec::TST T,
   case DeclSpec::TST_half:        return "half";
   case DeclSpec::TST_float:       return "float";
   case DeclSpec::TST_double:      return "double";
+  case DeclSpec::TST_accum:       return "_Accum";
+  case DeclSpec::TST_fract:       return "_Fract";
   case DeclSpec::TST_float16:     return "_Float16";
   case DeclSpec::TST_float128:    return "__float128";
   case DeclSpec::TST_bool:        return Policy.Bool ? "bool" : "_Bool";
@@ -761,6 +768,19 @@ bool DeclSpec::SetTypeSpecType(TST T, SourceLocation Loc,
   return false;
 }
 
+bool DeclSpec::SetTypeSpecSat(SourceLocation Loc, const char *&PrevSpec,
+                              unsigned &DiagID) {
+  // Cannot set twice
+  if (TypeSpecSat) {
+    DiagID = diag::warn_duplicate_declspec;
+    PrevSpec = "_Sat";
+    return true;
+  }
+  TypeSpecSat = true;
+  TSSatLoc = Loc;
+  return false;
+}
+
 bool DeclSpec::SetTypeAltiVecVector(bool isAltiVecVector, SourceLocation Loc,
                           const char *&PrevSpec, unsigned &DiagID,
                           const PrintingPolicy &Policy) {
@@ -950,7 +970,7 @@ bool DeclSpec::setModulePrivateSpec(SourceLocation Loc, const char *&PrevSpec,
     DiagID = diag::ext_duplicate_declspec;
     return true;
   }
-  
+
   ModulePrivateLoc = Loc;
   return false;
 }
@@ -974,15 +994,7 @@ void DeclSpec::SaveWrittenBuiltinSpecs() {
   writtenBS.Width = getTypeSpecWidth();
   writtenBS.Type = getTypeSpecType();
   // Search the list of attributes for the presence of a mode attribute.
-  writtenBS.ModeAttr = false;
-  AttributeList* attrs = getAttributes().getList();
-  while (attrs) {
-    if (attrs->getKind() == AttributeList::AT_Mode) {
-      writtenBS.ModeAttr = true;
-      break;
-    }
-    attrs = attrs->getNext();
-  }
+  writtenBS.ModeAttr = getAttributes().hasAttribute(ParsedAttr::AT_Mode);
 }
 
 /// Finish - This does final analysis of the declspec, rejecting things like
@@ -1096,12 +1108,16 @@ void DeclSpec::Finish(Sema &S, const PrintingPolicy &Policy) {
     }
   }
 
-  // signed/unsigned are only valid with int/char/wchar_t.
+  bool IsFixedPointType =
+      TypeSpecType == TST_accum || TypeSpecType == TST_fract;
+
+  // signed/unsigned are only valid with int/char/wchar_t/_Accum.
   if (TypeSpecSign != TSS_unspecified) {
     if (TypeSpecType == TST_unspecified)
       TypeSpecType = TST_int; // unsigned -> unsigned int, signed -> signed int.
-    else if (TypeSpecType != TST_int  && TypeSpecType != TST_int128 &&
-             TypeSpecType != TST_char && TypeSpecType != TST_wchar) {
+    else if (TypeSpecType != TST_int && TypeSpecType != TST_int128 &&
+             TypeSpecType != TST_char && TypeSpecType != TST_wchar &&
+             !IsFixedPointType) {
       S.Diag(TSSLoc, diag::err_invalid_sign_spec)
         << getSpecifierName((TST)TypeSpecType, Policy);
       // signed double -> double.
@@ -1116,20 +1132,24 @@ void DeclSpec::Finish(Sema &S, const PrintingPolicy &Policy) {
   case TSW_longlong: // long long int
     if (TypeSpecType == TST_unspecified)
       TypeSpecType = TST_int; // short -> short int, long long -> long long int.
-    else if (TypeSpecType != TST_int) {
+    else if (!(TypeSpecType == TST_int ||
+               (IsFixedPointType && TypeSpecWidth != TSW_longlong))) {
       S.Diag(TSWRange.getBegin(), diag::err_invalid_width_spec)
           << (int)TypeSpecWidth << getSpecifierName((TST)TypeSpecType, Policy);
       TypeSpecType = TST_int;
+      TypeSpecSat = false;
       TypeSpecOwned = false;
     }
     break;
   case TSW_long:  // long double, long int
     if (TypeSpecType == TST_unspecified)
       TypeSpecType = TST_int;  // long -> long int.
-    else if (TypeSpecType != TST_int && TypeSpecType != TST_double) {
+    else if (TypeSpecType != TST_int && TypeSpecType != TST_double &&
+             !IsFixedPointType) {
       S.Diag(TSWRange.getBegin(), diag::err_invalid_width_spec)
           << (int)TypeSpecWidth << getSpecifierName((TST)TypeSpecType, Policy);
       TypeSpecType = TST_int;
+      TypeSpecSat = false;
       TypeSpecOwned = false;
     }
     break;
@@ -1202,7 +1222,9 @@ void DeclSpec::Finish(Sema &S, const PrintingPolicy &Policy) {
       StorageClassSpec == SCS_auto)
     S.Diag(StorageClassSpecLoc, diag::warn_auto_storage_class)
       << FixItHint::CreateRemoval(StorageClassSpecLoc);
-  if (TypeSpecType == TST_char16 || TypeSpecType == TST_char32)
+  if (TypeSpecType == TST_char8)
+    S.Diag(TSTLoc, diag::warn_cxx17_compat_unicode_type);
+  else if (TypeSpecType == TST_char16 || TypeSpecType == TST_char32)
     S.Diag(TSTLoc, diag::warn_cxx98_compat_unicode_type)
       << (TypeSpecType == TST_char16 ? "char16_t" : "char32_t");
   if (Constexpr_specified)
@@ -1278,7 +1300,7 @@ bool DeclSpec::isMissingDeclaratorOk() {
     StorageClassSpec != DeclSpec::SCS_typedef;
 }
 
-void UnqualifiedId::setOperatorFunctionId(SourceLocation OperatorLoc, 
+void UnqualifiedId::setOperatorFunctionId(SourceLocation OperatorLoc,
                                           OverloadedOperatorKind Op,
                                           SourceLocation SymbolLocations[3]) {
   Kind = UnqualifiedIdKind::IK_OperatorFunctionId;
@@ -1287,7 +1309,7 @@ void UnqualifiedId::setOperatorFunctionId(SourceLocation OperatorLoc,
   OperatorFunctionId.Operator = Op;
   for (unsigned I = 0; I != 3; ++I) {
     OperatorFunctionId.SymbolLocations[I] = SymbolLocations[I].getRawEncoding();
-    
+
     if (SymbolLocations[I].isValid())
       EndLocation = SymbolLocations[I];
   }
@@ -1299,7 +1321,7 @@ bool VirtSpecifiers::SetSpecifier(Specifier VS, SourceLocation Loc,
     FirstLocation = Loc;
   LastLocation = Loc;
   LastSpecifier = VS;
-  
+
   if (Specifiers & VS) {
     PrevSpec = getSpecifierName(VS);
     return true;

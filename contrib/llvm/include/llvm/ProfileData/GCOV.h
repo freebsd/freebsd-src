@@ -41,7 +41,7 @@ namespace GCOV {
 
 enum GCOVVersion { V402, V404, V704 };
 
-/// \brief A struct for passing gcov options between functions.
+/// A struct for passing gcov options between functions.
 struct Options {
   Options(bool A, bool B, bool C, bool F, bool P, bool U, bool L, bool N)
       : AllBlocks(A), BranchInfo(B), BranchCount(C), FuncCoverage(F),
@@ -376,6 +376,7 @@ private:
 };
 
 class FileInfo {
+protected:
   // It is unlikely--but possible--for multiple functions to be on the same
   // line.
   // Therefore this typedef allows LineData.Functions to store multiple
@@ -428,7 +429,7 @@ public:
   void print(raw_ostream &OS, StringRef MainFilename, StringRef GCNOFile,
              StringRef GCDAFile);
 
-private:
+protected:
   std::string getCoveragePath(StringRef Filename, StringRef MainFilename);
   std::unique_ptr<raw_ostream> openCoveragePath(StringRef CoveragePath);
   void printFunctionSummary(raw_ostream &OS, const FunctionVector &Funcs) const;

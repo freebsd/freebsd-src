@@ -20,13 +20,13 @@
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/State.h"
 #include "lldb/Core/StreamFile.h"
-#include "lldb/Interpreter/Args.h"
 #include "lldb/Target/MemoryRegionInfo.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/SystemRuntime.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
+#include "lldb/Utility/Args.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/Stream.h"
 
@@ -140,7 +140,7 @@ bool SBProcess::RemoteLaunch(char const **argv, char const **envp,
       if (argv)
         launch_info.GetArguments().AppendArguments(argv);
       if (envp)
-        launch_info.GetEnvironmentEntries().SetArguments(envp);
+        launch_info.GetEnvironment() = Environment(envp);
       error.SetError(process_sp->Launch(launch_info));
     } else {
       error.SetErrorString("must be in eStateConnected to call RemoteLaunch");
@@ -896,8 +896,7 @@ SBProcess SBProcess::GetProcessFromEvent(const SBEvent &event) {
   ProcessSP process_sp =
       Process::ProcessEventData::GetProcessFromEvent(event.get());
   if (!process_sp) {
-    // StructuredData events also know the process they come from.
-    // Try that.
+    // StructuredData events also know the process they come from. Try that.
     process_sp = EventDataStructuredData::GetProcessFromEvent(event.get());
   }
 
@@ -1185,6 +1184,57 @@ uint32_t SBProcess::LoadImage(const lldb::SBFileSpec &sb_local_image_spec,
                     static_cast<void *>(process_sp.get()));
     sb_error.SetErrorString("process is invalid");
   }
+  return LLDB_INVALID_IMAGE_TOKEN;
+}
+
+uint32_t SBProcess::LoadImageUsingPaths(const lldb::SBFileSpec &image_spec,
+                                        SBStringList &paths,
+                                        lldb::SBFileSpec &loaded_path, 
+                                        lldb::SBError &error) {
+  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  ProcessSP process_sp(GetSP());
+  if (process_sp) {
+    Process::StopLocker stop_locker;
+    if (stop_locker.TryLock(&process_sp->GetRunLock())) {
+      if (log)
+        log->Printf("SBProcess(%p)::LoadImageUsingPaths() => "
+                    "calling Platform::LoadImageUsingPaths for: %s",
+                    static_cast<void *>(process_sp.get()),
+                    image_spec.GetFilename());
+
+      std::lock_guard<std::recursive_mutex> guard(
+        process_sp->GetTarget().GetAPIMutex());
+      PlatformSP platform_sp = process_sp->GetTarget().GetPlatform();
+      size_t num_paths = paths.GetSize();
+      std::vector<std::string> paths_vec;
+      paths_vec.reserve(num_paths);
+      for (size_t i = 0; i < num_paths; i++)
+        paths_vec.push_back(paths.GetStringAtIndex(i));
+      FileSpec loaded_spec;
+      
+      uint32_t token = platform_sp->LoadImageUsingPaths(process_sp.get(),
+                                                        *image_spec, 
+                                                        paths_vec, 
+                                                        error.ref(), 
+                                                        &loaded_spec);
+       if (token != LLDB_INVALID_IMAGE_TOKEN)
+          loaded_path = loaded_spec;
+       return token;
+    } else {
+      if (log)
+        log->Printf("SBProcess(%p)::LoadImageUsingPaths() => error: "
+                    "process is running",
+                    static_cast<void *>(process_sp.get()));
+      error.SetErrorString("process is running");
+    }
+  } else { 
+    if (log)
+      log->Printf("SBProcess(%p)::LoadImageUsingPaths() => error: "
+                   "called with invalid process",
+                    static_cast<void *>(process_sp.get()));
+    error.SetErrorString("process is invalid");
+  }
+  
   return LLDB_INVALID_IMAGE_TOKEN;
 }
 

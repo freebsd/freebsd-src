@@ -57,6 +57,7 @@ def Expr : Stmt<1>;
 def PredefinedExpr : DStmt<Expr>;
 def DeclRefExpr : DStmt<Expr>;
 def IntegerLiteral : DStmt<Expr>;
+def FixedPointLiteral : DStmt<Expr>;
 def FloatingLiteral : DStmt<Expr>;
 def ImaginaryLiteral : DStmt<Expr>;
 def StringLiteral : DStmt<Expr>;
@@ -186,7 +187,7 @@ def TypoExpr : DStmt<Expr>;
 // Microsoft Extensions.
 def MSPropertyRefExpr : DStmt<Expr>;
 def MSPropertySubscriptExpr : DStmt<Expr>;
-def CXXUuidofExpr : DStmt<Expr>; 
+def CXXUuidofExpr : DStmt<Expr>;
 def SEHTryStmt : Stmt;
 def SEHExceptStmt : Stmt;
 def SEHFinallyStmt : Stmt;

@@ -8,6 +8,10 @@ SUBDIR+=	asan
 SUBDIR+=	asan-preinit
 SUBDIR+=	asan_cxx
 SUBDIR+=	asan_dynamic
+.if ${MACHINE_CPUARCH} == "amd64"
+SUBDIR+=	msan
+SUBDIR+=	msan_cxx
+.endif
 SUBDIR+=	safestack
 SUBDIR+=	stats
 SUBDIR+=	stats_client

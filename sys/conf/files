@@ -1731,7 +1731,8 @@ dev/firewire/sbp.c		optional sbp
 dev/firewire/sbp_targ.c		optional sbp_targ
 dev/flash/at45d.c		optional at45d
 dev/flash/mx25l.c		optional mx25l
-dev/fxp/if_fxp.c		optional fxp
+dev/fxp/if_fxp.c		optional fxp \
+	compile-with "${NORMAL_C} ${NO_WARRAY_BOUNDS}"
 dev/fxp/inphy.c			optional fxp
 dev/gem/if_gem.c		optional gem
 dev/gem/if_gem_pci.c		optional gem pci
