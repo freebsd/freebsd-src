@@ -1760,14 +1760,6 @@ hint.ata.1.port="0x170"
 hint.ata.1.irq="15"
 
 #
-# The following options are valid on the ATA driver:
-#
-# ATA_REQUEST_TIMEOUT:	the number of seconds to wait for an ATA request
-#			before timing out.
-
-#options 	ATA_REQUEST_TIMEOUT=10
-
-#
 # Standard floppy disk controllers and floppy tapes, supports
 # the Y-E DATA External FDD (PC Card)
 #
