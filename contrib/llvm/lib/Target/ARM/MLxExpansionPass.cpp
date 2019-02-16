@@ -233,7 +233,7 @@ bool MLxExpansion::FindMLxHazard(MachineInstr *MI) {
 
   // On Swift, we mostly care about hazards from multiplication instructions
   // writing the accumulator and the pipelining of loop iterations by out-of-
-  // order execution. 
+  // order execution.
   if (isSwift)
     return isFpMulInstruction(DefMI->getOpcode()) || hasLoopHazard(MI);
 
@@ -309,17 +309,17 @@ MLxExpansion::ExpandFPMLxInstruction(MachineBasicBlock &MBB, MachineInstr *MI,
   }
   MIB.addImm(Pred).addReg(PredReg);
 
-  DEBUG({
-      dbgs() << "Expanding: " << *MI;
-      dbgs() << "  to:\n";
-      MachineBasicBlock::iterator MII = MI;
-      MII = std::prev(MII);
-      MachineInstr &MI2 = *MII;
-      MII = std::prev(MII);
-      MachineInstr &MI1 = *MII;
-      dbgs() << "    " << MI1;
-      dbgs() << "    " << MI2;
-   });
+  LLVM_DEBUG({
+    dbgs() << "Expanding: " << *MI;
+    dbgs() << "  to:\n";
+    MachineBasicBlock::iterator MII = MI;
+    MII = std::prev(MII);
+    MachineInstr &MI2 = *MII;
+    MII = std::prev(MII);
+    MachineInstr &MI1 = *MII;
+    dbgs() << "    " << MI1;
+    dbgs() << "    " << MI2;
+  });
 
   MI->eraseFromParent();
   ++NumExpand;

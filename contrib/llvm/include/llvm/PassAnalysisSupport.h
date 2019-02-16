@@ -174,7 +174,7 @@ public:
     AnalysisImpls.push_back(pir);
   }
 
-  /// Clear cache that is used to connect a pass to the the analysis (PassInfo).
+  /// Clear cache that is used to connect a pass to the analysis (PassInfo).
   void clearAnalysisImpls() {
     AnalysisImpls.clear();
   }
@@ -231,7 +231,7 @@ AnalysisType &Pass::getAnalysisID(AnalysisID PI) const {
   // should be a small number, we just do a linear search over a (dense)
   // vector.
   Pass *ResultPass = Resolver->findImplPass(PI);
-  assert(ResultPass && 
+  assert(ResultPass &&
          "getAnalysis*() called on an analysis that was not "
          "'required' by pass!");
 

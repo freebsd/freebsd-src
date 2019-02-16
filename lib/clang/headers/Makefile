@@ -4,14 +4,17 @@
 
 .PATH:		${CLANG_SRCS}/lib/Headers
 
-INCSDIR=	${LIBDIR}/clang/6.0.1/include
+INCSDIR=	${LIBDIR}/clang/7.0.1/include
 
+GENINCS+=	arm_fp16.h
 GENINCS+=	arm_neon.h
 
 INCS+=		__clang_cuda_builtin_vars.h
 INCS+=		__clang_cuda_cmath.h
 INCS+=		__clang_cuda_complex_builtins.h
+INCS+=		__clang_cuda_device_functions.h
 INCS+=		__clang_cuda_intrinsics.h
+INCS+=		__clang_cuda_libdevice_declares.h
 INCS+=		__clang_cuda_math_forward_declares.h
 INCS+=		__clang_cuda_runtime_wrapper.h
 INCS+=		__stddef_max_align_t.h
@@ -50,6 +53,7 @@ INCS+=		avxintrin.h
 INCS+=		bmi2intrin.h
 INCS+=		bmiintrin.h
 INCS+=		cetintrin.h
+INCS+=		cldemoteintrin.h
 INCS+=		clflushoptintrin.h
 INCS+=		clwbintrin.h
 INCS+=		clzerointrin.h
@@ -64,23 +68,28 @@ INCS+=		htmintrin.h
 INCS+=		htmxlintrin.h
 INCS+=		ia32intrin.h
 INCS+=		immintrin.h
+INCS+=		invpcidintrin.h
 INCS+=		lwpintrin.h
 INCS+=		lzcntintrin.h
 INCS+=		mm3dnow.h
 INCS+=		mm_malloc.h
 INCS+=		mmintrin.h
 INCS+=		module.modulemap
+INCS+=		movdirintrin.h
 INCS+=		msa.h
 INCS+=		mwaitxintrin.h
 INCS+=		nmmintrin.h
 INCS+=		opencl-c.h
+INCS+=		pconfigintrin.h
 INCS+=		pkuintrin.h
 INCS+=		pmmintrin.h
 INCS+=		popcntintrin.h
 INCS+=		prfchwintrin.h
+INCS+=		ptwriteintrin.h
 INCS+=		rdseedintrin.h
 INCS+=		rtmintrin.h
 INCS+=		s390intrin.h
+INCS+=		sgxintrin.h
 INCS+=		shaintrin.h
 INCS+=		smmintrin.h
 INCS+=		tbmintrin.h
@@ -89,6 +98,8 @@ INCS+=		vadefs.h
 INCS+=		vaesintrin.h
 INCS+=		vecintrin.h
 INCS+=		vpclmulqdqintrin.h
+INCS+=		waitpkgintrin.h
+INCS+=		wbnoinvdintrin.h
 INCS+=		wmmintrin.h
 INCS+=		x86intrin.h
 INCS+=		xmmintrin.h
@@ -119,10 +130,15 @@ INCS+=		unwind.h
 INCS+=		varargs.h
 .endif
 
+arm_fp16.h: ${CLANG_SRCS}/include/clang/Basic/arm_fp16.td
+	${CLANG_TBLGEN} -gen-arm-fp16 \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_fp16.td
+
 arm_neon.h: ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
 	${CLANG_TBLGEN} -gen-arm-neon \
-	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
-	    ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
 
 CLEANFILES=	${GENINCS} ${GENINCS:C/$/.d/}
 

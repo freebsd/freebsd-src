@@ -126,9 +126,10 @@ public:
 
     template <class U> struct rebind {typedef allocator<U> other;};
 
-    allocator() noexcept;
-    allocator(const allocator&) noexcept;
-    template <class U> allocator(const allocator<U>&) noexcept;
+    constexpr allocator() noexcept;                      // constexpr in C++20
+    constexpr allocator(const allocator&) noexcept;      // constexpr in C++20
+    template <class U>
+      constexpr allocator(const allocator<U>&) noexcept; // constexpr in C++20
     ~allocator();
     pointer address(reference x) const noexcept;
     const_pointer address(const_reference x) const noexcept;
@@ -678,7 +679,7 @@ _LIBCPP_PUSH_MACROS
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _ValueType>
-inline _LIBCPP_ALWAYS_INLINE
+inline _LIBCPP_INLINE_VISIBILITY
 _ValueType __libcpp_relaxed_load(_ValueType const* __value) {
 #if !defined(_LIBCPP_HAS_NO_THREADS) && \
     defined(__ATOMIC_RELAXED) &&        \
@@ -690,7 +691,7 @@ _ValueType __libcpp_relaxed_load(_ValueType const* __value) {
 }
 
 template <class _ValueType>
-inline _LIBCPP_ALWAYS_INLINE
+inline _LIBCPP_INLINE_VISIBILITY
 _ValueType __libcpp_acquire_load(_ValueType const* __value) {
 #if !defined(_LIBCPP_HAS_NO_THREADS) && \
     defined(__ATOMIC_ACQUIRE) &&        \
@@ -1778,8 +1779,13 @@ public:
 
     template <class _Up> struct rebind {typedef allocator<_Up> other;};
 
-    _LIBCPP_INLINE_VISIBILITY allocator() _NOEXCEPT {}
-    template <class _Up> _LIBCPP_INLINE_VISIBILITY allocator(const allocator<_Up>&) _NOEXCEPT {}
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX17
+    allocator() _NOEXCEPT {}
+
+    template <class _Up> 
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX17
+    allocator(const allocator<_Up>&) _NOEXCEPT {}
+
     _LIBCPP_INLINE_VISIBILITY pointer address(reference __x) const _NOEXCEPT
         {return _VSTD::addressof(__x);}
     _LIBCPP_INLINE_VISIBILITY const_pointer address(const_reference __x) const _NOEXCEPT
@@ -1790,10 +1796,10 @@ public:
         if (__n > max_size())
             __throw_length_error("allocator<T>::allocate(size_t n)"
                                  " 'n' exceeds maximum supported size");
-        return static_cast<pointer>(_VSTD::__allocate(__n * sizeof(_Tp)));
+        return static_cast<pointer>(_VSTD::__libcpp_allocate(__n * sizeof(_Tp), __alignof(_Tp)));
         }
     _LIBCPP_INLINE_VISIBILITY void deallocate(pointer __p, size_type) _NOEXCEPT
-        {_VSTD::__libcpp_deallocate((void*)__p);}
+        {_VSTD::__libcpp_deallocate((void*)__p, __alignof(_Tp));}
     _LIBCPP_INLINE_VISIBILITY size_type max_size() const _NOEXCEPT
         {return size_type(~0) / sizeof(_Tp);}
 #if !defined(_LIBCPP_HAS_NO_RVALUE_REFERENCES) && !defined(_LIBCPP_HAS_NO_VARIADICS)
@@ -1877,8 +1883,13 @@ public:
 
     template <class _Up> struct rebind {typedef allocator<_Up> other;};
 
-    _LIBCPP_INLINE_VISIBILITY allocator() _NOEXCEPT {}
-    template <class _Up> _LIBCPP_INLINE_VISIBILITY allocator(const allocator<_Up>&) _NOEXCEPT {}
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX17
+    allocator() _NOEXCEPT {}
+
+    template <class _Up>
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR_AFTER_CXX17 
+    allocator(const allocator<_Up>&) _NOEXCEPT {}
+
     _LIBCPP_INLINE_VISIBILITY const_pointer address(const_reference __x) const _NOEXCEPT
         {return _VSTD::addressof(__x);}
     _LIBCPP_INLINE_VISIBILITY pointer allocate(size_type __n, allocator<void>::const_pointer = 0)
@@ -1886,10 +1897,10 @@ public:
         if (__n > max_size())
             __throw_length_error("allocator<const T>::allocate(size_t n)"
                                  " 'n' exceeds maximum supported size");
-        return static_cast<pointer>(_VSTD::__allocate(__n * sizeof(_Tp)));
+        return static_cast<pointer>(_VSTD::__libcpp_allocate(__n * sizeof(_Tp), __alignof(_Tp)));
     }
     _LIBCPP_INLINE_VISIBILITY void deallocate(pointer __p, size_type) _NOEXCEPT
-        {_VSTD::__libcpp_deallocate((void*) const_cast<_Tp *>(__p));}
+        {_VSTD::__libcpp_deallocate((void*) const_cast<_Tp *>(__p), __alignof(_Tp));}
     _LIBCPP_INLINE_VISIBILITY size_type max_size() const _NOEXCEPT
         {return size_type(~0) / sizeof(_Tp);}
 #if !defined(_LIBCPP_HAS_NO_RVALUE_REFERENCES) && !defined(_LIBCPP_HAS_NO_VARIADICS)
@@ -1978,10 +1989,10 @@ public:
     _LIBCPP_INLINE_VISIBILITY explicit raw_storage_iterator(_OutputIterator __x) : __x_(__x) {}
     _LIBCPP_INLINE_VISIBILITY raw_storage_iterator& operator*() {return *this;}
     _LIBCPP_INLINE_VISIBILITY raw_storage_iterator& operator=(const _Tp& __element)
-        {::new(&*__x_) _Tp(__element); return *this;}
+        {::new(_VSTD::addressof(*__x_)) _Tp(__element); return *this;}
 #if _LIBCPP_STD_VER >= 14
     _LIBCPP_INLINE_VISIBILITY raw_storage_iterator& operator=(_Tp&& __element)
-        {::new(&*__x_) _Tp(_VSTD::move(__element)); return *this;}
+        {::new(_VSTD::addressof(*__x_)) _Tp(_VSTD::move(__element)); return *this;}
 #endif
     _LIBCPP_INLINE_VISIBILITY raw_storage_iterator& operator++() {++__x_; return *this;}
     _LIBCPP_INLINE_VISIBILITY raw_storage_iterator  operator++(int)
@@ -1992,6 +2003,7 @@ public:
 };
 
 template <class _Tp>
+_LIBCPP_NO_CFI
 pair<_Tp*, ptrdiff_t>
 get_temporary_buffer(ptrdiff_t __n) _NOEXCEPT
 {
@@ -2003,7 +2015,28 @@ get_temporary_buffer(ptrdiff_t __n) _NOEXCEPT
         __n = __m;
     while (__n > 0)
     {
+#if !defined(_LIBCPP_HAS_NO_ALIGNED_ALLOCATION)
+    if (__is_overaligned_for_new(__alignof(_Tp)))
+        {
+            std::align_val_t __al =
+                std::align_val_t(std::alignment_of<_Tp>::value);
+            __r.first = static_cast<_Tp*>(::operator new(
+                __n * sizeof(_Tp), __al, nothrow));
+        } else {
+            __r.first = static_cast<_Tp*>(::operator new(
+                __n * sizeof(_Tp), nothrow));
+        }
+#else
+    if (__is_overaligned_for_new(__alignof(_Tp)))
+        {
+            // Since aligned operator new is unavailable, return an empty
+            // buffer rather than one with invalid alignment.
+            return __r;
+        }
+
         __r.first = static_cast<_Tp*>(::operator new(__n * sizeof(_Tp), nothrow));
+#endif
+
         if (__r.first)
         {
             __r.second = __n;
@@ -2016,7 +2049,10 @@ get_temporary_buffer(ptrdiff_t __n) _NOEXCEPT
 
 template <class _Tp>
 inline _LIBCPP_INLINE_VISIBILITY
-void return_temporary_buffer(_Tp* __p) _NOEXCEPT {::operator delete(__p);}
+void return_temporary_buffer(_Tp* __p) _NOEXCEPT
+{
+  _VSTD::__libcpp_deallocate((void*)__p, __alignof(_Tp));
+}
 
 #if _LIBCPP_STD_VER <= 14 || defined(_LIBCPP_ENABLE_CXX17_REMOVED_AUTO_PTR)
 template <class _Tp>
@@ -3447,7 +3483,7 @@ public:
     virtual const char* what() const  _NOEXCEPT;
 };
 
-_LIBCPP_NORETURN inline _LIBCPP_ALWAYS_INLINE
+_LIBCPP_NORETURN inline _LIBCPP_INLINE_VISIBILITY
 void __throw_bad_weak_ptr()
 {
 #ifndef _LIBCPP_NO_EXCEPTIONS
@@ -3475,7 +3511,7 @@ public:
     explicit __shared_count(long __refs = 0) _NOEXCEPT
         : __shared_owners_(__refs) {}
 
-#if defined(_LIBCPP_BUILDING_MEMORY) && \
+#if defined(_LIBCPP_BUILDING_LIBRARY) && \
     defined(_LIBCPP_DEPRECATED_ABI_LEGACY_LIBRARY_DEFINITIONS_FOR_INLINE_FUNCTIONS)
     void __add_shared() _NOEXCEPT;
     bool __release_shared() _NOEXCEPT;
@@ -3513,7 +3549,7 @@ protected:
     virtual ~__shared_weak_count();
 
 public:
-#if defined(_LIBCPP_BUILDING_MEMORY) && \
+#if defined(_LIBCPP_BUILDING_LIBRARY) && \
     defined(_LIBCPP_DEPRECATED_ABI_LEGACY_LIBRARY_DEFINITIONS_FOR_INLINE_FUNCTIONS)
     void __add_shared() _NOEXCEPT;
     void __add_weak() _NOEXCEPT;
@@ -3646,7 +3682,7 @@ private:
     virtual void __on_zero_shared_weak() _NOEXCEPT;
 public:
     _LIBCPP_INLINE_VISIBILITY
-    _Tp* get() _NOEXCEPT {return &__data_.second();}
+    _Tp* get() _NOEXCEPT {return _VSTD::addressof(__data_.second());}
 };
 
 template <class _Tp, class _Alloc>
@@ -4757,8 +4793,13 @@ inline _LIBCPP_INLINE_VISIBILITY
 bool
 operator<(const shared_ptr<_Tp>& __x, const shared_ptr<_Up>& __y) _NOEXCEPT
 {
+#if _LIBCPP_STD_VER <= 11
     typedef typename common_type<_Tp*, _Up*>::type _Vp;
     return less<_Vp>()(__x.get(), __y.get());
+#else
+    return less<>()(__x.get(), __y.get());
+#endif
+
 }
 
 template<class _Tp, class _Up>
@@ -5508,7 +5549,7 @@ struct _LIBCPP_TYPE_VIS pointer_safety
 #endif
 
 #if !defined(_LIBCPP_ABI_POINTER_SAFETY_ENUM_TYPE) && \
-    defined(_LIBCPP_BUILDING_MEMORY)
+    defined(_LIBCPP_BUILDING_LIBRARY)
 _LIBCPP_FUNC_VIS pointer_safety get_pointer_safety() _NOEXCEPT;
 #else
 // This function is only offered in C++03 under ABI v1.
@@ -5596,6 +5637,16 @@ struct __temp_value {
     ~__temp_value() { _Traits::destroy(__a, __addr()); }
     };
 #endif
+
+template<typename _Alloc, typename = void, typename = void>
+struct __is_allocator : false_type {};
+
+template<typename _Alloc>
+struct __is_allocator<_Alloc,
+       typename __void_t<typename _Alloc::value_type>::type,
+       typename __void_t<decltype(_VSTD::declval<_Alloc&>().allocate(size_t(0)))>::type
+     >
+   : true_type {};
 
 _LIBCPP_END_NAMESPACE_STD
 

@@ -21,10 +21,6 @@
 #include "DWARFFormValue.h"
 #include "NameToDIE.h"
 
-class SymbolFileDWARF;
-class DWARFCompileUnit;
-class DWARFDebugInfoEntry;
-
 class DWARFMappedHash {
 public:
   enum AtomType : uint16_t {
@@ -136,17 +132,17 @@ public:
                                 const uint32_t die_offset_end,
                                 DIEInfoArray &die_info_array) const;
 
-    size_t FindByName(const char *name, DIEArray &die_offsets);
+    size_t FindByName(llvm::StringRef name, DIEArray &die_offsets);
 
-    size_t FindByNameAndTag(const char *name, const dw_tag_t tag,
+    size_t FindByNameAndTag(llvm::StringRef name, const dw_tag_t tag,
                             DIEArray &die_offsets);
 
-    size_t
-    FindByNameAndTagAndQualifiedNameHash(const char *name, const dw_tag_t tag,
-                                         const uint32_t qualified_name_hash,
-                                         DIEArray &die_offsets);
+    size_t FindByNameAndTagAndQualifiedNameHash(
+        llvm::StringRef name, const dw_tag_t tag,
+        const uint32_t qualified_name_hash, DIEArray &die_offsets);
 
-    size_t FindCompleteObjCClassByName(const char *name, DIEArray &die_offsets,
+    size_t FindCompleteObjCClassByName(llvm::StringRef name,
+                                       DIEArray &die_offsets,
                                        bool must_be_implementation);
 
   protected:
@@ -154,14 +150,14 @@ public:
         const lldb_private::RegularExpression &regex,
         lldb::offset_t *hash_data_offset_ptr, Pair &pair) const;
 
-    size_t FindByName(const char *name, DIEInfoArray &die_info_array);
+    size_t FindByName(llvm::StringRef name, DIEInfoArray &die_info_array);
 
-    Result GetHashDataForName(const char *name,
+    Result GetHashDataForName(llvm::StringRef name,
                               lldb::offset_t *hash_data_offset_ptr,
                               Pair &pair) const override;
 
-    const lldb_private::DWARFDataExtractor &m_data;
-    const lldb_private::DWARFDataExtractor &m_string_table;
+    lldb_private::DWARFDataExtractor m_data;
+    lldb_private::DWARFDataExtractor m_string_table;
     std::string m_name;
   };
 

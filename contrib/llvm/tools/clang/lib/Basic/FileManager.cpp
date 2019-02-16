@@ -71,7 +71,7 @@ void FileManager::addStatCache(std::unique_ptr<FileSystemStatCache> statCache,
     StatCache = std::move(statCache);
     return;
   }
-  
+
   FileSystemStatCache *LastCache = StatCache.get();
   while (LastCache->getNextStatCache())
     LastCache = LastCache->getNextStatCache();
@@ -82,18 +82,18 @@ void FileManager::addStatCache(std::unique_ptr<FileSystemStatCache> statCache,
 void FileManager::removeStatCache(FileSystemStatCache *statCache) {
   if (!statCache)
     return;
-  
+
   if (StatCache.get() == statCache) {
     // This is the first stat cache.
     StatCache = StatCache->takeNextStatCache();
     return;
   }
-  
+
   // Find the stat cache in the list.
   FileSystemStatCache *PrevCache = StatCache.get();
   while (PrevCache && PrevCache->getNextStatCache() != statCache)
     PrevCache = PrevCache->getNextStatCache();
-  
+
   assert(PrevCache && "Stat cache not found for removal");
   PrevCache->setNextStatCache(statCache->takeNextStatCache());
 }
@@ -102,7 +102,7 @@ void FileManager::clearStatCaches() {
   StatCache.reset();
 }
 
-/// \brief Retrieve the directory that the given file name resides in.
+/// Retrieve the directory that the given file name resides in.
 /// Filename can point to either a real file or a virtual file.
 static const DirectoryEntry *getDirectoryFromFile(FileManager &FileMgr,
                                                   StringRef Filename,
@@ -157,7 +157,7 @@ const DirectoryEntry *FileManager::getDirectory(StringRef DirName,
       DirName != llvm::sys::path::root_path(DirName) &&
       llvm::sys::path::is_separator(DirName.back()))
     DirName = DirName.substr(0, DirName.size()-1);
-#ifdef LLVM_ON_WIN32
+#ifdef _WIN32
   // Fixing a problem with "clang C:test.c" on Windows.
   // Stat("C:") does not recognize "C:" as a valid directory
   std::string DirNameStr;
@@ -247,7 +247,7 @@ const FileEntry *FileManager::getFile(StringRef Filename, bool openFile,
 
     return nullptr;
   }
-  
+
   // FIXME: Use the directory info to prune this, before doing the stat syscall.
   // FIXME: This will reduce the # syscalls.
 
@@ -394,7 +394,7 @@ FileManager::getVirtualFile(StringRef Filename, off_t Size,
 bool FileManager::FixupRelativePath(SmallVectorImpl<char> &path) const {
   StringRef pathRef(path.data(), path.size());
 
-  if (FileSystemOpts.WorkingDir.empty() 
+  if (FileSystemOpts.WorkingDir.empty()
       || llvm::sys::path::is_absolute(pathRef))
     return false;
 
@@ -450,13 +450,13 @@ FileManager::getBufferForFile(const FileEntry *Entry, bool isVolatile,
 }
 
 llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>>
-FileManager::getBufferForFile(StringRef Filename) {
+FileManager::getBufferForFile(StringRef Filename, bool isVolatile) {
   if (FileSystemOpts.WorkingDir.empty())
-    return FS->getBufferForFile(Filename);
+    return FS->getBufferForFile(Filename, -1, true, isVolatile);
 
   SmallString<128> FilePath(Filename);
   FixupRelativePath(FilePath);
-  return FS->getBufferForFile(FilePath.c_str());
+  return FS->getBufferForFile(FilePath.c_str(), -1, true, isVolatile);
 }
 
 /// getStatValue - Get the 'stat' information for the specified path,
@@ -505,14 +505,14 @@ void FileManager::GetUniqueIDMapping(
                    SmallVectorImpl<const FileEntry *> &UIDToFiles) const {
   UIDToFiles.clear();
   UIDToFiles.resize(NextFileUID);
-  
+
   // Map file entries
   for (llvm::StringMap<FileEntry*, llvm::BumpPtrAllocator>::const_iterator
          FE = SeenFileEntries.begin(), FEEnd = SeenFileEntries.end();
        FE != FEEnd; ++FE)
     if (FE->getValue() && FE->getValue() != NON_EXISTENT_FILE)
       UIDToFiles[FE->getValue()->getUID()] = FE->getValue();
-  
+
   // Map virtual file entries
   for (const auto &VFE : VirtualFileEntries)
     if (VFE && VFE.get() != NON_EXISTENT_FILE)
@@ -534,23 +534,9 @@ StringRef FileManager::getCanonicalName(const DirectoryEntry *Dir) {
 
   StringRef CanonicalName(Dir->getName());
 
-#ifdef LLVM_ON_UNIX
-  char CanonicalNameBuf[PATH_MAX];
-  if (realpath(Dir->getName().str().c_str(), CanonicalNameBuf))
+  SmallString<4096> CanonicalNameBuf;
+  if (!FS->getRealPath(Dir->getName(), CanonicalNameBuf))
     CanonicalName = StringRef(CanonicalNameBuf).copy(CanonicalNameStorage);
-#else
-  SmallString<256> CanonicalNameBuf(CanonicalName);
-  llvm::sys::fs::make_absolute(CanonicalNameBuf);
-  llvm::sys::path::native(CanonicalNameBuf);
-  // We've run into needing to remove '..' here in the wild though, so
-  // remove it.
-  // On Windows, symlinks are significantly less prevalent, so removing
-  // '..' is pretty safe.
-  // Ideally we'd have an equivalent of `realpath` and could implement
-  // sys::fs::canonical across all the platforms.
-  llvm::sys::path::remove_dots(CanonicalNameBuf, /* remove_dot_dot */ true);
-  CanonicalName = StringRef(CanonicalNameBuf).copy(CanonicalNameStorage);
-#endif
 
   CanonicalDirNames.insert(std::make_pair(Dir, CanonicalName));
   return CanonicalName;

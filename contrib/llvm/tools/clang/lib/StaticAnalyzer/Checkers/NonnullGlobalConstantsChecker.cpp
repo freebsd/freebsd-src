@@ -54,7 +54,7 @@ private:
 
 } // namespace
 
-/// Lazily initialize cache for required identifier informations.
+/// Lazily initialize cache for required identifier information.
 void NonnullGlobalConstantsChecker::initIdentifierInfo(ASTContext &Ctx) const {
   if (NSStringII)
     return;
@@ -73,9 +73,9 @@ void NonnullGlobalConstantsChecker::checkLocation(SVal location, bool isLoad,
     return;
 
   ProgramStateRef State = C.getState();
-  SVal V = State->getSVal(location.castAs<Loc>());
 
   if (isGlobalConstString(location)) {
+    SVal V = State->getSVal(location.castAs<Loc>());
     Optional<DefinedOrUnknownSVal> Constr = V.getAs<DefinedOrUnknownSVal>();
 
     if (Constr) {

@@ -184,9 +184,7 @@ namespace {
   public:
     static char ID;
 
-    HexagonBitSimplify() : MachineFunctionPass(ID) {
-      initializeHexagonBitSimplifyPass(*PassRegistry::getPassRegistry());
-    }
+    HexagonBitSimplify() : MachineFunctionPass(ID) {}
 
     StringRef getPassName() const override {
       return "Hexagon bit simplification";
@@ -257,10 +255,10 @@ namespace {
 
 char HexagonBitSimplify::ID = 0;
 
-INITIALIZE_PASS_BEGIN(HexagonBitSimplify, "hexbit",
+INITIALIZE_PASS_BEGIN(HexagonBitSimplify, "hexagon-bit-simplify",
       "Hexagon bit simplification", false, false)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
-INITIALIZE_PASS_END(HexagonBitSimplify, "hexbit",
+INITIALIZE_PASS_END(HexagonBitSimplify, "hexagon-bit-simplify",
       "Hexagon bit simplification", false, false)
 
 bool HexagonBitSimplify::visitBlock(MachineBasicBlock &B, Transformation &T,
@@ -622,7 +620,7 @@ bool HexagonBitSimplify::getUsedBitsInStore(unsigned Opc, BitVector &Bits,
 // operand may be a subregister of a larger register, while Bits would
 // correspond to the larger register in its entirety. Because of that,
 // the parameter Begin can be used to indicate which bit of Bits should be
-// considered the LSB of of the operand.
+// considered the LSB of the operand.
 bool HexagonBitSimplify::getUsedBits(unsigned Opc, unsigned OpN,
       BitVector &Bits, uint16_t Begin, const HexagonInstrInfo &HII) {
   using namespace Hexagon;
@@ -1779,6 +1777,7 @@ namespace {
           const BitTracker::RegisterCell &RC);
     bool simplifyExtractLow(MachineInstr *MI, BitTracker::RegisterRef RD,
           const BitTracker::RegisterCell &RC, const RegisterSet &AVs);
+    bool simplifyRCmp0(MachineInstr *MI, BitTracker::RegisterRef RD);
 
     // Cache of created instructions to avoid creating duplicates.
     // XXX Currently only used by genBitSplit.
@@ -2452,7 +2451,7 @@ bool BitSimplification::simplifyExtractLow(MachineInstr *MI,
   if (Len == RW)
     return false;
 
-  DEBUG({
+  LLVM_DEBUG({
     dbgs() << __func__ << " on reg: " << printReg(RD.Reg, &HRI, RD.Sub)
            << ", MI: " << *MI;
     dbgs() << "Cell: " << RC << '\n';
@@ -2569,6 +2568,127 @@ bool BitSimplification::simplifyExtractLow(MachineInstr *MI,
   return Changed;
 }
 
+bool BitSimplification::simplifyRCmp0(MachineInstr *MI,
+      BitTracker::RegisterRef RD) {
+  unsigned Opc = MI->getOpcode();
+  if (Opc != Hexagon::A4_rcmpeqi && Opc != Hexagon::A4_rcmpneqi)
+    return false;
+  MachineOperand &CmpOp = MI->getOperand(2);
+  if (!CmpOp.isImm() || CmpOp.getImm() != 0)
+    return false;
+
+  const TargetRegisterClass *FRC = HBS::getFinalVRegClass(RD, MRI);
+  if (FRC != &Hexagon::IntRegsRegClass && FRC != &Hexagon::DoubleRegsRegClass)
+    return false;
+  assert(RD.Sub == 0);
+
+  MachineBasicBlock &B = *MI->getParent();
+  const DebugLoc &DL = MI->getDebugLoc();
+  auto At = MI->isPHI() ? B.getFirstNonPHI()
+                        : MachineBasicBlock::iterator(MI);
+  bool KnownZ = true;
+  bool KnownNZ = false;
+
+  BitTracker::RegisterRef SR = MI->getOperand(1);
+  if (!BT.has(SR.Reg))
+    return false;
+  const BitTracker::RegisterCell &SC = BT.lookup(SR.Reg);
+  unsigned F, W;
+  if (!HBS::getSubregMask(SR, F, W, MRI))
+    return false;
+
+  for (uint16_t I = F; I != F+W; ++I) {
+    const BitTracker::BitValue &V = SC[I];
+    if (!V.is(0))
+      KnownZ = false;
+    if (V.is(1))
+      KnownNZ = true;
+  }
+
+  auto ReplaceWithConst = [&] (int C) {
+    unsigned NewR = MRI.createVirtualRegister(FRC);
+    BuildMI(B, At, DL, HII.get(Hexagon::A2_tfrsi), NewR)
+      .addImm(C);
+    HBS::replaceReg(RD.Reg, NewR, MRI);
+    BitTracker::RegisterCell NewRC(W);
+    for (uint16_t I = 0; I != W; ++I) {
+      NewRC[I] = BitTracker::BitValue(C & 1);
+      C = unsigned(C) >> 1;
+    }
+    BT.put(BitTracker::RegisterRef(NewR), NewRC);
+    return true;
+  };
+
+  auto IsNonZero = [] (const MachineOperand &Op) {
+    if (Op.isGlobal() || Op.isBlockAddress())
+      return true;
+    if (Op.isImm())
+      return Op.getImm() != 0;
+    if (Op.isCImm())
+      return !Op.getCImm()->isZero();
+    if (Op.isFPImm())
+      return !Op.getFPImm()->isZero();
+    return false;
+  };
+
+  auto IsZero = [] (const MachineOperand &Op) {
+    if (Op.isGlobal() || Op.isBlockAddress())
+      return false;
+    if (Op.isImm())
+      return Op.getImm() == 0;
+    if (Op.isCImm())
+      return Op.getCImm()->isZero();
+    if (Op.isFPImm())
+      return Op.getFPImm()->isZero();
+    return false;
+  };
+
+  // If the source register is known to be 0 or non-0, the comparison can
+  // be folded to a load of a constant.
+  if (KnownZ || KnownNZ) {
+    assert(KnownZ != KnownNZ && "Register cannot be both 0 and non-0");
+    return ReplaceWithConst(KnownZ == (Opc == Hexagon::A4_rcmpeqi));
+  }
+
+  // Special case: if the compare comes from a C2_muxii, then we know the
+  // two possible constants that can be the source value.
+  MachineInstr *InpDef = MRI.getVRegDef(SR.Reg);
+  if (!InpDef)
+    return false;
+  if (SR.Sub == 0 && InpDef->getOpcode() == Hexagon::C2_muxii) {
+    MachineOperand &Src1 = InpDef->getOperand(2);
+    MachineOperand &Src2 = InpDef->getOperand(3);
+    // Check if both are non-zero.
+    bool KnownNZ1 = IsNonZero(Src1), KnownNZ2 = IsNonZero(Src2);
+    if (KnownNZ1 && KnownNZ2)
+      return ReplaceWithConst(Opc == Hexagon::A4_rcmpneqi);
+    // Check if both are zero.
+    bool KnownZ1 = IsZero(Src1), KnownZ2 = IsZero(Src2);
+    if (KnownZ1 && KnownZ2)
+      return ReplaceWithConst(Opc == Hexagon::A4_rcmpeqi);
+
+    // If for both operands we know that they are either 0 or non-0,
+    // replace the comparison with a C2_muxii, using the same predicate
+    // register, but with operands substituted with 0/1 accordingly.
+    if ((KnownZ1 || KnownNZ1) && (KnownZ2 || KnownNZ2)) {
+      unsigned NewR = MRI.createVirtualRegister(FRC);
+      BuildMI(B, At, DL, HII.get(Hexagon::C2_muxii), NewR)
+        .addReg(InpDef->getOperand(1).getReg())
+        .addImm(KnownZ1 == (Opc == Hexagon::A4_rcmpeqi))
+        .addImm(KnownZ2 == (Opc == Hexagon::A4_rcmpeqi));
+      HBS::replaceReg(RD.Reg, NewR, MRI);
+      // Create a new cell with only the least significant bit unknown.
+      BitTracker::RegisterCell NewRC(W);
+      NewRC[0] = BitTracker::BitValue::self();
+      NewRC.fill(1, W, BitTracker::BitValue::Zero);
+      BT.put(BitTracker::RegisterRef(NewR), NewRC);
+      return true;
+    }
+  }
+
+  return false;
+}
+
 bool BitSimplification::processBlock(MachineBasicBlock &B,
       const RegisterSet &AVs) {
   if (!BT.reached(&B))
@@ -2617,6 +2737,7 @@ bool BitSimplification::processBlock(MachineBasicBlock &B,
       T = T || genExtractHalf(MI, RD, RC);
       T = T || genCombineHalf(MI, RD, RC);
       T = T || genExtractLow(MI, RD, RC);
+      T = T || simplifyRCmp0(MI, RD);
       Changed |= T;
       continue;
     }
@@ -2646,7 +2767,7 @@ bool HexagonBitSimplify::runOnMachineFunction(MachineFunction &MF) {
 
   const HexagonEvaluator HE(HRI, MRI, HII, MF);
   BitTracker BT(HE, MF);
-  DEBUG(BT.trace(true));
+  LLVM_DEBUG(BT.trace(true));
   BT.run();
 
   MachineBasicBlock &Entry = MF.front();
@@ -2977,7 +3098,8 @@ void HexagonLoopRescheduling::moveGroup(InstrGroup &G, MachineBasicBlock &LB,
 }
 
 bool HexagonLoopRescheduling::processLoop(LoopCand &C) {
-  DEBUG(dbgs() << "Processing loop in " << printMBBReference(*C.LB) << "\n");
+  LLVM_DEBUG(dbgs() << "Processing loop in " << printMBBReference(*C.LB)
+                    << "\n");
   std::vector<PhiInfo> Phis;
   for (auto &I : *C.LB) {
     if (!I.isPHI())
@@ -3001,7 +3123,7 @@ bool HexagonLoopRescheduling::processLoop(LoopCand &C) {
     Phis.push_back(PhiInfo(I, *C.LB));
   }
 
-  DEBUG({
+  LLVM_DEBUG({
     dbgs() << "Phis: {";
     for (auto &I : Phis) {
       dbgs() << ' ' << printReg(I.DefR, HRI) << "=phi("
@@ -3122,7 +3244,7 @@ bool HexagonLoopRescheduling::processLoop(LoopCand &C) {
     Groups.push_back(G);
   }
 
-  DEBUG({
+  LLVM_DEBUG({
     for (unsigned i = 0, n = Groups.size(); i < n; ++i) {
       InstrGroup &G = Groups[i];
       dbgs() << "Group[" << i << "] inp: "
@@ -3190,7 +3312,7 @@ bool HexagonLoopRescheduling::runOnMachineFunction(MachineFunction &MF) {
   MRI = &MF.getRegInfo();
   const HexagonEvaluator HE(*HRI, *MRI, *HII, MF);
   BitTracker BT(HE, MF);
-  DEBUG(BT.trace(true));
+  LLVM_DEBUG(BT.trace(true));
   BT.run();
   BTP = &BT;
 

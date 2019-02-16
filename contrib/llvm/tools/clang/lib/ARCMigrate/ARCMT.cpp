@@ -226,7 +226,7 @@ static void emitPremigrationErrors(const CapturedDiagList &arcDiags,
       new DiagnosticsEngine(DiagID, diagOpts, &printer,
                             /*ShouldOwnClient=*/false));
   Diags->setSourceManager(&PP.getSourceManager());
-  
+
   printer.BeginSourceFile(PP.getLangOpts(), &PP);
   arcDiags.reportDiagnostics(*Diags);
   printer.EndSourceFile();
@@ -305,7 +305,7 @@ bool arcmt::checkForManualIssues(
 
   // After parsing of source files ended, we want to reuse the
   // diagnostics objects to emit further diagnostics.
-  // We call BeginSourceFile because DiagnosticConsumer requires that 
+  // We call BeginSourceFile because DiagnosticConsumer requires that
   // diagnostics with source range information are emitted only in between
   // BeginSourceFile() and EndSourceFile().
   DiagClient->BeginSourceFile(Ctx.getLangOpts(), &Unit->getPreprocessor());
@@ -503,7 +503,7 @@ public:
 
 } // end anonymous namespace.
 
-/// \brief Anchor for VTable.
+/// Anchor for VTable.
 MigrationProcess::RewriteListener::~RewriteListener() { }
 
 MigrationProcess::MigrationProcess(
@@ -572,7 +572,7 @@ bool MigrationProcess::applyTransform(TransformFn trans,
 
   // After parsing of source files ended, we want to reuse the
   // diagnostics objects to emit further diagnostics.
-  // We call BeginSourceFile because DiagnosticConsumer requires that 
+  // We call BeginSourceFile because DiagnosticConsumer requires that
   // diagnostics with source range information are emitted only in between
   // BeginSourceFile() and EndSourceFile().
   DiagClient->BeginSourceFile(Ctx.getLangOpts(), &Unit->getPreprocessor());

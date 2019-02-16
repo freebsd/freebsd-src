@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// \brief Defines the clang::TemplateNameKind enum.
+/// Defines the clang::TemplateNameKind enum.
 ///
 //===----------------------------------------------------------------------===//
 #ifndef LLVM_CLANG_BASIC_TEMPLATEKINDS_H
@@ -16,7 +16,7 @@
 
 namespace clang {
 
-/// \brief Specifies the kind of template name that an identifier refers to.
+/// Specifies the kind of template name that an identifier refers to.
 /// Be careful when changing this: this enumeration is used in diagnostics.
 enum TemplateNameKind {
   /// The name does not refer to a template.
@@ -31,7 +31,7 @@ enum TemplateNameKind {
   /// The name refers to a variable template whose specialization produces a
   /// variable.
   TNK_Var_template,
-  /// The name refers to a dependent template name: 
+  /// The name refers to a dependent template name:
   /// \code
   /// template<typename MetaFun, typename T1, typename T2> struct apply2 {
   ///   typedef typename MetaFun::template apply<T1, T2>::type type;
@@ -39,7 +39,7 @@ enum TemplateNameKind {
   /// \endcode
   ///
   /// Here, "apply" is a dependent template name within the typename
-  /// specifier in the typedef. "apply" is a nested template, and 
+  /// specifier in the typedef. "apply" is a nested template, and
   /// whether the template name is assumed to refer to a type template or a
   /// function template depends on the context in which the template
   /// name occurs.

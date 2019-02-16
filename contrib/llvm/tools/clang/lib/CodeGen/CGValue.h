@@ -193,11 +193,11 @@ class LValue {
 
   // The alignment to use when accessing this lvalue.  (For vector elements,
   // this is the alignment of the whole vector.)
-  int64_t Alignment;
+  unsigned Alignment;
 
   // objective-c's ivar
   bool Ivar:1;
-  
+
   // objective-c's ivar is an array
   bool ObjIsArray:1;
 
@@ -207,7 +207,7 @@ class LValue {
 
   // Lvalue is a global reference of an objective-c object
   bool GlobalObjCRef : 1;
-  
+
   // Lvalue is a thread local reference
   bool ThreadLocalRef : 1;
 
@@ -215,12 +215,12 @@ class LValue {
   // to make the default bitfield pattern all-zeroes.
   bool ImpreciseLifetime : 1;
 
-  LValueBaseInfo BaseInfo;
-  TBAAAccessInfo TBAAInfo;
-
   // This flag shows if a nontemporal load/stores should be used when accessing
   // this lvalue.
   bool Nontemporal : 1;
+
+  LValueBaseInfo BaseInfo;
+  TBAAAccessInfo TBAAInfo;
 
   Expr *BaseIvarExp;
 
@@ -231,7 +231,10 @@ private:
            "initializing l-value with zero alignment!");
     this->Type = Type;
     this->Quals = Quals;
-    this->Alignment = Alignment.getQuantity();
+    const unsigned MaxAlign = 1U << 31;
+    this->Alignment = Alignment.getQuantity() <= MaxAlign
+                          ? Alignment.getQuantity()
+                          : MaxAlign;
     assert(this->Alignment == Alignment.getQuantity() &&
            "Alignment exceeds allowed max!");
     this->BaseInfo = BaseInfo;
@@ -298,7 +301,7 @@ public:
   bool isVolatile() const {
     return Quals.hasVolatile();
   }
-  
+
   Expr *getBaseIvarExp() const { return BaseIvarExp; }
   void setBaseIvarExp(Expr *V) { BaseIvarExp = V; }
 
@@ -398,7 +401,7 @@ public:
     return R;
   }
 
-  /// \brief Create a new object to represent a bit-field access.
+  /// Create a new object to represent a bit-field access.
   ///
   /// \param Addr - The base address of the bit-field sequence this
   /// bit-field refers to.
@@ -449,7 +452,7 @@ class AggValueSlot {
   /// slot might require calling an appropriate Objective-C GC
   /// barrier.  The exact interaction here is unnecessarily mysterious.
   bool ObjCGCFlag : 1;
-  
+
   /// ZeroedFlag - This is set to true if the memory in the slot is
   /// known to be zero before the assignment into it.  This means that
   /// zero fields don't need to be set.
@@ -469,17 +472,33 @@ class AggValueSlot {
   /// evaluating an expression which constructs such an object.
   bool AliasedFlag : 1;
 
+  /// This is set to true if the tail padding of this slot might overlap
+  /// another object that may have already been initialized (and whose
+  /// value must be preserved by this initialization). If so, we may only
+  /// store up to the dsize of the type. Otherwise we can widen stores to
+  /// the size of the type.
+  bool OverlapFlag : 1;
+
+  /// If is set to true, sanitizer checks are already generated for this address
+  /// or not required. For instance, if this address represents an object
+  /// created in 'new' expression, sanitizer checks for memory is made as a part
+  /// of 'operator new' emission and object constructor should not generate
+  /// them.
+  bool SanitizerCheckedFlag : 1;
+
 public:
   enum IsAliased_t { IsNotAliased, IsAliased };
   enum IsDestructed_t { IsNotDestructed, IsDestructed };
   enum IsZeroed_t { IsNotZeroed, IsZeroed };
+  enum Overlap_t { DoesNotOverlap, MayOverlap };
   enum NeedsGCBarriers_t { DoesNotNeedGCBarriers, NeedsGCBarriers };
+  enum IsSanitizerChecked_t { IsNotSanitizerChecked, IsSanitizerChecked };
 
   /// ignored - Returns an aggregate value slot indicating that the
   /// aggregate value is being ignored.
   static AggValueSlot ignored() {
     return forAddr(Address::invalid(), Qualifiers(), IsNotDestructed,
-                   DoesNotNeedGCBarriers, IsNotAliased);
+                   DoesNotNeedGCBarriers, IsNotAliased, DoesNotOverlap);
   }
 
   /// forAddr - Make a slot for an aggregate value.
@@ -497,7 +516,9 @@ public:
                               IsDestructed_t isDestructed,
                               NeedsGCBarriers_t needsGC,
                               IsAliased_t isAliased,
-                              IsZeroed_t isZeroed = IsNotZeroed) {
+                              Overlap_t mayOverlap,
+                              IsZeroed_t isZeroed = IsNotZeroed,
+                       IsSanitizerChecked_t isChecked = IsNotSanitizerChecked) {
     AggValueSlot AV;
     if (addr.isValid()) {
       AV.Addr = addr.getPointer();
@@ -511,6 +532,8 @@ public:
     AV.ObjCGCFlag = needsGC;
     AV.ZeroedFlag = isZeroed;
     AV.AliasedFlag = isAliased;
+    AV.OverlapFlag = mayOverlap;
+    AV.SanitizerCheckedFlag = isChecked;
     return AV;
   }
 
@@ -518,9 +541,11 @@ public:
                                 IsDestructed_t isDestructed,
                                 NeedsGCBarriers_t needsGC,
                                 IsAliased_t isAliased,
-                                IsZeroed_t isZeroed = IsNotZeroed) {
-    return forAddr(LV.getAddress(),
-                   LV.getQuals(), isDestructed, needsGC, isAliased, isZeroed);
+                                Overlap_t mayOverlap,
+                                IsZeroed_t isZeroed = IsNotZeroed,
+                       IsSanitizerChecked_t isChecked = IsNotSanitizerChecked) {
+    return forAddr(LV.getAddress(), LV.getQuals(), isDestructed, needsGC,
+                   isAliased, mayOverlap, isZeroed, isChecked);
   }
 
   IsDestructed_t isExternallyDestructed() const {
@@ -539,7 +564,7 @@ public:
   void setVolatile(bool flag) {
     Quals.setVolatile(flag);
   }
-  
+
   Qualifiers::ObjCLifetime getObjCLifetime() const {
     return Quals.getObjCLifetime();
   }
@@ -568,6 +593,14 @@ public:
     return IsAliased_t(AliasedFlag);
   }
 
+  Overlap_t mayOverlap() const {
+    return Overlap_t(OverlapFlag);
+  }
+
+  bool isSanitizerChecked() const {
+    return SanitizerCheckedFlag;
+  }
+
   RValue asRValue() const {
     if (isIgnored()) {
       return RValue::getIgnored();
@@ -579,6 +612,14 @@ public:
   void setZeroed(bool V = true) { ZeroedFlag = V; }
   IsZeroed_t isZeroed() const {
     return IsZeroed_t(ZeroedFlag);
+  }
+
+  /// Get the preferred size to use when storing a value to this slot. This
+  /// is the type size unless that might overlap another object, in which
+  /// case it's the dsize.
+  CharUnits getPreferredSize(ASTContext &Ctx, QualType Type) const {
+    return mayOverlap() ? Ctx.getTypeInfoDataSizeInChars(Type).first
+                        : Ctx.getTypeSizeInChars(Type);
   }
 };
 

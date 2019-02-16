@@ -24,8 +24,12 @@ class CFGElement;
 class LocationContext;
 class Stmt;
 
+namespace cross_tu {
+class CrossTranslationUnitContext;
+}
+
 namespace ento {
-  
+
 struct NodeBuilderContext;
 class AnalysisManager;
 class ExplodedNodeSet;
@@ -48,6 +52,9 @@ public:
   virtual ProgramStateRef getInitialState(const LocationContext *InitLoc) = 0;
 
   virtual AnalysisManager &getAnalysisManager() = 0;
+
+  virtual cross_tu::CrossTranslationUnitContext *
+  getCrossTranslationUnitContext() = 0;
 
   virtual ProgramStateManager &getStateManager() = 0;
 
@@ -126,7 +133,7 @@ public:
 
   /// processRegionChanges - Called by ProgramStateManager whenever a change is
   /// made to the store. Used to update checkers that track region values.
-  virtual ProgramStateRef 
+  virtual ProgramStateRef
   processRegionChanges(ProgramStateRef state,
                        const InvalidatedSymbols *invalidated,
                        ArrayRef<const MemRegion *> ExplicitRegions,
@@ -135,7 +142,7 @@ public:
                        const CallEvent *Call) = 0;
 
 
-  inline ProgramStateRef 
+  inline ProgramStateRef
   processRegionChange(ProgramStateRef state,
                       const MemRegion* MR,
                       const LocationContext *LCtx) {
@@ -155,7 +162,8 @@ public:
 
   /// printState - Called by ProgramStateManager to print checker-specific data.
   virtual void printState(raw_ostream &Out, ProgramStateRef State,
-                          const char *NL, const char *Sep) = 0;
+                          const char *NL, const char *Sep,
+                          const LocationContext *LCtx = nullptr) = 0;
 
   /// Called by CoreEngine when the analysis worklist is either empty or the
   //  maximum number of analysis steps have been reached.
