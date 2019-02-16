@@ -26,6 +26,7 @@ class MCAsmBackend;
 class MCCodeEmitter;
 class MCContext;
 class MCSubtargetInfo;
+struct MCDwarfFrameInfo;
 
 class MipsELFStreamer : public MCELFStreamer {
   SmallVector<std::unique_ptr<MipsOptionRecord>, 8> MipsOptionRecords;
@@ -34,7 +35,7 @@ class MipsELFStreamer : public MCELFStreamer {
 
 public:
   MipsELFStreamer(MCContext &Context, std::unique_ptr<MCAsmBackend> MAB,
-                  raw_pwrite_stream &OS,
+                  std::unique_ptr<MCObjectWriter> OW,
                   std::unique_ptr<MCCodeEmitter> Emitter);
 
   /// Overriding this function allows us to add arbitrary behaviour before the
@@ -54,9 +55,17 @@ public:
   void SwitchSection(MCSection *Section,
                      const MCExpr *Subsection = nullptr) override;
 
-  /// Overriding this function allows us to dismiss all labels that are
-  /// candidates for marking as microMIPS when .word directive is emitted.
+  /// Overriding these functions allows us to dismiss all labels that are
+  /// candidates for marking as microMIPS when .word/.long/.4byte etc
+  /// directives are emitted.
   void EmitValueImpl(const MCExpr *Value, unsigned Size, SMLoc Loc) override;
+  void EmitIntValue(uint64_t Value, unsigned Size) override;
+
+  // Overriding these functions allows us to avoid recording of these labels
+  // in EmitLabel and later marking them as microMIPS.
+  void EmitCFIStartProcImpl(MCDwarfFrameInfo &Frame) override;
+  void EmitCFIEndProcImpl(MCDwarfFrameInfo &Frame) override;
+  MCSymbol *EmitCFILabel() override;
 
   /// Emits all the option records stored up until the point it's called.
   void EmitMipsOptionRecords();
@@ -67,7 +76,7 @@ public:
 
 MCELFStreamer *createMipsELFStreamer(MCContext &Context,
                                      std::unique_ptr<MCAsmBackend> MAB,
-                                     raw_pwrite_stream &OS,
+                                     std::unique_ptr<MCObjectWriter> OW,
                                      std::unique_ptr<MCCodeEmitter> Emitter,
                                      bool RelaxAll);
 } // end namespace llvm

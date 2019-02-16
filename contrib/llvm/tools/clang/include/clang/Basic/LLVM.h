@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 //
 /// \file
-/// \brief Forward-declares and imports various common LLVM datatypes that
+/// Forward-declares and imports various common LLVM datatypes that
 /// clang wants to use unqualified.
 ///
 //===----------------------------------------------------------------------===//
@@ -28,6 +28,7 @@ namespace llvm {
   // ADT's.
   class StringRef;
   class Twine;
+  class VersionTuple;
   template<typename T> class ArrayRef;
   template<typename T> class MutableArrayRef;
   template<typename T> class OwningArrayRef;
@@ -58,19 +59,20 @@ namespace clang {
   using llvm::dyn_cast;
   using llvm::dyn_cast_or_null;
   using llvm::cast_or_null;
-  
+
   // ADT's.
-  using llvm::None;
-  using llvm::Optional;
-  using llvm::StringRef;
-  using llvm::Twine;
   using llvm::ArrayRef;
   using llvm::MutableArrayRef;
+  using llvm::None;
+  using llvm::Optional;
   using llvm::OwningArrayRef;
+  using llvm::SaveAndRestore;
   using llvm::SmallString;
   using llvm::SmallVector;
   using llvm::SmallVectorImpl;
-  using llvm::SaveAndRestore;
+  using llvm::StringRef;
+  using llvm::Twine;
+  using llvm::VersionTuple;
 
   // Error handling.
   using llvm::Expected;

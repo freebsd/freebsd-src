@@ -43,6 +43,26 @@ typedef enum AddressType {
 } AddressType;
 
 //----------------------------------------------------------------------
+// Address Class
+//
+// A way of classifying an address used for disassembling and setting
+// breakpoints. Many object files can track exactly what parts of their object
+// files are code, data and other information. This is of course above and
+// beyond just looking at the section types. For example, code might contain PC
+// relative data and the object file might be able to tell us that an address
+// in code is data.
+//----------------------------------------------------------------------
+enum class AddressClass {
+  eInvalid,
+  eUnknown,
+  eCode,
+  eCodeAlternateISA,
+  eData,
+  eDebug,
+  eRuntime
+};
+
+//----------------------------------------------------------------------
 // Votes - Need a tri-state, yes, no, no opinion...
 //----------------------------------------------------------------------
 typedef enum Vote { eVoteNo = -1, eVoteNoOpinion = 0, eVoteYes = 1 } Vote;
@@ -105,9 +125,9 @@ typedef enum SortOrder {
 } SortOrder;
 
 //----------------------------------------------------------------------
-// LazyBool is for boolean values that need to be calculated lazily.
-// Values start off set to eLazyBoolCalculate, and then they can be
-// calculated once and set to eLazyBoolNo or eLazyBoolYes.
+// LazyBool is for boolean values that need to be calculated lazily. Values
+// start off set to eLazyBoolCalculate, and then they can be calculated once
+// and set to eLazyBoolNo or eLazyBoolYes.
 //----------------------------------------------------------------------
 typedef enum LazyBool {
   eLazyBoolCalculate = -1,
@@ -217,8 +237,7 @@ enum class LineStatus {
 enum class TypeValidatorResult : bool { Success = true, Failure = false };
 
 //----------------------------------------------------------------------
-// Enumerations that can be used to specify scopes types when looking up
-// types.
+// Enumerations that can be used to specify scopes types when looking up types.
 //----------------------------------------------------------------------
 enum class CompilerContextKind {
   Invalid = 0,
@@ -233,6 +252,35 @@ enum class CompilerContextKind {
   Enumeration,
   Typedef
 };
+
+//----------------------------------------------------------------------
+// Enumerations that can be used to specify the kind of metric we're looking at
+// when collecting stats.
+//----------------------------------------------------------------------
+enum StatisticKind {
+  ExpressionSuccessful = 0,
+  ExpressionFailure = 1,
+  FrameVarSuccess = 2,
+  FrameVarFailure = 3,
+  StatisticMax = 4
+};
+
+
+inline std::string GetStatDescription(lldb_private::StatisticKind K) {
+   switch (K) {
+   case StatisticKind::ExpressionSuccessful:
+     return "Number of expr evaluation successes";
+   case StatisticKind::ExpressionFailure:
+     return "Number of expr evaluation failures";
+   case StatisticKind::FrameVarSuccess:
+     return "Number of frame var successes";
+   case StatisticKind::FrameVarFailure:
+     return "Number of frame var failures";
+   case StatisticKind::StatisticMax:
+     return "";
+   }
+   llvm_unreachable("Statistic not registered!");
+}
 
 } // namespace lldb_private
 

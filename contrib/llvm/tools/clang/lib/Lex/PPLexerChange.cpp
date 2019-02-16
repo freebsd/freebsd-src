@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/HeaderSearch.h"
@@ -81,10 +82,10 @@ bool Preprocessor::EnterSourceFile(FileID FID, const DirectoryLookup *CurDir,
       return false;
     }
   }
-  
+
   // Get the MemoryBuffer for this FID, if it fails, we fail.
   bool Invalid = false;
-  const llvm::MemoryBuffer *InputFile = 
+  const llvm::MemoryBuffer *InputFile =
     getSourceManager().getBuffer(FID, Loc, &Invalid);
   if (Invalid) {
     SourceLocation FileStart = SourceMgr.getLocForStartOfFile(FID);
@@ -144,7 +145,7 @@ void Preprocessor::EnterSourceFileWithPTH(PTHLexer *PL,
   CurLexerSubmodule = nullptr;
   if (CurLexerKind != CLK_LexAfterModuleImport)
     CurLexerKind = CLK_PTHLexer;
-  
+
   // Notify the client, if desired, that we are in a new source file.
   if (Callbacks) {
     FileID FID = CurPPLexer->getFileID();
@@ -226,7 +227,7 @@ void Preprocessor::EnterTokenStream(const Token *Toks, unsigned NumToks,
     CurLexerKind = CLK_TokenLexer;
 }
 
-/// \brief Compute the relative path that names the given file relative to
+/// Compute the relative path that names the given file relative to
 /// the given directory.
 static void computeRelativePath(FileManager &FM, const DirectoryEntry *Dir,
                                 const FileEntry *File,
@@ -239,15 +240,15 @@ static void computeRelativePath(FileManager &FM, const DirectoryEntry *Dir,
     if (const DirectoryEntry *CurDir = FM.getDirectory(Path)) {
       if (CurDir == Dir) {
         Result = FilePath.substr(Path.size());
-        llvm::sys::path::append(Result, 
+        llvm::sys::path::append(Result,
                                 llvm::sys::path::filename(File->getName()));
         return;
       }
     }
-    
+
     Path = llvm::sys::path::parent_path(Path);
   }
-  
+
   Result = File->getName();
 }
 
@@ -264,7 +265,7 @@ void Preprocessor::PropagateLineStartLeadingSpaceInfo(Token &Result) {
   // but it might if they're empty?
 }
 
-/// \brief Determine the location to use as the end of the buffer for a lexer.
+/// Determine the location to use as the end of the buffer for a lexer.
 ///
 /// If the file ends with a newline, form the EOF token on the newline itself,
 /// rather than "on the line following it", which doesn't exist.  This makes
@@ -425,6 +426,8 @@ bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
     PragmaAssumeNonNullLoc = SourceLocation();
   }
 
+  bool LeavingPCHThroughHeader = false;
+
   // If this is a #include'd file, pop it off the include stack and continue
   // lexing the #includer file.
   if (!IncludeMacroStack.empty()) {
@@ -481,6 +484,12 @@ bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
       Result.setAnnotationValue(M);
     }
 
+    bool FoundPCHThroughHeader = false;
+    if (CurPPLexer && creatingPCHWithThroughHeader() &&
+        isPCHThroughHeader(
+            SourceMgr.getFileEntryForID(CurPPLexer->getFileID())))
+      FoundPCHThroughHeader = true;
+
     // We're done with the #included file.
     RemoveTopOfLexerStack();
 
@@ -500,8 +509,16 @@ bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
     if (ExitedFromPredefinesFile)
       replayPreambleConditionalStack();
 
-    // Client should lex another token unless we generated an EOM.
-    return LeavingSubmodule;
+    if (!isEndOfMacro && CurPPLexer && FoundPCHThroughHeader &&
+        (isInPrimaryFile() ||
+         CurPPLexer->getFileID() == getPredefinesFileID())) {
+      // Leaving the through header. Continue directly to end of main file
+      // processing.
+      LeavingPCHThroughHeader = true;
+    } else {
+      // Client should lex another token unless we generated an EOM.
+      return LeavingSubmodule;
+    }
   }
 
   // If this is the end of the main file, form an EOF token.
@@ -522,6 +539,12 @@ bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
         Result.setLocation(Result.getLocation().getLocWithOffset(-1));
     }
 
+    if (creatingPCHWithThroughHeader() && !LeavingPCHThroughHeader) {
+      // Reached the end of the compilation without finding the through header.
+      Diag(CurLexer->getFileLoc(), diag::err_pp_through_header_not_seen)
+          << PPOpts->PCHThroughHeader << 0;
+    }
+
     if (!isIncrementalProcessingEnabled())
       // We're done with lexing.
       CurLexer.reset();
@@ -530,7 +553,7 @@ bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
     CurPTHLexer->getEOF(Result);
     CurPTHLexer.reset();
   }
-  
+
   if (!isIncrementalProcessingEnabled())
     CurPPLexer = nullptr;
 

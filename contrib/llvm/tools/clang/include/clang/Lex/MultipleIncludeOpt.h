@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// \brief Defines the MultipleIncludeOpt interface.
+/// Defines the MultipleIncludeOpt interface.
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,7 +20,7 @@
 namespace clang {
 class IdentifierInfo;
 
-/// \brief Implements the simple state machine that the Lexer class uses to
+/// Implements the simple state machine that the Lexer class uses to
 /// detect files subject to the 'multiple-include' optimization.
 ///
 /// The public methods in this class are triggered by various
@@ -113,13 +113,13 @@ public:
   /// buffer, this method is called to disable the MIOpt if needed.
   void ExpandedMacro() { DidMacroExpansion = true; }
 
-  /// \brief Called when entering a top-level \#ifndef directive (or the
+  /// Called when entering a top-level \#ifndef directive (or the
   /// "\#if !defined" equivalent) without any preceding tokens.
   ///
   /// Note, we don't care about the input value of 'ReadAnyTokens'.  The caller
   /// ensures that this is only called if there are no tokens read before the
   /// \#ifndef.  The caller is required to do this, because reading the \#if
-  /// line obviously reads in in tokens.
+  /// line obviously reads in tokens.
   void EnterTopLevelIfndef(const IdentifierInfo *M, SourceLocation Loc) {
     // If the macro is already set, this is after the top-level #endif.
     if (TheMacro)
@@ -139,14 +139,14 @@ public:
     MacroLoc = Loc;
   }
 
-  /// \brief Invoked when a top level conditional (except \#ifndef) is found.
+  /// Invoked when a top level conditional (except \#ifndef) is found.
   void EnterTopLevelConditional() {
     // If a conditional directive (except #ifndef) is found at the top level,
     // there is a chunk of the file not guarded by the controlling macro.
     Invalidate();
   }
 
-  /// \brief Called when the lexer exits the top-level conditional.
+  /// Called when the lexer exits the top-level conditional.
   void ExitTopLevelConditional() {
     // If we have a macro, that means the top of the file was ok.  Set our state
     // back to "not having read any tokens" so we can detect anything after the
@@ -159,7 +159,7 @@ public:
     ImmediatelyAfterTopLevelIfndef = false;
   }
 
-  /// \brief Once the entire file has been lexed, if there is a controlling
+  /// Once the entire file has been lexed, if there is a controlling
   /// macro, return it.
   const IdentifierInfo *GetControllingMacroAtEndOfFile() const {
     // If we haven't read any tokens after the #endif, return the controlling
@@ -169,7 +169,7 @@ public:
     return nullptr;
   }
 
-  /// \brief If the ControllingMacro is followed by a macro definition, return
+  /// If the ControllingMacro is followed by a macro definition, return
   /// the macro that was defined.
   const IdentifierInfo *GetDefinedMacro() const {
     return DefinedMacro;

@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// \brief Includes all the separate Diagnostic headers & some related helpers.
+/// Includes all the separate Diagnostic headers & some related helpers.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -34,9 +34,9 @@ class StringSizerHelper {
 public:
   enum { Size = SizeOfStr };
 };
-} // end namespace clang 
+} // end namespace clang
 
 #define STR_SIZE(str, fieldTy) clang::StringSizerHelper<sizeof(str)-1, \
-                                                        fieldTy>::Size 
+                                                        fieldTy>::Size
 
 #endif

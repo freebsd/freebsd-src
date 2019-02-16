@@ -10,6 +10,7 @@
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Config/llvm-config.h"
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Function.h"
@@ -96,8 +97,8 @@ void CallGraph::print(raw_ostream &OS) const {
   for (const auto &I : *this)
     Nodes.push_back(I.second.get());
 
-  std::sort(Nodes.begin(), Nodes.end(),
-            [](CallGraphNode *LHS, CallGraphNode *RHS) {
+  llvm::sort(Nodes.begin(), Nodes.end(),
+             [](CallGraphNode *LHS, CallGraphNode *RHS) {
     if (Function *LF = LHS->getFunction())
       if (Function *RF = RHS->getFunction())
         return LF->getName() < RF->getName();
@@ -165,7 +166,7 @@ void CallGraphNode::print(raw_ostream &OS) const {
     OS << "Call graph node for function: '" << F->getName() << "'";
   else
     OS << "Call graph node <<null function>>";
-  
+
   OS << "<<" << this << ">>  #uses=" << getNumReferences() << '\n';
 
   for (const auto &I : *this) {

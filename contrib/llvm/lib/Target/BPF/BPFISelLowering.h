@@ -28,7 +28,8 @@ enum NodeType : unsigned {
   CALL,
   SELECT_CC,
   BR_CC,
-  Wrapper
+  Wrapper,
+  MEMCPY
 };
 }
 
@@ -54,10 +55,17 @@ public:
   EmitInstrWithCustomInserter(MachineInstr &MI,
                               MachineBasicBlock *BB) const override;
 
+  bool getHasAlu32() const { return HasAlu32; }
   bool getHasJmpExt() const { return HasJmpExt; }
+
+  EVT getSetCCResultType(const DataLayout &DL, LLVMContext &Context,
+                         EVT VT) const override;
+
+  MVT getScalarShiftAmountTy(const DataLayout &, EVT) const override;
 
 private:
   // Control Instruction Selection Features
+  bool HasAlu32;
   bool HasJmpExt;
 
   SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
@@ -100,6 +108,14 @@ private:
                                          Type *Ty) const override {
     return true;
   }
+
+  unsigned EmitSubregExt(MachineInstr &MI, MachineBasicBlock *BB, unsigned Reg,
+                         bool isSigned) const;
+
+  MachineBasicBlock * EmitInstrWithCustomInserterMemcpy(MachineInstr &MI,
+                                                        MachineBasicBlock *BB)
+                                                        const;
+
 };
 }
 

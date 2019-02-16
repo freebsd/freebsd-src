@@ -12,6 +12,12 @@
 /* Default linker to use. */
 #define CLANG_DEFAULT_LINKER ""
 
+/* Default C/ObjC standard to use. */
+/* #undef CLANG_DEFAULT_STD_C */
+
+/* Default C++/ObjC++ standard to use. */
+/* #undef CLANG_DEFAULT_STD_CXX */
+
 /* Default C++ stdlib to use. */
 #define CLANG_DEFAULT_CXX_STDLIB ""
 
@@ -56,7 +62,7 @@
 #define CLANG_HAVE_RLIMITS 1
 
 /* The LLVM product name and version */
-#define BACKEND_PACKAGE_STRING "LLVM 6.0.1"
+#define BACKEND_PACKAGE_STRING "LLVM 7.0.1"
 
 /* Linker version detected at compile time. */
 /* #undef HOST_LINK_VERSION */
@@ -66,6 +72,9 @@
 
 /* enable x86 relax relocations by default */
 #define ENABLE_X86_RELAX_RELOCATIONS 0
+
+/* Enable the experimental new pass manager by default */
+#define ENABLE_EXPERIMENTAL_NEW_PASS_MANAGER 0
 
 /* Enable each functionality of modules */
 /* #undef CLANG_ENABLE_ARCMT */

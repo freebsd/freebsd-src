@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 //
 /// \file
-/// \brief This pass inserts branches on the 0 exec mask over divergent branches
+/// This pass inserts branches on the 0 exec mask over divergent branches
 /// branches when it's expected that jumping over the untaken control flow will
 /// be cheaper than having every workitem no-op through it.
 //
@@ -18,6 +18,7 @@
 #include "AMDGPUSubtarget.h"
 #include "SIInstrInfo.h"
 #include "SIMachineFunctionInfo.h"
+#include "MCTargetDesc/AMDGPUMCTargetDesc.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
@@ -132,28 +133,10 @@ bool SIInsertSkips::shouldSkip(const MachineBasicBlock &From,
           I->getOpcode() == AMDGPU::S_CBRANCH_VCCZ)
         return true;
 
-      // V_READFIRSTLANE/V_READLANE destination register may be used as operand
-      // by some SALU instruction. If exec mask is zero vector instruction
-      // defining the register that is used by the scalar one is not executed
-      // and scalar instruction will operate on undefined data. For
-      // V_READFIRSTLANE/V_READLANE we should avoid predicated execution.
-      if ((I->getOpcode() == AMDGPU::V_READFIRSTLANE_B32) ||
-          (I->getOpcode() == AMDGPU::V_READLANE_B32)) {
+      if (TII->hasUnwantedEffectsWhenEXECEmpty(*I))
         return true;
-      }
 
-      if (I->isInlineAsm()) {
-        const MCAsmInfo *MAI = MF->getTarget().getMCAsmInfo();
-        const char *AsmStr = I->getOperand(0).getSymbolName();
-
-        // inlineasm length estimate is number of bytes assuming the longest
-        // instruction.
-        uint64_t MaxAsmSize = TII->getInlineAsmLength(AsmStr, *MAI);
-        NumInstr += MaxAsmSize / MAI->getMaxInstLength();
-      } else {
-        ++NumInstr;
-      }
-
+      ++NumInstr;
       if (NumInstr >= SkipThreshold)
         return true;
     }
@@ -338,7 +321,7 @@ bool SIInsertSkips::skipMaskBranch(MachineInstr &MI,
 }
 
 bool SIInsertSkips::runOnMachineFunction(MachineFunction &MF) {
-  const SISubtarget &ST = MF.getSubtarget<SISubtarget>();
+  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
   TII = ST.getInstrInfo();
   TRI = &TII->getRegisterInfo();
   SkipThreshold = SkipThresholdFlag;

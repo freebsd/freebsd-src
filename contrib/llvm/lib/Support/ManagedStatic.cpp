@@ -28,9 +28,6 @@ static void initializeMutex() {
 }
 
 static sys::Mutex* getManagedStaticMutex() {
-  // We need to use a function local static here, since this can get called
-  // during a static constructor and we need to guarantee that it's initialized
-  // correctly.
   llvm::call_once(mutex_init_flag, initializeMutex);
   return ManagedStaticMutex;
 }
@@ -46,7 +43,7 @@ void ManagedStaticBase::RegisterManagedStatic(void *(*Creator)(),
 
       Ptr.store(Tmp, std::memory_order_release);
       DeleterFn = Deleter;
-      
+
       // Add to list of managed statics.
       Next = StaticList;
       StaticList = this;
@@ -56,7 +53,7 @@ void ManagedStaticBase::RegisterManagedStatic(void *(*Creator)(),
            "Partially initialized ManagedStatic!?");
     Ptr = Creator();
     DeleterFn = Deleter;
-  
+
     // Add to list of managed statics.
     Next = StaticList;
     StaticList = this;
@@ -73,7 +70,7 @@ void ManagedStaticBase::destroy() const {
 
   // Destroy memory.
   DeleterFn(Ptr);
-  
+
   // Cleanup.
   Ptr = nullptr;
   DeleterFn = nullptr;

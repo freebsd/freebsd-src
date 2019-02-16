@@ -26,7 +26,7 @@
 using namespace llvm;
 
 namespace llvm {
-  
+
 /// A MachineSchedStrategy implementation for SystemZ post RA scheduling.
 class SystemZPostRASchedStrategy : public MachineSchedStrategy {
 
@@ -37,7 +37,7 @@ class SystemZPostRASchedStrategy : public MachineSchedStrategy {
   // non-scheduled instructions, so it would not always be possible to call
   // DAG->getSchedClass(SU).
   TargetSchedModel SchedModel;
-  
+
   /// A candidate during instruction evaluation.
   struct Candidate {
     SUnit *SU = nullptr;
@@ -58,6 +58,15 @@ class SystemZPostRASchedStrategy : public MachineSchedStrategy {
     bool noCost() const {
       return (GroupingCost <= 0 && !ResourcesCost);
     }
+
+#ifndef NDEBUG
+    void dumpCosts() {
+      if (GroupingCost != 0)
+        dbgs() << "  Grouping cost:" << GroupingCost;
+      if (ResourcesCost != 0)
+        dbgs() << "  Resource cost:" << ResourcesCost;
+    }
+#endif
   };
 
   // A sorter for the Available set that makes sure that SUs are considered
@@ -119,7 +128,7 @@ public:
   // transferrred over scheduling boundaries.
   bool doMBBSchedRegionsTopDown() const override { return true; }
 
-  void initialize(ScheduleDAGMI *dag) override {}
+  void initialize(ScheduleDAGMI *dag) override;
 
   /// Tell the strategy that MBB is about to be processed.
   void enterMBB(MachineBasicBlock *NextMBB) override;
