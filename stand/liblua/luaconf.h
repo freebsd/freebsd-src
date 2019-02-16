@@ -202,9 +202,9 @@
 
 #else			/* }{ */
 
-#define LUA_ROOT	"/usr/local/"
-#define LUA_LDIR	LUA_ROOT "share/lua/" LUA_VDIR "/"
-#define LUA_CDIR	LUA_ROOT "lib/lua/" LUA_VDIR "/"
+#define LUA_ROOT       "/boot/lua/" LUA_VDIR "/"
+#define LUA_LDIR       LUA_ROOT "share/"
+#define LUA_CDIR       LUA_ROOT "lib/"
 #ifndef LUA_PATH_DEFAULT
 #define LUA_PATH_DEFAULT  \
 		LUA_LDIR"?.lua;"  LUA_LDIR"?/init.lua;" \
