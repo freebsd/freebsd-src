@@ -229,8 +229,8 @@ nvpair_remove_nvlist_array(nvpair_t *nvp)
 	nvlarray = __DECONST(nvlist_t **,
 	    nvpair_get_nvlist_array(nvp, &count));
 	for (i = 0; i < count; i++) {
-		nvlist_set_array_next(nvl, NULL);
-		nvlist_set_parent(nvl, NULL);
+		nvlist_set_array_next(nvlarray[i], NULL);
+		nvlist_set_parent(nvlarray[i], NULL);
 	}
 }
 
