@@ -125,6 +125,9 @@ static int tdma_process_params(struct ieee80211_node *ni,
 static void
 settxparms(struct ieee80211vap *vap, enum ieee80211_phymode mode, int rate)
 {
+	if (isclr(vap->iv_ic->ic_modecaps, mode))
+		return;
+
 	vap->iv_txparms[mode].ucastrate = rate;
 	vap->iv_txparms[mode].mcastrate = rate;
 }
