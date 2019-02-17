@@ -345,6 +345,9 @@ ieee80211_proto_vattach(struct ieee80211vap *vap)
 	 * driver and/or user applications.
 	 */
 	for (i = IEEE80211_MODE_11A; i < IEEE80211_MODE_MAX; i++) {
+		if (isclr(ic->ic_modecaps, i))
+			continue;
+
 		const struct ieee80211_rateset *rs = &ic->ic_sup_rates[i];
 
 		vap->iv_txparms[i].ucastrate = IEEE80211_FIXED_RATE_NONE;
