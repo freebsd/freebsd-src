@@ -278,6 +278,7 @@ MAN=	accept_filter.9 \
 	stack.9 \
 	store.9 \
 	style.9 \
+	style.lua.9 \
 	swi.9 \
 	sx.9 \
 	SYSCALL_MODULE.9 \

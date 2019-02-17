@@ -285,6 +285,9 @@ extern int	open(const char *, int);
 #define	O_RDONLY	0x0
 #define O_WRONLY	0x1
 #define O_RDWR		0x2
+/* NOT IMPLEMENTED */
+#define	O_CREAT		0x0200		/* create if nonexistent */
+#define	O_TRUNC		0x0400		/* truncate to zero length */
 extern int	close(int);
 extern void	closeall(void);
 extern ssize_t	read(int, void *, size_t);

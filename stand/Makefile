@@ -6,13 +6,15 @@
 # others we don't. LIB32LIST is a list of libraries, which if
 # included, need to be built 32-bit as well.
 .if ${MACHINE_ARCH} == "amd64"
-LIB32LIST=libsa ficl zfs
+LIB32LIST=libsa ficl liblua zfs
 .endif
 
 S.yes+=			libsa
 
 S.${MK_FORTH}+=		ficl
 S.${MK_FORTH}+=		forth
+S.${MK_LOADER_LUA}+=	liblua
+S.${MK_LOADER_LUA}+=	lua
 S.${MK_FDT}+=		fdt
 S.${MK_LOADER_OFW}+=	ofw
 S.${MK_ZFS}+=		zfs
