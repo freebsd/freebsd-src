@@ -75,7 +75,7 @@ display_size(uint64_t size, u_int sectorsize)
 		size /= 1024;
 		unit = 'M';
 	}
-	sprintf(buf, "%ld%cB", (long)size, unit);
+	sprintf(buf, "%4ld%cB", (long)size, unit);
 	return (buf);
 }
 
@@ -119,12 +119,9 @@ ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 	od = (struct open_disk *)pa->dev->dd.d_opendata;
 	sectsize = od->sectorsize;
 	partsize = part->end - part->start + 1;
-	sprintf(line, "  %s%s: %s", pa->prefix, pname,
-	    parttype2str(part->type));
-	if (pa->verbose)
-		sprintf(line, "%-*s%s", PWIDTH, line,
-		    display_size(partsize, sectsize));
-	strcat(line, "\n");
+	sprintf(line, "  %s%s: %s\t%s\n", pa->prefix, pname,
+	    parttype2str(part->type),
+	    pa->verbose ? display_size(partsize, sectsize) : "");
 	if (pager_output(line))
 		return 1;
 	res = 0;
