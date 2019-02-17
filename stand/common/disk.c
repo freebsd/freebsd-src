@@ -102,7 +102,6 @@ ptblread(void *d, void *buf, size_t blocks, uint64_t offset)
 	    blocks * od->sectorsize, (char *)buf, NULL));
 }
 
-#define	PWIDTH	35
 static int
 ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 {
@@ -154,7 +153,6 @@ ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 
 	return (res);
 }
-#undef PWIDTH
 
 int
 disk_print(struct disk_devdesc *dev, char *prefix, int verbose)
