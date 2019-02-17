@@ -195,6 +195,7 @@ __DEFAULT_NO_OPTIONS = \
     LINT \
     LOADER_FIREWIRE \
     LOADER_FORCE_LE \
+    LOADER_LUA \
     NAND \
     OFED_EXTRA \
     OPENLDAP \
@@ -300,6 +301,13 @@ BROKEN_OPTIONS+=LOADER_OFW
 # UBOOT is only for arm, mips and powerpc, exclude others
 .if ${__T:Marm*} == "" && ${__T:Mmips*} == "" && ${__T:Mpowerpc*} == ""
 BROKEN_OPTIONS+=LOADER_UBOOT
+.endif
+# GELI and Lua in loader currently cause boot failures on sparc64 and powerpc.
+# Further debugging is required -- probably they are just broken on big
+# endian systems generically (they jump to null pointers or try to read
+# crazy high addresses, which is typical of endianness problems).
+.if ${__T} == "sparc64" || ${__T:Mpowerpc*}
+BROKEN_OPTIONS+=LOADER_GELI LOADER_LUA
 .endif
 
 .if ${__T:Mmips64*}
