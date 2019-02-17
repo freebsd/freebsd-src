@@ -435,8 +435,8 @@ vdev_read(vdev_t *vdev, void *priv, off_t offset, void *buf, size_t bytes)
 			ret = EIO;
 			goto error;
 		}
-		memcpy(outbuf, bouncebuf + head, secsz - head);
-		outbuf += secsz - head;
+		memcpy(outbuf, bouncebuf + head, min(secsz - head, bytes));
+		outbuf += min(secsz - head, bytes);
 	}
 
 	/* Full data return from read sectors */
