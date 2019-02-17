@@ -1059,6 +1059,30 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * Olympus digital cameras (C-3040ZOOM, C-2040ZOOM, C-1)
+		 * PR: usb/97472
+		 */
+		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "C*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE | DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * Olympus digital cameras (D-370)
+		 * PR: usb/97472
+		 */
+		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "D*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
+		 * Olympus digital cameras (E-100RS, E-10).
+		 * PR: usb/97472
+		 */
+		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "E*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE | DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
 		 * Olympus FE-210 camera
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "FE210*",
