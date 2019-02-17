@@ -120,6 +120,10 @@ MALLOC_DEFINE(M_AXP8XX_REG, "AXP8xx regulator", "AXP8xx power regulator");
 #define	 AXP_VOLTCTL_MASK	0x7f
 #define	AXP_POWERBAT		0x32
 #define	 AXP_POWERBAT_SHUTDOWN	(1 << 7)
+#define	AXP_CHARGERCTL1		0x33
+#define	 AXP_CHARGERCTL1_MIN	0
+#define	 AXP_CHARGERCTL1_MAX	13
+#define	 AXP_CHARGERCTL1_CMASK	0xf
 #define	AXP_IRQEN1		0x40
 #define	 AXP_IRQEN1_ACIN_HI	(1 << 6)
 #define	 AXP_IRQEN1_ACIN_LO	(1 << 5)
@@ -614,13 +618,13 @@ static const struct axp8xx_sensors axp8xx_common_sensors[] = {
 		.id = AXP_SENSOR_BATT_CHARGE_CURRENT,
 		.name = "batchargecurrent",
 		.format = "I",
-		.desc = "Battery Charging Current",
+		.desc = "Average Battery Charging Current",
 	},
 	{
 		.id = AXP_SENSOR_BATT_DISCHARGE_CURRENT,
 		.name = "batdischargecurrent",
 		.format = "I",
-		.desc = "Battery Discharging Current",
+		.desc = "Average Battery Discharging Current",
 	},
 	{
 		.id = AXP_SENSOR_BATT_CAPACITY_PERCENT,
@@ -887,6 +891,33 @@ axp8xx_shutdown(void *devp, int howto)
 		device_printf(dev, "Shutdown Axp8xx\n");
 
 	axp8xx_write(dev, AXP_POWERBAT, AXP_POWERBAT_SHUTDOWN);
+}
+
+static int
+axp8xx_sysctl_chargecurrent(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = arg1;
+	uint8_t data;
+	int val, error;
+
+	error = axp8xx_read(dev, AXP_CHARGERCTL1, &data, 1);
+	if (error != 0)
+		return (error);
+
+	if (bootverbose)
+		device_printf(dev, "Raw CHARGECTL1 val: 0x%0x\n", data);
+	val = (data & AXP_CHARGERCTL1_CMASK);
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr) /* error || read request */
+		return (error);
+
+	if ((val < AXP_CHARGERCTL1_MIN) || (val > AXP_CHARGERCTL1_MAX))
+		return (EINVAL);
+
+	val |= (data & (AXP_CHARGERCTL1_CMASK << 4));
+	axp8xx_write(dev, AXP_CHARGERCTL1, val);
+
+	return (0);
 }
 
 static int
@@ -1482,6 +1513,16 @@ axp8xx_attach(device_t dev)
 		    sc->sensors[i].format,
 		    sc->sensors[i].desc);
 	}
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "batchargecurrentstep",
+	    CTLTYPE_INT | CTLFLAG_RW,
+	    dev, 0, axp8xx_sysctl_chargecurrent,
+	    "I", "Battery Charging Current Step, "
+	    "0: 200mA, 1: 400mA, 2: 600mA, 3: 800mA, "
+	    "4: 1000mA, 5: 1200mA, 6: 1400mA, 7: 1600mA, "
+	    "8: 1800mA, 9: 2000mA, 10: 2200mA, 11: 2400mA, "
+	    "12: 2600mA, 13: 2800mA");
 
 	/* Get thresholds */
 	if (axp8xx_read(dev, AXP_BAT_CAP_WARN, &val, 1) == 0) {
