@@ -68,7 +68,12 @@ counter_64_inc_8b(uint64_t *p, int64_t inc)
 }
 
 #ifdef IN_SUBR_COUNTER_C
-static inline uint64_t
+struct counter_u64_fetch_cx8_arg {
+	uint64_t res;
+	uint64_t *p;
+};
+
+static uint64_t
 counter_u64_read_one_8b(uint64_t *p)
 {
 	uint32_t res_lo, res_high;
@@ -83,9 +88,22 @@ counter_u64_read_one_8b(uint64_t *p)
 	return (res_lo + ((uint64_t)res_high << 32));
 }
 
+static void
+counter_u64_fetch_cx8_one(void *arg1)
+{
+	struct counter_u64_fetch_cx8_arg *arg;
+	uint64_t val;
+
+	arg = arg1;
+	val = counter_u64_read_one_8b((uint64_t *)((char *)arg->p +
+	    sizeof(struct pcpu) * PCPU_GET(cpuid)));
+	atomic_add_64(&arg->res, val);
+}
+
 static inline uint64_t
 counter_u64_fetch_inline(uint64_t *p)
 {
+	struct counter_u64_fetch_cx8_arg arg;
 	uint64_t res;
 	int i;
 
@@ -104,9 +122,10 @@ counter_u64_fetch_inline(uint64_t *p)
 		}
 		critical_exit();
 	} else {
-		CPU_FOREACH(i)
-			res += counter_u64_read_one_8b((uint64_t *)((char *)p +
-			    sizeof(struct pcpu) * i));
+		arg.p = p;
+		arg.res = 0;
+		smp_rendezvous(NULL, counter_u64_fetch_cx8_one, NULL, &arg);
+		res = arg.res;
 	}
 	return (res);
 }
