@@ -133,6 +133,13 @@ ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 		dev.d_partition = -1;
 		if (disk_open(&dev, part->end - part->start + 1,
 		    od->sectorsize) == 0) {
+			/*
+			 * disk_open() for partition -1 on a bsd slice assumes
+			 * you want the first bsd partition.  Reset things so
+			 * that we're looking at the start of the raw slice.
+			 */
+			dev.d_partition = -1;
+			dev.d_offset = part->start;
 			table = ptable_open(&dev, part->end - part->start + 1,
 			    od->sectorsize, ptblread);
 			if (table != NULL) {
