@@ -70,30 +70,26 @@ sgx_linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 	cmd = args->cmd;
 
 	args->cmd &= ~(LINUX_IOC_IN | LINUX_IOC_OUT);
-	if (cmd & LINUX_IOC_IN)
+	if ((cmd & LINUX_IOC_IN) != 0)
 		args->cmd |= IOC_IN;
-	if (cmd & LINUX_IOC_OUT)
+	if ((cmd & LINUX_IOC_OUT) != 0)
 		args->cmd |= IOC_OUT;
 
 	len = IOCPARM_LEN(cmd);
 	if (len > SGX_IOCTL_MAX_DATA_LEN) {
-		printf("%s: Can't copy data: cmd len is too big %d\n",
-		    __func__, len);
-		return (EINVAL);
+		error = EINVAL;
+		goto out;
 	}
 
-	if (cmd & LINUX_IOC_IN) {
+	if ((cmd & LINUX_IOC_IN) != 0) {
 		error = copyin((void *)args->arg, data, len);
-		if (error) {
-			printf("%s: Can't copy data, error %d\n",
-			    __func__, error);
-			return (EINVAL);
-		}
+		if (error != 0)
+			goto out;
 	}
 
-	error = (fo_ioctl(fp, args->cmd, (caddr_t)data, td->td_ucred, td));
+	error = fo_ioctl(fp, args->cmd, (caddr_t)data, td->td_ucred, td);
+out:
 	fdrop(fp, td);
-
 	return (error);
 }
 
