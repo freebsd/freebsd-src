@@ -122,13 +122,21 @@ void
 ieee80211_scan_vattach(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
+	int m;
 
 	vap->iv_bgscanidle = (IEEE80211_BGSCAN_IDLE_DEFAULT*1000)/hz;
 	vap->iv_bgscanintvl = IEEE80211_BGSCAN_INTVAL_DEFAULT*hz;
 	vap->iv_scanvalid = IEEE80211_SCAN_VALID_DEFAULT*hz;
 
 	vap->iv_roaming = IEEE80211_ROAMING_AUTO;
-	memcpy(vap->iv_roamparms, defroam, sizeof(defroam));
+
+	memset(vap->iv_roamparms, 0, sizeof(vap->iv_roamparms));
+	for (m = IEEE80211_MODE_AUTO + 1; m < IEEE80211_MODE_MAX; m++) {
+		if (isclr(ic->ic_modecaps, m))
+			continue;
+
+		memcpy(&vap->iv_roamparms[m], &defroam[m], sizeof(defroam[m]));
+	}
 
 	ic->ic_scan_methods->sc_vattach(vap);
 }

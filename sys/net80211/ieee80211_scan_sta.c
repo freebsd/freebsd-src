@@ -1324,6 +1324,9 @@ sta_roam_check(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 	mode = ieee80211_chan2mode(ic->ic_bsschan);
 	roamRate = vap->iv_roamparms[mode].rate;
 	roamRssi = vap->iv_roamparms[mode].rssi;
+	KASSERT(roamRate != 0 && roamRssi != 0, ("iv_roamparms are not"
+	    "initialized for %s mode!", ieee80211_phymode_name[mode]));
+
 	ucastRate = vap->iv_txparms[mode].ucastrate;
 	/* NB: the most up to date rssi is in the node, not the scan cache */
 	curRssi = ic->ic_node_getrssi(ni);
