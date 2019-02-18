@@ -353,10 +353,6 @@ pt_entry_t pg_nx;
 
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
-static int pat_works = 1;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pat_works, CTLFLAG_RD, &pat_works, 1,
-    "Is page attribute table fully functional?");
-
 static int pg_ps_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &pg_ps_enabled, 0, "Are large page mappings enabled?");
@@ -1222,7 +1218,6 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 void
 pmap_init_pat(void)
 {
-	int pat_table[PAT_INDEX_SIZE];
 	uint64_t pat_msr;
 	u_long cr0, cr4;
 	int i;
@@ -1233,44 +1228,31 @@ pmap_init_pat(void)
 
 	/* Set default PAT index table. */
 	for (i = 0; i < PAT_INDEX_SIZE; i++)
-		pat_table[i] = -1;
-	pat_table[PAT_WRITE_BACK] = 0;
-	pat_table[PAT_WRITE_THROUGH] = 1;
-	pat_table[PAT_UNCACHEABLE] = 3;
-	pat_table[PAT_WRITE_COMBINING] = 3;
-	pat_table[PAT_WRITE_PROTECTED] = 3;
-	pat_table[PAT_UNCACHED] = 3;
+		pat_index[i] = -1;
+	pat_index[PAT_WRITE_BACK] = 0;
+	pat_index[PAT_WRITE_THROUGH] = 1;
+	pat_index[PAT_UNCACHEABLE] = 3;
+	pat_index[PAT_WRITE_COMBINING] = 6;
+	pat_index[PAT_WRITE_PROTECTED] = 5;
+	pat_index[PAT_UNCACHED] = 2;
 
-	/* Initialize default PAT entries. */
+	/*
+	 * Initialize default PAT entries.
+	 * Leave the indices 0-3 at the default of WB, WT, UC-, and UC.
+	 * Program 5 and 6 as WP and WC.
+	 *
+	 * Leave 4 and 7 as WB and UC.  Note that a recursive page table
+	 * mapping for a 2M page uses a PAT value with the bit 3 set due
+	 * to its overload with PG_PS.
+	 */
 	pat_msr = PAT_VALUE(0, PAT_WRITE_BACK) |
 	    PAT_VALUE(1, PAT_WRITE_THROUGH) |
 	    PAT_VALUE(2, PAT_UNCACHED) |
 	    PAT_VALUE(3, PAT_UNCACHEABLE) |
 	    PAT_VALUE(4, PAT_WRITE_BACK) |
-	    PAT_VALUE(5, PAT_WRITE_THROUGH) |
-	    PAT_VALUE(6, PAT_UNCACHED) |
+	    PAT_VALUE(5, PAT_WRITE_PROTECTED) |
+	    PAT_VALUE(6, PAT_WRITE_COMBINING) |
 	    PAT_VALUE(7, PAT_UNCACHEABLE);
-
-	if (pat_works) {
-		/*
-		 * Leave the indices 0-3 at the default of WB, WT, UC-, and UC.
-		 * Program 5 and 6 as WP and WC.
-		 * Leave 4 and 7 as WB and UC.
-		 */
-		pat_msr &= ~(PAT_MASK(5) | PAT_MASK(6));
-		pat_msr |= PAT_VALUE(5, PAT_WRITE_PROTECTED) |
-		    PAT_VALUE(6, PAT_WRITE_COMBINING);
-		pat_table[PAT_UNCACHED] = 2;
-		pat_table[PAT_WRITE_PROTECTED] = 5;
-		pat_table[PAT_WRITE_COMBINING] = 6;
-	} else {
-		/*
-		 * Just replace PAT Index 2 with WC instead of UC-.
-		 */
-		pat_msr &= ~PAT_MASK(2);
-		pat_msr |= PAT_VALUE(2, PAT_WRITE_COMBINING);
-		pat_table[PAT_WRITE_COMBINING] = 2;
-	}
 
 	/* Disable PGE. */
 	cr4 = rcr4();
@@ -1286,8 +1268,6 @@ pmap_init_pat(void)
 
 	/* Update PAT and index table. */
 	wrmsr(MSR_PAT, pat_msr);
-	for (i = 0; i < PAT_INDEX_SIZE; i++)
-		pat_index[i] = pat_table[i];
 
 	/* Flush caches and TLBs again. */
 	wbinvd();
