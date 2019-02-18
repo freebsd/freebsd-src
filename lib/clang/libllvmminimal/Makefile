@@ -18,6 +18,7 @@ SRCS+=		Support/Errno.cpp
 SRCS+=		Support/Error.cpp
 SRCS+=		Support/ErrorHandling.cpp
 SRCS+=		Support/FoldingSet.cpp
+SRCS+=		Support/FormatVariadic.cpp
 SRCS+=		Support/FormattedStream.cpp
 SRCS+=		Support/Hashing.cpp
 SRCS+=		Support/Host.cpp
