@@ -182,6 +182,14 @@ device_typename(int type)
  * The returned values for slice and partition are interpreted by
  * disk_open().
  *
+ * The device string can be a standard loader(8) disk specifier:
+ *
+ * disk<unit>s<slice>              disk0s1
+ * disk<unit>s<slice><partition>   disk1s2a
+ * disk<unit>p<partition>          disk0p4
+ *
+ * or one of the following formats:
+ *
  * Valid device strings:                     For device types:
  *
  * <type_name>                               DEV_TYP_STOR, DEV_TYP_NET
@@ -198,6 +206,7 @@ device_typename(int type)
 static void
 get_load_device(int *type, int *unit, int *slice, int *partition)
 {
+	struct disk_devdesc dev;
 	char *devstr;
 	const char *p;
 	char *endp;
@@ -215,6 +224,19 @@ get_load_device(int *type, int *unit, int *slice, int *partition)
 	printf("U-Boot env: loaderdev='%s'\n", devstr);
 
 	p = get_device_type(devstr, type);
+
+	/*
+	 * If type is DEV_TYP_STOR we have a disk-like device.  If we can parse
+	 * the remainder of the string as a standard unit+slice+partition (e.g.,
+	 * 0s2a or 1p12), return those results.  Otherwise we'll fall through to
+	 * the code that parses the legacy format.
+	 */
+	if ((*type & DEV_TYP_STOR) && disk_parsedev(&dev, p, NULL) == 0) {
+		*unit = dev.dd.d_unit;
+		*slice = dev.d_slice;
+		*partition = dev.d_partition;
+		return;
+	}
 
 	/* Ignore optional spaces after the device name. */
 	while (*p == ' ')
