@@ -156,7 +156,7 @@ get_device_type(const char *devstr, int *devtype)
 		printf("Unknown device type '%s'\n", devstr);
 	}
 
-	*devtype = -1;
+	*devtype = DEV_TYP_NONE;
 	return (NULL);
 }
 
@@ -202,7 +202,7 @@ get_load_device(int *type, int *unit, int *slice, int *partition)
 	const char *p;
 	char *endp;
 
-	*type = -1;
+	*type = DEV_TYP_NONE;
 	*unit = -1;
 	*slice = 0;
 	*partition = -1;
@@ -467,14 +467,14 @@ main(int argc, char **argv)
 		currdev.dd.d_dev = devsw[i];
 		currdev.dd.d_unit = 0;
 
-		if ((load_type == -1 || (load_type & DEV_TYP_STOR)) &&
+		if ((load_type == DEV_TYP_NONE || (load_type & DEV_TYP_STOR)) &&
 		    strcmp(devsw[i]->dv_name, "disk") == 0) {
 			if (probe_disks(i, load_type, load_unit, load_slice, 
 			    load_partition) == 0)
 				break;
 		}
 
-		if ((load_type == -1 || (load_type & DEV_TYP_NET)) &&
+		if ((load_type == DEV_TYP_NONE || (load_type & DEV_TYP_NET)) &&
 		    strcmp(devsw[i]->dv_name, "net") == 0)
 			break;
 	}
