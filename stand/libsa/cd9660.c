@@ -241,6 +241,10 @@ dirmatch(struct open_file *f, const char *path, struct iso_directory_record *dp,
 		icase = 1;
 	} else
 		icase = 0;
+
+	if (strlen(path) != len)
+		return (0);
+
 	for (i = len; --i >= 0; path++, cp++) {
 		if (!*path || *path == '/')
 			break;
