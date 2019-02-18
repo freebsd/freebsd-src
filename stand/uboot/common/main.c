@@ -221,13 +221,13 @@ get_load_device(int *type, int *unit, int *slice, int *partition)
 		p++;
 
 	/* Unknown device name, or a known name without unit number.  */
-	if ((*type == -1) || (*p == '\0')) {
+	if ((*type == DEV_TYP_NONE) || (*p == '\0')) {
 		return;
 	}
 
 	/* Malformed unit number. */
 	if (!isdigit(*p)) {
-		*type = -1;
+		*type = DEV_TYP_NONE;
 		return;
 	}
 
@@ -242,7 +242,7 @@ get_load_device(int *type, int *unit, int *slice, int *partition)
 
 	/* Device string is malformed beyond unit number. */
 	if (*p != ':') {
-		*type = -1;
+		*type = DEV_TYP_NONE;
 		*unit = -1;
 		return;
 	}
@@ -255,7 +255,7 @@ get_load_device(int *type, int *unit, int *slice, int *partition)
 
 	/* Only DEV_TYP_STOR devices can have a slice specification. */
 	if (!(*type & DEV_TYP_STOR)) {
-		*type = -1;
+		*type = DEV_TYP_NONE;
 		*unit = -1;
 		return;
 	}
@@ -264,7 +264,7 @@ get_load_device(int *type, int *unit, int *slice, int *partition)
 
 	/* Malformed slice number. */
 	if (p == endp) {
-		*type = -1;
+		*type = DEV_TYP_NONE;
 		*unit = -1;
 		*slice = 0;
 		return;
@@ -278,7 +278,7 @@ get_load_device(int *type, int *unit, int *slice, int *partition)
 
 	/* Device string is malformed beyond slice number. */
 	if (*p != '.') {
-		*type = -1;
+		*type = DEV_TYP_NONE;
 		*unit = -1;
 		*slice = 0;
 		return;
@@ -298,7 +298,7 @@ get_load_device(int *type, int *unit, int *slice, int *partition)
 		return;
 
 	/* Junk beyond partition number. */
-	*type = -1;
+	*type = DEV_TYP_NONE;
 	*unit = -1;
 	*slice = 0;
 	*partition = -1;
