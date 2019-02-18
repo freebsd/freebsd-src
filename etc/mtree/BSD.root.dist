@@ -26,6 +26,8 @@
         ..
         modules
         ..
+        uboot
+        ..
         zfs
         ..
     ..
