@@ -174,7 +174,7 @@ dirmatch(const char *path, struct iso_directory_record *dp, int use_rrip,
     int lenskip)
 {
 	size_t len;
-	const char *cp = NULL, *name = NULL;
+	const char *cp = NULL;
 	int i, icase;
 
 	if (use_rrip)
@@ -187,7 +187,6 @@ dirmatch(const char *path, struct iso_directory_record *dp, int use_rrip,
 		icase = 1;
 	} else
 		icase = 0;
-	name = cp;
 	for (i = len; --i >= 0; path++, cp++) {
 		if (!*path || *path == '/')
 			break;
@@ -247,6 +246,7 @@ cd9660_lookup(const char *path)
 
 	first = 1;
 	use_rrip = 0;
+	lenskip = 0;
 	while (*path) {
 		bno = isonum_733(rec.extent) + isonum_711(rec.ext_attr_length);
 		dsize = isonum_733(rec.size);
