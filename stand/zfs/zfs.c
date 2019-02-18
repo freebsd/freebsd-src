@@ -59,6 +59,8 @@ static off_t	zfs_seek(struct open_file *f, off_t offset, int where);
 static int	zfs_stat(struct open_file *f, struct stat *sb);
 static int	zfs_readdir(struct open_file *f, struct dirent *d);
 
+static void	zfs_bootenv_initial(const char *);
+
 struct devsw zfs_dev;
 
 struct fs_ops zfs_fsops = {
@@ -758,27 +760,83 @@ zfs_list(const char *name)
 }
 
 void
-init_zfs_bootenv(char *currdev)
+init_zfs_bootenv(const char *currdev_in)
 {
-	char *beroot;
+	char *beroot, *currdev;
+	int currdev_len;
 
-	if (strlen(currdev) == 0)
+	currdev = NULL;
+	currdev_len = strlen(currdev_in);
+	if (currdev_len == 0)
 		return;
-	if(strncmp(currdev, "zfs:", 4) != 0)
+	if (strncmp(currdev_in, "zfs:", 4) != 0)
+		return;
+	currdev = strdup(currdev_in);
+	if (currdev == NULL)
 		return;
 	/* Remove the trailing : */
-	currdev[strlen(currdev) - 1] = '\0';
+	currdev[currdev_len - 1] = '\0';
 	setenv("zfs_be_active", currdev, 1);
 	setenv("zfs_be_currpage", "1", 1);
-	/* Forward past zfs: */
-	currdev = strchr(currdev, ':');
-	currdev++;
 	/* Remove the last element (current bootenv) */
 	beroot = strrchr(currdev, '/');
 	if (beroot != NULL)
 		beroot[0] = '\0';
-	beroot = currdev;
+	beroot = strchr(currdev, ':') + 1;
 	setenv("zfs_be_root", beroot, 1);
+	zfs_bootenv_initial(beroot);
+	free(currdev);
+}
+
+static void
+zfs_bootenv_initial(const char *name)
+{
+	char		poolname[ZFS_MAXNAMELEN], *dsname;
+	char envname[32], envval[256];
+	uint64_t	objid;
+	spa_t		*spa;
+	int		bootenvs_idx, len, rv;
+
+	SLIST_INIT(&zfs_be_head);
+	zfs_env_count = 0;
+	len = strlen(name);
+	dsname = strchr(name, '/');
+	if (dsname != NULL) {
+		len = dsname - name;
+		dsname++;
+	} else
+		dsname = "";
+	strlcpy(poolname, name, len + 1);
+	spa = spa_find_by_name(poolname);
+	if (spa == NULL)
+		return;
+	rv = zfs_lookup_dataset(spa, dsname, &objid);
+	if (rv != 0)
+		return;
+	rv = zfs_callback_dataset(spa, objid, zfs_belist_add);
+	bootenvs_idx = 0;
+	/* Populate the initial environment variables */
+	SLIST_FOREACH_SAFE(zfs_be, &zfs_be_head, entries, zfs_be_tmp) {
+		/* Enumerate all bootenvs for general usage */
+		snprintf(envname, sizeof(envname), "bootenvs[%d]", bootenvs_idx);
+		snprintf(envval, sizeof(envval), "zfs:%s/%s", name, zfs_be->name);
+		rv = setenv(envname, envval, 1);
+		if (rv != 0)
+			break;
+		bootenvs_idx++;
+	}
+	snprintf(envval, sizeof(envval), "%d", bootenvs_idx);
+	setenv("bootenvs_count", envval, 1);
+
+	/* Clean up the SLIST of ZFS BEs */
+	while (!SLIST_EMPTY(&zfs_be_head)) {
+		zfs_be = SLIST_FIRST(&zfs_be_head);
+		SLIST_REMOVE_HEAD(&zfs_be_head, entries);
+		free(zfs_be);
+	}
+
+	return;
+
 }
 
 int
