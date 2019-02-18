@@ -62,7 +62,7 @@ bectl_cleanup()
 	zpool=$1
 
 	if zpool get health ${zpool} >/dev/null 2>&1; then
-		zpool destroy ${zpool}
+		zpool destroy -f ${zpool}
 	fi
 }
 
