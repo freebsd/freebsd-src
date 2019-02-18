@@ -2006,7 +2006,7 @@ ktrcapfail(struct ktr_cap_fail *ktr)
 		printf("disallowed system call");
 		break;
 	case CAPFAIL_LOOKUP:
-		/* used ".." in strict-relative mode */
+		/* absolute or AT_FDCWD path, ".." path, etc. */
 		printf("restricted VFS lookup");
 		break;
 	default:
