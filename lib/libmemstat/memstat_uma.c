@@ -213,6 +213,15 @@ retry:
 			mtp->mt_numfrees += upsp->ups_frees;
 		}
 
+		/*
+		 * Values for uth_allocs and uth_frees frees are snap.
+		 * It may happen that kernel reports that number of frees
+		 * is greater than number of allocs. See counter(9) for
+		 * details.
+		 */
+		if (mtp->mt_numallocs < mtp->mt_numfrees)
+			mtp->mt_numallocs = mtp->mt_numfrees;
+
 		mtp->mt_size = uthp->uth_size;
 		mtp->mt_rsize = uthp->uth_rsize;
 		mtp->mt_memalloced = mtp->mt_numallocs * uthp->uth_size;
