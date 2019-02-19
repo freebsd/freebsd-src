@@ -124,6 +124,7 @@ struct file {
 	ufs2_daddr_t	f_buf_blkno;	/* block number of data block */
 	char		*f_buf;		/* buffer for data block */
 	size_t		f_buf_size;	/* size of data block */
+	int		f_inumber;	/* inumber */
 };
 #define DIP(fp, field) \
 	((fp)->f_fs->fs_magic == FS_UFS1_MAGIC ? \
@@ -185,6 +186,7 @@ read_inode(inumber, f)
 		fp->f_buf_blkno = -1;
 	}
 	fp->f_seekp = 0;
+	fp->f_inumber = inumber;
 out:
 	free(buf);
 	return (rc);	 
@@ -831,6 +833,20 @@ ufs_stat(f, sb)
 	sb->st_uid = DIP(fp, di_uid);
 	sb->st_gid = DIP(fp, di_gid);
 	sb->st_size = DIP(fp, di_size);
+	sb->st_mtime = DIP(fp, di_mtime);
+	/*
+	 * The items below are ufs specific!
+	 * Other fs types will need their own solution
+	 * if these fields are needed.
+	 */
+	sb->st_ino = fp->f_inumber;
+	/*
+	 * We need something to differentiate devs.
+	 * fs_id is unique but 64bit, we xor the two
+	 * halves to squeeze it into 32bits.
+	 */
+	sb->st_dev = (dev_t)(fp->f_fs->fs_id[0] ^ fp->f_fs->fs_id[1]);
+
 	return (0);
 }
 
