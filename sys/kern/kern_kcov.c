@@ -136,6 +136,7 @@ static d_mmap_single_t	kcov_mmap_single;
 static d_ioctl_t	kcov_ioctl;
 
 static int  kcov_alloc(struct kcov_info *info, size_t entries);
+static void kcov_free(struct kcov_info *info);
 static void kcov_init(const void *unused);
 
 static struct cdevsw kcov_cdevsw = {
@@ -288,14 +289,7 @@ kcov_mmap_cleanup(void *arg)
 	 * The KCOV_STATE_DYING stops new threads from using it.
 	 * The lack of a thread means nothing is currently using the buffers.
 	 */
-
-	if (info->kvaddr != 0) {
-		pmap_qremove(info->kvaddr, info->bufsize / PAGE_SIZE);
-		kva_free(info->kvaddr, info->bufsize);
-	}
-	if (info->bufobj != NULL && !info->mmap)
-		vm_object_deallocate(info->bufobj);
-	free(info, M_KCOV_INFO);
+	kcov_free(info);
 }
 
 static int
@@ -396,6 +390,19 @@ kcov_alloc(struct kcov_info *info, size_t entries)
 	info->entries = entries;
 
 	return (0);
+}
+
+static void
+kcov_free(struct kcov_info *info)
+{
+
+	if (info->kvaddr != 0) {
+		pmap_qremove(info->kvaddr, info->bufsize / PAGE_SIZE);
+		kva_free(info->kvaddr, info->bufsize);
+	}
+	if (info->bufobj != NULL && !info->mmap)
+		vm_object_deallocate(info->bufobj);
+	free(info, M_KCOV_INFO);
 }
 
 static int
@@ -531,14 +538,7 @@ kcov_thread_dtor(void *arg __unused, struct thread *td)
 	 * The KCOV_STATE_DYING stops new threads from using it.
 	 * It also stops the current thread from trying to use the info struct.
 	 */
-
-	if (info->kvaddr != 0) {
-		pmap_qremove(info->kvaddr, info->bufsize / PAGE_SIZE);
-		kva_free(info->kvaddr, info->bufsize);
-	}
-	if (info->bufobj != NULL && !info->mmap)
-		vm_object_deallocate(info->bufobj);
-	free(info, M_KCOV_INFO);
+	kcov_free(info);
 }
 
 static void
