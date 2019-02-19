@@ -156,6 +156,8 @@ setup_client(int domain, int type, int port)
 	    "Will try to connect to host='%s', address_family=%d, "
 	    "socket_type=%d\n",
 	    host, res->ai_family, res->ai_socktype);
+	/* Avoid a double print when forked by flushing. */
+	fflush(stdout);
 	sock = make_socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	error = connect(sock, (struct sockaddr*)res->ai_addr, res->ai_addrlen);
 	freeaddrinfo(res);
@@ -187,6 +189,8 @@ setup_server(int domain, int type, int port)
 	    "Will try to bind socket to host='%s', address_family=%d, "
 	    "socket_type=%d\n",
 	    host, res->ai_family, res->ai_socktype);
+	/* Avoid a double print when forked by flushing. */
+	fflush(stdout);
 	error = bind(sock, res->ai_addr, res->ai_addrlen);
 	freeaddrinfo(res);
 	ATF_REQUIRE_EQ_MSG(error, 0, "bind failed: %s", strerror(errno));
@@ -204,11 +208,17 @@ setup_server(int domain, int type, int port)
 static void
 server_cat(const char *dest_filename, int server_sock, size_t len)
 {
-	char *buffer;
+	char *buffer, *buf_window_ptr;
 	int recv_sock;
-	ssize_t received_bytes;
+	size_t buffer_size;
+	ssize_t received_bytes, recv_ret;
 
-	buffer = calloc(len + 1, sizeof(char));
+	/*
+	 * Ensure that there isn't excess data sent across the wire by
+	 * capturing 10 extra bytes (plus 1 for nul).
+	 */
+	buffer_size = len + 10 + 1;
+	buffer = calloc(buffer_size, sizeof(char));
 	if (buffer == NULL)
 		err(1, "malloc failed");
 
@@ -216,32 +226,26 @@ server_cat(const char *dest_filename, int server_sock, size_t len)
 	if (recv_sock == -1)
 		err(1, "accept failed");
 
-	/*
-	 * XXX: this assumes the simplest case where all data is received in a
-	 * single recv(2) call.
-	 */
-	if (recv(recv_sock, buffer, len, 0) == -1)
-		err(1, "recv failed");
+	buf_window_ptr = buffer;
+	received_bytes = 0;
+	do {
+		recv_ret = recv(recv_sock, buf_window_ptr,
+		    buffer_size - received_bytes, 0);
+		if (recv_ret <= 0)
+			break;
+		buf_window_ptr += recv_ret;
+		received_bytes += recv_ret;
+	} while (received_bytes < buffer_size);
 
 	atf_utils_create_file(dest_filename, "%s", buffer);
-
-	/*
-	 * This recv(2) call helps ensure the amount of sent data is exactly
-	 * what was specified by `len`.
-	 */
-	received_bytes = recv(recv_sock, buffer, len, 0);
-	switch (received_bytes) {
-	case -1:
-		err(1, "recv failed");
-	case 0:
-		break;
-	default:
-		errx(1, "received unexpected data: %s", buffer);
-	}
 
 	(void)close(recv_sock);
 	(void)close(server_sock);
 	free(buffer);
+
+	if (received_bytes != len)
+		errx(1, "received unexpected data: %zd != %zd", received_bytes,
+		    len);
 }
 
 static int
@@ -666,10 +670,6 @@ hdtr_positive_test(int domain)
 	trailers[0].iov_len = strlen(trailers[0].iov_base);
 	offset = 0;
 	nbytes = 0;
-
-	atf_tc_expect_fail(
-	    "The header/trailer testcases fail today with a data mismatch; "
-	    "bug # 234809");
 
 	for (i = 0; i < nitems(testcases); i++) {
 		struct sf_hdtr hdtr;
