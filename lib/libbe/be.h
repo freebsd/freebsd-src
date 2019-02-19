@@ -59,6 +59,7 @@ typedef enum be_error {
 	BE_ERR_NOPOOL,		/* operation not supported on this pool */
 	BE_ERR_NOMEM,		/* insufficient memory */
 	BE_ERR_UNKNOWN,         /* unknown error */
+	BE_ERR_INVORIGIN,       /* invalid origin */
 } be_error_t;
 
 

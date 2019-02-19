@@ -312,7 +312,7 @@ handle_chunk(int32_t ds_index, const char *chunk_name, off_t chunk_size)
 
 	assert(chunk_name != NULL);
 	assert(chunk_name[0] != '\0');
-	if (chunk_name == NULL || chunk_name == '\0')
+	if (chunk_name == NULL || chunk_name[0] == '\0')
 		return;
 
 	HRDBG("ANALYZE chunk %s", chunk_name);

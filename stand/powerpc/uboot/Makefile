@@ -11,6 +11,7 @@ LOADER_BZIP2_SUPPORT?=	no
 
 .include <bsd.init.mk>
 
+BINDIR= 	/boot/uboot
 PROG=		ubldr
 NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
 INSTALLFLAGS=	-b

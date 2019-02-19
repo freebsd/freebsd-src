@@ -132,11 +132,14 @@ struct netmap_adapter *netmap_getna(if_t ifp);
 #define MBUF_QUEUED(m)		1
 
 struct nm_selinfo {
+	/* Support for select(2) and poll(2). */
 	struct selinfo si;
+	/* Support for kqueue(9). See comments in netmap_freebsd.c */
 	struct taskqueue *ntfytq;
 	struct task ntfytask;
 	struct mtx m;
 	char mtxname[32];
+	int kqueue_users;
 };
 
 

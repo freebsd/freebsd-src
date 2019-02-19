@@ -379,9 +379,7 @@ void
 pipe_dtor(struct pipe *dpipe)
 {
 	struct pipe *peer;
-	ino_t ino;
 
-	ino = dpipe->pipe_ino;
 	peer = (dpipe->pipe_state & PIPE_NAMED) != 0 ? dpipe->pipe_peer : NULL;
 	funsetown(&dpipe->pipe_sigio);
 	pipeclose(dpipe);

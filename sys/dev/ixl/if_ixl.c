@@ -932,7 +932,7 @@ ixl_if_msix_intr_assign(if_ctx_t ctx, int msix)
 		return (err);
 	}
 	/* Create soft IRQ for handling VFLRs */
-	iflib_softirq_alloc_generic(ctx, &pf->iov_irq, IFLIB_INTR_IOV, pf, 0, "iov");
+	iflib_softirq_alloc_generic(ctx, NULL, IFLIB_INTR_IOV, pf, 0, "iov");
 
 	/* Now set up the stations */
 	for (i = 0, vector = 1; i < vsi->shared->isc_nrxqsets; i++, vector++, rx_que++) {
