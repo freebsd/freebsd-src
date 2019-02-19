@@ -141,7 +141,6 @@ open(const char *fname, int mode)
     }
     error = besterror;
 
- fail:
     if ((f->f_flags & F_NODEV) == 0 && f->f_dev != NULL)
 	f->f_dev->dv_close(f);
     if (error)

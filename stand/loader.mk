@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include "defs.mk"
-
 .PATH: ${LDRSRC} ${BOOTSRC}/libsa
 
 CFLAGS+=-I${LDRSRC}

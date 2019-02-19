@@ -2,8 +2,6 @@
 
 # Common flags to build FICL related files
 
-.include "defs.mk"
-
 .if ${MACHINE_CPUARCH} == "amd64" && ${DO32:U0} == 1
 FICL_CPUARCH=	i386
 .elif ${MACHINE_ARCH:Mmips64*} != ""
