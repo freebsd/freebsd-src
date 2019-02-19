@@ -1351,6 +1351,8 @@ garp_rexmit(void *arg)
 		return;
 	}
 
+	CURVNET_SET(ia->ia_ifa.ifa_ifp->if_vnet);
+
 	/*
 	 * Drop lock while the ARP request is generated.
 	 */
@@ -1378,6 +1380,8 @@ garp_rexmit(void *arg)
 			ifa_free(&ia->ia_ifa);
 		}
 	}
+
+	CURVNET_RESTORE();
 }
 
 /*
