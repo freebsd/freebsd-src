@@ -75,8 +75,6 @@ __FBSDID("$FreeBSD$");
 #include "libofw.h"
 #include "dev_net.h"
 
-extern char bootprog_info[];
-
 enum {
 	HEAPVA		= 0x800000,
 	HEAPSZ		= 0x3000000,

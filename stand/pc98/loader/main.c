@@ -65,9 +65,6 @@ static int		isa_inb(int port);
 static void		isa_outb(int port, int value);
 void			exit(int code);
 
-/* from vers.c */
-extern	char bootprog_info[];
-
 /* XXX debugging */
 extern char end[];
 

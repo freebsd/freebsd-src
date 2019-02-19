@@ -66,7 +66,6 @@ struct device_type {
 };
 
 extern char end[];
-extern char bootprog_info[];
 
 extern unsigned char _etext[];
 extern unsigned char _edata[];
