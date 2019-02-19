@@ -109,7 +109,6 @@ SUBDIR=	\
 	dcons_crom \
 	de \
 	${_dpms} \
-	${_drm2} \
 	dummynet \
 	${_ed} \
 	${_efirt} \
@@ -581,9 +580,6 @@ _cpuctl=	cpuctl
 _cpufreq=	cpufreq
 _cs=		cs
 _dpms=		dpms
-.if ${MK_MODULE_DRM2} != "no"
-_drm2=		drm2
-.endif
 _ed=		ed
 _em=		em
 _ena=		ena
@@ -781,9 +777,6 @@ _wi=		wi
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc64"
-.if ${MK_MODULE_DRM2} != "no"
-_drm2=		drm2
-.endif
 _ipmi=		ipmi
 .endif
 .if ${MACHINE_ARCH} == "powerpc64" || ${MACHINE_ARCH} == "powerpc"
