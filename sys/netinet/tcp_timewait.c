@@ -302,7 +302,7 @@ tcp_twstart(struct tcpcb *tp)
 	if (SEQ_GT(tp->rcv_adv, tp->rcv_nxt) &&
 	    recwin < (tp->rcv_adv - tp->rcv_nxt))
 		recwin = (tp->rcv_adv - tp->rcv_nxt);
-	tw->last_win = htons((u_short)(recwin >> tp->rcv_scale));
+	tw->last_win = (u_short)(recwin >> tp->rcv_scale);
 
 	/*
 	 * Set t_recent if timestamps are used on the connection.

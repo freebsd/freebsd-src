@@ -86,6 +86,7 @@
 #define	SHA1_KPDK_HASH_LEN	20
 #define	AES_GMAC_HASH_LEN	16
 #define	POLY1305_HASH_LEN	16
+#define	AES_CBC_MAC_HASH_LEN	16
 /* Maximum hash algorithm result length */
 #define	HASH_MAX_LEN		SHA2_512_HASH_LEN /* Keep this updated */
 
@@ -107,6 +108,9 @@
 #define	AES_128_GMAC_KEY_LEN		16
 #define	AES_192_GMAC_KEY_LEN		24
 #define	AES_256_GMAC_KEY_LEN		32
+#define	AES_128_CBC_MAC_KEY_LEN		16
+#define	AES_192_CBC_MAC_KEY_LEN		24
+#define	AES_256_CBC_MAC_KEY_LEN		32
 
 #define	POLY1305_KEY_LEN		32
 
@@ -129,6 +133,7 @@
 
 #define	ARC4_IV_LEN		1
 #define	AES_GCM_IV_LEN		12
+#define	AES_CCM_IV_LEN		12
 #define	AES_XTS_IV_LEN		8
 #define	AES_XTS_ALPHA		0x87	/* GF(2^128) generator polynomial */
 
@@ -199,7 +204,9 @@
 #define	CRYPTO_SHA2_384		36
 #define	CRYPTO_SHA2_512		37
 #define	CRYPTO_POLY1305		38
-#define	CRYPTO_ALGORITHM_MAX	38 /* Keep updated - see below */
+#define	CRYPTO_AES_CCM_CBC_MAC	39	/* auth side */
+#define	CRYPTO_AES_CCM_16	40	/* cipher side */
+#define	CRYPTO_ALGORITHM_MAX	40	/* Keep updated - see below */
 
 #define	CRYPTO_ALGO_VALID(x)	((x) >= CRYPTO_ALGORITHM_MIN && \
 				 (x) <= CRYPTO_ALGORITHM_MAX)

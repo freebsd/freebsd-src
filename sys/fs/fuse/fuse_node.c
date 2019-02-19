@@ -94,16 +94,19 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_FUSEVN, "fuse_vnode", "fuse vnode private data");
 
+static int sysctl_fuse_cache_mode(SYSCTL_HANDLER_ARGS);
+
 static int fuse_node_count = 0;
 
 SYSCTL_INT(_vfs_fuse, OID_AUTO, node_count, CTLFLAG_RD,
     &fuse_node_count, 0, "Count of FUSE vnodes");
 
-int	fuse_data_cache_enable = 1;
+int	fuse_data_cache_mode = FUSE_CACHE_WT;
 
-SYSCTL_INT(_vfs_fuse, OID_AUTO, data_cache_enable, CTLFLAG_RW,
-    &fuse_data_cache_enable, 0,
-    "enable caching of FUSE file data (including dirty data)");
+SYSCTL_PROC(_vfs_fuse, OID_AUTO, data_cache_mode, CTLTYPE_INT|CTLFLAG_RW,
+    &fuse_data_cache_mode, 0, sysctl_fuse_cache_mode, "I",
+    "Zero: disable caching of FUSE file data; One: write-through caching "
+    "(default); Two: write-back caching (generally unsafe)");
 
 int	fuse_data_cache_invalidate = 0;
 
@@ -116,7 +119,7 @@ int	fuse_mmap_enable = 1;
 
 SYSCTL_INT(_vfs_fuse, OID_AUTO, mmap_enable, CTLFLAG_RW,
     &fuse_mmap_enable, 0,
-    "If non-zero, and data_cache_enable is also non-zero, enable mmap(2) of "
+    "If non-zero, and data_cache_mode is also non-zero, enable mmap(2) of "
     "FUSE files");
 
 int	fuse_refresh_size = 0;
@@ -140,6 +143,28 @@ SYSCTL_INT(_vfs_fuse, OID_AUTO, fix_broken_io, CTLFLAG_RW,
     "If non-zero, print a diagnostic warning if a userspace filesystem returns"
     " EIO on reads of recently extended portions of files");
 
+static int
+sysctl_fuse_cache_mode(SYSCTL_HANDLER_ARGS)
+{
+	int val, error;
+
+	val = *(int *)arg1;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	switch (val) {
+	case FUSE_CACHE_UC:
+	case FUSE_CACHE_WT:
+	case FUSE_CACHE_WB:
+		*(int *)arg1 = val;
+		break;
+	default:
+		return (EDOM);
+	}
+	return (0);
+}
+
 static void
 fuse_vnode_init(struct vnode *vp, struct fuse_vnode_data *fvdat,
     uint64_t nodeid, enum vtype vtyp)
@@ -147,6 +172,7 @@ fuse_vnode_init(struct vnode *vp, struct fuse_vnode_data *fvdat,
 	int i;
 
 	fvdat->nid = nodeid;
+	vattr_null(&fvdat->cached_attrs);
 	if (nodeid == FUSE_ROOT_ID) {
 		vp->v_vflag |= VV_ROOT;
 	}
@@ -240,6 +266,7 @@ fuse_vnode_alloc(struct mount *mp,
 
 int
 fuse_vnode_get(struct mount *mp,
+    struct fuse_entry_out *feo,
     uint64_t nodeid,
     struct vnode *dvp,
     struct vnode **vpp,
@@ -260,7 +287,9 @@ fuse_vnode_get(struct mount *mp,
 		MPASS(!(cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.'));
 		fuse_vnode_setparent(*vpp, dvp);
 	}
-	if (dvp != NULL && cnp != NULL && (cnp->cn_flags & MAKEENTRY) != 0) {
+	if (dvp != NULL && cnp != NULL && (cnp->cn_flags & MAKEENTRY) != 0 &&
+	    feo != NULL &&
+	    (feo->entry_valid != 0 || feo->entry_valid_nsec != 0)) {
 		ASSERT_VOP_LOCKED(*vpp, "fuse_vnode_get");
 		ASSERT_VOP_LOCKED(dvp, "fuse_vnode_get");
 		cache_enter(dvp, *vpp, cnp);
@@ -371,6 +400,7 @@ fuse_vnode_refreshsize(struct vnode *vp, struct ucred *cred)
 	struct vattr va;
 
 	if ((fvdat->flag & FN_SIZECHANGE) != 0 ||
+	    fuse_data_cache_mode == FUSE_CACHE_UC ||
 	    (fuse_refresh_size == 0 && fvdat->filesize != 0))
 		return;
 

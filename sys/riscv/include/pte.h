@@ -62,7 +62,8 @@ typedef	uint64_t	pn_t;			/* page number */
 #define	L3_SIZE 	(1 << L3_SHIFT)
 #define	L3_OFFSET 	(L3_SIZE - 1)
 
-#define	Ln_ENTRIES	(1 << 9)
+#define	Ln_ENTRIES_SHIFT 9
+#define	Ln_ENTRIES	(1 << Ln_ENTRIES_SHIFT)
 #define	Ln_ADDR_MASK	(Ln_ENTRIES - 1)
 
 /* Bits 9:8 are reserved for software */
@@ -79,6 +80,8 @@ typedef	uint64_t	pn_t;			/* page number */
 #define	PTE_RWX		(PTE_R | PTE_W | PTE_X)
 #define	PTE_RX		(PTE_R | PTE_X)
 #define	PTE_KERN	(PTE_V | PTE_R | PTE_W | PTE_A | PTE_D)
+#define	PTE_PROMOTE	(PTE_V | PTE_RWX | PTE_D | PTE_A | PTE_G | PTE_U | \
+			 PTE_SW_MANAGED | PTE_SW_WIRED)
 
 #define	PTE_PPN0_S	10
 #define	PTE_PPN1_S	19
