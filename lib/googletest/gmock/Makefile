@@ -15,6 +15,8 @@ CXXFLAGS+=	-I${GOOGLETEST_SRCROOT}/include
 LIBADD+=	gtest
 LDFLAGS+=	-L${.OBJDIR:H}/gtest
 
+INCSGROUPS=	MAIN_INCS INTERNAL_INCS INTERNAL_CUSTOM_INCS
+
 MAIN_INCSDIR=	${INCLUDEDIR}/gmock
 MAIN_INCS+=	gmock/gmock-matchers.h
 MAIN_INCS+=	gmock/gmock-more-actions.h
