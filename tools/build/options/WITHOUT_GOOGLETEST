@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set to not build nor install
+.Lb libgmock ,
+.Lb libgtest ,
+and dependent tests.

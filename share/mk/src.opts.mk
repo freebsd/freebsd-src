@@ -108,6 +108,7 @@ __DEFAULT_YES_OPTIONS = \
     GDB \
     GNU_DIFF \
     GNU_GREP \
+    GOOGLETEST \
     GPIO \
     HAST \
     HTML \
@@ -423,6 +424,7 @@ MK_${var}:=	no
 # Order is somewhat important.
 #
 .if !${COMPILER_FEATURES:Mc++11}
+MK_GOOGLETEST:=	no
 MK_LLVM_LIBUNWIND:=	no
 .endif
 
@@ -505,6 +507,7 @@ MK_FREEBSD_UPDATE:=	no
 
 .if ${MK_TESTS} == "no"
 MK_DTRACE_TESTS:= no
+MK_GOOGLETEST:=	no
 .endif
 
 .if ${MK_ZONEINFO} == "no"
