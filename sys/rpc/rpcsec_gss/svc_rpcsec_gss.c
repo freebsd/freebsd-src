@@ -168,9 +168,22 @@ struct svc_rpc_gss_cookedcred {
 
 #define CLIENT_HASH_SIZE	256
 #define CLIENT_MAX		128
+u_int svc_rpc_gss_client_max = CLIENT_MAX;
+
+SYSCTL_NODE(_kern, OID_AUTO, rpc, CTLFLAG_RW, 0, "RPC");
+SYSCTL_NODE(_kern_rpc, OID_AUTO, gss, CTLFLAG_RW, 0, "GSS");
+
+SYSCTL_UINT(_kern_rpc_gss, OID_AUTO, client_max, CTLFLAG_RW,
+    &svc_rpc_gss_client_max, 0,
+    "Max number of rpc-gss clients");
+
+static u_int svc_rpc_gss_client_count;
+SYSCTL_UINT(_kern_rpc_gss, OID_AUTO, client_count, CTLFLAG_RD,
+    &svc_rpc_gss_client_count, 0,
+    "Number of rpc-gss clients");
+
 struct svc_rpc_gss_client_list svc_rpc_gss_client_hash[CLIENT_HASH_SIZE];
 struct svc_rpc_gss_client_list svc_rpc_gss_clients;
-static size_t svc_rpc_gss_client_count;
 static uint32_t svc_rpc_gss_next_clientid = 1;
 
 static void
@@ -666,7 +679,7 @@ svc_rpc_gss_timeout_clients(void)
 	 */
 	sx_xlock(&svc_rpc_gss_lock);
 	client = TAILQ_LAST(&svc_rpc_gss_clients, svc_rpc_gss_client_list);
-	while (svc_rpc_gss_client_count > CLIENT_MAX && client != NULL) {
+	while (svc_rpc_gss_client_count > svc_rpc_gss_client_max && client != NULL) {
 		svc_rpc_gss_forget_client_locked(client);
 		sx_xunlock(&svc_rpc_gss_lock);
 		svc_rpc_gss_release_client(client);
