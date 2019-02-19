@@ -52,7 +52,6 @@ static int userboot_zfs_found;
 struct loader_callbacks *callbacks;
 void *callbacks_arg;
 
-extern char bootprog_info[];
 static jmp_buf jb;
 
 struct arch_switch archsw;	/* MI/MD interface boundary */
