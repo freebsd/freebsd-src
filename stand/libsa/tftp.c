@@ -186,7 +186,6 @@ recvtftp(struct iodesc *d, void **pkt, void **payload, time_t tleft,
 	struct tftprecv_extra *extra;
 	struct tftp_handle *h;
 	struct tftphdr *t;
-	unsigned short *rtype;
 	void *ptr = NULL;
 	ssize_t len;
 
