@@ -239,6 +239,10 @@ typedef enum {
 
 static void	vmxnet3_barrier(struct vmxnet3_softc *, vmxnet3_barrier_t);
 
+#ifdef DEV_NETMAP
+#include "vmx_netmap.h"
+#endif
+
 /* Tunables. */
 static int vmxnet3_mq_disable = 0;
 TUNABLE_INT("hw.vmx.mq_disable", &vmxnet3_mq_disable);
@@ -270,6 +274,9 @@ DRIVER_MODULE(vmx, pci, vmxnet3_driver, vmxnet3_devclass, 0, 0);
 
 MODULE_DEPEND(vmx, pci, 1, 1, 1);
 MODULE_DEPEND(vmx, ether, 1, 1, 1);
+#ifdef DEV_NETMAP
+MODULE_DEPEND(vmx, netmap, 1, 1, 1);
+#endif
 
 #define VMXNET3_VMWARE_VENDOR_ID	0x15AD
 #define VMXNET3_VMWARE_DEVICE_ID	0x07B0
@@ -347,6 +354,10 @@ vmxnet3_attach(device_t dev)
 	vmxnet3_start_taskqueue(sc);
 #endif
 
+#ifdef DEV_NETMAP
+	vmxnet3_netmap_attach(sc);
+#endif
+
 fail:
 	if (error)
 		vmxnet3_detach(dev);
@@ -389,6 +400,10 @@ vmxnet3_detach(device_t dev)
 	vmxnet3_free_taskqueue(sc);
 #endif
 	vmxnet3_free_interrupts(sc);
+
+#ifdef DEV_NETMAP
+	netmap_detach(ifp);
+#endif
 
 	if (ifp != NULL) {
 		if_free(ifp);
@@ -1846,6 +1861,11 @@ vmxnet3_txq_eof(struct vmxnet3_txqueue *txq)
 	txr = &txq->vxtxq_cmd_ring;
 	txc = &txq->vxtxq_comp_ring;
 
+#ifdef DEV_NETMAP
+	if (netmap_tx_irq(sc->vmx_ifp, txq - sc->vmx_txq) != NM_IRQ_PASS)
+		return;
+#endif
+
 	VMXNET3_TXQ_LOCK_ASSERT(txq);
 
 	for (;;) {
@@ -2110,6 +2130,15 @@ vmxnet3_rxq_eof(struct vmxnet3_rxqueue *rxq)
 	sc = rxq->vxrxq_sc;
 	ifp = sc->vmx_ifp;
 	rxc = &rxq->vxrxq_comp_ring;
+
+#ifdef DEV_NETMAP
+	{
+		int dummy;
+		if (netmap_rx_irq(ifp, rxq - sc->vmx_rxq, &dummy) !=
+		    NM_IRQ_PASS)
+			return;
+	}
+#endif
 
 	VMXNET3_RXQ_LOCK_ASSERT(rxq);
 
@@ -2401,6 +2430,10 @@ vmxnet3_stop_rendezvous(struct vmxnet3_softc *sc)
 	struct vmxnet3_txqueue *txq;
 	int i;
 
+#ifdef DEV_NETMAP
+	netmap_disable_all_rings(sc->vmx_ifp);
+#endif
+
 	for (i = 0; i < sc->vmx_nrxqueues; i++) {
 		rxq = &sc->vmx_rxq[i];
 		VMXNET3_RXQ_LOCK(rxq);
@@ -2454,6 +2487,10 @@ vmxnet3_txinit(struct vmxnet3_softc *sc, struct vmxnet3_txqueue *txq)
 	bzero(txr->vxtxr_txd,
 	    txr->vxtxr_ndesc * sizeof(struct vmxnet3_txdesc));
 
+#ifdef DEV_NETMAP
+	vmxnet3_netmap_txq_init(sc, txq);
+#endif
+
 	txc = &txq->vxtxq_comp_ring;
 	txc->vxcr_next = 0;
 	txc->vxcr_gen = VMXNET3_INIT_GEN;
@@ -2468,6 +2505,10 @@ vmxnet3_rxinit(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 	struct vmxnet3_rxring *rxr;
 	struct vmxnet3_comp_ring *rxc;
 	int i, populate, idx, frame_size, error;
+#ifdef DEV_NETMAP
+	struct netmap_adapter *na;
+	struct netmap_slot *slot;
+#endif
 
 	ifp = sc->vmx_ifp;
 	frame_size = ETHER_ALIGN + sizeof(struct ether_vlan_header) +
@@ -2498,12 +2539,24 @@ vmxnet3_rxinit(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 	else
 		populate = VMXNET3_RXRINGS_PERQ;
 
+#ifdef DEV_NETMAP
+	na = NA(ifp);
+	slot = netmap_reset(na, NR_RX, rxq - sc->vmx_rxq, 0);
+#endif
+
 	for (i = 0; i < populate; i++) {
 		rxr = &rxq->vxrxq_cmd_ring[i];
 		rxr->vxrxr_fill = 0;
 		rxr->vxrxr_gen = VMXNET3_INIT_GEN;
 		bzero(rxr->vxrxr_rxd,
 		    rxr->vxrxr_ndesc * sizeof(struct vmxnet3_rxdesc));
+#ifdef DEV_NETMAP
+		if (slot != NULL) {
+			vmxnet3_netmap_rxq_init(sc, rxq, rxr, slot);
+			i = populate;
+			break;
+		}
+#endif
 
 		for (idx = 0; idx < rxr->vxrxr_ndesc; idx++) {
 			error = vmxnet3_newbuf(sc, rxr);
@@ -2625,6 +2678,10 @@ vmxnet3_init_locked(struct vmxnet3_softc *sc)
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	vmxnet3_link_status(sc);
+
+#ifdef DEV_NETMAP
+	netmap_enable_all_rings(ifp);
+#endif
 
 	vmxnet3_enable_all_intrs(sc);
 	callout_reset(&sc->vmx_tick, hz, vmxnet3_tick, sc);
