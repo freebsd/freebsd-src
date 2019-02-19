@@ -64,7 +64,9 @@ static int
 help_getnext(int fd, char **topic, char **subtopic, char **desc) 
 {
     char	line[81], *cp, *ep;
-    
+
+    /* Make sure we provide sane values. */
+    *topic = *subtopic = *desc = NULL;
     for (;;) {
 	if (fgetstr(line, 80, fd) < 0)
 	    return(0);
