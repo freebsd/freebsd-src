@@ -794,7 +794,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	/*
 	 * We must have a pathname, and it must be absolute.
 	 */
-	if (vd->vdev_path == NULL || vd->vdev_path[0] != '/') {
+	if (vd->vdev_path == NULL || strncmp(vd->vdev_path, "/dev/", 5) != 0) {
 		vd->vdev_stat.vs_aux = VDEV_AUX_BAD_LABEL;
 		return (EINVAL);
 	}
