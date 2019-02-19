@@ -349,9 +349,11 @@ getnextinode(ino_t inumber, int rebuildcg)
 			lastinum += fullcnt;
 		}
 		/*
+		 * Flush old contents in case they have been updated.
 		 * If getblk encounters an error, it will already have zeroed
 		 * out the buffer, so we do not need to do so here.
 		 */
+		flush(fswritefd, &inobuf);
 		getblk(&inobuf, blk, size);
 		nextinop = inobuf.b_un.b_buf;
 	}
@@ -461,6 +463,10 @@ void
 freeinodebuf(void)
 {
 
+	/*
+	 * Flush old contents in case they have been updated.
+	 */
+	flush(fswritefd, &inobuf);
 	if (inobuf.b_un.b_buf != NULL)
 		free((char *)inobuf.b_un.b_buf);
 	inobuf.b_un.b_buf = NULL;
