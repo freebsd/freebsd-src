@@ -170,7 +170,7 @@ struct svc_rpc_gss_cookedcred {
 };
 
 #define CLIENT_HASH_SIZE	256
-#define CLIENT_MAX		128
+#define CLIENT_MAX		1024
 u_int svc_rpc_gss_client_max = CLIENT_MAX;
 u_int svc_rpc_gss_client_hash_size = CLIENT_HASH_SIZE;
 
