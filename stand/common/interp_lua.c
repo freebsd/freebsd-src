@@ -123,7 +123,7 @@ interp_init(void)
 	if (interp_include(filename) != 0) {
                 const char *errstr = lua_tostring(luap, -1);
                 errstr = errstr == NULL ? "unknown" : errstr;
-                printf("Startup errorr in %s:\nLUA ERROR: %s.\n", filename, errstr);
+                printf("Startup error in %s:\nLUA ERROR: %s.\n", filename, errstr);
                 lua_pop(luap, 1);
 	}
 }
