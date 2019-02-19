@@ -2558,7 +2558,7 @@ vdev_raidz_io_done(zio_t *zio)
 		/*
 		 * We're here because either:
 		 *
-		 *	total_errors == rm_first_datacol, or
+		 *	total_errors == rm_firstdatacol, or
 		 *	vdev_raidz_combrec() failed
 		 *
 		 * In either case, there is enough bad data to prevent
