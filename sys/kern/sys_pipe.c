@@ -1741,15 +1741,19 @@ static int
 filt_pipewrite(struct knote *kn, long hint)
 {
 	struct pipe *wpipe;
-   
+
+	/*
+	 * If this end of the pipe is closed, the knote was removed from the
+	 * knlist and the list lock (i.e., the pipe lock) is therefore not held.
+	 */
 	wpipe = kn->kn_hook;
-	PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
 	if (wpipe->pipe_present != PIPE_ACTIVE ||
 	    (wpipe->pipe_state & PIPE_EOF)) {
 		kn->kn_data = 0;
 		kn->kn_flags |= EV_EOF;
 		return (1);
 	}
+	PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
 	kn->kn_data = (wpipe->pipe_buffer.size > 0) ?
 	    (wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) : PIPE_BUF;
 	if (wpipe->pipe_state & PIPE_DIRECTW)
