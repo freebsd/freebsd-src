@@ -11,6 +11,10 @@ PRIVATELIB=	true
 CXXFLAGS+=	-I${GOOGLETEST_SRCROOT}/include
 CXXFLAGS+=	-I${GOOGLETEST_SRCROOT}
 
+LIBADD+=	gtest
+# NB: LDFLAGS added for buildworld builds
+LDFLAGS+=	-L${LIBGTESTDIR}
+
 SRCS+=		gtest_main.cc
 
 SUBDIR.${MK_TESTS}+=	tests
