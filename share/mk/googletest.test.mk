@@ -27,10 +27,13 @@
 GTESTS?=
 
 .if !empty(GTESTS)
+.include <googletest.test.flags.mk>
+
 PROGS_CXX+= ${GTESTS}
 _TESTS+= ${GTESTS}
 .for _T in ${GTESTS}
 BINDIR.${_T}= ${TESTSDIR}
+CXXFLAGS.${_T}+= ${GTESTS_CXXFLAGS}
 MAN.${_T}?= # empty
 SRCS.${_T}?= ${_T}.cc
 TEST_INTERFACE.${_T}= plain
