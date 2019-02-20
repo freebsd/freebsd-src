@@ -72,61 +72,56 @@
 #define FN_DIRECTIO          0x00000200
 
 struct fuse_vnode_data {
-    /** self **/
-    uint64_t   nid;
+	/** self **/
+	uint64_t	nid;
 
-    /** parent **/
-    /* XXXIP very likely to be stale, it's not updated in rename() */
-    uint64_t   parent_nid;
+	/** parent **/
+	/* XXXIP very likely to be stale, it's not updated in rename() */
+	uint64_t	parent_nid;
 
-    /** I/O **/
-    struct     fuse_filehandle fufh[FUFH_MAXTYPE];
+	/** I/O **/
+	struct		fuse_filehandle fufh[FUFH_MAXTYPE];
 
-    /** flags **/
-    uint32_t   flag;
+	/** flags **/
+	uint32_t	flag;
 
-    /** meta **/
-    bool              valid_attr_cache;
-    struct vattr      cached_attrs;
-    off_t             filesize;
-    uint64_t          nlookup;
-    enum vtype        vtype;
+	/** meta **/
+	bool		valid_attr_cache;
+	struct vattr	cached_attrs;
+	off_t		filesize;
+	uint64_t	nlookup;
+	enum vtype	vtype;
 };
 
 #define VTOFUD(vp) \
-    ((struct fuse_vnode_data *)((vp)->v_data))
+	((struct fuse_vnode_data *)((vp)->v_data))
 #define VTOI(vp)    (VTOFUD(vp)->nid)
 #define VTOVA(vp) \
-    (VTOFUD(vp)->valid_attr_cache ? \
-    &(VTOFUD(vp)->cached_attrs) : NULL)
+	(VTOFUD(vp)->valid_attr_cache ? \
+	&(VTOFUD(vp)->cached_attrs) : NULL)
 #define VTOILLU(vp) ((uint64_t)(VTOFUD(vp) ? VTOI(vp) : 0))
 
 #define FUSE_NULL_ID 0
 
 extern struct vop_vector fuse_vnops;
 
-static __inline void
+static inline void
 fuse_vnode_setparent(struct vnode *vp, struct vnode *dvp)
 {
-    if (dvp != NULL && vp->v_type == VDIR) {
-        MPASS(dvp->v_type == VDIR);
-        VTOFUD(vp)->parent_nid = VTOI(dvp);
-    }
+	if (dvp != NULL && vp->v_type == VDIR) {
+		MPASS(dvp->v_type == VDIR);
+		VTOFUD(vp)->parent_nid = VTOI(dvp);
+	}
 }
 
 void fuse_vnode_destroy(struct vnode *vp);
 
-int fuse_vnode_get(struct mount         *mp,
-                   struct fuse_entry_out *feo,
-                   uint64_t              nodeid,
-                   struct vnode         *dvp,
-                   struct vnode        **vpp,
-                   struct componentname *cnp,
-                   enum vtype            vtyp);
+int fuse_vnode_get(struct mount *mp, struct fuse_entry_out *feo,
+    uint64_t nodeid, struct vnode *dvp, struct vnode **vpp,
+    struct componentname *cnp, enum vtype vtyp);
 
-void fuse_vnode_open(struct vnode *vp,
-                     int32_t fuse_open_flags,
-                     struct thread *td);
+void fuse_vnode_open(struct vnode *vp, int32_t fuse_open_flags,
+    struct thread *td);
 
 void fuse_vnode_refreshsize(struct vnode *vp, struct ucred *cred);
 

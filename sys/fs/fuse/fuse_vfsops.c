@@ -138,9 +138,9 @@ fuse_getdevice(const char *fspec, struct thread *td, struct cdev **fdevp)
 	int err;
 
 	/*
-         * Not an update, or updating the name: look up the name
-         * and verify that it refers to a sensible disk device.
-         */
+	 * Not an update, or updating the name: look up the name
+	 * and verify that it refers to a sensible disk device.
+	 */
 
 	NDINIT(ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, fspec, td);
 	if ((err = namei(ndp)) != 0)
@@ -183,9 +183,9 @@ fuse_getdevice(const char *fspec, struct thread *td, struct cdev **fdevp)
 		}
 	}
 	/*
-         * according to coda code, no extra lock is needed --
-         * although in sys/vnode.h this field is marked "v"
-         */
+	 * according to coda code, no extra lock is needed --
+	 * although in sys/vnode.h this field is marked "v"
+	 */
 	vrele(devvp);
 
 	if (!fdev->si_devsw ||
@@ -199,8 +199,8 @@ fuse_getdevice(const char *fspec, struct thread *td, struct cdev **fdevp)
 }
 
 #define FUSE_FLAGOPT(fnam, fval) do {				\
-    vfs_flagopt(opts, #fnam, &mntopts, fval);		\
-    vfs_flagopt(opts, "__" #fnam, &__mntopts, fval);	\
+	vfs_flagopt(opts, #fnam, &mntopts, fval);		\
+	vfs_flagopt(opts, "__" #fnam, &__mntopts, fval);	\
 } while (0)
 
 static int
@@ -262,9 +262,9 @@ fuse_vfsop_mount(struct mount *mp)
 		return err;
 
 	/*
-         * With the help of underscored options the mount program
-         * can inform us from the flags it sets by default
-         */
+	 * With the help of underscored options the mount program
+	 * can inform us from the flags it sets by default
+	 */
 	FUSE_FLAGOPT(allow_other, FSESS_DAEMON_CAN_SPY);
 	FUSE_FLAGOPT(push_symlinks_in, FSESS_PUSH_SYMLINKS_IN);
 	FUSE_FLAGOPT(default_permissions, FSESS_DEFAULT_PERMISSIONS);
@@ -295,7 +295,7 @@ fuse_vfsop_mount(struct mount *mp)
 	}
 	fptmp = td->td_fpop;
 	td->td_fpop = fp;
-        err = devfs_get_cdevpriv((void **)&data);
+	err = devfs_get_cdevpriv((void **)&data);
 	td->td_fpop = fptmp;
 	fdrop(fp, td);
 	FUSE_LOCK();

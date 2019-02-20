@@ -202,7 +202,7 @@ fuse_vnode_cmp(struct vnode *vp, void *nidp)
 	return (VTOI(vp) != *((uint64_t *)nidp));
 }
 
-static uint32_t __inline
+static uint32_t inline
 fuse_vnode_hash(uint64_t id)
 {
 	return (fnv_32_buf(&id, sizeof(id), FNV1_32_INIT));
