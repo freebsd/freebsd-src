@@ -111,7 +111,7 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	gzip -f9 ${KERNEL_KO}.tmp
 	eval $$(stat -s ${KERNEL_KO}.tmp.gz) && \
 	    echo "#define KERNCOMPSIZE $$st_size" >>opt_kernname.h
-	${CC} -O2 -ffreestanding -DKZIP -I. -I$S -c $S/kern/inflate.c -o \
+	${CC} -O2 -ffreestanding -DKZIP -I. -I$S -c $S/kern/subr_inflate.c -o \
 	    inflate-tramp.o
 	${CC} -O -nostdlib -I. -I$S -Xlinker -T -Xlinker ldscript.$M.tramp \
 	    -DKZIP tmphack.S $S/$M/$M/elf_trampoline.c inflate-tramp.o \
