@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-HAVE_GELI=		yes
-
 .include <bsd.init.mk>
 
 LIB=			i386

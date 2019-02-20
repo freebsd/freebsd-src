@@ -81,7 +81,6 @@ uint32_t opts;
 static const char *const dev_nm[NDEV] = {"ad", "da", "fd"};
 static const unsigned char dev_maj[NDEV] = {30, 4, 2};
 
-static struct dsk dsk;
 static char kname[1024];
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
@@ -113,10 +112,18 @@ static int vdev_read(void *vdev __unused, void *priv, off_t off, void *buf,
 #include "ufsread.c"
 #include "gpt.c"
 #ifdef LOADER_GELI_SUPPORT
-#include "geliboot.c"
+#include "geliboot.h"
 static char gelipw[GELI_PW_MAXLEN];
-static struct keybuf *gelibuf;
 #endif
+
+struct gptdsk {
+	struct dsk       dsk;
+#ifdef LOADER_GELI_SUPPORT
+	struct geli_dev *gdev;
+#endif
+};
+
+static struct gptdsk gdsk;
 
 static inline int
 xfsread(ufs_ino_t inode, void *buf, size_t nbyte)
@@ -225,19 +232,21 @@ static int
 gptinit(void)
 {
 
-	if (gptread(&freebsd_ufs_uuid, &dsk, dmadat->secbuf) == -1) {
+	if (gptread(&freebsd_ufs_uuid, &gdsk.dsk, dmadat->secbuf) == -1) {
 		printf("%s: unable to load GPT\n", BOOTPROG);
 		return (-1);
 	}
-	if (gptfind(&freebsd_ufs_uuid, &dsk, dsk.part) == -1) {
+	if (gptfind(&freebsd_ufs_uuid, &gdsk.dsk, gdsk.dsk.part) == -1) {
 		printf("%s: no UFS partition was found\n", BOOTPROG);
 		return (-1);
 	}
 #ifdef LOADER_GELI_SUPPORT
-	if (geli_taste(vdev_read, &dsk, (gpttable[curent].ent_lba_end -
-	    gpttable[curent].ent_lba_start)) == 0) {
-		if (geli_havekey(&dsk) != 0 && geli_passphrase(gelipw,
-		    dsk.unit, 'p', curent + 1, &dsk) != 0) {
+	gdsk.gdev = geli_taste(vdev_read, &gdsk.dsk, 
+	    (gpttable[curent].ent_lba_end - gpttable[curent].ent_lba_start),
+	    "disk%up%u:", gdsk.dsk.unit, curent + 1);
+	if (gdsk.gdev != NULL) {
+		if (geli_havekey(gdsk.gdev) != 0 &&
+		    geli_passphrase(gdsk.gdev, gelipw) != 0) {
 			printf("%s: unable to decrypt GELI key\n", BOOTPROG);
 			return (-1);
 		}
@@ -273,21 +282,18 @@ main(void)
 
 	v86.ctl = V86_FLAGS;
 	v86.efl = PSL_RESERVED_DEFAULT | PSL_I;
-	dsk.drive = *(uint8_t *)PTOV(ARGS);
-	dsk.type = dsk.drive & DRV_HARD ? TYPE_AD : TYPE_FD;
-	dsk.unit = dsk.drive & DRV_MASK;
-	dsk.part = -1;
-	dsk.start = 0;
+	gdsk.dsk.drive = *(uint8_t *)PTOV(ARGS);
+	gdsk.dsk.type = gdsk.dsk.drive & DRV_HARD ? TYPE_AD : TYPE_FD;
+	gdsk.dsk.unit = gdsk.dsk.drive & DRV_MASK;
+	gdsk.dsk.part = -1;
+	gdsk.dsk.start = 0;
 	bootinfo.bi_version = BOOTINFO_VERSION;
 	bootinfo.bi_size = sizeof(bootinfo);
 	bootinfo.bi_basemem = bios_basemem / 1024;
 	bootinfo.bi_extmem = bios_extmem / 1024;
 	bootinfo.bi_memsizes_valid++;
-	bootinfo.bi_bios_dev = dsk.drive;
+	bootinfo.bi_bios_dev = gdsk.dsk.drive;
 
-#ifdef LOADER_GELI_SUPPORT
-	geli_init();
-#endif
 	/* Process configuration file */
 
 	if (gptinit() != 0)
@@ -332,8 +338,8 @@ main(void)
 		load();
 		memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));
 		load();
-		gptbootfailed(&dsk);
-		if (gptfind(&freebsd_ufs_uuid, &dsk, -1) == -1)
+		gptbootfailed(&gdsk.dsk);
+		if (gptfind(&freebsd_ufs_uuid, &gdsk.dsk, -1) == -1)
 			break;
 		dsk_meta = 0;
 	}
@@ -345,8 +351,8 @@ main(void)
 			printf("\nFreeBSD/x86 boot\n"
 			    "Default: %u:%s(%up%u)%s\n"
 			    "boot: ",
-			    dsk.drive & DRV_MASK, dev_nm[dsk.type], dsk.unit,
-			    dsk.part, kname);
+			    gdsk.dsk.drive & DRV_MASK, dev_nm[gdsk.dsk.type],
+			    gdsk.dsk.unit, gdsk.dsk.part, kname);
 		}
 		if (ioctrl & IO_SERIAL)
 			sio_flush();
@@ -392,9 +398,9 @@ load(void)
 	if (!(ino = lookup(kname))) {
 		if (!ls) {
 			printf("%s: No %s on %u:%s(%up%u)\n", BOOTPROG,
-			    kname, dsk.drive & DRV_MASK, dev_nm[dsk.type],
-			    dsk.unit,
-			    dsk.part);
+			    kname, gdsk.dsk.drive & DRV_MASK,
+			    dev_nm[gdsk.dsk.type], gdsk.dsk.unit,
+			    gdsk.dsk.part);
 		}
 		return;
 	}
@@ -469,21 +475,22 @@ load(void)
 	}
 	bootinfo.bi_esymtab = VTOP(p);
 	bootinfo.bi_kernelname = VTOP(kname);
-	bootinfo.bi_bios_dev = dsk.drive;
+	bootinfo.bi_bios_dev = gdsk.dsk.drive;
 #ifdef LOADER_GELI_SUPPORT
 	geliargs.size = sizeof(geliargs);
 	explicit_bzero(gelipw, sizeof(gelipw));
-	gelibuf = malloc(sizeof(struct keybuf) +
-	    (GELI_MAX_KEYS * sizeof(struct keybuf_ent)));
-	geli_fill_keybuf(gelibuf);
-	geliargs.notapw = '\0';
-	geliargs.keybuf_sentinel = KEYBUF_SENTINEL;
-	geliargs.keybuf = gelibuf;
+	export_geli_boot_data(&geliargs.gelidata);
 #endif
+	/*
+	 * Note that the geliargs struct is passed by value, not by pointer.
+	 * Code in btxldr.S copies the values from the entry stack to a fixed
+	 * location within loader(8) at startup due to the presence of the
+	 * KARGS_FLAGS_EXTARG flag.
+	 */
 	__exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
-	    MAKEBOOTDEV(dev_maj[dsk.type], dsk.part + 1, dsk.unit, 0xff),
+	    MAKEBOOTDEV(dev_maj[gdsk.dsk.type], gdsk.dsk.part + 1, gdsk.dsk.unit, 0xff),
 #ifdef LOADER_GELI_SUPPORT
-	    KARGS_FLAGS_EXTARG, 0, 0, VTOP(&bootinfo), geliargs
+	    KARGS_FLAGS_GELI | KARGS_FLAGS_EXTARG, 0, 0, VTOP(&bootinfo), geliargs
 #else
 	    0, 0, 0, VTOP(&bootinfo)
 #endif
@@ -561,22 +568,22 @@ parse_cmds(char *cmdstr, int *dskupdated)
 				    arg[1] != dev_nm[i][1]; i++)
 					if (i == NDEV - 1)
 						return (-1);
-				dsk.type = i;
+				gdsk.dsk.type = i;
 				arg += 3;
-				dsk.unit = *arg - '0';
-				if (arg[1] != 'p' || dsk.unit > 9)
+				gdsk.dsk.unit = *arg - '0';
+				if (arg[1] != 'p' || gdsk.dsk.unit > 9)
 					return (-1);
 				arg += 2;
-				dsk.part = *arg - '0';
-				if (dsk.part < 1 || dsk.part > 9)
+				gdsk.dsk.part = *arg - '0';
+				if (gdsk.dsk.part < 1 || gdsk.dsk.part > 9)
 					return (-1);
 				arg++;
 				if (arg[0] != ')')
 					return (-1);
 				arg++;
 				if (drv == -1)
-					drv = dsk.unit;
-				dsk.drive = (dsk.type <= TYPE_MAXHARD
+					drv = gdsk.dsk.unit;
+				gdsk.dsk.drive = (gdsk.dsk.type <= TYPE_MAXHARD
 				    ? DRV_HARD : 0) + drv;
 				*dskupdated = 1;
 			}
@@ -596,12 +603,13 @@ dskread(void *buf, daddr_t lba, unsigned nblk)
 {
 	int err;
 
-	err = drvread(&dsk, buf, lba + dsk.start, nblk);
+	err = drvread(&gdsk.dsk, buf, lba + gdsk.dsk.start, nblk);
 
 #ifdef LOADER_GELI_SUPPORT
-	if (err == 0 && is_geli(&dsk) == 0) {
+	if (err == 0 && gdsk.gdev != NULL) {
 		/* Decrypt */
-		if (geli_read(&dsk, lba * DEV_BSIZE, buf, nblk * DEV_BSIZE))
+		if (geli_read(gdsk.gdev, lba * DEV_BSIZE, buf,
+		    nblk * DEV_BSIZE))
 			return (err);
 	}
 #endif
@@ -611,8 +619,8 @@ dskread(void *buf, daddr_t lba, unsigned nblk)
 
 #ifdef LOADER_GELI_SUPPORT
 /*
- * Read function compartible with the ZFS callback, required to keep the GELI
- * Implementation the same for both UFS and ZFS
+ * Read function compatible with the ZFS callback, required to keep the GELI
+ * implementation the same for both UFS and ZFS.
  */
 static int
 vdev_read(void *vdev __unused, void *priv, off_t off, void *buf, size_t bytes)
@@ -620,22 +628,22 @@ vdev_read(void *vdev __unused, void *priv, off_t off, void *buf, size_t bytes)
 	char *p;
 	daddr_t lba;
 	unsigned int nb;
-	struct dsk *dskp;
+	struct gptdsk *dskp;
 
-	dskp = (struct dsk *)priv;
+	dskp = (struct gptdsk *)priv;
 
 	if ((off & (DEV_BSIZE - 1)) || (bytes & (DEV_BSIZE - 1)))
 		return (-1);
 
 	p = buf;
 	lba = off / DEV_BSIZE;
-	lba += dskp->start;
+	lba += dskp->dsk.start;
 
 	while (bytes > 0) {
 		nb = bytes / DEV_BSIZE;
 		if (nb > VBLKSIZE / DEV_BSIZE)
 			nb = VBLKSIZE / DEV_BSIZE;
-		if (drvread(dskp, dmadat->blkbuf, lba, nb))
+		if (drvread(&dskp->dsk, dmadat->blkbuf, lba, nb))
 			return (-1);
 		memcpy(p, dmadat->blkbuf, nb * DEV_BSIZE);
 		p += nb * DEV_BSIZE;

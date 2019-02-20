@@ -45,6 +45,10 @@ __FBSDID("$FreeBSD$");
 
 #include "bootstrap.h"
 
+#ifdef LOADER_GELI_SUPPORT
+#include "geliboot.h"
+#endif
+
 #if defined(__sparc64__)
 #include <openfirm.h>
 
@@ -355,7 +359,9 @@ md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
 #endif
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
     }
-
+#ifdef LOADER_GELI_SUPPORT
+    geli_export_key_metadata(kfp);
+#endif
 #if defined(__sparc64__)
     file_addmetadata(kfp, MODINFOMD_DTLB_SLOTS,
 	sizeof dtlb_slot, &dtlb_slot);

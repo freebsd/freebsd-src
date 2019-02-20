@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2016 M. Warner Losh <imp@freebsd.org>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2018 Ian Lepore <ian@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,13 +27,26 @@
  * $FreeBSD$
  */
 
-#ifndef _PATHS_H_
-#define	_PATHS_H_
+#include <stand.h>
+#include <bootstrap.h>
+#include <sys/param.h>
+#include <sys/linker.h>
+#include "geliboot.h"
 
-#define PATH_DOTCONFIG	"/boot.config"
-#define PATH_CONFIG	"/boot/config"
-#define PATH_LOADER	"/boot/loader"
-#define PATH_LOADER_EFI	"/boot/loader.efi"
-#define PATH_KERNEL	"/boot/kernel/kernel"
+/*
+ * Export a keybuf as metadata attached to a kernel module.  This is separate
+ * from the lower-level key management functions to avoid creating a linker
+ * dependency on the libsa metadata routines when the geli code is linked into
+ * early-stage bootloaders such as gptboot.  Only loader(8) variants call this.
+ */
+void
+geli_export_key_metadata(struct preloaded_file *kfp)
+{
+    struct keybuf *keybuf;
 
-#endif /* _PATHS_H_ */
+    keybuf = malloc(GELI_KEYBUF_SIZE);
+    geli_export_key_buffer(keybuf);
+    file_addmetadata(kfp, MODINFOMD_KEYBUF, GELI_KEYBUF_SIZE, keybuf);
+    explicit_bzero(keybuf, GELI_KEYBUF_SIZE);
+    free(keybuf);
+}

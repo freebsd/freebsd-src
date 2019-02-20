@@ -1042,6 +1042,52 @@ executed.
 .It -259
 Unspecified error.
 .El
+.Sh ZFS FEATURES
+.Nm
+supports the following format for specifying ZFS filesystems which
+can be used wherever
+.Xr loader 8
+refers to a device specification:
+.Pp
+.Ar zfs:pool/filesystem:
+.Pp
+where
+.Pa pool/filesystem
+is a ZFS filesystem name as described in
+.Xr zfs 8 .
+.Pp
+If
+.Pa /etc/fstab
+does not have an entry for the root filesystem and
+.Va vfs.root.mountfrom
+is not set, but
+.Va currdev
+refers to a ZFS filesystem, then
+.Nm
+will instruct kernel to use that filesystem as the root filesystem.
+.Sh ZFS COMMAND EXTENSIONS
+.Bl -tag -width Ds -compact
+.It Ic lsdev Op Fl v
+Lists ZFS pools in addition to disks and partitions.
+Adding
+.Fl v
+shows more ZFS pool details in a format that resembles
+.Nm zpool Cm status
+output.
+.Pp
+.It Ic lszfs Ar filesystem
+A ZFS extended command that can be used to explore the ZFS filesystem
+hierarchy in a pool.
+Lists the immediate children of the
+.Ar filesystem .
+The filesystem hierarchy is rooted at a filesystem with the same name
+as the pool.
+.El
+.Sh EXAMPLES
+Set the default device used for loading a kernel from a ZFS filesystem:
+.Bd -literal -offset indent
+set currdev=zfs:tank/ROOT/knowngood:
+.Ed
 .Sh SEE ALSO
 .Xr libstand 3 ,
 .Xr loader.conf 5 ,

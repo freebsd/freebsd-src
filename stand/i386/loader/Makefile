@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-HAVE_GELI=		yes
+HAVE_ZFS=		${MK_LOADER_ZFS}
 
 LOADER_NET_SUPPORT?=	yes
 LOADER_NFS_SUPPORT?=	yes
@@ -64,6 +64,10 @@ ${LOADER}: ${LOADER}.bin ${BTXLDR} ${BTXKERN}
 ${LOADER}.bin: ${LOADER}.sym
 	strip -R .comment -R .note -o ${.TARGET} ${.ALLSRC}
 
+# XXX TODO: Fix this when coexistence comes in
+.if ${MK_LOADER_ZFS} == "yes" # && ${LOADER_INTERP} == ${LOADER_DEFAULT_INTERP}
+LINKS+=		${BINDIR}/${LOADER} ${BINDIR}/zfsloader
+.endif
 FILES+=	${LOADER}
 # XXX INSTALLFLAGS_loader= -b
 FILESMODE_${LOADER}= ${BINMODE} -b

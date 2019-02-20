@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-HAVE_GELI=	yes
-
 .include <bsd.init.mk>
 
 .PATH:		${BOOTSRC}/i386/boot2 ${BOOTSRC}/i386/gptboot \
@@ -10,8 +8,6 @@ HAVE_GELI=	yes
 
 FILES=		gptzfsboot
 MAN=		gptzfsboot.8
-
-NM?=		nm
 
 BOOT_COMCONSOLE_PORT?= 0x3f8
 BOOT_COMCONSOLE_SPEED?= 9600

@@ -39,9 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef LOADER_GELI_SUPPORT
 #include "geliboot.h"
-
-static const size_t keybuf_size = sizeof(struct keybuf) +
-    (GELI_MAX_KEYS * sizeof(struct keybuf_ent));
 #endif
 
 static struct bootinfo  bi;
@@ -154,10 +151,6 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     int				bootdevnr, i, howto;
     char			*kernelname;
     const char			*kernelpath;
-#ifdef LOADER_GELI_SUPPORT
-    char                        buf[keybuf_size];
-    struct keybuf               *keybuf = (struct keybuf *)buf;
-#endif
 
     howto = bi_getboothowto(args);
 
@@ -235,9 +228,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
     bios_addsmapdata(kfp);
 #ifdef LOADER_GELI_SUPPORT
-    geli_fill_keybuf(keybuf);
-    file_addmetadata(kfp, MODINFOMD_KEYBUF, keybuf_size, buf);
-    bzero(buf, sizeof(buf));
+    geli_export_key_metadata(kfp);
 #endif
 
     /* Figure out the size and location of the metadata */
