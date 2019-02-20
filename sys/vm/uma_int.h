@@ -144,8 +144,8 @@ SLIST_HEAD(slabhead, uma_slab);
 
 struct uma_hash {
 	struct slabhead	*uh_slab_hash;	/* Hash table for slabs */
-	int		uh_hashsize;	/* Current size of the hash table */
-	int		uh_hashmask;	/* Mask used during hashing */
+	u_int		uh_hashsize;	/* Current size of the hash table */
+	u_int		uh_hashmask;	/* Mask used during hashing */
 };
 
 /*
@@ -386,7 +386,7 @@ static __inline uma_slab_t
 hash_sfind(struct uma_hash *hash, uint8_t *data)
 {
         uma_slab_t slab;
-        int hval;
+        u_int hval;
 
         hval = UMA_HASH(hash, data);
 
