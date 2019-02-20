@@ -1175,7 +1175,7 @@ AcpiDbBusWalk (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Display info about system busses.
+ * DESCRIPTION: Display info about system buses.
  *
  ******************************************************************************/
 

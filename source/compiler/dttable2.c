@@ -1733,6 +1733,11 @@ DtCompileSrat (
             InfoTable = AcpiDmTableInfoSrat4;
             break;
 
+        case ACPI_SRAT_TYPE_GENERIC_AFFINITY:
+
+            InfoTable = AcpiDmTableInfoSrat5;
+            break;
+
         default:
 
             DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "SRAT");

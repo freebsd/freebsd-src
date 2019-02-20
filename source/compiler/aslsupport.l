@@ -610,7 +610,7 @@ loop:
 
     /*
      * Check for nested comment -- can help catch cases where a previous
-     * comment was accidently left unterminated
+     * comment was accidentally left unterminated
      */
     if ((c1 == '/') && (c == '*'))
     {

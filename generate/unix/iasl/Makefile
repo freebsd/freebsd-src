@@ -297,7 +297,7 @@ include ../Makefile.rules
 safe_yacc = \
 	_d=`mktemp -d $(OBJDIR)/$(1).XXXXXX` &&\
 	cd $$_d &&\
-	$(YACC) $(YFLAGS) -v -d -p$(1) $(abspath $(2)) &&\
+	$(YACC) $(YFLAGS) -v -d -p$(1) "$(abspath $(2))" &&\
 	cd - > /dev/null;\
 	mv $$_d/y.tab$(suffix $(3)) $(3);\
 	_r=$$?;\

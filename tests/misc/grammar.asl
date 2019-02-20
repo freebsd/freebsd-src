@@ -28,7 +28,7 @@
 
 //
 //
-// Grammar.asl - Minimally excercises most ASL constructs
+// Grammar.asl - Minimally exercises most ASL constructs
 //
 // NOTE -- use: iasl -f -of grammar.asl to compile
 //
@@ -723,7 +723,7 @@ DefinitionBlock (
                             BUS0
                     ) } )// PRT0
 
-                CreateWordField(PRT0, BUS0._MIN, BMIN)          //Minimum bus number suported under this bridge.
+                CreateWordField(PRT0, BUS0._MIN, BMIN)          //Minimum bus number supported under this bridge.
 
                 Store(3, BMIN)
                 Return(PRT0)
@@ -3818,7 +3818,7 @@ DefinitionBlock (
         Method(LSGR,2)
         {//LSGR
 
-            //Test on arguements passed
+            //Test on arguments passed
 
             //in test data, Arg1 > Arg0
             if(LEqual(Ones,LNot(LGreater(Arg1,Arg0))))
@@ -5025,7 +5025,7 @@ DefinitionBlock (
         {
             Store ("++++++++ CrBytFld Test", Debug)
 
-            //  Local0 is unitialized buffer with 4 elements
+            //  Local0 is uninitialized buffer with 4 elements
             Store (Buffer (4) {}, Local0)
 
             //  create Byte Field named BF0 based on Local0 element 0
@@ -6590,7 +6590,7 @@ DefinitionBlock (
                 Store ("++++++++ IndexOp Test", Debug)
 
                 //  test storing into uninitialized package elements
-                Name (PBUF, Package(4) {})  //  leave unitialized
+                Name (PBUF, Package(4) {})  //  leave uninitialized
                 Store (0x01234567, Index (PBUF,0))
                 Store (0x89ABCDEF, Index (PBUF,1))
                 Store (0xFEDCBA98, Index (PBUF,2))

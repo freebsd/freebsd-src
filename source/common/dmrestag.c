@@ -906,7 +906,7 @@ AcpiDmUpdateResourceName (
  *
  * PARAMETERS:  BitIndex            - Index into the resource descriptor
  *              Resource            - Pointer to the raw resource data
- *              ResourceIndex       - Index correspoinding to the resource type
+ *              ResourceIndex       - Index corresponding to the resource type
  *
  * RETURN:      Pointer to the resource tag (ACPI_NAME). NULL if no match.
  *

@@ -1053,7 +1053,7 @@ AcpiDmGetHardwareIdType (
             }
         }
 
-        /* Mark this node as convertable to an EISA ID string */
+        /* Mark this node as convertible to an EISA ID string */
 
         Op->Common.DisasmOpcode = ACPI_DASM_EISAID;
         break;

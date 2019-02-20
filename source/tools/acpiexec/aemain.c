@@ -255,8 +255,6 @@ usage (
     ACPI_OPTION ("-df",                 "Disable Local fault handler");
     ACPI_OPTION ("-di",                 "Disable execution of STA/INI methods during init");
     ACPI_OPTION ("-do",                 "Disable Operation Region address simulation");
-    ACPI_OPTION ("-dp",                 "Disable loading DSDT/SSDT as a control method\n"
-                  "                      (enable legacy grouping of module-level code)");
     ACPI_OPTION ("-dr",                 "Disable repair of method return values");
     ACPI_OPTION ("-ds",                 "Disable method auto-serialization");
     ACPI_OPTION ("-dt",                 "Disable allocation tracking (performance)");
@@ -351,11 +349,6 @@ AeDoOptions (
         case 'o':
 
             AcpiGbl_DbOpt_NoRegionSupport = TRUE;
-            break;
-
-        case 'p':
-
-            AcpiGbl_ExecuteTablesAsMethods = FALSE;
             break;
 
         case 'r':
@@ -629,10 +622,6 @@ main (
 
     AcpiDbgLevel = ACPI_NORMAL_DEFAULT;
     AcpiDbgLayer = 0xFFFFFFFF;
-
-    /* Module-level code. Use new architecture */
-
-    AcpiGbl_ExecuteTablesAsMethods = TRUE;
 
     /*
      * Initialize ACPICA and start debugger thread.
