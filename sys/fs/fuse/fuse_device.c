@@ -317,7 +317,7 @@ again:
 	return (err);
 }
 
-static __inline int
+static inline int
 fuse_ohead_audit(struct fuse_out_header *ohead, struct uio *uio)
 {
 	FS_DEBUG("Out header -- len: %i, error: %i, unique: %llu; iovecs: %d\n",
