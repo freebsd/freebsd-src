@@ -12,7 +12,11 @@ CXXFLAGS+=	-I${GOOGLEMOCK_SRCROOT}/include
 CXXFLAGS+=	-I${GOOGLEMOCK_SRCROOT}
 CXXFLAGS+=	-I${GOOGLETEST_SRCROOT}/include
 
-LIBADD=		gmock
+LIBADD+=	gmock
+# NB: LDFLAGS added for buildworld builds
+LDFLAGS+=	-L${LIBGTESTDIR}
+LDFLAGS+=	-L${LIBGMOCKDIR}
+
 SRCS+=		gmock_main.cc
 
 SUBDIR.${MK_TESTS}+=	tests
