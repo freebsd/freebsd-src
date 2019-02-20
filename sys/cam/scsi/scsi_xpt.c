@@ -1379,6 +1379,12 @@ out:
 			probe_purge_old(path, lp, softc->flags);
 			lp = NULL;
 		}
+		/* The processing above should either exit via a `goto
+		 * out` or leave the `lp` variable `NULL` and (if
+		 * applicable) `free()` the storage to which it had
+		 * pointed. Assert here that is the case.
+		 */
+		KASSERT(lp == NULL, ("%s: lp is not NULL", __func__));
 		inq_buf = &path->device->inq_data;
 		if (path->device->flags & CAM_DEV_INQUIRY_DATA_VALID &&
 		    (SID_QUAL(inq_buf) == SID_QUAL_LU_CONNECTED ||
@@ -1391,9 +1397,6 @@ out:
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
 			goto out;
-		}
-		if (lp) {
-			free(lp, M_CAMXPT);
 		}
 		PROBE_SET_ACTION(softc, PROBE_INVALID);
 		xpt_release_ccb(done_ccb);
