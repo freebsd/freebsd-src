@@ -226,7 +226,7 @@ AcpiAhMatchUuid (
 
     for (Info = Gbl_AcpiUuids; Info->Description; Info++)
     {
-        /* Null string means desciption is a UUID class */
+        /* Null string means description is a UUID class */
 
         if (!Info->String)
         {

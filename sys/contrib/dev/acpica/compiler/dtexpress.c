@@ -372,7 +372,7 @@ DtDoOperator (
  *
  * RETURN:      Table offset associated with the label
  *
- * DESCRIPTION: Lookup a lable and return its value.
+ * DESCRIPTION: Lookup a label and return its value.
  *
  *****************************************************************************/
 

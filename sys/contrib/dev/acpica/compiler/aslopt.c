@@ -814,7 +814,7 @@ OptOptimizeNamePath (
     ACPI_FREE (ExternalNameString);
 
     /*
-     * Attempt an optmization depending on the type of namepath
+     * Attempt an optimization depending on the type of namepath
      */
     if (Flags & (AML_NAMED | AML_CREATE))
     {
