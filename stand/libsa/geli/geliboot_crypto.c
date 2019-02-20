@@ -71,7 +71,7 @@ geliboot_crypt(u_int algo, int enc, u_char *data, size_t datasize,
 		}
 		if (datasize != (blks / 8)) {
 			printf("Failed to decrypt the entire input: "
-			    "%u != %u\n", blks, datasize);
+			    "%u != %zu\n", blks, datasize);
 			return (1);
 		}
 		break;
