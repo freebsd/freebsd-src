@@ -46,6 +46,13 @@ FBSD_1.0 {
 	___tls_get_addr;
 };
 
+FBSD_1.6 {
+	 x86_pkru_get_perm;
+	 x86_pkru_set_perm;
+	 x86_pkru_protect_range;
+	 x86_pkru_unprotect_range;
+};
+
 FBSDprivate_1.0 {
 	/* PSEUDO syscalls */
 	_getlogin;
