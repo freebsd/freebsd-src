@@ -127,10 +127,16 @@ static void bios_getmem(void);
 int main(void);
 
 #ifdef LOADER_GELI_SUPPORT
-#include "geliboot.c"
+#include "geliboot.h"
 static char gelipw[GELI_PW_MAXLEN];
-static struct keybuf *gelibuf;
 #endif
+
+struct zfsdsk {
+	struct dsk       dsk;
+#ifdef LOADER_GELI_SUPPORT
+	struct geli_dev *gdev;
+#endif
+};
 
 #include "zfsimpl.c"
 
@@ -174,14 +180,14 @@ vdev_read(void *xvdev, void *priv, off_t off, void *buf, size_t bytes)
 	daddr_t lba, alignlba;
 	off_t diff;
 	unsigned int nb, alignnb;
-	struct dsk *dsk = (struct dsk *) priv;
+	struct zfsdsk *zdsk = (struct zfsdsk *) priv;
 
 	if ((off & (DEV_BSIZE - 1)) || (bytes & (DEV_BSIZE - 1)))
 		return -1;
 
 	p = buf;
 	lba = off / DEV_BSIZE;
-	lba += dsk->start;
+	lba += zdsk->dsk.start;
 	/*
 	 * Align reads to 4k else 4k sector GELIs will not decrypt.
 	 * Round LBA down to nearest multiple of DEV_GELIBOOT_BSIZE bytes.
@@ -191,7 +197,7 @@ vdev_read(void *xvdev, void *priv, off_t off, void *buf, size_t bytes)
 	 * The read must be aligned to DEV_GELIBOOT_BSIZE bytes relative to the
 	 * start of the GELI partition, not the start of the actual disk.
 	 */
-	alignlba += dsk->start;
+	alignlba += zdsk->dsk.start;
 	diff = (lba - alignlba) * DEV_BSIZE;
 
 	while (bytes > 0) {
@@ -209,18 +215,20 @@ vdev_read(void *xvdev, void *priv, off_t off, void *buf, size_t bytes)
 		alignnb = roundup2(nb * DEV_BSIZE + diff, DEV_GELIBOOT_BSIZE)
 		    / DEV_BSIZE;
 
-		if (dsk->size > 0 && alignlba + alignnb > dsk->size + dsk->start) {
-			printf("Shortening read at %lld from %d to %lld\n", alignlba,
-			    alignnb, (dsk->size + dsk->start) - alignlba);
-			alignnb = (dsk->size + dsk->start) - alignlba;
+		if (zdsk->dsk.size > 0 && alignlba + alignnb >
+		    zdsk->dsk.size + zdsk->dsk.start) {
+			printf("Shortening read at %lld from %d to %lld\n",
+			    alignlba, alignnb,
+			    (zdsk->dsk.size + zdsk->dsk.start) - alignlba);
+			alignnb = (zdsk->dsk.size + zdsk->dsk.start) - alignlba;
 		}
 
-		if (drvread(dsk, dmadat->rdbuf, alignlba, alignnb))
+		if (drvread(&zdsk->dsk, dmadat->rdbuf, alignlba, alignnb))
 			return -1;
 #ifdef LOADER_GELI_SUPPORT
 		/* decrypt */
-		if (is_geli(dsk) == 0) {
-			if (geli_read(dsk, ((alignlba - dsk->start) *
+		if (zdsk->gdev != NULL) {
+			if (geli_read(zdsk->gdev, ((alignlba - zdsk->dsk.start) *
 			    DEV_BSIZE), dmadat->rdbuf, alignnb * DEV_BSIZE))
 				return (-1);
 		}
@@ -250,20 +258,20 @@ vdev_write(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 	char *p;
 	daddr_t lba;
 	unsigned int nb;
-	struct dsk *dsk = (struct dsk *) priv;
+	struct zfsdsk *zdsk = (struct zfsdsk *) priv;
 
 	if ((off & (DEV_BSIZE - 1)) || (bytes & (DEV_BSIZE - 1)))
 		return -1;
 
 	p = buf;
 	lba = off / DEV_BSIZE;
-	lba += dsk->start;
+	lba += zdsk->dsk.start;
 	while (bytes > 0) {
 		nb = bytes / DEV_BSIZE;
 		if (nb > READ_BUF_SIZE / DEV_BSIZE)
 			nb = READ_BUF_SIZE / DEV_BSIZE;
 		memcpy(dmadat->rdbuf, p, nb * DEV_BSIZE);
-		if (drvwrite(dsk, dmadat->rdbuf, lba, nb))
+		if (drvwrite(&zdsk->dsk, dmadat->rdbuf, lba, nb))
 			return -1;
 		p += nb * DEV_BSIZE;
 		lba += nb;
@@ -441,13 +449,13 @@ int13probe(int drive)
  * We call this when we find a ZFS vdev - ZFS consumes the dsk
  * structure so we must make a new one.
  */
-static struct dsk *
-copy_dsk(struct dsk *dsk)
+static struct zfsdsk *
+copy_dsk(struct zfsdsk *zdsk)
 {
-    struct dsk *newdsk;
+    struct zfsdsk *newdsk;
 
-    newdsk = malloc(sizeof(struct dsk));
-    *newdsk = *dsk;
+    newdsk = malloc(sizeof(struct zfsdsk));
+    *newdsk = *zdsk;
     return (newdsk);
 }
 
@@ -459,10 +467,13 @@ copy_dsk(struct dsk *dsk)
  * with boot2 and we can not afford to grow that code.
  */
 static uint64_t
-drvsize_ext(struct dsk *dskp)
+drvsize_ext(struct zfsdsk *zdsk)
 {
+	struct dsk *dskp;
 	uint64_t size, tmp;
 	int cyl, hds, sec;
+
+	dskp = &zdsk->dsk;
 
 	v86.ctl = V86_FLAGS;
 	v86.addr = 0x13;
@@ -508,17 +519,17 @@ drvsize_ext(struct dsk *dskp)
 uint64_t
 ldi_get_size(void *priv)
 {
-	struct dsk *dskp = priv;
-	uint64_t size = dskp->size;
+	struct zfsdsk *zdsk = priv;
+	uint64_t size = zdsk->dsk.size;
 
-	if (dskp->start == 0)
-		size = drvsize_ext(dskp);
+	if (zdsk->dsk.start == 0)
+		size = drvsize_ext(zdsk);
 
 	return (size * DEV_BSIZE);
 }
 
 static void
-probe_drive(struct dsk *dsk)
+probe_drive(struct zfsdsk *zdsk)
 {
 #ifdef GPT
     struct gpt_hdr hdr;
@@ -537,7 +548,7 @@ probe_drive(struct dsk *dsk)
     /*
      * If we find a vdev on the whole disk, stop here.
      */
-    if (vdev_probe(vdev_read2, dsk, NULL) == 0)
+    if (vdev_probe(vdev_read2, zdsk, NULL) == 0)
 	return;
 
 #ifdef LOADER_GELI_SUPPORT
@@ -547,14 +558,15 @@ probe_drive(struct dsk *dsk)
      * out the partition table and probe each slice/partition
      * in turn for a vdev or GELI encrypted vdev.
      */
-    elba = drvsize_ext(dsk);
+    elba = drvsize_ext(zdsk);
     if (elba > 0) {
 	elba--;
     }
-    if (geli_taste(vdev_read, dsk, elba) == 0) {
-	if (geli_havekey(dsk) == 0 || geli_passphrase(gelipw, dsk->unit,
-	  ':', 0, dsk) == 0) {
-	    if (vdev_probe(vdev_read2, dsk, NULL) == 0) {
+    zdsk->gdev = geli_taste(vdev_read, zdsk, elba, "disk%u:0:");
+    if (zdsk->gdev != NULL) {
+	if (geli_havekey(zdsk->gdev) == 0 || 
+	    geli_passphrase(zdsk->gdev, gelipw) == 0) {
+	    if (vdev_probe(vdev_read2, zdsk, NULL) == 0) {
 		return;
 	    }
 	}
@@ -562,13 +574,13 @@ probe_drive(struct dsk *dsk)
 #endif /* LOADER_GELI_SUPPORT */
 
     sec = dmadat->secbuf;
-    dsk->start = 0;
+    zdsk->dsk.start = 0;
 
 #ifdef GPT
     /*
      * First check for GPT.
      */
-    if (drvread(dsk, sec, 1, 1)) {
+    if (drvread(&zdsk->dsk, sec, 1, 1)) {
 	return;
     }
     memcpy(&hdr, sec, sizeof(hdr));
@@ -590,38 +602,39 @@ probe_drive(struct dsk *dsk)
     slba = hdr.hdr_lba_table;
     elba = slba + hdr.hdr_entries / entries_per_sec;
     while (slba < elba) {
-	dsk->start = 0;
-	if (drvread(dsk, sec, slba, 1))
+	zdsk->dsk.start = 0;
+	if (drvread(&zdsk->dsk, sec, slba, 1))
 	    return;
 	for (part = 0; part < entries_per_sec; part++) {
 	    ent = (struct gpt_ent *)(sec + part * hdr.hdr_entsz);
 	    if (memcmp(&ent->ent_type, &freebsd_zfs_uuid,
 		     sizeof(uuid_t)) == 0) {
-		dsk->start = ent->ent_lba_start;
-		dsk->size = ent->ent_lba_end - ent->ent_lba_start + 1;
-		dsk->slice = part + 1;
-		dsk->part = 255;
-		if (vdev_probe(vdev_read2, dsk, NULL) == 0) {
+		zdsk->dsk.start = ent->ent_lba_start;
+		zdsk->dsk.size = ent->ent_lba_end - ent->ent_lba_start + 1;
+		zdsk->dsk.slice = part + 1;
+		zdsk->dsk.part = 255;
+		if (vdev_probe(vdev_read2, zdsk, NULL) == 0) {
 		    /*
 		     * This slice had a vdev. We need a new dsk
 		     * structure now since the vdev now owns this one.
 		     */
-		    dsk = copy_dsk(dsk);
+		    zdsk = copy_dsk(zdsk);
 		}
 #ifdef LOADER_GELI_SUPPORT
-		else if (geli_taste(vdev_read, dsk, ent->ent_lba_end -
-			 ent->ent_lba_start) == 0) {
-		    if (geli_havekey(dsk) == 0 || geli_passphrase(gelipw,
-		      dsk->unit, 'p', dsk->slice, dsk) == 0) {
+		else if ((zdsk->gdev = geli_taste(vdev_read, zdsk,
+		    ent->ent_lba_end - ent->ent_lba_start, "disk%up%u:",
+		    zdsk->dsk.unit, zdsk->dsk.slice)) != NULL) {
+		    if (geli_havekey(zdsk->gdev) == 0 ||
+			geli_passphrase(zdsk->gdev, gelipw) == 0) {
 			/*
 			 * This slice has GELI, check it for ZFS.
 			 */
-			if (vdev_probe(vdev_read2, dsk, NULL) == 0) {
+			if (vdev_probe(vdev_read2, zdsk, NULL) == 0) {
 			    /*
 			     * This slice had a vdev. We need a new dsk
 			     * structure now since the vdev now owns this one.
 			     */
-			    dsk = copy_dsk(dsk);
+			    zdsk = copy_dsk(zdsk);
 			}
 			break;
 		    }
@@ -635,33 +648,33 @@ probe_drive(struct dsk *dsk)
 trymbr:
 #endif /* GPT */
 
-    if (drvread(dsk, sec, DOSBBSECTOR, 1))
+    if (drvread(&zdsk->dsk, sec, DOSBBSECTOR, 1))
 	return;
     dp = (void *)(sec + DOSPARTOFF);
 
     for (i = 0; i < NDOSPART; i++) {
 	if (!dp[i].dp_typ)
 	    continue;
-	dsk->start = dp[i].dp_start;
-	dsk->size = dp[i].dp_size;
-	dsk->slice = i + 1;
-	if (vdev_probe(vdev_read2, dsk, NULL) == 0) {
-	    dsk = copy_dsk(dsk);
+	zdsk->dsk.start = dp[i].dp_start;
+	zdsk->dsk.size = dp[i].dp_size;
+	zdsk->dsk.slice = i + 1;
+	if (vdev_probe(vdev_read2, zdsk, NULL) == 0) {
+	    zdsk = copy_dsk(zdsk);
 	}
 #ifdef LOADER_GELI_SUPPORT
-	else if (geli_taste(vdev_read, dsk, dp[i].dp_size -
-		 dp[i].dp_start) == 0) {
-	    if (geli_havekey(dsk) == 0 || geli_passphrase(gelipw, dsk->unit,
-	      's', i, dsk) == 0) {
+	else if ((zdsk->gdev = geli_taste(vdev_read, zdsk, dp[i].dp_size -
+		 dp[i].dp_start, "disk%us%u:")) != NULL) {
+	    if (geli_havekey(zdsk->gdev) == 0 ||
+		geli_passphrase(zdsk->gdev, gelipw) == 0) {
 		/*
 		 * This slice has GELI, check it for ZFS.
 		 */
-		if (vdev_probe(vdev_read2, dsk, NULL) == 0) {
+		if (vdev_probe(vdev_read2, zdsk, NULL) == 0) {
 		    /*
 		     * This slice had a vdev. We need a new dsk
 		     * structure now since the vdev now owns this one.
 		     */
-		    dsk = copy_dsk(dsk);
+		    zdsk = copy_dsk(zdsk);
 		}
 		break;
 	    }
@@ -675,7 +688,7 @@ main(void)
 {
     dnode_phys_t dn;
     off_t off;
-    struct dsk *dsk;
+    struct zfsdsk *zdsk;
     int autoboot, i;
     int nextboot;
     int rc;
@@ -693,39 +706,36 @@ main(void)
     }
     setheap(heap_next, heap_end);
 
-    dsk = malloc(sizeof(struct dsk));
-    dsk->drive = *(uint8_t *)PTOV(ARGS);
-    dsk->type = dsk->drive & DRV_HARD ? TYPE_AD : TYPE_FD;
-    dsk->unit = dsk->drive & DRV_MASK;
-    dsk->slice = *(uint8_t *)PTOV(ARGS + 1) + 1;
-    dsk->part = 0;
-    dsk->start = 0;
-    dsk->size = drvsize_ext(dsk);
+    zdsk = calloc(1, sizeof(struct zfsdsk));
+    zdsk->dsk.drive = *(uint8_t *)PTOV(ARGS);
+    zdsk->dsk.type = zdsk->dsk.drive & DRV_HARD ? TYPE_AD : TYPE_FD;
+    zdsk->dsk.unit = zdsk->dsk.drive & DRV_MASK;
+    zdsk->dsk.slice = *(uint8_t *)PTOV(ARGS + 1) + 1;
+    zdsk->dsk.part = 0;
+    zdsk->dsk.start = 0;
+    zdsk->dsk.size = drvsize_ext(zdsk);
 
     bootinfo.bi_version = BOOTINFO_VERSION;
     bootinfo.bi_size = sizeof(bootinfo);
     bootinfo.bi_basemem = bios_basemem / 1024;
     bootinfo.bi_extmem = bios_extmem / 1024;
     bootinfo.bi_memsizes_valid++;
-    bootinfo.bi_bios_dev = dsk->drive;
+    bootinfo.bi_bios_dev = zdsk->dsk.drive;
 
-    bootdev = MAKEBOOTDEV(dev_maj[dsk->type],
-			  dsk->slice, dsk->unit, dsk->part);
+    bootdev = MAKEBOOTDEV(dev_maj[zdsk->dsk.type],
+			  zdsk->dsk.slice, zdsk->dsk.unit, zdsk->dsk.part);
 
     /* Process configuration file */
 
     autoboot = 1;
 
-#ifdef LOADER_GELI_SUPPORT
-    geli_init();
-#endif
     zfs_init();
 
     /*
      * Probe the boot drive first - we will try to boot from whatever
      * pool we find on that drive.
      */
-    probe_drive(dsk);
+    probe_drive(zdsk);
 
     /*
      * Probe the rest of the drives that the bios knows about. This
@@ -744,15 +754,15 @@ main(void)
 	if (!int13probe(i | DRV_HARD))
 	    break;
 
-	dsk = malloc(sizeof(struct dsk));
-	dsk->drive = i | DRV_HARD;
-	dsk->type = dsk->drive & TYPE_AD;
-	dsk->unit = i;
-	dsk->slice = 0;
-	dsk->part = 0;
-	dsk->start = 0;
-	dsk->size = drvsize_ext(dsk);
-	probe_drive(dsk);
+	zdsk = calloc(1, sizeof(struct zfsdsk));
+	zdsk->dsk.drive = i | DRV_HARD;
+	zdsk->dsk.type = zdsk->dsk.drive & TYPE_AD;
+	zdsk->dsk.unit = i;
+	zdsk->dsk.slice = 0;
+	zdsk->dsk.part = 0;
+	zdsk->dsk.start = 0;
+	zdsk->dsk.size = drvsize_ext(zdsk);
+	probe_drive(zdsk);
     }
 
     /*
@@ -834,7 +844,7 @@ main(void)
      */
 
     if (autoboot && !*kname) {
-	memcpy(kname, PATH_LOADER_ZFS, sizeof(PATH_LOADER_ZFS));
+	memcpy(kname, PATH_LOADER, sizeof(PATH_LOADER));
 	if (!keyhit(3)) {
 	    load();
 	    memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));
@@ -982,18 +992,17 @@ load(void)
     zfsargs.primary_pool = primary_spa->spa_guid;
 #ifdef LOADER_GELI_SUPPORT
     explicit_bzero(gelipw, sizeof(gelipw));
-    gelibuf = malloc(sizeof(struct keybuf) + (GELI_MAX_KEYS * sizeof(struct keybuf_ent)));
-    geli_fill_keybuf(gelibuf);
-    zfsargs.notapw = '\0';
-    zfsargs.keybuf_sentinel = KEYBUF_SENTINEL;
-    zfsargs.keybuf = gelibuf;
-#else
-    zfsargs.gelipw[0] = '\0';
+    export_geli_boot_data(&zfsargs.gelidata);
 #endif
     if (primary_vdev != NULL)
 	zfsargs.primary_vdev = primary_vdev->v_guid;
     else
 	printf("failed to detect primary vdev\n");
+    /*
+     * Note that the zfsargs struct is passed by value, not by pointer.  Code in
+     * btxldr.S copies the values from the entry stack to a fixed location
+     * within loader(8) at startup due to the presence of KARGS_FLAGS_EXTARG.
+     */
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 	   bootdev,
 	   KARGS_FLAGS_ZFS | KARGS_FLAGS_EXTARG,

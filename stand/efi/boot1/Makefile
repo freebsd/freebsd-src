@@ -24,7 +24,7 @@ CWARNFLAGS.zfs_module.c += -Wno-unused-function
 
 # architecture-specific loader code
 SRCS=	boot1.c self_reloc.c start.S ufs_module.c
-.if ${MK_ZFS} != "no"
+.if ${MK_LOADER_ZFS} != "no"
 SRCS+=		zfs_module.c
 CFLAGS.zfs_module.c+=	-I${ZFSSRC}
 CFLAGS.zfs_module.c+=	-I${SYSDIR}/cddl/boot/zfs
@@ -75,9 +75,6 @@ DPADD+=		${LIBEFI} ${LIBSA}
 LDADD+=		${LIBEFI} ${LIBSA}
 
 DPADD+=		${LDSCRIPT}
-
-NM?=		nm
-OBJCOPY?=	objcopy
 
 .if ${MACHINE_CPUARCH} == "amd64"
 EFI_TARGET=	efi-app-x86_64

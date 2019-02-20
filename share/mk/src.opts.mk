@@ -183,6 +183,7 @@ __DEFAULT_YES_OPTIONS = \
     WIRELESS \
     WPA_SUPPLICANT_EAPOL \
     ZFS \
+    LOADER_ZFS \
     ZONEINFO
 
 __DEFAULT_NO_OPTIONS = \
@@ -290,10 +291,6 @@ BROKEN_OPTIONS+=LIBSOFT
     ${__T:Mriscv*}
 BROKEN_OPTIONS+=EFI
 .endif
-# GELI isn't supported on !x86
-.if ${__T} != "i386" && ${__T} != "amd64"
-BROKEN_OPTIONS+=LOADER_GELI
-.endif
 # OFW is only for powerpc and sparc64, exclude others
 .if ${__T:Mpowerpc*} == "" && ${__T:Msparc64} == ""
 BROKEN_OPTIONS+=LOADER_OFW
@@ -377,6 +374,7 @@ MK_SOURCELESS_UCODE:= no
 
 .if ${MK_CDDL} == "no"
 MK_ZFS:=	no
+MK_LOADER_ZFS:=	no
 MK_CTF:=	no
 .endif
 

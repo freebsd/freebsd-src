@@ -50,34 +50,6 @@ __FBSDID("$FreeBSD$");
 #include "disk.h"
 #include "libi386.h"
 
-#ifdef LOADER_GELI_SUPPORT
-#include "cons.h"
-#include "drv.h"
-#include "gpt.h"
-#include "part.h"
-#include <uuid.h>
-struct pentry {
-	struct ptable_entry	part;
-	uint64_t		flags;
-	union {
-		uint8_t bsd;
-		uint8_t	mbr;
-		uuid_t	gpt;
-		uint16_t vtoc8;
-	} type;
-	STAILQ_ENTRY(pentry)	entry;
-};
-struct ptable {
-	enum ptable_type	type;
-	uint16_t		sectorsize;
-	uint64_t		sectors;
-
-	STAILQ_HEAD(, pentry)	entries;
-};
-
-#include "geliboot.c"
-#endif /* LOADER_GELI_SUPPORT */
-
 #define BIOS_NUMDRIVES		0x475
 #define BIOSDISK_SECSIZE	512
 #define BUFSIZE			(1 * BIOSDISK_SECSIZE)
@@ -138,17 +110,6 @@ static int bd_close(struct open_file *f);
 static int bd_ioctl(struct open_file *f, u_long cmd, void *data);
 static int bd_print(int verbose);
 
-#ifdef LOADER_GELI_SUPPORT
-enum isgeli {
-	ISGELI_UNKNOWN,
-	ISGELI_NO,
-	ISGELI_YES
-};
-static enum isgeli geli_status[MAXBDDEV][MAXTBLENTS];
-
-int bios_read(void *, void *, off_t off, void *buf, size_t bytes);
-#endif /* LOADER_GELI_SUPPORT */
-
 struct devsw biosdisk = {
 	"disk",
 	DEVT_DISK,
@@ -195,9 +156,6 @@ bd_init(void)
 {
 	int base, unit, nfd = 0;
 
-#ifdef LOADER_GELI_SUPPORT
-	geli_init();
-#endif
 	/* sequence 0, 0x80 */
 	for (base = 0; base <= 0x80; base += 0x80) {
 		for (unit = base; (nbdinfo < MAXBDDEV); unit++) {
@@ -379,7 +337,7 @@ bd_print(int verbose)
 static int
 bd_open(struct open_file *f, ...)
 {
-	struct disk_devdesc *dev;
+	struct disk_devdesc *dev, rdev;
 	struct disk_devdesc disk;
 	int err, g_err;
 	va_list ap;
@@ -420,81 +378,6 @@ bd_open(struct open_file *f, ...)
 
 	err = disk_open(dev, BD(dev).bd_sectors * BD(dev).bd_sectorsize,
 	    BD(dev).bd_sectorsize);
-
-#ifdef LOADER_GELI_SUPPORT
-	static char gelipw[GELI_PW_MAXLEN];
-	char *passphrase;
-
-	if (err)
-		return (err);
-
-	/* if we already know there is no GELI, skip the rest */
-	if (geli_status[dev->dd.d_unit][dev->d_slice] != ISGELI_UNKNOWN)
-		return (err);
-
-	struct dsk dskp;
-	struct ptable *table = NULL;
-	struct ptable_entry part;
-	struct pentry *entry;
-	int geli_part = 0;
-
-	dskp.drive = bd_unit2bios(dev->dd.d_unit);
-	dskp.type = dev->dd.d_dev->dv_type;
-	dskp.unit = dev->dd.d_unit;
-	dskp.slice = dev->d_slice;
-	dskp.part = dev->d_partition;
-	dskp.start = dev->d_offset;
-
-	/* We need the LBA of the end of the partition */
-	table = ptable_open(&disk, BD(dev).bd_sectors,
-	    BD(dev).bd_sectorsize, ptblread);
-	if (table == NULL) {
-		DEBUG("Can't read partition table");
-		/* soft failure, return the exit status of disk_open */
-		return (err);
-	}
-
-	if (table->type == PTABLE_GPT)
-		dskp.part = 255;
-
-	STAILQ_FOREACH(entry, &table->entries, entry) {
-		dskp.slice = entry->part.index;
-		dskp.start = entry->part.start;
-		if (is_geli(&dskp) == 0) {
-			geli_status[dev->dd.d_unit][dskp.slice] = ISGELI_YES;
-			return (0);
-		}
-		if (geli_taste(bios_read, &dskp,
-		    entry->part.end - entry->part.start) == 0) {
-			if (geli_havekey(&dskp) == 0) {
-				geli_status[dev->dd.d_unit][dskp.slice] = ISGELI_YES;
-				geli_part++;
-				continue;
-			}
-			if ((passphrase = getenv("kern.geom.eli.passphrase"))
-			    != NULL) {
-				/* Use the cached passphrase */
-				bcopy(passphrase, &gelipw, GELI_PW_MAXLEN);
-			}
-			if (geli_passphrase(gelipw, dskp.unit, 'p',
-				    (dskp.slice > 0 ? dskp.slice : dskp.part),
-				    &dskp) == 0) {
-				setenv("kern.geom.eli.passphrase", gelipw, 1);
-				bzero(gelipw, sizeof(gelipw));
-				geli_status[dev->dd.d_unit][dskp.slice] = ISGELI_YES;
-				geli_part++;
-				continue;
-			}
-		} else
-			geli_status[dev->dd.d_unit][dskp.slice] = ISGELI_NO;
-	}
-
-	/* none of the partitions on this disk have GELI */
-	if (geli_part == 0) {
-		/* found no GELI */
-		geli_status[dev->dd.d_unit][dev->d_slice] = ISGELI_NO;
-	}
-#endif /* LOADER_GELI_SUPPORT */
 
 	return (err);
 }
@@ -841,79 +724,6 @@ bd_io(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest, int write)
 static int
 bd_read(struct disk_devdesc *dev, daddr_t dblk, int blks, caddr_t dest)
 {
-#ifdef LOADER_GELI_SUPPORT
-	struct dsk dskp;
-	off_t p_off, diff;
-	daddr_t alignlba;
-	int err, n, alignblks;
-	char *tmpbuf;
-
-	/* if we already know there is no GELI, skip the rest */
-	if (geli_status[dev->dd.d_unit][dev->d_slice] != ISGELI_YES)
-		return (bd_io(dev, dblk, blks, dest, 0));
-
-	if (geli_status[dev->dd.d_unit][dev->d_slice] == ISGELI_YES) {
-		/*
-		 * Align reads to DEV_GELIBOOT_BSIZE bytes because partial
-		 * sectors cannot be decrypted. Round the requested LBA down to
-		 * nearest multiple of DEV_GELIBOOT_BSIZE bytes.
-		 */
-		alignlba = rounddown2(dblk * BD(dev).bd_sectorsize,
-		    DEV_GELIBOOT_BSIZE) / BD(dev).bd_sectorsize;
-		/*
-		 * Round number of blocks to read up to nearest multiple of
-		 * DEV_GELIBOOT_BSIZE
-		 */
-		diff = (dblk - alignlba) * BD(dev).bd_sectorsize;
-		alignblks = roundup2(blks * BD(dev).bd_sectorsize + diff,
-		    DEV_GELIBOOT_BSIZE) / BD(dev).bd_sectorsize;
-
-		/*
-		 * If the read is rounded up to a larger size, use a temporary
-		 * buffer here because the buffer provided by the caller may be
-		 * too small.
-		 */
-		if (diff == 0) {
-			tmpbuf = dest;
-		} else {
-			tmpbuf = malloc(alignblks * BD(dev).bd_sectorsize);
-			if (tmpbuf == NULL) {
-				return (-1);
-			}
-		}
-
-		if (alignlba + alignblks > BD(dev).bd_sectors) {
-			DEBUG("Shorted read at %llu from %d to %llu blocks",
-			    alignlba, alignblks, BD(dev).bd_sectors - alignlba);
-			alignblks = BD(dev).bd_sectors - alignlba;
-		}
-
-		err = bd_io(dev, alignlba, alignblks, tmpbuf, 0);
-		if (err)
-			return (err);
-
-		dskp.drive = bd_unit2bios(dev->dd.d_unit);
-		dskp.type = dev->dd.d_dev->dv_type;
-		dskp.unit = dev->dd.d_unit;
-		dskp.slice = dev->d_slice;
-		dskp.part = dev->d_partition;
-		dskp.start = dev->d_offset;
-
-		/* GELI needs the offset relative to the partition start */
-		p_off = alignlba - dskp.start;
-
-		err = geli_read(&dskp, p_off * BD(dev).bd_sectorsize, (u_char *)tmpbuf,
-		    alignblks * BD(dev).bd_sectorsize);
-		if (err)
-			return (err);
-
-		if (tmpbuf != dest) {
-			bcopy(tmpbuf + diff, dest, blks * BD(dev).bd_sectorsize);
-			free(tmpbuf);
-		}
-		return (0);
-	}
-#endif /* LOADER_GELI_SUPPORT */
 
 	return (bd_io(dev, dblk, blks, dest, 0));
 }
@@ -1009,25 +819,3 @@ bd_getdev(struct i386_devdesc *d)
     DEBUG("dev is 0x%x\n", rootdev);
     return(rootdev);
 }
-
-#ifdef LOADER_GELI_SUPPORT
-int
-bios_read(void *vdev __unused, void *xpriv, off_t off, void *buf, size_t bytes)
-{
-	struct disk_devdesc dev;
-	struct dsk *priv = xpriv;
-
-	dev.dd.d_dev = &biosdisk;
-	dev.dd.d_unit = priv->unit;
-	dev.d_slice = priv->slice;
-	dev.d_partition = priv->part;
-	dev.d_offset = priv->start;
-
-	off = off / BD(&dev).bd_sectorsize;
-	/* GELI gives us the offset relative to the partition start */
-	off += dev.d_offset;
-	bytes = bytes / BD(&dev).bd_sectorsize;
-
-	return (bd_io(&dev, off, bytes, buf, 0));
-}
-#endif /* LOADER_GELI_SUPPORT */

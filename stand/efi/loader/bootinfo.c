@@ -56,6 +56,10 @@ __FBSDID("$FreeBSD$");
 #include <fdt_platform.h>
 #endif
 
+#ifdef LOADER_GELI_SUPPORT
+#include "geliboot.h"
+#endif
+
 int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp);
 
 extern EFI_SYSTEM_TABLE	*ST;
@@ -452,7 +456,9 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 #endif
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
 	file_addmetadata(kfp, MODINFOMD_FW_HANDLE, sizeof ST, &ST);
-
+#ifdef LOADER_GELI_SUPPORT
+	geli_export_key_metadata(kfp);
+#endif
 	bi_load_efi_data(kfp);
 
 	/* Figure out the size and location of the metadata. */

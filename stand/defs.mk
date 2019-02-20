@@ -56,7 +56,6 @@ CFLAGS+=	-Ddouble=jagged-little-pill -Dfloat=floaty-mcfloatface
 
 
 # GELI Support, with backward compat hooks (mostly)
-.if defined(HAVE_GELI)
 .if defined(LOADER_NO_GELI_SUPPORT)
 MK_LOADER_GELI=no
 .warning "Please move from LOADER_NO_GELI_SUPPORT to WITHOUT_LOADER_GELI"
@@ -69,7 +68,6 @@ MK_LOADER_GELI=yes
 CFLAGS+=	-DLOADER_GELI_SUPPORT
 CFLAGS+=	-I${SASRC}/geli
 .endif # MK_LOADER_GELI
-.endif # HAVE_GELI
 
 # These should be confined to loader.mk, but can't because uboot/lib
 # also uses it. It's part of loader, but isn't a loader so we can't
