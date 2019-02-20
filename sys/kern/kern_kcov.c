@@ -357,7 +357,7 @@ static int
 kcov_alloc(struct kcov_info *info, size_t entries)
 {
 	size_t n, pages;
-	vm_page_t *m;
+	vm_page_t m;
 
 	KASSERT(info->kvaddr == 0, ("kcov_alloc: Already have a buffer"));
 	KASSERT(info->state == KCOV_STATE_OPEN,
@@ -376,16 +376,14 @@ kcov_alloc(struct kcov_info *info, size_t entries)
 	info->bufobj = vm_pager_allocate(OBJT_PHYS, 0, info->bufsize,
 	    PROT_READ | PROT_WRITE, 0, curthread->td_ucred);
 
-	m = malloc(sizeof(*m) * pages, M_TEMP, M_WAITOK);
 	VM_OBJECT_WLOCK(info->bufobj);
 	for (n = 0; n < pages; n++) {
-		m[n] = vm_page_grab(info->bufobj, n,
+		m = vm_page_grab(info->bufobj, n,
 		    VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_WIRED);
-		m[n]->valid = VM_PAGE_BITS_ALL;
+		m->valid = VM_PAGE_BITS_ALL;
+		pmap_qenter(info->kvaddr + n * PAGE_SIZE, &m, 1);
 	}
 	VM_OBJECT_WUNLOCK(info->bufobj);
-	pmap_qenter(info->kvaddr, m, pages);
-	free(m, M_TEMP);
 
 	info->entries = entries;
 
