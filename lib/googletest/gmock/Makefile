@@ -42,4 +42,7 @@ INTERNAL_CUSTOM_INCS+=	gmock/internal/custom/gmock-generated-actions.h
 
 SRCS+=		gmock-all.cc
 
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
+
 .include <bsd.lib.mk>
