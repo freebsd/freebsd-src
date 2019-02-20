@@ -808,6 +808,20 @@ trap_pfault(struct trapframe *frame, int usermode)
 	}
 
 	/*
+	 * User-mode protection key violation (PKU).  May happen
+	 * either from usermode or from kernel if copyin accessed
+	 * key-protected mapping.
+	 */
+	if ((frame->tf_err & PGEX_PK) != 0) {
+		if (eva > VM_MAXUSER_ADDRESS) {
+			trap_fatal(frame, eva);
+			return (-1);
+		}
+		rv = KERN_PROTECTION_FAILURE;
+		goto after_vmfault;
+	}
+
+	/*
 	 * If nx protection of the usermode portion of kernel page
 	 * tables caused trap, panic.
 	 */
@@ -842,6 +856,7 @@ trap_pfault(struct trapframe *frame, int usermode)
 #endif
 		return (0);
 	}
+after_vmfault:
 	if (!usermode) {
 		if (td->td_intr_nesting_level == 0 &&
 		    curpcb->pcb_onfault != NULL) {
