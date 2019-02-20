@@ -13,6 +13,10 @@ INTER=          de_AT.ISO_8859-15 de_DE.ISO8859-1 fr_FR.ISO8859-1 \
 DE_LINKS=       de_DE.ISO8859-15
 FR_LINKS=       fr_FR.ISO8859-15
 
+.if ${MK_ICONV} == "yes"
+CFLAGS+=	-DWITH_ICONV
+.endif
+
 FILESGROUPS+=	CALS
 CALS=	calendars/calendar.all \
 	calendars/calendar.australia \
