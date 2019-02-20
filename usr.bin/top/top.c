@@ -110,7 +110,8 @@ static const struct option longopts[] = {
     { "uids", no_argument, NULL, 'u' },
     { "version", no_argument, NULL, 'v' },
 	{ "swap", no_argument, NULL, 'w' },
-	{ "system-idle-procs", no_argument, NULL, 'z' }
+	{ "system-idle-procs", no_argument, NULL, 'z' },
+	{ NULL, 0, NULL, 0 }
 };
 
 static void
@@ -218,7 +219,7 @@ end:
 }
 
 int
-main(int argc, char *argv[])
+main(int argc, const char *argv[])
 {
     int i;
     int active_procs;
@@ -305,7 +306,7 @@ main(int argc, char *argv[])
 	    optind = 1;
 	}
 
-	while ((i = getopt_long(ac, av, "CSIHPabijJ:nquvzs:d:U:m:o:p:Ttw", longopts, NULL)) != EOF)
+	while ((i = getopt_long(ac, __DECONST(char * const *, av), "CSIHPabijJ:nquvzs:d:U:m:o:p:Ttw", longopts, NULL)) != EOF)
 	{
 	    switch(i)
 	    {
