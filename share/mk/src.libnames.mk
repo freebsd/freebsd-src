@@ -373,9 +373,9 @@ LDADD_atf_c=	-lprivateatf-c
 LDADD_atf_cxx=	-lprivateatf-c++
 
 LIBGMOCK=	${LIBDESTDIR}${LIBDIR_BASE}/libprivategmock.a
+LIBGMOCK_MAIN=	${LIBDESTDIR}${LIBDIR_BASE}/libprivategmock_main.a
 LIBGTEST=	${LIBDESTDIR}${LIBDIR_BASE}/libprivategtest.a
-LIBGMOCKMAIN=	${LIBDESTDIR}${LIBDIR_BASE}/libprivategmockmain.a
-LIBGTESTMAIN=	${LIBDESTDIR}${LIBDIR_BASE}/libprivategtestmain.a
+LIBGTEST_MAIN=	${LIBDESTDIR}${LIBDIR_BASE}/libprivategtest_main.a
 LDADD_gmock=	-lprivategmock
 LDADD_gtest=	-lprivategtest
 LDADD_gmock_main= -lprivategmock_main
