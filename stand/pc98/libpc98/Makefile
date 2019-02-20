@@ -12,8 +12,9 @@ SRCS=	bioscd.c biosdisk.c biosmem.c biospnp.c \
 	comconsole.c devicename.c elf32_freebsd.c \
 	i386_copy.c i386_module.c nullconsole.c pc98_sys.c pxe.c pxetramp.s \
 	time.c vidconsole.c
-.PATH:	${BOOTSRC}/zfs
+.PATH:	${ZFSSRC}
 SRCS+=	devicename_stubs.c
+CFLAGS+= -I${ZFSSRC}
 
 BOOT_COMCONSOLE_PORT?= 0x238
 CFLAGS+=	-DCOMPORT=${BOOT_COMCONSOLE_PORT}
