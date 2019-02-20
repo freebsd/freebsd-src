@@ -426,7 +426,7 @@ dos_readdir(struct open_file *fd, struct dirent *d)
     u_char fn[261];
     DOS_DIR dd;
     size_t res;
-    u_int chk, i, x, xdn;
+    u_int chk, x, xdn;
     int err;
 
     x = chk = 0;
@@ -585,7 +585,7 @@ lookup(DOS_FS *fs, u_int clus, const char *name, DOS_DE **dep)
     u_char lfn[261];
     u_char sfn[13];
     u_int nsec, lsec, xdn, chk, sec, ent, x;
-    int err, ok, i;
+    int err, ok;
 
     if (!clus)
         for (ent = 0; ent < 2; ent++)
