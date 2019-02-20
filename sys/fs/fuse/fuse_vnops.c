@@ -180,17 +180,17 @@ struct vop_vector fuse_vnops = {
 static u_long fuse_lookup_cache_hits = 0;
 
 SYSCTL_ULONG(_vfs_fuse, OID_AUTO, lookup_cache_hits, CTLFLAG_RD,
-    &fuse_lookup_cache_hits, 0, "");
+    &fuse_lookup_cache_hits, 0, "number of positive cache hits in lookup");
 
 static u_long fuse_lookup_cache_misses = 0;
 
 SYSCTL_ULONG(_vfs_fuse, OID_AUTO, lookup_cache_misses, CTLFLAG_RD,
-    &fuse_lookup_cache_misses, 0, "");
+    &fuse_lookup_cache_misses, 0, "number of cache misses in lookup");
 
 int	fuse_lookup_cache_enable = 1;
 
 SYSCTL_INT(_vfs_fuse, OID_AUTO, lookup_cache_enable, CTLFLAG_RW,
-    &fuse_lookup_cache_enable, 0, "");
+    &fuse_lookup_cache_enable, 0, "if non-zero, enable lookup cache");
 
 /*
  * XXX: This feature is highly experimental and can bring to instabilities,
