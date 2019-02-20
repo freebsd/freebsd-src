@@ -507,6 +507,9 @@ MK_FREEBSD_UPDATE:=	no
 
 .if ${MK_TESTS} == "no"
 MK_DTRACE_TESTS:= no
+.endif
+
+.if ${MK_TESTS_SUPPORT} == "no"
 MK_GOOGLETEST:=	no
 .endif
 
