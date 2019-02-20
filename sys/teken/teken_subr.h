@@ -1000,7 +1000,7 @@ teken_subr_do_reset(teken_t *t)
 	t->t_scrollreg.ts_begin = 0;
 	t->t_scrollreg.ts_end = t->t_winsize.tp_row;
 	t->t_originreg = t->t_scrollreg;
-	t->t_stateflags &= TS_8BIT|TS_CONS25;
+	t->t_stateflags &= TS_8BIT | TS_CONS25 | TS_CONS25KEYS;
 	t->t_stateflags |= TS_AUTOWRAP;
 
 	t->t_scs[0] = teken_scs_us_ascii;
