@@ -60,6 +60,7 @@
 #define	RB_RESERVED2	0x80000	/* reserved for internal use of boot blocks */
 #define	RB_PAUSE	0x100000 /* pause after each output line during probe */
 #define	RB_REROOT	0x200000 /* unmount the rootfs and mount it again */
+#define	RB_PROBE	0x10000000	/* Probe multiple consoles */
 #define	RB_MULTIPLE	0x20000000	/* use multiple consoles */
 
 #define	RB_BOOTINFO	0x80000000	/* have `struct bootinfo *' arg */

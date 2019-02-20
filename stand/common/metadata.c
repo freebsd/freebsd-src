@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <sys/param.h>
 #include <sys/linker.h>
+#include <sys/boot.h>
 #include <sys/reboot.h>
 #if defined(LOADER_FDT_SUPPORT)
 #include <fdt_platform.h>
@@ -96,62 +97,11 @@ md_bootserial(void)
 static int
 md_getboothowto(char *kargs)
 {
-    char	*cp;
     int		howto;
-    int		active;
 
     /* Parse kargs */
-    howto = 0;
-    if (kargs != NULL) {
-	cp = kargs;
-	active = 0;
-	while (*cp != 0) {
-	    if (!active && (*cp == '-')) {
-		active = 1;
-	    } else if (active)
-		switch (*cp) {
-		case 'a':
-		    howto |= RB_ASKNAME;
-		    break;
-		case 'C':
-		    howto |= RB_CDROM;
-		    break;
-		case 'd':
-		    howto |= RB_KDB;
-		    break;
-		case 'D':
-		    howto |= RB_MULTIPLE;
-		    break;
-		case 'm':
-		    howto |= RB_MUTE;
-		    break;
-		case 'g':
-		    howto |= RB_GDB;
-		    break;
-		case 'h':
-		    howto |= RB_SERIAL;
-		    break;
-		case 'p':
-		    howto |= RB_PAUSE;
-		    break;
-		case 'r':
-		    howto |= RB_DFLTROOT;
-		    break;
-		case 's':
-		    howto |= RB_SINGLE;
-		    break;
-		case 'v':
-		    howto |= RB_VERBOSE;
-		    break;
-		default:
-		    active = 0;
-		    break;
-		}
-	    cp++;
-	}
-    }
-
-    howto |= bootenv_flags();
+    howto = boot_parse_cmdline(kargs);
+    howto |= boot_env_to_howto();
 #if defined(__sparc64__)
     if (md_bootserial() != -1)
 	howto |= RB_SERIAL;
