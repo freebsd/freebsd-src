@@ -568,10 +568,7 @@ vdev_raidz_map_alloc(abd_t *abd, uint64_t size, uint64_t offset, boolean_t dofre
 			    abd_alloc_linear(rm->rm_col[c].rc_size, B_TRUE);
 		}
 
-		rm->rm_col[c].rc_abd = abd_get_offset(abd, 0);
-		off = rm->rm_col[c].rc_size;
-
-		for (c = c + 1; c < acols; c++) {
+		for (off = 0; c < acols; c++) {
 			rm->rm_col[c].rc_abd = abd_get_offset(abd, off);
 			off += rm->rm_col[c].rc_size;
 		}
