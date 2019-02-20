@@ -20,15 +20,30 @@ GTESTS+=	googletest-test-part-test
 GTESTS+=	gtest-typed-test_test
 GTESTS+=	gtest_unittest
 
-.for test in ${GTESTS}
-SRCS.${test}=	gtest_main.cc
-.endfor
-
 CXXFLAGS+=	-I${GOOGLETEST_SRCROOT}/include
 CXXFLAGS+=	-I${GOOGLETEST_SRCROOT}
 
-SRCS.gtest-typed-test_test+=	gtest-typed-test2_test.cc
+HELPERS+=	gtest_help_test_
+HELPERS+=	gtest_xml_outfile1_test_
+HELPERS+=	gtest_xml_outfile2_test_
 
-LIBADD=		gtest
+BINDIR=		${TESTSDIR}
+PROGS_CXX+=	${HELPERS}
+
+SRCS.gtest-typed-test_test=		\
+	gtest-typed-test_test.cc	\
+	gtest-typed-test2_test.cc
+
+SRCS.gtest_prod_test=			\
+	gtest_prod_test.cc		\
+	production.cc
+
+LIBADD+=	gtest gtest_main
+
+LIBADD.googletest-port-test+=	pthread
+LIBADD.gtest_unittest+=		pthread
+
+# XXX: https://github.com/google/googletest/pull/2119
+NO_WERROR=
 
 .include <bsd.test.mk>
