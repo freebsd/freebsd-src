@@ -103,7 +103,6 @@ STAND_H_INC=ctype.h fcntl.h signal.h stdio.h stdlib.h
 OTHER_INC=stdarg.h errno.h stdint.h
 
 beforedepend:
-	echo beforedepend; \
 	mkdir -p ${FAKE_DIRS}; \
 	for i in ${SAFE_INCS}; do \
 		ln -sf ${SRCTOP}/include/$$i $$i; \
