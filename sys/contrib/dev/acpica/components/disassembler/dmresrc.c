@@ -342,7 +342,7 @@ AcpiDmBitList (
  *
  * FUNCTION:    AcpiDmResourceTemplate
  *
- * PARAMETERS:  Info            - Curent parse tree walk info
+ * PARAMETERS:  Info            - Current parse tree walk info
  *              ByteData        - Pointer to the byte list data
  *              ByteCount       - Length of the byte list
  *
@@ -555,7 +555,7 @@ AcpiDmIsResourceTemplate (
 
     /*
      * Not a template if declared buffer length != actual length of the
-     * intialization byte list. Because the resource macros will create
+     * initialization byte list. Because the resource macros will create
      * a buffer of the exact required length (buffer length will be equal
      * to the actual length).
      *
