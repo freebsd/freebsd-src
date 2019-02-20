@@ -79,8 +79,13 @@ again:	if ((t = tq->tq_freelist) != NULL && tq->tq_nalloc >= tq->tq_minalloc) {
 			 * immediately retry the allocation.
 			 */
 			tq->tq_maxalloc_wait++;
+#ifdef __FreeBSD__
+			rv = cv_timedwait(&tq->tq_maxalloc_cv,
+			    &tq->tq_lock, hz);
+#else
 			rv = cv_timedwait(&tq->tq_maxalloc_cv,
 			    &tq->tq_lock, ddi_get_lbolt() + hz);
+#endif
 			tq->tq_maxalloc_wait--;
 			if (rv > 0)
 				goto again;		/* signaled */
