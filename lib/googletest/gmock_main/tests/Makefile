@@ -4,27 +4,27 @@
 
 .PATH:	${GOOGLEMOCK_SRCROOT}/src ${GOOGLEMOCK_SRCROOT}/test
 
-PLAIN_TESTS_CXX+=	gmock-actions_test
-PLAIN_TESTS_CXX+=	gmock-cardinalities_test
-PLAIN_TESTS_CXX+=	gmock-ex_test
-PLAIN_TESTS_CXX+=	gmock-generated-actions_test
-PLAIN_TESTS_CXX+=	gmock-generated-function-mockers_test
-PLAIN_TESTS_CXX+=	gmock-generated-internal-utils_test
-PLAIN_TESTS_CXX+=	gmock-generated-matchers_test
-PLAIN_TESTS_CXX+=	gmock-internal-utils_test
-PLAIN_TESTS_CXX+=	gmock-matchers_test
-PLAIN_TESTS_CXX+=	gmock-more-actions_test
-PLAIN_TESTS_CXX+=	gmock-nice-strict_test
-PLAIN_TESTS_CXX+=	gmock-port_test
-PLAIN_TESTS_CXX+=	gmock-spec-builders_test
-PLAIN_TESTS_CXX+=	gmock_link_test
-PLAIN_TESTS_CXX+=	gmock_test
+GTESTS+=	gmock-actions_test
+GTESTS+=	gmock-cardinalities_test
+GTESTS+=	gmock-ex_test
+GTESTS+=	gmock-generated-actions_test
+GTESTS+=	gmock-generated-function-mockers_test
+GTESTS+=	gmock-generated-internal-utils_test
+GTESTS+=	gmock-generated-matchers_test
+GTESTS+=	gmock-internal-utils_test
+GTESTS+=	gmock-matchers_test
+GTESTS+=	gmock-more-actions_test
+GTESTS+=	gmock-nice-strict_test
+GTESTS+=	gmock-port_test
+GTESTS+=	gmock-spec-builders_test
+GTESTS+=	gmock_link_test
+GTESTS+=	gmock_test
 
-CXXFLAGS+=		-I${GOOGLEMOCK_SRCROOT}/include
-CXXFLAGS+=		-I${GOOGLEMOCK_SRCROOT}
+CXXFLAGS+=	-I${GOOGLEMOCK_SRCROOT}/include
+CXXFLAGS+=	-I${GOOGLEMOCK_SRCROOT}
 
-.for test in ${PLAIN_TESTS_CXX}
-SRCS.${test}=		gmock_main.cc
+.for test in ${GTESTS}
+SRCS.${test}=	gmock_main.cc
 .endfor
 
 SRCS.gmock_link_test+=	gmock_link2_test.cc
