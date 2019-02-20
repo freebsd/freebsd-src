@@ -300,21 +300,6 @@ xen_pv_set_env(void)
 	init_static_kenv(cmd_line, 0);
 }
 
-static void
-xen_pv_set_boothowto(void)
-{
-	int i;
-	char *env;
-
-	/* get equivalents from the environment */
-	for (i = 0; howto_names[i].ev != NULL; i++) {
-		if ((env = kern_getenv(howto_names[i].ev)) != NULL) {
-			boothowto |= howto_names[i].mask;
-			freeenv(env);
-		}
-	}
-}
-
 #ifdef DDB
 /*
  * The way Xen loads the symtab is different from the native boot loader,
@@ -413,7 +398,7 @@ xen_pv_parse_preload_data(u_int64_t modulep)
 	} else {
 		/* Parse the extra boot information given by Xen */
 		xen_pv_set_env();
-		xen_pv_set_boothowto();
+		boothowto |= boot_env_to_howto();
 		kmdp = NULL;
 	}
 

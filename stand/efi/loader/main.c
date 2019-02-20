@@ -28,11 +28,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <stand.h>
+
 #include <sys/disk.h>
 #include <sys/param.h>
 #include <sys/reboot.h>
+#include <sys/boot.h>
 #include <stdint.h>
-#include <stand.h>
 #include <string.h>
 #include <setjmp.h>
 #include <disk.h>
@@ -420,79 +422,10 @@ parse_args(int argc, CHAR16 *argv[], bool has_kbd)
 	 */
 	howto = 0;
 	for (i = 1; i < argc; i++) {
-		if (argv[i][0] == '-') {
-			for (j = 1; argv[i][j] != 0; j++) {
-				int ch;
-
-				ch = argv[i][j];
-				switch (ch) {
-				case 'a':
-					howto |= RB_ASKNAME;
-					break;
-				case 'd':
-					howto |= RB_KDB;
-					break;
-				case 'D':
-					howto |= RB_MULTIPLE;
-					break;
-				case 'h':
-					howto |= RB_SERIAL;
-					break;
-				case 'm':
-					howto |= RB_MUTE;
-					break;
-				case 'p':
-					howto |= RB_PAUSE;
-					break;
-				case 'P':
-					if (!has_kbd)
-						howto |= RB_SERIAL | RB_MULTIPLE;
-					break;
-				case 'r':
-					howto |= RB_DFLTROOT;
-					break;
-				case 's':
-					howto |= RB_SINGLE;
-					break;
-				case 'S':
-					if (argv[i][j + 1] == 0) {
-						if (i + 1 == argc) {
-							setenv("comconsole_speed", "115200", 1);
-						} else {
-							cpy16to8(&argv[i + 1][0], var,
-							    sizeof(var));
-							setenv("comconsole_speed", var, 1);
-						}
-						i++;
-						break;
-					} else {
-						cpy16to8(&argv[i][j + 1], var,
-						    sizeof(var));
-						setenv("comconsole_speed", var, 1);
-						break;
-					}
-				case 'v':
-					howto |= RB_VERBOSE;
-					break;
-				}
-			}
-		} else {
-			vargood = false;
-			for (j = 0; argv[i][j] != 0; j++) {
-				if (j == sizeof(var)) {
-					vargood = false;
-					break;
-				}
-				if (j > 0 && argv[i][j] == '=')
-					vargood = true;
-				var[j] = (char)argv[i][j];
-			}
-			if (vargood) {
-				var[j] = 0;
-				putenv(var);
-			}
-		}
+		cpy16to8(argv[i], var, sizeof(var));
+		howto |= boot_parse_arg(var);
 	}
+
 	return (howto);
 }
 
@@ -550,7 +483,7 @@ main(int argc, CHAR16 *argv[])
 
 	howto = parse_args(argc, argv, has_kbd);
 
-	bootenv_set(howto);
+	boot_howto_to_env(howto);
 
 	/*
 	 * XXX we need fallback to this stuff after looking at the ConIn, ConOut and ConErr variables

@@ -37,6 +37,10 @@ SRCS+=	bcmp.c bcopy.c bzero.c ffs.c fls.c \
 .PATH: ${LIBC_SRC}/stdlib
 SRCS+=	abs.c strtol.c strtoll.c strtoul.c strtoull.c
 
+# common boot code
+.PATH:	${SYSDIR}/kern
+SRCS+=	subr_boot.c
+
 .if ${MACHINE_CPUARCH} == "arm"
 .PATH: ${LIBC_SRC}/arm/gen
 
