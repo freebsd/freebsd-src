@@ -1088,9 +1088,9 @@ axp8xx_intr(void *arg)
 		if (bootverbose)
 			device_printf(dev, "AXP_IRQSTAT4 val: %x\n", val);
 		if (val & AXP_IRQSTAT4_BATLVL_LO0)
-			devctl_notify("PMU", "Battery", "lower than level 2", NULL);
+			devctl_notify("PMU", "Battery", "shutdown threshold", NULL);
 		if (val & AXP_IRQSTAT4_BATLVL_LO1)
-			devctl_notify("PMU", "Battery", "lower than level 1", NULL);
+			devctl_notify("PMU", "Battery", "warning threshold", NULL);
 		/* Acknowledge */
 		axp8xx_write(dev, AXP_IRQSTAT4, val);
 	}
