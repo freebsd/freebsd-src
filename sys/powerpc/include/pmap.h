@@ -288,6 +288,13 @@ vm_offset_t pmap_early_io_map(vm_paddr_t pa, vm_size_t size);
 void pmap_early_io_unmap(vm_offset_t va, vm_size_t size);
 void pmap_track_page(pmap_t pmap, vm_offset_t va);
 
+static inline int
+pmap_vmspace_copy(pmap_t dst_pmap __unused, pmap_t src_pmap __unused)
+{
+
+	return (0);
+}
+
 #endif
 
 #endif /* !_MACHINE_PMAP_H_ */
