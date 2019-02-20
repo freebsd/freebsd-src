@@ -7,6 +7,7 @@
 PROG_CXX=	zfsd
 MAN=		zfsd.8
 
-SUBDIR.${MK_GOOGLETEST}+=	tests
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
 
 .include <bsd.prog.mk>
