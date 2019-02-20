@@ -23,13 +23,6 @@ GTESTS+=	gtest_unittest
 CXXFLAGS+=	-I${GOOGLETEST_SRCROOT}/include
 CXXFLAGS+=	-I${GOOGLETEST_SRCROOT}
 
-HELPERS+=	gtest_help_test_
-HELPERS+=	gtest_xml_outfile1_test_
-HELPERS+=	gtest_xml_outfile2_test_
-
-BINDIR=		${TESTSDIR}
-PROGS_CXX+=	${HELPERS}
-
 SRCS.gtest-typed-test_test=		\
 	gtest-typed-test_test.cc	\
 	gtest-typed-test2_test.cc
