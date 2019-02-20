@@ -331,8 +331,8 @@ LdLoadFieldElements (
                      * The name already exists in this scope
                      * But continue processing the elements
                      */
-                    AslDualParseOpError (ASL_WARNING, ASL_MSG_EXTERN_COLLISION, Child,
-                        Child->Asl.Value.String, ASL_MSG_EXTERN_FOUND_HERE, Node->Op,
+                    AslDualParseOpError (ASL_WARNING, ASL_MSG_NAME_EXISTS, Child,
+                        Child->Asl.Value.String, ASL_MSG_FOUND_HERE, Node->Op,
                         Node->Op->Asl.ExternalName);
                 }
             }
@@ -575,7 +575,7 @@ LdNamespace1Begin (
         if (Status == AE_NOT_FOUND)
         {
             /*
-             * This is either a foward reference or the object truly
+             * This is either a forward reference or the object truly
              * does not exist. The two cases can only be differentiated
              * during the cross-reference stage later. Mark the Op/Name
              * as not-found for now to indicate the need for further

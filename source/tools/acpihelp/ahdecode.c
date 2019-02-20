@@ -314,7 +314,7 @@ AhFindPredefinedNames (
         return;
     }
 
-    /* Contruct a local name or name prefix */
+    /* Construct a local name or name prefix */
 
     AcpiUtStrupr (NamePrefix);
     if (*NamePrefix == '_')

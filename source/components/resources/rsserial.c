@@ -186,7 +186,7 @@ ACPI_RSCONVERT_INFO     AcpiRsConvertGpio[18] =
                         AML_OFFSET (Gpio.Flags),
                         0},
 
-    {ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET (Data.Gpio.Sharable),
+    {ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET (Data.Gpio.Shareable),
                         AML_OFFSET (Gpio.IntFlags),
                         3},
 
@@ -274,7 +274,7 @@ ACPI_RSCONVERT_INFO     AcpiRsConvertPinFunction[13] =
                         AML_OFFSET (PinFunction.RevisionId),
                         1},
 
-    {ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET (Data.PinFunction.Sharable),
+    {ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET (Data.PinFunction.Shareable),
                         AML_OFFSET (PinFunction.Flags),
                         0},
 
@@ -639,7 +639,7 @@ ACPI_RSCONVERT_INFO     AcpiRsConvertPinConfig[14] =
                         AML_OFFSET (PinConfig.RevisionId),
                         1},
 
-    {ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET (Data.PinConfig.Sharable),
+    {ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET (Data.PinConfig.Shareable),
                         AML_OFFSET (PinConfig.Flags),
                         0},
 
@@ -775,7 +775,7 @@ ACPI_RSCONVERT_INFO     AcpiRsConvertPinGroupFunction[13] =
                         AML_OFFSET (PinGroupFunction.RevisionId),
                         1},
 
-    {ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET (Data.PinGroupFunction.Sharable),
+    {ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET (Data.PinGroupFunction.Shareable),
                         AML_OFFSET (PinGroupFunction.Flags),
                         0},
 
@@ -842,7 +842,7 @@ ACPI_RSCONVERT_INFO     AcpiRsConvertPinGroupConfig[14] =
                         AML_OFFSET (PinGroupConfig.RevisionId),
                         1},
 
-    {ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET (Data.PinGroupConfig.Sharable),
+    {ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET (Data.PinGroupConfig.Shareable),
                         AML_OFFSET (PinGroupConfig.Flags),
                         0},
 

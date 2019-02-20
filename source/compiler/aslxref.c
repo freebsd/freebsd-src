@@ -174,6 +174,12 @@ XfNamespaceLocateEnd (
     UINT32                  Level,
     void                    *Context);
 
+static BOOLEAN
+XfValidateCrossReference (
+    ACPI_PARSE_OBJECT       *Op,
+    const ACPI_OPCODE_INFO  *OpInfo,
+    ACPI_NAMESPACE_NODE     *Node);
+
 static ACPI_PARSE_OBJECT *
 XfGetParentMethod (
     ACPI_PARSE_OBJECT       *Op);
@@ -408,6 +414,7 @@ XfGetParentMethod (
     return (NULL); /* No parent method found */
 }
 
+
 /*******************************************************************************
  *
  * FUNCTION:    XfNamespaceLocateBegin
@@ -488,7 +495,7 @@ XfNamespaceLocateBegin (
             Node->ArgCount = (UINT8)
                 (((UINT8) NextOp->Asl.Value.Integer) & 0x07);
 
-            /* We will track all posible ArgXs */
+            /* We will track all possible ArgXs */
 
             for (i = 0; i < ACPI_METHOD_NUM_ARGS; i++)
             {
@@ -773,6 +780,15 @@ XfNamespaceLocateBegin (
             Status = AE_OK;
         }
 
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Check for an attempt to access an object in another method */
+
+    if (!XfValidateCrossReference (Op, OpInfo, Node))
+    {
+        AslError (ASL_ERROR, ASL_MSG_TEMPORARY_OBJECT, Op,
+            Op->Asl.ExternalName);
         return_ACPI_STATUS (Status);
     }
 
@@ -1233,4 +1249,104 @@ XfNamespaceLocateEnd (
     }
 
     return_ACPI_STATUS (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    XfValidateCrossReference
+ *
+ * PARAMETERS:  Op                      - Parse Op that references the object
+ *              OpInfo                  - Parse Op info struct
+ *              Node                    - Node for the referenced object
+ *
+ * RETURN:      TRUE if the reference is legal, FALSE otherwise
+ *
+ * DESCRIPTION: Determine if a reference to another object is allowed.
+ *
+ * EXAMPLE:
+ *      Method (A) {Name (INT1, 1)}     Declaration of object INT1
+ *      Method (B) (Store (2, \A.INT1)} Illegal reference to object INT1
+ *                                      (INT1 is temporary, valid only during
+ *                                      execution of A)
+ *
+ * NOTES:
+ *      A null pointer returned by either XfGetParentMethod or
+ *      UtGetParentMethod indicates that the parameter object is not
+ *      within a control method.
+ *
+ *      Five cases are handled: Case(Op, Node)
+ *      1) Case(0,0): Op is not within a method, Node is not    --> OK
+ *      2) Case(0,1): Op is not within a method, but Node is    --> Illegal
+ *      3) Case(1,0): Op is within a method, Node is not        --> OK
+ *      4) Case(1,1): Both are within the same method           --> OK
+ *      5) Case(1,1): Both are in methods, but not same method  --> Illegal
+ *
+ ******************************************************************************/
+
+static BOOLEAN
+XfValidateCrossReference (
+    ACPI_PARSE_OBJECT       *Op,
+    const ACPI_OPCODE_INFO  *OpInfo,
+    ACPI_NAMESPACE_NODE     *Node)
+{
+    ACPI_PARSE_OBJECT       *ReferencingMethodOp;
+    ACPI_NAMESPACE_NODE     *ReferencedMethodNode;
+
+
+    /* Ignore actual named (and related) object declarations */
+
+    if (OpInfo->Flags & (AML_NAMED | AML_CREATE | AML_DEFER | AML_HAS_ARGS))
+    {
+        return (TRUE);
+    }
+
+    /*
+     * 1) Search upwards in parse tree for owner of the referencing object
+     * 2) Search upwards in namespace to find the owner of the referenced object
+     */
+    ReferencingMethodOp = XfGetParentMethod (Op);
+    ReferencedMethodNode = UtGetParentMethod (Node);
+
+    if (!ReferencingMethodOp && !ReferencedMethodNode)
+    {
+        /*
+         * 1) Case (0,0): Both Op and Node are not within methods
+         * --> OK
+         */
+        return (TRUE);
+    }
+
+    if (!ReferencingMethodOp && ReferencedMethodNode)
+    {
+        /*
+         * 2) Case (0,1): Op is not in a method, but Node is within a
+         * method --> illegal
+         */
+        return (FALSE);
+    }
+    else if (ReferencingMethodOp && !ReferencedMethodNode)
+    {
+        /*
+         * 3) Case (1,0): Op is within a method, but Node is not
+         * --> OK
+         */
+        return (TRUE);
+    }
+    else if (ReferencingMethodOp->Asl.Node == ReferencedMethodNode)
+    {
+        /*
+         * 4) Case (1,1): Both Op and Node are within the same method
+         * --> OK
+         */
+        return (TRUE);
+    }
+    else
+    {
+        /*
+         * 5) Case (1,1), Op and Node are in different methods
+         * --> Illegal
+         */
+        return (FALSE);
+    }
 }

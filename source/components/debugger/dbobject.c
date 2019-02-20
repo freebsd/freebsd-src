@@ -420,7 +420,7 @@ AcpiDbDisplayInternalObject (
 
             AcpiOsPrintf ("[%s] ", AcpiUtGetReferenceName (ObjDesc));
 
-            /* Decode the refererence */
+            /* Decode the reference */
 
             switch (ObjDesc->Reference.Class)
             {

@@ -239,8 +239,6 @@ main (
 
     /* Set flags so that the interpreter is not used */
 
-    AcpiGbl_ExecuteTablesAsMethods = FALSE;
-
     Status = AcpiInitializeSubsystem ();
     ACPI_CHECK_OK (AcpiInitializeSubsystem, Status);
     if (ACPI_FAILURE (Status))
