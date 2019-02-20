@@ -226,16 +226,23 @@ get_load_device(int *type, int *unit, int *slice, int *partition)
 	p = get_device_type(devstr, type);
 
 	/*
-	 * If type is DEV_TYP_STOR we have a disk-like device.  If we can parse
-	 * the remainder of the string as a standard unit+slice+partition (e.g.,
-	 * 0s2a or 1p12), return those results.  Otherwise we'll fall through to
-	 * the code that parses the legacy format.
+	 * If type is DEV_TYP_STOR we have a disk-like device.  If the remainder
+	 * of the string contains spaces, dots, or a colon in any location other
+	 * than the last char, it's legacy format.  Otherwise it might be
+	 * standard loader(8) format (e.g., disk0s2a or mmc1p12), so try to
+	 * parse the remainder of the string as such, and if it works, return
+	 * those results. Otherwise we'll fall through to the code that parses
+	 * the legacy format.
 	 */
-	if ((*type & DEV_TYP_STOR) && disk_parsedev(&dev, p, NULL) == 0) {
-		*unit = dev.dd.d_unit;
-		*slice = dev.d_slice;
-		*partition = dev.d_partition;
-		return;
+	if (*type & DEV_TYP_STOR) {
+		size_t len = strlen(p);
+		if (strcspn(p, " .") == len && strcspn(p, ":") >= len - 1 &&
+		    disk_parsedev(&dev, p, NULL) == 0) {
+			*unit = dev.dd.d_unit;
+			*slice = dev.d_slice;
+			*partition = dev.d_partition;
+			return;
+		}
 	}
 
 	/* Ignore optional spaces after the device name. */
