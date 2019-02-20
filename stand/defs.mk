@@ -28,7 +28,7 @@ LUASRC=		${SRCTOP}/contrib/lua/src
 SASRC=		${BOOTSRC}/libsa
 SYSDIR=		${SRCTOP}/sys
 UBOOTSRC=	${BOOTSRC}/uboot
-ZFSSRC=		${BOOTSRC}/zfs
+ZFSSRC=		${SASRC}/zfs
 
 BOOTOBJ=	${OBJTOP}/stand
 
