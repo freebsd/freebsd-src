@@ -6,7 +6,7 @@
 
 GTESTS+=	gmock-actions_test
 GTESTS+=	gmock-cardinalities_test
-GTESTS+=	gmock-ex_test
+GTESTS+=	gmock_ex_test
 GTESTS+=	gmock-generated-actions_test
 GTESTS+=	gmock-generated-function-mockers_test
 GTESTS+=	gmock-generated-internal-utils_test
@@ -22,13 +22,16 @@ GTESTS+=	gmock_test
 
 CXXFLAGS+=	-I${GOOGLEMOCK_SRCROOT}/include
 CXXFLAGS+=	-I${GOOGLEMOCK_SRCROOT}
+CXXFLAGS+=	-I${GOOGLETEST_SRCROOT}/include
+CXXFLAGS+=	-I${GOOGLETEST_SRCROOT}
 
-.for test in ${GTESTS}
-SRCS.${test}=	gmock_main.cc
-.endfor
+SRCS.gmock_link_test=		\
+	gmock_link_test.cc	\
+	gmock_link2_test.cc
 
-SRCS.gmock_link_test+=	gmock_link2_test.cc
+LIBADD=		gmock_main gmock gtest
 
-LIBADD=		gmock
+# XXX: https://github.com/google/googletest/pull/2119
+NO_WERROR=
 
 .include <bsd.test.mk>
