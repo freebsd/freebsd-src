@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-PLAIN_TESTS_CXX+=	gmock_stress_test
+GTESTS+=	gmock_stress_test
 
-LIBADD+=		gmock
+LIBADD+=	gmock
 
 # XXX: https://github.com/google/googletest/pull/2119
 NO_WERROR=
