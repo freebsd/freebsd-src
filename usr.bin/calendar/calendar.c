@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <locale.h>
+#include <langinfo.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,6 +67,9 @@ static char	*DEBUG = NULL;
 static time_t	f_time = 0;
 double		UTCOffset = UTCOFFSET_NOTSET;
 int		EastLongitude = LONGITUDE_NOTSET;
+#ifdef WITH_ICONV
+const char	*outputEncoding;
+#endif
 
 static void	usage(void) __dead2;
 
@@ -80,6 +84,12 @@ main(int argc, char *argv[])
 	struct tm tp1, tp2;
 
 	(void)setlocale(LC_ALL, "");
+#ifdef WITH_ICONV
+	/* save the information about the encoding used in the terminal */
+	outputEncoding = strdup(nl_langinfo(CODESET));
+	if (outputEncoding == NULL)
+		errx(1, "cannot allocate memory");
+#endif
 
 	while ((ch = getopt(argc, argv, "-A:aB:D:dF:f:l:t:U:W:?")) != -1)
 		switch (ch) {
