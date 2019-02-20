@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef EFI_ZFS_BOOT
 #include <libzfs.h>
-
 #include "efizfs.h"
 #endif
 
@@ -73,8 +72,6 @@ EFI_GUID debugimg = DEBUG_IMAGE_INFO_TABLE_GUID;
 EFI_GUID fdtdtb = FDT_TABLE_GUID;
 EFI_GUID inputid = SIMPLE_TEXT_INPUT_PROTOCOL;
 
-static EFI_LOADED_IMAGE *img;
-
 /*
  * Number of seconds to wait for a keystroke before exiting with failure
  * in the event no currdev is found. -2 means always break, -1 means
@@ -84,22 +81,14 @@ static EFI_LOADED_IMAGE *img;
  */
 static int fail_timeout = 5;
 
-#ifdef	EFI_ZFS_BOOT
-bool
-efi_zfs_is_preferred(EFI_HANDLE *h)
-{
-        return (h == img->DeviceHandle);
-}
-#endif
-
-static int
+static bool
 has_keyboard(void)
 {
 	EFI_STATUS status;
 	EFI_DEVICE_PATH *path;
 	EFI_HANDLE *hin, *hin_end, *walker;
 	UINTN sz;
-	int retval = 0;
+	bool retval = false;
 
 	/*
 	 * Find all the handles that support the SIMPLE_TEXT_INPUT_PROTOCOL and
@@ -146,7 +135,7 @@ has_keyboard(void)
 				acpi = (ACPI_HID_DEVICE_PATH *)(void *)path;
 				if ((EISA_ID_TO_NUM(acpi->HID) & 0xff00) == 0x300 &&
 				    (acpi->HID & 0xffff) == PNP_EISA_ID_CONST) {
-					retval = 1;
+					retval = true;
 					goto out;
 				}
 			/*
@@ -162,7 +151,7 @@ has_keyboard(void)
 				if (usb->DeviceClass == 3 && /* HID */
 				    usb->DeviceSubClass == 1 && /* Boot devices */
 				    usb->DeviceProtocol == 1) { /* Boot keyboards */
-					retval = 1;
+					retval = true;
 					goto out;
 				}
 			}
@@ -231,7 +220,8 @@ sanity_check_currdev(void)
 {
 	struct stat st;
 
-	return (stat("/boot/defaults/loader.conf", &st) == 0);
+	return (stat("/boot/defaults/loader.conf", &st) == 0 ||
+	    stat("/boot/kernel/kernel", &st) == 0);
 }
 
 #ifdef EFI_ZFS_BOOT
@@ -408,56 +398,12 @@ interactive_interrupt(const char *msg)
 	return (false);
 }
 
-EFI_STATUS
-main(int argc, CHAR16 *argv[])
+int
+parse_args(int argc, CHAR16 *argv[], bool has_kbd)
 {
-	char var[128];
-	EFI_GUID *guid;
 	int i, j, howto;
 	bool vargood;
-	UINTN k;
-	int has_kbd;
-	char *s;
-	EFI_DEVICE_PATH *imgpath;
-	CHAR16 *text;
-	EFI_STATUS status;
-	UINT16 boot_current;
-	size_t sz;
-	UINT16 boot_order[100];
-#if !defined(__arm__)
-	char buf[40];
-#endif
-
-	archsw.arch_autoload = efi_autoload;
-	archsw.arch_getdev = efi_getdev;
-	archsw.arch_copyin = efi_copyin;
-	archsw.arch_copyout = efi_copyout;
-	archsw.arch_readin = efi_readin;
-#ifdef EFI_ZFS_BOOT
-	/* Note this needs to be set before ZFS init. */
-	archsw.arch_zfs_probe = efi_zfs_probe;
-#endif
-
-        /* Get our loaded image protocol interface structure. */
-	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
-
-	/* Init the time source */
-	efi_time_init();
-
-	has_kbd = has_keyboard();
-
-	/*
-	 * XXX Chicken-and-egg problem; we want to have console output
-	 * early, but some console attributes may depend on reading from
-	 * eg. the boot device, which we can't do yet.  We can use
-	 * printf() etc. once this is done.
-	 */
-	cons_probe();
-
-	/*
-	 * Initialise the block cache. Set the upper limit.
-	 */
-	bcache_init(32768, 512);
+	char var[128];
 
 	/*
 	 * Parse the args to set the console settings, etc
@@ -547,6 +493,62 @@ main(int argc, CHAR16 *argv[])
 			}
 		}
 	}
+	return (howto);
+}
+
+
+EFI_STATUS
+main(int argc, CHAR16 *argv[])
+{
+	EFI_GUID *guid;
+	int howto, i;
+	UINTN k;
+	bool has_kbd;
+	char *s;
+	EFI_DEVICE_PATH *imgpath;
+	CHAR16 *text;
+	EFI_STATUS status;
+	UINT16 boot_current;
+	size_t sz;
+	UINT16 boot_order[100];
+	EFI_LOADED_IMAGE *img;
+
+	archsw.arch_autoload = efi_autoload;
+	archsw.arch_getdev = efi_getdev;
+	archsw.arch_copyin = efi_copyin;
+	archsw.arch_copyout = efi_copyout;
+	archsw.arch_readin = efi_readin;
+#ifdef EFI_ZFS_BOOT
+	/* Note this needs to be set before ZFS init. */
+	archsw.arch_zfs_probe = efi_zfs_probe;
+#endif
+
+        /* Get our loaded image protocol interface structure. */
+	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
+
+#ifdef EFI_ZFS_BOOT
+	/* Tell ZFS probe code where we booted from */
+	efizfs_set_preferred(img->DeviceHandle);
+#endif
+	/* Init the time source */
+	efi_time_init();
+
+	has_kbd = has_keyboard();
+
+	/*
+	 * XXX Chicken-and-egg problem; we want to have console output
+	 * early, but some console attributes may depend on reading from
+	 * eg. the boot device, which we can't do yet.  We can use
+	 * printf() etc. once this is done.
+	 */
+	cons_probe();
+
+	/*
+	 * Initialise the block cache. Set the upper limit.
+	 */
+	bcache_init(32768, 512);
+
+	howto = parse_args(argc, argv, has_kbd);
 
 	bootenv_set(howto);
 
@@ -651,18 +653,20 @@ main(int argc, CHAR16 *argv[])
 	efi_init_environment();
 	setenv("LINES", "24", 1);	/* optional */
 
+#if !defined(__arm__)
 	for (k = 0; k < ST->NumberOfTableEntries; k++) {
 		guid = &ST->ConfigurationTable[k].VendorGuid;
-#if !defined(__arm__)
 		if (!memcmp(guid, &smbios, sizeof(EFI_GUID))) {
+			char buf[40];
+
 			snprintf(buf, sizeof(buf), "%p",
 			    ST->ConfigurationTable[k].VendorTable);
 			setenv("hint.smbios.0.mem", buf, 1);
 			smbios_detect(ST->ConfigurationTable[k].VendorTable);
 			break;
 		}
-#endif
 	}
+#endif
 
 	interact();			/* doesn't return */
 
