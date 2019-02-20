@@ -1106,9 +1106,26 @@ AcpiDmDumpGtdt (
         return;
     }
 
-    /* Subtables */
+    /* Rev 3 fields */
 
     Subtable = ACPI_ADD_PTR (ACPI_GTDT_HEADER, Table, Offset);
+
+    if (Table->Revision > 2)
+    {
+        SubtableLength = sizeof (ACPI_GTDT_EL2);
+        Status = AcpiDmDumpTable (Length, Offset, Subtable,
+            SubtableLength, AcpiDmTableInfoGtdtEl2);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+        Offset += SubtableLength;
+    }
+
+    Subtable = ACPI_ADD_PTR (ACPI_GTDT_HEADER, Table, Offset);
+
+    /* Subtables */
+
     while (Offset < Table->Length)
     {
         /* Common subtable header */
@@ -1406,7 +1423,7 @@ AcpiDmDumpHmat (
         case ACPI_HMAT_TYPE_ADDRESS_RANGE:
 
             InfoTable = AcpiDmTableInfoHmat0;
-            Length = sizeof (ACPI_HMAT_ADDRESS_RANGE);
+            Length = sizeof (ACPI_HMAT_PROXIMITY_DOMAIN);
             break;
 
         case ACPI_HMAT_TYPE_LOCALITY:
