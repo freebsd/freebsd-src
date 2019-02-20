@@ -793,6 +793,9 @@ usage(void)
 	fprintf(stderr,
 	    "usage: newsyslog [-CFNPnrsv] [-a directory] [-d directory] [-f config_file]\n"
 	    "                 [-S pidfile] [-t timefmt] [[-R tagname] file ...]\n");
+	/* Free global dynamically-allocated storage. */
+	free(timefnamefmt);
+	free(requestor);
 	exit(1);
 }
 
