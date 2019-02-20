@@ -24,7 +24,7 @@
  */
 
 /*
- * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2017, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
@@ -3040,9 +3040,6 @@ dtrace_consume(dtrace_hdl_t *dtp, FILE *fp,
 				break;
 
 			timestamp = dt_buf_oldest(buf, dtp);
-			assert(timestamp >= dtp->dt_last_timestamp);
-			dtp->dt_last_timestamp = timestamp;
-
 			if (timestamp == buf->dtbd_timestamp) {
 				/*
 				 * We've reached the end of the time covered
@@ -3056,6 +3053,8 @@ dtrace_consume(dtrace_hdl_t *dtp, FILE *fp,
 					break;
 				continue;
 			}
+			assert(timestamp >= dtp->dt_last_timestamp);
+			dtp->dt_last_timestamp = timestamp;
 
 			if ((rval = dt_consume_cpu(dtp, fp,
 			    buf->dtbd_cpu, buf, B_TRUE, pf, rf, arg)) != 0)
