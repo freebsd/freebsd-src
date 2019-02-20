@@ -70,7 +70,7 @@ username(int uid)
 }
 
 int
-userid(char username[])
+userid(char username_[])
 {
     struct passwd *pwd;
 
@@ -78,13 +78,13 @@ userid(char username[])
        but for now we just do it simply and remember just the result.
      */
 
-    if ((pwd = getpwnam(username)) == NULL)
+    if ((pwd = getpwnam(username_)) == NULL)
     {
 	return(-1);
     }
 
     /* enter the result in the hash table */
-    enter_user(pwd->pw_uid, username, 1);
+    enter_user(pwd->pw_uid, username_, 1);
 
     /* return our result */
     return(pwd->pw_uid);
