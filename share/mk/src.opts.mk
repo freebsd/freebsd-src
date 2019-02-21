@@ -306,7 +306,11 @@ BROKEN_OPTIONS+=LOADER_UBOOT
 .if ${__T} == "sparc64" || ${__T:Mpowerpc*}
 BROKEN_OPTIONS+=LOADER_GELI LOADER_LUA
 .endif
-
+# Both features are untested on pc98, so we'll mark them as disabled just to
+# be safe and make sure we keep pc98 stable.
+.if ${__TT:Mpc98*}
+BROKEN_OPTIONS+=LOADER_GELI LOADER_LUA
+.endif
 .if ${__T:Mmips64*}
 # profiling won't work on MIPS64 because there is only assembly for o32
 BROKEN_OPTIONS+=PROFILE

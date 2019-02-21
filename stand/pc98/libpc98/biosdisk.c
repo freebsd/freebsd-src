@@ -51,10 +51,6 @@ __FBSDID("$FreeBSD$");
 #include "disk.h"
 #include "libi386.h"
 
-#ifdef LOADER_GELI_SUPPORT
-#error "Nope! No GELI on pc98 so sorry."
-#endif
-
 #define BIOS_NUMDRIVES		0x475
 #define BIOSDISK_SECSIZE	512
 #define BUFSIZE			(1 * BIOSDISK_SECSIZE)
@@ -364,7 +360,6 @@ bd_open(struct open_file *f, ...)
 
 	err = disk_open(dev, BD(dev).bd_sectors * BD(dev).bd_sectorsize,
 	    BD(dev).bd_sectorsize);
-	/* i386 has GELI here */
 	return(err);
 }
 
@@ -665,7 +660,6 @@ static int
 bd_read(struct disk_devdesc *dev, daddr_t dblk, int blks,
     caddr_t dest)
 {
-	/* i386 has GELI here */
 
 	return (bd_io(dev, dblk, blks, dest, 0));
 }
