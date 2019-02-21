@@ -1080,7 +1080,11 @@ fasttrap_pid_probe(struct trapframe *tf)
 			 * been removed, and retry the instruction.
 			 */
 			curthread->t_fasttrap_tp_gen = gen;
+#ifdef __amd64
 			tf->tf_rip = pc;
+#else
+			tf->tf_eip = pc;
+#endif
 			return (0);
 		}
 		return (-1);
