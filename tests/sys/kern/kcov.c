@@ -89,7 +89,7 @@ ATF_TC_BODY(kcov_mmap, tc)
 	    fd, 0) == MAP_FAILED);
 
 	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE,
-	    2 * PAGE_SIZE / sizeof(uint64_t)) == 0);
+	    2 * PAGE_SIZE / KCOV_ENTRY_SIZE) == 0);
 
 	ATF_CHECK(mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
 	    fd, 0) == MAP_FAILED);
@@ -113,7 +113,7 @@ ATF_TC_BODY(kcov_mmap_no_munmap, tc)
 
 	fd = open_kcov();
 
-	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, PAGE_SIZE / sizeof(uint64_t)) ==0);
+	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, PAGE_SIZE / KCOV_ENTRY_SIZE) == 0);
 
 	ATF_CHECK(mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
 	    fd, 0) != MAP_FAILED);
@@ -128,7 +128,7 @@ ATF_TC_BODY(kcov_mmap_no_munmap_no_close, tc)
 
 	fd = open_kcov();
 
-	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, PAGE_SIZE / sizeof(uint64_t)) ==0);
+	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, PAGE_SIZE / KCOV_ENTRY_SIZE) == 0);
 
 	ATF_CHECK(mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
 	    fd, 0) != MAP_FAILED);
@@ -144,7 +144,7 @@ kcov_mmap_enable_thread(void *data)
 	fd = open_kcov();
 	*(int *)data = fd;
 
-	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, PAGE_SIZE / sizeof(uint64_t)) ==0);
+	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, PAGE_SIZE / KCOV_ENTRY_SIZE) == 0);
 	ATF_CHECK(mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
 	    fd, 0) != MAP_FAILED);
 	ATF_CHECK(ioctl(fd, KIOENABLE, KCOV_MODE_TRACE_PC) == 0);
@@ -180,7 +180,7 @@ ATF_TC_BODY(kcov_enable, tc)
 
 	ATF_CHECK(ioctl(fd, KIOENABLE, KCOV_MODE_TRACE_PC) == -1);
 
-	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, PAGE_SIZE / sizeof(uint64_t)) ==0);
+	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, PAGE_SIZE / KCOV_ENTRY_SIZE) == 0);
 
 	/* We need to enable before disable */
 	ATF_CHECK(ioctl(fd, KIODISABLE, 0) == -1);
@@ -208,7 +208,7 @@ ATF_TC_BODY(kcov_enable_no_disable, tc)
 	int fd;
 
 	fd = open_kcov();
-	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, PAGE_SIZE / sizeof(uint64_t)) ==0);
+	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, PAGE_SIZE / KCOV_ENTRY_SIZE) == 0);
 	ATF_CHECK(ioctl(fd, KIOENABLE, KCOV_MODE_TRACE_PC) == 0);
 	close(fd);
 }
@@ -219,7 +219,7 @@ ATF_TC_BODY(kcov_enable_no_disable_no_close, tc)
 	int fd;
 
 	fd = open_kcov();
-	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, PAGE_SIZE / sizeof(uint64_t)) ==0);
+	ATF_REQUIRE(ioctl(fd, KIOSETBUFSIZE, PAGE_SIZE / KCOV_ENTRY_SIZE) == 0);
 	ATF_CHECK(ioctl(fd, KIOENABLE, KCOV_MODE_TRACE_PC) == 0);
 }
 
@@ -232,7 +232,7 @@ common_head(int *fdp)
 	fd = open_kcov();
 
 	ATF_REQUIRE_MSG(ioctl(fd, KIOSETBUFSIZE,
-	    PAGE_SIZE / sizeof(uint64_t)) == 0,
+	    PAGE_SIZE / KCOV_ENTRY_SIZE) == 0,
 	    "Unable to set the kcov buffer size");
 
 	data = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
