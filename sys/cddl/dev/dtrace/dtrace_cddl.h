@@ -37,7 +37,7 @@ typedef struct kdtrace_proc {
 	u_int64_t	p_dtrace_count;		/* Number of DTrace tracepoints */
 	void		*p_dtrace_helpers;	/* DTrace helpers, if any */
 	int		p_dtrace_model;
-
+	uint64_t	p_fasttrap_tp_gen;	/* Tracepoint hash table gen */
 } kdtrace_proc_t;
 
 /*
@@ -86,6 +86,7 @@ typedef struct kdtrace_thread {
 	u_int64_t	td_hrtime;	/* Last time on cpu. */
 	void		*td_dtrace_sscr; /* Saved scratch space location. */
 	void		*td_systrace_args; /* syscall probe arguments. */
+	uint64_t	td_fasttrap_tp_gen; /* Tracepoint hash table gen. */
 } kdtrace_thread_t;
 
 /*
@@ -113,10 +114,12 @@ typedef struct kdtrace_thread {
 #define	t_dtrace_regv	td_dtrace->td_dtrace_regv
 #define	t_dtrace_sscr	td_dtrace->td_dtrace_sscr
 #define	t_dtrace_systrace_args	td_dtrace->td_systrace_args
+#define	t_fasttrap_tp_gen	td_dtrace->td_fasttrap_tp_gen
 #define	p_dtrace_helpers	p_dtrace->p_dtrace_helpers
 #define	p_dtrace_count	p_dtrace->p_dtrace_count
 #define	p_dtrace_probes	p_dtrace->p_dtrace_probes
 #define	p_model		p_dtrace->p_dtrace_model
+#define	p_fasttrap_tp_gen	p_dtrace->p_fasttrap_tp_gen
 
 #define	DATAMODEL_NATIVE	0
 #ifdef __amd64__
