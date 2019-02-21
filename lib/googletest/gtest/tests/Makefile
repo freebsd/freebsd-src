@@ -4,8 +4,6 @@
 
 .PATH:	${GOOGLETEST_SRCROOT}/src ${GOOGLETEST_SRCROOT}/test
 
-GTESTS+=	gtest-death-test_ex_catch_test
-GTESTS+=	gtest-death-test_ex_nocatch_test
 GTESTS+=	gtest_environment_test
 GTESTS+=	gtest_no_test_unittest
 GTESTS+=	googletest-param-test-test
@@ -18,16 +16,19 @@ GTESTS+=	gtest-unittest-api_test
 CXXFLAGS+=	-I${GOOGLETEST_SRCROOT}/include
 CXXFLAGS+=	-I${GOOGLETEST_SRCROOT}
 
-gtest-death-test_ex_catch_test.cc gtest-death-test_ex_nocatch_test.cc: googletest-death-test_ex_test.cc
+.for death_test in gtest-death-test_ex_catch_test gtest-death-test_ex_nocatch_test
+# XXX: copying source files in order to tweak CXXFLAGS seems hacky.
+${death_test}.cc: googletest-death-test_ex_test.cc
 	${CP} ${.ALLSRC} ${.TARGET}
+CLEANFILES+=	${death_test}.cc
+CXXFLAGS.${death_test}+= -fexception
+.endfor
 
-CXXFLAGS.gtest-death-test_ex_catch_test+=       \
-	-DGTEST_ENABLE_CATCH_EXCEPTIONS_=1	\
-	-fexceptions
+CXXFLAGS.gtest-death-test_ex_catch_test+=	\
+	-DGTEST_ENABLE_CATCH_EXCEPTIONS_=1
 
 CXXFLAGS.gtest-death-test_ex_nocatch_test+=     \
-	-DGTEST_ENABLE_CATCH_EXCEPTIONS_=0	\
-	-fexceptions
+	-DGTEST_ENABLE_CATCH_EXCEPTIONS_=0
 
 SRCS.googletest-param-test-test=	\
 	googletest-param-test-test.cc	\
