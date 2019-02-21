@@ -40,7 +40,7 @@ LIBADD+=	gtest
 #      handling this.
 LIBADD.gtest_stress_test+=	pthread
 
-# XXX: https://github.com/google/googletest/pull/2119
+# The next release will resolve a number of build warnings issues.
 NO_WERROR=
 
 .include <bsd.test.mk>

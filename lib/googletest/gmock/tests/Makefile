@@ -8,7 +8,7 @@ GTESTS+=	gmock_stress_test
 
 LIBADD+=	pthread gtest gmock
 
-# XXX: https://github.com/google/googletest/pull/2119
+# The next release will resolve a number of build warnings issues.
 NO_WERROR=
 
 .include <bsd.test.mk>
