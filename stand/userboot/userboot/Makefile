@@ -8,10 +8,11 @@ PIC=yes
 
 .include <bsd.init.mk>
 
-SHLIB_NAME=	userboot.so
+SHLIB_NAME=	userboot_${LOADER_INTERP}.so
 STRIP=
 LIBDIR=		/boot
 
+.PATH:		${.CURDIR}/../userboot
 SRCS=		autoload.c
 SRCS+=		bcache.c
 SRCS+=		biossmap.c
@@ -37,7 +38,12 @@ CWARNFLAGS.main.c += -Wno-implicit-function-declaration
 
 LDFLAGS+=	-nostdlib -Wl,-Bsymbolic
 
-NEWVERSWHAT=	"User boot" ${MACHINE_CPUARCH}
+NEWVERSWHAT=	"User boot ${LOADER_INTERP}" ${MACHINE_CPUARCH}
+VERSION_FILE=	${.CURDIR}/../userboot/version
+
+.if ${LOADER_INTERP} == ${LOADER_DEFAULT_INTERP}
+LINKS+=		${BINDIR}/${SHLIB_NAME} ${BINDIR}/userboot.so
+.endif
 
 .if ${MK_LOADER_ZFS} != "no"
 CFLAGS+=	-DUSERBOOT_ZFS_SUPPORT

@@ -164,6 +164,14 @@ extern int			isapnp_readport;
 extern char bootprog_info[];
 
 /*
+ * Interpreter information
+ */
+extern const char bootprog_interp[];
+#define	INTERP_DEFINE(interpstr) \
+const char bootprog_interp[] = "$Interpreter:" interpstr
+
+
+/*
  * Preloaded file metadata header.
  *
  * Metadata are allocated on our heap, and copied into kernel space
