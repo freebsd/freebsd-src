@@ -3133,7 +3133,9 @@ dev/syscons/rain/rain_saver.c	optional rain_saver
 dev/syscons/schistory.c		optional sc
 dev/syscons/scmouse.c		optional sc
 dev/syscons/scterm.c		optional sc
+dev/syscons/scterm-teken.c	optional sc
 dev/syscons/scvidctl.c		optional sc
+dev/syscons/scvtb.c		optional sc
 dev/syscons/snake/snake_saver.c	optional snake_saver
 dev/syscons/star/star_saver.c	optional star_saver
 dev/syscons/syscons.c		optional sc
