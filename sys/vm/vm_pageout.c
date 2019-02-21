@@ -893,10 +893,14 @@ free_page:
 			object = NULL;
 		}
 	}
-	if (mtx != NULL)
+	if (mtx != NULL) {
 		mtx_unlock(mtx);
-	if (object != NULL)
+		mtx = NULL;
+	}
+	if (object != NULL) {
 		VM_OBJECT_WUNLOCK(object);
+		object = NULL;
+	}
 	vm_pagequeue_lock(pq);
 	vm_pageout_end_scan(&ss);
 	vm_pagequeue_unlock(pq);
