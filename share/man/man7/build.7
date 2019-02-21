@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2018
+.Dd February 20, 2019
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -572,6 +572,18 @@ using the
 option of
 .Xr make 1 :
 .Bl -tag -width ".Va -DNO_KERNELCONFIG"
+.It Va LOADER_DEFAULT_INTERP
+Defines what interpreter the default loader program will have.
+Valid values include
+.Dq 4th ,
+.Dq lua ,
+and
+.Dq simp .
+This creates the default link for
+.Pa /boot/loader
+to the loader with that interpreter.
+It also determines what interpreter is compiled into
+.Pa userboot .
 .It Va NO_CLEANDIR
 If set, the build targets that clean parts of the object tree use the
 equivalent of
