@@ -27,7 +27,7 @@
 GTESTS?=
 
 .if !empty(GTESTS)
-.include <googletest.test.flags.mk>
+.include <googletest.test.inc.mk>
 
 PROGS_CXX+= ${GTESTS}
 _TESTS+= ${GTESTS}
