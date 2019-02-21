@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/consio.h>
 
 #if defined(__sparc64__) || defined(__powerpc__)
@@ -42,8 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/syscons/syscons.h>
 #include <dev/syscons/sctermvar.h>
 
-#ifdef SC_DUMB_TERMINAL
-
 /* dumb terminal emulator */
 
 static sc_term_init_t	dumb_init;
@@ -53,6 +53,8 @@ static sc_term_ioctl_t	dumb_ioctl;
 static sc_term_clear_t	dumb_clear;
 static sc_term_input_t	dumb_input;
 static void		dumb_nop(void);
+static sc_term_fkeystr_t	dumb_fkeystr;
+static sc_term_sync_t	dumb_sync;
 
 static sc_term_sw_t sc_term_dumb = {
 	{ NULL, NULL },
@@ -70,6 +72,8 @@ static sc_term_sw_t sc_term_dumb = {
 	dumb_clear,
 	(sc_term_notify_t *)dumb_nop,
 	dumb_input,
+	dumb_fkeystr,
+	dumb_sync,
 };
 
 SCTERM_MODULE(dumb, sc_term_dumb);
@@ -108,7 +112,7 @@ dumb_puts(scr_stat *scp, u_char *buf, int len)
 
 static int
 dumb_ioctl(scr_stat *scp, struct tty *tp, u_long cmd, caddr_t data,
-	   int flag, struct proc *p)
+	   struct thread *td)
 {
 	vid_info_t *vi;
 
@@ -146,10 +150,19 @@ dumb_input(scr_stat *scp, int c, struct tty *tp)
 	return FALSE;
 }
 
+static const char *
+dumb_fkeystr(scr_stat *scp, int c)
+{
+	return (NULL);
+}
+
+static void
+dumb_sync(scr_stat *scp)
+{
+}
+
 static void
 dumb_nop(void)
 {
 	/* nothing */
 }
-
-#endif /* SC_DUMB_TERMINAL */
