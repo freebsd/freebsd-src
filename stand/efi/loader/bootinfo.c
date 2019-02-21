@@ -82,10 +82,13 @@ bi_getboothowto(char *kargs)
 			howto |= RB_SERIAL;
 		if (strcmp(console, "nullconsole") == 0)
 			howto |= RB_MUTE;
-		if (strcmp(console, "efi") == 0) {
+#if defined(__i386__) || defined(__amd64__)
+		if (strcmp(console, "efi") == 0 &&
+		    getenv("efi_8250_uid") != NULL &&
+		    getenv("hw.uart.console") == NULL) {
 			/*
-			 * If we found a com port and com speed, we need to tell
-			 * the kernel where the serial port is, and how
+			 * If we found a 8250 com port and com speed, we need to
+			 * tell the kernel where the serial port is, and how
 			 * fast. Ideally, we'd get the port from ACPI, but that
 			 * isn't running in the loader. Do the next best thing
 			 * by allowing it to be set by a loader.conf variable,
@@ -93,24 +96,31 @@ bi_getboothowto(char *kargs)
 			 * comconsole_port if not. PCI support is needed, but
 			 * for that we'd ideally refactor the
 			 * libi386/comconsole.c code to have identical behavior.
+			 * We only try to set the port for cases where we saw
+			 * the Serial(x) node when parsing, otherwise
+			 * specialized hardware that has Uart nodes will have a
+			 * bogus address set.
+			 * But if someone specifically setup hw.uart.console,
+			 * don't override that.
 			 */
+			speed = -1;
+			port = -1;
 			tmp = getenv("efi_com_speed");
-			if (tmp != NULL) {
+			if (tmp != NULL)
 				speed = strtol(tmp, NULL, 0);
-				tmp = getenv("efi_com_port");
-				if (tmp == NULL)
-					tmp = getenv("comconsole_port");
-				/* XXX fallback to EFI variable set in rc.d? */
-				if (tmp != NULL)
-					port = strtol(tmp, NULL, 0);
-				else
-					port = 0x3f8;
+			tmp = getenv("efi_com_port");
+			if (tmp == NULL)
+				tmp = getenv("comconsole_port");
+			if (tmp != NULL)
+				port = strtol(tmp, NULL, 0);
+			if (speed != -1 && port != -1) {
 				snprintf(buf, sizeof(buf), "io:%d,br:%d", port,
 				    speed);
 				env_setenv("hw.uart.console", EV_VOLATILE, buf,
 				    NULL, NULL);
 			}
 		}
+#endif
 	}
 
 	return (howto);
