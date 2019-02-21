@@ -173,7 +173,8 @@ void ioat_release(bus_dmaengine_t dmaengine);
  *
  * On failure, the caller does not hold the dmaengine.
  */
-int ioat_acquire_reserve(bus_dmaengine_t dmaengine, unsigned n, int mflags);
+int ioat_acquire_reserve(bus_dmaengine_t dmaengine, unsigned n, int mflags)
+    __result_use_check;
 
 /*
  * Issue a blockfill operation.  The 64-bit pattern 'fillpattern' is written to
