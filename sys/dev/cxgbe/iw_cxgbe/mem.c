@@ -324,7 +324,7 @@ static int finish_mem_reg(struct c4iw_mr *mhp, u32 stag)
 	mmid = stag >> 8;
 	mhp->ibmr.rkey = mhp->ibmr.lkey = stag;
 	CTR3(KTR_IW_CXGBE, "%s mmid 0x%x mhp %p", __func__, mmid, mhp);
-	return insert_handle(mhp->rhp, &mhp->rhp->mmidr, mhp, mmid);
+	return xa_insert_irq(&mhp->rhp->mrs, mmid, mhp, GFP_KERNEL);
 }
 
 static int register_mem(struct c4iw_dev *rhp, struct c4iw_pd *php,
@@ -558,7 +558,7 @@ struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
 	mhp->attr.stag = stag;
 	mmid = (stag) >> 8;
 	mhp->ibmw.rkey = stag;
-	if (insert_handle(rhp, &rhp->mmidr, mhp, mmid)) {
+	if (xa_insert_irq(&rhp->mrs, mmid, mhp, GFP_KERNEL)) {
 		goto dealloc_win;
 	}
 	CTR4(KTR_IW_CXGBE, "%s mmid 0x%x mhp %p stag 0x%x", __func__, mmid, mhp,
@@ -583,7 +583,7 @@ int c4iw_dealloc_mw(struct ib_mw *mw)
 	mhp = to_c4iw_mw(mw);
 	rhp = mhp->rhp;
 	mmid = (mw->rkey) >> 8;
-	remove_handle(rhp, &rhp->mmidr, mmid);
+	xa_erase_irq(&rhp->mrs, mmid);
 	deallocate_window(&rhp->rdev, mhp->attr.stag, mhp->wr_waitp);
 	c4iw_put_wr_wait(mhp->wr_waitp);
 	kfree(mhp);
@@ -651,7 +651,7 @@ struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd,
 	mhp->attr.state = 0;
 	mmid = (stag) >> 8;
 	mhp->ibmr.rkey = mhp->ibmr.lkey = stag;
-	if (insert_handle(rhp, &rhp->mmidr, mhp, mmid)) {
+	if (xa_insert_irq(&rhp->mrs, mmid, mhp, GFP_KERNEL)) {
 		ret = -ENOMEM;
 		goto err_dereg;
 	}
@@ -708,7 +708,7 @@ int c4iw_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 	mhp = to_c4iw_mr(ib_mr);
 	rhp = mhp->rhp;
 	mmid = mhp->attr.stag >> 8;
-	remove_handle(rhp, &rhp->mmidr, mmid);
+	xa_erase_irq(&rhp->mrs, mmid);
 	dereg_mem(&rhp->rdev, mhp->attr.stag, mhp->attr.pbl_size,
 		       mhp->attr.pbl_addr, mhp->wr_waitp);
 	if (mhp->attr.pbl_size)
@@ -729,10 +729,10 @@ void c4iw_invalidate_mr(struct c4iw_dev *rhp, u32 rkey)
 	struct c4iw_mr *mhp;
 	unsigned long flags;
 
-	spin_lock_irqsave(&rhp->lock, flags);
-	mhp = get_mhp(rhp, rkey >> 8);
+	xa_lock_irqsave(&rhp->mrs, flags);
+	mhp = xa_load(&rhp->mrs, rkey >> 8);
 	if (mhp)
 		mhp->attr.state = 0;
-	spin_unlock_irqrestore(&rhp->lock, flags);
+	xa_unlock_irqrestore(&rhp->mrs, flags);
 }
 #endif

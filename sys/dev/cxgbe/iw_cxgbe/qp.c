@@ -71,12 +71,12 @@ static int alloc_ird(struct c4iw_dev *dev, u32 ird)
 {
 	int ret = 0;
 
-	spin_lock_irq(&dev->lock);
+	xa_lock_irq(&dev->qps);
 	if (ird <= dev->avail_ird)
 		dev->avail_ird -= ird;
 	else
 		ret = -ENOMEM;
-	spin_unlock_irq(&dev->lock);
+	xa_unlock_irq(&dev->qps);
 
 	if (ret)
 		log(LOG_WARNING, "%s: device IRD resources exhausted\n",
@@ -87,9 +87,9 @@ static int alloc_ird(struct c4iw_dev *dev, u32 ird)
 
 static void free_ird(struct c4iw_dev *dev, int ird)
 {
-	spin_lock_irq(&dev->lock);
+	xa_lock_irq(&dev->qps);
 	dev->avail_ird += ird;
-	spin_unlock_irq(&dev->lock);
+	xa_unlock_irq(&dev->qps);
 }
 
 static void set_state(struct c4iw_qp *qhp, enum c4iw_qp_state state)
@@ -1931,7 +1931,9 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 		c4iw_modify_qp(rhp, qhp, C4IW_QP_ATTR_NEXT_STATE, &attrs, 0);
 	wait_event(qhp->wait, !qhp->ep);
 
-	remove_handle(rhp, &rhp->qpidr, qhp->wq.sq.qid);
+	xa_lock_irq(&rhp->qps);
+	__xa_erase(&rhp->qps, qhp->wq.sq.qid);
+	xa_unlock_irq(&rhp->qps);
 
 	free_ird(rhp, qhp->attr.max_ird);
 	c4iw_qp_rem_ref(ib_qp);
@@ -2046,7 +2048,7 @@ c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	kref_init(&qhp->kref);
 	INIT_WORK(&qhp->free_work, free_qp_work);
 
-	ret = insert_handle(rhp, &rhp->qpidr, qhp, qhp->wq.sq.qid);
+	ret = xa_insert_irq(&rhp->qps, qhp->wq.sq.qid, qhp, GFP_KERNEL);
 	if (ret)
 		goto err_destroy_qp;
 
@@ -2145,7 +2147,7 @@ err_free_rq_key:
 err_free_sq_key:
 	kfree(sq_key_mm);
 err_remove_handle:
-	remove_handle(rhp, &rhp->qpidr, qhp->wq.sq.qid);
+	xa_erase_irq(&rhp->qps, qhp->wq.sq.qid);
 err_destroy_qp:
 	destroy_qp(&rhp->rdev, &qhp->wq,
 		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx);

@@ -35,7 +35,6 @@
 
 #include <linux/list.h>
 #include <linux/spinlock.h>
-#include <linux/idr.h>
 #include <linux/completion.h>
 #include <linux/sched.h>
 #include <linux/pci.h>
@@ -296,9 +295,9 @@ struct c4iw_dev {
 	struct pci_dev pdev;
 	struct c4iw_rdev rdev;
 	u32 device_cap_flags;
-	struct idr cqidr;
-	struct idr qpidr;
-	struct idr mmidr;
+	struct xarray cqs;
+	struct xarray qps;
+	struct xarray mrs;
 	spinlock_t lock;
 	struct dentry *debugfs_root;
 	u32 avail_ird;
@@ -316,70 +315,12 @@ static inline struct c4iw_dev *rdev_to_c4iw_dev(struct c4iw_rdev *rdev)
 
 static inline struct c4iw_cq *get_chp(struct c4iw_dev *rhp, u32 cqid)
 {
-	return idr_find(&rhp->cqidr, cqid);
+	return xa_load(&rhp->cqs, cqid);
 }
 
 static inline struct c4iw_qp *get_qhp(struct c4iw_dev *rhp, u32 qpid)
 {
-	return idr_find(&rhp->qpidr, qpid);
-}
-
-static inline struct c4iw_mr *get_mhp(struct c4iw_dev *rhp, u32 mmid)
-{
-	return idr_find(&rhp->mmidr, mmid);
-}
-
-static inline int _insert_handle(struct c4iw_dev *rhp, struct idr *idr,
-				 void *handle, u32 id, int lock)
-{
-	int ret;
-	int newid;
-
-	do {
-		if (!idr_pre_get(idr, lock ? GFP_KERNEL : GFP_ATOMIC))
-			return -ENOMEM;
-		if (lock)
-			spin_lock_irq(&rhp->lock);
-		ret = idr_get_new_above(idr, handle, id, &newid);
-		BUG_ON(!ret && newid != id);
-		if (lock)
-			spin_unlock_irq(&rhp->lock);
-	} while (ret == -EAGAIN);
-
-	return ret;
-}
-
-static inline int insert_handle(struct c4iw_dev *rhp, struct idr *idr,
-				void *handle, u32 id)
-{
-	return _insert_handle(rhp, idr, handle, id, 1);
-}
-
-static inline int insert_handle_nolock(struct c4iw_dev *rhp, struct idr *idr,
-				       void *handle, u32 id)
-{
-	return _insert_handle(rhp, idr, handle, id, 0);
-}
-
-static inline void _remove_handle(struct c4iw_dev *rhp, struct idr *idr,
-				   u32 id, int lock)
-{
-	if (lock)
-		spin_lock_irq(&rhp->lock);
-	idr_remove(idr, id);
-	if (lock)
-		spin_unlock_irq(&rhp->lock);
-}
-
-static inline void remove_handle(struct c4iw_dev *rhp, struct idr *idr, u32 id)
-{
-	_remove_handle(rhp, idr, id, 1);
-}
-
-static inline void remove_handle_nolock(struct c4iw_dev *rhp,
-					 struct idr *idr, u32 id)
-{
-	_remove_handle(rhp, idr, id, 0);
+	return xa_load(&rhp->qps, qpid);
 }
 
 extern int c4iw_max_read_depth;

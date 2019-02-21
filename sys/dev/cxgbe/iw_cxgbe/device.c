@@ -40,7 +40,6 @@
 #include <linux/moduleparam.h>
 
 #include <rdma/ib_verbs.h>
-#include <linux/idr.h>
 
 #ifdef TCP_OFFLOAD
 #include "iw_cxgbe.h"
@@ -190,9 +189,9 @@ c4iw_dealloc(struct c4iw_dev *iwsc)
 {
 
 	c4iw_rdev_close(&iwsc->rdev);
-	idr_destroy(&iwsc->cqidr);
-	idr_destroy(&iwsc->qpidr);
-	idr_destroy(&iwsc->mmidr);
+	WARN_ON(!xa_empty(&iwsc->cqs));
+	WARN_ON(!xa_empty(&iwsc->qps));
+	WARN_ON(!xa_empty(&iwsc->mrs));
 	ib_dealloc_device(&iwsc->ibdev);
 }
 
@@ -239,9 +238,9 @@ c4iw_alloc(struct adapter *sc)
 		return (ERR_PTR(rc));
 	}
 
-	idr_init(&iwsc->cqidr);
-	idr_init(&iwsc->qpidr);
-	idr_init(&iwsc->mmidr);
+	xa_init_flags(&iwsc->cqs, XA_FLAGS_LOCK_IRQ);
+	xa_init_flags(&iwsc->qps, XA_FLAGS_LOCK_IRQ);
+	xa_init_flags(&iwsc->mrs, XA_FLAGS_LOCK_IRQ);
 	spin_lock_init(&iwsc->lock);
 	mutex_init(&iwsc->rdev.stats.lock);
 	iwsc->avail_ird = iwsc->rdev.adap->params.max_ird_adapter;
