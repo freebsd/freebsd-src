@@ -80,7 +80,7 @@ ATF_TC_BODY(kcov_bufsize, tc)
 ATF_TC_WITHOUT_HEAD(kcov_mmap);
 ATF_TC_BODY(kcov_mmap, tc)
 {
-	void *data;
+	void *data1, *data2;
 	int fd;
 
 	fd = open_kcov();
@@ -95,12 +95,18 @@ ATF_TC_BODY(kcov_mmap, tc)
 	    fd, 0) == MAP_FAILED);
 	ATF_CHECK(mmap(NULL, 3 * PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
 	    fd, 0) == MAP_FAILED);
-	ATF_REQUIRE((data = mmap(NULL, 2 * PAGE_SIZE, PROT_READ | PROT_WRITE,
+	ATF_REQUIRE((data1 = mmap(NULL, 2 * PAGE_SIZE, PROT_READ | PROT_WRITE,
 	    MAP_SHARED, fd, 0)) != MAP_FAILED);
-	ATF_CHECK(mmap(NULL, 2 * PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
-	    fd, 0) == MAP_FAILED);
+	ATF_REQUIRE((data2 = mmap(NULL, 2 * PAGE_SIZE, PROT_READ | PROT_WRITE,
+	    MAP_SHARED, fd, 0)) != MAP_FAILED);
 
-	munmap(data, 2 * PAGE_SIZE);
+	*(uint64_t *)data1 = 0x123456789abcdeful;
+	ATF_REQUIRE(*(uint64_t *)data2 == 0x123456789abcdefull);
+	*(uint64_t *)data2 = 0xfedcba9876543210ul;
+	ATF_REQUIRE(*(uint64_t *)data1 == 0xfedcba9876543210ull);
+
+	munmap(data1, 2 * PAGE_SIZE);
+	munmap(data2, 2 * PAGE_SIZE);
 
 	close(fd);
 }
