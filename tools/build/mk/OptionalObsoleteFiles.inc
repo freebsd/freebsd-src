@@ -9339,6 +9339,32 @@ OLD_FILES+=usr/share/man/man8/lastlogin.8.gz
 OLD_FILES+=usr/share/man/man8/utx.8.gz
 .endif
 
+.if ${MK_VI} == no
+OLD_FILES+=etc/rc.d/virecover
+OLD_FILES+=rescue/ex
+OLD_FILES+=rescue/vi
+OLD_FILES+=usr/bin/ex
+OLD_FILES+=usr/bin/nex
+OLD_FILES+=usr/bin/nvi
+OLD_FILES+=usr/bin/nview
+OLD_FILES+=usr/bin/vi
+OLD_FILES+=usr/bin/view
+OLD_FILES+=usr/share/man/man1/ex.1.gz
+OLD_FILES+=usr/share/man/man1/nex.1.gz
+OLD_FILES+=usr/share/man/man1/nvi.1.gz
+OLD_FILES+=usr/share/man/man1/nview.1.gz
+OLD_FILES+=usr/share/man/man1/vi.1.gz
+OLD_FILES+=usr/share/man/man1/view.1.gz
+.  if exists(${DESTDIR}/usr/share/vi)
+VI_DIRS!=find ${DESTDIR}/usr/share/vi -type d \
+    | sed -e 's,^${DESTDIR}/,,'; echo
+VI_FILES!=find ${DESTDIR}/usr/share/vi \! -type d \
+    | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_DIRS+=${VI_DIRS}
+OLD_FILES+=${VI_FILES}
+.  endif
+.endif
+
 .if ${MK_WIRELESS} == no
 OLD_FILES+=etc/regdomain.xml
 OLD_FILES+=etc/rc.d/hostapd
