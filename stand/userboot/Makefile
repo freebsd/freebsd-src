@@ -1,8 +1,10 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <bsd.init.mk>
 
-SUBDIR=		test userboot
+SUBDIR.yes=		test
+SUBDIR.${MK_FORTH}+= userboot_4th
+SUBDIR.${MK_LOADER_LUA}+= userboot_lua
 
 .include <bsd.subdir.mk>
 

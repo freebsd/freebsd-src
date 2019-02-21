@@ -42,6 +42,13 @@
 #define	USERBOOT_VERSION_4      4
 
 /*
+ * Version 5 added a callback for indicating that the guest
+ * should be restarted with a different interpreter.  The callback
+ * structure is still backward compatible.
+ */
+#define	USERBOOT_VERSION_5      5
+
+/*
  * Exit codes from the loader
  */
 #define	USERBOOT_EXIT_QUIT      1
@@ -210,4 +217,9 @@ struct loader_callbacks {
 	int	(*vm_set_register)(void *arg, int vcpu, int reg, uint64_t val);
 	int	(*vm_set_desc)(void *arg, int vcpu, int reg, uint64_t base,
 	    u_int limit, u_int access);
+
+	/*
+	 * Version 5 addition.
+	 */
+	void	(*swap_interpreter)(void *arg, const char *interp);
 };
