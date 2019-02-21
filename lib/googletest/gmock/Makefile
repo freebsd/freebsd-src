@@ -17,7 +17,7 @@ LDFLAGS+=	-L${.OBJDIR:H}/gtest
 
 INCSGROUPS=	MAIN_INCS INTERNAL_INCS INTERNAL_CUSTOM_INCS
 
-MAIN_INCSDIR=	${INCLUDEDIR}/gmock
+MAIN_INCSDIR=	${INCLUDEDIR}${PRIVATELIB:D/private/${LIB}}
 MAIN_INCS+=	gmock/gmock-matchers.h
 MAIN_INCS+=	gmock/gmock-more-actions.h
 MAIN_INCS+=	gmock/gmock-generated-actions.h
@@ -30,12 +30,12 @@ MAIN_INCS+=	gmock/gmock-spec-builders.h
 MAIN_INCS+=	gmock/gmock.h
 MAIN_INCS+=	gmock/gmock-actions.h
 
-INTERNAL_INCSDIR=	${INCLUDEDIR}/gmock/internal
+INTERNAL_INCSDIR=	${MAIN_INCSDIR}/internal
 INTERNAL_INCS+=		gmock/internal/gmock-port.h
 INTERNAL_INCS+=		gmock/internal/gmock-internal-utils.h
 INTERNAL_INCS+=		gmock/internal/gmock-generated-internal-utils.h
 
-INTERNAL_CUSTOM_INCSDIR= ${INCLUDEDIR}/gmock/internal/custom
+INTERNAL_CUSTOM_INCSDIR= ${INTERNAL_INCSDIR}/custom
 INTERNAL_CUSTOM_INCS+=	gmock/internal/custom/gmock-port.h
 INTERNAL_CUSTOM_INCS+=	gmock/internal/custom/gmock-matchers.h
 INTERNAL_CUSTOM_INCS+=	gmock/internal/custom/gmock-generated-actions.h
