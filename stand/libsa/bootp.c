@@ -735,7 +735,7 @@ setenv_(u_char *cp,  u_char *ep, struct dhcp_opt *opts)
 	    bcopy(cp, buf, size);	/* cannot overflow */
 	    buf[size] = '\0';
 	    for (endv = buf; endv; endv = vp) {
-		u_char *s = NULL;	/* semicolon ? */
+		char *s = NULL;	/* semicolon ? */
 
 		/* skip leading whitespace */
 		while (*endv && strchr(" \t\n\r", *endv))

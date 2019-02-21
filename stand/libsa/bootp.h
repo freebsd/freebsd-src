@@ -39,7 +39,7 @@ struct bootp {
 	struct in_addr	bp_giaddr;	/* gateway IP address */
 	unsigned char	bp_chaddr[16];	/* client hardware address */
 	unsigned char	bp_sname[64];	/* server host name */
-	unsigned char	bp_file[128];	/* boot file name */
+	char		bp_file[128];	/* boot file name */
 #ifdef SUPPORT_DHCP
 #define BOOTP_VENDSIZE 312
 #else

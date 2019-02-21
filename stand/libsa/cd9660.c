@@ -304,7 +304,7 @@ cd9660_open(const char *path, struct open_file *f)
 	if (isonum_723(vd->logical_block_size) != ISO_DEFAULT_BLOCK_SIZE)
 		goto out;
 
-	rec = *(struct iso_directory_record *) vd->root_directory_record;
+	bcopy(vd->root_directory_record, &rec, sizeof(rec));
 	if (*path == '/') path++; /* eat leading '/' */
 
 	first = 1;
