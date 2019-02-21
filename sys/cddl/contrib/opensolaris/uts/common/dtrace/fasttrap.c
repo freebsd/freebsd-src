@@ -1089,6 +1089,8 @@ fasttrap_tracepoint_disable(proc_t *p, fasttrap_probe_t *probe, uint_t index)
 		ASSERT(p->p_proc_flag & P_PR_LOCK);
 #endif
 		p->p_dtrace_count--;
+
+		atomic_add_rel_64(&p->p_fasttrap_tp_gen, 1);
 	}
 
 	/*
