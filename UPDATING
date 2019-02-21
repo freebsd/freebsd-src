@@ -17,6 +17,20 @@ the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
 20190220:
+	Co-existance for Forth and Lua interpreters in bootloaders has now been
+	merged to ease testing of lualoader.  LOADER_DEFAULT_INTERP, documented
+	in build(7), may be used to control which interpreter flavor is used in
+	the default loader to be installed.  For systems where Lua and Forth
+	coexist, this switch can also be made on a running system by creating a
+	link from /boot/loader_${flavor}{,efi} to /boot/loader{,.efi} rather
+	than requiring a rebuild.
+
+	The default flavor in this branch will remain Forth.  As indicated in
+	the 20190216 UPDATING entry, booting is a complex environment; it would
+	be prudent to assume that lualoader may not work for your setup and make
+	provisions for backup boot methods.
+
+20190220:
 	zfsloader's functionality has now been folded into loader.
 	zfsloader is no longer necesasary once you've updated your
 	boot blocks. For a transition period, we will install a
