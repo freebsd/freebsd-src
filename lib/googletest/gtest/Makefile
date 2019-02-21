@@ -13,7 +13,7 @@ CXXFLAGS+=	-I${GOOGLETEST_SRCROOT}
 
 INCSGROUPS=	MAIN_INCS INTERNAL_INCS INTERNAL_CUSTOM_INCS
 
-MAIN_INCSDIR=	${INCLUDEDIR}/gtest
+MAIN_INCSDIR=	${INCLUDEDIR}${PRIVATELIB:D/private/${LIB}}
 MAIN_INCS+=	gtest/gtest-death-test.h
 MAIN_INCS+=	gtest/gtest-message.h
 MAIN_INCS+=	gtest/gtest-param-test.h
@@ -25,7 +25,7 @@ MAIN_INCS+=	gtest/gtest.h
 MAIN_INCS+=	gtest/gtest_pred_impl.h
 MAIN_INCS+=	gtest/gtest_prod.h
 
-INTERNAL_INCSDIR=	${INCLUDEDIR}/gtest/internal
+INTERNAL_INCSDIR=	${MAIN_INCSDIR}/internal
 INTERNAL_INCS+=	gtest/internal/gtest-death-test-internal.h
 INTERNAL_INCS+=	gtest/internal/gtest-filepath.h
 INTERNAL_INCS+=	gtest/internal/gtest-internal.h
@@ -38,7 +38,7 @@ INTERNAL_INCS+=	gtest/internal/gtest-string.h
 INTERNAL_INCS+=	gtest/internal/gtest-tuple.h
 INTERNAL_INCS+=	gtest/internal/gtest-type-util.h
 
-INTERNAL_CUSTOM_INCSDIR= ${INCLUDEDIR}/gtest/internal/custom
+INTERNAL_CUSTOM_INCSDIR= ${INTERNAL_INCSDIR}/custom
 INTERNAL_CUSTOM_INCS+=	gtest/internal/custom/gtest-port.h
 INTERNAL_CUSTOM_INCS+=	gtest/internal/custom/gtest-printers.h
 INTERNAL_CUSTOM_INCS+=	gtest/internal/custom/gtest.h
