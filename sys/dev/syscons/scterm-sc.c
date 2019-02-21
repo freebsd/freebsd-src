@@ -45,8 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/syscons/syscons.h>
 #include <dev/syscons/sctermvar.h>
 
-#ifndef SC_DUMB_TERMINAL
-
 #define MAX_ESC_PAR	5
 
 /* attribute flags */
@@ -89,6 +87,8 @@ static sc_term_default_attr_t	scterm_default_attr;
 static sc_term_clear_t	scterm_clear;
 static sc_term_notify_t	scterm_notify;
 static sc_term_input_t	scterm_input;
+static sc_term_fkeystr_t	scterm_fkeystr;
+static sc_term_sync_t	scterm_sync;
 
 static sc_term_sw_t sc_term_sc = {
 	{ NULL, NULL },
@@ -106,6 +106,8 @@ static sc_term_sw_t sc_term_sc = {
 	scterm_clear,
 	scterm_notify,
 	scterm_input,
+	scterm_fkeystr,
+	scterm_sync,
 };
 
 SCTERM_MODULE(sc, sc_term_sc);
@@ -780,6 +782,17 @@ scterm_input(scr_stat *scp, int c, struct tty *tp)
 	return FALSE;
 }
 
+static const char *
+scterm_fkeystr(scr_stat *scp, int c)
+{
+	return (NULL);
+}
+
+static void
+scterm_sync(scr_stat *scp)
+{
+}
+
 /*
  * Calculate hardware attributes word using logical attributes mask and
  * hardware colors
@@ -807,5 +820,3 @@ mask2attr(term_stat *tcp)
 
 	return (attr << 8);
 }
-
-#endif /* SC_DUMB_TERMINAL */
