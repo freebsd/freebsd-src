@@ -127,7 +127,6 @@ struct kcov_info {
 	size_t		bufsize;	/* (o) */
 	kcov_state_t	state;		/* (s) */
 	int		mode;		/* (l) */
-	bool		mmap;
 };
 
 /* Prototypes */
@@ -303,7 +302,6 @@ kcov_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	info->state = KCOV_STATE_OPEN;
 	info->thread = NULL;
 	info->mode = -1;
-	info->mmap = false;
 
 	if ((error = devfs_set_cdevpriv(info, kcov_mmap_cleanup)) != 0)
 		kcov_mmap_cleanup(info);
@@ -344,12 +342,10 @@ kcov_mmap_single(struct cdev *dev, vm_ooffset_t *offset, vm_size_t size,
 	if ((error = devfs_get_cdevpriv((void **)&info)) != 0)
 		return (error);
 
-	if (info->kvaddr == 0 || size / KCOV_ELEMENT_SIZE != info->entries ||
-	    info->mmap != false)
+	if (info->kvaddr == 0 || size / KCOV_ELEMENT_SIZE != info->entries)
 		return (EINVAL);
 
 	vm_object_reference(info->bufobj);
-	info->mmap = true;
 	*offset = 0;
 	*object = info->bufobj;
 	return (0);
