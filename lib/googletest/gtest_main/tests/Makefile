@@ -36,7 +36,7 @@ LIBADD+=	gtest gtest_main
 LIBADD.googletest-port-test+=	pthread
 LIBADD.gtest_unittest+=		pthread
 
-# XXX: https://github.com/google/googletest/pull/2119
+# The next release will resolve a number of build warnings issues.
 NO_WERROR=
 
 .include <bsd.test.mk>
