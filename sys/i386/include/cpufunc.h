@@ -726,6 +726,22 @@ intr_restore(register_t eflags)
 	write_eflags(eflags);
 }
 
+static __inline uint32_t
+rdpkru(void)
+{
+	uint32_t res;
+
+	__asm __volatile("rdpkru" :  "=a" (res) : "c" (0) : "edx");
+	return (res);
+}
+
+static __inline void
+wrpkru(uint32_t mask)
+{
+
+	__asm __volatile("wrpkru" :  : "a" (mask),  "c" (0), "d" (0));
+}
+
 #else /* !(__GNUCLIKE_ASM && __CC_SUPPORTS___INLINE) */
 
 int	breakpoint(void);
