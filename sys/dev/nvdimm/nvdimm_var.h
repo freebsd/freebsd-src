@@ -67,26 +67,34 @@ enum SPA_mapping_type {
 	SPA_TYPE_UNKNOWN		= 127,
 };
 
-struct SPA_mapping {
-	SLIST_ENTRY(SPA_mapping) link;
-	enum SPA_mapping_type	spa_type;
+struct nvdimm_spa_dev {
 	int			spa_domain;
-	int			spa_nfit_idx;
 	uint64_t		spa_phys_base;
 	uint64_t		spa_len;
 	uint64_t		spa_efi_mem_flags;
 	void			*spa_kva;
+	struct vm_object	*spa_obj;
 	struct cdev		*spa_dev;
 	struct g_geom		*spa_g;
+};
+
+struct g_spa {
+	struct nvdimm_spa_dev	*dev;
 	struct g_provider	*spa_p;
 	struct bio_queue_head	spa_g_queue;
 	struct mtx		spa_g_mtx;
 	struct mtx		spa_g_stat_mtx;
 	struct devstat		*spa_g_devstat;
 	struct proc		*spa_g_proc;
-	struct vm_object	*spa_obj;
 	bool			spa_g_proc_run;
 	bool			spa_g_proc_exiting;
+};
+
+struct SPA_mapping {
+	SLIST_ENTRY(SPA_mapping) link;
+	enum SPA_mapping_type	spa_type;
+	int			spa_nfit_idx;
+	struct nvdimm_spa_dev	dev;
 };
 
 MALLOC_DECLARE(M_NVDIMM);
@@ -108,5 +116,7 @@ struct nvdimm_dev *nvdimm_find_by_handle(nfit_handle_t nv_handle);
 int nvdimm_spa_init(struct SPA_mapping *spa, ACPI_NFIT_SYSTEM_ADDRESS *nfitaddr,
     enum SPA_mapping_type spa_type);
 void nvdimm_spa_fini(struct SPA_mapping *spa);
+int nvdimm_spa_dev_init(struct nvdimm_spa_dev *dev, const char *name);
+void nvdimm_spa_dev_fini(struct nvdimm_spa_dev *dev);
 
 #endif		/* __DEV_NVDIMM_VAR_H__ */
