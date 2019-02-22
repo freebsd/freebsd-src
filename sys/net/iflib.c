@@ -3229,8 +3229,12 @@ defrag:
 		switch (err) {
 		case EFBIG:
 			/* try collapse once and defrag once */
-			if (remap == 0)
+			if (remap == 0) {
 				m_head = m_collapse(*m_headp, M_NOWAIT, max_segs);
+				/* try defrag if collapsing fails */
+				if (m_head == NULL)
+					remap++;
+			}
 			if (remap == 1)
 				m_head = m_defrag(*m_headp, M_NOWAIT);
 			remap++;
@@ -3318,13 +3322,18 @@ defrag:
 		 */
 		txq->ift_pidx = pi.ipi_new_pidx;
 		txq->ift_npending += pi.ipi_ndescs;
-	} else if (__predict_false(err == EFBIG && remap < 2)) {
+	} else {
 		*m_headp = m_head = iflib_remove_mbuf(txq);
-		remap = 1;
-		txq->ift_txd_encap_efbig++;
-		goto defrag;
-	} else
+		if (err == EFBIG) {
+			txq->ift_txd_encap_efbig++;
+			if (remap < 2) {
+				remap = 1;
+				goto defrag;
+			}
+		}
 		DBG_COUNTER_INC(encap_txd_encap_fail);
+		goto defrag_failed;
+	}
 	return (err);
 
 defrag_failed:
