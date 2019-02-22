@@ -767,6 +767,7 @@ SC_CUT_SPACES2TABS	opt_syscons.h
 SC_CUT_SEPCHARS		opt_syscons.h
 SC_DEBUG_LEVEL		opt_syscons.h
 SC_DFLT_FONT		opt_syscons.h
+SC_DFLT_TERM		opt_syscons.h
 SC_DISABLE_KDBKEY	opt_syscons.h
 SC_DISABLE_REBOOT	opt_syscons.h
 SC_HISTORY_SIZE		opt_syscons.h
@@ -780,6 +781,9 @@ SC_NO_HISTORY		opt_syscons.h
 SC_NO_MODE_CHANGE	opt_syscons.h
 SC_NO_SUSPEND_VTYSWITCH	opt_syscons.h
 SC_NO_SYSMOUSE		opt_syscons.h
+SC_NO_TERM_DUMB		opt_syscons.h
+SC_NO_TERM_SC		opt_syscons.h
+SC_NO_TERM_TEKEN	opt_syscons.h
 SC_NORM_ATTR		opt_syscons.h
 SC_NORM_REV_ATTR	opt_syscons.h
 SC_PIXEL_MODE		opt_syscons.h
