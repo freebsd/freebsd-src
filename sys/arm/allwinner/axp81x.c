@@ -195,8 +195,9 @@ MALLOC_DEFINE(M_AXP8XX_REG, "AXP8xx regulator", "AXP8xx power regulator");
 #define	AXP_BAT_COULOMB_LO	0xe3
 
 #define	AXP_BAT_CAP_WARN	0xe6
-#define	 AXP_BAT_CAP_WARN_LV1	0xf0	/* Bits 4, 5, 6, 7 */
-#define	 AXP_BAT_CAP_WARN_LV2	0xf	/* Bits 0, 1, 2, 3 */
+#define	 AXP_BAT_CAP_WARN_LV1		0xf0	/* Bits 4, 5, 6, 7 */
+#define	 AXP_BAP_CAP_WARN_LV1BASE	5	/* 5-20%, 1% per step */
+#define	 AXP_BAT_CAP_WARN_LV2		0xf	/* Bits 0, 1, 2, 3 */
 
 /* Sensor conversion macros */
 #define	AXP_SENSOR_BAT_H(hi)		((hi) << 4)
@@ -1527,6 +1528,7 @@ axp8xx_attach(device_t dev)
 	/* Get thresholds */
 	if (axp8xx_read(dev, AXP_BAT_CAP_WARN, &val, 1) == 0) {
 		sc->warn_thres = (val & AXP_BAT_CAP_WARN_LV1) >> 4;
+		sc->warn_thres += AXP_BAP_CAP_WARN_LV1BASE;
 		sc->shut_thres = (val & AXP_BAT_CAP_WARN_LV2);
 		if (bootverbose) {
 			device_printf(dev,
