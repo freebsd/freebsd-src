@@ -1390,8 +1390,8 @@ get_terminal_emulator(int i, struct term_info *tip)
 	tip->ti_index = i;
 	if (ioctl(0, CONS_GETTERM, tip) == 0)
 		return (1);
-	strlcpy((unsigned char *)tip->ti_name, "unknown", sizeof(tip->ti_name));
-	strlcpy((unsigned char *)tip->ti_desc, "unknown", sizeof(tip->ti_desc));
+	strlcpy((char *)tip->ti_name, "unknown", sizeof(tip->ti_name));
+	strlcpy((char *)tip->ti_desc, "unknown", sizeof(tip->ti_desc));
 	return (0);
 }
 
@@ -1415,7 +1415,7 @@ set_terminal_emulator(const char *name)
 	struct term_info old_ti, ti;
 
 	get_terminal_emulator(0, &old_ti);
-	strlcpy((unsigned char *)ti.ti_name, name, sizeof(ti.ti_name));
+	strlcpy((char *)ti.ti_name, name, sizeof(ti.ti_name));
 	if (ioctl(0, CONS_SETTERM, &ti) != 0)
 		warn("SETTERM '%s'", name);
 	get_terminal_emulator(0, &ti);
