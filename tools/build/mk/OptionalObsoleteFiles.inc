@@ -7370,8 +7370,76 @@ OLD_FILES+=usr/share/man/man7/pkg.7.gz
 
 .if ${MK_PMC} == no
 OLD_FILES+=usr/bin/pmcstudy
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/include/libipt/pt_last_ip.h
+OLD_FILES+=usr/include/libipt/intel-pt.h
+OLD_FILES+=usr/include/libipt/pt_time.h
+OLD_FILES+=usr/include/libipt/pt_cpu.h
+OLD_FILES+=usr/include/libipt/pt_compiler.h
+OLD_DIRS+=usr/include/libipt
+.endif
+.if ${TARGET_ARCH} == "aarch64"
+OLD_FILES+=usr/include/opencsd/c_api/opencsd_c_api.h
+OLD_FILES+=usr/include/opencsd/c_api/ocsd_c_api_cust_impl.h
+OLD_FILES+=usr/include/opencsd/c_api/ocsd_c_api_types.h
+OLD_FILES+=usr/include/opencsd/c_api/ocsd_c_api_cust_fact.h
+OLD_FILES+=usr/include/opencsd/c_api/ocsd_c_api_custom.h
+OLD_DIRS+=usr/include/opencsd/c_api
+OLD_FILES+=usr/include/opencsd/ocsd_if_types.h
+OLD_FILES+=usr/include/opencsd/ptm/trc_dcd_mngr_ptm.h
+OLD_FILES+=usr/include/opencsd/ptm/trc_pkt_proc_ptm.h
+OLD_FILES+=usr/include/opencsd/ptm/trc_cmp_cfg_ptm.h
+OLD_FILES+=usr/include/opencsd/ptm/ptm_decoder.h
+OLD_FILES+=usr/include/opencsd/ptm/trc_pkt_elem_ptm.h
+OLD_FILES+=usr/include/opencsd/ptm/trc_pkt_decode_ptm.h
+OLD_FILES+=usr/include/opencsd/ptm/trc_pkt_types_ptm.h
+OLD_DIRS+=usr/include/opencsd/ptm
+OLD_FILES+=usr/include/opencsd/trc_gen_elem_types.h
+OLD_FILES+=usr/include/opencsd/etmv4/trc_pkt_proc_etmv4.h
+OLD_FILES+=usr/include/opencsd/etmv4/trc_etmv4_stack_elem.h
+OLD_FILES+=usr/include/opencsd/etmv4/etmv4_decoder.h
+OLD_FILES+=usr/include/opencsd/etmv4/trc_pkt_elem_etmv4i.h
+OLD_FILES+=usr/include/opencsd/etmv4/trc_dcd_mngr_etmv4i.h
+OLD_FILES+=usr/include/opencsd/etmv4/trc_pkt_types_etmv4.h
+OLD_FILES+=usr/include/opencsd/etmv4/trc_pkt_elem_etmv4d.h
+OLD_FILES+=usr/include/opencsd/etmv4/trc_pkt_decode_etmv4i.h
+OLD_FILES+=usr/include/opencsd/etmv4/trc_cmp_cfg_etmv4.h
+OLD_DIRS+=usr/include/opencsd/etmv4
+OLD_FILES+=usr/include/opencsd/etmv3/trc_pkt_decode_etmv3.h
+OLD_FILES+=usr/include/opencsd/etmv3/trc_cmp_cfg_etmv3.h
+OLD_FILES+=usr/include/opencsd/etmv3/etmv3_decoder.h
+OLD_FILES+=usr/include/opencsd/etmv3/trc_pkt_proc_etmv3.h
+OLD_FILES+=usr/include/opencsd/etmv3/trc_pkt_elem_etmv3.h
+OLD_FILES+=usr/include/opencsd/etmv3/trc_pkt_types_etmv3.h
+OLD_FILES+=usr/include/opencsd/etmv3/trc_dcd_mngr_etmv3.h
+OLD_DIRS+=usr/include/opencsd/etmv3
+OLD_FILES+=usr/include/opencsd/trc_pkt_types.h
+OLD_FILES+=usr/include/opencsd/stm/trc_pkt_proc_stm.h
+OLD_FILES+=usr/include/opencsd/stm/trc_pkt_types_stm.h
+OLD_FILES+=usr/include/opencsd/stm/stm_decoder.h
+OLD_FILES+=usr/include/opencsd/stm/trc_dcd_mngr_stm.h
+OLD_FILES+=usr/include/opencsd/stm/trc_cmp_cfg_stm.h
+OLD_FILES+=usr/include/opencsd/stm/trc_pkt_elem_stm.h
+OLD_FILES+=usr/include/opencsd/stm/trc_pkt_decode_stm.h
+OLD_DIRS+=usr/include/opencsd/stm
+OLD_DIRS+=usr/include/opencsd
+.endif
 OLD_FILES+=usr/include/pmc.h
 OLD_FILES+=usr/include/pmclog.h
+OLD_FILES+=usr/include/pmcformat.h
+OLD_FILES+=usr/include/libpmcstat.h
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib/libipt.a
+OLD_FILES+=usr/lib/libipt.so
+OLD_LIBS+=lib/libipt.so.0
+OLD_FILES+=usr/lib/libipt_p.a
+.endif
+.if ${TARGET_ARCH} == "aarch64"
+OLD_FILES+=usr/lib/libopencsd.a
+OLD_FILES+=usr/lib/libopencsd.so
+OLD_LIBS+=lib/libopencsd.so.0
+OLD_FILES+=usr/lib/libopencsd_p.a
+.endif
 OLD_FILES+=usr/lib/libpmc.a
 OLD_FILES+=usr/lib/libpmc.so
 OLD_LIBS+=usr/lib/libpmc.so.5
@@ -7380,10 +7448,10 @@ OLD_FILES+=usr/lib32/libpmc.a
 OLD_FILES+=usr/lib32/libpmc.so
 OLD_LIBS+=usr/lib32/libpmc.so.5
 OLD_FILES+=usr/lib32/libpmc_p.a
+OLD_FILES+=usr/sbin/pmc
 OLD_FILES+=usr/sbin/pmcannotate
 OLD_FILES+=usr/sbin/pmccontrol
 OLD_FILES+=usr/sbin/pmcstat
-OLD_FILES+=usr/share/man/man1/pmcstudy.1.gz
 OLD_FILES+=usr/share/man/man3/pmc.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.atom.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.atomsilvermont.3.gz
@@ -7393,6 +7461,7 @@ OLD_FILES+=usr/share/man/man3/pmc.corei7.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.corei7uc.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.haswell.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.haswelluc.3.gz
+OLD_FILES+=usr/share/man/man3/pmc.haswellxeon.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.iaf.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.ivybridge.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.ivybridgexeon.3.gz
@@ -7452,6 +7521,7 @@ OLD_FILES+=usr/share/man/man3/pmclog_read.3.gz
 OLD_FILES+=usr/share/man/man8/pmcannotate.8.gz
 OLD_FILES+=usr/share/man/man8/pmccontrol.8.gz
 OLD_FILES+=usr/share/man/man8/pmcstat.8.gz
+OLD_FILES+=usr/share/man/man8/pmcstudy.8.gz
 .endif
 
 .if ${MK_PORTSNAP} == no
