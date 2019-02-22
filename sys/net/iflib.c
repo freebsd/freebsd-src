@@ -1466,12 +1466,17 @@ iflib_fast_intr(void *arg)
 {
 	iflib_filter_info_t info = arg;
 	struct grouptask *gtask = info->ifi_task;
+	int result;
+
 	if (!iflib_started)
-		return (FILTER_HANDLED);
+		return (FILTER_STRAY);
 
 	DBG_COUNTER_INC(fast_intrs);
-	if (info->ifi_filter != NULL && info->ifi_filter(info->ifi_filter_arg) == FILTER_HANDLED)
-		return (FILTER_HANDLED);
+	if (info->ifi_filter != NULL) {
+		result = info->ifi_filter(info->ifi_filter_arg);
+		if ((result & FILTER_SCHEDULE_THREAD) == 0)
+			return (result);
+	}
 
 	GROUPTASK_ENQUEUE(gtask);
 	return (FILTER_HANDLED);
@@ -1484,14 +1489,17 @@ iflib_fast_intr_rxtx(void *arg)
 	struct grouptask *gtask = info->ifi_task;
 	iflib_rxq_t rxq = (iflib_rxq_t)info->ifi_ctx;
 	if_ctx_t ctx = NULL;;
-	int i, cidx;
+	int i, cidx, result;
 
 	if (!iflib_started)
-		return (FILTER_HANDLED);
+		return (FILTER_STRAY);
 
 	DBG_COUNTER_INC(fast_intrs);
-	if (info->ifi_filter != NULL && info->ifi_filter(info->ifi_filter_arg) == FILTER_HANDLED)
-		return (FILTER_HANDLED);
+	if (info->ifi_filter != NULL) {
+		result = info->ifi_filter(info->ifi_filter_arg);
+		if ((result & FILTER_SCHEDULE_THREAD) == 0)
+			return (result);
+	}
 
 	MPASS(rxq->ifr_ntxqirq);
 	for (i = 0; i < rxq->ifr_ntxqirq; i++) {
@@ -1526,13 +1534,17 @@ iflib_fast_intr_ctx(void *arg)
 {
 	iflib_filter_info_t info = arg;
 	struct grouptask *gtask = info->ifi_task;
+	int result;
 
 	if (!iflib_started)
-		return (FILTER_HANDLED);
+		return (FILTER_STRAY);
 
 	DBG_COUNTER_INC(fast_intrs);
-	if (info->ifi_filter != NULL && info->ifi_filter(info->ifi_filter_arg) == FILTER_HANDLED)
-		return (FILTER_HANDLED);
+	if (info->ifi_filter != NULL) {
+		result = info->ifi_filter(info->ifi_filter_arg);
+		if ((result & FILTER_SCHEDULE_THREAD) == 0)
+			return (result);
+	}
 
 	GROUPTASK_ENQUEUE(gtask);
 	return (FILTER_HANDLED);
