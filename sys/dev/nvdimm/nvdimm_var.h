@@ -33,6 +33,51 @@
 #ifndef __DEV_NVDIMM_VAR_H__
 #define	__DEV_NVDIMM_VAR_H__
 
+#define NVDIMM_INDEX_BLOCK_SIGNATURE "NAMESPACE_INDEX"
+
+struct nvdimm_label_index {
+	char		signature[16];
+	uint8_t		flags[3];
+	uint8_t		label_size;
+	uint32_t	seq;
+	uint64_t	this_offset;
+	uint64_t	this_size;
+	uint64_t	other_offset;
+	uint64_t	label_offset;
+	uint32_t	slot_cnt;
+	uint16_t	rev_major;
+	uint16_t	rev_minor;
+	uint64_t	checksum;
+	uint8_t		free[0];
+};
+
+struct nvdimm_label {
+	struct uuid	uuid;
+	char		name[64];
+	uint32_t	flags;
+	uint16_t	nlabel;
+	uint16_t	position;
+	uint64_t	set_cookie;
+	uint64_t	lba_size;
+	uint64_t	dimm_phys_addr;
+	uint64_t	raw_size;
+	uint32_t	slot;
+	uint8_t		alignment;
+	uint8_t		reserved[3];
+	struct uuid	type_guid;
+	struct uuid	address_abstraction_guid;
+	uint8_t		reserved1[88];
+	uint64_t	checksum;
+};
+
+struct nvdimm_label_entry {
+	SLIST_ENTRY(nvdimm_label_entry) link;
+	struct nvdimm_label	label;
+};
+
+_Static_assert(sizeof(struct nvdimm_label_index) == 72, "Incorrect layout");
+_Static_assert(sizeof(struct nvdimm_label) == 256, "Incorrect layout");
+
 typedef uint32_t nfit_handle_t;
 
 enum nvdimm_root_ivar {
@@ -53,6 +98,10 @@ struct nvdimm_dev {
 	nfit_handle_t	nv_handle;
 	uint64_t	**nv_flush_addr;
 	int		nv_flush_addr_cnt;
+	uint32_t	label_area_size;
+	uint32_t	max_label_xfer;
+	struct nvdimm_label_index *label_index;
+	SLIST_HEAD(, nvdimm_label_entry) labels;
 };
 
 enum SPA_mapping_type {
