@@ -7036,7 +7036,6 @@ OLD_FILES+=usr/lib32/libpmc_p.a
 OLD_FILES+=usr/sbin/pmcannotate
 OLD_FILES+=usr/sbin/pmccontrol
 OLD_FILES+=usr/sbin/pmcstat
-OLD_FILES+=usr/share/man/man1/pmcstudy.1.gz
 OLD_FILES+=usr/share/man/man3/pmc.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.atom.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.atomsilvermont.3.gz
@@ -7046,6 +7045,7 @@ OLD_FILES+=usr/share/man/man3/pmc.corei7.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.corei7uc.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.haswell.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.haswelluc.3.gz
+OLD_FILES+=usr/share/man/man3/pmc.haswellxeon.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.iaf.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.ivybridge.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.ivybridgexeon.3.gz
@@ -7105,6 +7105,7 @@ OLD_FILES+=usr/share/man/man3/pmclog_read.3.gz
 OLD_FILES+=usr/share/man/man8/pmcannotate.8.gz
 OLD_FILES+=usr/share/man/man8/pmccontrol.8.gz
 OLD_FILES+=usr/share/man/man8/pmcstat.8.gz
+OLD_FILES+=usr/share/man/man8/pmcstudy.8.gz
 .endif
 
 .if ${MK_PORTSNAP} == no
