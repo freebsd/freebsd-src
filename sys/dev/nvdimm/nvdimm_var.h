@@ -139,11 +139,18 @@ struct g_spa {
 	bool			spa_g_proc_exiting;
 };
 
+struct nvdimm_namespace {
+	SLIST_ENTRY(nvdimm_namespace) link;
+	struct SPA_mapping	*spa;
+	struct nvdimm_spa_dev	dev;
+};
+
 struct SPA_mapping {
 	SLIST_ENTRY(SPA_mapping) link;
 	enum SPA_mapping_type	spa_type;
 	int			spa_nfit_idx;
 	struct nvdimm_spa_dev	dev;
+	SLIST_HEAD(, nvdimm_namespace) namespaces;
 };
 
 MALLOC_DECLARE(M_NVDIMM);
@@ -167,5 +174,7 @@ int nvdimm_spa_init(struct SPA_mapping *spa, ACPI_NFIT_SYSTEM_ADDRESS *nfitaddr,
 void nvdimm_spa_fini(struct SPA_mapping *spa);
 int nvdimm_spa_dev_init(struct nvdimm_spa_dev *dev, const char *name);
 void nvdimm_spa_dev_fini(struct nvdimm_spa_dev *dev);
+int nvdimm_create_namespaces(struct SPA_mapping *spa, ACPI_TABLE_NFIT *nfitbl);
+void nvdimm_destroy_namespaces(struct SPA_mapping *spa);
 
 #endif		/* __DEV_NVDIMM_VAR_H__ */

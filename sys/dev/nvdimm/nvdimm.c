@@ -462,6 +462,7 @@ nvdimm_root_create_spas(struct nvdimm_root_dev *dev, ACPI_TABLE_NFIT *nfitbl)
 			free(spa, M_NVDIMM);
 			break;
 		}
+		nvdimm_create_namespaces(spa_mapping, nfitbl);
 		SLIST_INSERT_HEAD(&dev->spas, spa_mapping, link);
 	}
 	free(spas, M_NVDIMM);
@@ -519,6 +520,7 @@ nvdimm_root_detach(device_t dev)
 
 	root = device_get_softc(dev);
 	SLIST_FOREACH_SAFE(spa, &root->spas, link, next) {
+		nvdimm_destroy_namespaces(spa);
 		nvdimm_spa_fini(spa);
 		SLIST_REMOVE_HEAD(&root->spas, link);
 		free(spa, M_NVDIMM);
