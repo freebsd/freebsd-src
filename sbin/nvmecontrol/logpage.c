@@ -53,7 +53,14 @@ __FBSDID("$FreeBSD$");
 
 #define MAX_FW_SLOTS	(7)
 
-SET_CONCAT_DEF(logpage, struct logpage_function);
+static SLIST_HEAD(,logpage_function) logpages;
+
+void
+logpage_register(struct logpage_function *p)
+{
+
+        SLIST_INSERT_HEAD(&logpages, p, link);
+}
 
 const char *
 kv_lookup(const struct kv_name *kv, size_t kv_count, uint32_t key)
@@ -326,15 +333,15 @@ NVME_LOGPAGE(fw,
 static void
 logpage_help(void)
 {
-	const struct logpage_function	* const *f;
+	const struct logpage_function	*f;
 	const char 			*v;
 
 	fprintf(stderr, "\n");
 	fprintf(stderr, "%-8s %-10s %s\n", "Page", "Vendor","Page Name");
 	fprintf(stderr, "-------- ---------- ----------\n");
-	for (f = logpage_begin(); f < logpage_limit(); f++) {
-		v = (*f)->vendor == NULL ? "-" : (*f)->vendor;
-		fprintf(stderr, "0x%02x     %-10s %s\n", (*f)->log_page, v, (*f)->name);
+	SLIST_FOREACH(f, &logpages, link) {
+		v = f->vendor == NULL ? "-" : f->vendor;
+		fprintf(stderr, "0x%02x     %-10s %s\n", f->log_page, v, f->name);
 	}
 
 	exit(1);
@@ -352,7 +359,7 @@ logpage(const struct nvme_function *nf, int argc, char *argv[])
 	uint32_t			nsid, size;
 	void				*buf;
 	const char			*vendor = NULL;
-	const struct logpage_function	* const *f;
+	const struct logpage_function	*f;
 	struct nvme_controller_data	cdata;
 	print_fn_t			print_fn;
 	uint8_t				ns_smart;
@@ -438,14 +445,14 @@ logpage(const struct nvme_function *nf, int argc, char *argv[])
 		 * the page is vendor specific, don't match the print function
 		 * unless the vendors match.
 		 */
-		for (f = logpage_begin(); f < logpage_limit(); f++) {
-			if ((*f)->vendor != NULL && vendor != NULL &&
-			    strcmp((*f)->vendor, vendor) != 0)
+		SLIST_FOREACH(f, &logpages, link) {
+			if (f->vendor != NULL && vendor != NULL &&
+			    strcmp(f->vendor, vendor) != 0)
 				continue;
-			if (log_page != (*f)->log_page)
+			if (log_page != f->log_page)
 				continue;
-			print_fn = (*f)->print_fn;
-			size = (*f)->size;
+			print_fn = f->print_fn;
+			size = f->size;
 			break;
 		}
 	}
