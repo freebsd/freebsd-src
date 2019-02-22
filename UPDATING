@@ -22,7 +22,7 @@ from older version of current across the gcc/clang cutover is a bit fragile.
 	in build(7), may be used to control which interpreter flavor is used in
 	the default loader to be installed.  For systems where Lua and Forth
 	coexist, this switch can also be made on a running system by creating a
-	link from /boot/loader_${flavor}{,efi} to /boot/loader{,.efi} rather
+	link from /boot/loader{,.efi} to /boot/loader_${flavor}{,efi} rather
 	than requiring a rebuild.
 
 	The default flavor in this branch will remain Forth.  As indicated in

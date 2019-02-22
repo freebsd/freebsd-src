@@ -156,6 +156,8 @@ CFLAGS+=	-mlittle-endian
 #
 # Have a sensible default
 #
+# XXX Do not change the ordering of this chain in this branch.  4th must remain
+# the default for the lifetime of stable/11.
 .if ${MK_FORTH} == "yes"
 LOADER_DEFAULT_INTERP?=4th
 .elif ${MK_LOADER_LUA} == "yes"
