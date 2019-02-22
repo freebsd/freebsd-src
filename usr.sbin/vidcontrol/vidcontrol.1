@@ -21,9 +21,10 @@
 .Nd system console control and configuration utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl CdLHPpx
+.Op Fl CdHLPpx
 .Op Fl b Ar color
 .Op Fl c Ar appearance
+.Op Fl E Ar emulator
 .Oo
 .Fl f
 .Oo
@@ -282,6 +283,11 @@ Show the current changes.
 .El
 .It Fl d
 Print out current output screen map.
+.It Fl E Ar emulator
+Set the terminal emulator to
+.Ar emulator .
+.It Fl e
+Show the active and available terminal emulators.
 .It Xo
 .Fl f
 .Oo
