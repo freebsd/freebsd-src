@@ -56,7 +56,7 @@ CWARNEXTRA?=	-Wno-error=address				\
 		-Wno-error=maybe-uninitialized			\
 		-Wno-error=overflow				\
 		-Wno-error=sequence-point			\
-		-Wno-error=unused-but-set-variable
+		-Wno-unused-but-set-variable
 .if ${COMPILER_VERSION} >= 60100
 CWARNEXTRA+=	-Wno-error=misleading-indentation		\
 		-Wno-error=nonnull-compare			\
