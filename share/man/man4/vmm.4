@@ -31,7 +31,6 @@
 .Nm vmm.ko
 .Nd "bhyve virtual machine monitor"
 .Sh SYNOPSIS
-.Pp
 To load the driver as a module at boot, add this line to
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
@@ -47,7 +46,7 @@ kldload vmm
 .Nm
 provides the kernel portion of the
 .Xr bhyve 4
-hypervisor. 
+hypervisor.
 .Pp
 An Intel CPU with VT-x/EPT or AMD CPU with SVM support is required.
 .Pp
