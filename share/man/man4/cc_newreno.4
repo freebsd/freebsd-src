@@ -75,6 +75,7 @@ the congestion window in response to an ECN congestion signal when
 .Va net.inet.tcp.cc.abe=1
 per: cwnd = (cwnd * CC_NEWRENO_BETA_ECN) / 100.
 Default is 80.
+.El
 .Sh MIB Variables
 The algorithm exposes these variables in the
 .Va net.inet.tcp.cc.newreno
@@ -93,6 +94,7 @@ the congestion window in response to an ECN congestion signal when
 .Va net.inet.tcp.cc.abe=1
 per: cwnd = (cwnd * beta_ecn) / 100.
 Default is 80.
+.El
 .Sh SEE ALSO
 .Xr cc_chd 4 ,
 .Xr cc_cubic 4 ,

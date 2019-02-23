@@ -399,11 +399,15 @@ The summation of num_inbound_tcp_pkts and num_outbound_tcp_pkts.
 .El
 .Bl -tag -offset indent -width Va
 .It Va num_inbound_skipped_pkts_malloc
-Number of inbound packets that were not processed because of failed malloc() calls.
+Number of inbound packets that were not processed because of failed
+.Fn malloc
+calls.
 .El
 .Bl -tag -offset indent -width Va
 .It Va num_outbound_skipped_pkts_malloc
-Number of outbound packets that were not processed because of failed malloc() calls.
+Number of outbound packets that were not processed because of failed
+.Fn malloc
+calls.
 .El
 .Bl -tag -offset indent -width Va
 .It Va num_inbound_skipped_pkts_mtx
@@ -759,8 +763,10 @@ Ideally,
 .Nm
 should intercept packets after they have been processed by the TCP layer i.e.
 intercept packets coming up the stack after they have been processed by
-tcp_input(), and intercept packets coming down the stack after they have been
-processed by tcp_output().
+.Fn tcp_input ,
+and intercept packets coming down the stack after they have been
+processed by
+.Fn tcp_output .
 The current code still gives satisfactory granularity though, as inbound events
 tend to trigger outbound events, allowing the cause-and-effect to be observed
 indirectly by capturing the state on outbound events as well.
