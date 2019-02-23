@@ -2629,7 +2629,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	 */
 	for (;;) {
 #ifdef CAPABILITIES
-		seq = seq_read(fd_seq(fdt, fd));
+		seq = seq_load(fd_seq(fdt, fd));
 		fde = &fdt->fdt_ofiles[fd];
 		haverights = *cap_rights_fde_inline(fde);
 		fp = fde->fde_file;
