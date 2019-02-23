@@ -130,6 +130,15 @@ SAN_CFLAGS+=	-fsanitize-coverage=trace-pc
 
 CFLAGS+=	${SAN_CFLAGS}
 
+GCOV_ENABLED!=	grep GCOV opt_global.h || true ; echo
+.if !empty(GCOV_ENABLED)
+.if ${COMPILER_TYPE} == "gcc"
+GCOV_CFLAGS+=	 -fprofile-arcs -ftest-coverage
+.endif
+.endif
+
+CFLAGS+=	${GCOV_CFLAGS}
+
 # Put configuration-specific C flags last (except for ${PROF}) so that they
 # can override the others.
 CFLAGS+=	${CONF_CFLAGS}

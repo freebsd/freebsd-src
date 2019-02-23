@@ -3726,6 +3726,11 @@ fs/cd9660/cd9660_util.c	optional cd9660
 fs/cd9660/cd9660_vfsops.c	optional cd9660
 fs/cd9660/cd9660_vnops.c	optional cd9660
 fs/cd9660/cd9660_iconv.c	optional cd9660_iconv
+gnu/gcov/gcc_4_7.c		optional gcov
+gnu/gcov/gcov_fs.c		optional gcov  lindebugfs \
+	compile-with "${LINUXKPI_C}"
+gnu/gcov/gcov_subr.c		optional gcov
+
 kern/bus_if.m			standard
 kern/clock_if.m			standard
 kern/cpufreq_if.m		standard
@@ -4473,6 +4478,12 @@ compat/linuxkpi/common/src/linux_slab.c		optional compat_linuxkpi \
 compat/linuxkpi/common/src/linux_usb.c		optional compat_linuxkpi usb \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_work.c		optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"
+
+compat/linuxkpi/common/src/linux_seq_file.c		optional compat_linuxkpi | lindebugfs \
+	compile-with "${LINUXKPI_C}"
+
+compat/lindebugfs/lindebugfs.c			optional lindebugfs \
 	compile-with "${LINUXKPI_C}"
 
 # OpenFabrics Enterprise Distribution (Infiniband)
