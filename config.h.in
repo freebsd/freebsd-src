@@ -6,6 +6,9 @@
 /* Define to 1 if you have the `asprintf' function. */
 #undef HAVE_ASPRINTF
 
+/* Define to 1 if you have cryb-test */
+#undef HAVE_CRYB_TEST
+
 /* Define to 1 if you have the <crypt.h> header file. */
 #undef HAVE_CRYPT_H
 
@@ -23,12 +26,6 @@
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
-
-/* Define to 1 if you have the `crypt' library (-lcrypt). */
-#undef HAVE_LIBCRYPT
-
-/* Define to 1 if you have the `crypto' library (-lcrypto). */
-#undef HAVE_LIBCRYPTO
 
 /* Define to 1 if you have the `dl' library (-ldl). */
 #undef HAVE_LIBDL
