@@ -67,7 +67,7 @@ static char lbuf[LBUF];
 
 #define Decimal(str, ans, tmp, maxval) if (decimal(str, &tmp, ans, maxval)) ans = tmp
 
-#define MAX_SEC_SIZE 2048	/* maximum section size that is supported */
+#define MAX_SEC_SIZE 65536	/* maximum sector size that is supported */
 #define MIN_SEC_SIZE 512	/* the sector size to start sensing at */
 static int secsize = 0;		/* the sensed sector size */
 
