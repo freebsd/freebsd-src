@@ -47,6 +47,21 @@ __FBSDID("$FreeBSD$");
 #include <dev/spibus/spi.h>
 #include "spibus_if.h"
 
+#include "opt_platform.h"
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
+static struct ofw_compat_data compat_data[] = {
+	{ "atmel,at45",		1 },
+	{ "atmel,dataflash",	1 },
+	{ NULL,			0 },
+};
+SPIBUS_PNP_INFO(compat_data);
+#endif
+
 struct at45d_flash_ident
 {
 	const char	*name;
@@ -187,9 +202,22 @@ at45d_wait_ready(device_t dev, uint8_t *status)
 static int
 at45d_probe(device_t dev)
 {
+	int rv;
+
+#ifdef FDT
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+		return (ENXIO);
+
+	rv = BUS_PROBE_DEFAULT;
+#else
+	rv = BUS_PROBE_NOWILDCARD;
+#endif
 
 	device_set_desc(dev, "AT45D Flash Family");
-	return (0);
+	return (rv);
 }
 
 static int
