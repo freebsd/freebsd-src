@@ -67,9 +67,10 @@ struct shparam {
 #define	Pflag optval[17]
 #define	hflag optval[18]
 #define	nologflag optval[19]
+#define	pipefailflag optval[20]
 
 #define NSHORTOPTS	19
-#define NOPTS		20
+#define NOPTS		21
 
 extern char optval[NOPTS];
 extern const char optletter[NSHORTOPTS];
@@ -97,6 +98,7 @@ static const unsigned char optname[] =
 	"\010physical"
 	"\010trackall"
 	"\005nolog"
+	"\010pipefail"
 ;
 #endif
 
