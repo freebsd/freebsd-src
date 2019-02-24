@@ -65,10 +65,15 @@ struct at45d_softc
 	struct proc		*p;
 	struct intr_config_hook	config_intrhook;
 	device_t		dev;
+	u_int			taskstate;
 	uint16_t		pagecount;
 	uint16_t		pageoffset;
 	uint16_t		pagesize;
 };
+
+#define	TSTATE_STOPPED	0
+#define	TSTATE_STOPPING	1
+#define	TSTATE_RUNNING	2
 
 #define	AT45D_LOCK(_sc)			mtx_lock(&(_sc)->sc_mtx)
 #define	AT45D_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
@@ -209,8 +214,33 @@ at45d_attach(device_t dev)
 static int
 at45d_detach(device_t dev)
 {
+	struct at45d_softc *sc;
+	int err;
 
-	return (EBUSY) /* XXX */;
+	sc = device_get_softc(dev);
+	err = 0;
+
+	AT45D_LOCK(sc);
+	if (sc->taskstate == TSTATE_RUNNING) {
+		sc->taskstate = TSTATE_STOPPING;
+		wakeup(sc);
+		while (err == 0 && sc->taskstate != TSTATE_STOPPED) {
+			err = msleep(sc, &sc->sc_mtx, 0, "at45dt", hz * 3);
+			if (err != 0) {
+				sc->taskstate = TSTATE_RUNNING;
+				device_printf(sc->dev,
+				    "Failed to stop queue task\n");
+			}
+		}
+	}
+	AT45D_UNLOCK(sc);
+
+	if (err == 0 && sc->taskstate == TSTATE_STOPPED) {
+		disk_destroy(sc->disk);
+		bioq_flush(&sc->bio_queue, NULL, ENXIO);
+		AT45D_LOCK_DESTROY(sc);
+	}
+	return (err);
 }
 
 static void
@@ -266,6 +296,7 @@ at45d_delayed_attach(void *xsc)
 		bioq_init(&sc->bio_queue);
 		kproc_create(&at45d_task, sc, &sc->p, 0, 0,
 		    "task: at45d flash");
+		sc->taskstate = TSTATE_RUNNING;
 		device_printf(sc->dev, "%s, %d bytes per page, %d pages\n",
 		    ident->name, pagesize, ident->pagecount);
 	}
@@ -324,6 +355,12 @@ at45d_task(void *arg)
 	for (;;) {
 		AT45D_LOCK(sc);
 		do {
+			if (sc->taskstate == TSTATE_STOPPING) {
+				sc->taskstate = TSTATE_STOPPED;
+				AT45D_UNLOCK(sc);
+				wakeup(sc);
+				kproc_exit(0);
+			}
 			bp = bioq_takefirst(&sc->bio_queue);
 			if (bp == NULL)
 				msleep(sc, &sc->sc_mtx, PRIBIO, "jobqueue", 0);
