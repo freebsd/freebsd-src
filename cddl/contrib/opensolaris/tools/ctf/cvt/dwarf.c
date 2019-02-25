@@ -1268,7 +1268,7 @@ die_funcptr_create(dwarf_t *dw, Dwarf_Die die, Dwarf_Off off, tdesc_t *tdp)
 static intr_t *
 die_base_name_parse(const char *name, char **newp)
 {
-	char buf[100];
+	char buf[256];
 	char const *base;
 	char *c;
 	int nlong = 0, nshort = 0, nchar = 0, nint = 0;
