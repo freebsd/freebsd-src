@@ -388,7 +388,7 @@ AcpiDmFixedIoDescriptor (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Decode a Start Dependendent functions descriptor
+ * DESCRIPTION: Decode a Start Dependent functions descriptor
  *
  ******************************************************************************/
 

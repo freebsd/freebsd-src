@@ -481,8 +481,20 @@ vm_fault_populate(struct faultstate *fs, vm_prot_t prot, int fault_type,
 			    fault_flags, true);
 		}
 		VM_OBJECT_WUNLOCK(fs->first_object);
-		pmap_enter(fs->map->pmap, vaddr, m, prot, fault_type | (wired ?
-		    PMAP_ENTER_WIRED : 0), psind);
+		rv = pmap_enter(fs->map->pmap, vaddr, m, prot, fault_type |
+		    (wired ? PMAP_ENTER_WIRED : 0), psind);
+#if defined(__amd64__)
+		if (psind > 0 && rv == KERN_FAILURE) {
+			for (i = 0; i < npages; i++) {
+				rv = pmap_enter(fs->map->pmap, vaddr + ptoa(i),
+				    &m[i], prot, fault_type |
+				    (wired ? PMAP_ENTER_WIRED : 0), 0);
+				MPASS(rv == KERN_SUCCESS);
+			}
+		}
+#else
+		MPASS(rv == KERN_SUCCESS);
+#endif
 		VM_OBJECT_WLOCK(fs->first_object);
 		m_mtx = NULL;
 		for (i = 0; i < npages; i++) {

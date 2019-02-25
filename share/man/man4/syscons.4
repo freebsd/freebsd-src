@@ -38,6 +38,7 @@
 .Cd "options SC_ALT_MOUSE_IMAGE"
 .Cd "options SC_CUT_SEPCHARS=_characters_"
 .Cd "options SC_CUT_SPACES2TABS"
+.Cd "options SC_DFLT_TERM"
 .Cd "options SC_DISABLE_KDBKEY"
 .Cd "options SC_DISABLE_REBOOT"
 .Cd "options SC_HISTORY_SIZE=N"
@@ -48,6 +49,9 @@
 .Cd "options SC_NO_PALETTE_LOADING"
 .Cd "options SC_NO_SUSPEND_VTYSWITCH"
 .Cd "options SC_NO_SYSMOUSE"
+.Cd "options SC_NO_TERM_DUMB"
+.Cd "options SC_NO_TERM_SC"
+.Cd "options SC_NO_TERM_SCTEKEN"
 .Cd "options SC_PIXEL_MODE"
 .Cd "options SC_TWOBUTTON_MOUSE"
 .Cd "options SC_NORM_ATTR=_attribute_"
@@ -285,6 +289,8 @@ This options instructs the driver to convert leading spaces into tabs
 when copying data into cut buffer.
 This might be useful to preserve
 indentation when copying tab-indented text.
+.It Dv SC_DFLT_TERM=_name_
+This option specifies the name of the preferred terminal emulator.
 .It Dv SC_DISABLE_KDBKEY
 This option disables the ``debug'' key combination (by default, it is
 .Dv Alt-Esc ,
@@ -409,6 +415,15 @@ will fail if this option is defined.
 This option implies the
 .Dv SC_NO_CUTPASTE
 option too.
+.It Dv SC_NO_TERM_DUMB
+.It Dv SC_NO_TERM_SC
+.It Dv SC_NO_TERM_SCTEKEN
+These options remove the
+.Qq dumb ,
+.Qq sc ,
+and
+.Qq scteken 
+terminal emulators, respectively.
 .El
 .Ss Driver Flags
 The following driver flags can be used to control the

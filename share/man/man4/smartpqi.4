@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$ stable/10/share/man/man4/smartpqi.4 195614 2017-01-11 08:10:18Z jkim $
-.Dd April 06, 2018
+.Dd April 6, 2018
 .Dt SMARTPQI 4
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@ kernel configuration file:
 .Cd device pci
 .Cd device scbus
 .Cd device smartpqi
+.Ed
 .Pp
 Alternatively, to load the driver as a
 module at boot time, place the following line in
@@ -81,10 +82,10 @@ smartpqi management interface
 .Xr kld 4 ,
 .Xr linux 4 ,
 .Xr scsi 4 ,
-.Xr kldload 8
-.Xr pass 4
-.Xr xpt 4
-.Xr loader.conf 5
+.Xr kldload 8 ,
+.Xr pass 4 ,
+.Xr xpt 4 ,
+.Xr loader.conf 5 ,
 .Xr camcontrol 8
 .Rs
 .%T "Microsemi Website"
@@ -95,7 +96,7 @@ The
 .Nm
 driver first appeared in
 .Fx 11.1 .
-.Sh AUTHOR
+.Sh AUTHORS
 .An Murthy Bhat
 .Aq murthy.bhat@microsemi.com
 .Sh BUGS

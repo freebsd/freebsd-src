@@ -52,6 +52,8 @@
 #define	I386_GET_GSBASE		9
 #define	I386_SET_GSBASE		10
 #define	I386_GET_XFPUSTATE	11
+#define	I386_SET_PKRU		12
+#define	I386_CLEAR_PKRU		13
 
 /* Leave space for 0-127 for to avoid translating syscalls */
 #define	AMD64_GET_FSBASE	128
@@ -59,6 +61,12 @@
 #define	AMD64_GET_GSBASE	130
 #define	AMD64_SET_GSBASE	131
 #define	AMD64_GET_XFPUSTATE	132
+#define	AMD64_SET_PKRU		133
+#define	AMD64_CLEAR_PKRU	134
+
+/* Flags for AMD64_SET_PKRU */
+#define	AMD64_PKRU_EXCL		0x0001
+#define	AMD64_PKRU_PERSIST	0x0002
 
 struct i386_ioperm_args {
 	unsigned int start;
@@ -94,11 +102,25 @@ struct i386_get_xfpustate {
 	int len;
 };
 
+struct i386_set_pkru {
+	unsigned int addr;
+	unsigned int len;
+	unsigned int keyidx;
+	int flags;
+};
+
 struct amd64_get_xfpustate {
 	void *addr;
 	int len;
 };
 #endif
+
+struct amd64_set_pkru {
+	void *addr;
+	unsigned long len;
+	unsigned int keyidx;
+	int flags;
+};
 
 #ifndef _KERNEL
 union descriptor;
@@ -120,6 +142,11 @@ int amd64_get_fsbase(void **);
 int amd64_get_gsbase(void **);
 int amd64_set_fsbase(void *);
 int amd64_set_gsbase(void *);
+int x86_pkru_get_perm(unsigned int keyidx, int *access, int *modify);
+int x86_pkru_set_perm(unsigned int keyidx, int access, int modify);
+int x86_pkru_protect_range(void *addr, unsigned long len, unsigned int keyidx,
+    int flag);
+int x86_pkru_unprotect_range(void *addr, unsigned long len);
 int sysarch(int, void *);
 __END_DECLS
 #else

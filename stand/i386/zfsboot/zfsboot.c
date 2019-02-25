@@ -545,32 +545,19 @@ probe_drive(struct zfsdsk *zdsk)
     char *sec;
     unsigned i;
 
-    /*
-     * If we find a vdev on the whole disk, stop here.
-     */
-    if (vdev_probe(vdev_read2, zdsk, NULL) == 0)
-	return;
-
 #ifdef LOADER_GELI_SUPPORT
     /*
-     * Taste the disk, if it is GELI encrypted, decrypt it and check to see if
-     * it is a usable vdev then. Otherwise dig
-     * out the partition table and probe each slice/partition
-     * in turn for a vdev or GELI encrypted vdev.
+     * Taste the disk, if it is GELI encrypted, decrypt it then dig out the
+     * partition table and probe each slice/partition in turn for a vdev or
+     * GELI encrypted vdev.
      */
     elba = drvsize_ext(zdsk);
     if (elba > 0) {
 	elba--;
     }
     zdsk->gdev = geli_taste(vdev_read, zdsk, elba, "disk%u:0:");
-    if (zdsk->gdev != NULL) {
-	if (geli_havekey(zdsk->gdev) == 0 || 
-	    geli_passphrase(zdsk->gdev, gelipw) == 0) {
-	    if (vdev_probe(vdev_read2, zdsk, NULL) == 0) {
-		return;
-	    }
-	}
-    }
+    if ((zdsk->gdev != NULL) && (geli_havekey(zdsk->gdev) == 0))
+	    geli_passphrase(zdsk->gdev, gelipw);
 #endif /* LOADER_GELI_SUPPORT */
 
     sec = dmadat->secbuf;

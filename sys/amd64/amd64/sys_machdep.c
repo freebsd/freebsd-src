@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/pcpu.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
@@ -53,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_kern.h>		/* for kernel_map */
+#include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 
 #include <machine/frame.h>
@@ -170,13 +172,16 @@ update_gdt_fsbase(struct thread *td, uint32_t base)
 int
 sysarch(struct thread *td, struct sysarch_args *uap)
 {
-	int error = 0;
-	struct pcb *pcb = curthread->td_pcb;
+	struct pcb *pcb;
+	struct vm_map *map;
 	uint32_t i386base;
 	uint64_t a64base;
 	struct i386_ioperm_args iargs;
 	struct i386_get_xfpustate i386xfpu;
+	struct i386_set_pkru i386pkru;
 	struct amd64_get_xfpustate a64xfpu;
+	struct amd64_set_pkru a64pkru;
+	int error;
 
 #ifdef CAPABILITY_MODE
 	/*
@@ -194,11 +199,15 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		case I386_GET_GSBASE:
 		case I386_SET_GSBASE:
 		case I386_GET_XFPUSTATE:
+		case I386_SET_PKRU:
+		case I386_CLEAR_PKRU:
 		case AMD64_GET_FSBASE:
 		case AMD64_SET_FSBASE:
 		case AMD64_GET_GSBASE:
 		case AMD64_SET_GSBASE:
 		case AMD64_GET_XFPUSTATE:
+		case AMD64_SET_PKRU:
+		case AMD64_CLEAR_PKRU:
 			break;
 
 		case I386_SET_IOPERM:
@@ -214,6 +223,10 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 
 	if (uap->op == I386_GET_LDT || uap->op == I386_SET_LDT)
 		return (sysarch_ldt(td, uap, UIO_USERSPACE));
+
+	error = 0;
+	pcb = td->td_pcb;
+
 	/*
 	 * XXXKIB check that the BSM generation code knows to encode
 	 * the op argument.
@@ -233,9 +246,25 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		a64xfpu.addr = (void *)(uintptr_t)i386xfpu.addr;
 		a64xfpu.len = i386xfpu.len;
 		break;
+	case I386_SET_PKRU:
+	case I386_CLEAR_PKRU:
+		if ((error = copyin(uap->parms, &i386pkru,
+		    sizeof(struct i386_set_pkru))) != 0)
+			return (error);
+		a64pkru.addr = (void *)(uintptr_t)i386pkru.addr;
+		a64pkru.len = i386pkru.len;
+		a64pkru.keyidx = i386pkru.keyidx;
+		a64pkru.flags = i386pkru.flags;
+		break;
 	case AMD64_GET_XFPUSTATE:
 		if ((error = copyin(uap->parms, &a64xfpu,
 		    sizeof(struct amd64_get_xfpustate))) != 0)
+			return (error);
+		break;
+	case AMD64_SET_PKRU:
+	case AMD64_CLEAR_PKRU:
+		if ((error = copyin(uap->parms, &a64pkru,
+		    sizeof(struct amd64_set_pkru))) != 0)
 			return (error);
 		break;
 	default:
@@ -324,6 +353,34 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		fpugetregs(td);
 		error = copyout((char *)(get_pcb_user_save_td(td) + 1),
 		    a64xfpu.addr, a64xfpu.len);
+		break;
+
+	case I386_SET_PKRU:
+	case AMD64_SET_PKRU:
+		/*
+		 * Read-lock the map to synchronize with parallel
+		 * pmap_vmspace_copy() on fork.
+		 */
+		map = &td->td_proc->p_vmspace->vm_map;
+		vm_map_lock_read(map);
+		error = pmap_pkru_set(PCPU_GET(curpmap),
+		    (vm_offset_t)a64pkru.addr, (vm_offset_t)a64pkru.addr +
+		    a64pkru.len, a64pkru.keyidx, a64pkru.flags);
+		vm_map_unlock_read(map);
+		break;
+
+	case I386_CLEAR_PKRU:
+	case AMD64_CLEAR_PKRU:
+		if (a64pkru.flags != 0 || a64pkru.keyidx != 0) {
+			error = EINVAL;
+			break;
+		}
+		map = &td->td_proc->p_vmspace->vm_map;
+		vm_map_lock_read(map);
+		error = pmap_pkru_clear(PCPU_GET(curpmap),
+		    (vm_offset_t)a64pkru.addr,
+		    (vm_offset_t)a64pkru.addr + a64pkru.len);
+		vm_map_unlock(map);
 		break;
 
 	default:

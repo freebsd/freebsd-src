@@ -166,6 +166,13 @@ bool	pmap_get_tables(pmap_t, vm_offset_t, pd_entry_t **, pd_entry_t **,
 
 int pmap_fault_fixup(pmap_t, vm_offset_t, vm_prot_t);
 
+static inline int
+pmap_vmspace_copy(pmap_t dst_pmap __unused, pmap_t src_pmap __unused)
+{
+
+	return (0);
+}
+
 #endif	/* _KERNEL */
 
 #endif	/* !LOCORE */

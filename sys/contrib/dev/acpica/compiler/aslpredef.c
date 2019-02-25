@@ -449,7 +449,7 @@ ApCheckPredefinedReturnValue (
  * DESCRIPTION: Check for a predefined name for a static object (created via
  *              the ASL Name operator). If it is a predefined ACPI name, ensure
  *              that the name does not require any arguments (which would
- *              require a control method implemenation of the name), and that
+ *              require a control method implementation of the name), and that
  *              the type of the object is one of the expected types for the
  *              predefined name.
  *

@@ -486,10 +486,8 @@ dev/smartpqi/smartpqi_sis.c     optional 	smartpqi
 dev/smartpqi/smartpqi_tag.c     optional 	smartpqi
 dev/speaker/spkr.c		optional	speaker
 dev/syscons/apm/apm_saver.c	optional	apm_saver apm
-dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvesactl.c		optional	sc vga vesa
 dev/syscons/scvgarndr.c		optional	sc vga
-dev/syscons/scvtb.c		optional	sc
 dev/tpm/tpm.c			optional	tpm
 dev/tpm/tpm20.c		optional	tpm
 dev/tpm/tpm_crb.c		optional	tpm acpi

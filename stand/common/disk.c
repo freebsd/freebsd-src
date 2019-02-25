@@ -75,7 +75,7 @@ display_size(uint64_t size, u_int sectorsize)
 		size /= 1024;
 		unit = 'M';
 	}
-	sprintf(buf, "%ld%cB", (long)size, unit);
+	sprintf(buf, "%4ld%cB", (long)size, unit);
 	return (buf);
 }
 
@@ -102,7 +102,6 @@ ptblread(void *d, void *buf, size_t blocks, uint64_t offset)
 	    blocks * od->sectorsize, (char *)buf, NULL));
 }
 
-#define	PWIDTH	35
 static int
 ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 {
@@ -112,16 +111,16 @@ ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 	struct ptable *table;
 	char line[80];
 	int res;
+	u_int sectsize;
+	uint64_t partsize;
 
 	pa = (struct print_args *)arg;
 	od = (struct open_disk *)pa->dev->dd.d_opendata;
-	sprintf(line, "  %s%s: %s", pa->prefix, pname,
-	    parttype2str(part->type));
-	if (pa->verbose)
-		sprintf(line, "%-*s%s", PWIDTH, line,
-		    display_size(part->end - part->start + 1,
-		    od->sectorsize));
-	strcat(line, "\n");
+	sectsize = od->sectorsize;
+	partsize = part->end - part->start + 1;
+	sprintf(line, "  %s%s: %s\t%s\n", pa->prefix, pname,
+	    parttype2str(part->type),
+	    pa->verbose ? display_size(partsize, sectsize) : "");
 	if (pager_output(line))
 		return 1;
 	res = 0;
@@ -131,10 +130,15 @@ ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 		dev.dd.d_unit = pa->dev->dd.d_unit;
 		dev.d_slice = part->index;
 		dev.d_partition = -1;
-		if (disk_open(&dev, part->end - part->start + 1,
-		    od->sectorsize) == 0) {
-			table = ptable_open(&dev, part->end - part->start + 1,
-			    od->sectorsize, ptblread);
+		if (disk_open(&dev, partsize, sectsize) == 0) {
+			/*
+			 * disk_open() for partition -1 on a bsd slice assumes
+			 * you want the first bsd partition.  Reset things so
+			 * that we're looking at the start of the raw slice.
+			 */
+			dev.d_partition = -1;
+			dev.d_offset = part->start;
+			table = ptable_open(&dev, partsize, sectsize, ptblread);
 			if (table != NULL) {
 				sprintf(line, "  %s%s", pa->prefix, pname);
 				bsd.dev = pa->dev;
@@ -149,7 +153,6 @@ ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
 
 	return (res);
 }
-#undef PWIDTH
 
 int
 disk_print(struct disk_devdesc *dev, char *prefix, int verbose)

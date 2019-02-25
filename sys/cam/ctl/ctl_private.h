@@ -403,9 +403,6 @@ struct ctl_lun {
 	struct callout			ie_callout;	/* INTERVAL TIMER */
 	struct ctl_mode_pages		mode_pages;
 	struct ctl_log_pages		log_pages;
-#ifdef CTL_LEGACY_STATS
-	struct ctl_lun_io_stats		legacy_stats;
-#endif /* CTL_LEGACY_STATS */
 	struct ctl_io_stats		stats;
 	uint32_t			res_idx;
 	uint32_t			pr_generation;

@@ -1185,6 +1185,9 @@ openssl_ccm_encrypt(struct alg *alg, const EVP_CIPHER *cipher, const char *key,
 	if (EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL) != 1)
 		errx(1, "OpenSSL %s (%zu) ctx init failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_IVLEN, iv_len, NULL) != 1)
+		errx(1, "OpenSSL %s (%zu) setting iv length failed: %s", alg->name,
+		    size, ERR_error_string(ERR_get_error(), NULL));
 	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_TAG, AES_CBC_MAC_HASH_LEN, NULL) != 1)
 		errx(1, "OpenSSL %s (%zu) setting tag length failed: %s", alg->name,
 		     size, ERR_error_string(ERR_get_error(), NULL));

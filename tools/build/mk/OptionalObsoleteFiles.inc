@@ -54,6 +54,10 @@ OLD_FILES+=usr/share/man/man8/acpidump.8.gz
 OLD_FILES+=usr/share/man/man8/iasl.8.gz
 .endif
 
+.if ${MK_ACPI} == no && ${MK_APM} == no
+OLD_FILES+=etc/rc.d/powerd
+.endif
+
 .if ${MK_AMD} == no
 OLD_FILES+=etc/amd.map
 OLD_FILES+=etc/newsyslog.conf.d/amd.conf
@@ -434,6 +438,7 @@ OLD_FILES+=usr/bin/ld.bfd
 .endif
 
 .if ${MK_BLACKLIST} == no
+OLD_FILES+=etc/blacklistd.conf
 OLD_FILES+=etc/rc.d/blacklistd
 OLD_FILES+=usr/include/blacklist.h
 OLD_FILES+=usr/lib/libblacklist.a
@@ -655,6 +660,7 @@ OLD_FILES+=usr/share/man/man8/zfsloader.8.gz
 .endif
 
 .if ${MK_BOOTPARAMD} == no
+OLD_FILES+=etc/rc.d/bootparams
 OLD_FILES+=usr/sbin/bootparamd
 OLD_FILES+=usr/share/man/man5/bootparams.5.gz
 OLD_FILES+=usr/share/man/man8/bootparamd.8.gz
@@ -1131,6 +1137,7 @@ OLD_FILES+=etc/casper/system.grp
 OLD_FILES+=etc/casper/system.pwd
 OLD_FILES+=etc/casper/system.random
 OLD_FILES+=etc/casper/system.sysctl
+OLD_DIRS+=etc/casper
 OLD_FILES+=etc/rc.d/casperd
 OLD_LIBS+=lib/libcapsicum.so.0
 OLD_LIBS+=lib/libcasper.so.0
@@ -1293,6 +1300,8 @@ OLD_FILES+=etc/rc.d/zvol
 OLD_FILES+=etc/devd/zfs.conf
 OLD_FILES+=etc/periodic/daily/404.status-zfs
 OLD_FILES+=etc/periodic/daily/800.scrub-zfs
+OLD_FILES+=etc/zfs/exports
+OLD_DIRS+=etc/zfs
 OLD_LIBS+=lib/libzfs.so.2
 OLD_LIBS+=lib/libzfs.so.3
 OLD_LIBS+=lib/libzfs_core.so.2
@@ -2279,6 +2288,7 @@ OLD_DIRS+=usr/share/dict
 
 .if ${MK_DMAGENT} == no
 OLD_FILES+=etc/dma/dma.conf
+OLD_DIRS+=etc/dma
 OLD_FILES+=usr/libexec/dma
 OLD_FILES+=usr/libexec/dma-mbox-create
 OLD_FILES+=usr/share/man/man8/dma.8.gz
@@ -2914,6 +2924,7 @@ OLD_FILES+=usr/share/man/man8/gssd.8.gz
 .endif
 
 .if ${MK_HAST} == no
+OLD_FILES+=etc/rc.d/hastd
 OLD_FILES+=sbin/hastctl
 OLD_FILES+=sbin/hastd
 OLD_FILES+=usr/share/examples/hast/ucarp.sh
@@ -3106,6 +3117,7 @@ OLD_FILES+=rescue/rtsol
 .endif
 
 .if ${MK_INETD} == no
+OLD_FILES+=etc/inetd.conf
 OLD_FILES+=etc/rc.d/inetd
 OLD_FILES+=usr/sbin/inetd
 OLD_FILES+=usr/share/man/man5/inetd.conf.5.gz
@@ -3196,6 +3208,7 @@ OLD_FILES+=usr/share/man/man8/ippool.8.gz
 .endif
 
 .if ${MK_IPFW} == no
+OLD_FILES+=etc/rc.d/ipfw
 OLD_FILES+=etc/periodic/security/500.ipfwdenied
 OLD_FILES+=etc/periodic/security/550.ipfwlimit
 OLD_FILES+=sbin/ipfw
@@ -4256,6 +4269,8 @@ OLD_FILES+=usr/share/man/man1/host.1.gz
 .endif
 
 .if ${MK_LEGACY_CONSOLE} == no
+OLD_FILES+=etc/rc.d/moused
+OLD_FILES+=etc/rc.d/syscons
 OLD_FILES+=usr/sbin/kbdcontrol
 OLD_FILES+=usr/sbin/kbdmap
 OLD_FILES+=usr/sbin/moused
@@ -6030,6 +6045,7 @@ OLD_FILES+=etc/mail.rc
 OLD_FILES+=etc/mail/aliases
 OLD_FILES+=etc/mail/mailer.conf
 OLD_FILES+=etc/periodic/daily/130.clean-msgs
+OLD_FILES+=etc/rc.d/othermta
 OLD_FILES+=usr/bin/Mail
 OLD_FILES+=usr/bin/biff
 OLD_FILES+=usr/bin/from
@@ -6502,6 +6518,10 @@ OLD_FILES+=usr/share/man/man8/nghook.8.gz
 OLD_FILES+=usr/share/man/man8/pppoed.8.gz
 .endif
 
+.if ${MK_IPFW} == no || ${MK_NETGRAPH} == no
+OLD_FILES+=etc/rc.d/ipfw_netflow
+.endif
+
 .if ${MK_NETGRAPH_SUPPORT} == no
 OLD_FILES+=usr/include/bsnmp/snmp_netgraph.h
 OLD_FILES+=usr/lib/snmp_netgraph.so
@@ -6875,8 +6895,12 @@ OLD_FILES+=usr/share/man/man8/nscd.8.gz
 .endif
 
 .if ${MK_NTP} == no
+OLD_FILES+=etc/ntp/leap-seconds
+OLD_DIRS+=etc/ntp
 OLD_FILES+=etc/ntp.conf
 OLD_FILES+=etc/periodic/daily/480.status-ntpd
+OLD_FILES+=etc/periodic/daily/480.leapfile-ntpd
+OLD_FILES+=etc/rc.d/ntpd
 OLD_FILES+=usr/bin/ntpq
 OLD_FILES+=usr/sbin/ntp-keygen
 OLD_FILES+=usr/sbin/ntpd
@@ -7173,11 +7197,415 @@ OLD_FILES+=usr/share/man/man8/ntpq.8.gz
 OLD_FILES+=usr/share/man/man8/ntptime.8.gz
 .endif
 
+.if ${MK_OFED} == no
+OLD_FILES+=etc/newsyslog.conf.d/opensm.conf
+OLD_FILES+=etc/rc.d/opensm
+OLD_FILES+=usr/bin/ibstat
+OLD_FILES+=usr/bin/ibv_asyncwatch
+OLD_FILES+=usr/bin/ibv_devices
+OLD_FILES+=usr/bin/ibv_devinfo
+OLD_FILES+=usr/bin/ibv_rc_pingpong
+OLD_FILES+=usr/bin/ibv_srq_pingpong
+OLD_FILES+=usr/bin/ibv_uc_pingpong
+OLD_FILES+=usr/bin/ibv_ud_pingpong
+OLD_FILES+=usr/bin/mckey
+OLD_FILES+=usr/bin/rping
+OLD_FILES+=usr/bin/ucmatose
+OLD_FILES+=usr/bin/udaddy
+OLD_FILES+=usr/include/infiniband/marshall.h
+OLD_FILES+=usr/include/infiniband/kern-abi.h
+OLD_FILES+=usr/include/infiniband/umad_sm.h
+OLD_FILES+=usr/include/infiniband/umad.h
+OLD_FILES+=usr/include/infiniband/arch.h
+OLD_FILES+=usr/include/infiniband/verbs.h
+OLD_FILES+=usr/include/infiniband/ib.h
+OLD_FILES+=usr/include/infiniband/cm.h
+OLD_FILES+=usr/include/infiniband/opcode.h
+OLD_FILES+=usr/include/infiniband/ibnetdisc.h
+OLD_FILES+=usr/include/infiniband/driver.h
+OLD_FILES+=usr/include/infiniband/mad_osd.h
+OLD_FILES+=usr/include/infiniband/umad_types.h
+OLD_FILES+=usr/include/infiniband/umad_cm.h
+OLD_FILES+=usr/include/infiniband/cm_abi.h
+OLD_FILES+=usr/include/infiniband/sa-kern-abi.h
+OLD_FILES+=usr/include/infiniband/ibnetdisc_osd.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_event_plugin.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_console_io.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_ucast_cache.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_port.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_path.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_mtree.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_log.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_mcm_port.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_subnet.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_pkey.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_remote_sm.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_qos_policy.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_sm.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_node.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_mcast_mgr.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_madw.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_lid_mgr.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_congestion_control.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_port_profile.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_perfmgr.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_service.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_base.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_vl15intf.h
+OLD_FILES+=usr/include/infiniband/opensm/st.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_attrib_req.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_ucast_mgr.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_db.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_sa_mad_ctrl.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_db_pack.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_opensm.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_mesh.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_mcast_tbl.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_sm_mad_ctrl.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_stats.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_mad_pool.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_switch.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_ucast_lash.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_errors.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_partition.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_prefix_route.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_helper.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_version.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_sa.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_config.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_multicast.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_file_ids.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_perfmgr_db.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_console.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_msgdef.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_router.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_guid.h
+OLD_FILES+=usr/include/infiniband/opensm/osm_inform.h
+OLD_DIRS+=usr/include/infiniband/opensm
+OLD_FILES+=usr/include/infiniband/iba/ib_types.h
+OLD_FILES+=usr/include/infiniband/iba/ib_cm_types.h
+OLD_DIRS+=usr/include/infiniband/iba
+OLD_FILES+=usr/include/infiniband/umad_str.h
+OLD_FILES+=usr/include/infiniband/udma_barrier.h
+OLD_FILES+=usr/include/infiniband/umad_sa.h
+OLD_FILES+=usr/include/infiniband/mad.h
+OLD_FILES+=usr/include/infiniband/sa.h
+OLD_FILES+=usr/include/infiniband/byteorder.h
+OLD_FILES+=usr/include/infiniband/types.h
+OLD_FILES+=usr/include/infiniband/byteswap.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_pkt_randomizer.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_mlx_rmpp_ctx.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_mtl_hca_guid.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_mlx_txn.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_mlx.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_mlx_svc.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_test.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_mlx_inout.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_mtl_bind.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_mlx_hca.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_sa_api.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_mlx_sender.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_umadt.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_mtl_transaction_mgr.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_mlx_defs.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_mlx_dispatcher.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_api.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_mtl.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_mlx_transport.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_al.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_mlx_sar.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_umadt.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_ts_useraccess.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_ts.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_mlx_transport_anafa.h
+OLD_FILES+=usr/include/infiniband/vendor/osm_vendor_ibumad.h
+OLD_DIRS+=usr/include/infiniband/vendor
+OLD_FILES+=usr/include/infiniband/endian.h
+OLD_FILES+=usr/include/infiniband/complib/cl_byteswap.h
+OLD_FILES+=usr/include/infiniband/complib/cl_types.h
+OLD_FILES+=usr/include/infiniband/complib/cl_map.h
+OLD_FILES+=usr/include/infiniband/complib/cl_packon.h
+OLD_FILES+=usr/include/infiniband/complib/cl_timer.h
+OLD_FILES+=usr/include/infiniband/complib/cl_thread_osd.h
+OLD_FILES+=usr/include/infiniband/complib/cl_thread.h
+OLD_FILES+=usr/include/infiniband/complib/cl_event.h
+OLD_FILES+=usr/include/infiniband/complib/cl_byteswap_osd.h
+OLD_FILES+=usr/include/infiniband/complib/cl_passivelock.h
+OLD_FILES+=usr/include/infiniband/complib/cl_vector.h
+OLD_FILES+=usr/include/infiniband/complib/cl_nodenamemap.h
+OLD_FILES+=usr/include/infiniband/complib/cl_event_wheel.h
+OLD_FILES+=usr/include/infiniband/complib/cl_log.h
+OLD_FILES+=usr/include/infiniband/complib/cl_fleximap.h
+OLD_FILES+=usr/include/infiniband/complib/cl_qlist.h
+OLD_FILES+=usr/include/infiniband/complib/cl_timer_osd.h
+OLD_FILES+=usr/include/infiniband/complib/cl_pool.h
+OLD_FILES+=usr/include/infiniband/complib/cl_debug.h
+OLD_FILES+=usr/include/infiniband/complib/cl_types_osd.h
+OLD_FILES+=usr/include/infiniband/complib/cl_dispatcher.h
+OLD_FILES+=usr/include/infiniband/complib/cl_ptr_vector.h
+OLD_FILES+=usr/include/infiniband/complib/cl_atomic_osd.h
+OLD_FILES+=usr/include/infiniband/complib/cl_qmap.h
+OLD_FILES+=usr/include/infiniband/complib/cl_spinlock_osd.h
+OLD_FILES+=usr/include/infiniband/complib/cl_qcomppool.h
+OLD_FILES+=usr/include/infiniband/complib/cl_threadpool.h
+OLD_FILES+=usr/include/infiniband/complib/cl_list.h
+OLD_FILES+=usr/include/infiniband/complib/cl_debug_osd.h
+OLD_FILES+=usr/include/infiniband/complib/cl_packoff.h
+OLD_FILES+=usr/include/infiniband/complib/cl_qpool.h
+OLD_FILES+=usr/include/infiniband/complib/cl_spinlock.h
+OLD_FILES+=usr/include/infiniband/complib/cl_event_osd.h
+OLD_FILES+=usr/include/infiniband/complib/cl_atomic.h
+OLD_FILES+=usr/include/infiniband/complib/cl_math.h
+OLD_FILES+=usr/include/infiniband/complib/cl_comppool.h
+OLD_DIRS+=usr/include/infiniband/complib
+OLD_DIRS+=usr/include/infiniband
+OLD_FILES+=usr/lib/libcxgb4.a
+OLD_FILES+=usr/lib/libcxgb4.so
+OLD_LIBS+=usr/lib/libcxgb4.so.1
+OLD_FILES+=usr/lib/libibcm.a
+OLD_FILES+=usr/lib/libibcm.so
+OLD_LIBS+=usr/lib/libibcm.so.1
+OLD_FILES+=usr/lib/libibmad.a
+OLD_FILES+=usr/lib/libibmad.so
+OLD_LIBS+=usr/lib/libibmad.so.5
+OLD_FILES+=usr/lib/libibnetdisc.a
+OLD_FILES+=usr/lib/libibnetdisc.so
+OLD_LIBS+=usr/lib/libibnetdisc.so.5
+OLD_FILES+=usr/lib/libibumad.a
+OLD_FILES+=usr/lib/libibumad.so
+OLD_LIBS+=usr/lib/libibumad.so.1
+OLD_FILES+=usr/lib/libibverbs.a
+OLD_FILES+=usr/lib/libibverbs.so
+OLD_LIBS+=lib/libibverbs.so.1
+OLD_FILES+=usr/lib/libmlx4.a
+OLD_FILES+=usr/lib/libmlx4.so
+OLD_LIBS+=usr/lib/libmlx4.so.1
+OLD_FILES+=usr/lib/libmlx5.a
+OLD_FILES+=usr/lib/libmlx5.so
+OLD_LIBS+=lib/libmlx5.so.1
+OLD_FILES+=usr/lib/libopensm.a
+OLD_FILES+=usr/lib/libopensm.so
+OLD_LIBS+=usr/lib/libopensm.so.5
+OLD_FILES+=usr/lib/libosmcomp.a
+OLD_FILES+=usr/lib/libosmcomp.so
+OLD_LIBS+=usr/lib/libosmcomp.so.3
+OLD_FILES+=usr/lib/libosmvendor.a
+OLD_FILES+=usr/lib/libosmvendor.so
+OLD_LIBS+=usr/lib/libosmvendor.so.4
+OLD_FILES+=usr/lib/librdmacm.a
+OLD_FILES+=usr/lib/librdmacm.so
+OLD_LIBS+=usr/lib/librdmacm.so.1
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/libcxgb4.a
+OLD_FILES+=usr/lib32/libcxgb4.so
+OLD_LIBS+=usr/lib32/libcxgb4.so.1
+OLD_FILES+=usr/lib32/libibcm.a
+OLD_FILES+=usr/lib32/libibcm.so
+OLD_LIBS+=usr/lib32/libibcm.so.1
+OLD_FILES+=usr/lib32/libibmad.a
+OLD_FILES+=usr/lib32/libibmad.so
+OLD_LIBS+=usr/lib32/libibmad.so.5
+OLD_FILES+=usr/lib32/libibnetdisc.a
+OLD_FILES+=usr/lib32/libibnetdisc.so
+OLD_LIBS+=usr/lib32/libibnetdisc.so.5
+OLD_FILES+=usr/lib32/libibumad.a
+OLD_FILES+=usr/lib32/libibumad.so
+OLD_LIBS+=usr/lib32/libibumad.so.1
+OLD_FILES+=usr/lib32/libibverbs.a
+OLD_FILES+=usr/lib32/libibverbs.so
+OLD_LIBS+=usr/lib32/libibverbs.so.1
+OLD_FILES+=usr/lib32/libmlx4.a
+OLD_FILES+=usr/lib32/libmlx4.so
+OLD_LIBS+=usr/lib32/libmlx4.so.1
+OLD_FILES+=usr/lib32/libmlx5.a
+OLD_FILES+=usr/lib32/libmlx5.so
+OLD_LIBS+=usr/lib32/libmlx5.so.1
+OLD_FILES+=usr/lib32/libopensm.a
+OLD_FILES+=usr/lib32/libopensm.so
+OLD_LIBS+=usr/lib32/libopensm.so.5
+OLD_FILES+=usr/lib32/libosmcomp.a
+OLD_FILES+=usr/lib32/libosmcomp.so
+OLD_LIBS+=usr/lib32/libosmcomp.so.3
+OLD_FILES+=usr/lib32/libosmvendor.a
+OLD_FILES+=usr/lib32/libosmvendor.so
+OLD_LIBS+=usr/lib32/libosmvendor.so.4
+OLD_FILES+=usr/lib32/librdmacm.a
+OLD_FILES+=usr/lib32/librdmacm.so
+OLD_LIBS+=usr/lib32/librdmacm.so.1
+.endif
+OLD_FILES+=usr/share/man/man1/ibv_asyncwatch.1.gz
+OLD_FILES+=usr/share/man/man1/ibv_devices.1.gz
+OLD_FILES+=usr/share/man/man1/ibv_devinfo.1.gz
+OLD_FILES+=usr/share/man/man1/ibv_rc_pingpong.1.gz
+OLD_FILES+=usr/share/man/man1/ibv_srq_pingpong.1.gz
+OLD_FILES+=usr/share/man/man1/ibv_uc_pingpong.1.gz
+OLD_FILES+=usr/share/man/man1/ibv_ud_pingpong.1.gz
+OLD_FILES+=usr/share/man/man1/mckey.1.gz
+OLD_FILES+=usr/share/man/man1/rping.1.gz
+OLD_FILES+=usr/share/man/man1/ucmatose.1.gz
+OLD_FILES+=usr/share/man/man1/udaddy.1.gz
+OLD_FILES+=usr/share/man/man3/ibnd_debug.3.gz
+OLD_FILES+=usr/share/man/man3/ibnd_destroy_fabric.3.gz
+OLD_FILES+=usr/share/man/man3/ibnd_discover_fabric.3.gz
+OLD_FILES+=usr/share/man/man3/ibnd_find_node_dr.3.gz
+OLD_FILES+=usr/share/man/man3/ibnd_find_node_guid.3.gz
+OLD_FILES+=usr/share/man/man3/ibnd_iter_nodes.3.gz
+OLD_FILES+=usr/share/man/man3/ibnd_iter_nodes_type.3.gz
+OLD_FILES+=usr/share/man/man3/ibnd_show_progress.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_alloc_mw.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_alloc_pd.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_attach_mcast.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_bind_mw.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_create_ah.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_create_ah_from_wc.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_create_comp_channel.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_create_cq.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_create_cq_ex.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_create_flow.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_create_qp.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_create_qp_ex.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_create_rwq_ind_table.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_create_srq.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_create_srq_ex.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_create_wq.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_event_type_str.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_fork_init.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_get_async_event.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_get_cq_event.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_get_device_guid.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_get_device_list.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_get_device_name.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_get_srq_num.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_inc_rkey.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_modify_qp.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_modify_srq.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_modify_wq.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_open_device.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_open_qp.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_open_xrcd.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_poll_cq.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_post_recv.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_post_send.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_post_srq_recv.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_query_device.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_query_device_ex.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_query_gid.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_query_pkey.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_query_port.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_query_qp.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_query_rt_values_ex.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_query_srq.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_rate_to_mbps.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_rate_to_mult.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_reg_mr.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_req_notify_cq.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_rereg_mr.3.gz
+OLD_FILES+=usr/share/man/man3/ibv_resize_cq.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_accept.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_ack_cm_event.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_bind_addr.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_connect.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_create_ep.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_create_event_channel.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_create_id.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_create_qp.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_create_srq.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_dereg_mr.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_destroy_ep.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_destroy_event_channel.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_destroy_id.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_destroy_qp.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_destroy_srq.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_disconnect.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_event_str.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_free_devices.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_get_cm_event.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_get_devices.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_get_dst_port.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_get_local_addr.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_get_peer_addr.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_get_recv_comp.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_get_request.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_get_send_comp.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_get_src_port.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_getaddrinfo.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_join_multicast.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_leave_multicast.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_listen.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_migrate_id.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_notify.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_post_read.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_post_readv.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_post_recv.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_post_recvv.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_post_send.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_post_sendv.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_post_ud_send.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_post_write.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_post_writev.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_reg_msgs.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_reg_read.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_reg_write.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_reject.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_resolve_addr.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_resolve_route.3.gz
+OLD_FILES+=usr/share/man/man3/rdma_set_option.3.gz
+OLD_FILES+=usr/share/man/man4/mlx4ib.4.gz
+OLD_FILES+=usr/share/man/man4/mlx5ib.4.gz
+OLD_FILES+=usr/share/man/man8/ibstat.8.gz
+.endif
+
+.if ${MK_OFED_EXTRA} == no
+OLD_FILES+=usr/bin/dump_fts
+OLD_FILES+=usr/bin/ibaddr
+OLD_FILES+=usr/bin/ibcacheedit
+OLD_FILES+=usr/bin/ibccconfig
+OLD_FILES+=usr/bin/ibccquery
+OLD_FILES+=usr/bin/iblinkinfo
+OLD_FILES+=usr/bin/ibmirror
+OLD_FILES+=usr/bin/ibnetdiscover
+OLD_FILES+=usr/bin/ibping
+OLD_FILES+=usr/bin/ibportstate
+OLD_FILES+=usr/bin/ibqueryerrors
+OLD_FILES+=usr/bin/ibroute
+OLD_FILES+=usr/bin/ibsysstat
+OLD_FILES+=usr/bin/ibtracert
+OLD_FILES+=usr/bin/opensm
+OLD_FILES+=usr/bin/perfquery
+OLD_FILES+=usr/bin/saquery
+OLD_FILES+=usr/bin/sminfo
+OLD_FILES+=usr/bin/smpdump
+OLD_FILES+=usr/bin/smpquery
+OLD_FILES+=usr/bin/vendstat
+OLD_FILES+=usr/share/man/man8/dump_fts.8.gz
+OLD_FILES+=usr/share/man/man8/ibaddr.8.gz
+OLD_FILES+=usr/share/man/man8/ibcacheedit.8.gz
+OLD_FILES+=usr/share/man/man8/ibccconfig.8.gz
+OLD_FILES+=usr/share/man/man8/ibccquery.8.gz
+OLD_FILES+=usr/share/man/man8/iblinkinfo.8.gz
+OLD_FILES+=usr/share/man/man8/ibnetdiscover.8.gz
+OLD_FILES+=usr/share/man/man8/ibping.8.gz
+OLD_FILES+=usr/share/man/man8/ibportstate.8.gz
+OLD_FILES+=usr/share/man/man8/ibqueryerrors.8.gz
+OLD_FILES+=usr/share/man/man8/ibroute.8.gz
+OLD_FILES+=usr/share/man/man8/ibsysstat.8.gz
+OLD_FILES+=usr/share/man/man8/ibtracert.8.gz
+OLD_FILES+=usr/share/man/man8/opensm.8.gz
+OLD_FILES+=usr/share/man/man8/perfquery.8.gz
+OLD_FILES+=usr/share/man/man8/saquery.8.gz
+OLD_FILES+=usr/share/man/man8/sminfo.8.gz
+OLD_FILES+=usr/share/man/man8/smpdump.8.gz
+OLD_FILES+=usr/share/man/man8/smpquery.8.gz
+OLD_FILES+=usr/share/man/man8/vendstat.8.gz
+.endif
+
 .if ${MK_OPENSSH} == no
 OLD_FILES+=etc/rc.d/sshd
 OLD_FILES+=etc/ssh/moduli
 OLD_FILES+=etc/ssh/ssh_config
 OLD_FILES+=etc/ssh/sshd_config
+OLD_DIRS+=etc/ssh
 OLD_FILES+=usr/bin/scp
 OLD_FILES+=usr/bin/sftp
 OLD_FILES+=usr/bin/slogin
@@ -7362,8 +7790,76 @@ OLD_FILES+=usr/share/man/man7/pkg.7.gz
 
 .if ${MK_PMC} == no
 OLD_FILES+=usr/bin/pmcstudy
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/include/libipt/pt_last_ip.h
+OLD_FILES+=usr/include/libipt/intel-pt.h
+OLD_FILES+=usr/include/libipt/pt_time.h
+OLD_FILES+=usr/include/libipt/pt_cpu.h
+OLD_FILES+=usr/include/libipt/pt_compiler.h
+OLD_DIRS+=usr/include/libipt
+.endif
+.if ${TARGET_ARCH} == "aarch64"
+OLD_FILES+=usr/include/opencsd/c_api/opencsd_c_api.h
+OLD_FILES+=usr/include/opencsd/c_api/ocsd_c_api_cust_impl.h
+OLD_FILES+=usr/include/opencsd/c_api/ocsd_c_api_types.h
+OLD_FILES+=usr/include/opencsd/c_api/ocsd_c_api_cust_fact.h
+OLD_FILES+=usr/include/opencsd/c_api/ocsd_c_api_custom.h
+OLD_DIRS+=usr/include/opencsd/c_api
+OLD_FILES+=usr/include/opencsd/ocsd_if_types.h
+OLD_FILES+=usr/include/opencsd/ptm/trc_dcd_mngr_ptm.h
+OLD_FILES+=usr/include/opencsd/ptm/trc_pkt_proc_ptm.h
+OLD_FILES+=usr/include/opencsd/ptm/trc_cmp_cfg_ptm.h
+OLD_FILES+=usr/include/opencsd/ptm/ptm_decoder.h
+OLD_FILES+=usr/include/opencsd/ptm/trc_pkt_elem_ptm.h
+OLD_FILES+=usr/include/opencsd/ptm/trc_pkt_decode_ptm.h
+OLD_FILES+=usr/include/opencsd/ptm/trc_pkt_types_ptm.h
+OLD_DIRS+=usr/include/opencsd/ptm
+OLD_FILES+=usr/include/opencsd/trc_gen_elem_types.h
+OLD_FILES+=usr/include/opencsd/etmv4/trc_pkt_proc_etmv4.h
+OLD_FILES+=usr/include/opencsd/etmv4/trc_etmv4_stack_elem.h
+OLD_FILES+=usr/include/opencsd/etmv4/etmv4_decoder.h
+OLD_FILES+=usr/include/opencsd/etmv4/trc_pkt_elem_etmv4i.h
+OLD_FILES+=usr/include/opencsd/etmv4/trc_dcd_mngr_etmv4i.h
+OLD_FILES+=usr/include/opencsd/etmv4/trc_pkt_types_etmv4.h
+OLD_FILES+=usr/include/opencsd/etmv4/trc_pkt_elem_etmv4d.h
+OLD_FILES+=usr/include/opencsd/etmv4/trc_pkt_decode_etmv4i.h
+OLD_FILES+=usr/include/opencsd/etmv4/trc_cmp_cfg_etmv4.h
+OLD_DIRS+=usr/include/opencsd/etmv4
+OLD_FILES+=usr/include/opencsd/etmv3/trc_pkt_decode_etmv3.h
+OLD_FILES+=usr/include/opencsd/etmv3/trc_cmp_cfg_etmv3.h
+OLD_FILES+=usr/include/opencsd/etmv3/etmv3_decoder.h
+OLD_FILES+=usr/include/opencsd/etmv3/trc_pkt_proc_etmv3.h
+OLD_FILES+=usr/include/opencsd/etmv3/trc_pkt_elem_etmv3.h
+OLD_FILES+=usr/include/opencsd/etmv3/trc_pkt_types_etmv3.h
+OLD_FILES+=usr/include/opencsd/etmv3/trc_dcd_mngr_etmv3.h
+OLD_DIRS+=usr/include/opencsd/etmv3
+OLD_FILES+=usr/include/opencsd/trc_pkt_types.h
+OLD_FILES+=usr/include/opencsd/stm/trc_pkt_proc_stm.h
+OLD_FILES+=usr/include/opencsd/stm/trc_pkt_types_stm.h
+OLD_FILES+=usr/include/opencsd/stm/stm_decoder.h
+OLD_FILES+=usr/include/opencsd/stm/trc_dcd_mngr_stm.h
+OLD_FILES+=usr/include/opencsd/stm/trc_cmp_cfg_stm.h
+OLD_FILES+=usr/include/opencsd/stm/trc_pkt_elem_stm.h
+OLD_FILES+=usr/include/opencsd/stm/trc_pkt_decode_stm.h
+OLD_DIRS+=usr/include/opencsd/stm
+OLD_DIRS+=usr/include/opencsd
+.endif
 OLD_FILES+=usr/include/pmc.h
 OLD_FILES+=usr/include/pmclog.h
+OLD_FILES+=usr/include/pmcformat.h
+OLD_FILES+=usr/include/libpmcstat.h
+.if ${TARGET_ARCH} == "amd64"
+OLD_FILES+=usr/lib/libipt.a
+OLD_FILES+=usr/lib/libipt.so
+OLD_LIBS+=lib/libipt.so.0
+OLD_FILES+=usr/lib/libipt_p.a
+.endif
+.if ${TARGET_ARCH} == "aarch64"
+OLD_FILES+=usr/lib/libopencsd.a
+OLD_FILES+=usr/lib/libopencsd.so
+OLD_LIBS+=lib/libopencsd.so.0
+OLD_FILES+=usr/lib/libopencsd_p.a
+.endif
 OLD_FILES+=usr/lib/libpmc.a
 OLD_FILES+=usr/lib/libpmc.so
 OLD_LIBS+=usr/lib/libpmc.so.5
@@ -7372,10 +7868,10 @@ OLD_FILES+=usr/lib32/libpmc.a
 OLD_FILES+=usr/lib32/libpmc.so
 OLD_LIBS+=usr/lib32/libpmc.so.5
 OLD_FILES+=usr/lib32/libpmc_p.a
+OLD_FILES+=usr/sbin/pmc
 OLD_FILES+=usr/sbin/pmcannotate
 OLD_FILES+=usr/sbin/pmccontrol
 OLD_FILES+=usr/sbin/pmcstat
-OLD_FILES+=usr/share/man/man1/pmcstudy.1.gz
 OLD_FILES+=usr/share/man/man3/pmc.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.atom.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.atomsilvermont.3.gz
@@ -7385,6 +7881,7 @@ OLD_FILES+=usr/share/man/man3/pmc.corei7.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.corei7uc.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.haswell.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.haswelluc.3.gz
+OLD_FILES+=usr/share/man/man3/pmc.haswellxeon.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.iaf.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.ivybridge.3.gz
 OLD_FILES+=usr/share/man/man3/pmc.ivybridgexeon.3.gz
@@ -7444,6 +7941,7 @@ OLD_FILES+=usr/share/man/man3/pmclog_read.3.gz
 OLD_FILES+=usr/share/man/man8/pmcannotate.8.gz
 OLD_FILES+=usr/share/man/man8/pmccontrol.8.gz
 OLD_FILES+=usr/share/man/man8/pmcstat.8.gz
+OLD_FILES+=usr/share/man/man8/pmcstudy.8.gz
 .endif
 
 .if ${MK_PORTSNAP} == no
@@ -7714,6 +8212,7 @@ OLD_FILES+=${RESCUE_FILES}
 .endif
 
 .if ${MK_ROUTED} == no
+OLD_FILES+=etc/rc.d/routed
 OLD_FILES+=rescue/routed
 OLD_FILES+=rescue/rtquery
 OLD_FILES+=sbin/routed
@@ -7729,6 +8228,7 @@ OLD_FILES+=etc/periodic/daily/150.clean-hoststat
 OLD_FILES+=etc/periodic/daily/440.status-mailq
 OLD_FILES+=etc/periodic/daily/460.status-mail-rejects
 OLD_FILES+=etc/periodic/daily/500.queuerun
+OLD_FILES+=etc/rc.d/sendmail
 OLD_FILES+=bin/rmail
 OLD_FILES+=usr/bin/vacation
 OLD_FILES+=usr/include/libmilter/mfapi.h
@@ -9691,6 +10191,7 @@ OLD_FILES+=usr/share/misc/usbdevs
 
 .if ${MK_UTMPX} == no
 OLD_FILES+=etc/periodic/monthly/200.accounting
+OLD_FILES+=etc/rc.d/utx
 OLD_FILES+=usr/bin/last
 OLD_FILES+=usr/bin/users
 OLD_FILES+=usr/bin/who
@@ -9703,6 +10204,32 @@ OLD_FILES+=usr/share/man/man1/who.1.gz
 OLD_FILES+=usr/share/man/man8/ac.8.gz
 OLD_FILES+=usr/share/man/man8/lastlogin.8.gz
 OLD_FILES+=usr/share/man/man8/utx.8.gz
+.endif
+
+.if ${MK_VI} == no
+OLD_FILES+=etc/rc.d/virecover
+OLD_FILES+=rescue/ex
+OLD_FILES+=rescue/vi
+OLD_FILES+=usr/bin/ex
+OLD_FILES+=usr/bin/nex
+OLD_FILES+=usr/bin/nvi
+OLD_FILES+=usr/bin/nview
+OLD_FILES+=usr/bin/vi
+OLD_FILES+=usr/bin/view
+OLD_FILES+=usr/share/man/man1/ex.1.gz
+OLD_FILES+=usr/share/man/man1/nex.1.gz
+OLD_FILES+=usr/share/man/man1/nvi.1.gz
+OLD_FILES+=usr/share/man/man1/nview.1.gz
+OLD_FILES+=usr/share/man/man1/vi.1.gz
+OLD_FILES+=usr/share/man/man1/view.1.gz
+.  if exists(${DESTDIR}/usr/share/vi)
+VI_DIRS!=find ${DESTDIR}/usr/share/vi -type d \
+    | sed -e 's,^${DESTDIR}/,,'; echo
+VI_FILES!=find ${DESTDIR}/usr/share/vi \! -type d \
+    | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_DIRS+=${VI_DIRS}
+OLD_FILES+=${VI_FILES}
+.  endif
 .endif
 
 .if ${MK_WIRELESS} == no
