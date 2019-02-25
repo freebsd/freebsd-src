@@ -3037,6 +3037,8 @@ ffs_fserr(fs, inum, cp)
  *	the count to zero will cause the inode to be freed.
  * adjblkcnt(inode, amt) - adjust the number of blocks used by the
  *	inode by the specified amount.
+ * adjsize(inode, size) - set the size of the inode to the
+ *	specified size.
  * adjndir, adjbfree, adjifree, adjffree, adjnumclusters(amt) -
  *	adjust the superblock summary.
  * freedirs(inode, count) - directory inodes [inode..inode + count - 1]
@@ -3077,6 +3079,9 @@ SYSCTL_PROC(_vfs_ffs, FFS_ADJ_REFCNT, adjrefcnt, CTLFLAG_WR|CTLTYPE_STRUCT,
 
 static SYSCTL_NODE(_vfs_ffs, FFS_ADJ_BLKCNT, adjblkcnt, CTLFLAG_WR,
 	sysctl_ffs_fsck, "Adjust Inode Used Blocks Count");
+
+static SYSCTL_NODE(_vfs_ffs, FFS_SET_SIZE, setsize, CTLFLAG_WR,
+	sysctl_ffs_fsck, "Set the inode size");
 
 static SYSCTL_NODE(_vfs_ffs, FFS_ADJ_NDIR, adjndir, CTLFLAG_WR,
 	sysctl_ffs_fsck, "Adjust number of directories");
@@ -3225,6 +3230,23 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			break;
 		ip = VTOI(vp);
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + cmd.size);
+		ip->i_flag |= IN_CHANGE | IN_MODIFIED;
+		error = ffs_update(vp, 1);
+		vput(vp);
+		break;
+
+	case FFS_SET_SIZE:
+#ifdef DEBUG
+		if (fsckcmds) {
+			printf("%s: set inode %jd size to %jd\n",
+			    mp->mnt_stat.f_mntonname, (intmax_t)cmd.value,
+			    (intmax_t)cmd.size);
+		}
+#endif /* DEBUG */
+		if ((error = ffs_vget(mp, (ino_t)cmd.value, LK_EXCLUSIVE, &vp)))
+			break;
+		ip = VTOI(vp);
+		DIP_SET(ip, i_size, cmd.size);
 		ip->i_flag |= IN_CHANGE | IN_MODIFIED;
 		error = ffs_update(vp, 1);
 		vput(vp);
