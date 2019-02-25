@@ -128,7 +128,7 @@ rk_clk_composite_set_mux(struct clknode *clk, int index)
 	READ4(clk, sc->muxdiv_offset, &val);
 	val &= ~sc->mux_mask;
 	val |= index << sc->mux_shift;
-	WRITE4(clk, sc->muxdiv_offset, val);
+	WRITE4(clk, sc->muxdiv_offset, val | RK_CLK_COMPOSITE_MASK);
 	DEVICE_UNLOCK(clk);
 
 	return (0);
@@ -222,6 +222,7 @@ rk_clk_composite_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 		return (0);
 	}
 
+	p_idx = clknode_get_parent_idx(clk);
 	if (p_idx != best_parent)
 		clknode_set_parent_by_idx(clk, best_parent);
 
