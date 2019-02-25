@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <limits.h>
 #include <signal.h>
@@ -61,12 +62,13 @@ void
 c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
     int fd2, const char *file2, off_t skip2, off_t len2)
 {
+	struct sigaction act, oact;
+	cap_rights_t rights;
 	u_char ch, *p1, *p2, *m1, *m2, *e1, *e2;
 	off_t byte, length, line;
-	int dfound;
 	off_t pagemask, off1, off2;
 	size_t pagesize;
-	struct sigaction act, oact;
+	int dfound;
 
 	if (skip1 > len1)
 		eofmsg(file1);
@@ -77,12 +79,6 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
 
 	if (sflag && len1 != len2)
 		exit(DIFF_EXIT);
-
-	sigemptyset(&act.sa_mask);
-	act.sa_flags = SA_NODEFER;
-	act.sa_handler = segv_handler;
-	if (sigaction(SIGSEGV, &act, &oact))
-		err(ERR_EXIT, "sigaction()");
 
 	pagesize = getpagesize();
 	pagemask = (off_t)pagesize - 1;
@@ -101,6 +97,19 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
 		c_special(fd1, file1, skip1, fd2, file2, skip2);
 		return;
 	}
+
+	if (caph_rights_limit(fd1, cap_rights_init(&rights, CAP_MMAP_R)) < 0)
+		err(1, "unable to limit rights for %s", file1);
+	if (caph_rights_limit(fd2, cap_rights_init(&rights, CAP_MMAP_R)) < 0)
+		err(1, "unable to limit rights for %s", file2);
+	if (caph_enter() < 0)
+		err(ERR_EXIT, "unable to enter capability mode");
+
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = SA_NODEFER;
+	act.sa_handler = segv_handler;
+	if (sigaction(SIGSEGV, &act, &oact))
+		err(ERR_EXIT, "sigaction()");
 
 	dfound = 0;
 	e1 = m1 + MMAP_CHUNK;
