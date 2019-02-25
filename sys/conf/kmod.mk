@@ -380,6 +380,9 @@ ${_src}:
 # Add the sanitizer C flags
 CFLAGS+=	${SAN_CFLAGS}
 
+# Add the gcov flags
+CFLAGS+=	${GCOV_CFLAGS}
+
 # Respect configuration-specific C flags.
 CFLAGS+=	${ARCH_FLAGS} ${CONF_CFLAGS}
 

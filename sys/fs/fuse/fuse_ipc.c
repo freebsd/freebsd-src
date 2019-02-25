@@ -91,19 +91,11 @@ static struct fuse_ticket *fticket_alloc(struct fuse_data *data);
 static void fticket_refresh(struct fuse_ticket *ftick);
 static void fticket_destroy(struct fuse_ticket *ftick);
 static int fticket_wait_answer(struct fuse_ticket *ftick);
-static __inline__ int 
+static inline int 
 fticket_aw_pull_uio(struct fuse_ticket *ftick,
     struct uio *uio);
 
 static int fuse_body_audit(struct fuse_ticket *ftick, size_t blen);
-static __inline__ void 
-fuse_setup_ihead(struct fuse_in_header *ihead,
-    struct fuse_ticket *ftick,
-    uint64_t nid,
-    enum fuse_opcode op,
-    size_t blen,
-    pid_t pid,
-    struct ucred *cred);
 
 static fuse_handler_t fuse_standard_handler;
 
@@ -274,19 +266,19 @@ fticket_fini(void *mem, int size)
 	mtx_destroy(&ftick->tk_aw_mtx);
 }
 
-static __inline struct fuse_ticket *
+static inline struct fuse_ticket *
 fticket_alloc(struct fuse_data *data)
 {
 	return uma_zalloc_arg(ticket_zone, data, M_WAITOK);
 }
 
-static __inline void
+static inline void
 fticket_destroy(struct fuse_ticket *ftick)
 {
 	return uma_zfree(ticket_zone, ftick);
 }
 
-static	__inline__
+static	inline
 void
 fticket_refresh(struct fuse_ticket *ftick)
 {
@@ -354,7 +346,7 @@ out:
 	return err;
 }
 
-static	__inline__
+static	inline
 int
 fticket_aw_pull_uio(struct fuse_ticket *ftick, struct uio *uio)
 {
@@ -717,13 +709,9 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 	return err;
 }
 
-static void
-fuse_setup_ihead(struct fuse_in_header *ihead,
-    struct fuse_ticket *ftick,
-    uint64_t nid,
-    enum fuse_opcode op,
-    size_t blen,
-    pid_t pid,
+static inline void
+fuse_setup_ihead(struct fuse_in_header *ihead, struct fuse_ticket *ftick,
+    uint64_t nid, enum fuse_opcode op, size_t blen, pid_t pid,
     struct ucred *cred)
 {
 	ihead->len = sizeof(*ihead) + blen;
@@ -767,12 +755,8 @@ fuse_standard_handler(struct fuse_ticket *ftick, struct uio *uio)
 }
 
 void
-fdisp_make_pid(struct fuse_dispatcher *fdip,
-    enum fuse_opcode op,
-    struct mount *mp,
-    uint64_t nid,
-    pid_t pid,
-    struct ucred *cred)
+fdisp_make_pid(struct fuse_dispatcher *fdip, enum fuse_opcode op,
+    struct mount *mp, uint64_t nid, pid_t pid, struct ucred *cred)
 {
 	struct fuse_data *data = fuse_get_mpdata(mp);
 
@@ -792,12 +776,8 @@ fdisp_make_pid(struct fuse_dispatcher *fdip,
 }
 
 void
-fdisp_make(struct fuse_dispatcher *fdip,
-    enum fuse_opcode op,
-    struct mount *mp,
-    uint64_t nid,
-    struct thread *td,
-    struct ucred *cred)
+fdisp_make(struct fuse_dispatcher *fdip, enum fuse_opcode op, struct mount *mp,
+    uint64_t nid, struct thread *td, struct ucred *cred)
 {
 	RECTIFY_TDCR(td, cred);
 
@@ -805,11 +785,8 @@ fdisp_make(struct fuse_dispatcher *fdip,
 }
 
 void
-fdisp_make_vp(struct fuse_dispatcher *fdip,
-    enum fuse_opcode op,
-    struct vnode *vp,
-    struct thread *td,
-    struct ucred *cred)
+fdisp_make_vp(struct fuse_dispatcher *fdip, enum fuse_opcode op,
+    struct vnode *vp, struct thread *td, struct ucred *cred)
 {
 	debug_printf("fdip=%p, op=%d, vp=%p\n", fdip, op, vp);
 	RECTIFY_TDCR(td, cred);

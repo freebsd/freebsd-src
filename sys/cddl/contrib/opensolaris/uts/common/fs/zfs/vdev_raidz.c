@@ -270,7 +270,6 @@ static void
 vdev_raidz_map_free(raidz_map_t *rm)
 {
 	int c;
-	size_t size;
 
 	for (c = 0; c < rm->rm_firstdatacol; c++) {
 		if (rm->rm_col[c].rc_abd != NULL)
@@ -281,11 +280,9 @@ vdev_raidz_map_free(raidz_map_t *rm)
 			    rm->rm_col[c].rc_size);
 	}
 
-	size = 0;
 	for (c = rm->rm_firstdatacol; c < rm->rm_cols; c++) {
 		if (rm->rm_col[c].rc_abd != NULL)
 			abd_put(rm->rm_col[c].rc_abd);
-		size += rm->rm_col[c].rc_size;
 	}
 
 	if (rm->rm_abd_copy != NULL)
@@ -571,10 +568,7 @@ vdev_raidz_map_alloc(abd_t *abd, uint64_t size, uint64_t offset, boolean_t dofre
 			    abd_alloc_linear(rm->rm_col[c].rc_size, B_TRUE);
 		}
 
-		rm->rm_col[c].rc_abd = abd_get_offset(abd, 0);
-		off = rm->rm_col[c].rc_size;
-
-		for (c = c + 1; c < acols; c++) {
+		for (off = 0; c < acols; c++) {
 			rm->rm_col[c].rc_abd = abd_get_offset(abd, off);
 			off += rm->rm_col[c].rc_size;
 		}
@@ -2023,7 +2017,7 @@ vdev_raidz_io_start(zio_t *zio)
 		return;
 	}
 
-	ASSERT(zio->io_type == ZIO_TYPE_READ);
+	ASSERT3U(zio->io_type, ==, ZIO_TYPE_READ);
 
 	/*
 	 * Iterate over the columns in reverse order so that we hit the parity
@@ -2561,7 +2555,7 @@ vdev_raidz_io_done(zio_t *zio)
 		/*
 		 * We're here because either:
 		 *
-		 *	total_errors == rm_first_datacol, or
+		 *	total_errors == rm_firstdatacol, or
 		 *	vdev_raidz_combrec() failed
 		 *
 		 * In either case, there is enough bad data to prevent

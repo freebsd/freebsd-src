@@ -74,8 +74,6 @@ dev/sound/macio/onyx.c		optional	snd_ai2s iicbus powermac
 dev/sound/macio/snapper.c	optional	snd_ai2s iicbus powermac
 dev/sound/macio/tumbler.c	optional	snd_ai2s iicbus powermac
 dev/syscons/scgfbrndr.c		optional	sc
-dev/syscons/scterm-teken.c	optional	sc
-dev/syscons/scvtb.c		optional	sc
 dev/tsec/if_tsec.c		optional	tsec
 dev/tsec/if_tsec_fdt.c		optional	tsec 
 dev/uart/uart_cpu_powerpc.c	optional	uart

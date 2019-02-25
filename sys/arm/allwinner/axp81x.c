@@ -195,8 +195,9 @@ MALLOC_DEFINE(M_AXP8XX_REG, "AXP8xx regulator", "AXP8xx power regulator");
 #define	AXP_BAT_COULOMB_LO	0xe3
 
 #define	AXP_BAT_CAP_WARN	0xe6
-#define	 AXP_BAT_CAP_WARN_LV1	0xf0	/* Bits 4, 5, 6, 7 */
-#define	 AXP_BAT_CAP_WARN_LV2	0xf	/* Bits 0, 1, 2, 3 */
+#define	 AXP_BAT_CAP_WARN_LV1		0xf0	/* Bits 4, 5, 6, 7 */
+#define	 AXP_BAP_CAP_WARN_LV1BASE	5	/* 5-20%, 1% per step */
+#define	 AXP_BAT_CAP_WARN_LV2		0xf	/* Bits 0, 1, 2, 3 */
 
 /* Sensor conversion macros */
 #define	AXP_SENSOR_BAT_H(hi)		((hi) << 4)
@@ -1088,9 +1089,9 @@ axp8xx_intr(void *arg)
 		if (bootverbose)
 			device_printf(dev, "AXP_IRQSTAT4 val: %x\n", val);
 		if (val & AXP_IRQSTAT4_BATLVL_LO0)
-			devctl_notify("PMU", "Battery", "lower than level 2", NULL);
+			devctl_notify("PMU", "Battery", "shutdown threshold", NULL);
 		if (val & AXP_IRQSTAT4_BATLVL_LO1)
-			devctl_notify("PMU", "Battery", "lower than level 1", NULL);
+			devctl_notify("PMU", "Battery", "warning threshold", NULL);
 		/* Acknowledge */
 		axp8xx_write(dev, AXP_IRQSTAT4, val);
 	}
@@ -1527,6 +1528,7 @@ axp8xx_attach(device_t dev)
 	/* Get thresholds */
 	if (axp8xx_read(dev, AXP_BAT_CAP_WARN, &val, 1) == 0) {
 		sc->warn_thres = (val & AXP_BAT_CAP_WARN_LV1) >> 4;
+		sc->warn_thres += AXP_BAP_CAP_WARN_LV1BASE;
 		sc->shut_thres = (val & AXP_BAT_CAP_WARN_LV2);
 		if (bootverbose) {
 			device_printf(dev,

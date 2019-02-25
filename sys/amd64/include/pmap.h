@@ -66,12 +66,17 @@
 #define	X86_PG_AVAIL2	0x400	/*   <	programmers use		*/
 #define	X86_PG_AVAIL3	0x800	/*    \				*/
 #define	X86_PG_PDE_PAT	0x1000	/* PAT	PAT index		*/
+#define	X86_PG_PKU(idx)	((pt_entry_t)idx << 59)
 #define	X86_PG_NX	(1ul<<63) /* No-execute */
 #define	X86_PG_AVAIL(x)	(1ul << (x))
 
 /* Page level cache control fields used to determine the PAT type */
 #define	X86_PG_PDE_CACHE (X86_PG_PDE_PAT | X86_PG_NC_PWT | X86_PG_NC_PCD)
 #define	X86_PG_PTE_CACHE (X86_PG_PTE_PAT | X86_PG_NC_PWT | X86_PG_NC_PCD)
+
+/* Protection keys indexes */
+#define	PMAP_MAX_PKRU_IDX	0xf
+#define	X86_PG_PKU_MASK		X86_PG_PKU(PMAP_MAX_PKRU_IDX)
 
 /*
  * Intel extended page table (EPT) bit definitions.
@@ -120,7 +125,7 @@
  * (PTE) page mappings have identical settings for the following fields:
  */
 #define	PG_PTE_PROMOTE	(PG_NX | PG_MANAGED | PG_W | PG_G | PG_PTE_CACHE | \
-	    PG_M | PG_A | PG_U | PG_RW | PG_V)
+	    PG_M | PG_A | PG_U | PG_RW | PG_V | PG_PKU_MASK)
 
 /*
  * Page Protection Exception bits
@@ -131,6 +136,8 @@
 #define PGEX_U		0x04	/* access from User mode (UPL) */
 #define PGEX_RSV	0x08	/* reserved PTE field is non-zero */
 #define PGEX_I		0x10	/* during an instruction fetch */
+#define	PGEX_PK		0x20	/* protection key violation */
+#define	PGEX_SGX	0x40	/* SGX-related */
 
 /* 
  * undef the PG_xx macros that define bits in the regular x86 PTEs that
@@ -240,6 +247,8 @@
 #include <sys/_cpuset.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_pctrie.h>
+#include <sys/_rangeset.h>
 
 #include <vm/_vm_radix.h>
 
@@ -334,6 +343,7 @@ struct pmap {
 	long			pm_eptgen;	/* EPT pmap generation id */
 	int			pm_flags;
 	struct pmap_pcids	pm_pcids[MAXCPU];
+	struct rangeset		pm_pkru;
 };
 
 /* flags */
@@ -452,6 +462,10 @@ void	pmap_pti_pcid_invalidate(uint64_t ucr3, uint64_t kcr3);
 void	pmap_pti_pcid_invlpg(uint64_t ucr3, uint64_t kcr3, vm_offset_t va);
 void	pmap_pti_pcid_invlrng(uint64_t ucr3, uint64_t kcr3, vm_offset_t sva,
 	    vm_offset_t eva);
+int	pmap_pkru_clear(pmap_t pmap, vm_offset_t sva, vm_offset_t eva);
+int	pmap_pkru_set(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
+	    u_int keyidx, int flags);
+int	pmap_vmspace_copy(pmap_t dst_pmap, pmap_t src_pmap);
 #endif /* _KERNEL */
 
 /* Return various clipped indexes for a given VA */

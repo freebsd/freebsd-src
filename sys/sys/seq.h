@@ -121,7 +121,7 @@ seq_write_end(seq_t *seqp)
 }
 
 static __inline seq_t
-seq_read(const seq_t *seqp)
+seq_load(const seq_t *seqp)
 {
 	seq_t ret;
 

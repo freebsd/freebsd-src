@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
+#include <dev/evdev/input.h>
 
 #ifdef __amd64__
 #include <sys/efi.h>
@@ -680,6 +681,22 @@ S_vmtotal(size_t l2, void *p)
 	return (0);
 }
 
+static int
+S_input_id(size_t l2, void *p)
+{
+	struct input_id *id = p;
+
+	if (l2 != sizeof(*id)) {
+		warnx("S_input_id %zu != %zu", l2, sizeof(*id));
+		return (1);
+	}
+
+	printf("{ bustype = 0x%04x, vendor = 0x%04x, "
+	    "product = 0x%04x, version = 0x%04x }",
+	    id->bustype, id->vendor, id->product, id->version);
+	return (0);
+}
+
 #ifdef __amd64__
 static int
 S_efi_map(size_t l2, void *p)
@@ -983,6 +1000,8 @@ show_var(int *oid, int nlen)
 			func = S_loadavg;
 		else if (strcmp(fmt, "S,vmtotal") == 0)
 			func = S_vmtotal;
+		else if (strcmp(fmt, "S,input_id") == 0)
+			func = S_input_id;
 #ifdef __amd64__
 		else if (strcmp(fmt, "S,efi_map_header") == 0)
 			func = S_efi_map;

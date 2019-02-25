@@ -202,16 +202,24 @@ ntb_plx_init(device_t dev)
 		if (sc->alut)
 			PNTX_WRITE(sc, 0xc94, 0);
 
-		/* Enable Link Interface LUT entries 0/1 for peer 0/1. */
-		PNTX_WRITE(sc, 0xdb4, 0x00090001);
+		/* Enable all Link Interface LUT entries for peer. */
+		for (i = 0; i < 32; i += 2) {
+			PNTX_WRITE(sc, 0xdb4 + i * 2,
+			    0x00010001 | ((i + 1) << 19) | (i << 3));
+		}
 	}
 
 	/*
-	 * Enable Virtual Interface LUT entry 0 for 0:0.0 and
-	 * entry 1 for our Requester ID reported by chip.
+	 * Enable Virtual Interface LUT entry 0 for 0:0.*.
+	 * entry 1 for our Requester ID reported by the chip,
+	 * entries 2-5 for 0/64/128/192:4.* of I/OAT DMA engines.
+	 * XXX: Its a hack, we can't know all DMA engines, but this covers all
+	 * I/OAT of Xeon E5/E7 at least from Sandy Bridge till Skylake I saw.
 	 */
 	val = (NTX_READ(sc, 0xc90) << 16) | 0x00010001;
 	NTX_WRITE(sc, sc->link ? 0xdb4 : 0xd94, val);
+	NTX_WRITE(sc, sc->link ? 0xdb8 : 0xd98, 0x40210021);
+	NTX_WRITE(sc, sc->link ? 0xdbc : 0xd9c, 0xc0218021);
 
 	/* Set Link to Virtual address translation. */
 	for (i = 0; i < sc->mw_count; i++) {

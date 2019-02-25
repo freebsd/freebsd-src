@@ -378,13 +378,13 @@ u_procstates(int total, int *brkdn)
     if (ltotal != total)
     {
 	/* move and overwrite */
-if (x_procstate == 0) {
-	Move_to(x_procstate, y_procstate);
-}
-else {
-	/* cursor is already there...no motion needed */
-	assert(lastline == 1);
-}
+	if (x_procstate == 0) {
+	    Move_to(x_procstate, y_procstate);
+	}
+	else {
+	    /* cursor is already there...no motion needed */
+	    assert(lastline == 1);
+	}
 	printf("%d", total);
 
 	/* if number of digits differs, rewrite the label */
@@ -1205,7 +1205,7 @@ line_update(char *old, char *new, int start, int line)
 	cursor_on_line = true;
 	putchar(ch);
 	*old = ch;
-	lastcol = 1;
+	lastcol = start + 1;
     }
     old++;
 
@@ -1341,33 +1341,27 @@ i_uptime(struct timeval *bt, time_t *tod)
     }
 }
 
+#define SETUPBUFFER_MIN_SCREENWIDTH 80
 #define SETUPBUFFER_REQUIRED_ADDBUFSIZ 2
 
 static char *
 setup_buffer(char *buffer, int addlen)
 {
-	char *b = NULL;
+    size_t len;
 
-	if (NULL == buffer) {
-		setup_buffer_bufsiz = screen_width;
-		b = calloc(setup_buffer_bufsiz + addlen +
-				SETUPBUFFER_REQUIRED_ADDBUFSIZ,
-				sizeof(char));
-	} else {
-		if (screen_width > setup_buffer_bufsiz) {
-			setup_buffer_bufsiz = screen_width;
-			free(buffer);
-			b = calloc(setup_buffer_bufsiz + addlen +
-					SETUPBUFFER_REQUIRED_ADDBUFSIZ,
-					sizeof(char));
-		} else {
-			b = buffer;
-		}	
-	}
+    setup_buffer_bufsiz = screen_width;
+    if (setup_buffer_bufsiz < SETUPBUFFER_MIN_SCREENWIDTH)
+    {
+	setup_buffer_bufsiz = SETUPBUFFER_MIN_SCREENWIDTH;
+    }
 
-	if (NULL == b) {
-		errx(4, "can't allocate sufficient memory");
-	}
+    free(buffer);
+    len = setup_buffer_bufsiz + addlen + SETUPBUFFER_REQUIRED_ADDBUFSIZ;
+    buffer = calloc(len, sizeof(char));
+    if (buffer == NULL)
+    {
+	errx(4, "can't allocate sufficient memory");
+    }
 
-	return b;
+    return buffer;
 }

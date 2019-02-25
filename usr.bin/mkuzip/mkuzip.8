@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 17, 2006
+.Dd February 19, 2019
 .Dt MKUZIP 8
 .Os
 .Sh NAME
@@ -35,10 +35,10 @@
 class
 .Sh SYNOPSIS
 .Nm
-.Op Fl v
+.Op Fl dLSsvZ
+.Op Fl j Ar compression_jobs
 .Op Fl o Ar outfile
 .Op Fl s Ar cluster_size
-.Op Fl j Ar compression_jobs
 .Ar infile
 .Sh DESCRIPTION
 The
@@ -68,6 +68,33 @@ locating each individual cluster is written to the output file.
 .Pp
 The options are:
 .Bl -tag -width indent
+.It Fl j Ar compression_jobs
+Specify the number of compression jobs that
+.Nm
+runs in parallel to speed up compression.
+When option is not specified the number of jobs set to be equal
+to the value of
+.Va hw.ncpu
+.Xr sysctl 8
+variable.
+.It Fl d
+Enable de-duplication.
+When the option is enabled the
+.Nm
+detects identical blocks in the input and replaces each subsequent occurence
+of such block with pointer to the very first one in the output.
+Setting this option results is moderate decrease of compressed image size,
+typically around 3-5% of a final size of the compressed image.
+.It Fl L
+Use
+.Xr lzma 3
+compression algorithm instead of the default
+.Xr zlib 3 .
+The
+.Xr lzma 3
+provides noticeable better compression levels on the same data set
+at the expense of much slower compression speed (10-20x) and somewhat slower
+decompression (2-3x).
 .It Fl o Ar outfile
 Name of the output file
 .Ar outfile .
@@ -79,16 +106,9 @@ compression or
 .Pa .ulzma
 for the
 .Xr lzma 3 .
-.It Fl L
-Use
-.Xr lzma 3
-compression algorithm instead of the default
-.Xr zlib 3 .
-The
-.Xr lzma 3
-provides noticeable better compression levels on the same data set
-at the expense of much slower compression speed (10-20x) and somewhat slower
-decompression (2-3x).
+.It Fl S
+Print summary about the compression ratio as well as output
+file size after file has been processed.
 .It Fl s Ar cluster_size
 Split the image into clusters of
 .Ar cluster_size
@@ -111,26 +131,6 @@ Setting
 .Fl Z
 results is slight increase of compressed image size, typically less than 0.1%
 of a final size of the compressed image.
-.It Fl d
-Enable de-duplication.
-When the option is enabled the
-.Nm
-detects identical blocks in the input and replaces each subsequent occurence
-of such block with pointer to the very first one in the output.
-Setting this option results is moderate decrease of compressed image size,
-typically around 3-5% of a final size of the compressed image.
-.It Fl S
-Print summary about the compression ratio as well as output
-file size after file has been processed.
-.It Fl j Ar compression_jobs
-Specify the number of compression jobs that
-.Nm
-runs in parallel to speed up compression.
-When option is not specified the number of jobs set to be equal
-to the value of
-.Va hw.ncpu
-.Xr sysctl 8
-variable.
 .El
 .Sh NOTES
 The compression ratio largely depends on the cluster size used.

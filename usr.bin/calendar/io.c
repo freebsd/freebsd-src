@@ -294,6 +294,9 @@ cal_parse(FILE *in, FILE *out)
 		if (strncmp(buf, "LANG=", 5) == 0) {
 			(void)setlocale(LC_ALL, buf + 5);
 			d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
+#ifdef WITH_ICONV
+			set_new_encoding();
+#endif
 			setnnames();
 			continue;
 		}

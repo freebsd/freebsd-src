@@ -651,7 +651,7 @@ ctl_ha_datamove(union ctl_io *io)
 
 	memset(&msg.dt, 0, sizeof(msg.dt));
 	msg.hdr.msg_type = CTL_MSG_DATAMOVE;
-	msg.hdr.original_sc = io->io_hdr.original_sc;
+	msg.hdr.original_sc = io->io_hdr.remote_io;
 	msg.hdr.serializing_sc = io;
 	msg.hdr.nexus = io->io_hdr.nexus;
 	msg.hdr.status = io->io_hdr.status;
@@ -766,7 +766,7 @@ ctl_ha_done(union ctl_io *io)
 	if (io->io_hdr.io_type == CTL_IO_SCSI) {
 		memset(&msg, 0, sizeof(msg));
 		msg.hdr.msg_type = CTL_MSG_FINISH_IO;
-		msg.hdr.original_sc = io->io_hdr.original_sc;
+		msg.hdr.original_sc = io->io_hdr.remote_io;
 		msg.hdr.nexus = io->io_hdr.nexus;
 		msg.hdr.status = io->io_hdr.status;
 		msg.scsi.scsi_status = io->scsiio.scsi_status;
@@ -1439,7 +1439,7 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			// populate ctsio from msg
 			io->io_hdr.io_type = CTL_IO_SCSI;
 			io->io_hdr.msg_type = CTL_MSG_SERIALIZE;
-			io->io_hdr.original_sc = msg->hdr.original_sc;
+			io->io_hdr.remote_io = msg->hdr.original_sc;
 			io->io_hdr.flags |= CTL_FLAG_FROM_OTHER_SC |
 					    CTL_FLAG_IO_ACTIVE;
 			/*
@@ -1495,7 +1495,7 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			 * Keep track of this, we need to send it back over
 			 * when the datamove is complete.
 			 */
-			io->io_hdr.serializing_sc = msg->hdr.serializing_sc;
+			io->io_hdr.remote_io = msg->hdr.serializing_sc;
 			if (msg->hdr.status == CTL_SUCCESS)
 				io->io_hdr.status = msg->hdr.status;
 
@@ -1508,9 +1508,8 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 				    CTL_HA_DATAMOVE_SEGMENT + 1;
 				sgl = malloc(sizeof(*sgl) * i, M_CTL,
 				    M_WAITOK | M_ZERO);
-				io->io_hdr.remote_sglist = sgl;
-				io->io_hdr.local_sglist =
-				    &sgl[msg->dt.kern_sg_entries];
+				CTL_RSGL(io) = sgl;
+				CTL_LSGL(io) = &sgl[msg->dt.kern_sg_entries];
 
 				io->scsiio.kern_data_ptr = (uint8_t *)sgl;
 
@@ -1597,7 +1596,7 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			}
 			io->io_hdr.flags |= CTL_FLAG_IO_ACTIVE;
 			io->io_hdr.msg_type = CTL_MSG_R2R;
-			io->io_hdr.serializing_sc = msg->hdr.serializing_sc;
+			io->io_hdr.remote_io = msg->hdr.serializing_sc;
 			ctl_enqueue_isc(io);
 			break;
 
@@ -2369,7 +2368,7 @@ ctl_serialize_other_sc_cmd(struct ctl_scsiio *ctsio)
 			mtx_unlock(&lun->lun_lock);
 
 			/* send msg back to other side */
-			msg_info.hdr.original_sc = ctsio->io_hdr.original_sc;
+			msg_info.hdr.original_sc = ctsio->io_hdr.remote_io;
 			msg_info.hdr.serializing_sc = (union ctl_io *)ctsio;
 			msg_info.hdr.msg_type = CTL_MSG_R2R;
 			ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg_info,
@@ -2395,7 +2394,7 @@ ctl_serialize_other_sc_cmd(struct ctl_scsiio *ctsio)
 					 /*retry_count*/ 0);
 badjuju:
 		ctl_copy_sense_data_back((union ctl_io *)ctsio, &msg_info);
-		msg_info.hdr.original_sc = ctsio->io_hdr.original_sc;
+		msg_info.hdr.original_sc = ctsio->io_hdr.remote_io;
 		msg_info.hdr.serializing_sc = NULL;
 		msg_info.hdr.msg_type = CTL_MSG_BAD_JUJU;
 		ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg_info,
@@ -2743,39 +2742,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 #endif /* CTL_IO_DELAY */
 		break;
 	}
-#ifdef CTL_LEGACY_STATS
-	case CTL_GETSTATS: {
-		struct ctl_stats *stats = (struct ctl_stats *)addr;
-		int i;
-
-		/*
-		 * XXX KDM no locking here.  If the LUN list changes,
-		 * things can blow up.
-		 */
-		i = 0;
-		stats->status = CTL_SS_OK;
-		stats->fill_len = 0;
-		STAILQ_FOREACH(lun, &softc->lun_list, links) {
-			if (stats->fill_len + sizeof(lun->legacy_stats) >
-			    stats->alloc_len) {
-				stats->status = CTL_SS_NEED_MORE_SPACE;
-				break;
-			}
-			retval = copyout(&lun->legacy_stats, &stats->lun_stats[i++],
-					 sizeof(lun->legacy_stats));
-			if (retval != 0)
-				break;
-			stats->fill_len += sizeof(lun->legacy_stats);
-		}
-		stats->num_luns = softc->num_luns;
-		stats->flags = CTL_STATS_FLAG_NONE;
-#ifdef CTL_TIME_IO
-		stats->flags |= CTL_STATS_FLAG_TIME_VALID;
-#endif
-		getnanouptime(&stats->timestamp);
-		break;
-	}
-#endif /* CTL_LEGACY_STATS */
 	case CTL_ERROR_INJECT: {
 		struct ctl_error_desc *err_desc, *new_err_desc;
 
@@ -4758,17 +4724,6 @@ fail:
 	ctl_init_log_page_index(lun);
 
 	/* Setup statistics gathering */
-#ifdef CTL_LEGACY_STATS
-	lun->legacy_stats.device_type = be_lun->lun_type;
-	lun->legacy_stats.lun_number = lun_number;
-	lun->legacy_stats.blocksize = be_lun->blocksize;
-	if (be_lun->blocksize == 0)
-		lun->legacy_stats.flags = CTL_LUN_STATS_NO_BLOCKSIZE;
-	lun->legacy_stats.ports = malloc(sizeof(struct ctl_lun_io_port_stats) *
-	    ctl_max_ports, M_DEVBUF, M_WAITOK | M_ZERO);
-	for (len = 0; len < ctl_max_ports; len++)
-		lun->legacy_stats.ports[len].targ_port = len;
-#endif /* CTL_LEGACY_STATS */
 	lun->stats.item = lun_number;
 
 	/*
@@ -11087,7 +11042,7 @@ ctl_check_blocked(struct ctl_lun *lun)
 
 				cur_blocked->io_hdr.flags &= ~CTL_FLAG_IO_ACTIVE;
 				msg_info.hdr.original_sc =
-					cur_blocked->io_hdr.original_sc;
+					cur_blocked->io_hdr.remote_io;
 				msg_info.hdr.serializing_sc = cur_blocked;
 				msg_info.hdr.msg_type = CTL_MSG_R2R;
 				ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg_info,
@@ -12524,7 +12479,7 @@ ctl_send_datamove_done(union ctl_io *io, int have_lock)
 	memset(&msg, 0, sizeof(msg));
 	msg.hdr.msg_type = CTL_MSG_DATAMOVE_DONE;
 	msg.hdr.original_sc = io;
-	msg.hdr.serializing_sc = io->io_hdr.serializing_sc;
+	msg.hdr.serializing_sc = io->io_hdr.remote_io;
 	msg.hdr.nexus = io->io_hdr.nexus;
 	msg.hdr.status = io->io_hdr.status;
 	msg.scsi.kern_data_resid = io->scsiio.kern_data_resid;
@@ -12575,10 +12530,10 @@ ctl_datamove_remote_write_cb(struct ctl_ha_dt_req *rq)
 	ctl_dt_req_free(rq);
 
 	for (i = 0; i < io->scsiio.kern_sg_entries; i++)
-		free(io->io_hdr.local_sglist[i].addr, M_CTL);
-	free(io->io_hdr.remote_sglist, M_CTL);
-	io->io_hdr.remote_sglist = NULL;
-	io->io_hdr.local_sglist = NULL;
+		free(CTL_LSGLT(io)[i].addr, M_CTL);
+	free(CTL_RSGL(io), M_CTL);
+	CTL_RSGL(io) = NULL;
+	CTL_LSGL(io) = NULL;
 
 	/*
 	 * The data is in local and remote memory, so now we need to send
@@ -12618,7 +12573,7 @@ ctl_datamove_remote_write(union ctl_io *io)
 		return;
 
 	/* Switch the pointer over so the FETD knows what to do */
-	io->scsiio.kern_data_ptr = (uint8_t *)io->io_hdr.local_sglist;
+	io->scsiio.kern_data_ptr = (uint8_t *)CTL_LSGL(io);
 
 	/*
 	 * Use a custom move done callback, since we need to send completion
@@ -12641,10 +12596,10 @@ ctl_datamove_remote_dm_read_cb(union ctl_io *io)
 	uint32_t i;
 
 	for (i = 0; i < io->scsiio.kern_sg_entries; i++)
-		free(io->io_hdr.local_sglist[i].addr, M_CTL);
-	free(io->io_hdr.remote_sglist, M_CTL);
-	io->io_hdr.remote_sglist = NULL;
-	io->io_hdr.local_sglist = NULL;
+		free(CTL_LSGLT(io)[i].addr, M_CTL);
+	free(CTL_RSGL(io), M_CTL);
+	CTL_RSGL(io) = NULL;
+	CTL_LSGL(io) = NULL;
 
 #if 0
 	scsi_path_string(io, path_str, sizeof(path_str));
@@ -12691,7 +12646,7 @@ ctl_datamove_remote_read_cb(struct ctl_ha_dt_req *rq)
 	ctl_dt_req_free(rq);
 
 	/* Switch the pointer over so the FETD knows what to do */
-	io->scsiio.kern_data_ptr = (uint8_t *)io->io_hdr.local_sglist;
+	io->scsiio.kern_data_ptr = (uint8_t *)CTL_LSGL(io);
 
 	/*
 	 * Use a custom move done callback, since we need to send completion
@@ -12714,7 +12669,7 @@ ctl_datamove_remote_sgl_setup(union ctl_io *io)
 	int i;
 
 	retval = 0;
-	local_sglist = io->io_hdr.local_sglist;
+	local_sglist = CTL_LSGL(io);
 	len_to_go = io->scsiio.kern_data_len;
 
 	/*
@@ -12785,8 +12740,8 @@ ctl_datamove_remote_xfer(union ctl_io *io, unsigned command,
 		return (1);
 	}
 
-	local_sglist = io->io_hdr.local_sglist;
-	remote_sglist = io->io_hdr.remote_sglist;
+	local_sglist = CTL_LSGL(io);
+	remote_sglist = CTL_RSGL(io);
 	local_used = 0;
 	remote_used = 0;
 	total_used = 0;
@@ -12899,10 +12854,10 @@ ctl_datamove_remote_read(union ctl_io *io)
 		 * error if there is a problem.
 		 */
 		for (i = 0; i < io->scsiio.kern_sg_entries; i++)
-			free(io->io_hdr.local_sglist[i].addr, M_CTL);
-		free(io->io_hdr.remote_sglist, M_CTL);
-		io->io_hdr.remote_sglist = NULL;
-		io->io_hdr.local_sglist = NULL;
+			free(CTL_LSGLT(io)[i].addr, M_CTL);
+		free(CTL_RSGL(io), M_CTL);
+		CTL_RSGL(io) = NULL;
+		CTL_LSGL(io) = NULL;
 	}
 }
 
@@ -13079,21 +13034,6 @@ ctl_process_done(union ctl_io *io)
 		else
 			type = CTL_STATS_NO_IO;
 
-#ifdef CTL_LEGACY_STATS
-		uint32_t targ_port = port->targ_port;
-		lun->legacy_stats.ports[targ_port].bytes[type] +=
-		    io->scsiio.kern_total_len;
-		lun->legacy_stats.ports[targ_port].operations[type] ++;
-		lun->legacy_stats.ports[targ_port].num_dmas[type] +=
-		    io->io_hdr.num_dmas;
-#ifdef CTL_TIME_IO
-		bintime_add(&lun->legacy_stats.ports[targ_port].dma_time[type],
-		   &io->io_hdr.dma_bt);
-		bintime_add(&lun->legacy_stats.ports[targ_port].time[type],
-		    &bt);
-#endif
-#endif /* CTL_LEGACY_STATS */
-
 		lun->stats.bytes[type] += io->scsiio.kern_total_len;
 		lun->stats.operations[type] ++;
 		lun->stats.dmas[type] += io->io_hdr.num_dmas;
@@ -13165,7 +13105,7 @@ bailout:
 	    (io->io_hdr.flags & CTL_FLAG_SENT_2OTHER_SC)) {
 		memset(&msg, 0, sizeof(msg));
 		msg.hdr.msg_type = CTL_MSG_FINISH_IO;
-		msg.hdr.serializing_sc = io->io_hdr.serializing_sc;
+		msg.hdr.serializing_sc = io->io_hdr.remote_io;
 		msg.hdr.nexus = io->io_hdr.nexus;
 		ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg,
 		    sizeof(msg.scsi) - sizeof(msg.scsi.sense_data),

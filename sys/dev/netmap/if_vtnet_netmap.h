@@ -132,7 +132,6 @@ vtnet_netmap_reg(struct netmap_adapter *na, int state)
 
 	if (state) {
 		netmap_krings_mode_commit(na, state);
-		nm_set_native_flags(na);
 	} else {
 		nm_clear_native_flags(na);
 		netmap_krings_mode_commit(na, state);

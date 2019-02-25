@@ -77,6 +77,7 @@
 #define	CR4_XSAVE 0x00040000	/* XSETBV/XGETBV */
 #define	CR4_SMEP 0x00100000	/* Supervisor-Mode Execution Prevention */
 #define	CR4_SMAP 0x00200000	/* Supervisor-Mode Access Prevention */
+#define	CR4_PKE	0x00400000	/* Protection Keys Enable */
 
 /*
  * Bits in AMD64 special registers.  EFER is 64 bits wide.
