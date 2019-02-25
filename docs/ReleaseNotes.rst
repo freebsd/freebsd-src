@@ -1,6 +1,6 @@
-=======================================
-Clang 8.0.0 (In-Progress) Release Notes
-=======================================
+=========================
+Clang 8.0.0 Release Notes
+=========================
 
 .. contents::
    :local:
@@ -8,16 +8,10 @@ Clang 8.0.0 (In-Progress) Release Notes
 
 Written by the `LLVM Team <https://llvm.org/>`_
 
-.. warning::
-
-   These are in-progress notes for the upcoming Clang 8 release.
-   Release notes for previous releases can be found on
-   `the Download Page <https://releases.llvm.org/download.html>`_.
-
 Introduction
 ============
 
-This document contains the release notes for the Clang C/C++/Objective-C
+This document contains the release notes for the Clang C/C++/Objective-C/OpenCL
 frontend, part of the LLVM Compiler Infrastructure, release 8.0.0. Here we
 describe the status of Clang in some detail, including major
 improvements from the previous release and new feature work. For the
@@ -29,11 +23,6 @@ site <https://llvm.org/releases/>`_.
 For more information about Clang or LLVM, including information about the
 latest release, please see the `Clang Web Site <https://clang.llvm.org>`_ or the
 `LLVM Web Site <https://llvm.org>`_.
-
-Note that if you are reading this file from a Subversion checkout or the
-main Clang web page, this document applies to the *next* release, not
-the current one. To see the release notes for a specific release, please
-see the `releases page <https://llvm.org/releases/>`_.
 
 What's New in Clang 8.0.0?
 ==========================
@@ -50,7 +39,36 @@ Major New Features
   profile data captured for one version of a program to be applied
   when building another version where symbols have changed (for
   example, due to renaming a class or namespace).
-  See the :doc:`UsersManual` for details.
+  See the :ref:`UsersManual <profile_remapping>` for details.
+
+- Clang has new options to initialize automatic variables with a pattern. The default is still that automatic variables are uninitialized. This isn't meant to change the semantics of C and C++. Rather, it's meant to be a last resort when programmers inadvertently have some undefined behavior in their code. These options aim to make undefined behavior hurt less, which security-minded people will be very happy about. Notably, this means that there's no inadvertent information leak when:
+
+    * The compiler re-uses stack slots, and a value is used uninitialized.
+
+    * The compiler re-uses a register, and a value is used uninitialized.
+
+    * Stack structs / arrays / unions with padding are copied.
+
+  These options only address stack and register information leaks.
+
+  Caveats:
+
+    * Variables declared in unreachable code and used later aren't initialized. This affects goto statements, Duff's device, and other objectionable uses of switch statements. This should instead be a hard-error in any serious codebase.
+
+    * These options don't affect volatile stack variables.
+
+    * Padding isn't fully handled yet.
+
+  How to use it on the command line:
+
+    * ``-ftrivial-auto-var-init=uninitialized`` (the default)
+
+    * ``-ftrivial-auto-var-init=pattern``
+
+  There is also a new attribute to request a variable to not be initialized, mainly to disable initialization of large stack arrays when deemed too expensive:
+
+    * ``int dont_initialize_me __attribute((uninitialized));``
+
 
 Improvements to Clang's diagnostics
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -131,14 +149,24 @@ Non-comprehensive list of changes in this release
 
 - Improved support for MIPS N32 ABI and MIPS R6 target triples.
 
+- Clang now includes builtin functions for bitwise rotation of common value
+  sizes, such as: `__builtin_rotateleft32
+  <LanguageExtensions.html#builtin-rotateleft>`_
+
+- Improved optimization for the corresponding MSVC compatibility builtins such
+  as ``_rotl()``.
+
 New Compiler Flags
 ------------------
+
+- ``-mspeculative-load-hardening`` Clang now has an option to enable
+  Speculative Load Hardening.
 
 - ``-fprofile-filter-files=[regexes]`` and ``-fprofile-exclude-files=[regexes]``.
 
   Clang has now options to filter or exclude some files when
   instrumenting for gcov-based profiling.
-  See the :doc:`UsersManual` for details.
+  See the `UsersManual <UsersManual.html#cmdoption-fprofile-filter-files>`_ for details.
 
 - When using a custom stack alignment, the ``stackrealign`` attribute is now
   implicitly set on the main function.
@@ -175,7 +203,9 @@ New Pragmas in Clang
 Attribute Changes in Clang
 --------------------------
 
-- ...
+* Clang now supports enabling/disabling speculative load hardening on a
+  per-function basis using the function attribute
+  ``speculative_load_hardening``/``no_speculative_load_hardening``.
 
 Windows Support
 ---------------
@@ -229,10 +259,60 @@ Objective-C Language Changes in Clang
 
 ...
 
-OpenCL C Language Changes in Clang
-----------------------------------
+OpenCL Kernel Language Changes in Clang
+---------------------------------------
 
-...
+Misc:
+
+- Improved address space support with Clang builtins.
+
+- Improved various diagnostics for vectors with element types from extensions;
+  values used in attributes; duplicate address spaces.
+
+- Allow blocks to capture arrays.
+
+- Allow zero assignment and comparisons between variables of ``queue_t`` type.
+
+- Improved diagnostics of formatting specifiers and argument promotions for
+  vector types in ``printf``.
+
+- Fixed return type of enqueued kernel and pipe builtins.
+
+- Fixed address space of ``clk_event_t`` generated in the IR.
+
+- Fixed address space when passing/returning structs.
+
+Header file fixes:
+
+- Added missing extension guards around several builtin function overloads.
+
+- Fixed serialization support when registering vendor extensions using pragmas.
+
+- Fixed OpenCL version in declarations of builtin functions with sampler-less
+  image accesses.
+
+New vendor extensions added:
+
+- ``cl_intel_planar_yuv``
+
+- ``cl_intel_device_side_avc_motion_estimation``
+
+
+C++ for OpenCL:
+
+- Added support of address space conversions in C style casts.
+
+- Enabled address spaces for references.
+
+- Fixed use of address spaces in templates: address space deduction and diagnostics.
+
+- Changed default address space to work with C++ specific concepts: class members,
+  template parameters, etc.
+
+- Added generic address space by default to the generated hidden 'this' parameter.
+
+- Extend overload ranking rules for address spaces.
+
 
 ABI Changes in Clang
 --------------------
