@@ -1,12 +1,6 @@
 /*-
- * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2019 Dag-Erling Smørgrav
+ * Copyright (c) 2019 Dag-Erling Smørgrav
  * All rights reserved.
- *
- * This software was developed for the FreeBSD Project by ThinkSec AS and
- * Network Associates Laboratories, the Security Research Division of
- * Network Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
- * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,14 +26,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $OpenPAM: openpam_version.h 945 2019-02-22 09:52:46Z des $
+ * $OpenPAM$
  */
 
-#ifndef SECURITY_OPENPAM_VERSION_H_INCLUDED
-#define SECURITY_OPENPAM_VERSION_H_INCLUDED
+#ifndef T_PAM_ERR_H_INCLUDED
+#define T_PAM_ERR_H_INCLUDED
 
-#define OPENPAM
-#define OPENPAM_VERSION	20190224
-#define OPENPAM_RELEASE	"Tabebuia"
+int t_compare_pam_err(int, int);
 
-#endif /* !SECURITY_OPENPAM_VERSION_H_INCLUDED */
+static inline int
+t_pam_success(int received)
+{
+
+	return t_compare_pam_err(PAM_SUCCESS, received);
+}
+
+#endif

@@ -1,12 +1,6 @@
 /*-
- * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2019 Dag-Erling Smørgrav
+ * Copyright (c) 2019 Dag-Erling Smørgrav
  * All rights reserved.
- *
- * This software was developed for the FreeBSD Project by ThinkSec AS and
- * Network Associates Laboratories, the Security Research Division of
- * Network Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
- * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,14 +26,38 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $OpenPAM: openpam_version.h 945 2019-02-22 09:52:46Z des $
+ * $OpenPAM$
  */
 
-#ifndef SECURITY_OPENPAM_VERSION_H_INCLUDED
-#define SECURITY_OPENPAM_VERSION_H_INCLUDED
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
-#define OPENPAM
-#define OPENPAM_VERSION	20190224
-#define OPENPAM_RELEASE	"Tabebuia"
+#include <stdint.h>
+#include <unistd.h>
 
-#endif /* !SECURITY_OPENPAM_VERSION_H_INCLUDED */
+#include <cryb/test.h>
+
+#include <security/pam_appl.h>
+#include <security/openpam.h>
+
+#include "openpam_impl.h"
+
+#include "t_pam_err.h"
+
+int
+t_compare_pam_err(int expected, int received)
+{
+
+	if (expected == received)
+		return (1);
+	if (expected >= 0 && expected < PAM_NUM_ERRORS)
+		t_printv("expected %s, ", pam_err_name[expected]);
+	else
+		t_printv("expected %d, ", expected);
+	if (received >= 0 && received < PAM_NUM_ERRORS)
+		t_printv("received %s\n", pam_err_name[received]);
+	else
+		t_printv("received %d\n", received);
+	return (0);
+}
