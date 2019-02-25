@@ -692,10 +692,12 @@ vdev_geom_attach_by_guids(vdev_t *vd)
 	struct g_geom *gp;
 	struct g_provider *pp, *best_pp;
 	struct g_consumer *cp;
+	const char *vdpath;
 	enum match match, best_match;
 
 	g_topology_assert();
 
+	vdpath = vd->vdev_path + sizeof("/dev/") - 1;
 	cp = NULL;
 	best_pp = NULL;
 	best_match = NO_MATCH;
@@ -710,6 +712,10 @@ vdev_geom_attach_by_guids(vdev_t *vd)
 				if (match > best_match) {
 					best_match = match;
 					best_pp = pp;
+				} else if (match == best_match) {
+					if (strcmp(pp->name, vdpath) == 0) {
+						best_pp = pp;
+					}
 				}
 				if (match == FULL_MATCH)
 					goto out;
@@ -794,7 +800,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	/*
 	 * We must have a pathname, and it must be absolute.
 	 */
-	if (vd->vdev_path == NULL || vd->vdev_path[0] != '/') {
+	if (vd->vdev_path == NULL || strncmp(vd->vdev_path, "/dev/", 5) != 0) {
 		vd->vdev_stat.vs_aux = VDEV_AUX_BAD_LABEL;
 		return (EINVAL);
 	}

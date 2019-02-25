@@ -1216,7 +1216,7 @@ AcpiDmCreateSubobjectForExternal (
  *
  * DESCRIPTION: Add one external to the namespace by resolvign the external
  *              (by performing a namespace lookup) and annotating the resulting
- *              namespace node with the approperiate information if the type
+ *              namespace node with the appropriate information if the type
  *              is ACPI_TYPE_REGION or ACPI_TYPE_METHOD.
  *
  ******************************************************************************/

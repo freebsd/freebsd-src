@@ -814,6 +814,15 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoGtdt[] =
     ACPI_DMT_TERMINATOR
 };
 
+/* GDTD EL2 timer info. This table is appended to AcpiDmTableInfoGtdt for rev 3 and later */
+
+ACPI_DMTABLE_INFO AcpiDmTableInfoGtdtEl2[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_GTDT_EL2_OFFSET (VirtualEL2TimerGsiv),  "Virtual EL2 Timer GSIV", 0},
+    {ACPI_DMT_UINT32,   ACPI_GTDT_EL2_OFFSET (VirtualEL2TimerFlags), "Virtual EL2 Timer Flags", 0},
+    ACPI_DMT_TERMINATOR
+};
+
 /* GTDT Subtable header (one per Subtable) */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoGtdtHdr[] =
@@ -1105,20 +1114,18 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoHmatHdr[] =
 
 /* HMAT subtables */
 
-/* 0x00: Memory Subsystem Address Range */
+/* 0x00: Memory proximity domain attributes */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoHmat0[] =
 {
     {ACPI_DMT_UINT16,   ACPI_HMAT0_OFFSET (Flags),                  "Flags (decoded below)", 0},
     {ACPI_DMT_FLAG0,    ACPI_HMAT0_FLAG_OFFSET (Flags,0),           "Processor Proximity Domain Valid", 0},
-    {ACPI_DMT_FLAG1,    ACPI_HMAT0_FLAG_OFFSET (Flags,0),           "Memory Proximity Domain Valid", 0},
-    {ACPI_DMT_FLAG2,    ACPI_HMAT0_FLAG_OFFSET (Flags,0),           "Reservation Hint", 0},
     {ACPI_DMT_UINT16,   ACPI_HMAT0_OFFSET (Reserved1),              "Reserved1", 0},
     {ACPI_DMT_UINT32,   ACPI_HMAT0_OFFSET (ProcessorPD),            "Processor Proximity Domain", 0},
     {ACPI_DMT_UINT32,   ACPI_HMAT0_OFFSET (MemoryPD),               "Memory Proximity Domain", 0},
     {ACPI_DMT_UINT32,   ACPI_HMAT0_OFFSET (Reserved2),              "Reserved2", 0},
-    {ACPI_DMT_UINT64,   ACPI_HMAT0_OFFSET (PhysicalAddressBase),    "Physical Address Range Base", 0},
-    {ACPI_DMT_UINT64,   ACPI_HMAT0_OFFSET (PhysicalAddressLength),  "Physical Address Range Size", 0},
+    {ACPI_DMT_UINT64,   ACPI_HMAT0_OFFSET (Reserved3),              "Reserved3", 0},
+    {ACPI_DMT_UINT64,   ACPI_HMAT0_OFFSET (Reserved4),              "Reserved4", 0},
     ACPI_DMT_TERMINATOR
 };
 

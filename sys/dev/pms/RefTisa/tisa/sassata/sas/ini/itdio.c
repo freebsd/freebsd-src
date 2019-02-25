@@ -1820,12 +1820,6 @@ tiNumOfLunIOCTLreq(
       break;
     }
     tdIORequestBody = (tdIORequestBody_t *)tiRequestBody;
-    
-    if(tdIORequestBody == agNULL)
-    {
-      status = IOCTL_CALL_FAIL;
-      break;
-    }
     tdIORequestBody->tiIORequest = tiIORequest;
     
     /* save context if we need to abort later */

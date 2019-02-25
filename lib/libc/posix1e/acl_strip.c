@@ -70,7 +70,6 @@ _posix1e_acl_strip_np(const acl_t aclp, int recalculate_mask)
 {
 	acl_t acl_new, acl_old;
 	acl_entry_t entry, entry_new;
-	acl_permset_t perm;
 	acl_tag_t tag;
 	int entry_id, have_mask_entry;
 
@@ -104,15 +103,7 @@ _posix1e_acl_strip_np(const acl_t aclp, int recalculate_mask)
 		case ACL_USER_OBJ:
 		case ACL_GROUP_OBJ:
 		case ACL_OTHER:
-			if (acl_get_tag_type(entry, &tag) == -1)
-				goto fail;
-			if (acl_get_permset(entry, &perm) == -1)
-				goto fail;
 			if (acl_create_entry(&acl_new, &entry_new) == -1)
-				goto fail;
-			if (acl_set_tag_type(entry_new, tag) == -1)
-				goto fail;
-			if (acl_set_permset(entry_new, perm) == -1)
 				goto fail;
 			if (acl_copy_entry(entry_new, entry) == -1)
 				goto fail;

@@ -1488,6 +1488,7 @@ options 	MAXCONS=16		# number of virtual consoles
 options 	SC_ALT_MOUSE_IMAGE	# simplified mouse cursor in text mode
 options 	SC_DFLT_FONT		# compile font in
 makeoptions	SC_DFLT_FONT=cp850
+options 	SC_DFLT_TERM=\"sc\"	# default terminal emulator
 options 	SC_DISABLE_KDBKEY	# disable `debug' key
 options 	SC_DISABLE_REBOOT	# disable reboot key sequence
 options 	SC_HISTORY_SIZE=200	# number of history buffer lines
@@ -1518,6 +1519,9 @@ options 	SC_NO_HISTORY
 options 	SC_NO_MODE_CHANGE
 options 	SC_NO_SYSMOUSE
 options 	SC_NO_SUSPEND_VTYSWITCH
+#!options 	SC_NO_TERM_DUMB
+#!options 	SC_NO_TERM_SC
+#!options 	SC_NO_TERM_SCTEKEN
 
 # `flags' for sc
 #	0x80	Put the video card in the VESA 800x600 dots, 16 color mode
@@ -2736,7 +2740,7 @@ options 	U3G_DEBUG
 
 # options for ukbd:
 options 	UKBD_DFLT_KEYMAP	# specify the built-in keymap
-makeoptions	UKBD_DFLT_KEYMAP=jp
+makeoptions	UKBD_DFLT_KEYMAP=jp.106
 
 # options for uplcom:
 options 	UPLCOM_INTR_INTERVAL=100	# interrupt pipe interval

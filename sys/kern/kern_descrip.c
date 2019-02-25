@@ -2439,9 +2439,6 @@ fdcheckstd(struct thread *td)
  * Internal form of close.  Decrement reference count on file structure.
  * Note: td may be NULL when closing a file that was being passed in a
  * message.
- *
- * XXXRW: Giant is not required for the caller, but often will be held; this
- * makes it moderately likely the Giant will be recursed in the VFS case.
  */
 int
 closef(struct file *fp, struct thread *td)
@@ -2632,7 +2629,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	 */
 	for (;;) {
 #ifdef CAPABILITIES
-		seq = seq_read(fd_seq(fdt, fd));
+		seq = seq_load(fd_seq(fdt, fd));
 		fde = &fdt->fdt_ofiles[fd];
 		haverights = *cap_rights_fde_inline(fde);
 		fp = fde->fde_file;

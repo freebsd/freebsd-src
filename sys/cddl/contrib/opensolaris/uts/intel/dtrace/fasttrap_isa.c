@@ -967,6 +967,7 @@ fasttrap_pid_probe(struct trapframe *tf)
 	struct reg reg, *rp;
 	proc_t *p = curproc, *pp;
 	struct rm_priotracker tracker;
+	uint64_t gen;
 	uintptr_t pc;
 	uintptr_t new_pc = 0;
 	fasttrap_bucket_t *bucket;
@@ -1026,8 +1027,22 @@ fasttrap_pid_probe(struct trapframe *tf)
 	while (pp->p_vmspace == pp->p_pptr->p_vmspace)
 		pp = pp->p_pptr;
 	pid = pp->p_pid;
+	if (pp != p) {
+		PROC_LOCK(pp);
+		if ((pp->p_flag & P_WEXIT) != 0) {
+			/*
+			 * This can happen if the child was created with
+			 * rfork(2).  Userspace tracing cannot work reliably in
+			 * such a scenario, but we can at least try.
+			 */
+			PROC_UNLOCK(pp);
+			sx_sunlock(&proctree_lock);
+			return (-1);
+		}
+		_PHOLD_LITE(pp);
+		PROC_UNLOCK(pp);
+	}
 	sx_sunlock(&proctree_lock);
-	pp = NULL;
 
 	rm_rlock(&fasttrap_tp_lock, &tracker);
 #endif
@@ -1051,11 +1066,32 @@ fasttrap_pid_probe(struct trapframe *tf)
 	if (tp == NULL) {
 #ifdef illumos
 		mutex_exit(pid_mtx);
+		return (-1);
 #else
 		rm_runlock(&fasttrap_tp_lock, &tracker);
+		gen = atomic_load_acq_64(&pp->p_fasttrap_tp_gen);
+		if (pp != p)
+			PRELE(pp);
+		if (curthread->t_fasttrap_tp_gen != gen) {
+			/*
+			 * At least one tracepoint associated with this PID has
+			 * been removed from the table since #BP was raised.
+			 * Speculate that we hit a tracepoint that has since
+			 * been removed, and retry the instruction.
+			 */
+			curthread->t_fasttrap_tp_gen = gen;
+#ifdef __amd64
+			tf->tf_rip = pc;
+#else
+			tf->tf_eip = pc;
 #endif
+			return (0);
+		}
 		return (-1);
+#endif
 	}
+	if (pp != p)
+		PRELE(pp);
 
 	/*
 	 * Set the program counter to the address of the traced instruction

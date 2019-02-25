@@ -374,8 +374,6 @@ main(int argc, char **argv)
 
 	while (wait(NULL) > 0 || errno == EINTR)
 		;
-	free(timefnamefmt);
-	free(requestor);
 	return (0);
 }
 

@@ -88,14 +88,11 @@ __FBSDID("$FreeBSD$");
 static int fuse_fh_count = 0;
 
 SYSCTL_INT(_vfs_fuse, OID_AUTO, filehandle_count, CTLFLAG_RD,
-    &fuse_fh_count, 0, "");
+    &fuse_fh_count, 0, "number of open FUSE filehandles");
 
 int
-fuse_filehandle_open(struct vnode *vp,
-    fufh_type_t fufh_type,
-    struct fuse_filehandle **fufhp,
-    struct thread *td,
-    struct ucred *cred)
+fuse_filehandle_open(struct vnode *vp, fufh_type_t fufh_type,
+    struct fuse_filehandle **fufhp, struct thread *td, struct ucred *cred)
 {
 	struct fuse_dispatcher fdi;
 	struct fuse_open_in *foi;
@@ -114,8 +111,8 @@ fuse_filehandle_open(struct vnode *vp,
 		/* NOTREACHED */
 	}
 	/*
-         * Note that this means we are effectively FILTERING OUT open() flags.
-         */
+	 * Note that this means we are effectively FILTERING OUT open() flags.
+	 */
 	oflags = fuse_filehandle_xlate_to_oflags(fufh_type);
 
 	if (vnode_isdir(vp)) {
@@ -159,10 +156,8 @@ out:
 }
 
 int
-fuse_filehandle_close(struct vnode *vp,
-    fufh_type_t fufh_type,
-    struct thread *td,
-    struct ucred *cred)
+fuse_filehandle_close(struct vnode *vp, fufh_type_t fufh_type,
+    struct thread *td, struct ucred *cred)
 {
 	struct fuse_dispatcher fdi;
 	struct fuse_release_in *fri;
@@ -265,10 +260,8 @@ fuse_filehandle_getrw(struct vnode *vp, fufh_type_t fufh_type,
 }
 
 void
-fuse_filehandle_init(struct vnode *vp,
-    fufh_type_t fufh_type,
-    struct fuse_filehandle **fufhp,
-    uint64_t fh_id)
+fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
+    struct fuse_filehandle **fufhp, uint64_t fh_id)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_filehandle *fufh;

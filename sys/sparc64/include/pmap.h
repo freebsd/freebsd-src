@@ -128,4 +128,11 @@ SYSCTL_DECL(_debug_pmap_stats);
 
 #endif
 
+static inline int
+pmap_vmspace_copy(pmap_t dst_pmap __unused, pmap_t src_pmap __unused)
+{
+
+	return (0);
+}
+
 #endif /* !_MACHINE_PMAP_H_ */

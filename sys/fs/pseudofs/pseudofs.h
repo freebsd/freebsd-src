@@ -52,7 +52,7 @@ struct vnode;
 /*
  * Limits and constants
  */
-#define PFS_NAMELEN		48
+#define PFS_NAMELEN		128
 #define PFS_FSNAMELEN		16	/* equal to MFSNAMELEN */
 #define PFS_DELEN		(offsetof(struct dirent, d_name) + PFS_NAMELEN)
 
@@ -77,6 +77,7 @@ typedef enum {
 #define	PFS_RAWWR	0x0008	/* raw writer */
 #define PFS_RAW		(PFS_RAWRD|PFS_RAWWR)
 #define PFS_PROCDEP	0x0010	/* process-dependent */
+#define PFS_NOWAIT	0x0020 /* allow malloc to fail */
 
 /*
  * Data structures

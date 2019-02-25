@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_param.h>
 
 MALLOC_DEFINE(M_KCOV_INFO, "kcovinfo", "KCOV info type");
 
@@ -126,7 +127,6 @@ struct kcov_info {
 	size_t		bufsize;	/* (o) */
 	kcov_state_t	state;		/* (s) */
 	int		mode;		/* (l) */
-	bool		mmap;
 };
 
 /* Prototypes */
@@ -136,6 +136,7 @@ static d_mmap_single_t	kcov_mmap_single;
 static d_ioctl_t	kcov_ioctl;
 
 static int  kcov_alloc(struct kcov_info *info, size_t entries);
+static void kcov_free(struct kcov_info *info);
 static void kcov_init(const void *unused);
 
 static struct cdevsw kcov_cdevsw = {
@@ -246,11 +247,16 @@ trace_cmp(uint64_t type, uint64_t arg1, uint64_t arg2, uint64_t ret)
 	if (index * 4 + 4 + 1 > info->entries)
 		return (false);
 
-	buf[index * 4 + 1] = type;
-	buf[index * 4 + 2] = arg1;
-	buf[index * 4 + 3] = arg2;
-	buf[index * 4 + 4] = ret;
-	buf[0] = index + 1;
+	while (1) {
+		buf[index * 4 + 1] = type;
+		buf[index * 4 + 2] = arg1;
+		buf[index * 4 + 3] = arg2;
+		buf[index * 4 + 4] = ret;
+
+		if (atomic_cmpset_64(&buf[0], index, index + 1))
+			break;
+		buf[0] = index;
+	}
 
 	return (true);
 }
@@ -288,14 +294,7 @@ kcov_mmap_cleanup(void *arg)
 	 * The KCOV_STATE_DYING stops new threads from using it.
 	 * The lack of a thread means nothing is currently using the buffers.
 	 */
-
-	if (info->kvaddr != 0) {
-		pmap_qremove(info->kvaddr, info->bufsize / PAGE_SIZE);
-		kva_free(info->kvaddr, info->bufsize);
-	}
-	if (info->bufobj != NULL && !info->mmap)
-		vm_object_deallocate(info->bufobj);
-	free(info, M_KCOV_INFO);
+	kcov_free(info);
 }
 
 static int
@@ -308,7 +307,6 @@ kcov_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	info->state = KCOV_STATE_OPEN;
 	info->thread = NULL;
 	info->mode = -1;
-	info->mmap = false;
 
 	if ((error = devfs_set_cdevpriv(info, kcov_mmap_cleanup)) != 0)
 		kcov_mmap_cleanup(info);
@@ -349,11 +347,10 @@ kcov_mmap_single(struct cdev *dev, vm_ooffset_t *offset, vm_size_t size,
 	if ((error = devfs_get_cdevpriv((void **)&info)) != 0)
 		return (error);
 
-	if (info->kvaddr == 0 || size / KCOV_ELEMENT_SIZE != info->entries ||
-	    info->mmap != false)
+	if (info->kvaddr == 0 || size / KCOV_ELEMENT_SIZE != info->entries)
 		return (EINVAL);
 
-	info->mmap = true;
+	vm_object_reference(info->bufobj);
 	*offset = 0;
 	*object = info->bufobj;
 	return (0);
@@ -363,7 +360,7 @@ static int
 kcov_alloc(struct kcov_info *info, size_t entries)
 {
 	size_t n, pages;
-	vm_page_t *m;
+	vm_page_t m;
 
 	KASSERT(info->kvaddr == 0, ("kcov_alloc: Already have a buffer"));
 	KASSERT(info->state == KCOV_STATE_OPEN,
@@ -382,20 +379,44 @@ kcov_alloc(struct kcov_info *info, size_t entries)
 	info->bufobj = vm_pager_allocate(OBJT_PHYS, 0, info->bufsize,
 	    PROT_READ | PROT_WRITE, 0, curthread->td_ucred);
 
-	m = malloc(sizeof(*m) * pages, M_TEMP, M_WAITOK);
 	VM_OBJECT_WLOCK(info->bufobj);
 	for (n = 0; n < pages; n++) {
-		m[n] = vm_page_grab(info->bufobj, n,
+		m = vm_page_grab(info->bufobj, n,
 		    VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_WIRED);
-		m[n]->valid = VM_PAGE_BITS_ALL;
+		m->valid = VM_PAGE_BITS_ALL;
+		pmap_qenter(info->kvaddr + n * PAGE_SIZE, &m, 1);
 	}
 	VM_OBJECT_WUNLOCK(info->bufobj);
-	pmap_qenter(info->kvaddr, m, pages);
-	free(m, M_TEMP);
 
 	info->entries = entries;
 
 	return (0);
+}
+
+static void
+kcov_free(struct kcov_info *info)
+{
+	vm_page_t m;
+	size_t i;
+
+	if (info->kvaddr != 0) {
+		pmap_qremove(info->kvaddr, info->bufsize / PAGE_SIZE);
+		kva_free(info->kvaddr, info->bufsize);
+	}
+	if (info->bufobj != NULL) {
+		VM_OBJECT_WLOCK(info->bufobj);
+		m = vm_page_lookup(info->bufobj, 0);
+		for (i = 0; i < info->bufsize / PAGE_SIZE; i++) {
+			vm_page_lock(m);
+			vm_page_unwire_noq(m);
+			vm_page_unlock(m);
+
+			m = vm_page_next(m);
+		}
+		VM_OBJECT_WUNLOCK(info->bufobj);
+		vm_object_deallocate(info->bufobj);
+	}
+	free(info, M_KCOV_INFO);
 }
 
 static int
@@ -531,14 +552,7 @@ kcov_thread_dtor(void *arg __unused, struct thread *td)
 	 * The KCOV_STATE_DYING stops new threads from using it.
 	 * It also stops the current thread from trying to use the info struct.
 	 */
-
-	if (info->kvaddr != 0) {
-		pmap_qremove(info->kvaddr, info->bufsize / PAGE_SIZE);
-		kva_free(info->kvaddr, info->bufsize);
-	}
-	if (info->bufobj != NULL && !info->mmap)
-		vm_object_deallocate(info->bufobj);
-	free(info, M_KCOV_INFO);
+	kcov_free(info);
 }
 
 static void

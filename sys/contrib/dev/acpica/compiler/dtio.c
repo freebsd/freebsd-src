@@ -375,7 +375,7 @@ DtParseLine (
         return (AE_OK);
     }
 
-    /* All lines after "Raw Table Data" are ingored */
+    /* All lines after "Raw Table Data" are ignored */
 
     if (strstr (LineBuffer, ACPI_RAW_TABLE_DATA_HEADER))
     {

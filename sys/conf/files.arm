@@ -132,8 +132,6 @@ dev/pci/pci_host_generic_fdt.c	optional	pci_host_generic pci fdt
 dev/psci/psci.c			optional	psci
 dev/psci/psci_arm.S		optional	psci
 dev/syscons/scgfbrndr.c		optional	sc
-dev/syscons/scterm-teken.c	optional	sc
-dev/syscons/scvtb.c		optional	sc
 dev/uart/uart_cpu_fdt.c		optional	uart fdt
 
 font.h				optional	sc			\

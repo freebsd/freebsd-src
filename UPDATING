@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20190219:
+	drm and drm2 have been removed from the tree. Please see
+	https://wiki.freebsd.org/Graphics for the latest information on
+	migrating to the drm ports.
+
 20190131:
 	Iflib is no longer unconditionally compiled into the kernel.  Drivers
 	using iflib and statically compiled into the kernel, now require
