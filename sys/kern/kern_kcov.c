@@ -247,11 +247,16 @@ trace_cmp(uint64_t type, uint64_t arg1, uint64_t arg2, uint64_t ret)
 	if (index * 4 + 4 + 1 > info->entries)
 		return (false);
 
-	buf[index * 4 + 1] = type;
-	buf[index * 4 + 2] = arg1;
-	buf[index * 4 + 3] = arg2;
-	buf[index * 4 + 4] = ret;
-	buf[0] = index + 1;
+	while (1) {
+		buf[index * 4 + 1] = type;
+		buf[index * 4 + 2] = arg1;
+		buf[index * 4 + 3] = arg2;
+		buf[index * 4 + 4] = ret;
+
+		if (atomic_cmpset_64(&buf[0], index, index + 1))
+			break;
+		buf[0] = index;
+	}
 
 	return (true);
 }

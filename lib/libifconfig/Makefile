@@ -2,9 +2,7 @@
 
 PACKAGE=	lib${LIB}
 LIB=		ifconfig
-PRIVATELIB=	true
-# Don't build shared library, for now.
-NO_PIC= 
+INTERNALLIB=	true
 
 SHLIBDIR?=	/lib
 SHLIB_MAJOR=	1

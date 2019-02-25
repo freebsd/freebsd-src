@@ -88,54 +88,50 @@
 # PFs 0-3.  These get 8 MSI/8 MSI-X vectors each.  VFs are supported by
 # these 4 PFs only.
 [function "0"]
-	nvf = 4
 	wx_caps = all
 	r_caps = all
-	nvi = 2
-	rssnvi = 2
-	niqflint = 4
-	nethctrl = 4
-	neq = 8
-	nexactf = 4
+	nvi = 1
+	rssnvi = 0
+	niqflint = 2
+	nethctrl = 2
+	neq = 4
+	nexactf = 2
 	cmask = all
 	pmask = 0x1
 
 [function "1"]
-	nvf = 4
 	wx_caps = all
 	r_caps = all
-	nvi = 2
-	rssnvi = 2
-	niqflint = 4
-	nethctrl = 4
-	neq = 8
-	nexactf = 4
+	nvi = 1
+	rssnvi = 0
+	niqflint = 2
+	nethctrl = 2
+	neq = 4
+	nexactf = 2
 	cmask = all
 	pmask = 0x2
 
 [function "2"]
-	nvf = 4
 	wx_caps = all
 	r_caps = all
-	nvi = 2
-	rssnvi = 2
-	niqflint = 4
-	nethctrl = 4
-	neq = 8
-	nexactf = 4
+	nvi = 1
+	rssnvi = 0
+	niqflint = 2
+	nethctrl = 2
+	neq = 4
+	nexactf = 2
 	cmask = all
 	pmask = 0x4
 
 [function "3"]
-	nvf = 4
 	wx_caps = all
 	r_caps = all
-	nvi = 2
-	rssnvi = 2
-	niqflint = 4
-	nethctrl = 4
-	neq = 8
-	nexactf = 4
+	nvi = 1
+	rssnvi = 0
+	niqflint = 2
+	nethctrl = 2
+	neq = 4
+	nexactf = 2
 	cmask = all
 	pmask = 0x8
 
@@ -145,7 +141,7 @@
 	wx_caps = all
 	r_caps = all
 	nvi = 32
-	rssnvi = 8
+	rssnvi = 32
 	niqflint = 512
 	nethctrl = 1024
 	neq = 2048
@@ -212,7 +208,7 @@
 	wx_caps = 0x82
 	r_caps = 0x86
 	nvi = 1
-	rssnvi = 1
+	rssnvi = 0
 	niqflint = 2
 	nethctrl = 2
 	neq = 4
@@ -224,7 +220,7 @@
 	wx_caps = 0x82
 	r_caps = 0x86
 	nvi = 1
-	rssnvi = 1
+	rssnvi = 0
 	niqflint = 2
 	nethctrl = 2
 	neq = 4
@@ -236,7 +232,7 @@
 	wx_caps = 0x82
 	r_caps = 0x86
 	nvi = 1
-	rssnvi = 1
+	rssnvi = 0
 	niqflint = 2
 	nethctrl = 2
 	neq = 4
@@ -248,7 +244,7 @@
 	wx_caps = 0x82
 	r_caps = 0x86
 	nvi = 1
-	rssnvi = 1
+	rssnvi = 0
 	niqflint = 2
 	nethctrl = 2
 	neq = 4
@@ -276,7 +272,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0xf3e93001
+	checksum = 0x4528a6ac
 #
 # $FreeBSD$
 #
