@@ -788,6 +788,9 @@ ptable_close(struct ptable *table)
 {
 	struct pentry *entry;
 
+	if (table == NULL)
+		return;
+
 	while (!STAILQ_EMPTY(&table->entries)) {
 		entry = STAILQ_FIRST(&table->entries);
 		STAILQ_REMOVE_HEAD(&table->entries, entry);

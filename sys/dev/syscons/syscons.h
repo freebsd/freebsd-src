@@ -378,7 +378,7 @@ typedef struct sc_ttysoftc {
 /* terminal emulator */
 
 #ifndef SC_DFLT_TERM
-#define SC_DFLT_TERM	"*"			/* any */
+#define SC_DFLT_TERM	"scteken"
 #endif
 
 typedef int	sc_term_init_t(scr_stat *scp, void **tcp, int code);

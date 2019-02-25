@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2019
+.Dd February 24, 2019
 .Dt SH 1
 .Os
 .Sh NAME
@@ -343,6 +343,18 @@ Useful for debugging.
 .It Li nolog
 Another do-nothing option for POSIX compliance.
 It only has a long name.
+.It Li pipefail
+Change the exit status of a pipeline to the last non-zero exit status of
+any command in the pipeline, if any.
+Since an exit due to
+.Dv SIGPIPE
+counts as a non-zero exit status,
+this option may cause non-zero exit status for successful pipelines
+if a command such as
+.Xr head 1
+in the pipeline terminates with status 0 without reading its
+input completely.
+This option only has a long name.
 .El
 .Pp
 The
@@ -856,12 +868,15 @@ If the keyword
 .Ic !\&
 does not precede the pipeline, the
 exit status is the exit status of the last command specified
-in the pipeline.
+in the pipeline if the
+.Cm pipefail
+option is not set or all commands returned zero,
+or the last non-zero exit status of any command in the pipeline otherwise.
 Otherwise, the exit status is the logical
-NOT of the exit status of the last command.
+NOT of that exit status.
 That is, if
-the last command returns zero, the exit status is 1; if
-the last command returns greater than zero, the exit status
+that status is zero, the exit status is 1; if
+that status is greater than zero, the exit status
 is zero.
 .Pp
 Because pipeline assignment of standard input or standard

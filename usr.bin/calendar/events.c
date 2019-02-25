@@ -35,9 +35,119 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef WITH_ICONV
+#include <iconv.h>
+#include <errno.h>
+#include <langinfo.h>
+
+static iconv_t conv = (iconv_t)-1;
+static char *currentEncoding = NULL;
+
+#endif
 
 #include "pathnames.h"
 #include "calendar.h"
+
+#ifdef WITH_ICONV
+void
+set_new_encoding(void)
+{
+	const char *newenc;
+
+	newenc = nl_langinfo(CODESET);
+	if (currentEncoding == NULL) {
+		currentEncoding = strdup(newenc);
+		if (currentEncoding == NULL)
+			errx(1, "set_new_encoding: cannot allocate memory");
+		return;
+	}
+	if (strcmp(currentEncoding, newenc) == 0)
+		return;
+	free(currentEncoding);
+	currentEncoding = strdup(newenc);
+	if (currentEncoding == NULL)
+		errx(1, "set_new_encoding: cannot allocate memory");
+	if (conv != (iconv_t) -1) {
+		iconv_close(conv);
+		conv = (iconv_t) -1;
+	}
+}
+#endif
+
+static char *
+convert(char *input)
+{
+	char *output;
+#ifdef WITH_ICONV
+	size_t inleft, outleft, converted = 0;
+	char *outbuf, *tmp;
+	char *inbuf;
+	size_t outlen;
+
+	if (currentEncoding == NULL) {
+		output = strdup(input);
+		if (output == NULL)
+			errx(1, "convert: cannot allocate memory");
+		return (output);
+	}
+	if (conv == (iconv_t)-1) {
+		conv = iconv_open(outputEncoding, currentEncoding);
+		if (conv == (iconv_t)-1) {
+			if (errno == EINVAL)
+				errx(1, "Conversion is not supported");
+			else
+				err(1, "Initialization failure");
+		}
+	}
+
+	inleft = strlen(input);
+	inbuf = input;
+
+	outlen = inleft;
+	if ((output = malloc(outlen + 1)) == NULL)
+		errx(1, "convert: cannot allocate memory");
+
+	for (;;) {
+		errno = 0;
+		outbuf = output + converted;
+		outleft = outlen - converted;
+
+		converted = iconv(conv, (char **) &inbuf, &inleft, &outbuf, &outleft);
+		if (converted != (size_t) -1 || errno == EINVAL) {
+			/* finished or invalid multibyte, so truncate and ignore */
+			break;
+		}
+
+		if (errno != E2BIG) {
+			free(output);
+			err(1, "convert");
+		}
+
+		converted = outbuf - output;
+		outlen += inleft * 2;
+
+		if ((tmp = realloc(output, outlen + 1)) == NULL) {
+			free(output);
+			errx(1, "convert: cannot allocate memory");
+		}
+
+		output = tmp;
+		outbuf = output + converted;
+	}
+
+	/* flush the iconv conversion */
+	iconv(conv, NULL, NULL, &outbuf, &outleft);
+
+	/* null terminate the string */
+	*outbuf = '\0';
+#else
+	output = strdup(input);
+	if (output == NULL)
+		errx(1, "convert: cannot allocate memory");
+#endif
+
+	return (output);
+}
 
 struct event *
 event_add(int year, int month, int day, char *date, int var, char *txt,
@@ -58,15 +168,15 @@ event_add(int year, int month, int day, char *date, int var, char *txt,
 	e->month = month;
 	e->day = day;
 	e->var = var;
-	e->date = strdup(date);
+	e->date = convert(date);
 	if (e->date == NULL)
 		errx(1, "event_add: cannot allocate memory");
-	e->text = strdup(txt);
+	e->text = convert(txt);
 	if (e->text == NULL)
 		errx(1, "event_add: cannot allocate memory");
 	e->extra = NULL;
 	if (extra != NULL && extra[0] != '\0')
-		e->extra = strdup(extra);
+		e->extra = convert(extra);
 	addtodate(e, year, month, day);
 	return (e);
 }
@@ -74,23 +184,17 @@ event_add(int year, int month, int day, char *date, int var, char *txt,
 void
 event_continue(struct event *e, char *txt)
 {
-	char *text;
+	char *oldtext, *text;
 
-	/*
-	 * Adding text to the event:
-	 * - Save a copy of the old text (unknown length, so strdup())
-	 * - Allocate enough space for old text + \n + new text + 0
-	 * - Store the old text + \n + new text
-	 * - Destroy the saved copy.
-	 */
-	text = strdup(e->text);
-	if (text == NULL)
+	text = convert(txt);
+	oldtext = e->text;
+	if (oldtext == NULL)
 		errx(1, "event_continue: cannot allocate memory");
 
-	free(e->text);
-	asprintf(&e->text, "%s\n%s", text, txt);
+	asprintf(&e->text, "%s\n%s", oldtext, text);
 	if (e->text == NULL)
 		errx(1, "event_continue: cannot allocate memory");
+	free(oldtext);
 	free(text);
 
 	return;

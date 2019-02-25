@@ -75,8 +75,6 @@ dev/cfe/cfe_env.c			optional	cfe_env
 # syscons support
 dev/fb/fb.c				optional	sc
 dev/syscons/scgfbrndr.c			optional	sc
-dev/syscons/scterm-teken.c		optional	sc
-dev/syscons/scvtb.c			optional	sc
 mips/mips/sc_machdep.c			optional	sc
 
 # FDT support

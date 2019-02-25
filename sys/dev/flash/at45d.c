@@ -47,6 +47,21 @@ __FBSDID("$FreeBSD$");
 #include <dev/spibus/spi.h>
 #include "spibus_if.h"
 
+#include "opt_platform.h"
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
+static struct ofw_compat_data compat_data[] = {
+	{ "atmel,at45",		1 },
+	{ "atmel,dataflash",	1 },
+	{ NULL,			0 },
+};
+SPIBUS_PNP_INFO(compat_data);
+#endif
+
 struct at45d_flash_ident
 {
 	const char	*name;
@@ -63,12 +78,16 @@ struct at45d_softc
 	struct mtx		sc_mtx;
 	struct disk		*disk;
 	struct proc		*p;
-	struct intr_config_hook	config_intrhook;
 	device_t		dev;
+	u_int			taskstate;
 	uint16_t		pagecount;
 	uint16_t		pageoffset;
 	uint16_t		pagesize;
 };
+
+#define	TSTATE_STOPPED	0
+#define	TSTATE_STOPPING	1
+#define	TSTATE_RUNNING	2
 
 #define	AT45D_LOCK(_sc)			mtx_lock(&(_sc)->sc_mtx)
 #define	AT45D_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
@@ -182,9 +201,22 @@ at45d_wait_ready(device_t dev, uint8_t *status)
 static int
 at45d_probe(device_t dev)
 {
+	int rv;
+
+#ifdef FDT
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+		return (ENXIO);
+
+	rv = BUS_PROBE_DEFAULT;
+#else
+	rv = BUS_PROBE_NOWILDCARD;
+#endif
 
 	device_set_desc(dev, "AT45D Flash Family");
-	return (0);
+	return (rv);
 }
 
 static int
@@ -196,21 +228,40 @@ at45d_attach(device_t dev)
 	sc->dev = dev;
 	AT45D_LOCK_INIT(sc);
 
-	/* We'll see what kind of flash we have later... */
-	sc->config_intrhook.ich_func = at45d_delayed_attach;
-	sc->config_intrhook.ich_arg = sc;
-	if (config_intrhook_establish(&sc->config_intrhook) != 0) {
-		device_printf(dev, "config_intrhook_establish failed\n");
-		return (ENOMEM);
-	}
+	config_intrhook_oneshot(at45d_delayed_attach, sc);
 	return (0);
 }
 
 static int
 at45d_detach(device_t dev)
 {
+	struct at45d_softc *sc;
+	int err;
 
-	return (EBUSY) /* XXX */;
+	sc = device_get_softc(dev);
+	err = 0;
+
+	AT45D_LOCK(sc);
+	if (sc->taskstate == TSTATE_RUNNING) {
+		sc->taskstate = TSTATE_STOPPING;
+		wakeup(sc);
+		while (err == 0 && sc->taskstate != TSTATE_STOPPED) {
+			err = msleep(sc, &sc->sc_mtx, 0, "at45dt", hz * 3);
+			if (err != 0) {
+				sc->taskstate = TSTATE_RUNNING;
+				device_printf(sc->dev,
+				    "Failed to stop queue task\n");
+			}
+		}
+	}
+	AT45D_UNLOCK(sc);
+
+	if (err == 0 && sc->taskstate == TSTATE_STOPPED) {
+		disk_destroy(sc->disk);
+		bioq_flush(&sc->bio_queue, NULL, ENXIO);
+		AT45D_LOCK_DESTROY(sc);
+	}
+	return (err);
 }
 
 static void
@@ -227,50 +278,52 @@ at45d_delayed_attach(void *xsc)
 	ident = NULL;
 	jedec = 0;
 
-	if (at45d_wait_ready(sc->dev, &status) != 0)
+	if (at45d_wait_ready(sc->dev, &status) != 0) {
 		device_printf(sc->dev, "Error waiting for device-ready.\n");
-	else if (at45d_get_mfg_info(sc->dev, buf) != 0)
+		return;
+	}
+	if (at45d_get_mfg_info(sc->dev, buf) != 0) {
 		device_printf(sc->dev, "Failed to get ID.\n");
-	else {
-		jedec = buf[0] << 16 | buf[1] << 8 | buf[2];
-		for (i = 0; i < nitems(at45d_flash_devices); i++) {
-			if (at45d_flash_devices[i].jedec == jedec) {
-				ident = &at45d_flash_devices[i];
-				break;
-			}
+		return;
+	}
+
+	jedec = buf[0] << 16 | buf[1] << 8 | buf[2];
+	for (i = 0; i < nitems(at45d_flash_devices); i++) {
+		if (at45d_flash_devices[i].jedec == jedec) {
+			ident = &at45d_flash_devices[i];
+			break;
 		}
 	}
-	if (ident == NULL)
+	if (ident == NULL) {
 		device_printf(sc->dev, "JEDEC 0x%x not in list.\n", jedec);
-	else {
-		sc->pagecount = ident->pagecount;
-		sc->pageoffset = ident->pageoffset;
-		if (ident->pagesize2n != 0 && (status & 0x01) != 0) {
-			sc->pageoffset -= 1;
-			pagesize = ident->pagesize2n;
-		} else
-			pagesize = ident->pagesize;
-		sc->pagesize = pagesize;
-
-		sc->disk = disk_alloc();
-		sc->disk->d_open = at45d_open;
-		sc->disk->d_close = at45d_close;
-		sc->disk->d_strategy = at45d_strategy;
-		sc->disk->d_name = "flash/spi";
-		sc->disk->d_drv1 = sc;
-		sc->disk->d_maxsize = DFLTPHYS;
-		sc->disk->d_sectorsize = pagesize;
-		sc->disk->d_mediasize = pagesize * ident->pagecount;
-		sc->disk->d_unit = device_get_unit(sc->dev);
-		disk_create(sc->disk, DISK_VERSION);
-		bioq_init(&sc->bio_queue);
-		kproc_create(&at45d_task, sc, &sc->p, 0, 0,
-		    "task: at45d flash");
-		device_printf(sc->dev, "%s, %d bytes per page, %d pages\n",
-		    ident->name, pagesize, ident->pagecount);
+		return;
 	}
 
-	config_intrhook_disestablish(&sc->config_intrhook);
+	sc->pagecount = ident->pagecount;
+	sc->pageoffset = ident->pageoffset;
+	if (ident->pagesize2n != 0 && (status & 0x01) != 0) {
+		sc->pageoffset -= 1;
+		pagesize = ident->pagesize2n;
+	} else
+		pagesize = ident->pagesize;
+	sc->pagesize = pagesize;
+
+	sc->disk = disk_alloc();
+	sc->disk->d_open = at45d_open;
+	sc->disk->d_close = at45d_close;
+	sc->disk->d_strategy = at45d_strategy;
+	sc->disk->d_name = "flash/spi";
+	sc->disk->d_drv1 = sc;
+	sc->disk->d_maxsize = DFLTPHYS;
+	sc->disk->d_sectorsize = pagesize;
+	sc->disk->d_mediasize = pagesize * ident->pagecount;
+	sc->disk->d_unit = device_get_unit(sc->dev);
+	disk_create(sc->disk, DISK_VERSION);
+	bioq_init(&sc->bio_queue);
+	kproc_create(&at45d_task, sc, &sc->p, 0, 0, "task: at45d flash");
+	sc->taskstate = TSTATE_RUNNING;
+	device_printf(sc->dev, "%s, %d bytes per page, %d pages\n",
+	    ident->name, pagesize, ident->pagecount);
 }
 
 static int
@@ -324,6 +377,12 @@ at45d_task(void *arg)
 	for (;;) {
 		AT45D_LOCK(sc);
 		do {
+			if (sc->taskstate == TSTATE_STOPPING) {
+				sc->taskstate = TSTATE_STOPPED;
+				AT45D_UNLOCK(sc);
+				wakeup(sc);
+				kproc_exit(0);
+			}
 			bp = bioq_takefirst(&sc->bio_queue);
 			if (bp == NULL)
 				msleep(sc, &sc->sc_mtx, PRIBIO, "jobqueue", 0);

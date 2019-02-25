@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Netflix, Inc.
+ * Copyright (c) 2017-2019 Netflix, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -120,6 +120,7 @@ bindump(uint8_t *data, size_t datalen)
 void
 efi_print_load_option(uint8_t *data, size_t datalen, int Aflag, int bflag, int uflag)
 {
+	char *dev, *relpath, *abspath;
 	uint8_t *ep = data + datalen;
 	uint8_t *walker = data;
 	uint32_t attr;
@@ -131,6 +132,7 @@ efi_print_load_option(uint8_t *data, size_t datalen, int Aflag, int bflag, int u
 	int len;
 	void *opt;
 	int optlen;
+	int rv;
 
 	if (datalen < sizeof(attr) + sizeof(fplen) + sizeof(efi_char))
 		return;
@@ -162,8 +164,15 @@ efi_print_load_option(uint8_t *data, size_t datalen, int Aflag, int bflag, int u
 	free(str);
 	while (dp < edp && SIZE(dp, edp) > sizeof(efidp_header)) {
 		efidp_format_device_path(buf, sizeof(buf), dp, SIZE(dp, edp));
+		rv = efivar_device_path_to_unix_path(dp, &dev, &relpath, &abspath);
 		dp = (efidp)((char *)dp + efidp_size(dp));
 		printf(" %s\n", buf);
+		if (rv == 0) {
+			printf("      %*s:%s\n", len + (int)strlen(dev), dev, relpath);
+			free(dev);
+			free(relpath);
+			free(abspath);
+		}
 	}
 	if (optlen == 0)
 		return;

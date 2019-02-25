@@ -312,19 +312,17 @@ load_dir(const char *dir)
 			warnx("Can't load %s: %s", path, dlerror());
 		else {
 			/*
-			 * Add in the top (for cli commands) and logpage (for
-			 * logpage parsing) linker sets. We have to do this by
-			 * hand because linker sets aren't automatically merged.
+			 * Add in the top (for cli commands)linker sets. We have
+			 * to do this by hand because linker sets aren't
+			 * automatically merged.
 			 */
 			void *begin, *limit;
+
 			begin = dlsym(h, "__start_set_top");
 			limit = dlsym(h, "__stop_set_top");
 			if (begin)
 				add_to_top(begin, limit);
-			begin = dlsym(h, "__start_set_logpage");
-			limit = dlsym(h, "__stop_set_logpage");
-			if (begin)
-				add_to_logpage(begin, limit);
+			/* log pages use constructors so are done on load */
 		}
 		free(path);
 		path = NULL;
@@ -337,7 +335,6 @@ main(int argc, char *argv[])
 {
 
 	add_to_top(NVME_CMD_BEGIN(top), NVME_CMD_LIMIT(top));
-	add_to_logpage(NVME_LOGPAGE_BEGIN, NVME_LOGPAGE_LIMIT);
 
 	load_dir("/lib/nvmecontrol");
 	load_dir("/usr/local/lib/nvmecontrol");

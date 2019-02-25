@@ -360,16 +360,13 @@ trim_map_write_start(zio_t *zio)
 		return (B_FALSE);
 	}
 
-	ts = avl_find(&tm->tm_queued_frees, &tsearch, NULL);
-	if (ts != NULL) {
-		/*
-		 * Loop until all overlapping segments are removed.
-		 */
-		do {
-			trim_map_segment_remove(tm, ts, start, end);
-			ts = avl_find(&tm->tm_queued_frees, &tsearch, NULL);
-		} while (ts != NULL);
+	/*
+	 * Loop until all overlapping segments are removed.
+	 */
+	while ((ts = avl_find(&tm->tm_queued_frees, &tsearch, NULL)) != NULL) {
+		trim_map_segment_remove(tm, ts, start, end);
 	}
+
 	avl_add(&tm->tm_inflight_writes, zio);
 
 	mutex_exit(&tm->tm_lock);

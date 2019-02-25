@@ -542,6 +542,10 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 	 * and should be rewritten (see NetBSD for optimizations).
 	 */
 
+	KASSERT(th == NULL || (seq_start != NULL && tlenp != NULL),
+	        ("tcp_reass called with illegal parameter combination "
+	         "(tp=%p, th=%p, seq_start=%p, tlenp=%p, m=%p)",
+	         tp, th, seq_start, tlenp, m));
 	/*
 	 * Call with th==NULL after become established to
 	 * force pre-ESTABLISHED data up to user socket.
@@ -1062,12 +1066,20 @@ present:
 		} else {
 #ifdef TCP_REASS_LOGGING
 			tcp_reass_log_new_in(tp, q->tqe_start, q->tqe_len, q->tqe_m, TCP_R_LOG_READ, q);
-			tcp_log_reassm(tp, q, NULL, th->th_seq, *tlenp, TCP_R_LOG_READ, 1);
+			if (th != NULL) {
+				tcp_log_reassm(tp, q, NULL, th->th_seq, *tlenp, TCP_R_LOG_READ, 1);
+			} else {
+				tcp_log_reassm(tp, q, NULL, 0, 0, TCP_R_LOG_READ, 1);
+			}
 #endif
 			sbappendstream_locked(&so->so_rcv, q->tqe_m, 0);
 		}
 #ifdef TCP_REASS_LOGGING
-		tcp_log_reassm(tp, q, NULL, th->th_seq, *tlenp, TCP_R_LOG_READ, 2);
+		if (th != NULL) {
+			tcp_log_reassm(tp, q, NULL, th->th_seq, *tlenp, TCP_R_LOG_READ, 2);
+		} else {
+			tcp_log_reassm(tp, q, NULL, 0, 0, TCP_R_LOG_READ, 2);
+		}
 #endif
 		KASSERT(tp->t_segqmbuflen >= q->tqe_mbuf_cnt,
 			("tp:%p seg queue goes negative", tp));
@@ -1083,7 +1095,11 @@ present:
 		      tp, &tp->t_segq, tp->t_segqmbuflen);
 #else
 #ifdef TCP_REASS_LOGGING
-		tcp_log_reassm(tp, NULL, NULL, th->th_seq, *tlenp, TCP_R_LOG_ZERO, 0);
+		if (th != NULL) {
+			tcp_log_reassm(tp, NULL, NULL, th->th_seq, *tlenp, TCP_R_LOG_ZERO, 0);
+		} else {
+			tcp_log_reassm(tp, NULL, NULL, 0, 0, TCP_R_LOG_ZERO, 0);
+		}
 #endif
 		tp->t_segqmbuflen = 0;
 #endif

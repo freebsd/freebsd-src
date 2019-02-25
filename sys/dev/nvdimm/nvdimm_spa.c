@@ -143,31 +143,31 @@ nvdimm_spa_type_from_uuid(struct uuid *uuid)
 }
 
 static vm_memattr_t
-nvdimm_spa_memattr(struct SPA_mapping *spa)
+nvdimm_spa_memattr(struct nvdimm_spa_dev *dev)
 {
 	vm_memattr_t mode;
 
-	if ((spa->spa_efi_mem_flags & EFI_MD_ATTR_WB) != 0)
+	if ((dev->spa_efi_mem_flags & EFI_MD_ATTR_WB) != 0)
 		mode = VM_MEMATTR_WRITE_BACK;
-	else if ((spa->spa_efi_mem_flags & EFI_MD_ATTR_WT) != 0)
+	else if ((dev->spa_efi_mem_flags & EFI_MD_ATTR_WT) != 0)
 		mode = VM_MEMATTR_WRITE_THROUGH;
-	else if ((spa->spa_efi_mem_flags & EFI_MD_ATTR_WC) != 0)
+	else if ((dev->spa_efi_mem_flags & EFI_MD_ATTR_WC) != 0)
 		mode = VM_MEMATTR_WRITE_COMBINING;
-	else if ((spa->spa_efi_mem_flags & EFI_MD_ATTR_WP) != 0)
+	else if ((dev->spa_efi_mem_flags & EFI_MD_ATTR_WP) != 0)
 		mode = VM_MEMATTR_WRITE_PROTECTED;
-	else if ((spa->spa_efi_mem_flags & EFI_MD_ATTR_UC) != 0)
+	else if ((dev->spa_efi_mem_flags & EFI_MD_ATTR_UC) != 0)
 		mode = VM_MEMATTR_UNCACHEABLE;
 	else {
 		if (bootverbose)
-			printf("SPA%d mapping attr unsupported\n",
-			    spa->spa_nfit_idx);
+			printf("SPA mapping attr %#lx unsupported\n",
+			    dev->spa_efi_mem_flags);
 		mode = VM_MEMATTR_UNCACHEABLE;
 	}
 	return (mode);
 }
 
 static int
-nvdimm_spa_uio(struct SPA_mapping *spa, struct uio *uio)
+nvdimm_spa_uio(struct nvdimm_spa_dev *dev, struct uio *uio)
 {
 	struct vm_page m, *ma;
 	off_t off;
@@ -175,14 +175,14 @@ nvdimm_spa_uio(struct SPA_mapping *spa, struct uio *uio)
 	int error, n;
 
 	error = 0;
-	if (spa->spa_kva == NULL) {
-		mattr = nvdimm_spa_memattr(spa);
+	if (dev->spa_kva == NULL) {
+		mattr = nvdimm_spa_memattr(dev);
 		vm_page_initfake(&m, 0, mattr);
 		ma = &m;
 		while (uio->uio_resid > 0) {
-			if (uio->uio_offset >= spa->spa_len)
+			if (uio->uio_offset >= dev->spa_len)
 				break;
-			off = spa->spa_phys_base + uio->uio_offset;
+			off = dev->spa_phys_base + uio->uio_offset;
 			vm_page_updatefake(&m, trunc_page(off), mattr);
 			n = PAGE_SIZE;
 			if (n > uio->uio_resid)
@@ -193,14 +193,14 @@ nvdimm_spa_uio(struct SPA_mapping *spa, struct uio *uio)
 		}
 	} else {
 		while (uio->uio_resid > 0) {
-			if (uio->uio_offset >= spa->spa_len)
+			if (uio->uio_offset >= dev->spa_len)
 				break;
 			n = INT_MAX;
 			if (n > uio->uio_resid)
 				n = uio->uio_resid;
-			if (uio->uio_offset + n > spa->spa_len)
-				n = spa->spa_len - uio->uio_offset;
-			error = uiomove((char *)spa->spa_kva + uio->uio_offset,
+			if (uio->uio_offset + n > dev->spa_len)
+				n = dev->spa_len - uio->uio_offset;
+			error = uiomove((char *)dev->spa_kva + uio->uio_offset,
 			    n, uio);
 			if (error != 0)
 				break;
@@ -217,20 +217,20 @@ nvdimm_spa_rw(struct cdev *dev, struct uio *uio, int ioflag)
 }
 
 static int
-nvdimm_spa_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
+nvdimm_spa_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
 {
-	struct SPA_mapping *spa;
+	struct nvdimm_spa_dev *dev;
 	int error;
 
-	spa = dev->si_drv1;
+	dev = cdev->si_drv1;
 	error = 0;
 	switch (cmd) {
 	case DIOCGSECTORSIZE:
 		*(u_int *)data = DEV_BSIZE;
 		break;
 	case DIOCGMEDIASIZE:
-		*(off_t *)data = spa->spa_len;
+		*(off_t *)data = dev->spa_len;
 		break;
 	default:
 		error = ENOTTY;
@@ -240,19 +240,19 @@ nvdimm_spa_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 }
 
 static int
-nvdimm_spa_mmap_single(struct cdev *dev, vm_ooffset_t *offset, vm_size_t size,
+nvdimm_spa_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t size,
     vm_object_t *objp, int nprot)
 {
-	struct SPA_mapping *spa;
+	struct nvdimm_spa_dev *dev;
 
-	spa = dev->si_drv1;
-	if (spa->spa_obj == NULL)
+	dev = cdev->si_drv1;
+	if (dev->spa_obj == NULL)
 		return (ENXIO);
-	if (*offset >= spa->spa_len || *offset + size < *offset ||
-	    *offset + size > spa->spa_len)
+	if (*offset >= dev->spa_len || *offset + size < *offset ||
+	    *offset + size > dev->spa_len)
 		return (EINVAL);
-	vm_object_reference(spa->spa_obj);
-	*objp = spa->spa_obj;
+	vm_object_reference(dev->spa_obj);
+	*objp = dev->spa_obj;
 	return (0);
 }
 
@@ -267,18 +267,17 @@ static struct cdevsw spa_cdevsw = {
 };
 
 static void
-nvdimm_spa_g_all_unmapped(struct SPA_mapping *spa, struct bio *bp,
-    int rw)
+nvdimm_spa_g_all_unmapped(struct nvdimm_spa_dev *dev, struct bio *bp, int rw)
 {
 	struct vm_page maa[bp->bio_ma_n];
 	vm_page_t ma[bp->bio_ma_n];
 	vm_memattr_t mattr;
 	int i;
 
-	mattr = nvdimm_spa_memattr(spa);
+	mattr = nvdimm_spa_memattr(dev);
 	for (i = 0; i < nitems(ma); i++) {
 		maa[i].flags = 0;
-		vm_page_initfake(&maa[i], spa->spa_phys_base +
+		vm_page_initfake(&maa[i], dev->spa_phys_base +
 		    trunc_page(bp->bio_offset) + PAGE_SIZE * i, mattr);
 		ma[i] = &maa[i];
 	}
@@ -293,30 +292,30 @@ nvdimm_spa_g_all_unmapped(struct SPA_mapping *spa, struct bio *bp,
 static void
 nvdimm_spa_g_thread(void *arg)
 {
-	struct SPA_mapping *spa;
+	struct g_spa *sc;
 	struct bio *bp;
 	struct uio auio;
 	struct iovec aiovec;
 	int error;
 
-	spa = arg;
+	sc = arg;
 	for (;;) {
-		mtx_lock(&spa->spa_g_mtx);
+		mtx_lock(&sc->spa_g_mtx);
 		for (;;) {
-			bp = bioq_takefirst(&spa->spa_g_queue);
+			bp = bioq_takefirst(&sc->spa_g_queue);
 			if (bp != NULL)
 				break;
-			msleep(&spa->spa_g_queue, &spa->spa_g_mtx, PRIBIO,
+			msleep(&sc->spa_g_queue, &sc->spa_g_mtx, PRIBIO,
 			    "spa_g", 0);
-			if (!spa->spa_g_proc_run) {
-				spa->spa_g_proc_exiting = true;
-				wakeup(&spa->spa_g_queue);
-				mtx_unlock(&spa->spa_g_mtx);
+			if (!sc->spa_g_proc_run) {
+				sc->spa_g_proc_exiting = true;
+				wakeup(&sc->spa_g_queue);
+				mtx_unlock(&sc->spa_g_mtx);
 				kproc_exit(0);
 			}
 			continue;
 		}
-		mtx_unlock(&spa->spa_g_mtx);
+		mtx_unlock(&sc->spa_g_mtx);
 		if (bp->bio_cmd != BIO_READ && bp->bio_cmd != BIO_WRITE &&
 		    bp->bio_cmd != BIO_FLUSH) {
 			error = EOPNOTSUPP;
@@ -325,13 +324,15 @@ nvdimm_spa_g_thread(void *arg)
 
 		error = 0;
 		if (bp->bio_cmd == BIO_FLUSH) {
-			if (spa->spa_kva != NULL) {
-				pmap_large_map_wb(spa->spa_kva, spa->spa_len);
+			if (sc->dev->spa_kva != NULL) {
+				pmap_large_map_wb(sc->dev->spa_kva,
+				    sc->dev->spa_len);
 			} else {
 				pmap_flush_cache_phys_range(
-				    (vm_paddr_t)spa->spa_phys_base,
-				    (vm_paddr_t)spa->spa_phys_base +
-				    spa->spa_len, nvdimm_spa_memattr(spa));
+				    (vm_paddr_t)sc->dev->spa_phys_base,
+				    (vm_paddr_t)sc->dev->spa_phys_base +
+				    sc->dev->spa_len,
+				    nvdimm_spa_memattr(sc->dev));
 			}
 			/*
 			 * XXX flush IMC
@@ -340,8 +341,8 @@ nvdimm_spa_g_thread(void *arg)
 		}
 		
 		if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
-			if (spa->spa_kva != NULL) {
-				aiovec.iov_base = (char *)spa->spa_kva +
+			if (sc->dev->spa_kva != NULL) {
+				aiovec.iov_base = (char *)sc->dev->spa_kva +
 				    bp->bio_offset;
 				aiovec.iov_len = bp->bio_length;
 				auio.uio_iov = &aiovec;
@@ -356,7 +357,8 @@ nvdimm_spa_g_thread(void *arg)
 				    bp->bio_ma_offset, bp->bio_length, &auio);
 				bp->bio_resid = auio.uio_resid;
 			} else {
-				nvdimm_spa_g_all_unmapped(spa, bp, bp->bio_cmd);
+				nvdimm_spa_g_all_unmapped(sc->dev, bp,
+				    bp->bio_cmd);
 				bp->bio_resid = bp->bio_length;
 				error = 0;
 			}
@@ -371,11 +373,11 @@ nvdimm_spa_g_thread(void *arg)
 			auio.uio_rw = bp->bio_cmd == BIO_READ ? UIO_READ :
 			    UIO_WRITE;
 			auio.uio_td = curthread;
-			error = nvdimm_spa_uio(spa, &auio);
+			error = nvdimm_spa_uio(sc->dev, &auio);
 			bp->bio_resid = auio.uio_resid;
 		}
 		bp->bio_bcount = bp->bio_length;
-		devstat_end_transaction_bio(spa->spa_g_devstat, bp);
+		devstat_end_transaction_bio(sc->spa_g_devstat, bp);
 completed:
 		bp->bio_completed = bp->bio_length;
 		g_io_deliver(bp, error);
@@ -385,18 +387,18 @@ completed:
 static void
 nvdimm_spa_g_start(struct bio *bp)
 {
-	struct SPA_mapping *spa;
+	struct g_spa *sc;
 
-	spa = bp->bio_to->geom->softc;
+	sc = bp->bio_to->geom->softc;
 	if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
-		mtx_lock(&spa->spa_g_stat_mtx);
-		devstat_start_transaction_bio(spa->spa_g_devstat, bp);
-		mtx_unlock(&spa->spa_g_stat_mtx);
+		mtx_lock(&sc->spa_g_stat_mtx);
+		devstat_start_transaction_bio(sc->spa_g_devstat, bp);
+		mtx_unlock(&sc->spa_g_stat_mtx);
 	}
-	mtx_lock(&spa->spa_g_mtx);
-	bioq_disksort(&spa->spa_g_queue, bp);
-	wakeup(&spa->spa_g_queue);
-	mtx_unlock(&spa->spa_g_mtx);
+	mtx_lock(&sc->spa_g_mtx);
+	bioq_disksort(&sc->spa_g_queue, bp);
+	wakeup(&sc->spa_g_queue);
+	mtx_unlock(&sc->spa_g_mtx);
 }
 
 static int
@@ -406,11 +408,16 @@ nvdimm_spa_g_access(struct g_provider *pp, int r, int w, int e)
 	return (0);
 }
 
+static struct g_geom * nvdimm_spa_g_create(struct nvdimm_spa_dev *dev,
+    const char *name);
+static g_ctl_destroy_geom_t nvdimm_spa_g_destroy_geom;
+
 struct g_class nvdimm_spa_g_class = {
 	.name =		"SPA",
 	.version =	G_VERSION,
 	.start =	nvdimm_spa_g_start,
 	.access =	nvdimm_spa_g_access,
+	.destroy_geom =	nvdimm_spa_g_destroy_geom,
 };
 DECLARE_GEOM_CLASS(nvdimm_spa_g_class, g_spa);
 
@@ -418,49 +425,63 @@ int
 nvdimm_spa_init(struct SPA_mapping *spa, ACPI_NFIT_SYSTEM_ADDRESS *nfitaddr,
     enum SPA_mapping_type spa_type)
 {
-	struct make_dev_args mda;
-	struct sglist *spa_sg;
-	int error, error1;
+	char *name;
+	int error;
 
 	spa->spa_type = spa_type;
-	spa->spa_domain = ((nfitaddr->Flags & ACPI_NFIT_PROXIMITY_VALID) != 0) ?
-	    nfitaddr->ProximityDomain : -1;
 	spa->spa_nfit_idx = nfitaddr->RangeIndex;
-	spa->spa_phys_base = nfitaddr->Address;
-	spa->spa_len = nfitaddr->Length;
-	spa->spa_efi_mem_flags = nfitaddr->MemoryMapping;
+	spa->dev.spa_domain =
+	    ((nfitaddr->Flags & ACPI_NFIT_PROXIMITY_VALID) != 0) ?
+	    nfitaddr->ProximityDomain : -1;
+	spa->dev.spa_phys_base = nfitaddr->Address;
+	spa->dev.spa_len = nfitaddr->Length;
+	spa->dev.spa_efi_mem_flags = nfitaddr->MemoryMapping;
 	if (bootverbose) {
 		printf("NVDIMM SPA%d base %#016jx len %#016jx %s fl %#jx\n",
 		    spa->spa_nfit_idx,
-		    (uintmax_t)spa->spa_phys_base, (uintmax_t)spa->spa_len,
+		    (uintmax_t)spa->dev.spa_phys_base,
+		    (uintmax_t)spa->dev.spa_len,
 		    nvdimm_SPA_uuid_list[spa_type].u_name,
-		    spa->spa_efi_mem_flags);
+		    spa->dev.spa_efi_mem_flags);
 	}
 	if (!nvdimm_SPA_uuid_list[spa_type].u_usr_acc)
 		return (0);
 
-	error1 = pmap_large_map(spa->spa_phys_base, spa->spa_len,
-	    &spa->spa_kva, nvdimm_spa_memattr(spa));
+	asprintf(&name, M_NVDIMM, "spa%d", spa->spa_nfit_idx);
+	error = nvdimm_spa_dev_init(&spa->dev, name);
+	free(name, M_NVDIMM);
+	return (error);
+}
+
+int
+nvdimm_spa_dev_init(struct nvdimm_spa_dev *dev, const char *name)
+{
+	struct make_dev_args mda;
+	struct sglist *spa_sg;
+	char *devname;
+	int error, error1;
+
+	error1 = pmap_large_map(dev->spa_phys_base, dev->spa_len,
+	    &dev->spa_kva, nvdimm_spa_memattr(dev));
 	if (error1 != 0) {
-		printf("NVDIMM SPA%d cannot map into KVA, error %d\n",
-		    spa->spa_nfit_idx, error1);
-		spa->spa_kva = NULL;
+		printf("NVDIMM %s cannot map into KVA, error %d\n", name,
+		    error1);
+		dev->spa_kva = NULL;
 	}
 
 	spa_sg = sglist_alloc(1, M_WAITOK);
-	error = sglist_append_phys(spa_sg, spa->spa_phys_base,
-	    spa->spa_len);
+	error = sglist_append_phys(spa_sg, dev->spa_phys_base,
+	    dev->spa_len);
 	if (error == 0) {
-		spa->spa_obj = vm_pager_allocate(OBJT_SG, spa_sg, spa->spa_len,
+		dev->spa_obj = vm_pager_allocate(OBJT_SG, spa_sg, dev->spa_len,
 		    VM_PROT_ALL, 0, NULL);
-		if (spa->spa_obj == NULL) {
-			printf("NVDIMM SPA%d failed to alloc vm object",
-			    spa->spa_nfit_idx);
+		if (dev->spa_obj == NULL) {
+			printf("NVDIMM %s failed to alloc vm object", name);
 			sglist_free(spa_sg);
 		}
 	} else {
-		printf("NVDIMM SPA%d failed to init sglist, error %d",
-		    spa->spa_nfit_idx, error);
+		printf("NVDIMM %s failed to init sglist, error %d", name,
+		    error);
 		sglist_free(spa_sg);
 	}
 
@@ -471,78 +492,112 @@ nvdimm_spa_init(struct SPA_mapping *spa, ACPI_NFIT_SYSTEM_ADDRESS *nfitaddr,
 	mda.mda_uid = UID_ROOT;
 	mda.mda_gid = GID_OPERATOR;
 	mda.mda_mode = 0660;
-	mda.mda_si_drv1 = spa;
-	error = make_dev_s(&mda, &spa->spa_dev, "nvdimm_spa%d",
-	    spa->spa_nfit_idx);
+	mda.mda_si_drv1 = dev;
+	asprintf(&devname, M_NVDIMM, "nvdimm_%s", name);
+	error = make_dev_s(&mda, &dev->spa_dev, "%s", devname);
+	free(devname, M_NVDIMM);
 	if (error != 0) {
-		printf("NVDIMM SPA%d cannot create devfs node, error %d\n",
-		    spa->spa_nfit_idx, error);
+		printf("NVDIMM %s cannot create devfs node, error %d\n", name,
+		    error);
 		if (error1 == 0)
 			error1 = error;
 	}
+	dev->spa_g = nvdimm_spa_g_create(dev, name);
+	if (dev->spa_g == NULL && error1 == 0)
+		error1 = ENXIO;
+	return (error1);
+}
 
-	bioq_init(&spa->spa_g_queue);
-	mtx_init(&spa->spa_g_mtx, "spag", NULL, MTX_DEF);
-	mtx_init(&spa->spa_g_stat_mtx, "spagst", NULL, MTX_DEF);
-	spa->spa_g_proc_run = true;
-	spa->spa_g_proc_exiting = false;
-	error = kproc_create(nvdimm_spa_g_thread, spa, &spa->spa_g_proc, 0, 0,
-	    "g_spa%d", spa->spa_nfit_idx);
+static struct g_geom *
+nvdimm_spa_g_create(struct nvdimm_spa_dev *dev, const char *name)
+{
+	struct g_geom *gp;
+	struct g_spa *sc;
+	int error;
+
+	gp = NULL;
+	sc = malloc(sizeof(struct g_spa), M_NVDIMM, M_WAITOK | M_ZERO);
+	sc->dev = dev;
+	bioq_init(&sc->spa_g_queue);
+	mtx_init(&sc->spa_g_mtx, "spag", NULL, MTX_DEF);
+	mtx_init(&sc->spa_g_stat_mtx, "spagst", NULL, MTX_DEF);
+	sc->spa_g_proc_run = true;
+	sc->spa_g_proc_exiting = false;
+	error = kproc_create(nvdimm_spa_g_thread, sc, &sc->spa_g_proc, 0, 0,
+	    "g_spa");
 	if (error != 0) {
-		printf("NVDIMM SPA%d cannot create geom worker, error %d\n",
-		    spa->spa_nfit_idx, error);
-		if (error1 == 0)
-			error1 = error;
+		mtx_destroy(&sc->spa_g_mtx);
+		mtx_destroy(&sc->spa_g_stat_mtx);
+		free(sc, M_NVDIMM);
+		printf("NVDIMM %s cannot create geom worker, error %d\n", name,
+		    error);
 	} else {
 		g_topology_lock();
-		spa->spa_g = g_new_geomf(&nvdimm_spa_g_class, "spa%d",
-		    spa->spa_nfit_idx);
-		spa->spa_g->softc = spa;
-		spa->spa_p = g_new_providerf(spa->spa_g, "spa%d",
-		    spa->spa_nfit_idx);
-		spa->spa_p->mediasize = spa->spa_len;
-		spa->spa_p->sectorsize = DEV_BSIZE;
-		spa->spa_p->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE |
+		gp = g_new_geomf(&nvdimm_spa_g_class, "%s", name);
+		gp->softc = sc;
+		sc->spa_p = g_new_providerf(gp, "%s", name);
+		sc->spa_p->mediasize = dev->spa_len;
+		sc->spa_p->sectorsize = DEV_BSIZE;
+		sc->spa_p->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE |
 		    G_PF_ACCEPT_UNMAPPED;
-		g_error_provider(spa->spa_p, 0);
-		spa->spa_g_devstat = devstat_new_entry("spa", spa->spa_nfit_idx,
-		    DEV_BSIZE, DEVSTAT_ALL_SUPPORTED, DEVSTAT_TYPE_DIRECT,
+		g_error_provider(sc->spa_p, 0);
+		sc->spa_g_devstat = devstat_new_entry("spa", -1, DEV_BSIZE,
+		    DEVSTAT_ALL_SUPPORTED, DEVSTAT_TYPE_DIRECT,
 		    DEVSTAT_PRIORITY_MAX);
 		g_topology_unlock();
 	}
-	return (error1);
+	return (gp);
 }
 
 void
 nvdimm_spa_fini(struct SPA_mapping *spa)
 {
 
-	mtx_lock(&spa->spa_g_mtx);
-	spa->spa_g_proc_run = false;
-	wakeup(&spa->spa_g_queue);
-	while (!spa->spa_g_proc_exiting)
-		msleep(&spa->spa_g_queue, &spa->spa_g_mtx, PRIBIO, "spa_e", 0);
-	mtx_unlock(&spa->spa_g_mtx);
-	if (spa->spa_g != NULL) {
+	nvdimm_spa_dev_fini(&spa->dev);
+}
+
+void
+nvdimm_spa_dev_fini(struct nvdimm_spa_dev *dev)
+{
+
+	if (dev->spa_g != NULL) {
 		g_topology_lock();
-		g_wither_geom(spa->spa_g, ENXIO);
+		nvdimm_spa_g_destroy_geom(NULL, dev->spa_g->class, dev->spa_g);
 		g_topology_unlock();
-		spa->spa_g = NULL;
-		spa->spa_p = NULL;
 	}
-	if (spa->spa_g_devstat != NULL) {
-		devstat_remove_entry(spa->spa_g_devstat);
-		spa->spa_g_devstat = NULL;
+	if (dev->spa_dev != NULL) {
+		destroy_dev(dev->spa_dev);
+		dev->spa_dev = NULL;
 	}
-	if (spa->spa_dev != NULL) {
-		destroy_dev(spa->spa_dev);
-		spa->spa_dev = NULL;
+	vm_object_deallocate(dev->spa_obj);
+	if (dev->spa_kva != NULL) {
+		pmap_large_unmap(dev->spa_kva, dev->spa_len);
+		dev->spa_kva = NULL;
 	}
-	vm_object_deallocate(spa->spa_obj);
-	if (spa->spa_kva != NULL) {
-		pmap_large_unmap(spa->spa_kva, spa->spa_len);
-		spa->spa_kva = NULL;
+}
+
+static int
+nvdimm_spa_g_destroy_geom(struct gctl_req *req, struct g_class *cp,
+    struct g_geom *gp)
+{
+	struct g_spa *sc;
+
+	sc = gp->softc;
+	mtx_lock(&sc->spa_g_mtx);
+	sc->spa_g_proc_run = false;
+	wakeup(&sc->spa_g_queue);
+	while (!sc->spa_g_proc_exiting)
+		msleep(&sc->spa_g_queue, &sc->spa_g_mtx, PRIBIO, "spa_e", 0);
+	mtx_unlock(&sc->spa_g_mtx);
+	g_topology_assert();
+	g_wither_geom(gp, ENXIO);
+	sc->spa_p = NULL;
+	if (sc->spa_g_devstat != NULL) {
+		devstat_remove_entry(sc->spa_g_devstat);
+		sc->spa_g_devstat = NULL;
 	}
-	mtx_destroy(&spa->spa_g_mtx);
-	mtx_destroy(&spa->spa_g_stat_mtx);
+	mtx_destroy(&sc->spa_g_mtx);
+	mtx_destroy(&sc->spa_g_stat_mtx);
+	free(sc, M_NVDIMM);
+	return (0);
 }

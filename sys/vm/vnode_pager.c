@@ -115,13 +115,23 @@ SYSCTL_PROC(_debug, OID_AUTO, vnode_domainset, CTLTYPE_STRING | CTLFLAG_RW,
     &vnode_domainset, 0, sysctl_handle_domainset, "A",
     "Default vnode NUMA policy");
 
+static int nvnpbufs;
+SYSCTL_INT(_vm, OID_AUTO, vnode_pbufs, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &nvnpbufs, 0, "number of physical buffers allocated for vnode pager");
+
 static uma_zone_t vnode_pbuf_zone;
 
 static void
 vnode_pager_init(void *dummy)
 {
 
-	vnode_pbuf_zone = pbuf_zsecond_create("vnpbuf", nswbuf * 8);
+#ifdef __LP64__
+	nvnpbufs = nswbuf * 2;
+#else
+	nvnpbufs = nswbuf / 2;
+#endif
+	TUNABLE_INT_FETCH("vm.vnode_pbufs", &nvnpbufs);
+	vnode_pbuf_zone = pbuf_zsecond_create("vnpbuf", nvnpbufs);
 }
 SYSINIT(vnode_pager, SI_SUB_CPU, SI_ORDER_ANY, vnode_pager_init, NULL);
 

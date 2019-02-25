@@ -38,6 +38,7 @@ local INCORRECT_PASSWORD = "loader: incorrect password"
 -- Asterisks as a password mask
 local show_password_mask = false
 local twiddle_chars = {"/", "-", "\\", "|"}
+local screen_setup = false
 
 -- Module exports
 function password.read(prompt_length)
@@ -80,14 +81,18 @@ function password.read(prompt_length)
 end
 
 function password.check()
-	screen.clear()
-	screen.defcursor()
 	-- pwd is optionally supplied if we want to check it
 	local function doPrompt(prompt, pwd)
 		local attempts = 1
 
 		local function clear_incorrect_text_prompt()
 			printc("\r" .. string.rep(" ", #INCORRECT_PASSWORD))
+		end
+
+		if not screen_setup then
+			screen.clear()
+			screen.defcursor()
+			screen_setup = true
 		end
 
 		while true do

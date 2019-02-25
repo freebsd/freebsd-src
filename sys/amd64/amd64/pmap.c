@@ -48,7 +48,7 @@
  */
 /*-
  * Copyright (c) 2003 Networks Associates Technology, Inc.
- * Copyright (c) 2014-2018 The FreeBSD Foundation
+ * Copyright (c) 2014-2019 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by Jake Burkholder,
@@ -121,6 +121,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rangeset.h>
 #include <sys/rwlock.h>
 #include <sys/sx.h>
 #include <sys/turnstile.h>
@@ -155,6 +156,7 @@ __FBSDID("$FreeBSD$");
 #ifdef SMP
 #include <machine/smp.h>
 #endif
+#include <machine/sysarch.h>
 #include <machine/tss.h>
 
 static __inline boolean_t
@@ -285,6 +287,13 @@ pmap_modified_bit(pmap_t pmap)
 	return (mask);
 }
 
+static __inline pt_entry_t
+pmap_pku_mask_bit(pmap_t pmap)
+{
+
+	return (pmap->pm_type == PT_X86 ? X86_PG_PKU_MASK : 0);
+}
+
 #if !defined(DIAGNOSTIC)
 #ifdef __GNUC_GNU_INLINE__
 #define PMAP_INLINE	__attribute__((__gnu_inline__)) inline
@@ -352,10 +361,6 @@ vm_offset_t kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
 pt_entry_t pg_nx;
 
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
-
-static int pat_works = 1;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pat_works, CTLFLAG_RD, &pat_works, 1,
-    "Is page attribute table fully functional?");
 
 static int pg_ps_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
@@ -427,6 +432,22 @@ static vm_object_t pti_obj;
 static pml4_entry_t *pti_pml4;
 static vm_pindex_t pti_pg_idx;
 static bool pti_finalized;
+
+struct pmap_pkru_range {
+	struct rs_el	pkru_rs_el;
+	u_int		pkru_keyidx;
+	int		pkru_flags;
+};
+
+static uma_zone_t pmap_pkru_ranges_zone;
+static bool pmap_pkru_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva);
+static pt_entry_t pmap_pkru_get(pmap_t pmap, vm_offset_t va);
+static void pmap_pkru_on_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva);
+static void *pkru_dup_range(void *ctx, void *data);
+static void pkru_free_range(void *ctx, void *node);
+static int pmap_pkru_copy(pmap_t dst_pmap, pmap_t src_pmap);
+static int pmap_pkru_deassign(pmap_t pmap, vm_offset_t sva, vm_offset_t eva);
+static void pmap_pkru_deassign_all(pmap_t pmap);
 
 static int
 pmap_pcid_save_cnt_proc(SYSCTL_HANDLER_ARGS)
@@ -1222,7 +1243,6 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 void
 pmap_init_pat(void)
 {
-	int pat_table[PAT_INDEX_SIZE];
 	uint64_t pat_msr;
 	u_long cr0, cr4;
 	int i;
@@ -1233,44 +1253,31 @@ pmap_init_pat(void)
 
 	/* Set default PAT index table. */
 	for (i = 0; i < PAT_INDEX_SIZE; i++)
-		pat_table[i] = -1;
-	pat_table[PAT_WRITE_BACK] = 0;
-	pat_table[PAT_WRITE_THROUGH] = 1;
-	pat_table[PAT_UNCACHEABLE] = 3;
-	pat_table[PAT_WRITE_COMBINING] = 3;
-	pat_table[PAT_WRITE_PROTECTED] = 3;
-	pat_table[PAT_UNCACHED] = 3;
+		pat_index[i] = -1;
+	pat_index[PAT_WRITE_BACK] = 0;
+	pat_index[PAT_WRITE_THROUGH] = 1;
+	pat_index[PAT_UNCACHEABLE] = 3;
+	pat_index[PAT_WRITE_COMBINING] = 6;
+	pat_index[PAT_WRITE_PROTECTED] = 5;
+	pat_index[PAT_UNCACHED] = 2;
 
-	/* Initialize default PAT entries. */
+	/*
+	 * Initialize default PAT entries.
+	 * Leave the indices 0-3 at the default of WB, WT, UC-, and UC.
+	 * Program 5 and 6 as WP and WC.
+	 *
+	 * Leave 4 and 7 as WB and UC.  Note that a recursive page table
+	 * mapping for a 2M page uses a PAT value with the bit 3 set due
+	 * to its overload with PG_PS.
+	 */
 	pat_msr = PAT_VALUE(0, PAT_WRITE_BACK) |
 	    PAT_VALUE(1, PAT_WRITE_THROUGH) |
 	    PAT_VALUE(2, PAT_UNCACHED) |
 	    PAT_VALUE(3, PAT_UNCACHEABLE) |
 	    PAT_VALUE(4, PAT_WRITE_BACK) |
-	    PAT_VALUE(5, PAT_WRITE_THROUGH) |
-	    PAT_VALUE(6, PAT_UNCACHED) |
+	    PAT_VALUE(5, PAT_WRITE_PROTECTED) |
+	    PAT_VALUE(6, PAT_WRITE_COMBINING) |
 	    PAT_VALUE(7, PAT_UNCACHEABLE);
-
-	if (pat_works) {
-		/*
-		 * Leave the indices 0-3 at the default of WB, WT, UC-, and UC.
-		 * Program 5 and 6 as WP and WC.
-		 * Leave 4 and 7 as WB and UC.
-		 */
-		pat_msr &= ~(PAT_MASK(5) | PAT_MASK(6));
-		pat_msr |= PAT_VALUE(5, PAT_WRITE_PROTECTED) |
-		    PAT_VALUE(6, PAT_WRITE_COMBINING);
-		pat_table[PAT_UNCACHED] = 2;
-		pat_table[PAT_WRITE_PROTECTED] = 5;
-		pat_table[PAT_WRITE_COMBINING] = 6;
-	} else {
-		/*
-		 * Just replace PAT Index 2 with WC instead of UC-.
-		 */
-		pat_msr &= ~PAT_MASK(2);
-		pat_msr |= PAT_VALUE(2, PAT_WRITE_COMBINING);
-		pat_table[PAT_WRITE_COMBINING] = 2;
-	}
 
 	/* Disable PGE. */
 	cr4 = rcr4();
@@ -1286,8 +1293,6 @@ pmap_init_pat(void)
 
 	/* Update PAT and index table. */
 	wrmsr(MSR_PAT, pat_msr);
-	for (i = 0; i < PAT_INDEX_SIZE; i++)
-		pat_index[i] = pat_table[i];
 
 	/* Flush caches and TLBs again. */
 	wbinvd();
@@ -2866,6 +2871,12 @@ pmap_pinit0(pmap_t pmap)
 		pmap->pm_pcids[i].pm_gen = 1;
 	}
 	pmap_activate_boot(pmap);
+
+	if ((cpu_stdext_feature2 & CPUID_STDEXT2_PKU) != 0) {
+		pmap_pkru_ranges_zone = uma_zcreate("pkru ranges",
+		    sizeof(struct pmap_pkru_range), NULL, NULL, NULL, NULL,
+		    UMA_ALIGN_PTR, 0);
+	}
 }
 
 void
@@ -2953,6 +2964,10 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 			    VM_PAGE_TO_PHYS(pml4pgu));
 			pmap_pinit_pml4_pti(pml4pgu);
 			pmap->pm_ucr3 = VM_PAGE_TO_PHYS(pml4pgu);
+		}
+		if ((cpu_stdext_feature2 & CPUID_STDEXT2_PKU) != 0) {
+			rangeset_init(&pmap->pm_pkru, pkru_dup_range,
+			    pkru_free_range, pmap, M_NOWAIT);
 		}
 	}
 
@@ -3250,6 +3265,9 @@ pmap_release(pmap_t pmap)
 		vm_page_unwire_noq(m);
 		vm_page_free(m);
 	}
+	if (pmap->pm_type == PT_X86 &&
+	    (cpu_stdext_feature2 & CPUID_STDEXT2_PKU) != 0)
+		rangeset_fini(&pmap->pm_pkru);
 }
 
 static int
@@ -4080,7 +4098,7 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 {
 	pd_entry_t newpde, oldpde;
 	pt_entry_t *firstpte, newpte;
-	pt_entry_t PG_A, PG_G, PG_M, PG_RW, PG_V;
+	pt_entry_t PG_A, PG_G, PG_M, PG_PKU_MASK, PG_RW, PG_V;
 	vm_paddr_t mptepa;
 	vm_page_t mpte;
 	struct spglist free;
@@ -4093,6 +4111,7 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	PG_RW = pmap_rw_bit(pmap);
 	PG_V = pmap_valid_bit(pmap);
 	PG_PTE_CACHE = pmap_cache_mask(pmap, 0);
+	PG_PKU_MASK = pmap_pku_mask_bit(pmap);
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	oldpde = *pde;
@@ -4525,6 +4544,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 out:
 	if (anyvalid)
 		pmap_invalidate_all(pmap);
+	pmap_pkru_on_remove(pmap, sva, eva);
 	PMAP_UNLOCK(pmap);
 	pmap_delayed_invl_finished();
 	vm_page_free_pages_toq(&free, true);
@@ -4836,7 +4856,7 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 {
 	pd_entry_t newpde;
 	pt_entry_t *firstpte, oldpte, pa, *pte;
-	pt_entry_t PG_G, PG_A, PG_M, PG_RW, PG_V;
+	pt_entry_t PG_G, PG_A, PG_M, PG_RW, PG_V, PG_PKU_MASK;
 	vm_page_t mpte;
 	int PG_PTE_CACHE;
 
@@ -4845,6 +4865,7 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	PG_M = pmap_modified_bit(pmap);
 	PG_V = pmap_valid_bit(pmap);
 	PG_RW = pmap_rw_bit(pmap);
+	PG_PKU_MASK = pmap_pku_mask_bit(pmap);
 	PG_PTE_CACHE = pmap_cache_mask(pmap, 0);
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -5072,6 +5093,8 @@ retry:
 
 	origpte = *pte;
 	pv = NULL;
+	if (va < VM_MAXUSER_ADDRESS && pmap->pm_type == PT_X86)
+		newpte |= pmap_pkru_get(pmap, va);
 
 	/*
 	 * Is the specified virtual address already mapped?
@@ -5291,6 +5314,25 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 		    " in pmap %p", va, pmap);
 		return (KERN_RESOURCE_SHORTAGE);
 	}
+
+	/*
+	 * If pkru is not same for the whole pde range, return failure
+	 * and let vm_fault() cope.  Check after pde allocation, since
+	 * it could sleep.
+	 */
+	if (!pmap_pkru_same(pmap, va, va + NBPDR)) {
+		SLIST_INIT(&free);
+		if (pmap_unwire_ptp(pmap, va, pdpg, &free)) {
+			pmap_invalidate_page(pmap, va);
+			vm_page_free_pages_toq(&free, true);
+		}
+		return (KERN_FAILURE);
+	}
+	if (va < VM_MAXUSER_ADDRESS && pmap->pm_type == PT_X86) {
+		newpde &= ~X86_PG_PKU_MASK;
+		newpde |= pmap_pkru_get(pmap, va);
+	}
+
 	pde = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pdpg));
 	pde = &pde[pmap_pde_index(va)];
 	oldpde = *pde;
@@ -5550,7 +5592,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	if ((prot & VM_PROT_EXECUTE) == 0)
 		newpte |= pg_nx;
 	if (va < VM_MAXUSER_ADDRESS)
-		newpte |= PG_U;
+		newpte |= PG_U | pmap_pkru_get(pmap, va);
 	pte_store(pte, newpte);
 	return (mpte);
 }
@@ -5924,6 +5966,36 @@ out:
 		rw_wunlock(lock);
 	PMAP_UNLOCK(src_pmap);
 	PMAP_UNLOCK(dst_pmap);
+}
+
+int
+pmap_vmspace_copy(pmap_t dst_pmap, pmap_t src_pmap)
+{
+	int error;
+
+	if (dst_pmap->pm_type != src_pmap->pm_type ||
+	    dst_pmap->pm_type != PT_X86 ||
+	    (cpu_stdext_feature2 & CPUID_STDEXT2_PKU) == 0)
+		return (0);
+	for (;;) {
+		if (dst_pmap < src_pmap) {
+			PMAP_LOCK(dst_pmap);
+			PMAP_LOCK(src_pmap);
+		} else {
+			PMAP_LOCK(src_pmap);
+			PMAP_LOCK(dst_pmap);
+		}
+		error = pmap_pkru_copy(dst_pmap, src_pmap);
+		/* Clean up partial copy on failure due to no memory. */
+		if (error == ENOMEM)
+			pmap_pkru_deassign_all(dst_pmap);
+		PMAP_UNLOCK(src_pmap);
+		PMAP_UNLOCK(dst_pmap);
+		if (error != ENOMEM)
+			break;
+		vm_wait(NULL);
+	}
+	return (error);
 }
 
 /*
@@ -6325,6 +6397,7 @@ pmap_remove_pages(pmap_t pmap)
 	if (lock != NULL)
 		rw_wunlock(lock);
 	pmap_invalidate_all(pmap);
+	pmap_pkru_deassign_all(pmap);
 	PMAP_UNLOCK(pmap);
 	vm_page_free_pages_toq(&free, true);
 }
@@ -8959,6 +9032,285 @@ pmap_pti_remove_kva(vm_offset_t sva, vm_offset_t eva)
 	}
 	pmap_invalidate_range(kernel_pmap, sva, eva);
 	VM_OBJECT_WUNLOCK(pti_obj);
+}
+
+static void *
+pkru_dup_range(void *ctx __unused, void *data)
+{
+	struct pmap_pkru_range *node, *new_node;
+
+	new_node = uma_zalloc(pmap_pkru_ranges_zone, M_NOWAIT);
+	if (new_node == NULL)
+		return (NULL);
+	node = data;
+	memcpy(new_node, node, sizeof(*node));
+	return (new_node);
+}
+
+static void
+pkru_free_range(void *ctx __unused, void *node)
+{
+
+	uma_zfree(pmap_pkru_ranges_zone, node);
+}
+
+static int
+pmap_pkru_assign(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, u_int keyidx,
+    int flags)
+{
+	struct pmap_pkru_range *ppr;
+	int error;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	MPASS(pmap->pm_type == PT_X86);
+	MPASS((cpu_stdext_feature2 & CPUID_STDEXT2_PKU) != 0);
+	if ((flags & AMD64_PKRU_EXCL) != 0 &&
+	    !rangeset_check_empty(&pmap->pm_pkru, sva, eva))
+		return (EBUSY);
+	ppr = uma_zalloc(pmap_pkru_ranges_zone, M_NOWAIT);
+	if (ppr == NULL)
+		return (ENOMEM);
+	ppr->pkru_keyidx = keyidx;
+	ppr->pkru_flags = flags & AMD64_PKRU_PERSIST;
+	error = rangeset_insert(&pmap->pm_pkru, sva, eva, ppr);
+	if (error != 0)
+		uma_zfree(pmap_pkru_ranges_zone, ppr);
+	return (error);
+}
+
+static int
+pmap_pkru_deassign(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	MPASS(pmap->pm_type == PT_X86);
+	MPASS((cpu_stdext_feature2 & CPUID_STDEXT2_PKU) != 0);
+	return (rangeset_remove(&pmap->pm_pkru, sva, eva));
+}
+
+static void
+pmap_pkru_deassign_all(pmap_t pmap)
+{
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	if (pmap->pm_type == PT_X86 &&
+	    (cpu_stdext_feature2 & CPUID_STDEXT2_PKU) != 0)
+		rangeset_remove_all(&pmap->pm_pkru);
+}
+
+static bool
+pmap_pkru_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+	struct pmap_pkru_range *ppr, *prev_ppr;
+	vm_offset_t va;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	if (pmap->pm_type != PT_X86 ||
+	    (cpu_stdext_feature2 & CPUID_STDEXT2_PKU) == 0 ||
+	    sva >= VM_MAXUSER_ADDRESS)
+		return (true);
+	MPASS(eva <= VM_MAXUSER_ADDRESS);
+	for (va = sva, prev_ppr = NULL; va < eva;) {
+		ppr = rangeset_lookup(&pmap->pm_pkru, va);
+		if ((ppr == NULL) ^ (prev_ppr == NULL))
+			return (false);
+		if (ppr == NULL) {
+			va += PAGE_SIZE;
+			continue;
+		}
+		if (prev_ppr->pkru_keyidx != ppr->pkru_keyidx)
+			return (false);
+		va = ppr->pkru_rs_el.re_end;
+	}
+	return (true);
+}
+
+static pt_entry_t
+pmap_pkru_get(pmap_t pmap, vm_offset_t va)
+{
+	struct pmap_pkru_range *ppr;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	if (pmap->pm_type != PT_X86 ||
+	    (cpu_stdext_feature2 & CPUID_STDEXT2_PKU) == 0 ||
+	    va >= VM_MAXUSER_ADDRESS)
+		return (0);
+	ppr = rangeset_lookup(&pmap->pm_pkru, va);
+	if (ppr != NULL)
+		return (X86_PG_PKU(ppr->pkru_keyidx));
+	return (0);
+}
+
+static bool
+pred_pkru_on_remove(void *ctx __unused, void *r)
+{
+	struct pmap_pkru_range *ppr;
+
+	ppr = r;
+	return ((ppr->pkru_flags & AMD64_PKRU_PERSIST) == 0);
+}
+
+static void
+pmap_pkru_on_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	if (pmap->pm_type == PT_X86 &&
+	    (cpu_stdext_feature2 & CPUID_STDEXT2_PKU) != 0) {
+		rangeset_remove_pred(&pmap->pm_pkru, sva, eva,
+		    pred_pkru_on_remove);
+	}
+}
+
+static int
+pmap_pkru_copy(pmap_t dst_pmap, pmap_t src_pmap)
+{
+
+	PMAP_LOCK_ASSERT(dst_pmap, MA_OWNED);
+	PMAP_LOCK_ASSERT(src_pmap, MA_OWNED);
+	MPASS(dst_pmap->pm_type == PT_X86);
+	MPASS(src_pmap->pm_type == PT_X86);
+	MPASS((cpu_stdext_feature2 & CPUID_STDEXT2_PKU) != 0);
+	if (src_pmap->pm_pkru.rs_data_ctx == NULL)
+		return (0);
+	return (rangeset_copy(&dst_pmap->pm_pkru, &src_pmap->pm_pkru));
+}
+
+static void
+pmap_pkru_update_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
+    u_int keyidx)
+{
+	pml4_entry_t *pml4e;
+	pdp_entry_t *pdpe;
+	pd_entry_t newpde, ptpaddr, *pde;
+	pt_entry_t newpte, *ptep, pte;
+	vm_offset_t va, va_next;
+	bool changed;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	MPASS(pmap->pm_type == PT_X86);
+	MPASS(keyidx <= PMAP_MAX_PKRU_IDX);
+
+	for (changed = false, va = sva; va < eva; va = va_next) {
+		pml4e = pmap_pml4e(pmap, va);
+		if ((*pml4e & X86_PG_V) == 0) {
+			va_next = (va + NBPML4) & ~PML4MASK;
+			if (va_next < va)
+				va_next = eva;
+			continue;
+		}
+
+		pdpe = pmap_pml4e_to_pdpe(pml4e, va);
+		if ((*pdpe & X86_PG_V) == 0) {
+			va_next = (va + NBPDP) & ~PDPMASK;
+			if (va_next < va)
+				va_next = eva;
+			continue;
+		}
+
+		va_next = (va + NBPDR) & ~PDRMASK;
+		if (va_next < va)
+			va_next = eva;
+
+		pde = pmap_pdpe_to_pde(pdpe, va);
+		ptpaddr = *pde;
+		if (ptpaddr == 0)
+			continue;
+
+		MPASS((ptpaddr & X86_PG_V) != 0);
+		if ((ptpaddr & PG_PS) != 0) {
+			if (va + NBPDR == va_next && eva >= va_next) {
+				newpde = (ptpaddr & ~X86_PG_PKU_MASK) |
+				    X86_PG_PKU(keyidx);
+				if (newpde != ptpaddr) {
+					*pde = newpde;
+					changed = true;
+				}
+				continue;
+			} else if (!pmap_demote_pde(pmap, pde, va)) {
+				continue;
+			}
+		}
+
+		if (va_next > eva)
+			va_next = eva;
+
+		for (ptep = pmap_pde_to_pte(pde, va); va != va_next;
+		    ptep++, va += PAGE_SIZE) {
+			pte = *ptep;
+			if ((pte & X86_PG_V) == 0)
+				continue;
+			newpte = (pte & ~X86_PG_PKU_MASK) | X86_PG_PKU(keyidx);
+			if (newpte != pte) {
+				*ptep = newpte;
+				changed = true;
+			}
+		}
+	}
+	if (changed)
+		pmap_invalidate_range(pmap, sva, eva);
+}
+
+static int
+pmap_pkru_check_uargs(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
+    u_int keyidx, int flags)
+{
+
+	if (pmap->pm_type != PT_X86 || keyidx > PMAP_MAX_PKRU_IDX ||
+	    (flags & ~(AMD64_PKRU_PERSIST | AMD64_PKRU_EXCL)) != 0)
+		return (EINVAL);
+	if (eva <= sva || eva > VM_MAXUSER_ADDRESS)
+		return (EFAULT);
+	if ((cpu_stdext_feature2 & CPUID_STDEXT2_PKU) == 0)
+		return (ENOTSUP);
+	return (0);
+}
+
+int
+pmap_pkru_set(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, u_int keyidx,
+    int flags)
+{
+	int error;
+
+	sva = trunc_page(sva);
+	eva = round_page(eva);
+	error = pmap_pkru_check_uargs(pmap, sva, eva, keyidx, flags);
+	if (error != 0)
+		return (error);
+	for (;;) {
+		PMAP_LOCK(pmap);
+		error = pmap_pkru_assign(pmap, sva, eva, keyidx, flags);
+		if (error == 0)
+			pmap_pkru_update_range(pmap, sva, eva, keyidx);
+		PMAP_UNLOCK(pmap);
+		if (error != ENOMEM)
+			break;
+		vm_wait(NULL);
+	}
+	return (error);
+}
+
+int
+pmap_pkru_clear(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+	int error;
+
+	sva = trunc_page(sva);
+	eva = round_page(eva);
+	error = pmap_pkru_check_uargs(pmap, sva, eva, 0, 0);
+	if (error != 0)
+		return (error);
+	for (;;) {
+		PMAP_LOCK(pmap);
+		error = pmap_pkru_deassign(pmap, sva, eva);
+		if (error == 0)
+			pmap_pkru_update_range(pmap, sva, eva, 0);
+		PMAP_UNLOCK(pmap);
+		if (error != ENOMEM)
+			break;
+		vm_wait(NULL);
+	}
+	return (error);
 }
 
 #include "opt_ddb.h"

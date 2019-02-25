@@ -239,7 +239,7 @@ OpcDoFprintf (
  * RETURN:      None
  *
  * DESCRIPTION: Convert printf macro to a Store AML operation. The printf
- *              macro parse tree is layed out as follows:
+ *              macro parse tree is laid out as follows:
  *
  *              Op        - printf parse op
  *              Op->Child - Format string

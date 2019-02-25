@@ -165,7 +165,7 @@
  * FUNCTION:    AcpiExReadGpio
  *
  * PARAMETERS:  ObjDesc             - The named field to read
- *              Buffer              - Where the return data is returnd
+ *              Buffer              - Where the return data is returned
  *
  * RETURN:      Status
  *

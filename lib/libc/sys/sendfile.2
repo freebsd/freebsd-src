@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 25, 2019
+.Dd February 15, 2019
 .Dt SENDFILE 2
 .Os
 .Sh NAME
@@ -224,6 +224,19 @@ implementation of
 .Fn sendfile
 is "zero-copy", meaning that it has been optimized so that copying of the file data is avoided.
 .Sh TUNING
+.Ss physical paging buffers
+.Fn sendfile
+uses vnode pager to read file pages into memory.
+The pager uses a pool of physical buffers to run its I/O operations.
+When system runs out of pbufs, sendfile will block and report state
+.Dq Li zonelimit .
+Size of the pool can be tuned with
+.Va vm.vnode_pbufs
+.Xr loader.conf 5
+tunable and can be checked with
+.Xr sysctl 8
+OID of the same name at runtime.
+.Ss sendfile(2) buffers
 On some architectures, this system call internally uses a special
 .Fn sendfile
 buffer
@@ -279,9 +292,11 @@ buffers usage respectively.
 These values may also be viewed through
 .Nm netstat Fl m .
 .Pp
-If a value of zero is reported for
-.Va kern.ipc.nsfbufs ,
-your architecture does not need to use
+If
+.Xr sysctl 8
+OID
+.Va kern.ipc.nsfbufs
+doesn't exist, your architecture does not need to use
 .Fn sendfile
 buffers because their task can be efficiently performed
 by the generic virtual memory structures.
@@ -363,11 +378,13 @@ does not support
 The socket peer has closed the connection.
 .El
 .Sh SEE ALSO
+.Xr loader.conf 5 ,
 .Xr netstat 1 ,
 .Xr open 2 ,
 .Xr send 2 ,
 .Xr socket 2 ,
 .Xr writev 2 ,
+.Xr sysctl 8 ,
 .Xr tuning 7
 .Rs
 .%A K. Elmeleegy
