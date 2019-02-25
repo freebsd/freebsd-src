@@ -1,3 +1,10 @@
+OpenPAM Tabebuia						2019-02-24
+
+ - BUGFIX: Fix off-by-one bug in pam_getenv(3) which was introduced in
+   OpenPAM Radula.
+
+ - ENHANCE: Add unit tests for pam_{get,put,set}env(3).
+============================================================================
 OpenPAM Resedacea						2017-04-30
 
  - BUGFIX: Reinstore the NULL check in pam_end(3) which was removed in
@@ -5,7 +12,7 @@ OpenPAM Resedacea						2017-04-30
 
  - BUGFIX: Return PAM_SYMBOL_ERR instead of PAM_SYSTEM_ERR from the
    dispatcher when the required service function could not be found.
- 
+
  - ENHANCE: Introduce the PAM_BAD_HANDLE error code for when pamh is
    NULL in API functions that have a NULL check.
 
