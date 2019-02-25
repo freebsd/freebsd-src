@@ -50,12 +50,15 @@ VNET_DECLARE(int, tcp_do_rfc1323);
 
 /* TCP segment queue entry */
 struct tseg_qent {
-	LIST_ENTRY(tseg_qent) tqe_q;
+	TAILQ_ENTRY(tseg_qent) tqe_q;
+	struct	mbuf   *tqe_m;		/* mbuf contains packet */
+	struct  mbuf   *tqe_last;	/* last mbuf in chain */
+	tcp_seq tqe_start;		/* TCP Sequence number start */
 	int	tqe_len;		/* TCP segment data length */
-	struct	tcphdr *tqe_th;		/* a pointer to tcp header */
-	struct	mbuf	*tqe_m;		/* mbuf contains packet */
+	uint32_t tqe_flags;		/* The flags from the th->th_flags */
+	uint32_t tqe_mbuf_cnt;		/* Count of mbuf overhead */
 };
-LIST_HEAD(tsegqe_head, tseg_qent);
+TAILQ_HEAD(tsegqe_head, tseg_qent);
 
 struct sackblk {
 	tcp_seq start;		/* start seq no. of sack block */
@@ -87,6 +90,8 @@ struct tcptemp {
 	u_char	tt_ipgen[40]; /* the size must be of max ip header, now IPv6 */
 	struct	tcphdr tt_t;
 };
+
+#define SEGQ_EMPTY(tp) TAILQ_EMPTY(&(tp)->t_segq)
 
 #define tcp6cb		tcpcb  /* for KAME src sync over BSD*'s */
 
@@ -263,11 +268,12 @@ struct tcpcb {
 	u_int	t_tsomaxsegcount;	/* TSO maximum segment count */
 	u_int	t_tsomaxsegsize;	/* TSO maximum segment size in bytes */
 	u_int	t_flags2;		/* More tcpcb flags storage */
+	uint32_t t_segqmbuflen;		/* Count of bytes mbufs on all entries */
 #if defined(_KERNEL) && defined(TCP_RFC7413)
-	uint32_t t_ispare[6];		/* 5 UTO, 1 TBD */
+	uint32_t t_ispare[5];		/* 5 UTO, 0 TBD */
 	uint64_t t_tfo_cookie;		/* TCP Fast Open cookie */
 #else
-	uint32_t t_ispare[8];		/* 5 UTO, 3 TBD */
+	uint32_t t_ispare[7];		/* 5 UTO, 2 TBD */
 #endif
 	struct tcp_function_block *t_fb;/* TCP function call block */
 	void	*t_fb_ptr;		/* Pointer to t_fb specific data */
@@ -745,7 +751,7 @@ char	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
 char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
-int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *, struct mbuf *);
+int	 tcp_reass(struct tcpcb *, struct tcphdr *, tcp_seq *, int *, struct mbuf *);
 void	 tcp_reass_global_init(void);
 void	 tcp_reass_flush(struct tcpcb *);
 void	 tcp_dooptions(struct tcpopt *, u_char *, int, int);
