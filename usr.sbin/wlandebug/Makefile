@@ -2,7 +2,6 @@
 
 PROG=	wlandebug
 MAN=	wlandebug.8
-MK_PIE:=	no
 
 LIBADD+=	ifconfig
 
