@@ -20,7 +20,6 @@ _PRIVATELIBS=	\
 		event \
 		heimipcc \
 		heimipcs \
-		ifconfig \
 		ldns \
 		sqlite3 \
 		ssh \
@@ -35,6 +34,7 @@ _INTERNALLIBS=	\
 		cron \
 		elftc \
 		fifolog \
+		ifconfig \
 		ipf \
 		lpr \
 		netbsd \
@@ -449,6 +449,9 @@ LIBVERS?=	${LIBVERSDIR}/libvers${PIE_SUFFIX}.a
 
 LIBSLDIR=	${OBJTOP}/kerberos5/lib/libsl
 LIBSL?=		${LIBSLDIR}/libsl${PIE_SUFFIX}.a
+
+LIBIFCONFIGDIR=	${OBJTOP}/lib/libifconfig
+LIBIFCONFIG?=	${LIBIFCONFIGDIR}/libifconfig${PIE_SUFFIX}.a
 
 LIBIPFDIR=	${OBJTOP}/sbin/ipf/libipf
 LIBIPF?=	${LIBIPFDIR}/libipf${PIE_SUFFIX}.a
