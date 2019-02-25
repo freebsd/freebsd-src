@@ -78,7 +78,6 @@ struct at45d_softc
 	struct mtx		sc_mtx;
 	struct disk		*disk;
 	struct proc		*p;
-	struct intr_config_hook	config_intrhook;
 	device_t		dev;
 	u_int			taskstate;
 	uint16_t		pagecount;
@@ -229,13 +228,7 @@ at45d_attach(device_t dev)
 	sc->dev = dev;
 	AT45D_LOCK_INIT(sc);
 
-	/* We'll see what kind of flash we have later... */
-	sc->config_intrhook.ich_func = at45d_delayed_attach;
-	sc->config_intrhook.ich_arg = sc;
-	if (config_intrhook_establish(&sc->config_intrhook) != 0) {
-		device_printf(dev, "config_intrhook_establish failed\n");
-		return (ENOMEM);
-	}
+	config_intrhook_oneshot(at45d_delayed_attach, sc);
 	return (0);
 }
 
@@ -285,51 +278,52 @@ at45d_delayed_attach(void *xsc)
 	ident = NULL;
 	jedec = 0;
 
-	if (at45d_wait_ready(sc->dev, &status) != 0)
+	if (at45d_wait_ready(sc->dev, &status) != 0) {
 		device_printf(sc->dev, "Error waiting for device-ready.\n");
-	else if (at45d_get_mfg_info(sc->dev, buf) != 0)
+		return;
+	}
+	if (at45d_get_mfg_info(sc->dev, buf) != 0) {
 		device_printf(sc->dev, "Failed to get ID.\n");
-	else {
-		jedec = buf[0] << 16 | buf[1] << 8 | buf[2];
-		for (i = 0; i < nitems(at45d_flash_devices); i++) {
-			if (at45d_flash_devices[i].jedec == jedec) {
-				ident = &at45d_flash_devices[i];
-				break;
-			}
+		return;
+	}
+
+	jedec = buf[0] << 16 | buf[1] << 8 | buf[2];
+	for (i = 0; i < nitems(at45d_flash_devices); i++) {
+		if (at45d_flash_devices[i].jedec == jedec) {
+			ident = &at45d_flash_devices[i];
+			break;
 		}
 	}
-	if (ident == NULL)
+	if (ident == NULL) {
 		device_printf(sc->dev, "JEDEC 0x%x not in list.\n", jedec);
-	else {
-		sc->pagecount = ident->pagecount;
-		sc->pageoffset = ident->pageoffset;
-		if (ident->pagesize2n != 0 && (status & 0x01) != 0) {
-			sc->pageoffset -= 1;
-			pagesize = ident->pagesize2n;
-		} else
-			pagesize = ident->pagesize;
-		sc->pagesize = pagesize;
-
-		sc->disk = disk_alloc();
-		sc->disk->d_open = at45d_open;
-		sc->disk->d_close = at45d_close;
-		sc->disk->d_strategy = at45d_strategy;
-		sc->disk->d_name = "flash/spi";
-		sc->disk->d_drv1 = sc;
-		sc->disk->d_maxsize = DFLTPHYS;
-		sc->disk->d_sectorsize = pagesize;
-		sc->disk->d_mediasize = pagesize * ident->pagecount;
-		sc->disk->d_unit = device_get_unit(sc->dev);
-		disk_create(sc->disk, DISK_VERSION);
-		bioq_init(&sc->bio_queue);
-		kproc_create(&at45d_task, sc, &sc->p, 0, 0,
-		    "task: at45d flash");
-		sc->taskstate = TSTATE_RUNNING;
-		device_printf(sc->dev, "%s, %d bytes per page, %d pages\n",
-		    ident->name, pagesize, ident->pagecount);
+		return;
 	}
 
-	config_intrhook_disestablish(&sc->config_intrhook);
+	sc->pagecount = ident->pagecount;
+	sc->pageoffset = ident->pageoffset;
+	if (ident->pagesize2n != 0 && (status & 0x01) != 0) {
+		sc->pageoffset -= 1;
+		pagesize = ident->pagesize2n;
+	} else
+		pagesize = ident->pagesize;
+	sc->pagesize = pagesize;
+
+	sc->disk = disk_alloc();
+	sc->disk->d_open = at45d_open;
+	sc->disk->d_close = at45d_close;
+	sc->disk->d_strategy = at45d_strategy;
+	sc->disk->d_name = "flash/spi";
+	sc->disk->d_drv1 = sc;
+	sc->disk->d_maxsize = DFLTPHYS;
+	sc->disk->d_sectorsize = pagesize;
+	sc->disk->d_mediasize = pagesize * ident->pagecount;
+	sc->disk->d_unit = device_get_unit(sc->dev);
+	disk_create(sc->disk, DISK_VERSION);
+	bioq_init(&sc->bio_queue);
+	kproc_create(&at45d_task, sc, &sc->p, 0, 0, "task: at45d flash");
+	sc->taskstate = TSTATE_RUNNING;
+	device_printf(sc->dev, "%s, %d bytes per page, %d pages\n",
+	    ident->name, pagesize, ident->pagecount);
 }
 
 static int
