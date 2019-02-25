@@ -3894,7 +3894,7 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		speed = fwcap_top_speed(lc->supported);
 
 	/* Force AN on for BT cards. */
-	if (is_bt(adap->port[port]))
+	if (is_bt(adap->port[adap->chan_map[port]]))
 		aneg = lc->supported & FW_PORT_CAP32_ANEG;
 
 	rcap = aneg | speed | fc | fec;
