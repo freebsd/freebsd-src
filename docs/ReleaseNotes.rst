@@ -5,12 +5,6 @@ LLVM 8.0.0 Release Notes
 .. contents::
     :local:
 
-.. warning::
-   These are in-progress notes for the upcoming LLVM 8 release.
-   Release notes for previous releases can be found on
-   `the Download Page <https://releases.llvm.org/download.html>`_.
-
-
 Introduction
 ============
 
@@ -26,10 +20,24 @@ have questions or comments, the `LLVM Developer's Mailing List
 <https://lists.llvm.org/mailman/listinfo/llvm-dev>`_ is a good place to send
 them.
 
-Note that if you are reading this file from a Subversion checkout or the main
-LLVM web page, this document applies to the *next* release, not the current
-one.  To see the release notes for a specific release, please see the `releases
-page <https://llvm.org/releases/>`_.
+Minimum Required Compiler Version
+=================================
+As `discussed on the mailing list
+<https://lists.llvm.org/pipermail/llvm-dev/2019-January/129452.html>`_,
+building LLVM will soon require more recent toolchains as follows:
+
+============= ====
+Clang         3.5
+Apple Clang   6.0
+GCC           5.1
+Visual Studio 2017
+============= ====
+
+A new CMake check when configuring LLVM provides a soft-error if your
+toolchain will become unsupported soon. You can opt out of the soft-error by
+setting the ``LLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN`` CMake variable to
+``ON``.
+
 
 Non-comprehensive list of changes in this release
 =================================================
@@ -40,27 +48,11 @@ Non-comprehensive list of changes in this release
    functionality, or simply have a lot to talk about), see the `NOTE` below
    for adding a new subsection.
 
-* As `discussed on the mailing list
-  <https://lists.llvm.org/pipermail/llvm-dev/2019-January/129452.html>`_,
-  building LLVM will soon require more recent toolchains as follows:
-
-  ============= ====
-  Clang         3.5
-  Apple Clang   6.0
-  GCC           5.1
-  Visual Studio 2017
-  ============= ====
-
-  A new CMake check when configuring LLVM provides a soft-error if your
-  toolchain will become unsupported soon. You can opt out of the soft-error by
-  setting the ``LLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN`` CMake variable to
-  ``ON``.
-
 * The **llvm-cov** tool can now export lcov trace files using the
   `-format=lcov` option of the `export` command.
 
-* The add_llvm_loadable_module CMake macro has been removed.  The
-  add_llvm_library macro with the MODULE argument now provides the same
+* The ``add_llvm_loadable_module`` CMake macro has been removed.  The
+  ``add_llvm_library`` macro with the ``MODULE`` argument now provides the same
   functionality.  See `Writing an LLVM Pass
   <WritingAnLLVMPass.html#setting-up-the-build-environment>`_.
 
@@ -69,6 +61,24 @@ Non-comprehensive list of changes in this release
   a dllimport if needed.
 
 * Added support for labels as offsets in ``.reloc`` directive.
+
+* Support for precise identification of X86 instructions with memory operands,
+  by using debug information. This supports profile-driven cache prefetching.
+  It is enabled with the ``-x86-discriminate-memops`` LLVM Flag.
+
+* Support for profile-driven software cache prefetching on X86. This is part of
+  a larger system, consisting of: an offline cache prefetches recommender,
+  AutoFDO tooling, and LLVM. In this system, a binary compiled with
+  ``-x86-discriminate-memops`` is run under the observation of the recommender.
+  The recommender identifies certain memory access instructions by their binary
+  file address, and recommends a prefetch of a specific type (NTA, T0, etc) be
+  performed at a specified fixed offset from such an instruction's memory
+  operand. Next, this information needs to be converted to the AutoFDO syntax
+  and the resulting profile may be passed back to the compiler with the LLVM
+  flag ``-prefetch-hints-file``, together with the exact same set of
+  compilation parameters used for the original binary. More information is
+  available in the `RFC
+  <https://lists.llvm.org/pipermail/llvm-dev/2018-November/127461.html>`_.
 
 .. NOTE
    If you would like to document a larger change, then you can add a
@@ -83,9 +93,18 @@ Non-comprehensive list of changes in this release
 Changes to the LLVM IR
 ----------------------
 
+* Function attribute ``speculative_load_hardening`` has been introduced to
+  allow indicating that `Speculative Load Hardening
+  <SpeculativeLoadHardening.html>`_ must be enabled for the function body.
+
 
 Changes to the AArch64 Target
 -----------------------------
+
+* Support for Speculative Load Hardening has been added.
+
+* Initial support for the Tiny code model, where code and its statically
+  defined symbols must live within 1MB of each other.
 
 * Added support for the ``.arch_extension`` assembler directive, just like
   on ARM.
@@ -126,13 +145,58 @@ Changes to the MIPS Target
 Changes to the PowerPC Target
 -----------------------------
 
- During this release ...
+* Switched to non-PIC default
+
+* Deprecated Darwin support
+
+* Enabled Out-of-Order scheduling for P9
+
+* Better overload rules for compatible vector type parameter
+
+* Support constraint ‘wi’, modifier ‘x’ and VSX registers in inline asm
+
+* More ``__float128`` support
+
+* Added new builtins like vector int128 ``pack``/``unpack`` and
+  ``stxvw4x.be``/``stxvd2x.be``
+
+* Provided significant improvements to the automatic vectorizer
+
+* Code-gen improvements (especially for Power9)
+
+* Fixed some long-standing bugs in the back end
+
+* Added experimental prologue/epilogue improvements
+
+* Enabled builtins tests in compiler-rt
+
+* Add ``___fixunstfti``/``floattitf`` in compiler-rt to support conversion
+  between IBM double-double and unsigned int128
+
+* Disable randomized address space when running the sanitizers on Linux ppc64le
+
+* Completed support in LLD for ELFv2
+
+* Enabled llvm-exegesis latency mode for PPC
+
 
 Changes to the X86 Target
 -------------------------
 
 * Machine model for AMD bdver2 (Piledriver) CPU was added. It is used to support
   instruction scheduling and other instruction cost heuristics.
+
+* New AVX512F gather and scatter intrinsics were added that take a <X x i1> mask
+  instead of a scalar integer. This removes the need for a bitcast in IR. The
+  new intrinsics are named like the old intrinsics with ``llvm.avx512.``
+  replaced with ``llvm.avx512.mask.``. The old intrinsics will be removed in a
+  future release.
+
+* Added ``cascadelake`` as a CPU name for -march. This is ``skylake-avx512``
+  with the addition of the ``avx512vnni`` instruction set.
+
+* ADCX instruction will no longer be emitted. This instruction is rarely better
+  than the legacy ADC instruction and just increased code size.
 
 Changes to the AMDGPU Target
 -----------------------------
@@ -156,6 +220,10 @@ use for it will be to add support for returning small structs as multiple
 return values, once the underlying WebAssembly platform itself supports it.
 Additionally, multithreading support is not yet included in the stable ABI.
 
+Changes to the Nios2 Target
+---------------------------
+
+* The Nios2 target was removed from this release.
 
 Changes to the OCaml bindings
 -----------------------------
@@ -168,6 +236,14 @@ Changes to the C API
 
 Changes to the DAG infrastructure
 ---------------------------------
+
+Changes to LLDB
+===============
+* Printed source code is now syntax highlighted in the terminal (only for C
+  languages).
+
+* The expression command now supports tab completing expressions.
+
 
 External Open Source Projects Using LLVM 8
 ==========================================
