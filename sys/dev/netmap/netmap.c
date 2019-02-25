@@ -831,6 +831,7 @@ netmap_krings_create(struct netmap_adapter *na, u_int tailroom)
 	struct netmap_kring *kring;
 	u_int n[NR_TXRX];
 	enum txrx t;
+	int err = 0;
 
 	if (na->tx_rings != NULL) {
 		if (netmap_debug & NM_DEBUG_ON)
@@ -870,7 +871,6 @@ netmap_krings_create(struct netmap_adapter *na, u_int tailroom)
 		for (i = 0; i < n[t]; i++) {
 			kring = NMR(na, t)[i];
 			bzero(kring, sizeof(*kring));
-			kring->na = na;
 			kring->notify_na = na;
 			kring->ring_id = i;
 			kring->tx = t;
@@ -896,12 +896,20 @@ netmap_krings_create(struct netmap_adapter *na, u_int tailroom)
 					nm_txrx2str(t), i);
 			nm_prdis("ktx %s h %d c %d t %d",
 				kring->name, kring->rhead, kring->rcur, kring->rtail);
+			err = nm_os_selinfo_init(&kring->si, kring->name);
+			if (err) {
+				netmap_krings_delete(na);
+				return err;
+			}
 			mtx_init(&kring->q_lock, (t == NR_TX ? "nm_txq_lock" : "nm_rxq_lock"), NULL, MTX_DEF);
-			nm_os_selinfo_init(&kring->si);
+			kring->na = na;	/* setting this field marks the mutex as initialized */
 		}
-		nm_os_selinfo_init(&na->si[t]);
+		err = nm_os_selinfo_init(&na->si[t], na->name);
+		if (err) {
+			netmap_krings_delete(na);
+			return err;
+		}
 	}
-
 
 	return 0;
 }
@@ -926,7 +934,8 @@ netmap_krings_delete(struct netmap_adapter *na)
 
 	/* we rely on the krings layout described above */
 	for ( ; kring != na->tailroom; kring++) {
-		mtx_destroy(&(*kring)->q_lock);
+		if ((*kring)->na != NULL)
+			mtx_destroy(&(*kring)->q_lock);
 		nm_os_selinfo_uninit(&(*kring)->si);
 	}
 	nm_os_free(na->tx_rings);
