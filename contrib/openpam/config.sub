@@ -300,7 +300,7 @@ case $basic_machine in
 	| ns16k | ns32k \
 	| open8 | or1k | or1knd | or32 \
 	| pdp10 | pdp11 | pj | pjl \
-	| powerpc | powerpc64 | powerpc64le | powerpcle \
+	| powerpc | powerpc64 | powerpc64le | powerpcle | powerpcspe \
 	| pyramid \
 	| riscv32 | riscv64 \
 	| rl78 | rx \
@@ -426,7 +426,7 @@ case $basic_machine in
 	| or1k*-* \
 	| orion-* \
 	| pdp10-* | pdp11-* | pj-* | pjl-* | pn-* | power-* \
-	| powerpc-* | powerpc64-* | powerpc64le-* | powerpcle-* \
+	| powerpc-* | powerpc64-* | powerpc64le-* | powerpcle-* | powerpcspe-* \
 	| pyramid-* \
 	| rl78-* | romp-* | rs6000-* | rx-* \
 	| sh-* | sh[1234]-* | sh[24]a-* | sh[24]aeb-* | sh[23]e-* | sh[34]eb-* | sheb-* | shbe-* \
