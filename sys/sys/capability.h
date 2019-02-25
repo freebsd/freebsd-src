@@ -35,13 +35,13 @@
  * Historically, the key userspace and kernel Capsicum definitions were found
  * in this file.  However, it conflicted with POSIX.1e's capability.h, so has
  * been renamed capsicum.h.  The file remains for backwards compatibility
- * reasons as a nested include.  It will be removed on March 31, 2019 and will
- * not be in FreeBSD 13.
+ * reasons as a nested include.  It is expected to be removed before
+ * FreeBSD 13.
  */
 #ifndef _SYS_CAPABILITY_H_
 #define	_SYS_CAPABILITY_H_
 
-#warning this file includes <sys/capability.h>, to be removed on March 31, 2019.
+#warning this file includes <sys/capability.h> which is deprecated
 #include <sys/capsicum.h>
 
 #endif /* !_SYS_CAPABILITY_H_ */
