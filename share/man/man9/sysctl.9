@@ -25,11 +25,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2018
+.Dd February 25, 2019
 .Dt SYSCTL 9
 .Os
 .Sh NAME
 .Nm SYSCTL_DECL ,
+.Nm SYSCTL_ADD_BOOL ,
+.Nm SYSCTL_ADD_COUNTER_U64 ,
+.Nm SYSCTL_ADD_COUNTER_U64_ARRAY ,
 .Nm SYSCTL_ADD_INT ,
 .Nm SYSCTL_ADD_LONG ,
 .Nm SYSCTL_ADD_NODE ,
@@ -42,6 +45,8 @@
 .Nm SYSCTL_ADD_S16 ,
 .Nm SYSCTL_ADD_S32 ,
 .Nm SYSCTL_ADD_S64 ,
+.Nm SYSCTL_ADD_SBINTIME_MSEC ,
+.Nm SYSCTL_ADD_SBINTIME_USEC ,
 .Nm SYSCTL_ADD_STRING ,
 .Nm SYSCTL_ADD_STRUCT ,
 .Nm SYSCTL_ADD_U8 ,
@@ -52,10 +57,15 @@
 .Nm SYSCTL_ADD_UINT ,
 .Nm SYSCTL_ADD_ULONG ,
 .Nm SYSCTL_ADD_UQUAD ,
+.Nm SYSCTL_ADD_UMA_CUR ,
+.Nm SYSCTL_ADD_UMA_MAX ,
 .Nm SYSCTL_CHILDREN ,
 .Nm SYSCTL_STATIC_CHILDREN ,
 .Nm SYSCTL_NODE_CHILDREN ,
 .Nm SYSCTL_PARENT ,
+.Nm SYSCTL_BOOL ,
+.Nm SYSCTL_COUNTER_U64 ,
+.Nm SYSCTL_COUNTER_U64_ARRAY ,
 .Nm SYSCTL_INT ,
 .Nm SYSCTL_INT_WITH_LABEL ,
 .Nm SYSCTL_LONG ,
@@ -69,6 +79,8 @@
 .Nm SYSCTL_S16 ,
 .Nm SYSCTL_S32 ,
 .Nm SYSCTL_S64 ,
+.Nm SYSCTL_SBINTIME_MSEC ,
+.Nm SYSCTL_SBINTIME_USEC ,
 .Nm SYSCTL_STRING ,
 .Nm SYSCTL_STRUCT ,
 .Nm SYSCTL_U8 ,
@@ -77,12 +89,46 @@
 .Nm SYSCTL_U64 ,
 .Nm SYSCTL_UINT ,
 .Nm SYSCTL_ULONG ,
-.Nm SYSCTL_UQUAD
+.Nm SYSCTL_UQUAD ,
+.Nm SYSCTL_UMA_CUR ,
+.Nm SYSCTL_UMA_MAX
 .Nd Dynamic and static sysctl MIB creation functions
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/sysctl.h
 .Fn SYSCTL_DECL name
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_BOOL
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "bool *ptr"
+.Fa "uint8_t val"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_COUNTER_U64
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "counter_u64_t *ptr"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_COUNTER_U64_ARRAY
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "counter_u64_t *ptr"
+.Fa "intmax_t len"
+.Fa "const char *descr"
+.Fc
 .Ft struct sysctl_oid *
 .Fo SYSCTL_ADD_INT
 .Fa "struct sysctl_ctx_list *ctx"
@@ -214,6 +260,26 @@
 .Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_SBINTIME_MSEC
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "sbintime_t *ptr"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_SBINTIME_USEC
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "sbintime_t *ptr"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
 .Fo SYSCTL_ADD_STRING
 .Fa "struct sysctl_ctx_list *ctx"
 .Fa "struct sysctl_oid_list *parent"
@@ -311,6 +377,27 @@
 .Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_UMA_CUR
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "uma_zone_t ptr"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_UMA_MAX
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "uma_zone_t ptr"
+.Fa "const char *descr"
+.Fc
+.Fa "const char *descr"
+.Ft struct sysctl_oid *
 .Fo SYSCTL_ADD_UAUTO
 .Fa "struct sysctl_ctx_list *ctx"
 .Fa "struct sysctl_oid_list *parent"
@@ -337,6 +424,9 @@
 .Fo SYSCTL_PARENT
 .Fa "struct sysctl_oid *oid"
 .Fc
+.Fn SYSCTL_BOOL parent number name ctlflags ptr val descr
+.Fn SYSCTL_COUNTER_U64 parent number name ctlflags ptr descr
+.Fn SYSCTL_COUNTER_U64_ARRAY parent number name ctlflags ptr len descr
 .Fn SYSCTL_INT parent number name ctlflags ptr val descr
 .Fn SYSCTL_INT_WITH_LABEL parent number name ctlflags ptr val descr label
 .Fn SYSCTL_LONG parent number name ctlflags ptr val descr
@@ -350,6 +440,8 @@
 .Fn SYSCTL_S16 parent number name ctlflags ptr val descr
 .Fn SYSCTL_S32 parent number name ctlflags ptr val descr
 .Fn SYSCTL_S64 parent number name ctlflags ptr val descr
+.Fn SYSCTL_SBINTIME_MSEC parent number name ctlflags ptr descr
+.Fn SYSCTL_SBINTIME_USEC parent number name ctlflags ptr descr
 .Fn SYSCTL_STRING parent number name ctlflags arg len descr
 .Fn SYSCTL_STRUCT parent number name ctlflags ptr struct_type descr
 .Fn SYSCTL_U8 parent number name ctlflags ptr val descr
@@ -359,6 +451,8 @@
 .Fn SYSCTL_UINT parent number name ctlflags ptr val descr
 .Fn SYSCTL_ULONG parent number name ctlflags ptr val descr
 .Fn SYSCTL_UQUAD parent number name ctlflags ptr val descr
+.Fn SYSCTL_UMA_MAX parent number name ctlflags ptr descr
+.Fn SYSCTL_UMA_CUR parent number name ctlflags ptr descr
 .Sh DESCRIPTION
 The
 .Nm SYSCTL
@@ -416,6 +510,7 @@ argument.
 For string type OIDs a length of zero means that
 .Xr strlen 3
 will be used to get the length of the string at each access to the OID.
+For array type OIDs the length must be greater than zero.
 .It Fa ptr
 Pointer to sysctl variable or string data.
 For sysctl values the pointer can be SYSCTL_NULL_XXX_PTR which means the OID is read-only and the returned value should be taken from the
@@ -544,6 +639,9 @@ This OID type is especially useful if the kernel data is not easily
 accessible, or needs to be processed before exporting.
 .Sh CREATING A STATIC SYSCTL
 Static sysctls are declared using one of the
+.Fn SYSCTL_BOOL ,
+.Fn SYSCTL_COUNTER_U64 ,
+.Fn SYSCTL_COUNTER_U64_ARRAY ,
 .Fn SYSCTL_INT ,
 .Fn SYSCTL_INT_WITH_LABEL ,
 .Fn SYSCTL_LONG ,
@@ -557,6 +655,8 @@ Static sysctls are declared using one of the
 .Fn SYSCTL_S16 ,
 .Fn SYSCTL_S32 ,
 .Fn SYSCTL_S64 ,
+.Fn SYSCTL_SBINTIME_MSEC ,
+.Fn SYSCTL_SBINTIME_USEC ,
 .Fn SYSCTL_STRING ,
 .Fn SYSCTL_STRUCT ,
 .Fn SYSCTL_U8 ,
@@ -564,12 +664,17 @@ Static sysctls are declared using one of the
 .Fn SYSCTL_U32 ,
 .Fn SYSCTL_U64 ,
 .Fn SYSCTL_UINT ,
-.Fn SYSCTL_ULONG
+.Fn SYSCTL_ULONG ,
+.Fn SYSCTL_UQUAD ,
+.Fn SYSCTL_UMA_CUR
 or
-.Fn SYSCTL_UQUAD
+.Fn SYSCTL_UMA_MAX
 macros.
 .Sh CREATING A DYNAMIC SYSCTL
 Dynamic nodes are created using one of the
+.Fn SYSCTL_ADD_BOOL ,
+.Fn SYSCTL_ADD_COUNTER_U64 ,
+.Fn SYSCTL_ADD_COUNTER_U64_ARRAY ,
 .Fn SYSCTL_ADD_INT ,
 .Fn SYSCTL_ADD_LONG ,
 .Fn SYSCTL_ADD_NODE ,
@@ -582,6 +687,8 @@ Dynamic nodes are created using one of the
 .Fn SYSCTL_ADD_S16 ,
 .Fn SYSCTL_ADD_S32 ,
 .Fn SYSCTL_ADD_S64 ,
+.Fn SYSCTL_ADD_SBINTIME_MSEC ,
+.Fn SYSCTL_ADD_SBINTIME_USEC ,
 .Fn SYSCTL_ADD_STRING ,
 .Fn SYSCTL_ADD_STRUCT ,
 .Fn SYSCTL_ADD_U8 ,
@@ -591,8 +698,10 @@ Dynamic nodes are created using one of the
 .Fn SYSCTL_ADD_UAUTO ,
 .Fn SYSCTL_ADD_UINT ,
 .Fn SYSCTL_ADD_ULONG ,
+.Fn SYSCTL_ADD_UQUAD ,
+.Fn SYSCTL_ADD_UMA_CUR
 or
-.Fn SYSCTL_UQUAD
+.Fn SYSCTL_ADD_UMA_MAX
 functions.
 See
 .Xr sysctl_remove_oid 9

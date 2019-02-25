@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
@@ -62,10 +63,22 @@ static struct ofw_compat_data compat_data[] = {
 SPIBUS_PNP_INFO(compat_data);
 #endif
 
+/* This is the information returned by the MANUFACTURER_ID command. */
+struct at45d_mfg_info {
+	uint32_t	jedec_id; /* Mfg ID, DevId1, DevId2, ExtLen */
+	uint16_t	ext_id;   /* ExtId1, ExtId2 */
+};
+
+/*
+ * This is an entry in our table of metadata describing the chips.  We match on
+ * both jedec id and extended id info returned by the MANUFACTURER_ID command.
+ */
 struct at45d_flash_ident
 {
 	const char	*name;
 	uint32_t	jedec;
+	uint16_t	extid;
+	uint16_t	extmask;
 	uint16_t	pagecount;
 	uint16_t	pageoffset;
 	uint16_t	pagesize;
@@ -111,7 +124,7 @@ static void at45d_task(void *arg);
 
 /* helper routines */
 static void at45d_delayed_attach(void *xsc);
-static int at45d_get_mfg_info(device_t dev, uint8_t *resp);
+static int at45d_get_mfg_info(device_t dev, struct at45d_mfg_info *resp);
 static int at45d_get_status(device_t dev, uint8_t *status);
 static int at45d_wait_ready(device_t dev, uint8_t *status);
 
@@ -123,19 +136,29 @@ static int at45d_wait_ready(device_t dev, uint8_t *status);
 #define	CONTINUOUS_ARRAY_READ		0xe8
 
 /*
+ * Metadata for supported chips.
+ *
+ * The jedec id in this table includes the extended id length byte.  A match is
+ * based on both jedec id and extended id matching.  The chip's extended id (not
+ * present in most chips) is ANDed with ExtMask and the result is compared to
+ * ExtId.  If a chip only returns 1 ext id byte it will be in the upper 8 bits
+ * of ExtId in this table.
+ *
  * A sectorsize2n != 0 is used to indicate that a device optionally supports
  * 2^N byte pages.  If support for the latter is enabled, the sector offset
  * has to be reduced by one.
  */
 static const struct at45d_flash_ident at45d_flash_devices[] = {
-	{ "AT45DB011B", 0x1f2200, 512, 9, 264, 256 },
-	{ "AT45DB021B", 0x1f2300, 1024, 9, 264, 256 },
-	{ "AT45DB041x", 0x1f2400, 2028, 9, 264, 256 },
-	{ "AT45DB081B", 0x1f2500, 4096, 9, 264, 256 },
-	{ "AT45DB161x", 0x1f2600, 4096, 10, 528, 512 },
-	{ "AT45DB321x", 0x1f2700, 8192, 10, 528, 0 },
-	{ "AT45DB321x", 0x1f2701, 8192, 10, 528, 512 },
-	{ "AT45DB642x", 0x1f2800, 8192, 11, 1056, 1024 }
+	/* Part Name    Jedec ID    ExtId   ExtMask PgCnt Offs PgSz PgSz2n */
+	{ "AT45DB011B", 0x1f220000, 0x0000, 0x0000,   512,  9,  264,  256 },
+	{ "AT45DB021B", 0x1f230000, 0x0000, 0x0000,  1024,  9,  264,  256 },
+	{ "AT45DB041x", 0x1f240000, 0x0000, 0x0000,  2028,  9,  264,  256 },
+	{ "AT45DB081B", 0x1f250000, 0x0000, 0x0000,  4096,  9,  264,  256 },
+	{ "AT45DB161x", 0x1f260000, 0x0000, 0x0000,  4096, 10,  528,  512 },
+	{ "AT45DB321x", 0x1f270000, 0x0000, 0x0000,  8192, 10,  528,    0 },
+	{ "AT45DB321x", 0x1f270100, 0x0000, 0x0000,  8192, 10,  528,  512 },
+	{ "AT45DB641E", 0x1f280001, 0x0000, 0xff00, 32768,  9,  264,  256 },
+	{ "AT45DB642x", 0x1f280000, 0x0000, 0x0000,  8192, 11, 1056, 1024 },
 };
 
 static int
@@ -159,7 +182,7 @@ at45d_get_status(device_t dev, uint8_t *status)
 }
 
 static int
-at45d_get_mfg_info(device_t dev, uint8_t *resp)
+at45d_get_mfg_info(device_t dev, struct at45d_mfg_info *resp)
 {
 	uint8_t rxBuf[8], txBuf[8];
 	struct spi_command cmd;
@@ -172,11 +195,14 @@ at45d_get_mfg_info(device_t dev, uint8_t *resp)
 	txBuf[0] = MANUFACTURER_ID;
 	cmd.tx_cmd = &txBuf;
 	cmd.rx_cmd = &rxBuf;
-	cmd.tx_cmd_sz = cmd.rx_cmd_sz = 5;
+	cmd.tx_cmd_sz = cmd.rx_cmd_sz = 7;
 	err = SPIBUS_TRANSFER(device_get_parent(dev), dev, &cmd);
 	if (err)
 		return (err);
-	memcpy(resp, rxBuf + 1, 4);
+
+	resp->jedec_id = be32dec(rxBuf + 1);
+	resp->ext_id   = be16dec(rxBuf + 5);
+
 	return (0);
 }
 
@@ -268,11 +294,12 @@ static void
 at45d_delayed_attach(void *xsc)
 {
 	struct at45d_softc *sc;
+	struct at45d_mfg_info mfginfo;
 	const struct at45d_flash_ident *ident;
 	u_int i;
 	uint32_t jedec;
 	uint16_t pagesize;
-	uint8_t buf[4], status;
+	uint8_t status;
 
 	sc = xsc;
 	ident = NULL;
@@ -282,19 +309,18 @@ at45d_delayed_attach(void *xsc)
 		device_printf(sc->dev, "Error waiting for device-ready.\n");
 		return;
 	}
-	if (at45d_get_mfg_info(sc->dev, buf) != 0) {
+	if (at45d_get_mfg_info(sc->dev, &mfginfo) != 0) {
 		device_printf(sc->dev, "Failed to get ID.\n");
 		return;
 	}
-
-	jedec = buf[0] << 16 | buf[1] << 8 | buf[2];
 	for (i = 0; i < nitems(at45d_flash_devices); i++) {
-		if (at45d_flash_devices[i].jedec == jedec) {
-			ident = &at45d_flash_devices[i];
+		ident = &at45d_flash_devices[i];
+		if (mfginfo.jedec_id == ident->jedec && 
+		    (mfginfo.ext_id & ident->extmask) == ident->extid) {
 			break;
 		}
 	}
-	if (ident == NULL) {
+	if (i == nitems(at45d_flash_devices)) {
 		device_printf(sc->dev, "JEDEC 0x%x not in list.\n", jedec);
 		return;
 	}
@@ -312,18 +338,20 @@ at45d_delayed_attach(void *xsc)
 	sc->disk->d_open = at45d_open;
 	sc->disk->d_close = at45d_close;
 	sc->disk->d_strategy = at45d_strategy;
-	sc->disk->d_name = "flash/spi";
+	sc->disk->d_name = "flash/at45d";
 	sc->disk->d_drv1 = sc;
 	sc->disk->d_maxsize = DFLTPHYS;
 	sc->disk->d_sectorsize = pagesize;
 	sc->disk->d_mediasize = pagesize * ident->pagecount;
 	sc->disk->d_unit = device_get_unit(sc->dev);
 	disk_create(sc->disk, DISK_VERSION);
+	disk_add_alias(sc->disk, "flash/spi");
 	bioq_init(&sc->bio_queue);
 	kproc_create(&at45d_task, sc, &sc->p, 0, 0, "task: at45d flash");
 	sc->taskstate = TSTATE_RUNNING;
-	device_printf(sc->dev, "%s, %d bytes per page, %d pages\n",
-	    ident->name, pagesize, ident->pagecount);
+	device_printf(sc->dev, "%s, %d bytes per page, %d pages; %d KBytes\n",
+	    ident->name, pagesize, ident->pagecount,
+	    (pagesize * ident->pagecount) / 1024);
 }
 
 static int
