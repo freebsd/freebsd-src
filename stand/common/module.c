@@ -104,6 +104,8 @@ command_load(int argc, char *argv[])
 {
     struct preloaded_file *fp;
     char	*typestr;
+    char	*prefix;
+    char	*skip;
     int		dofile, dokld, ch, error;
 
     dokld = dofile = 0;
@@ -114,10 +116,17 @@ command_load(int argc, char *argv[])
 	command_errmsg = "no filename specified";
 	return (CMD_CRIT);
     }
-    while ((ch = getopt(argc, argv, "kt:")) != -1) {
+    prefix = skip = NULL;
+    while ((ch = getopt(argc, argv, "kp:s:t:")) != -1) {
 	switch(ch) {
 	case 'k':
 	    dokld = 1;
+	    break;
+	case 'p':
+	    prefix = optarg;
+	    break;
+	case 's':
+	    skip = optarg;
 	    break;
 	case 't':
 	    typestr = optarg;
@@ -140,6 +149,12 @@ command_load(int argc, char *argv[])
 	    command_errmsg = "invalid load type";
 	    return (CMD_CRIT);
 	}
+
+#ifdef LOADER_VERIEXEC
+	if (strncmp(typestr, "manifest", 8) == 0) {
+	    return (load_manifest(argv[1], prefix, skip, NULL));
+	}
+#endif
 
 	fp = file_findfile(argv[1], typestr);
 	if (fp) {
@@ -434,6 +449,15 @@ file_loadraw(const char *fname, char *type, int insert)
 	free(name);
 	return(NULL);
     }
+
+#ifdef LOADER_VERIEXEC
+    if (verify_file(fd, name, 0, VE_MUST) < 0) {
+	sprintf(command_errbuf, "can't verify '%s'", name);
+	free(name);
+	close(fd);
+	return(NULL);
+    }
+#endif
 
     if (archsw.arch_loadaddr != NULL)
 	loadaddr = archsw.arch_loadaddr(LOAD_RAW, name, loadaddr);
