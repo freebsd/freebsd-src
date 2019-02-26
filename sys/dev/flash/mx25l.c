@@ -686,5 +686,6 @@ static driver_t mx25l_driver = {
 DRIVER_MODULE(mx25l, spibus, mx25l_driver, mx25l_devclass, 0, 0);
 MODULE_DEPEND(mx25l, spibus, 1, 1, 1);
 #ifdef	FDT
+MODULE_DEPEND(mx25l, fdt_slicer, 1, 1, 1);
 SPIBUS_PNP_INFO(compat_data);
 #endif
