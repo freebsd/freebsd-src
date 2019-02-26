@@ -1046,10 +1046,6 @@ ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num)
 		    "RX buffer - next to use: %d", next_to_use);
 
 		req_id = rx_ring->free_rx_ids[next_to_use];
-		rc = validate_rx_req_id(rx_ring, req_id);
-		if (unlikely(rc != 0))
-			break;
-
 		rx_info = &rx_ring->rx_buffer_info[req_id];
 
 		rc = ena_alloc_rx_mbuf(adapter, rx_ring, rx_info);
@@ -1472,20 +1468,23 @@ ena_rx_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_buf_info *ena_bufs,
 	struct ena_rx_buffer *rx_info;
 	struct ena_adapter *adapter;
 	unsigned int descs = ena_rx_ctx->descs;
+	int rc;
 	uint16_t ntc, len, req_id, buf = 0;
 
 	ntc = *next_to_clean;
 	adapter = rx_ring->adapter;
-	rx_info = &rx_ring->rx_buffer_info[ntc];
 
+	len = ena_bufs[buf].len;
+	req_id = ena_bufs[buf].req_id;
+	rc = validate_rx_req_id(rx_ring, req_id);
+	if (unlikely(rc != 0))
+		return (NULL);
+
+	rx_info = &rx_ring->rx_buffer_info[req_id];
 	if (unlikely(rx_info->mbuf == NULL)) {
 		device_printf(adapter->pdev, "NULL mbuf in rx_info");
 		return (NULL);
 	}
-
-	len = ena_bufs[buf].len;
-	req_id = ena_bufs[buf].req_id;
-	rx_info = &rx_ring->rx_buffer_info[req_id];
 
 	ena_trace(ENA_DBG | ENA_RXPTH, "rx_info %p, mbuf %p, paddr %jx",
 	    rx_info, rx_info->mbuf, (uintmax_t)rx_info->ena_buf.paddr);
@@ -1517,6 +1516,16 @@ ena_rx_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_buf_info *ena_bufs,
 		++buf;
 		len = ena_bufs[buf].len;
 		req_id = ena_bufs[buf].req_id;
+		rc = validate_rx_req_id(rx_ring, req_id);
+		if (unlikely(rc != 0)) {
+			/*
+			 * If the req_id is invalid, then the device will be
+			 * reset. In that case we must free all mbufs that
+			 * were already gathered.
+			 */
+			m_freem(mbuf);
+			return (NULL);
+		}
 		rx_info = &rx_ring->rx_buffer_info[req_id];
 
 		if (unlikely(rx_info->mbuf == NULL)) {
