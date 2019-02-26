@@ -651,6 +651,9 @@ typedef struct sendflags {
 
 	/* compressed WRITE records are permitted */
 	boolean_t compress;
+
+	/* show progress as process title(ie. -V) */
+	boolean_t progressastitle;
 } sendflags_t;
 
 typedef boolean_t (snapfilter_cb_t)(zfs_handle_t *, void *);
