@@ -25,6 +25,7 @@ options 	AR71XX_ENV_UBOOT
 options 	BOOTVERBOSE
 
 # GEOM modules
+device		xz
 options		GEOM_UZIP
 device		geom_map	# to get access to the SPI flash partitions
 
