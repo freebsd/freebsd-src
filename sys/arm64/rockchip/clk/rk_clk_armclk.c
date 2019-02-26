@@ -72,7 +72,10 @@ struct rk_clk_armclk_sc {
 #define	DEVICE_UNLOCK(_clk)						\
 	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
-#define	RK_ARMCLK_WRITE_MASK	0xFFFF0000
+#define	RK_ARMCLK_WRITE_MASK_SHIFT	16
+
+/* #define	dprintf(format, arg...)	printf("%s:(%s)" format, __func__, clknode_get_name(clk), arg) */
+#define	dprintf(format, arg...)
 
 static int
 rk_clk_armclk_init(struct clknode *clk, device_t dev)
@@ -98,14 +101,15 @@ static int
 rk_clk_armclk_set_mux(struct clknode *clk, int index)
 {
 	struct rk_clk_armclk_sc *sc;
-	uint32_t val;
+	uint32_t val = 0;
 
 	sc = clknode_get_softc(clk);
 
+	dprintf("Set mux to %d\n", index);
 	DEVICE_LOCK(clk);
-	READ4(clk, sc->muxdiv_offset, &val);
-	val &= ~(sc->mux_mask >> sc->mux_shift);
-	val |= index << sc->mux_shift | RK_ARMCLK_WRITE_MASK;
+	val |= index << sc->mux_shift;
+	val |= sc->mux_mask << RK_ARMCLK_WRITE_MASK_SHIFT;
+	dprintf("Write: muxdiv_offset=%x, val=%x\n", sc->muxdiv_offset, val);
 	WRITE4(clk, sc->muxdiv_offset, val);
 	DEVICE_UNLOCK(clk);
 
@@ -123,10 +127,12 @@ rk_clk_armclk_recalc(struct clknode *clk, uint64_t *freq)
 	DEVICE_LOCK(clk);
 
 	READ4(clk, sc->muxdiv_offset, &reg);
+	dprintf("Read: muxdiv_offset=%x, val=%x\n", sc->muxdiv_offset, reg);
 
 	DEVICE_UNLOCK(clk);
 
 	div = ((reg & sc->div_mask) >> sc->div_shift) + 1;
+	dprintf("parent_freq=%lu, div=%u\n", *freq, div);
 
 	*freq = *freq / div;
 
@@ -141,14 +147,14 @@ rk_clk_armclk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	struct clknode *p_main;
 	const char **p_names;
 	uint64_t best = 0, best_p = 0;
-	uint32_t div = 0, val;
+	uint32_t div = 0, val = 0;
 	int err, i, rate = 0;
 
 	sc = clknode_get_softc(clk);
 
+	dprintf("Finding best parent/div for target freq of %lu\n", *fout);
 	p_names = clknode_get_parent_names(clk);
 	p_main = clknode_find_by_name(p_names[sc->main_parent]);
-	clknode_set_parent_by_idx(clk, sc->main_parent);
 
 	for (i = 0; i < sc->nrates; i++) {
 		if (sc->rates[i].freq == *fout) {
@@ -156,6 +162,10 @@ rk_clk_armclk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 			div = sc->rates[i].div;
 			best_p = best * div;
 			rate = i;
+			dprintf("Best parent %s (%d) with best freq at %lu\n",
+			    clknode_get_name(p_main),
+			    sc->main_parent,
+			    best);
 			break;
 		}
 	}
@@ -169,17 +179,22 @@ rk_clk_armclk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 		return (0);
 	}
 
+	dprintf("Changing parent (%s) freq to %lu\n", clknode_get_name(p_main), best_p);
 	err = clknode_set_freq(p_main, best_p, 0, 1);
 	if (err != 0)
 		printf("Cannot set %s to %lu\n",
 		    clknode_get_name(p_main),
 		    best_p);
 
+	clknode_set_parent_by_idx(clk, sc->main_parent);
+
+	clknode_get_freq(p_main, &best_p);
+	dprintf("main parent freq at %lu\n", best_p);
 	DEVICE_LOCK(clk);
-	READ4(clk, sc->muxdiv_offset, &val);
-	val &= ~sc->div_mask;
 	val |= (div - 1) << sc->div_shift;
-	WRITE4(clk, sc->muxdiv_offset, val | RK_CLK_ARMCLK_MASK);
+	val |= sc->div_mask << RK_ARMCLK_WRITE_MASK_SHIFT;
+	dprintf("Write: muxdiv_offset=%x, val=%x\n", sc->muxdiv_offset, val);
+	WRITE4(clk, sc->muxdiv_offset, val);
 	DEVICE_UNLOCK(clk);
 
 	*fout = best;
