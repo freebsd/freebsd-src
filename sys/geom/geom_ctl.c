@@ -137,6 +137,12 @@ gctl_copyin(struct gctl_req *req)
 	char *p;
 	u_int i;
 
+	if (req->narg > GEOM_CTL_ARG_MAX) {
+		gctl_error(req, "too many arguments");
+		req->arg = NULL;
+		return;
+	}
+
 	ap = geom_alloc_copyin(req, req->arg, req->narg * sizeof(*ap));
 	if (ap == NULL) {
 		gctl_error(req, "bad control request");
