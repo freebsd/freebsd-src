@@ -191,13 +191,13 @@ static struct rk_pinctrl_bank rk3328_iomux_bank[] = {
 		.bank_num = 3,
 		.subbank_num = 2,
 		.offset = 0x48,
-		.nbits = 3,
+		.nbits = 2,
 	},
 	{
 		.bank_num = 3,
 		.subbank_num = 3,
 		.offset = 0x4c,
-		.nbits = 3,
+		.nbits = 2,
 	},
 };
 
