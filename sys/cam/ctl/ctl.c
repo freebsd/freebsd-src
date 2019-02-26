@@ -1452,12 +1452,6 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			if (softc->ha_mode != CTL_HA_MODE_XFER)
 				io->io_hdr.flags |= CTL_FLAG_INT_COPY;
 			io->io_hdr.nexus = msg->hdr.nexus;
-#if 0
-			printf("port %u, iid %u, lun %u\n",
-			       io->io_hdr.nexus.targ_port,
-			       io->io_hdr.nexus.initid,
-			       io->io_hdr.nexus.targ_lun);
-#endif
 			io->scsiio.tag_num = msg->scsi.tag_num;
 			io->scsiio.tag_type = msg->scsi.tag_type;
 #ifdef CTL_TIME_IO
@@ -1537,11 +1531,6 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			     msg->dt.cur_sg_entries); i++, j++) {
 				sgl[i].addr = msg->dt.sg_list[j].addr;
 				sgl[i].len = msg->dt.sg_list[j].len;
-
-#if 0
-				printf("%s: DATAMOVE: %p,%lu j=%d, i=%d\n",
-				    __func__, sgl[i].addr, sgl[i].len, j, i);
-#endif
 			}
 
 			/*
@@ -6466,11 +6455,6 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 			 && (subpage == SMS_SUBPAGE_PAGE_0))
 				continue;
 
-#if 0
-			printf("found page %#x len %d\n",
-			       page_index->page_code & SMPH_PC_MASK,
-			       page_index->page_len);
-#endif
 			page_len += page_index->page_len;
 		}
 		break;
@@ -6503,12 +6487,6 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 			 && (subpage != SMS_SUBPAGE_ALL))
 				continue;
 
-#if 0
-			printf("found page %#x len %d\n",
-			       page_index->page_code & SMPH_PC_MASK,
-			       page_index->page_len);
-#endif
-
 			page_len += page_index->page_len;
 		}
 
@@ -6527,10 +6505,6 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 	}
 
 	total_len = header_len + page_len;
-#if 0
-	printf("header_len = %d, page_len = %d, total_len = %d\n",
-	       header_len, page_len, total_len);
-#endif
 
 	ctsio->kern_data_ptr = malloc(total_len, M_CTL, M_WAITOK | M_ZERO);
 	ctsio->kern_sg_entries = 0;
@@ -8218,10 +8192,6 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 	case SPRO_REGISTER:
 	case SPRO_REG_IGNO: {
 
-#if 0
-		printf("Registration received\n");
-#endif
-
 		/*
 		 * We don't support any of these options, as we report in
 		 * the read capabilities request (see
@@ -8334,9 +8304,6 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 		break;
 	}
 	case SPRO_RESERVE:
-#if 0
-                printf("Reserve executed type %d\n", type);
-#endif
 		mtx_lock(&lun->lun_lock);
 		if (lun->flags & CTL_LUN_PR_RESERVED) {
 			/*
@@ -11898,14 +11865,7 @@ ctl_abort_task(union ctl_io *io)
 	struct ctl_softc *softc = CTL_SOFTC(io);
 	union ctl_io *xio;
 	struct ctl_lun *lun;
-#if 0
-	struct sbuf sb;
-	char printbuf[128];
-#endif
-	int found;
 	uint32_t targ_lun;
-
-	found = 0;
 
 	/*
 	 * Look up the LUN.
@@ -11919,11 +11879,6 @@ ctl_abort_task(union ctl_io *io)
 		return (1);
 	}
 
-#if 0
-	printf("ctl_abort_task: called for lun %lld, tag %d type %d\n",
-	       lun->lun, io->taskio.tag_num, io->taskio.tag_type);
-#endif
-
 	mtx_lock(&lun->lun_lock);
 	mtx_unlock(&softc->ctl_lock);
 	/*
@@ -11935,24 +11890,6 @@ ctl_abort_task(union ctl_io *io)
 	 */
 	for (xio = (union ctl_io *)TAILQ_FIRST(&lun->ooa_queue); xio != NULL;
 	     xio = (union ctl_io *)TAILQ_NEXT(&xio->io_hdr, ooa_links)) {
-#if 0
-		sbuf_new(&sb, printbuf, sizeof(printbuf), SBUF_FIXEDLEN);
-
-		sbuf_printf(&sb, "LUN %lld tag %d type %d%s%s%s%s: ",
-			    lun->lun, xio->scsiio.tag_num,
-			    xio->scsiio.tag_type,
-			    (xio->io_hdr.blocked_links.tqe_prev
-			    == NULL) ? "" : " BLOCKED",
-			    (xio->io_hdr.flags &
-			    CTL_FLAG_DMA_INPROG) ? " DMA" : "",
-			    (xio->io_hdr.flags &
-			    CTL_FLAG_ABORT) ? " ABORT" : "",
-			    (xio->io_hdr.flags &
-			    CTL_FLAG_IS_WAS_ON_RTR ? " RTR" : ""));
-		ctl_scsi_command_string(&xio->scsiio, NULL, &sb);
-		sbuf_finish(&sb);
-		printf("%s\n", sbuf_data(&sb));
-#endif
 
 		if ((xio->io_hdr.nexus.targ_port != io->io_hdr.nexus.targ_port)
 		 || (xio->io_hdr.nexus.initid != io->io_hdr.nexus.initid)
@@ -11970,8 +11907,8 @@ ctl_abort_task(union ctl_io *io)
 #if 0
 		if (((xio->scsiio.tag_type == CTL_TAG_UNTAGGED)
 		  && (io->taskio.tag_type == CTL_TAG_UNTAGGED))
-		 || (xio->scsiio.tag_num == io->taskio.tag_num))
-#endif
+		 || (xio->scsiio.tag_num == io->taskio.tag_num)) {
+#else
 		/*
 		 * XXX KDM we've got problems with FC, because it
 		 * doesn't send down a tag type with aborts.  So we
@@ -11980,8 +11917,8 @@ ctl_abort_task(union ctl_io *io)
 		 * Need to figure that out!!
 		 */
 		if (xio->scsiio.tag_num == io->taskio.tag_num) {
+#endif
 			xio->io_hdr.flags |= CTL_FLAG_ABORT;
-			found = 1;
 			if ((io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC) == 0 &&
 			    !(lun->flags & CTL_LUN_PRIMARY_SC)) {
 				union ctl_ha_msg msg_info;
@@ -11993,34 +11930,12 @@ ctl_abort_task(union ctl_io *io)
 				msg_info.hdr.msg_type = CTL_MSG_MANAGE_TASKS;
 				msg_info.hdr.original_sc = NULL;
 				msg_info.hdr.serializing_sc = NULL;
-#if 0
-				printf("Sent Abort to other side\n");
-#endif
 				ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg_info,
 				    sizeof(msg_info.task), M_NOWAIT);
 			}
-#if 0
-			printf("ctl_abort_task: found I/O to abort\n");
-#endif
 		}
 	}
 	mtx_unlock(&lun->lun_lock);
-
-	if (found == 0) {
-		/*
-		 * This isn't really an error.  It's entirely possible for
-		 * the abort and command completion to cross on the wire.
-		 * This is more of an informative/diagnostic error.
-		 */
-#if 0
-		printf("ctl_abort_task: ABORT sent for nonexistent I/O: "
-		       "%u:%u:%u tag %d type %d\n",
-		       io->io_hdr.nexus.initid,
-		       io->io_hdr.nexus.targ_port,
-		       io->io_hdr.nexus.targ_lun, io->taskio.tag_num,
-		       io->taskio.tag_type);
-#endif
-	}
 	io->taskio.task_status = CTL_TASK_FUNCTION_COMPLETE;
 	return (0);
 }
@@ -12588,11 +12503,6 @@ ctl_datamove_remote_write(union ctl_io *io)
 static int
 ctl_datamove_remote_dm_read_cb(union ctl_io *io)
 {
-#if 0
-	char str[256];
-	char path_str[64];
-	struct sbuf sb;
-#endif
 	uint32_t i;
 
 	for (i = 0; i < io->scsiio.kern_sg_entries; i++)
@@ -12600,23 +12510,6 @@ ctl_datamove_remote_dm_read_cb(union ctl_io *io)
 	free(CTL_RSGL(io), M_CTL);
 	CTL_RSGL(io) = NULL;
 	CTL_LSGL(io) = NULL;
-
-#if 0
-	scsi_path_string(io, path_str, sizeof(path_str));
-	sbuf_new(&sb, str, sizeof(str), SBUF_FIXEDLEN);
-	sbuf_cat(&sb, path_str);
-	scsi_command_string(&io->scsiio, NULL, &sb);
-	sbuf_printf(&sb, "\n");
-	sbuf_cat(&sb, path_str);
-	sbuf_printf(&sb, "Tag: 0x%04x, type %d\n",
-		    io->scsiio.tag_num, io->scsiio.tag_type);
-	sbuf_cat(&sb, path_str);
-	sbuf_printf(&sb, "%s: flags %#x, status %#x\n", __func__,
-		    io->io_hdr.flags, io->io_hdr.status);
-	sbuf_finish(&sb);
-	printk("%s", sbuf_data(&sb));
-#endif
-
 
 	/*
 	 * The read is done, now we need to send status (good or bad) back
@@ -12690,14 +12583,6 @@ ctl_datamove_remote_sgl_setup(union ctl_io *io)
 	 * number of S/G entries is available in rem_sg_entries.
 	 */
 	io->scsiio.kern_sg_entries = i;
-
-#if 0
-	printf("%s: kern_sg_entries = %d\n", __func__,
-	       io->scsiio.kern_sg_entries);
-	for (i = 0; i < io->scsiio.kern_sg_entries; i++)
-		printf("%s: sg[%d] = %p, %lu\n", __func__, i,
-		       local_sglist[i].addr, local_sglist[i].len);
-#endif
 
 	return (retval);
 }
@@ -12811,12 +12696,6 @@ ctl_datamove_remote_xfer(union ctl_io *io, unsigned command,
 
 		if (total_used >= io->scsiio.kern_data_len)
 			rq->callback = callback;
-
-#if 0
-		printf("%s: %s: local %p remote %p size %d\n", __func__,
-		       (command == CTL_HA_DT_CMD_WRITE) ? "WRITE" : "READ",
-		       rq->local, rq->remote, rq->size);
-#endif
 
 		isc_ret = ctl_dt_single(rq);
 		if (isc_ret > CTL_HA_STATUS_SUCCESS)
