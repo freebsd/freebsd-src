@@ -291,30 +291,15 @@ fasttrap_hash_str(const char *p)
 void
 fasttrap_sigtrap(proc_t *p, kthread_t *t, uintptr_t pc)
 {
-#ifdef illumos
-	sigqueue_t *sqp = kmem_zalloc(sizeof (sigqueue_t), KM_SLEEP);
+	ksiginfo_t ksi;
 
-	sqp->sq_info.si_signo = SIGTRAP;
-	sqp->sq_info.si_code = TRAP_DTRACE;
-	sqp->sq_info.si_addr = (caddr_t)pc;
-
-	mutex_enter(&p->p_lock);
-	sigaddqa(p, t, sqp);
-	mutex_exit(&p->p_lock);
-
-	if (t != NULL)
-		aston(t);
-#else
-	ksiginfo_t *ksi = kmem_zalloc(sizeof (ksiginfo_t), KM_SLEEP);
-
-	ksiginfo_init(ksi);
-	ksi->ksi_signo = SIGTRAP;
-	ksi->ksi_code = TRAP_DTRACE;
-	ksi->ksi_addr = (caddr_t)pc;
+	ksiginfo_init(&ksi);
+	ksi.ksi_signo = SIGTRAP;
+	ksi.ksi_code = TRAP_DTRACE;
+	ksi.ksi_addr = (caddr_t)pc;
 	PROC_LOCK(p);
-	(void) tdsendsignal(p, t, SIGTRAP, ksi);
+	(void)tdsendsignal(p, t, SIGTRAP, &ksi);
 	PROC_UNLOCK(p);
-#endif
 }
 
 #ifndef illumos
