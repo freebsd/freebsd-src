@@ -35,7 +35,6 @@
 #include <contrib/xz-embedded/linux/include/linux/xz.h>
 #include "xz_malloc.h"
 
-#define	XZ_DEC_SINGLE	1
 #define	XZ_PREBOOT	1
 
 #undef	XZ_EXTERN

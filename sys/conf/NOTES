@@ -3004,3 +3004,5 @@ device		n25q		#
 device		spigen		# Generic access to SPI devices from userland.
 # Enable legacy /dev/spigenN name aliases for /dev/spigenX.Y devices.
 options 	SPIGEN_LEGACY_CDEVNAME # legacy device names for spigen
+
+device		xz		# xz_embedded LZMA de-compression library
