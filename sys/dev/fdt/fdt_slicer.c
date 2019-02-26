@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/slicer.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -131,10 +132,37 @@ fdt_slicer_init(void)
 	   FALSE);
 }
 
+static void
+fdt_slicer_cleanup(void)
+{
+
+	flash_register_slicer(NULL, FLASH_SLICES_TYPE_NAND, true);
+	flash_register_slicer(NULL, FLASH_SLICES_TYPE_CFI, true);
+	flash_register_slicer(NULL, FLASH_SLICES_TYPE_SPI, true);
+}
+
 /*
  * Must be initialized after GEOM classes (SI_SUB_DRIVERS/SI_ORDER_FIRST),
  * i. e. after g_init() is called, due to the use of the GEOM topology_lock
  * in flash_register_slicer().  However, must be before SI_SUB_CONFIGURE.
  */
-SYSINIT(fdt_slicer_rootconf, SI_SUB_DRIVERS, SI_ORDER_SECOND, fdt_slicer_init,
-    NULL);
+SYSINIT(fdt_slicer, SI_SUB_DRIVERS, SI_ORDER_SECOND, fdt_slicer_init, NULL);
+SYSUNINIT(fdt_slicer, SI_SUB_DRIVERS, SI_ORDER_SECOND, fdt_slicer_cleanup, NULL);
+
+static int
+mod_handler(module_t mod, int type, void *data)
+{
+
+	/*
+	 * Nothing to do here: the SYSINIT/SYSUNINIT defined above run
+	 * automatically at module load/unload time.
+	 */
+	return (0);
+}
+
+static moduledata_t fdt_slicer_mod = {
+	"fdt_slicer", mod_handler, NULL
+};
+
+DECLARE_MODULE(fdt_slicer, fdt_slicer_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
+MODULE_VERSION(fdt_slicer, 1);
