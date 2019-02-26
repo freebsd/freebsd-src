@@ -65,24 +65,30 @@ struct rk_clk_pll_sc {
 #define	DEVICE_UNLOCK(_clk)					\
 	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
+#define	RK_CLK_PLL_MASK_SHIFT	16
+
+/* #define	dprintf(format, arg...)	printf("%s:(%s)" format, __func__, clknode_get_name(clk), arg) */
+#define	dprintf(format, arg...)
+
 static int
 rk_clk_pll_set_gate(struct clknode *clk, bool enable)
 {
 	struct rk_clk_pll_sc *sc;
-	uint32_t val;
+	uint32_t val = 0;
 
 	sc = clknode_get_softc(clk);
 
 	if ((sc->flags & RK_CLK_PLL_HAVE_GATE) == 0)
 		return (0);
 
-	DEVICE_LOCK(clk);
-	READ4(clk, sc->gate_offset, &val);
-	if (enable)
-		val &= ~(1 << sc->gate_shift);
-	else
+	dprintf("%sabling gate\n", enable ? "En" : "Dis");
+	if (!enable)
 		val |= 1 << sc->gate_shift;
-	WRITE4(clk, sc->gate_offset, val | RK_CLK_PLL_MASK);
+	dprintf("sc->gate_shift: %x\n", sc->gate_shift);
+	val |= (1 << sc->gate_shift) << RK_CLK_PLL_MASK_SHIFT;
+	dprintf("Write: gate_offset=%x, val=%x\n", sc->gate_offset, val);
+	DEVICE_LOCK(clk);
+	WRITE4(clk, sc->gate_offset, val);
 	DEVICE_UNLOCK(clk);
 
 	return (0);
@@ -113,8 +119,6 @@ rk_clk_pll_set_gate(struct clknode *clk, bool enable)
 #define	RK3328_CLK_PLL_FRAC_MASK	0xFFFFFF
 
 #define	RK3328_CLK_PLL_LOCK_MASK	0x400
-
-#define	RK3328_CLK_PLL_WRITE_MASK	0xFFFF0000
 
 static int
 rk3328_clk_pll_init(struct clknode *clk, device_t dev)
@@ -202,31 +206,39 @@ rk3328_clk_pll_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 
 	DEVICE_LOCK(clk);
 
+	/* Setting to slow mode during frequency change */
+	reg = sc->mode_val << 16;
+	dprintf("Set PLL_MODEREG to %x\n", reg);
+	WRITE4(clk, sc->mode_reg, reg);
+
 	/* Setting postdiv1 and fbdiv */
-	READ4(clk, sc->base_offset, &reg);
-	reg &= ~(RK3328_CLK_PLL_POSTDIV1_MASK | RK3328_CLK_PLL_FBDIV_MASK);
-	reg |= rates->postdiv1 << RK3328_CLK_PLL_POSTDIV1_SHIFT;
-	reg |= rates->fbdiv << RK3328_CLK_PLL_FBDIV_SHIFT;
-	WRITE4(clk, sc->base_offset, reg | RK3328_CLK_PLL_WRITE_MASK);
+	reg = (rates->postdiv1 << RK3328_CLK_PLL_POSTDIV1_SHIFT) |
+		(rates->fbdiv << RK3328_CLK_PLL_FBDIV_SHIFT);
+	reg |= (RK3328_CLK_PLL_POSTDIV1_MASK | RK3328_CLK_PLL_FBDIV_MASK) << 16;
+	dprintf("Set PLL_CON0 to %x\n", reg);
+	WRITE4(clk, sc->base_offset, reg);
 
 	/* Setting dsmpd, postdiv2 and refdiv */
 	READ4(clk, sc->base_offset + 0x4, &reg);
 	reg &= ~(RK3328_CLK_PLL_DSMPD_MASK | RK3328_CLK_PLL_POSTDIV2_MASK |
 	    RK3328_CLK_PLL_REFDIV_MASK);
-	reg |= rates->dsmpd << RK3328_CLK_PLL_DSMPD_SHIFT;
-	reg |= rates->postdiv2 << RK3328_CLK_PLL_POSTDIV2_SHIFT;
-	reg |= rates->refdiv << RK3328_CLK_PLL_REFDIV_SHIFT;
-	WRITE4(clk, sc->base_offset + 0x4, reg | RK3328_CLK_PLL_WRITE_MASK);
+	reg = (rates->dsmpd << RK3328_CLK_PLL_DSMPD_SHIFT) |
+		(rates->postdiv2 << RK3328_CLK_PLL_POSTDIV2_SHIFT) |
+		(rates->refdiv << RK3328_CLK_PLL_REFDIV_SHIFT);
+	reg |= (RK3328_CLK_PLL_DSMPD_MASK | RK3328_CLK_PLL_POSTDIV2_MASK | RK3328_CLK_PLL_REFDIV_MASK) << 16;
+	dprintf("Set PLL_CON1 to %x\n", reg);
+	WRITE4(clk, sc->base_offset + 0x4, reg);
 
 	/* Setting frac */
 	READ4(clk, sc->base_offset + 0x8, &reg);
 	reg &= ~RK3328_CLK_PLL_FRAC_MASK;
 	reg |= rates->frac << RK3328_CLK_PLL_FRAC_SHIFT;
+	dprintf("Set PLL_CON2 to %x\n", reg);
 	WRITE4(clk, sc->base_offset + 0x8, reg);
 
 	/* Setting to normal mode */
-	READ4(clk, sc->mode_reg, &reg);
-	reg |= sc->mode_val << 16 | sc->mode_val;
+	reg = sc->mode_val << 16 | sc->mode_val;
+	dprintf("Set PLL_MODEREG to %x\n", reg);
 	WRITE4(clk, sc->mode_reg, reg);
 
 	/* Reading lock */
