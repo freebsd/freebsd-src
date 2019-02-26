@@ -424,6 +424,11 @@ rk3399_clk_pll_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 
 	DEVICE_LOCK(clk);
 
+	/* Setting to slow mode during frequency change */
+	reg = RK3399_CLK_PLL_MODE_SLOW << RK3399_CLK_PLL_MODE_SHIFT;
+	reg |= RK3399_CLK_PLL_MODE_MASK << RK_CLK_PLL_MASK_SHIFT;
+	WRITE4(clk, sc->mode_reg, reg);
+
 	/* Setting fbdiv */
 	READ4(clk, sc->base_offset, &reg);
 	reg &= ~RK3399_CLK_PLL_FBDIV_MASK;
