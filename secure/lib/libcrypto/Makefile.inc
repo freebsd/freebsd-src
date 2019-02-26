@@ -3,8 +3,8 @@
 .include <bsd.own.mk>
 
 # OpenSSL version used for manual page generation
-OPENSSL_VER=	1.0.2q
-OPENSSL_DATE=	2018-11-20
+OPENSSL_VER=	1.0.2r
+OPENSSL_DATE=	2019-02-26
 
 LCRYPTO_SRC=	${SRCTOP}/crypto/openssl
 LCRYPTO_DOC=	${LCRYPTO_SRC}/doc
@@ -64,9 +64,6 @@ MANDIR=	${SHAREDIR}/openssl/man/man
 
 .if defined(LIB)
 _docs=	${LIB}
-.if ${LIB} == crypto
-_docs+=	man3
-.endif
 _skip=	SSLeay_version des_modes
 _sec=	3
 .else
