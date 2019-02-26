@@ -107,16 +107,16 @@ in_status(int s __unused, const struct ifaddrs *ifa)
 			if (cidr == 0)
 				break;
 		}
-		printf("/%d ", cidr);
+		printf("/%d", cidr);
 	} else if (f_inet != NULL && strcmp(f_inet, "dotted") == 0)
-		printf(" netmask %s ", inet_ntoa(sin->sin_addr));
+		printf(" netmask %s", inet_ntoa(sin->sin_addr));
 	else
-		printf(" netmask 0x%lx ", (unsigned long)ntohl(sin->sin_addr.s_addr));
+		printf(" netmask 0x%lx", (unsigned long)ntohl(sin->sin_addr.s_addr));
 
 	if (ifa->ifa_flags & IFF_BROADCAST) {
 		sin = (struct sockaddr_in *)ifa->ifa_broadaddr;
 		if (sin != NULL && sin->sin_addr.s_addr != 0)
-			printf("broadcast %s ", inet_ntoa(sin->sin_addr));
+			printf(" broadcast %s", inet_ntoa(sin->sin_addr));
 	}
 
 	print_vhid(ifa, " ");
