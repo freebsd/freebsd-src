@@ -3801,7 +3801,7 @@ validate:
 		if ((origpte & PG_A) != 0)
 			pmap_invalidate_page_int(pmap, va);
 	} else
-		pte_store(pte, newpte);
+		pte_store_zero(pte, newpte);
 
 unchanged:
 
@@ -4104,7 +4104,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 #endif
 	if (pmap != kernel_pmap)
 		newpte |= PG_U;
-	pte_store(pte, newpte);
+	pte_store_zero(pte, newpte);
 	sched_unpin();
 	return (mpte);
 }
