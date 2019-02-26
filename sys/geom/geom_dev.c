@@ -592,8 +592,10 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		alloc_size = 0;
 
 		if (zone_args->zone_cmd == DISK_ZONE_REPORT_ZONES) {
-
 			rep = &zone_args->zone_params.report;
+#define	MAXENTRIES	(MAXPHYS / sizeof(struct disk_zone_rep_entry))
+			if (rep->entries_allocated > MAXENTRIES)
+				rep->entries_allocated = MAXENTRIES;
 			alloc_size = rep->entries_allocated *
 			    sizeof(struct disk_zone_rep_entry);
 			if (alloc_size != 0)
@@ -603,15 +605,11 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 			rep->entries = new_entries;
 		}
 		error = g_io_zonecmd(zone_args, cp);
-		if ((zone_args->zone_cmd == DISK_ZONE_REPORT_ZONES)
-		 && (alloc_size != 0)
-		 && (error == 0)) {
+		if (zone_args->zone_cmd == DISK_ZONE_REPORT_ZONES &&
+		    alloc_size != 0 && error == 0)
 			error = copyout(new_entries, old_entries, alloc_size);
-		}
-		if ((old_entries != NULL)
-		 && (rep != NULL))
+		if (old_entries != NULL && rep != NULL)
 			rep->entries = old_entries;
-
 		if (new_entries != NULL)
 			g_free(new_entries);
 		break;
