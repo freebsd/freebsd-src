@@ -210,6 +210,21 @@ _LIBRARIES+= \
 		osmvendor
 .endif
 
+.if ${MK_BEARSSL} == "yes"
+_INTERNALLIBS+= \
+		bearssl \
+		secureboot \
+
+LIBBEARSSL?=	${LIBBEARSSLDIR}/libbearssl${PIE_SUFFIX}.a
+LIBSECUREBOOT?=	${LIBSECUREBOOTDIR}/libsecureboot${PIE_SUFFIX}.a
+.endif
+
+.if ${MK_VERIEXEC} == "yes"
+_INTERNALLIBS+= veriexec
+
+LIBVERIEXEC?=	${LIBVERIEXECDIR}/libveriexec${PIE_SUFFIX}.a
+.endif
+
 # Each library's LIBADD needs to be duplicated here for static linkage of
 # 2nd+ order consumers.  Auto-generating this would be better.
 _DP_80211=	sbuf bsdxml
