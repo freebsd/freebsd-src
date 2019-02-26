@@ -78,7 +78,8 @@ struct gctl_req {
 
 #define GEOM_CTL	_IOW('G', GCTL_VERSION, struct gctl_req)
 
-#define PATH_GEOM_CTL	"geom.ctl"
+#define GEOM_CTL_ARG_MAX 2048	/* maximum number of parameters */
 
+#define PATH_GEOM_CTL	"geom.ctl"
 
 #endif /* _GEOM_GEOM_CTL_H_ */
