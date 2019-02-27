@@ -51,27 +51,17 @@ static int fill_slices(device_t dev, const char *provider,
 static void fdt_slicer_init(void);
 
 static int
-fill_slices(device_t dev, const char *provider __unused,
-    struct flash_slice *slices, int *slices_num)
+fill_slices_from_node(phandle_t node, struct flash_slice *slices, int *count)
 {
-	char *slice_name;
-	phandle_t node, child;
+	char *label;
+	phandle_t child;
 	u_long base, size;
-	int i;
+	int flags, i;
 	ssize_t nmlen;
 
-	/*
-	 * We assume the caller provides buffer for FLASH_SLICES_MAX_NUM
-	 * flash_slice structures.
-	 */
-	if (slices == NULL) {
-		*slices_num = 0;
-		return (ENOMEM);
-	}
-
 	i = 0;
-	node = ofw_bus_get_node(dev);
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
+		flags = FLASH_SLICES_FLAG_NONE;
 
 		/* Nodes with a compatible property are not slices. */
 		if (OF_hasprop(child, "compatible"))
@@ -95,26 +85,59 @@ fill_slices(device_t dev, const char *provider __unused,
 		}
 
 		/* Retrieve label. */
-		nmlen = OF_getprop_alloc(child, "label", (void **)&slice_name);
+		nmlen = OF_getprop_alloc(child, "label", (void **)&label);
 		if (nmlen <= 0) {
 			/* Use node name if no label defined */
-			nmlen = OF_getprop_alloc(child, "name", 
-			    (void **)&slice_name);
+			nmlen = OF_getprop_alloc(child, "name", (void **)&label);
 			if (nmlen <= 0) {
 				debugf("slice i=%d with no name\n", i);
-				slice_name = NULL;
+				label = NULL;
 			}
 		}
+
+		if (OF_hasprop(child, "read-only"))
+			flags |= FLASH_SLICES_FLAG_RO;
 
 		/* Fill slice entry data. */
 		slices[i].base = base;
 		slices[i].size = size;
-		slices[i].label = slice_name;
+		slices[i].label = label;
+		slices[i].flags = flags;
 		i++;
 	}
 
-	*slices_num = i;
+	*count = i;
 	return (0);
+}
+
+static int
+fill_slices(device_t dev, const char *provider __unused,
+    struct flash_slice *slices, int *slices_num)
+{
+	phandle_t child, node;
+
+	/*
+	 * We assume the caller provides buffer for FLASH_SLICES_MAX_NUM
+	 * flash_slice structures.
+	 */
+	if (slices == NULL) {
+		*slices_num = 0;
+		return (ENOMEM);
+	}
+
+	node = ofw_bus_get_node(dev);
+
+	/*
+	 * If there is a child node whose compatible is "fixed-partitions" then
+	 * we have new-style data where all partitions are the children of that
+	 * node.  Otherwise we have old-style data where all the children of the
+	 * device node are the partitions.
+	 */
+	child = fdt_find_compatible(node, "fixed-partitions", false);
+	if (child == 0)
+		return fill_slices_from_node(node, slices, slices_num);
+	else
+		return fill_slices_from_node(child, slices, slices_num);
 }
 
 static void
