@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20190227: rename seq.h to seqc.h
+OLD_FILES+=usr/include/sys/seq.h
 # 20190222: libifconfig made INTERNALLIB
 OLD_FILES+=usr/lib/libprivateifconfig.a
 OLD_FILES+=usr/lib/libprivateifconfig_p.a
