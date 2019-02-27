@@ -1260,11 +1260,11 @@ mountpoint_cmp(const void *arga, const void *argb)
 		if (*a == '\0')
 			return (-1);
 		if (*b == '\0')
-			return (-1);
+			return (1);
 		if (*a == '/')
 			return (-1);
 		if (*b == '/')
-			return (-1);
+			return (1);
 		return (*a < *b ? -1 : *a > *b);
 	}
 
