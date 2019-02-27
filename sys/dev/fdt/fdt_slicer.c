@@ -73,6 +73,10 @@ fill_slices(device_t dev, const char *provider __unused,
 	node = ofw_bus_get_node(dev);
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
 
+		/* Nodes with a compatible property are not slices. */
+		if (OF_hasprop(child, "compatible"))
+			continue;
+
 		if (i == FLASH_SLICES_MAX_NUM) {
 			debugf("not enough buffer for slice i=%d\n", i);
 			break;
