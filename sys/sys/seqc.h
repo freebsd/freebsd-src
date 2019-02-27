@@ -25,8 +25,8 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS_SEQ_H_
-#define _SYS_SEQ_H_
+#ifndef _SYS_SEQC_H_
+#define _SYS_SEQC_H_
 
 #ifdef _KERNEL
 #include <sys/systm.h>
@@ -34,19 +34,19 @@
 #include <sys/types.h>
 
 /*
- * seq_t may be included in structs visible to userspace
+ * seqc_t may be included in structs visible to userspace
  */
-typedef uint32_t seq_t;
+typedef uint32_t seqc_t;
 
 #ifdef _KERNEL
 
 /*
- * seq allows readers and writers to work with a consistent snapshot. Modifying
+ * seqc allows readers and writers to work with a consistent snapshot. Modifying
  * operations must be enclosed within a transaction delineated by
- * seq_write_beg/seq_write_end. The trick works by having the writer increment
- * the sequence number twice, at the beginning and end of the transaction.
- * The reader detects that the sequence number has not changed between its start
- * and end, and that the sequence number is even, to validate consistency.
+ * seqc_write_beg/seqc_write_end. The trick works by having the writer increment
+ * the seqcuence number twice, at the beginning and end of the transaction.
+ * The reader detects that the seqcuence number has not changed between its start
+ * and end, and that the seqcuence number is even, to validate consistency.
  *
  * Some fencing (both hard fencing and compiler barriers) may be needed,
  * depending on the cpu. Modern AMD cpus provide strong enough guarantees to not
@@ -56,21 +56,21 @@ typedef uint32_t seq_t;
  *
  * writers:
  *     lock_exclusive(&obj->lock);
- *     seq_write_begin(&obj->seq);
+ *     seqc_write_begin(&obj->seqc);
  *     obj->var1 = ...;
  *     obj->var2 = ...;
- *     seq_write_end(&obj->seq);
+ *     seqc_write_end(&obj->seqc);
  *     unlock_exclusive(&obj->lock);
  *
  * readers:
  *    int var1, var2;
- *    seq_t seq;
+ *    seqc_t seqc;
  *
  *    for (;;) {
- *    	      seq = seq_read(&obj->seq);
+ *    	      seqc = seqc_read(&obj->seqc);
  *            var1 = obj->var1;
  *            var2 = obj->var2;
- *            if (seq_consistent(&obj->seq, seq))
+ *            if (seqc_consistent(&obj->seqc, seqc))
  *                   break;
  *    }
  *    .....
@@ -95,39 +95,39 @@ typedef uint32_t seq_t;
 #include <machine/cpu.h>
 
 static __inline bool
-seq_in_modify(seq_t seqp)
+seqc_in_modify(seqc_t seqcp)
 {
 
-	return (seqp & 1);
+	return (seqcp & 1);
 }
 
 static __inline void
-seq_write_begin(seq_t *seqp)
+seqc_write_begin(seqc_t *seqcp)
 {
 
 	critical_enter();
-	MPASS(!seq_in_modify(*seqp));
-	*seqp += 1;
+	MPASS(!seqc_in_modify(*seqcp));
+	*seqcp += 1;
 	atomic_thread_fence_rel();
 }
 
 static __inline void
-seq_write_end(seq_t *seqp)
+seqc_write_end(seqc_t *seqcp)
 {
 
-	atomic_store_rel_int(seqp, *seqp + 1);
-	MPASS(!seq_in_modify(*seqp));
+	atomic_store_rel_int(seqcp, *seqcp + 1);
+	MPASS(!seqc_in_modify(*seqcp));
 	critical_exit();
 }
 
-static __inline seq_t
-seq_load(const seq_t *seqp)
+static __inline seqc_t
+seqc_read(const seqc_t *seqcp)
 {
-	seq_t ret;
+	seqc_t ret;
 
 	for (;;) {
-		ret = atomic_load_acq_int(__DECONST(seq_t *, seqp));
-		if (seq_in_modify(ret)) {
+		ret = atomic_load_acq_int(__DECONST(seqc_t *, seqcp));
+		if (seqc_in_modify(ret)) {
 			cpu_spinwait();
 			continue;
 		}
@@ -137,20 +137,20 @@ seq_load(const seq_t *seqp)
 	return (ret);
 }
 
-static __inline seq_t
-seq_consistent_nomb(const seq_t *seqp, seq_t oldseq)
+static __inline seqc_t
+seqc_consistent_nomb(const seqc_t *seqcp, seqc_t oldseqc)
 {
 
-	return (*seqp == oldseq);
+	return (*seqcp == oldseqc);
 }
 
-static __inline seq_t
-seq_consistent(const seq_t *seqp, seq_t oldseq)
+static __inline seqc_t
+seqc_consistent(const seqc_t *seqcp, seqc_t oldseqc)
 {
 
 	atomic_thread_fence_acq();
-	return (seq_consistent_nomb(seqp, oldseq));
+	return (seqc_consistent_nomb(seqcp, oldseqc));
 }
 
 #endif	/* _KERNEL */
-#endif	/* _SYS_SEQ_H_ */
+#endif	/* _SYS_SEQC_H_ */
