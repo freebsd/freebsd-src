@@ -150,13 +150,11 @@ arm_print_kenv(void)
 static void
 cmdline_set_env(char *cmdline, const char *guard)
 {
-	char *cmdline_next;
-	size_t size, guard_len;
+	size_t guard_len;
 
-	size = strlen(cmdline);
 	/* Skip leading spaces. */
-	for (; isspace(*cmdline) && (size > 0); cmdline++)
-		size--;
+	while (isspace(*cmdline))
+		cmdline++;
 
 	/* Test and remove guard. */
 	if (guard != NULL && guard[0] != '\0') {
@@ -164,10 +162,9 @@ cmdline_set_env(char *cmdline, const char *guard)
 		if (strncasecmp(cmdline, guard, guard_len) != 0)
 			return;
 		cmdline += guard_len;
-		size -= guard_len;
 	}
 
-	boothowto |= boot_parse_cmdline();
+	boothowto |= boot_parse_cmdline(cmdline);
 }
 
 /*
