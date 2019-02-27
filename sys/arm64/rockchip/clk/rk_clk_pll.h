@@ -51,7 +51,7 @@ struct rk_clk_pll_def {
 	uint32_t		gate_shift;
 
 	uint32_t		mode_reg;
-	uint32_t		mode_val;
+	uint32_t		mode_shift;
 
 	uint32_t		flags;
 
