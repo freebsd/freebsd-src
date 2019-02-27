@@ -787,10 +787,8 @@ warnmsg(int priority, const char *func, const char *msg, ...)
 
 	va_start(ap, msg);
 	if (fflag) {
-		if (priority <= log_upto) {
-			(void)vfprintf(stderr, msg, ap);
-			(void)fprintf(stderr, "\n");
-		}
+		if (priority <= log_upto)
+			vwarnx(msg, ap);
 	} else {
 		snprintf(buf, sizeof(buf), "<%s> %s", func, msg);
 		msg = buf;
