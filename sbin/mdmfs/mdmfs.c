@@ -194,6 +194,7 @@ main(int argc, char **argv)
 				usage();
 			mdtype = MD_MALLOC;
 			have_mdtype = true;
+			argappend(&mdconfig_arg, "-o reserve");
 			break;
 		case 'm':
 			argappend(&newfs_arg, "-m %s", optarg);
