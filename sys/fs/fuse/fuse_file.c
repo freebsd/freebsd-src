@@ -58,11 +58,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
-#include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
@@ -74,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 
 #include "fuse.h"
@@ -82,8 +82,13 @@ __FBSDID("$FreeBSD$");
 #include "fuse_ipc.h"
 #include "fuse_node.h"
 
-#define FUSE_DEBUG_MODULE FILE
-#include "fuse_debug.h"
+SDT_PROVIDER_DECLARE(fuse);
+/* 
+ * Fuse trace probe:
+ * arg0: verbosity.  Higher numbers give more verbose messages
+ * arg1: Textual message
+ */
+SDT_PROBE_DEFINE2(fuse, , file, trace, "int", "char*");
 
 static int fuse_fh_count = 0;
 
@@ -102,9 +107,6 @@ fuse_filehandle_open(struct vnode *vp, fufh_type_t fufh_type,
 	int oflags = 0;
 	int op = FUSE_OPEN;
 
-	fuse_trace_printf("fuse_filehandle_open(vp=%p, fufh_type=%d)\n",
-	    vp, fufh_type);
-
 	if (fuse_filehandle_valid(vp, fufh_type)) {
 		panic("FUSE: filehandle_open called despite valid fufh (type=%d)",
 		    fufh_type);
@@ -118,6 +120,8 @@ fuse_filehandle_open(struct vnode *vp, fufh_type_t fufh_type,
 	if (vnode_isdir(vp)) {
 		op = FUSE_OPENDIR;
 		if (fufh_type != FUFH_RDONLY) {
+			SDT_PROBE2(fuse, , file, trace, 1,
+				"non-rdonly fh requested for a directory?");
 			printf("FUSE:non-rdonly fh requested for a directory?\n");
 			fufh_type = FUFH_RDONLY;
 		}
@@ -129,7 +133,8 @@ fuse_filehandle_open(struct vnode *vp, fufh_type_t fufh_type,
 	foi->flags = oflags;
 
 	if ((err = fdisp_wait_answ(&fdi))) {
-		debug_printf("OUCH ... daemon didn't give fh (err = %d)\n", err);
+		SDT_PROBE2(fuse, , file, trace, 1,
+			"OUCH ... daemon didn't give fh");
 		if (err == ENOENT) {
 			fuse_internal_vnode_disappear(vp);
 		}
@@ -166,9 +171,6 @@ fuse_filehandle_close(struct vnode *vp, fufh_type_t fufh_type,
 
 	int err = 0;
 	int op = FUSE_RELEASE;
-
-	fuse_trace_printf("fuse_filehandle_put(vp=%p, fufh_type=%d)\n",
-	    vp, fufh_type);
 
 	fufh = &(fvdat->fufh[fufh_type]);
 	if (!FUFH_IS_VALID(fufh)) {
@@ -266,7 +268,6 @@ fuse_filehandle_init(struct vnode *vp, fufh_type_t fufh_type,
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_filehandle *fufh;
 
-	FS_DEBUG("id=%jd type=%d\n", (intmax_t)fh_id, fufh_type);
 	fufh = &(fvdat->fufh[fufh_type]);
 	MPASS(!FUFH_IS_VALID(fufh));
 	fufh->fh_id = fh_id;

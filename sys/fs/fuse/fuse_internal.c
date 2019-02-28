@@ -58,11 +58,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
-#include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
@@ -70,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sdt.h>
 #include <sys/sx.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
@@ -94,8 +94,13 @@ __FBSDID("$FreeBSD$");
 #include "fuse_file.h"
 #include "fuse_param.h"
 
-#define FUSE_DEBUG_MODULE INTERNAL
-#include "fuse_debug.h"
+SDT_PROVIDER_DECLARE(fuse);
+/* 
+ * Fuse trace probe:
+ * arg0: verbosity.  Higher numbers give more verbose messages
+ * arg1: Textual message
+ */
+SDT_PROBE_DEFINE2(fuse, , internal, trace, "int", "char*");
 
 #ifdef ZERO_PAD_INCOMPLETE_BUFS
 static int isbzero(void *buf, size_t len);
@@ -126,8 +131,6 @@ fuse_internal_access(struct vnode *vp,
 	 * kludge.
 	 */
 	/* return 0;*/
-
-	fuse_trace_printf_func();
 
 	mp = vnode_mount(vp);
 	vtype = vnode_vtype(vp);
@@ -209,8 +212,6 @@ fuse_internal_access(struct vnode *vp,
 int
 fuse_internal_fsync_callback(struct fuse_ticket *tick, struct uio *uio)
 {
-	fuse_trace_printf_func();
-
 	if (tick->tk_aw_ohead.error == ENOSYS) {
 		fsess_set_notimpl(tick->tk_data->mp, fticket_opcode(tick));
 	}
@@ -226,8 +227,6 @@ fuse_internal_fsync(struct vnode *vp,
 	int op = FUSE_FSYNC;
 	struct fuse_fsync_in *ffsi;
 	struct fuse_dispatcher fdi;
-
-	fuse_trace_printf_func();
 
 	if (vnode_isdir(vp)) {
 		op = FUSE_FSYNCDIR;
@@ -386,8 +385,6 @@ fuse_internal_remove(struct vnode *dvp,
 	err = 0;
 	fvdat = VTOFUD(vp);
 
-	debug_printf("dvp=%p, cnp=%p, op=%d\n", vp, cnp, op);
-
 	fdisp_init(&fdi, cnp->cn_namelen + 1);
 	fdisp_make_vp(&fdi, op, dvp, cnp->cn_thread, cnp->cn_cred);
 
@@ -442,8 +439,6 @@ fuse_internal_newentry_makerequest(struct mount *mp,
     size_t bufsize,
     struct fuse_dispatcher *fdip)
 {
-	debug_printf("fdip=%p\n", fdip);
-
 	fdip->iosize = bufsize + cnp->cn_namelen + 1;
 
 	fdisp_make(fdip, op, mp, dnid, cnp->cn_thread, cnp->cn_cred);
@@ -526,9 +521,6 @@ fuse_internal_forget_send(struct mount *mp,
 	struct fuse_dispatcher fdi;
 	struct fuse_forget_in *ffi;
 
-	debug_printf("mp=%p, nodeid=%ju, nlookup=%ju\n",
-	    mp, (uintmax_t)nodeid, (uintmax_t)nlookup);
-
 	/*
          * KASSERT(nlookup > 0, ("zero-times forget for vp #%llu",
          *         (long long unsigned) nodeid));
@@ -574,7 +566,8 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 
 	/* XXX: Do we want to check anything further besides this? */
 	if (fiio->major < 7) {
-		debug_printf("userpace version too low\n");
+		SDT_PROBE2(fuse, , internal, trace, 1,
+			"userpace version too low");
 		err = EPROTONOSUPPORT;
 		goto out;
 	}
