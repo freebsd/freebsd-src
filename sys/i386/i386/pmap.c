@@ -564,6 +564,8 @@ __CONCAT(PMTYPE, cold)(void)
 	/* Now enable paging */
 #ifdef PMAP_PAE_COMP
 	cr3 = (u_int)IdlePDPT;
+	if ((cpu_feature & CPUID_PAT) == 0)
+		wbinvd();
 #else
 	cr3 = (u_int)IdlePTD;
 #endif
@@ -2040,6 +2042,14 @@ __CONCAT(PMTYPE, pinit)(pmap_t pmap)
 	}
 
 	pmap_qenter((vm_offset_t)pmap->pm_pdir, pmap->pm_ptdpg, NPGPTD);
+#ifdef PMAP_PAE_COMP
+	if ((cpu_feature & CPUID_PAT) == 0) {
+		pmap_invalidate_cache_range(
+		    trunc_page((vm_offset_t)pmap->pm_pdpt),
+		    round_page((vm_offset_t)pmap->pm_pdpt +
+		    NPGPTD * sizeof(pdpt_entry_t)));
+	}
+#endif
 
 	for (i = 0; i < NPGPTD; i++)
 		if ((pmap->pm_ptdpg[i]->flags & PG_ZERO) == 0)
