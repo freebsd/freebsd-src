@@ -233,7 +233,7 @@ or
 .Cm limit
 rule, and are typically used to open the firewall on-demand to
 legitimate traffic only.
-Please, note, that
+Please note, that
 .Cm keep-state
 amd
 .Cm limit
@@ -684,8 +684,8 @@ is set to 0 (default), one can use
 attached to the
 .Li ipfw0
 pseudo interface.
-This pseudo interface can be created after a boot
-manually by using the following command:
+This pseudo interface can be created manually after a system
+boot by using the following command:
 .Bd -literal -offset indent
 # ifconfig ipfw0 create
 .Ed
@@ -698,7 +698,7 @@ file:
 firewall_logif="YES"
 .Ed
 .Pp
-There is no overhead if no
+There is zero overhead when no
 .Xr bpf 4
 is attached to the pseudo interface.
 .Pp
