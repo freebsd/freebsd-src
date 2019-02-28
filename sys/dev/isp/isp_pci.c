@@ -1910,7 +1910,7 @@ isp_pci_irqsetup(ispsoftc_t *isp)
 
 	ISP_UNLOCK(isp);
 	if (ISP_CAP_MSIX(isp)) {
-		max_irq = IS_26XX(isp) ? 3 : (IS_25XX(isp) ? 2 : 1);
+		max_irq = IS_26XX(isp) ? 3 : (IS_25XX(isp) ? 2 : 0);
 		resource_int_value(device_get_name(dev),
 		    device_get_unit(dev), "msix", &max_irq);
 		max_irq = imin(ISP_MAX_IRQS, max_irq);
