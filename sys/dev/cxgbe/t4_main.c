@@ -1372,10 +1372,19 @@ done:
 static int
 t4_child_location_str(device_t bus, device_t dev, char *buf, size_t buflen)
 {
+	struct adapter *sc;
 	struct port_info *pi;
+	int i;
 
-	pi = device_get_softc(dev);
-	snprintf(buf, buflen, "port=%d", pi->port_id);
+	sc = device_get_softc(bus);
+	buf[0] = '\0';
+	for_each_port(sc, i) {
+		pi = sc->port[i];
+		if (pi != NULL && pi->dev == dev) {
+			snprintf(buf, buflen, "port=%d", pi->port_id);
+			break;
+		}
+	}
 	return (0);
 }
 
