@@ -66,6 +66,7 @@ SRCS=	archive_acl.c					\
 	archive_pack_dev.c				\
 	archive_pathmatch.c				\
 	archive_ppmd7.c					\
+	archive_ppmd8.c					\
 	archive_random.c				\
 	archive_rb.c					\
 	archive_read.c					\

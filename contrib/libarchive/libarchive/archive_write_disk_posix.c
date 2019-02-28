@@ -1791,10 +1791,8 @@ finish_metadata:
 		a->fd = -1;
 	}
 	/* If there's an entry, we can release it now. */
-	if (a->entry) {
-		archive_entry_free(a->entry);
-		a->entry = NULL;
-	}
+	archive_entry_free(a->entry);
+	a->entry = NULL;
 	a->archive.state = ARCHIVE_STATE_HEADER;
 	return (ret);
 }
@@ -2398,8 +2396,7 @@ _archive_write_disk_free(struct archive *_a)
 	ret = _archive_write_disk_close(&a->archive);
 	archive_write_disk_set_group_lookup(&a->archive, NULL, NULL, NULL);
 	archive_write_disk_set_user_lookup(&a->archive, NULL, NULL, NULL);
-	if (a->entry)
-		archive_entry_free(a->entry);
+	archive_entry_free(a->entry);
 	archive_string_free(&a->_name_data);
 	archive_string_free(&a->archive.error_string);
 	archive_string_free(&a->path_safe);

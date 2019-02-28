@@ -70,7 +70,6 @@ TESTS_SRCS= \
 	test_compat_lzma.c			\
 	test_compat_lzop.c			\
 	test_compat_mac.c			\
-	test_compat_pax_libarchive_2x.c		\
 	test_compat_perl_archive_tar.c		\
 	test_compat_plexus_archiver_tar.c	\
 	test_compat_solaris_tar_acl.c		\
@@ -293,8 +292,6 @@ TESTS_SRCS= \
 BROKEN_TESTS+=			test_archive_rmd160
 # Fails with `libarchive/test/test_archive_crypto.c:121: md != actualmd`
 BROKEN_TESTS+=			test_archive_sha384
-# Fails with `test_compat_pax_libarchive_2x.c:122: ARCHIVE_WARN != archive_read_next_header(a, &ae)`
-BROKEN_TESTS+=			test_compat_pax_libarchive_2x
 # Fails with `test_read_disk_directory_traversals.c:1094: File at has atime 886622, 1443306049 seconds ago`
 BROKEN_TESTS+=			test_read_disk_directory_traversals
 
@@ -355,7 +352,6 @@ ${PACKAGE}FILES+=	test_compat_lzop_2.tar.lzo.uu
 ${PACKAGE}FILES+=	test_compat_lzop_3.tar.lzo.uu
 ${PACKAGE}FILES+=	test_compat_mac-1.tar.Z.uu
 ${PACKAGE}FILES+=	test_compat_mac-2.tar.Z.uu
-${PACKAGE}FILES+=	test_compat_pax_libarchive_2x.tar.Z.uu
 ${PACKAGE}FILES+=	test_compat_perl_archive_tar.tar.uu
 ${PACKAGE}FILES+=	test_compat_plexus_archiver_tar.tar.uu
 ${PACKAGE}FILES+=	test_compat_solaris_pax_sparse_1.pax.Z.uu
@@ -539,6 +535,8 @@ ${PACKAGE}FILES+=	test_read_format_ustar_filename_eucjp.tar.Z.uu
 ${PACKAGE}FILES+=	test_read_format_ustar_filename_koi8r.tar.Z.uu
 ${PACKAGE}FILES+=	test_read_format_warc.warc.uu
 ${PACKAGE}FILES+=	test_read_format_zip.zip.uu
+${PACKAGE}FILES+=	test_read_format_zip_bzip2.zipx.uu
+${PACKAGE}FILES+=	test_read_format_zip_bzip2_multi.zipx.uu
 ${PACKAGE}FILES+=	test_read_format_zip_comment_stored_1.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_comment_stored_2.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_encryption_data.zip.uu
@@ -553,6 +551,8 @@ ${PACKAGE}FILES+=	test_read_format_zip_filename_utf8_ru2.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_high_compression.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_jar.jar.uu
 ${PACKAGE}FILES+=	test_read_format_zip_length_at_end.zip.uu
+${PACKAGE}FILES+=	test_read_format_zip_lzma.zipx.uu
+${PACKAGE}FILES+=	test_read_format_zip_lzma_multi.zipx.uu
 ${PACKAGE}FILES+=	test_read_format_zip_mac_metadata.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_malformed1.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_msdos.zip.uu
@@ -561,6 +561,8 @@ ${PACKAGE}FILES+=	test_read_format_zip_nofiletype.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_padded1.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_padded2.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_padded3.zip.uu
+${PACKAGE}FILES+=	test_read_format_zip_ppmd8.zipx.uu
+${PACKAGE}FILES+=	test_read_format_zip_ppmd8_multi.zipx.uu
 ${PACKAGE}FILES+=	test_read_format_zip_sfx.uu
 ${PACKAGE}FILES+=	test_read_format_zip_symlink.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_traditional_encryption_data.zip.uu
@@ -570,6 +572,7 @@ ${PACKAGE}FILES+=	test_read_format_zip_winzip_aes128.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_winzip_aes256.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_winzip_aes256_large.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_winzip_aes256_stored.zip.uu
+${PACKAGE}FILES+=	test_read_format_zip_xz_multi.zipx.uu
 ${PACKAGE}FILES+=	test_read_format_zip_zip64a.zip.uu
 ${PACKAGE}FILES+=	test_read_format_zip_zip64b.zip.uu
 ${PACKAGE}FILES+=	test_read_large_splitted_rar_aa.uu
