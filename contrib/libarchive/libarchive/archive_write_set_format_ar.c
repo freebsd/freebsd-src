@@ -187,6 +187,11 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 		buff[AR_name_offset] = '/';
 		goto stat;
 	}
+	if (strcmp(pathname, "/SYM64/") == 0) {
+		/* Entry is archive symbol table in GNU 64-bit format */
+		memcpy(buff + AR_name_offset, "/SYM64/", 7);
+		goto stat;
+	}
 	if (strcmp(pathname, "__.SYMDEF") == 0) {
 		/* Entry is archive symbol table in BSD format */
 		memcpy(buff + AR_name_offset, "__.SYMDEF", 9);
