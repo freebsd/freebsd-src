@@ -168,35 +168,28 @@ i2c_opal_send_request(uint32_t bus_id, struct opal_i2c_request *req)
 {
 	struct opal_msg msg;
 	uint64_t token;
-	uint64_t msg_addr;
 	int rc;
 
-	/*
-	 * XXX:
-	 * Async tokens should be managed globally. Since there are only a very
-	 * few places now, use a punning of the stack address of the message.
-	 */
-	token = (uintptr_t)&msg;
+	token = opal_alloc_async_token();
 
 	memset(&msg, 0, sizeof(msg));
-	msg_addr = pmap_kextract((vm_offset_t)&msg);
 
 	rc = opal_call(OPAL_I2C_REQUEST, token, bus_id,
-	    pmap_kextract((uint64_t)req));
+	    vtophys(req));
 	if (rc != OPAL_ASYNC_COMPLETION)
-		return (rc);
+		goto out;
 
-	do {
-		rc = opal_call(OPAL_CHECK_ASYNC_COMPLETION,
-		    msg_addr, sizeof(msg), token);
-	} while (rc == OPAL_BUSY);
+	rc = opal_wait_completion(&msg, sizeof(msg), token);
 
 	if (rc != OPAL_SUCCESS)
-		return (rc);
+		goto out;
 
 	rc = opal_get_async_rc(msg);
 
-	return rc;
+out:
+	opal_free_async_token(token);
+
+	return (rc);
 }
 
 static int
