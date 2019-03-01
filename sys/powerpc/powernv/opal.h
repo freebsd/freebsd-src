@@ -168,4 +168,9 @@ struct opal_ipmi_msg {
 	uint8_t data[];
 };
 
+int	opal_init_async_tokens(int);
+int	opal_alloc_async_token(void);
+void	opal_free_async_token(int);
+int	opal_wait_completion(void *, uint64_t, uint64_t);
+
 #endif
