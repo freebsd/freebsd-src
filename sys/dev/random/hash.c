@@ -88,13 +88,26 @@ randomdev_encrypt_init(struct randomdev_key *context, const void *data)
 	rijndael_makeKey(&context->key, DIR_ENCRYPT, RANDOM_KEYSIZE*8, data);
 }
 
-/* Encrypt the supplied data using the key schedule preset in the context.
- * <length> bytes are encrypted from <*d_in> to <*d_out>. <length> must be
- * a multiple of RANDOM_BLOCKSIZE.
+/*
+ * Create a psuedorandom output stream of 'blockcount' blocks using a CTR-mode
+ * cipher or similar.  The 128-bit counter is supplied in the in-out parmeter
+ * 'ctr.'  The output stream goes to 'd_out.'  'blockcount' RANDOM_BLOCKSIZE
+ * bytes are generated.
  */
 void
-randomdev_encrypt(struct randomdev_key *context, const void *d_in, void *d_out, u_int length)
+randomdev_keystream(struct randomdev_key *context, uint128_t *ctr,
+    void *d_out, u_int blockcount)
 {
+	u_int i;
 
-	rijndael_blockEncrypt(&context->cipher, &context->key, d_in, length*8, d_out);
+	for (i = 0; i < blockcount; i++) {
+		/*-
+		 * FS&K - r = r|E(K,C)
+		 *      - C = C + 1
+		 */
+		rijndael_blockEncrypt(&context->cipher, &context->key,
+		    (void *)ctr, RANDOM_BLOCKSIZE * 8, d_out);
+		d_out = (char *)d_out + RANDOM_BLOCKSIZE;
+		uint128_increment(ctr);
+	}
 }
