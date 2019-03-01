@@ -853,6 +853,8 @@ setup_sge_qsets(adapter_t *sc)
 		}
 	}
 
+	sc->nqsets = qset_idx;
+
 	return (0);
 }
 
@@ -3598,7 +3600,7 @@ cxgb_netdump_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
 	pi = if_getsoftc(ifp);
 	adap = pi->adapter;
 	ADAPTER_LOCK(adap);
-	*nrxr = SGE_QSETS;
+	*nrxr = adap->nqsets;
 	*ncl = adap->sge.qs[0].fl[1].size;
 	*clsize = adap->sge.qs[0].fl[1].buf_size;
 	ADAPTER_UNLOCK(adap);
@@ -3613,7 +3615,7 @@ cxgb_netdump_event(struct ifnet *ifp, enum netdump_ev event)
 
 	pi = if_getsoftc(ifp);
 	if (event == NETDUMP_START)
-		for (i = 0; i < SGE_QSETS; i++) {
+		for (i = 0; i < pi->adapter->nqsets; i++) {
 			qs = &pi->adapter->sge.qs[i];
 
 			/* Need to reinit after netdump_mbuf_dump(). */
@@ -3650,7 +3652,7 @@ cxgb_netdump_poll(struct ifnet *ifp, int count)
 		return (ENOENT);
 
 	adap = pi->adapter;
-	for (i = 0; i < SGE_QSETS; i++)
+	for (i = 0; i < adap->nqsets; i++)
 		(void)cxgb_netdump_poll_rx(adap, &adap->sge.qs[i]);
 	(void)cxgb_netdump_poll_tx(&adap->sge.qs[pi->first_qset]);
 	return (0);
