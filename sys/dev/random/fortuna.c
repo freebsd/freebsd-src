@@ -35,10 +35,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/limits.h>
 
 #ifdef _KERNEL
-#include <sys/param.h>
 #include <sys/fail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -50,17 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <machine/cpu.h>
-
-#include <crypto/rijndael/rijndael-api-fst.h>
-#include <crypto/sha2/sha256.h>
-
-#include <dev/random/hash.h>
-#include <dev/random/randomdev.h>
-#include <dev/random/random_harvestq.h>
-#include <dev/random/uint128.h>
-#include <dev/random/fortuna.h>
 #else /* !_KERNEL */
-#include <sys/param.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -69,15 +59,18 @@ __FBSDID("$FreeBSD$");
 #include <threads.h>
 
 #include "unit_test.h"
+#endif /* _KERNEL */
 
 #include <crypto/rijndael/rijndael-api-fst.h>
 #include <crypto/sha2/sha256.h>
 
 #include <dev/random/hash.h>
 #include <dev/random/randomdev.h>
+#ifdef _KERNEL
+#include <dev/random/random_harvestq.h>
+#endif
 #include <dev/random/uint128.h>
 #include <dev/random/fortuna.h>
-#endif /* _KERNEL */
 
 /* Defined in FS&K */
 #define	RANDOM_FORTUNA_NPOOLS 32		/* The number of accumulation pools */
