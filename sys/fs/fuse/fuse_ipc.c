@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
-#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/lock.h>
 #include <sys/sx.h>
@@ -75,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/sdt.h>
 #include <sys/vnode.h>
-#include <sys/sdt.h>
 #include <sys/signalvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
@@ -298,6 +296,8 @@ fticket_wait_answer(struct fuse_ticket *ftick)
 	sigset_t tset;
 	int err = 0;
 	struct fuse_data *data;
+
+	fuse_lck_mtx_lock(ftick->tk_aw_mtx);
 
 	if (fticket_answered(ftick)) {
 		goto out;
