@@ -1408,6 +1408,7 @@ ifa_grouplookup(char *ifa_name, int flags)
 		return (NULL);
 	bzero(&ifgr, sizeof(ifgr));
 	strlcpy(ifgr.ifgr_name, ifa_name, sizeof(ifgr.ifgr_name));
+	ifgr.ifgr_len = len;
 	if ((ifgr.ifgr_groups = calloc(1, len)) == NULL)
 		err(1, "calloc");
 	if (ioctl(s, SIOCGIFGMEMB, (caddr_t)&ifgr) == -1)
