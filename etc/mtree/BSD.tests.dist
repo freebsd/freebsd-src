@@ -701,6 +701,8 @@
         file
         ..
         fs
+            fuse
+            ..
             tmpfs
             ..
         ..
