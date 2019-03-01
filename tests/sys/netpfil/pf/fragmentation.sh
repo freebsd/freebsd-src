@@ -104,6 +104,11 @@ v6_body()
 
 	atf_check -s exit:0 -o ignore\
 		ping6 -c 1 -b 70000 -s 65000 2001:db8:43::3
+
+	$(atf_get_srcdir)/CVE-2019-5597.py \
+		${epair_send}a \
+		2001:db8:42::1 \
+		2001:db8:43::3
 }
 
 v6_cleanup()
