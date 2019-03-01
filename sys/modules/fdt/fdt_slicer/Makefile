@@ -7,6 +7,7 @@ SRCS=	fdt_slicer.c
 
 # Generated files...
 SRCS+=	\
+	device_if.h \
 	ofw_bus_if.h \
 	opt_platform.h \
 
