@@ -3927,6 +3927,7 @@ product SANDISK SDCZ2_128	0x7100	Cruzer Mini 128MB
 product SANDISK SDCZ2_256	0x7104	Cruzer Mini 256MB
 product SANDISK SDCZ4_128	0x7112	Cruzer Micro 128MB
 product SANDISK SDCZ4_256	0x7113	Cruzer Micro 256MB
+product SANDISK SDCZ48_32	0x5581  Ultra 32GB
 product SANDISK IMAGEMATE_SDDR289	0xb6ba	ImageMate SDDR-289
 
 /* Sanwa Electric Instrument Co., Ltd. products */
