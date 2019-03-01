@@ -474,6 +474,10 @@ SUBDIR+=	iscsi
 SUBDIR+=	iscsi_initiator
 .endif
 
+.if !empty(OPT_FDT)
+SUBDIR+=	fdt
+.endif
+
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
     ${MACHINE_CPUARCH} == "i386"
 SUBDIR+=	linprocfs
@@ -538,7 +542,7 @@ SUBDIR+=	zfs
 
 .if (${MACHINE_CPUARCH} == "mips" && ${MACHINE_ARCH:Mmips64} == "")
 _hwpmc_mips24k=	hwpmc_mips24k
-_hwpmc_mips74k=	hwpmc_mips74k
+_hwpmc_mips74k=	hwpmc_mips74kwheel
 .endif
 
 .if ${MACHINE_CPUARCH} != "aarch64" && ${MACHINE_CPUARCH} != "arm" && \
