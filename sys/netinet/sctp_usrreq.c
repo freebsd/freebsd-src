@@ -1122,12 +1122,18 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 						}
 #ifdef INET6
 						if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NEEDS_MAPPED_V4)) {
+							if (actual + sizeof(struct sockaddr_in6) > limit) {
+								return (actual);
+							}
 							in6_sin_2_v4mapsin6(sin, (struct sockaddr_in6 *)sas);
 							((struct sockaddr_in6 *)sas)->sin6_port = inp->sctp_lport;
 							sas = (struct sockaddr_storage *)((caddr_t)sas + sizeof(struct sockaddr_in6));
 							actual += sizeof(struct sockaddr_in6);
 						} else {
 #endif
+							if (actual + sizeof(struct sockaddr_in) > limit) {
+								return (actual);
+							}
 							memcpy(sas, sin, sizeof(struct sockaddr_in));
 							((struct sockaddr_in *)sas)->sin_port = inp->sctp_lport;
 							sas = (struct sockaddr_storage *)((caddr_t)sas + sizeof(struct sockaddr_in));
@@ -1135,9 +1141,6 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 #ifdef INET6
 						}
 #endif
-						if (actual >= limit) {
-							return (actual);
-						}
 					} else {
 						continue;
 					}
@@ -1182,13 +1185,13 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 						    (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr))) {
 							continue;
 						}
+						if (actual + sizeof(struct sockaddr_in6) > limit) {
+							return (actual);
+						}
 						memcpy(sas, sin6, sizeof(struct sockaddr_in6));
 						((struct sockaddr_in6 *)sas)->sin6_port = inp->sctp_lport;
 						sas = (struct sockaddr_storage *)((caddr_t)sas + sizeof(struct sockaddr_in6));
 						actual += sizeof(struct sockaddr_in6);
-						if (actual >= limit) {
-							return (actual);
-						}
 					} else {
 						continue;
 					}
@@ -1202,12 +1205,17 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 		}
 	} else {
 		struct sctp_laddr *laddr;
+		size_t sa_len;
 
 		LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
 			if (stcb) {
 				if (sctp_is_addr_restricted(stcb, laddr->ifa)) {
 					continue;
 				}
+			}
+			sa_len = laddr->ifa->address.sa.sa_len;
+			if (actual + sa_len > limit) {
+				return (actual);
 			}
 			if (sctp_fill_user_address(sas, &laddr->ifa->address.sa))
 				continue;
@@ -1226,12 +1234,8 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 				/* TSNH */
 				break;
 			}
-			sas = (struct sockaddr_storage *)((caddr_t)sas +
-			    laddr->ifa->address.sa.sa_len);
-			actual += laddr->ifa->address.sa.sa_len;
-			if (actual >= limit) {
-				return (actual);
-			}
+			sas = (struct sockaddr_storage *)((caddr_t)sas + sa_len);
+			actual += sa_len;
 		}
 	}
 	return (actual);
