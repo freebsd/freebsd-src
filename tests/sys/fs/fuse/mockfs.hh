@@ -45,11 +45,12 @@ extern "C" {
 extern int verbosity;
 
 union fuse_payloads_in {
+	/* value is from fuse_kern_chan.c in fusefs-libs */
+	uint8_t		bytes[0x21000 - sizeof(struct fuse_in_header)];
 	fuse_forget_in	forget;
 	fuse_init_in	init;
 	char		lookup[0];
-	/* value is from fuse_kern_chan.c in fusefs-libs */
-	uint8_t		bytes[0x21000 - sizeof(struct fuse_in_header)];
+	fuse_setattr_in	setattr;
 };
 
 struct mockfs_buf_in {

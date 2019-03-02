@@ -6,6 +6,7 @@ TESTSDIR=	${TESTSBASE}/sys/fs/fuse
 
 ATF_TESTS_CXX+=	getattr
 ATF_TESTS_CXX+=	lookup
+ATF_TESTS_CXX+=	setattr
 
 SRCS.getattr+=	getattr.cc
 SRCS.getattr+=	getmntopts.c
@@ -17,6 +18,12 @@ SRCS.lookup+=	getmntopts.c
 SRCS.lookup+=	mockfs.cc
 SRCS.lookup+=	utils.cc
 
+SRCS.setattr+=	setattr.cc
+SRCS.setattr+=	getmntopts.c
+SRCS.setattr+=	mockfs.cc
+SRCS.setattr+=	utils.cc
+
+# TODO: drastically increase timeout after test development is mostly complete
 TEST_METADATA+= timeout=10
 TEST_METADATA+= required_user=root
 
