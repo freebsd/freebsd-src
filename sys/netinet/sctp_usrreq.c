@@ -630,7 +630,6 @@ connected_type:
 	/* now what about control */
 	if (control) {
 		if (inp->control) {
-			SCTP_PRINTF("huh? control set?\n");
 			sctp_m_freem(inp->control);
 			inp->control = NULL;
 		}
@@ -3751,13 +3750,11 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 	uint32_t vrf_id;
 
 	if (optval == NULL) {
-		SCTP_PRINTF("optval is NULL\n");
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 		return (EINVAL);
 	}
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	if (inp == NULL) {
-		SCTP_PRINTF("inp is NULL?\n");
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 		return (EINVAL);
 	}
