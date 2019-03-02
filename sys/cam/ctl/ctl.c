@@ -2743,39 +2743,6 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 #endif /* CTL_IO_DELAY */
 		break;
 	}
-#ifdef CTL_LEGACY_STATS
-	case CTL_GETSTATS: {
-		struct ctl_stats *stats = (struct ctl_stats *)addr;
-		int i;
-
-		/*
-		 * XXX KDM no locking here.  If the LUN list changes,
-		 * things can blow up.
-		 */
-		i = 0;
-		stats->status = CTL_SS_OK;
-		stats->fill_len = 0;
-		STAILQ_FOREACH(lun, &softc->lun_list, links) {
-			if (stats->fill_len + sizeof(lun->legacy_stats) >
-			    stats->alloc_len) {
-				stats->status = CTL_SS_NEED_MORE_SPACE;
-				break;
-			}
-			retval = copyout(&lun->legacy_stats, &stats->lun_stats[i++],
-					 sizeof(lun->legacy_stats));
-			if (retval != 0)
-				break;
-			stats->fill_len += sizeof(lun->legacy_stats);
-		}
-		stats->num_luns = softc->num_luns;
-		stats->flags = CTL_STATS_FLAG_NONE;
-#ifdef CTL_TIME_IO
-		stats->flags |= CTL_STATS_FLAG_TIME_VALID;
-#endif
-		getnanouptime(&stats->timestamp);
-		break;
-	}
-#endif /* CTL_LEGACY_STATS */
 	case CTL_ERROR_INJECT: {
 		struct ctl_error_desc *err_desc, *new_err_desc;
 
@@ -4758,17 +4725,6 @@ fail:
 	ctl_init_log_page_index(lun);
 
 	/* Setup statistics gathering */
-#ifdef CTL_LEGACY_STATS
-	lun->legacy_stats.device_type = be_lun->lun_type;
-	lun->legacy_stats.lun_number = lun_number;
-	lun->legacy_stats.blocksize = be_lun->blocksize;
-	if (be_lun->blocksize == 0)
-		lun->legacy_stats.flags = CTL_LUN_STATS_NO_BLOCKSIZE;
-	lun->legacy_stats.ports = malloc(sizeof(struct ctl_lun_io_port_stats) *
-	    ctl_max_ports, M_DEVBUF, M_WAITOK | M_ZERO);
-	for (len = 0; len < ctl_max_ports; len++)
-		lun->legacy_stats.ports[len].targ_port = len;
-#endif /* CTL_LEGACY_STATS */
 	lun->stats.item = lun_number;
 
 	/*
@@ -13078,21 +13034,6 @@ ctl_process_done(union ctl_io *io)
 			type = CTL_STATS_WRITE;
 		else
 			type = CTL_STATS_NO_IO;
-
-#ifdef CTL_LEGACY_STATS
-		uint32_t targ_port = port->targ_port;
-		lun->legacy_stats.ports[targ_port].bytes[type] +=
-		    io->scsiio.kern_total_len;
-		lun->legacy_stats.ports[targ_port].operations[type] ++;
-		lun->legacy_stats.ports[targ_port].num_dmas[type] +=
-		    io->io_hdr.num_dmas;
-#ifdef CTL_TIME_IO
-		bintime_add(&lun->legacy_stats.ports[targ_port].dma_time[type],
-		   &io->io_hdr.dma_bt);
-		bintime_add(&lun->legacy_stats.ports[targ_port].time[type],
-		    &bt);
-#endif
-#endif /* CTL_LEGACY_STATS */
 
 		lun->stats.bytes[type] += io->scsiio.kern_total_len;
 		lun->stats.operations[type] ++;

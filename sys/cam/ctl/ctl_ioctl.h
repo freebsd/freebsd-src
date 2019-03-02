@@ -69,9 +69,6 @@
 /* Hopefully this won't conflict with new misc devices that pop up */
 #define	CTL_MINOR	225
 
-/* Legacy statistics accumulated for every port for every LU. */
-//#define CTL_LEGACY_STATS	1
-
 typedef enum {
 	CTL_DELAY_TYPE_NONE,
 	CTL_DELAY_TYPE_CONT,
@@ -118,39 +115,6 @@ typedef enum {
 	CTL_STATS_FLAG_NONE		= 0x00,
 	CTL_STATS_FLAG_TIME_VALID	= 0x01
 } ctl_stats_flags;
-
-#ifdef CTL_LEGACY_STATS
-typedef enum {
-	CTL_LUN_STATS_NO_BLOCKSIZE	= 0x01
-} ctl_lun_stats_flags;
-
-struct ctl_lun_io_port_stats {
-	uint32_t			targ_port;
-	uint64_t			bytes[CTL_STATS_NUM_TYPES];
-	uint64_t			operations[CTL_STATS_NUM_TYPES];
-	struct bintime			time[CTL_STATS_NUM_TYPES];
-	uint64_t			num_dmas[CTL_STATS_NUM_TYPES];
-	struct bintime			dma_time[CTL_STATS_NUM_TYPES];
-};
-
-struct ctl_lun_io_stats {
-	uint8_t				device_type;
-	uint64_t			lun_number;
-	uint32_t			blocksize;
-	ctl_lun_stats_flags		flags;
-	struct ctl_lun_io_port_stats	*ports;
-};
-
-struct ctl_stats {
-	int			alloc_len;	/* passed to kernel */
-	struct ctl_lun_io_stats	*lun_stats;	/* passed to/from kernel */
-	int			fill_len;	/* passed to userland */
-	int			num_luns;	/* passed to userland */
-	ctl_stats_status	status;		/* passed to userland */
-	ctl_stats_flags		flags;		/* passed to userland */
-	struct timespec		timestamp;	/* passed to userland */
-};
-#endif /* CTL_LEGACY_STATS */
 
 struct ctl_io_stats {
 	uint32_t			item;
@@ -795,7 +759,6 @@ struct ctl_lun_map {
 #define	CTL_ENABLE_PORT		_IOW(CTL_MINOR, 0x04, struct ctl_port_entry)
 #define	CTL_DISABLE_PORT	_IOW(CTL_MINOR, 0x05, struct ctl_port_entry)
 #define	CTL_DELAY_IO		_IOWR(CTL_MINOR, 0x10, struct ctl_io_delay_info)
-#define	CTL_GETSTATS		_IOWR(CTL_MINOR, 0x15, struct ctl_stats)
 #define	CTL_ERROR_INJECT	_IOWR(CTL_MINOR, 0x16, struct ctl_error_desc)
 #define	CTL_GET_OOA		_IOWR(CTL_MINOR, 0x18, struct ctl_ooa)
 #define	CTL_DUMP_STRUCTS	_IO(CTL_MINOR, 0x19)
