@@ -971,9 +971,9 @@ journal_alloc(int64_t size)
 		if (size / sblock.fs_fsize > sblock.fs_fpg)
 			size = sblock.fs_fpg * sblock.fs_fsize;
 		size = MAX(SUJ_MIN, size);
-		/* fsck does not support fragments in journal files. */
-		size = roundup(size, sblock.fs_bsize);
 	}
+	/* fsck does not support fragments in journal files. */
+	size = roundup(size, sblock.fs_bsize);
 	resid = blocks = size / sblock.fs_bsize;
 	if (sblock.fs_cstotal.cs_nbfree < blocks) {
 		warn("Insufficient free space for %jd byte journal", size);
