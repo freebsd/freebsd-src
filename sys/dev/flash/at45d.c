@@ -95,6 +95,7 @@ struct at45d_softc
 	uint16_t		pagecount;
 	uint16_t		pageoffset;
 	uint16_t		pagesize;
+	void			*dummybuf;
 };
 
 #define	TSTATE_STOPPED	0
@@ -285,6 +286,7 @@ at45d_detach(device_t dev)
 	if (err == 0 && sc->taskstate == TSTATE_STOPPED) {
 		disk_destroy(sc->disk);
 		bioq_flush(&sc->bio_queue, NULL, ENXIO);
+		free(sc->dummybuf, M_DEVBUF);
 		AT45D_LOCK_DESTROY(sc);
 	}
 	return (err);
@@ -333,6 +335,8 @@ at45d_delayed_attach(void *xsc)
 	} else
 		pagesize = ident->pagesize;
 	sc->pagesize = pagesize;
+
+	sc->dummybuf = malloc(pagesize, M_DEVBUF, M_WAITOK | M_ZERO);
 
 	sc->disk = disk_alloc();
 	sc->disk->d_open = at45d_open;
@@ -444,11 +448,13 @@ at45d_task(void *arg)
 		case BIO_READ:
 			txBuf[0] = CONTINUOUS_ARRAY_READ;
 			cmd.tx_cmd_sz = cmd.rx_cmd_sz = 8;
-			cmd.tx_data = cmd.rx_data = buf;
+			cmd.tx_data = sc->dummybuf;
+			cmd.rx_data = buf;
 			break;
 		case BIO_WRITE:
 			cmd.tx_cmd_sz = cmd.rx_cmd_sz = 4;
-			cmd.tx_data = cmd.rx_data = buf;
+			cmd.tx_data = buf;
+			cmd.rx_data = sc->dummybuf;
 			if (resid + offset > sc->pagesize)
 				len = sc->pagesize - offset;
 			break;
@@ -524,7 +530,10 @@ at45d_task(void *arg)
 				len = sc->pagesize;
 			else
 				len = resid;
-			cmd.tx_data = cmd.rx_data = buf;
+			if (bp->bio_cmd == BIO_READ)
+				cmd.rx_data = buf;
+			else
+				cmd.tx_data = buf;
 		}
  out:
 		if (berr != 0) {
