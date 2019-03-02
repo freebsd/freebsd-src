@@ -439,7 +439,7 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 	 * at its end.
 	 */
 	if (DIP(dp, di_size) > UFS_NDADDR * sblock.fs_bsize &&
-	    idesc->id_lballoc != lblkno(&sblock, DIP(dp, di_size) - 1)) {
+	    idesc->id_lballoc < lblkno(&sblock, DIP(dp, di_size) - 1)) {
 		fixsize = lblktosize(&sblock, idesc->id_lballoc + 1);
 		pwarn("INODE %lu: FILE SIZE %ju BEYOND END OF ALLOCATED FILE, "
 		      "SIZE SHOULD BE %ju", (u_long)inumber,
