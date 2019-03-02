@@ -761,17 +761,14 @@ search_failed:
 
 	/* Load MAS registers. */
 	mtspr	SPR_MAS0, %r29
-	isync
 	mtspr	SPR_MAS1, %r28
-	isync
 	mtspr	SPR_MAS2, %r27
-	isync
 	mtspr	SPR_MAS3, %r23
-	isync
 
 	bl	zero_mas7
 	bl	zero_mas8
 
+	isync
 	tlbwe
 	msync
 	isync
@@ -906,20 +903,16 @@ tlb_fill_entry:
 
 	/* Load MAS registers. */
 	mtspr	SPR_MAS0, %r29
-	isync
 	mtspr	SPR_MAS1, %r28
-	isync
 	mtspr	SPR_MAS2, %r27
-	isync
 	mtspr	SPR_MAS3, %r22
-	isync
 	mtspr	SPR_MAS7, %r23
-	isync
 
 	mflr	%r21
 	bl	zero_mas8
 	mtlr	%r21
 
+	isync
 	tlbwe
 	isync
 	msync
