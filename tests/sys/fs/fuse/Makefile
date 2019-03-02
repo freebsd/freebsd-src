@@ -25,7 +25,6 @@ SRCS.setattr+=	utils.cc
 
 # TODO: drastically increase timeout after test development is mostly complete
 TEST_METADATA+= timeout=10
-TEST_METADATA+= required_user=root
 
 FUSEFS=		${.CURDIR:H:H:H:H}/sys/fs/fuse
 MOUNT=		${.CURDIR:H:H:H:H}/sbin/mount

@@ -27,10 +27,43 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/param.h>
+#include <sys/module.h>
+#include <sys/sysctl.h>
+
 #include <gtest/gtest.h>
 #include <unistd.h>
 
 #include "mockfs.hh"
+#include "utils.hh"
+
+class FuseEnv: public ::testing::Environment {
+	virtual void SetUp() {
+		const char *mod_name = "fuse";
+		const char *devnode = "/dev/fuse";
+		const char *usermount_node = "vfs.usermount";
+		int usermount_val = 0;
+		size_t usermount_size = sizeof(usermount_val);
+		if (modfind(mod_name) == -1) {
+			FAIL() << "Module " << mod_name <<
+				" could not be resolved";
+		}
+		if (eaccess(devnode, R_OK | W_OK)) {
+			if (errno == ENOENT) {
+				FAIL() << devnode << " does not exist";
+			} else if (errno == EACCES) {
+				FAIL() << devnode <<
+				    " is not accessible by the current user";
+			} else {
+				FAIL() << strerror(errno);
+			}
+		}
+		sysctlbyname(usermount_node, &usermount_val, &usermount_size,
+			     NULL, 0);
+		if (geteuid() != 0 && !usermount_val)
+			FAIL() << "current user is not allowed to mount";
+	}
+};
 
 static void usage(char* progname) {
 	fprintf(stderr, "Usage: %s [-v]\n\t-v increase verbosity\n", progname);
@@ -39,8 +72,10 @@ static void usage(char* progname) {
 
 int main(int argc, char **argv) {
 	int ch;
+	FuseEnv *fuse_env = new FuseEnv;
 
 	::testing::InitGoogleTest(&argc, argv);
+	::testing::AddGlobalTestEnvironment(fuse_env);
 
 	while ((ch = getopt(argc, argv, "v")) != -1) {
 		switch (ch) {

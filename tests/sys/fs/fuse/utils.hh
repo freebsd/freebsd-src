@@ -27,27 +27,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/module.h>
-
-#define GTEST_REQUIRE_KERNEL_MODULE(_mod_name) do {	\
-	if (modfind(_mod_name) == -1) {	\
-		printf("module %s could not be resolved: %s\n", \
-			_mod_name, strerror(errno)); \
-		/*
-		 * TODO: enable GTEST_SKIP once GoogleTest 1.8.2 merges
-		 * GTEST_SKIP()
-		 */ \
-		FAIL() << "Module " << _mod_name << " could not be resolved\n";\
-	} \
-} while(0)
-
 class FuseTest : public ::testing::Test {
 	protected:
 	MockFS *m_mock = NULL;
 
 	public:
 	void SetUp() {
-		GTEST_REQUIRE_KERNEL_MODULE("fuse");
 		try {
 			m_mock = new MockFS{};
 		} catch (std::system_error err) {
