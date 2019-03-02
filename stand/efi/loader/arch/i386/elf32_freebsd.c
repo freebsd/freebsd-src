@@ -75,14 +75,19 @@ elf32_exec(struct preloaded_file *fp)
     ehdr = (Elf_Ehdr *)&(md->md_data);
 
     efi_time_fini();
+
+    entry = ehdr->e_entry & 0xffffff;
+
+    printf("Start @ 0x%x ...\n", entry);
+
     err = bi_load(fp->f_args, &modulep, &kernend);
     if (err != 0) {
 	efi_time_init();
 	return(err);
     }
-    entry = ehdr->e_entry & 0xffffff;
 
-    printf("Start @ 0x%x ...\n", entry);
+    /* At this point we've called ExitBootServices, so we can't call
+     * printf or any other function that uses Boot Services */
 
     dev_cleanup();
     __exec((void *)entry, boothowto, bootdev, 0, 0, 0, bootinfop, modulep, kernend);
