@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2019
+.Dd March 2, 2019
 .Dt AT45D 4
 .Os
 .Sh NAME
@@ -126,6 +126,10 @@ The following properties are optional for the
 .Nm
 device subnode:
 .Bl -tag -width indent
+.It Va freebsd,sectorsize
+The sector size of the disk created for this storage device.
+It must be a multiple of the device's page size.
+The default is the device page size.
 .It Va spi-cpha
 Empty property indicating the slave device requires shifted clock
 phase (CPHA) mode.
@@ -156,6 +160,10 @@ The chip-select number to assert when performing I/O for this device.
 Set the high bit (1 << 31) to invert the logic level of the chip select line.
 .It Va hint.at45d.%d.mode
 The SPI mode (0-3) to use when communicating with this device.
+.It Va hint.at45d.%d.sectorsize
+The sector size of the disk created for this storage device.
+It must be a multiple of the device's page size.
+The default is the device page size.
 .El
 .Sh FILES
 .Bl -tag -width /dev/flash/at45d?
