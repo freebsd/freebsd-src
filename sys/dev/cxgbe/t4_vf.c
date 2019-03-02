@@ -295,6 +295,12 @@ set_params__post_init(struct adapter *sc)
 	val = 1;
 	(void)t4vf_set_params(sc, 1, &param, &val);
 
+	/* Enable 32b port caps if the firmware supports it. */
+	param = FW_PARAM_PFVF(PORT_CAPS32);
+	val = 1;
+	if (t4vf_set_params(sc, 1, &param, &val) == 0)
+		sc->params.port_caps32 = 1;
+
 	return (0);
 }
 
