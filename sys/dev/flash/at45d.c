@@ -288,9 +288,11 @@ at45d_detach(device_t dev)
 	AT45D_UNLOCK(sc);
 
 	if (err == 0 && sc->taskstate == TSTATE_STOPPED) {
-		disk_destroy(sc->disk);
-		bioq_flush(&sc->bio_queue, NULL, ENXIO);
-		free(sc->dummybuf, M_DEVBUF);
+		if (sc->disk) {
+			disk_destroy(sc->disk);
+			bioq_flush(&sc->bio_queue, NULL, ENXIO);
+			free(sc->dummybuf, M_DEVBUF);
+		}
 		AT45D_LOCK_DESTROY(sc);
 	}
 	return (err);
@@ -303,6 +305,7 @@ at45d_delayed_attach(void *xsc)
 	struct at45d_mfg_info mfginfo;
 	const struct at45d_flash_ident *ident;
 	u_int i;
+	int sectorsize;
 	uint32_t jedec;
 	uint16_t pagesize;
 	uint8_t status;
@@ -340,6 +343,30 @@ at45d_delayed_attach(void *xsc)
 		pagesize = ident->pagesize;
 	sc->pagesize = pagesize;
 
+	/*
+	 * By default we set up a disk with a sector size that matches the
+	 * device page size.  If there is a device hint or fdt property
+	 * requesting a different size, use that, as long as it is a multiple of
+	 * the device page size).
+	 */
+	sectorsize = pagesize;
+#ifdef FDT
+	{
+		pcell_t size;
+		if (OF_getencprop(ofw_bus_get_node(sc->dev),
+		    "freebsd,sectorsize", &size, sizeof(size)) > 0)
+			sectorsize = size;
+	}
+#endif
+	resource_int_value(device_get_name(sc->dev), device_get_unit(sc->dev),
+	    "sectorsize", &sectorsize);
+
+	if ((sectorsize % pagesize) != 0) {
+		device_printf(sc->dev, "Invalid sectorsize %d, "
+		    "must be a multiple of %d\n", sectorsize, pagesize);
+		return;
+	}
+
 	sc->dummybuf = malloc(pagesize, M_DEVBUF, M_WAITOK | M_ZERO);
 
 	sc->disk = disk_alloc();
@@ -350,7 +377,7 @@ at45d_delayed_attach(void *xsc)
 	sc->disk->d_name = "flash/at45d";
 	sc->disk->d_drv1 = sc;
 	sc->disk->d_maxsize = DFLTPHYS;
-	sc->disk->d_sectorsize = pagesize;
+	sc->disk->d_sectorsize = sectorsize;
 	sc->disk->d_mediasize = pagesize * ident->pagecount;
 	sc->disk->d_unit = device_get_unit(sc->dev);
 	disk_create(sc->disk, DISK_VERSION);
@@ -358,9 +385,10 @@ at45d_delayed_attach(void *xsc)
 	bioq_init(&sc->bio_queue);
 	kproc_create(&at45d_task, sc, &sc->p, 0, 0, "task: at45d flash");
 	sc->taskstate = TSTATE_RUNNING;
-	device_printf(sc->dev, "%s, %d bytes per page, %d pages; %d KBytes\n",
+	device_printf(sc->dev,
+	    "%s, %d bytes per page, %d pages; %d KBytes; disk sector size %d\n",
 	    ident->name, pagesize, ident->pagecount,
-	    (pagesize * ident->pagecount) / 1024);
+	    (pagesize * ident->pagecount) / 1024, sectorsize);
 }
 
 static int
