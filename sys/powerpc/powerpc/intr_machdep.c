@@ -119,7 +119,7 @@ struct pic {
 
 static u_int intrcnt_index = 0;
 static struct mtx intr_table_lock;
-static struct powerpc_intr *powerpc_intrs[INTR_VECTORS];
+static struct powerpc_intr **powerpc_intrs;
 static struct pic piclist[MAX_PICS];
 static u_int nvectors;		/* Allocated vectors */
 static u_int npics;		/* PICs registered */
@@ -130,10 +130,20 @@ static u_int nirqs = 0;		/* Allocated IRQs. */
 #endif
 static u_int stray_count;
 
-u_long intrcnt[INTR_VECTORS];
-char intrnames[INTR_VECTORS * (MAXCOMLEN + 1)];
+u_long *intrcnt;
+char *intrnames;
 size_t sintrcnt = sizeof(intrcnt);
 size_t sintrnames = sizeof(intrnames);
+int nintrcnt;
+
+/*
+ * Just to start
+ */
+#ifdef __powerpc64__
+u_int num_io_irqs = 768;
+#else
+u_int num_io_irqs = 256;
+#endif
 
 device_t root_pic;
 
@@ -142,12 +152,46 @@ static void *ipi_cookie;
 #endif
 
 static void
+intrcnt_setname(const char *name, int index)
+{
+
+	snprintf(intrnames + (MAXCOMLEN + 1) * index, MAXCOMLEN + 1, "%-*s",
+	    MAXCOMLEN, name);
+}
+
+static void
 intr_init(void *dummy __unused)
 {
 
 	mtx_init(&intr_table_lock, "intr sources lock", NULL, MTX_DEF);
 }
 SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
+
+static void
+intr_init_sources(void *arg __unused)
+{
+
+	powerpc_intrs = mallocarray(num_io_irqs, sizeof(*powerpc_intrs),
+	    M_INTR, M_WAITOK | M_ZERO);
+	nintrcnt = 1 + num_io_irqs * 2 + mp_ncpus * 2;
+#ifdef COUNT_IPIS
+	if (mp_ncpus > 1)
+		nintrcnt += 8 * mp_ncpus;
+#endif
+	intrcnt = mallocarray(nintrcnt, sizeof(u_long), M_INTR, M_WAITOK |
+	    M_ZERO);
+	intrnames = mallocarray(nintrcnt, MAXCOMLEN + 1, M_INTR, M_WAITOK |
+	    M_ZERO);
+	sintrcnt = nintrcnt * sizeof(u_long);
+	sintrnames = nintrcnt * (MAXCOMLEN + 1);
+
+	intrcnt_setname("???", 0);
+	intrcnt_index = 1;
+}
+/*
+ * This needs to happen before SI_SUB_CPU
+ */
+SYSINIT(intr_init_sources, SI_SUB_KLD, SI_ORDER_ANY, intr_init_sources, NULL);
 
 #ifdef SMP
 static void
@@ -165,26 +209,19 @@ smp_intr_init(void *dummy __unused)
 SYSINIT(smp_intr_init, SI_SUB_SMP, SI_ORDER_ANY, smp_intr_init, NULL);
 #endif
 
-static void
-intrcnt_setname(const char *name, int index)
-{
-
-	snprintf(intrnames + (MAXCOMLEN + 1) * index, MAXCOMLEN + 1, "%-*s",
-	    MAXCOMLEN, name);
-}
-
 void
 intrcnt_add(const char *name, u_long **countp)
 {
 	int idx;
 
 	idx = atomic_fetchadd_int(&intrcnt_index, 1);
-	KASSERT(idx < INTR_VECTORS, ("intrcnt_add: Interrupt counter index "
-	    "reached INTR_VECTORS"));
+	KASSERT(idx < nintrcnt, ("intrcnt_add: Interrupt counter index %d/%d"
+		"reached nintrcnt : %d", intrcnt_index, idx, nintrcnt));
 	*countp = &intrcnt[idx];
 	intrcnt_setname(name, idx);
 }
 
+extern void kdb_backtrace(void);
 static struct powerpc_intr *
 intr_lookup(u_int irq)
 {
@@ -224,7 +261,7 @@ intr_lookup(u_int irq)
 	CPU_SETOF(0, &i->cpu);
 #endif
 
-	for (vector = 0; vector < INTR_VECTORS && vector <= nvectors;
+	for (vector = 0; vector < num_io_irqs && vector <= nvectors;
 	    vector++) {
 		iscan = powerpc_intrs[vector];
 		if (iscan != NULL && iscan->irq == irq)
