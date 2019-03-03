@@ -3200,8 +3200,8 @@ validate(struct sockaddr *sa, const char *hname)
 					dprintf("rejected in rule %d due to scope mismatch.\n", i);
 					continue;
 				}
-				if (IN6_ARE_MASKED_ADDR_EQUAL(&sin6->sin6_addr,
-				    &a6p->sin6_addr, &m6p->sin6_addr) != 0) {
+				if (!IN6_ARE_MASKED_ADDR_EQUAL(&sin6->sin6_addr,
+				    &a6p->sin6_addr, &m6p->sin6_addr)) {
 					dprintf("rejected in rule %d due to IP mismatch.\n", i);
 					continue;
 				}
