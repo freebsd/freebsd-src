@@ -187,7 +187,10 @@ struct peer {
 static STAILQ_HEAD(, peer) pqueue = STAILQ_HEAD_INITIALIZER(pqueue);
 
 struct socklist {
-	struct sockaddr_storage	sl_ss;
+	struct addrinfo		sl_ai;
+#define	sl_sa		sl_ai.ai_addr
+#define	sl_salen	sl_ai.ai_addrlen
+#define	sl_family	sl_ai.ai_family
 	int			sl_socket;
 	struct peer		*sl_peer;
 	int			(*sl_recv)(struct socklist *);
@@ -377,7 +380,7 @@ struct iovlist;
 static int	allowaddr(char *);
 static int	addfile(struct filed *);
 static int	addpeer(struct peer *);
-static int	addsock(struct sockaddr *, socklen_t, struct socklist *);
+static int	addsock(struct addrinfo *, struct socklist *);
 static struct filed *cfline(const char *, const char *, const char *);
 static const char *cvthname(struct sockaddr *);
 static void	deadq_enter(pid_t, const char *);
@@ -426,9 +429,9 @@ close_filed(struct filed *f)
 
 	switch (f->f_type) {
 	case F_FORW:
-		if (f->f_un.f_forw.f_addr) {
-			freeaddrinfo(f->f_un.f_forw.f_addr);
-			f->f_un.f_forw.f_addr = NULL;
+		if (f->fu_forw_addr != NULL) {
+			freeaddrinfo(f->fu_forw_addr);
+			f->fu_forw_addr = NULL;
 		}
 		/* FALLTHROUGH */
 
@@ -474,16 +477,23 @@ addpeer(struct peer *pe0)
 }
 
 static int
-addsock(struct sockaddr *sa, socklen_t sa_len, struct socklist *sl0)
+addsock(struct addrinfo *ai, struct socklist *sl0)
 {
 	struct socklist *sl;
 
-	sl = calloc(1, sizeof(*sl));
+	/* Copy *ai->ai_addr to the tail of struct socklist if any. */
+	sl = calloc(1, sizeof(*sl) + ((ai != NULL) ? ai->ai_addrlen : 0));
 	if (sl == NULL)
 		err(1, "malloc failed");
 	*sl = *sl0;
-	if (sa != NULL && sa_len > 0)
-		memcpy(&sl->sl_ss, sa, sa_len);
+	if (ai != NULL) {
+		memcpy(&sl->sl_ai, ai, sizeof(*ai));
+		if (ai->ai_addrlen > 0) {
+			memcpy((sl + 1), ai->ai_addr, ai->ai_addrlen);
+			sl->sl_sa = (struct sockaddr *)(sl + 1);
+		} else
+			sl->sl_sa = NULL;
+	}
 	STAILQ_INSERT_TAIL(&shead, sl, next);
 
 	return (0);
@@ -665,7 +675,7 @@ main(int argc, char *argv[])
 	if (s < 0) {
 		err(1, "cannot open a pipe for signals");
 	} else {
-		addsock(NULL, 0, &(struct socklist){
+		addsock(NULL, &(struct socklist){
 		    .sl_socket = sigpipe[0],
 		    .sl_recv = socklist_recv_signal
 		});
@@ -676,7 +686,7 @@ main(int argc, char *argv[])
 	if (s < 0) {
 		dprintf("can't open %s (%d)\n", _PATH_KLOG, errno);
 	} else {
-		addsock(NULL, 0, &(struct socklist){
+		addsock(NULL, &(struct socklist){
 			.sl_socket = s,
 			.sl_recv = socklist_recv_file,
 		});
@@ -848,7 +858,7 @@ socklist_recv_sock(struct socklist *sl)
 	}
 	/* Received valid data. */
 	line[len] = '\0';
-	if (sl->sl_ss.ss_family == AF_LOCAL)
+	if (sl->sl_sa != NULL && sl->sl_family == AF_LOCAL)
 		hname = LocalHostName;
 	else {
 		hname = cvthname(sa);
@@ -1643,7 +1653,7 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 	case F_FORW:
 		/* Truncate messages to RFC 5426 recommended size. */
 		dprintf(" %s", f->fu_forw_hname);
-		switch (f->fu_forw_addr->ai_addr->sa_family) {
+		switch (f->fu_forw_addr->ai_family) {
 #ifdef INET
 		case AF_INET:
 			dprintf(":%d\n",
@@ -1670,9 +1680,11 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 			msghdr.msg_iov = il->iov;
 			msghdr.msg_iovlen = il->iovcnt;
 			STAILQ_FOREACH(sl, &shead, next) {
-				if (sl->sl_ss.ss_family == AF_LOCAL ||
-				    sl->sl_ss.ss_family == AF_UNSPEC ||
-				    sl->sl_socket < 0)
+				if (sl->sl_socket < 0)
+					continue;
+				if (sl->sl_sa != NULL &&
+				    (sl->sl_family == AF_LOCAL ||
+				     sl->sl_family == AF_UNSPEC))
 					continue;
 				lsent = sendmsg(sl->sl_socket, &msghdr, 0);
 				if (lsent == (ssize_t)il->totalsize)
@@ -2163,7 +2175,7 @@ die(int signo)
 		logerror(buf);
 	}
 	STAILQ_FOREACH(sl, &shead, next) {
-		if (sl->sl_ss.ss_family == AF_LOCAL)
+		if (sl->sl_sa != NULL && sl->sl_family == AF_LOCAL)
 			unlink(sl->sl_peer->pe_name);
 	}
 	pidfile_remove(pfh);
@@ -2450,7 +2462,7 @@ init(int signo)
 				break;
 
 			case F_FORW:
-				switch (f->fu_forw_addr->ai_addr->sa_family) {
+				switch (f->fu_forw_addr->ai_family) {
 #ifdef INET
 				case AF_INET:
 					port = ntohs(satosin(f->fu_forw_addr->ai_addr)->sin_port);
@@ -3527,8 +3539,7 @@ socksetup(struct peer *pe)
 #endif
 			dprintf("listening on socket\n");
 		dprintf("sending on socket\n");
-		addsock(res->ai_addr, res->ai_addrlen,
-		    &(struct socklist){
+		addsock(res, &(struct socklist){
 			.sl_socket = s,
 			.sl_peer = pe,
 			.sl_recv = sl_recv
