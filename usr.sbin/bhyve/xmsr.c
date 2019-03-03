@@ -89,6 +89,10 @@ emulate_wrmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t val)
 			/* Ignore writes to the PerfCtr MSRs */
 			return (0);
 
+		case MSR_AMD_LS_CFG:
+			/* Ignore writes to the Errata MSRs */
+			return (0);
+				
 		case MSR_P_STATE_CONTROL:
 			/* Ignore write to change the P-state */
 			return (0);
