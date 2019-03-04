@@ -10,19 +10,16 @@
 #ifndef liblldb_Host_posix_ConnectionFileDescriptorPosix_h_
 #define liblldb_Host_posix_ConnectionFileDescriptorPosix_h_
 
-// C++ Includes
 #include <atomic>
 #include <memory>
 #include <mutex>
 
 #include "lldb/lldb-forward.h"
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Host/Pipe.h"
-#include "lldb/Host/Predicate.h"
 #include "lldb/Utility/Connection.h"
 #include "lldb/Utility/IOObject.h"
+#include "lldb/Utility/Predicate.h"
 
 namespace lldb_private {
 

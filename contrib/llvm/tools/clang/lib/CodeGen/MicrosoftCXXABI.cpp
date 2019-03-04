@@ -1552,9 +1552,9 @@ void MicrosoftCXXABI::EmitDestructorCall(CodeGenFunction &CGF,
   if (Type == Dtor_Complete && DD->getParent()->getNumVBases() == 0)
     Type = Dtor_Base;
 
-  CGCallee Callee = CGCallee::forDirect(
-                          CGM.getAddrOfCXXStructor(DD, getFromDtorType(Type)),
-                                        DD);
+  CGCallee Callee =
+      CGCallee::forDirect(CGM.getAddrOfCXXStructor(DD, getFromDtorType(Type)),
+                          GlobalDecl(DD, Type));
 
   if (DD->isVirtual()) {
     assert(Type != CXXDtorType::Dtor_Deleting &&
@@ -1872,7 +1872,7 @@ CGCallee MicrosoftCXXABI::getVirtualFunctionPointer(CodeGenFunction &CGF,
     VFunc = Builder.CreateAlignedLoad(VFuncPtr, CGF.getPointerAlign());
   }
 
-  CGCallee Callee(MethodDecl->getCanonicalDecl(), VFunc);
+  CGCallee Callee(GD, VFunc);
   return Callee;
 }
 
@@ -2024,8 +2024,10 @@ MicrosoftCXXABI::getAddrOfVBTable(const VPtrInfo &VBT, const CXXRecordDecl *RD,
 
   assert(!CGM.getModule().getNamedGlobal(Name) &&
          "vbtable with this name already exists: mangling bug?");
-  llvm::GlobalVariable *GV =
-      CGM.CreateOrReplaceCXXRuntimeVariable(Name, VBTableType, Linkage);
+  CharUnits Alignment =
+      CGM.getContext().getTypeAlignInChars(CGM.getContext().IntTy);
+  llvm::GlobalVariable *GV = CGM.CreateOrReplaceCXXRuntimeVariable(
+      Name, VBTableType, Linkage, Alignment.getQuantity());
   GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
 
   if (RD->hasAttr<DLLImportAttr>())
@@ -2240,6 +2242,9 @@ static void emitGlobalDtorWithTLRegDtor(CodeGenFunction &CGF, const VarDecl &VD,
 void MicrosoftCXXABI::registerGlobalDtor(CodeGenFunction &CGF, const VarDecl &D,
                                          llvm::Constant *Dtor,
                                          llvm::Constant *Addr) {
+  if (D.isNoDestroy(CGM.getContext()))
+    return;
+
   if (D.getTLSKind())
     return emitGlobalDtorWithTLRegDtor(CGF, D, Dtor, Addr);
 
@@ -3924,7 +3929,7 @@ MicrosoftCXXABI::getAddrOfCXXCtorClosure(const CXXConstructorDecl *CD,
   CallArgList Args;
 
   // Push the this ptr.
-  Args.add(RValue::get(This), CD->getThisType(getContext()));
+  Args.add(RValue::get(This), CD->getThisType());
 
   // Push the src ptr.
   if (SrcVal)
@@ -3951,7 +3956,8 @@ MicrosoftCXXABI::getAddrOfCXXCtorClosure(const CXXConstructorDecl *CD,
   // Call the destructor with our arguments.
   llvm::Constant *CalleePtr =
     CGM.getAddrOfCXXStructor(CD, StructorType::Complete);
-  CGCallee Callee = CGCallee::forDirect(CalleePtr, CD);
+  CGCallee Callee =
+      CGCallee::forDirect(CalleePtr, GlobalDecl(CD, Ctor_Complete));
   const CGFunctionInfo &CalleeInfo = CGM.getTypes().arrangeCXXConstructorCall(
       Args, CD, Ctor_Complete, ExtraArgs.Prefix, ExtraArgs.Suffix);
   CGF.EmitCall(CalleeInfo, Callee, ReturnValueSlot(), Args);

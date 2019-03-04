@@ -12,9 +12,6 @@
 #include "ASTStructExtractor.h"
 #include "ClangExpressionParser.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/CodeGen/CodeGenAction.h"
@@ -25,9 +22,7 @@
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/IR/Module.h"
 
-// Project includes
 #include "lldb/Core/Module.h"
-#include "lldb/Core/State.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Core/ValueObjectList.h"
 #include "lldb/Expression/IRExecutionUnit.h"
@@ -44,6 +39,7 @@
 #include "lldb/Target/ThreadPlanCallFunction.h"
 #include "lldb/Utility/DataExtractor.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/State.h"
 
 using namespace lldb_private;
 

@@ -10,18 +10,15 @@
 #ifndef liblldb_ModuleSpec_h_
 #define liblldb_ModuleSpec_h_
 
-// Project includes
+#include "lldb/Host/FileSystem.h"
 #include "lldb/Target/PathMappingList.h"
 #include "lldb/Utility/ArchSpec.h"
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/Stream.h"
 #include "lldb/Utility/UUID.h"
 
-// Other libraries and framework includes
 #include "llvm/Support/Chrono.h"
 
-// C Includes
-// C++ Includes
 #include <mutex>
 #include <vector>
 
@@ -34,15 +31,17 @@ public:
         m_object_name(), m_object_offset(0), m_object_size(0),
         m_source_mappings() {}
 
-  ModuleSpec(const FileSpec &file_spec, const UUID& uuid = UUID())
+  ModuleSpec(const FileSpec &file_spec, const UUID &uuid = UUID())
       : m_file(file_spec), m_platform_file(), m_symbol_file(), m_arch(),
         m_uuid(uuid), m_object_name(), m_object_offset(0),
-        m_object_size(file_spec.GetByteSize()), m_source_mappings() {}
+        m_object_size(FileSystem::Instance().GetByteSize(file_spec)),
+        m_source_mappings() {}
 
   ModuleSpec(const FileSpec &file_spec, const ArchSpec &arch)
       : m_file(file_spec), m_platform_file(), m_symbol_file(), m_arch(arch),
         m_uuid(), m_object_name(), m_object_offset(0),
-        m_object_size(file_spec.GetByteSize()), m_source_mappings() {}
+        m_object_size(FileSystem::Instance().GetByteSize(file_spec)),
+        m_source_mappings() {}
 
   ModuleSpec(const ModuleSpec &rhs)
       : m_file(rhs.m_file), m_platform_file(rhs.m_platform_file),
@@ -256,20 +255,20 @@ public:
     if (match_module_spec.GetFileSpecPtr()) {
       const FileSpec &fspec = match_module_spec.GetFileSpec();
       if (!FileSpec::Equal(fspec, GetFileSpec(),
-                           fspec.GetDirectory().IsEmpty() == false))
+                           !fspec.GetDirectory().IsEmpty()))
         return false;
     }
     if (GetPlatformFileSpec() && match_module_spec.GetPlatformFileSpecPtr()) {
       const FileSpec &fspec = match_module_spec.GetPlatformFileSpec();
       if (!FileSpec::Equal(fspec, GetPlatformFileSpec(),
-                           fspec.GetDirectory().IsEmpty() == false))
+                           !fspec.GetDirectory().IsEmpty()))
         return false;
     }
     // Only match the symbol file spec if there is one in this ModuleSpec
     if (GetSymbolFileSpec() && match_module_spec.GetSymbolFileSpecPtr()) {
       const FileSpec &fspec = match_module_spec.GetSymbolFileSpec();
       if (!FileSpec::Equal(fspec, GetSymbolFileSpec(),
-                           fspec.GetDirectory().IsEmpty() == false))
+                           !fspec.GetDirectory().IsEmpty()))
         return false;
     }
     if (match_module_spec.GetArchitecturePtr()) {

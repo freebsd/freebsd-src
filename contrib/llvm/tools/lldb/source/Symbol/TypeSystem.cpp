@@ -101,6 +101,10 @@ CompilerType TypeSystem::GetTypeForFormatters(void *type) {
   return CompilerType(this, type);
 }
 
+size_t TypeSystem::GetNumTemplateArguments(lldb::opaque_compiler_type_t type) {
+  return 0;
+}
+
 TemplateArgumentKind
 TypeSystem::GetTemplateArgumentKind(opaque_compiler_type_t type, size_t idx) {
   return eTemplateArgumentKindNull;
@@ -189,7 +193,7 @@ void TypeSystemMap::ForEach(std::function<bool(TypeSystem *)> const &callback) {
     TypeSystem *type_system = pair.second.get();
     if (type_system && !visited.count(type_system)) {
       visited.insert(type_system);
-      if (callback(type_system) == false)
+      if (!callback(type_system))
         break;
     }
   }

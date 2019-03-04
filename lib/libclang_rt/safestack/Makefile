@@ -20,6 +20,7 @@ SRCS+=		sanitizer_common/sanitizer_libc.cc
 SRCS+=		sanitizer_common/sanitizer_libignore.cc
 SRCS+=		sanitizer_common/sanitizer_linux.cc
 SRCS+=		sanitizer_common/sanitizer_persistent_allocator.cc
+SRCS+=		sanitizer_common/sanitizer_platform_limits_freebsd.cc
 SRCS+=		sanitizer_common/sanitizer_platform_limits_linux.cc
 SRCS+=		sanitizer_common/sanitizer_platform_limits_posix.cc
 SRCS+=		sanitizer_common/sanitizer_posix.cc

@@ -1,5 +1,4 @@
-//===--------------------- StringLexer.h -------------------------*- C++
-//-*-===//
+//===--------------------- StringLexer.h ------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,9 +10,9 @@
 #ifndef utility_StringLexer_h_
 #define utility_StringLexer_h_
 
-#include <initializer_list> // for initializer_list
-#include <string>           // for string
-#include <utility>          // for pair
+#include <initializer_list>
+#include <string>
+#include <utility>
 
 namespace lldb_utility {
 
