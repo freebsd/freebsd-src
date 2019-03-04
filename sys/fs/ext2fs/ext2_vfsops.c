@@ -773,11 +773,18 @@ loop:
 			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			return (error);
 		}
-		ext2_ei2i((struct ext2fs_dinode *)((char *)bp->b_data +
+
+		error = ext2_ei2i((struct ext2fs_dinode *)((char *)bp->b_data +
 		    EXT2_INODE_SIZE(fs) * ino_to_fsbo(fs, ip->i_number)), ip);
+
 		brelse(bp);
 		VOP_UNLOCK(vp, 0);
 		vrele(vp);
+
+		if (error) {
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
+			return (error);
+		}
 	}
 	return (0);
 }
@@ -1208,8 +1215,6 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	error = ext2_ei2i((struct ext2fs_dinode *)((char *)bp->b_data +
 	    EXT2_INODE_SIZE(fs) * ino_to_fsbo(fs, ino)), ip);
 	if (error) {
-		printf("ext2fs: Bad inode %lu csum - run fsck\n",
-		    (unsigned long)ino);
 		brelse(bp);
 		vput(vp);
 		*vpp = NULL;
