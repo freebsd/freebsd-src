@@ -629,6 +629,8 @@ ext2_ei_csum_verify(struct inode *ip, struct ext2fs_dinode *ei)
 		if (!memcmp(ei, &ei_zero, sizeof(struct ext2fs_dinode)))
 			return (0);
 
+		printf("WARNING: Bad inode %ju csum - run fsck\n", ip->i_number);
+
 		return (EIO);
 	}
 
