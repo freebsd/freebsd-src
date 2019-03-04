@@ -902,6 +902,52 @@ ext2_cg_block_bitmap_init(struct m_ext2fs *fs, int cg, struct buf *bp)
 	return (0);
 }
 
+static int
+ext2_b_bitmap_validate(struct m_ext2fs *fs, struct buf *bp, int cg)
+{
+	struct ext2_gd *gd;
+	uint64_t group_first_block;
+	unsigned int offset, max_bit;
+
+	if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_FLEX_BG)) {
+		/*
+		 * It is not possible to check block bitmap in case of this feature,
+		 * because the inode and block bitmaps and inode table
+		 * blocks may not be in the group at all.
+		 * So, skip check in this case.
+		 */
+		return (0);
+	}
+
+	gd = &fs->e2fs_gd[cg];
+	max_bit = fs->e2fs_fpg;
+	group_first_block = ((uint64_t)cg) * fs->e2fs->e2fs_fpg +
+	    fs->e2fs->e2fs_first_dblock;
+
+	/* Check block bitmap block number */
+	offset = e2fs_gd_get_b_bitmap(gd) - group_first_block;
+	if (offset >= max_bit || !isset(bp->b_data, offset)) {
+		printf("ext2fs: bad block bitmap, group %d\n", cg);
+		return (EINVAL);
+	}
+
+	/* Check inode bitmap block number */
+	offset = e2fs_gd_get_i_bitmap(gd) - group_first_block;
+	if (offset >= max_bit || !isset(bp->b_data, offset)) {
+		printf("ext2fs: bad inode bitmap, group %d\n", cg);
+		return (EINVAL);
+	}
+
+	/* Check inode table */
+	offset = e2fs_gd_get_i_tables(gd) - group_first_block;
+	if (offset >= max_bit || offset + fs->e2fs_itpg >= max_bit) {
+		printf("ext2fs: bad inode table, group %d\n", cg);
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
 /*
  * Determine whether a block can be allocated.
  *
@@ -922,40 +968,37 @@ ext2_alloccg(struct inode *ip, int cg, daddr_t bpref, int size)
 	ump = ip->i_ump;
 	if (e2fs_gd_get_nbfree(&fs->e2fs_gd[cg]) == 0)
 		return (0);
+
 	EXT2_UNLOCK(ump);
 	error = bread(ip->i_devvp, fsbtodb(fs,
 	    e2fs_gd_get_b_bitmap(&fs->e2fs_gd[cg])),
 	    (int)fs->e2fs_bsize, NOCRED, &bp);
-	if (error) {
-		brelse(bp);
-		EXT2_LOCK(ump);
-		return (0);
-	}
+	if (error)
+		goto fail;
+
 	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM) ||
 	    EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM)) {
 		error = ext2_cg_block_bitmap_init(fs, cg, bp);
-		if (error) {
-			brelse(bp);
-			EXT2_LOCK(ump);
-			return (0);
-		}
+		if (error)
+			goto fail;
+
 		ext2_gd_b_bitmap_csum_set(fs, cg, bp);
 	}
 	error = ext2_gd_b_bitmap_csum_verify(fs, cg, bp);
-	if (error) {
-		brelse(bp);
-		EXT2_LOCK(ump);
-		return (0);
-	}
-	if (e2fs_gd_get_nbfree(&fs->e2fs_gd[cg]) == 0) {
-		/*
-		 * Another thread allocated the last block in this
-		 * group while we were waiting for the buffer.
-		 */
-		brelse(bp);
-		EXT2_LOCK(ump);
-		return (0);
-	}
+	if (error)
+		goto fail;
+
+	error = ext2_b_bitmap_validate(fs,bp, cg);
+	if (error)
+		goto fail;
+
+	/*
+	 * Check, that another thread did not not allocate the last block in this
+	 * group while we were waiting for the buffer.
+	 */
+	if (e2fs_gd_get_nbfree(&fs->e2fs_gd[cg]) == 0)
+		goto fail;
+
 	bbp = (char *)bp->b_data;
 
 	if (dtog(fs, bpref) != cg)
@@ -1028,11 +1071,9 @@ retry:
 		goto retry;
 	}
 	bno = ext2_mapsearch(fs, bbp, bpref);
-	if (bno < 0) {
-		brelse(bp);
-		EXT2_LOCK(ump);
-		return (0);
-	}
+	if (bno < 0)
+		goto fail;
+
 gotit:
 #ifdef INVARIANTS
 	if (isset(bbp, bno)) {
@@ -1052,6 +1093,11 @@ gotit:
 	ext2_gd_b_bitmap_csum_set(fs, cg, bp);
 	bdwrite(bp);
 	return (((uint64_t)cg) * fs->e2fs->e2fs_fpg + fs->e2fs->e2fs_first_dblock + bno);
+
+fail:
+	brelse(bp);
+	EXT2_LOCK(ump);
+	return (0);
 }
 
 /*
