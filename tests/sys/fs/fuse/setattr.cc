@@ -132,8 +132,6 @@ TEST_F(Setattr, chown)
 }
 
 
-/* Change the mode of an open file, by its file descriptor */
-//TODO TEST_F(Setattr, fchmod) {}
 
 /* 
  * FUSE daemons are allowed to check permissions however they like.  If the
@@ -174,6 +172,157 @@ TEST_F(Setattr, eperm)
 	}));
 	EXPECT_NE(0, truncate(FULLPATH, 10));
 	EXPECT_EQ(EPERM, errno);
+}
+
+/* Change the mode of an open file, by its file descriptor */
+TEST_F(Setattr, fchmod)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int fd;
+	const mode_t oldmode = 0755;
+	const mode_t newmode = 0644;
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_LOOKUP &&
+				strcmp(in->body.lookup, RELPATH) == 0);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFREG | oldmode;
+		out->body.entry.nodeid = ino;
+		out->body.entry.attr_valid = UINT64_MAX;
+	}));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_OPEN &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		out->header.len = sizeof(out->header);
+		SET_OUT_HEADER_LEN(out, open);
+	}));
+
+	/* Until the attr cache is working, we may send an additional GETATTR */
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_GETATTR &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out->body.attr.attr.mode = S_IFREG | oldmode;
+	}));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			/* In protocol 7.23, ctime will be changed too */
+			uint32_t valid = FATTR_MODE;
+			return (in->header.opcode == FUSE_SETATTR &&
+				in->header.nodeid == ino &&
+				in->body.setattr.valid == valid &&
+				in->body.setattr.mode == newmode);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out->body.attr.attr.mode = S_IFREG | newmode;
+	}));
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+	ASSERT_EQ(0, fchmod(fd, newmode)) << strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/* Change the size of an open file, by its file descriptor */
+TEST_F(Setattr, ftruncate)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int fd;
+	uint64_t fh = 0xdeadbeef1a7ebabe;
+	const off_t oldsize = 99;
+	const off_t newsize = 12345;
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_LOOKUP &&
+				strcmp(in->body.lookup, RELPATH) == 0);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFREG | 0755;
+		out->body.entry.nodeid = ino;
+		out->body.entry.attr_valid = UINT64_MAX;
+		out->body.entry.attr.size = oldsize;
+	}));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_OPEN &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		out->header.len = sizeof(out->header);
+		SET_OUT_HEADER_LEN(out, open);
+		out->body.open.fh = fh;
+	}));
+
+	/* Until the attr cache is working, we may send an additional GETATTR */
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_GETATTR &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out->body.attr.attr.mode = S_IFREG | 0755;
+		out->body.attr.attr.size = oldsize;
+	}));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			/* In protocol 7.23, ctime will be changed too */
+			uint32_t valid = FATTR_SIZE | FATTR_FH;
+			return (in->header.opcode == FUSE_SETATTR &&
+				in->header.nodeid == ino &&
+				in->body.setattr.valid == valid &&
+				in->body.setattr.fh == fh);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out->body.attr.attr.mode = S_IFREG | 0755;
+		out->body.attr.attr.size = newsize;
+	}));
+
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+	ASSERT_EQ(0, ftruncate(fd, newsize)) << strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
 /* Change the size of the file */

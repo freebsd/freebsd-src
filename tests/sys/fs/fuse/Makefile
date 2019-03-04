@@ -4,24 +4,48 @@ PACKAGE=	tests
 
 TESTSDIR=	${TESTSBASE}/sys/fs/fuse
 
+ATF_TESTS_CXX+=	create
 ATF_TESTS_CXX+=	getattr
 ATF_TESTS_CXX+=	lookup
+ATF_TESTS_CXX+=	open
+ATF_TESTS_CXX+=	readlink
 ATF_TESTS_CXX+=	setattr
+ATF_TESTS_CXX+=	symlink
+
+SRCS.create+=	create.cc
+SRCS.create+=	getmntopts.c
+SRCS.create+=	mockfs.cc
+SRCS.create+=	utils.cc
 
 SRCS.getattr+=	getattr.cc
 SRCS.getattr+=	getmntopts.c
 SRCS.getattr+=	mockfs.cc
 SRCS.getattr+=	utils.cc
 
-SRCS.lookup+=	lookup.cc
 SRCS.lookup+=	getmntopts.c
+SRCS.lookup+=	lookup.cc
 SRCS.lookup+=	mockfs.cc
 SRCS.lookup+=	utils.cc
 
-SRCS.setattr+=	setattr.cc
+SRCS.open+=	getmntopts.c
+SRCS.open+=	mockfs.cc
+SRCS.open+=	open.cc
+SRCS.open+=	utils.cc
+
+SRCS.readlink+=	getmntopts.c
+SRCS.readlink+=	mockfs.cc
+SRCS.readlink+=	readlink.cc
+SRCS.readlink+=	utils.cc
+
 SRCS.setattr+=	getmntopts.c
 SRCS.setattr+=	mockfs.cc
+SRCS.setattr+=	setattr.cc
 SRCS.setattr+=	utils.cc
+
+SRCS.symlink+=	getmntopts.c
+SRCS.symlink+=	mockfs.cc
+SRCS.symlink+=	symlink.cc
+SRCS.symlink+=	utils.cc
 
 # TODO: drastically increase timeout after test development is mostly complete
 TEST_METADATA+= timeout=10
