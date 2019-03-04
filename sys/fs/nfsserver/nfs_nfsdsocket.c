@@ -478,9 +478,6 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram, u_char *tag, int taglen,
 	mount_t mp = NULL;
 	struct nfsrvfh fh;
 	struct nfsexstuff nes;
-	struct thread *p;
-
-	p = curthread;
 
 	/*
 	 * Get a locked vnode for the first file handle
@@ -516,10 +513,10 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram, u_char *tag, int taglen,
 				lktype = LK_EXCLUSIVE;
 			if (nd->nd_flag & ND_PUBLOOKUP)
 				nfsd_fhtovp(nd, &nfs_pubfh, lktype, &vp, &nes,
-				    &mp, nfsrv_writerpc[nd->nd_procnum], p);
+				    &mp, nfsrv_writerpc[nd->nd_procnum]);
 			else
 				nfsd_fhtovp(nd, &fh, lktype, &vp, &nes,
-				    &mp, nfsrv_writerpc[nd->nd_procnum], p);
+				    &mp, nfsrv_writerpc[nd->nd_procnum]);
 			if (nd->nd_repstat == NFSERR_PROGNOTV4)
 				goto out;
 		}
@@ -865,7 +862,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 				goto nfsmout;
 			if (!nd->nd_repstat)
 				nfsd_fhtovp(nd, &fh, LK_SHARED, &nvp, &nes,
-				    NULL, 0, p);
+				    NULL, 0);
 			/* For now, allow this for non-export FHs */
 			if (!nd->nd_repstat) {
 				if (vp)
@@ -879,7 +876,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 		case NFSV4OP_PUTPUBFH:
 			if (nfs_pubfhset)
 			    nfsd_fhtovp(nd, &nfs_pubfh, LK_SHARED, &nvp,
-				&nes, NULL, 0, p);
+				&nes, NULL, 0);
 			else
 			    nd->nd_repstat = NFSERR_NOFILEHANDLE;
 			if (!nd->nd_repstat) {
@@ -894,7 +891,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 		case NFSV4OP_PUTROOTFH:
 			if (nfs_rootfhset) {
 				nfsd_fhtovp(nd, &nfs_rootfh, LK_SHARED, &nvp,
-				    &nes, NULL, 0, p);
+				    &nes, NULL, 0);
 				if (!nd->nd_repstat) {
 					if (vp)
 						vrele(vp);
