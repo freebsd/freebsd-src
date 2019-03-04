@@ -949,10 +949,11 @@ nfsvno_write(struct vnode *vp, off_t off, int retlen, int cnt, int *stable,
 int
 nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
     struct vnode **vpp, struct nfsvattr *nvap, int *exclusive_flagp,
-    int32_t *cverf, NFSDEV_T rdev, struct thread *p, struct nfsexstuff *exp)
+    int32_t *cverf, NFSDEV_T rdev, struct nfsexstuff *exp)
 {
 	u_quad_t tempsize;
 	int error;
+	struct thread *p = curthread;
 
 	error = nd->nd_repstat;
 	if (!error && ndp->ni_vp == NULL) {

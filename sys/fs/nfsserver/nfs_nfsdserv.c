@@ -1185,7 +1185,7 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 	 *   should I set the mode too ?
 	 */
 	nd->nd_repstat = nfsvno_createsub(nd, &named, &vp, &nva,
-	    &exclusive_flag, cverf, rdev, p, exp);
+	    &exclusive_flag, cverf, rdev, exp);
 
 	if (!nd->nd_repstat) {
 		nd->nd_repstat = nfsvno_getfh(vp, &fh, p);
