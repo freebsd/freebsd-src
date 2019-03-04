@@ -1263,15 +1263,13 @@ ar9300_get_diag_state(struct ath_hal *ah, int request,
         if (ani == AH_NULL)
             return AH_FALSE;
         /* Convert ar9300 HAL to FreeBSD HAL ANI state */
-        /* XXX TODO: add all of these to the HAL ANI state structure */
         bzero(&ahp->ext_ani_state, sizeof(ahp->ext_ani_state));
-        /* XXX should this be OFDM or CCK noise immunity level? */
         ahp->ext_ani_state.noiseImmunityLevel = ani->ofdm_noise_immunity_level;
         ahp->ext_ani_state.spurImmunityLevel = ani->spur_immunity_level;
         ahp->ext_ani_state.firstepLevel = ani->firstep_level;
         ahp->ext_ani_state.ofdmWeakSigDetectOff = ani->ofdm_weak_sig_detect_off;
-        /* mrc_cck_off */
-        /* cck_noise_immunity_level */
+        ahp->ext_ani_state.mrcCckOff = ani->mrc_cck_off;
+        ahp->ext_ani_state.cckNoiseImmunityLevel = ani->cck_noise_immunity_level;
 
         ahp->ext_ani_state.listenTime = ani->listen_time;
 
