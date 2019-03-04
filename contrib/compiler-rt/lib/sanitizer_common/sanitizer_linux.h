@@ -18,6 +18,7 @@
     SANITIZER_OPENBSD || SANITIZER_SOLARIS
 #include "sanitizer_common.h"
 #include "sanitizer_internal_defs.h"
+#include "sanitizer_platform_limits_freebsd.h"
 #include "sanitizer_platform_limits_netbsd.h"
 #include "sanitizer_platform_limits_openbsd.h"
 #include "sanitizer_platform_limits_posix.h"
@@ -69,6 +70,8 @@ void internal_sigdelset(__sanitizer_sigset_t *set, int signum);
 uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
                     int *parent_tidptr, void *newtls, int *child_tidptr);
 #endif
+#elif SANITIZER_FREEBSD
+void internal_sigdelset(__sanitizer_sigset_t *set, int signum);
 #endif  // SANITIZER_LINUX
 
 // This class reads thread IDs from /proc/<pid>/task using only syscalls.
@@ -131,13 +134,13 @@ void ForEachMappedRegion(link_map *map, void (*cb)(const void *, uptr));
 #error "Unsupported architecture."
 #endif
 
-// The Android Bionic team has allocated a TLS slot for TSan starting with N,
-// given that Android currently doesn't support ELF TLS. It is used to store
-// Sanitizers thread specific data.
-static const int TLS_SLOT_TSAN = 8;
+// The Android Bionic team has allocated a TLS slot for sanitizers starting
+// with Q, given that Android currently doesn't support ELF TLS. It is used to
+// store sanitizer thread specific data.
+static const int TLS_SLOT_SANITIZER = 6;
 
 ALWAYS_INLINE uptr *get_android_tls_ptr() {
-  return reinterpret_cast<uptr *>(&__get_tls()[TLS_SLOT_TSAN]);
+  return reinterpret_cast<uptr *>(&__get_tls()[TLS_SLOT_SANITIZER]);
 }
 
 #endif  // SANITIZER_ANDROID

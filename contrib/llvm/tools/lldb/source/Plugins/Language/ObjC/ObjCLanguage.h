@@ -10,13 +10,10 @@
 #ifndef liblldb_ObjCLanguage_h_
 #define liblldb_ObjCLanguage_h_
 
-// C Includes
-// C++ Includes
 #include <cstring>
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
+#include "Plugins/Language/ClangCommon/ClangHighlighter.h"
 #include "lldb/Target/Language.h"
 #include "lldb/Utility/ConstString.h"
 #include "lldb/lldb-private.h"
@@ -24,6 +21,8 @@
 namespace lldb_private {
 
 class ObjCLanguage : public Language {
+  ClangHighlighter m_highlighter;
+
 public:
   class MethodName {
   public:
@@ -120,6 +119,10 @@ public:
                                 std::string &suffix) override;
 
   bool IsNilReference(ValueObject &valobj) override;
+
+  bool IsSourceFile(llvm::StringRef file_path) const override;
+
+  const Highlighter *GetHighlighter() const override { return &m_highlighter; }
 
   //------------------------------------------------------------------
   // Static Functions

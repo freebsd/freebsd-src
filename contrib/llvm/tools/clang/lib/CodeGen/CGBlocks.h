@@ -60,7 +60,7 @@ enum BlockLiteralFlags {
   BLOCK_IS_GLOBAL =         (1 << 28),
   BLOCK_USE_STRET =         (1 << 29),
   BLOCK_HAS_SIGNATURE  =    (1 << 30),
-  BLOCK_HAS_EXTENDED_LAYOUT = (1 << 31)
+  BLOCK_HAS_EXTENDED_LAYOUT = (1u << 31)
 };
 class BlockFlags {
   uint32_t flags;
@@ -131,6 +131,9 @@ public:
   }
   friend bool operator&(BlockFieldFlags l, BlockFieldFlags r) {
     return (l.flags & r.flags);
+  }
+  bool operator==(BlockFieldFlags Other) const {
+    return flags == Other.flags;
   }
 };
 inline BlockFieldFlags operator|(BlockFieldFlag_t l, BlockFieldFlag_t r) {
@@ -230,6 +233,11 @@ public:
   /// HasCapturedVariableLayout : True if block has captured variables
   /// and their layout meta-data has been generated.
   bool HasCapturedVariableLayout : 1;
+
+  /// Indicates whether an object of a non-external C++ class is captured. This
+  /// bit is used to determine the linkage of the block copy/destroy helper
+  /// functions.
+  bool CapturesNonExternalType : 1;
 
   /// The mapping of allocated indexes within the block.
   llvm::DenseMap<const VarDecl*, Capture> Captures;

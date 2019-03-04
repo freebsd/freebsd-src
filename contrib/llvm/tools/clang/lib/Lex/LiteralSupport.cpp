@@ -617,10 +617,11 @@ NumericLiteralParser::NumericLiteralParser(StringRef TokSpelling,
       if (isHalf || isFloat || isLong || isFloat128)
         break; // HF, FF, LF, QF invalid.
 
-      if (s + 2 < ThisTokEnd && s[1] == '1' && s[2] == '6') {
-          s += 2; // success, eat up 2 characters.
-          isFloat16 = true;
-          continue;
+      if (PP.getTargetInfo().hasFloat16Type() && s + 2 < ThisTokEnd &&
+          s[1] == '1' && s[2] == '6') {
+        s += 2; // success, eat up 2 characters.
+        isFloat16 = true;
+        continue;
       }
 
       isFloat = true;
@@ -693,7 +694,7 @@ NumericLiteralParser::NumericLiteralParser(StringRef TokSpelling,
           break;
         }
       }
-      // fall through.
+      LLVM_FALLTHROUGH;
     case 'j':
     case 'J':
       if (isImaginary) break;   // Cannot be repeated.

@@ -17,7 +17,6 @@
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/Module.h"
 #include "clang/Basic/SourceManager.h"
-#include "clang/Basic/VirtualFileSystem.h"
 #include "clang/Lex/DirectoryLookup.h"
 #include "clang/Lex/ExternalPreprocessorSource.h"
 #include "clang/Lex/HeaderMap.h"
@@ -35,6 +34,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/VirtualFileSystem.h"
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
@@ -75,12 +75,6 @@ HeaderSearch::HeaderSearch(std::shared_ptr<HeaderSearchOptions> HSOpts,
       FileMgr(SourceMgr.getFileManager()), FrameworkMap(64),
       ModMap(SourceMgr, Diags, LangOpts, Target, *this) {}
 
-HeaderSearch::~HeaderSearch() {
-  // Delete headermaps.
-  for (unsigned i = 0, e = HeaderMaps.size(); i != e; ++i)
-    delete HeaderMaps[i].second;
-}
-
 void HeaderSearch::PrintStats() {
   fprintf(stderr, "\n*** HeaderSearch Stats:\n");
   fprintf(stderr, "%d files tracked.\n", (int)FileInfo.size());
@@ -113,12 +107,12 @@ const HeaderMap *HeaderSearch::CreateHeaderMap(const FileEntry *FE) {
       // Pointer equality comparison of FileEntries works because they are
       // already uniqued by inode.
       if (HeaderMaps[i].first == FE)
-        return HeaderMaps[i].second;
+        return HeaderMaps[i].second.get();
   }
 
-  if (const HeaderMap *HM = HeaderMap::Create(FE, FileMgr)) {
-    HeaderMaps.push_back(std::make_pair(FE, HM));
-    return HM;
+  if (std::unique_ptr<HeaderMap> HM = HeaderMap::Create(FE, FileMgr)) {
+    HeaderMaps.emplace_back(FE, std::move(HM));
+    return HeaderMaps.back().second.get();
   }
 
   return nullptr;
@@ -654,7 +648,7 @@ static bool isFrameworkStylePath(StringRef Path, bool &IsPrivateHeader,
     ++I;
   }
 
-  return FoundComp >= 2;
+  return !FrameworkName.empty() && FoundComp >= 2;
 }
 
 static void
@@ -1577,20 +1571,21 @@ void HeaderSearch::collectAllModules(SmallVectorImpl<Module *> &Modules) {
                                 DirNative);
 
         // Search each of the ".framework" directories to load them as modules.
-        vfs::FileSystem &FS = *FileMgr.getVirtualFileSystem();
-        for (vfs::directory_iterator Dir = FS.dir_begin(DirNative, EC), DirEnd;
+        llvm::vfs::FileSystem &FS = *FileMgr.getVirtualFileSystem();
+        for (llvm::vfs::directory_iterator Dir = FS.dir_begin(DirNative, EC),
+                                           DirEnd;
              Dir != DirEnd && !EC; Dir.increment(EC)) {
-          if (llvm::sys::path::extension(Dir->getName()) != ".framework")
+          if (llvm::sys::path::extension(Dir->path()) != ".framework")
             continue;
 
           const DirectoryEntry *FrameworkDir =
-              FileMgr.getDirectory(Dir->getName());
+              FileMgr.getDirectory(Dir->path());
           if (!FrameworkDir)
             continue;
 
           // Load this framework module.
-          loadFrameworkModule(llvm::sys::path::stem(Dir->getName()),
-                              FrameworkDir, IsSystem);
+          loadFrameworkModule(llvm::sys::path::stem(Dir->path()), FrameworkDir,
+                              IsSystem);
         }
         continue;
       }
@@ -1643,15 +1638,16 @@ void HeaderSearch::loadSubdirectoryModuleMaps(DirectoryLookup &SearchDir) {
     return;
 
   std::error_code EC;
+  SmallString<128> Dir = SearchDir.getDir()->getName();
+  FileMgr.makeAbsolutePath(Dir);
   SmallString<128> DirNative;
-  llvm::sys::path::native(SearchDir.getDir()->getName(), DirNative);
-  vfs::FileSystem &FS = *FileMgr.getVirtualFileSystem();
-  for (vfs::directory_iterator Dir = FS.dir_begin(DirNative, EC), DirEnd;
+  llvm::sys::path::native(Dir, DirNative);
+  llvm::vfs::FileSystem &FS = *FileMgr.getVirtualFileSystem();
+  for (llvm::vfs::directory_iterator Dir = FS.dir_begin(DirNative, EC), DirEnd;
        Dir != DirEnd && !EC; Dir.increment(EC)) {
-    bool IsFramework =
-        llvm::sys::path::extension(Dir->getName()) == ".framework";
+    bool IsFramework = llvm::sys::path::extension(Dir->path()) == ".framework";
     if (IsFramework == SearchDir.isFramework())
-      loadModuleMapFile(Dir->getName(), SearchDir.isSystemHeaderDirectory(),
+      loadModuleMapFile(Dir->path(), SearchDir.isSystemHeaderDirectory(),
                         SearchDir.isFramework());
   }
 
@@ -1682,9 +1678,8 @@ std::string HeaderSearch::suggestPathToFileForDiagnostics(
     StringRef Dir = SearchDirs[I].getDir()->getName();
     llvm::SmallString<32> DirPath(Dir.begin(), Dir.end());
     if (!WorkingDir.empty() && !path::is_absolute(Dir)) {
-      auto err = fs::make_absolute(WorkingDir, DirPath);
-      if (!err)
-        path::remove_dots(DirPath, /*remove_dot_dot=*/true);
+      fs::make_absolute(WorkingDir, DirPath);
+      path::remove_dots(DirPath, /*remove_dot_dot=*/true);
       Dir = DirPath;
     }
     for (auto NI = path::begin(File), NE = path::end(File),

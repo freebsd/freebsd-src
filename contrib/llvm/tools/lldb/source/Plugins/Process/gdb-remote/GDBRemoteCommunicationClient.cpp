@@ -9,17 +9,13 @@
 
 #include "GDBRemoteCommunicationClient.h"
 
-// C Includes
 #include <math.h>
 #include <sys/stat.h>
 
-// C++ Includes
 #include <numeric>
 #include <sstream>
 
-// Other libraries and framework includes
 #include "lldb/Core/ModuleSpec.h"
-#include "lldb/Core/State.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Host/XML.h"
 #include "lldb/Symbol/Symbol.h"
@@ -31,9 +27,9 @@
 #include "lldb/Utility/JSON.h"
 #include "lldb/Utility/LLDBAssert.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/State.h"
 #include "lldb/Utility/StreamString.h"
 
-// Project includes
 #include "ProcessGDBRemote.h"
 #include "ProcessGDBRemoteLog.h"
 #include "lldb/Host/Config.h"
@@ -41,7 +37,8 @@
 
 #include "llvm/ADT/StringSwitch.h"
 
-#if defined(HAVE_LIBCOMPRESSION)
+#if defined(__APPLE__)
+#define HAVE_LIBCOMPRESSION
 #include <compression.h>
 #endif
 
@@ -256,10 +253,7 @@ bool GDBRemoteCommunicationClient::GetVAttachOrWaitSupported() {
         m_attach_or_wait_reply = eLazyBoolYes;
     }
   }
-  if (m_attach_or_wait_reply == eLazyBoolYes)
-    return true;
-  else
-    return false;
+  return m_attach_or_wait_reply == eLazyBoolYes;
 }
 
 bool GDBRemoteCommunicationClient::GetSyncThreadStateSupported() {
@@ -273,14 +267,11 @@ bool GDBRemoteCommunicationClient::GetSyncThreadStateSupported() {
         m_prepare_for_reg_writing_reply = eLazyBoolYes;
     }
   }
-  if (m_prepare_for_reg_writing_reply == eLazyBoolYes)
-    return true;
-  else
-    return false;
+  return m_prepare_for_reg_writing_reply == eLazyBoolYes;
 }
 
 void GDBRemoteCommunicationClient::ResetDiscoverableSettings(bool did_exec) {
-  if (did_exec == false) {
+  if (!did_exec) {
     // Hard reset everything, this is when we first connect to a GDB server
     m_supports_not_sending_acks = eLazyBoolCalculate;
     m_supports_thread_suffix = eLazyBoolCalculate;
@@ -749,7 +740,7 @@ lldb::pid_t GDBRemoteCommunicationClient::GetCurrentProcessID(bool allow_lazy) {
       bool sequence_mutex_unavailable;
       size_t size;
       size = GetCurrentThreadIDs(thread_ids, sequence_mutex_unavailable);
-      if (size && sequence_mutex_unavailable == false) {
+      if (size && !sequence_mutex_unavailable) {
         m_curr_pid = thread_ids.front();
         m_curr_pid_is_valid = eLazyBoolYes;
         return m_curr_pid;
@@ -843,8 +834,8 @@ int GDBRemoteCommunicationClient::SendEnvironmentPacket(
   if (name_equal_value && name_equal_value[0]) {
     StreamString packet;
     bool send_hex_encoding = false;
-    for (const char *p = name_equal_value;
-         *p != '\0' && send_hex_encoding == false; ++p) {
+    for (const char *p = name_equal_value; *p != '\0' && !send_hex_encoding;
+         ++p) {
       if (isprint(*p)) {
         switch (*p) {
         case '$':
@@ -1134,6 +1125,9 @@ bool GDBRemoteCommunicationClient::GetHostInfo(bool force) {
   Log *log(ProcessGDBRemoteLog::GetLogIfAnyCategoryIsSet(GDBR_LOG_PROCESS));
 
   if (force || m_qHostInfo_is_valid == eLazyBoolCalculate) {
+    // host info computation can require DNS traffic and shelling out to external processes.
+    // Increase the timeout to account for that.
+    ScopedTimeout timeout(*this, seconds(10));
     m_qHostInfo_is_valid = eLazyBoolNo;
     StringExtractorGDBRemote response;
     if (SendPacketAndWaitForResponse("qHostInfo", response, false) ==
@@ -1686,11 +1680,16 @@ Status GDBRemoteCommunicationClient::GetWatchpointSupportInfo(uint32_t &num) {
       m_supports_watchpoint_support_info = eLazyBoolYes;
       llvm::StringRef name;
       llvm::StringRef value;
+      bool found_num_field = false;
       while (response.GetNameColonValue(name, value)) {
         if (name.equals("num")) {
           value.getAsInteger(0, m_num_supported_hardware_watchpoints);
           num = m_num_supported_hardware_watchpoints;
+          found_num_field = true;
         }
+      }
+      if (!found_num_field) {
+        m_supports_watchpoint_support_info = eLazyBoolNo;
       }
     } else {
       m_supports_watchpoint_support_info = eLazyBoolNo;
@@ -1724,12 +1723,10 @@ GDBRemoteCommunicationClient::GetWatchpointsTriggerAfterInstruction(
     // On targets like MIPS and ppc64le, watchpoint exceptions are always
     // generated before the instruction is executed. The connected target may
     // not support qHostInfo or qWatchpointSupportInfo packets.
-    if (atype == llvm::Triple::mips || atype == llvm::Triple::mipsel ||
-        atype == llvm::Triple::mips64 || atype == llvm::Triple::mips64el ||
-        atype == llvm::Triple::ppc64le)
-      after = false;
-    else
-      after = true;
+    after =
+        !(atype == llvm::Triple::mips || atype == llvm::Triple::mipsel ||
+          atype == llvm::Triple::mips64 || atype == llvm::Triple::mips64el ||
+          atype == llvm::Triple::ppc64le);
   } else {
     // For MIPS and ppc64le, set m_watchpoints_trigger_after_instruction to
     // eLazyBoolNo if it is not calculated before.
@@ -1815,7 +1812,7 @@ bool GDBRemoteCommunicationClient::GetWorkingDir(FileSpec &working_dir) {
       return false;
     std::string cwd;
     response.GetHexByteString(cwd);
-    working_dir.SetFile(cwd, false, GetHostArchitecture().GetTriple());
+    working_dir.SetFile(cwd, GetHostArchitecture().GetTriple());
     return !cwd.empty();
   }
   return false;
@@ -1925,8 +1922,7 @@ bool GDBRemoteCommunicationClient::DecodeProcessInfoResponse(
         // characters in a process name
         std::string name;
         extractor.GetHexByteString(name);
-        process_info.GetExecutableFile().SetFile(name, false,
-                                                 FileSpec::Style::native);
+        process_info.GetExecutableFile().SetFile(name, FileSpec::Style::native);
       } else if (name.equals("cputype")) {
         value.getAsInteger(0, cpu);
       } else if (name.equals("cpusubtype")) {
@@ -3559,7 +3555,7 @@ bool GDBRemoteCommunicationClient::GetModuleInfo(
       StringExtractor extractor(value);
       std::string path;
       extractor.GetHexByteString(path);
-      module_spec.GetFileSpec() = FileSpec(path, false, arch_spec.GetTriple());
+      module_spec.GetFileSpec() = FileSpec(path, arch_spec.GetTriple());
     }
   }
 
@@ -3595,8 +3591,7 @@ ParseModuleSpec(StructuredData::Dictionary *dict) {
 
   if (!dict->GetValueForKeyAsString("file_path", string))
     return llvm::None;
-  result.GetFileSpec() =
-      FileSpec(string, false, result.GetArchitecture().GetTriple());
+  result.GetFileSpec() = FileSpec(string, result.GetArchitecture().GetTriple());
 
   return result;
 }
@@ -3774,7 +3769,7 @@ void GDBRemoteCommunicationClient::ServeSymbolLookups(
   // Is this the initial qSymbol:: packet?
   bool first_qsymbol_query = true;
 
-  if (m_supports_qSymbol && m_qSymbol_requests_done == false) {
+  if (m_supports_qSymbol && !m_qSymbol_requests_done) {
     Lock lock(*this, false);
     if (lock) {
       StreamString packet;

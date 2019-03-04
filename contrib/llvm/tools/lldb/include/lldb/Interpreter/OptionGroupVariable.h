@@ -10,10 +10,6 @@
 #ifndef liblldb_OptionGroupVariable_h_
 #define liblldb_OptionGroupVariable_h_
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Interpreter/OptionValueString.h"
 #include "lldb/Interpreter/Options.h"
 
@@ -39,6 +35,8 @@ public:
 
   bool include_frame_options : 1,
       show_args : 1,    // Frame option only (include_frame_options == true)
+      show_recognized_args : 1,  // Frame option only (include_frame_options ==
+                                 // true)
       show_locals : 1,  // Frame option only (include_frame_options == true)
       show_globals : 1, // Frame option only (include_frame_options == true)
       use_regex : 1, show_scope : 1, show_decl : 1;
