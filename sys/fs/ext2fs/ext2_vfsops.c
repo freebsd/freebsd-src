@@ -614,8 +614,12 @@ ext2_compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		    fsbtodb(fs, ext2_cg_location(fs, i)),
 		    fs->e2fs_bsize, NOCRED, &bp);
 		if (error) {
-			free(fs->e2fs_contigdirs, M_EXT2MNT);
-			free(fs->e2fs_gd, M_EXT2MNT);
+			/*
+			 * fs->e2fs_gd and fs->e2fs_contigdirs
+			 * will be freed later by the caller,
+			 * because this function could be called from
+			 * MNT_UPDATE path.
+			 */
 			brelse(bp);
 			return (error);
 		}
