@@ -2991,7 +2991,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		}
 		nfsvno_open(nd, &named, clientid, &stateid, stp,
 		    &exclusive_flag, &nva, cverf, create, aclp, &attrbits,
-		    nd->nd_cred, p, exp, &vp);
+		    nd->nd_cred, exp, &vp);
 	} else if (claim == NFSV4OPEN_CLAIMPREVIOUS || claim ==
 	    NFSV4OPEN_CLAIMFH) {
 		if (claim == NFSV4OPEN_CLAIMPREVIOUS) {
