@@ -26,6 +26,7 @@ options 	BOOTVERBOSE
 
 # GEOM modules
 device		geom_map	# to get access to the SPI flash partitions
+device		xz
 options		GEOM_UZIP
 
 options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uzip\"

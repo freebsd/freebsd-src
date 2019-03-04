@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 
 extern void __exec(caddr_t addr, ...);
 extern int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp);
-extern int ldr_enter(const char *kernel);
 
 static int	elf32_exec(struct preloaded_file *amp);
 static int	elf32_obj_exec(struct preloaded_file *amp);
@@ -76,16 +75,19 @@ elf32_exec(struct preloaded_file *fp)
     ehdr = (Elf_Ehdr *)&(md->md_data);
 
     efi_time_fini();
+
+    entry = ehdr->e_entry & 0xffffff;
+
+    printf("Start @ 0x%x ...\n", entry);
+
     err = bi_load(fp->f_args, &modulep, &kernend);
     if (err != 0) {
 	efi_time_init();
 	return(err);
     }
-    entry = ehdr->e_entry & 0xffffff;
 
-    printf("Start @ 0x%x ...\n", entry);
-
-    ldr_enter(fp->f_name);
+    /* At this point we've called ExitBootServices, so we can't call
+     * printf or any other function that uses Boot Services */
 
     dev_cleanup();
     __exec((void *)entry, boothowto, bootdev, 0, 0, 0, bootinfop, modulep, kernend);

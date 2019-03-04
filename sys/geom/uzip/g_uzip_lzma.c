@@ -103,7 +103,6 @@ g_uzip_lzma_ctor(uint32_t blksz)
 	struct g_uzip_lzma *lzp;
 
 	lzp = malloc(sizeof(struct g_uzip_lzma), M_GEOM_UZIP, M_WAITOK);
-	xz_crc32_init();
 	lzp->s = xz_dec_init(XZ_SINGLE, 0);
 	if (lzp->s == NULL) {
 		goto e1;

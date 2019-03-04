@@ -135,6 +135,7 @@ opaldev_attach(device_t dev)
 	device_t cdev;
 	uint64_t junk;
 	int i, rv;
+	uint32_t async_count;
 	struct ofw_bus_devinfo *dinfo;
 	struct resource *irq;
 
@@ -158,6 +159,10 @@ opaldev_attach(device_t dev)
 		bus_setup_intr(dev, irq, INTR_TYPE_TTY | INTR_MPSAFE |
 		    INTR_ENTROPY, NULL, opal_intr, (void *)rman_get_start(irq),
 		    NULL);
+
+	OF_getencprop(ofw_bus_get_node(dev), "opal-msg-async-num",
+	    &async_count, sizeof(async_count));
+	opal_init_async_tokens(async_count);
 
 	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
 	    child = OF_peer(child)) {

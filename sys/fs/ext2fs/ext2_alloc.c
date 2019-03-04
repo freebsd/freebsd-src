@@ -373,10 +373,12 @@ int
 ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 {
 	struct timespec ts;
-	struct inode *pip;
 	struct m_ext2fs *fs;
-	struct inode *ip;
 	struct ext2mount *ump;
+	struct inode *pip;
+	struct inode *ip;
+	struct vnode *vp;
+	struct thread *td;
 	ino_t ino, ipref;
 	int error, cg;
 
@@ -404,32 +406,68 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	}
 	ipref = cg * fs->e2fs->e2fs_ipg + 1;
 	ino = (ino_t)ext2_hashalloc(pip, cg, (long)ipref, mode, ext2_nodealloccg);
-
 	if (ino == 0)
 		goto noinodes;
-	error = VFS_VGET(pvp->v_mount, ino, LK_EXCLUSIVE, vpp);
-	if (error) {
-		ext2_vfree(pvp, ino, mode);
+
+	td = curthread;
+	error = vfs_hash_get(ump->um_mountp, ino, LK_EXCLUSIVE, td, vpp, NULL, NULL);
+	if (error || *vpp != NULL) {
+		EXT2_UNLOCK(ump);
 		return (error);
 	}
-	ip = VTOI(*vpp);
 
-	/*
-	 * The question is whether using VGET was such good idea at all:
-	 * Linux doesn't read the old inode in when it is allocating a
-	 * new one. I will set at least i_size and i_blocks to zero.
-	 */
-	ip->i_flag = 0;
-	ip->i_size = 0;
-	ip->i_blocks = 0;
-	ip->i_mode = 0;
-	ip->i_flags = 0;
+	ip = malloc(sizeof(struct inode), M_EXT2NODE, M_WAITOK | M_ZERO);
+	if (ip == NULL) {
+		EXT2_UNLOCK(ump);
+		return (ENOMEM);
+	}
+
+	/* Allocate a new vnode/inode. */
+	if ((error = getnewvnode("ext2fs", ump->um_mountp, &ext2_vnodeops, &vp)) != 0) {
+		free(ip, M_EXT2NODE);
+		EXT2_UNLOCK(ump);
+		return (error);
+	}
+
+	vp->v_data = ip;
+	ip->i_vnode = vp;
+	ip->i_e2fs = fs = ump->um_e2fs;
+	ip->i_ump = ump;
+	ip->i_number = ino;
+	ip->i_block_group = ino_to_cg(fs, ino);
+	ip->i_next_alloc_block = 0;
+	ip->i_next_alloc_goal = 0;
+
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
+	error = insmntque(vp, ump->um_mountp);
+	if (error) {
+		free(ip, M_EXT2NODE);
+		EXT2_UNLOCK(ump);
+		return (error);
+	}
+
+	error = vfs_hash_insert(vp, ino, LK_EXCLUSIVE, td, vpp, NULL, NULL);
+	if (error || *vpp != NULL) {
+		*vpp = NULL;
+		free(ip, M_EXT2NODE);
+		EXT2_UNLOCK(ump);
+		return (error);
+	}
+
+	if ((error = ext2_vinit(ump->um_mountp, &ext2_fifoops, &vp)) != 0) {
+		vput(vp);
+		*vpp = NULL;
+		free(ip, M_EXT2NODE);
+		EXT2_UNLOCK(ump);
+		return (error);
+	}
+
 	if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_EXTENTS)
 	    && (S_ISREG(mode) || S_ISDIR(mode)))
 		ext4_ext_tree_init(ip);
 	else
 		memset(ip->i_data, 0, sizeof(ip->i_data));
-	
+
 
 	/*
 	 * Set up a new generation number for this inode.
@@ -443,10 +481,10 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	ip->i_birthtime = ts.tv_sec;
 	ip->i_birthnsec = ts.tv_nsec;
 
-/*
-printf("ext2_valloc: allocated inode %d\n", ino);
-*/
+	*vpp = vp;
+
 	return (0);
+
 noinodes:
 	EXT2_UNLOCK(ump);
 	ext2_fserr(fs, cred->cr_uid, "out of inodes");
@@ -457,7 +495,7 @@ noinodes:
 /*
  * 64-bit compatible getters and setters for struct ext2_gd from ext2fs.h
  */
-static uint64_t
+uint64_t
 e2fs_gd_get_b_bitmap(struct ext2_gd *gd)
 {
 
@@ -465,7 +503,7 @@ e2fs_gd_get_b_bitmap(struct ext2_gd *gd)
 	    gd->ext2bgd_b_bitmap);
 }
 
-static uint64_t
+uint64_t
 e2fs_gd_get_i_bitmap(struct ext2_gd *gd)
 {
 
@@ -754,7 +792,7 @@ ext2_hashalloc(struct inode *ip, int cg, long pref, int size,
 	return (0);
 }
 
-static unsigned long
+static uint64_t
 ext2_cg_number_gdb_nometa(struct m_ext2fs *fs, int cg)
 {
 
@@ -768,7 +806,7 @@ ext2_cg_number_gdb_nometa(struct m_ext2fs *fs, int cg)
 	    EXT2_DESCS_PER_BLOCK(fs));
 }
 
-static unsigned long
+static uint64_t
 ext2_cg_number_gdb_meta(struct m_ext2fs *fs, int cg)
 {
 	unsigned long metagroup;
@@ -784,7 +822,7 @@ ext2_cg_number_gdb_meta(struct m_ext2fs *fs, int cg)
 	return (0);
 }
 
-static unsigned long
+uint64_t
 ext2_cg_number_gdb(struct m_ext2fs *fs, int cg)
 {
 	unsigned long first_meta_bg, metagroup;
@@ -902,6 +940,52 @@ ext2_cg_block_bitmap_init(struct m_ext2fs *fs, int cg, struct buf *bp)
 	return (0);
 }
 
+static int
+ext2_b_bitmap_validate(struct m_ext2fs *fs, struct buf *bp, int cg)
+{
+	struct ext2_gd *gd;
+	uint64_t group_first_block;
+	unsigned int offset, max_bit;
+
+	if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_FLEX_BG)) {
+		/*
+		 * It is not possible to check block bitmap in case of this feature,
+		 * because the inode and block bitmaps and inode table
+		 * blocks may not be in the group at all.
+		 * So, skip check in this case.
+		 */
+		return (0);
+	}
+
+	gd = &fs->e2fs_gd[cg];
+	max_bit = fs->e2fs_fpg;
+	group_first_block = ((uint64_t)cg) * fs->e2fs->e2fs_fpg +
+	    fs->e2fs->e2fs_first_dblock;
+
+	/* Check block bitmap block number */
+	offset = e2fs_gd_get_b_bitmap(gd) - group_first_block;
+	if (offset >= max_bit || !isset(bp->b_data, offset)) {
+		printf("ext2fs: bad block bitmap, group %d\n", cg);
+		return (EINVAL);
+	}
+
+	/* Check inode bitmap block number */
+	offset = e2fs_gd_get_i_bitmap(gd) - group_first_block;
+	if (offset >= max_bit || !isset(bp->b_data, offset)) {
+		printf("ext2fs: bad inode bitmap, group %d\n", cg);
+		return (EINVAL);
+	}
+
+	/* Check inode table */
+	offset = e2fs_gd_get_i_tables(gd) - group_first_block;
+	if (offset >= max_bit || offset + fs->e2fs_itpg >= max_bit) {
+		printf("ext2fs: bad inode table, group %d\n", cg);
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
 /*
  * Determine whether a block can be allocated.
  *
@@ -922,40 +1006,37 @@ ext2_alloccg(struct inode *ip, int cg, daddr_t bpref, int size)
 	ump = ip->i_ump;
 	if (e2fs_gd_get_nbfree(&fs->e2fs_gd[cg]) == 0)
 		return (0);
+
 	EXT2_UNLOCK(ump);
 	error = bread(ip->i_devvp, fsbtodb(fs,
 	    e2fs_gd_get_b_bitmap(&fs->e2fs_gd[cg])),
 	    (int)fs->e2fs_bsize, NOCRED, &bp);
-	if (error) {
-		brelse(bp);
-		EXT2_LOCK(ump);
-		return (0);
-	}
+	if (error)
+		goto fail;
+
 	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM) ||
 	    EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM)) {
 		error = ext2_cg_block_bitmap_init(fs, cg, bp);
-		if (error) {
-			brelse(bp);
-			EXT2_LOCK(ump);
-			return (0);
-		}
+		if (error)
+			goto fail;
+
 		ext2_gd_b_bitmap_csum_set(fs, cg, bp);
 	}
 	error = ext2_gd_b_bitmap_csum_verify(fs, cg, bp);
-	if (error) {
-		brelse(bp);
-		EXT2_LOCK(ump);
-		return (0);
-	}
-	if (e2fs_gd_get_nbfree(&fs->e2fs_gd[cg]) == 0) {
-		/*
-		 * Another thread allocated the last block in this
-		 * group while we were waiting for the buffer.
-		 */
-		brelse(bp);
-		EXT2_LOCK(ump);
-		return (0);
-	}
+	if (error)
+		goto fail;
+
+	error = ext2_b_bitmap_validate(fs,bp, cg);
+	if (error)
+		goto fail;
+
+	/*
+	 * Check, that another thread did not not allocate the last block in this
+	 * group while we were waiting for the buffer.
+	 */
+	if (e2fs_gd_get_nbfree(&fs->e2fs_gd[cg]) == 0)
+		goto fail;
+
 	bbp = (char *)bp->b_data;
 
 	if (dtog(fs, bpref) != cg)
@@ -1028,11 +1109,9 @@ retry:
 		goto retry;
 	}
 	bno = ext2_mapsearch(fs, bbp, bpref);
-	if (bno < 0) {
-		brelse(bp);
-		EXT2_LOCK(ump);
-		return (0);
-	}
+	if (bno < 0)
+		goto fail;
+
 gotit:
 #ifdef INVARIANTS
 	if (isset(bbp, bno)) {
@@ -1052,6 +1131,11 @@ gotit:
 	ext2_gd_b_bitmap_csum_set(fs, cg, bp);
 	bdwrite(bp);
 	return (((uint64_t)cg) * fs->e2fs->e2fs_fpg + fs->e2fs->e2fs_first_dblock + bno);
+
+fail:
+	brelse(bp);
+	EXT2_LOCK(ump);
+	return (0);
 }
 
 /*
@@ -1272,10 +1356,12 @@ ext2_nodealloccg(struct inode *ip, int cg, daddr_t ipref, int mode)
 		start = 0;
 		loc = memcchr(&ibp[start], 0xff, len);
 		if (loc == NULL) {
-			printf("cg = %d, ipref = %lld, fs = %s\n",
+			printf("ext2fs: inode bitmap corrupted: "
+			    "cg = %d, ipref = %lld, fs = %s - run fsck\n",
 			    cg, (long long)ipref, fs->e2fs_fsmnt);
-			panic("ext2fs_nodealloccg: map corrupted");
-			/* NOTREACHED */
+			brelse(bp);
+			EXT2_LOCK(ump);
+			return (0);
 		}
 	}
 	ipref = (loc - ibp) * NBBY + ffs(~*loc) - 1;

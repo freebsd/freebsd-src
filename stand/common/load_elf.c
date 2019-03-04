@@ -245,6 +245,12 @@ __elfN(load_elf_header)(char *filename, elf_file_t ef)
 		goto error;
 	}
 
+#ifdef LOADER_VERIEXEC
+	if (verify_file(ef->fd, filename, bytes_read, VE_MUST) < 0) {
+	    err = EAUTH;
+	    goto error;
+	}
+#endif
 	return (0);
 
 error:

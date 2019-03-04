@@ -14,7 +14,7 @@ device		pcf2123_rtc
 
 # GEOM modules
 device		geom_redboot	# to get access to the SPI flash partitions
-device		geom_uzip	# compressed in-memory filesystem support
+device		xz
 options 	GEOM_UZIP
 
 # For DOS
