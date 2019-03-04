@@ -14,8 +14,8 @@ too_many_fragments_body()
 {
 	pft_init
 
-	epair=$(pft_mkepair)
-	pft_mkjail alcatraz ${epair}a
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}a
 
 	ifconfig ${epair}b inet 192.0.2.1/24 up
 	jexec alcatraz ifconfig ${epair}a 192.0.2.2/24 up
@@ -57,11 +57,11 @@ v6_body()
 {
 	pft_init
 
-	epair_send=$(pft_mkepair)
-	epair_link=$(pft_mkepair)
+	epair_send=$(vnet_mkepair)
+	epair_link=$(vnet_mkepair)
 
-	pft_mkjail alcatraz ${epair_send}b ${epair_link}a
-	pft_mkjail singsing ${epair_link}b
+	vnet_mkjail alcatraz ${epair_send}b ${epair_link}a
+	vnet_mkjail singsing ${epair_link}b
 
 	ifconfig ${epair_send}a inet6 2001:db8:42::1/64 no_dad up
 

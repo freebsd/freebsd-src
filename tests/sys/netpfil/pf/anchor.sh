@@ -13,8 +13,8 @@ pr183198_body()
 {
 	pft_init
 
-	epair=$(pft_mkepair)
-	pft_mkjail alcatraz ${epair}b
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}b
 	jexec alcatraz pfctl -e
 
 	# Forward with pf enabled
