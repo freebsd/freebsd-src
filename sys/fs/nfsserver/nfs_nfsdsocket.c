@@ -367,7 +367,7 @@ int nfsrv_writerpc[NFS_NPROCS] = { 0, 0, 1, 0, 0, 0, 0,
 
 /* local functions */
 static void nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
-    u_char *tag, int taglen, u_int32_t minorvers, NFSPROC_T *p);
+    u_char *tag, int taglen, u_int32_t minorvers);
 
 
 /*
@@ -475,13 +475,16 @@ nfsrvd_statend(int op, uint64_t bytes, struct bintime *now,
  */
 APPLESTATIC void
 nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram, u_char *tag, int taglen,
-    u_int32_t minorvers, NFSPROC_T *p)
+    u_int32_t minorvers)
 {
 	int error = 0, lktype;
 	vnode_t vp;
 	mount_t mp = NULL;
 	struct nfsrvfh fh;
 	struct nfsexstuff nes;
+	struct thread *p;
+
+	p = curthread;
 
 	/*
 	 * Get a locked vnode for the first file handle
@@ -557,7 +560,7 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram, u_char *tag, int taglen,
 	 * The group is indicated by the value in nfs_retfh[].
 	 */
 	if (nd->nd_flag & ND_NFSV4) {
-		nfsrvd_compound(nd, isdgram, tag, taglen, minorvers, p);
+		nfsrvd_compound(nd, isdgram, tag, taglen, minorvers);
 	} else {
 		struct bintime start_time;
 
@@ -620,7 +623,7 @@ out:
  */
 static void
 nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
-    int taglen, u_int32_t minorvers, NFSPROC_T *p)
+    int taglen, u_int32_t minorvers)
 {
 	int i, lktype, op, op0 = 0, statsinprog = 0;
 	u_int32_t *tl;
@@ -635,6 +638,9 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 	fsid_t cur_fsid, save_fsid;
 	static u_int64_t compref = 0;
 	struct bintime start_time;
+	struct thread *p;
+
+	p = curthread;
 
 	NFSVNO_EXINIT(&vpnes);
 	NFSVNO_EXINIT(&savevpnes);
