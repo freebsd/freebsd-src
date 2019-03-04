@@ -225,8 +225,7 @@ TEST_F(Lookup, DISABLED_entry_cache_negative)
 }
 
 /* Negative entry caches should timeout, too */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236226 */
-TEST_F(Lookup, DISABLED_entry_cache_negative_timeout)
+TEST_F(Lookup, entry_cache_negative_timeout)
 {
 	/* 
 	 * The timeout should be longer than the longest plausible time the
@@ -239,8 +238,8 @@ TEST_F(Lookup, DISABLED_entry_cache_negative_timeout)
 			return (in->header.opcode == FUSE_LOOKUP);
 		}, Eq(true)),
 		_)
-	).Times(1)
-	.WillOnce(Invoke([=](auto in, auto out) {
+	).Times(2)
+	.WillRepeatedly(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.error = 0;
 		out->body.entry.nodeid = 0;
