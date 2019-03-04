@@ -64,6 +64,7 @@ extern size_t	buf_size;	/* size of general purpose buffer */
 
 extern bool	using_plan_a;	/* try to keep everything in memory */
 extern bool	out_of_mem;	/* ran out of memory in plan a */
+extern bool	nonempty_patchf_seen;	/* seen a non-zero-length patch file? */
 
 #define	MAXFILEC 2
 

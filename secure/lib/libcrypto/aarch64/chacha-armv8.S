@@ -38,6 +38,7 @@ ChaCha20_ctr32:
 	b.ne	ChaCha20_neon
 
 .Lshort:
+.inst	0xd503233f			// paciasp
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
@@ -249,6 +250,7 @@ ChaCha20_ctr32:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
+.inst	0xd50323bf			// autiasp
 .Labort:
 	ret
 
@@ -305,12 +307,14 @@ ChaCha20_ctr32:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
+.inst	0xd50323bf			// autiasp
 	ret
 .size	ChaCha20_ctr32,.-ChaCha20_ctr32
 
 .type	ChaCha20_neon,%function
 .align	5
 ChaCha20_neon:
+.inst	0xd503233f			// paciasp
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
@@ -690,6 +694,7 @@ ChaCha20_neon:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
+.inst	0xd50323bf			// autiasp
 	ret
 
 .Ltail_neon:
@@ -799,11 +804,13 @@ ChaCha20_neon:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
+.inst	0xd50323bf			// autiasp
 	ret
 .size	ChaCha20_neon,.-ChaCha20_neon
 .type	ChaCha20_512_neon,%function
 .align	5
 ChaCha20_512_neon:
+.inst	0xd503233f			// paciasp
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
@@ -1966,5 +1973,6 @@ ChaCha20_512_neon:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
+.inst	0xd50323bf			// autiasp
 	ret
 .size	ChaCha20_512_neon,.-ChaCha20_512_neon

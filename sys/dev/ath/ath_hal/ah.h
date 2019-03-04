@@ -893,11 +893,13 @@ typedef struct {
 } HAL_ANI_STATS;
 
 typedef struct {
-	uint8_t		noiseImmunityLevel;
+	uint8_t		noiseImmunityLevel; /* OFDM */
+	uint8_t		cckNoiseImmunityLevel;
 	uint8_t		spurImmunityLevel;
 	uint8_t		firstepLevel;
 	uint8_t		ofdmWeakSigDetectOff;
 	uint8_t		cckWeakSigThreshold;
+	uint8_t		mrcCckOff;
 	uint32_t	listenTime;
 
 	/* NB: intentionally ordered so data exported to user space is first */

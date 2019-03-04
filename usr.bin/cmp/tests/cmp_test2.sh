@@ -35,6 +35,8 @@ special_body() {
 	atf_check -s exit:0 -o empty -e empty -x "cat a | cmp - a"
 	atf_check -s exit:1 -o not-empty -e empty -x "cat b | cmp a -"
 	atf_check -s exit:1 -o not-empty -e empty -x "cat b | cmp - a"
+
+	atf_check -s exit:0 -o empty -e empty -x "cmp a a <&-"
 }
 
 atf_test_case symlink

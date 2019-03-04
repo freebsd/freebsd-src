@@ -6604,7 +6604,6 @@ OLD_DIRS+=var/yp
 .if ${MK_NLS} == no
 OLD_DIRS+=usr/share/nls/
 OLD_DIRS+=usr/share/nls/C
-OLD_FILES+=usr/share/mk/bsd.nls.mk
 OLD_FILES+=usr/share/nls/C/ee.cat
 OLD_DIRS+=usr/share/nls/af_ZA.ISO8859-1
 OLD_DIRS+=usr/share/nls/af_ZA.ISO8859-15

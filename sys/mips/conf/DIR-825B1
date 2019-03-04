@@ -47,6 +47,7 @@ nooptions	INET6
 
 # GEOM modules
 device		geom_map	# to get access to the SPI flash partitions
+device		xz
 options 	GEOM_UZIP
 options 	GEOM_PART_GPT
 

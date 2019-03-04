@@ -363,6 +363,7 @@ struct adapter {
 	unsigned int slow_intr_mask;
 	unsigned long irq_stats[IRQ_NUM_STATS];
 
+	unsigned		nqsets;
 	struct sge              sge;
 	struct mc7              pmrx;
 	struct mc7              pmtx;

@@ -58,8 +58,6 @@ struct rk_clk_armclk_def {
 	int				nrates;
 };
 
-#define	RK_CLK_ARMCLK_MASK	0xFFFF0000
-
 int rk_clk_armclk_register(struct clkdom *clkdom,
     struct rk_clk_armclk_def *clkdef);
 
