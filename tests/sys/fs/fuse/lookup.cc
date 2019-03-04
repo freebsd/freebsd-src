@@ -198,6 +198,65 @@ TEST_F(Lookup, entry_cache)
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 }
 
+/* 
+ * If the daemon returns an error of 0 and an inode of 0, that's a flag for
+ * "ENOENT and cache it" with the given entry_timeout
+ */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236226 */
+TEST_F(Lookup, DISABLED_entry_cache_negative)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in->header.opcode == FUSE_LOOKUP);
+		}, Eq(true)),
+		_)
+	).Times(1)
+	.WillOnce(Invoke([](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		out->header.error = 0;
+		out->body.entry.nodeid = 0;
+		out->body.entry.entry_valid = UINT64_MAX;
+		SET_OUT_HEADER_LEN(out, entry);
+	}));
+	EXPECT_NE(0, access("mountpoint/does_not_exist", F_OK));
+	EXPECT_EQ(ENOENT, errno);
+	EXPECT_NE(0, access("mountpoint/does_not_exist", F_OK));
+	EXPECT_EQ(ENOENT, errno);
+}
+
+/* Negative entry caches should timeout, too */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236226 */
+TEST_F(Lookup, DISABLED_entry_cache_negative_timeout)
+{
+	/* 
+	 * The timeout should be longer than the longest plausible time the
+	 * daemon would take to complete a write(2) to /dev/fuse, but no longer.
+	 */
+	long timeout_ns = 250'000'000;
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in->header.opcode == FUSE_LOOKUP);
+		}, Eq(true)),
+		_)
+	).Times(1)
+	.WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		out->header.error = 0;
+		out->body.entry.nodeid = 0;
+		out->body.entry.entry_valid_nsec = timeout_ns;
+		SET_OUT_HEADER_LEN(out, entry);
+	}));
+	EXPECT_NE(0, access("mountpoint/does_not_exist", F_OK));
+	EXPECT_EQ(ENOENT, errno);
+
+	usleep(2 * timeout_ns / 1000);
+
+	/* The cache has timed out; VOP_LOOKUP should requery the daemon*/
+	EXPECT_NE(0, access("mountpoint/does_not_exist", F_OK));
+	EXPECT_EQ(ENOENT, errno);
+}
+
 /*
  * If lookup returns a finite but non-zero entry cache timeout, then we should
  * discard the cached inode and requery the daemon
