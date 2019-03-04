@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
 #include <dlfcn.h>
 #include <execinfo.h>
 #include <stdio.h>
@@ -22,9 +21,6 @@
 #include <sys/exec.h>
 #include <sys/ptrace.h>
 
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Host/Host.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Target/Process.h"
@@ -70,7 +66,7 @@ static bool GetNetBSDProcessArgs(const ProcessInstanceInfoMatch *match_info_ptr,
   if (!cstr)
     return false;
 
-  process_info.GetExecutableFile().SetFile(cstr, false,
+  process_info.GetExecutableFile().SetFile(cstr,
                                            FileSpec::Style::native);
 
   if (!(match_info_ptr == NULL ||

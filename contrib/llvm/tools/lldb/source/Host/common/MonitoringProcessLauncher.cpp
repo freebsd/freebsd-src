@@ -8,10 +8,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Host/MonitoringProcessLauncher.h"
+#include "lldb/Host/FileSystem.h"
 #include "lldb/Host/HostProcess.h"
 #include "lldb/Target/ProcessLaunchInfo.h"
 #include "lldb/Utility/Log.h"
-#include "lldb/Utility/Status.h"
 
 #include "llvm/Support/FileSystem.h"
 
@@ -29,20 +29,16 @@ MonitoringProcessLauncher::LaunchProcess(const ProcessLaunchInfo &launch_info,
 
   error.Clear();
 
+  FileSystem &fs = FileSystem::Instance();
   FileSpec exe_spec(resolved_info.GetExecutableFile());
 
-  llvm::sys::fs::file_status stats;
-  status(exe_spec.GetPath(), stats);
-  if (!exists(stats)) {
-    exe_spec.ResolvePath();
-    status(exe_spec.GetPath(), stats);
-  }
-  if (!exists(stats)) {
-    exe_spec.ResolveExecutableLocation();
-    status(exe_spec.GetPath(), stats);
-  }
+  if (!fs.Exists(exe_spec))
+    FileSystem::Instance().Resolve(exe_spec);
 
-  if (!exists(stats)) {
+  if (!fs.Exists(exe_spec))
+    FileSystem::Instance().ResolveExecutableLocation(exe_spec);
+
+  if (!fs.Exists(exe_spec)) {
     error.SetErrorStringWithFormatv("executable doesn't exist: '{0}'",
                                     exe_spec);
     return HostProcess();

@@ -7,10 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Breakpoint/Watchpoint.h"
 
 #include "lldb/Breakpoint/StoppointCallbackContext.h"
@@ -135,10 +131,7 @@ void Watchpoint::IncrementFalseAlarmsAndReviseHitCount() {
 bool Watchpoint::ShouldStop(StoppointCallbackContext *context) {
   IncrementHitCount();
 
-  if (!IsEnabled())
-    return false;
-
-  return true;
+  return IsEnabled();
 }
 
 void Watchpoint::GetDescription(Stream *s, lldb::DescriptionLevel level) {

@@ -9,10 +9,6 @@
 
 #include "lldb/Interpreter/OptionValueProperties.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Utility/Flags.h"
 
 #include "lldb/Core/UserSettingsController.h"
@@ -42,7 +38,7 @@ OptionValueProperties::OptionValueProperties(
   for (size_t i = 0; i < num_properties; ++i) {
     // Duplicate any values that are not global when constructing properties
     // from a global copy
-    if (m_properties[i].IsGlobal() == false) {
+    if (!m_properties[i].IsGlobal()) {
       lldb::OptionValueSP new_value_sp(m_properties[i].GetValue()->DeepCopy());
       m_properties[i].SetOptionValue(new_value_sp);
     }
@@ -53,9 +49,9 @@ size_t OptionValueProperties::GetNumProperties() const {
   return m_properties.size();
 }
 
-void OptionValueProperties::Initialize(const PropertyDefinition *defs) {
-  for (size_t i = 0; defs[i].name; ++i) {
-    Property property(defs[i]);
+void OptionValueProperties::Initialize(const PropertyDefinitions &defs) {
+  for (const auto &definition : defs) {
+    Property property(definition);
     assert(property.IsValid());
     m_name_to_index.Append(ConstString(property.GetName()), m_properties.size());
     property.GetValue()->SetParent(shared_from_this());
@@ -216,7 +212,7 @@ Status OptionValueProperties::SetSubValue(const ExecutionContext *exe_ctx,
   else {
     // Don't set an error if the path contained .experimental. - those are
     // allowed to be missing and should silently fail.
-    if (name_contains_experimental == false && error.AsCString() == nullptr) {
+    if (!name_contains_experimental && error.AsCString() == nullptr) {
       error.SetErrorStringWithFormat("invalid value path '%s'", name.str().c_str());
     }
   }

@@ -10,18 +10,14 @@
 #ifndef liblldb_HistoryThread_h_
 #define liblldb_HistoryThread_h_
 
-// C Includes
-// C++ Includes
 #include <mutex>
 
-// Other libraries and framework includes
-// Project includes
-#include "lldb/Core/Broadcaster.h"
-#include "lldb/Core/Event.h"
 #include "lldb/Core/UserSettingsController.h"
 #include "lldb/Target/ExecutionContextScope.h"
 #include "lldb/Target/StackFrameList.h"
 #include "lldb/Target/Thread.h"
+#include "lldb/Utility/Broadcaster.h"
+#include "lldb/Utility/Event.h"
 #include "lldb/Utility/UserID.h"
 #include "lldb/lldb-private.h"
 

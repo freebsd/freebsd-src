@@ -9,21 +9,22 @@
 
 #include "GDBRemoteCommunication.h"
 
-// C Includes
+#include <future>
 #include <limits.h>
 #include <string.h>
 #include <sys/stat.h>
 
-// C++ Includes
-// Other libraries and framework includes
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Host/ConnectionFileDescriptor.h"
+#include "lldb/Host/FileSystem.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Host/Pipe.h"
 #include "lldb/Host/Socket.h"
 #include "lldb/Host/StringConvert.h"
 #include "lldb/Host/ThreadLauncher.h"
+#include "lldb/Host/common/TCPSocket.h"
+#include "lldb/Host/posix/ConnectionFileDescriptorPosix.h"
 #include "lldb/Target/Platform.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Utility/FileSpec.h"
@@ -33,7 +34,6 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/ScopedPrinter.h"
 
-// Project includes
 #include "ProcessGDBRemoteLog.h"
 
 #if defined(__APPLE__)
@@ -42,7 +42,8 @@
 #define DEBUGSERVER_BASENAME "lldb-server"
 #endif
 
-#if defined(HAVE_LIBCOMPRESSION)
+#if defined(__APPLE__)
+#define HAVE_LIBCOMPRESSION
 #include <compression.h>
 #endif
 
@@ -53,78 +54,6 @@
 using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_private::process_gdb_remote;
-
-GDBRemoteCommunication::History::History(uint32_t size)
-    : m_packets(), m_curr_idx(0), m_total_packet_count(0),
-      m_dumped_to_log(false) {
-  m_packets.resize(size);
-}
-
-GDBRemoteCommunication::History::~History() {}
-
-void GDBRemoteCommunication::History::AddPacket(char packet_char,
-                                                PacketType type,
-                                                uint32_t bytes_transmitted) {
-  const size_t size = m_packets.size();
-  if (size > 0) {
-    const uint32_t idx = GetNextIndex();
-    m_packets[idx].packet.assign(1, packet_char);
-    m_packets[idx].type = type;
-    m_packets[idx].bytes_transmitted = bytes_transmitted;
-    m_packets[idx].packet_idx = m_total_packet_count;
-    m_packets[idx].tid = llvm::get_threadid();
-  }
-}
-
-void GDBRemoteCommunication::History::AddPacket(const std::string &src,
-                                                uint32_t src_len,
-                                                PacketType type,
-                                                uint32_t bytes_transmitted) {
-  const size_t size = m_packets.size();
-  if (size > 0) {
-    const uint32_t idx = GetNextIndex();
-    m_packets[idx].packet.assign(src, 0, src_len);
-    m_packets[idx].type = type;
-    m_packets[idx].bytes_transmitted = bytes_transmitted;
-    m_packets[idx].packet_idx = m_total_packet_count;
-    m_packets[idx].tid = llvm::get_threadid();
-  }
-}
-
-void GDBRemoteCommunication::History::Dump(Stream &strm) const {
-  const uint32_t size = GetNumPacketsInHistory();
-  const uint32_t first_idx = GetFirstSavedPacketIndex();
-  const uint32_t stop_idx = m_curr_idx + size;
-  for (uint32_t i = first_idx; i < stop_idx; ++i) {
-    const uint32_t idx = NormalizeIndex(i);
-    const Entry &entry = m_packets[idx];
-    if (entry.type == ePacketTypeInvalid || entry.packet.empty())
-      break;
-    strm.Printf("history[%u] tid=0x%4.4" PRIx64 " <%4u> %s packet: %s\n",
-                entry.packet_idx, entry.tid, entry.bytes_transmitted,
-                (entry.type == ePacketTypeSend) ? "send" : "read",
-                entry.packet.c_str());
-  }
-}
-
-void GDBRemoteCommunication::History::Dump(Log *log) const {
-  if (log && !m_dumped_to_log) {
-    m_dumped_to_log = true;
-    const uint32_t size = GetNumPacketsInHistory();
-    const uint32_t first_idx = GetFirstSavedPacketIndex();
-    const uint32_t stop_idx = m_curr_idx + size;
-    for (uint32_t i = first_idx; i < stop_idx; ++i) {
-      const uint32_t idx = NormalizeIndex(i);
-      const Entry &entry = m_packets[idx];
-      if (entry.type == ePacketTypeInvalid || entry.packet.empty())
-        break;
-      log->Printf("history[%u] tid=0x%4.4" PRIx64 " <%4u> %s packet: %s",
-                  entry.packet_idx, entry.tid, entry.bytes_transmitted,
-                  (entry.type == ePacketTypeSend) ? "send" : "read",
-                  entry.packet.c_str());
-    }
-  }
-}
 
 //----------------------------------------------------------------------
 // GDBRemoteCommunication constructor
@@ -139,7 +68,10 @@ GDBRemoteCommunication::GDBRemoteCommunication(const char *comm_name,
 #endif
       m_echo_number(0), m_supports_qEcho(eLazyBoolCalculate), m_history(512),
       m_send_acks(true), m_compression_type(CompressionType::None),
-      m_listen_url() {
+      m_listen_url(), m_decompression_scratch_type(CompressionType::None),
+      m_decompression_scratch(nullptr) {
+  // Unused unless HAVE_LIBCOMPRESSION is defined.
+  (void)m_decompression_scratch_type;
 }
 
 //----------------------------------------------------------------------
@@ -149,6 +81,9 @@ GDBRemoteCommunication::~GDBRemoteCommunication() {
   if (IsConnected()) {
     Disconnect();
   }
+
+  if (m_decompression_scratch)
+    free (m_decompression_scratch);
 
   // Stop the communications read thread which is used to parse all incoming
   // packets.  This function will block until the read thread returns.
@@ -172,7 +107,8 @@ size_t GDBRemoteCommunication::SendAck() {
   const size_t bytes_written = Write(&ch, 1, status, NULL);
   if (log)
     log->Printf("<%4" PRIu64 "> send packet: %c", (uint64_t)bytes_written, ch);
-  m_history.AddPacket(ch, History::ePacketTypeSend, bytes_written);
+  m_history.AddPacket(ch, GDBRemoteCommunicationHistory::ePacketTypeSend,
+                      bytes_written);
   return bytes_written;
 }
 
@@ -183,26 +119,31 @@ size_t GDBRemoteCommunication::SendNack() {
   const size_t bytes_written = Write(&ch, 1, status, NULL);
   if (log)
     log->Printf("<%4" PRIu64 "> send packet: %c", (uint64_t)bytes_written, ch);
-  m_history.AddPacket(ch, History::ePacketTypeSend, bytes_written);
+  m_history.AddPacket(ch, GDBRemoteCommunicationHistory::ePacketTypeSend,
+                      bytes_written);
   return bytes_written;
 }
 
 GDBRemoteCommunication::PacketResult
 GDBRemoteCommunication::SendPacketNoLock(llvm::StringRef payload) {
-  if (IsConnected()) {
     StreamString packet(0, 4, eByteOrderBig);
-
     packet.PutChar('$');
     packet.Write(payload.data(), payload.size());
     packet.PutChar('#');
     packet.PutHex8(CalculcateChecksum(payload));
+    std::string packet_str = packet.GetString();
 
+    return SendRawPacketNoLock(packet_str);
+}
+
+GDBRemoteCommunication::PacketResult
+GDBRemoteCommunication::SendRawPacketNoLock(llvm::StringRef packet,
+                                            bool skip_ack) {
+  if (IsConnected()) {
     Log *log(ProcessGDBRemoteLog::GetLogIfAllCategoriesSet(GDBR_LOG_PACKETS));
     ConnectionStatus status = eConnectionStatusSuccess;
-    // TODO: Don't shimmy through a std::string, just use StringRef.
-    std::string packet_str = packet.GetString();
-    const char *packet_data = packet_str.c_str();
-    const size_t packet_length = packet.GetSize();
+    const char *packet_data = packet.data();
+    const size_t packet_length = packet.size();
     size_t bytes_written = Write(packet_data, packet_length, status, NULL);
     if (log) {
       size_t binary_start_offset = 0;
@@ -241,11 +182,12 @@ GDBRemoteCommunication::SendPacketNoLock(llvm::StringRef payload) {
                     (int)packet_length, packet_data);
     }
 
-    m_history.AddPacket(packet.GetString(), packet_length,
-                        History::ePacketTypeSend, bytes_written);
+    m_history.AddPacket(packet.str(), packet_length,
+                        GDBRemoteCommunicationHistory::ePacketTypeSend,
+                        bytes_written);
 
     if (bytes_written == packet_length) {
-      if (GetSendAcks())
+      if (!skip_ack && GetSendAcks())
         return GetAck();
       else
         return PacketResult::Success;
@@ -597,7 +539,7 @@ bool GDBRemoteCommunication::DecompressPacket() {
   size_t decompressed_bytes = 0;
 
   if (decompressed_bufsize != ULONG_MAX) {
-    decompressed_buffer = (uint8_t *)malloc(decompressed_bufsize + 1);
+    decompressed_buffer = (uint8_t *)malloc(decompressed_bufsize);
     if (decompressed_buffer == nullptr) {
       m_bytes.erase(0, size_of_first_packet);
       return false;
@@ -605,11 +547,10 @@ bool GDBRemoteCommunication::DecompressPacket() {
   }
 
 #if defined(HAVE_LIBCOMPRESSION)
-  // libcompression is weak linked so check that compression_decode_buffer() is
-  // available
   if (m_compression_type == CompressionType::ZlibDeflate ||
       m_compression_type == CompressionType::LZFSE ||
-      m_compression_type == CompressionType::LZ4) {
+      m_compression_type == CompressionType::LZ4 || 
+      m_compression_type == CompressionType::LZMA) {
     compression_algorithm compression_type;
     if (m_compression_type == CompressionType::LZFSE)
       compression_type = COMPRESSION_LZFSE;
@@ -620,16 +561,33 @@ bool GDBRemoteCommunication::DecompressPacket() {
     else if (m_compression_type == CompressionType::LZMA)
       compression_type = COMPRESSION_LZMA;
 
-    // If we have the expected size of the decompressed payload, we can
-    // allocate the right-sized buffer and do it.  If we don't have that
-    // information, we'll need to try decoding into a big buffer and if the
-    // buffer wasn't big enough, increase it and try again.
+    if (m_decompression_scratch_type != m_compression_type) {
+      if (m_decompression_scratch) {
+        free (m_decompression_scratch);
+        m_decompression_scratch = nullptr;
+      }
+      size_t scratchbuf_size = 0;
+      if (m_compression_type == CompressionType::LZFSE)
+        scratchbuf_size = compression_decode_scratch_buffer_size (COMPRESSION_LZFSE);
+      else if (m_compression_type == CompressionType::LZ4)
+        scratchbuf_size = compression_decode_scratch_buffer_size (COMPRESSION_LZ4_RAW);
+      else if (m_compression_type == CompressionType::ZlibDeflate)
+        scratchbuf_size = compression_decode_scratch_buffer_size (COMPRESSION_ZLIB);
+      else if (m_compression_type == CompressionType::LZMA)
+        scratchbuf_size = compression_decode_scratch_buffer_size (COMPRESSION_LZMA);
+      else if (m_compression_type == CompressionType::LZFSE)
+        scratchbuf_size = compression_decode_scratch_buffer_size (COMPRESSION_LZFSE);
+      if (scratchbuf_size > 0) {
+        m_decompression_scratch = (void*) malloc (scratchbuf_size);
+        m_decompression_scratch_type = m_compression_type;
+      }
+    }
 
     if (decompressed_bufsize != ULONG_MAX && decompressed_buffer != nullptr) {
       decompressed_bytes = compression_decode_buffer(
-          decompressed_buffer, decompressed_bufsize + 10,
-          (uint8_t *)unescaped_content.data(), unescaped_content.size(), NULL,
-          compression_type);
+          decompressed_buffer, decompressed_bufsize,
+          (uint8_t *)unescaped_content.data(), unescaped_content.size(), 
+          m_decompression_scratch, compression_type);
     }
   }
 #endif
@@ -721,7 +679,7 @@ GDBRemoteCommunication::CheckForPacket(const uint8_t *src, size_t src_len,
     // Size of packet before it is decompressed, for logging purposes
     size_t original_packet_size = m_bytes.size();
     if (CompressionIsEnabled()) {
-      if (DecompressPacket() == false) {
+      if (!DecompressPacket()) {
         packet.Clear();
         return GDBRemoteCommunication::PacketType::Standard;
       }
@@ -860,7 +818,8 @@ GDBRemoteCommunication::CheckForPacket(const uint8_t *src, size_t src_len,
         }
       }
 
-      m_history.AddPacket(m_bytes, total_length, History::ePacketTypeRecv,
+      m_history.AddPacket(m_bytes, total_length,
+                          GDBRemoteCommunicationHistory::ePacketTypeRecv,
                           total_length);
 
       // Clear packet_str in case there is some existing data in it.
@@ -997,7 +956,7 @@ Status GDBRemoteCommunication::StartDebugserverProcess(
   // debugserver to use and use it if we do.
   const char *env_debugserver_path = getenv("LLDB_DEBUGSERVER_PATH");
   if (env_debugserver_path) {
-    debugserver_file_spec.SetFile(env_debugserver_path, false,
+    debugserver_file_spec.SetFile(env_debugserver_path,
                                   FileSpec::Style::native);
     if (log)
       log->Printf("GDBRemoteCommunication::%s() gdb-remote stub exe path set "
@@ -1005,13 +964,14 @@ Status GDBRemoteCommunication::StartDebugserverProcess(
                   __FUNCTION__, env_debugserver_path);
   } else
     debugserver_file_spec = g_debugserver_file_spec;
-  bool debugserver_exists = debugserver_file_spec.Exists();
+  bool debugserver_exists =
+      FileSystem::Instance().Exists(debugserver_file_spec);
   if (!debugserver_exists) {
     // The debugserver binary is in the LLDB.framework/Resources directory.
     debugserver_file_spec = HostInfo::GetSupportExeDir();
     if (debugserver_file_spec) {
       debugserver_file_spec.AppendPathComponent(DEBUGSERVER_BASENAME);
-      debugserver_exists = debugserver_file_spec.Exists();
+      debugserver_exists = FileSystem::Instance().Exists(debugserver_file_spec);
       if (debugserver_exists) {
         if (log)
           log->Printf(
@@ -1074,7 +1034,7 @@ Status GDBRemoteCommunication::StartDebugserverProcess(
       debugserver_args.AppendArgument(llvm::StringRef("--setsid"));
     }
 
-    llvm::SmallString<PATH_MAX> named_pipe_path;
+    llvm::SmallString<128> named_pipe_path;
     // socket_pipe is used by debug server to communicate back either
     // TCP port or domain socket name which it listens on.
     // The second purpose of the pipe to serve as a synchronization point -
@@ -1114,9 +1074,9 @@ Status GDBRemoteCommunication::StartDebugserverProcess(
                         __FUNCTION__, error.AsCString());
           return error;
         }
-        int write_fd = socket_pipe.GetWriteFileDescriptor();
+        pipe_t write = socket_pipe.GetWritePipe();
         debugserver_args.AppendArgument(llvm::StringRef("--pipe"));
-        debugserver_args.AppendArgument(llvm::to_string(write_fd));
+        debugserver_args.AppendArgument(llvm::to_string(write));
         launch_info.AppendCloseFileAction(socket_pipe.GetReadFileDescriptor());
 #endif
       } else {
@@ -1303,6 +1263,42 @@ Status GDBRemoteCommunication::StartDebugserverProcess(
 }
 
 void GDBRemoteCommunication::DumpHistory(Stream &strm) { m_history.Dump(strm); }
+
+void GDBRemoteCommunication::SetHistoryStream(llvm::raw_ostream *strm) {
+  m_history.SetStream(strm);
+};
+
+llvm::Error
+GDBRemoteCommunication::ConnectLocally(GDBRemoteCommunication &client,
+                                       GDBRemoteCommunication &server) {
+  const bool child_processes_inherit = false;
+  const int backlog = 5;
+  TCPSocket listen_socket(true, child_processes_inherit);
+  if (llvm::Error error =
+          listen_socket.Listen("127.0.0.1:0", backlog).ToError())
+    return error;
+
+  Socket *accept_socket;
+  std::future<Status> accept_status = std::async(
+      std::launch::async, [&] { return listen_socket.Accept(accept_socket); });
+
+  llvm::SmallString<32> remote_addr;
+  llvm::raw_svector_ostream(remote_addr)
+      << "connect://localhost:" << listen_socket.GetLocalPortNumber();
+
+  std::unique_ptr<ConnectionFileDescriptor> conn_up(
+      new ConnectionFileDescriptor());
+  if (conn_up->Connect(remote_addr, nullptr) != lldb::eConnectionStatusSuccess)
+    return llvm::make_error<llvm::StringError>("Unable to connect",
+                                               llvm::inconvertibleErrorCode());
+
+  client.SetConnection(conn_up.release());
+  if (llvm::Error error = accept_status.get().ToError())
+    return error;
+
+  server.SetConnection(new ConnectionFileDescriptor(accept_socket));
+  return llvm::Error::success();
+}
 
 GDBRemoteCommunication::ScopedTimeout::ScopedTimeout(
     GDBRemoteCommunication &gdb_comm, std::chrono::seconds timeout)
