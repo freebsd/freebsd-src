@@ -1609,7 +1609,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 			NFSVOPUNLOCK(dp, 0);
 			nd->nd_cred->cr_uid = nd->nd_saveduid;
 			nfsd_fhtovp(nd, &tfh, LK_EXCLUSIVE, &tdp, &tnes, NULL,
-			    0, p);	/* Locks tdp. */
+			    0);	/* Locks tdp. */
 			if (tdp) {
 				tdirfor_ret = nfsvno_getattr(tdp, &tdirfor, nd,
 				    p, 1, NULL);
@@ -1740,8 +1740,7 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 				/* tovp is always NULL unless NFSv4 */
 				goto out;
 			}
-			nfsd_fhtovp(nd, &dfh, LK_EXCLUSIVE, &dp, &tnes, NULL, 0,
-			    p);
+			nfsd_fhtovp(nd, &dfh, LK_EXCLUSIVE, &dp, &tnes, NULL, 0);
 			if (dp)
 				NFSVOPUNLOCK(dp, 0);
 		}
@@ -3612,7 +3611,7 @@ nfsrvd_secinfo(struct nfsrv_descript *nd, int isdgram,
 	vput(vp);
 	savflag = nd->nd_flag;
 	if (!nd->nd_repstat) {
-		nfsd_fhtovp(nd, &fh, LK_SHARED, &vp, &retnes, NULL, 0, p);
+		nfsd_fhtovp(nd, &fh, LK_SHARED, &vp, &retnes, NULL, 0);
 		if (vp)
 			vput(vp);
 	}
