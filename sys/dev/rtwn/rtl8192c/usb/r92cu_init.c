@@ -357,6 +357,8 @@ void
 r92cu_post_init(struct rtwn_softc *sc)
 {
 
+	rtwn_write_4(sc, R92C_POWER_STATUS, 0x5);
+
 	/* Perform LO and IQ calibrations. */
 	r92c_iq_calib(sc);
 	/* Perform LC calibration. */
