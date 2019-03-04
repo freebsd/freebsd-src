@@ -373,10 +373,12 @@ int
 ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 {
 	struct timespec ts;
-	struct inode *pip;
 	struct m_ext2fs *fs;
-	struct inode *ip;
 	struct ext2mount *ump;
+	struct inode *pip;
+	struct inode *ip;
+	struct vnode *vp;
+	struct thread *td;
 	ino_t ino, ipref;
 	int error, cg;
 
@@ -404,32 +406,68 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	}
 	ipref = cg * fs->e2fs->e2fs_ipg + 1;
 	ino = (ino_t)ext2_hashalloc(pip, cg, (long)ipref, mode, ext2_nodealloccg);
-
 	if (ino == 0)
 		goto noinodes;
-	error = VFS_VGET(pvp->v_mount, ino, LK_EXCLUSIVE, vpp);
-	if (error) {
-		ext2_vfree(pvp, ino, mode);
+
+	td = curthread;
+	error = vfs_hash_get(ump->um_mountp, ino, LK_EXCLUSIVE, td, vpp, NULL, NULL);
+	if (error || *vpp != NULL) {
+		EXT2_UNLOCK(ump);
 		return (error);
 	}
-	ip = VTOI(*vpp);
 
-	/*
-	 * The question is whether using VGET was such good idea at all:
-	 * Linux doesn't read the old inode in when it is allocating a
-	 * new one. I will set at least i_size and i_blocks to zero.
-	 */
-	ip->i_flag = 0;
-	ip->i_size = 0;
-	ip->i_blocks = 0;
-	ip->i_mode = 0;
-	ip->i_flags = 0;
+	ip = malloc(sizeof(struct inode), M_EXT2NODE, M_WAITOK | M_ZERO);
+	if (ip == NULL) {
+		EXT2_UNLOCK(ump);
+		return (ENOMEM);
+	}
+
+	/* Allocate a new vnode/inode. */
+	if ((error = getnewvnode("ext2fs", ump->um_mountp, &ext2_vnodeops, &vp)) != 0) {
+		free(ip, M_EXT2NODE);
+		EXT2_UNLOCK(ump);
+		return (error);
+	}
+
+	vp->v_data = ip;
+	ip->i_vnode = vp;
+	ip->i_e2fs = fs = ump->um_e2fs;
+	ip->i_ump = ump;
+	ip->i_number = ino;
+	ip->i_block_group = ino_to_cg(fs, ino);
+	ip->i_next_alloc_block = 0;
+	ip->i_next_alloc_goal = 0;
+
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
+	error = insmntque(vp, ump->um_mountp);
+	if (error) {
+		free(ip, M_EXT2NODE);
+		EXT2_UNLOCK(ump);
+		return (error);
+	}
+
+	error = vfs_hash_insert(vp, ino, LK_EXCLUSIVE, td, vpp, NULL, NULL);
+	if (error || *vpp != NULL) {
+		*vpp = NULL;
+		free(ip, M_EXT2NODE);
+		EXT2_UNLOCK(ump);
+		return (error);
+	}
+
+	if ((error = ext2_vinit(ump->um_mountp, &ext2_fifoops, &vp)) != 0) {
+		vput(vp);
+		*vpp = NULL;
+		free(ip, M_EXT2NODE);
+		EXT2_UNLOCK(ump);
+		return (error);
+	}
+
 	if (EXT2_HAS_INCOMPAT_FEATURE(fs, EXT2F_INCOMPAT_EXTENTS)
 	    && (S_ISREG(mode) || S_ISDIR(mode)))
 		ext4_ext_tree_init(ip);
 	else
 		memset(ip->i_data, 0, sizeof(ip->i_data));
-	
+
 
 	/*
 	 * Set up a new generation number for this inode.
@@ -443,10 +481,10 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	ip->i_birthtime = ts.tv_sec;
 	ip->i_birthnsec = ts.tv_nsec;
 
-/*
-printf("ext2_valloc: allocated inode %d\n", ino);
-*/
+	*vpp = vp;
+
 	return (0);
+
 noinodes:
 	EXT2_UNLOCK(ump);
 	ext2_fserr(fs, cred->cr_uid, "out of inodes");
