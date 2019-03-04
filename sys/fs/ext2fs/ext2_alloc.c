@@ -1318,10 +1318,12 @@ ext2_nodealloccg(struct inode *ip, int cg, daddr_t ipref, int mode)
 		start = 0;
 		loc = memcchr(&ibp[start], 0xff, len);
 		if (loc == NULL) {
-			printf("cg = %d, ipref = %lld, fs = %s\n",
+			printf("ext2fs: inode bitmap corrupted: "
+			    "cg = %d, ipref = %lld, fs = %s - run fsck\n",
 			    cg, (long long)ipref, fs->e2fs_fsmnt);
-			panic("ext2fs_nodealloccg: map corrupted");
-			/* NOTREACHED */
+			brelse(bp);
+			EXT2_LOCK(ump);
+			return (0);
 		}
 	}
 	ipref = (loc - ibp) * NBBY + ffs(~*loc) - 1;
