@@ -1274,13 +1274,13 @@ The ``gnu_inline`` changes the meaning of ``extern inline`` to use GNU inline
 semantics, meaning:
 
 * If any declaration that is declared ``inline`` is not declared ``extern``,
-then the ``inline`` keyword is just a hint. In particular, an out-of-line
-definition is still emitted for a function with external linkage, even if all
-call sites are inlined, unlike in C99 and C++ inline semantics.
+  then the ``inline`` keyword is just a hint. In particular, an out-of-line
+  definition is still emitted for a function with external linkage, even if all
+  call sites are inlined, unlike in C99 and C++ inline semantics.
 
 * If all declarations that are declared ``inline`` are also declared
-``extern``, then the function body is present only for inlining and no
-out-of-line version is emitted.
+  ``extern``, then the function body is present only for inlining and no
+  out-of-line version is emitted.
 
 Some important consequences: ``static inline`` emits an out-of-line
 version if needed, a plain ``inline`` definition emits an out-of-line version
@@ -1315,6 +1315,46 @@ The symbol name of the resolver function is given in quotes.  A function with th
 The ``ifunc`` attribute may only be used on a function declaration.  A function declaration with an ``ifunc`` attribute is considered to be a definition of the declared entity.  The entity must not have weak linkage; for example, in C++, it cannot be applied to a declaration if a definition at that location would be considered inline.
 
 Not all targets support this attribute. ELF target support depends on both the linker and runtime linker, and is available in at least lld 4.0 and later, binutils 2.20.1 and later, glibc v2.11.1 and later, and FreeBSD 9.1 and later. Non-ELF targets currently do not support this attribute.
+
+
+import_module
+-------------
+.. csv-table:: Supported Syntaxes
+   :header: "GNU", "C++11", "C2x", "``__declspec``", "Keyword", "``#pragma``", "``#pragma clang attribute``"
+
+   "``import_module``","``clang::import_module``","``clang::import_module``","","","","Yes"
+
+Clang supports the ``__attribute__((import_module(<module_name>)))`` 
+attribute for the WebAssembly target. This attribute may be attached to a
+function declaration, where it modifies how the symbol is to be imported
+within the WebAssembly linking environment.
+
+WebAssembly imports use a two-level namespace scheme, consisting of a module
+name, which typically identifies a module from which to import, and a field
+name, which typically identifies a field from that module to import. By
+default, module names for C/C++ symbols are assigned automatically by the
+linker. This attribute can be used to override the default behavior, and
+reuqest a specific module name be used instead.
+
+
+import_name
+-----------
+.. csv-table:: Supported Syntaxes
+   :header: "GNU", "C++11", "C2x", "``__declspec``", "Keyword", "``#pragma``", "``#pragma clang attribute``"
+
+   "``import_name``","``clang::import_name``","``clang::import_name``","","","","Yes"
+
+Clang supports the ``__attribute__((import_name(<name>)))`` 
+attribute for the WebAssembly target. This attribute may be attached to a
+function declaration, where it modifies how the symbol is to be imported
+within the WebAssembly linking environment.
+
+WebAssembly imports use a two-level namespace scheme, consisting of a module
+name, which typically identifies a module from which to import, and a field
+name, which typically identifies a field from that module to import. By
+default, field names for C/C++ symbols are the same as their C/C++ symbol
+names. This attribute can be used to override the default behavior, and
+reuqest a specific field name be used instead.
 
 
 internal_linkage
