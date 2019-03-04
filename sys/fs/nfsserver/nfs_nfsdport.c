@@ -3041,7 +3041,7 @@ nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
 void
 nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
     struct vnode **vpp, struct nfsexstuff *exp,
-    struct mount **mpp, int startwrite, struct thread *p)
+    struct mount **mpp, int startwrite)
 {
 	struct mount *mp;
 	struct ucred *credanon;
