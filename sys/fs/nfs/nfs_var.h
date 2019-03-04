@@ -649,7 +649,7 @@ int nfsvno_read(vnode_t, off_t, int, struct ucred *, NFSPROC_T *,
 int nfsvno_write(vnode_t, off_t, int, int, int *, mbuf_t,
     char *, struct ucred *, NFSPROC_T *);
 int nfsvno_createsub(struct nfsrv_descript *, struct nameidata *,
-    vnode_t *, struct nfsvattr *, int *, int32_t *, NFSDEV_T, NFSPROC_T *,
+    vnode_t *, struct nfsvattr *, int *, int32_t *, NFSDEV_T,
     struct nfsexstuff *);
 int nfsvno_mknod(struct nameidata *, struct nfsvattr *, struct ucred *,
     NFSPROC_T *);
