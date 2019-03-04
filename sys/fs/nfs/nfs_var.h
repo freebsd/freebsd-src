@@ -283,8 +283,7 @@ int nfsrvd_notsupp(struct nfsrv_descript *, int,
 
 /* nfs_nfsdsocket.c */
 void nfsrvd_rephead(struct nfsrv_descript *);
-void nfsrvd_dorpc(struct nfsrv_descript *, int, u_char *, int, u_int32_t,
-    NFSPROC_T *);
+void nfsrvd_dorpc(struct nfsrv_descript *, int, u_char *, int, u_int32_t);
 
 /* nfs_nfsdcache.c */
 void nfsrvd_initcache(void);
