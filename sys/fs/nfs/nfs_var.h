@@ -171,115 +171,107 @@ int nfsrv_mdscopymr(char *, char *, char *, char *, int *, char *, NFSPROC_T *,
 
 /* nfs_nfsdserv.c */
 int nfsrvd_access(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_getattr(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_setattr(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_lookup(struct nfsrv_descript *, int,
-    vnode_t, vnode_t *, fhandle_t *, NFSPROC_T *,
-    struct nfsexstuff *);
+    vnode_t, vnode_t *, fhandle_t *, struct nfsexstuff *);
 int nfsrvd_readlink(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_read(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_write(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_create(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_mknod(struct nfsrv_descript *, int,
-    vnode_t, vnode_t *, fhandle_t *, NFSPROC_T *,
-    struct nfsexstuff *);
+    vnode_t, vnode_t *, fhandle_t *, struct nfsexstuff *);
 int nfsrvd_remove(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_rename(struct nfsrv_descript *, int,
-    vnode_t, vnode_t, NFSPROC_T *, struct nfsexstuff *,
-    struct nfsexstuff *);
+    vnode_t, vnode_t, struct nfsexstuff *, struct nfsexstuff *);
 int nfsrvd_link(struct nfsrv_descript *, int,
-    vnode_t, vnode_t, NFSPROC_T *, struct nfsexstuff *,
-    struct nfsexstuff *);
+    vnode_t, vnode_t, struct nfsexstuff *, struct nfsexstuff *);
 int nfsrvd_symlink(struct nfsrv_descript *, int,
-    vnode_t, vnode_t *, fhandle_t *, NFSPROC_T *,
-    struct nfsexstuff *);
+    vnode_t, vnode_t *, fhandle_t *, struct nfsexstuff *);
 int nfsrvd_mkdir(struct nfsrv_descript *, int,
-    vnode_t, vnode_t *, fhandle_t *, NFSPROC_T *,
-    struct nfsexstuff *);
+    vnode_t, vnode_t *, fhandle_t *, struct nfsexstuff *);
 int nfsrvd_readdir(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_readdirplus(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_commit(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_statfs(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_fsinfo(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_close(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_delegpurge(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_delegreturn(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_getfh(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_lock(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_lockt(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_locku(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_openconfirm(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_opendowngrade(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_renew(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_secinfo(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_setclientid(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_setclientidcfrm(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_verify(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_open(struct nfsrv_descript *, int,
-    vnode_t, vnode_t *, fhandle_t *, NFSPROC_T *,
-    struct nfsexstuff *);
+    vnode_t, vnode_t *, fhandle_t *, struct nfsexstuff *);
 int nfsrvd_openattr(struct nfsrv_descript *, int,
-    vnode_t, vnode_t *, fhandle_t *, NFSPROC_T *,
-    struct nfsexstuff *);
+    vnode_t, vnode_t *, fhandle_t *, struct nfsexstuff *);
 int nfsrvd_releaselckown(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_pathconf(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_exchangeid(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_createsession(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_sequence(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_reclaimcomplete(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_destroyclientid(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_bindconnsess(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_destroysession(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_freestateid(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_layoutget(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_getdevinfo(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_layoutcommit(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_layoutreturn(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_teststateid(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_notsupp(struct nfsrv_descript *, int,
-    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+    vnode_t, struct nfsexstuff *);
 
 /* nfs_nfsdsocket.c */
 void nfsrvd_rephead(struct nfsrv_descript *);

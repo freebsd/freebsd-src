@@ -1813,7 +1813,7 @@ nfsvno_fillattr(struct nfsrv_descript *nd, struct mount *mp, struct vnode *vp,
  */
 int
 nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
-    struct vnode *vp, struct thread *p, struct nfsexstuff *exp)
+    struct vnode *vp, struct nfsexstuff *exp)
 {
 	struct dirent *dp;
 	u_int32_t *tl;
@@ -1827,6 +1827,7 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 	struct uio io;
 	struct iovec iv;
 	int is_ufs;
+	struct thread *p = curthread;
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
@@ -2057,7 +2058,7 @@ nfsmout:
  */
 int
 nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
-    struct vnode *vp, struct thread *p, struct nfsexstuff *exp)
+    struct vnode *vp, struct nfsexstuff *exp)
 {
 	struct dirent *dp;
 	u_int32_t *tl;
@@ -2080,6 +2081,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	int at_root, is_ufs, is_zfs, needs_unbusy, supports_nfsv4acls;
 	struct mount *mp, *new_mp;
 	uint64_t mounted_on_fileno;
+	struct thread *p = curthread;
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
