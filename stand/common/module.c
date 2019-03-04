@@ -106,9 +106,9 @@ command_load(int argc, char *argv[])
     char	*typestr;
     char	*prefix;
     char	*skip;
-    int		dofile, dokld, ch, error;
+    int		dflag, dofile, dokld, ch, error;
 
-    dokld = dofile = 0;
+    dflag = dokld = dofile = 0;
     optind = 1;
     optreset = 1;
     typestr = NULL;
@@ -117,8 +117,11 @@ command_load(int argc, char *argv[])
 	return (CMD_CRIT);
     }
     prefix = skip = NULL;
-    while ((ch = getopt(argc, argv, "kp:s:t:")) != -1) {
+    while ((ch = getopt(argc, argv, "dkp:s:t:")) != -1) {
 	switch(ch) {
+	case 'd':
+	    dflag++;
+	    break;
 	case 'k':
 	    dokld = 1;
 	    break;
@@ -152,6 +155,8 @@ command_load(int argc, char *argv[])
 
 #ifdef LOADER_VERIEXEC
 	if (strncmp(typestr, "manifest", 8) == 0) {
+	    if (dflag > 0)
+		ve_debug_set(dflag);
 	    return (load_manifest(argv[1], prefix, skip, NULL));
 	}
 #endif
