@@ -422,4 +422,11 @@ struct ext2_gd {
 	EXT2F_INCOMPAT_64BIT) ? ((s)->e2fs_bsize / sizeof(struct ext2_gd)) : \
 	((s)->e2fs_bsize / E2FS_REV0_GD_SIZE))
 
+/*
+ * Macro-instructions used to manage inodes
+ */
+#define	EXT2_FIRST_INO(s)	((EXT2_SB(s)->e2fs->e2fs_rev == E2FS_REV0) ? \
+				 EXT2_FIRSTINO : \
+				 EXT2_SB(s)->e2fs->e2fs_first_ino)
+
 #endif	/* !_FS_EXT2FS_EXT2FS_H_ */
