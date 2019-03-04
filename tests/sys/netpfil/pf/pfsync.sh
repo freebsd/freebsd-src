@@ -19,12 +19,12 @@ common_body()
 	defer=$1
 	pfsynct_init
 
-	epair_sync=$(pft_mkepair)
-	epair_one=$(pft_mkepair)
-	epair_two=$(pft_mkepair)
+	epair_sync=$(vnet_mkepair)
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
 
-	pft_mkjail one ${epair_one}a ${epair_sync}a
-	pft_mkjail two ${epair_two}a ${epair_sync}b
+	vnet_mkjail one ${epair_one}a ${epair_sync}a
+	vnet_mkjail two ${epair_two}a ${epair_sync}b
 
 	# pfsync interface
 	jexec one ifconfig ${epair_sync}a 192.0.2.1/24 up

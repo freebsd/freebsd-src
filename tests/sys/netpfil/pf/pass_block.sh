@@ -13,11 +13,11 @@ v4_body()
 {
 	pft_init
 
-	epair=$(pft_mkepair)
+	epair=$(vnet_mkepair)
 	ifconfig ${epair}a 192.0.2.1/24 up
 
 	# Set up a simple jail with one interface
-	pft_mkjail alcatraz ${epair}b
+	vnet_mkjail alcatraz ${epair}b
 	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
 
 	# Trivial ping to the jail, without pf
@@ -52,11 +52,11 @@ v6_body()
 {
 	pft_init
 
-	epair=$(pft_mkepair)
+	epair=$(vnet_mkepair)
 	ifconfig ${epair}a inet6 2001:db8:42::1/64 up no_dad
 
 	# Set up a simple jail with one interface
-	pft_mkjail alcatraz ${epair}b
+	vnet_mkjail alcatraz ${epair}b
 	jexec alcatraz ifconfig ${epair}b inet6 2001:db8:42::2/64 up no_dad
 
 	# Trivial ping to the jail, without pf
@@ -95,10 +95,10 @@ noalias_body()
 {
 	pft_init
 
-	epair=$(pft_mkepair)
+	epair=$(vnet_mkepair)
 	ifconfig ${epair}a inet6 2001:db8:42::1/64 up no_dad
 
-	pft_mkjail alcatraz ${epair}b
+	vnet_mkjail alcatraz ${epair}b
 	jexec alcatraz ifconfig ${epair}b inet6 2001:db8:42::2/64 up no_dad
 
 	linklocaladdr=$(jexec alcatraz ifconfig ${epair}b inet6 \

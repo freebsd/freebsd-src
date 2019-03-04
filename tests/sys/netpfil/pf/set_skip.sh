@@ -14,7 +14,7 @@ set_skip_group_body()
 	# See PR 229241
 	pft_init
 
-	pft_mkjail alcatraz
+	vnet_mkjail alcatraz
 	jexec alcatraz ifconfig lo0 127.0.0.1/8 up
 	jexec alcatraz ifconfig lo0 group foo
 	jexec alcatraz pfctl -e
@@ -42,7 +42,7 @@ set_skip_group_lo_body()
 	# See PR 229241
 	pft_init
 
-	pft_mkjail alcatraz
+	vnet_mkjail alcatraz
 	jexec alcatraz ifconfig lo0 127.0.0.1/8 up
 	jexec alcatraz pfctl -e
 	pft_set_rules alcatraz "set skip on lo" \
