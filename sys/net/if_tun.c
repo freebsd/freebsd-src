@@ -41,6 +41,7 @@
 #include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/random.h>
+#include <sys/ctype.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -105,6 +106,7 @@ struct tun_softc {
  * which is static after setup.
  */
 static struct mtx tunmtx;
+static eventhandler_tag tag;
 static const char tunname[] = "tun";
 static MALLOC_DEFINE(M_TUN, tunname, "Tunnel Interface");
 static int tundebug = 0;
@@ -129,9 +131,12 @@ static int	tunoutput(struct ifnet *, struct mbuf *,
 		    const struct sockaddr *, struct route *ro);
 static void	tunstart(struct ifnet *);
 
-static int	tun_clone_create(struct if_clone *, int, caddr_t);
-static void	tun_clone_destroy(struct ifnet *);
-static struct if_clone *tun_cloner;
+static int	tun_clone_match(struct if_clone *ifc, const char *name);
+static int	tun_clone_create(struct if_clone *, char *, size_t, caddr_t);
+static int	tun_clone_destroy(struct if_clone *, struct ifnet *);
+static struct unrhdr	*tun_unrhdr;
+VNET_DEFINE_STATIC(struct if_clone *, tun_cloner);
+#define V_tun_cloner VNET(tun_cloner)
 
 static d_open_t		tunopen;
 static d_close_t	tunclose;
@@ -173,10 +178,34 @@ static struct cdevsw tun_cdevsw = {
 };
 
 static int
-tun_clone_create(struct if_clone *ifc, int unit, caddr_t params)
+tun_clone_match(struct if_clone *ifc, const char *name)
+{
+	if (strncmp(tunname, name, 3) == 0 &&
+	    (name[3] == '\0' || isdigit(name[3])))
+		return (1);
+
+	return (0);
+}
+
+static int
+tun_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 {
 	struct cdev *dev;
-	int i;
+	int err, unit, i;
+
+	err = ifc_name2unit(name, &unit);
+	if (err != 0)
+		return (err);
+
+	if (unit != -1) {
+		/* If this unit number is still available that/s okay. */
+		if (alloc_unr_specific(tun_unrhdr, unit) == -1)
+			return (EEXIST);
+	} else {
+		unit = alloc_unr(tun_unrhdr);
+	}
+
+	snprintf(name, IFNAMSIZ, "%s%d", tunname, unit);
 
 	/* find any existing device, or allocate new unit number */
 	i = clone_create(&tunclones, &tun_cdevsw, &unit, &dev, 0);
@@ -252,6 +281,7 @@ tun_destroy(struct tun_softc *tp)
 	dev = tp->tun_dev;
 	bpfdetach(TUN2IFP(tp));
 	if_detach(TUN2IFP(tp));
+	free_unr(tun_unrhdr, TUN2IFP(tp)->if_dunit);
 	if_free(TUN2IFP(tp));
 	destroy_dev(dev);
 	seldrain(&tp->tun_rsel);
@@ -263,8 +293,8 @@ tun_destroy(struct tun_softc *tp)
 	CURVNET_RESTORE();
 }
 
-static void
-tun_clone_destroy(struct ifnet *ifp)
+static int
+tun_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 {
 	struct tun_softc *tp = ifp->if_softc;
 
@@ -272,39 +302,64 @@ tun_clone_destroy(struct ifnet *ifp)
 	TAILQ_REMOVE(&tunhead, tp, tun_list);
 	mtx_unlock(&tunmtx);
 	tun_destroy(tp);
+
+	return (0);
 }
+
+static void
+vnet_tun_init(const void *unused __unused)
+{
+	V_tun_cloner = if_clone_advanced(tunname, 0, tun_clone_match,
+			tun_clone_create, tun_clone_destroy);
+}
+VNET_SYSINIT(vnet_tun_init, SI_SUB_PROTO_IF, SI_ORDER_ANY,
+		vnet_tun_init, NULL);
+
+static void
+vnet_tun_uninit(const void *unused __unused)
+{
+	if_clone_detach(V_tun_cloner);
+}
+VNET_SYSUNINIT(vnet_tun_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY,
+    vnet_tun_uninit, NULL);
+
+static void
+tun_uninit(const void *unused __unused)
+{
+	struct tun_softc *tp;
+
+	EVENTHANDLER_DEREGISTER(dev_clone, tag);
+	drain_dev_clone_events();
+
+	mtx_lock(&tunmtx);
+	while ((tp = TAILQ_FIRST(&tunhead)) != NULL) {
+		TAILQ_REMOVE(&tunhead, tp, tun_list);
+		mtx_unlock(&tunmtx);
+		tun_destroy(tp);
+		mtx_lock(&tunmtx);
+	}
+	mtx_unlock(&tunmtx);
+	delete_unrhdr(tun_unrhdr);
+	clone_cleanup(&tunclones);
+	mtx_destroy(&tunmtx);
+}
+SYSUNINIT(tun_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY, tun_uninit, NULL);
 
 static int
 tunmodevent(module_t mod, int type, void *data)
 {
-	static eventhandler_tag tag;
-	struct tun_softc *tp;
 
 	switch (type) {
 	case MOD_LOAD:
 		mtx_init(&tunmtx, "tunmtx", NULL, MTX_DEF);
 		clone_setup(&tunclones);
+		tun_unrhdr = new_unrhdr(0, IF_MAXUNIT, &tunmtx);
 		tag = EVENTHANDLER_REGISTER(dev_clone, tunclone, 0, 1000);
 		if (tag == NULL)
 			return (ENOMEM);
-		tun_cloner = if_clone_simple(tunname, tun_clone_create,
-		    tun_clone_destroy, 0);
 		break;
 	case MOD_UNLOAD:
-		if_clone_detach(tun_cloner);
-		EVENTHANDLER_DEREGISTER(dev_clone, tag);
-		drain_dev_clone_events();
-
-		mtx_lock(&tunmtx);
-		while ((tp = TAILQ_FIRST(&tunhead)) != NULL) {
-			TAILQ_REMOVE(&tunhead, tp, tun_list);
-			mtx_unlock(&tunmtx);
-			tun_destroy(tp);
-			mtx_lock(&tunmtx);
-		}
-		mtx_unlock(&tunmtx);
-		clone_cleanup(&tunclones);
-		mtx_destroy(&tunmtx);
+		/* See tun_uninit, so it's done after the vnet_sysuninit() */
 		break;
 	default:
 		return EOPNOTSUPP;
