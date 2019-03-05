@@ -36,55 +36,71 @@ extern "C" {
 
 using namespace testing;
 
-class Symlink: public FuseTest {};
+class Link: public FuseTest {};
 
-TEST_F(Symlink, enospc)
+TEST_F(Link, emlink)
 {
 	const char FULLPATH[] = "mountpoint/lnk";
 	const char RELPATH[] = "lnk";
-	const char dst[] = "dst";
+	const char FULLDST[] = "mountpoint/dst";
+	const char RELDST[] = "dst";
+	uint64_t dst_ino = 42;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(1, RELDST).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		out->body.entry.attr.mode = S_IFREG | 0644;
+		out->body.entry.nodeid = dst_ino;
+		SET_OUT_HEADER_LEN(out, entry);
+	}));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			const char *name = (const char*)in->body.bytes;
-			const char *linkname = name + strlen(name) + 1;
-			return (in->header.opcode == FUSE_SYMLINK &&
-				(0 == strcmp(linkname, dst)) &&
+			const char *name = (const char*)in->body.bytes
+				+ sizeof(struct fuse_link_in);
+			return (in->header.opcode == FUSE_LINK &&
+				in->body.link.oldnodeid == dst_ino &&
 				(0 == strcmp(name, RELPATH)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnErrno(ENOSPC)));
+	).WillOnce(Invoke(ReturnErrno(EMLINK)));
 
-	EXPECT_EQ(-1, symlink(dst, FULLPATH));
-	EXPECT_EQ(ENOSPC, errno);
+	EXPECT_EQ(-1, link(FULLDST, FULLPATH));
+	EXPECT_EQ(EMLINK, errno);
 }
 
-TEST_F(Symlink, ok)
+TEST_F(Link, ok)
 {
 	const char FULLPATH[] = "mountpoint/src";
 	const char RELPATH[] = "src";
-	const char dst[] = "dst";
+	const char FULLDST[] = "mountpoint/dst";
+	const char RELDST[] = "dst";
+	uint64_t dst_ino = 42;
 	const uint64_t ino = 42;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(1, RELDST).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		out->body.entry.attr.mode = S_IFREG | 0644;
+		out->body.entry.nodeid = dst_ino;
+		SET_OUT_HEADER_LEN(out, entry);
+	}));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			const char *name = (const char*)in->body.bytes;
-			const char *linkname = name + strlen(name) + 1;
-			return (in->header.opcode == FUSE_SYMLINK &&
-				(0 == strcmp(linkname, dst)) &&
+			const char *name = (const char*)in->body.bytes
+				+ sizeof(struct fuse_link_in);
+			return (in->header.opcode == FUSE_LINK &&
+				in->body.link.oldnodeid == dst_ino &&
 				(0 == strcmp(name, RELPATH)));
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFLNK | 0777;
+		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = ino;
 	}));
 
-	EXPECT_EQ(0, symlink(dst, FULLPATH)) << strerror(errno);
+	EXPECT_EQ(0, link(FULLDST, FULLPATH)) << strerror(errno);
 }

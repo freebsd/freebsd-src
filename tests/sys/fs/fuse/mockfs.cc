@@ -116,6 +116,20 @@ void sigint_handler(int __unused sig) {
 	quit = 1;
 }
 
+void debug_fuseop(const mockfs_buf_in *in)
+{
+	printf("%s ino=%lu", opcode2opname(in->header.opcode),
+		in->header.nodeid);
+	switch (in->header.opcode) {
+		case FUSE_LOOKUP:
+			printf(" %s", in->body.lookup);
+			break;
+		default:
+			break;
+	}
+	printf("\n");
+}
+
 MockFS::MockFS() {
 	struct iovec *iov = NULL;
 	int iovlen = 0;
@@ -204,10 +218,8 @@ void MockFS::loop() {
 		read_request(in);
 		if (quit)
 			break;
-		if (verbosity > 0) {
-			printf("Got request %s\n",
-				opcode2opname(in->header.opcode));
-		}
+		if (verbosity > 0)
+			debug_fuseop(in);
 		if ((pid_t)in->header.pid != m_pid) {
 			/* 
 			 * Reject any requests from unknown processes.  Because

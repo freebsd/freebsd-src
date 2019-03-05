@@ -49,10 +49,11 @@ extern "C" {
  * This must be a macro instead of a method because EXPECT_CALL returns a type
  * with a deleted constructor.
  */
-#define EXPECT_LOOKUP(path)						\
+#define EXPECT_LOOKUP(parent, path)					\
 	EXPECT_CALL(*m_mock, process(					\
 		ResultOf([=](auto in) {					\
 			return (in->header.opcode == FUSE_LOOKUP &&	\
+				in->header.nodeid == (parent) &&	\
 				strcmp(in->body.lookup, (path)) == 0);	\
 		}, Eq(true)),						\
 		_)							\
@@ -72,10 +73,12 @@ union fuse_payloads_in {
 	uint8_t		bytes[0x21000 - sizeof(struct fuse_in_header)];
 	fuse_forget_in	forget;
 	fuse_init_in	init;
+	fuse_link_in	link;
 	char		lookup[0];
 	fuse_mkdir_in	mkdir;
 	fuse_mknod_in	mknod;
 	fuse_open_in	open;
+	fuse_rename_in	rename;
 	fuse_setattr_in	setattr;
 };
 

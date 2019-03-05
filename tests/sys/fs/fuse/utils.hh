@@ -40,7 +40,7 @@ class FuseTest : public ::testing::Test {
 		}
 	}
 
-	void TearDown() {
+	virtual void TearDown() {
 		if (m_mock)
 			delete m_mock;
 	}

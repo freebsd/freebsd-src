@@ -50,7 +50,7 @@ TEST_F(Lookup, DISABLED_attr_cache)
 	const uint64_t ino = 42;
 	struct stat sb;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.nodeid = ino;
@@ -115,7 +115,7 @@ TEST_F(Lookup, attr_cache_timeout)
 	 */
 	long timeout_ns = 250'000'000;
 
-	EXPECT_LOOKUP(RELPATH).WillRepeatedly(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillRepeatedly(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.nodeid = ino;
@@ -148,7 +148,7 @@ TEST_F(Lookup, enoent)
 	const char FULLPATH[] = "mountpoint/does_not_exist";
 	const char RELPATH[] = "does_not_exist";
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
 	EXPECT_NE(0, access(FULLPATH, F_OK));
 	EXPECT_EQ(ENOENT, errno);
 }
@@ -162,7 +162,7 @@ TEST_F(Lookup, entry_cache)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.entry_valid = UINT64_MAX;
@@ -181,7 +181,7 @@ TEST_F(Lookup, entry_cache)
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236226 */
 TEST_F(Lookup, DISABLED_entry_cache_negative)
 {
-	EXPECT_LOOKUP("does_not_exist").Times(1)
+	EXPECT_LOOKUP(1, "does_not_exist").Times(1)
 	.WillOnce(Invoke([](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.error = 0;
@@ -206,7 +206,7 @@ TEST_F(Lookup, entry_cache_negative_timeout)
 	 */
 	long timeout_ns = 250'000'000;
 
-	EXPECT_LOOKUP(RELPATH).Times(2)
+	EXPECT_LOOKUP(1, RELPATH).Times(2)
 	.WillRepeatedly(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.error = 0;
@@ -239,7 +239,7 @@ TEST_F(Lookup, DISABLED_entry_cache_timeout)
 	 */
 	long timeout_ns = 250'000'000;
 
-	EXPECT_LOOKUP(RELPATH).Times(2)
+	EXPECT_LOOKUP(1, RELPATH).Times(2)
 	.WillRepeatedly(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
@@ -258,7 +258,7 @@ TEST_F(Lookup, ok)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
@@ -270,3 +270,33 @@ TEST_F(Lookup, ok)
 	 */
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 }
+
+// Lookup in a subdirectory of the fuse mount
+TEST_F(Lookup, subdir)
+{
+	const char FULLPATH[] = "mountpoint/some_dir/some_file.txt";
+	const char DIRPATH[] = "some_dir";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t dir_ino = 2;
+	uint64_t file_ino = 3;
+
+	EXPECT_LOOKUP(1, DIRPATH).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFDIR | 0755;
+		out->body.entry.nodeid = dir_ino;
+	}));
+	EXPECT_LOOKUP(dir_ino, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFREG | 0644;
+		out->body.entry.nodeid = file_ino;
+	}));
+	/*
+	 * access(2) is one of the few syscalls that will not (always) follow
+	 * up a successful VOP_LOOKUP with another VOP.
+	 */
+	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
+}
+
+
