@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -54,6 +55,13 @@ c_special(int fd1, const char *file1, off_t skip1,
 	off_t byte, line;
 	FILE *fp1, *fp2;
 	int dfound;
+
+	if (caph_limit_stream(fd1, CAPH_READ) < 0)
+		err(ERR_EXIT, "caph_limit_stream(%s)", file1);
+	if (caph_limit_stream(fd2, CAPH_READ) < 0)
+		err(ERR_EXIT, "caph_limit_stream(%s)", file2);
+	if (caph_enter() < 0)
+		err(ERR_EXIT, "unable to enter capability mode");
 
 	if ((fp1 = fdopen(fd1, "r")) == NULL)
 		err(ERR_EXIT, "%s", file1);

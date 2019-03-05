@@ -31,6 +31,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20190304:
+	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
+	8.0.0.  Please see the 20141231 entry below for information about
+	prerequisites and upgrading, if you are not already using clang 3.5.0
+	or higher.
+
 20190219:
 	drm and drm2 have been removed from the tree. Please see
 	https://wiki.freebsd.org/Graphics for the latest information on

@@ -9,15 +9,11 @@
 
 #include "lldb/Interpreter/Options.h"
 
-// C Includes
-// C++ Includes
 #include <algorithm>
 #include <bitset>
 #include <map>
 #include <set>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Host/OptionParser.h"
 #include "lldb/Interpreter/CommandCompletions.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
@@ -461,7 +457,7 @@ void Options::GenerateOptionUsage(Stream &strm, CommandObject *cmd,
         }
       }
 
-      if (options.empty() == false) {
+      if (!options.empty()) {
         // We have some required options with no arguments
         strm.PutCString(" -");
         for (i = 0; i < 2; ++i)
@@ -480,14 +476,14 @@ void Options::GenerateOptionUsage(Stream &strm, CommandObject *cmd,
         if (def.usage_mask & opt_set_mask && isprint8(def.short_option)) {
           // Add current option to the end of out_stream.
 
-          if (def.required == false &&
+          if (!def.required &&
               def.option_has_arg == OptionParser::eNoArgument) {
             options.insert(def.short_option);
           }
         }
       }
 
-      if (options.empty() == false) {
+      if (!options.empty()) {
         // We have some required options with no arguments
         strm.PutCString(" [-");
         for (i = 0; i < 2; ++i)
@@ -601,15 +597,17 @@ void Options::GenerateOptionUsage(Stream &strm, CommandObject *cmd,
 
       if (opt_defs[i].usage_text)
         OutputFormattedUsageText(strm, opt_defs[i], screen_width);
-      if (opt_defs[i].enum_values != nullptr) {
+      if (!opt_defs[i].enum_values.empty()) {
         strm.Indent();
         strm.Printf("Values: ");
-        for (int k = 0; opt_defs[i].enum_values[k].string_value != nullptr;
-             k++) {
-          if (k == 0)
-            strm.Printf("%s", opt_defs[i].enum_values[k].string_value);
+        bool is_first = true;
+        for (const auto &enum_value : opt_defs[i].enum_values) {
+          if (is_first) {
+            strm.Printf("%s", enum_value.string_value);
+            is_first = false;
+          }
           else
-            strm.Printf(" | %s", opt_defs[i].enum_values[k].string_value);
+            strm.Printf(" | %s", enum_value.string_value);
         }
         strm.EOL();
       }
@@ -770,17 +768,18 @@ bool Options::HandleOptionArgumentCompletion(
 
   // See if this is an enumeration type option, and if so complete it here:
 
-  OptionEnumValueElement *enum_values = opt_defs[opt_defs_index].enum_values;
-  if (enum_values != nullptr) {
+  const auto &enum_values = opt_defs[opt_defs_index].enum_values;
+  if (!enum_values.empty()) {
     bool return_value = false;
     std::string match_string(
         request.GetParsedLine().GetArgumentAtIndex(opt_arg_pos),
         request.GetParsedLine().GetArgumentAtIndex(opt_arg_pos) +
             request.GetCursorCharPosition());
-    for (int i = 0; enum_values[i].string_value != nullptr; i++) {
-      if (strstr(enum_values[i].string_value, match_string.c_str()) ==
-          enum_values[i].string_value) {
-        request.AddCompletion(enum_values[i].string_value);
+
+    for (const auto &enum_value : enum_values) {
+      if (strstr(enum_value.string_value, match_string.c_str()) ==
+          enum_value.string_value) {
+        request.AddCompletion(enum_value.string_value);
         return_value = true;
       }
     }
@@ -828,7 +827,7 @@ bool Options::HandleOptionArgumentCompletion(
         const char *module_name =
             request.GetParsedLine().GetArgumentAtIndex(cur_arg_pos);
         if (module_name) {
-          FileSpec module_spec(module_name, false);
+          FileSpec module_spec(module_name);
           lldb::TargetSP target_sp =
               interpreter.GetDebugger().GetSelectedTarget();
           // Search filters require a target...

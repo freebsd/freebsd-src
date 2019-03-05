@@ -9,10 +9,6 @@
 
 #include "lldb/Interpreter/OptionValueFormatEntity.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/Module.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Utility/Stream.h"
@@ -41,14 +37,30 @@ bool OptionValueFormatEntity::Clear() {
   return true;
 }
 
+static void EscapeBackticks(llvm::StringRef str, std::string &dst) {
+  dst.clear();
+  dst.reserve(str.size());
+
+  for (size_t i = 0, e = str.size(); i != e; ++i) {
+    char c = str[i];
+    if (c == '`') {
+      if (i == 0 || str[i - 1] != '\\')
+        dst += '\\';
+    }
+    dst += c;
+  }
+}
+
 void OptionValueFormatEntity::DumpValue(const ExecutionContext *exe_ctx,
                                         Stream &strm, uint32_t dump_mask) {
   if (dump_mask & eDumpOptionType)
     strm.Printf("(%s)", GetTypeAsCString());
   if (dump_mask & eDumpOptionValue) {
     if (dump_mask & eDumpOptionType)
-      strm.PutCString(" = \"");
-    strm << m_current_format.c_str() << '"';
+      strm.PutCString(" = ");
+    std::string escaped;
+    EscapeBackticks(m_current_format, escaped);
+    strm << '"' << escaped << '"';
   }
 }
 

@@ -836,11 +836,11 @@ pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
 	}
 
 	/* We have all the data. */
+	frent = TAILQ_FIRST(&frag->fr_queue);
+	KASSERT(frent != NULL, ("frent != NULL"));
 	extoff = frent->fe_extoff;
 	maxlen = frag->fr_maxlen;
 	frag_id = frag->fr_id;
-	frent = TAILQ_FIRST(&frag->fr_queue);
-	KASSERT(frent != NULL, ("frent != NULL"));
 	total = TAILQ_LAST(&frag->fr_queue, pf_fragq)->fe_off +
 		TAILQ_LAST(&frag->fr_queue, pf_fragq)->fe_len;
 	hdrlen = frent->fe_hdrlen - sizeof(struct ip6_frag);

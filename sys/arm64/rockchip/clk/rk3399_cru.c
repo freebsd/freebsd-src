@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #define	PCLK_I2C5		344
 #define	PCLK_I2C6		345
 #define	PCLK_I2C7		346
+#define	HCLK_SDMMC		462
 
 static struct rk_cru_gate rk3399_gates[] = {
 	/* CRU_CLKGATE_CON0 */
@@ -99,6 +100,9 @@ static struct rk_cru_gate rk3399_gates[] = {
 	CRU_GATE(PCLK_GPIO2, "pclk_gpio2", "pclk_alive", 0x37c, 3)
 	CRU_GATE(PCLK_GPIO3, "pclk_gpio3", "pclk_alive", 0x37c, 4)
 	CRU_GATE(PCLK_GPIO4, "pclk_gpio4", "pclk_alive", 0x37c, 5)
+
+	/* CRU_CLKGATE_CON33 */
+	CRU_GATE(HCLK_SDMMC, "hclk_sdmmc", "hclk_sd", 0x384, 8)
 };
 
 
@@ -1385,6 +1389,60 @@ static struct rk_clk_armclk_def armclk_b = {
 	.nrates = nitems(rk3399_armclkb_rates),
 };
 
+/*
+ * sdmmc
+ */
+
+#define	HCLK_SD		461
+
+static const char *hclk_sd_parents[] = {"cpll", "gpll"};
+
+static struct rk_clk_composite_def hclk_sd = {
+	.clkdef = {
+		.id = HCLK_SD,
+		.name = "hclk_sd",
+		.parent_names = hclk_sd_parents,
+		.parent_cnt = nitems(hclk_sd_parents),
+	},
+
+	.muxdiv_offset = 0x134,
+	.mux_shift = 15,
+	.mux_width = 1,
+
+	.div_shift = 8,
+	.div_width = 5,
+
+	.gate_offset = 0x330,
+	.gate_shift = 13,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
+#define	SCLK_SDMMC		76
+
+static const char *sclk_sdmmc_parents[] = {"cpll", "gpll", "npll", "ppll"};
+
+static struct rk_clk_composite_def sclk_sdmmc = {
+	.clkdef = {
+		.id = SCLK_SDMMC,
+		.name = "sclk_sdmmc",
+		.parent_names = sclk_sdmmc_parents,
+		.parent_cnt = nitems(sclk_sdmmc_parents),
+	},
+
+	.muxdiv_offset = 0x140,
+	.mux_shift = 8,
+	.mux_width = 3,
+
+	.div_shift = 0,
+	.div_width = 7,
+
+	.gate_offset = 0x318,
+	.gate_shift = 1,
+
+	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
+};
+
 static struct rk_clk rk3399_clks[] = {
 	{
 		.type = RK3399_CLK_PLL,
@@ -1483,6 +1541,15 @@ static struct rk_clk rk3399_clks[] = {
 	{
 		.type = RK_CLK_ARMCLK,
 		.clk.armclk = &armclk_b,
+	},
+
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &hclk_sd,
+	},
+	{
+		.type = RK_CLK_COMPOSITE,
+		.clk.composite = &sclk_sdmmc,
 	},
 };
 

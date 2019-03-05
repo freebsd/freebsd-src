@@ -55,17 +55,29 @@ static cl::opt<bool>
     ClPrintInlining("inlining", cl::init(true),
                     cl::desc("Print all inlined frames for a given address"));
 
+// -demangle, -C
 static cl::opt<bool>
 ClDemangle("demangle", cl::init(true), cl::desc("Demangle function names"));
+static cl::alias
+ClDemangleShort("C", cl::desc("Alias for -demangle"),
+                cl::NotHidden, cl::aliasopt(ClDemangle));
 
 static cl::opt<std::string> ClDefaultArch("default-arch", cl::init(""),
                                           cl::desc("Default architecture "
                                                    "(for multi-arch objects)"));
 
+// -obj, -exe, -e
 static cl::opt<std::string>
 ClBinaryName("obj", cl::init(""),
              cl::desc("Path to object file to be symbolized (if not provided, "
                       "object file should be specified for each input line)"));
+static cl::alias
+ClBinaryNameAliasExe("exe", cl::desc("Alias for -obj"),
+                     cl::NotHidden, cl::aliasopt(ClBinaryName));
+static cl::alias
+ClBinaryNameAliasE("e", cl::desc("Alias for -obj"),
+                   cl::NotHidden, cl::aliasopt(ClBinaryName));
+
 
 static cl::opt<std::string>
     ClDwpName("dwp", cl::init(""),
@@ -75,13 +87,25 @@ static cl::list<std::string>
 ClDsymHint("dsym-hint", cl::ZeroOrMore,
            cl::desc("Path to .dSYM bundles to search for debug info for the "
                     "object files"));
-static cl::opt<bool>
-    ClPrintAddress("print-address", cl::init(false),
-                   cl::desc("Show address before line information"));
 
+// -print-address, -addresses, -a
+static cl::opt<bool>
+ClPrintAddress("print-address", cl::init(false),
+               cl::desc("Show address before line information"));
+static cl::alias
+ClPrintAddressAliasAddresses("addresses", cl::desc("Alias for -print-address"),
+                             cl::NotHidden, cl::aliasopt(ClPrintAddress));
+static cl::alias
+ClPrintAddressAliasA("a", cl::desc("Alias for -print-address"),
+                     cl::NotHidden, cl::aliasopt(ClPrintAddress));
+
+// -pretty-print, -p
 static cl::opt<bool>
     ClPrettyPrint("pretty-print", cl::init(false),
                   cl::desc("Make the output more human friendly"));
+static cl::alias ClPrettyPrintShort("p", cl::desc("Alias for -pretty-print"),
+                                    cl::NotHidden,
+                                    cl::aliasopt(ClPrettyPrint));
 
 static cl::opt<int> ClPrintSourceContextLines(
     "print-source-context-lines", cl::init(0),
@@ -89,6 +113,10 @@ static cl::opt<int> ClPrintSourceContextLines(
 
 static cl::opt<bool> ClVerbose("verbose", cl::init(false),
                                cl::desc("Print verbose line info"));
+
+static cl::list<std::string> ClInputAddresses(cl::Positional,
+                                              cl::desc("<input addresses>..."),
+                                              cl::ZeroOrMore);
 
 template<typename T>
 static bool error(Expected<T> &ResOrErr) {
@@ -137,6 +165,38 @@ static bool parseCommand(StringRef InputString, bool &IsData,
   return !StringRef(pos, offset_length).getAsInteger(0, ModuleOffset);
 }
 
+static void symbolizeInput(StringRef InputString, LLVMSymbolizer &Symbolizer,
+                           DIPrinter &Printer) {
+  bool IsData = false;
+  std::string ModuleName;
+  uint64_t ModuleOffset = 0;
+  if (!parseCommand(StringRef(InputString), IsData, ModuleName, ModuleOffset)) {
+    outs() << InputString;
+    return;
+  }
+
+  if (ClPrintAddress) {
+    outs() << "0x";
+    outs().write_hex(ModuleOffset);
+    StringRef Delimiter = ClPrettyPrint ? ": " : "\n";
+    outs() << Delimiter;
+  }
+  if (IsData) {
+    auto ResOrErr = Symbolizer.symbolizeData(ModuleName, ModuleOffset);
+    Printer << (error(ResOrErr) ? DIGlobal() : ResOrErr.get());
+  } else if (ClPrintInlining) {
+    auto ResOrErr =
+        Symbolizer.symbolizeInlinedCode(ModuleName, ModuleOffset, ClDwpName);
+    Printer << (error(ResOrErr) ? DIInliningInfo() : ResOrErr.get());
+  } else {
+    auto ResOrErr =
+        Symbolizer.symbolizeCode(ModuleName, ModuleOffset, ClDwpName);
+    Printer << (error(ResOrErr) ? DILineInfo() : ResOrErr.get());
+  }
+  outs() << "\n";
+  outs().flush();
+}
+
 int main(int argc, char **argv) {
   InitLLVM X(argc, argv);
 
@@ -159,43 +219,15 @@ int main(int argc, char **argv) {
   DIPrinter Printer(outs(), ClPrintFunctions != FunctionNameKind::None,
                     ClPrettyPrint, ClPrintSourceContextLines, ClVerbose);
 
-  const int kMaxInputStringLength = 1024;
-  char InputString[kMaxInputStringLength];
+  if (ClInputAddresses.empty()) {
+    const int kMaxInputStringLength = 1024;
+    char InputString[kMaxInputStringLength];
 
-  while (true) {
-    if (!fgets(InputString, sizeof(InputString), stdin))
-      break;
-
-    bool IsData = false;
-    std::string ModuleName;
-    uint64_t ModuleOffset = 0;
-    if (!parseCommand(StringRef(InputString), IsData, ModuleName,
-                      ModuleOffset)) {
-      outs() << InputString;
-      continue;
-    }
-
-    if (ClPrintAddress) {
-      outs() << "0x";
-      outs().write_hex(ModuleOffset);
-      StringRef Delimiter = ClPrettyPrint ? ": " : "\n";
-      outs() << Delimiter;
-    }
-    if (IsData) {
-      auto ResOrErr = Symbolizer.symbolizeData(ModuleName, ModuleOffset);
-      Printer << (error(ResOrErr) ? DIGlobal() : ResOrErr.get());
-    } else if (ClPrintInlining) {
-      auto ResOrErr =
-          Symbolizer.symbolizeInlinedCode(ModuleName, ModuleOffset, ClDwpName);
-      Printer << (error(ResOrErr) ? DIInliningInfo()
-                                             : ResOrErr.get());
-    } else {
-      auto ResOrErr =
-          Symbolizer.symbolizeCode(ModuleName, ModuleOffset, ClDwpName);
-      Printer << (error(ResOrErr) ? DILineInfo() : ResOrErr.get());
-    }
-    outs() << "\n";
-    outs().flush();
+    while (fgets(InputString, sizeof(InputString), stdin))
+      symbolizeInput(InputString, Symbolizer, Printer);
+  } else {
+    for (StringRef Address : ClInputAddresses)
+      symbolizeInput(Address, Symbolizer, Printer);
   }
 
   return 0;

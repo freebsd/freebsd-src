@@ -24,7 +24,6 @@ _PRIVATELIBS=	\
 		gtest_main \
 		heimipcc \
 		heimipcs \
-		ifconfig \
 		ldns \
 		sqlite3 \
 		ssh \
@@ -39,6 +38,7 @@ _INTERNALLIBS=	\
 		cron \
 		elftc \
 		fifolog \
+		ifconfig \
 		ipf \
 		lpr \
 		netbsd \
@@ -212,6 +212,21 @@ _LIBRARIES+= \
 		osmcomp \
 		opensm \
 		osmvendor
+.endif
+
+.if ${MK_BEARSSL} == "yes"
+_INTERNALLIBS+= \
+		bearssl \
+		secureboot \
+
+LIBBEARSSL?=	${LIBBEARSSLDIR}/libbearssl${PIE_SUFFIX}.a
+LIBSECUREBOOT?=	${LIBSECUREBOOTDIR}/libsecureboot${PIE_SUFFIX}.a
+.endif
+
+.if ${MK_VERIEXEC} == "yes"
+_INTERNALLIBS+= veriexec
+
+LIBVERIEXEC?=	${LIBVERIEXECDIR}/libveriexec${PIE_SUFFIX}.a
 .endif
 
 # Each library's LIBADD needs to be duplicated here for static linkage of
@@ -475,6 +490,9 @@ LIBVERS?=	${LIBVERSDIR}/libvers${PIE_SUFFIX}.a
 
 LIBSLDIR=	${OBJTOP}/kerberos5/lib/libsl
 LIBSL?=		${LIBSLDIR}/libsl${PIE_SUFFIX}.a
+
+LIBIFCONFIGDIR=	${OBJTOP}/lib/libifconfig
+LIBIFCONFIG?=	${LIBIFCONFIGDIR}/libifconfig${PIE_SUFFIX}.a
 
 LIBIPFDIR=	${OBJTOP}/sbin/ipf/libipf
 LIBIPF?=	${LIBIPFDIR}/libipf${PIE_SUFFIX}.a

@@ -48,7 +48,7 @@ device	arswitch
 options	AR71XX_ENV_UBOOT
 
 # uzip - to boot read-only lzma natively from flash
-device		geom_uzip
+device		xz
 options 	GEOM_UZIP
 options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uzip\"
 

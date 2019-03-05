@@ -13,18 +13,18 @@ synproxy_body()
 {
 	pft_init
 
-	epair=$(pft_mkepair)
+	epair=$(vnet_mkepair)
 	ifconfig ${epair}a 192.0.2.1/24 up
 	route add -net 198.51.100.0/24 192.0.2.2
 
-	link=$(pft_mkepair)
+	link=$(vnet_mkepair)
 
-	pft_mkjail alcatraz ${epair}b ${link}a
+	vnet_mkjail alcatraz ${epair}b ${link}a
 	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
 	jexec alcatraz ifconfig ${link}a 198.51.100.1/24 up
 	jexec alcatraz sysctl net.inet.ip.forwarding=1
 
-	pft_mkjail singsing ${link}b
+	vnet_mkjail singsing ${link}b
 	jexec singsing ifconfig ${link}b 198.51.100.2/24 up
 	jexec singsing route add default 198.51.100.1
 

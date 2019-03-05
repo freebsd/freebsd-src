@@ -10,13 +10,9 @@
 #ifndef liblldb_UniqueCStringMap_h_
 #define liblldb_UniqueCStringMap_h_
 
-// C Includes
-// C++ Includes
 #include <algorithm>
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/RegularExpression.h"
 
@@ -221,7 +217,7 @@ public:
   // }
   // my_map.Sort();
   //------------------------------------------------------------------
-  void Sort() { std::sort(m_map.begin(), m_map.end()); }
+  void Sort() { llvm::sort(m_map.begin(), m_map.end()); }
 
   //------------------------------------------------------------------
   // Since we are using a vector to contain our items it will always double its

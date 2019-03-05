@@ -7,10 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Expression/REPL.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/PluginManager.h"
@@ -66,7 +62,7 @@ std::string REPL::GetSourcePath() {
     tmpdir_file_spec.GetFilename().SetCString(file_basename.AsCString());
     m_repl_source_path = tmpdir_file_spec.GetPath();
   } else {
-    tmpdir_file_spec = FileSpec("/tmp", false);
+    tmpdir_file_spec = FileSpec("/tmp");
     tmpdir_file_spec.AppendPathComponent(file_basename.AsCString());
   }
 
@@ -416,11 +412,12 @@ void REPL::IOHandlerInputComplete(IOHandler &io_handler, std::string &code) {
 
           // Update our code on disk
           if (!m_repl_source_path.empty()) {
-            lldb_private::File file(m_repl_source_path.c_str(),
-                                    File::eOpenOptionWrite |
-                                        File::eOpenOptionTruncate |
-                                        File::eOpenOptionCanCreate,
-                                    lldb::eFilePermissionsFileDefault);
+            lldb_private::File file;
+            FileSystem::Instance().Open(file, FileSpec(m_repl_source_path),
+                                        File::eOpenOptionWrite |
+                                            File::eOpenOptionTruncate |
+                                            File::eOpenOptionCanCreate,
+                                        lldb::eFilePermissionsFileDefault);
             std::string code(m_code.CopyList());
             code.append(1, '\n');
             size_t bytes_written = code.size();
@@ -429,7 +426,7 @@ void REPL::IOHandlerInputComplete(IOHandler &io_handler, std::string &code) {
 
             // Now set the default file and line to the REPL source file
             m_target.GetSourceManager().SetDefaultFileAndLine(
-                FileSpec(m_repl_source_path, false), new_default_line);
+                FileSpec(m_repl_source_path), new_default_line);
           }
           static_cast<IOHandlerEditline &>(io_handler)
               .SetBaseLineNumber(m_code.GetSize() + 1);
@@ -453,7 +450,7 @@ void REPL::IOHandlerInputComplete(IOHandler &io_handler, std::string &code) {
 int REPL::IOHandlerComplete(IOHandler &io_handler, const char *current_line,
                             const char *cursor, const char *last_char,
                             int skip_first_n_matches, int max_matches,
-                            StringList &matches) {
+                            StringList &matches, StringList &descriptions) {
   matches.Clear();
 
   llvm::StringRef line(current_line, cursor - current_line);
@@ -466,7 +463,7 @@ int REPL::IOHandlerComplete(IOHandler &io_handler, const char *current_line,
     const char *lldb_current_line = line.substr(1).data();
     return debugger.GetCommandInterpreter().HandleCompletion(
         lldb_current_line, cursor, last_char, skip_first_n_matches, max_matches,
-        matches);
+        matches, descriptions);
   }
 
   // Strip spaces from the line and see if we had only spaces

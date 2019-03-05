@@ -91,6 +91,7 @@ int	ext2_dirrewrite(struct inode *,
 int	ext2_dirempty(struct inode *, ino_t, struct ucred *);
 int	ext2_checkpath(struct inode *, struct inode *, struct ucred *);
 int	ext2_cg_has_sb(struct m_ext2fs *fs, int cg);
+uint64_t	ext2_cg_number_gdb(struct m_ext2fs *fs, int cg);
 int	ext2_inactive(struct vop_inactive_args *);
 int	ext2_htree_add_entry(struct vnode *, struct ext2fs_direct_2 *,
 	    struct componentname *);
@@ -104,6 +105,8 @@ int	ext2_htree_lookup(struct inode *, const char *, int, struct buf **,
 int	ext2_search_dirblock(struct inode *, void *, int *, const char *, int,
 	    int *, doff_t *, doff_t *, doff_t *, struct ext2fs_searchslot *);
 uint32_t	e2fs_gd_get_ndirs(struct ext2_gd *gd);
+uint64_t	e2fs_gd_get_b_bitmap(struct ext2_gd *);
+uint64_t	e2fs_gd_get_i_bitmap(struct ext2_gd *);
 uint64_t	e2fs_gd_get_i_tables(struct ext2_gd *);
 void	ext2_sb_csum_set_seed(struct m_ext2fs *);
 int	ext2_sb_csum_verify(struct m_ext2fs *);

@@ -1,8 +1,8 @@
-dnl $OpenPAM: configure.ac 939 2017-04-30 21:36:50Z des $
+dnl $OpenPAM: configure.ac 947 2019-02-24 20:18:17Z des $
 
 AC_PREREQ([2.62])
-AC_REVISION([$OpenPAM: configure.ac 939 2017-04-30 21:36:50Z des $])
-AC_INIT([OpenPAM], [20170430], [des@des.no], [openpam], [http://www.openpam.org/])
+AC_REVISION([$OpenPAM: configure.ac 947 2019-02-24 20:18:17Z des $])
+AC_INIT([OpenPAM], [20190224], [des@des.no], [openpam], [http://www.openpam.org/])
 AC_CONFIG_SRCDIR([lib/libpam/pam_start.c])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign])
@@ -21,6 +21,9 @@ AC_C_VOLATILE
 # libtool
 LT_PREREQ([2.2.6])
 LT_INIT([disable-static dlopen])
+
+# pkg-config
+AX_PROG_PKG_CONFIG
 
 # other programs
 AC_PROG_INSTALL
@@ -102,36 +105,15 @@ AC_SUBST(DL_LIBS)
 
 saved_LIBS="${LIBS}"
 LIBS=""
-AC_CHECK_LIB([crypt], [crypt])
-CRYPT_LIBS="${LIBS}"
-LIBS="${saved_LIBS}"
-AC_SUBST(CRYPT_LIBS)
-
-saved_LIBS="${LIBS}"
-LIBS=""
-AC_CHECK_LIB([crypto], [HMAC_CTX_init])
-CRYPTO_LIBS="${LIBS}"
-LIBS="${saved_LIBS}"
-AC_SUBST(CRYPTO_LIBS)
-
-saved_LIBS="${LIBS}"
-LIBS=""
 AC_CHECK_LIB([pam], [pam_start])
 SYSTEM_LIBPAM="${LIBS}"
 LIBS="${saved_LIBS}"
 AC_SUBST(SYSTEM_LIBPAM)
 
-save_LIBS="${LIBS}"
-LIBS=""
-AC_SEARCH_LIBS([cryb_test_version], [cryb-test], [
-  CRYB_TEST_LIBS="${LIBS}"
-], [
-  CRYB_TEST_LIBS=""
-  AC_MSG_WARN([cryb-test library not available, unit tests disabled])
-])
-LIBS="${save_LIBS}"
-AC_SUBST(CRYB_TEST_LIBS)
-AM_CONDITIONAL([WITH_TEST], [ test x"$CRYB_TEST_LIBS" != x"" ])
+AX_PKG_CONFIG_CHECK([cryb-test],
+  [AC_MSG_NOTICE([Cryb test framework found, unit tests enabled.])],
+  [AC_MSG_WARN([Cryb test framework not found, unit tests disabled.])])
+AM_CONDITIONAL([WITH_TEST], [test x"$CRYB_TEST_LIBS" != x""])
 
 AC_ARG_ENABLE([developer-warnings],
     AS_HELP_STRING([--enable-developer-warnings], [enable strict warnings (default is NO)]),

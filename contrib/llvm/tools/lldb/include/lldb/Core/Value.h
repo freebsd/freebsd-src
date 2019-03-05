@@ -10,20 +10,20 @@
 #ifndef liblldb_Value_h_
 #define liblldb_Value_h_
 
-#include "lldb/Core/Scalar.h"
 #include "lldb/Symbol/CompilerType.h"
 #include "lldb/Utility/DataBufferHeap.h"
+#include "lldb/Utility/Scalar.h"
 #include "lldb/Utility/Status.h"
-#include "lldb/lldb-enumerations.h"         // for ByteOrder, ByteOrder::eB...
-#include "lldb/lldb-private-enumerations.h" // for AddressType
-#include "lldb/lldb-private-types.h"        // for type128, RegisterInfo
+#include "lldb/lldb-enumerations.h"
+#include "lldb/lldb-private-enumerations.h"
+#include "lldb/lldb-private-types.h"
 
-#include "llvm/ADT/APInt.h" // for APInt
+#include "llvm/ADT/APInt.h"
 
 #include <vector>
 
-#include <stdint.h> // for uint8_t, uint32_t, uint64_t
-#include <string.h> // for size_t, memcpy
+#include <stdint.h>
+#include <string.h>
 
 namespace lldb_private {
 class DataExtractor;

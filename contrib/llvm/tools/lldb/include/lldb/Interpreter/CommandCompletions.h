@@ -10,12 +10,8 @@
 #ifndef lldb_CommandCompletions_h_
 #define lldb_CommandCompletions_h_
 
-// C Includes
-// C++ Includes
 #include <set>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/FileSpecList.h"
 #include "lldb/Core/SearchFilter.h"
 #include "lldb/Utility/CompletionRequest.h"
@@ -116,7 +112,7 @@ public:
     CallbackReturn SearchCallback(SearchFilter &filter, SymbolContext &context,
                                   Address *addr, bool complete) override = 0;
 
-    Depth GetDepth() override = 0;
+    lldb::SearchDepth GetDepth() override = 0;
 
     virtual size_t DoCompletion(SearchFilter *filter) = 0;
 
@@ -136,7 +132,7 @@ public:
     SourceFileCompleter(CommandInterpreter &interpreter,
                         bool include_support_files, CompletionRequest &request);
 
-    Searcher::Depth GetDepth() override;
+    lldb::SearchDepth GetDepth() override;
 
     Searcher::CallbackReturn SearchCallback(SearchFilter &filter,
                                             SymbolContext &context,
@@ -162,7 +158,7 @@ public:
     ModuleCompleter(CommandInterpreter &interpreter,
                     CompletionRequest &request);
 
-    Searcher::Depth GetDepth() override;
+    lldb::SearchDepth GetDepth() override;
 
     Searcher::CallbackReturn SearchCallback(SearchFilter &filter,
                                             SymbolContext &context,
@@ -186,7 +182,7 @@ public:
     SymbolCompleter(CommandInterpreter &interpreter,
                     CompletionRequest &request);
 
-    Searcher::Depth GetDepth() override;
+    lldb::SearchDepth GetDepth() override;
 
     Searcher::CallbackReturn SearchCallback(SearchFilter &filter,
                                             SymbolContext &context,

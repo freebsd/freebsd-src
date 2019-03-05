@@ -2064,7 +2064,7 @@ ixgbe_msix_que(void *arg)
 
 	/* Protect against spurious interrupts */
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-		return 0;
+		return (FILTER_HANDLED);
 
 	ixgbe_disable_queue(adapter, que->msix);
 	++que->irqs;

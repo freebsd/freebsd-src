@@ -247,49 +247,49 @@ in6_status(int s __unused, const struct ifaddrs *ifa)
 	if (sin == NULL)
 		sin = &null_sin;
 	if (f_inet6 != NULL && strcmp(f_inet6, "cidr") == 0)
-		printf("/%d ", prefix(&sin->sin6_addr,
+		printf("/%d", prefix(&sin->sin6_addr,
 			sizeof(struct in6_addr)));
 	else
-		printf(" prefixlen %d ", prefix(&sin->sin6_addr,
+		printf(" prefixlen %d", prefix(&sin->sin6_addr,
 			sizeof(struct in6_addr)));
 
 	if ((flags6 & IN6_IFF_ANYCAST) != 0)
-		printf("anycast ");
+		printf(" anycast");
 	if ((flags6 & IN6_IFF_TENTATIVE) != 0)
-		printf("tentative ");
+		printf(" tentative");
 	if ((flags6 & IN6_IFF_DUPLICATED) != 0)
-		printf("duplicated ");
+		printf(" duplicated");
 	if ((flags6 & IN6_IFF_DETACHED) != 0)
-		printf("detached ");
+		printf(" detached");
 	if ((flags6 & IN6_IFF_DEPRECATED) != 0)
-		printf("deprecated ");
+		printf(" deprecated");
 	if ((flags6 & IN6_IFF_AUTOCONF) != 0)
-		printf("autoconf ");
+		printf(" autoconf");
 	if ((flags6 & IN6_IFF_TEMPORARY) != 0)
-		printf("temporary ");
+		printf(" temporary");
 	if ((flags6 & IN6_IFF_PREFER_SOURCE) != 0)
-		printf("prefer_source ");
+		printf(" prefer_source");
 
 	if (((struct sockaddr_in6 *)(ifa->ifa_addr))->sin6_scope_id)
-		printf("scopeid 0x%x ",
+		printf(" scopeid 0x%x",
 		    ((struct sockaddr_in6 *)(ifa->ifa_addr))->sin6_scope_id);
 
 	if (ip6lifetime && (lifetime.ia6t_preferred || lifetime.ia6t_expire)) {
-		printf("pltime ");
+		printf(" pltime");
 		if (lifetime.ia6t_preferred) {
-			printf("%s ", lifetime.ia6t_preferred < now.tv_sec
+			printf(" %s", lifetime.ia6t_preferred < now.tv_sec
 			    ? "0" :
 			    sec2str(lifetime.ia6t_preferred - now.tv_sec));
 		} else
-			printf("infty ");
+			printf(" infty");
 
-		printf("vltime ");
+		printf(" vltime");
 		if (lifetime.ia6t_expire) {
-			printf("%s ", lifetime.ia6t_expire < now.tv_sec
+			printf(" %s", lifetime.ia6t_expire < now.tv_sec
 			    ? "0" :
 			    sec2str(lifetime.ia6t_expire - now.tv_sec));
 		} else
-			printf("infty ");
+			printf(" infty");
 	}
 
 	print_vhid(ifa, " ");

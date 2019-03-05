@@ -2381,7 +2381,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	 */
 	retval = taskqueue_start_threads(&be_lun->io_taskqueue,
 					 /*num threads*/num_threads,
-					 /*priority*/PWAIT,
+					 /*priority*/PUSER,
 					 /*thread name*/
 					 "%s taskq", be_lun->lunname);
 

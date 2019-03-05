@@ -127,9 +127,9 @@ ckinode(union dinode *dp, struct inodesc *idesc)
 			ret = iblock(idesc, i + 1, remsize, BT_LEVEL1 + i);
 			if (ret & STOP)
 				return (ret);
-		} else {
+		} else if (remsize > 0) {
 			idesc->id_lbn += sizepb / sblock.fs_bsize;
-			if (idesc->id_type == DATA && remsize > 0) {
+			if (idesc->id_type == DATA) {
 				/* An empty block in a directory XXX */
 				getpathname(pathbuf, idesc->id_number,
 						idesc->id_number);
