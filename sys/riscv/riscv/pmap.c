@@ -4438,3 +4438,40 @@ pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
 
 	return (mode >= VM_MEMATTR_DEVICE && mode <= VM_MEMATTR_WRITE_BACK);
 }
+
+bool
+pmap_get_tables(pmap_t pmap, vm_offset_t va, pd_entry_t **l1, pd_entry_t **l2,
+    pt_entry_t **l3)
+{
+	pd_entry_t *l1p, *l2p;
+
+	/* Get l1 directory entry. */
+	l1p = pmap_l1(pmap, va);
+	*l1 = l1p;
+
+	if (l1p == NULL || (pmap_load(l1p) & PTE_V) == 0)
+		return (false);
+
+	if ((pmap_load(l1p) & PTE_RX) != 0) {
+		*l2 = NULL;
+		*l3 = NULL;
+		return (true);
+	}
+
+	/* Get l2 directory entry. */
+	l2p = pmap_l1_to_l2(l1p, va);
+	*l2 = l2p;
+
+	if (l2p == NULL || (pmap_load(l2p) & PTE_V) == 0)
+		return (false);
+
+	if ((pmap_load(l2p) & PTE_RX) != 0) {
+		*l3 = NULL;
+		return (true);
+	}
+
+	/* Get l3 page table entry. */
+	*l3 = pmap_l2_to_l3(l2p, va);
+
+	return (true);
+}
