@@ -40,7 +40,7 @@ daemon
 .Op Ar interface ...
 .Sh DESCRIPTION
 .Nm
-is a utility that communicates with
+is a utility that communicates with the
 .Xr rtadvd 8
 daemon and displays information about Router Advertisement messages being
 sent on each interface.
@@ -63,21 +63,22 @@ The subcommands are as follows:
 .Bl -tag -width indent
 .\"
 .It reload Op interfaces...
-Specifies to reload the configuration file.  If one or more
-.Ar interface
-is specified, configuration entries for the interfaces will be reloaded
+Specifies to reload the configuration file.
+If one or more
+.Ar interfaces
+are specified, configuration entries for the interfaces will be reloaded
 selectively.
 .It enable interfaces...
-Specifies to mark the interface as enable and to try to reload the
+Specifies to mark the interface as enabled and to tries to reload the
 configuration entry.
 This subcommand is useful for dynamically-added interfaces.
 .Pp
 The
 .Xr rtadvd 8
-daemon marks an interface as enable if the interface exists and the
-configuration file has a valid entry for that when it is invoked.
+daemon marks an interface as enabled if the interface exists and the
+configuration file has a valid entry for it when it is invoked.
 .It disable interfaces...
-Specifies to mark the interface as disable.
+Specifies to mark the interface as disabled.
 .It shutdown
 Makes the
 .Xr rtadvd 8
@@ -88,7 +89,7 @@ daemon will send several RAs with zero lifetime to invalidate the old
 information on each interface.
 It will take at most nine seconds.
 .It show Op interfaces...
-Displays information on Router Advertisement messages being sent
+Displays information about the Router Advertisement messages being sent
 on each interface.
 .El
 .Sh SEE ALSO
