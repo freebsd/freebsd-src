@@ -32,7 +32,7 @@ class FuseTest : public ::testing::Test {
 	MockFS *m_mock = NULL;
 
 	public:
-	void SetUp() {
+	virtual void SetUp() {
 		try {
 			m_mock = new MockFS{};
 		} catch (std::system_error err) {

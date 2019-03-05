@@ -56,6 +56,7 @@ union fuse_payloads_in {
 	fuse_forget_in	forget;
 	fuse_init_in	init;
 	char		lookup[0];
+	fuse_mknod_in	mknod;
 	fuse_open_in	open;
 	fuse_setattr_in	setattr;
 };
