@@ -51,7 +51,7 @@ TEST_F(Access, DISABLED_eaccess)
 	uint64_t ino = 42;
 	mode_t	access_mode = X_OK;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
@@ -80,7 +80,7 @@ TEST_F(Access, DISABLED_ok)
 	uint64_t ino = 42;
 	mode_t	access_mode = R_OK;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;

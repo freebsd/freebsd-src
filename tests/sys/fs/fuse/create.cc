@@ -51,7 +51,7 @@ TEST_F(Create, DISABLED_attr_cache)
 	uint64_t ino = 42;
 	int fd;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -94,7 +94,7 @@ TEST_F(Create, eexist)
 	const char RELPATH[] = "some_file.txt";
 	mode_t mode = 0755;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -122,7 +122,7 @@ TEST_F(Create, DISABLED_Enosys)
 	uint64_t ino = 42;
 	int fd;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -197,7 +197,7 @@ TEST_F(Create, DISABLED_entry_cache_negative)
 	int fd;
 
 	/* create will first do a LOOKUP, adding a negative cache entry */
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		/* nodeid means ENOENT and cache it */
 		out->body.entry.nodeid = 0;
 		out->header.unique = in->header.unique;
@@ -260,7 +260,7 @@ TEST_F(Create, DISABLED_entry_cache_negative_purge)
 	int fd;
 
 	/* create will first do a LOOKUP, adding a negative cache entry */
-	EXPECT_LOOKUP(RELPATH).Times(1)
+	EXPECT_LOOKUP(1, RELPATH).Times(1)
 	.WillOnce(Invoke([=](auto in, auto out) {
 		/* nodeid means ENOENT and cache it */
 		out->body.entry.nodeid = 0;
@@ -305,7 +305,7 @@ TEST_F(Create, DISABLED_entry_cache_negative_purge)
 	ASSERT_LE(0, fd) << strerror(errno);
 
 	/* Finally, a subsequent lookup should query the daemon */
-	EXPECT_LOOKUP(RELPATH).Times(1)
+	EXPECT_LOOKUP(1, RELPATH).Times(1)
 	.WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.error = 0;
@@ -328,7 +328,7 @@ TEST_F(Create, eperm)
 	const char RELPATH[] = "some_file.txt";
 	mode_t mode = 0755;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -351,7 +351,7 @@ TEST_F(Create, ok)
 	uint64_t ino = 42;
 	int fd;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {

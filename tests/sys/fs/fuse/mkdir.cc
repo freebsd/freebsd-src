@@ -48,7 +48,7 @@ TEST_F(Mkdir, emlink)
 	const char RELPATH[] = "some_dir";
 	mode_t mode = 0755;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -77,7 +77,7 @@ TEST_F(Mkdir, DISABLED_entry_cache_negative)
 	uint64_t ino = 42;
 
 	/* mkdir will first do a LOOKUP, adding a negative cache entry */
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		/* nodeid means ENOENT and cache it */
 		out->body.entry.nodeid = 0;
 		out->header.unique = in->header.unique;
@@ -124,7 +124,7 @@ TEST_F(Mkdir, DISABLED_entry_cache_negative_purge)
 	uint64_t ino = 42;
 
 	/* mkdir will first do a LOOKUP, adding a negative cache entry */
-	EXPECT_LOOKUP(RELPATH).Times(1)
+	EXPECT_LOOKUP(1, RELPATH).Times(1)
 	.WillOnce(Invoke([=](auto in, auto out) {
 		/* nodeid means ENOENT and cache it */
 		out->body.entry.nodeid = 0;
@@ -155,7 +155,7 @@ TEST_F(Mkdir, DISABLED_entry_cache_negative_purge)
 	ASSERT_EQ(0, mkdir(FULLPATH, mode)) << strerror(errno);
 
 	/* Finally, a subsequent lookup should query the daemon */
-	EXPECT_LOOKUP(RELPATH).Times(1)
+	EXPECT_LOOKUP(1, RELPATH).Times(1)
 	.WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.error = 0;
@@ -174,7 +174,7 @@ TEST_F(Mkdir, ok)
 	mode_t mode = 0755;
 	uint64_t ino = 42;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {

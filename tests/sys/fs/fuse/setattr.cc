@@ -50,7 +50,7 @@ TEST_F(Setattr, chmod)
 	const mode_t oldmode = 0755;
 	const mode_t newmode = 0644;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | oldmode;
@@ -88,7 +88,7 @@ TEST_F(Setattr, chown)
 	const uid_t olduser = 33;
 	const uid_t newuser = 44;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
@@ -132,7 +132,7 @@ TEST_F(Setattr, eperm)
 	const char RELPATH[] = "some_file.txt";
 	const uint64_t ino = 42;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0777;
@@ -162,7 +162,7 @@ TEST_F(Setattr, fchmod)
 	const mode_t oldmode = 0755;
 	const mode_t newmode = 0644;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | oldmode;
@@ -230,7 +230,7 @@ TEST_F(Setattr, ftruncate)
 	const off_t oldsize = 99;
 	const off_t newsize = 12345;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0755;
@@ -299,7 +299,7 @@ TEST_F(Setattr, truncate) {
 	const uint64_t oldsize = 100'000'000;
 	const uint64_t newsize = 20'000'000;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
@@ -341,7 +341,7 @@ TEST_F(Setattr, utimensat) {
 		{.tv_sec = 7, .tv_nsec = 8},
 	};
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
@@ -417,7 +417,7 @@ TEST_F(Setattr, utimensat_mtime_only) {
 		{.tv_sec = 7, .tv_nsec = 8},
 	};
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;

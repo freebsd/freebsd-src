@@ -45,7 +45,7 @@ TEST_F(Readlink, eloop)
 	const uint64_t ino = 42;
 	char buf[80];
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFLNK | 0777;
@@ -72,7 +72,7 @@ TEST_F(Readlink, ok)
 	const uint64_t ino = 42;
 	char buf[80];
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFLNK | 0777;

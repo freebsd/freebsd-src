@@ -7,11 +7,13 @@ TESTSDIR=	${TESTSBASE}/sys/fs/fuse
 ATF_TESTS_CXX+=	access
 ATF_TESTS_CXX+=	create
 ATF_TESTS_CXX+=	getattr
+ATF_TESTS_CXX+=	link
 ATF_TESTS_CXX+=	lookup
 ATF_TESTS_CXX+=	mkdir
 ATF_TESTS_CXX+=	mknod
 ATF_TESTS_CXX+=	open
 ATF_TESTS_CXX+=	readlink
+ATF_TESTS_CXX+=	rename
 ATF_TESTS_CXX+=	setattr
 ATF_TESTS_CXX+=	symlink
 
@@ -29,6 +31,11 @@ SRCS.getattr+=	getattr.cc
 SRCS.getattr+=	getmntopts.c
 SRCS.getattr+=	mockfs.cc
 SRCS.getattr+=	utils.cc
+
+SRCS.link+=	getmntopts.c
+SRCS.link+=	link.cc
+SRCS.link+=	mockfs.cc
+SRCS.link+=	utils.cc
 
 SRCS.lookup+=	getmntopts.c
 SRCS.lookup+=	lookup.cc
@@ -54,6 +61,11 @@ SRCS.readlink+=	getmntopts.c
 SRCS.readlink+=	mockfs.cc
 SRCS.readlink+=	readlink.cc
 SRCS.readlink+=	utils.cc
+
+SRCS.rename+=	getmntopts.c
+SRCS.rename+=	mockfs.cc
+SRCS.rename+=	rename.cc
+SRCS.rename+=	utils.cc
 
 SRCS.setattr+=	getmntopts.c
 SRCS.setattr+=	mockfs.cc

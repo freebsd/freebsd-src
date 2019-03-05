@@ -54,7 +54,7 @@ void test_ok(mode_t mode, dev_t dev) {
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -108,7 +108,7 @@ TEST_F(Mknod, DISABLED_eperm)
 	const char RELPATH[] = "some_file.txt";
 	mode_t mode = S_IFIFO | 0755;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {

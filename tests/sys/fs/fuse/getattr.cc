@@ -47,7 +47,7 @@ TEST_F(Getattr, DISABLED_attr_cache)
 	const uint64_t generation = 13;
 	struct stat sb;
 
-	EXPECT_LOOKUP(RELPATH).WillRepeatedly(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillRepeatedly(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
@@ -91,7 +91,7 @@ TEST_F(Getattr, attr_cache_timeout)
 	 */
 	long timeout_ns = 250'000'000;
 
-	EXPECT_LOOKUP(RELPATH).WillRepeatedly(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillRepeatedly(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.entry_valid = UINT64_MAX;
@@ -127,7 +127,7 @@ TEST_F(Getattr, enoent)
 	struct stat sb;
 	const uint64_t ino = 42;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = 0100644;
@@ -153,7 +153,7 @@ TEST_F(Getattr, ok)
 	const uint64_t generation = 13;
 	struct stat sb;
 
-	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
