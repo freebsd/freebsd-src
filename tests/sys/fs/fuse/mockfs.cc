@@ -102,6 +102,16 @@ const char* opcode2opname(uint32_t opcode)
 		return (table[opcode]);
 }
 
+std::function<void (const struct mockfs_buf_in *in, struct mockfs_buf_out *out)>
+ReturnErrno(int error)
+{
+	return([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		out->header.error = -error;
+		out->header.len = sizeof(out->header);
+	});
+}
+
 void sigint_handler(int __unused sig) {
 	quit = 1;
 }

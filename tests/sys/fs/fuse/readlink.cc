@@ -45,13 +45,7 @@ TEST_F(Readlink, eloop)
 	const uint64_t ino = 42;
 	char buf[80];
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([](auto in, auto out) {
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFLNK | 0777;
@@ -64,12 +58,7 @@ TEST_F(Readlink, eloop)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = -ELOOP;
-		out->header.len = sizeof(out->header);
-	}));
-
+	).WillOnce(Invoke(ReturnErrno(ELOOP)));
 
 	EXPECT_EQ(-1, readlink(FULLPATH, buf, sizeof(buf)));
 	EXPECT_EQ(ELOOP, errno);
@@ -83,13 +72,7 @@ TEST_F(Readlink, ok)
 	const uint64_t ino = 42;
 	char buf[80];
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([](auto in, auto out) {
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFLNK | 0777;

@@ -43,19 +43,8 @@ TEST_F(Symlink, enospc)
 	const char FULLPATH[] = "mountpoint/lnk";
 	const char RELPATH[] = "lnk";
 	const char dst[] = "dst";
-	//const uint64_t ino = 42;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = -ENOENT;
-		out->header.len = sizeof(out->header);
-	}));
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -84,17 +73,7 @@ TEST_F(Symlink, ok)
 	const char dst[] = "dst";
 	const uint64_t ino = 42;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = -ENOENT;
-		out->header.len = sizeof(out->header);
-	}));
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
