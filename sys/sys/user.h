@@ -471,6 +471,7 @@ struct kinfo_file {
 #define	KVME_FLAG_SUPER		0x00000008
 #define	KVME_FLAG_GROWS_UP	0x00000010
 #define	KVME_FLAG_GROWS_DOWN	0x00000020
+#define	KVME_FLAG_USER_WIRED	0x00000040
 
 #if defined(__amd64__)
 #define	KINFO_OVMENTRY_SIZE	1168
