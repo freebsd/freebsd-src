@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 14, 2017
+.Dd March 4, 2019
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -662,6 +662,11 @@ one or more superpage mappings are used
 grows down (top-down stack)
 .It U
 grows up (bottom-up stack)
+.It W
+pages in this range are locked by
+.Xr mlock 2
+or
+.Xr mlockall 2
 .El
 .Ss ELF Auxiliary Vector
 Display ELF auxiliary vector values:
@@ -684,6 +689,8 @@ auxiliary vector value
 .Xr sockstat 1 ,
 .Xr cap_enter 2 ,
 .Xr cap_rights_limit 2 ,
+.Xr mlock 2 ,
+.Xr mlockall 2 ,
 .Xr libprocstat 3 ,
 .Xr libxo 3 ,
 .Xr signal 3 ,
