@@ -628,7 +628,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	
 	pa = pmap_early_vtophys(l1pt, freemempos);
 
-	/* Initialize phys_avail. */
+	/* Initialize phys_avail and dump_avail. */
 	for (avail_slot = map_slot = physmem = 0; map_slot < physmap_idx * 2;
 	    map_slot += 2) {
 		start = physmap[map_slot];
@@ -636,6 +636,9 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 
 		if (start == end)
 			continue;
+		dump_avail[map_slot] = start;
+		dump_avail[map_slot + 1] = end;
+
 		if (start >= kernstart && end <= pa)
 			continue;
 
