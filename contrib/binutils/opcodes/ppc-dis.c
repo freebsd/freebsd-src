@@ -20,6 +20,7 @@ along with this file; see the file COPYING.  If not, write to the Free
 Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include <stdio.h>
+#include <inttypes.h>
 #include "sysdep.h"
 #include "dis-asm.h"
 #include "opcode/ppc.h"
@@ -97,7 +98,7 @@ powerpc_dialect (struct disassemble_info *info)
 	dialect |= PPC_OPCODE_64;
     }
 
-  info->private_data = (char *) 0 + dialect;
+  info->private_data = (void *)(uintptr_t)dialect;
   return dialect;
 }
 
