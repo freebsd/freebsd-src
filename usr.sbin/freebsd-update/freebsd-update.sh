@@ -670,20 +670,20 @@ fetchupgrade_check_params () {
 
 	# Disallow upgrade from a version that is not a release
 	case ${RELNUM} in
-		*-RELEASE | *-ALPHA*  | *-BETA* | *-RC*)
-			;;
-		*)
-			echo -n "`basename $0`: "
-			cat <<- EOF
-				Cannot upgrade from a version that is not a release
-				(including alpha, beta and release candidates)
-				using `basename $0`. Instead, FreeBSD can be directly
-				upgraded by source or upgraded to a RELEASE/RELENG version
-				prior to running `basename $0`.
-				Currently running: ${RELNUM}
-			EOF
-			exit 1
-			;;
+	*-RELEASE | *-ALPHA*  | *-BETA* | *-RC*)
+		;;
+	*)
+		echo -n "`basename $0`: "
+		cat <<- EOF
+			Cannot upgrade from a version that is not a release
+			(including alpha, beta and release candidates)
+			using `basename $0`. Instead, FreeBSD can be directly
+			upgraded by source or upgraded to a RELEASE/RELENG version
+			prior to running `basename $0`.
+			Currently running: ${RELNUM}
+		EOF
+		exit 1
+		;;
 	esac
 
 	# Figure out what directory contains the running kernel
