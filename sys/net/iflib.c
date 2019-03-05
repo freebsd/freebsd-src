@@ -2187,17 +2187,8 @@ iflib_fl_setup(iflib_fl_t fl)
 	 */
 	if (sctx->isc_max_frame_size <= 2048)
 		fl->ifl_buf_size = MCLBYTES;
-#ifndef CONTIGMALLOC_WORKS
 	else
 		fl->ifl_buf_size = MJUMPAGESIZE;
-#else
-	else if (sctx->isc_max_frame_size <= 4096)
-		fl->ifl_buf_size = MJUMPAGESIZE;
-	else if (sctx->isc_max_frame_size <= 9216)
-		fl->ifl_buf_size = MJUM9BYTES;
-	else
-		fl->ifl_buf_size = MJUM16BYTES;
-#endif
 	if (fl->ifl_buf_size > ctx->ifc_max_fl_buf_size)
 		ctx->ifc_max_fl_buf_size = fl->ifl_buf_size;
 	fl->ifl_cltype = m_gettype(fl->ifl_buf_size);
