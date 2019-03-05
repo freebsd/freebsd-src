@@ -304,6 +304,15 @@ config_TargetRelease () {
 	fi
 }
 
+# Pretend current release is FreeBSD $1
+config_SourceRelease () {
+	UNAME_r=$1
+	if echo ${UNAME_r} | grep -qE '^[0-9.]+$'; then
+		UNAME_r="${UNAME_r}-RELEASE"
+	fi
+	export UNAME_r
+}
+
 # Define what happens to output of utilities
 config_VerboseLevel () {
 	if [ -z ${VERBOSELEVEL} ]; then
@@ -442,7 +451,8 @@ parse_cmdline () {
 			NOTTYOK=1
 			;;
 		--currently-running)
-			shift; export UNAME_r="$1"
+			shift
+			config_SourceRelease $1 || usage
 			;;
 
 		# Configuration file equivalents
@@ -657,6 +667,24 @@ fetchupgrade_check_params () {
 	ARCH=`uname -m`
 	FETCHDIR=${RELNUM}/${ARCH}
 	PATCHDIR=${RELNUM}/${ARCH}/bp
+
+	# Disallow upgrade from a version that is not a release
+	case ${RELNUM} in
+		*-RELEASE | *-ALPHA*  | *-BETA* | *-RC*)
+			;;
+		*)
+			echo -n "`basename $0`: "
+			cat <<- EOF
+				Cannot upgrade from a version that is not a release
+				(including alpha, beta and release candidates)
+				using `basename $0`. Instead, FreeBSD can be directly
+				upgraded by source or upgraded to a RELEASE/RELENG version
+				prior to running `basename $0`.
+				Currently running: ${RELNUM}
+			EOF
+			exit 1
+			;;
+	esac
 
 	# Figure out what directory contains the running kernel
 	BOOTFILE=`sysctl -n kern.bootfile`
