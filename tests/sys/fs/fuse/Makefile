@@ -4,15 +4,21 @@ PACKAGE=	tests
 
 TESTSDIR=	${TESTSBASE}/sys/fs/fuse
 
+ATF_TESTS_CXX+=	access
 ATF_TESTS_CXX+=	create
 ATF_TESTS_CXX+=	getattr
 ATF_TESTS_CXX+=	lookup
-#ATF_TESTS_CXX+=	mkdir
+ATF_TESTS_CXX+=	mkdir
 ATF_TESTS_CXX+=	mknod
 ATF_TESTS_CXX+=	open
 ATF_TESTS_CXX+=	readlink
 ATF_TESTS_CXX+=	setattr
 ATF_TESTS_CXX+=	symlink
+
+SRCS.access+=	access.cc
+SRCS.access+=	getmntopts.c
+SRCS.access+=	mockfs.cc
+SRCS.access+=	utils.cc
 
 SRCS.create+=	create.cc
 SRCS.create+=	getmntopts.c
@@ -29,10 +35,10 @@ SRCS.lookup+=	lookup.cc
 SRCS.lookup+=	mockfs.cc
 SRCS.lookup+=	utils.cc
 
-#SRCS.mkdir+=	getmntopts.c
-#SRCS.mkdir+=	mockfs.cc
-#SRCS.mkdir+=	mkdir.cc
-#SRCS.mkdir+=	utils.cc
+SRCS.mkdir+=	getmntopts.c
+SRCS.mkdir+=	mockfs.cc
+SRCS.mkdir+=	mkdir.cc
+SRCS.mkdir+=	utils.cc
 
 SRCS.mknod+=	getmntopts.c
 SRCS.mknod+=	mockfs.cc
