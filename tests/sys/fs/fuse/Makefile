@@ -7,6 +7,7 @@ TESTSDIR=	${TESTSBASE}/sys/fs/fuse
 ATF_TESTS_CXX+=	create
 ATF_TESTS_CXX+=	getattr
 ATF_TESTS_CXX+=	lookup
+#ATF_TESTS_CXX+=	mkdir
 ATF_TESTS_CXX+=	mknod
 ATF_TESTS_CXX+=	open
 ATF_TESTS_CXX+=	readlink
@@ -27,6 +28,11 @@ SRCS.lookup+=	getmntopts.c
 SRCS.lookup+=	lookup.cc
 SRCS.lookup+=	mockfs.cc
 SRCS.lookup+=	utils.cc
+
+#SRCS.mkdir+=	getmntopts.c
+#SRCS.mkdir+=	mockfs.cc
+#SRCS.mkdir+=	mkdir.cc
+#SRCS.mkdir+=	utils.cc
 
 SRCS.mknod+=	getmntopts.c
 SRCS.mknod+=	mockfs.cc

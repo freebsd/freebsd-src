@@ -50,13 +50,7 @@ TEST_F(Lookup, DISABLED_attr_cache)
 	const uint64_t ino = 42;
 	struct stat sb;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([](auto in, auto out) {
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.nodeid = ino;
@@ -121,13 +115,7 @@ TEST_F(Lookup, attr_cache_timeout)
 	 */
 	long timeout_ns = 250'000'000;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(RELPATH).WillRepeatedly(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.nodeid = ino;
@@ -157,17 +145,11 @@ TEST_F(Lookup, attr_cache_timeout)
 
 TEST_F(Lookup, enoent)
 {
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = -ENOENT;
-		out->header.len = sizeof(out->header);
-	}));
-	EXPECT_NE(0, access("mountpoint/does_not_exist", F_OK));
+	const char FULLPATH[] = "mountpoint/does_not_exist";
+	const char RELPATH[] = "does_not_exist";
+
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	EXPECT_NE(0, access(FULLPATH, F_OK));
 	EXPECT_EQ(ENOENT, errno);
 }
 
@@ -180,13 +162,7 @@ TEST_F(Lookup, entry_cache)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([](auto in, auto out) {
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.entry_valid = UINT64_MAX;
@@ -205,12 +181,7 @@ TEST_F(Lookup, entry_cache)
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236226 */
 TEST_F(Lookup, DISABLED_entry_cache_negative)
 {
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP);
-		}, Eq(true)),
-		_)
-	).Times(1)
+	EXPECT_LOOKUP("does_not_exist").Times(1)
 	.WillOnce(Invoke([](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.error = 0;
@@ -227,18 +198,15 @@ TEST_F(Lookup, DISABLED_entry_cache_negative)
 /* Negative entry caches should timeout, too */
 TEST_F(Lookup, entry_cache_negative_timeout)
 {
+	const char *RELPATH = "does_not_exist";
+	const char *FULLPATH = "mountpoint/does_not_exist";
 	/* 
 	 * The timeout should be longer than the longest plausible time the
 	 * daemon would take to complete a write(2) to /dev/fuse, but no longer.
 	 */
 	long timeout_ns = 250'000'000;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP);
-		}, Eq(true)),
-		_)
-	).Times(2)
+	EXPECT_LOOKUP(RELPATH).Times(2)
 	.WillRepeatedly(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.error = 0;
@@ -246,13 +214,13 @@ TEST_F(Lookup, entry_cache_negative_timeout)
 		out->body.entry.entry_valid_nsec = timeout_ns;
 		SET_OUT_HEADER_LEN(out, entry);
 	}));
-	EXPECT_NE(0, access("mountpoint/does_not_exist", F_OK));
+	EXPECT_NE(0, access(FULLPATH, F_OK));
 	EXPECT_EQ(ENOENT, errno);
 
 	usleep(2 * timeout_ns / 1000);
 
 	/* The cache has timed out; VOP_LOOKUP should requery the daemon*/
-	EXPECT_NE(0, access("mountpoint/does_not_exist", F_OK));
+	EXPECT_NE(0, access(FULLPATH, F_OK));
 	EXPECT_EQ(ENOENT, errno);
 }
 
@@ -271,13 +239,7 @@ TEST_F(Lookup, DISABLED_entry_cache_timeout)
 	 */
 	long timeout_ns = 250'000'000;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).Times(2)
+	EXPECT_LOOKUP(RELPATH).Times(2)
 	.WillRepeatedly(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
@@ -296,13 +258,7 @@ TEST_F(Lookup, ok)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([](auto in, auto out) {
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;

@@ -51,17 +51,7 @@ TEST_F(Create, DISABLED_attr_cache)
 	uint64_t ino = 42;
 	int fd;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = -ENOENT;
-		out->header.len = sizeof(out->header);
-	}));
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -104,17 +94,7 @@ TEST_F(Create, eexist)
 	const char RELPATH[] = "some_file.txt";
 	mode_t mode = 0755;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = -ENOENT;
-		out->header.len = sizeof(out->header);
-	}));
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -124,11 +104,7 @@ TEST_F(Create, eexist)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = -EEXIST;
-		out->header.len = sizeof(out->header);
-	}));
+	).WillOnce(Invoke(ReturnErrno(EEXIST)));
 	EXPECT_NE(0, open(FULLPATH, O_CREAT | O_EXCL, mode));
 	EXPECT_EQ(EEXIST, errno);
 }
@@ -146,17 +122,7 @@ TEST_F(Create, DISABLED_Enosys)
 	uint64_t ino = 42;
 	int fd;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = -ENOENT;
-		out->header.len = sizeof(out->header);
-	}));
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -166,11 +132,7 @@ TEST_F(Create, DISABLED_Enosys)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = -ENOSYS;
-		out->header.len = sizeof(out->header);
-	}));
+	).WillOnce(Invoke(ReturnErrno(ENOSYS)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -235,13 +197,7 @@ TEST_F(Create, DISABLED_entry_cache_negative)
 	int fd;
 
 	/* create will first do a LOOKUP, adding a negative cache entry */
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		/* nodeid means ENOENT and cache it */
 		out->body.entry.nodeid = 0;
 		out->header.unique = in->header.unique;
@@ -304,13 +260,7 @@ TEST_F(Create, DISABLED_entry_cache_negative_purge)
 	int fd;
 
 	/* create will first do a LOOKUP, adding a negative cache entry */
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).Times(1)
+	EXPECT_LOOKUP(RELPATH).Times(1)
 	.WillOnce(Invoke([=](auto in, auto out) {
 		/* nodeid means ENOENT and cache it */
 		out->body.entry.nodeid = 0;
@@ -355,13 +305,7 @@ TEST_F(Create, DISABLED_entry_cache_negative_purge)
 	ASSERT_LE(0, fd) << strerror(errno);
 
 	/* Finally, a subsequent lookup should query the daemon */
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).Times(1)
+	EXPECT_LOOKUP(RELPATH).Times(1)
 	.WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.error = 0;
@@ -384,17 +328,7 @@ TEST_F(Create, eperm)
 	const char RELPATH[] = "some_file.txt";
 	mode_t mode = 0755;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = -ENOENT;
-		out->header.len = sizeof(out->header);
-	}));
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -404,11 +338,7 @@ TEST_F(Create, eperm)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = -EPERM;
-		out->header.len = sizeof(out->header);
-	}));
+	).WillOnce(Invoke(ReturnErrno(EPERM)));
 	EXPECT_NE(0, open(FULLPATH, O_CREAT | O_EXCL, mode));
 	EXPECT_EQ(EPERM, errno);
 }
@@ -421,17 +351,7 @@ TEST_F(Create, ok)
 	uint64_t ino = 42;
 	int fd;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = -ENOENT;
-		out->header.len = sizeof(out->header);
-	}));
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {

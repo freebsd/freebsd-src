@@ -50,13 +50,7 @@ TEST_F(Setattr, chmod)
 	const mode_t oldmode = 0755;
 	const mode_t newmode = 0644;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([](auto in, auto out) {
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | oldmode;
@@ -94,13 +88,7 @@ TEST_F(Setattr, chown)
 	const uid_t olduser = 33;
 	const uid_t newuser = 44;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([](auto in, auto out) {
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
@@ -144,13 +132,7 @@ TEST_F(Setattr, eperm)
 	const char RELPATH[] = "some_file.txt";
 	const uint64_t ino = 42;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([](auto in, auto out) {
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0777;
@@ -165,11 +147,7 @@ TEST_F(Setattr, eperm)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = -EPERM;
-		out->header.len = sizeof(out->header);
-	}));
+	).WillOnce(Invoke(ReturnErrno(EPERM)));
 	EXPECT_NE(0, truncate(FULLPATH, 10));
 	EXPECT_EQ(EPERM, errno);
 }
@@ -184,13 +162,7 @@ TEST_F(Setattr, fchmod)
 	const mode_t oldmode = 0755;
 	const mode_t newmode = 0644;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | oldmode;
@@ -258,13 +230,7 @@ TEST_F(Setattr, ftruncate)
 	const off_t oldsize = 99;
 	const off_t newsize = 12345;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0755;
@@ -333,13 +299,7 @@ TEST_F(Setattr, truncate) {
 	const uint64_t oldsize = 100'000'000;
 	const uint64_t newsize = 20'000'000;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([](auto in, auto out) {
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
@@ -381,13 +341,7 @@ TEST_F(Setattr, utimensat) {
 		{.tv_sec = 7, .tv_nsec = 8},
 	};
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
@@ -463,13 +417,7 @@ TEST_F(Setattr, utimensat_mtime_only) {
 		{.tv_sec = 7, .tv_nsec = 8},
 	};
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;

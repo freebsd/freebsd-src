@@ -42,6 +42,22 @@ extern "C" {
 			     sizeof((out)->body.variant)); \
 }
 
+/*
+ * Create an expectation on FUSE_LOOKUP and return it so the caller can set
+ * actions.
+ *
+ * This must be a macro instead of a method because EXPECT_CALL returns a type
+ * with a deleted constructor.
+ */
+#define EXPECT_LOOKUP(path)						\
+	EXPECT_CALL(*m_mock, process(					\
+		ResultOf([=](auto in) {					\
+			return (in->header.opcode == FUSE_LOOKUP &&	\
+				strcmp(in->body.lookup, (path)) == 0);	\
+		}, Eq(true)),						\
+		_)							\
+	)
+
 extern int verbosity;
 
 /* This struct isn't defined by fuse_kernel.h or libfuse, but it should be */
@@ -83,6 +99,13 @@ struct mockfs_buf_out {
 	fuse_out_header		header;
 	union fuse_payloads_out	body;
 };
+
+/*
+ * Helper function used for setting an error expectation for any fuse operation.
+ * The operation will return the supplied error
+ */
+std::function<void (const struct mockfs_buf_in *in, struct mockfs_buf_out *out)>
+ReturnErrno(int error);
 
 /*
  * Fake FUSE filesystem

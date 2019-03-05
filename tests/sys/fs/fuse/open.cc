@@ -49,13 +49,7 @@ TEST_F(Open, enoent)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
@@ -68,11 +62,7 @@ TEST_F(Open, enoent)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = -ENOENT;
-		out->header.len = sizeof(out->header);
-	}));
+	).WillOnce(Invoke(ReturnErrno(ENOENT)));
 	EXPECT_NE(0, open(FULLPATH, O_RDONLY));
 	EXPECT_EQ(ENOENT, errno);
 }
@@ -87,13 +77,7 @@ TEST_F(Open, eperm)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
@@ -106,11 +90,7 @@ TEST_F(Open, eperm)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = -EPERM;
-		out->header.len = sizeof(out->header);
-	}));
+	).WillOnce(Invoke(ReturnErrno(EPERM)));
 	EXPECT_NE(0, open(FULLPATH, O_RDONLY));
 	EXPECT_EQ(EPERM, errno);
 }
@@ -122,13 +102,7 @@ TEST_F(Open, ok)
 	uint64_t ino = 42;
 	int fd;
 
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_LOOKUP &&
-				strcmp(in->body.lookup, RELPATH) == 0);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(RELPATH).WillOnce(Invoke([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
