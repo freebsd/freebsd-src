@@ -395,6 +395,7 @@ struct ext2_gd {
 };
 
 #define	E2FS_REV0_GD_SIZE (sizeof(struct ext2_gd) / 2)
+#define	E2FS_64BIT_GD_SIZE (sizeof(struct ext2_gd))
 
 /*
  * Macro-instructions used to manage several block sizes
@@ -408,8 +409,8 @@ struct ext2_gd {
  * Macro-instructions used to manage fragments
  */
 #define	EXT2_MIN_FRAG_SIZE		1024
-#define	EXT2_MAX_FRAG_SIZE		4096
-#define	EXT2_MIN_FRAG_LOG_SIZE		  10
+#define	EXT2_MIN_FRAG_LOG_SIZE		10
+#define	EXT2_MAX_FRAG_LOG_SIZE		30
 #define	EXT2_FRAG_SIZE(s)		(EXT2_SB(s)->e2fs_fsize)
 #define	EXT2_FRAGS_PER_BLOCK(s)		(EXT2_SB(s)->e2fs_fpb)
 
@@ -420,5 +421,12 @@ struct ext2_gd {
 #define	EXT2_DESCS_PER_BLOCK(s)		(EXT2_HAS_INCOMPAT_FEATURE((s), \
 	EXT2F_INCOMPAT_64BIT) ? ((s)->e2fs_bsize / sizeof(struct ext2_gd)) : \
 	((s)->e2fs_bsize / E2FS_REV0_GD_SIZE))
+
+/*
+ * Macro-instructions used to manage inodes
+ */
+#define	EXT2_FIRST_INO(s)	((EXT2_SB(s)->e2fs->e2fs_rev == E2FS_REV0) ? \
+				 EXT2_FIRSTINO : \
+				 EXT2_SB(s)->e2fs->e2fs_first_ino)
 
 #endif	/* !_FS_EXT2FS_EXT2FS_H_ */

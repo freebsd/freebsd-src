@@ -86,6 +86,7 @@ typedef	uint32_t pdpt_entry_t;	/* Only to keep struct pmap layout. */
 #define	pte_store(ptep, pte) do { \
 	*(u_int *)(ptep) = (u_int)(pte); \
 } while (0)
+#define	pte_store_zero(ptep, pte)	pte_store(ptep, pte)
 #define	pte_load(ptep)			atomic_load_int(ptep)
 
 extern pt_entry_t PTmap[];

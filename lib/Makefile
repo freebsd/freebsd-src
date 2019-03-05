@@ -133,6 +133,7 @@ SUBDIR_DEPEND_libpcap= ofed
 # NB: keep these sorted by MK_* knobs
 
 SUBDIR.${MK_ATM}+=	libngatm
+SUBDIR.${MK_BEARSSL}+=	libbearssl libsecureboot
 SUBDIR.${MK_BLACKLIST}+=libblacklist
 SUBDIR.${MK_BLUETOOTH}+=libbluetooth libsdp
 SUBDIR.${MK_BSNMP}+=	libbsnmp
@@ -205,6 +206,7 @@ SUBDIR.${MK_TESTS}+=	tests
 SUBDIR.${MK_UNBOUND}+=	libunbound
 SUBDIR.${MK_USB}+=	libusbhid libusb
 SUBDIR.${MK_OFED}+=	ofed
+SUBDIR.${MK_VERIEXEC}+=	libveriexec
 SUBDIR.${MK_ZFS}+=	libbe
 
 .if !make(install)

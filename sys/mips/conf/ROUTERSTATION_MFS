@@ -12,6 +12,7 @@ hints		"ROUTERSTATION.hints"
 
 # GEOM modules
 device		geom_redboot	# to get access to the SPI flash partitions
+device		xz
 options 	GEOM_UZIP
 
 options 	ROOTDEVNAME=\"ufs:md0.uzip\"

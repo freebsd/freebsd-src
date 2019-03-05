@@ -10,10 +10,6 @@
 #ifndef liblldb_CommandObjectExpression_h_
 #define liblldb_CommandObjectExpression_h_
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/IOHandler.h"
 #include "lldb/Interpreter/CommandObject.h"
 #include "lldb/Interpreter/OptionGroupBoolean.h"
@@ -39,9 +35,6 @@ public:
 
     void OptionParsingStarting(ExecutionContext *execution_context) override;
 
-    // Options table: Required for subclasses of Options.
-
-    static OptionDefinition g_option_table[];
     bool top_level;
     bool unwind_on_error;
     bool ignore_breakpoints;
@@ -61,6 +54,8 @@ public:
   ~CommandObjectExpression() override;
 
   Options *GetOptions() override;
+
+  int HandleCompletion(CompletionRequest &request) override;
 
 protected:
   //------------------------------------------------------------------

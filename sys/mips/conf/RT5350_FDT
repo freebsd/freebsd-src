@@ -26,7 +26,7 @@ makeoptions 	MODULES_OVERRIDE=""
 options 	ROOTDEVNAME=\"ufs:md0.uzip\"
 
 # Support geom_uzip(4) compressed disk images
-device 		geom_uzip
+device		xz
 options 	GEOM_UZIP
 
 # Support md(4) and md-based rootfs

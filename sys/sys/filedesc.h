@@ -40,7 +40,7 @@
 #include <sys/event.h>
 #include <sys/lock.h>
 #include <sys/priority.h>
-#include <sys/seq.h>
+#include <sys/seqc.h>
 #include <sys/sx.h>
 
 #include <machine/_limits.h>
@@ -56,19 +56,19 @@ struct filedescent {
 	struct file	*fde_file;	/* file structure for open file */
 	struct filecaps	 fde_caps;	/* per-descriptor rights */
 	uint8_t		 fde_flags;	/* per-process open file flags */
-	seq_t		 fde_seq;	/* keep file and caps in sync */
+	seqc_t		 fde_seqc;	/* keep file and caps in sync */
 };
 #define	fde_rights	fde_caps.fc_rights
 #define	fde_fcntls	fde_caps.fc_fcntls
 #define	fde_ioctls	fde_caps.fc_ioctls
 #define	fde_nioctls	fde_caps.fc_nioctls
-#define	fde_change_size	(offsetof(struct filedescent, fde_seq))
+#define	fde_change_size	(offsetof(struct filedescent, fde_seqc))
 
 struct fdescenttbl {
 	int	fdt_nfiles;		/* number of open files allocated */
 	struct	filedescent fdt_ofiles[0];	/* open files */
 };
-#define	fd_seq(fdt, fd)	(&(fdt)->fdt_ofiles[(fd)].fde_seq)
+#define	fd_seqc(fdt, fd)	(&(fdt)->fdt_ofiles[(fd)].fde_seqc)
 
 /*
  * This structure is used for the management of descriptors.  It may be
@@ -205,7 +205,7 @@ int	fget_cap(struct thread *td, int fd, cap_rights_t *needrightsp,
 
 /* Return a referenced file from an unlocked descriptor. */
 int	fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
-	    struct file **fpp, seq_t *seqp);
+	    struct file **fpp, seqc_t *seqp);
 
 /* Requires a FILEDESC_{S,X}LOCK held and returns without a ref. */
 static __inline struct file *
@@ -239,10 +239,10 @@ fdeget_locked(struct filedesc *fdp, int fd)
 
 #ifdef CAPABILITIES
 static __inline bool
-fd_modified(struct filedesc *fdp, int fd, seq_t seq)
+fd_modified(struct filedesc *fdp, int fd, seqc_t seqc)
 {
 
-	return (!seq_consistent(fd_seq(fdp->fd_files, fd), seq));
+	return (!seqc_consistent(fd_seqc(fdp->fd_files, fd), seqc));
 }
 #endif
 

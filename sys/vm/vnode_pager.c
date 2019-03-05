@@ -793,7 +793,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 
 	KASSERT(foff < object->un_pager.vnp.vnp_size,
 	    ("%s: page %p offset beyond vp %p size", __func__, m[0], vp));
-	KASSERT(count <= sizeof(bp->b_pages),
+	KASSERT(count <= nitems(bp->b_pages),
 	    ("%s: requested %d pages", __func__, count));
 
 	/*

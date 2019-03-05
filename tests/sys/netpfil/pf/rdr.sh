@@ -13,9 +13,9 @@ basic_body()
 {
 	pft_init
 
-	epair=$(pft_mkepair)
+	epair=$(vnet_mkepair)
 
-	pft_mkjail alcatraz ${epair}b
+	vnet_mkjail alcatraz ${epair}b
 
 	ifconfig ${epair}a 192.0.2.2/24 up
 	route add -net 198.51.100.0/24 192.0.2.1

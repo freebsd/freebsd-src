@@ -259,6 +259,15 @@ struct asmc_model asmc_models[] = {
 	  ASMC_MM_TEMPS, ASMC_MM_TEMPNAMES, ASMC_MM_TEMPDESCS
 	},
 
+        /* The Mac Mini 2,1 has no SMS */
+        {
+          "Macmini2,1", "Apple SMC Mac Mini 2,1",
+          ASMC_SMS_FUNCS_DISABLED,
+          ASMC_FAN_FUNCS,
+          ASMC_LIGHT_FUNCS_DISABLED,
+          ASMC_MM21_TEMPS, ASMC_MM21_TEMPNAMES, ASMC_MM21_TEMPDESCS
+        },
+
 	/* The Mac Mini 3,1 has no SMS */
 	{
 	  "Macmini3,1", "Apple SMC Mac Mini 3,1",

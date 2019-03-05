@@ -157,6 +157,7 @@ _x86_64_AES_encrypt:
 .type	_x86_64_AES_encrypt_compact,@function
 .align	16
 _x86_64_AES_encrypt_compact:
+.cfi_startproc	
 	leaq	128(%r14),%r8
 	movl	0-128(%r8),%edi
 	movl	32-128(%r8),%ebp
@@ -326,6 +327,7 @@ _x86_64_AES_encrypt_compact:
 	xorl	8(%r15),%ecx
 	xorl	12(%r15),%edx
 .byte	0xf3,0xc3
+.cfi_endproc	
 .size	_x86_64_AES_encrypt_compact,.-_x86_64_AES_encrypt_compact
 .globl	AES_encrypt
 .type	AES_encrypt,@function
@@ -570,6 +572,7 @@ _x86_64_AES_decrypt:
 .type	_x86_64_AES_decrypt_compact,@function
 .align	16
 _x86_64_AES_decrypt_compact:
+.cfi_startproc	
 	leaq	128(%r14),%r8
 	movl	0-128(%r8),%edi
 	movl	32-128(%r8),%ebp
@@ -791,6 +794,7 @@ _x86_64_AES_decrypt_compact:
 	xorl	8(%r15),%ecx
 	xorl	12(%r15),%edx
 .byte	0xf3,0xc3
+.cfi_endproc	
 .size	_x86_64_AES_decrypt_compact,.-_x86_64_AES_decrypt_compact
 .globl	AES_decrypt
 .type	AES_decrypt,@function
@@ -922,6 +926,7 @@ AES_set_encrypt_key:
 .type	_x86_64_AES_set_encrypt_key,@function
 .align	16
 _x86_64_AES_set_encrypt_key:
+.cfi_startproc	
 	movl	%esi,%ecx
 	movq	%rdi,%rsi
 	movq	%rdx,%rdi
@@ -1157,6 +1162,7 @@ _x86_64_AES_set_encrypt_key:
 	movq	$-1,%rax
 .Lexit:
 .byte	0xf3,0xc3
+.cfi_endproc	
 .size	_x86_64_AES_set_encrypt_key,.-_x86_64_AES_set_encrypt_key
 .globl	AES_set_decrypt_key
 .type	AES_set_decrypt_key,@function
@@ -1379,8 +1385,9 @@ AES_cbc_encrypt:
 	cmpq	$0,%rdx
 	je	.Lcbc_epilogue
 	pushfq
+
+
 .cfi_adjust_cfa_offset	8
-.cfi_offset	49,-16
 	pushq	%rbx
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%rbx,-24
@@ -1409,6 +1416,7 @@ AES_cbc_encrypt:
 	cmpq	$0,%r9
 	cmoveq	%r10,%r14
 
+.cfi_remember_state	
 	movl	OPENSSL_ia32cap_P(%rip),%r10d
 	cmpq	$512,%rdx
 	jb	.Lcbc_slow_prologue
@@ -1644,6 +1652,7 @@ AES_cbc_encrypt:
 
 .align	16
 .Lcbc_slow_prologue:
+.cfi_restore_state	
 
 	leaq	-88(%rsp),%rbp
 	andq	$-64,%rbp
@@ -1655,8 +1664,10 @@ AES_cbc_encrypt:
 	subq	%r10,%rbp
 
 	xchgq	%rsp,%rbp
+.cfi_def_cfa_register	%rbp
 
 	movq	%rbp,16(%rsp)
+.cfi_escape	0x0f,0x05,0x77,0x10,0x06,0x23,0x40
 .Lcbc_slow_body:
 
 
@@ -1845,8 +1856,9 @@ AES_cbc_encrypt:
 .cfi_def_cfa	%rsp,16
 .Lcbc_popfq:
 	popfq
+
+
 .cfi_adjust_cfa_offset	-8
-.cfi_restore	49
 .Lcbc_epilogue:
 	.byte	0xf3,0xc3
 .cfi_endproc	

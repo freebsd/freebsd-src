@@ -523,7 +523,7 @@ static struct rk_clk_pll_def apll = {
 	.gate_offset = 0x200,
 	.gate_shift = 0,
 	.mode_reg = 0x80,
-	.mode_val = 0x1,
+	.mode_shift = 1,
 	.flags = RK_CLK_PLL_HAVE_GATE,
 	.frac_rates = rk3328_pll_frac_rates,
 };
@@ -539,7 +539,7 @@ static struct rk_clk_pll_def dpll = {
 	.gate_offset = 0x200,
 	.gate_shift = 1,
 	.mode_reg = 0x80,
-	.mode_val = 0x8,
+	.mode_shift = 4,
 	.flags = RK_CLK_PLL_HAVE_GATE,
 };
 
@@ -552,7 +552,7 @@ static struct rk_clk_pll_def cpll = {
 	},
 	.base_offset = 0x40,
 	.mode_reg = 0x80,
-	.mode_val = 0x80,
+	.mode_shift = 8,
 	.rates = rk3328_pll_rates,
 };
 
@@ -567,7 +567,7 @@ static struct rk_clk_pll_def gpll = {
 	.gate_offset = 0x200,
 	.gate_shift = 2,
 	.mode_reg = 0x80,
-	.mode_val = 0x800,
+	.mode_shift = 12,
 	.flags = RK_CLK_PLL_HAVE_GATE,
 	.frac_rates = rk3328_pll_frac_rates,
 };
@@ -583,7 +583,7 @@ static struct rk_clk_pll_def npll = {
 	.gate_offset = 0x200,
 	.gate_shift = 12,
 	.mode_reg = 0x80,
-	.mode_val = 0x2,
+	.mode_shift = 1,
 	.flags = RK_CLK_PLL_HAVE_GATE,
 	.rates = rk3328_pll_rates,
 };

@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/tree.h>
 #include <sys/vmmeter.h>
-#include <sys/seq.h>
 
 #include <ddb/ddb.h>
 

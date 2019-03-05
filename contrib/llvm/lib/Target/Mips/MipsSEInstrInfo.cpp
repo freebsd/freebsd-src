@@ -222,9 +222,9 @@ static bool isReadOrWriteToDSPReg(const MachineInstr &MI, bool &isWrite) {
 /// We check for the common case of 'or', as it's MIPS' preferred instruction
 /// for GPRs but we have to check the operands to ensure that is the case.
 /// Other move instructions for MIPS are directly identifiable.
-bool MipsSEInstrInfo::isCopyInstr(const MachineInstr &MI,
-                                  const MachineOperand *&Src,
-                                  const MachineOperand *&Dest) const {
+bool MipsSEInstrInfo::isCopyInstrImpl(const MachineInstr &MI,
+                                      const MachineOperand *&Src,
+                                      const MachineOperand *&Dest) const {
   bool isDSPControlWrite = false;
   // Condition is made to match the creation of WRDSP/RDDSP copy instruction
   // from copyPhysReg function.
@@ -421,12 +421,16 @@ bool MipsSEInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
     expandERet(MBB, MI);
     break;
   case Mips::PseudoMFHI:
-    Opc = isMicroMips ? Mips::MFHI16_MM : Mips::MFHI;
-    expandPseudoMFHiLo(MBB, MI, Opc);
+    expandPseudoMFHiLo(MBB, MI, Mips::MFHI);
+    break;
+  case Mips::PseudoMFHI_MM:
+    expandPseudoMFHiLo(MBB, MI, Mips::MFHI16_MM);
     break;
   case Mips::PseudoMFLO:
-    Opc = isMicroMips ? Mips::MFLO16_MM : Mips::MFLO;
-    expandPseudoMFHiLo(MBB, MI, Opc);
+    expandPseudoMFHiLo(MBB, MI, Mips::MFLO);
+    break;
+  case Mips::PseudoMFLO_MM:
+    expandPseudoMFHiLo(MBB, MI, Mips::MFLO16_MM);
     break;
   case Mips::PseudoMFHI64:
     expandPseudoMFHiLo(MBB, MI, Mips::MFHI64);

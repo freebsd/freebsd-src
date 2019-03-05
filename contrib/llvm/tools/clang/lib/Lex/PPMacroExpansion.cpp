@@ -23,12 +23,12 @@
 #include "clang/Lex/CodeCompletionHandler.h"
 #include "clang/Lex/DirectoryLookup.h"
 #include "clang/Lex/ExternalPreprocessorSource.h"
+#include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/LexDiagnostic.h"
 #include "clang/Lex/MacroArgs.h"
 #include "clang/Lex/MacroInfo.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/PreprocessorLexer.h"
-#include "clang/Lex/PTHLexer.h"
 #include "clang/Lex/Token.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
@@ -428,8 +428,6 @@ bool Preprocessor::isNextPPTokenLParen() {
   unsigned Val;
   if (CurLexer)
     Val = CurLexer->isNextPPTokenLParen();
-  else if (CurPTHLexer)
-    Val = CurPTHLexer->isNextPPTokenLParen();
   else
     Val = CurTokenLexer->isNextTokenLParen();
 
@@ -442,8 +440,6 @@ bool Preprocessor::isNextPPTokenLParen() {
     for (const IncludeStackInfo &Entry : llvm::reverse(IncludeMacroStack)) {
       if (Entry.TheLexer)
         Val = Entry.TheLexer->isNextPPTokenLParen();
-      else if (Entry.ThePTHLexer)
-        Val = Entry.ThePTHLexer->isNextPPTokenLParen();
       else
         Val = Entry.TheTokenLexer->isNextTokenLParen();
 
@@ -1241,6 +1237,13 @@ static bool EvaluateHasIncludeCommon(Token &Tok,
   const FileEntry *File =
       PP.LookupFile(FilenameLoc, Filename, isAngled, LookupFrom, LookupFromFile,
                     CurDir, nullptr, nullptr, nullptr, nullptr);
+
+  if (PPCallbacks *Callbacks = PP.getPPCallbacks()) {
+    SrcMgr::CharacteristicKind FileType = SrcMgr::C_User;
+    if (File)
+      FileType = PP.getHeaderSearchInfo().getFileDirFlavor(File);
+    Callbacks->HasInclude(FilenameLoc, Filename, isAngled, File, FileType);
+  }
 
   // Get the result value.  A result of true means the file exists.
   return File != nullptr;

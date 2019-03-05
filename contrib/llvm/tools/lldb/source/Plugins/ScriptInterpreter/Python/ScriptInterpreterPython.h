@@ -16,14 +16,10 @@
 
 #else
 
-// C Includes
-// C++ Includes
 #include <memory>
 #include <string>
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
 #include "PythonDataObjects.h"
 #include "lldb/Breakpoint/BreakpointOptions.h"
 #include "lldb/Core/IOHandler.h"
@@ -81,9 +77,24 @@ public:
                                            const char *method_name,
                                            Event *event_sp, bool &got_error);
 
+  typedef void *(*SWIGPythonCreateScriptedBreakpointResolver)(
+      const char *python_class_name, const char *session_dictionary_name,
+      lldb_private::StructuredDataImpl *args_impl,
+      lldb::BreakpointSP &bkpt_sp);
+
+  typedef unsigned int (*SWIGPythonCallBreakpointResolver)(void *implementor,
+                                          const char *method_name,
+                                          lldb_private::SymbolContext *sym_ctx);
+
   typedef void *(*SWIGPythonCreateOSPlugin)(const char *python_class_name,
                                             const char *session_dictionary_name,
                                             const lldb::ProcessSP &process_sp);
+
+  typedef void *(*SWIGPythonCreateFrameRecognizer)(
+      const char *python_class_name, const char *session_dictionary_name);
+
+  typedef void *(*SWIGPythonGetRecognizedArguments)(
+      void *implementor, const lldb::StackFrameSP &frame_sp);
 
   typedef size_t (*SWIGPythonCalculateNumChildren)(void *implementor,
                                                    uint32_t max);
@@ -208,6 +219,26 @@ public:
   lldb::StateType
   ScriptedThreadPlanGetRunState(StructuredData::ObjectSP implementor_sp,
                                 bool &script_error) override;
+                                
+  StructuredData::GenericSP
+  CreateScriptedBreakpointResolver(const char *class_name,
+                                   StructuredDataImpl *args_data,
+                                   lldb::BreakpointSP &bkpt_sp) override;
+  bool
+  ScriptedBreakpointResolverSearchCallback(StructuredData::GenericSP
+                                               implementor_sp,
+                                           SymbolContext *sym_ctx) override;
+
+  lldb::SearchDepth
+  ScriptedBreakpointResolverSearchDepth(StructuredData::GenericSP
+                                            implementor_sp) override;
+
+  StructuredData::GenericSP
+  CreateFrameRecognizer(const char *class_name) override;
+
+  lldb::ValueObjectListSP
+  GetRecognizedArguments(const StructuredData::ObjectSP &implementor,
+                         lldb::StackFrameSP frame_sp) override;
 
   StructuredData::GenericSP
   OSPlugin_CreatePluginObject(const char *class_name,
@@ -404,6 +435,8 @@ public:
       SWIGPythonCallCommandObject swig_call_command_object,
       SWIGPythonCallModuleInit swig_call_module_init,
       SWIGPythonCreateOSPlugin swig_create_os_plugin,
+      SWIGPythonCreateFrameRecognizer swig_create_frame_recognizer,
+      SWIGPythonGetRecognizedArguments swig_get_recognized_arguments,
       SWIGPythonScriptKeyword_Process swig_run_script_keyword_process,
       SWIGPythonScriptKeyword_Thread swig_run_script_keyword_thread,
       SWIGPythonScriptKeyword_Target swig_run_script_keyword_target,
@@ -411,7 +444,9 @@ public:
       SWIGPythonScriptKeyword_Value swig_run_script_keyword_value,
       SWIGPython_GetDynamicSetting swig_plugin_get,
       SWIGPythonCreateScriptedThreadPlan swig_thread_plan_script,
-      SWIGPythonCallThreadPlan swig_call_thread_plan);
+      SWIGPythonCallThreadPlan swig_call_thread_plan,
+      SWIGPythonCreateScriptedBreakpointResolver swig_bkpt_resolver_script,
+      SWIGPythonCallBreakpointResolver swig_call_breakpoint_resolver);
 
   const char *GetDictionaryName() { return m_dictionary_name.c_str(); }
 

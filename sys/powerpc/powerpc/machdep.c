@@ -541,12 +541,16 @@ DB_SHOW_COMMAND(spr, db_show_spr)
 	saved_sprno = sprno = (intptr_t) addr;
 	sprno = ((sprno & 0x3e0) >> 5) | ((sprno & 0x1f) << 5);
 	p = (uint32_t *)(void *)&get_spr;
+#ifdef __powerpc64__
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 	/* Account for ELFv2 function prologue. */
 	p += 2;
+#else
+	p = *(volatile uint32_t * volatile *)p;
+#endif
 #endif
 	*p = (*p & ~0x001ff800) | (sprno << 11);
-	__syncicache(get_spr, cacheline_size);
+	__syncicache(__DEVOLATILE(uint32_t *, p), cacheline_size);
 	spr = get_spr(sprno);
 
 	db_printf("SPR %d(%x): %lx\n", saved_sprno, saved_sprno,

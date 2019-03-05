@@ -7,17 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "CommandObjectProcess.h"
 #include "lldb/Breakpoint/Breakpoint.h"
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Breakpoint/BreakpointSite.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/State.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/OptionParser.h"
 #include "lldb/Host/StringConvert.h"
@@ -32,6 +27,7 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/UnixSignals.h"
 #include "lldb/Utility/Args.h"
+#include "lldb/Utility/State.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -304,14 +300,14 @@ protected:
 // CommandObjectProcessAttach
 //-------------------------------------------------------------------------
 
-static OptionDefinition g_process_attach_options[] = {
+static constexpr OptionDefinition g_process_attach_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_ALL, false, "continue",         'c', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,         "Immediately continue the process once attached." },
-  { LLDB_OPT_SET_ALL, false, "plugin",           'P', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypePlugin,       "Name of the process plugin you want to use." },
-  { LLDB_OPT_SET_1,   false, "pid",              'p', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypePid,          "The process ID of an existing process to attach to." },
-  { LLDB_OPT_SET_2,   false, "name",             'n', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeProcessName,  "The name of the process to attach to." },
-  { LLDB_OPT_SET_2,   false, "include-existing", 'i', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,         "Include existing processes when doing attach -w." },
-  { LLDB_OPT_SET_2,   false, "waitfor",          'w', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,         "Wait for the process with <process-name> to launch." },
+  { LLDB_OPT_SET_ALL, false, "continue",         'c', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,         "Immediately continue the process once attached." },
+  { LLDB_OPT_SET_ALL, false, "plugin",           'P', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypePlugin,       "Name of the process plugin you want to use." },
+  { LLDB_OPT_SET_1,   false, "pid",              'p', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypePid,          "The process ID of an existing process to attach to." },
+  { LLDB_OPT_SET_2,   false, "name",             'n', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeProcessName,  "The name of the process to attach to." },
+  { LLDB_OPT_SET_2,   false, "include-existing", 'i', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,         "Include existing processes when doing attach -w." },
+  { LLDB_OPT_SET_2,   false, "waitfor",          'w', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,         "Wait for the process with <process-name> to launch." },
     // clang-format on
 };
 
@@ -352,7 +348,7 @@ public:
         break;
 
       case 'n':
-        attach_info.GetExecutableFile().SetFile(option_arg, false,
+        attach_info.GetExecutableFile().SetFile(option_arg,
                                                 FileSpec::Style::native);
         break;
 
@@ -403,7 +399,7 @@ public:
           ProcessInstanceInfoMatch match_info;
           if (partial_name) {
             match_info.GetProcessInfo().GetExecutableFile().SetFile(
-                partial_name, false, FileSpec::Style::native);
+                partial_name, FileSpec::Style::native);
             match_info.SetNameMatchType(NameMatch::StartsWith);
           }
           platform_sp->FindProcesses(match_info, process_infos);
@@ -459,7 +455,7 @@ protected:
       Status error;
 
       error = m_interpreter.GetDebugger().GetTargetList().CreateTarget(
-          m_interpreter.GetDebugger(), "", "", false,
+          m_interpreter.GetDebugger(), "", "", eLoadDependentsNo,
           nullptr, // No platform options
           new_target_sp);
       target = new_target_sp.get();
@@ -556,9 +552,9 @@ protected:
 // CommandObjectProcessContinue
 //-------------------------------------------------------------------------
 
-static OptionDefinition g_process_continue_options[] = {
+static constexpr OptionDefinition g_process_continue_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_ALL, false, "ignore-count",'i', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeUnsignedInteger, "Ignore <N> crossings of the breakpoint (if it exists) for the currently selected thread." }
+  { LLDB_OPT_SET_ALL, false, "ignore-count",'i', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeUnsignedInteger, "Ignore <N> crossings of the breakpoint (if it exists) for the currently selected thread." }
     // clang-format on
 };
 
@@ -719,9 +715,9 @@ protected:
 //-------------------------------------------------------------------------
 // CommandObjectProcessDetach
 //-------------------------------------------------------------------------
-static OptionDefinition g_process_detach_options[] = {
+static constexpr OptionDefinition g_process_detach_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_1, false, "keep-stopped", 's', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeBoolean, "Whether or not the process should be kept stopped on detach (if possible)." },
+  { LLDB_OPT_SET_1, false, "keep-stopped", 's', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeBoolean, "Whether or not the process should be kept stopped on detach (if possible)." },
     // clang-format on
 };
 
@@ -818,9 +814,9 @@ protected:
 // CommandObjectProcessConnect
 //-------------------------------------------------------------------------
 
-static OptionDefinition g_process_connect_options[] = {
+static constexpr OptionDefinition g_process_connect_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_ALL, false, "plugin", 'p', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypePlugin, "Name of the process plugin you want to use." },
+  { LLDB_OPT_SET_ALL, false, "plugin", 'p', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypePlugin, "Name of the process plugin you want to use." },
     // clang-format on
 };
 
@@ -947,9 +943,9 @@ public:
 // CommandObjectProcessLoad
 //-------------------------------------------------------------------------
 
-static OptionDefinition g_process_load_options[] = {
+static constexpr OptionDefinition g_process_load_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_ALL, false, "install", 'i', OptionParser::eOptionalArgument, nullptr, nullptr, 0, eArgTypePath, "Install the shared library to the target. If specified without an argument then the library will installed in the current working directory." },
+  { LLDB_OPT_SET_ALL, false, "install", 'i', OptionParser::eOptionalArgument, nullptr, {}, 0, eArgTypePath, "Install the shared library to the target. If specified without an argument then the library will installed in the current working directory." },
     // clang-format on
 };
 
@@ -975,7 +971,7 @@ public:
       case 'i':
         do_install = true;
         if (!option_arg.empty())
-          install_path.SetFile(option_arg, false, FileSpec::Style::native);
+          install_path.SetFile(option_arg, FileSpec::Style::native);
         break;
       default:
         error.SetErrorStringWithFormat("invalid short option character '%c'",
@@ -1023,18 +1019,20 @@ protected:
       uint32_t image_token = LLDB_INVALID_IMAGE_TOKEN;
 
       if (!m_options.do_install) {
-        FileSpec image_spec(image_path, false);
+        FileSpec image_spec(image_path);
         platform->ResolveRemotePath(image_spec, image_spec);
         image_token =
             platform->LoadImage(process, FileSpec(), image_spec, error);
       } else if (m_options.install_path) {
-        FileSpec image_spec(image_path, true);
+        FileSpec image_spec(image_path);
+        FileSystem::Instance().Resolve(image_spec);
         platform->ResolveRemotePath(m_options.install_path,
                                     m_options.install_path);
         image_token = platform->LoadImage(process, image_spec,
                                           m_options.install_path, error);
       } else {
-        FileSpec image_spec(image_path, true);
+        FileSpec image_spec(image_path);
+        FileSystem::Instance().Resolve(image_spec);
         image_token =
             platform->LoadImage(process, image_spec, FileSpec(), error);
       }
@@ -1281,7 +1279,7 @@ protected:
     ProcessSP process_sp = m_exe_ctx.GetProcessSP();
     if (process_sp) {
       if (command.GetArgumentCount() == 1) {
-        FileSpec output_file(command.GetArgumentAtIndex(0), false);
+        FileSpec output_file(command.GetArgumentAtIndex(0));
         Status error = PluginManager::SaveCore(process_sp, output_file);
         if (error.Success()) {
           result.SetStatus(eReturnStatusSuccessFinishResult);
@@ -1343,11 +1341,11 @@ public:
 // CommandObjectProcessHandle
 //-------------------------------------------------------------------------
 
-static OptionDefinition g_process_handle_options[] = {
+static constexpr OptionDefinition g_process_handle_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_1, false, "stop",   's', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeBoolean, "Whether or not the process should be stopped if the signal is received." },
-  { LLDB_OPT_SET_1, false, "notify", 'n', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeBoolean, "Whether or not the debugger should notify the user if the signal is received." },
-  { LLDB_OPT_SET_1, false, "pass",   'p', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeBoolean, "Whether or not the signal should be passed to the process." }
+  { LLDB_OPT_SET_1, false, "stop",   's', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeBoolean, "Whether or not the process should be stopped if the signal is received." },
+  { LLDB_OPT_SET_1, false, "notify", 'n', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeBoolean, "Whether or not the debugger should notify the user if the signal is received." },
+  { LLDB_OPT_SET_1, false, "pass",   'p', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeBoolean, "Whether or not the signal should be passed to the process." }
     // clang-format on
 };
 

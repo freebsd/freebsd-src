@@ -35,5 +35,8 @@ CFLAGS+= -I${BOOTSRC}/include -I${LIBLUASRC} -I${LUASRC} -I${LDRSRC}
 .if ${MACHINE_CPUARCH} == "amd64" && ${DO32:U0} == 0
 CFLAGS+=	-fPIC
 .endif
+.if ${MK_LOADER_VERIEXEC} == "yes"
+CFLAGS+= -I${SRCTOP}/lib/libsecureboot/h -DLOADER_VERIEXEC
+.endif
 
 .include <bsd.lib.mk>

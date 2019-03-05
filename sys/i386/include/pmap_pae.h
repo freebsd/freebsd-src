@@ -101,6 +101,16 @@ typedef uint64_t pt_entry_t;
 #define	pte_load_store(ptep, pte)	atomic_swap_64_i586(ptep, pte)
 #define	pte_load_clear(ptep)		atomic_swap_64_i586(ptep, 0)
 #define	pte_store(ptep, pte)		atomic_store_rel_64_i586(ptep, pte)
+#define	pte_store_zero(ptep, pte)		\
+do {						\
+	uint32_t *p;				\
+						\
+	MPASS((*ptep & PG_V) == 0);		\
+	p = (void *)ptep;			\
+	*(p + 1) = (uint32_t)(pte >> 32);	\
+	__compiler_membar();			\
+	*p = (uint32_t)pte;			\
+} while (0)
 #define	pte_load(ptep)			atomic_load_acq_64_i586(ptep)
 
 extern pdpt_entry_t *IdlePDPT;

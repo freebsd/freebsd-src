@@ -1910,14 +1910,21 @@ isp_pci_irqsetup(ispsoftc_t *isp)
 
 	ISP_UNLOCK(isp);
 	if (ISP_CAP_MSIX(isp)) {
-		max_irq = min(ISP_MAX_IRQS, IS_26XX(isp) ? 3 : 2);
+		max_irq = IS_26XX(isp) ? 3 : (IS_25XX(isp) ? 2 : 0);
+		resource_int_value(device_get_name(dev),
+		    device_get_unit(dev), "msix", &max_irq);
+		max_irq = imin(ISP_MAX_IRQS, max_irq);
 		pcs->msicount = imin(pci_msix_count(dev), max_irq);
 		if (pcs->msicount > 0 &&
 		    pci_alloc_msix(dev, &pcs->msicount) != 0)
 			pcs->msicount = 0;
 	}
 	if (pcs->msicount == 0) {
-		pcs->msicount = imin(pci_msi_count(dev), 1);
+		max_irq = 1;
+		resource_int_value(device_get_name(dev),
+		    device_get_unit(dev), "msi", &max_irq);
+		max_irq = imin(1, max_irq);
+		pcs->msicount = imin(pci_msi_count(dev), max_irq);
 		if (pcs->msicount > 0 &&
 		    pci_alloc_msi(dev, &pcs->msicount) != 0)
 			pcs->msicount = 0;

@@ -304,11 +304,11 @@ fdfree(struct filedesc *fdp, int fd)
 
 	fde = &fdp->fd_ofiles[fd];
 #ifdef CAPABILITIES
-	seq_write_begin(&fde->fde_seq);
+	seqc_write_begin(&fde->fde_seqc);
 #endif
 	fde->fde_file = NULL;
 #ifdef CAPABILITIES
-	seq_write_end(&fde->fde_seq);
+	seqc_write_end(&fde->fde_seqc);
 #endif
 	fdefree_last(fde);
 	fdunused(fdp, fd);
@@ -908,7 +908,7 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	 * Duplicate the source descriptor.
 	 */
 #ifdef CAPABILITIES
-	seq_write_begin(&newfde->fde_seq);
+	seqc_write_begin(&newfde->fde_seqc);
 #endif
 	memcpy(newfde, oldfde, fde_change_size);
 	filecaps_copy_finish(&oldfde->fde_caps, &newfde->fde_caps,
@@ -918,7 +918,7 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	else
 		newfde->fde_flags = oldfde->fde_flags & ~UF_EXCLOSE;
 #ifdef CAPABILITIES
-	seq_write_end(&newfde->fde_seq);
+	seqc_write_end(&newfde->fde_seqc);
 #endif
 	td->td_retval[0] = new;
 
@@ -1876,7 +1876,7 @@ _finstall(struct filedesc *fdp, struct file *fp, int fd, int flags,
 
 	fde = &fdp->fd_ofiles[fd];
 #ifdef CAPABILITIES
-	seq_write_begin(&fde->fde_seq);
+	seqc_write_begin(&fde->fde_seqc);
 #endif
 	fde->fde_file = fp;
 	fde->fde_flags = (flags & O_CLOEXEC) != 0 ? UF_EXCLOSE : 0;
@@ -1885,7 +1885,7 @@ _finstall(struct filedesc *fdp, struct file *fp, int fd, int flags,
 	else
 		filecaps_fill(&fde->fde_caps);
 #ifdef CAPABILITIES
-	seq_write_end(&fde->fde_seq);
+	seqc_write_end(&fde->fde_seqc);
 #endif
 }
 
@@ -2567,7 +2567,7 @@ fget_cap(struct thread *td, int fd, cap_rights_t *needrightsp,
 		filecaps_fill(havecapsp);
 #else
 	struct file *fp;
-	seq_t seq;
+	seqc_t seq;
 
 	for (;;) {
 		error = fget_unlocked(fdp, fd, needrightsp, &fp, &seq);
@@ -2602,7 +2602,7 @@ get_locked:
 
 int
 fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
-    struct file **fpp, seq_t *seqp)
+    struct file **fpp, seqc_t *seqp)
 {
 #ifdef CAPABILITIES
 	const struct filedescent *fde;
@@ -2611,7 +2611,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	struct file *fp;
 	u_int count;
 #ifdef CAPABILITIES
-	seq_t seq;
+	seqc_t seq;
 	cap_rights_t haverights;
 	int error;
 #endif
@@ -2629,11 +2629,11 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	 */
 	for (;;) {
 #ifdef CAPABILITIES
-		seq = seq_load(fd_seq(fdt, fd));
+		seq = seqc_read(fd_seqc(fdt, fd));
 		fde = &fdt->fdt_ofiles[fd];
 		haverights = *cap_rights_fde_inline(fde);
 		fp = fde->fde_file;
-		if (!seq_consistent(fd_seq(fdt, fd), seq))
+		if (!seqc_consistent(fd_seqc(fdt, fd), seq))
 			continue;
 #else
 		fp = fdt->fdt_ofiles[fd].fde_file;
@@ -2664,7 +2664,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 			goto retry;
 		fdt = fdp->fd_files;
 #ifdef	CAPABILITIES
-		if (seq_consistent_nomb(fd_seq(fdt, fd), seq))
+		if (seqc_consistent_nomb(fd_seqc(fdt, fd), seq))
 #else
 		if (fp == fdt->fdt_ofiles[fd].fde_file)
 #endif
@@ -2695,7 +2695,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
  */
 static __inline int
 _fget(struct thread *td, int fd, struct file **fpp, int flags,
-    cap_rights_t *needrightsp, seq_t *seqp)
+    cap_rights_t *needrightsp, seqc_t *seqp)
 {
 	struct filedesc *fdp;
 	struct file *fp;
@@ -2759,7 +2759,7 @@ fget_mmap(struct thread *td, int fd, cap_rights_t *rightsp, u_char *maxprotp,
 		*maxprotp = VM_PROT_ALL;
 #else
 	struct filedesc *fdp = td->td_proc->p_fd;
-	seq_t seq;
+	seqc_t seq;
 
 	MPASS(cap_rights_is_set(rightsp, CAP_MMAP));
 	for (;;) {
@@ -2802,7 +2802,7 @@ fget_fcntl(struct thread *td, int fd, cap_rights_t *rightsp, int needfcntl,
 	return (fget_unlocked(fdp, fd, rightsp, fpp, NULL));
 #else
 	int error;
-	seq_t seq;
+	seqc_t seq;
 
 	MPASS(cap_rights_is_set(rightsp, CAP_FCNTL));
 	for (;;) {
@@ -3046,13 +3046,13 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 		oldfde = &fdp->fd_ofiles[dfd];
 		ioctls = filecaps_copy_prep(&oldfde->fde_caps);
 #ifdef CAPABILITIES
-		seq_write_begin(&newfde->fde_seq);
+		seqc_write_begin(&newfde->fde_seqc);
 #endif
 		memcpy(newfde, oldfde, fde_change_size);
 		filecaps_copy_finish(&oldfde->fde_caps, &newfde->fde_caps,
 		    ioctls);
 #ifdef CAPABILITIES
-		seq_write_end(&newfde->fde_seq);
+		seqc_write_end(&newfde->fde_seqc);
 #endif
 		break;
 	case ENXIO:
@@ -3062,13 +3062,13 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 		newfde = &fdp->fd_ofiles[indx];
 		oldfde = &fdp->fd_ofiles[dfd];
 #ifdef CAPABILITIES
-		seq_write_begin(&newfde->fde_seq);
+		seqc_write_begin(&newfde->fde_seqc);
 #endif
 		memcpy(newfde, oldfde, fde_change_size);
 		oldfde->fde_file = NULL;
 		fdunused(fdp, dfd);
 #ifdef CAPABILITIES
-		seq_write_end(&newfde->fde_seq);
+		seqc_write_end(&newfde->fde_seqc);
 #endif
 		break;
 	}

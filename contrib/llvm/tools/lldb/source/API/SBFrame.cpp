@@ -7,14 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
 #include <algorithm>
 #include <set>
 #include <string>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/API/SBFrame.h"
 
 #include "lldb/lldb-types.h"
@@ -36,6 +32,7 @@
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/StackFrame.h"
+#include "lldb/Target/StackFrameRecognizer.h"
 #include "lldb/Target/StackID.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
@@ -112,7 +109,7 @@ SBSymbolContext SBFrame::GetSymbolContext(uint32_t resolve_scope) const {
   SBSymbolContext sb_sym_ctx;
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
-
+  SymbolContextItem scope = static_cast<SymbolContextItem>(resolve_scope);
   StackFrame *frame = nullptr;
   Target *target = exe_ctx.GetTargetPtr();
   Process *process = exe_ctx.GetProcessPtr();
@@ -121,7 +118,7 @@ SBSymbolContext SBFrame::GetSymbolContext(uint32_t resolve_scope) const {
     if (stop_locker.TryLock(&process->GetRunLock())) {
       frame = exe_ctx.GetFramePtr();
       if (frame) {
-        sb_sym_ctx.SetSymbolContext(&frame->GetSymbolContext(resolve_scope));
+        sb_sym_ctx.SetSymbolContext(&frame->GetSymbolContext(scope));
       } else {
         if (log)
           log->Printf("SBFrame::GetVariables () => error: could not "
@@ -666,28 +663,10 @@ SBValue SBFrame::FindVariable(const char *name,
     if (stop_locker.TryLock(&process->GetRunLock())) {
       frame = exe_ctx.GetFramePtr();
       if (frame) {
-        VariableList variable_list;
-        SymbolContext sc(frame->GetSymbolContext(eSymbolContextBlock));
+        value_sp = frame->FindVariable(ConstString(name));
 
-        if (sc.block) {
-          const bool can_create = true;
-          const bool get_parent_variables = true;
-          const bool stop_if_block_is_inlined_function = true;
-
-          if (sc.block->AppendVariables(
-                  can_create, get_parent_variables,
-                  stop_if_block_is_inlined_function,
-                  [frame](Variable *v) { return v->IsInScope(frame); },
-                  &variable_list)) {
-            var_sp = variable_list.FindVariable(ConstString(name));
-          }
-        }
-
-        if (var_sp) {
-          value_sp =
-              frame->GetValueObjectForFrameVariable(var_sp, eNoDynamicValues);
+        if (value_sp)
           sb_value.SetSP(value_sp, use_dynamic);
-        }
       } else {
         if (log)
           log->Printf("SBFrame::FindVariable () => error: could not "
@@ -978,6 +957,8 @@ SBValueList SBFrame::GetVariables(const lldb::SBVariablesOptions &options) {
 
   const bool statics = options.GetIncludeStatics();
   const bool arguments = options.GetIncludeArguments();
+  const bool recognized_arguments =
+        options.GetIncludeRecognizedArguments(SBTarget(exe_ctx.GetTargetSP()));
   const bool locals = options.GetIncludeLocals();
   const bool in_scope_only = options.GetInScopeOnly();
   const bool include_runtime_support_values =
@@ -985,10 +966,11 @@ SBValueList SBFrame::GetVariables(const lldb::SBVariablesOptions &options) {
   const lldb::DynamicValueType use_dynamic = options.GetUseDynamic();
 
   if (log)
-    log->Printf("SBFrame::GetVariables (arguments=%i, locals=%i, statics=%i, "
-                "in_scope_only=%i runtime=%i dynamic=%i)",
-                arguments, locals, statics, in_scope_only,
-                include_runtime_support_values, use_dynamic);
+    log->Printf(
+        "SBFrame::GetVariables (arguments=%i, recognized_arguments=%i, "
+        "locals=%i, statics=%i, in_scope_only=%i runtime=%i dynamic=%i)",
+        arguments, recognized_arguments, locals, statics, in_scope_only,
+        include_runtime_support_values, use_dynamic);
 
   std::set<VariableSP> variable_set;
   Process *process = exe_ctx.GetProcessPtr();
@@ -1046,6 +1028,20 @@ SBValueList SBFrame::GetVariables(const lldb::SBVariablesOptions &options) {
                   value_sb.SetSP(valobj_sp, use_dynamic);
                   value_list.Append(value_sb);
                 }
+              }
+            }
+          }
+        }
+        if (recognized_arguments) {
+          auto recognized_frame = frame->GetRecognizedFrame();
+          if (recognized_frame) {
+            ValueObjectListSP recognized_arg_list =
+                recognized_frame->GetRecognizedArguments();
+            if (recognized_arg_list) {
+              for (auto &rec_value_sp : recognized_arg_list->GetObjects()) {
+                SBValue value_sb;
+                value_sb.SetSP(rec_value_sp, use_dynamic);
+                value_list.Append(value_sb);
               }
             }
           }
@@ -1363,6 +1359,21 @@ bool SBFrame::IsInlined() const {
         log->Printf("SBFrame::IsInlined () => error: process is running");
     }
   }
+  return false;
+}
+
+bool SBFrame::IsArtificial() {
+  return static_cast<const SBFrame *>(this)->IsArtificial();
+}
+
+bool SBFrame::IsArtificial() const {
+  std::unique_lock<std::recursive_mutex> lock;
+  ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
+
+  StackFrame *frame = exe_ctx.GetFramePtr();
+  if (frame)
+    return frame->IsArtificial();
+
   return false;
 }
 
