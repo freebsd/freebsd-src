@@ -84,6 +84,8 @@ prefetch(void *x)
 #define SBUF_DRAIN 1
 #endif
 
+SYSCTL_DECL(_hw_cxgbe);
+
 struct adapter;
 typedef struct adapter adapter_t;
 
