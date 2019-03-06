@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2015 John H. Baldwin <jhb@FreeBSD.org>
- * All rights reserved.
  * Copyright (c) 2019 Mitchell Horne
  *
  * Redistribution and use in source and binary forms, with or without
