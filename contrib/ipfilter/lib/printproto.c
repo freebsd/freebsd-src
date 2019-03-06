@@ -27,14 +27,6 @@ printproto(pr, p, np)
 			PRINTF("udp");
 		else if (np->in_flags & IPN_ICMPQUERY)
 			PRINTF("icmp");
-#ifdef _AIX51
-		/*
-		 * To make up for "ip = 252" and "hopopt = 0" in /etc/protocols
-		 * The IANA has doubled up on the definition of 0 - it is now
-		 * also used for IPv6 hop-opts, so we can no longer rely on
-		 * /etc/protocols providing the correct name->number mapping.
-		 */
-#endif
 		else if (np->in_pr[0] == 0)
 			PRINTF("ip");
 		else if (pr != NULL)
@@ -42,11 +34,6 @@ printproto(pr, p, np)
 		else
 			PRINTF("%d", np->in_pr[0]);
 	} else {
-#ifdef _AIX51
-		if (p == 0)
-			PRINTF("ip");
-		else
-#endif
 		if (pr != NULL)
 			PRINTF("%s", pr->p_name);
 		else
