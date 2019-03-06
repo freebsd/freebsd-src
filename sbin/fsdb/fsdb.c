@@ -157,6 +157,7 @@ CMDFUNC(chctime);			/* Change ctime */
 CMDFUNC(chatime);			/* Change atime */
 CMDFUNC(chinum);			/* Change inode # of dirent */
 CMDFUNC(chname);			/* Change dirname of dirent */
+CMDFUNC(chsize);			/* Change size */
 
 struct cmdtable cmds[] = {
 	{ "help", "Print out help", 1, 1, FL_RO, helpfn },
@@ -186,6 +187,7 @@ struct cmdtable cmds[] = {
 	{ "chgrp", "Change group of current inode to GROUP", 2, 2, FL_WR, chgroup },
 	{ "chflags", "Change flags of current inode to FLAGS", 2, 2, FL_WR, chaflags },
 	{ "chgen", "Change generation number of current inode to GEN", 2, 2, FL_WR, chgen },
+	{ "chsize", "Change size of current inode to SIZE", 2, 2, FL_WR, chsize },
 	{ "btime", "Change btime of current inode to BTIME", 2, 2, FL_WR, chbtime },
 	{ "mtime", "Change mtime of current inode to MTIME", 2, 2, FL_WR, chmtime },
 	{ "ctime", "Change ctime of current inode to CTIME", 2, 2, FL_WR, chctime },
@@ -1009,6 +1011,31 @@ CMDFUNCSTART(chgen)
     }
     DIP_SET(curinode, di_gen, gen);
     inodirty();
+    printactive(0);
+    return rval;
+}
+
+CMDFUNCSTART(chsize)
+{
+    int rval = 1;
+    off_t size;
+    char *cp;
+
+    if (!checkactive())
+	return 1;
+
+    size = strtoll(argv[1], &cp, 0);
+    if (cp == argv[1] || *cp != '\0') {
+	warnx("bad size `%s'", argv[1]);
+	return 1;
+    }
+
+    if (size < 0) {
+	warnx("size set to negative (%jd)\n", (intmax_t)size);
+	return(1);
+    }
+    DIP_SET(curinode, di_size, size);
+    inodirty(curinode);
     printactive(0);
     return rval;
 }
