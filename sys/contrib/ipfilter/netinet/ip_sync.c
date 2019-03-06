@@ -21,15 +21,12 @@
 # include <string.h>
 # define _KERNEL
 # define KERNEL
-# ifdef __OpenBSD__
-struct file;
-# endif
 # include <sys/uio.h>
 # undef _KERNEL
 # undef KERNEL
 #else
 # include <sys/systm.h>
-# if !defined(__SVR4) && !defined(__svr4__)
+# if !defined(__SVR4)
 #  include <sys/mbuf.h>
 # endif
 # include <sys/select.h>
@@ -40,18 +37,16 @@ struct file;
 #if defined(__NetBSD__) && (__NetBSD_Version__ >= 104000000)
 # include <sys/proc.h>
 #endif
-#if defined(_KERNEL) && (__FreeBSD_version >= 220000)
+#if defined(_KERNEL) && defined(__FreeBSD_version)
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 #else
 # include <sys/ioctl.h>
 #endif
 #include <sys/time.h>
-#if !defined(linux)
 # include <sys/protosw.h>
-#endif
 #include <sys/socket.h>
-#if defined(__SVR4) || defined(__svr4__)
+#if defined(__SVR4)
 # include <sys/filio.h>
 # include <sys/byteorder.h>
 # ifdef _KERNEL
@@ -69,12 +64,8 @@ struct file;
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
-#if !defined(linux)
 # include <netinet/ip_var.h>
-#endif
-#if !defined(__hpux) && !defined(linux)
 # include <netinet/tcp_fsm.h>
-#endif
 #include <netinet/udp.h>
 #include <netinet/ip_icmp.h>
 #include "netinet/ip_compat.h"
@@ -88,7 +79,7 @@ struct file;
 #ifdef  USE_INET6
 #include <netinet/icmp6.h>
 #endif
-#if (__FreeBSD_version >= 300000)
+#if defined(__FreeBSD_version)
 # include <sys/malloc.h>
 # if defined(_KERNEL) && !defined(IPFILTER_LKM)
 #  include <sys/libkern.h>
@@ -111,9 +102,6 @@ typedef struct ipf_sync_softc_s {
 	ipfrwlock_t	ipf_syncnat;
 #if SOLARIS && defined(_KERNEL)
 	kcondvar_t	ipslwait;
-#endif
-#if defined(linux) && defined(_KERNEL)
-	wait_queue_head_t	sl_tail_linux;
 #endif
 	synclist_t	**syncstatetab;
 	synclist_t	**syncnattab;
@@ -308,7 +296,7 @@ ipf_sync_soft_destroy(softc, arg)
 }
 
 
-# if !defined(sparc) && !defined(__hppa)
+# if !defined(sparc)
 /* ------------------------------------------------------------------------ */
 /* Function:    ipf_sync_tcporder                                           */
 /* Returns:     Nil                                                         */
@@ -418,11 +406,11 @@ ipf_sync_storder(way, ips)
 		ips->is_smsk[1] = ntohl(ips->is_smsk[1]);
 	}
 }
-# else /* !defined(sparc) && !defined(__hppa) */
+# else /* !defined(sparc) */
 #  define	ipf_sync_tcporder(x,y)
 #  define	ipf_sync_natorder(x,y)
 #  define	ipf_sync_storder(x,y)
-# endif /* !defined(sparc) && !defined(__hppa) */
+# endif /* !defined(sparc) */
 
 
 /* ------------------------------------------------------------------------ */
@@ -449,7 +437,7 @@ ipf_sync_write(softc, uio)
 
 	int err = 0;
 
-#  if BSD_GE_YEAR(199306) || defined(__FreeBSD__) || defined(__osf__)
+#  if BSD_GE_YEAR(199306) || defined(__FreeBSD__)
 	uio->uio_rw = UIO_WRITE;
 #  endif
 
@@ -597,7 +585,7 @@ ipf_sync_read(softc, uio)
 		return EINVAL;
 	}
 
-#  if BSD_GE_YEAR(199306) || defined(__FreeBSD__) || defined(__osf__)
+#  if BSD_GE_YEAR(199306) || defined(__FreeBSD__)
 	uio->uio_rw = UIO_READ;
 #  endif
 
@@ -612,28 +600,6 @@ ipf_sync_read(softc, uio)
 			return EINTR;
 		}
 #   else
-#    ifdef __hpux
-		{
-		lock_t *l;
-
-		l = get_sleep_lock(&softs->sl_tail);
-		err = sleep(&softs->sl_tail, PZERO+1);
-		if (err) {
-			MUTEX_EXIT(&softs->ipsl_mutex);
-			IPFERROR(110010);
-			return EINTR;
-		}
-		spinunlock(l);
-		}
-#    else /* __hpux */
-#     ifdef __osf__
-		err = mpsleep(&softs->sl_tail, PSUSP|PCATCH,  "ipl sleep", 0,
-			      &softs->ipsl_mutex, MS_LOCK_SIMPLE);
-		if (err) {
-			IPFERROR(110011);
-			return EINTR;
-		}
-#     else
 		MUTEX_EXIT(&softs->ipsl_mutex);
 		err = SLEEP(&softs->sl_tail, "ipl sleep");
 		if (err) {
@@ -641,8 +607,6 @@ ipf_sync_read(softc, uio)
 			return EINTR;
 		}
 		MUTEX_ENTER(&softs->ipsl_mutex);
-#     endif /* __osf__ */
-#    endif /* __hpux */
 #   endif /* SOLARIS */
 #  endif /* _KERNEL */
 	}

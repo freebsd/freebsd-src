@@ -9,9 +9,6 @@
 # define        KERNEL	1
 # define        _KERNEL	1
 #endif
-#if defined(__osf__)
-# define _PROTO_NET_H_
-#endif
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
@@ -21,9 +18,6 @@
 # include <stdlib.h>
 # include <string.h>
 # define _KERNEL
-# ifdef __OpenBSD__
-struct file;
-# endif
 # include <sys/uio.h>
 # undef _KERNEL
 #else
@@ -33,14 +27,12 @@ struct file;
 # endif
 #endif
 #include <sys/time.h>
-#if !defined(linux)
 # include <sys/protosw.h>
-#endif
 #include <sys/socket.h>
-#if defined(_KERNEL) && (!defined(__SVR4) && !defined(__svr4__))
+#if defined(_KERNEL) && !defined(__SVR4)
 # include <sys/mbuf.h>
 #endif
-#if defined(__SVR4) || defined(__svr4__)
+#if defined(__SVR4)
 # include <sys/filio.h>
 # include <sys/byteorder.h>
 # ifdef _KERNEL
@@ -49,7 +41,7 @@ struct file;
 # include <sys/stream.h>
 # include <sys/kmem.h>
 #endif
-#if defined(__FreeBSD_version) && (__FreeBSD_version >= 300000)
+#if defined(__FreeBSD_version)
 # include <sys/malloc.h>
 #endif
 

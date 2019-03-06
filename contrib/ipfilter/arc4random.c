@@ -7,7 +7,7 @@
  *
  * Dan Moschuk
  */
-#if !defined(SOLARIS2) && !defined(__osf__)
+#if !defined(SOLARIS2)
 # include <sys/cdefs.h>
 #endif
 
@@ -16,26 +16,16 @@
 #ifdef __FreeBSD__
 # include <sys/kernel.h>
 #endif
-#if !defined(__osf__)
 # include <sys/random.h>
-#endif
 #ifdef __FreeBSD__
 # include <sys/libkern.h>
 #endif
 #include <sys/lock.h>
-#ifndef __osf__
 # include <sys/mutex.h>
-#endif
 #include <sys/time.h>
 
-#if defined(SOLARIS2) && (SOLARIS2 < 9)
-# include <netinet/in_systm.h>
-#endif
 #include <sys/socket.h>
 #include <net/if.h>
-#ifdef __osf__
-# include <net/route.h>
-#endif
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include "netinet/ip_compat.h"
