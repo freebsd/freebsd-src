@@ -140,6 +140,7 @@ setup(char *dev)
 		size = MIBSIZE;
 		if (sysctlnametomib("vfs.ffs.adjrefcnt", adjrefcnt, &size) < 0||
 		    sysctlnametomib("vfs.ffs.adjblkcnt", adjblkcnt, &size) < 0||
+		    sysctlnametomib("vfs.ffs.setsize", setsize, &size) < 0 ||
 		    sysctlnametomib("vfs.ffs.freefiles", freefiles, &size) < 0||
 		    sysctlnametomib("vfs.ffs.freedirs", freedirs, &size) < 0 ||
 		    sysctlnametomib("vfs.ffs.freeblks", freeblks, &size) < 0) {
