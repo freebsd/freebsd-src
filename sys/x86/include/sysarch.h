@@ -142,6 +142,11 @@ int amd64_get_fsbase(void **);
 int amd64_get_gsbase(void **);
 int amd64_set_fsbase(void *);
 int amd64_set_gsbase(void *);
+int x86_pkru_get_perm(unsigned int keyidx, int *access, int *modify);
+int x86_pkru_set_perm(unsigned int keyidx, int access, int modify);
+int x86_pkru_protect_range(void *addr, unsigned long len, unsigned int keyidx,
+    int flag);
+int x86_pkru_unprotect_range(void *addr, unsigned long len);
 int sysarch(int, void *);
 __END_DECLS
 #else
