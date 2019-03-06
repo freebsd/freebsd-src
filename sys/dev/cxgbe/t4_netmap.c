@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD$");
 
 extern int fl_pad;	/* XXXNM */
 
-SYSCTL_NODE(_hw, OID_AUTO, cxgbe, CTLFLAG_RD, 0, "cxgbe netmap parameters");
-
 /*
  * 0 = normal netmap rx
  * 1 = black hole
@@ -87,7 +85,9 @@ SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_holdoff_tmr_idx, CTLFLAG_RWTUN,
  *  1: no backpressure, drop packets for the congested queue immediately.
  */
 static int nm_cong_drop = 1;
-TUNABLE_INT("hw.cxgbe.nm_cong_drop", &nm_cong_drop);
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_cong_drop, CTLFLAG_RDTUN,
+    &nm_cong_drop, 0,
+    "Congestion control for netmap rx queues (0 = backpressure, 1 = drop");
 
 int starve_fl = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, starve_fl, CTLFLAG_RWTUN,
