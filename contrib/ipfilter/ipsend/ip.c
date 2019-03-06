@@ -17,11 +17,9 @@ static const char rcsid[] = "@(#)$Id$";
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <sys/param.h>
-#ifndef	linux
 # include <net/route.h>
 # include <netinet/if_ether.h>
 # include <netinet/ip_var.h>
-#endif
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>

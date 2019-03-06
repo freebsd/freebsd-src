@@ -19,10 +19,8 @@ static const char rcsid[] = "@(#)$Id$";
 #include <arpa/inet.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#ifndef	linux
 # include <netinet/ip_var.h>
 # include <netinet/if_ether.h>
-#endif
 #include <stdio.h>
 #include <netdb.h>
 #include <string.h>

@@ -88,7 +88,6 @@ int	arp(ip, ether)
 	sin = (struct sockaddr_in *)&ar.arp_pa;
 	sin->sin_family = AF_INET;
 	bcopy(ip, (char *)&sin->sin_addr.s_addr, 4);
-#ifndef	hpux
 	if ((hp = gethostbyaddr(ip, 4, AF_INET)))
 # if SOLARIS && (SOLARIS2 >= 10)
 		if (!(ether_hostton(hp->h_name, (struct ether_addr *)ether)))
@@ -96,7 +95,6 @@ int	arp(ip, ether)
 		if (!(ether_hostton(hp->h_name, ether)))
 # endif
 			goto savearp;
-#endif
 
 	if (sfd == -1)
 		if ((sfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1)

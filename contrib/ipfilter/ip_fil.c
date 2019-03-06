@@ -25,24 +25,10 @@ struct	rtentry;
 
 static	void	ipf_setifpaddr __P((struct ifnet *, char *));
 void	init_ifp __P((void));
-#if defined(__sgi) && (IRIX < 60500)
-static int 	no_output __P((struct ifnet *, struct mbuf *,
-			       struct sockaddr *));
-static int	write_output __P((struct ifnet *, struct mbuf *,
-				  struct sockaddr *));
-#else
-# if TRU64 >= 1885
-static int 	no_output __P((struct ifnet *, struct mbuf *,
-			       struct sockaddr *, struct rtentry *, char *));
-static int	write_output __P((struct ifnet *, struct mbuf *,
-				  struct sockaddr *, struct rtentry *, char *));
-# else
 static int 	no_output __P((struct ifnet *, struct mbuf *,
 			       struct sockaddr *, struct rtentry *));
 static int	write_output __P((struct ifnet *, struct mbuf *,
 				  struct sockaddr *, struct rtentry *));
-# endif
-#endif
 
 struct ifaddr {
 	struct sockaddr_storage ifa_addr;
@@ -123,17 +109,8 @@ ipf_forgetifp(softc, ifp)
 
 
 static int
-#if defined(__sgi) && (IRIX < 60500)
-no_output(ifp, m, s)
-#else
-# if TRU64 >= 1885
-no_output (ifp, m, s, rt, cp)
-	char *cp;
-# else
 no_output(ifp, m, s, rt)
-# endif
 	struct rtentry *rt;
-#endif
 	struct ifnet *ifp;
 	struct mbuf *m;
 	struct sockaddr *s;
@@ -143,17 +120,8 @@ no_output(ifp, m, s, rt)
 
 
 static int
-#if defined(__sgi) && (IRIX < 60500)
-write_output(ifp, m, s)
-#else
-# if TRU64 >= 1885
-write_output (ifp, m, s, rt, cp)
-	char *cp;
-# else
 write_output(ifp, m, s, rt)
-# endif
 	struct rtentry *rt;
-#endif
 	struct ifnet *ifp;
 	struct mbuf *m;
 	struct sockaddr *s;
@@ -167,8 +135,7 @@ write_output(ifp, m, s, rt)
 	ip = MTOD(mb, ip_t *);
 
 #if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199606)) || \
-    (defined(OpenBSD) && (OpenBSD >= 199603)) || defined(linux) || \
-    (defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
+    defined(__FreeBSD__)
 	sprintf(fname, "/tmp/%s", ifp->if_xname);
 #else
 	sprintf(fname, "/tmp/%s%d", ifp->if_name, ifp->if_unit);
@@ -189,42 +156,26 @@ ipf_setifpaddr(ifp, addr)
 	struct ifnet *ifp;
 	char *addr;
 {
-#ifdef __sgi
-	struct in_ifaddr *ifa;
-#else
 	struct ifaddr *ifa;
-#endif
 
-#if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__FreeBSD__)
+#if defined(__NetBSD__) || defined(__FreeBSD__)
 	if (ifp->if_addrlist.tqh_first != NULL)
 #else
-# ifdef __sgi
-	if (ifp->in_ifaddr != NULL)
-# else
 	if (ifp->if_addrlist != NULL)
-# endif
 #endif
 		return;
 
 	ifa = (struct ifaddr *)malloc(sizeof(*ifa));
-#if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__FreeBSD__)
+#if defined(__NetBSD__) || defined(__FreeBSD__)
 	ifp->if_addrlist.tqh_first = ifa;
 #else
-# ifdef __sgi
-	ifp->in_ifaddr = ifa;
-# else
 	ifp->if_addrlist = ifa;
-# endif
 #endif
 
 	if (ifa != NULL) {
 		struct sockaddr_in *sin;
 
-#ifdef __sgi
-		sin = (struct sockaddr_in *)&ifa->ia_addr;
-#else
 		sin = (struct sockaddr_in *)&ifa->ifa_addr;
-#endif
 #ifdef USE_INET6
 		if (index(addr, ':') != NULL) {
 			struct sockaddr_in6 *sin6;
@@ -263,8 +214,7 @@ get_unit(name, family)
 	struct ifnet *ifp, **ifpp, **old_ifneta;
 	char *addr;
 #if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199606)) || \
-    (defined(OpenBSD) && (OpenBSD >= 199603)) || defined(linux) || \
-    (defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
+    defined(__FreeBSD__)
 
 	if (!*name)
 		return NULL;
@@ -333,12 +283,11 @@ get_unit(name, family)
 	}
 	ifp = ifneta[nifs - 1];
 
-#if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__FreeBSD__)
+#if defined(__NetBSD__) || defined(__FreeBSD__)
 	TAILQ_INIT(&ifp->if_addrlist);
 #endif
 #if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199606)) || \
-    (defined(OpenBSD) && (OpenBSD >= 199603)) || defined(linux) || \
-    (defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
+    defined(__FreeBSD__)
 	(void) strncpy(ifp->if_xname, name, sizeof(ifp->if_xname));
 #else
 	s = name + strlen(name) - 1;
@@ -375,8 +324,7 @@ get_ifname(ifp)
 {
 	static char ifname[LIFNAMSIZ];
 
-#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(linux) || \
-    (defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
+#if defined(__NetBSD__) || defined(__FreeBSD__)
 	sprintf(ifname, "%s", ifp->if_xname);
 #else
 	if (ifp->if_unit != -1)
@@ -397,8 +345,7 @@ init_ifp()
 	int fd;
 
 #if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199606)) || \
-    (defined(OpenBSD) && (OpenBSD >= 199603)) || defined(linux) || \
-    (defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
+    defined(__FreeBSD__)
 	for (ifpp = ifneta; ifpp && (ifp = *ifpp); ifpp++) {
 		ifp->if_output = (void *)write_output;
 		sprintf(fname, "/tmp/%s", ifp->if_xname);
@@ -717,20 +664,12 @@ ipf_ifpaddr(softc, v, atype, ifptr, inp, inpmask)
 	i6addr_t *inp, *inpmask;
 {
 	struct ifnet *ifp = ifptr;
-#ifdef __sgi
-	struct in_ifaddr *ifa;
-#else
 	struct ifaddr *ifa;
-#endif
 
-#if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__FreeBSD__)
+#if defined(__NetBSD__) || defined(__FreeBSD__)
 	ifa = ifp->if_addrlist.tqh_first;
 #else
-# ifdef __sgi
-	ifa = (struct in_ifaddr *)ifp->in_ifaddr;
-# else
 	ifa = ifp->if_addrlist;
-# endif
 #endif
 	if (ifa != NULL) {
 		if (v == 4) {
@@ -738,11 +677,7 @@ ipf_ifpaddr(softc, v, atype, ifptr, inp, inpmask)
 
 			mask.sin_addr.s_addr = 0xffffffff;
 
-#ifdef __sgi
-			sin = (struct sockaddr_in *)&ifa->ia_addr;
-#else
 			sin = (struct sockaddr_in *)&ifa->ifa_addr;
-#endif
 
 			return ipf_ifpfillv4addr(atype, sin, &mask,
 						 &inp->in4, &inpmask->in4);

@@ -5,15 +5,6 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
-#ifdef	__FreeBSD__
-# ifndef __FreeBSD_cc_version
-#  include <osreldate.h>
-# else
-#  if __FreeBSD_cc_version < 430000
-#   include <osreldate.h>
-#  endif
-# endif
-#endif
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>

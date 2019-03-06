@@ -278,11 +278,7 @@ ipf_p_irc_send(fin, nat)
 	bzero(ctcpbuf, sizeof(ctcpbuf));
 	off = (char *)tcp - (char *)ip + (TCP_OFF(tcp) << 2) + fin->fin_ipoff;
 
-#ifdef __sgi
-	dlen = fin->fin_plen - off;
-#else
 	dlen = MSGDSIZE(m) - off;
-#endif
 	if (dlen <= 0)
 		return 0;
 	COPYDATA(m, off, MIN(sizeof(ctcpbuf), dlen), ctcpbuf);
@@ -361,7 +357,7 @@ ipf_p_irc_send(fin, nat)
 	fin->fin_flx |= FI_DOCKSUM;
 
 	if (inc != 0) {
-#if defined(MENTAT) || defined(__sgi)
+#if defined(MENTAT)
 		register u_32_t	sum1, sum2;
 
 		sum1 = fin->fin_plen;

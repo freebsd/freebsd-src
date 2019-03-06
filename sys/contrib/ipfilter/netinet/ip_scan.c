@@ -10,9 +10,6 @@
 # define        _KERNEL	1
 #endif
 #include <sys/param.h>
-#if defined(__hpux) && (HPUXREV >= 1111) && !defined(_KERNEL)
-# include <sys/kern_svcs.h>
-#endif
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/errno.h>
@@ -20,21 +17,16 @@
 # include <stdlib.h>
 # include <string.h>
 # define _KERNEL
-# ifdef __OpenBSD__
-struct file;
-# endif
 # include <sys/uio.h>
 # undef _KERNEL
 #else
 # include <sys/systm.h>
-# if !defined(__svr4__) && !defined(__SVR4)
+# if !defined(__SVR4)
 #  include <sys/mbuf.h>
 # endif
 #endif
 #include <sys/socket.h>
-#if !defined(__hpux) && !defined(__osf__) && !defined(linux) && !defined(AIX)
 # include <sys/ioccom.h>
-#endif
 #ifdef __FreeBSD__
 # include <sys/filio.h>
 # include <sys/malloc.h>

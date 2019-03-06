@@ -9,9 +9,7 @@
 #include <sys/time.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-#if defined(BSD) && (BSD >= 199306)
 # include <sys/cdefs.h>
-#endif
 #include <sys/ioctl.h>
 
 #include <net/if.h>
@@ -26,11 +24,7 @@
 #include <netdb.h>
 #include <ctype.h>
 #include <unistd.h>
-#ifdef linux
-# include <linux/a.out.h>
-#else
 # include <nlist.h>
-#endif
 
 #include "ipf.h"
 #include "netinet/ipl.h"
