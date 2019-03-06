@@ -171,6 +171,13 @@ struct pcb *pmap_switch(struct thread *, struct thread *);
 
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 
+static inline int
+pmap_vmspace_copy(pmap_t dst_pmap __unused, pmap_t src_pmap __unused)
+{
+
+	return (0);
+}
+
 #endif	/* _KERNEL */
 
 #endif	/* !LOCORE */
