@@ -106,6 +106,10 @@ VNET_DEFINE(u_int32_t, ip6_temp_valid_lifetime) = DEF_TEMP_VALID_LIFETIME;
 
 VNET_DEFINE(int, ip6_temp_regen_advance) = TEMPADDR_REGEN_ADVANCE;
 
+#ifdef EXPERIMENTAL
+VNET_DEFINE(int, nd6_ignore_ipv6_only_ra) = 1;
+#endif
+
 /* RTPREF_MEDIUM has to be 0! */
 #define RTPREF_HIGH	1
 #define RTPREF_MEDIUM	0
@@ -208,7 +212,7 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 /*
  * An initial update routine for draft-ietf-6man-ipv6only-flag.
  * We need to iterate over all default routers for the given
- * interface to see whether they are all advertising the "6"
+ * interface to see whether they are all advertising the "S"
  * (IPv6-Only) flag.  If they do set, otherwise unset, the
  * interface flag we later use to filter on.
  */
@@ -216,7 +220,15 @@ static void
 defrtr_ipv6_only_ifp(struct ifnet *ifp)
 {
 	struct nd_defrouter *dr;
-	bool ipv6_only;
+	bool ipv6_only, ipv6_only_old;
+#ifdef INET
+	struct epoch_tracker et;
+	struct ifaddr *ifa;
+	bool has_ipv4_addr;
+#endif
+
+	if (V_nd6_ignore_ipv6_only_ra != 0)
+		return;
 
 	ipv6_only = true;
 	ND6_RLOCK();
@@ -227,13 +239,53 @@ defrtr_ipv6_only_ifp(struct ifnet *ifp)
 	ND6_RUNLOCK();
 
 	IF_AFDATA_WLOCK(ifp);
+	ipv6_only_old = ND_IFINFO(ifp)->flags & ND6_IFF_IPV6_ONLY;
+	IF_AFDATA_WUNLOCK(ifp);
+
+	/* If nothing changed, we have an early exit. */
+	if (ipv6_only == ipv6_only_old)
+		return;
+
+#ifdef INET
+	/*
+	 * Should we want to set the IPV6-ONLY flag, check if the
+	 * interface has a non-0/0 and non-link-local IPv4 address
+	 * configured on it.  If it has we will assume working
+	 * IPv4 operations and will clear the interface flag.
+	 */
+	has_ipv4_addr = false;
+	if (ipv6_only) {
+		NET_EPOCH_ENTER(et);
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			if (ifa->ifa_addr->sa_family != AF_INET)
+				continue;
+			if (in_canforward(
+			    satosin(ifa->ifa_addr)->sin_addr)) {
+				has_ipv4_addr = true;
+				break;
+			}
+		}
+		NET_EPOCH_EXIT(et);
+	}
+	if (ipv6_only && has_ipv4_addr) {
+		log(LOG_NOTICE, "%s rcvd RA w/ IPv6-Only flag set but has IPv4 "
+		    "configured, ignoring IPv6-Only flag.\n", ifp->if_xname);
+		ipv6_only = false;
+	}
+#endif
+
+	IF_AFDATA_WLOCK(ifp);
 	if (ipv6_only)
 		ND_IFINFO(ifp)->flags |= ND6_IFF_IPV6_ONLY;
 	else
 		ND_IFINFO(ifp)->flags &= ~ND6_IFF_IPV6_ONLY;
 	IF_AFDATA_WUNLOCK(ifp);
-}
+
+#ifdef notyet
+	/* Send notification of flag change. */
 #endif
+}
+#endif	/* EXPERIMENTAL */
 
 /*
  * Receive Router Advertisement Message.
