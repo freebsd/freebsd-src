@@ -372,6 +372,13 @@ extern vm_offset_t virtual_end;
 #define	pmap_page_is_write_mapped(m)	(((m)->aflags & PGA_WRITEABLE) != 0)
 #define	pmap_unmapbios(va, sz)	pmap_unmapdev((va), (sz))
 
+static inline int
+pmap_vmspace_copy(pmap_t dst_pmap __unused, pmap_t src_pmap __unused)
+{
+
+	return (0);
+}
+
 /*
  * Only the following functions or macros may be used before pmap_bootstrap()
  * is called: pmap_kenter(), pmap_kextract(), pmap_kremove(), vtophys(), and
