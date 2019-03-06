@@ -31,6 +31,17 @@ BRSSL_SRCS+= \
 	${BEARSSL}/tools/xmem.c \
 	${BEARSSL}/tools/vector.c
 
+BRSSL_DEPS= \
+	brf.c \
+	vets.c \
+	veta.c
+
+.if ${MK_LOADER_EFI_SECUREBOOT} != "no"
+BRSSL_DEPS+= \
+	efi_init.c \
+	efi_variables.c
+.endif
+
 # we do not need/want nested objdirs
 OBJS_SRCS_FILTER = T R
 
@@ -134,7 +145,7 @@ vse.h:
 	echo 'NULL };' ) > ${.TARGET}
 
 
-.for s in ${BRSSL_SRCS} brf.c vets.c veta.c
+.for s in ${BRSSL_SRCS} ${BRSSL_DEPS}
 .ifdef BRSSL_SED
 $s: brssl.h
 .endif
