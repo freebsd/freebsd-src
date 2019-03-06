@@ -63,6 +63,7 @@ unsigned long  numdirs, listmax;
 long countdirs;		/* number of directories we actually found */
 int	adjrefcnt[MIBSIZE];	/* MIB command to adjust inode reference cnt */
 int	adjblkcnt[MIBSIZE];	/* MIB command to adjust inode block count */
+int	setsize[MIBSIZE];	/* MIB command to set inode size */
 int	adjndir[MIBSIZE];	/* MIB command to adjust number of directories */
 int	adjnbfree[MIBSIZE];	/* MIB command to adjust number of free blocks */
 int	adjnifree[MIBSIZE];	/* MIB command to adjust number of free inodes */
@@ -131,6 +132,7 @@ fsckinit(void)
 	countdirs = 0;
 	bzero(adjrefcnt, sizeof(int) * MIBSIZE);
 	bzero(adjblkcnt, sizeof(int) * MIBSIZE);
+	bzero(setsize, sizeof(int) * MIBSIZE);
 	bzero(adjndir, sizeof(int) * MIBSIZE);
 	bzero(adjnbfree, sizeof(int) * MIBSIZE);
 	bzero(adjnifree, sizeof(int) * MIBSIZE);
