@@ -430,10 +430,6 @@ MK_${var}:=	no
 MK_LLVM_LIBUNWIND:=	no
 .endif
 
-.if ${MK_BINUTILS} == "no"
-MK_GDB:=	no
-.endif
-
 .if ${MK_CAPSICUM} == "no"
 MK_CASPER:=	no
 .endif
