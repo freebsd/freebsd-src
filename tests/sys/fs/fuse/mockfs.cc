@@ -112,6 +112,21 @@ ReturnErrno(int error)
 	});
 }
 
+/* Helper function used for returning negative cache entries for LOOKUP */
+std::function<void (const struct mockfs_buf_in *in, struct mockfs_buf_out *out)>
+ReturnNegativeCache(const struct timespec *entry_valid)
+{
+	return([=](auto in, auto out) {
+		/* nodeid means ENOENT and cache it */
+		out->body.entry.nodeid = 0;
+		out->header.unique = in->header.unique;
+		out->header.error = 0;
+		out->body.entry.entry_valid = entry_valid->tv_sec;
+		out->body.entry.entry_valid_nsec = entry_valid->tv_nsec;
+		SET_OUT_HEADER_LEN(out, entry);
+	});
+}
+
 void sigint_handler(int __unused sig) {
 	quit = 1;
 }
@@ -134,6 +149,9 @@ MockFS::MockFS() {
 	struct iovec *iov = NULL;
 	int iovlen = 0;
 	char fdstr[15];
+
+	m_daemon_id = NULL;
+	quit = 0;
 
 	/*
 	 * Kyua sets pwd to a testcase-unique tempdir; no need to use
@@ -169,18 +187,14 @@ MockFS::MockFS() {
 		.WillByDefault(Invoke(this, &MockFS::process_default));
 
 	init();
-	if (pthread_create(&m_thr, NULL, service, (void*)this))
+	signal(SIGUSR1, sigint_handler);
+	if (pthread_create(&m_daemon_id, NULL, service, (void*)this))
 		throw(std::system_error(errno, std::system_category(),
 			"Couldn't Couldn't start fuse thread"));
 }
 
 MockFS::~MockFS() {
-	pthread_kill(m_daemon_id, SIGUSR1);
-	// Closing the /dev/fuse file descriptor first allows unmount to
-	// succeed even if the daemon doesn't correctly respond to commands
-	// during the unmount sequence.
-	close(m_fuse_fd);
-	pthread_join(m_daemon_id, NULL);
+	kill_daemon();
 	::unmount("mountpoint", MNT_FORCE);
 	rmdir("mountpoint");
 }
@@ -204,6 +218,18 @@ void MockFS::init() {
 	write(m_fuse_fd, &out, out.header.len);
 
 	free(in);
+}
+
+void MockFS::kill_daemon() {
+	if (m_daemon_id != NULL) {
+		pthread_kill(m_daemon_id, SIGUSR1);
+		// Closing the /dev/fuse file descriptor first allows unmount
+		// to succeed even if the daemon doesn't correctly respond to
+		// commands during the unmount sequence.
+		close(m_fuse_fd);
+		pthread_join(m_daemon_id, NULL);
+		m_daemon_id = NULL;
+	}
 }
 
 void MockFS::loop() {
@@ -258,10 +284,6 @@ void MockFS::read_request(mockfs_buf_in *in) {
 
 void* MockFS::service(void *pthr_data) {
 	MockFS *mock_fs = (MockFS*)pthr_data;
-	mock_fs->m_daemon_id = pthread_self();
-
-	quit = 0;
-	signal(SIGUSR1, sigint_handler);
 
 	mock_fs->loop();
 
