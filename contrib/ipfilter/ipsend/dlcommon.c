@@ -20,11 +20,7 @@ typedef	unsigned long	ulong;
 #include	<sys/types.h>
 #include	<sys/stream.h>
 #include	<sys/stropts.h>
-#ifdef __osf__
-# include	<sys/dlpihdr.h>
-#else
 # include	<sys/dlpi.h>
-#endif
 #include	<sys/signal.h>
 #include	<stdio.h>
 #include	<string.h>

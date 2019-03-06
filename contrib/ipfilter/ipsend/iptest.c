@@ -18,12 +18,7 @@ static const char rcsid[] = "@(#)$Id$";
 #include <arpa/inet.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#ifndef	linux
 #include <netinet/ip_var.h>
-#endif
-#ifdef	linux
-#include <linux/sockios.h>
-#endif
 #include <stdio.h>
 #include <netdb.h>
 #include <unistd.h>
@@ -36,9 +31,6 @@ extern	char	*optarg;
 extern	int	optind;
 
 char	options[68];
-#ifdef	linux
-char	default_device[] = "eth0";
-#else
 # ifdef	sun
 char	default_device[] = "le0";
 # else
@@ -48,15 +40,10 @@ char	default_device[] = "ln0";
 #   ifdef	__bsdi__
 char	default_device[] = "ef0";
 #   else
-#    ifdef	__sgi
-char	default_device[] = "ec0";
-#    else
 char	default_device[] = "lan0";
-#    endif
 #   endif
 #  endif
 # endif
-#endif
 
 static	void	usage __P((char *));
 int	main __P((int, char **));

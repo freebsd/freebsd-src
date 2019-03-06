@@ -20,9 +20,7 @@ static const char rcsid[] = "@(#)$Id$";
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#ifndef	linux
 #include <netinet/ip_var.h>
-#endif
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include "ipsend.h"

@@ -9,15 +9,12 @@
 # define        KERNEL	1
 # define        _KERNEL	1
 #endif
-#if defined(__osf__)
-# define _PROTO_NET_H_
-#endif
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/file.h>
-#if __FreeBSD_version >= 220000 && defined(_KERNEL)
+#if defined(__FreeBSD_version) && defined(_KERNEL)
 # include <sys/fcntl.h>
 # include <sys/filio.h>
 #else
@@ -26,17 +23,10 @@
 #if !defined(_KERNEL)
 # include <string.h>
 # define _KERNEL
-# ifdef __OpenBSD__
-struct file;
-# endif
 # include <sys/uio.h>
 # undef _KERNEL
 #endif
 #include <sys/socket.h>
-#if (defined(__osf__) || defined(AIX) || defined(__hpux) || defined(__sgi)) && defined(_KERNEL)
-# include "radix_ipf_local.h"
-# define _RADIX_H_
-#endif
 #include <net/if.h>
 #if defined(__FreeBSD__)
 #  include <sys/cdefs.h>
@@ -44,7 +34,7 @@ struct file;
 #endif
 #if defined(_KERNEL)
 # include <sys/systm.h>
-# if !defined(__SVR4) && !defined(__svr4__)
+# if !defined(__SVR4)
 #  include <sys/mbuf.h>
 # endif
 #endif
@@ -348,9 +338,6 @@ typedef	struct	fr_info_4_1_32 {
 	void	*fin_qpi;
 	char	fin_ifname[LIFNAMSIZ];
 #endif
-#ifdef	__sgi
-	void	*fin_hbuf;
-#endif
 } fr_info_4_1_32_t;
 
 typedef struct  fr_info_4_1_24 {
@@ -389,9 +376,6 @@ typedef struct  fr_info_4_1_24 {
 	void    *fin_qpi;
 	char    fin_ifname[LIFNAMSIZ];
 #endif
-#ifdef  __sgi
-	void    *fin_hbuf;
-#endif
 } fr_info_4_1_24_t;
 
 typedef struct  fr_info_4_1_23 {
@@ -429,9 +413,6 @@ typedef struct  fr_info_4_1_23 {
 	void    *fin_qpi;
 	char    fin_ifname[LIFNAMSIZ];
 #endif
-#ifdef  __sgi
-	void    *fin_hbuf;
-#endif
 } fr_info_4_1_23_t;
 
 typedef struct  fr_info_4_1_11 {
@@ -467,9 +448,6 @@ typedef struct  fr_info_4_1_11 {
 	mb_t    *fin_qfm;
 	void    *fin_qpi;
 	char    fin_ifname[LIFNAMSIZ];
-#endif
-#ifdef  __sgi
-	void    *fin_hbuf;
 #endif
 } fr_info_4_1_11_t;
 
@@ -2678,9 +2656,6 @@ fr_info_4_1_32_to_current(old, current)
 	fin->fin_qfm = old->fin_qfm;
 	fin->fin_qpi = old->fin_qpi;
 #endif
-#ifdef  __sgi
-	fin->fin_hbuf = old->fin_hbuf;
-#endif
 }
 
 
@@ -2719,9 +2694,6 @@ fr_info_4_1_24_to_current(old, current)
 	fin->fin_qfm = old->fin_qfm;
 	fin->fin_qpi = old->fin_qpi;
 #endif
-#ifdef  __sgi
-	fin->fin_hbuf = old->fin_hbuf;
-#endif
 }
 
 
@@ -2759,9 +2731,6 @@ fr_info_4_1_23_to_current(old, current)
 	fin->fin_qfm = old->fin_qfm;
 	fin->fin_qpi = old->fin_qpi;
 #endif
-#ifdef  __sgi
-	fin->fin_hbuf = fin->fin_hbuf;
-#endif
 }
 
 
@@ -2798,9 +2767,6 @@ fr_info_4_1_11_to_current(old, current)
 #ifdef  MENTAT
 	fin->fin_qfm = old->fin_qfm;
 	fin->fin_qpi = old->fin_qpi;
-#endif
-#ifdef  __sgi
-	fin->fin_hbuf = fin->fin_hbuf;
 #endif
 }
 
@@ -4078,9 +4044,6 @@ fr_info_current_to_4_1_24(current, old)
 	old->fin_qpi = fin->fin_qpi;
 	old->fin_ifname[0] = '\0';
 #endif
-#ifdef  __sgi
-	old->fin_hbuf = fin->fin_hbuf;
-#endif
 }
 
 
@@ -4121,9 +4084,6 @@ fr_info_current_to_4_1_23(current, old)
 	old->fin_qpi = fin->fin_qpi;
 	old->fin_ifname[0] = '\0';
 #endif
-#ifdef  __sgi
-	old->fin_hbuf = fin->fin_hbuf;
-#endif
 }
 
 
@@ -4163,9 +4123,6 @@ fr_info_current_to_4_1_11(current, old)
 	old->fin_qfm = fin->fin_qfm;
 	old->fin_qpi = fin->fin_qpi;
 	old->fin_ifname[0] = '\0';
-#endif
-#ifdef  __sgi
-	old->fin_hbuf = fin->fin_hbuf;
 #endif
 }
 
