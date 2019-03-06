@@ -346,7 +346,7 @@ verify_file(int fd, const char *filename, off_t off, int severity)
 			if (verbose || severity > VE_WANT) {
 #if defined(VE_DEBUG_LEVEL) && VE_DEBUG_LEVEL > 0
 				printf("Verified %s %llu,%llu\n", filename,
-				    st.st_dev, st.st_ino);
+				    (long long)st.st_dev, (long long)st.st_ino);
 #else
 				printf("Verified %s\n", filename);
 #endif
