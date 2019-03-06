@@ -1174,6 +1174,9 @@ fuse_vnop_open(struct vop_open_args *ap)
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
 	}
+	if ((mode & (FREAD | FWRITE)) == 0)
+		return EINVAL;
+
 	fvdat = VTOFUD(vp);
 
 	if (vnode_isdir(vp)) {
