@@ -885,10 +885,12 @@ trap_fatal(frame, eva)
 #endif
 	if (type == T_PAGEFLT) {
 		printf("fault virtual address	= 0x%lx\n", eva);
-		printf("fault code		= %s %s %s, %s\n",
+		printf("fault code		= %s %s %s%s%s, %s\n",
 			code & PGEX_U ? "user" : "supervisor",
 			code & PGEX_W ? "write" : "read",
 			code & PGEX_I ? "instruction" : "data",
+			code & PGEX_PK ? " prot key" : " ",
+			code & PGEX_SGX ? " SGX" : " ",
 			code & PGEX_RSV ? "reserved bits in PTE" :
 			code & PGEX_P ? "protection violation" : "page not present");
 	}
