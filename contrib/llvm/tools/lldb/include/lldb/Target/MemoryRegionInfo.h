@@ -125,7 +125,7 @@ inline bool operator<(lldb::addr_t lhs, const MemoryRegionInfo &rhs) {
 // Forward-declarable wrapper.
 class MemoryRegionInfos : public std::vector<lldb_private::MemoryRegionInfo> {
 public:
-  using std::vector<lldb_private::MemoryRegionInfo>::vector;
+  //using std::vector<lldb_private::MemoryRegionInfo>::vector;
 };
 
 }
