@@ -245,6 +245,7 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 	off_t kernmaxfilesize;
 	ufs2_daddr_t ndb;
 	mode_t mode;
+	uintmax_t fixsize;
 	int j, ret, offset;
 
 	if ((dp = getnextinode(inumber, rebuildcg)) == NULL)
@@ -375,6 +376,7 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 		idesc->id_type = SNAP;
 	else
 		idesc->id_type = ADDR;
+	idesc->id_lballoc = -1;
 	(void)ckinode(dp, idesc);
 	if (sblock.fs_magic == FS_UFS2_MAGIC && dp->dp2.di_extsize > 0) {
 		idesc->id_type = ADDR;
@@ -419,6 +421,46 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 			    &cmd, sizeof cmd) == -1)
 				rwerror("ADJUST INODE BLOCK COUNT", cmd.value);
 		}
+	}
+	/*
+	 * Soft updates will always ensure that the file size is correct
+	 * for files that contain only direct block pointers. However
+	 * soft updates does not roll back sizes for files with indirect
+	 * blocks that it has set to unallocated because their contents
+	 * have not yet been written to disk. Hence, the file can appear
+	 * to have a hole at its end because the block pointer has been
+	 * rolled back to zero. Thus, id_lballoc tracks the last allocated
+	 * block in the file. Here, for files that extend into indirect
+	 * blocks, we check for a size past the last allocated block of
+	 * the file and if that is found, shorten the file to reference
+	 * the last allocated block to avoid having it reference a hole
+	 * at its end.
+	 */
+	if (DIP(dp, di_size) > UFS_NDADDR * sblock.fs_bsize &&
+	    idesc->id_lballoc < lblkno(&sblock, DIP(dp, di_size) - 1)) {
+		fixsize = lblktosize(&sblock, idesc->id_lballoc + 1);
+		pwarn("INODE %lu: FILE SIZE %ju BEYOND END OF ALLOCATED FILE, "
+		      "SIZE SHOULD BE %ju", (u_long)inumber,
+		      (uintmax_t)DIP(dp, di_size), fixsize);
+		if (preen)
+			printf(" (ADJUSTED)\n");
+		else if (reply("ADJUST") == 0)
+			return (1);
+		if (bkgrdflag == 0) {
+			dp = ginode(inumber);
+			DIP_SET(dp, di_size, fixsize);
+			inodirty(dp);
+		} else {
+			cmd.value = idesc->id_number;
+			cmd.size = fixsize;
+			if (debug)
+				printf("setsize ino %ju size set to %ju\n",
+				    (uintmax_t)cmd.value, (uintmax_t)cmd.size);
+			if (sysctl(setsize, MIBSIZE, 0, 0,
+			    &cmd, sizeof cmd) == -1)
+				rwerror("SET INODE SIZE", cmd.value);
+		}
+
 	}
 	return (1);
 unknown:
@@ -521,5 +563,7 @@ pass1check(struct inodesc *idesc)
 		 */
 		idesc->id_entryno++;
 	}
+	if (idesc->id_lballoc == -1 || idesc->id_lballoc < idesc->id_lbn)
+		idesc->id_lballoc = idesc->id_lbn;
 	return (res);
 }
