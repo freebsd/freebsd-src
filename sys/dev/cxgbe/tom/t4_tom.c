@@ -1162,7 +1162,6 @@ t4_aio_queue_tom(struct socket *so, struct kaiocb *job)
 static int
 t4_tom_mod_load(void)
 {
-	int rc;
 	struct protosw *tcp_protosw, *tcp6_protosw;
 
 	/* CPL handlers */
@@ -1170,9 +1169,7 @@ t4_tom_mod_load(void)
 	t4_init_listen_cpl_handlers();
 	t4_init_cpl_io_handlers();
 
-	rc = t4_ddp_mod_load();
-	if (rc != 0)
-		return (rc);
+	t4_ddp_mod_load();
 
 	tcp_protosw = pffindproto(PF_INET, IPPROTO_TCP, SOCK_STREAM);
 	if (tcp_protosw == NULL)
@@ -1194,11 +1191,7 @@ t4_tom_mod_load(void)
 	ifaddr_evhandler = EVENTHANDLER_REGISTER(ifaddr_event,
 	    t4_tom_ifaddr_event, NULL, EVENTHANDLER_PRI_ANY);
 
-	rc = t4_register_uld(&tom_uld_info);
-	if (rc != 0)
-		t4_tom_mod_unload();
-
-	return (rc);
+	return (t4_register_uld(&tom_uld_info));
 }
 
 static void
