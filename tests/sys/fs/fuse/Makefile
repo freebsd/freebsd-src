@@ -14,8 +14,11 @@ ATF_TESTS_CXX+=	mknod
 ATF_TESTS_CXX+=	open
 ATF_TESTS_CXX+=	readlink
 ATF_TESTS_CXX+=	rename
+ATF_TESTS_CXX+=	rmdir
 ATF_TESTS_CXX+=	setattr
+ATF_TESTS_CXX+=	statfs
 ATF_TESTS_CXX+=	symlink
+ATF_TESTS_CXX+=	unlink
 
 SRCS.access+=	access.cc
 SRCS.access+=	getmntopts.c
@@ -67,15 +70,30 @@ SRCS.rename+=	mockfs.cc
 SRCS.rename+=	rename.cc
 SRCS.rename+=	utils.cc
 
+SRCS.rmdir+=	getmntopts.c
+SRCS.rmdir+=	mockfs.cc
+SRCS.rmdir+=	rmdir.cc
+SRCS.rmdir+=	utils.cc
+
 SRCS.setattr+=	getmntopts.c
 SRCS.setattr+=	mockfs.cc
 SRCS.setattr+=	setattr.cc
 SRCS.setattr+=	utils.cc
 
+SRCS.statfs+=	getmntopts.c
+SRCS.statfs+=	mockfs.cc
+SRCS.statfs+=	statfs.cc
+SRCS.statfs+=	utils.cc
+
 SRCS.symlink+=	getmntopts.c
 SRCS.symlink+=	mockfs.cc
 SRCS.symlink+=	symlink.cc
 SRCS.symlink+=	utils.cc
+
+SRCS.unlink+=	getmntopts.c
+SRCS.unlink+=	mockfs.cc
+SRCS.unlink+=	unlink.cc
+SRCS.unlink+=	utils.cc
 
 # TODO: drastically increase timeout after test development is mostly complete
 TEST_METADATA+= timeout=10

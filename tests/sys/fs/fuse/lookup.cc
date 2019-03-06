@@ -181,14 +181,11 @@ TEST_F(Lookup, entry_cache)
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236226 */
 TEST_F(Lookup, DISABLED_entry_cache_negative)
 {
+	struct timespec entry_valid = {.tv_sec = TIME_T_MAX, .tv_nsec = 0};
+
 	EXPECT_LOOKUP(1, "does_not_exist").Times(1)
-	.WillOnce(Invoke([](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = 0;
-		out->body.entry.nodeid = 0;
-		out->body.entry.entry_valid = UINT64_MAX;
-		SET_OUT_HEADER_LEN(out, entry);
-	}));
+	.WillOnce(Invoke(ReturnNegativeCache(&entry_valid)));
+
 	EXPECT_NE(0, access("mountpoint/does_not_exist", F_OK));
 	EXPECT_EQ(ENOENT, errno);
 	EXPECT_NE(0, access("mountpoint/does_not_exist", F_OK));
@@ -204,20 +201,15 @@ TEST_F(Lookup, entry_cache_negative_timeout)
 	 * The timeout should be longer than the longest plausible time the
 	 * daemon would take to complete a write(2) to /dev/fuse, but no longer.
 	 */
-	long timeout_ns = 250'000'000;
+	struct timespec entry_valid = {.tv_sec = 0, .tv_nsec = 250'000'000};
 
 	EXPECT_LOOKUP(1, RELPATH).Times(2)
-	.WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = 0;
-		out->body.entry.nodeid = 0;
-		out->body.entry.entry_valid_nsec = timeout_ns;
-		SET_OUT_HEADER_LEN(out, entry);
-	}));
+	.WillRepeatedly(Invoke(ReturnNegativeCache(&entry_valid)));
+
 	EXPECT_NE(0, access(FULLPATH, F_OK));
 	EXPECT_EQ(ENOENT, errno);
 
-	usleep(2 * timeout_ns / 1000);
+	usleep(2 * entry_valid.tv_nsec / 1000);
 
 	/* The cache has timed out; VOP_LOOKUP should requery the daemon*/
 	EXPECT_NE(0, access(FULLPATH, F_OK));

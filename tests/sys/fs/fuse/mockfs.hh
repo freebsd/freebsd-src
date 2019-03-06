@@ -37,6 +37,8 @@ extern "C" {
 
 #include <gmock/gmock.h>
 
+#define TIME_T_MAX (std::numeric_limits<time_t>::max())
+
 #define SET_OUT_HEADER_LEN(out, variant) { \
 	(out)->header.len = (sizeof((out)->header) + \
 			     sizeof((out)->body.variant)); \
@@ -79,7 +81,9 @@ union fuse_payloads_in {
 	fuse_mknod_in	mknod;
 	fuse_open_in	open;
 	fuse_rename_in	rename;
+	char		rmdir[0];
 	fuse_setattr_in	setattr;
+	char		unlink[0];
 };
 
 struct mockfs_buf_in {
@@ -93,6 +97,7 @@ union fuse_payloads_out {
 	fuse_entry_out		entry;
 	fuse_init_out		init;
 	fuse_open_out		open;
+	fuse_statfs_out		statfs;
 	/*
 	 * The protocol places no limits on the length of the string.  This is
 	 * merely convenient for testing.
@@ -112,6 +117,10 @@ struct mockfs_buf_out {
 std::function<void (const struct mockfs_buf_in *in, struct mockfs_buf_out *out)>
 ReturnErrno(int error);
 
+/* Helper function used for returning negative cache entries for LOOKUP */
+std::function<void (const struct mockfs_buf_in *in, struct mockfs_buf_out *out)>
+ReturnNegativeCache(const struct timespec *entry_valid);
+
 /*
  * Fake FUSE filesystem
  *
@@ -122,7 +131,12 @@ ReturnErrno(int error);
  */
 class MockFS {
 	public:
-	/* thread id of the fuse daemon thread */
+	/*
+	 * thread id of the fuse daemon thread
+	 *
+	 * It must run in a separate thread so it doesn't deadlock with the
+	 * client test code.
+	 */
 	pthread_t m_daemon_id;
 
 	private:
@@ -131,14 +145,6 @@ class MockFS {
 	
 	/* pid of the test process */
 	pid_t m_pid;
-
-	/* 
-	 * Thread that's running the mockfs daemon.
-	 *
-	 * It must run in a separate thread so it doesn't deadlock with the
-	 * client test code.
-	 */
-	pthread_t m_thr;
 
 	/* Initialize a session after mounting */
 	void init();
@@ -156,6 +162,9 @@ class MockFS {
 	/* Create a new mockfs and mount it to a tempdir */
 	MockFS();
 	virtual ~MockFS();
+
+	/* Kill the filesystem daemon without unmounting the filesystem */
+	void kill_daemon();
 
 	/* Process FUSE requests endlessly */
 	void loop();

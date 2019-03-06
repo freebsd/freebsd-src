@@ -75,21 +75,15 @@ TEST_F(Mkdir, DISABLED_entry_cache_negative)
 	const char RELPATH[] = "some_file.txt";
 	mode_t mode = 0755;
 	uint64_t ino = 42;
+	/* 
+	 * Set entry_valid = 0 because this test isn't concerned with whether
+	 * or not we actually cache negative entries, only with whether we
+	 * interpret negative cache responses correctly.
+	 */
+	struct timespec entry_valid = {.tv_sec = 0, .tv_nsec = 0};
 
 	/* mkdir will first do a LOOKUP, adding a negative cache entry */
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
-		/* nodeid means ENOENT and cache it */
-		out->body.entry.nodeid = 0;
-		out->header.unique = in->header.unique;
-		out->header.error = 0;
-		/* 
-		 * Set entry_valid = 0 because this test isn't concerned with
-		 * whether or not we actually cache negative entries, only with
-		 * whether we interpret negative cache responses correctly.
-		 */
-		out->body.entry.entry_valid = 0;
-		SET_OUT_HEADER_LEN(out, entry);
-	}));
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(ReturnNegativeCache(&entry_valid));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -122,17 +116,12 @@ TEST_F(Mkdir, DISABLED_entry_cache_negative_purge)
 	const char RELPATH[] = "some_file.txt";
 	mode_t mode = 0755;
 	uint64_t ino = 42;
+	struct timespec entry_valid = {.tv_sec = TIME_T_MAX, .tv_nsec = 0};
 
 	/* mkdir will first do a LOOKUP, adding a negative cache entry */
 	EXPECT_LOOKUP(1, RELPATH).Times(1)
-	.WillOnce(Invoke([=](auto in, auto out) {
-		/* nodeid means ENOENT and cache it */
-		out->body.entry.nodeid = 0;
-		out->header.unique = in->header.unique;
-		out->header.error = 0;
-		out->body.entry.entry_valid = UINT64_MAX;
-		SET_OUT_HEADER_LEN(out, entry);
-	})).RetiresOnSaturation();
+	.WillOnce(Invoke(ReturnNegativeCache(&entry_valid)))
+	.RetiresOnSaturation();
 
 	/* Then the MKDIR should purge the negative cache entry */
 	EXPECT_CALL(*m_mock, process(

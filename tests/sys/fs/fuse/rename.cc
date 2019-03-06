@@ -87,6 +87,111 @@ TEST_F(Rename, enoent)
 	ASSERT_EQ(ENOENT, errno);
 }
 
+/*
+ * Renaming a file after FUSE_LOOKUP returned a negative cache entry for dst
+ */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236231 */
+TEST_F(Rename, DISABLED_entry_cache_negative)
+{
+	const char FULLDST[] = "mountpoint/dst";
+	const char RELDST[] = "dst";
+	const char FULLSRC[] = "mountpoint/src";
+	const char RELSRC[] = "src";
+	// FUSE hardcodes the mountpoint to inocde 1
+	uint64_t dst_dir_ino = 1;
+	uint64_t ino = 42;
+	/* 
+	 * Set entry_valid = 0 because this test isn't concerned with whether
+	 * or not we actually cache negative entries, only with whether we
+	 * interpret negative cache responses correctly.
+	 */
+	struct timespec entry_valid = {.tv_sec = 0, .tv_nsec = 0};
+
+	EXPECT_LOOKUP(1, RELSRC).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		out->body.entry.attr.mode = S_IFREG | 0644;
+		out->body.entry.nodeid = ino;
+		SET_OUT_HEADER_LEN(out, entry);
+	}));
+
+	/* LOOKUP returns a negative cache entry for dst */
+	EXPECT_LOOKUP(1, RELDST).WillOnce(ReturnNegativeCache(&entry_valid));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			const char *src = (const char*)in->body.bytes +
+				sizeof(fuse_rename_in);
+			const char *dst = src + strlen(src) + 1;
+			return (in->header.opcode == FUSE_RENAME &&
+				in->body.rename.newdir == dst_dir_ino &&
+				(0 == strcmp(RELDST, dst)) &&
+				(0 == strcmp(RELSRC, src)));
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnErrno(0)));
+
+	ASSERT_EQ(0, rename(FULLSRC, FULLDST)) << strerror(errno);
+}
+
+/*
+ * Renaming a file should purge any negative namecache entries for the dst
+ */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236231 */
+TEST_F(Rename, DISABLED_entry_cache_negative_purge)
+{
+	const char FULLDST[] = "mountpoint/dst";
+	const char RELDST[] = "dst";
+	const char FULLSRC[] = "mountpoint/src";
+	const char RELSRC[] = "src";
+	// FUSE hardcodes the mountpoint to inocde 1
+	uint64_t dst_dir_ino = 1;
+	uint64_t ino = 42;
+	/* 
+	 * Set entry_valid = 0 because this test isn't concerned with whether
+	 * or not we actually cache negative entries, only with whether we
+	 * interpret negative cache responses correctly.
+	 */
+	struct timespec entry_valid = {.tv_sec = 0, .tv_nsec = 0};
+
+	EXPECT_LOOKUP(1, RELSRC).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		out->body.entry.attr.mode = S_IFREG | 0644;
+		out->body.entry.nodeid = ino;
+		SET_OUT_HEADER_LEN(out, entry);
+	}));
+
+	/* LOOKUP returns a negative cache entry for dst */
+	EXPECT_LOOKUP(1, RELDST).WillOnce(ReturnNegativeCache(&entry_valid))
+	.RetiresOnSaturation();
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			const char *src = (const char*)in->body.bytes +
+				sizeof(fuse_rename_in);
+			const char *dst = src + strlen(src) + 1;
+			return (in->header.opcode == FUSE_RENAME &&
+				in->body.rename.newdir == dst_dir_ino &&
+				(0 == strcmp(RELDST, dst)) &&
+				(0 == strcmp(RELSRC, src)));
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnErrno(0)));
+
+	ASSERT_EQ(0, rename(FULLSRC, FULLDST)) << strerror(errno);
+
+	/* Finally, a subsequent lookup should query the daemon */
+	EXPECT_LOOKUP(1, RELDST).Times(1)
+	.WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		out->header.error = 0;
+		out->body.entry.nodeid = ino;
+		out->body.entry.attr.mode = S_IFREG | 0644;
+		SET_OUT_HEADER_LEN(out, entry);
+	}));
+
+	ASSERT_EQ(0, access(FULLDST, F_OK)) << strerror(errno);
+}
+
 TEST_F(Rename, exdev)
 {
 	const char FULLB[] = "mountpoint/src";
