@@ -113,7 +113,7 @@ VNET_DEFINE(int, nd6_debug) = 1;
 VNET_DEFINE(int, nd6_debug) = 0;
 #endif
 
-static eventhandler_tag lle_event_eh, iflladdr_event_eh;
+static eventhandler_tag lle_event_eh, iflladdr_event_eh, ifnet_link_event_eh;
 
 VNET_DEFINE(struct nd_drhead, nd_defrouter);
 VNET_DEFINE(struct nd_prhead, nd_prefix);
@@ -233,6 +233,8 @@ nd6_init(void)
 		    NULL, EVENTHANDLER_PRI_ANY);
 		iflladdr_event_eh = EVENTHANDLER_REGISTER(iflladdr_event,
 		    nd6_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
+		ifnet_link_event_eh = EVENTHANDLER_REGISTER(ifnet_link_event,
+		    nd6_ifnet_link_event, NULL, EVENTHANDLER_PRI_ANY);
 	}
 }
 
@@ -244,6 +246,7 @@ nd6_destroy()
 	callout_drain(&V_nd6_slowtimo_ch);
 	callout_drain(&V_nd6_timer_ch);
 	if (IS_DEFAULT_VNET(curvnet)) {
+		EVENTHANDLER_DEREGISTER(ifnet_link_event, ifnet_link_event_eh);
 		EVENTHANDLER_DEREGISTER(lle_event, lle_event_eh);
 		EVENTHANDLER_DEREGISTER(iflladdr_event, iflladdr_event_eh);
 	}
