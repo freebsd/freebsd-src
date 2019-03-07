@@ -1910,11 +1910,13 @@ ctl_putsys(
 	static struct timex ntx;
 	static u_long ntp_adjtime_time;
 
-	static const double to_ms =
+	static const double to_ms_usec =
+		1.0e-3; /* usec to msec */
+	static const double to_ms_nusec =
 # ifdef STA_NANO
 		1.0e-6; /* nsec to msec */
 # else
-		1.0e-3; /* usec to msec */
+		to_ms_usec;
 # endif
 
 	/*
@@ -2319,7 +2321,7 @@ ctl_putsys(
 	case CS_K_OFFSET:
 		CTL_IF_KERNLOOP(
 			ctl_putdblf,
-			(sys_var[varid].text, 0, -1, to_ms * ntx.offset)
+			(sys_var[varid].text, 0, -1, to_ms_nusec * ntx.offset)
 		);
 		break;
 
@@ -2334,7 +2336,7 @@ ctl_putsys(
 		CTL_IF_KERNLOOP(
 			ctl_putdblf,
 			(sys_var[varid].text, 0, 6,
-			 to_ms * ntx.maxerror)
+			 to_ms_usec * ntx.maxerror)
 		);
 		break;
 
@@ -2342,7 +2344,7 @@ ctl_putsys(
 		CTL_IF_KERNLOOP(
 			ctl_putdblf,
 			(sys_var[varid].text, 0, 6,
-			 to_ms * ntx.esterror)
+			 to_ms_usec * ntx.esterror)
 		);
 		break;
 
@@ -2366,7 +2368,7 @@ ctl_putsys(
 		CTL_IF_KERNLOOP(
 			ctl_putdblf,
 			(sys_var[varid].text, 0, 6,
-			    to_ms * ntx.precision)
+			    to_ms_usec * ntx.precision)
 		);
 		break;
 
@@ -2394,7 +2396,7 @@ ctl_putsys(
 	case CS_K_PPS_JITTER:
 		CTL_IF_KERNPPS(
 			ctl_putdbl,
-			(sys_var[varid].text, to_ms * ntx.jitter)
+			(sys_var[varid].text, to_ms_nusec * ntx.jitter)
 		);
 		break;
 
@@ -3446,11 +3448,11 @@ write_variables(
 	 * Look through the variables. Dump out at the first sign of
 	 * trouble.
 	 */
-	while ((v = ctl_getitem(sys_var, &valuep)) != 0) {
+	while ((v = ctl_getitem(sys_var, &valuep)) != NULL) {
 		ext_var = 0;
 		if (v->flags & EOV) {
-			if ((v = ctl_getitem(ext_sys_var, &valuep)) !=
-			    0) {
+			v = ctl_getitem(ext_sys_var, &valuep);
+			if (v != NULL) {
 				if (v->flags & EOV) {
 					ctl_error(CERR_UNKNOWNVAR);
 					return;
@@ -3464,16 +3466,24 @@ write_variables(
 			ctl_error(CERR_PERMISSION);
 			return;
 		}
-		if (!ext_var && (*valuep == '\0' || !atoint(valuep,
-							    &val))) {
+		/* [bug 3565] writing makes sense only if we *have* a
+		 * value in the packet!
+		 */
+		if (valuep == NULL) {
 			ctl_error(CERR_BADFMT);
 			return;
 		}
-		if (!ext_var && (val & ~LEAP_NOTINSYNC) != 0) {
-			ctl_error(CERR_BADVALUE);
-			return;
+		if (!ext_var) {
+			if ( !(*valuep && atoint(valuep, &val))) {
+				ctl_error(CERR_BADFMT);
+				return;
+			}
+			if ((val & ~LEAP_NOTINSYNC) != 0) {
+				ctl_error(CERR_BADVALUE);
+				return;
+			}
 		}
-
+		
 		if (ext_var) {
 			octets = strlen(v->text) + strlen(valuep) + 2;
 			vareqv = emalloc(octets);

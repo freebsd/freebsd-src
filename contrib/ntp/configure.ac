@@ -1749,6 +1749,7 @@ case "$ntp_ok" in
  yes)
     ntp_refclock=yes
     AC_DEFINE([CLOCK_BANC], [1], [Datum/Bancomm bc635/VME interface?])
+    AC_SEARCH_LIBS([bcStartPci], [bcsdk], , , [])
     ;;
 esac
 AC_MSG_RESULT([$ntp_ok])
@@ -4191,6 +4192,24 @@ case "$ans" in
  yes)
     AC_DEFINE([ENABLE_BUG3020_FIX], [1],
 	[Provide the explicit 127.0.0.0/8 martian filter?])
+esac
+
+
+AC_MSG_CHECKING([if we want correct mode7 fudgetime2 behavior])
+AC_ARG_ENABLE(
+    [bug3527-fix],
+    [AS_HELP_STRING(
+	[--enable-bug3527-fix],
+	[+ provide correct mode7 fudgetime2 behavior]
+    )],
+    [ans=$enableval],
+    [ans=yes]
+)
+AC_MSG_RESULT([$ans])
+case "$ans" in
+ no)
+    AC_DEFINE([DISABLE_BUG3527_FIX], [1],
+	[use old autokey session key behavior?])
 esac
 
 

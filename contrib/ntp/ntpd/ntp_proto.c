@@ -387,9 +387,9 @@ transmit(
 	 */
 	if (peer->cast_flags & (MDF_BCAST | MDF_MCAST)) {
 		peer->outdate = current_time;
+		poll_update(peer, hpoll);
 		if (sys_leap != LEAP_NOTINSYNC)
 			peer_xmit(peer);
-		poll_update(peer, hpoll);
 		return;
 	}
 
@@ -408,6 +408,7 @@ transmit(
 	 */
 	if (peer->cast_flags & MDF_ACAST) {
 		peer->outdate = current_time;
+		poll_update(peer, hpoll);
 		if (peer->unreach > sys_beacon) {
 			peer->unreach = 0;
 			peer->ttl = 0;
@@ -419,7 +420,6 @@ transmit(
 			peer_xmit(peer);
 		}
 		peer->unreach++;
-		poll_update(peer, hpoll);
 		return;
 	}
 
@@ -437,11 +437,11 @@ transmit(
 	 */
 	if (peer->cast_flags & MDF_POOL) {
 		peer->outdate = current_time;
+		poll_update(peer, hpoll);
 		if (   (peer_associations <= 2 * sys_maxclock)
 		    && (   peer_associations < sys_maxclock
 			|| sys_survivors < sys_minclock))
 			pool_xmit(peer);
-		poll_update(peer, hpoll);
 		return;
 	}
 
@@ -549,9 +549,9 @@ transmit(
 	/*
 	 * Do not transmit if in broadcast client mode.
 	 */
+	poll_update(peer, hpoll);
 	if (peer->hmode != MODE_BCLIENT)
 		peer_xmit(peer);
-	poll_update(peer, hpoll);
 
 	return;
 }
