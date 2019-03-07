@@ -16,6 +16,11 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20190307:
+	The RETPOLINE option produces non-functional ifunc-using binaries
+	with Clang 7.0.1, and has been forced off (via BROKEN_OPTIONS).
+	Once Clang 8 is merged it may be enabled again.
+
 20190216:
 	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
 	7.0.1.  Please see the 20141231 entry below for information about
