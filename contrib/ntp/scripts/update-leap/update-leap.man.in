@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH update-leap 1update-leapman "14 Aug 2018" "ntp (4.2.8p12)" "User Commands"
+.TH update-leap 1update-leapman "20 Feb 2019" "ntp (4.2.8p13)" "User Commands"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-4Iayif/ag-fJaGhf)
+.\" EDIT THIS FILE WITH CAUTION (in-mem file)
 .\"
-.\" It has been AutoGen-ed August 14, 2018 at 08:09:29 AM by AutoGen 5.18.5
+.\" It has been AutoGen-ed February 20, 2019 at 05:04:24 PM by AutoGen 5.18.5
 .\" From the definitions update-leap-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME

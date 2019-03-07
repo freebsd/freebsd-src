@@ -29,7 +29,7 @@ NTP_SRCS= systime.c	a_md5encrypt.c	adjtime.c	atoint.c \
 	socktoa.c	socktohost.c	ssl_init.c	statestr.c \
 	strdup.c	strl_obsd.c	syssignal.c	timetoa.c \
 	timevalops.c	uglydate.c	vint64ops.c	work_fork.c \
-	work_thread.c	ymd2yd.c
+	work_thread.c	xsbprintf.c	ymd2yd.c
 
 ISC_PTHREADS_SRCS= condition.c \
 	thread.c \
