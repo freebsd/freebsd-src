@@ -82,8 +82,8 @@ u_long	orphwait; 		/* orphan wait time */
 #ifdef AUTOKEY
 static	u_long revoke_timer;	/* keys revoke timer */
 static	u_long keys_timer;	/* session key timer */
-u_long	sys_revoke = KEY_REVOKE; /* keys revoke timeout (log2 s) */
-u_long	sys_automax = NTP_AUTOMAX; /* key list timeout (log2 s) */
+u_char	sys_revoke = KEY_REVOKE; /* keys revoke timeout (log2 s) */
+u_char	sys_automax = NTP_AUTOMAX; /* key list timeout (log2 s) */
 #endif	/* AUTOKEY */
 
 /*
@@ -404,7 +404,7 @@ timer(void)
 	 * Garbage collect expired keys.
 	 */
 	if (keys_timer <= current_time) {
-		keys_timer += 1 << sys_automax;
+		keys_timer += (1UL << sys_automax);
 		auth_agekeys();
 	}
 
@@ -413,7 +413,7 @@ timer(void)
 	 * to regenerate cookies.
 	 */
 	if (revoke_timer && revoke_timer <= current_time) {
-		revoke_timer += 1 << sys_revoke;
+		revoke_timer += (1UL << sys_revoke);
 		RAND_bytes((u_char *)&sys_private, 4);
 	}
 #endif	/* AUTOKEY */
