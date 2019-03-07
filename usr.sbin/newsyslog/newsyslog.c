@@ -260,7 +260,7 @@ static const char *path_syslogpid = _PATH_SYSLOGPID;
 
 static struct cflist *get_worklist(char **files);
 static void parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
-		    struct conf_entry *defconf_p, struct ilist *inclist);
+		    struct conf_entry **defconf, struct ilist *inclist);
 static void add_to_queue(const char *fname, struct ilist *inclist);
 static char *sob(char *p);
 static char *son(char *p);
@@ -848,7 +848,7 @@ get_worklist(char **files)
 
 		if (verbose)
 			printf("Processing %s\n", inc->file);
-		parse_file(f, filelist, globlist, defconf, &inclist);
+		parse_file(f, filelist, globlist, &defconf, &inclist);
 		(void) fclose(f);
 	}
 
@@ -865,7 +865,6 @@ get_worklist(char **files)
 		if (defconf != NULL)
 			free_entry(defconf);
 		return (filelist);
-		/* NOTREACHED */
 	}
 
 	/*
@@ -922,7 +921,7 @@ get_worklist(char **files)
 		 * for a "glob" entry which does match.
 		 */
 		gmatch = 0;
-		if (verbose > 2 && globlist != NULL)
+		if (verbose > 2)
 			printf("\t+ Checking globs for %s\n", *given);
 		STAILQ_FOREACH(ent, globlist, cf_nextp) {
 			fnres = fnmatch(ent->log, *given, FNM_PATHNAME);
@@ -1053,7 +1052,7 @@ expand_globs(struct cflist *work_p, struct cflist *glob_p)
  */
 static void
 parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
-    struct conf_entry *defconf_p, struct ilist *inclist)
+    struct conf_entry **defconf_p, struct ilist *inclist)
 {
 	char line[BUFSIZ], *parse, *q;
 	char *cp, *errline, *group;
@@ -1144,12 +1143,12 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 		working = init_entry(q, NULL);
 		if (strcasecmp(DEFAULT_MARKER, q) == 0) {
 			special = 1;
-			if (defconf_p != NULL) {
+			if (*defconf_p != NULL) {
 				warnx("Ignoring duplicate entry for %s!", q);
 				free_entry(working);
 				continue;
 			}
-			defconf_p = working;
+			*defconf_p = working;
 		}
 
 		q = parse = missing_field(sob(parse + 1), errline);
@@ -1355,7 +1354,8 @@ no_trimat:
 			q = NULL;
 		else {
 			q = parse = sob(parse + 1);	/* Optional field */
-			*(parse = son(parse)) = '\0';
+			parse = son(parse);
+			*parse = '\0';
 		}
 
 		working->sig = SIGHUP;
