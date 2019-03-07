@@ -110,7 +110,7 @@ pass2(void)
 		dp = ginode(ROOTINO);
 		DIP_SET(dp, di_mode, DIP(dp, di_mode) & ~IFMT);
 		DIP_SET(dp, di_mode, DIP(dp, di_mode) | IFDIR);
-		inodirty();
+		inodirty(dp);
 		break;
 
 	case DSTATE:
@@ -156,7 +156,7 @@ pass2(void)
 			if (reply("FIX") == 1) {
 				dp = ginode(inp->i_number);
 				DIP_SET(dp, di_size, inp->i_isize);
-				inodirty();
+				inodirty(dp);
 			}
 		} else if ((inp->i_isize & (DIRBLKSIZ - 1)) != 0) {
 			getpathname(pathbuf, inp->i_number, inp->i_number);
@@ -175,7 +175,7 @@ pass2(void)
 				dp = ginode(inp->i_number);
 				DIP_SET(dp, di_size,
 				    roundup(inp->i_isize, DIRBLKSIZ));
-				inodirty();
+				inodirty(dp);
 			}
 		}
 		dp = &dino;

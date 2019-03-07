@@ -100,7 +100,7 @@ ckinode(union dinode *dp, struct inodesc *idesc)
 					printf(
 					    "YOU MUST RERUN FSCK AFTERWARDS\n");
 					rerun = 1;
-					inodirty();
+					inodirty(dp);
 
 				}
 			}
@@ -140,7 +140,7 @@ ckinode(union dinode *dp, struct inodesc *idesc)
 					printf(
 					    "YOU MUST RERUN FSCK AFTERWARDS\n");
 					rerun = 1;
-					inodirty();
+					inodirty(dp);
 					break;
 				}
 			}
@@ -219,7 +219,7 @@ iblock(struct inodesc *idesc, long ilevel, off_t isize, int type)
 					printf(
 					    "YOU MUST RERUN FSCK AFTERWARDS\n");
 					rerun = 1;
-					inodirty();
+					inodirty(dp);
 					bp->b_flags &= ~B_INUSE;
 					return(STOP);
 				}
@@ -517,7 +517,7 @@ inocleanup(void)
 }
 
 void
-inodirty(void)
+inodirty(union dinode *dp)
 {
 
 	dirty(pbp);
@@ -542,7 +542,7 @@ clri(struct inodesc *idesc, const char *type, int flag)
 			(void)ckinode(dp, idesc);
 			inoinfo(idesc->id_number)->ino_state = USTATE;
 			clearinode(dp);
-			inodirty();
+			inodirty(dp);
 		} else {
 			cmd.value = idesc->id_number;
 			cmd.size = -DIP(dp, di_nlink);
@@ -709,7 +709,7 @@ allocino(ino_t request, int type)
 	DIP_SET(dp, di_size, sblock.fs_fsize);
 	DIP_SET(dp, di_blocks, btodb(sblock.fs_fsize));
 	n_files++;
-	inodirty();
+	inodirty(dp);
 	inoinfo(ino)->ino_type = IFTODT(type);
 	return (ino);
 }
@@ -730,7 +730,7 @@ freeino(ino_t ino)
 	dp = ginode(ino);
 	(void)ckinode(dp, &idesc);
 	clearinode(dp);
-	inodirty();
+	inodirty(dp);
 	inoinfo(ino)->ino_state = USTATE;
 	n_files--;
 }
