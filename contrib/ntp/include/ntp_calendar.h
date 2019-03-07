@@ -93,6 +93,7 @@ extern systime_func_ptr ntpcal_set_timefunc(systime_func_ptr);
 #define	SECSPERLEAPYEAR	(366 * SECSPERDAY)	/* leap year */
 #define	SECSPERAVGYEAR	31556952		/* mean year length over 400yrs */
 
+#define GPSWEEKS	1024			/* GPS week cycle */
 /*
  * Gross hacks.	 I have illicit knowlege that there won't be overflows
  * here, the compiler often can't tell this.
@@ -404,14 +405,21 @@ basedate_get_eracenter(void);
 extern time_t
 basedate_get_erabase(void);
 
+extern uint32_t
+basedate_get_gpsweek(void);
+
+extern uint32_t
+basedate_expand_gpsweek(unsigned short weekno);
 
 /*
  * Additional support stuff for Ed Rheingold's calendrical calculations
  */
 
 /*
- * Start day of NTP time as days past the imaginary date 12/1/1 BC.
- * (This is the beginning of the Christian Era, or BCE.)
+ * Start day of NTP time as days past 0000-12-31 in the proleptic
+ * Gregorian calendar. (So 0001-01-01 is day number 1; this is the Rata
+ * Die counting scheme used by Ed Rheingold in his book "Calendrical
+ * Calculations".)
  */
 #define	DAY_NTP_STARTS 693596
 
@@ -421,14 +429,24 @@ basedate_get_erabase(void);
 #define DAY_UNIX_STARTS 719163
 
 /*
+ * Start day of the GPS epoch. This is the Rata Die of 1980-01-06
+ */
+#define DAY_GPS_STARTS 722819
+
+/*
  * Difference between UN*X and NTP epoch (25567).
  */
 #define NTP_TO_UNIX_DAYS (DAY_UNIX_STARTS - DAY_NTP_STARTS)
 
 /*
+ * Difference between GPS and NTP epoch (29224)
+ */
+#define NTP_TO_GPS_DAYS (DAY_GPS_STARTS - DAY_NTP_STARTS)
+
+/*
  * Days in a normal 4 year leap year calendar cycle (1461).
  */
-#define	GREGORIAN_NORMAL_LEAP_CYCLE_DAYS	(3 * 365 + 366)
+#define	GREGORIAN_NORMAL_LEAP_CYCLE_DAYS	(4 * 365 + 1)
 
 /*
  * Days in a normal 100 year leap year calendar (36524).  We lose a

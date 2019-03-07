@@ -531,6 +531,7 @@ set_process_priority(void)
  * Detach from terminal (much like daemon())
  * Nothe that this function calls exit()
  */
+# ifdef HAVE_WORKING_FORK
 static void
 detach_from_terminal(
 	int pipe_fds[2],
@@ -614,6 +615,7 @@ detach_from_terminal(
 
 	return;
 }
+# endif /* HAVE_WORKING_FORK */
 
 #ifdef HAVE_DROPROOT
 /*
@@ -662,8 +664,7 @@ getuser:
  * Map group name/number to group ID
 */
 static int
-map_group(
-	)
+map_group(void)
 {
 	char *endp;
 
@@ -685,24 +686,9 @@ getgroup:
 	return 1;
 }
 
-/*
- * Change (effective) user and group IDs, also initialize the supplementary group access list
- */
-int
-set_user_group_ids(
-	)
+static int
+set_group_ids(void)
 {
-	/* If the the user was already mapped, no need to map it again */
-	if ((NULL != user) && (0 == sw_uid)) {
-		if (0 == map_user())
-			exit (-1);
-	}
-	/* same applies for the group */
-	if ((NULL != group) && (0 == sw_gid)) {
-		if (0 == map_group())
-			exit (-1);
-	}
-
 	if (user && initgroups(user, sw_gid)) {
 		msyslog(LOG_ERR, "Cannot initgroups() to user `%s': %m", user);
 		return 0;
@@ -726,6 +712,12 @@ set_user_group_ids(
 			msyslog(LOG_ERR, "initgroups(<%s>, %d) filed: %m", pw->pw_name, pw->pw_gid);
 			return 0;
 		}
+	return 1;
+}
+
+static int
+set_user_ids(void)
+{
 	if (user && setuid(sw_uid)) {
 		msyslog(LOG_ERR, "Cannot setuid() to user `%s': %m", user);
 		return 0;
@@ -734,6 +726,31 @@ set_user_group_ids(
 		msyslog(LOG_ERR, "Cannot seteuid() to user `%s': %m", user);
 		return 0;
 	}
+	return 1;
+}
+
+/*
+ * Change (effective) user and group IDs, also initialize the supplementary group access list
+ */
+int set_user_group_ids(void);
+int
+set_user_group_ids(void)
+{
+	/* If the the user was already mapped, no need to map it again */
+	if ((NULL != user) && (0 == sw_uid)) {
+		if (0 == map_user())
+			exit (-1);
+	}
+	/* same applies for the group */
+	if ((NULL != group) && (0 == sw_gid)) {
+		if (0 == map_group())
+			exit (-1);
+	}
+
+	if (getegid() != sw_gid && 0 == set_group_ids())
+		return 0;
+	if (geteuid() != sw_uid && 0 == set_user_ids())
+		return 0;
 
 	return 1;
 }
