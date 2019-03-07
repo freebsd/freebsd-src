@@ -300,7 +300,11 @@ aw_clk_nm_recalc(struct clknode *clk, uint64_t *freq)
 		else
 			prediv = 1;
 
-		*freq = *freq / prediv / n / m;
+		/* For FRAC NM the formula is freq_parent * n / m */
+		if (sc->flags & AW_CLK_HAS_FRAC)
+			*freq = *freq * n / m;
+		else
+			*freq = *freq / prediv / n / m;
 	}
 
 	return (0);
