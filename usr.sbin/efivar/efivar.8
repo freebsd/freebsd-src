@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2017 Netflix, Inc.
+.\" Copyright (c) 2017-2019 Netflix, Inc.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 22, 2017
+.Dd March 6, 2019
 .Dt EFIVAR 8
 .Os
 .Sh NAME
@@ -46,6 +46,7 @@
 .Op Fl -hex
 .Op Fl -list-guids
 .Op Fl -list
+.Op Fl -load-option
 .Op Fl -name Ar name
 .Op Fl -no-name
 .Op Fl -print
@@ -147,6 +148,8 @@ List all the variables.
 If the
 .Fl -print
 flag is also listed, their values will be displayed.
+.It Fl -load-option
+Decode the variable as if it were a UEFI Boot Option, including information about what device and/or paths the UEFI DevicePaths decode to.
 .It Fl N Fl -no-name
 Do not display the variable name.
 .It Fl p Fl -print
