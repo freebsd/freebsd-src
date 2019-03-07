@@ -339,6 +339,24 @@ struct asmc_softc {
 #define ASMC_MM_TEMPDESCS	{ "Northbridge Point 1", \
 				  "Northbridge Point 2" }
 
+#define ASMC_MM21_TEMPS		{ "TA0P", "TC0D", \
+				  "TC0H", "TC0P", \
+				  "TC1P", "TN0P", \
+				  "TN1P", NULL }
+
+#define ASMC_MM21_TEMPNAMES	{ "ambient_air", "cpu_die", \
+				  "cpu_heatsink", "cpu_proximity1", \
+				  "cpu_proximity2", "northbridge_proximity1", \
+				  "northbridge_proximity2", }
+
+#define ASMC_MM21_TEMPDESCS	{ "Ambient Air Temperature" \
+				  "CPU Die Core Temperature", \
+				  "CPU Heatsink Temperature", \
+				  "CPU Proximity 1 Temperature", \
+				  "CPU Proximity 2 Temperature", \
+				  "Northbridge Proximity 1 Temperature", \
+				  "Northbridge Proximity 2 Temperature", }
+
 #define ASMC_MM31_TEMPS		{ "TC0D", "TC0H", \
 				  "TC0P", "TH0P", \
 				  "TN0D", "TN0P", \
