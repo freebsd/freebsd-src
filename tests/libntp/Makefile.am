@@ -40,6 +40,7 @@ check_PROGRAMS =		\
 	test-recvbuff		\
 	test-refidsmear		\
 	test-refnumtoa		\
+	test-sbprintf		\
 	test-sfptostr		\
 	test-socktoa		\
 	test-ssl_init		\
@@ -104,6 +105,7 @@ BUILT_SOURCES +=			\
 	$(srcdir)/run-recvbuff.c	\
 	$(srcdir)/run-refidsmear.c	\
 	$(srcdir)/run-refnumtoa.c	\
+	$(srcdir)/run-sbprintf.c	\
 	$(srcdir)/run-sfptostr.c	\
 	$(srcdir)/run-socktoa.c		\
 	$(srcdir)/run-ssl_init.c	\
@@ -406,6 +408,16 @@ test_refnumtoa_SOURCES =	\
 	$(NULL)
 
 $(srcdir)/run-refnumtoa.c: $(srcdir)/refnumtoa.c $(std_unity_list)
+	$(run_unity) $< $@
+
+###
+
+test_sbprintf_SOURCES =		\
+	sbprintf.c		\
+	run-sbprintf.c		\
+	$(NULL)
+
+$(srcdir)/run-sbprintf.c: $(srcdir)/sbprintf.c $(std_unity_list)
 	$(run_unity) $< $@
 
 ###
