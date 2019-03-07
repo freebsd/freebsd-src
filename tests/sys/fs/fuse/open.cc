@@ -36,7 +36,58 @@ extern "C" {
 
 using namespace testing;
 
-class Open: public FuseTest {};
+class Open: public FuseTest {
+
+public:
+
+/* Test an OK open of a file with the given flags */
+void test_ok(int os_flags, int fuse_flags) {
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int fd;
+
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFREG | 0644;
+		out->body.entry.nodeid = ino;
+		out->body.entry.attr_valid = UINT64_MAX;
+	}));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_OPEN &&
+				in->body.open.flags == (uint32_t)fuse_flags &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke([](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		out->header.len = sizeof(out->header);
+		SET_OUT_HEADER_LEN(out, open);
+	}));
+
+	/* Until the attr cache is working, we may send an additional GETATTR */
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_GETATTR &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out->body.attr.attr.mode = S_IFREG | 0644;
+	}));
+
+	fd = open(FULLPATH, os_flags);
+	EXPECT_LE(0, fd) << strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+};
+
 
 /* 
  * The fuse daemon fails the request with enoent.  This usually indicates a
@@ -95,48 +146,60 @@ TEST_F(Open, eperm)
 	EXPECT_EQ(EPERM, errno);
 }
 
-TEST_F(Open, ok)
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236340 */
+TEST_F(Open, DISABLED_o_append)
 {
-	const char FULLPATH[] = "mountpoint/some_file.txt";
-	const char RELPATH[] = "some_file.txt";
-	uint64_t ino = 42;
-	int fd;
-
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid = UINT64_MAX;
-	}));
-
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPEN &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.len = sizeof(out->header);
-		SET_OUT_HEADER_LEN(out, open);
-	}));
-
-	/* Until the attr cache is working, we may send an additional GETATTR */
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-	}));
-
-	fd = open(FULLPATH, O_RDONLY);
-	EXPECT_LE(0, fd) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	test_ok(O_WRONLY | O_APPEND, O_WRONLY | O_APPEND);
 }
+
+/* The kernel is supposed to filter out this flag */
+TEST_F(Open, o_creat)
+{
+	test_ok(O_WRONLY | O_CREAT, O_WRONLY);
+}
+
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236340 */
+TEST_F(Open, DISABLED_o_direct)
+{
+	test_ok(O_WRONLY | O_DIRECT, O_WRONLY | O_DIRECT);
+}
+
+/* The kernel is supposed to filter out this flag */
+TEST_F(Open, o_excl)
+{
+	test_ok(O_WRONLY | O_EXCL, O_WRONLY);
+}
+
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236329 */
+TEST_F(Open, DISABLED_o_exec)
+{
+	test_ok(O_EXEC, O_EXEC);
+}
+
+/* The kernel is supposed to filter out this flag */
+TEST_F(Open, o_noctty)
+{
+	test_ok(O_WRONLY | O_NOCTTY, O_WRONLY);
+}
+
+TEST_F(Open, o_rdonly)
+{
+	test_ok(O_RDONLY, O_RDONLY);
+}
+
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236340 */
+TEST_F(Open, DISABLED_o_trunc)
+{
+	test_ok(O_WRONLY | O_TRUNC, O_WRONLY | O_TRUNC);
+}
+
+TEST_F(Open, o_wronly)
+{
+	test_ok(O_WRONLY, O_WRONLY);
+}
+
+TEST_F(Open, o_rdwr)
+{
+	test_ok(O_RDWR, O_RDWR);
+}
+
