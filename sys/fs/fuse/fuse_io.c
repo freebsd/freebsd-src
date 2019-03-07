@@ -198,7 +198,7 @@ fuse_read_biobackend(struct vnode *vp, struct uio *uio,
 	if (uio->uio_offset < 0)
 		return (EINVAL);
 
-	bcount = MIN(MAXBSIZE, biosize);
+	bcount = biosize;
 	filesize = VTOFUD(vp)->filesize;
 
 	do {
