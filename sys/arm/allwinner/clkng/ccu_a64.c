@@ -289,6 +289,15 @@ NM_CLK_WITH_FRAC(pll_video0_clk,
     AW_CLK_HAS_LOCK,				/* flags */
     270000000, 297000000,			/* freq0, freq1 */
     24, 25);					/* mode sel, freq sel */
+static const char *pll_video0_2x_parents[] = {"pll_video0"};
+FIXED_CLK(pll_video0_2x_clk,
+    CLK_PLL_VIDEO0_2X,			/* id */
+    "pll_video0-2x",			/* name */
+    pll_video0_2x_parents,		/* parent */
+    0,					/* freq */
+    2,					/* mult */
+    1,					/* div */
+    0);					/* flags */
 
 static const char *pll_ve_parents[] = {"osc24M"};
 NM_CLK_WITH_FRAC(pll_ve_clk,
@@ -750,6 +759,7 @@ static struct aw_ccung_clk a64_ccu_clks[] = {
 	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_audio_2x_clk},
 	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_audio_4x_clk},
 	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_audio_8x_clk},
+	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_video0_2x_clk},
 };
 
 static struct aw_clk_init a64_init_clks[] = {
