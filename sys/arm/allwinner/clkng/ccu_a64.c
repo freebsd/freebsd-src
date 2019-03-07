@@ -640,6 +640,15 @@ NM_CLK(de_clk,
     AW_CLK_HAS_MUX | AW_CLK_HAS_GATE);		/* flags */
 
 /* TCON0/1 Needs mux table */
+static const char *tcon1_parents[] = {"pll_video0", "pll_video0", "pll_video1"};
+NM_CLK(tcon1_clk,
+  CLK_TCON1, "tcon1", tcon1_parents,
+  0x11C,
+  0, 0, 1, AW_CLK_FACTOR_FIXED,
+  0, 4, 0, 0,
+  24, 2,
+  31,
+  AW_CLK_HAS_MUX | AW_CLK_HAS_GATE);
 
 static const char *deinterlace_parents[] = {"pll_periph0", "pll_periph1"};
 NM_CLK(deinterlace_clk,
@@ -736,6 +745,7 @@ static struct aw_ccung_clk a64_ccu_clks[] = {
 	{ .type = AW_CLK_NM, .clk.nm = &spdif_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &dram_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &de_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &tcon1_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &deinterlace_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &csi_sclk_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &csi_mclk_clk},
