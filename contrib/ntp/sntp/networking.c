@@ -78,7 +78,8 @@ skip_efields(
 	
 	u_int nlen;	/* next extension length */
 	while ((tail - head) > 6) {
-		nlen = ntohl(*head++) & 0xffff;
+		nlen = ntohl(*head) & 0xffff;
+		++head;
 		nlen = (nlen + 3) >> 2;
 		if (nlen > (u_int)(tail - head) || nlen < 4)
 			return NULL;	/* Blooper! Inconsistent! */
