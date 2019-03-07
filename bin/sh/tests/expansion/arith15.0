@@ -12,9 +12,9 @@ check() {
 XXX=-9223372036854775808
 check "XXX"		-9223372036854775808
 check "XXX - 1" 	9223372036854775807
-check $(($XXX - 1))	9223372036854775807
-check $(($XXX - 2))	9223372036854775806
-check $((0x8000000000000000 == 0x7fffffffffffffff)) \
+check "$XXX - 1"	9223372036854775807
+check "$XXX - 2"	9223372036854775806
+check "0x8000000000000000 == 0x7fffffffffffffff" \
 			0
 
 exit $((failures != 0))
