@@ -446,7 +446,7 @@ union dinode   *ginode(ino_t inumber);
 void		infohandler(int sig);
 void		alarmhandler(int sig);
 void		inocleanup(void);
-void		inodirty(void);
+void		inodirty(union dinode *);
 struct inostat *inoinfo(ino_t inum);
 void		IOstats(char *what);
 int		linkup(ino_t orphan, ino_t parentdir, char *name);
