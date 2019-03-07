@@ -1,4 +1,4 @@
-#! /usr/local/bin/perl -w
+#! /ntpbuild/bin/perl -w
 
 $found = 0;
 $last = 0;
