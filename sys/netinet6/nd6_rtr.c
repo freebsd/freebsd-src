@@ -285,7 +285,32 @@ defrtr_ipv6_only_ifp(struct ifnet *ifp)
 	/* Send notification of flag change. */
 #endif
 }
+
+static void
+defrtr_ipv6_only_ipf_down(struct ifnet *ifp)
+{
+
+	IF_AFDATA_WLOCK(ifp);
+	ND_IFINFO(ifp)->flags &= ~ND6_IFF_IPV6_ONLY;
+	IF_AFDATA_WUNLOCK(ifp);
+}
 #endif	/* EXPERIMENTAL */
+
+void
+nd6_ifnet_link_event(void *arg __unused, struct ifnet *ifp, int linkstate)
+{
+
+	/*
+	 * XXX-BZ we might want to trigger re-evaluation of our default router
+	 * availability. E.g., on link down the default router might be
+	 * unreachable but a different interface might still have connectivity.
+	 */
+
+#ifdef EXPERIMENTAL
+	if (linkstate == LINK_STATE_DOWN)
+		defrtr_ipv6_only_ipf_down(ifp);
+#endif
+}
 
 /*
  * Receive Router Advertisement Message.

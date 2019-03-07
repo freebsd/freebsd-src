@@ -476,6 +476,7 @@ void nd6_dad_stop(struct ifaddr *);
 /* nd6_rtr.c */
 void nd6_rs_input(struct mbuf *, int, int);
 void nd6_ra_input(struct mbuf *, int, int);
+void nd6_ifnet_link_event(void *, struct ifnet *, int);
 void defrouter_reset(void);
 void defrouter_select_fib(int fibnum);
 void defrouter_select(void);
