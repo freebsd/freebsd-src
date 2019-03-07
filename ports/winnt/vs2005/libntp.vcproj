@@ -569,6 +569,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\libntp\xsbprintf.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\libntp\ymd2yd.c"
 				>
 			</File>

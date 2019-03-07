@@ -54,7 +54,7 @@ calmonthstart(u_int32 ntptime, const time_t *pivot)
 }
 
 /*
- * calweekstart - get NTP time at midnight of the last monday on or
+ * calweekstart - get NTP time at midnight of the last Monday on or
  * before the current date.
  */
 u_int32

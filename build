@@ -52,7 +52,7 @@ esac
 case "$NTP_BDIR" in
  '')
     case "$IAM" in
-     *.ntp.org)
+     *.ntp.org | *.ntfo.org)
 	NTP_BDIR=host
 	;;
      *.udel.edu)
