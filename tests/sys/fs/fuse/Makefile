@@ -6,6 +6,7 @@ TESTSDIR=	${TESTSBASE}/sys/fs/fuse
 
 ATF_TESTS_CXX+=	access
 ATF_TESTS_CXX+=	create
+ATF_TESTS_CXX+=	flush
 ATF_TESTS_CXX+=	getattr
 ATF_TESTS_CXX+=	link
 ATF_TESTS_CXX+=	lookup
@@ -31,6 +32,11 @@ SRCS.create+=	create.cc
 SRCS.create+=	getmntopts.c
 SRCS.create+=	mockfs.cc
 SRCS.create+=	utils.cc
+
+SRCS.flush+=	flush.cc
+SRCS.flush+=	getmntopts.c
+SRCS.flush+=	mockfs.cc
+SRCS.flush+=	utils.cc
 
 SRCS.getattr+=	getattr.cc
 SRCS.getattr+=	getmntopts.c
