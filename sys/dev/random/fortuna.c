@@ -109,7 +109,7 @@ static struct fortuna_state {
 	} fs_pool[RANDOM_FORTUNA_NPOOLS];
 	u_int fs_reseedcount;		/* ReseedCnt */
 	uint128_t fs_counter;		/* C */
-	struct randomdev_key fs_key;	/* K */
+	union randomdev_key fs_key;	/* K */
 	u_int fs_minpoolsize;		/* Extras */
 	/* Extras for the OS */
 #ifdef _KERNEL
@@ -271,16 +271,27 @@ random_fortuna_reseed_internal(uint32_t *entropy_data, u_int blockcount)
 {
 	struct randomdev_hash context;
 	uint8_t hash[RANDOM_KEYSIZE];
+	const void *keymaterial;
+	size_t keysz;
+	bool seeded;
 
 	RANDOM_RESEED_ASSERT_LOCK_OWNED();
+
+	seeded = random_fortuna_seeded();
+	if (seeded) {
+		randomdev_getkey(&fortuna_state.fs_key, &keymaterial, &keysz);
+		KASSERT(keysz == RANDOM_KEYSIZE, ("%s: key size %zu not %u",
+			__func__, keysz, (unsigned)RANDOM_KEYSIZE));
+	}
+
 	/*-
 	 * FS&K - K = Hd(K|s) where Hd(m) is H(H(0^512|m))
 	 *      - C = C + 1
 	 */
 	randomdev_hash_init(&context);
 	randomdev_hash_iterate(&context, zero_region, RANDOM_ZERO_BLOCKSIZE);
-	randomdev_hash_iterate(&context, &fortuna_state.fs_key.key.keyMaterial,
-	    fortuna_state.fs_key.key.keyLen / 8);
+	if (seeded)
+		randomdev_hash_iterate(&context, keymaterial, keysz);
 	randomdev_hash_iterate(&context, entropy_data, RANDOM_KEYSIZE*blockcount);
 	randomdev_hash_finish(&context, hash);
 	randomdev_hash_init(&context);
