@@ -73,6 +73,7 @@ union fuse_payloads_in {
 	fuse_access_in	access;
 	/* value is from fuse_kern_chan.c in fusefs-libs */
 	uint8_t		bytes[0x21000 - sizeof(struct fuse_in_header)];
+	fuse_flush_in	flush;
 	fuse_forget_in	forget;
 	fuse_init_in	init;
 	fuse_link_in	link;
