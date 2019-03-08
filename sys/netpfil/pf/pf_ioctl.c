@@ -3754,6 +3754,8 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 
+		nr = 0;
+
 		p = pstore = malloc(psn->psn_len, M_TEMP, M_WAITOK);
 		for (i = 0, sh = V_pf_srchash; i <= pf_srchashmask;
 		    i++, sh++) {
