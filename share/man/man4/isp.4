@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 27, 2018
+.Dd February 28, 2019
 .Dt ISP 4
 .Os
 .Sh NAME
@@ -163,15 +163,19 @@ The following options are switchable by setting values in
 .Pp
 They are:
 .Bl -tag -width indent
-.It Va hint.isp.0.fwload_disable
+.It Va hint.isp. Ns Ar N Ns Va .msi
+Limit on number of Message Signaled Interrupts (MSI) to be used.
+.It Va hint.isp. Ns Ar N Ns Va .msix
+Limit on number of Extended Message Signaled Interrupts (MSI-X) to be used.
+.It Va hint.isp. Ns Ar N Ns Va .fwload_disable
 A hint value to disable loading of firmware
 .Xr ispfw 4 .
-.It Va hint.isp.0.ignore_nvram
+.It Va hint.isp. Ns Ar N Ns Va .ignore_nvram
 A hint value to ignore board NVRAM settings for.
 Otherwise use NVRAM settings.
-.It Va hint.isp.0.fullduplex
+.It Va hint.isp. Ns Ar N Ns Va .fullduplex
 A hint value to set full duplex mode.
-.It Va hint.isp.0.topology
+.It Va hint.isp. Ns Ar N Ns Va .topology
 A hint value to select topology of connection.
 Supported values are:
 .Pp
@@ -185,48 +189,48 @@ Loopback only.
 .It Li nport-only
 Point to point only.
 .El
-.It Va hint.isp.0.portwwn
+.It Va hint.isp. Ns Ar N Ns Va .portwwn
 This should be the full 64 bit World Wide Port Name you would like
 to use, overriding the value in NVRAM for the card.
-.It Va hint.isp.0.nodewwn
+.It Va hint.isp. Ns Ar N Ns Va .nodewwn
 This should be the full 64 bit World Wide Node Name you would like
 to use, overriding the value in NVRAM for the card.
-.It Va hint.isp.0.iid
+.It Va hint.isp. Ns Ar N Ns Va .iid
 A hint to override or set the Initiator ID or Loop ID.
 For Fibre Channel
 cards in Local Loop topologies it is
 .Ar strongly
 recommended that you set this value to non-zero.
-.It Va hint.isp.0.role
+.It Va hint.isp. Ns Ar N Ns Va .role
 A hint to define default role for isp instance (0 -- none, 1 -- target,
 2 -- initiator, 3 -- both).
-.It Va hint.isp.0.debug
+.It Va hint.isp. Ns Ar N Ns Va .debug
 A hint value for a driver debug level (see the file
 .Pa /usr/src/sys/dev/isp/ispvar.h
 for the values.
-.It Va hint.isp.0.vports
+.It Va hint.isp. Ns Ar N Ns Va .vports
 A hint to create specified number of additional virtual ports.
-.It Va hint.isp.0.nofctape
+.It Va hint.isp. Ns Ar N Ns Va .nofctape
 Set this to 1 to disable FC-Tape operation on the given isp instance.
-.It Va hint.isp.0.fctape
+.It Va hint.isp. Ns Ar N Ns Va .fctape
 Set this to 1 to enable FC-Tape operation on the given isp instance for
 targets that support it.
 .El
 .Sh SYSCTL OPTIONS
 .Bl -tag -width indent
-.It Va dev.isp.N.loop_down_limit
+.It Va dev.isp. Ns Ar N Ns Va .loop_down_limit
 This value says how long to wait in seconds after loop has gone down before
 giving up and expiring all of the devices that were visible.
 The default is 300 seconds (5 minutes).
 A separate (nonadjustable) timeout is used when
 booting to not stop booting on lack of FC connectivity.
-.It Va dev.isp.N.gone_device_time
+.It Va dev.isp. Ns Ar N Ns Va .gone_device_time
 This value says how long to wait for devices to reappear if they (temporarily)
 disappear due to loop or fabric events.
 While this timeout is running, I/O
 to those devices will simply be held.
-.It Va dev.isp.N.use_gff_id
-.It Va dev.isp.N.use_gft_id
+.It Va dev.isp. Ns Ar N Ns Va .use_gff_id
+.It Va dev.isp. Ns Ar N Ns Va .use_gft_id
 Setting those options to 0 allows to disable use of GFF_ID and GFT_ID SNS
 requests during FC fabric scan.
 It may be useful if switch does not implement them correctly,
@@ -234,9 +238,9 @@ preventing some devices from being found.
 Disabling them may cause unneeded logins to ports not supporting target role
 or even FCP at all.
 The default is 1 (enabled).
-.It Va dev.isp.N.wwnn
+.It Va dev.isp. Ns Ar N Ns Va .wwnn
 This is the readonly World Wide Node Name value for this port.
-.It Va dev.isp.N.wwpn
+.It Va dev.isp. Ns Ar N Ns Va .wwpn
 This is the readonly World Wide Port Name value for this port.
 .El
 .Sh SEE ALSO
