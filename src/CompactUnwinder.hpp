@@ -19,7 +19,6 @@
 #include <libunwind.h>
 #include <mach-o/compact_unwind_encoding.h>
 
-#include "AddressSpace.hpp"
 #include "Registers.hpp"
 
 #define EXTRACT_BITS(value, mask)                                              \
@@ -105,7 +104,7 @@ int CompactUnwinder_x86<A>::stepWithCompactEncodingEBPFrame(
     default:
       (void)functionStart;
       _LIBUNWIND_DEBUG_LOG("bad register for EBP frame, encoding=%08X for  "
-                           "function starting at 0x%X\n",
+                           "function starting at 0x%X",
                             compactEncoding, functionStart);
       _LIBUNWIND_ABORT("invalid compact unwind encoding");
     }
@@ -224,7 +223,7 @@ int CompactUnwinder_x86<A>::stepWithCompactEncodingFrameless(
       break;
     default:
       _LIBUNWIND_DEBUG_LOG("bad register for frameless, encoding=%08X for "
-                           "function starting at 0x%X\n",
+                           "function starting at 0x%X",
                            encoding, functionStart);
       _LIBUNWIND_ABORT("invalid compact unwind encoding");
     }
@@ -336,7 +335,7 @@ int CompactUnwinder_x86_64<A>::stepWithCompactEncodingRBPFrame(
     default:
       (void)functionStart;
       _LIBUNWIND_DEBUG_LOG("bad register for RBP frame, encoding=%08X for "
-                           "function starting at 0x%llX\n",
+                           "function starting at 0x%llX",
                             compactEncoding, functionStart);
       _LIBUNWIND_ABORT("invalid compact unwind encoding");
     }
@@ -455,7 +454,7 @@ int CompactUnwinder_x86_64<A>::stepWithCompactEncodingFrameless(
       break;
     default:
       _LIBUNWIND_DEBUG_LOG("bad register for frameless, encoding=%08X for "
-                           "function starting at 0x%llX\n",
+                           "function starting at 0x%llX",
                             encoding, functionStart);
       _LIBUNWIND_ABORT("invalid compact unwind encoding");
     }
