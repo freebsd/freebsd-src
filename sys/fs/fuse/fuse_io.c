@@ -369,13 +369,24 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 		if ((err = fdisp_wait_answ(&fdi)))
 			break;
 
+		/* Adjust the uio in the case of short writes */
 		diff = chunksize - ((struct fuse_write_out *)fdi.answ)->size;
 		if (diff < 0) {
 			err = EINVAL;
 			break;
+		} else if (diff > 0 && !(ioflag & IO_DIRECT)) {
+			/* 
+			 * XXX We really should be directly checking whether
+			 * the file was opened with FOPEN_DIRECT_IO, not
+			 * IO_DIRECT.  IO_DIRECT can be set in multiple ways.
+			 */
+			SDT_PROBE2(fuse, , io, trace, 1,
+				"misbehaving filesystem: short writes are only "
+				"allowed with direct_io");
 		}
 		uio->uio_resid += diff;
 		uio->uio_offset -= diff;
+
 		if (uio->uio_offset > fvdat->filesize &&
 		    fuse_data_cache_mode != FUSE_CACHE_UC) {
 			fuse_vnode_setsize(vp, cred, uio->uio_offset);
