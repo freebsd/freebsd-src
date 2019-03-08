@@ -1779,11 +1779,8 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 		EVENTHANDLER_DEREGISTER(vlan_unconfig, priv->vlan_detach);
 
 	/* Unregister device - this will close the port if it was up */
-	if (priv->registered) {
-		mutex_lock(&mdev->state_lock);
+	if (priv->registered)
 		ether_ifdetach(dev);
-		mutex_unlock(&mdev->state_lock);
-	}
 
 	mutex_lock(&mdev->state_lock);
 	mlx4_en_stop_port(dev);
