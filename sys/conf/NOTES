@@ -1747,7 +1747,7 @@ device		ata
 
 # Modular ATA
 #device		atacore		# Core ATA functionality
-#device		atacard		# CARDBUS support
+#device		atapccard	# CARDBUS support
 #device		atabus		# PC98 cbus support
 #device		ataisa		# ISA bus support
 #device		atapci		# PCI bus support; only generic chipset support
