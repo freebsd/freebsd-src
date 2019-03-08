@@ -80,10 +80,13 @@ union fuse_payloads_in {
 	fuse_mkdir_in	mkdir;
 	fuse_mknod_in	mknod;
 	fuse_open_in	open;
+	fuse_read_in	read;
+	fuse_release_in	release;
 	fuse_rename_in	rename;
 	char		rmdir[0];
 	fuse_setattr_in	setattr;
 	char		unlink[0];
+	fuse_write_in	write;
 };
 
 struct mockfs_buf_in {
@@ -94,6 +97,8 @@ struct mockfs_buf_in {
 union fuse_payloads_out {
 	fuse_attr_out		attr;
 	fuse_create_out		create;
+	/* The protocol places no limits on the size of bytes */
+	uint8_t			bytes[0x2000];
 	fuse_entry_out		entry;
 	fuse_init_out		init;
 	fuse_open_out		open;
@@ -103,6 +108,7 @@ union fuse_payloads_out {
 	 * merely convenient for testing.
 	 */
 	char			str[80];
+	fuse_write_out		write;
 };
 
 struct mockfs_buf_out {
@@ -110,12 +116,16 @@ struct mockfs_buf_out {
 	union fuse_payloads_out	body;
 };
 
+/* A function that can be invoked in place of MockFS::process */
+typedef std::function<void (const struct mockfs_buf_in *in,
+			    struct mockfs_buf_out *out)>
+ProcessMockerT;
+
 /*
  * Helper function used for setting an error expectation for any fuse operation.
  * The operation will return the supplied error
  */
-std::function<void (const struct mockfs_buf_in *in, struct mockfs_buf_out *out)>
-ReturnErrno(int error);
+ProcessMockerT ReturnErrno(int error);
 
 /* Helper function used for returning negative cache entries for LOOKUP */
 std::function<void (const struct mockfs_buf_in *in, struct mockfs_buf_out *out)>
@@ -130,7 +140,6 @@ ReturnNegativeCache(const struct timespec *entry_valid);
  * Operates directly on the fuse(4) kernel API, not the libfuse(3) user api.
  */
 class MockFS {
-	public:
 	/*
 	 * thread id of the fuse daemon thread
 	 *
@@ -139,7 +148,6 @@ class MockFS {
 	 */
 	pthread_t m_daemon_id;
 
-	private:
 	/* file descriptor of /dev/fuse control device */
 	int m_fuse_fd;
 	
@@ -148,6 +156,9 @@ class MockFS {
 
 	/* Initialize a session after mounting */
 	void init();
+
+	/* Is pid from a process that might be involved in the test? */
+	bool pid_ok(pid_t pid);
 
 	/* Default request handler */
 	void process_default(const mockfs_buf_in*, mockfs_buf_out*);
@@ -159,6 +170,9 @@ class MockFS {
 	void read_request(mockfs_buf_in*);
 
 	public:
+	/* Maximum size of a FUSE_WRITE write */
+	uint32_t m_max_write;
+
 	/* Create a new mockfs and mount it to a tempdir */
 	MockFS();
 	virtual ~MockFS();
