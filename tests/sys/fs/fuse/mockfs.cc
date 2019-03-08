@@ -33,8 +33,10 @@ extern "C" {
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+#include <sys/user.h>
 
 #include <fcntl.h>
+#include <libutil.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -57,44 +59,44 @@ const char* opcode2opname(uint32_t opcode)
 	const int NUM_OPS = 39;
 	const char* table[NUM_OPS] = {
 		"Unknown (opcode 0)",
-		"FUSE_LOOKUP",
-		"FUSE_FORGET",
-		"FUSE_GETATTR",
-		"FUSE_SETATTR",
-		"FUSE_READLINK",
-		"FUSE_SYMLINK",
+		"LOOKUP",
+		"FORGET",
+		"GETATTR",
+		"SETATTR",
+		"READLINK",
+		"SYMLINK",
 		"Unknown (opcode 7)",
-		"FUSE_MKNOD",
-		"FUSE_MKDIR",
-		"FUSE_UNLINK",
-		"FUSE_RMDIR",
-		"FUSE_RENAME",
-		"FUSE_LINK",
-		"FUSE_OPEN",
-		"FUSE_READ",
-		"FUSE_WRITE",
-		"FUSE_STATFS",
-		"FUSE_RELEASE",
+		"MKNOD",
+		"MKDIR",
+		"UNLINK",
+		"RMDIR",
+		"RENAME",
+		"LINK",
+		"OPEN",
+		"READ",
+		"WRITE",
+		"STATFS",
+		"RELEASE",
 		"Unknown (opcode 19)",
-		"FUSE_FSYNC",
-		"FUSE_SETXATTR",
-		"FUSE_GETXATTR",
-		"FUSE_LISTXATTR",
-		"FUSE_REMOVEXATTR",
-		"FUSE_FLUSH",
-		"FUSE_INIT",
-		"FUSE_OPENDIR",
-		"FUSE_READDIR",
-		"FUSE_RELEASEDIR",
-		"FUSE_FSYNCDIR",
-		"FUSE_GETLK",
-		"FUSE_SETLK",
-		"FUSE_SETLKW",
-		"FUSE_ACCESS",
-		"FUSE_CREATE",
-		"FUSE_INTERRUPT",
-		"FUSE_BMAP",
-		"FUSE_DESTROY"
+		"FSYNC",
+		"SETXATTR",
+		"GETXATTR",
+		"LISTXATTR",
+		"REMOVEXATTR",
+		"FLUSH",
+		"INIT",
+		"OPENDIR",
+		"READDIR",
+		"RELEASEDIR",
+		"FSYNCDIR",
+		"GETLK",
+		"SETLK",
+		"SETLKW",
+		"ACCESS",
+		"CREATE",
+		"INTERRUPT",
+		"BMAP",
+		"DESTROY"
 	};
 	if (opcode >= NUM_OPS)
 		return ("Unknown (opcode > max)");
@@ -133,11 +135,29 @@ void sigint_handler(int __unused sig) {
 
 void debug_fuseop(const mockfs_buf_in *in)
 {
-	printf("%s ino=%lu", opcode2opname(in->header.opcode),
+	printf("%-11s ino=%2lu", opcode2opname(in->header.opcode),
 		in->header.nodeid);
+	if (verbosity > 1) {
+		printf(" uid=%5u gid=%5u pid=%5u unique=%lu len=%u",
+			in->header.uid, in->header.gid, in->header.pid,
+			in->header.unique, in->header.len);
+	}
 	switch (in->header.opcode) {
 		case FUSE_LOOKUP:
 			printf(" %s", in->body.lookup);
+			break;
+		case FUSE_OPEN:
+			printf(" flags=%#x mode=%#o",
+				in->body.open.flags, in->body.open.mode);
+			break;
+		case FUSE_READ:
+			printf(" offset=%lu size=%u", in->body.read.offset,
+				in->body.read.size);
+			break;
+		case FUSE_WRITE:
+			printf(" offset=%lu size=%u flags=%u",
+				in->body.write.offset, in->body.write.size,
+				in->body.write.write_flags);
 			break;
 		default:
 			break;
@@ -201,21 +221,36 @@ MockFS::~MockFS() {
 
 void MockFS::init() {
 	mockfs_buf_in *in;
-	mockfs_buf_out out;
+	mockfs_buf_out *out;
 
 	in = (mockfs_buf_in*) malloc(sizeof(*in));
 	ASSERT_TRUE(in != NULL);
+	out = (mockfs_buf_out*) malloc(sizeof(*out));
+	ASSERT_TRUE(out != NULL);
 
 	read_request(in);
 	ASSERT_EQ(FUSE_INIT, in->header.opcode);
 
-	memset(&out, 0, sizeof(out));
-	out.header.unique = in->header.unique;
-	out.header.error = 0;
-	out.body.init.major = FUSE_KERNEL_VERSION;
-	out.body.init.minor = FUSE_KERNEL_MINOR_VERSION;
-	SET_OUT_HEADER_LEN(&out, init);
-	write(m_fuse_fd, &out, out.header.len);
+	memset(out, 0, sizeof(*out));
+	out->header.unique = in->header.unique;
+	out->header.error = 0;
+	out->body.init.major = FUSE_KERNEL_VERSION;
+	out->body.init.minor = FUSE_KERNEL_MINOR_VERSION;
+
+	/*
+	 * The default max_write is set to this formula in libfuse, though
+	 * individual filesystems can lower it.  The "- 4096" was added in
+	 * commit 154ffe2, with the commit message "fix".
+	 */
+	uint32_t default_max_write = 32 * getpagesize() + 0x1000 - 4096;
+	/* For testing purposes, it should be distinct from MAXPHYS */
+	m_max_write = MIN(default_max_write, MAXPHYS / 2);
+	out->body.init.max_write = m_max_write;
+
+	/* Default max_readahead is UINT_MAX, though it can be lowered */
+	out->body.init.max_readahead = UINT_MAX;
+	SET_OUT_HEADER_LEN(out, init);
+	write(m_fuse_fd, out, out->header.len);
 
 	free(in);
 }
@@ -246,15 +281,15 @@ void MockFS::loop() {
 			break;
 		if (verbosity > 0)
 			debug_fuseop(in);
-		if ((pid_t)in->header.pid != m_pid) {
+		if (pid_ok((pid_t)in->header.pid)) {
+			process(in, &out);
+		} else {
 			/* 
 			 * Reject any requests from unknown processes.  Because
 			 * we actually do mount a filesystem, plenty of
 			 * unrelated system daemons may try to access it.
 			 */
 			process_default(in, &out);
-		} else {
-			process(in, &out);
 		}
 		if (in->header.opcode == FUSE_FORGET) {
 			/*Alone among the opcodes, FORGET expects no response*/
@@ -265,6 +300,27 @@ void MockFS::loop() {
 			<< strerror(errno);
 	}
 	free(in);
+}
+
+bool MockFS::pid_ok(pid_t pid) {
+	if (pid == m_pid) {
+		return (true);
+	} else {
+		struct kinfo_proc *ki;
+		bool ok = false;
+
+		ki = kinfo_getproc(pid);
+		if (ki == NULL)
+			return (false);
+		/* 
+		 * Allow access by the aio daemon processes so that our tests
+		 * can use aio functions
+		 */
+		if (0 == strncmp("aiod", ki->ki_comm, 4))
+			ok = true;
+		free(ki);
+		return (ok);
+	}
 }
 
 void MockFS::process_default(const mockfs_buf_in *in, mockfs_buf_out* out) {

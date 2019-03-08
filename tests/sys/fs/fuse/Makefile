@@ -13,12 +13,14 @@ ATF_TESTS_CXX+=	mkdir
 ATF_TESTS_CXX+=	mknod
 ATF_TESTS_CXX+=	open
 ATF_TESTS_CXX+=	readlink
+ATF_TESTS_CXX+=	release
 ATF_TESTS_CXX+=	rename
 ATF_TESTS_CXX+=	rmdir
 ATF_TESTS_CXX+=	setattr
 ATF_TESTS_CXX+=	statfs
 ATF_TESTS_CXX+=	symlink
 ATF_TESTS_CXX+=	unlink
+ATF_TESTS_CXX+=	write
 
 SRCS.access+=	access.cc
 SRCS.access+=	getmntopts.c
@@ -65,6 +67,11 @@ SRCS.readlink+=	mockfs.cc
 SRCS.readlink+=	readlink.cc
 SRCS.readlink+=	utils.cc
 
+SRCS.release+=	getmntopts.c
+SRCS.release+=	mockfs.cc
+SRCS.release+=	release.cc
+SRCS.release+=	utils.cc
+
 SRCS.rename+=	getmntopts.c
 SRCS.rename+=	mockfs.cc
 SRCS.rename+=	rename.cc
@@ -95,6 +102,11 @@ SRCS.unlink+=	mockfs.cc
 SRCS.unlink+=	unlink.cc
 SRCS.unlink+=	utils.cc
 
+SRCS.write+=	getmntopts.c
+SRCS.write+=	mockfs.cc
+SRCS.write+=	write.cc
+SRCS.write+=	utils.cc
+
 # TODO: drastically increase timeout after test development is mostly complete
 TEST_METADATA+= timeout=10
 
@@ -105,7 +117,7 @@ CFLAGS+=	-I${FUSEFS}
 CFLAGS+=	-I${MOUNT}
 .PATH:		${MOUNT}
 
-LIBADD+=	pthread
+LIBADD+=	util pthread
 WARNS?=	6
 NO_WTHREAD_SAFETY=	# GoogleTest fails Clang's thread safety check
 
