@@ -15,7 +15,6 @@
 
 #include "libunwind.h"
 
-#include "AddressSpace.hpp"
 #include "DwarfParser.hpp"
 
 namespace libunwind {
@@ -68,7 +67,9 @@ void EHHeaderParser<A>::decodeEHHdr(A &addressSpace, pint_t ehHdrStart,
   ehHdrInfo.eh_frame_ptr =
       addressSpace.getEncodedP(p, ehHdrEnd, eh_frame_ptr_enc, ehHdrStart);
   ehHdrInfo.fde_count =
-      addressSpace.getEncodedP(p, ehHdrEnd, fde_count_enc, ehHdrStart);
+      fde_count_enc == DW_EH_PE_omit
+          ? 0
+          : addressSpace.getEncodedP(p, ehHdrEnd, fde_count_enc, ehHdrStart);
   ehHdrInfo.table = p;
 }
 
@@ -85,7 +86,7 @@ bool EHHeaderParser<A>::decodeTableEntry(
   const char *message =
       CFI_Parser<A>::decodeFDE(addressSpace, fde, fdeInfo, cieInfo);
   if (message != NULL) {
-    _LIBUNWIND_DEBUG_LOG("EHHeaderParser::decodeTableEntry: bad fde: %s\n",
+    _LIBUNWIND_DEBUG_LOG("EHHeaderParser::decodeTableEntry: bad fde: %s",
                          message);
     return false;
   }
