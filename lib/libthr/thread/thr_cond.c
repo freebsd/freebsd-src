@@ -166,17 +166,26 @@ _pthread_cond_destroy(pthread_cond_t *cond)
 	error = 0;
 	if (*cond == THR_PSHARED_PTR) {
 		cvp = __thr_pshared_offpage(cond, 0);
-		if (cvp != NULL)
-			__thr_pshared_destroy(cond);
-		*cond = THR_COND_DESTROYED;
+		if (cvp != NULL) {
+			if (cvp->kcond.c_has_waiters)
+				error = EBUSY;
+			else
+				__thr_pshared_destroy(cond);
+		}
+		if (error == 0)
+			*cond = THR_COND_DESTROYED;
 	} else if ((cvp = *cond) == THR_COND_INITIALIZER) {
 		/* nothing */
 	} else if (cvp == THR_COND_DESTROYED) {
 		error = EINVAL;
 	} else {
 		cvp = *cond;
-		*cond = THR_COND_DESTROYED;
-		free(cvp);
+		if (cvp->__has_user_waiters || cvp->kcond.c_has_waiters)
+			error = EBUSY;
+		else {
+			*cond = THR_COND_DESTROYED;
+			free(cvp);
+		}
 	}
 	return (error);
 }
