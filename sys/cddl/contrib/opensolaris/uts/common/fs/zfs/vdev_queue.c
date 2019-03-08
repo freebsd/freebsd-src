@@ -686,7 +686,7 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 	ASSERT(MUTEX_HELD(&vq->vq_lock));
 
 	maxblocksize = spa_maxblocksize(vq->vq_vdev->vdev_spa);
-	if (vq->vq_vdev->vdev_rotation_rate == VDEV_RATE_NON_ROTATING)
+	if (vq->vq_vdev->vdev_nonrot)
 		limit = zfs_vdev_aggregation_limit_non_rotating;
 	else
 		limit = zfs_vdev_aggregation_limit;
