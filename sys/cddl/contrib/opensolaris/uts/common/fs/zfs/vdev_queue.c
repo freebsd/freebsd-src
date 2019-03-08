@@ -178,6 +178,7 @@ int zfs_vdev_async_write_active_max_dirty_percent = 60;
  * they aren't able to help us aggregate at this level.
  */
 int zfs_vdev_aggregation_limit = 1 << 20;
+int zfs_vdev_aggregation_limit_non_rotating = SPA_OLD_MAXBLOCKSIZE;
 int zfs_vdev_read_gap_limit = 32 << 10;
 int zfs_vdev_write_gap_limit = 4 << 10;
 
@@ -262,6 +263,9 @@ ZFS_VDEV_QUEUE_KNOB_MAX(initializing);
 SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, aggregation_limit, CTLFLAG_RWTUN,
     &zfs_vdev_aggregation_limit, 0,
     "I/O requests are aggregated up to this size");
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, aggregation_limit_non_rotating, CTLFLAG_RWTUN,
+    &zfs_vdev_aggregation_limit_non_rotating, 0,
+    "I/O requests are aggregated up to this size for non-rotating media");
 SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, read_gap_limit, CTLFLAG_RWTUN,
     &zfs_vdev_read_gap_limit, 0,
     "Acceptable gap between two reads being aggregated");
@@ -682,9 +686,13 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 	ASSERT(MUTEX_HELD(&vq->vq_lock));
 
 	maxblocksize = spa_maxblocksize(vq->vq_vdev->vdev_spa);
-	limit = MAX(MIN(zfs_vdev_aggregation_limit, maxblocksize), 0);
+	if (vq->vq_vdev->vdev_rotation_rate == VDEV_RATE_NON_ROTATING)
+		limit = zfs_vdev_aggregation_limit_non_rotating;
+	else
+		limit = zfs_vdev_aggregation_limit;
+	limit = MAX(MIN(limit, maxblocksize), 0);
 
-	if (zio->io_flags & ZIO_FLAG_DONT_AGGREGATE || limit == 0)
+	if (zio->io_flags & ZIO_FLAG_DONT_AGGREGATE || zio->io_size >= limit)
 		return (NULL);
 
 	first = last = zio;
