@@ -1112,7 +1112,7 @@ err:
 #endif
 
 #ifdef KDB
-		if (debugger_on_panic) {
+		if (debugger_on_trap) {
 			kdb_why = KDB_WHY_TRAP;
 			kdb_trap(type, 0, trapframe);
 			kdb_why = KDB_WHY_UNSET;
