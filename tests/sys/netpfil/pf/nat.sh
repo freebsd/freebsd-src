@@ -13,11 +13,11 @@ exhaust_body()
 {
 	pft_init
 
-	epair_nat=$(pft_mkepair)
-	epair_echo=$(pft_mkepair)
+	epair_nat=$(vnet_mkepair)
+	epair_echo=$(vnet_mkepair)
 
-	pft_mkjail nat ${epair_nat}b ${epair_echo}a
-	pft_mkjail echo ${epair_echo}b
+	vnet_mkjail nat ${epair_nat}b ${epair_echo}a
+	vnet_mkjail echo ${epair_echo}b
 
 	ifconfig ${epair_nat}a 192.0.2.2/24 up
 	route add -net 198.51.100.0/24 192.0.2.1
