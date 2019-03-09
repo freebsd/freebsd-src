@@ -161,8 +161,15 @@ SYSCTL_PROC(_net_link_ether_inet, OID_AUTO, garp_rexmit_count,
     "Number of times to retransmit GARP packets;"
     " 0 to disable, maximum of 16");
 
+VNET_DEFINE_STATIC(int, arp_log_level) = LOG_INFO;	/* Min. log(9) level. */
+#define	V_arp_log_level		VNET(arp_log_level)
+SYSCTL_INT(_net_link_ether_arp, OID_AUTO, log_level, CTLFLAG_VNET | CTLFLAG_RW,
+	&VNET_NAME(arp_log_level), 0,
+	"Minimum log(9) level for recording rate limited arp log messages. "
+	"The higher will be log more (emerg=0, info=6 (default), debug=7).");
 #define	ARP_LOG(pri, ...)	do {					\
-	if (ppsratecheck(&arp_lastlog, &arp_curpps, arp_maxpps))	\
+	if ((pri) <= V_arp_log_level &&					\
+	    ppsratecheck(&arp_lastlog, &arp_curpps, arp_maxpps))	\
 		log((pri), "arp: " __VA_ARGS__);			\
 } while (0)
 
@@ -428,9 +435,11 @@ arprequest_internal(struct ifnet *ifp, const struct in_addr *sip,
 	m_clrprotoflags(m);	/* Avoid confusing lower layers. */
 	error = (*ifp->if_output)(ifp, m, &sa, &ro);
 	ARPSTAT_INC(txrequests);
-	if (error)
+	if (error) {
+		ARPSTAT_INC(txerrors);
 		ARP_LOG(LOG_DEBUG, "Failed to send ARP packet on %s: %d\n",
 		    if_name(ifp), error);
+	}
 	return (error);
 }
 
