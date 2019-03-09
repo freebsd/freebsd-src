@@ -1901,7 +1901,8 @@ COMMON ITEMS:
 		fsck -p
 		mount -u /
 		mount -a
-		cd src
+		sh /etc/rc.d/zfs start	# mount zfs filesystem, if needed
+		cd src			# full path to source
 		adjkerntz -i		# if CMOS is wall time
 	Also, when doing a major release upgrade, it is required that
 	you boot into single user mode to do the installworld.
@@ -1931,10 +1932,12 @@ COMMON ITEMS:
 	option for existing binaries (e.g. COMPAT_FREEBSD11 to run 11.x
 	binaries).  Failure to do so may leave you with a system that is
 	hard to boot to recover.  A GENERIC kernel will include suitable
-	compatibility options to run binaries from older branches.
+	compatibility options to run binaries from supported older branches.
 
 	Make sure that you merge any new devices from GENERIC since the
-	last time you updated your kernel config file.
+	last time you updated your kernel config file. Options also
+	change over time, so you may need to adjust your custom kernels
+	for these as well.
 
 	[9] If CPUTYPE is defined in your /etc/make.conf, make sure to use the
 	"?=" instead of the "=" assignment operator, so that buildworld can
