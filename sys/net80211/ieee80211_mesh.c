@@ -1653,12 +1653,7 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m,
 		 * in the Mesh Control field and a 3 address qos frame
 		 * is used.
 		 */
-		if (IEEE80211_IS_DSTODS(wh))
-			*(uint16_t *)qos = *(uint16_t *)
-			    ((struct ieee80211_qosframe_addr4 *)wh)->i_qos;
-		else
-			*(uint16_t *)qos = *(uint16_t *)
-			    ((struct ieee80211_qosframe *)wh)->i_qos;
+		*(uint16_t *)qos = *(uint16_t *)ieee80211_getqos(wh);
 
 		/*
 		 * NB: The mesh STA sets the Mesh Control Present

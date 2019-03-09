@@ -2612,7 +2612,6 @@ mwl_rx_proc(void *arg, int npending)
 	struct mwl_rxdesc *ds;
 	struct mbuf *m;
 	struct ieee80211_qosframe *wh;
-	struct ieee80211_qosframe_addr4 *wh4;
 	struct ieee80211_node *ni;
 	struct mwl_node *mn;
 	int off, len, hdrlen, pktlen, rssi, ntodo;
@@ -2759,15 +2758,8 @@ mwl_rx_proc(void *arg, int npending)
 		/* NB: don't need to do this sometimes but ... */
 		/* XXX special case so we can memcpy after m_devget? */
 		ovbcopy(data + sizeof(uint16_t), wh, hdrlen);
-		if (IEEE80211_QOS_HAS_SEQ(wh)) {
-			if (IEEE80211_IS_DSTODS(wh)) {
-				wh4 = mtod(m,
-				    struct ieee80211_qosframe_addr4*);
-				*(uint16_t *)wh4->i_qos = ds->QosCtrl;
-			} else {
-				*(uint16_t *)wh->i_qos = ds->QosCtrl;
-			}
-		}
+		if (IEEE80211_QOS_HAS_SEQ(wh))
+			*(uint16_t *)ieee80211_getqos(wh) = ds->QosCtrl;
 		/*
 		 * The f/w strips WEP header but doesn't clear
 		 * the WEP bit; mark the packet with M_WEP so
@@ -3094,13 +3086,9 @@ mwl_tx_start(struct mwl_softc *sc, struct ieee80211_node *ni, struct mwl_txbuf *
 	copyhdrlen = hdrlen;
 	pktlen = m0->m_pkthdr.len;
 	if (IEEE80211_QOS_HAS_SEQ(wh)) {
-		if (IEEE80211_IS_DSTODS(wh)) {
-			qos = *(uint16_t *)
-			    (((struct ieee80211_qosframe_addr4 *) wh)->i_qos);
+		qos = *(uint16_t *)ieee80211_getqos(wh);
+		if (IEEE80211_IS_DSTODS(wh))
 			copyhdrlen -= sizeof(qos);
-		} else
-			qos = *(uint16_t *)
-			    (((struct ieee80211_qosframe *) wh)->i_qos);
 	} else
 		qos = 0;
 
