@@ -277,7 +277,7 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 			if (tf->exc == EXC_DSI)
 				db_printf(" sr=%#x",
 				    (uint32_t)tf->cpu.aim.dsisr);
-			db_printf("\n");
+			db_printf(" frame=%p\n", tf);
 			stackframe = (db_addr_t) tf->fixreg[1];
 			if (kernel_only && (tf->srr1 & PSL_PR))
 				break;
