@@ -295,6 +295,22 @@ void	ieee80211_wme_updateparams(struct ieee80211vap *);
 void	ieee80211_wme_updateparams_locked(struct ieee80211vap *);
 
 /*
+ * Return pointer to the QoS field from a Qos frame.
+ */
+static __inline uint8_t *
+ieee80211_getqos(void *data)
+{
+	struct ieee80211_frame *wh = data;
+
+	KASSERT(IEEE80211_QOS_HAS_SEQ(wh), ("QoS field is absent!"));
+
+	if (IEEE80211_IS_DSTODS(wh))
+		return (((struct ieee80211_qosframe_addr4 *)wh)->i_qos);
+	else
+		return (((struct ieee80211_qosframe *)wh)->i_qos);
+}
+
+/*
  * Return the WME TID from a QoS frame.  If no TID
  * is present return the index for the "non-QoS" entry.
  */

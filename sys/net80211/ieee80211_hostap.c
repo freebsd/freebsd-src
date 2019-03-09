@@ -693,11 +693,9 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m,
 		/*
 		 * Save QoS bits for use below--before we strip the header.
 		 */
-		if (subtype == IEEE80211_FC0_SUBTYPE_QOS) {
-			qos = (dir == IEEE80211_FC1_DIR_DSTODS) ?
-			    ((struct ieee80211_qosframe_addr4 *)wh)->i_qos[0] :
-			    ((struct ieee80211_qosframe *)wh)->i_qos[0];
-		} else
+		if (subtype == IEEE80211_FC0_SUBTYPE_QOS)
+			qos = ieee80211_getqos(wh)[0];
+		else
 			qos = 0;
 
 		/*
