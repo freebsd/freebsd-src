@@ -36,6 +36,9 @@ __FBSDID("$FreeBSD$");
 
 #include "nvme_private.h"
 
+typedef enum error_print { ERROR_PRINT_NONE, ERROR_PRINT_NO_RETRY, ERROR_PRINT_ALL } error_print_t;
+#define DO_NOT_RETRY	1
+
 static void	_nvme_qpair_submit_request(struct nvme_qpair *qpair,
 					   struct nvme_request *req);
 static void	nvme_qpair_destroy(struct nvme_qpair *qpair);
@@ -325,7 +328,7 @@ nvme_completion_is_retry(const struct nvme_completion *cpl)
 
 	sct = NVME_STATUS_GET_SCT(cpl->status);
 	sc = NVME_STATUS_GET_SC(cpl->status);
-	dnr = NVME_STATUS_GET_DNR(cpl->status);
+	dnr = NVME_STATUS_GET_DNR(cpl->status);	/* Do Not Retry Bit */
 
 	/*
 	 * TODO: spec is not clear how commands that are aborted due
@@ -369,7 +372,7 @@ nvme_completion_is_retry(const struct nvme_completion *cpl)
 
 static void
 nvme_qpair_complete_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
-    struct nvme_completion *cpl, boolean_t print_on_error)
+    struct nvme_completion *cpl, error_print_t print_on_error)
 {
 	struct nvme_request	*req;
 	boolean_t		retry, error;
@@ -379,7 +382,8 @@ nvme_qpair_complete_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
 	retry = error && nvme_completion_is_retry(cpl) &&
 	   req->retries < nvme_retry_count;
 
-	if (error && print_on_error) {
+	if (error && (print_on_error == ERROR_PRINT_ALL ||
+		(!retry && print_on_error == ERROR_PRINT_NO_RETRY))) {
 		nvme_qpair_print_command(qpair, &req->cmd);
 		nvme_qpair_print_completion(qpair, cpl);
 	}
@@ -431,7 +435,7 @@ nvme_qpair_complete_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
 static void
 nvme_qpair_manual_complete_tracker(struct nvme_qpair *qpair,
     struct nvme_tracker *tr, uint32_t sct, uint32_t sc, uint32_t dnr,
-    boolean_t print_on_error)
+    error_print_t print_on_error)
 {
 	struct nvme_completion	cpl;
 
@@ -446,8 +450,7 @@ nvme_qpair_manual_complete_tracker(struct nvme_qpair *qpair,
 
 void
 nvme_qpair_manual_complete_request(struct nvme_qpair *qpair,
-    struct nvme_request *req, uint32_t sct, uint32_t sc,
-    boolean_t print_on_error)
+    struct nvme_request *req, uint32_t sct, uint32_t sc)
 {
 	struct nvme_completion	cpl;
 	boolean_t		error;
@@ -459,7 +462,7 @@ nvme_qpair_manual_complete_request(struct nvme_qpair *qpair,
 
 	error = nvme_completion_is_error(&cpl);
 
-	if (error && print_on_error) {
+	if (error) {
 		nvme_qpair_print_command(qpair, &req->cmd);
 		nvme_qpair_print_completion(qpair, &cpl);
 	}
@@ -502,7 +505,7 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 		tr = qpair->act_tr[cpl.cid];
 
 		if (tr != NULL) {
-			nvme_qpair_complete_tracker(qpair, tr, &cpl, TRUE);
+			nvme_qpair_complete_tracker(qpair, tr, &cpl, ERROR_PRINT_ALL);
 			qpair->sq_head = cpl.sqhd;
 			done++;
 		} else {
@@ -728,7 +731,7 @@ nvme_admin_qpair_abort_aers(struct nvme_qpair *qpair)
 		if (tr->req->cmd.opc == NVME_OPC_ASYNC_EVENT_REQUEST) {
 			nvme_qpair_manual_complete_tracker(qpair, tr,
 			    NVME_SCT_GENERIC, NVME_SC_ABORTED_SQ_DELETION, 0,
-			    FALSE);
+			    ERROR_PRINT_NONE);
 			tr = TAILQ_FIRST(&qpair->outstanding_tr);
 		} else {
 			tr = TAILQ_NEXT(tr, tailq);
@@ -771,7 +774,7 @@ nvme_abort_complete(void *arg, const struct nvme_completion *status)
 		nvme_printf(tr->qpair->ctrlr,
 		    "abort command failed, aborting command manually\n");
 		nvme_qpair_manual_complete_tracker(tr->qpair, tr,
-		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST, 0, TRUE);
+		    NVME_SCT_GENERIC, NVME_SC_ABORTED_BY_REQUEST, 0, ERROR_PRINT_ALL);
 	}
 }
 
@@ -989,7 +992,7 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 		 */
 		mtx_unlock(&qpair->lock);
 		nvme_qpair_manual_complete_tracker(qpair, tr, NVME_SCT_GENERIC,
-		    NVME_SC_DATA_TRANSFER_ERROR, 1 /* do not retry */, TRUE);
+		    NVME_SC_DATA_TRANSFER_ERROR, DO_NOT_RETRY, ERROR_PRINT_ALL);
 		mtx_lock(&qpair->lock);
 	}
 }
@@ -1047,7 +1050,7 @@ nvme_admin_qpair_enable(struct nvme_qpair *qpair)
 		nvme_printf(qpair->ctrlr,
 		    "aborting outstanding admin command\n");
 		nvme_qpair_manual_complete_tracker(qpair, tr, NVME_SCT_GENERIC,
-		    NVME_SC_ABORTED_BY_REQUEST, 1 /* do not retry */, TRUE);
+		    NVME_SC_ABORTED_BY_REQUEST, DO_NOT_RETRY, ERROR_PRINT_ALL);
 	}
 
 	nvme_qpair_enable(qpair);
@@ -1069,7 +1072,7 @@ nvme_io_qpair_enable(struct nvme_qpair *qpair)
 	TAILQ_FOREACH_SAFE(tr, &qpair->outstanding_tr, tailq, tr_temp) {
 		nvme_printf(qpair->ctrlr, "aborting outstanding i/o\n");
 		nvme_qpair_manual_complete_tracker(qpair, tr, NVME_SCT_GENERIC,
-		    NVME_SC_ABORTED_BY_REQUEST, 0, TRUE);
+		    NVME_SC_ABORTED_BY_REQUEST, 0, ERROR_PRINT_NO_RETRY);
 	}
 
 	mtx_lock(&qpair->lock);
@@ -1134,7 +1137,7 @@ nvme_qpair_fail(struct nvme_qpair *qpair)
 		nvme_printf(qpair->ctrlr, "failing queued i/o\n");
 		mtx_unlock(&qpair->lock);
 		nvme_qpair_manual_complete_request(qpair, req, NVME_SCT_GENERIC,
-		    NVME_SC_ABORTED_BY_REQUEST, TRUE);
+		    NVME_SC_ABORTED_BY_REQUEST);
 		mtx_lock(&qpair->lock);
 	}
 
@@ -1148,7 +1151,7 @@ nvme_qpair_fail(struct nvme_qpair *qpair)
 		nvme_printf(qpair->ctrlr, "failing outstanding i/o\n");
 		mtx_unlock(&qpair->lock);
 		nvme_qpair_manual_complete_tracker(qpair, tr, NVME_SCT_GENERIC,
-		    NVME_SC_ABORTED_BY_REQUEST, 1 /* do not retry */, TRUE);
+		    NVME_SC_ABORTED_BY_REQUEST, DO_NOT_RETRY, ERROR_PRINT_ALL);
 		mtx_lock(&qpair->lock);
 	}
 
