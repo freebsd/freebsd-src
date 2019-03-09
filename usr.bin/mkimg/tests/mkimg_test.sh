@@ -75,13 +75,13 @@ mkimg_rebase()
     image=$1
     result=$2
 
-    baseline=$image.gz.uu
+    baseline=$image.hex
     update=yes
 
     if test -f $baseline; then
 	tmpfile=_tmp-baseline
-	uudecode -p $baseline | gunzip -c > $tmpfile
-	if cmp -s $tmpfile $result; then
+	sed -e '/^#.*/D' < $baseline > $tmpfile
+	if diff -u $tmpfile $result; then
 	    update=no
 	fi
     fi
@@ -89,7 +89,7 @@ mkimg_rebase()
     if test $update = yes; then
 	# Prevent keyword expansion when writing the keyword.
 	(echo -n '# $'; echo -n FreeBSD; echo '$') > $baseline
-	gzip -c $result | uuencode $image.gz >> $baseline
+	cat $result >> $baseline
     fi
 
     rm $image $result _tmp-*
@@ -121,7 +121,7 @@ mkimg_test()
 	mkimg_rebase $image $result
     else
 	baseline=`atf_get_srcdir`/$image
-	atf_check -s exit:0 cmp -s $baseline $result
+	atf_check -s exit:0 diff -u $baseline $result
     fi
     return 0
 }
