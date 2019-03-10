@@ -118,15 +118,31 @@ VNET_DEFINE_STATIC(struct pfilhookhead, pfil_hook_list) =
 static struct pfil_link *pfil_link_remove(pfil_chain_t *, pfil_hook_t );
 static void pfil_link_free(epoch_context_t);
 
+int
+pfil_realloc(pfil_packet_t *p, int flags, struct ifnet *ifp)
+{
+	struct mbuf *m;
+
+	MPASS(flags & PFIL_MEMPTR);
+
+	if ((m = m_devget(p->mem, PFIL_LENGTH(flags), 0, ifp, NULL)) == NULL)
+		return (ENOMEM);
+	*p = pfil_packet_align(*p);
+	*p->m = m;
+
+	return (0);
+}
+
 static __noinline int
-pfil_fake_mbuf(pfil_func_t func, void *mem, struct ifnet *ifp, int flags,
+pfil_fake_mbuf(pfil_func_t func, pfil_packet_t *p, struct ifnet *ifp, int flags,
     void *ruleset, struct inpcb *inp)
 {
 	struct mbuf m, *mp;
 	pfil_return_t rv;
 
 	(void)m_init(&m, M_NOWAIT, MT_DATA, M_NOFREE | M_PKTHDR);
-	m_extadd(&m, mem, PFIL_LENGTH(flags), NULL, NULL, NULL, 0, EXT_RXRING);
+	m_extadd(&m, p->mem, PFIL_LENGTH(flags), NULL, NULL, NULL, 0,
+	    EXT_RXRING);
 	m.m_len = m.m_pkthdr.len = PFIL_LENGTH(flags);
 	mp = &m;
 	flags &= ~(PFIL_MEMPTR | PFIL_LENMASK);
@@ -135,10 +151,11 @@ pfil_fake_mbuf(pfil_func_t func, void *mem, struct ifnet *ifp, int flags,
 	if (rv == PFIL_PASS && mp != &m) {
 		/*
 		 * Firewalls that need pfil_fake_mbuf() most likely don't
-		 * know to return PFIL_REALLOCED.
+		 * know they need return PFIL_REALLOCED.
 		 */
 		rv = PFIL_REALLOCED;
-		*(struct mbuf **)mem = mp;
+		*p = pfil_packet_align(*p);
+		*p->m = mp;
 	}
 
 	return (rv);
@@ -168,8 +185,8 @@ pfil_run_hooks(struct pfil_head *head, pfil_packet_t p, struct ifnet *ifp,
 	PFIL_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(link, pch, link_chain) {
 		if ((flags & PFIL_MEMPTR) && !(link->link_flags & PFIL_MEMPTR))
-			rv = pfil_fake_mbuf(link->link_func, p.mem, ifp,
-			    flags, link->link_ruleset, inp);
+			rv = pfil_fake_mbuf(link->link_func, &p, ifp, flags,
+			    link->link_ruleset, inp);
 		else
 			rv = (*link->link_func)(p, ifp, flags,
 			    link->link_ruleset, inp);
