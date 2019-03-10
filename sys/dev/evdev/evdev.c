@@ -205,9 +205,9 @@ evdev_sysctl_create(struct evdev_dev *evdev)
 	snprintf(ev_unit_str, sizeof(ev_unit_str), "%d", evdev->ev_unit);
 	sysctl_ctx_init(&evdev->ev_sysctl_ctx);
 
-	ev_sysctl_tree = SYSCTL_ADD_NODE_WITH_LABEL(&evdev->ev_sysctl_ctx,
+	ev_sysctl_tree = SYSCTL_ADD_NODE(&evdev->ev_sysctl_ctx,
 	    SYSCTL_STATIC_CHILDREN(_kern_evdev_input), OID_AUTO,
-	    ev_unit_str, CTLFLAG_RD, NULL, "", "device index");
+	    ev_unit_str, CTLFLAG_RD, NULL, "");
 
 	SYSCTL_ADD_STRING(&evdev->ev_sysctl_ctx,
 	    SYSCTL_CHILDREN(ev_sysctl_tree), OID_AUTO, "name", CTLFLAG_RD,
