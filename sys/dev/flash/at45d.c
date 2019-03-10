@@ -381,7 +381,6 @@ at45d_delayed_attach(void *xsc)
 	sc->disk->d_mediasize = pagesize * ident->pagecount;
 	sc->disk->d_unit = device_get_unit(sc->dev);
 	disk_create(sc->disk, DISK_VERSION);
-	disk_add_alias(sc->disk, "flash/spi");
 	bioq_init(&sc->bio_queue);
 	kproc_create(&at45d_task, sc, &sc->p, 0, 0, "task: at45d flash");
 	sc->taskstate = TSTATE_RUNNING;
