@@ -154,7 +154,8 @@ pfil_run_hooks(struct pfil_head *head, pfil_packet_t p, struct ifnet *ifp,
 	struct epoch_tracker et;
 	pfil_chain_t *pch;
 	struct pfil_link *link;
-	pfil_return_t rv, rvi;
+	pfil_return_t rv;
+	bool realloc = false;
 
 	if (PFIL_DIR(flags) == PFIL_IN)
 		pch = &head->head_in;
@@ -167,21 +168,22 @@ pfil_run_hooks(struct pfil_head *head, pfil_packet_t p, struct ifnet *ifp,
 	PFIL_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(link, pch, link_chain) {
 		if ((flags & PFIL_MEMPTR) && !(link->link_flags & PFIL_MEMPTR))
-			rvi = pfil_fake_mbuf(link->link_func, p.mem, ifp,
+			rv = pfil_fake_mbuf(link->link_func, p.mem, ifp,
 			    flags, link->link_ruleset, inp);
 		else
-			rvi = (*link->link_func)(p, ifp, flags,
+			rv = (*link->link_func)(p, ifp, flags,
 			    link->link_ruleset, inp);
-		if (rvi == PFIL_DROPPED || rvi == PFIL_CONSUMED) {
-			rv = rvi;
+		if (rv == PFIL_DROPPED || rv == PFIL_CONSUMED)
 			break;
-		} else if (rv == PFIL_REALLOCED) {
+		else if (rv == PFIL_REALLOCED) {
 			flags &= ~(PFIL_MEMPTR | PFIL_LENMASK);
-			rv = rvi;
+			realloc = true;
 		}
 	}
 	PFIL_EPOCH_EXIT(et);
-	return (rvi);
+	if (realloc && rv == PFIL_PASS)
+		rv = PFIL_REALLOCED;
+	return (rv);
 }
 
 /*
