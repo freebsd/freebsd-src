@@ -440,6 +440,8 @@
             tests
                 atf
                 ..
+                googletest
+                ..
                 plain
                 ..
                 tap
