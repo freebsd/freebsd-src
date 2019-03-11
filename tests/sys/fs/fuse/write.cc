@@ -56,20 +56,6 @@ using namespace testing;
 class Write: public FuseTest {
 
 public:
-int m_maxbcachebuf;
-
-virtual void SetUp() {
-	const char *node = "vfs.maxbcachebuf";
-	int val = 0;
-	size_t size = sizeof(val);
-
-	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
-		<< strerror(errno);
-	m_maxbcachebuf = val;
-
-	FuseTest::SetUp();
-}
-
 const static uint64_t FH = 0xdeadbeef1a7ebabe;
 void expect_getattr(uint64_t ino, uint64_t size)
 {
@@ -137,7 +123,6 @@ void expect_read(uint64_t ino, uint64_t offset, uint64_t size,
 		out->header.len = sizeof(struct fuse_out_header) + size;
 		memmove(out->body.bytes, contents, size);
 	})).RetiresOnSaturation();
-
 }
 
 void expect_release(uint64_t ino, ProcessMockerT r)

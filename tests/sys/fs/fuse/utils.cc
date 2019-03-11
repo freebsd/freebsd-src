@@ -65,6 +65,22 @@ class FuseEnv: public ::testing::Environment {
 	}
 };
 
+void FuseTest::SetUp() {
+	const char *node = "vfs.maxbcachebuf";
+	int val = 0;
+	size_t size = sizeof(val);
+
+	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
+		<< strerror(errno);
+	m_maxbcachebuf = val;
+
+	try {
+		m_mock = new MockFS(m_maxreadahead);
+	} catch (std::system_error err) {
+		FAIL() << err.what();
+	}
+}
+
 static void usage(char* progname) {
 	fprintf(stderr, "Usage: %s [-v]\n\t-v increase verbosity\n", progname);
 	exit(2);

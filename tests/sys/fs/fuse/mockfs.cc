@@ -165,12 +165,13 @@ void debug_fuseop(const mockfs_buf_in *in)
 	printf("\n");
 }
 
-MockFS::MockFS() {
+MockFS::MockFS(int max_readahead) {
 	struct iovec *iov = NULL;
 	int iovlen = 0;
 	char fdstr[15];
 
 	m_daemon_id = NULL;
+	m_maxreadahead = max_readahead;
 	quit = 0;
 
 	/*
@@ -247,8 +248,7 @@ void MockFS::init() {
 	m_max_write = MIN(default_max_write, MAXPHYS / 2);
 	out->body.init.max_write = m_max_write;
 
-	/* Default max_readahead is UINT_MAX, though it can be lowered */
-	out->body.init.max_readahead = UINT_MAX;
+	out->body.init.max_readahead = m_maxreadahead;
 	SET_OUT_HEADER_LEN(out, init);
 	write(m_fuse_fd, out, out->header.len);
 
