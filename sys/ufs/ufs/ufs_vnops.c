@@ -2338,6 +2338,13 @@ ufs_print(ap)
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
 
+	printf("\tnlink=%d, effnlink=%d, size=%jd", ip->i_nlink,
+	    ip->i_effnlink, (intmax_t)ip->i_size);
+	if (I_IS_UFS2(ip))
+		printf(", extsize %d", ip->i_din2->di_extsize);
+	printf("\n\tgeneration=%jx, uid=%d, gid=%d, flags=0x%b\n",
+	    (uintmax_t)ip->i_gen, ip->i_uid, ip->i_gid,
+	    (u_int)ip->i_flags, PRINT_INODE_FLAGS);
 	printf("\tino %lu, on dev %s", (u_long)ip->i_number,
 	    devtoname(ITODEV(ip)));
 	if (vp->v_type == VFIFO)
