@@ -259,9 +259,9 @@ gpt_write(lba_t imgsz, void *bootcode)
 	le64enc(&hdr->hdr_lba_end, imgsz - tblsz - 2);
 	mkimg_uuid(&uuid);
 	mkimg_uuid_enc(&hdr->hdr_uuid, &uuid);
-	le32enc(&hdr->hdr_entries, nparts);
+	le32enc(&hdr->hdr_entries, tblsz * secsz / sizeof(struct gpt_ent));
 	le32enc(&hdr->hdr_entsz, sizeof(struct gpt_ent));
-	crc = crc32(tbl, nparts * sizeof(struct gpt_ent));
+	crc = crc32(tbl, tblsz * secsz);
 	le32enc(&hdr->hdr_crc_table, crc);
 	error = gpt_write_hdr(hdr, 1, imgsz - 1, 2);
 	if (!error)

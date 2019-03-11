@@ -2447,8 +2447,6 @@ rsu_rx_frame(struct rsu_softc *sc, struct mbuf *m)
 
 		tap->wr_rate = rxs.c_rate;
 		tap->wr_dbm_antsignal = rssi;
-		tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
 	};
 
 	(void) ieee80211_add_rx_params(m, &rxs);
@@ -2750,7 +2748,6 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
     struct mbuf *m0, struct rsu_data *data)
 {
 	const struct ieee80211_txparam *tp = ni->ni_txparms;
-	struct ieee80211com *ic = &sc->sc_ic;
         struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k = NULL;
@@ -2894,8 +2891,6 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 		struct rsu_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
-		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		ieee80211_radiotap_tx(vap, m0);
 	}
 

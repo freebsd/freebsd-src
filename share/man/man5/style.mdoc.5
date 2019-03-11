@@ -1,7 +1,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 .\"
-.\" Copyright (c) 2018 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\" Copyright (c) 2018-2019 Mateusz Piotrowski <0mp@FreeBSD.org>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 29, 2018
+.Dd March 10, 2019
 .Dt STYLE.MDOC 5
 .Os
 .Sh NAME
@@ -76,13 +76,13 @@ Format the
 section in the following way:
 .Bd -literal -offset indent
 \&.Bl -tag -width 0n
-\&.It Sy Example 1\&: No Doing Something
+\&.It Sy Example 1\\&: No Doing Something
 \&.Pp
 The following command does something.
 \&.Bd -literal -offset 2n
 \&.Li # Ic make -VLEGAL
 \&.Ed
-\&.It Sy Example 2\&: No Doing Something Different
+\&.It Sy Example 2\\&: No Doing Something Different
 \&.Pp
 The following command does something different.
 \&.Bd -literal -offset 2n
@@ -90,7 +90,6 @@ The following command does something different.
 \&.Ed
 \&.Pp
 It is good to know this command.
-\&.El
 \&.El
 .Ed
 .Pp

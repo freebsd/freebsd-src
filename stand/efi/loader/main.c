@@ -964,6 +964,17 @@ main(int argc, CHAR16 *argv[])
 	BS->SetWatchdogTimer(0, 0, 0, NULL);
 
 	/*
+	 * Initialize the trusted/forbidden certificates from UEFI.
+	 * They will be later used to verify the manifest(s),
+	 * which should contain hashes of verified files.
+	 * This needs to be initialized before any configuration files
+	 * are loaded.
+	 */
+#ifdef EFI_SECUREBOOT
+	ve_efi_init();
+#endif
+
+	/*
 	 * Try and find a good currdev based on the image that was booted.
 	 * It might be desirable here to have a short pause to allow falling
 	 * through to the boot loader instead of returning instantly to follow

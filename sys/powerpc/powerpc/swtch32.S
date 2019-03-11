@@ -195,6 +195,7 @@ ENTRY(savectx)
 	stmw	%r12,PCB_CONTEXT(%r3)	/* Save the non-volatile GP regs */
 	mfcr	%r4			/* Save the condition register */
 	stw	%r4,PCB_CR(%r3)
+	stw	%r1,PCB_SP(%r3)		/* Save the stack pointer */
 	mflr	%r4			/* Save the link register */
 	stw	%r4,PCB_LR(%r3)
 	blr

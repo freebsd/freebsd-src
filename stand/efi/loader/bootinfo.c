@@ -287,12 +287,12 @@ static int
 bi_load_efi_data(struct preloaded_file *kfp)
 {
 	EFI_MEMORY_DESCRIPTOR *mm;
-	EFI_PHYSICAL_ADDRESS addr;
+	EFI_PHYSICAL_ADDRESS addr = 0;
 	EFI_STATUS status;
 	const char *efi_novmap;
 	size_t efisz;
 	UINTN efi_mapkey;
-	UINTN mmsz, pages, retry, sz;
+	UINTN dsz, pages, retry, sz;
 	UINT32 mmver;
 	struct efi_map_header *efihdr;
 	bool do_vmap;
@@ -323,76 +323,94 @@ bi_load_efi_data(struct preloaded_file *kfp)
 	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
 
 	/*
-	 * Assgin size of EFI_MEMORY_DESCRIPTOR to keep compatible with
+	 * Assign size of EFI_MEMORY_DESCRIPTOR to keep compatible with
 	 * u-boot which doesn't fill this value when buffer for memory
 	 * descriptors is too small (eg. 0 to obtain memory map size)
 	 */
-	mmsz = sizeof(EFI_MEMORY_DESCRIPTOR);
+	dsz = sizeof(EFI_MEMORY_DESCRIPTOR);
 
 	/*
-	 * It is possible that the first call to ExitBootServices may change
-	 * the map key. Fetch a new map key and retry ExitBootServices in that
-	 * case.
+	 * Allocate enough pages to hold the bootinfo block and the
+	 * memory map EFI will return to us. The memory map has an
+	 * unknown size, so we have to determine that first. Note that
+	 * the AllocatePages call can itself modify the memory map, so
+	 * we have to take that into account as well. The changes to
+	 * the memory map are caused by splitting a range of free
+	 * memory into two, so that one is marked as being loader
+	 * data.
+	 */
+
+	sz = 0;
+
+	/*
+	 * Matthew Garrett has observed at least one system changing the
+	 * memory map when calling ExitBootServices, causing it to return an
+	 * error, probably because callbacks are allocating memory.
+	 * So we need to retry calling it at least once.
 	 */
 	for (retry = 2; retry > 0; retry--) {
-		/*
-		 * Allocate enough pages to hold the bootinfo block and the
-		 * memory map EFI will return to us. The memory map has an
-		 * unknown size, so we have to determine that first. Note that
-		 * the AllocatePages call can itself modify the memory map, so
-		 * we have to take that into account as well. The changes to
-		 * the memory map are caused by splitting a range of free
-		 * memory into two (AFAICT), so that one is marked as being
-		 * loader data.
-		 */
-		sz = 0;
-		BS->GetMemoryMap(&sz, NULL, &efi_mapkey, &mmsz, &mmver);
-		sz += mmsz;
-		sz = (sz + 0xf) & ~0xf;
-		pages = EFI_SIZE_TO_PAGES(sz + efisz);
-		status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
-		     pages, &addr);
-		if (EFI_ERROR(status)) {
-			printf("%s: AllocatePages error %lu\n", __func__,
-			    EFI_ERROR_CODE(status));
-			return (ENOMEM);
-		}
+		for (;;) {
+			status = BS->GetMemoryMap(&sz, mm, &efi_mapkey, &dsz, &mmver);
+			if (!EFI_ERROR(status))
+				break;
 
-		/*
-		 * Read the memory map and stash it after bootinfo. Align the
-		 * memory map on a 16-byte boundary (the bootinfo block is page
-		 * aligned).
-		 */
-		efihdr = (struct efi_map_header *)(uintptr_t)addr;
-		mm = (void *)((uint8_t *)efihdr + efisz);
-		sz = (EFI_PAGE_SIZE * pages) - efisz;
+			if (status != EFI_BUFFER_TOO_SMALL) {
+				printf("%s: GetMemoryMap error %lu\n", __func__,
+	                           EFI_ERROR_CODE(status));
+				return (EINVAL);
+			}
 
-		status = BS->GetMemoryMap(&sz, mm, &efi_mapkey, &mmsz, &mmver);
-		if (EFI_ERROR(status)) {
-			printf("%s: GetMemoryMap error %lu\n", __func__,
-			    EFI_ERROR_CODE(status));
-			return (EINVAL);
-		}
-		status = BS->ExitBootServices(IH, efi_mapkey);
-		if (EFI_ERROR(status) == 0) {
+			if (addr != 0)
+				BS->FreePages(addr, pages);
+
+			/* Add 10 descriptors to the size to allow for
+			 * fragmentation caused by calling AllocatePages */
+			sz += (10 * dsz);
+			pages = EFI_SIZE_TO_PAGES(sz + efisz);
+			status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
+					pages, &addr);
+			if (EFI_ERROR(status)) {
+				printf("%s: AllocatePages error %lu\n", __func__,
+				    EFI_ERROR_CODE(status));
+				return (ENOMEM);
+			}
+
 			/*
-			 * This may be disabled by setting efi_disable_vmap in
-			 * loader.conf(5). By default we will setup the virtual
-			 * map entries.
+			 * Read the memory map and stash it after bootinfo. Align the
+			 * memory map on a 16-byte boundary (the bootinfo block is page
+			 * aligned).
 			 */
-			if (do_vmap)
-				efi_do_vmap(mm, sz, mmsz, mmver);
-			efihdr->memory_size = sz;
-			efihdr->descriptor_size = mmsz;
-			efihdr->descriptor_version = mmver;
-			file_addmetadata(kfp, MODINFOMD_EFI_MAP, efisz + sz,
-			    efihdr);
-			return (0);
+			efihdr = (struct efi_map_header *)(uintptr_t)addr;
+			mm = (void *)((uint8_t *)efihdr + efisz);
+			sz = (EFI_PAGE_SIZE * pages) - efisz;
 		}
-		BS->FreePages(addr, pages);
+
+		status = BS->ExitBootServices(IH, efi_mapkey);
+		if (!EFI_ERROR(status))
+			break;
 	}
-	printf("ExitBootServices error %lu\n", EFI_ERROR_CODE(status));
-	return (EINVAL);
+
+	if (retry == 0) {
+		BS->FreePages(addr, pages);
+		printf("ExitBootServices error %lu\n", EFI_ERROR_CODE(status));
+		return (EINVAL);
+	}
+
+	/*
+	 * This may be disabled by setting efi_disable_vmap in
+	 * loader.conf(5). By default we will setup the virtual
+	 * map entries.
+	 */
+
+	if (do_vmap)
+		efi_do_vmap(mm, sz, dsz, mmver);
+	efihdr->memory_size = sz;
+	efihdr->descriptor_size = dsz;
+	efihdr->descriptor_version = mmver;
+	file_addmetadata(kfp, MODINFOMD_EFI_MAP, efisz + sz,
+	    efihdr);
+
+	return (0);
 }
 
 /*

@@ -62,9 +62,10 @@ struct rtwn_rx_radiotap_header {
 struct rtwn_tx_radiotap_header {
 	struct ieee80211_radiotap_header wt_ihdr;
 	uint8_t		wt_flags;
+	uint8_t		wt_pad;
 	uint16_t	wt_chan_freq;
 	uint16_t	wt_chan_flags;
-} __packed __aligned(8);
+} __packed;
 
 #define RTWN_TX_RADIOTAP_PRESENT			\
 	(1 << IEEE80211_RADIOTAP_FLAGS |		\

@@ -1044,6 +1044,7 @@ arp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	xo_emit("\t" m, (uintmax_t)arpstat.f, pluralies(arpstat.f))
 
 	p(txrequests, "{:sent-requests/%ju} {N:/ARP request%s sent}\n");
+	p(txerrors, "{:sent-failures/%ju} {N:/ARP request%s failed to sent}\n");
 	p2(txreplies, "{:sent-replies/%ju} {N:/ARP repl%s sent}\n");
 	p(rxrequests, "{:received-requests/%ju} "
 	    "{N:/ARP request%s received}\n");

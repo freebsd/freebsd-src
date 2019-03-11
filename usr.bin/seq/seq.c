@@ -310,7 +310,8 @@ valid_format(const char *fmt)
 		}
 	}
 
-	return (conversions <= 1);
+	/* PR 236347 -- user format strings must have a conversion */
+	return (conversions == 1);
 }
 
 /*

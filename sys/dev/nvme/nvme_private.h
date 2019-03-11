@@ -417,8 +417,7 @@ void	nvme_qpair_reset(struct nvme_qpair *qpair);
 void	nvme_qpair_fail(struct nvme_qpair *qpair);
 void	nvme_qpair_manual_complete_request(struct nvme_qpair *qpair,
 					   struct nvme_request *req,
-					   uint32_t sct, uint32_t sc,
-					   boolean_t print_on_error);
+                                           uint32_t sct, uint32_t sc);
 
 void	nvme_admin_qpair_enable(struct nvme_qpair *qpair);
 void	nvme_admin_qpair_disable(struct nvme_qpair *qpair);

@@ -3722,7 +3722,8 @@ fs/cd9660/cd9660_util.c	optional cd9660
 fs/cd9660/cd9660_vfsops.c	optional cd9660
 fs/cd9660/cd9660_vnops.c	optional cd9660
 fs/cd9660/cd9660_iconv.c	optional cd9660_iconv
-gnu/gcov/gcc_4_7.c		optional gcov
+gnu/gcov/gcc_4_7.c		optional gcov  \
+	warning "kernel contains GPL licensed gcov support"
 gnu/gcov/gcov_fs.c		optional gcov  lindebugfs \
 	compile-with "${LINUXKPI_C}"
 gnu/gcov/gcov_subr.c		optional gcov

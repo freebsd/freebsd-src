@@ -709,7 +709,7 @@ struct wi_rx_radiotap_header {
 	u_int16_t	wr_chan_flags;
 	u_int8_t	wr_antsignal;
 	u_int8_t	wr_antnoise;
-};
+} __packed __aligned(8);
 
 #define WI_TX_RADIOTAP_PRESENT \
 	((1 << IEEE80211_RADIOTAP_FLAGS) | \
@@ -722,5 +722,5 @@ struct wi_tx_radiotap_header {
 	u_int8_t	wt_rate;
 	u_int16_t	wt_chan_freq;
 	u_int16_t	wt_chan_flags;
-};
+} __packed;
 #endif /* IEEE80211_RADIOTAP_F_CFP */

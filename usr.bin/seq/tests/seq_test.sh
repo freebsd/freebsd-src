@@ -1,4 +1,4 @@
-# Copyright (c) 2018 Conrad Meyer <cem@FreeBSD.org>
+# Copyright (c) 2019 Conrad Meyer <cem@FreeBSD.org>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,22 @@ float_rounding_body()
 	atf_check -o inline:'1\n1.1\n1.2\n' seq 1 0.1 1.2
 }
 
+atf_test_case format_includes_conversion
+format_includes_conversion_head()
+{
+	atf_set "descr" "Check for correct user-provided format strings"
+}
+format_includes_conversion_body()
+{
+	# PR 236347
+	atf_check -s exit:1 -o empty -e match:"invalid format string" \
+	    seq -f foo 3
+	atf_check -s exit:0 -o inline:'foo1\nfoo2\n' -e empty \
+	    seq -f foo%g 2
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case float_rounding
+	atf_add_test_case format_includes_conversion
 }

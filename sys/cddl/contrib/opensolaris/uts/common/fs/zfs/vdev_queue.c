@@ -178,6 +178,7 @@ int zfs_vdev_async_write_active_max_dirty_percent = 60;
  * they aren't able to help us aggregate at this level.
  */
 int zfs_vdev_aggregation_limit = 1 << 20;
+int zfs_vdev_aggregation_limit_non_rotating = SPA_OLD_MAXBLOCKSIZE;
 int zfs_vdev_read_gap_limit = 32 << 10;
 int zfs_vdev_write_gap_limit = 4 << 10;
 
@@ -262,6 +263,9 @@ ZFS_VDEV_QUEUE_KNOB_MAX(initializing);
 SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, aggregation_limit, CTLFLAG_RWTUN,
     &zfs_vdev_aggregation_limit, 0,
     "I/O requests are aggregated up to this size");
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, aggregation_limit_non_rotating, CTLFLAG_RWTUN,
+    &zfs_vdev_aggregation_limit_non_rotating, 0,
+    "I/O requests are aggregated up to this size for non-rotating media");
 SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, read_gap_limit, CTLFLAG_RWTUN,
     &zfs_vdev_read_gap_limit, 0,
     "Acceptable gap between two reads being aggregated");
@@ -673,13 +677,22 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 	zio_link_t *zl = NULL;
 	uint64_t maxgap = 0;
 	uint64_t size;
+	uint64_t limit;
+	int maxblocksize;
 	boolean_t stretch;
 	avl_tree_t *t;
 	enum zio_flag flags;
 
 	ASSERT(MUTEX_HELD(&vq->vq_lock));
 
-	if (zio->io_flags & ZIO_FLAG_DONT_AGGREGATE)
+	maxblocksize = spa_maxblocksize(vq->vq_vdev->vdev_spa);
+	if (vq->vq_vdev->vdev_nonrot)
+		limit = zfs_vdev_aggregation_limit_non_rotating;
+	else
+		limit = zfs_vdev_aggregation_limit;
+	limit = MAX(MIN(limit, maxblocksize), 0);
+
+	if (zio->io_flags & ZIO_FLAG_DONT_AGGREGATE || zio->io_size >= limit)
 		return (NULL);
 
 	first = last = zio;
@@ -710,7 +723,7 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 	t = vdev_queue_type_tree(vq, zio->io_type);
 	while (t != NULL && (dio = AVL_PREV(t, first)) != NULL &&
 	    (dio->io_flags & ZIO_FLAG_AGG_INHERIT) == flags &&
-	    IO_SPAN(dio, last) <= zfs_vdev_aggregation_limit &&
+	    IO_SPAN(dio, last) <= limit &&
 	    IO_GAP(dio, first) <= maxgap &&
 	    dio->io_type == zio->io_type) {
 		first = dio;
@@ -734,8 +747,9 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 	 */
 	while ((dio = AVL_NEXT(t, last)) != NULL &&
 	    (dio->io_flags & ZIO_FLAG_AGG_INHERIT) == flags &&
-	    (IO_SPAN(first, dio) <= zfs_vdev_aggregation_limit ||
+	    (IO_SPAN(first, dio) <= limit ||
 	    (dio->io_flags & ZIO_FLAG_OPTIONAL)) &&
+	    IO_SPAN(first, dio) <= maxblocksize &&
 	    IO_GAP(last, dio) <= maxgap &&
 	    dio->io_type == zio->io_type) {
 		last = dio;
@@ -789,7 +803,7 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 		return (NULL);
 
 	size = IO_SPAN(first, last);
-	ASSERT3U(size, <=, SPA_MAXBLOCKSIZE);
+	ASSERT3U(size, <=, maxblocksize);
 
 	aio = zio_vdev_delegated_io(first->io_vd, first->io_offset,
 	    abd_alloc_for_io(size, B_TRUE), size, first->io_type,

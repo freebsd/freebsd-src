@@ -1268,7 +1268,7 @@ ar9300_get_diag_state(struct ath_hal *ah, int request,
         ahp->ext_ani_state.spurImmunityLevel = ani->spur_immunity_level;
         ahp->ext_ani_state.firstepLevel = ani->firstep_level;
         ahp->ext_ani_state.ofdmWeakSigDetectOff = ani->ofdm_weak_sig_detect_off;
-        ahp->ext_ani_state.mrcCckOff = ani->mrc_cck_off;
+        ahp->ext_ani_state.mrcCck = !! ani->mrc_cck_off;
         ahp->ext_ani_state.cckNoiseImmunityLevel = ani->cck_noise_immunity_level;
 
         ahp->ext_ani_state.listenTime = ani->listen_time;
@@ -1287,12 +1287,18 @@ ar9300_get_diag_state(struct ath_hal *ah, int request,
             0 : sizeof(HAL_ANI_STATS);
         return AH_TRUE;
     case HAL_DIAG_ANI_CMD:
+    {
+        HAL_ANI_CMD savefunc = ahp->ah_ani_function;
         if (argsize != 2*sizeof(u_int32_t)) {
             return AH_FALSE;
         }
+        /* temporarly allow all functions so we can override */
+        ahp->ah_ani_function = HAL_ANI_ALL;
         ar9300_ani_control(
             ah, ((const u_int32_t *)args)[0], ((const u_int32_t *)args)[1]);
+        ahp->ah_ani_function = savefunc;
         return AH_TRUE;
+    }
 #if 0
     case HAL_DIAG_TXCONT:
         /*AR9300_CONTTXMODE(ah, (struct ath_desc *)args, argsize );*/
