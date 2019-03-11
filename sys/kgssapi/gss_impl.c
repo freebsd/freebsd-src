@@ -112,6 +112,15 @@ sys_gssd_syscall(struct thread *td, struct gssd_syscall_args *uap)
 		cl = clnt_reconnect_create(nconf,
 		    (struct sockaddr *) &sun, GSSD, GSSDVERS,
 		    RPC_MAXDATASIZE, RPC_MAXDATASIZE);
+		/*
+		 * The number of retries defaults to INT_MAX, which effectively
+		 * means an infinite, uninterruptable loop.  Limiting it to
+		 * five retries keeps it from running forever.
+		 */
+		if (cl != NULL) {
+			int retry_count = 5;
+			CLNT_CONTROL(cl, CLSET_RETRIES, &retry_count);
+		}
 	} else
 		cl = NULL;
 
