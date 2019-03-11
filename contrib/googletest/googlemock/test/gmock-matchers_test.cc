@@ -3767,6 +3767,12 @@ TEST(WhenDynamicCastToTest, AmbiguousCast) {
   AmbiguousCastTypes::DerivedSub1 sub1;
   AmbiguousCastTypes::ManyDerivedInHierarchy many_derived;
   // Multiply derived from Base. dynamic_cast<> returns NULL.
+
+  // This testcase fails on FreeBSD. See this GitHub issue for more details:
+  // https://github.com/google/googletest/issues/2172
+#ifdef __FreeBSD__
+  EXPECT_NONFATAL_FAILURE({
+#endif
   Base* as_base_ptr =
       static_cast<AmbiguousCastTypes::DerivedSub1*>(&many_derived);
   EXPECT_THAT(as_base_ptr,
@@ -3775,6 +3781,9 @@ TEST(WhenDynamicCastToTest, AmbiguousCast) {
   EXPECT_THAT(
       as_base_ptr,
       WhenDynamicCastTo<AmbiguousCastTypes::VirtualDerived*>(Not(IsNull())));
+#ifdef __FreeBSD__
+  }, "");
+#endif
 }
 
 TEST(WhenDynamicCastToTest, Describe) {
