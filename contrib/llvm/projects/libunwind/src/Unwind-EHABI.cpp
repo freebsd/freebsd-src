@@ -12,8 +12,9 @@
 
 #include "Unwind-EHABI.h"
 
-#if _LIBUNWIND_ARM_EHABI
+#if defined(_LIBUNWIND_ARM_EHABI)
 
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -245,11 +246,9 @@ decode_eht_entry(const uint32_t* data, size_t* off, size_t* len) {
   return data;
 }
 
-_Unwind_Reason_Code _Unwind_VRS_Interpret(
-    _Unwind_Context* context,
-    const uint32_t* data,
-    size_t offset,
-    size_t len) {
+_LIBUNWIND_EXPORT _Unwind_Reason_Code
+_Unwind_VRS_Interpret(_Unwind_Context *context, const uint32_t *data,
+                      size_t offset, size_t len) {
   bool wrotePC = false;
   bool finish = false;
   while (offset < len && !finish) {
@@ -351,6 +350,7 @@ _Unwind_Reason_Code _Unwind_VRS_Interpret(
         }
         case 0xc0: {
           switch (byte) {
+#if defined(__ARM_WMMX)
             case 0xc0:
             case 0xc1:
             case 0xc2:
@@ -378,6 +378,7 @@ _Unwind_Reason_Code _Unwind_VRS_Interpret(
               _Unwind_VRS_Pop(context, _UVRSC_WMMXC, v, _UVRSD_DOUBLE);
               break;
             }
+#endif
             case 0xc8:
             case 0xc9: {
               uint8_t v = getByte(data, offset++);
@@ -416,24 +417,21 @@ _Unwind_Reason_Code _Unwind_VRS_Interpret(
   return _URC_CONTINUE_UNWIND;
 }
 
-extern "C" _Unwind_Reason_Code __aeabi_unwind_cpp_pr0(
-    _Unwind_State state,
-    _Unwind_Control_Block *ucbp,
-    _Unwind_Context *context) {
+extern "C" _LIBUNWIND_EXPORT _Unwind_Reason_Code
+__aeabi_unwind_cpp_pr0(_Unwind_State state, _Unwind_Control_Block *ucbp,
+                       _Unwind_Context *context) {
   return unwindOneFrame(state, ucbp, context);
 }
 
-extern "C" _Unwind_Reason_Code __aeabi_unwind_cpp_pr1(
-    _Unwind_State state,
-    _Unwind_Control_Block *ucbp,
-    _Unwind_Context *context) {
+extern "C" _LIBUNWIND_EXPORT _Unwind_Reason_Code
+__aeabi_unwind_cpp_pr1(_Unwind_State state, _Unwind_Control_Block *ucbp,
+                       _Unwind_Context *context) {
   return unwindOneFrame(state, ucbp, context);
 }
 
-extern "C" _Unwind_Reason_Code __aeabi_unwind_cpp_pr2(
-    _Unwind_State state,
-    _Unwind_Control_Block *ucbp,
-    _Unwind_Context *context) {
+extern "C" _LIBUNWIND_EXPORT _Unwind_Reason_Code
+__aeabi_unwind_cpp_pr2(_Unwind_State state, _Unwind_Control_Block *ucbp,
+                       _Unwind_Context *context) {
   return unwindOneFrame(state, ucbp, context);
 }
 
@@ -471,11 +469,11 @@ unwind_phase1(unw_context_t *uc, unw_cursor_t *cursor, _Unwind_Exception *except
       unw_word_t pc;
       unw_get_reg(cursor, UNW_REG_IP, &pc);
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase1(ex_ojb=%p): pc=0x%llX, start_ip=0x%llX, func=%s, "
-          "lsda=0x%llX, personality=0x%llX",
-          static_cast<void *>(exception_object), (long long)pc,
-          (long long)frameInfo.start_ip, functionName,
-          (long long)frameInfo.lsda, (long long)frameInfo.handler);
+          "unwind_phase1(ex_ojb=%p): pc=0x%" PRIxPTR ", start_ip=0x%" PRIxPTR ", func=%s, "
+          "lsda=0x%" PRIxPTR ", personality=0x%" PRIxPTR,
+          static_cast<void *>(exception_object), pc,
+          frameInfo.start_ip, functionName,
+          frameInfo.lsda, frameInfo.handler);
     }
 
     // If there is a personality routine, ask it if it will want to stop at
@@ -587,11 +585,11 @@ static _Unwind_Reason_Code unwind_phase2(unw_context_t *uc, unw_cursor_t *cursor
           (frameInfo.start_ip + offset > frameInfo.end_ip))
         functionName = ".anonymous.";
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase2(ex_ojb=%p): start_ip=0x%llX, func=%s, sp=0x%llX, "
-          "lsda=0x%llX, personality=0x%llX",
-          static_cast<void *>(exception_object), (long long)frameInfo.start_ip,
-          functionName, (long long)sp, (long long)frameInfo.lsda,
-          (long long)frameInfo.handler);
+          "unwind_phase2(ex_ojb=%p): start_ip=0x%" PRIxPTR ", func=%s, sp=0x%" PRIxPTR ", "
+          "lsda=0x%" PRIxPTR ", personality=0x%" PRIxPTR "",
+          static_cast<void *>(exception_object), frameInfo.start_ip,
+          functionName, sp, frameInfo.lsda,
+          frameInfo.handler);
     }
 
     // If there is a personality routine, tell it we are unwinding.
@@ -630,9 +628,9 @@ static _Unwind_Reason_Code unwind_phase2(unw_context_t *uc, unw_cursor_t *cursor
           unw_get_reg(cursor, UNW_REG_IP, &pc);
           unw_get_reg(cursor, UNW_REG_SP, &sp);
           _LIBUNWIND_TRACE_UNWINDING("unwind_phase2(ex_ojb=%p): re-entering "
-                                     "user code with ip=0x%llX, sp=0x%llX",
+                                     "user code with ip=0x%" PRIxPTR ", sp=0x%" PRIxPTR,
                                      static_cast<void *>(exception_object),
-                                     (long long)pc, (long long)sp);
+                                     pc, sp);
         }
 
         {
@@ -753,7 +751,7 @@ static uint64_t ValueAsBitPattern(_Unwind_VRS_DataRepresentation representation,
   return value;
 }
 
-_Unwind_VRS_Result
+_LIBUNWIND_EXPORT _Unwind_VRS_Result
 _Unwind_VRS_Set(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
                 uint32_t regno, _Unwind_VRS_DataRepresentation representation,
                 void *valuep) {
@@ -768,13 +766,6 @@ _Unwind_VRS_Set(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
       if (representation != _UVRSD_UINT32 || regno > 15)
         return _UVRSR_FAILED;
       return unw_set_reg(cursor, (unw_regnum_t)(UNW_ARM_R0 + regno),
-                         *(unw_word_t *)valuep) == UNW_ESUCCESS
-                 ? _UVRSR_OK
-                 : _UVRSR_FAILED;
-    case _UVRSC_WMMXC:
-      if (representation != _UVRSD_UINT32 || regno > 3)
-        return _UVRSR_FAILED;
-      return unw_set_reg(cursor, (unw_regnum_t)(UNW_ARM_WC0 + regno),
                          *(unw_word_t *)valuep) == UNW_ESUCCESS
                  ? _UVRSR_OK
                  : _UVRSR_FAILED;
@@ -794,6 +785,14 @@ _Unwind_VRS_Set(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
                            *(unw_fpreg_t *)valuep) == UNW_ESUCCESS
                  ? _UVRSR_OK
                  : _UVRSR_FAILED;
+#if defined(__ARM_WMMX)
+    case _UVRSC_WMMXC:
+      if (representation != _UVRSD_UINT32 || regno > 3)
+        return _UVRSR_FAILED;
+      return unw_set_reg(cursor, (unw_regnum_t)(UNW_ARM_WC0 + regno),
+                         *(unw_word_t *)valuep) == UNW_ESUCCESS
+                 ? _UVRSR_OK
+                 : _UVRSR_FAILED;
     case _UVRSC_WMMXD:
       if (representation != _UVRSD_DOUBLE || regno > 31)
         return _UVRSR_FAILED;
@@ -801,6 +800,11 @@ _Unwind_VRS_Set(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
                            *(unw_fpreg_t *)valuep) == UNW_ESUCCESS
                  ? _UVRSR_OK
                  : _UVRSR_FAILED;
+#else
+    case _UVRSC_WMMXC:
+    case _UVRSC_WMMXD:
+      break;
+#endif
   }
   _LIBUNWIND_ABORT("unsupported register class");
 }
@@ -816,13 +820,6 @@ _Unwind_VRS_Get_Internal(_Unwind_Context *context,
       if (representation != _UVRSD_UINT32 || regno > 15)
         return _UVRSR_FAILED;
       return unw_get_reg(cursor, (unw_regnum_t)(UNW_ARM_R0 + regno),
-                         (unw_word_t *)valuep) == UNW_ESUCCESS
-                 ? _UVRSR_OK
-                 : _UVRSR_FAILED;
-    case _UVRSC_WMMXC:
-      if (representation != _UVRSD_UINT32 || regno > 3)
-        return _UVRSR_FAILED;
-      return unw_get_reg(cursor, (unw_regnum_t)(UNW_ARM_WC0 + regno),
                          (unw_word_t *)valuep) == UNW_ESUCCESS
                  ? _UVRSR_OK
                  : _UVRSR_FAILED;
@@ -842,6 +839,14 @@ _Unwind_VRS_Get_Internal(_Unwind_Context *context,
                            (unw_fpreg_t *)valuep) == UNW_ESUCCESS
                  ? _UVRSR_OK
                  : _UVRSR_FAILED;
+#if defined(__ARM_WMMX)
+    case _UVRSC_WMMXC:
+      if (representation != _UVRSD_UINT32 || regno > 3)
+        return _UVRSR_FAILED;
+      return unw_get_reg(cursor, (unw_regnum_t)(UNW_ARM_WC0 + regno),
+                         (unw_word_t *)valuep) == UNW_ESUCCESS
+                 ? _UVRSR_OK
+                 : _UVRSR_FAILED;
     case _UVRSC_WMMXD:
       if (representation != _UVRSD_DOUBLE || regno > 31)
         return _UVRSR_FAILED;
@@ -849,16 +854,19 @@ _Unwind_VRS_Get_Internal(_Unwind_Context *context,
                            (unw_fpreg_t *)valuep) == UNW_ESUCCESS
                  ? _UVRSR_OK
                  : _UVRSR_FAILED;
+#else
+    case _UVRSC_WMMXC:
+    case _UVRSC_WMMXD:
+      break;
+#endif
   }
   _LIBUNWIND_ABORT("unsupported register class");
 }
 
-_Unwind_VRS_Result _Unwind_VRS_Get(
-    _Unwind_Context *context,
-    _Unwind_VRS_RegClass regclass,
-    uint32_t regno,
-    _Unwind_VRS_DataRepresentation representation,
-    void *valuep) {
+_LIBUNWIND_EXPORT _Unwind_VRS_Result
+_Unwind_VRS_Get(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
+                uint32_t regno, _Unwind_VRS_DataRepresentation representation,
+                void *valuep) {
   _Unwind_VRS_Result result =
       _Unwind_VRS_Get_Internal(context, regclass, regno, representation,
                                valuep);
@@ -879,8 +887,11 @@ _Unwind_VRS_Pop(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
                        static_cast<void *>(context), regclass, discriminator,
                        representation);
   switch (regclass) {
-    case _UVRSC_CORE:
-    case _UVRSC_WMMXC: {
+    case _UVRSC_WMMXC:
+#if !defined(__ARM_WMMX)
+      break;
+#endif
+    case _UVRSC_CORE: {
       if (representation != _UVRSD_UINT32)
         return _UVRSR_FAILED;
       // When popping SP from the stack, we don't want to override it from the
@@ -908,8 +919,11 @@ _Unwind_VRS_Pop(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
       }
       return _UVRSR_OK;
     }
-    case _UVRSC_VFP:
-    case _UVRSC_WMMXD: {
+    case _UVRSC_WMMXD:
+#if !defined(__ARM_WMMX)
+      break;
+#endif
+    case _UVRSC_VFP: {
       if (representation != _UVRSD_VFPX && representation != _UVRSD_DOUBLE)
         return _UVRSR_FAILED;
       uint32_t first = discriminator >> 16;
@@ -974,4 +988,4 @@ __gnu_unwind_frame(_Unwind_Exception *exception_object,
   return _URC_OK;
 }
 
-#endif  // _LIBUNWIND_ARM_EHABI
+#endif  // defined(_LIBUNWIND_ARM_EHABI)
