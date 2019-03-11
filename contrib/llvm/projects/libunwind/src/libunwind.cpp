@@ -24,6 +24,8 @@
 #include <stdlib.h>
 
 
+#if !defined(__USING_SJLJ_EXCEPTIONS__)
+#include "AddressSpace.hpp"
 #include "UnwindCursor.hpp"
 
 using namespace libunwind;
@@ -49,11 +51,13 @@ _LIBUNWIND_EXPORT int unw_init_local(unw_cursor_t *cursor,
 # define REGISTER_KIND Registers_x86
 #elif defined(__x86_64__)
 # define REGISTER_KIND Registers_x86_64
+#elif defined(__powerpc64__)
+# define REGISTER_KIND Registers_ppc64
 #elif defined(__ppc__)
 # define REGISTER_KIND Registers_ppc
 #elif defined(__aarch64__)
 # define REGISTER_KIND Registers_arm64
-#elif _LIBUNWIND_ARM_EHABI
+#elif defined(__arm__)
 # define REGISTER_KIND Registers_arm
 #elif defined(__or1k__)
 # define REGISTER_KIND Registers_or1k
@@ -65,6 +69,8 @@ _LIBUNWIND_EXPORT int unw_init_local(unw_cursor_t *cursor,
 # define REGISTER_KIND Registers_mips_newabi
 #elif defined(__mips__)
 # warning The MIPS architecture is not supported with this ABI and environment!
+#elif defined(__sparc__)
+# define REGISTER_KIND Registers_sparc
 #else
 # error Architecture not supported
 #endif
@@ -91,18 +97,18 @@ _LIBUNWIND_EXPORT int unw_init_remote_thread(unw_cursor_t *cursor,
   switch (as->cpuType) {
   case CPU_TYPE_I386:
     new ((void *)cursor)
-        UnwindCursor<OtherAddressSpace<Pointer32<LittleEndian> >,
+        UnwindCursor<RemoteAddressSpace<Pointer32<LittleEndian>>,
                      Registers_x86>(((unw_addr_space_i386 *)as)->oas, arg);
     break;
   case CPU_TYPE_X86_64:
-    new ((void *)cursor) UnwindCursor<
-        OtherAddressSpace<Pointer64<LittleEndian> >, Registers_x86_64>(
-        ((unw_addr_space_x86_64 *)as)->oas, arg);
+    new ((void *)cursor)
+        UnwindCursor<RemoteAddressSpace<Pointer64<LittleEndian>>,
+                     Registers_x86_64>(((unw_addr_space_x86_64 *)as)->oas, arg);
     break;
   case CPU_TYPE_POWERPC:
     new ((void *)cursor)
-        UnwindCursor<OtherAddressSpace<Pointer32<BigEndian> >, Registers_ppc>(
-            ((unw_addr_space_ppc *)as)->oas, arg);
+        UnwindCursor<RemoteAddressSpace<Pointer32<BigEndian>>,
+                     Registers_ppc>(((unw_addr_space_ppc *)as)->oas, arg);
     break;
   default:
     return UNW_EUNSPEC;
@@ -178,16 +184,28 @@ _LIBUNWIND_EXPORT int unw_get_reg(unw_cursor_t *cursor, unw_regnum_t regNum,
 /// Set value of specified register at cursor position in stack frame.
 _LIBUNWIND_EXPORT int unw_set_reg(unw_cursor_t *cursor, unw_regnum_t regNum,
                                   unw_word_t value) {
-  _LIBUNWIND_TRACE_API("unw_set_reg(cursor=%p, regNum=%d, value=0x%llX)",
-                       static_cast<void *>(cursor), regNum, (long long)value);
+  _LIBUNWIND_TRACE_API("unw_set_reg(cursor=%p, regNum=%d, value=0x%" PRIxPTR ")",
+                       static_cast<void *>(cursor), regNum, value);
   typedef LocalAddressSpace::pint_t pint_t;
   AbstractUnwindCursor *co = (AbstractUnwindCursor *)cursor;
   if (co->validReg(regNum)) {
     co->setReg(regNum, (pint_t)value);
     // specical case altering IP to re-find info (being called by personality
     // function)
-    if (regNum == UNW_REG_IP)
+    if (regNum == UNW_REG_IP) {
+      unw_proc_info_t info;
+      // First, get the FDE for the old location and then update it.
+      co->getInfo(&info);
       co->setInfoBasedOnIPRegister(false);
+      // If the original call expects stack adjustment, perform this now.
+      // Normal frame unwinding would have included the offset already in the
+      // CFA computation.
+      // Note: for PA-RISC and other platforms where the stack grows up,
+      // this should actually be - info.gp. LLVM doesn't currently support
+      // any such platforms and Clang doesn't export a macro for them.
+      if (info.gp)
+        co->setReg(UNW_REG_SP, co->getReg(UNW_REG_SP) + info.gp);
+    }
     return UNW_ESUCCESS;
   }
   return UNW_EBADREG;
@@ -212,7 +230,7 @@ _LIBUNWIND_EXPORT int unw_get_fpreg(unw_cursor_t *cursor, unw_regnum_t regNum,
 /// Set value of specified float register at cursor position in stack frame.
 _LIBUNWIND_EXPORT int unw_set_fpreg(unw_cursor_t *cursor, unw_regnum_t regNum,
                                     unw_fpreg_t value) {
-#if _LIBUNWIND_ARM_EHABI
+#if defined(_LIBUNWIND_ARM_EHABI)
   _LIBUNWIND_TRACE_API("unw_set_fpreg(cursor=%p, regNum=%d, value=%llX)",
                        static_cast<void *>(cursor), regNum, value);
 #else
@@ -311,8 +329,8 @@ _LIBUNWIND_EXPORT void unw_save_vfp_as_X(unw_cursor_t *cursor) {
 #endif
 
 
-#if _LIBUNWIND_SUPPORT_DWARF_UNWIND
-/// SPI: walks cached dwarf entries
+#if defined(_LIBUNWIND_SUPPORT_DWARF_UNWIND)
+/// SPI: walks cached DWARF entries
 _LIBUNWIND_EXPORT void unw_iterate_dwarf_unwind_cache(void (*func)(
     unw_word_t ip_start, unw_word_t ip_end, unw_word_t fde, unw_word_t mh)) {
   _LIBUNWIND_TRACE_API("unw_iterate_dwarf_unwind_cache(func=%p)",
@@ -345,7 +363,8 @@ void _unw_remove_dynamic_fde(unw_word_t fde) {
   // fde is own mh_group
   DwarfFDECache<LocalAddressSpace>::removeAllIn((LocalAddressSpace::pint_t)fde);
 }
-#endif // _LIBUNWIND_SUPPORT_DWARF_UNWIND
+#endif // defined(_LIBUNWIND_SUPPORT_DWARF_UNWIND)
+#endif // !defined(__USING_SJLJ_EXCEPTIONS__)
 
 
 
@@ -372,6 +391,18 @@ bool logUnwinding() {
   static bool log = false;
   if (!checked) {
     log = (getenv("LIBUNWIND_PRINT_UNWINDING") != NULL);
+    checked = true;
+  }
+  return log;
+}
+
+_LIBUNWIND_HIDDEN
+bool logDWARF() {
+  // do manual lock to avoid use of _cxa_guard_acquire or initializers
+  static bool checked = false;
+  static bool log = false;
+  if (!checked) {
+    log = (getenv("LIBUNWIND_PRINT_DWARF") != NULL);
     checked = true;
   }
   return log;
