@@ -41,15 +41,14 @@ srccommitters [label="Src Committers\nsrc-committers@FreeBSD.org"]
 
 # Admin teams go here alphabetically sorted
 
-accounts [label="Accounts Team\naccounts@FreeBSD.org\nmarkm, simon, kensmith,\ndhw"]
-backups [label="Backup Administrators\nbackups@FreeBSD.org\nsimon, kensmith,\ndhw"]
+accounts [label="Accounts Team\naccounts@FreeBSD.org\nclusteradm"]
+backups [label="Backup Administrators\nbackups@FreeBSD.org\nclusteradm"]
 bugmeister [label="Bugmeister Team\nbugmeister@FreeBSD.org\neadler, gavin, gonzo"]
 clusteradm [label="Cluster Administrators\nclusteradm@FreeBSD.org\nallanjude, brd,\ndhw, gavin,\ngjb, peter,\nsbruno, simon,\nzi"]
-dnsadm [label="DNS Administrators\ndnsadm@FreeBSD.org\nbillf, dg, ps,\nkensmith, peter"]
-mirroradmin [label="FTP/WWW Mirror Site Coordinators\nmirror-admin@FreeBSD.org\nkuriyama, kensmith"]
+dnsadm [label="DNS Administrators\ndnsadm@FreeBSD.org\nclusteradm"]
+mirroradmin [label="FTP/WWW Mirror Site Coordinators\nmirror-admin@FreeBSD.org\nclusteradm,\nkuriyama"]
 perforceadmin [label="Perforce Repository Administrators\nperforce-admin@FreeBSD.org\nscottl, kensmith, gordon,\nrwatson, peter, dhw"]
 postmaster [label="Postmaster Team\npostmaster@FreeBSD.org\ndhw, krion, ler, philip, pi, rea, remko, zi"]
-refadm [label="Reference Systems Administrators\nrefadm@FreeBSD.org\njake, billf, markm, simon,\nobrien, ps, kensmith,\npeter, dhw"]
 webmaster [label="Webmaster Team\nwebmaster@FreeBSD.org\ngjb, wblock, blackend,\ngabor, hrs, wosch"]
 
 # Misc hats go here alphabetically sorted
@@ -69,7 +68,6 @@ _admin -> clusteradm
 _admin -> dnsadm
 _admin -> mirroradmin
 _admin -> perforceadmin
-_admin -> refadm
 _admin -> postmaster
 _admin -> webmaster
 
