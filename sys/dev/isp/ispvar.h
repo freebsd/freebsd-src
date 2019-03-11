@@ -381,6 +381,9 @@ typedef struct {
 	uint16_t	handle;
 
 	/*
+	 * PRLI word 0 contains the Establish Image Pair bit, which is
+	 * important for knowing when to reset the CRN.
+	 *
 	 * PRLI word 3 parameters contains role as well as other things.
 	 *
 	 * The state is the current state of this entry.
@@ -392,7 +395,9 @@ typedef struct {
 	 * Portid is obvious, as are node && port WWNs. The new_role and
 	 * new_portid is for when we are pending a change.
 	 */
+	uint16_t	prli_word0;		/* PRLI parameters */
 	uint16_t	prli_word3;		/* PRLI parameters */
+	uint16_t	new_prli_word0;		/* Incoming new PRLI parameters */
 	uint16_t	new_prli_word3;		/* Incoming new PRLI parameters */
 	uint16_t			: 12,
 			probational	: 1,

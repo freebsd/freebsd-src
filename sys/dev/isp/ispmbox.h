@@ -1384,6 +1384,7 @@ typedef struct {
  */
 typedef struct {
 	uint16_t	handle;
+	uint16_t	prli_word0;
 	uint16_t	prli_word3;
 	uint32_t		: 8,
 			portid	: 24;
