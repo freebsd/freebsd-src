@@ -925,7 +925,7 @@ bridge_set_ifcap(struct bridge_softc *sc, struct bridge_iflist *bif, int set)
 {
 	struct ifnet *ifp = bif->bif_ifp;
 	struct ifreq ifr;
-	int error;
+	int error, mask, stuck;
 
 	BRIDGE_UNLOCK_ASSERT(sc);
 
@@ -938,10 +938,12 @@ bridge_set_ifcap(struct bridge_softc *sc, struct bridge_iflist *bif, int set)
 			if_printf(sc->sc_ifp,
 			    "error setting capabilities on %s: %d\n",
 			    ifp->if_xname, error);
-		if ((ifp->if_capenable & ~set) != 0)
+		mask = BRIDGE_IFCAPS_MASK | BRIDGE_IFCAPS_STRIP;
+		stuck = ifp->if_capenable & mask & ~set;
+		if (stuck != 0)
 			if_printf(sc->sc_ifp,
 			    "can't disable some capabilities on %s: 0x%x\n",
-			    ifp->if_xname, ifp->if_capenable & ~set);
+			    ifp->if_xname, stuck);
 	}
 }
 
