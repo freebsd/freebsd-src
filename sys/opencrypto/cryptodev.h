@@ -421,7 +421,11 @@ struct cryptop {
 #define	CRYPTO_F_DONE		0x0020	/* Operation completed */
 #define	CRYPTO_F_CBIFSYNC	0x0040	/* Do CBIMM if op is synchronous */
 
-	caddr_t		crp_buf;	/* Data to be processed */
+	union {
+		caddr_t		crp_buf;	/* Data to be processed */
+		struct mbuf	*crp_mbuf;
+		struct uio	*crp_uio;
+	};
 	void *		crp_opaque;	/* Opaque pointer, passed along */
 	struct cryptodesc *crp_desc;	/* Linked list of processing descriptors */
 
@@ -522,5 +526,6 @@ extern	void crypto_copydata(int flags, caddr_t buf, int off, int size,
 	    caddr_t out);
 extern	int crypto_apply(int flags, caddr_t buf, int off, int len,
 	    int (*f)(void *, void *, u_int), void *arg);
+
 #endif /* _KERNEL */
 #endif /* _CRYPTO_CRYPTO_H_ */
