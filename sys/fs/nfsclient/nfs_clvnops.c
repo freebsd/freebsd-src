@@ -3511,9 +3511,6 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 	case _PC_NO_TRUNC:
 		*ap->a_retval = pc.pc_notrunc;
 		break;
-	case _PC_ACL_EXTENDED:
-		*ap->a_retval = 0;
-		break;
 	case _PC_ACL_NFS4:
 		if (NFS_ISV4(vp) && nfsrv_useacl != 0 && attrflag != 0 &&
 		    NFSISSET_ATTRBIT(&nfsva.na_suppattr, NFSATTRBIT_ACL))
@@ -3526,9 +3523,6 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 			*ap->a_retval = ACL_MAX_ENTRIES;
 		else
 			*ap->a_retval = 3;
-		break;
-	case _PC_MAC_PRESENT:
-		*ap->a_retval = 0;
 		break;
 	case _PC_PRIO_IO:
 		*ap->a_retval = 0;
