@@ -7,12 +7,15 @@ TESTSDIR=	${TESTSBASE}/sys/fs/fuse
 ATF_TESTS_CXX+=	access
 ATF_TESTS_CXX+=	create
 ATF_TESTS_CXX+=	flush
+ATF_TESTS_CXX+=	fsync
+ATF_TESTS_CXX+=	fsyncdir
 ATF_TESTS_CXX+=	getattr
 ATF_TESTS_CXX+=	link
 ATF_TESTS_CXX+=	lookup
 ATF_TESTS_CXX+=	mkdir
 ATF_TESTS_CXX+=	mknod
 ATF_TESTS_CXX+=	open
+ATF_TESTS_CXX+=	opendir
 ATF_TESTS_CXX+=	read
 ATF_TESTS_CXX+=	readlink
 ATF_TESTS_CXX+=	release
@@ -38,6 +41,16 @@ SRCS.flush+=	flush.cc
 SRCS.flush+=	getmntopts.c
 SRCS.flush+=	mockfs.cc
 SRCS.flush+=	utils.cc
+
+SRCS.fsync+=	fsync.cc
+SRCS.fsync+=	getmntopts.c
+SRCS.fsync+=	mockfs.cc
+SRCS.fsync+=	utils.cc
+
+SRCS.fsyncdir+=	fsyncdir.cc
+SRCS.fsyncdir+=	getmntopts.c
+SRCS.fsyncdir+=	mockfs.cc
+SRCS.fsyncdir+=	utils.cc
 
 SRCS.getattr+=	getattr.cc
 SRCS.getattr+=	getmntopts.c
@@ -68,6 +81,11 @@ SRCS.open+=	getmntopts.c
 SRCS.open+=	mockfs.cc
 SRCS.open+=	open.cc
 SRCS.open+=	utils.cc
+
+SRCS.opendir+=	getmntopts.c
+SRCS.opendir+=	mockfs.cc
+SRCS.opendir+=	opendir.cc
+SRCS.opendir+=	utils.cc
 
 SRCS.read+=	getmntopts.c
 SRCS.read+=	mockfs.cc

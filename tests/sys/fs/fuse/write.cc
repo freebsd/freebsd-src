@@ -580,6 +580,39 @@ TEST_F(Write, write_nothing)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
+/* In writeback mode, dirty data should be written on close */
+TEST_F(WriteBack, close)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	uint64_t ino = 42;
+	int fd;
+	ssize_t bufsize = strlen(CONTENTS);
+
+	expect_lookup(RELPATH, ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
+	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_SETATTR);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+	}));
+	expect_release(ino, ReturnErrno(0));
+
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
+	close(fd);
+}
+
 /*
  * Without direct_io, writes should be committed to cache
  */
