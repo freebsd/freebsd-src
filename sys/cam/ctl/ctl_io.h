@@ -165,6 +165,15 @@ union ctl_priv {
 #define CTL_PORT(io)	(((struct ctl_softc *)CTL_SOFTC(io))->	\
     ctl_ports[(io)->io_hdr.nexus.targ_port])
 
+/*
+ * These are used only on Originating SC in XFER mode, where requests don't
+ * ever reach backends, so we can reuse backend's private storage.
+ */
+#define CTL_RSGL(io)	((io)->io_hdr.ctl_private[CTL_PRIV_BACKEND].ptrs[0])
+#define CTL_LSGL(io)	((io)->io_hdr.ctl_private[CTL_PRIV_BACKEND].ptrs[1])
+#define CTL_RSGLT(io)	((struct ctl_sg_entry *)CTL_RSGL(io))
+#define CTL_LSGLT(io)	((struct ctl_sg_entry *)CTL_LSGL(io))
+
 #define CTL_INVALID_PORTNAME 0xFF
 #define CTL_UNMAPPED_IID     0xFF
 
@@ -227,12 +236,12 @@ struct ctl_io_hdr {
 	struct bintime	  dma_bt;	/* DMA total ticks */
 #endif /* CTL_TIME_IO */
 	uint32_t	  num_dmas;	/* Number of DMAs */
-	union ctl_io	  *original_sc;
-	union ctl_io	  *serializing_sc;
+	union ctl_io	  *remote_io;	/* I/O counterpart on remote HA side */
+	void		  *pad1;
 	void		  *pool;	/* I/O pool */
 	union ctl_priv	  ctl_private[CTL_NUM_PRIV];/* CTL private area */
-	struct ctl_sg_entry *remote_sglist;
-	struct ctl_sg_entry *local_sglist;
+	void		  *pad2;
+	void		  *pad3;
 	STAILQ_ENTRY(ctl_io_hdr) links;	/* linked list pointer */
 	TAILQ_ENTRY(ctl_io_hdr) ooa_links;
 	TAILQ_ENTRY(ctl_io_hdr) blocked_links;
