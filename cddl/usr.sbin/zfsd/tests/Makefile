@@ -7,7 +7,8 @@ GTESTS=			zfsd_unittest
 
 SRCS.zfsd_unittest:=	${SRCS:Nzfsd_main.cc}
 SRCS.zfsd_unittest+=	libmocks.c zfsd_unittest.cc
+.undef SRCS
 
-LIBDADD.zfsd_unittest+=	gmock_main
+LIBADD.zfsd_unittest+=	gmock_main
 
 .include <bsd.test.mk>
