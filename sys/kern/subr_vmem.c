@@ -689,9 +689,11 @@ vmem_startup(void)
 	/*
 	 * Reserve enough tags to allocate new tags.  We allow multiple
 	 * CPUs to attempt to allocate new tags concurrently to limit
-	 * false restarts in UMA.
+	 * false restarts in UMA.  vmem_bt_alloc() allocates from a per-domain
+	 * arena, which may involve importing a range from the kernel arena,
+	 * so we need to keep at least 2 * BT_MAXALLOC tags reserved.
 	 */
-	uma_zone_reserve(vmem_bt_zone, BT_MAXALLOC * (mp_ncpus + 1) / 2);
+	uma_zone_reserve(vmem_bt_zone, 2 * BT_MAXALLOC * mp_ncpus);
 	uma_zone_set_allocf(vmem_bt_zone, vmem_bt_alloc);
 #endif
 }
