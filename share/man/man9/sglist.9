@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 12, 2014
+.Dd May 16, 2017
 .Dt SGLIST 9
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Nm sglist_append_bio ,
 .Nm sglist_append_mbuf ,
 .Nm sglist_append_phys ,
+.Nm sglist_append_sglist ,
 .Nm sglist_append_uio ,
 .Nm sglist_append_user ,
 .Nm sglist_append_vmpages ,
@@ -66,6 +67,8 @@
 .Fn sglist_append_mbuf "struct sglist *sg" "struct mbuf *m"
 .Ft int
 .Fn sglist_append_phys "struct sglist *sg" "vm_paddr_t paddr" "size_t len"
+.Ft int
+.Fn sglist_append_sglist "struct sglist *sg" "struct sglist *source" "size_t offset" "size_t len"
 .Ft int
 .Fn sglist_append_uio "struct sglist *sg" "struct uio *uio"
 .Ft int
@@ -250,6 +253,20 @@ The physical address range starts at
 and is
 .Fa len
 bytes long.
+.Pp
+The
+.Nm sglist_append_sglist
+function appends physical address ranges described by the scatter/gather list
+.Fa source
+to the scatter/gather list
+.Fa sg .
+The physical address ranges start at offset
+.Fa offset
+within
+.Fa source
+and continue for
+.Fa len
+bytes.
 .Pp
 The
 .Nm sglist_append_uio
