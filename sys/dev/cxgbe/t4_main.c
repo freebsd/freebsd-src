@@ -509,7 +509,7 @@ static int t4_rdmacaps_allowed = -1;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, rdmacaps_allowed, CTLFLAG_RDTUN,
     &t4_rdmacaps_allowed, 0, "Default RDMA capabilities");
 
-static int t4_cryptocaps_allowed = 0;
+static int t4_cryptocaps_allowed = -1;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, cryptocaps_allowed, CTLFLAG_RDTUN,
     &t4_cryptocaps_allowed, 0, "Default crypto capabilities");
 
