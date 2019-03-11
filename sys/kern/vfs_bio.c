@@ -5337,11 +5337,11 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 	    (u_int)bp->b_ioflags, PRINT_BIO_FLAGS);
 	db_printf(
 	    "b_error = %d, b_bufsize = %ld, b_bcount = %ld, b_resid = %ld\n"
-	    "b_bufobj = (%p), b_data = %p, b_blkno = %jd, b_lblkno = %jd, "
-	    "b_dep = %p\n",
+	    "b_bufobj = (%p), b_data = %p\n, b_blkno = %jd, b_lblkno = %jd, "
+	    "b_vp = %p, b_dep = %p\n",
 	    bp->b_error, bp->b_bufsize, bp->b_bcount, bp->b_resid,
 	    bp->b_bufobj, bp->b_data, (intmax_t)bp->b_blkno,
-	    (intmax_t)bp->b_lblkno, bp->b_dep.lh_first);
+	    (intmax_t)bp->b_lblkno, bp->b_vp, bp->b_dep.lh_first);
 	db_printf("b_kvabase = %p, b_kvasize = %d\n",
 	    bp->b_kvabase, bp->b_kvasize);
 	if (bp->b_npages) {
