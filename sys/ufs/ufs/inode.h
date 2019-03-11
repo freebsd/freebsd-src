@@ -134,6 +134,10 @@ struct inode {
 
 #define	IN_UFS2		0x0400		/* UFS2 vs UFS1 */
 
+#define PRINT_INODE_FLAGS "\20\20b16\17b15\16b14\15b13" \
+	"\14b12\13is_ufs2\12truncated\11ea_lockwait\10ea_locked" \
+	"\7lazyaccess\6lazymod\5needsync\4modified\3update\2change\1access"
+
 #define	i_dirhash i_un.dirhash
 #define	i_snapblklist i_un.snapblklist
 #define	i_din1 dinode_u.din1
