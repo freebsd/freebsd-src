@@ -422,7 +422,7 @@ struct cryptop {
 #define	CRYPTO_F_CBIFSYNC	0x0040	/* Do CBIMM if op is synchronous */
 
 	caddr_t		crp_buf;	/* Data to be processed */
-	caddr_t		crp_opaque;	/* Opaque pointer, passed along */
+	void *		crp_opaque;	/* Opaque pointer, passed along */
 	struct cryptodesc *crp_desc;	/* Linked list of processing descriptors */
 
 	int (*crp_callback)(struct cryptop *); /* Callback function */
