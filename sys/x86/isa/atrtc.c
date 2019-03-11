@@ -83,6 +83,11 @@ static	int	rtc_reg = -1;
 static	u_char	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
 static	u_char	rtc_statusb = RTCSB_24HR;
 
+#ifdef DEV_ACPI
+#define	_COMPONENT	ACPI_TIMER
+ACPI_MODULE_NAME("ATRTC")
+#endif
+
 /*
  * RTC support routines
  */
