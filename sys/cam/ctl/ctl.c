@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/endian.h>
+#include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <vm/uma.h>
 
@@ -13343,6 +13345,9 @@ ctl_work_thread(void *arg)
 	int retval;
 
 	CTL_DEBUG_PRINT(("ctl_work_thread starting\n"));
+	thread_lock(curthread);
+	sched_prio(curthread, PUSER - 1);
+	thread_unlock(curthread);
 
 	while (!softc->shutdown) {
 		/*
@@ -13392,7 +13397,7 @@ ctl_work_thread(void *arg)
 		}
 
 		/* Sleep until we have something to do. */
-		mtx_sleep(thr, &thr->queue_lock, PDROP | PRIBIO, "-", 0);
+		mtx_sleep(thr, &thr->queue_lock, PDROP, "-", 0);
 	}
 	thr->thread = NULL;
 	kthread_exit();
@@ -13405,6 +13410,9 @@ ctl_lun_thread(void *arg)
 	struct ctl_be_lun *be_lun;
 
 	CTL_DEBUG_PRINT(("ctl_lun_thread starting\n"));
+	thread_lock(curthread);
+	sched_prio(curthread, PUSER - 1);
+	thread_unlock(curthread);
 
 	while (!softc->shutdown) {
 		mtx_lock(&softc->ctl_lock);
@@ -13418,7 +13426,7 @@ ctl_lun_thread(void *arg)
 
 		/* Sleep until we have something to do. */
 		mtx_sleep(&softc->pending_lun_queue, &softc->ctl_lock,
-		    PDROP | PRIBIO, "-", 0);
+		    PDROP, "-", 0);
 	}
 	softc->lun_thread = NULL;
 	kthread_exit();
@@ -13436,6 +13444,9 @@ ctl_thresh_thread(void *arg)
 	int i, e, set;
 
 	CTL_DEBUG_PRINT(("ctl_thresh_thread starting\n"));
+	thread_lock(curthread);
+	sched_prio(curthread, PUSER - 1);
+	thread_unlock(curthread);
 
 	while (!softc->shutdown) {
 		mtx_lock(&softc->ctl_lock);
@@ -13523,7 +13534,7 @@ ctl_thresh_thread(void *arg)
 			}
 		}
 		mtx_sleep(&softc->thresh_thread, &softc->ctl_lock,
-		    PDROP | PRIBIO, "-", CTL_LBP_PERIOD * hz);
+		    PDROP, "-", CTL_LBP_PERIOD * hz);
 	}
 	softc->thresh_thread = NULL;
 	kthread_exit();

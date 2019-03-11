@@ -1145,7 +1145,7 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 
 	retval = taskqueue_start_threads(&be_lun->io_taskqueue,
 					 /*num threads*/1,
-					 /*priority*/PWAIT,
+					 /*priority*/PUSER,
 					 /*thread name*/
 					 "%s taskq", be_lun->lunname);
 	if (retval != 0)
