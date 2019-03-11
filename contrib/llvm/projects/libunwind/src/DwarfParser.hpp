@@ -20,13 +20,14 @@
 
 #include "libunwind.h"
 #include "dwarf2.h"
+#include "Registers.hpp"
 
-#include "AddressSpace.hpp"
+#include "config.h"
 
 namespace libunwind {
 
 /// CFI_Parser does basic parsing of a CFI (Call Frame Information) records.
-/// See Dwarf Spec for details:
+/// See DWARF Spec for details:
 ///    http://refspecs.linuxbase.org/LSB_3.1.0/LSB-Core-generic/LSB-Core-generic/ehframechpt.html
 ///
 template <typename A>
@@ -49,6 +50,9 @@ public:
     bool      isSignalFrame;
     bool      fdesHaveAugmentationData;
     uint8_t   returnAddressRegister;
+#if defined(_LIBUNWIND_TARGET_AARCH64)
+    bool      addressesSignedWithBKey;
+#endif
   };
 
   /// Information about an FDE (Frame Description Entry)
@@ -62,7 +66,7 @@ public:
   };
 
   enum {
-    kMaxRegisterNumber = _LIBUNWIND_MAX_REGISTER
+    kMaxRegisterNumber = _LIBUNWIND_HIGHEST_DWARF_REGISTER
   };
   enum RegisterSavedWhere {
     kRegisterUnused,
@@ -77,7 +81,7 @@ public:
     int64_t value;
   };
   /// Information about a frame layout and registers saved determined
-  /// by "running" the dwarf FDE "instructions"
+  /// by "running" the DWARF FDE "instructions"
   struct PrologInfo {
     uint32_t          cfaRegister;
     int32_t           cfaRegisterOffset;  // CFA = (cfaRegister)+cfaRegisterOffset
@@ -86,7 +90,7 @@ public:
     uint32_t          codeOffsetAtStackDecrement;
     bool              registersInOtherRegisters;
     bool              sameValueUsed;
-    RegisterLocation  savedRegisters[kMaxRegisterNumber];
+    RegisterLocation  savedRegisters[kMaxRegisterNumber + 1];
   };
 
   struct PrologInfoStackEntry {
@@ -103,7 +107,7 @@ public:
                                FDE_Info *fdeInfo, CIE_Info *cieInfo);
   static bool parseFDEInstructions(A &addressSpace, const FDE_Info &fdeInfo,
                                    const CIE_Info &cieInfo, pint_t upToPC,
-                                   PrologInfo *results);
+                                   int arch, PrologInfo *results);
 
   static const char *parseCIE(A &addressSpace, pint_t cie, CIE_Info *cieInfo);
 
@@ -111,7 +115,7 @@ private:
   static bool parseInstructions(A &addressSpace, pint_t instructions,
                                 pint_t instructionsEnd, const CIE_Info &cieInfo,
                                 pint_t pcoffset,
-                                PrologInfoStackEntry *&rememberStack,
+                                PrologInfoStackEntry *&rememberStack, int arch,
                                 PrologInfo *results);
 };
 
@@ -138,23 +142,23 @@ const char *CFI_Parser<A>::decodeFDE(A &addressSpace, pint_t fdeStart,
   if (err != NULL)
     return err;
   p += 4;
-  // parse pc begin and range
+  // Parse pc begin and range.
   pint_t pcStart =
       addressSpace.getEncodedP(p, nextCFI, cieInfo->pointerEncoding);
   pint_t pcRange =
       addressSpace.getEncodedP(p, nextCFI, cieInfo->pointerEncoding & 0x0F);
-  // parse rest of info
+  // Parse rest of info.
   fdeInfo->lsda = 0;
-  // check for augmentation length
+  // Check for augmentation length.
   if (cieInfo->fdesHaveAugmentationData) {
     pint_t augLen = (pint_t)addressSpace.getULEB128(p, nextCFI);
     pint_t endOfAug = p + augLen;
     if (cieInfo->lsdaEncoding != DW_EH_PE_omit) {
-      // peek at value (without indirection).  Zero means no lsda
+      // Peek at value (without indirection).  Zero means no LSDA.
       pint_t lsdaStart = p;
       if (addressSpace.getEncodedP(p, nextCFI, cieInfo->lsdaEncoding & 0x0F) !=
           0) {
-        // reset pointer and re-parse lsda address
+        // Reset pointer and re-parse LSDA address.
         p = lsdaStart;
         fdeInfo->lsda =
             addressSpace.getEncodedP(p, nextCFI, cieInfo->lsdaEncoding);
@@ -192,23 +196,23 @@ bool CFI_Parser<A>::findFDE(A &addressSpace, pint_t pc, pint_t ehSectionStart,
       return false; // end marker
     uint32_t id = addressSpace.get32(p);
     if (id == 0) {
-      // skip over CIEs
+      // Skip over CIEs.
       p += cfiLength;
     } else {
-      // process FDE to see if it covers pc
+      // Process FDE to see if it covers pc.
       pint_t nextCFI = p + cfiLength;
       uint32_t ciePointer = addressSpace.get32(p);
       pint_t cieStart = p - ciePointer;
-      // validate pointer to CIE is within section
+      // Validate pointer to CIE is within section.
       if ((ehSectionStart <= cieStart) && (cieStart < ehSectionEnd)) {
         if (parseCIE(addressSpace, cieStart, cieInfo) == NULL) {
           p += 4;
-          // parse pc begin and range
+          // Parse pc begin and range.
           pint_t pcStart =
               addressSpace.getEncodedP(p, nextCFI, cieInfo->pointerEncoding);
           pint_t pcRange = addressSpace.getEncodedP(
               p, nextCFI, cieInfo->pointerEncoding & 0x0F);
-          // test if pc is within the function this FDE covers
+          // Test if pc is within the function this FDE covers.
           if ((pcStart < pc) && (pc <= pcStart + pcRange)) {
             // parse rest of info
             fdeInfo->lsda = 0;
@@ -217,11 +221,11 @@ bool CFI_Parser<A>::findFDE(A &addressSpace, pint_t pc, pint_t ehSectionStart,
               pint_t augLen = (pint_t)addressSpace.getULEB128(p, nextCFI);
               pint_t endOfAug = p + augLen;
               if (cieInfo->lsdaEncoding != DW_EH_PE_omit) {
-                // peek at value (without indirection).  Zero means no lsda
+                // Peek at value (without indirection).  Zero means no LSDA.
                 pint_t lsdaStart = p;
                 if (addressSpace.getEncodedP(
                         p, nextCFI, cieInfo->lsdaEncoding & 0x0F) != 0) {
-                  // reset pointer and re-parse lsda address
+                  // Reset pointer and re-parse LSDA address.
                   p = lsdaStart;
                   fdeInfo->lsda = addressSpace
                       .getEncodedP(p, nextCFI, cieInfo->lsdaEncoding);
@@ -239,7 +243,7 @@ bool CFI_Parser<A>::findFDE(A &addressSpace, pint_t pc, pint_t ehSectionStart,
             // pc is not in begin/range, skip this FDE
           }
         } else {
-          // malformed CIE, now augmentation describing pc range encoding
+          // Malformed CIE, now augmentation describing pc range encoding.
         }
       } else {
         // malformed FDE.  CIE is bad
@@ -263,6 +267,9 @@ const char *CFI_Parser<A>::parseCIE(A &addressSpace, pint_t cie,
   cieInfo->dataAlignFactor = 0;
   cieInfo->isSignalFrame = false;
   cieInfo->fdesHaveAugmentationData = false;
+#if defined(_LIBUNWIND_TARGET_AARCH64)
+  cieInfo->addressesSignedWithBKey = false;
+#endif
   cieInfo->cieStart = cie;
   pint_t p = cie;
   pint_t cieLength = (pint_t)addressSpace.get32(p);
@@ -326,6 +333,11 @@ const char *CFI_Parser<A>::parseCIE(A &addressSpace, pint_t cie,
       case 'S':
         cieInfo->isSignalFrame = true;
         break;
+#if defined(_LIBUNWIND_TARGET_AARCH64)
+      case 'B':
+        cieInfo->addressesSignedWithBKey = true;
+        break;
+#endif
       default:
         // ignore unknown letters
         break;
@@ -338,12 +350,12 @@ const char *CFI_Parser<A>::parseCIE(A &addressSpace, pint_t cie,
 }
 
 
-/// "run" the dwarf instructions and create the abstact PrologInfo for an FDE
+/// "run" the DWARF instructions and create the abstact PrologInfo for an FDE
 template <typename A>
 bool CFI_Parser<A>::parseFDEInstructions(A &addressSpace,
                                          const FDE_Info &fdeInfo,
                                          const CIE_Info &cieInfo, pint_t upToPC,
-                                         PrologInfo *results) {
+                                         int arch, PrologInfo *results) {
   // clear results
   memset(results, '\0', sizeof(PrologInfo));
   PrologInfoStackEntry *rememberStack = NULL;
@@ -351,28 +363,28 @@ bool CFI_Parser<A>::parseFDEInstructions(A &addressSpace,
   // parse CIE then FDE instructions
   return parseInstructions(addressSpace, cieInfo.cieInstructions,
                            cieInfo.cieStart + cieInfo.cieLength, cieInfo,
-                           (pint_t)(-1), rememberStack, results) &&
+                           (pint_t)(-1), rememberStack, arch, results) &&
          parseInstructions(addressSpace, fdeInfo.fdeInstructions,
                            fdeInfo.fdeStart + fdeInfo.fdeLength, cieInfo,
-                           upToPC - fdeInfo.pcStart, rememberStack, results);
+                           upToPC - fdeInfo.pcStart, rememberStack, arch,
+                           results);
 }
 
-/// "run" the dwarf instructions
+/// "run" the DWARF instructions
 template <typename A>
 bool CFI_Parser<A>::parseInstructions(A &addressSpace, pint_t instructions,
                                       pint_t instructionsEnd,
                                       const CIE_Info &cieInfo, pint_t pcoffset,
                                       PrologInfoStackEntry *&rememberStack,
-                                      PrologInfo *results) {
-  const bool logDwarf = false;
+                                      int arch, PrologInfo *results) {
   pint_t p = instructions;
   pint_t codeOffset = 0;
   PrologInfo initialState = *results;
-  if (logDwarf)
-    fprintf(stderr, "parseInstructions(instructions=0x%0" PRIx64 ")\n",
-            (uint64_t)instructionsEnd);
 
-  // see Dwarf Spec, section 6.4.2 for details on unwind opcodes
+  _LIBUNWIND_TRACE_DWARF("parseInstructions(instructions=0x%0" PRIx64 ")\n",
+                         static_cast<uint64_t>(instructionsEnd));
+
+  // see DWARF Spec, section 6.4.2 for details on unwind opcodes
   while ((p < instructionsEnd) && (codeOffset < pcoffset)) {
     uint64_t reg;
     uint64_t reg2;
@@ -386,81 +398,71 @@ bool CFI_Parser<A>::parseInstructions(A &addressSpace, pint_t instructions,
     ++p;
     switch (opcode) {
     case DW_CFA_nop:
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_nop\n");
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_nop\n");
       break;
     case DW_CFA_set_loc:
       codeOffset =
           addressSpace.getEncodedP(p, instructionsEnd, cieInfo.pointerEncoding);
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_set_loc\n");
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_set_loc\n");
       break;
     case DW_CFA_advance_loc1:
       codeOffset += (addressSpace.get8(p) * cieInfo.codeAlignFactor);
       p += 1;
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_advance_loc1: new offset=%" PRIu64 "\n",
-                (uint64_t)codeOffset);
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_advance_loc1: new offset=%" PRIu64 "\n",
+                             static_cast<uint64_t>(codeOffset));
       break;
     case DW_CFA_advance_loc2:
       codeOffset += (addressSpace.get16(p) * cieInfo.codeAlignFactor);
       p += 2;
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_advance_loc2: new offset=%" PRIu64 "\n",
-                (uint64_t)codeOffset);
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_advance_loc2: new offset=%" PRIu64 "\n",
+                             static_cast<uint64_t>(codeOffset));
       break;
     case DW_CFA_advance_loc4:
       codeOffset += (addressSpace.get32(p) * cieInfo.codeAlignFactor);
       p += 4;
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_advance_loc4: new offset=%" PRIu64 "\n",
-                (uint64_t)codeOffset);
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_advance_loc4: new offset=%" PRIu64 "\n",
+                             static_cast<uint64_t>(codeOffset));
       break;
     case DW_CFA_offset_extended:
       reg = addressSpace.getULEB128(p, instructionsEnd);
       offset = (int64_t)addressSpace.getULEB128(p, instructionsEnd)
                                                   * cieInfo.dataAlignFactor;
       if (reg > kMaxRegisterNumber) {
-        fprintf(stderr,
-                "malformed DW_CFA_offset_extended dwarf unwind, reg too big\n");
+        _LIBUNWIND_LOG0(
+                "malformed DW_CFA_offset_extended DWARF unwind, reg too big");
         return false;
       }
       results->savedRegisters[reg].location = kRegisterInCFA;
       results->savedRegisters[reg].value = offset;
-      if (logDwarf)
-        fprintf(stderr,
-                "DW_CFA_offset_extended(reg=%" PRIu64 ", offset=%" PRId64 ")\n",
-                reg, offset);
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_offset_extended(reg=%" PRIu64 ", "
+                             "offset=%" PRId64 ")\n",
+                             reg, offset);
       break;
     case DW_CFA_restore_extended:
       reg = addressSpace.getULEB128(p, instructionsEnd);
-      ;
       if (reg > kMaxRegisterNumber) {
-        fprintf(
-            stderr,
-            "malformed DW_CFA_restore_extended dwarf unwind, reg too big\n");
+        _LIBUNWIND_LOG0(
+            "malformed DW_CFA_restore_extended DWARF unwind, reg too big");
         return false;
       }
       results->savedRegisters[reg] = initialState.savedRegisters[reg];
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_restore_extended(reg=%" PRIu64 ")\n", reg);
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_restore_extended(reg=%" PRIu64 ")\n", reg);
       break;
     case DW_CFA_undefined:
       reg = addressSpace.getULEB128(p, instructionsEnd);
       if (reg > kMaxRegisterNumber) {
-        fprintf(stderr,
-                "malformed DW_CFA_undefined dwarf unwind, reg too big\n");
+        _LIBUNWIND_LOG0(
+                "malformed DW_CFA_undefined DWARF unwind, reg too big");
         return false;
       }
       results->savedRegisters[reg].location = kRegisterUnused;
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_undefined(reg=%" PRIu64 ")\n", reg);
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_undefined(reg=%" PRIu64 ")\n", reg);
       break;
     case DW_CFA_same_value:
       reg = addressSpace.getULEB128(p, instructionsEnd);
       if (reg > kMaxRegisterNumber) {
-        fprintf(stderr,
-                "malformed DW_CFA_same_value dwarf unwind, reg too big\n");
+        _LIBUNWIND_LOG0(
+                "malformed DW_CFA_same_value DWARF unwind, reg too big");
         return false;
       }
       // <rdar://problem/8456377> DW_CFA_same_value unsupported
@@ -470,29 +472,27 @@ bool CFI_Parser<A>::parseInstructions(A &addressSpace, pint_t instructions,
       results->savedRegisters[reg].location = kRegisterUnused;
       // set flag to disable conversion to compact unwind
       results->sameValueUsed = true;
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_same_value(reg=%" PRIu64 ")\n", reg);
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_same_value(reg=%" PRIu64 ")\n", reg);
       break;
     case DW_CFA_register:
       reg = addressSpace.getULEB128(p, instructionsEnd);
       reg2 = addressSpace.getULEB128(p, instructionsEnd);
       if (reg > kMaxRegisterNumber) {
-        fprintf(stderr,
-                "malformed DW_CFA_register dwarf unwind, reg too big\n");
+        _LIBUNWIND_LOG0(
+                "malformed DW_CFA_register DWARF unwind, reg too big");
         return false;
       }
       if (reg2 > kMaxRegisterNumber) {
-        fprintf(stderr,
-                "malformed DW_CFA_register dwarf unwind, reg2 too big\n");
+        _LIBUNWIND_LOG0(
+                "malformed DW_CFA_register DWARF unwind, reg2 too big");
         return false;
       }
       results->savedRegisters[reg].location = kRegisterInRegister;
       results->savedRegisters[reg].value = (int64_t)reg2;
       // set flag to disable conversion to compact unwind
       results->registersInOtherRegisters = true;
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_register(reg=%" PRIu64 ", reg2=%" PRIu64 ")\n",
-                reg, reg2);
+      _LIBUNWIND_TRACE_DWARF(
+          "DW_CFA_register(reg=%" PRIu64 ", reg2=%" PRIu64 ")\n", reg, reg2);
       break;
 #if !defined(_LIBUNWIND_NO_HEAP)
     case DW_CFA_remember_state:
@@ -505,8 +505,7 @@ bool CFI_Parser<A>::parseInstructions(A &addressSpace, pint_t instructions,
       } else {
         return false;
       }
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_remember_state\n");
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_remember_state\n");
       break;
     case DW_CFA_restore_state:
       if (rememberStack != NULL) {
@@ -517,202 +516,243 @@ bool CFI_Parser<A>::parseInstructions(A &addressSpace, pint_t instructions,
       } else {
         return false;
       }
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_restore_state\n");
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_restore_state\n");
       break;
 #endif
     case DW_CFA_def_cfa:
       reg = addressSpace.getULEB128(p, instructionsEnd);
       offset = (int64_t)addressSpace.getULEB128(p, instructionsEnd);
       if (reg > kMaxRegisterNumber) {
-        fprintf(stderr, "malformed DW_CFA_def_cfa dwarf unwind, reg too big\n");
+        _LIBUNWIND_LOG0("malformed DW_CFA_def_cfa DWARF unwind, reg too big");
         return false;
       }
       results->cfaRegister = (uint32_t)reg;
       results->cfaRegisterOffset = (int32_t)offset;
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_def_cfa(reg=%" PRIu64 ", offset=%" PRIu64 ")\n",
-                reg, offset);
+      _LIBUNWIND_TRACE_DWARF(
+          "DW_CFA_def_cfa(reg=%" PRIu64 ", offset=%" PRIu64 ")\n", reg, offset);
       break;
     case DW_CFA_def_cfa_register:
       reg = addressSpace.getULEB128(p, instructionsEnd);
       if (reg > kMaxRegisterNumber) {
-        fprintf(
-            stderr,
-            "malformed DW_CFA_def_cfa_register dwarf unwind, reg too big\n");
+        _LIBUNWIND_LOG0(
+            "malformed DW_CFA_def_cfa_register DWARF unwind, reg too big");
         return false;
       }
       results->cfaRegister = (uint32_t)reg;
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_def_cfa_register(%" PRIu64 ")\n", reg);
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_def_cfa_register(%" PRIu64 ")\n", reg);
       break;
     case DW_CFA_def_cfa_offset:
       results->cfaRegisterOffset = (int32_t)
                                   addressSpace.getULEB128(p, instructionsEnd);
       results->codeOffsetAtStackDecrement = (uint32_t)codeOffset;
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_def_cfa_offset(%d)\n",
-                results->cfaRegisterOffset);
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_def_cfa_offset(%d)\n",
+                             results->cfaRegisterOffset);
       break;
     case DW_CFA_def_cfa_expression:
       results->cfaRegister = 0;
       results->cfaExpression = (int64_t)p;
       length = addressSpace.getULEB128(p, instructionsEnd);
-      p += length;
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_def_cfa_expression(expression=0x%" PRIx64
-                        ", length=%" PRIu64 ")\n",
-                results->cfaExpression, length);
+      assert(length < static_cast<pint_t>(~0) && "pointer overflow");
+      p += static_cast<pint_t>(length);
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_def_cfa_expression(expression=0x%" PRIx64
+                             ", length=%" PRIu64 ")\n",
+                             results->cfaExpression, length);
       break;
     case DW_CFA_expression:
       reg = addressSpace.getULEB128(p, instructionsEnd);
       if (reg > kMaxRegisterNumber) {
-        fprintf(stderr,
-                "malformed DW_CFA_expression dwarf unwind, reg too big\n");
+        _LIBUNWIND_LOG0(
+                "malformed DW_CFA_expression DWARF unwind, reg too big");
         return false;
       }
       results->savedRegisters[reg].location = kRegisterAtExpression;
       results->savedRegisters[reg].value = (int64_t)p;
       length = addressSpace.getULEB128(p, instructionsEnd);
-      p += length;
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_expression(reg=%" PRIu64
-                        ", expression=0x%" PRIx64 ", length=%" PRIu64 ")\n",
-                reg, results->savedRegisters[reg].value, length);
+      assert(length < static_cast<pint_t>(~0) && "pointer overflow");
+      p += static_cast<pint_t>(length);
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_expression(reg=%" PRIu64 ", "
+                             "expression=0x%" PRIx64 ", "
+                             "length=%" PRIu64 ")\n",
+                             reg, results->savedRegisters[reg].value, length);
       break;
     case DW_CFA_offset_extended_sf:
       reg = addressSpace.getULEB128(p, instructionsEnd);
       if (reg > kMaxRegisterNumber) {
-        fprintf(
-            stderr,
-            "malformed DW_CFA_offset_extended_sf dwarf unwind, reg too big\n");
+        _LIBUNWIND_LOG0(
+            "malformed DW_CFA_offset_extended_sf DWARF unwind, reg too big");
         return false;
       }
       offset =
           addressSpace.getSLEB128(p, instructionsEnd) * cieInfo.dataAlignFactor;
       results->savedRegisters[reg].location = kRegisterInCFA;
       results->savedRegisters[reg].value = offset;
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_offset_extended_sf(reg=%" PRIu64
-                        ", offset=%" PRId64 ")\n",
-                reg, offset);
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_offset_extended_sf(reg=%" PRIu64 ", "
+                             "offset=%" PRId64 ")\n",
+                             reg, offset);
       break;
     case DW_CFA_def_cfa_sf:
       reg = addressSpace.getULEB128(p, instructionsEnd);
       offset =
           addressSpace.getSLEB128(p, instructionsEnd) * cieInfo.dataAlignFactor;
       if (reg > kMaxRegisterNumber) {
-        fprintf(stderr,
-                "malformed DW_CFA_def_cfa_sf dwarf unwind, reg too big\n");
+        _LIBUNWIND_LOG0(
+                "malformed DW_CFA_def_cfa_sf DWARF unwind, reg too big");
         return false;
       }
       results->cfaRegister = (uint32_t)reg;
       results->cfaRegisterOffset = (int32_t)offset;
-      if (logDwarf)
-        fprintf(stderr,
-                "DW_CFA_def_cfa_sf(reg=%" PRIu64 ", offset=%" PRId64 ")\n", reg,
-                offset);
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_def_cfa_sf(reg=%" PRIu64 ", "
+                             "offset=%" PRId64 ")\n",
+                             reg, offset);
       break;
     case DW_CFA_def_cfa_offset_sf:
       results->cfaRegisterOffset = (int32_t)
         (addressSpace.getSLEB128(p, instructionsEnd) * cieInfo.dataAlignFactor);
       results->codeOffsetAtStackDecrement = (uint32_t)codeOffset;
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_def_cfa_offset_sf(%d)\n",
-                results->cfaRegisterOffset);
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_def_cfa_offset_sf(%d)\n",
+                             results->cfaRegisterOffset);
       break;
     case DW_CFA_val_offset:
       reg = addressSpace.getULEB128(p, instructionsEnd);
+      if (reg > kMaxRegisterNumber) {
+        _LIBUNWIND_LOG(
+                "malformed DW_CFA_val_offset DWARF unwind, reg (%" PRIu64
+                ") out of range\n",
+                reg);
+        return false;
+      }
       offset = (int64_t)addressSpace.getULEB128(p, instructionsEnd)
                                                     * cieInfo.dataAlignFactor;
       results->savedRegisters[reg].location = kRegisterOffsetFromCFA;
       results->savedRegisters[reg].value = offset;
-      if (logDwarf)
-        fprintf(stderr,
-                "DW_CFA_val_offset(reg=%" PRIu64 ", offset=%" PRId64 "\n", reg,
-                offset);
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_val_offset(reg=%" PRIu64 ", "
+                             "offset=%" PRId64 "\n",
+                             reg, offset);
       break;
     case DW_CFA_val_offset_sf:
       reg = addressSpace.getULEB128(p, instructionsEnd);
       if (reg > kMaxRegisterNumber) {
-        fprintf(stderr,
-                "malformed DW_CFA_val_offset_sf dwarf unwind, reg too big\n");
+        _LIBUNWIND_LOG0(
+                "malformed DW_CFA_val_offset_sf DWARF unwind, reg too big");
         return false;
       }
       offset =
           addressSpace.getSLEB128(p, instructionsEnd) * cieInfo.dataAlignFactor;
       results->savedRegisters[reg].location = kRegisterOffsetFromCFA;
       results->savedRegisters[reg].value = offset;
-      if (logDwarf)
-        fprintf(stderr,
-                "DW_CFA_val_offset_sf(reg=%" PRIu64 ", offset=%" PRId64 "\n",
-                reg, offset);
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_val_offset_sf(reg=%" PRIu64 ", "
+                             "offset=%" PRId64 "\n",
+                             reg, offset);
       break;
     case DW_CFA_val_expression:
       reg = addressSpace.getULEB128(p, instructionsEnd);
       if (reg > kMaxRegisterNumber) {
-        fprintf(stderr,
-                "malformed DW_CFA_val_expression dwarf unwind, reg too big\n");
+        _LIBUNWIND_LOG0(
+                "malformed DW_CFA_val_expression DWARF unwind, reg too big");
         return false;
       }
       results->savedRegisters[reg].location = kRegisterIsExpression;
       results->savedRegisters[reg].value = (int64_t)p;
       length = addressSpace.getULEB128(p, instructionsEnd);
-      p += length;
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_val_expression(reg=%" PRIu64
-                        ", expression=0x%" PRIx64 ", length=%" PRIu64 ")\n",
-                reg, results->savedRegisters[reg].value, length);
+      assert(length < static_cast<pint_t>(~0) && "pointer overflow");
+      p += static_cast<pint_t>(length);
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_val_expression(reg=%" PRIu64 ", "
+                             "expression=0x%" PRIx64 ", length=%" PRIu64 ")\n",
+                             reg, results->savedRegisters[reg].value, length);
       break;
     case DW_CFA_GNU_args_size:
       length = addressSpace.getULEB128(p, instructionsEnd);
       results->spExtraArgSize = (uint32_t)length;
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_GNU_args_size(%" PRIu64 ")\n", length);
+      _LIBUNWIND_TRACE_DWARF("DW_CFA_GNU_args_size(%" PRIu64 ")\n", length);
       break;
     case DW_CFA_GNU_negative_offset_extended:
       reg = addressSpace.getULEB128(p, instructionsEnd);
       if (reg > kMaxRegisterNumber) {
-        fprintf(stderr, "malformed DW_CFA_GNU_negative_offset_extended dwarf "
-                        "unwind, reg too big\n");
+        _LIBUNWIND_LOG0("malformed DW_CFA_GNU_negative_offset_extended DWARF "
+                        "unwind, reg too big");
         return false;
       }
       offset = (int64_t)addressSpace.getULEB128(p, instructionsEnd)
                                                     * cieInfo.dataAlignFactor;
       results->savedRegisters[reg].location = kRegisterInCFA;
       results->savedRegisters[reg].value = -offset;
-      if (logDwarf)
-        fprintf(stderr, "DW_CFA_GNU_negative_offset_extended(%" PRId64 ")\n",
-                offset);
+      _LIBUNWIND_TRACE_DWARF(
+          "DW_CFA_GNU_negative_offset_extended(%" PRId64 ")\n", offset);
       break;
+
+#if defined(_LIBUNWIND_TARGET_AARCH64) || defined(_LIBUNWIND_TARGET_SPARC)
+    // The same constant is used to represent different instructions on
+    // AArch64 (negate_ra_state) and SPARC (window_save).
+    static_assert(DW_CFA_AARCH64_negate_ra_state == DW_CFA_GNU_window_save,
+                  "uses the same constant");
+    case DW_CFA_AARCH64_negate_ra_state:
+      switch (arch) {
+#if defined(_LIBUNWIND_TARGET_AARCH64)
+      case REGISTERS_ARM64:
+        results->savedRegisters[UNW_ARM64_RA_SIGN_STATE].value ^= 0x1;
+        _LIBUNWIND_TRACE_DWARF("DW_CFA_AARCH64_negate_ra_state\n");
+        break;
+#endif
+#if defined(_LIBUNWIND_TARGET_SPARC)
+      // case DW_CFA_GNU_window_save:
+      case REGISTERS_SPARC:
+        _LIBUNWIND_TRACE_DWARF("DW_CFA_GNU_window_save()\n");
+        for (reg = UNW_SPARC_O0; reg <= UNW_SPARC_O7; reg++) {
+          results->savedRegisters[reg].location = kRegisterInRegister;
+          results->savedRegisters[reg].value =
+              ((int64_t)reg - UNW_SPARC_O0) + UNW_SPARC_I0;
+        }
+
+        for (reg = UNW_SPARC_L0; reg <= UNW_SPARC_I7; reg++) {
+          results->savedRegisters[reg].location = kRegisterInCFA;
+          results->savedRegisters[reg].value =
+              ((int64_t)reg - UNW_SPARC_L0) * 4;
+        }
+        break;
+#endif
+      }
+      break;
+#else
+      (void)arch;
+#endif
+
     default:
       operand = opcode & 0x3F;
       switch (opcode & 0xC0) {
       case DW_CFA_offset:
         reg = operand;
+        if (reg > kMaxRegisterNumber) {
+          _LIBUNWIND_LOG("malformed DW_CFA_offset DWARF unwind, reg (%" PRIu64
+                         ") out of range",
+                  reg);
+          return false;
+        }
         offset = (int64_t)addressSpace.getULEB128(p, instructionsEnd)
                                                     * cieInfo.dataAlignFactor;
         results->savedRegisters[reg].location = kRegisterInCFA;
         results->savedRegisters[reg].value = offset;
-        if (logDwarf)
-          fprintf(stderr, "DW_CFA_offset(reg=%d, offset=%" PRId64 ")\n",
-                  operand, offset);
+        _LIBUNWIND_TRACE_DWARF("DW_CFA_offset(reg=%d, offset=%" PRId64 ")\n",
+                               operand, offset);
         break;
       case DW_CFA_advance_loc:
         codeOffset += operand * cieInfo.codeAlignFactor;
-        if (logDwarf)
-          fprintf(stderr, "DW_CFA_advance_loc: new offset=%" PRIu64 "\n",
-                  (uint64_t)codeOffset);
+        _LIBUNWIND_TRACE_DWARF("DW_CFA_advance_loc: new offset=%" PRIu64 "\n",
+                               static_cast<uint64_t>(codeOffset));
         break;
       case DW_CFA_restore:
         reg = operand;
+        if (reg > kMaxRegisterNumber) {
+          _LIBUNWIND_LOG("malformed DW_CFA_restore DWARF unwind, reg (%" PRIu64
+                         ") out of range",
+                  reg);
+          return false;
+        }
         results->savedRegisters[reg] = initialState.savedRegisters[reg];
-        if (logDwarf)
-          fprintf(stderr, "DW_CFA_restore(reg=%" PRIu64 ")\n", reg);
+        _LIBUNWIND_TRACE_DWARF("DW_CFA_restore(reg=%" PRIu64 ")\n",
+                               static_cast<uint64_t>(operand));
         break;
       default:
-        if (logDwarf)
-          fprintf(stderr, "unknown CFA opcode 0x%02X\n", opcode);
+        _LIBUNWIND_TRACE_DWARF("unknown CFA opcode 0x%02X\n", opcode);
         return false;
       }
     }

@@ -19,6 +19,11 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#if defined(__SEH__) && !defined(__USING_SJLJ_EXCEPTIONS__) && defined(_WIN32)
+#include <windows.h>
+#include <ntverp.h>
+#endif
+
 #if defined(__APPLE__)
 #define LIBUNWIND_UNAVAIL __attribute__ (( unavailable ))
 #else
@@ -36,7 +41,7 @@ typedef enum {
   _URC_HANDLER_FOUND = 6,
   _URC_INSTALL_CONTEXT = 7,
   _URC_CONTINUE_UNWIND = 8,
-#if _LIBUNWIND_ARM_EHABI
+#if defined(_LIBUNWIND_ARM_EHABI)
   _URC_FAILURE = 9
 #endif
 } _Unwind_Reason_Code;
@@ -51,12 +56,13 @@ typedef enum {
 
 typedef struct _Unwind_Context _Unwind_Context;   // opaque
 
-#if _LIBUNWIND_ARM_EHABI
+#if defined(_LIBUNWIND_ARM_EHABI)
 typedef uint32_t _Unwind_State;
 
 static const _Unwind_State _US_VIRTUAL_UNWIND_FRAME   = 0;
 static const _Unwind_State _US_UNWIND_FRAME_STARTING  = 1;
 static const _Unwind_State _US_UNWIND_FRAME_RESUME    = 2;
+static const _Unwind_State _US_ACTION_MASK            = 3;
 /* Undocumented flag for force unwinding. */
 static const _Unwind_State _US_FORCE_UNWIND           = 8;
 
@@ -99,7 +105,7 @@ struct _Unwind_Control_Block {
   } pr_cache;
 
   long long int :0; /* Enforce the 8-byte alignment */
-};
+} __attribute__((__aligned__(8)));
 
 typedef _Unwind_Reason_Code (*_Unwind_Stop_Fn)
       (_Unwind_State state,
@@ -119,15 +125,22 @@ struct _Unwind_Exception {
   uint64_t exception_class;
   void (*exception_cleanup)(_Unwind_Reason_Code reason,
                             _Unwind_Exception *exc);
+#if defined(__SEH__) && !defined(__USING_SJLJ_EXCEPTIONS__)
+  uintptr_t private_[6];
+#else
   uintptr_t private_1; // non-zero means forced unwind
   uintptr_t private_2; // holds sp that phase1 found for phase2 to use
-#ifndef __LP64__
-  // The gcc implementation of _Unwind_Exception used attribute mode on the
-  // above fields which had the side effect of causing this whole struct to
-  // round up to 32 bytes in size. To be more explicit, we add pad fields
-  // added for binary compatibility.
+#endif
+#if __SIZEOF_POINTER__ == 4
+  // The implementation of _Unwind_Exception uses an attribute mode on the
+  // above fields which has the side effect of causing this whole struct to
+  // round up to 32 bytes in size (48 with SEH). To be more explicit, we add
+  // pad fields added for binary compatibility.
   uint32_t reserved[3];
 #endif
+  // The Itanium ABI requires that _Unwind_Exception objects are "double-word
+  // aligned".  GCC has interpreted this to mean "use the maximum useful
+  // alignment for the target"; so do we.
 } __attribute__((__aligned__));
 
 typedef _Unwind_Reason_Code (*_Unwind_Stop_Fn)
@@ -164,7 +177,7 @@ extern void _Unwind_Resume(_Unwind_Exception *exception_object);
 #endif
 extern void _Unwind_DeleteException(_Unwind_Exception *exception_object);
 
-#if _LIBUNWIND_ARM_EHABI
+#if defined(_LIBUNWIND_ARM_EHABI)
 typedef enum {
   _UVRSC_CORE = 0, /* integer register */
   _UVRSC_VFP = 1, /* vfp */
@@ -204,7 +217,7 @@ _Unwind_VRS_Pop(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
                 _Unwind_VRS_DataRepresentation representation);
 #endif
 
-#if !_LIBUNWIND_ARM_EHABI
+#if !defined(_LIBUNWIND_ARM_EHABI)
 
 extern uintptr_t _Unwind_GetGR(struct _Unwind_Context *context, int index);
 extern void _Unwind_SetGR(struct _Unwind_Context *context, int index,
@@ -212,7 +225,7 @@ extern void _Unwind_SetGR(struct _Unwind_Context *context, int index,
 extern uintptr_t _Unwind_GetIP(struct _Unwind_Context *context);
 extern void _Unwind_SetIP(struct _Unwind_Context *, uintptr_t new_value);
 
-#else  // _LIBUNWIND_ARM_EHABI
+#else  // defined(_LIBUNWIND_ARM_EHABI)
 
 #if defined(_LIBUNWIND_UNWIND_LEVEL1_EXTERNAL_LINKAGE)
 #define _LIBUNWIND_EXPORT_UNWIND_LEVEL1 extern
@@ -251,7 +264,7 @@ void _Unwind_SetIP(struct _Unwind_Context *context, uintptr_t value) {
   uintptr_t thumb_bit = _Unwind_GetGR(context, 15) & ((uintptr_t)0x1);
   _Unwind_SetGR(context, 15, value | thumb_bit);
 }
-#endif  // _LIBUNWIND_ARM_EHABI
+#endif  // defined(_LIBUNWIND_ARM_EHABI)
 
 extern uintptr_t _Unwind_GetRegionStart(struct _Unwind_Context *context);
 extern uintptr_t
@@ -321,7 +334,7 @@ extern void __deregister_frame(const void *fde);
 
 // _Unwind_Find_FDE() will locate the FDE if the pc is in some function that has
 // an associated FDE. Note, Mac OS X 10.6 and later, introduces "compact unwind
-// info" which the runtime uses in preference to dwarf unwind info.  This
+// info" which the runtime uses in preference to DWARF unwind info.  This
 // function will only work if the target function has an FDE but no compact
 // unwind info.
 struct dwarf_eh_bases {
@@ -334,7 +347,7 @@ extern const void *_Unwind_Find_FDE(const void *pc, struct dwarf_eh_bases *);
 
 // This function attempts to find the start (address of first instruction) of
 // a function given an address inside the function.  It only works if the
-// function has an FDE (dwarf unwind info).
+// function has an FDE (DWARF unwind info).
 // This function is unimplemented on Mac OS X 10.6 and later.  Instead, use
 // _Unwind_Find_FDE() and look at the dwarf_eh_bases.func result.
 extern void *_Unwind_FindEnclosingFunction(void *pc);
@@ -364,6 +377,22 @@ extern void *__deregister_frame_info(const void *fde)
     LIBUNWIND_UNAVAIL;
 extern void *__deregister_frame_info_bases(const void *fde)
     LIBUNWIND_UNAVAIL;
+
+#if defined(__SEH__) && !defined(__USING_SJLJ_EXCEPTIONS__)
+#ifndef _WIN32
+typedef struct _EXCEPTION_RECORD EXCEPTION_RECORD;
+typedef struct _CONTEXT CONTEXT;
+typedef struct _DISPATCHER_CONTEXT DISPATCHER_CONTEXT;
+#elif !defined(__MINGW32__) && VER_PRODUCTBUILD < 8000
+typedef struct _DISPATCHER_CONTEXT DISPATCHER_CONTEXT;
+#endif
+// This is the common wrapper for GCC-style personality functions with SEH.
+extern EXCEPTION_DISPOSITION _GCC_specific_handler(EXCEPTION_RECORD *exc,
+                                                   void *frame,
+                                                   CONTEXT *ctx,
+                                                   DISPATCHER_CONTEXT *disp,
+                                                   __personality_routine pers);
+#endif
 
 #ifdef __cplusplus
 }

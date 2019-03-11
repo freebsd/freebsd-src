@@ -219,6 +219,8 @@ nat64_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	}
 	if (logdata != NULL)
 		nat64_log(logdata, m, af);
+	if (m->m_pkthdr.rcvif == NULL)
+		m->m_pkthdr.rcvif = V_loif;
 	ret = netisr_queue(ret, m);
 	if (ret != 0)
 		NAT64STAT_INC(stats, oerrors);
