@@ -692,7 +692,7 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 		limit = zfs_vdev_aggregation_limit;
 	limit = MAX(MIN(limit, maxblocksize), 0);
 
-	if (zio->io_flags & ZIO_FLAG_DONT_AGGREGATE || zio->io_size >= limit)
+	if (zio->io_flags & ZIO_FLAG_DONT_AGGREGATE || limit == 0)
 		return (NULL);
 
 	first = last = zio;
