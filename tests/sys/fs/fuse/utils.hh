@@ -29,16 +29,20 @@
 
 class FuseTest : public ::testing::Test {
 	protected:
+	uint32_t m_maxreadahead;
 	MockFS *m_mock = NULL;
 
 	public:
-	virtual void SetUp() {
-		try {
-			m_mock = new MockFS{};
-		} catch (std::system_error err) {
-			FAIL() << err.what();
-		}
-	}
+	int m_maxbcachebuf;
+
+	/*
+	 * libfuse's default max_readahead is UINT_MAX, though it can be
+	 * lowered
+	 */
+	FuseTest(): FuseTest(UINT_MAX) {}
+	FuseTest(uint32_t maxreadahead): m_maxreadahead(maxreadahead) {}
+
+	virtual void SetUp();
 
 	virtual void TearDown() {
 		if (m_mock)

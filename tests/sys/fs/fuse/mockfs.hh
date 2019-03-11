@@ -99,7 +99,7 @@ union fuse_payloads_out {
 	fuse_attr_out		attr;
 	fuse_create_out		create;
 	/* The protocol places no limits on the size of bytes */
-	uint8_t			bytes[0x2000];
+	uint8_t			bytes[0x20000];
 	fuse_entry_out		entry;
 	fuse_init_out		init;
 	fuse_open_out		open;
@@ -152,6 +152,9 @@ class MockFS {
 	/* file descriptor of /dev/fuse control device */
 	int m_fuse_fd;
 	
+	/* The max_readahead filesystem option */
+	uint32_t m_maxreadahead;
+
 	/* pid of the test process */
 	pid_t m_pid;
 
@@ -175,7 +178,7 @@ class MockFS {
 	uint32_t m_max_write;
 
 	/* Create a new mockfs and mount it to a tempdir */
-	MockFS();
+	MockFS(int max_readahead);
 	virtual ~MockFS();
 
 	/* Kill the filesystem daemon without unmounting the filesystem */
