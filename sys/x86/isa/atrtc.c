@@ -32,6 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_acpi.h"
 #include "opt_isa.h"
 
 #include <sys/param.h>
@@ -54,8 +55,12 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/intr_machdep.h>
 #include "clock_if.h"
+#ifdef DEV_ACPI
 #include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <dev/acpica/acpivar.h>
 #include <machine/md_var.h>
+#endif
 
 /*
  * atrtc_lock protects low-level access to individual hardware registers.
@@ -193,6 +198,9 @@ struct atrtc_softc {
 	struct resource *intr_res;
 	void *intr_handler;
 	struct eventtimer et;
+#ifdef DEV_ACPI
+	ACPI_HANDLE acpi_handle;
+#endif
 };
 
 static int
@@ -247,6 +255,144 @@ rtc_intr(void *arg)
 	return(flag ? FILTER_HANDLED : FILTER_STRAY);
 }
 
+#ifdef DEV_ACPI
+/*
+ *  ACPI RTC CMOS address space handler
+ */
+#define	ATRTC_LAST_REG	0x40
+
+static void
+rtcin_region(int reg, void *buf, int len)
+{
+	u_char *ptr = buf;
+
+	/* Drop lock after each IO as intr and settime have greater priority */
+	while (len-- > 0)
+		*ptr++ = rtcin(reg++) & 0xff;
+}
+
+static void
+rtcout_region(int reg, const void *buf, int len)
+{
+	const u_char *ptr = buf;
+
+	while (len-- > 0)
+		writertc(reg++, *ptr++);
+}
+
+static bool
+atrtc_check_cmos_access(bool is_read, ACPI_PHYSICAL_ADDRESS addr, UINT32 len)
+{
+
+	/* Block address space wrapping on out-of-bound access */
+	if (addr >= ATRTC_LAST_REG || addr + len > ATRTC_LAST_REG)
+		return (false);
+
+	if (is_read) {
+		/* Reading 0x0C will muck with interrupts */
+		if (addr <= RTC_INTR && addr + len > RTC_INTR)
+			return (false);
+	} else {
+		/*
+		 * Allow single-byte writes to alarm registers and
+		 * multi-byte writes to addr >= 0x30, else deny.
+		 */
+		if (!((len == 1 && (addr == RTC_SECALRM ||
+				    addr == RTC_MINALRM ||
+				    addr == RTC_HRSALRM)) ||
+		      addr >= 0x30))
+			return (false);
+	}
+	return (true);
+}
+
+static ACPI_STATUS
+atrtc_acpi_cmos_handler(UINT32 func, ACPI_PHYSICAL_ADDRESS addr,
+    UINT32 bitwidth, UINT64 *value, void *context, void *region_context)
+{
+	device_t dev = context;
+	UINT32 bytewidth = howmany(bitwidth, 8);
+	bool is_read = func == ACPI_READ;
+
+	/* ACPICA is very verbose on CMOS handler failures, so we, too */
+#define	CMOS_HANDLER_ERR(fmt, ...) \
+	device_printf(dev, "ACPI [SystemCMOS] handler: " fmt, ##__VA_ARGS__)
+
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+	if (value == NULL) {
+		CMOS_HANDLER_ERR("NULL parameter\n");
+		return (AE_BAD_PARAMETER);
+	}
+	if (bitwidth == 0 || (bitwidth & 0x07) != 0) {
+		CMOS_HANDLER_ERR("Invalid bitwidth: %u\n", bitwidth);
+		return (AE_BAD_PARAMETER);
+	}
+	if (!atrtc_check_cmos_access(is_read, addr, bytewidth)) {
+		CMOS_HANDLER_ERR("%s access rejected: addr=%#04jx, len=%u\n",
+		    is_read ? "Read" : "Write", (uintmax_t)addr, bytewidth);
+		return (AE_BAD_PARAMETER);
+	}
+
+	switch (func) {
+	case ACPI_READ:
+		rtcin_region(addr, value, bytewidth);
+		break;
+	case ACPI_WRITE:
+		rtcout_region(addr, value, bytewidth);
+		break;
+	default:
+		CMOS_HANDLER_ERR("Invalid function: %u\n", func);
+		return (AE_BAD_PARAMETER);
+	}
+
+	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+	    "ACPI RTC CMOS %s access: addr=%#04x, len=%u, val=%*D\n",
+	    is_read ? "read" : "write", (unsigned)addr, bytewidth,
+	    bytewidth, value, " ");
+
+	return (AE_OK);
+}
+
+static int
+atrtc_reg_acpi_cmos_handler(device_t dev)
+{
+	struct atrtc_softc *sc = device_get_softc(dev);
+
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
+
+	/* Don't handle address space events if driver is disabled. */
+	if (acpi_disabled("atrtc"))
+		return (ENXIO);
+
+	sc->acpi_handle = acpi_get_handle(dev);
+	if (sc->acpi_handle == NULL ||
+	    ACPI_FAILURE(AcpiInstallAddressSpaceHandler(sc->acpi_handle,
+	      ACPI_ADR_SPACE_CMOS, atrtc_acpi_cmos_handler, NULL, dev))) {
+		sc->acpi_handle = NULL;
+		device_printf(dev,
+		    "Can't register ACPI CMOS address space handler\n");
+		return (ENXIO);
+        }
+
+        return (0);
+}
+
+static int
+atrtc_unreg_acpi_cmos_handler(device_t dev)
+{
+	struct atrtc_softc *sc = device_get_softc(dev);
+
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
+
+	if (sc->acpi_handle != NULL)
+		AcpiRemoveAddressSpaceHandler(sc->acpi_handle,
+		    ACPI_ADR_SPACE_CMOS, atrtc_acpi_cmos_handler);
+
+	return (0);
+}
+#endif	/* DEV_ACPI */
+
 /*
  * Attach to the ISA PnP descriptors for the timer and realtime clock.
  */
@@ -258,12 +404,15 @@ static struct isa_pnp_id atrtc_ids[] = {
 static bool
 atrtc_acpi_disabled(void)
 {
+#ifdef DEV_ACPI
 	uint16_t flags;
 
 	if (!acpi_get_fadt_bootflags(&flags))
 		return (false);
 	return ((flags & ACPI_FADT_NO_CMOS_RTC) != 0);
-		return (true);
+#else
+	return (false);
+#endif
 }
 
 static int
@@ -332,6 +481,37 @@ atrtc_attach(device_t dev)
 	}
 	return(0);
 }
+
+static int
+atrtc_isa_attach(device_t dev)
+{
+
+	return (atrtc_attach(dev));
+}
+
+#ifdef DEV_ACPI
+static int
+atrtc_acpi_attach(device_t dev)
+{
+	int ret;
+
+	ret = atrtc_attach(dev);
+	if (ret)
+		return (ret);
+
+	(void)atrtc_reg_acpi_cmos_handler(dev);
+
+	return (0);
+}
+
+static int
+atrtc_acpi_detach(device_t dev)
+{
+
+	(void)atrtc_unreg_acpi_cmos_handler(dev);
+	return (0);
+}
+#endif	/* DEV_ACPI */
 
 static int
 atrtc_resume(device_t dev)
@@ -419,10 +599,10 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 	return (clock_bcd_to_ts(&bct, ts, false));
 }
 
-static device_method_t atrtc_methods[] = {
+static device_method_t atrtc_isa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		atrtc_probe),
-	DEVMETHOD(device_attach,	atrtc_attach),
+	DEVMETHOD(device_attach,	atrtc_isa_attach),
 	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
@@ -436,14 +616,39 @@ static device_method_t atrtc_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t atrtc_driver = {
+static driver_t atrtc_isa_driver = {
 	"atrtc",
-	atrtc_methods,
+	atrtc_isa_methods,
 	sizeof(struct atrtc_softc),
 };
 
+#ifdef DEV_ACPI
+static device_method_t atrtc_acpi_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		atrtc_probe),
+	DEVMETHOD(device_attach,	atrtc_acpi_attach),
+	DEVMETHOD(device_detach,	atrtc_acpi_detach),
+		/* XXX stop statclock? */
+	DEVMETHOD(device_resume,	atrtc_resume),
+
+	/* clock interface */
+	DEVMETHOD(clock_gettime,	atrtc_gettime),
+	DEVMETHOD(clock_settime,	atrtc_settime),
+
+	{ 0, 0 }
+};
+
+static driver_t atrtc_acpi_driver = {
+	"atrtc",
+	atrtc_acpi_methods,
+	sizeof(struct atrtc_softc),
+};
+#endif	/* DEV_ACPI */
+
 static devclass_t atrtc_devclass;
 
-DRIVER_MODULE(atrtc, isa, atrtc_driver, atrtc_devclass, 0, 0);
-DRIVER_MODULE(atrtc, acpi, atrtc_driver, atrtc_devclass, 0, 0);
+DRIVER_MODULE(atrtc, isa, atrtc_isa_driver, atrtc_devclass, 0, 0);
+#ifdef DEV_ACPI
+DRIVER_MODULE(atrtc, acpi, atrtc_acpi_driver, atrtc_devclass, 0, 0);
+#endif
 ISA_PNP_INFO(atrtc_ids);

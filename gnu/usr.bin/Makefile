@@ -7,7 +7,10 @@
 SUBDIR.${MK_GCC}+=	gperf
 .endif
 
-SUBDIR.${MK_BINUTILS}+=	binutils
+.if ${MK_GDB} != "no" || ${MK_BINUTILS} != "no"
+SUBDIR+=	binutils
+.endif
+
 SUBDIR.${MK_DIALOG}+=	dialog
 SUBDIR.${MK_GCC}+=	cc
 SUBDIR.${MK_GNU_DIFF}+=	diff3

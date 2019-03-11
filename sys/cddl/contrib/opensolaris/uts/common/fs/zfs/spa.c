@@ -1070,7 +1070,8 @@ spa_taskq_dispatch_ent(spa_t *spa, zio_type_t t, zio_taskq_type_t q,
 		tq = tqs->stqs_taskq[0];
 	} else {
 #ifdef _KERNEL
-		tq = tqs->stqs_taskq[cpu_ticks() % tqs->stqs_count];
+		tq = tqs->stqs_taskq[(u_int)(sbinuptime() + curcpu) %
+		    tqs->stqs_count];
 #else
 		tq = tqs->stqs_taskq[gethrtime() % tqs->stqs_count];
 #endif

@@ -133,8 +133,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 
 	Other than KPI chasing, drm-legacy-kmod will not be updated. As outlined
 	elsewhere, the drm and drm2 modules will be eliminated from the src base
-	soon (with a limited exception for arm). Please update to the package asap
-	and report any issues to x11@freebsd.org.
+	soon (with a limited exception for arm). Please update to the package
+	asap and report any issues to x11@freebsd.org.
 
 	Generally, anybody using the drm*-kmod packages should add
 	WITHOUT_DRM_MODULE=t and WITHOUT_DRM2_MODULE=t to avoid nasty
@@ -309,7 +309,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 20180628:
 	r335753 introduced a new quoting method. However, etc/devd/devmatch.conf
 	needed to be changed to work with it. This change was made with r335763
-	and requires a mergemaster / etcupdate / etc to update the installed file.
+	and requires a mergemaster / etcupdate / etc to update the installed
+	file.
 
 20180612:
 	r334930 changed the interface between the NFS modules, so they all
@@ -450,8 +451,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 
 20180211:
 	devmatch functionality has been turned on in devd. It will automatically
-	load drivers for unattached devices. This may cause unexpected drivers to
-	be loaded. Please report any problems to current@ and imp@freebsd.org.
+	load drivers for unattached devices. This may cause unexpected drivers
+	to be loaded. Please report any problems to current@ and
+	imp@freebsd.org.
 
 20180114:
 	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
@@ -469,9 +471,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 
 20180110:
 	On i386, pmtimer has been removed. Its functionality has been folded
-	into apm. It was a no-op on ACPI in current for a while now (but was still
-	needed on i386 in FreeBSD 11 and earlier). Users may need to remove it
-	from kernel config files.
+	into apm. It was a no-op on ACPI in current for a while now (but was
+	still needed on i386 in FreeBSD 11 and earlier). Users may need to
+	remove it from kernel config files.
 
 20180104:
 	The use of RSS hash from the network card aka flowid has been
@@ -712,11 +714,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	system will be running the ino64 kernel with the existing world).
 
 	For the safest in-place upgrade begin by removing previous build
-	artifacts via "rm -rf /usr/obj/*".   Then, carefully follow the
-	full procedure documented below under the heading "To rebuild
-	everything and install it on the current system."  Specifically,
-	a reboot is required after installing the new kernel before
-	installing world.
+	artifacts via "rm -rf /usr/obj/*".  Then, carefully follow the full
+	procedure documented below under the heading "To rebuild everything and
+	install it on the current system."  Specifically, a reboot is required
+	after installing the new kernel before installing world. While an
+	installworld normally works by accident from multiuser after rebooting
+	the proper kernel, there are many cases where this will fail across this
+	upgrade and installworld from single user is required.
 
 20170424:
 	The NATM framework including the en(4), fatm(4), hatm(4), and
@@ -813,7 +817,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 20170109:
 	The igb(4), em(4) and lem(4) ethernet drivers are now implemented via
 	IFLIB.  If you have a custom kernel configuration that excludes em(4)
-	but you use igb(4), you need to re-add em(4) to your custom configuration.
+	but you use igb(4), you need to re-add em(4) to your custom
+	configuration.
 
 20161217:
 	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 3.9.1.
@@ -1901,7 +1906,8 @@ COMMON ITEMS:
 		fsck -p
 		mount -u /
 		mount -a
-		cd src
+		sh /etc/rc.d/zfs start	# mount zfs filesystem, if needed
+		cd src			# full path to source
 		adjkerntz -i		# if CMOS is wall time
 	Also, when doing a major release upgrade, it is required that
 	you boot into single user mode to do the installworld.
@@ -1931,10 +1937,12 @@ COMMON ITEMS:
 	option for existing binaries (e.g. COMPAT_FREEBSD11 to run 11.x
 	binaries).  Failure to do so may leave you with a system that is
 	hard to boot to recover.  A GENERIC kernel will include suitable
-	compatibility options to run binaries from older branches.
+	compatibility options to run binaries from supported older branches.
 
 	Make sure that you merge any new devices from GENERIC since the
-	last time you updated your kernel config file.
+	last time you updated your kernel config file. Options also
+	change over time, so you may need to adjust your custom kernels
+	for these as well.
 
 	[9] If CPUTYPE is defined in your /etc/make.conf, make sure to use the
 	"?=" instead of the "=" assignment operator, so that buildworld can

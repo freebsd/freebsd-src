@@ -222,6 +222,7 @@ __DEFAULT_DEPENDENT_OPTIONS= \
 	CLANG_FULL/CLANG \
 	LLVM_TARGET_ALL/CLANG \
 	LOADER_VERIEXEC/BEARSSL \
+	LOADER_EFI_SECUREBOOT/LOADER_VERIEXEC \
 	VERIEXEC/BEARSSL \
 
 # MK_*_SUPPORT options which default to "yes" unless their corresponding
@@ -429,10 +430,6 @@ MK_${var}:=	no
 .if !${COMPILER_FEATURES:Mc++11}
 MK_GOOGLETEST:=	no
 MK_LLVM_LIBUNWIND:=	no
-.endif
-
-.if ${MK_BINUTILS} == "no"
-MK_GDB:=	no
 .endif
 
 .if ${MK_CAPSICUM} == "no"

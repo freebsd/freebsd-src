@@ -893,13 +893,13 @@ typedef struct {
 } HAL_ANI_STATS;
 
 typedef struct {
-	uint8_t		noiseImmunityLevel; /* OFDM */
-	uint8_t		cckNoiseImmunityLevel;
+	uint8_t		noiseImmunityLevel; /* Global for pre-AR9380; OFDM later*/
+	uint8_t		cckNoiseImmunityLevel; /* AR9380: CCK specific NI */
 	uint8_t		spurImmunityLevel;
 	uint8_t		firstepLevel;
 	uint8_t		ofdmWeakSigDetectOff;
 	uint8_t		cckWeakSigThreshold;
-	uint8_t		mrcCckOff;
+	uint8_t		mrcCck;		/* MRC CCK is enabled */
 	uint32_t	listenTime;
 
 	/* NB: intentionally ordered so data exported to user space is first */
@@ -958,7 +958,7 @@ typedef struct {
  */
 typedef enum {
 	HAL_ANI_PRESENT = 0,			/* is ANI support present */
-	HAL_ANI_NOISE_IMMUNITY_LEVEL = 1,	/* set level */
+	HAL_ANI_NOISE_IMMUNITY_LEVEL = 1,	/* set level (global or ofdm) */
 	HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION = 2,	/* enable/disable */
 	HAL_ANI_CCK_WEAK_SIGNAL_THR = 3,	/* enable/disable */
 	HAL_ANI_FIRSTEP_LEVEL = 4,		/* set level */
@@ -966,6 +966,7 @@ typedef enum {
 	HAL_ANI_MODE = 6,			/* 0 => manual, 1 => auto (XXX do not change) */
 	HAL_ANI_PHYERR_RESET = 7,		/* reset phy error stats */
 	HAL_ANI_MRC_CCK = 8,
+	HAL_ANI_CCK_NOISE_IMMUNITY_LEVEL = 9,	/* set level (cck) */
 } HAL_ANI_CMD;
 
 #define	HAL_ANI_ALL		0xffffffff

@@ -89,7 +89,7 @@ restore_kernsrs:
 	GET_CPUINFO(%r28)
 	addi	%r28,%r28,PC_KERNSLB
 	ld	%r29,16(%r28)		/* One past USER_SLB_SLOT */
-	cmpdi	%r28,0
+	cmpdi	%r29,0
 	beqlr				/* If first kernel entry is invalid,
 					 * SLBs not in use, so exit early */
 

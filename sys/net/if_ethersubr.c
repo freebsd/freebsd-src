@@ -476,14 +476,15 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 #ifdef EXPERIMENTAL
 #if defined(INET6) && defined(INET)
 	/* draft-ietf-6man-ipv6only-flag */
-	/* Catch ETHERTYPE_IP, and ETHERTYPE_ARP if we are v6-only. */
-	if ((ND_IFINFO(ifp)->flags & ND6_IFF_IPV6_ONLY) != 0) {
+	/* Catch ETHERTYPE_IP, and ETHERTYPE_[REV]ARP if we are v6-only. */
+	if ((ND_IFINFO(ifp)->flags & ND6_IFF_IPV6_ONLY_MASK) != 0) {
 		struct ether_header *eh;
 
 		eh = mtod(m, struct ether_header *);
 		switch (ntohs(eh->ether_type)) {
 		case ETHERTYPE_IP:
 		case ETHERTYPE_ARP:
+		case ETHERTYPE_REVARP:
 			m_freem(m);
 			return (EAFNOSUPPORT);
 			/* NOTREACHED */
@@ -533,6 +534,25 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 	eh = mtod(m, struct ether_header *);
 	etype = ntohs(eh->ether_type);
 	random_harvest_queue_ether(m, sizeof(*m));
+
+#ifdef EXPERIMENTAL
+#if defined(INET6) && defined(INET)
+	/* draft-ietf-6man-ipv6only-flag */
+	/* Catch ETHERTYPE_IP, and ETHERTYPE_[REV]ARP if we are v6-only. */
+	if ((ND_IFINFO(ifp)->flags & ND6_IFF_IPV6_ONLY_MASK) != 0) {
+
+		switch (etype) {
+		case ETHERTYPE_IP:
+		case ETHERTYPE_ARP:
+		case ETHERTYPE_REVARP:
+			m_freem(m);
+			return;
+			/* NOTREACHED */
+			break;
+		};
+	}
+#endif
+#endif
 
 	CURVNET_SET_QUIET(ifp->if_vnet);
 

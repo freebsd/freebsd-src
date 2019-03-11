@@ -1420,22 +1420,22 @@ boolean_t l2arc_noprefetch = B_TRUE;		/* don't cache prefetch bufs */
 boolean_t l2arc_feed_again = B_TRUE;		/* turbo warmup */
 boolean_t l2arc_norw = B_TRUE;			/* no reads during writes */
 
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2arc_write_max, CTLFLAG_RW,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2arc_write_max, CTLFLAG_RWTUN,
     &l2arc_write_max, 0, "max write size");
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2arc_write_boost, CTLFLAG_RW,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2arc_write_boost, CTLFLAG_RWTUN,
     &l2arc_write_boost, 0, "extra write during warmup");
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2arc_headroom, CTLFLAG_RW,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2arc_headroom, CTLFLAG_RWTUN,
     &l2arc_headroom, 0, "number of dev writes");
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2arc_feed_secs, CTLFLAG_RW,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2arc_feed_secs, CTLFLAG_RWTUN,
     &l2arc_feed_secs, 0, "interval seconds");
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2arc_feed_min_ms, CTLFLAG_RW,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2arc_feed_min_ms, CTLFLAG_RWTUN,
     &l2arc_feed_min_ms, 0, "min interval milliseconds");
 
-SYSCTL_INT(_vfs_zfs, OID_AUTO, l2arc_noprefetch, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs, OID_AUTO, l2arc_noprefetch, CTLFLAG_RWTUN,
     &l2arc_noprefetch, 0, "don't cache prefetch bufs");
-SYSCTL_INT(_vfs_zfs, OID_AUTO, l2arc_feed_again, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs, OID_AUTO, l2arc_feed_again, CTLFLAG_RWTUN,
     &l2arc_feed_again, 0, "turbo warmup");
-SYSCTL_INT(_vfs_zfs, OID_AUTO, l2arc_norw, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs, OID_AUTO, l2arc_norw, CTLFLAG_RWTUN,
     &l2arc_norw, 0, "no reads during writes");
 
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, anon_size, CTLFLAG_RD,

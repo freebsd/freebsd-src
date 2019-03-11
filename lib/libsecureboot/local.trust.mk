@@ -7,27 +7,26 @@
 # for each key will provide the appropriate certificate chain on request
 
 # force these for Junos
-MANIFEST_SKIP_ALWAYS= boot
+#MANIFEST_SKIP_ALWAYS= boot
 VE_HASH_LIST= \
 	SHA1 \
 	SHA256 \
-	SHA384
+	SHA384 \
+	SHA512
 
 VE_SIGNATURE_LIST= \
-	ECDSA
+	ECDSA \
+	RSA
 
 VE_SIGNATURE_EXT_LIST= \
-	esig
+	esig \
+	rsig
 
 VE_SELF_TESTS= yes
 
 .if ${MACHINE} == "host" && ${.CURDIR:T} == "tests"
-# for testing
-VE_HASH_LIST+= \
-	SHA512
 
 VE_SIGNATURE_LIST+= \
-	RSA \
 	DEPRECATED_RSA_SHA1
 
 VE_SIGNATURE_EXT_LIST+= \
@@ -88,7 +87,7 @@ vc_rsa.pem: rcerts.pem _2ndLAST_PEM_USE
 .endif
 
 # we take the mtime of this as our baseline time
-BUILD_UTC_FILE= ecerts.pem
+#BUILD_UTC_FILE= ecerts.pem
 #VE_DEBUG_LEVEL=3
 #VE_VERBOSE_DEFAULT=1
 
@@ -97,7 +96,7 @@ BUILD_UTC_FILE= ecerts.pem
 .if empty(TRUST_ANCHORS)
 TRUST_ANCHORS!= cd ${.CURDIR} && 'ls' -1 *.pem t*.asc 2> /dev/null
 .endif
-.if empty(TRUST_ANCHORS)
+.if empty(TRUST_ANCHORS) && ${MK_LOADER_EFI_SECUREBOOT} != "yes"
 .error Need TRUST_ANCHORS see ${.CURDIR}/README.rst
 .endif
 .if ${TRUST_ANCHORS:T:Mt*.pem} != ""

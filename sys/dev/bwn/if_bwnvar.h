@@ -570,7 +570,7 @@ struct bwn_rx_radiotap_header {
 	int8_t				wr_antsignal;
 	int8_t				wr_antnoise;
 	u_int8_t			wr_antenna;
-};
+} __packed __aligned(8);
 
 #define	BWN_TX_RADIOTAP_PRESENT (		\
 	(1 << IEEE80211_RADIOTAP_FLAGS)		| \
@@ -588,7 +588,7 @@ struct bwn_tx_radiotap_header {
 	u_int16_t			wt_chan_flags;
 	u_int8_t			wt_txpower;
 	u_int8_t			wt_antenna;
-};
+} __packed;
 
 struct bwn_stats {
 	int32_t				rtsfail;

@@ -689,6 +689,9 @@ case "$ntp_have_solarisprivs" in
  yes)
     AC_DEFINE([HAVE_SOLARIS_PRIVS], [1],
 	[Are Solaris privileges available?])
+    ;;
+ '') ntp_have_solarisprivs="no"
+    ;;
 esac
 
 AC_MSG_RESULT([$ntp_have_solarisprivs])
@@ -710,6 +713,9 @@ case "$ntp_use_trustedbsd_mac$ac_cv_header_sys_mac_h" in
  yesyes)
     AC_DEFINE([HAVE_TRUSTEDBSD_MAC], [1],
 	[Are TrustedBSD MAC policy privileges available?])
+    ;;
+ *) ntp_use_trustedbsd_mac="no";
+    ;;
 esac
 
 AC_MSG_RESULT([$ntp_use_trustedbsd_mac])
@@ -883,6 +889,14 @@ AC_CHECK_HEADERS(
 AC_SEARCH_LIBS([MD5Init], [md5 md])
 AC_CHECK_FUNCS([MD5Init sysconf getdtablesize sigaction sigset sigvec])
 
+# HMS: does this need to be a cached variable?
+AC_ARG_ENABLE(
+    [signalled-io],
+    [AS_HELP_STRING([--enable-signalled-io], [s Use signalled IO if we can])],
+    [use_signalled_io=$enableval],
+    [use_signalled_io=yes]
+    )
+
 AC_CACHE_CHECK(
     [for SIGIO],
     [ntp_cv_hdr_def_sigio],
@@ -946,12 +960,23 @@ case "$ntp_cv_hdr_def_sigio" in
 	ans=no
 	;;
     esac
+    case "$ans" in
+     no)
+	ans="Possible for $host but disabled because of reported problems"
+	;;
+    esac
     ;;
 esac
 case "$ans" in
  yes)
-    AC_DEFINE([HAVE_SIGNALED_IO], [1],
-	[Can we use SIGIO for tcp and udp IO?])
+    case "$use_signalled_io" in
+     yes)
+	AC_DEFINE([HAVE_SIGNALED_IO], [1],
+	    [Can we use SIGIO for tcp and udp IO?])
+	;;
+     *) ans="Allowed for $host but --disable-signalled-io was given"
+	;;
+    esac
 esac
 AC_MSG_RESULT([$ans])
 

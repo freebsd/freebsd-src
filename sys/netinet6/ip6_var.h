@@ -355,6 +355,11 @@ VNET_DECLARE(int, ip6stealth);
 #define	V_ip6stealth			VNET(ip6stealth)
 #endif
 
+#ifdef EXPERIMENTAL
+VNET_DECLARE(int, nd6_ignore_ipv6_only_ra);
+#define	V_nd6_ignore_ipv6_only_ra	VNET(nd6_ignore_ipv6_only_ra)
+#endif
+
 extern struct	pr_usrreqs rip6_usrreqs;
 struct sockopt;
 

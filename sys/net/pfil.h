@@ -98,7 +98,24 @@ struct inpcb;
 typedef union {
 	struct mbuf	**m;
 	void		*mem;
+	uintptr_t	__ui;
 } pfil_packet_t __attribute__((__transparent_union__));
+
+static inline pfil_packet_t
+pfil_packet_align(pfil_packet_t p)
+{
+
+	return ((pfil_packet_t ) (((uintptr_t)(p).mem +
+	    (_Alignof(void *) - 1)) & - _Alignof(void *)));
+}
+
+static inline struct mbuf *
+pfil_mem2mbuf(void *v)
+{
+
+	return (*(struct mbuf **) (((uintptr_t)(v) +
+	    (_Alignof(void *) - 1)) & - _Alignof(void *)));
+}
 
 typedef enum {
 	PFIL_PASS = 0,
@@ -187,6 +204,11 @@ struct _pfil_head {
 };
 #define	PFIL_HOOKED_IN(p) (((struct _pfil_head *)(p))->head_nhooksin > 0)
 #define	PFIL_HOOKED_OUT(p) (((struct _pfil_head *)(p))->head_nhooksout > 0)
+
+/*
+ * Alloc mbuf to be used instead of memory pointer.
+ */
+int	pfil_realloc(pfil_packet_t *, int, struct ifnet *);
 
 #endif /* _KERNEL */
 #endif /* _NET_PFIL_H_ */

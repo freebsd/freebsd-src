@@ -91,7 +91,10 @@ struct nd_ifinfo {
 #define ND6_IFF_NO_PREFER_IFACE	0x80 /* XXX: not related to ND. */
 #define ND6_IFF_NO_DAD		0x100
 #ifdef EXPERIMENTAL
+/* XXX: not related to ND. */
 #define	ND6_IFF_IPV6_ONLY	0x200 /* draft-ietf-6man-ipv6only-flag */
+#define	ND6_IFF_IPV6_ONLY_MANUAL	0x400
+#define	ND6_IFF_IPV6_ONLY_MASK	(ND6_IFF_IPV6_ONLY|ND6_IFF_IPV6_ONLY_MANUAL)
 #endif
 
 #ifdef _KERNEL
@@ -473,6 +476,7 @@ void nd6_dad_stop(struct ifaddr *);
 /* nd6_rtr.c */
 void nd6_rs_input(struct mbuf *, int, int);
 void nd6_ra_input(struct mbuf *, int, int);
+void nd6_ifnet_link_event(void *, struct ifnet *, int);
 void defrouter_reset(void);
 void defrouter_select_fib(int fibnum);
 void defrouter_select(void);

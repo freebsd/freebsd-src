@@ -1,128 +1,179 @@
-<html lang="en">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.5, http://www.gnu.org/software/texinfo/ -->
 <head>
-<title>ntpd: Network Time Protocol (NTP) Daemon User's Manual</title>
-<meta http-equiv="Content-Type" content="text/html">
-<meta name="description" content="ntpd: Network Time Protocol (NTP) Daemon User's Manual">
-<meta name="generator" content="makeinfo 4.7">
-<link title="Top" rel="top" href="#Top">
-<link href="http://www.gnu.org/software/texinfo/" rel="generator-home" title="Texinfo Homepage">
-<meta http-equiv="Content-Style-Type" content="text/css">
-<style type="text/css"><!--
-  pre.display { font-family:inherit }
-  pre.format  { font-family:inherit }
-  pre.smalldisplay { font-family:inherit; font-size:smaller }
-  pre.smallformat  { font-family:inherit; font-size:smaller }
-  pre.smallexample { font-size:smaller }
-  pre.smalllisp    { font-size:smaller }
-  span.sc { font-variant:small-caps }
-  span.roman { font-family: serif; font-weight: normal; } 
---></style>
-</head>
-<body>
-<h1 class="settitle">ntpd: Network Time Protocol (NTP) Daemon User's Manual</h1>
-<div class="node">
-<p><hr>
-<a name="Top"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-Description">ntpd Description</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#dir">(dir)</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#dir">(dir)</a>
-<br>
-</div>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>ntpd: Network Time Protocol (NTP) Daemon User&rsquo;s Manual</title>
 
-<h2 class="unnumbered">ntpd: Network Time Protocol (NTP) Daemon User Manual</h2>
+<meta name="description" content="ntpd: Network Time Protocol (NTP) Daemon User&rsquo;s Manual">
+<meta name="keywords" content="ntpd: Network Time Protocol (NTP) Daemon User&rsquo;s Manual">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="#Top" rel="start" title="Top">
+<link href="dir.html#Top" rel="up" title="(dir)">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<h1 class="settitle" align="center">ntpd: Network Time Protocol (NTP) Daemon User&rsquo;s Manual</h1>
+
+
+
+
+
+<a name="Top"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-Description" accesskey="n" rel="next">ntpd Description</a>, Previous: <a href="dir.html#Top" accesskey="p" rel="prev">(dir)</a>, Up: <a href="dir.html#Top" accesskey="u" rel="up">(dir)</a> &nbsp; </p>
+</div>
+<a name="ntpd_003a-Network-Time-Protocol-_0028NTP_0029-Daemon-User-Manual"></a>
+<h1 class="top">ntpd: Network Time Protocol (NTP) Daemon User Manual</h1>
 
 <p>The <code>ntpd</code> program is an operating system daemon that synchronizes the
-system clock to remote NTP time servers or local reference clocks. 
+system clock to remote NTP time servers or local reference clocks.
 It is a complete implementation of NTP version 4 defined by RFC-5905, but
 also retains compatible with version 3 defined by RFC-1305 and versions
-1 and 2, defined by RFC-1059 and RFC-1119, respectively. 
+1 and 2, defined by RFC-1059 and RFC-1119, respectively.
 The program can operate in any of several modes, including client/server,
 symmetric and broadcast modes, and with both symmetric-key and public-key
 cryptography.
+</p>
+<p>This document applies to version 4.2.8p13 of <code>ntpd</code>.
+</p>
+<a name="SEC_Overview"></a>
+<h2 class="shortcontents-heading">Short Table of Contents</h2>
 
-  <p>This document applies to version 4.2.8p12 of <code>ntpd</code>.
-
-<ul class="menu">
-<li><a accesskey="1" href="#ntpd-Description">ntpd Description</a>:             Description
-<li><a accesskey="2" href="#ntpd-Invocation">ntpd Invocation</a>: 		Invoking ntpd
-<li><a accesskey="3" href="#Usage">Usage</a>:                        Usage
+<div class="shortcontents">
+<ul class="no-bullet">
+<li><a name="stoc-Description" href="#toc-Description">1 Description</a></li>
 </ul>
-
-<div class="node">
-<p><hr>
-<a name="ntpd-Description"></a>
-<br>
 </div>
 
-<!-- node-name,  next,  previous,  up -->
-<h3 class="section">Description</h3>
+
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-Description" accesskey="1">ntpd Description</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Description
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-Invocation" accesskey="2">ntpd Invocation</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Invoking ntpd
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Usage" accesskey="3">Usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Usage
+</td></tr>
+</table>
+
+<hr>
+<a name="ntpd-Description"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-Invocation" accesskey="n" rel="next">ntpd Invocation</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
+</div>
+<a name="Description"></a>
+<h2 class="chapter">1 Description</h2>
 
 <p>The <code>ntpd</code> program ordinarily requires
-a configuration file described at <a href="#ntp_002econf">ntp.conf</a>. 
+a configuration file described at &lsquo;ntp.conf&rsquo;.
 This configuration file contains configuration commands described on
-the pages listed above. 
+the pages listed above.
 However a client can discover remote servers and configure them
-automatically. 
+automatically.
 This makes it possible to deploy a fleet of workstations without
 specifying configuration details specific to the local environment.
-
-  <p>The <code>ntpd</code> program normally operates continuously while adjusting the
+</p>
+<p>The <code>ntpd</code> program normally operates continuously while adjusting the
 system time and frequency, but in some cases this might not be
-practical. 
+practical.
 With the <code>-q</code> option <code>ntpd</code> operates as in continuous mode, but
-exits just after setting the clock for the first time. 
+exits just after setting the clock for the first time.
 Most applications will probably want to specify the <code>iburst</code>
-option with the <code>server</code> command. 
+option with the <code>server</code> command.
 With this option an initial volley of messages is exchanged to
-groom the data and set the clock in about ten seconds' time. 
-If nothing is heard after a few minutes' time,
+groom the data and set the clock in about ten seconds&rsquo; time.
+If nothing is heard after a few minutes&rsquo; time,
 the daemon times out and exits without setting the clock.
+</p>
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-Invocation" accesskey="1">ntpd Invocation</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#Usage" accesskey="2">Usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+</td></tr>
+</table>
 
-<div class="node">
-<p><hr>
+<hr>
 <a name="ntpd-Invocation"></a>
-<br>
+<div class="header">
+<p>
+Next: <a href="#Usage" accesskey="n" rel="next">Usage</a>, Previous: <a href="#ntpd-Description" accesskey="p" rel="prev">ntpd Description</a>, Up: <a href="#ntpd-Description" accesskey="u" rel="up">ntpd Description</a> &nbsp; </p>
 </div>
+<a name="Invoking-ntpd"></a>
+<h3 class="section">1.1 Invoking ntpd</h3>
+<a name="index-ntpd"></a>
+<a name="index-NTP-daemon-program"></a>
 
-<h3 class="section">Invoking ntpd</h3>
 
-<p><a name="index-ntpd-1"></a><a name="index-NTP-daemon-program-2"></a>
 
-  <p>The
+<p>The
 <code>ntpd</code>
 utility is an operating system daemon which sets
 and maintains the system time of day in synchronism with Internet
-standard time servers. 
+standard time servers.
 It is a complete implementation of the
 Network Time Protocol (NTP) version 4, as defined by RFC-5905,
 but also retains compatibility with
 version 3, as defined by RFC-1305, and versions 1
 and 2, as defined by RFC-1059 and RFC-1119, respectively.
-
-  <p>The
+</p>
+<p>The
 <code>ntpd</code>
 utility does most computations in 64-bit floating point
 arithmetic and does relatively clumsy 64-bit fixed point operations
 only when necessary to preserve the ultimate precision, about 232
-picoseconds. 
+picoseconds.
 While the ultimate precision is not achievable with
 ordinary workstations and networks of today, it may be required
 with future gigahertz CPU clocks and gigabit LANs.
-
-  <p>Ordinarily,
+</p>
+<p>Ordinarily,
 <code>ntpd</code>
 reads the
 <code>ntp.conf(5)</code>
 configuration file at startup time in order to determine the
-synchronization sources and operating modes. 
+synchronization sources and operating modes.
 It is also possible to
 specify a working, although limited, configuration entirely on the
-command line, obviating the need for a configuration file. 
+command line, obviating the need for a configuration file.
 This may
 be particularly useful when the local host is to be configured as a
 broadcast/multicast client, with all peers being determined by
 listening to broadcasts at run time.
-
-  <p>If NetInfo support is built into
+</p>
+<p>If NetInfo support is built into
 <code>ntpd</code>
 then
 <code>ntpd</code>
@@ -133,8 +184,8 @@ file cannot be read and no file is
 specified by the
 <code>-c</code>
 option.
-
-  <p>Various internal
+</p>
+<p>Various internal
 <code>ntpd</code>
 variables can be displayed and
 configuration options altered while the
@@ -145,8 +196,8 @@ using the
 and
 <code>ntpdc(1ntpdcmdoc)</code>
 utility programs.
-
-  <p>When
+</p>
+<p>When
 <code>ntpd</code>
 starts it looks at the value of
 <code>umask(2)</code>,
@@ -155,72 +206,110 @@ and if zero
 will set the
 <code>umask(2)</code>
 to 022.
-
-  <p>This section was generated by <strong>AutoGen</strong>,
-using the <code>agtexi-cmd</code> template and the option descriptions for the <code>ntpd</code> program. 
+</p>
+<p>This section was generated by <strong>AutoGen</strong>,
+using the <code>agtexi-cmd</code> template and the option descriptions for the <code>ntpd</code> program.
 This software is released under the NTP license, &lt;http://ntp.org/license&gt;.
+</p>
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-usage" accesskey="1">ntpd usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ntpd help/usage (<samp>--help</samp>)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-ipv4" accesskey="2">ntpd ipv4</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ipv4 option (-4)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-ipv6" accesskey="3">ntpd ipv6</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ipv6 option (-6)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-authreq" accesskey="4">ntpd authreq</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">authreq option (-a)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-authnoreq" accesskey="5">ntpd authnoreq</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">authnoreq option (-A)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-configfile" accesskey="6">ntpd configfile</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">configfile option (-c)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-driftfile" accesskey="7">ntpd driftfile</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">driftfile option (-f)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-panicgate" accesskey="8">ntpd panicgate</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">panicgate option (-g)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-force_002dstep_002donce" accesskey="9">ntpd force-step-once</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">force-step-once option (-G)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-jaildir">ntpd jaildir</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">jaildir option (-i)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-interface">ntpd interface</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">interface option (-I)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-keyfile">ntpd keyfile</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">keyfile option (-k)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-logfile">ntpd logfile</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">logfile option (-l)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-novirtualips">ntpd novirtualips</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">novirtualips option (-L)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-modifymmtimer">ntpd modifymmtimer</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">modifymmtimer option (-M)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-nice">ntpd nice</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">nice option (-N)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-pidfile">ntpd pidfile</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">pidfile option (-p)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-priority">ntpd priority</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">priority option (-P)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-quit">ntpd quit</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">quit option (-q)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-propagationdelay">ntpd propagationdelay</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">propagationdelay option (-r)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-saveconfigquit">ntpd saveconfigquit</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">saveconfigquit option
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-statsdir">ntpd statsdir</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">statsdir option (-s)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-trustedkey">ntpd trustedkey</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">trustedkey option (-t)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-user">ntpd user</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">user option (-u)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-updateinterval">ntpd updateinterval</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">updateinterval option (-U)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-wait_002dsync">ntpd wait-sync</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">wait-sync option (-w)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-slew">ntpd slew</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">slew option (-x)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-usepcc">ntpd usepcc</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">usepcc option
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-pccfreq">ntpd pccfreq</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">pccfreq option
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-mdns">ntpd mdns</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">mdns option (-m)
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-config">ntpd config</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">presetting/configuring ntpd
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-exit-status">ntpd exit status</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">exit status
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-Usage">ntpd Usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Usage
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-Files">ntpd Files</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Files
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-See-Also">ntpd See Also</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">See Also
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-Bugs">ntpd Bugs</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Bugs
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="#ntpd-Notes">ntpd Notes</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Notes
+</td></tr>
+</table>
 
-<ul class="menu">
-<li><a accesskey="1" href="#ntpd-usage">ntpd usage</a>:                   ntpd help/usage (<span class="option">--help</span>)
-<li><a accesskey="2" href="#ntpd-ipv4">ntpd ipv4</a>:                    ipv4 option (-4)
-<li><a accesskey="3" href="#ntpd-ipv6">ntpd ipv6</a>:                    ipv6 option (-6)
-<li><a accesskey="4" href="#ntpd-authreq">ntpd authreq</a>:                 authreq option (-a)
-<li><a accesskey="5" href="#ntpd-authnoreq">ntpd authnoreq</a>:               authnoreq option (-A)
-<li><a accesskey="6" href="#ntpd-configfile">ntpd configfile</a>:              configfile option (-c)
-<li><a accesskey="7" href="#ntpd-driftfile">ntpd driftfile</a>:               driftfile option (-f)
-<li><a accesskey="8" href="#ntpd-panicgate">ntpd panicgate</a>:               panicgate option (-g)
-<li><a accesskey="9" href="#ntpd-force_002dstep_002donce">ntpd force-step-once</a>:         force-step-once option (-G)
-<li><a href="#ntpd-jaildir">ntpd jaildir</a>:                 jaildir option (-i)
-<li><a href="#ntpd-interface">ntpd interface</a>:               interface option (-I)
-<li><a href="#ntpd-keyfile">ntpd keyfile</a>:                 keyfile option (-k)
-<li><a href="#ntpd-logfile">ntpd logfile</a>:                 logfile option (-l)
-<li><a href="#ntpd-novirtualips">ntpd novirtualips</a>:            novirtualips option (-L)
-<li><a href="#ntpd-modifymmtimer">ntpd modifymmtimer</a>:           modifymmtimer option (-M)
-<li><a href="#ntpd-nice">ntpd nice</a>:                    nice option (-N)
-<li><a href="#ntpd-pidfile">ntpd pidfile</a>:                 pidfile option (-p)
-<li><a href="#ntpd-priority">ntpd priority</a>:                priority option (-P)
-<li><a href="#ntpd-quit">ntpd quit</a>:                    quit option (-q)
-<li><a href="#ntpd-propagationdelay">ntpd propagationdelay</a>:        propagationdelay option (-r)
-<li><a href="#ntpd-saveconfigquit">ntpd saveconfigquit</a>:          saveconfigquit option
-<li><a href="#ntpd-statsdir">ntpd statsdir</a>:                statsdir option (-s)
-<li><a href="#ntpd-trustedkey">ntpd trustedkey</a>:              trustedkey option (-t)
-<li><a href="#ntpd-user">ntpd user</a>:                    user option (-u)
-<li><a href="#ntpd-updateinterval">ntpd updateinterval</a>:          updateinterval option (-U)
-<li><a href="#ntpd-wait_002dsync">ntpd wait-sync</a>:               wait-sync option (-w)
-<li><a href="#ntpd-slew">ntpd slew</a>:                    slew option (-x)
-<li><a href="#ntpd-usepcc">ntpd usepcc</a>:                  usepcc option
-<li><a href="#ntpd-pccfreq">ntpd pccfreq</a>:                 pccfreq option
-<li><a href="#ntpd-mdns">ntpd mdns</a>:                    mdns option (-m)
-<li><a href="#ntpd-config">ntpd config</a>:                  presetting/configuring ntpd
-<li><a href="#ntpd-exit-status">ntpd exit status</a>:             exit status
-<li><a href="#ntpd-Usage">ntpd Usage</a>:                   Usage
-<li><a href="#ntpd-Files">ntpd Files</a>:                   Files
-<li><a href="#ntpd-See-Also">ntpd See Also</a>:                See Also
-<li><a href="#ntpd-Bugs">ntpd Bugs</a>:                    Bugs
-<li><a href="#ntpd-Notes">ntpd Notes</a>:                   Notes
-</ul>
-
-<div class="node">
-<p><hr>
-<a name="ntpd-usage"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-ipv4">ntpd ipv4</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+<hr>
+<a name="ntpd-usage"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-ipv4" accesskey="n" rel="next">ntpd ipv4</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="ntpd-help_002fusage-_0028_002d_002dhelp_0029"></a>
+<h4 class="subsection">1.1.1 ntpd help/usage (<samp>--help</samp>)</h4>
+<a name="index-ntpd-help"></a>
 
-<h4 class="subsection">ntpd help/usage (<span class="option">--help</span>)</h4>
-
-<p><a name="index-ntpd-help-3"></a>
-This is the automatically generated usage text for ntpd.
-
-  <p>The text printed is the same whether selected with the <code>help</code> option
-(<span class="option">--help</span>) or the <code>more-help</code> option (<span class="option">--more-help</span>).  <code>more-help</code> will print
-the usage text by passing it through a pager program. 
+<p>This is the automatically generated usage text for ntpd.
+</p>
+<p>The text printed is the same whether selected with the <code>help</code> option
+(<samp>--help</samp>) or the <code>more-help</code> option (<samp>--more-help</samp>).  <code>more-help</code> will print
+the usage text by passing it through a pager program.
 <code>more-help</code> is disabled on platforms without a working
 <code>fork(2)</code> function.  The <code>PAGER</code> environment variable is
-used to select the program, defaulting to <span class="file">more</span>.  Both will exit
+used to select the program, defaulting to <samp>more</samp>.  Both will exit
 with a status code of 0.
-
-<pre class="example">ntpd - NTP daemon program - Ver. 4.2.8p11
+</p>
+<div class="example">
+<pre class="example">ntpd - NTP daemon program - Ver. 4.2.8p12
 Usage:  ntpd [ -&lt;flag&gt; [&lt;val&gt;] | --&lt;name&gt;[{=| }&lt;val&gt;] ]... \
                 [ &lt;server1&gt; ... &lt;serverN&gt; ]
   Flg Arg Option-Name    Description
@@ -289,149 +378,143 @@ The following option preset mechanisms are supported:
  - examining environment variables named NTPD_*
 
 Please send bug reports to:  &lt;http://bugs.ntp.org, bugs@ntp.org&gt;
-</pre>
-  <div class="node">
-<p><hr>
-<a name="ntpd-ipv4"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-ipv6">ntpd ipv6</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-usage">ntpd usage</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+</pre></div>
+
+<hr>
+<a name="ntpd-ipv4"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-ipv6" accesskey="n" rel="next">ntpd ipv6</a>, Previous: <a href="#ntpd-usage" accesskey="p" rel="prev">ntpd usage</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="ipv4-option-_0028_002d4_0029"></a>
+<h4 class="subsection">1.1.2 ipv4 option (-4)</h4>
+<a name="index-ntpd_002dipv4"></a>
 
-<h4 class="subsection">ipv4 option (-4)</h4>
+<p>This is the &ldquo;force ipv4 dns name resolution&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must not appear in combination with any of the following options:
+ipv6.
+</li></ul>
 
-<p><a name="index-ntpd_002dipv4-4"></a>
-This is the &ldquo;force ipv4 dns name resolution&rdquo; option.
-
-<p class="noindent">This option has some usage constraints.  It:
-     <ul>
-<li>must not appear in combination with any of the following options:
-ipv6. 
-</ul>
-
-  <p>Force DNS resolution of following host names on the command line
-to the IPv4 namespace. 
-<div class="node">
-<p><hr>
-<a name="ntpd-ipv6"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-authreq">ntpd authreq</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-ipv4">ntpd ipv4</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+<p>Force DNS resolution of following host names on the command line
+to the IPv4 namespace.
+</p><hr>
+<a name="ntpd-ipv6"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-authreq" accesskey="n" rel="next">ntpd authreq</a>, Previous: <a href="#ntpd-ipv4" accesskey="p" rel="prev">ntpd ipv4</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="ipv6-option-_0028_002d6_0029"></a>
+<h4 class="subsection">1.1.3 ipv6 option (-6)</h4>
+<a name="index-ntpd_002dipv6"></a>
 
-<h4 class="subsection">ipv6 option (-6)</h4>
+<p>This is the &ldquo;force ipv6 dns name resolution&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must not appear in combination with any of the following options:
+ipv4.
+</li></ul>
 
-<p><a name="index-ntpd_002dipv6-5"></a>
-This is the &ldquo;force ipv6 dns name resolution&rdquo; option.
-
-<p class="noindent">This option has some usage constraints.  It:
-     <ul>
-<li>must not appear in combination with any of the following options:
-ipv4. 
-</ul>
-
-  <p>Force DNS resolution of following host names on the command line
-to the IPv6 namespace. 
-<div class="node">
-<p><hr>
-<a name="ntpd-authreq"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-authnoreq">ntpd authnoreq</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-ipv6">ntpd ipv6</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+<p>Force DNS resolution of following host names on the command line
+to the IPv6 namespace.
+</p><hr>
+<a name="ntpd-authreq"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-authnoreq" accesskey="n" rel="next">ntpd authnoreq</a>, Previous: <a href="#ntpd-ipv6" accesskey="p" rel="prev">ntpd ipv6</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="authreq-option-_0028_002da_0029"></a>
+<h4 class="subsection">1.1.4 authreq option (-a)</h4>
+<a name="index-ntpd_002dauthreq"></a>
 
-<h4 class="subsection">authreq option (-a)</h4>
+<p>This is the &ldquo;require crypto authentication&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must not appear in combination with any of the following options:
+authnoreq.
+</li></ul>
 
-<p><a name="index-ntpd_002dauthreq-6"></a>
-This is the &ldquo;require crypto authentication&rdquo; option.
-
-<p class="noindent">This option has some usage constraints.  It:
-     <ul>
-<li>must not appear in combination with any of the following options:
-authnoreq. 
-</ul>
-
-  <p>Require cryptographic authentication for broadcast client,
-multicast client and symmetric passive associations. 
-This is the default. 
-<div class="node">
-<p><hr>
-<a name="ntpd-authnoreq"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-configfile">ntpd configfile</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-authreq">ntpd authreq</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+<p>Require cryptographic authentication for broadcast client,
+multicast client and symmetric passive associations.
+This is the default.
+</p><hr>
+<a name="ntpd-authnoreq"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-configfile" accesskey="n" rel="next">ntpd configfile</a>, Previous: <a href="#ntpd-authreq" accesskey="p" rel="prev">ntpd authreq</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="authnoreq-option-_0028_002dA_0029"></a>
+<h4 class="subsection">1.1.5 authnoreq option (-A)</h4>
+<a name="index-ntpd_002dauthnoreq"></a>
 
-<h4 class="subsection">authnoreq option (-A)</h4>
+<p>This is the &ldquo;do not require crypto authentication&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must not appear in combination with any of the following options:
+authreq.
+</li></ul>
 
-<p><a name="index-ntpd_002dauthnoreq-7"></a>
-This is the &ldquo;do not require crypto authentication&rdquo; option.
-
-<p class="noindent">This option has some usage constraints.  It:
-     <ul>
-<li>must not appear in combination with any of the following options:
-authreq. 
-</ul>
-
-  <p>Do not require cryptographic authentication for broadcast client,
-multicast client and symmetric passive associations. 
-This is almost never a good idea. 
-<div class="node">
-<p><hr>
-<a name="ntpd-configfile"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-driftfile">ntpd driftfile</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-authnoreq">ntpd authnoreq</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+<p>Do not require cryptographic authentication for broadcast client,
+multicast client and symmetric passive associations.
+This is almost never a good idea.
+</p><hr>
+<a name="ntpd-configfile"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-driftfile" accesskey="n" rel="next">ntpd driftfile</a>, Previous: <a href="#ntpd-authnoreq" accesskey="p" rel="prev">ntpd authnoreq</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="configfile-option-_0028_002dc_0029"></a>
+<h4 class="subsection">1.1.6 configfile option (-c)</h4>
+<a name="index-ntpd_002dconfigfile"></a>
 
-<h4 class="subsection">configfile option (-c)</h4>
-
-<p><a name="index-ntpd_002dconfigfile-8"></a>
-This is the &ldquo;configuration file name&rdquo; option. 
-This option takes a string argument. 
+<p>This is the &ldquo;configuration file name&rdquo; option.
+This option takes a string argument.
 The name and path of the configuration file,
-<span class="file">/etc/ntp.conf</span>
-by default. 
-<div class="node">
-<p><hr>
-<a name="ntpd-driftfile"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-panicgate">ntpd panicgate</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-configfile">ntpd configfile</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+<samp>/etc/ntp.conf</samp>
+by default.
+</p><hr>
+<a name="ntpd-driftfile"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-panicgate" accesskey="n" rel="next">ntpd panicgate</a>, Previous: <a href="#ntpd-configfile" accesskey="p" rel="prev">ntpd configfile</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="driftfile-option-_0028_002df_0029"></a>
+<h4 class="subsection">1.1.7 driftfile option (-f)</h4>
+<a name="index-ntpd_002ddriftfile"></a>
 
-<h4 class="subsection">driftfile option (-f)</h4>
-
-<p><a name="index-ntpd_002ddriftfile-9"></a>
-This is the &ldquo;frequency drift file name&rdquo; option. 
-This option takes a string argument. 
+<p>This is the &ldquo;frequency drift file name&rdquo; option.
+This option takes a string argument.
 The name and path of the frequency file,
-<span class="file">/etc/ntp.drift</span>
-by default. 
+<samp>/etc/ntp.drift</samp>
+by default.
 This is the same operation as the
 <code>driftfile</code> <kbd>driftfile</kbd>
 configuration specification in the
-<span class="file">/etc/ntp.conf</span>
-file. 
-<div class="node">
-<p><hr>
-<a name="ntpd-panicgate"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-force_002dstep_002donce">ntpd force-step-once</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-driftfile">ntpd driftfile</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+<samp>/etc/ntp.conf</samp>
+file.
+</p><hr>
+<a name="ntpd-panicgate"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-force_002dstep_002donce" accesskey="n" rel="next">ntpd force-step-once</a>, Previous: <a href="#ntpd-driftfile" accesskey="p" rel="prev">ntpd driftfile</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="panicgate-option-_0028_002dg_0029"></a>
+<h4 class="subsection">1.1.8 panicgate option (-g)</h4>
+<a name="index-ntpd_002dpanicgate"></a>
 
-<h4 class="subsection">panicgate option (-g)</h4>
+<p>This is the &ldquo;allow the first adjustment to be big&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> may appear an unlimited number of times.
+</li></ul>
 
-<p><a name="index-ntpd_002dpanicgate-10"></a>
-This is the &ldquo;allow the first adjustment to be big&rdquo; option.
-
-<p class="noindent">This option has some usage constraints.  It:
-     <ul>
-<li>may appear an unlimited number of times. 
-</ul>
-
-  <p>Normally,
+<p>Normally,
 <code>ntpd</code>
 exits with a message to the system log if the offset exceeds the panic threshold, which is 1000 s by default. This option allows the time to be set to any value without restriction; however, this can happen only once. If the threshold is exceeded after that,
 <code>ntpd</code>
@@ -439,581 +522,579 @@ will exit with a message to the system log. This option can be used with the
 <code>-q</code>
 and
 <code>-x</code>
-options. 
+options.
 See the
 <code>tinker</code>
-configuration file directive for other options. 
-<div class="node">
-<p><hr>
-<a name="ntpd-force_002dstep_002donce"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-jaildir">ntpd jaildir</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-panicgate">ntpd panicgate</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+configuration file directive for other options.
+</p><hr>
+<a name="ntpd-force_002dstep_002donce"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-jaildir" accesskey="n" rel="next">ntpd jaildir</a>, Previous: <a href="#ntpd-panicgate" accesskey="p" rel="prev">ntpd panicgate</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="force_002dstep_002donce-option-_0028_002dG_0029"></a>
+<h4 class="subsection">1.1.9 force-step-once option (-G)</h4>
+<a name="index-ntpd_002dforce_002dstep_002donce"></a>
 
-<h4 class="subsection">force-step-once option (-G)</h4>
-
-<p><a name="index-ntpd_002dforce_002dstep_002donce-11"></a>
-This is the &ldquo;step any initial offset correction.&rdquo; option. 
+<p>This is the &ldquo;step any initial offset correction.&rdquo; option.
 Normally,
 <code>ntpd</code>
 steps the time if the time offset exceeds the step threshold,
-which is 128 ms by default, and otherwise slews the time. 
+which is 128 ms by default, and otherwise slews the time.
 This option forces the initial offset correction to be stepped,
-so the highest time accuracy can be achieved quickly. 
+so the highest time accuracy can be achieved quickly.
 However, this may also cause the time to be stepped back
 so this option must not be used if
-applications requiring monotonic time are running. 
-See the <code>tinker</code> configuration file directive for other options. 
-<div class="node">
-<p><hr>
-<a name="ntpd-jaildir"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-interface">ntpd interface</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-force_002dstep_002donce">ntpd force-step-once</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+applications requiring monotonic time are running.
+See the <code>tinker</code> configuration file directive for other options.
+</p><hr>
+<a name="ntpd-jaildir"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-interface" accesskey="n" rel="next">ntpd interface</a>, Previous: <a href="#ntpd-force_002dstep_002donce" accesskey="p" rel="prev">ntpd force-step-once</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="jaildir-option-_0028_002di_0029"></a>
+<h4 class="subsection">1.1.10 jaildir option (-i)</h4>
+<a name="index-ntpd_002djaildir"></a>
 
-<h4 class="subsection">jaildir option (-i)</h4>
-
-<p><a name="index-ntpd_002djaildir-12"></a>
-This is the &ldquo;jail directory&rdquo; option. 
+<p>This is the &ldquo;jail directory&rdquo; option.
 This option takes a string argument.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>HAVE_DROPROOT</code> during the compilation.
+</li></ul>
 
-<p class="noindent">This option has some usage constraints.  It:
-     <ul>
-<li>must be compiled in by defining <code>HAVE_DROPROOT</code> during the compilation. 
-</ul>
-
-  <p>Chroot the server to the directory
+<p>Chroot the server to the directory
 <kbd>jaildir</kbd>
-. 
-This option also implies that the server attempts to drop root privileges at startup. 
+.
+This option also implies that the server attempts to drop root privileges at startup.
 You may need to also specify a
 <code>-u</code>
-option. 
+option.
 This option is only available if the OS supports adjusting the clock
-without full root privileges. 
+without full root privileges.
 This option is supported under NetBSD (configure with
 <code>--enable-clockctl</code>) or Linux (configure with
-<code>--enable-linuxcaps</code>) or Solaris (configure with <code>--enable-solarisprivs</code>). 
-<div class="node">
-<p><hr>
-<a name="ntpd-interface"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-keyfile">ntpd keyfile</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-jaildir">ntpd jaildir</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+<code>--enable-linuxcaps</code>) or Solaris (configure with <code>--enable-solarisprivs</code>).
+</p><hr>
+<a name="ntpd-interface"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-keyfile" accesskey="n" rel="next">ntpd keyfile</a>, Previous: <a href="#ntpd-jaildir" accesskey="p" rel="prev">ntpd jaildir</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="interface-option-_0028_002dI_0029"></a>
+<h4 class="subsection">1.1.11 interface option (-I)</h4>
+<a name="index-ntpd_002dinterface"></a>
 
-<h4 class="subsection">interface option (-I)</h4>
+<p>This is the &ldquo;listen on an interface name or address&rdquo; option.
+This option takes a string argument <samp>iface</samp>.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> may appear an unlimited number of times.
+</li></ul>
 
-<p><a name="index-ntpd_002dinterface-13"></a>
-This is the &ldquo;listen on an interface name or address&rdquo; option. 
-This option takes a string argument <span class="file">iface</span>.
-
-<p class="noindent">This option has some usage constraints.  It:
-     <ul>
-<li>may appear an unlimited number of times. 
-</ul>
-
-  <p>Open the network address given, or all the addresses associated with the
+<p>Open the network address given, or all the addresses associated with the
 given interface name.  This option may appear multiple times.  This option
-also implies not opening other addresses, except wildcard and localhost. 
+also implies not opening other addresses, except wildcard and localhost.
 This option is deprecated. Please consider using the configuration file
-<code>interface</code> command, which is more versatile. 
-<div class="node">
-<p><hr>
-<a name="ntpd-keyfile"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-logfile">ntpd logfile</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-interface">ntpd interface</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+<code>interface</code> command, which is more versatile.
+</p><hr>
+<a name="ntpd-keyfile"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-logfile" accesskey="n" rel="next">ntpd logfile</a>, Previous: <a href="#ntpd-interface" accesskey="p" rel="prev">ntpd interface</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="keyfile-option-_0028_002dk_0029"></a>
+<h4 class="subsection">1.1.12 keyfile option (-k)</h4>
+<a name="index-ntpd_002dkeyfile"></a>
 
-<h4 class="subsection">keyfile option (-k)</h4>
-
-<p><a name="index-ntpd_002dkeyfile-14"></a>
-This is the &ldquo;path to symmetric keys&rdquo; option. 
-This option takes a string argument. 
-Specify the name and path of the symmetric key file. 
-<span class="file">/etc/ntp.keys</span>
-is the default. 
+<p>This is the &ldquo;path to symmetric keys&rdquo; option.
+This option takes a string argument.
+Specify the name and path of the symmetric key file.
+<samp>/etc/ntp.keys</samp>
+is the default.
 This is the same operation as the
 <code>keys</code> <kbd>keyfile</kbd>
-configuration file directive. 
-<div class="node">
-<p><hr>
-<a name="ntpd-logfile"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-novirtualips">ntpd novirtualips</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-keyfile">ntpd keyfile</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+configuration file directive.
+</p><hr>
+<a name="ntpd-logfile"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-novirtualips" accesskey="n" rel="next">ntpd novirtualips</a>, Previous: <a href="#ntpd-keyfile" accesskey="p" rel="prev">ntpd keyfile</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="logfile-option-_0028_002dl_0029"></a>
+<h4 class="subsection">1.1.13 logfile option (-l)</h4>
+<a name="index-ntpd_002dlogfile"></a>
 
-<h4 class="subsection">logfile option (-l)</h4>
-
-<p><a name="index-ntpd_002dlogfile-15"></a>
-This is the &ldquo;path to the log file&rdquo; option. 
-This option takes a string argument. 
-Specify the name and path of the log file. 
-The default is the system log file. 
+<p>This is the &ldquo;path to the log file&rdquo; option.
+This option takes a string argument.
+Specify the name and path of the log file.
+The default is the system log file.
 This is the same operation as the
 <code>logfile</code> <kbd>logfile</kbd>
-configuration file directive. 
-<div class="node">
-<p><hr>
-<a name="ntpd-novirtualips"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-modifymmtimer">ntpd modifymmtimer</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-logfile">ntpd logfile</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+configuration file directive.
+</p><hr>
+<a name="ntpd-novirtualips"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-modifymmtimer" accesskey="n" rel="next">ntpd modifymmtimer</a>, Previous: <a href="#ntpd-logfile" accesskey="p" rel="prev">ntpd logfile</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="novirtualips-option-_0028_002dL_0029"></a>
+<h4 class="subsection">1.1.14 novirtualips option (-L)</h4>
+<a name="index-ntpd_002dnovirtualips"></a>
 
-<h4 class="subsection">novirtualips option (-L)</h4>
-
-<p><a name="index-ntpd_002dnovirtualips-16"></a>
-This is the &ldquo;do not listen to virtual interfaces&rdquo; option. 
+<p>This is the &ldquo;do not listen to virtual interfaces&rdquo; option.
 Do not listen to virtual interfaces, defined as those with
 names containing a colon.  This option is deprecated.  Please
 consider using the configuration file <code>interface</code> command, which
-is more versatile. 
-<div class="node">
-<p><hr>
-<a name="ntpd-modifymmtimer"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-nice">ntpd nice</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-novirtualips">ntpd novirtualips</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+is more versatile.
+</p><hr>
+<a name="ntpd-modifymmtimer"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-nice" accesskey="n" rel="next">ntpd nice</a>, Previous: <a href="#ntpd-novirtualips" accesskey="p" rel="prev">ntpd novirtualips</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="modifymmtimer-option-_0028_002dM_0029"></a>
+<h4 class="subsection">1.1.15 modifymmtimer option (-M)</h4>
+<a name="index-ntpd_002dmodifymmtimer"></a>
 
-<h4 class="subsection">modifymmtimer option (-M)</h4>
+<p>This is the &ldquo;modify multimedia timer (windows only)&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>SYS_WINNT</code> during the compilation.
+</li></ul>
 
-<p><a name="index-ntpd_002dmodifymmtimer-17"></a>
-This is the &ldquo;modify multimedia timer (windows only)&rdquo; option.
-
-<p class="noindent">This option has some usage constraints.  It:
-     <ul>
-<li>must be compiled in by defining <code>SYS_WINNT</code> during the compilation. 
-</ul>
-
-  <p>Set the Windows Multimedia Timer to highest resolution.  This
+<p>Set the Windows Multimedia Timer to highest resolution.  This
 ensures the resolution does not change while ntpd is running,
-avoiding timekeeping glitches associated with changes. 
-<div class="node">
-<p><hr>
-<a name="ntpd-nice"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-pidfile">ntpd pidfile</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-modifymmtimer">ntpd modifymmtimer</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+avoiding timekeeping glitches associated with changes.
+</p><hr>
+<a name="ntpd-nice"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-pidfile" accesskey="n" rel="next">ntpd pidfile</a>, Previous: <a href="#ntpd-modifymmtimer" accesskey="p" rel="prev">ntpd modifymmtimer</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="nice-option-_0028_002dN_0029"></a>
+<h4 class="subsection">1.1.16 nice option (-N)</h4>
+<a name="index-ntpd_002dnice"></a>
 
-<h4 class="subsection">nice option (-N)</h4>
-
-<p><a name="index-ntpd_002dnice-18"></a>
-This is the &ldquo;run at high priority&rdquo; option. 
+<p>This is the &ldquo;run at high priority&rdquo; option.
 To the extent permitted by the operating system, run
 <code>ntpd</code>
-at the highest priority. 
-<div class="node">
-<p><hr>
-<a name="ntpd-pidfile"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-priority">ntpd priority</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-nice">ntpd nice</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+at the highest priority.
+</p><hr>
+<a name="ntpd-pidfile"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-priority" accesskey="n" rel="next">ntpd priority</a>, Previous: <a href="#ntpd-nice" accesskey="p" rel="prev">ntpd nice</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="pidfile-option-_0028_002dp_0029"></a>
+<h4 class="subsection">1.1.17 pidfile option (-p)</h4>
+<a name="index-ntpd_002dpidfile"></a>
 
-<h4 class="subsection">pidfile option (-p)</h4>
-
-<p><a name="index-ntpd_002dpidfile-19"></a>
-This is the &ldquo;path to the pid file&rdquo; option. 
-This option takes a string argument. 
+<p>This is the &ldquo;path to the pid file&rdquo; option.
+This option takes a string argument.
 Specify the name and path of the file used to record
-<code>ntpd</code>'s
-process ID. 
+<code>ntpd</code>&rsquo;s
+process ID.
 This is the same operation as the
 <code>pidfile</code> <kbd>pidfile</kbd>
-configuration file directive. 
-<div class="node">
-<p><hr>
-<a name="ntpd-priority"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-quit">ntpd quit</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-pidfile">ntpd pidfile</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+configuration file directive.
+</p><hr>
+<a name="ntpd-priority"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-quit" accesskey="n" rel="next">ntpd quit</a>, Previous: <a href="#ntpd-pidfile" accesskey="p" rel="prev">ntpd pidfile</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="priority-option-_0028_002dP_0029"></a>
+<h4 class="subsection">1.1.18 priority option (-P)</h4>
+<a name="index-ntpd_002dpriority"></a>
 
-<h4 class="subsection">priority option (-P)</h4>
-
-<p><a name="index-ntpd_002dpriority-20"></a>
-This is the &ldquo;process priority&rdquo; option. 
-This option takes a number argument. 
+<p>This is the &ldquo;process priority&rdquo; option.
+This option takes a number argument.
 To the extent permitted by the operating system, run
 <code>ntpd</code>
 at the specified
 <code>sched_setscheduler(SCHED_FIFO)</code>
-priority. 
-<div class="node">
-<p><hr>
-<a name="ntpd-quit"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-propagationdelay">ntpd propagationdelay</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-priority">ntpd priority</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+priority.
+</p><hr>
+<a name="ntpd-quit"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-propagationdelay" accesskey="n" rel="next">ntpd propagationdelay</a>, Previous: <a href="#ntpd-priority" accesskey="p" rel="prev">ntpd priority</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="quit-option-_0028_002dq_0029"></a>
+<h4 class="subsection">1.1.19 quit option (-q)</h4>
+<a name="index-ntpd_002dquit"></a>
 
-<h4 class="subsection">quit option (-q)</h4>
+<p>This is the &ldquo;set the time and quit&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must not appear in combination with any of the following options:
+saveconfigquit, wait-sync.
+</li></ul>
 
-<p><a name="index-ntpd_002dquit-21"></a>
-This is the &ldquo;set the time and quit&rdquo; option.
-
-<p class="noindent">This option has some usage constraints.  It:
-     <ul>
-<li>must not appear in combination with any of the following options:
-saveconfigquit, wait-sync. 
-</ul>
-
-  <p><code>ntpd</code>
+<p><code>ntpd</code>
 will not daemonize and will exit after the clock is first
 synchronized.  This behavior mimics that of the
 <code>ntpdate</code>
-program, which will soon be replaced with a shell script. 
+program, which will soon be replaced with a shell script.
 The
 <code>-g</code>
 and
 <code>-x</code>
-options can be used with this option. 
-Note: The kernel time discipline is disabled with this option. 
-<div class="node">
-<p><hr>
-<a name="ntpd-propagationdelay"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-saveconfigquit">ntpd saveconfigquit</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-quit">ntpd quit</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+options can be used with this option.
+Note: The kernel time discipline is disabled with this option.
+</p><hr>
+<a name="ntpd-propagationdelay"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-saveconfigquit" accesskey="n" rel="next">ntpd saveconfigquit</a>, Previous: <a href="#ntpd-quit" accesskey="p" rel="prev">ntpd quit</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="propagationdelay-option-_0028_002dr_0029"></a>
+<h4 class="subsection">1.1.20 propagationdelay option (-r)</h4>
+<a name="index-ntpd_002dpropagationdelay"></a>
 
-<h4 class="subsection">propagationdelay option (-r)</h4>
-
-<p><a name="index-ntpd_002dpropagationdelay-22"></a>
-This is the &ldquo;broadcast/propagation delay&rdquo; option. 
-This option takes a string argument. 
-Specify the default propagation delay from the broadcast/multicast server to this client. This is necessary only if the delay cannot be computed automatically by the protocol. 
-<div class="node">
-<p><hr>
-<a name="ntpd-saveconfigquit"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-statsdir">ntpd statsdir</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-propagationdelay">ntpd propagationdelay</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
-</div>
-
-<h4 class="subsection">saveconfigquit option</h4>
-
-<p><a name="index-ntpd_002dsaveconfigquit-23"></a>
-This is the &ldquo;save parsed configuration and quit&rdquo; option. 
+<p>This is the &ldquo;broadcast/propagation delay&rdquo; option.
 This option takes a string argument.
-
-<p class="noindent">This option has some usage constraints.  It:
-     <ul>
-<li>must be compiled in by defining <code>SAVECONFIG</code> during the compilation. 
-<li>must not appear in combination with any of the following options:
-quit, wait-sync. 
-</ul>
-
-  <p>Cause <code>ntpd</code> to parse its startup configuration file and save an
-equivalent to the given filename and exit.  This option was
-designed for automated testing. 
-<div class="node">
-<p><hr>
-<a name="ntpd-statsdir"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-trustedkey">ntpd trustedkey</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-saveconfigquit">ntpd saveconfigquit</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+Specify the default propagation delay from the broadcast/multicast server to this client. This is necessary only if the delay cannot be computed automatically by the protocol.
+</p><hr>
+<a name="ntpd-saveconfigquit"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-statsdir" accesskey="n" rel="next">ntpd statsdir</a>, Previous: <a href="#ntpd-propagationdelay" accesskey="p" rel="prev">ntpd propagationdelay</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="saveconfigquit-option"></a>
+<h4 class="subsection">1.1.21 saveconfigquit option</h4>
+<a name="index-ntpd_002dsaveconfigquit"></a>
 
-<h4 class="subsection">statsdir option (-s)</h4>
+<p>This is the &ldquo;save parsed configuration and quit&rdquo; option.
+This option takes a string argument.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>SAVECONFIG</code> during the compilation.
+</li><li> must not appear in combination with any of the following options:
+quit, wait-sync.
+</li></ul>
 
-<p><a name="index-ntpd_002dstatsdir-24"></a>
-This is the &ldquo;statistics file location&rdquo; option. 
-This option takes a string argument. 
-Specify the directory path for files created by the statistics facility. 
+<p>Cause <code>ntpd</code> to parse its startup configuration file and save an
+equivalent to the given filename and exit.  This option was
+designed for automated testing.
+</p><hr>
+<a name="ntpd-statsdir"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-trustedkey" accesskey="n" rel="next">ntpd trustedkey</a>, Previous: <a href="#ntpd-saveconfigquit" accesskey="p" rel="prev">ntpd saveconfigquit</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
+</div>
+<a name="statsdir-option-_0028_002ds_0029"></a>
+<h4 class="subsection">1.1.22 statsdir option (-s)</h4>
+<a name="index-ntpd_002dstatsdir"></a>
+
+<p>This is the &ldquo;statistics file location&rdquo; option.
+This option takes a string argument.
+Specify the directory path for files created by the statistics facility.
 This is the same operation as the
 <code>statsdir</code> <kbd>statsdir</kbd>
-configuration file directive. 
-<div class="node">
-<p><hr>
-<a name="ntpd-trustedkey"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-user">ntpd user</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-statsdir">ntpd statsdir</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+configuration file directive.
+</p><hr>
+<a name="ntpd-trustedkey"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-user" accesskey="n" rel="next">ntpd user</a>, Previous: <a href="#ntpd-statsdir" accesskey="p" rel="prev">ntpd statsdir</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="trustedkey-option-_0028_002dt_0029"></a>
+<h4 class="subsection">1.1.23 trustedkey option (-t)</h4>
+<a name="index-ntpd_002dtrustedkey"></a>
 
-<h4 class="subsection">trustedkey option (-t)</h4>
+<p>This is the &ldquo;trusted key number&rdquo; option.
+This option takes a string argument <samp>tkey</samp>.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> may appear an unlimited number of times.
+</li></ul>
 
-<p><a name="index-ntpd_002dtrustedkey-25"></a>
-This is the &ldquo;trusted key number&rdquo; option. 
-This option takes a string argument <span class="file">tkey</span>.
-
-<p class="noindent">This option has some usage constraints.  It:
-     <ul>
-<li>may appear an unlimited number of times. 
-</ul>
-
-  <p>Add the specified key number to the trusted key list. 
-<div class="node">
-<p><hr>
-<a name="ntpd-user"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-updateinterval">ntpd updateinterval</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-trustedkey">ntpd trustedkey</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+<p>Add the specified key number to the trusted key list.
+</p><hr>
+<a name="ntpd-user"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-updateinterval" accesskey="n" rel="next">ntpd updateinterval</a>, Previous: <a href="#ntpd-trustedkey" accesskey="p" rel="prev">ntpd trustedkey</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="user-option-_0028_002du_0029"></a>
+<h4 class="subsection">1.1.24 user option (-u)</h4>
+<a name="index-ntpd_002duser"></a>
 
-<h4 class="subsection">user option (-u)</h4>
-
-<p><a name="index-ntpd_002duser-26"></a>
-This is the &ldquo;run as userid (or userid:groupid)&rdquo; option. 
+<p>This is the &ldquo;run as userid (or userid:groupid)&rdquo; option.
 This option takes a string argument.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>HAVE_DROPROOT</code> during the compilation.
+</li></ul>
 
-<p class="noindent">This option has some usage constraints.  It:
-     <ul>
-<li>must be compiled in by defining <code>HAVE_DROPROOT</code> during the compilation. 
-</ul>
-
-  <p>Specify a user, and optionally a group, to switch to. 
+<p>Specify a user, and optionally a group, to switch to.
 This option is only available if the OS supports adjusting the clock
-without full root privileges. 
+without full root privileges.
 This option is supported under NetBSD (configure with
 <code>--enable-clockctl</code>) or Linux (configure with
-<code>--enable-linuxcaps</code>) or Solaris (configure with <code>--enable-solarisprivs</code>). 
-<div class="node">
-<p><hr>
-<a name="ntpd-updateinterval"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-wait_002dsync">ntpd wait-sync</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-user">ntpd user</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+<code>--enable-linuxcaps</code>) or Solaris (configure with <code>--enable-solarisprivs</code>).
+</p><hr>
+<a name="ntpd-updateinterval"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-wait_002dsync" accesskey="n" rel="next">ntpd wait-sync</a>, Previous: <a href="#ntpd-user" accesskey="p" rel="prev">ntpd user</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="updateinterval-option-_0028_002dU_0029"></a>
+<h4 class="subsection">1.1.25 updateinterval option (-U)</h4>
+<a name="index-ntpd_002dupdateinterval"></a>
 
-<h4 class="subsection">updateinterval option (-U)</h4>
-
-<p><a name="index-ntpd_002dupdateinterval-27"></a>
-This is the &ldquo;interval in seconds between scans for new or dropped interfaces&rdquo; option. 
-This option takes a number argument. 
-Give the time in seconds between two scans for new or dropped interfaces. 
-For systems with routing socket support the scans will be performed shortly after the interface change
-has been detected by the system. 
-Use 0 to disable scanning. 60 seconds is the minimum time between scans. 
-<div class="node">
-<p><hr>
-<a name="ntpd-wait_002dsync"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-slew">ntpd slew</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-updateinterval">ntpd updateinterval</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
-</div>
-
-<h4 class="subsection">wait-sync option (-w)</h4>
-
-<p><a name="index-ntpd_002dwait_002dsync-28"></a>
-This is the &ldquo;seconds to wait for first clock sync&rdquo; option. 
+<p>This is the &ldquo;interval in seconds between scans for new or dropped interfaces&rdquo; option.
 This option takes a number argument.
+Give the time in seconds between two scans for new or dropped interfaces.
+For systems with routing socket support the scans will be performed shortly after the interface change
+has been detected by the system.
+Use 0 to disable scanning. 60 seconds is the minimum time between scans.
+</p><hr>
+<a name="ntpd-wait_002dsync"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-slew" accesskey="n" rel="next">ntpd slew</a>, Previous: <a href="#ntpd-updateinterval" accesskey="p" rel="prev">ntpd updateinterval</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
+</div>
+<a name="wait_002dsync-option-_0028_002dw_0029"></a>
+<h4 class="subsection">1.1.26 wait-sync option (-w)</h4>
+<a name="index-ntpd_002dwait_002dsync"></a>
 
-<p class="noindent">This option has some usage constraints.  It:
-     <ul>
-<li>must be compiled in by defining <code>HAVE_WORKING_FORK</code> during the compilation. 
-<li>must not appear in combination with any of the following options:
-nofork, quit, saveconfigquit. 
-</ul>
+<p>This is the &ldquo;seconds to wait for first clock sync&rdquo; option.
+This option takes a number argument.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>HAVE_WORKING_FORK</code> during the compilation.
+</li><li> must not appear in combination with any of the following options:
+nofork, quit, saveconfigquit.
+</li></ul>
 
-  <p>If greater than zero, alters <code>ntpd</code>'s behavior when forking to
+<p>If greater than zero, alters <code>ntpd</code>&rsquo;s behavior when forking to
 daemonize.  Instead of exiting with status 0 immediately after
 the fork, the parent waits up to the specified number of
 seconds for the child to first synchronize the clock.  The exit
 status is zero (success) if the clock was synchronized,
-otherwise it is <code>ETIMEDOUT</code>. 
+otherwise it is <code>ETIMEDOUT</code>.
 This provides the option for a script starting <code>ntpd</code> to easily
-wait for the first set of the clock before proceeding. 
-<div class="node">
-<p><hr>
-<a name="ntpd-slew"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-usepcc">ntpd usepcc</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-wait_002dsync">ntpd wait-sync</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+wait for the first set of the clock before proceeding.
+</p><hr>
+<a name="ntpd-slew"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-usepcc" accesskey="n" rel="next">ntpd usepcc</a>, Previous: <a href="#ntpd-wait_002dsync" accesskey="p" rel="prev">ntpd wait-sync</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="slew-option-_0028_002dx_0029"></a>
+<h4 class="subsection">1.1.27 slew option (-x)</h4>
+<a name="index-ntpd_002dslew"></a>
 
-<h4 class="subsection">slew option (-x)</h4>
-
-<p><a name="index-ntpd_002dslew-29"></a>
-This is the &ldquo;slew up to 600 seconds&rdquo; option. 
-Normally, the time is slewed if the offset is less than the step threshold, which is 128 ms by default, and stepped if above the threshold. 
-This option sets the threshold to 600 s, which is well within the accuracy window to set the clock manually. 
-Note: Since the slew rate of typical Unix kernels is limited to 0.5 ms/s, each second of adjustment requires an amortization interval of 2000 s. 
-Thus, an adjustment as much as 600 s will take almost 14 days to complete. 
+<p>This is the &ldquo;slew up to 600 seconds&rdquo; option.
+Normally, the time is slewed if the offset is less than the step threshold, which is 128 ms by default, and stepped if above the threshold.
+This option sets the threshold to 600 s, which is well within the accuracy window to set the clock manually.
+Note: Since the slew rate of typical Unix kernels is limited to 0.5 ms/s, each second of adjustment requires an amortization interval of 2000 s.
+Thus, an adjustment as much as 600 s will take almost 14 days to complete.
 This option can be used with the
 <code>-g</code>
 and
 <code>-q</code>
-options. 
+options.
 See the
 <code>tinker</code>
-configuration file directive for other options. 
-Note: The kernel time discipline is disabled with this option. 
-<div class="node">
-<p><hr>
-<a name="ntpd-usepcc"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-pccfreq">ntpd pccfreq</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-slew">ntpd slew</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+configuration file directive for other options.
+Note: The kernel time discipline is disabled with this option.
+</p><hr>
+<a name="ntpd-usepcc"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-pccfreq" accesskey="n" rel="next">ntpd pccfreq</a>, Previous: <a href="#ntpd-slew" accesskey="p" rel="prev">ntpd slew</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="usepcc-option"></a>
+<h4 class="subsection">1.1.28 usepcc option</h4>
+<a name="index-ntpd_002dusepcc"></a>
 
-<h4 class="subsection">usepcc option</h4>
+<p>This is the &ldquo;use cpu cycle counter (windows only)&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>SYS_WINNT</code> during the compilation.
+</li></ul>
 
-<p><a name="index-ntpd_002dusepcc-30"></a>
-This is the &ldquo;use cpu cycle counter (windows only)&rdquo; option.
-
-<p class="noindent">This option has some usage constraints.  It:
-     <ul>
-<li>must be compiled in by defining <code>SYS_WINNT</code> during the compilation. 
-</ul>
-
-  <p>Attempt to substitute the CPU counter for <code>QueryPerformanceCounter</code>. 
+<p>Attempt to substitute the CPU counter for <code>QueryPerformanceCounter</code>.
 The CPU counter and <code>QueryPerformanceCounter</code> are compared, and if
 they have the same frequency, the CPU counter (RDTSC on x86) is
-used directly, saving the overhead of a system call. 
-<div class="node">
-<p><hr>
-<a name="ntpd-pccfreq"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-mdns">ntpd mdns</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-usepcc">ntpd usepcc</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+used directly, saving the overhead of a system call.
+</p><hr>
+<a name="ntpd-pccfreq"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-mdns" accesskey="n" rel="next">ntpd mdns</a>, Previous: <a href="#ntpd-usepcc" accesskey="p" rel="prev">ntpd usepcc</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="pccfreq-option"></a>
+<h4 class="subsection">1.1.29 pccfreq option</h4>
+<a name="index-ntpd_002dpccfreq"></a>
 
-<h4 class="subsection">pccfreq option</h4>
-
-<p><a name="index-ntpd_002dpccfreq-31"></a>
-This is the &ldquo;force cpu cycle counter use (windows only)&rdquo; option. 
+<p>This is the &ldquo;force cpu cycle counter use (windows only)&rdquo; option.
 This option takes a string argument.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>SYS_WINNT</code> during the compilation.
+</li></ul>
 
-<p class="noindent">This option has some usage constraints.  It:
-     <ul>
-<li>must be compiled in by defining <code>SYS_WINNT</code> during the compilation. 
-</ul>
-
-  <p>Force substitution the CPU counter for <code>QueryPerformanceCounter</code>. 
+<p>Force substitution the CPU counter for <code>QueryPerformanceCounter</code>.
 The CPU counter (RDTSC on x86) is used unconditionally with the
-given frequency (in Hz). 
-<div class="node">
-<p><hr>
-<a name="ntpd-mdns"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-config">ntpd config</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-pccfreq">ntpd pccfreq</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+given frequency (in Hz).
+</p><hr>
+<a name="ntpd-mdns"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-config" accesskey="n" rel="next">ntpd config</a>, Previous: <a href="#ntpd-pccfreq" accesskey="p" rel="prev">ntpd pccfreq</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="mdns-option-_0028_002dm_0029"></a>
+<h4 class="subsection">1.1.30 mdns option (-m)</h4>
+<a name="index-ntpd_002dmdns"></a>
 
-<h4 class="subsection">mdns option (-m)</h4>
+<p>This is the &ldquo;register with mdns as a ntp server&rdquo; option.
+</p>
+<p>This option has some usage constraints.  It:
+</p><ul>
+<li> must be compiled in by defining <code>HAVE_DNSREGISTRATION</code> during the compilation.
+</li></ul>
 
-<p><a name="index-ntpd_002dmdns-32"></a>
-This is the &ldquo;register with mdns as a ntp server&rdquo; option.
-
-<p class="noindent">This option has some usage constraints.  It:
-     <ul>
-<li>must be compiled in by defining <code>HAVE_DNSREGISTRATION</code> during the compilation. 
-</ul>
-
-  <p>Registers as an NTP server with the local mDNS server which allows
+<p>Registers as an NTP server with the local mDNS server which allows
 the server to be discovered via mDNS client lookup.
+</p>
 
-<div class="node">
-<p><hr>
-<a name="ntpd-config"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-exit-status">ntpd exit status</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-mdns">ntpd mdns</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+<hr>
+<a name="ntpd-config"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-exit-status" accesskey="n" rel="next">ntpd exit status</a>, Previous: <a href="#ntpd-mdns" accesskey="p" rel="prev">ntpd mdns</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
-
-<h4 class="subsection">presetting/configuring ntpd</h4>
+<a name="presetting_002fconfiguring-ntpd"></a>
+<h4 class="subsection">1.1.31 presetting/configuring ntpd</h4>
 
 <p>Any option that is not marked as <i>not presettable</i> may be preset by
 loading values from environment variables named <code>NTPD</code> and <code>NTPD_&lt;OPTION_NAME&gt;</code>.  <code>&lt;OPTION_NAME&gt;</code> must be one of
-the options listed above in upper case and segmented with underscores. 
+the options listed above in upper case and segmented with underscores.
 The <code>NTPD</code> variable will be tokenized and parsed like
 the command line.  The remaining variables are tested for existence and their
 values are treated like option arguments.
+</p>
 
-  <p>The command line options relating to configuration and/or usage help are:
-
-<h5 class="subsubheading">version (-)</h5>
+<p>The command line options relating to configuration and/or usage help are:
+</p>
+<a name="version-_0028_002d_0029"></a>
+<h4 class="subsubheading">version (-)</h4>
 
 <p>Print the program version to standard out, optionally with licensing
 information, then exit 0.  The optional argument specifies how much licensing
-detail to provide.  The default is to print just the version.  The licensing infomation may be selected with an option argument. 
+detail to provide.  The default is to print just the version.  The licensing infomation may be selected with an option argument.
 Only the first letter of the argument is examined:
-
-     <dl>
-<dt><span class="samp">version</span><dd>Only print the version.  This is the default. 
-<br><dt><span class="samp">copyright</span><dd>Name the copyright usage licensing terms. 
-<br><dt><span class="samp">verbose</span><dd>Print the full copyright usage licensing terms. 
+</p>
+<dl compact="compact">
+<dt>&lsquo;<samp>version</samp>&rsquo;</dt>
+<dd><p>Only print the version.  This is the default.
+</p></dd>
+<dt>&lsquo;<samp>copyright</samp>&rsquo;</dt>
+<dd><p>Name the copyright usage licensing terms.
+</p></dd>
+<dt>&lsquo;<samp>verbose</samp>&rsquo;</dt>
+<dd><p>Print the full copyright usage licensing terms.
+</p></dd>
 </dl>
 
-<div class="node">
-<p><hr>
-<a name="ntpd-exit-status"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-Usage">ntpd Usage</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-config">ntpd config</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+<hr>
+<a name="ntpd-exit-status"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-Usage" accesskey="n" rel="next">ntpd Usage</a>, Previous: <a href="#ntpd-config" accesskey="p" rel="prev">ntpd config</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
-
-<h4 class="subsection">ntpd exit status</h4>
+<a name="ntpd-exit-status-1"></a>
+<h4 class="subsection">1.1.32 ntpd exit status</h4>
 
 <p>One of the following exit values will be returned:
-     <dl>
-<dt><span class="samp">0 (EXIT_SUCCESS)</span><dd>Successful program execution. 
-<br><dt><span class="samp">1 (EXIT_FAILURE)</span><dd>The operation failed or the command syntax was not valid. 
+</p><dl compact="compact">
+<dt>&lsquo;<samp>0 (EXIT_SUCCESS)</samp>&rsquo;</dt>
+<dd><p>Successful program execution.
+</p></dd>
+<dt>&lsquo;<samp>1 (EXIT_FAILURE)</samp>&rsquo;</dt>
+<dd><p>The operation failed or the command syntax was not valid.
+</p></dd>
 </dl>
-  <div class="node">
-<p><hr>
-<a name="ntpd-Usage"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-Files">ntpd Files</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-exit-status">ntpd exit status</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+<hr>
+<a name="ntpd-Usage"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-Files" accesskey="n" rel="next">ntpd Files</a>, Previous: <a href="#ntpd-exit-status" accesskey="p" rel="prev">ntpd exit status</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
-
-<h4 class="subsection">ntpd Usage</h4>
-
-<div class="node">
-<p><hr>
-<a name="ntpd-Files"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-See-Also">ntpd See Also</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-Usage">ntpd Usage</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+<a name="ntpd-Usage-1"></a>
+<h4 class="subsection">1.1.33 ntpd Usage</h4>
+<hr>
+<a name="ntpd-Files"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-See-Also" accesskey="n" rel="next">ntpd See Also</a>, Previous: <a href="#ntpd-Usage" accesskey="p" rel="prev">ntpd Usage</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
-
-<h4 class="subsection">ntpd Files</h4>
-
-<div class="node">
-<p><hr>
-<a name="ntpd-See-Also"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-Bugs">ntpd Bugs</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-Files">ntpd Files</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+<a name="ntpd-Files-1"></a>
+<h4 class="subsection">1.1.34 ntpd Files</h4>
+<hr>
+<a name="ntpd-See-Also"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-Bugs" accesskey="n" rel="next">ntpd Bugs</a>, Previous: <a href="#ntpd-Files" accesskey="p" rel="prev">ntpd Files</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
-
-<h4 class="subsection">ntpd See Also</h4>
-
-<div class="node">
-<p><hr>
-<a name="ntpd-Bugs"></a>Next:&nbsp;<a rel="next" accesskey="n" href="#ntpd-Notes">ntpd Notes</a>,
-Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-See-Also">ntpd See Also</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+<a name="ntpd-See-Also-1"></a>
+<h4 class="subsection">1.1.35 ntpd See Also</h4>
+<hr>
+<a name="ntpd-Bugs"></a>
+<div class="header">
+<p>
+Next: <a href="#ntpd-Notes" accesskey="n" rel="next">ntpd Notes</a>, Previous: <a href="#ntpd-See-Also" accesskey="p" rel="prev">ntpd See Also</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
-
-<h4 class="subsection">ntpd Bugs</h4>
-
-<div class="node">
-<p><hr>
-<a name="ntpd-Notes"></a>Previous:&nbsp;<a rel="previous" accesskey="p" href="#ntpd-Bugs">ntpd Bugs</a>,
-Up:&nbsp;<a rel="up" accesskey="u" href="#ntpd-Invocation">ntpd Invocation</a>
-<br>
+<a name="ntpd-Bugs-1"></a>
+<h4 class="subsection">1.1.36 ntpd Bugs</h4>
+<hr>
+<a name="ntpd-Notes"></a>
+<div class="header">
+<p>
+Previous: <a href="#ntpd-Bugs" accesskey="p" rel="prev">ntpd Bugs</a>, Up: <a href="#ntpd-Invocation" accesskey="u" rel="up">ntpd Invocation</a> &nbsp; </p>
 </div>
+<a name="ntpd-Notes-1"></a>
+<h4 class="subsection">1.1.37 ntpd Notes</h4>
 
-<h4 class="subsection">ntpd Notes</h4>
-
-<div class="node">
-<p><hr>
+<hr>
 <a name="Usage"></a>
-<br>
+<div class="header">
+<p>
+Previous: <a href="#ntpd-Invocation" accesskey="p" rel="prev">ntpd Invocation</a>, Up: <a href="#ntpd-Description" accesskey="u" rel="up">ntpd Description</a> &nbsp; </p>
 </div>
+<a name="Usage-1"></a>
+<h3 class="section">1.2 Usage</h3>
 
-<!-- node-name,  next,  previous,  up -->
-<h3 class="section">Usage</h3>
+<table>
+<thead><tr><th width="23%">What</th><th width="23%">Default</th><th width="5%">Flag</th><th width="15%">Option</th></tr></thead>
+<tr><td width="23%">configuration file</td><td width="23%"><code>/etc/ntp.conf</code></td><td width="5%"><code>-c</code></td><td width="15%"><code>conffile</code></td></tr>
+<tr><td width="23%">frequency file</td><td width="23%">none</td><td width="5%"><code>-f</code></td><td width="15%"><code>driftfile</code></td></tr>
+<tr><td width="23%">leapseconds file</td><td width="23%">none</td><td width="5%"></td><td width="15%"><code>leapfile</code></td></tr>
+<tr><td width="23%">process ID file</td><td width="23%">none</td><td width="5%"><code>-p</code></td><td width="15%"><code>pidfile</code></td></tr>
+<tr><td width="23%">log file</td><td width="23%">system log</td><td width="5%"><code>-l</code></td><td width="15%"><code>logfile</code></td></tr>
+<tr><td width="23%">include file</td><td width="23%">none</td><td width="5%">none</td><td width="15%"><code>includefile</code></td></tr>
+<tr><td width="23%">statistics path</td><td width="23%"><code>/var/NTP</code></td><td width="5%"><code>-s</code></td><td width="15%"><code>statsdir</code></td></tr>
+<tr><td width="23%">keys path</td><td width="23%"><code>/usr/local/etc</code></td><td width="5%"><code>-k</code></td><td width="15%"><code>keysdir</code></td></tr>
+</table>
+<hr>
 
+
+
+</body>
+</html>
