@@ -144,6 +144,12 @@ void debug_fuseop(const mockfs_buf_in *in)
 			in->header.unique, in->header.len);
 	}
 	switch (in->header.opcode) {
+		case FUSE_FSYNC:
+			printf(" flags=%#x", in->body.fsync.fsync_flags);
+			break;
+		case FUSE_FSYNCDIR:
+			printf(" flags=%#x", in->body.fsyncdir.fsync_flags);
+			break;
 		case FUSE_LOOKUP:
 			printf(" %s", in->body.lookup);
 			break;
@@ -154,6 +160,9 @@ void debug_fuseop(const mockfs_buf_in *in)
 		case FUSE_READ:
 			printf(" offset=%lu size=%u", in->body.read.offset,
 				in->body.read.size);
+			break;
+		case FUSE_SETATTR:
+			printf(" valid=%#x", in->body.setattr.valid);
 			break;
 		case FUSE_WRITE:
 			printf(" offset=%lu size=%u flags=%u",
