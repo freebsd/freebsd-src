@@ -755,10 +755,6 @@ zfsctl_common_pathconf(ap)
 		*ap->a_retval = (int)SPA_MINBLOCKSIZE;
 		return (0);
 
-	case _PC_ACL_EXTENDED:
-		*ap->a_retval = 0;
-		return (0);
-
 	case _PC_ACL_NFS4:
 		*ap->a_retval = 1;
 		return (0);
