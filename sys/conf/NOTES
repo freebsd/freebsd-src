@@ -2884,6 +2884,8 @@ device		cryptodev	# /dev/crypto for access to h/w
 
 device		rndtest		# FIPS 140-2 entropy tester
 
+device		ccr		# Chelsio T6
+
 device		hifn		# Hifn 7951, 7781, etc.
 options 	HIFN_DEBUG	# enable debugging support: hw.hifn.debug
 options 	HIFN_RNDTEST	# enable rndtest support

@@ -153,6 +153,7 @@
 	nexactf = 456
 	cmask = all
 	pmask = all
+	ncrypto_lookaside = 16
 	nclip = 320
 
 	# TCAM has 6K cells; each region must start at a multiple of 128 cell.
@@ -162,7 +163,7 @@
 	nserver = 512
 	nhpfilter = 0
 	nhash = 16384
-	protocol = ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif
+	protocol = ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, crypto_lookaside
 	tp_l2t = 4096
 	tp_ddp = 2
 	tp_ddp_iscsi = 2
@@ -272,7 +273,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0xf438bb8f
+	checksum = 0x7191019f
 #
 # $FreeBSD$
 #

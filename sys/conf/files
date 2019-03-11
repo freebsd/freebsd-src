@@ -1456,6 +1456,8 @@ t6fw.fw			optional cxgbe					\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t6fw.fw"
+dev/cxgbe/crypto/t4_crypto.c	optional ccr \
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cy/cy.c			optional cy
 dev/cy/cy_isa.c			optional cy isa
 dev/cy/cy_pci.c			optional cy pci
