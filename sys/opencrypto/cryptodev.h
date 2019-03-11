@@ -238,7 +238,8 @@ struct crypt_op {
 #define COP_ENCRYPT	1
 #define COP_DECRYPT	2
 	u_int16_t	flags;
-#define	COP_F_BATCH	0x0008		/* Batch op if possible */
+#define	COP_F_CIPHER_FIRST	0x0001	/* Cipher before MAC. */
+#define	COP_F_BATCH		0x0008	/* Batch op if possible */
 	u_int		len;
 	c_caddr_t	src;		/* become iov[] inside kernel */
 	caddr_t		dst;
