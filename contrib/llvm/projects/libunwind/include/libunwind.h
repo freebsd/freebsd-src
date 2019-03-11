@@ -20,12 +20,26 @@
 #include <stddef.h>
 
 #ifdef __APPLE__
-  #include <Availability.h>
-    #ifdef __arm__
-       #define LIBUNWIND_AVAIL __attribute__((unavailable))
-    #else
-      #define LIBUNWIND_AVAIL __OSX_AVAILABLE_STARTING(__MAC_10_6, __IPHONE_5_0)
+  #if __clang__
+    #if __has_include(<Availability.h>)
+      #include <Availability.h>
     #endif
+  #elif __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1050
+    #include <Availability.h>
+  #endif
+
+  #ifdef __arm__
+     #define LIBUNWIND_AVAIL __attribute__((unavailable))
+  #elif defined(__OSX_AVAILABLE_STARTING)
+    #define LIBUNWIND_AVAIL __OSX_AVAILABLE_STARTING(__MAC_10_6, __IPHONE_5_0)
+  #else
+    #include <AvailabilityMacros.h>
+    #ifdef AVAILABLE_MAC_OS_X_VERSION_10_6_AND_LATER
+      #define LIBUNWIND_AVAIL AVAILABLE_MAC_OS_X_VERSION_10_6_AND_LATER
+    #else
+      #define LIBUNWIND_AVAIL __attribute__((unavailable))
+    #endif
+  #endif
 #else
   #define LIBUNWIND_AVAIL
 #endif
@@ -43,6 +57,9 @@ enum {
   UNW_EINVAL        = -6547, /* unsupported operation or bad value */
   UNW_EBADVERSION   = -6548, /* unwind info has unsupported version */
   UNW_ENOINFO       = -6549  /* no unwind info found */
+#if defined(_LIBUNWIND_TARGET_AARCH64) && !defined(_LIBUNWIND_IS_NATIVE_ONLY)
+  , UNW_ECROSSRASIGNING = -6550 /* cross unwind with return address signing */
+#endif
 };
 
 struct unw_context_t {
@@ -58,11 +75,10 @@ typedef struct unw_cursor_t unw_cursor_t;
 typedef struct unw_addr_space *unw_addr_space_t;
 
 typedef int unw_regnum_t;
-#if _LIBUNWIND_ARM_EHABI
-typedef uint32_t unw_word_t;
+typedef uintptr_t unw_word_t;
+#if defined(__arm__)
 typedef uint64_t unw_fpreg_t;
 #else
-typedef uint64_t unw_word_t;
 typedef double unw_fpreg_t;
 #endif
 
@@ -75,8 +91,8 @@ struct unw_proc_info_t {
   unw_word_t  gp;               /* not used */
   unw_word_t  flags;            /* not used */
   uint32_t    format;           /* compact unwind encoding, or zero if none */
-  uint32_t    unwind_info_size; /* size of dwarf unwind info, or zero if none */
-  unw_word_t  unwind_info;      /* address of dwarf unwind info, or zero */
+  uint32_t    unwind_info_size; /* size of DWARF unwind info, or zero if none */
+  unw_word_t  unwind_info;      /* address of DWARF unwind info, or zero */
   unw_word_t  extra;            /* mach_header of mach-o image containing func */
 };
 typedef struct unw_proc_info_t unw_proc_info_t;
@@ -151,8 +167,8 @@ enum {
   UNW_X86_ECX = 1,
   UNW_X86_EDX = 2,
   UNW_X86_EBX = 3,
-  UNW_X86_ESP = 4,
-  UNW_X86_EBP = 5,
+  UNW_X86_EBP = 4,
+  UNW_X86_ESP = 5,
   UNW_X86_ESI = 6,
   UNW_X86_EDI = 7
 };
@@ -174,7 +190,24 @@ enum {
   UNW_X86_64_R12 = 12,
   UNW_X86_64_R13 = 13,
   UNW_X86_64_R14 = 14,
-  UNW_X86_64_R15 = 15
+  UNW_X86_64_R15 = 15,
+  UNW_X86_64_RIP = 16,
+  UNW_X86_64_XMM0 = 17,
+  UNW_X86_64_XMM1 = 18,
+  UNW_X86_64_XMM2 = 19,
+  UNW_X86_64_XMM3 = 20,
+  UNW_X86_64_XMM4 = 21,
+  UNW_X86_64_XMM5 = 22,
+  UNW_X86_64_XMM6 = 23,
+  UNW_X86_64_XMM7 = 24,
+  UNW_X86_64_XMM8 = 25,
+  UNW_X86_64_XMM9 = 26,
+  UNW_X86_64_XMM10 = 27,
+  UNW_X86_64_XMM11 = 28,
+  UNW_X86_64_XMM12 = 29,
+  UNW_X86_64_XMM13 = 30,
+  UNW_X86_64_XMM14 = 31,
+  UNW_X86_64_XMM15 = 32,
 };
 
 
@@ -295,6 +328,190 @@ enum {
   UNW_PPC_SPEFSCR = 112
 };
 
+// 64-bit ppc register numbers
+enum {
+  UNW_PPC64_R0      = 0,
+  UNW_PPC64_R1      = 1,
+  UNW_PPC64_R2      = 2,
+  UNW_PPC64_R3      = 3,
+  UNW_PPC64_R4      = 4,
+  UNW_PPC64_R5      = 5,
+  UNW_PPC64_R6      = 6,
+  UNW_PPC64_R7      = 7,
+  UNW_PPC64_R8      = 8,
+  UNW_PPC64_R9      = 9,
+  UNW_PPC64_R10     = 10,
+  UNW_PPC64_R11     = 11,
+  UNW_PPC64_R12     = 12,
+  UNW_PPC64_R13     = 13,
+  UNW_PPC64_R14     = 14,
+  UNW_PPC64_R15     = 15,
+  UNW_PPC64_R16     = 16,
+  UNW_PPC64_R17     = 17,
+  UNW_PPC64_R18     = 18,
+  UNW_PPC64_R19     = 19,
+  UNW_PPC64_R20     = 20,
+  UNW_PPC64_R21     = 21,
+  UNW_PPC64_R22     = 22,
+  UNW_PPC64_R23     = 23,
+  UNW_PPC64_R24     = 24,
+  UNW_PPC64_R25     = 25,
+  UNW_PPC64_R26     = 26,
+  UNW_PPC64_R27     = 27,
+  UNW_PPC64_R28     = 28,
+  UNW_PPC64_R29     = 29,
+  UNW_PPC64_R30     = 30,
+  UNW_PPC64_R31     = 31,
+  UNW_PPC64_F0      = 32,
+  UNW_PPC64_F1      = 33,
+  UNW_PPC64_F2      = 34,
+  UNW_PPC64_F3      = 35,
+  UNW_PPC64_F4      = 36,
+  UNW_PPC64_F5      = 37,
+  UNW_PPC64_F6      = 38,
+  UNW_PPC64_F7      = 39,
+  UNW_PPC64_F8      = 40,
+  UNW_PPC64_F9      = 41,
+  UNW_PPC64_F10     = 42,
+  UNW_PPC64_F11     = 43,
+  UNW_PPC64_F12     = 44,
+  UNW_PPC64_F13     = 45,
+  UNW_PPC64_F14     = 46,
+  UNW_PPC64_F15     = 47,
+  UNW_PPC64_F16     = 48,
+  UNW_PPC64_F17     = 49,
+  UNW_PPC64_F18     = 50,
+  UNW_PPC64_F19     = 51,
+  UNW_PPC64_F20     = 52,
+  UNW_PPC64_F21     = 53,
+  UNW_PPC64_F22     = 54,
+  UNW_PPC64_F23     = 55,
+  UNW_PPC64_F24     = 56,
+  UNW_PPC64_F25     = 57,
+  UNW_PPC64_F26     = 58,
+  UNW_PPC64_F27     = 59,
+  UNW_PPC64_F28     = 60,
+  UNW_PPC64_F29     = 61,
+  UNW_PPC64_F30     = 62,
+  UNW_PPC64_F31     = 63,
+  // 64: reserved
+  UNW_PPC64_LR      = 65,
+  UNW_PPC64_CTR     = 66,
+  // 67: reserved
+  UNW_PPC64_CR0     = 68,
+  UNW_PPC64_CR1     = 69,
+  UNW_PPC64_CR2     = 70,
+  UNW_PPC64_CR3     = 71,
+  UNW_PPC64_CR4     = 72,
+  UNW_PPC64_CR5     = 73,
+  UNW_PPC64_CR6     = 74,
+  UNW_PPC64_CR7     = 75,
+  UNW_PPC64_XER     = 76,
+  UNW_PPC64_V0      = 77,
+  UNW_PPC64_V1      = 78,
+  UNW_PPC64_V2      = 79,
+  UNW_PPC64_V3      = 80,
+  UNW_PPC64_V4      = 81,
+  UNW_PPC64_V5      = 82,
+  UNW_PPC64_V6      = 83,
+  UNW_PPC64_V7      = 84,
+  UNW_PPC64_V8      = 85,
+  UNW_PPC64_V9      = 86,
+  UNW_PPC64_V10     = 87,
+  UNW_PPC64_V11     = 88,
+  UNW_PPC64_V12     = 89,
+  UNW_PPC64_V13     = 90,
+  UNW_PPC64_V14     = 91,
+  UNW_PPC64_V15     = 92,
+  UNW_PPC64_V16     = 93,
+  UNW_PPC64_V17     = 94,
+  UNW_PPC64_V18     = 95,
+  UNW_PPC64_V19     = 96,
+  UNW_PPC64_V20     = 97,
+  UNW_PPC64_V21     = 98,
+  UNW_PPC64_V22     = 99,
+  UNW_PPC64_V23     = 100,
+  UNW_PPC64_V24     = 101,
+  UNW_PPC64_V25     = 102,
+  UNW_PPC64_V26     = 103,
+  UNW_PPC64_V27     = 104,
+  UNW_PPC64_V28     = 105,
+  UNW_PPC64_V29     = 106,
+  UNW_PPC64_V30     = 107,
+  UNW_PPC64_V31     = 108,
+  // 109, 111-113: OpenPOWER ELF V2 ABI: reserved
+  // Borrowing VRSAVE number from PPC32.
+  UNW_PPC64_VRSAVE  = 109,
+  UNW_PPC64_VSCR    = 110,
+  UNW_PPC64_TFHAR   = 114,
+  UNW_PPC64_TFIAR   = 115,
+  UNW_PPC64_TEXASR  = 116,
+  UNW_PPC64_VS0     = UNW_PPC64_F0,
+  UNW_PPC64_VS1     = UNW_PPC64_F1,
+  UNW_PPC64_VS2     = UNW_PPC64_F2,
+  UNW_PPC64_VS3     = UNW_PPC64_F3,
+  UNW_PPC64_VS4     = UNW_PPC64_F4,
+  UNW_PPC64_VS5     = UNW_PPC64_F5,
+  UNW_PPC64_VS6     = UNW_PPC64_F6,
+  UNW_PPC64_VS7     = UNW_PPC64_F7,
+  UNW_PPC64_VS8     = UNW_PPC64_F8,
+  UNW_PPC64_VS9     = UNW_PPC64_F9,
+  UNW_PPC64_VS10    = UNW_PPC64_F10,
+  UNW_PPC64_VS11    = UNW_PPC64_F11,
+  UNW_PPC64_VS12    = UNW_PPC64_F12,
+  UNW_PPC64_VS13    = UNW_PPC64_F13,
+  UNW_PPC64_VS14    = UNW_PPC64_F14,
+  UNW_PPC64_VS15    = UNW_PPC64_F15,
+  UNW_PPC64_VS16    = UNW_PPC64_F16,
+  UNW_PPC64_VS17    = UNW_PPC64_F17,
+  UNW_PPC64_VS18    = UNW_PPC64_F18,
+  UNW_PPC64_VS19    = UNW_PPC64_F19,
+  UNW_PPC64_VS20    = UNW_PPC64_F20,
+  UNW_PPC64_VS21    = UNW_PPC64_F21,
+  UNW_PPC64_VS22    = UNW_PPC64_F22,
+  UNW_PPC64_VS23    = UNW_PPC64_F23,
+  UNW_PPC64_VS24    = UNW_PPC64_F24,
+  UNW_PPC64_VS25    = UNW_PPC64_F25,
+  UNW_PPC64_VS26    = UNW_PPC64_F26,
+  UNW_PPC64_VS27    = UNW_PPC64_F27,
+  UNW_PPC64_VS28    = UNW_PPC64_F28,
+  UNW_PPC64_VS29    = UNW_PPC64_F29,
+  UNW_PPC64_VS30    = UNW_PPC64_F30,
+  UNW_PPC64_VS31    = UNW_PPC64_F31,
+  UNW_PPC64_VS32    = UNW_PPC64_V0,
+  UNW_PPC64_VS33    = UNW_PPC64_V1,
+  UNW_PPC64_VS34    = UNW_PPC64_V2,
+  UNW_PPC64_VS35    = UNW_PPC64_V3,
+  UNW_PPC64_VS36    = UNW_PPC64_V4,
+  UNW_PPC64_VS37    = UNW_PPC64_V5,
+  UNW_PPC64_VS38    = UNW_PPC64_V6,
+  UNW_PPC64_VS39    = UNW_PPC64_V7,
+  UNW_PPC64_VS40    = UNW_PPC64_V8,
+  UNW_PPC64_VS41    = UNW_PPC64_V9,
+  UNW_PPC64_VS42    = UNW_PPC64_V10,
+  UNW_PPC64_VS43    = UNW_PPC64_V11,
+  UNW_PPC64_VS44    = UNW_PPC64_V12,
+  UNW_PPC64_VS45    = UNW_PPC64_V13,
+  UNW_PPC64_VS46    = UNW_PPC64_V14,
+  UNW_PPC64_VS47    = UNW_PPC64_V15,
+  UNW_PPC64_VS48    = UNW_PPC64_V16,
+  UNW_PPC64_VS49    = UNW_PPC64_V17,
+  UNW_PPC64_VS50    = UNW_PPC64_V18,
+  UNW_PPC64_VS51    = UNW_PPC64_V19,
+  UNW_PPC64_VS52    = UNW_PPC64_V20,
+  UNW_PPC64_VS53    = UNW_PPC64_V21,
+  UNW_PPC64_VS54    = UNW_PPC64_V22,
+  UNW_PPC64_VS55    = UNW_PPC64_V23,
+  UNW_PPC64_VS56    = UNW_PPC64_V24,
+  UNW_PPC64_VS57    = UNW_PPC64_V25,
+  UNW_PPC64_VS58    = UNW_PPC64_V26,
+  UNW_PPC64_VS59    = UNW_PPC64_V27,
+  UNW_PPC64_VS60    = UNW_PPC64_V28,
+  UNW_PPC64_VS61    = UNW_PPC64_V29,
+  UNW_PPC64_VS62    = UNW_PPC64_V30,
+  UNW_PPC64_VS63    = UNW_PPC64_V31
+};
+
 // 64-bit ARM64 registers
 enum {
   UNW_ARM64_X0  = 0,
@@ -332,6 +549,8 @@ enum {
   UNW_ARM64_LR  = 30,
   UNW_ARM64_X31 = 31,
   UNW_ARM64_SP  = 31,
+  // reserved block
+  UNW_ARM64_RA_SIGN_STATE = 34,
   // reserved block
   UNW_ARM64_D0  = 64,
   UNW_ARM64_D1  = 65,
@@ -531,6 +750,7 @@ enum {
   UNW_OR1K_R29 = 29,
   UNW_OR1K_R30 = 30,
   UNW_OR1K_R31 = 31,
+  UNW_OR1K_EPCR = 32,
 };
 
 // 64-bit RISC-V registers
@@ -672,6 +892,42 @@ enum {
   UNW_MIPS_F31 = 63,
   UNW_MIPS_HI = 64,
   UNW_MIPS_LO = 65,
+};
+
+// SPARC registers
+enum {
+  UNW_SPARC_G0 = 0,
+  UNW_SPARC_G1 = 1,
+  UNW_SPARC_G2 = 2,
+  UNW_SPARC_G3 = 3,
+  UNW_SPARC_G4 = 4,
+  UNW_SPARC_G5 = 5,
+  UNW_SPARC_G6 = 6,
+  UNW_SPARC_G7 = 7,
+  UNW_SPARC_O0 = 8,
+  UNW_SPARC_O1 = 9,
+  UNW_SPARC_O2 = 10,
+  UNW_SPARC_O3 = 11,
+  UNW_SPARC_O4 = 12,
+  UNW_SPARC_O5 = 13,
+  UNW_SPARC_O6 = 14,
+  UNW_SPARC_O7 = 15,
+  UNW_SPARC_L0 = 16,
+  UNW_SPARC_L1 = 17,
+  UNW_SPARC_L2 = 18,
+  UNW_SPARC_L3 = 19,
+  UNW_SPARC_L4 = 20,
+  UNW_SPARC_L5 = 21,
+  UNW_SPARC_L6 = 22,
+  UNW_SPARC_L7 = 23,
+  UNW_SPARC_I0 = 24,
+  UNW_SPARC_I1 = 25,
+  UNW_SPARC_I2 = 26,
+  UNW_SPARC_I3 = 27,
+  UNW_SPARC_I4 = 28,
+  UNW_SPARC_I5 = 29,
+  UNW_SPARC_I6 = 30,
+  UNW_SPARC_I7 = 31,
 };
 
 #endif
