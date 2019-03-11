@@ -2900,8 +2900,6 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 		uint16_t phy;
 
 		tap->wr_flags = 0;
-		tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		tap->wr_antsignal = rssi;
 		tap->wr_antenna = ant;
 		tap->wr_dbm_antsignal = run_rssi2dbm(sc, rssi, ant);
@@ -3173,8 +3171,6 @@ tr_setup:
 			    (struct rt2860_txwi *)(&data->desc + sizeof(struct rt2870_txd));
 			tap->wt_flags = 0;
 			tap->wt_rate = rt2860_rates[data->ridx].rate;
-			tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-			tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 			tap->wt_hwqueue = index;
 			if (le16toh(txwi->phy) & RT2860_PHY_SHPRE)
 				tap->wt_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
