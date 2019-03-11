@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 4, 2018
+.Dd March 1, 2019
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1329,11 +1329,11 @@ its use is discouraged.
 .Brc
 .Bl -tag -width indent
 .It Cm any
-matches any IP address.
+Matches any IP address.
 .It Cm me
-matches any IP address configured on an interface in the system.
+Matches any IP address configured on an interface in the system.
 .It Cm me6
-matches any IPv6 address configured on an interface in the system.
+Matches any IPv6 address configured on an interface in the system.
 The address list is evaluated at the time the packet is
 analysed.
 .It Cm table Ns Pq Ar name Ns Op , Ns Ar value
@@ -2083,7 +2083,7 @@ The following table types are supported:
 .It Ar flow-spec : Ar flow-field Ns Op , Ns Ar flow-spec
 .It Ar flow-field : src-ip | proto | src-port | dst-ip | dst-port
 .It Cm addr
-matches IPv4 or IPv6 address.
+Matches IPv4 or IPv6 address.
 Each entry is represented by an
 .Ar addr Ns Op / Ns Ar masklen
 and will match all addresses with base
@@ -2097,11 +2097,11 @@ is not specified, it defaults to 32 for IPv4 and 128 for IPv6.
 When looking up an IP address in a table, the most specific
 entry will match.
 .It Cm iface
-matches interface names.
+Matches interface names.
 Each entry is represented by string treated as interface name.
 Wildcards are not supported.
 .It Cm number
-maches protocol ports, uids/gids or jail IDs.
+Matches protocol ports, uids/gids or jail IDs.
 Each entry is represented by 32-bit unsigned integer.
 Ranges are not supported.
 .It Cm flow
@@ -2792,7 +2792,7 @@ specifies the quantum (credit) of the scheduler.
 .Ar m
 is the number of bytes a queue can serve before being moved to the tail
 of old queues list.
-The default is 1514 bytes, and the maximum accepable value
+The default is 1514 bytes, and the maximum acceptable value
 is 9000 bytes.
 .It Cm limit
 .Ar m
@@ -2800,14 +2800,14 @@ specifies the hard size limit (in unit of packets) of all queues managed by an
 instance of the scheduler.
 The default value of
 .Ar m
-is 10240 packets, and the maximum accepable value is 20480 packets.
+is 10240 packets, and the maximum acceptable value is 20480 packets.
 .It Cm flows
 .Ar m
 specifies the total number of flow queues (sub-queues) that fq_*
 creates and manages.
 By default, 1024 sub-queues are created when an instance
 of the fq_{codel/pie} scheduler is created.
-The maximum accepable value is
+The maximum acceptable value is
 65536.
 .El
 .Pp
@@ -2906,7 +2906,7 @@ is the typical queue size for Ethernet devices.
 Note that for slow speed links you should keep the queue
 size short or your traffic might be affected by a significant
 queueing delay.
-E.g., 50 max-sized ethernet packets (1500 bytes) mean 600Kbit
+E.g., 50 max-sized Ethernet packets (1500 bytes) mean 600Kbit
 or 20s of queue on a 30Kbit/s pipe.
 Even worse effects can result if you get packets from an
 interface with a much larger MTU, e.g.\& the loopback interface
@@ -3053,7 +3053,7 @@ De-randomisation is enabled by default.
 .It Cm onoff
 enable turning PIE on and off depending on queue load.
 If this option is enabled,
-PIE turnes on when over 1/3 of queue becomes full.
+PIE turns on when over 1/3 of queue becomes full.
 This option is disabled by
 default.
 .It Cm dre | ts
@@ -4089,7 +4089,7 @@ by adding the following to the appropriate place in ruleset:
 If your network has network traffic analyzer
 connected to your host directly via dedicated interface
 or remotely via RSPAN vlan, you can selectively mirror
-some ethernet layer2 frames to the analyzer.
+some Ethernet layer2 frames to the analyzer.
 .Pp
 First, make sure your firewall is already configured and runs.
 Then, enable layer2 processing if not already enabled:
@@ -4434,7 +4434,7 @@ or it could be split in:
 .Dl "ipfw nat 5 config redirect_port tcp"
 .Dl "			192.168.0.1:80,192.168.0.10:22,192.168.0.20:25 500"
 .Pp
-Sometimes you may want to mix NAT and dynamic rules. It could be achived with
+Sometimes you may want to mix NAT and dynamic rules. It could be achieved with
 .Cm record-state
 and
 .Cm defer-action
@@ -4447,8 +4447,8 @@ rule will be performed as soon as rule is matched. In case of NAT and
 .Cm allow
 rule packet need to be passed to NAT, not allowed as soon is possible.
 .Pp
-There is example of set of rules to achive this. Bear in mind that this
-is exmaple only and it is not very usefult by itself.
+There is example of set of rules to achieve this. Bear in mind that this
+is exmaple only and it is not very useful by itself.
 .Pp
 On way out, after all checks place this rules:
 .Pp
