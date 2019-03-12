@@ -108,7 +108,7 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 				acep->ae_id = (uid_t)gid;
 		} else {
 			acep->ae_tag = ACL_USER;
-			aceerr = nfsv4_strtouid(nd, name, len, &uid, p);
+			aceerr = nfsv4_strtouid(nd, name, len, &uid);
 			if (aceerr == 0)
 				acep->ae_id = uid;
 		}

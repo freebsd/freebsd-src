@@ -1819,12 +1819,12 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			}
 			if (compare) {
 			    if (!(*retcmpp)) {
-				if (nfsv4_strtouid(nd, cp, j, &uid, p) ||
+				if (nfsv4_strtouid(nd, cp, j, &uid) ||
 				    nap->na_uid != uid)
 				    *retcmpp = NFSERR_NOTSAME;
 			    }
 			} else if (nap != NULL) {
-				if (nfsv4_strtouid(nd, cp, j, &uid, p))
+				if (nfsv4_strtouid(nd, cp, j, &uid))
 					nap->na_uid = nfsrv_defaultuid;
 				else
 					nap->na_uid = uid;
@@ -3165,8 +3165,7 @@ tryagain:
  * a number.
  */
 APPLESTATIC int
-nfsv4_strtouid(struct nfsrv_descript *nd, u_char *str, int len, uid_t *uidp,
-    NFSPROC_T *p)
+nfsv4_strtouid(struct nfsrv_descript *nd, u_char *str, int len, uid_t *uidp)
 {
 	int i;
 	char *cp, *endstr, *str0;
