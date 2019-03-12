@@ -253,7 +253,8 @@ struct isci_softc {
 
 int isci_allocate_resources(device_t device);
 
-int isci_allocate_dma_buffer(device_t device, struct ISCI_MEMORY *memory);
+int isci_allocate_dma_buffer(device_t device, struct ISCI_CONTROLLER *lock,
+    struct ISCI_MEMORY *memory);
 
 void isci_remote_device_reset(struct ISCI_REMOTE_DEVICE *remote_device,
     union ccb *ccb);
