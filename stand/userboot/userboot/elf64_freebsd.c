@@ -31,6 +31,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/exec.h>
 #include <sys/linker.h>
+#ifdef DEBUG
+#include <machine/_inttypes.h>
+#endif
 #include <string.h>
 #include <i386/include/bootinfo.h>
 #include <machine/elf.h>
@@ -136,7 +139,7 @@ elf64_exec(struct preloaded_file *fp)
 	}
 
 #ifdef DEBUG
-	printf("Start @ %#llx ...\n", ehdr->e_entry);
+	printf("Start @ %#"PRIx64" ...\n", ehdr->e_entry);
 #endif
 
 	dev_cleanup();
