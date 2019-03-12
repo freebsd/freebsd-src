@@ -201,6 +201,7 @@ bioq_insert_tail(struct bio_queue_head *head, struct bio *bp)
 
 	TAILQ_INSERT_TAIL(&head->queue, bp, bio_queue);
 	head->total++;
+	head->batched = 0;
 	head->insert_point = bp;
 	head->last_offset = bp->bio_offset;
 }
