@@ -2749,7 +2749,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			break;
 		case NFSATTRBIT_OWNERGROUP:
 			cp = namestr;
-			nfsv4_gidtostr(vap->va_gid, &cp, &siz, p);
+			nfsv4_gidtostr(vap->va_gid, &cp, &siz);
 			retnum += nfsm_strtom(nd, cp, siz);
 			if (cp != namestr)
 				free(cp, M_NFSSTRING);
@@ -3267,7 +3267,7 @@ out:
  * retlenp - pointer to length to be returned
  */
 APPLESTATIC void
-nfsv4_gidtostr(gid_t gid, u_char **cpp, int *retlenp, NFSPROC_T *p)
+nfsv4_gidtostr(gid_t gid, u_char **cpp, int *retlenp)
 {
 	int i;
 	struct nfsusrgrp *usrp;
