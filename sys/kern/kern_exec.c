@@ -1104,9 +1104,13 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 		shmexit(vmspace);
 		pmap_remove_pages(vmspace_pmap(vmspace));
 		vm_map_remove(map, vm_map_min(map), vm_map_max(map));
-		/* An exec terminates mlockall(MCL_FUTURE). */
+		/*
+		 * An exec terminates mlockall(MCL_FUTURE), ASLR state
+		 * must be re-evaluated.
+		 */
 		vm_map_lock(map);
-		vm_map_modflags(map, 0, MAP_WIREFUTURE);
+		vm_map_modflags(map, 0, MAP_WIREFUTURE | MAP_ASLR |
+		    MAP_ASLR_IGNSTART);
 		vm_map_unlock(map);
 	} else {
 		error = vmspace_exec(p, sv_minuser, sv->sv_maxuser);
@@ -1115,6 +1119,7 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 		vmspace = p->p_vmspace;
 		map = &vmspace->vm_map;
 	}
+	map->flags |= imgp->map_flags;
 
 	/* Map a shared page */
 	obj = sv->sv_shared_page_obj;

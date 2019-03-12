@@ -76,8 +76,8 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_setregs	= exec_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_FREEBSD | SV_IA32 | SV_ILP32 | SV_SHP |
-			    SV_TIMEKEEP,
+	.sv_flags	= SV_ABI_FREEBSD | SV_ASLR | SV_IA32 | SV_ILP32 |
+			    SV_SHP | SV_TIMEKEEP,
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
