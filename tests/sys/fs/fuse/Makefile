@@ -17,6 +17,7 @@ ATF_TESTS_CXX+=	mknod
 ATF_TESTS_CXX+=	open
 ATF_TESTS_CXX+=	opendir
 ATF_TESTS_CXX+=	read
+ATF_TESTS_CXX+=	readdir
 ATF_TESTS_CXX+=	readlink
 ATF_TESTS_CXX+=	release
 ATF_TESTS_CXX+=	rename
@@ -91,6 +92,11 @@ SRCS.read+=	getmntopts.c
 SRCS.read+=	mockfs.cc
 SRCS.read+=	read.cc
 SRCS.read+=	utils.cc
+
+SRCS.readdir+=	getmntopts.c
+SRCS.readdir+=	mockfs.cc
+SRCS.readdir+=	readdir.cc
+SRCS.readdir+=	utils.cc
 
 SRCS.readlink+=	getmntopts.c
 SRCS.readlink+=	mockfs.cc

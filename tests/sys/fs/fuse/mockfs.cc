@@ -157,9 +157,17 @@ void debug_fuseop(const mockfs_buf_in *in)
 			printf(" flags=%#x mode=%#o",
 				in->body.open.flags, in->body.open.mode);
 			break;
+		case FUSE_OPENDIR:
+			printf(" flags=%#x mode=%#o",
+				in->body.opendir.flags, in->body.opendir.mode);
+			break;
 		case FUSE_READ:
 			printf(" offset=%lu size=%u", in->body.read.offset,
 				in->body.read.size);
+			break;
+		case FUSE_READDIR:
+			printf(" offset=%lu size=%u", in->body.readdir.offset,
+				in->body.readdir.size);
 			break;
 		case FUSE_SETATTR:
 			printf(" valid=%#x", in->body.setattr.valid);

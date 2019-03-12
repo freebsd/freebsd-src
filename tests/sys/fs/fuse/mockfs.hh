@@ -84,7 +84,9 @@ union fuse_payloads_in {
 	fuse_mkdir_in	mkdir;
 	fuse_mknod_in	mknod;
 	fuse_open_in	open;
+	fuse_open_in	opendir;
 	fuse_read_in	read;
+	fuse_read_in	readdir;
 	fuse_release_in	release;
 	fuse_rename_in	rename;
 	char		rmdir[0];
