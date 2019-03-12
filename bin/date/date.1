@@ -32,7 +32,7 @@
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd August 4, 2018
+.Dd March 12, 2019
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -62,9 +62,6 @@
 .Fl f Ar input_fmt new_date
 .Op Cm + Ns Ar output_fmt
 .Nm
-.Op Fl d Ar dst
-.Op Fl t Ar minutes_west
-.Nm
 .Op Fl jnu
 .Op Fl I Ns Op Ar FMT
 .Op Fl f Ar input_fmt
@@ -93,15 +90,6 @@ the time may not be changed by more than 1 second.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl d Ar dst
-Set the kernel's value for daylight saving time.
-If
-.Ar dst
-is non-zero, future calls
-to
-.Xr gettimeofday 2
-will return a non-zero for
-.Fa tz_dsttime .
 .It Fl f
 Use
 .Ar input_fmt
@@ -188,14 +176,6 @@ and can be specified in decimal, octal, or hex.
 .It Fl r Ar filename
 Print the date and time of the last modification of
 .Ar filename .
-.It Fl t Ar minutes_west
-Set the system's value for minutes west of
-.Tn GMT .
-.Ar minutes_west
-specifies the number of minutes returned in
-.Fa tz_minuteswest
-by future calls to
-.Xr gettimeofday 2 .
 .It Fl u
 Display or set the date in
 .Tn UTC
