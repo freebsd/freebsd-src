@@ -29,6 +29,7 @@
  */
 
 extern "C" {
+#include <dirent.h>
 #include <fcntl.h>
 }
 
@@ -100,7 +101,7 @@ TEST_F(Opendir, eperm)
 	EXPECT_EQ(EPERM, errno);
 }
 
-TEST_F(Opendir, ok)
+TEST_F(Opendir, open)
 {
 	const char FULLPATH[] = "mountpoint/some_dir";
 	const char RELPATH[] = "some_dir";
@@ -120,4 +121,36 @@ TEST_F(Opendir, ok)
 	}));
 
 	EXPECT_LE(0, open(FULLPATH, O_DIRECTORY)) << strerror(errno);
+}
+
+TEST_F(Opendir, opendir)
+{
+	const char FULLPATH[] = "mountpoint/some_dir";
+	const char RELPATH[] = "some_dir";
+	uint64_t ino = 42;
+
+	expect_lookup(RELPATH, ino);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in->header.opcode == FUSE_STATFS);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, statfs);
+	}));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_OPENDIR &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, open);
+	}));
+
+	errno = 0;
+	EXPECT_NE(NULL, opendir(FULLPATH)) << strerror(errno);
 }
