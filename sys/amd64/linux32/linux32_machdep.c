@@ -674,8 +674,8 @@ linux_gettimeofday(struct thread *td, struct linux_gettimeofday_args *uap)
 		error = copyout(&atv32, uap->tp, sizeof(atv32));
 	}
 	if (error == 0 && uap->tzp != NULL) {
-		rtz.tz_minuteswest = tz_minuteswest;
-		rtz.tz_dsttime = tz_dsttime;
+		rtz.tz_minuteswest = 0;
+		rtz.tz_dsttime = 0;
 		error = copyout(&rtz, uap->tzp, sizeof(rtz));
 	}
 	return (error);

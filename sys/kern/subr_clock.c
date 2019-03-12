@@ -52,9 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/timetc.h>
 
-int tz_minuteswest;
-int tz_dsttime;
-
 /*
  * The adjkerntz and wall_cmos_clock sysctls are in the "machdep" sysctl
  * namespace because they were misplaced there originally.
@@ -386,5 +383,5 @@ int
 utc_offset(void)
 {
 
-	return (tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0));
+	return (wall_cmos_clock ? adjkerntz : 0);
 }
