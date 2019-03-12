@@ -424,7 +424,7 @@ nfsrv_buildacl(struct nfsrv_descript *nd, NFSACL_T *aclp, enum vtype type,
 		case ACL_USER:
 			name = namestr;
 			nfsv4_uidtostr(aclp->acl_entry[i].ae_id, &name,
-			    &namelen, p);
+			    &namelen);
 			if (name != namestr)
 				malloced = 1;
 			break;
