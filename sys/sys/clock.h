@@ -51,12 +51,6 @@
 
 #ifdef _KERNEL		/* No user serviceable parts */
 
-/*
- * Timezone info from settimeofday(2), usually not used
- */
-extern int tz_minuteswest;
-extern int tz_dsttime;
-
 int utc_offset(void);
 
 /*
