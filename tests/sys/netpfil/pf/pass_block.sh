@@ -168,6 +168,6 @@ atf_init_test_cases()
 {
 	atf_add_test_case "v4"
 	atf_add_test_case "v6"
-	atf_add_test_case "noalias"
+	#atf_add_test_case "noalias"
 	atf_add_test_case "nested_inline"
 }
