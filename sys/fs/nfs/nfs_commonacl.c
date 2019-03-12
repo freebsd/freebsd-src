@@ -103,7 +103,7 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 	if (gotid == 0) {
 		if (flag & NFSV4ACE_IDENTIFIERGROUP) {
 			acep->ae_tag = ACL_GROUP;
-			aceerr = nfsv4_strtogid(nd, name, len, &gid, p);
+			aceerr = nfsv4_strtogid(nd, name, len, &gid);
 			if (aceerr == 0)
 				acep->ae_id = (uid_t)gid;
 		} else {
