@@ -2791,8 +2791,8 @@ nfsv4_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 				goto nfsmout;
 			}
 			if (!nd->nd_repstat) {
-				nd->nd_repstat = nfsv4_strtouid(nd, cp, j, &uid,
-				    p);
+				nd->nd_repstat = nfsv4_strtouid(nd, cp, j,
+				    &uid);
 				if (!nd->nd_repstat)
 					nvap->na_uid = uid;
 			}
