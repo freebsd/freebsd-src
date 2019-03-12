@@ -448,6 +448,7 @@
 /*
  * CPUID instruction 7 Structured Extended Features, leaf 0 edx info
  */
+#define	CPUID_STDEXT3_TSXFA	0x00002000
 #define	CPUID_STDEXT3_IBPB	0x04000000
 #define	CPUID_STDEXT3_STIBP	0x08000000
 #define	CPUID_STDEXT3_L1D_FLUSH	0x10000000
@@ -506,6 +507,7 @@
 #define	MSR_MTRRcap		0x0fe
 #define	MSR_IA32_ARCH_CAP	0x10a
 #define	MSR_IA32_FLUSH_CMD	0x10b
+#define	MSR_TSX_FORCE_ABORT	0x10f
 #define	MSR_BBL_CR_ADDR		0x116
 #define	MSR_BBL_CR_DECC		0x118
 #define	MSR_BBL_CR_CTL		0x119
