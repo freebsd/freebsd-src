@@ -78,6 +78,7 @@
 .Op Fl b
 .Op Fl h
 .Op Fl H
+.Op Fl l
 .Op Fl N
 .Op Fl q
 .Op Fl s
@@ -544,6 +545,11 @@ or
 .Fl b .
 .It Fl H
 Print out the device size in human readable (base 10, 1K == 1000) format.
+.It Fl l
+Skip sending the SCSI READ CAPACITY (10) command.
+Send only the SCSI READ CAPACITY (16) service action and report
+its results.
+When the two do not match, a quirk is needed to resolve the ambiguity.
 .It Fl N
 Print out the number of blocks in the device instead of the last logical
 block.
