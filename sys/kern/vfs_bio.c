@@ -4842,6 +4842,8 @@ b_io_dismiss(struct buf *bp, int ioflag, bool release)
 
 	if ((ioflag & IO_DIRECT) != 0)
 		bp->b_flags |= B_DIRECT;
+	if ((ioflag & IO_EXT) != 0)
+		bp->b_xflags |= BX_ALTDATA;
 	if ((ioflag & (IO_VMIO | IO_DIRECT)) != 0 && LIST_EMPTY(&bp->b_dep)) {
 		bp->b_flags |= B_RELBUF;
 		if ((ioflag & IO_NOREUSE) != 0)
