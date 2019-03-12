@@ -2558,8 +2558,7 @@ mrsas_init_adapter(struct mrsas_softc *sc)
 
 	/* Decrement the max supported by 1, to correlate with FW */
 	sc->max_fw_cmds = sc->max_fw_cmds - 1;
-	sc->max_scsi_cmds = sc->max_fw_cmds -
-	    (MRSAS_FUSION_INT_CMDS + MRSAS_MAX_IOCTL_CMDS);
+	sc->max_scsi_cmds = sc->max_fw_cmds - MRSAS_MAX_MFI_CMDS;
 
 	/* Determine allocation size of command frames */
 	sc->reply_q_depth = ((sc->max_fw_cmds + 1 + 15) / 16 * 16) * 2;
