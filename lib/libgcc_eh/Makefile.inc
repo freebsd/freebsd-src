@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 COMPILERRTDIR=	${SRCTOP}/contrib/compiler-rt
-UNWINDINCDIR=	${SRCTOP}/contrib/llvm/projects/libunwind/include
-UNWINDSRCDIR=	${SRCTOP}/contrib/llvm/projects/libunwind/src
+UNWINDINCDIR=	${SRCTOP}/contrib/libunwind/include
+UNWINDSRCDIR=	${SRCTOP}/contrib/libunwind/src
 
 STATIC_CFLAGS+=${PICFLAG} -fvisibility=hidden -DVISIBILITY_HIDDEN
 
