@@ -372,8 +372,7 @@ void nfsrv_adj(mbuf_t, int, int);
 void nfsrv_postopattr(struct nfsrv_descript *, int, struct nfsvattr *);
 int nfsd_errmap(struct nfsrv_descript *);
 void nfsv4_uidtostr(uid_t, u_char **, int *);
-int nfsv4_strtouid(struct nfsrv_descript *, u_char *, int, uid_t *,
-    NFSPROC_T *);
+int nfsv4_strtouid(struct nfsrv_descript *, u_char *, int, uid_t *);
 void nfsv4_gidtostr(gid_t, u_char **, int *, NFSPROC_T *);
 int nfsv4_strtogid(struct nfsrv_descript *, u_char *, int, gid_t *,
     NFSPROC_T *);

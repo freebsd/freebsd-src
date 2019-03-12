@@ -7029,7 +7029,7 @@ nfsrv_parseug(struct nfsrv_descript *nd, int dogrp, uid_t *uidp, gid_t *gidp,
 	if (dogrp != 0)
 		error = nfsv4_strtogid(nd, str, len, gidp, p);
 	else
-		error = nfsv4_strtouid(nd, str, len, uidp, p);
+		error = nfsv4_strtouid(nd, str, len, uidp);
 nfsmout:
 	if (len > NFSV4_SMALLSTR)
 		free(str, M_TEMP);
