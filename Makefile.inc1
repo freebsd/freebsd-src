@@ -1143,6 +1143,12 @@ WMAKE_TGTS+=	everything
 WMAKE_TGTS+=	build${libcompat}
 .endif
 
+# record buildworld time in seconds
+.if make(buildworld)
+_BUILDWORLD_START!= date '+%s'
+.export _BUILDWORLD_START
+.endif
+
 buildworld: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue .PHONY
 .ORDER: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue
 
@@ -1155,6 +1161,9 @@ buildworld_epilogue: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> World build completed on `LC_ALL=C date`"
+	@seconds=$$(($$(date '+%s') - ${_BUILDWORLD_START})); \
+	  echo -n ">>> World build in $$seconds seconds, "; \
+	  echo "ncpu: $$(sysctl -n hw.ncpu)${.MAKE.JOBS:S/^/, make -j/}"
 	@echo "--------------------------------------------------------------"
 
 #
