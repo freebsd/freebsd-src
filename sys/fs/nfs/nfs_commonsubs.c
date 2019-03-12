@@ -2742,7 +2742,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			break;
 		case NFSATTRBIT_OWNER:
 			cp = namestr;
-			nfsv4_uidtostr(vap->va_uid, &cp, &siz, p);
+			nfsv4_uidtostr(vap->va_uid, &cp, &siz);
 			retnum += nfsm_strtom(nd, cp, siz);
 			if (cp != namestr)
 				free(cp, M_NFSSTRING);
@@ -3008,7 +3008,7 @@ nfsrv_putattrbit(struct nfsrv_descript *nd, nfsattrbit_t *attrbitp)
  * retlenp - pointer to length to be returned
  */
 APPLESTATIC void
-nfsv4_uidtostr(uid_t uid, u_char **cpp, int *retlenp, NFSPROC_T *p)
+nfsv4_uidtostr(uid_t uid, u_char **cpp, int *retlenp)
 {
 	int i;
 	struct nfsusrgrp *usrp;
