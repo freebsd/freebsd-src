@@ -185,6 +185,14 @@ dma_unmap_single_attrs(struct device *dev, dma_addr_t addr, size_t size,
 {
 }
 
+static inline dma_addr_t
+dma_map_page_attrs(struct device *dev, struct page *page, size_t offset,
+    size_t size, enum dma_data_direction dir, unsigned long attrs)
+{
+
+	return (VM_PAGE_TO_PHYS(page) + offset);
+}
+
 static inline int
 dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
     enum dma_data_direction dir, struct dma_attrs *attrs)
