@@ -229,6 +229,11 @@ ifconfig_up()
 		${IFCONFIG_CMD} $1 up
 	fi
 
+	if ! noafif $1 && afexists inet6; then
+		ipv6_accept_rtadv_up $1
+		_cfg=0
+	fi
+
 	if dhcpif $1; then
 		if [ $_cfg -ne 0 ] ; then
 			${IFCONFIG_CMD} $1 up
@@ -686,7 +691,6 @@ ipv6_up()
 
 	ifalias ${_if} inet6 alias && _ret=0
 	ipv6_prefix_hostid_addr_common ${_if} alias && _ret=0
-	ipv6_accept_rtadv_up ${_if} && _ret=0
 
 	return $_ret
 }
@@ -1198,8 +1202,8 @@ ipv6_accept_rtadv_up()
 {
 	if ipv6_autoconfif $1; then
 		${IFCONFIG_CMD} $1 inet6 accept_rtadv up
-		if ! checkyesno rtsold_enable; then
-			rtsol ${rtsol_flags} $1
+		if [ -x /sbin/rtsol ]; then
+			/sbin/rtsol ${rtsol_flags} $1
 		fi
 	fi
 }
