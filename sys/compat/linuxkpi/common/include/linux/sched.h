@@ -143,6 +143,11 @@ linux_schedule_save_interrupt_value(struct task_struct *task, int value)
 	task->bsd_interrupt_value = value;
 }
 
+bool linux_task_exiting(struct task_struct *task);
+
+#define	current_exiting() \
+	linux_task_exiting(current)
+
 static inline int
 linux_schedule_get_interrupt_value(struct task_struct *task)
 {
