@@ -797,6 +797,13 @@ ida_remove(struct ida *ida, int id)
 }
 
 void
+ida_free(struct ida *ida, int id)
+{
+
+	ida_remove(ida, id);
+}
+
+void
 ida_init(struct ida *ida)
 {
 	idr_init(&ida->idr);
