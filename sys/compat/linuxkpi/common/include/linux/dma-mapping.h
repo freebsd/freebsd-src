@@ -119,6 +119,17 @@ dma_set_coherent_mask(struct device *dev, u64 mask)
 	return 0;
 }
 
+static inline int
+dma_set_mask_and_coherent(struct device *dev, u64 mask)
+{
+	int r;
+
+	r = dma_set_mask(dev, mask);
+	if (r == 0)
+		dma_set_coherent_mask(dev, mask);
+	return (r);
+}
+
 static inline void *
 dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
     gfp_t flag)
