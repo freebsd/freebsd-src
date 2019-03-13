@@ -34,6 +34,9 @@ struct srcu_struct {
 
 #define	srcu_dereference(ptr,srcu)	((__typeof(*(ptr)) *)(ptr))
 
+#define	DEFINE_STATIC_SRCU(name) \
+	static struct srcu_struct name = {}
+
 /* prototypes */
 
 extern int srcu_read_lock(struct srcu_struct *);
