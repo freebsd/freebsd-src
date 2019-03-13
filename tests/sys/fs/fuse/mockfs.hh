@@ -88,6 +88,7 @@ union fuse_payloads_in {
 	fuse_read_in	read;
 	fuse_read_in	readdir;
 	fuse_release_in	release;
+	fuse_release_in	releasedir;
 	fuse_rename_in	rename;
 	char		rmdir[0];
 	fuse_setattr_in	setattr;
