@@ -183,4 +183,12 @@ local_clock(void)
 	return ((uint64_t)ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec);
 }
 
+static inline const char *
+get_task_comm(char *buf, struct task_struct *task)
+{
+
+	buf[0] = 0; /* buffer is too small */
+	return (task->comm);
+}
+
 #endif	/* _LINUX_SCHED_H_ */
