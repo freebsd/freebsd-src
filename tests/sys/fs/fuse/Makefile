@@ -20,6 +20,7 @@ ATF_TESTS_CXX+=	read
 ATF_TESTS_CXX+=	readdir
 ATF_TESTS_CXX+=	readlink
 ATF_TESTS_CXX+=	release
+ATF_TESTS_CXX+=	releasedir
 ATF_TESTS_CXX+=	rename
 ATF_TESTS_CXX+=	rmdir
 ATF_TESTS_CXX+=	setattr
@@ -107,6 +108,11 @@ SRCS.release+=	getmntopts.c
 SRCS.release+=	mockfs.cc
 SRCS.release+=	release.cc
 SRCS.release+=	utils.cc
+
+SRCS.releasedir+=	getmntopts.c
+SRCS.releasedir+=	mockfs.cc
+SRCS.releasedir+=	releasedir.cc
+SRCS.releasedir+=	utils.cc
 
 SRCS.rename+=	getmntopts.c
 SRCS.rename+=	mockfs.cc
