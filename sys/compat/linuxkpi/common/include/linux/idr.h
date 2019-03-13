@@ -112,6 +112,7 @@ struct ida {
 int	ida_pre_get(struct ida *ida, gfp_t gfp_mask);
 int	ida_get_new_above(struct ida *ida, int starting_id, int *p_id);
 void	ida_remove(struct ida *ida, int id);
+void	ida_free(struct ida *ida, int id);
 void	ida_destroy(struct ida *ida);
 void	ida_init(struct ida *ida);
 
@@ -124,6 +125,13 @@ ida_get_new(struct ida *ida, int *p_id)
 {
 
 	return (ida_get_new_above(ida, 0, p_id));
+}
+
+static inline int
+ida_alloc_max(struct ida *ida, unsigned int max, gfp_t gfp)
+{
+
+	return (ida_simple_get(ida, 0, max, gfp));
 }
 
 static inline bool
