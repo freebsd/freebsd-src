@@ -31,6 +31,7 @@
 class FuseTest : public ::testing::Test {
 	protected:
 	uint32_t m_maxreadahead;
+	uint32_t m_init_flags;
 	MockFS *m_mock = NULL;
 
 	public:
@@ -40,8 +41,10 @@ class FuseTest : public ::testing::Test {
 	 * libfuse's default max_readahead is UINT_MAX, though it can be
 	 * lowered
 	 */
-	FuseTest(): FuseTest(UINT_MAX) {}
+	FuseTest(): FuseTest(UINT_MAX, 0) {}
 	FuseTest(uint32_t maxreadahead): m_maxreadahead(maxreadahead) {}
+	FuseTest(uint32_t maxreadahead, uint32_t init_flags):
+		m_maxreadahead(maxreadahead), m_init_flags(init_flags) {}
 
 	virtual void SetUp();
 
