@@ -215,6 +215,22 @@ linux_get_pid_task(pid_t pid)
 	return (NULL);
 }
 
+bool
+linux_task_exiting(struct task_struct *task)
+{
+	struct proc *p;
+	bool ret;
+
+	ret = false;
+	p = pfind(task->pid);
+	if (p != NULL) {
+		if ((p->p_flag & P_WEXIT) != 0)
+			ret = true;
+		PROC_UNLOCK(p);
+	}
+	return (ret);
+}
+
 static void
 linux_current_init(void *arg __unused)
 {
