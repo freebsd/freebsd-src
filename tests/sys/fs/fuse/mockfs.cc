@@ -183,7 +183,7 @@ void debug_fuseop(const mockfs_buf_in *in)
 	printf("\n");
 }
 
-MockFS::MockFS(int max_readahead) {
+MockFS::MockFS(int max_readahead, uint32_t flags) {
 	struct iovec *iov = NULL;
 	int iovlen = 0;
 	char fdstr[15];
@@ -225,7 +225,7 @@ MockFS::MockFS(int max_readahead) {
 	ON_CALL(*this, process(_, _))
 		.WillByDefault(Invoke(this, &MockFS::process_default));
 
-	init();
+	init(flags);
 	signal(SIGUSR1, sigint_handler);
 	if (pthread_create(&m_daemon_id, NULL, service, (void*)this))
 		throw(std::system_error(errno, std::system_category(),
@@ -238,7 +238,7 @@ MockFS::~MockFS() {
 	rmdir("mountpoint");
 }
 
-void MockFS::init() {
+void MockFS::init(uint32_t flags) {
 	mockfs_buf_in *in;
 	mockfs_buf_out *out;
 
@@ -255,6 +255,7 @@ void MockFS::init() {
 	out->header.error = 0;
 	out->body.init.major = FUSE_KERNEL_VERSION;
 	out->body.init.minor = FUSE_KERNEL_MINOR_VERSION;
+	out->body.init.flags = in->body.init.flags & flags;
 
 	/*
 	 * The default max_write is set to this formula in libfuse, though
@@ -311,6 +312,10 @@ void MockFS::loop() {
 		}
 		if (in->header.opcode == FUSE_FORGET) {
 			/*Alone among the opcodes, FORGET expects no response*/
+			continue;
+		}
+		if (out.header.error == FUSE_NORESPONSE) {
+			/* Used by tests of slow opcodes.  No response ATM */
 			continue;
 		}
 		ASSERT_TRUE(write(m_fuse_fd, &out, out.header.len) > 0 ||

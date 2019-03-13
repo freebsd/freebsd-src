@@ -11,6 +11,7 @@ ATF_TESTS_CXX+=	fsync
 ATF_TESTS_CXX+=	fsyncdir
 ATF_TESTS_CXX+=	getattr
 ATF_TESTS_CXX+=	link
+ATF_TESTS_CXX+=	locks
 ATF_TESTS_CXX+=	lookup
 ATF_TESTS_CXX+=	mkdir
 ATF_TESTS_CXX+=	mknod
@@ -63,6 +64,11 @@ SRCS.link+=	getmntopts.c
 SRCS.link+=	link.cc
 SRCS.link+=	mockfs.cc
 SRCS.link+=	utils.cc
+
+SRCS.locks+=	locks.cc
+SRCS.locks+=	getmntopts.c
+SRCS.locks+=	mockfs.cc
+SRCS.locks+=	utils.cc
 
 SRCS.lookup+=	getmntopts.c
 SRCS.lookup+=	lookup.cc

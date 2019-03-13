@@ -40,6 +40,12 @@ extern "C" {
 
 #define TIME_T_MAX (std::numeric_limits<time_t>::max())
 
+/* 
+ * A pseudo-fuse errno used indicate that a fuse operation should have no
+ * response, at least not immediately
+ */
+#define FUSE_NORESPONSE 9999
+
 #define SET_OUT_HEADER_LEN(out, variant) { \
 	(out)->header.len = (sizeof((out)->header) + \
 			     sizeof((out)->body.variant)); \
@@ -78,6 +84,8 @@ union fuse_payloads_in {
 	fuse_fsync_in	fsync;
 	fuse_fsync_in	fsyncdir;
 	fuse_forget_in	forget;
+	fuse_interrupt_in interrupt;
+	fuse_lk_in	getlk;
 	fuse_init_in	init;
 	fuse_link_in	link;
 	char		lookup[0];
@@ -92,6 +100,7 @@ union fuse_payloads_in {
 	fuse_rename_in	rename;
 	char		rmdir[0];
 	fuse_setattr_in	setattr;
+	fuse_lk_in	setlk;
 	char		unlink[0];
 	fuse_write_in	write;
 };
@@ -107,8 +116,10 @@ union fuse_payloads_out {
 	/* The protocol places no limits on the size of bytes */
 	uint8_t			bytes[0x20000];
 	fuse_entry_out		entry;
+	fuse_lk_out		getlk;
 	fuse_init_out		init;
 	fuse_open_out		open;
+	fuse_lk_out		setlk;
 	fuse_statfs_out		statfs;
 	/*
 	 * The protocol places no limits on the length of the string.  This is
@@ -165,7 +176,7 @@ class MockFS {
 	pid_t m_pid;
 
 	/* Initialize a session after mounting */
-	void init();
+	void init(uint32_t flags);
 
 	/* Is pid from a process that might be involved in the test? */
 	bool pid_ok(pid_t pid);
@@ -184,7 +195,7 @@ class MockFS {
 	uint32_t m_max_write;
 
 	/* Create a new mockfs and mount it to a tempdir */
-	MockFS(int max_readahead);
+	MockFS(int max_readahead, uint32_t flags);
 	virtual ~MockFS();
 
 	/* Kill the filesystem daemon without unmounting the filesystem */

@@ -76,7 +76,7 @@ void FuseTest::SetUp() {
 	m_maxbcachebuf = val;
 
 	try {
-		m_mock = new MockFS(m_maxreadahead);
+		m_mock = new MockFS(m_maxreadahead, m_init_flags);
 	} catch (std::system_error err) {
 		FAIL() << err.what();
 	}
