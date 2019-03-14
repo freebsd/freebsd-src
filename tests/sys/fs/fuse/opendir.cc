@@ -109,10 +109,10 @@ TEST_F(Opendir, open)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, open);
-	}));
+	})));
 
 	EXPECT_LE(0, open(FULLPATH, O_DIRECTORY)) << strerror(errno);
 }
@@ -129,10 +129,10 @@ TEST_F(Opendir, opendir)
 			return (in->header.opcode == FUSE_STATFS);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, statfs);
-	}));
+	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -140,10 +140,10 @@ TEST_F(Opendir, opendir)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, open);
-	}));
+	})));
 
 	errno = 0;
 	EXPECT_NE(NULL, opendir(FULLPATH)) << strerror(errno);

@@ -503,11 +503,11 @@ TEST_F(WriteBack, close)
 			return (in->header.opcode == FUSE_SETATTR);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
-	}));
+	})));
 	expect_release(ino, ReturnErrno(0));
 
 	fd = open(FULLPATH, O_RDWR);
@@ -635,14 +635,14 @@ TEST_F(WriteThrough, DISABLED_update_file_size)
 		}, Eq(true)),
 		_)
 	).Times(2)
-	.WillRepeatedly(Invoke([=](auto in, auto out) {
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
 		out->body.attr.attr.size = 0;
 		out->body.attr.attr_valid = UINT64_MAX;
-	}));
+	})));
 	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
 
 	fd = open(FULLPATH, O_RDWR);

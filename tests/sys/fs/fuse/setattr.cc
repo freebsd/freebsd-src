@@ -51,13 +51,14 @@ TEST_F(Setattr, chmod)
 	const mode_t oldmode = 0755;
 	const mode_t newmode = 0644;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | oldmode;
 		out->body.entry.nodeid = ino;
 		out->body.entry.attr.mode = S_IFREG | oldmode;
-	}));
+	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
@@ -69,12 +70,12 @@ TEST_F(Setattr, chmod)
 				in->body.setattr.mode == newmode);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | newmode;
-	}));
+	})));
 	EXPECT_EQ(0, chmod(FULLPATH, newmode)) << strerror(errno);
 }
 
@@ -89,14 +90,15 @@ TEST_F(Setattr, chown)
 	const uid_t olduser = 33;
 	const uid_t newuser = 44;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = ino;
 		out->body.entry.attr.gid = oldgroup;
 		out->body.entry.attr.uid = olduser;
-	}));
+	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
@@ -109,14 +111,14 @@ TEST_F(Setattr, chown)
 				in->body.setattr.gid == newgroup);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
 		out->body.attr.attr.uid = newuser;
 		out->body.attr.attr.gid = newgroup;
-	}));
+	})));
 	EXPECT_EQ(0, chown(FULLPATH, newuser, newgroup)) << strerror(errno);
 }
 
@@ -133,14 +135,15 @@ TEST_F(Setattr, eperm)
 	const char RELPATH[] = "some_file.txt";
 	const uint64_t ino = 42;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0777;
 		out->body.entry.nodeid = ino;
 		out->body.entry.attr.uid = in->header.uid;
 		out->body.entry.attr.gid = in->header.gid;
-	}));
+	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
@@ -163,13 +166,14 @@ TEST_F(Setattr, fchmod)
 	const mode_t oldmode = 0755;
 	const mode_t newmode = 0644;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | oldmode;
 		out->body.entry.nodeid = ino;
 		out->body.entry.attr_valid = UINT64_MAX;
-	}));
+	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -177,11 +181,11 @@ TEST_F(Setattr, fchmod)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.len = sizeof(out->header);
 		SET_OUT_HEADER_LEN(out, open);
-	}));
+	})));
 
 	/* Until the attr cache is working, we may send an additional GETATTR */
 	EXPECT_CALL(*m_mock, process(
@@ -190,12 +194,12 @@ TEST_F(Setattr, fchmod)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | oldmode;
-	}));
+	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -207,12 +211,12 @@ TEST_F(Setattr, fchmod)
 				in->body.setattr.mode == newmode);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | newmode;
-	}));
+	})));
 
 	fd = open(FULLPATH, O_RDONLY);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -231,14 +235,15 @@ TEST_F(Setattr, ftruncate)
 	const off_t oldsize = 99;
 	const off_t newsize = 12345;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0755;
 		out->body.entry.nodeid = ino;
 		out->body.entry.attr_valid = UINT64_MAX;
 		out->body.entry.attr.size = oldsize;
-	}));
+	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -246,12 +251,12 @@ TEST_F(Setattr, ftruncate)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.len = sizeof(out->header);
 		SET_OUT_HEADER_LEN(out, open);
 		out->body.open.fh = fh;
-	}));
+	})));
 
 	/* Until the attr cache is working, we may send an additional GETATTR */
 	EXPECT_CALL(*m_mock, process(
@@ -260,13 +265,13 @@ TEST_F(Setattr, ftruncate)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0755;
 		out->body.attr.attr.size = oldsize;
-	}));
+	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -278,13 +283,13 @@ TEST_F(Setattr, ftruncate)
 				in->body.setattr.fh == fh);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0755;
 		out->body.attr.attr.size = newsize;
-	}));
+	})));
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -300,13 +305,13 @@ TEST_F(Setattr, truncate) {
 	const uint64_t oldsize = 100'000'000;
 	const uint64_t newsize = 20'000'000;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = ino;
 		out->body.entry.attr.size = oldsize;
-	}));
+	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
@@ -318,13 +323,13 @@ TEST_F(Setattr, truncate) {
 				in->body.setattr.size == newsize);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
 		out->body.attr.attr.size = newsize;
-	}));
+	})));
 	EXPECT_EQ(0, truncate(FULLPATH, newsize)) << strerror(errno);
 }
 
@@ -342,7 +347,7 @@ TEST_F(Setattr, utimensat) {
 		{.tv_sec = 7, .tv_nsec = 8},
 	};
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
@@ -352,7 +357,7 @@ TEST_F(Setattr, utimensat) {
 		out->body.entry.attr.atimensec = oldtimes[0].tv_nsec;
 		out->body.entry.attr.mtime = oldtimes[1].tv_sec;
 		out->body.entry.attr.mtimensec = oldtimes[1].tv_nsec;
-	}));
+	})));
 
 	/* 
 	 * Until bug 235775 is fixed, utimensat will make an extra FUSE_GETATTR
@@ -364,7 +369,7 @@ TEST_F(Setattr, utimensat) {
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
@@ -373,7 +378,7 @@ TEST_F(Setattr, utimensat) {
 		out->body.attr.attr.atimensec = oldtimes[0].tv_nsec;
 		out->body.attr.attr.mtime = oldtimes[1].tv_sec;
 		out->body.attr.attr.mtimensec = oldtimes[1].tv_nsec;
-	}));
+	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -390,7 +395,7 @@ TEST_F(Setattr, utimensat) {
 					newtimes[1].tv_nsec);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
@@ -399,7 +404,7 @@ TEST_F(Setattr, utimensat) {
 		out->body.attr.attr.atimensec = newtimes[0].tv_nsec;
 		out->body.attr.attr.mtime = newtimes[1].tv_sec;
 		out->body.attr.attr.mtimensec = newtimes[1].tv_nsec;
-	}));
+	})));
 	EXPECT_EQ(0, utimensat(AT_FDCWD, FULLPATH, &newtimes[0], 0))
 		<< strerror(errno);
 }
@@ -418,7 +423,7 @@ TEST_F(Setattr, utimensat_mtime_only) {
 		{.tv_sec = 7, .tv_nsec = 8},
 	};
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
@@ -428,7 +433,7 @@ TEST_F(Setattr, utimensat_mtime_only) {
 		out->body.entry.attr.atimensec = oldtimes[0].tv_nsec;
 		out->body.entry.attr.mtime = oldtimes[1].tv_sec;
 		out->body.entry.attr.mtimensec = oldtimes[1].tv_nsec;
-	}));
+	})));
 
 	/* 
 	 * Until bug 235775 is fixed, utimensat will make an extra FUSE_GETATTR
@@ -440,7 +445,7 @@ TEST_F(Setattr, utimensat_mtime_only) {
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
@@ -449,7 +454,7 @@ TEST_F(Setattr, utimensat_mtime_only) {
 		out->body.attr.attr.atimensec = oldtimes[0].tv_nsec;
 		out->body.attr.attr.mtime = oldtimes[1].tv_sec;
 		out->body.attr.attr.mtimensec = oldtimes[1].tv_nsec;
-	}));
+	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -463,7 +468,7 @@ TEST_F(Setattr, utimensat_mtime_only) {
 					newtimes[1].tv_nsec);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
@@ -472,7 +477,7 @@ TEST_F(Setattr, utimensat_mtime_only) {
 		out->body.attr.attr.atimensec = oldtimes[0].tv_nsec;
 		out->body.attr.attr.mtime = newtimes[1].tv_sec;
 		out->body.attr.attr.mtimensec = newtimes[1].tv_nsec;
-	}));
+	})));
 	EXPECT_EQ(0, utimensat(AT_FDCWD, FULLPATH, &newtimes[0], 0))
 		<< strerror(errno);
 }

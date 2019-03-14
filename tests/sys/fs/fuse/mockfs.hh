@@ -132,11 +132,16 @@ union fuse_payloads_out {
 struct mockfs_buf_out {
 	fuse_out_header		header;
 	union fuse_payloads_out	body;
+
+	/* Default constructor: zero everything */
+	mockfs_buf_out() {
+		memset(this, 0, sizeof(*this));
+	}
 };
 
 /* A function that can be invoked in place of MockFS::process */
 typedef std::function<void (const struct mockfs_buf_in *in,
-			    struct mockfs_buf_out *out)>
+			    std::vector<struct mockfs_buf_out*> &out)>
 ProcessMockerT;
 
 /*
@@ -146,8 +151,12 @@ ProcessMockerT;
 ProcessMockerT ReturnErrno(int error);
 
 /* Helper function used for returning negative cache entries for LOOKUP */
-std::function<void (const struct mockfs_buf_in *in, struct mockfs_buf_out *out)>
-ReturnNegativeCache(const struct timespec *entry_valid);
+ProcessMockerT ReturnNegativeCache(const struct timespec *entry_valid);
+
+/* Helper function used for returning a single immediate response */
+ProcessMockerT ReturnImmediate(
+	std::function<void(const struct mockfs_buf_in *in,
+			   struct mockfs_buf_out *out)> f);
 
 /*
  * Fake FUSE filesystem
@@ -182,7 +191,8 @@ class MockFS {
 	bool pid_ok(pid_t pid);
 
 	/* Default request handler */
-	void process_default(const mockfs_buf_in*, mockfs_buf_out*);
+	void process_default(const mockfs_buf_in*,
+		std::vector<mockfs_buf_out*>&);
 
 	/* Entry point for the daemon thread */
 	static void* service(void*);
@@ -207,12 +217,14 @@ class MockFS {
 	/* 
 	 * Request handler
 	 *
-	 * This method is expected to provide the response to each FUSE
-	 * operation.  Responses must be immediate (so this method can't be used
-	 * for testing a daemon with queue depth > 1).  Test cases must define
-	 * each response using Googlemock expectations
+	 * This method is expected to provide the responses to each FUSE
+	 * operation.  For an immediate response, push one buffer into out.
+	 * For a delayed response, push nothing.  For an immediate response
+	 * plus a delayed response to an earlier operation, push two bufs.
+	 * Test cases must define each response using Googlemock expectations
 	 */
-	MOCK_METHOD2(process, void(const mockfs_buf_in*, mockfs_buf_out*));
+	MOCK_METHOD2(process, void(const mockfs_buf_in*,
+				std::vector<mockfs_buf_out*>&));
 
 	/* Gracefully unmount */
 	void unmount();
