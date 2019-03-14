@@ -65,6 +65,18 @@ void expect_release(uint64_t ino, ProcessMockerT r)
 	).WillRepeatedly(Invoke(r));
 }
 
+void require_sync_resize_0() {
+	const char *sync_resize_node = "vfs.fuse.sync_resize";
+	int val = 0;
+	size_t size = sizeof(val);
+
+	ASSERT_EQ(0, sysctlbyname(sync_resize_node, &val, &size, NULL, 0))
+		<< strerror(errno);
+	if (val != 0)
+		FAIL() << "vfs.fuse.sync_resize must be set to 0 for this test."
+			"  That sysctl will probably be removed soon.";
+}
+
 };
 
 class AioWrite: public Write {
@@ -87,7 +99,6 @@ class WriteThrough: public Write {
 
 virtual void SetUp() {
 	const char *cache_mode_node = "vfs.fuse.data_cache_mode";
-	const char *sync_resize_node = "vfs.fuse.sync_resize";
 	int val = 0;
 	size_t size = sizeof(val);
 
@@ -97,12 +108,6 @@ virtual void SetUp() {
 	if (val != 1)
 		FAIL() << "vfs.fuse.data_cache_mode must be set to 1 "
 			"(writethrough) for this test";
-
-	ASSERT_EQ(0, sysctlbyname(sync_resize_node, &val, &size, NULL, 0))
-		<< strerror(errno);
-	if (val != 0)
-		FAIL() << "vfs.fuse.sync_resize must be set to 0 for this test."
-			"  That sysctl will probably be removed soon.";
 
 	FuseTest::SetUp();
 }
@@ -182,6 +187,8 @@ TEST_F(Write, append)
 	 */
 	uint64_t initial_offset = m_maxbcachebuf;
 	int fd;
+
+	require_sync_resize_0();
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
