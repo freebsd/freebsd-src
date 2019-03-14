@@ -1173,12 +1173,9 @@ dyn_getscopeid(const struct ip_fw_args *args)
 	 * determine the scope zone id to resolve address scope ambiguity.
 	 */
 	if (IN6_IS_ADDR_LINKLOCAL(&args->f_id.src_ip6) ||
-	    IN6_IS_ADDR_LINKLOCAL(&args->f_id.dst_ip6)) {
-		MPASS(args->oif != NULL ||
-		    args->m->m_pkthdr.rcvif != NULL);
-		return (in6_getscopezone(args->oif != NULL ? args->oif:
-		    args->m->m_pkthdr.rcvif, IPV6_ADDR_SCOPE_LINKLOCAL));
-	}
+	    IN6_IS_ADDR_LINKLOCAL(&args->f_id.dst_ip6))
+		return (in6_getscopezone(args->ifp, IPV6_ADDR_SCOPE_LINKLOCAL));
+
 	return (0);
 }
 

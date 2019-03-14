@@ -1080,13 +1080,11 @@ check_uidgid(ipfw_insn_u32 *insn, struct ip_fw_args *args, int *ugid_lookupp,
 	struct inpcbinfo *pi;
 	struct ipfw_flow_id *id;
 	struct inpcb *pcb, *inp;
-	struct ifnet *oif;
 	int lookupflags;
 	int match;
 
 	id = &args->f_id;
 	inp = args->inp;
-	oif = args->oif;
 
 	/*
 	 * Check to see if the UDP or TCP stack supplied us with
@@ -1124,16 +1122,16 @@ check_uidgid(ipfw_insn_u32 *insn, struct ip_fw_args *args, int *ugid_lookupp,
 	if (*ugid_lookupp == 0) {
 		if (id->addr_type == 6) {
 #ifdef INET6
-			if (oif == NULL)
+			if (args->flags & IPFW_ARGS_IN)
 				pcb = in6_pcblookup_mbuf(pi,
 				    &id->src_ip6, htons(id->src_port),
 				    &id->dst_ip6, htons(id->dst_port),
-				    lookupflags, oif, args->m);
+				    lookupflags, NULL, args->m);
 			else
 				pcb = in6_pcblookup_mbuf(pi,
 				    &id->dst_ip6, htons(id->dst_port),
 				    &id->src_ip6, htons(id->src_port),
-				    lookupflags, oif, args->m);
+				    lookupflags, args->ifp, args->m);
 #else
 			*ugid_lookupp = -1;
 			return (0);
@@ -1141,16 +1139,16 @@ check_uidgid(ipfw_insn_u32 *insn, struct ip_fw_args *args, int *ugid_lookupp,
 		} else {
 			src_ip.s_addr = htonl(id->src_ip);
 			dst_ip.s_addr = htonl(id->dst_ip);
-			if (oif == NULL)
+			if (args->flags & IPFW_ARGS_IN)
 				pcb = in_pcblookup_mbuf(pi,
 				    src_ip, htons(id->src_port),
 				    dst_ip, htons(id->dst_port),
-				    lookupflags, oif, args->m);
+				    lookupflags, NULL, args->m);
 			else
 				pcb = in_pcblookup_mbuf(pi,
 				    dst_ip, htons(id->dst_port),
 				    src_ip, htons(id->src_port),
-				    lookupflags, oif, args->m);
+				    lookupflags, args->ifp, args->m);
 		}
 		if (pcb != NULL) {
 			INP_RLOCK_ASSERT(pcb);
@@ -1263,8 +1261,7 @@ jump_linear(struct ip_fw_chain *chain, struct ip_fw *f, int num,
  *	args->eh (in)	Mac header if present, NULL for layer3 packet.
  *	args->L3offset	Number of bytes bypassed if we came from L2.
  *			e.g. often sizeof(eh)  ** NOTYET **
- *	args->oif	Outgoing interface, NULL if packet is incoming.
- *		The incoming interface is in the mbuf. (in)
+ *	args->ifp	Incoming or outgoing interface.
  *	args->divert_rule (in/out)
  *		Skip up to the first rule past this rule number;
  *		upon return, non-zero port number for divert or tee.
@@ -1331,17 +1328,9 @@ ipfw_chk(struct ip_fw_args *args)
 	struct ucred *ucred_cache = NULL;
 #endif
 	int ucred_lookup = 0;
-
-	/*
-	 * oif | args->oif	If NULL, ipfw_chk has been called on the
-	 *	inbound path (ether_input, ip_input).
-	 *	If non-NULL, ipfw_chk has been called on the outbound path
-	 *	(ether_output, ip_output).
-	 */
-	struct ifnet *oif = args->oif;
-
 	int f_pos = 0;		/* index of current rule in the array */
 	int retval = 0;
+	struct ifnet *oif, *iif;
 
 	/*
 	 * hlen	The length of the IP header.
@@ -1724,6 +1713,15 @@ do {								\
 		f_pos = 0;
 	}
 
+	if (args->flags & IPFW_ARGS_IN) {
+		iif = args->ifp;
+		oif = NULL;
+	} else {
+		MPASS(args->flags & IPFW_ARGS_OUT);
+		iif = m->m_pkthdr.rcvif;
+		oif = args->ifp;
+	}
+
 	/*
 	 * Now scan the rules, and parse microinstructions for each rule.
 	 * We have two nested loops and an inner switch. Sometimes we
@@ -1820,8 +1818,8 @@ do {								\
 				break;
 
 			case O_RECV:
-				match = iface_match(m->m_pkthdr.rcvif,
-				    (ipfw_insn_if *)cmd, chain, &tablearg);
+				match = iface_match(iif, (ipfw_insn_if *)cmd,
+				    chain, &tablearg);
 				break;
 
 			case O_XMIT:
@@ -1830,9 +1828,8 @@ do {								\
 				break;
 
 			case O_VIA:
-				match = iface_match(oif ? oif :
-				    m->m_pkthdr.rcvif, (ipfw_insn_if *)cmd,
-				    chain, &tablearg);
+				match = iface_match(args->ifp,
+				    (ipfw_insn_if *)cmd, chain, &tablearg);
 				break;
 
 			case O_MACADDR2:
@@ -2334,7 +2331,7 @@ do {								\
 
 			case O_LOG:
 				ipfw_log(chain, f, hlen, args, m,
-				    oif, offset | ip6f_mf, tablearg, ip);
+				    offset | ip6f_mf, tablearg, ip);
 				match = 1;
 				break;
 
@@ -2344,16 +2341,14 @@ do {								\
 
 			case O_VERREVPATH:
 				/* Outgoing packets automatically pass/match */
-				match = ((oif != NULL) ||
-				    (m->m_pkthdr.rcvif == NULL) ||
+				match = (args->flags & IPFW_ARGS_OUT ||
 				    (
 #ifdef INET6
 				    is_ipv6 ?
 					verify_path6(&(args->f_id.src_ip6),
-					    m->m_pkthdr.rcvif, args->f_id.fib) :
+					    iif, args->f_id.fib) :
 #endif
-				    verify_path(src_ip, m->m_pkthdr.rcvif,
-				        args->f_id.fib)));
+				    verify_path(src_ip, iif, args->f_id.fib)));
 				break;
 
 			case O_VERSRCREACH:
@@ -2379,12 +2374,10 @@ do {								\
 					match =
 #ifdef INET6
 					    is_ipv6 ? verify_path6(
-					        &(args->f_id.src_ip6),
-					        m->m_pkthdr.rcvif,
+					        &(args->f_id.src_ip6), iif,
 						args->f_id.fib) :
 #endif
-					    verify_path(src_ip,
-					    	m->m_pkthdr.rcvif,
+					    verify_path(src_ip, iif,
 					        args->f_id.fib);
 				else
 					match = 1;

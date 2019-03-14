@@ -841,7 +841,7 @@ tag_mbuf(struct mbuf *m, int dir, struct ip_fw_args *fwa)
 	dt->rule = fwa->rule;
 	dt->rule.info &= IPFW_ONEPASS;	/* only keep this info */
 	dt->dn_dir = dir;
-	dt->ifp = fwa->oif;
+	dt->ifp = fwa->flags & IPFW_ARGS_OUT ? fwa->ifp : NULL;
 	/* dt->output tame is updated as we move through */
 	dt->output_time = dn_cfg.curr_time;
 	dt->iphdr_off = (dir & PROTO_LAYER2) ? ETHER_HDR_LEN : 0;
