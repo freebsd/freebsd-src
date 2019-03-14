@@ -111,14 +111,11 @@ struct ip_fw_args {
 	struct inpcb		*inp;
 	union {
 		/*
-		 * We don't support forwarding on layer2, thus we can
-		 * keep eh pointer in this union.
 		 * next_hop[6] pointers can be used to point to next hop
 		 * stored in rule's opcode to avoid copying into hopstore.
 		 * Also, it is expected that all 0x1-0x10 flags are mutually
 		 * exclusive.
 		 */
-		struct ether_header	*eh;	/* for bridged packets	*/
 		struct sockaddr_in	*next_hop;
 		struct sockaddr_in6	*next_hop6;
 		/* ipfw next hop storage */
@@ -129,8 +126,10 @@ struct ip_fw_args {
 			uint16_t	sin6_port;
 		} hopstore6;
 	};
-
-	struct mbuf		*m;	/* the mbuf chain		*/
+	union {
+		struct mbuf	*m;	/* the mbuf chain		*/
+		void		*mem;	/* or memory pointer		*/
+	};
 	struct ipfw_flow_id	f_id;	/* grabbed from IP header	*/
 };
 
@@ -164,10 +163,11 @@ struct ip_fw_chain;
 
 void ipfw_bpf_init(int);
 void ipfw_bpf_uninit(int);
+void ipfw_bpf_tap(u_char *, u_int);
+void ipfw_bpf_mtap(struct mbuf *);
 void ipfw_bpf_mtap2(void *, u_int, struct mbuf *);
 void ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
-    struct ip_fw_args *args, struct mbuf *m,
-    u_short offset, uint32_t tablearg, struct ip *ip);
+    struct ip_fw_args *args, u_short offset, uint32_t tablearg, struct ip *ip);
 VNET_DECLARE(u_int64_t, norule_counter);
 #define	V_norule_counter	VNET(norule_counter)
 VNET_DECLARE(int, verbose_limit);

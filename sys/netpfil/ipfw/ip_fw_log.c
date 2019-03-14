@@ -99,30 +99,32 @@ __FBSDID("$FreeBSD$");
  */
 void
 ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
-    struct ip_fw_args *args, struct mbuf *m,
-    u_short offset, uint32_t tablearg, struct ip *ip)
+    struct ip_fw_args *args, u_short offset, uint32_t tablearg, struct ip *ip)
 {
 	char *action;
 	int limit_reached = 0;
 	char action2[92], proto[128], fragment[32];
 
 	if (V_fw_verbose == 0) {
-		if (args->flags & IPFW_ARGS_ETHER) /* layer2, use orig hdr */
-			ipfw_bpf_mtap2(args->eh, ETHER_HDR_LEN, m);
+		if (args->flags & IPFW_ARGS_LENMASK)
+			ipfw_bpf_tap(args->mem, IPFW_ARGS_LENGTH(args->flags));
+		else if (args->flags & IPFW_ARGS_ETHER)
+			/* layer2, use orig hdr */
+			ipfw_bpf_mtap(args->m);
 		else {
 			/* Add fake header. Later we will store
 			 * more info in the header.
 			 */
 			if (ip->ip_v == 4)
 				ipfw_bpf_mtap2("DDDDDDSSSSSS\x08\x00",
-				    ETHER_HDR_LEN, m);
+				    ETHER_HDR_LEN, args->m);
 			else if (ip->ip_v == 6)
 				ipfw_bpf_mtap2("DDDDDDSSSSSS\x86\xdd",
-				    ETHER_HDR_LEN, m);
+				    ETHER_HDR_LEN, args->m);
 			else
 				/* Obviously bogus EtherType. */
 				ipfw_bpf_mtap2("DDDDDDSSSSSS\xff\xff",
-				    ETHER_HDR_LEN, m);
+				    ETHER_HDR_LEN, args->m);
 		}
 		return;
 	}
