@@ -184,7 +184,7 @@ div_input(struct mbuf **mp, int *offp, int proto)
  * then pass them along with mbuf chain.
  */
 static void
-divert_packet(struct mbuf *m, int incoming)
+divert_packet(struct mbuf *m, bool incoming)
 {
 	struct ip *ip;
 	struct inpcb *inp;
