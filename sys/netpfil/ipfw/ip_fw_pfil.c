@@ -118,17 +118,16 @@ SYSEND
  * The packet may be consumed.
  */
 static pfil_return_t
-ipfw_check_packet(struct mbuf **m0, struct ifnet *ifp, int dir,
+ipfw_check_packet(struct mbuf **m0, struct ifnet *ifp, int flags,
     void *ruleset __unused, struct inpcb *inp)
 {
 	struct ip_fw_args args;
 	struct m_tag *tag;
 	pfil_return_t ret;
-	int ipfw;
+	int ipfw, dir;
 
-	/* convert dir to IPFW values */
-	dir = (dir & PFIL_IN) ? DIR_IN : DIR_OUT;
-	args.flags = 0;
+	args.flags = (flags & PFIL_IN) ? IPFW_ARGS_IN : IPFW_ARGS_OUT;
+	dir = (flags & PFIL_IN) ? DIR_IN : DIR_OUT;
 again:
 	/*
 	 * extract and remove the tag if present. If we are left
@@ -144,7 +143,7 @@ again:
 	}
 
 	args.m = *m0;
-	args.oif = dir == DIR_OUT ? ifp : NULL;
+	args.ifp = ifp;
 	args.inp = inp;
 
 	ipfw = ipfw_chk(&args);
@@ -198,7 +197,7 @@ again:
 		 * m_tag_find. Outgoing packets may be tagged, so we
 		 * reuse the tag if present.
 		 */
-		tag = (dir == DIR_IN) ? NULL :
+		tag = (flags & PFIL_IN) ? NULL :
 			m_tag_find(*m0, PACKET_TAG_IPFORWARD, NULL);
 		if (tag != NULL) {
 			m_tag_unlink(*m0, tag);
@@ -346,6 +345,7 @@ ipfw_check_frame(struct mbuf **m0, struct ifnet *ifp, int dir,
 	int i;
 
 	args.flags = IPFW_ARGS_ETHER;
+	args.flags |= (dir & PFIL_IN) ? IPFW_ARGS_IN : IPFW_ARGS_OUT;
 again:
 	/* fetch start point from rule, if any.  remove the tag if present. */
 	mtag = m_tag_locate(*m0, MTAG_IPFW_RULE, 0, NULL);
@@ -372,7 +372,7 @@ again:
 	m_adj(m, ETHER_HDR_LEN);	/* strip ethernet header */
 
 	args.m = m;		/* the packet we are looking at		*/
-	args.oif = dir & PFIL_OUT ? ifp: NULL;	/* destination, if any	*/
+	args.ifp = ifp;
 	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
 	args.inp = inp;	/* used by ipfw uid/gid/jail rules	*/
 	i = ipfw_chk(&args);
