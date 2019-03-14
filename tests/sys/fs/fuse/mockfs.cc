@@ -170,7 +170,28 @@ void debug_fuseop(const mockfs_buf_in *in)
 				in->body.readdir.size);
 			break;
 		case FUSE_SETATTR:
-			printf(" valid=%#x", in->body.setattr.valid);
+			if (verbosity <= 1) {
+				printf(" valid=%#x", in->body.setattr.valid);
+				break;
+			}
+			if (in->body.setattr.valid & FATTR_MODE)
+				printf(" mode=%#o", in->body.setattr.mode);
+			if (in->body.setattr.valid & FATTR_UID)
+				printf(" uid=%u", in->body.setattr.uid);
+			if (in->body.setattr.valid & FATTR_GID)
+				printf(" gid=%u", in->body.setattr.gid);
+			if (in->body.setattr.valid & FATTR_SIZE)
+				printf(" size=%zu", in->body.setattr.size);
+			if (in->body.setattr.valid & FATTR_ATIME)
+				printf(" atime=%zu.%u",
+					in->body.setattr.atime,
+					in->body.setattr.atimensec);
+			if (in->body.setattr.valid & FATTR_MTIME)
+				printf(" mtime=%zu.%u",
+					in->body.setattr.mtime,
+					in->body.setattr.mtimensec);
+			if (in->body.setattr.valid & FATTR_FH)
+				printf(" fh=%zu", in->body.setattr.fh);
 			break;
 		case FUSE_WRITE:
 			printf(" offset=%lu size=%u flags=%u",
@@ -288,40 +309,42 @@ void MockFS::kill_daemon() {
 
 void MockFS::loop() {
 	mockfs_buf_in *in;
-	mockfs_buf_out out;
+	mockfs_buf_out *out;
 
 	in = (mockfs_buf_in*) malloc(sizeof(*in));
+	out = (mockfs_buf_out*) malloc(sizeof(*out));
 	ASSERT_TRUE(in != NULL);
 	while (!quit) {
 		bzero(in, sizeof(*in));
-		bzero(&out, sizeof(out));
+		bzero(out, sizeof(*out));
 		read_request(in);
 		if (quit)
 			break;
 		if (verbosity > 0)
 			debug_fuseop(in);
 		if (pid_ok((pid_t)in->header.pid)) {
-			process(in, &out);
+			process(in, out);
 		} else {
 			/* 
 			 * Reject any requests from unknown processes.  Because
 			 * we actually do mount a filesystem, plenty of
 			 * unrelated system daemons may try to access it.
 			 */
-			process_default(in, &out);
+			process_default(in, out);
 		}
 		if (in->header.opcode == FUSE_FORGET) {
 			/*Alone among the opcodes, FORGET expects no response*/
 			continue;
 		}
-		if (out.header.error == FUSE_NORESPONSE) {
+		if (out->header.error == FUSE_NORESPONSE) {
 			/* Used by tests of slow opcodes.  No response ATM */
 			continue;
 		}
-		ASSERT_TRUE(write(m_fuse_fd, &out, out.header.len) > 0 ||
+		ASSERT_TRUE(write(m_fuse_fd, out, out->header.len) > 0 ||
 			    errno == EAGAIN)
 			<< strerror(errno);
 	}
+	free(out);
 	free(in);
 }
 
