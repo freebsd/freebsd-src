@@ -2076,6 +2076,7 @@ zfs_mount_dataset(const spa_t *spa, uint64_t objnum, objset_phys_t *objset)
 {
 	dnode_phys_t dataset;
 	dsl_dataset_phys_t *ds;
+	int err;
 
 	if (objset_get_dnode(spa, &spa->spa_mos, objnum, &dataset)) {
 		printf("ZFS: can't find dataset %ju\n", (uintmax_t)objnum);
@@ -2083,9 +2084,9 @@ zfs_mount_dataset(const spa_t *spa, uint64_t objnum, objset_phys_t *objset)
 	}
 
 	ds = (dsl_dataset_phys_t *) &dataset.dn_bonus;
-	if (zio_read(spa, &ds->ds_bp, objset)) {
-		printf("ZFS: can't read object set for dataset %ju\n",
-		    (uintmax_t)objnum);
+	if ((err = zio_read(spa, &ds->ds_bp, objset)) != 0) {
+		printf("ZFS: can't read object set for dataset %ju (error %d)\n",
+		    (uintmax_t)objnum, err);
 		return (EIO);
 	}
 
