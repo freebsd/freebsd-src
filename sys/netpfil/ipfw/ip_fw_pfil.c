@@ -124,10 +124,9 @@ ipfw_check_packet(struct mbuf **m0, struct ifnet *ifp, int flags,
 	struct ip_fw_args args;
 	struct m_tag *tag;
 	pfil_return_t ret;
-	int ipfw, dir;
+	int ipfw;
 
 	args.flags = (flags & PFIL_IN) ? IPFW_ARGS_IN : IPFW_ARGS_OUT;
-	dir = (flags & PFIL_IN) ? DIR_IN : DIR_OUT;
 again:
 	/*
 	 * extract and remove the tag if present. If we are left
@@ -254,10 +253,8 @@ again:
 			break;
 		}
 		MPASS(args.flags & IPFW_ARGS_REF);
-		if (mtod(*m0, struct ip *)->ip_v == 4)
-			(void )ip_dn_io_ptr(m0, dir, &args);
-		else if (mtod(*m0, struct ip *)->ip_v == 6)
-			(void )ip_dn_io_ptr(m0, dir | PROTO_IPV6, &args);
+		if (args.flags & (IPFW_ARGS_IP4 | IPFW_ARGS_IP6))
+			(void )ip_dn_io_ptr(m0, &args);
 		else {
 			ret = PFIL_DROPPED;
 			break;
@@ -331,7 +328,7 @@ again:
  * ipfw processing for ethernet packets (in and out).
  */
 static pfil_return_t
-ipfw_check_frame(struct mbuf **m0, struct ifnet *ifp, int dir,
+ipfw_check_frame(struct mbuf **m0, struct ifnet *ifp, int flags,
     void *ruleset __unused, struct inpcb *inp)
 {
 	struct ip_fw_args args;
@@ -343,7 +340,7 @@ ipfw_check_frame(struct mbuf **m0, struct ifnet *ifp, int dir,
 	int i;
 
 	args.flags = IPFW_ARGS_ETHER;
-	args.flags |= (dir & PFIL_IN) ? IPFW_ARGS_IN : IPFW_ARGS_OUT;
+	args.flags |= (flags & PFIL_IN) ? IPFW_ARGS_IN : IPFW_ARGS_OUT;
 again:
 	/* fetch start point from rule, if any.  remove the tag if present. */
 	mtag = m_tag_locate(*m0, MTAG_IPFW_RULE, 0, NULL);
@@ -407,9 +404,8 @@ again:
 			break;
 		}
 		*m0 = NULL;
-		dir = (dir & PFIL_IN) ? DIR_IN : DIR_OUT;
 		MPASS(args.flags & IPFW_ARGS_REF);
-		ip_dn_io_ptr(&m, dir | PROTO_LAYER2, &args);
+		ip_dn_io_ptr(&m, &args);
 		return (PFIL_CONSUMED);
 
 	case IP_FW_NGTEE:

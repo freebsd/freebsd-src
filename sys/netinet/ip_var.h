@@ -296,7 +296,7 @@ extern void	(*ip_divert_ptr)(struct mbuf *m, bool incoming);
 /* ng_ipfw hooks -- XXX make it the same as divert and dummynet */
 extern int	(*ng_ipfw_input_p)(struct mbuf **, struct ip_fw_args *, bool);
 extern int	(*ip_dn_ctl_ptr)(struct sockopt *);
-extern int	(*ip_dn_io_ptr)(struct mbuf **, int, struct ip_fw_args *);
+extern int	(*ip_dn_io_ptr)(struct mbuf **, struct ip_fw_args *);
 #endif /* _KERNEL */
 
 #endif /* !_NETINET_IP_VAR_H_ */

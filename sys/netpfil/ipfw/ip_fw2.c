@@ -1436,6 +1436,7 @@ do {								\
 		struct ip6_hdr *ip6 = (struct ip6_hdr *)ip;
 
 		is_ipv6 = 1;
+		args->flags |= IPFW_ARGS_IP6;
 		hlen = sizeof(struct ip6_hdr);
 		proto = ip6->ip6_nxt;
 		/* Search extension headers to find upper layer protocols */
@@ -1618,6 +1619,7 @@ do {								\
 	} else if (pktlen >= sizeof(struct ip) &&
 	    (etype == 0 || etype == ETHERTYPE_IP) && ip->ip_v == 4) {
 		is_ipv4 = 1;
+		args->flags |= IPFW_ARGS_IP4;
 		hlen = ip->ip_hl << 2;
 		/*
 		 * Collect parameters into local variables for faster
