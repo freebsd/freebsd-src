@@ -102,8 +102,7 @@ VNET_DEFINE(ip_fw_ctl_ptr_t, ip_fw_ctl_ptr) = NULL;
 int	(*ip_dn_ctl_ptr)(struct sockopt *);
 int	(*ip_dn_io_ptr)(struct mbuf **, int, struct ip_fw_args *);
 void	(*ip_divert_ptr)(struct mbuf *, bool);
-int	(*ng_ipfw_input_p)(struct mbuf **, int,
-			struct ip_fw_args *, int);
+int	(*ng_ipfw_input_p)(struct mbuf **, struct ip_fw_args *, bool);
 
 #ifdef INET
 /*

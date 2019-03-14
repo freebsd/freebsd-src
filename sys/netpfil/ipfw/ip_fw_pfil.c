@@ -296,8 +296,7 @@ again:
 			break;
 		}
 		MPASS(args.flags & IPFW_ARGS_REF);
-		(void )ng_ipfw_input_p(m0, dir, &args,
-			(ipfw == IP_FW_NGTEE) ? 1 : 0);
+		(void )ng_ipfw_input_p(m0, &args, ipfw == IP_FW_NGTEE);
 		if (ipfw == IP_FW_NGTEE) /* ignore errors for NGTEE */
 			goto again;	/* continue with packet */
 		ret = PFIL_CONSUMED;
@@ -421,8 +420,7 @@ again:
 			break;
 		}
 		MPASS(args.flags & IPFW_ARGS_REF);
-		(void )ng_ipfw_input_p(m0, (dir & PFIL_IN) ? DIR_IN : DIR_OUT,
-			&args, (i == IP_FW_NGTEE) ? 1 : 0);
+		(void )ng_ipfw_input_p(m0, &args, i == IP_FW_NGTEE);
 		if (i == IP_FW_NGTEE) /* ignore errors for NGTEE */
 			goto again;	/* continue with packet */
 		ret = PFIL_CONSUMED;
