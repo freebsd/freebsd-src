@@ -208,6 +208,18 @@ void debug_fuseop(const mockfs_buf_in *in)
 			if (in->body.setattr.valid & FATTR_FH)
 				printf(" fh=%zu", in->body.setattr.fh);
 			break;
+		case FUSE_SETXATTR:
+			/* 
+			 * In theory neither the xattr name and value need be
+			 * ASCII, but in this test suite they always are.
+			 */
+			{
+				const char *attr = (const char*)in->body.bytes +
+					sizeof(fuse_setxattr_in);
+				const char *v = attr + strlen(attr) + 1;
+				printf(" %s=%s", attr, v);
+			}
+			break;
 		case FUSE_WRITE:
 			printf(" offset=%lu size=%u flags=%u",
 				in->body.write.offset, in->body.write.size,

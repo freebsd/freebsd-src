@@ -86,8 +86,10 @@ union fuse_payloads_in {
 	fuse_forget_in	forget;
 	fuse_interrupt_in interrupt;
 	fuse_lk_in	getlk;
+	fuse_getxattr_in getxattr;
 	fuse_init_in	init;
 	fuse_link_in	link;
+	fuse_listxattr_in listxattr;
 	char		lookup[0];
 	fuse_mkdir_in	mkdir;
 	fuse_mknod_in	mknod;
@@ -100,6 +102,7 @@ union fuse_payloads_in {
 	fuse_rename_in	rename;
 	char		rmdir[0];
 	fuse_setattr_in	setattr;
+	fuse_setxattr_in setxattr;
 	fuse_lk_in	setlk;
 	char		unlink[0];
 	fuse_write_in	write;
@@ -117,7 +120,9 @@ union fuse_payloads_out {
 	uint8_t			bytes[0x20000];
 	fuse_entry_out		entry;
 	fuse_lk_out		getlk;
+	fuse_getxattr_out	getxattr;
 	fuse_init_out		init;
+	fuse_listxattr_out	listxattr;
 	fuse_open_out		open;
 	fuse_lk_out		setlk;
 	fuse_statfs_out		statfs;
