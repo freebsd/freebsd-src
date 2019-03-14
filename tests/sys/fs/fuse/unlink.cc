@@ -36,7 +36,13 @@ extern "C" {
 
 using namespace testing;
 
-class Unlink: public FuseTest {};
+class Unlink: public FuseTest {
+public:
+void expect_lookup(const char *relpath, uint64_t ino)
+{
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 1);
+}
+};
 
 TEST_F(Unlink, eperm)
 {
@@ -44,13 +50,7 @@ TEST_F(Unlink, eperm)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.nlink = 1;
-	}));
+	expect_lookup(RELPATH, ino);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_UNLINK &&
@@ -70,13 +70,7 @@ TEST_F(Unlink, ok)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.nlink = 1;
-	}));
+	expect_lookup(RELPATH, ino);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_UNLINK &&

@@ -48,72 +48,9 @@ using namespace testing;
 class Read: public FuseTest {
 
 public:
-const static uint64_t FH = 0xdeadbeef1a7ebabe;
-void expect_getattr(uint64_t ino, uint64_t size)
-{
-	/* Until the attr cache is working, we may send an additional GETATTR */
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-		out->body.attr.attr.size = size;
-	}));
-
-}
-
 void expect_lookup(const char *relpath, uint64_t ino)
 {
-	EXPECT_LOOKUP(1, relpath).WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid = UINT64_MAX;
-	}));
-}
-
-void expect_open(uint64_t ino, uint32_t flags, int times)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPEN &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).Times(times)
-	.WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.len = sizeof(out->header);
-		SET_OUT_HEADER_LEN(out, open);
-		out->body.open.fh = Read::FH;
-		out->body.open.open_flags = flags;
-	}));
-}
-
-void expect_read(uint64_t ino, uint64_t offset, uint64_t isize, uint64_t osize,
-		const void *contents)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READ &&
-				in->header.nodeid == ino &&
-				in->body.read.fh == Read::FH &&
-				in->body.read.offset == offset &&
-				in->body.read.size == isize);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.len = sizeof(struct fuse_out_header) + osize;
-		memmove(out->body.bytes, contents, osize);
-	})).RetiresOnSaturation();
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 1);
 }
 };
 

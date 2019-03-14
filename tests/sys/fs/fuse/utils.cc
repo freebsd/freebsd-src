@@ -38,7 +38,9 @@
 #include "mockfs.hh"
 #include "utils.hh"
 
-class FuseEnv: public ::testing::Environment {
+using namespace testing;
+
+class FuseEnv: public Environment {
 	virtual void SetUp() {
 		const char *mod_name = "fuse";
 		const char *devnode = "/dev/fuse";
@@ -82,6 +84,146 @@ void FuseTest::SetUp() {
 	}
 }
 
+void FuseTest::expect_getattr(uint64_t ino, uint64_t size)
+{
+	/* Until the attr cache is working, we may send an additional GETATTR */
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_GETATTR &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out->body.attr.attr.mode = S_IFREG | 0644;
+		out->body.attr.attr.size = size;
+		out->body.attr.attr_valid = UINT64_MAX;
+	}));
+}
+
+void FuseTest::expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
+	int times)
+{
+	EXPECT_LOOKUP(1, relpath)
+	.Times(times)
+	.WillRepeatedly(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = mode;
+		out->body.entry.nodeid = ino;
+		out->body.entry.attr.nlink = 1;
+		out->body.entry.attr_valid = UINT64_MAX;
+	}));
+}
+
+void FuseTest::expect_open(uint64_t ino, uint32_t flags, int times)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_OPEN &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).Times(times)
+	.WillRepeatedly(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		out->header.len = sizeof(out->header);
+		SET_OUT_HEADER_LEN(out, open);
+		out->body.open.fh = FH;
+		out->body.open.open_flags = flags;
+	}));
+}
+
+void FuseTest::expect_opendir(uint64_t ino)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in->header.opcode == FUSE_STATFS);
+		}, Eq(true)),
+		_)
+	).WillRepeatedly(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, statfs);
+	}));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_OPENDIR &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		out->header.len = sizeof(out->header);
+		SET_OUT_HEADER_LEN(out, open);
+		out->body.open.fh = FH;
+	}));
+}
+
+void FuseTest::expect_read(uint64_t ino, uint64_t offset, uint64_t isize,
+	uint64_t osize, const void *contents)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_READ &&
+				in->header.nodeid == ino &&
+				in->body.read.fh == FH &&
+				in->body.read.offset == offset &&
+				in->body.read.size == isize);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		out->header.len = sizeof(struct fuse_out_header) + osize;
+		memmove(out->body.bytes, contents, osize);
+	})).RetiresOnSaturation();
+}
+
+void FuseTest::expect_release(uint64_t ino, int times, int error)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_RELEASE &&
+				in->header.nodeid == ino &&
+				in->body.release.fh == FH);
+		}, Eq(true)),
+		_)
+	).Times(times)
+	.WillRepeatedly(Invoke(ReturnErrno(error)));
+}
+void FuseTest::expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
+	uint64_t osize, uint32_t flags, const void *contents)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			const char *buf = (const char*)in->body.bytes +
+				sizeof(struct fuse_write_in);
+			bool pid_ok;
+
+			if (in->body.write.write_flags & FUSE_WRITE_CACHE)
+				pid_ok = true;
+			else
+				pid_ok = (pid_t)in->header.pid == getpid();
+
+			return (in->header.opcode == FUSE_WRITE &&
+				in->header.nodeid == ino &&
+				in->body.write.fh == FH &&
+				in->body.write.offset == offset  &&
+				in->body.write.size == isize &&
+				pid_ok &&
+				in->body.write.write_flags == flags &&
+				0 == bcmp(buf, contents, isize));
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, write);
+		out->body.write.size = osize;
+	}));
+}
+
 static void usage(char* progname) {
 	fprintf(stderr, "Usage: %s [-v]\n\t-v increase verbosity\n", progname);
 	exit(2);
@@ -91,8 +233,8 @@ int main(int argc, char **argv) {
 	int ch;
 	FuseEnv *fuse_env = new FuseEnv;
 
-	::testing::InitGoogleTest(&argc, argv);
-	::testing::AddGlobalTestEnvironment(fuse_env);
+	InitGoogleTest(&argc, argv);
+	AddGlobalTestEnvironment(fuse_env);
 
 	while ((ch = getopt(argc, argv, "v")) != -1) {
 		switch (ch) {

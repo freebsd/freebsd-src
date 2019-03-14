@@ -37,7 +37,13 @@ extern "C" {
 
 using namespace testing;
 
-class Readlink: public FuseTest {};
+class Readlink: public FuseTest {
+public:
+void expect_lookup(const char *relpath, uint64_t ino)
+{
+	FuseTest::expect_lookup(relpath, ino, S_IFLNK | 0777, 1);
+}
+};
 
 TEST_F(Readlink, eloop)
 {
@@ -46,12 +52,7 @@ TEST_F(Readlink, eloop)
 	const uint64_t ino = 42;
 	char buf[80];
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFLNK | 0777;
-		out->body.entry.nodeid = ino;
-	}));
+	expect_lookup(RELPATH, ino);
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -73,12 +74,7 @@ TEST_F(Readlink, ok)
 	const uint64_t ino = 42;
 	char buf[80];
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFLNK | 0777;
-		out->body.entry.nodeid = ino;
-	}));
+	expect_lookup(RELPATH, ino);
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {

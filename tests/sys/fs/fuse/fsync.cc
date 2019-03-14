@@ -50,7 +50,6 @@ using namespace testing;
 
 class Fsync: public FuseTest {
 public:
-const static uint64_t FH = 0xdeadbeef1a7ebabe;
 void expect_fsync(uint64_t ino, uint32_t flags, int error)
 {
 	EXPECT_CALL(*m_mock, process(
@@ -65,79 +64,14 @@ void expect_fsync(uint64_t ino, uint32_t flags, int error)
 	).WillOnce(Invoke(ReturnErrno(error)));
 }
 
-void expect_getattr(uint64_t ino)
-{
-	/* Until the attr cache is working, we may send an additional GETATTR */
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-		out->body.attr.attr_valid = UINT64_MAX;
-	}));
-}
-
 void expect_lookup(const char *relpath, uint64_t ino)
 {
-	EXPECT_LOOKUP(1, relpath).WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid = UINT64_MAX;
-	}));
-}
-
-void expect_open(uint64_t ino)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPEN &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.len = sizeof(out->header);
-		SET_OUT_HEADER_LEN(out, open);
-		out->body.open.fh = FH;
-	}));
-}
-
-void expect_release(uint64_t ino)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_RELEASE &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnErrno(0)));
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 1);
 }
 
 void expect_write(uint64_t ino, uint64_t size, const void *contents)
 {
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			const char *buf = (const char*)in->body.bytes +
-				sizeof(struct fuse_write_in);
-
-			return (in->header.opcode == FUSE_WRITE &&
-				in->header.nodeid == ino &&
-				0 == bcmp(buf, contents, size));
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, write);
-		out->body.write.size = size;
-	}));
+	FuseTest::expect_write(ino, 0, size, size, 0, contents);
 }
 
 };
@@ -156,8 +90,8 @@ TEST_F(Fsync, DISABLED_aio_fsync)
 	int fd;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 	expect_write(ino, bufsize, CONTENTS);
 	expect_fsync(ino, 0, 0);
 
@@ -190,8 +124,8 @@ TEST_F(Fsync, close)
 	int fd;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 	expect_write(ino, bufsize, CONTENTS);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -209,7 +143,7 @@ TEST_F(Fsync, close)
 		}, Eq(true)),
 		_)
 	).Times(0);
-	expect_release(ino);
+	expect_release(ino, 1, 0);
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -228,8 +162,8 @@ TEST_F(Fsync, DISABLED_eio)
 	int fd;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 	expect_write(ino, bufsize, CONTENTS);
 	expect_fsync(ino, FUSE_FSYNC_FDATASYNC, EIO);
 
@@ -253,8 +187,8 @@ TEST_F(Fsync, DISABLED_fdatasync)
 	int fd;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 	expect_write(ino, bufsize, CONTENTS);
 	expect_fsync(ino, FUSE_FSYNC_FDATASYNC, 0);
 
@@ -278,8 +212,8 @@ TEST_F(Fsync, DISABLED_fsync)
 	int fd;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 	expect_write(ino, bufsize, CONTENTS);
 	expect_fsync(ino, 0, 0);
 
@@ -303,8 +237,8 @@ TEST_F(Fsync, DISABLED_fsync_metadata_only)
 	mode_t mode = 0755;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_SETATTR);
@@ -335,8 +269,8 @@ TEST_F(Fsync, nop)
 	int fd;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 
 	fd = open(FULLPATH, O_WRONLY);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -346,4 +280,4 @@ TEST_F(Fsync, nop)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
-
+// TODO: ENOSYS test

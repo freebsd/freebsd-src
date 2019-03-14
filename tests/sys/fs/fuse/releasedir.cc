@@ -39,44 +39,10 @@ using namespace testing;
 
 class ReleaseDir: public FuseTest {
 
-const static uint64_t FH = 0xdeadbeef1a7ebabe;
-
 public:
 void expect_lookup(const char *relpath, uint64_t ino)
 {
-	EXPECT_LOOKUP(1, relpath).WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFDIR | 0755;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid = UINT64_MAX;
-	}));
-}
-
-void expect_opendir(uint64_t ino)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_STATFS);
-		}, Eq(true)),
-		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, statfs);
-	}));
-
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPENDIR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.len = sizeof(out->header);
-		SET_OUT_HEADER_LEN(out, open);
-		out->body.open.fh = FH;
-	}));
+	FuseTest::expect_lookup(relpath, ino, S_IFDIR | 0755, 1);
 }
 
 void expect_releasedir(uint64_t ino, ProcessMockerT r)

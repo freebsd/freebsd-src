@@ -43,87 +43,15 @@ extern "C" {
 #include "mockfs.hh"
 #include "utils.hh"
 
-/*
- * TODO: remove FUSE_WRITE_CACHE definition when upgrading to protocol 7.9.
- * This bit was actually part of kernel protocol version 7.2, but never
- * documented until 7.9
- */
-#ifndef FUSE_WRITE_CACHE
-#define FUSE_WRITE_CACHE 1
-#endif
-
 using namespace testing;
 
 class Write: public FuseTest {
 
 public:
-const static uint64_t FH = 0xdeadbeef1a7ebabe;
-void expect_getattr(uint64_t ino, uint64_t size)
-{
-	/* Until the attr cache is working, we may send an additional GETATTR */
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-		out->body.attr.attr.size = size;
-		out->body.attr.attr_valid = UINT64_MAX;
-	}));
-
-}
 
 void expect_lookup(const char *relpath, uint64_t ino)
 {
-	EXPECT_LOOKUP(1, relpath).WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid = UINT64_MAX;
-	}));
-}
-
-void expect_open(uint64_t ino, uint32_t flags, int times)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPEN &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).Times(times)
-	.WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.len = sizeof(out->header);
-		SET_OUT_HEADER_LEN(out, open);
-		out->body.open.fh = Write::FH;
-		out->body.open.open_flags = flags;
-	}));
-}
-
-void expect_read(uint64_t ino, uint64_t offset, uint64_t size,
-		const void *contents)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_READ &&
-				in->header.nodeid == ino &&
-				in->body.read.fh == Write::FH &&
-				in->body.read.offset == offset &&
-				in->body.read.size == size);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.len = sizeof(struct fuse_out_header) + size;
-		memmove(out->body.bytes, contents, size);
-	})).RetiresOnSaturation();
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 1);
 }
 
 void expect_release(uint64_t ino, ProcessMockerT r)
@@ -135,37 +63,6 @@ void expect_release(uint64_t ino, ProcessMockerT r)
 		}, Eq(true)),
 		_)
 	).WillRepeatedly(Invoke(r));
-}
-
-void expect_write(uint64_t ino, uint64_t offset, uint64_t isize, uint64_t osize,
-		uint32_t flags, const void *contents)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			const char *buf = (const char*)in->body.bytes +
-				sizeof(struct fuse_write_in);
-			bool pid_ok;
-
-			if (in->body.write.write_flags & FUSE_WRITE_CACHE)
-				pid_ok = true;
-			else
-				pid_ok = (pid_t)in->header.pid == getpid();
-
-			return (in->header.opcode == FUSE_WRITE &&
-				in->header.nodeid == ino &&
-				in->body.write.fh == Write::FH &&
-				in->body.write.offset == offset  &&
-				in->body.write.size == isize &&
-				pid_ok &&
-				in->body.write.write_flags == flags &&
-				0 == bcmp(buf, contents, isize));
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, write);
-		out->body.write.size = osize;
-	}));
 }
 
 };
@@ -337,7 +234,7 @@ TEST_F(Write, DISABLED_direct_io_evicts_cache)
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, bufsize);
-	expect_read(ino, 0, bufsize, CONTENTS0);
+	expect_read(ino, 0, bufsize, bufsize, CONTENTS0);
 	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS1);
 
 	fd = open(FULLPATH, O_RDWR);
@@ -352,7 +249,7 @@ TEST_F(Write, DISABLED_direct_io_evicts_cache)
 	ASSERT_EQ(bufsize, write(fd, CONTENTS1, bufsize)) << strerror(errno);
 
 	// Read again.  Cache should be bypassed
-	expect_read(ino, 0, bufsize, CONTENTS1);
+	expect_read(ino, 0, bufsize, bufsize, CONTENTS1);
 	ASSERT_EQ(0, fcntl(fd, F_SETFL, 0)) << strerror(errno);
 	ASSERT_EQ(0, lseek(fd, 0, SEEK_SET)) << strerror(errno);
 	ASSERT_EQ(bufsize, read(fd, readbuf, bufsize)) << strerror(errno);
@@ -459,7 +356,7 @@ TEST_F(Write, DISABLED_mmap)
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, len);
-	expect_read(ino, 0, len, zeros);
+	expect_read(ino, 0, len, len, zeros);
 	/* 
 	 * Writes from the pager may or may not be associated with the correct
 	 * pid, so they must set FUSE_WRITE_CACHE
@@ -663,7 +560,7 @@ TEST_F(WriteBack, o_direct)
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
 	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
-	expect_read(ino, 0, bufsize, CONTENTS);
+	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_RDWR | O_DIRECT);
 	EXPECT_LE(0, fd) << strerror(errno);
