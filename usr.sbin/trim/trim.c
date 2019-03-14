@@ -40,6 +40,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
 
@@ -103,6 +104,23 @@ main(int argc, char **argv)
 			usage(name);
 			/* NOTREACHED */
 		}
+
+	/*
+	 * Safety net: do not allow mistakes like
+	 *
+	 *	trim -f /dev/da0 -r rfile
+	 *
+	 * This would trim whole device then error on non-existing file -r.
+	 * Following check prevents this while allowing this form still:
+	 *
+	 *	trim -f -- /dev/da0 -r rfile
+	 */
+	
+	if (strcmp(argv[optind-1], "--") != 0) {
+		for (ch = optind; ch < argc; ch++)
+			if (argv[ch][0] == '-')
+				usage(name);
+	}
 
 	argv += optind;
 	argc -= optind;
