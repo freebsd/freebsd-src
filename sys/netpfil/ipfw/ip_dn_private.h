@@ -387,11 +387,26 @@ struct dn_pkt_tag {
 	uint16_t iphdr_off;	/* IP header offset for mtodo()	*/
 };
 
+/*
+ * Possible values for dn_dir. XXXGL: this needs to be reviewed
+ * and converted to same values ip_fw_args.flags use.
+ */
+enum {
+	DIR_OUT =	0,
+	DIR_IN =	1,
+	DIR_FWD =	2,
+	DIR_DROP =	3,
+	PROTO_LAYER2 =	0x4, /* set for layer 2 */
+	PROTO_IPV4 =	0x08,
+	PROTO_IPV6 =	0x10,
+	PROTO_IFB =	0x0c, /* layer2 + ifbridge */
+};
+
 extern struct dn_parms dn_cfg;
 //VNET_DECLARE(struct dn_parms, _base_dn_cfg);
 //#define dn_cfg	VNET(_base_dn_cfg)
 
-int dummynet_io(struct mbuf **, int , struct ip_fw_args *);
+int dummynet_io(struct mbuf **, struct ip_fw_args *);
 void dummynet_task(void *context, int pending);
 void dn_reschedule(void);
 struct dn_pkt_tag * dn_tag_get(struct mbuf *m);
