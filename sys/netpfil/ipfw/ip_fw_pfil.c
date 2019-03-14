@@ -85,7 +85,7 @@ VNET_DEFINE_STATIC(int, fwlink_enable) = 0;
 int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
 
 /* Forward declarations. */
-static int ipfw_divert(struct mbuf **, bool, struct ipfw_rule_ref *, int);
+static int ipfw_divert(struct mbuf **, struct ip_fw_args *, bool);
 
 #ifdef SYSCTL_NODE
 
@@ -281,8 +281,7 @@ again:
 			break;
 		}
 		MPASS(args.flags & IPFW_ARGS_REF);
-		(void )ipfw_divert(m0, dir == DIR_IN, &args.rule,
-			(ipfw == IP_FW_TEE) ? 1 : 0);
+		(void )ipfw_divert(m0, &args, ipfw == IP_FW_TEE);
 		/* continue processing for the original packet (tee). */
 		if (*m0)
 			goto again;
@@ -441,8 +440,7 @@ again:
 
 /* do the divert, return 1 on error 0 on success */
 static int
-ipfw_divert(struct mbuf **m0, bool incoming, struct ipfw_rule_ref *rule,
-	int tee)
+ipfw_divert(struct mbuf **m0, struct ip_fw_args *args, bool tee)
 {
 	/*
 	 * ipfw_chk() has already tagged the packet with the divert tag.
@@ -454,7 +452,7 @@ ipfw_divert(struct mbuf **m0, bool incoming, struct ipfw_rule_ref *rule,
 	struct m_tag *tag;
 
 	/* Cloning needed for tee? */
-	if (tee == 0) {
+	if (tee == false) {
 		clone = *m0;	/* use the original mbuf */
 		*m0 = NULL;
 	} else {
@@ -474,7 +472,7 @@ ipfw_divert(struct mbuf **m0, bool incoming, struct ipfw_rule_ref *rule,
 	 * Note that we now have the 'reass' ipfw option so if we care
 	 * we can do it before a 'tee'.
 	 */
-	if (!tee) switch (ip->ip_v) {
+	if (tee == false) switch (ip->ip_v) {
 	case IPVERSION:
 	    if (ntohs(ip->ip_off) & (IP_MF | IP_OFFMASK)) {
 		int hlen;
@@ -523,11 +521,11 @@ ipfw_divert(struct mbuf **m0, bool incoming, struct ipfw_rule_ref *rule,
 		FREE_PKT(clone);
 		return 1;
 	}
-	*((struct ipfw_rule_ref *)(tag+1)) = *rule;
+	*((struct ipfw_rule_ref *)(tag+1)) = args->rule;
 	m_tag_prepend(clone, tag);
 
 	/* Do the dirty job... */
-	ip_divert_ptr(clone, incoming);
+	ip_divert_ptr(clone, args->flags & IPFW_ARGS_IN);
 	return 0;
 }
 
