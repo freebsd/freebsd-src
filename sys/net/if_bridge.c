@@ -226,7 +226,7 @@ struct bridge_softc {
 	struct bstp_state	sc_stp;		/* STP state */
 	uint32_t		sc_brtexceeded;	/* # of cache drops */
 	struct ifnet		*sc_ifaddr;	/* member mac copied from */
-	u_char			sc_defaddr[6];	/* Default MAC address */
+	struct ether_addr	sc_defaddr;	/* Default MAC address */
 };
 
 VNET_DEFINE_STATIC(struct mtx, bridge_list_mtx);
@@ -670,16 +670,14 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	getcredhostid(curthread->td_ucred, &hostid);
 	do {
 		if (fb || hostid == 0) {
-			arc4rand(sc->sc_defaddr, ETHER_ADDR_LEN, 1);
-			sc->sc_defaddr[0] &= ~1;/* clear multicast bit */
-			sc->sc_defaddr[0] |= 2;	/* set the LAA bit */
+			ether_fakeaddr(&sc->sc_defaddr);
 		} else {
-			sc->sc_defaddr[0] = 0x2;
-			sc->sc_defaddr[1] = (hostid >> 24) & 0xff;
-			sc->sc_defaddr[2] = (hostid >> 16) & 0xff;
-			sc->sc_defaddr[3] = (hostid >> 8 ) & 0xff;
-			sc->sc_defaddr[4] =  hostid        & 0xff;
-			sc->sc_defaddr[5] = ifp->if_dunit & 0xff;
+			sc->sc_defaddr.octet[0] = 0x2;
+			sc->sc_defaddr.octet[1] = (hostid >> 24) & 0xff;
+			sc->sc_defaddr.octet[2] = (hostid >> 16) & 0xff;
+			sc->sc_defaddr.octet[3] = (hostid >> 8 ) & 0xff;
+			sc->sc_defaddr.octet[4] =  hostid        & 0xff;
+			sc->sc_defaddr.octet[5] = ifp->if_dunit & 0xff;
 		}
 
 		fb = 1;
@@ -687,7 +685,7 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		BRIDGE_LIST_LOCK();
 		LIST_FOREACH(sc2, &V_bridge_list, sc_list) {
 			bifp = sc2->sc_ifp;
-			if (memcmp(sc->sc_defaddr,
+			if (memcmp(sc->sc_defaddr.octet,
 			    IF_LLADDR(bifp), ETHER_ADDR_LEN) == 0) {
 				retry = 1;
 				break;
@@ -697,7 +695,7 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	} while (retry == 1);
 
 	bstp_attach(&sc->sc_stp, &bridge_ops);
-	ether_ifattach(ifp, sc->sc_defaddr);
+	ether_ifattach(ifp, sc->sc_defaddr.octet);
 	/* Now undo some of the damage... */
 	ifp->if_baudrate = 0;
 	ifp->if_type = IFT_BRIDGE;
@@ -1018,7 +1016,7 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 	 */
 	if (V_bridge_inherit_mac && sc->sc_ifaddr == ifs) {
 		if (LIST_EMPTY(&sc->sc_iflist)) {
-			bcopy(sc->sc_defaddr,
+			bcopy(&sc->sc_defaddr,
 			    IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
 			sc->sc_ifaddr = NULL;
 		} else {
@@ -1189,7 +1187,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	 * the default randomly generated one.
 	 */
 	if (V_bridge_inherit_mac && LIST_EMPTY(&sc->sc_iflist) &&
-	    !memcmp(IF_LLADDR(sc->sc_ifp), sc->sc_defaddr, ETHER_ADDR_LEN)) {
+	    !memcmp(IF_LLADDR(sc->sc_ifp), sc->sc_defaddr.octet, ETHER_ADDR_LEN)) {
 		bcopy(IF_LLADDR(ifs), IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
 		sc->sc_ifaddr = ifs;
 		EVENTHANDLER_INVOKE(iflladdr_event, sc->sc_ifp);

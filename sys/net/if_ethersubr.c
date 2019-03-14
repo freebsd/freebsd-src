@@ -1401,5 +1401,19 @@ ether_8021q_frame(struct mbuf **mp, struct ifnet *ife, struct ifnet *p,
 	return (true);
 }
 
+void
+ether_fakeaddr(struct ether_addr *hwaddr)
+{
+
+	/*
+	 * Generate a non-multicast, locally administered address.
+	 *
+	 * BMV: Should we use the FreeBSD OUI range instead?
+	 */
+	arc4rand(hwaddr->octet, ETHER_ADDR_LEN, 1);
+	hwaddr->octet[0] &= ~1;
+	hwaddr->octet[0] |= 2;
+}
+
 DECLARE_MODULE(ether, ether_mod, SI_SUB_INIT_IF, SI_ORDER_ANY);
 MODULE_VERSION(ether, 1);
