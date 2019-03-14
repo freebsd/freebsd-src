@@ -152,7 +152,7 @@
 
 static boolean_t vdev_trim_on_init = B_TRUE;
 SYSCTL_DECL(_vfs_zfs_vdev);
-SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, trim_on_init, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, trim_on_init, CTLFLAG_RWTUN,
     &vdev_trim_on_init, 0, "Enable/disable full vdev trim on initialisation");
 
 /*
