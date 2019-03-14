@@ -90,10 +90,8 @@ __FBSDID("$FreeBSD$");
 void
 cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2,int flags)
 {
-	struct proc *p1;
 	struct pcb *pcb2;
 
-	p1 = td1->td_proc;
 	if ((flags & RFPROC) == 0)
 		return;
 	/* It is assumed that the vm_thread_alloc called
@@ -103,7 +101,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2,int flags)
 	/* Point the pcb to the top of the stack */
 	pcb2 = td2->td_pcb;
 
-	/* Copy p1's pcb, note that in this case
+	/* Copy td1's pcb, note that in this case
 	 * our pcb also includes the td_frame being copied
 	 * too. The older mips2 code did an additional copy
 	 * of the td_frame, for us that's not needed any
