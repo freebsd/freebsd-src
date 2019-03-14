@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 2, 2008
+.Dd March 14, 2019
 .Dt FIRMWARE 9
 .Os
 .Sh NAME
@@ -248,12 +248,11 @@ IxNpeMicrocode.fwo  optional npe_fw					\\
 			    -r -d -o ${.TARGET} IxNpeMicrocode.dat"	\\
         no-implicit-rule                                                \\
         clean           "IxNpeMicrocode.fwo"
-IxNpeMicrocode.dat                      optional npe_fw                 \\
-        dependency      ".PHONY"                                        \\
-        compile-with    "uudecode < $S/contrib/dev/npe/IxNpeMicrocode.dat.uu" \\
-        no-obj no-implicit-rule                                         \\
-        clean           "IxNpeMicrocode.dat"
 .Ed
+.Pp
+Firmware was previously committed to the source tree as uuencoded files,
+but this is no longer required; the binary firmware file should be committed
+to the tree as provided by the vendor.
 .Pp
 Note that generating the firmware modules in this way requires
 the availability of the following tools:
