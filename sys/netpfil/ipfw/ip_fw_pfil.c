@@ -85,7 +85,7 @@ VNET_DEFINE_STATIC(int, fwlink_enable) = 0;
 int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
 
 /* Forward declarations. */
-static int ipfw_divert(struct mbuf **, int, struct ipfw_rule_ref *, int);
+static int ipfw_divert(struct mbuf **, bool, struct ipfw_rule_ref *, int);
 
 #ifdef SYSCTL_NODE
 
@@ -282,7 +282,7 @@ again:
 			break;
 		}
 		MPASS(args.flags & IPFW_ARGS_REF);
-		(void )ipfw_divert(m0, dir, &args.rule,
+		(void )ipfw_divert(m0, dir == DIR_IN, &args.rule,
 			(ipfw == IP_FW_TEE) ? 1 : 0);
 		/* continue processing for the original packet (tee). */
 		if (*m0)
@@ -443,7 +443,7 @@ again:
 
 /* do the divert, return 1 on error 0 on success */
 static int
-ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
+ipfw_divert(struct mbuf **m0, bool incoming, struct ipfw_rule_ref *rule,
 	int tee)
 {
 	/*
