@@ -454,14 +454,6 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 }
 
 /*
- * Implement the pre-zeroed page mechanism.
- * This routine is called from the idle loop.
- */
-
-#define	ZIDLE_LO(v)	((v) * 2 / 3)
-#define	ZIDLE_HI(v)	((v) * 4 / 5)
-
-/*
  * Software interrupt handler for queued VM system processing.
  */
 void
