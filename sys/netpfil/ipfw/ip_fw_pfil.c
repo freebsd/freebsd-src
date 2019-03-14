@@ -328,69 +328,50 @@ again:
  * ipfw processing for ethernet packets (in and out).
  */
 static pfil_return_t
-ipfw_check_frame(struct mbuf **m0, struct ifnet *ifp, int flags,
+ipfw_check_frame(pfil_packet_t p, struct ifnet *ifp, int flags,
     void *ruleset __unused, struct inpcb *inp)
 {
 	struct ip_fw_args args;
-	struct ether_header save_eh;
-	struct ether_header *eh;
-	struct m_tag *mtag;
-	struct mbuf *m;
 	pfil_return_t ret;
-	int i;
+	bool mem, realloc;
+	int ipfw;
 
-	args.flags = IPFW_ARGS_ETHER;
+	if (flags & PFIL_MEMPTR) {
+		mem = true;
+		realloc = false;
+		args.flags = PFIL_LENGTH(flags) | IPFW_ARGS_ETHER;
+		args.mem = p.mem;
+	} else {
+		mem = realloc = false;
+		args.flags = IPFW_ARGS_ETHER;
+	}
 	args.flags |= (flags & PFIL_IN) ? IPFW_ARGS_IN : IPFW_ARGS_OUT;
-again:
-	/* fetch start point from rule, if any.  remove the tag if present. */
-	mtag = m_tag_locate(*m0, MTAG_IPFW_RULE, 0, NULL);
-	if (mtag != NULL) {
-		args.rule = *((struct ipfw_rule_ref *)(mtag+1));
-		m_tag_delete(*m0, mtag);
-		if (args.rule.info & IPFW_ONEPASS)
-			return (0);
-		args.flags |= IPFW_ARGS_REF;
-	}
-
-	/* I need some amt of data to be contiguous */
-	m = *m0;
-	i = min(m->m_pkthdr.len, max_protohdr);
-	if (m->m_len < i) {
-		m = m_pullup(m, i);
-		if (m == NULL) {
-			*m0 = m;
-			return (0);
-		}
-	}
-	eh = mtod(m, struct ether_header *);
-	save_eh = *eh;			/* save copy for restore below */
-	m_adj(m, ETHER_HDR_LEN);	/* strip ethernet header */
-
-	args.m = m;		/* the packet we are looking at		*/
 	args.ifp = ifp;
-	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
-	args.inp = inp;	/* used by ipfw uid/gid/jail rules	*/
-	i = ipfw_chk(&args);
-	m = args.m;
-	if (m != NULL) {
+	args.inp = inp;
+
+again:
+	if (!mem) {
 		/*
-		 * Restore Ethernet header, as needed, in case the
-		 * mbuf chain was replaced by ipfw.
+		 * Fetch start point from rule, if any.
+		 * Remove the tag if present.
 		 */
-		M_PREPEND(m, ETHER_HDR_LEN, M_NOWAIT);
-		if (m == NULL) {
-			*m0 = NULL;
-			return (0);
+		struct m_tag *mtag;
+
+		mtag = m_tag_locate(*p.m, MTAG_IPFW_RULE, 0, NULL);
+		if (mtag != NULL) {
+			args.rule = *((struct ipfw_rule_ref *)(mtag+1));
+			m_tag_delete(*p.m, mtag);
+			if (args.rule.info & IPFW_ONEPASS)
+				return (PFIL_PASS);
+			args.flags |= IPFW_ARGS_REF;
 		}
-		if (eh != mtod(m, struct ether_header *))
-			bcopy(&save_eh, mtod(m, struct ether_header *),
-				ETHER_HDR_LEN);
+		args.m = *p.m;
 	}
-	*m0 = m;
+
+	ipfw = ipfw_chk(&args);
 
 	ret = PFIL_PASS;
-	/* Check result of ipfw_chk() */
-	switch (i) {
+	switch (ipfw) {
 	case IP_FW_PASS:
 		break;
 
@@ -403,9 +384,16 @@ again:
 			ret = PFIL_DROPPED;
 			break;
 		}
-		*m0 = NULL;
+		if (mem) {
+			if (pfil_realloc(&p, flags, ifp) != 0) {
+				ret = PFIL_DROPPED;
+				break;
+			}
+			mem = false;
+			realloc = true;
+		}
 		MPASS(args.flags & IPFW_ARGS_REF);
-		ip_dn_io_ptr(&m, &args);
+		ip_dn_io_ptr(p.m, &args);
 		return (PFIL_CONSUMED);
 
 	case IP_FW_NGTEE:
@@ -414,9 +402,17 @@ again:
 			ret = PFIL_DROPPED;
 			break;
 		}
+		if (mem) {
+			if (pfil_realloc(&p, flags, ifp) != 0) {
+				ret = PFIL_DROPPED;
+				break;
+			}
+			mem = false;
+			realloc = true;
+		}
 		MPASS(args.flags & IPFW_ARGS_REF);
-		(void )ng_ipfw_input_p(m0, &args, i == IP_FW_NGTEE);
-		if (i == IP_FW_NGTEE) /* ignore errors for NGTEE */
+		(void )ng_ipfw_input_p(p.m, &args, ipfw == IP_FW_NGTEE);
+		if (ipfw == IP_FW_NGTEE) /* ignore errors for NGTEE */
 			goto again;	/* continue with packet */
 		ret = PFIL_CONSUMED;
 		break;
@@ -425,11 +421,14 @@ again:
 		KASSERT(0, ("%s: unknown retval", __func__));
 	}
 
-	if (ret != PFIL_PASS) {
-		if (*m0)
-			FREE_PKT(*m0);
-		*m0 = NULL;
+	if (!mem && ret != PFIL_PASS) {
+		if (*p.m)
+			FREE_PKT(*p.m);
+		*p.m = NULL;
 	}
+
+	if (realloc && ret == PFIL_PASS)
+		ret = PFIL_REALLOCED;
 
 	return (ret);
 }
@@ -545,7 +544,7 @@ ipfw_hook(int onoff, int pf)
 	pfil_hook_t *h;
 
 	pha.pa_version = PFIL_VERSION;
-	pha.pa_flags = PFIL_IN | PFIL_OUT;
+	pha.pa_flags = PFIL_IN | PFIL_OUT | PFIL_MEMPTR;
 	pha.pa_modname = "ipfw";
 	pha.pa_ruleset = NULL;
 
