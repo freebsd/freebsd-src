@@ -56,11 +56,11 @@ void test_ok(int os_flags, int fuse_flags) {
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.len = sizeof(out->header);
 		SET_OUT_HEADER_LEN(out, open);
-	}));
+	})));
 
 	/* Until the attr cache is working, we may send an additional GETATTR */
 	EXPECT_CALL(*m_mock, process(
@@ -69,12 +69,12 @@ void test_ok(int os_flags, int fuse_flags) {
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
-	}));
+	})));
 
 	fd = open(FULLPATH, os_flags);
 	EXPECT_LE(0, fd) << strerror(errno);

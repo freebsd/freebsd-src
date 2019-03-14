@@ -52,7 +52,8 @@ TEST_F(Lookup, DISABLED_attr_cache)
 	const uint64_t generation = 13;
 	struct stat sb;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.nodeid = ino;
@@ -72,7 +73,7 @@ TEST_F(Lookup, DISABLED_attr_cache)
 		out->body.entry.attr.gid = 11;
 		out->body.entry.attr.rdev = 12;
 		out->body.entry.generation = generation;
-	}));
+	})));
 	/* stat(2) issues a VOP_LOOKUP followed by a VOP_GETATTR */
 	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);
 	EXPECT_EQ(1, sb.st_size);
@@ -118,14 +119,15 @@ TEST_F(Lookup, attr_cache_timeout)
 	 */
 	long timeout_ns = 250'000'000;
 
-	EXPECT_LOOKUP(1, RELPATH).WillRepeatedly(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.nodeid = ino;
 		out->body.entry.attr_valid_nsec = timeout_ns;
 		out->body.entry.attr.ino = ino;	// Must match nodeid
 		out->body.entry.attr.mode = S_IFREG | 0644;
-	}));
+	})));
 	expect_getattr(ino, 0);
 
 	/* access(2) will issue a VOP_LOOKUP but not a VOP_GETATTR */
@@ -154,13 +156,14 @@ TEST_F(Lookup, entry_cache)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.entry_valid = UINT64_MAX;
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = 14;
-	}));
+	})));
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 	/* The second access(2) should use the cache */
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
@@ -224,13 +227,13 @@ TEST_F(Lookup, DISABLED_entry_cache_timeout)
 	long timeout_ns = 250'000'000;
 
 	EXPECT_LOOKUP(1, RELPATH).Times(2)
-	.WillRepeatedly(Invoke([=](auto in, auto out) {
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.entry_valid_nsec = timeout_ns;
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = 14;
-	}));
+	})));
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 	usleep(2 * timeout_ns / 1000);
 	/* The cache has timed out; VOP_LOOKUP should query the daemon*/
@@ -248,12 +251,13 @@ TEST_F(Lookup, ok)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = 14;
-	}));
+	})));
 	/*
 	 * access(2) is one of the few syscalls that will not (always) follow
 	 * up a successful VOP_LOOKUP with another VOP.
@@ -270,18 +274,20 @@ TEST_F(Lookup, subdir)
 	uint64_t dir_ino = 2;
 	uint64_t file_ino = 3;
 
-	EXPECT_LOOKUP(1, DIRPATH).WillOnce(Invoke([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, DIRPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFDIR | 0755;
 		out->body.entry.nodeid = dir_ino;
-	}));
-	EXPECT_LOOKUP(dir_ino, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
+	})));
+	EXPECT_LOOKUP(dir_ino, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = file_ino;
-	}));
+	})));
 	/*
 	 * access(2) is one of the few syscalls that will not (always) follow
 	 * up a successful VOP_LOOKUP with another VOP.

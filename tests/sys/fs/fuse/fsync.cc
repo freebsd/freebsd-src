@@ -132,11 +132,11 @@ TEST_F(Fsync, close)
 			return (in->header.opcode == FUSE_SETATTR);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
-	}));
+	})));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_FSYNC);
@@ -244,12 +244,12 @@ TEST_F(Fsync, DISABLED_fsync_metadata_only)
 			return (in->header.opcode == FUSE_SETATTR);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | mode;
-	}));
+	})));
 
 	expect_fsync(ino, 0, 0);
 

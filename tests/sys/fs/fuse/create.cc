@@ -62,14 +62,14 @@ TEST_F(Create, DISABLED_attr_cache)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, create);
 		out->body.create.entry.attr.mode = S_IFREG | mode;
 		out->body.create.entry.nodeid = ino;
 		out->body.create.entry.entry_valid = UINT64_MAX;
 		out->body.create.entry.attr_valid = UINT64_MAX;
-	}));
+	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -145,14 +145,14 @@ TEST_F(Create, DISABLED_Enosys)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, create);
 		out->body.create.entry.attr.mode = S_IFREG | mode;
 		out->body.create.entry.nodeid = ino;
 		out->body.create.entry.entry_valid = UINT64_MAX;
 		out->body.create.entry.attr_valid = UINT64_MAX;
-	}));
+	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -160,11 +160,11 @@ TEST_F(Create, DISABLED_Enosys)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.len = sizeof(out->header);
 		SET_OUT_HEADER_LEN(out, open);
-	}));
+	})));
 
 	/* Until the attr cache is working, we may send an additional GETATTR */
 	EXPECT_CALL(*m_mock, process(
@@ -173,12 +173,12 @@ TEST_F(Create, DISABLED_Enosys)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
-	}));
+	})));
 
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -214,14 +214,14 @@ TEST_F(Create, DISABLED_entry_cache_negative)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, create);
 		out->body.create.entry.attr.mode = S_IFREG | mode;
 		out->body.create.entry.nodeid = ino;
 		out->body.create.entry.entry_valid = UINT64_MAX;
 		out->body.create.entry.attr_valid = UINT64_MAX;
-	}));
+	})));
 
 	/* Until the attr cache is working, we may send an additional GETATTR */
 	EXPECT_CALL(*m_mock, process(
@@ -230,12 +230,12 @@ TEST_F(Create, DISABLED_entry_cache_negative)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
-	}));
+	})));
 
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -269,13 +269,13 @@ TEST_F(Create, DISABLED_entry_cache_negative_purge)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, create);
 		out->body.create.entry.attr.mode = S_IFREG | mode;
 		out->body.create.entry.nodeid = ino;
 		out->body.create.entry.attr_valid = UINT64_MAX;
-	}));
+	})));
 
 	/* Until the attr cache is working, we may send an additional GETATTR */
 	EXPECT_CALL(*m_mock, process(
@@ -284,12 +284,12 @@ TEST_F(Create, DISABLED_entry_cache_negative_purge)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
-	}));
+	})));
 
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -344,14 +344,14 @@ TEST_F(Create, ok)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, create);
 		out->body.create.entry.attr.mode = S_IFREG | mode;
 		out->body.create.entry.nodeid = ino;
 		out->body.create.entry.entry_valid = UINT64_MAX;
 		out->body.create.entry.attr_valid = UINT64_MAX;
-	}));
+	})));
 
 	/* Until the attr cache is working, we may send an additional GETATTR */
 	EXPECT_CALL(*m_mock, process(
@@ -360,12 +360,12 @@ TEST_F(Create, ok)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
-	}));
+	})));
 
 	fd = open(FULLPATH, O_CREAT | O_EXCL, mode);
 	EXPECT_LE(0, fd) << strerror(errno);

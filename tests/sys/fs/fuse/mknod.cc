@@ -67,7 +67,7 @@ void test_ok(mode_t mode, dev_t dev) {
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, create);
 		out->body.create.entry.attr.mode = mode;
@@ -75,7 +75,7 @@ void test_ok(mode_t mode, dev_t dev) {
 		out->body.create.entry.entry_valid = UINT64_MAX;
 		out->body.create.entry.attr_valid = UINT64_MAX;
 		out->body.create.entry.attr.rdev = dev;
-	}));
+	})));
 	EXPECT_EQ(0, mknod(FULLPATH, mode, dev)) << strerror(errno);
 }
 

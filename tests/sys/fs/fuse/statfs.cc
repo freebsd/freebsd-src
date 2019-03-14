@@ -86,7 +86,7 @@ TEST_F(Statfs, ok)
 			return (in->header.opcode == FUSE_STATFS);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, statfs);
 		out->body.statfs.st.blocks = 1000;
@@ -96,7 +96,7 @@ TEST_F(Statfs, ok)
 		out->body.statfs.st.ffree = 6;
 		out->body.statfs.st.namelen = 128;
 		out->body.statfs.st.frsize = 1024;
-	}));
+	})));
 
 	ASSERT_NE(NULL, getcwd(mp, PATH_MAX)) << strerror(errno);
 	strlcat(mp, "/mountpoint", PATH_MAX);

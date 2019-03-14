@@ -123,12 +123,12 @@ TEST_F(Getlk, DISABLED_no_locks)
 				in->body.getlk.lk.pid == 10);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, getlk);
 		out->body.getlk.lk = in->body.getlk.lk;
 		out->body.getlk.lk.type = F_UNLCK;
-	}));
+	})));
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -170,14 +170,14 @@ TEST_F(Getlk, DISABLED_lock_exists)
 				in->body.getlk.lk.pid == 10);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, getlk);
 		out->body.getlk.lk.start = 100;
 		out->body.getlk.lk.end = 199;
 		out->body.getlk.lk.type = F_WRLCK;
 		out->body.getlk.lk.pid = (uint32_t)pid2;;
-	}));
+	})));
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -251,12 +251,12 @@ TEST_F(Setlk, DISABLED_set)
 				in->body.getlk.lk.pid == 10);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, getlk);
 		out->body.getlk.lk = in->body.getlk.lk;
 		out->body.getlk.lk.type = F_UNLCK;
-	}));
+	})));
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -296,12 +296,12 @@ TEST_F(Setlk, DISABLED_set_eof)
 				in->body.getlk.lk.pid == 10);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, getlk);
 		out->body.getlk.lk = in->body.getlk.lk;
 		out->body.getlk.lk.type = F_UNLCK;
-	}));
+	})));
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -414,12 +414,12 @@ TEST_F(Setlkw, DISABLED_set)
 				in->body.getlk.lk.pid == 10);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, getlk);
 		out->body.getlk.lk = in->body.getlk.lk;
 		out->body.getlk.lk.type = F_UNLCK;
-	}));
+	})));
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);

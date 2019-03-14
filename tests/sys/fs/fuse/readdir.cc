@@ -55,7 +55,7 @@ void expect_readdir(uint64_t ino, uint64_t off, vector<struct dirent> &ents)
 				in->body.readdir.offset == off);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
 		struct fuse_dirent *fde = (struct fuse_dirent*)out->body.bytes;
 		int i = 0;
 
@@ -92,7 +92,7 @@ void expect_readdir(uint64_t ino, uint64_t off, vector<struct dirent> &ents)
 			i++;
 		}
 		out->header.len += sizeof(out->header);
-	}));
+	})));
 
 }
 };
@@ -208,11 +208,11 @@ TEST_F(Readdir, nodots)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.error = 0;
 		out->header.len = sizeof(out->header);
-	}));
+	})));
 
 	errno = 0;
 	dir = opendir(FULLPATH);

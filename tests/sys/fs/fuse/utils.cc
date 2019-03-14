@@ -93,14 +93,14 @@ void FuseTest::expect_getattr(uint64_t ino, uint64_t size)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
 		out->body.attr.attr.size = size;
 		out->body.attr.attr_valid = UINT64_MAX;
-	}));
+	})));
 }
 
 void FuseTest::expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
@@ -108,14 +108,14 @@ void FuseTest::expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
 {
 	EXPECT_LOOKUP(1, relpath)
 	.Times(times)
-	.WillRepeatedly(Invoke([=](auto in, auto out) {
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = mode;
 		out->body.entry.nodeid = ino;
 		out->body.entry.attr.nlink = 1;
 		out->body.entry.attr_valid = UINT64_MAX;
-	}));
+	})));
 }
 
 void FuseTest::expect_open(uint64_t ino, uint32_t flags, int times)
@@ -127,13 +127,13 @@ void FuseTest::expect_open(uint64_t ino, uint32_t flags, int times)
 		}, Eq(true)),
 		_)
 	).Times(times)
-	.WillRepeatedly(Invoke([=](auto in, auto out) {
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.len = sizeof(out->header);
 		SET_OUT_HEADER_LEN(out, open);
 		out->body.open.fh = FH;
 		out->body.open.open_flags = flags;
-	}));
+	})));
 }
 
 void FuseTest::expect_opendir(uint64_t ino)
@@ -143,10 +143,10 @@ void FuseTest::expect_opendir(uint64_t ino)
 			return (in->header.opcode == FUSE_STATFS);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, statfs);
-	}));
+	})));
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -154,12 +154,12 @@ void FuseTest::expect_opendir(uint64_t ino)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.len = sizeof(out->header);
 		SET_OUT_HEADER_LEN(out, open);
 		out->body.open.fh = FH;
-	}));
+	})));
 }
 
 void FuseTest::expect_read(uint64_t ino, uint64_t offset, uint64_t isize,
@@ -174,11 +174,11 @@ void FuseTest::expect_read(uint64_t ino, uint64_t offset, uint64_t isize,
 				in->body.read.size == isize);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.len = sizeof(struct fuse_out_header) + osize;
 		memmove(out->body.bytes, contents, osize);
-	})).RetiresOnSaturation();
+	}))).RetiresOnSaturation();
 }
 
 void FuseTest::expect_release(uint64_t ino, int times, int error)
@@ -217,11 +217,11 @@ void FuseTest::expect_write(uint64_t ino, uint64_t offset, uint64_t isize,
 				0 == bcmp(buf, contents, isize));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, write);
 		out->body.write.size = osize;
-	}));
+	})));
 }
 
 static void usage(char* progname) {

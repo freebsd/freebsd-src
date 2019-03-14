@@ -4,12 +4,16 @@ PACKAGE=	tests
 
 TESTSDIR=	${TESTSBASE}/sys/fs/fuse
 
+# We could simply link all of these files into a single executable.  But since
+# Kyua treats googletest programs as plain tests, it's better to separate them
+# out, so we get more granular reporting.
 ATF_TESTS_CXX+=	access
 ATF_TESTS_CXX+=	create
 ATF_TESTS_CXX+=	flush
 ATF_TESTS_CXX+=	fsync
 ATF_TESTS_CXX+=	fsyncdir
 ATF_TESTS_CXX+=	getattr
+ATF_TESTS_CXX+=	interrupt
 ATF_TESTS_CXX+=	link
 ATF_TESTS_CXX+=	locks
 ATF_TESTS_CXX+=	lookup
@@ -59,6 +63,11 @@ SRCS.getattr+=	getattr.cc
 SRCS.getattr+=	getmntopts.c
 SRCS.getattr+=	mockfs.cc
 SRCS.getattr+=	utils.cc
+
+SRCS.interrupt+=	interrupt.cc
+SRCS.interrupt+=	getmntopts.c
+SRCS.interrupt+=	mockfs.cc
+SRCS.interrupt+=	utils.cc
 
 SRCS.link+=	getmntopts.c
 SRCS.link+=	link.cc

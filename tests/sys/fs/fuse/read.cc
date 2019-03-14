@@ -242,11 +242,11 @@ TEST_F(Read, mmap)
 				in->body.read.size >= bufsize);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.len = sizeof(struct fuse_out_header) + bufsize;
 		memmove(out->body.bytes, CONTENTS, bufsize);
-	}));
+	})));
 
 	fd = open(FULLPATH, O_RDONLY);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -411,11 +411,11 @@ TEST_F(Read, sendfile)
 				in->body.read.size >= bufsize);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.len = sizeof(struct fuse_out_header) + bufsize;
 		memmove(out->body.bytes, CONTENTS, bufsize);
-	}));
+	})));
 
 	ASSERT_EQ(0, socketpair(PF_LOCAL, SOCK_STREAM, 0, sp))
 		<< strerror(errno);

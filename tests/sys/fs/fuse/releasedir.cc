@@ -75,11 +75,11 @@ TEST_F(ReleaseDir, dup)
 				in->body.readdir.offset == 0);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		out->header.error = 0;
 		out->header.len = sizeof(out->header);
-	}));
+	})));
 	expect_releasedir(ino, ReturnErrno(0));
 	
 	dir = opendir(FULLPATH);

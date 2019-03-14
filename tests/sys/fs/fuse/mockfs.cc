@@ -105,28 +105,43 @@ const char* opcode2opname(uint32_t opcode)
 		return (table[opcode]);
 }
 
-std::function<void (const struct mockfs_buf_in *in, struct mockfs_buf_out *out)>
+ProcessMockerT
 ReturnErrno(int error)
 {
-	return([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = -error;
-		out->header.len = sizeof(out->header);
+	return([=](auto in, auto &out) {
+		auto out0 = new mockfs_buf_out;
+		out0->header.unique = in->header.unique;
+		out0->header.error = -error;
+		out0->header.len = sizeof(out0->header);
+		out.push_back(out0);
 	});
 }
 
 /* Helper function used for returning negative cache entries for LOOKUP */
-std::function<void (const struct mockfs_buf_in *in, struct mockfs_buf_out *out)>
+ProcessMockerT
 ReturnNegativeCache(const struct timespec *entry_valid)
 {
-	return([=](auto in, auto out) {
+	return([=](auto in, auto &out) {
 		/* nodeid means ENOENT and cache it */
-		out->body.entry.nodeid = 0;
-		out->header.unique = in->header.unique;
-		out->header.error = 0;
-		out->body.entry.entry_valid = entry_valid->tv_sec;
-		out->body.entry.entry_valid_nsec = entry_valid->tv_nsec;
-		SET_OUT_HEADER_LEN(out, entry);
+		auto out0 = new mockfs_buf_out;
+		out0->body.entry.nodeid = 0;
+		out0->header.unique = in->header.unique;
+		out0->header.error = 0;
+		out0->body.entry.entry_valid = entry_valid->tv_sec;
+		out0->body.entry.entry_valid_nsec = entry_valid->tv_nsec;
+		SET_OUT_HEADER_LEN(out0, entry);
+		out.push_back(out0);
+	});
+}
+
+ProcessMockerT
+ReturnImmediate(std::function<void(const struct mockfs_buf_in *in,
+				   struct mockfs_buf_out *out)> f)
+{
+	return([=](auto in, auto &out) {
+		auto out0 = new mockfs_buf_out;
+		f(in, out0);
+		out.push_back(out0);
 	});
 }
 
@@ -309,14 +324,12 @@ void MockFS::kill_daemon() {
 
 void MockFS::loop() {
 	mockfs_buf_in *in;
-	mockfs_buf_out *out;
+	std::vector<mockfs_buf_out*> out;
 
 	in = (mockfs_buf_in*) malloc(sizeof(*in));
-	out = (mockfs_buf_out*) malloc(sizeof(*out));
 	ASSERT_TRUE(in != NULL);
 	while (!quit) {
 		bzero(in, sizeof(*in));
-		bzero(out, sizeof(*out));
 		read_request(in);
 		if (quit)
 			break;
@@ -332,19 +345,14 @@ void MockFS::loop() {
 			 */
 			process_default(in, out);
 		}
-		if (in->header.opcode == FUSE_FORGET) {
-			/*Alone among the opcodes, FORGET expects no response*/
-			continue;
+		for (auto &it: out) {
+			ASSERT_TRUE(write(m_fuse_fd, it, it->header.len) > 0 ||
+				    errno == EAGAIN)
+				<< strerror(errno);
+			delete it;
 		}
-		if (out->header.error == FUSE_NORESPONSE) {
-			/* Used by tests of slow opcodes.  No response ATM */
-			continue;
-		}
-		ASSERT_TRUE(write(m_fuse_fd, out, out->header.len) > 0 ||
-			    errno == EAGAIN)
-			<< strerror(errno);
+		out.clear();
 	}
-	free(out);
 	free(in);
 }
 
@@ -369,10 +377,14 @@ bool MockFS::pid_ok(pid_t pid) {
 	}
 }
 
-void MockFS::process_default(const mockfs_buf_in *in, mockfs_buf_out* out) {
-	out->header.unique = in->header.unique;
-	out->header.error = -EOPNOTSUPP;
-	out->header.len = sizeof(out->header);
+void MockFS::process_default(const mockfs_buf_in *in,
+		std::vector<mockfs_buf_out*> &out)
+{
+	auto out0 = new mockfs_buf_out;
+	out0->header.unique = in->header.unique;
+	out0->header.error = -EOPNOTSUPP;
+	out0->header.len = sizeof(out0->header);
+	out.push_back(out0);
 }
 
 void MockFS::read_request(mockfs_buf_in *in) {

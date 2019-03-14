@@ -95,14 +95,14 @@ TEST_F(Mkdir, DISABLED_entry_cache_negative)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.create.entry.attr.mode = S_IFDIR | mode;
 		out->body.create.entry.nodeid = ino;
 		out->body.create.entry.entry_valid = UINT64_MAX;
 		out->body.create.entry.attr_valid = UINT64_MAX;
-	}));
+	})));
 
 	ASSERT_EQ(0, mkdir(FULLPATH, mode)) << strerror(errno);
 }
@@ -134,13 +134,13 @@ TEST_F(Mkdir, DISABLED_entry_cache_negative_purge)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFDIR | mode;
 		out->body.entry.nodeid = ino;
 		out->body.entry.attr_valid = UINT64_MAX;
-	}));
+	})));
 
 	ASSERT_EQ(0, mkdir(FULLPATH, mode)) << strerror(errno);
 
@@ -168,14 +168,14 @@ TEST_F(Mkdir, ok)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.create.entry.attr.mode = S_IFDIR | mode;
 		out->body.create.entry.nodeid = ino;
 		out->body.create.entry.entry_valid = UINT64_MAX;
 		out->body.create.entry.attr_valid = UINT64_MAX;
-	}));
+	})));
 
 	ASSERT_EQ(0, mkdir(FULLPATH, mode)) << strerror(errno);
 }
