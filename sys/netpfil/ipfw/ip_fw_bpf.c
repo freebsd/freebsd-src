@@ -161,6 +161,28 @@ ipfwlog_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 }
 
 void
+ipfw_bpf_tap(u_char *pkt, u_int pktlen)
+{
+	LOGIF_RLOCK_TRACKER;
+
+	LOGIF_RLOCK();
+	if (V_log_if != NULL)
+		BPF_TAP(V_log_if, pkt, pktlen);
+	LOGIF_RUNLOCK();
+}
+
+void
+ipfw_bpf_mtap(struct mbuf *m)
+{
+	LOGIF_RLOCK_TRACKER;
+
+	LOGIF_RLOCK();
+	if (V_log_if != NULL)
+		BPF_MTAP(V_log_if, m);
+	LOGIF_RUNLOCK();
+}
+
+void
 ipfw_bpf_mtap2(void *data, u_int dlen, struct mbuf *m)
 {
 	struct ifnet *logif;
