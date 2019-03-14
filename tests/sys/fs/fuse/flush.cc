@@ -40,8 +40,6 @@ using namespace testing;
 
 class Flush: public FuseTest {
 
-const static uint64_t FH = 0xdeadbeef1a7ebabe;
-
 public:
 void expect_flush(uint64_t ino, int times, ProcessMockerT r)
 {
@@ -49,58 +47,16 @@ void expect_flush(uint64_t ino, int times, ProcessMockerT r)
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_FLUSH &&
 				in->header.nodeid == ino &&
-				in->body.flush.fh == Flush::FH);
+				in->body.flush.fh == FH);
 		}, Eq(true)),
 		_)
 	).Times(times)
 	.WillRepeatedly(Invoke(r));
 }
 
-void expect_getattr(uint64_t ino)
-{
-	/* Until the attr cache is working, we may send an additional GETATTR */
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-	}));
-
-}
-
 void expect_lookup(const char *relpath, uint64_t ino)
 {
-	EXPECT_LOOKUP(1, relpath).WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid = UINT64_MAX;
-	}));
-}
-
-void expect_open(uint64_t ino, int times)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPEN &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).Times(times)
-	.WillRepeatedly(Invoke([](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.len = sizeof(out->header);
-		SET_OUT_HEADER_LEN(out, open);
-		out->body.open.fh = Flush::FH;
-	}));
-
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 1);
 }
 
 /*
@@ -130,8 +86,8 @@ TEST_F(Flush, DISABLED_dup)
 	int fd, fd2;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino, 1);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 	expect_flush(ino, 2, ReturnErrno(0));
 	expect_release();
 
@@ -161,8 +117,8 @@ TEST_F(Flush, DISABLED_eio)
 	int fd;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino, 1);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 	expect_flush(ino, 1, ReturnErrno(EIO));
 	expect_release();
 
@@ -182,8 +138,8 @@ TEST_F(Flush, DISABLED_flush)
 	int fd;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino, 1);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 	expect_flush(ino, 1, ReturnErrno(0));
 	expect_release();
 

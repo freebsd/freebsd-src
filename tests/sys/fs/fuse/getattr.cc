@@ -45,7 +45,6 @@ TEST_F(Getattr, DISABLED_attr_cache)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	const uint64_t ino = 42;
-	const uint64_t generation = 13;
 	struct stat sb;
 
 	EXPECT_LOOKUP(1, RELPATH).WillRepeatedly(Invoke([=](auto in, auto out) {
@@ -53,7 +52,6 @@ TEST_F(Getattr, DISABLED_attr_cache)
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = ino;
-		out->body.entry.generation = generation;
 	}));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
@@ -84,7 +82,6 @@ TEST_F(Getattr, attr_cache_timeout)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	const uint64_t ino = 42;
-	const uint64_t generation = 13;
 	struct stat sb;
 	/* 
 	 * The timeout should be longer than the longest plausible time the
@@ -92,14 +89,7 @@ TEST_F(Getattr, attr_cache_timeout)
 	 */
 	long timeout_ns = 250'000'000;
 
-	EXPECT_LOOKUP(1, RELPATH).WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.entry_valid = UINT64_MAX;
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.generation = generation;
-	}));
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 2);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			return (in->header.opcode == FUSE_GETATTR &&
@@ -128,13 +118,7 @@ TEST_F(Getattr, enoent)
 	struct stat sb;
 	const uint64_t ino = 42;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = 0100644;
-		out->body.entry.nodeid = ino;
-	}));
-
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			return (in->header.opcode == FUSE_GETATTR &&
@@ -151,16 +135,9 @@ TEST_F(Getattr, ok)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	const uint64_t ino = 42;
-	const uint64_t generation = 13;
 	struct stat sb;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.generation = generation;
-	}));
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			return (in->header.opcode == FUSE_GETATTR &&
@@ -201,9 +178,6 @@ TEST_F(Getattr, ok)
 	EXPECT_EQ(12ul, sb.st_rdev);
 	EXPECT_EQ(ino, sb.st_ino);
 	EXPECT_EQ(S_IFREG | 0644, sb.st_mode);
-
-	// fuse(4) does not _yet_ support inode generations
-	//EXPECT_EQ(generation, sb.st_gen);
 
 	//st_birthtim and st_flags are not supported by protocol 7.8.  They're
 	//only supported as OS-specific extensions to OSX.

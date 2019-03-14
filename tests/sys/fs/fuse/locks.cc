@@ -43,51 +43,10 @@ using namespace testing;
 /* For testing filesystems without posix locking support */
 class Fallback: public FuseTest {
 public:
-const static uint64_t FH = 0xdeadbeef1a7ebabe;
-
-void expect_getattr(uint64_t ino)
-{
-	/* Until the attr cache is working, we may send an additional GETATTR */
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-		out->body.attr.attr_valid = UINT64_MAX;
-	}));
-}
 
 void expect_lookup(const char *relpath, uint64_t ino)
 {
-	EXPECT_LOOKUP(1, relpath).WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid = UINT64_MAX;
-	}));
-}
-
-void expect_open(uint64_t ino)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_OPEN &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.len = sizeof(out->header);
-		SET_OUT_HEADER_LEN(out, open);
-		out->body.open.fh = FH;
-	}));
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 1);
 }
 
 };
@@ -120,8 +79,8 @@ TEST_F(GetlkFallback, local)
 	int fd;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -150,8 +109,8 @@ TEST_F(Getlk, DISABLED_no_locks)
 	pid_t pid = 1234;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_GETLK &&
@@ -197,8 +156,8 @@ TEST_F(Getlk, DISABLED_lock_exists)
 	pid_t pid2 = 1234;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_GETLK &&
@@ -251,8 +210,8 @@ TEST_F(SetlkFallback, local)
 	int fd;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -278,8 +237,8 @@ TEST_F(Setlk, DISABLED_set)
 	pid_t pid = 1234;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_SETLK &&
@@ -323,8 +282,8 @@ TEST_F(Setlk, DISABLED_set_eof)
 	pid_t pid = 1234;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_SETLK &&
@@ -368,8 +327,8 @@ TEST_F(Setlk, DISABLED_eagain)
 	pid_t pid = 1234;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_SETLK &&
@@ -410,8 +369,8 @@ TEST_F(SetlkwFallback, local)
 	int fd;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);
@@ -441,8 +400,8 @@ TEST_F(Setlkw, DISABLED_set)
 	pid_t pid = 1234;
 
 	expect_lookup(RELPATH, ino);
-	expect_open(ino);
-	expect_getattr(ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_SETLK &&

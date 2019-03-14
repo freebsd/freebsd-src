@@ -49,6 +49,7 @@ TEST_F(Lookup, DISABLED_attr_cache)
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	const uint64_t ino = 42;
+	const uint64_t generation = 13;
 	struct stat sb;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
@@ -70,6 +71,7 @@ TEST_F(Lookup, DISABLED_attr_cache)
 		out->body.entry.attr.uid = 10;
 		out->body.entry.attr.gid = 11;
 		out->body.entry.attr.rdev = 12;
+		out->body.entry.generation = generation;
 	}));
 	/* stat(2) issues a VOP_LOOKUP followed by a VOP_GETATTR */
 	ASSERT_EQ(0, stat(FULLPATH, &sb)) << strerror(errno);
@@ -124,18 +126,7 @@ TEST_F(Lookup, attr_cache_timeout)
 		out->body.entry.attr.ino = ino;	// Must match nodeid
 		out->body.entry.attr.mode = S_IFREG | 0644;
 	}));
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([](auto in) {
-			return (in->header.opcode == FUSE_GETATTR &&
-				in->header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke([](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, attr);
-		out->body.attr.attr.ino = ino;	// Must match nodeid
-		out->body.attr.attr.mode = S_IFREG | 0644;
-	}));
+	expect_getattr(ino, 0);
 
 	/* access(2) will issue a VOP_LOOKUP but not a VOP_GETATTR */
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
@@ -245,6 +236,12 @@ TEST_F(Lookup, DISABLED_entry_cache_timeout)
 	/* The cache has timed out; VOP_LOOKUP should query the daemon*/
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 }
+
+// TODO: export_support
+// After upgrading the protocol to 7.10, check that the kernel will only
+// attempt to lookup "." and ".." if the filesystem sets FUSE_EXPORT_SUPPORT in
+// the init flags.  If not, then all lookups for those entries will return
+// ESTALE.
 
 TEST_F(Lookup, ok)
 {

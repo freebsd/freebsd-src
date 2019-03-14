@@ -37,7 +37,13 @@ extern "C" {
 
 using namespace testing;
 
-class Link: public FuseTest {};
+class Link: public FuseTest {
+public:
+void expect_lookup(const char *relpath, uint64_t ino)
+{
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 1);
+}
+};
 
 TEST_F(Link, emlink)
 {
@@ -48,12 +54,7 @@ TEST_F(Link, emlink)
 	uint64_t dst_ino = 42;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
-	EXPECT_LOOKUP(1, RELDST).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = dst_ino;
-		SET_OUT_HEADER_LEN(out, entry);
-	}));
+	expect_lookup(RELDST, dst_ino);
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
@@ -80,12 +81,7 @@ TEST_F(Link, ok)
 	const uint64_t ino = 42;
 
 	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnErrno(ENOENT)));
-	EXPECT_LOOKUP(1, RELDST).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = dst_ino;
-		SET_OUT_HEADER_LEN(out, entry);
-	}));
+	expect_lookup(RELDST, dst_ino);
 
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {

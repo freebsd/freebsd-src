@@ -48,14 +48,7 @@ void test_ok(int os_flags, int fuse_flags) {
 	uint64_t ino = 42;
 	int fd;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid = UINT64_MAX;
-	}));
-
+	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_OPEN &&
@@ -101,13 +94,7 @@ TEST_F(Open, enoent)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-	}));
-
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_OPEN &&
@@ -129,13 +116,7 @@ TEST_F(Open, eperm)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-	}));
-
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_OPEN &&

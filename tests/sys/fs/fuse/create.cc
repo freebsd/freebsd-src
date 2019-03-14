@@ -295,14 +295,7 @@ TEST_F(Create, DISABLED_entry_cache_negative_purge)
 	ASSERT_LE(0, fd) << strerror(errno);
 
 	/* Finally, a subsequent lookup should query the daemon */
-	EXPECT_LOOKUP(1, RELPATH).Times(1)
-	.WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = 0;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.mode = S_IFREG | mode;
-		SET_OUT_HEADER_LEN(out, entry);
-	}));
+	expect_lookup(RELPATH, ino, S_IFREG | mode, 1);
 
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */

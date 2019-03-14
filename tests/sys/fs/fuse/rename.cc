@@ -62,12 +62,7 @@ TEST_F(Rename, einval)
 	const char RELSRC[] = "src";
 	uint64_t src_ino = 42;
 
-	EXPECT_LOOKUP(1, RELSRC).WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->body.entry.attr.mode = S_IFDIR | 0755;
-		out->body.entry.nodeid = src_ino;
-		SET_OUT_HEADER_LEN(out, entry);
-	}));
+	expect_lookup(RELSRC, src_ino, S_IFDIR | 0755, 2);
 	EXPECT_LOOKUP(src_ino, RELDST).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	ASSERT_NE(0, rename(FULLSRC, FULLDST));
@@ -80,7 +75,7 @@ TEST_F(Rename, enoent)
 	const char FULLDST[] = "mountpoint/dst";
 	const char FULLSRC[] = "mountpoint/src";
 	const char RELSRC[] = "src";
-	// FUSE hardcodes the mountpoint to inocde 1
+	// FUSE hardcodes the mountpoint to inode 1
 
 	EXPECT_LOOKUP(1, RELSRC).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
@@ -98,7 +93,7 @@ TEST_F(Rename, DISABLED_entry_cache_negative)
 	const char RELDST[] = "dst";
 	const char FULLSRC[] = "mountpoint/src";
 	const char RELSRC[] = "src";
-	// FUSE hardcodes the mountpoint to inocde 1
+	// FUSE hardcodes the mountpoint to inode 1
 	uint64_t dst_dir_ino = 1;
 	uint64_t ino = 42;
 	/* 
@@ -108,13 +103,7 @@ TEST_F(Rename, DISABLED_entry_cache_negative)
 	 */
 	struct timespec entry_valid = {.tv_sec = 0, .tv_nsec = 0};
 
-	EXPECT_LOOKUP(1, RELSRC).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		SET_OUT_HEADER_LEN(out, entry);
-	}));
-
+	expect_lookup(RELSRC, ino, S_IFREG | 0644, 1);
 	/* LOOKUP returns a negative cache entry for dst */
 	EXPECT_LOOKUP(1, RELDST).WillOnce(ReturnNegativeCache(&entry_valid));
 
@@ -144,7 +133,7 @@ TEST_F(Rename, DISABLED_entry_cache_negative_purge)
 	const char RELDST[] = "dst";
 	const char FULLSRC[] = "mountpoint/src";
 	const char RELSRC[] = "src";
-	// FUSE hardcodes the mountpoint to inocde 1
+	// FUSE hardcodes the mountpoint to inode 1
 	uint64_t dst_dir_ino = 1;
 	uint64_t ino = 42;
 	/* 
@@ -154,13 +143,7 @@ TEST_F(Rename, DISABLED_entry_cache_negative_purge)
 	 */
 	struct timespec entry_valid = {.tv_sec = 0, .tv_nsec = 0};
 
-	EXPECT_LOOKUP(1, RELSRC).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		SET_OUT_HEADER_LEN(out, entry);
-	}));
-
+	expect_lookup(RELSRC, ino, S_IFREG | 0644, 1);
 	/* LOOKUP returns a negative cache entry for dst */
 	EXPECT_LOOKUP(1, RELDST).WillOnce(ReturnNegativeCache(&entry_valid))
 	.RetiresOnSaturation();
@@ -181,14 +164,7 @@ TEST_F(Rename, DISABLED_entry_cache_negative_purge)
 	ASSERT_EQ(0, rename(FULLSRC, FULLDST)) << strerror(errno);
 
 	/* Finally, a subsequent lookup should query the daemon */
-	EXPECT_LOOKUP(1, RELDST).Times(1)
-	.WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = 0;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		SET_OUT_HEADER_LEN(out, entry);
-	}));
+	expect_lookup(RELSRC, ino, S_IFREG | 0644, 1);
 
 	ASSERT_EQ(0, access(FULLDST, F_OK)) << strerror(errno);
 }
@@ -197,18 +173,13 @@ TEST_F(Rename, exdev)
 {
 	const char FULLB[] = "mountpoint/src";
 	const char RELB[] = "src";
-	// FUSE hardcodes the mountpoint to inocde 1
+	// FUSE hardcodes the mountpoint to inode 1
 	uint64_t b_ino = 42;
 
 	tmpfd = mkstemp(tmpfile);
 	ASSERT_LE(0, tmpfd) << strerror(errno);
 
-	EXPECT_LOOKUP(1, RELB).WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = b_ino;
-		SET_OUT_HEADER_LEN(out, entry);
-	}));
+	expect_lookup(RELB, b_ino, S_IFREG | 0644, 2);
 
 	ASSERT_NE(0, rename(tmpfile, FULLB));
 	ASSERT_EQ(EXDEV, errno);
@@ -223,16 +194,11 @@ TEST_F(Rename, ok)
 	const char RELDST[] = "dst";
 	const char FULLSRC[] = "mountpoint/src";
 	const char RELSRC[] = "src";
-	// FUSE hardcodes the mountpoint to inocde 1
+	// FUSE hardcodes the mountpoint to inode 1
 	uint64_t dst_dir_ino = 1;
 	uint64_t ino = 42;
 
-	EXPECT_LOOKUP(1, RELSRC).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		SET_OUT_HEADER_LEN(out, entry);
-	}));
+	expect_lookup(RELSRC, ino, S_IFREG | 0644, 1);
 	EXPECT_LOOKUP(1, RELDST).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
@@ -260,23 +226,12 @@ TEST_F(Rename, overwrite)
 	const char RELSRC[] = "src";
 	// The inode of the already-existing destination file
 	uint64_t dst_ino = 2;
-	// FUSE hardcodes the mountpoint to inocde 1
+	// FUSE hardcodes the mountpoint to inode 1
 	uint64_t dst_dir_ino = 1;
 	uint64_t ino = 42;
 
-	EXPECT_LOOKUP(1, RELSRC).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-		SET_OUT_HEADER_LEN(out, entry);
-	}));
-	EXPECT_LOOKUP(1, RELDST).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = dst_ino;
-		SET_OUT_HEADER_LEN(out, entry);
-	}));
-
+	expect_lookup(RELSRC, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELDST, dst_ino, S_IFREG | 0644, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			const char *src = (const char*)in->body.bytes +

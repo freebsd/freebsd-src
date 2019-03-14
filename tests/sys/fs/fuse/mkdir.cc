@@ -145,14 +145,7 @@ TEST_F(Mkdir, DISABLED_entry_cache_negative_purge)
 	ASSERT_EQ(0, mkdir(FULLPATH, mode)) << strerror(errno);
 
 	/* Finally, a subsequent lookup should query the daemon */
-	EXPECT_LOOKUP(1, RELPATH).Times(1)
-	.WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->header.error = 0;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.mode = S_IFDIR | mode;
-		SET_OUT_HEADER_LEN(out, entry);
-	}));
+	expect_lookup(RELPATH, ino, S_IFDIR | mode, 1);
 
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 }

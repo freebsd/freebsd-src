@@ -37,7 +37,19 @@ extern "C" {
 
 using namespace testing;
 
-class Rmdir: public FuseTest {};
+class Rmdir: public FuseTest {
+public:
+void expect_lookup(const char *relpath, uint64_t ino)
+{
+	EXPECT_LOOKUP(1, relpath).WillOnce(Invoke([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFDIR | 0755;
+		out->body.entry.nodeid = ino;
+		out->body.entry.attr.nlink = 2;
+	}));
+}
+};
 
 TEST_F(Rmdir, enotempty)
 {
@@ -45,13 +57,7 @@ TEST_F(Rmdir, enotempty)
 	const char RELPATH[] = "some_dir";
 	uint64_t ino = 42;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFDIR | 0755;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.nlink = 2;
-	}));
+	expect_lookup(RELPATH, ino);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_RMDIR &&
@@ -71,13 +77,7 @@ TEST_F(Rmdir, ok)
 	const char RELPATH[] = "some_dir";
 	uint64_t ino = 42;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFDIR | 0755;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr.nlink = 2;
-	}));
+	expect_lookup(RELPATH, ino);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_RMDIR &&

@@ -42,13 +42,7 @@ class Opendir: public FuseTest {
 public:
 void expect_lookup(const char *relpath, uint64_t ino)
 {
-	EXPECT_LOOKUP(1, relpath).WillRepeatedly(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFDIR | 0755;
-		out->body.entry.nodeid = ino;
-		out->body.entry.attr_valid = UINT64_MAX;
-	}));
+	FuseTest::expect_lookup(relpath, ino, S_IFDIR | 0755, 1);
 }
 };
 

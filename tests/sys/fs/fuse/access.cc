@@ -39,7 +39,13 @@ extern "C" {
 
 using namespace testing;
 
-class Access: public FuseTest {};
+class Access: public FuseTest {
+public:
+void expect_lookup(const char *relpath, uint64_t ino)
+{
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 1);
+}
+};
 
 /* TODO: test methods for the default_permissions mount option */
 
@@ -52,12 +58,7 @@ TEST_F(Access, DISABLED_eaccess)
 	uint64_t ino = 42;
 	mode_t	access_mode = X_OK;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-	}));
+	expect_lookup(RELPATH, ino);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_ACCESS &&
@@ -81,12 +82,7 @@ TEST_F(Access, DISABLED_ok)
 	uint64_t ino = 42;
 	mode_t	access_mode = R_OK;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, entry);
-		out->body.entry.attr.mode = S_IFREG | 0644;
-		out->body.entry.nodeid = ino;
-	}));
+	expect_lookup(RELPATH, ino);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_ACCESS &&
