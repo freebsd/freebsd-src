@@ -1406,13 +1406,14 @@ ether_fakeaddr(struct ether_addr *hwaddr)
 {
 
 	/*
-	 * Generate a non-multicast, locally administered address.
-	 *
-	 * BMV: Should we use the FreeBSD OUI range instead?
+	 * Generate a convenient locally administered address,
+	 * 'bsd' + random 24 low-order bits.  'b' is 0x62, which has the locally
+	 * assigned bit set, and the broadcast/multicast bit clear.
 	 */
 	arc4rand(hwaddr->octet, ETHER_ADDR_LEN, 1);
-	hwaddr->octet[0] &= ~1;
-	hwaddr->octet[0] |= 2;
+	hwaddr->octet[0] = 'b';
+	hwaddr->octet[1] = 's';
+	hwaddr->octet[2] = 'd';
 }
 
 DECLARE_MODULE(ether, ether_mod, SI_SUB_INIT_IF, SI_ORDER_ANY);
