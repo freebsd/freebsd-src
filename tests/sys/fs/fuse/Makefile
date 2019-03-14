@@ -33,6 +33,7 @@ ATF_TESTS_CXX+=	statfs
 ATF_TESTS_CXX+=	symlink
 ATF_TESTS_CXX+=	unlink
 ATF_TESTS_CXX+=	write
+ATF_TESTS_CXX+=	xattr
 
 SRCS.access+=	access.cc
 SRCS.access+=	getmntopts.c
@@ -163,6 +164,11 @@ SRCS.write+=	getmntopts.c
 SRCS.write+=	mockfs.cc
 SRCS.write+=	write.cc
 SRCS.write+=	utils.cc
+
+SRCS.xattr+=	getmntopts.c
+SRCS.xattr+=	mockfs.cc
+SRCS.xattr+=	xattr.cc
+SRCS.xattr+=	utils.cc
 
 # TODO: drastically increase timeout after test development is mostly complete
 TEST_METADATA+= timeout=10
