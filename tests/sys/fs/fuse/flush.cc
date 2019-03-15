@@ -41,12 +41,13 @@ using namespace testing;
 class Flush: public FuseTest {
 
 public:
-void expect_flush(uint64_t ino, int times, ProcessMockerT r)
+void expect_flush(uint64_t ino, int times, pid_t lo, ProcessMockerT r)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_FLUSH &&
 				in->header.nodeid == ino &&
+				in->body.flush.lock_owner == (uint64_t)lo &&
 				in->body.flush.fh == FH);
 		}, Eq(true)),
 		_)
@@ -74,7 +75,12 @@ void expect_release()
 }
 };
 
-// TODO: lock_owner stuff
+class FlushWithLocks: public Flush {
+	virtual void SetUp() {
+		m_init_flags = FUSE_POSIX_LOCKS;
+		Flush::SetUp();
+	}
+};
 
 /* If a file descriptor is duplicated, every close causes FLUSH */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236405 */
@@ -88,7 +94,7 @@ TEST_F(Flush, DISABLED_dup)
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
-	expect_flush(ino, 2, ReturnErrno(0));
+	expect_flush(ino, 2, 0, ReturnErrno(0));
 	expect_release();
 
 	fd = open(FULLPATH, O_WRONLY);
@@ -119,7 +125,7 @@ TEST_F(Flush, DISABLED_eio)
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
-	expect_flush(ino, 1, ReturnErrno(EIO));
+	expect_flush(ino, 1, 0, ReturnErrno(EIO));
 	expect_release();
 
 	fd = open(FULLPATH, O_WRONLY);
@@ -140,11 +146,58 @@ TEST_F(Flush, DISABLED_flush)
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
-	expect_flush(ino, 1, ReturnErrno(0));
+	expect_flush(ino, 1, 0, ReturnErrno(0));
 	expect_release();
 
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
 
 	ASSERT_TRUE(0 == close(fd)) << strerror(errno);
+}
+
+/*
+ * When closing a file with a POSIX file lock, flush should release the lock,
+ * _even_if_ it's not the process's last file descriptor for this file.
+ */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236405 */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=234581 */
+TEST_F(FlushWithLocks, DISABLED_unlock_on_close)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int fd, fd2;
+	struct flock fl;
+	pid_t pid = getpid();
+
+	expect_lookup(RELPATH, ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_SETLK &&
+				in->header.nodeid == ino &&
+				in->body.setlk.fh == FH);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, setlk);
+		out->body.setlk.lk = in->body.setlk.lk;
+	})));
+	expect_flush(ino, 1, pid, ReturnErrno(0));
+
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+	fl.l_start = 0;
+	fl.l_len = 0;
+	fl.l_pid = pid;
+	fl.l_type = F_RDLCK;
+	fl.l_whence = SEEK_SET;
+	fl.l_sysid = 0;
+	ASSERT_NE(-1, fcntl(fd, F_SETLKW, &fl)) << strerror(errno);
+
+	fd2 = dup(fd);
+	ASSERT_EQ(0, close(fd2)) << strerror(errno);
+	/* Deliberately leak fd */
 }

@@ -159,6 +159,9 @@ void debug_fuseop(const mockfs_buf_in *in)
 			in->header.unique, in->header.len);
 	}
 	switch (in->header.opcode) {
+		case FUSE_FLUSH:
+			printf(" lock_owner=%lu", in->body.flush.lock_owner);
+			break;
 		case FUSE_FORGET:
 			printf(" nlookup=%lu", in->body.forget.nlookup);
 			break;
@@ -186,6 +189,11 @@ void debug_fuseop(const mockfs_buf_in *in)
 		case FUSE_READDIR:
 			printf(" offset=%lu size=%u", in->body.readdir.offset,
 				in->body.readdir.size);
+			break;
+		case FUSE_RELEASE:
+			printf(" flags=%#x lock_owner=%lu",
+				in->body.release.flags,
+				in->body.release.lock_owner);
 			break;
 		case FUSE_SETATTR:
 			if (verbosity <= 1) {

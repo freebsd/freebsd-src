@@ -103,7 +103,8 @@ class FuseTest : public ::testing::Test {
 	 * Create an expectation that FUSE_RELEASE will be called times times
 	 * for the given inode, returning error error
 	 */
-	void expect_release(uint64_t ino, int times, int error);
+	void expect_release(uint64_t ino, int times, uint64_t lock_owner,
+		int error);
 
 	/*
 	 * Create an expectation that FUSE_WRITE will be called exactly once

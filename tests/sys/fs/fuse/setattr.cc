@@ -42,6 +42,55 @@ using namespace testing;
 class Setattr : public FuseTest {};
 
 
+/*
+ * If setattr returns a non-zero cache timeout, then subsequent VOP_GETATTRs
+ * should use the cached attributes, rather than query the daemon
+ */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=235775 */
+TEST_F(Setattr, DISABLED_attr_cache)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const uint64_t ino = 42;
+	struct stat sb;
+	const mode_t newmode = 0644;
+
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, entry);
+		out->body.entry.attr.mode = S_IFREG | 0644;
+		out->body.entry.nodeid = ino;
+	})));
+
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			/* In protocol 7.23, ctime will be changed too */
+			return (in->header.opcode == FUSE_SETATTR &&
+				in->header.nodeid == ino);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, attr);
+		out->body.attr.attr.ino = ino;	// Must match nodeid
+		out->body.attr.attr.mode = S_IFREG | newmode;
+	})));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([](auto in) {
+			return (in->header.opcode == FUSE_GETATTR);
+		}, Eq(true)),
+		_)
+	).Times(0);
+
+	/* Set an attribute with SETATTR */
+	ASSERT_EQ(0, chmod(FULLPATH, newmode)) << strerror(errno);
+
+	/* The stat(2) should use cached attributes */
+	ASSERT_EQ(0, stat(FULLPATH, &sb));
+	EXPECT_EQ(S_IFREG | newmode, sb.st_mode);
+}
+
 /* Change the mode of a file */
 TEST_F(Setattr, chmod)
 {
@@ -305,7 +354,8 @@ TEST_F(Setattr, truncate) {
 	const uint64_t oldsize = 100'000'000;
 	const uint64_t newsize = 20'000'000;
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
@@ -347,7 +397,8 @@ TEST_F(Setattr, utimensat) {
 		{.tv_sec = 7, .tv_nsec = 8},
 	};
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
@@ -423,7 +474,8 @@ TEST_F(Setattr, utimensat_mtime_only) {
 		{.tv_sec = 7, .tv_nsec = 8},
 	};
 
-	EXPECT_LOOKUP(1, RELPATH).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
@@ -481,9 +533,3 @@ TEST_F(Setattr, utimensat_mtime_only) {
 	EXPECT_EQ(0, utimensat(AT_FDCWD, FULLPATH, &newtimes[0], 0))
 		<< strerror(errno);
 }
-
-/* 
- * Writethrough cache: newly changed attributes should be automatically cached,
- * if the filesystem allows it
- */
-//TODO TEST_F(Setattr, writethrough_cache){}

@@ -47,7 +47,13 @@ void expect_lookup(const char *relpath, uint64_t ino, int times)
 }
 };
 
-// TODO: lock owner stuff
+class ReleaseWithLocks: public Release {
+	virtual void SetUp() {
+		m_init_flags = FUSE_POSIX_LOCKS;
+		Release::SetUp();
+	}
+};
+
 
 /* If a file descriptor is duplicated, only the last close causes RELEASE */
 TEST_F(Release, dup)
@@ -60,7 +66,7 @@ TEST_F(Release, dup)
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
-	expect_release(ino, 1, 0);
+	expect_release(ino, 1, 0, 0);
 	
 	fd = open(FULLPATH, O_RDONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -89,7 +95,7 @@ TEST_F(Release, eio)
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
-	expect_release(ino, 1, EIO);
+	expect_release(ino, 1, 0, EIO);
 	
 	fd = open(FULLPATH, O_WRONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -112,7 +118,7 @@ TEST_F(Release, multiple_opens)
 	expect_lookup(RELPATH, ino, 2);
 	expect_open(ino, 0, 2);
 	expect_getattr(ino, 0);
-	expect_release(ino, 2, 0);
+	expect_release(ino, 2, 0, 0);
 	
 	fd = open(FULLPATH, O_RDONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
@@ -134,10 +140,51 @@ TEST_F(Release, ok)
 	expect_lookup(RELPATH, ino, 1);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
-	expect_release(ino, 1, 0);
+	expect_release(ino, 1, 0, 0);
 	
 	fd = open(FULLPATH, O_RDONLY);
 	EXPECT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(0, close(fd)) << strerror(errno);
+}
+
+/* When closing a file with a POSIX file lock, release should release the lock*/
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=234581 */
+TEST_F(ReleaseWithLocks, DISABLED_unlock_on_close)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int fd;
+	struct flock fl;
+	pid_t pid = getpid();
+
+	expect_lookup(RELPATH, ino, 1);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_SETLK &&
+				in->header.nodeid == ino &&
+				in->body.setlk.fh == FH);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
+		out->header.unique = in->header.unique;
+		SET_OUT_HEADER_LEN(out, setlk);
+		out->body.setlk.lk = in->body.setlk.lk;
+	})));
+	expect_release(ino, 1, (uint64_t)pid, 0);
+
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+	fl.l_start = 0;
+	fl.l_len = 0;
+	fl.l_pid = pid;
+	fl.l_type = F_RDLCK;
+	fl.l_whence = SEEK_SET;
+	fl.l_sysid = 0;
+	ASSERT_NE(-1, fcntl(fd, F_SETLKW, &fl)) << strerror(errno);
 
 	ASSERT_EQ(0, close(fd)) << strerror(errno);
 }

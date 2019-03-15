@@ -181,12 +181,14 @@ void FuseTest::expect_read(uint64_t ino, uint64_t offset, uint64_t isize,
 	}))).RetiresOnSaturation();
 }
 
-void FuseTest::expect_release(uint64_t ino, int times, int error)
+void FuseTest::expect_release(uint64_t ino, int times, uint64_t lock_owner,
+	int error)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_RELEASE &&
 				in->header.nodeid == ino &&
+				in->body.release.lock_owner == lock_owner &&
 				in->body.release.fh == FH);
 		}, Eq(true)),
 		_)

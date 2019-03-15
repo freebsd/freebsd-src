@@ -104,6 +104,7 @@ union fuse_payloads_in {
 	fuse_setattr_in	setattr;
 	fuse_setxattr_in setxattr;
 	fuse_lk_in	setlk;
+	fuse_lk_in	setlkw;
 	char		unlink[0];
 	fuse_write_in	write;
 };
@@ -125,6 +126,7 @@ union fuse_payloads_out {
 	fuse_listxattr_out	listxattr;
 	fuse_open_out		open;
 	fuse_lk_out		setlk;
+	fuse_lk_out		setlkw;
 	fuse_statfs_out		statfs;
 	/*
 	 * The protocol places no limits on the length of the string.  This is
