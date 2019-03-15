@@ -215,7 +215,7 @@ stack_sbuf_print_ddb(struct sbuf *sb, const struct stack *st)
 #ifdef KTR
 void
 stack_ktr(u_int mask, const char *file, int line, const struct stack *st,
-    u_int depth, int cheap)
+    u_int depth)
 {
 #ifdef DDB
 	const char *name;
@@ -224,31 +224,15 @@ stack_ktr(u_int mask, const char *file, int line, const struct stack *st,
 #endif
 
 	KASSERT(st->depth <= STACK_MAX, ("bogus stack"));
-	if (cheap) {
-		ktr_tracepoint(mask, file, line, "#0 %p %p %p %p %p %p",
-		    st->pcs[0], st->pcs[1], st->pcs[2], st->pcs[3],
-		    st->pcs[4], st->pcs[5]);
-		if (st->depth <= 6)
-			return;
-		ktr_tracepoint(mask, file, line, "#1 %p %p %p %p %p %p",
-		    st->pcs[6], st->pcs[7], st->pcs[8], st->pcs[9],
-		    st->pcs[10], st->pcs[11]);
-		if (st->depth <= 12)
-			return;
-		ktr_tracepoint(mask, file, line, "#2 %p %p %p %p %p %p",
-		    st->pcs[12], st->pcs[13], st->pcs[14], st->pcs[15],
-		    st->pcs[16], st->pcs[17]);
 #ifdef DDB
-	} else {
-		if (depth == 0 || st->depth < depth)
-			depth = st->depth;
-		for (i = 0; i < depth; i++) {
-			(void)stack_symbol_ddb(st->pcs[i], &name, &offset);
-			ktr_tracepoint(mask, file, line, "#%d %p at %s+%#lx",
-			    i, st->pcs[i], (u_long)name, offset, 0, 0);
-		}
-#endif
+	if (depth == 0 || st->depth < depth)
+		depth = st->depth;
+	for (i = 0; i < depth; i++) {
+		(void)stack_symbol_ddb(st->pcs[i], &name, &offset);
+		ktr_tracepoint(mask, file, line, "#%d %p at %s+%#lx",
+		    i, st->pcs[i], (u_long)name, offset, 0, 0);
 	}
+#endif
 }
 #endif
 

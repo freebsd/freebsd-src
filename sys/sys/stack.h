@@ -51,13 +51,13 @@ int		 stack_sbuf_print_flags(struct sbuf *, const struct stack *,
 		 int);
 #ifdef KTR
 void		 stack_ktr(u_int, const char *, int, const struct stack *,
-		    u_int, int);
-#define	CTRSTACK(m, st, depth, cheap) do {				\
+		    u_int);
+#define	CTRSTACK(m, st, depth) do {					\
 	if (KTR_COMPILE & (m))						\
-		stack_ktr((m), __FILE__, __LINE__, st, depth, cheap);	\
+		stack_ktr((m), __FILE__, __LINE__, st, depth);		\
 	} while(0)
 #else
-#define	CTRSTACK(m, st, depth, cheap)
+#define	CTRSTACK(m, st, depth)
 #endif
 
 /* MD Routines. */
