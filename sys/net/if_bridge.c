@@ -2890,7 +2890,6 @@ bridge_rtable_fini(struct bridge_softc *sc)
 
 	KASSERT(sc->sc_brtcnt == 0,
 	    ("%s: %d bridge routes referenced", __func__, sc->sc_brtcnt));
-	bridge_rtflush(sc, 1);
 	free(sc->sc_rthash, M_DEVBUF);
 }
 
