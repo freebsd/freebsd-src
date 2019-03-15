@@ -65,7 +65,7 @@ void expect_fsync(uint64_t ino, uint32_t flags, int error)
 
 void expect_lookup(const char *relpath, uint64_t ino)
 {
-	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 1);
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 0, 1);
 }
 
 void expect_write(uint64_t ino, uint64_t size, const void *contents)

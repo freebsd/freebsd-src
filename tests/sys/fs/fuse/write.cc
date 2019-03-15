@@ -49,9 +49,9 @@ class Write: public FuseTest {
 
 public:
 
-void expect_lookup(const char *relpath, uint64_t ino)
+void expect_lookup(const char *relpath, uint64_t ino, uint64_t size)
 {
-	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 1);
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, size, 1);
 }
 
 void expect_release(uint64_t ino, ProcessMockerT r)
@@ -146,7 +146,7 @@ TEST_F(AioWrite, DISABLED_aio_write)
 	ssize_t bufsize = strlen(CONTENTS);
 	struct aiocb iocb, *piocb;
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
 	expect_write(ino, offset, bufsize, bufsize, 0, CONTENTS);
@@ -190,7 +190,7 @@ TEST_F(Write, append)
 
 	require_sync_resize_0();
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, initial_offset);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, initial_offset);
 	expect_write(ino, initial_offset, BUFSIZE, BUFSIZE, 0, CONTENTS);
@@ -213,7 +213,7 @@ TEST_F(Write, append_direct_io)
 	uint64_t initial_offset = 4096;
 	int fd;
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, initial_offset);
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
 	expect_getattr(ino, initial_offset);
 	expect_write(ino, initial_offset, BUFSIZE, BUFSIZE, 0, CONTENTS);
@@ -238,7 +238,7 @@ TEST_F(Write, DISABLED_direct_io_evicts_cache)
 	ssize_t bufsize = strlen(CONTENTS0) + 1;
 	char readbuf[bufsize];
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, bufsize);
 	expect_read(ino, 0, bufsize, bufsize, CONTENTS0);
@@ -281,7 +281,7 @@ TEST_F(Write, DISABLED_direct_io_short_write)
 	ssize_t halfbufsize = bufsize / 2;
 	const char *halfcontents = CONTENTS + halfbufsize;
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
 	expect_getattr(ino, 0);
 	expect_write(ino, 0, bufsize, halfbufsize, 0, CONTENTS);
@@ -316,7 +316,7 @@ TEST_F(Write, DISABLED_direct_io_short_write_iov)
 	ssize_t totalsize = size0 + size1;
 	struct iovec iov[2];
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
 	expect_getattr(ino, 0);
 	expect_write(ino, 0, totalsize, size0, 0, EXPECTED0);
@@ -360,7 +360,7 @@ TEST_F(Write, DISABLED_mmap)
 	ASSERT_NE(NULL, expected);
 	memmove((uint8_t*)expected + offset, CONTENTS, bufsize);
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, len);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, len);
 	expect_read(ino, 0, len, len, zeros);
@@ -396,7 +396,7 @@ TEST_F(Write, pwrite)
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
 	expect_write(ino, offset, bufsize, bufsize, 0, CONTENTS);
@@ -418,7 +418,7 @@ TEST_F(Write, write)
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
 	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
@@ -448,7 +448,7 @@ TEST_F(Write, write_large)
 		contents[i] = i;
 	}
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
 	expect_write(ino, 0, halfbufsize, halfbufsize, 0, contents);
@@ -473,7 +473,7 @@ TEST_F(Write, write_nothing)
 	int fd;
 	ssize_t bufsize = 0;
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
 
@@ -494,7 +494,7 @@ TEST_F(WriteBack, close)
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
 	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
@@ -529,7 +529,7 @@ TEST_F(WriteBack, writeback)
 	ssize_t bufsize = strlen(CONTENTS);
 	char readbuf[bufsize];
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
 	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
@@ -562,7 +562,7 @@ TEST_F(WriteBack, o_direct)
 	ssize_t bufsize = strlen(CONTENTS);
 	char readbuf[bufsize];
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
 	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
@@ -596,7 +596,7 @@ TEST_F(WriteThrough, DISABLED_writethrough)
 	ssize_t bufsize = strlen(CONTENTS);
 	char readbuf[bufsize];
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, 0);
 	expect_write(ino, 0, bufsize, bufsize, 0, CONTENTS);
@@ -625,7 +625,7 @@ TEST_F(WriteThrough, DISABLED_update_file_size)
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {

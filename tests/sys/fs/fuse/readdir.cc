@@ -43,7 +43,7 @@ class Readdir: public FuseTest {
 public:
 void expect_lookup(const char *relpath, uint64_t ino)
 {
-	FuseTest::expect_lookup(relpath, ino, S_IFDIR | 0755, 1);
+	FuseTest::expect_lookup(relpath, ino, S_IFDIR | 0755, 0, 1);
 }
 
 void expect_readdir(uint64_t ino, uint64_t off, vector<struct dirent> &ents)

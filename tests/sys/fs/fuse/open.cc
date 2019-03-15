@@ -48,7 +48,7 @@ void test_ok(int os_flags, int fuse_flags) {
 	uint64_t ino = 42;
 	int fd;
 
-	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_OPEN &&
@@ -92,7 +92,7 @@ TEST_F(Open, enoent)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_OPEN &&
@@ -114,7 +114,7 @@ TEST_F(Open, eperm)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_OPEN &&
