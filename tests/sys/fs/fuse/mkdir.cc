@@ -95,8 +95,7 @@ TEST_F(Mkdir, DISABLED_entry_cache_negative)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.create.entry.attr.mode = S_IFDIR | mode;
 		out->body.create.entry.nodeid = ino;
@@ -134,8 +133,7 @@ TEST_F(Mkdir, DISABLED_entry_cache_negative_purge)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFDIR | mode;
 		out->body.entry.nodeid = ino;
@@ -168,8 +166,7 @@ TEST_F(Mkdir, ok)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.create.entry.attr.mode = S_IFDIR | mode;
 		out->body.create.entry.nodeid = ino;

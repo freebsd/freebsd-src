@@ -82,8 +82,7 @@ TEST_F(Readlink, ok)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		strlcpy(out->body.str, dst, sizeof(out->body.str));
 		out->header.len = sizeof(out->header) + strlen(dst) + 1;
 	})));

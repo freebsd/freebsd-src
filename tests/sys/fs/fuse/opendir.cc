@@ -109,8 +109,7 @@ TEST_F(Opendir, open)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, open);
 	})));
 
@@ -129,8 +128,7 @@ TEST_F(Opendir, opendir)
 			return (in->header.opcode == FUSE_STATFS);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, statfs);
 	})));
 
@@ -140,8 +138,7 @@ TEST_F(Opendir, opendir)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, open);
 	})));
 

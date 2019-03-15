@@ -86,8 +86,7 @@ TEST_F(Statfs, ok)
 			return (in->header.opcode == FUSE_STATFS);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, statfs);
 		out->body.statfs.st.blocks = 1000;
 		out->body.statfs.st.bfree = 100;

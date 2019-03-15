@@ -166,11 +166,12 @@ TEST_F(Getxattr, size_only)
 	int ns = EXTATTR_NAMESPACE_USER;
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
-	expect_getxattr(ino, "user.foo", ReturnImmediate([](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, getxattr);
-		out->body.getxattr.size = 99;
-	}));
+	expect_getxattr(ino, "user.foo",
+		ReturnImmediate([](auto in __unused, auto out) {
+			SET_OUT_HEADER_LEN(out, getxattr);
+			out->body.getxattr.size = 99;
+		})
+	);
 
 	ASSERT_EQ(99, extattr_get_file(FULLPATH, ns, "foo", NULL, 0))
 		<< strerror(errno);;
@@ -190,8 +191,7 @@ TEST_F(Getxattr, system)
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
 	expect_getxattr(ino, "system.foo",
-		ReturnImmediate([&](auto in, auto out) {
-			out->header.unique = in->header.unique;
+		ReturnImmediate([&](auto in __unused, auto out) {
 			memcpy((void*)out->body.bytes, value, value_len);
 			out->header.len = sizeof(out->header) + value_len;
 		})
@@ -216,8 +216,7 @@ TEST_F(Getxattr, user)
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
 	expect_getxattr(ino, "user.foo",
-		ReturnImmediate([&](auto in, auto out) {
-			out->header.unique = in->header.unique;
+		ReturnImmediate([&](auto in __unused, auto out) {
 			memcpy((void*)out->body.bytes, value, value_len);
 			out->header.len = sizeof(out->header) + value_len;
 		})
@@ -277,8 +276,7 @@ TEST_F(Listxattr, size_only_empty)
 	int ns = EXTATTR_NAMESPACE_USER;
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
-	expect_listxattr(ino, 0, ReturnImmediate([](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	expect_listxattr(ino, 0, ReturnImmediate([](auto i __unused, auto out) {
 		out->body.listxattr.size = 0;
 		SET_OUT_HEADER_LEN(out, listxattr);
 	}));
@@ -299,20 +297,21 @@ TEST_F(Listxattr, size_only_nonempty)
 	int ns = EXTATTR_NAMESPACE_USER;
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
-	expect_listxattr(ino, 0, ReturnImmediate([](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	expect_listxattr(ino, 0, ReturnImmediate([](auto i __unused, auto out) {
 		out->body.listxattr.size = 45;
 		SET_OUT_HEADER_LEN(out, listxattr);
 	}));
 
 	// TODO: fix the expected size after fixing the size calculation bug in
 	// fuse_vnop_listextattr.  It should be exactly 45.
-	expect_listxattr(ino, 53, ReturnImmediate([](auto in, auto out) {
-		const char l[] = "user.foo";
-		out->header.unique = in->header.unique;
-		strlcpy((char*)out->body.bytes, l, sizeof(out->body.bytes));
-		out->header.len = sizeof(fuse_out_header) + sizeof(l);
-	}));
+	expect_listxattr(ino, 53,
+		ReturnImmediate([](auto in __unused, auto out) {
+			const char l[] = "user.foo";
+			strlcpy((char*)out->body.bytes, l,
+				sizeof(out->body.bytes));
+			out->header.len = sizeof(fuse_out_header) + sizeof(l);
+		})
+	);
 
 	ASSERT_EQ(4, extattr_list_file(FULLPATH, ns, NULL, 0))
 		<< strerror(errno);
@@ -324,22 +323,22 @@ TEST_F(Listxattr, size_only_really_big)
 	int ns = EXTATTR_NAMESPACE_USER;
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
-	expect_listxattr(ino, 0, ReturnImmediate([](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	expect_listxattr(ino, 0, ReturnImmediate([](auto i __unused, auto out) {
 		out->body.listxattr.size = 16000;
 		SET_OUT_HEADER_LEN(out, listxattr);
 	}));
 
 	// TODO: fix the expected size after fixing the size calculation bug in
 	// fuse_vnop_listextattr.  It should be exactly 16000.
-	expect_listxattr(ino, 16008, ReturnImmediate([](auto in, auto out) {
-		const char l[16] = "user.foobarbang";
-		out->header.unique = in->header.unique;
-		for (int i=0; i < 1000; i++) {
-			memcpy(&out->body.bytes[16 * i], l, 16);
-		}
-		out->header.len = sizeof(fuse_out_header) + 16000;
-	}));
+	expect_listxattr(ino, 16008,
+		ReturnImmediate([](auto in __unused, auto out) {
+			const char l[16] = "user.foobarbang";
+			for (int i=0; i < 1000; i++) {
+				memcpy(&out->body.bytes[16 * i], l, 16);
+			}
+			out->header.len = sizeof(fuse_out_header) + 16000;
+		})
+	);
 
 	ASSERT_EQ(11000, extattr_list_file(FULLPATH, ns, NULL, 0))
 		<< strerror(errno);
@@ -358,17 +357,17 @@ TEST_F(Listxattr, user)
 	char attrs[28] = "user.foo\0system.x\0user.bang";
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
-	expect_listxattr(ino, 0, ReturnImmediate([&](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->body.listxattr.size = sizeof(attrs);
-		SET_OUT_HEADER_LEN(out, listxattr);
-	}));
+	expect_listxattr(ino, 0,
+		ReturnImmediate([&](auto in __unused, auto out) {
+			out->body.listxattr.size = sizeof(attrs);
+			SET_OUT_HEADER_LEN(out, listxattr);
+		})
+	);
 
 	// TODO: fix the expected size after fixing the size calculation bug in
 	// fuse_vnop_listextattr.
 	expect_listxattr(ino, sizeof(attrs) + 8,
-	ReturnImmediate([&](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	ReturnImmediate([&](auto in __unused, auto out) {
 		memcpy((void*)out->body.bytes, attrs, sizeof(attrs));
 		out->header.len = sizeof(fuse_out_header) + sizeof(attrs);
 	}));
@@ -392,17 +391,17 @@ TEST_F(Listxattr, system)
 	char attrs[28] = "user.foo\0system.x\0user.bang";
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
-	expect_listxattr(ino, 0, ReturnImmediate([&](auto in, auto out) {
-		out->header.unique = in->header.unique;
-		out->body.listxattr.size = sizeof(attrs);
-		SET_OUT_HEADER_LEN(out, listxattr);
-	}));
+	expect_listxattr(ino, 0,
+		ReturnImmediate([&](auto in __unused, auto out) {
+			out->body.listxattr.size = sizeof(attrs);
+			SET_OUT_HEADER_LEN(out, listxattr);
+		})
+	);
 
 	// TODO: fix the expected size after fixing the size calculation bug in
 	// fuse_vnop_listextattr.
 	expect_listxattr(ino, sizeof(attrs) + 8,
-	ReturnImmediate([&](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	ReturnImmediate([&](auto in __unused, auto out) {
 		memcpy((void*)out->body.bytes, attrs, sizeof(attrs));
 		out->header.len = sizeof(fuse_out_header) + sizeof(attrs);
 	}));

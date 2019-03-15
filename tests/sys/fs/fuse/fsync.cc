@@ -132,8 +132,7 @@ TEST_F(Fsync, close)
 			return (in->header.opcode == FUSE_SETATTR);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 	})));
@@ -244,8 +243,7 @@ TEST_F(Fsync, DISABLED_fsync_metadata_only)
 			return (in->header.opcode == FUSE_SETATTR);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | mode;

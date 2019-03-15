@@ -56,8 +56,7 @@ void test_ok(int os_flags, int fuse_flags) {
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
 		out->header.len = sizeof(out->header);
 		SET_OUT_HEADER_LEN(out, open);
 	})));
@@ -69,8 +68,7 @@ void test_ok(int os_flags, int fuse_flags) {
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;

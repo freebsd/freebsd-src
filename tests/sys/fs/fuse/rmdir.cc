@@ -42,8 +42,7 @@ public:
 void expect_lookup(const char *relpath, uint64_t ino)
 {
 	EXPECT_LOOKUP(1, relpath)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFDIR | 0755;
 		out->body.entry.nodeid = ino;

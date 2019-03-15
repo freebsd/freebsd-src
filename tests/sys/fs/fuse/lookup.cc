@@ -53,8 +53,7 @@ TEST_F(Lookup, DISABLED_attr_cache)
 	struct stat sb;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.nodeid = ino;
 		out->body.entry.attr_valid = UINT64_MAX;
@@ -120,8 +119,7 @@ TEST_F(Lookup, attr_cache_timeout)
 	long timeout_ns = 250'000'000;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.nodeid = ino;
 		out->body.entry.attr_valid_nsec = timeout_ns;
@@ -157,8 +155,7 @@ TEST_F(Lookup, entry_cache)
 	const char RELPATH[] = "some_file.txt";
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.entry_valid = UINT64_MAX;
 		out->body.entry.attr.mode = S_IFREG | 0644;
@@ -227,8 +224,7 @@ TEST_F(Lookup, DISABLED_entry_cache_timeout)
 	long timeout_ns = 250'000'000;
 
 	EXPECT_LOOKUP(1, RELPATH).Times(2)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.entry_valid_nsec = timeout_ns;
 		out->body.entry.attr.mode = S_IFREG | 0644;
@@ -252,8 +248,7 @@ TEST_F(Lookup, ok)
 	const char RELPATH[] = "some_file.txt";
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = 14;
@@ -275,15 +270,13 @@ TEST_F(Lookup, subdir)
 	uint64_t file_ino = 3;
 
 	EXPECT_LOOKUP(1, DIRPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFDIR | 0755;
 		out->body.entry.nodeid = dir_ino;
 	})));
 	EXPECT_LOOKUP(dir_ino, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = file_ino;

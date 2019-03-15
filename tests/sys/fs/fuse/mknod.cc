@@ -67,8 +67,7 @@ void test_ok(mode_t mode, dev_t dev) {
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, create);
 		out->body.create.entry.attr.mode = mode;
 		out->body.create.entry.nodeid = ino;

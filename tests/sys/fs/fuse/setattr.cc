@@ -56,8 +56,7 @@ TEST_F(Setattr, DISABLED_attr_cache)
 	const mode_t newmode = 0644;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = ino;
@@ -70,8 +69,7 @@ TEST_F(Setattr, DISABLED_attr_cache)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | newmode;
@@ -101,8 +99,7 @@ TEST_F(Setattr, chmod)
 	const mode_t newmode = 0644;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | oldmode;
 		out->body.entry.nodeid = ino;
@@ -119,8 +116,7 @@ TEST_F(Setattr, chmod)
 				in->body.setattr.mode == newmode);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | newmode;
@@ -140,8 +136,7 @@ TEST_F(Setattr, chown)
 	const uid_t newuser = 44;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = ino;
@@ -160,8 +155,7 @@ TEST_F(Setattr, chown)
 				in->body.setattr.gid == newgroup);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
@@ -186,7 +180,6 @@ TEST_F(Setattr, eperm)
 
 	EXPECT_LOOKUP(1, RELPATH)
 	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0777;
 		out->body.entry.nodeid = ino;
@@ -216,8 +209,7 @@ TEST_F(Setattr, fchmod)
 	const mode_t newmode = 0644;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | oldmode;
 		out->body.entry.nodeid = ino;
@@ -230,8 +222,7 @@ TEST_F(Setattr, fchmod)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		out->header.len = sizeof(out->header);
 		SET_OUT_HEADER_LEN(out, open);
 	})));
@@ -243,8 +234,7 @@ TEST_F(Setattr, fchmod)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | oldmode;
@@ -260,8 +250,7 @@ TEST_F(Setattr, fchmod)
 				in->body.setattr.mode == newmode);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | newmode;
@@ -285,8 +274,7 @@ TEST_F(Setattr, ftruncate)
 	const off_t newsize = 12345;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0755;
 		out->body.entry.nodeid = ino;
@@ -300,8 +288,7 @@ TEST_F(Setattr, ftruncate)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		out->header.len = sizeof(out->header);
 		SET_OUT_HEADER_LEN(out, open);
 		out->body.open.fh = fh;
@@ -314,8 +301,7 @@ TEST_F(Setattr, ftruncate)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0755;
@@ -332,8 +318,7 @@ TEST_F(Setattr, ftruncate)
 				in->body.setattr.fh == fh);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0755;
@@ -355,8 +340,7 @@ TEST_F(Setattr, truncate) {
 	const uint64_t newsize = 20'000'000;
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = ino;
@@ -373,8 +357,7 @@ TEST_F(Setattr, truncate) {
 				in->body.setattr.size == newsize);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
@@ -398,8 +381,7 @@ TEST_F(Setattr, utimensat) {
 	};
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = ino;
@@ -420,8 +402,7 @@ TEST_F(Setattr, utimensat) {
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
@@ -446,8 +427,7 @@ TEST_F(Setattr, utimensat) {
 					newtimes[1].tv_nsec);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
@@ -475,8 +455,7 @@ TEST_F(Setattr, utimensat_mtime_only) {
 	};
 
 	EXPECT_LOOKUP(1, RELPATH)
-	.WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	.WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = ino;
@@ -497,8 +476,7 @@ TEST_F(Setattr, utimensat_mtime_only) {
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
@@ -520,8 +498,7 @@ TEST_F(Setattr, utimensat_mtime_only) {
 					newtimes[1].tv_nsec);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;

@@ -59,7 +59,6 @@ void expect_readdir(uint64_t ino, uint64_t off, vector<struct dirent> &ents)
 		struct fuse_dirent *fde = (struct fuse_dirent*)out->body.bytes;
 		int i = 0;
 
-		out->header.unique = in->header.unique;
 		out->header.error = 0;
 		out->header.len = 0;
 
@@ -208,8 +207,7 @@ TEST_F(Readdir, nodots)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		out->header.error = 0;
 		out->header.len = sizeof(out->header);
 	})));

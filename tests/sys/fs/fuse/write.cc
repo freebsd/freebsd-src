@@ -503,8 +503,7 @@ TEST_F(WriteBack, close)
 			return (in->header.opcode == FUSE_SETATTR);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 	})));
@@ -635,8 +634,7 @@ TEST_F(WriteThrough, DISABLED_update_file_size)
 		}, Eq(true)),
 		_)
 	).Times(2)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
