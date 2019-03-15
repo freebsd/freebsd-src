@@ -1044,6 +1044,7 @@
 #define	MSR_FSBASE	0xc0000100	/* base address of the %fs "segment" */
 #define	MSR_GSBASE	0xc0000101	/* base address of the %gs "segment" */
 #define	MSR_KGSBASE	0xc0000102	/* base address of the kernel %gs */
+#define	MSR_TSC_AUX	0xc0000103
 #define	MSR_PERFEVSEL0	0xc0010000
 #define	MSR_PERFEVSEL1	0xc0010001
 #define	MSR_PERFEVSEL2	0xc0010002
