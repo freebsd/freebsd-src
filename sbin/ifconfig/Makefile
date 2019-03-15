@@ -39,8 +39,10 @@ SRCS+=	ifipsec.c		# IPsec VTI
 SRCS+=	sfp.c			# SFP/SFP+ information
 LIBADD+=	m
 
+.if ${MK_WIRELESS_SUPPORT} != "no"
 SRCS+=	ifieee80211.c		# SIOC[GS]IEEE80211 support
 LIBADD+=	80211
+.endif
 
 SRCS+=	carp.c			# SIOC[GS]VH support
 SRCS+=	ifgroup.c		# ...
