@@ -992,6 +992,7 @@ printcpuinfo(void)
 				printf("\n  Structured Extended Features3=0x%b",
 				    cpu_stdext_feature3,
 				       "\020"
+				       "\016TSXFA"
 				       "\033IBPB"
 				       "\034STIBP"
 				       "\035L1DFL"
