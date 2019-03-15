@@ -119,6 +119,7 @@ const struct iwm_cfg iwm3168_cfg = {
 	.fw_name = IWM3168_FW,
 	IWM_DEVICE_7000_COMMON,
 	.host_interrupt_operation_mode = 0,
+	.nvm_type = IWM_NVM_SDP,
 };
 
 const struct iwm_cfg iwm7265_cfg = {
