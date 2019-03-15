@@ -38,11 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <machine/intr_machdep.h>
-#if (__FreeBSD_version >= 1100000)
 #include <x86/apicvar.h>
-#else
-#include <machine/apicvar.h>
-#endif
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
