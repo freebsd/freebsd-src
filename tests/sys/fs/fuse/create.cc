@@ -114,6 +114,7 @@ TEST_F(Create, eexist)
  * to FUSE_MKNOD/FUSE_OPEN
  */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236236 */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
 TEST_F(Create, DISABLED_Enosys)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";

@@ -130,6 +130,32 @@ TEST_F(Getxattr, enoattr)
 }
 
 /*
+ * If the filesystem returns ENOSYS, then it will be treated as a permanent
+ * failure and all future VOP_GETEXTATTR calls will fail with EOPNOTSUPP
+ * without querying the filesystem daemon
+ */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
+TEST_F(Getxattr, DISABLED_enosys)
+{
+	char data[80];
+	uint64_t ino = 42;
+	int ns = EXTATTR_NAMESPACE_USER;
+	ssize_t r;
+
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_getxattr(ino, "user.foo", ReturnErrno(ENOSYS));
+
+	r = extattr_get_file(FULLPATH, ns, "foo", data, sizeof(data));
+	ASSERT_EQ(-1, r);
+	EXPECT_EQ(EOPNOTSUPP, errno);
+
+	/* Subsequent attempts should not query the filesystem at all */
+	r = extattr_get_file(FULLPATH, ns, "foo", data, sizeof(data));
+	ASSERT_EQ(-1, r);
+	EXPECT_EQ(EOPNOTSUPP, errno);
+}
+
+/*
  * On FreeBSD, if the user passes an insufficiently large buffer then the
  * filesystem is supposed to copy as much of the attribute's value as will fit.
  *
@@ -225,6 +251,28 @@ TEST_F(Getxattr, user)
 	r = extattr_get_file(FULLPATH, ns, "foo", data, sizeof(data));
 	ASSERT_EQ(value_len, r)  << strerror(errno);
 	EXPECT_STREQ(value, data);
+}
+
+/*
+ * If the filesystem returns ENOSYS, then it will be treated as a permanent
+ * failure and all future VOP_LISTEXTATTR calls will fail with EOPNOTSUPP
+ * without querying the filesystem daemon
+ */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
+TEST_F(Listxattr, DISABLED_enosys)
+{
+	uint64_t ino = 42;
+	int ns = EXTATTR_NAMESPACE_USER;
+
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_listxattr(ino, 0, ReturnErrno(ENOSYS));
+
+	ASSERT_EQ(-1, extattr_list_file(FULLPATH, ns, NULL, 0));
+	EXPECT_EQ(EOPNOTSUPP, errno);
+
+	/* Subsequent attempts should not query the filesystem at all */
+	ASSERT_EQ(-1, extattr_list_file(FULLPATH, ns, NULL, 0));
+	EXPECT_EQ(EOPNOTSUPP, errno);
 }
 
 /*
@@ -425,6 +473,28 @@ TEST_F(Removexattr, enoattr)
 	ASSERT_EQ(ENOATTR, errno);
 }
 
+/*
+ * If the filesystem returns ENOSYS, then it will be treated as a permanent
+ * failure and all future VOP_DELETEEXTATTR calls will fail with EOPNOTSUPP
+ * without querying the filesystem daemon
+ */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
+TEST_F(Removexattr, DISABLED_enosys)
+{
+	uint64_t ino = 42;
+	int ns = EXTATTR_NAMESPACE_USER;
+
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_removexattr(ino, "user.foo", ENOSYS);
+
+	ASSERT_EQ(-1, extattr_delete_file(FULLPATH, ns, "foo"));
+	EXPECT_EQ(EOPNOTSUPP, errno);
+
+	/* Subsequent attempts should not query the filesystem at all */
+	ASSERT_EQ(-1, extattr_delete_file(FULLPATH, ns, "foo"));
+	EXPECT_EQ(EOPNOTSUPP, errno);
+}
+
 /* Successfully remove a user xattr */
 TEST_F(Removexattr, user)
 {
@@ -449,6 +519,33 @@ TEST_F(Removexattr, system)
 
 	ASSERT_EQ(0, extattr_delete_file(FULLPATH, ns, "foo"))
 		<< strerror(errno);
+}
+
+/*
+ * If the filesystem returns ENOSYS, then it will be treated as a permanent
+ * failure and all future VOP_SETEXTATTR calls will fail with EOPNOTSUPP
+ * without querying the filesystem daemon
+ */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
+TEST_F(Setxattr, DISABLED_enosys)
+{
+	uint64_t ino = 42;
+	const char value[] = "whatever";
+	ssize_t value_len = strlen(value) + 1;
+	int ns = EXTATTR_NAMESPACE_USER;
+	ssize_t r;
+
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_setxattr(ino, "user.foo", value, ReturnErrno(ENOSYS));
+
+	r = extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len);
+	ASSERT_EQ(-1, r);
+	EXPECT_EQ(EOPNOTSUPP, errno);
+
+	/* Subsequent attempts should not query the filesystem at all */
+	r = extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len);
+	ASSERT_EQ(-1, r);
+	EXPECT_EQ(EOPNOTSUPP, errno);
 }
 
 /*

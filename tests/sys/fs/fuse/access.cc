@@ -41,6 +41,18 @@ using namespace testing;
 
 class Access: public FuseTest {
 public:
+void expect_access(uint64_t ino, mode_t access_mode, int error)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_ACCESS &&
+				in->header.nodeid == ino &&
+				in->body.access.mask == access_mode);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnErrno(error)));
+}
+
 void expect_lookup(const char *relpath, uint64_t ino)
 {
 	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 1);
@@ -59,18 +71,31 @@ TEST_F(Access, DISABLED_eaccess)
 	mode_t	access_mode = X_OK;
 
 	expect_lookup(RELPATH, ino);
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_ACCESS &&
-				in->header.nodeid == ino &&
-				in->body.access.mask == access_mode);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnErrno(EACCES)));
-
+	expect_access(ino, access_mode, EACCES);
 
 	ASSERT_NE(0, access(FULLPATH, access_mode));
 	ASSERT_EQ(EACCES, errno);
+}
+
+/*
+ * If the filesystem returns ENOSYS, then it is treated as a permanent success,
+ * and subsequent VOP_ACCESS calls will succeed automatically without querying
+ * the daemon.
+ */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236291 */
+TEST_F(Access, DISABLED_enosys)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	mode_t	access_mode = R_OK;
+
+	expect_lookup(RELPATH, ino);
+	expect_access(ino, access_mode, ENOSYS);
+
+	ASSERT_EQ(0, access(FULLPATH, access_mode)) << strerror(errno);
+	ASSERT_EQ(0, access(FULLPATH, access_mode)) << strerror(errno);
 }
 
 /* The successful case of FUSE_ACCESS.  */
@@ -83,14 +108,7 @@ TEST_F(Access, DISABLED_ok)
 	mode_t	access_mode = R_OK;
 
 	expect_lookup(RELPATH, ino);
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_ACCESS &&
-				in->header.nodeid == ino &&
-				in->body.access.mask == access_mode);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnErrno(0)));
+	expect_access(ino, access_mode, 0);
 
 	ASSERT_EQ(0, access(FULLPATH, access_mode)) << strerror(errno);
 }
