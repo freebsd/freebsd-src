@@ -9,6 +9,7 @@ TESTSDIR=	${TESTSBASE}/sys/fs/fuse
 # out, so we get more granular reporting.
 ATF_TESTS_CXX+=	access
 ATF_TESTS_CXX+=	create
+ATF_TESTS_CXX+=	destroy
 ATF_TESTS_CXX+=	flush
 ATF_TESTS_CXX+=	fsync
 ATF_TESTS_CXX+=	fsyncdir
@@ -44,6 +45,11 @@ SRCS.create+=	create.cc
 SRCS.create+=	getmntopts.c
 SRCS.create+=	mockfs.cc
 SRCS.create+=	utils.cc
+
+SRCS.destroy+=	destroy.cc
+SRCS.destroy+=	getmntopts.c
+SRCS.destroy+=	mockfs.cc
+SRCS.destroy+=	utils.cc
 
 SRCS.flush+=	flush.cc
 SRCS.flush+=	getmntopts.c
