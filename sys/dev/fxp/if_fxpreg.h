@@ -279,10 +279,15 @@ struct fxp_cb_tx {
 	uint16_t cb_status;
 	uint16_t cb_command;
 	uint32_t link_addr;
-	uint32_t tbd_array_addr;
-	uint16_t byte_count;
-	uint8_t tx_threshold;
-	uint8_t tbd_number;
+	union {
+		struct {
+			uint32_t tbd_array_addr;
+			uint16_t byte_count;
+			uint8_t tx_threshold;
+			uint8_t tbd_number;
+		};
+		struct fxp_tbd tbdtso;
+	};
 
 	/*
 	 * The following structure isn't actually part of the TxCB,
