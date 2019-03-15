@@ -184,7 +184,9 @@ MAN+=	abort2.2 \
 	extattr_get_file.2 \
 	fcntl.2 \
 	ffclock.2 \
+	fhlink.2 \
 	fhopen.2 \
+	fhreadlink.2 \
 	flock.2 \
 	fork.2 \
 	fsync.2 \
@@ -395,7 +397,8 @@ MLINKS+=ffclock.2 ffclock_getcounter.2 \
 MLINKS+=fhopen.2 fhstat.2 fhopen.2 fhstatfs.2
 MLINKS+=fsync.2 fdatasync.2
 MLINKS+=getdirentries.2 getdents.2
-MLINKS+=getfh.2 lgetfh.2
+MLINKS+=getfh.2 lgetfh.2 \
+	getfh.2 getfhat.2
 MLINKS+=getgid.2 getegid.2
 MLINKS+=getitimer.2 setitimer.2
 MLINKS+=getlogin.2 getlogin_r.3

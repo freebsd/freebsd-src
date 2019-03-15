@@ -490,4 +490,8 @@
 #define	FREEBSD32_SYS_freebsd32_cpuset_getdomain	561
 #define	FREEBSD32_SYS_freebsd32_cpuset_setdomain	562
 #define	FREEBSD32_SYS_getrandom	563
-#define	FREEBSD32_SYS_MAXSYSCALL	564
+#define	FREEBSD32_SYS_getfhat	564
+#define	FREEBSD32_SYS_fhlink	565
+#define	FREEBSD32_SYS_fhlinkat	566
+#define	FREEBSD32_SYS_fhreadlink	567
+#define	FREEBSD32_SYS_MAXSYSCALL	568
