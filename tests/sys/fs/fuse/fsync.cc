@@ -143,7 +143,7 @@ TEST_F(Fsync, close)
 		}, Eq(true)),
 		_)
 	).Times(0);
-	expect_release(ino, 1, 0);
+	expect_release(ino, 1, 0, 0);
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);

@@ -120,7 +120,7 @@ TEST_F(Getlk, DISABLED_no_locks)
 				in->body.getlk.lk.start == 10 &&
 				in->body.getlk.lk.end == 1009 &&
 				in->body.getlk.lk.type == F_RDLCK &&
-				in->body.getlk.lk.pid == 10);
+				in->body.getlk.lk.pid == (uint64_t)pid);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
@@ -153,7 +153,7 @@ TEST_F(Getlk, DISABLED_lock_exists)
 	struct flock fl;
 	int fd;
 	pid_t pid = 1234;
-	pid_t pid2 = 1234;
+	pid_t pid2 = 1235;
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
@@ -167,7 +167,7 @@ TEST_F(Getlk, DISABLED_lock_exists)
 				in->body.getlk.lk.start == 10 &&
 				in->body.getlk.lk.end == 1009 &&
 				in->body.getlk.lk.type == F_RDLCK &&
-				in->body.getlk.lk.pid == 10);
+				in->body.getlk.lk.pid == (uint64_t)pid);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
@@ -243,19 +243,18 @@ TEST_F(Setlk, DISABLED_set)
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_SETLK &&
 				in->header.nodeid == ino &&
-				in->body.getlk.fh == FH &&
-				in->body.getlk.owner == (uint32_t)pid &&
-				in->body.getlk.lk.start == 10 &&
-				in->body.getlk.lk.end == 1009 &&
-				in->body.getlk.lk.type == F_RDLCK &&
-				in->body.getlk.lk.pid == 10);
+				in->body.setlk.fh == FH &&
+				in->body.setlk.owner == (uint32_t)pid &&
+				in->body.setlk.lk.start == 10 &&
+				in->body.setlk.lk.end == 1009 &&
+				in->body.setlk.lk.type == F_RDLCK &&
+				in->body.setlk.lk.pid == (uint64_t)pid);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, getlk);
-		out->body.getlk.lk = in->body.getlk.lk;
-		out->body.getlk.lk.type = F_UNLCK;
+		SET_OUT_HEADER_LEN(out, setlk);
+		out->body.setlk.lk = in->body.setlk.lk;
 	})));
 
 	fd = open(FULLPATH, O_RDWR);
@@ -288,19 +287,18 @@ TEST_F(Setlk, DISABLED_set_eof)
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_SETLK &&
 				in->header.nodeid == ino &&
-				in->body.getlk.fh == FH &&
-				in->body.getlk.owner == (uint32_t)pid &&
-				in->body.getlk.lk.start == 10 &&
-				in->body.getlk.lk.end == OFFSET_MAX &&
-				in->body.getlk.lk.type == F_RDLCK &&
-				in->body.getlk.lk.pid == 10);
+				in->body.setlk.fh == FH &&
+				in->body.setlk.owner == (uint32_t)pid &&
+				in->body.setlk.lk.start == 10 &&
+				in->body.setlk.lk.end == OFFSET_MAX &&
+				in->body.setlk.lk.type == F_RDLCK &&
+				in->body.setlk.lk.pid == (uint64_t)pid);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, getlk);
-		out->body.getlk.lk = in->body.getlk.lk;
-		out->body.getlk.lk.type = F_UNLCK;
+		SET_OUT_HEADER_LEN(out, setlk);
+		out->body.setlk.lk = in->body.setlk.lk;
 	})));
 
 	fd = open(FULLPATH, O_RDWR);
@@ -333,12 +331,12 @@ TEST_F(Setlk, DISABLED_eagain)
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_SETLK &&
 				in->header.nodeid == ino &&
-				in->body.getlk.fh == FH &&
-				in->body.getlk.owner == (uint32_t)pid &&
-				in->body.getlk.lk.start == 10 &&
-				in->body.getlk.lk.end == 1009 &&
-				in->body.getlk.lk.type == F_RDLCK &&
-				in->body.getlk.lk.pid == 10);
+				in->body.setlk.fh == FH &&
+				in->body.setlk.owner == (uint32_t)pid &&
+				in->body.setlk.lk.start == 10 &&
+				in->body.setlk.lk.end == 1009 &&
+				in->body.setlk.lk.type == F_RDLCK &&
+				in->body.setlk.lk.pid == (uint64_t)pid);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(EAGAIN)));
@@ -406,19 +404,18 @@ TEST_F(Setlkw, DISABLED_set)
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_SETLK &&
 				in->header.nodeid == ino &&
-				in->body.getlk.fh == FH &&
-				in->body.getlk.owner == (uint32_t)pid &&
-				in->body.getlk.lk.start == 10 &&
-				in->body.getlk.lk.end == 1009 &&
-				in->body.getlk.lk.type == F_RDLCK &&
-				in->body.getlk.lk.pid == 10);
+				in->body.setlkw.fh == FH &&
+				in->body.setlkw.owner == (uint32_t)pid &&
+				in->body.setlkw.lk.start == 10 &&
+				in->body.setlkw.lk.end == 1009 &&
+				in->body.setlkw.lk.type == F_RDLCK &&
+				in->body.setlkw.lk.pid == (uint64_t)pid);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
 		out->header.unique = in->header.unique;
-		SET_OUT_HEADER_LEN(out, getlk);
-		out->body.getlk.lk = in->body.getlk.lk;
-		out->body.getlk.lk.type = F_UNLCK;
+		SET_OUT_HEADER_LEN(out, setlkw);
+		out->body.setlkw.lk = in->body.setlkw.lk;
 	})));
 
 	fd = open(FULLPATH, O_RDWR);
