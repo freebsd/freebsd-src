@@ -1,6 +1,7 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2019 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by BFF Storage Systems, LLC under sponsorship
  * from the FreeBSD Foundation.
@@ -27,76 +28,65 @@
  * SUCH DAMAGE.
  */
 
-extern "C" {
-#include <fcntl.h>
-}
-
 #include "mockfs.hh"
 #include "utils.hh"
 
 using namespace testing;
 
-class Unlink: public FuseTest {
+class Destroy: public FuseTest {
 public:
-void expect_lookup(const char *relpath, uint64_t ino, int times)
-{
-	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, times);
-}
-
-void expect_unlink(uint64_t parent, const char *path, int error)
+void expect_destroy(int error)
 {
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_UNLINK &&
-				0 == strcmp(path, in->body.unlink) &&
-				in->header.nodeid == parent);
+			return (in->header.opcode == FUSE_DESTROY);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(error)));
 }
 
+void expect_forget(uint64_t ino, uint64_t nlookup)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in->header.opcode == FUSE_FORGET &&
+				in->header.nodeid == ino &&
+				in->body.forget.nlookup == nlookup);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke([](auto in __unused, auto &out __unused) {
+		/* FUSE_FORGET has no response! */
+	}));
+}
 };
 
-TEST_F(Unlink, eperm)
+/*
+ * On unmount the kernel should send a FUSE_DESTROY operation.  It should also
+ * send FUSE_FORGET operations for all inodes with lookup_count > 0.  It's hard
+ * to trigger FUSE_FORGET in way except by unmounting, so this is the only
+ * testing that FUSE_FORGET gets.
+ */
+TEST_F(Destroy, ok)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
-	expect_lookup(RELPATH, ino, 1);
-	expect_unlink(1, RELPATH, EPERM);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 2);
+	expect_forget(1, 1);
+	expect_forget(ino, 2);
+	expect_destroy(0);
 
-	ASSERT_NE(0, unlink(FULLPATH));
-	ASSERT_EQ(EPERM, errno);
-}
+	/*
+	 * access(2) the file to force a lookup.  Access it twice to double its
+	 * lookup count.
+	 */
+	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
+	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 
-TEST_F(Unlink, ok)
-{
-	const char FULLPATH[] = "mountpoint/some_file.txt";
-	const char RELPATH[] = "some_file.txt";
-	uint64_t ino = 42;
-
-	expect_lookup(RELPATH, ino, 1);
-	expect_unlink(1, RELPATH, 0);
-
-	ASSERT_EQ(0, unlink(FULLPATH)) << strerror(errno);
-}
-
-/* Unlink an open file */
-TEST_F(Unlink, open_but_deleted)
-{
-	const char FULLPATH[] = "mountpoint/some_file.txt";
-	const char RELPATH[] = "some_file.txt";
-	uint64_t ino = 42;
-	int fd;
-
-	expect_lookup(RELPATH, ino, 2);
-	expect_open(ino, 0, 1);
-	expect_getattr(ino, 0);
-	expect_unlink(1, RELPATH, 0);
-
-	fd = open(FULLPATH, O_RDWR);
-	ASSERT_LE(0, fd) << strerror(errno);
-	ASSERT_EQ(0, unlink(FULLPATH)) << strerror(errno);
-	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+	/*
+	 * Unmount, triggering a FUSE_DESTROY and also causing a VOP_RECLAIM
+	 * for every vnode on this mp, triggering FUSE_FORGET for each of them.
+	 */
+	m_mock->unmount();
 }

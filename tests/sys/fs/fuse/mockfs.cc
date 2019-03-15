@@ -159,6 +159,9 @@ void debug_fuseop(const mockfs_buf_in *in)
 			in->header.unique, in->header.len);
 	}
 	switch (in->header.opcode) {
+		case FUSE_FORGET:
+			printf(" nlookup=%lu", in->body.forget.nlookup);
+			break;
 		case FUSE_FSYNC:
 			printf(" flags=%#x", in->body.fsync.fsync_flags);
 			break;
