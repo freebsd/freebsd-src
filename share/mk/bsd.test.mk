@@ -63,6 +63,7 @@ _TESTS=
 
 # Pull in the definitions of all supported test interfaces.
 .include <atf.test.mk>
+.include <googletest.test.mk>
 .include <plain.test.mk>
 .include <tap.test.mk>
 
