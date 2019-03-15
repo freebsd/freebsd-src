@@ -281,6 +281,7 @@
 #include <sys/callb.h>
 #include <sys/kstat.h>
 #include <sys/trim_map.h>
+#include <sys/zthr.h>
 #include <zfs_fletcher.h>
 #include <sys/sdt.h>
 #include <sys/aggsum.h>
@@ -296,10 +297,22 @@ int arc_procfd;
 #endif
 #endif /* illumos */
 
-static kmutex_t		arc_reclaim_lock;
-static kcondvar_t	arc_reclaim_thread_cv;
-static boolean_t	arc_reclaim_thread_exit;
-static kcondvar_t	arc_reclaim_waiters_cv;
+/*
+ * This thread's job is to keep enough free memory in the system, by
+ * calling arc_kmem_reap_now() plus arc_shrink(), which improves
+ * arc_available_memory().
+ */
+static zthr_t		*arc_reap_zthr;
+
+/*
+ * This thread's job is to keep arc_size under arc_c, by calling
+ * arc_adjust(), which improves arc_is_overflowing().
+ */
+static zthr_t		*arc_adjust_zthr;
+
+static kmutex_t		arc_adjust_lock;
+static kcondvar_t	arc_adjust_waiters_cv;
+static boolean_t	arc_adjust_needed = B_FALSE;
 
 static kmutex_t		arc_dnlc_evicts_lock;
 static kcondvar_t	arc_dnlc_evicts_cv;
@@ -317,19 +330,23 @@ uint_t arc_reduce_dnlc_percent = 3;
 int zfs_arc_evict_batch_limit = 10;
 
 /* number of seconds before growing cache again */
-static int		arc_grow_retry = 60;
+int arc_grow_retry = 60;
 
-/* number of milliseconds before attempting a kmem-cache-reap */
-static int		arc_kmem_cache_reap_retry_ms = 0;
+/*
+ * Minimum time between calls to arc_kmem_reap_soon().  Note that this will
+ * be converted to ticks, so with the default hz=100, a setting of 15 ms
+ * will actually wait 2 ticks, or 20ms.
+ */
+int arc_kmem_cache_reap_retry_ms = 1000;
 
 /* shift of arc_c for calculating overflow limit in arc_get_data_impl */
-int		zfs_arc_overflow_shift = 8;
+int zfs_arc_overflow_shift = 8;
 
 /* shift of arc_c for calculating both min and max arc_p */
-static int		arc_p_min_shift = 4;
+int arc_p_min_shift = 4;
 
 /* log2(fraction of arc to reclaim) */
-static int		arc_shrink_shift = 7;
+int arc_shrink_shift = 7;
 
 /*
  * log2(fraction of ARC which must be free to allow growing).
@@ -355,7 +372,7 @@ static int		zfs_arc_min_prescient_prefetch_ms = 6;
  */
 int arc_lotsfree_percent = 10;
 
-static int arc_dead;
+static boolean_t arc_initialized;
 extern boolean_t zfs_prefetch_disable;
 
 /*
@@ -1052,6 +1069,7 @@ static kmutex_t arc_prune_mtx;
 static taskq_t *arc_prune_taskq;
 
 static int		arc_no_grow;	/* Don't try to grow cache size */
+static hrtime_t		arc_growtime;
 static uint64_t		arc_tempreserve;
 static uint64_t		arc_loaned_bytes;
 
@@ -1819,8 +1837,8 @@ hdr_recl(void *unused)
 	 * umem calls the reclaim func when we destroy the buf cache,
 	 * which is after we do arc_fini().
 	 */
-	if (!arc_dead)
-		cv_signal(&arc_reclaim_thread_cv);
+	if (arc_initialized)
+		zthr_wakeup(arc_reap_zthr);
 }
 
 static void
@@ -3905,13 +3923,14 @@ arc_evict_state_impl(multilist_t *ml, int idx, arc_buf_hdr_t *marker,
 			 * function should proceed in this case).
 			 *
 			 * If threads are left sleeping, due to not
-			 * using cv_broadcast, they will be woken up
-			 * just before arc_reclaim_thread() sleeps.
+			 * using cv_broadcast here, they will be woken
+			 * up via cv_broadcast in arc_adjust_cb() just
+			 * before arc_adjust_zthr sleeps.
 			 */
-			mutex_enter(&arc_reclaim_lock);
+			mutex_enter(&arc_adjust_lock);
 			if (!arc_is_overflowing())
-				cv_signal(&arc_reclaim_waiters_cv);
-			mutex_exit(&arc_reclaim_lock);
+				cv_signal(&arc_adjust_waiters_cv);
+			mutex_exit(&arc_adjust_lock);
 		} else {
 			ARCSTAT_BUMP(arcstat_mutex_miss);
 		}
@@ -4565,8 +4584,8 @@ arc_flush(spa_t *spa, boolean_t retry)
 	(void) arc_flush_state(arc_mfu_ghost, guid, ARC_BUFC_METADATA, retry);
 }
 
-uint64_t
-arc_shrink(int64_t to_free)
+static void
+arc_reduce_target_size(int64_t to_free)
 {
 	uint64_t asize = aggsum_value(&arc_size);
 	if (arc_c > arc_c_min) {
@@ -4593,9 +4612,12 @@ arc_shrink(int64_t to_free)
 	if (asize > arc_c) {
 		DTRACE_PROBE2(arc__shrink_adjust, uint64_t, asize,
 			uint64_t, arc_c);
-		return (arc_adjust());
+		/* See comment in arc_adjust_cb_check() on why lock+flag */
+		mutex_enter(&arc_adjust_lock);
+		arc_adjust_needed = B_TRUE;
+		mutex_exit(&arc_adjust_lock);
+		zthr_wakeup(arc_adjust_zthr);
 	}
-	return (0);
 }
 
 typedef enum free_memory_reason_t {
@@ -4765,7 +4787,7 @@ extern kmem_cache_t	*range_seg_cache;
 extern kmem_cache_t	*abd_chunk_cache;
 
 static __noinline void
-arc_kmem_reap_now(void)
+arc_kmem_reap_soon(void)
 {
 	size_t			i;
 	kmem_cache_t		*prev_cache = NULL;
@@ -4787,16 +4809,6 @@ arc_kmem_reap_now(void)
 	kmem_reap();
 #endif
 #endif
-
-	/*
-	 * If a kmem reap is already active, don't schedule more.  We must
-	 * check for this because kmem_cache_reap_soon() won't actually
-	 * block on the cache being reaped (this is to prevent callers from
-	 * becoming implicitly blocked by a system-wide kmem reap -- which,
-	 * on a system with many, many full magazines, can take minutes).
-	 */
-	if (kmem_cache_reap_active())
-		return;
 
 	for (i = 0; i < SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT; i++) {
 		if (zio_buf_cache[i] != prev_cache) {
@@ -4826,141 +4838,163 @@ arc_kmem_reap_now(void)
 	DTRACE_PROBE(arc__kmem_reap_end);
 }
 
-/*
- * Threads can block in arc_get_data_impl() waiting for this thread to evict
- * enough data and signal them to proceed. When this happens, the threads in
- * arc_get_data_impl() are sleeping while holding the hash lock for their
- * particular arc header. Thus, we must be careful to never sleep on a
- * hash lock in this thread. This is to prevent the following deadlock:
- *
- *  - Thread A sleeps on CV in arc_get_data_impl() holding hash lock "L",
- *    waiting for the reclaim thread to signal it.
- *
- *  - arc_reclaim_thread() tries to acquire hash lock "L" using mutex_enter,
- *    fails, and goes to sleep forever.
- *
- * This possible deadlock is avoided by always acquiring a hash lock
- * using mutex_tryenter() from arc_reclaim_thread().
- */
 /* ARGSUSED */
-static void
-arc_reclaim_thread(void *unused __unused)
+static boolean_t
+arc_adjust_cb_check(void *arg, zthr_t *zthr)
 {
-	hrtime_t		growtime = 0;
-	hrtime_t		kmem_reap_time = 0;
-	callb_cpr_t		cpr;
+	/*
+	 * This is necessary in order for the mdb ::arc dcmd to
+	 * show up to date information. Since the ::arc command
+	 * does not call the kstat's update function, without
+	 * this call, the command may show stale stats for the
+	 * anon, mru, mru_ghost, mfu, and mfu_ghost lists. Even
+	 * with this change, the data might be up to 1 second
+	 * out of date(the arc_adjust_zthr has a maximum sleep
+	 * time of 1 second); but that should suffice.  The
+	 * arc_state_t structures can be queried directly if more
+	 * accurate information is needed.
+	 */
+	if (arc_ksp != NULL)
+		arc_ksp->ks_update(arc_ksp, KSTAT_READ);
 
-	CALLB_CPR_INIT(&cpr, &arc_reclaim_lock, callb_generic_cpr, FTAG);
+	/*
+	 * We have to rely on arc_get_data_impl() to tell us when to adjust,
+	 * rather than checking if we are overflowing here, so that we are
+	 * sure to not leave arc_get_data_impl() waiting on
+	 * arc_adjust_waiters_cv.  If we have become "not overflowing" since
+	 * arc_get_data_impl() checked, we need to wake it up.  We could
+	 * broadcast the CV here, but arc_get_data_impl() may have not yet
+	 * gone to sleep.  We would need to use a mutex to ensure that this
+	 * function doesn't broadcast until arc_get_data_impl() has gone to
+	 * sleep (e.g. the arc_adjust_lock).  However, the lock ordering of
+	 * such a lock would necessarily be incorrect with respect to the
+	 * zthr_lock, which is held before this function is called, and is
+	 * held by arc_get_data_impl() when it calls zthr_wakeup().
+	 */
+	return (arc_adjust_needed);
+}
 
-	mutex_enter(&arc_reclaim_lock);
-	while (!arc_reclaim_thread_exit) {
-		uint64_t evicted = 0;
+/*
+ * Keep arc_size under arc_c by running arc_adjust which evicts data
+ * from the ARC. */
+/* ARGSUSED */
+static int
+arc_adjust_cb(void *arg, zthr_t *zthr)
+{
+	uint64_t evicted = 0;
 
+	/* Evict from cache */
+	evicted = arc_adjust();
+
+	/*
+	 * If evicted is zero, we couldn't evict anything
+	 * via arc_adjust(). This could be due to hash lock
+	 * collisions, but more likely due to the majority of
+	 * arc buffers being unevictable. Therefore, even if
+	 * arc_size is above arc_c, another pass is unlikely to
+	 * be helpful and could potentially cause us to enter an
+	 * infinite loop.  Additionally, zthr_iscancelled() is
+	 * checked here so that if the arc is shutting down, the
+	 * broadcast will wake any remaining arc adjust waiters.
+	 */
+	mutex_enter(&arc_adjust_lock);
+	arc_adjust_needed = !zthr_iscancelled(arc_adjust_zthr) &&
+	    evicted > 0 && aggsum_compare(&arc_size, arc_c) > 0;
+	if (!arc_adjust_needed) {
 		/*
-		 * This is necessary in order for the mdb ::arc dcmd to
-		 * show up to date information. Since the ::arc command
-		 * does not call the kstat's update function, without
-		 * this call, the command may show stale stats for the
-		 * anon, mru, mru_ghost, mfu, and mfu_ghost lists. Even
-		 * with this change, the data might be up to 1 second
-		 * out of date; but that should suffice. The arc_state_t
-		 * structures can be queried directly if more accurate
-		 * information is needed.
+		 * We're either no longer overflowing, or we
+		 * can't evict anything more, so we should wake
+		 * up any waiters.
 		 */
-		if (arc_ksp != NULL)
-			arc_ksp->ks_update(arc_ksp, KSTAT_READ);
+		cv_broadcast(&arc_adjust_waiters_cv);
+	}
+	mutex_exit(&arc_adjust_lock);
 
-		mutex_exit(&arc_reclaim_lock);
+	return (0);
+}
 
+/* ARGSUSED */
+static boolean_t
+arc_reap_cb_check(void *arg, zthr_t *zthr)
+{
+	int64_t free_memory = arc_available_memory();
+
+	/*
+	 * If a kmem reap is already active, don't schedule more.  We must
+	 * check for this because kmem_cache_reap_soon() won't actually
+	 * block on the cache being reaped (this is to prevent callers from
+	 * becoming implicitly blocked by a system-wide kmem reap -- which,
+	 * on a system with many, many full magazines, can take minutes).
+	 */
+	if (!kmem_cache_reap_active() &&
+	    free_memory < 0) {
+		arc_no_grow = B_TRUE;
+		arc_warm = B_TRUE;
 		/*
-		 * We call arc_adjust() before (possibly) calling
-		 * arc_kmem_reap_now(), so that we can wake up
-		 * arc_get_data_impl() sooner.
+		 * Wait at least zfs_grow_retry (default 60) seconds
+		 * before considering growing.
 		 */
-		evicted = arc_adjust();
-
-		int64_t free_memory = arc_available_memory();
-		if (free_memory < 0) {
-			hrtime_t curtime = gethrtime();
-			arc_no_grow = B_TRUE;
-			arc_warm = B_TRUE;
-
-			/*
-			 * Wait at least zfs_grow_retry (default 60) seconds
-			 * before considering growing.
-			 */
-			growtime = curtime + SEC2NSEC(arc_grow_retry);
-
-			/*
-			 * Wait at least arc_kmem_cache_reap_retry_ms
-			 * between arc_kmem_reap_now() calls. Without
-			 * this check it is possible to end up in a
-			 * situation where we spend lots of time
-			 * reaping caches, while we're near arc_c_min.
-			 */
-			if (curtime >= kmem_reap_time) {
-				arc_kmem_reap_now();
-				kmem_reap_time = gethrtime() +
-				    MSEC2NSEC(arc_kmem_cache_reap_retry_ms);
-			}
-
-			/*
-			 * If we are still low on memory, shrink the ARC
-			 * so that we have arc_shrink_min free space.
-			 */
-			free_memory = arc_available_memory();
-
-			int64_t to_free =
-			    (arc_c >> arc_shrink_shift) - free_memory;
-			if (to_free > 0) {
-#ifdef _KERNEL
-#ifdef illumos
-				to_free = MAX(to_free, ptob(needfree));
-#endif
-#endif
-				evicted += arc_shrink(to_free);
-			}
-		} else if (free_memory < arc_c >> arc_no_grow_shift) {
-			arc_no_grow = B_TRUE;
-		} else if (gethrtime() >= growtime) {
-			arc_no_grow = B_FALSE;
-		}
-
-		mutex_enter(&arc_reclaim_lock);
-
-		/*
-		 * If evicted is zero, we couldn't evict anything via
-		 * arc_adjust(). This could be due to hash lock
-		 * collisions, but more likely due to the majority of
-		 * arc buffers being unevictable. Therefore, even if
-		 * arc_size is above arc_c, another pass is unlikely to
-		 * be helpful and could potentially cause us to enter an
-		 * infinite loop.
-		 */
-		if (aggsum_compare(&arc_size, arc_c) <= 0|| evicted == 0) {
-			/*
-			 * We're either no longer overflowing, or we
-			 * can't evict anything more, so we should wake
-			 * up any threads before we go to sleep.
-			 */
-			cv_broadcast(&arc_reclaim_waiters_cv);
-
-			/*
-			 * Block until signaled, or after one second (we
-			 * might need to perform arc_kmem_reap_now()
-			 * even if we aren't being signalled)
-			 */
-			CALLB_CPR_SAFE_BEGIN(&cpr);
-			(void) cv_timedwait_hires(&arc_reclaim_thread_cv,
-			    &arc_reclaim_lock, SEC2NSEC(1), MSEC2NSEC(1), 0);
-			CALLB_CPR_SAFE_END(&cpr, &arc_reclaim_lock);
-		}
+		arc_growtime = gethrtime() + SEC2NSEC(arc_grow_retry);
+		return (B_TRUE);
+	} else if (free_memory < arc_c >> arc_no_grow_shift) {
+		arc_no_grow = B_TRUE;
+	} else if (gethrtime() >= arc_growtime) {
+		arc_no_grow = B_FALSE;
 	}
 
-	arc_reclaim_thread_exit = B_FALSE;
-	cv_broadcast(&arc_reclaim_thread_cv);
-	CALLB_CPR_EXIT(&cpr);		/* drops arc_reclaim_lock */
-	thread_exit();
+	return (B_FALSE);
+}
+
+/*
+ * Keep enough free memory in the system by reaping the ARC's kmem
+ * caches.  To cause more slabs to be reapable, we may reduce the
+ * target size of the cache (arc_c), causing the arc_adjust_cb()
+ * to free more buffers.
+ */
+/* ARGSUSED */
+static int
+arc_reap_cb(void *arg, zthr_t *zthr)
+{
+	int64_t free_memory;
+
+	/*
+	 * Kick off asynchronous kmem_reap()'s of all our caches.
+	 */
+	arc_kmem_reap_soon();
+
+	/*
+	 * Wait at least arc_kmem_cache_reap_retry_ms between
+	 * arc_kmem_reap_soon() calls. Without this check it is possible to
+	 * end up in a situation where we spend lots of time reaping
+	 * caches, while we're near arc_c_min.  Waiting here also gives the
+	 * subsequent free memory check a chance of finding that the
+	 * asynchronous reap has already freed enough memory, and we don't
+	 * need to call arc_reduce_target_size().
+	 */
+	delay((hz * arc_kmem_cache_reap_retry_ms + 999) / 1000);
+
+	/*
+	 * Reduce the target size as needed to maintain the amount of free
+	 * memory in the system at a fraction of the arc_size (1/128th by
+	 * default).  If oversubscribed (free_memory < 0) then reduce the
+	 * target arc_size by the deficit amount plus the fractional
+	 * amount.  If free memory is positive but less then the fractional
+	 * amount, reduce by what is needed to hit the fractional amount.
+	 */
+	free_memory = arc_available_memory();
+
+	int64_t to_free =
+	    (arc_c >> arc_shrink_shift) - free_memory;
+	if (to_free > 0) {
+#ifdef _KERNEL
+#ifdef illumos
+		to_free = MAX(to_free, ptob(needfree));
+#endif
+#endif
+		arc_reduce_target_size(to_free);
+	}
+
+	return (0);
 }
 
 static u_int arc_dnlc_evicts_arg;
@@ -5055,8 +5089,11 @@ arc_adapt(int bytes, arc_state_t *state)
 	}
 	ASSERT((int64_t)arc_p >= 0);
 
+	/*
+	 * Wake reap thread if we do not have any available memory
+	 */
 	if (arc_reclaim_needed()) {
-		cv_signal(&arc_reclaim_thread_cv);
+		zthr_wakeup(arc_reap_zthr);
 		return;
 	}
 
@@ -5164,7 +5201,7 @@ arc_get_data_impl(arc_buf_hdr_t *hdr, uint64_t size, void *tag)
 	 * overflowing; thus we don't use a while loop here.
 	 */
 	if (arc_is_overflowing()) {
-		mutex_enter(&arc_reclaim_lock);
+		mutex_enter(&arc_adjust_lock);
 
 		/*
 		 * Now that we've acquired the lock, we may no longer be
@@ -5178,11 +5215,12 @@ arc_get_data_impl(arc_buf_hdr_t *hdr, uint64_t size, void *tag)
 		 * shouldn't cause any harm.
 		 */
 		if (arc_is_overflowing()) {
-			cv_signal(&arc_reclaim_thread_cv);
-			cv_wait(&arc_reclaim_waiters_cv, &arc_reclaim_lock);
+			arc_adjust_needed = B_TRUE;
+			zthr_wakeup(arc_adjust_zthr);
+			(void) cv_wait(&arc_adjust_waiters_cv,
+			    &arc_adjust_lock);
 		}
-
-		mutex_exit(&arc_reclaim_lock);
+		mutex_exit(&arc_adjust_lock);
 	}
 
 	VERIFY3U(hdr->b_type, ==, type);
@@ -6898,10 +6936,19 @@ static eventhandler_tag arc_event_lowmem = NULL;
 static void
 arc_lowmem(void *arg __unused, int howto __unused)
 {
+	int64_t free_memory, to_free;
 
-	mutex_enter(&arc_reclaim_lock);
-	DTRACE_PROBE1(arc__needfree, int64_t, ((int64_t)freemem - zfs_arc_free_target) * PAGESIZE);
-	cv_signal(&arc_reclaim_thread_cv);
+	arc_no_grow = B_TRUE;
+	arc_warm = B_TRUE;
+	arc_growtime = gethrtime() + SEC2NSEC(arc_grow_retry);
+	free_memory = arc_available_memory();
+	to_free = (arc_c >> arc_shrink_shift) - MIN(free_memory, 0);
+	DTRACE_PROBE2(arc__needfree, int64_t, free_memory, int64_t, to_free);
+	arc_reduce_target_size(to_free);
+
+	mutex_enter(&arc_adjust_lock);
+	arc_adjust_needed = B_TRUE;
+	zthr_wakeup(arc_adjust_zthr);
 
 	/*
 	 * It is unsafe to block here in arbitrary threads, because we can come
@@ -6909,8 +6956,8 @@ arc_lowmem(void *arg __unused, int howto __unused)
 	 * with ARC reclaim thread.
 	 */
 	if (curproc == pageproc)
-		(void) cv_wait(&arc_reclaim_waiters_cv, &arc_reclaim_lock);
-	mutex_exit(&arc_reclaim_lock);
+		(void) cv_wait(&arc_adjust_waiters_cv, &arc_adjust_lock);
+	mutex_exit(&arc_adjust_lock);
 }
 #endif
 
@@ -7052,11 +7099,8 @@ arc_init(void)
 #else
 	uint64_t allmem = kmem_size();
 #endif
-
-
-	mutex_init(&arc_reclaim_lock, NULL, MUTEX_DEFAULT, NULL);
-	cv_init(&arc_reclaim_thread_cv, NULL, CV_DEFAULT, NULL);
-	cv_init(&arc_reclaim_waiters_cv, NULL, CV_DEFAULT, NULL);
+	mutex_init(&arc_adjust_lock, NULL, MUTEX_DEFAULT, NULL);
+	cv_init(&arc_adjust_waiters_cv, NULL, CV_DEFAULT, NULL);
 
 	mutex_init(&arc_dnlc_evicts_lock, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&arc_dnlc_evicts_cv, NULL, CV_DEFAULT, NULL);
@@ -7159,6 +7203,13 @@ arc_init(void)
 	zfs_arc_max = arc_c_max;
 
 	arc_state_init();
+
+	/*
+	 * The arc must be "uninitialized", so that hdr_recl() (which is
+	 * registered by buf_init()) will not access arc_reap_zthr before
+	 * it is created.
+	 */
+	ASSERT(!arc_initialized);
 	buf_init();
 
 	list_create(&arc_prune_list, sizeof (arc_prune_t),
@@ -7168,7 +7219,6 @@ arc_init(void)
 	arc_prune_taskq = taskq_create("arc_prune", max_ncpus, minclsyspri,
 	    max_ncpus, INT_MAX, TASKQ_PREPOPULATE | TASKQ_DYNAMIC);
 
-	arc_reclaim_thread_exit = B_FALSE;
 	arc_dnlc_evicts_thread_exit = FALSE;
 
 	arc_ksp = kstat_create("zfs", 0, "arcstats", "misc", KSTAT_TYPE_NAMED,
@@ -7180,8 +7230,10 @@ arc_init(void)
 		kstat_install(arc_ksp);
 	}
 
-	(void) thread_create(NULL, 0, arc_reclaim_thread, NULL, 0, &p0,
-	    TS_RUN, minclsyspri);
+	arc_adjust_zthr = zthr_create_timer(arc_adjust_cb_check,
+	    arc_adjust_cb, NULL, SEC2NSEC(1));
+	arc_reap_zthr = zthr_create_timer(arc_reap_cb_check,
+	    arc_reap_cb, NULL, SEC2NSEC(1));
 
 #ifdef _KERNEL
 	arc_event_lowmem = EVENTHANDLER_REGISTER(vm_lowmem, arc_lowmem, NULL,
@@ -7191,7 +7243,7 @@ arc_init(void)
 	(void) thread_create(NULL, 0, arc_dnlc_evicts_thread, NULL, 0, &p0,
 	    TS_RUN, minclsyspri);
 
-	arc_dead = B_FALSE;
+	arc_initialized = B_TRUE;
 	arc_warm = B_FALSE;
 
 	/*
@@ -7256,18 +7308,6 @@ arc_fini(void)
 		EVENTHANDLER_DEREGISTER(vm_lowmem, arc_event_lowmem);
 #endif
 
-	mutex_enter(&arc_reclaim_lock);
-	arc_reclaim_thread_exit = B_TRUE;
-	/*
-	 * The reclaim thread will set arc_reclaim_thread_exit back to
-	 * B_FALSE when it is finished exiting; we're waiting for that.
-	 */
-	while (arc_reclaim_thread_exit) {
-		cv_signal(&arc_reclaim_thread_cv);
-		cv_wait(&arc_reclaim_thread_cv, &arc_reclaim_lock);
-	}
-	mutex_exit(&arc_reclaim_lock);
-
 	/* Use B_TRUE to ensure *all* buffers are evicted */
 	arc_flush(NULL, B_TRUE);
 
@@ -7283,7 +7323,7 @@ arc_fini(void)
 	}
 	mutex_exit(&arc_dnlc_evicts_lock);
 
-	arc_dead = B_TRUE;
+	arc_initialized = B_FALSE;
 
 	if (arc_ksp != NULL) {
 		kstat_delete(arc_ksp);
@@ -7304,12 +7344,18 @@ arc_fini(void)
 
 	list_destroy(&arc_prune_list);
 	mutex_destroy(&arc_prune_mtx);
-	mutex_destroy(&arc_reclaim_lock);
-	cv_destroy(&arc_reclaim_thread_cv);
-	cv_destroy(&arc_reclaim_waiters_cv);
+
+	(void) zthr_cancel(arc_adjust_zthr);
+	zthr_destroy(arc_adjust_zthr);
 
 	mutex_destroy(&arc_dnlc_evicts_lock);
 	cv_destroy(&arc_dnlc_evicts_cv);
+
+	(void) zthr_cancel(arc_reap_zthr);
+	zthr_destroy(arc_reap_zthr);
+
+	mutex_destroy(&arc_adjust_lock);
+	cv_destroy(&arc_adjust_waiters_cv);
 
 	arc_state_fini();
 	buf_fini();
