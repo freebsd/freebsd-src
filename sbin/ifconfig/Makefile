@@ -39,9 +39,11 @@ SRCS+=	sfp.c			# SFP/SFP+ information
 DPADD+=	${LIBM}
 LDADD+=	-lm
 
+.if ${MK_WIRELESS_SUPPORT} != "no"
 SRCS+=	ifieee80211.c regdomain.c # SIOC[GS]IEEE80211 support
 DPADD+=	${LIBBSDXML} ${LIBSBUF}
 LDADD+=	-lbsdxml -lsbuf
+.endif
 
 SRCS+=	carp.c			# SIOC[GS]VH support
 SRCS+=	ifgroup.c		# ...
