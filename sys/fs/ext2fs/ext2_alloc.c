@@ -412,23 +412,21 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	td = curthread;
 	error = vfs_hash_get(ump->um_mountp, ino, LK_EXCLUSIVE, td, vpp, NULL, NULL);
 	if (error || *vpp != NULL) {
-		EXT2_UNLOCK(ump);
 		return (error);
 	}
 
 	ip = malloc(sizeof(struct inode), M_EXT2NODE, M_WAITOK | M_ZERO);
 	if (ip == NULL) {
-		EXT2_UNLOCK(ump);
 		return (ENOMEM);
 	}
 
 	/* Allocate a new vnode/inode. */
 	if ((error = getnewvnode("ext2fs", ump->um_mountp, &ext2_vnodeops, &vp)) != 0) {
 		free(ip, M_EXT2NODE);
-		EXT2_UNLOCK(ump);
 		return (error);
 	}
 
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
 	vp->v_data = ip;
 	ip->i_vnode = vp;
 	ip->i_e2fs = fs = ump->um_e2fs;
@@ -438,11 +436,9 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	ip->i_next_alloc_block = 0;
 	ip->i_next_alloc_goal = 0;
 
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
 	error = insmntque(vp, ump->um_mountp);
 	if (error) {
 		free(ip, M_EXT2NODE);
-		EXT2_UNLOCK(ump);
 		return (error);
 	}
 
@@ -450,7 +446,6 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	if (error || *vpp != NULL) {
 		*vpp = NULL;
 		free(ip, M_EXT2NODE);
-		EXT2_UNLOCK(ump);
 		return (error);
 	}
 
@@ -458,7 +453,6 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 		vput(vp);
 		*vpp = NULL;
 		free(ip, M_EXT2NODE);
-		EXT2_UNLOCK(ump);
 		return (error);
 	}
 
