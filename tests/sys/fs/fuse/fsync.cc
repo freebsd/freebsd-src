@@ -56,7 +56,6 @@ void expect_fsync(uint64_t ino, uint32_t flags, int error)
 		ResultOf([=](auto in) {
 			return (in->header.opcode == FUSE_FSYNC &&
 				in->header.nodeid == ino &&
-				//(pid_t)in->header.pid == getpid() &&
 				in->body.fsync.fh == FH &&
 				in->body.fsync.fsync_flags == flags);
 		}, Eq(true)),
@@ -174,6 +173,39 @@ TEST_F(Fsync, DISABLED_eio)
 
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
+
+/*
+ * If the filesystem returns ENOSYS, it will be treated as success and
+ * subsequent calls to VOP_FSYNC will succeed automatically without being sent
+ * to the filesystem daemon
+ */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236474 */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
+TEST_F(Fsync, DISABLED_enosys)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	ssize_t bufsize = strlen(CONTENTS);
+	uint64_t ino = 42;
+	int fd;
+
+	expect_lookup(RELPATH, ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
+	expect_write(ino, bufsize, CONTENTS);
+	expect_fsync(ino, FUSE_FSYNC_FDATASYNC, ENOSYS);
+
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
+	EXPECT_EQ(0, fdatasync(fd));
+
+	/* Subsequent calls shouldn't query the daemon*/
+	EXPECT_EQ(0, fdatasync(fd));
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
 
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236474 */
 TEST_F(Fsync, DISABLED_fdatasync)

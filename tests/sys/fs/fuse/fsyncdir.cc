@@ -119,6 +119,34 @@ TEST_F(FsyncDir, DISABLED_eio)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
+/*
+ * If the filesystem returns ENOSYS, it will be treated as success and
+ * subsequent calls to VOP_FSYNC will succeed automatically without being sent
+ * to the filesystem daemon
+ */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236474 */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
+TEST_F(FsyncDir, DISABLED_enosys)
+{
+	const char FULLPATH[] = "mountpoint/some_dir";
+	const char RELPATH[] = "some_dir";
+	uint64_t ino = 42;
+	int fd;
+
+	expect_lookup(RELPATH, ino);
+	expect_opendir(ino);
+	expect_fsyncdir(ino, FUSE_FSYNC_FDATASYNC, ENOSYS);
+
+	fd = open(FULLPATH, O_DIRECTORY);
+	ASSERT_LE(0, fd) << strerror(errno);
+	EXPECT_EQ(0, fsync(fd)) << strerror(errno);
+
+	/* Subsequent calls shouldn't query the daemon*/
+	EXPECT_EQ(0, fsync(fd)) << strerror(errno);
+
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236474 */
 TEST_F(FsyncDir, DISABLED_fsyncdata)
 {

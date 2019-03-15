@@ -134,6 +134,35 @@ TEST_F(Flush, DISABLED_eio)
 	ASSERT_TRUE(0 == close(fd) || errno == EIO) << strerror(errno);
 }
 
+/*
+ * If the filesystem returns ENOSYS, it will be treated as success and
+ * no more FUSE_FLUSH operations will be sent to the daemon
+ */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236405 */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
+TEST_F(Flush, DISABLED_enosys)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int fd, fd2;
+
+	expect_lookup(RELPATH, ino);
+	expect_open(ino, 0, 1);
+	expect_getattr(ino, 0);
+	/* On the 2nd close, FUSE_FLUSH won't be sent at all */
+	expect_flush(ino, 1, 0, ReturnErrno(ENOSYS));
+	expect_release();
+
+	fd = open(FULLPATH, O_WRONLY);
+	EXPECT_LE(0, fd) << strerror(errno);
+
+	fd2 = dup(fd);
+
+	EXPECT_EQ(0, close(fd2)) << strerror(errno);
+	EXPECT_EQ(0, close(fd)) << strerror(errno);
+}
+
 /* A FUSE_FLUSH should be sent on close(2) */
 /* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236405 */
 TEST_F(Flush, DISABLED_flush)
