@@ -41,7 +41,7 @@ class Readlink: public FuseTest {
 public:
 void expect_lookup(const char *relpath, uint64_t ino)
 {
-	FuseTest::expect_lookup(relpath, ino, S_IFLNK | 0777, 1);
+	FuseTest::expect_lookup(relpath, ino, S_IFLNK | 0777, 0, 1);
 }
 };
 

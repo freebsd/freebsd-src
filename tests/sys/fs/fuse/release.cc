@@ -43,7 +43,7 @@ class Release: public FuseTest {
 public:
 void expect_lookup(const char *relpath, uint64_t ino, int times)
 {
-	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, times);
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 0, times);
 }
 };
 

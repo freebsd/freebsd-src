@@ -143,7 +143,7 @@ TEST_F(Mkdir, DISABLED_entry_cache_negative_purge)
 	ASSERT_EQ(0, mkdir(FULLPATH, mode)) << strerror(errno);
 
 	/* Finally, a subsequent lookup should query the daemon */
-	expect_lookup(RELPATH, ino, S_IFDIR | mode, 1);
+	expect_lookup(RELPATH, ino, S_IFDIR | mode, 0, 1);
 
 	ASSERT_EQ(0, access(FULLPATH, F_OK)) << strerror(errno);
 }

@@ -48,9 +48,9 @@ using namespace testing;
 class Read: public FuseTest {
 
 public:
-void expect_lookup(const char *relpath, uint64_t ino)
+void expect_lookup(const char *relpath, uint64_t ino, uint64_t size)
 {
-	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 1);
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, size, 1);
 }
 };
 
@@ -97,7 +97,7 @@ TEST_F(AioRead, aio_read)
 	char buf[bufsize];
 	struct aiocb iocb, *piocb;
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, bufsize);
 	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
@@ -132,7 +132,7 @@ TEST_F(AioRead, async_read_disabled)
 	off_t off1 = 4096;
 	struct aiocb iocb0, iocb1;
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, bufsize);
 	EXPECT_CALL(*m_mock, process(
@@ -210,7 +210,7 @@ TEST_F(AsyncRead, DISABLED_async_read)
 	off_t off1 = 4096;
 	struct aiocb iocb0, iocb1;
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, bufsize);
 	EXPECT_CALL(*m_mock, process(
@@ -279,7 +279,7 @@ TEST_F(Read, direct_io_read_nothing)
 	uint64_t offset = 100;
 	char buf[80];
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, offset + 1000);
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
 	expect_getattr(ino, offset + 1000);
 
@@ -305,7 +305,7 @@ TEST_F(Read, direct_io_pread)
 	ssize_t bufsize = strlen(CONTENTS);
 	char buf[bufsize];
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, offset + bufsize);
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
 	expect_getattr(ino, offset + bufsize);
 	expect_read(ino, offset, bufsize, bufsize, CONTENTS);
@@ -334,7 +334,7 @@ TEST_F(Read, direct_io_short_read)
 	ssize_t halfbufsize = bufsize / 2;
 	char buf[bufsize];
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, offset + bufsize);
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
 	expect_getattr(ino, offset + bufsize);
 	expect_read(ino, offset, bufsize, halfbufsize, CONTENTS);
@@ -358,7 +358,7 @@ TEST_F(Read, eio)
 	ssize_t bufsize = strlen(CONTENTS);
 	char buf[bufsize];
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, bufsize);
 	EXPECT_CALL(*m_mock, process(
@@ -376,6 +376,79 @@ TEST_F(Read, eio)
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
+/* 
+ * With the keep_cache option, the kernel may keep its read cache across
+ * multiple open(2)s.
+ */
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236560 */
+TEST_F(Read, DISABLED_keep_cache)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	uint64_t ino = 42;
+	int fd0, fd1;
+	ssize_t bufsize = strlen(CONTENTS);
+	char buf[bufsize];
+
+	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, bufsize, 2);
+	expect_open(ino, FOPEN_KEEP_CACHE, 1);
+	expect_getattr(ino, bufsize);
+	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
+
+	fd0 = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd0) << strerror(errno);
+	ASSERT_EQ(bufsize, read(fd0, buf, bufsize)) << strerror(errno);
+
+	fd1 = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd1) << strerror(errno);
+
+	/*
+	 * This read should be serviced by cache, even though it's on the other
+	 * file descriptor
+	 */
+	ASSERT_EQ(bufsize, read(fd1, buf, bufsize)) << strerror(errno);
+
+	/* Deliberately leak fd0 and fd1. */
+}
+
+/* 
+ * Without the keep_cache option, the kernel should drop its read caches on
+ * every open
+ */
+TEST_F(Read, keep_cache_disabled)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	uint64_t ino = 42;
+	int fd0, fd1;
+	ssize_t bufsize = strlen(CONTENTS);
+	char buf[bufsize];
+
+	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, bufsize, 2);
+	expect_open(ino, FOPEN_KEEP_CACHE, 1);
+	expect_getattr(ino, bufsize);
+	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
+
+	fd0 = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd0) << strerror(errno);
+	ASSERT_EQ(bufsize, read(fd0, buf, bufsize)) << strerror(errno);
+
+	fd1 = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd1) << strerror(errno);
+
+	/*
+	 * This read should not be serviced by cache, even though it's on the
+	 * original file descriptor
+	 */
+	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
+	ASSERT_EQ(0, lseek(fd0, 0, SEEK_SET)) << strerror(errno);
+	ASSERT_EQ(bufsize, read(fd0, buf, bufsize)) << strerror(errno);
+
+	/* Deliberately leak fd0 and fd1. */
+}
+
 TEST_F(Read, mmap)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
@@ -390,7 +463,7 @@ TEST_F(Read, mmap)
 
 	len = getpagesize();
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, bufsize);
 	/* mmap may legitimately try to read more data than is available */
@@ -434,7 +507,7 @@ TEST_F(Read, o_direct)
 	ssize_t bufsize = strlen(CONTENTS);
 	char buf[bufsize];
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, bufsize);
 	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
@@ -471,7 +544,7 @@ TEST_F(Read, pread)
 	ssize_t bufsize = strlen(CONTENTS);
 	char buf[bufsize];
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, offset + bufsize);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, offset + bufsize);
 	expect_read(ino, offset, bufsize, bufsize, CONTENTS);
@@ -494,7 +567,7 @@ TEST_F(Read, read)
 	ssize_t bufsize = strlen(CONTENTS);
 	char buf[bufsize];
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, bufsize);
 	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
@@ -504,6 +577,7 @@ TEST_F(Read, read)
 
 	ASSERT_EQ(bufsize, read(fd, buf, bufsize)) << strerror(errno);
 	ASSERT_EQ(0, memcmp(buf, CONTENTS, bufsize));
+
 	/* Deliberately leak fd.  close(2) will be tested in release.cc */
 }
 
@@ -527,7 +601,7 @@ TEST_F(Read, default_readahead)
 	ASSERT_NE(NULL, contents);
 	memmove(contents, CONTENTS0, strlen(CONTENTS0));
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, filesize);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, filesize);
 	expect_read(ino, 0, default_maxreadahead, default_maxreadahead,
@@ -558,7 +632,7 @@ TEST_F(Read, sendfile)
 	int sp[2];
 	off_t sbytes;
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, bufsize);
 	/* Like mmap, sendfile may request more data than is available */
@@ -604,7 +678,7 @@ TEST_F(Read, DISABLED_sendfile_eio)
 	int sp[2];
 	off_t sbytes;
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, bufsize);
 	EXPECT_CALL(*m_mock, process(
@@ -646,7 +720,7 @@ TEST_P(ReadAhead, DISABLED_readahead) {
 	ASSERT_NE(NULL, contents);
 	memmove(contents, CONTENTS0, strlen(CONTENTS0));
 
-	expect_lookup(RELPATH, ino);
+	expect_lookup(RELPATH, ino, filesize);
 	expect_open(ino, 0, 1);
 	expect_getattr(ino, filesize);
 	/* fuse(4) should only read ahead the allowed amount */

@@ -88,7 +88,7 @@ TEST_F(Getattr, attr_cache_timeout)
 	 */
 	long timeout_ns = 250'000'000;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 2);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 2);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			return (in->header.opcode == FUSE_GETATTR &&
@@ -116,7 +116,7 @@ TEST_F(Getattr, enoent)
 	struct stat sb;
 	const uint64_t ino = 42;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			return (in->header.opcode == FUSE_GETATTR &&
@@ -135,7 +135,7 @@ TEST_F(Getattr, ok)
 	const uint64_t ino = 42;
 	struct stat sb;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([](auto in) {
 			return (in->header.opcode == FUSE_GETATTR &&

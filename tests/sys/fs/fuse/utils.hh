@@ -73,10 +73,10 @@ class FuseTest : public ::testing::Test {
 	/*
 	 * Create an expectation that FUSE_LOOKUP will be called for the given
 	 * path exactly times times.  It will respond with inode ino, mode
-	 * mode, and cache validity forever.
+	 * mode, filesize size, and cache validity forever.
 	 */
 	void expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
-		int times);
+		uint64_t size, int times);
 
 	/*
 	 * Create an expectation that FUSE_GETATTR will be called for the given

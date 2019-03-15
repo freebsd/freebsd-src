@@ -66,7 +66,7 @@ Interrupt(): m_child(NULL) {};
 
 void expect_lookup(const char *relpath, uint64_t ino)
 {
-	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 1);
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 0, 1);
 }
 
 /* 

@@ -72,7 +72,7 @@ TEST_F(Destroy, ok)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 2);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 2);
 	expect_forget(1, 1);
 	expect_forget(ino, 2);
 	expect_destroy(0);

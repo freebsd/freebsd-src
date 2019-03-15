@@ -62,7 +62,7 @@ TEST_F(Rename, einval)
 	const char RELSRC[] = "src";
 	uint64_t src_ino = 42;
 
-	expect_lookup(RELSRC, src_ino, S_IFDIR | 0755, 2);
+	expect_lookup(RELSRC, src_ino, S_IFDIR | 0755, 0, 2);
 	EXPECT_LOOKUP(src_ino, RELDST).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	ASSERT_NE(0, rename(FULLSRC, FULLDST));
@@ -103,7 +103,7 @@ TEST_F(Rename, DISABLED_entry_cache_negative)
 	 */
 	struct timespec entry_valid = {.tv_sec = 0, .tv_nsec = 0};
 
-	expect_lookup(RELSRC, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELSRC, ino, S_IFREG | 0644, 0, 1);
 	/* LOOKUP returns a negative cache entry for dst */
 	EXPECT_LOOKUP(1, RELDST).WillOnce(ReturnNegativeCache(&entry_valid));
 
@@ -143,7 +143,7 @@ TEST_F(Rename, DISABLED_entry_cache_negative_purge)
 	 */
 	struct timespec entry_valid = {.tv_sec = 0, .tv_nsec = 0};
 
-	expect_lookup(RELSRC, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELSRC, ino, S_IFREG | 0644, 0, 1);
 	/* LOOKUP returns a negative cache entry for dst */
 	EXPECT_LOOKUP(1, RELDST).WillOnce(ReturnNegativeCache(&entry_valid))
 	.RetiresOnSaturation();
@@ -164,7 +164,7 @@ TEST_F(Rename, DISABLED_entry_cache_negative_purge)
 	ASSERT_EQ(0, rename(FULLSRC, FULLDST)) << strerror(errno);
 
 	/* Finally, a subsequent lookup should query the daemon */
-	expect_lookup(RELSRC, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELSRC, ino, S_IFREG | 0644, 0, 1);
 
 	ASSERT_EQ(0, access(FULLDST, F_OK)) << strerror(errno);
 }
@@ -179,7 +179,7 @@ TEST_F(Rename, exdev)
 	tmpfd = mkstemp(tmpfile);
 	ASSERT_LE(0, tmpfd) << strerror(errno);
 
-	expect_lookup(RELB, b_ino, S_IFREG | 0644, 2);
+	expect_lookup(RELB, b_ino, S_IFREG | 0644, 0, 2);
 
 	ASSERT_NE(0, rename(tmpfile, FULLB));
 	ASSERT_EQ(EXDEV, errno);
@@ -198,7 +198,7 @@ TEST_F(Rename, ok)
 	uint64_t dst_dir_ino = 1;
 	uint64_t ino = 42;
 
-	expect_lookup(RELSRC, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELSRC, ino, S_IFREG | 0644, 0, 1);
 	EXPECT_LOOKUP(1, RELDST).WillOnce(Invoke(ReturnErrno(ENOENT)));
 
 	EXPECT_CALL(*m_mock, process(
@@ -230,8 +230,8 @@ TEST_F(Rename, overwrite)
 	uint64_t dst_dir_ino = 1;
 	uint64_t ino = 42;
 
-	expect_lookup(RELSRC, ino, S_IFREG | 0644, 1);
-	expect_lookup(RELDST, dst_ino, S_IFREG | 0644, 1);
+	expect_lookup(RELSRC, ino, S_IFREG | 0644, 0, 1);
+	expect_lookup(RELDST, dst_ino, S_IFREG | 0644, 0, 1);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			const char *src = (const char*)in->body.bytes +

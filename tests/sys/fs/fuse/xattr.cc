@@ -121,7 +121,7 @@ TEST_F(Getxattr, enoattr)
 	int ns = EXTATTR_NAMESPACE_USER;
 	ssize_t r;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_getxattr(ino, "user.foo", ReturnErrno(ENOATTR));
 
 	r = extattr_get_file(FULLPATH, ns, "foo", data, sizeof(data));
@@ -142,7 +142,7 @@ TEST_F(Getxattr, DISABLED_enosys)
 	int ns = EXTATTR_NAMESPACE_USER;
 	ssize_t r;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_getxattr(ino, "user.foo", ReturnErrno(ENOSYS));
 
 	r = extattr_get_file(FULLPATH, ns, "foo", data, sizeof(data));
@@ -174,7 +174,7 @@ TEST_F(Getxattr, erange)
 	int ns = EXTATTR_NAMESPACE_USER;
 	ssize_t r;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_getxattr(ino, "user.foo", ReturnErrno(ERANGE));
 
 	r = extattr_get_file(FULLPATH, ns, "foo", data, sizeof(data));
@@ -191,7 +191,7 @@ TEST_F(Getxattr, size_only)
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_getxattr(ino, "user.foo",
 		ReturnImmediate([](auto in __unused, auto out) {
 			SET_OUT_HEADER_LEN(out, getxattr);
@@ -215,7 +215,7 @@ TEST_F(Getxattr, system)
 	int ns = EXTATTR_NAMESPACE_SYSTEM;
 	ssize_t r;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_getxattr(ino, "system.foo",
 		ReturnImmediate([&](auto in __unused, auto out) {
 			memcpy((void*)out->body.bytes, value, value_len);
@@ -240,7 +240,7 @@ TEST_F(Getxattr, user)
 	int ns = EXTATTR_NAMESPACE_USER;
 	ssize_t r;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_getxattr(ino, "user.foo",
 		ReturnImmediate([&](auto in __unused, auto out) {
 			memcpy((void*)out->body.bytes, value, value_len);
@@ -264,7 +264,7 @@ TEST_F(Listxattr, DISABLED_enosys)
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_listxattr(ino, 0, ReturnErrno(ENOSYS));
 
 	ASSERT_EQ(-1, extattr_list_file(FULLPATH, ns, NULL, 0));
@@ -284,7 +284,7 @@ TEST_F(Listxattr, enotsup)
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_listxattr(ino, 0, ReturnErrno(ENOTSUP));
 
 	ASSERT_EQ(-1, extattr_list_file(FULLPATH, ns, NULL, 0));
@@ -308,7 +308,7 @@ TEST_F(Listxattr, erange)
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_listxattr(ino, 0, ReturnErrno(ERANGE));
 
 	ASSERT_EQ(-1, extattr_list_file(FULLPATH, ns, NULL, 0));
@@ -323,7 +323,7 @@ TEST_F(Listxattr, size_only_empty)
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_listxattr(ino, 0, ReturnImmediate([](auto i __unused, auto out) {
 		out->body.listxattr.size = 0;
 		SET_OUT_HEADER_LEN(out, listxattr);
@@ -344,7 +344,7 @@ TEST_F(Listxattr, size_only_nonempty)
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_listxattr(ino, 0, ReturnImmediate([](auto i __unused, auto out) {
 		out->body.listxattr.size = 45;
 		SET_OUT_HEADER_LEN(out, listxattr);
@@ -370,7 +370,7 @@ TEST_F(Listxattr, size_only_really_big)
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_listxattr(ino, 0, ReturnImmediate([](auto i __unused, auto out) {
 		out->body.listxattr.size = 16000;
 		SET_OUT_HEADER_LEN(out, listxattr);
@@ -404,7 +404,7 @@ TEST_F(Listxattr, user)
 	char expected[9] = {3, 'f', 'o', 'o', 4, 'b', 'a', 'n', 'g'};
 	char attrs[28] = "user.foo\0system.x\0user.bang";
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_listxattr(ino, 0,
 		ReturnImmediate([&](auto in __unused, auto out) {
 			out->body.listxattr.size = sizeof(attrs);
@@ -438,7 +438,7 @@ TEST_F(Listxattr, system)
 	char expected[2] = {1, 'x'};
 	char attrs[28] = "user.foo\0system.x\0user.bang";
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_listxattr(ino, 0,
 		ReturnImmediate([&](auto in __unused, auto out) {
 			out->body.listxattr.size = sizeof(attrs);
@@ -466,7 +466,7 @@ TEST_F(Removexattr, enoattr)
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_removexattr(ino, "user.foo", ENOATTR);
 
 	ASSERT_EQ(-1, extattr_delete_file(FULLPATH, ns, "foo"));
@@ -484,7 +484,7 @@ TEST_F(Removexattr, DISABLED_enosys)
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_removexattr(ino, "user.foo", ENOSYS);
 
 	ASSERT_EQ(-1, extattr_delete_file(FULLPATH, ns, "foo"));
@@ -501,7 +501,7 @@ TEST_F(Removexattr, user)
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_USER;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_removexattr(ino, "user.foo", 0);
 
 	ASSERT_EQ(0, extattr_delete_file(FULLPATH, ns, "foo"))
@@ -514,7 +514,7 @@ TEST_F(Removexattr, system)
 	uint64_t ino = 42;
 	int ns = EXTATTR_NAMESPACE_SYSTEM;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_removexattr(ino, "system.foo", 0);
 
 	ASSERT_EQ(0, extattr_delete_file(FULLPATH, ns, "foo"))
@@ -535,7 +535,7 @@ TEST_F(Setxattr, DISABLED_enosys)
 	int ns = EXTATTR_NAMESPACE_USER;
 	ssize_t r;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_setxattr(ino, "user.foo", value, ReturnErrno(ENOSYS));
 
 	r = extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len);
@@ -560,7 +560,7 @@ TEST_F(Setxattr, enotsup)
 	int ns = EXTATTR_NAMESPACE_USER;
 	ssize_t r;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_setxattr(ino, "user.foo", value, ReturnErrno(ENOTSUP));
 
 	r = extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len);
@@ -579,7 +579,7 @@ TEST_F(Setxattr, user)
 	int ns = EXTATTR_NAMESPACE_USER;
 	ssize_t r;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_setxattr(ino, "user.foo", value, ReturnErrno(0));
 
 	r = extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len);
@@ -597,7 +597,7 @@ TEST_F(Setxattr, system)
 	int ns = EXTATTR_NAMESPACE_SYSTEM;
 	ssize_t r;
 
-	expect_lookup(RELPATH, ino, S_IFREG | 0644, 1);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1);
 	expect_setxattr(ino, "system.foo", value, ReturnErrno(0));
 
 	r = extattr_set_file(FULLPATH, ns, "foo", (void*)value, value_len);

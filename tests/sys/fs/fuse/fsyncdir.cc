@@ -66,7 +66,7 @@ void expect_fsyncdir(uint64_t ino, uint32_t flags, int error)
 
 void expect_lookup(const char *relpath, uint64_t ino)
 {
-	FuseTest::expect_lookup(relpath, ino, S_IFDIR | 0755, 1);
+	FuseTest::expect_lookup(relpath, ino, S_IFDIR | 0755, 0, 1);
 }
 
 };
