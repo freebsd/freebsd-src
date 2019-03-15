@@ -80,8 +80,7 @@ TEST_F(Symlink, ok)
 				(0 == strcmp(name, RELPATH)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFLNK | 0777;
 		out->body.entry.nodeid = ino;

@@ -242,8 +242,7 @@ TEST_F(Read, mmap)
 				in->body.read.size >= bufsize);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		out->header.len = sizeof(struct fuse_out_header) + bufsize;
 		memmove(out->body.bytes, CONTENTS, bufsize);
 	})));
@@ -411,8 +410,7 @@ TEST_F(Read, sendfile)
 				in->body.read.size >= bufsize);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		out->header.len = sizeof(struct fuse_out_header) + bufsize;
 		memmove(out->body.bytes, CONTENTS, bufsize);
 	})));

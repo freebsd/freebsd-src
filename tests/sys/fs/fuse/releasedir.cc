@@ -75,8 +75,7 @@ TEST_F(ReleaseDir, dup)
 				in->body.readdir.offset == 0);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		out->header.error = 0;
 		out->header.len = sizeof(out->header);
 	})));

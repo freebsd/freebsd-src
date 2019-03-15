@@ -181,7 +181,6 @@ TEST_F(FlushWithLocks, DISABLED_unlock_on_close)
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, setlk);
 		out->body.setlk.lk = in->body.setlk.lk;
 	})));

@@ -140,6 +140,7 @@ ReturnImmediate(std::function<void(const struct mockfs_buf_in *in,
 {
 	return([=](auto in, auto &out) {
 		auto out0 = new mockfs_buf_out;
+		out0->header.unique = in->header.unique;
 		f(in, out0);
 		out.push_back(out0);
 	});

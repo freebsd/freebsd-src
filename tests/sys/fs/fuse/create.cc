@@ -62,8 +62,7 @@ TEST_F(Create, DISABLED_attr_cache)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, create);
 		out->body.create.entry.attr.mode = S_IFREG | mode;
 		out->body.create.entry.nodeid = ino;
@@ -145,8 +144,7 @@ TEST_F(Create, DISABLED_Enosys)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, create);
 		out->body.create.entry.attr.mode = S_IFREG | mode;
 		out->body.create.entry.nodeid = ino;
@@ -160,8 +158,7 @@ TEST_F(Create, DISABLED_Enosys)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([](auto in __unused, auto out) {
 		out->header.len = sizeof(out->header);
 		SET_OUT_HEADER_LEN(out, open);
 	})));
@@ -173,8 +170,7 @@ TEST_F(Create, DISABLED_Enosys)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
@@ -214,8 +210,7 @@ TEST_F(Create, DISABLED_entry_cache_negative)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, create);
 		out->body.create.entry.attr.mode = S_IFREG | mode;
 		out->body.create.entry.nodeid = ino;
@@ -230,8 +225,7 @@ TEST_F(Create, DISABLED_entry_cache_negative)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
@@ -269,8 +263,7 @@ TEST_F(Create, DISABLED_entry_cache_negative_purge)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, create);
 		out->body.create.entry.attr.mode = S_IFREG | mode;
 		out->body.create.entry.nodeid = ino;
@@ -284,8 +277,7 @@ TEST_F(Create, DISABLED_entry_cache_negative_purge)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;
@@ -344,8 +336,7 @@ TEST_F(Create, ok)
 				(0 == strcmp(RELPATH, name)));
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, create);
 		out->body.create.entry.attr.mode = S_IFREG | mode;
 		out->body.create.entry.nodeid = ino;
@@ -360,8 +351,7 @@ TEST_F(Create, ok)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;

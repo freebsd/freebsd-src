@@ -47,8 +47,8 @@ TEST_F(Getattr, DISABLED_attr_cache)
 	const uint64_t ino = 42;
 	struct stat sb;
 
-	EXPECT_LOOKUP(1, RELPATH).WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	EXPECT_LOOKUP(1, RELPATH)
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, entry);
 		out->body.entry.attr.mode = S_IFREG | 0644;
 		out->body.entry.nodeid = ino;
@@ -59,8 +59,7 @@ TEST_F(Getattr, DISABLED_attr_cache)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr_valid = UINT64_MAX;
 		out->body.attr.attr.ino = ino;	// Must match nodeid
@@ -97,8 +96,7 @@ TEST_F(Getattr, attr_cache_timeout)
 		}, Eq(true)),
 		_)
 	).Times(2)
-	.WillRepeatedly(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr_valid_nsec = timeout_ns;
 		out->body.attr.attr_valid = UINT64_MAX;
@@ -144,8 +142,7 @@ TEST_F(Getattr, ok)
 				in->header.nodeid == ino);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([](auto i __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, attr);
 		out->body.attr.attr.ino = ino;	// Must match nodeid
 		out->body.attr.attr.mode = S_IFREG | 0644;

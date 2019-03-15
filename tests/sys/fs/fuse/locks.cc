@@ -124,7 +124,6 @@ TEST_F(Getlk, DISABLED_no_locks)
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, getlk);
 		out->body.getlk.lk = in->body.getlk.lk;
 		out->body.getlk.lk.type = F_UNLCK;
@@ -170,8 +169,7 @@ TEST_F(Getlk, DISABLED_lock_exists)
 				in->body.getlk.lk.pid == (uint64_t)pid);
 		}, Eq(true)),
 		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto out) {
 		SET_OUT_HEADER_LEN(out, getlk);
 		out->body.getlk.lk.start = 100;
 		out->body.getlk.lk.end = 199;
@@ -252,7 +250,6 @@ TEST_F(Setlk, DISABLED_set)
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, setlk);
 		out->body.setlk.lk = in->body.setlk.lk;
 	})));
@@ -296,7 +293,6 @@ TEST_F(Setlk, DISABLED_set_eof)
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, setlk);
 		out->body.setlk.lk = in->body.setlk.lk;
 	})));
@@ -413,7 +409,6 @@ TEST_F(Setlkw, DISABLED_set)
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto out) {
-		out->header.unique = in->header.unique;
 		SET_OUT_HEADER_LEN(out, setlkw);
 		out->body.setlkw.lk = in->body.setlkw.lk;
 	})));
