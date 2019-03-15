@@ -2449,6 +2449,22 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		}							\
 		m->m_pkthdr.rcvif = iface;				\
 		BRIDGE_UNLOCK(sc);					\
+		/*							\
+		 * These mbufs will not have another chance to get sent	\
+		 * to bpf elsewhere in the stack as being received	\
+		 * by this interface, because they are coming in over	\
+		 * the bridge.  They likely have been accounted for	\
+		 * when received by the interface that they came from,	\
+		 * but this is not enough for other consumers,		\
+		 * e.g. dhclient, to be satisfied.			\
+		 *							\
+		 * rcvif needs to be set on the mbuf here, lest we risk	\
+		 * losing the mbuf as a "duplicate" because it's	\
+		 * considered outgoing by bpf.				\
+		 */							\
+		if ((iface)->if_type != IFT_BRIDGE &&			\
+		    (iface)->if_bpf != NULL && (iface) != (ifp))	 \
+			ETHER_BPF_MTAP(iface, m);			\
 		return (m);						\
 	}								\
 									\
@@ -2890,7 +2906,6 @@ bridge_rtable_fini(struct bridge_softc *sc)
 
 	KASSERT(sc->sc_brtcnt == 0,
 	    ("%s: %d bridge routes referenced", __func__, sc->sc_brtcnt));
-	bridge_rtflush(sc, 1);
 	free(sc->sc_rthash, M_DEVBUF);
 }
 
