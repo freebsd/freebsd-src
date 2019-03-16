@@ -4,7 +4,10 @@
 
 SUBDIR=
 SUBDIR.${MK_DIALOG}+=	libdialog
-SUBDIR.${MK_GCC}+=	libgcov libgomp
+SUBDIR.${MK_GCC}+=	libgcov
+.if ${MK_GCC} != "no" && ${MK_OPENMP} == "no"
+SUBDIR+=		libgomp
+.endif
 SUBDIR.${MK_SSP}+=	libssp
 SUBDIR.${MK_TESTS}+=	tests
 
