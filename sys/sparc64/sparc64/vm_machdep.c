@@ -373,6 +373,13 @@ cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 	fp->fr_local[1] = (u_long)arg;
 }
 
+bool
+cpu_exec_vmspace_reuse(struct proc *p __unused, vm_map_t map __unused)
+{
+
+	return (true);
+}
+
 int
 is_physical_memory(vm_paddr_t addr)
 {

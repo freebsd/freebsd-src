@@ -249,3 +249,10 @@ cpu_thread_swapout(struct thread *td)
 
 }
 
+bool
+cpu_exec_vmspace_reuse(struct proc *p __unused, vm_map_t map __unused)
+{
+
+	return (true);
+}
+
