@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 22, 2019
+.Dd March 13, 2019
 .Dt PROCCONTROL 1
 .Os
 .Sh NAME
@@ -62,12 +62,14 @@ Control the Address Space Layout Randomization.
 Only applicable to the new process spawned.
 .It Ar trace
 Control the permission for debuggers to attach.
+Note that process is only allowed to enable tracing for itself,
+not for any other process.
 .It Ar trapcap
 Controls the signalling of capability mode access violations.
 .El
 .Pp
 The
-Ar control
+.Ar control
 specifies if the selected
 .Ar mode
 should be enabled or disabled.
@@ -84,9 +86,13 @@ for detailed description of each mode effects and interaction with other
 process control facilities.
 .Pp
 The
-.Op Fl q
+.Fl q
 switch makes the utility query and print the current setting for
 the selected mode.
+The
+.Fl q
+requires the query target process specification with
+.Fl p .
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
