@@ -382,6 +382,13 @@ cpu_thread_free(struct thread *td)
 	cpu_thread_clean(td);
 }
 
+bool
+cpu_exec_vmspace_reuse(struct proc *p __unused, vm_map_t map __unused)
+{
+
+	return (true);
+}
+
 void
 cpu_set_syscall_retval(struct thread *td, int error)
 {
