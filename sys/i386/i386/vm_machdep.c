@@ -389,6 +389,14 @@ cpu_exec_vmspace_reuse(struct proc *p __unused, vm_map_t map __unused)
 	return (true);
 }
 
+int
+cpu_procctl(struct thread *td __unused, int idtype __unused, id_t id __unused,
+    int com __unused, void *data __unused)
+{
+
+	return (EINVAL);
+}
+
 void
 cpu_set_syscall_retval(struct thread *td, int error)
 {

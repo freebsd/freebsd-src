@@ -3327,6 +3327,10 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 	} x32;
 	int error, error1, flags, signum;
 
+	if (uap->com >= PROC_PROCCTL_MD_MIN)
+		return (cpu_procctl(td, uap->idtype, PAIR32TO64(id_t, uap->id),
+		    uap->com, PTRIN(uap->data)));
+
 	switch (uap->com) {
 	case PROC_ASLR_CTL:
 	case PROC_SPROTECT:
