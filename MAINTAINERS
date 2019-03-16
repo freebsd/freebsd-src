@@ -41,8 +41,9 @@ contrib/compiler-rt	dim	Pre-commit review preferred.
 contrib/ipfilter	cy	Pre-commit review requested.
 contrib/libc++		dim	Pre-commit review preferred.
 contrib/libcxxrt	dim	Pre-commit review preferred.
+contrib/libunwind	dim,emaste,jhb	Pre-commit review preferred.
 contrib/llvm		dim	Pre-commit review preferred.
-contrib/llvm/tools/lldb	emaste	Pre-commit review preferred.
+contrib/llvm/tools/lldb	dim,emaste	Pre-commit review preferred.
 contrib/netbsd-tests	freebsd-testing,ngie	Pre-commit review requested.
 contrib/pjdfstest	freebsd-testing,asomers,ngie,pjd	Pre-commit review requested.
 *env(3)		secteam	Due to the problematic security history of this
