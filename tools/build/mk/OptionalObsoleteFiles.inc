@@ -2731,7 +2731,9 @@ OLD_FILES+=usr/include/gcc/4.2/altivec.h
 OLD_FILES+=usr/include/gcc/4.2/ppc-asm.h
 OLD_FILES+=usr/include/gcc/4.2/spe.h
 .endif
+.if ${MK_OPENMP} == no
 OLD_FILES+=usr/include/omp.h
+.endif
 OLD_FILES+=usr/lib/libgcov.a
 OLD_FILES+=usr/lib/libgomp.a
 OLD_FILES+=usr/lib/libgomp.so
@@ -7731,6 +7733,13 @@ OLD_FILES+=usr/share/man/man8/sminfo.8.gz
 OLD_FILES+=usr/share/man/man8/smpdump.8.gz
 OLD_FILES+=usr/share/man/man8/smpquery.8.gz
 OLD_FILES+=usr/share/man/man8/vendstat.8.gz
+.endif
+
+.if ${MK_OPENSSH} == no
+.if ${MK_GCC} == no
+OLD_FILES+=usr/include/omp.h
+.endif
+OLD_LIBS+=usr/lib/libomp.so
 .endif
 
 .if ${MK_OPENSSH} == no

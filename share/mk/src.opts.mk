@@ -399,6 +399,12 @@ BROKEN_OPTIONS+=NVME
 BROKEN_OPTIONS+=BSD_CRTBEGIN
 .endif
 
+.if ${COMPILER_FEATURES:Mc++11} && ${__T} == "amd64"
+__DEFAULT_YES_OPTIONS+=OPENMP
+.else
+__DEFAULT_NO_OPTIONS+=OPENMP
+.endif
+
 .include <bsd.mkopt.mk>
 
 #
