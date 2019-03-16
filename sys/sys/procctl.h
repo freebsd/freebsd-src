@@ -41,6 +41,10 @@
 #include <sys/wait.h>
 #endif
 
+/* MD PROCCTL verbs start at 0x10000000 */
+#define	PROC_PROCCTL_MD_MIN	0x10000000
+#include <machine/procctl.h>
+
 #define	PROC_SPROTECT		1	/* set protected state */
 #define	PROC_REAP_ACQUIRE	2	/* reaping enable */
 #define	PROC_REAP_RELEASE	3	/* reaping disable */

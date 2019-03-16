@@ -494,6 +494,10 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 	} x;
 	int error, error1, flags, signum;
 
+	if (uap->com >= PROC_PROCCTL_MD_MIN)
+		return (cpu_procctl(td, uap->idtype, uap->id,
+		    uap->com, uap->data));
+
 	switch (uap->com) {
 	case PROC_ASLR_CTL:
 	case PROC_SPROTECT:
