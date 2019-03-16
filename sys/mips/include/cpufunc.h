@@ -371,27 +371,19 @@ get_intr_mask(void)
 	return (mips_rd_status() & MIPS_SR_INT_MASK);
 }
 
-#if defined(__GNUC__) && !defined(__mips_o32)
-#define	mips3_ld(a)	(*(const volatile uint64_t *)(a))
-#define	mips3_sd(a, v)	(*(volatile uint64_t *)(a) = (v))
-#else
-uint64_t mips3_ld(volatile uint64_t *va);
-void mips3_sd(volatile uint64_t *, uint64_t);
-#endif	/* __GNUC__ */
-
 #endif /* _KERNEL */
 
 #define	readb(va)	(*(volatile uint8_t *) (va))
 #define	readw(va)	(*(volatile uint16_t *) (va))
 #define	readl(va)	(*(volatile uint32_t *) (va))
-#if defined(__GNUC__) && !defined(__mips_o32)
+#if !defined(__mips_o32)
 #define	readq(a)	(*(volatile uint64_t *)(a))
 #endif
  
 #define	writeb(va, d)	(*(volatile uint8_t *) (va) = (d))
 #define	writew(va, d)	(*(volatile uint16_t *) (va) = (d))
 #define	writel(va, d)	(*(volatile uint32_t *) (va) = (d))
-#if defined(__GNUC__) && !defined(__mips_o32)
+#if !defined(__mips_o32)
 #define	writeq(va, d)	(*(volatile uint64_t *) (va) = (d))
 #endif
 
