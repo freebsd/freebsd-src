@@ -453,6 +453,13 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	 */
 }
 
+bool
+cpu_exec_vmspace_reuse(struct proc *p __unused, vm_map_t map __unused)
+{
+
+	return (true);
+}
+
 /*
  * Software interrupt handler for queued VM system processing.
  */
