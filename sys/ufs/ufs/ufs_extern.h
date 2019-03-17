@@ -58,6 +58,7 @@ extern struct vop_vector ufs_vnodeops;
 int	 ufs_bmap(struct vop_bmap_args *);
 int	 ufs_bmaparray(struct vnode *, ufs2_daddr_t, ufs2_daddr_t *,
 	    struct buf *, int *, int *);
+int	 ufs_bmap_seekdata(struct vnode *, off_t *);
 int	 ufs_fhtovp(struct mount *, struct ufid *, int, struct vnode **);
 int	 ufs_checkpath(ino_t, ino_t, struct inode *, struct ucred *, ino_t *);
 void	 ufs_dirbad(struct inode *, doff_t, char *);
