@@ -230,8 +230,7 @@ ifconfig_up()
 	fi
 
 	if ! noafif $1 && afexists inet6; then
-		ipv6_accept_rtadv_up $1
-		_cfg=0
+		ipv6_accept_rtadv_up $1 && _cfg=0
 	fi
 
 	if dhcpif $1; then
@@ -1205,7 +1204,9 @@ ipv6_accept_rtadv_up()
 		if [ -x /sbin/rtsol ]; then
 			/sbin/rtsol ${rtsol_flags} $1
 		fi
+		return 0
 	fi
+	return 1
 }
 
 # ipv6_accept_rtadv_down if
