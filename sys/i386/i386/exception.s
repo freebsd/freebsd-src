@@ -131,6 +131,10 @@ IDTVEC(prot)
 	pushl	$T_PROTFLT
 	jmp	irettraps
 IDTVEC(page)
+	testl	$PSL_VM, TF_EFLAGS-TF_ERR(%esp)
+	jnz	1f
+	testb	$SEL_RPL_MASK, TF_CS-TF_ERR(%esp)
+	jnz	1f
 	cmpl	$PMAP_TRM_MIN_ADDRESS, TF_EIP-TF_ERR(%esp)
 	jb	1f
 	movl	%ebx, %cr3
