@@ -735,13 +735,15 @@ fasttrap_return_common(struct reg *rp, uintptr_t pc, pid_t pid,
 static void
 fasttrap_sigsegv(proc_t *p, kthread_t *t, uintptr_t addr)
 {
-	ksiginfo_t *ksi = kmem_zalloc(sizeof (ksiginfo_t), KM_SLEEP);
+	ksiginfo_t ksi;
 
-	ksiginfo_init(ksi);
-	ksi->ksi_signo = SIGSEGV;
-	ksi->ksi_code = SEGV_MAPERR;
-	ksi->ksi_addr = (caddr_t)addr;
-	(void) tdksignal(t, SIGSEGV, ksi);
+	ksiginfo_init(&ksi);
+	ksi.ksi_signo = SIGSEGV;
+	ksi.ksi_code = SEGV_MAPERR;
+	ksi.ksi_addr = (caddr_t)addr;
+	PROC_LOCK(p);
+	(void)tdksignal(t, SIGSEGV, &ksi);
+	PROC_UNLOCK(p);
 }
 
 #ifdef __amd64
