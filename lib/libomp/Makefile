@@ -66,4 +66,6 @@ LDFLAGS+=	-Wl,-soname,libomp.so
 
 VERSION_MAP=	${OMPSRC}/exports_so.txt
 
+LIBADD+=	pthread
+
 .include <bsd.lib.mk>
