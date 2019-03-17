@@ -56,6 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
+static int ufs_readindir(struct vnode *, ufs_lbn_t, ufs2_daddr_t,
+    struct buf **);
+
 /*
  * Bmap converts the logical block number of a file to its physical block
  * number on the disk. The conversion is done by using the logical block
