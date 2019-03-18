@@ -148,8 +148,8 @@ again:
 	ipfw = ipfw_chk(&args);
 	*m0 = args.m;
 
-	KASSERT(*m0 != NULL || ipfw == IP_FW_DENY, ("%s: m0 is NULL",
-	    __func__));
+	KASSERT(*m0 != NULL || ipfw == IP_FW_DENY ||
+	    ipfw == IP_FW_NAT64, ("%s: m0 is NULL", __func__));
 
 	ret = PFIL_PASS;
 	switch (ipfw) {

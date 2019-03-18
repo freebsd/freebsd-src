@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2019
+.Dd March 18, 2019
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -3413,6 +3413,14 @@ With
 you are able to see each handled packet before and after translation.
 .It Cm -log
 Turn off logging of all handled packets via BPF.
+.It Cm allow_private
+Turn on processing private IPv4 addresses. By default IPv6 packets with
+destinations mapped to private address ranges defined by RFC1918 are not
+processed.
+.It Cm -allow_private
+Turn off private address handling in
+.Nm nat64
+instance.
 .El
 .Pp
 To inspect a states table of stateful NAT64 the following command can be used:
@@ -3460,6 +3468,14 @@ Turn on logging of all handled packets via BPF through
 interface.
 .It Cm -log
 Turn off logging of all handled packets via BPF.
+.It Cm allow_private
+Turn on processing private IPv4 addresses. By default IPv6 packets with
+destinations mapped to private address ranges defined by RFC1918 are not
+processed.
+.It Cm -allow_private
+Turn off private address handling in
+.Nm nat64
+instance.
 .El
 .Pp
 Note that the behavior of stateless translator with respect to not matched
@@ -3948,16 +3964,6 @@ Default is no.
 Controls whether bridged packets are passed to
 .Nm .
 Default is no.
-.It Va net.inet.ip.fw.nat64_allow_private : No 0
-Defines how
-.Nm nat64
-handles private IPv4 addresses:
-.Bl -tag -width indent
-.It Cm 0
-Packets with private IPv4 will not be handled by translator
-.It Cm 1
-Translator will accept and process packets with private IPv4 addresses.
-.El
 .It Va net.inet.ip.fw.nat64_debug : No 0
 Controls debugging messages produced by
 .Nm ipfw_nat64
