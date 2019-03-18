@@ -349,10 +349,6 @@ main(
 		printf("  status %s,\n", sprintb((u_int)ntx.status, TIMEX_STA_BITS));
 		ftemp = (double)ntx.tolerance / SCALE_FREQ;
 		gtemp = (double)ntx.precision;
-#ifdef STA_NANO
-		if (flash & STA_NANO)
-			gtemp /= 1000.0;
-#endif
 		printf(
 		    "  time constant %lu, precision %.3f us, tolerance %.0f ppm,\n",
 		    (u_long)ntx.constant, gtemp, ftemp);

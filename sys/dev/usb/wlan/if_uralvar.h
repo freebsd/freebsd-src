@@ -51,7 +51,7 @@ struct ural_tx_radiotap_header {
 	uint16_t	wt_chan_freq;
 	uint16_t	wt_chan_flags;
 	uint8_t		wt_antenna;
-} __packed __aligned(8);
+} __packed;
 
 #define RAL_TX_RADIOTAP_PRESENT						\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\

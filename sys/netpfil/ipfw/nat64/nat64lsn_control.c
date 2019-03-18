@@ -1,8 +1,9 @@
 /*-
- * Copyright (c) 2015 Yandex LLC
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2015-2019 Yandex LLC
  * Copyright (c) 2015 Alexander V. Chernikov <melifaro@FreeBSD.org>
- * Copyright (c) 2016 Andrey V. Elsukov <ae@FreeBSD.org>
- * All rights reserved.
+ * Copyright (c) 2015-2019 Andrey V. Elsukov <ae@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -164,10 +165,10 @@ nat64lsn_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	cfg->no.etlv = IPFW_TLV_NAT64LSN_NAME;
 	cfg->no.set = uc->set;
 
-	cfg->base.prefix6 = uc->prefix6;
-	cfg->base.plen6 = uc->plen6;
-	cfg->base.flags = uc->flags & NAT64LSN_FLAGSMASK;
-	if (IN6_IS_ADDR_WKPFX(&cfg->base.prefix6))
+	cfg->base.plat_prefix = uc->prefix6;
+	cfg->base.plat_plen = uc->plen6;
+	cfg->base.flags = (uc->flags & NAT64LSN_FLAGSMASK) | NAT64_PLATPFX;
+	if (IN6_IS_ADDR_WKPFX(&cfg->base.plat_prefix))
 		cfg->base.flags |= NAT64_WKPFX;
 
 	cfg->prefix4 = addr4;
@@ -324,9 +325,9 @@ nat64lsn_export_config(struct ip_fw_chain *ch, struct nat64lsn_cfg *cfg,
 	uc->st_udp_ttl = cfg->st_udp_ttl;
 	uc->st_icmp_ttl = cfg->st_icmp_ttl;
 	uc->prefix4.s_addr = htonl(cfg->prefix4);
-	uc->prefix6 = cfg->base.prefix6;
+	uc->prefix6 = cfg->base.plat_prefix;
 	uc->plen4 = cfg->plen4;
-	uc->plen6 = cfg->base.plen6;
+	uc->plen6 = cfg->base.plat_plen;
 	uc->set = cfg->no.set;
 	strlcpy(uc->name, cfg->no.name, sizeof(uc->name));
 }

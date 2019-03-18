@@ -252,6 +252,7 @@ __start:
 	isync
 	bl	zero_mas7
 	bl	zero_mas8
+	isync
 	tlbwe
 	isync
 	msync
@@ -505,6 +506,7 @@ bp_kernload:
 	isync
 	bl	zero_mas7
 	bl	zero_mas8
+	isync
 	tlbwe
 	isync
 	msync
@@ -695,6 +697,7 @@ tlb1_temp_mapping_as1:
 	bl	zero_mas7
 	bl	zero_mas8
 	mtlr	%r3
+	isync
 	tlbwe
 	isync
 	msync
@@ -742,7 +745,6 @@ zero_mas7:
 
 	li	%r20, 0
 	mtspr	SPR_MAS7, %r20
-	isync
 1:
 	blr
 
@@ -759,7 +761,6 @@ zero_mas8:
 1:
 	li	%r20, 0
 	mtspr	SPR_MAS8, %r20
-	isync
 	blr
 #endif
 

@@ -289,6 +289,15 @@ NM_CLK_WITH_FRAC(pll_video0_clk,
     AW_CLK_HAS_LOCK,				/* flags */
     270000000, 297000000,			/* freq0, freq1 */
     24, 25);					/* mode sel, freq sel */
+static const char *pll_video0_2x_parents[] = {"pll_video0"};
+FIXED_CLK(pll_video0_2x_clk,
+    CLK_PLL_VIDEO0_2X,			/* id */
+    "pll_video0-2x",			/* name */
+    pll_video0_2x_parents,		/* parent */
+    0,					/* freq */
+    2,					/* mult */
+    1,					/* div */
+    0);					/* flags */
 
 static const char *pll_ve_parents[] = {"osc24M"};
 NM_CLK_WITH_FRAC(pll_ve_clk,
@@ -631,6 +640,15 @@ NM_CLK(de_clk,
     AW_CLK_HAS_MUX | AW_CLK_HAS_GATE);		/* flags */
 
 /* TCON0/1 Needs mux table */
+static const char *tcon1_parents[] = {"pll_video0", "pll_video0", "pll_video1"};
+NM_CLK(tcon1_clk,
+  CLK_TCON1, "tcon1", tcon1_parents,
+  0x11C,
+  0, 0, 1, AW_CLK_FACTOR_FIXED,
+  0, 4, 0, 0,
+  24, 2,
+  31,
+  AW_CLK_HAS_MUX | AW_CLK_HAS_GATE);
 
 static const char *deinterlace_parents[] = {"pll_periph0", "pll_periph1"};
 NM_CLK(deinterlace_clk,
@@ -727,6 +745,7 @@ static struct aw_ccung_clk a64_ccu_clks[] = {
 	{ .type = AW_CLK_NM, .clk.nm = &spdif_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &dram_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &de_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &tcon1_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &deinterlace_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &csi_sclk_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &csi_mclk_clk},
@@ -750,6 +769,7 @@ static struct aw_ccung_clk a64_ccu_clks[] = {
 	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_audio_2x_clk},
 	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_audio_4x_clk},
 	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_audio_8x_clk},
+	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_video0_2x_clk},
 };
 
 static struct aw_clk_init a64_init_clks[] = {

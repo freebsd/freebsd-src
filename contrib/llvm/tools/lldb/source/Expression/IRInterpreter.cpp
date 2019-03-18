@@ -10,7 +10,6 @@
 #include "lldb/Expression/IRInterpreter.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
-#include "lldb/Core/Scalar.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Expression/DiagnosticManager.h"
 #include "lldb/Expression/IRExecutionUnit.h"
@@ -19,6 +18,7 @@
 #include "lldb/Utility/DataExtractor.h"
 #include "lldb/Utility/Endian.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/Scalar.h"
 #include "lldb/Utility/Status.h"
 #include "lldb/Utility/StreamString.h"
 
@@ -152,17 +152,13 @@ public:
                          Type *type) {
     size_t type_size = m_target_data.getTypeStoreSize(type);
 
-    switch (type_size) {
-    case 1:
-    case 2:
-    case 4:
-    case 8:
-      scalar = llvm::APInt(type_size*8, u64value);
-      break;
-    default:
+    if (type_size > 8)
       return false;
-    }
 
+    if (type_size != 1)
+      type_size = PowerOf2Ceil(type_size);
+
+    scalar = llvm::APInt(type_size*8, u64value);
     return true;
   }
 
@@ -192,8 +188,7 @@ public:
         return false;
 
       lldb::offset_t offset = 0;
-      if (value_size == 1 || value_size == 2 || value_size == 4 ||
-          value_size == 8) {
+      if (value_size <= 8) {
         uint64_t u64value = value_extractor.GetMaxU64(&offset, value_size);
         return AssignToMatchType(scalar, u64value, value->getType());
       }
@@ -616,6 +611,18 @@ bool IRInterpreter::CanInterpret(llvm::Module &module, llvm::Function &function,
           error.SetErrorString(unsupported_operand_error);
           return false;
         }
+        }
+
+        // The IR interpreter currently doesn't know about
+        // 128-bit integers. As they're not that frequent,
+        // we can just fall back to the JIT rather than
+        // choking.
+        if (operand_type->getPrimitiveSizeInBits() > 64) {
+          if (log)
+            log->Printf("Unsupported operand type: %s",
+                        PrintType(operand_type).c_str());
+          error.SetErrorString(unsupported_operand_error);
+          return false;
         }
 
         if (Constant *constant = llvm::dyn_cast<Constant>(operand)) {
@@ -1585,9 +1592,6 @@ bool IRInterpreter::Interpret(llvm::Module &module, llvm::Function &function,
 
         // Check if this is a string literal or constant string pointer
         if (arg_ty->isPointerTy()) {
-          // Pointer to just one type
-          assert(arg_ty->getNumContainedTypes() == 1);
-
           lldb::addr_t addr = tmp_op.ULongLong();
           size_t dataSize = 0;
 

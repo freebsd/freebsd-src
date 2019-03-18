@@ -1173,12 +1173,9 @@ dyn_getscopeid(const struct ip_fw_args *args)
 	 * determine the scope zone id to resolve address scope ambiguity.
 	 */
 	if (IN6_IS_ADDR_LINKLOCAL(&args->f_id.src_ip6) ||
-	    IN6_IS_ADDR_LINKLOCAL(&args->f_id.dst_ip6)) {
-		MPASS(args->oif != NULL ||
-		    args->m->m_pkthdr.rcvif != NULL);
-		return (in6_getscopezone(args->oif != NULL ? args->oif:
-		    args->m->m_pkthdr.rcvif, IPV6_ADDR_SCOPE_LINKLOCAL));
-	}
+	    IN6_IS_ADDR_LINKLOCAL(&args->f_id.dst_ip6))
+		return (in6_getscopezone(args->ifp, IPV6_ADDR_SCOPE_LINKLOCAL));
+
 	return (0);
 }
 
@@ -1868,11 +1865,13 @@ dyn_install_state(const struct ipfw_flow_id *pkt, uint32_t zoneid,
     uint16_t kidx, uint8_t type)
 {
 	struct ipfw_flow_id id;
-	uint32_t hashval, parent_hashval;
+	uint32_t hashval, parent_hashval, ruleid, rulenum;
 	int ret;
 
 	MPASS(type == O_LIMIT || type == O_KEEP_STATE);
 
+	ruleid = rule->id;
+	rulenum = rule->rulenum;
 	if (type == O_LIMIT) {
 		/* Create masked flow id and calculate bucket */
 		id.addr_type = pkt->addr_type;
@@ -1927,11 +1926,11 @@ dyn_install_state(const struct ipfw_flow_id *pkt, uint32_t zoneid,
 
 	hashval = hash_packet(pkt);
 	if (IS_IP4_FLOW_ID(pkt))
-		ret = dyn_add_ipv4_state(rule, rule->id, rule->rulenum, pkt,
+		ret = dyn_add_ipv4_state(rule, ruleid, rulenum, pkt,
 		    ulp, pktlen, hashval, info, fibnum, kidx, type);
 #ifdef INET6
 	else if (IS_IP6_FLOW_ID(pkt))
-		ret = dyn_add_ipv6_state(rule, rule->id, rule->rulenum, pkt,
+		ret = dyn_add_ipv6_state(rule, ruleid, rulenum, pkt,
 		    zoneid, ulp, pktlen, hashval, info, fibnum, kidx, type);
 #endif /* INET6 */
 	else

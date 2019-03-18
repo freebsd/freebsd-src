@@ -110,7 +110,6 @@ struct sysentvec {
 					/* function to dump core, or NULL */
 	int		(*sv_imgact_try)(struct image_params *);
 	int		sv_minsigstksz;	/* minimum signal stack size */
-	int		sv_pagesize;	/* pagesize */
 	vm_offset_t	sv_minuser;	/* VM_MIN_ADDRESS */
 	vm_offset_t	sv_maxuser;	/* VM_MAXUSER_ADDRESS */
 	vm_offset_t	sv_usrstack;	/* USRSTACK */

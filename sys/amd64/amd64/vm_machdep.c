@@ -59,13 +59,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/pioctl.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/procctl.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
+#include <sys/wait.h>
 
 #include <machine/cpu.h>
 #include <machine/md_var.h>
@@ -86,7 +89,7 @@ _Static_assert(OFFSETOF_CURTHREAD == offsetof(struct pcpu, pc_curthread),
 _Static_assert(OFFSETOF_CURPCB == offsetof(struct pcpu, pc_curpcb),
     "OFFSETOF_CURPCB does not correspond with offset of pc_curpcb.");
 _Static_assert(OFFSETOF_MONITORBUF == offsetof(struct pcpu, pc_monitorbuf),
-    "OFFSETOF_MONINORBUF does not correspond with offset of pc_monitorbuf.");
+    "OFFSETOF_MONITORBUF does not correspond with offset of pc_monitorbuf.");
 
 struct savefpu *
 get_pcb_user_save_td(struct thread *td)
@@ -367,6 +370,74 @@ cpu_thread_free(struct thread *td)
 {
 
 	cpu_thread_clean(td);
+}
+
+bool
+cpu_exec_vmspace_reuse(struct proc *p, vm_map_t map)
+{
+
+	return (((curproc->p_md.md_flags & P_MD_KPTI) != 0) ==
+	    (vm_map_pmap(map)->pm_ucr3 != PMAP_NO_CR3));
+}
+
+static void
+cpu_procctl_kpti(struct proc *p, int com, int *val)
+{
+
+	if (com == PROC_KPTI_CTL) {
+		if (pti && *val == PROC_KPTI_CTL_ENABLE_ON_EXEC)
+			p->p_md.md_flags |= P_MD_KPTI;
+		if (*val == PROC_KPTI_CTL_DISABLE_ON_EXEC)
+			p->p_md.md_flags &= ~P_MD_KPTI;
+	} else /* PROC_KPTI_STATUS */ {
+		*val = (p->p_md.md_flags & P_MD_KPTI) != 0 ?
+		    PROC_KPTI_CTL_ENABLE_ON_EXEC:
+		    PROC_KPTI_CTL_DISABLE_ON_EXEC;
+		if (vmspace_pmap(p->p_vmspace)->pm_ucr3 != PMAP_NO_CR3)
+			*val |= PROC_KPTI_STATUS_ACTIVE;
+	}
+}
+
+int
+cpu_procctl(struct thread *td, int idtype, id_t id, int com, void *data)
+{
+	struct proc *p;
+	int error, val;
+
+	switch (com) {
+	case PROC_KPTI_CTL:
+	case PROC_KPTI_STATUS:
+		if (idtype != P_PID) {
+			error = EINVAL;
+			break;
+		}
+		if (com == PROC_KPTI_CTL) {
+			/* sad but true and not a joke */
+			error = priv_check(td, PRIV_IO);
+			if (error != 0)
+				break;
+			error = copyin(data, &val, sizeof(val));
+			if (error != 0)
+				break;
+			if (val != PROC_KPTI_CTL_ENABLE_ON_EXEC &&
+			    val != PROC_KPTI_CTL_DISABLE_ON_EXEC) {
+				error = EINVAL;
+				break;
+			}
+		}
+		error = pget(id, PGET_CANSEE | PGET_NOTWEXIT | PGET_NOTID, &p);
+		if (error == 0) {
+			cpu_procctl_kpti(p, com, &val);
+			PROC_UNLOCK(p);
+			if (com == PROC_KPTI_STATUS)
+				error = copyout(&val, data, sizeof(val));
+		}
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	return (error);
 }
 
 void

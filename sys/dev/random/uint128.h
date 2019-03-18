@@ -29,6 +29,8 @@
 #ifndef SYS_DEV_RANDOM_UINT128_H_INCLUDED
 #define	SYS_DEV_RANDOM_UINT128_H_INCLUDED
 
+#include <sys/endian.h>
+
 /* This whole thing is a crock :-(
  *
  * Everyone knows you always need the __uint128_t types!
@@ -63,13 +65,49 @@ uint128_increment(uint128_t *big_uintp)
 #endif
 }
 
+static __inline bool
+uint128_equals(uint128_t a, uint128_t b)
+{
+#ifdef USE_REAL_UINT128_T
+	return (a == b);
+#else
+	return (a.u128t_word0 == b.u128t_word0 &&
+	    a.u128t_word1 == b.u128t_word1);
+#endif
+}
+
 static __inline int
 uint128_is_zero(uint128_t big_uint)
 {
+	return (uint128_equals(big_uint, UINT128_ZERO));
+}
+
+static __inline uint128_t
+le128dec(const void *pp)
+{
+	const uint8_t *p = pp;
+
 #ifdef USE_REAL_UINT128_T
-	return (big_uint == UINT128_ZERO);
+	return (((uint128_t)le64dec(p + 8) << 64) | le64dec(p));
 #else
-	return (big_uint.u128t_word0 == 0UL && big_uint.u128t_word1 == 0UL);
+	return ((uint128_t){
+	    .u128t_word0 = le64dec(p),
+	    .u128t_word1 = le64dec(p + 8),
+	    });
+#endif
+}
+
+static __inline void
+le128enc(void *pp, uint128_t u)
+{
+	uint8_t *p = pp;
+
+#ifdef USE_REAL_UINT128_T
+	le64enc(p, (uint64_t)(u & UINT64_MAX));
+	le64enc(p + 8, (uint64_t)(u >> 64));
+#else
+	le64enc(p, u.u128t_word0);
+	le64enc(p + 8, u.u128t_word1);
 #endif
 }
 

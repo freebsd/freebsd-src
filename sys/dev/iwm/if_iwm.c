@@ -2211,7 +2211,8 @@ iwm_parse_nvm_data(struct iwm_softc *sc,
 	}
 
 	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_7000) {
-		memcpy(data->nvm_ch_flags, &nvm_sw[IWM_NVM_CHANNELS],
+		memcpy(data->nvm_ch_flags, sc->cfg->nvm_type == IWM_NVM_SDP ?
+		    &regulatory[0] : &nvm_sw[IWM_NVM_CHANNELS],
 		    IWM_NUM_CHANNELS * sizeof(uint16_t));
 	} else {
 		memcpy(data->nvm_ch_flags, &regulatory[IWM_NVM_CHANNELS_8000],
@@ -2271,8 +2272,9 @@ iwm_parse_nvm_sections(struct iwm_softc *sc, struct iwm_nvm_section *sections)
 	sw = (const uint16_t *)sections[IWM_NVM_SECTION_TYPE_SW].data;
 	calib = (const uint16_t *)
 	    sections[IWM_NVM_SECTION_TYPE_CALIBRATION].data;
-	regulatory = (const uint16_t *)
-	    sections[IWM_NVM_SECTION_TYPE_REGULATORY].data;
+	regulatory = sc->cfg->nvm_type == IWM_NVM_SDP ?
+	    (const uint16_t *)sections[IWM_NVM_SECTION_TYPE_REGULATORY_SDP].data :
+	    (const uint16_t *)sections[IWM_NVM_SECTION_TYPE_REGULATORY].data;
 	mac_override = (const uint16_t *)
 	    sections[IWM_NVM_SECTION_TYPE_MAC_OVERRIDE].data;
 	phy_sku = (const uint16_t *)sections[IWM_NVM_SECTION_TYPE_PHY_SKU].data;

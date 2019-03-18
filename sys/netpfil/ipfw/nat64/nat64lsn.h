@@ -1,8 +1,9 @@
 /*-
- * Copyright (c) 2015 Yandex LLC
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2015-2019 Yandex LLC
  * Copyright (c) 2015 Alexander V. Chernikov <melifaro@FreeBSD.org>
- * Copyright (c) 2016 Andrey V. Elsukov <ae@FreeBSD.org>
- * All rights reserved.
+ * Copyright (c) 2015-2019 Andrey V. Elsukov <ae@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -216,7 +217,7 @@ struct nat64lsn_cfg {
 	uint16_t	st_icmp_ttl;	/* ICMP expire */
 	uint32_t	protochunks[NAT_MAX_PROTO];/* Number of chunks used */
 	struct nat64_config	base;
-#define	NAT64LSN_FLAGSMASK	(NAT64_LOG)
+#define	NAT64LSN_FLAGSMASK	(NAT64_LOG | NAT64_ALLOW_PRIVATE)
 
 	struct callout		periodic;
 	struct callout		jcallout;

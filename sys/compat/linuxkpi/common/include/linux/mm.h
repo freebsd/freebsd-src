@@ -134,6 +134,12 @@ struct vm_operations_struct {
 	int	(*access) (struct vm_area_struct *, unsigned long, void *, int, int);
 };
 
+struct sysinfo {
+	uint64_t totalram;
+	uint64_t totalhigh;
+	uint32_t mem_unit;
+};
+
 /*
  * Compute log2 of the power of two rounded up count of pages
  * needed for size bytes.
@@ -268,5 +274,6 @@ vmalloc_to_page(const void *addr)
 }
 
 extern int is_vmalloc_addr(const void *addr);
+void si_meminfo(struct sysinfo *si);
 
 #endif					/* _LINUX_MM_H_ */

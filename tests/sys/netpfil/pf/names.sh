@@ -13,9 +13,9 @@ names_body()
 {
 	pft_init
 
-	epair=$(pft_mkepair)
+	epair=$(vnet_mkepair)
 
-	pft_mkjail alcatraz ${epair}b
+	vnet_mkjail alcatraz ${epair}b
 	ifconfig ${epair}a name foo
 	jexec alcatraz ifconfig ${epair}b name foo
 

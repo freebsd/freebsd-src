@@ -139,10 +139,13 @@ struct pci_device_id {
 #define	PCI_EXP_TYPE_RC_EC	PCIEM_TYPE_ROOT_EC		/* Root Complex Event Collector */
 #define	PCI_EXP_LNKCAP_SLS_2_5GB 0x01	/* Supported Link Speed 2.5GT/s */
 #define	PCI_EXP_LNKCAP_SLS_5_0GB 0x02	/* Supported Link Speed 5.0GT/s */
+#define	PCI_EXP_LNKCAP_SLS_8_0GB 0x04	/* Supported Link Speed 8.0GT/s */
+#define	PCI_EXP_LNKCAP_SLS_16_0GB 0x08	/* Supported Link Speed 16.0GT/s */
 #define	PCI_EXP_LNKCAP_MLW	0x03f0	/* Maximum Link Width */
 #define	PCI_EXP_LNKCAP2_SLS_2_5GB 0x02	/* Supported Link Speed 2.5GT/s */
 #define	PCI_EXP_LNKCAP2_SLS_5_0GB 0x04	/* Supported Link Speed 5.0GT/s */
 #define	PCI_EXP_LNKCAP2_SLS_8_0GB 0x08	/* Supported Link Speed 8.0GT/s */
+#define	PCI_EXP_LNKCAP2_SLS_16_0GB 0x10	/* Supported Link Speed 16.0GT/s */
 
 #define PCI_EXP_LNKCTL_HAWD	PCIEM_LINK_CTL_HAWD
 #define PCI_EXP_LNKCAP_CLKPM	0x00040000
@@ -157,10 +160,19 @@ enum pci_bus_speed {
 	PCIE_SPEED_2_5GT,
 	PCIE_SPEED_5_0GT,
 	PCIE_SPEED_8_0GT,
+	PCIE_SPEED_16_0GT,
 };
 
 enum pcie_link_width {
-	PCIE_LNK_WIDTH_UNKNOWN = 0xFF,
+	PCIE_LNK_WIDTH_RESRV	= 0x00,
+	PCIE_LNK_X1		= 0x01,
+	PCIE_LNK_X2		= 0x02,
+	PCIE_LNK_X4		= 0x04,
+	PCIE_LNK_X8		= 0x08,
+	PCIE_LNK_X12		= 0x0c,
+	PCIE_LNK_X16		= 0x10,
+	PCIE_LNK_X32		= 0x20,
+	PCIE_LNK_WIDTH_UNKNOWN	= 0xff,
 };
 
 typedef int pci_power_t;
@@ -848,6 +860,67 @@ static inline int
 pci_num_vf(struct pci_dev *dev)
 {
 	return (0);
+}
+
+static inline enum pci_bus_speed
+pcie_get_speed_cap(struct pci_dev *dev)
+{
+	device_t root;
+	uint32_t lnkcap, lnkcap2;
+	int error, pos;
+
+	root = device_get_parent(dev->dev.bsddev);
+	if (root == NULL)
+		return (PCI_SPEED_UNKNOWN);
+	root = device_get_parent(root);
+	if (root == NULL)
+		return (PCI_SPEED_UNKNOWN);
+	root = device_get_parent(root);
+	if (root == NULL)
+		return (PCI_SPEED_UNKNOWN);
+
+	if (pci_get_vendor(root) == PCI_VENDOR_ID_VIA ||
+	    pci_get_vendor(root) == PCI_VENDOR_ID_SERVERWORKS)
+		return (PCI_SPEED_UNKNOWN);
+
+	if ((error = pci_find_cap(root, PCIY_EXPRESS, &pos)) != 0)
+		return (PCI_SPEED_UNKNOWN);
+
+	lnkcap2 = pci_read_config(root, pos + PCIER_LINK_CAP2, 4);
+
+	if (lnkcap2) {	/* PCIe r3.0-compliant */
+		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_2_5GB)
+			return (PCIE_SPEED_2_5GT);
+		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_5_0GB)
+			return (PCIE_SPEED_5_0GT);
+		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_8_0GB)
+			return (PCIE_SPEED_8_0GT);
+		if (lnkcap2 & PCI_EXP_LNKCAP2_SLS_16_0GB)
+			return (PCIE_SPEED_16_0GT);
+	} else {	/* pre-r3.0 */
+		lnkcap = pci_read_config(root, pos + PCIER_LINK_CAP, 4);
+		if (lnkcap & PCI_EXP_LNKCAP_SLS_2_5GB)
+			return (PCIE_SPEED_2_5GT);
+		if (lnkcap & PCI_EXP_LNKCAP_SLS_5_0GB)
+			return (PCIE_SPEED_5_0GT);
+		if (lnkcap & PCI_EXP_LNKCAP_SLS_8_0GB)
+			return (PCIE_SPEED_8_0GT);
+		if (lnkcap & PCI_EXP_LNKCAP_SLS_16_0GB)
+			return (PCIE_SPEED_16_0GT);
+	}
+	return (PCI_SPEED_UNKNOWN);
+}
+
+static inline enum pcie_link_width
+pcie_get_width_cap(struct pci_dev *dev)
+{
+	uint32_t lnkcap;
+
+	pcie_capability_read_dword(dev, PCI_EXP_LNKCAP, &lnkcap);
+	if (lnkcap)
+		return ((lnkcap & PCI_EXP_LNKCAP_MLW) >> 4);
+
+	return (PCIE_LNK_WIDTH_UNKNOWN);
 }
 
 #endif	/* _LINUX_PCI_H_ */

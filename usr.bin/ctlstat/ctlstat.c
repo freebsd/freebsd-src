@@ -717,6 +717,7 @@ main(int argc, char **argv)
 		}
 
 		fprintf(stdout, "\n");
+		fflush(stdout);
 		ctx.flags &= ~CTLSTAT_FLAG_FIRST_RUN;
 		if (count != 1)
 			sleep(waittime);

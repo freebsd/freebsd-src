@@ -1874,7 +1874,9 @@ tiNumOfLunIOCTLreq(
       
     agSSPFrame->dataLength = REPORT_LUN_LEN;
     agSSPFrame->agSgl.len =	sizeof(agsaSSPCmdInfoUnit_t);
-    
+    agSSPFrame->agSgl.extReserved = 0;
+    CLEAR_ESGL_EXTEND(agSSPFrame->agSgl.extReserved);
+
     status = saSSPStart(agRoot, agIORequest, 0, agDevHandle, agRequestType,agSASRequestBody,agNULL,
     										   &ossaSSPIoctlCompleted);
     if(status != AGSA_RC_SUCCESS)

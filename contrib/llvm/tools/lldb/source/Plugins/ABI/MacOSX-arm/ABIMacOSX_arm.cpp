@@ -9,19 +9,13 @@
 
 #include "ABIMacOSX_arm.h"
 
-// C Includes
-// C++ Includes
 #include <vector>
 
-// Other libraries and framework includes
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Triple.h"
 
-// Project includes
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/RegisterValue.h"
-#include "lldb/Core/Scalar.h"
 #include "lldb/Core/Value.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/Symbol/UnwindPlan.h"
@@ -30,6 +24,8 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/RegisterValue.h"
+#include "lldb/Utility/Scalar.h"
 #include "lldb/Utility/Status.h"
 
 #include "Plugins/Process/Utility/ARMDefines.h"
@@ -1327,16 +1323,13 @@ size_t ABIMacOSX_arm::GetRedZoneSize() const { return 0; }
 
 ABISP
 ABIMacOSX_arm::CreateInstance(ProcessSP process_sp, const ArchSpec &arch) {
-  static ABISP g_abi_sp;
   const llvm::Triple::ArchType arch_type = arch.GetTriple().getArch();
   const llvm::Triple::VendorType vendor_type = arch.GetTriple().getVendor();
 
   if (vendor_type == llvm::Triple::Apple) {
     if ((arch_type == llvm::Triple::arm) ||
         (arch_type == llvm::Triple::thumb)) {
-      if (!g_abi_sp)
-        g_abi_sp.reset(new ABIMacOSX_arm(process_sp));
-      return g_abi_sp;
+      return ABISP(new ABIMacOSX_arm(process_sp));
     }
   }
 
@@ -1477,14 +1470,16 @@ bool ABIMacOSX_arm::GetArgumentValues(Thread &thread, ValueList &values) const {
     if (compiler_type) {
       bool is_signed = false;
       size_t bit_width = 0;
-      if (compiler_type.IsIntegerOrEnumerationType(is_signed)) {
-        bit_width = compiler_type.GetBitSize(&thread);
-      } else if (compiler_type.IsPointerOrReferenceType()) {
-        bit_width = compiler_type.GetBitSize(&thread);
-      } else {
+      llvm::Optional<uint64_t> bit_size = compiler_type.GetBitSize(&thread);
+      if (!bit_size)
+        return false;
+      if (compiler_type.IsIntegerOrEnumerationType(is_signed))
+        bit_width = *bit_size;
+      else if (compiler_type.IsPointerOrReferenceType())
+        bit_width = *bit_size;
+      else
         // We only handle integer, pointer and reference types currently...
         return false;
-      }
 
       if (bit_width <= (exe_ctx.GetProcessRef().GetAddressByteSize() * 8)) {
         if (value_idx < 4) {
@@ -1581,9 +1576,11 @@ ValueObjectSP ABIMacOSX_arm::GetReturnValueObjectImpl(
 
   const RegisterInfo *r0_reg_info = reg_ctx->GetRegisterInfoByName("r0", 0);
   if (compiler_type.IsIntegerOrEnumerationType(is_signed)) {
-    size_t bit_width = compiler_type.GetBitSize(&thread);
+    llvm::Optional<uint64_t> bit_width = compiler_type.GetBitSize(&thread);
+    if (!bit_width)
+      return return_valobj_sp;
 
-    switch (bit_width) {
+    switch (*bit_width) {
     default:
       return return_valobj_sp;
     case 128:
@@ -1599,14 +1596,17 @@ ValueObjectSP ABIMacOSX_arm::GetReturnValueObjectImpl(
           const RegisterInfo *r3_reg_info =
               reg_ctx->GetRegisterInfoByName("r3", 0);
           if (r1_reg_info && r2_reg_info && r3_reg_info) {
-            const size_t byte_size = compiler_type.GetByteSize(&thread);
+            llvm::Optional<uint64_t> byte_size =
+                compiler_type.GetByteSize(&thread);
+            if (!byte_size)
+              return return_valobj_sp;
             ProcessSP process_sp(thread.GetProcess());
-            if (byte_size <= r0_reg_info->byte_size + r1_reg_info->byte_size +
-                                 r2_reg_info->byte_size +
-                                 r3_reg_info->byte_size &&
+            if (*byte_size <= r0_reg_info->byte_size + r1_reg_info->byte_size +
+                                  r2_reg_info->byte_size +
+                                  r3_reg_info->byte_size &&
                 process_sp) {
               std::unique_ptr<DataBufferHeap> heap_data_ap(
-                  new DataBufferHeap(byte_size, 0));
+                  new DataBufferHeap(*byte_size, 0));
               const ByteOrder byte_order = process_sp->GetByteOrder();
               RegisterValue r0_reg_value;
               RegisterValue r1_reg_value;

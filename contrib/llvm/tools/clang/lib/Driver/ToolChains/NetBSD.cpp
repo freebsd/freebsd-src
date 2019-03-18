@@ -164,7 +164,7 @@ void netbsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     break;
   case llvm::Triple::armeb:
   case llvm::Triple::thumbeb:
-    arm::appendEBLinkFlags(Args, CmdArgs, ToolChain.getEffectiveTriple());
+    arm::appendBE8LinkFlag(Args, CmdArgs, ToolChain.getEffectiveTriple());
     CmdArgs.push_back("-m");
     switch (ToolChain.getTriple().getEnvironment()) {
     case llvm::Triple::EABI:
@@ -255,6 +255,13 @@ void netbsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   bool NeedsSanitizerDeps = addSanitizerRuntimes(getToolChain(), Args, CmdArgs);
   bool NeedsXRayDeps = addXRayRuntime(ToolChain, Args, CmdArgs);
   AddLinkerInputs(getToolChain(), Inputs, Args, CmdArgs, JA);
+
+  const SanitizerArgs &SanArgs = ToolChain.getSanitizerArgs();
+  if (SanArgs.needsSharedRt()) {
+    CmdArgs.push_back("-rpath");
+    CmdArgs.push_back(Args.MakeArgString(
+        ToolChain.getCompilerRTPath().c_str()));
+  }
 
   unsigned Major, Minor, Micro;
   ToolChain.getTriple().getOSVersion(Major, Minor, Micro);
@@ -448,12 +455,24 @@ SanitizerMask NetBSD::getSupportedSanitizers() const {
     Res |= SanitizerKind::Vptr;
   }
   if (IsX86_64) {
+    Res |= SanitizerKind::DataFlow;
     Res |= SanitizerKind::Efficiency;
     Res |= SanitizerKind::Fuzzer;
     Res |= SanitizerKind::FuzzerNoLink;
+    Res |= SanitizerKind::HWAddress;
     Res |= SanitizerKind::KernelAddress;
+    Res |= SanitizerKind::KernelHWAddress;
+    Res |= SanitizerKind::KernelMemory;
     Res |= SanitizerKind::Memory;
     Res |= SanitizerKind::Thread;
   }
   return Res;
+}
+
+void NetBSD::addClangTargetOptions(const ArgList &,
+                                   ArgStringList &CC1Args,
+                                   Action::OffloadKind) const {
+  const SanitizerArgs &SanArgs = getSanitizerArgs();
+  if (SanArgs.hasAnySanitizer())
+    CC1Args.push_back("-D_REENTRANT");
 }

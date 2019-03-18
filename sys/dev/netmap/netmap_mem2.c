@@ -2012,6 +2012,10 @@ netmap_mem2_if_new(struct netmap_adapter *na, struct netmap_priv_d *priv)
 	/* initialize base fields -- override const */
 	*(u_int *)(uintptr_t)&nifp->ni_tx_rings = na->num_tx_rings;
 	*(u_int *)(uintptr_t)&nifp->ni_rx_rings = na->num_rx_rings;
+	*(u_int *)(uintptr_t)&nifp->ni_host_tx_rings =
+		(na->num_host_tx_rings ? na->num_host_tx_rings : 1);
+	*(u_int *)(uintptr_t)&nifp->ni_host_rx_rings =
+		(na->num_host_rx_rings ? na->num_host_rx_rings : 1);
 	strlcpy(nifp->ni_name, na->name, sizeof(nifp->ni_name));
 
 	/*

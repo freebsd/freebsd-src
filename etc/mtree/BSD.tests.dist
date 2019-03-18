@@ -278,6 +278,16 @@
             static
             ..
         ..
+        googletest
+            gmock
+            ..
+            gmock_main
+            ..
+            gtest
+            ..
+            gtest_main
+            ..
+        ..
         libarchive
         ..
         libc
@@ -429,6 +439,8 @@
         examples
             tests
                 atf
+                ..
+                googletest
                 ..
                 plain
                 ..

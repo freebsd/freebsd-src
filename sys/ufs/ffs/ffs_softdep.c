@@ -11036,6 +11036,9 @@ softdep_disk_write_complete(bp)
 	struct buf *sbp;
 
 	ump = softdep_bp_to_mp(bp);
+	KASSERT(LIST_EMPTY(&bp->b_dep) || ump != NULL,
+	    ("softdep_disk_write_complete: softdep_bp_to_mp returned NULL "
+	     "with outstanding dependencies for buffer %p", bp));
 	if (ump == NULL)
 		return;
 

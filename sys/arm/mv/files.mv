@@ -31,7 +31,7 @@ dev/mvs/mvs_soc.c		optional	mvs
 dev/uart/uart_dev_ns8250.c	optional	uart
 dev/uart/uart_dev_snps.c	optional	uart
 dev/usb/controller/ehci_mv.c	optional	ehci
-dev/usb/controller/xhci_mv.c	optional	xhci
+dev/usb/controller/generic_xhci.c	optional	xhci
 dev/ahci/ahci_mv_fdt.c		optional	ahci
 
 kern/kern_clocksource.c		standard

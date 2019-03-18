@@ -1756,8 +1756,16 @@ flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
 
 	retval = 0;
 	TAILQ_FOREACH_SAFE(bp, &bufv->bv_hd, b_bobufs, nbp) {
-		if (((flags & V_NORMAL) && (bp->b_xflags & BX_ALTDATA)) ||
-		    ((flags & V_ALT) && (bp->b_xflags & BX_ALTDATA) == 0)) {
+		/*
+		 * If we are flushing both V_NORMAL and V_ALT buffers then
+		 * do not skip any buffers. If we are flushing only V_NORMAL
+		 * buffers then skip buffers marked as BX_ALTDATA. If we are
+		 * flushing only V_ALT buffers then skip buffers not marked
+		 * as BX_ALTDATA.
+		 */
+		if (((flags & (V_NORMAL | V_ALT)) != (V_NORMAL | V_ALT)) &&
+		   (((flags & V_NORMAL) && (bp->b_xflags & BX_ALTDATA) != 0) ||
+		    ((flags & V_ALT) && (bp->b_xflags & BX_ALTDATA) == 0))) {
 			continue;
 		}
 		if (nbp != NULL) {

@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 SRCS+=	start.S \
-	efimd.c \
 	elf32_freebsd.c \
 	exec.c
 

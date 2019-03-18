@@ -39,8 +39,10 @@ SRCS+=	ifipsec.c		# IPsec VTI
 SRCS+=	sfp.c			# SFP/SFP+ information
 LIBADD+=	m
 
+.if ${MK_WIRELESS_SUPPORT} != "no"
 SRCS+=	ifieee80211.c		# SIOC[GS]IEEE80211 support
 LIBADD+=	80211
+.endif
 
 SRCS+=	carp.c			# SIOC[GS]VH support
 SRCS+=	ifgroup.c		# ...
@@ -53,6 +55,7 @@ SRCS+=	iflagg.c		# lagg support
 
 .if ${MK_EXPERIMENTAL} != "no"
 CFLAGS+= -DDRAFT_IETF_6MAN_IPV6ONLY_FLAG
+CFLAGS+= -DEXPERIMENTAL
 .endif
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6

@@ -373,7 +373,7 @@ struct ath_rx_radiotap_header {
 	 */
 	struct ath_radiotap_vendor_hdr wr_v;
 #endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
-} __packed;
+} __packed __aligned(8);
 
 #define ATH_TX_RADIOTAP_PRESENT (		\
 	(1 << IEEE80211_RADIOTAP_FLAGS)		| \

@@ -1,7 +1,8 @@
 /*-
- * Copyright (c) 2015-2018 Yandex LLC
- * Copyright (c) 2015-2018 Andrey V. Elsukov <ae@FreeBSD.org>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2015-2019 Yandex LLC
+ * Copyright (c) 2015-2019 Andrey V. Elsukov <ae@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,12 +47,12 @@ struct nat64_stats {
 					 * unsupported/etc.
 					 */
 
-	uint64_t	jrequests;	/* number of jobs requests queued */
-	uint64_t	jcalls;		/* number of jobs handler calls */
-	uint64_t	jhostsreq;	/* number of hosts requests */
-	uint64_t	jportreq;
-	uint64_t	jhostfails;
-	uint64_t	jportfails;
+	uint64_t	jrequests;	/* jobs requests queued */
+	uint64_t	jcalls;		/* jobs handler calls */
+	uint64_t	jhostsreq;	/* hosts requests */
+	uint64_t	jportreq;	/* PG allocation requests */
+	uint64_t	jhostfails;	/* hosts requests failed */
+	uint64_t	jportfails;	/* PG allocation failed */
 	uint64_t	jmaxlen;
 	uint64_t	jnomem;
 	uint64_t	jreinjected;
@@ -85,11 +86,24 @@ struct nat64_counters {
 #define	NAT64RETURN	1
 #define	NAT64MFREE	-1
 
+/*
+ * According to RFC6877:
+ *  PLAT is provider-side translator (XLAT) that translates N:1 global
+ *  IPv6 addresses to global IPv4 addresses, and vice versa.
+ *
+ *  CLAT is customer-side translator (XLAT) that algorithmically
+ *  translates 1:1 private IPv4 addresses to global IPv6 addresses,
+ *  and vice versa.
+ */
 struct nat64_config {
+	struct in6_addr		clat_prefix;
+	struct in6_addr		plat_prefix;
 	uint32_t		flags;
-#define	NAT64_WKPFX		0x00010000	/* prefix6 is WKPFX */
-	struct in6_addr		prefix6;
-	uint8_t			plen6;
+#define	NAT64_WKPFX		0x00010000	/* prefix is well-known */
+#define	NAT64_CLATPFX		0x00020000	/* dst prefix is configured */
+#define	NAT64_PLATPFX		0x00040000	/* src prefix is configured */
+	uint8_t			clat_plen;
+	uint8_t			plat_plen;
 
 	struct nat64_counters	stats;
 };
@@ -128,6 +142,7 @@ nat64_check_ip4(in_addr_t ia)
 	(a)->s6_addr32[1] == 0 && (a)->s6_addr32[2] == 0)
 
 int nat64_check_private_ip4(const struct nat64_config *cfg, in_addr_t ia);
+int nat64_check_prefixlen(int length);
 int nat64_check_prefix6(const struct in6_addr *prefix, int length);
 int nat64_getlasthdr(struct mbuf *m, int *offset);
 int nat64_do_handle_ip4(struct mbuf *m, struct in6_addr *saddr,
@@ -137,10 +152,8 @@ int nat64_do_handle_ip6(struct mbuf *m, uint32_t aaddr, uint16_t aport,
     struct nat64_config *cfg, void *logdata);
 int nat64_handle_icmp6(struct mbuf *m, int hlen, uint32_t aaddr,
     uint16_t aport, struct nat64_config *cfg, void *logdata);
-void nat64_embed_ip4(const struct nat64_config *cfg, in_addr_t ia,
-    struct in6_addr *ip6);
-in_addr_t nat64_extract_ip4(const struct nat64_config *cfg,
-    const struct in6_addr *ip6);
+void nat64_embed_ip4(struct in6_addr *ip6, int plen, in_addr_t ia);
+in_addr_t nat64_extract_ip4(const struct in6_addr *ip6, int plen);
 
 void nat64_set_output_method(int);
 int nat64_get_output_method(void);

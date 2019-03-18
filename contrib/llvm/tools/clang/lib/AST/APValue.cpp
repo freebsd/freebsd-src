@@ -416,17 +416,25 @@ void APValue::printPretty(raw_ostream &Out, ASTContext &Ctx, QualType Ty) const{
         << GetApproxValue(getComplexFloatImag()) << "i";
     return;
   case APValue::LValue: {
-    LValueBase Base = getLValueBase();
-    if (!Base) {
-      Out << "0";
-      return;
-    }
-
     bool IsReference = Ty->isReferenceType();
     QualType InnerTy
       = IsReference ? Ty.getNonReferenceType() : Ty->getPointeeType();
     if (InnerTy.isNull())
       InnerTy = Ty;
+
+    LValueBase Base = getLValueBase();
+    if (!Base) {
+      if (isNullPointer()) {
+        Out << (Ctx.getLangOpts().CPlusPlus11 ? "nullptr" : "0");
+      } else if (IsReference) {
+        Out << "*(" << InnerTy.stream(Ctx.getPrintingPolicy()) << "*)"
+            << getLValueOffset().getQuantity();
+      } else {
+        Out << "(" << Ty.stream(Ctx.getPrintingPolicy()) << ")"
+            << getLValueOffset().getQuantity();
+      }
+      return;
+    }
 
     if (!hasLValuePath()) {
       // No lvalue path: just print the offset.
@@ -590,6 +598,26 @@ std::string APValue::getAsString(ASTContext &Ctx, QualType Ty) const {
   printPretty(Out, Ctx, Ty);
   Out.flush();
   return Result;
+}
+
+bool APValue::toIntegralConstant(APSInt &Result, QualType SrcTy,
+                                 const ASTContext &Ctx) const {
+  if (isInt()) {
+    Result = getInt();
+    return true;
+  }
+
+  if (isLValue() && isNullPointer()) {
+    Result = Ctx.MakeIntValue(Ctx.getTargetNullPointerValue(SrcTy), SrcTy);
+    return true;
+  }
+
+  if (isLValue() && !getLValueBase()) {
+    Result = Ctx.MakeIntValue(getLValueOffset().getQuantity(), SrcTy);
+    return true;
+  }
+
+  return false;
 }
 
 const APValue::LValueBase APValue::getLValueBase() const {

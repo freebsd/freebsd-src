@@ -85,7 +85,7 @@ VNET_DEFINE_STATIC(int, fwlink_enable) = 0;
 int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
 
 /* Forward declarations. */
-static int ipfw_divert(struct mbuf **, int, struct ipfw_rule_ref *, int);
+static int ipfw_divert(struct mbuf **, struct ip_fw_args *, bool);
 
 #ifdef SYSCTL_NODE
 
@@ -118,7 +118,7 @@ SYSEND
  * The packet may be consumed.
  */
 static pfil_return_t
-ipfw_check_packet(struct mbuf **m0, struct ifnet *ifp, int dir,
+ipfw_check_packet(struct mbuf **m0, struct ifnet *ifp, int flags,
     void *ruleset __unused, struct inpcb *inp)
 {
 	struct ip_fw_args args;
@@ -126,9 +126,7 @@ ipfw_check_packet(struct mbuf **m0, struct ifnet *ifp, int dir,
 	pfil_return_t ret;
 	int ipfw;
 
-	/* convert dir to IPFW values */
-	dir = (dir & PFIL_IN) ? DIR_IN : DIR_OUT;
-	args.flags = 0;
+	args.flags = (flags & PFIL_IN) ? IPFW_ARGS_IN : IPFW_ARGS_OUT;
 again:
 	/*
 	 * extract and remove the tag if present. If we are left
@@ -144,14 +142,14 @@ again:
 	}
 
 	args.m = *m0;
-	args.oif = dir == DIR_OUT ? ifp : NULL;
+	args.ifp = ifp;
 	args.inp = inp;
 
 	ipfw = ipfw_chk(&args);
 	*m0 = args.m;
 
-	KASSERT(*m0 != NULL || ipfw == IP_FW_DENY, ("%s: m0 is NULL",
-	    __func__));
+	KASSERT(*m0 != NULL || ipfw == IP_FW_DENY ||
+	    ipfw == IP_FW_NAT64, ("%s: m0 is NULL", __func__));
 
 	ret = PFIL_PASS;
 	switch (ipfw) {
@@ -198,7 +196,7 @@ again:
 		 * m_tag_find. Outgoing packets may be tagged, so we
 		 * reuse the tag if present.
 		 */
-		tag = (dir == DIR_IN) ? NULL :
+		tag = (flags & PFIL_IN) ? NULL :
 			m_tag_find(*m0, PACKET_TAG_IPFORWARD, NULL);
 		if (tag != NULL) {
 			m_tag_unlink(*m0, tag);
@@ -255,10 +253,8 @@ again:
 			break;
 		}
 		MPASS(args.flags & IPFW_ARGS_REF);
-		if (mtod(*m0, struct ip *)->ip_v == 4)
-			(void )ip_dn_io_ptr(m0, dir, &args);
-		else if (mtod(*m0, struct ip *)->ip_v == 6)
-			(void )ip_dn_io_ptr(m0, dir | PROTO_IPV6, &args);
+		if (args.flags & (IPFW_ARGS_IP4 | IPFW_ARGS_IP6))
+			(void )ip_dn_io_ptr(m0, &args);
 		else {
 			ret = PFIL_DROPPED;
 			break;
@@ -282,8 +278,7 @@ again:
 			break;
 		}
 		MPASS(args.flags & IPFW_ARGS_REF);
-		(void )ipfw_divert(m0, dir, &args.rule,
-			(ipfw == IP_FW_TEE) ? 1 : 0);
+		(void )ipfw_divert(m0, &args, ipfw == IP_FW_TEE);
 		/* continue processing for the original packet (tee). */
 		if (*m0)
 			goto again;
@@ -297,8 +292,7 @@ again:
 			break;
 		}
 		MPASS(args.flags & IPFW_ARGS_REF);
-		(void )ng_ipfw_input_p(m0, dir, &args,
-			(ipfw == IP_FW_NGTEE) ? 1 : 0);
+		(void )ng_ipfw_input_p(m0, &args, ipfw == IP_FW_NGTEE);
 		if (ipfw == IP_FW_NGTEE) /* ignore errors for NGTEE */
 			goto again;	/* continue with packet */
 		ret = PFIL_CONSUMED;
@@ -312,6 +306,10 @@ again:
 
 	case IP_FW_REASS:
 		goto again;		/* continue with packet */
+
+	case IP_FW_NAT64:
+		ret = PFIL_CONSUMED;
+		break;
 
 	default:
 		KASSERT(0, ("%s: unknown retval", __func__));
@@ -330,68 +328,50 @@ again:
  * ipfw processing for ethernet packets (in and out).
  */
 static pfil_return_t
-ipfw_check_frame(struct mbuf **m0, struct ifnet *ifp, int dir,
+ipfw_check_frame(pfil_packet_t p, struct ifnet *ifp, int flags,
     void *ruleset __unused, struct inpcb *inp)
 {
 	struct ip_fw_args args;
-	struct ether_header save_eh;
-	struct ether_header *eh;
-	struct m_tag *mtag;
-	struct mbuf *m;
 	pfil_return_t ret;
-	int i;
+	bool mem, realloc;
+	int ipfw;
 
-	args.flags = IPFW_ARGS_ETHER;
+	if (flags & PFIL_MEMPTR) {
+		mem = true;
+		realloc = false;
+		args.flags = PFIL_LENGTH(flags) | IPFW_ARGS_ETHER;
+		args.mem = p.mem;
+	} else {
+		mem = realloc = false;
+		args.flags = IPFW_ARGS_ETHER;
+	}
+	args.flags |= (flags & PFIL_IN) ? IPFW_ARGS_IN : IPFW_ARGS_OUT;
+	args.ifp = ifp;
+	args.inp = inp;
+
 again:
-	/* fetch start point from rule, if any.  remove the tag if present. */
-	mtag = m_tag_locate(*m0, MTAG_IPFW_RULE, 0, NULL);
-	if (mtag != NULL) {
-		args.rule = *((struct ipfw_rule_ref *)(mtag+1));
-		m_tag_delete(*m0, mtag);
-		if (args.rule.info & IPFW_ONEPASS)
-			return (0);
-		args.flags |= IPFW_ARGS_REF;
-	}
-
-	/* I need some amt of data to be contiguous */
-	m = *m0;
-	i = min(m->m_pkthdr.len, max_protohdr);
-	if (m->m_len < i) {
-		m = m_pullup(m, i);
-		if (m == NULL) {
-			*m0 = m;
-			return (0);
-		}
-	}
-	eh = mtod(m, struct ether_header *);
-	save_eh = *eh;			/* save copy for restore below */
-	m_adj(m, ETHER_HDR_LEN);	/* strip ethernet header */
-
-	args.m = m;		/* the packet we are looking at		*/
-	args.oif = dir & PFIL_OUT ? ifp: NULL;	/* destination, if any	*/
-	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
-	args.inp = inp;	/* used by ipfw uid/gid/jail rules	*/
-	i = ipfw_chk(&args);
-	m = args.m;
-	if (m != NULL) {
+	if (!mem) {
 		/*
-		 * Restore Ethernet header, as needed, in case the
-		 * mbuf chain was replaced by ipfw.
+		 * Fetch start point from rule, if any.
+		 * Remove the tag if present.
 		 */
-		M_PREPEND(m, ETHER_HDR_LEN, M_NOWAIT);
-		if (m == NULL) {
-			*m0 = NULL;
-			return (0);
+		struct m_tag *mtag;
+
+		mtag = m_tag_locate(*p.m, MTAG_IPFW_RULE, 0, NULL);
+		if (mtag != NULL) {
+			args.rule = *((struct ipfw_rule_ref *)(mtag+1));
+			m_tag_delete(*p.m, mtag);
+			if (args.rule.info & IPFW_ONEPASS)
+				return (PFIL_PASS);
+			args.flags |= IPFW_ARGS_REF;
 		}
-		if (eh != mtod(m, struct ether_header *))
-			bcopy(&save_eh, mtod(m, struct ether_header *),
-				ETHER_HDR_LEN);
+		args.m = *p.m;
 	}
-	*m0 = m;
+
+	ipfw = ipfw_chk(&args);
 
 	ret = PFIL_PASS;
-	/* Check result of ipfw_chk() */
-	switch (i) {
+	switch (ipfw) {
 	case IP_FW_PASS:
 		break;
 
@@ -404,10 +384,16 @@ again:
 			ret = PFIL_DROPPED;
 			break;
 		}
-		*m0 = NULL;
-		dir = (dir & PFIL_IN) ? DIR_IN : DIR_OUT;
+		if (mem) {
+			if (pfil_realloc(&p, flags, ifp) != 0) {
+				ret = PFIL_DROPPED;
+				break;
+			}
+			mem = false;
+			realloc = true;
+		}
 		MPASS(args.flags & IPFW_ARGS_REF);
-		ip_dn_io_ptr(&m, dir | PROTO_LAYER2, &args);
+		ip_dn_io_ptr(p.m, &args);
 		return (PFIL_CONSUMED);
 
 	case IP_FW_NGTEE:
@@ -416,10 +402,17 @@ again:
 			ret = PFIL_DROPPED;
 			break;
 		}
+		if (mem) {
+			if (pfil_realloc(&p, flags, ifp) != 0) {
+				ret = PFIL_DROPPED;
+				break;
+			}
+			mem = false;
+			realloc = true;
+		}
 		MPASS(args.flags & IPFW_ARGS_REF);
-		(void )ng_ipfw_input_p(m0, (dir & PFIL_IN) ? DIR_IN : DIR_OUT,
-			&args, (i == IP_FW_NGTEE) ? 1 : 0);
-		if (i == IP_FW_NGTEE) /* ignore errors for NGTEE */
+		(void )ng_ipfw_input_p(p.m, &args, ipfw == IP_FW_NGTEE);
+		if (ipfw == IP_FW_NGTEE) /* ignore errors for NGTEE */
 			goto again;	/* continue with packet */
 		ret = PFIL_CONSUMED;
 		break;
@@ -428,19 +421,21 @@ again:
 		KASSERT(0, ("%s: unknown retval", __func__));
 	}
 
-	if (ret != PFIL_PASS) {
-		if (*m0)
-			FREE_PKT(*m0);
-		*m0 = NULL;
+	if (!mem && ret != PFIL_PASS) {
+		if (*p.m)
+			FREE_PKT(*p.m);
+		*p.m = NULL;
 	}
+
+	if (realloc && ret == PFIL_PASS)
+		ret = PFIL_REALLOCED;
 
 	return (ret);
 }
 
 /* do the divert, return 1 on error 0 on success */
 static int
-ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
-	int tee)
+ipfw_divert(struct mbuf **m0, struct ip_fw_args *args, bool tee)
 {
 	/*
 	 * ipfw_chk() has already tagged the packet with the divert tag.
@@ -452,7 +447,7 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
 	struct m_tag *tag;
 
 	/* Cloning needed for tee? */
-	if (tee == 0) {
+	if (tee == false) {
 		clone = *m0;	/* use the original mbuf */
 		*m0 = NULL;
 	} else {
@@ -472,7 +467,7 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
 	 * Note that we now have the 'reass' ipfw option so if we care
 	 * we can do it before a 'tee'.
 	 */
-	if (!tee) switch (ip->ip_v) {
+	if (tee == false) switch (ip->ip_v) {
 	case IPVERSION:
 	    if (ntohs(ip->ip_off) & (IP_MF | IP_OFFMASK)) {
 		int hlen;
@@ -521,11 +516,11 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
 		FREE_PKT(clone);
 		return 1;
 	}
-	*((struct ipfw_rule_ref *)(tag+1)) = *rule;
+	*((struct ipfw_rule_ref *)(tag+1)) = args->rule;
 	m_tag_prepend(clone, tag);
 
 	/* Do the dirty job... */
-	ip_divert_ptr(clone, incoming);
+	ip_divert_ptr(clone, args->flags & IPFW_ARGS_IN);
 	return 0;
 }
 
@@ -549,7 +544,7 @@ ipfw_hook(int onoff, int pf)
 	pfil_hook_t *h;
 
 	pha.pa_version = PFIL_VERSION;
-	pha.pa_flags = PFIL_IN | PFIL_OUT;
+	pha.pa_flags = PFIL_IN | PFIL_OUT | PFIL_MEMPTR;
 	pha.pa_modname = "ipfw";
 	pha.pa_ruleset = NULL;
 

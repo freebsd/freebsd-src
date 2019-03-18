@@ -273,7 +273,7 @@ namespace {
     void PredicateBlock(BBInfo &BBI,
                         MachineBasicBlock::iterator E,
                         SmallVectorImpl<MachineOperand> &Cond,
-                        SmallSet<unsigned, 4> *LaterRedefs = nullptr);
+                        SmallSet<MCPhysReg, 4> *LaterRedefs = nullptr);
     void CopyAndPredicateBlock(BBInfo &ToBBI, BBInfo &FromBBI,
                                SmallVectorImpl<MachineOperand> &Cond,
                                bool IgnoreBr = false);
@@ -1366,12 +1366,12 @@ static void UpdatePredRedefs(MachineInstr &MI, LivePhysRegs &Redefs) {
   // Before stepping forward past MI, remember which regs were live
   // before MI. This is needed to set the Undef flag only when reg is
   // dead.
-  SparseSet<unsigned> LiveBeforeMI;
+  SparseSet<MCPhysReg, identity<MCPhysReg>> LiveBeforeMI;
   LiveBeforeMI.setUniverse(TRI->getNumRegs());
   for (unsigned Reg : Redefs)
     LiveBeforeMI.insert(Reg);
 
-  SmallVector<std::pair<unsigned, const MachineOperand*>, 4> Clobbers;
+  SmallVector<std::pair<MCPhysReg, const MachineOperand*>, 4> Clobbers;
   Redefs.stepForward(MI, Clobbers);
 
   // Now add the implicit uses for each of the clobbered values.
@@ -1444,7 +1444,7 @@ bool IfConverter::IfConvertSimple(BBInfo &BBI, IfcvtKind Kind) {
   Redefs.init(*TRI);
 
   if (MRI->tracksLiveness()) {
-    // Initialize liveins to the first BB. These are potentiall redefined by
+    // Initialize liveins to the first BB. These are potentially redefined by
     // predicated instructions.
     Redefs.addLiveIns(CvtMBB);
     Redefs.addLiveIns(NextMBB);
@@ -1740,7 +1740,7 @@ bool IfConverter::IfConvertDiamondCommon(
 
   if (MRI->tracksLiveness()) {
     for (const MachineInstr &MI : make_range(MBB1.begin(), DI1)) {
-      SmallVector<std::pair<unsigned, const MachineOperand*>, 4> Dummy;
+      SmallVector<std::pair<MCPhysReg, const MachineOperand*>, 4> Dummy;
       Redefs.stepForward(MI, Dummy);
     }
   }
@@ -1806,13 +1806,13 @@ bool IfConverter::IfConvertDiamondCommon(
   // generate:
   //   sub    r0, r1, #1
   //   addne  r0, r1, #1
-  SmallSet<unsigned, 4> RedefsByFalse;
-  SmallSet<unsigned, 4> ExtUses;
+  SmallSet<MCPhysReg, 4> RedefsByFalse;
+  SmallSet<MCPhysReg, 4> ExtUses;
   if (TII->isProfitableToUnpredicate(MBB1, MBB2)) {
     for (const MachineInstr &FI : make_range(MBB2.begin(), DI2)) {
       if (FI.isDebugInstr())
         continue;
-      SmallVector<unsigned, 4> Defs;
+      SmallVector<MCPhysReg, 4> Defs;
       for (const MachineOperand &MO : FI.operands()) {
         if (!MO.isReg())
           continue;
@@ -1830,7 +1830,7 @@ bool IfConverter::IfConvertDiamondCommon(
         }
       }
 
-      for (unsigned Reg : Defs) {
+      for (MCPhysReg Reg : Defs) {
         if (!ExtUses.count(Reg)) {
           for (MCSubRegIterator SubRegs(Reg, TRI, /*IncludeSelf=*/true);
                SubRegs.isValid(); ++SubRegs)
@@ -1976,7 +1976,7 @@ bool IfConverter::IfConvertDiamond(BBInfo &BBI, IfcvtKind Kind,
 }
 
 static bool MaySpeculate(const MachineInstr &MI,
-                         SmallSet<unsigned, 4> &LaterRedefs) {
+                         SmallSet<MCPhysReg, 4> &LaterRedefs) {
   bool SawStore = true;
   if (!MI.isSafeToMove(nullptr, SawStore))
     return false;
@@ -1999,7 +1999,7 @@ static bool MaySpeculate(const MachineInstr &MI,
 void IfConverter::PredicateBlock(BBInfo &BBI,
                                  MachineBasicBlock::iterator E,
                                  SmallVectorImpl<MachineOperand> &Cond,
-                                 SmallSet<unsigned, 4> *LaterRedefs) {
+                                 SmallSet<MCPhysReg, 4> *LaterRedefs) {
   bool AnyUnpred = false;
   bool MaySpec = LaterRedefs != nullptr;
   for (MachineInstr &I : make_range(BBI.BB->begin(), E)) {
@@ -2148,7 +2148,7 @@ void IfConverter::MergeBlocks(BBInfo &ToBBI, BBInfo &FromBBI, bool AddEdges) {
       // Calculate the edge probability for the edge from ToBBI.BB to Succ,
       // which is a portion of the edge probability from FromMBB to Succ. The
       // portion ratio is the edge probability from ToBBI.BB to FromMBB (if
-      // FromBBI is a successor of ToBBI.BB. See comment below for excepion).
+      // FromBBI is a successor of ToBBI.BB. See comment below for exception).
       NewProb = MBPI->getEdgeProbability(&FromMBB, Succ);
 
       // To2FromProb is 0 when FromMBB is not a successor of ToBBI.BB. This

@@ -1,8 +1,9 @@
 /*-
- * Copyright (c) 2015 Yandex LLC
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2015-2019 Yandex LLC
  * Copyright (c) 2015 Alexander V. Chernikov <melifaro@FreeBSD.org>
- * Copyright (c) 2016 Andrey V. Elsukov <ae@FreeBSD.org>
- * All rights reserved.
+ * Copyright (c) 2015-2019 Andrey V. Elsukov <ae@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,7 +41,20 @@ struct ipfw_nat64stl_stats {
 	uint64_t	noroute4;
 	uint64_t	noroute6;
 	uint64_t	noproto;	/* Protocol not supported */
-	uint64_t	nomem;		/* mbuf allocation filed */
+	uint64_t	nomem;		/* mbuf allocation failed */
+	uint64_t	dropped;	/* dropped due to some errors */
+};
+
+struct ipfw_nat64clat_stats {
+	uint64_t	opcnt64;	/* 6to4 of packets translated */
+	uint64_t	opcnt46;	/* 4to6 of packets translated */
+	uint64_t	ofrags;		/* number of fragments generated */
+	uint64_t	ifrags;		/* number of fragments received */
+	uint64_t	oerrors;	/* number of output errors */
+	uint64_t	noroute4;
+	uint64_t	noroute6;
+	uint64_t	noproto;	/* Protocol not supported */
+	uint64_t	nomem;		/* mbuf allocation failed */
 	uint64_t	dropped;	/* dropped due to some errors */
 };
 
@@ -53,7 +67,7 @@ struct ipfw_nat64lsn_stats {
 	uint64_t	noroute4;
 	uint64_t	noroute6;
 	uint64_t	noproto;	/* Protocol not supported */
-	uint64_t	nomem;		/* mbuf allocation filed */
+	uint64_t	nomem;		/* mbuf allocation failed */
 	uint64_t	dropped;	/* dropped due to some errors */
 
 	uint64_t	nomatch4;	/* No addr/port match */
@@ -79,8 +93,10 @@ struct ipfw_nat64lsn_stats {
 	uint64_t	_reserved[4];
 };
 
-#define	NAT64_LOG	0x0001		/* Enable logging via BPF */
-
+#define	NAT64_LOG		0x0001	/* Enable logging via BPF */
+#define	NAT64_ALLOW_PRIVATE	0x0002	/* Allow private IPv4 address
+					 * translation
+					 */
 typedef struct _ipfw_nat64stl_cfg {
 	char		name[64];	/* NAT name			*/
 	ipfw_obj_ntlv	ntlv6;		/* object name tlv		*/
@@ -91,6 +107,17 @@ typedef struct _ipfw_nat64stl_cfg {
 	uint8_t		spare[2];
 	uint32_t	flags;
 } ipfw_nat64stl_cfg;
+
+typedef struct _ipfw_nat64clat_cfg {
+	char		name[64];	/* NAT name			*/
+	struct in6_addr	plat_prefix;	/* NAT64 (PLAT) prefix */
+	struct in6_addr	clat_prefix;	/* Client (CLAT) prefix */
+	uint8_t		plat_plen;	/* PLAT Prefix length */
+	uint8_t		clat_plen;	/* CLAT Prefix length */
+	uint8_t		set;		/* Named instance set [0..31] */
+	uint8_t		spare;
+	uint32_t	flags;
+} ipfw_nat64clat_cfg;
 
 /*
  * NAT64LSN default configuration values

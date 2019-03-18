@@ -105,8 +105,9 @@ struct arpstat {
 	uint64_t rxrequests;	/* # of ARP requests received by this host. */
 	uint64_t rxreplies;	/* # of ARP replies received by this host. */
 	uint64_t received;	/* # of ARP packets received by this host. */
+	uint64_t txerrors;	/* # of ARP requests failed to send. */
 
-	uint64_t arp_spares[4];	/* For either the upper or lower half. */
+	uint64_t arp_spares[3];	/* For either the upper or lower half. */
 	/* Abnormal event and error  counting: */
 	uint64_t dropped;	/* # of packets dropped waiting for a reply. */
 	uint64_t timeouts;	/* # of times with entries removed */

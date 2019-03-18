@@ -161,24 +161,51 @@ ipfwlog_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 }
 
 void
-ipfw_bpf_mtap2(void *data, u_int dlen, struct mbuf *m)
+ipfw_bpf_tap(u_char *pkt, u_int pktlen)
 {
 	LOGIF_RLOCK_TRACKER;
 
 	LOGIF_RLOCK();
-	if (dlen == ETHER_HDR_LEN) {
-		if (V_log_if == NULL) {
-			LOGIF_RUNLOCK();
-			return;
-		}
-		BPF_MTAP2(V_log_if, data, dlen, m);
-	} else if (dlen == PFLOG_HDRLEN) {
-		if (V_pflog_if == NULL) {
-			LOGIF_RUNLOCK();
-			return;
-		}
-		BPF_MTAP2(V_pflog_if, data, dlen, m);
+	if (V_log_if != NULL)
+		BPF_TAP(V_log_if, pkt, pktlen);
+	LOGIF_RUNLOCK();
+}
+
+void
+ipfw_bpf_mtap(struct mbuf *m)
+{
+	LOGIF_RLOCK_TRACKER;
+
+	LOGIF_RLOCK();
+	if (V_log_if != NULL)
+		BPF_MTAP(V_log_if, m);
+	LOGIF_RUNLOCK();
+}
+
+void
+ipfw_bpf_mtap2(void *data, u_int dlen, struct mbuf *m)
+{
+	struct ifnet *logif;
+	LOGIF_RLOCK_TRACKER;
+
+	LOGIF_RLOCK();
+	switch (dlen) {
+	case (ETHER_HDR_LEN):
+		logif = V_log_if;
+		break;
+	case (PFLOG_HDRLEN):
+		logif = V_pflog_if;
+		break;
+	default:
+#ifdef INVARIANTS
+		panic("%s: unsupported len %d", __func__, dlen);
+#endif
+		logif = NULL;
 	}
+
+	if (logif != NULL)
+		BPF_MTAP2(logif, data, dlen, m);
+
 	LOGIF_RUNLOCK();
 }
 

@@ -4,7 +4,7 @@
 
 .PATH:		${CLANG_SRCS}/lib/Headers
 
-INCSDIR=	${LIBDIR}/clang/7.0.1/include
+INCSDIR=	${LIBDIR}/clang/8.0.0/include
 
 GENINCS+=	arm_fp16.h
 GENINCS+=	arm_neon.h

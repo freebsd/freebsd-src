@@ -91,8 +91,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
-#include <netpfil/ipfw/ip_fw_private.h> /* XXX: only for DIR_IN/DIR_OUT */
-
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
@@ -6184,7 +6182,7 @@ done:
 					m->m_flags &= ~M_FASTFWD_OURS;
 				}
 			}
-			ip_divert_ptr(*m0, dir ==  PF_IN ? DIR_IN : DIR_OUT);
+			ip_divert_ptr(*m0, dir == PF_IN);
 			*m0 = NULL;
 
 			return (action);

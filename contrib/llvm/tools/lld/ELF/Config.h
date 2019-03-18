@@ -48,7 +48,7 @@ enum class ICFLevel { None, Safe, All };
 enum class StripPolicy { None, All, Debug };
 
 // For --unresolved-symbols.
-enum class UnresolvedPolicy { ReportError, Warn, Ignore, IgnoreAll };
+enum class UnresolvedPolicy { ReportError, Warn, Ignore };
 
 // For --orphan-handling.
 enum class OrphanHandlingPolicy { Place, Warn, Error };
@@ -129,6 +129,7 @@ struct Configuration {
   bool AsNeeded = false;
   bool Bsymbolic;
   bool BsymbolicFunctions;
+  bool CallGraphProfileSort;
   bool CheckSections;
   bool CompressDebugSections;
   bool Cref;
@@ -136,11 +137,13 @@ struct Configuration {
   bool Demangle = true;
   bool DisableVerify;
   bool EhFrameHdr;
+  bool EmitLLVM;
   bool EmitRelocs;
   bool EnableNewDtags;
   bool ExecuteOnly;
   bool ExportDynamic;
   bool FixCortexA53Errata843419;
+  bool FormatBinary = false;
   bool GcSections;
   bool GdbIndex;
   bool GnuHash = false;
@@ -158,6 +161,7 @@ struct Configuration {
   bool OFormatBinary;
   bool Omagic;
   bool OptRemarksWithHotness;
+  bool PicThunk;
   bool Pie;
   bool PrintGcSections;
   bool PrintIcfSections;
@@ -172,21 +176,25 @@ struct Configuration {
   bool Trace;
   bool ThinLTOEmitImportsFiles;
   bool ThinLTOIndexOnly;
+  bool TocOptimize;
   bool UndefinedVersion;
   bool UseAndroidRelrTags = false;
   bool WarnBackrefs;
   bool WarnCommon;
+  bool WarnIfuncTextrel;
   bool WarnMissingEntry;
   bool WarnSymbolOrdering;
   bool WriteAddends;
   bool ZCombreloc;
   bool ZCopyreloc;
   bool ZExecstack;
+  bool ZGlobal;
   bool ZHazardplt;
   bool ZIfuncnoplt;
   bool ZInitfirst;
   bool ZInterpose;
   bool ZKeepTextSectionPrefix;
+  bool ZNodefaultlib;
   bool ZNodelete;
   bool ZNodlopen;
   bool ZNow;
@@ -216,6 +224,7 @@ struct Configuration {
   unsigned LTOO;
   unsigned Optimize;
   unsigned ThinLTOJobs;
+  int32_t SplitStackAdjustSize;
 
   // The following config options do not directly correspond to any
   // particualr command line options.

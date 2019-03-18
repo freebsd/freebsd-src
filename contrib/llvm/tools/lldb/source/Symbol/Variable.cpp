@@ -50,7 +50,8 @@ Variable::Variable(
       m_symfile_type_sp(symfile_type_sp), m_scope(scope),
       m_owner_scope(context), m_scope_range(scope_range),
       m_declaration(decl_ptr), m_location(location), m_external(external),
-      m_artificial(artificial), m_static_member(static_member) {}
+      m_artificial(artificial), m_loc_is_const_data(false),
+      m_static_member(static_member) {}
 
 //----------------------------------------------------------------------
 // Destructor
@@ -156,14 +157,14 @@ void Variable::Dump(Stream *s, bool show_context) const {
                                 .GetBaseAddress()
                                 .GetFileAddress();
     }
-    ABI *abi = nullptr;
+    ABISP abi;
     if (m_owner_scope) {
       ModuleSP module_sp(m_owner_scope->CalculateSymbolContextModule());
       if (module_sp)
-        abi = ABI::FindPlugin(ProcessSP(), module_sp->GetArchitecture()).get();
+        abi = ABI::FindPlugin(ProcessSP(), module_sp->GetArchitecture());
     }
     m_location.GetDescription(s, lldb::eDescriptionLevelBrief,
-                              loclist_base_addr, abi);
+                              loclist_base_addr, abi.get());
   }
 
   if (m_external)
@@ -458,11 +459,11 @@ bool Variable::DumpLocationForAddress(Stream *s, const Address &address) {
     SymbolContext sc;
     CalculateSymbolContext(&sc);
     if (sc.module_sp == address.GetModule()) {
-      ABI *abi = nullptr;
+      ABISP abi;
       if (m_owner_scope) {
         ModuleSP module_sp(m_owner_scope->CalculateSymbolContextModule());
         if (module_sp)
-          abi = ABI::FindPlugin(ProcessSP(), module_sp->GetArchitecture()).get();
+          abi = ABI::FindPlugin(ProcessSP(), module_sp->GetArchitecture());
       }
 
       const addr_t file_addr = address.GetFileAddress();
@@ -474,11 +475,12 @@ bool Variable::DumpLocationForAddress(Stream *s, const Address &address) {
             return false;
           return m_location.DumpLocationForAddress(s, eDescriptionLevelBrief,
                                                    loclist_base_file_addr,
-                                                   file_addr, abi);
+                                                   file_addr, abi.get());
         }
       }
-      return m_location.DumpLocationForAddress(
-          s, eDescriptionLevelBrief, LLDB_INVALID_ADDRESS, file_addr, abi);
+      return m_location.DumpLocationForAddress(s, eDescriptionLevelBrief,
+                                               LLDB_INVALID_ADDRESS, file_addr,
+                                               abi.get());
     }
   }
   return false;
@@ -603,7 +605,7 @@ static void PrivateAutoComplete(
       case eTypeClassObjCObjectPointer:
       case eTypeClassPointer: {
         bool omit_empty_base_classes = true;
-        if (compiler_type.GetNumChildren(omit_empty_base_classes) > 0)
+        if (compiler_type.GetNumChildren(omit_empty_base_classes, nullptr) > 0)
           matches.AppendString((prefix_path + "->").str());
         else {
           matches.AppendString(prefix_path.str());

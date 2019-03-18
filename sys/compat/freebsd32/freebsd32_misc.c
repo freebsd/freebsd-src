@@ -834,8 +834,8 @@ freebsd32_gettimeofday(struct thread *td,
 		error = copyout(&atv32, uap->tp, sizeof (atv32));
 	}
 	if (error == 0 && uap->tzp != NULL) {
-		rtz.tz_minuteswest = tz_minuteswest;
-		rtz.tz_dsttime = tz_dsttime;
+		rtz.tz_minuteswest = 0;
+		rtz.tz_dsttime = 0;
 		error = copyout(&rtz, uap->tzp, sizeof (rtz));
 	}
 	return (error);
@@ -3326,6 +3326,10 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 		struct procctl_reaper_pids32 rp;
 	} x32;
 	int error, error1, flags, signum;
+
+	if (uap->com >= PROC_PROCCTL_MD_MIN)
+		return (cpu_procctl(td, uap->idtype, PAIR32TO64(id_t, uap->id),
+		    uap->com, PTRIN(uap->data)));
 
 	switch (uap->com) {
 	case PROC_ASLR_CTL:

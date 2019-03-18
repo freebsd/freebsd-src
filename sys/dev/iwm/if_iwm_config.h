@@ -104,6 +104,19 @@ static inline uint8_t num_of_ant(uint8_t mask)
 #define IWM_OTP_LOW_IMAGE_SIZE_FAMILY_8000	(32 * 512 * sizeof(uint16_t)) /* 32 KB */
 #define IWM_OTP_LOW_IMAGE_SIZE_FAMILY_9000	IWM_OTP_LOW_IMAGE_SIZE_FAMILY_8000
 
+
+/**
+ * enum iwl_nvm_type - nvm formats
+ * @IWM_NVM: the regular format
+ * @IWM_NVM_EXT: extended NVM format
+ * @IWM_NVM_SDP: NVM format used by 3168 series
+ */
+enum iwm_nvm_type {
+	IWM_NVM,
+	IWM_NVM_EXT,
+	IWM_NVM_SDP,
+};
+
 /**
  * struct iwm_cfg
  * @name: Official name of the device
@@ -113,6 +126,7 @@ static inline uint8_t num_of_ant(uint8_t mask)
  * @nvm_hw_section_num: the ID of the HW NVM section
  * @apmg_wake_up_wa: should the MAC access REQ be asserted when a command
  *      is in flight. This is due to a HW bug in 7260, 3160 and 7265.
+ * @nvm_type: see &enum iwl_nvm_type
  */
 struct iwm_cfg {
 	const char *name;
@@ -122,6 +136,7 @@ struct iwm_cfg {
         int host_interrupt_operation_mode;
         uint8_t nvm_hw_section_num;
         int apmg_wake_up_wa;
+        enum iwm_nvm_type nvm_type;
 };
 
 /*

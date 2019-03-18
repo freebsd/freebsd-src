@@ -88,10 +88,10 @@ vdev_geom_set_rotation_rate(vdev_t *vd, struct g_consumer *cp)
 	uint16_t rate;
 
 	error = g_getattr("GEOM::rotation_rate", cp, &rate);
-	if (error == 0)
-		vd->vdev_rotation_rate = rate;
+	if (error == 0 && rate == 1)
+		vd->vdev_nonrot = B_TRUE;
 	else
-		vd->vdev_rotation_rate = VDEV_RATE_UNKNOWN;
+		vd->vdev_nonrot = B_FALSE;
 }
 
 static void

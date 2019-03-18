@@ -61,6 +61,7 @@ enum {
 	IP_FW_NGTEE,
 	IP_FW_NAT,
 	IP_FW_REASS,
+	IP_FW_NAT64,
 };
 
 /*
@@ -84,12 +85,19 @@ struct _ip6dn_args {
  */
 struct ip_fw_args {
 	uint32_t		flags;
-#define	IPFW_ARGS_ETHER		0x0001	/* has valid ethernet header	*/
-#define	IPFW_ARGS_NH4		0x0002	/* has IPv4 next hop in hopstore */
-#define	IPFW_ARGS_NH6		0x0004	/* has IPv6 next hop in hopstore */
-#define	IPFW_ARGS_NH4PTR	0x0008	/* has IPv4 next hop in next_hop */
-#define	IPFW_ARGS_NH6PTR	0x0010	/* has IPv6 next hop in next_hop6 */
-#define	IPFW_ARGS_REF		0x0020	/* has valid ipfw_rule_ref	*/
+#define	IPFW_ARGS_ETHER		0x00010000	/* valid ethernet header */
+#define	IPFW_ARGS_NH4		0x00020000	/* IPv4 next hop in hopstore */
+#define	IPFW_ARGS_NH6		0x00040000	/* IPv6 next hop in hopstore */
+#define	IPFW_ARGS_NH4PTR	0x00080000	/* IPv4 next hop in next_hop */
+#define	IPFW_ARGS_NH6PTR	0x00100000	/* IPv6 next hop in next_hop6 */
+#define	IPFW_ARGS_REF		0x00200000	/* valid ipfw_rule_ref	*/
+#define	IPFW_ARGS_IN		0x00400000	/* called on input */
+#define	IPFW_ARGS_OUT		0x00800000	/* called on output */
+#define	IPFW_ARGS_IP4		0x01000000	/* belongs to v4 ISR */
+#define	IPFW_ARGS_IP6		0x02000000	/* belongs to v6 ISR */
+#define	IPFW_ARGS_DROP		0x04000000	/* drop it (dummynet) */
+#define	IPFW_ARGS_LENMASK	0x0000ffff	/* length of data in *mem */
+#define	IPFW_ARGS_LENGTH(f)	((f) & IPFW_ARGS_LENMASK)
 	/*
 	 * On return, it points to the matching rule.
 	 * On entry, rule.slot > 0 means the info is valid and
@@ -99,18 +107,15 @@ struct ip_fw_args {
 	 */
 	struct ipfw_rule_ref	rule;	/* match/restart info		*/
 
-	struct ifnet		*oif;	/* output interface		*/
+	struct ifnet		*ifp;	/* input/output interface	*/
 	struct inpcb		*inp;
 	union {
 		/*
-		 * We don't support forwarding on layer2, thus we can
-		 * keep eh pointer in this union.
 		 * next_hop[6] pointers can be used to point to next hop
 		 * stored in rule's opcode to avoid copying into hopstore.
 		 * Also, it is expected that all 0x1-0x10 flags are mutually
 		 * exclusive.
 		 */
-		struct ether_header	*eh;	/* for bridged packets	*/
 		struct sockaddr_in	*next_hop;
 		struct sockaddr_in6	*next_hop6;
 		/* ipfw next hop storage */
@@ -121,34 +126,14 @@ struct ip_fw_args {
 			uint16_t	sin6_port;
 		} hopstore6;
 	};
-
-	struct mbuf		*m;	/* the mbuf chain		*/
+	union {
+		struct mbuf	*m;	/* the mbuf chain		*/
+		void		*mem;	/* or memory pointer		*/
+	};
 	struct ipfw_flow_id	f_id;	/* grabbed from IP header	*/
 };
 
 MALLOC_DECLARE(M_IPFW);
-
-/*
- * Hooks sometime need to know the direction of the packet
- * (divert, dummynet, netgraph, ...)
- * We use a generic definition here, with bit0-1 indicating the
- * direction, bit 2 indicating layer2 or 3, bit 3-4 indicating the
- * specific protocol
- * indicating the protocol (if necessary)
- */
-enum {
-	DIR_MASK =	0x3,
-	DIR_OUT =	0,
-	DIR_IN =	1,
-	DIR_FWD =	2,
-	DIR_DROP =	3,
-	PROTO_LAYER2 =	0x4, /* set for layer 2 */
-	/* PROTO_DEFAULT = 0, */
-	PROTO_IPV4 =	0x08,
-	PROTO_IPV6 =	0x10,
-	PROTO_IFB =	0x0c, /* layer2 + ifbridge */
-   /*	PROTO_OLDBDG =	0x14, unused, old bridge */
-};
 
 /* wrapper for freeing a packet, in case we need to do more work */
 #ifndef FREE_PKT
@@ -178,10 +163,11 @@ struct ip_fw_chain;
 
 void ipfw_bpf_init(int);
 void ipfw_bpf_uninit(int);
+void ipfw_bpf_tap(u_char *, u_int);
+void ipfw_bpf_mtap(struct mbuf *);
 void ipfw_bpf_mtap2(void *, u_int, struct mbuf *);
 void ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
-    struct ip_fw_args *args, struct mbuf *m, struct ifnet *oif,
-    u_short offset, uint32_t tablearg, struct ip *ip);
+    struct ip_fw_args *args, u_short offset, uint32_t tablearg, struct ip *ip);
 VNET_DECLARE(u_int64_t, norule_counter);
 #define	V_norule_counter	VNET(norule_counter)
 VNET_DECLARE(int, verbose_limit);

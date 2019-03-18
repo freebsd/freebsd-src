@@ -2853,6 +2853,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde,
 void
 pmap_pinit0(pmap_t pmap)
 {
+	struct proc *p;
 	int i;
 
 	PMAP_LOCK_INIT(pmap);
@@ -2871,6 +2872,12 @@ pmap_pinit0(pmap_t pmap)
 		pmap->pm_pcids[i].pm_gen = 1;
 	}
 	pmap_activate_boot(pmap);
+	if (pti) {
+		p = curproc;
+		PROC_LOCK(p);
+		p->p_md.md_flags |= P_MD_KPTI;
+		PROC_UNLOCK(p);
+	}
 
 	if ((cpu_stdext_feature2 & CPUID_STDEXT2_PKU) != 0) {
 		pmap_pkru_ranges_zone = uma_zcreate("pkru ranges",
@@ -2957,7 +2964,7 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 	if (pm_type == PT_X86) {
 		pmap->pm_cr3 = pml4phys;
 		pmap_pinit_pml4(pml4pg);
-		if (pti) {
+		if ((curproc->p_md.md_flags & P_MD_KPTI) != 0) {
 			pml4pgu = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
 			    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_WAITOK);
 			pmap->pm_pml4u = (pml4_entry_t *)PHYS_TO_DMAP(
@@ -7759,12 +7766,11 @@ pmap_pcid_alloc_checked(pmap_t pmap, u_int cpuid)
 }
 
 static void
-pmap_activate_sw_pti_post(pmap_t pmap)
+pmap_activate_sw_pti_post(struct thread *td, pmap_t pmap)
 {
 
-	if (pmap->pm_ucr3 != PMAP_NO_CR3)
-		PCPU_GET(tssp)->tss_rsp0 = ((vm_offset_t)PCPU_PTR(pti_stack) +
-		    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful;
+	PCPU_GET(tssp)->tss_rsp0 = pmap->pm_ucr3 != PMAP_NO_CR3 ?
+	    PCPU_GET(pti_rsp0) : (uintptr_t)td->td_pcb;
 }
 
 static void inline
@@ -7811,15 +7817,16 @@ pmap_activate_sw_pcid_pti(pmap_t pmap, u_int cpuid, const bool invpcid_works1)
 }
 
 static void
-pmap_activate_sw_pcid_invpcid_pti(pmap_t pmap, u_int cpuid)
+pmap_activate_sw_pcid_invpcid_pti(struct thread *td, pmap_t pmap, u_int cpuid)
 {
 
 	pmap_activate_sw_pcid_pti(pmap, cpuid, true);
-	pmap_activate_sw_pti_post(pmap);
+	pmap_activate_sw_pti_post(td, pmap);
 }
 
 static void
-pmap_activate_sw_pcid_noinvpcid_pti(pmap_t pmap, u_int cpuid)
+pmap_activate_sw_pcid_noinvpcid_pti(struct thread *td, pmap_t pmap,
+    u_int cpuid)
 {
 	register_t rflags;
 
@@ -7843,11 +7850,12 @@ pmap_activate_sw_pcid_noinvpcid_pti(pmap_t pmap, u_int cpuid)
 	rflags = intr_disable();
 	pmap_activate_sw_pcid_pti(pmap, cpuid, false);
 	intr_restore(rflags);
-	pmap_activate_sw_pti_post(pmap);
+	pmap_activate_sw_pti_post(td, pmap);
 }
 
 static void
-pmap_activate_sw_pcid_nopti(pmap_t pmap, u_int cpuid)
+pmap_activate_sw_pcid_nopti(struct thread *td __unused, pmap_t pmap,
+    u_int cpuid)
 {
 	uint64_t cached, cr3;
 
@@ -7862,17 +7870,19 @@ pmap_activate_sw_pcid_nopti(pmap_t pmap, u_int cpuid)
 }
 
 static void
-pmap_activate_sw_pcid_noinvpcid_nopti(pmap_t pmap, u_int cpuid)
+pmap_activate_sw_pcid_noinvpcid_nopti(struct thread *td __unused, pmap_t pmap,
+    u_int cpuid)
 {
 	register_t rflags;
 
 	rflags = intr_disable();
-	pmap_activate_sw_pcid_nopti(pmap, cpuid);
+	pmap_activate_sw_pcid_nopti(td, pmap, cpuid);
 	intr_restore(rflags);
 }
 
 static void
-pmap_activate_sw_nopcid_nopti(pmap_t pmap, u_int cpuid __unused)
+pmap_activate_sw_nopcid_nopti(struct thread *td __unused, pmap_t pmap,
+    u_int cpuid __unused)
 {
 
 	load_cr3(pmap->pm_cr3);
@@ -7880,16 +7890,18 @@ pmap_activate_sw_nopcid_nopti(pmap_t pmap, u_int cpuid __unused)
 }
 
 static void
-pmap_activate_sw_nopcid_pti(pmap_t pmap, u_int cpuid __unused)
+pmap_activate_sw_nopcid_pti(struct thread *td, pmap_t pmap,
+    u_int cpuid __unused)
 {
 
-	pmap_activate_sw_nopcid_nopti(pmap, cpuid);
+	pmap_activate_sw_nopcid_nopti(td, pmap, cpuid);
 	PCPU_SET(kcr3, pmap->pm_cr3);
 	PCPU_SET(ucr3, pmap->pm_ucr3);
-	pmap_activate_sw_pti_post(pmap);
+	pmap_activate_sw_pti_post(td, pmap);
 }
 
-DEFINE_IFUNC(static, void, pmap_activate_sw_mode, (pmap_t, u_int), static)
+DEFINE_IFUNC(static, void, pmap_activate_sw_mode, (struct thread *, pmap_t,
+    u_int), static)
 {
 
 	if (pmap_pcid_enabled && pti && invpcid_works)
@@ -7922,7 +7934,7 @@ pmap_activate_sw(struct thread *td)
 #else
 	CPU_SET(cpuid, &pmap->pm_active);
 #endif
-	pmap_activate_sw_mode(pmap, cpuid);
+	pmap_activate_sw_mode(td, pmap, cpuid);
 #ifdef SMP
 	CPU_CLR_ATOMIC(cpuid, &oldpmap->pm_active);
 #else

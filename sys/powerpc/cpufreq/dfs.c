@@ -157,8 +157,10 @@ dfs_settings(device_t dev, struct cf_setting *sets, int *count)
 
 	sets[0].freq = 10000; sets[0].dev = dev;
 	sets[1].freq = 5000; sets[1].dev = dev;
-	if (sc->dfs4)
-		sets[2].freq = 2500; sets[2].dev = dev;
+	if (sc->dfs4) {
+		sets[2].freq = 2500;
+		sets[2].dev = dev;
+	}
 	*count = states;
 
 	return (0);

@@ -87,7 +87,6 @@ typedef enum {
 	CTL_FLAG_DO_AUTOSENSE	= 0x00000020,	/* grab sense info */
 	CTL_FLAG_USER_REQ	= 0x00000040,	/* request came from userland */
 	CTL_FLAG_ALLOCATED	= 0x00000100,	/* data space allocated */
-	CTL_FLAG_BLOCKED	= 0x00000200,	/* on the blocked queue */
 	CTL_FLAG_ABORT_STATUS	= 0x00000400,	/* return TASK ABORTED status */
 	CTL_FLAG_ABORT		= 0x00000800,	/* this I/O should be aborted */
 	CTL_FLAG_DMA_INPROG	= 0x00001000,	/* DMA in progress */
@@ -239,14 +238,13 @@ struct ctl_io_hdr {
 #endif /* CTL_TIME_IO */
 	uint32_t	  num_dmas;	/* Number of DMAs */
 	union ctl_io	  *remote_io;	/* I/O counterpart on remote HA side */
-	void		  *pad1;
+	union ctl_io	  *blocker;	/* I/O blocking this one */
 	void		  *pool;	/* I/O pool */
 	union ctl_priv	  ctl_private[CTL_NUM_PRIV];/* CTL private area */
-	void		  *pad2;
-	void		  *pad3;
+	TAILQ_HEAD(, ctl_io_hdr) blocked_queue;	/* I/Os blocked by this one */
 	STAILQ_ENTRY(ctl_io_hdr) links;	/* linked list pointer */
-	TAILQ_ENTRY(ctl_io_hdr) ooa_links;
-	TAILQ_ENTRY(ctl_io_hdr) blocked_links;
+	TAILQ_ENTRY(ctl_io_hdr) ooa_links;	/* ooa_queue links */
+	TAILQ_ENTRY(ctl_io_hdr) blocked_links;	/* blocked_queue links */
 };
 
 typedef enum {

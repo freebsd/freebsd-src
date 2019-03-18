@@ -34,7 +34,6 @@
 #include <sys/stat.h>
 #include <sys/vnode.h>
 
-#include <fs/ext2fs/ext2fs.h>
 #include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2fs.h>
@@ -92,8 +91,31 @@ ext2_print_inode(struct inode *in)
 int
 ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 {
+	struct m_ext2fs *fs = ip->i_e2fs;
 
+	if ((ip->i_number < EXT2_FIRST_INO(fs) && ip->i_number != EXT2_ROOTINO) ||
+	    (ip->i_number < EXT2_ROOTINO) ||
+	    (ip->i_number > fs->e2fs->e2fs_icount)) {
+		printf("ext2fs: bad inode number %ju\n", ip->i_number);
+		return (EINVAL);
+	}
+
+	if (ip->i_number == EXT2_ROOTINO && ei->e2di_nlink == 0) {
+		printf("ext2fs: root inode unallocated\n");
+		return (EINVAL);
+	}
 	ip->i_nlink = ei->e2di_nlink;
+
+	/* Check extra inode size */
+	if (EXT2_INODE_SIZE(fs) > E2FS_REV0_INODE_SIZE) {
+		if (E2FS_REV0_INODE_SIZE + ei->e2di_extra_isize >
+		    EXT2_INODE_SIZE(fs) || (ei->e2di_extra_isize & 3)) {
+			printf("ext2fs: bad extra inode size %u, inode size=%u\n",
+			    ei->e2di_extra_isize, EXT2_INODE_SIZE(fs));
+			return (EINVAL);
+		}
+	}
+
 	/*
 	 * Godmar thinks - if the link count is zero, then the inode is
 	 * unused - according to ext2 standards. Ufs marks this fact by

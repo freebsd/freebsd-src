@@ -39,4 +39,6 @@ _cddl=	cddl
 # Items not integrated into kyua runs by default
 SUBDIR+=		pjdfstest
 
+SUBDIR+=		common
+
 .include <bsd.test.mk>

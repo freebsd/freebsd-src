@@ -483,13 +483,21 @@ pqi_request_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	}
 
 	rcb->sgt = os_mem_alloc(softs, nseg * sizeof(rcb_t));
+	if (rcb->sgt == NULL) {
+		xpt_freeze_simq(softs->os_specific.sim, 1);
+		rcb->cm_ccb->ccb_h.status |= (CAM_REQUEUE_REQ|
+						CAM_RELEASE_SIMQ);
+		DBG_ERR_BTL(rcb->dvp, "os_mem_alloc() failed; nseg = %d\n", nseg);
+		pqi_unmap_request(rcb);
+		xpt_done((union ccb *)rcb->cm_ccb);
+		return;
+	}
+
 	rcb->nseg = nseg;
-	if (rcb->sgt != NULL) {
-		for (int i = 0; i < nseg; i++) {
-			rcb->sgt[i].addr = segs[i].ds_addr;
-			rcb->sgt[i].len = segs[i].ds_len;
-			rcb->sgt[i].flags = 0;
-		}
+	for (int i = 0; i < nseg; i++) {
+		rcb->sgt[i].addr = segs[i].ds_addr;
+		rcb->sgt[i].len = segs[i].ds_len;
+		rcb->sgt[i].flags = 0;
 	}
 
 	if (rcb->data_dir == SOP_DATA_DIR_FROM_DEVICE)

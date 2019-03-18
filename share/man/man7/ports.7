@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 12, 2019
+.Dd March 12, 2019
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -587,7 +587,7 @@ The following command builds and installs Emacs.
 .Ed
 .It Sy Example 2\&: No Installing Dependencies with Xr pkg 8
 .Pp
-The following examples shows how to build and install a port without having to
+The following example shows how to build and install a port without having to
 build its dependencies.
 Instead, the dependencies are downloaded via
 .Xr pkg 8 .
@@ -603,6 +603,16 @@ The drawback is that
 .Xr pkg 8
 offers only packages built with the default set of
 .Va OPTIONS .
+.It Sy Example 3\&: No Building a Non-Default Flavor of a Port
+.Pp
+The following command builds a non-default flavor of a port.
+(In this case
+.Pa devel/py-pip
+is going to be built with Python 3.7 support.)
+.Bd -literal -offset 2n
+.Li # Ic cd /usr/ports/devel/py-pip
+.Li # Ic env FLAVOR=py37 make build
+.Ed
 .El
 .Sh SEE ALSO
 .Xr make 1 ,

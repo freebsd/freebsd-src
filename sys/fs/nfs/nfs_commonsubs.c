@@ -198,8 +198,7 @@ static int nfs_bigreply[NFSV41_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
 static int nfsrv_skipace(struct nfsrv_descript *nd, int *acesizep);
 static void nfsv4_wanted(struct nfsv4lock *lp);
 static int nfsrv_cmpmixedcase(u_char *cp, u_char *cp2, int len);
-static int nfsrv_getuser(int procnum, uid_t uid, gid_t gid, char *name,
-    NFSPROC_T *p);
+static int nfsrv_getuser(int procnum, uid_t uid, gid_t gid, char *name);
 static void nfsrv_removeuser(struct nfsusrgrp *usrp, int isuser);
 static int nfsrv_getrefstr(struct nfsrv_descript *, u_char **, u_char **,
     int *, int *);
@@ -1820,12 +1819,12 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			}
 			if (compare) {
 			    if (!(*retcmpp)) {
-				if (nfsv4_strtouid(nd, cp, j, &uid, p) ||
+				if (nfsv4_strtouid(nd, cp, j, &uid) ||
 				    nap->na_uid != uid)
 				    *retcmpp = NFSERR_NOTSAME;
 			    }
 			} else if (nap != NULL) {
-				if (nfsv4_strtouid(nd, cp, j, &uid, p))
+				if (nfsv4_strtouid(nd, cp, j, &uid))
 					nap->na_uid = nfsrv_defaultuid;
 				else
 					nap->na_uid = uid;
@@ -1853,12 +1852,12 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			}
 			if (compare) {
 			    if (!(*retcmpp)) {
-				if (nfsv4_strtogid(nd, cp, j, &gid, p) ||
+				if (nfsv4_strtogid(nd, cp, j, &gid) ||
 				    nap->na_gid != gid)
 				    *retcmpp = NFSERR_NOTSAME;
 			    }
 			} else if (nap != NULL) {
-				if (nfsv4_strtogid(nd, cp, j, &gid, p))
+				if (nfsv4_strtogid(nd, cp, j, &gid))
 					nap->na_gid = nfsrv_defaultgid;
 				else
 					nap->na_gid = gid;
@@ -2743,14 +2742,14 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			break;
 		case NFSATTRBIT_OWNER:
 			cp = namestr;
-			nfsv4_uidtostr(vap->va_uid, &cp, &siz, p);
+			nfsv4_uidtostr(vap->va_uid, &cp, &siz);
 			retnum += nfsm_strtom(nd, cp, siz);
 			if (cp != namestr)
 				free(cp, M_NFSSTRING);
 			break;
 		case NFSATTRBIT_OWNERGROUP:
 			cp = namestr;
-			nfsv4_gidtostr(vap->va_gid, &cp, &siz, p);
+			nfsv4_gidtostr(vap->va_gid, &cp, &siz);
 			retnum += nfsm_strtom(nd, cp, siz);
 			if (cp != namestr)
 				free(cp, M_NFSSTRING);
@@ -3009,7 +3008,7 @@ nfsrv_putattrbit(struct nfsrv_descript *nd, nfsattrbit_t *attrbitp)
  * retlenp - pointer to length to be returned
  */
 APPLESTATIC void
-nfsv4_uidtostr(uid_t uid, u_char **cpp, int *retlenp, NFSPROC_T *p)
+nfsv4_uidtostr(uid_t uid, u_char **cpp, int *retlenp)
 {
 	int i;
 	struct nfsusrgrp *usrp;
@@ -3087,8 +3086,7 @@ tryagain:
 		}
 		mtx_unlock(&hp->mtx);
 		cnt++;
-		ret = nfsrv_getuser(RPCNFSUSERD_GETUID, uid, (gid_t)0,
-		    NULL, p);
+		ret = nfsrv_getuser(RPCNFSUSERD_GETUID, uid, (gid_t)0, NULL);
 		if (ret == 0 && cnt < 2)
 			goto tryagain;
 	}
@@ -3151,8 +3149,7 @@ tryagain:
 		}
 		mtx_unlock(&hp->mtx);
 		cnt++;
-		ret = nfsrv_getuser(RPCNFSUSERD_GETUID, uid, (gid_t)0,
-		    NULL, curthread);
+		ret = nfsrv_getuser(RPCNFSUSERD_GETUID, uid, (gid_t)0, NULL);
 		if (ret == 0 && cnt < 2)
 			goto tryagain;
 	}
@@ -3168,8 +3165,7 @@ tryagain:
  * a number.
  */
 APPLESTATIC int
-nfsv4_strtouid(struct nfsrv_descript *nd, u_char *str, int len, uid_t *uidp,
-    NFSPROC_T *p)
+nfsv4_strtouid(struct nfsrv_descript *nd, u_char *str, int len, uid_t *uidp)
 {
 	int i;
 	char *cp, *endstr, *str0;
@@ -3252,7 +3248,7 @@ tryagain:
 		mtx_unlock(&hp->mtx);
 		cnt++;
 		ret = nfsrv_getuser(RPCNFSUSERD_GETUSER, (uid_t)0, (gid_t)0,
-		    str, p);
+		    str);
 		if (ret == 0 && cnt < 2)
 			goto tryagain;
 	}
@@ -3271,7 +3267,7 @@ out:
  * retlenp - pointer to length to be returned
  */
 APPLESTATIC void
-nfsv4_gidtostr(gid_t gid, u_char **cpp, int *retlenp, NFSPROC_T *p)
+nfsv4_gidtostr(gid_t gid, u_char **cpp, int *retlenp)
 {
 	int i;
 	struct nfsusrgrp *usrp;
@@ -3349,8 +3345,7 @@ tryagain:
 		}
 		mtx_unlock(&hp->mtx);
 		cnt++;
-		ret = nfsrv_getuser(RPCNFSUSERD_GETGID, (uid_t)0, gid,
-		    NULL, p);
+		ret = nfsrv_getuser(RPCNFSUSERD_GETGID, (uid_t)0, gid, NULL);
 		if (ret == 0 && cnt < 2)
 			goto tryagain;
 	}
@@ -3384,8 +3379,7 @@ tryagain:
  * a number.
  */
 APPLESTATIC int
-nfsv4_strtogid(struct nfsrv_descript *nd, u_char *str, int len, gid_t *gidp,
-    NFSPROC_T *p)
+nfsv4_strtogid(struct nfsrv_descript *nd, u_char *str, int len, gid_t *gidp)
 {
 	int i;
 	char *cp, *endstr, *str0;
@@ -3466,7 +3460,7 @@ tryagain:
 		mtx_unlock(&hp->mtx);
 		cnt++;
 		ret = nfsrv_getuser(RPCNFSUSERD_GETGROUP, (uid_t)0, (gid_t)0,
-		    str, p);
+		    str);
 		if (ret == 0 && cnt < 2)
 			goto tryagain;
 	}
@@ -3585,7 +3579,7 @@ nfsrv_nfsuserddelport(void)
  * Returns 0 upon success, non-zero otherwise.
  */
 static int
-nfsrv_getuser(int procnum, uid_t uid, gid_t gid, char *name, NFSPROC_T *p)
+nfsrv_getuser(int procnum, uid_t uid, gid_t gid, char *name)
 {
 	u_int32_t *tl;
 	struct nfsrv_descript *nd;

@@ -1,6 +1,6 @@
-# generated automatically by aclocal 1.15 -*- Autoconf -*-
+# generated automatically by aclocal 1.15.1 -*- Autoconf -*-
 
-# Copyright (C) 1996-2014 Free Software Foundation, Inc.
+# Copyright (C) 1996-2017 Free Software Foundation, Inc.
 
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -20,126 +20,7 @@ You have another version of autoconf.  It may work, but is not guaranteed to.
 If you have problems, you may need to regenerate the build system entirely.
 To do so, use the procedure documented by the package, typically 'autoreconf'.])])
 
-# serial 9  -*- Autoconf -*-
-# Enable extensions on systems that normally disable them.
-
-# Copyright (C) 2003, 2006-2010 Free Software Foundation, Inc.
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
-
-# This definition of AC_USE_SYSTEM_EXTENSIONS is stolen from CVS
-# Autoconf.  Perhaps we can remove this once we can assume Autoconf
-# 2.62 or later everywhere, but since CVS Autoconf mutates rapidly
-# enough in this area it's likely we'll need to redefine
-# AC_USE_SYSTEM_EXTENSIONS for quite some time.
-
-# If autoconf reports a warning
-#     warning: AC_COMPILE_IFELSE was called before AC_USE_SYSTEM_EXTENSIONS
-# or  warning: AC_RUN_IFELSE was called before AC_USE_SYSTEM_EXTENSIONS
-# the fix is
-#   1) to ensure that AC_USE_SYSTEM_EXTENSIONS is never directly invoked
-#      but always AC_REQUIREd,
-#   2) to ensure that for each occurrence of
-#        AC_REQUIRE([AC_USE_SYSTEM_EXTENSIONS])
-#      or
-#        AC_REQUIRE([gl_USE_SYSTEM_EXTENSIONS])
-#      the corresponding gnulib module description has 'extensions' among
-#      its dependencies. This will ensure that the gl_USE_SYSTEM_EXTENSIONS
-#      invocation occurs in gl_EARLY, not in gl_INIT.
-
-# AC_USE_SYSTEM_EXTENSIONS
-# ------------------------
-# Enable extensions on systems that normally disable them,
-# typically due to standards-conformance issues.
-# Remember that #undef in AH_VERBATIM gets replaced with #define by
-# AC_DEFINE.  The goal here is to define all known feature-enabling
-# macros, then, if reports of conflicts are made, disable macros that
-# cause problems on some platforms (such as __EXTENSIONS__).
-AC_DEFUN_ONCE([AC_USE_SYSTEM_EXTENSIONS],
-[AC_BEFORE([$0], [AC_COMPILE_IFELSE])dnl
-AC_BEFORE([$0], [AC_RUN_IFELSE])dnl
-
-  AC_REQUIRE([AC_CANONICAL_HOST])
-
-  AC_CHECK_HEADER([minix/config.h], [MINIX=yes], [MINIX=])
-  if test "$MINIX" = yes; then
-    AC_DEFINE([_POSIX_SOURCE], [1],
-      [Define to 1 if you need to in order for `stat' and other
-       things to work.])
-    AC_DEFINE([_POSIX_1_SOURCE], [2],
-      [Define to 2 if the system does not provide POSIX.1 features
-       except with this defined.])
-    AC_DEFINE([_MINIX], [1],
-      [Define to 1 if on MINIX.])
-  fi
-
-  dnl HP-UX 11.11 defines mbstate_t only if _XOPEN_SOURCE is defined to 500,
-  dnl regardless of whether the flags -Ae or _D_HPUX_SOURCE=1 are already
-  dnl provided.
-  case "$host_os" in
-    hpux*)
-      AC_DEFINE([_XOPEN_SOURCE], [500],
-        [Define to 500 only on HP-UX.])
-      ;;
-  esac
-
-  AH_VERBATIM([__EXTENSIONS__],
-[/* Enable extensions on AIX 3, Interix.  */
-#ifndef _ALL_SOURCE
-# undef _ALL_SOURCE
-#endif
-/* Enable GNU extensions on systems that have them.  */
-#ifndef _GNU_SOURCE
-# undef _GNU_SOURCE
-#endif
-/* Enable threading extensions on Solaris.  */
-#ifndef _POSIX_PTHREAD_SEMANTICS
-# undef _POSIX_PTHREAD_SEMANTICS
-#endif
-/* Enable extensions on HP NonStop.  */
-#ifndef _TANDEM_SOURCE
-# undef _TANDEM_SOURCE
-#endif
-/* Enable general extensions on Solaris.  */
-#ifndef __EXTENSIONS__
-# undef __EXTENSIONS__
-#endif
-])
-  AC_CACHE_CHECK([whether it is safe to define __EXTENSIONS__],
-    [ac_cv_safe_to_define___extensions__],
-    [AC_COMPILE_IFELSE(
-       [AC_LANG_PROGRAM([[
-#         define __EXTENSIONS__ 1
-          ]AC_INCLUDES_DEFAULT])],
-       [ac_cv_safe_to_define___extensions__=yes],
-       [ac_cv_safe_to_define___extensions__=no])])
-  test $ac_cv_safe_to_define___extensions__ = yes &&
-    AC_DEFINE([__EXTENSIONS__])
-  AC_DEFINE([_ALL_SOURCE])
-  AC_DEFINE([_GNU_SOURCE])
-  AC_DEFINE([_POSIX_PTHREAD_SEMANTICS])
-  AC_DEFINE([_TANDEM_SOURCE])
-])# AC_USE_SYSTEM_EXTENSIONS
-
-# gl_USE_SYSTEM_EXTENSIONS
-# ------------------------
-# Enable extensions on systems that normally disable them,
-# typically due to standards-conformance issues.
-AC_DEFUN_ONCE([gl_USE_SYSTEM_EXTENSIONS],
-[
-  dnl Require this macro before AC_USE_SYSTEM_EXTENSIONS.
-  dnl gnulib does not need it. But if it gets required by third-party macros
-  dnl after AC_USE_SYSTEM_EXTENSIONS is required, autoconf 2.62..2.63 emit a
-  dnl warning: "AC_COMPILE_IFELSE was called before AC_USE_SYSTEM_EXTENSIONS".
-  dnl Note: We can do this only for one of the macros AC_AIX, AC_GNU_SOURCE,
-  dnl AC_MINIX. If people still use AC_AIX or AC_MINIX, they are out of luck.
-  AC_REQUIRE([AC_GNU_SOURCE])
-
-  AC_REQUIRE([AC_USE_SYSTEM_EXTENSIONS])
-])
-
-# Copyright (C) 2002-2014 Free Software Foundation, Inc.
+# Copyright (C) 2002-2017 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -154,7 +35,7 @@ AC_DEFUN([AM_AUTOMAKE_VERSION],
 [am__api_version='1.15'
 dnl Some users find AM_AUTOMAKE_VERSION and mistake it for a way to
 dnl require some minimum version.  Point them to the right macro.
-m4_if([$1], [1.15], [],
+m4_if([$1], [1.15.1], [],
       [AC_FATAL([Do not call $0, use AM_INIT_AUTOMAKE([$1]).])])dnl
 ])
 
@@ -170,14 +51,14 @@ m4_define([_AM_AUTOCONF_VERSION], [])
 # Call AM_AUTOMAKE_VERSION and AM_AUTOMAKE_VERSION so they can be traced.
 # This function is AC_REQUIREd by AM_INIT_AUTOMAKE.
 AC_DEFUN([AM_SET_CURRENT_AUTOMAKE_VERSION],
-[AM_AUTOMAKE_VERSION([1.15])dnl
+[AM_AUTOMAKE_VERSION([1.15.1])dnl
 m4_ifndef([AC_AUTOCONF_VERSION],
   [m4_copy([m4_PACKAGE_VERSION], [AC_AUTOCONF_VERSION])])dnl
 _AM_AUTOCONF_VERSION(m4_defn([AC_AUTOCONF_VERSION]))])
 
 # AM_AUX_DIR_EXPAND                                         -*- Autoconf -*-
 
-# Copyright (C) 2001-2014 Free Software Foundation, Inc.
+# Copyright (C) 2001-2017 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -229,7 +110,7 @@ am_aux_dir=`cd "$ac_aux_dir" && pwd`
 
 # AM_CONDITIONAL                                            -*- Autoconf -*-
 
-# Copyright (C) 1997-2014 Free Software Foundation, Inc.
+# Copyright (C) 1997-2017 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -260,7 +141,7 @@ AC_CONFIG_COMMANDS_PRE(
 Usually this means the macro was only invoked conditionally.]])
 fi])])
 
-# Copyright (C) 1999-2014 Free Software Foundation, Inc.
+# Copyright (C) 1999-2017 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -451,7 +332,7 @@ _AM_SUBST_NOTMAKE([am__nodep])dnl
 
 # Generate code to set up dependency tracking.              -*- Autoconf -*-
 
-# Copyright (C) 1999-2014 Free Software Foundation, Inc.
+# Copyright (C) 1999-2017 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -527,7 +408,7 @@ AC_DEFUN([AM_OUTPUT_DEPENDENCY_COMMANDS],
 
 # Do all the work for Automake.                             -*- Autoconf -*-
 
-# Copyright (C) 1996-2014 Free Software Foundation, Inc.
+# Copyright (C) 1996-2017 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -724,7 +605,7 @@ for _am_header in $config_headers :; do
 done
 echo "timestamp for $_am_arg" >`AS_DIRNAME(["$_am_arg"])`/stamp-h[]$_am_stamp_count])
 
-# Copyright (C) 2001-2014 Free Software Foundation, Inc.
+# Copyright (C) 2001-2017 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -745,7 +626,7 @@ if test x"${install_sh+set}" != xset; then
 fi
 AC_SUBST([install_sh])])
 
-# Copyright (C) 2003-2014 Free Software Foundation, Inc.
+# Copyright (C) 2003-2017 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -766,7 +647,7 @@ AC_SUBST([am__leading_dot])])
 
 # Check to see how 'make' treats includes.	            -*- Autoconf -*-
 
-# Copyright (C) 2001-2014 Free Software Foundation, Inc.
+# Copyright (C) 2001-2017 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -816,7 +697,7 @@ rm -f confinc confmf
 
 # Fake the existence of programs that GNU maintainers use.  -*- Autoconf -*-
 
-# Copyright (C) 1997-2014 Free Software Foundation, Inc.
+# Copyright (C) 1997-2017 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -855,7 +736,7 @@ fi
 
 # Helper functions for option handling.                     -*- Autoconf -*-
 
-# Copyright (C) 2001-2014 Free Software Foundation, Inc.
+# Copyright (C) 2001-2017 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -884,7 +765,7 @@ AC_DEFUN([_AM_SET_OPTIONS],
 AC_DEFUN([_AM_IF_OPTION],
 [m4_ifset(_AM_MANGLE_OPTION([$1]), [$2], [$3])])
 
-# Copyright (C) 1999-2014 Free Software Foundation, Inc.
+# Copyright (C) 1999-2017 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -931,7 +812,7 @@ AC_LANG_POP([C])])
 # For backward compatibility.
 AC_DEFUN_ONCE([AM_PROG_CC_C_O], [AC_REQUIRE([AC_PROG_CC])])
 
-# Copyright (C) 2001-2014 Free Software Foundation, Inc.
+# Copyright (C) 2001-2017 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -950,7 +831,7 @@ AC_DEFUN([AM_RUN_LOG],
 
 # Check to make sure that the build environment is sane.    -*- Autoconf -*-
 
-# Copyright (C) 1996-2014 Free Software Foundation, Inc.
+# Copyright (C) 1996-2017 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1031,7 +912,7 @@ AC_CONFIG_COMMANDS_PRE(
 rm -f conftest.file
 ])
 
-# Copyright (C) 2009-2014 Free Software Foundation, Inc.
+# Copyright (C) 2009-2017 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1091,7 +972,7 @@ AC_SUBST([AM_BACKSLASH])dnl
 _AM_SUBST_NOTMAKE([AM_BACKSLASH])dnl
 ])
 
-# Copyright (C) 2001-2014 Free Software Foundation, Inc.
+# Copyright (C) 2001-2017 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1119,7 +1000,7 @@ fi
 INSTALL_STRIP_PROGRAM="\$(install_sh) -c -s"
 AC_SUBST([INSTALL_STRIP_PROGRAM])])
 
-# Copyright (C) 2006-2014 Free Software Foundation, Inc.
+# Copyright (C) 2006-2017 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1138,7 +1019,7 @@ AC_DEFUN([AM_SUBST_NOTMAKE], [_AM_SUBST_NOTMAKE($@)])
 
 # Check how to create a tarball.                            -*- Autoconf -*-
 
-# Copyright (C) 2004-2014 Free Software Foundation, Inc.
+# Copyright (C) 2004-2017 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,

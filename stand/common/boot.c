@@ -106,6 +106,10 @@ command_boot(int argc, char *argv[])
 	if (archsw.arch_autoload() != 0)
 		return(CMD_ERROR);
 
+#ifdef LOADER_VERIEXEC
+	verify_pcr_export();		/* for measured boot */
+#endif
+
 	/* Call the exec handler from the loader matching the kernel */
 	file_formats[fp->f_loader]->l_exec(fp);
 	return(CMD_ERROR);

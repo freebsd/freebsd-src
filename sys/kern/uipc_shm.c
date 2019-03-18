@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/filio.h>
 #include <sys/fnv_hash.h>
 #include <sys/kernel.h>
 #include <sys/uio.h>
@@ -126,6 +127,7 @@ static int	shm_remove(char *path, Fnv32_t fnv, struct ucred *ucred);
 static fo_rdwr_t	shm_read;
 static fo_rdwr_t	shm_write;
 static fo_truncate_t	shm_truncate;
+static fo_ioctl_t	shm_ioctl;
 static fo_stat_t	shm_stat;
 static fo_close_t	shm_close;
 static fo_chmod_t	shm_chmod;
@@ -139,7 +141,7 @@ struct fileops shm_ops = {
 	.fo_read = shm_read,
 	.fo_write = shm_write,
 	.fo_truncate = shm_truncate,
-	.fo_ioctl = invfo_ioctl,
+	.fo_ioctl = shm_ioctl,
 	.fo_poll = invfo_poll,
 	.fo_kqfilter = invfo_kqfilter,
 	.fo_stat = shm_stat,
@@ -361,6 +363,24 @@ shm_truncate(struct file *fp, off_t length, struct ucred *active_cred,
 		return (error);
 #endif
 	return (shm_dotruncate(shmfd, length));
+}
+
+int
+shm_ioctl(struct file *fp, u_long com, void *data, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	switch (com) {
+	case FIONBIO:
+	case FIOASYNC:
+		/*
+		 * Allow fcntl(fd, F_SETFL, O_NONBLOCK) to work,
+		 * just like it would on an unlinked regular file
+		 */
+		return (0);
+	default:
+		return (ENOTTY);
+	}
 }
 
 static int

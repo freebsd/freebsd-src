@@ -628,7 +628,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	
 	pa = pmap_early_vtophys(l1pt, freemempos);
 
-	/* Initialize phys_avail. */
+	/* Initialize phys_avail and dump_avail. */
 	for (avail_slot = map_slot = physmem = 0; map_slot < physmap_idx * 2;
 	    map_slot += 2) {
 		start = physmap[map_slot];
@@ -636,6 +636,9 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 
 		if (start == end)
 			continue;
+		dump_avail[map_slot] = start;
+		dump_avail[map_slot + 1] = end;
+
 		if (start >= kernstart && end <= pa)
 			continue;
 
@@ -1642,9 +1645,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	PV_STAT(atomic_add_int(&pc_chunk_frees, 1));
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
-#if 0 /* TODO: For minidump */
 	dump_drop_page(m->phys_addr);
-#endif
 	vm_page_unwire(m, PQ_NONE);
 	vm_page_free(m);
 }
@@ -1706,9 +1707,7 @@ retry:
 	}
 	PV_STAT(atomic_add_int(&pc_chunk_count, 1));
 	PV_STAT(atomic_add_int(&pc_chunk_allocs, 1));
-#if 0 /* TODO: This is for minidump */
 	dump_add_page(m->phys_addr);
-#endif
 	pc = (void *)PHYS_TO_DMAP(m->phys_addr);
 	pc->pc_pmap = pmap;
 	pc->pc_map[0] = PC_FREE0 & ~1ul;	/* preallocated bit 0 */
@@ -4437,4 +4436,41 @@ pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
 {
 
 	return (mode >= VM_MEMATTR_DEVICE && mode <= VM_MEMATTR_WRITE_BACK);
+}
+
+bool
+pmap_get_tables(pmap_t pmap, vm_offset_t va, pd_entry_t **l1, pd_entry_t **l2,
+    pt_entry_t **l3)
+{
+	pd_entry_t *l1p, *l2p;
+
+	/* Get l1 directory entry. */
+	l1p = pmap_l1(pmap, va);
+	*l1 = l1p;
+
+	if (l1p == NULL || (pmap_load(l1p) & PTE_V) == 0)
+		return (false);
+
+	if ((pmap_load(l1p) & PTE_RX) != 0) {
+		*l2 = NULL;
+		*l3 = NULL;
+		return (true);
+	}
+
+	/* Get l2 directory entry. */
+	l2p = pmap_l1_to_l2(l1p, va);
+	*l2 = l2p;
+
+	if (l2p == NULL || (pmap_load(l2p) & PTE_V) == 0)
+		return (false);
+
+	if ((pmap_load(l2p) & PTE_RX) != 0) {
+		*l3 = NULL;
+		return (true);
+	}
+
+	/* Get l3 page table entry. */
+	*l3 = pmap_l2_to_l3(l2p, va);
+
+	return (true);
 }

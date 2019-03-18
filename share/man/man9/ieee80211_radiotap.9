@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 4, 2009
+.Dd March 11, 2019
 .Dt IEEE80211_RADIOTAP 9
 .Os
 .Sh NAME
@@ -257,7 +257,7 @@ struct wi_rx_radiotap_header {
         uint16_t       wr_chan_flags;
         uint8_t        wr_antsignal;
         uint8_t        wr_antnoise;
-} __packed;
+} __packed __aligned(8);
 .Ed
 .Pp
 and transmit definitions for the Atheros driver:

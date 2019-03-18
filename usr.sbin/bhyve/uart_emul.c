@@ -431,6 +431,9 @@ uart_write(struct uart_softc *sc, int offset, uint8_t value)
 		sc->thre_int_pending = true;
 		break;
 	case REG_IER:
+		/* Set pending when IER_ETXRDY is raised (edge-triggered). */
+		if ((sc->ier & IER_ETXRDY) == 0 && (value & IER_ETXRDY) != 0)
+			sc->thre_int_pending = true;
 		/*
 		 * Apply mask so that bits 4-7 are 0
 		 * Also enables bits 0-3 only if they're 1

@@ -238,8 +238,10 @@ g_concat_kernel_dump(struct bio *bp)
 		    sc->sc_disks[i].d_end > gkd->offset)
 			break;
 	}
-	if (i == sc->sc_ndisks)
+	if (i == sc->sc_ndisks) {
 		g_io_deliver(bp, EOPNOTSUPP);
+		return;
+	}
 	disk = &sc->sc_disks[i];
 	gkd->offset -= disk->d_start;
 	if (gkd->length > disk->d_end - disk->d_start - gkd->offset)
