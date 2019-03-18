@@ -978,7 +978,7 @@ calcru1(struct proc *p, struct rusage_ext *ruxp, struct timeval *up,
 		su = (tu * st) / tt;
 	} else {
 		uu = mul64_by_fraction(tu, ut, tt);
-		su = mul64_by_fraction(tu, ut, st);
+		su = mul64_by_fraction(tu, st, tt);
 	}
 
 	if (tu >= ruxp->rux_tu) {
