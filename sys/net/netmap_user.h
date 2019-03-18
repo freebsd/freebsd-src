@@ -93,6 +93,8 @@
 #include <sys/socket.h>		/* apple needs sockaddr */
 #include <net/if.h>		/* IFNAMSIZ */
 #include <ctype.h>
+#include <string.h>	/* memset */
+#include <sys/time.h>   /* gettimeofday */
 
 #ifndef likely
 #define likely(x)	__builtin_expect(!!(x), 1)
@@ -111,7 +113,8 @@
 	nifp, (nifp)->ring_ofs[index] )
 
 #define NETMAP_RXRING(nifp, index) _NETMAP_OFFSET(struct netmap_ring *,	\
-	nifp, (nifp)->ring_ofs[index + (nifp)->ni_tx_rings + 1] )
+	nifp, (nifp)->ring_ofs[index + (nifp)->ni_tx_rings + 		\
+		(nifp)->ni_host_tx_rings] )
 
 #define NETMAP_BUF(ring, index)				\
 	((char *)(ring) + (ring)->buf_ofs + ((index)*(ring)->nr_buf_size))
@@ -149,27 +152,6 @@ nm_ring_space(struct netmap_ring *ring)
         return ret;
 }
 
-
-#ifdef NETMAP_WITH_LIBS
-/*
- * Support for simple I/O libraries.
- * Include other system headers required for compiling this.
- */
-
-#ifndef HAVE_NETMAP_WITH_LIBS
-#define HAVE_NETMAP_WITH_LIBS
-
-#include <stdio.h>
-#include <sys/time.h>
-#include <sys/mman.h>
-#include <string.h>	/* memset */
-#include <sys/ioctl.h>
-#include <sys/errno.h>	/* EINVAL */
-#include <fcntl.h>	/* O_RDWR */
-#include <unistd.h>	/* close() */
-#include <signal.h>
-#include <stdlib.h>
-
 #ifndef ND /* debug macros */
 /* debug support */
 #define ND(_fmt, ...) do {} while(0)
@@ -197,6 +179,53 @@ nm_ring_space(struct netmap_ring *ring)
         }                                                       \
     } while (0)
 #endif
+
+/*
+ * this is a slightly optimized copy routine which rounds
+ * to multiple of 64 bytes and is often faster than dealing
+ * with other odd sizes. We assume there is enough room
+ * in the source and destination buffers.
+ */
+static inline void
+nm_pkt_copy(const void *_src, void *_dst, int l)
+{
+	const uint64_t *src = (const uint64_t *)_src;
+	uint64_t *dst = (uint64_t *)_dst;
+
+	if (unlikely(l >= 1024 || l % 64)) {
+		memcpy(dst, src, l);
+		return;
+	}
+	for (; likely(l > 0); l-=64) {
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+	}
+}
+
+#ifdef NETMAP_WITH_LIBS
+/*
+ * Support for simple I/O libraries.
+ * Include other system headers required for compiling this.
+ */
+
+#ifndef HAVE_NETMAP_WITH_LIBS
+#define HAVE_NETMAP_WITH_LIBS
+
+#include <stdio.h>
+#include <sys/time.h>
+#include <sys/mman.h>
+#include <sys/ioctl.h>
+#include <sys/errno.h>	/* EINVAL */
+#include <fcntl.h>	/* O_RDWR */
+#include <unistd.h>	/* close() */
+#include <signal.h>
+#include <stdlib.h>
 
 struct nm_pkthdr {	/* first part is the same as pcap_pkthdr */
 	struct timeval	ts;
@@ -268,33 +297,6 @@ struct nm_desc {
 #define NETMAP_FD(d)		(P2NMD(d)->fd)
 
 
-/*
- * this is a slightly optimized copy routine which rounds
- * to multiple of 64 bytes and is often faster than dealing
- * with other odd sizes. We assume there is enough room
- * in the source and destination buffers.
- */
-static inline void
-nm_pkt_copy(const void *_src, void *_dst, int l)
-{
-	const uint64_t *src = (const uint64_t *)_src;
-	uint64_t *dst = (uint64_t *)_dst;
-
-	if (unlikely(l >= 1024 || l % 64)) {
-		memcpy(dst, src, l);
-		return;
-	}
-	for (; likely(l > 0); l-=64) {
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = *src++;
-	}
-}
 
 
 /*
