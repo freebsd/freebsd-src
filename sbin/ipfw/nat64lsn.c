@@ -377,6 +377,8 @@ static struct _s_x nat64newcmds[] = {
       { "icmp_age",	TOK_ICMP_AGE },
       { "log",		TOK_LOG },
       { "-log",		TOK_LOGOFF },
+      { "allow_private", TOK_PRIVATE },
+      { "-allow_private", TOK_PRIVATEOFF },
       { NULL, 0 }
 };
 
@@ -522,6 +524,12 @@ nat64lsn_create(const char *name, uint8_t set, int ac, char **av)
 		case TOK_LOGOFF:
 			cfg->flags &= ~NAT64_LOG;
 			break;
+		case TOK_PRIVATE:
+			cfg->flags |= NAT64_ALLOW_PRIVATE;
+			break;
+		case TOK_PRIVATEOFF:
+			cfg->flags &= ~NAT64_ALLOW_PRIVATE;
+			break;
 		}
 	}
 
@@ -626,6 +634,12 @@ nat64lsn_config(const char *name, uint8_t set, int ac, char **av)
 			break;
 		case TOK_LOGOFF:
 			cfg->flags &= ~NAT64_LOG;
+			break;
+		case TOK_PRIVATE:
+			cfg->flags |= NAT64_ALLOW_PRIVATE;
+			break;
+		case TOK_PRIVATEOFF:
+			cfg->flags &= ~NAT64_ALLOW_PRIVATE;
 			break;
 		default:
 			errx(EX_USAGE, "Can't change %s option", opt);
@@ -801,6 +815,8 @@ nat64lsn_show_cb(ipfw_nat64lsn_cfg *cfg, const char *name, uint8_t set)
 		printf(" icmp_age %u", cfg->st_icmp_ttl);
 	if (cfg->flags & NAT64_LOG)
 		printf(" log");
+	if (cfg->flags & NAT64_ALLOW_PRIVATE)
+		printf(" allow_private");
 	printf("\n");
 	return (0);
 }

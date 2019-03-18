@@ -288,6 +288,8 @@ enum tokens {
 	TOK_UDP_AGE,
 	TOK_ICMP_AGE,
 	TOK_LOGOFF,
+	TOK_PRIVATE,
+	TOK_PRIVATEOFF,
 
 	/* NPTv6 tokens */
 	TOK_NPTV6,
