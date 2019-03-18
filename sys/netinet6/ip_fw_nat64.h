@@ -40,7 +40,7 @@ struct ipfw_nat64stl_stats {
 	uint64_t	noroute4;
 	uint64_t	noroute6;
 	uint64_t	noproto;	/* Protocol not supported */
-	uint64_t	nomem;		/* mbuf allocation filed */
+	uint64_t	nomem;		/* mbuf allocation failed */
 	uint64_t	dropped;	/* dropped due to some errors */
 };
 
@@ -53,7 +53,7 @@ struct ipfw_nat64lsn_stats {
 	uint64_t	noroute4;
 	uint64_t	noroute6;
 	uint64_t	noproto;	/* Protocol not supported */
-	uint64_t	nomem;		/* mbuf allocation filed */
+	uint64_t	nomem;		/* mbuf allocation failed */
 	uint64_t	dropped;	/* dropped due to some errors */
 
 	uint64_t	nomatch4;	/* No addr/port match */
@@ -79,8 +79,10 @@ struct ipfw_nat64lsn_stats {
 	uint64_t	_reserved[4];
 };
 
-#define	NAT64_LOG	0x0001		/* Enable logging via BPF */
-
+#define	NAT64_LOG		0x0001	/* Enable logging via BPF */
+#define	NAT64_ALLOW_PRIVATE	0x0002	/* Allow private IPv4 address
+					 * translation
+					 */
 typedef struct _ipfw_nat64stl_cfg {
 	char		name[64];	/* NAT name			*/
 	ipfw_obj_ntlv	ntlv6;		/* object name tlv		*/

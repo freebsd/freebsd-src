@@ -216,7 +216,7 @@ struct nat64lsn_cfg {
 	uint16_t	st_icmp_ttl;	/* ICMP expire */
 	uint32_t	protochunks[NAT_MAX_PROTO];/* Number of chunks used */
 	struct nat64_config	base;
-#define	NAT64LSN_FLAGSMASK	(NAT64_LOG)
+#define	NAT64LSN_FLAGSMASK	(NAT64_LOG | NAT64_ALLOW_PRIVATE)
 
 	struct callout		periodic;
 	struct callout		jcallout;
