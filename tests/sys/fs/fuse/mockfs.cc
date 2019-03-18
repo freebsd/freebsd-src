@@ -243,7 +243,9 @@ void debug_fuseop(const mockfs_buf_in *in)
 	printf("\n");
 }
 
-MockFS::MockFS(int max_readahead, uint32_t flags) {
+MockFS::MockFS(int max_readahead, bool push_symlinks_in,
+	bool default_permissions, uint32_t flags)
+{
 	struct iovec *iov = NULL;
 	int iovlen = 0;
 	char fdstr[15];
@@ -277,6 +279,16 @@ MockFS::MockFS(int max_readahead, uint32_t flags) {
 		    __DECONST(void *, "mountpoint"), -1);
 	build_iovec(&iov, &iovlen, "from", __DECONST(void *, "/dev/fuse"), -1);
 	build_iovec(&iov, &iovlen, "fd", fdstr, -1);
+	if (push_symlinks_in) {
+		const bool trueval = true;
+		build_iovec(&iov, &iovlen, "push_symlinks_in",
+			__DECONST(void*, &trueval), sizeof(bool));
+	}
+	if (default_permissions) {
+		const bool trueval = true;
+		build_iovec(&iov, &iovlen, "default_permissions",
+			__DECONST(void*, &trueval), sizeof(bool));
+	}
 	if (nmount(iov, iovlen, 0))
 		throw(std::system_error(errno, std::system_category(),
 			"Couldn't mount filesystem"));
