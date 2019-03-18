@@ -8,4 +8,6 @@ SRCS+=	nat64clat.c nat64clat_control.c
 SRCS+=	nat64lsn.c nat64lsn_control.c
 SRCS+=	nat64stl.c nat64stl_control.c
 
+CFLAGS+= -I${SRCTOP}/sys/contrib/ck/include
+
 .include <bsd.kmod.mk>
