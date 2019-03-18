@@ -212,7 +212,8 @@ class MockFS {
 	uint32_t m_max_write;
 
 	/* Create a new mockfs and mount it to a tempdir */
-	MockFS(int max_readahead, uint32_t flags);
+	MockFS(int max_readahead, bool push_symlinks_in,
+		bool default_permissions, uint32_t flags);
 	virtual ~MockFS();
 
 	/* Kill the filesystem daemon without unmounting the filesystem */

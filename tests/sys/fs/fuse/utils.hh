@@ -41,20 +41,24 @@ class FuseTest : public ::testing::Test {
 	protected:
 	uint32_t m_maxreadahead;
 	uint32_t m_init_flags;
+	bool m_default_permissions;
+	bool m_push_symlinks_in;
 	MockFS *m_mock = NULL;
 	const static uint64_t FH = 0xdeadbeef1a7ebabe;
 
 	public:
 	int m_maxbcachebuf;
 
-	/*
-	 * libfuse's default max_readahead is UINT_MAX, though it can be
-	 * lowered
-	 */
-	FuseTest(): FuseTest(UINT_MAX, 0) {}
-	FuseTest(uint32_t maxreadahead): m_maxreadahead(maxreadahead) {}
-	FuseTest(uint32_t maxreadahead, uint32_t init_flags):
-		m_maxreadahead(maxreadahead), m_init_flags(init_flags) {}
+	FuseTest():
+		/*
+		 * libfuse's default max_readahead is UINT_MAX, though it can
+		 * be lowered
+		 */
+		m_maxreadahead(UINT_MAX),
+		m_init_flags(0),
+		m_default_permissions(false),
+		m_push_symlinks_in(false)
+	{}
 
 	virtual void SetUp();
 

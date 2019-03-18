@@ -28,6 +28,11 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * Tests for the "default_permissions" mount option.  They must be in their own
+ * file so they can be run as an unprivileged user
+ */
+
 extern "C" {
 #include <fcntl.h>
 #include <unistd.h>
@@ -38,28 +43,28 @@ extern "C" {
 
 using namespace testing;
 
-class Access: public FuseTest {
-public:
-void expect_access(uint64_t ino, mode_t access_mode, int error)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in->header.opcode == FUSE_ACCESS &&
-				in->header.nodeid == ino &&
-				in->body.access.mask == access_mode);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnErrno(error)));
+class DefaultPermissions: public FuseTest {
+
+virtual void SetUp() {
+	if (geteuid() == 0) {
+		FAIL() << "This test requires an unprivileged user";
+	}
+	m_default_permissions = true;
+	FuseTest::SetUp();
 }
 
-void expect_lookup(const char *relpath, uint64_t ino)
+public:
+void expect_lookup(const char *relpath, uint64_t ino, mode_t mode)
 {
-	FuseTest::expect_lookup(relpath, ino, S_IFREG | 0644, 0, 1);
+	FuseTest::expect_lookup(relpath, ino, S_IFREG | mode, 0, 1);
 }
+
 };
 
-/* The error case of FUSE_ACCESS.  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236291 */
+class Access: public DefaultPermissions {};
+class Open: public DefaultPermissions {};
+
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=216391 */
 TEST_F(Access, DISABLED_eaccess)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
@@ -67,45 +72,65 @@ TEST_F(Access, DISABLED_eaccess)
 	uint64_t ino = 42;
 	mode_t	access_mode = X_OK;
 
-	expect_lookup(RELPATH, ino);
-	expect_access(ino, access_mode, EACCES);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644);
+	/* 
+	 * Once default_permissions is properly implemented, there might be
+	 * another FUSE_GETATTR or something in here.  But there should not be
+	 * a FUSE_ACCESS
+	 */
 
 	ASSERT_NE(0, access(FULLPATH, access_mode));
 	ASSERT_EQ(EACCES, errno);
 }
 
-/*
- * If the filesystem returns ENOSYS, then it is treated as a permanent success,
- * and subsequent VOP_ACCESS calls will succeed automatically without querying
- * the daemon.
- */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236557 */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236291 */
-TEST_F(Access, DISABLED_enosys)
+TEST_F(Access, ok)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 	mode_t	access_mode = R_OK;
 
-	expect_lookup(RELPATH, ino);
-	expect_access(ino, access_mode, ENOSYS);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644);
+	/* 
+	 * Once default_permissions is properly implemented, there might be
+	 * another FUSE_GETATTR or something in here.  But there should not be
+	 * a FUSE_ACCESS
+	 */
 
-	ASSERT_EQ(0, access(FULLPATH, access_mode)) << strerror(errno);
 	ASSERT_EQ(0, access(FULLPATH, access_mode)) << strerror(errno);
 }
 
-/* The successful case of FUSE_ACCESS.  */
-/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=236291 */
-TEST_F(Access, DISABLED_ok)
+TEST_F(Open, ok)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
-	mode_t	access_mode = R_OK;
+	int fd;
 
-	expect_lookup(RELPATH, ino);
-	expect_access(ino, access_mode, 0);
+	expect_lookup(RELPATH, ino, S_IFREG | 0644);
+	expect_open(ino, 0, 1);
+	/* Until the attr cache is working, we may send an additional GETATTR */
+	expect_getattr(ino, 0);
 
-	ASSERT_EQ(0, access(FULLPATH, access_mode)) << strerror(errno);
+	fd = open(FULLPATH, O_RDONLY);
+	EXPECT_LE(0, fd) << strerror(errno);
+	/* Deliberately leak fd.  close(2) will be tested in release.cc */
+}
+
+/* https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=216391 */
+TEST_F(Open, DISABLED_eperm)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+
+	expect_lookup(RELPATH, ino, S_IFREG | 0644);
+	/* 
+	 * Once default_permissions is properly implemented, there might be
+	 * another FUSE_GETATTR or something in here.  But there should not be
+	 * a FUSE_ACCESS
+	 */
+
+	EXPECT_NE(0, open(FULLPATH, O_RDWR));
+	EXPECT_EQ(EPERM, errno);
 }
